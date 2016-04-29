@@ -1212,6 +1212,9 @@ static long nvme_dev_ioctl(struct file *file, unsigned int cmd,
 		return ctrl->ops->reset_ctrl(ctrl);
 	case NVME_IOCTL_SUBSYS_RESET:
 		return nvme_reset_subsystem(ctrl);
+	case NVME_IOCTL_RESCAN:
+		nvme_queue_scan(ctrl);
+		return 0;
 	default:
 		return -ENOTTY;
 	}
@@ -1238,6 +1241,17 @@ static ssize_t nvme_sysfs_reset(struct device *dev,
 	return count;
 }
 static DEVICE_ATTR(reset_controller, S_IWUSR, NULL, nvme_sysfs_reset);
+
+static ssize_t nvme_sysfs_rescan(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+
+	nvme_queue_scan(ctrl);
+	return count;
+}
+static DEVICE_ATTR(rescan_controller, S_IWUSR, NULL, nvme_sysfs_rescan);
 
 static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
@@ -1342,6 +1356,7 @@ nvme_show_int_function(cntlid);
 
 static struct attribute *nvme_dev_attrs[] = {
 	&dev_attr_reset_controller.attr,
+	&dev_attr_rescan_controller.attr,
 	&dev_attr_model.attr,
 	&dev_attr_serial.attr,
 	&dev_attr_firmware_rev.attr,
