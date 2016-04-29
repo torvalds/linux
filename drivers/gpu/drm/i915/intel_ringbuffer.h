@@ -483,10 +483,10 @@ static inline u32 intel_ring_get_tail(struct intel_ringbuffer *ringbuf)
 /*
  * Arbitrary size for largest possible 'add request' sequence. The code paths
  * are complex and variable. Empirical measurement shows that the worst case
- * is ILK at 136 words. Reserving too much is better than reserving too little
- * as that allows for corner cases that might have been missed. So the figure
- * has been rounded up to 160 words.
+ * is BDW at 192 bytes (6 + 6 + 36 dwords), then ILK at 136 bytes. However,
+ * we need to allocate double the largest single packet within that emission
+ * to account for tail wraparound (so 6 + 6 + 72 dwords for BDW).
  */
-#define MIN_SPACE_FOR_ADD_REQUEST	160
+#define MIN_SPACE_FOR_ADD_REQUEST 336
 
 #endif /* _INTEL_RINGBUFFER_H_ */
