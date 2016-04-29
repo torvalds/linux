@@ -48,9 +48,6 @@ struct gb_interface {
 };
 #define to_gb_interface(d) container_of(d, struct gb_interface, dev)
 
-struct gb_interface *gb_interface_find(struct gb_host_device *hd,
-				       u8 interface_id);
-
 struct gb_interface *gb_interface_create(struct gb_module *module,
 					 u8 interface_id);
 int gb_interface_activate(struct gb_interface *intf);
