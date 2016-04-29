@@ -1767,11 +1767,6 @@ static void bxt_a_set_seqno(struct intel_engine_cs *engine, u32 seqno)
  */
 #define WA_TAIL_DWORDS 2
 
-static inline u32 hws_seqno_address(struct intel_engine_cs *engine)
-{
-	return engine->status_page.gfx_addr + I915_GEM_HWS_INDEX_ADDR;
-}
-
 static int gen8_emit_request(struct drm_i915_gem_request *request)
 {
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
@@ -1787,7 +1782,7 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 	intel_logical_ring_emit(ringbuf,
 				(MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW);
 	intel_logical_ring_emit(ringbuf,
-				hws_seqno_address(request->engine) |
+				intel_hws_seqno_address(request->engine) |
 				MI_FLUSH_DW_USE_GTT);
 	intel_logical_ring_emit(ringbuf, 0);
 	intel_logical_ring_emit(ringbuf, i915_gem_request_get_seqno(request));
@@ -1817,7 +1812,8 @@ static int gen8_emit_request_render(struct drm_i915_gem_request *request)
 				(PIPE_CONTROL_GLOBAL_GTT_IVB |
 				 PIPE_CONTROL_CS_STALL |
 				 PIPE_CONTROL_QW_WRITE));
-	intel_logical_ring_emit(ringbuf, hws_seqno_address(request->engine));
+	intel_logical_ring_emit(ringbuf,
+				intel_hws_seqno_address(request->engine));
 	intel_logical_ring_emit(ringbuf, 0);
 	intel_logical_ring_emit(ringbuf, i915_gem_request_get_seqno(request));
 	/* We're thrashing one dword of HWS. */

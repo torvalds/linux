@@ -489,4 +489,9 @@ static inline u32 intel_ring_get_tail(struct intel_ringbuffer *ringbuf)
  */
 #define MIN_SPACE_FOR_ADD_REQUEST 336
 
+static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
+{
+	return engine->status_page.gfx_addr + I915_GEM_HWS_INDEX_ADDR;
+}
+
 #endif /* _INTEL_RINGBUFFER_H_ */

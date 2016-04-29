@@ -1430,6 +1430,35 @@ gen6_add_request(struct drm_i915_gem_request *req)
 	return 0;
 }
 
+static int
+gen8_render_add_request(struct drm_i915_gem_request *req)
+{
+	struct intel_engine_cs *engine = req->engine;
+	int ret;
+
+	if (engine->semaphore.signal)
+		ret = engine->semaphore.signal(req, 8);
+	else
+		ret = intel_ring_begin(req, 8);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(engine, GFX_OP_PIPE_CONTROL(6));
+	intel_ring_emit(engine, (PIPE_CONTROL_GLOBAL_GTT_IVB |
+				 PIPE_CONTROL_CS_STALL |
+				 PIPE_CONTROL_QW_WRITE));
+	intel_ring_emit(engine, intel_hws_seqno_address(req->engine));
+	intel_ring_emit(engine, 0);
+	intel_ring_emit(engine, i915_gem_request_get_seqno(req));
+	/* We're thrashing one dword of HWS. */
+	intel_ring_emit(engine, 0);
+	intel_ring_emit(engine, MI_USER_INTERRUPT);
+	intel_ring_emit(engine, MI_NOOP);
+	__intel_ring_advance(engine);
+
+	return 0;
+}
+
 static inline bool i915_gem_has_seqno_wrapped(struct drm_device *dev,
 					      u32 seqno)
 {
@@ -2751,12 +2780,11 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		}
 
 		engine->init_context = intel_rcs_ctx_init;
-		engine->add_request = gen6_add_request;
+		engine->add_request = gen8_render_add_request;
 		engine->flush = gen8_render_ring_flush;
 		engine->irq_get = gen8_ring_get_irq;
 		engine->irq_put = gen8_ring_put_irq;
 		engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
-		engine->irq_seqno_barrier = gen6_seqno_barrier;
 		engine->get_seqno = ring_get_seqno;
 		engine->set_seqno = ring_set_seqno;
 		if (i915_semaphore_is_enabled(dev)) {
