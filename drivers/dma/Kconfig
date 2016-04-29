@@ -332,7 +332,7 @@ config MPC512X_DMA
 
 config MV_XOR
 	bool "Marvell XOR engine support"
-	depends on PLAT_ORION
+	depends on PLAT_ORION || ARCH_MVEBU || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_ENGINE_RAID
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
