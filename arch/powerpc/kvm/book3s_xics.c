@@ -280,7 +280,7 @@ static inline bool icp_try_update(struct kvmppc_icp *icp,
 	if (!success)
 		goto bail;
 
-	XICS_DBG("UPD [%04x] - C:%02x M:%02x PP: %02x PI:%06x R:%d O:%d\n",
+	XICS_DBG("UPD [%04lx] - C:%02x M:%02x PP: %02x PI:%06x R:%d O:%d\n",
 		 icp->server_num,
 		 old.cppr, old.mfrr, old.pending_pri, old.xisr,
 		 old.need_resend, old.out_ee);
@@ -336,7 +336,7 @@ static bool icp_try_to_deliver(struct kvmppc_icp *icp, u32 irq, u8 priority,
 	union kvmppc_icp_state old_state, new_state;
 	bool success;
 
-	XICS_DBG("try deliver %#x(P:%#x) to server %#x\n", irq, priority,
+	XICS_DBG("try deliver %#x(P:%#x) to server %#lx\n", irq, priority,
 		 icp->server_num);
 
 	do {
