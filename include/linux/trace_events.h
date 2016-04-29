@@ -154,10 +154,6 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_buffer,
 				struct trace_event_file *trace_file,
 				int type, unsigned long len,
 				unsigned long flags, int pc);
-struct ring_buffer_event *
-trace_current_buffer_lock_reserve(struct ring_buffer **current_buffer,
-				  int type, unsigned long len,
-				  unsigned long flags, int pc);
 
 void tracing_record_cmdline(struct task_struct *tsk);
 
