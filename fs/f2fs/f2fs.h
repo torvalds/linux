@@ -40,6 +40,7 @@
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 enum {
 	FAULT_KMALLOC,
+	FAULT_PAGE_ALLOC,
 	FAULT_MAX,
 };
 
@@ -1296,6 +1297,14 @@ static inline unsigned int valid_inode_count(struct f2fs_sb_info *sbi)
 static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
 						pgoff_t index, bool for_write)
 {
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	struct page *page = find_lock_page(mapping, index);
+	if (page)
+		return page;
+
+	if (time_to_inject(FAULT_PAGE_ALLOC))
+		return NULL;
+#endif
 	if (!for_write)
 		return grab_cache_page(mapping, index);
 	return grab_cache_page_write_begin(mapping, index, AOP_FLAG_NOFS);
