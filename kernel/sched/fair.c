@@ -7027,9 +7027,8 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 	 * We're trying to get all the cpus to the average_load, so we don't
 	 * want to push ourselves above the average load, nor do we wish to
 	 * reduce the max loaded cpu below the average load. At the same time,
-	 * we also don't want to reduce the group load below the group capacity
-	 * (so that we can implement power-savings policies etc). Thus we look
-	 * for the minimum possible imbalance.
+	 * we also don't want to reduce the group load below the group
+	 * capacity. Thus we look for the minimum possible imbalance.
 	 */
 	max_pull = min(busiest->avg_load - sds->avg_load, load_above_capacity);
 
@@ -7053,10 +7052,7 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
 
 /**
  * find_busiest_group - Returns the busiest group within the sched_domain
- * if there is an imbalance. If there isn't an imbalance, and
- * the user has opted for power-savings, it returns a group whose
- * CPUs can be put to idle by rebalancing those tasks elsewhere, if
- * such a group exists.
+ * if there is an imbalance.
  *
  * Also calculates the amount of weighted load which should be moved
  * to restore balance.
@@ -7064,9 +7060,6 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
  * @env: The load balancing environment.
  *
  * Return:	- The busiest group if imbalance exists.
- *		- If no imbalance and user has opted for power-savings balance,
- *		   return the least loaded group whose CPUs can be
- *		   put to idle by rebalancing its tasks onto our group.
  */
 static struct sched_group *find_busiest_group(struct lb_env *env)
 {
