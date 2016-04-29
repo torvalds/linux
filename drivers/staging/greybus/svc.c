@@ -465,8 +465,8 @@ static int gb_svc_version_request(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
 	struct gb_svc *svc = gb_connection_get_data(connection);
-	struct gb_protocol_version_request *request;
-	struct gb_protocol_version_response *response;
+	struct gb_svc_version_request *request;
+	struct gb_svc_version_response *response;
 
 	if (op->request->payload_size < sizeof(*request)) {
 		dev_err(&svc->dev, "short version request (%zu < %zu)\n",
@@ -1192,7 +1192,7 @@ static int gb_svc_request_handler(struct gb_operation *op)
 	 * need to protect 'state' for any races.
 	 */
 	switch (type) {
-	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
+	case GB_SVC_TYPE_PROTOCOL_VERSION:
 		if (svc->state != GB_SVC_STATE_RESET)
 			ret = -EINVAL;
 		break;
@@ -1213,7 +1213,7 @@ static int gb_svc_request_handler(struct gb_operation *op)
 	}
 
 	switch (type) {
-	case GB_REQUEST_TYPE_PROTOCOL_VERSION:
+	case GB_SVC_TYPE_PROTOCOL_VERSION:
 		ret = gb_svc_version_request(op);
 		if (!ret)
 			svc->state = GB_SVC_STATE_PROTOCOL_VERSION;

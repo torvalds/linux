@@ -781,6 +781,7 @@ struct gb_spi_transfer_response {
 #define GB_SVC_VERSION_MINOR		0x01
 
 /* Greybus SVC request types */
+#define GB_SVC_TYPE_PROTOCOL_VERSION		0x01
 #define GB_SVC_TYPE_SVC_HELLO			0x02
 #define GB_SVC_TYPE_INTF_DEVICE_ID		0x03
 #define GB_SVC_TYPE_INTF_HOTPLUG		0x04
@@ -808,10 +809,15 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_INTF_ACTIVATE		0x27
 #define GB_SVC_TYPE_INTF_MAILBOX_EVENT		0x29
 
-/*
- * SVC version request/response has the same payload as
- * gb_protocol_version_request/response.
- */
+struct gb_svc_version_request {
+	__u8	major;
+	__u8	minor;
+} __packed;
+
+struct gb_svc_version_response {
+	__u8	major;
+	__u8	minor;
+} __packed;
 
 /* SVC protocol hello request */
 struct gb_svc_hello_request {
