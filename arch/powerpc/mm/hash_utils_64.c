@@ -676,6 +676,41 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
+static void __init hash_init_partition_table(phys_addr_t hash_table,
+					     unsigned long pteg_count)
+{
+	unsigned long ps_field;
+	unsigned long htab_size;
+	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
+
+	/*
+	 * slb llp encoding for the page size used in VPM real mode.
+	 * We can ignore that for lpid 0
+	 */
+	ps_field = 0;
+	htab_size =  __ilog2(pteg_count) - 11;
+
+	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 24), "Partition table size too large.");
+	partition_tb = __va(memblock_alloc_base(patb_size, patb_size,
+						MEMBLOCK_ALLOC_ANYWHERE));
+
+	/* Initialize the Partition Table with no entries */
+	memset((void *)partition_tb, 0, patb_size);
+	partition_tb->patb0 = cpu_to_be64(ps_field | hash_table | htab_size);
+	/*
+	 * FIXME!! This should be done via update_partition table
+	 * For now UPRT is 0 for us.
+	 */
+	partition_tb->patb1 = 0;
+	DBG("Partition table %p\n", partition_tb);
+	/*
+	 * update partition table control register,
+	 * 64 K size.
+	 */
+	mtspr(SPRN_PTCR, __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+
+}
+
 static void __init htab_initialize(void)
 {
 	unsigned long table;
@@ -744,8 +779,11 @@ static void __init htab_initialize(void)
 		/* Initialize the HPT with no entries */
 		memset((void *)table, 0, htab_size_bytes);
 
-		/* Set SDR1 */
-		mtspr(SPRN_SDR1, _SDR1);
+		if (!cpu_has_feature(CPU_FTR_ARCH_300))
+			/* Set SDR1 */
+			mtspr(SPRN_SDR1, _SDR1);
+		else
+			hash_init_partition_table(table, pteg_count);
 	}
 
 	prot = pgprot_val(PAGE_KERNEL);

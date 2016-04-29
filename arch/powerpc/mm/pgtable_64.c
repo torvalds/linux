@@ -69,6 +69,13 @@
 #endif
 #endif
 
+#ifdef CONFIG_PPC_BOOK3S_64
+/*
+ * partition table and process table for ISA 3.0
+ */
+struct prtb_entry *process_tb;
+struct patb_entry *partition_tb;
+#endif
 unsigned long ioremap_bot = IOREMAP_BASE;
 
 #ifdef CONFIG_PPC_MMU_NOHASH
