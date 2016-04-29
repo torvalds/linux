@@ -191,6 +191,21 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
+static int tegra_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
+	u32 pin_mask = BIT(GPIO_BIT(offset));
+	u32 cnf, oe;
+
+	cnf = tegra_gpio_readl(tgi, GPIO_CNF(tgi, offset));
+	if (!(cnf & pin_mask))
+		return -EINVAL;
+
+	oe = tegra_gpio_readl(tgi, GPIO_OE(tgi, offset));
+
+	return (oe & pin_mask) ? GPIOF_DIR_OUT : GPIOF_DIR_IN;
+}
+
 static int tegra_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
 				   unsigned int debounce)
 {
@@ -575,6 +590,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	tgi->gc.get			= tegra_gpio_get;
 	tgi->gc.direction_output	= tegra_gpio_direction_output;
 	tgi->gc.set			= tegra_gpio_set;
+	tgi->gc.get_direction		= tegra_gpio_get_direction;
 	tgi->gc.to_irq			= tegra_gpio_to_irq;
 	tgi->gc.base			= 0;
 	tgi->gc.ngpio			= tgi->bank_count * 32;
