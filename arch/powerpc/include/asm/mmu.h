@@ -204,6 +204,9 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 #  include <asm/mmu-8xx.h>
 #endif
 
+#ifndef radix_enabled
+#define radix_enabled() (0)
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_MMU_H_ */

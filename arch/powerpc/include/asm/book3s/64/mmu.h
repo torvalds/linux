@@ -19,6 +19,8 @@ struct mmu_psize_def {
 	unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+
+#define radix_enabled() (0)
 #endif /* __ASSEMBLY__ */
 
 /* 64-bit classic hash table MMU */

@@ -331,6 +331,15 @@ config PPC_STD_MMU_64
 	def_bool y
 	depends on PPC_STD_MMU && PPC64
 
+config PPC_RADIX_MMU
+	bool "Radix MMU Support"
+	depends on PPC_BOOK3S_64
+	default y
+	help
+	  Enable support for the Power ISA 3.0 Radix style MMU. Currently this
+	  is only implemented by IBM Power9 CPUs, if you don't have one of them
+	  you can probably disable this.
+
 config PPC_MMU_NOHASH
 	def_bool y
 	depends on !PPC_STD_MMU
