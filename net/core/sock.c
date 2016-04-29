@@ -2048,6 +2048,13 @@ static void __release_sock(struct sock *sk)
 	sk->sk_backlog.len = 0;
 }
 
+void __sk_flush_backlog(struct sock *sk)
+{
+	spin_lock_bh(&sk->sk_lock.slock);
+	__release_sock(sk);
+	spin_unlock_bh(&sk->sk_lock.slock);
+}
+
 /**
  * sk_wait_data - wait for data to arrive at sk_receive_queue
  * @sk:    sock to wait on

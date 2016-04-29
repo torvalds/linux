@@ -1136,10 +1136,11 @@ int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	/* This should be in poll */
 	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
-	mss_now = tcp_send_mss(sk, &size_goal, flags);
-
 	/* Ok commence sending. */
 	copied = 0;
+
+restart:
+	mss_now = tcp_send_mss(sk, &size_goal, flags);
 
 	err = -EPIPE;
 	if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
@@ -1165,6 +1166,9 @@ new_segment:
 			 */
 			if (!sk_stream_memory_free(sk))
 				goto wait_for_sndbuf;
+
+			if (sk_flush_backlog(sk))
+				goto restart;
 
 			skb = sk_stream_alloc_skb(sk,
 						  select_size(sk, sg),
