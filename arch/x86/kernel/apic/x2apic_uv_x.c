@@ -756,8 +756,8 @@ static __init void uv_rtc_init(void)
  */
 static void uv_heartbeat(unsigned long ignored)
 {
-	struct timer_list *timer = &uv_hub_info->scir.timer;
-	unsigned char bits = uv_hub_info->scir.state;
+	struct timer_list *timer = &uv_scir_info->timer;
+	unsigned char bits = uv_scir_info->state;
 
 	/* flip heartbeat bit */
 	bits ^= SCIR_CPU_HEARTBEAT;
@@ -777,14 +777,14 @@ static void uv_heartbeat(unsigned long ignored)
 
 static void uv_heartbeat_enable(int cpu)
 {
-	while (!uv_cpu_hub_info(cpu)->scir.enabled) {
-		struct timer_list *timer = &uv_cpu_hub_info(cpu)->scir.timer;
+	while (!uv_cpu_scir_info(cpu)->enabled) {
+		struct timer_list *timer = &uv_cpu_scir_info(cpu)->timer;
 
 		uv_set_cpu_scir_bits(cpu, SCIR_CPU_HEARTBEAT|SCIR_CPU_ACTIVITY);
 		setup_timer(timer, uv_heartbeat, cpu);
 		timer->expires = jiffies + SCIR_CPU_HB_INTERVAL;
 		add_timer_on(timer, cpu);
-		uv_cpu_hub_info(cpu)->scir.enabled = 1;
+		uv_cpu_scir_info(cpu)->enabled = 1;
 
 		/* also ensure that boot cpu is enabled */
 		cpu = 0;
@@ -794,9 +794,9 @@ static void uv_heartbeat_enable(int cpu)
 #ifdef CONFIG_HOTPLUG_CPU
 static void uv_heartbeat_disable(int cpu)
 {
-	if (uv_cpu_hub_info(cpu)->scir.enabled) {
-		uv_cpu_hub_info(cpu)->scir.enabled = 0;
-		del_timer(&uv_cpu_hub_info(cpu)->scir.timer);
+	if (uv_cpu_scir_info(cpu)->enabled) {
+		uv_cpu_scir_info(cpu)->enabled = 0;
+		del_timer(&uv_cpu_scir_info(cpu)->timer);
 	}
 	uv_set_cpu_scir_bits(cpu, 0xff);
 }
@@ -1055,13 +1055,13 @@ void __init uv_system_init(void)
 
 		uv_cpu_hub_info(cpu)->numa_blade_id = blade;
 		uv_cpu_hub_info(cpu)->pnode = pnode;
-		uv_cpu_hub_info(cpu)->scir.offset = uv_scir_offset(apicid);
 		uv_cpu_hub_info(cpu)->blade_processor_id = lcpu;
 		uv_node_to_blade[nodeid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 
 		/* Initialize per cpu info list */
 		uv_cpu_info_per(cpu)->p_uv_hub_info = uv_cpu_hub_info(cpu);
+		uv_cpu_info_per(cpu)->scir.offset = uv_scir_offset(apicid);
 	}
 
 	/* Add blade/pnode info for nodes without cpus */

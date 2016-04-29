@@ -127,6 +127,7 @@
  */
 #define UV_MAX_NASID_VALUE	(UV_MAX_NUMALINK_BLADES * 2)
 
+/* System Controller Interface Reg info */
 struct uv_scir_s {
 	struct timer_list timer;
 	unsigned long	offset;
@@ -161,7 +162,6 @@ struct uv_hub_info_s {
 	unsigned char		blade_processor_id;
 	unsigned char		m_val;
 	unsigned char		n_val;
-	struct uv_scir_s	scir;
 };
 
 DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
@@ -178,6 +178,9 @@ DECLARE_PER_CPU(struct uv_cpu_info_s, __uv_cpu_info);
 
 #define uv_cpu_info		this_cpu_ptr(&__uv_cpu_info)
 #define uv_cpu_info_per(cpu)	(&per_cpu(__uv_cpu_info, cpu))
+
+#define	uv_scir_info		(&uv_cpu_info->scir)
+#define	uv_cpu_scir_info(cpu)	(&uv_cpu_info_per(cpu)->scir)
 
 /*
  * HUB revision ranges for each UV HUB architecture.
@@ -686,9 +689,9 @@ DECLARE_PER_CPU(struct uv_cpu_nmi_s, uv_cpu_nmi);
 /* Update SCIR state */
 static inline void uv_set_scir_bits(unsigned char value)
 {
-	if (uv_hub_info->scir.state != value) {
-		uv_hub_info->scir.state = value;
-		uv_write_local_mmr8(uv_hub_info->scir.offset, value);
+	if (uv_scir_info->state != value) {
+		uv_scir_info->state = value;
+		uv_write_local_mmr8(uv_scir_info->offset, value);
 	}
 }
 
@@ -699,10 +702,10 @@ static inline unsigned long uv_scir_offset(int apicid)
 
 static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 {
-	if (uv_cpu_hub_info(cpu)->scir.state != value) {
+	if (uv_cpu_scir_info(cpu)->state != value) {
 		uv_write_global_mmr8(uv_cpu_to_pnode(cpu),
-				uv_cpu_hub_info(cpu)->scir.offset, value);
-		uv_cpu_hub_info(cpu)->scir.state = value;
+				uv_cpu_scir_info(cpu)->offset, value);
+		uv_cpu_scir_info(cpu)->state = value;
 	}
 }
 
