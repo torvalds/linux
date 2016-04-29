@@ -23,7 +23,8 @@ struct mmu_psize_def {
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
-#define radix_enabled() (0)
+#define radix_enabled() mmu_has_feature(MMU_FTR_RADIX)
+
 #endif /* __ASSEMBLY__ */
 
 /* 64-bit classic hash table MMU */
