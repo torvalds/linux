@@ -24,6 +24,21 @@ int gb_hd_output(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
 }
 EXPORT_SYMBOL_GPL(gb_hd_output);
 
+static ssize_t bus_id_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct gb_host_device *hd = to_gb_host_device(dev);
+
+	return sprintf(buf, "%d\n", hd->bus_id);
+}
+static DEVICE_ATTR_RO(bus_id);
+
+static struct attribute *bus_attrs[] = {
+	&dev_attr_bus_id.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(bus);
+
 static void gb_hd_release(struct device *dev)
 {
 	struct gb_host_device *hd = to_gb_host_device(dev);
@@ -98,6 +113,7 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	hd->dev.parent = parent;
 	hd->dev.bus = &greybus_bus_type;
 	hd->dev.type = &greybus_hd_type;
+	hd->dev.groups = bus_groups;
 	hd->dev.dma_mask = hd->dev.parent->dma_mask;
 	device_initialize(&hd->dev);
 	dev_set_name(&hd->dev, "greybus%d", hd->bus_id);
