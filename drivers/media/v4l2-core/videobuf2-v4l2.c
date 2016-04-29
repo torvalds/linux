@@ -74,6 +74,11 @@ static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer
 	return 0;
 }
 
+static int __verify_planes_array_core(struct vb2_buffer *vb, const void *pb)
+{
+	return __verify_planes_array(vb, pb);
+}
+
 /**
  * __verify_length() - Verify that the bytesused value for each plane fits in
  * the plane length and that the data offset doesn't exceed the bytesused value.
@@ -437,6 +442,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 }
 
 static const struct vb2_buf_ops v4l2_buf_ops = {
+	.verify_planes_array	= __verify_planes_array_core,
 	.fill_user_buffer	= __fill_v4l2_buffer,
 	.fill_vb2_buffer	= __fill_vb2_buffer,
 	.copy_timestamp		= __copy_timestamp,
@@ -765,6 +771,12 @@ int vb2_queue_init(struct vb2_queue *q)
 	q->is_output = V4L2_TYPE_IS_OUTPUT(q->type);
 	q->copy_timestamp = (q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK)
 			== V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	/*
+	 * For compatibility with vb1: if QBUF hasn't been called yet, then
+	 * return POLLERR as well. This only affects capture queues, output
+	 * queues will always initialize waiting_for_buffers to false.
+	 */
+	q->quirk_poll_must_check_waiting_for_buffers = true;
 
 	return vb2_core_queue_init(q);
 }
@@ -817,14 +829,6 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 		else if (req_events & POLLPRI)
 			poll_wait(file, &fh->wait, wait);
 	}
-
-	/*
-	 * For compatibility with vb1: if QBUF hasn't been called yet, then
-	 * return POLLERR as well. This only affects capture queues, output
-	 * queues will always initialize waiting_for_buffers to false.
-	 */
-	if (q->waiting_for_buffers && (req_events & (POLLIN | POLLRDNORM)))
-		return POLLERR;
 
 	return res | vb2_core_poll(q, file, wait);
 }
