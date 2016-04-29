@@ -719,14 +719,14 @@ unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
 {
 #ifdef CONFIG_PPC_MM_SLICES
 	unsigned int psize = get_slice_psize(vma->vm_mm, vma->vm_start);
-
-	return 1UL << mmu_psize_to_shift(psize);
-#else
+	/* With radix we don't use slice, so derive it from vma*/
+	if (!radix_enabled())
+		return 1UL << mmu_psize_to_shift(psize);
+#endif
 	if (!is_vm_hugetlb_page(vma))
 		return PAGE_SIZE;
 
 	return huge_page_size(hstate_vma(vma));
-#endif
 }
 
 static inline bool is_power_of_4(unsigned long x)
