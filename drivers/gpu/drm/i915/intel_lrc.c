@@ -228,6 +228,9 @@ enum {
 #define GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x17
 #define GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x26
 
+/* Typical size of the average request (2 pipecontrols and a MI_BB) */
+#define EXECLISTS_REQUEST_SIZE 64 /* bytes */
+
 static int execlists_context_deferred_alloc(struct intel_context *ctx,
 					    struct intel_engine_cs *engine);
 static int intel_lr_context_pin(struct intel_context *ctx,
@@ -681,7 +684,7 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	 * we start building the request - in which case we will just
 	 * have to repeat work.
 	 */
-	request->reserved_space += MIN_SPACE_FOR_ADD_REQUEST;
+	request->reserved_space += EXECLISTS_REQUEST_SIZE;
 
 	if (request->ctx->engine[engine->id].state == NULL) {
 		ret = execlists_context_deferred_alloc(request->ctx, engine);
@@ -727,7 +730,7 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	 * to cancel/unwind this request now.
 	 */
 
-	request->reserved_space -= MIN_SPACE_FOR_ADD_REQUEST;
+	request->reserved_space -= EXECLISTS_REQUEST_SIZE;
 	return 0;
 
 err_unpin:
