@@ -54,41 +54,6 @@ static inline int hugepd_ok(hugepd_t hpd)
 #endif /* CONFIG_HUGETLB_PAGE */
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-static inline int pmd_large(pmd_t pmd)
-{
-	return !!(pmd_val(pmd) & _PAGE_PTE);
-}
-
-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
-{
-	return __pmd(pmd_val(pmd) & ~_PAGE_PRESENT);
-}
-/*
- * For radix we should always find H_PAGE_HASHPTE zero. Hence
- * the below will work for radix too
- */
-static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
-					      unsigned long addr, pmd_t *pmdp)
-{
-	unsigned long old;
-
-	if ((pmd_val(*pmdp) & (_PAGE_ACCESSED | H_PAGE_HASHPTE)) == 0)
-		return 0;
-	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED, 0);
-	return ((old & _PAGE_ACCESSED) != 0);
-}
-
-#define __HAVE_ARCH_PMDP_SET_WRPROTECT
-static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
-				      pmd_t *pmdp)
-{
-
-	if ((pmd_val(*pmdp) & _PAGE_WRITE) == 0)
-		return;
-
-	pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);
-}
-
 static inline int pmd_trans_huge(pmd_t pmd)
 {
 	if (radix_enabled())
@@ -103,6 +68,12 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
 		return radix__pmd_same(pmd_a, pmd_b);
 	return hash__pmd_same(pmd_a, pmd_b);
 }
+
+static inline pmd_t pmd_mkhuge(pmd_t pmd)
+{
+	return hash__pmd_mkhuge(pmd);
+}
+
 #endif /*  CONFIG_TRANSPARENT_HUGEPAGE */
 
 static inline int remap_4k_pfn(struct vm_area_struct *vma, unsigned long addr,
@@ -111,7 +82,6 @@ static inline int remap_4k_pfn(struct vm_area_struct *vma, unsigned long addr,
 	if (radix_enabled())
 		BUG();
 	return hash__remap_4k_pfn(vma, addr, pfn, prot);
-
 }
 #endif	/* __ASSEMBLY__ */
 #endif /*_ASM_POWERPC_BOOK3S_64_PGTABLE_64K_H */
