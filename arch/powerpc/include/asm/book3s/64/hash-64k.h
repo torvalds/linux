@@ -291,10 +291,10 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pmd_t *pmdp)
 {
 
-	if ((pmd_val(*pmdp) & _PAGE_RW) == 0)
+	if ((pmd_val(*pmdp) & _PAGE_WRITE) == 0)
 		return;
 
-	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW, 0);
+	pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);
 }
 
 #endif /*  CONFIG_TRANSPARENT_HUGEPAGE */

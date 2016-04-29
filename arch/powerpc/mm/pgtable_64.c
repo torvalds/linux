@@ -277,7 +277,7 @@ void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
 	void *caller = __builtin_return_address(0);
 
 	/* writeable implies dirty for kernel addresses */
-	if (flags & _PAGE_RW)
+	if (flags & _PAGE_WRITE)
 		flags |= _PAGE_DIRTY;
 
 	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
@@ -676,8 +676,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		pmd_t *pmdp, pmd_t pmd)
 {
 #ifdef CONFIG_DEBUG_VM
-	WARN_ON((pmd_val(*pmdp) & (_PAGE_PRESENT | _PAGE_USER)) ==
-		(_PAGE_PRESENT | _PAGE_USER));
+	WARN_ON(pte_present(pmd_pte(*pmdp)) && !pte_protnone(pmd_pte(*pmdp)));
 	assert_spin_locked(&mm->page_table_lock);
 	WARN_ON(!pmd_trans_huge(pmd));
 #endif

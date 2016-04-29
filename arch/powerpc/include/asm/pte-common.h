@@ -198,3 +198,8 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 /* Advertise support for _PAGE_SPECIAL */
 #define __HAVE_ARCH_PTE_SPECIAL
 
+#ifndef _PAGE_READ
+/* if not defined, we should not find _PAGE_WRITE too */
+#define _PAGE_READ 0
+#define _PAGE_WRITE _PAGE_RW
+#endif

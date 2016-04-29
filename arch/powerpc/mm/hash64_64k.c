@@ -77,7 +77,7 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 		 * also add _PAGE_COMBO
 		 */
 		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED | _PAGE_COMBO;
-		if (access & _PAGE_RW)
+		if (access & _PAGE_WRITE)
 			new_pte |= _PAGE_DIRTY;
 	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
 
@@ -251,7 +251,7 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 		 * a write access.
 		 */
 		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED;
-		if (access & _PAGE_RW)
+		if (access & _PAGE_WRITE)
 			new_pte |= _PAGE_DIRTY;
 	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
 

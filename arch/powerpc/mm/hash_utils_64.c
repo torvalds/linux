@@ -175,8 +175,9 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 	 * or PP=0x3 for read-only (including writeable but clean pages).
 	 */
 	if (pteflags & _PAGE_USER) {
-		rflags |= 0x2;
-		if (!((pteflags & _PAGE_RW) && (pteflags & _PAGE_DIRTY)))
+		if (pteflags & _PAGE_RWX)
+			rflags |= 0x2;
+		if (!((pteflags & _PAGE_WRITE) && (pteflags & _PAGE_DIRTY)))
 			rflags |= 0x1;
 	}
 	/*
@@ -1209,7 +1210,7 @@ EXPORT_SYMBOL_GPL(hash_page);
 int __hash_page(unsigned long ea, unsigned long msr, unsigned long trap,
 		unsigned long dsisr)
 {
-	unsigned long access = _PAGE_PRESENT;
+	unsigned long access = _PAGE_PRESENT | _PAGE_READ;
 	unsigned long flags = 0;
 	struct mm_struct *mm = current->mm;
 
@@ -1220,7 +1221,7 @@ int __hash_page(unsigned long ea, unsigned long msr, unsigned long trap,
 		flags |= HPTE_NOHPTE_UPDATE;
 
 	if (dsisr & DSISR_ISSTORE)
-		access |= _PAGE_RW;
+		access |= _PAGE_WRITE;
 	/*
 	 * We need to set the _PAGE_USER bit if MSR_PR is set or if we are
 	 * accessing a userspace segment (even from the kernel). We assume

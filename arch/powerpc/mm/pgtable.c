@@ -177,8 +177,8 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	 * _PAGE_PRESENT, but we can be sure that it is not in hpte.
 	 * Hence we can use set_pte_at for them.
 	 */
-	VM_WARN_ON((pte_val(*ptep) & (_PAGE_PRESENT | _PAGE_USER)) ==
-		(_PAGE_PRESENT | _PAGE_USER));
+	VM_WARN_ON(pte_present(*ptep) && !pte_protnone(*ptep));
+
 	/*
 	 * Add the pte bit when tryint set a pte
 	 */
