@@ -94,7 +94,8 @@ static inline void CS_UNLOCK(void __iomem *addr)
 void coresight_disable_path(struct list_head *path);
 int coresight_enable_path(struct list_head *path, u32 mode);
 struct coresight_device *coresight_get_sink(struct list_head *path);
-struct list_head *coresight_build_path(struct coresight_device *csdev);
+struct list_head *coresight_build_path(struct coresight_device *csdev,
+				       const char *sink);
 void coresight_release_path(struct list_head *path);
 
 #ifdef CONFIG_CORESIGHT_SOURCE_ETM3X
