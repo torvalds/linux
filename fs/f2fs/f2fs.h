@@ -41,6 +41,10 @@
 enum {
 	FAULT_KMALLOC,
 	FAULT_PAGE_ALLOC,
+	FAULT_ALLOC_NID,
+	FAULT_ORPHAN,
+	FAULT_BLOCK,
+	FAULT_DIR_DEPTH,
 	FAULT_MAX,
 };
 
@@ -1087,6 +1091,12 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 	block_t	valid_block_count;
 
 	spin_lock(&sbi->stat_lock);
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	if (time_to_inject(FAULT_BLOCK)) {
+		spin_unlock(&sbi->stat_lock);
+		return false;
+	}
+#endif
 	valid_block_count =
 		sbi->total_valid_block_count + (block_t)count;
 	if (unlikely(valid_block_count > sbi->user_block_count)) {
