@@ -897,6 +897,30 @@ static ssize_t serial_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(serial);
 
+static ssize_t family_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+
+	if (nfit_mem->family < 0)
+		return -ENXIO;
+	return sprintf(buf, "%d\n", nfit_mem->family);
+}
+static DEVICE_ATTR_RO(family);
+
+static ssize_t dsm_mask_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+
+	if (nfit_mem->family < 0)
+		return -ENXIO;
+	return sprintf(buf, "%#lx\n", nfit_mem->dsm_mask);
+}
+static DEVICE_ATTR_RO(dsm_mask);
+
 static ssize_t flags_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -920,6 +944,8 @@ static struct attribute *acpi_nfit_dimm_attributes[] = {
 	&dev_attr_serial.attr,
 	&dev_attr_rev_id.attr,
 	&dev_attr_flags.attr,
+	&dev_attr_family.attr,
+	&dev_attr_dsm_mask.attr,
 	NULL,
 };
 
