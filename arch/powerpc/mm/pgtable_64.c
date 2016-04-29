@@ -58,11 +58,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/thp.h>
 
-/* Some sanity checking */
-#if TASK_SIZE_USER64 > PGTABLE_RANGE
-#error TASK_SIZE_USER64 exceeds pagetable range
-#endif
-
 #ifdef CONFIG_PPC_STD_MMU_64
 #if TASK_SIZE_USER64 > (1UL << (ESID_BITS + SID_SHIFT))
 #error TASK_SIZE_USER64 exceeds user VSID range
@@ -75,6 +70,28 @@
  */
 struct prtb_entry *process_tb;
 struct patb_entry *partition_tb;
+/*
+ * page table size
+ */
+unsigned long __pte_index_size;
+EXPORT_SYMBOL(__pte_index_size);
+unsigned long __pmd_index_size;
+EXPORT_SYMBOL(__pmd_index_size);
+unsigned long __pud_index_size;
+EXPORT_SYMBOL(__pud_index_size);
+unsigned long __pgd_index_size;
+EXPORT_SYMBOL(__pgd_index_size);
+unsigned long __pmd_cache_index;
+EXPORT_SYMBOL(__pmd_cache_index);
+unsigned long __pte_table_size;
+EXPORT_SYMBOL(__pte_table_size);
+unsigned long __pmd_table_size;
+EXPORT_SYMBOL(__pmd_table_size);
+unsigned long __pud_table_size;
+EXPORT_SYMBOL(__pud_table_size);
+unsigned long __pgd_table_size;
+EXPORT_SYMBOL(__pgd_table_size);
+
 #endif
 unsigned long ioremap_bot = IOREMAP_BASE;
 
@@ -738,12 +755,6 @@ pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 
 int has_transparent_hugepage(void)
 {
-
-	BUILD_BUG_ON_MSG((PMD_SHIFT - PAGE_SHIFT) >= MAX_ORDER,
-		"hugepages can't be allocated by the buddy allocator");
-
-	BUILD_BUG_ON_MSG((PMD_SHIFT - PAGE_SHIFT) < 2,
-			 "We need more than 2 pages to do deferred thp split");
 
 	if (!mmu_has_feature(MMU_FTR_16M_PAGE))
 		return 0;

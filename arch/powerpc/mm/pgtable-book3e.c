@@ -77,6 +77,7 @@ int map_kernel_page(unsigned long ea, unsigned long pa, unsigned long flags)
 	pmd_t *pmdp;
 	pte_t *ptep;
 
+	BUILD_BUG_ON(TASK_SIZE_USER64 > PGTABLE_RANGE);
 	if (slab_is_available()) {
 		pgdp = pgd_offset_k(ea);
 		pudp = pud_alloc(&init_mm, pgdp, ea);

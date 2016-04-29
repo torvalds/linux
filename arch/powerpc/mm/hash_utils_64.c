@@ -870,6 +870,18 @@ static void __init htab_initialize(void)
 
 void __init early_init_mmu(void)
 {
+	/*
+	 * initialize page table size
+	 */
+	__pte_index_size = H_PTE_INDEX_SIZE;
+	__pmd_index_size = H_PMD_INDEX_SIZE;
+	__pud_index_size = H_PUD_INDEX_SIZE;
+	__pgd_index_size = H_PGD_INDEX_SIZE;
+	__pmd_cache_index = H_PMD_CACHE_INDEX;
+	__pte_table_size = H_PTE_TABLE_SIZE;
+	__pmd_table_size = H_PMD_TABLE_SIZE;
+	__pud_table_size = H_PUD_TABLE_SIZE;
+	__pgd_table_size = H_PGD_TABLE_SIZE;
 	/* Initialize the MMU Hash table and create the linear mapping
 	 * of memory. Has to be done before SLB initialization as this is
 	 * currently where the page size encoding is obtained.

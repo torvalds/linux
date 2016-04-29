@@ -462,7 +462,7 @@ extern void slb_set_size(u16 size);
 	add	rt,rt,rx
 
 /* 4 bits per slice and we have one slice per 1TB */
-#define SLICE_ARRAY_SIZE  (PGTABLE_RANGE >> 41)
+#define SLICE_ARRAY_SIZE  (H_PGTABLE_RANGE >> 41)
 
 #ifndef __ASSEMBLY__
 
@@ -533,7 +533,7 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 	/*
 	 * Bad address. We return VSID 0 for that
 	 */
-	if ((ea & ~REGION_MASK) >= PGTABLE_RANGE)
+	if ((ea & ~REGION_MASK) >= H_PGTABLE_RANGE)
 		return 0;
 
 	if (ssize == MMU_SEGSIZE_256M)

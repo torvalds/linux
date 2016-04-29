@@ -144,6 +144,66 @@
 #define PAGE_KERNEL_EXEC	PAGE_KERNEL_X
 #define PAGE_AGP		(PAGE_KERNEL_NC)
 
+#ifndef __ASSEMBLY__
+/*
+ * page table defines
+ */
+extern unsigned long __pte_index_size;
+extern unsigned long __pmd_index_size;
+extern unsigned long __pud_index_size;
+extern unsigned long __pgd_index_size;
+extern unsigned long __pmd_cache_index;
+#define PTE_INDEX_SIZE  __pte_index_size
+#define PMD_INDEX_SIZE  __pmd_index_size
+#define PUD_INDEX_SIZE  __pud_index_size
+#define PGD_INDEX_SIZE  __pgd_index_size
+#define PMD_CACHE_INDEX __pmd_cache_index
+/*
+ * Because of use of pte fragments and THP, size of page table
+ * are not always derived out of index size above.
+ */
+extern unsigned long __pte_table_size;
+extern unsigned long __pmd_table_size;
+extern unsigned long __pud_table_size;
+extern unsigned long __pgd_table_size;
+#define PTE_TABLE_SIZE	__pte_table_size
+#define PMD_TABLE_SIZE	__pmd_table_size
+#define PUD_TABLE_SIZE	__pud_table_size
+#define PGD_TABLE_SIZE	__pgd_table_size
+/*
+ * Pgtable size used by swapper, init in asm code
+ * We will switch this later to radix PGD
+ */
+#define MAX_PGD_TABLE_SIZE (sizeof(pgd_t) << H_PGD_INDEX_SIZE)
+
+#define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
+#define PTRS_PER_PMD	(1 << PMD_INDEX_SIZE)
+#define PTRS_PER_PUD	(1 << PUD_INDEX_SIZE)
+#define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
+
+/* PMD_SHIFT determines what a second-level page table entry can map */
+#define PMD_SHIFT	(PAGE_SHIFT + PTE_INDEX_SIZE)
+#define PMD_SIZE	(1UL << PMD_SHIFT)
+#define PMD_MASK	(~(PMD_SIZE-1))
+
+/* PUD_SHIFT determines what a third-level page table entry can map */
+#define PUD_SHIFT	(PMD_SHIFT + PMD_INDEX_SIZE)
+#define PUD_SIZE	(1UL << PUD_SHIFT)
+#define PUD_MASK	(~(PUD_SIZE-1))
+
+/* PGDIR_SHIFT determines what a fourth-level page table entry can map */
+#define PGDIR_SHIFT	(PUD_SHIFT + PUD_INDEX_SIZE)
+#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+#define PGDIR_MASK	(~(PGDIR_SIZE-1))
+
+/* Bits to mask out from a PMD to get to the PTE page */
+#define PMD_MASKED_BITS		0xc0000000000000ffUL
+/* Bits to mask out from a PUD to get to the PMD page */
+#define PUD_MASKED_BITS		0xc0000000000000ffUL
+/* Bits to mask out from a PGD to get to the PUD page */
+#define PGD_MASKED_BITS		0xc0000000000000ffUL
+#endif /* __ASSEMBLY__ */
+
 #include <asm/book3s/64/hash.h>
 #include <asm/barrier.h>
 
