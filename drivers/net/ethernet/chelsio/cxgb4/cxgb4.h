@@ -359,6 +359,34 @@ struct sge_idma_monitor_state {
 	unsigned int idma_warn[2];	/* time to warning in HZ */
 };
 
+/* Firmware Mailbox Command/Reply log.  All values are in Host-Endian format.
+ * The access and execute times are signed in order to accommodate negative
+ * error returns.
+ */
+struct mbox_cmd {
+	u64 cmd[MBOX_LEN / 8];		/* a Firmware Mailbox Command/Reply */
+	u64 timestamp;			/* OS-dependent timestamp */
+	u32 seqno;			/* sequence number */
+	s16 access;			/* time (ms) to access mailbox */
+	s16 execute;			/* time (ms) to execute */
+};
+
+struct mbox_cmd_log {
+	unsigned int size;		/* number of entries in the log */
+	unsigned int cursor;		/* next position in the log to write */
+	u32 seqno;			/* next sequence number */
+	/* variable length mailbox command log starts here */
+};
+
+/* Given a pointer to a Firmware Mailbox Command Log and a log entry index,
+ * return a pointer to the specified entry.
+ */
+static inline struct mbox_cmd *mbox_cmd_log_entry(struct mbox_cmd_log *log,
+						  unsigned int entry_idx)
+{
+	return &((struct mbox_cmd *)&(log)[1])[entry_idx];
+}
+
 #include "t4fw_api.h"
 
 #define FW_VERSION(chip) ( \
@@ -779,6 +807,10 @@ struct adapter {
 	struct work_struct db_full_task;
 	struct work_struct db_drop_task;
 	bool tid_release_task_busy;
+
+	/* support for mailbox command/reply logging */
+#define T4_OS_LOG_MBOX_CMDS 256
+	struct mbox_cmd_log *mbox_log;
 
 	struct dentry *debugfs_root;
 	bool use_bd;     /* Use SGE Back Door intfc for reading SGE Contexts */
