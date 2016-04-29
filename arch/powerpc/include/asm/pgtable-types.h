@@ -54,4 +54,16 @@ typedef struct { pte_t pte; unsigned long hidx; } real_pte_t;
 #else
 typedef struct { pte_t pte; } real_pte_t;
 #endif
+
+#ifdef CONFIG_PPC_STD_MMU_64
+#include <asm/cmpxchg.h>
+
+static inline bool pte_xchg(pte_t *ptep, pte_t old, pte_t new)
+{
+	unsigned long *p = (unsigned long *)ptep;
+
+	return pte_val(old) == __cmpxchg_u64(p, pte_val(old), pte_val(new));
+}
+#endif
+
 #endif /* _ASM_POWERPC_PGTABLE_TYPES_H */

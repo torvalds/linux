@@ -47,8 +47,8 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED;
 		if (access & _PAGE_RW)
 			new_pte |= _PAGE_DIRTY;
-	} while (old_pte != __cmpxchg_u64((unsigned long *)ptep,
-					  old_pte, new_pte));
+	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
+
 	/*
 	 * PP bits. _PAGE_USER is already PP bit 0x2, so we only
 	 * need to add in 0x1 if it's a read-only user page

@@ -79,8 +79,8 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED | _PAGE_COMBO;
 		if (access & _PAGE_RW)
 			new_pte |= _PAGE_DIRTY;
-	} while (old_pte != __cmpxchg_u64((unsigned long *)ptep,
-					  old_pte, new_pte));
+	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
+
 	/*
 	 * Handle the subpage protection bits
 	 */
@@ -254,8 +254,7 @@ int __hash_page_64K(unsigned long ea, unsigned long access,
 		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED;
 		if (access & _PAGE_RW)
 			new_pte |= _PAGE_DIRTY;
-	} while (old_pte != __cmpxchg_u64((unsigned long *)ptep,
-					  old_pte, new_pte));
+	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
 
 	rflags = htab_convert_pte_flags(new_pte);
 

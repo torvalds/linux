@@ -319,11 +319,8 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 		if (writing && pte_write(old_pte))
 			new_pte = pte_mkdirty(new_pte);
 
-		if (pte_val(old_pte) == __cmpxchg_u64((unsigned long *)ptep,
-						      pte_val(old_pte),
-						      pte_val(new_pte))) {
+		if (pte_xchg(ptep, old_pte, new_pte))
 			break;
-		}
 	}
 	return new_pte;
 }
