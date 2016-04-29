@@ -1444,6 +1444,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 	int bearer_id = b->identity;
 	struct tipc_link_entry *le;
 	u16 bc_ack = msg_bcast_ack(hdr);
+	u32 self = tipc_own_addr(net);
 	int rc = 0;
 
 	__skb_queue_head_init(&xmitq);
@@ -1459,6 +1460,10 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 		else
 			return tipc_node_bc_rcv(net, skb, bearer_id);
 	}
+
+	/* Discard unicast link messages destined for another node */
+	if (unlikely(!msg_short(hdr) && (msg_destnode(hdr) != self)))
+		goto discard;
 
 	/* Locate neighboring node that sent packet */
 	n = tipc_node_find(net, msg_prevnode(hdr));
