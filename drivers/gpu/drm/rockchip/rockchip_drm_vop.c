@@ -560,6 +560,22 @@ static void vop_plane_destroy(struct drm_plane *plane)
 	drm_plane_cleanup(plane);
 }
 
+static int vop_plane_prepare_fb(struct drm_plane *plane,
+				const struct drm_plane_state *new_state)
+{
+	if (plane->state->fb)
+		drm_framebuffer_reference(plane->state->fb);
+
+	return 0;
+}
+
+static void vop_plane_cleanup_fb(struct drm_plane *plane,
+				 const struct drm_plane_state *old_state)
+{
+	if (old_state->fb)
+		drm_framebuffer_unreference(old_state->fb);
+}
+
 static int vop_plane_atomic_check(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
@@ -756,6 +772,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
+	.prepare_fb = vop_plane_prepare_fb,
+	.cleanup_fb = vop_plane_cleanup_fb,
 	.atomic_check = vop_plane_atomic_check,
 	.atomic_update = vop_plane_atomic_update,
 	.atomic_disable = vop_plane_atomic_disable,
