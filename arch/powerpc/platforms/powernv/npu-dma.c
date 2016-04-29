@@ -196,10 +196,9 @@ void pnv_npu_init_dma_pe(struct pnv_ioda_pe *npe)
 }
 
 /*
- * For the NPU we want to point the TCE table at the same table as the
- * real PCI device.
+ * Enables 32 bit DMA on NPU.
  */
-static void pnv_npu_disable_bypass(struct pnv_ioda_pe *npe)
+static void pnv_npu_dma_set_32(struct pnv_ioda_pe *npe)
 {
 	struct pnv_phb *phb = npe->phb;
 	struct pci_dev *gpdev;
@@ -235,72 +234,62 @@ static void pnv_npu_disable_bypass(struct pnv_ioda_pe *npe)
 }
 
 /*
- * Enable/disable bypass mode on the NPU. The NPU only supports one
+ * Enables bypass mode on the NPU. The NPU only supports one
  * window per link, so bypass needs to be explicitly enabled or
  * disabled. Unlike for a PHB3 bypass and non-bypass modes can't be
  * active at the same time.
  */
-int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe, bool enable)
+static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
 {
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc = 0;
+	phys_addr_t top = memblock_end_of_DRAM();
 
 	if (phb->type != PNV_PHB_NPU || !npe->pdev)
 		return -EINVAL;
 
-	if (enable) {
-		/* Enable the bypass window */
-		phys_addr_t top = memblock_end_of_DRAM();
+	/* Enable the bypass window */
 
-		npe->tce_bypass_base = 0;
-		top = roundup_pow_of_two(top);
-		dev_info(&npe->pdev->dev, "Enabling bypass for PE %d\n",
-			 npe->pe_number);
-		rc = opal_pci_map_pe_dma_window_real(phb->opal_id,
-					npe->pe_number, npe->pe_number,
-					npe->tce_bypass_base, top);
-	} else {
-		/*
-		 * Disable the bypass window by replacing it with the
-		 * TCE32 window.
-		 */
-		pnv_npu_disable_bypass(npe);
-	}
+	top = roundup_pow_of_two(top);
+	dev_info(&npe->pdev->dev, "Enabling bypass for PE %d\n",
+			npe->pe_number);
+	rc = opal_pci_map_pe_dma_window_real(phb->opal_id,
+			npe->pe_number, npe->pe_number,
+			0 /* bypass base */, top);
 
 	return rc;
 }
 
-int pnv_npu_dma_set_mask(struct pci_dev *npdev, u64 dma_mask)
+void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass)
 {
-	struct pci_controller *hose = pci_bus_to_host(npdev->bus);
-	struct pnv_phb *phb = hose->private_data;
-	struct pci_dn *pdn = pci_get_pdn(npdev);
-	struct pnv_ioda_pe *npe, *gpe;
-	struct pci_dev *gpdev;
-	uint64_t top;
-	bool bypass = false;
+	int i;
+	struct pnv_phb *phb;
+	struct pci_dn *pdn;
+	struct pnv_ioda_pe *npe;
+	struct pci_dev *npdev;
 
-	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
-		return -ENXIO;
+	for (i = 0; ; ++i) {
+		npdev = pnv_pci_get_npu_dev(gpdev, i);
 
-	/* We only do bypass if it's enabled on the linked device */
-	npe = &phb->ioda.pe_array[pdn->pe_number];
-	gpe = get_gpu_pci_dev_and_pe(npe, &gpdev);
-	if (!gpe)
-		return -ENODEV;
+		if (!npdev)
+			break;
 
-	if (gpe->tce_bypass_enabled) {
-		top = gpe->tce_bypass_base + memblock_end_of_DRAM() - 1;
-		bypass = (dma_mask >= top);
+		pdn = pci_get_pdn(npdev);
+		if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
+			return;
+
+		phb = pci_bus_to_host(npdev->bus)->private_data;
+
+		/* We only do bypass if it's enabled on the linked device */
+		npe = &phb->ioda.pe_array[pdn->pe_number];
+
+		if (bypass) {
+			dev_info(&npdev->dev,
+					"Using 64-bit DMA iommu bypass\n");
+			pnv_npu_dma_set_bypass(npe);
+		} else {
+			dev_info(&npdev->dev, "Using 32-bit DMA via iommu\n");
+			pnv_npu_dma_set_32(npe);
+		}
 	}
-
-	if (bypass)
-		dev_info(&npdev->dev, "Using 64-bit DMA iommu bypass\n");
-	else
-		dev_info(&npdev->dev, "Using 32-bit DMA via iommu\n");
-
-	pnv_npu_dma_set_bypass(npe, bypass);
-	*npdev->dev.dma_mask = dma_mask;
-
-	return 0;
 }

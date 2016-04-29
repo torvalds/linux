@@ -1669,8 +1669,6 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 	struct pnv_ioda_pe *pe;
 	uint64_t top;
 	bool bypass = false;
-	struct pci_dev *linked_npu_dev;
-	int i;
 
 	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
 		return -ENODEV;;
@@ -1691,15 +1689,7 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 	*pdev->dev.dma_mask = dma_mask;
 
 	/* Update peer npu devices */
-	if (pe->flags & PNV_IODA_PE_PEER)
-		for (i = 0; i < PNV_IODA_MAX_PEER_PES; i++) {
-			if (!pe->peers[i])
-				continue;
-
-			linked_npu_dev = pe->peers[i]->pdev;
-			if (dma_get_mask(&linked_npu_dev->dev) != dma_mask)
-				dma_set_mask(&linked_npu_dev->dev, dma_mask);
-		}
+	pnv_npu_try_dma_set_bypass(pdev, bypass);
 
 	return 0;
 }
@@ -3194,7 +3184,6 @@ static void pnv_npu_ioda_fixup(void)
 			enable_bypass = dma_get_mask(&pe->pdev->dev) ==
 				DMA_BIT_MASK(64);
 			pnv_npu_init_dma_pe(pe);
-			pnv_npu_dma_set_bypass(pe, enable_bypass);
 		}
 	}
 }
@@ -3339,6 +3328,14 @@ static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
 	.dma_get_required_mask	= pnv_pci_ioda_dma_get_required_mask,
 	.shutdown		= pnv_pci_ioda_shutdown,
 };
+
+static int pnv_npu_dma_set_mask(struct pci_dev *npdev, u64 dma_mask)
+{
+	dev_err_once(&npdev->dev,
+			"%s operation unsupported for NVLink devices\n",
+			__func__);
+	return -EPERM;
+}
 
 static const struct pci_controller_ops pnv_npu_ioda_controller_ops = {
 	.dma_dev_setup		= pnv_pci_dma_dev_setup,
@@ -3516,9 +3513,6 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	phb->freeze_pe = pnv_ioda_freeze_pe;
 	phb->unfreeze_pe = pnv_ioda_unfreeze_pe;
 
-	/* Setup TCEs */
-	phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
-
 	/* Setup MSI support */
 	pnv_pci_init_ioda_msis(phb);
 
@@ -3531,10 +3525,12 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	 */
 	ppc_md.pcibios_fixup = pnv_pci_ioda_fixup;
 
-	if (phb->type == PNV_PHB_NPU)
+	if (phb->type == PNV_PHB_NPU) {
 		hose->controller_ops = pnv_npu_ioda_controller_ops;
-	else
+	} else {
+		phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
 		hose->controller_ops = pnv_pci_ioda_controller_ops;
+	}
 
 #ifdef CONFIG_PCI_IOV
 	ppc_md.pcibios_fixup_sriov = pnv_pci_ioda_fixup_iov_resources;
