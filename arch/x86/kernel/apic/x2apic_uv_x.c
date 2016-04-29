@@ -460,45 +460,38 @@ static __init int boot_pnode_to_blade(int pnode)
 	BUG();
 }
 
-struct redir_addr {
-	unsigned long redirect;
-	unsigned long alias;
-};
-
+#define	UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_LENGTH	3
 #define DEST_SHIFT UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR_DEST_BASE_SHFT
-
-static __initdata struct redir_addr redir_addrs[] = {
-	{UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR, UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR},
-	{UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_1_MMR, UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR},
-	{UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_2_MMR, UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR},
-};
-
-static unsigned char get_n_lshift(int m_val)
-{
-	union uv3h_gr0_gam_gr_config_u m_gr_config;
-
-	if (is_uv1_hub())
-		return m_val;
-
-	if (is_uv2_hub())
-		return m_val == 40 ? 40 : 39;
-
-	m_gr_config.v = uv_read_local_mmr(UV3H_GR0_GAM_GR_CONFIG);
-	return m_gr_config.s3.m_skt;
-}
 
 static __init void get_lowmem_redirect(unsigned long *base, unsigned long *size)
 {
 	union uvh_rh_gam_alias210_overlay_config_2_mmr_u alias;
 	union uvh_rh_gam_alias210_redirect_config_2_mmr_u redirect;
+	unsigned long m_redirect;
+	unsigned long m_overlay;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(redir_addrs); i++) {
-		alias.v = uv_read_local_mmr(redir_addrs[i].alias);
+	for (i = 0; i < UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_LENGTH; i++) {
+		switch (i) {
+		case 0:
+			m_redirect = UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_0_MMR;
+			m_overlay = UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_0_MMR;
+			break;
+		case 1:
+			m_redirect = UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_1_MMR;
+			m_overlay = UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_1_MMR;
+			break;
+		case 2:
+			m_redirect = UVH_RH_GAM_ALIAS210_REDIRECT_CONFIG_2_MMR;
+			m_overlay = UVH_RH_GAM_ALIAS210_OVERLAY_CONFIG_2_MMR;
+			break;
+		}
+		alias.v = uv_read_local_mmr(m_overlay);
 		if (alias.s.enable && alias.s.base == 0) {
 			*size = (1UL << alias.s.m_alias);
-			redirect.v = uv_read_local_mmr(redir_addrs[i].redirect);
-			*base = (unsigned long)redirect.s.dest_base << DEST_SHIFT;
+			redirect.v = uv_read_local_mmr(m_redirect);
+			*base = (unsigned long)redirect.s.dest_base
+							<< DEST_SHIFT;
 			return;
 		}
 	}
@@ -561,6 +554,8 @@ static __init void map_gru_high(int max_pnode)
 {
 	union uvh_rh_gam_gru_overlay_config_mmr_u gru;
 	int shift = UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR_BASE_SHFT;
+	unsigned long mask = UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR_BASE_MASK;
+	unsigned long base;
 
 	gru.v = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR);
 	if (!gru.s.enable) {
@@ -572,8 +567,9 @@ static __init void map_gru_high(int max_pnode)
 		map_gru_distributed(gru.v);
 		return;
 	}
-	map_high("GRU", gru.s.base, shift, shift, max_pnode, map_wb);
-	gru_start_paddr = ((u64)gru.s.base << shift);
+	base = (gru.v & mask) >> shift;
+	map_high("GRU", base, shift, shift, max_pnode, map_wb);
+	gru_start_paddr = ((u64)base << shift);
 	gru_end_paddr = gru_start_paddr + (1UL << shift) * (max_pnode + 1);
 }
 
@@ -888,16 +884,89 @@ void uv_cpu_init(void)
 		set_x2apic_extra_bits(uv_hub_info->pnode);
 }
 
+struct mn {
+	unsigned char	m_val;
+	unsigned char	n_val;
+	unsigned char	m_shift;
+	unsigned char	n_lshift;
+};
+
+static void get_mn(struct mn *mnp)
+{
+	union uvh_rh_gam_config_mmr_u m_n_config;
+	union uv3h_gr0_gam_gr_config_u m_gr_config;
+
+	m_n_config.v = uv_read_local_mmr(UVH_RH_GAM_CONFIG_MMR);
+	mnp->n_val = m_n_config.s.n_skt;
+	if (is_uv4_hub()) {
+		mnp->m_val = 0;
+		mnp->n_lshift = 0;
+	} else if (is_uv3_hub()) {
+		mnp->m_val = m_n_config.s3.m_skt;
+		m_gr_config.v = uv_read_local_mmr(UV3H_GR0_GAM_GR_CONFIG);
+		mnp->n_lshift = m_gr_config.s3.m_skt;
+	} else if (is_uv2_hub()) {
+		mnp->m_val = m_n_config.s2.m_skt;
+		mnp->n_lshift = mnp->m_val == 40 ? 40 : 39;
+	} else if (is_uv1_hub()) {
+		mnp->m_val = m_n_config.s1.m_skt;
+		mnp->n_lshift = mnp->m_val;
+	}
+	mnp->m_shift = mnp->m_val ? 64 - mnp->m_val : 0;
+}
+
+void __init uv_init_hub_info(struct uv_hub_info_s *hub_info)
+{
+	struct mn mn = {0};	/* avoid unitialized warnings */
+	union uvh_node_id_u node_id;
+
+	get_mn(&mn);
+	hub_info->m_val = mn.m_val;
+	hub_info->n_val = mn.n_val;
+	hub_info->m_shift = mn.m_shift;
+	hub_info->n_lshift = mn.n_lshift;
+
+	hub_info->hub_revision = uv_hub_info->hub_revision;
+	hub_info->pnode_mask = (1 << mn.n_val) - 1;
+	hub_info->gpa_mask = (1UL << (mn.m_val + mn.n_val)) - 1;
+
+	node_id.v = uv_read_local_mmr(UVH_NODE_ID);
+	hub_info->gnode_extra =
+		(node_id.s.node_id & ~((1 << mn.n_val) - 1)) >> 1;
+
+	hub_info->gnode_upper =
+		((unsigned long)hub_info->gnode_extra << mn.m_val);
+
+	hub_info->global_mmr_base =
+		uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR) &
+				~UV_MMR_ENABLE;
+
+	get_lowmem_redirect(
+		&hub_info->lowmem_remap_base, &hub_info->lowmem_remap_top);
+
+	hub_info->apic_pnode_shift = uvh_apicid.s.pnode_shift;
+
+	/* show system specific info */
+	pr_info("UV: N:%d M:%d m_shift:%d n_lshift:%d\n",
+		hub_info->n_val, hub_info->m_val,
+		hub_info->m_shift, hub_info->n_lshift);
+
+	pr_info("UV: pnode_mask:0x%x gpa_mask:0x%lx apic_pns:%d\n",
+		hub_info->pnode_mask, hub_info->gpa_mask,
+		hub_info->apic_pnode_shift);
+
+	pr_info("UV: gnode_upper:0x%lx gnode_extra:0x%x\n",
+		hub_info->gnode_upper, hub_info->gnode_extra);
+
+	pr_info("UV: global MMR base 0x%lx\n", hub_info->global_mmr_base);
+
+}
+
 void __init uv_system_init(void)
 {
-	union uvh_rh_gam_config_mmr_u  m_n_config;
-	union uvh_node_id_u node_id;
-	unsigned long gnode_upper, lowmem_redir_base, lowmem_redir_size;
-	int bytes, nid, cpu, lcpu, pnode, blade, i, j, m_val, n_val;
-	int gnode_extra, min_pnode = 999999, max_pnode = -1;
-	unsigned long mmr_base, present, paddr;
-	unsigned short pnode_mask;
-	unsigned char n_lshift;
+	struct uv_hub_info_s hub_info = {0};
+	int bytes, nid, cpu, pnode, blade, i, j;
+	int min_pnode = 999999, max_pnode = -1;
 	char *hub = is_uv4_hub() ? "UV400" :
 		    is_uv3_hub() ? "UV300" :
 		    is_uv2_hub() ? "UV2000/3000" :
@@ -913,23 +982,7 @@ void __init uv_system_init(void)
 	if (is_uv1_hub())
 		map_low_mmrs();
 
-	m_n_config.v = uv_read_local_mmr(UVH_RH_GAM_CONFIG_MMR );
-	m_val = m_n_config.s.m_skt;
-	n_val = m_n_config.s.n_skt;
-	pnode_mask = (1 << n_val) - 1;
-	n_lshift = get_n_lshift(m_val);
-	mmr_base =
-	    uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR) &
-	    ~UV_MMR_ENABLE;
-
-	node_id.v = uv_read_local_mmr(UVH_NODE_ID);
-	gnode_extra = (node_id.s.node_id & ~((1 << n_val) - 1)) >> 1;
-	gnode_upper = ((unsigned long)gnode_extra  << m_val);
-	pr_info("UV: N:%d M:%d pnode_mask:0x%x gnode_upper/extra:0x%lx/0x%x n_lshift 0x%x\n",
-			n_val, m_val, pnode_mask, gnode_upper, gnode_extra,
-			n_lshift);
-
-	pr_info("UV: global MMR base 0x%lx\n", mmr_base);
+	uv_init_hub_info(&hub_info);
 
 	for(i = 0; i < UVH_NODE_PRESENT_TABLE_DEPTH; i++)
 		uv_possible_blades +=
@@ -937,8 +990,9 @@ void __init uv_system_init(void)
 
 	/* uv_num_possible_blades() is really the hub count */
 	pr_info("UV: Found %d blades, %d hubs\n",
-			is_uv1_hub() ? uv_num_possible_blades() :
-			(uv_num_possible_blades() + 1) / 2,
+			is_uv1_hub() ?
+				uv_num_possible_blades() :
+				(uv_num_possible_blades() + 1) / 2,
 			uv_num_possible_blades());
 
 	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
@@ -948,7 +1002,6 @@ void __init uv_system_init(void)
 	for (blade = 0; blade < uv_num_possible_blades(); blade++)
 		uv_blade_info[blade].memory_nid = -1;
 
-	get_lowmem_redirect(&lowmem_redir_base, &lowmem_redir_size);
 
 	bytes = sizeof(uv_node_to_blade[0]) * num_possible_nodes();
 	uv_node_to_blade = kmalloc(bytes, GFP_KERNEL);
@@ -962,11 +1015,12 @@ void __init uv_system_init(void)
 
 	blade = 0;
 	for (i = 0; i < UVH_NODE_PRESENT_TABLE_DEPTH; i++) {
-		present = uv_read_local_mmr(UVH_NODE_PRESENT_TABLE + i * 8);
+		unsigned long present =
+			uv_read_local_mmr(UVH_NODE_PRESENT_TABLE + i * 8);
 		for (j = 0; j < 64; j++) {
 			if (!test_bit(j, &present))
 				continue;
-			pnode = (i * 64 + j) & pnode_mask;
+			pnode = (i * 64 + j) & hub_info.pnode_mask;
 			uv_blade_info[blade].pnode = pnode;
 			uv_blade_info[blade].nr_possible_cpus = 0;
 			uv_blade_info[blade].nr_online_cpus = 0;
@@ -980,49 +1034,35 @@ void __init uv_system_init(void)
 	uv_bios_init();
 	uv_bios_get_sn_info(0, &uv_type, &sn_partition_id, &sn_coherency_id,
 			    &sn_region_size, &system_serial_number);
+	hub_info.coherency_domain_number = sn_coherency_id;
 	uv_rtc_init();
 
 	for_each_present_cpu(cpu) {
 		int apicid = per_cpu(x86_cpu_to_apicid, cpu);
+		int nodeid = cpu_to_node(cpu);
+		int lcpu;
 
-		nid = cpu_to_node(cpu);
-		/*
-		 * apic_pnode_shift must be set before calling uv_apicid_to_pnode();
-		 */
-		uv_cpu_hub_info(cpu)->pnode_mask = pnode_mask;
-		uv_cpu_hub_info(cpu)->apic_pnode_shift = uvh_apicid.s.pnode_shift;
-		uv_cpu_hub_info(cpu)->hub_revision = uv_hub_info->hub_revision;
-
-		uv_cpu_hub_info(cpu)->m_shift = 64 - m_val;
-		uv_cpu_hub_info(cpu)->n_lshift = n_lshift;
-
+		*uv_cpu_hub_info(cpu) = hub_info;	/* common hub values */
 		pnode = uv_apicid_to_pnode(apicid);
 		blade = boot_pnode_to_blade(pnode);
 		lcpu = uv_blade_info[blade].nr_possible_cpus;
 		uv_blade_info[blade].nr_possible_cpus++;
 
 		/* Any node on the blade, else will contain -1. */
-		uv_blade_info[blade].memory_nid = nid;
+		uv_blade_info[blade].memory_nid = nodeid;
 
-		uv_cpu_hub_info(cpu)->lowmem_remap_base = lowmem_redir_base;
-		uv_cpu_hub_info(cpu)->lowmem_remap_top = lowmem_redir_size;
-		uv_cpu_hub_info(cpu)->m_val = m_val;
-		uv_cpu_hub_info(cpu)->n_val = n_val;
 		uv_cpu_hub_info(cpu)->numa_blade_id = blade;
-		uv_cpu_hub_info(cpu)->blade_processor_id = lcpu;
 		uv_cpu_hub_info(cpu)->pnode = pnode;
-		uv_cpu_hub_info(cpu)->gpa_mask = (1UL << (m_val + n_val)) - 1;
-		uv_cpu_hub_info(cpu)->gnode_upper = gnode_upper;
-		uv_cpu_hub_info(cpu)->gnode_extra = gnode_extra;
-		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
-		uv_cpu_hub_info(cpu)->coherency_domain_number = sn_coherency_id;
 		uv_cpu_hub_info(cpu)->scir.offset = uv_scir_offset(apicid);
-		uv_node_to_blade[nid] = blade;
+		uv_cpu_hub_info(cpu)->blade_processor_id = lcpu;
+		uv_node_to_blade[nodeid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 	}
 
 	/* Add blade/pnode info for nodes without cpus */
 	for_each_online_node(nid) {
+		unsigned long paddr;
+
 		if (uv_node_to_blade[nid] >= 0)
 			continue;
 		paddr = node_start_pfn(nid) << PAGE_SHIFT;
