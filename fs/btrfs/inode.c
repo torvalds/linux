@@ -9479,6 +9479,8 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		/* force full log commit if subvolume involved. */
 		btrfs_set_log_full_commit(root->fs_info, trans);
 	} else {
+		btrfs_pin_log_trans(root);
+		log_pinned = true;
 		ret = btrfs_insert_inode_ref(trans, dest,
 					     new_dentry->d_name.name,
 					     new_dentry->d_name.len,
@@ -9486,15 +9488,6 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 					     btrfs_ino(new_dir), index);
 		if (ret)
 			goto out_fail;
-		/*
-		 * this is an ugly little race, but the rename is required
-		 * to make sure that if we crash, the inode is either at the
-		 * old name or the new one.  pinning the log transaction lets
-		 * us make sure we don't allow a log commit to come in after
-		 * we unlink the name but before we add the new name back in.
-		 */
-		btrfs_pin_log_trans(root);
-		log_pinned = true;
 	}
 
 	inode_inc_iversion(old_dir);
