@@ -55,6 +55,18 @@ EXPORT_SYMBOL_GPL(uv_apicid_hibits);
 
 static struct apic apic_x2apic_uv_x;
 
+/* Set this to use hardware error handler instead of kernel panic */
+static int disable_uv_undefined_panic = 1;
+unsigned long uv_undefined(char *str)
+{
+	if (likely(!disable_uv_undefined_panic))
+		panic("UV: error: undefined MMR: %s\n", str);
+	else
+		pr_crit("UV: error: undefined MMR: %s\n", str);
+	return ~0ul;	/* cause a machine fault  */
+}
+EXPORT_SYMBOL(uv_undefined);
+
 static unsigned long __init uv_early_read_mmr(unsigned long addr)
 {
 	unsigned long val, *mmr;
