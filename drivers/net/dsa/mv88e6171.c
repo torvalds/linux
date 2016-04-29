@@ -56,6 +56,7 @@ static const char *mv88e6171_drv_probe(struct device *dsa_dev,
 
 static int mv88e6171_setup_global(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	u32 upstream_port = dsa_upstream_port(ds);
 	int ret;
 	u32 reg;
@@ -67,7 +68,7 @@ static int mv88e6171_setup_global(struct dsa_switch *ds)
 	/* Discard packets with excessive collisions, mask all
 	 * interrupt sources, enable PPU.
 	 */
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_CONTROL,
+	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL,
 				  GLOBAL_CONTROL_PPU_ENABLE |
 				  GLOBAL_CONTROL_DISCARD_EXCESS);
 	if (ret)
@@ -81,26 +82,29 @@ static int mv88e6171_setup_global(struct dsa_switch *ds)
 		upstream_port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
 		upstream_port << GLOBAL_MONITOR_CONTROL_ARP_SHIFT |
 		upstream_port << GLOBAL_MONITOR_CONTROL_MIRROR_SHIFT;
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
+	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
 	if (ret)
 		return ret;
 
 	/* Disable remote management for now, and set the switch's
 	 * DSA device number.
 	 */
-	return mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_CONTROL_2,
+	return mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL_2,
 				   ds->index & 0x1f);
 }
 
 static int mv88e6171_setup(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
-	ret = mv88e6xxx_setup_common(ds);
+	ps->ds = ds;
+
+	ret = mv88e6xxx_setup_common(ps);
 	if (ret < 0)
 		return ret;
 
-	ret = mv88e6xxx_switch_reset(ds, true);
+	ret = mv88e6xxx_switch_reset(ps, true);
 	if (ret < 0)
 		return ret;
 

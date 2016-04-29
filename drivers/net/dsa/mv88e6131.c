@@ -56,6 +56,7 @@ static const char *mv88e6131_drv_probe(struct device *dsa_dev,
 
 static int mv88e6131_setup_global(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	u32 upstream_port = dsa_upstream_port(ds);
 	int ret;
 	u32 reg;
@@ -69,14 +70,14 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	 * to arbitrate between packet queues, set the maximum frame
 	 * size to 1632, and mask all interrupt sources.
 	 */
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_CONTROL,
+	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL,
 				  GLOBAL_CONTROL_PPU_ENABLE |
 				  GLOBAL_CONTROL_MAX_FRAME_1632);
 	if (ret)
 		return ret;
 
 	/* Set the VLAN ethertype to 0x8100. */
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_CORE_TAG_TYPE, 0x8100);
+	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CORE_TAG_TYPE, 0x8100);
 	if (ret)
 		return ret;
 
@@ -87,7 +88,7 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	reg = upstream_port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
 		upstream_port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
 		GLOBAL_MONITOR_CONTROL_ARP_DISABLED;
-	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
+	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
 	if (ret)
 		return ret;
 
@@ -96,11 +97,11 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	 * DSA device number.
 	 */
 	if (ds->dst->pd->nr_chips > 1)
-		ret = mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_CONTROL_2,
+		ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL_2,
 					  GLOBAL_CONTROL_2_MULTIPLE_CASCADE |
 					  (ds->index & 0x1f));
 	else
-		ret = mv88e6xxx_reg_write(ds, REG_GLOBAL, GLOBAL_CONTROL_2,
+		ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL_2,
 					  GLOBAL_CONTROL_2_NO_CASCADE |
 					  (ds->index & 0x1f));
 	if (ret)
@@ -109,7 +110,7 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	/* Force the priority of IGMP/MLD snoop frames and ARP frames
 	 * to the highest setting.
 	 */
-	return mv88e6xxx_reg_write(ds, REG_GLOBAL2, GLOBAL2_PRIO_OVERRIDE,
+	return mv88e6xxx_reg_write(ps, REG_GLOBAL2, GLOBAL2_PRIO_OVERRIDE,
 				   GLOBAL2_PRIO_OVERRIDE_FORCE_SNOOP |
 				   7 << GLOBAL2_PRIO_OVERRIDE_SNOOP_SHIFT |
 				   GLOBAL2_PRIO_OVERRIDE_FORCE_ARP |
@@ -118,15 +119,18 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 
 static int mv88e6131_setup(struct dsa_switch *ds)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
-	ret = mv88e6xxx_setup_common(ds);
+	ps->ds = ds;
+
+	ret = mv88e6xxx_setup_common(ps);
 	if (ret < 0)
 		return ret;
 
-	mv88e6xxx_ppu_state_init(ds);
+	mv88e6xxx_ppu_state_init(ps);
 
-	ret = mv88e6xxx_switch_reset(ds, false);
+	ret = mv88e6xxx_switch_reset(ps, false);
 	if (ret < 0)
 		return ret;
 

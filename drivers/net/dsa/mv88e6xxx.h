@@ -388,6 +388,9 @@ struct mv88e6xxx_priv_state {
 	/* The dsa_switch this private structure is related to */
 	struct dsa_switch *ds;
 
+	/* The device this structure is associated to */
+	struct device *dev;
+
 	/* When using multi-chip addressing, this mutex protects
 	 * access to the indirect access registers.  (In single-chip
 	 * mode, this mutex is effectively useless.)
@@ -446,17 +449,18 @@ struct mv88e6xxx_hw_stat {
 	enum stat_type type;
 };
 
-int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active);
+int mv88e6xxx_switch_reset(struct mv88e6xxx_priv_state *ps, bool ppu_active);
 const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
 				int sw_addr, void **priv,
 				const struct mv88e6xxx_info *table,
 				unsigned int num);
 
 int mv88e6xxx_setup_ports(struct dsa_switch *ds);
-int mv88e6xxx_setup_common(struct dsa_switch *ds);
+int mv88e6xxx_setup_common(struct mv88e6xxx_priv_state *ps);
 int mv88e6xxx_setup_global(struct dsa_switch *ds);
-int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg);
-int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val);
+int mv88e6xxx_reg_read(struct mv88e6xxx_priv_state *ps, int addr, int reg);
+int mv88e6xxx_reg_write(struct mv88e6xxx_priv_state *ps, int addr,
+			int reg, u16 val);
 int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr);
 int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr);
 int mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum);
@@ -464,7 +468,7 @@ int mv88e6xxx_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val);
 int mv88e6xxx_phy_read_indirect(struct dsa_switch *ds, int port, int regnum);
 int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int port, int regnum,
 				 u16 val);
-void mv88e6xxx_ppu_state_init(struct dsa_switch *ds);
+void mv88e6xxx_ppu_state_init(struct mv88e6xxx_priv_state *ps);
 int mv88e6xxx_phy_read_ppu(struct dsa_switch *ds, int addr, int regnum);
 int mv88e6xxx_phy_write_ppu(struct dsa_switch *ds, int addr,
 			    int regnum, u16 val);
