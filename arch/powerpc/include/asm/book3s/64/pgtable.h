@@ -205,6 +205,7 @@ extern unsigned long __pgd_table_size;
 #endif /* __ASSEMBLY__ */
 
 #include <asm/book3s/64/hash.h>
+#include <asm/book3s/64/radix.h>
 #include <asm/barrier.h>
 
 /*
