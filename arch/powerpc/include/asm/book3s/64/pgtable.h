@@ -876,6 +876,28 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 	pmd_hugepage_update(mm, addr, pmdp, _PAGE_WRITE, 0);
 }
 
+static inline int pmd_trans_huge(pmd_t pmd)
+{
+	if (radix_enabled())
+		return radix__pmd_trans_huge(pmd);
+	return hash__pmd_trans_huge(pmd);
+}
+
+#define __HAVE_ARCH_PMD_SAME
+static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+{
+	if (radix_enabled())
+		return radix__pmd_same(pmd_a, pmd_b);
+	return hash__pmd_same(pmd_a, pmd_b);
+}
+
+static inline pmd_t pmd_mkhuge(pmd_t pmd)
+{
+	if (radix_enabled())
+		return radix__pmd_mkhuge(pmd);
+	return hash__pmd_mkhuge(pmd);
+}
+
 #define __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
 extern int pmdp_set_access_flags(struct vm_area_struct *vma,
 				 unsigned long address, pmd_t *pmdp,

@@ -53,31 +53,6 @@ static inline int hugepd_ok(hugepd_t hpd)
 
 #endif /* CONFIG_HUGETLB_PAGE */
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-static inline int pmd_trans_huge(pmd_t pmd)
-{
-	if (radix_enabled())
-		return radix__pmd_trans_huge(pmd);
-	return hash__pmd_trans_huge(pmd);
-}
-
-#define __HAVE_ARCH_PMD_SAME
-static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
-{
-	if (radix_enabled())
-		return radix__pmd_same(pmd_a, pmd_b);
-	return hash__pmd_same(pmd_a, pmd_b);
-}
-
-static inline pmd_t pmd_mkhuge(pmd_t pmd)
-{
-	if (radix_enabled())
-		return radix__pmd_mkhuge(pmd);
-	return hash__pmd_mkhuge(pmd);
-}
-
-#endif /*  CONFIG_TRANSPARENT_HUGEPAGE */
-
 static inline int remap_4k_pfn(struct vm_area_struct *vma, unsigned long addr,
 			       unsigned long pfn, pgprot_t prot)
 {
