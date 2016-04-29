@@ -3857,6 +3857,7 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_PHY_CORE_WRITE             0x000e0000
 #define DRV_MSG_CODE_SET_VERSION                0x000f0000
 
+#define DRV_MSG_CODE_BIST_TEST                  0x001e0000
 #define DRV_MSG_CODE_SET_LED_MODE               0x00200000
 
 #define DRV_MSG_SEQ_NUMBER_MASK                 0x0000ffff
@@ -3913,6 +3914,18 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_SET_LED_MODE_OPER          0x0
 #define DRV_MB_PARAM_SET_LED_MODE_ON            0x1
 #define DRV_MB_PARAM_SET_LED_MODE_OFF           0x2
+
+#define DRV_MB_PARAM_BIST_UNKNOWN_TEST          0
+#define DRV_MB_PARAM_BIST_REGISTER_TEST         1
+#define DRV_MB_PARAM_BIST_CLOCK_TEST            2
+
+#define DRV_MB_PARAM_BIST_RC_UNKNOWN            0
+#define DRV_MB_PARAM_BIST_RC_PASSED             1
+#define DRV_MB_PARAM_BIST_RC_FAILED             2
+#define DRV_MB_PARAM_BIST_RC_INVALID_PARAMETER          3
+
+#define DRV_MB_PARAM_BIST_TEST_INDEX_SHIFT      0
+#define DRV_MB_PARAM_BIST_TEST_INDEX_MASK       0x000000FF
 
 	u32 fw_mb_header;
 #define FW_MSG_CODE_MASK                        0xffff0000

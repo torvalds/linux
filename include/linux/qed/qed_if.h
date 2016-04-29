@@ -110,6 +110,7 @@ struct qed_link_params {
 #define QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS      BIT(1)
 #define QED_LINK_OVERRIDE_SPEED_FORCED_SPEED    BIT(2)
 #define QED_LINK_OVERRIDE_PAUSE_CONFIG          BIT(3)
+#define QED_LINK_OVERRIDE_LOOPBACK_MODE         BIT(4)
 	u32	override_flags;
 	bool	autoneg;
 	u32	adv_speeds;
@@ -118,6 +119,12 @@ struct qed_link_params {
 #define QED_LINK_PAUSE_RX_ENABLE                BIT(1)
 #define QED_LINK_PAUSE_TX_ENABLE                BIT(2)
 	u32	pause_config;
+#define QED_LINK_LOOPBACK_NONE                  BIT(0)
+#define QED_LINK_LOOPBACK_INT_PHY               BIT(1)
+#define QED_LINK_LOOPBACK_EXT_PHY               BIT(2)
+#define QED_LINK_LOOPBACK_EXT                   BIT(3)
+#define QED_LINK_LOOPBACK_MAC                   BIT(4)
+	u32	loopback_mode;
 };
 
 struct qed_link_output {
@@ -158,7 +165,47 @@ struct qed_common_cb_ops {
 			       struct qed_link_output	*link);
 };
 
+struct qed_selftest_ops {
+/**
+ * @brief selftest_interrupt - Perform interrupt test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_interrupt)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_memory - Perform memory test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_memory)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_register - Perform register test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_register)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_clock - Perform clock test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_clock)(struct qed_dev *cdev);
+};
+
 struct qed_common_ops {
+	struct qed_selftest_ops *selftest;
+
 	struct qed_dev*	(*probe)(struct pci_dev *dev,
 				 enum qed_protocol protocol,
 				 u32 dp_module, u8 dp_level);

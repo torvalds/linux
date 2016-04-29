@@ -28,6 +28,7 @@
 #include "qed_dev_api.h"
 #include "qed_mcp.h"
 #include "qed_hw.h"
+#include "qed_selftest.h"
 
 static char version[] =
 	"QLogic FastLinQ 4xxxx Core Module qed " DRV_MODULE_VERSION "\n";
@@ -976,6 +977,25 @@ static int qed_set_link(struct qed_dev *cdev,
 		else
 			link_params->pause.forced_tx = false;
 	}
+	if (params->override_flags & QED_LINK_OVERRIDE_LOOPBACK_MODE) {
+		switch (params->loopback_mode) {
+		case QED_LINK_LOOPBACK_INT_PHY:
+			link_params->loopback_mode = PMM_LOOPBACK_INT_PHY;
+			break;
+		case QED_LINK_LOOPBACK_EXT_PHY:
+			link_params->loopback_mode = PMM_LOOPBACK_EXT_PHY;
+			break;
+		case QED_LINK_LOOPBACK_EXT:
+			link_params->loopback_mode = PMM_LOOPBACK_EXT;
+			break;
+		case QED_LINK_LOOPBACK_MAC:
+			link_params->loopback_mode = PMM_LOOPBACK_MAC;
+			break;
+		default:
+			link_params->loopback_mode = PMM_LOOPBACK_NONE;
+			break;
+		}
+	}
 
 	rc = qed_mcp_set_link(hwfn, ptt, params->link_up);
 
@@ -1182,7 +1202,15 @@ static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
 	return status;
 }
 
+struct qed_selftest_ops qed_selftest_ops_pass = {
+	.selftest_memory = &qed_selftest_memory,
+	.selftest_interrupt = &qed_selftest_interrupt,
+	.selftest_register = &qed_selftest_register,
+	.selftest_clock = &qed_selftest_clock,
+};
+
 const struct qed_common_ops qed_common_ops_pass = {
+	.selftest = &qed_selftest_ops_pass,
 	.probe = &qed_probe,
 	.remove = &qed_remove,
 	.set_power_state = &qed_set_power_state,
