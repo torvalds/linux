@@ -1965,7 +1965,9 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	osd_req->r_priv = obj_request;
 
 	osd_req->r_base_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
-	ceph_oid_set_name(&osd_req->r_base_oid, obj_request->object_name);
+	if (ceph_oid_aprintf(&osd_req->r_base_oid, GFP_NOIO, "%s",
+			     obj_request->object_name))
+		goto fail;
 
 	if (ceph_osdc_alloc_messages(osd_req, GFP_NOIO))
 		goto fail;
@@ -2017,7 +2019,9 @@ rbd_osd_req_create_copyup(struct rbd_obj_request *obj_request)
 	osd_req->r_priv = obj_request;
 
 	osd_req->r_base_oloc.pool = ceph_file_layout_pg_pool(rbd_dev->layout);
-	ceph_oid_set_name(&osd_req->r_base_oid, obj_request->object_name);
+	if (ceph_oid_aprintf(&osd_req->r_base_oid, GFP_NOIO, "%s",
+			     obj_request->object_name))
+		goto fail;
 
 	if (ceph_osdc_alloc_messages(osd_req, GFP_NOIO))
 		goto fail;

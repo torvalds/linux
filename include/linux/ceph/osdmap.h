@@ -64,10 +64,46 @@ struct ceph_object_locator {
  */
 #define CEPH_MAX_OID_NAME_LEN 100
 
+/*
+ * 51-char inline_name is long enough for all cephfs and all but one
+ * rbd requests: <imgname> in "<imgname>.rbd"/"rbd_id.<imgname>" can be
+ * arbitrarily long (~PAGE_SIZE).  It's done once during rbd map; all
+ * other rbd requests fit into inline_name.
+ *
+ * Makes ceph_object_id 64 bytes on 64-bit.
+ */
+#define CEPH_OID_INLINE_LEN 52
+
+/*
+ * Both inline and external buffers have space for a NUL-terminator,
+ * which is carried around.  It's not required though - RADOS object
+ * names don't have to be NUL-terminated and may contain NULs.
+ */
 struct ceph_object_id {
-	char name[CEPH_MAX_OID_NAME_LEN];
+	char *name;
+	char inline_name[CEPH_OID_INLINE_LEN];
 	int name_len;
 };
+
+static inline void ceph_oid_init(struct ceph_object_id *oid)
+{
+	oid->name = oid->inline_name;
+	oid->name_len = 0;
+}
+
+static inline bool ceph_oid_empty(const struct ceph_object_id *oid)
+{
+	return oid->name == oid->inline_name && !oid->name_len;
+}
+
+void ceph_oid_copy(struct ceph_object_id *dest,
+		   const struct ceph_object_id *src);
+__printf(2, 3)
+void ceph_oid_printf(struct ceph_object_id *oid, const char *fmt, ...);
+__printf(3, 4)
+int ceph_oid_aprintf(struct ceph_object_id *oid, gfp_t gfp,
+		     const char *fmt, ...);
+void ceph_oid_destroy(struct ceph_object_id *oid);
 
 struct ceph_pg_mapping {
 	struct rb_node node;
@@ -112,30 +148,6 @@ struct ceph_osdmap {
 	struct mutex crush_scratch_mutex;
 	int crush_scratch_ary[CEPH_PG_MAX_SIZE * 3];
 };
-
-static inline void ceph_oid_set_name(struct ceph_object_id *oid,
-				     const char *name)
-{
-	int len;
-
-	len = strlen(name);
-	if (len > sizeof(oid->name)) {
-		WARN(1, "ceph_oid_set_name '%s' len %d vs %zu, truncating\n",
-		     name, len, sizeof(oid->name));
-		len = sizeof(oid->name);
-	}
-
-	memcpy(oid->name, name, len);
-	oid->name_len = len;
-}
-
-static inline void ceph_oid_copy(struct ceph_object_id *dest,
-				 struct ceph_object_id *src)
-{
-	BUG_ON(src->name_len > sizeof(dest->name));
-	memcpy(dest->name, src->name, src->name_len);
-	dest->name_len = src->name_len;
-}
 
 static inline int ceph_osd_exists(struct ceph_osdmap *map, int osd)
 {

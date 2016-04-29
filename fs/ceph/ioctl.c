@@ -213,7 +213,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 		 ceph_ino(inode), dl.object_no);
 
 	oloc.pool = ceph_file_layout_pg_pool(ci->i_layout);
-	ceph_oid_set_name(&oid, dl.object_name);
+	ceph_oid_printf(&oid, "%s", dl.object_name);
 
 	r = ceph_oloc_oid_to_pg(osdc->osdmap, &oloc, &oid, &pgid);
 	if (r < 0) {

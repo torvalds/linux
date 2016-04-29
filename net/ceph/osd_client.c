@@ -334,7 +334,10 @@ static void ceph_osdc_release_request(struct kref *kref)
 	for (which = 0; which < req->r_num_ops; which++)
 		osd_req_op_data_release(req, which);
 
+	ceph_oid_destroy(&req->r_base_oid);
+	ceph_oid_destroy(&req->r_target_oid);
 	ceph_put_snap_context(req->r_snapc);
+
 	if (req->r_mempool)
 		mempool_free(req, req->r_osdc->req_mempool);
 	else if (req->r_num_ops <= CEPH_OSD_SLAB_OPS)
@@ -401,7 +404,9 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	INIT_LIST_HEAD(&req->r_req_lru_item);
 	INIT_LIST_HEAD(&req->r_osd_item);
 
+	ceph_oid_init(&req->r_base_oid);
 	req->r_base_oloc.pool = -1;
+	ceph_oid_init(&req->r_target_oid);
 	req->r_target_oloc.pool = -1;
 
 	dout("%s req %p\n", __func__, req);
@@ -414,6 +419,8 @@ int ceph_osdc_alloc_messages(struct ceph_osd_request *req, gfp_t gfp)
 	struct ceph_osd_client *osdc = req->r_osdc;
 	struct ceph_msg *msg;
 	int msg_size;
+
+	WARN_ON(ceph_oid_empty(&req->r_base_oid));
 
 	/* create request message */
 	msg_size = 4 + 4 + 4; /* client_inc, osdmap_epoch, flags */
@@ -859,10 +866,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	}
 
 	req->r_base_oloc.pool = ceph_file_layout_pg_pool(*layout);
-
-	snprintf(req->r_base_oid.name, sizeof(req->r_base_oid.name),
-		 "%llx.%08llx", vino.ino, objnum);
-	req->r_base_oid.name_len = strlen(req->r_base_oid.name);
+	ceph_oid_printf(&req->r_base_oid, "%llx.%08llx", vino.ino, objnum);
 
 	r = ceph_osdc_alloc_messages(req, GFP_NOFS);
 	if (r)
@@ -1410,7 +1414,7 @@ static int __calc_request_pg(struct ceph_osdmap *osdmap,
 		req->r_target_oloc = req->r_base_oloc; /* struct */
 		need_check_tiering = true;
 	}
-	if (req->r_target_oid.name_len == 0) {
+	if (ceph_oid_empty(&req->r_target_oid)) {
 		ceph_oid_copy(&req->r_target_oid, &req->r_base_oid);
 		need_check_tiering = true;
 	}
@@ -2501,7 +2505,7 @@ void ceph_osdc_build_request(struct ceph_osd_request *req, u64 off,
 	/* oid */
 	ceph_encode_32(&p, req->r_base_oid.name_len);
 	memcpy(p, req->r_base_oid.name, req->r_base_oid.name_len);
-	dout("oid '%.*s' len %d\n", req->r_base_oid.name_len,
+	dout("oid %*pE len %d\n", req->r_base_oid.name_len,
 	     req->r_base_oid.name, req->r_base_oid.name_len);
 	p += req->r_base_oid.name_len;
 

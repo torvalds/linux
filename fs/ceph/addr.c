@@ -1758,9 +1758,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci, u32 pool)
 	rd_req->r_flags = CEPH_OSD_FLAG_READ;
 	osd_req_op_init(rd_req, 0, CEPH_OSD_OP_STAT, 0);
 	rd_req->r_base_oloc.pool = pool;
-	snprintf(rd_req->r_base_oid.name, sizeof(rd_req->r_base_oid.name),
-		 "%llx.00000000", ci->i_vino.ino);
-	rd_req->r_base_oid.name_len = strlen(rd_req->r_base_oid.name);
+	ceph_oid_printf(&rd_req->r_base_oid, "%llx.00000000", ci->i_vino.ino);
 
 	err = ceph_osdc_alloc_messages(rd_req, GFP_NOFS);
 	if (err)
@@ -1777,7 +1775,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci, u32 pool)
 			  CEPH_OSD_FLAG_ACK | CEPH_OSD_FLAG_ONDISK;
 	osd_req_op_init(wr_req, 0, CEPH_OSD_OP_CREATE, CEPH_OSD_OP_FLAG_EXCL);
 	wr_req->r_base_oloc.pool = pool;
-	wr_req->r_base_oid = rd_req->r_base_oid;
+	ceph_oid_copy(&wr_req->r_base_oid, &rd_req->r_base_oid);
 
 	err = ceph_osdc_alloc_messages(wr_req, GFP_NOFS);
 	if (err)

@@ -1381,8 +1381,99 @@ bad:
 	return ERR_PTR(err);
 }
 
+void ceph_oid_copy(struct ceph_object_id *dest,
+		   const struct ceph_object_id *src)
+{
+	WARN_ON(!ceph_oid_empty(dest));
 
+	if (src->name != src->inline_name) {
+		/* very rare, see ceph_object_id definition */
+		dest->name = kmalloc(src->name_len + 1,
+				     GFP_NOIO | __GFP_NOFAIL);
+	}
 
+	memcpy(dest->name, src->name, src->name_len + 1);
+	dest->name_len = src->name_len;
+}
+EXPORT_SYMBOL(ceph_oid_copy);
+
+static __printf(2, 0)
+int oid_printf_vargs(struct ceph_object_id *oid, const char *fmt, va_list ap)
+{
+	int len;
+
+	WARN_ON(!ceph_oid_empty(oid));
+
+	len = vsnprintf(oid->inline_name, sizeof(oid->inline_name), fmt, ap);
+	if (len >= sizeof(oid->inline_name))
+		return len;
+
+	oid->name_len = len;
+	return 0;
+}
+
+/*
+ * If oid doesn't fit into inline buffer, BUG.
+ */
+void ceph_oid_printf(struct ceph_object_id *oid, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	BUG_ON(oid_printf_vargs(oid, fmt, ap));
+	va_end(ap);
+}
+EXPORT_SYMBOL(ceph_oid_printf);
+
+static __printf(3, 0)
+int oid_aprintf_vargs(struct ceph_object_id *oid, gfp_t gfp,
+		      const char *fmt, va_list ap)
+{
+	va_list aq;
+	int len;
+
+	va_copy(aq, ap);
+	len = oid_printf_vargs(oid, fmt, aq);
+	va_end(aq);
+
+	if (len) {
+		char *external_name;
+
+		external_name = kmalloc(len + 1, gfp);
+		if (!external_name)
+			return -ENOMEM;
+
+		oid->name = external_name;
+		WARN_ON(vsnprintf(oid->name, len + 1, fmt, ap) != len);
+		oid->name_len = len;
+	}
+
+	return 0;
+}
+
+/*
+ * If oid doesn't fit into inline buffer, allocate.
+ */
+int ceph_oid_aprintf(struct ceph_object_id *oid, gfp_t gfp,
+		     const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, fmt);
+	ret = oid_aprintf_vargs(oid, gfp, fmt, ap);
+	va_end(ap);
+
+	return ret;
+}
+EXPORT_SYMBOL(ceph_oid_aprintf);
+
+void ceph_oid_destroy(struct ceph_object_id *oid)
+{
+	if (oid->name != oid->inline_name)
+		kfree(oid->name);
+}
+EXPORT_SYMBOL(ceph_oid_destroy);
 
 /*
  * calculate file layout from given offset, length.
@@ -1474,7 +1565,7 @@ int ceph_oloc_oid_to_pg(struct ceph_osdmap *osdmap,
 	pg_out->seed = ceph_str_hash(pi->object_hash, oid->name,
 				     oid->name_len);
 
-	dout("%s '%.*s' pgid %llu.%x\n", __func__, oid->name_len, oid->name,
+	dout("%s %*pE pgid %llu.%x\n", __func__, oid->name_len, oid->name,
 	     pg_out->pool, pg_out->seed);
 	return 0;
 }
