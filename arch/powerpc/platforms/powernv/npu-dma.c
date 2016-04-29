@@ -159,6 +159,56 @@ static struct pnv_ioda_pe *get_gpu_pci_dev_and_pe(struct pnv_ioda_pe *npe,
 	return pe;
 }
 
+static long pnv_npu_set_window(struct pnv_ioda_pe *npe,
+		struct iommu_table *tbl)
+{
+	struct pnv_phb *phb = npe->phb;
+	int64_t rc;
+	const unsigned long size = tbl->it_indirect_levels ?
+		tbl->it_level_size : tbl->it_size;
+	const __u64 start_addr = tbl->it_offset << tbl->it_page_shift;
+	const __u64 win_size = tbl->it_size << tbl->it_page_shift;
+
+	pe_info(npe, "Setting up window %llx..%llx pg=%lx\n",
+			start_addr, start_addr + win_size - 1,
+			IOMMU_PAGE_SIZE(tbl));
+
+	rc = opal_pci_map_pe_dma_window(phb->opal_id,
+			npe->pe_number,
+			npe->pe_number,
+			tbl->it_indirect_levels + 1,
+			__pa(tbl->it_base),
+			size << 3,
+			IOMMU_PAGE_SIZE(tbl));
+	if (rc) {
+		pe_err(npe, "Failed to configure TCE table, err %lld\n", rc);
+		return rc;
+	}
+	pnv_pci_ioda2_tce_invalidate_entire(phb, false);
+
+	return 0;
+}
+
+static long pnv_npu_unset_window(struct pnv_ioda_pe *npe)
+{
+	struct pnv_phb *phb = npe->phb;
+	int64_t rc;
+
+	pe_info(npe, "Removing DMA window\n");
+
+	rc = opal_pci_map_pe_dma_window(phb->opal_id, npe->pe_number,
+			npe->pe_number,
+			0/* levels */, 0/* table address */,
+			0/* table size */, 0/* page size */);
+	if (rc) {
+		pe_err(npe, "Unmapping failed, ret = %lld\n", rc);
+		return rc;
+	}
+	pnv_pci_ioda2_tce_invalidate_entire(phb, false);
+
+	return 0;
+}
+
 void pnv_npu_init_dma_pe(struct pnv_ioda_pe *npe)
 {
 	struct pnv_ioda_pe *gpe;
@@ -200,10 +250,8 @@ void pnv_npu_init_dma_pe(struct pnv_ioda_pe *npe)
  */
 static void pnv_npu_dma_set_32(struct pnv_ioda_pe *npe)
 {
-	struct pnv_phb *phb = npe->phb;
 	struct pci_dev *gpdev;
 	struct pnv_ioda_pe *gpe;
-	struct iommu_table *tbl;
 	int64_t rc;
 
 	/*
@@ -217,14 +265,7 @@ static void pnv_npu_dma_set_32(struct pnv_ioda_pe *npe)
 	if (!gpe)
 		return;
 
-	tbl = gpe->table_group.tables[0];
-	rc = opal_pci_map_pe_dma_window(phb->opal_id, npe->pe_number,
-					npe->pe_number, 1, __pa(tbl->it_base),
-					tbl->it_size << 3,
-					IOMMU_PAGE_SIZE(tbl));
-	if (rc != OPAL_SUCCESS)
-		pr_warn("%s: Error %lld setting DMA window on PHB#%d-PE#%d\n",
-			__func__, rc, phb->hose->global_number, npe->pe_number);
+	rc = pnv_npu_set_window(npe, gpe->table_group.tables[0]);
 
 	/*
 	 * We don't initialise npu_pe->tce32_table as we always use
@@ -247,6 +288,10 @@ static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
 
 	if (phb->type != PNV_PHB_NPU || !npe->pdev)
 		return -EINVAL;
+
+	rc = pnv_npu_unset_window(npe);
+	if (rc != OPAL_SUCCESS)
+		return rc;
 
 	/* Enable the bypass window */
 
