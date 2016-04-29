@@ -166,6 +166,7 @@ static struct ibm_pa_feature {
 	 * which is 0 if the kernel doesn't support TM.
 	 */
 	{CPU_FTR_TM_COMP, 0, 0,		22, 0, 0},
+	{0, MMU_FTR_RADIX, 0,		40, 0, 0},
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
