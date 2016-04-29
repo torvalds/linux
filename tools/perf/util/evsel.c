@@ -2325,10 +2325,18 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 			 "Probably the maximum number of open file descriptors has been reached.\n"
 			 "Hint: Try again after reducing the number of events.\n"
 			 "Hint: Try increasing the limit with 'ulimit -n <limit>'");
+	case ENOMEM:
+		if ((evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) != 0 &&
+		    access("/proc/sys/kernel/perf_event_max_stack", F_OK) == 0)
+			return scnprintf(msg, size,
+					 "Not enough memory to setup event with callchain.\n"
+					 "Hint: Try tweaking /proc/sys/kernel/perf_event_max_stack\n"
+					 "Hint: Current value: %d", sysctl_perf_event_max_stack);
+		break;
 	case ENODEV:
 		if (target->cpu_list)
 			return scnprintf(msg, size, "%s",
-	 "No such device - did you specify an out-of-range profile CPU?\n");
+	 "No such device - did you specify an out-of-range profile CPU?");
 		break;
 	case EOPNOTSUPP:
 		if (evsel->attr.precise_ip)
@@ -2360,7 +2368,7 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	return scnprintf(msg, size,
 	"The sys_perf_event_open() syscall returned with %d (%s) for event (%s).\n"
 	"/bin/dmesg may provide additional information.\n"
-	"No CONFIG_PERF_EVENTS=y kernel support configured?\n",
+	"No CONFIG_PERF_EVENTS=y kernel support configured?",
 			 err, strerror_r(err, sbuf, sizeof(sbuf)),
 			 perf_evsel__name(evsel));
 }
