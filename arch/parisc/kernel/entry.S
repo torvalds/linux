@@ -667,7 +667,7 @@
 	 * boundary
 	 */
 
-	.text
+	.section .text.hot
 	.align 2048
 
 ENTRY(fault_vector_20)
