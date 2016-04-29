@@ -156,7 +156,8 @@ struct  intel_engine_cs {
 #define I915_NUM_ENGINES 5
 #define _VCS(n) (VCS + (n))
 	unsigned int exec_id;
-	unsigned int guc_id;
+	unsigned int hw_id;
+	unsigned int guc_id; /* XXX same as hw_id? */
 	u32		mmio_base;
 	struct		drm_device *dev;
 	struct intel_ringbuffer *buffer;

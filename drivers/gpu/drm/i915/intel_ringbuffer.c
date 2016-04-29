@@ -1309,7 +1309,7 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req,
 		intel_ring_emit(signaller, seqno);
 		intel_ring_emit(signaller, 0);
 		intel_ring_emit(signaller, MI_SEMAPHORE_SIGNAL |
-					   MI_SEMAPHORE_TARGET(waiter->id));
+					   MI_SEMAPHORE_TARGET(waiter->hw_id));
 		intel_ring_emit(signaller, 0);
 	}
 
@@ -1349,7 +1349,7 @@ static int gen8_xcs_signal(struct drm_i915_gem_request *signaller_req,
 		intel_ring_emit(signaller, upper_32_bits(gtt_offset));
 		intel_ring_emit(signaller, seqno);
 		intel_ring_emit(signaller, MI_SEMAPHORE_SIGNAL |
-					   MI_SEMAPHORE_TARGET(waiter->id));
+					   MI_SEMAPHORE_TARGET(waiter->hw_id));
 		intel_ring_emit(signaller, 0);
 	}
 
@@ -2778,6 +2778,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	engine->name = "render ring";
 	engine->id = RCS;
 	engine->exec_id = I915_EXEC_RENDER;
+	engine->hw_id = 0;
 	engine->mmio_base = RENDER_RING_BASE;
 
 	if (INTEL_INFO(dev)->gen >= 8) {
@@ -2929,6 +2930,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 	engine->name = "bsd ring";
 	engine->id = VCS;
 	engine->exec_id = I915_EXEC_BSD;
+	engine->hw_id = 1;
 
 	engine->write_tail = ring_write_tail;
 	if (INTEL_INFO(dev)->gen >= 6) {
@@ -3007,6 +3009,7 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 	engine->name = "bsd2 ring";
 	engine->id = VCS2;
 	engine->exec_id = I915_EXEC_BSD;
+	engine->hw_id = 4;
 
 	engine->write_tail = ring_write_tail;
 	engine->mmio_base = GEN8_BSD2_RING_BASE;
@@ -3039,6 +3042,7 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	engine->name = "blitter ring";
 	engine->id = BCS;
 	engine->exec_id = I915_EXEC_BLT;
+	engine->hw_id = 2;
 
 	engine->mmio_base = BLT_RING_BASE;
 	engine->write_tail = ring_write_tail;
@@ -3098,6 +3102,7 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 	engine->name = "video enhancement ring";
 	engine->id = VECS;
 	engine->exec_id = I915_EXEC_VEBOX;
+	engine->hw_id = 3;
 
 	engine->mmio_base = VEBOX_RING_BASE;
 	engine->write_tail = ring_write_tail;
