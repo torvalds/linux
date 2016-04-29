@@ -45,6 +45,11 @@ module_param(scrub_overflow_abort, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(scrub_overflow_abort,
 		"Number of times we overflow ARS results before abort");
 
+static bool disable_vendor_specific;
+module_param(disable_vendor_specific, bool, S_IRUGO);
+MODULE_PARM_DESC(disable_vendor_specific,
+		"Limit commands to the publicly specified set\n");
+
 static struct workqueue_struct *nfit_wq;
 
 struct nfit_table_prev {
@@ -989,13 +994,17 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 
 	/* limit the supported commands to those that are publicly documented */
 	nfit_mem->family = i;
-	if (nfit_mem->family == NVDIMM_FAMILY_INTEL)
+	if (nfit_mem->family == NVDIMM_FAMILY_INTEL) {
 		dsm_mask = 0x3fe;
-	else if (nfit_mem->family == NVDIMM_FAMILY_HPE1)
+		if (disable_vendor_specific)
+			dsm_mask &= ~(1 << ND_CMD_VENDOR);
+	} else if (nfit_mem->family == NVDIMM_FAMILY_HPE1)
 		dsm_mask = 0x1c3c76;
-	else if (nfit_mem->family == NVDIMM_FAMILY_HPE2)
+	else if (nfit_mem->family == NVDIMM_FAMILY_HPE2) {
 		dsm_mask = 0x1fe;
-	else {
+		if (disable_vendor_specific)
+			dsm_mask &= ~(1 << 8);
+	} else {
 		dev_err(dev, "unknown dimm command family\n");
 		nfit_mem->family = -1;
 		return force_enable_dimms ? 0 : -ENODEV;
