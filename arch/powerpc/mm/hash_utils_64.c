@@ -1172,8 +1172,8 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 #endif
 	/* Do actual hashing */
 #ifdef CONFIG_PPC_64K_PAGES
-	/* If _PAGE_4K_PFN is set, make sure this is a 4k segment */
-	if ((pte_val(*ptep) & _PAGE_4K_PFN) && psize == MMU_PAGE_64K) {
+	/* If H_PAGE_4K_PFN is set, make sure this is a 4k segment */
+	if ((pte_val(*ptep) & H_PAGE_4K_PFN) && psize == MMU_PAGE_64K) {
 		demote_segment_4k(mm, ea);
 		psize = MMU_PAGE_4K;
 	}
@@ -1335,13 +1335,13 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 
 	WARN_ON(hugepage_shift);
 #ifdef CONFIG_PPC_64K_PAGES
-	/* If either _PAGE_4K_PFN or cache inhibited is set (and we are on
+	/* If either H_PAGE_4K_PFN or cache inhibited is set (and we are on
 	 * a 64K kernel), then we don't preload, hash_page() will take
 	 * care of it once we actually try to access the page.
 	 * That way we don't have to duplicate all of the logic for segment
 	 * page size demotion here
 	 */
-	if ((pte_val(*ptep) & _PAGE_4K_PFN) || pte_ci(*ptep))
+	if ((pte_val(*ptep) & H_PAGE_4K_PFN) || pte_ci(*ptep))
 		goto out_exit;
 #endif /* CONFIG_PPC_64K_PAGES */
 

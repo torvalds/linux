@@ -29,17 +29,23 @@
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-#define _PAGE_COMBO	0x00001000 /* this is a combo 4k page */
-#define _PAGE_4K_PFN	0x00002000 /* PFN is for a single 4k page */
+#define H_PAGE_COMBO	0x00001000 /* this is a combo 4k page */
+#define H_PAGE_4K_PFN	0x00002000 /* PFN is for a single 4k page */
 /*
- * Used to track subpage group valid if _PAGE_COMBO is set
- * This overloads _PAGE_F_GIX and _PAGE_F_SECOND
+ * We need to differentiate between explicit huge page and THP huge
+ * page, since THP huge page also need to track real subpage details
  */
-#define _PAGE_COMBO_VALID	(_PAGE_F_GIX | _PAGE_F_SECOND)
+#define H_PAGE_THP_HUGE  H_PAGE_4K_PFN
+
+/*
+ * Used to track subpage group valid if H_PAGE_COMBO is set
+ * This overloads H_PAGE_F_GIX and H_PAGE_F_SECOND
+ */
+#define H_PAGE_COMBO_VALID	(H_PAGE_F_GIX | H_PAGE_F_SECOND)
 
 /* PTE flags to conserve for HPTE identification */
-#define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_F_SECOND | \
-			 _PAGE_F_GIX | _PAGE_HASHPTE | _PAGE_COMBO)
+#define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_F_SECOND | \
+			 H_PAGE_F_GIX | H_PAGE_HASHPTE | H_PAGE_COMBO)
 /*
  * we support 16 fragments per PTE page of 64K size.
  */
@@ -75,9 +81,9 @@ static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
 
 	rpte.pte = pte;
 	rpte.hidx = 0;
-	if (pte_val(pte) & _PAGE_COMBO) {
+	if (pte_val(pte) & H_PAGE_COMBO) {
 		/*
-		 * Make sure we order the hidx load against the _PAGE_COMBO
+		 * Make sure we order the hidx load against the H_PAGE_COMBO
 		 * check. The store side ordering is done in __hash_page_4K
 		 */
 		smp_rmb();
@@ -89,9 +95,9 @@ static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
 
 static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
 {
-	if ((pte_val(rpte.pte) & _PAGE_COMBO))
+	if ((pte_val(rpte.pte) & H_PAGE_COMBO))
 		return (rpte.hidx >> (index<<2)) & 0xf;
-	return (pte_val(rpte.pte) >> _PAGE_F_GIX_SHIFT) & 0xf;
+	return (pte_val(rpte.pte) >> H_PAGE_F_GIX_SHIFT) & 0xf;
 }
 
 #define __rpte_to_pte(r)	((r).pte)
@@ -114,7 +120,7 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 #define pte_iterate_hashed_end() } while(0); } } while(0)
 
 #define pte_pagesize_index(mm, addr, pte)	\
-	(((pte) & _PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
+	(((pte) & H_PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
 
 extern int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
 			   unsigned long pfn, unsigned long size, pgprot_t);
@@ -126,7 +132,7 @@ static inline int remap_4k_pfn(struct vm_area_struct *vma, unsigned long addr,
 		return -EINVAL;
 	}
 	return remap_pfn_range(vma, addr, pfn, PAGE_SIZE,
-			       __pgprot(pgprot_val(prot) | _PAGE_4K_PFN));
+			       __pgprot(pgprot_val(prot) | H_PAGE_4K_PFN));
 }
 
 #define PTE_TABLE_SIZE	PTE_FRAG_SIZE
@@ -255,8 +261,8 @@ static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
  */
 static inline int pmd_trans_huge(pmd_t pmd)
 {
-	return !!((pmd_val(pmd) & (_PAGE_PTE | _PAGE_THP_HUGE)) ==
-		  (_PAGE_PTE | _PAGE_THP_HUGE));
+	return !!((pmd_val(pmd) & (_PAGE_PTE | H_PAGE_THP_HUGE)) ==
+		  (_PAGE_PTE | H_PAGE_THP_HUGE));
 }
 
 static inline int pmd_large(pmd_t pmd)
@@ -280,7 +286,7 @@ static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
 {
 	unsigned long old;
 
-	if ((pmd_val(*pmdp) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
+	if ((pmd_val(*pmdp) & (_PAGE_ACCESSED | H_PAGE_HASHPTE)) == 0)
 		return 0;
 	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED, 0);
 	return ((old & _PAGE_ACCESSED) != 0);

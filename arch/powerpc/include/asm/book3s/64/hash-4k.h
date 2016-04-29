@@ -48,10 +48,14 @@
 #define PGD_MASKED_BITS		0
 
 /* PTE flags to conserve for HPTE identification */
-#define _PAGE_HPTEFLAGS (_PAGE_BUSY | _PAGE_HASHPTE | \
-			 _PAGE_F_SECOND | _PAGE_F_GIX)
-
-#define _PAGE_4K_PFN		0
+#define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_HASHPTE | \
+			 H_PAGE_F_SECOND | H_PAGE_F_GIX)
+/*
+ * Not supported by 4k linux page size
+ */
+#define H_PAGE_4K_PFN	0x0
+#define H_PAGE_THP_HUGE 0x0
+#define H_PAGE_COMBO	0x0
 #ifndef __ASSEMBLY__
 /*
  * On all 4K setups, remap_4k_pfn() equates to remap_pfn_range()

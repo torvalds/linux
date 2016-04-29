@@ -206,3 +206,7 @@ static inline bool pte_user(pte_t pte)
 #define _PAGE_READ 0
 #define _PAGE_WRITE _PAGE_RW
 #endif
+
+#ifndef H_PAGE_4K_PFN
+#define H_PAGE_4K_PFN 0
+#endif
