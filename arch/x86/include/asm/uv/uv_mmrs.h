@@ -5,7 +5,7 @@
  *
  * SGI UV MMR definitions
  *
- * Copyright (C) 2007-2014 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2007-2015 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_X86_UV_UV_MMRS_H
@@ -18,10 +18,11 @@
  * grouped by architecture types.
  *
  * UVH  - definitions common to all UV hub types.
- * UVXH - definitions common to all UV eXtended hub types (currently 2 & 3).
+ * UVXH - definitions common to all UV eXtended hub types (currently 2, 3, 4).
  * UV1H - definitions specific to UV type 1 hub.
  * UV2H - definitions specific to UV type 2 hub.
  * UV3H - definitions specific to UV type 3 hub.
+ * UV4H - definitions specific to UV type 4 hub.
  *
  * So in general, MMR addresses and structures are identical on all hubs types.
  * These MMRs are identified as:
@@ -36,15 +37,19 @@
  *	#define UV1Hxxx	a
  *	#define UV2Hxxx	b
  *	#define UV3Hxxx	c
+ *	#define UV4Hxxx	d
  *	#define UVHxxx	(is_uv1_hub() ? UV1Hxxx :
  *			(is_uv2_hub() ? UV2Hxxx :
- *					UV3Hxxx))
+ *			(is_uv3_hub() ? UV3Hxxx :
+ *					UV4Hxxx))
  *
  * If the MMR exists on all hub types > 1 but have different addresses:
  *	#define UV2Hxxx	b
  *	#define UV3Hxxx	c
- *	#define UVXHxxx (is_uv2_hub() ? UV2Hxxx :
- *					UV3Hxxx))
+ *	#define UV4Hxxx	d
+ *	#define UVHxxx	(is_uv2_hub() ? UV2Hxxx :
+ *			(is_uv3_hub() ? UV3Hxxx :
+ *					UV4Hxxx))
  *
  *	union uvh_xxx {
  *		unsigned long       v;
@@ -56,6 +61,8 @@
  *		} s2;
  *		struct uv3h_xxx_s {	 # Full UV3 definition (*)
  *		} s3;
+ *		struct uv4h_xxx_s {	 # Full UV4 definition (*)
+ *		} s4;
  *	};
  *		(* - if present and different than the common struct)
  *
@@ -73,7 +80,7 @@
  *		} sn;
  *	};
  *
- * (GEN Flags: mflags_opt= undefs=0 UV23=UVXH)
+ * (GEN Flags: mflags_opt= undefs=1 UV234=UVXH)
  */
 
 #define UV_MMR_ENABLE		(1UL << 63)
@@ -83,10 +90,13 @@
 #define UV2_HUB_PART_NUMBER_X	0x1111
 #define UV3_HUB_PART_NUMBER	0x9578
 #define UV3_HUB_PART_NUMBER_X	0x4321
+#define UV4_HUB_PART_NUMBER	0x99a1
 
 /* Compat: Indicate which UV Hubs are supported. */
+#define UV1_HUB_IS_SUPPORTED	1
 #define UV2_HUB_IS_SUPPORTED	1
 #define UV3_HUB_IS_SUPPORTED	1
+/* #define UV4_HUB_IS_SUPPORTED	1	(not yet) */
 
 /* ========================================================================= */
 /*                          UVH_BAU_DATA_BROADCAST                           */

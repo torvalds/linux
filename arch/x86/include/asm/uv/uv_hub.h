@@ -176,6 +176,7 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 #define UV1_HUB_REVISION_BASE		1
 #define UV2_HUB_REVISION_BASE		3
 #define UV3_HUB_REVISION_BASE		5
+#define UV4_HUB_REVISION_BASE		7
 
 static inline int is_uv1_hub(void)
 {
@@ -190,15 +191,28 @@ static inline int is_uv2_hub(void)
 
 static inline int is_uv3_hub(void)
 {
-	return uv_hub_info->hub_revision >= UV3_HUB_REVISION_BASE;
+	return ((uv_hub_info->hub_revision >= UV3_HUB_REVISION_BASE) &&
+		(uv_hub_info->hub_revision < UV4_HUB_REVISION_BASE));
 }
+
+#ifdef	UV4_HUB_IS_SUPPORTED
+static inline int is_uv4_hub(void)
+{
+	return uv_hub_info->hub_revision >= UV4_HUB_REVISION_BASE;
+}
+#else
+static inline int is_uv4_hub(void)
+{
+	return 0;
+}
+#endif
 
 static inline int is_uv_hub(void)
 {
 	return uv_hub_info->hub_revision;
 }
 
-/* code common to uv2 and uv3 only */
+/* code common to uv2/3/4 only */
 static inline int is_uvx_hub(void)
 {
 	return uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE;
@@ -243,18 +257,35 @@ union uvh_apicid {
 #define UV3_LOCAL_MMR_SIZE		(32UL * 1024 * 1024)
 #define UV3_GLOBAL_MMR32_SIZE		(32UL * 1024 * 1024)
 
-#define UV_LOCAL_MMR_BASE		(is_uv1_hub() ? UV1_LOCAL_MMR_BASE : \
-					(is_uv2_hub() ? UV2_LOCAL_MMR_BASE : \
-							UV3_LOCAL_MMR_BASE))
-#define UV_GLOBAL_MMR32_BASE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_BASE :\
-					(is_uv2_hub() ? UV2_GLOBAL_MMR32_BASE :\
-							UV3_GLOBAL_MMR32_BASE))
-#define UV_LOCAL_MMR_SIZE		(is_uv1_hub() ? UV1_LOCAL_MMR_SIZE : \
-					(is_uv2_hub() ? UV2_LOCAL_MMR_SIZE : \
-							UV3_LOCAL_MMR_SIZE))
-#define UV_GLOBAL_MMR32_SIZE		(is_uv1_hub() ? UV1_GLOBAL_MMR32_SIZE :\
-					(is_uv2_hub() ? UV2_GLOBAL_MMR32_SIZE :\
-							UV3_GLOBAL_MMR32_SIZE))
+#define UV4_LOCAL_MMR_BASE		0xfa000000UL
+#define UV4_GLOBAL_MMR32_BASE		0xfc000000UL
+#define UV4_LOCAL_MMR_SIZE		(32UL * 1024 * 1024)
+#define UV4_GLOBAL_MMR32_SIZE		(16UL * 1024 * 1024)
+
+#define UV_LOCAL_MMR_BASE		(				\
+					is_uv1_hub() ? UV1_LOCAL_MMR_BASE : \
+					is_uv2_hub() ? UV2_LOCAL_MMR_BASE : \
+					is_uv3_hub() ? UV3_LOCAL_MMR_BASE : \
+					/*is_uv4_hub*/ UV4_LOCAL_MMR_BASE)
+
+#define UV_GLOBAL_MMR32_BASE		(				\
+					is_uv1_hub() ? UV1_GLOBAL_MMR32_BASE : \
+					is_uv2_hub() ? UV2_GLOBAL_MMR32_BASE : \
+					is_uv3_hub() ? UV3_GLOBAL_MMR32_BASE : \
+					/*is_uv4_hub*/ UV4_GLOBAL_MMR32_BASE)
+
+#define UV_LOCAL_MMR_SIZE		(				\
+					is_uv1_hub() ? UV1_LOCAL_MMR_SIZE : \
+					is_uv2_hub() ? UV2_LOCAL_MMR_SIZE : \
+					is_uv3_hub() ? UV3_LOCAL_MMR_SIZE : \
+					/*is_uv4_hub*/ UV4_LOCAL_MMR_SIZE)
+
+#define UV_GLOBAL_MMR32_SIZE		(				\
+					is_uv1_hub() ? UV1_GLOBAL_MMR32_SIZE : \
+					is_uv2_hub() ? UV2_GLOBAL_MMR32_SIZE : \
+					is_uv3_hub() ? UV3_GLOBAL_MMR32_SIZE : \
+					/*is_uv4_hub*/ UV4_GLOBAL_MMR32_SIZE)
+
 #define UV_GLOBAL_MMR64_BASE		(uv_hub_info->global_mmr_base)
 
 #define UV_GLOBAL_GRU_MMR_BASE		0x4000000
@@ -666,10 +697,7 @@ static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
 
 /*
  * Get the minimum revision number of the hub chips within the partition.
- *     1 - UV1 rev 1.0 initial silicon
- *     2 - UV1 rev 2.0 production silicon
- *     3 - UV2 rev 1.0 initial silicon
- *     5 - UV3 rev 1.0 initial silicon
+ * (See UVx_HUB_REVISION_BASE above for specific values.)
  */
 static inline int uv_get_min_hub_revision_id(void)
 {
