@@ -110,7 +110,7 @@ const struct i915_ggtt_view i915_ggtt_view_rotated = {
 	.type = I915_GGTT_VIEW_ROTATED,
 };
 
-static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
+int intel_sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 {
 	bool has_aliasing_ppgtt;
 	bool has_full_ppgtt;
@@ -123,12 +123,14 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 	if (intel_vgpu_active(dev))
 		has_full_ppgtt = false; /* emulation is too hard */
 
+	if (!has_aliasing_ppgtt)
+		return 0;
+
 	/*
 	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
 	 * execlists, the sole mechanism available to submit work.
 	 */
-	if (INTEL_INFO(dev)->gen < 9 &&
-	    (enable_ppgtt == 0 || !has_aliasing_ppgtt))
+	if (enable_ppgtt == 0 && INTEL_INFO(dev)->gen < 9)
 		return 0;
 
 	if (enable_ppgtt == 1)
@@ -3219,14 +3221,6 @@ int i915_ggtt_init_hw(struct drm_device *dev)
 	if (intel_iommu_gfx_mapped)
 		DRM_INFO("VT-d active for gfx access\n");
 #endif
-	/*
-	 * i915.enable_ppgtt is read-only, so do an early pass to validate the
-	 * user's requested state against the hardware/driver capabilities.  We
-	 * do this now so that we can print out any log messages once rather
-	 * than every time we check intel_enable_ppgtt().
-	 */
-	i915.enable_ppgtt = sanitize_enable_ppgtt(dev, i915.enable_ppgtt);
-	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
 
 	return 0;
 

@@ -968,6 +968,19 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 			 info->has_subslice_pg ? "y" : "n");
 	DRM_DEBUG_DRIVER("has EU power gating: %s\n",
 			 info->has_eu_pg ? "y" : "n");
+
+	i915.enable_execlists =
+		intel_sanitize_enable_execlists(dev, i915.enable_execlists);
+
+	/*
+	 * i915.enable_ppgtt is read-only, so do an early pass to validate the
+	 * user's requested state against the hardware/driver capabilities.  We
+	 * do this now so that we can print out any log messages once rather
+	 * than every time we check intel_enable_ppgtt().
+	 */
+	i915.enable_ppgtt =
+		intel_sanitize_enable_ppgtt(dev, i915.enable_ppgtt);
+	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
 }
 
 static void intel_init_dpio(struct drm_i915_private *dev_priv)

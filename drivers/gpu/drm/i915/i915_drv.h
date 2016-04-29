@@ -2753,6 +2753,8 @@ extern int i915_max_ioctl;
 extern int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
 extern int i915_resume_switcheroo(struct drm_device *dev);
 
+int intel_sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt);
+
 /* i915_dma.c */
 void __printf(3, 4)
 __i915_printk(struct drm_i915_private *dev_priv, const char *level,

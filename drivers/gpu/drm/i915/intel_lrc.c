@@ -248,8 +248,6 @@ static int intel_lr_context_pin(struct intel_context *ctx,
  */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists)
 {
-	WARN_ON(i915.enable_ppgtt == -1);
-
 	/* On platforms with execlist available, vGPU will only
 	 * support execlist mode, no ring buffer mode.
 	 */
