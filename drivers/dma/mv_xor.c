@@ -31,6 +31,11 @@
 #include "dmaengine.h"
 #include "mv_xor.h"
 
+enum mv_xor_type {
+	XOR_ORION,
+	XOR_ARMADA_38X,
+};
+
 enum mv_xor_mode {
 	XOR_MODE_IN_REG,
 	XOR_MODE_IN_DESC,
@@ -933,7 +938,7 @@ static int mv_xor_channel_remove(struct mv_xor_chan *mv_chan)
 static struct mv_xor_chan *
 mv_xor_channel_add(struct mv_xor_device *xordev,
 		   struct platform_device *pdev,
-		   int idx, dma_cap_mask_t cap_mask, int irq, int op_in_desc)
+		   int idx, dma_cap_mask_t cap_mask, int irq)
 {
 	int ret = 0;
 	struct mv_xor_chan *mv_chan;
@@ -945,7 +950,10 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 
 	mv_chan->idx = idx;
 	mv_chan->irq = irq;
-	mv_chan->op_in_desc = op_in_desc;
+	if (xordev->xor_type == XOR_ORION)
+		mv_chan->op_in_desc = XOR_MODE_IN_REG;
+	else
+		mv_chan->op_in_desc = XOR_MODE_IN_DESC;
 
 	dma_dev = &mv_chan->dmadev;
 
@@ -1137,8 +1145,8 @@ static int mv_xor_resume(struct platform_device *dev)
 }
 
 static const struct of_device_id mv_xor_dt_ids[] = {
-	{ .compatible = "marvell,orion-xor", .data = (void *)XOR_MODE_IN_REG },
-	{ .compatible = "marvell,armada-380-xor", .data = (void *)XOR_MODE_IN_DESC },
+	{ .compatible = "marvell,orion-xor", .data = (void *)XOR_ORION },
+	{ .compatible = "marvell,armada-380-xor", .data = (void *)XOR_ARMADA_38X },
 	{},
 };
 
@@ -1152,7 +1160,6 @@ static int mv_xor_probe(struct platform_device *pdev)
 	struct resource *res;
 	unsigned int max_engines, max_channels;
 	int i, ret;
-	int op_in_desc;
 
 	dev_notice(&pdev->dev, "Marvell shared XOR driver\n");
 
@@ -1179,6 +1186,20 @@ static int mv_xor_probe(struct platform_device *pdev)
 		return -EBUSY;
 
 	platform_set_drvdata(pdev, xordev);
+
+
+	/*
+	 * We need to know which type of XOR device we use before
+	 * setting up. In non-dt case it can only be the legacy one.
+	 */
+	xordev->xor_type = XOR_ORION;
+	if (pdev->dev.of_node) {
+		const struct of_device_id *of_id =
+			of_match_device(mv_xor_dt_ids,
+					&pdev->dev);
+
+		xordev->xor_type = (uintptr_t)of_id->data;
+	}
 
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
@@ -1212,15 +1233,11 @@ static int mv_xor_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		struct device_node *np;
 		int i = 0;
-		const struct of_device_id *of_id =
-			of_match_device(mv_xor_dt_ids,
-					&pdev->dev);
 
 		for_each_child_of_node(pdev->dev.of_node, np) {
 			struct mv_xor_chan *chan;
 			dma_cap_mask_t cap_mask;
 			int irq;
-			op_in_desc = (uintptr_t)of_id->data;
 
 			if (i >= max_channels)
 				continue;
@@ -1237,7 +1254,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 			}
 
 			chan = mv_xor_channel_add(xordev, pdev, i,
-						  cap_mask, irq, op_in_desc);
+						  cap_mask, irq);
 			if (IS_ERR(chan)) {
 				ret = PTR_ERR(chan);
 				irq_dispose_mapping(irq);
@@ -1266,8 +1283,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 			}
 
 			chan = mv_xor_channel_add(xordev, pdev, i,
-						  cd->cap_mask, irq,
-						  XOR_MODE_IN_REG);
+						  cd->cap_mask, irq);
 			if (IS_ERR(chan)) {
 				ret = PTR_ERR(chan);
 				goto err_channel_add;

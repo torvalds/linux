@@ -85,6 +85,7 @@ struct mv_xor_device {
 	void __iomem	     *xor_high_base;
 	struct clk	     *clk;
 	struct mv_xor_chan   *channels[MV_XOR_MAX_CHANNELS];
+	int		     xor_type;
 };
 
 /**
