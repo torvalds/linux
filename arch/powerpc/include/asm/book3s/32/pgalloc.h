@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PGALLOC_32_H
-#define _ASM_POWERPC_PGALLOC_32_H
+#ifndef _ASM_POWERPC_BOOK3S_32_PGALLOC_H
+#define _ASM_POWERPC_BOOK3S_32_PGALLOC_H
 
 #include <linux/threads.h>
 
@@ -106,4 +106,4 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
 	pgtable_page_dtor(table);
 	pgtable_free_tlb(tlb, page_address(table), 0);
 }
-#endif /* _ASM_POWERPC_PGALLOC_32_H */
+#endif /* _ASM_POWERPC_BOOK3S_32_PGALLOC_H */

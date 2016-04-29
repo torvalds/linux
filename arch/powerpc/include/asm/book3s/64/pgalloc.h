@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_PGALLOC_64_H
-#define _ASM_POWERPC_PGALLOC_64_H
+#ifndef _ASM_POWERPC_BOOK3S_64_PGALLOC_H
+#define _ASM_POWERPC_BOOK3S_64_PGALLOC_H
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -52,8 +52,10 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 }
 
 #ifndef CONFIG_PPC_64K_PAGES
-
-#define pgd_populate(MM, PGD, PUD)	pgd_set(PGD, __pgtable_ptr_val(PUD))
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+{
+	pgd_set(pgd, __pgtable_ptr_val(pud));
+}
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
@@ -83,7 +85,10 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 	pmd_set(pmd, __pgtable_ptr_val(page_address(pte_page)));
 }
 
-#define pmd_pgtable(pmd) pmd_page(pmd)
+static inline pgtable_t pmd_pgtable(pmd_t pmd)
+{
+	return pmd_page(pmd);
+}
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 					  unsigned long address)
@@ -263,4 +268,4 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 
 #define check_pgt_cache()	do { } while (0)
 
-#endif /* _ASM_POWERPC_PGALLOC_64_H */
+#endif /* _ASM_POWERPC_BOOK3S_64_PGALLOC_H */
