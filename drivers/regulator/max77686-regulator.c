@@ -41,6 +41,8 @@
 #define MAX77686_LDO_LOW_UVSTEP	25000
 #define MAX77686_BUCK_MINUV	750000
 #define MAX77686_BUCK_UVSTEP	50000
+#define MAX77686_BUCK_ENABLE_TIME	40		/* us */
+#define MAX77686_DVS_ENABLE_TIME	22		/* us */
 #define MAX77686_RAMP_DELAY	100000			/* uV/us */
 #define MAX77686_DVS_RAMP_DELAY	27500			/* uV/us */
 #define MAX77686_DVS_MINUV	600000
@@ -422,6 +424,7 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 	.min_uV		= MAX77686_BUCK_MINUV,				\
 	.uV_step	= MAX77686_BUCK_UVSTEP,				\
 	.ramp_delay	= MAX77686_RAMP_DELAY,				\
+	.enable_time	= MAX77686_BUCK_ENABLE_TIME,			\
 	.n_voltages	= MAX77686_VSEL_MASK + 1,			\
 	.vsel_reg	= MAX77686_REG_BUCK5OUT + (num - 5) * 2,	\
 	.vsel_mask	= MAX77686_VSEL_MASK,				\
@@ -439,6 +442,7 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 	.min_uV		= MAX77686_BUCK_MINUV,				\
 	.uV_step	= MAX77686_BUCK_UVSTEP,				\
 	.ramp_delay	= MAX77686_RAMP_DELAY,				\
+	.enable_time	= MAX77686_BUCK_ENABLE_TIME,			\
 	.n_voltages	= MAX77686_VSEL_MASK + 1,			\
 	.vsel_reg	= MAX77686_REG_BUCK1OUT,			\
 	.vsel_mask	= MAX77686_VSEL_MASK,				\
@@ -456,6 +460,7 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 	.min_uV		= MAX77686_DVS_MINUV,				\
 	.uV_step	= MAX77686_DVS_UVSTEP,				\
 	.ramp_delay	= MAX77686_DVS_RAMP_DELAY,			\
+	.enable_time	= MAX77686_DVS_ENABLE_TIME,			\
 	.n_voltages	= MAX77686_DVS_VSEL_MASK + 1,			\
 	.vsel_reg	= MAX77686_REG_BUCK2DVS1 + (num - 2) * 10,	\
 	.vsel_mask	= MAX77686_DVS_VSEL_MASK,			\
