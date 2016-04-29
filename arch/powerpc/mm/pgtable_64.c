@@ -91,6 +91,12 @@ unsigned long __pud_table_size;
 EXPORT_SYMBOL(__pud_table_size);
 unsigned long __pgd_table_size;
 EXPORT_SYMBOL(__pgd_table_size);
+unsigned long __pmd_val_bits;
+EXPORT_SYMBOL(__pmd_val_bits);
+unsigned long __pud_val_bits;
+EXPORT_SYMBOL(__pud_val_bits);
+unsigned long __pgd_val_bits;
+EXPORT_SYMBOL(__pgd_val_bits);
 
 #endif
 unsigned long ioremap_bot = IOREMAP_BASE;

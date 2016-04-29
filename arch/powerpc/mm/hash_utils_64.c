@@ -882,6 +882,13 @@ void __init hash__early_init_mmu(void)
 	__pmd_table_size = H_PMD_TABLE_SIZE;
 	__pud_table_size = H_PUD_TABLE_SIZE;
 	__pgd_table_size = H_PGD_TABLE_SIZE;
+	/*
+	 * 4k use hugepd format, so for hash set then to
+	 * zero
+	 */
+	__pmd_val_bits = 0;
+	__pud_val_bits = 0;
+	__pgd_val_bits = 0;
 	/* Initialize the MMU Hash table and create the linear mapping
 	 * of memory. Has to be done before SLB initialization as this is
 	 * currently where the page size encoding is obtained.

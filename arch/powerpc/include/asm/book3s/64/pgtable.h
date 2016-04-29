@@ -170,11 +170,17 @@ extern unsigned long __pgd_table_size;
 #define PMD_TABLE_SIZE	__pmd_table_size
 #define PUD_TABLE_SIZE	__pud_table_size
 #define PGD_TABLE_SIZE	__pgd_table_size
+
+extern unsigned long __pmd_val_bits;
+extern unsigned long __pud_val_bits;
+extern unsigned long __pgd_val_bits;
+#define PMD_VAL_BITS	__pmd_val_bits
+#define PUD_VAL_BITS	__pud_val_bits
+#define PGD_VAL_BITS	__pgd_val_bits
 /*
  * Pgtable size used by swapper, init in asm code
- * We will switch this later to radix PGD
  */
-#define MAX_PGD_TABLE_SIZE (sizeof(pgd_t) << H_PGD_INDEX_SIZE)
+#define MAX_PGD_TABLE_SIZE (sizeof(pgd_t) << RADIX_PGD_INDEX_SIZE)
 
 #define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
 #define PTRS_PER_PMD	(1 << PMD_INDEX_SIZE)
