@@ -1054,3 +1054,30 @@ void nbp_vlan_flush(struct net_bridge_port *port)
 	synchronize_rcu();
 	__vlan_group_free(vg);
 }
+
+void br_vlan_get_stats(const struct net_bridge_vlan *v,
+		       struct br_vlan_stats *stats)
+{
+	int i;
+
+	memset(stats, 0, sizeof(*stats));
+	for_each_possible_cpu(i) {
+		u64 rxpackets, rxbytes, txpackets, txbytes;
+		struct br_vlan_stats *cpu_stats;
+		unsigned int start;
+
+		cpu_stats = per_cpu_ptr(v->stats, i);
+		do {
+			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
+			rxpackets = cpu_stats->rx_packets;
+			rxbytes = cpu_stats->rx_bytes;
+			txbytes = cpu_stats->tx_bytes;
+			txpackets = cpu_stats->tx_packets;
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
+
+		stats->rx_packets += rxpackets;
+		stats->rx_bytes += rxbytes;
+		stats->tx_bytes += txbytes;
+		stats->tx_packets += txpackets;
+	}
+}
