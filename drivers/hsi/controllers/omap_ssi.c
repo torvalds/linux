@@ -451,6 +451,10 @@ static int ssi_remove_ports(struct device *dev, void *c)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
+	if (!dev->of_node)
+		return 0;
+
+	of_node_clear_flag(dev->of_node, OF_POPULATED);
 	of_device_unregister(pdev);
 
 	return 0;
