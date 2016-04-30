@@ -979,13 +979,14 @@ int ip6_tnl_xmit_ctl(struct ip6_tnl *t,
 EXPORT_SYMBOL_GPL(ip6_tnl_xmit_ctl);
 
 /**
- * ip6_tnl_xmit2 - encapsulate packet and send
+ * ip6_tnl_xmit - encapsulate packet and send
  *   @skb: the outgoing socket buffer
  *   @dev: the outgoing tunnel device
  *   @dsfield: dscp code for outer header
- *   @fl: flow of tunneled packet
+ *   @fl6: flow of tunneled packet
  *   @encap_limit: encapsulation limit
  *   @pmtu: Path MTU is stored if packet is too big
+ *   @proto: next header value
  *
  * Description:
  *   Build new header and do some sanity checks on the packet before sending
@@ -997,12 +998,9 @@ EXPORT_SYMBOL_GPL(ip6_tnl_xmit_ctl);
  *   %-EMSGSIZE message too big. return mtu in this case.
  **/
 
-static int ip6_tnl_xmit2(struct sk_buff *skb,
-			 struct net_device *dev,
-			 __u8 dsfield,
-			 struct flowi6 *fl6,
-			 int encap_limit,
-			 __u32 *pmtu)
+int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
+		 struct flowi6 *fl6, int encap_limit, __u32 *pmtu,
+		 __u8 proto)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net *net = t->net;
@@ -1013,7 +1011,6 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	struct net_device *tdev;
 	int mtu;
 	unsigned int max_headroom = sizeof(struct ipv6hdr);
-	u8 proto;
 	int err = -1;
 
 	/* NBMA tunnel */
@@ -1075,10 +1072,21 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 		mtu = IPV6_MIN_MTU;
 	if (skb_dst(skb))
 		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
-	if (skb->len > mtu) {
+	if (skb->len > mtu && !skb_is_gso(skb)) {
 		*pmtu = mtu;
 		err = -EMSGSIZE;
 		goto tx_err_dst_release;
+	}
+
+	if (t->err_count > 0) {
+		if (time_before(jiffies,
+				t->err_time + IP6TUNNEL_ERR_TIMEO)) {
+			t->err_count--;
+
+			dst_link_failure(skb);
+		} else {
+			t->err_count = 0;
+		}
 	}
 
 	skb_scrub_packet(skb, !net_eq(t->net, dev_net(dev)));
@@ -1108,7 +1116,6 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 
 	skb->transport_header = skb->network_header;
 
-	proto = fl6->flowi6_proto;
 	if (encap_limit >= 0) {
 		init_tel_txopt(&opt, encap_limit);
 		ipv6_push_nfrag_opts(skb, &opt.ops, &proto, NULL);
@@ -1118,6 +1125,11 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 		skb_reset_inner_headers(skb);
 		skb->encapsulation = 1;
 	}
+
+	max_headroom = LL_RESERVED_SPACE(dst->dev) + sizeof(struct ipv6hdr)
+			+ dst->header_len;
+	if (max_headroom > dev->needed_headroom)
+		dev->needed_headroom = max_headroom;
 
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
@@ -1137,6 +1149,7 @@ tx_err_dst_release:
 	dst_release(dst);
 	return err;
 }
+EXPORT_SYMBOL(ip6_tnl_xmit);
 
 static inline int
 ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1160,7 +1173,6 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_IPIP;
 
 	dsfield = ipv4_get_dsfield(iph);
 
@@ -1170,7 +1182,8 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 		fl6.flowi6_mark = skb->mark;
 
-	err = ip6_tnl_xmit2(skb, dev, dsfield, &fl6, encap_limit, &mtu);
+	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
+			   IPPROTO_IPIP);
 	if (err != 0) {
 		/* XXX: send ICMP error even if DF is not set. */
 		if (err == -EMSGSIZE)
@@ -1214,7 +1227,6 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_IPV6;
 
 	dsfield = ipv6_get_dsfield(ipv6h);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
@@ -1224,7 +1236,8 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 		fl6.flowi6_mark = skb->mark;
 
-	err = ip6_tnl_xmit2(skb, dev, dsfield, &fl6, encap_limit, &mtu);
+	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
+			   IPPROTO_IPV6);
 	if (err != 0) {
 		if (err == -EMSGSIZE)
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
@@ -1235,7 +1248,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static netdev_tx_t
-ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
+ip6_tnl_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net_device_stats *stats = &t->dev->stats;
@@ -1556,7 +1569,7 @@ EXPORT_SYMBOL(ip6_tnl_get_iflink);
 static const struct net_device_ops ip6_tnl_netdev_ops = {
 	.ndo_init	= ip6_tnl_dev_init,
 	.ndo_uninit	= ip6_tnl_dev_uninit,
-	.ndo_start_xmit = ip6_tnl_xmit,
+	.ndo_start_xmit = ip6_tnl_start_xmit,
 	.ndo_do_ioctl	= ip6_tnl_ioctl,
 	.ndo_change_mtu = ip6_tnl_change_mtu,
 	.ndo_get_stats	= ip6_get_stats,
