@@ -400,6 +400,83 @@ int nci_core_init(struct nci_dev *ndev)
 }
 EXPORT_SYMBOL(nci_core_init);
 
+struct nci_loopback_data {
+	u8 conn_id;
+	struct sk_buff *data;
+};
+
+static void nci_send_data_req(struct nci_dev *ndev, unsigned long opt)
+{
+	struct nci_loopback_data *data = (struct nci_loopback_data *)opt;
+
+	nci_send_data(ndev, data->conn_id, data->data);
+}
+
+static void nci_nfcc_loopback_cb(void *context, struct sk_buff *skb, int err)
+{
+	struct nci_dev *ndev = (struct nci_dev *)context;
+	struct nci_conn_info    *conn_info;
+
+	conn_info = nci_get_conn_info_by_conn_id(ndev, ndev->cur_conn_id);
+	if (!conn_info) {
+		nci_req_complete(ndev, NCI_STATUS_REJECTED);
+		return;
+	}
+
+	conn_info->rx_skb = skb;
+
+	nci_req_complete(ndev, NCI_STATUS_OK);
+}
+
+int nci_nfcc_loopback(struct nci_dev *ndev, void *data, size_t data_len,
+		      struct sk_buff **resp)
+{
+	int r;
+	struct nci_loopback_data loopback_data;
+	struct nci_conn_info *conn_info;
+	struct sk_buff *skb;
+	int conn_id = nci_get_conn_info_by_dest_type_params(ndev,
+					NCI_DESTINATION_NFCC_LOOPBACK, NULL);
+
+	if (conn_id < 0) {
+		r = nci_core_conn_create(ndev, NCI_DESTINATION_NFCC_LOOPBACK,
+					 0, 0, NULL);
+		if (r != NCI_STATUS_OK)
+			return r;
+
+		conn_id = nci_get_conn_info_by_dest_type_params(ndev,
+					NCI_DESTINATION_NFCC_LOOPBACK,
+					NULL);
+	}
+
+	conn_info = nci_get_conn_info_by_conn_id(ndev, conn_id);
+	if (!conn_info)
+		return -EPROTO;
+
+	/* store cb and context to be used on receiving data */
+	conn_info->data_exchange_cb = nci_nfcc_loopback_cb;
+	conn_info->data_exchange_cb_context = ndev;
+
+	skb = nci_skb_alloc(ndev, NCI_DATA_HDR_SIZE + data_len, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_reserve(skb, NCI_DATA_HDR_SIZE);
+	memcpy(skb_put(skb, data_len), data, data_len);
+
+	loopback_data.conn_id = conn_id;
+	loopback_data.data = skb;
+
+	ndev->cur_conn_id = conn_id;
+	r = nci_request(ndev, nci_send_data_req, (unsigned long)&loopback_data,
+			msecs_to_jiffies(NCI_DATA_TIMEOUT));
+	if (r == NCI_STATUS_OK && resp)
+		*resp = conn_info->rx_skb;
+
+	return r;
+}
+EXPORT_SYMBOL(nci_nfcc_loopback);
+
 static int nci_open_device(struct nci_dev *ndev)
 {
 	int rc = 0;
