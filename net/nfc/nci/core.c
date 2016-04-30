@@ -646,6 +646,7 @@ static void nci_core_conn_close_req(struct nci_dev *ndev, unsigned long opt)
 
 int nci_core_conn_close(struct nci_dev *ndev, u8 conn_id)
 {
+	ndev->cur_conn_id = conn_id;
 	return __nci_request(ndev, nci_core_conn_close_req, conn_id,
 			     msecs_to_jiffies(NCI_CMD_TIMEOUT));
 }
