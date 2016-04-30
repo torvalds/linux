@@ -510,6 +510,7 @@ static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 	const struct acpi_device_id *id;
 	struct gpio_desc *gpiod_ena;
 	struct device *dev;
+	u8 tmp;
 
 	if (!client)
 		return -EINVAL;
@@ -533,10 +534,18 @@ static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 
 	phy->irq_polarity = irq_get_trigger_type(client->irq);
 
-	phy->se_status.is_ese_present =
-				device_property_present(dev, "ese-present");
-	phy->se_status.is_uicc_present =
-				device_property_present(dev, "uicc-present");
+	phy->se_status.is_ese_present = false;
+	phy->se_status.is_uicc_present = false;
+
+	if (device_property_present(dev, "ese-present")) {
+		device_property_read_u8(dev, "ese-present", &tmp);
+		phy->se_status.is_ese_present = tmp;
+	}
+
+	if (device_property_present(dev, "uicc-present")) {
+		device_property_read_u8(dev, "uicc-present", &tmp);
+		phy->se_status.is_uicc_present = tmp;
+	}
 
 	return 0;
 }
