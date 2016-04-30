@@ -600,10 +600,12 @@ static int st_nci_hci_network_init(struct nci_dev *ndev)
 	 * HCI will be used here only for proprietary commands.
 	 */
 	if (test_bit(ST_NCI_FACTORY_MODE, &info->flags))
-		r = nci_nfcee_mode_set(ndev, ndev->hci_dev->conn_info->id,
+		r = nci_nfcee_mode_set(ndev,
+				       ndev->hci_dev->conn_info->dest_params->id,
 				       NCI_NFCEE_DISABLE);
 	else
-		r = nci_nfcee_mode_set(ndev, ndev->hci_dev->conn_info->id,
+		r = nci_nfcee_mode_set(ndev,
+				       ndev->hci_dev->conn_info->dest_params->id,
 				       NCI_NFCEE_ENABLE);
 
 free_dest_params:

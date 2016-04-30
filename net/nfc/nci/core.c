@@ -64,18 +64,26 @@ struct nci_conn_info *nci_get_conn_info_by_conn_id(struct nci_dev *ndev,
 	return NULL;
 }
 
-int nci_get_conn_info_by_id(struct nci_dev *ndev, u8 id)
+int nci_get_conn_info_by_dest_type_params(struct nci_dev *ndev, u8 dest_type,
+					  struct dest_spec_params *params)
 {
 	struct nci_conn_info *conn_info;
 
 	list_for_each_entry(conn_info, &ndev->conn_info_list, list) {
-		if (conn_info->id == id)
-			return conn_info->conn_id;
+		if (conn_info->dest_type == dest_type) {
+			if (!params)
+				return conn_info->conn_id;
+			if (conn_info) {
+				if (params->id == conn_info->dest_params->id &&
+				    params->protocol == conn_info->dest_params->protocol)
+					return conn_info->conn_id;
+			}
+		}
 	}
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(nci_get_conn_info_by_id);
+EXPORT_SYMBOL(nci_get_conn_info_by_dest_type_params);
 
 /* ---- NCI requests ---- */
 
@@ -623,12 +631,15 @@ int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 	if (params) {
 		memcpy(cmd->params, params, params_len);
 		if (params->length > 0)
-			ndev->cur_id = params->value[DEST_SPEC_PARAMS_ID_INDEX];
+			memcpy(&ndev->cur_params,
+			       &params->value[DEST_SPEC_PARAMS_ID_INDEX],
+			       sizeof(struct dest_spec_params));
 		else
-			ndev->cur_id = 0;
+			ndev->cur_params.id = 0;
 	} else {
-		ndev->cur_id = 0;
+		ndev->cur_params.id = 0;
 	}
+	ndev->cur_dest_type = destination_type;
 
 	r = __nci_request(ndev, nci_core_conn_create_req, (unsigned long)&data,
 			  msecs_to_jiffies(NCI_CMD_TIMEOUT));
