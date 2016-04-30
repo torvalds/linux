@@ -1420,7 +1420,6 @@ static void __mcheck_cpu_init_generic(void)
 	enum mcp_flags m_fl = 0;
 	mce_banks_t all_banks;
 	u64 cap;
-	int i;
 
 	if (!mca_cfg.bootlog)
 		m_fl = MCP_DONTLOG;
@@ -1436,6 +1435,11 @@ static void __mcheck_cpu_init_generic(void)
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 	if (cap & MCG_CTL_P)
 		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
+}
+
+static void __mcheck_cpu_init_clear_banks(void)
+{
+	int i;
 
 	for (i = 0; i < mca_cfg.banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
@@ -1717,6 +1721,7 @@ void mcheck_cpu_init(struct cpuinfo_x86 *c)
 
 	__mcheck_cpu_init_generic();
 	__mcheck_cpu_init_vendor(c);
+	__mcheck_cpu_init_clear_banks();
 	__mcheck_cpu_init_timer();
 }
 
@@ -2121,6 +2126,7 @@ static void mce_syscore_resume(void)
 {
 	__mcheck_cpu_init_generic();
 	__mcheck_cpu_init_vendor(raw_cpu_ptr(&cpu_info));
+	__mcheck_cpu_init_clear_banks();
 }
 
 static struct syscore_ops mce_syscore_ops = {
@@ -2138,6 +2144,7 @@ static void mce_cpu_restart(void *data)
 	if (!mce_available(raw_cpu_ptr(&cpu_info)))
 		return;
 	__mcheck_cpu_init_generic();
+	__mcheck_cpu_init_clear_banks();
 	__mcheck_cpu_init_timer();
 }
 
