@@ -224,6 +224,53 @@ void mce_unregister_decode_chain(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(mce_unregister_decode_chain);
 
+static inline u32 ctl_reg(int bank)
+{
+	return MSR_IA32_MCx_CTL(bank);
+}
+
+static inline u32 status_reg(int bank)
+{
+	return MSR_IA32_MCx_STATUS(bank);
+}
+
+static inline u32 addr_reg(int bank)
+{
+	return MSR_IA32_MCx_ADDR(bank);
+}
+
+static inline u32 misc_reg(int bank)
+{
+	return MSR_IA32_MCx_MISC(bank);
+}
+
+static inline u32 smca_ctl_reg(int bank)
+{
+	return MSR_AMD64_SMCA_MCx_CTL(bank);
+}
+
+static inline u32 smca_status_reg(int bank)
+{
+	return MSR_AMD64_SMCA_MCx_STATUS(bank);
+}
+
+static inline u32 smca_addr_reg(int bank)
+{
+	return MSR_AMD64_SMCA_MCx_ADDR(bank);
+}
+
+static inline u32 smca_misc_reg(int bank)
+{
+	return MSR_AMD64_SMCA_MCx_MISC(bank);
+}
+
+struct mca_msr_regs msr_ops = {
+	.ctl	= ctl_reg,
+	.status	= status_reg,
+	.addr	= addr_reg,
+	.misc	= misc_reg
+};
+
 static void print_mce(struct mce *m)
 {
 	int ret = 0;
