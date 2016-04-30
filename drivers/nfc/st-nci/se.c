@@ -222,7 +222,7 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 		 */
 		dm_pipe_info = (struct st_nci_pipe_info *)skb_pipe_info->data;
 		if (dm_pipe_info->dst_gate_id == ST_NCI_APDU_READER_GATE &&
-		    dm_pipe_info->src_host_id != ST_NCI_ESE_HOST_ID) {
+		    dm_pipe_info->src_host_id == ST_NCI_UICC_HOST_ID) {
 			pr_err("Unexpected apdu_reader pipe on host %x\n",
 			       dm_pipe_info->src_host_id);
 			kfree_skb(skb_pipe_info);
