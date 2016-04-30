@@ -229,6 +229,7 @@ void nfs_unblock_sillyrename(struct dentry *dentry)
 	struct nfs_unlinkdata *data;
 
 	atomic_inc(&nfsi->silly_count);
+	wake_up(&nfsi->waitqueue);
 	spin_lock(&dir->i_lock);
 	while (!hlist_empty(&nfsi->silly_list)) {
 		if (!atomic_inc_not_zero(&nfsi->silly_count))
