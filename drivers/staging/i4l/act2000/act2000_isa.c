@@ -31,7 +31,8 @@ act2000_isa_reset(unsigned short portbase)
 	int serial = 0;
 
 	found = 0;
-	if ((reg = inb(portbase + ISA_COR)) != 0xff) {
+	reg = inb(portbase + ISA_COR);
+	if (reg != 0xff) {
 		outb(reg | ISA_COR_RESET, portbase + ISA_COR);
 		mdelay(10);
 		outb(reg, portbase + ISA_COR);
@@ -303,7 +304,8 @@ act2000_isa_send(act2000_card *card)
 	while (1) {
 		spin_lock_irqsave(&card->lock, flags);
 		if (!(card->sbuf)) {
-			if ((card->sbuf = skb_dequeue(&card->sndq))) {
+			card->sbuf = skb_dequeue(&card->sndq);
+			if (card->sbuf) {
 				card->ack_msg = card->sbuf->data;
 				msg = (actcapi_msg *)card->sbuf->data;
 				if ((msg->hdr.cmd.cmd == 0x86) &&
@@ -378,7 +380,8 @@ act2000_isa_getid(act2000_card *card)
 		printk(KERN_WARNING "act2000: Wrong Firmware-ID!\n");
 		return -EPROTO;
 	}
-	if ((p = strchr(fid.revision, '\n')))
+	p = strchr(fid.revision, '\n');
+	if (p)
 		*p = '\0';
 	printk(KERN_INFO "act2000: Firmware-ID: %s\n", fid.revision);
 	if (card->flags & ACT2000_FLAGS_IVALID) {
