@@ -1117,11 +1117,6 @@ static int ssi_port_probe(struct platform_device *pd)
 
 	dev_dbg(&pd->dev, "init ssi port...\n");
 
-	if (!try_module_get(ssi->owner)) {
-		dev_err(&pd->dev, "could not increment parent module refcount\n");
-		return -ENODEV;
-	}
-
 	if (!ssi->port || !omap_ssi->port) {
 		dev_err(&pd->dev, "ssi controller not initialized!\n");
 		err = -ENODEV;
@@ -1242,7 +1237,6 @@ static int ssi_port_remove(struct platform_device *pd)
 
 	omap_ssi->port[omap_port->port_id] = NULL;
 	platform_set_drvdata(pd, NULL);
-	module_put(ssi->owner);
 	pm_runtime_disable(&pd->dev);
 
 	return 0;
@@ -1369,7 +1363,7 @@ MODULE_DEVICE_TABLE(of, omap_ssi_port_of_match);
 #define omap_ssi_port_of_match NULL
 #endif
 
-static struct platform_driver ssi_port_pdriver = {
+struct platform_driver ssi_port_pdriver = {
 	.probe = ssi_port_probe,
 	.remove	= ssi_port_remove,
 	.driver	= {
@@ -1378,11 +1372,3 @@ static struct platform_driver ssi_port_pdriver = {
 		.pm	= DEV_PM_OPS,
 	},
 };
-
-module_platform_driver(ssi_port_pdriver);
-
-MODULE_ALIAS("platform:omap_ssi_port");
-MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");
-MODULE_AUTHOR("Sebastian Reichel <sre@kernel.org>");
-MODULE_DESCRIPTION("Synchronous Serial Interface Port Driver");
-MODULE_LICENSE("GPL v2");

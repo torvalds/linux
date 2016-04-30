@@ -12,8 +12,3 @@ config OMAP_SSI
 	  If you say Y here, you will enable the OMAP SSI hardware driver.
 
 	  If unsure, say N.
-
-config OMAP_SSI_PORT
-	tristate
-	default m if OMAP_SSI=m
-	default y if OMAP_SSI=y

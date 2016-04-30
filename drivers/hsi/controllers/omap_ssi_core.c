@@ -605,7 +605,22 @@ static struct platform_driver ssi_pdriver = {
 	},
 };
 
-module_platform_driver(ssi_pdriver);
+static int __init ssi_init(void) {
+	int ret;
+
+	ret = platform_driver_register(&ssi_pdriver);
+	if (ret)
+		return ret;
+
+	return platform_driver_register(&ssi_port_pdriver);
+}
+module_init(ssi_init);
+
+static void __exit ssi_exit(void) {
+	platform_driver_unregister(&ssi_port_pdriver);
+	platform_driver_unregister(&ssi_pdriver);
+}
+module_exit(ssi_exit);
 
 MODULE_ALIAS("platform:omap_ssi");
 MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");

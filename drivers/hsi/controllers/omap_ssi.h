@@ -164,4 +164,6 @@ struct omap_ssi_controller {
 #endif
 };
 
+extern struct platform_driver ssi_port_pdriver;
+
 #endif /* __LINUX_HSI_OMAP_SSI_H__ */
