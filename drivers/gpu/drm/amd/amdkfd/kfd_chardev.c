@@ -131,12 +131,11 @@ static int kfd_ioctl_get_version(struct file *filep, struct kfd_process *p,
 					void *data)
 {
 	struct kfd_ioctl_get_version_args *args = data;
-	int err = 0;
 
 	args->major_version = KFD_IOCTL_MAJOR_VERSION;
 	args->minor_version = KFD_IOCTL_MINOR_VERSION;
 
-	return err;
+	return 0;
 }
 
 static int set_queue_properties_from_user(struct queue_properties *q_properties,
