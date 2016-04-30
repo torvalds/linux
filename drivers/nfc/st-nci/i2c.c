@@ -42,7 +42,7 @@
 
 #define ST_NCI_I2C_DRIVER_NAME "st_nci_i2c"
 
-#define ST_NCI_GPIO_NAME_RESET "clf_reset"
+#define ST_NCI_GPIO_NAME_RESET "reset"
 
 struct st_nci_i2c_phy {
 	struct i2c_client *i2c_dev;
