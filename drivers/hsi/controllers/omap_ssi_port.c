@@ -1018,8 +1018,7 @@ static irqreturn_t ssi_wake_isr(int irq __maybe_unused, void *ssi_port)
 	return IRQ_HANDLED;
 }
 
-static int ssi_port_irq(struct hsi_port *port,
-						struct platform_device *pd)
+static int ssi_port_irq(struct hsi_port *port, struct platform_device *pd)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
 	int err;
@@ -1040,8 +1039,7 @@ static int ssi_port_irq(struct hsi_port *port,
 	return err;
 }
 
-static int ssi_wake_irq(struct hsi_port *port,
-						struct platform_device *pd)
+static int ssi_wake_irq(struct hsi_port *port, struct platform_device *pd)
 {
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
 	int cawake_irq;
