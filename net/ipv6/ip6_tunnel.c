@@ -1540,8 +1540,7 @@ ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
  *   %-EINVAL if mtu too small
  **/
 
-static int
-ip6_tnl_change_mtu(struct net_device *dev, int new_mtu)
+int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ip6_tnl *tnl = netdev_priv(dev);
 
@@ -1557,6 +1556,7 @@ ip6_tnl_change_mtu(struct net_device *dev, int new_mtu)
 	dev->mtu = new_mtu;
 	return 0;
 }
+EXPORT_SYMBOL(ip6_tnl_change_mtu);
 
 int ip6_tnl_get_iflink(const struct net_device *dev)
 {
@@ -1631,6 +1631,9 @@ ip6_tnl_dev_init_gen(struct net_device *dev)
 	ret = gro_cells_init(&t->gro_cells, dev);
 	if (ret)
 		goto destroy_dst;
+
+	t->hlen = 0;
+	t->tun_hlen = 0;
 
 	return 0;
 

@@ -50,8 +50,10 @@ struct ip6_tnl {
 	/* These fields used only by GRE */
 	__u32 i_seqno;	/* The last seen seqno	*/
 	__u32 o_seqno;	/* The last output seqno */
-	int hlen;       /* Precalculated GRE header length */
+	int hlen;       /* tun_hlen + encap_hlen */
+	int tun_hlen;	/* Precalculated header length */
 	int mlink;
+
 };
 
 /* Tunnel encapsulation limit destination sub-option */
@@ -76,6 +78,7 @@ __u32 ip6_tnl_get_cap(struct ip6_tnl *t, const struct in6_addr *laddr,
 			     const struct in6_addr *raddr);
 struct net *ip6_tnl_get_link_net(const struct net_device *dev);
 int ip6_tnl_get_iflink(const struct net_device *dev);
+int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu);
 
 #ifdef CONFIG_INET
 static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
