@@ -1495,7 +1495,7 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 			 */
 			clear_bit(10, (unsigned long *)&mce_banks[4].ctl);
 		}
-		if (c->x86 <= 17 && cfg->bootlog < 0) {
+		if (c->x86 < 17 && cfg->bootlog < 0) {
 			/*
 			 * Lots of broken BIOS around that don't clear them
 			 * by default and leave crap in there. Don't log:
