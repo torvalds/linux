@@ -751,10 +751,8 @@ static int ssi_release(struct hsi_client *cl)
 		 * Drop the clock reference for the incoming wake line
 		 * if it is still kept high by the other side.
 		 */
-		if (omap_port->wkin_cken) {
+		if (test_and_clear_bit(SSI_WAKE_EN, &omap_port->flags))
 			pm_runtime_put_sync(omap_port->pdev);
-			omap_port->wkin_cken = 0;
-		}
 		pm_runtime_get_sync(omap_port->pdev);
 		/* Stop any SSI TX/RX without a client */
 		ssi_set_port_mode(omap_port, SSI_MODE_SLEEP);
@@ -981,12 +979,8 @@ static irqreturn_t ssi_wake_thread(int irq __maybe_unused, void *ssi_port)
 		 * This workaround will avoid breaking the clock reference
 		 * count when such a situation ocurrs.
 		 */
-		spin_lock(&omap_port->lock);
-		if (!omap_port->wkin_cken) {
-			omap_port->wkin_cken = 1;
+		if (!test_and_set_bit(SSI_WAKE_EN, &omap_port->flags))
 			pm_runtime_get_sync(omap_port->pdev);
-		}
-		spin_unlock(&omap_port->lock);
 		dev_dbg(&ssi->device, "Wake in high\n");
 		if (omap_port->wktest) { /* FIXME: HACK ! To be removed */
 			writel(SSI_WAKE(0),
@@ -1000,12 +994,8 @@ static irqreturn_t ssi_wake_thread(int irq __maybe_unused, void *ssi_port)
 				omap_ssi->sys + SSI_CLEAR_WAKE_REG(port->num));
 		}
 		hsi_event(port, HSI_EVENT_STOP_RX);
-		spin_lock(&omap_port->lock);
-		if (omap_port->wkin_cken) {
+		if (test_and_clear_bit(SSI_WAKE_EN, &omap_port->flags))
 			pm_runtime_put_sync(omap_port->pdev);
-			omap_port->wkin_cken = 0;
-		}
-		spin_unlock(&omap_port->lock);
 	}
 
 	return IRQ_HANDLED;

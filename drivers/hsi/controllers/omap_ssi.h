@@ -35,6 +35,8 @@
 #define SSI_MAX_GDD_LCH		8
 #define SSI_BYTES_TO_FRAMES(x) ((((x) - 1) >> 2) + 1)
 
+#define SSI_WAKE_EN 0
+
 /**
  * struct omap_ssm_ctx - OMAP synchronous serial module (TX/RX) context
  * @mode: Bit transmission mode
@@ -75,7 +77,7 @@ struct omap_ssm_ctx {
  * @wake_irq: IRQ number for incoming wake line (-1 if none)
  * @wake_gpio: GPIO number for incoming wake line (-1 if none)
  * @pio_tasklet: Bottom half for PIO transfers and events
- * @wkin_cken: Keep track of clock references due to the incoming wake line
+ * @flags: flags to keep track of states
  * @wk_refcount: Reference count for output wake line
  * @sys_mpu_enable: Context for the interrupt enable register for irq 0
  * @sst: Context for the synchronous serial transmitter
@@ -99,7 +101,7 @@ struct omap_ssi_port {
 	struct gpio_desc	*wake_gpio;
 	struct tasklet_struct	pio_tasklet;
 	bool			wktest:1; /* FIXME: HACK to be removed */
-	bool			wkin_cken:1; /* Workaround */
+	unsigned long		flags;
 	unsigned int		wk_refcount;
 	/* OMAP SSI port context */
 	u32			sys_mpu_enable; /* We use only one irq */
