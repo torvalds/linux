@@ -233,7 +233,7 @@ act2000_isa_receive(act2000_card *card)
 {
 	u_char c;
 
-	if (test_and_set_bit(ACT2000_LOCK_RX, (void *) &card->ilock) != 0)
+	if (test_and_set_bit(ACT2000_LOCK_RX, (void *)&card->ilock) != 0)
 		return;
 	while (!act2000_isa_readb(card, &c)) {
 		if (card->idat.isa.rcvidx < 8) {
@@ -248,7 +248,7 @@ act2000_isa_receive(act2000_card *card)
 						card->idat.isa.rcvignore = 1;
 						printk(KERN_WARNING
 						       "act2000_isa_receive: no memory\n");
-						test_and_clear_bit(ACT2000_LOCK_RX, (void *) &card->ilock);
+						test_and_clear_bit(ACT2000_LOCK_RX, (void *)&card->ilock);
 						return;
 					}
 					memcpy(skb_put(card->idat.isa.rcvskb, 8), card->idat.isa.rcvhdr, 8);
@@ -288,7 +288,7 @@ act2000_isa_receive(act2000_card *card)
 		     (card->idat.isa.rcvidx < card->idat.isa.rcvlen)))
 			act2000_schedule_poll(card);
 	}
-	test_and_clear_bit(ACT2000_LOCK_RX, (void *) &card->ilock);
+	test_and_clear_bit(ACT2000_LOCK_RX, (void *)&card->ilock);
 }
 
 void
@@ -299,7 +299,7 @@ act2000_isa_send(act2000_card *card)
 	actcapi_msg *msg;
 	int l;
 
-	if (test_and_set_bit(ACT2000_LOCK_TX, (void *) &card->ilock) != 0)
+	if (test_and_set_bit(ACT2000_LOCK_TX, (void *)&card->ilock) != 0)
 		return;
 	while (1) {
 		spin_lock_irqsave(&card->lock, flags);
@@ -319,7 +319,7 @@ act2000_isa_send(act2000_card *card)
 		spin_unlock_irqrestore(&card->lock, flags);
 		if (!(card->sbuf)) {
 			/* No more data to send */
-			test_and_clear_bit(ACT2000_LOCK_TX, (void *) &card->ilock);
+			test_and_clear_bit(ACT2000_LOCK_TX, (void *)&card->ilock);
 			return;
 		}
 		skb = card->sbuf;
@@ -327,7 +327,7 @@ act2000_isa_send(act2000_card *card)
 		while (skb->len) {
 			if (act2000_isa_writeb(card, *(skb->data))) {
 				/* Fifo is full, but more data to send */
-				test_and_clear_bit(ACT2000_LOCK_TX, (void *) &card->ilock);
+				test_and_clear_bit(ACT2000_LOCK_TX, (void *)&card->ilock);
 				/* Schedule myself */
 				act2000_schedule_tx(card);
 				return;
