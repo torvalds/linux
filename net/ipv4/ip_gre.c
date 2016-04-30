@@ -329,49 +329,6 @@ drop:
 	return 0;
 }
 
-static __sum16 gre_checksum(struct sk_buff *skb)
-{
-	__wsum csum;
-
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		csum = lco_csum(skb);
-	else
-		csum = skb_checksum(skb, 0, skb->len, 0);
-	return csum_fold(csum);
-}
-
-static void build_header(struct sk_buff *skb, int hdr_len, __be16 flags,
-			 __be16 proto, __be32 key, __be32 seq)
-{
-	struct gre_base_hdr *greh;
-
-	skb_push(skb, hdr_len);
-
-	skb_reset_transport_header(skb);
-	greh = (struct gre_base_hdr *)skb->data;
-	greh->flags = gre_tnl_flags_to_gre_flags(flags);
-	greh->protocol = proto;
-
-	if (flags & (TUNNEL_KEY | TUNNEL_CSUM | TUNNEL_SEQ)) {
-		__be32 *ptr = (__be32 *)(((u8 *)greh) + hdr_len - 4);
-
-		if (flags & TUNNEL_SEQ) {
-			*ptr = seq;
-			ptr--;
-		}
-		if (flags & TUNNEL_KEY) {
-			*ptr = key;
-			ptr--;
-		}
-		if (flags & TUNNEL_CSUM &&
-		    !(skb_shinfo(skb)->gso_type &
-		      (SKB_GSO_GRE | SKB_GSO_GRE_CSUM))) {
-			*ptr = 0;
-			*(__sum16 *)ptr = gre_checksum(skb);
-		}
-	}
-}
-
 static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 		       const struct iphdr *tnl_params,
 		       __be16 proto)
@@ -382,8 +339,9 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 		tunnel->o_seqno++;
 
 	/* Push GRE header. */
-	build_header(skb, tunnel->tun_hlen, tunnel->parms.o_flags,
-		     proto, tunnel->parms.o_key, htonl(tunnel->o_seqno));
+	gre_build_header(skb, tunnel->tun_hlen,
+			 tunnel->parms.o_flags, proto, tunnel->parms.o_key,
+			 htonl(tunnel->o_seqno));
 
 	skb_set_inner_protocol(skb, proto);
 	ip_tunnel_xmit(skb, dev, tnl_params, tnl_params->protocol);
@@ -460,8 +418,8 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_free_rt;
 
 	flags = tun_info->key.tun_flags & (TUNNEL_CSUM | TUNNEL_KEY);
-	build_header(skb, tunnel_hlen, flags, htons(ETH_P_TEB),
-		     tunnel_id_to_key(tun_info->key.tun_id), 0);
+	gre_build_header(skb, tunnel_hlen, flags, htons(ETH_P_TEB),
+			 tunnel_id_to_key(tun_info->key.tun_id), 0);
 
 	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ?  htons(IP_DF) : 0;
 
