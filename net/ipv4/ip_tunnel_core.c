@@ -157,7 +157,7 @@ int iptunnel_handle_offloads(struct sk_buff *skb,
 	}
 
 	if (skb_is_gso(skb)) {
-		err = skb_unclone(skb, GFP_ATOMIC);
+		err = skb_header_unclone(skb, GFP_ATOMIC);
 		if (unlikely(err))
 			return err;
 		skb_shinfo(skb)->gso_type |= gso_type_mask;
