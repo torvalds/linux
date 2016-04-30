@@ -132,7 +132,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_free_cpufreq_table);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex cannot be locked.
  */
-void dev_pm_opp_of_cpumask_remove_table(cpumask_var_t cpumask)
+void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask)
 {
 	struct device *cpu_dev;
 	int cpu;
@@ -164,7 +164,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_remove_table);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex cannot be locked.
  */
-int dev_pm_opp_of_cpumask_add_table(cpumask_var_t cpumask)
+int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 {
 	struct device *cpu_dev;
 	int cpu, ret = 0;
@@ -217,7 +217,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_add_table);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex cannot be locked.
  */
-int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask)
+int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 {
 	struct device_node *np, *tmp_np;
 	struct device *tcpu_dev;
@@ -288,7 +288,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
  * mutex cannot be locked.
  */
 int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
-				const cpumask_var_t cpumask)
+				const struct cpumask *cpumask)
 {
 	struct opp_device *opp_dev;
 	struct opp_table *opp_table;
@@ -346,7 +346,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_sharing_cpus);
  * that this function is *NOT* called under RCU protection or in contexts where
  * mutex cannot be locked.
  */
-int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, cpumask_var_t cpumask)
+int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 {
 	struct opp_device *opp_dev;
 	struct opp_table *opp_table;
