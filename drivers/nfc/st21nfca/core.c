@@ -262,17 +262,10 @@ static int st21nfca_hci_ready(struct nfc_hci_dev *hdev)
 	int wl_size = 0;
 	int r;
 
-	if (info->se_status->is_ese_present &&
-		info->se_status->is_uicc_present) {
+	if (info->se_status->is_uicc_present)
 		white_list[wl_size++] = NFC_HCI_UICC_HOST_ID;
+	if (info->se_status->is_ese_present)
 		white_list[wl_size++] = ST21NFCA_ESE_HOST_ID;
-	} else if (!info->se_status->is_ese_present &&
-			 info->se_status->is_uicc_present) {
-		white_list[wl_size++] = NFC_HCI_UICC_HOST_ID;
-	} else if (info->se_status->is_ese_present &&
-			!info->se_status->is_uicc_present) {
-		white_list[wl_size++] = ST21NFCA_ESE_HOST_ID;
-	}
 
 	if (wl_size) {
 		r = nfc_hci_set_param(hdev, NFC_HCI_ADMIN_GATE,
