@@ -980,11 +980,12 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	int i;
 	int worst = 0;
 	int severity;
+
 	/*
 	 * Establish sequential order between the CPUs entering the machine
 	 * check handler.
 	 */
-	int order;
+	int order = -1;
 	/*
 	 * If no_way_out gets set, there is no safe way to recover from this
 	 * MCE.  If mca_cfg.tolerant is cranked up, we'll try anyway.
@@ -1000,7 +1001,12 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	char *msg = "Unknown";
 	u64 recover_paddr = ~0ull;
 	int flags = MF_ACTION_REQUIRED;
-	int lmce = 0;
+
+	/*
+	 * MCEs are always local on AMD. Same is determined by MCG_STATUS_LMCES
+	 * on Intel.
+	 */
+	int lmce = 1;
 
 	/* If this CPU is offline, just bail out. */
 	if (cpu_is_offline(smp_processor_id())) {
@@ -1039,19 +1045,20 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		kill_it = 1;
 
 	/*
-	 * Check if this MCE is signaled to only this logical processor
+	 * Check if this MCE is signaled to only this logical processor,
+	 * on Intel only.
 	 */
-	if (m.mcgstatus & MCG_STATUS_LMCES)
-		lmce = 1;
-	else {
-		/*
-		 * Go through all the banks in exclusion of the other CPUs.
-		 * This way we don't report duplicated events on shared banks
-		 * because the first one to see it will clear it.
-		 * If this is a Local MCE, then no need to perform rendezvous.
-		 */
+	if (m.cpuvendor == X86_VENDOR_INTEL)
+		lmce = m.mcgstatus & MCG_STATUS_LMCES;
+
+	/*
+	 * Go through all banks in exclusion of the other CPUs. This way we
+	 * don't report duplicated events on shared banks because the first one
+	 * to see it will clear it. If this is a Local MCE, then no need to
+	 * perform rendezvous.
+	 */
+	if (!lmce)
 		order = mce_start(&no_way_out);
-	}
 
 	for (i = 0; i < cfg->banks; i++) {
 		__clear_bit(i, toclear);
