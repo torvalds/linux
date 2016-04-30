@@ -333,7 +333,7 @@ static u32 get_block_address(u32 current_addr, u32 low, u32 high,
 	/* Fall back to method we used for older processors: */
 	switch (block) {
 	case 0:
-		addr = MSR_IA32_MCx_MISC(bank);
+		addr = msr_ops.misc(bank);
 		break;
 	case 1:
 		offset = ((low & MASK_BLKPTR_LO) >> 21);
@@ -435,7 +435,7 @@ static void __log_error(unsigned int bank, bool threshold_err, u64 misc)
 	struct mce m;
 	u64 status;
 
-	rdmsrl(MSR_IA32_MCx_STATUS(bank), status);
+	rdmsrl(msr_ops.status(bank), status);
 	if (!(status & MCI_STATUS_VAL))
 		return;
 
@@ -448,10 +448,10 @@ static void __log_error(unsigned int bank, bool threshold_err, u64 misc)
 		m.misc = misc;
 
 	if (m.status & MCI_STATUS_ADDRV)
-		rdmsrl(MSR_IA32_MCx_ADDR(bank), m.addr);
+		rdmsrl(msr_ops.addr(bank), m.addr);
 
 	mce_log(&m);
-	wrmsrl(MSR_IA32_MCx_STATUS(bank), 0);
+	wrmsrl(msr_ops.status(bank), 0);
 }
 
 static inline void __smp_deferred_error_interrupt(void)
@@ -483,7 +483,7 @@ static void amd_deferred_error_interrupt(void)
 	unsigned int bank;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
-		rdmsrl(MSR_IA32_MCx_STATUS(bank), status);
+		rdmsrl(msr_ops.status(bank), status);
 
 		if (!(status & MCI_STATUS_VAL) ||
 		    !(status & MCI_STATUS_DEFERRED))
