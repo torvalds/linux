@@ -176,7 +176,7 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 		 */
 		info = (struct st21nfca_pipe_info *) skb_pipe_info->data;
 		if (info->dst_gate_id == ST21NFCA_APDU_READER_GATE &&
-			info->src_host_id != ST21NFCA_ESE_HOST_ID) {
+			info->src_host_id == NFC_HCI_UICC_HOST_ID) {
 			pr_err("Unexpected apdu_reader pipe on host %x\n",
 				info->src_host_id);
 			kfree_skb(skb_pipe_info);
