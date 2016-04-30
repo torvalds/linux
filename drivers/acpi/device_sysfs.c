@@ -467,7 +467,7 @@ acpi_device_sun_show(struct device *dev, struct device_attribute *attr,
 
 	status = acpi_evaluate_integer(acpi_dev->handle, "_SUN", NULL, &sun);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EIO;
 
 	return sprintf(buf, "%llu\n", sun);
 }
@@ -496,7 +496,7 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 
 	status = acpi_evaluate_integer(acpi_dev->handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EIO;
 
 	return sprintf(buf, "%llu\n", sta);
 }
