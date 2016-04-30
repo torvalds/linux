@@ -1027,11 +1027,13 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 		goto iget_failed;
 
 	/*
-	 * If the orphans has i_nlinks > 0 then it should be able to be
-	 * truncated, otherwise it won't be removed from the orphan list
-	 * during processing and an infinite loop will result.
+	 * If the orphans has i_nlinks > 0 then it should be able to
+	 * be truncated, otherwise it won't be removed from the orphan
+	 * list during processing and an infinite loop will result.
+	 * Similarly, it must not be a bad inode.
 	 */
-	if (inode->i_nlink && !ext4_can_truncate(inode))
+	if ((inode->i_nlink && !ext4_can_truncate(inode)) ||
+	    is_bad_inode(inode))
 		goto bad_orphan;
 
 	if (NEXT_ORPHAN(inode) > max_ino)
