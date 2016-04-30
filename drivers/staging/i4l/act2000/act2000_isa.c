@@ -358,7 +358,6 @@ act2000_isa_send(act2000_card *card)
 static int
 act2000_isa_getid(act2000_card *card)
 {
-
 	act2000_fwid fid;
 	u_char *p = (u_char *)&fid;
 	int count = 0;
