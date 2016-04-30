@@ -617,6 +617,48 @@ static inline void nf_ct_acct_update(struct nf_conn *ct,
 	}
 }
 
+static void nf_ct_acct_merge(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+			     const struct nf_conn *loser_ct)
+{
+	struct nf_conn_acct *acct;
+
+	acct = nf_conn_acct_find(loser_ct);
+	if (acct) {
+		struct nf_conn_counter *counter = acct->counter;
+		enum ip_conntrack_info ctinfo;
+		unsigned int bytes;
+
+		/* u32 should be fine since we must have seen one packet. */
+		bytes = atomic64_read(&counter[CTINFO2DIR(ctinfo)].bytes);
+		nf_ct_acct_update(ct, ctinfo, bytes);
+	}
+}
+
+/* Resolve race on insertion if this protocol allows this. */
+static int nf_ct_resolve_clash(struct net *net, struct sk_buff *skb,
+			       enum ip_conntrack_info ctinfo,
+			       struct nf_conntrack_tuple_hash *h)
+{
+	/* This is the conntrack entry already in hashes that won race. */
+	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
+	struct nf_conntrack_l4proto *l4proto;
+
+	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
+	if (l4proto->allow_clash &&
+	    !nf_ct_is_dying(ct) &&
+	    atomic_inc_not_zero(&ct->ct_general.use)) {
+		nf_ct_acct_merge(ct, ctinfo, (struct nf_conn *)skb->nfct);
+		nf_conntrack_put(skb->nfct);
+		/* Assign conntrack already in hashes to this skbuff. Don't
+		 * modify skb->nfctinfo to ensure consistent stateful filtering.
+		 */
+		skb->nfct = &ct->ct_general;
+		return NF_ACCEPT;
+	}
+	NF_CT_STAT_INC(net, drop);
+	return NF_DROP;
+}
+
 /* Confirm a connection given skb; places it in hash table */
 int
 __nf_conntrack_confirm(struct sk_buff *skb)
@@ -631,6 +673,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	enum ip_conntrack_info ctinfo;
 	struct net *net;
 	unsigned int sequence;
+	int ret = NF_DROP;
 
 	ct = nf_ct_get(skb, &ctinfo);
 	net = nf_ct_net(ct);
@@ -673,8 +716,10 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	 */
 	nf_ct_del_from_dying_or_unconfirmed_list(ct);
 
-	if (unlikely(nf_ct_is_dying(ct)))
-		goto out;
+	if (unlikely(nf_ct_is_dying(ct))) {
+		nf_ct_add_to_dying_list(ct);
+		goto dying;
+	}
 
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
@@ -725,10 +770,12 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 
 out:
 	nf_ct_add_to_dying_list(ct);
+	ret = nf_ct_resolve_clash(net, skb, ctinfo, h);
+dying:
 	nf_conntrack_double_unlock(hash, reply_hash);
 	NF_CT_STAT_INC(net, insert_failed);
 	local_bh_enable();
-	return NF_DROP;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__nf_conntrack_confirm);
 
