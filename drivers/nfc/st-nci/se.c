@@ -629,17 +629,10 @@ int st_nci_discover_se(struct nci_dev *ndev)
 	if (test_bit(ST_NCI_FACTORY_MODE, &info->flags))
 		return 0;
 
-	if (info->se_info.se_status->is_ese_present &&
-	    info->se_info.se_status->is_uicc_present) {
+	if (info->se_info.se_status->is_uicc_present)
 		white_list[wl_size++] = ST_NCI_UICC_HOST_ID;
+	if (info->se_info.se_status->is_ese_present)
 		white_list[wl_size++] = ST_NCI_ESE_HOST_ID;
-	} else if (!info->se_info.se_status->is_ese_present &&
-		   info->se_info.se_status->is_uicc_present) {
-		white_list[wl_size++] = ST_NCI_UICC_HOST_ID;
-	} else if (info->se_info.se_status->is_ese_present &&
-		   !info->se_info.se_status->is_uicc_present) {
-		white_list[wl_size++] = ST_NCI_ESE_HOST_ID;
-	}
 
 	if (wl_size) {
 		r = nci_hci_set_param(ndev, NCI_HCI_ADMIN_GATE,
