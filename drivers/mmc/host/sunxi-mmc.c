@@ -1129,6 +1129,11 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 				  MMC_CAP_1_8V_DDR |
 				  MMC_CAP_ERASE | MMC_CAP_SDIO_IRQ;
 
+	/* TODO MMC DDR is not working on A80 */
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "allwinner,sun9i-a80-mmc"))
+		mmc->caps &= ~MMC_CAP_1_8V_DDR;
+
 	ret = mmc_of_parse(mmc);
 	if (ret)
 		goto error_free_dma;
