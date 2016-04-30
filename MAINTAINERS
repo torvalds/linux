@@ -6027,7 +6027,7 @@ F:	include/scsi/*iscsi*
 
 ISCSI EXTENSIONS FOR RDMA (ISER) INITIATOR
 M:	Or Gerlitz <ogerlitz@mellanox.com>
-M:	Sagi Grimberg <sagig@mellanox.com>
+M:	Sagi Grimberg <sagi@grimberg.me>
 M:	Roi Dayan <roid@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
@@ -6037,7 +6037,7 @@ Q:	http://patchwork.kernel.org/project/linux-rdma/list/
 F:	drivers/infiniband/ulp/iser/
 
 ISCSI EXTENSIONS FOR RDMA (ISER) TARGET
-M:	Sagi Grimberg <sagig@mellanox.com>
+M:	Sagi Grimberg <sagi@grimberg.me>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/target-pending.git master
 L:	linux-rdma@vger.kernel.org
 L:	target-devel@vger.kernel.org
