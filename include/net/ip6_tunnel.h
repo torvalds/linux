@@ -42,6 +42,7 @@ struct ip6_tnl {
 	struct __ip6_tnl_parm parms;	/* tunnel configuration parameters */
 	struct flowi fl;	/* flowi template for xmit */
 	struct dst_cache dst_cache;	/* cached dst */
+	struct gro_cells gro_cells;
 
 	int err_count;
 	unsigned long err_time;
@@ -63,6 +64,9 @@ struct ipv6_tlv_tnl_enc_lim {
 
 int ip6_tnl_rcv_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
 		const struct in6_addr *raddr);
+int ip6_tnl_rcv(struct ip6_tnl *tunnel, struct sk_buff *skb,
+		const struct tnl_ptk_info *tpi, struct metadata_dst *tun_dst,
+		bool log_ecn_error);
 int ip6_tnl_xmit_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
 		     const struct in6_addr *raddr);
 __u16 ip6_tnl_parse_tlv_enc_lim(struct sk_buff *skb, __u8 *raw);
