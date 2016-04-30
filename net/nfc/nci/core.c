@@ -610,9 +610,6 @@ int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 	struct nci_core_conn_create_cmd *cmd;
 	struct core_conn_create_data data;
 
-	if (!number_destination_params)
-		return -EINVAL;
-
 	data.length = params_len + sizeof(struct nci_core_conn_create_cmd);
 	cmd = kzalloc(data.length, GFP_KERNEL);
 	if (!cmd)
@@ -620,17 +617,20 @@ int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 
 	cmd->destination_type = destination_type;
 	cmd->number_destination_params = number_destination_params;
-	memcpy(cmd->params, params, params_len);
 
 	data.cmd = cmd;
 
-	if (params->length > 0)
-		ndev->cur_id = params->value[DEST_SPEC_PARAMS_ID_INDEX];
-	else
+	if (params) {
+		memcpy(cmd->params, params, params_len);
+		if (params->length > 0)
+			ndev->cur_id = params->value[DEST_SPEC_PARAMS_ID_INDEX];
+		else
+			ndev->cur_id = 0;
+	} else {
 		ndev->cur_id = 0;
+	}
 
-	r = __nci_request(ndev, nci_core_conn_create_req,
-			  (unsigned long)&data,
+	r = __nci_request(ndev, nci_core_conn_create_req, (unsigned long)&data,
 			  msecs_to_jiffies(NCI_CMD_TIMEOUT));
 	kfree(cmd);
 	return r;
