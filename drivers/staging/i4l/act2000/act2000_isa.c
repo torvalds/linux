@@ -439,5 +439,5 @@ act2000_isa_download(act2000_card *card, act2000_ddef __user *cb)
 	}
 	kfree(buf);
 	msleep_interruptible(500);
-	return (act2000_isa_getid(card));
+	return act2000_isa_getid(card);
 }
