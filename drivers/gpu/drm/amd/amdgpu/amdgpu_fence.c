@@ -198,7 +198,7 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 
 		/* There is always exactly one thread signaling this fence slot */
 		fence = rcu_dereference_protected(*ptr, 1);
-		rcu_assign_pointer(*ptr, NULL);
+		RCU_INIT_POINTER(*ptr, NULL);
 
 		BUG_ON(!fence);
 
