@@ -3444,13 +3444,21 @@ out:
 	return err;
 }
 
+static bool stats_attr_valid(unsigned int mask, int attrid, int idxattr)
+{
+	return (mask & IFLA_STATS_FILTER_BIT(attrid)) &&
+	       (!idxattr || idxattr == attrid);
+}
+
 static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 			       int type, u32 pid, u32 seq, u32 change,
-			       unsigned int flags, unsigned int filter_mask)
+			       unsigned int flags, unsigned int filter_mask,
+			       int *idxattr, int *prividx)
 {
 	struct if_stats_msg *ifsm;
 	struct nlmsghdr *nlh;
 	struct nlattr *attr;
+	int s_prividx = *prividx;
 
 	ASSERT_RTNL();
 
@@ -3462,7 +3470,7 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 	ifsm->ifindex = dev->ifindex;
 	ifsm->filter_mask = filter_mask;
 
-	if (filter_mask & IFLA_STATS_FILTER_BIT(IFLA_STATS_LINK_64)) {
+	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_64, *idxattr)) {
 		struct rtnl_link_stats64 *sp;
 
 		attr = nla_reserve_64bit(skb, IFLA_STATS_LINK_64,
@@ -3480,7 +3488,11 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 	return 0;
 
 nla_put_failure:
-	nlmsg_cancel(skb, nlh);
+	/* not a multi message or no progress mean a real error */
+	if (!(flags & NLM_F_MULTI) || s_prividx == *prividx)
+		nlmsg_cancel(skb, nlh);
+	else
+		nlmsg_end(skb, nlh);
 
 	return -EMSGSIZE;
 }
@@ -3494,7 +3506,7 @@ static size_t if_nlmsg_stats_size(const struct net_device *dev,
 {
 	size_t size = 0;
 
-	if (filter_mask & IFLA_STATS_FILTER_BIT(IFLA_STATS_LINK_64))
+	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_64, 0))
 		size += nla_total_size_64bit(sizeof(struct rtnl_link_stats64));
 
 	return size;
@@ -3503,8 +3515,9 @@ static size_t if_nlmsg_stats_size(const struct net_device *dev,
 static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
-	struct if_stats_msg *ifsm;
 	struct net_device *dev = NULL;
+	int idxattr = 0, prividx = 0;
+	struct if_stats_msg *ifsm;
 	struct sk_buff *nskb;
 	u32 filter_mask;
 	int err;
@@ -3528,7 +3541,7 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	err = rtnl_fill_statsinfo(nskb, dev, RTM_NEWSTATS,
 				  NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
-				  0, filter_mask);
+				  0, filter_mask, &idxattr, &prividx);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in if_nlmsg_stats_size */
 		WARN_ON(err == -EMSGSIZE);
@@ -3542,18 +3555,19 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	int h, s_h, err, s_idx, s_idxattr, s_prividx;
 	struct net *net = sock_net(skb->sk);
-	struct if_stats_msg *ifsm;
-	int h, s_h;
-	int idx = 0, s_idx;
-	struct net_device *dev;
-	struct hlist_head *head;
 	unsigned int flags = NLM_F_MULTI;
+	struct if_stats_msg *ifsm;
+	struct hlist_head *head;
+	struct net_device *dev;
 	u32 filter_mask = 0;
-	int err;
+	int idx = 0;
 
 	s_h = cb->args[0];
 	s_idx = cb->args[1];
+	s_idxattr = cb->args[2];
+	s_prividx = cb->args[3];
 
 	cb->seq = net->dev_base_seq;
 
@@ -3571,7 +3585,8 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			err = rtnl_fill_statsinfo(skb, dev, RTM_NEWSTATS,
 						  NETLINK_CB(cb->skb).portid,
 						  cb->nlh->nlmsg_seq, 0,
-						  flags, filter_mask);
+						  flags, filter_mask,
+						  &s_idxattr, &s_prividx);
 			/* If we ran out of room on the first message,
 			 * we're in trouble
 			 */
@@ -3579,13 +3594,16 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 			if (err < 0)
 				goto out;
-
+			s_prividx = 0;
+			s_idxattr = 0;
 			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 cont:
 			idx++;
 		}
 	}
 out:
+	cb->args[3] = s_prividx;
+	cb->args[2] = s_idxattr;
 	cb->args[1] = idx;
 	cb->args[0] = h;
 
