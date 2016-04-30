@@ -92,8 +92,7 @@ struct st_nci_se_info {
  *	white list).
  * @HCI_DM_FIELD_GENERATOR: Allow to generate different kind of RF
  *	technology. When using this command to anti-collision is done.
- * @HCI_LOOPBACK: Allow to echo a command and test the Dh to CLF
- *	connectivity.
+ * @LOOPBACK: Allow to echo a command and test the Dh to CLF connectivity.
  * @HCI_DM_VDC_MEASUREMENT_VALUE: Allow to measure the field applied on the
  *	CLF antenna. A value between 0 and 0x0f is returned. 0 is maximum.
  * @HCI_DM_FWUPD_START: Allow to put CLF into firmware update mode. It is a
@@ -115,7 +114,7 @@ enum nfc_vendor_cmds {
 	HCI_DM_RESET,
 	HCI_GET_PARAM,
 	HCI_DM_FIELD_GENERATOR,
-	HCI_LOOPBACK,
+	LOOPBACK,
 	HCI_DM_FWUPD_START,
 	HCI_DM_FWUPD_END,
 	HCI_DM_VDC_MEASUREMENT_VALUE,
@@ -123,17 +122,11 @@ enum nfc_vendor_cmds {
 	MANUFACTURER_SPECIFIC,
 };
 
-struct st_nci_vendor_info {
-	struct completion req_completion;
-	struct sk_buff *rx_skb;
-};
-
 struct st_nci_info {
 	struct llt_ndlc *ndlc;
 	unsigned long flags;
 
 	struct st_nci_se_info se_info;
-	struct st_nci_vendor_info vendor_info;
 };
 
 void st_nci_remove(struct nci_dev *ndev);
@@ -155,8 +148,6 @@ void st_nci_hci_event_received(struct nci_dev *ndev, u8 pipe,
 void st_nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe, u8 cmd,
 						struct sk_buff *skb);
 
-void st_nci_hci_loopback_event_received(struct nci_dev *ndev, u8 event,
-					struct sk_buff *skb);
 int st_nci_vendor_cmds_init(struct nci_dev *ndev);
 
 #endif /* __LOCAL_ST_NCI_H_ */

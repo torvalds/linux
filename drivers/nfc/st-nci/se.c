@@ -113,8 +113,6 @@ static struct nci_hci_gate st_nci_gates[] = {
 
 	{NCI_HCI_IDENTITY_MGMT_GATE, NCI_HCI_INVALID_PIPE,
 					ST_NCI_HOST_CONTROLLER_ID},
-	{NCI_HCI_LOOPBACK_GATE, NCI_HCI_INVALID_PIPE,
-					ST_NCI_HOST_CONTROLLER_ID},
 
 	/* Secure element pipes are created by secure element host */
 	{ST_NCI_CONNECTIVITY_GATE, NCI_HCI_DO_NOT_OPEN_PIPE,
@@ -384,9 +382,6 @@ void st_nci_hci_event_received(struct nci_dev *ndev, u8 pipe,
 	break;
 	case ST_NCI_CONNECTIVITY_GATE:
 		st_nci_hci_connectivity_event_received(ndev, host, event, skb);
-	break;
-	case NCI_HCI_LOOPBACK_GATE:
-		st_nci_hci_loopback_event_received(ndev, event, skb);
 	break;
 	}
 }
