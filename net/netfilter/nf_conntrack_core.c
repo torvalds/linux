@@ -363,7 +363,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	}
 	rcu_read_lock();
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
-	if (l4proto && l4proto->destroy)
+	if (l4proto->destroy)
 		l4proto->destroy(ct);
 
 	rcu_read_unlock();
