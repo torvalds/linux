@@ -226,20 +226,9 @@ static struct nfc_phy_ops spi_phy_ops = {
 static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(spi_dev);
-	const struct acpi_device_id *id;
 	struct gpio_desc *gpiod_reset;
-	struct device *dev;
+	struct device *dev = &spi_dev->dev;
 	u8 tmp;
-
-	if (!spi_dev)
-		return -EINVAL;
-
-	dev = &spi_dev->dev;
-
-	/* Match the struct device against a given list of ACPI IDs */
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -ENODEV;
 
 	/* Get RESET GPIO from ACPI */
 	gpiod_reset = devm_gpiod_get_index(dev, ST_NCI_GPIO_NAME_RESET, 1,
