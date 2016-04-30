@@ -138,7 +138,6 @@ struct gdd_trn {
  * @fck_rate: clock rate
  * @loss_count: To follow if we need to restore context or not
  * @max_speed: Maximum TX speed (Kb/s) set by the clients.
- * @sysconfig: SSI controller saved context
  * @gdd_gcr: SSI GDD saved context
  * @get_loss: Pointer to omap_pm_get_dev_context_loss_count, if any
  * @port: Array of pointers of the ports of the controller
@@ -158,7 +157,6 @@ struct omap_ssi_controller {
 	u32			loss_count;
 	u32			max_speed;
 	/* OMAP SSI Controller context */
-	u32			sysconfig;
 	u32			gdd_gcr;
 	int			(*get_loss)(struct device *dev);
 	struct omap_ssi_port	**port;

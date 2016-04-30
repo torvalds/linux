@@ -452,8 +452,6 @@ out_err:
 static int ssi_hw_init(struct hsi_controller *ssi)
 {
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
-	unsigned int i;
-	u32 val;
 	int err;
 
 	err = pm_runtime_get_sync(ssi->device.parent);
@@ -461,27 +459,12 @@ static int ssi_hw_init(struct hsi_controller *ssi)
 		dev_err(&ssi->device, "runtime PM failed %d\n", err);
 		return err;
 	}
-	/* Reseting SSI controller */
-	writel_relaxed(SSI_SOFTRESET, omap_ssi->sys + SSI_SYSCONFIG_REG);
-	val = readl(omap_ssi->sys + SSI_SYSSTATUS_REG);
-	for (i = 0; ((i < 20) && !(val & SSI_RESETDONE)); i++) {
-		msleep(20);
-		val = readl(omap_ssi->sys + SSI_SYSSTATUS_REG);
-	}
-	if (!(val & SSI_RESETDONE)) {
-		dev_err(&ssi->device, "SSI HW reset failed\n");
-		pm_runtime_put_sync(ssi->device.parent);
-		return -EIO;
-	}
 	/* Reseting GDD */
 	writel_relaxed(SSI_SWRESET, omap_ssi->gdd + SSI_GDD_GRST_REG);
 	/* Get FCK rate in KHz */
 	omap_ssi->fck_rate = DIV_ROUND_CLOSEST(ssi_get_clk_rate(ssi), 1000);
 	dev_dbg(&ssi->device, "SSI fck rate %lu KHz\n", omap_ssi->fck_rate);
-	/* Set default PM settings */
-	val = SSI_AUTOIDLE | SSI_SIDLEMODE_SMART | SSI_MIDLEMODE_SMART;
-	writel_relaxed(val, omap_ssi->sys + SSI_SYSCONFIG_REG);
-	omap_ssi->sysconfig = val;
+
 	writel_relaxed(SSI_CLK_AUTOGATING_ON, omap_ssi->sys + SSI_GDD_GCR_REG);
 	omap_ssi->gdd_gcr = SSI_CLK_AUTOGATING_ON;
 	pm_runtime_put_sync(ssi->device.parent);
