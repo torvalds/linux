@@ -647,7 +647,7 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 	default:
 		BUG();
 		break;
-	};
+	}
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
 
