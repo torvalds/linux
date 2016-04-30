@@ -524,8 +524,10 @@ static int st21nfca_hci_i2c_acpi_request_resources(struct i2c_client *client)
 	/* Get EN GPIO from ACPI */
 	gpiod_ena = devm_gpiod_get_index(dev, ST21NFCA_GPIO_NAME_EN, 1,
 					 GPIOD_OUT_LOW);
-	if (!IS_ERR(gpiod_ena))
-		phy->gpio_ena = desc_to_gpio(gpiod_ena);
+	if (!IS_ERR(gpiod_ena)) {
+		nfc_err(dev, "Unable to get ENABLE GPIO\n");
+		return -ENODEV;
+	}
 
 	phy->gpio_ena = desc_to_gpio(gpiod_ena);
 
