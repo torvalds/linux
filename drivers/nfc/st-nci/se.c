@@ -520,7 +520,7 @@ int st_nci_enable_se(struct nci_dev *ndev, u32 se_idx)
 	 * Same for eSE.
 	 */
 	r = st_nci_control_se(ndev, se_idx, ST_NCI_SE_MODE_ON);
-	if (r == ST_NCI_HCI_HOST_ID_ESE) {
+	if (r == ST_NCI_ESE_HOST_ID) {
 		st_nci_se_get_atr(ndev);
 		r = nci_hci_send_event(ndev, ST_NCI_APDU_READER_GATE,
 				ST_NCI_EVT_SE_SOFT_RESET, NULL, 0);
@@ -665,7 +665,7 @@ int st_nci_se_io(struct nci_dev *ndev, u32 se_idx,
 	pr_debug("\n");
 
 	switch (se_idx) {
-	case ST_NCI_HCI_HOST_ID_ESE:
+	case ST_NCI_ESE_HOST_ID:
 		info->se_info.cb = cb;
 		info->se_info.cb_context = cb_context;
 		mod_timer(&info->se_info.bwi_timer, jiffies +

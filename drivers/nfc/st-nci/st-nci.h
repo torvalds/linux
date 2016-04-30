@@ -32,7 +32,6 @@
  * sequence of at most 32 characters.
  */
 #define ST_NCI_ESE_MAX_LENGTH  33
-#define ST_NCI_HCI_HOST_ID_ESE 0xc0
 
 #define ST_NCI_DEVICE_MGNT_GATE		0x01
 
