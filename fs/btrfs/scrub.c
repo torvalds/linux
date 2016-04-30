@@ -1350,7 +1350,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 		recover->bbio = bbio;
 		recover->map_length = mapped_length;
 
-		BUG_ON(page_index >= SCRUB_PAGES_PER_RD_BIO);
+		BUG_ON(page_index >= SCRUB_MAX_PAGES_PER_BLOCK);
 
 		nmirrors = min(scrub_nr_raid_mirrors(bbio), BTRFS_MAX_MIRRORS);
 
