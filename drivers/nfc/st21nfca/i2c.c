@@ -62,7 +62,7 @@
 
 #define ST21NFCA_HCI_I2C_DRIVER_NAME "st21nfca_hci_i2c"
 
-#define ST21NFCA_GPIO_NAME_EN "clf_enable"
+#define ST21NFCA_GPIO_NAME_EN "enable"
 
 struct st21nfca_i2c_phy {
 	struct i2c_client *i2c_dev;
