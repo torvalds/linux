@@ -966,7 +966,7 @@ static irqreturn_t ssi_pio_isr(int irq, void *port)
 	return IRQ_HANDLED;
 }
 
-static void ssi_wake_tasklet(unsigned long ssi_port)
+static irqreturn_t ssi_wake_thread(int irq __maybe_unused, void *ssi_port)
 {
 	struct hsi_port *port = (struct hsi_port *)ssi_port;
 	struct hsi_controller *ssi = to_hsi_controller(port->device.parent);
@@ -1007,13 +1007,6 @@ static void ssi_wake_tasklet(unsigned long ssi_port)
 		}
 		spin_unlock(&omap_port->lock);
 	}
-}
-
-static irqreturn_t ssi_wake_isr(int irq __maybe_unused, void *ssi_port)
-{
-	struct omap_ssi_port *omap_port = hsi_port_drvdata(ssi_port);
-
-	tasklet_hi_schedule(&omap_port->wake_tasklet);
 
 	return IRQ_HANDLED;
 }
@@ -1051,13 +1044,12 @@ static int ssi_wake_irq(struct hsi_port *port, struct platform_device *pd)
 	}
 
 	cawake_irq = gpiod_to_irq(omap_port->wake_gpio);
-
 	omap_port->wake_irq = cawake_irq;
-	tasklet_init(&omap_port->wake_tasklet, ssi_wake_tasklet,
-							(unsigned long)port);
-	err = devm_request_irq(&port->device, cawake_irq, ssi_wake_isr,
-		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-							"cawake", port);
+
+	err = devm_request_threaded_irq(&port->device, cawake_irq, NULL,
+		ssi_wake_thread,
+		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+		"SSI cawake", port);
 	if (err < 0)
 		dev_err(&port->device, "Request Wake in IRQ %d failed %d\n",
 						cawake_irq, err);
@@ -1234,7 +1226,6 @@ static int ssi_port_remove(struct platform_device *pd)
 
 	hsi_port_unregister_clients(port);
 
-	tasklet_kill(&omap_port->wake_tasklet);
 	tasklet_kill(&omap_port->pio_tasklet);
 
 	port->async	= hsi_dummy_msg;

@@ -312,7 +312,7 @@ static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
 				continue;
 
 			/* Workaround for SWBREAK + CAwake down race in CMT */
-			tasklet_disable(&omap_port->wake_tasklet);
+			disable_irq(omap_port->wake_irq);
 
 			/* stop all ssi communication */
 			pinctrl_pm_select_idle_state(omap_port->pdev);
@@ -338,7 +338,7 @@ static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
 
 			/* resume ssi communication */
 			pinctrl_pm_select_default_state(omap_port->pdev);
-			tasklet_enable(&omap_port->wake_tasklet);
+			enable_irq(omap_port->wake_irq);
 		}
 
 		break;
