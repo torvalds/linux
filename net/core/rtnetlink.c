@@ -3483,6 +3483,26 @@ static int rtnl_fill_statsinfo(struct sk_buff *skb, struct net_device *dev,
 		dev_get_stats(dev, sp);
 	}
 
+	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_XSTATS, *idxattr)) {
+		const struct rtnl_link_ops *ops = dev->rtnl_link_ops;
+
+		if (ops && ops->fill_linkxstats) {
+			int err;
+
+			*idxattr = IFLA_STATS_LINK_XSTATS;
+			attr = nla_nest_start(skb,
+					      IFLA_STATS_LINK_XSTATS);
+			if (!attr)
+				goto nla_put_failure;
+
+			err = ops->fill_linkxstats(skb, dev, prividx);
+			nla_nest_end(skb, attr);
+			if (err)
+				goto nla_put_failure;
+			*idxattr = 0;
+		}
+	}
+
 	nlmsg_end(skb, nlh);
 
 	return 0;
@@ -3508,6 +3528,16 @@ static size_t if_nlmsg_stats_size(const struct net_device *dev,
 
 	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_64, 0))
 		size += nla_total_size_64bit(sizeof(struct rtnl_link_stats64));
+
+	if (stats_attr_valid(filter_mask, IFLA_STATS_LINK_XSTATS, 0)) {
+		const struct rtnl_link_ops *ops = dev->rtnl_link_ops;
+
+		if (ops && ops->get_linkxstats_size) {
+			size += nla_total_size(ops->get_linkxstats_size(dev));
+			/* for IFLA_STATS_LINK_XSTATS */
+			size += nla_total_size(0);
+		}
+	}
 
 	return size;
 }
