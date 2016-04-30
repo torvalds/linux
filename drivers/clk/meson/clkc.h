@@ -69,6 +69,14 @@ struct meson_clk_pll {
 
 #define to_meson_clk_pll(_hw) container_of(_hw, struct meson_clk_pll, hw)
 
+struct meson_clk_cpu {
+	struct clk_hw hw;
+	void __iomem *base;
+	u16 reg_off;
+	struct notifier_block clk_nb;
+	const struct clk_div_table *div_table;
+};
+
 struct composite_conf {
 	struct parm		mux_parm;
 	struct parm		div_parm;
@@ -84,7 +92,6 @@ struct composite_conf {
 
 enum clk_type {
 	CLK_COMPOSITE,
-	CLK_CPU,
 };
 
 struct clk_conf {
@@ -101,17 +108,6 @@ struct clk_conf {
 	} conf;
 };
 
-#define CPU(_ro, _ci, _cn, _cp, _dt)					\
-	{								\
-		.reg_off			= (_ro),		\
-		.clk_type			= CLK_CPU,		\
-		.clk_id				= (_ci),		\
-		.clk_name			= (_cn),		\
-		.clks_parent			= (_cp),		\
-		.num_parents			= ARRAY_SIZE(_cp),	\
-		.conf.div_table			= (_dt),		\
-	}								\
-
 #define COMPOSITE(_ro, _ci, _cn, _cp, _f, _c)				\
 	{								\
 		.reg_off			= (_ro),		\
@@ -127,8 +123,8 @@ struct clk_conf {
 struct clk **meson_clk_init(struct device_node *np, unsigned long nr_clks);
 void meson_clk_register_clks(const struct clk_conf *clk_confs,
 			     unsigned int nr_confs, void __iomem *clk_base);
-struct clk *meson_clk_register_cpu(const struct clk_conf *clk_conf,
-				   void __iomem *reg_base, spinlock_t *lock);
+int meson_clk_cpu_notifier_cb(struct notifier_block *nb, unsigned long event,
+		void *data);
 
 /* shared data */
 extern spinlock_t clk_lock;
@@ -136,5 +132,6 @@ extern spinlock_t clk_lock;
 /* clk_ops */
 extern const struct clk_ops meson_clk_pll_ro_ops;
 extern const struct clk_ops meson_clk_pll_ops;
+extern const struct clk_ops meson_clk_cpu_ops;
 
 #endif /* __CLKC_H */

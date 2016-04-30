@@ -15,6 +15,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -110,7 +111,6 @@ static const struct clk_div_table cpu_div_table[] = {
 	{ /* sentinel */ },
 };
 
-PNAME(p_cpu_clk)	= { "sys_pll" };
 PNAME(p_clk81)		= { "fclk_div3", "fclk_div4", "fclk_div5" };
 PNAME(p_mali)		= { "fclk_div3", "fclk_div4", "fclk_div5",
 			    "fclk_div7", "zero" };
@@ -286,9 +286,19 @@ static struct clk_fixed_factor meson8b_fclk_div7 = {
 	},
 };
 
+static struct meson_clk_cpu meson8b_cpu_clk = {
+	.reg_off = MESON8B_REG_SYS_CPU_CNTL1,
+	.div_table = cpu_div_table,
+	.clk_nb.notifier_call = meson_clk_cpu_notifier_cb,
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk",
+		.ops = &meson_clk_cpu_ops,
+		.parent_names = (const char *[]){ "sys_pll" },
+		.num_parents = 1,
+	},
+};
+
 static const struct clk_conf meson8b_clk_confs[] __initconst = {
-	CPU(MESON8B_REG_SYS_CPU_CNTL1, CLKID_CPUCLK, "a5_clk", p_cpu_clk,
-	    cpu_div_table),
 	COMPOSITE(MESON8B_REG_HHI_MPEG, CLKID_CLK81, "clk81", p_clk81,
 		  CLK_SET_RATE_NO_REPARENT | CLK_IGNORE_UNUSED, &clk81_conf),
 	COMPOSITE(MESON8B_REG_MALI, CLKID_MALI, "mali", p_mali,
@@ -314,6 +324,7 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_FCLK_DIV4] = &meson8b_fclk_div4.hw,
 		[CLKID_FCLK_DIV5] = &meson8b_fclk_div5.hw,
 		[CLKID_FCLK_DIV7] = &meson8b_fclk_div7.hw,
+		[CLKID_CPUCLK] = &meson8b_cpu_clk.hw,
 	},
 	.num = CLK_NR_CLKS,
 };
@@ -328,6 +339,8 @@ static void __init meson8b_clkc_init(struct device_node *np)
 {
 	void __iomem *clk_base;
 	int ret, clkid, i;
+	struct clk_hw *parent_hw;
+	struct clk *parent_clk;
 
 	if (!meson_clk_init(np, CLK_NR_CLKS))
 		return;
@@ -342,6 +355,9 @@ static void __init meson8b_clkc_init(struct device_node *np)
 	/* Populate base address for PLLs */
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_plls); i++)
 		meson8b_clk_plls[i]->base = clk_base;
+
+	/* Populate the base address for CPU clk */
+	meson8b_cpu_clk.base = clk_base;
 
 	/*
 	 * register all clks
@@ -358,12 +374,37 @@ static void __init meson8b_clkc_init(struct device_node *np)
 			goto unregister;
 	}
 
+	/*
+	 * Register CPU clk notifier
+	 *
+	 * FIXME this is wrong for a lot of reasons. First, the muxes should be
+	 * struct clk_hw objects. Second, we shouldn't program the muxes in
+	 * notifier handlers. The tricky programming sequence will be handled
+	 * by the forthcoming coordinated clock rates mechanism once that
+	 * feature is released.
+	 *
+	 * Furthermore, looking up the parent this way is terrible. At some
+	 * point we will stop allocating a default struct clk when registering
+	 * a new clk_hw, and this hack will no longer work. Releasing the ccr
+	 * feature before that time solves the problem :-)
+	 */
+	parent_hw = clk_hw_get_parent(&meson8b_cpu_clk.hw);
+	parent_clk = parent_hw->clk;
+	ret = clk_notifier_register(parent_clk, &meson8b_cpu_clk.clk_nb);
+	if (ret) {
+		pr_err("%s: failed to register clock notifier for cpu_clk\n",
+				__func__);
+		goto unregister_clk_nb;
+	}
+
 	meson_clk_register_clks(meson8b_clk_confs,
 				ARRAY_SIZE(meson8b_clk_confs),
 				clk_base);
 	return;
 
 /* FIXME remove after converting to platform_driver/devm_clk_register */
+unregister_clk_nb:
+	clk_notifier_unregister(parent_clk, &meson8b_a5_clk.clk_nb);
 unregister:
 	for (clkid = CLK_NR_CLKS - 1; clkid >= 0; clkid--)
 		clk_hw_unregister(meson8b_hw_onecell_data.hws[clkid]);

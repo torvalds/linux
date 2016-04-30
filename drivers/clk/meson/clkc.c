@@ -140,10 +140,6 @@ void __init meson_clk_register_clks(const struct clk_conf *clk_confs,
 			clk = meson_clk_register_composite(clk_conf,
 							   clk_base);
 			break;
-		case CLK_CPU:
-			clk = meson_clk_register_cpu(clk_conf, clk_base,
-						     &clk_lock);
-			break;
 		default:
 			clk = NULL;
 		}
