@@ -43,7 +43,7 @@
 
 #define ST_NCI_SPI_DRIVER_NAME "st_nci_spi"
 
-#define ST_NCI_GPIO_NAME_RESET "clf_reset"
+#define ST_NCI_GPIO_NAME_RESET "reset"
 
 struct st_nci_spi_phy {
 	struct spi_device *spi_dev;
