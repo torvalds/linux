@@ -216,7 +216,7 @@ static int allocate_hqd(struct device_queue_manager *dqm, struct queue *q)
 		}
 	}
 
-	if (set == false)
+	if (!set)
 		return -EBUSY;
 
 	pr_debug("kfd: DQM %s hqd slot - pipe (%d) queue(%d)\n",
@@ -354,7 +354,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 		return -ENOMEM;
 	}
 
-	if (q->properties.is_active == true)
+	if (q->properties.is_active)
 		prev_active = true;
 
 	/*
@@ -363,9 +363,9 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	 * and modify counter accordingly
 	 */
 	retval = mqd->update_mqd(mqd, q->mqd, &q->properties);
-	if ((q->properties.is_active == true) && (prev_active == false))
+	if ((q->properties.is_active) && (!prev_active))
 		dqm->queue_count++;
-	else if ((q->properties.is_active == false) && (prev_active == true))
+	else if ((!q->properties.is_active) && (prev_active))
 		dqm->queue_count--;
 
 	if (sched_policy != KFD_SCHED_POLICY_NO_HWS)
@@ -954,7 +954,7 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm,
 
 	if (lock)
 		mutex_lock(&dqm->lock);
-	if (dqm->active_runlist == false)
+	if (!dqm->active_runlist)
 		goto out;
 
 	pr_debug("kfd: Before destroying queues, sdma queue count is : %u\n",

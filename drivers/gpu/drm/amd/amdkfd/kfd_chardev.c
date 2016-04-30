@@ -109,7 +109,7 @@ static int kfd_open(struct inode *inode, struct file *filep)
 
 	is_32bit_user_mode = in_compat_syscall();
 
-	if (is_32bit_user_mode == true) {
+	if (is_32bit_user_mode) {
 		dev_warn(kfd_device,
 			"Process %d (32-bit) failed to open /dev/kfd\n"
 			"32-bit processes are not supported by amdkfd\n",
