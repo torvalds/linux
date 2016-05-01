@@ -452,7 +452,8 @@ static void _InitRetryFunction(struct adapter *Adapter)
  *	When		Who		Remark
  *	12/10/2010	MHC		Separate to smaller function.
  *
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------
+ */
 static void usb_AggSettingTxUpdate(struct adapter *Adapter)
 {
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
@@ -484,7 +485,8 @@ static void usb_AggSettingTxUpdate(struct adapter *Adapter)
  *	When		Who		Remark
  *	12/10/2010	MHC		Separate to smaller function.
  *
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------
+ */
 static void
 usb_AggSettingRxUpdate(
 		struct adapter *Adapter
@@ -650,7 +652,8 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
  * Revised History:
  *	When		Who		Remark
  *	08/23/2010	MHC		HW suspend mode switch test..
- *---------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------
+ */
 enum rt_rf_power_state RfOnOffDetect(struct adapter *adapt)
 {
 	u8 val8;
