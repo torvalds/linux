@@ -530,6 +530,43 @@ static irqreturn_t hidma_chirq_handler(int chirq, void *arg)
 	return hidma_ll_inthandler(chirq, lldev);
 }
 
+static ssize_t hidma_show_values(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct hidma_dev *mdev = platform_get_drvdata(pdev);
+
+	buf[0] = 0;
+
+	if (strcmp(attr->attr.name, "chid") == 0)
+		sprintf(buf, "%d\n", mdev->chidx);
+
+	return strlen(buf);
+}
+
+static int hidma_create_sysfs_entry(struct hidma_dev *dev, char *name,
+				    int mode)
+{
+	struct device_attribute *attrs;
+	char *name_copy;
+
+	attrs = devm_kmalloc(dev->ddev.dev, sizeof(struct device_attribute),
+			     GFP_KERNEL);
+	if (!attrs)
+		return -ENOMEM;
+
+	name_copy = devm_kstrdup(dev->ddev.dev, name, GFP_KERNEL);
+	if (!name_copy)
+		return -ENOMEM;
+
+	attrs->attr.name = name_copy;
+	attrs->attr.mode = mode;
+	attrs->show = hidma_show_values;
+	sysfs_attr_init(&attrs->attr);
+
+	return device_create_file(dev->ddev.dev, attrs);
+}
+
 static int hidma_probe(struct platform_device *pdev)
 {
 	struct hidma_dev *dmadev;
@@ -645,6 +682,7 @@ static int hidma_probe(struct platform_device *pdev)
 	dmadev->irq = chirq;
 	tasklet_init(&dmadev->task, hidma_issue_task, (unsigned long)dmadev);
 	hidma_debug_init(dmadev);
+	hidma_create_sysfs_entry(dmadev, "chid", S_IRUGO);
 	dev_info(&pdev->dev, "HI-DMA engine driver registration complete\n");
 	platform_set_drvdata(pdev, dmadev);
 	pm_runtime_mark_last_busy(dmadev->ddev.dev);
@@ -692,7 +730,6 @@ static const struct of_device_id hidma_match[] = {
 	{.compatible = "qcom,hidma-1.0",},
 	{},
 };
-
 MODULE_DEVICE_TABLE(of, hidma_match);
 
 static struct platform_driver hidma_driver = {
