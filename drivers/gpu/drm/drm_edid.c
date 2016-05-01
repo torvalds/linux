@@ -4237,19 +4237,25 @@ static int drm_parse_display_id(struct drm_connector *connector,
 		return -EINVAL;
 	}
 
-	block = (struct displayid_block *)&displayid[idx + 4];
-	DRM_DEBUG_KMS("block id %d, rev %d, len %d\n",
-		      block->tag, block->rev, block->num_bytes);
+	idx += sizeof(struct displayid_hdr);
+	while (block = (struct displayid_block *)&displayid[idx],
+	       idx + sizeof(struct displayid_block) <= length &&
+	       idx + sizeof(struct displayid_block) + block->num_bytes <= length &&
+	       block->num_bytes > 0) {
+		idx += block->num_bytes + sizeof(struct displayid_block);
+		DRM_DEBUG_KMS("block id 0x%x, rev %d, len %d\n",
+			      block->tag, block->rev, block->num_bytes);
 
-	switch (block->tag) {
-	case DATA_BLOCK_TILED_DISPLAY:
-		ret = drm_parse_tiled_block(connector, block);
-		if (ret)
-			return ret;
-		break;
-	default:
-		printk("unknown displayid tag %d\n", block->tag);
-		break;
+		switch (block->tag) {
+		case DATA_BLOCK_TILED_DISPLAY:
+			ret = drm_parse_tiled_block(connector, block);
+			if (ret)
+				return ret;
+			break;
+		default:
+			DRM_DEBUG_KMS("found DisplayID tag 0x%x, unhandled\n", block->tag);
+			break;
+		}
 	}
 	return 0;
 }
