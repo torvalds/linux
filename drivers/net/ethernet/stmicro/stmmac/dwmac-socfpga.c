@@ -49,6 +49,7 @@ struct socfpga_dwmac {
 	u32	reg_shift;
 	struct	device *dev;
 	struct regmap *sys_mgr_base_addr;
+	struct reset_control *stmmac_rst;
 	void __iomem *splitter_base;
 	bool f2h_ptp_ref_clk;
 };
@@ -164,6 +165,10 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 	if (dwmac->splitter_base)
 		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
 
+	/* Assert reset to the enet controller before changing the phy mode */
+	if (dwmac->stmmac_rst)
+		reset_control_assert(dwmac->stmmac_rst);
+
 	regmap_read(sys_mgr_base_addr, reg_offset, &ctrl);
 	ctrl &= ~(SYSMGR_EMACGRP_CTRL_PHYSEL_MASK << reg_shift);
 	ctrl |= val << reg_shift;
@@ -180,6 +185,12 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 	}
 
 	regmap_write(sys_mgr_base_addr, reg_offset, ctrl);
+
+	/* Deassert reset for the phy configuration to be sampled by
+	 * the enet controller, and operation to start in requested mode
+	 */
+	if (dwmac->stmmac_rst)
+		reset_control_deassert(dwmac->stmmac_rst);
 
 	return 0;
 }
@@ -198,20 +209,10 @@ static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 	if (!stpriv)
 		return -EINVAL;
 
-	/* Assert reset to the enet controller before changing the phy mode */
-	if (stpriv->stmmac_rst)
-		reset_control_assert(stpriv->stmmac_rst);
-
 	/* Setup the phy mode in the system manager registers according to
 	 * devicetree configuration
 	 */
 	ret = socfpga_dwmac_setup(dwmac);
-
-	/* Deassert reset for the phy configuration to be sampled by
-	 * the enet controller, and operation to start in requested mode
-	 */
-	if (stpriv->stmmac_rst)
-		reset_control_deassert(stpriv->stmmac_rst);
 
 	/* Before the enet controller is suspended, the phy is suspended.
 	 * This causes the phy clock to be gated. The enet controller is
@@ -264,8 +265,18 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
-	if (!ret)
+	if (!ret) {
+		struct net_device *ndev = platform_get_drvdata(pdev);
+		struct stmmac_priv *stpriv = netdev_priv(ndev);
+
+		/* The socfpga driver needs to control the stmmac reset to
+		 * set the phy mode. Create a copy of the core reset handel
+		 * so it can be used by the driver later.
+		 */
+		dwmac->stmmac_rst = stpriv->stmmac_rst;
+
 		ret = socfpga_dwmac_init(pdev, dwmac);
+	}
 
 	return ret;
 }
