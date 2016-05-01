@@ -443,10 +443,6 @@ static const struct iio_trigger_ops afe4404_trigger_ops = {
 static const struct reg_sequence afe4404_reg_sequences[] = {
 	AFE4404_TIMING_PAIRS,
 	{ AFE440X_CONTROL1, AFE440X_CONTROL1_TIMEREN },
-	{ AFE4404_TIA_GAIN, AFE4404_TIA_GAIN_RES_50_K },
-	{ AFE440X_LEDCNTRL, (0xf << AFE4404_LEDCNTRL_ILED1_SHIFT) |
-			    (0x3 << AFE4404_LEDCNTRL_ILED2_SHIFT) |
-			    (0x3 << AFE4404_LEDCNTRL_ILED3_SHIFT) },
 	{ AFE440X_CONTROL2, AFE440X_CONTROL3_OSC_ENABLE	},
 };
 

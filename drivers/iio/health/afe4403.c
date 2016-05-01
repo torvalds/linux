@@ -472,12 +472,7 @@ static const struct iio_trigger_ops afe4403_trigger_ops = {
 
 static const struct reg_sequence afe4403_reg_sequences[] = {
 	AFE4403_TIMING_PAIRS,
-	{ AFE440X_CONTROL1, AFE440X_CONTROL1_TIMEREN | 0x000007},
-	{ AFE4403_TIA_AMB_GAIN, AFE4403_TIAGAIN_RES_1_M },
-	{ AFE440X_LEDCNTRL, (0x14 << AFE440X_LEDCNTRL_LED1_SHIFT) |
-			    (0x14 << AFE440X_LEDCNTRL_LED2_SHIFT) },
-	{ AFE440X_CONTROL2, AFE440X_CONTROL2_TX_REF_050 <<
-			    AFE440X_CONTROL2_TX_REF_SHIFT },
+	{ AFE440X_CONTROL1, AFE440X_CONTROL1_TIMEREN },
 };
 
 static const struct regmap_range afe4403_yes_ranges[] = {
