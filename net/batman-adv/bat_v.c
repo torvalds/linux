@@ -73,14 +73,32 @@ static void batadv_v_iface_disable(struct batadv_hard_iface *hard_iface)
 	batadv_v_elp_iface_disable(hard_iface);
 }
 
-static void batadv_v_iface_update_mac(struct batadv_hard_iface *hard_iface)
-{
-}
-
 static void batadv_v_primary_iface_set(struct batadv_hard_iface *hard_iface)
 {
 	batadv_v_elp_primary_iface_set(hard_iface);
 	batadv_v_ogm_primary_iface_set(hard_iface);
+}
+
+/**
+ * batadv_v_iface_update_mac - react to hard-interface MAC address change
+ * @hard_iface: the modified interface
+ *
+ * If the modified interface is the primary one, update the originator
+ * address in the ELP and OGM messages to reflect the new MAC address.
+ */
+static void batadv_v_iface_update_mac(struct batadv_hard_iface *hard_iface)
+{
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_hard_iface *primary_if;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (primary_if != hard_iface)
+		goto out;
+
+	batadv_v_primary_iface_set(hard_iface);
+out:
+	if (primary_if)
+		batadv_hardif_put(primary_if);
 }
 
 static void
