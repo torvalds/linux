@@ -1,7 +1,7 @@
 /*
  * Qualcomm Technologies HIDMA DMA engine interface
  *
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -644,6 +644,7 @@ static int hidma_probe(struct platform_device *pdev)
 
 	dmadev->irq = chirq;
 	tasklet_init(&dmadev->task, hidma_issue_task, (unsigned long)dmadev);
+	hidma_debug_init(dmadev);
 	dev_info(&pdev->dev, "HI-DMA engine driver registration complete\n");
 	platform_set_drvdata(pdev, dmadev);
 	pm_runtime_mark_last_busy(dmadev->ddev.dev);
@@ -651,6 +652,7 @@ static int hidma_probe(struct platform_device *pdev)
 	return 0;
 
 uninit:
+	hidma_debug_uninit(dmadev);
 	hidma_ll_uninit(dmadev->lldev);
 dmafree:
 	if (dmadev)
@@ -668,6 +670,7 @@ static int hidma_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(dmadev->ddev.dev);
 	dma_async_device_unregister(&dmadev->ddev);
 	devm_free_irq(dmadev->ddev.dev, dmadev->irq, dmadev->lldev);
+	hidma_debug_uninit(dmadev);
 	hidma_ll_uninit(dmadev->lldev);
 	hidma_free(dmadev);
 

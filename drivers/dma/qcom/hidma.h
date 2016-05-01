@@ -153,4 +153,6 @@ int hidma_ll_uninit(struct hidma_lldev *llhndl);
 irqreturn_t hidma_ll_inthandler(int irq, void *arg);
 void hidma_cleanup_pending_tre(struct hidma_lldev *llhndl, u8 err_info,
 				u8 err_code);
+int hidma_debug_init(struct hidma_dev *dmadev);
+void hidma_debug_uninit(struct hidma_dev *dmadev);
 #endif
