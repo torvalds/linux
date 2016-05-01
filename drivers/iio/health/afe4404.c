@@ -128,9 +128,6 @@ enum afe4404_chan_id {
 	ALED1,
 	LED2_ALED2,
 	LED1_ALED1,
-	ILED1,
-	ILED2,
-	ILED3,
 };
 
 static const unsigned int afe4404_channel_values[] = {
@@ -143,9 +140,9 @@ static const unsigned int afe4404_channel_values[] = {
 };
 
 static const unsigned int afe4404_channel_leds[] = {
-	[ILED1] = F_ILED1,
-	[ILED2] = F_ILED2,
-	[ILED3] = F_ILED3,
+	[LED2] = F_ILED2,
+	[ALED2] = F_ILED3,
+	[LED1] = F_ILED1,
 };
 
 static const unsigned int afe4404_channel_offdacs[] = {
@@ -164,9 +161,9 @@ static const struct iio_chan_spec afe4404_channels[] = {
 	AFE440X_INTENSITY_CHAN(LED2_ALED2, 0),
 	AFE440X_INTENSITY_CHAN(LED1_ALED1, 0),
 	/* LED current */
-	AFE440X_CURRENT_CHAN(ILED1),
-	AFE440X_CURRENT_CHAN(ILED2),
-	AFE440X_CURRENT_CHAN(ILED3),
+	AFE440X_CURRENT_CHAN(LED2),
+	AFE440X_CURRENT_CHAN(ALED2),
+	AFE440X_CURRENT_CHAN(LED1),
 };
 
 static const struct afe440x_val_table afe4404_res_table[] = {
