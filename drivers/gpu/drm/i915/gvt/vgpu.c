@@ -146,6 +146,7 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	vgpu->active = false;
 	idr_remove(&gvt->vgpu_idr, vgpu->id);
 
+	intel_vgpu_clean_execlist(vgpu);
 	intel_vgpu_clean_display(vgpu);
 	intel_vgpu_clean_opregion(vgpu);
 	intel_vgpu_clean_gtt(vgpu);

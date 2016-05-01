@@ -72,4 +72,9 @@
 #define FORCEWAKE_ACK_MEDIA_GEN9_REG 0x0D88
 #define FORCEWAKE_ACK_HSW_REG 0x130044
 
+#define RB_HEAD_OFF_MASK	((1U << 21) - (1U << 2))
+#define RB_TAIL_OFF_MASK	((1U << 21) - (1U << 3))
+#define RB_TAIL_SIZE_MASK	((1U << 21) - (1U << 12))
+#define _RING_CTL_BUF_SIZE(ctl) (((ctl) & RB_TAIL_SIZE_MASK) + GTT_PAGE_SIZE)
+
 #endif

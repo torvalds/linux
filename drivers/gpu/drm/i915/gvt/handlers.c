@@ -128,6 +128,18 @@ static int new_mmio_info(struct intel_gvt *gvt,
 	return 0;
 }
 
+static int render_mmio_to_ring_id(struct intel_gvt *gvt, unsigned int reg)
+{
+	int i;
+
+	reg &= ~GENMASK(11, 0);
+	for (i = 0; i < I915_NUM_ENGINES; i++) {
+		if (gvt->dev_priv->engine[i].mmio_base == reg)
+			return i;
+	}
+	return -1;
+}
+
 #define offset_to_fence_num(offset) \
 	((offset - i915_mmio_reg_offset(FENCE_REG_GEN6_LO(0))) >> 3)
 
@@ -1262,6 +1274,28 @@ static int ring_timestamp_mmio_read(struct intel_vgpu *vgpu,
 	return intel_vgpu_default_mmio_read(vgpu, offset, p_data, bytes);
 }
 
+static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
+	struct intel_vgpu_execlist *execlist;
+	u32 data = *(u32 *)p_data;
+	int ret;
+
+	if (WARN_ON(ring_id < 0))
+		return -EINVAL;
+
+	execlist = &vgpu->execlist[ring_id];
+
+	execlist->elsp_dwords.data[execlist->elsp_dwords.index] = data;
+	if (execlist->elsp_dwords.index == 3)
+		ret = intel_vgpu_submit_execlist(vgpu, ring_id);
+
+	++execlist->elsp_dwords.index;
+	execlist->elsp_dwords.index &= 0x3;
+	return 0;
+}
+
 #define MMIO_F(reg, s, f, am, rm, d, r, w) do { \
 	ret = new_mmio_info(gvt, INTEL_GVT_MMIO_OFFSET(reg), \
 		f, s, am, rm, d, r, w); \
@@ -2169,8 +2203,8 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_RING_D(RING_ACTHD_UDW, D_BDW_PLUS);
 
 #define RING_REG(base) (base + 0x230)
-	MMIO_RING_DFH(RING_REG, D_BDW_PLUS, 0, NULL, NULL);
-	MMIO_DH(RING_REG(GEN8_BSD2_RING_BASE), D_BDW_PLUS, NULL, NULL);
+	MMIO_RING_DFH(RING_REG, D_BDW_PLUS, 0, NULL, elsp_mmio_write);
+	MMIO_DH(RING_REG(GEN8_BSD2_RING_BASE), D_BDW_PLUS, NULL, elsp_mmio_write);
 #undef RING_REG
 
 #define RING_REG(base) (base + 0x234)
