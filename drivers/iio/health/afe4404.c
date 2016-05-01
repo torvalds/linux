@@ -179,7 +179,7 @@ static const struct afe440x_val_table afe4404_res_table[] = {
 	{ .integer = 1000000, .fract = 0 },
 	{ .integer = 2000000, .fract = 0 },
 };
-AFE440X_TABLE_ATTR(tia_resistance_available, afe4404_res_table);
+AFE440X_TABLE_ATTR(in_intensity_resistance_available, afe4404_res_table);
 
 static const struct afe440x_val_table afe4404_cap_table[] = {
 	{ .integer = 0, .fract = 5000 },
@@ -191,7 +191,7 @@ static const struct afe440x_val_table afe4404_cap_table[] = {
 	{ .integer = 0, .fract = 25000 },
 	{ .integer = 0, .fract = 22500 },
 };
-AFE440X_TABLE_ATTR(tia_capacitance_available, afe4404_cap_table);
+AFE440X_TABLE_ATTR(in_intensity_capacitance_available, afe4404_cap_table);
 
 static ssize_t afe440x_show_register(struct device *dev,
 				     struct device_attribute *attr,
@@ -244,19 +244,29 @@ static ssize_t afe440x_store_register(struct device *dev,
 	return count;
 }
 
-static AFE440X_ATTR(tia_resistance1, F_TIA_GAIN, afe4404_res_table);
-static AFE440X_ATTR(tia_capacitance1, TIA_CF, afe4404_cap_table);
+static AFE440X_ATTR(in_intensity1_resistance, F_TIA_GAIN_SEP, afe4404_res_table);
+static AFE440X_ATTR(in_intensity1_capacitance, F_TIA_CF_SEP, afe4404_cap_table);
 
-static AFE440X_ATTR(tia_resistance2, F_TIA_GAIN_SEP, afe4404_res_table);
-static AFE440X_ATTR(tia_capacitance2, F_TIA_CF_SEP, afe4404_cap_table);
+static AFE440X_ATTR(in_intensity2_resistance, F_TIA_GAIN_SEP, afe4404_res_table);
+static AFE440X_ATTR(in_intensity2_capacitance, F_TIA_CF_SEP, afe4404_cap_table);
+
+static AFE440X_ATTR(in_intensity3_resistance, F_TIA_GAIN, afe4404_res_table);
+static AFE440X_ATTR(in_intensity3_capacitance, TIA_CF, afe4404_cap_table);
+
+static AFE440X_ATTR(in_intensity4_resistance, F_TIA_GAIN, afe4404_res_table);
+static AFE440X_ATTR(in_intensity4_capacitance, TIA_CF, afe4404_cap_table);
 
 static struct attribute *afe440x_attributes[] = {
-	&afe440x_attr_tia_resistance1.dev_attr.attr,
-	&afe440x_attr_tia_capacitance1.dev_attr.attr,
-	&afe440x_attr_tia_resistance2.dev_attr.attr,
-	&afe440x_attr_tia_capacitance2.dev_attr.attr,
-	&dev_attr_tia_resistance_available.attr,
-	&dev_attr_tia_capacitance_available.attr,
+	&dev_attr_in_intensity_resistance_available.attr,
+	&dev_attr_in_intensity_capacitance_available.attr,
+	&afe440x_attr_in_intensity1_resistance.dev_attr.attr,
+	&afe440x_attr_in_intensity1_capacitance.dev_attr.attr,
+	&afe440x_attr_in_intensity2_resistance.dev_attr.attr,
+	&afe440x_attr_in_intensity2_capacitance.dev_attr.attr,
+	&afe440x_attr_in_intensity3_resistance.dev_attr.attr,
+	&afe440x_attr_in_intensity3_capacitance.dev_attr.attr,
+	&afe440x_attr_in_intensity4_resistance.dev_attr.attr,
+	&afe440x_attr_in_intensity4_capacitance.dev_attr.attr,
 	NULL
 };
 

@@ -161,7 +161,7 @@ static const struct afe440x_val_table afe4403_res_table[] = {
 	{ 500000 }, { 250000 }, { 100000 }, { 50000 },
 	{ 25000 }, { 10000 }, { 1000000 }, { 0 },
 };
-AFE440X_TABLE_ATTR(tia_resistance_available, afe4403_res_table);
+AFE440X_TABLE_ATTR(in_intensity_resistance_available, afe4403_res_table);
 
 static const struct afe440x_val_table afe4403_cap_table[] = {
 	{ 0, 5000 }, { 0, 10000 }, { 0, 20000 }, { 0, 25000 },
@@ -173,7 +173,7 @@ static const struct afe440x_val_table afe4403_cap_table[] = {
 	{ 0, 205000 }, { 0, 210000 }, { 0, 220000 }, { 0, 225000 },
 	{ 0, 230000 }, { 0, 235000 }, { 0, 245000 }, { 0, 250000 },
 };
-AFE440X_TABLE_ATTR(tia_capacitance_available, afe4403_cap_table);
+AFE440X_TABLE_ATTR(in_intensity_capacitance_available, afe4403_cap_table);
 
 static ssize_t afe440x_show_register(struct device *dev,
 				     struct device_attribute *attr,
@@ -226,19 +226,29 @@ static ssize_t afe440x_store_register(struct device *dev,
 	return count;
 }
 
-static AFE440X_ATTR(tia_resistance1, F_RF_LED1, afe4403_res_table);
-static AFE440X_ATTR(tia_capacitance1, F_CF_LED1, afe4403_cap_table);
+static AFE440X_ATTR(in_intensity1_resistance, F_RF_LED, afe4403_res_table);
+static AFE440X_ATTR(in_intensity1_capacitance, F_CF_LED, afe4403_cap_table);
 
-static AFE440X_ATTR(tia_resistance2, F_RF_LED, afe4403_res_table);
-static AFE440X_ATTR(tia_capacitance2, F_CF_LED, afe4403_cap_table);
+static AFE440X_ATTR(in_intensity2_resistance, F_RF_LED, afe4403_res_table);
+static AFE440X_ATTR(in_intensity2_capacitance, F_CF_LED, afe4403_cap_table);
+
+static AFE440X_ATTR(in_intensity3_resistance, F_RF_LED1, afe4403_res_table);
+static AFE440X_ATTR(in_intensity3_capacitance, F_CF_LED1, afe4403_cap_table);
+
+static AFE440X_ATTR(in_intensity4_resistance, F_RF_LED1, afe4403_res_table);
+static AFE440X_ATTR(in_intensity4_capacitance, F_CF_LED1, afe4403_cap_table);
 
 static struct attribute *afe440x_attributes[] = {
-	&afe440x_attr_tia_resistance1.dev_attr.attr,
-	&afe440x_attr_tia_capacitance1.dev_attr.attr,
-	&afe440x_attr_tia_resistance2.dev_attr.attr,
-	&afe440x_attr_tia_capacitance2.dev_attr.attr,
-	&dev_attr_tia_resistance_available.attr,
-	&dev_attr_tia_capacitance_available.attr,
+	&dev_attr_in_intensity_resistance_available.attr,
+	&dev_attr_in_intensity_capacitance_available.attr,
+	&afe440x_attr_in_intensity1_resistance.dev_attr.attr,
+	&afe440x_attr_in_intensity1_capacitance.dev_attr.attr,
+	&afe440x_attr_in_intensity2_resistance.dev_attr.attr,
+	&afe440x_attr_in_intensity2_capacitance.dev_attr.attr,
+	&afe440x_attr_in_intensity3_resistance.dev_attr.attr,
+	&afe440x_attr_in_intensity3_capacitance.dev_attr.attr,
+	&afe440x_attr_in_intensity4_resistance.dev_attr.attr,
+	&afe440x_attr_in_intensity4_capacitance.dev_attr.attr,
 	NULL
 };
 

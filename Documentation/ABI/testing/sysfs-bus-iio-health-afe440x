@@ -1,13 +1,3 @@
-What:		/sys/bus/iio/devices/iio:deviceX/tia_resistanceY
-		/sys/bus/iio/devices/iio:deviceX/tia_capacitanceY
-Date:		December 2015
-KernelVersion:
-Contact:	Andrew F. Davis <afd@ti.com>
-Description:
-		Get and set the resistance and the capacitance settings for the
-		Transimpedance Amplifier. Y is 1 for Rf1 and Cf1, Y is 2 for
-		Rf2 and Cf2 values.
-
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_raw
 Date:		May 2016
 KernelVersion:
@@ -32,6 +22,15 @@ Contact:	Andrew F. Davis <afd@ti.com>
 Description:
 		Get and set the offset cancellation DAC setting for these
 		stages. The values are expressed in 5-bit sign-magnitude.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_resistance
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_capacitance
+Date:		May 2016
+KernelVersion:
+Contact:	Andrew F. Davis <afd@ti.com>
+Description:
+		Get and set the resistance and the capacitance settings for the
+		Transimpedance Amplifier during the associated stage.
 
 What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_raw
 Date:		May 2016
