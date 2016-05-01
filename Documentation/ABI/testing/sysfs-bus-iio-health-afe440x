@@ -8,15 +8,6 @@ Description:
 		Transimpedance Amplifier. Y is 1 for Rf1 and Cf1, Y is 2 for
 		Rf2 and Cf2 values.
 
-What:		/sys/bus/iio/devices/iio:deviceX/tia_separate_en
-Date:		December 2015
-KernelVersion:
-Contact:	Andrew F. Davis <afd@ti.com>
-Description:
-		Enable or disable separate settings for the TransImpedance
-		Amplifier above, when disabled both values are set by the
-		first channel.
-
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_ledY_raw
 		/sys/bus/iio/devices/iio:deviceX/in_intensity_ledY_ambient_raw
 Date:		December 2015

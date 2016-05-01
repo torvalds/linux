@@ -193,9 +193,9 @@ static ssize_t afe440x_show_register(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct afe4404_data *afe = iio_priv(indio_dev);
 	struct afe440x_attr *afe440x_attr = to_afe440x_attr(attr);
-	unsigned int reg_val, type;
+	unsigned int reg_val;
 	int vals[2];
-	int ret, val_len;
+	int ret;
 
 	ret = regmap_read(afe->regmap, afe440x_attr->reg, &reg_val);
 	if (ret)
@@ -204,27 +204,13 @@ static ssize_t afe440x_show_register(struct device *dev,
 	reg_val &= afe440x_attr->mask;
 	reg_val >>= afe440x_attr->shift;
 
-	switch (afe440x_attr->type) {
-	case SIMPLE:
-		type = IIO_VAL_INT;
-		val_len = 1;
-		vals[0] = reg_val;
-		break;
-	case RESISTANCE:
-	case CAPACITANCE:
-		type = IIO_VAL_INT_PLUS_MICRO;
-		val_len = 2;
-		if (reg_val < afe440x_attr->table_size) {
-			vals[0] = afe440x_attr->val_table[reg_val].integer;
-			vals[1] = afe440x_attr->val_table[reg_val].fract;
-			break;
-		}
+	if (reg_val >= afe440x_attr->table_size)
 		return -EINVAL;
-	default:
-		return -EINVAL;
-	}
 
-	return iio_format_value(buf, type, val_len, vals);
+	vals[0] = afe440x_attr->val_table[reg_val].integer;
+	vals[1] = afe440x_attr->val_table[reg_val].fract;
+
+	return iio_format_value(buf, IIO_VAL_INT_PLUS_MICRO, 2, vals);
 }
 
 static ssize_t afe440x_store_register(struct device *dev,
@@ -240,22 +226,12 @@ static ssize_t afe440x_store_register(struct device *dev,
 	if (ret)
 		return ret;
 
-	switch (afe440x_attr->type) {
-	case SIMPLE:
-		val = integer;
-		break;
-	case RESISTANCE:
-	case CAPACITANCE:
-		for (val = 0; val < afe440x_attr->table_size; val++)
-			if (afe440x_attr->val_table[val].integer == integer &&
-			    afe440x_attr->val_table[val].fract == fract)
-				break;
-		if (val == afe440x_attr->table_size)
-			return -EINVAL;
-		break;
-	default:
+	for (val = 0; val < afe440x_attr->table_size; val++)
+		if (afe440x_attr->val_table[val].integer == integer &&
+		    afe440x_attr->val_table[val].fract == fract)
+			break;
+	if (val == afe440x_attr->table_size)
 		return -EINVAL;
-	}
 
 	ret = regmap_update_bits(afe->regmap, afe440x_attr->reg,
 				 afe440x_attr->mask,
@@ -266,16 +242,13 @@ static ssize_t afe440x_store_register(struct device *dev,
 	return count;
 }
 
-static AFE440X_ATTR(tia_separate_en, AFE4404_TIA_GAIN_SEP, AFE440X_TIAGAIN_ENSEPGAIN, SIMPLE, NULL, 0);
+static AFE440X_ATTR(tia_resistance1, AFE4404_TIA_GAIN, AFE4404_TIA_GAIN_RES, afe4404_res_table);
+static AFE440X_ATTR(tia_capacitance1, AFE4404_TIA_GAIN, AFE4404_TIA_GAIN_CAP, afe4404_cap_table);
 
-static AFE440X_ATTR(tia_resistance1, AFE4404_TIA_GAIN, AFE4404_TIA_GAIN_RES, RESISTANCE, afe4404_res_table, ARRAY_SIZE(afe4404_res_table));
-static AFE440X_ATTR(tia_capacitance1, AFE4404_TIA_GAIN, AFE4404_TIA_GAIN_CAP, CAPACITANCE, afe4404_cap_table, ARRAY_SIZE(afe4404_cap_table));
-
-static AFE440X_ATTR(tia_resistance2, AFE4404_TIA_GAIN_SEP, AFE4404_TIA_GAIN_RES, RESISTANCE, afe4404_res_table, ARRAY_SIZE(afe4404_res_table));
-static AFE440X_ATTR(tia_capacitance2, AFE4404_TIA_GAIN_SEP, AFE4404_TIA_GAIN_CAP, CAPACITANCE, afe4404_cap_table, ARRAY_SIZE(afe4404_cap_table));
+static AFE440X_ATTR(tia_resistance2, AFE4404_TIA_GAIN_SEP, AFE4404_TIA_GAIN_RES, afe4404_res_table);
+static AFE440X_ATTR(tia_capacitance2, AFE4404_TIA_GAIN_SEP, AFE4404_TIA_GAIN_CAP, afe4404_cap_table);
 
 static struct attribute *afe440x_attributes[] = {
-	&afe440x_attr_tia_separate_en.dev_attr.attr,
 	&afe440x_attr_tia_resistance1.dev_attr.attr,
 	&afe440x_attr_tia_capacitance1.dev_attr.attr,
 	&afe440x_attr_tia_resistance2.dev_attr.attr,
@@ -443,6 +416,7 @@ static const struct iio_trigger_ops afe4404_trigger_ops = {
 static const struct reg_sequence afe4404_reg_sequences[] = {
 	AFE4404_TIMING_PAIRS,
 	{ AFE440X_CONTROL1, AFE440X_CONTROL1_TIMEREN },
+	{ AFE4404_TIA_GAIN_SEP, AFE440X_TIAGAIN_ENSEPGAIN },
 	{ AFE440X_CONTROL2, AFE440X_CONTROL3_OSC_ENABLE	},
 };
 

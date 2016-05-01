@@ -71,8 +71,7 @@
 #define AFE440X_CONTROL1_TIMEREN	BIT(8)
 
 /* TIAGAIN register fields */
-#define AFE440X_TIAGAIN_ENSEPGAIN_MASK	BIT(15)
-#define AFE440X_TIAGAIN_ENSEPGAIN_SHIFT	15
+#define AFE440X_TIAGAIN_ENSEPGAIN	BIT(15)
 
 /* CONTROL2 register fields */
 #define AFE440X_CONTROL2_PDN_AFE	BIT(0)
@@ -133,12 +132,6 @@ struct afe440x_reg_info {
 		.output = true,					\
 	}
 
-enum afe440x_reg_type {
-	SIMPLE,
-	RESISTANCE,
-	CAPACITANCE,
-};
-
 struct afe440x_val_table {
 	int integer;
 	int fract;
@@ -167,7 +160,6 @@ struct afe440x_attr {
 	unsigned int reg;
 	unsigned int shift;
 	unsigned int mask;
-	enum afe440x_reg_type type;
 	const struct afe440x_val_table *val_table;
 	unsigned int table_size;
 };
@@ -175,7 +167,7 @@ struct afe440x_attr {
 #define to_afe440x_attr(_dev_attr)				\
 	container_of(_dev_attr, struct afe440x_attr, dev_attr)
 
-#define AFE440X_ATTR(_name, _reg, _field, _type, _table, _size)	\
+#define AFE440X_ATTR(_name, _reg, _field, _table)		\
 	struct afe440x_attr afe440x_attr_##_name = {		\
 		.dev_attr = __ATTR(_name, (S_IRUGO | S_IWUSR),	\
 				   afe440x_show_register,	\
@@ -183,9 +175,8 @@ struct afe440x_attr {
 		.reg = _reg,					\
 		.shift = _field ## _SHIFT,			\
 		.mask = _field ## _MASK,			\
-		.type = _type,					\
 		.val_table = _table,				\
-		.table_size = _size,				\
+		.table_size = ARRAY_SIZE(_table),		\
 	}
 
 #endif /* _AFE440X_H */
