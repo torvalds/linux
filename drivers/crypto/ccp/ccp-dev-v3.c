@@ -526,7 +526,7 @@ static irqreturn_t ccp_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct ccp_actions ccp3_actions = {
+static const struct ccp_actions ccp3_actions = {
 	.perform_aes = ccp_perform_aes,
 	.perform_xts_aes = ccp_perform_xts_aes,
 	.perform_sha = ccp_perform_sha,

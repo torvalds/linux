@@ -162,7 +162,7 @@ struct ccp_actions {
 /* Structure to hold CCP version-specific values */
 struct ccp_vdata {
 	unsigned int version;
-	struct ccp_actions *perform;
+	const struct ccp_actions *perform;
 };
 
 extern struct ccp_vdata ccpv3;
