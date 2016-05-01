@@ -293,14 +293,6 @@ static int afe4403_read_raw(struct iio_dev *indio_dev,
 			if (ret)
 				return ret;
 			return IIO_VAL_INT;
-		case IIO_CHAN_INFO_OFFSET:
-			ret = regmap_read(afe->regmap, reg_info.offreg,
-					  val);
-			if (ret)
-				return ret;
-			*val &= reg_info.mask;
-			*val >>= reg_info.shift;
-			return IIO_VAL_INT;
 		}
 		break;
 	case IIO_CURRENT:
@@ -333,15 +325,6 @@ static int afe4403_write_raw(struct iio_dev *indio_dev,
 	const struct afe440x_reg_info reg_info = afe4403_reg_info[chan->address];
 
 	switch (chan->type) {
-	case IIO_INTENSITY:
-		switch (mask) {
-		case IIO_CHAN_INFO_OFFSET:
-			return regmap_update_bits(afe->regmap,
-				reg_info.offreg,
-				reg_info.mask,
-				(val << reg_info.shift));
-		}
-		break;
 	case IIO_CURRENT:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
