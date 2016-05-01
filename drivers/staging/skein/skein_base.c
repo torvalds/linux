@@ -231,7 +231,7 @@ int skein_256_final(struct skein_256_ctx *ctx, u8 *hash_val)
 			n  = SKEIN_256_BLOCK_BYTES;
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val + (i * SKEIN_256_BLOCK_BYTES),
-				ctx->x, n);
+				      ctx->x, n);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -458,7 +458,7 @@ int skein_512_final(struct skein_512_ctx *ctx, u8 *hash_val)
 			n  = SKEIN_512_BLOCK_BYTES;
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val + (i * SKEIN_512_BLOCK_BYTES),
-				ctx->x, n);
+				      ctx->x, n);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -680,7 +680,7 @@ int skein_1024_final(struct skein_1024_ctx *ctx, u8 *hash_val)
 			n  = SKEIN_1024_BLOCK_BYTES;
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val + (i * SKEIN_1024_BLOCK_BYTES),
-				ctx->x, n);
+				      ctx->x, n);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -787,7 +787,7 @@ int skein_256_output(struct skein_256_ctx *ctx, u8 *hash_val)
 			n  = SKEIN_256_BLOCK_BYTES;
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val + (i * SKEIN_256_BLOCK_BYTES),
-				ctx->x, n);
+				      ctx->x, n);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -824,7 +824,7 @@ int skein_512_output(struct skein_512_ctx *ctx, u8 *hash_val)
 			n  = SKEIN_512_BLOCK_BYTES;
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val + (i * SKEIN_512_BLOCK_BYTES),
-				ctx->x, n);
+				      ctx->x, n);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -861,7 +861,7 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val)
 			n  = SKEIN_1024_BLOCK_BYTES;
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val + (i * SKEIN_1024_BLOCK_BYTES),
-				ctx->x, n);
+				      ctx->x, n);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
