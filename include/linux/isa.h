@@ -57,4 +57,15 @@ static void __exit __isa_driver##_exit(void) \
 } \
 module_exit(__isa_driver##_exit);
 
+/**
+ * max_num_isa_dev() - Maximum possible number registered of an ISA device
+ * @__ida_dev_ext: ISA device address extent
+ *
+ * The highest base address possible for an ISA device is 0x3FF; this results in
+ * 1024 possible base addresses. Dividing the number of possible base addresses
+ * by the address extent taken by each device results in the maximum number of
+ * devices on a system.
+ */
+#define max_num_isa_dev(__isa_dev_ext) (1024 / __isa_dev_ext)
+
 #endif /* __LINUX_ISA_H */
