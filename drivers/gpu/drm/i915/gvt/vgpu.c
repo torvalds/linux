@@ -221,11 +221,17 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	if (ret)
 		goto out_clean_opregion;
 
+	ret = intel_vgpu_init_execlist(vgpu);
+	if (ret)
+		goto out_clean_display;
+
 	vgpu->active = true;
 	mutex_unlock(&gvt->lock);
 
 	return vgpu;
 
+out_clean_display:
+	intel_vgpu_clean_display(vgpu);
 out_clean_opregion:
 	intel_vgpu_clean_opregion(vgpu);
 out_clean_gtt:

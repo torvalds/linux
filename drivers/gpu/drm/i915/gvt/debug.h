@@ -42,4 +42,7 @@
 #define gvt_dbg_dpy(fmt, args...) \
 	DRM_DEBUG_DRIVER("gvt: dpy: "fmt, ##args)
 
+#define gvt_dbg_el(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: el: "fmt, ##args)
+
 #endif

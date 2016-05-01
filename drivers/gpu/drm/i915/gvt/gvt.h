@@ -41,6 +41,7 @@
 #include "gtt.h"
 #include "display.h"
 #include "edid.h"
+#include "execlist.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -146,6 +147,8 @@ struct intel_vgpu {
 	struct intel_vgpu_gtt gtt;
 	struct intel_vgpu_opregion opregion;
 	struct intel_vgpu_display display;
+	/* TODO: move the declaration of intel_gvt.h to a proper place. */
+	struct intel_vgpu_execlist execlist[I915_NUM_ENGINES];
 };
 
 struct intel_gvt_gm {
