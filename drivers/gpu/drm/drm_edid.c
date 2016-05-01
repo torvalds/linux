@@ -3924,6 +3924,110 @@ static int validate_displayid(u8 *displayid, int length, int idx)
 	return 0;
 }
 
+static struct drm_display_mode *drm_mode_displayid_detailed(struct drm_device *dev,
+							    struct displayid_detailed_timings_1 *timings)
+{
+	struct drm_display_mode *mode;
+	unsigned pixel_clock = (timings->pixel_clock[0] |
+				(timings->pixel_clock[1] << 8) |
+				(timings->pixel_clock[2] << 16));
+	unsigned hactive = (timings->hactive[0] | timings->hactive[1] << 8) + 1;
+	unsigned hblank = (timings->hblank[0] | timings->hblank[1] << 8) + 1;
+	unsigned hsync = (timings->hsync[0] | (timings->hsync[1] & 0x7f) << 8) + 1;
+	unsigned hsync_width = (timings->hsw[0] | timings->hsw[1] << 8) + 1;
+	unsigned vactive = (timings->vactive[0] | timings->vactive[1] << 8) + 1;
+	unsigned vblank = (timings->vblank[0] | timings->vblank[1] << 8) + 1;
+	unsigned vsync = (timings->vsync[0] | (timings->vsync[1] & 0x7f) << 8) + 1;
+	unsigned vsync_width = (timings->vsw[0] | timings->vsw[1] << 8) + 1;
+	bool hsync_positive = (timings->hsync[1] >> 7) & 0x1;
+	bool vsync_positive = (timings->vsync[1] >> 7) & 0x1;
+	mode = drm_mode_create(dev);
+	if (!mode)
+		return NULL;
+
+	mode->clock = pixel_clock * 10;
+	mode->hdisplay = hactive;
+	mode->hsync_start = mode->hdisplay + hsync;
+	mode->hsync_end = mode->hsync_start + hsync_width;
+	mode->htotal = mode->hdisplay + hblank;
+
+	mode->vdisplay = vactive;
+	mode->vsync_start = mode->vdisplay + vsync;
+	mode->vsync_end = mode->vsync_start + vsync_width;
+	mode->vtotal = mode->vdisplay + vblank;
+
+	mode->flags = 0;
+	mode->flags |= hsync_positive ? DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
+	mode->flags |= vsync_positive ? DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
+	mode->type = DRM_MODE_TYPE_DRIVER;
+
+	if (timings->flags & 0x80)
+		mode->type |= DRM_MODE_TYPE_PREFERRED;
+	mode->vrefresh = drm_mode_vrefresh(mode);
+	drm_mode_set_name(mode);
+
+	return mode;
+}
+
+static int add_displayid_detailed_1_modes(struct drm_connector *connector,
+					  struct displayid_block *block)
+{
+	struct displayid_detailed_timing_block *det = (struct displayid_detailed_timing_block *)block;
+	int i;
+	int num_timings;
+	struct drm_display_mode *newmode;
+	int num_modes = 0;
+	/* blocks must be multiple of 20 bytes length */
+	if (block->num_bytes % 20)
+		return 0;
+
+	num_timings = block->num_bytes / 20;
+	for (i = 0; i < num_timings; i++) {
+		struct displayid_detailed_timings_1 *timings = &det->timings[i];
+
+		newmode = drm_mode_displayid_detailed(connector->dev, timings);
+		if (!newmode)
+			continue;
+
+		drm_mode_probed_add(connector, newmode);
+		num_modes++;
+	}
+	return num_modes;
+}
+
+static int add_displayid_detailed_modes(struct drm_connector *connector,
+					struct edid *edid)
+{
+	u8 *displayid;
+	int ret;
+	int idx = 1;
+	int length = EDID_LENGTH;
+	struct displayid_block *block;
+	int num_modes = 0;
+
+	displayid = drm_find_displayid_extension(edid);
+	if (!displayid)
+		return 0;
+
+	ret = validate_displayid(displayid, length, idx);
+	if (ret)
+		return 0;
+
+	idx += sizeof(struct displayid_hdr);
+	while (block = (struct displayid_block *)&displayid[idx],
+	       idx + sizeof(struct displayid_block) <= length &&
+	       idx + sizeof(struct displayid_block) + block->num_bytes <= length &&
+	       block->num_bytes > 0) {
+		idx += block->num_bytes + sizeof(struct displayid_block);
+		switch (block->tag) {
+		case DATA_BLOCK_TYPE_1_DETAILED_TIMING:
+			num_modes += add_displayid_detailed_1_modes(connector, block);
+			break;
+		}
+	}
+	return num_modes;
+}
+
 /**
  * drm_add_edid_modes - add modes from EDID data, if available
  * @connector: connector we're probing
@@ -3969,6 +4073,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	num_modes += add_established_modes(connector, edid);
 	num_modes += add_cea_modes(connector, edid);
 	num_modes += add_alternate_cea_modes(connector, edid);
+	num_modes += add_displayid_detailed_modes(connector, edid);
 	if (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF)
 		num_modes += add_inferred_modes(connector, edid);
 
@@ -4259,6 +4364,9 @@ static int drm_parse_display_id(struct drm_connector *connector,
 			ret = drm_parse_tiled_block(connector, block);
 			if (ret)
 				return ret;
+			break;
+		case DATA_BLOCK_TYPE_1_DETAILED_TIMING:
+			/* handled in mode gathering code. */
 			break;
 		default:
 			DRM_DEBUG_KMS("found DisplayID tag 0x%x, unhandled\n", block->tag);
