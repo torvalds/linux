@@ -85,6 +85,17 @@ static void xgene_gpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
+static int xgene_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
+{
+	struct xgene_gpio *chip = gpiochip_get_data(gc);
+	unsigned long bank_offset, bit_offset;
+
+	bank_offset = GPIO_SET_DR_OFFSET + GPIO_BANK_OFFSET(offset);
+	bit_offset = GPIO_BIT_OFFSET(offset);
+
+	return !!(ioread32(chip->base + bank_offset) & BIT(bit_offset));
+}
+
 static int xgene_gpio_dir_in(struct gpio_chip *gc, unsigned int offset)
 {
 	struct xgene_gpio *chip = gpiochip_get_data(gc);
@@ -184,6 +195,7 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&gpio->lock);
 	gpio->chip.parent = &pdev->dev;
+	gpio->chip.get_direction = xgene_gpio_get_direction;
 	gpio->chip.direction_input = xgene_gpio_dir_in;
 	gpio->chip.direction_output = xgene_gpio_dir_out;
 	gpio->chip.get = xgene_gpio_get;
