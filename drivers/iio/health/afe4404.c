@@ -1,7 +1,7 @@
 /*
  * AFE4404 Heart Rate Monitors and Low-Cost Pulse Oximeters
  *
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -106,12 +106,12 @@
 #define AFE4404_TIA_GAIN_RES_2_M	0x7
 
 /**
- * struct afe4404_data
- * @dev - Device structure
- * @regmap - Register map of the device
- * @regulator - Pointer to the regulator for the IC
- * @trig - IIO trigger for this device
- * @irq - ADC_RDY line interrupt number
+ * struct afe4404_data - AFE4404 device instance data
+ * @dev: Device structure
+ * @regmap: Register map of the device
+ * @regulator: Pointer to the regulator for the IC
+ * @trig: IIO trigger for this device
+ * @irq: ADC_RDY line interrupt number
  */
 struct afe4404_data {
 	struct device *dev;
@@ -675,5 +675,5 @@ static struct i2c_driver afe4404_i2c_driver = {
 module_i2c_driver(afe4404_i2c_driver);
 
 MODULE_AUTHOR("Andrew F. Davis <afd@ti.com>");
-MODULE_DESCRIPTION("TI AFE4404 Heart Rate and Pulse Oximeter");
+MODULE_DESCRIPTION("TI AFE4404 Heart Rate Monitor and Pulse Oximeter AFE");
 MODULE_LICENSE("GPL v2");
