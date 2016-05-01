@@ -125,7 +125,7 @@ struct afe440x_reg_info {
 		.type = IIO_CURRENT,				\
 		.channel = _index,				\
 		.address = _index,				\
-		.scan_index = _index,				\
+		.scan_index = -1,				\
 		.extend_name = _name,				\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
 			BIT(IIO_CHAN_INFO_SCALE),		\
