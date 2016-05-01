@@ -140,9 +140,9 @@ void stmmac_set_ethtool_ops(struct net_device *netdev);
 
 int stmmac_ptp_register(struct stmmac_priv *priv);
 void stmmac_ptp_unregister(struct stmmac_priv *priv);
-int stmmac_resume(struct net_device *ndev);
-int stmmac_suspend(struct net_device *ndev);
-int stmmac_dvr_remove(struct net_device *ndev);
+int stmmac_resume(struct device *dev);
+int stmmac_suspend(struct device *dev);
+int stmmac_dvr_remove(struct device *dev);
 int stmmac_dvr_probe(struct device *device,
 		     struct plat_stmmacenet_data *plat_dat,
 		     struct stmmac_resources *res);

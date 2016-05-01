@@ -295,7 +295,7 @@ int stmmac_pltfr_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	int ret = stmmac_dvr_remove(ndev);
+	int ret = stmmac_dvr_remove(&pdev->dev);
 
 	if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
@@ -319,7 +319,7 @@ static int stmmac_pltfr_suspend(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct platform_device *pdev = to_platform_device(dev);
 
-	ret = stmmac_suspend(ndev);
+	ret = stmmac_suspend(dev);
 	if (priv->plat->exit)
 		priv->plat->exit(pdev, priv->plat->bsp_priv);
 
@@ -342,7 +342,7 @@ static int stmmac_pltfr_resume(struct device *dev)
 	if (priv->plat->init)
 		priv->plat->init(pdev, priv->plat->bsp_priv);
 
-	return stmmac_resume(ndev);
+	return stmmac_resume(dev);
 }
 #endif /* CONFIG_PM_SLEEP */
 
