@@ -19,13 +19,32 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *
+ * Contributors:
+ *    Ping Gao <ping.a.gao@intel.com>
+ *    Tina Zhang <tina.zhang@intel.com>
+ *    Chanbin Du <changbin.du@intel.com>
+ *    Min He <min.he@intel.com>
+ *    Bing Niu <bing.niu@intel.com>
+ *    Zhenyu Wang <zhenyuw@linux.intel.com>
+ *
  */
 
 #ifndef _GVT_SCHEDULER_H_
 #define _GVT_SCHEDULER_H_
 
 struct intel_gvt_workload_scheduler {
-	struct list_head workload_q_head[I915_NUM_ENGINES];
+	struct intel_vgpu *current_vgpu;
+	struct intel_vgpu *next_vgpu;
+	struct intel_vgpu_workload *current_workload[I915_NUM_ENGINES];
+	bool need_reschedule;
+
+	wait_queue_head_t workload_complete_wq;
+	struct task_struct *thread[I915_NUM_ENGINES];
+	wait_queue_head_t waitq[I915_NUM_ENGINES];
 };
 
 struct intel_vgpu_workload {
@@ -47,6 +66,7 @@ struct intel_vgpu_workload {
 	struct execlist_ctx_descriptor_format ctx_desc;
 	struct execlist_ring_context *ring_context;
 	unsigned long rb_head, rb_tail, rb_ctl, rb_start;
+	bool restore_inhibit;
 	struct intel_vgpu_elsp_dwords elsp_dwords;
 	bool emulate_schedule_in;
 	atomic_t shadow_ctx_active;
@@ -57,8 +77,21 @@ struct intel_vgpu_workload {
 #define workload_q_head(vgpu, ring_id) \
 	(&(vgpu->workload_q_head[ring_id]))
 
-#define queue_workload(workload) \
+#define queue_workload(workload) do { \
 	list_add_tail(&workload->list, \
-	workload_q_head(workload->vgpu, workload->ring_id))
+	workload_q_head(workload->vgpu, workload->ring_id)); \
+	wake_up(&workload->vgpu->gvt-> \
+	scheduler.waitq[workload->ring_id]); \
+} while (0)
+
+int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt);
+
+void intel_gvt_clean_workload_scheduler(struct intel_gvt *gvt);
+
+void intel_gvt_wait_vgpu_idle(struct intel_vgpu *vgpu);
+
+int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu);
+
+void intel_vgpu_clean_gvt_context(struct intel_vgpu *vgpu);
 
 #endif

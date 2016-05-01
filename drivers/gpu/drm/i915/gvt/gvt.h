@@ -151,6 +151,9 @@ struct intel_vgpu {
 	struct intel_vgpu_execlist execlist[I915_NUM_ENGINES];
 	struct list_head workload_q_head[I915_NUM_ENGINES];
 	struct kmem_cache *workloads;
+	atomic_t running_workload_num;
+	struct i915_gem_context *shadow_ctx;
+	struct notifier_block shadow_ctx_notifier_block;
 };
 
 struct intel_gvt_gm {

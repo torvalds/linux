@@ -45,4 +45,7 @@
 #define gvt_dbg_el(fmt, args...) \
 	DRM_DEBUG_DRIVER("gvt: el: "fmt, ##args)
 
+#define gvt_dbg_sched(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: sched: "fmt, ##args)
+
 #endif

@@ -182,4 +182,7 @@ int intel_vgpu_init_execlist(struct intel_vgpu *vgpu);
 
 int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id);
 
+void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
+		unsigned long ring_bitmap);
+
 #endif /*_GVT_EXECLIST_H_*/

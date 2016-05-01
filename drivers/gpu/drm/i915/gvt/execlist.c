@@ -394,7 +394,7 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	gvt_dbg_el("complete workload %p status %d\n", workload,
 			workload->status);
 
-	if (workload->status)
+	if (workload->status || vgpu->resetting)
 		goto out;
 
 	if (!list_empty(workload_q_head(vgpu, workload->ring_id))) {
@@ -671,4 +671,26 @@ int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 		return -ENOMEM;
 
 	return 0;
+}
+
+void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
+		unsigned long ring_bitmap)
+{
+	int bit;
+	struct list_head *pos, *n;
+	struct intel_vgpu_workload *workload = NULL;
+
+	for_each_set_bit(bit, &ring_bitmap, sizeof(ring_bitmap) * 8) {
+		if (bit >= I915_NUM_ENGINES)
+			break;
+		/* free the unsubmited workload in the queue */
+		list_for_each_safe(pos, n, &vgpu->workload_q_head[bit]) {
+			workload = container_of(pos,
+					struct intel_vgpu_workload, list);
+			list_del_init(&workload->list);
+			free_workload(workload);
+		}
+
+		init_vgpu_execlist(vgpu, bit);
+	}
 }

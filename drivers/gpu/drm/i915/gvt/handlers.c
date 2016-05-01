@@ -227,11 +227,32 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
+static int handle_device_reset(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes, unsigned long bitmap)
+{
+	struct intel_gvt_workload_scheduler *scheduler =
+		&vgpu->gvt->scheduler;
+
+	vgpu->resetting = true;
+
+	if (scheduler->current_vgpu == vgpu) {
+		mutex_unlock(&vgpu->gvt->lock);
+		intel_gvt_wait_vgpu_idle(vgpu);
+		mutex_lock(&vgpu->gvt->lock);
+	}
+
+	intel_vgpu_reset_execlist(vgpu, bitmap);
+
+	vgpu->resetting = false;
+
+	return 0;
+}
+
 static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	u32 data;
-	u32 bitmap = 0;
+	u64 bitmap = 0;
 
 	data = vgpu_vreg(vgpu, offset);
 
@@ -260,7 +281,7 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		if (HAS_BSD2(vgpu->gvt->dev_priv))
 			bitmap |= (1 << VCS2);
 	}
-	return 0;
+	return handle_device_reset(vgpu, offset, p_data, bytes, bitmap);
 }
 
 static int gmbus_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
