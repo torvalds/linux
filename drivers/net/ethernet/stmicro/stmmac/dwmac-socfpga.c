@@ -261,7 +261,6 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	}
 
 	plat_dat->bsp_priv = dwmac;
-	plat_dat->init = socfpga_dwmac_init;
 	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
@@ -270,6 +269,21 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 
 	return ret;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int socfpga_dwmac_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	socfpga_dwmac_init(pdev, priv->plat->bsp_priv);
+
+	return stmmac_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+SIMPLE_DEV_PM_OPS(socfpga_dwmac_pm_ops, stmmac_suspend, socfpga_dwmac_resume);
 
 static const struct of_device_id socfpga_dwmac_match[] = {
 	{ .compatible = "altr,socfpga-stmmac" },
@@ -282,7 +296,7 @@ static struct platform_driver socfpga_dwmac_driver = {
 	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "socfpga-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &socfpga_dwmac_pm_ops,
 		.of_match_table = socfpga_dwmac_match,
 	},
 };
