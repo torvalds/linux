@@ -614,12 +614,13 @@ config GPIO_TS5500
 
 config GPIO_WS16C48
 	tristate "WinSystems WS16C48 GPIO support"
+	depends on ISA
 	select GPIOLIB_IRQCHIP
 	help
-	  Enables GPIO support for the WinSystems WS16C48. The base port address
-	  for the device may be configured via the ws16c48_base module
-	  parameter. The interrupt line number for the device may be configured
-	  via the ws16c48_irq module parameter.
+	  Enables GPIO support for the WinSystems WS16C48. The base port
+	  addresses for the devices may be configured via the base module
+	  parameter. The interrupt line numbers for the devices may be
+	  configured via the irq module parameter.
 
 endmenu
 
