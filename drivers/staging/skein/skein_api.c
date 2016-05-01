@@ -165,7 +165,6 @@ int skein_update(struct skein_ctx *ctx, const u8 *msg,
 		break;
 	}
 	return ret;
-
 }
 
 int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
