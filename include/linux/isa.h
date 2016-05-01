@@ -36,4 +36,25 @@ static inline void isa_unregister_driver(struct isa_driver *d)
 }
 #endif
 
+/**
+ * module_isa_driver() - Helper macro for registering a ISA driver
+ * @__isa_driver: isa_driver struct
+ * @__num_isa_dev: number of devices to register
+ *
+ * Helper macro for ISA drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate code. Each module may only
+ * use this macro once, and calling it replaces module_init and module_exit.
+ */
+#define module_isa_driver(__isa_driver, __num_isa_dev) \
+static int __init __isa_driver##_init(void) \
+{ \
+	return isa_register_driver(&(__isa_driver), __num_isa_dev); \
+} \
+module_init(__isa_driver##_init); \
+static void __exit __isa_driver##_exit(void) \
+{ \
+	isa_unregister_driver(&(__isa_driver)); \
+} \
+module_exit(__isa_driver##_exit);
+
 #endif /* __LINUX_ISA_H */
