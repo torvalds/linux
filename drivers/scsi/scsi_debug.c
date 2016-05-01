@@ -3208,63 +3208,94 @@ static int resp_get_lba_status(struct scsi_cmnd *scp,
 	return fill_from_dev_buffer(scp, arr, SDEBUG_GET_LBA_STATUS_LEN);
 }
 
-#define SDEBUG_RLUN_ARR_SZ 256
-
-static int resp_report_luns(struct scsi_cmnd * scp,
-			    struct sdebug_dev_info * devip)
+/* Even though each pseudo target has a REPORT LUNS "well known logical unit"
+ * (W-LUN), the normal Linux scanning logic does not associate it with a
+ * device (e.g. /dev/sg7). The following magic will make that association:
+ *   "cd /sys/class/scsi_host/host<n> ; echo '- - 49409' > scan"
+ * where <n> is a host number. If there are multiple targets in a host then
+ * the above will associate a W-LUN to each target. To only get a W-LUN
+ * for target 2, then use "echo '- 2 49409' > scan" .
+ */
+static int resp_report_luns(struct scsi_cmnd *scp,
+			    struct sdebug_dev_info *devip)
 {
-	unsigned int alloc_len;
-	int lun_cnt, i, upper, num, n, want_wlun, shortish;
-	u64 lun;
 	unsigned char *cmd = scp->cmnd;
-	int select_report = (int)cmd[2];
-	struct scsi_lun *one_lun;
-	unsigned char arr[SDEBUG_RLUN_ARR_SZ];
-	unsigned char * max_addr;
+	unsigned int alloc_len;
+	unsigned char select_report;
+	u64 lun;
+	struct scsi_lun *lun_p;
+	u8 *arr;
+	unsigned int lun_cnt;	/* normal LUN count (max: 256) */
+	unsigned int wlun_cnt;	/* report luns W-LUN count */
+	unsigned int tlun_cnt;	/* total LUN count */
+	unsigned int rlen;	/* response length (in bytes) */
+	int i, res;
 
 	clear_luns_changed_on_target(devip);
-	alloc_len = cmd[9] + (cmd[8] << 8) + (cmd[7] << 16) + (cmd[6] << 24);
-	shortish = (alloc_len < 4);
-	if (shortish || (select_report > 2)) {
-		mk_sense_invalid_fld(scp, SDEB_IN_CDB, shortish ? 6 : 2, -1);
+
+	select_report = cmd[2];
+	alloc_len = get_unaligned_be32(cmd + 6);
+
+	if (alloc_len < 4) {
+		pr_err("alloc len too small %d\n", alloc_len);
+		mk_sense_invalid_fld(scp, SDEB_IN_CDB, 6, -1);
 		return check_condition_result;
 	}
-	/* can produce response with up to 16k luns (lun 0 to lun 16383) */
-	memset(arr, 0, SDEBUG_RLUN_ARR_SZ);
-	lun_cnt = sdebug_max_luns;
-	if (1 == select_report)
+
+	switch (select_report) {
+	case 0:		/* all LUNs apart from W-LUNs */
+		lun_cnt = sdebug_max_luns;
+		wlun_cnt = 0;
+		break;
+	case 1:		/* only W-LUNs */
 		lun_cnt = 0;
-	else if (sdebug_no_lun_0 && (lun_cnt > 0))
+		wlun_cnt = 1;
+		break;
+	case 2:		/* all LUNs */
+		lun_cnt = sdebug_max_luns;
+		wlun_cnt = 1;
+		break;
+	case 0x10:	/* only administrative LUs */
+	case 0x11:	/* see SPC-5 */
+	case 0x12:	/* only subsiduary LUs owned by referenced LU */
+	default:
+		pr_debug("select report invalid %d\n", select_report);
+		mk_sense_invalid_fld(scp, SDEB_IN_CDB, 2, -1);
+		return check_condition_result;
+	}
+
+	if (sdebug_no_lun_0 && (lun_cnt > 0))
 		--lun_cnt;
-	want_wlun = (select_report > 0) ? 1 : 0;
-	num = lun_cnt + want_wlun;
-	arr[2] = ((sizeof(struct scsi_lun) * num) >> 8) & 0xff;
-	arr[3] = (sizeof(struct scsi_lun) * num) & 0xff;
-	n = min((int)((SDEBUG_RLUN_ARR_SZ - 8) /
-			    sizeof(struct scsi_lun)), num);
-	if (n < num) {
-		want_wlun = 0;
-		lun_cnt = n;
+
+	tlun_cnt = lun_cnt + wlun_cnt;
+
+	rlen = (tlun_cnt * sizeof(struct scsi_lun)) + 8;
+	arr = vmalloc(rlen);
+	if (!arr) {
+		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
+				INSUFF_RES_ASCQ);
+		return check_condition_result;
 	}
-	one_lun = (struct scsi_lun *) &arr[8];
-	max_addr = arr + SDEBUG_RLUN_ARR_SZ;
-	for (i = 0, lun = (sdebug_no_lun_0 ? 1 : 0);
-             ((i < lun_cnt) && ((unsigned char *)(one_lun + i) < max_addr));
-	     i++, lun++) {
-		upper = (lun >> 8) & 0x3f;
-		if (upper)
-			one_lun[i].scsi_lun[0] =
-			    (upper | (SAM2_LUN_ADDRESS_METHOD << 6));
-		one_lun[i].scsi_lun[1] = lun & 0xff;
-	}
-	if (want_wlun) {
-		one_lun[i].scsi_lun[0] = (SCSI_W_LUN_REPORT_LUNS >> 8) & 0xff;
-		one_lun[i].scsi_lun[1] = SCSI_W_LUN_REPORT_LUNS & 0xff;
-		i++;
-	}
-	alloc_len = (unsigned char *)(one_lun + i) - arr;
-	return fill_from_dev_buffer(scp, arr,
-				    min((int)alloc_len, SDEBUG_RLUN_ARR_SZ));
+	memset(arr, 0, rlen);
+	pr_debug("select_report %d luns = %d wluns = %d no_lun0 %d\n",
+		 select_report, lun_cnt, wlun_cnt, sdebug_no_lun_0);
+
+	/* luns start at byte 8 in response following the header */
+	lun_p = (struct scsi_lun *)&arr[8];
+
+	/* LUNs use single level peripheral device addressing method */
+	lun = sdebug_no_lun_0 ? 1 : 0;
+	for (i = 0; i < lun_cnt; i++)
+		int_to_scsilun(lun++, lun_p++);
+
+	if (wlun_cnt)
+		int_to_scsilun(SCSI_W_LUN_REPORT_LUNS, lun_p++);
+
+	put_unaligned_be32(rlen - 8, &arr[0]);
+
+	res = fill_from_dev_buffer(scp, arr, rlen);
+	vfree(arr);
+	return res;
 }
 
 static int resp_xdwriteread(struct scsi_cmnd *scp, unsigned long long lba,
@@ -4303,6 +4334,10 @@ static ssize_t max_luns_store(struct device_driver *ddp, const char *buf,
 	bool changed;
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
+		if (n > 256) {
+			pr_warn("max_luns can be no more than 256\n");
+			return -EINVAL;
+		}
 		changed = (sdebug_max_luns != n);
 		sdebug_max_luns = n;
 		sdebug_max_tgts_luns();
@@ -4646,6 +4681,10 @@ static int __init scsi_debug_init(void)
 	if (sdebug_physblk_exp > 15) {
 		pr_err("invalid physblk_exp %u\n", sdebug_physblk_exp);
 		return -EINVAL;
+	}
+	if (sdebug_max_luns > 256) {
+		pr_warn("max_luns can be no more than 256, use default\n");
+		sdebug_max_luns = DEF_MAX_LUNS;
 	}
 
 	if (sdebug_lowest_aligned > 0x3fff) {
