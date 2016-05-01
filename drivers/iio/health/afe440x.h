@@ -103,7 +103,7 @@ struct afe440x_reg_info {
 		.mask = _sm ## _MASK,				\
 	}
 
-#define AFE440X_INTENSITY_CHAN(_index, _name, _mask)		\
+#define AFE440X_INTENSITY_CHAN(_index, _mask)			\
 	{							\
 		.type = IIO_INTENSITY,				\
 		.channel = _index,				\
@@ -115,20 +115,20 @@ struct afe440x_reg_info {
 				.storagebits = 32,		\
 				.endianness = IIO_CPU,		\
 		},						\
-		.extend_name = _name,				\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
 			_mask,					\
+		.indexed = true,				\
 	}
 
-#define AFE440X_CURRENT_CHAN(_index, _name)			\
+#define AFE440X_CURRENT_CHAN(_index)				\
 	{							\
 		.type = IIO_CURRENT,				\
 		.channel = _index,				\
 		.address = _index,				\
 		.scan_index = -1,				\
-		.extend_name = _name,				\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
 			BIT(IIO_CHAN_INFO_SCALE),		\
+		.indexed = true,				\
 		.output = true,					\
 	}
 
