@@ -221,7 +221,7 @@ int skein_256_final(struct skein_256_ctx *ctx, u8 *hash_val)
 	memcpy(x, ctx->x, sizeof(x));
 	for (i = 0; i * SKEIN_256_BLOCK_BYTES < byte_cnt; i++) {
 		/* build the counter block */
-		((u64 *)ctx->b)[0] = skein_swap64((u64) i);
+		((u64 *)ctx->b)[0] = skein_swap64((u64)i);
 		skein_start_new_type(ctx, OUT_FINAL);
 		/* run "counter mode" */
 		skein_256_process_block(ctx, ctx->b, 1, sizeof(u64));
@@ -448,7 +448,7 @@ int skein_512_final(struct skein_512_ctx *ctx, u8 *hash_val)
 	memcpy(x, ctx->x, sizeof(x));
 	for (i = 0; i * SKEIN_512_BLOCK_BYTES < byte_cnt; i++) {
 		/* build the counter block */
-		((u64 *)ctx->b)[0] = skein_swap64((u64) i);
+		((u64 *)ctx->b)[0] = skein_swap64((u64)i);
 		skein_start_new_type(ctx, OUT_FINAL);
 		/* run "counter mode" */
 		skein_512_process_block(ctx, ctx->b, 1, sizeof(u64));
@@ -670,7 +670,7 @@ int skein_1024_final(struct skein_1024_ctx *ctx, u8 *hash_val)
 	memcpy(x, ctx->x, sizeof(x));
 	for (i = 0; i * SKEIN_1024_BLOCK_BYTES < byte_cnt; i++) {
 		/* build the counter block */
-		((u64 *)ctx->b)[0] = skein_swap64((u64) i);
+		((u64 *)ctx->b)[0] = skein_swap64((u64)i);
 		skein_start_new_type(ctx, OUT_FINAL);
 		/* run "counter mode" */
 		skein_1024_process_block(ctx, ctx->b, 1, sizeof(u64));
@@ -777,7 +777,7 @@ int skein_256_output(struct skein_256_ctx *ctx, u8 *hash_val)
 	memcpy(x, ctx->x, sizeof(x));
 	for (i = 0; i * SKEIN_256_BLOCK_BYTES < byte_cnt; i++) {
 		/* build the counter block */
-		((u64 *)ctx->b)[0] = skein_swap64((u64) i);
+		((u64 *)ctx->b)[0] = skein_swap64((u64)i);
 		skein_start_new_type(ctx, OUT_FINAL);
 		/* run "counter mode" */
 		skein_256_process_block(ctx, ctx->b, 1, sizeof(u64));
@@ -814,7 +814,7 @@ int skein_512_output(struct skein_512_ctx *ctx, u8 *hash_val)
 	memcpy(x, ctx->x, sizeof(x));
 	for (i = 0; i * SKEIN_512_BLOCK_BYTES < byte_cnt; i++) {
 		/* build the counter block */
-		((u64 *)ctx->b)[0] = skein_swap64((u64) i);
+		((u64 *)ctx->b)[0] = skein_swap64((u64)i);
 		skein_start_new_type(ctx, OUT_FINAL);
 		/* run "counter mode" */
 		skein_512_process_block(ctx, ctx->b, 1, sizeof(u64));
@@ -851,7 +851,7 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val)
 	memcpy(x, ctx->x, sizeof(x));
 	for (i = 0; i * SKEIN_1024_BLOCK_BYTES < byte_cnt; i++) {
 		/* build the counter block */
-		((u64 *)ctx->b)[0] = skein_swap64((u64) i);
+		((u64 *)ctx->b)[0] = skein_swap64((u64)i);
 		skein_start_new_type(ctx, OUT_FINAL);
 		/* run "counter mode" */
 		skein_1024_process_block(ctx, ctx->b, 1, sizeof(u64));

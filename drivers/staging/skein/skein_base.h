@@ -157,13 +157,13 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #define SKEIN_T1_POS_FINAL      SKEIN_T1_BIT(127) /* 127      final blk flag */
 
 /* tweak word tweak[1]: flag bit definition(s) */
-#define SKEIN_T1_FLAG_FIRST     (((u64)  1) << SKEIN_T1_POS_FIRST)
-#define SKEIN_T1_FLAG_FINAL     (((u64)  1) << SKEIN_T1_POS_FINAL)
-#define SKEIN_T1_FLAG_BIT_PAD   (((u64)  1) << SKEIN_T1_POS_BIT_PAD)
+#define SKEIN_T1_FLAG_FIRST     (((u64)1) << SKEIN_T1_POS_FIRST)
+#define SKEIN_T1_FLAG_FINAL     (((u64)1) << SKEIN_T1_POS_FINAL)
+#define SKEIN_T1_FLAG_BIT_PAD   (((u64)1) << SKEIN_T1_POS_BIT_PAD)
 
 /* tweak word tweak[1]: tree level bit field mask */
 #define SKEIN_T1_TREE_LVL_MASK  (((u64)0x7F) << SKEIN_T1_POS_TREE_LVL)
-#define SKEIN_T1_TREE_LEVEL(n)  (((u64) (n)) << SKEIN_T1_POS_TREE_LVL)
+#define SKEIN_T1_TREE_LEVEL(n)  (((u64)(n))  << SKEIN_T1_POS_TREE_LVL)
 
 /* tweak word tweak[1]: block type field */
 #define SKEIN_BLK_TYPE_KEY       (0) /* key, for MAC and KDF */
@@ -176,7 +176,7 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #define SKEIN_BLK_TYPE_OUT      (63) /* output stage */
 #define SKEIN_BLK_TYPE_MASK     (63) /* bit field mask */
 
-#define SKEIN_T1_BLK_TYPE(T)   (((u64) (SKEIN_BLK_TYPE_##T)) << \
+#define SKEIN_T1_BLK_TYPE(T)   (((u64)(SKEIN_BLK_TYPE_##T)) << \
 					SKEIN_T1_POS_BLK_TYPE)
 #define SKEIN_T1_BLK_TYPE_KEY   SKEIN_T1_BLK_TYPE(KEY)  /* for MAC and KDF */
 #define SKEIN_T1_BLK_TYPE_CFG   SKEIN_T1_BLK_TYPE(CFG)  /* config block */
@@ -199,7 +199,7 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #define SKEIN_ID_STRING_LE      (0x33414853) /* "SHA3" (little-endian)*/
 #endif
 
-#define SKEIN_MK_64(hi32, lo32)  ((lo32) + (((u64) (hi32)) << 32))
+#define SKEIN_MK_64(hi32, lo32)  ((lo32) + (((u64)(hi32)) << 32))
 #define SKEIN_SCHEMA_VER        SKEIN_MK_64(SKEIN_VERSION, SKEIN_ID_STRING_LE)
 #define SKEIN_KS_PARITY         SKEIN_MK_64(0x1BD11BDA, 0xA9FC1A22)
 

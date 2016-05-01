@@ -462,8 +462,8 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
 size_t skein_256_process_block_code_size(void)
 {
-	return ((u8 *) skein_256_process_block_code_size) -
-		((u8 *) skein_256_process_block);
+	return ((u8 *)skein_256_process_block_code_size) -
+		((u8 *)skein_256_process_block);
 }
 
 unsigned int skein_256_unroll_cnt(void)
@@ -613,8 +613,8 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
 size_t skein_512_process_block_code_size(void)
 {
-	return ((u8 *) skein_512_process_block_code_size) -
-		((u8 *) skein_512_process_block);
+	return ((u8 *)skein_512_process_block_code_size) -
+		((u8 *)skein_512_process_block);
 }
 
 unsigned int skein_512_unroll_cnt(void)
@@ -778,8 +778,8 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
 size_t skein_1024_process_block_code_size(void)
 {
-	return ((u8 *) skein_1024_process_block_code_size) -
-		((u8 *) skein_1024_process_block);
+	return ((u8 *)skein_1024_process_block_code_size) -
+		((u8 *)skein_1024_process_block);
 }
 
 unsigned int skein_1024_unroll_cnt(void)

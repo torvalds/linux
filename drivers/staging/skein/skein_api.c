@@ -209,7 +209,7 @@ int skein_update_bits(struct skein_ctx *ctx, const u8 *msg,
 	/* internal sanity check: there IS a partial byte in the buffer! */
 	skein_assert(length != 0);
 	/* partial byte bit mask */
-	mask = (u8) (1u << (7 - (msg_bit_cnt & 7)));
+	mask = (u8)(1u << (7 - (msg_bit_cnt & 7)));
 	/* apply bit padding on final byte (in the buffer) */
 	up[length - 1]  = (u8)((up[length - 1] & (0 - mask)) | mask);
 
