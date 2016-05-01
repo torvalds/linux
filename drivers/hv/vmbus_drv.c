@@ -712,7 +712,7 @@ static void hv_process_timer_expiration(struct hv_message *msg, int cpu)
 	if (dev->event_handler)
 		dev->event_handler(dev);
 
-	vmbus_signal_eom(msg);
+	vmbus_signal_eom(msg, HVMSG_TIMER_EXPIRED);
 }
 
 void vmbus_on_msg_dpc(unsigned long data)
@@ -724,8 +724,9 @@ void vmbus_on_msg_dpc(unsigned long data)
 	struct vmbus_channel_message_header *hdr;
 	struct vmbus_channel_message_table_entry *entry;
 	struct onmessage_work_context *ctx;
+	u32 message_type = msg->header.message_type;
 
-	if (msg->header.message_type == HVMSG_NONE)
+	if (message_type == HVMSG_NONE)
 		/* no msg */
 		return;
 
@@ -750,7 +751,7 @@ void vmbus_on_msg_dpc(unsigned long data)
 		entry->message_handler(hdr);
 
 msg_handled:
-	vmbus_signal_eom(msg);
+	vmbus_signal_eom(msg, message_type);
 }
 
 static void vmbus_isr(void)

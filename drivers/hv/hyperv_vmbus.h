@@ -625,9 +625,21 @@ extern struct vmbus_channel_message_table_entry
 	channel_message_table[CHANNELMSG_COUNT];
 
 /* Free the message slot and signal end-of-message if required */
-static inline void vmbus_signal_eom(struct hv_message *msg)
+static inline void vmbus_signal_eom(struct hv_message *msg, u32 old_msg_type)
 {
-	msg->header.message_type = HVMSG_NONE;
+	/*
+	 * On crash we're reading some other CPU's message page and we need
+	 * to be careful: this other CPU may already had cleared the header
+	 * and the host may already had delivered some other message there.
+	 * In case we blindly write msg->header.message_type we're going
+	 * to lose it. We can still lose a message of the same type but
+	 * we count on the fact that there can only be one
+	 * CHANNELMSG_UNLOAD_RESPONSE and we don't care about other messages
+	 * on crash.
+	 */
+	if (cmpxchg(&msg->header.message_type, old_msg_type,
+		    HVMSG_NONE) != old_msg_type)
+		return;
 
 	/*
 	 * Make sure the write to MessageType (ie set to
