@@ -479,7 +479,7 @@ struct i40iw_sc_dev {
 	struct i40iw_virt_mem ieq_mem;
 	struct i40iw_puda_rsrc *ieq;
 
-	struct i40iw_vf_cqp_ops *iw_vf_cqp_ops;
+	const struct i40iw_vf_cqp_ops *iw_vf_cqp_ops;
 
 	struct i40iw_hmc_fpm_misc hmc_fpm_misc;
 	u16 qs_handle;
