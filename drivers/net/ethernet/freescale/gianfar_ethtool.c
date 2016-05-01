@@ -185,7 +185,8 @@ static void gfar_gdrvinfo(struct net_device *dev,
 }
 
 
-static int gfar_ssettings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int gfar_set_ksettings(struct net_device *dev,
+			      const struct ethtool_link_ksettings *cmd)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct phy_device *phydev = priv->phydev;
@@ -193,29 +194,19 @@ static int gfar_ssettings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (NULL == phydev)
 		return -ENODEV;
 
-	return phy_ethtool_sset(phydev, cmd);
+	return phy_ethtool_ksettings_set(phydev, cmd);
 }
 
-
-/* Return the current settings in the ethtool_cmd structure */
-static int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int gfar_get_ksettings(struct net_device *dev,
+			      struct ethtool_link_ksettings *cmd)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct phy_device *phydev = priv->phydev;
-	struct gfar_priv_rx_q *rx_queue = NULL;
-	struct gfar_priv_tx_q *tx_queue = NULL;
 
 	if (NULL == phydev)
 		return -ENODEV;
-	tx_queue = priv->tx_queue[0];
-	rx_queue = priv->rx_queue[0];
 
-	/* etsec-1.7 and older versions have only one txic
-	 * and rxic regs although they support multiple queues */
-	cmd->maxtxpkt = get_icft_value(tx_queue->txic);
-	cmd->maxrxpkt = get_icft_value(rx_queue->rxic);
-
-	return phy_ethtool_gset(phydev, cmd);
+	return phy_ethtool_ksettings_get(phydev, cmd);
 }
 
 /* Return the length of the register structure */
@@ -1565,8 +1556,6 @@ static int gfar_get_ts_info(struct net_device *dev,
 }
 
 const struct ethtool_ops gfar_ethtool_ops = {
-	.get_settings = gfar_gsettings,
-	.set_settings = gfar_ssettings,
 	.get_drvinfo = gfar_gdrvinfo,
 	.get_regs_len = gfar_reglen,
 	.get_regs = gfar_get_regs,
@@ -1589,4 +1578,6 @@ const struct ethtool_ops gfar_ethtool_ops = {
 	.set_rxnfc = gfar_set_nfc,
 	.get_rxnfc = gfar_get_nfc,
 	.get_ts_info = gfar_get_ts_info,
+	.get_link_ksettings = gfar_get_ksettings,
+	.set_link_ksettings = gfar_set_ksettings,
 };
