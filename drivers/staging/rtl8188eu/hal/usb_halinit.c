@@ -57,8 +57,8 @@ static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumInPip
 	_ConfigNormalChipOutEP_8188E(adapt, NumOutPipe);
 
 	/*  Normal chip with one IN and one OUT doesn't have interrupt IN EP. */
-	if (1 == haldata->OutEpNumber) {
-		if (1 != NumInPipe)
+	if (haldata->OutEpNumber == 1) {
+		if (NumInPipe != 1)
 			return result;
 	}
 
