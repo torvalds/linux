@@ -1300,7 +1300,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 
 		spin_lock(&ppd->cc_state_lock);
 		cc_state = get_cc_state(ppd);
-		rcu_assign_pointer(ppd->cc_state, NULL);
+		RCU_INIT_POINTER(ppd->cc_state, NULL);
 		spin_unlock(&ppd->cc_state_lock);
 
 		if (cc_state)
