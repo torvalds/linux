@@ -136,7 +136,7 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 	return 0;
 }
 
-static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
+static int socfpga_dwmac_set_phy_mode(struct socfpga_dwmac *dwmac)
 {
 	struct regmap *sys_mgr_base_addr = dwmac->sys_mgr_base_addr;
 	int phymode = dwmac->interface;
@@ -195,16 +195,6 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 	return 0;
 }
 
-static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
-{
-	struct socfpga_dwmac *dwmac = priv;
-
-	/* Setup the phy mode in the system manager registers according to
-	 * devicetree configuration
-	 */
-	return socfpga_dwmac_setup(dwmac);
-}
-
 static int socfpga_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -245,7 +235,7 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 		 */
 		dwmac->stmmac_rst = stpriv->stmmac_rst;
 
-		ret = socfpga_dwmac_init(pdev, dwmac);
+		ret = socfpga_dwmac_set_phy_mode(dwmac);
 	}
 
 	return ret;
@@ -254,11 +244,10 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int socfpga_dwmac_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
 
-	socfpga_dwmac_init(pdev, priv->plat->bsp_priv);
+	socfpga_dwmac_set_phy_mode(priv->plat->bsp_priv);
 
 	/* Before the enet controller is suspended, the phy is suspended.
 	 * This causes the phy clock to be gated. The enet controller is
