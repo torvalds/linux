@@ -517,12 +517,13 @@ menu "Port-mapped I/O GPIO drivers"
 
 config GPIO_104_DIO_48E
 	tristate "ACCES 104-DIO-48E GPIO support"
+	depends on ISA
 	select GPIOLIB_IRQCHIP
 	help
-	  Enables GPIO support for the ACCES 104-DIO-48E family. The base port
-	  address for the device may be configured via the dio_48e_base module
-	  parameter. The interrupt line number for the device may be configured
-	  via the dio_48e_irq module parameter.
+	  Enables GPIO support for the ACCES 104-DIO-48E series (104-DIO-48E,
+	  104-DIO-24E). The base port addresses for the devices may be
+	  configured via the base module parameter. The interrupt line numbers
+	  for the devices may be configured via the irq module parameter.
 
 config GPIO_104_IDIO_16
 	tristate "ACCES 104-IDIO-16 GPIO support"
