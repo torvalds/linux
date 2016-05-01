@@ -19,36 +19,25 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Eddie Dong <eddie.dong@intel.com>
+ *    Kevin Tian <kevin.tian@intel.com>
+ *
+ * Contributors:
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *    Changbin Du <changbin.du@intel.com>
+ *    Zhenyu Wang <zhenyuw@linux.intel.com>
+ *    Tina Zhang <tina.zhang@intel.com>
+ *    Bing Niu <bing.niu@intel.com>
+ *
  */
 
-#ifndef __GVT_DEBUG_H__
-#define __GVT_DEBUG_H__
+#ifndef __GVT_RENDER_H__
+#define __GVT_RENDER_H__
 
-#define gvt_err(fmt, args...) \
-	DRM_ERROR("gvt: "fmt, ##args)
+void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id);
 
-#define gvt_dbg_core(fmt, args...) \
-	DRM_DEBUG_DRIVER("gvt: core: "fmt, ##args)
-
-#define gvt_dbg_irq(fmt, args...) \
-	DRM_DEBUG_DRIVER("gvt: irq: "fmt, ##args)
-
-#define gvt_dbg_mm(fmt, args...) \
-	DRM_DEBUG_DRIVER("gvt: mm: "fmt, ##args)
-
-#define gvt_dbg_mmio(fmt, args...) \
-	DRM_DEBUG_DRIVER("gvt: mmio: "fmt, ##args)
-
-#define gvt_dbg_dpy(fmt, args...) \
-	DRM_DEBUG_DRIVER("gvt: dpy: "fmt, ##args)
-
-#define gvt_dbg_el(fmt, args...) \
-	DRM_DEBUG_DRIVER("gvt: el: "fmt, ##args)
-
-#define gvt_dbg_sched(fmt, args...) \
-	DRM_DEBUG_DRIVER("gvt: sched: "fmt, ##args)
-
-#define gvt_dbg_render(fmt, args...) \
-	DRM_DEBUG_DRIVER("gvt: render: "fmt, ##args)
+void intel_gvt_restore_render_mmio(struct intel_vgpu *vgpu, int ring_id);
 
 #endif

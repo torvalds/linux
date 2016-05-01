@@ -200,6 +200,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	vgpu->id = ret;
 	vgpu->handle = param->handle;
 	vgpu->gvt = gvt;
+	bitmap_zero(vgpu->tlb_handle_pending, I915_NUM_ENGINES);
 
 	setup_vgpu_cfg_space(vgpu, param);
 

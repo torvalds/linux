@@ -44,6 +44,7 @@
 #include "execlist.h"
 #include "scheduler.h"
 #include "sched_policy.h"
+#include "render.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -154,6 +155,7 @@ struct intel_vgpu {
 	struct list_head workload_q_head[I915_NUM_ENGINES];
 	struct kmem_cache *workloads;
 	atomic_t running_workload_num;
+	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
 	struct notifier_block shadow_ctx_notifier_block;
 };

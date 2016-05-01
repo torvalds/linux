@@ -139,9 +139,13 @@ static int shadow_context_status_change(struct notifier_block *nb,
 
 	switch (action) {
 	case INTEL_CONTEXT_SCHEDULE_IN:
+		intel_gvt_load_render_mmio(workload->vgpu,
+					   workload->ring_id);
 		atomic_set(&workload->shadow_ctx_active, 1);
 		break;
 	case INTEL_CONTEXT_SCHEDULE_OUT:
+		intel_gvt_restore_render_mmio(workload->vgpu,
+					      workload->ring_id);
 		atomic_set(&workload->shadow_ctx_active, 0);
 		break;
 	default:

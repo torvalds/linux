@@ -1340,6 +1340,37 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	return 0;
 }
 
+static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	int rc = 0;
+	unsigned int id = 0;
+
+	switch (offset) {
+	case 0x4260:
+		id = RCS;
+		break;
+	case 0x4264:
+		id = VCS;
+		break;
+	case 0x4268:
+		id = VCS2;
+		break;
+	case 0x426c:
+		id = BCS;
+		break;
+	case 0x4270:
+		id = VECS;
+		break;
+	default:
+		rc = -EINVAL;
+		break;
+	}
+	set_bit(id, (void *)vgpu->tlb_handle_pending);
+
+	return rc;
+}
+
 #define MMIO_F(reg, s, f, am, rm, d, r, w) do { \
 	ret = new_mmio_info(gvt, INTEL_GVT_MMIO_OFFSET(reg), \
 		f, s, am, rm, d, r, w); \
@@ -2147,11 +2178,11 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(CL_PRIMITIVES_COUNT, 8, 0, 0, 0, D_ALL, NULL, NULL);
 	MMIO_F(PS_INVOCATION_COUNT, 8, 0, 0, 0, D_ALL, NULL, NULL);
 	MMIO_F(PS_DEPTH_COUNT, 8, 0, 0, 0, D_ALL, NULL, NULL);
-	MMIO_DH(0x4260, D_BDW_PLUS, NULL, NULL);
-	MMIO_DH(0x4264, D_BDW_PLUS, NULL, NULL);
-	MMIO_DH(0x4268, D_BDW_PLUS, NULL, NULL);
-	MMIO_DH(0x426c, D_BDW_PLUS, NULL, NULL);
-	MMIO_DH(0x4270, D_BDW_PLUS, NULL, NULL);
+	MMIO_DH(0x4260, D_BDW_PLUS, NULL, gvt_reg_tlb_control_handler);
+	MMIO_DH(0x4264, D_BDW_PLUS, NULL, gvt_reg_tlb_control_handler);
+	MMIO_DH(0x4268, D_BDW_PLUS, NULL, gvt_reg_tlb_control_handler);
+	MMIO_DH(0x426c, D_BDW_PLUS, NULL, gvt_reg_tlb_control_handler);
+	MMIO_DH(0x4270, D_BDW_PLUS, NULL, gvt_reg_tlb_control_handler);
 	MMIO_DFH(0x4094, D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 
 	return 0;
