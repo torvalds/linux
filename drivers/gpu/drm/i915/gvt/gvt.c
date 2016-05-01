@@ -177,6 +177,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 		return;
 
 	clean_service_thread(gvt);
+	intel_gvt_clean_sched_policy(gvt);
 	intel_gvt_clean_workload_scheduler(gvt);
 	intel_gvt_clean_opregion(gvt);
 	intel_gvt_clean_gtt(gvt);
@@ -244,14 +245,20 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_opregion;
 
-	ret = init_service_thread(gvt);
+	ret = intel_gvt_init_sched_policy(gvt);
 	if (ret)
 		goto out_clean_workload_scheduler;
+
+	ret = init_service_thread(gvt);
+	if (ret)
+		goto out_clean_sched_policy;
 
 	gvt_dbg_core("gvt device creation is done\n");
 	gvt->initialized = true;
 	return 0;
 
+out_clean_sched_policy:
+	intel_gvt_clean_sched_policy(gvt);
 out_clean_workload_scheduler:
 	intel_gvt_clean_workload_scheduler(gvt);
 out_clean_opregion:

@@ -43,6 +43,7 @@
 #include "edid.h"
 #include "execlist.h"
 #include "scheduler.h"
+#include "sched_policy.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -139,6 +140,7 @@ struct intel_vgpu {
 	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
 	bool active;
 	bool resetting;
+	void *sched_data;
 
 	struct intel_vgpu_fence fence;
 	struct intel_vgpu_gm gm;

@@ -235,6 +235,7 @@ static int handle_device_reset(struct intel_vgpu *vgpu, unsigned int offset,
 
 	vgpu->resetting = true;
 
+	intel_vgpu_stop_schedule(vgpu);
 	if (scheduler->current_vgpu == vgpu) {
 		mutex_unlock(&vgpu->gvt->lock);
 		intel_gvt_wait_vgpu_idle(vgpu);
@@ -1317,6 +1318,28 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	return 0;
 }
 
+static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 data = *(u32 *)p_data;
+	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
+	bool enable_execlist;
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	if ((data & _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE))
+			|| (data & _MASKED_BIT_DISABLE(GFX_RUN_LIST_ENABLE))) {
+		enable_execlist = !!(data & GFX_RUN_LIST_ENABLE);
+
+		gvt_dbg_core("EXECLIST %s on ring %d\n",
+				(enable_execlist ? "enabling" : "disabling"),
+				ring_id);
+
+		if (enable_execlist)
+			intel_vgpu_start_schedule(vgpu);
+	}
+	return 0;
+}
+
 #define MMIO_F(reg, s, f, am, rm, d, r, w) do { \
 	ret = new_mmio_info(gvt, INTEL_GVT_MMIO_OFFSET(reg), \
 		f, s, am, rm, d, r, w); \
@@ -1398,7 +1421,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	/* RING MODE */
 #define RING_REG(base) (base + 0x29c)
-	MMIO_RING_DFH(RING_REG, D_ALL, F_MODE_MASK, NULL, NULL);
+	MMIO_RING_DFH(RING_REG, D_ALL, F_MODE_MASK, NULL, ring_mode_mmio_write);
 #undef RING_REG
 
 	MMIO_RING_DFH(RING_MI_MODE, D_ALL, F_MODE_MASK, NULL, NULL);
@@ -2213,7 +2236,7 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(RING_CTL(GEN8_BSD2_RING_BASE), D_BDW_PLUS);
 	MMIO_D(RING_ACTHD(GEN8_BSD2_RING_BASE), D_BDW_PLUS);
 	MMIO_D(RING_ACTHD_UDW(GEN8_BSD2_RING_BASE), D_BDW_PLUS);
-	MMIO_DFH(0x1c29c, D_BDW_PLUS, F_MODE_MASK, NULL, NULL);
+	MMIO_DFH(0x1c29c, D_BDW_PLUS, F_MODE_MASK, NULL, ring_mode_mmio_write);
 	MMIO_DFH(RING_MI_MODE(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_MODE_MASK,
 			NULL, NULL);
 	MMIO_DFH(RING_INSTPM(GEN8_BSD2_RING_BASE), D_BDW_PLUS, F_MODE_MASK,

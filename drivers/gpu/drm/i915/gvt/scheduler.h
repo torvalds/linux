@@ -45,6 +45,9 @@ struct intel_gvt_workload_scheduler {
 	wait_queue_head_t workload_complete_wq;
 	struct task_struct *thread[I915_NUM_ENGINES];
 	wait_queue_head_t waitq[I915_NUM_ENGINES];
+
+	void *sched_data;
+	struct intel_gvt_sched_policy_ops *sched_ops;
 };
 
 struct intel_vgpu_workload {
