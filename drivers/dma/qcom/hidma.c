@@ -404,7 +404,7 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 	/* this suspends the existing transfer */
-	rc = hidma_ll_pause(dmadev->lldev);
+	rc = hidma_ll_disable(dmadev->lldev);
 	if (rc) {
 		dev_err(dmadev->ddev.dev, "channel did not pause\n");
 		goto out;
@@ -427,7 +427,7 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 		list_move(&mdesc->node, &mchan->free);
 	}
 
-	rc = hidma_ll_resume(dmadev->lldev);
+	rc = hidma_ll_enable(dmadev->lldev);
 out:
 	pm_runtime_mark_last_busy(dmadev->ddev.dev);
 	pm_runtime_put_autosuspend(dmadev->ddev.dev);
@@ -488,7 +488,7 @@ static int hidma_pause(struct dma_chan *chan)
 	dmadev = to_hidma_dev(mchan->chan.device);
 	if (!mchan->paused) {
 		pm_runtime_get_sync(dmadev->ddev.dev);
-		if (hidma_ll_pause(dmadev->lldev))
+		if (hidma_ll_disable(dmadev->lldev))
 			dev_warn(dmadev->ddev.dev, "channel did not stop\n");
 		mchan->paused = true;
 		pm_runtime_mark_last_busy(dmadev->ddev.dev);
@@ -507,7 +507,7 @@ static int hidma_resume(struct dma_chan *chan)
 	dmadev = to_hidma_dev(mchan->chan.device);
 	if (mchan->paused) {
 		pm_runtime_get_sync(dmadev->ddev.dev);
-		rc = hidma_ll_resume(dmadev->lldev);
+		rc = hidma_ll_enable(dmadev->lldev);
 		if (!rc)
 			mchan->paused = false;
 		else
