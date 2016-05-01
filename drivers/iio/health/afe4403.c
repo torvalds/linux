@@ -498,13 +498,11 @@ static const struct regmap_config afe4403_regmap_config = {
 	.volatile_table = &afe4403_volatile_table,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id afe4403_of_match[] = {
 	{ .compatible = "ti,afe4403", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, afe4403_of_match);
-#endif
 
 static int __maybe_unused afe4403_suspend(struct device *dev)
 {
@@ -694,7 +692,7 @@ MODULE_DEVICE_TABLE(spi, afe4403_ids);
 static struct spi_driver afe4403_spi_driver = {
 	.driver = {
 		.name = AFE4403_DRIVER_NAME,
-		.of_match_table = of_match_ptr(afe4403_of_match),
+		.of_match_table = afe4403_of_match,
 		.pm = &afe4403_pm_ops,
 	},
 	.probe = afe4403_probe,
