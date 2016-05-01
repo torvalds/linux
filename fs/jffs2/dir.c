@@ -40,7 +40,7 @@ static int jffs2_rename (struct inode *, struct dentry *,
 const struct file_operations jffs2_dir_operations =
 {
 	.read =		generic_read_dir,
-	.iterate =	jffs2_readdir,
+	.iterate_shared=jffs2_readdir,
 	.unlocked_ioctl=jffs2_ioctl,
 	.fsync =	jffs2_fsync,
 	.llseek =	generic_file_llseek,

@@ -657,5 +657,5 @@ not_empty:
 const struct file_operations exofs_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= exofs_readdir,
+	.iterate_shared	= exofs_readdir,
 };

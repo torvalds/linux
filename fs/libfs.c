@@ -1166,7 +1166,7 @@ static int empty_dir_readdir(struct file *file, struct dir_context *ctx)
 static const struct file_operations empty_dir_operations = {
 	.llseek		= empty_dir_llseek,
 	.read		= generic_read_dir,
-	.iterate	= empty_dir_readdir,
+	.iterate_shared	= empty_dir_readdir,
 	.fsync		= noop_fsync,
 };
 

@@ -1195,7 +1195,7 @@ const struct file_operations ubifs_dir_operations = {
 	.llseek         = generic_file_llseek,
 	.release        = ubifs_dir_release,
 	.read           = generic_read_dir,
-	.iterate        = ubifs_readdir,
+	.iterate_shared = ubifs_readdir,
 	.fsync          = ubifs_fsync,
 	.unlocked_ioctl = ubifs_ioctl,
 #ifdef CONFIG_COMPAT
