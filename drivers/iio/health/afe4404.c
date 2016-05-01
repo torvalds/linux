@@ -48,8 +48,8 @@
 #define AFE4404_AVG_LED2_ALED2VAL	0x3f
 #define AFE4404_AVG_LED1_ALED1VAL	0x40
 
-/* AFE4404 CONTROL3 register fields */
-#define AFE440X_CONTROL3_OSC_ENABLE	BIT(9)
+/* AFE4404 CONTROL2 register fields */
+#define AFE440X_CONTROL2_OSC_ENABLE	BIT(9)
 
 enum afe4404_fields {
 	/* Gains */
@@ -398,7 +398,7 @@ static const struct reg_sequence afe4404_reg_sequences[] = {
 	AFE4404_TIMING_PAIRS,
 	{ AFE440X_CONTROL1, AFE440X_CONTROL1_TIMEREN },
 	{ AFE4404_TIA_GAIN_SEP, AFE440X_TIAGAIN_ENSEPGAIN },
-	{ AFE440X_CONTROL2, AFE440X_CONTROL3_OSC_ENABLE	},
+	{ AFE440X_CONTROL2, AFE440X_CONTROL2_OSC_ENABLE	},
 };
 
 static const struct regmap_range afe4404_yes_ranges[] = {
