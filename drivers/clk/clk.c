@@ -2719,7 +2719,7 @@ EXPORT_SYMBOL_GPL(devm_clk_register);
  * @dev: device that is registering this clock
  * @hw: link to hardware-specific clock data
  *
- * Managed clk_hw_register(). Clocks returned from this function are
+ * Managed clk_hw_register(). Clocks registered by this function are
  * automatically clk_hw_unregister()ed on driver detach. See clk_hw_register()
  * for more information.
  */
