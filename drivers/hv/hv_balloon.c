@@ -1400,6 +1400,7 @@ static void balloon_onchannelcallback(void *context)
 				 * This is a normal hot-add request specifying
 				 * hot-add memory.
 				 */
+				dm->host_specified_ha_region = false;
 				ha_pg_range = &ha_msg->range;
 				dm->ha_wrk.ha_page_range = *ha_pg_range;
 				dm->ha_wrk.ha_region_range.page_range = 0;
