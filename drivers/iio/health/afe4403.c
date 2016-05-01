@@ -39,32 +39,6 @@
 #define AFE4403_TIAGAIN			0x20
 #define AFE4403_TIA_AMB_GAIN		0x21
 
-/* AFE4403 GAIN register fields */
-#define AFE4403_TIAGAIN_RES_MASK	GENMASK(2, 0)
-#define AFE4403_TIAGAIN_RES_SHIFT	0
-#define AFE4403_TIAGAIN_CAP_MASK	GENMASK(7, 3)
-#define AFE4403_TIAGAIN_CAP_SHIFT	3
-
-/* AFE4403 LEDCNTRL register fields */
-#define AFE440X_LEDCNTRL_LED1_MASK		GENMASK(15, 8)
-#define AFE440X_LEDCNTRL_LED1_SHIFT		8
-#define AFE440X_LEDCNTRL_LED2_MASK		GENMASK(7, 0)
-#define AFE440X_LEDCNTRL_LED2_SHIFT		0
-#define AFE440X_LEDCNTRL_LED_RANGE_MASK		GENMASK(17, 16)
-#define AFE440X_LEDCNTRL_LED_RANGE_SHIFT	16
-
-/* AFE4403 CONTROL2 register fields */
-#define AFE440X_CONTROL2_PWR_DWN_TX	BIT(2)
-#define AFE440X_CONTROL2_EN_SLOW_DIAG	BIT(8)
-#define AFE440X_CONTROL2_DIAG_OUT_TRI	BIT(10)
-#define AFE440X_CONTROL2_TX_BRDG_MOD	BIT(11)
-#define AFE440X_CONTROL2_TX_REF_MASK	GENMASK(18, 17)
-#define AFE440X_CONTROL2_TX_REF_SHIFT	17
-
-/* AFE4404 NULL fields */
-#define NULL_MASK	0
-#define NULL_SHIFT	0
-
 /* AFE4403 LEDCNTRL values */
 #define AFE440X_LEDCNTRL_RANGE_TX_HALF	0x1
 #define AFE440X_LEDCNTRL_RANGE_TX_FULL	0x2
@@ -102,11 +76,35 @@
 #define AFE4403_TIAGAIN_RES_1_M		0x6
 #define AFE4403_TIAGAIN_RES_NONE	0x7
 
+enum afe4403_fields {
+	/* Gains */
+	F_RF_LED1, F_CF_LED1,
+	F_RF_LED, F_CF_LED,
+
+	/* LED Current */
+	F_ILED1, F_ILED2,
+
+	/* sentinel */
+	F_MAX_FIELDS
+};
+
+static const struct reg_field afe4403_reg_fields[] = {
+	/* Gains */
+	[F_RF_LED1]	= REG_FIELD(AFE4403_TIAGAIN, 0, 2),
+	[F_CF_LED1]	= REG_FIELD(AFE4403_TIAGAIN, 3, 7),
+	[F_RF_LED]	= REG_FIELD(AFE4403_TIA_AMB_GAIN, 0, 2),
+	[F_CF_LED]	= REG_FIELD(AFE4403_TIA_AMB_GAIN, 3, 7),
+	/* LED Current */
+	[F_ILED1]	= REG_FIELD(AFE440X_LEDCNTRL, 0, 7),
+	[F_ILED2]	= REG_FIELD(AFE440X_LEDCNTRL, 8, 15),
+};
+
 /**
  * struct afe4403_data - AFE4403 device instance data
  * @dev: Device structure
  * @spi: SPI device handle
  * @regmap: Register map of the device
+ * @fields: Register fields of the device
  * @regulator: Pointer to the regulator for the IC
  * @trig: IIO trigger for this device
  * @irq: ADC_RDY line interrupt number
@@ -115,6 +113,7 @@ struct afe4403_data {
 	struct device *dev;
 	struct spi_device *spi;
 	struct regmap *regmap;
+	struct regmap_field *fields[F_MAX_FIELDS];
 	struct regulator *regulator;
 	struct iio_trigger *trig;
 	int irq;
@@ -131,15 +130,18 @@ enum afe4403_chan_id {
 	ILED2,
 };
 
-static const struct afe440x_reg_info afe4403_reg_info[] = {
-	[LED2] = AFE440X_REG_INFO(AFE440X_LED2VAL, 0, NULL),
-	[ALED2] = AFE440X_REG_INFO(AFE440X_ALED2VAL, 0, NULL),
-	[LED1] = AFE440X_REG_INFO(AFE440X_LED1VAL, 0, NULL),
-	[ALED1] = AFE440X_REG_INFO(AFE440X_ALED1VAL, 0, NULL),
-	[LED2_ALED2] = AFE440X_REG_INFO(AFE440X_LED2_ALED2VAL, 0, NULL),
-	[LED1_ALED1] = AFE440X_REG_INFO(AFE440X_LED1_ALED1VAL, 0, NULL),
-	[ILED1] = AFE440X_REG_INFO(AFE440X_LEDCNTRL, 0, AFE440X_LEDCNTRL_LED1),
-	[ILED2] = AFE440X_REG_INFO(AFE440X_LEDCNTRL, 0, AFE440X_LEDCNTRL_LED2),
+static const unsigned int afe4403_channel_values[] = {
+	[LED2] = AFE440X_LED2VAL,
+	[ALED2] = AFE440X_ALED2VAL,
+	[LED1] = AFE440X_LED1VAL,
+	[ALED1] = AFE440X_ALED1VAL,
+	[LED2_ALED2] = AFE440X_LED2_ALED2VAL,
+	[LED1_ALED1] = AFE440X_LED1_ALED1VAL,
+};
+
+static const unsigned int afe4403_channel_leds[] = {
+	[ILED1] = F_ILED1,
+	[ILED2] = F_ILED2,
 };
 
 static const struct iio_chan_spec afe4403_channels[] = {
@@ -184,12 +186,9 @@ static ssize_t afe440x_show_register(struct device *dev,
 	int vals[2];
 	int ret;
 
-	ret = regmap_read(afe->regmap, afe440x_attr->reg, &reg_val);
+	ret = regmap_field_read(afe->fields[afe440x_attr->field], &reg_val);
 	if (ret)
 		return ret;
-
-	reg_val &= afe440x_attr->mask;
-	reg_val >>= afe440x_attr->shift;
 
 	if (reg_val >= afe440x_attr->table_size)
 		return -EINVAL;
@@ -220,20 +219,18 @@ static ssize_t afe440x_store_register(struct device *dev,
 	if (val == afe440x_attr->table_size)
 		return -EINVAL;
 
-	ret = regmap_update_bits(afe->regmap, afe440x_attr->reg,
-				 afe440x_attr->mask,
-				 (val << afe440x_attr->shift));
+	ret = regmap_field_write(afe->fields[afe440x_attr->field], val);
 	if (ret)
 		return ret;
 
 	return count;
 }
 
-static AFE440X_ATTR(tia_resistance1, AFE4403_TIAGAIN, AFE4403_TIAGAIN_RES, afe4403_res_table);
-static AFE440X_ATTR(tia_capacitance1, AFE4403_TIAGAIN, AFE4403_TIAGAIN_CAP, afe4403_cap_table);
+static AFE440X_ATTR(tia_resistance1, F_RF_LED1, afe4403_res_table);
+static AFE440X_ATTR(tia_capacitance1, F_CF_LED1, afe4403_cap_table);
 
-static AFE440X_ATTR(tia_resistance2, AFE4403_TIA_AMB_GAIN, AFE4403_TIAGAIN_RES, afe4403_res_table);
-static AFE440X_ATTR(tia_capacitance2, AFE4403_TIA_AMB_GAIN, AFE4403_TIAGAIN_RES, afe4403_cap_table);
+static AFE440X_ATTR(tia_resistance2, F_RF_LED, afe4403_res_table);
+static AFE440X_ATTR(tia_capacitance2, F_CF_LED, afe4403_cap_table);
 
 static struct attribute *afe440x_attributes[] = {
 	&afe440x_attr_tia_resistance1.dev_attr.attr,
@@ -282,14 +279,15 @@ static int afe4403_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct afe4403_data *afe = iio_priv(indio_dev);
-	const struct afe440x_reg_info reg_info = afe4403_reg_info[chan->address];
+	unsigned int reg = afe4403_channel_values[chan->address];
+	unsigned int field = afe4403_channel_leds[chan->address];
 	int ret;
 
 	switch (chan->type) {
 	case IIO_INTENSITY:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
-			ret = afe4403_read(afe, reg_info.reg, val);
+			ret = afe4403_read(afe, reg, val);
 			if (ret)
 				return ret;
 			return IIO_VAL_INT;
@@ -298,11 +296,9 @@ static int afe4403_read_raw(struct iio_dev *indio_dev,
 	case IIO_CURRENT:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
-			ret = regmap_read(afe->regmap, reg_info.reg, val);
+			ret = regmap_field_read(afe->fields[field], val);
 			if (ret)
 				return ret;
-			*val &= reg_info.mask;
-			*val >>= reg_info.shift;
 			return IIO_VAL_INT;
 		case IIO_CHAN_INFO_SCALE:
 			*val = 0;
@@ -322,16 +318,13 @@ static int afe4403_write_raw(struct iio_dev *indio_dev,
 			     int val, int val2, long mask)
 {
 	struct afe4403_data *afe = iio_priv(indio_dev);
-	const struct afe440x_reg_info reg_info = afe4403_reg_info[chan->address];
+	unsigned int field = afe4403_channel_leds[chan->address];
 
 	switch (chan->type) {
 	case IIO_CURRENT:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
-			return regmap_update_bits(afe->regmap,
-				reg_info.reg,
-				reg_info.mask,
-				(val << reg_info.shift));
+			return regmap_field_write(afe->fields[field], val);
 		}
 		break;
 	default:
@@ -366,7 +359,7 @@ static irqreturn_t afe4403_trigger_handler(int irq, void *private)
 	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
 		ret = spi_write_then_read(afe->spi,
-					  &afe4403_reg_info[bit].reg, 1,
+					  &afe4403_channel_values[bit], 1,
 					  rx, 3);
 		if (ret)
 			goto err;
@@ -503,7 +496,7 @@ static int afe4403_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct afe4403_data *afe;
-	int ret;
+	int i, ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*afe));
 	if (!indio_dev)
@@ -520,6 +513,15 @@ static int afe4403_probe(struct spi_device *spi)
 	if (IS_ERR(afe->regmap)) {
 		dev_err(afe->dev, "Unable to allocate register map\n");
 		return PTR_ERR(afe->regmap);
+	}
+
+	for (i = 0; i < F_MAX_FIELDS; i++) {
+		afe->fields[i] = devm_regmap_field_alloc(afe->dev, afe->regmap,
+							 afe4403_reg_fields[i]);
+		if (IS_ERR(afe->fields[i])) {
+			dev_err(afe->dev, "Unable to allocate regmap fields\n");
+			return PTR_ERR(afe->fields[i]);
+		}
 	}
 
 	afe->regulator = devm_regulator_get(afe->dev, "tx_sup");

@@ -88,21 +88,6 @@
 #define AFE440X_CONTROL0_WRITE		0x0
 #define AFE440X_CONTROL0_READ		0x1
 
-struct afe440x_reg_info {
-	unsigned int reg;
-	unsigned int offreg;
-	unsigned int shift;
-	unsigned int mask;
-};
-
-#define AFE440X_REG_INFO(_reg, _offreg, _sm)			\
-	{							\
-		.reg = _reg,					\
-		.offreg = _offreg,				\
-		.shift = _sm ## _SHIFT,				\
-		.mask = _sm ## _MASK,				\
-	}
-
 #define AFE440X_INTENSITY_CHAN(_index, _mask)			\
 	{							\
 		.type = IIO_INTENSITY,				\
@@ -157,9 +142,7 @@ static DEVICE_ATTR_RO(_name)
 
 struct afe440x_attr {
 	struct device_attribute dev_attr;
-	unsigned int reg;
-	unsigned int shift;
-	unsigned int mask;
+	unsigned int field;
 	const struct afe440x_val_table *val_table;
 	unsigned int table_size;
 };
@@ -167,14 +150,12 @@ struct afe440x_attr {
 #define to_afe440x_attr(_dev_attr)				\
 	container_of(_dev_attr, struct afe440x_attr, dev_attr)
 
-#define AFE440X_ATTR(_name, _reg, _field, _table)		\
+#define AFE440X_ATTR(_name, _field, _table)			\
 	struct afe440x_attr afe440x_attr_##_name = {		\
 		.dev_attr = __ATTR(_name, (S_IRUGO | S_IWUSR),	\
 				   afe440x_show_register,	\
 				   afe440x_store_register),	\
-		.reg = _reg,					\
-		.shift = _field ## _SHIFT,			\
-		.mask = _field ## _MASK,			\
+		.field = _field,				\
 		.val_table = _table,				\
 		.table_size = ARRAY_SIZE(_table),		\
 	}
