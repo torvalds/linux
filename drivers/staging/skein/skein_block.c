@@ -326,10 +326,10 @@
 		R1024(00, 09, 02, 13, 06, 11, 04, 15, 10, 07, 12, 03, 14, \
 		      05, 08, 01, R1024_5, 8 * (R) + 6);                  \
 		R1024(00, 07, 02, 05, 04, 03, 06, 01, 12, 15, 14, 13, 08, \
-		      11, 10, 09, R1024_6, 8  * (R) + 7);                 \
+		      11, 10, 09, R1024_6, 8 * (R) + 7);                  \
 		R1024(00, 15, 02, 11, 06, 13, 04, 09, 14, 01, 08, 05, 10, \
 		      03, 12, 07, R1024_7, 8 * (R) + 8);                  \
-		I1024(2 * (R) + 1);                                        \
+		I1024(2 * (R) + 1);                                       \
 	} while (0)
 
 #define R1024_UNROLL_R(NN)                              \
@@ -353,7 +353,7 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 	size_t r;
 #if SKEIN_UNROLL_256
 	/* key schedule: chaining vars + tweak + "rot"*/
-	u64  kw[WCNT + 4 + RCNT * 2];
+	u64  kw[WCNT + 4 + (RCNT * 2)];
 #else
 	/* key schedule words : chaining vars + tweak */
 	u64  kw[WCNT + 4];
@@ -635,7 +635,7 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 	size_t  r;
 #if (SKEIN_UNROLL_1024 != 0)
 	/* key sched: chaining vars + tweak + "rot" */
-	u64  kw[WCNT + 4 + RCNT * 2];
+	u64  kw[WCNT + 4 + (RCNT * 2)];
 #else
 	/* key schedule words : chaining vars + tweak */
 	u64  kw[WCNT + 4];
