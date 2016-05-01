@@ -198,41 +198,11 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 {
 	struct socfpga_dwmac *dwmac = priv;
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct stmmac_priv *stpriv = NULL;
-	int ret = 0;
-
-	if (!ndev)
-		return -EINVAL;
-
-	stpriv = netdev_priv(ndev);
-	if (!stpriv)
-		return -EINVAL;
 
 	/* Setup the phy mode in the system manager registers according to
 	 * devicetree configuration
 	 */
-	ret = socfpga_dwmac_setup(dwmac);
-
-	/* Before the enet controller is suspended, the phy is suspended.
-	 * This causes the phy clock to be gated. The enet controller is
-	 * resumed before the phy, so the clock is still gated "off" when
-	 * the enet controller is resumed. This code makes sure the phy
-	 * is "resumed" before reinitializing the enet controller since
-	 * the enet controller depends on an active phy clock to complete
-	 * a DMA reset. A DMA reset will "time out" if executed
-	 * with no phy clock input on the Synopsys enet controller.
-	 * Verified through Synopsys Case #8000711656.
-	 *
-	 * Note that the phy clock is also gated when the phy is isolated.
-	 * Phy "suspend" and "isolate" controls are located in phy basic
-	 * control register 0, and can be modified by the phy driver
-	 * framework.
-	 */
-	if (stpriv->phydev)
-		phy_resume(stpriv->phydev);
-
-	return ret;
+	return socfpga_dwmac_setup(dwmac);
 }
 
 static int socfpga_dwmac_probe(struct platform_device *pdev)
@@ -289,6 +259,24 @@ static int socfpga_dwmac_resume(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 
 	socfpga_dwmac_init(pdev, priv->plat->bsp_priv);
+
+	/* Before the enet controller is suspended, the phy is suspended.
+	 * This causes the phy clock to be gated. The enet controller is
+	 * resumed before the phy, so the clock is still gated "off" when
+	 * the enet controller is resumed. This code makes sure the phy
+	 * is "resumed" before reinitializing the enet controller since
+	 * the enet controller depends on an active phy clock to complete
+	 * a DMA reset. A DMA reset will "time out" if executed
+	 * with no phy clock input on the Synopsys enet controller.
+	 * Verified through Synopsys Case #8000711656.
+	 *
+	 * Note that the phy clock is also gated when the phy is isolated.
+	 * Phy "suspend" and "isolate" controls are located in phy basic
+	 * control register 0, and can be modified by the phy driver
+	 * framework.
+	 */
+	if (priv->phydev)
+		phy_resume(priv->phydev);
 
 	return stmmac_resume(dev);
 }
