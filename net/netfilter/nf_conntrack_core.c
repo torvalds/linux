@@ -602,6 +602,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_hash_check_insert);
 
+static inline void nf_ct_acct_update(struct nf_conn *ct,
+				     enum ip_conntrack_info ctinfo,
+				     unsigned int len)
+{
+	struct nf_conn_acct *acct;
+
+	acct = nf_conn_acct_find(ct);
+	if (acct) {
+		struct nf_conn_counter *counter = acct->counter;
+
+		atomic64_inc(&counter[CTINFO2DIR(ctinfo)].packets);
+		atomic64_add(len, &counter[CTINFO2DIR(ctinfo)].bytes);
+	}
+}
+
 /* Confirm a connection given skb; places it in hash table */
 int
 __nf_conntrack_confirm(struct sk_buff *skb)
@@ -1258,17 +1273,8 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	}
 
 acct:
-	if (do_acct) {
-		struct nf_conn_acct *acct;
-
-		acct = nf_conn_acct_find(ct);
-		if (acct) {
-			struct nf_conn_counter *counter = acct->counter;
-
-			atomic64_inc(&counter[CTINFO2DIR(ctinfo)].packets);
-			atomic64_add(skb->len, &counter[CTINFO2DIR(ctinfo)].bytes);
-		}
-	}
+	if (do_acct)
+		nf_ct_acct_update(ct, ctinfo, skb->len);
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 
@@ -1277,18 +1283,8 @@ bool __nf_ct_kill_acct(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       int do_acct)
 {
-	if (do_acct) {
-		struct nf_conn_acct *acct;
-
-		acct = nf_conn_acct_find(ct);
-		if (acct) {
-			struct nf_conn_counter *counter = acct->counter;
-
-			atomic64_inc(&counter[CTINFO2DIR(ctinfo)].packets);
-			atomic64_add(skb->len - skb_network_offset(skb),
-				     &counter[CTINFO2DIR(ctinfo)].bytes);
-		}
-	}
+	if (do_acct)
+		nf_ct_acct_update(ct, ctinfo, skb->len);
 
 	if (del_timer(&ct->timeout)) {
 		ct->timeout.function((unsigned long)ct);
