@@ -284,11 +284,14 @@ static void recover_bitmaps(struct md_thread *thread)
 			goto dlm_unlock;
 		}
 		if (hi > 0) {
-			/* TODO:Wait for current resync to get over */
-			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 			if (lo < mddev->recovery_cp)
 				mddev->recovery_cp = lo;
-			md_check_recovery(mddev);
+			/* wake up thread to continue resync in case resync
+			 * is not finished */
+			if (mddev->recovery_cp != MaxSector) {
+			    set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+			    md_wakeup_thread(mddev->thread);
+			}
 		}
 dlm_unlock:
 		dlm_unlock_sync(bm_lockres);
