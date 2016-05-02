@@ -2013,6 +2013,52 @@ struct clk *tegra_clk_register_pllss(const char *name, const char *parent_name,
 #endif
 
 #if defined(CONFIG_ARCH_TEGRA_210_SOC)
+struct clk *tegra_clk_register_pllre_tegra210(const char *name,
+			  const char *parent_name, void __iomem *clk_base,
+			  void __iomem *pmc, unsigned long flags,
+			  struct tegra_clk_pll_params *pll_params,
+			  spinlock_t *lock, unsigned long parent_rate)
+{
+	u32 val;
+	struct tegra_clk_pll *pll;
+	struct clk *clk;
+
+	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
+
+	if (pll_params->adjust_vco)
+		pll_params->vco_min = pll_params->adjust_vco(pll_params,
+							     parent_rate);
+
+	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
+	if (IS_ERR(pll))
+		return ERR_CAST(pll);
+
+	/* program minimum rate by default */
+
+	val = pll_readl_base(pll);
+	if (val & PLL_BASE_ENABLE)
+		WARN_ON(readl_relaxed(clk_base + pll_params->iddq_reg) &
+				BIT(pll_params->iddq_bit_idx));
+	else {
+		val = 0x4 << divm_shift(pll);
+		val |= 0x41 << divn_shift(pll);
+		pll_writel_base(val, pll);
+	}
+
+	/* disable lock override */
+
+	val = pll_readl_misc(pll);
+	val &= ~BIT(29);
+	pll_writel_misc(val, pll);
+
+	clk = _tegra_clk_register_pll(pll, name, parent_name, flags,
+				      &tegra_clk_pllre_ops);
+	if (IS_ERR(clk))
+		kfree(pll);
+
+	return clk;
+}
+
 static int clk_plle_tegra210_enable(struct clk_hw *hw)
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
