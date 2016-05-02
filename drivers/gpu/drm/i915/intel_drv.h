@@ -33,6 +33,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_dp_dual_mode_helper.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_atomic.h>
@@ -753,6 +754,10 @@ struct cxsr_latency {
 struct intel_hdmi {
 	i915_reg_t hdmi_reg;
 	int ddc_bus;
+	struct {
+		enum drm_dp_dual_mode_type type;
+		int max_tmds_clock;
+	} dp_dual_mode;
 	bool limited_color_range;
 	bool color_range_auto;
 	bool has_hdmi_sink;

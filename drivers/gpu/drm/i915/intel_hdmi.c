@@ -1165,27 +1165,42 @@ static void pch_post_disable_hdmi(struct intel_encoder *encoder)
 	intel_disable_hdmi(encoder);
 }
 
-static int hdmi_port_clock_limit(struct intel_hdmi *hdmi, bool respect_dvi_limit)
+static int intel_hdmi_source_max_tmds_clock(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
-
-	if ((respect_dvi_limit && !hdmi->has_hdmi_sink) || IS_G4X(dev))
+	if (IS_G4X(dev_priv))
 		return 165000;
-	else if (IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8)
+	else if (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8)
 		return 300000;
 	else
 		return 225000;
 }
 
+static int hdmi_port_clock_limit(struct intel_hdmi *hdmi,
+				 bool respect_downstream_limits)
+{
+	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
+	int max_tmds_clock = intel_hdmi_source_max_tmds_clock(to_i915(dev));
+
+	if (respect_downstream_limits) {
+		if (hdmi->dp_dual_mode.max_tmds_clock)
+			max_tmds_clock = min(max_tmds_clock,
+					     hdmi->dp_dual_mode.max_tmds_clock);
+		if (!hdmi->has_hdmi_sink)
+			max_tmds_clock = min(max_tmds_clock, 165000);
+	}
+
+	return max_tmds_clock;
+}
+
 static enum drm_mode_status
 hdmi_port_clock_valid(struct intel_hdmi *hdmi,
-		      int clock, bool respect_dvi_limit)
+		      int clock, bool respect_downstream_limits)
 {
 	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
 
 	if (clock < 25000)
 		return MODE_CLOCK_LOW;
-	if (clock > hdmi_port_clock_limit(hdmi, respect_dvi_limit))
+	if (clock > hdmi_port_clock_limit(hdmi, respect_downstream_limits))
 		return MODE_CLOCK_HIGH;
 
 	/* BXT DPLL can't generate 223-240 MHz */
@@ -1309,7 +1324,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 * within limits.
 	 */
 	if (pipe_config->pipe_bpp > 8*3 && pipe_config->has_hdmi_sink &&
-	    hdmi_port_clock_valid(intel_hdmi, clock_12bpc, false) == MODE_OK &&
+	    hdmi_port_clock_valid(intel_hdmi, clock_12bpc, true) == MODE_OK &&
 	    hdmi_12bpc_possible(pipe_config)) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
 		desired_bpp = 12*3;
@@ -1349,8 +1364,33 @@ intel_hdmi_unset_edid(struct drm_connector *connector)
 	intel_hdmi->has_audio = false;
 	intel_hdmi->rgb_quant_range_selectable = false;
 
+	intel_hdmi->dp_dual_mode.type = DRM_DP_DUAL_MODE_NONE;
+	intel_hdmi->dp_dual_mode.max_tmds_clock = 0;
+
 	kfree(to_intel_connector(connector)->detect_edid);
 	to_intel_connector(connector)->detect_edid = NULL;
+}
+
+static void
+intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct intel_hdmi *hdmi = intel_attached_hdmi(connector);
+	struct i2c_adapter *adapter =
+		intel_gmbus_get_adapter(dev_priv, hdmi->ddc_bus);
+	enum drm_dp_dual_mode_type type = drm_dp_dual_mode_detect(adapter);
+
+	if (type == DRM_DP_DUAL_MODE_NONE ||
+	    type == DRM_DP_DUAL_MODE_UNKNOWN)
+		return;
+
+	hdmi->dp_dual_mode.type = type;
+	hdmi->dp_dual_mode.max_tmds_clock =
+		drm_dp_dual_mode_max_tmds_clock(type, adapter);
+
+	DRM_DEBUG_KMS("DP dual mode adaptor (%s) detected (max TMDS clock: %d kHz)\n",
+		      drm_dp_get_dual_mode_type_name(type),
+		      hdmi->dp_dual_mode.max_tmds_clock);
 }
 
 static bool
@@ -1367,6 +1407,8 @@ intel_hdmi_set_edid(struct drm_connector *connector, bool force)
 		edid = drm_get_edid(connector,
 				    intel_gmbus_get_adapter(dev_priv,
 				    intel_hdmi->ddc_bus));
+
+		intel_hdmi_dp_dual_mode_detect(connector);
 
 		intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
 	}
