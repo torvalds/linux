@@ -251,10 +251,8 @@ static void batadv_neigh_node_release(struct kref *ref)
 	struct hlist_node *node_tmp;
 	struct batadv_neigh_node *neigh_node;
 	struct batadv_neigh_ifinfo *neigh_ifinfo;
-	struct batadv_algo_ops *bao;
 
 	neigh_node = container_of(ref, struct batadv_neigh_node, refcount);
-	bao = neigh_node->orig_node->bat_priv->bat_algo_ops;
 
 	hlist_for_each_entry_safe(neigh_ifinfo, node_tmp,
 				  &neigh_node->ifinfo_list, list) {
@@ -262,9 +260,6 @@ static void batadv_neigh_node_release(struct kref *ref)
 	}
 
 	batadv_hardif_neigh_put(neigh_node->hardif_neigh);
-
-	if (bao->bat_neigh_free)
-		bao->bat_neigh_free(neigh_node);
 
 	batadv_hardif_put(neigh_node->if_incoming);
 
