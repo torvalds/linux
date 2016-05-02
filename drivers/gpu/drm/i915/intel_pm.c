@@ -2876,25 +2876,28 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 			     const struct drm_plane_state *pstate,
 			     int y)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->base.crtc);
+	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
 	struct drm_framebuffer *fb = pstate->fb;
+	uint32_t width = 0, height = 0;
+
+	width = drm_rect_width(&intel_pstate->src) >> 16;
+	height = drm_rect_height(&intel_pstate->src) >> 16;
+
+	if (intel_rotation_90_or_270(pstate->rotation))
+		swap(width, height);
 
 	/* for planar format */
 	if (fb->pixel_format == DRM_FORMAT_NV12) {
 		if (y)  /* y-plane data rate */
-			return intel_crtc->config->pipe_src_w *
-				intel_crtc->config->pipe_src_h *
+			return width * height *
 				drm_format_plane_cpp(fb->pixel_format, 0);
 		else    /* uv-plane data rate */
-			return (intel_crtc->config->pipe_src_w/2) *
-				(intel_crtc->config->pipe_src_h/2) *
+			return (width / 2) * (height / 2) *
 				drm_format_plane_cpp(fb->pixel_format, 1);
 	}
 
 	/* for packed formats */
-	return intel_crtc->config->pipe_src_w *
-		intel_crtc->config->pipe_src_h *
-		drm_format_plane_cpp(fb->pixel_format, 0);
+	return width * height * drm_format_plane_cpp(fb->pixel_format, 0);
 }
 
 /*
@@ -2973,8 +2976,9 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		struct drm_framebuffer *fb = plane->state->fb;
 		int id = skl_wm_plane_id(intel_plane);
 
-		if (fb == NULL)
+		if (!to_intel_plane_state(plane->state)->visible)
 			continue;
+
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			continue;
 
@@ -3000,7 +3004,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		uint16_t plane_blocks, y_plane_blocks = 0;
 		int id = skl_wm_plane_id(intel_plane);
 
-		if (pstate->fb == NULL)
+		if (!to_intel_plane_state(pstate)->visible)
 			continue;
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			continue;
@@ -3123,26 +3127,36 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 {
 	struct drm_plane *plane = &intel_plane->base;
 	struct drm_framebuffer *fb = plane->state->fb;
+	struct intel_plane_state *intel_pstate =
+					to_intel_plane_state(plane->state);
 	uint32_t latency = dev_priv->wm.skl_latency[level];
 	uint32_t method1, method2;
 	uint32_t plane_bytes_per_line, plane_blocks_per_line;
 	uint32_t res_blocks, res_lines;
 	uint32_t selected_result;
 	uint8_t cpp;
+	uint32_t width = 0, height = 0;
 
-	if (latency == 0 || !cstate->base.active || !fb)
+	if (latency == 0 || !cstate->base.active || !intel_pstate->visible)
 		return false;
+
+	width = drm_rect_width(&intel_pstate->src) >> 16;
+	height = drm_rect_height(&intel_pstate->src) >> 16;
+
+	if (intel_rotation_90_or_270(plane->state->rotation))
+		swap(width, height);
 
 	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	method1 = skl_wm_method1(skl_pipe_pixel_rate(cstate),
 				 cpp, latency);
 	method2 = skl_wm_method2(skl_pipe_pixel_rate(cstate),
 				 cstate->base.adjusted_mode.crtc_htotal,
-				 cstate->pipe_src_w,
-				 cpp, fb->modifier[0],
+				 width,
+				 cpp,
+				 fb->modifier[0],
 				 latency);
 
-	plane_bytes_per_line = cstate->pipe_src_w * cpp;
+	plane_bytes_per_line = width * cpp;
 	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 
 	if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||

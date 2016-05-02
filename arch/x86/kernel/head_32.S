@@ -389,12 +389,6 @@ default_entry:
 	/* Make changes effective */
 	wrmsr
 
-	/*
-	 * And make sure that all the mappings we set up have NX set from
-	 * the beginning.
-	 */
-	orl $(1 << (_PAGE_BIT_NX - 32)), pa(__supported_pte_mask + 4)
-
 enable_paging:
 
 /*

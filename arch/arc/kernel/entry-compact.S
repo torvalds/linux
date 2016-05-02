@@ -341,6 +341,9 @@ END(call_do_page_fault)
 
 .Lrestore_regs:
 
+	# Interrpts are actually disabled from this point on, but will get
+	# reenabled after we return from interrupt/exception.
+	# But irq tracer needs to be told now...
 	TRACE_ASM_IRQ_ENABLE
 
 	lr	r10, [status32]

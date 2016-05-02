@@ -34,7 +34,7 @@ struct bpf_map_def SEC("maps") stackmap = {
 #define PROG(foo) \
 int foo(struct pt_regs *ctx) \
 { \
-	long v = ctx->ip, *val; \
+	long v = PT_REGS_IP(ctx), *val; \
 \
 	val = bpf_map_lookup_elem(&my_map, &v); \
 	bpf_map_update_elem(&my_map, &v, &v, BPF_ANY); \

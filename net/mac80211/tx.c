@@ -1116,11 +1116,15 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 			reset_agg_timer = true;
 		} else {
 			queued = true;
+			if (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER) {
+				clear_sta_flag(tx->sta, WLAN_STA_SP);
+				ps_dbg(tx->sta->sdata,
+				       "STA %pM aid %d: SP frame queued, close the SP w/o telling the peer\n",
+				       tx->sta->sta.addr, tx->sta->sta.aid);
+			}
 			info->control.vif = &tx->sdata->vif;
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
-			info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS |
-					IEEE80211_TX_CTL_NO_PS_BUFFER |
-					IEEE80211_TX_STATUS_EOSP;
+			info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS;
 			__skb_queue_tail(&tid_tx->pending, skb);
 			if (skb_queue_len(&tid_tx->pending) > STA_MAX_TX_BUFFER)
 				purge_skb = __skb_dequeue(&tid_tx->pending);
@@ -1247,7 +1251,8 @@ static void ieee80211_drv_tx(struct ieee80211_local *local,
 	struct txq_info *txqi;
 	u8 ac;
 
-	if (info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE)
+	if ((info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) ||
+	    (info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE))
 		goto tx_normal;
 
 	if (!ieee80211_is_data(hdr->frame_control))

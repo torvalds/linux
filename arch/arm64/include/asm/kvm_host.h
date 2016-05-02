@@ -369,11 +369,12 @@ int kvm_arm_vcpu_arch_get_attr(struct kvm_vcpu *vcpu,
 int kvm_arm_vcpu_arch_has_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
 
-/* #define kvm_call_hyp(f, ...) __kvm_call_hyp(kvm_ksym_ref(f), ##__VA_ARGS__) */
-
 static inline void __cpu_init_stage2(void)
 {
-	kvm_call_hyp(__init_stage2_translation);
+	u32 parange = kvm_call_hyp(__init_stage2_translation);
+
+	WARN_ONCE(parange < 40,
+		  "PARange is %d bits, unsupported configuration!", parange);
 }
 
 #endif /* __ARM64_KVM_HOST_H__ */
