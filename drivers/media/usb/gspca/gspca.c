@@ -705,7 +705,7 @@ static int build_isoc_ep_tb(struct gspca_dev *gspca_dev,
 			psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
 			bandwidth = psize * 1000;
 			if (gspca_dev->dev->speed == USB_SPEED_HIGH
-			 || gspca_dev->dev->speed == USB_SPEED_SUPER)
+			 || gspca_dev->dev->speed >= USB_SPEED_SUPER)
 				bandwidth *= 8;
 			bandwidth /= 1 << (ep->desc.bInterval - 1);
 			if (bandwidth <= last_bw)
