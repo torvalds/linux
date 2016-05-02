@@ -194,6 +194,12 @@ torture_onoff(void *arg)
 	for_each_online_cpu(cpu)
 		maxcpu = cpu;
 	WARN_ON(maxcpu < 0);
+
+	if (maxcpu == 0) {
+		VERBOSE_TOROUT_STRING("Only one CPU, so CPU-hotplug testing is disabled");
+		goto stop;
+	}
+
 	if (onoff_holdoff > 0) {
 		VERBOSE_TOROUT_STRING("torture_onoff begin holdoff");
 		schedule_timeout_interruptible(onoff_holdoff);
@@ -209,6 +215,8 @@ torture_onoff(void *arg)
 				       &sum_online, &min_online, &max_online);
 		schedule_timeout_interruptible(onoff_interval);
 	}
+
+stop:
 	torture_kthread_stopping("torture_onoff");
 	return 0;
 }
