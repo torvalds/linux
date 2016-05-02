@@ -34,7 +34,8 @@
 
 enum imx6_pcie_variants {
 	IMX6Q,
-	IMX6SX
+	IMX6SX,
+	IMX6QP,
 };
 
 struct imx6_pcie {
@@ -256,6 +257,11 @@ static int imx6_pcie_assert_core_reset(struct pcie_port *pp)
 				   IMX6SX_GPR5_PCIE_BTNRST_RESET,
 				   IMX6SX_GPR5_PCIE_BTNRST_RESET);
 		break;
+	case IMX6QP:
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
+				   IMX6Q_GPR1_PCIE_SW_RST,
+				   IMX6Q_GPR1_PCIE_SW_RST);
+		break;
 	case IMX6Q:
 		/*
 		 * If the bootloader already enabled the link we need some
@@ -310,6 +316,7 @@ static int imx6_pcie_enable_ref_clk(struct imx6_pcie *imx6_pcie)
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
 				   IMX6SX_GPR12_PCIE_TEST_POWERDOWN, 0);
 		break;
+	case IMX6QP: 		/* FALLTHROUGH */
 	case IMX6Q:
 		/* power up core phy and enable ref clock */
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
@@ -370,9 +377,20 @@ static int imx6_pcie_deassert_core_reset(struct pcie_port *pp)
 					!imx6_pcie->gpio_active_high);
 	}
 
-	if (imx6_pcie->variant == IMX6SX)
+	switch (imx6_pcie->variant) {
+	case IMX6SX:
 		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR5,
 				   IMX6SX_GPR5_PCIE_BTNRST_RESET, 0);
+		break;
+	case IMX6QP:
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR1,
+				   IMX6Q_GPR1_PCIE_SW_RST, 0);
+
+		usleep_range(200, 500);
+		break;
+	case IMX6Q:		/* Nothing to do */
+		break;
+	}
 
 	return 0;
 
@@ -718,6 +736,7 @@ static void imx6_pcie_shutdown(struct platform_device *pdev)
 static const struct of_device_id imx6_pcie_of_match[] = {
 	{ .compatible = "fsl,imx6q-pcie",  .data = (void *)IMX6Q,  },
 	{ .compatible = "fsl,imx6sx-pcie", .data = (void *)IMX6SX, },
+	{ .compatible = "fsl,imx6qp-pcie", .data = (void *)IMX6QP, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, imx6_pcie_of_match);
