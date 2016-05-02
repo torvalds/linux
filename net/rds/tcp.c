@@ -216,6 +216,7 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	if (!tc)
 		return -ENOMEM;
 
+	mutex_init(&tc->t_conn_lock);
 	tc->t_sock = NULL;
 	tc->t_tinc = NULL;
 	tc->t_tinc_hdr_rem = sizeof(struct rds_header);
