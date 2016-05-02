@@ -3101,7 +3101,10 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 	 */
 	if (features & NETIF_F_GSO_PARTIAL) {
 		partial_segs = len / mss;
-		mss *= partial_segs;
+		if (partial_segs > 1)
+			mss *= partial_segs;
+		else
+			partial_segs = 0;
 	}
 
 	headroom = skb_headroom(head_skb);
