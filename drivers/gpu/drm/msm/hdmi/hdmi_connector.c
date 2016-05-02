@@ -112,6 +112,9 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 		for (i = 0; i < HDMI_MAX_NUM_GPIO; i++) {
 			struct hdmi_gpio_data gpio = config->gpios[i];
 
+			if (gpio.num == -1)
+				continue;
+
 			if (gpio.output) {
 				int value = gpio.value ? 0 : 1;
 
@@ -126,8 +129,10 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 
 	return 0;
 err:
-	while (i--)
-		gpio_free(config->gpios[i].num);
+	while (i--) {
+		if (config->gpios[i].num != -1)
+			gpio_free(config->gpios[i].num);
+	}
 
 	return ret;
 }
