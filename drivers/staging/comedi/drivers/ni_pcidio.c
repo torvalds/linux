@@ -897,13 +897,9 @@ static int nidio_auto_attach(struct comedi_device *dev,
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 
-	devpriv->mite = mite_attach(dev);
+	devpriv->mite = mite_attach(dev, false);	/* use win0 */
 	if (!devpriv->mite)
 		return -ENOMEM;
-
-	ret = mite_setup(dev, devpriv->mite);
-	if (ret < 0)
-		return ret;
 
 	devpriv->di_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (!devpriv->di_mite_ring)

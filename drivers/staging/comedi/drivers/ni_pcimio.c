@@ -1172,7 +1172,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		return ret;
 	devpriv = dev->private;
 
-	devpriv->mite = mite_attach(dev);
+	devpriv->mite = mite_attach(dev, false);	/* use win0 */
 	if (!devpriv->mite)
 		return -ENOMEM;
 
@@ -1196,10 +1196,6 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		devpriv->is_6711 = 1;
 	if (board->reg_type == ni_reg_6713)
 		devpriv->is_6713 = 1;
-
-	ret = mite_setup(dev, devpriv->mite);
-	if (ret < 0)
-		return ret;
 
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
 	if (!devpriv->ai_mite_ring)

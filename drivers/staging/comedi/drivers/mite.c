@@ -245,82 +245,6 @@ static unsigned int mite_fifo_size(struct mite *mite, unsigned int channel)
 	return empty_count + full_count;
 }
 
-int mite_setup2(struct comedi_device *dev,
-		struct mite *mite, bool use_win1)
-{
-	resource_size_t daq_phys_addr;
-	unsigned long length;
-	int i;
-	u32 csigr_bits;
-	unsigned int unknown_dma_burst_bits;
-
-	pci_set_master(mite->pcidev);
-
-	mite->mmio = pci_ioremap_bar(mite->pcidev, 0);
-	if (!mite->mmio) {
-		dev_err(dev->class_dev,
-			"Failed to remap mite io memory address\n");
-		return -ENOMEM;
-	}
-
-	dev->mmio = pci_ioremap_bar(mite->pcidev, 1);
-	if (!dev->mmio) {
-		dev_err(dev->class_dev,
-			"Failed to remap daq io memory address\n");
-		return -ENOMEM;
-	}
-	daq_phys_addr = pci_resource_start(mite->pcidev, 1);
-	length = pci_resource_len(mite->pcidev, 1);
-
-	if (use_win1) {
-		writel(0, mite->mmio + MITE_IODWBSR);
-		dev_info(dev->class_dev,
-			 "using I/O Window Base Size register 1\n");
-		writel(daq_phys_addr | WENAB |
-		       MITE_IODWBSR_1_WSIZE_bits(length),
-		       mite->mmio + MITE_IODWBSR_1);
-		writel(0, mite->mmio + MITE_IODWCR_1);
-	} else {
-		writel(daq_phys_addr | WENAB, mite->mmio + MITE_IODWBSR);
-	}
-	/*
-	 * Make sure dma bursts work. I got this from running a bus analyzer
-	 * on a pxi-6281 and a pxi-6713. 6713 powered up with register value
-	 * of 0x61f and bursts worked. 6281 powered up with register value of
-	 * 0x1f and bursts didn't work. The NI windows driver reads the
-	 * register, then does a bitwise-or of 0x600 with it and writes it back.
-	*
-	 * The bits 0x90180700 in MITE_UNKNOWN_DMA_BURST_REG can be
-	 * written and read back.  The bits 0x1f always read as 1.
-	 * The rest always read as zero.
-	 */
-	unknown_dma_burst_bits = readl(mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
-	unknown_dma_burst_bits |= UNKNOWN_DMA_BURST_ENABLE_BITS;
-	writel(unknown_dma_burst_bits, mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
-
-	csigr_bits = readl(mite->mmio + MITE_CSIGR);
-	mite->num_channels = CSIGR_TO_DMAC(csigr_bits);
-	if (mite->num_channels > MAX_MITE_DMA_CHANNELS) {
-		dev_warn(dev->class_dev,
-			 "mite: bug? chip claims to have %i dma channels. Setting to %i.\n",
-			 mite->num_channels, MAX_MITE_DMA_CHANNELS);
-		mite->num_channels = MAX_MITE_DMA_CHANNELS;
-	}
-	dump_chip_signature(csigr_bits);
-	for (i = 0; i < mite->num_channels; i++) {
-		writel(CHOR_DMARESET, mite->mmio + MITE_CHOR(i));
-		/* disable interrupts */
-		writel(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE | CHCR_CLR_SAR_IE |
-		       CHCR_CLR_DONE_IE | CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
-		       CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
-		       mite->mmio + MITE_CHCR(i));
-	}
-	mite->fifo_size = mite_fifo_size(mite, 0);
-	dev_info(dev->class_dev, "fifo size is %i.\n", mite->fifo_size);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mite_setup2);
-
 struct mite_ring *mite_alloc_ring(struct mite *mite)
 {
 	struct mite_ring *ring;
@@ -807,31 +731,118 @@ int mite_done(struct mite_channel *mite_chan)
 }
 EXPORT_SYMBOL_GPL(mite_done);
 
+static int mite_setup(struct comedi_device *dev, struct mite *mite,
+		      bool use_win1)
+{
+	resource_size_t daq_phys_addr;
+	unsigned long length;
+	int i;
+	u32 csigr_bits;
+	unsigned int unknown_dma_burst_bits;
+
+	pci_set_master(mite->pcidev);
+
+	mite->mmio = pci_ioremap_bar(mite->pcidev, 0);
+	if (!mite->mmio) {
+		dev_err(dev->class_dev,
+			"Failed to remap mite io memory address\n");
+		return -ENOMEM;
+	}
+
+	dev->mmio = pci_ioremap_bar(mite->pcidev, 1);
+	if (!dev->mmio) {
+		dev_err(dev->class_dev,
+			"Failed to remap daq io memory address\n");
+		return -ENOMEM;
+	}
+	daq_phys_addr = pci_resource_start(mite->pcidev, 1);
+	length = pci_resource_len(mite->pcidev, 1);
+
+	if (use_win1) {
+		writel(0, mite->mmio + MITE_IODWBSR);
+		dev_info(dev->class_dev,
+			 "using I/O Window Base Size register 1\n");
+		writel(daq_phys_addr | WENAB |
+		       MITE_IODWBSR_1_WSIZE_bits(length),
+		       mite->mmio + MITE_IODWBSR_1);
+		writel(0, mite->mmio + MITE_IODWCR_1);
+	} else {
+		writel(daq_phys_addr | WENAB, mite->mmio + MITE_IODWBSR);
+	}
+	/*
+	 * Make sure dma bursts work. I got this from running a bus analyzer
+	 * on a pxi-6281 and a pxi-6713. 6713 powered up with register value
+	 * of 0x61f and bursts worked. 6281 powered up with register value of
+	 * 0x1f and bursts didn't work. The NI windows driver reads the
+	 * register, then does a bitwise-or of 0x600 with it and writes it back.
+	*
+	 * The bits 0x90180700 in MITE_UNKNOWN_DMA_BURST_REG can be
+	 * written and read back.  The bits 0x1f always read as 1.
+	 * The rest always read as zero.
+	 */
+	unknown_dma_burst_bits = readl(mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
+	unknown_dma_burst_bits |= UNKNOWN_DMA_BURST_ENABLE_BITS;
+	writel(unknown_dma_burst_bits, mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
+
+	csigr_bits = readl(mite->mmio + MITE_CSIGR);
+	mite->num_channels = CSIGR_TO_DMAC(csigr_bits);
+	if (mite->num_channels > MAX_MITE_DMA_CHANNELS) {
+		dev_warn(dev->class_dev,
+			 "mite: bug? chip claims to have %i dma channels. Setting to %i.\n",
+			 mite->num_channels, MAX_MITE_DMA_CHANNELS);
+		mite->num_channels = MAX_MITE_DMA_CHANNELS;
+	}
+	dump_chip_signature(csigr_bits);
+	for (i = 0; i < mite->num_channels; i++) {
+		writel(CHOR_DMARESET, mite->mmio + MITE_CHOR(i));
+		/* disable interrupts */
+		writel(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE | CHCR_CLR_SAR_IE |
+		       CHCR_CLR_DONE_IE | CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
+		       CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
+		       mite->mmio + MITE_CHCR(i));
+	}
+	mite->fifo_size = mite_fifo_size(mite, 0);
+	dev_info(dev->class_dev, "fifo size is %i.\n", mite->fifo_size);
+	return 0;
+}
+
 /**
  * mite_attach() - Allocate and initialize a MITE device for a comedi driver.
  * @dev: COMEDI device.
+ * @use_win1: flag to use I/O Window 1 instead of I/O Window 0.
  *
  * Called by a COMEDI drivers (*auto_attach).
  *
  * Returns a pointer to the MITE device on success, or NULL if the MITE cannot
- * be allocated.
+ * be allocated or remapped.
  */
-struct mite *mite_attach(struct comedi_device *dev)
+struct mite *mite_attach(struct comedi_device *dev, bool use_win1)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct mite *mite;
 	unsigned int i;
+	int ret;
 
 	mite = kzalloc(sizeof(*mite), GFP_KERNEL);
-	if (mite) {
-		spin_lock_init(&mite->lock);
-		mite->pcidev = pcidev;
-		for (i = 0; i < MAX_MITE_DMA_CHANNELS; ++i) {
-			mite->channels[i].mite = mite;
-			mite->channels[i].channel = i;
-			mite->channels[i].done = 1;
-		}
+	if (!mite)
+		return NULL;
+
+	spin_lock_init(&mite->lock);
+	mite->pcidev = pcidev;
+	for (i = 0; i < MAX_MITE_DMA_CHANNELS; ++i) {
+		mite->channels[i].mite = mite;
+		mite->channels[i].channel = i;
+		mite->channels[i].done = 1;
 	}
+
+	ret = mite_setup(dev, mite, use_win1);
+	if (ret) {
+		if (mite->mmio)
+			iounmap(mite->mmio);
+		kfree(mite);
+		return NULL;
+	}
+
 	return mite;
 }
 EXPORT_SYMBOL_GPL(mite_attach);

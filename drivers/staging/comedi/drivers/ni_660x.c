@@ -724,13 +724,9 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		return ret;
 	devpriv = dev->private;
 
-	devpriv->mite = mite_attach(dev);
+	devpriv->mite = mite_attach(dev, true);		/* use win1 */
 	if (!devpriv->mite)
 		return -ENOMEM;
-
-	ret = mite_setup2(dev, devpriv->mite, true);
-	if (ret < 0)
-		return ret;
 
 	ret = ni_660x_alloc_mite_rings(dev);
 	if (ret < 0)
