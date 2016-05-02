@@ -1455,6 +1455,19 @@ struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce,
 		gmap_free(new);
 		return sg;
 	}
+	if (asce & _ASCE_REAL_SPACE) {
+		/* only allow one real-space gmap shadow */
+		list_for_each_entry(sg, &parent->children, list) {
+			if (sg->orig_asce & _ASCE_REAL_SPACE) {
+				spin_lock(&sg->guest_table_lock);
+				gmap_unshadow(sg);
+				spin_unlock(&sg->guest_table_lock);
+				list_del(&sg->list);
+				gmap_put(sg);
+				break;
+			}
+		}
+	}
 	atomic_set(&new->ref_count, 2);
 	list_add(&new->list, &parent->children);
 	if (asce & _ASCE_REAL_SPACE) {
