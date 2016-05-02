@@ -228,59 +228,6 @@ static unsigned int mite_fifo_size(struct mite *mite, unsigned int channel)
 	return empty_count + full_count;
 }
 
-struct mite_channel *mite_request_channel_in_range(struct mite *mite,
-						   struct mite_ring *ring,
-						   unsigned int min_channel,
-						   unsigned int max_channel)
-{
-	struct mite_channel *mite_chan = NULL;
-	unsigned long flags;
-	int i;
-
-	/*
-	 * spin lock so mite_release_channel can be called safely
-	 * from interrupts
-	 */
-	spin_lock_irqsave(&mite->lock, flags);
-	for (i = min_channel; i <= max_channel; ++i) {
-		mite_chan = &mite->channels[i];
-		if (!mite_chan->ring) {
-			mite_chan->ring = ring;
-			break;
-		}
-		mite_chan = NULL;
-	}
-	spin_unlock_irqrestore(&mite->lock, flags);
-	return mite_chan;
-}
-EXPORT_SYMBOL_GPL(mite_request_channel_in_range);
-
-void mite_release_channel(struct mite_channel *mite_chan)
-{
-	struct mite *mite = mite_chan->mite;
-	unsigned long flags;
-
-	/* spin lock to prevent races with mite_request_channel */
-	spin_lock_irqsave(&mite->lock, flags);
-	if (mite_chan->ring) {
-		mite_dma_disarm(mite_chan);
-		mite_dma_reset(mite_chan);
-		/*
-		 * disable all channel's interrupts (do it after disarm/reset so
-		 * MITE_CHCR reg isn't changed while dma is still active!)
-		 */
-		writel(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE |
-		       CHCR_CLR_SAR_IE | CHCR_CLR_DONE_IE |
-		       CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
-		       CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
-		       mite->mmio + MITE_CHCR(mite_chan->channel));
-		mite_chan->ring = NULL;
-		mmiowb();
-	}
-	spin_unlock_irqrestore(&mite->lock, flags);
-}
-EXPORT_SYMBOL_GPL(mite_release_channel);
-
 void mite_dma_arm(struct mite_channel *mite_chan)
 {
 	struct mite *mite = mite_chan->mite;
@@ -584,6 +531,90 @@ int mite_done(struct mite_channel *mite_chan)
 	return done;
 }
 EXPORT_SYMBOL_GPL(mite_done);
+
+static struct mite_channel *__mite_request_channel(struct mite *mite,
+						   struct mite_ring *ring,
+						   unsigned int min_channel,
+						   unsigned int max_channel)
+{
+	struct mite_channel *mite_chan = NULL;
+	unsigned long flags;
+	int i;
+
+	/*
+	 * spin lock so mite_release_channel can be called safely
+	 * from interrupts
+	 */
+	spin_lock_irqsave(&mite->lock, flags);
+	for (i = min_channel; i <= max_channel; ++i) {
+		mite_chan = &mite->channels[i];
+		if (!mite_chan->ring) {
+			mite_chan->ring = ring;
+			break;
+		}
+		mite_chan = NULL;
+	}
+	spin_unlock_irqrestore(&mite->lock, flags);
+	return mite_chan;
+}
+
+/**
+ * mite_request_channel_in_range() - Request a MITE dma channel.
+ * @mite: MITE device.
+ * @ring: MITE dma ring.
+ * @min_channel: minimum channel index to use.
+ * @max_channel: maximum channel index to use.
+ */
+struct mite_channel *mite_request_channel_in_range(struct mite *mite,
+						   struct mite_ring *ring,
+						   unsigned int min_channel,
+						   unsigned int max_channel)
+{
+	return __mite_request_channel(mite, ring, min_channel, max_channel);
+}
+EXPORT_SYMBOL_GPL(mite_request_channel_in_range);
+
+/**
+ * mite_request_channel() - Request a MITE dma channel.
+ * @mite: MITE device.
+ * @ring: MITE dma ring.
+ */
+struct mite_channel *mite_request_channel(struct mite *mite,
+					  struct mite_ring *ring)
+{
+	return __mite_request_channel(mite, ring, 0, mite->num_channels - 1);
+}
+EXPORT_SYMBOL_GPL(mite_request_channel);
+
+/**
+ * mite_release_channel() - Release a MITE dma channel.
+ * @mite_chan: MITE dma channel.
+ */
+void mite_release_channel(struct mite_channel *mite_chan)
+{
+	struct mite *mite = mite_chan->mite;
+	unsigned long flags;
+
+	/* spin lock to prevent races with mite_request_channel */
+	spin_lock_irqsave(&mite->lock, flags);
+	if (mite_chan->ring) {
+		mite_dma_disarm(mite_chan);
+		mite_dma_reset(mite_chan);
+		/*
+		 * disable all channel's interrupts (do it after disarm/reset so
+		 * MITE_CHCR reg isn't changed while dma is still active!)
+		 */
+		writel(CHCR_CLR_DMA_IE | CHCR_CLR_LINKP_IE |
+		       CHCR_CLR_SAR_IE | CHCR_CLR_DONE_IE |
+		       CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
+		       CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
+		       mite->mmio + MITE_CHCR(mite_chan->channel));
+		mite_chan->ring = NULL;
+		mmiowb();
+	}
+	spin_unlock_irqrestore(&mite->lock, flags);
+}
+EXPORT_SYMBOL_GPL(mite_release_channel);
 
 /**
  * mite_init_ring_descriptors() - Initialize a MITE dma ring descriptors.
