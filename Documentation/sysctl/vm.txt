@@ -581,15 +581,16 @@ Specify "[Nn]ode" for node order
 "Zone Order" orders the zonelists by zone type, then by node within each
 zone.  Specify "[Zz]one" for zone order.
 
-Specify "[Dd]efault" to request automatic configuration.  Autoconfiguration
-will select "node" order in following case.
-(1) if the DMA zone does not exist or
-(2) if the DMA zone comprises greater than 50% of the available memory or
-(3) if any node's DMA zone comprises greater than 70% of its local memory and
-    the amount of local memory is big enough.
+Specify "[Dd]efault" to request automatic configuration.
 
-Otherwise, "zone" order will be selected. Default order is recommended unless
-this is causing problems for your system/application.
+On 32-bit, the Normal zone needs to be preserved for allocations accessible
+by the kernel, so "zone" order will be selected.
+
+On 64-bit, devices that require DMA32/DMA are relatively rare, so "node"
+order will be selected.
+
+Default order is recommended unless this is causing problems for your
+system/application.
 
 ==============================================================
 

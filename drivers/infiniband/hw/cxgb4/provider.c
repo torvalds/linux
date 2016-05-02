@@ -580,6 +580,8 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.iwcm->add_ref = c4iw_qp_add_ref;
 	dev->ibdev.iwcm->rem_ref = c4iw_qp_rem_ref;
 	dev->ibdev.iwcm->get_qp = c4iw_get_qp;
+	memcpy(dev->ibdev.iwcm->ifname, dev->rdev.lldi.ports[0]->name,
+	       sizeof(dev->ibdev.iwcm->ifname));
 
 	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret)
