@@ -781,17 +781,24 @@ static int join(struct mddev *mddev, int nodes)
 	cinfo->token_lockres = lockres_init(mddev, "token", NULL, 0);
 	if (!cinfo->token_lockres)
 		goto err;
-	cinfo->ack_lockres = lockres_init(mddev, "ack", ack_bast, 0);
-	if (!cinfo->ack_lockres)
-		goto err;
 	cinfo->no_new_dev_lockres = lockres_init(mddev, "no-new-dev", NULL, 0);
 	if (!cinfo->no_new_dev_lockres)
 		goto err;
 
+	ret = dlm_lock_sync(cinfo->token_lockres, DLM_LOCK_EX);
+	if (ret) {
+		ret = -EAGAIN;
+		pr_err("md-cluster: can't join cluster to avoid lock issue\n");
+		goto err;
+	}
+	cinfo->ack_lockres = lockres_init(mddev, "ack", ack_bast, 0);
+	if (!cinfo->ack_lockres)
+		goto err;
 	/* get sync CR lock on ACK. */
 	if (dlm_lock_sync(cinfo->ack_lockres, DLM_LOCK_CR))
 		pr_err("md-cluster: failed to get a sync CR lock on ACK!(%d)\n",
 				ret);
+	dlm_unlock_sync(cinfo->token_lockres);
 	/* get sync CR lock on no-new-dev. */
 	if (dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR))
 		pr_err("md-cluster: failed to get a sync CR lock on no-new-dev!(%d)\n", ret);
