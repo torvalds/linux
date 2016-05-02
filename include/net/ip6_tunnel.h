@@ -42,6 +42,7 @@ struct ip6_tnl {
 	struct __ip6_tnl_parm parms;	/* tunnel configuration parameters */
 	struct flowi fl;	/* flowi template for xmit */
 	struct dst_cache dst_cache;	/* cached dst */
+	struct gro_cells gro_cells;
 
 	int err_count;
 	unsigned long err_time;
@@ -49,8 +50,10 @@ struct ip6_tnl {
 	/* These fields used only by GRE */
 	__u32 i_seqno;	/* The last seen seqno	*/
 	__u32 o_seqno;	/* The last output seqno */
-	int hlen;       /* Precalculated GRE header length */
+	int hlen;       /* tun_hlen + encap_hlen */
+	int tun_hlen;	/* Precalculated header length */
 	int mlink;
+
 };
 
 /* Tunnel encapsulation limit destination sub-option */
@@ -63,13 +66,19 @@ struct ipv6_tlv_tnl_enc_lim {
 
 int ip6_tnl_rcv_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
 		const struct in6_addr *raddr);
+int ip6_tnl_rcv(struct ip6_tnl *tunnel, struct sk_buff *skb,
+		const struct tnl_ptk_info *tpi, struct metadata_dst *tun_dst,
+		bool log_ecn_error);
 int ip6_tnl_xmit_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
 		     const struct in6_addr *raddr);
+int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
+		 struct flowi6 *fl6, int encap_limit, __u32 *pmtu, __u8 proto);
 __u16 ip6_tnl_parse_tlv_enc_lim(struct sk_buff *skb, __u8 *raw);
 __u32 ip6_tnl_get_cap(struct ip6_tnl *t, const struct in6_addr *laddr,
 			     const struct in6_addr *raddr);
 struct net *ip6_tnl_get_link_net(const struct net_device *dev);
 int ip6_tnl_get_iflink(const struct net_device *dev);
+int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu);
 
 #ifdef CONFIG_INET
 static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
