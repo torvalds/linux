@@ -532,6 +532,7 @@ static struct scatterlist *
 alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 {
 	struct scatterlist	*sg;
+	unsigned int		n_size = 0;
 	unsigned		i;
 	unsigned		size = max;
 	unsigned		maxpacket =
@@ -564,7 +565,8 @@ alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 			break;
 		case 1:
 			for (j = 0; j < size; j++)
-				*buf++ = (u8) ((j % maxpacket) % 63);
+				*buf++ = (u8) (((j + n_size) % maxpacket) % 63);
+			n_size += size;
 			break;
 		}
 
