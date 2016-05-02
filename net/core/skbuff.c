@@ -3080,8 +3080,7 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 	unsigned int headroom;
 	unsigned int len = head_skb->len;
 	__be16 proto;
-	bool csum;
-	int sg = !!(features & NETIF_F_SG);
+	bool csum, sg;
 	int nfrags = skb_shinfo(head_skb)->nr_frags;
 	int err = -ENOMEM;
 	int i = 0;
@@ -3093,13 +3092,14 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 	if (unlikely(!proto))
 		return ERR_PTR(-EINVAL);
 
+	sg = !!(features & NETIF_F_SG);
 	csum = !!can_checksum_protocol(features, proto);
 
 	/* GSO partial only requires that we trim off any excess that
 	 * doesn't fit into an MSS sized block, so take care of that
 	 * now.
 	 */
-	if (features & NETIF_F_GSO_PARTIAL) {
+	if (sg && csum && (features & NETIF_F_GSO_PARTIAL)) {
 		partial_segs = len / mss;
 		if (partial_segs > 1)
 			mss *= partial_segs;
