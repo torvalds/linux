@@ -55,6 +55,7 @@ struct perf_c2c {
 
 	bool			 show_src;
 	bool			 use_stdio;
+	bool			 stats_only;
 };
 
 static struct perf_c2c c2c;
@@ -1731,6 +1732,51 @@ static int setup_nodes(struct perf_session *session)
 	return 0;
 }
 
+static void print_c2c__display_stats(FILE *out)
+{
+	int llc_misses;
+	struct c2c_stats *stats = &c2c.hists.stats;
+
+	llc_misses = stats->lcl_dram +
+		     stats->rmt_dram +
+		     stats->rmt_hit +
+		     stats->rmt_hitm;
+
+	fprintf(out, "=================================================\n");
+	fprintf(out, "            Trace Event Information              \n");
+	fprintf(out, "=================================================\n");
+	fprintf(out, "  Total records                     : %10d\n", stats->nr_entries);
+	fprintf(out, "  Locked Load/Store Operations      : %10d\n", stats->locks);
+	fprintf(out, "  Load Operations                   : %10d\n", stats->load);
+	fprintf(out, "  Loads - uncacheable               : %10d\n", stats->ld_uncache);
+	fprintf(out, "  Loads - IO                        : %10d\n", stats->ld_io);
+	fprintf(out, "  Loads - Miss                      : %10d\n", stats->ld_miss);
+	fprintf(out, "  Loads - no mapping                : %10d\n", stats->ld_noadrs);
+	fprintf(out, "  Load Fill Buffer Hit              : %10d\n", stats->ld_fbhit);
+	fprintf(out, "  Load L1D hit                      : %10d\n", stats->ld_l1hit);
+	fprintf(out, "  Load L2D hit                      : %10d\n", stats->ld_l2hit);
+	fprintf(out, "  Load LLC hit                      : %10d\n", stats->ld_llchit + stats->lcl_hitm);
+	fprintf(out, "  Load Local HITM                   : %10d\n", stats->lcl_hitm);
+	fprintf(out, "  Load Remote HITM                  : %10d\n", stats->rmt_hitm);
+	fprintf(out, "  Load Remote HIT                   : %10d\n", stats->rmt_hit);
+	fprintf(out, "  Load Local DRAM                   : %10d\n", stats->lcl_dram);
+	fprintf(out, "  Load Remote DRAM                  : %10d\n", stats->rmt_dram);
+	fprintf(out, "  Load MESI State Exclusive         : %10d\n", stats->ld_excl);
+	fprintf(out, "  Load MESI State Shared            : %10d\n", stats->ld_shared);
+	fprintf(out, "  Load LLC Misses                   : %10d\n", llc_misses);
+	fprintf(out, "  LLC Misses to Local DRAM          : %10.1f%%\n", ((double)stats->lcl_dram/(double)llc_misses) * 100.);
+	fprintf(out, "  LLC Misses to Remote DRAM         : %10.1f%%\n", ((double)stats->rmt_dram/(double)llc_misses) * 100.);
+	fprintf(out, "  LLC Misses to Remote cache (HIT)  : %10.1f%%\n", ((double)stats->rmt_hit /(double)llc_misses) * 100.);
+	fprintf(out, "  LLC Misses to Remote cache (HITM) : %10.1f%%\n", ((double)stats->rmt_hitm/(double)llc_misses) * 100.);
+	fprintf(out, "  Store Operations                  : %10d\n", stats->store);
+	fprintf(out, "  Store - uncacheable               : %10d\n", stats->st_uncache);
+	fprintf(out, "  Store - no mapping                : %10d\n", stats->st_noadrs);
+	fprintf(out, "  Store L1D Hit                     : %10d\n", stats->st_l1hit);
+	fprintf(out, "  Store L1D Miss                    : %10d\n", stats->st_l1miss);
+	fprintf(out, "  No Page Map Rejects               : %10d\n", stats->nomap);
+	fprintf(out, "  Unable to parse data source       : %10d\n", stats->noparse);
+}
+
 static void print_cacheline(struct c2c_hists *c2c_hists,
 			    struct hist_entry *he_cl,
 			    struct perf_hpp_list *hpp_list,
@@ -1793,6 +1839,11 @@ static void print_pareto(FILE *out)
 static void perf_c2c__hists_fprintf(FILE *out)
 {
 	setup_pager();
+
+	print_c2c__display_stats(out);
+
+	if (c2c.stats_only)
+		return;
 
 	fprintf(out, "\n");
 	fprintf(out, "=================================================\n");
@@ -2005,6 +2056,8 @@ static int perf_c2c__report(int argc, const char **argv)
 #ifdef HAVE_SLANG_SUPPORT
 	OPT_BOOLEAN(0, "stdio", &c2c.use_stdio, "Use the stdio interface"),
 #endif
+	OPT_BOOLEAN(0, "stats", &c2c.stats_only,
+		    "Use the stdio interface"),
 	OPT_END()
 	};
 	int err = 0;
@@ -2013,6 +2066,9 @@ static int perf_c2c__report(int argc, const char **argv)
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc)
 		usage_with_options(report_c2c_usage, c2c_options);
+
+	if (c2c.stats_only)
+		c2c.use_stdio = true;
 
 	if (c2c.use_stdio)
 		use_browser = 0;
