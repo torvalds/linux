@@ -40,13 +40,6 @@ config SCSI_DMA
 	bool
 	default n
 
-config SCSI_TGT
-	tristate "SCSI target support"
-	depends on SCSI
-	---help---
-	  If you want to use SCSI target mode drivers enable this option.
-	  If you choose M, the module will be called scsi_tgt.
-
 config SCSI_NETLINK
 	bool
 	default	n
@@ -275,13 +268,6 @@ config SCSI_FC_ATTRS
 	  each attached FiberChannel device to sysfs, say Y.
 	  Otherwise, say N.
 
-config SCSI_FC_TGT_ATTRS
-	bool "SCSI target support for FiberChannel Transport Attributes"
-	depends on SCSI_FC_ATTRS
-	depends on SCSI_TGT = y || SCSI_TGT = SCSI_FC_ATTRS
-	help
-	  If you want to use SCSI target mode drivers enable this option.
-
 config SCSI_ISCSI_ATTRS
 	tristate "iSCSI Transport Attributes"
 	depends on SCSI && NET
@@ -308,12 +294,6 @@ config SCSI_SRP_ATTRS
 	  If you wish to export transport-specific information about
 	  each attached SRP device to sysfs, say Y.
 
-config SCSI_SRP_TGT_ATTRS
-	bool "SCSI target support for SRP Transport Attributes"
-	depends on SCSI_SRP_ATTRS
-	depends on SCSI_TGT = y || SCSI_TGT = SCSI_SRP_ATTRS
-	help
-	  If you want to use SCSI target mode drivers enable this option.
 endmenu
 
 menuconfig SCSI_LOWLEVEL
@@ -868,18 +848,18 @@ config SCSI_IBMVSCSI
 	  module will be called ibmvscsi.
 
 config SCSI_IBMVSCSIS
-	tristate "IBM Virtual SCSI Server support"
-	depends on PPC_PSERIES && SCSI_SRP && SCSI_SRP_TGT_ATTRS && TARGET_CORE
-	help
-	  This is the SRP target driver for IBM pSeries virtual environments.
+  	tristate "IBM Virtual SCSI Server support"
+  	depends on PPC_PSERIES && SCSI_SRP && TARGET_CORE
+  	help
+  	  This is the SRP target driver for IBM pSeries virtual environments.
 
-	  The userspace component needed to initialize the driver and
-	  documentation can be found:
+          The userspace component needed to initialize the driver and
+  	  documentation can be found:
 
-	  http://stgt.berlios.de/
+          http://stgt.berlios.de/
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called ibmvstgt.
+          To compile this driver as a module, choose M here: the
+  	  module will be called ibmvstgt.
 
 config SCSI_IBMVFC
 	tristate "IBM Virtual FC support"
@@ -1763,14 +1743,13 @@ config SCSI_PM8001
 	  based host adapters.
 
 config SCSI_SRP
-	tristate "SCSI RDMA Protocol helper library"
-	depends on SCSI && PCI
-	select SCSI_TGT
-	help
-	  If you wish to use SRP target drivers, say Y.
+  	tristate "SCSI RDMA Protocol helper library"
+  	depends on SCSI && PCI
+  	help
+  	  If you wish to use SRP target drivers, say Y.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called libsrp.
+  	  To compile this driver as a module, choose M here: the
+  	  module will be called libsrp.
 
 config SCSI_BFA_FC
 	tristate "Brocade BFA Fibre Channel Support"

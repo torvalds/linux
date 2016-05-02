@@ -127,7 +127,7 @@ struct ibmvscsis_adapter {
 	u32 liobn;
 	u32 riobn;
 
-	struct srp_target target;
+	struct srp_target *target;
 
 	struct list_head list;
 	struct ibmvscsis_tport tport;
@@ -225,12 +225,6 @@ static int send_adapter_info(struct iu_entry *iue,
 static int process_mad_iu(struct iu_entry *iue);
 static void process_login(struct iu_entry *iue);
 static void process_tsk_mgmt(struct iu_entry *iue);
-static int ibmvscsis_inquiry(struct ibmvscsis_adapter *adapter,
-			      struct srp_cmd *cmd, char *data);
-static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
-				struct srp_cmd *cmd, char *mode);
-static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
-				 struct srp_cmd *cmd, u64 *data);
 static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg,
 			  int nsg, struct srp_direct_buf *md, int nmd,
 			  enum dma_data_direction dir, unsigned int rest);
@@ -241,7 +235,6 @@ static uint64_t ibmvscsis_unpack_lun(const uint8_t *lun, int len);
 static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 			    struct ibmvscsis_cmnd *vsc,
 			    struct srp_cmd *scmd);
-static void handle_cmd_queue(struct ibmvscsis_adapter *adapter);
 
 /*
  * Hypervisor calls.
@@ -446,7 +439,6 @@ static struct vio_driver ibmvscsis_driver = {
 /*****************************************************************************/
 /* End of global device driver data areas                                    */
 /*****************************************************************************/
-
 static int crq_queue_create(struct crq_queue *queue,
 				struct ibmvscsis_adapter *adapter)
 {
@@ -504,13 +496,7 @@ static int crq_queue_create(struct crq_queue *queue,
 		goto req_irq_failed;
 	}
 
-//	h_send_crq(adapter, 0xC001000000000000LL, 0);
-
-//	queue->cur = 0;
-//	spin_lock_init(&queue->lock);
-
 	return retrc;
-//	return 0;
 
 req_irq_failed:
 	h_free_crq(vdev->unit_address);
@@ -532,25 +518,28 @@ malloc_failed:
  */
 static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 {
-	int ret = 0;
+	int ret = -ENOMEM;
 	struct ibmvscsis_adapter *adapter;
+	struct srp_target *target;
 	unsigned long flags;
 
 	pr_debug("ibmvscsis: Probe for UA 0x%x\n", vdev->unit_address);
 
 	adapter = kzalloc(sizeof(struct ibmvscsis_adapter), GFP_KERNEL);
 	if (!adapter)
-		return -ENOMEM;
+		return ret;
+	target = kzalloc(sizeof(struct srp_target), GFP_KERNEL);
+	if (!target)
+		goto free_adapter;
 
 	adapter->dma_dev = vdev;
-
+	adapter->target = target;
 	snprintf(&adapter->tport.tport_name[0], 256, "%s", dev_name(&vdev->dev));
-	pr_debug("ibmvscsis: probe tport_names:%s\n",
-			&adapter->tport.tport_name[0]);
 
 	ret = read_dma_window(adapter->dma_dev, adapter);
 	if(ret != 0) {
 		pr_debug("ibmvscsis: probe failed read dma window\n");
+		goto free_target;
 	}
 	pr_debug("ibmvscsis: Probe: liobn 0x%x, riobn 0x%x\n", adapter->liobn,
 			adapter->riobn);
@@ -559,17 +548,16 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	list_add_tail(&adapter->list, &ibmvscsis_dev_list);
 	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
 
-	ret = srp_target_alloc(&adapter->target, &vdev->dev,
+	ret = srp_target_alloc(target, &vdev->dev,
 				INITIAL_SRP_LIMIT,
 				SRP_MAX_IU_LEN);
 
-	adapter->target.ldata = adapter;
+	adapter->target->ldata = adapter;
 
 	if(ret) {
 		pr_debug("ibmvscsis: failed target alloc ret: %d\n", ret);
+		goto free_srp_target;
 	}
-
-//	INIT_WORK(&adapter->crq_work, handle_crq);
 
 	ret = crq_queue_create(&adapter->crq_queue, adapter);
 	pr_debug("ibmvscsis: failed crq_queue_create ret: %d\n", ret);
@@ -586,14 +574,15 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	dev_set_drvdata(&vdev->dev, adapter);
 
-/*	adapter->dev.class = &ibmvscsis_class;
-	adapter->dev.parent = &vdev->dev;
-	dev_set_name(&adapter->dev, "ibmvscsis-%d",
-		     adapter->dma_dev->unit_address);
-	if(device_register(&adapter->dev))
-		pr_err("ibmvscsis: can't register device in probe\n");
-*/
 	return 0;
+
+free_srp_target:
+	srp_target_free(target);
+free_target:
+	kfree(target);
+free_adapter:
+	kfree(adapter);
+	return ret;
 }
 
 static int ibmvscsis_remove(struct vio_dev *dev)
@@ -605,10 +594,8 @@ static int ibmvscsis_remove(struct vio_dev *dev)
 	list_del(&adapter->list);
 	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
 
-//	device_unregister(&adapter->dev);
-
 	crq_queue_destroy(adapter);
-	srp_target_free(&adapter->target);
+	srp_target_free(adapter->target);
 
 	kfree(adapter);
 
@@ -817,12 +804,18 @@ static int ibmvscsis_queue_status(struct se_cmd *se_cmd)
 	if (se_cmd->sense_buffer &&
 	   ((se_cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) ||
 	    (se_cmd->se_cmd_flags & SCF_EMULATED_TASK_SENSE))) {
-		memcpy((void *)sc->sense_buffer, (void *)se_cmd->sense_buffer,
+		memcpy(sc->sense_buffer, se_cmd->sense_buffer,
 				SCSI_SENSE_BUFFERSIZE);
-		sc->result = host_byte(DID_OK) | driver_byte(DRIVER_SENSE) |
-				SAM_STAT_CHECK_CONDITION;
+		sc->result = SAM_STAT_CHECK_CONDITION;
+		set_driver_byte(sc, DRIVER_SENSE);
 	} else
-		sc->result = host_byte(DID_OK) | se_cmd->scsi_status;
+		sc->result = se_cmd->scsi_status;
+
+	set_host_byte(sc, DID_OK);
+	if ((se_cmd->se_cmd_flags & SCF_OVERFLOW_BIT) ||
+	    (se_cmd->se_cmd_flags & SCF_UNDERFLOW_BIT))
+		scsi_set_resid(sc, se_cmd->residual_count);
+//	sc->scsi_done(sc);
 	/*
 	 * Finally post the response to VIO via libsrp.
 	 */
@@ -1101,40 +1094,12 @@ static int get_system_info(void)
 	return 0;
 };
 
-static void handle_cmd_queue(struct ibmvscsis_adapter *adapter)
-{
-	struct srp_target *target = &adapter->target;
-	struct iu_entry *iue;
-	unsigned long flags;
-	int err;
-	pr_debug("ibmvscsis: entering handle_cmd_queue\n");
-retry:
-	spin_lock_irqsave(&target->lock, flags);
-
-	list_for_each_entry(iue, &target->cmd_queue, ilist) {
-		pr_debug("ibmvscsis: iueflag: %lx\n",iue->flags);
-		if (!test_and_set_bit(V_FLYING, &iue->flags)) {
-			spin_unlock_irqrestore(&target->lock, flags);
-			err = ibmvscsis_queuecommand(adapter, iue);
-			if (err) {
-				pr_err("ibmvscsis: cannot queue iue %p %d\n",
-				       iue, err);
-				srp_iu_put(iue);
-			}
-			goto retry;
-		}
-	}
-
-	spin_unlock_irqrestore(&target->lock, flags);
-}
-
 static irqreturn_t ibmvscsis_interrupt(int dummy, void *data)
 {
 	struct ibmvscsis_adapter *adapter = data;
 
 	pr_debug("ibmvscsis: there is an interrupt\n");
 	vio_disable_interrupts(adapter->dma_dev);
-//	schedule_work(&adapter->crq_work);
 	queue_work(vtgtd, &adapter->crq_work);
 
 	return IRQ_HANDLED;
@@ -1172,10 +1137,11 @@ static int process_srp_iu(struct iu_entry *iue)
 		pr_debug("ibmvscsis: srpcmd");
 		pr_debug("ibmvscsis: process_srp_iu, iu_entry: %llx\n",
 				(u64)iue->sbuf->buf);
-		spin_lock_irqsave(&target->lock, flags);
-		list_add_tail(&iue->ilist, &target->cmd_queue);
-		spin_unlock_irqrestore(&target->lock, flags);
-		err = 0;
+		err = ibmvscsis_queuecommand(adapter, iue);
+		if(err) {
+			srp_iu_put(iue);
+			pr_debug("ibmvscsis: can't queue cmd\n");
+		}
 		break;
 	case SRP_LOGIN_RSP:
 	case SRP_I_LOGOUT:
@@ -1200,7 +1166,7 @@ static void process_iu(struct viosrp_crq *crq,
 	struct iu_entry *iue;
 	long err;
 
-	iue = srp_iu_get(&adapter->target);
+	iue = srp_iu_get(adapter->target);
 	if (!iue) {
 		pr_err("Error getting IU from pool %p\n", iue);
 		return;
@@ -1299,7 +1265,6 @@ static void handle_crq(struct work_struct *work)
 		} else
 			done = 1;
 	}
-	handle_cmd_queue(adapter);
 }
 
 static int ibmvscsis_reset_crq_queue(struct ibmvscsis_adapter *adapter)
@@ -1664,191 +1629,6 @@ static void process_tsk_mgmt(struct iu_entry *iue)
 		VIOSRP_SRP_FORMAT);
 }
 
-static int ibmvscsis_inquiry(struct ibmvscsis_adapter *adapter,
-			      struct srp_cmd *cmd, char *data)
-{
-	struct se_portal_group *se_tpg = &adapter->tport.se_tpg;
-	struct inquiry_data *id = (struct inquiry_data *)data;
-	u64 unpacked_lun, lun = scsilun_to_int(&cmd->lun);
-	u8 *cdb = cmd->cdb;
-	int len;
-	struct se_lun *se_lun;
-	int found_lun = 0;
-
-	if (!data)
-		pr_err("ibmvscsis: %s %d: oomu\n", __func__, __LINE__);
-
-	if (((cdb[1] & 0x3) == 0x3) || (!(cdb[1] & 0x3) && cdb[2])) {
-		pr_err("ibmvscsis: %s %d: invalid req\n", __func__, __LINE__);
-		return 0;
-	}
-
-	if (cdb[1] & 0x3)
-		pr_err("ibmvscsis: %s %d: needs the normal path\n",
-		       __func__, __LINE__);
-	else {
-		id->qual_type = TYPE_DISK;
-		id->rmb_reserve = 0x00;
-		id->version = 0x84; /* ISO/IE */
-		id->aerc_naca_hisup_format = 0x22; /* naca & fmt 0x02 */
-		id->addl_len = sizeof(*id) - 4;
-		id->bque_encserv_vs_multip_mchngr_reserved = 0x00;
-		id->reladr_reserved_linked_cmdqueue_vs = 0x02; /* CMDQ */
-		memcpy(id->vendor, "IBM	    ", 8);
-		/*
-		 * Don't even ask about the next bit.  AIX uses
-		 * hardcoded device naming to recognize device types
-		 * and their client won't  work unless we use VOPTA and
-		 * VDASD.
-		 */
-		if (id->qual_type == TYPE_ROM)
-			memcpy(id->product, "VOPTA blkdev    ", 16);
-		else
-			memcpy(id->product, "VDASD blkdev    ", 16);
-
-		memcpy(id->revision, "0001", 4);
-
-		snprintf(id->unique, sizeof(id->unique),
-			 "IBM-VSCSI-%s-P%d-%x-%d-%d-%d\n",
-			 system_id,
-			 partition_number,
-			 adapter->dma_dev->unit_address,
-			 GETBUS(lun),
-			 GETTARGET(lun),
-			 GETLUN(lun));
-	}
-
-	len = min_t(int, sizeof(*id), cdb[4]);
-
-	unpacked_lun = scsilun_to_int(&cmd->lun);
-	pr_debug("ibmvscsis: inquiry, unpacked_lun:%llx\n", unpacked_lun);
-
-	spin_lock(&se_tpg->session_lock);
-
-	hlist_for_each_entry(se_lun, &se_tpg->tpg_lun_hlist, link) {
-		pr_debug("ibmvscsis: inquiry, se_lun:%llx unpacked_lun:%llx\n",
-			se_lun->unpacked_lun, unpacked_lun);
-		if (se_lun->unpacked_lun == unpacked_lun) {
-			pr_debug("ibmvscsis: found lun\n");
-			found_lun = 1;
-			break;
-		}
-	}
-
-	spin_unlock(&se_tpg->session_lock);
-
-	if (!found_lun) {
-		data[0] = TYPE_NO_LUN;
-	}
-
-	return len;
-}
-
-static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
-				struct srp_cmd *cmd, char *mode)
-{
-	int bytes = 0;
-	struct se_portal_group *se_tpg = &adapter->tport.se_tpg;
-	u64 unpacked_lun;
-	struct se_lun *lun = NULL;
-	u32 blocks = 0 ;
-
-	unpacked_lun = scsilun_to_int(&cmd->lun);
-
-	spin_lock(&se_tpg->session_lock);
-
-	hlist_for_each_entry(lun, &se_tpg->tpg_lun_hlist, link) {
-		if (lun->unpacked_lun == unpacked_lun) {
-			blocks = lun->lun_se_dev->transport->get_blocks(
-				lun->lun_se_dev);
-			break;
-		}
-	}
-
-	spin_unlock(&se_tpg->session_lock);
-
-	switch (cmd->cdb[2]) {
-	case 0:
-	case 0x3f:
-		/* Default Medium*/
-		mode[1] = 0x00;
-		/* if (iue->req.vd->b.ro) */
-		if (0)
-			mode[2] = 0x80; /* device specific */
-		else
-			mode[2] = 0x00; /*device specific */
-
-		/* note the DPOFUA bit is set to zero */
-		mode[3] = 0x08; /* block descriptor length */
-		*((u32 *) &mode[4]) = blocks - 1;
-		*((u32 *) &mode[8]) = 512;
-		bytes = mode[0] = 12; /* length */
-		break;
-	/* cache page */
-	case 0x08:
-		mode[1] = 0x00; /* Default Medium */
-		if (0)
-			mode[2] = 0x80;
-		else
-			mode[2] = 0x00;
-
-		mode[3] = 0x08;
-		*((u32 *) &mode[4]) = blocks - 1;
-		*((u32 *) &mode[8]) = 512;
-
-		/* cache page */
-		mode[12] = 0x08; /* page */
-		mode[13] = 0x12; /* page length */
-		mode[14] = 0x01; /* no cache (0x04 for read/write cache) */
-
-		bytes = mode[0] = 12 + mode[13]; /* length */
-		break;
-	}
-
-	return bytes;
-}
-
-static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
-				 struct srp_cmd *cmd, u64 *data)
-{
-	struct se_portal_group *se_tpg = &adapter->tport.se_tpg;
-	int idx;
-	int alen, oalen, nr_luns, rbuflen = 4096;
-	struct se_lun *se_lun;
-
-	alen = get_unaligned_be32(&cmd->cdb[6]);
-
-	alen &= ~(8 - 1);
-	oalen = alen;
-
-	if (scsilun_to_int(&cmd->lun)) {
-		nr_luns = 1;
-		goto done;
-	}
-
-	alen -= 8;
-	rbuflen -= 8; /* FIXME */
-	idx = 2;
-	nr_luns = 1;
-
-	spin_lock(&se_tpg->session_lock);
-	hlist_for_each_entry(se_lun, &se_tpg->tpg_lun_hlist, link) {
-		data[idx++] = cpu_to_be64(se_lun->unpacked_lun);
-		alen -= 8;
-		if (!alen)
-			break;
-		rbuflen -= 8;
-		if (!rbuflen)
-			break;
-
-		nr_luns++;
-	}
-	spin_unlock(&se_tpg->session_lock);
-done:
-	put_unaligned_be32(nr_luns * 8, data);
-	return min(oalen, nr_luns * 8 + 8);
-}
-
 static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 			  struct srp_direct_buf *md, int nmd,
 			  enum dma_data_direction dir, unsigned int rest)
@@ -1914,18 +1694,12 @@ static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 
 static int ibmvscsis_cmnd_done(struct scsi_cmnd *sc)
 {
-	unsigned long flags;
 	struct iu_entry *iue = (struct iu_entry *) sc->SCp.ptr;
-	struct srp_target *target = iue->target;
 	int err = 0;
 
 	if (scsi_sg_count(sc))
 		err = srp_transfer_data(sc, &vio_iu(iue)->srp.cmd,
 					ibmvscsis_rdma, 1, 1);
-
-	spin_lock_irqsave(&target->lock, flags);
-	list_del(&iue->ilist);
-	spin_unlock_irqrestore(&target->lock, flags);
 
 	if (err || sc->result != SAM_STAT_GOOD) {
 		pr_err("ibmvscsis: operation failed %p %d %x\n",
@@ -1941,67 +1715,21 @@ static int ibmvscsis_cmnd_done(struct scsi_cmnd *sc)
 static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 				  struct iu_entry *iue)
 {
-	int data_len;
 	struct srp_cmd *cmd = iue->sbuf->buf;
 	struct scsi_cmnd *sc;
-	struct page *pg;
 	struct ibmvscsis_cmnd *vsc;
-	struct se_cmd *se_cmd;
 	int ret;
 
 	pr_debug("ibmvscsis: ibmvscsis_queuecommand\n");
 
-	data_len = srp_data_length(cmd, srp_cmd_direction(cmd));
-
 	vsc = kzalloc(sizeof(*vsc), GFP_KERNEL);
 	sc = &vsc->sc;
-	sc->sense_buffer = vsc->sense_buf;
+	sc->sense_buffer = vsc->se_cmd.sense_buffer;
 	sc->cmnd = cmd->cdb;
 	sc->SCp.ptr = (char *)iue;
-	se_cmd = &vsc->se_cmd;
 
-	switch (cmd->cdb[0]) {
-	case INQUIRY:
-		pr_debug("ibmvscsis: inquiry\n");
-		sg_alloc_table(&sc->sdb.table, 1, GFP_KERNEL);
-		pg = alloc_page(GFP_KERNEL|__GFP_ZERO);
-		sc->sdb.length = ibmvscsis_inquiry(adapter, cmd,
-						   page_address(pg));
-		sg_set_page(sc->sdb.table.sgl, pg, sc->sdb.length, 0);
-		ret = ibmvscsis_cmnd_done(sc);
-		sg_free_table(&sc->sdb.table);
-		__free_page(pg);
-		kfree(vsc);
-		break;
-/*	case REPORT_LUNS:
-		pr_debug("ibmvscsis: report_luns\n");
-		sg_alloc_table(&sc->sdb.table, 1, GFP_KERNEL);
-		pg = alloc_page(GFP_KERNEL|__GFP_ZERO);
-		sc->sdb.length = ibmvscsis_report_luns(adapter, cmd,
-						       page_address(pg));
-		sg_set_page(sc->sdb.table.sgl, pg, sc->sdb.length, 0);
-		ret = ibmvscsis_cmnd_done(sc);
-		sg_free_table(&sc->sdb.table);
-		__free_page(pg);
-		kfree(vsc);
-		break;
-	case MODE_SENSE:
-		pr_debug("ibmvscsis: mode_sense\n");
-		sg_alloc_table(&sc->sdb.table, 1, GFP_KERNEL);
-		pg = alloc_page(GFP_KERNEL|__GFP_ZERO);
-		sc->sdb.length = ibmvscsis_mode_sense(adapter,
-						      cmd, page_address(pg));
-		sg_set_page(sc->sdb.table.sgl, pg, sc->sdb.length, 0);
-		ret = ibmvscsis_cmnd_done(sc);
-		sg_free_table(&sc->sdb.table);
-		__free_page(pg);
-		kfree(vsc);
-		break;
-*/	default:
-		pr_debug("ibmvscsis: tcm_queuecommand\n");
-		ret = tcm_queuecommand(adapter, vsc, cmd);
-		break;
-	}
+	pr_debug("ibmvscsis: tcm_queuecommand\n");
+	ret = tcm_queuecommand(adapter, vsc, cmd);
 
 	return ret;
 }
@@ -2173,7 +1901,6 @@ static int __init ibmvscsis_init(void)
 	if (ret) {
 		pr_err("ibmvscsis: ret %d from vio_register_driver\n", ret);
 		goto destroy_wq;
-//		goto unregister_target;
 	}
 
 	return 0;

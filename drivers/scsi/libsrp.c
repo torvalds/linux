@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
+#include <linux/printk.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/kfifo.h>
@@ -28,7 +29,6 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_tcq.h>
-#include <scsi/scsi_tgt.h>
 #include <scsi/srp.h>
 #include <target/target_core_base.h>
 #include <scsi/libsrp.h>
@@ -120,10 +120,8 @@ int srp_target_alloc(struct srp_target *target, struct device *dev,
 	int err;
 
 	spin_lock_init(&target->lock);
-	INIT_LIST_HEAD(&target->cmd_queue);
 
 	target->dev = dev;
-	dev_set_drvdata(target->dev, target);
 
 	target->srp_iu_size = iu_size;
 	target->rx_ring_size = nr;
@@ -166,7 +164,6 @@ struct iu_entry *srp_iu_get(struct srp_target *target)
 	if (!iue)
 		return iue;
 	iue->target = target;
-	INIT_LIST_HEAD(&iue->ilist);
 	iue->flags = 0;
 	return iue;
 }
@@ -193,8 +190,11 @@ static int srp_direct_data(struct scsi_cmnd *sc, struct srp_direct_buf *md,
 		sg = scsi_sglist(sc);
 
 		pr_debug("libsrp: iue: %p scsi_buff_len: %u srp_buff_len: %u"
-			" scsi_sg_count: %d\n",
-			iue, scsi_bufflen(sc), md->len, scsi_sg_count(sc));
+			" scsi_sg_count: %d va:%llx, key:%x, len:%x\n",
+			iue, scsi_bufflen(sc), be32_to_cpu(md->len),
+			scsi_sg_count(sc), be64_to_cpu(md->va),
+			be32_to_cpu(md->key),
+			be32_to_cpu(md->len));
 
 		nsg = dma_map_sg(iue->target->dev, sg, scsi_sg_count(sc),
 				 DMA_BIDIRECTIONAL);
@@ -203,9 +203,9 @@ static int srp_direct_data(struct scsi_cmnd *sc, struct srp_direct_buf *md,
 				iue, scsi_sg_count(sc));
 			return 0;
 		}
-		len = min(scsi_bufflen(sc), md->len);
+		len = min(scsi_bufflen(sc), be32_to_cpu(md->len));
 	} else
-		len = md->len;
+		len = be32_to_cpu(md->len);
 
 	err = rdma_io(sc, sg, nsg, md, 1, dir, len);
 
@@ -232,12 +232,16 @@ static int srp_indirect_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 		sg = scsi_sglist(sc);
 
 		pr_debug("libsrp: iue: %p scsi_buff_len: %u srp_ind_len: %u"
-			" in_desc_count: %d out_desc_count: %d\n",
+			" in_desc_count: %d out_desc_count: %d, va:%llx,"
+			" key:%x, len:%x\n",
 			iue, scsi_bufflen(sc), id->len,
-			cmd->data_in_desc_cnt, cmd->data_out_desc_cnt);
+			cmd->data_in_desc_cnt, cmd->data_out_desc_cnt,
+			be64_to_cpu(id->table_desc.va),
+			be32_to_cpu(id->table_desc.key),
+			be32_to_cpu(id->table_desc.len));
 	}
 
-	nmd = id->table_desc.len / sizeof(struct srp_direct_buf);
+	nmd = be32_to_cpu(id->table_desc.len) / sizeof(struct srp_direct_buf);
 
 	if ((dir == DMA_FROM_DEVICE && nmd == cmd->data_in_desc_cnt) ||
 	    (dir == DMA_TO_DEVICE && nmd == cmd->data_out_desc_cnt)) {
@@ -246,19 +250,20 @@ static int srp_indirect_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 	}
 
 	if (ext_desc && dma_map) {
-		md = dma_alloc_coherent(iue->target->dev, id->table_desc.len,
-				&token, GFP_KERNEL);
+		md = dma_alloc_coherent(iue->target->dev,
+					be32_to_cpu(id->table_desc.len),
+					&token, GFP_KERNEL);
 		if (!md) {
 			pr_err("libsrp: Can't get dma memory %u\n",
-				id->table_desc.len);
+				be32_to_cpu(id->table_desc.len));
 			return -ENOMEM;
 		}
 
-		sg_init_one(&dummy, md, id->table_desc.len);
+		sg_init_one(&dummy, md, be32_to_cpu(id->table_desc.len));
 		sg_dma_address(&dummy) = token;
-		sg_dma_len(&dummy) = id->table_desc.len;
+		sg_dma_len(&dummy) = be32_to_cpu(id->table_desc.len);
 		err = rdma_io(sc, &dummy, 1, &id->table_desc, 1, DMA_TO_DEVICE,
-			      id->table_desc.len);
+			      be32_to_cpu(id->table_desc.len));
 		if (err) {
 			pr_err("libsrp: Error copying indirect table %d\n",
 				err);
@@ -279,9 +284,9 @@ rdma:
 			err = -EIO;
 			goto free_mem;
 		}
-		len = min(scsi_bufflen(sc), id->len);
+		len = min(scsi_bufflen(sc), be32_to_cpu(id->len));
 	} else
-		len = id->len;
+		len = be32_to_cpu(id->len);
 
 	err = rdma_io(sc, sg, nsg, md, nmd, dir, len);
 
@@ -290,8 +295,8 @@ rdma:
 
 free_mem:
 	if (token && dma_map) {
-		dma_free_coherent(iue->target->dev, id->table_desc.len,
-					md, token);
+		dma_free_coherent(iue->target->dev,
+				  be32_to_cpu(id->table_desc.len), md, token);
 	}
 	return err;
 }
@@ -401,5 +406,5 @@ u64 srp_data_length(struct srp_cmd *cmd, enum dma_data_direction dir)
 EXPORT_SYMBOL_GPL(srp_data_length);
 
 MODULE_DESCRIPTION("SCSI RDMA Protocol lib functions");
-MODULE_AUTHOR("Bryant G. Ly");
+MODULE_AUTHOR("FUJITA Tomonori");
 MODULE_LICENSE("GPL");
