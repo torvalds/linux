@@ -60,8 +60,6 @@ struct mite {
 	spinlock_t lock;
 };
 
-struct mite_ring *mite_alloc_ring(struct mite *);
-void mite_free_ring(struct mite_ring *ring);
 struct mite_channel *mite_request_channel_in_range(struct mite *,
 						   struct mite_ring *,
 						   unsigned int min_channel,
@@ -86,9 +84,13 @@ int mite_done(struct mite_channel *mite_chan);
 
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits);
-int mite_buf_change(struct mite_ring *, struct comedi_subdevice *);
+
 int mite_init_ring_descriptors(struct mite_ring *, struct comedi_subdevice *,
 			       unsigned int nbytes);
+int mite_buf_change(struct mite_ring *, struct comedi_subdevice *);
+
+struct mite_ring *mite_alloc_ring(struct mite *);
+void mite_free_ring(struct mite_ring *);
 
 struct mite *mite_attach(struct comedi_device *, bool use_win1);
 void mite_detach(struct mite *);

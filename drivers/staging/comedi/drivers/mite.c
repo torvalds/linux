@@ -228,49 +228,6 @@ static unsigned int mite_fifo_size(struct mite *mite, unsigned int channel)
 	return empty_count + full_count;
 }
 
-struct mite_ring *mite_alloc_ring(struct mite *mite)
-{
-	struct mite_ring *ring;
-
-	ring = kmalloc(sizeof(*ring), GFP_KERNEL);
-	if (!ring)
-		return NULL;
-	ring->hw_dev = get_device(&mite->pcidev->dev);
-	if (!ring->hw_dev) {
-		kfree(ring);
-		return NULL;
-	}
-	ring->n_links = 0;
-	ring->descs = NULL;
-	ring->dma_addr = 0;
-	return ring;
-};
-EXPORT_SYMBOL_GPL(mite_alloc_ring);
-
-static void mite_free_dma_descs(struct mite_ring *ring)
-{
-	struct mite_dma_desc *descs = ring->descs;
-
-	if (descs) {
-		dma_free_coherent(ring->hw_dev,
-				  ring->n_links * sizeof(*descs),
-				  descs, ring->dma_addr);
-		ring->descs = NULL;
-		ring->dma_addr = 0;
-		ring->n_links = 0;
-	}
-}
-
-void mite_free_ring(struct mite_ring *ring)
-{
-	if (ring) {
-		mite_free_dma_descs(ring);
-		put_device(ring->hw_dev);
-		kfree(ring);
-	}
-};
-EXPORT_SYMBOL_GPL(mite_free_ring);
-
 struct mite_channel *mite_request_channel_in_range(struct mite *mite,
 						   struct mite_ring *ring,
 						   unsigned int min_channel,
@@ -342,92 +299,6 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	spin_unlock_irqrestore(&mite->lock, flags);
 }
 EXPORT_SYMBOL_GPL(mite_dma_arm);
-
-/**************************************/
-
-int mite_buf_change(struct mite_ring *ring,
-		    struct comedi_subdevice *s)
-{
-	struct comedi_async *async = s->async;
-	struct mite_dma_desc *descs;
-	unsigned int n_links;
-
-	mite_free_dma_descs(ring);
-
-	if (async->prealloc_bufsz == 0)
-		return 0;
-
-	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
-
-	descs = dma_alloc_coherent(ring->hw_dev,
-				   n_links * sizeof(*descs),
-				   &ring->dma_addr, GFP_KERNEL);
-	if (!descs) {
-		dev_err(s->device->class_dev,
-			"mite: ring buffer allocation failed\n");
-		return -ENOMEM;
-	}
-	ring->descs = descs;
-	ring->n_links = n_links;
-
-	return mite_init_ring_descriptors(ring, s, n_links << PAGE_SHIFT);
-}
-EXPORT_SYMBOL_GPL(mite_buf_change);
-
-/*
- * initializes the ring buffer descriptors to provide correct DMA transfer links
- * to the exact amount of memory required.  When the ring buffer is allocated in
- * mite_buf_change, the default is to initialize the ring to refer to the entire
- * DMA data buffer.  A command may call this function later to re-initialize and
- * shorten the amount of memory that will be transferred.
- */
-int mite_init_ring_descriptors(struct mite_ring *ring,
-			       struct comedi_subdevice *s,
-			       unsigned int nbytes)
-{
-	struct comedi_async *async = s->async;
-	struct mite_dma_desc *desc = NULL;
-	unsigned int n_full_links = nbytes >> PAGE_SHIFT;
-	unsigned int remainder = nbytes % PAGE_SIZE;
-	int i;
-
-	dev_dbg(s->device->class_dev,
-		"mite: init ring buffer to %u bytes\n", nbytes);
-
-	if ((n_full_links + (remainder > 0 ? 1 : 0)) > ring->n_links) {
-		dev_err(s->device->class_dev,
-			"mite: ring buffer too small for requested init\n");
-		return -ENOMEM;
-	}
-
-	/* We set the descriptors for all full links. */
-	for (i = 0; i < n_full_links; ++i) {
-		desc = &ring->descs[i];
-		desc->count = cpu_to_le32(PAGE_SIZE);
-		desc->addr = cpu_to_le32(async->buf_map->page_list[i].dma_addr);
-		desc->next = cpu_to_le32(ring->dma_addr +
-					 (i + 1) * sizeof(*desc));
-	}
-
-	/* the last link is either a remainder or was a full link. */
-	if (remainder > 0) {
-		desc = &ring->descs[i];
-		/* set the lesser count for the remainder link */
-		desc->count = cpu_to_le32(remainder);
-		desc->addr = cpu_to_le32(async->buf_map->page_list[i].dma_addr);
-	}
-
-	/* Assign the last link->next to point back to the head of the list. */
-	desc->next = cpu_to_le32(ring->dma_addr);
-
-	/*
-	 * barrier is meant to insure that all the writes to the dma descriptors
-	 * have completed before the dma controller is commanded to read them
-	 */
-	smp_wmb();
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mite_init_ring_descriptors);
 
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits)
@@ -713,6 +584,151 @@ int mite_done(struct mite_channel *mite_chan)
 	return done;
 }
 EXPORT_SYMBOL_GPL(mite_done);
+
+/**
+ * mite_init_ring_descriptors() - Initialize a MITE dma ring descriptors.
+ * @ring: MITE dma ring.
+ * @s: COMEDI subdevice.
+ * @nbytes: the size of the dma ring (in bytes).
+ *
+ * Initializes the ring buffer descriptors to provide correct DMA transfer
+ * links to the exact amount of memory required. When the ring buffer is
+ * allocated by mite_buf_change(), the default is to initialize the ring
+ * to refer to the entire DMA data buffer. A command may call this function
+ * later to re-initialize and shorten the amount of memory that will be
+ * transferred.
+ */
+int mite_init_ring_descriptors(struct mite_ring *ring,
+			       struct comedi_subdevice *s,
+			       unsigned int nbytes)
+{
+	struct comedi_async *async = s->async;
+	struct mite_dma_desc *desc = NULL;
+	unsigned int n_full_links = nbytes >> PAGE_SHIFT;
+	unsigned int remainder = nbytes % PAGE_SIZE;
+	int i;
+
+	dev_dbg(s->device->class_dev,
+		"mite: init ring buffer to %u bytes\n", nbytes);
+
+	if ((n_full_links + (remainder > 0 ? 1 : 0)) > ring->n_links) {
+		dev_err(s->device->class_dev,
+			"mite: ring buffer too small for requested init\n");
+		return -ENOMEM;
+	}
+
+	/* We set the descriptors for all full links. */
+	for (i = 0; i < n_full_links; ++i) {
+		desc = &ring->descs[i];
+		desc->count = cpu_to_le32(PAGE_SIZE);
+		desc->addr = cpu_to_le32(async->buf_map->page_list[i].dma_addr);
+		desc->next = cpu_to_le32(ring->dma_addr +
+					 (i + 1) * sizeof(*desc));
+	}
+
+	/* the last link is either a remainder or was a full link. */
+	if (remainder > 0) {
+		desc = &ring->descs[i];
+		/* set the lesser count for the remainder link */
+		desc->count = cpu_to_le32(remainder);
+		desc->addr = cpu_to_le32(async->buf_map->page_list[i].dma_addr);
+	}
+
+	/* Assign the last link->next to point back to the head of the list. */
+	desc->next = cpu_to_le32(ring->dma_addr);
+
+	/*
+	 * barrier is meant to insure that all the writes to the dma descriptors
+	 * have completed before the dma controller is commanded to read them
+	 */
+	smp_wmb();
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mite_init_ring_descriptors);
+
+static void mite_free_dma_descs(struct mite_ring *ring)
+{
+	struct mite_dma_desc *descs = ring->descs;
+
+	if (descs) {
+		dma_free_coherent(ring->hw_dev,
+				  ring->n_links * sizeof(*descs),
+				  descs, ring->dma_addr);
+		ring->descs = NULL;
+		ring->dma_addr = 0;
+		ring->n_links = 0;
+	}
+}
+
+/**
+ * mite_buf_change() - COMEDI subdevice (*buf_change) for a MITE dma ring.
+ * @ring: MITE dma ring.
+ * @s: COMEDI subdevice.
+ */
+int mite_buf_change(struct mite_ring *ring, struct comedi_subdevice *s)
+{
+	struct comedi_async *async = s->async;
+	struct mite_dma_desc *descs;
+	unsigned int n_links;
+
+	mite_free_dma_descs(ring);
+
+	if (async->prealloc_bufsz == 0)
+		return 0;
+
+	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
+
+	descs = dma_alloc_coherent(ring->hw_dev,
+				   n_links * sizeof(*descs),
+				   &ring->dma_addr, GFP_KERNEL);
+	if (!descs) {
+		dev_err(s->device->class_dev,
+			"mite: ring buffer allocation failed\n");
+		return -ENOMEM;
+	}
+	ring->descs = descs;
+	ring->n_links = n_links;
+
+	return mite_init_ring_descriptors(ring, s, n_links << PAGE_SHIFT);
+}
+EXPORT_SYMBOL_GPL(mite_buf_change);
+
+/**
+ * mite_alloc_ring() - Allocate a MITE dma ring.
+ * @mite: MITE device.
+ */
+struct mite_ring *mite_alloc_ring(struct mite *mite)
+{
+	struct mite_ring *ring;
+
+	ring = kmalloc(sizeof(*ring), GFP_KERNEL);
+	if (!ring)
+		return NULL;
+	ring->hw_dev = get_device(&mite->pcidev->dev);
+	if (!ring->hw_dev) {
+		kfree(ring);
+		return NULL;
+	}
+	ring->n_links = 0;
+	ring->descs = NULL;
+	ring->dma_addr = 0;
+	return ring;
+}
+EXPORT_SYMBOL_GPL(mite_alloc_ring);
+
+/**
+ * mite_free_ring() - Free a MITE dma ring and its descriptors.
+ * @ring: MITE dma ring.
+ */
+void mite_free_ring(struct mite_ring *ring)
+{
+	if (ring) {
+		mite_free_dma_descs(ring);
+		put_device(ring->hw_dev);
+		kfree(ring);
+	}
+}
+EXPORT_SYMBOL_GPL(mite_free_ring);
 
 static int mite_setup(struct comedi_device *dev, struct mite *mite,
 		      bool use_win1)
