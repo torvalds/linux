@@ -401,7 +401,7 @@ static void handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 static void handle_get_mac_address(struct wilc_vif *vif,
 				   struct get_mac_addr *get_mac_addr)
 {
-	int result = 0;
+	int ret = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_MAC_ADDR;
@@ -409,10 +409,10 @@ static void handle_get_mac_address(struct wilc_vif *vif,
 	wid.val = get_mac_addr->mac_addr;
 	wid.size = ETH_ALEN;
 
-	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
+	ret = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
 
-	if (result)
+	if (ret)
 		netdev_err(vif->ndev, "Failed to get mac address\n");
 	complete(&hif_wait_response);
 }
