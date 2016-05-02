@@ -567,7 +567,6 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	enum rpcrdma_chunktype rtype, wtype;
 	struct rpcrdma_msg *headerp;
-	unsigned int pos;
 	ssize_t hdrlen;
 	size_t rpclen;
 	__be32 *iptr;
@@ -697,9 +696,7 @@ out_overflow:
 	return -EIO;
 
 out_unmap:
-	for (pos = 0; req->rl_nchunks--;)
-		pos += r_xprt->rx_ia.ri_ops->ro_unmap(r_xprt,
-						      &req->rl_segments[pos]);
+	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req, false);
 	return PTR_ERR(iptr);
 }
 

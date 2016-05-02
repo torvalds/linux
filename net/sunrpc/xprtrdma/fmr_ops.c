@@ -35,6 +35,64 @@
 /* Maximum scatter/gather per FMR */
 #define RPCRDMA_MAX_FMR_SGES	(64)
 
+static struct workqueue_struct *fmr_recovery_wq;
+
+#define FMR_RECOVERY_WQ_FLAGS		(WQ_UNBOUND)
+
+int
+fmr_alloc_recovery_wq(void)
+{
+	fmr_recovery_wq = alloc_workqueue("fmr_recovery", WQ_UNBOUND, 0);
+	return !fmr_recovery_wq ? -ENOMEM : 0;
+}
+
+void
+fmr_destroy_recovery_wq(void)
+{
+	struct workqueue_struct *wq;
+
+	if (!fmr_recovery_wq)
+		return;
+
+	wq = fmr_recovery_wq;
+	fmr_recovery_wq = NULL;
+	destroy_workqueue(wq);
+}
+
+static int
+__fmr_unmap(struct rpcrdma_mw *mw)
+{
+	LIST_HEAD(l);
+
+	list_add(&mw->fmr.fmr->list, &l);
+	return ib_unmap_fmr(&l);
+}
+
+/* Deferred reset of a single FMR. Generate a fresh rkey by
+ * replacing the MR. There's no recovery if this fails.
+ */
+static void
+__fmr_recovery_worker(struct work_struct *work)
+{
+	struct rpcrdma_mw *mw = container_of(work, struct rpcrdma_mw,
+					    mw_work);
+	struct rpcrdma_xprt *r_xprt = mw->mw_xprt;
+
+	__fmr_unmap(mw);
+	rpcrdma_put_mw(r_xprt, mw);
+	return;
+}
+
+/* A broken MR was discovered in a context that can't sleep.
+ * Defer recovery to the recovery worker.
+ */
+static void
+__fmr_queue_recovery(struct rpcrdma_mw *mw)
+{
+	INIT_WORK(&mw->mw_work, __fmr_recovery_worker);
+	queue_work(fmr_recovery_wq, &mw->mw_work);
+}
+
 static int
 fmr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 	    struct rpcrdma_create_data_internal *cdata)
@@ -92,6 +150,7 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 		if (IS_ERR(r->fmr.fmr))
 			goto out_fmr_err;
 
+		r->mw_xprt = r_xprt;
 		list_add(&r->mw_list, &buf->rb_mws);
 		list_add(&r->mw_all, &buf->rb_all);
 	}
@@ -105,15 +164,6 @@ out_free:
 	kfree(r);
 out:
 	return rc;
-}
-
-static int
-__fmr_unmap(struct rpcrdma_mw *r)
-{
-	LIST_HEAD(l);
-
-	list_add(&r->fmr.fmr->list, &l);
-	return ib_unmap_fmr(&l);
 }
 
 /* Use the ib_map_phys_fmr() verb to register a memory region
@@ -242,6 +292,42 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	req->rl_nchunks = 0;
 }
 
+/* Use a slow, safe mechanism to invalidate all memory regions
+ * that were registered for "req".
+ *
+ * In the asynchronous case, DMA unmapping occurs first here
+ * because the rpcrdma_mr_seg is released immediately after this
+ * call. It's contents won't be available in __fmr_dma_unmap later.
+ * FIXME.
+ */
+static void
+fmr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
+		  bool sync)
+{
+	struct rpcrdma_mr_seg *seg;
+	struct rpcrdma_mw *mw;
+	unsigned int i;
+
+	for (i = 0; req->rl_nchunks; req->rl_nchunks--) {
+		seg = &req->rl_segments[i];
+		mw = seg->rl_mw;
+
+		if (sync) {
+			/* ORDER */
+			__fmr_unmap(mw);
+			__fmr_dma_unmap(r_xprt, seg);
+			rpcrdma_put_mw(r_xprt, mw);
+		} else {
+			__fmr_dma_unmap(r_xprt, seg);
+			__fmr_queue_recovery(mw);
+		}
+
+		i += seg->mr_nsegs;
+		seg->mr_nsegs = 0;
+		seg->rl_mw = NULL;
+	}
+}
+
 /* Use the ib_unmap_fmr() verb to prevent further remote
  * access via RDMA READ or RDMA WRITE.
  */
@@ -295,6 +381,7 @@ fmr_op_destroy(struct rpcrdma_buffer *buf)
 const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
 	.ro_unmap_sync			= fmr_op_unmap_sync,
+	.ro_unmap_safe			= fmr_op_unmap_safe,
 	.ro_unmap			= fmr_op_unmap,
 	.ro_open			= fmr_op_open,
 	.ro_maxpages			= fmr_op_maxpages,
