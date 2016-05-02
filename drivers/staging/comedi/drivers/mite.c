@@ -380,7 +380,7 @@ void mite_free_ring(struct mite_dma_descriptor_ring *ring)
 		if (ring->descriptors) {
 			dma_free_coherent(ring->hw_dev,
 					  ring->n_links *
-					  sizeof(struct mite_dma_descriptor),
+					  sizeof(struct mite_dma_desc),
 					  ring->descriptors,
 					  ring->descriptors_dma_addr);
 		}
@@ -477,7 +477,7 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 	if (ring->descriptors) {
 		dma_free_coherent(ring->hw_dev,
 				  ring->n_links *
-				  sizeof(struct mite_dma_descriptor),
+				  sizeof(struct mite_dma_desc),
 				  ring->descriptors,
 				  ring->descriptors_dma_addr);
 	}
@@ -492,7 +492,7 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 
 	ring->descriptors =
 	    dma_alloc_coherent(ring->hw_dev,
-			       n_links * sizeof(struct mite_dma_descriptor),
+			       n_links * sizeof(struct mite_dma_desc),
 			       &ring->descriptors_dma_addr, GFP_KERNEL);
 	if (!ring->descriptors) {
 		dev_err(s->device->class_dev,
@@ -537,7 +537,7 @@ int mite_init_ring_descriptors(struct mite_dma_descriptor_ring *ring,
 		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
 		ring->descriptors[i].next =
 		    cpu_to_le32(ring->descriptors_dma_addr +
-				(i + 1) * sizeof(struct mite_dma_descriptor));
+				(i + 1) * sizeof(struct mite_dma_desc));
 	}
 
 	/* the last link is either a remainder or was a full link. */

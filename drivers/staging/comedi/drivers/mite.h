@@ -28,7 +28,7 @@ struct comedi_subdevice;
 struct device;
 struct pci_dev;
 
-struct mite_dma_descriptor {
+struct mite_dma_desc {
 	__le32 count;
 	__le32 addr;
 	__le32 next;
@@ -38,7 +38,7 @@ struct mite_dma_descriptor {
 struct mite_dma_descriptor_ring {
 	struct device *hw_dev;
 	unsigned int n_links;
-	struct mite_dma_descriptor *descriptors;
+	struct mite_dma_desc *descriptors;
 	dma_addr_t descriptors_dma_addr;
 };
 
