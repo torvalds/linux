@@ -229,6 +229,10 @@ static u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 	return readl(mite->mmio + MITE_DAR(mite_chan->channel));
 }
 
+/**
+ * mite_bytes_in_transit() - Returns the number of unread bytes in the fifo.
+ * @mite_chan: MITE dma channel.
+ */
 u32 mite_bytes_in_transit(struct mite_channel *mite_chan)
 {
 	struct mite *mite = mite_chan->mite;
@@ -349,6 +353,11 @@ static void mite_sync_output_dma(struct mite_channel *mite_chan,
 	}
 }
 
+/**
+ * mite_sync_dma() - Sync the MITE dma with the COMEDI async buffer.
+ * @mite_chan: MITE dma channel.
+ * @s: COMEDI subdevice.
+ */
 void mite_sync_dma(struct mite_channel *mite_chan, struct comedi_subdevice *s)
 {
 	if (mite_chan->dir == COMEDI_INPUT)
@@ -376,6 +385,14 @@ static unsigned int mite_get_status(struct mite_channel *mite_chan)
 	return status;
 }
 
+/**
+ * mite_ack_linkc() - Check and ack the LINKC interrupt,
+ * @mite_chan: MITE dma channel.
+ * @s: COMEDI subdevice.
+ * @sync: flag to force a mite_sync_dma().
+ *
+ * This will also ack the DONE interrupt if active.
+ */
 void mite_ack_linkc(struct mite_channel *mite_chan,
 		    struct comedi_subdevice *s,
 		    bool sync)
@@ -399,6 +416,12 @@ void mite_ack_linkc(struct mite_channel *mite_chan,
 }
 EXPORT_SYMBOL_GPL(mite_ack_linkc);
 
+/**
+ * mite_done() - Check is a MITE dma transfer is complete.
+ * @mite_chan: MITE dma channel.
+ *
+ * This will also ack the DONE interrupt if active.
+ */
 int mite_done(struct mite_channel *mite_chan)
 {
 	struct mite *mite = mite_chan->mite;

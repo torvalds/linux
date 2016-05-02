@@ -60,11 +60,12 @@ struct mite {
 	spinlock_t lock;
 };
 
-void mite_sync_dma(struct mite_channel *mite_chan, struct comedi_subdevice *s);
-u32 mite_bytes_in_transit(struct mite_channel *mite_chan);
-void mite_ack_linkc(struct mite_channel *, struct comedi_subdevice *,
+u32 mite_bytes_in_transit(struct mite_channel *);
+
+void mite_sync_dma(struct mite_channel *, struct comedi_subdevice *);
+void mite_ack_linkc(struct mite_channel *, struct comedi_subdevice *s,
 		    bool sync);
-int mite_done(struct mite_channel *mite_chan);
+int mite_done(struct mite_channel *);
 
 void mite_dma_arm(struct mite_channel *);
 void mite_dma_disarm(struct mite_channel *);
