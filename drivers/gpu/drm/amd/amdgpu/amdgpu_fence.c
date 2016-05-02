@@ -639,7 +639,7 @@ static int amdgpu_debugfs_gpu_reset(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list amdgpu_debugfs_fence_list[] = {
+static const struct drm_info_list amdgpu_debugfs_fence_list[] = {
 	{"amdgpu_fence_info", &amdgpu_debugfs_fence_info, 0, NULL},
 	{"amdgpu_gpu_reset", &amdgpu_debugfs_gpu_reset, 0, NULL}
 };

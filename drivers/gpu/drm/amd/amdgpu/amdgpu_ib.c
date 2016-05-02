@@ -329,7 +329,7 @@ static int amdgpu_debugfs_sa_info(struct seq_file *m, void *data)
 
 }
 
-static struct drm_info_list amdgpu_debugfs_sa_list[] = {
+static const struct drm_info_list amdgpu_debugfs_sa_list[] = {
 	{"amdgpu_sa_info", &amdgpu_debugfs_sa_info, 0, NULL},
 };
 

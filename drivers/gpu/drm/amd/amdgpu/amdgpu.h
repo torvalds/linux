@@ -1701,12 +1701,12 @@ static inline void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}
  * Debugfs
  */
 struct amdgpu_debugfs {
-	struct drm_info_list	*files;
+	const struct drm_info_list	*files;
 	unsigned		num_files;
 };
 
 int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
-			     struct drm_info_list *files,
+			     const struct drm_info_list *files,
 			     unsigned nfiles);
 int amdgpu_debugfs_fence_init(struct amdgpu_device *adev);
 

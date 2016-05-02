@@ -2009,7 +2009,7 @@ void amdgpu_get_pcie_info(struct amdgpu_device *adev)
  * Debugfs
  */
 int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
-			     struct drm_info_list *files,
+			     const struct drm_info_list *files,
 			     unsigned nfiles)
 {
 	unsigned i;

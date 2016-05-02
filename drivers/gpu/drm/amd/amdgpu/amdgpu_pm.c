@@ -1212,7 +1212,7 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list amdgpu_pm_info_list[] = {
+static const struct drm_info_list amdgpu_pm_info_list[] = {
 	{"amdgpu_pm_info", amdgpu_debugfs_pm_info, 0, NULL},
 };
 #endif

@@ -427,7 +427,7 @@ static int r600_uvd_index = offsetof(struct amdgpu_device, uvd.ring);
 static int si_vce1_index = offsetof(struct amdgpu_device, vce.ring[0]);
 static int si_vce2_index = offsetof(struct amdgpu_device, vce.ring[1]);
 
-static struct drm_info_list amdgpu_debugfs_ring_info_list[] = {
+static const struct drm_info_list amdgpu_debugfs_ring_info_list[] = {
 	{"amdgpu_ring_gfx", amdgpu_debugfs_ring_info, 0, &amdgpu_gfx_index},
 	{"amdgpu_ring_cp1", amdgpu_debugfs_ring_info, 0, &cayman_cp1_index},
 	{"amdgpu_ring_cp2", amdgpu_debugfs_ring_info, 0, &cayman_cp2_index},
@@ -445,7 +445,7 @@ static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev, struct amdgpu_ri
 #if defined(CONFIG_DEBUG_FS)
 	unsigned i;
 	for (i = 0; i < ARRAY_SIZE(amdgpu_debugfs_ring_info_list); ++i) {
-		struct drm_info_list *info = &amdgpu_debugfs_ring_info_list[i];
+		const struct drm_info_list *info = &amdgpu_debugfs_ring_info_list[i];
 		int roffset = *(int*)amdgpu_debugfs_ring_info_list[i].data;
 		struct amdgpu_ring *other = (void *)(((uint8_t*)adev) + roffset);
 		unsigned r;
