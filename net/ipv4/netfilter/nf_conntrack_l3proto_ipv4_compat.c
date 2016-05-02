@@ -31,15 +31,14 @@ struct ct_iter_state {
 
 static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 {
-	struct net *net = seq_file_net(seq);
 	struct ct_iter_state *st = seq->private;
 	struct hlist_nulls_node *n;
 
 	for (st->bucket = 0;
-	     st->bucket < net->ct.htable_size;
+	     st->bucket < nf_conntrack_htable_size;
 	     st->bucket++) {
 		n = rcu_dereference(
-			hlist_nulls_first_rcu(&net->ct.hash[st->bucket]));
+			hlist_nulls_first_rcu(&nf_conntrack_hash[st->bucket]));
 		if (!is_a_nulls(n))
 			return n;
 	}
@@ -49,17 +48,16 @@ static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
 				      struct hlist_nulls_node *head)
 {
-	struct net *net = seq_file_net(seq);
 	struct ct_iter_state *st = seq->private;
 
 	head = rcu_dereference(hlist_nulls_next_rcu(head));
 	while (is_a_nulls(head)) {
 		if (likely(get_nulls_value(head) == st->bucket)) {
-			if (++st->bucket >= net->ct.htable_size)
+			if (++st->bucket >= nf_conntrack_htable_size)
 				return NULL;
 		}
 		head = rcu_dereference(
-			hlist_nulls_first_rcu(&net->ct.hash[st->bucket]));
+			hlist_nulls_first_rcu(&nf_conntrack_hash[st->bucket]));
 	}
 	return head;
 }

@@ -824,7 +824,7 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 static int __net_init nf_nat_net_init(struct net *net)
 {
 	/* Leave them the same for the moment. */
-	net->ct.nat_htable_size = net->ct.htable_size;
+	net->ct.nat_htable_size = nf_conntrack_htable_size;
 	net->ct.nat_bysource = nf_ct_alloc_hashtable(&net->ct.nat_htable_size, 0);
 	if (!net->ct.nat_bysource)
 		return -ENOMEM;

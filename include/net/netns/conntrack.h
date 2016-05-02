@@ -93,9 +93,7 @@ struct netns_ct {
 	int			sysctl_tstamp;
 	int			sysctl_checksum;
 
-	unsigned int		htable_size;
 	struct kmem_cache	*nf_conntrack_cachep;
-	struct hlist_nulls_head	*hash;
 	struct hlist_head	*expect_hash;
 	struct ct_pcpu __percpu *pcpu_lists;
 	struct ip_conntrack_stat __percpu *stat;

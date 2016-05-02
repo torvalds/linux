@@ -69,6 +69,9 @@ EXPORT_SYMBOL_GPL(nf_conntrack_locks);
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(nf_conntrack_expect_lock);
 EXPORT_SYMBOL_GPL(nf_conntrack_expect_lock);
 
+struct hlist_nulls_head *nf_conntrack_hash __read_mostly;
+EXPORT_SYMBOL_GPL(nf_conntrack_hash);
+
 static __read_mostly spinlock_t nf_conntrack_locks_all_lock;
 static __read_mostly seqcount_t nf_conntrack_generation;
 static __read_mostly bool nf_conntrack_locks_all;
@@ -164,9 +167,9 @@ static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple,
 		      tuple->dst.protonum));
 }
 
-static u32 hash_bucket(u32 hash, const struct net *net)
+static u32 scale_hash(u32 hash)
 {
-	return reciprocal_scale(hash, net->ct.htable_size);
+	return reciprocal_scale(hash, nf_conntrack_htable_size);
 }
 
 static u32 __hash_conntrack(const struct net *net,
@@ -179,7 +182,7 @@ static u32 __hash_conntrack(const struct net *net,
 static u32 hash_conntrack(const struct net *net,
 			  const struct nf_conntrack_tuple *tuple)
 {
-	return __hash_conntrack(net, tuple, net->ct.htable_size);
+	return scale_hash(hash_conntrack_raw(tuple, net));
 }
 
 bool
@@ -478,8 +481,8 @@ ____nf_conntrack_find(struct net *net, const struct nf_conntrack_zone *zone,
 begin:
 	do {
 		sequence = read_seqcount_begin(&nf_conntrack_generation);
-		bucket = hash_bucket(hash, net);
-		ct_hash = net->ct.hash;
+		bucket = scale_hash(hash);
+		ct_hash = nf_conntrack_hash;
 	} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
 
 	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[bucket], hnnode) {
@@ -543,12 +546,10 @@ static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 				       unsigned int hash,
 				       unsigned int reply_hash)
 {
-	struct net *net = nf_ct_net(ct);
-
 	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
-			   &net->ct.hash[hash]);
+			   &nf_conntrack_hash[hash]);
 	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode,
-			   &net->ct.hash[reply_hash]);
+			   &nf_conntrack_hash[reply_hash]);
 }
 
 int
@@ -573,12 +574,12 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
 	/* See if there's one in the list already, including reverse */
-	hlist_nulls_for_each_entry(h, n, &net->ct.hash[hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnnode)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 				    zone, net))
 			goto out;
 
-	hlist_nulls_for_each_entry(h, n, &net->ct.hash[reply_hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnnode)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				    zone, net))
 			goto out;
@@ -633,7 +634,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 		sequence = read_seqcount_begin(&nf_conntrack_generation);
 		/* reuse the hash saved before */
 		hash = *(unsigned long *)&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev;
-		hash = hash_bucket(hash, net);
+		hash = scale_hash(hash);
 		reply_hash = hash_conntrack(net,
 					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
@@ -663,12 +664,12 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
 	   not in the hash.  If there is, we lost race. */
-	hlist_nulls_for_each_entry(h, n, &net->ct.hash[hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnnode)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 				    zone, net))
 			goto out;
 
-	hlist_nulls_for_each_entry(h, n, &net->ct.hash[reply_hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnnode)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				    zone, net))
 			goto out;
@@ -736,7 +737,7 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 	do {
 		sequence = read_seqcount_begin(&nf_conntrack_generation);
 		hash = hash_conntrack(net, tuple);
-		ct_hash = net->ct.hash;
+		ct_hash = nf_conntrack_hash;
 	} while (read_seqcount_retry(&nf_conntrack_generation, sequence));
 
 	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[hash], hnnode) {
@@ -773,16 +774,16 @@ static noinline int early_drop(struct net *net, unsigned int _hash)
 	local_bh_disable();
 restart:
 	sequence = read_seqcount_begin(&nf_conntrack_generation);
-	hash = hash_bucket(_hash, net);
-	for (; i < net->ct.htable_size; i++) {
+	hash = scale_hash(_hash);
+	for (; i < nf_conntrack_htable_size; i++) {
 		lockp = &nf_conntrack_locks[hash % CONNTRACK_LOCKS];
 		nf_conntrack_lock(lockp);
 		if (read_seqcount_retry(&nf_conntrack_generation, sequence)) {
 			spin_unlock(lockp);
 			goto restart;
 		}
-		hlist_nulls_for_each_entry_rcu(h, n, &net->ct.hash[hash],
-					 hnnode) {
+		hlist_nulls_for_each_entry_rcu(h, n, &nf_conntrack_hash[hash],
+					       hnnode) {
 			tmp = nf_ct_tuplehash_to_ctrack(h);
 			if (!test_bit(IPS_ASSURED_BIT, &tmp->status) &&
 			    !nf_ct_is_dying(tmp) &&
@@ -793,7 +794,7 @@ restart:
 			cnt++;
 		}
 
-		hash = (hash + 1) % net->ct.htable_size;
+		hash = (hash + 1) % nf_conntrack_htable_size;
 		spin_unlock(lockp);
 
 		if (ct || cnt >= NF_CT_EVICTION_RANGE)
@@ -1376,12 +1377,12 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 	int cpu;
 	spinlock_t *lockp;
 
-	for (; *bucket < net->ct.htable_size; (*bucket)++) {
+	for (; *bucket < nf_conntrack_htable_size; (*bucket)++) {
 		lockp = &nf_conntrack_locks[*bucket % CONNTRACK_LOCKS];
 		local_bh_disable();
 		nf_conntrack_lock(lockp);
-		if (*bucket < net->ct.htable_size) {
-			hlist_nulls_for_each_entry(h, n, &net->ct.hash[*bucket], hnnode) {
+		if (*bucket < nf_conntrack_htable_size) {
+			hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[*bucket], hnnode) {
 				if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 					continue;
 				ct = nf_ct_tuplehash_to_ctrack(h);
@@ -1478,6 +1479,8 @@ void nf_conntrack_cleanup_end(void)
 	while (untrack_refs() > 0)
 		schedule();
 
+	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_htable_size);
+
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	nf_ct_extend_unregister(&nf_ct_zone_extend);
 #endif
@@ -1528,7 +1531,6 @@ i_see_dead_people:
 	}
 
 	list_for_each_entry(net, net_exit_list, exit_list) {
-		nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
 		nf_conntrack_proto_pernet_fini(net);
 		nf_conntrack_helper_pernet_fini(net);
 		nf_conntrack_ecache_pernet_fini(net);
@@ -1599,10 +1601,10 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	 * though since that required taking the locks.
 	 */
 
-	for (i = 0; i < init_net.ct.htable_size; i++) {
-		while (!hlist_nulls_empty(&init_net.ct.hash[i])) {
-			h = hlist_nulls_entry(init_net.ct.hash[i].first,
-					struct nf_conntrack_tuple_hash, hnnode);
+	for (i = 0; i < nf_conntrack_htable_size; i++) {
+		while (!hlist_nulls_empty(&nf_conntrack_hash[i])) {
+			h = hlist_nulls_entry(nf_conntrack_hash[i].first,
+					      struct nf_conntrack_tuple_hash, hnnode);
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			hlist_nulls_del_rcu(&h->hnnode);
 			bucket = __hash_conntrack(nf_ct_net(ct),
@@ -1610,11 +1612,11 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 			hlist_nulls_add_head_rcu(&h->hnnode, &hash[bucket]);
 		}
 	}
-	old_size = init_net.ct.htable_size;
-	old_hash = init_net.ct.hash;
+	old_size = nf_conntrack_htable_size;
+	old_hash = nf_conntrack_hash;
 
-	init_net.ct.htable_size = nf_conntrack_htable_size = hashsize;
-	init_net.ct.hash = hash;
+	nf_conntrack_hash = hash;
+	nf_conntrack_htable_size = hashsize;
 
 	write_seqcount_end(&nf_conntrack_generation);
 	nf_conntrack_all_unlock();
@@ -1670,6 +1672,11 @@ int nf_conntrack_init_start(void)
 		 * entries. */
 		max_factor = 4;
 	}
+
+	nf_conntrack_hash = nf_ct_alloc_hashtable(&nf_conntrack_htable_size, 1);
+	if (!nf_conntrack_hash)
+		return -ENOMEM;
+
 	nf_conntrack_max = max_factor * nf_conntrack_htable_size;
 
 	printk(KERN_INFO "nf_conntrack version %s (%u buckets, %d max)\n",
@@ -1748,6 +1755,7 @@ err_tstamp:
 err_acct:
 	nf_conntrack_expect_fini();
 err_expect:
+	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_htable_size);
 	return ret;
 }
 
@@ -1800,12 +1808,6 @@ int nf_conntrack_init_net(struct net *net)
 		goto err_cache;
 	}
 
-	net->ct.htable_size = nf_conntrack_htable_size;
-	net->ct.hash = nf_ct_alloc_hashtable(&net->ct.htable_size, 1);
-	if (!net->ct.hash) {
-		printk(KERN_ERR "Unable to create nf_conntrack_hash\n");
-		goto err_hash;
-	}
 	ret = nf_conntrack_expect_pernet_init(net);
 	if (ret < 0)
 		goto err_expect;
@@ -1837,8 +1839,6 @@ err_tstamp:
 err_acct:
 	nf_conntrack_expect_pernet_fini(net);
 err_expect:
-	nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
-err_hash:
 	kmem_cache_destroy(net->ct.nf_conntrack_cachep);
 err_cache:
 	kfree(net->ct.slabname);
