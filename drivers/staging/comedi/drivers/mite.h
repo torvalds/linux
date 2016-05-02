@@ -68,7 +68,7 @@ void mite_ack_linkc(struct mite_channel *, struct comedi_subdevice *,
 		    bool sync);
 int mite_done(struct mite_channel *mite_chan);
 
-void mite_prep_dma(struct mite_channel *mite_chan,
+void mite_prep_dma(struct mite_channel *,
 		   unsigned int num_device_bits, unsigned int num_memory_bits);
 
 struct mite_channel *mite_request_channel_in_range(struct mite *,

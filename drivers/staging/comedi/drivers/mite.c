@@ -247,91 +247,6 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 }
 EXPORT_SYMBOL_GPL(mite_dma_arm);
 
-void mite_prep_dma(struct mite_channel *mite_chan,
-		   unsigned int num_device_bits, unsigned int num_memory_bits)
-{
-	struct mite *mite = mite_chan->mite;
-	unsigned int chcr, mcr, dcr, lkcr;
-
-	mite_dma_reset(mite_chan);
-
-	/* short link chaining mode */
-	chcr = CHCR_SET_DMA_IE | CHCR_LINKSHORT | CHCR_SET_DONE_IE |
-	    CHCR_BURSTEN;
-	/*
-	 * Link Complete Interrupt: interrupt every time a link
-	 * in MITE_RING is completed. This can generate a lot of
-	 * extra interrupts, but right now we update the values
-	 * of buf_int_ptr and buf_int_count at each interrupt. A
-	 * better method is to poll the MITE before each user
-	 * "read()" to calculate the number of bytes available.
-	 */
-	chcr |= CHCR_SET_LC_IE;
-	if (num_memory_bits == 32 && num_device_bits == 16) {
-		/*
-		 * Doing a combined 32 and 16 bit byteswap gets the 16 bit
-		 * samples into the fifo in the right order. Tested doing 32 bit
-		 * memory to 16 bit device transfers to the analog out of a
-		 * pxi-6281, which has mite version = 1, type = 4. This also
-		 * works for dma reads from the counters on e-series boards.
-		 */
-		chcr |= CHCR_BYTE_SWAP_DEVICE | CHCR_BYTE_SWAP_MEMORY;
-	}
-	if (mite_chan->dir == COMEDI_INPUT)
-		chcr |= CHCR_DEV_TO_MEM;
-
-	writel(chcr, mite->mmio + MITE_CHCR(mite_chan->channel));
-
-	/* to/from memory */
-	mcr = mite_retry_limit(64) | CR_ASEQUP;
-	switch (num_memory_bits) {
-	case 8:
-		mcr |= CR_PSIZE8;
-		break;
-	case 16:
-		mcr |= CR_PSIZE16;
-		break;
-	case 32:
-		mcr |= CR_PSIZE32;
-		break;
-	default:
-		pr_warn("bug! invalid mem bit width for dma transfer\n");
-		break;
-	}
-	writel(mcr, mite->mmio + MITE_MCR(mite_chan->channel));
-
-	/* from/to device */
-	dcr = mite_retry_limit(64) | CR_ASEQUP;
-	dcr |= CR_PORTIO | CR_AMDEVICE | mite_drq_reqs(mite_chan->channel);
-	switch (num_device_bits) {
-	case 8:
-		dcr |= CR_PSIZE8;
-		break;
-	case 16:
-		dcr |= CR_PSIZE16;
-		break;
-	case 32:
-		dcr |= CR_PSIZE32;
-		break;
-	default:
-		pr_warn("bug! invalid dev bit width for dma transfer\n");
-		break;
-	}
-	writel(dcr, mite->mmio + MITE_DCR(mite_chan->channel));
-
-	/* reset the DAR */
-	writel(0, mite->mmio + MITE_DAR(mite_chan->channel));
-
-	/* the link is 32bits */
-	lkcr = mite_retry_limit(64) | CR_ASEQUP | CR_PSIZE32;
-	writel(lkcr, mite->mmio + MITE_LKCR(mite_chan->channel));
-
-	/* starting address for link chaining */
-	writel(mite_chan->ring->dma_addr,
-	       mite->mmio + MITE_LKAR(mite_chan->channel));
-}
-EXPORT_SYMBOL_GPL(mite_prep_dma);
-
 static u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 {
 	struct mite *mite = mite_chan->mite;
@@ -531,6 +446,97 @@ int mite_done(struct mite_channel *mite_chan)
 	return done;
 }
 EXPORT_SYMBOL_GPL(mite_done);
+
+/**
+ * mite_prep_dma() - Prepare a MITE dma channel for transfers.
+ * @mite_chan: MITE dma channel.
+ * @num_device_bits: device transfer size (8, 16, or 32-bits).
+ * @num_memory_bits: memory transfer size (8, 16, or 32-bits).
+ */
+void mite_prep_dma(struct mite_channel *mite_chan,
+		   unsigned int num_device_bits, unsigned int num_memory_bits)
+{
+	struct mite *mite = mite_chan->mite;
+	unsigned int chcr, mcr, dcr, lkcr;
+
+	mite_dma_reset(mite_chan);
+
+	/* short link chaining mode */
+	chcr = CHCR_SET_DMA_IE | CHCR_LINKSHORT | CHCR_SET_DONE_IE |
+	    CHCR_BURSTEN;
+	/*
+	 * Link Complete Interrupt: interrupt every time a link
+	 * in MITE_RING is completed. This can generate a lot of
+	 * extra interrupts, but right now we update the values
+	 * of buf_int_ptr and buf_int_count at each interrupt. A
+	 * better method is to poll the MITE before each user
+	 * "read()" to calculate the number of bytes available.
+	 */
+	chcr |= CHCR_SET_LC_IE;
+	if (num_memory_bits == 32 && num_device_bits == 16) {
+		/*
+		 * Doing a combined 32 and 16 bit byteswap gets the 16 bit
+		 * samples into the fifo in the right order. Tested doing 32 bit
+		 * memory to 16 bit device transfers to the analog out of a
+		 * pxi-6281, which has mite version = 1, type = 4. This also
+		 * works for dma reads from the counters on e-series boards.
+		 */
+		chcr |= CHCR_BYTE_SWAP_DEVICE | CHCR_BYTE_SWAP_MEMORY;
+	}
+	if (mite_chan->dir == COMEDI_INPUT)
+		chcr |= CHCR_DEV_TO_MEM;
+
+	writel(chcr, mite->mmio + MITE_CHCR(mite_chan->channel));
+
+	/* to/from memory */
+	mcr = mite_retry_limit(64) | CR_ASEQUP;
+	switch (num_memory_bits) {
+	case 8:
+		mcr |= CR_PSIZE8;
+		break;
+	case 16:
+		mcr |= CR_PSIZE16;
+		break;
+	case 32:
+		mcr |= CR_PSIZE32;
+		break;
+	default:
+		pr_warn("bug! invalid mem bit width for dma transfer\n");
+		break;
+	}
+	writel(mcr, mite->mmio + MITE_MCR(mite_chan->channel));
+
+	/* from/to device */
+	dcr = mite_retry_limit(64) | CR_ASEQUP;
+	dcr |= CR_PORTIO | CR_AMDEVICE | mite_drq_reqs(mite_chan->channel);
+	switch (num_device_bits) {
+	case 8:
+		dcr |= CR_PSIZE8;
+		break;
+	case 16:
+		dcr |= CR_PSIZE16;
+		break;
+	case 32:
+		dcr |= CR_PSIZE32;
+		break;
+	default:
+		pr_warn("bug! invalid dev bit width for dma transfer\n");
+		break;
+	}
+	writel(dcr, mite->mmio + MITE_DCR(mite_chan->channel));
+
+	/* reset the DAR */
+	writel(0, mite->mmio + MITE_DAR(mite_chan->channel));
+
+	/* the link is 32bits */
+	lkcr = mite_retry_limit(64) | CR_ASEQUP | CR_PSIZE32;
+	writel(lkcr, mite->mmio + MITE_LKCR(mite_chan->channel));
+
+	/* starting address for link chaining */
+	writel(mite_chan->ring->dma_addr,
+	       mite->mmio + MITE_LKAR(mite_chan->channel));
+}
+EXPORT_SYMBOL_GPL(mite_prep_dma);
 
 static struct mite_channel *__mite_request_channel(struct mite *mite,
 						   struct mite_ring *ring,
