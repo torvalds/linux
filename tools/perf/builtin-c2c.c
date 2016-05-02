@@ -1829,6 +1829,84 @@ static void c2c_browser__update_nr_entries(struct hist_browser *hb)
 	hb->nr_non_filtered_entries = nr_entries;
 }
 
+struct c2c_cacheline_browser {
+	struct hist_browser	 hb;
+	struct hist_entry	*he;
+};
+
+static int
+perf_c2c_cacheline_browser__title(struct hist_browser *browser,
+				  char *bf, size_t size)
+{
+	struct c2c_cacheline_browser *cl_browser;
+	struct hist_entry *he;
+	uint64_t addr = 0;
+
+	cl_browser = container_of(browser, struct c2c_cacheline_browser, hb);
+	he = cl_browser->he;
+
+	if (he->mem_info)
+		addr = cl_address(he->mem_info->daddr.addr);
+
+	scnprintf(bf, size, "Cacheline 0x%lx", addr);
+	return 0;
+}
+
+static struct c2c_cacheline_browser*
+c2c_cacheline_browser__new(struct hists *hists, struct hist_entry *he)
+{
+	struct c2c_cacheline_browser *browser;
+
+	browser = zalloc(sizeof(*browser));
+	if (browser) {
+		hist_browser__init(&browser->hb, hists);
+		browser->hb.c2c_filter	= true;
+		browser->hb.title	= perf_c2c_cacheline_browser__title;
+		browser->he		= he;
+	}
+
+	return browser;
+}
+
+static int perf_c2c__browse_cacheline(struct hist_entry *he)
+{
+	struct c2c_hist_entry *c2c_he;
+	struct c2c_hists *c2c_hists;
+	struct c2c_cacheline_browser *cl_browser;
+	struct hist_browser *browser;
+	int key = -1;
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+	c2c_hists = c2c_he->hists;
+
+	cl_browser = c2c_cacheline_browser__new(&c2c_hists->hists, he);
+	if (cl_browser == NULL)
+		return -1;
+
+	browser = &cl_browser->hb;
+
+	/* reset abort key so that it can get Ctrl-C as a key */
+	SLang_reset_tty();
+	SLang_init_tty(0, 0, 0);
+
+	c2c_browser__update_nr_entries(browser);
+
+	while (1) {
+		key = hist_browser__run(browser, "help");
+
+		switch (key) {
+		case 'q':
+			goto out;
+		default:
+			break;
+		}
+	}
+
+out:
+	free(cl_browser);
+	return 0;
+}
+
 static int perf_c2c_browser__title(struct hist_browser *browser,
 				   char *bf, size_t size)
 {
@@ -1872,6 +1950,9 @@ static int perf_c2c__hists_browse(struct hists *hists)
 		switch (key) {
 		case 'q':
 			goto out;
+		case 'd':
+			perf_c2c__browse_cacheline(browser->he_selection);
+			break;
 		default:
 			break;
 		}
