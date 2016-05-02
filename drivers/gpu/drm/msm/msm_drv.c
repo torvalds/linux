@@ -199,6 +199,8 @@ static int msm_unload(struct drm_device *dev)
 
 	drm_kms_helper_poll_fini(dev);
 
+	drm_connector_unregister_all(dev);
+
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fbdev && priv->fbdev)
 		msm_fbdev_free(dev);
@@ -411,6 +413,12 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	pm_runtime_put_sync(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to install IRQ handler\n");
+		goto fail;
+	}
+
+	ret = drm_connector_register_all(dev);
+	if (ret) {
+		dev_err(dev->dev, "failed to register connectors\n");
 		goto fail;
 	}
 
