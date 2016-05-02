@@ -960,16 +960,16 @@ static ssize_t gfs2_file_splice_read(struct file *in, loff_t *ppos,
 	struct gfs2_holder gh;
 	int ret;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
 	if (ret) {
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 		return ret;
 	}
 
 	gfs2_glock_dq_uninit(&gh);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return generic_file_splice_read(in, ppos, pipe, len, flags);
 }
