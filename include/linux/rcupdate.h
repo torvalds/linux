@@ -45,6 +45,7 @@
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/ktime.h>
+#include <linux/irqflags.h>
 
 #include <asm/barrier.h>
 
