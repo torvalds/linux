@@ -1753,6 +1753,9 @@ static struct clk_core *clk_propagate_rate_change(struct clk_core *core,
 	return fail_clk;
 }
 
+static int clk_core_set_rate_nolock(struct clk_core *core,
+				    unsigned long req_rate);
+
 /*
  * walk down a subtree and set the new rates notifying the rate
  * change on the way
@@ -1851,6 +1854,12 @@ static void clk_change_rate(struct clk_core *core)
 	if (core->new_child)
 		clk_change_rate(core->new_child);
 
+	/* handle a changed clock that needs to readjust its rate */
+	if (core->flags & CLK_KEEP_REQ_RATE && core->req_rate
+					    && core->new_rate != old_rate
+					    && core->new_rate != core->req_rate)
+		clk_core_set_rate_nolock(core, core->req_rate);
+
 	clk_pm_runtime_put(core);
 }
 
@@ -1920,10 +1929,11 @@ static int clk_core_set_rate_nolock(struct clk_core *core,
 		goto err;
 	}
 
+	core->req_rate = req_rate;
+
 	/* change the rates */
 	clk_change_rate(top);
 
-	core->req_rate = req_rate;
 err:
 	clk_pm_runtime_put(core);
 

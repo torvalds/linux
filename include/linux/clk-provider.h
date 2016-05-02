@@ -40,6 +40,7 @@
 #define CLK_OPS_PARENT_ENABLE	BIT(12)
 /* duty cycle call may be forwarded to the parent clock */
 #define CLK_DUTY_CYCLE_PARENT	BIT(13)
+#define CLK_KEEP_REQ_RATE	BIT(14) /* keep reqrate on parent rate change */
 
 struct clk;
 struct clk_hw;
