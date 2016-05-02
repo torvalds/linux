@@ -461,6 +461,8 @@ static struct chromeos_laptop dell_chromebook_11 = {
 	.i2c_peripherals = {
 		/* Touchpad. */
 		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
+		/* Elan Touchpad option. */
+		{ .add = setup_elantech_tp, I2C_ADAPTER_DESIGNWARE_0 },
 	},
 };
 
