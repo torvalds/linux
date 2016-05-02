@@ -977,7 +977,7 @@ static void gfs2_discard(struct gfs2_sbd *sdp, struct buffer_head *bh)
 		if (!list_empty(&bd->bd_list) && !buffer_pinned(bh))
 			list_del_init(&bd->bd_list);
 		else
-			gfs2_remove_from_journal(bh, current->journal_info, 0);
+			gfs2_remove_from_journal(bh, REMOVE_JDATA);
 	}
 	bh->b_bdev = NULL;
 	clear_buffer_mapped(bh);
