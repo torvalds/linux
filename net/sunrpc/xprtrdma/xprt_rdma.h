@@ -229,8 +229,6 @@ struct rpcrdma_frmr {
 	struct ib_cqe			fr_cqe;
 	enum rpcrdma_frmr_state		fr_state;
 	struct completion		fr_linv_done;
-	struct work_struct		fr_work;
-	struct rpcrdma_xprt		*fr_xprt;
 	union {
 		struct ib_reg_wr	fr_regwr;
 		struct ib_send_wr	fr_invwr;
@@ -247,6 +245,8 @@ struct rpcrdma_mw {
 		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frmr	frmr;
 	};
+	struct work_struct	mw_work;
+	struct rpcrdma_xprt	*mw_xprt;
 	struct list_head	mw_list;
 	struct list_head	mw_all;
 };

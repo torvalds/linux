@@ -150,9 +150,9 @@ static void
 __frwr_recovery_worker(struct work_struct *work)
 {
 	struct rpcrdma_mw *r = container_of(work, struct rpcrdma_mw,
-					    frmr.fr_work);
+					    mw_work);
 
-	__frwr_reset_and_unmap(r->frmr.fr_xprt, r);
+	__frwr_reset_and_unmap(r->mw_xprt, r);
 	return;
 }
 
@@ -162,8 +162,8 @@ __frwr_recovery_worker(struct work_struct *work)
 static void
 __frwr_queue_recovery(struct rpcrdma_mw *r)
 {
-	INIT_WORK(&r->frmr.fr_work, __frwr_recovery_worker);
-	queue_work(frwr_recovery_wq, &r->frmr.fr_work);
+	INIT_WORK(&r->mw_work, __frwr_recovery_worker);
+	queue_work(frwr_recovery_wq, &r->mw_work);
 }
 
 static int
@@ -378,9 +378,9 @@ frwr_op_init(struct rpcrdma_xprt *r_xprt)
 			return rc;
 		}
 
+		r->mw_xprt = r_xprt;
 		list_add(&r->mw_list, &buf->rb_mws);
 		list_add(&r->mw_all, &buf->rb_all);
-		r->frmr.fr_xprt = r_xprt;
 	}
 
 	return 0;
