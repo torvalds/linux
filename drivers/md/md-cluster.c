@@ -818,6 +818,8 @@ static int join(struct mddev *mddev, int nodes)
 
 	return 0;
 err:
+	md_unregister_thread(&cinfo->recovery_thread);
+	md_unregister_thread(&cinfo->recv_thread);
 	lockres_free(cinfo->message_lockres);
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
