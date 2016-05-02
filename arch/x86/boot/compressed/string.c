@@ -10,7 +10,7 @@
 #include "../string.c"
 
 #ifdef CONFIG_X86_32
-void *memcpy(void *dest, const void *src, size_t n)
+static void *__memcpy(void *dest, const void *src, size_t n)
 {
 	int d0, d1, d2;
 	asm volatile(
@@ -24,7 +24,7 @@ void *memcpy(void *dest, const void *src, size_t n)
 	return dest;
 }
 #else
-void *memcpy(void *dest, const void *src, size_t n)
+static void *__memcpy(void *dest, const void *src, size_t n)
 {
 	long d0, d1, d2;
 	asm volatile(
@@ -55,10 +55,20 @@ void *memmove(void *dest, const void *src, size_t n)
 	const unsigned char *s = src;
 
 	if (d <= s || d - s >= n)
-		return memcpy(dest, src, n);
+		return __memcpy(dest, src, n);
 
 	while (n-- > 0)
 		d[n] = s[n];
 
 	return dest;
+}
+
+/* Detect and warn about potential overlaps, but handle them with memmove. */
+void *memcpy(void *dest, const void *src, size_t n)
+{
+	if (dest > src && dest - src < n) {
+		warn("Avoiding potentially unsafe overlapping memcpy()!");
+		return memmove(dest, src, n);
+	}
+	return __memcpy(dest, src, n);
 }
