@@ -38,7 +38,7 @@ struct mite_dma_desc {
 struct mite_ring {
 	struct device *hw_dev;
 	unsigned int n_links;
-	struct mite_dma_desc *descriptors;
+	struct mite_dma_desc *descs;
 	dma_addr_t dma_addr;
 };
 

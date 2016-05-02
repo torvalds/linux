@@ -368,7 +368,7 @@ struct mite_ring *mite_alloc_ring(struct mite *mite)
 		return NULL;
 	}
 	ring->n_links = 0;
-	ring->descriptors = NULL;
+	ring->descs = NULL;
 	ring->dma_addr = 0;
 	return ring;
 };
@@ -377,11 +377,11 @@ EXPORT_SYMBOL_GPL(mite_alloc_ring);
 void mite_free_ring(struct mite_ring *ring)
 {
 	if (ring) {
-		if (ring->descriptors) {
+		if (ring->descs) {
 			dma_free_coherent(ring->hw_dev,
 					  ring->n_links *
 					  sizeof(struct mite_dma_desc),
-					  ring->descriptors,
+					  ring->descs,
 					  ring->dma_addr);
 		}
 		put_device(ring->hw_dev);
@@ -473,14 +473,14 @@ int mite_buf_change(struct mite_ring *ring,
 	struct comedi_async *async = s->async;
 	unsigned int n_links;
 
-	if (ring->descriptors) {
+	if (ring->descs) {
 		dma_free_coherent(ring->hw_dev,
 				  ring->n_links *
 				  sizeof(struct mite_dma_desc),
-				  ring->descriptors,
+				  ring->descs,
 				  ring->dma_addr);
 	}
-	ring->descriptors = NULL;
+	ring->descs = NULL;
 	ring->dma_addr = 0;
 	ring->n_links = 0;
 
@@ -489,11 +489,11 @@ int mite_buf_change(struct mite_ring *ring,
 
 	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
 
-	ring->descriptors =
+	ring->descs =
 	    dma_alloc_coherent(ring->hw_dev,
 			       n_links * sizeof(struct mite_dma_desc),
 			       &ring->dma_addr, GFP_KERNEL);
-	if (!ring->descriptors) {
+	if (!ring->descs) {
 		dev_err(s->device->class_dev,
 			"mite: ring buffer allocation failed\n");
 		return -ENOMEM;
@@ -531,10 +531,10 @@ int mite_init_ring_descriptors(struct mite_ring *ring,
 
 	/* We set the descriptors for all full links. */
 	for (i = 0; i < n_full_links; ++i) {
-		ring->descriptors[i].count = cpu_to_le32(PAGE_SIZE);
-		ring->descriptors[i].addr =
+		ring->descs[i].count = cpu_to_le32(PAGE_SIZE);
+		ring->descs[i].addr =
 		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
-		ring->descriptors[i].next =
+		ring->descs[i].next =
 		    cpu_to_le32(ring->dma_addr +
 				(i + 1) * sizeof(struct mite_dma_desc));
 	}
@@ -542,15 +542,15 @@ int mite_init_ring_descriptors(struct mite_ring *ring,
 	/* the last link is either a remainder or was a full link. */
 	if (remainder > 0) {
 		/* set the lesser count for the remainder link */
-		ring->descriptors[i].count = cpu_to_le32(remainder);
-		ring->descriptors[i].addr =
+		ring->descs[i].count = cpu_to_le32(remainder);
+		ring->descs[i].addr =
 		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
 		/* increment i so that assignment below refs last link */
 		++i;
 	}
 
 	/* Assign the last link->next to point back to the head of the list. */
-	ring->descriptors[i - 1].next = cpu_to_le32(ring->dma_addr);
+	ring->descs[i - 1].next = cpu_to_le32(ring->dma_addr);
 
 	/*
 	 * barrier is meant to insure that all the writes to the dma descriptors
