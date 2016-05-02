@@ -2291,6 +2291,7 @@ void md_update_sb(struct mddev *mddev, int force_change)
 		return;
 	}
 
+repeat:
 	if (mddev_is_clustered(mddev)) {
 		if (test_and_clear_bit(MD_CHANGE_DEVS, &mddev->flags))
 			force_change = 1;
@@ -2303,7 +2304,7 @@ void md_update_sb(struct mddev *mddev, int force_change)
 			return;
 		}
 	}
-repeat:
+
 	/* First make sure individual recovery_offsets are correct */
 	rdev_for_each(rdev, mddev) {
 		if (rdev->raid_disk >= 0 &&
@@ -2430,6 +2431,9 @@ repeat:
 	md_super_wait(mddev);
 	/* if there was a failure, MD_CHANGE_DEVS was set, and we re-write super */
 
+	if (mddev_is_clustered(mddev) && ret == 0)
+		md_cluster_ops->metadata_update_finish(mddev);
+
 	spin_lock(&mddev->lock);
 	if (mddev->in_sync != sync_req ||
 	    test_bit(MD_CHANGE_DEVS, &mddev->flags)) {
@@ -2452,9 +2456,6 @@ repeat:
 		clear_bit(BlockedBadBlocks, &rdev->flags);
 		wake_up(&rdev->blocked_wait);
 	}
-
-	if (mddev_is_clustered(mddev) && ret == 0)
-		md_cluster_ops->metadata_update_finish(mddev);
 }
 EXPORT_SYMBOL(md_update_sb);
 
@@ -7785,7 +7786,6 @@ void md_do_sync(struct md_thread *thread)
 	struct md_rdev *rdev;
 	char *desc, *action = NULL;
 	struct blk_plug plug;
-	bool cluster_resync_finished = false;
 	int ret;
 
 	/* just incase thread restarts... */
@@ -8103,11 +8103,6 @@ void md_do_sync(struct md_thread *thread)
 		mddev->curr_resync_completed = mddev->curr_resync;
 		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 	}
-	/* tell personality and other nodes that we are finished */
-	if (mddev_is_clustered(mddev)) {
-		md_cluster_ops->resync_finish(mddev);
-		cluster_resync_finished = true;
-	}
 	mddev->pers->sync_request(mddev, max_sectors, &skipped);
 
 	if (!test_bit(MD_RECOVERY_CHECK, &mddev->recovery) &&
@@ -8147,9 +8142,15 @@ void md_do_sync(struct md_thread *thread)
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 
 	if (mddev_is_clustered(mddev) &&
-	    test_bit(MD_RECOVERY_INTR, &mddev->recovery) &&
-	    !cluster_resync_finished)
+	    ret == 0) {
+		/* set CHANGE_PENDING here since maybe another
+		 * update is needed, so other nodes are informed */
+		set_bit(MD_CHANGE_PENDING, &mddev->flags);
+		md_wakeup_thread(mddev->thread);
+		wait_event(mddev->sb_wait,
+			   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
 		md_cluster_ops->resync_finish(mddev);
+	}
 
 	spin_lock(&mddev->lock);
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
