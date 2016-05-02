@@ -1520,8 +1520,10 @@ static int clk_core_set_rate_nolock(struct clk_core *core,
 		return 0;
 
 	/* bail early if nothing to do */
-	if (rate == clk_core_get_rate_nolock(core))
+	if (rate == clk_core_get_rate_nolock(core)) {
+		core->req_rate = req_rate;
 		return 0;
+	}
 
 	if ((core->flags & CLK_SET_RATE_GATE) && core->prepare_count)
 		return -EBUSY;
@@ -1612,9 +1614,14 @@ int clk_set_rate_range(struct clk *clk, unsigned long min, unsigned long max)
 	clk_prepare_lock();
 
 	if (min != clk->min_rate || max != clk->max_rate) {
+		unsigned long rate = clk->core->req_rate;
+
+		if (!rate)
+			rate = clk->core->rate;
+
 		clk->min_rate = min;
 		clk->max_rate = max;
-		ret = clk_core_set_rate_nolock(clk->core, clk->core->req_rate);
+		ret = clk_core_set_rate_nolock(clk->core, rate);
 	}
 
 	clk_prepare_unlock();
@@ -2456,7 +2463,7 @@ static int __clk_init(struct device *dev, struct clk *clk_user)
 		rate = core->parent->rate;
 	else
 		rate = 0;
-	core->rate = core->req_rate = rate;
+	core->rate = rate;
 
 	/*
 	 * walk the list of orphan clocks and reparent any that are children of
@@ -2794,6 +2801,7 @@ int __clk_get(struct clk *clk)
 
 void __clk_put(struct clk *clk)
 {
+	unsigned long rate;
 	struct module *owner;
 
 	if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
@@ -2802,9 +2810,13 @@ void __clk_put(struct clk *clk)
 	clk_prepare_lock();
 
 	hlist_del(&clk->clks_node);
-	if (clk->min_rate > clk->core->req_rate ||
-	    clk->max_rate < clk->core->req_rate)
-		clk_core_set_rate_nolock(clk->core, clk->core->req_rate);
+
+	rate = clk->core->req_rate;
+	if (!rate)
+		rate = clk->core->rate;
+
+	if (clk->min_rate > rate || clk->max_rate < rate)
+		clk_core_set_rate_nolock(clk->core, rate);
 
 	owner = clk->core->owner;
 	kref_put(&clk->core->ref, __clk_release);
