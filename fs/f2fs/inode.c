@@ -368,10 +368,7 @@ no_delete:
 	if (is_inode_flag_set(fi, FI_UPDATE_WRITE))
 		add_ino_entry(sbi, inode->i_ino, UPDATE_INO);
 	if (is_inode_flag_set(fi, FI_FREE_NID)) {
-		if (err && err != -ENOENT)
-			alloc_nid_done(sbi, inode->i_ino);
-		else
-			alloc_nid_failed(sbi, inode->i_ino);
+		alloc_nid_failed(sbi, inode->i_ino);
 		clear_inode_flag(fi, FI_FREE_NID);
 	}
 
@@ -397,37 +394,32 @@ out_clear:
 void handle_failed_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	int err = 0;
+	struct node_info ni;
 
-	clear_nlink(inode);
-	make_bad_inode(inode);
+	/* don't make bad inode, since it becomes a regular file. */
 	unlock_new_inode(inode);
 
-	i_size_write(inode, 0);
-	if (F2FS_HAS_BLOCKS(inode))
-		err = f2fs_truncate(inode, false);
-
-	if (!err)
-		err = remove_inode_page(inode);
-
 	/*
-	 * if we skip truncate_node in remove_inode_page bacause we failed
-	 * before, it's better to find another way to release resource of
-	 * this inode (e.g. valid block count, node block or nid). Here we
-	 * choose to add this inode to orphan list, so that we can call iput
-	 * for releasing in orphan recovery flow.
-	 *
 	 * Note: we should add inode to orphan list before f2fs_unlock_op()
 	 * so we can prevent losing this orphan when encoutering checkpoint
 	 * and following suddenly power-off.
 	 */
-	if (err && err != -ENOENT) {
-		err = acquire_orphan_inode(sbi);
-		if (!err)
+	get_node_info(sbi, inode->i_ino, &ni);
+
+	if (ni.blk_addr != NULL_ADDR) {
+		int err = acquire_orphan_inode(sbi);
+		if (err) {
+			set_sbi_flag(sbi, SBI_NEED_FSCK);
+			f2fs_msg(sbi->sb, KERN_WARNING,
+				"Too many orphan inodes, run fsck to fix.");
+		} else {
 			add_orphan_inode(sbi, inode->i_ino);
+		}
+		alloc_nid_done(sbi, inode->i_ino);
+	} else {
+		set_inode_flag(F2FS_I(inode), FI_FREE_NID);
 	}
 
-	set_inode_flag(F2FS_I(inode), FI_FREE_NID);
 	f2fs_unlock_op(sbi);
 
 	/* iput will drop the inode object */

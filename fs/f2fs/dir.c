@@ -391,9 +391,14 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 			return page;
 
 		if (S_ISDIR(inode->i_mode)) {
+			/* in order to handle error case */
+			get_page(page);
 			err = make_empty_dir(inode, dir, page);
-			if (err)
-				goto error;
+			if (err) {
+				lock_page(page);
+				goto put_error;
+			}
+			put_page(page);
 		}
 
 		err = f2fs_init_acl(inode, dir, page, dpage);
@@ -437,13 +442,12 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 	return page;
 
 put_error:
-	f2fs_put_page(page, 1);
-error:
-	/* once the failed inode becomes a bad inode, i_mode is S_IFREG */
+	/* truncate empty dir pages */
 	truncate_inode_pages(&inode->i_data, 0);
-	truncate_blocks(inode, 0, false);
-	remove_dirty_inode(inode);
-	remove_inode_page(inode);
+
+	clear_nlink(inode);
+	update_inode(inode, page);
+	f2fs_put_page(page, 1);
 	return ERR_PTR(err);
 }
 
