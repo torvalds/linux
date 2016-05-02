@@ -213,12 +213,6 @@ static unsigned int mite_drq_reqs(unsigned int drq_line)
 	return CR_REQS((drq_line & 0x3) | 0x4);
 }
 
-static void mite_dma_reset(struct mite_channel *mite_chan)
-{
-	writel(CHOR_DMARESET | CHOR_FRESET,
-	       mite_chan->mite->mmio + MITE_CHOR(mite_chan->channel));
-}
-
 static unsigned int mite_fifo_size(struct mite *mite, unsigned int channel)
 {
 	unsigned int fcr_bits = readl(mite->mmio + MITE_FCR(channel));
@@ -227,25 +221,6 @@ static unsigned int mite_fifo_size(struct mite *mite, unsigned int channel)
 
 	return empty_count + full_count;
 }
-
-void mite_dma_arm(struct mite_channel *mite_chan)
-{
-	struct mite *mite = mite_chan->mite;
-	unsigned long flags;
-
-	/*
-	 * memory barrier is intended to insure any twiddling with the buffer
-	 * is done before writing to the mite to arm dma transfer
-	 */
-	smp_mb();
-	spin_lock_irqsave(&mite->lock, flags);
-	mite_chan->done = 0;
-	/* arm */
-	writel(CHOR_START, mite->mmio + MITE_CHOR(mite_chan->channel));
-	mmiowb();
-	spin_unlock_irqrestore(&mite->lock, flags);
-}
-EXPORT_SYMBOL_GPL(mite_dma_arm);
 
 static u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 {
@@ -297,15 +272,6 @@ static u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
 	in_transit_count = mite_bytes_in_transit(mite_chan);
 	return mite_device_bytes_transferred(mite_chan) + in_transit_count;
 }
-
-void mite_dma_disarm(struct mite_channel *mite_chan)
-{
-	struct mite *mite = mite_chan->mite;
-
-	/* disarm */
-	writel(CHOR_ABORT, mite->mmio + MITE_CHOR(mite_chan->channel));
-}
-EXPORT_SYMBOL_GPL(mite_dma_disarm);
 
 static void mite_sync_input_dma(struct mite_channel *mite_chan,
 				struct comedi_subdevice *s)
@@ -446,6 +412,48 @@ int mite_done(struct mite_channel *mite_chan)
 	return done;
 }
 EXPORT_SYMBOL_GPL(mite_done);
+
+static void mite_dma_reset(struct mite_channel *mite_chan)
+{
+	writel(CHOR_DMARESET | CHOR_FRESET,
+	       mite_chan->mite->mmio + MITE_CHOR(mite_chan->channel));
+}
+
+/**
+ * mite_dma_arm() - Start a MITE dma transfer.
+ * @mite_chan: MITE dma channel.
+ */
+void mite_dma_arm(struct mite_channel *mite_chan)
+{
+	struct mite *mite = mite_chan->mite;
+	unsigned long flags;
+
+	/*
+	 * memory barrier is intended to insure any twiddling with the buffer
+	 * is done before writing to the mite to arm dma transfer
+	 */
+	smp_mb();
+	spin_lock_irqsave(&mite->lock, flags);
+	mite_chan->done = 0;
+	/* arm */
+	writel(CHOR_START, mite->mmio + MITE_CHOR(mite_chan->channel));
+	mmiowb();
+	spin_unlock_irqrestore(&mite->lock, flags);
+}
+EXPORT_SYMBOL_GPL(mite_dma_arm);
+
+/**
+ * mite_dma_disarm() - Stop a MITE dma transfer.
+ * @mite_chan: MITE dma channel.
+ */
+void mite_dma_disarm(struct mite_channel *mite_chan)
+{
+	struct mite *mite = mite_chan->mite;
+
+	/* disarm */
+	writel(CHOR_ABORT, mite->mmio + MITE_CHOR(mite_chan->channel));
+}
+EXPORT_SYMBOL_GPL(mite_dma_disarm);
 
 /**
  * mite_prep_dma() - Prepare a MITE dma channel for transfers.
