@@ -4903,7 +4903,7 @@ F:	net/ipv4/gre_offload.c
 F:	include/net/gre.h
 
 GRETH 10/100/1G Ethernet MAC device driver
-M:	Kristoffer Glembo <kristoffer@gaisler.com>
+M:	Andreas Larsson <andreas@gaisler.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/aeroflex/
@@ -10014,7 +10014,8 @@ F:	drivers/infiniband/hw/ocrdma/
 
 SFC NETWORK DRIVER
 M:	Solarflare linux maintainers <linux-net-drivers@solarflare.com>
-M:	Shradha Shah <sshah@solarflare.com>
+M:	Edward Cree <ecree@solarflare.com>
+M:	Bert Kenward <bkenward@solarflare.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/sfc/
