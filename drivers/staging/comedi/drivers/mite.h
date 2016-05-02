@@ -43,14 +43,14 @@ struct mite_dma_descriptor_ring {
 };
 
 struct mite_channel {
-	struct mite_struct *mite;
+	struct mite *mite;
 	unsigned int channel;
 	int dir;
 	int done;
 	struct mite_dma_descriptor_ring *ring;
 };
 
-struct mite_struct {
+struct mite {
 	struct pci_dev *pcidev;
 	void __iomem *mite_io_addr;
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
@@ -61,26 +61,26 @@ struct mite_struct {
 	spinlock_t lock;
 };
 
-struct mite_struct *mite_alloc(struct pci_dev *pcidev);
+struct mite *mite_alloc(struct pci_dev *);
 
-int mite_setup2(struct comedi_device *, struct mite_struct *, bool use_win1);
+int mite_setup2(struct comedi_device *, struct mite *, bool use_win1);
 
 static inline int mite_setup(struct comedi_device *dev,
-			     struct mite_struct *mite)
+			     struct mite *mite)
 {
 	return mite_setup2(dev, mite, false);
 }
 
-void mite_detach(struct mite_struct *mite);
-struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite);
+void mite_detach(struct mite *);
+struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite *);
 void mite_free_ring(struct mite_dma_descriptor_ring *ring);
 struct mite_channel *
-mite_request_channel_in_range(struct mite_struct *mite,
+mite_request_channel_in_range(struct mite *,
 			      struct mite_dma_descriptor_ring *ring,
 			      unsigned int min_channel,
 			      unsigned int max_channel);
 static inline struct mite_channel *
-mite_request_channel(struct mite_struct *mite,
+mite_request_channel(struct mite *mite,
 		     struct mite_dma_descriptor_ring *ring)
 {
 	return mite_request_channel_in_range(mite, ring, 0,

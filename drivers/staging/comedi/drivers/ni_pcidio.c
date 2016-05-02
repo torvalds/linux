@@ -284,7 +284,7 @@ static const struct nidio_board nidio_boards[] = {
 };
 
 struct nidio96_private {
-	struct mite_struct *mite;
+	struct mite *mite;
 	int boardtype;
 	int dio;
 	unsigned short OpModeBits;

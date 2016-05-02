@@ -219,9 +219,9 @@ static void mite_dma_reset(struct mite_channel *mite_chan)
 	       mite_chan->mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 }
 
-struct mite_struct *mite_alloc(struct pci_dev *pcidev)
+struct mite *mite_alloc(struct pci_dev *pcidev)
 {
-	struct mite_struct *mite;
+	struct mite *mite;
 	unsigned int i;
 
 	mite = kzalloc(sizeof(*mite), GFP_KERNEL);
@@ -255,8 +255,7 @@ static void dump_chip_signature(u32 csigr_bits)
 		CSIGR_TO_WINS(csigr_bits), CSIGR_TO_IOWINS(csigr_bits));
 }
 
-static unsigned int mite_fifo_size(struct mite_struct *mite,
-				   unsigned int channel)
+static unsigned int mite_fifo_size(struct mite *mite, unsigned int channel)
 {
 	unsigned int fcr_bits = readl(mite->mite_io_addr + MITE_FCR(channel));
 	unsigned int empty_count = (fcr_bits >> 16) & 0xff;
@@ -266,7 +265,7 @@ static unsigned int mite_fifo_size(struct mite_struct *mite,
 }
 
 int mite_setup2(struct comedi_device *dev,
-		struct mite_struct *mite, bool use_win1)
+		struct mite *mite, bool use_win1)
 {
 	resource_size_t daq_phys_addr;
 	unsigned long length;
@@ -344,7 +343,7 @@ int mite_setup2(struct comedi_device *dev,
 }
 EXPORT_SYMBOL_GPL(mite_setup2);
 
-void mite_detach(struct mite_struct *mite)
+void mite_detach(struct mite *mite)
 {
 	if (!mite)
 		return;
@@ -356,7 +355,7 @@ void mite_detach(struct mite_struct *mite)
 }
 EXPORT_SYMBOL_GPL(mite_detach);
 
-struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite)
+struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite *mite)
 {
 	struct mite_dma_descriptor_ring *ring =
 	    kmalloc(sizeof(struct mite_dma_descriptor_ring), GFP_KERNEL);
@@ -392,7 +391,7 @@ void mite_free_ring(struct mite_dma_descriptor_ring *ring)
 EXPORT_SYMBOL_GPL(mite_free_ring);
 
 struct mite_channel *
-mite_request_channel_in_range(struct mite_struct *mite,
+mite_request_channel_in_range(struct mite *mite,
 			      struct mite_dma_descriptor_ring *ring,
 			      unsigned int min_channel,
 			      unsigned int max_channel)
@@ -421,7 +420,7 @@ EXPORT_SYMBOL_GPL(mite_request_channel_in_range);
 
 void mite_release_channel(struct mite_channel *mite_chan)
 {
-	struct mite_struct *mite = mite_chan->mite;
+	struct mite *mite = mite_chan->mite;
 	unsigned long flags;
 
 	/* spin lock to prevent races with mite_request_channel */
@@ -448,7 +447,7 @@ EXPORT_SYMBOL_GPL(mite_release_channel);
 
 void mite_dma_arm(struct mite_channel *mite_chan)
 {
-	struct mite_struct *mite = mite_chan->mite;
+	struct mite *mite = mite_chan->mite;
 	int chor;
 	unsigned long flags;
 
@@ -566,8 +565,8 @@ EXPORT_SYMBOL_GPL(mite_init_ring_descriptors);
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits)
 {
+	struct mite *mite = mite_chan->mite;
 	unsigned int chcr, mcr, dcr, lkcr;
-	struct mite_struct *mite = mite_chan->mite;
 
 	mite_dma_reset(mite_chan);
 
@@ -650,14 +649,14 @@ EXPORT_SYMBOL_GPL(mite_prep_dma);
 
 static u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 {
-	struct mite_struct *mite = mite_chan->mite;
+	struct mite *mite = mite_chan->mite;
 
 	return readl(mite->mite_io_addr + MITE_DAR(mite_chan->channel));
 }
 
 u32 mite_bytes_in_transit(struct mite_channel *mite_chan)
 {
-	struct mite_struct *mite = mite_chan->mite;
+	struct mite *mite = mite_chan->mite;
 
 	return readl(mite->mite_io_addr +
 		     MITE_FCR(mite_chan->channel)) & 0x000000FF;
@@ -702,7 +701,7 @@ static u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
 
 void mite_dma_disarm(struct mite_channel *mite_chan)
 {
-	struct mite_struct *mite = mite_chan->mite;
+	struct mite *mite = mite_chan->mite;
 	unsigned int chor;
 
 	/* disarm */
@@ -798,7 +797,7 @@ EXPORT_SYMBOL_GPL(mite_sync_dma);
 
 static unsigned int mite_get_status(struct mite_channel *mite_chan)
 {
-	struct mite_struct *mite = mite_chan->mite;
+	struct mite *mite = mite_chan->mite;
 	unsigned int status;
 	unsigned long flags;
 
@@ -818,7 +817,7 @@ void mite_ack_linkc(struct mite_channel *mite_chan,
 		    struct comedi_subdevice *s,
 		    bool sync)
 {
-	struct mite_struct *mite = mite_chan->mite;
+	struct mite *mite = mite_chan->mite;
 	unsigned int status;
 
 	status = mite_get_status(mite_chan);
@@ -840,7 +839,7 @@ EXPORT_SYMBOL_GPL(mite_ack_linkc);
 
 int mite_done(struct mite_channel *mite_chan)
 {
-	struct mite_struct *mite = mite_chan->mite;
+	struct mite *mite = mite_chan->mite;
 	unsigned long flags;
 	int done;
 

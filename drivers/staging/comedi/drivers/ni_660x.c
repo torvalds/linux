@@ -253,7 +253,7 @@ static const struct ni_660x_board ni_660x_boards[] = {
 					 NI660X_COUNTERS_PER_CHIP)
 
 struct ni_660x_private {
-	struct mite_struct *mite;
+	struct mite *mite;
 	struct ni_gpct_device *counter_dev;
 	struct mite_dma_descriptor_ring
 	*mite_rings[NI660X_MAX_CHIPS][NI660X_COUNTERS_PER_CHIP];

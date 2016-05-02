@@ -1033,7 +1033,7 @@ struct ni_private {
 	u8 eeprom_buffer[M_SERIES_EEPROM_SIZE];
 	__be32 serial_number;
 
-	struct mite_struct *mite;
+	struct mite *mite;
 	struct mite_channel *ai_mite_chan;
 	struct mite_channel *ao_mite_chan;
 	struct mite_channel *cdo_mite_chan;
