@@ -98,6 +98,7 @@ struct tipc_sock {
 	bool link_cong;
 	uint sent_unacked;
 	uint rcv_unacked;
+	u16 peer_caps;
 	struct sockaddr_tipc remote;
 	struct rhash_head node;
 	struct rcu_head rcu;
@@ -1118,6 +1119,7 @@ static void tipc_sk_finish_conn(struct tipc_sock *tsk, u32 peer_port,
 	sk_reset_timer(sk, &sk->sk_timer, jiffies + tsk->probing_intv);
 	tipc_node_add_conn(net, peer_node, tsk->portid, peer_port);
 	tsk->max_pkt = tipc_node_get_mtu(net, peer_node, tsk->portid);
+	tsk->peer_caps = tipc_node_get_capabilities(net, peer_node);
 }
 
 /**
