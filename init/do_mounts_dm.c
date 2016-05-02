@@ -176,7 +176,8 @@ static void __init dm_substitute_devices(char *str, size_t str_len)
 			continue;
 
 		/* Temporarily terminate with a nul */
-		candidate_end--;
+		if (*candidate_end)
+			candidate_end--;
 		old_char = *candidate_end;
 		*candidate_end = '\0';
 
