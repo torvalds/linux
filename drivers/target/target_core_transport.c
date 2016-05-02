@@ -436,7 +436,8 @@ static void target_release_session(struct kref *kref)
 			struct se_session, sess_kref);
 	struct se_portal_group *se_tpg = se_sess->se_tpg;
 
-	se_tpg->se_tpg_tfo->close_session(se_sess);
+	if (se_tpg->se_tpg_tfo->close_session)
+		se_tpg->se_tpg_tfo->close_session(se_sess);
 }
 
 int target_get_session(struct se_session *se_sess)

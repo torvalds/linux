@@ -601,11 +601,6 @@ static int tcm_loop_get_cmd_state(struct se_cmd *se_cmd)
 	return tl_cmd->sc_cmd_state;
 }
 
-static void tcm_loop_close_session(struct se_session *se_sess)
-{
-	return;
-};
-
 static int tcm_loop_write_pending(struct se_cmd *se_cmd)
 {
 	/*
@@ -1238,7 +1233,6 @@ static const struct target_core_fabric_ops loop_ops = {
 	.tpg_get_inst_index		= tcm_loop_get_inst_index,
 	.check_stop_free		= tcm_loop_check_stop_free,
 	.release_cmd			= tcm_loop_release_cmd,
-	.close_session			= tcm_loop_close_session,
 	.sess_get_index			= tcm_loop_sess_get_index,
 	.write_pending			= tcm_loop_write_pending,
 	.write_pending_status		= tcm_loop_write_pending_status,
