@@ -3908,6 +3908,17 @@ F:	drivers/gpu/drm/etnaviv/
 F:	include/uapi/drm/etnaviv_drm.h
 F:	Documentation/devicetree/bindings/display/etnaviv/
 
+DRM DRIVER FOR VMWARE VIRTUAL GPU
+M:	"VMware Graphics" <linux-graphics-maintainer@vmware.com>
+M:	Sinclair Yeh <syeh@vmware.com>
+M:	Thomas Hellstrom <thellstrom@vmware.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~syeh/repos_linux
+T:	git git://people.freedesktop.org/~thomash/linux
+S:	Supported
+F:	drivers/gpu/drm/vmwgfx/
+F:	include/uapi/drm/vmwgfx_drm.h
+
 DSBR100 USB FM RADIO DRIVER
 M:	Alexey Klimov <klimov.linux@gmail.com>
 L:	linux-media@vger.kernel.org
