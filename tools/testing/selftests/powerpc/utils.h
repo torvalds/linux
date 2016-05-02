@@ -6,6 +6,8 @@
 #ifndef _SELFTESTS_POWERPC_UTILS_H
 #define _SELFTESTS_POWERPC_UTILS_H
 
+#define __cacheline_aligned __attribute__((aligned(128)))
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <linux/auxvec.h>
@@ -53,5 +55,10 @@ do {								\
 
 #define _str(s) #s
 #define str(s) _str(s)
+
+/* POWER9 feature */
+#ifndef PPC_FEATURE2_ARCH_3_00
+#define PPC_FEATURE2_ARCH_3_00 0x00800000
+#endif
 
 #endif /* _SELFTESTS_POWERPC_UTILS_H */
