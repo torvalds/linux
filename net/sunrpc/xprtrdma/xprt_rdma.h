@@ -222,8 +222,8 @@ enum rpcrdma_frmr_state {
 };
 
 struct rpcrdma_frmr {
-	struct scatterlist		*sg;
-	int				sg_nents;
+	struct scatterlist		*fr_sg;
+	int				fr_nents;
 	struct ib_mr			*fr_mr;
 	struct ib_cqe			fr_cqe;
 	enum rpcrdma_frmr_state		fr_state;
