@@ -165,11 +165,8 @@ static unsigned int sh_mobile_sdhi_clk_update(struct tmio_mmc_host *host,
 					      unsigned int new_clock)
 {
 	struct sh_mobile_sdhi *priv = host_to_priv(host);
-	unsigned int freq, best_freq, diff_min, diff;
+	unsigned int freq, diff, best_freq = 0, diff_min = ~0;
 	int i;
-
-	diff_min = ~0;
-	best_freq = 0;
 
 	/*
 	 * We want the bus clock to be as close as possible to, but no
