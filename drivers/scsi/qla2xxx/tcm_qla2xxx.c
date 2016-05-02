@@ -339,22 +339,6 @@ static void tcm_qla2xxx_release_cmd(struct se_cmd *se_cmd)
 	qlt_free_cmd(cmd);
 }
 
-static int tcm_qla2xxx_shutdown_session(struct se_session *se_sess)
-{
-	struct qla_tgt_sess *sess = se_sess->fabric_sess_ptr;
-	struct scsi_qla_host *vha;
-	unsigned long flags;
-
-	BUG_ON(!sess);
-	vha = sess->vha;
-
-	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
-	target_sess_cmd_list_set_waiting(se_sess);
-	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
-
-	return 1;
-}
-
 static void tcm_qla2xxx_close_session(struct se_session *se_sess)
 {
 	struct qla_tgt_sess *sess = se_sess->fabric_sess_ptr;
@@ -365,7 +349,8 @@ static void tcm_qla2xxx_close_session(struct se_session *se_sess)
 	vha = sess->vha;
 
 	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
-	qlt_unreg_sess(sess);
+	target_sess_cmd_list_set_waiting(se_sess);
+	qlt_put_sess(sess);
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 }
 
@@ -756,23 +741,6 @@ static void tcm_qla2xxx_clear_nacl_from_fcport_map(struct qla_tgt_sess *sess)
 	 * and incoming ATIOs or TMRs picking up a stale se_node_act reference.
 	 */
 	tcm_qla2xxx_clear_sess_lookup(lport, nacl, sess);
-}
-
-static void tcm_qla2xxx_release_session(struct kref *kref)
-{
-	struct se_session *se_sess = container_of(kref,
-			struct se_session, sess_kref);
-
-	qlt_unreg_sess(se_sess->fabric_sess_ptr);
-}
-
-static void tcm_qla2xxx_put_sess(struct qla_tgt_sess *sess)
-{
-	if (!sess)
-		return;
-
-	assert_spin_locked(&sess->vha->hw->tgt.sess_lock);
-	kref_put(&sess->se_sess->sess_kref, tcm_qla2xxx_release_session);
 }
 
 static void tcm_qla2xxx_shutdown_sess(struct qla_tgt_sess *sess)
@@ -1579,7 +1547,6 @@ static struct qla_tgt_func_tmpl tcm_qla2xxx_template = {
 	.find_sess_by_s_id	= tcm_qla2xxx_find_sess_by_s_id,
 	.find_sess_by_loop_id	= tcm_qla2xxx_find_sess_by_loop_id,
 	.clear_nacl_from_fcport_map = tcm_qla2xxx_clear_nacl_from_fcport_map,
-	.put_sess		= tcm_qla2xxx_put_sess,
 	.shutdown_sess		= tcm_qla2xxx_shutdown_sess,
 };
 
@@ -1847,7 +1814,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
 	.check_stop_free		= tcm_qla2xxx_check_stop_free,
 	.release_cmd			= tcm_qla2xxx_release_cmd,
-	.shutdown_session		= tcm_qla2xxx_shutdown_session,
 	.close_session			= tcm_qla2xxx_close_session,
 	.sess_get_index			= tcm_qla2xxx_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
@@ -1890,7 +1856,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
 	.check_stop_free                = tcm_qla2xxx_check_stop_free,
 	.release_cmd			= tcm_qla2xxx_release_cmd,
-	.shutdown_session		= tcm_qla2xxx_shutdown_session,
 	.close_session			= tcm_qla2xxx_close_session,
 	.sess_get_index			= tcm_qla2xxx_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
