@@ -499,8 +499,8 @@ void transport_deregister_session_configfs(struct se_session *se_sess)
 	se_nacl = se_sess->se_node_acl;
 	if (se_nacl) {
 		spin_lock_irqsave(&se_nacl->nacl_sess_lock, flags);
-		if (se_nacl->acl_stop == 0)
-			list_del(&se_sess->sess_acl_list);
+		if (!list_empty(&se_sess->sess_acl_list))
+			list_del_init(&se_sess->sess_acl_list);
 		/*
 		 * If the session list is empty, then clear the pointer.
 		 * Otherwise, set the struct se_session pointer from the tail
