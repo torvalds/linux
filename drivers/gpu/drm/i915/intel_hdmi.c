@@ -836,6 +836,22 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 	intel_hdmi_set_hdmi_infoframe(encoder, adjusted_mode);
 }
 
+void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_hdmi_to_dev(hdmi));
+	struct i2c_adapter *adapter =
+		intel_gmbus_get_adapter(dev_priv, hdmi->ddc_bus);
+
+	if (hdmi->dp_dual_mode.type < DRM_DP_DUAL_MODE_TYPE2_DVI)
+		return;
+
+	DRM_DEBUG_KMS("%s DP dual mode adaptor TMDS output\n",
+		      enable ? "Enabling" : "Disabling");
+
+	drm_dp_dual_mode_set_tmds_output(hdmi->dp_dual_mode.type,
+					 adapter, enable);
+}
+
 static void intel_hdmi_prepare(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -844,6 +860,8 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder)
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	u32 hdmi_val;
+
+	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
 
 	hdmi_val = SDVO_ENCODING_HDMI;
 	if (!HAS_PCH_SPLIT(dev) && crtc->config->limited_color_range)
@@ -1140,6 +1158,8 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	}
 
 	intel_hdmi->set_infoframes(&encoder->base, false, NULL);
+
+	intel_dp_dual_mode_set_tmds_output(intel_hdmi, false);
 }
 
 static void g4x_disable_hdmi(struct intel_encoder *encoder)
