@@ -282,11 +282,11 @@ static struct rockchip_clk_branch rk3399_uart4_pmu_fracmux __initdata =
 			RK3399_PMU_CLKSEL_CON(5), 8, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3399_dclk_vop0_fracmux __initdata =
-	MUX(DCLK_VOP0, "dclk_vop0", mux_dclk_vop0_p, CLK_SET_RATE_PARENT,
+	MUX(DCLK_VOP0, "dclk_vop0", mux_dclk_vop0_p, CLK_SET_RATE_PARENT | CLK_KEEP_REQ_RATE,
 			RK3399_CLKSEL_CON(49), 11, 1, MFLAGS);
 
 static struct rockchip_clk_branch rk3399_dclk_vop1_fracmux __initdata =
-	MUX(DCLK_VOP1, "dclk_vop1", mux_dclk_vop1_p, CLK_SET_RATE_PARENT,
+	MUX(DCLK_VOP1, "dclk_vop1", mux_dclk_vop1_p, CLK_SET_RATE_PARENT | CLK_KEEP_REQ_RATE,
 			RK3399_CLKSEL_CON(50), 11, 1, MFLAGS);
 
 static struct rockchip_clk_branch rk3399_pmuclk_wifi_fracmux __initdata =
