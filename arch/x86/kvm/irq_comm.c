@@ -391,21 +391,16 @@ void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
 			       kvm->arch.nr_reserved_ioapic_pins);
 	for (i = 0; i < nr_ioapic_pins; ++i) {
 		hlist_for_each_entry(entry, &table->map[i], link) {
-			u32 dest_id, dest_mode;
-			bool level;
+			struct kvm_lapic_irq irq;
 
 			if (entry->type != KVM_IRQ_ROUTING_MSI)
 				continue;
-			dest_id = (entry->msi.address_lo >> 12) & 0xff;
-			dest_mode = (entry->msi.address_lo >> 2) & 0x1;
-			level = entry->msi.data & MSI_DATA_TRIGGER_LEVEL;
-			if (level && kvm_apic_match_dest(vcpu, NULL, 0,
-						dest_id, dest_mode)) {
-				u32 vector = entry->msi.data & 0xff;
 
-				__set_bit(vector,
-					  ioapic_handled_vectors);
-			}
+			kvm_set_msi_irq(entry, &irq);
+
+			if (irq.level && kvm_apic_match_dest(vcpu, NULL, 0,
+						irq.dest_id, irq.dest_mode))
+				__set_bit(irq.vector, ioapic_handled_vectors);
 		}
 	}
 	srcu_read_unlock(&kvm->irq_srcu, idx);
