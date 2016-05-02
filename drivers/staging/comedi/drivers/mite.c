@@ -516,6 +516,7 @@ int mite_init_ring_descriptors(struct mite_ring *ring,
 			       unsigned int nbytes)
 {
 	struct comedi_async *async = s->async;
+	struct mite_dma_desc *desc = NULL;
 	unsigned int n_full_links = nbytes >> PAGE_SHIFT;
 	unsigned int remainder = nbytes % PAGE_SIZE;
 	int i;
@@ -531,26 +532,23 @@ int mite_init_ring_descriptors(struct mite_ring *ring,
 
 	/* We set the descriptors for all full links. */
 	for (i = 0; i < n_full_links; ++i) {
-		ring->descs[i].count = cpu_to_le32(PAGE_SIZE);
-		ring->descs[i].addr =
-		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
-		ring->descs[i].next =
-		    cpu_to_le32(ring->dma_addr +
-				(i + 1) * sizeof(struct mite_dma_desc));
+		desc = &ring->descs[i];
+		desc->count = cpu_to_le32(PAGE_SIZE);
+		desc->addr = cpu_to_le32(async->buf_map->page_list[i].dma_addr);
+		desc->next = cpu_to_le32(ring->dma_addr +
+					 (i + 1) * sizeof(*desc));
 	}
 
 	/* the last link is either a remainder or was a full link. */
 	if (remainder > 0) {
+		desc = &ring->descs[i];
 		/* set the lesser count for the remainder link */
-		ring->descs[i].count = cpu_to_le32(remainder);
-		ring->descs[i].addr =
-		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
-		/* increment i so that assignment below refs last link */
-		++i;
+		desc->count = cpu_to_le32(remainder);
+		desc->addr = cpu_to_le32(async->buf_map->page_list[i].dma_addr);
 	}
 
 	/* Assign the last link->next to point back to the head of the list. */
-	ring->descs[i - 1].next = cpu_to_le32(ring->dma_addr);
+	desc->next = cpu_to_le32(ring->dma_addr);
 
 	/*
 	 * barrier is meant to insure that all the writes to the dma descriptors
