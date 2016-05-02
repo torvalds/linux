@@ -400,7 +400,7 @@ con3270_deactivate(struct raw3270_view *view)
 	del_timer(&cp->timer);
 }
 
-static int
+static void
 con3270_irq(struct con3270 *cp, struct raw3270_request *rq, struct irb *irb)
 {
 	/* Handle ATTN. Schedule tasklet to read aid. */
@@ -418,7 +418,6 @@ con3270_irq(struct con3270 *cp, struct raw3270_request *rq, struct irb *irb)
 		cp->update_flags = CON_UPDATE_ALL;
 		con3270_set_timer(cp, 1);
 	}
-	return RAW3270_IO_DONE;
 }
 
 /* Console view to a 3270 device. */

@@ -645,7 +645,7 @@ tty3270_deactivate(struct raw3270_view *view)
 	del_timer(&tp->timer);
 }
 
-static int
+static void
 tty3270_irq(struct tty3270 *tp, struct raw3270_request *rq, struct irb *irb)
 {
 	/* Handle ATTN. Schedule tasklet to read aid. */
@@ -667,7 +667,6 @@ tty3270_irq(struct tty3270 *tp, struct raw3270_request *rq, struct irb *irb)
 		tp->update_flags = TTY_UPDATE_ALL;
 		tty3270_set_timer(tp, 1);
 	}
-	return RAW3270_IO_DONE;
 }
 
 /*
