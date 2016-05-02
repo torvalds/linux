@@ -335,8 +335,7 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
 	mm->context.active = 0;
 
 #ifdef CONFIG_PPC_MM_SLICES
-	if (slice_mm_new_context(mm))
-		slice_set_user_psize(mm, mmu_virtual_psize);
+	slice_set_user_psize(mm, mmu_virtual_psize);
 #endif
 
 	return 0;
