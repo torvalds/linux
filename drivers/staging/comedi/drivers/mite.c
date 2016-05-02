@@ -392,9 +392,9 @@ struct mite_channel *mite_request_channel_in_range(struct mite *mite,
 						   unsigned int min_channel,
 						   unsigned int max_channel)
 {
-	int i;
+	struct mite_channel *mite_chan = NULL;
 	unsigned long flags;
-	struct mite_channel *channel = NULL;
+	int i;
 
 	/*
 	 * spin lock so mite_release_channel can be called safely
@@ -402,15 +402,15 @@ struct mite_channel *mite_request_channel_in_range(struct mite *mite,
 	 */
 	spin_lock_irqsave(&mite->lock, flags);
 	for (i = min_channel; i <= max_channel; ++i) {
-		if (mite->channel_allocated[i] == 0) {
-			mite->channel_allocated[i] = 1;
-			channel = &mite->channels[i];
-			channel->ring = ring;
+		mite_chan = &mite->channels[i];
+		if (!mite_chan->ring) {
+			mite_chan->ring = ring;
 			break;
 		}
+		mite_chan = NULL;
 	}
 	spin_unlock_irqrestore(&mite->lock, flags);
-	return channel;
+	return mite_chan;
 }
 EXPORT_SYMBOL_GPL(mite_request_channel_in_range);
 
@@ -421,7 +421,7 @@ void mite_release_channel(struct mite_channel *mite_chan)
 
 	/* spin lock to prevent races with mite_request_channel */
 	spin_lock_irqsave(&mite->lock, flags);
-	if (mite->channel_allocated[mite_chan->channel]) {
+	if (mite_chan->ring) {
 		mite_dma_disarm(mite_chan);
 		mite_dma_reset(mite_chan);
 		/*
@@ -433,7 +433,6 @@ void mite_release_channel(struct mite_channel *mite_chan)
 		       CHCR_CLR_MRDY_IE | CHCR_CLR_DRDY_IE |
 		       CHCR_CLR_LC_IE | CHCR_CLR_CONT_RB_IE,
 		       mite->mmio + MITE_CHCR(mite_chan->channel));
-		mite->channel_allocated[mite_chan->channel] = 0;
 		mite_chan->ring = NULL;
 		mmiowb();
 	}

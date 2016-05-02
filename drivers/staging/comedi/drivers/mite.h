@@ -54,7 +54,6 @@ struct mite {
 	struct pci_dev *pcidev;
 	void __iomem *mmio;
 	struct mite_channel channels[MAX_MITE_DMA_CHANNELS];
-	short channel_allocated[MAX_MITE_DMA_CHANNELS];
 	int num_channels;
 	unsigned int fifo_size;
 	/* protects mite_channel from being released by the driver */
