@@ -362,7 +362,15 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		   sb, sb_index,
 		   p_ramrod->outer_tag);
 
-	return qed_spq_post(p_hwfn, p_ent, NULL);
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+
+	if (p_tunn) {
+		qed_set_hw_tunn_mode(p_hwfn, p_hwfn->p_main_ptt,
+				     p_tunn->tunn_mode);
+		p_hwfn->cdev->tunn_mode = p_tunn->tunn_mode;
+	}
+
+	return rc;
 }
 
 /* Set pf update ramrod command params */
