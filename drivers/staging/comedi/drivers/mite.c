@@ -355,11 +355,11 @@ void mite_detach(struct mite *mite)
 }
 EXPORT_SYMBOL_GPL(mite_detach);
 
-struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite *mite)
+struct mite_ring *mite_alloc_ring(struct mite *mite)
 {
-	struct mite_dma_descriptor_ring *ring =
-	    kmalloc(sizeof(struct mite_dma_descriptor_ring), GFP_KERNEL);
+	struct mite_ring *ring;
 
+	ring = kmalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
 		return NULL;
 	ring->hw_dev = get_device(&mite->pcidev->dev);
@@ -374,7 +374,7 @@ struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite *mite)
 };
 EXPORT_SYMBOL_GPL(mite_alloc_ring);
 
-void mite_free_ring(struct mite_dma_descriptor_ring *ring)
+void mite_free_ring(struct mite_ring *ring)
 {
 	if (ring) {
 		if (ring->descriptors) {
@@ -390,11 +390,10 @@ void mite_free_ring(struct mite_dma_descriptor_ring *ring)
 };
 EXPORT_SYMBOL_GPL(mite_free_ring);
 
-struct mite_channel *
-mite_request_channel_in_range(struct mite *mite,
-			      struct mite_dma_descriptor_ring *ring,
-			      unsigned int min_channel,
-			      unsigned int max_channel)
+struct mite_channel *mite_request_channel_in_range(struct mite *mite,
+						   struct mite_ring *ring,
+						   unsigned int min_channel,
+						   unsigned int max_channel)
 {
 	int i;
 	unsigned long flags;
@@ -468,7 +467,7 @@ EXPORT_SYMBOL_GPL(mite_dma_arm);
 
 /**************************************/
 
-int mite_buf_change(struct mite_dma_descriptor_ring *ring,
+int mite_buf_change(struct mite_ring *ring,
 		    struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
@@ -512,7 +511,7 @@ EXPORT_SYMBOL_GPL(mite_buf_change);
  * DMA data buffer.  A command may call this function later to re-initialize and
  * shorten the amount of memory that will be transferred.
  */
-int mite_init_ring_descriptors(struct mite_dma_descriptor_ring *ring,
+int mite_init_ring_descriptors(struct mite_ring *ring,
 			       struct comedi_subdevice *s,
 			       unsigned int nbytes)
 {

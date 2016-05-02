@@ -1037,10 +1037,10 @@ struct ni_private {
 	struct mite_channel *ai_mite_chan;
 	struct mite_channel *ao_mite_chan;
 	struct mite_channel *cdo_mite_chan;
-	struct mite_dma_descriptor_ring *ai_mite_ring;
-	struct mite_dma_descriptor_ring *ao_mite_ring;
-	struct mite_dma_descriptor_ring *cdo_mite_ring;
-	struct mite_dma_descriptor_ring *gpct_mite_ring[NUM_GPCT];
+	struct mite_ring *ai_mite_ring;
+	struct mite_ring *ao_mite_ring;
+	struct mite_ring *cdo_mite_ring;
+	struct mite_ring *gpct_mite_ring[NUM_GPCT];
 
 	/* ni_pcimio board type flags (based on the boardinfo reg_type) */
 	unsigned int is_m_series:1;

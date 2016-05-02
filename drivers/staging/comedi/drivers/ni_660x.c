@@ -255,8 +255,7 @@ static const struct ni_660x_board ni_660x_boards[] = {
 struct ni_660x_private {
 	struct mite *mite;
 	struct ni_gpct_device *counter_dev;
-	struct mite_dma_descriptor_ring
-	*mite_rings[NI660X_MAX_CHIPS][NI660X_COUNTERS_PER_CHIP];
+	struct mite_ring *ring[NI660X_MAX_CHIPS][NI660X_COUNTERS_PER_CHIP];
 	/* protects mite channel request/release */
 	spinlock_t mite_channel_lock;
 	/* prevents races between interrupt and comedi_poll */
@@ -339,12 +338,12 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 					enum comedi_io_direction direction)
 {
 	struct ni_660x_private *devpriv = dev->private;
-	struct mite_dma_descriptor_ring *ring;
+	struct mite_ring *ring;
 	struct mite_channel *mite_chan;
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	ring = devpriv->mite_rings[counter->chip_index][counter->counter_index];
+	ring = devpriv->ring[counter->chip_index][counter->counter_index];
 	mite_chan = mite_request_channel(devpriv->mite, ring);
 	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
@@ -470,10 +469,10 @@ static int ni_660x_buf_change(struct comedi_device *dev,
 {
 	struct ni_660x_private *devpriv = dev->private;
 	struct ni_gpct *counter = s->private;
-	struct mite_dma_descriptor_ring *ring;
+	struct mite_ring *ring;
 	int ret;
 
-	ring = devpriv->mite_rings[counter->chip_index][counter->counter_index];
+	ring = devpriv->ring[counter->chip_index][counter->counter_index];
 	ret = mite_buf_change(ring, s);
 	if (ret < 0)
 		return ret;
@@ -507,9 +506,8 @@ static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 
 	for (i = 0; i < board->n_chips; ++i) {
 		for (j = 0; j < NI660X_COUNTERS_PER_CHIP; ++j) {
-			devpriv->mite_rings[i][j] =
-			    mite_alloc_ring(devpriv->mite);
-			if (!devpriv->mite_rings[i][j])
+			devpriv->ring[i][j] = mite_alloc_ring(devpriv->mite);
+			if (!devpriv->ring[i][j])
 				return -ENOMEM;
 		}
 	}
@@ -525,7 +523,7 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 
 	for (i = 0; i < board->n_chips; ++i) {
 		for (j = 0; j < NI660X_COUNTERS_PER_CHIP; ++j)
-			mite_free_ring(devpriv->mite_rings[i][j]);
+			mite_free_ring(devpriv->ring[i][j]);
 	}
 }
 

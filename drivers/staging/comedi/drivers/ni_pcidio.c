@@ -289,7 +289,7 @@ struct nidio96_private {
 	int dio;
 	unsigned short OpModeBits;
 	struct mite_channel *di_mite_chan;
-	struct mite_dma_descriptor_ring *di_mite_ring;
+	struct mite_ring *di_mite_ring;
 	spinlock_t mite_channel_lock;
 };
 

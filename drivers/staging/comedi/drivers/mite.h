@@ -35,7 +35,7 @@ struct mite_dma_desc {
 	u32 dar;
 };
 
-struct mite_dma_descriptor_ring {
+struct mite_ring {
 	struct device *hw_dev;
 	unsigned int n_links;
 	struct mite_dma_desc *descriptors;
@@ -47,7 +47,7 @@ struct mite_channel {
 	unsigned int channel;
 	int dir;
 	int done;
-	struct mite_dma_descriptor_ring *ring;
+	struct mite_ring *ring;
 };
 
 struct mite {
@@ -72,16 +72,15 @@ static inline int mite_setup(struct comedi_device *dev,
 }
 
 void mite_detach(struct mite *);
-struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite *);
-void mite_free_ring(struct mite_dma_descriptor_ring *ring);
-struct mite_channel *
-mite_request_channel_in_range(struct mite *,
-			      struct mite_dma_descriptor_ring *ring,
-			      unsigned int min_channel,
-			      unsigned int max_channel);
-static inline struct mite_channel *
-mite_request_channel(struct mite *mite,
-		     struct mite_dma_descriptor_ring *ring)
+struct mite_ring *mite_alloc_ring(struct mite *);
+void mite_free_ring(struct mite_ring *ring);
+struct mite_channel *mite_request_channel_in_range(struct mite *,
+						   struct mite_ring *,
+						   unsigned int min_channel,
+						   unsigned int max_channel);
+
+static inline struct mite_channel *mite_request_channel(struct mite *mite,
+							struct mite_ring *ring)
 {
 	return mite_request_channel_in_range(mite, ring, 0,
 					     mite->num_channels - 1);
@@ -99,10 +98,8 @@ int mite_done(struct mite_channel *mite_chan);
 
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits);
-int mite_buf_change(struct mite_dma_descriptor_ring *ring,
-		    struct comedi_subdevice *s);
-int mite_init_ring_descriptors(struct mite_dma_descriptor_ring *ring,
-			       struct comedi_subdevice *s,
+int mite_buf_change(struct mite_ring *, struct comedi_subdevice *);
+int mite_init_ring_descriptors(struct mite_ring *, struct comedi_subdevice *,
 			       unsigned int nbytes);
 
 /*
