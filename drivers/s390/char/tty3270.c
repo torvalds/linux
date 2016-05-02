@@ -924,10 +924,8 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		tty->winsize.ws_row = tp->view.rows - 2;
 		tty->winsize.ws_col = tp->view.cols;
 		tp->port.low_latency = 0;
-		/* why to reassign? */
-		tty_port_tty_set(&tp->port, tty);
 		tp->inattr = TF_INPUT;
-		return tty_port_install(&tp->port, driver, tty);
+		goto port_install;
 	}
 	if (tty3270_max_index < tty->index + 1)
 		tty3270_max_index = tty->index + 1;
@@ -953,7 +951,6 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		return rc;
 	}
 
-	tty_port_tty_set(&tp->port, tty);
 	tp->port.low_latency = 0;
 	tty->winsize.ws_row = tp->view.rows - 2;
 	tty->winsize.ws_col = tp->view.cols;
@@ -975,6 +972,7 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	raw3270_activate_view(&tp->view);
 
+port_install:
 	rc = tty_port_install(&tp->port, driver, tty);
 	if (rc) {
 		raw3270_put_view(&tp->view);
@@ -1011,18 +1009,18 @@ tty3270_close(struct tty_struct *tty, struct file * filp)
 
 	if (tty->count > 1)
 		return;
-	if (tp) {
-		tty->driver_data = NULL;
+	if (tp)
 		tty_port_tty_set(&tp->port, NULL);
-	}
 }
 
 static void tty3270_cleanup(struct tty_struct *tty)
 {
 	struct tty3270 *tp = tty->driver_data;
 
-	if (tp)
+	if (tp) {
+		tty->driver_data = NULL;
 		raw3270_put_view(&tp->view);
+	}
 }
 
 /*
