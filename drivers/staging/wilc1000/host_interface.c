@@ -376,7 +376,7 @@ static void handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 
 static void handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 {
-	s32 result = 0;
+	int result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_IP_ADDRESS;
