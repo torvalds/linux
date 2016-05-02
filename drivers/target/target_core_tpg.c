@@ -353,7 +353,10 @@ restart:
 		list_del_init(&sess->sess_acl_list);
 
 		spin_unlock_irqrestore(&acl->nacl_sess_lock, flags);
-		ret = acl->se_tpg->se_tpg_tfo->shutdown_session(sess);
+		if (acl->se_tpg->se_tpg_tfo->shutdown_session)
+			ret = acl->se_tpg->se_tpg_tfo->shutdown_session(sess);
+		else
+			ret = 1;
 		target_put_session(sess);
 		if (ret)
 			target_put_session(sess);

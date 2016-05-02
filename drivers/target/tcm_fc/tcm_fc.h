@@ -139,7 +139,6 @@ extern unsigned int ft_debug_logging;
  * Session ops.
  */
 void ft_sess_put(struct ft_sess *);
-int ft_sess_shutdown(struct se_session *);
 void ft_sess_close(struct se_session *);
 u32 ft_sess_get_index(struct se_session *);
 u32 ft_sess_get_port_name(struct se_session *, unsigned char *, u32);
