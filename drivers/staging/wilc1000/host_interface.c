@@ -394,7 +394,7 @@ static void handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 	if (memcmp(get_ip[idx], set_ip[idx], IP_ALEN) != 0)
 		wilc_setup_ipaddress(vif, set_ip[idx], idx);
 
-	if (ret != 0)
+	if (ret)
 		netdev_err(vif->ndev, "Failed to get IP address\n");
 }
 
