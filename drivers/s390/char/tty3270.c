@@ -92,6 +92,7 @@ struct tty3270 {
 	unsigned char inattr;		/* Visible/invisible input. */
 	int throttle, attn;		/* tty throttle/unthrottle. */
 	struct tasklet_struct readlet;	/* Tasklet to issue read request. */
+	struct tasklet_struct hanglet;	/* Tasklet to hang up the tty. */
 	struct kbd_data *kbd;		/* key_maps stuff. */
 
 	/* Escape sequence parsing. */
@@ -646,6 +647,16 @@ tty3270_issue_read(struct tty3270 *tp, int lock)
 }
 
 /*
+ * Hang up the tty
+ */
+static void
+tty3270_hangup_tasklet(struct tty3270 *tp)
+{
+	tty_port_tty_hangup(&tp->port, true);
+	raw3270_put_view(&tp->view);
+}
+
+/*
  * Switch to the tty view.
  */
 static int
@@ -678,11 +689,14 @@ tty3270_irq(struct tty3270 *tp, struct raw3270_request *rq, struct irb *irb)
 	}
 
 	if (rq) {
-		if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK)
+		if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) {
 			rq->rc = -EIO;
-		else
+			raw3270_get_view(&tp->view);
+			tasklet_schedule(&tp->hanglet);
+		} else {
 			/* Normal end. Copy residual count. */
 			rq->rescnt = irb->scsw.cmd.count;
+		}
 	} else if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) {
 		/* Interrupt without an outstanding request -> update all */
 		tp->update_flags = TTY_UPDATE_ALL;
@@ -739,6 +753,9 @@ tty3270_alloc_view(void)
 	tasklet_init(&tp->readlet,
 		     (void (*)(unsigned long)) tty3270_read_tasklet,
 		     (unsigned long) tp->read);
+	tasklet_init(&tp->hanglet,
+		     (void (*)(unsigned long)) tty3270_hangup_tasklet,
+		     (unsigned long) tp);
 	INIT_WORK(&tp->resize_work, tty3270_resize_work);
 
 	return tp;
@@ -1812,7 +1829,22 @@ tty3270_unthrottle(struct tty_struct * tty)
 static void
 tty3270_hangup(struct tty_struct *tty)
 {
-	// FIXME: implement
+	struct tty3270 *tp;
+
+	tp = tty->driver_data;
+	if (!tp)
+		return;
+	spin_lock_bh(&tp->view.lock);
+	tp->cx = tp->saved_cx = 0;
+	tp->cy = tp->saved_cy = 0;
+	tp->highlight = tp->saved_highlight = TAX_RESET;
+	tp->f_color = tp->saved_f_color = TAC_RESET;
+	tty3270_blank_screen(tp);
+	while (tp->nr_lines < tp->view.rows - 2)
+		tty3270_blank_line(tp);
+	tp->update_flags = TTY_UPDATE_ALL;
+	spin_unlock_bh(&tp->view.lock);
+	tty3270_set_timer(tp, 1);
 }
 
 static void
