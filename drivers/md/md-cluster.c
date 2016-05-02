@@ -85,6 +85,9 @@ struct md_cluster_info {
 	struct completion newdisk_completion;
 	wait_queue_head_t wait;
 	unsigned long state;
+	/* record the region in RESYNCING message */
+	sector_t sync_low;
+	sector_t sync_hi;
 };
 
 enum msg_type {
@@ -411,6 +414,30 @@ static void process_suspend_info(struct mddev *mddev,
 		md_wakeup_thread(mddev->thread);
 		return;
 	}
+
+	/*
+	 * The bitmaps are not same for different nodes
+	 * if RESYNCING is happening in one node, then
+	 * the node which received the RESYNCING message
+	 * probably will perform resync with the region
+	 * [lo, hi] again, so we could reduce resync time
+	 * a lot if we can ensure that the bitmaps among
+	 * different nodes are match up well.
+	 *
+	 * sync_low/hi is used to record the region which
+	 * arrived in the previous RESYNCING message,
+	 *
+	 * Call bitmap_sync_with_cluster to clear
+	 * NEEDED_MASK and set RESYNC_MASK since
+	 * resync thread is running in another node,
+	 * so we don't need to do the resync again
+	 * with the same section */
+	bitmap_sync_with_cluster(mddev, cinfo->sync_low,
+					cinfo->sync_hi,
+					lo, hi);
+	cinfo->sync_low = lo;
+	cinfo->sync_hi = hi;
+
 	s = kzalloc(sizeof(struct suspend_info), GFP_KERNEL);
 	if (!s)
 		return;
