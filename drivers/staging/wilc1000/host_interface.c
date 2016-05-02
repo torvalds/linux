@@ -401,7 +401,7 @@ static void handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 static void handle_get_mac_address(struct wilc_vif *vif,
 				   struct get_mac_addr *get_mac_addr)
 {
-	s32 result = 0;
+	int result = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_MAC_ADDR;
