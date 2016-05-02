@@ -162,8 +162,8 @@ static int tcp_write_timeout(struct sock *sk)
 			if (tp->syn_fastopen || tp->syn_data)
 				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
 			if (tp->syn_data && icsk->icsk_retransmits == 1)
-				__NET_INC_STATS(sock_net(sk),
-						LINUX_MIB_TCPFASTOPENACTIVEFAIL);
+				NET_INC_STATS(sock_net(sk),
+					      LINUX_MIB_TCPFASTOPENACTIVEFAIL);
 		}
 		retry_until = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_syn_retries;
 		syn_set = true;
@@ -178,8 +178,8 @@ static int tcp_write_timeout(struct sock *sk)
 			    tp->bytes_acked <= tp->rx_opt.mss_clamp) {
 				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
 				if (icsk->icsk_retransmits == net->ipv4.sysctl_tcp_retries1)
-					__NET_INC_STATS(sock_net(sk),
-							LINUX_MIB_TCPFASTOPENACTIVEFAIL);
+					NET_INC_STATS(sock_net(sk),
+						      LINUX_MIB_TCPFASTOPENACTIVEFAIL);
 			}
 			/* Black hole detection */
 			tcp_mtu_probing(icsk, sk);
@@ -209,6 +209,7 @@ static int tcp_write_timeout(struct sock *sk)
 	return 0;
 }
 
+/* Called with BH disabled */
 void tcp_delack_timer_handler(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -493,6 +494,7 @@ out_reset_timer:
 out:;
 }
 
+/* Called with BH disabled */
 void tcp_write_timer_handler(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);

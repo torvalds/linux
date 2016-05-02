@@ -277,8 +277,8 @@ static void dccp_v6_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 	if (!IS_ERR(dst)) {
 		skb_dst_set(skb, dst);
 		ip6_xmit(ctl_sk, skb, &fl6, NULL, 0);
-		__DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
-		__DCCP_INC_STATS(DCCP_MIB_OUTRSTS);
+		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
+		DCCP_INC_STATS(DCCP_MIB_OUTRSTS);
 		return;
 	}
 

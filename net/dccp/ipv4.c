@@ -533,8 +533,8 @@ static void dccp_v4_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 	bh_unlock_sock(ctl_sk);
 
 	if (net_xmit_eval(err) == 0) {
-		__DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
-		__DCCP_INC_STATS(DCCP_MIB_OUTRSTS);
+		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
+		DCCP_INC_STATS(DCCP_MIB_OUTRSTS);
 	}
 out:
 	 dst_release(dst);

@@ -155,11 +155,11 @@ static void tcp_cdg_hystart_update(struct sock *sk)
 
 			ca->last_ack = now_us;
 			if (after(now_us, ca->round_start + base_owd)) {
-				__NET_INC_STATS(sock_net(sk),
-						LINUX_MIB_TCPHYSTARTTRAINDETECT);
-				__NET_ADD_STATS(sock_net(sk),
-						LINUX_MIB_TCPHYSTARTTRAINCWND,
-						tp->snd_cwnd);
+				NET_INC_STATS(sock_net(sk),
+					      LINUX_MIB_TCPHYSTARTTRAINDETECT);
+				NET_ADD_STATS(sock_net(sk),
+					      LINUX_MIB_TCPHYSTARTTRAINCWND,
+					      tp->snd_cwnd);
 				tp->snd_ssthresh = tp->snd_cwnd;
 				return;
 			}
@@ -174,11 +174,11 @@ static void tcp_cdg_hystart_update(struct sock *sk)
 					 125U);
 
 			if (ca->rtt.min > thresh) {
-				__NET_INC_STATS(sock_net(sk),
-						LINUX_MIB_TCPHYSTARTDELAYDETECT);
-				__NET_ADD_STATS(sock_net(sk),
-						LINUX_MIB_TCPHYSTARTDELAYCWND,
-						tp->snd_cwnd);
+				NET_INC_STATS(sock_net(sk),
+					      LINUX_MIB_TCPHYSTARTDELAYDETECT);
+				NET_ADD_STATS(sock_net(sk),
+					      LINUX_MIB_TCPHYSTARTDELAYCWND,
+					      tp->snd_cwnd);
 				tp->snd_ssthresh = tp->snd_cwnd;
 			}
 		}
