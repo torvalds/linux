@@ -1269,8 +1269,6 @@ struct batadv_forw_packet {
  * @bat_iface_update_mac: (re-)init mac addresses of the protocol information
  *  belonging to this hard-interface
  * @bat_primary_iface_set: called when primary interface is selected / changed
- * @bat_ogm_schedule: prepare a new outgoing OGM for the send queue
- * @bat_ogm_emit: send scheduled OGM
  * @bat_hardif_neigh_init: called on creation of single hop entry
  * @bat_neigh_cmp: compare the metrics of two neighbors for their respective
  *  outgoing interfaces
@@ -1294,8 +1292,6 @@ struct batadv_algo_ops {
 	void (*bat_iface_disable)(struct batadv_hard_iface *hard_iface);
 	void (*bat_iface_update_mac)(struct batadv_hard_iface *hard_iface);
 	void (*bat_primary_iface_set)(struct batadv_hard_iface *hard_iface);
-	void (*bat_ogm_schedule)(struct batadv_hard_iface *hard_iface);
-	void (*bat_ogm_emit)(struct batadv_forw_packet *forw_packet);
 	/* neigh_node handling API */
 	void (*bat_hardif_neigh_init)(struct batadv_hardif_neigh_node *neigh);
 	int (*bat_neigh_cmp)(struct batadv_neigh_node *neigh1,

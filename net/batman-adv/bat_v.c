@@ -119,14 +119,6 @@ batadv_v_hardif_neigh_init(struct batadv_hardif_neigh_node *hardif_neigh)
 		  batadv_v_elp_throughput_metric_update);
 }
 
-static void batadv_v_ogm_schedule(struct batadv_hard_iface *hard_iface)
-{
-}
-
-static void batadv_v_ogm_emit(struct batadv_forw_packet *forw_packet)
-{
-}
-
 /**
  * batadv_v_orig_print_neigh - print neighbors for the originator table
  * @orig_node: the orig_node for which the neighbors are printed
@@ -340,8 +332,6 @@ static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.bat_iface_update_mac = batadv_v_iface_update_mac,
 	.bat_primary_iface_set = batadv_v_primary_iface_set,
 	.bat_hardif_neigh_init = batadv_v_hardif_neigh_init,
-	.bat_ogm_emit = batadv_v_ogm_emit,
-	.bat_ogm_schedule = batadv_v_ogm_schedule,
 	.bat_orig_print = batadv_v_orig_print,
 	.bat_neigh_cmp = batadv_v_neigh_cmp,
 	.bat_neigh_is_similar_or_better = batadv_v_neigh_is_sob,
