@@ -383,7 +383,7 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 	int r, i;
 	uint32_t value, result, early[3];
 
-	if (*pos & 3)
+	if (*pos & 3 || size & 3)
 		return -EINVAL;
 
 	result = 0;
