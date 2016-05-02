@@ -175,13 +175,11 @@ static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
 	return 0;
 }
 
-/*
- * DRM operations:
- */
-
-static int msm_unload(struct drm_device *dev)
+static int msm_drm_uninit(struct device *dev)
 {
-	struct msm_drm_private *priv = dev->dev_private;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *ddev = platform_get_drvdata(pdev);
+	struct msm_drm_private *priv = ddev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	struct msm_gpu *gpu = priv->gpu;
 	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
@@ -197,20 +195,21 @@ static int msm_unload(struct drm_device *dev)
 		kfree(vbl_ev);
 	}
 
-	drm_kms_helper_poll_fini(dev);
+	drm_kms_helper_poll_fini(ddev);
 
-	drm_connector_unregister_all(dev);
+	drm_connector_unregister_all(ddev);
+
+	drm_dev_unregister(ddev);
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fbdev && priv->fbdev)
-		msm_fbdev_free(dev);
+		msm_fbdev_free(ddev);
 #endif
-	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
+	drm_mode_config_cleanup(ddev);
 
-	pm_runtime_get_sync(dev->dev);
-	drm_irq_uninstall(dev);
-	pm_runtime_put_sync(dev->dev);
+	pm_runtime_get_sync(dev);
+	drm_irq_uninstall(ddev);
+	pm_runtime_put_sync(dev);
 
 	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
@@ -219,14 +218,14 @@ static int msm_unload(struct drm_device *dev)
 	destroy_workqueue(priv->atomic_wq);
 
 	if (kms) {
-		pm_runtime_disable(dev->dev);
+		pm_runtime_disable(dev);
 		kms->funcs->destroy(kms);
 	}
 
 	if (gpu) {
-		mutex_lock(&dev->struct_mutex);
+		mutex_lock(&ddev->struct_mutex);
 		gpu->funcs->pm_suspend(gpu);
-		mutex_unlock(&dev->struct_mutex);
+		mutex_unlock(&ddev->struct_mutex);
 		gpu->funcs->destroy(gpu);
 	}
 
@@ -234,13 +233,14 @@ static int msm_unload(struct drm_device *dev)
 		DEFINE_DMA_ATTRS(attrs);
 		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
 		drm_mm_takedown(&priv->vram.mm);
-		dma_free_attrs(dev->dev, priv->vram.size, NULL,
-				priv->vram.paddr, &attrs);
+		dma_free_attrs(dev, priv->vram.size, NULL,
+			       priv->vram.paddr, &attrs);
 	}
 
-	component_unbind_all(dev->dev, dev);
+	component_unbind_all(dev, ddev);
 
-	dev->dev_private = NULL;
+	ddev->dev_private = NULL;
+	drm_dev_unref(ddev);
 
 	kfree(priv);
 
@@ -328,20 +328,30 @@ static int msm_init_vram(struct drm_device *dev)
 	return ret;
 }
 
-static int msm_load(struct drm_device *dev, unsigned long flags)
+static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 {
-	struct platform_device *pdev = dev->platformdev;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *ddev;
 	struct msm_drm_private *priv;
 	struct msm_kms *kms;
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev->dev, "failed to allocate private data\n");
+	ddev = drm_dev_alloc(drv, dev);
+	if (!ddev) {
+		dev_err(dev, "failed to allocate drm_device\n");
 		return -ENOMEM;
 	}
 
-	dev->dev_private = priv;
+	platform_set_drvdata(pdev, ddev);
+	ddev->platformdev = pdev;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		drm_dev_unref(ddev);
+		return -ENOMEM;
+	}
+
+	ddev->dev_private = priv;
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
 	priv->atomic_wq = alloc_ordered_workqueue("msm:atomic", 0);
@@ -352,25 +362,26 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	INIT_WORK(&priv->vblank_ctrl.work, vblank_ctrl_worker);
 	spin_lock_init(&priv->vblank_ctrl.lock);
 
-	drm_mode_config_init(dev);
-
-	platform_set_drvdata(pdev, dev);
+	drm_mode_config_init(ddev);
 
 	/* Bind all our sub-components: */
-	ret = component_bind_all(dev->dev, dev);
-	if (ret)
+	ret = component_bind_all(dev, ddev);
+	if (ret) {
+		kfree(priv);
+		drm_dev_unref(ddev);
 		return ret;
+	}
 
-	ret = msm_init_vram(dev);
+	ret = msm_init_vram(ddev);
 	if (ret)
 		goto fail;
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:
-		kms = mdp4_kms_init(dev);
+		kms = mdp4_kms_init(ddev);
 		break;
 	case 5:
-		kms = mdp5_kms_init(dev);
+		kms = mdp5_kms_init(ddev);
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);
@@ -384,7 +395,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		 * and (for example) use dmabuf/prime to share buffers with
 		 * imx drm driver on iMX5
 		 */
-		dev_err(dev->dev, "failed to load kms\n");
+		dev_err(dev, "failed to load kms\n");
 		ret = PTR_ERR(kms);
 		goto fail;
 	}
@@ -392,55 +403,63 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	priv->kms = kms;
 
 	if (kms) {
-		pm_runtime_enable(dev->dev);
+		pm_runtime_enable(dev);
 		ret = kms->funcs->hw_init(kms);
 		if (ret) {
-			dev_err(dev->dev, "kms hw init failed: %d\n", ret);
+			dev_err(dev, "kms hw init failed: %d\n", ret);
 			goto fail;
 		}
 	}
 
-	dev->mode_config.funcs = &mode_config_funcs;
+	ddev->mode_config.funcs = &mode_config_funcs;
 
-	ret = drm_vblank_init(dev, priv->num_crtcs);
+	ret = drm_vblank_init(ddev, priv->num_crtcs);
 	if (ret < 0) {
-		dev_err(dev->dev, "failed to initialize vblank\n");
+		dev_err(dev, "failed to initialize vblank\n");
 		goto fail;
 	}
 
-	pm_runtime_get_sync(dev->dev);
-	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
-	pm_runtime_put_sync(dev->dev);
+	pm_runtime_get_sync(dev);
+	ret = drm_irq_install(ddev, platform_get_irq(pdev, 0));
+	pm_runtime_put_sync(dev);
 	if (ret < 0) {
-		dev_err(dev->dev, "failed to install IRQ handler\n");
+		dev_err(dev, "failed to install IRQ handler\n");
 		goto fail;
 	}
 
-	ret = drm_connector_register_all(dev);
-	if (ret) {
-		dev_err(dev->dev, "failed to register connectors\n");
-		goto fail;
-	}
-
-	drm_mode_config_reset(dev);
-
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	if (fbdev)
-		priv->fbdev = msm_fbdev_init(dev);
-#endif
-
-	ret = msm_debugfs_late_init(dev);
+	ret = drm_dev_register(ddev, 0);
 	if (ret)
 		goto fail;
 
-	drm_kms_helper_poll_init(dev);
+	ret = drm_connector_register_all(ddev);
+	if (ret) {
+		dev_err(dev, "failed to register connectors\n");
+		goto fail;
+	}
+
+	drm_mode_config_reset(ddev);
+
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	if (fbdev)
+		priv->fbdev = msm_fbdev_init(ddev);
+#endif
+
+	ret = msm_debugfs_late_init(ddev);
+	if (ret)
+		goto fail;
+
+	drm_kms_helper_poll_init(ddev);
 
 	return 0;
 
 fail:
-	msm_unload(dev);
+	msm_drm_uninit(dev);
 	return ret;
 }
+
+/*
+ * DRM operations:
+ */
 
 static void load_gpu(struct drm_device *dev)
 {
@@ -708,8 +727,6 @@ static struct drm_driver msm_driver = {
 				DRIVER_RENDER |
 				DRIVER_ATOMIC |
 				DRIVER_MODESET,
-	.load               = msm_load,
-	.unload             = msm_unload,
 	.open               = msm_open,
 	.preclose           = msm_preclose,
 	.lastclose          = msm_lastclose,
@@ -809,12 +826,12 @@ static int add_components(struct device *dev, struct component_match **matchptr,
 
 static int msm_drm_bind(struct device *dev)
 {
-	return drm_platform_init(&msm_driver, to_platform_device(dev));
+	return msm_drm_init(dev, &msm_driver);
 }
 
 static void msm_drm_unbind(struct device *dev)
 {
-	drm_put_dev(platform_get_drvdata(to_platform_device(dev)));
+	msm_drm_uninit(dev);
 }
 
 static const struct component_master_ops msm_drm_ops = {
