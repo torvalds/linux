@@ -10,6 +10,7 @@
  *
  */
 #include "misc.h"
+#include "error.h"
 
 #include <asm/msr.h>
 #include <asm/archrandom.h>

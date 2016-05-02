@@ -12,6 +12,7 @@
  */
 
 #include "misc.h"
+#include "error.h"
 #include "../string.h"
 #include "../voffset.h"
 
@@ -36,7 +37,6 @@
 #define memmove		memmove
 
 /* Functions used by the included decompressor code below. */
-static void error(char *m);
 void *memmove(void *dest, const void *src, size_t n);
 
 /*
@@ -167,22 +167,6 @@ void __puthex(unsigned long value)
 
 		__putstr(alpha);
 	}
-}
-
-void warn(char *m)
-{
-	error_putstr("\n\n");
-	error_putstr(m);
-	error_putstr("\n\n");
-}
-
-static void error(char *m)
-{
-	warn(m);
-	error_putstr(" -- System halted");
-
-	while (1)
-		asm("hlt");
 }
 
 #if CONFIG_X86_NEED_RELOCS

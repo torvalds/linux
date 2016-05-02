@@ -5,6 +5,8 @@
  * trust the gcc built-in implementations as they may do unexpected things
  * (e.g. FPU ops) in the minimal decompression stub execution environment.
  */
+#include "error.h"
+
 #include "../string.c"
 
 #ifdef CONFIG_X86_32

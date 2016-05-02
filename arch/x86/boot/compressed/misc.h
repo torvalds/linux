@@ -35,7 +35,6 @@ extern memptr free_mem_end_ptr;
 extern struct boot_params *boot_params;
 void __putstr(const char *s);
 void __puthex(unsigned long value);
-void warn(char *m);
 #define error_putstr(__x)  __putstr(__x)
 #define error_puthex(__x)  __puthex(__x)
 
