@@ -376,7 +376,7 @@ static void handle_set_ip_address(struct wilc_vif *vif, u8 *ip_addr, u8 idx)
 
 static void handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 {
-	int result = 0;
+	int ret = 0;
 	struct wid wid;
 
 	wid.id = (u16)WID_IP_ADDRESS;
@@ -384,8 +384,8 @@ static void handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 	wid.val = kmalloc(IP_ALEN, GFP_KERNEL);
 	wid.size = IP_ALEN;
 
-	result = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
+	ret = wilc_send_config_pkt(vif, GET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
 
 	memcpy(get_ip[idx], wid.val, IP_ALEN);
 
@@ -394,7 +394,7 @@ static void handle_get_ip_address(struct wilc_vif *vif, u8 idx)
 	if (memcmp(get_ip[idx], set_ip[idx], IP_ALEN) != 0)
 		wilc_setup_ipaddress(vif, set_ip[idx], idx);
 
-	if (result != 0)
+	if (ret != 0)
 		netdev_err(vif->ndev, "Failed to get IP address\n");
 }
 
