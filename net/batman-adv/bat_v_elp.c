@@ -443,7 +443,8 @@ static void batadv_v_elp_neigh_update(struct batadv_priv *bat_priv,
 	if (!orig_neigh)
 		return;
 
-	neigh = batadv_neigh_node_new(orig_neigh, if_incoming, neigh_addr);
+	neigh = batadv_neigh_node_get_or_create(orig_neigh,
+						if_incoming, neigh_addr);
 	if (!neigh)
 		goto orig_free;
 
