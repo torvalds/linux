@@ -937,7 +937,6 @@ static void metadata_update_cancel(struct mddev *mddev)
 static int resync_start(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
-	cinfo->resync_lockres->flags |= DLM_LKF_NOQUEUE;
 	return dlm_lock_sync(cinfo->resync_lockres, DLM_LOCK_EX);
 }
 
@@ -967,7 +966,6 @@ static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 static int resync_finish(struct mddev *mddev)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
-	cinfo->resync_lockres->flags &= ~DLM_LKF_NOQUEUE;
 	dlm_unlock_sync(cinfo->resync_lockres);
 	return resync_info_update(mddev, 0, 0);
 }
