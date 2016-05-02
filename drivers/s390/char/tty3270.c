@@ -319,6 +319,27 @@ tty3270_blank_line(struct tty3270 *tp)
 }
 
 /*
+ * Create a blank screen and remove all lines from the history.
+ */
+static void
+tty3270_blank_screen(struct tty3270 *tp)
+{
+	struct string *s, *n;
+	int i;
+
+	for (i = 0; i < tp->view.rows - 2; i++)
+		tp->screen[i].len = 0;
+	tp->nr_up = 0;
+	list_for_each_entry_safe(s, n, &tp->lines, list) {
+		list_del(&s->list);
+		if (!list_empty(&s->update))
+			list_del(&s->update);
+		tp->nr_lines--;
+		free_string(&tp->freemem, s);
+	}
+}
+
+/*
  * Write request completion callback.
  */
 static void
@@ -816,6 +837,7 @@ static void tty3270_resize_work(struct work_struct *work)
 		return;
 	/* Switch to new output size */
 	spin_lock_bh(&tp->view.lock);
+	tty3270_blank_screen(tp);
 	oscreen = tp->screen;
 	orows = tp->view.rows;
 	tp->view.model = tp->n_model;
@@ -826,7 +848,6 @@ static void tty3270_resize_work(struct work_struct *work)
 	free_string(&tp->freemem, tp->status);
 	tty3270_create_prompt(tp);
 	tty3270_create_status(tp);
-	tp->nr_up = 0;
 	while (tp->nr_lines < tp->view.rows - 2)
 		tty3270_blank_line(tp);
 	tp->update_flags = TTY_UPDATE_ALL;
@@ -848,6 +869,8 @@ tty3270_resize(struct raw3270_view *view, int model, int rows, int cols)
 {
 	struct tty3270 *tp = container_of(view, struct tty3270, view);
 
+	if (tp->n_model == model && tp->n_rows == rows && tp->n_cols == cols)
+		return;
 	tp->n_model = model;
 	tp->n_rows = rows;
 	tp->n_cols = cols;

@@ -90,6 +90,8 @@ module_param(tubxcorrect, bool, 0);
  */
 DECLARE_WAIT_QUEUE_HEAD(raw3270_wait_queue);
 
+static void __raw3270_disconnect(struct raw3270 *rp);
+
 /*
  * Encode array for 12 bit 3270 addresses.
  */
@@ -336,8 +338,11 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			set_bit(RAW3270_FLAGS_BUSY, &rp->flags);
 		/* Handle disconnected devices */
 		if ((irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK) &&
-		    (irb->ecw[0] & SNS0_INTERVENTION_REQ))
+		    (irb->ecw[0] & SNS0_INTERVENTION_REQ)) {
 			set_bit(RAW3270_FLAGS_BUSY, &rp->flags);
+			if (rp->state > RAW3270_STATE_RESET)
+				__raw3270_disconnect(rp);
+		}
 		/* Call interrupt handler of the view */
 		if (view)
 			view->fn->intv(view, rq, irb);
@@ -347,8 +352,7 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		/* Device busy, do not start I/O */
 		return;
 
-	if (rq) {
-		BUG_ON(list_empty(&rq->list));
+	if (rq && !list_empty(&rq->list)) {
 		/* The request completed, remove from queue and do callback. */
 		list_del_init(&rq->list);
 		if (rq->callback)
@@ -632,6 +636,28 @@ raw3270_reset(struct raw3270_view *view)
 	else
 		rc = raw3270_reset_device(view->dev);
 	return rc;
+}
+
+static void
+__raw3270_disconnect(struct raw3270 *rp)
+{
+	struct raw3270_request *rq;
+	struct raw3270_view *view;
+
+	rp->state = RAW3270_STATE_INIT;
+	rp->view = &rp->init_view;
+	/* Cancel all queued requests */
+	while (!list_empty(&rp->req_queue)) {
+		rq = list_entry(rp->req_queue.next,struct raw3270_request,list);
+		view = rq->view;
+		rq->rc = -EACCES;
+		list_del_init(&rq->list);
+		if (rq->callback)
+			rq->callback(rq, rq->callback_data);
+		raw3270_put_view(view);
+	}
+	/* Start from scratch */
+	__raw3270_reset_device(rp);
 }
 
 static void
