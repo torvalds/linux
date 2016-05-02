@@ -1127,8 +1127,8 @@ static int empty_dir_setxattr(struct dentry *dentry, const char *name,
 	return -EOPNOTSUPP;
 }
 
-static ssize_t empty_dir_getxattr(struct dentry *dentry, const char *name,
-				  void *value, size_t size)
+static ssize_t empty_dir_getxattr(struct dentry *dentry, struct inode *inode,
+				  const char *name, void *value, size_t size)
 {
 	return -EOPNOTSUPP;
 }

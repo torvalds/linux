@@ -463,12 +463,13 @@ static int orangefs_xattr_set_default(const struct xattr_handler *handler,
 }
 
 static int orangefs_xattr_get_default(const struct xattr_handler *handler,
-				      struct dentry *dentry,
+				      struct dentry *unused,
+				      struct inode *inode,
 				      const char *name,
 				      void *buffer,
 				      size_t size)
 {
-	return orangefs_inode_getxattr(dentry->d_inode,
+	return orangefs_inode_getxattr(inode,
 				    ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
 				    name,
 				    buffer,
@@ -492,12 +493,13 @@ static int orangefs_xattr_set_trusted(const struct xattr_handler *handler,
 }
 
 static int orangefs_xattr_get_trusted(const struct xattr_handler *handler,
-				      struct dentry *dentry,
+				      struct dentry *unused,
+				      struct inode *inode,
 				      const char *name,
 				      void *buffer,
 				      size_t size)
 {
-	return orangefs_inode_getxattr(dentry->d_inode,
+	return orangefs_inode_getxattr(inode,
 				    ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
 				    name,
 				    buffer,

@@ -933,8 +933,8 @@ ssize_t __jfs_getxattr(struct inode *inode, const char *name, void *data,
 	return size;
 }
 
-ssize_t jfs_getxattr(struct dentry *dentry, const char *name, void *data,
-		     size_t buf_size)
+ssize_t jfs_getxattr(struct dentry *dentry, struct inode *inode,
+		     const char *name, void *data, size_t buf_size)
 {
 	int err;
 
@@ -944,7 +944,7 @@ ssize_t jfs_getxattr(struct dentry *dentry, const char *name, void *data,
 	 * for it via sb->s_xattr.
 	 */
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
-		return generic_getxattr(dentry, name, data, buf_size);
+		return generic_getxattr(dentry, inode, name, data, buf_size);
 
 	if (strncmp(name, XATTR_OS2_PREFIX, XATTR_OS2_PREFIX_LEN) == 0) {
 		/*
@@ -959,7 +959,7 @@ ssize_t jfs_getxattr(struct dentry *dentry, const char *name, void *data,
 			return -EOPNOTSUPP;
 	}
 
-	err = __jfs_getxattr(d_inode(dentry), name, data, buf_size);
+	err = __jfs_getxattr(inode, name, data, buf_size);
 
 	return err;
 }

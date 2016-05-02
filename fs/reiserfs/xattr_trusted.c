@@ -8,29 +8,26 @@
 #include <linux/uaccess.h>
 
 static int
-trusted_get(const struct xattr_handler *handler, struct dentry *dentry,
-	    const char *name, void *buffer, size_t size)
+trusted_get(const struct xattr_handler *handler, struct dentry *unused,
+	    struct inode *inode, const char *name, void *buffer, size_t size)
 {
-	if (strlen(name) < sizeof(XATTR_TRUSTED_PREFIX))
-		return -EINVAL;
-
-	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(d_inode(dentry)))
+	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode))
 		return -EPERM;
 
-	return reiserfs_xattr_get(d_inode(dentry), name, buffer, size);
+	return reiserfs_xattr_get(inode, xattr_full_name(handler, name),
+				  buffer, size);
 }
 
 static int
 trusted_set(const struct xattr_handler *handler, struct dentry *dentry,
 	    const char *name, const void *buffer, size_t size, int flags)
 {
-	if (strlen(name) < sizeof(XATTR_TRUSTED_PREFIX))
-		return -EINVAL;
-
 	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(d_inode(dentry)))
 		return -EPERM;
 
-	return reiserfs_xattr_set(d_inode(dentry), name, buffer, size, flags);
+	return reiserfs_xattr_set(d_inode(dentry),
+				  xattr_full_name(handler, name),
+				  buffer, size, flags);
 }
 
 static bool trusted_list(struct dentry *dentry)

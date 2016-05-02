@@ -9,10 +9,10 @@
 
 static int
 ext2_xattr_security_get(const struct xattr_handler *handler,
-			struct dentry *dentry, const char *name,
-			void *buffer, size_t size)
+			struct dentry *unused, struct inode *inode,
+			const char *name, void *buffer, size_t size)
 {
-	return ext2_xattr_get(d_inode(dentry), EXT2_XATTR_INDEX_SECURITY, name,
+	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_SECURITY, name,
 			      buffer, size);
 }
 

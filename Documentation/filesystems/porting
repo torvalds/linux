@@ -525,3 +525,9 @@ in your dentry operations instead.
 	set_delayed_call() where it used to set *cookie.
 	->put_link() is gone - just give the destructor to set_delayed_call()
 	in ->get_link().
+--
+[mandatory]
+	->getxattr() and xattr_handler.get() get dentry and inode passed separately.
+	dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
+	in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
+	called before we attach dentry to inode.

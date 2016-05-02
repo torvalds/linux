@@ -1524,7 +1524,7 @@ struct dentry *jfs_get_parent(struct dentry *dentry)
 	parent_ino =
 		le32_to_cpu(JFS_IP(d_inode(dentry))->i_dtroot.header.idotdot);
 
-	return d_obtain_alias(jfs_iget(d_inode(dentry)->i_sb, parent_ino));
+	return d_obtain_alias(jfs_iget(dentry->d_sb, parent_ino));
 }
 
 const struct inode_operations jfs_dir_inode_operations = {

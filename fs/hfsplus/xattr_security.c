@@ -14,10 +14,10 @@
 #include "acl.h"
 
 static int hfsplus_security_getxattr(const struct xattr_handler *handler,
-				     struct dentry *dentry, const char *name,
-				     void *buffer, size_t size)
+				     struct dentry *unused, struct inode *inode,
+				     const char *name, void *buffer, size_t size)
 {
-	return hfsplus_getxattr(dentry, name, buffer, size,
+	return hfsplus_getxattr(inode, name, buffer, size,
 				XATTR_SECURITY_PREFIX,
 				XATTR_SECURITY_PREFIX_LEN);
 }

@@ -436,7 +436,8 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 		goto out;
 	}
 	inode_lock(lower_inode);
-	size = lower_inode->i_op->getxattr(lower_dentry, ECRYPTFS_XATTR_NAME,
+	size = lower_inode->i_op->getxattr(lower_dentry, lower_inode,
+					   ECRYPTFS_XATTR_NAME,
 					   xattr_virt, PAGE_SIZE);
 	if (size < 0)
 		size = 8;

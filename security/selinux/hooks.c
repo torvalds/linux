@@ -506,7 +506,8 @@ static int sb_finish_set_opts(struct super_block *sb)
 			rc = -EOPNOTSUPP;
 			goto out;
 		}
-		rc = root_inode->i_op->getxattr(root, XATTR_NAME_SELINUX, NULL, 0);
+		rc = root_inode->i_op->getxattr(root, root_inode,
+						XATTR_NAME_SELINUX, NULL, 0);
 		if (rc < 0 && rc != -ENODATA) {
 			if (rc == -EOPNOTSUPP)
 				printk(KERN_WARNING "SELinux: (dev %s, type "
@@ -1316,7 +1317,7 @@ static int selinux_genfs_get_sid(struct dentry *dentry,
 				 u32 *sid)
 {
 	int rc;
-	struct super_block *sb = dentry->d_inode->i_sb;
+	struct super_block *sb = dentry->d_sb;
 	char *buffer, *path;
 
 	buffer = (char *)__get_free_page(GFP_KERNEL);
@@ -1412,13 +1413,13 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			goto out_unlock;
 		}
 		context[len] = '\0';
-		rc = inode->i_op->getxattr(dentry, XATTR_NAME_SELINUX,
+		rc = inode->i_op->getxattr(dentry, inode, XATTR_NAME_SELINUX,
 					   context, len);
 		if (rc == -ERANGE) {
 			kfree(context);
 
 			/* Need a larger buffer.  Query for the right size. */
-			rc = inode->i_op->getxattr(dentry, XATTR_NAME_SELINUX,
+			rc = inode->i_op->getxattr(dentry, inode, XATTR_NAME_SELINUX,
 						   NULL, 0);
 			if (rc < 0) {
 				dput(dentry);
@@ -1432,7 +1433,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 				goto out_unlock;
 			}
 			context[len] = '\0';
-			rc = inode->i_op->getxattr(dentry,
+			rc = inode->i_op->getxattr(dentry, inode,
 						   XATTR_NAME_SELINUX,
 						   context, len);
 		}

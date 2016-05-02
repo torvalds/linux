@@ -426,7 +426,7 @@ static bool is_root_export(struct svc_export *exp)
 
 static struct super_block *exp_sb(struct svc_export *exp)
 {
-	return d_inode(exp->ex_path.dentry)->i_sb;
+	return exp->ex_path.dentry->d_sb;
 }
 
 static bool fsid_type_ok_for_exp(u8 fsid_type, struct svc_export *exp)

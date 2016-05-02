@@ -958,7 +958,7 @@ static struct dentry *exofs_get_parent(struct dentry *child)
 	if (!ino)
 		return ERR_PTR(-ESTALE);
 
-	return d_obtain_alias(exofs_iget(d_inode(child)->i_sb, ino));
+	return d_obtain_alias(exofs_iget(child->d_sb, ino));
 }
 
 static struct inode *exofs_nfs_get_inode(struct super_block *sb,

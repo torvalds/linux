@@ -579,7 +579,7 @@ failed_getxattr_init:
 	return res;
 }
 
-ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
+ssize_t hfsplus_getxattr(struct inode *inode, const char *name,
 			 void *value, size_t size,
 			 const char *prefix, size_t prefixlen)
 {
@@ -594,7 +594,7 @@ ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
 	strcpy(xattr_name, prefix);
 	strcpy(xattr_name + prefixlen, name);
 
-	res = __hfsplus_getxattr(d_inode(dentry), xattr_name, value, size);
+	res = __hfsplus_getxattr(inode, xattr_name, value, size);
 	kfree(xattr_name);
 	return res;
 
@@ -844,8 +844,8 @@ end_removexattr:
 }
 
 static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
-				struct dentry *dentry, const char *name,
-				void *buffer, size_t size)
+				struct dentry *unused, struct inode *inode,
+				const char *name, void *buffer, size_t size)
 {
 	/*
 	 * Don't allow retrieving properly prefixed attributes
@@ -860,7 +860,7 @@ static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
 	 * creates), so we pass the name through unmodified (after
 	 * ensuring it doesn't conflict with another namespace).
 	 */
-	return __hfsplus_getxattr(d_inode(dentry), name, buffer, size);
+	return __hfsplus_getxattr(inode, name, buffer, size);
 }
 
 static int hfsplus_osx_setxattr(const struct xattr_handler *handler,

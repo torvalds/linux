@@ -202,7 +202,7 @@ struct dentry *f2fs_get_parent(struct dentry *child)
 	unsigned long ino = f2fs_inode_by_name(d_inode(child), &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	return d_obtain_alias(f2fs_iget(d_inode(child)->i_sb, ino));
+	return d_obtain_alias(f2fs_iget(child->d_sb, ino));
 }
 
 static int __recover_dot_dentries(struct inode *dir, nid_t pino)
