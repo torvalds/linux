@@ -60,8 +60,6 @@ struct mite {
 	spinlock_t lock;
 };
 
-struct mite *mite_alloc(struct pci_dev *);
-
 int mite_setup2(struct comedi_device *, struct mite *, bool use_win1);
 
 static inline int mite_setup(struct comedi_device *dev,
@@ -70,7 +68,6 @@ static inline int mite_setup(struct comedi_device *dev,
 	return mite_setup2(dev, mite, false);
 }
 
-void mite_detach(struct mite *);
 struct mite_ring *mite_alloc_ring(struct mite *);
 void mite_free_ring(struct mite_ring *ring);
 struct mite_channel *mite_request_channel_in_range(struct mite *,
@@ -100,6 +97,9 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 int mite_buf_change(struct mite_ring *, struct comedi_subdevice *);
 int mite_init_ring_descriptors(struct mite_ring *, struct comedi_subdevice *,
 			       unsigned int nbytes);
+
+struct mite *mite_attach(struct comedi_device *);
+void mite_detach(struct mite *);
 
 /*
  * Mite registers (used outside of the mite driver)

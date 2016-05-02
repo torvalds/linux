@@ -219,25 +219,6 @@ static void mite_dma_reset(struct mite_channel *mite_chan)
 	       mite_chan->mite->mmio + MITE_CHOR(mite_chan->channel));
 }
 
-struct mite *mite_alloc(struct pci_dev *pcidev)
-{
-	struct mite *mite;
-	unsigned int i;
-
-	mite = kzalloc(sizeof(*mite), GFP_KERNEL);
-	if (mite) {
-		spin_lock_init(&mite->lock);
-		mite->pcidev = pcidev;
-		for (i = 0; i < MAX_MITE_DMA_CHANNELS; ++i) {
-			mite->channels[i].mite = mite;
-			mite->channels[i].channel = i;
-			mite->channels[i].done = 1;
-		}
-	}
-	return mite;
-}
-EXPORT_SYMBOL_GPL(mite_alloc);
-
 static void dump_chip_signature(u32 csigr_bits)
 {
 	unsigned int wpdep;
@@ -339,18 +320,6 @@ int mite_setup2(struct comedi_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mite_setup2);
-
-void mite_detach(struct mite *mite)
-{
-	if (!mite)
-		return;
-
-	if (mite->mmio)
-		iounmap(mite->mmio);
-
-	kfree(mite);
-}
-EXPORT_SYMBOL_GPL(mite_detach);
 
 struct mite_ring *mite_alloc_ring(struct mite *mite)
 {
@@ -837,6 +806,53 @@ int mite_done(struct mite_channel *mite_chan)
 	return done;
 }
 EXPORT_SYMBOL_GPL(mite_done);
+
+/**
+ * mite_attach() - Allocate and initialize a MITE device for a comedi driver.
+ * @dev: COMEDI device.
+ *
+ * Called by a COMEDI drivers (*auto_attach).
+ *
+ * Returns a pointer to the MITE device on success, or NULL if the MITE cannot
+ * be allocated.
+ */
+struct mite *mite_attach(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct mite *mite;
+	unsigned int i;
+
+	mite = kzalloc(sizeof(*mite), GFP_KERNEL);
+	if (mite) {
+		spin_lock_init(&mite->lock);
+		mite->pcidev = pcidev;
+		for (i = 0; i < MAX_MITE_DMA_CHANNELS; ++i) {
+			mite->channels[i].mite = mite;
+			mite->channels[i].channel = i;
+			mite->channels[i].done = 1;
+		}
+	}
+	return mite;
+}
+EXPORT_SYMBOL_GPL(mite_attach);
+
+/**
+ * mite_detach() - Unmap and free a MITE device for a comedi driver.
+ * @mite: MITE device.
+ *
+ * Called by a COMEDI drivers (*detach).
+ */
+void mite_detach(struct mite *mite)
+{
+	if (!mite)
+		return;
+
+	if (mite->mmio)
+		iounmap(mite->mmio);
+
+	kfree(mite);
+}
+EXPORT_SYMBOL_GPL(mite_detach);
 
 static int __init mite_module_init(void)
 {

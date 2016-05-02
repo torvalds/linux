@@ -724,7 +724,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		return ret;
 	devpriv = dev->private;
 
-	devpriv->mite = mite_alloc(pcidev);
+	devpriv->mite = mite_attach(dev);
 	if (!devpriv->mite)
 		return -ENOMEM;
 
