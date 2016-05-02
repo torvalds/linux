@@ -324,7 +324,9 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		BUG_ON(!dev->is_added);
+		/* Skip if device attach failed */
+		if (!dev->is_added)
+			continue;
 		child = dev->subordinate;
 		if (child)
 			pci_bus_add_devices(child);
