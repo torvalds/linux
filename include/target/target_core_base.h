@@ -602,7 +602,6 @@ struct se_session {
 	struct list_head	sess_cmd_list;
 	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
-	struct kref		sess_kref;
 	void			*sess_cmd_map;
 	struct percpu_ida	sess_tag_pool;
 };

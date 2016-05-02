@@ -239,7 +239,6 @@ struct se_session *transport_init_session(enum target_prot_op sup_prot_ops)
 	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
 	INIT_LIST_HEAD(&se_sess->sess_wait_list);
 	spin_lock_init(&se_sess->sess_cmd_lock);
-	kref_init(&se_sess->sess_kref);
 	se_sess->sup_prot_ops = sup_prot_ops;
 
 	return se_sess;
@@ -429,28 +428,6 @@ target_alloc_session(struct se_portal_group *tpg,
 	return sess;
 }
 EXPORT_SYMBOL(target_alloc_session);
-
-static void target_release_session(struct kref *kref)
-{
-	struct se_session *se_sess = container_of(kref,
-			struct se_session, sess_kref);
-	struct se_portal_group *se_tpg = se_sess->se_tpg;
-
-	if (se_tpg->se_tpg_tfo->close_session)
-		se_tpg->se_tpg_tfo->close_session(se_sess);
-}
-
-int target_get_session(struct se_session *se_sess)
-{
-	return kref_get_unless_zero(&se_sess->sess_kref);
-}
-EXPORT_SYMBOL(target_get_session);
-
-void target_put_session(struct se_session *se_sess)
-{
-	kref_put(&se_sess->sess_kref, target_release_session);
-}
-EXPORT_SYMBOL(target_put_session);
 
 ssize_t target_show_dynamic_sessions(struct se_portal_group *se_tpg, char *page)
 {
