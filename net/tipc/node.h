@@ -45,10 +45,11 @@
 /* Optional capabilities supported by this code version
  */
 enum {
-	TIPC_BCAST_SYNCH = (1 << 1)
+	TIPC_BCAST_SYNCH   = (1 << 1),
+	TIPC_BLOCK_FLOWCTL = (2 << 1)
 };
 
-#define TIPC_NODE_CAPABILITIES TIPC_BCAST_SYNCH
+#define TIPC_NODE_CAPABILITIES (TIPC_BCAST_SYNCH | TIPC_BLOCK_FLOWCTL)
 #define INVALID_BEARER_ID -1
 
 void tipc_node_stop(struct net *net);

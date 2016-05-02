@@ -743,14 +743,24 @@ static inline void msg_set_msgcnt(struct tipc_msg *m, u16 n)
 	msg_set_bits(m, 9, 16, 0xffff, n);
 }
 
-static inline u32 msg_bcast_tag(struct tipc_msg *m)
+static inline u32 msg_conn_ack(struct tipc_msg *m)
 {
 	return msg_bits(m, 9, 16, 0xffff);
 }
 
-static inline void msg_set_bcast_tag(struct tipc_msg *m, u32 n)
+static inline void msg_set_conn_ack(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 9, 16, 0xffff, n);
+}
+
+static inline u32 msg_adv_win(struct tipc_msg *m)
+{
+	return msg_bits(m, 9, 0, 0xffff);
+}
+
+static inline void msg_set_adv_win(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 9, 0, 0xffff, n);
 }
 
 static inline u32 msg_max_pkt(struct tipc_msg *m)
