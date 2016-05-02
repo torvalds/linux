@@ -1368,7 +1368,9 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	devinfo->ifnum = desc->bInterfaceNumber;
 
-	if (usb->speed == USB_SPEED_SUPER)
+	if (usb->speed == USB_SPEED_SUPER_PLUS)
+		brcmf_dbg(USB, "Broadcom super speed plus USB WLAN interface detected\n");
+	else if (usb->speed == USB_SPEED_SUPER)
 		brcmf_dbg(USB, "Broadcom super speed USB WLAN interface detected\n");
 	else if (usb->speed == USB_SPEED_HIGH)
 		brcmf_dbg(USB, "Broadcom high speed USB WLAN interface detected\n");
