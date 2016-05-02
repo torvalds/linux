@@ -36,8 +36,11 @@ physical_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 		       __func__, PTR_ERR(mr));
 		return -ENOMEM;
 	}
-
 	ia->ri_dma_mr = mr;
+
+	rpcrdma_set_max_header_sizes(ia, cdata, min_t(unsigned int,
+						      RPCRDMA_MAX_DATA_SEGS,
+						      RPCRDMA_MAX_HDR_SEGS));
 	return 0;
 }
 

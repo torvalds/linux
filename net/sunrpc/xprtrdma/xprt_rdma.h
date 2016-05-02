@@ -73,6 +73,8 @@ struct rpcrdma_ia {
 	struct completion	ri_done;
 	int			ri_async_rc;
 	unsigned int		ri_max_frmr_depth;
+	unsigned int		ri_max_inline_write;
+	unsigned int		ri_max_inline_read;
 	struct ib_qp_attr	ri_qp_attr;
 	struct ib_qp_init_attr	ri_qp_init_attr;
 };
@@ -538,6 +540,9 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *);
  * RPC/RDMA protocol calls - xprtrdma/rpc_rdma.c
  */
 int rpcrdma_marshal_req(struct rpc_rqst *);
+void rpcrdma_set_max_header_sizes(struct rpcrdma_ia *,
+				  struct rpcrdma_create_data_internal *,
+				  unsigned int);
 
 /* RPC/RDMA module init - xprtrdma/transport.c
  */
