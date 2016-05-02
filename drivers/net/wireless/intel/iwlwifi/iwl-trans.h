@@ -583,6 +583,7 @@ struct iwl_trans_txq_scd_cfg {
  *	configured. May sleep.
  * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
+ * @txq_set_shared_mode: change Tx queue shared/unshared marking
  * @wait_tx_queue_empty: wait until tx queues are empty. May sleep.
  * @freeze_txq_timer: prevents the timer of the queue from firing until the
  *	queue is set to awake. Must be atomic.
@@ -645,6 +646,9 @@ struct iwl_trans_ops {
 			   unsigned int queue_wdg_timeout);
 	void (*txq_disable)(struct iwl_trans *trans, int queue,
 			    bool configure_scd);
+
+	void (*txq_set_shared_mode)(struct iwl_trans *trans, u32 txq_id,
+				    bool shared);
 
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans, u32 txq_bm);
 	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
@@ -1059,6 +1063,13 @@ iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
 	}
 
 	trans->ops->txq_enable(trans, queue, ssn, cfg, queue_wdg_timeout);
+}
+
+static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
+						 int queue, bool shared_mode)
+{
+	if (trans->ops->txq_set_shared_mode)
+		trans->ops->txq_set_shared_mode(trans, queue, shared_mode);
 }
 
 static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,

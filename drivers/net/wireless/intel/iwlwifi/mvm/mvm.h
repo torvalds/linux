@@ -687,6 +687,10 @@ struct iwl_mvm_baid_data {
  *	This is the state of a queue that has been fully configured (including
  *	SCD pointers, etc), has a specific RA/TID assigned to it, and can be
  *	used to send traffic.
+ * @IWL_MVM_QUEUE_SHARED: queue is shared, or in a process of becoming shared
+ *	This is a state in which a single queue serves more than one TID, all of
+ *	which are not aggregated. Note that the queue is only associated to one
+ *	RA.
  * @IWL_MVM_QUEUE_INACTIVE: queue is allocated but no traffic on it
  *	This is a state of a queue that has had traffic on it, but during the
  *	last %IWL_MVM_DQA_QUEUE_TIMEOUT time period there has been no traffic on
@@ -698,6 +702,7 @@ enum iwl_mvm_queue_status {
 	IWL_MVM_QUEUE_FREE,
 	IWL_MVM_QUEUE_RESERVED,
 	IWL_MVM_QUEUE_READY,
+	IWL_MVM_QUEUE_SHARED,
 	IWL_MVM_QUEUE_INACTIVE,
 };
 
@@ -760,6 +765,7 @@ struct iwl_mvm {
 		u8 hw_queue_refcount;
 		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
 		bool reserved; /* Is this the TXQ reserved for a STA */
+		u8 mac80211_ac; /* The mac80211 AC this queue is mapped to */
 		u16 tid_bitmap; /* Bitmap of the TIDs mapped to this queue */
 		/* Timestamp for inactivation per TID of this queue */
 		unsigned long last_frame_time[IWL_MAX_TID_COUNT + 1];

@@ -655,14 +655,21 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	}
 
 	/* Update mappings and refcounts */
+	if (mvm->queue_info[queue].hw_queue_refcount > 0)
+		enable_queue = false;
+
 	mvm->queue_info[queue].hw_queue_to_mac80211 |= BIT(mac80211_queue);
 	mvm->queue_info[queue].hw_queue_refcount++;
-	if (mvm->queue_info[queue].hw_queue_refcount > 1)
-		enable_queue = false;
-	else
-		mvm->queue_info[queue].ra_sta_id = cfg->sta_id;
 	mvm->queue_info[queue].tid_bitmap |= BIT(cfg->tid);
 	mvm->queue_info[queue].ra_sta_id = cfg->sta_id;
+
+	if (enable_queue) {
+		if (cfg->tid != IWL_MAX_TID_COUNT)
+			mvm->queue_info[queue].mac80211_ac =
+				tid_to_mac80211_ac[cfg->tid];
+		else
+			mvm->queue_info[queue].mac80211_ac = IEEE80211_AC_VO;
+	}
 
 	IWL_DEBUG_TX_QUEUES(mvm,
 			    "Enabling TXQ #%d refcount=%d (mac80211 map:0x%x)\n",
@@ -1154,7 +1161,8 @@ void iwl_mvm_inactivity_check(struct iwl_mvm *mvm)
 		queue_tid_bitmap = mvm->queue_info[i].tid_bitmap;
 
 		/* If TXQ isn't in active use anyway - nothing to do here... */
-		if (mvm->queue_info[i].status != IWL_MVM_QUEUE_READY) {
+		if (mvm->queue_info[i].status != IWL_MVM_QUEUE_READY &&
+		    mvm->queue_info[i].status != IWL_MVM_QUEUE_SHARED) {
 			spin_unlock_bh(&mvm->queue_info_lock);
 			continue;
 		}
