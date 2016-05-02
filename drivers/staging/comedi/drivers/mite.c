@@ -369,7 +369,7 @@ struct mite_ring *mite_alloc_ring(struct mite *mite)
 	}
 	ring->n_links = 0;
 	ring->descriptors = NULL;
-	ring->descriptors_dma_addr = 0;
+	ring->dma_addr = 0;
 	return ring;
 };
 EXPORT_SYMBOL_GPL(mite_alloc_ring);
@@ -382,7 +382,7 @@ void mite_free_ring(struct mite_ring *ring)
 					  ring->n_links *
 					  sizeof(struct mite_dma_desc),
 					  ring->descriptors,
-					  ring->descriptors_dma_addr);
+					  ring->dma_addr);
 		}
 		put_device(ring->hw_dev);
 		kfree(ring);
@@ -478,10 +478,10 @@ int mite_buf_change(struct mite_ring *ring,
 				  ring->n_links *
 				  sizeof(struct mite_dma_desc),
 				  ring->descriptors,
-				  ring->descriptors_dma_addr);
+				  ring->dma_addr);
 	}
 	ring->descriptors = NULL;
-	ring->descriptors_dma_addr = 0;
+	ring->dma_addr = 0;
 	ring->n_links = 0;
 
 	if (async->prealloc_bufsz == 0)
@@ -492,7 +492,7 @@ int mite_buf_change(struct mite_ring *ring,
 	ring->descriptors =
 	    dma_alloc_coherent(ring->hw_dev,
 			       n_links * sizeof(struct mite_dma_desc),
-			       &ring->descriptors_dma_addr, GFP_KERNEL);
+			       &ring->dma_addr, GFP_KERNEL);
 	if (!ring->descriptors) {
 		dev_err(s->device->class_dev,
 			"mite: ring buffer allocation failed\n");
@@ -535,7 +535,7 @@ int mite_init_ring_descriptors(struct mite_ring *ring,
 		ring->descriptors[i].addr =
 		    cpu_to_le32(async->buf_map->page_list[i].dma_addr);
 		ring->descriptors[i].next =
-		    cpu_to_le32(ring->descriptors_dma_addr +
+		    cpu_to_le32(ring->dma_addr +
 				(i + 1) * sizeof(struct mite_dma_desc));
 	}
 
@@ -550,7 +550,7 @@ int mite_init_ring_descriptors(struct mite_ring *ring,
 	}
 
 	/* Assign the last link->next to point back to the head of the list. */
-	ring->descriptors[i - 1].next = cpu_to_le32(ring->descriptors_dma_addr);
+	ring->descriptors[i - 1].next = cpu_to_le32(ring->dma_addr);
 
 	/*
 	 * barrier is meant to insure that all the writes to the dma descriptors
@@ -641,7 +641,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	writel(lkcr, mite->mite_io_addr + MITE_LKCR(mite_chan->channel));
 
 	/* starting address for link chaining */
-	writel(mite_chan->ring->descriptors_dma_addr,
+	writel(mite_chan->ring->dma_addr,
 	       mite->mite_io_addr + MITE_LKAR(mite_chan->channel));
 }
 EXPORT_SYMBOL_GPL(mite_prep_dma);

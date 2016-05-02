@@ -39,7 +39,7 @@ struct mite_ring {
 	struct device *hw_dev;
 	unsigned int n_links;
 	struct mite_dma_desc *descriptors;
-	dma_addr_t descriptors_dma_addr;
+	dma_addr_t dma_addr;
 };
 
 struct mite_channel {
