@@ -1476,7 +1476,7 @@ static int rcu_torture_barrier_cbs(void *arg)
 			break;
 		/*
 		 * The above smp_load_acquire() ensures barrier_phase load
-		 * is ordered before the folloiwng ->call().
+		 * is ordered before the following ->call().
 		 */
 		local_irq_disable(); /* Just to test no-irq call_rcu(). */
 		cur_ops->call(&rcu, rcu_torture_barrier_cbf);
