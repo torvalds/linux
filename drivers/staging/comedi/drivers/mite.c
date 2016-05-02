@@ -473,6 +473,7 @@ int mite_buf_change(struct mite_ring *ring,
 		    struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
+	struct mite_dma_desc *descs;
 	unsigned int n_links;
 
 	mite_free_dma_descs(ring);
@@ -482,15 +483,15 @@ int mite_buf_change(struct mite_ring *ring,
 
 	n_links = async->prealloc_bufsz >> PAGE_SHIFT;
 
-	ring->descs =
-	    dma_alloc_coherent(ring->hw_dev,
-			       n_links * sizeof(struct mite_dma_desc),
-			       &ring->dma_addr, GFP_KERNEL);
-	if (!ring->descs) {
+	descs = dma_alloc_coherent(ring->hw_dev,
+				   n_links * sizeof(*descs),
+				   &ring->dma_addr, GFP_KERNEL);
+	if (!descs) {
 		dev_err(s->device->class_dev,
 			"mite: ring buffer allocation failed\n");
 		return -ENOMEM;
 	}
+	ring->descs = descs;
 	ring->n_links = n_links;
 
 	return mite_init_ring_descriptors(ring, s, n_links << PAGE_SHIFT);
