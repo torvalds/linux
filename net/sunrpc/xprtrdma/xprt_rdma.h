@@ -399,8 +399,6 @@ struct rpcrdma_memreg_ops {
 				  struct rpcrdma_mr_seg *, int, bool);
 	void		(*ro_unmap_sync)(struct rpcrdma_xprt *,
 					 struct rpcrdma_req *);
-	int		(*ro_unmap)(struct rpcrdma_xprt *,
-				    struct rpcrdma_mr_seg *);
 	void		(*ro_unmap_safe)(struct rpcrdma_xprt *,
 					 struct rpcrdma_req *, bool);
 	int		(*ro_open)(struct rpcrdma_ia *,

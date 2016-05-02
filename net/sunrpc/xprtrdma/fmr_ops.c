@@ -328,36 +328,6 @@ fmr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	}
 }
 
-/* Use the ib_unmap_fmr() verb to prevent further remote
- * access via RDMA READ or RDMA WRITE.
- */
-static int
-fmr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rpcrdma_mr_seg *seg1 = seg;
-	struct rpcrdma_mw *mw = seg1->rl_mw;
-	int rc, nsegs = seg->mr_nsegs;
-
-	dprintk("RPC:       %s: FMR %p\n", __func__, mw);
-
-	seg1->rl_mw = NULL;
-	while (seg1->mr_nsegs--)
-		rpcrdma_unmap_one(ia->ri_device, seg++);
-	rc = __fmr_unmap(mw);
-	if (rc)
-		goto out_err;
-	rpcrdma_put_mw(r_xprt, mw);
-	return nsegs;
-
-out_err:
-	/* The FMR is abandoned, but remains in rb_all. fmr_op_destroy
-	 * will attempt to release it when the transport is destroyed.
-	 */
-	dprintk("RPC:       %s: ib_unmap_fmr status %i\n", __func__, rc);
-	return nsegs;
-}
-
 static void
 fmr_op_destroy(struct rpcrdma_buffer *buf)
 {
@@ -382,7 +352,6 @@ const struct rpcrdma_memreg_ops rpcrdma_fmr_memreg_ops = {
 	.ro_map				= fmr_op_map,
 	.ro_unmap_sync			= fmr_op_unmap_sync,
 	.ro_unmap_safe			= fmr_op_unmap_safe,
-	.ro_unmap			= fmr_op_unmap,
 	.ro_open			= fmr_op_open,
 	.ro_maxpages			= fmr_op_maxpages,
 	.ro_init			= fmr_op_init,

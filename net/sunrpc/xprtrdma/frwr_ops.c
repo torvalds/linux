@@ -640,48 +640,6 @@ frwr_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	}
 }
 
-/* Post a LOCAL_INV Work Request to prevent further remote access
- * via RDMA READ or RDMA WRITE.
- */
-static int
-frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
-{
-	struct rpcrdma_mr_seg *seg1 = seg;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	struct rpcrdma_mw *mw = seg1->rl_mw;
-	struct rpcrdma_frmr *frmr = &mw->frmr;
-	struct ib_send_wr *invalidate_wr, *bad_wr;
-	int rc, nsegs = seg->mr_nsegs;
-
-	dprintk("RPC:       %s: FRMR %p\n", __func__, mw);
-
-	seg1->rl_mw = NULL;
-	frmr->fr_state = FRMR_IS_INVALID;
-	invalidate_wr = &mw->frmr.fr_invwr;
-
-	memset(invalidate_wr, 0, sizeof(*invalidate_wr));
-	frmr->fr_cqe.done = frwr_wc_localinv;
-	invalidate_wr->wr_cqe = &frmr->fr_cqe;
-	invalidate_wr->opcode = IB_WR_LOCAL_INV;
-	invalidate_wr->ex.invalidate_rkey = frmr->fr_mr->rkey;
-	DECR_CQCOUNT(&r_xprt->rx_ep);
-
-	ib_dma_unmap_sg(ia->ri_device, frmr->fr_sg, frmr->fr_nents, frmr->fr_dir);
-	read_lock(&ia->ri_qplock);
-	rc = ib_post_send(ia->ri_id->qp, invalidate_wr, &bad_wr);
-	read_unlock(&ia->ri_qplock);
-	if (rc)
-		goto out_err;
-
-	rpcrdma_put_mw(r_xprt, mw);
-	return nsegs;
-
-out_err:
-	dprintk("RPC:       %s: ib_post_send status %i\n", __func__, rc);
-	__frwr_queue_recovery(mw);
-	return nsegs;
-}
-
 static void
 frwr_op_destroy(struct rpcrdma_buffer *buf)
 {
@@ -702,7 +660,6 @@ const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
 	.ro_unmap_sync			= frwr_op_unmap_sync,
 	.ro_unmap_safe			= frwr_op_unmap_safe,
-	.ro_unmap			= frwr_op_unmap,
 	.ro_open			= frwr_op_open,
 	.ro_maxpages			= frwr_op_maxpages,
 	.ro_init			= frwr_op_init,
