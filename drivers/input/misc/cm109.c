@@ -366,6 +366,7 @@ static void cm109_urb_irq_callback(struct urb *urb)
 	struct cm109_dev *dev = urb->context;
 	const int status = urb->status;
 	int error;
+	unsigned long flags;
 
 	dev_dbg(&dev->intf->dev, "### URB IRQ: [0x%02x 0x%02x 0x%02x 0x%02x] keybit=0x%02x\n",
 	     dev->irq_data->byte[0],
@@ -404,7 +405,7 @@ static void cm109_urb_irq_callback(struct urb *urb)
 
  out:
 
-	spin_lock(&dev->ctl_submit_lock);
+	spin_lock_irqsave(&dev->ctl_submit_lock, flags);
 
 	dev->irq_urb_pending = 0;
 
@@ -428,7 +429,7 @@ static void cm109_urb_irq_callback(struct urb *urb)
 				__func__, error);
 	}
 
-	spin_unlock(&dev->ctl_submit_lock);
+	spin_unlock_irqrestore(&dev->ctl_submit_lock, flags);
 }
 
 static void cm109_urb_ctl_callback(struct urb *urb)
@@ -436,6 +437,7 @@ static void cm109_urb_ctl_callback(struct urb *urb)
 	struct cm109_dev *dev = urb->context;
 	const int status = urb->status;
 	int error;
+	unsigned long flags;
 
 	dev_dbg(&dev->intf->dev, "### URB CTL: [0x%02x 0x%02x 0x%02x 0x%02x]\n",
 	     dev->ctl_data->byte[0],
@@ -450,7 +452,7 @@ static void cm109_urb_ctl_callback(struct urb *urb)
 				    __func__, status);
 	}
 
-	spin_lock(&dev->ctl_submit_lock);
+	spin_lock_irqsave(&dev->ctl_submit_lock, flags);
 
 	dev->ctl_urb_pending = 0;
 
@@ -471,7 +473,7 @@ static void cm109_urb_ctl_callback(struct urb *urb)
 		}
 	}
 
-	spin_unlock(&dev->ctl_submit_lock);
+	spin_unlock_irqrestore(&dev->ctl_submit_lock, flags);
 }
 
 static void cm109_toggle_buzzer_async(struct cm109_dev *dev)
