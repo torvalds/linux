@@ -54,6 +54,7 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 		pm->clock = clk_get(&dev->plat_dev->dev, MFC_SCLK_NAME);
 		if (IS_ERR(pm->clock)) {
 			mfc_info("Failed to get MFC special clock control\n");
+			pm->clock = NULL;
 		} else {
 			clk_set_rate(pm->clock, MFC_SCLK_RATE);
 			ret = clk_prepare_enable(pm->clock);
