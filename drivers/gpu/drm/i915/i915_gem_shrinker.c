@@ -134,6 +134,15 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	i915_gem_retire_requests(dev_priv->dev);
 
 	/*
+	 * Unbinding of objects will require HW access; Let us not wake the
+	 * device just to recover a little memory. If absolutely necessary,
+	 * we will force the wake during oom-notifier.
+	 */
+	if ((flags & I915_SHRINK_BOUND) &&
+	    !intel_runtime_pm_get_if_in_use(dev_priv))
+		flags &= ~I915_SHRINK_BOUND;
+
+	/*
 	 * As we may completely rewrite the (un)bound list whilst unbinding
 	 * (due to retiring requests) we have to strictly process only
 	 * one element of the list at the time, and recheck the list
@@ -196,6 +205,9 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		}
 		list_splice(&still_in_list, phase->list);
 	}
+
+	if (flags & I915_SHRINK_BOUND)
+		intel_runtime_pm_put(dev_priv);
 
 	i915_gem_retire_requests(dev_priv->dev);
 
