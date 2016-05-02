@@ -11,9 +11,12 @@
 #include "firmware.h"
 #include "greybus.h"
 
+/* Length of the string in format: ara_%08x_%08x_%08x_%08x_%s.tftf */
+#define FW_NAME_LEN		56
+
 struct fw_request {
 	u8			firmware_id;
-	char			name[56]; /* ara_%08x_%08x_%08x_%08x_%s.tftf */
+	char			name[FW_NAME_LEN];
 	const struct firmware	*fw;
 	struct list_head	node;
 };
