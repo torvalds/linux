@@ -144,6 +144,26 @@ rdmab_to_msg(struct rpcrdma_regbuf *rb)
 
 #define RPCRDMA_DEF_GFP		(GFP_NOIO | __GFP_NOWARN)
 
+/* To ensure a transport can always make forward progress,
+ * the number of RDMA segments allowed in header chunk lists
+ * is capped at 8. This prevents less-capable devices and
+ * memory registrations from overrunning the Send buffer
+ * while building chunk lists.
+ *
+ * Elements of the Read list take up more room than the
+ * Write list or Reply chunk. 8 read segments means the Read
+ * list (or Write list or Reply chunk) cannot consume more
+ * than
+ *
+ * ((8 + 2) * read segment size) + 1 XDR words, or 244 bytes.
+ *
+ * And the fixed part of the header is another 24 bytes.
+ *
+ * The smallest inline threshold is 1024 bytes, ensuring that
+ * at least 750 bytes are available for RPC messages.
+ */
+#define RPCRDMA_MAX_HDR_SEGS	(8)
+
 /*
  * struct rpcrdma_rep -- this structure encapsulates state required to recv
  * and complete a reply, asychronously. It needs several pieces of
@@ -456,7 +476,6 @@ struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(struct rpcrdma_ia *,
 void rpcrdma_free_regbuf(struct rpcrdma_ia *,
 			 struct rpcrdma_regbuf *);
 
-unsigned int rpcrdma_max_segments(struct rpcrdma_xprt *);
 int rpcrdma_ep_post_extra_recv(struct rpcrdma_xprt *, unsigned int);
 
 int frwr_alloc_recovery_wq(void);
