@@ -371,16 +371,24 @@ struct mite_ring *mite_alloc_ring(struct mite *mite)
 };
 EXPORT_SYMBOL_GPL(mite_alloc_ring);
 
+static void mite_free_dma_descs(struct mite_ring *ring)
+{
+	struct mite_dma_desc *descs = ring->descs;
+
+	if (descs) {
+		dma_free_coherent(ring->hw_dev,
+				  ring->n_links * sizeof(*descs),
+				  descs, ring->dma_addr);
+		ring->descs = NULL;
+		ring->dma_addr = 0;
+		ring->n_links = 0;
+	}
+}
+
 void mite_free_ring(struct mite_ring *ring)
 {
 	if (ring) {
-		if (ring->descs) {
-			dma_free_coherent(ring->hw_dev,
-					  ring->n_links *
-					  sizeof(struct mite_dma_desc),
-					  ring->descs,
-					  ring->dma_addr);
-		}
+		mite_free_dma_descs(ring);
 		put_device(ring->hw_dev);
 		kfree(ring);
 	}
@@ -467,16 +475,7 @@ int mite_buf_change(struct mite_ring *ring,
 	struct comedi_async *async = s->async;
 	unsigned int n_links;
 
-	if (ring->descs) {
-		dma_free_coherent(ring->hw_dev,
-				  ring->n_links *
-				  sizeof(struct mite_dma_desc),
-				  ring->descs,
-				  ring->dma_addr);
-	}
-	ring->descs = NULL;
-	ring->dma_addr = 0;
-	ring->n_links = 0;
+	mite_free_dma_descs(ring);
 
 	if (async->prealloc_bufsz == 0)
 		return 0;
