@@ -245,6 +245,28 @@ int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    enum qed_led_mode mode);
 
+/**
+ * @brief Bist register test
+ *
+ *  @param p_hwfn    - hw function
+ *  @param p_ptt     - PTT required for register access
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_bist_register_test(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt);
+
+/**
+ * @brief Bist clock test
+ *
+ *  @param p_hwfn    - hw function
+ *  @param p_ptt     - PTT required for register access
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt);
+
 /* Using hwfn number (and not pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
  * TODO - this shouldn't really be in .h file, but until all fields

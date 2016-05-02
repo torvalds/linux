@@ -369,4 +369,14 @@ int qed_sp_pf_update_tunn_cfg(struct qed_hwfn *p_hwfn,
 			      struct qed_tunn_update_params *p_tunn,
 			      enum spq_mode comp_mode,
 			      struct qed_spq_comp_cb *p_comp_data);
+/**
+ * @brief qed_sp_heartbeat_ramrod - Send empty Ramrod
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+
+int qed_sp_heartbeat_ramrod(struct qed_hwfn *p_hwfn);
+
 #endif

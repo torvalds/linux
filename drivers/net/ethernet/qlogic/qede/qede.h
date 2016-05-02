@@ -308,6 +308,10 @@ void qede_reload(struct qede_dev *edev,
 		 union qede_reload_args *args);
 int qede_change_mtu(struct net_device *dev, int new_mtu);
 void qede_fill_by_demand_stats(struct qede_dev *edev);
+bool qede_has_rx_work(struct qede_rx_queue *rxq);
+int qede_txq_has_work(struct qede_tx_queue *txq);
+void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
+			     u8 count);
 
 #define RX_RING_SIZE_POW	13
 #define RX_RING_SIZE		((u16)BIT(RX_RING_SIZE_POW))
