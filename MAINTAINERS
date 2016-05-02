@@ -3839,6 +3839,17 @@ T:	git git://github.com/patjak/drm-gma500
 S:	Maintained
 F:	drivers/gpu/drm/gma500/
 
+DRM DRIVER FOR MSM ADRENO GPU
+M:	Rob Clark <robdclark@gmail.com>
+L:	linux-arm-msm@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+L:	freedreno@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~robclark/linux
+S:	Maintained
+F:	drivers/gpu/drm/msm/
+F:	include/uapi/drm/msm_drm.h
+F:	Documentation/devicetree/bindings/display/msm/
+
 DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
 M:	Ben Skeggs <bskeggs@redhat.com>
 L:	dri-devel@lists.freedesktop.org
