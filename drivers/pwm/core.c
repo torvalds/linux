@@ -75,6 +75,7 @@ static void free_pwms(struct pwm_chip *chip)
 
 	for (i = 0; i < chip->npwm; i++) {
 		struct pwm_device *pwm = &chip->pwms[i];
+
 		radix_tree_delete(&pwm_tree, pwm->pwm);
 	}
 
