@@ -945,12 +945,11 @@ static int __init mite_module_init(void)
 {
 	return 0;
 }
+module_init(mite_module_init);
 
 static void __exit mite_module_exit(void)
 {
 }
-
-module_init(mite_module_init);
 module_exit(mite_module_exit);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
