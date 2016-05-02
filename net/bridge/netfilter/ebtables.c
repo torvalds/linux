@@ -370,7 +370,11 @@ ebt_check_match(struct ebt_entry_match *m, struct xt_mtchk_param *par,
 	    left - sizeof(struct ebt_entry_match) < m->match_size)
 		return -EINVAL;
 
-	match = xt_request_find_match(NFPROTO_BRIDGE, m->u.name, 0);
+	match = xt_find_match(NFPROTO_BRIDGE, m->u.name, 0);
+	if (IS_ERR(match) || match->family != NFPROTO_BRIDGE) {
+		request_module("ebt_%s", m->u.name);
+		match = xt_find_match(NFPROTO_BRIDGE, m->u.name, 0);
+	}
 	if (IS_ERR(match))
 		return PTR_ERR(match);
 	m->u.match = match;
@@ -1521,6 +1525,8 @@ static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	if (copy_from_user(&tmp, user, sizeof(tmp)))
 		return -EFAULT;
 
+	tmp.name[sizeof(tmp.name) - 1] = '\0';
+
 	t = find_table_lock(net, tmp.name, &ret, &ebt_mutex);
 	if (!t)
 		return ret;
@@ -2331,6 +2337,8 @@ static int compat_do_ebt_get_ctl(struct sock *sk, int cmd,
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)))
 		return -EFAULT;
+
+	tmp.name[sizeof(tmp.name) - 1] = '\0';
 
 	t = find_table_lock(net, tmp.name, &ret, &ebt_mutex);
 	if (!t)

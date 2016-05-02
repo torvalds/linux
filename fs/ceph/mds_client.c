@@ -1610,7 +1610,7 @@ again:
 	while (!list_empty(&tmp_list)) {
 		if (!msg) {
 			msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPRELEASE,
-					PAGE_CACHE_SIZE, GFP_NOFS, false);
+					PAGE_SIZE, GFP_NOFS, false);
 			if (!msg)
 				goto out_err;
 			head = msg->front.iov_base;

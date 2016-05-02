@@ -102,7 +102,7 @@ extern void cpu_probe(void);
 extern void cpu_report(void);
 
 extern const char *__cpu_name[];
-#define cpu_name_string()	__cpu_name[smp_processor_id()]
+#define cpu_name_string()	__cpu_name[raw_smp_processor_id()]
 
 struct seq_file;
 struct notifier_block;

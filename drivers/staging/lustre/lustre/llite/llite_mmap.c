@@ -58,7 +58,7 @@ void policy_from_vma(ldlm_policy_data_t *policy,
 		     size_t count)
 {
 	policy->l_extent.start = ((addr - vma->vm_start) & CFS_PAGE_MASK) +
-				 (vma->vm_pgoff << PAGE_CACHE_SHIFT);
+				 (vma->vm_pgoff << PAGE_SHIFT);
 	policy->l_extent.end = (policy->l_extent.start + count - 1) |
 			       ~CFS_PAGE_MASK;
 }
@@ -321,7 +321,7 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 		vmpage = vio->u.fault.ft_vmpage;
 		if (result != 0 && vmpage) {
-			page_cache_release(vmpage);
+			put_page(vmpage);
 			vmf->page = NULL;
 		}
 	}
@@ -360,7 +360,7 @@ restart:
 		lock_page(vmpage);
 		if (unlikely(!vmpage->mapping)) { /* unlucky */
 			unlock_page(vmpage);
-			page_cache_release(vmpage);
+			put_page(vmpage);
 			vmf->page = NULL;
 
 			if (!printed && ++count > 16) {
@@ -457,7 +457,7 @@ int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
 	LASSERTF(last > first, "last %llu first %llu\n", last, first);
 	if (mapping_mapped(mapping)) {
 		rc = 0;
-		unmap_mapping_range(mapping, first + PAGE_CACHE_SIZE - 1,
+		unmap_mapping_range(mapping, first + PAGE_SIZE - 1,
 				    last - first + 1, 0);
 	}
 

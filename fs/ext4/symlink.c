@@ -80,12 +80,12 @@ static const char *ext4_encrypted_get_link(struct dentry *dentry,
 	if (res <= plen)
 		paddr[res] = '\0';
 	if (cpage)
-		page_cache_release(cpage);
+		put_page(cpage);
 	set_delayed_call(done, kfree_link, paddr);
 	return paddr;
 errout:
 	if (cpage)
-		page_cache_release(cpage);
+		put_page(cpage);
 	kfree(paddr);
 	return ERR_PTR(res);
 }

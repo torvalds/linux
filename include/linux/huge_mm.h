@@ -127,7 +127,7 @@ static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
 	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
 		return __pmd_trans_huge_lock(pmd, vma);
 	else
-		return false;
+		return NULL;
 }
 static inline int hpage_nr_pages(struct page *page)
 {

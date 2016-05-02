@@ -155,12 +155,12 @@ static inline void mdc_update_max_ea_from_body(struct obd_export *exp,
 		if (cli->cl_max_mds_easize < body->max_mdsize) {
 			cli->cl_max_mds_easize = body->max_mdsize;
 			cli->cl_default_mds_easize =
-			    min_t(__u32, body->max_mdsize, PAGE_CACHE_SIZE);
+			    min_t(__u32, body->max_mdsize, PAGE_SIZE);
 		}
 		if (cli->cl_max_mds_cookiesize < body->max_cookiesize) {
 			cli->cl_max_mds_cookiesize = body->max_cookiesize;
 			cli->cl_default_mds_cookiesize =
-			    min_t(__u32, body->max_cookiesize, PAGE_CACHE_SIZE);
+			    min_t(__u32, body->max_cookiesize, PAGE_SIZE);
 		}
 	}
 }
