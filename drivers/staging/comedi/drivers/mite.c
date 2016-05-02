@@ -219,23 +219,6 @@ static void mite_dma_reset(struct mite_channel *mite_chan)
 	       mite_chan->mite->mmio + MITE_CHOR(mite_chan->channel));
 }
 
-static void dump_chip_signature(u32 csigr_bits)
-{
-	unsigned int wpdep;
-
-	/* get the wpdep bits and convert it to the write port fifo depth */
-	wpdep = CSIGR_TO_WPDEP(csigr_bits);
-	if (wpdep)
-		wpdep = BIT(wpdep);
-
-	pr_info("version = %i, type = %i, mite mode = %i, interface mode = %i\n",
-		CSIGR_TO_VER(csigr_bits), CSIGR_TO_TYPE(csigr_bits),
-		CSIGR_TO_MMODE(csigr_bits), CSIGR_TO_IMODE(csigr_bits));
-	pr_info("num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n",
-		CSIGR_TO_DMAC(csigr_bits), wpdep,
-		CSIGR_TO_WINS(csigr_bits), CSIGR_TO_IOWINS(csigr_bits));
-}
-
 static unsigned int mite_fifo_size(struct mite *mite, unsigned int channel)
 {
 	unsigned int fcr_bits = readl(mite->mmio + MITE_FCR(channel));
@@ -739,29 +722,24 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
 	int i;
 	u32 csigr_bits;
 	unsigned int unknown_dma_burst_bits;
+	unsigned int wpdep;
 
 	pci_set_master(mite->pcidev);
 
 	mite->mmio = pci_ioremap_bar(mite->pcidev, 0);
-	if (!mite->mmio) {
-		dev_err(dev->class_dev,
-			"Failed to remap mite io memory address\n");
+	if (!mite->mmio)
 		return -ENOMEM;
-	}
 
 	dev->mmio = pci_ioremap_bar(mite->pcidev, 1);
-	if (!dev->mmio) {
-		dev_err(dev->class_dev,
-			"Failed to remap daq io memory address\n");
+	if (!dev->mmio)
 		return -ENOMEM;
-	}
 	daq_phys_addr = pci_resource_start(mite->pcidev, 1);
 	length = pci_resource_len(mite->pcidev, 1);
 
 	if (use_win1) {
 		writel(0, mite->mmio + MITE_IODWBSR);
-		dev_info(dev->class_dev,
-			 "using I/O Window Base Size register 1\n");
+		dev_dbg(dev->class_dev,
+			"mite: using I/O Window Base Size register 1\n");
 		writel(daq_phys_addr | WENAB |
 		       MITE_IODWBSR_1_WSIZE_bits(length),
 		       mite->mmio + MITE_IODWBSR_1);
@@ -792,7 +770,21 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
 			 mite->num_channels, MAX_MITE_DMA_CHANNELS);
 		mite->num_channels = MAX_MITE_DMA_CHANNELS;
 	}
-	dump_chip_signature(csigr_bits);
+
+	/* get the wpdep bits and convert it to the write port fifo depth */
+	wpdep = CSIGR_TO_WPDEP(csigr_bits);
+	if (wpdep)
+		wpdep = BIT(wpdep);
+
+	dev_dbg(dev->class_dev,
+		"mite: version = %i, type = %i, mite mode = %i, interface mode = %i\n",
+		CSIGR_TO_VER(csigr_bits), CSIGR_TO_TYPE(csigr_bits),
+		CSIGR_TO_MMODE(csigr_bits), CSIGR_TO_IMODE(csigr_bits));
+	dev_dbg(dev->class_dev,
+		"mite: num channels = %i, write post fifo depth = %i, wins = %i, iowins = %i\n",
+		CSIGR_TO_DMAC(csigr_bits), wpdep,
+		CSIGR_TO_WINS(csigr_bits), CSIGR_TO_IOWINS(csigr_bits));
+
 	for (i = 0; i < mite->num_channels; i++) {
 		writel(CHOR_DMARESET, mite->mmio + MITE_CHOR(i));
 		/* disable interrupts */
@@ -802,7 +794,7 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
 		       mite->mmio + MITE_CHCR(i));
 	}
 	mite->fifo_size = mite_fifo_size(mite, 0);
-	dev_info(dev->class_dev, "fifo size is %i.\n", mite->fifo_size);
+	dev_dbg(dev->class_dev, "mite: fifo size is %i.\n", mite->fifo_size);
 	return 0;
 }
 
