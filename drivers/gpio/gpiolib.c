@@ -1999,13 +1999,22 @@ EXPORT_SYMBOL_GPL(gpiod_cansleep);
  */
 int gpiod_to_irq(const struct gpio_desc *desc)
 {
-	struct gpio_chip	*chip;
-	int			offset;
+	struct gpio_chip *chip;
+	int offset;
 
 	VALIDATE_DESC(desc);
 	chip = desc->gdev->chip;
 	offset = gpio_chip_hwgpio(desc);
-	return chip->to_irq ? chip->to_irq(chip, offset) : -ENXIO;
+	if (chip->to_irq) {
+		int retirq = chip->to_irq(chip, offset);
+
+		/* Zero means NO_IRQ */
+		if (!retirq)
+			return -ENXIO;
+
+		return retirq;
+	}
+	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(gpiod_to_irq);
 
