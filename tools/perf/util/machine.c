@@ -1652,7 +1652,7 @@ static int add_callchain_ip(struct thread *thread,
 	}
 
 	if (al.sym != NULL) {
-		if (sort__has_parent && !*parent &&
+		if (perf_hpp_list.parent && !*parent &&
 		    symbol__match_regex(al.sym, &parent_regex))
 			*parent = al.sym;
 		else if (have_ignore_callees && root_al &&

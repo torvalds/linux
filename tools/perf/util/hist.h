@@ -242,6 +242,7 @@ struct perf_hpp_list {
 	struct list_head sorts;
 
 	int need_collapse;
+	int parent;
 };
 
 extern struct perf_hpp_list perf_hpp_list;

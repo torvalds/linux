@@ -799,7 +799,7 @@ int sample__resolve_callchain(struct perf_sample *sample,
 		return 0;
 
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain ||
-	    sort__has_parent) {
+	    perf_hpp_list.parent) {
 		return thread__resolve_callchain(al->thread, cursor, evsel, sample,
 						 parent, al, max_stack);
 	}

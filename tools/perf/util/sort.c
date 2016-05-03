@@ -21,7 +21,6 @@ const char	*sort_order;
 const char	*field_order;
 regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
-int		sort__has_parent = 0;
 int		sort__has_sym = 0;
 int		sort__has_dso = 0;
 int		sort__has_socket = 0;
@@ -2244,7 +2243,7 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				pr_err("Invalid regex: %s\n%s", parent_pattern, err);
 				return -EINVAL;
 			}
-			sort__has_parent = 1;
+			list->parent = 1;
 		} else if (sd->entry == &sort_sym) {
 			sort__has_sym = 1;
 			/*
@@ -2746,7 +2745,7 @@ int setup_sorting(struct perf_evlist *evlist)
 void reset_output_field(void)
 {
 	perf_hpp_list.need_collapse = 0;
-	sort__has_parent = 0;
+	perf_hpp_list.parent = 0;
 	sort__has_sym = 0;
 	sort__has_dso = 0;
 
