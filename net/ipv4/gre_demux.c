@@ -114,11 +114,8 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	 */
 	if (greh->flags == 0 && tpi->proto == htons(ETH_P_WCCP)) {
 		tpi->proto = htons(ETH_P_IP);
-		if ((*(u8 *)options & 0xF0) != 0x40) {
+		if ((*(u8 *)options & 0xF0) != 0x40)
 			hdr_len += 4;
-			if (!pskb_may_pull(skb, hdr_len))
-				return -EINVAL;
-		}
 	}
 	return hdr_len;
 }
