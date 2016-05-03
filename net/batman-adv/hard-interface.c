@@ -407,6 +407,9 @@ batadv_hardif_activate_interface(struct batadv_hard_iface *hard_iface)
 
 	batadv_update_min_mtu(hard_iface->soft_iface);
 
+	if (bat_priv->bat_algo_ops->bat_iface_activate)
+		bat_priv->bat_algo_ops->bat_iface_activate(hard_iface);
+
 out:
 	if (primary_if)
 		batadv_hardif_put(primary_if);
