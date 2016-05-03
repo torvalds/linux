@@ -2128,7 +2128,8 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			aq_ret = i40e_aq_set_vsi_unicast_promiscuous(
 							  &vsi->back->hw,
 							  vsi->seid,
-							  cur_promisc, NULL);
+							  cur_promisc, NULL,
+							  true);
 			if (aq_ret) {
 				retval =
 				i40e_aq_rc_to_posix(aq_ret,
@@ -10407,6 +10408,7 @@ int i40e_fetch_switch_configuration(struct i40e_pf *pf, bool printconfig)
  **/
 static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 {
+	u16 flags = 0;
 	int ret;
 
 	/* find out what's out there already */
@@ -10419,6 +10421,32 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		return ret;
 	}
 	i40e_pf_reset_stats(pf);
+
+	/* set the switch config bit for the whole device to
+	 * support limited promisc or true promisc
+	 * when user requests promisc. The default is limited
+	 * promisc.
+	*/
+
+	if ((pf->hw.pf_id == 0) &&
+	    !(pf->flags & I40E_FLAG_TRUE_PROMISC_SUPPORT))
+		flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
+
+	if (pf->hw.pf_id == 0) {
+		u16 valid_flags;
+
+		valid_flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
+		ret = i40e_aq_set_switch_config(&pf->hw, flags, valid_flags,
+						NULL);
+		if (ret && pf->hw.aq.asq_last_status != I40E_AQ_RC_ESRCH) {
+			dev_info(&pf->pdev->dev,
+				 "couldn't set switch config bits, err %s aq_err %s\n",
+				 i40e_stat_str(&pf->hw, ret),
+				 i40e_aq_str(&pf->hw,
+					     pf->hw.aq.asq_last_status));
+			/* not a fatal problem, just keep going */
+		}
+	}
 
 	/* first time setup */
 	if (pf->lan_vsi == I40E_NO_VSI || reinit) {

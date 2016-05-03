@@ -230,6 +230,17 @@ static const char i40e_gstrings_test[][ETH_GSTRING_LEN] = {
 
 #define I40E_TEST_LEN (sizeof(i40e_gstrings_test) / ETH_GSTRING_LEN)
 
+static const char i40e_priv_flags_strings_gl[][ETH_GSTRING_LEN] = {
+	"MFP",
+	"LinkPolling",
+	"flow-director-atr",
+	"veb-stats",
+	"hw-atr-eviction",
+	"vf-true-promisc-support",
+};
+
+#define I40E_PRIV_FLAGS_GL_STR_LEN ARRAY_SIZE(i40e_priv_flags_strings_gl)
+
 static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
 	"NPAR",
 	"LinkPolling",
@@ -1158,6 +1169,10 @@ static void i40e_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(pf->pdev),
 		sizeof(drvinfo->bus_info));
+	if (pf->hw.pf_id == 0)
+		drvinfo->n_priv_flags = I40E_PRIV_FLAGS_GL_STR_LEN;
+	else
+		drvinfo->n_priv_flags = I40E_PRIV_FLAGS_STR_LEN;
 }
 
 static void i40e_get_ringparam(struct net_device *netdev,
@@ -1385,7 +1400,10 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 			return I40E_VSI_STATS_LEN(netdev);
 		}
 	case ETH_SS_PRIV_FLAGS:
-		return I40E_PRIV_FLAGS_STR_LEN;
+		if (pf->hw.pf_id == 0)
+			return I40E_PRIV_FLAGS_GL_STR_LEN;
+		else
+			return I40E_PRIV_FLAGS_STR_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1583,10 +1601,18 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 		/* BUG_ON(p - data != I40E_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	case ETH_SS_PRIV_FLAGS:
-		for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
-			memcpy(data, i40e_priv_flags_strings[i],
-			       ETH_GSTRING_LEN);
-			data += ETH_GSTRING_LEN;
+		if (pf->hw.pf_id == 0) {
+			for (i = 0; i < I40E_PRIV_FLAGS_GL_STR_LEN; i++) {
+				memcpy(data, i40e_priv_flags_strings_gl[i],
+				       ETH_GSTRING_LEN);
+				data += ETH_GSTRING_LEN;
+			}
+		} else {
+			for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
+				memcpy(data, i40e_priv_flags_strings[i],
+				       ETH_GSTRING_LEN);
+				data += ETH_GSTRING_LEN;
+			}
 		}
 		break;
 	default:
@@ -2848,8 +2874,6 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 	struct i40e_pf *pf = vsi->back;
 	u32 ret_flags = 0;
 
-	ret_flags |= pf->hw.func_caps.npar_enable ?
-		I40E_PRIV_FLAGS_NPAR_FLAG : 0;
 	ret_flags |= pf->flags & I40E_FLAG_LINK_POLLING_ENABLED ?
 		I40E_PRIV_FLAGS_LINKPOLL_FLAG : 0;
 	ret_flags |= pf->flags & I40E_FLAG_FD_ATR_ENABLED ?
@@ -2858,6 +2882,10 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 		I40E_PRIV_FLAGS_VEB_STATS : 0;
 	ret_flags |= pf->auto_disable_flags & I40E_FLAG_HW_ATR_EVICT_CAPABLE ?
 		0 : I40E_PRIV_FLAGS_HW_ATR_EVICT;
+	if (pf->hw.pf_id == 0) {
+		ret_flags |= pf->flags & I40E_FLAG_TRUE_PROMISC_SUPPORT ?
+			I40E_PRIV_FLAGS_TRUE_PROMISC_SUPPORT : 0;
+	}
 
 	return ret_flags;
 }
@@ -2872,7 +2900,10 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
+	u16 sw_flags = 0, valid_flags = 0;
 	bool reset_required = false;
+	bool promisc_change = false;
+	int ret;
 
 	/* NOTE: MFP is not settable */
 
@@ -2900,6 +2931,33 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 		   (pf->flags & I40E_FLAG_VEB_STATS_ENABLED)) {
 		pf->flags &= ~I40E_FLAG_VEB_STATS_ENABLED;
 		reset_required = true;
+	}
+
+	if (pf->hw.pf_id == 0) {
+		if ((flags & I40E_PRIV_FLAGS_TRUE_PROMISC_SUPPORT) &&
+		    !(pf->flags & I40E_FLAG_TRUE_PROMISC_SUPPORT)) {
+			pf->flags |= I40E_FLAG_TRUE_PROMISC_SUPPORT;
+			promisc_change = true;
+		} else if (!(flags & I40E_PRIV_FLAGS_TRUE_PROMISC_SUPPORT) &&
+			   (pf->flags & I40E_FLAG_TRUE_PROMISC_SUPPORT)) {
+			pf->flags &= ~I40E_FLAG_TRUE_PROMISC_SUPPORT;
+			promisc_change = true;
+		}
+	}
+	if (promisc_change) {
+		if (!(pf->flags & I40E_FLAG_TRUE_PROMISC_SUPPORT))
+			sw_flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
+		valid_flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
+		ret = i40e_aq_set_switch_config(&pf->hw, sw_flags, valid_flags,
+						NULL);
+		if (ret && pf->hw.aq.asq_last_status != I40E_AQ_RC_ESRCH) {
+			dev_info(&pf->pdev->dev,
+				 "couldn't set switch config bits, err %s aq_err %s\n",
+				 i40e_stat_str(&pf->hw, ret),
+				 i40e_aq_str(&pf->hw,
+					     pf->hw.aq.asq_last_status));
+			/* not a fatal problem, just keep going */
+		}
 	}
 
 	if ((flags & I40E_PRIV_FLAGS_HW_ATR_EVICT) &&
