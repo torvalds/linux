@@ -324,11 +324,11 @@ static int das16m1_ai_insn_read(struct comedi_device *dev,
 				unsigned int *data)
 {
 	int ret;
-	int n;
+	int i;
 
 	das16m1_ai_set_queue(dev, &insn->chanspec, 1);
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
 		unsigned short val;
 
 		/* clear interrupt */
@@ -341,10 +341,10 @@ static int das16m1_ai_insn_read(struct comedi_device *dev,
 			return ret;
 
 		val = inw(dev->iobase + DAS16M1_AI_REG);
-		data[n] = DAS16M1_AI_TO_SAMPLE(val);
+		data[i] = DAS16M1_AI_TO_SAMPLE(val);
 	}
 
-	return n;
+	return insn->n;
 }
 
 static int das16m1_di_insn_bits(struct comedi_device *dev,
