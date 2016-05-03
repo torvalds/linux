@@ -15,6 +15,8 @@
 #include <linux/device.h>
 #include <linux/irqreturn.h>
 
+#define CHAMELEON_FILENAME_LEN 12
+
 struct mcb_driver;
 struct mcb_device;
 
@@ -25,11 +27,18 @@ struct mcb_device;
  * @carrier: pointer to carrier device
  * @bus_nr: mcb bus number
  * @get_irq: callback to get IRQ number
+ * @revision: the FPGA's revision number
+ * @model: the FPGA's model number
+ * @filename: the FPGA's name
  */
 struct mcb_bus {
 	struct device dev;
 	struct device *carrier;
 	int bus_nr;
+	u8 revision;
+	char model;
+	u8 minor;
+	char name[CHAMELEON_FILENAME_LEN + 1];
 	int (*get_irq)(struct mcb_device *dev);
 };
 #define to_mcb_bus(b) container_of((b), struct mcb_bus, dev)
