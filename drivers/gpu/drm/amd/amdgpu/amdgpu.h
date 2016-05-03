@@ -508,9 +508,10 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
 unsigned long amdgpu_gem_timeout(uint64_t timeout_ns);
 struct sg_table *amdgpu_gem_prime_get_sg_table(struct drm_gem_object *obj);
-struct drm_gem_object *amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
-							struct dma_buf_attachment *attach,
-							struct sg_table *sg);
+struct drm_gem_object *
+amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
+				 struct dma_buf_attachment *attach,
+				 struct sg_table *sg);
 struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 					struct drm_gem_object *gobj,
 					int flags);
@@ -1187,7 +1188,8 @@ struct amdgpu_gfx {
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size, struct amdgpu_ib *ib);
-void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib, struct fence *f);
+void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
+		    struct fence *f);
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		       struct amdgpu_ib *ib, struct fence *last_vm_update,
 		       struct amdgpu_job *job, struct fence **f);
