@@ -741,7 +741,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 
 		ib->length_dw = chunk_ib->ib_bytes / 4;
 		ib->flags = chunk_ib->flags;
-		ib->ctx = parser->ctx;
+		ib->ctx = parser->ctx->rings[ring->idx].entity.fence_context;
 		j++;
 	}
 

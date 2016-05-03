@@ -743,7 +743,7 @@ struct amdgpu_ib {
 	struct amdgpu_user_fence        *user;
 	unsigned			vm_id;
 	uint64_t			vm_pd_addr;
-	struct amdgpu_ctx		*ctx;
+	uint64_t			ctx;
 	uint32_t			gds_base, gds_size;
 	uint32_t			gws_base, gws_size;
 	uint32_t			oa_base, oa_size;
@@ -806,7 +806,7 @@ struct amdgpu_ring {
 	unsigned		wptr_offs;
 	unsigned		next_rptr_offs;
 	unsigned		fence_offs;
-	struct amdgpu_ctx	*current_ctx;
+	uint64_t		current_ctx;
 	enum amdgpu_ring_type	type;
 	char			name[16];
 	unsigned		cond_exe_offs;

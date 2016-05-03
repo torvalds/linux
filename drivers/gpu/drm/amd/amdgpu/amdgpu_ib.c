@@ -121,7 +121,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib *ib = &ibs[0];
-	struct amdgpu_ctx *ctx, *old_ctx;
+	uint64_t ctx, old_ctx;
 	struct fence *hwf;
 	struct amdgpu_vm *vm = NULL;
 	unsigned i, patch_offset = ~0;
