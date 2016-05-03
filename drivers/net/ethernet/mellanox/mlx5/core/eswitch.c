@@ -845,7 +845,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
 	int l2_table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
-	int total_vports = 1 + pci_sriov_get_totalvfs(dev->pdev);
+	int total_vports = MLX5_TOTAL_VPORTS(dev);
 	struct mlx5_eswitch *esw;
 	int vport_num;
 	int err;

@@ -457,7 +457,7 @@ static struct mlx5_flow_group *alloc_flow_group(u32 *create_fg_in)
 	return fg;
 }
 
-static struct mlx5_flow_table *alloc_flow_table(int level, int max_fte,
+static struct mlx5_flow_table *alloc_flow_table(int level, u16 vport, int max_fte,
 						enum fs_flow_table_type table_type)
 {
 	struct mlx5_flow_table *ft;
@@ -469,6 +469,7 @@ static struct mlx5_flow_table *alloc_flow_table(int level, int max_fte,
 	ft->level = level;
 	ft->node.type = FS_TYPE_FLOW_TABLE;
 	ft->type = table_type;
+	ft->vport = vport;
 	ft->max_fte = max_fte;
 	INIT_LIST_HEAD(&ft->fwd_rules);
 	mutex_init(&ft->lock);
@@ -700,9 +701,9 @@ static void list_add_flow_table(struct mlx5_flow_table *ft,
 	list_add(&ft->node.list, prev);
 }
 
-struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
-					       int prio, int max_fte,
-					       u32 level)
+static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
+							u16 vport, int prio,
+							int max_fte, u32 level)
 {
 	struct mlx5_flow_table *next_ft = NULL;
 	struct mlx5_flow_table *ft;
@@ -732,6 +733,7 @@ struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 	 */
 	level += fs_prio->start_level;
 	ft = alloc_flow_table(level,
+			      vport,
 			      roundup_pow_of_two(max_fte),
 			      root->table_type);
 	if (!ft) {
@@ -742,7 +744,7 @@ struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 	tree_init_node(&ft->node, 1, del_flow_table);
 	log_table_sz = ilog2(ft->max_fte);
 	next_ft = find_next_chained_ft(fs_prio);
-	err = mlx5_cmd_create_flow_table(root->dev, ft->type, ft->level,
+	err = mlx5_cmd_create_flow_table(root->dev, ft->vport, ft->type, ft->level,
 					 log_table_sz, next_ft, &ft->id);
 	if (err)
 		goto free_ft;
@@ -764,6 +766,20 @@ free_ft:
 unlock_root:
 	mutex_unlock(&root->chain_lock);
 	return ERR_PTR(err);
+}
+
+struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
+					       int prio, int max_fte,
+					       u32 level)
+{
+	return __mlx5_create_flow_table(ns, 0, prio, max_fte, level);
+}
+
+struct mlx5_flow_table *mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
+						     int prio, int max_fte,
+						     u32 level, u16 vport)
+{
+	return __mlx5_create_flow_table(ns, vport, prio, max_fte, level);
 }
 
 struct mlx5_flow_table *mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
@@ -1319,6 +1335,16 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 			return &dev->priv.fdb_root_ns->ns;
 		else
 			return NULL;
+	case MLX5_FLOW_NAMESPACE_ESW_EGRESS:
+		if (dev->priv.esw_egress_root_ns)
+			return &dev->priv.esw_egress_root_ns->ns;
+		else
+			return NULL;
+	case MLX5_FLOW_NAMESPACE_ESW_INGRESS:
+		if (dev->priv.esw_ingress_root_ns)
+			return &dev->priv.esw_ingress_root_ns->ns;
+		else
+			return NULL;
 	default:
 		return NULL;
 	}
@@ -1699,6 +1725,8 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 {
 	cleanup_root_ns(dev);
 	cleanup_single_prio_root_ns(dev, dev->priv.fdb_root_ns);
+	cleanup_single_prio_root_ns(dev, dev->priv.esw_egress_root_ns);
+	cleanup_single_prio_root_ns(dev, dev->priv.esw_ingress_root_ns);
 }
 
 static int init_fdb_root_ns(struct mlx5_core_dev *dev)
@@ -1719,6 +1747,38 @@ static int init_fdb_root_ns(struct mlx5_core_dev *dev)
 	}
 }
 
+static int init_egress_acl_root_ns(struct mlx5_core_dev *dev)
+{
+	struct fs_prio *prio;
+
+	dev->priv.esw_egress_root_ns = create_root_ns(dev, FS_FT_ESW_EGRESS_ACL);
+	if (!dev->priv.esw_egress_root_ns)
+		return -ENOMEM;
+
+	/* create 1 prio*/
+	prio = fs_create_prio(&dev->priv.esw_egress_root_ns->ns, 0, MLX5_TOTAL_VPORTS(dev));
+	if (IS_ERR(prio))
+		return PTR_ERR(prio);
+	else
+		return 0;
+}
+
+static int init_ingress_acl_root_ns(struct mlx5_core_dev *dev)
+{
+	struct fs_prio *prio;
+
+	dev->priv.esw_ingress_root_ns = create_root_ns(dev, FS_FT_ESW_INGRESS_ACL);
+	if (!dev->priv.esw_ingress_root_ns)
+		return -ENOMEM;
+
+	/* create 1 prio*/
+	prio = fs_create_prio(&dev->priv.esw_ingress_root_ns->ns, 0, MLX5_TOTAL_VPORTS(dev));
+	if (IS_ERR(prio))
+		return PTR_ERR(prio);
+	else
+		return 0;
+}
+
 int mlx5_init_fs(struct mlx5_core_dev *dev)
 {
 	int err = 0;
@@ -1731,8 +1791,21 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, eswitch_flow_table)) {
 		err = init_fdb_root_ns(dev);
 		if (err)
-			cleanup_root_ns(dev);
+			goto err;
+	}
+	if (MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support)) {
+		err = init_egress_acl_root_ns(dev);
+		if (err)
+			goto err;
+	}
+	if (MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support)) {
+		err = init_ingress_acl_root_ns(dev);
+		if (err)
+			goto err;
 	}
 
+	return 0;
+err:
+	mlx5_cleanup_fs(dev);
 	return err;
 }
