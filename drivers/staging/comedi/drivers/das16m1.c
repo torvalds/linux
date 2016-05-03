@@ -61,25 +61,8 @@
 #define FIFO_SIZE 1024		/*  1024 sample fifo */
 
 /*
-    CIO-DAS16_M1.pdf
-
-    "cio-das16/m1"
-
-  0		a/d bits 0-3, mux		start 12 bit
-  1		a/d bits 4-11		unused
-  2		status		control
-  3		di 4 bit		do 4 bit
-  4		unused			clear interrupt
-  5		interrupt, pacer
-  6		channel/gain queue address
-  7		channel/gain queue data
-  89ab		8254
-  cdef		8254
-  400		8255
-  404-407	8254
-
-*/
-
+ * Register map (dev->iobase)
+ */
 #define DAS16M1_AI             0	/*  16-bit wide register */
 #define   AI_CHAN(x)             ((x) & 0xf)
 #define DAS16M1_CS             2
