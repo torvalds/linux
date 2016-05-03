@@ -431,7 +431,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 	err = phy_device_register(phydev);
 	if (err) {
 		phy_device_free(phydev);
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	}
 
 	return phydev;
