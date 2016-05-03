@@ -6646,6 +6646,12 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
 	I915_WRITE(GEN8_L3SQCREG1, BDW_WA_L3SQCREG1_DEFAULT);
+	/*
+	 * Wait at least 100 clocks before re-enabling clock gating. See
+	 * the definition of L3SQCREG1 in BSpec.
+	 */
+	POSTING_READ(GEN8_L3SQCREG1);
+	udelay(1);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 
 	/*
