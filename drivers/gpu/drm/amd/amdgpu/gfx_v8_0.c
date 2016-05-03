@@ -5187,15 +5187,17 @@ static int gfx_v8_0_late_init(void *handle)
 	return 0;
 }
 
-static void polaris11_enable_gfx_static_mg_power_gating(struct amdgpu_device *adev,
-		bool enable)
+static void gfx_v8_0_enable_gfx_static_mg_power_gating(struct amdgpu_device *adev,
+						       bool enable)
 {
 	uint32_t data, temp;
 
-	/* Send msg to SMU via Powerplay */
-	amdgpu_set_powergating_state(adev,
-			AMD_IP_BLOCK_TYPE_SMC,
-			enable ? AMD_PG_STATE_GATE : AMD_PG_STATE_UNGATE);
+	if (adev->asic_type == CHIP_POLARIS11)
+		/* Send msg to SMU via Powerplay */
+		amdgpu_set_powergating_state(adev,
+					     AMD_IP_BLOCK_TYPE_SMC,
+					     enable ?
+					     AMD_PG_STATE_GATE : AMD_PG_STATE_UNGATE);
 
 	if (enable) {
 		/* Enable static MGPG */
@@ -5213,8 +5215,8 @@ static void polaris11_enable_gfx_static_mg_power_gating(struct amdgpu_device *ad
 	}
 }
 
-static void polaris11_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *adev,
-		bool enable)
+static void gfx_v8_0_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *adev,
+							bool enable)
 {
 	uint32_t data, temp;
 
@@ -5266,10 +5268,10 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 	switch (adev->asic_type) {
 	case CHIP_POLARIS11:
 		if (adev->pg_flags & AMD_PG_SUPPORT_GFX_SMG)
-			polaris11_enable_gfx_static_mg_power_gating(adev,
+			gfx_v8_0_enable_gfx_static_mg_power_gating(adev,
 					state == AMD_PG_STATE_GATE ? true : false);
 		else if (adev->pg_flags & AMD_PG_SUPPORT_GFX_DMG)
-			polaris11_enable_gfx_dynamic_mg_power_gating(adev,
+			gfx_v8_0_enable_gfx_dynamic_mg_power_gating(adev,
 					state == AMD_PG_STATE_GATE ? true : false);
 		else
 			polaris11_enable_gfx_quick_mg_power_gating(adev,
