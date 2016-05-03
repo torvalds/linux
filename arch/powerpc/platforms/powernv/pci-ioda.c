@@ -2993,7 +2993,7 @@ static void pnv_ioda_setup_pe_res(struct pnv_ioda_pe *pe,
  */
 static void pnv_ioda_setup_pe_seg(struct pnv_ioda_pe *pe)
 {
-	struct resource *res;
+	struct pci_dev *pdev;
 	int i;
 
 	/*
@@ -3003,8 +3003,21 @@ static void pnv_ioda_setup_pe_seg(struct pnv_ioda_pe *pe)
 	 */
 	BUG_ON(!(pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)));
 
-	pci_bus_for_each_resource(pe->pbus, res, i)
-		pnv_ioda_setup_pe_res(pe, res);
+	list_for_each_entry(pdev, &pe->pbus->devices, bus_list) {
+		for (i = 0; i <= PCI_ROM_RESOURCE; i++)
+			pnv_ioda_setup_pe_res(pe, &pdev->resource[i]);
+
+		/*
+		 * If the PE contains all subordinate PCI buses, the
+		 * windows of the child bridges should be mapped to
+		 * the PE as well.
+		 */
+		if (!(pe->flags & PNV_IODA_PE_BUS_ALL) || !pci_is_bridge(pdev))
+			continue;
+		for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++)
+			pnv_ioda_setup_pe_res(pe,
+				&pdev->resource[PCI_BRIDGE_RESOURCES + i]);
+	}
 }
 
 static void pnv_pci_ioda_setup_seg(void)
