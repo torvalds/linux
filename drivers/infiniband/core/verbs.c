@@ -762,6 +762,9 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 	qp->qp_type    = qp_init_attr->qp_type;
 
 	atomic_set(&qp->usecnt, 0);
+	qp->mrs_used = 0;
+	spin_lock_init(&qp->mr_lock);
+
 	if (qp_init_attr->qp_type == IB_QPT_XRC_TGT)
 		return ib_create_xrc_qp(qp, qp_init_attr);
 
@@ -1254,6 +1257,8 @@ int ib_destroy_qp(struct ib_qp *qp)
 	struct ib_cq *scq, *rcq;
 	struct ib_srq *srq;
 	int ret;
+
+	WARN_ON_ONCE(qp->mrs_used > 0);
 
 	if (atomic_read(&qp->usecnt))
 		return -EBUSY;
