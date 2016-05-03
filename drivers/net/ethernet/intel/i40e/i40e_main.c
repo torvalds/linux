@@ -9362,7 +9362,8 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 			ctxt.info.valid_sections |=
 				cpu_to_le16(I40E_AQ_VSI_PROP_QUEUE_OPT_VALID);
 			ctxt.info.queueing_opt_flags |=
-						I40E_AQ_VSI_QUE_OPT_TCP_ENA;
+				(I40E_AQ_VSI_QUE_OPT_TCP_ENA |
+				 I40E_AQ_VSI_QUE_OPT_RSS_LUT_VSI);
 		}
 
 		ctxt.info.valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_VLAN_VALID);
