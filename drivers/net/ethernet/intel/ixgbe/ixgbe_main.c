@@ -608,7 +608,7 @@ static void ixgbe_dump(struct ixgbe_adapter *adapter)
 		pr_info("%-15s %016lX %016lX %016lX\n",
 			netdev->name,
 			netdev->state,
-			netdev->trans_start,
+			dev_trans_start(netdev),
 			netdev->last_rx);
 	}
 

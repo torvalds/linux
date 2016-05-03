@@ -890,7 +890,7 @@ static void encx24j600_tx_timeout(struct net_device *dev)
 	struct encx24j600_priv *priv = netdev_priv(dev);
 
 	netif_err(priv, tx_err, dev, "TX timeout at %ld, latency %ld\n",
-		  jiffies, jiffies - dev->trans_start);
+		  jiffies, jiffies - dev_trans_start(dev));
 
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev);

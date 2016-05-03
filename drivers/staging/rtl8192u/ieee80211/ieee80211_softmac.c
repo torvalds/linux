@@ -1737,7 +1737,7 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 		return 2;
 
 	if(!time_after(jiffies,
-		       ieee->dev->trans_start + msecs_to_jiffies(timeout)))
+		       dev_trans_start(ieee->dev) + msecs_to_jiffies(timeout)))
 		return 0;
 
 	if(!time_after(jiffies,

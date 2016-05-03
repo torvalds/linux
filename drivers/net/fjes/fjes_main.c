@@ -471,7 +471,7 @@ static void fjes_tx_stall_task(struct work_struct *work)
 	int i;
 
 	if (((long)jiffies -
-		(long)(netdev->trans_start)) > FJES_TX_TX_STALL_TIMEOUT) {
+		dev_trans_start(netdev)) > FJES_TX_TX_STALL_TIMEOUT) {
 		netif_wake_queue(netdev);
 		return;
 	}
