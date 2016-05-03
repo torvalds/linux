@@ -136,6 +136,16 @@ config MMA7455_SPI
 	  To compile this driver as a module, choose M here: the module
 	  will be called mma7455_spi.
 
+config MMA7660
+	tristate "Freescale MMA7660FC 3-Axis Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to get support for the Freescale MMA7660FC 3-Axis
+	  accelerometer.
+
+	  Choosing M will build the driver as a module. If so, the module
+	  will be called mma7660.
+
 config MMA8452
 	tristate "Freescale MMA8452Q and similar Accelerometers Driver"
 	depends on I2C

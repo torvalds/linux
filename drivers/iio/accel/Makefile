@@ -15,6 +15,8 @@ obj-$(CONFIG_MMA7455)		+= mma7455_core.o
 obj-$(CONFIG_MMA7455_I2C)	+= mma7455_i2c.o
 obj-$(CONFIG_MMA7455_SPI)	+= mma7455_spi.o
 
+obj-$(CONFIG_MMA7660)	+= mma7660.o
+
 obj-$(CONFIG_MMA8452)	+= mma8452.o
 
 obj-$(CONFIG_MMA9551_CORE)	+= mma9551_core.o
