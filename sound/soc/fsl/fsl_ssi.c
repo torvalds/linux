@@ -475,9 +475,9 @@ static void fsl_ssi_config(struct fsl_ssi_private *ssi_private, bool enable,
 	 * (online configuration)
 	 */
 	if (enable) {
-		regmap_update_bits(regs, CCSR_SSI_SIER, vals->sier, vals->sier);
 		regmap_update_bits(regs, CCSR_SSI_SRCR, vals->srcr, vals->srcr);
 		regmap_update_bits(regs, CCSR_SSI_STCR, vals->stcr, vals->stcr);
+		regmap_update_bits(regs, CCSR_SSI_SIER, vals->sier, vals->sier);
 	} else {
 		u32 sier;
 		u32 srcr;
