@@ -135,17 +135,17 @@ int __init acpi_blacklisted(void)
 #ifdef CONFIG_DMI
 static int __init dmi_enable_osi_darwin(const struct dmi_system_id *d)
 {
-	acpi_dmi_osi_darwin(true, d);	/* enable */
+	acpi_osi_dmi_darwin(true, d);
 	return 0;
 }
 static int __init dmi_enable_osi_linux(const struct dmi_system_id *d)
 {
-	acpi_dmi_osi_linux(true, d);	/* enable */
+	acpi_osi_dmi_linux(true, d);
 	return 0;
 }
 static int __init dmi_disable_osi_vista(const struct dmi_system_id *d)
 {
-	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
+	pr_notice(PREFIX "DMI detected: %s\n", d->ident);
 	acpi_osi_setup("!Windows 2006");
 	acpi_osi_setup("!Windows 2006 SP1");
 	acpi_osi_setup("!Windows 2006 SP2");
@@ -153,13 +153,13 @@ static int __init dmi_disable_osi_vista(const struct dmi_system_id *d)
 }
 static int __init dmi_disable_osi_win7(const struct dmi_system_id *d)
 {
-	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
+	pr_notice(PREFIX "DMI detected: %s\n", d->ident);
 	acpi_osi_setup("!Windows 2009");
 	return 0;
 }
 static int __init dmi_disable_osi_win8(const struct dmi_system_id *d)
 {
-	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
+	pr_notice(PREFIX "DMI detected: %s\n", d->ident);
 	acpi_osi_setup("!Windows 2012");
 	return 0;
 }

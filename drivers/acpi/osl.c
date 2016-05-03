@@ -139,13 +139,13 @@ static struct acpi_osi_config {
 	unsigned int	darwin_dmi:1;
 	unsigned int	darwin_cmdline:1;
 	u8		default_disabling;
-} osi_config = {0, 0, 0, 0};
+} osi_config;
 
 static u32 acpi_osi_handler(acpi_string interface, u32 supported)
 {
 	if (!strcmp("Linux", interface)) {
 
-		printk_once(KERN_NOTICE FW_BUG PREFIX
+		pr_notice_once(FW_BUG PREFIX
 			"BIOS _OSI(Linux) query %s%s\n",
 			osi_config.linux_enable ? "honored" : "ignored",
 			osi_config.linux_cmdline ? " via cmdline" :
@@ -154,7 +154,7 @@ static u32 acpi_osi_handler(acpi_string interface, u32 supported)
 
 	if (!strcmp("Darwin", interface)) {
 
-		printk_once(KERN_NOTICE PREFIX
+		pr_notice_once(PREFIX
 			"BIOS _OSI(Darwin) query %s%s\n",
 			osi_config.darwin_enable ? "honored" : "ignored",
 			osi_config.darwin_cmdline ? " via cmdline" :
@@ -1719,15 +1719,15 @@ static int __init acpi_os_name_setup(char *str)
 
 __setup("acpi_os_name=", acpi_os_name_setup);
 
-#define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
-#define	OSI_STRING_ENTRIES_MAX 16	/* arbitrary */
+#define	OSI_STRING_LENGTH_MAX 64
+#define	OSI_STRING_ENTRIES_MAX 16
 
-struct osi_setup_entry {
+struct acpi_osi_entry {
 	char string[OSI_STRING_LENGTH_MAX];
 	bool enable;
 };
 
-static struct osi_setup_entry
+static struct acpi_osi_entry
 		osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 	{"Module Device", true},
 	{"Processor Device", true},
@@ -1737,7 +1737,7 @@ static struct osi_setup_entry
 
 void __init acpi_osi_setup(char *str)
 {
-	struct osi_setup_entry *osi;
+	struct acpi_osi_entry *osi;
 	bool enable = true;
 	int i;
 
@@ -1745,7 +1745,7 @@ void __init acpi_osi_setup(char *str)
 		return;
 
 	if (str == NULL || *str == '\0') {
-		printk(KERN_INFO PREFIX "_OSI method disabled\n");
+		pr_info(PREFIX "_OSI method disabled\n");
 		acpi_gbl_create_osi_method = FALSE;
 		return;
 	}
@@ -1785,7 +1785,7 @@ void __init acpi_osi_setup(char *str)
 	}
 }
 
-static void __init set_osi_darwin(bool enable)
+static void __init __acpi_osi_setup_darwin(bool enable)
 {
 	osi_config.darwin_enable = !!enable;
 	if (enable) {
@@ -1797,57 +1797,43 @@ static void __init set_osi_darwin(bool enable)
 	}
 }
 
-static void __init acpi_cmdline_osi_darwin(bool enable)
+static void __init acpi_osi_setup_darwin(bool enable)
 {
-	/* cmdline set the default and override DMI */
 	osi_config.darwin_cmdline = 1;
 	osi_config.darwin_dmi = 0;
-	set_osi_darwin(enable);
-
-	return;
+	__acpi_osi_setup_darwin(enable);
 }
 
-void __init acpi_dmi_osi_darwin(bool enable, const struct dmi_system_id *d)
+void __init acpi_osi_dmi_darwin(bool enable, const struct dmi_system_id *d)
 {
-	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
-
-	/* DMI knows that this box asks OSI(Darwin) */
+	pr_notice(PREFIX "DMI detected to setup _OSI(\"Darwin\"): %s\n",
+		  d->ident);
 	osi_config.darwin_dmi = 1;
-	set_osi_darwin(enable);
-
-	return;
+	__acpi_osi_setup_darwin(enable);
 }
 
-static void __init set_osi_linux(bool enable)
+static void __init __acpi_osi_setup_linux(bool enable)
 {
 	osi_config.linux_enable = !!enable;
 	if (enable)
 		acpi_osi_setup("Linux");
 	else
 		acpi_osi_setup("!Linux");
-
-	return;
 }
 
-static void __init acpi_cmdline_osi_linux(bool enable)
+static void __init acpi_osi_setup_linux(bool enable)
 {
-	/* cmdline set the default and override DMI */
 	osi_config.linux_cmdline = 1;
 	osi_config.linux_dmi = 0;
-	set_osi_linux(enable);
-
-	return;
+	__acpi_osi_setup_linux(enable);
 }
 
-void __init acpi_dmi_osi_linux(bool enable, const struct dmi_system_id *d)
+void __init acpi_osi_dmi_linux(bool enable, const struct dmi_system_id *d)
 {
-	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
-
-	/* DMI knows that this box asks OSI(Linux) */
+	pr_notice(PREFIX "DMI detected to setup _OSI(\"Linux\"): %s\n",
+		  d->ident);
 	osi_config.linux_dmi = 1;
-	set_osi_linux(enable);
-
-	return;
+	__acpi_osi_setup_linux(enable);
 }
 
 /*
@@ -1859,7 +1845,7 @@ void __init acpi_dmi_osi_linux(bool enable, const struct dmi_system_id *d)
  */
 static void __init acpi_osi_setup_late(void)
 {
-	struct osi_setup_entry *osi;
+	struct acpi_osi_entry *osi;
 	char *str;
 	int i;
 	acpi_status status;
@@ -1868,7 +1854,7 @@ static void __init acpi_osi_setup_late(void)
 		status = acpi_update_interfaces(osi_config.default_disabling);
 
 		if (ACPI_SUCCESS(status))
-			printk(KERN_INFO PREFIX "Disabled all _OSI OS vendors%s\n",
+			pr_info(PREFIX "Disabled all _OSI OS vendors%s\n",
 				osi_config.default_disabling ==
 				ACPI_DISABLE_ALL_STRINGS ?
 				" and feature groups" : "");
@@ -1884,12 +1870,12 @@ static void __init acpi_osi_setup_late(void)
 			status = acpi_install_interface(str);
 
 			if (ACPI_SUCCESS(status))
-				printk(KERN_INFO PREFIX "Added _OSI(%s)\n", str);
+				pr_info(PREFIX "Added _OSI(%s)\n", str);
 		} else {
 			status = acpi_remove_interface(str);
 
 			if (ACPI_SUCCESS(status))
-				printk(KERN_INFO PREFIX "Deleted _OSI(%s)\n", str);
+				pr_info(PREFIX "Deleted _OSI(%s)\n", str);
 		}
 	}
 }
@@ -1897,13 +1883,13 @@ static void __init acpi_osi_setup_late(void)
 static int __init osi_setup(char *str)
 {
 	if (str && !strcmp("Linux", str))
-		acpi_cmdline_osi_linux(true);
+		acpi_osi_setup_linux(true);
 	else if (str && !strcmp("!Linux", str))
-		acpi_cmdline_osi_linux(false);
+		acpi_osi_setup_linux(false);
 	else if (str && !strcmp("Darwin", str))
-		acpi_cmdline_osi_darwin(true);
+		acpi_osi_setup_darwin(true);
 	else if (str && !strcmp("!Darwin", str))
-		acpi_cmdline_osi_darwin(false);
+		acpi_osi_setup_darwin(false);
 	else
 		acpi_osi_setup(str);
 
