@@ -263,7 +263,7 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 		for (i = 0; i < args->in.bo_number; ++i) {
 			if (copy_from_user(&info[i], uptr, bytes))
 				goto error_free;
-			
+
 			uptr += args->in.bo_info_size;
 		}
 	}
@@ -271,7 +271,7 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 	switch (args->in.operation) {
 	case AMDGPU_BO_LIST_OP_CREATE:
 		r = amdgpu_bo_list_create(fpriv, &list, &handle);
-		if (r) 
+		if (r)
 			goto error_free;
 
 		r = amdgpu_bo_list_set(adev, filp, list, info,
@@ -281,7 +281,7 @@ int amdgpu_bo_list_ioctl(struct drm_device *dev, void *data,
 			goto error_free;
 
 		break;
-		
+
 	case AMDGPU_BO_LIST_OP_DESTROY:
 		amdgpu_bo_list_destroy(fpriv, handle);
 		handle = 0;

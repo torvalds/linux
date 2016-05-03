@@ -1041,10 +1041,10 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 }
 
 /** atomctrl_get_voltage_evv_on_sclk gets voltage via call to ATOM COMMAND table.
- * @param hwmgr               	input: pointer to hwManager
+ * @param hwmgr	input: pointer to hwManager
  * @param voltage_type            input: type of EVV voltage VDDC or VDDGFX
  * @param sclk                        input: in 10Khz unit. DPM state SCLK frequency
- *                                   		which is define in PPTable SCLK/VDDC dependence
+ *		which is define in PPTable SCLK/VDDC dependence
  *				table associated with this virtual_voltage_Id
  * @param virtual_voltage_Id      input: voltage id which match per voltage DPM state: 0xff01, 0xff02.. 0xff08
  * @param voltage		       output: real voltage level in unit of mv

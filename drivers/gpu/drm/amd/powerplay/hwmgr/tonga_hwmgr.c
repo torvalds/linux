@@ -2683,7 +2683,7 @@ static int tonga_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 struct TONGA_DLL_SPEED_SETTING {
 	uint16_t            Min;                          /* Minimum Data Rate*/
 	uint16_t            Max;                          /* Maximum Data Rate*/
-	uint32_t 			dll_speed;                     /* The desired DLL_SPEED setting*/
+	uint32_t			dll_speed;                     /* The desired DLL_SPEED setting*/
 };
 
 static int tonga_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
@@ -3316,14 +3316,14 @@ static int tonga_set_private_var_based_on_pptale(struct pp_hwmgr *hwmgr)
 		pptable_info->vdd_dep_on_mclk;
 
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table != NULL,
-		"VDD dependency on SCLK table is missing. 	\
+		"VDD dependency on SCLK table is missing.	\
 		This table is mandatory", return -1);
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table->count >= 1,
-		"VDD dependency on SCLK table has to have is missing. 	\
+		"VDD dependency on SCLK table has to have is missing.	\
 		This table is mandatory", return -1);
 
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table != NULL,
-		"VDD dependency on MCLK table is missing. 	\
+		"VDD dependency on MCLK table is missing.	\
 		This table is mandatory", return -1);
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table->count >= 1,
 		"VDD dependency on MCLK table has to have is missing.	 \

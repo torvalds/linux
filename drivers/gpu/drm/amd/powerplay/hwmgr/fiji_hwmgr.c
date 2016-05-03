@@ -465,14 +465,14 @@ static int fiji_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 			table_info->vdd_dep_on_mclk;
 
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table != NULL,
-		"VDD dependency on SCLK table is missing. 	\
+		"VDD dependency on SCLK table is missing.	\
 		This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table->count >= 1,
-		"VDD dependency on SCLK table has to have is missing. 	\
+		"VDD dependency on SCLK table has to have is missing.	\
 		This table is mandatory", return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table != NULL,
-		"VDD dependency on MCLK table is missing. 	\
+		"VDD dependency on MCLK table is missing.	\
 		This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table->count >= 1,
 		"VDD dependency on MCLK table has to have is missing.	 \

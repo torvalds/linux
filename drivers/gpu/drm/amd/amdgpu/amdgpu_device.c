@@ -348,7 +348,7 @@ static int amdgpu_doorbell_init(struct amdgpu_device *adev)
 	adev->doorbell.base = pci_resource_start(adev->pdev, 2);
 	adev->doorbell.size = pci_resource_len(adev->pdev, 2);
 
-	adev->doorbell.num_doorbells = min_t(u32, adev->doorbell.size / sizeof(u32), 
+	adev->doorbell.num_doorbells = min_t(u32, adev->doorbell.size / sizeof(u32),
 					     AMDGPU_DOORBELL_MAX_ASSIGNMENT+1);
 	if (adev->doorbell.num_doorbells == 0)
 		return -EINVAL;

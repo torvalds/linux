@@ -74,7 +74,7 @@ struct amd_sched_fence {
 	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
-	struct amd_sched_job 	*s_job;
+	struct amd_sched_job	*s_job;
 };
 
 struct amd_sched_job {

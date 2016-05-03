@@ -369,7 +369,7 @@ struct amdgpu_fence_driver {
 
 struct amdgpu_user_fence {
 	/* write-back bo */
-	struct amdgpu_bo 	*bo;
+	struct amdgpu_bo	*bo;
 	/* write-back address offset to bo start */
 	uint32_t                offset;
 };
@@ -777,7 +777,7 @@ struct amdgpu_ring {
 	struct amdgpu_device		*adev;
 	const struct amdgpu_ring_funcs	*funcs;
 	struct amdgpu_fence_driver	fence_drv;
-	struct amd_gpu_scheduler 	sched;
+	struct amd_gpu_scheduler	sched;
 
 	spinlock_t              fence_lock;
 	struct amdgpu_bo	*ring_obj;
@@ -1247,7 +1247,7 @@ struct amdgpu_cs_parser {
 struct amdgpu_job {
 	struct amd_sched_job    base;
 	struct amdgpu_device	*adev;
-	struct amdgpu_vm 	*vm;
+	struct amdgpu_vm	*vm;
 	struct amdgpu_ring	*ring;
 	struct amdgpu_sync	sync;
 	struct amdgpu_ib	*ibs;
@@ -1701,7 +1701,7 @@ struct amdgpu_sdma {
 	struct amdgpu_sdma_instance instance[AMDGPU_MAX_SDMA_INSTANCES];
 	struct amdgpu_irq_src	trap_irq;
 	struct amdgpu_irq_src	illegal_inst_irq;
-	int 			num_instances;
+	int			num_instances;
 };
 
 /*
@@ -1955,11 +1955,11 @@ struct amdgpu_device {
 	bool				shutdown;
 	bool				need_dma32;
 	bool				accel_working;
-	struct work_struct 		reset_work;
+	struct work_struct		reset_work;
 	struct notifier_block		acpi_nb;
 	struct amdgpu_i2c_chan		*i2c_bus[AMDGPU_MAX_I2C_BUS];
 	struct amdgpu_debugfs		debugfs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
-	unsigned 			debugfs_count;
+	unsigned			debugfs_count;
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_regs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
 #endif

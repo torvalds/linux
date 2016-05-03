@@ -530,7 +530,7 @@ struct amdgpu_framebuffer {
 				((em) == ATOM_ENCODER_MODE_DP_MST))
 
 /* Driver internal use only flags of amdgpu_get_crtc_scanoutpos() */
-#define USE_REAL_VBLANKSTART 		(1 << 30)
+#define USE_REAL_VBLANKSTART		(1 << 30)
 #define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
 void amdgpu_link_encoder_connector(struct drm_device *dev);

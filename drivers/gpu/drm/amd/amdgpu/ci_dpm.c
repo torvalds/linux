@@ -6363,7 +6363,7 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 }
 
 static int ci_dpm_process_interrupt(struct amdgpu_device *adev,
-				    struct amdgpu_irq_src *source, 
+				    struct amdgpu_irq_src *source,
 				    struct amdgpu_iv_entry *entry)
 {
 	bool queue_thermal = false;
