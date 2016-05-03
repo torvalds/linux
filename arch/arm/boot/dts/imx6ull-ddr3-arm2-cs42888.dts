@@ -1,0 +1,90 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6ull-ddr3-arm2.dts"
+
+/ {
+	clocks {
+		codec_osc: anaclk2 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24576000>;
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_audio: cs42888_supply {
+			compatible = "regulator-fixed";
+			regulator-name = "cs42888_supply";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+	};
+
+	sound-cs42888 {
+		compatible = "fsl,imx6-sabreauto-cs42888",
+			   "fsl,imx-audio-cs42888";
+		model = "imx-cs42888";
+		esai-controller = <&esai>;
+		asrc-controller = <&asrc>;
+		audio-codec = <&codec_a>;
+		codec-master;
+	};
+};
+
+&esai {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esai>;
+	assigned-clocks = <&clks IMX6UL_CLK_ESAI_SEL>,
+		          <&clks IMX6UL_CLK_ESAI_EXTAL>;
+	assigned-clock-parents = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <24576000>;
+	status = "okay";
+};
+
+&i2c4 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c4>;
+	status = "okay";
+
+	codec_a: cs42888@048 {
+		compatible = "cirrus,cs42888";
+		reg = <0x048>;
+		clocks = <&codec_osc 0>;
+		clock-names = "mclk";
+		VA-supply = <&reg_audio>;
+		VD-supply = <&reg_audio>;
+		VLS-supply = <&reg_audio>;
+		VLC-supply = <&reg_audio>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog &pinctrl_hog1 &pinctrl_hog_sd>;
+};
+
+&ov5640 {
+	status = "disabled";
+};
+
+&sdma {
+        gpr = <&gpr>;
+        /* SDMA event remap for ESAI */
+        fsl,sdma-event-remap = <0 14 1>, <0 15 1>;
+};
+
+&uart2 {
+	status = "disabled";
+};

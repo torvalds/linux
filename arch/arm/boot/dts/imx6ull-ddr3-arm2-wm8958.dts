@@ -1,0 +1,155 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6ull-ddr3-arm2.dts"
+
+/ {
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_codec_5v: codec_5v {
+			compatible = "regulator-fixed";
+			regulator-name = "CODEC_5V";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+		};
+
+		reg_aud_3v3: aud_3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "AUD_3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+		};
+
+		reg_aud_1v8: aud_1v8 {
+			compatible = "regulator-fixed";
+			regulator-name = "AUD_1V8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			enable-active-high;
+		};
+	};
+
+	sound-mqs {
+		compatible = "fsl,imx6ul-ddr3-arm2-mqs",
+				"fsl,imx-audio-mqs";
+		model = "mqs-audio";
+		cpu-dai = <&sai1>;
+		asrc-controller = <&asrc>;
+		audio-codec = <&mqs>;
+	};
+
+	sound-wm8958 {
+		compatible = "fsl,imx6ul-ddr3-arm2-wm8958",
+			   "fsl,imx-audio-wm8958";
+		model = "wm8958-audio";
+		cpu-dai = <&sai2>;
+		audio-codec = <&codec_b>;
+		codec-master;
+		gpr = <&gpr>;
+		hp-det-gpios = <&gpio5 0 1>;
+	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-in;
+		spdif-out;
+	};
+};
+
+&clks {
+	assigned-clocks = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <786432000>;
+};
+
+&i2c4 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c4>;
+	status = "okay";
+
+	codec_b: wm8958@1a {
+		compatible = "wlf,wm8958";
+		reg = <0x1a>;
+		clocks = <&clks IMX6UL_CLK_SAI2>,
+		       <&clks IMX6UL_CLK_DUMMY>;
+		clock-names = "mclk1", "mclk2";
+
+		DBVDD1-supply = <&reg_aud_1v8>;
+		DBVDD2-supply = <&reg_aud_1v8>;
+		DBVDD3-supply = <&reg_aud_3v3>;
+		AVDD2-supply = <&reg_aud_1v8>;
+		CPVDD-supply = <&reg_aud_1v8>;
+		SPKVDD1-supply = <&reg_codec_5v>;
+		SPKVDD2-supply = <&reg_codec_5v>;
+
+		wlf,ldo1ena;
+		wlf,ldo2ena;
+	};
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_hog &pinctrl_hog1>;
+};
+
+&sai2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai2>;
+	assigned-clocks = <&clks IMX6UL_CLK_SAI2_SEL>,
+			<&clks IMX6UL_CLK_SAI2>;
+	assigned-clock-parents = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <24576000>;
+	status = "okay";
+};
+
+&sai1 {
+	assigned-clocks = <&clks IMX6UL_CLK_SAI1_SEL>,
+			<&clks IMX6UL_CLK_SAI1>;
+	assigned-clock-parents = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <24576000>;
+	status = "okay";
+};
+
+&mqs {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mqs>;
+	clocks = <&clks IMX6UL_CLK_SAI1>;
+	clock-names = "mclk";
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif>;
+	assigned-clocks = <&clks IMX6UL_CLK_SPDIF_SEL>,
+			  <&clks IMX6UL_CLK_SPDIF_PODF>;
+	assigned-clock-parents = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <98304000>;
+	status = "okay";
+};
+
+&uart2 {
+	status = "disabled";
+};
+
+&usdhc1 {
+	no-1-8-v;
+	vmmc-supply = <>;
+	status = "disabled";
+};
+
+&usdhc2 {
+	no-1-8-v;
+};

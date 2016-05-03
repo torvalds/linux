@@ -323,7 +323,7 @@
 				};
 
 				esai: esai@02024000 {
-					compatible = "fsl,imx35-esai";
+					compatible = "fsl,imx6ull-esai";
 					reg = <0x02024000 0x4000>;
 					interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6UL_CLK_ESAI_IPG>,
