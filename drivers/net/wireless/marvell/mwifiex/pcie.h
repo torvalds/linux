@@ -23,7 +23,6 @@
 #define	_MWIFIEX_PCIE_H
 
 #include    <linux/pci.h>
-#include    <linux/pcieport_if.h>
 #include    <linux/interrupt.h>
 
 #include    "decl.h"
