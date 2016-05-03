@@ -26,7 +26,7 @@
 #include "mtk_vcodec_enc_pm.h"
 #include "mtk_vpu.h"
 
-
+struct venc_common_if *get_h264_enc_comm_if(void);
 struct venc_common_if *get_vp8_enc_comm_if(void);
 
 int venc_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
@@ -38,6 +38,8 @@ int venc_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 		ctx->enc_if = get_vp8_enc_comm_if();
 		break;
 	case V4L2_PIX_FMT_H264:
+		ctx->enc_if = get_h264_enc_comm_if();
+		break;
 	default:
 		return -EINVAL;
 	}
