@@ -53,7 +53,7 @@ struct cfg80211_registered_device {
 	/* associated wireless interfaces, protected by rtnl or RCU */
 	struct list_head wdev_list;
 	int devlist_generation, wdev_id;
-	int opencount; /* also protected by devlist_mtx */
+	int opencount;
 	wait_queue_head_t dev_wait;
 
 	struct list_head beacon_registrations;
