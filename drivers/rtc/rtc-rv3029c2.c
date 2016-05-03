@@ -329,6 +329,47 @@ static int rv3029_eeprom_update_bits(struct device *dev,
 	return 0;
 }
 
+static irqreturn_t rv3029_handle_irq(int irq, void *dev_id)
+{
+	struct device *dev = dev_id;
+	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
+	struct mutex *lock = &rv3029->rtc->ops_lock;
+	unsigned long events = 0;
+	u8 flags, controls;
+	int ret;
+
+	mutex_lock(lock);
+
+	ret = rv3029_read_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
+	if (ret) {
+		dev_warn(dev, "Read IRQ Control Register error %d\n", ret);
+		mutex_unlock(lock);
+		return IRQ_NONE;
+	}
+
+	ret = rv3029_read_regs(dev, RV3029_IRQ_FLAGS, &flags, 1);
+	if (ret) {
+		dev_warn(dev, "Read IRQ Flags Register error %d\n", ret);
+		mutex_unlock(lock);
+		return IRQ_NONE;
+	}
+
+	if (flags & RV3029_IRQ_FLAGS_AF) {
+		flags &= ~RV3029_IRQ_FLAGS_AF;
+		controls &= ~RV3029_IRQ_CTRL_AIE;
+		events |= RTC_AF;
+	}
+
+	if (events) {
+		rtc_update_irq(rv3029->rtc, 1, events);
+		rv3029_write_regs(dev, RV3029_IRQ_FLAGS, &flags, 1);
+		rv3029_write_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
+	}
+	mutex_unlock(lock);
+
+	return IRQ_HANDLED;
+}
+
 static int rv3029_read_time(struct device *dev, struct rtc_time *tm)
 {
 	u8 buf[1];
@@ -376,7 +417,7 @@ static int rv3029_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct rtc_time *const tm = &alarm->time;
 	int ret;
-	u8 regs[8];
+	u8 regs[8], controls, flags;
 
 	ret = rv3029_get_sr(dev, regs);
 	if (ret < 0) {
@@ -392,6 +433,17 @@ static int rv3029_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		return ret;
 	}
 
+	ret = rv3029_read_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
+	if (ret) {
+		dev_err(dev, "Read IRQ Control Register error %d\n", ret);
+		return ret;
+	}
+	ret = rv3029_read_regs(dev, RV3029_IRQ_FLAGS, &flags, 1);
+	if (ret < 0) {
+		dev_err(dev, "Read IRQ Flags Register error %d\n", ret);
+		return ret;
+	}
+
 	tm->tm_sec = bcd2bin(regs[RV3029_A_SC - RV3029_A_SC] & 0x7f);
 	tm->tm_min = bcd2bin(regs[RV3029_A_MN - RV3029_A_SC] & 0x7f);
 	tm->tm_hour = bcd2bin(regs[RV3029_A_HR - RV3029_A_SC] & 0x3f);
@@ -400,16 +452,30 @@ static int rv3029_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	tm->tm_year = bcd2bin(regs[RV3029_A_YR - RV3029_A_SC] & 0x7f) + 100;
 	tm->tm_wday = bcd2bin(regs[RV3029_A_DW - RV3029_A_SC] & 0x07) - 1;
 
+	alarm->enabled = !!(controls & RV3029_IRQ_CTRL_AIE);
+	alarm->pending = (flags & RV3029_IRQ_FLAGS_AF) && alarm->enabled;
+
 	return 0;
 }
 
-static int rv3029_rtc_alarm_set_irq(struct device *dev, int enable)
+static int rv3029_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
 	int ret;
+	u8 controls;
+
+	ret = rv3029_read_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
+	if (ret < 0) {
+		dev_warn(dev, "Read IRQ Control Register error %d\n", ret);
+		return ret;
+	}
 
 	/* enable/disable AIE irq */
-	ret = rv3029_update_bits(dev, RV3029_IRQ_CTRL, RV3029_IRQ_CTRL_AIE,
-				 (enable ? RV3029_IRQ_CTRL_AIE : 0));
+	if (enable)
+		controls |= RV3029_IRQ_CTRL_AIE;
+	else
+		controls &= ~RV3029_IRQ_CTRL_AIE;
+
+	ret = rv3029_write_regs(dev, RV3029_IRQ_CTRL, &controls, 1);
 	if (ret < 0) {
 		dev_err(dev, "can't update INT reg\n");
 		return ret;
@@ -459,26 +525,15 @@ static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		return ret;
 
 	if (alarm->enabled) {
-		/* clear AF flag */
-		ret = rv3029_update_bits(dev, RV3029_IRQ_FLAGS,
-					 RV3029_IRQ_FLAGS_AF, 0);
-		if (ret < 0) {
-			dev_err(dev, "can't clear alarm flag\n");
-			return ret;
-		}
 		/* enable AIE irq */
-		ret = rv3029_rtc_alarm_set_irq(dev, 1);
+		ret = rv3029_alarm_irq_enable(dev, 1);
 		if (ret)
 			return ret;
-
-		dev_dbg(dev, "alarm IRQ armed\n");
 	} else {
 		/* disable AIE irq */
-		ret = rv3029_rtc_alarm_set_irq(dev, 0);
+		ret = rv3029_alarm_irq_enable(dev, 0);
 		if (ret)
 			return ret;
-
-		dev_dbg(dev, "alarm IRQ disabled\n");
 	}
 
 	return 0;
@@ -731,11 +786,9 @@ static void rv3029_hwmon_register(struct device *dev, const char *name)
 
 #endif /* CONFIG_RTC_DRV_RV3029_HWMON */
 
-static const struct rtc_class_ops rv3029_rtc_ops = {
+static struct rtc_class_ops rv3029_rtc_ops = {
 	.read_time	= rv3029_read_time,
 	.set_time	= rv3029_set_time,
-	.read_alarm	= rv3029_read_alarm,
-	.set_alarm	= rv3029_set_alarm,
 };
 
 static struct i2c_device_id rv3029_id[] = {
@@ -772,8 +825,27 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	rv3029->rtc = devm_rtc_device_register(dev, name, &rv3029_rtc_ops,
 					       THIS_MODULE);
+	if (IS_ERR(rv3029->rtc)) {
+		dev_err(dev, "unable to register the class device\n");
+		return PTR_ERR(rv3029->rtc);
+	}
 
-	return PTR_ERR_OR_ZERO(rv3029->rtc);
+	if (rv3029->irq > 0) {
+		rc = devm_request_threaded_irq(dev, rv3029->irq,
+					       NULL, rv3029_handle_irq,
+					       IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					       "rv3029", dev);
+		if (rc) {
+			dev_warn(dev, "unable to request IRQ, alarms disabled\n");
+			rv3029->irq = 0;
+		} else {
+			rv3029_rtc_ops.read_alarm = rv3029_read_alarm;
+			rv3029_rtc_ops.set_alarm = rv3029_set_alarm;
+			rv3029_rtc_ops.alarm_irq_enable = rv3029_alarm_irq_enable;
+		}
+	}
+
+	return 0;
 }
 
 #if IS_ENABLED(CONFIG_I2C)
