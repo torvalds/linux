@@ -91,6 +91,14 @@ struct igb_adapter;
 #define NVM_COMB_VER_OFF	0x0083
 #define NVM_COMB_VER_PTR	0x003d
 
+/* Transmit and receive latency (for PTP timestamps) */
+#define IGB_I210_TX_LATENCY_10		9542
+#define IGB_I210_TX_LATENCY_100		1024
+#define IGB_I210_TX_LATENCY_1000	178
+#define IGB_I210_RX_LATENCY_10		20662
+#define IGB_I210_RX_LATENCY_100		2213
+#define IGB_I210_RX_LATENCY_1000	448
+
 struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
 	u16 vf_mc_hashes[IGB_MAX_VF_MC_ENTRIES];
