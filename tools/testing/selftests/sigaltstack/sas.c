@@ -113,6 +113,19 @@ int main(void)
 		perror("mmap()");
 		return EXIT_FAILURE;
 	}
+
+	err = sigaltstack(NULL, &stk);
+	if (err) {
+		perror("[FAIL]\tsigaltstack()");
+		exit(EXIT_FAILURE);
+	}
+	if (stk.ss_flags == SS_DISABLE) {
+		printf("[OK]\tInitial sigaltstack state was SS_DISABLE\n");
+	} else {
+		printf("[FAIL]\tInitial sigaltstack state was %i; should have been SS_DISABLE\n", stk.ss_flags);
+		return EXIT_FAILURE;
+	}
+
 	stk.ss_sp = sstack;
 	stk.ss_size = SIGSTKSZ;
 	stk.ss_flags = SS_ONSTACK | SS_AUTODISARM;
@@ -151,12 +164,12 @@ int main(void)
 		perror("[FAIL]\tsigaltstack()");
 		exit(EXIT_FAILURE);
 	}
-	if (stk.ss_flags != 0) {
-		printf("[FAIL]\tss_flags=%i, should be 0\n",
+	if (stk.ss_flags != SS_AUTODISARM) {
+		printf("[FAIL]\tss_flags=%i, should be SS_AUTODISARM\n",
 				stk.ss_flags);
 		exit(EXIT_FAILURE);
 	}
-	printf("[OK]\tsigaltstack is enabled after signal\n");
+	printf("[OK]\tsigaltstack is still SS_AUTODISARM after signal\n");
 
 	printf("[OK]\tTest passed\n");
 	return 0;

@@ -3099,7 +3099,8 @@ do_sigaltstack (const stack_t __user *uss, stack_t __user *uoss, unsigned long s
 
 	oss.ss_sp = (void __user *) current->sas_ss_sp;
 	oss.ss_size = current->sas_ss_size;
-	oss.ss_flags = sas_ss_flags(sp);
+	oss.ss_flags = sas_ss_flags(sp) |
+		(current->sas_ss_flags & SS_FLAG_BITS);
 
 	if (uss) {
 		void __user *ss_sp;
