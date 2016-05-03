@@ -1150,6 +1150,71 @@ static void gfx_v8_0_get_csb_buffer(struct amdgpu_device *adev,
 	buffer[count++] = cpu_to_le32(0);
 }
 
+static void cz_init_cp_jump_table(struct amdgpu_device *adev)
+{
+	const __le32 *fw_data;
+	volatile u32 *dst_ptr;
+	int me, i, max_me = 4;
+	u32 bo_offset = 0;
+	u32 table_offset, table_size;
+
+	if (adev->asic_type == CHIP_CARRIZO)
+		max_me = 5;
+
+	/* write the cp table buffer */
+	dst_ptr = adev->gfx.rlc.cp_table_ptr;
+	for (me = 0; me < max_me; me++) {
+		if (me == 0) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.ce_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.ce_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		} else if (me == 1) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.pfp_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.pfp_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		} else if (me == 2) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.me_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.me_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		} else if (me == 3) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.mec_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		} else  if (me == 4) {
+			const struct gfx_firmware_header_v1_0 *hdr =
+				(const struct gfx_firmware_header_v1_0 *)adev->gfx.mec2_fw->data;
+			fw_data = (const __le32 *)
+				(adev->gfx.mec2_fw->data +
+				 le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+			table_offset = le32_to_cpu(hdr->jt_offset);
+			table_size = le32_to_cpu(hdr->jt_size);
+		}
+
+		for (i = 0; i < table_size; i ++) {
+			dst_ptr[bo_offset + i] =
+				cpu_to_le32(le32_to_cpu(fw_data[table_offset + i]));
+		}
+
+		bo_offset += table_size;
+	}
+}
+
 static void gfx_v8_0_rlc_fini(struct amdgpu_device *adev)
 {
 	int r;
@@ -1164,6 +1229,18 @@ static void gfx_v8_0_rlc_fini(struct amdgpu_device *adev)
 
 		amdgpu_bo_unref(&adev->gfx.rlc.clear_state_obj);
 		adev->gfx.rlc.clear_state_obj = NULL;
+	}
+
+	/* jump table block */
+	if (adev->gfx.rlc.cp_table_obj) {
+		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, false);
+		if (unlikely(r != 0))
+			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
+		amdgpu_bo_unpin(adev->gfx.rlc.cp_table_obj);
+		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
+
+		amdgpu_bo_unref(&adev->gfx.rlc.cp_table_obj);
+		adev->gfx.rlc.cp_table_obj = NULL;
 	}
 }
 
@@ -1219,6 +1296,46 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 		gfx_v8_0_get_csb_buffer(adev, dst_ptr);
 		amdgpu_bo_kunmap(adev->gfx.rlc.clear_state_obj);
 		amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
+	}
+
+	if ((adev->asic_type == CHIP_CARRIZO) ||
+	    (adev->asic_type == CHIP_STONEY)) {
+		adev->gfx.rlc.cp_table_size = (96 * 5 * 4) + (64 * 1024); /* JT + GDS */
+		if (adev->gfx.rlc.cp_table_obj == NULL) {
+			r = amdgpu_bo_create(adev, adev->gfx.rlc.cp_table_size, PAGE_SIZE, true,
+					     AMDGPU_GEM_DOMAIN_VRAM,
+					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+					     NULL, NULL,
+					     &adev->gfx.rlc.cp_table_obj);
+			if (r) {
+				dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
+				return r;
+			}
+		}
+
+		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, false);
+		if (unlikely(r != 0)) {
+			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
+			return r;
+		}
+		r = amdgpu_bo_pin(adev->gfx.rlc.cp_table_obj, AMDGPU_GEM_DOMAIN_VRAM,
+				  &adev->gfx.rlc.cp_table_gpu_addr);
+		if (r) {
+			amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
+			dev_warn(adev->dev, "(%d) pin RLC cp_table bo failed\n", r);
+			return r;
+		}
+		r = amdgpu_bo_kmap(adev->gfx.rlc.cp_table_obj, (void **)&adev->gfx.rlc.cp_table_ptr);
+		if (r) {
+			dev_warn(adev->dev, "(%d) map RLC cp table bo failed\n", r);
+			return r;
+		}
+
+		cz_init_cp_jump_table(adev);
+
+		amdgpu_bo_kunmap(adev->gfx.rlc.cp_table_obj);
+		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
+
 	}
 
 	return 0;
@@ -3683,13 +3800,13 @@ static void gfx_v8_0_enable_save_restore_machine(struct amdgpu_device *adev)
 	WREG32(mmRLC_SRM_CNTL, data);
 }
 
-static void polaris11_init_power_gating(struct amdgpu_device *adev)
+static void gfx_v8_0_init_power_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
 
 	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
-			AMD_PG_SUPPORT_GFX_SMG |
-			AMD_PG_SUPPORT_GFX_DMG)) {
+			      AMD_PG_SUPPORT_GFX_SMG |
+			      AMD_PG_SUPPORT_GFX_DMG)) {
 		data = RREG32(mmCP_RB_WPTR_POLL_CNTL);
 		data &= ~CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT_MASK;
 		data |= (0x60 << CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT__SHIFT);
@@ -3726,8 +3843,14 @@ static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
 		gfx_v8_0_init_save_restore_list(adev);
 		gfx_v8_0_enable_save_restore_machine(adev);
 
-		if (adev->asic_type == CHIP_POLARIS11)
-			polaris11_init_power_gating(adev);
+		if ((adev->asic_type == CHIP_CARRIZO) ||
+		    (adev->asic_type == CHIP_STONEY)) {
+			WREG32(mmRLC_JUMP_TABLE_RESTORE, adev->gfx.rlc.cp_table_gpu_addr >> 8);
+			gfx_v8_0_init_power_gating(adev);
+			WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
+		} else if (adev->asic_type == CHIP_POLARIS11) {
+			gfx_v8_0_init_power_gating(adev);
+		}
 	}
 }
 
