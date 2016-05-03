@@ -226,10 +226,6 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int byte, i;
 
-	/* disable interrupts and internal pacer */
-	devpriv->control_state &= ~INTE & ~PACER_MASK;
-	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
-
 	/*  set software count */
 	devpriv->adc_count = 0;
 
@@ -313,14 +309,9 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct das16m1_private_struct *devpriv = dev->private;
 	int ret;
 	int n;
 	int byte;
-
-	/* disable interrupts and internal pacer */
-	devpriv->control_state &= ~INTE & ~PACER_MASK;
-	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
 
 	/* setup channel/gain queue */
 	outb(0, dev->iobase + DAS16M1_QUEUE_ADDR);
