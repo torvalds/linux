@@ -95,11 +95,6 @@ struct mlx5_vport {
 	struct hlist_head       mc_list[MLX5_L2_ADDR_HASH_SIZE];
 	struct work_struct      vport_change_handler;
 
-	/* This spinlock protects access to vport data, between
-	 * "esw_vport_disable" and ongoing interrupt "mlx5_eswitch_vport_event"
-	 * once vport marked as disabled new interrupts are discarded.
-	 */
-	spinlock_t              lock; /* vport events sync */
 	bool                    enabled;
 	u16                     enabled_events;
 };

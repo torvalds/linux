@@ -713,7 +713,6 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 			     int enable_events)
 {
 	struct mlx5_vport *vport = &esw->vports[vport_num];
-	unsigned long flags;
 
 	WARN_ON(vport->enabled);
 
@@ -727,9 +726,7 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 	vport->enabled_events = enable_events;
 	esw_vport_change_handler(&vport->vport_change_handler);
 
-	spin_lock_irqsave(&vport->lock, flags);
 	vport->enabled = true;
-	spin_unlock_irqrestore(&vport->lock, flags);
 
 	arm_vport_context_events_cmd(esw->dev, vport_num, enable_events);
 
@@ -761,17 +758,16 @@ static void esw_cleanup_vport(struct mlx5_eswitch *esw, u16 vport_num)
 static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 {
 	struct mlx5_vport *vport = &esw->vports[vport_num];
-	unsigned long flags;
 
 	if (!vport->enabled)
 		return;
 
 	esw_debug(esw->dev, "Disabling vport(%d)\n", vport_num);
 	/* Mark this vport as disabled to discard new events */
-	spin_lock_irqsave(&vport->lock, flags);
 	vport->enabled = false;
 	vport->enabled_events = 0;
-	spin_unlock_irqrestore(&vport->lock, flags);
+
+	synchronize_irq(mlx5_get_msix_vec(esw->dev, MLX5_EQ_VEC_ASYNC));
 
 	mlx5_modify_vport_admin_state(esw->dev,
 				      MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
@@ -894,7 +890,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		vport->dev = dev;
 		INIT_WORK(&vport->vport_change_handler,
 			  esw_vport_change_handler);
-		spin_lock_init(&vport->lock);
 	}
 
 	esw->total_vports = total_vports;
@@ -942,10 +937,8 @@ void mlx5_eswitch_vport_event(struct mlx5_eswitch *esw, struct mlx5_eqe *eqe)
 	}
 
 	vport = &esw->vports[vport_num];
-	spin_lock(&vport->lock);
 	if (vport->enabled)
 		queue_work(esw->work_queue, &vport->vport_change_handler);
-	spin_unlock(&vport->lock);
 }
 
 /* Vport Administration */
