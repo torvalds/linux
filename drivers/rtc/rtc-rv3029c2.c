@@ -502,7 +502,7 @@ static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 	regs[RV3029_W_HOURS - RV3029_W_SEC] = bin2bcd(tm->tm_hour);
 	regs[RV3029_W_DATE - RV3029_W_SEC] = bin2bcd(tm->tm_mday);
 	regs[RV3029_W_MONTHS - RV3029_W_SEC] = bin2bcd(tm->tm_mon + 1);
-	regs[RV3029_W_DAYS - RV3029_W_SEC] = bin2bcd((tm->tm_wday & 7) + 1);
+	regs[RV3029_W_DAYS - RV3029_W_SEC] = bin2bcd(tm->tm_wday + 1) & 0x7;
 	regs[RV3029_W_YEARS - RV3029_W_SEC] = bin2bcd(tm->tm_year - 100);
 
 	ret = rv3029_write_regs(dev, RV3029_W_SEC, regs,
