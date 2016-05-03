@@ -4724,6 +4724,7 @@ void cpu_load_update_nohz_stop(void)
 
 	load = weighted_cpuload(cpu_of(this_rq));
 	raw_spin_lock(&this_rq->lock);
+	update_rq_clock(this_rq);
 	cpu_load_update_nohz(this_rq, curr_jiffies, load);
 	raw_spin_unlock(&this_rq->lock);
 }
