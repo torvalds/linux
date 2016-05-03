@@ -257,8 +257,14 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	/* LPT FDI RX only supports 8bpc. */
-	if (HAS_PCH_LPT(dev))
+	if (HAS_PCH_LPT(dev)) {
+		if (pipe_config->bw_constrained && pipe_config->pipe_bpp < 24) {
+			DRM_DEBUG_KMS("LPT only supports 24bpp\n");
+			return false;
+		}
+
 		pipe_config->pipe_bpp = 24;
+	}
 
 	/* FDI must always be 2.7 GHz */
 	if (HAS_DDI(dev)) {
