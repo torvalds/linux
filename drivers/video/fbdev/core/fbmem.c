@@ -1854,17 +1854,31 @@ EXPORT_SYMBOL(fb_set_suspend);
 static int __init
 fbmem_init(void)
 {
-	proc_create("fb", 0, NULL, &fb_proc_fops);
+	int ret;
 
-	if (register_chrdev(FB_MAJOR,"fb",&fb_fops))
+	if (!proc_create("fb", 0, NULL, &fb_proc_fops))
+		return -ENOMEM;
+
+	ret = register_chrdev(FB_MAJOR, "fb", &fb_fops);
+	if (ret) {
 		printk("unable to get major %d for fb devs\n", FB_MAJOR);
+		goto err_chrdev;
+	}
 
 	fb_class = class_create(THIS_MODULE, "graphics");
 	if (IS_ERR(fb_class)) {
-		printk(KERN_WARNING "Unable to create fb class; errno = %ld\n", PTR_ERR(fb_class));
+		ret = PTR_ERR(fb_class);
+		pr_warn("Unable to create fb class; errno = %d\n", ret);
 		fb_class = NULL;
+		goto err_class;
 	}
 	return 0;
+
+err_class:
+	unregister_chrdev(FB_MAJOR, "fb");
+err_chrdev:
+	remove_proc_entry("fb", NULL);
+	return ret;
 }
 
 #ifdef MODULE
