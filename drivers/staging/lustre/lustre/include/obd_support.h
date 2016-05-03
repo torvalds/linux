@@ -500,7 +500,7 @@ extern char obd_jobid_var[];
 
 #ifdef POISON_BULK
 #define POISON_PAGE(page, val) do {		  \
-	memset(kmap(page), val, PAGE_CACHE_SIZE); \
+	memset(kmap(page), val, PAGE_SIZE); \
 	kunmap(page);				  \
 } while (0)
 #else

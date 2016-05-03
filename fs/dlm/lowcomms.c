@@ -640,7 +640,7 @@ static int receive_from_sock(struct connection *con)
 		con->rx_page = alloc_page(GFP_ATOMIC);
 		if (con->rx_page == NULL)
 			goto out_resched;
-		cbuf_init(&con->cb, PAGE_CACHE_SIZE);
+		cbuf_init(&con->cb, PAGE_SIZE);
 	}
 
 	/*
@@ -657,7 +657,7 @@ static int receive_from_sock(struct connection *con)
 	 * buffer and the start of the currently used section (cb.base)
 	 */
 	if (cbuf_data(&con->cb) >= con->cb.base) {
-		iov[0].iov_len = PAGE_CACHE_SIZE - cbuf_data(&con->cb);
+		iov[0].iov_len = PAGE_SIZE - cbuf_data(&con->cb);
 		iov[1].iov_len = con->cb.base;
 		iov[1].iov_base = page_address(con->rx_page);
 		nvec = 2;
@@ -675,7 +675,7 @@ static int receive_from_sock(struct connection *con)
 	ret = dlm_process_incoming_buffer(con->nodeid,
 					  page_address(con->rx_page),
 					  con->cb.base, con->cb.len,
-					  PAGE_CACHE_SIZE);
+					  PAGE_SIZE);
 	if (ret == -EBADMSG) {
 		log_print("lowcomms: addr=%p, base=%u, len=%u, read=%d",
 			  page_address(con->rx_page), con->cb.base,
@@ -1416,7 +1416,7 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
 	spin_lock(&con->writequeue_lock);
 	e = list_entry(con->writequeue.prev, struct writequeue_entry, list);
 	if ((&e->list == &con->writequeue) ||
-	    (PAGE_CACHE_SIZE - e->end < len)) {
+	    (PAGE_SIZE - e->end < len)) {
 		e = NULL;
 	} else {
 		offset = e->end;

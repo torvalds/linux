@@ -1377,11 +1377,11 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 		/* TAG and timestamp required flag */
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-		skb_tx_timestamp(skb);
 		desc->tagh_tsr = (ts_skb->tag >> 4) | TX_TSR;
 		desc->ds_tagl |= le16_to_cpu(ts_skb->tag << 12);
 	}
 
+	skb_tx_timestamp(skb);
 	/* Descriptor type must be set after all the above writes */
 	dma_wmb();
 	desc->die_dt = DT_FEND;
@@ -1690,6 +1690,9 @@ static int ravb_set_gti(struct net_device *ndev)
 
 	rate = clk_get_rate(clk);
 	clk_put(clk);
+
+	if (!rate)
+		return -EINVAL;
 
 	inc = 1000000000ULL << 20;
 	do_div(inc, rate);

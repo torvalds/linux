@@ -96,6 +96,7 @@ header-y += cyclades.h
 header-y += cycx_cfm.h
 header-y += dcbnl.h
 header-y += dccp.h
+header-y += devlink.h
 header-y += dlmconstants.h
 header-y += dlm_device.h
 header-y += dlm.h

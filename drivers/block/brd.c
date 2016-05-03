@@ -374,7 +374,7 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
 		       struct page *page, int rw)
 {
 	struct brd_device *brd = bdev->bd_disk->private_data;
-	int err = brd_do_bvec(brd, page, PAGE_CACHE_SIZE, 0, rw, sector);
+	int err = brd_do_bvec(brd, page, PAGE_SIZE, 0, rw, sector);
 	page_endio(page, rw & WRITE, err);
 	return err;
 }

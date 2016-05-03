@@ -123,7 +123,7 @@ static int slave_configure(struct scsi_device *sdev)
 		unsigned int max_sectors = 64;
 
 		if (us->fflags & US_FL_MAX_SECTORS_MIN)
-			max_sectors = PAGE_CACHE_SIZE >> 9;
+			max_sectors = PAGE_SIZE >> 9;
 		if (queue_max_hw_sectors(sdev->request_queue) > max_sectors)
 			blk_queue_max_hw_sectors(sdev->request_queue,
 					      max_sectors);

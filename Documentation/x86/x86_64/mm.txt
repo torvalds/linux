@@ -19,7 +19,7 @@ ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
 ffffffef00000000 - ffffffff00000000 (=64 GB) EFI region mapping space
 ... unused hole ...
 ffffffff80000000 - ffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
-ffffffffa0000000 - ffffffffff5fffff (=1525 MB) module mapping space
+ffffffffa0000000 - ffffffffff5fffff (=1526 MB) module mapping space
 ffffffffff600000 - ffffffffffdfffff (=8 MB) vsyscalls
 ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
 
@@ -31,8 +31,8 @@ vmalloc space is lazily synchronized into the different PML4 pages of
 the processes using the page fault handler, with init_level4_pgt as
 reference.
 
-Current X86-64 implementations only support 40 bits of address space,
-but we support up to 46 bits. This expands into MBZ space in the page tables.
+Current X86-64 implementations support up to 46 bits of address space (64 TB),
+which is our current limit. This expands into MBZ space in the page tables.
 
 We map EFI runtime services in the 'efi_pgd' PGD in a 64Gb large virtual
 memory window (this size is arbitrary, it can be raised later if needed).

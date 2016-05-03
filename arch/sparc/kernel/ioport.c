@@ -131,7 +131,7 @@ void __iomem *ioremap(unsigned long offset, unsigned long size)
 EXPORT_SYMBOL(ioremap);
 
 /*
- * Comlimentary to ioremap().
+ * Complementary to ioremap().
  */
 void iounmap(volatile void __iomem *virtual)
 {
@@ -233,7 +233,7 @@ _sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz)
 }
 
 /*
- * Comlimentary to _sparc_ioremap().
+ * Complementary to _sparc_ioremap().
  */
 static void _sparc_free_io(struct resource *res)
 {
@@ -532,7 +532,7 @@ static void pci32_unmap_page(struct device *dev, dma_addr_t ba, size_t size,
 }
 
 /* Map a set of buffers described by scatterlist in streaming
- * mode for DMA.  This is the scather-gather version of the
+ * mode for DMA.  This is the scatter-gather version of the
  * above pci_map_single interface.  Here the scatter gather list
  * elements are each tagged with the appropriate dma address
  * and length.  They are obtained via sg_dma_{address,length}(SG).

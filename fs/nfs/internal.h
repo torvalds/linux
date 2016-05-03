@@ -638,11 +638,11 @@ unsigned int nfs_page_length(struct page *page)
 
 	if (i_size > 0) {
 		pgoff_t page_index = page_file_index(page);
-		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+		pgoff_t end_index = (i_size - 1) >> PAGE_SHIFT;
 		if (page_index < end_index)
-			return PAGE_CACHE_SIZE;
+			return PAGE_SIZE;
 		if (page_index == end_index)
-			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
+			return ((i_size - 1) & ~PAGE_MASK) + 1;
 	}
 	return 0;
 }

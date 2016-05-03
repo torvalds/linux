@@ -1,5 +1,6 @@
 #define pr_fmt(fmt) "kcov: " fmt
 
+#define DISABLE_BRANCH_PROFILING
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/file.h>
@@ -43,7 +44,7 @@ struct kcov {
  * Entry point from instrumented code.
  * This is called once per basic-block/edge.
  */
-void __sanitizer_cov_trace_pc(void)
+void notrace __sanitizer_cov_trace_pc(void)
 {
 	struct task_struct *t;
 	enum kcov_mode mode;

@@ -30,6 +30,8 @@ source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/comedi/Kconfig"
 
+source "drivers/staging/olpc_dcon/Kconfig"
+
 source "drivers/staging/rtl8192u/Kconfig"
 
 source "drivers/staging/rtl8192e/Kconfig"

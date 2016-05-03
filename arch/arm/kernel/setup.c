@@ -430,11 +430,13 @@ static void __init patch_aeabi_idiv(void)
 	pr_info("CPU: div instructions available: patching division code\n");
 
 	fn_addr = ((uintptr_t)&__aeabi_uidiv) & ~1;
+	asm ("" : "+g" (fn_addr));
 	((u32 *)fn_addr)[0] = udiv_instruction();
 	((u32 *)fn_addr)[1] = bx_lr_instruction();
 	flush_icache_range(fn_addr, fn_addr + 8);
 
 	fn_addr = ((uintptr_t)&__aeabi_idiv) & ~1;
+	asm ("" : "+g" (fn_addr));
 	((u32 *)fn_addr)[0] = sdiv_instruction();
 	((u32 *)fn_addr)[1] = bx_lr_instruction();
 	flush_icache_range(fn_addr, fn_addr + 8);
@@ -510,7 +512,7 @@ static void __init elf_hwcap_fixup(void)
 	 */
 	if (cpuid_feature_extract(CPUID_EXT_ISAR3, 12) > 1 ||
 	    (cpuid_feature_extract(CPUID_EXT_ISAR3, 12) == 1 &&
-	     cpuid_feature_extract(CPUID_EXT_ISAR3, 20) >= 3))
+	     cpuid_feature_extract(CPUID_EXT_ISAR4, 20) >= 3))
 		elf_hwcap &= ~HWCAP_SWP;
 }
 
