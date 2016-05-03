@@ -621,7 +621,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	 * We don't remove the corresponding PE instances because
 	 * we need the information afterwords. The attached EEH
 	 * devices are expected to be attached soon when calling
-	 * into pcibios_add_pci_devices().
+	 * into pci_hp_add_devices().
 	 */
 	eeh_pe_state_mark(pe, EEH_PE_KEEP);
 	if (bus) {
@@ -630,7 +630,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 		} else {
 			eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
 			pci_lock_rescan_remove();
-			pcibios_remove_pci_devices(bus);
+			pci_hp_remove_devices(bus);
 			pci_unlock_rescan_remove();
 		}
 	} else if (frozen_bus) {
@@ -681,7 +681,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 		if (pe->type & EEH_PE_VF)
 			eeh_add_virt_device(edev, NULL);
 		else
-			pcibios_add_pci_devices(bus);
+			pci_hp_add_devices(bus);
 	} else if (frozen_bus && rmv_data->removed) {
 		pr_info("EEH: Sleep 5s ahead of partial hotplug\n");
 		ssleep(5);
@@ -691,7 +691,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 		if (pe->type & EEH_PE_VF)
 			eeh_add_virt_device(edev, NULL);
 		else
-			pcibios_add_pci_devices(frozen_bus);
+			pci_hp_add_devices(frozen_bus);
 	}
 	eeh_pe_state_clear(pe, EEH_PE_KEEP);
 
@@ -896,7 +896,7 @@ perm_error:
 			eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
 
 			pci_lock_rescan_remove();
-			pcibios_remove_pci_devices(frozen_bus);
+			pci_hp_remove_devices(frozen_bus);
 			pci_unlock_rescan_remove();
 		}
 	}
@@ -981,7 +981,7 @@ static void eeh_handle_special_event(void)
 				bus = eeh_pe_bus_get(phb_pe);
 				eeh_pe_dev_traverse(pe,
 					eeh_report_failure, NULL);
-				pcibios_remove_pci_devices(bus);
+				pci_hp_remove_devices(bus);
 			}
 			pci_unlock_rescan_remove();
 		}

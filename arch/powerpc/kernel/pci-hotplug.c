@@ -38,20 +38,20 @@ void pcibios_release_device(struct pci_dev *dev)
 }
 
 /**
- * pcibios_remove_pci_devices - remove all devices under this bus
+ * pci_hp_remove_devices - remove all devices under this bus
  * @bus: the indicated PCI bus
  *
  * Remove all of the PCI devices under this bus both from the
  * linux pci device tree, and from the powerpc EEH address cache.
  */
-void pcibios_remove_pci_devices(struct pci_bus *bus)
+void pci_hp_remove_devices(struct pci_bus *bus)
 {
 	struct pci_dev *dev, *tmp;
 	struct pci_bus *child_bus;
 
 	/* First go down child busses */
 	list_for_each_entry(child_bus, &bus->children, node)
-		pcibios_remove_pci_devices(child_bus);
+		pci_hp_remove_devices(child_bus);
 
 	pr_debug("PCI: Removing devices on bus %04x:%02x\n",
 		 pci_domain_nr(bus),  bus->number);
@@ -60,11 +60,10 @@ void pcibios_remove_pci_devices(struct pci_bus *bus)
 		pci_stop_and_remove_bus_device(dev);
 	}
 }
-
-EXPORT_SYMBOL_GPL(pcibios_remove_pci_devices);
+EXPORT_SYMBOL_GPL(pci_hp_remove_devices);
 
 /**
- * pcibios_add_pci_devices - adds new pci devices to bus
+ * pci_hp_add_devices - adds new pci devices to bus
  * @bus: the indicated PCI bus
  *
  * This routine will find and fixup new pci devices under
@@ -74,7 +73,7 @@ EXPORT_SYMBOL_GPL(pcibios_remove_pci_devices);
  * is how this routine differs from other, similar pcibios
  * routines.)
  */
-void pcibios_add_pci_devices(struct pci_bus * bus)
+void pci_hp_add_devices(struct pci_bus *bus)
 {
 	int slotno, mode, pass, max;
 	struct pci_dev *dev;
@@ -114,4 +113,4 @@ void pcibios_add_pci_devices(struct pci_bus * bus)
 	}
 	pcibios_finish_adding_to_bus(bus);
 }
-EXPORT_SYMBOL_GPL(pcibios_add_pci_devices);
+EXPORT_SYMBOL_GPL(pci_hp_add_devices);

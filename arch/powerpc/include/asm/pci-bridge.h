@@ -260,10 +260,10 @@ static inline struct eeh_dev *pdn_to_eeh_dev(struct pci_dn *pdn)
 extern struct pci_bus *pcibios_find_pci_bus(struct device_node *dn);
 
 /** Remove all of the PCI devices under this bus */
-extern void pcibios_remove_pci_devices(struct pci_bus *bus);
+extern void pci_hp_remove_devices(struct pci_bus *bus);
 
 /** Discover new pci devices under this bus, and add them */
-extern void pcibios_add_pci_devices(struct pci_bus *bus);
+extern void pci_hp_add_devices(struct pci_bus *bus);
 
 
 extern void isa_bridge_find_early(struct pci_controller *hose);
