@@ -431,7 +431,7 @@ static const struct coresight_ops tmc_etf_cs_ops = {
 
 static int tmc_read_prepare(struct tmc_drvdata *drvdata)
 {
-	int ret;
+	int ret = 0;
 	unsigned long flags;
 	enum tmc_mode mode;
 
@@ -439,25 +439,31 @@ static int tmc_read_prepare(struct tmc_drvdata *drvdata)
 	if (!drvdata->enable)
 		goto out;
 
-	if (drvdata->config_type == TMC_CONFIG_TYPE_ETB) {
+	switch (drvdata->config_type) {
+	case TMC_CONFIG_TYPE_ETB:
 		tmc_etb_disable_hw(drvdata);
-	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
-		tmc_etr_disable_hw(drvdata);
-	} else {
+		break;
+	case TMC_CONFIG_TYPE_ETF:
+		/* There is no point in reading a TMC in HW FIFO mode */
 		mode = readl_relaxed(drvdata->base + TMC_MODE);
-		if (mode == TMC_MODE_CIRCULAR_BUFFER) {
-			tmc_etb_disable_hw(drvdata);
-		} else {
-			ret = -ENODEV;
+		if (mode != TMC_MODE_CIRCULAR_BUFFER) {
+			ret = -EINVAL;
 			goto err;
 		}
+
+		tmc_etb_disable_hw(drvdata);
+		break;
+	case TMC_CONFIG_TYPE_ETR:
+		tmc_etr_disable_hw(drvdata);
+		break;
+	default:
+		ret = -EINVAL;
+		goto err;
 	}
+
 out:
 	drvdata->reading = true;
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-
 	dev_info(drvdata->dev, "TMC read start\n");
-	return 0;
 err:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 	return ret;
@@ -472,20 +478,30 @@ static void tmc_read_unprepare(struct tmc_drvdata *drvdata)
 	if (!drvdata->enable)
 		goto out;
 
-	if (drvdata->config_type == TMC_CONFIG_TYPE_ETB) {
+	switch (drvdata->config_type) {
+	case TMC_CONFIG_TYPE_ETB:
 		tmc_etb_enable_hw(drvdata);
-	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
-		tmc_etr_enable_hw(drvdata);
-	} else {
+		break;
+	case TMC_CONFIG_TYPE_ETF:
+		/* Make sure we don't re-enable a TMC in HW FIFO mode */
 		mode = readl_relaxed(drvdata->base + TMC_MODE);
-		if (mode == TMC_MODE_CIRCULAR_BUFFER)
-			tmc_etb_enable_hw(drvdata);
+		if (mode != TMC_MODE_CIRCULAR_BUFFER)
+			goto err;
+
+		tmc_etb_enable_hw(drvdata);
+		break;
+	case TMC_CONFIG_TYPE_ETR:
+		tmc_etr_disable_hw(drvdata);
+		break;
+	default:
+		goto err;
 	}
+
 out:
 	drvdata->reading = false;
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-
 	dev_info(drvdata->dev, "TMC read end\n");
+err:
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 }
 
 static int tmc_open(struct inode *inode, struct file *file)
