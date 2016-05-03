@@ -373,15 +373,11 @@ static int das16m1_do_insn_bits(struct comedi_device *dev,
 static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
-	struct comedi_subdevice *s;
-	struct comedi_async *async;
-	struct comedi_cmd *cmd;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	u16 num_samples;
 	u16 hw_counter;
-
-	s = dev->read_subdev;
-	async = s->async;
-	cmd = &async->cmd;
 
 	/* figure out how many samples are in fifo */
 	hw_counter = comedi_8254_read(devpriv->counter, 1);
