@@ -35,7 +35,6 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct resource *res;
 	struct priv *priv;
 	int ret;
-	int num_cells;
 	unsigned long flags;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct priv), GFP_KERNEL);
@@ -92,9 +91,8 @@ static int mcb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = chameleon_parse_cells(priv->bus, priv->mapbase, priv->base);
 	if (ret < 0)
 		goto out_mcb_bus;
-	num_cells = ret;
 
-	dev_dbg(&pdev->dev, "Found %d cells\n", num_cells);
+	dev_dbg(&pdev->dev, "Found %d cells\n", ret);
 
 	mcb_bus_add_devices(priv->bus);
 
