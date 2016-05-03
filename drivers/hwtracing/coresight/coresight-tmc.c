@@ -67,7 +67,7 @@
 #define TMC_AXICTL_PROT_CTL_B0	BIT(0)
 #define TMC_AXICTL_PROT_CTL_B1	BIT(1)
 #define TMC_AXICTL_SCT_GAT_MODE	BIT(7)
-#define TMC_AXICTL_WR_BURST_LEN 0xF00
+#define TMC_AXICTL_WR_BURST_16	0xF00
 /* TMC_FFCR - 0x304 */
 #define TMC_FFCR_EN_FMT		BIT(0)
 #define TMC_FFCR_EN_TI		BIT(1)
@@ -211,7 +211,7 @@ static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 	writel_relaxed(TMC_MODE_CIRCULAR_BUFFER, drvdata->base + TMC_MODE);
 
 	axictl = readl_relaxed(drvdata->base + TMC_AXICTL);
-	axictl |= TMC_AXICTL_WR_BURST_LEN;
+	axictl |= TMC_AXICTL_WR_BURST_16;
 	writel_relaxed(axictl, drvdata->base + TMC_AXICTL);
 	axictl &= ~TMC_AXICTL_SCT_GAT_MODE;
 	writel_relaxed(axictl, drvdata->base + TMC_AXICTL);
