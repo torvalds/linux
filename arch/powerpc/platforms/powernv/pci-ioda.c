@@ -2929,19 +2929,72 @@ truncate_iov:
 }
 #endif /* CONFIG_PCI_IOV */
 
+static void pnv_ioda_setup_pe_res(struct pnv_ioda_pe *pe,
+				  struct resource *res)
+{
+	struct pnv_phb *phb = pe->phb;
+	struct pci_bus_region region;
+	int index;
+	int64_t rc;
+
+	if (!res || !res->flags || res->start > res->end)
+		return;
+
+	if (res->flags & IORESOURCE_IO) {
+		region.start = res->start - phb->ioda.io_pci_base;
+		region.end   = res->end - phb->ioda.io_pci_base;
+		index = region.start / phb->ioda.io_segsize;
+
+		while (index < phb->ioda.total_pe_num &&
+		       region.start <= region.end) {
+			phb->ioda.io_segmap[index] = pe->pe_number;
+			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
+				pe->pe_number, OPAL_IO_WINDOW_TYPE, 0, index);
+			if (rc != OPAL_SUCCESS) {
+				pr_err("%s: Error %lld mapping IO segment#%d to PE#%d\n",
+				       __func__, rc, index, pe->pe_number);
+				break;
+			}
+
+			region.start += phb->ioda.io_segsize;
+			index++;
+		}
+	} else if ((res->flags & IORESOURCE_MEM) &&
+		   !pnv_pci_is_mem_pref_64(res->flags)) {
+		region.start = res->start -
+			       phb->hose->mem_offset[0] -
+			       phb->ioda.m32_pci_base;
+		region.end   = res->end -
+			       phb->hose->mem_offset[0] -
+			       phb->ioda.m32_pci_base;
+		index = region.start / phb->ioda.m32_segsize;
+
+		while (index < phb->ioda.total_pe_num &&
+		       region.start <= region.end) {
+			phb->ioda.m32_segmap[index] = pe->pe_number;
+			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
+				pe->pe_number, OPAL_M32_WINDOW_TYPE, 0, index);
+			if (rc != OPAL_SUCCESS) {
+				pr_err("%s: Error %lld mapping M32 segment#%d to PE#%d",
+				       __func__, rc, index, pe->pe_number);
+				break;
+			}
+
+			region.start += phb->ioda.m32_segsize;
+			index++;
+		}
+	}
+}
+
 /*
  * This function is supposed to be called on basis of PE from top
  * to bottom style. So the the I/O or MMIO segment assigned to
  * parent PE could be overrided by its child PEs if necessary.
  */
-static void pnv_ioda_setup_pe_seg(struct pci_controller *hose,
-				  struct pnv_ioda_pe *pe)
+static void pnv_ioda_setup_pe_seg(struct pnv_ioda_pe *pe)
 {
-	struct pnv_phb *phb = hose->private_data;
-	struct pci_bus_region region;
 	struct resource *res;
-	int i, index;
-	int rc;
+	int i;
 
 	/*
 	 * NOTE: We only care PCI bus based PE for now. For PCI
@@ -2950,58 +3003,8 @@ static void pnv_ioda_setup_pe_seg(struct pci_controller *hose,
 	 */
 	BUG_ON(!(pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL)));
 
-	pci_bus_for_each_resource(pe->pbus, res, i) {
-		if (!res || !res->flags ||
-		    res->start > res->end)
-			continue;
-
-		if (res->flags & IORESOURCE_IO) {
-			region.start = res->start - phb->ioda.io_pci_base;
-			region.end   = res->end - phb->ioda.io_pci_base;
-			index = region.start / phb->ioda.io_segsize;
-
-			while (index < phb->ioda.total_pe_num &&
-			       region.start <= region.end) {
-				phb->ioda.io_segmap[index] = pe->pe_number;
-				rc = opal_pci_map_pe_mmio_window(phb->opal_id,
-					pe->pe_number, OPAL_IO_WINDOW_TYPE, 0, index);
-				if (rc != OPAL_SUCCESS) {
-					pr_err("%s: OPAL error %d when mapping IO "
-					       "segment #%d to PE#%d\n",
-					       __func__, rc, index, pe->pe_number);
-					break;
-				}
-
-				region.start += phb->ioda.io_segsize;
-				index++;
-			}
-		} else if ((res->flags & IORESOURCE_MEM) &&
-			   !pnv_pci_is_mem_pref_64(res->flags)) {
-			region.start = res->start -
-				       hose->mem_offset[0] -
-				       phb->ioda.m32_pci_base;
-			region.end   = res->end -
-				       hose->mem_offset[0] -
-				       phb->ioda.m32_pci_base;
-			index = region.start / phb->ioda.m32_segsize;
-
-			while (index < phb->ioda.total_pe_num &&
-			       region.start <= region.end) {
-				phb->ioda.m32_segmap[index] = pe->pe_number;
-				rc = opal_pci_map_pe_mmio_window(phb->opal_id,
-					pe->pe_number, OPAL_M32_WINDOW_TYPE, 0, index);
-				if (rc != OPAL_SUCCESS) {
-					pr_err("%s: OPAL error %d when mapping M32 "
-					       "segment#%d to PE#%d",
-					       __func__, rc, index, pe->pe_number);
-					break;
-				}
-
-				region.start += phb->ioda.m32_segsize;
-				index++;
-			}
-		}
-	}
+	pci_bus_for_each_resource(pe->pbus, res, i)
+		pnv_ioda_setup_pe_res(pe, res);
 }
 
 static void pnv_pci_ioda_setup_seg(void)
@@ -3018,7 +3021,7 @@ static void pnv_pci_ioda_setup_seg(void)
 			continue;
 
 		list_for_each_entry(pe, &phb->ioda.pe_list, list) {
-			pnv_ioda_setup_pe_seg(hose, pe);
+			pnv_ioda_setup_pe_seg(pe);
 		}
 	}
 }
