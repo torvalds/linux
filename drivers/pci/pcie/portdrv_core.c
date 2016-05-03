@@ -261,7 +261,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 		return 0;
 
 	cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
-			| PCIE_PORT_SERVICE_VC;
+			| PCIE_PORT_SERVICE_VC | PCIE_PORT_SERVICE_DPC;
 	if (pci_aer_available())
 		cap_mask |= PCIE_PORT_SERVICE_AER;
 
@@ -307,6 +307,8 @@ static int get_port_device_capability(struct pci_dev *dev)
 		 */
 		pcie_pme_interrupt_enable(dev, false);
 	}
+	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_DPC))
+		services |= PCIE_PORT_SERVICE_DPC;
 
 	return services;
 }
@@ -334,7 +336,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 	device = &pcie->device;
 	device->bus = &pcie_port_bus_type;
 	device->release = release_pcie_device;	/* callback to free pcie dev */
-	dev_set_name(device, "%s:pcie%02x",
+	dev_set_name(device, "%s:pcie%03x",
 		     pci_name(pdev),
 		     get_descriptor_id(pci_pcie_type(pdev), service));
 	device->parent = &pdev->dev;
