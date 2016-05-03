@@ -3575,7 +3575,7 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 	struct module *owner = csw->owner;
 	struct con_driver *con_driver;
 	const char *desc;
-	int i, retval = 0;
+	int i, retval;
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -3586,12 +3586,11 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 		con_driver = &registered_con_driver[i];
 
 		/* already registered */
-		if (con_driver->con == csw)
+		if (con_driver->con == csw) {
 			retval = -EBUSY;
+			goto err;
+		}
 	}
-
-	if (retval)
-		goto err;
 
 	desc = csw->con_startup();
 	if (!desc) {
