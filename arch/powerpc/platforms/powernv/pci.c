@@ -377,7 +377,7 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 	 */
 	pe_no = pdn->pe_number;
 	if (pe_no == IODA_INVALID_PE) {
-		pe_no = phb->ioda.reserved_pe;
+		pe_no = phb->ioda.reserved_pe_idx;
 	}
 
 	/*

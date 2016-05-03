@@ -120,8 +120,8 @@ struct pnv_phb {
 
 	struct {
 		/* Global bridge info */
-		unsigned int		total_pe;
-		unsigned int		reserved_pe;
+		unsigned int		total_pe_num;
+		unsigned int		reserved_pe_idx;
 
 		/* 32-bit MMIO window */
 		unsigned int		m32_size;
