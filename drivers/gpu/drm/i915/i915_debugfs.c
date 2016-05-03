@@ -2872,20 +2872,6 @@ static void intel_dp_info(struct seq_file *m,
 		intel_panel_info(m, &intel_connector->panel);
 }
 
-static void intel_dp_mst_info(struct seq_file *m,
-			  struct intel_connector *intel_connector)
-{
-	struct intel_encoder *intel_encoder = intel_connector->encoder;
-	struct intel_dp_mst_encoder *intel_mst =
-		enc_to_mst(&intel_encoder->base);
-	struct intel_digital_port *intel_dig_port = intel_mst->primary;
-	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	bool has_audio = drm_dp_mst_port_has_audio(&intel_dp->mst_mgr,
-					intel_connector->port);
-
-	seq_printf(m, "\taudio support: %s\n", yesno(has_audio));
-}
-
 static void intel_hdmi_info(struct seq_file *m,
 			    struct intel_connector *intel_connector)
 {
@@ -2929,8 +2915,6 @@ static void intel_connector_info(struct seq_file *m,
 			intel_hdmi_info(m, intel_connector);
 		else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
 			intel_lvds_info(m, intel_connector);
-		else if (intel_encoder->type == INTEL_OUTPUT_DP_MST)
-			intel_dp_mst_info(m, intel_connector);
 	}
 
 	seq_printf(m, "\tmodes:\n");
