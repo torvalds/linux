@@ -372,8 +372,9 @@ EXPORT_SYMBOL_GPL(pci_remove_device_node_info);
  * one of these nodes we also assume its siblings are non-pci for
  * performance.
  */
-void *traverse_pci_devices(struct device_node *start, traverse_func pre,
-		void *data)
+void *pci_traverse_device_nodes(struct device_node *start,
+				void *(*fn)(struct device_node *, void *),
+				void *data)
 {
 	struct device_node *dn, *nextdn;
 	void *ret;
@@ -388,8 +389,11 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
 		if (classp)
 			class = of_read_number(classp, 1);
 
-		if (pre && ((ret = pre(dn, data)) != NULL))
-			return ret;
+		if (fn) {
+			ret = fn(dn, data);
+			if (ret)
+				return ret;
+		}
 
 		/* If we are a PCI bridge, go down */
 		if (dn->child && ((class >> 8) == PCI_CLASS_BRIDGE_PCI ||
@@ -411,6 +415,7 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(pci_traverse_device_nodes);
 
 static struct pci_dn *pci_dn_next_one(struct pci_dn *root,
 				      struct pci_dn *pdn)
@@ -487,7 +492,7 @@ void pci_devs_phb_init_dynamic(struct pci_controller *phb)
 	}
 
 	/* Update dn->phb ptrs for new phb and children devices */
-	traverse_pci_devices(dn, add_pdn, phb);
+	pci_traverse_device_nodes(dn, add_pdn, phb);
 }
 
 /** 
