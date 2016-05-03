@@ -935,7 +935,7 @@ static int spi_map_msg(struct spi_master *master, struct spi_message *msg)
  * spi_transfer_one_message - Default implementation of transfer_one_message()
  *
  * This is a standard implementation of transfer_one_message() for
- * drivers which impelment a transfer_one() operation.  It provides
+ * drivers which implement a transfer_one() operation.  It provides
  * standard handling of delays and chip select management.
  */
 static int spi_transfer_one_message(struct spi_master *master,
