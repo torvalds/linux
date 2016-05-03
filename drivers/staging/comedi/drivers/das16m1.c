@@ -405,20 +405,24 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 
 	/* figure out how many samples are in fifo */
 	hw_counter = comedi_8254_read(devpriv->counter, 1);
-	/* make sure hardware counter reading is not bogus due to initial value
-	 * not having been loaded yet */
+	/*
+	 * Make sure hardware counter reading is not bogus due to initial
+	 * value not having been loaded yet.
+	 */
 	if (devpriv->adc_count == 0 &&
 	    hw_counter == devpriv->initial_hw_count) {
 		num_samples = 0;
 	} else {
-		/* The calculation of num_samples looks odd, but it uses the
+		/*
+		 * The calculation of num_samples looks odd, but it uses the
 		 * following facts. 16 bit hardware counter is initialized with
 		 * value of zero (which really means 0x1000).  The counter
 		 * decrements by one on each conversion (when the counter
 		 * decrements from zero it goes to 0xffff).  num_samples is a
 		 * 16 bit variable, so it will roll over in a similar fashion
 		 * to the hardware counter.  Work it out, and this is what you
-		 * get. */
+		 * get.
+		 */
 		num_samples = -hw_counter - devpriv->adc_count;
 	}
 	/*  check if we only need some of the points */
@@ -441,8 +445,10 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 		}
 	}
 
-	/* this probably won't catch overruns since the card doesn't generate
-	 * overrun interrupts, but we might as well try */
+	/*
+	 * This probably won't catch overruns since the card doesn't generate
+	 * overrun interrupts, but we might as well try.
+	 */
 	if (status & OVRUN) {
 		async->events |= COMEDI_CB_ERROR;
 		dev_err(dev->class_dev, "fifo overflow\n");
