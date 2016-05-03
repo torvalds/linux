@@ -37,10 +37,6 @@
 		mshc1 = &mmc_1;
 		mshc2 = &mmc_2;
 		mshc3 = &mmc_3;
-		i2c0 = &i2c_0;
-		i2c1 = &i2c_1;
-		i2c2 = &i2c_2;
-		i2c3 = &i2c_3;
 		i2c4 = &i2c_4;
 		i2c5 = &i2c_5;
 		i2c6 = &i2c_6;
@@ -235,11 +231,6 @@
 		interrupt-parent = <&gic>;
 	};
 
-	sysreg_system_controller: syscon@10050000 {
-		compatible = "samsung,exynos5-sysreg", "syscon";
-		reg = <0x10050000 0x5000>;
-	};
-
 	watchdog@101D0000 {
 		compatible = "samsung,exynos5250-wdt";
 		reg = <0x101D0000 0x100>;
@@ -328,62 +319,7 @@
 		status = "disabled";
 	};
 
-	i2c_0: i2c@12C60000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x12C60000 0x100>;
-		interrupts = <0 56 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		clocks = <&clock CLK_I2C0>;
-		clock-names = "i2c";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c0_bus>;
-		samsung,sysreg-phandle = <&sysreg_system_controller>;
-		status = "disabled";
-	};
-
-	i2c_1: i2c@12C70000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x12C70000 0x100>;
-		interrupts = <0 57 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		clocks = <&clock CLK_I2C1>;
-		clock-names = "i2c";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c1_bus>;
-		samsung,sysreg-phandle = <&sysreg_system_controller>;
-		status = "disabled";
-	};
-
-	i2c_2: i2c@12C80000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x12C80000 0x100>;
-		interrupts = <0 58 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		clocks = <&clock CLK_I2C2>;
-		clock-names = "i2c";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c2_bus>;
-		samsung,sysreg-phandle = <&sysreg_system_controller>;
-		status = "disabled";
-	};
-
-	i2c_3: i2c@12C90000 {
-		compatible = "samsung,s3c2440-i2c";
-		reg = <0x12C90000 0x100>;
-		interrupts = <0 59 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		clocks = <&clock CLK_I2C3>;
-		clock-names = "i2c";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c3_bus>;
-		samsung,sysreg-phandle = <&sysreg_system_controller>;
-		status = "disabled";
-	};
-
+	/* i2c_0-3 are defined in exynos5.dtsi */
 	i2c_4: i2c@12CA0000 {
 		compatible = "samsung,s3c2440-i2c";
 		reg = <0x12CA0000 0x100>;
@@ -660,15 +596,6 @@
 		#phy-cells = <1>;
 		samsung,sysreg-phandle = <&sysreg_system_controller>;
 		samsung,pmureg-phandle = <&pmu_system_controller>;
-	};
-
-	pwm: pwm@12dd0000 {
-		compatible = "samsung,exynos4210-pwm";
-		reg = <0x12dd0000 0x100>;
-		samsung,pwm-outputs = <0>, <1>, <2>, <3>;
-		#pwm-cells = <3>;
-		clocks = <&clock CLK_PWM>;
-		clock-names = "timers";
 	};
 
 	amba {
@@ -1068,6 +995,39 @@
 	clocks = <&clock CLK_SCLK_FIMD1>, <&clock CLK_FIMD1>;
 	clock-names = "sclk_fimd", "fimd";
 	iommus = <&sysmmu_fimd1>;
+};
+
+&i2c_0 {
+	clocks = <&clock CLK_I2C0>;
+	clock-names = "i2c";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_bus>;
+};
+
+&i2c_1 {
+	clocks = <&clock CLK_I2C1>;
+	clock-names = "i2c";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_bus>;
+};
+
+&i2c_2 {
+	clocks = <&clock CLK_I2C2>;
+	clock-names = "i2c";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_bus>;
+};
+
+&i2c_3 {
+	clocks = <&clock CLK_I2C3>;
+	clock-names = "i2c";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_bus>;
+};
+
+&pwm {
+	clocks = <&clock CLK_PWM>;
+	clock-names = "timers";
 };
 
 &rtc {
