@@ -50,7 +50,7 @@ static void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
 	ffcr = readl_relaxed(drvdata->base + TMC_FFCR);
 	ffcr |= TMC_FFCR_STOP_ON_FLUSH;
 	writel_relaxed(ffcr, drvdata->base + TMC_FFCR);
-	ffcr |= TMC_FFCR_FLUSHMAN;
+	ffcr |= BIT(TMC_FFCR_FLUSHMAN_BIT);
 	writel_relaxed(ffcr, drvdata->base + TMC_FFCR);
 	/* Ensure flush completes */
 	if (coresight_timeout(drvdata->base,
