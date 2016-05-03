@@ -140,15 +140,14 @@ struct pnv_phb {
 		unsigned int		io_segsize;
 		unsigned int		io_pci_base;
 
-		/* PE allocation bitmap */
-		unsigned long		*pe_alloc;
-		/* PE allocation mutex */
+		/* PE allocation */
 		struct mutex		pe_alloc_mutex;
+		unsigned long		*pe_alloc;
+		struct pnv_ioda_pe	*pe_array;
 
 		/* M32 & IO segment maps */
 		unsigned int		*m32_segmap;
 		unsigned int		*io_segmap;
-		struct pnv_ioda_pe	*pe_array;
 
 		/* IRQ chip */
 		int			irq_chip_init;
