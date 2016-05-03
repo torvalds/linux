@@ -18,7 +18,7 @@ obj-$(CONFIG_ACPI)		+= acpi.o \
 					acpica/
 
 # All the builtin files are in the "acpi." module_param namespace.
-acpi-y				+= osl.o utils.o reboot.o
+acpi-y				+= osi.o osl.o utils.o reboot.o
 acpi-y				+= nvs.o
 
 # Power management related files

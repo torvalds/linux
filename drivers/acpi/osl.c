@@ -96,74 +96,6 @@ struct acpi_ioremap {
 static LIST_HEAD(acpi_ioremaps);
 static DEFINE_MUTEX(acpi_ioremap_lock);
 
-static void __init acpi_osi_setup_late(void);
-
-/*
- * The story of _OSI(Linux)
- *
- * From pre-history through Linux-2.6.22,
- * Linux responded TRUE upon a BIOS OSI(Linux) query.
- *
- * Unfortunately, reference BIOS writers got wind of this
- * and put OSI(Linux) in their example code, quickly exposing
- * this string as ill-conceived and opening the door to
- * an un-bounded number of BIOS incompatibilities.
- *
- * For example, OSI(Linux) was used on resume to re-POST a
- * video card on one system, because Linux at that time
- * could not do a speedy restore in its native driver.
- * But then upon gaining quick native restore capability,
- * Linux has no way to tell the BIOS to skip the time-consuming
- * POST -- putting Linux at a permanent performance disadvantage.
- * On another system, the BIOS writer used OSI(Linux)
- * to infer native OS support for IPMI!  On other systems,
- * OSI(Linux) simply got in the way of Linux claiming to
- * be compatible with other operating systems, exposing
- * BIOS issues such as skipped device initialization.
- *
- * So "Linux" turned out to be a really poor chose of
- * OSI string, and from Linux-2.6.23 onward we respond FALSE.
- *
- * BIOS writers should NOT query _OSI(Linux) on future systems.
- * Linux will complain on the console when it sees it, and return FALSE.
- * To get Linux to return TRUE for your system  will require
- * a kernel source update to add a DMI entry,
- * or boot with "acpi_osi=Linux"
- */
-
-static struct acpi_osi_config {
-	unsigned int	linux_enable:1;
-	unsigned int	linux_dmi:1;
-	unsigned int	linux_cmdline:1;
-	unsigned int	darwin_enable:1;
-	unsigned int	darwin_dmi:1;
-	unsigned int	darwin_cmdline:1;
-	u8		default_disabling;
-} osi_config;
-
-static u32 acpi_osi_handler(acpi_string interface, u32 supported)
-{
-	if (!strcmp("Linux", interface)) {
-
-		pr_notice_once(FW_BUG PREFIX
-			"BIOS _OSI(Linux) query %s%s\n",
-			osi_config.linux_enable ? "honored" : "ignored",
-			osi_config.linux_cmdline ? " via cmdline" :
-			osi_config.linux_dmi ? " via DMI" : "");
-	}
-
-	if (!strcmp("Darwin", interface)) {
-
-		pr_notice_once(PREFIX
-			"BIOS _OSI(Darwin) query %s%s\n",
-			osi_config.darwin_enable ? "honored" : "ignored",
-			osi_config.darwin_cmdline ? " via cmdline" :
-			osi_config.darwin_dmi ? " via DMI" : "");
-	}
-
-	return supported;
-}
-
 static void __init acpi_request_region (struct acpi_generic_address *gas,
 	unsigned int length, char *desc)
 {
@@ -1719,185 +1651,6 @@ static int __init acpi_os_name_setup(char *str)
 
 __setup("acpi_os_name=", acpi_os_name_setup);
 
-#define	OSI_STRING_LENGTH_MAX 64
-#define	OSI_STRING_ENTRIES_MAX 16
-
-struct acpi_osi_entry {
-	char string[OSI_STRING_LENGTH_MAX];
-	bool enable;
-};
-
-static struct acpi_osi_entry
-		osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
-	{"Module Device", true},
-	{"Processor Device", true},
-	{"3.0 _SCP Extensions", true},
-	{"Processor Aggregator Device", true},
-};
-
-void __init acpi_osi_setup(char *str)
-{
-	struct acpi_osi_entry *osi;
-	bool enable = true;
-	int i;
-
-	if (!acpi_gbl_create_osi_method)
-		return;
-
-	if (str == NULL || *str == '\0') {
-		pr_info(PREFIX "_OSI method disabled\n");
-		acpi_gbl_create_osi_method = FALSE;
-		return;
-	}
-
-	if (*str == '!') {
-		str++;
-		if (*str == '\0') {
-			/* Do not override acpi_osi=!* */
-			if (!osi_config.default_disabling)
-				osi_config.default_disabling =
-					ACPI_DISABLE_ALL_VENDOR_STRINGS;
-			return;
-		} else if (*str == '*') {
-			osi_config.default_disabling = ACPI_DISABLE_ALL_STRINGS;
-			for (i = 0; i < OSI_STRING_ENTRIES_MAX; i++) {
-				osi = &osi_setup_entries[i];
-				osi->enable = false;
-			}
-			return;
-		} else if (*str == '!') {
-			osi_config.default_disabling = 0;
-			return;
-		}
-		enable = false;
-	}
-
-	for (i = 0; i < OSI_STRING_ENTRIES_MAX; i++) {
-		osi = &osi_setup_entries[i];
-		if (!strcmp(osi->string, str)) {
-			osi->enable = enable;
-			break;
-		} else if (osi->string[0] == '\0') {
-			osi->enable = enable;
-			strncpy(osi->string, str, OSI_STRING_LENGTH_MAX);
-			break;
-		}
-	}
-}
-
-static void __init __acpi_osi_setup_darwin(bool enable)
-{
-	osi_config.darwin_enable = !!enable;
-	if (enable) {
-		acpi_osi_setup("!");
-		acpi_osi_setup("Darwin");
-	} else {
-		acpi_osi_setup("!!");
-		acpi_osi_setup("!Darwin");
-	}
-}
-
-static void __init acpi_osi_setup_darwin(bool enable)
-{
-	osi_config.darwin_cmdline = 1;
-	osi_config.darwin_dmi = 0;
-	__acpi_osi_setup_darwin(enable);
-}
-
-void __init acpi_osi_dmi_darwin(bool enable, const struct dmi_system_id *d)
-{
-	pr_notice(PREFIX "DMI detected to setup _OSI(\"Darwin\"): %s\n",
-		  d->ident);
-	osi_config.darwin_dmi = 1;
-	__acpi_osi_setup_darwin(enable);
-}
-
-static void __init __acpi_osi_setup_linux(bool enable)
-{
-	osi_config.linux_enable = !!enable;
-	if (enable)
-		acpi_osi_setup("Linux");
-	else
-		acpi_osi_setup("!Linux");
-}
-
-static void __init acpi_osi_setup_linux(bool enable)
-{
-	osi_config.linux_cmdline = 1;
-	osi_config.linux_dmi = 0;
-	__acpi_osi_setup_linux(enable);
-}
-
-void __init acpi_osi_dmi_linux(bool enable, const struct dmi_system_id *d)
-{
-	pr_notice(PREFIX "DMI detected to setup _OSI(\"Linux\"): %s\n",
-		  d->ident);
-	osi_config.linux_dmi = 1;
-	__acpi_osi_setup_linux(enable);
-}
-
-/*
- * Modify the list of "OS Interfaces" reported to BIOS via _OSI
- *
- * empty string disables _OSI
- * string starting with '!' disables that string
- * otherwise string is added to list, augmenting built-in strings
- */
-static void __init acpi_osi_setup_late(void)
-{
-	struct acpi_osi_entry *osi;
-	char *str;
-	int i;
-	acpi_status status;
-
-	if (osi_config.default_disabling) {
-		status = acpi_update_interfaces(osi_config.default_disabling);
-
-		if (ACPI_SUCCESS(status))
-			pr_info(PREFIX "Disabled all _OSI OS vendors%s\n",
-				osi_config.default_disabling ==
-				ACPI_DISABLE_ALL_STRINGS ?
-				" and feature groups" : "");
-	}
-
-	for (i = 0; i < OSI_STRING_ENTRIES_MAX; i++) {
-		osi = &osi_setup_entries[i];
-		str = osi->string;
-
-		if (*str == '\0')
-			break;
-		if (osi->enable) {
-			status = acpi_install_interface(str);
-
-			if (ACPI_SUCCESS(status))
-				pr_info(PREFIX "Added _OSI(%s)\n", str);
-		} else {
-			status = acpi_remove_interface(str);
-
-			if (ACPI_SUCCESS(status))
-				pr_info(PREFIX "Deleted _OSI(%s)\n", str);
-		}
-	}
-}
-
-static int __init osi_setup(char *str)
-{
-	if (str && !strcmp("Linux", str))
-		acpi_osi_setup_linux(true);
-	else if (str && !strcmp("!Linux", str))
-		acpi_osi_setup_linux(false);
-	else if (str && !strcmp("Darwin", str))
-		acpi_osi_setup_darwin(true);
-	else if (str && !strcmp("!Darwin", str))
-		acpi_osi_setup_darwin(false);
-	else
-		acpi_osi_setup(str);
-
-	return 1;
-}
-
-__setup("acpi_osi=", osi_setup);
-
 /*
  * Disable the auto-serialization of named objects creation methods.
  *
@@ -2016,12 +1769,6 @@ int acpi_resources_are_enforced(void)
 	return acpi_enforce_resources == ENFORCE_RESOURCES_STRICT;
 }
 EXPORT_SYMBOL(acpi_resources_are_enforced);
-
-bool acpi_osi_is_win8(void)
-{
-	return acpi_gbl_osi_data >= ACPI_OSI_WIN_8;
-}
-EXPORT_SYMBOL(acpi_osi_is_win8);
 
 /*
  * Deallocate the memory for a spinlock.
@@ -2188,8 +1935,7 @@ acpi_status __init acpi_os_initialize1(void)
 	BUG_ON(!kacpid_wq);
 	BUG_ON(!kacpi_notify_wq);
 	BUG_ON(!kacpi_hotplug_wq);
-	acpi_install_interface_handler(acpi_osi_handler);
-	acpi_osi_setup_late();
+	acpi_osi_init();
 	return AE_OK;
 }
 
