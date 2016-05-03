@@ -2091,7 +2091,7 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 				"Failed to populate Clock Stretcher Data Table!",
 				return result);
 	}
-
+	table->CurrSclkPllRange = 0xff;
 	table->GraphicsVoltageChangeEnable  = 1;
 	table->GraphicsThermThrottleEnable  = 1;
 	table->GraphicsInterval = 1;
@@ -2184,6 +2184,7 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMask1);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMask2);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SclkStepSize);
+	CONVERT_FROM_HOST_TO_SMC_UL(table->CurrSclkPllRange);
 	CONVERT_FROM_HOST_TO_SMC_US(table->TemperatureLimitHigh);
 	CONVERT_FROM_HOST_TO_SMC_US(table->TemperatureLimitLow);
 	CONVERT_FROM_HOST_TO_SMC_US(table->VoltageResponseTime);
