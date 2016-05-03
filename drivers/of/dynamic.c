@@ -311,6 +311,7 @@ int of_detach_node(struct device_node *np)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(of_detach_node);
 
 /**
  * of_node_release() - release a dynamically allocated node
