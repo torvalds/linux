@@ -112,6 +112,21 @@ struct das16m1_private_struct {
 	unsigned long extra_iobase;
 };
 
+static void das16m1_ai_set_queue(struct comedi_device *dev,
+				 unsigned int *chanspec, unsigned int len)
+{
+	unsigned int i;
+
+	for (i = 0; i < len; i++) {
+		unsigned int chan = CR_CHAN(chanspec[i]);
+		unsigned int range = CR_RANGE(chanspec[i]);
+
+		outb(i, dev->iobase + DAS16M1_Q_ADDR_REG);
+		outb(DAS16M1_Q_CHAN(chan) | DAS16M1_Q_RANGE(range),
+		     dev->iobase + DAS16M1_Q_REG);
+	}
+}
+
 static void munge_sample_array(unsigned short *array, unsigned int num_elements)
 {
 	unsigned int i;
@@ -225,7 +240,7 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	struct das16m1_private_struct *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int byte, i;
+	unsigned int byte;
 
 	/*  set software count */
 	devpriv->adc_count = 0;
@@ -244,14 +259,7 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	 */
 	devpriv->initial_hw_count = comedi_8254_read(devpriv->counter, 1);
 
-	/* setup channel/gain queue */
-	for (i = 0; i < cmd->chanlist_len; i++) {
-		outb(i, dev->iobase + DAS16M1_Q_ADDR_REG);
-		byte =
-		    DAS16M1_Q_CHAN(CR_CHAN(cmd->chanlist[i])) |
-		    DAS16M1_Q_RANGE(CR_RANGE(cmd->chanlist[i]));
-		outb(byte, dev->iobase + DAS16M1_Q_REG);
-	}
+	das16m1_ai_set_queue(dev, cmd->chanlist, cmd->chanlist_len);
 
 	/* enable interrupts and set internal pacer counter mode and counts */
 	devpriv->intr_ctrl &= ~DAS16M1_INTR_CTRL_PACER_MASK;
@@ -314,13 +322,8 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 {
 	int ret;
 	int n;
-	int byte;
 
-	/* setup channel/gain queue */
-	outb(0, dev->iobase + DAS16M1_Q_ADDR_REG);
-	byte = DAS16M1_Q_CHAN(CR_CHAN(insn->chanspec)) |
-	       DAS16M1_Q_RANGE(CR_RANGE(insn->chanspec));
-	outb(byte, dev->iobase + DAS16M1_Q_REG);
+	das16m1_ai_set_queue(dev, &insn->chanspec, 1);
 
 	for (n = 0; n < insn->n; n++) {
 		unsigned short val;
