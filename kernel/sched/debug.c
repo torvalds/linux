@@ -626,14 +626,15 @@ do {									\
 #undef P
 #undef PN
 
-#ifdef CONFIG_SCHEDSTATS
-#define P(n) SEQ_printf(m, "  .%-30s: %d\n", #n, rq->n);
-#define P64(n) SEQ_printf(m, "  .%-30s: %Ld\n", #n, rq->n);
-
 #ifdef CONFIG_SMP
+#define P64(n) SEQ_printf(m, "  .%-30s: %Ld\n", #n, rq->n);
 	P64(avg_idle);
 	P64(max_idle_balance_cost);
+#undef P64
 #endif
+
+#ifdef CONFIG_SCHEDSTATS
+#define P(n) SEQ_printf(m, "  .%-30s: %d\n", #n, rq->n);
 
 	if (schedstat_enabled()) {
 		P(yld_count);
@@ -644,7 +645,6 @@ do {									\
 	}
 
 #undef P
-#undef P64
 #endif
 	spin_lock_irqsave(&sched_debug_lock, flags);
 	print_cfs_stats(m, cpu);
