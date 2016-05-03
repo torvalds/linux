@@ -80,11 +80,10 @@
 #define DAS16M1_INTR_CTRL_PACER_MASK	DAS16M1_INTR_CTRL_PACER(3)
 #define DAS16M1_INTR_CTRL_IRQ(x)	(((x) & 0x7) << 4)
 #define DAS16M1_INTR_CTRL_INTE		BIT(7)
-#define DAS16M1_QUEUE_ADDR     6
-#define DAS16M1_QUEUE_DATA     7
-#define   Q_CHAN(x)              ((x) & 0x7)
-#define   Q_RANGE(x)             (((x) & 0xf) << 4)
-#define   UNIPOLAR               0x40
+#define DAS16M1_Q_ADDR_REG		0x06
+#define DAS16M1_Q_REG			0x07
+#define DAS16M1_Q_CHAN(x)              (((x) & 0x7) << 0)
+#define DAS16M1_Q_RANGE(x)             (((x) & 0xf) << 4)
 #define DAS16M1_8254_FIRST             0x8
 #define DAS16M1_8254_SECOND            0xc
 #define DAS16M1_82C55                  0x400
@@ -247,11 +246,11 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 
 	/* setup channel/gain queue */
 	for (i = 0; i < cmd->chanlist_len; i++) {
-		outb(i, dev->iobase + DAS16M1_QUEUE_ADDR);
+		outb(i, dev->iobase + DAS16M1_Q_ADDR_REG);
 		byte =
-		    Q_CHAN(CR_CHAN(cmd->chanlist[i])) |
-		    Q_RANGE(CR_RANGE(cmd->chanlist[i]));
-		outb(byte, dev->iobase + DAS16M1_QUEUE_DATA);
+		    DAS16M1_Q_CHAN(CR_CHAN(cmd->chanlist[i])) |
+		    DAS16M1_Q_RANGE(CR_RANGE(cmd->chanlist[i]));
+		outb(byte, dev->iobase + DAS16M1_Q_REG);
 	}
 
 	/* enable interrupts and set internal pacer counter mode and counts */
@@ -318,10 +317,10 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 	int byte;
 
 	/* setup channel/gain queue */
-	outb(0, dev->iobase + DAS16M1_QUEUE_ADDR);
-	byte =
-	    Q_CHAN(CR_CHAN(insn->chanspec)) | Q_RANGE(CR_RANGE(insn->chanspec));
-	outb(byte, dev->iobase + DAS16M1_QUEUE_DATA);
+	outb(0, dev->iobase + DAS16M1_Q_ADDR_REG);
+	byte = DAS16M1_Q_CHAN(CR_CHAN(insn->chanspec)) |
+	       DAS16M1_Q_RANGE(CR_RANGE(insn->chanspec));
+	outb(byte, dev->iobase + DAS16M1_Q_REG);
 
 	for (n = 0; n < insn->n; n++) {
 		unsigned short val;
