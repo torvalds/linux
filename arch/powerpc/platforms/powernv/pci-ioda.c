@@ -305,6 +305,7 @@ static unsigned int pnv_ioda2_pick_m64_pe(struct pci_bus *bus, bool all)
 		phb->ioda.total_pe_num) {
 		pe = &phb->ioda.pe_array[i];
 
+		phb->ioda.m64_segmap[pe->pe_number] = pe->pe_number;
 		if (!master_pe) {
 			pe->flags |= PNV_IODA_PE_MASTER;
 			INIT_LIST_HEAD(&pe->slaves);
@@ -3252,7 +3253,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
-	unsigned long size, m32map_off, pemap_off, iomap_off = 0;
+	unsigned long size, m64map_off, m32map_off, pemap_off, iomap_off = 0;
 	const __be64 *prop64;
 	const __be32 *prop32;
 	int len;
@@ -3340,6 +3341,8 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 
 	/* Allocate aux data & arrays. We don't have IO ports on PHB3 */
 	size = _ALIGN_UP(phb->ioda.total_pe_num / 8, sizeof(unsigned long));
+	m64map_off = size;
+	size += phb->ioda.total_pe_num * sizeof(phb->ioda.m64_segmap[0]);
 	m32map_off = size;
 	size += phb->ioda.total_pe_num * sizeof(phb->ioda.m32_segmap[0]);
 	if (phb->type == PNV_PHB_IODA1) {
@@ -3350,9 +3353,12 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	size += phb->ioda.total_pe_num * sizeof(struct pnv_ioda_pe);
 	aux = memblock_virt_alloc(size, 0);
 	phb->ioda.pe_alloc = aux;
+	phb->ioda.m64_segmap = aux + m64map_off;
 	phb->ioda.m32_segmap = aux + m32map_off;
-	for (segno = 0; segno < phb->ioda.total_pe_num; segno++)
+	for (segno = 0; segno < phb->ioda.total_pe_num; segno++) {
+		phb->ioda.m64_segmap[segno] = IODA_INVALID_PE;
 		phb->ioda.m32_segmap[segno] = IODA_INVALID_PE;
+	}
 	if (phb->type == PNV_PHB_IODA1) {
 		phb->ioda.io_segmap = aux + iomap_off;
 		for (segno = 0; segno < phb->ioda.total_pe_num; segno++)

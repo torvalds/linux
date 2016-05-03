@@ -146,6 +146,7 @@ struct pnv_phb {
 		struct pnv_ioda_pe	*pe_array;
 
 		/* M32 & IO segment maps */
+		unsigned int		*m64_segmap;
 		unsigned int		*m32_segmap;
 		unsigned int		*io_segmap;
 
