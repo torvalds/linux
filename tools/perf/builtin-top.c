@@ -962,7 +962,7 @@ static int __cmd_top(struct perf_top *top)
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
 				    top->evlist->threads, false, opts->proc_map_timeout);
 
-	if (sort__has_socket) {
+	if (perf_hpp_list.socket) {
 		ret = perf_env__read_cpu_topology_map(&perf_env);
 		if (ret < 0)
 			goto out_err_cpu_topo;

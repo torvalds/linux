@@ -245,6 +245,7 @@ struct perf_hpp_list {
 	int parent;
 	int sym;
 	int dso;
+	int socket;
 };
 
 extern struct perf_hpp_list perf_hpp_list;

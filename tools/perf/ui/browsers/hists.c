@@ -2534,7 +2534,7 @@ add_exit_opt(struct hist_browser *browser __maybe_unused,
 static int
 do_zoom_socket(struct hist_browser *browser, struct popup_action *act)
 {
-	if (!sort__has_socket || act->socket < 0)
+	if (!hists__has(browser->hists, socket) || act->socket < 0)
 		return 0;
 
 	if (browser->hists->socket_filter > -1) {
@@ -2556,7 +2556,7 @@ static int
 add_socket_opt(struct hist_browser *browser, struct popup_action *act,
 	       char **optstr, int socket_id)
 {
-	if (!sort__has_socket || socket_id < 0)
+	if (!hists__has(browser->hists, socket) || socket_id < 0)
 		return 0;
 
 	if (asprintf(optstr, "Zoom %s Processor Socket %d",
