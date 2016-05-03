@@ -63,8 +63,9 @@
 /*
  * Register map (dev->iobase)
  */
-#define DAS16M1_AI             0	/*  16-bit wide register */
-#define   AI_CHAN(x)             ((x) & 0xf)
+#define DAS16M1_AI_REG			0x00	/* 16-bit register */
+#define DAS16M1_AI_TO_CHAN(x)		(((x) >> 0) & 0xf)
+#define DAS16M1_AI_TO_SAMPLE(x)		(((x) >> 4) & 0xfff)
 #define DAS16M1_CS             2
 #define   EXT_TRIG_BIT           0x1
 #define   OVRUN                  0x20
@@ -109,17 +110,12 @@ struct das16m1_private_struct {
 	unsigned long extra_iobase;
 };
 
-static inline unsigned short munge_sample(unsigned short data)
-{
-	return (data >> 4) & 0xfff;
-}
-
 static void munge_sample_array(unsigned short *array, unsigned int num_elements)
 {
 	unsigned int i;
 
 	for (i = 0; i < num_elements; i++)
-		array[i] = munge_sample(array[i]);
+		array[i] = DAS16M1_AI_TO_SAMPLE(array[i]);
 }
 
 static int das16m1_ai_check_chanlist(struct comedi_device *dev,
@@ -331,16 +327,19 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 	outb(byte, dev->iobase + DAS16M1_QUEUE_DATA);
 
 	for (n = 0; n < insn->n; n++) {
+		unsigned short val;
+
 		/* clear IRQDATA bit */
 		outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
 		/* trigger conversion */
-		outb(0, dev->iobase);
+		outb(0, dev->iobase + DAS16M1_AI_REG);
 
 		ret = comedi_timeout(dev, s, insn, das16m1_ai_eoc, 0);
 		if (ret)
 			return ret;
 
-		data[n] = munge_sample(inw(dev->iobase));
+		val = inw(dev->iobase + DAS16M1_AI_REG);
+		data[n] = DAS16M1_AI_TO_SAMPLE(val);
 	}
 
 	return n;
