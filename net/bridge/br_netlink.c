@@ -850,6 +850,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_NF_CALL_IP6TABLES] = { .type = NLA_U8 },
 	[IFLA_BR_NF_CALL_ARPTABLES] = { .type = NLA_U8 },
 	[IFLA_BR_VLAN_DEFAULT_PVID] = { .type = NLA_U16 },
+	[IFLA_BR_VLAN_STATS_ENABLED] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -918,6 +919,14 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		__u16 defpvid = nla_get_u16(data[IFLA_BR_VLAN_DEFAULT_PVID]);
 
 		err = __br_vlan_set_default_pvid(br, defpvid);
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_BR_VLAN_STATS_ENABLED]) {
+		__u8 vlan_stats = nla_get_u8(data[IFLA_BR_VLAN_STATS_ENABLED]);
+
+		err = br_vlan_set_stats(br, vlan_stats);
 		if (err)
 			return err;
 	}
@@ -1082,6 +1091,7 @@ static size_t br_get_size(const struct net_device *brdev)
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	       nla_total_size(sizeof(__be16)) +	/* IFLA_BR_VLAN_PROTOCOL */
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_VLAN_DEFAULT_PVID */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_VLAN_STATS_ENABLED */
 #endif
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_GROUP_FWD_MASK */
 	       nla_total_size(sizeof(struct ifla_bridge_id)) +   /* IFLA_BR_ROOT_ID */
@@ -1167,7 +1177,8 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto) ||
-	    nla_put_u16(skb, IFLA_BR_VLAN_DEFAULT_PVID, br->default_pvid))
+	    nla_put_u16(skb, IFLA_BR_VLAN_DEFAULT_PVID, br->default_pvid) ||
+	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_ENABLED, br->vlan_stats_enabled))
 		return -EMSGSIZE;
 #endif
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
@@ -1223,6 +1234,69 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	return 0;
 }
 
+static size_t br_get_linkxstats_size(const struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	int numvls = 0;
+
+	vg = br_vlan_group(br);
+	if (!vg)
+		return 0;
+
+	/* we need to count all, even placeholder entries */
+	list_for_each_entry(v, &vg->vlan_list, vlist)
+		numvls++;
+
+	/* account for the vlans and the link xstats type nest attribute */
+	return numvls * nla_total_size(sizeof(struct bridge_vlan_xstats)) +
+	       nla_total_size(0);
+}
+
+static int br_fill_linkxstats(struct sk_buff *skb, const struct net_device *dev,
+			      int *prividx)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	struct nlattr *nest;
+	int vl_idx = 0;
+
+	vg = br_vlan_group(br);
+	if (!vg)
+		goto out;
+	nest = nla_nest_start(skb, LINK_XSTATS_TYPE_BRIDGE);
+	if (!nest)
+		return -EMSGSIZE;
+	list_for_each_entry(v, &vg->vlan_list, vlist) {
+		struct bridge_vlan_xstats vxi;
+		struct br_vlan_stats stats;
+
+		if (vl_idx++ < *prividx)
+			continue;
+		memset(&vxi, 0, sizeof(vxi));
+		vxi.vid = v->vid;
+		br_vlan_get_stats(v, &stats);
+		vxi.rx_bytes = stats.rx_bytes;
+		vxi.rx_packets = stats.rx_packets;
+		vxi.tx_bytes = stats.tx_bytes;
+		vxi.tx_packets = stats.tx_packets;
+
+		if (nla_put(skb, BRIDGE_XSTATS_VLAN, sizeof(vxi), &vxi))
+			goto nla_put_failure;
+	}
+	nla_nest_end(skb, nest);
+	*prividx = 0;
+out:
+	return 0;
+
+nla_put_failure:
+	nla_nest_end(skb, nest);
+	*prividx = vl_idx;
+
+	return -EMSGSIZE;
+}
 
 static struct rtnl_af_ops br_af_ops __read_mostly = {
 	.family			= AF_BRIDGE,
@@ -1241,6 +1315,8 @@ struct rtnl_link_ops br_link_ops __read_mostly = {
 	.dellink		= br_dev_delete,
 	.get_size		= br_get_size,
 	.fill_info		= br_fill_info,
+	.fill_linkxstats	= br_fill_linkxstats,
+	.get_linkxstats_size	= br_get_linkxstats_size,
 
 	.slave_maxtype		= IFLA_BRPORT_MAX,
 	.slave_policy		= br_port_policy,

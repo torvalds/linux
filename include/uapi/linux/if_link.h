@@ -272,6 +272,7 @@ enum {
 	IFLA_BR_NF_CALL_ARPTABLES,
 	IFLA_BR_VLAN_DEFAULT_PVID,
 	IFLA_BR_PAD,
+	IFLA_BR_VLAN_STATS_ENABLED,
 	__IFLA_BR_MAX,
 };
 
@@ -810,11 +811,24 @@ struct if_stats_msg {
 enum {
 	IFLA_STATS_UNSPEC, /* also used as 64bit pad attribute */
 	IFLA_STATS_LINK_64,
+	IFLA_STATS_LINK_XSTATS,
 	__IFLA_STATS_MAX,
 };
 
 #define IFLA_STATS_MAX (__IFLA_STATS_MAX - 1)
 
 #define IFLA_STATS_FILTER_BIT(ATTR)	(1 << (ATTR - 1))
+
+/* These are embedded into IFLA_STATS_LINK_XSTATS:
+ * [IFLA_STATS_LINK_XSTATS]
+ * -> [LINK_XSTATS_TYPE_xxx]
+ *    -> [rtnl link type specific attributes]
+ */
+enum {
+	LINK_XSTATS_TYPE_UNSPEC,
+	LINK_XSTATS_TYPE_BRIDGE,
+	__LINK_XSTATS_TYPE_MAX
+};
+#define LINK_XSTATS_TYPE_MAX (__LINK_XSTATS_TYPE_MAX - 1)
 
 #endif /* _UAPI_LINUX_IF_LINK_H */
