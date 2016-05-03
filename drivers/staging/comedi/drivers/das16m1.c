@@ -127,11 +127,21 @@ static void das16m1_ai_set_queue(struct comedi_device *dev,
 	}
 }
 
-static void munge_sample_array(unsigned short *array, unsigned int num_elements)
+static void das16m1_ai_munge(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     void *data, unsigned int num_bytes,
+			     unsigned int start_chan_index)
 {
+	unsigned short *array = data;
+	unsigned int nsamples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned int i;
 
-	for (i = 0; i < num_elements; i++)
+	/*
+	 * The fifo values have the channel number in the lower 4-bits and
+	 * the sample in the upper 12-bits. This just shifts the values
+	 * to remove the channel numbers.
+	 */
+	for (i = 0; i < nsamples; i++)
 		array[i] = DAS16M1_AI_TO_SAMPLE(array[i]);
 }
 
@@ -410,7 +420,6 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	if (num_samples > DAS16M1_AI_FIFO_SZ)
 		num_samples = DAS16M1_AI_FIFO_SZ;
 	insw(dev->iobase, devpriv->ai_buffer, num_samples);
-	munge_sample_array(devpriv->ai_buffer, num_samples);
 	comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
 	devpriv->adc_count += num_samples;
 
@@ -560,6 +569,7 @@ static int das16m1_attach(struct comedi_device *dev,
 		s->do_cmd	= das16m1_ai_cmd;
 		s->cancel	= das16m1_ai_cancel;
 		s->poll		= das16m1_ai_poll;
+		s->munge	= das16m1_ai_munge;
 	}
 
 	/* Digital Input subdevice */
