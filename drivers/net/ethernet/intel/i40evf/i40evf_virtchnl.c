@@ -641,6 +641,7 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 {
 	struct i40e_virtchnl_promisc_info vpi;
+	int promisc_all;
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
@@ -649,11 +650,21 @@ void i40evf_set_promiscuous(struct i40evf_adapter *adapter, int flags)
 		return;
 	}
 
-	if (flags) {
+	promisc_all = I40E_FLAG_VF_UNICAST_PROMISC |
+		      I40E_FLAG_VF_MULTICAST_PROMISC;
+	if ((flags & promisc_all) == promisc_all) {
 		adapter->flags |= I40EVF_FLAG_PROMISC_ON;
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_REQUEST_PROMISC;
 		dev_info(&adapter->pdev->dev, "Entering promiscuous mode\n");
-	} else {
+	}
+
+	if (flags & I40E_FLAG_VF_MULTICAST_PROMISC) {
+		adapter->flags |= I40EVF_FLAG_ALLMULTI_ON;
+		adapter->aq_required &= ~I40EVF_FLAG_AQ_REQUEST_ALLMULTI;
+		dev_info(&adapter->pdev->dev, "Entering multicast promiscuous mode\n");
+	}
+
+	if (!flags) {
 		adapter->flags &= ~I40EVF_FLAG_PROMISC_ON;
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_RELEASE_PROMISC;
 		dev_info(&adapter->pdev->dev, "Leaving promiscuous mode\n");
