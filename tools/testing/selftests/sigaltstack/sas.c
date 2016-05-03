@@ -15,6 +15,7 @@
 #include <alloca.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 
 #ifndef SS_AUTODISARM
 #define SS_AUTODISARM  (1 << 4)
@@ -117,13 +118,19 @@ int main(void)
 	stk.ss_flags = SS_ONSTACK | SS_AUTODISARM;
 	err = sigaltstack(&stk, NULL);
 	if (err) {
-		perror("[FAIL]\tsigaltstack(SS_ONSTACK | SS_AUTODISARM)");
-		stk.ss_flags = SS_ONSTACK;
-	}
-	err = sigaltstack(&stk, NULL);
-	if (err) {
-		perror("[FAIL]\tsigaltstack(SS_ONSTACK)");
-		return EXIT_FAILURE;
+		if (errno == EINVAL) {
+			printf("[NOTE]\tThe running kernel doesn't support SS_AUTODISARM\n");
+			/*
+			 * If test cases for the !SS_AUTODISARM variant were
+			 * added, we could still run them.  We don't have any
+			 * test cases like that yet, so just exit and report
+			 * success.
+			 */
+			return 0;
+		} else {
+			perror("[FAIL]\tsigaltstack(SS_ONSTACK | SS_AUTODISARM)");
+			return EXIT_FAILURE;
+		}
 	}
 
 	ustack = mmap(NULL, SIGSTKSZ, PROT_READ | PROT_WRITE,
