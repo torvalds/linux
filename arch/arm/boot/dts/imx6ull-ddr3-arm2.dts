@@ -905,8 +905,10 @@
 &qspi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_qspi>;
-	status = "disabled";
+	status = "okay";
+#ifdef REWORKED_ENABLE_ALL_QSPI
 	fsl,qspi-has-second-chip = <1>;
+#endif
 	ddrsmp=<0>;
 
 	flash0: n25q256a@0 {
@@ -917,6 +919,8 @@
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <0>;
 	};
+
+#ifdef REWORKED_ENABLE_ALL_QSPI
 
 	flash1: n25q256a@1 {
 		#address-cells = <1>;
@@ -944,6 +948,7 @@
 		spi-nor,ddr-quad-read-dummy = <6>;
 		reg = <3>;
 	};
+#endif
 };
 
 &uart1 {
