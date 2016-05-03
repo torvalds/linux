@@ -72,7 +72,7 @@
 #define DAS16M1_CS_IRQDATA		BIT(7)
 #define DAS16M1_DI_REG			0x03
 #define DAS16M1_DO_REG			0x03
-#define DAS16M1_CLEAR_INTR     4
+#define DAS16M1_CLR_INTR_REG		0x04
 #define DAS16M1_INTR_CONTROL   5
 #define   EXT_PACER              0x2
 #define   INT_PACER              0x3
@@ -276,8 +276,9 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 		byte |= DAS16M1_CS_EXT_TRIG;
 
 	outb(byte, dev->iobase + DAS16M1_CS_REG);
-	/* clear interrupt bit */
-	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
+
+	/* clear interrupt */
+	outb(0, dev->iobase + DAS16M1_CLR_INTR_REG);
 
 	devpriv->control_state |= INTE;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
@@ -330,8 +331,8 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		unsigned short val;
 
-		/* clear DAS16M1_CS_IRQDATA bit */
-		outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
+		/* clear interrupt */
+		outb(0, dev->iobase + DAS16M1_CLR_INTR_REG);
 		/* trigger conversion */
 		outb(0, dev->iobase + DAS16M1_AI_REG);
 
@@ -476,7 +477,7 @@ static irqreturn_t das16m1_interrupt(int irq, void *d)
 	das16m1_handler(dev, status);
 
 	/* clear interrupt */
-	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
+	outb(0, dev->iobase + DAS16M1_CLR_INTR_REG);
 
 	spin_unlock(&dev->spinlock);
 	return IRQ_HANDLED;
