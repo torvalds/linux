@@ -163,8 +163,9 @@ static int das16m1_ai_check_chanlist(struct comedi_device *dev,
 	return 0;
 }
 
-static int das16m1_cmd_test(struct comedi_device *dev,
-			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
+static int das16m1_ai_cmdtest(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_cmd *cmd)
 {
 	int err = 0;
 
@@ -234,8 +235,8 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 	return 0;
 }
 
-static int das16m1_cmd_exec(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
+static int das16m1_ai_cmd(struct comedi_device *dev,
+			  struct comedi_subdevice *s)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
 	struct comedi_async *async = s->async;
@@ -291,7 +292,8 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	return 0;
 }
 
-static int das16m1_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
+static int das16m1_ai_cancel(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
 
@@ -316,9 +318,10 @@ static int das16m1_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int das16m1_ai_rinsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int das16m1_ai_insn_read(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	int ret;
 	int n;
@@ -437,7 +440,8 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	comedi_handle_events(dev, s);
 }
 
-static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
+static int das16m1_ai_poll(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	unsigned long flags;
 	unsigned int status;
@@ -552,22 +556,22 @@ static int das16m1_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* ai */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_DIFF;
-	s->n_chan = 8;
-	s->maxdata = (1 << 12) - 1;
-	s->range_table = &range_das16m1;
-	s->insn_read = das16m1_ai_rinsn;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_DIFF;
+	s->n_chan	= 8;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &range_das16m1;
+	s->insn_read	= das16m1_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->len_chanlist = 256;
-		s->do_cmdtest = das16m1_cmd_test;
-		s->do_cmd = das16m1_cmd_exec;
-		s->cancel = das16m1_cancel;
-		s->poll = das16m1_poll;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= 256;
+		s->do_cmdtest	= das16m1_ai_cmdtest;
+		s->do_cmd	= das16m1_ai_cmd;
+		s->cancel	= das16m1_ai_cancel;
+		s->poll		= das16m1_ai_poll;
 	}
 
 	s = &dev->subdevices[1];
