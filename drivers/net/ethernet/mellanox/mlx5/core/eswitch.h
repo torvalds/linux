@@ -132,6 +132,8 @@ struct mlx5_l2_table {
 struct mlx5_eswitch_fdb {
 	void *fdb;
 	struct mlx5_flow_group *addr_grp;
+	struct mlx5_flow_group *allmulti_grp;
+	struct mlx5_flow_group *promisc_grp;
 };
 
 struct mlx5_eswitch {

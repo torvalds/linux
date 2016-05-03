@@ -323,15 +323,17 @@ static void del_l2_table_entry(struct mlx5_core_dev *dev, u32 index)
 
 /* E-Switch FDB */
 static struct mlx5_flow_rule *
-esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
+__esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport,
+			 u8 mac_c[ETH_ALEN], u8 mac_v[ETH_ALEN])
 {
-	int match_header = MLX5_MATCH_OUTER_HEADERS;
-	struct mlx5_flow_destination dest;
+	int match_header = (is_zero_ether_addr(mac_c) ? 0 :
+			    MLX5_MATCH_OUTER_HEADERS);
 	struct mlx5_flow_rule *flow_rule = NULL;
+	struct mlx5_flow_destination dest;
+	u8 *dmac_v = NULL;
+	u8 *dmac_c = NULL;
 	u32 *match_v;
 	u32 *match_c;
-	u8 *dmac_v;
-	u8 *dmac_c;
 
 	match_v = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
 	match_c = kzalloc(MLX5_ST_SZ_BYTES(fte_match_param), GFP_KERNEL);
@@ -339,14 +341,16 @@ esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
 		pr_warn("FDB: Failed to alloc match parameters\n");
 		goto out;
 	}
+
 	dmac_v = MLX5_ADDR_OF(fte_match_param, match_v,
 			      outer_headers.dmac_47_16);
 	dmac_c = MLX5_ADDR_OF(fte_match_param, match_c,
 			      outer_headers.dmac_47_16);
 
-	ether_addr_copy(dmac_v, mac);
-	/* Match criteria mask */
-	memset(dmac_c, 0xff, 6);
+	if (match_header == MLX5_MATCH_OUTER_HEADERS) {
+		ether_addr_copy(dmac_v, mac_v);
+		ether_addr_copy(dmac_c, mac_c);
+	}
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport_num = vport;
@@ -371,6 +375,15 @@ out:
 	kfree(match_v);
 	kfree(match_c);
 	return flow_rule;
+}
+
+static struct mlx5_flow_rule *
+esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
+{
+	u8 mac_c[ETH_ALEN];
+
+	eth_broadcast_addr(mac_c);
+	return __esw_fdb_set_vport_rule(esw, vport, mac_c, mac);
 }
 
 static int esw_create_fdb_table(struct mlx5_eswitch *esw, int nvports)
@@ -407,28 +420,74 @@ static int esw_create_fdb_table(struct mlx5_eswitch *esw, int nvports)
 		esw_warn(dev, "Failed to create FDB Table err %d\n", err);
 		goto out;
 	}
+	esw->fdb_table.fdb = fdb;
 
+	/* Addresses group : Full match unicast/multicast addresses */
 	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
 		 MLX5_MATCH_OUTER_HEADERS);
 	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
 	dmac = MLX5_ADDR_OF(fte_match_param, match_criteria, outer_headers.dmac_47_16);
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
-	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, table_size - 1);
+	/* Preserve 2 entries for allmulti and promisc rules*/
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, table_size - 3);
 	eth_broadcast_addr(dmac);
-
 	g = mlx5_create_flow_group(fdb, flow_group_in);
 	if (IS_ERR_OR_NULL(g)) {
 		err = PTR_ERR(g);
 		esw_warn(dev, "Failed to create flow group err(%d)\n", err);
 		goto out;
 	}
-
 	esw->fdb_table.addr_grp = g;
-	esw->fdb_table.fdb = fdb;
+
+	/* Allmulti group : One rule that forwards any mcast traffic */
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
+		 MLX5_MATCH_OUTER_HEADERS);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, table_size - 2);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, table_size - 2);
+	eth_zero_addr(dmac);
+	dmac[0] = 0x01;
+	g = mlx5_create_flow_group(fdb, flow_group_in);
+	if (IS_ERR_OR_NULL(g)) {
+		err = PTR_ERR(g);
+		esw_warn(dev, "Failed to create allmulti flow group err(%d)\n", err);
+		goto out;
+	}
+	esw->fdb_table.allmulti_grp = g;
+
+	/* Promiscuous group :
+	 * One rule that forward all unmatched traffic from previous groups
+	 */
+	eth_zero_addr(dmac);
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable,
+		 MLX5_MATCH_MISC_PARAMETERS);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, misc_parameters.source_port);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, table_size - 1);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, table_size - 1);
+	g = mlx5_create_flow_group(fdb, flow_group_in);
+	if (IS_ERR_OR_NULL(g)) {
+		err = PTR_ERR(g);
+		esw_warn(dev, "Failed to create promisc flow group err(%d)\n", err);
+		goto out;
+	}
+	esw->fdb_table.promisc_grp = g;
+
 out:
+	if (err) {
+		if (!IS_ERR_OR_NULL(esw->fdb_table.allmulti_grp)) {
+			mlx5_destroy_flow_group(esw->fdb_table.allmulti_grp);
+			esw->fdb_table.allmulti_grp = NULL;
+		}
+		if (!IS_ERR_OR_NULL(esw->fdb_table.addr_grp)) {
+			mlx5_destroy_flow_group(esw->fdb_table.addr_grp);
+			esw->fdb_table.addr_grp = NULL;
+		}
+		if (!IS_ERR_OR_NULL(esw->fdb_table.fdb)) {
+			mlx5_destroy_flow_table(esw->fdb_table.fdb);
+			esw->fdb_table.fdb = NULL;
+		}
+	}
+
 	kfree(flow_group_in);
-	if (err && !IS_ERR_OR_NULL(fdb))
-		mlx5_destroy_flow_table(fdb);
 	return err;
 }
 
@@ -438,10 +497,14 @@ static void esw_destroy_fdb_table(struct mlx5_eswitch *esw)
 		return;
 
 	esw_debug(esw->dev, "Destroy FDB Table\n");
+	mlx5_destroy_flow_group(esw->fdb_table.promisc_grp);
+	mlx5_destroy_flow_group(esw->fdb_table.allmulti_grp);
 	mlx5_destroy_flow_group(esw->fdb_table.addr_grp);
 	mlx5_destroy_flow_table(esw->fdb_table.fdb);
 	esw->fdb_table.fdb = NULL;
 	esw->fdb_table.addr_grp = NULL;
+	esw->fdb_table.allmulti_grp = NULL;
+	esw->fdb_table.promisc_grp = NULL;
 }
 
 /* E-Switch vport UC/MC lists management */
