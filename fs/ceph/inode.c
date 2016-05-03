@@ -254,6 +254,9 @@ static int ceph_fill_dirfrag(struct inode *inode,
 		diri_auth = ci->i_auth_cap->mds;
 	spin_unlock(&ci->i_ceph_lock);
 
+	if (mds == -1) /* CDIR_AUTH_PARENT */
+		mds = diri_auth;
+
 	mutex_lock(&ci->i_fragtree_mutex);
 	if (ndist == 0 && mds == diri_auth) {
 		/* no delegation info needed. */
