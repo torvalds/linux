@@ -573,24 +573,6 @@ config RTC_DRV_EM3027
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-em3027.
 
-config RTC_DRV_RV3029C2
-	tristate "Micro Crystal RV3029"
-	help
-	  If you say yes here you get support for the Micro Crystal
-	  RV3029 RTC chips.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-rv3029c2.
-
-config RTC_DRV_RV3029_HWMON
-	bool "HWMON support for RV3029"
-	depends on RTC_DRV_RV3029C2 && HWMON
-	depends on !(RTC_DRV_RV3029C2=y && HWMON=m)
-	default y
-	help
-	  Say Y here if you want to expose temperature sensor data on
-	  rtc-rv3029.
-
 config RTC_DRV_RV8803
 	tristate "Micro Crystal RV8803"
 	help
@@ -785,6 +767,25 @@ config RTC_DRV_PCF2127
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf2127.
+
+config RTC_DRV_RV3029C2
+	tristate "Micro Crystal RV3029/3049"
+	depends on RTC_I2C_AND_SPI
+	help
+	  If you say yes here you get support for the Micro Crystal
+	  RV3029 and RV3049 RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rv3029c2.
+
+config RTC_DRV_RV3029_HWMON
+	bool "HWMON support for RV3029/3049"
+	depends on RTC_DRV_RV3029C2 && HWMON
+	depends on !(RTC_DRV_RV3029C2=y && HWMON=m)
+	default y
+	help
+	  Say Y here if you want to expose temperature sensor data on
+	  rtc-rv3029.
 
 comment "Platform RTC drivers"
 

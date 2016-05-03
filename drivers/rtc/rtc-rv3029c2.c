@@ -1,5 +1,5 @@
 /*
- * Micro Crystal RV-3029 rtc class driver
+ * Micro Crystal RV-3029 / RV-3049 rtc class driver
  *
  * Author: Gregory Hermant <gregory.hermant@calao-systems.com>
  *         Michael Buesch <m@bues.ch>
@@ -14,6 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 #include <linux/delay.h>
@@ -766,6 +767,8 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	return PTR_ERR_OR_ZERO(rv3029->rtc);
 }
 
+#if IS_ENABLED(CONFIG_I2C)
+
 static int rv3029_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
@@ -799,9 +802,108 @@ static struct i2c_driver rv3029_driver = {
 	.id_table	= rv3029_id,
 };
 
-module_i2c_driver(rv3029_driver);
+static int rv3029_register_driver(void)
+{
+	return i2c_add_driver(&rv3029_driver);
+}
+
+static void rv3029_unregister_driver(void)
+{
+	i2c_del_driver(&rv3029_driver);
+}
+
+#else
+
+static int rv3029_register_driver(void)
+{
+	return 0;
+}
+
+static void rv3029_unregister_driver(void)
+{
+}
+
+#endif
+
+#if IS_ENABLED(CONFIG_SPI_MASTER)
+
+static int rv3049_probe(struct spi_device *spi)
+{
+	static const struct regmap_config config = {
+		.reg_bits = 8,
+		.val_bits = 8,
+	};
+	struct regmap *regmap;
+
+	regmap = devm_regmap_init_spi(spi, &config);
+	if (IS_ERR(regmap)) {
+		dev_err(&spi->dev, "%s: regmap allocation failed: %ld\n",
+			__func__, PTR_ERR(regmap));
+		return PTR_ERR(regmap);
+	}
+
+	return rv3029_probe(&spi->dev, regmap, spi->irq, "rv3049");
+}
+
+static struct spi_driver rv3049_driver = {
+	.driver = {
+		.name    = "rv3049",
+	},
+	.probe   = rv3049_probe,
+};
+
+static int rv3049_register_driver(void)
+{
+	return spi_register_driver(&rv3049_driver);
+}
+
+static void rv3049_unregister_driver(void)
+{
+	spi_unregister_driver(&rv3049_driver);
+}
+
+#else
+
+static int rv3049_register_driver(void)
+{
+	return 0;
+}
+
+static void rv3049_unregister_driver(void)
+{
+}
+
+#endif
+
+static int __init rv30x9_init(void)
+{
+	int ret;
+
+	ret = rv3029_register_driver();
+	if (ret) {
+		pr_err("Failed to register rv3029 driver: %d\n", ret);
+		return ret;
+	}
+
+	ret = rv3049_register_driver();
+	if (ret) {
+		pr_err("Failed to register rv3049 driver: %d\n", ret);
+		rv3029_unregister_driver();
+	}
+
+	return ret;
+}
+module_init(rv30x9_init)
+
+static void __exit rv30x9_exit(void)
+{
+	rv3049_unregister_driver();
+	rv3029_unregister_driver();
+}
+module_exit(rv30x9_exit)
 
 MODULE_AUTHOR("Gregory Hermant <gregory.hermant@calao-systems.com>");
 MODULE_AUTHOR("Michael Buesch <m@bues.ch>");
-MODULE_DESCRIPTION("Micro Crystal RV3029 RTC driver");
+MODULE_DESCRIPTION("Micro Crystal RV3029/RV3049 RTC driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:rv3049");
