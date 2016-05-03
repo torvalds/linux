@@ -352,11 +352,7 @@ static int das16m1_di_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	unsigned int bits;
-
-	bits = inb(dev->iobase + DAS16M1_DI_REG) & 0xf;
-	data[1] = bits;
-	data[0] = 0;
+	data[1] = inb(dev->iobase + DAS16M1_DI_REG) & 0xf;
 
 	return insn->n;
 }
