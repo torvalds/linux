@@ -1880,7 +1880,7 @@ static int i40e_set_phys_id(struct net_device *netdev,
 		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY)) {
 			pf->led_status = i40e_led_get(hw);
 		} else {
-			i40e_aq_set_phy_debug(hw, I40E_PHY_DEBUG_PORT, NULL);
+			i40e_aq_set_phy_debug(hw, I40E_PHY_DEBUG_ALL, NULL);
 			ret = i40e_led_get_phy(hw, &temp_status,
 					       &pf->phy_led_val);
 			pf->led_status = temp_status;

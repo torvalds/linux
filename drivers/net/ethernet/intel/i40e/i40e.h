@@ -111,7 +111,9 @@
 #define I40E_OEM_VER_PATCH_MASK    0xff
 #define I40E_OEM_VER_BUILD_SHIFT   8
 #define I40E_OEM_VER_SHIFT         24
-#define I40E_PHY_DEBUG_PORT        BIT(4)
+#define I40E_PHY_DEBUG_ALL \
+	(I40E_AQ_PHY_DEBUG_DISABLE_LINK_FW | \
+	I40E_AQ_PHY_DEBUG_DISABLE_ALL_LINK_FW)
 
 /* The values in here are decimal coded as hex as is the case in the NVM map*/
 #define I40E_CURRENT_NVM_VERSION_HI 0x2
