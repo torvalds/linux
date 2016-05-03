@@ -1193,7 +1193,8 @@ static int vi_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
 	case CHIP_CARRIZO:
-		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG |
+			AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_RLC_LS |
 			AMD_CG_SUPPORT_GFX_CP_LS |
