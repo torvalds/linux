@@ -293,6 +293,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	u32 data_reg = PF_REG(mbox, CIM_PF_MAILBOX_DATA_A);
 	u32 ctl_reg = PF_REG(mbox, CIM_PF_MAILBOX_CTRL_A);
 	__be64 cmd_rpl[MBOX_LEN / 8];
+	u32 pcie_fw;
 
 	if ((size & 15) || size > MBOX_LEN)
 		return -EINVAL;
@@ -331,7 +332,10 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	delay_idx = 0;
 	ms = delay[0];
 
-	for (i = 0; i < timeout; i += ms) {
+	for (i = 0;
+	     !((pcie_fw = t4_read_reg(adap, PCIE_FW_A)) & PCIE_FW_ERR_F) &&
+	     i < timeout;
+	     i += ms) {
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
 			if (delay_idx < ARRAY_SIZE(delay) - 1)
@@ -366,7 +370,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 		}
 	}
 
-	ret = -ETIMEDOUT;
+	ret = (pcie_fw & PCIE_FW_ERR_F) ? -ENXIO : -ETIMEDOUT;
 	t4_record_mbox(adap, cmd, MBOX_LEN, access, ret);
 	dev_err(adap->pdev_dev, "command %#x in mailbox %d timed out\n",
 		*(const u8 *)cmd, mbox);
