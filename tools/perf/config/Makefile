@@ -439,11 +439,11 @@ ifdef CSTRACE_PATH
   else
     CSTRACE_LNX = linux
   endif
-  ifdef DEBUG
+  ifeq (${DEBUG}, 1)
     LIBCSTRACE = -lcstraced_c_api -lcstraced
     CSTRACE_LIB_PATH = $(CSTRACE_PATH)/lib/$(CSTRACE_LNX)/dbg
   else
-    LIBCSTRACE = -lcstrace_c_api -lcstrace
+    LIBCSTRACE = -lcstraced_c_api -lcstraced
     CSTRACE_LIB_PATH = $(CSTRACE_PATH)/lib/$(CSTRACE_LNX)/rel
   endif
   $(call detected,CSTRACE)
