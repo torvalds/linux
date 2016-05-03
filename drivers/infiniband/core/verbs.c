@@ -1597,6 +1597,7 @@ EXPORT_SYMBOL(ib_set_vf_guid);
  * @mr:            memory region
  * @sg:            dma mapped scatterlist
  * @sg_nents:      number of entries in sg
+ * @sg_offset:     offset in bytes into sg
  * @page_size:     page vector desired page size
  *
  * Constraints:
@@ -1615,17 +1616,15 @@ EXPORT_SYMBOL(ib_set_vf_guid);
  * After this completes successfully, the  memory region
  * is ready for registration.
  */
-int ib_map_mr_sg(struct ib_mr *mr,
-		 struct scatterlist *sg,
-		 int sg_nents,
-		 unsigned int page_size)
+int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
+		unsigned int sg_offset, unsigned int page_size)
 {
 	if (unlikely(!mr->device->map_mr_sg))
 		return -ENOSYS;
 
 	mr->page_size = page_size;
 
-	return mr->device->map_mr_sg(mr, sg, sg_nents);
+	return mr->device->map_mr_sg(mr, sg, sg_nents, sg_offset);
 }
 EXPORT_SYMBOL(ib_map_mr_sg);
 
@@ -1635,6 +1634,7 @@ EXPORT_SYMBOL(ib_map_mr_sg);
  * @mr:            memory region
  * @sgl:           dma mapped scatterlist
  * @sg_nents:      number of entries in sg
+ * @sg_offset:     offset in bytes into sg
  * @set_page:      driver page assignment function pointer
  *
  * Core service helper for drivers to convert the largest
@@ -1645,10 +1645,8 @@ EXPORT_SYMBOL(ib_map_mr_sg);
  * Returns the number of sg elements that were assigned to
  * a page vector.
  */
-int ib_sg_to_pages(struct ib_mr *mr,
-		   struct scatterlist *sgl,
-		   int sg_nents,
-		   int (*set_page)(struct ib_mr *, u64))
+int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
+		unsigned int sg_offset, int (*set_page)(struct ib_mr *, u64))
 {
 	struct scatterlist *sg;
 	u64 last_end_dma_addr = 0;
@@ -1656,12 +1654,12 @@ int ib_sg_to_pages(struct ib_mr *mr,
 	u64 page_mask = ~((u64)mr->page_size - 1);
 	int i, ret;
 
-	mr->iova = sg_dma_address(&sgl[0]);
+	mr->iova = sg_dma_address(&sgl[0]) + sg_offset;
 	mr->length = 0;
 
 	for_each_sg(sgl, sg, sg_nents, i) {
-		u64 dma_addr = sg_dma_address(sg);
-		unsigned int dma_len = sg_dma_len(sg);
+		u64 dma_addr = sg_dma_address(sg) + sg_offset;
+		unsigned int dma_len = sg_dma_len(sg) - sg_offset;
 		u64 end_dma_addr = dma_addr + dma_len;
 		u64 page_addr = dma_addr & page_mask;
 
@@ -1694,6 +1692,8 @@ next_page:
 		mr->length += dma_len;
 		last_end_dma_addr = end_dma_addr;
 		last_page_off = end_dma_addr & ~page_mask;
+
+		sg_offset = 0;
 	}
 
 	return i;

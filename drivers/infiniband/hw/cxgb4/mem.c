@@ -690,15 +690,14 @@ static int c4iw_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-int c4iw_map_mr_sg(struct ib_mr *ibmr,
-		   struct scatterlist *sg,
-		   int sg_nents)
+int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		unsigned int sg_offset)
 {
 	struct c4iw_mr *mhp = to_c4iw_mr(ibmr);
 
 	mhp->mpl_len = 0;
 
-	return ib_sg_to_pages(ibmr, sg, sg_nents, c4iw_set_page);
+	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, c4iw_set_page);
 }
 
 int c4iw_dereg_mr(struct ib_mr *ib_mr)

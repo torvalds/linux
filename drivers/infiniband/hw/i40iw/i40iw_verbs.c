@@ -1573,12 +1573,13 @@ static int i40iw_set_page(struct ib_mr *ibmr, u64 addr)
  * @sg: scatter gather list for fmr
  * @sg_nents: number of sg pages
  */
-static int i40iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents)
+static int i40iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
+			   int sg_nents, unsigned int sg_offset)
 {
 	struct i40iw_mr *iwmr = to_iwmr(ibmr);
 
 	iwmr->npages = 0;
-	return ib_sg_to_pages(ibmr, sg, sg_nents, i40iw_set_page);
+	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, i40iw_set_page);
 }
 
 /**

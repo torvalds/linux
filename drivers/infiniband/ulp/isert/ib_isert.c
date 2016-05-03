@@ -2461,7 +2461,7 @@ isert_fast_reg_mr(struct isert_conn *isert_conn,
 		wr = &inv_wr;
 	}
 
-	n = ib_map_mr_sg(mr, mem->sg, mem->nents, PAGE_SIZE);
+	n = ib_map_mr_sg(mr, mem->sg, mem->nents, 0, PAGE_SIZE);
 	if (unlikely(n != mem->nents)) {
 		isert_err("failed to map mr sg (%d/%d)\n",
 			 n, mem->nents);
