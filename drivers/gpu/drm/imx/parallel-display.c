@@ -203,7 +203,7 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
 	struct device_node *np = dev->of_node;
-	struct device_node *port;
+	struct device_node *ep;
 	const u8 *edidp;
 	struct imx_parallel_display *imxpd;
 	int ret;
@@ -230,18 +230,18 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	/* port@1 is the output port */
-	port = of_graph_get_port_by_id(np, 1);
-	if (port) {
-		struct device_node *endpoint, *remote;
+	ep = of_graph_get_endpoint_by_regs(np, 1, -1);
+	if (ep) {
+		struct device_node *remote;
 
-		endpoint = of_get_child_by_name(port, "endpoint");
-		if (endpoint) {
-			remote = of_graph_get_remote_port_parent(endpoint);
-			if (remote)
-				imxpd->panel = of_drm_find_panel(remote);
-			if (!imxpd->panel)
-				return -EPROBE_DEFER;
+		remote = of_graph_get_remote_port_parent(ep);
+		of_node_put(ep);
+		if (remote) {
+			imxpd->panel = of_drm_find_panel(remote);
+			of_node_put(remote);
 		}
+		if (!imxpd->panel)
+			return -EPROBE_DEFER;
 	}
 
 	imxpd->dev = dev;
