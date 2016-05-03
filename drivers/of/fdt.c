@@ -450,11 +450,13 @@ static int unflatten_dt_nodes(const void *blob,
  * pointers of the nodes so the normal device-tree walking functions
  * can be used.
  * @blob: The blob to expand
+ * @dad: Parent device node
  * @mynodes: The device_node tree created by the call
  * @dt_alloc: An allocator that provides a virtual address to memory
  * for the resulting tree
  */
 static void __unflatten_device_tree(const void *blob,
+			     struct device_node *dad,
 			     struct device_node **mynodes,
 			     void * (*dt_alloc)(u64 size, u64 align))
 {
@@ -479,7 +481,7 @@ static void __unflatten_device_tree(const void *blob,
 	}
 
 	/* First pass, scan for size */
-	size = unflatten_dt_nodes(blob, NULL, NULL, NULL);
+	size = unflatten_dt_nodes(blob, NULL, dad, NULL);
 	if (size < 0)
 		return;
 
@@ -495,7 +497,7 @@ static void __unflatten_device_tree(const void *blob,
 	pr_debug("  unflattening %p...\n", mem);
 
 	/* Second pass, do actual unflattening */
-	unflatten_dt_nodes(blob, mem, NULL, mynodes);
+	unflatten_dt_nodes(blob, mem, dad, mynodes);
 	if (be32_to_cpup(mem + size) != 0xdeadbeef)
 		pr_warning("End of tree marker overwritten: %08x\n",
 			   be32_to_cpup(mem + size));
@@ -512,6 +514,9 @@ static DEFINE_MUTEX(of_fdt_unflatten_mutex);
 
 /**
  * of_fdt_unflatten_tree - create tree of device_nodes from flat blob
+ * @blob: Flat device tree blob
+ * @dad: Parent device node
+ * @mynodes: The device tree created by the call
  *
  * unflattens the device-tree passed by the firmware, creating the
  * tree of struct device_node. It also fills the "name" and "type"
@@ -519,10 +524,11 @@ static DEFINE_MUTEX(of_fdt_unflatten_mutex);
  * can be used.
  */
 void of_fdt_unflatten_tree(const unsigned long *blob,
+			struct device_node *dad,
 			struct device_node **mynodes)
 {
 	mutex_lock(&of_fdt_unflatten_mutex);
-	__unflatten_device_tree(blob, mynodes, &kernel_tree_alloc);
+	__unflatten_device_tree(blob, dad, mynodes, &kernel_tree_alloc);
 	mutex_unlock(&of_fdt_unflatten_mutex);
 }
 EXPORT_SYMBOL_GPL(of_fdt_unflatten_tree);
@@ -1195,7 +1201,7 @@ bool __init early_init_dt_scan(void *params)
  */
 void __init unflatten_device_tree(void)
 {
-	__unflatten_device_tree(initial_boot_params, &of_root,
+	__unflatten_device_tree(initial_boot_params, NULL, &of_root,
 				early_init_dt_alloc_memory_arch);
 
 	/* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
