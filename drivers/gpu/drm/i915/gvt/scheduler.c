@@ -185,6 +185,14 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 
 	mutex_lock(&gvt->lock);
 
+	ret = intel_gvt_scan_and_shadow_workload(workload);
+	if (ret)
+		goto err;
+
+	ret = intel_gvt_scan_and_shadow_wa_ctx(&workload->wa_ctx);
+	if (ret)
+		goto err;
+
 	ret = populate_shadow_context(workload);
 	if (ret)
 		goto err;
@@ -345,6 +353,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload;
+	int event;
 
 	mutex_lock(&gvt->lock);
 
@@ -355,6 +364,11 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 			   !atomic_read(&workload->shadow_ctx_active));
 
 		update_guest_context(workload);
+
+		for_each_set_bit(event, workload->pending_events,
+				 INTEL_GVT_EVENT_MAX)
+			intel_vgpu_trigger_virtual_event(workload->vgpu,
+					event);
 	}
 
 	gvt_dbg_sched("ring id %d complete workload %p status %d\n",

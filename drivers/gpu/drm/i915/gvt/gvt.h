@@ -45,6 +45,7 @@
 #include "scheduler.h"
 #include "sched_policy.h"
 #include "render.h"
+#include "cmd_parser.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -71,6 +72,8 @@ struct intel_gvt_device_info {
 	u32 gtt_start_offset;
 	u32 gtt_entry_size;
 	u32 gtt_entry_size_shift;
+	int gmadr_bytes_in_cmd;
+	u32 max_surface_size;
 };
 
 /* GM resources owned by a vGPU */
@@ -203,6 +206,7 @@ struct intel_gvt {
 	struct intel_gvt_gtt gtt;
 	struct intel_gvt_opregion opregion;
 	struct intel_gvt_workload_scheduler scheduler;
+	DECLARE_HASHTABLE(cmd_table, GVT_CMD_HASH_BITS);
 
 	struct task_struct *service_thread;
 	wait_queue_head_t service_thread_wq;

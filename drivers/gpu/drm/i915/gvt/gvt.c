@@ -112,6 +112,8 @@ static void init_device_info(struct intel_gvt *gvt)
 		info->gtt_start_offset = 8 * 1024 * 1024;
 		info->gtt_entry_size = 8;
 		info->gtt_entry_size_shift = 3;
+		info->gmadr_bytes_in_cmd = 8;
+		info->max_surface_size = 36 * 1024 * 1024;
 	}
 }
 
@@ -177,6 +179,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 		return;
 
 	clean_service_thread(gvt);
+	intel_gvt_clean_cmd_parser(gvt);
 	intel_gvt_clean_sched_policy(gvt);
 	intel_gvt_clean_workload_scheduler(gvt);
 	intel_gvt_clean_opregion(gvt);
@@ -249,14 +252,20 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_workload_scheduler;
 
-	ret = init_service_thread(gvt);
+	ret = intel_gvt_init_cmd_parser(gvt);
 	if (ret)
 		goto out_clean_sched_policy;
+
+	ret = init_service_thread(gvt);
+	if (ret)
+		goto out_clean_cmd_parser;
 
 	gvt_dbg_core("gvt device creation is done\n");
 	gvt->initialized = true;
 	return 0;
 
+out_clean_cmd_parser:
+	intel_gvt_clean_cmd_parser(gvt);
 out_clean_sched_policy:
 	intel_gvt_clean_sched_policy(gvt);
 out_clean_workload_scheduler:

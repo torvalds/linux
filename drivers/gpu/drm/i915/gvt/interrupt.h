@@ -226,4 +226,8 @@ int intel_vgpu_reg_master_irq_handler(struct intel_vgpu *vgpu,
 int intel_vgpu_reg_imr_handler(struct intel_vgpu *vgpu,
 	unsigned int reg, void *p_data, unsigned int bytes);
 
+int gvt_ring_id_to_pipe_control_notify_event(int ring_id);
+int gvt_ring_id_to_mi_flush_dw_event(int ring_id);
+int gvt_ring_id_to_mi_user_interrupt_event(int ring_id);
+
 #endif /* _GVT_INTERRUPT_H_ */

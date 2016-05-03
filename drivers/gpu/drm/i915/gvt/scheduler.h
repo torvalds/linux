@@ -50,6 +50,29 @@ struct intel_gvt_workload_scheduler {
 	struct intel_gvt_sched_policy_ops *sched_ops;
 };
 
+#define INDIRECT_CTX_ADDR_MASK 0xffffffc0
+#define INDIRECT_CTX_SIZE_MASK 0x3f
+struct shadow_indirect_ctx {
+	struct drm_i915_gem_object *obj;
+	unsigned long guest_gma;
+	unsigned long shadow_gma;
+	void *shadow_va;
+	uint32_t size;
+};
+
+#define PER_CTX_ADDR_MASK 0xfffff000
+struct shadow_per_ctx {
+	unsigned long guest_gma;
+	unsigned long shadow_gma;
+};
+
+struct intel_shadow_wa_ctx {
+	struct intel_vgpu_workload *workload;
+	struct shadow_indirect_ctx indirect_ctx;
+	struct shadow_per_ctx per_ctx;
+
+};
+
 struct intel_vgpu_workload {
 	struct intel_vgpu *vgpu;
 	int ring_id;
@@ -65,16 +88,32 @@ struct intel_vgpu_workload {
 	int (*complete)(struct intel_vgpu_workload *);
 	struct list_head list;
 
+	DECLARE_BITMAP(pending_events, INTEL_GVT_EVENT_MAX);
+	void *shadow_ring_buffer_va;
+
 	/* execlist context information */
 	struct execlist_ctx_descriptor_format ctx_desc;
 	struct execlist_ring_context *ring_context;
-	unsigned long rb_head, rb_tail, rb_ctl, rb_start;
+	unsigned long rb_head, rb_tail, rb_ctl, rb_start, rb_len;
 	bool restore_inhibit;
 	struct intel_vgpu_elsp_dwords elsp_dwords;
 	bool emulate_schedule_in;
 	atomic_t shadow_ctx_active;
 	wait_queue_head_t shadow_ctx_status_wq;
 	u64 ring_context_gpa;
+
+	/* shadow batch buffer */
+	struct list_head shadow_bb;
+	struct intel_shadow_wa_ctx wa_ctx;
+};
+
+/* Intel shadow batch buffer is a i915 gem object */
+struct intel_shadow_bb_entry {
+	struct list_head list;
+	struct drm_i915_gem_object *obj;
+	void *va;
+	unsigned long len;
+	void *bb_start_cmd_va;
 };
 
 #define workload_q_head(vgpu, ring_id) \
