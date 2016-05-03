@@ -347,9 +347,10 @@ static int das16m1_ai_insn_read(struct comedi_device *dev,
 	return n;
 }
 
-static int das16m1_di_rbits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int das16m1_di_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	unsigned int bits;
 
@@ -574,14 +575,14 @@ static int das16m1_attach(struct comedi_device *dev,
 		s->poll		= das16m1_ai_poll;
 	}
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[1];
-	/* di */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = das16m1_di_rbits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= das16m1_di_insn_bits;
 
 	s = &dev->subdevices[2];
 	/* do */
