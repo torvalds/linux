@@ -18,7 +18,7 @@
  */
 #define PCIE_PORT_MAX_MSIX_ENTRIES	32
 
-#define get_descriptor_id(type, service) (((type - 4) << 4) | service)
+#define get_descriptor_id(type, service) (((type - 4) << 8) | service)
 
 extern struct bus_type pcie_port_bus_type;
 int pcie_port_device_register(struct pci_dev *dev);
