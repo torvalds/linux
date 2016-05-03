@@ -2164,6 +2164,9 @@ struct packet_offload {
 
 struct udp_offload;
 
+/* 'skb->encapsulation' is set before gro_complete() is called.  gro_complete()
+ * must set 'skb->inner_mac_header' to the beginning of tunnel payload.
+ */
 struct udp_offload_callbacks {
 	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
 						 struct sk_buff *skb,

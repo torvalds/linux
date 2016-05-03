@@ -236,6 +236,8 @@ static int fou_gro_complete(struct sk_buff *skb, int nhoff,
 
 	err = ops->callbacks.gro_complete(skb, nhoff);
 
+	skb_set_inner_mac_header(skb, nhoff);
+
 out_unlock:
 	rcu_read_unlock();
 
@@ -411,6 +413,8 @@ static int gue_gro_complete(struct sk_buff *skb, int nhoff,
 		goto out_unlock;
 
 	err = ops->callbacks.gro_complete(skb, nhoff + guehlen);
+
+	skb_set_inner_mac_header(skb, nhoff + guehlen);
 
 out_unlock:
 	rcu_read_unlock();
