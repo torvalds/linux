@@ -18,7 +18,7 @@
 #include <errno.h>
 
 #ifndef SS_AUTODISARM
-#define SS_AUTODISARM  (1 << 4)
+#define SS_AUTODISARM  (1U << 31)
 #endif
 
 static void *sstack, *ustack;
