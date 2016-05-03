@@ -98,6 +98,9 @@
 #define sCR0_BSU_SHIFT			14
 #define sCR0_BSU_MASK			0x3
 
+/* Auxiliary Configuration register */
+#define ARM_SMMU_GR0_sACR		0x10
+
 /* Identification registers */
 #define ARM_SMMU_GR0_ID0		0x20
 #define ARM_SMMU_GR0_ID1		0x24
@@ -145,6 +148,9 @@
 #define ID2_PTFS_16K			(1 << 13)
 #define ID2_PTFS_64K			(1 << 14)
 #define ID2_VMID16			(1 << 15)
+
+#define ID7_MAJOR_SHIFT			4
+#define ID7_MAJOR_MASK			0xf
 
 /* Global TLB invalidation */
 #define ARM_SMMU_GR0_TLBIVMID		0x64
@@ -236,6 +242,8 @@
 #define SCTLR_EAE_SBOP			(SCTLR_AFE | SCTLR_TRE)
 
 #define ARM_MMU500_ACTLR_CPRE		(1 << 1)
+
+#define ARM_MMU500_ACR_CACHE_LOCK	(1 << 26)
 
 #define CB_PAR_F			(1 << 0)
 
@@ -1531,7 +1539,7 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 	void __iomem *cb_base;
 	int i = 0;
-	u32 reg;
+	u32 reg, major;
 
 	/* clear global FSR */
 	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
@@ -1542,6 +1550,19 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	for (i = 0; i < smmu->num_mapping_groups; ++i) {
 		writel_relaxed(0, gr0_base + ARM_SMMU_GR0_SMR(i));
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_S2CR(i));
+	}
+
+	/*
+	 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
+	 * clear CACHE_LOCK bit of ACR first. And, CACHE_LOCK
+	 * bit is only present in MMU-500r2 onwards.
+	 */
+	reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID7);
+	major = (reg >> ID7_MAJOR_SHIFT) & ID7_MAJOR_MASK;
+	if ((smmu->model == ARM_MMU500) && (major >= 2)) {
+		reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_sACR);
+		reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
+		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_sACR);
 	}
 
 	/* Make sure all context banks are disabled and clear CB_FSR  */
