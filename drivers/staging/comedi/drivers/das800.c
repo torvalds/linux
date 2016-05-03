@@ -218,7 +218,7 @@ struct das800_private {
 };
 
 static void das800_ind_write(struct comedi_device *dev,
-			     unsigned val, unsigned reg)
+			     unsigned int val, unsigned int reg)
 {
 	/*
 	 * Select dev->iobase + 2 to be desired register
@@ -228,7 +228,7 @@ static void das800_ind_write(struct comedi_device *dev,
 	outb(val, dev->iobase + 2);
 }
 
-static unsigned das800_ind_read(struct comedi_device *dev, unsigned reg)
+static unsigned int das800_ind_read(struct comedi_device *dev, unsigned int reg)
 {
 	/*
 	 * Select dev->iobase + 7 to be desired register

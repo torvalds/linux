@@ -362,7 +362,7 @@ struct rtd_private {
 	long ai_count;		/* total transfer size (samples) */
 	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
-	unsigned fifosz;
+	unsigned int fifosz;
 
 	/* 8254 Timer/Counter gate and clock sources */
 	unsigned char timer_gate_src[3];
@@ -491,9 +491,9 @@ static void rtd_load_channelgain_list(struct comedi_device *dev,
 static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 {
 	unsigned int chanspec = CR_PACK(0, 0, AREF_GROUND);
-	unsigned i;
-	static const unsigned limit = 0x2000;
-	unsigned fifo_size = 0;
+	unsigned int i;
+	static const unsigned int limit = 0x2000;
+	unsigned int fifo_size = 0;
 
 	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
 	rtd_load_channelgain_list(dev, 1, &chanspec);
@@ -501,7 +501,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 	writel(0, dev->mmio + LAS0_ADC_CONVERSION);
 	/* convert  samples */
 	for (i = 0; i < limit; ++i) {
-		unsigned fifo_status;
+		unsigned int fifo_status;
 		/* trigger conversion */
 		writew(0, dev->mmio + LAS0_ADC);
 		usleep_range(1, 1000);
