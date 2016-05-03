@@ -80,6 +80,7 @@ static int tango_thermal_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 
 	priv->thresh_idx = IDX_MIN;
+	writel(0, priv->base + TEMPSI_CFG);
 	writel(CMD_ON, priv->base + TEMPSI_CMD);
 
 	tzdev = devm_thermal_zone_of_sensor_register(&pdev->dev, 0, priv, &ops);
