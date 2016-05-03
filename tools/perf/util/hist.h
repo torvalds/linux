@@ -246,6 +246,7 @@ struct perf_hpp_list {
 	int sym;
 	int dso;
 	int socket;
+	int thread;
 };
 
 extern struct perf_hpp_list perf_hpp_list;
