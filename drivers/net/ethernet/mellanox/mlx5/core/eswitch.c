@@ -710,6 +710,248 @@ static void esw_vport_change_handler(struct work_struct *work)
 					     vport->enabled_events);
 }
 
+static void esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
+					struct mlx5_vport *vport)
+{
+	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_flow_group *vlan_grp = NULL;
+	struct mlx5_flow_group *drop_grp = NULL;
+	struct mlx5_core_dev *dev = esw->dev;
+	struct mlx5_flow_namespace *root_ns;
+	struct mlx5_flow_table *acl;
+	void *match_criteria;
+	u32 *flow_group_in;
+	/* The egress acl table contains 2 rules:
+	 * 1)Allow traffic with vlan_tag=vst_vlan_id
+	 * 2)Drop all other traffic.
+	 */
+	int table_size = 2;
+	int err = 0;
+
+	if (!MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support))
+		return;
+
+	esw_debug(dev, "Create vport[%d] egress ACL log_max_size(%d)\n",
+		  vport->vport, MLX5_CAP_ESW_EGRESS_ACL(dev, log_max_ft_size));
+
+	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS);
+	if (!root_ns) {
+		esw_warn(dev, "Failed to get E-Switch egress flow namespace\n");
+		return;
+	}
+
+	flow_group_in = mlx5_vzalloc(inlen);
+	if (!flow_group_in)
+		return;
+
+	acl = mlx5_create_vport_flow_table(root_ns, 0, table_size, 0, vport->vport);
+	if (IS_ERR_OR_NULL(acl)) {
+		err = PTR_ERR(acl);
+		esw_warn(dev, "Failed to create E-Switch vport[%d] egress flow Table, err(%d)\n",
+			 vport->vport, err);
+		goto out;
+	}
+
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
+	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.vlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.first_vid);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 0);
+
+	vlan_grp = mlx5_create_flow_group(acl, flow_group_in);
+	if (IS_ERR_OR_NULL(vlan_grp)) {
+		err = PTR_ERR(vlan_grp);
+		esw_warn(dev, "Failed to create E-Switch vport[%d] egress allowed vlans flow group, err(%d)\n",
+			 vport->vport, err);
+		goto out;
+	}
+
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 1);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 1);
+	drop_grp = mlx5_create_flow_group(acl, flow_group_in);
+	if (IS_ERR_OR_NULL(drop_grp)) {
+		err = PTR_ERR(drop_grp);
+		esw_warn(dev, "Failed to create E-Switch vport[%d] egress drop flow group, err(%d)\n",
+			 vport->vport, err);
+		goto out;
+	}
+
+	vport->egress.acl = acl;
+	vport->egress.drop_grp = drop_grp;
+	vport->egress.allowed_vlans_grp = vlan_grp;
+out:
+	kfree(flow_group_in);
+	if (err && !IS_ERR_OR_NULL(vlan_grp))
+		mlx5_destroy_flow_group(vlan_grp);
+	if (err && !IS_ERR_OR_NULL(acl))
+		mlx5_destroy_flow_table(acl);
+}
+
+static void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
+					 struct mlx5_vport *vport)
+{
+	if (IS_ERR_OR_NULL(vport->egress.acl))
+		return;
+
+	esw_debug(esw->dev, "Destroy vport[%d] E-Switch egress ACL\n", vport->vport);
+
+	mlx5_destroy_flow_group(vport->egress.allowed_vlans_grp);
+	mlx5_destroy_flow_group(vport->egress.drop_grp);
+	mlx5_destroy_flow_table(vport->egress.acl);
+	vport->egress.allowed_vlans_grp = NULL;
+	vport->egress.drop_grp = NULL;
+	vport->egress.acl = NULL;
+}
+
+static void esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
+					 struct mlx5_vport *vport)
+{
+	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_core_dev *dev = esw->dev;
+	struct mlx5_flow_namespace *root_ns;
+	struct mlx5_flow_table *acl;
+	struct mlx5_flow_group *g;
+	void *match_criteria;
+	u32 *flow_group_in;
+	/* The ingress acl table contains 4 groups
+	 * (2 active rules at the same time -
+	 *      1 allow rule from one of the first 3 groups.
+	 *      1 drop rule from the last group):
+	 * 1)Allow untagged traffic with smac=original mac.
+	 * 2)Allow untagged traffic.
+	 * 3)Allow traffic with smac=original mac.
+	 * 4)Drop all other traffic.
+	 */
+	int table_size = 4;
+	int err = 0;
+
+	if (!MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
+		return;
+
+	esw_debug(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
+		  vport->vport, MLX5_CAP_ESW_INGRESS_ACL(dev, log_max_ft_size));
+
+	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS);
+	if (!root_ns) {
+		esw_warn(dev, "Failed to get E-Switch ingress flow namespace\n");
+		return;
+	}
+
+	flow_group_in = mlx5_vzalloc(inlen);
+	if (!flow_group_in)
+		return;
+
+	acl = mlx5_create_vport_flow_table(root_ns, 0, table_size, 0, vport->vport);
+	if (IS_ERR_OR_NULL(acl)) {
+		err = PTR_ERR(acl);
+		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress flow Table, err(%d)\n",
+			 vport->vport, err);
+		goto out;
+	}
+	vport->ingress.acl = acl;
+
+	match_criteria = MLX5_ADDR_OF(create_flow_group_in, flow_group_in, match_criteria);
+
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.vlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.smac_47_16);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.smac_15_0);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 0);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 0);
+
+	g = mlx5_create_flow_group(acl, flow_group_in);
+	if (IS_ERR_OR_NULL(g)) {
+		err = PTR_ERR(g);
+		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress untagged spoofchk flow group, err(%d)\n",
+			 vport->vport, err);
+		goto out;
+	}
+	vport->ingress.allow_untagged_spoofchk_grp = g;
+
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.vlan_tag);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 1);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 1);
+
+	g = mlx5_create_flow_group(acl, flow_group_in);
+	if (IS_ERR_OR_NULL(g)) {
+		err = PTR_ERR(g);
+		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress untagged flow group, err(%d)\n",
+			 vport->vport, err);
+		goto out;
+	}
+	vport->ingress.allow_untagged_only_grp = g;
+
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.smac_47_16);
+	MLX5_SET_TO_ONES(fte_match_param, match_criteria, outer_headers.smac_15_0);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 2);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 2);
+
+	g = mlx5_create_flow_group(acl, flow_group_in);
+	if (IS_ERR_OR_NULL(g)) {
+		err = PTR_ERR(g);
+		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress spoofchk flow group, err(%d)\n",
+			 vport->vport, err);
+		goto out;
+	}
+	vport->ingress.allow_spoofchk_only_grp = g;
+
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 3);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 3);
+
+	g = mlx5_create_flow_group(acl, flow_group_in);
+	if (IS_ERR_OR_NULL(g)) {
+		err = PTR_ERR(g);
+		esw_warn(dev, "Failed to create E-Switch vport[%d] ingress drop flow group, err(%d)\n",
+			 vport->vport, err);
+		goto out;
+	}
+	vport->ingress.drop_grp = g;
+
+out:
+	if (err) {
+		if (!IS_ERR_OR_NULL(vport->ingress.allow_spoofchk_only_grp))
+			mlx5_destroy_flow_group(
+					vport->ingress.allow_spoofchk_only_grp);
+		if (!IS_ERR_OR_NULL(vport->ingress.allow_untagged_only_grp))
+			mlx5_destroy_flow_group(
+					vport->ingress.allow_untagged_only_grp);
+		if (!IS_ERR_OR_NULL(vport->ingress.allow_untagged_spoofchk_grp))
+			mlx5_destroy_flow_group(
+				vport->ingress.allow_untagged_spoofchk_grp);
+		if (!IS_ERR_OR_NULL(vport->ingress.acl))
+			mlx5_destroy_flow_table(vport->ingress.acl);
+	}
+
+	kfree(flow_group_in);
+}
+
+static void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
+					  struct mlx5_vport *vport)
+{
+	if (IS_ERR_OR_NULL(vport->ingress.acl))
+		return;
+
+	esw_debug(esw->dev, "Destroy vport[%d] E-Switch ingress ACL\n", vport->vport);
+
+	mlx5_destroy_flow_group(vport->ingress.allow_spoofchk_only_grp);
+	mlx5_destroy_flow_group(vport->ingress.allow_untagged_only_grp);
+	mlx5_destroy_flow_group(vport->ingress.allow_untagged_spoofchk_grp);
+	mlx5_destroy_flow_group(vport->ingress.drop_grp);
+	mlx5_destroy_flow_table(vport->ingress.acl);
+	vport->ingress.acl = NULL;
+	vport->ingress.drop_grp = NULL;
+	vport->ingress.allow_spoofchk_only_grp = NULL;
+	vport->ingress.allow_untagged_only_grp = NULL;
+	vport->ingress.allow_untagged_spoofchk_grp = NULL;
+}
+
 static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 			     int enable_events)
 {
@@ -718,6 +960,12 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 	WARN_ON(vport->enabled);
 
 	esw_debug(esw->dev, "Enabling VPORT(%d)\n", vport_num);
+
+	if (vport_num) { /* Only VFs need ACLs for VST and spoofchk filtering */
+		esw_vport_enable_ingress_acl(esw, vport);
+		esw_vport_enable_egress_acl(esw, vport);
+	}
+
 	mlx5_modify_vport_admin_state(esw->dev,
 				      MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
 				      vport_num,
@@ -780,6 +1028,10 @@ static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 	arm_vport_context_events_cmd(esw->dev, vport->vport, 0);
 	/* We don't assume VFs will cleanup after themselves */
 	esw_cleanup_vport(esw, vport_num);
+	if (vport_num) {
+		esw_vport_disable_egress_acl(esw, vport);
+		esw_vport_disable_ingress_acl(esw, vport);
+	}
 	esw->enabled_vports--;
 }
 
@@ -798,6 +1050,12 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs)
 		esw_warn(esw->dev, "E-Switch FDB is not supported, aborting ...\n");
 		return -ENOTSUPP;
 	}
+
+	if (!MLX5_CAP_ESW_INGRESS_ACL(esw->dev, ft_support))
+		esw_warn(esw->dev, "E-Switch ingress ACL is not supported by FW\n");
+
+	if (!MLX5_CAP_ESW_EGRESS_ACL(esw->dev, ft_support))
+		esw_warn(esw->dev, "E-Switch engress ACL is not supported by FW\n");
 
 	esw_info(esw->dev, "E-Switch enable SRIOV: nvfs(%d)\n", nvfs);
 

@@ -88,12 +88,30 @@ struct l2addr_node {
 	kfree(ptr);                                         \
 })
 
+struct vport_ingress {
+	struct mlx5_flow_table *acl;
+	struct mlx5_flow_group *allow_untagged_spoofchk_grp;
+	struct mlx5_flow_group *allow_spoofchk_only_grp;
+	struct mlx5_flow_group *allow_untagged_only_grp;
+	struct mlx5_flow_group *drop_grp;
+
+};
+
+struct vport_egress {
+	struct mlx5_flow_table *acl;
+	struct mlx5_flow_group *allowed_vlans_grp;
+	struct mlx5_flow_group *drop_grp;
+};
+
 struct mlx5_vport {
 	struct mlx5_core_dev    *dev;
 	int                     vport;
 	struct hlist_head       uc_list[MLX5_L2_ADDR_HASH_SIZE];
 	struct hlist_head       mc_list[MLX5_L2_ADDR_HASH_SIZE];
 	struct work_struct      vport_change_handler;
+
+	struct vport_ingress    ingress;
+	struct vport_egress     egress;
 
 	bool                    enabled;
 	u16                     enabled_events;
