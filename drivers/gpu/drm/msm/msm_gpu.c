@@ -540,12 +540,12 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 			msm_gem_move_to_active(&msm_obj->base, gpu, false, submit->fence);
 	}
 
-	ret = gpu->funcs->submit(gpu, submit, ctx);
+	gpu->funcs->submit(gpu, submit, ctx);
 	priv->lastctx = ctx;
 
 	hangcheck_timer_reset(gpu);
 
-	return ret;
+	return 0;
 }
 
 /*

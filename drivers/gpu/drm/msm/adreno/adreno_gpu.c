@@ -133,7 +133,7 @@ void adreno_recover(struct msm_gpu *gpu)
 	}
 }
 
-int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
+void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		struct msm_file_private *ctx)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -212,8 +212,6 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 #endif
 
 	gpu->funcs->flush(gpu);
-
-	return 0;
 }
 
 void adreno_flush(struct msm_gpu *gpu)

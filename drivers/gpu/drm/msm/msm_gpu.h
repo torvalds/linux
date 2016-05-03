@@ -47,7 +47,7 @@ struct msm_gpu_funcs {
 	int (*hw_init)(struct msm_gpu *gpu);
 	int (*pm_suspend)(struct msm_gpu *gpu);
 	int (*pm_resume)(struct msm_gpu *gpu);
-	int (*submit)(struct msm_gpu *gpu, struct msm_gem_submit *submit,
+	void (*submit)(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 			struct msm_file_private *ctx);
 	void (*flush)(struct msm_gpu *gpu);
 	void (*idle)(struct msm_gpu *gpu);
