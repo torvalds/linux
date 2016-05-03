@@ -558,7 +558,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 	for_each_child_of_node(np, child) {
 		struct imx_ldb_channel *channel;
 		struct device_node *ddc_node;
-		struct device_node *port;
+		struct device_node *ep;
 
 		ret = of_property_read_u32(child, "reg", &i);
 		if (ret || i < 0 || i > 1)
@@ -581,22 +581,23 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		 * The output port is port@4 with an external 4-port mux or
 		 * port@2 with the internal 2-port mux.
 		 */
-		port = of_graph_get_port_by_id(child, imx_ldb->lvds_mux ? 4 : 2);
-		if (port) {
-			struct device_node *endpoint, *remote;
+		ep = of_graph_get_endpoint_by_regs(child,
+						   imx_ldb->lvds_mux ? 4 : 2,
+						   -1);
+		if (ep) {
+			struct device_node *remote;
 
-			endpoint = of_get_child_by_name(port, "endpoint");
-			if (endpoint) {
-				remote = of_graph_get_remote_port_parent(endpoint);
-				if (remote)
-					channel->panel = of_drm_find_panel(remote);
-				else
-					return -EPROBE_DEFER;
-				if (!channel->panel) {
-					dev_err(dev, "panel not found: %s\n",
-						remote->full_name);
-					return -EPROBE_DEFER;
-				}
+			remote = of_graph_get_remote_port_parent(ep);
+			of_node_put(ep);
+			if (remote)
+				channel->panel = of_drm_find_panel(remote);
+			else
+				return -EPROBE_DEFER;
+			of_node_put(remote);
+			if (!channel->panel) {
+				dev_err(dev, "panel not found: %s\n",
+					remote->full_name);
+				return -EPROBE_DEFER;
 			}
 		}
 
