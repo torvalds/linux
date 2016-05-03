@@ -186,6 +186,39 @@ static const struct file_operations tmc_fops = {
 	.llseek		= no_llseek,
 };
 
+static enum tmc_mem_intf_width tmc_get_memwidth(u32 devid)
+{
+	enum tmc_mem_intf_width memwidth;
+
+	/*
+	 * Excerpt from the TRM:
+	 *
+	 * DEVID::MEMWIDTH[10:8]
+	 * 0x2 Memory interface databus is 32 bits wide.
+	 * 0x3 Memory interface databus is 64 bits wide.
+	 * 0x4 Memory interface databus is 128 bits wide.
+	 * 0x5 Memory interface databus is 256 bits wide.
+	 */
+	switch (BMVAL(devid, 8, 10)) {
+	case 0x2:
+		memwidth = TMC_MEM_INTF_WIDTH_32BITS;
+		break;
+	case 0x3:
+		memwidth = TMC_MEM_INTF_WIDTH_64BITS;
+		break;
+	case 0x4:
+		memwidth = TMC_MEM_INTF_WIDTH_128BITS;
+		break;
+	case 0x5:
+		memwidth = TMC_MEM_INTF_WIDTH_256BITS;
+		break;
+	default:
+		memwidth = 0;
+	}
+
+	return memwidth;
+}
+
 #define coresight_tmc_simple_func(name, offset)			\
 	coresight_simple_func(struct tmc_drvdata, name, offset)
 
@@ -299,6 +332,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 
 	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
 	drvdata->config_type = BMVAL(devid, 6, 7);
+	drvdata->memwidth = tmc_get_memwidth(devid);
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		if (np)

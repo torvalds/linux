@@ -81,10 +81,10 @@ enum tmc_mode {
 };
 
 enum tmc_mem_intf_width {
-	TMC_MEM_INTF_WIDTH_32BITS	= 0x2,
-	TMC_MEM_INTF_WIDTH_64BITS	= 0x3,
-	TMC_MEM_INTF_WIDTH_128BITS	= 0x4,
-	TMC_MEM_INTF_WIDTH_256BITS	= 0x5,
+	TMC_MEM_INTF_WIDTH_32BITS	= 1,
+	TMC_MEM_INTF_WIDTH_64BITS	= 2,
+	TMC_MEM_INTF_WIDTH_128BITS	= 4,
+	TMC_MEM_INTF_WIDTH_256BITS	= 8,
 };
 
 /**
@@ -100,6 +100,7 @@ enum tmc_mem_intf_width {
  * @size:	@buf size.
  * @mode:	how this TMC is being used.
  * @config_type: TMC variant, must be of type @tmc_config_type.
+ * @memwidth:	width of the memory interface databus, in bytes.
  * @trigger_cntr: amount of words to store after a trigger.
  */
 struct tmc_drvdata {
@@ -115,6 +116,7 @@ struct tmc_drvdata {
 	u32			size;
 	local_t			mode;
 	enum tmc_config_type	config_type;
+	enum tmc_mem_intf_width	memwidth;
 	u32			trigger_cntr;
 };
 
