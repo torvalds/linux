@@ -40,17 +40,18 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	int sz = sizeof(*submit) + (nr * sizeof(submit->bos[0]));
 
 	submit = kmalloc(sz, GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
-	if (submit) {
-		submit->dev = dev;
-		submit->gpu = gpu;
+	if (!submit)
+		return NULL;
 
-		/* initially, until copy_from_user() and bo lookup succeeds: */
-		submit->nr_bos = 0;
-		submit->nr_cmds = 0;
+	submit->dev = dev;
+	submit->gpu = gpu;
 
-		INIT_LIST_HEAD(&submit->bo_list);
-		ww_acquire_init(&submit->ticket, &reservation_ww_class);
-	}
+	/* initially, until copy_from_user() and bo lookup succeeds: */
+	submit->nr_bos = 0;
+	submit->nr_cmds = 0;
+
+	INIT_LIST_HEAD(&submit->bo_list);
+	ww_acquire_init(&submit->ticket, &reservation_ww_class);
 
 	return submit;
 }
