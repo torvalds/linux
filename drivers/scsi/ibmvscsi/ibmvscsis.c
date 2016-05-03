@@ -228,7 +228,7 @@ static void process_tsk_mgmt(struct iu_entry *iue);
 static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg,
 			  int nsg, struct srp_direct_buf *md, int nmd,
 			  enum dma_data_direction dir, unsigned int rest);
-static int ibmvscsis_cmnd_done(struct scsi_cmnd *sc);
+static int ibmvscsis_cmnd_done(struct se_cmd *se_cmd);
 static int ibmvscsis_queuecommand(struct ibmvscsis_adapter *adapter,
 				  struct iu_entry *iue);
 static uint64_t ibmvscsis_unpack_lun(const uint8_t *lun, int len);
@@ -785,7 +785,7 @@ static int ibmvscsis_queue_data_in(struct se_cmd *se_cmd)
 	 * This will call srp_transfer_data() and post the response
 	 * to VIO via libsrp.
 	 */
-	ibmvscsis_cmnd_done(sc);
+	ibmvscsis_cmnd_done(se_cmd);
 	pr_debug("ibmvscsis: queue_data_in");
 	return 0;
 }
@@ -819,7 +819,7 @@ static int ibmvscsis_queue_status(struct se_cmd *se_cmd)
 	/*
 	 * Finally post the response to VIO via libsrp.
 	 */
-	ibmvscsis_cmnd_done(sc);
+	ibmvscsis_cmnd_done(se_cmd);
 	return 0;
 }
 
@@ -1692,10 +1692,16 @@ static int ibmvscsis_rdma(struct scsi_cmnd *sc, struct scatterlist *sg, int nsg,
 	return 0;
 }
 
-static int ibmvscsis_cmnd_done(struct scsi_cmnd *sc)
+static int ibmvscsis_cmnd_done(struct se_cmd *se_cmd)
 {
+	struct ibmvscsis_cmnd *cmd = container_of(se_cmd,
+					struct ibmvscsis_cmnd, se_cmd);
+	struct scsi_cmnd *sc = &cmd->sc;
 	struct iu_entry *iue = (struct iu_entry *) sc->SCp.ptr;
+	enum dma_data_direction dir;
 	int err = 0;
+
+	dir = sc->sc_data_direction;
 
 	if (scsi_sg_count(sc))
 		err = srp_transfer_data(sc, &vio_iu(iue)->srp.cmd,
