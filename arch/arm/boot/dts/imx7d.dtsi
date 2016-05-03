@@ -522,7 +522,7 @@
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 
-				reg_1p0d: regulator-vdd1p0d@210 {
+				reg_1p0d: regulator-vdd1p0d {
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd1p0d";
 					regulator-min-microvolt = <800000>;
