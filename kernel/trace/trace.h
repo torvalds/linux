@@ -1083,6 +1083,23 @@ static inline void trace_buffer_unlock_commit(struct trace_array *tr,
 	trace_buffer_unlock_commit_regs(tr, buffer, event, flags, pc, NULL);
 }
 
+DECLARE_PER_CPU(struct ring_buffer_event *, trace_buffered_event);
+DECLARE_PER_CPU(int, trace_buffered_event_cnt);
+void trace_buffered_event_disable(void);
+void trace_buffered_event_enable(void);
+
+static inline void
+__trace_event_discard_commit(struct ring_buffer *buffer,
+			     struct ring_buffer_event *event)
+{
+	if (this_cpu_read(trace_buffered_event) == event) {
+		/* Simply release the temp buffer */
+		this_cpu_dec(trace_buffered_event_cnt);
+		return;
+	}
+	ring_buffer_discard_commit(buffer, event);
+}
+
 /*
  * Helper function for event_trigger_unlock_commit{_regs}().
  * If there are event triggers attached to this event that requires
@@ -1111,7 +1128,7 @@ __event_trigger_test_discard(struct trace_event_file *file,
 	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags) ||
 	    (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
 	     !filter_match_preds(file->filter, entry))) {
-		ring_buffer_discard_commit(buffer, event);
+		__trace_event_discard_commit(buffer, event);
 		return true;
 	}
 

@@ -312,7 +312,7 @@ int call_filter_check_discard(struct trace_event_call *call, void *rec,
 {
 	if (unlikely(call->flags & TRACE_EVENT_FL_FILTERED) &&
 	    !filter_match_preds(call->filter, rec)) {
-		ring_buffer_discard_commit(buffer, event);
+		__trace_event_discard_commit(buffer, event);
 		return 1;
 	}
 
@@ -1660,6 +1660,16 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 }
 EXPORT_SYMBOL_GPL(tracing_generic_entry_update);
 
+static __always_inline void
+trace_event_setup(struct ring_buffer_event *event,
+		  int type, unsigned long flags, int pc)
+{
+	struct trace_entry *ent = ring_buffer_event_data(event);
+
+	tracing_generic_entry_update(ent, flags, pc);
+	ent->type = type;
+}
+
 struct ring_buffer_event *
 trace_buffer_lock_reserve(struct ring_buffer *buffer,
 			  int type,
@@ -1669,21 +1679,136 @@ trace_buffer_lock_reserve(struct ring_buffer *buffer,
 	struct ring_buffer_event *event;
 
 	event = ring_buffer_lock_reserve(buffer, len);
-	if (event != NULL) {
-		struct trace_entry *ent = ring_buffer_event_data(event);
-
-		tracing_generic_entry_update(ent, flags, pc);
-		ent->type = type;
-	}
+	if (event != NULL)
+		trace_event_setup(event, type, flags, pc);
 
 	return event;
+}
+
+DEFINE_PER_CPU(struct ring_buffer_event *, trace_buffered_event);
+DEFINE_PER_CPU(int, trace_buffered_event_cnt);
+static int trace_buffered_event_ref;
+
+/**
+ * trace_buffered_event_enable - enable buffering events
+ *
+ * When events are being filtered, it is quicker to use a temporary
+ * buffer to write the event data into if there's a likely chance
+ * that it will not be committed. The discard of the ring buffer
+ * is not as fast as committing, and is much slower than copying
+ * a commit.
+ *
+ * When an event is to be filtered, allocate per cpu buffers to
+ * write the event data into, and if the event is filtered and discarded
+ * it is simply dropped, otherwise, the entire data is to be committed
+ * in one shot.
+ */
+void trace_buffered_event_enable(void)
+{
+	struct ring_buffer_event *event;
+	struct page *page;
+	int cpu;
+
+	WARN_ON_ONCE(!mutex_is_locked(&event_mutex));
+
+	if (trace_buffered_event_ref++)
+		return;
+
+	for_each_tracing_cpu(cpu) {
+		page = alloc_pages_node(cpu_to_node(cpu),
+					GFP_KERNEL | __GFP_NORETRY, 0);
+		if (!page)
+			goto failed;
+
+		event = page_address(page);
+		memset(event, 0, sizeof(*event));
+
+		per_cpu(trace_buffered_event, cpu) = event;
+
+		preempt_disable();
+		if (cpu == smp_processor_id() &&
+		    this_cpu_read(trace_buffered_event) !=
+		    per_cpu(trace_buffered_event, cpu))
+			WARN_ON_ONCE(1);
+		preempt_enable();
+	}
+
+	return;
+ failed:
+	trace_buffered_event_disable();
+}
+
+static void enable_trace_buffered_event(void *data)
+{
+	/* Probably not needed, but do it anyway */
+	smp_rmb();
+	this_cpu_dec(trace_buffered_event_cnt);
+}
+
+static void disable_trace_buffered_event(void *data)
+{
+	this_cpu_inc(trace_buffered_event_cnt);
+}
+
+/**
+ * trace_buffered_event_disable - disable buffering events
+ *
+ * When a filter is removed, it is faster to not use the buffered
+ * events, and to commit directly into the ring buffer. Free up
+ * the temp buffers when there are no more users. This requires
+ * special synchronization with current events.
+ */
+void trace_buffered_event_disable(void)
+{
+	int cpu;
+
+	WARN_ON_ONCE(!mutex_is_locked(&event_mutex));
+
+	if (WARN_ON_ONCE(!trace_buffered_event_ref))
+		return;
+
+	if (--trace_buffered_event_ref)
+		return;
+
+	preempt_disable();
+	/* For each CPU, set the buffer as used. */
+	smp_call_function_many(tracing_buffer_mask,
+			       disable_trace_buffered_event, NULL, 1);
+	preempt_enable();
+
+	/* Wait for all current users to finish */
+	synchronize_sched();
+
+	for_each_tracing_cpu(cpu) {
+		free_page((unsigned long)per_cpu(trace_buffered_event, cpu));
+		per_cpu(trace_buffered_event, cpu) = NULL;
+	}
+	/*
+	 * Make sure trace_buffered_event is NULL before clearing
+	 * trace_buffered_event_cnt.
+	 */
+	smp_wmb();
+
+	preempt_disable();
+	/* Do the work on each cpu */
+	smp_call_function_many(tracing_buffer_mask,
+			       enable_trace_buffered_event, NULL, 1);
+	preempt_enable();
 }
 
 void
 __buffer_unlock_commit(struct ring_buffer *buffer, struct ring_buffer_event *event)
 {
 	__this_cpu_write(trace_cmdline_save, true);
-	ring_buffer_unlock_commit(buffer, event);
+
+	/* If this is the temp buffer, we need to commit fully */
+	if (this_cpu_read(trace_buffered_event) == event) {
+		/* Length is in event->array[0] */
+		ring_buffer_write(buffer, event->array[0], &event->array[1]);
+		/* Release the temp buffer */
+		this_cpu_dec(trace_buffered_event_cnt);
+	} else
+		ring_buffer_unlock_commit(buffer, event);
 }
 
 static struct ring_buffer *temp_buffer;
@@ -1695,8 +1820,23 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 			  unsigned long flags, int pc)
 {
 	struct ring_buffer_event *entry;
+	int val;
 
 	*current_rb = trace_file->tr->trace_buffer.buffer;
+
+	if ((trace_file->flags &
+	     (EVENT_FILE_FL_SOFT_DISABLED | EVENT_FILE_FL_FILTERED)) &&
+	    (entry = this_cpu_read(trace_buffered_event))) {
+		/* Try to use the per cpu buffer first */
+		val = this_cpu_inc_return(trace_buffered_event_cnt);
+		if (val == 1) {
+			trace_event_setup(entry, type, flags, pc);
+			entry->array[0] = len;
+			return entry;
+		}
+		this_cpu_dec(trace_buffered_event_cnt);
+	}
+
 	entry = trace_buffer_lock_reserve(*current_rb,
 					 type, len, flags, pc);
 	/*

@@ -823,7 +823,12 @@ static void __free_preds(struct event_filter *filter)
 
 static void filter_disable(struct trace_event_file *file)
 {
+	unsigned long old_flags = file->flags;
+
 	file->flags &= ~EVENT_FILE_FL_FILTERED;
+
+	if (old_flags != file->flags)
+		trace_buffered_event_disable();
 }
 
 static void __free_filter(struct event_filter *filter)
@@ -1698,7 +1703,12 @@ fail:
 
 static inline void event_set_filtered_flag(struct trace_event_file *file)
 {
+	unsigned long old_flags = file->flags;
+
 	file->flags |= EVENT_FILE_FL_FILTERED;
+
+	if (old_flags != file->flags)
+		trace_buffered_event_enable();
 }
 
 static inline void event_set_filter(struct trace_event_file *file,

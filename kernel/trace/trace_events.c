@@ -363,6 +363,7 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 {
 	struct trace_event_call *call = file->event_call;
 	struct trace_array *tr = file->tr;
+	unsigned long file_flags = file->flags;
 	int ret = 0;
 	int disable;
 
@@ -443,6 +444,15 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 			call->flags |= TRACE_EVENT_FL_WAS_ENABLED;
 		}
 		break;
+	}
+
+	/* Enable or disable use of trace_buffered_event */
+	if ((file_flags & EVENT_FILE_FL_SOFT_DISABLED) !=
+	    (file->flags & EVENT_FILE_FL_SOFT_DISABLED)) {
+		if (file->flags & EVENT_FILE_FL_SOFT_DISABLED)
+			trace_buffered_event_enable();
+		else
+			trace_buffered_event_disable();
 	}
 
 	return ret;
