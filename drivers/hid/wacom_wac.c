@@ -684,6 +684,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 		wacom->tool[idx] = wacom_intuos_get_tool_type(wacom->id[idx]);
 
+		wacom->shared->stylus_in_proximity = true;
 		return 1;
 	}
 
