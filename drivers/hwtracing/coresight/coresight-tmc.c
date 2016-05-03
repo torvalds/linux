@@ -32,7 +32,7 @@
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
 
-static void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
+void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
 {
 	/* Ensure formatter, unformatter and hardware fifo are empty */
 	if (coresight_timeout(drvdata->base,
@@ -43,7 +43,7 @@ static void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
 	}
 }
 
-static void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
+void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
 {
 	u32 ffcr;
 
@@ -63,271 +63,15 @@ static void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
 	tmc_wait_for_tmcready(drvdata);
 }
 
-static void tmc_enable_hw(struct tmc_drvdata *drvdata)
+void tmc_enable_hw(struct tmc_drvdata *drvdata)
 {
 	writel_relaxed(TMC_CTL_CAPT_EN, drvdata->base + TMC_CTL);
 }
 
-static void tmc_disable_hw(struct tmc_drvdata *drvdata)
+void tmc_disable_hw(struct tmc_drvdata *drvdata)
 {
 	writel_relaxed(0x0, drvdata->base + TMC_CTL);
 }
-
-static void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
-{
-	/* Zero out the memory to help with debug */
-	memset(drvdata->buf, 0, drvdata->size);
-
-	CS_UNLOCK(drvdata->base);
-
-	/* Wait for TMCSReady bit to be set */
-	tmc_wait_for_tmcready(drvdata);
-
-	writel_relaxed(TMC_MODE_CIRCULAR_BUFFER, drvdata->base + TMC_MODE);
-	writel_relaxed(TMC_FFCR_EN_FMT | TMC_FFCR_EN_TI |
-		       TMC_FFCR_FON_FLIN | TMC_FFCR_FON_TRIG_EVT |
-		       TMC_FFCR_TRIGON_TRIGIN,
-		       drvdata->base + TMC_FFCR);
-
-	writel_relaxed(drvdata->trigger_cntr, drvdata->base + TMC_TRG);
-	tmc_enable_hw(drvdata);
-
-	CS_LOCK(drvdata->base);
-}
-
-static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
-{
-	u32 axictl;
-
-	/* Zero out the memory to help with debug */
-	memset(drvdata->vaddr, 0, drvdata->size);
-
-	CS_UNLOCK(drvdata->base);
-
-	/* Wait for TMCSReady bit to be set */
-	tmc_wait_for_tmcready(drvdata);
-
-	writel_relaxed(drvdata->size / 4, drvdata->base + TMC_RSZ);
-	writel_relaxed(TMC_MODE_CIRCULAR_BUFFER, drvdata->base + TMC_MODE);
-
-	axictl = readl_relaxed(drvdata->base + TMC_AXICTL);
-	axictl |= TMC_AXICTL_WR_BURST_16;
-	writel_relaxed(axictl, drvdata->base + TMC_AXICTL);
-	axictl &= ~TMC_AXICTL_SCT_GAT_MODE;
-	writel_relaxed(axictl, drvdata->base + TMC_AXICTL);
-	axictl = (axictl &
-		  ~(TMC_AXICTL_PROT_CTL_B0 | TMC_AXICTL_PROT_CTL_B1)) |
-		  TMC_AXICTL_PROT_CTL_B1;
-	writel_relaxed(axictl, drvdata->base + TMC_AXICTL);
-
-	writel_relaxed(drvdata->paddr, drvdata->base + TMC_DBALO);
-	writel_relaxed(0x0, drvdata->base + TMC_DBAHI);
-	writel_relaxed(TMC_FFCR_EN_FMT | TMC_FFCR_EN_TI |
-		       TMC_FFCR_FON_FLIN | TMC_FFCR_FON_TRIG_EVT |
-		       TMC_FFCR_TRIGON_TRIGIN,
-		       drvdata->base + TMC_FFCR);
-	writel_relaxed(drvdata->trigger_cntr, drvdata->base + TMC_TRG);
-	tmc_enable_hw(drvdata);
-
-	CS_LOCK(drvdata->base);
-}
-
-static void tmc_etf_enable_hw(struct tmc_drvdata *drvdata)
-{
-	CS_UNLOCK(drvdata->base);
-
-	/* Wait for TMCSReady bit to be set */
-	tmc_wait_for_tmcready(drvdata);
-
-	writel_relaxed(TMC_MODE_HARDWARE_FIFO, drvdata->base + TMC_MODE);
-	writel_relaxed(TMC_FFCR_EN_FMT | TMC_FFCR_EN_TI,
-		       drvdata->base + TMC_FFCR);
-	writel_relaxed(0x0, drvdata->base + TMC_BUFWM);
-	tmc_enable_hw(drvdata);
-
-	CS_LOCK(drvdata->base);
-}
-
-static int tmc_enable(struct tmc_drvdata *drvdata, enum tmc_mode mode)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (drvdata->reading) {
-		spin_unlock_irqrestore(&drvdata->spinlock, flags);
-		return -EBUSY;
-	}
-
-	if (drvdata->config_type == TMC_CONFIG_TYPE_ETB) {
-		tmc_etb_enable_hw(drvdata);
-	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
-		tmc_etr_enable_hw(drvdata);
-	} else {
-		if (mode == TMC_MODE_CIRCULAR_BUFFER)
-			tmc_etb_enable_hw(drvdata);
-		else
-			tmc_etf_enable_hw(drvdata);
-	}
-	drvdata->enable = true;
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-
-	dev_info(drvdata->dev, "TMC enabled\n");
-	return 0;
-}
-
-static int tmc_enable_sink(struct coresight_device *csdev, u32 mode)
-{
-	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-
-	return tmc_enable(drvdata, TMC_MODE_CIRCULAR_BUFFER);
-}
-
-static int tmc_enable_link(struct coresight_device *csdev, int inport,
-			   int outport)
-{
-	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-
-	return tmc_enable(drvdata, TMC_MODE_HARDWARE_FIFO);
-}
-
-static void tmc_etb_dump_hw(struct tmc_drvdata *drvdata)
-{
-	enum tmc_mem_intf_width memwidth;
-	u8 memwords;
-	char *bufp;
-	u32 read_data;
-	int i;
-
-	memwidth = BMVAL(readl_relaxed(drvdata->base + CORESIGHT_DEVID), 8, 10);
-	if (memwidth == TMC_MEM_INTF_WIDTH_32BITS)
-		memwords = 1;
-	else if (memwidth == TMC_MEM_INTF_WIDTH_64BITS)
-		memwords = 2;
-	else if (memwidth == TMC_MEM_INTF_WIDTH_128BITS)
-		memwords = 4;
-	else
-		memwords = 8;
-
-	bufp = drvdata->buf;
-	while (1) {
-		for (i = 0; i < memwords; i++) {
-			read_data = readl_relaxed(drvdata->base + TMC_RRD);
-			if (read_data == 0xFFFFFFFF)
-				return;
-			memcpy(bufp, &read_data, 4);
-			bufp += 4;
-		}
-	}
-}
-
-static void tmc_etb_disable_hw(struct tmc_drvdata *drvdata)
-{
-	CS_UNLOCK(drvdata->base);
-
-	tmc_flush_and_stop(drvdata);
-	tmc_etb_dump_hw(drvdata);
-	tmc_disable_hw(drvdata);
-
-	CS_LOCK(drvdata->base);
-}
-
-static void tmc_etr_dump_hw(struct tmc_drvdata *drvdata)
-{
-	u32 rwp, val;
-
-	rwp = readl_relaxed(drvdata->base + TMC_RWP);
-	val = readl_relaxed(drvdata->base + TMC_STS);
-
-	/* How much memory do we still have */
-	if (val & BIT(0))
-		drvdata->buf = drvdata->vaddr + rwp - drvdata->paddr;
-	else
-		drvdata->buf = drvdata->vaddr;
-}
-
-static void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
-{
-	CS_UNLOCK(drvdata->base);
-
-	tmc_flush_and_stop(drvdata);
-	tmc_etr_dump_hw(drvdata);
-	tmc_disable_hw(drvdata);
-
-	CS_LOCK(drvdata->base);
-}
-
-static void tmc_etf_disable_hw(struct tmc_drvdata *drvdata)
-{
-	CS_UNLOCK(drvdata->base);
-
-	tmc_flush_and_stop(drvdata);
-	tmc_disable_hw(drvdata);
-
-	CS_LOCK(drvdata->base);
-}
-
-static void tmc_disable(struct tmc_drvdata *drvdata, enum tmc_mode mode)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (drvdata->reading)
-		goto out;
-
-	if (drvdata->config_type == TMC_CONFIG_TYPE_ETB) {
-		tmc_etb_disable_hw(drvdata);
-	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
-		tmc_etr_disable_hw(drvdata);
-	} else {
-		if (mode == TMC_MODE_CIRCULAR_BUFFER)
-			tmc_etb_disable_hw(drvdata);
-		else
-			tmc_etf_disable_hw(drvdata);
-	}
-out:
-	drvdata->enable = false;
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-
-	dev_info(drvdata->dev, "TMC disabled\n");
-}
-
-static void tmc_disable_sink(struct coresight_device *csdev)
-{
-	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-
-	tmc_disable(drvdata, TMC_MODE_CIRCULAR_BUFFER);
-}
-
-static void tmc_disable_link(struct coresight_device *csdev, int inport,
-			     int outport)
-{
-	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-
-	tmc_disable(drvdata, TMC_MODE_HARDWARE_FIFO);
-}
-
-static const struct coresight_ops_sink tmc_sink_ops = {
-	.enable		= tmc_enable_sink,
-	.disable	= tmc_disable_sink,
-};
-
-static const struct coresight_ops_link tmc_link_ops = {
-	.enable		= tmc_enable_link,
-	.disable	= tmc_disable_link,
-};
-
-static const struct coresight_ops tmc_etb_cs_ops = {
-	.sink_ops	= &tmc_sink_ops,
-};
-
-static const struct coresight_ops tmc_etr_cs_ops = {
-	.sink_ops	= &tmc_sink_ops,
-};
-
-static const struct coresight_ops tmc_etf_cs_ops = {
-	.sink_ops	= &tmc_sink_ops,
-	.link_ops	= &tmc_link_ops,
-};
 
 static int tmc_read_prepare(struct tmc_drvdata *drvdata)
 {
