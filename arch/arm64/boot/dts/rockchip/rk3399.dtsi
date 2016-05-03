@@ -757,7 +757,7 @@
 					type = "passive";
 				};
 				gpu_crit: gpu_crit {
-					temperature = <950000>; /* millicelsius */
+					temperature = <95000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "critical";
 				};
