@@ -372,6 +372,7 @@ struct etmv4_drvdata {
 	u8				ccitmin;
 	u8				s_ex_level;
 	u8				ns_ex_level;
+	u8				q_support;
 	bool				sticky_enable;
 	bool				boot_enable;
 	bool				os_unlock;
@@ -380,7 +381,6 @@ struct etmv4_drvdata {
 	bool				trccond;
 	bool				retstack;
 	bool				trccci;
-	bool				q_support;
 	bool				trc_error;
 	bool				syncpr;
 	bool				stallctl;
