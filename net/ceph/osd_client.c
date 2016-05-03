@@ -1087,10 +1087,8 @@ static void put_osd(struct ceph_osd *osd)
 	dout("put_osd %p %d -> %d\n", osd, atomic_read(&osd->o_ref),
 	     atomic_read(&osd->o_ref) - 1);
 	if (atomic_dec_and_test(&osd->o_ref)) {
-		struct ceph_auth_client *ac = osd->o_osdc->client->monc.auth;
-
 		if (osd->o_auth.authorizer)
-			ceph_auth_destroy_authorizer(ac, osd->o_auth.authorizer);
+			ceph_auth_destroy_authorizer(osd->o_auth.authorizer);
 		kfree(osd);
 	}
 }
@@ -2984,7 +2982,7 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 	struct ceph_auth_handshake *auth = &o->o_auth;
 
 	if (force_new && auth->authorizer) {
-		ceph_auth_destroy_authorizer(ac, auth->authorizer);
+		ceph_auth_destroy_authorizer(auth->authorizer);
 		auth->authorizer = NULL;
 	}
 	if (!auth->authorizer) {

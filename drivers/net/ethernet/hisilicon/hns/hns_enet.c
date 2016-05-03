@@ -913,10 +913,7 @@ static int hns_nic_tx_poll_one(struct hns_nic_ring_data *ring_data,
 static void hns_nic_tx_fini_pro(struct hns_nic_ring_data *ring_data)
 {
 	struct hnae_ring *ring = ring_data->ring;
-	int head = ring->next_to_clean;
-
-	/* for hardware bug fixed */
-	head = readl_relaxed(ring->io_base + RCB_REG_HEAD);
+	int head = readl_relaxed(ring->io_base + RCB_REG_HEAD);
 
 	if (head != ring->next_to_clean) {
 		ring_data->ring->q->handle->dev->ops->toggle_ring_irq(
@@ -959,8 +956,8 @@ static int hns_nic_common_poll(struct napi_struct *napi, int budget)
 		napi_complete(napi);
 		ring_data->ring->q->handle->dev->ops->toggle_ring_irq(
 			ring_data->ring, 0);
-
-		ring_data->fini_process(ring_data);
+		if (ring_data->fini_process)
+			ring_data->fini_process(ring_data);
 		return 0;
 	}
 
@@ -1723,6 +1720,7 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
 {
 	struct hnae_handle *h = priv->ae_handle;
 	struct hns_nic_ring_data *rd;
+	bool is_ver1 = AE_IS_VER1(priv->enet_ver);
 	int i;
 
 	if (h->q_num > NIC_MAX_Q_PER_VF) {
@@ -1740,7 +1738,7 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
 		rd->queue_index = i;
 		rd->ring = &h->qs[i]->tx_ring;
 		rd->poll_one = hns_nic_tx_poll_one;
-		rd->fini_process = hns_nic_tx_fini_pro;
+		rd->fini_process = is_ver1 ? hns_nic_tx_fini_pro : NULL;
 
 		netif_napi_add(priv->netdev, &rd->napi,
 			       hns_nic_common_poll, NIC_TX_CLEAN_MAX_NUM);
@@ -1752,7 +1750,7 @@ static int hns_nic_init_ring_data(struct hns_nic_priv *priv)
 		rd->ring = &h->qs[i - h->q_num]->rx_ring;
 		rd->poll_one = hns_nic_rx_poll_one;
 		rd->ex_process = hns_nic_rx_up_pro;
-		rd->fini_process = hns_nic_rx_fini_pro;
+		rd->fini_process = is_ver1 ? hns_nic_rx_fini_pro : NULL;
 
 		netif_napi_add(priv->netdev, &rd->napi,
 			       hns_nic_common_poll, NIC_RX_CLEAN_MAX_NUM);
@@ -1816,7 +1814,7 @@ static int hns_nic_try_get_ae(struct net_device *ndev)
 	h = hnae_get_handle(&priv->netdev->dev,
 			    priv->ae_node, priv->port_id, NULL);
 	if (IS_ERR_OR_NULL(h)) {
-		ret = PTR_ERR(h);
+		ret = -ENODEV;
 		dev_dbg(priv->dev, "has not handle, register notifier!\n");
 		goto out;
 	}

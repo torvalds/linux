@@ -581,12 +581,30 @@ static inline int bnxt_alloc_rx_page(struct bnxt *bp,
 	struct page *page;
 	dma_addr_t mapping;
 	u16 sw_prod = rxr->rx_sw_agg_prod;
+	unsigned int offset = 0;
 
-	page = alloc_page(gfp);
-	if (!page)
-		return -ENOMEM;
+	if (PAGE_SIZE > BNXT_RX_PAGE_SIZE) {
+		page = rxr->rx_page;
+		if (!page) {
+			page = alloc_page(gfp);
+			if (!page)
+				return -ENOMEM;
+			rxr->rx_page = page;
+			rxr->rx_page_offset = 0;
+		}
+		offset = rxr->rx_page_offset;
+		rxr->rx_page_offset += BNXT_RX_PAGE_SIZE;
+		if (rxr->rx_page_offset == PAGE_SIZE)
+			rxr->rx_page = NULL;
+		else
+			get_page(page);
+	} else {
+		page = alloc_page(gfp);
+		if (!page)
+			return -ENOMEM;
+	}
 
-	mapping = dma_map_page(&pdev->dev, page, 0, PAGE_SIZE,
+	mapping = dma_map_page(&pdev->dev, page, offset, BNXT_RX_PAGE_SIZE,
 			       PCI_DMA_FROMDEVICE);
 	if (dma_mapping_error(&pdev->dev, mapping)) {
 		__free_page(page);
@@ -601,6 +619,7 @@ static inline int bnxt_alloc_rx_page(struct bnxt *bp,
 	rxr->rx_sw_agg_prod = NEXT_RX_AGG(sw_prod);
 
 	rx_agg_buf->page = page;
+	rx_agg_buf->offset = offset;
 	rx_agg_buf->mapping = mapping;
 	rxbd->rx_bd_haddr = cpu_to_le64(mapping);
 	rxbd->rx_bd_opaque = sw_prod;
@@ -642,6 +661,7 @@ static void bnxt_reuse_rx_agg_bufs(struct bnxt_napi *bnapi, u16 cp_cons,
 		page = cons_rx_buf->page;
 		cons_rx_buf->page = NULL;
 		prod_rx_buf->page = page;
+		prod_rx_buf->offset = cons_rx_buf->offset;
 
 		prod_rx_buf->mapping = cons_rx_buf->mapping;
 
@@ -709,7 +729,8 @@ static struct sk_buff *bnxt_rx_pages(struct bnxt *bp, struct bnxt_napi *bnapi,
 			    RX_AGG_CMP_LEN) >> RX_AGG_CMP_LEN_SHIFT;
 
 		cons_rx_buf = &rxr->rx_agg_ring[cons];
-		skb_fill_page_desc(skb, i, cons_rx_buf->page, 0, frag_len);
+		skb_fill_page_desc(skb, i, cons_rx_buf->page,
+				   cons_rx_buf->offset, frag_len);
 		__clear_bit(cons, rxr->rx_agg_bmap);
 
 		/* It is possible for bnxt_alloc_rx_page() to allocate
@@ -740,7 +761,7 @@ static struct sk_buff *bnxt_rx_pages(struct bnxt *bp, struct bnxt_napi *bnapi,
 			return NULL;
 		}
 
-		dma_unmap_page(&pdev->dev, mapping, PAGE_SIZE,
+		dma_unmap_page(&pdev->dev, mapping, BNXT_RX_PAGE_SIZE,
 			       PCI_DMA_FROMDEVICE);
 
 		skb->data_len += frag_len;
@@ -1584,12 +1605,16 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 
 			dma_unmap_page(&pdev->dev,
 				       dma_unmap_addr(rx_agg_buf, mapping),
-				       PAGE_SIZE, PCI_DMA_FROMDEVICE);
+				       BNXT_RX_PAGE_SIZE, PCI_DMA_FROMDEVICE);
 
 			rx_agg_buf->page = NULL;
 			__clear_bit(j, rxr->rx_agg_bmap);
 
 			__free_page(page);
+		}
+		if (rxr->rx_page) {
+			__free_page(rxr->rx_page);
+			rxr->rx_page = NULL;
 		}
 	}
 }
@@ -1973,7 +1998,7 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 	if (!(bp->flags & BNXT_FLAG_AGG_RINGS))
 		return 0;
 
-	type = ((u32)PAGE_SIZE << RX_BD_LEN_SHIFT) |
+	type = ((u32)BNXT_RX_PAGE_SIZE << RX_BD_LEN_SHIFT) |
 		RX_BD_TYPE_RX_AGG_BD | RX_BD_FLAGS_SOP;
 
 	bnxt_init_rxbd_pages(ring, type);
@@ -2164,7 +2189,7 @@ void bnxt_set_ring_params(struct bnxt *bp)
 	bp->rx_agg_nr_pages = 0;
 
 	if (bp->flags & BNXT_FLAG_TPA)
-		agg_factor = 4;
+		agg_factor = min_t(u32, 4, 65536 / BNXT_RX_PAGE_SIZE);
 
 	bp->flags &= ~BNXT_FLAG_JUMBO;
 	if (rx_space > PAGE_SIZE) {
@@ -2653,7 +2678,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	/* Write request msg to hwrm channel */
 	__iowrite32_copy(bp->bar0, data, msg_len / 4);
 
-	for (i = msg_len; i < HWRM_MAX_REQ_LEN; i += 4)
+	for (i = msg_len; i < BNXT_HWRM_MAX_REQ_LEN; i += 4)
 		writel(0, bp->bar0 + i);
 
 	/* currently supports only one outstanding message */
@@ -3020,12 +3045,12 @@ static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 		/* Number of segs are log2 units, and first packet is not
 		 * included as part of this units.
 		 */
-		if (mss <= PAGE_SIZE) {
-			n = PAGE_SIZE / mss;
+		if (mss <= BNXT_RX_PAGE_SIZE) {
+			n = BNXT_RX_PAGE_SIZE / mss;
 			nsegs = (MAX_SKB_FRAGS - 1) * n;
 		} else {
-			n = mss / PAGE_SIZE;
-			if (mss & (PAGE_SIZE - 1))
+			n = mss / BNXT_RX_PAGE_SIZE;
+			if (mss & (BNXT_RX_PAGE_SIZE - 1))
 				n++;
 			nsegs = (MAX_SKB_FRAGS - n) / n;
 		}
@@ -3391,11 +3416,11 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
 
+		cpr->cp_doorbell = bp->bar1 + i * 0x80;
 		rc = hwrm_ring_alloc_send_msg(bp, ring, HWRM_RING_ALLOC_CMPL, i,
 					      INVALID_STATS_CTX_ID);
 		if (rc)
 			goto err_out;
-		cpr->cp_doorbell = bp->bar1 + i * 0x80;
 		BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
 		bp->grp_info[i].cp_fw_ring_id = ring->fw_ring_id;
 	}
@@ -3830,6 +3855,7 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	struct hwrm_ver_get_input req = {0};
 	struct hwrm_ver_get_output *resp = bp->hwrm_cmd_resp_addr;
 
+	bp->hwrm_max_req_len = HWRM_MAX_REQ_LEN;
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VER_GET, -1, -1);
 	req.hwrm_intf_maj = HWRM_VERSION_MAJOR;
 	req.hwrm_intf_min = HWRM_VERSION_MINOR;
@@ -3854,6 +3880,9 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	bp->hwrm_cmd_timeout = le16_to_cpu(resp->def_req_timeout);
 	if (!bp->hwrm_cmd_timeout)
 		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;
+
+	if (resp->hwrm_intf_maj >= 1)
+		bp->hwrm_max_req_len = le16_to_cpu(resp->max_req_win_len);
 
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -4305,7 +4334,7 @@ static int bnxt_setup_int_mode(struct bnxt *bp)
 	if (bp->flags & BNXT_FLAG_MSIX_CAP)
 		rc = bnxt_setup_msix(bp);
 
-	if (!(bp->flags & BNXT_FLAG_USING_MSIX)) {
+	if (!(bp->flags & BNXT_FLAG_USING_MSIX) && BNXT_PF(bp)) {
 		/* fallback to INTA */
 		rc = bnxt_setup_inta(bp);
 	}
@@ -4555,7 +4584,7 @@ bnxt_hwrm_set_pause_common(struct bnxt *bp, struct hwrm_port_phy_cfg_input *req)
 		if (bp->link_info.req_flow_ctrl & BNXT_LINK_PAUSE_RX)
 			req->auto_pause |= PORT_PHY_CFG_REQ_AUTO_PAUSE_RX;
 		if (bp->link_info.req_flow_ctrl & BNXT_LINK_PAUSE_TX)
-			req->auto_pause |= PORT_PHY_CFG_REQ_AUTO_PAUSE_RX;
+			req->auto_pause |= PORT_PHY_CFG_REQ_AUTO_PAUSE_TX;
 		req->enables |=
 			cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_AUTO_PAUSE);
 	} else {

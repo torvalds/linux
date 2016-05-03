@@ -331,7 +331,7 @@ static int octeon_update_boot_vector(unsigned int cpu)
 	}
 
 	if (!(avail_coremask & (1 << coreid))) {
-		/* core not available, assume, that catched by simple-executive */
+		/* core not available, assume, that caught by simple-executive */
 		cvmx_write_csr(CVMX_CIU_PP_RST, 1 << coreid);
 		cvmx_write_csr(CVMX_CIU_PP_RST, 0);
 	}

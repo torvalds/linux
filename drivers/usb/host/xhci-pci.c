@@ -48,6 +48,7 @@
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_XHCI		0xa12f
 #define PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_XHCI	0x9d2f
 #define PCI_DEVICE_ID_INTEL_BROXTON_M_XHCI		0x0aa8
+#define PCI_DEVICE_ID_INTEL_BROXTON_B_XHCI		0x1aa8
 
 static const char hcd_name[] = "xhci_hcd";
 
@@ -155,7 +156,8 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		(pdev->device == PCI_DEVICE_ID_INTEL_SUNRISEPOINT_LP_XHCI ||
 		 pdev->device == PCI_DEVICE_ID_INTEL_SUNRISEPOINT_H_XHCI ||
 		 pdev->device == PCI_DEVICE_ID_INTEL_CHERRYVIEW_XHCI ||
-		 pdev->device == PCI_DEVICE_ID_INTEL_BROXTON_M_XHCI)) {
+		 pdev->device == PCI_DEVICE_ID_INTEL_BROXTON_M_XHCI ||
+		 pdev->device == PCI_DEVICE_ID_INTEL_BROXTON_B_XHCI)) {
 		xhci->quirks |= XHCI_PME_STUCK_QUIRK;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
@@ -302,6 +304,7 @@ static void xhci_pci_remove(struct pci_dev *dev)
 	struct xhci_hcd *xhci;
 
 	xhci = hcd_to_xhci(pci_get_drvdata(dev));
+	xhci->xhc_state |= XHCI_STATE_REMOVING;
 	if (xhci->shared_hcd) {
 		usb_remove_hcd(xhci->shared_hcd);
 		usb_put_hcd(xhci->shared_hcd);

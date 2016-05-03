@@ -274,6 +274,7 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_DSISR_An_PE (1ull << (63-4))  /* PSL Error (implementation specific) */
 #define CXL_PSL_DSISR_An_AE (1ull << (63-5))  /* AFU Error */
 #define CXL_PSL_DSISR_An_OC (1ull << (63-6))  /* OS Context Warning */
+#define CXL_PSL_DSISR_PENDING (CXL_PSL_DSISR_TRANS | CXL_PSL_DSISR_An_PE | CXL_PSL_DSISR_An_AE | CXL_PSL_DSISR_An_OC)
 /* NOTE: Bits 32:63 are undefined if DSISR[DS] = 1 */
 #define CXL_PSL_DSISR_An_M  DSISR_NOHPTE      /* PTE not found */
 #define CXL_PSL_DSISR_An_P  DSISR_PROTFAULT   /* Storage protection violation */
@@ -855,6 +856,7 @@ struct cxl_backend_ops {
 					u64 dsisr, u64 errstat);
 	irqreturn_t (*psl_interrupt)(int irq, void *data);
 	int (*ack_irq)(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask);
+	void (*irq_wait)(struct cxl_context *ctx);
 	int (*attach_process)(struct cxl_context *ctx, bool kernel,
 			u64 wed, u64 amr);
 	int (*detach_process)(struct cxl_context *ctx);

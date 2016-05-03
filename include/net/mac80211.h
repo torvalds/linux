@@ -1001,6 +1001,8 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	flag indicates that the PN was verified for replay protection.
  *	Note that this flag is also currently only supported when a frame
  *	is also decrypted (ie. @RX_FLAG_DECRYPTED must be set)
+ * @RX_FLAG_DUP_VALIDATED: The driver should set this flag if it did
+ *	de-duplication by itself.
  * @RX_FLAG_FAILED_FCS_CRC: Set this flag if the FCS check failed on
  *	the frame.
  * @RX_FLAG_FAILED_PLCP_CRC: Set this flag if the PCLP check failed on

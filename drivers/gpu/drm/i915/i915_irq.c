@@ -1829,7 +1829,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	for (;;) {
+	do {
 		master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~GEN8_MASTER_IRQ_CONTROL;
 		iir = I915_READ(VLV_IIR);
 
@@ -1857,7 +1857,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 		I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
-	}
+	} while (0);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
