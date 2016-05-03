@@ -60,8 +60,9 @@ int gre_del_protocol(const struct gre_protocol *proto, u8 version)
 }
 EXPORT_SYMBOL_GPL(gre_del_protocol);
 
+/* Fills in tpi and returns header length to be pulled. */
 int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
-		     bool *csum_err, int *ret_hdr_len)
+		     bool *csum_err)
 {
 	const struct gre_base_hdr *greh;
 	__be32 *options;
@@ -119,8 +120,7 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return -EINVAL;
 		}
 	}
-	*ret_hdr_len = hdr_len;
-	return 0;
+	return hdr_len;
 }
 EXPORT_SYMBOL(gre_parse_header);
 

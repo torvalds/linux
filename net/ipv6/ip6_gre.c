@@ -468,7 +468,8 @@ static int gre_rcv(struct sk_buff *skb)
 	bool csum_err = false;
 	int hdr_len;
 
-	if (gre_parse_header(skb, &tpi, &csum_err, &hdr_len) < 0)
+	hdr_len = gre_parse_header(skb, &tpi, &csum_err);
+	if (hdr_len < 0)
 		goto drop;
 
 	if (iptunnel_pull_header(skb, hdr_len, tpi.proto, false))

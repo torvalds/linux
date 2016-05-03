@@ -221,15 +221,11 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	const int code = icmp_hdr(skb)->code;
 	struct tnl_ptk_info tpi;
 	bool csum_err = false;
-	int hdr_len;
 
-	if (gre_parse_header(skb, &tpi, &csum_err, &hdr_len)) {
+	if (gre_parse_header(skb, &tpi, &csum_err) < 0) {
 		if (!csum_err)		/* ignore csum errors. */
 			return;
 	}
-
-	if (iptunnel_pull_header(skb, hdr_len, tpi.proto, false))
-		return;
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
@@ -314,7 +310,8 @@ static int gre_rcv(struct sk_buff *skb)
 	}
 #endif
 
-	if (gre_parse_header(skb, &tpi, &csum_err, &hdr_len) < 0)
+	hdr_len = gre_parse_header(skb, &tpi, &csum_err);
+	if (hdr_len < 0)
 		goto drop;
 
 	if (iptunnel_pull_header(skb, hdr_len, tpi.proto, false))
