@@ -17,33 +17,34 @@ struct device_node;
  * PCI controller operations
  */
 struct pci_controller_ops {
-	void		(*dma_dev_setup)(struct pci_dev *dev);
+	void		(*dma_dev_setup)(struct pci_dev *pdev);
 	void		(*dma_bus_setup)(struct pci_bus *bus);
 
-	int		(*probe_mode)(struct pci_bus *);
+	int		(*probe_mode)(struct pci_bus *bus);
 
 	/* Called when pci_enable_device() is called. Returns true to
 	 * allow assignment/enabling of the device. */
-	bool		(*enable_device_hook)(struct pci_dev *);
+	bool		(*enable_device_hook)(struct pci_dev *pdev);
 
-	void		(*disable_device)(struct pci_dev *);
+	void		(*disable_device)(struct pci_dev *pdev);
 
-	void		(*release_device)(struct pci_dev *);
+	void		(*release_device)(struct pci_dev *pdev);
 
 	/* Called during PCI resource reassignment */
-	resource_size_t (*window_alignment)(struct pci_bus *, unsigned long type);
-	void		(*reset_secondary_bus)(struct pci_dev *dev);
+	resource_size_t (*window_alignment)(struct pci_bus *bus,
+					    unsigned long type);
+	void		(*reset_secondary_bus)(struct pci_dev *pdev);
 
 #ifdef CONFIG_PCI_MSI
-	int		(*setup_msi_irqs)(struct pci_dev *dev,
+	int		(*setup_msi_irqs)(struct pci_dev *pdev,
 					  int nvec, int type);
-	void		(*teardown_msi_irqs)(struct pci_dev *dev);
+	void		(*teardown_msi_irqs)(struct pci_dev *pdev);
 #endif
 
-	int             (*dma_set_mask)(struct pci_dev *dev, u64 dma_mask);
-	u64		(*dma_get_required_mask)(struct pci_dev *dev);
+	int             (*dma_set_mask)(struct pci_dev *pdev, u64 dma_mask);
+	u64		(*dma_get_required_mask)(struct pci_dev *pdev);
 
-	void		(*shutdown)(struct pci_controller *);
+	void		(*shutdown)(struct pci_controller *hose);
 };
 
 /*
