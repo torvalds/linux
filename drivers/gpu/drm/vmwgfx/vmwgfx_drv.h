@@ -412,6 +412,7 @@ struct vmw_private {
 	struct drm_property *implicit_placement_property;
 	unsigned num_implicit;
 	struct vmw_framebuffer *implicit_fb;
+	struct mutex global_kms_state_mutex;
 
 	/*
 	 * Context and surface management.
