@@ -646,7 +646,7 @@ static void esw_update_vport_addr_list(struct mlx5_eswitch *esw,
 	err = mlx5_query_nic_vport_mac_list(esw->dev, vport_num, list_type,
 					    mac_list, &size);
 	if (err)
-		return;
+		goto out;
 	esw_debug(esw->dev, "vport[%d] context update %s list size (%d)\n",
 		  vport_num, is_uc ? "UC" : "MC", size);
 
@@ -674,6 +674,7 @@ static void esw_update_vport_addr_list(struct mlx5_eswitch *esw,
 		addr->vport = vport_num;
 		addr->action = MLX5_ACTION_ADD;
 	}
+out:
 	kfree(mac_list);
 }
 
