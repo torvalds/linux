@@ -252,7 +252,9 @@ static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 	    (skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
 	     skb->inner_protocol != htons(ETH_P_TEB) ||
 	     (skb_inner_mac_header(skb) - skb_transport_header(skb) !=
-	      sizeof(struct udphdr) + sizeof(struct vxlanhdr))))
+	      sizeof(struct udphdr) + sizeof(struct vxlanhdr)) ||
+	     (skb->ip_summed != CHECKSUM_NONE &&
+	      !can_checksum_protocol(features, inner_eth_hdr(skb)->h_proto))))
 		return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 
 	return features;
