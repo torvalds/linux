@@ -678,20 +678,24 @@ sess_auth_lanman(struct sess_data *sess_data)
 
 	pSMB->req.hdr.Flags2 &= ~SMBFLG2_UNICODE;
 
-	/* no capabilities flags in old lanman negotiation */
-	pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
+	if (ses->user_name != NULL) {
+		/* no capabilities flags in old lanman negotiation */
+		pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
 
-	/* Calculate hash with password and copy into bcc_ptr.
-	 * Encryption Key (stored as in cryptkey) gets used if the
-	 * security mode bit in Negottiate Protocol response states
-	 * to use challenge/response method (i.e. Password bit is 1).
-	 */
-	rc = calc_lanman_hash(ses->password, ses->server->cryptkey,
-			      ses->server->sec_mode & SECMODE_PW_ENCRYPT ?
-			      true : false, lnm_session_key);
+		/* Calculate hash with password and copy into bcc_ptr.
+		 * Encryption Key (stored as in cryptkey) gets used if the
+		 * security mode bit in Negottiate Protocol response states
+		 * to use challenge/response method (i.e. Password bit is 1).
+		 */
+		rc = calc_lanman_hash(ses->password, ses->server->cryptkey,
+				      ses->server->sec_mode & SECMODE_PW_ENCRYPT ?
+				      true : false, lnm_session_key);
 
-	memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_AUTH_RESP_SIZE);
-	bcc_ptr += CIFS_AUTH_RESP_SIZE;
+		memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_AUTH_RESP_SIZE);
+		bcc_ptr += CIFS_AUTH_RESP_SIZE;
+	} else {
+		pSMB->old_req.PasswordLength = 0;
+	}
 
 	/*
 	 * can not sign if LANMAN negotiated so no need
