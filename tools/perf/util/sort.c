@@ -21,7 +21,6 @@ const char	*sort_order;
 const char	*field_order;
 regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
-int		sort__need_collapse = 0;
 int		sort__has_parent = 0;
 int		sort__has_sym = 0;
 int		sort__has_dso = 0;
@@ -2163,7 +2162,7 @@ static int __sort_dimension__add(struct sort_dimension *sd,
 		return -1;
 
 	if (sd->entry->se_collapse)
-		sort__need_collapse = 1;
+		list->need_collapse = 1;
 
 	sd->taken = 1;
 
@@ -2746,7 +2745,7 @@ int setup_sorting(struct perf_evlist *evlist)
 
 void reset_output_field(void)
 {
-	sort__need_collapse = 0;
+	perf_hpp_list.need_collapse = 0;
 	sort__has_parent = 0;
 	sort__has_sym = 0;
 	sort__has_dso = 0;

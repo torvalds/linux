@@ -936,7 +936,7 @@ repeat:
 			goto error;
 		}
 
-		sort__need_collapse = true;
+		perf_hpp_list.need_collapse = true;
 	}
 
 	/* Force tty output for header output and per-thread stat. */
