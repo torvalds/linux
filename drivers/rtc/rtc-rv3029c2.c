@@ -76,6 +76,7 @@
 #define RV3029_A_DW			0x14
 #define RV3029_A_MO			0x15
 #define RV3029_A_YR			0x16
+#define RV3029_A_AE_X			BIT(7)
 #define RV3029_ALARM_SECTION_LEN	0x07
 
 /* timer section */
@@ -436,14 +437,22 @@ static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		dev_err(dev, "%s: reading SR failed\n", __func__);
 		return -EIO;
 	}
-	regs[RV3029_A_SC - RV3029_A_SC] = bin2bcd(tm->tm_sec & 0x7f);
-	regs[RV3029_A_MN - RV3029_A_SC] = bin2bcd(tm->tm_min & 0x7f);
-	regs[RV3029_A_HR - RV3029_A_SC] = bin2bcd(tm->tm_hour & 0x3f);
-	regs[RV3029_A_DT - RV3029_A_SC] = bin2bcd(tm->tm_mday & 0x3f);
-	regs[RV3029_A_MO - RV3029_A_SC] = bin2bcd((tm->tm_mon & 0x1f) - 1);
-	regs[RV3029_A_DW - RV3029_A_SC] = bin2bcd((tm->tm_wday & 7) - 1);
-	regs[RV3029_A_YR - RV3029_A_SC] = bin2bcd((tm->tm_year & 0x7f) - 100);
 
+	/* Activate all the alarms with AE_x bit */
+	regs[RV3029_A_SC - RV3029_A_SC] = bin2bcd(tm->tm_sec) | RV3029_A_AE_X;
+	regs[RV3029_A_MN - RV3029_A_SC] = bin2bcd(tm->tm_min) | RV3029_A_AE_X;
+	regs[RV3029_A_HR - RV3029_A_SC] = (bin2bcd(tm->tm_hour) & 0x3f)
+		| RV3029_A_AE_X;
+	regs[RV3029_A_DT - RV3029_A_SC] = (bin2bcd(tm->tm_mday) & 0x3f)
+		| RV3029_A_AE_X;
+	regs[RV3029_A_MO - RV3029_A_SC] = (bin2bcd(tm->tm_mon + 1) & 0x1f)
+		| RV3029_A_AE_X;
+	regs[RV3029_A_DW - RV3029_A_SC] = (bin2bcd(tm->tm_wday + 1) & 0x7)
+		| RV3029_A_AE_X;
+	regs[RV3029_A_YR - RV3029_A_SC] = (bin2bcd(tm->tm_year - 100))
+		| RV3029_A_AE_X;
+
+	/* Write the alarm */
 	ret = rv3029_write_regs(dev, RV3029_A_SC, regs,
 				RV3029_ALARM_SECTION_LEN);
 	if (ret < 0)
