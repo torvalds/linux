@@ -21,13 +21,12 @@ struct mcb_device;
 /**
  * struct mcb_bus - MEN Chameleon Bus
  *
- * @dev: pointer to carrier device
- * @children: the child busses
+ * @dev: bus device
+ * @carrier: pointer to carrier device
  * @bus_nr: mcb bus number
  * @get_irq: callback to get IRQ number
  */
 struct mcb_bus {
-	struct list_head children;
 	struct device dev;
 	struct device *carrier;
 	int bus_nr;

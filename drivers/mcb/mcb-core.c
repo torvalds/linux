@@ -187,6 +187,7 @@ struct mcb_bus *mcb_alloc_bus(struct device *carrier)
 {
 	struct mcb_bus *bus;
 	int bus_nr;
+	int rc;
 
 	bus = kzalloc(sizeof(struct mcb_bus), GFP_KERNEL);
 	if (!bus)
@@ -194,14 +195,26 @@ struct mcb_bus *mcb_alloc_bus(struct device *carrier)
 
 	bus_nr = ida_simple_get(&mcb_ida, 0, 0, GFP_KERNEL);
 	if (bus_nr < 0) {
-		kfree(bus);
-		return ERR_PTR(bus_nr);
+		rc = bus_nr;
+		goto err_free;
 	}
 
-	INIT_LIST_HEAD(&bus->children);
 	bus->bus_nr = bus_nr;
 	bus->carrier = carrier;
+
+	device_initialize(&bus->dev);
+	bus->dev.parent = carrier;
+	bus->dev.bus = &mcb_bus_type;
+
+	dev_set_name(&bus->dev, "mcb:%d", bus_nr);
+	rc = device_add(&bus->dev);
+	if (rc)
+		goto err_free;
+
 	return bus;
+err_free:
+	kfree(bus);
+	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(mcb_alloc_bus);
 
