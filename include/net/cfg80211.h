@@ -3189,6 +3189,9 @@ struct wiphy_vendor_command {
  * @vht_capa_mod_mask:  Specify what VHT capabilities can be over-ridden.
  *	If null, then none can be over-ridden.
  *
+ * @wdev_list: the list of associated (virtual) interfaces; this list must
+ *	not be modified by the driver, but can be read with RTNL/RCU protection.
+ *
  * @max_acl_mac_addrs: Maximum number of MAC addresses that the device
  *	supports for ACL.
  *
@@ -3327,6 +3330,8 @@ struct wiphy {
 
 	const struct ieee80211_ht_cap *ht_capa_mod_mask;
 	const struct ieee80211_vht_cap *vht_capa_mod_mask;
+
+	struct list_head wdev_list;
 
 	/* the network namespace this phy lives in currently */
 	possible_net_t _net;

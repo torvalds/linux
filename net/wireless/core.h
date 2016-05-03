@@ -50,8 +50,7 @@ struct cfg80211_registered_device {
 	/* wiphy index, internal only */
 	int wiphy_idx;
 
-	/* associated wireless interfaces, protected by rtnl or RCU */
-	struct list_head wdev_list;
+	/* protected by RTNL */
 	int devlist_generation, wdev_id;
 	int opencount;
 	wait_queue_head_t dev_wait;

@@ -223,7 +223,7 @@ void cfg80211_conn_work(struct work_struct *work)
 
 	rtnl_lock();
 
-	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->netdev)
 			continue;
 
@@ -617,7 +617,7 @@ static bool cfg80211_is_all_idle(void)
 	 * count as new regulatory hints.
 	 */
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
-		list_for_each_entry(wdev, &rdev->wdev_list, list) {
+		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 			wdev_lock(wdev);
 			if (wdev->conn || wdev->current_bss)
 				is_all_idle = false;
