@@ -939,4 +939,7 @@ const struct dispc_ops *dispc_get_ops(void);
 bool omapdss_component_is_display(struct device_node *node);
 bool omapdss_component_is_output(struct device_node *node);
 
+bool omapdss_stack_is_ready(void);
+void omapdss_gather_components(struct device *dev);
+
 #endif /* __OMAP_DRM_DSS_H */
