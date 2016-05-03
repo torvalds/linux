@@ -3481,6 +3481,12 @@ static inline void txq_trans_update(struct netdev_queue *txq)
 		txq->trans_start = jiffies;
 }
 
+/* legacy drivers only, netdev_start_xmit() sets txq->trans_start */
+static inline void netif_trans_update(struct net_device *dev)
+{
+	dev->trans_start = jiffies;
+}
+
 /**
  *	netif_tx_lock - grab network device transmit lock
  *	@dev: network device
