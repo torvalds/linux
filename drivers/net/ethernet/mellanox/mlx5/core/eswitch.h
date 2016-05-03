@@ -111,6 +111,8 @@ struct mlx5_vport {
 	int                     vport;
 	struct hlist_head       uc_list[MLX5_L2_ADDR_HASH_SIZE];
 	struct hlist_head       mc_list[MLX5_L2_ADDR_HASH_SIZE];
+	struct mlx5_flow_rule   *promisc_rule;
+	struct mlx5_flow_rule   *allmulti_rule;
 	struct work_struct      vport_change_handler;
 
 	struct vport_ingress    ingress;
@@ -119,6 +121,7 @@ struct mlx5_vport {
 	u16                     vlan;
 	u8                      qos;
 	bool                    spoofchk;
+	bool                    trusted;
 	bool                    enabled;
 	u16                     enabled_events;
 };
@@ -149,6 +152,7 @@ struct mlx5_eswitch {
 	 * and async SRIOV admin state changes
 	 */
 	struct mutex            state_lock;
+	struct esw_mc_addr      *mc_promisc;
 };
 
 /* E-Switch API */
