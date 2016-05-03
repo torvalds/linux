@@ -540,6 +540,7 @@ int amdgpu_bo_set_metadata (struct amdgpu_bo *bo, void *metadata,
 	if (!metadata_size) {
 		if (bo->metadata_size) {
 			kfree(bo->metadata);
+			bo->metadata = NULL;
 			bo->metadata_size = 0;
 		}
 		return 0;
