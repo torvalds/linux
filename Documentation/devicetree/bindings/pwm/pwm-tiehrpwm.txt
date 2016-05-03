@@ -11,8 +11,6 @@ Required properties:
 - reg: physical base address and size of the registers map.
 
 Optional properties:
-- ti,hwmods: Name of the hwmod associated to the EHRPWM:
-  "ehrpwm<x>", <x> being the 0-based instance number from the HW spec
 - clocks: Handle to the PWM's time-base and functional clock.
 - clock-names: Must be set to "tbclk" and "fck".
 
@@ -24,7 +22,6 @@ ehrpwm0: pwm@48300200 { /* EHRPWM on am33xx */
 	reg = <0x48300200 0x100>;
 	clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
 	clock-names = "tbclk", "fck";
-	ti,hwmods = "ehrpwm0";
 };
 
 ehrpwm0: pwm@48300200 { /* EHRPWM on am4372 */
