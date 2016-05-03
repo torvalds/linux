@@ -94,13 +94,16 @@ struct vport_ingress {
 	struct mlx5_flow_group *allow_spoofchk_only_grp;
 	struct mlx5_flow_group *allow_untagged_only_grp;
 	struct mlx5_flow_group *drop_grp;
-
+	struct mlx5_flow_rule  *allow_rule;
+	struct mlx5_flow_rule  *drop_rule;
 };
 
 struct vport_egress {
 	struct mlx5_flow_table *acl;
 	struct mlx5_flow_group *allowed_vlans_grp;
 	struct mlx5_flow_group *drop_grp;
+	struct mlx5_flow_rule  *allowed_vlan;
+	struct mlx5_flow_rule  *drop_rule;
 };
 
 struct mlx5_vport {
@@ -113,6 +116,8 @@ struct mlx5_vport {
 	struct vport_ingress    ingress;
 	struct vport_egress     egress;
 
+	u16                     vlan;
+	u8                      qos;
 	bool                    enabled;
 	u16                     enabled_events;
 };
@@ -137,6 +142,10 @@ struct mlx5_eswitch {
 	struct mlx5_vport       *vports;
 	int                     total_vports;
 	int                     enabled_vports;
+	/* Synchronize between vport change events
+	 * and async SRIOV admin state changes
+	 */
+	struct mutex            state_lock;
 };
 
 /* E-Switch API */
