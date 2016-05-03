@@ -1474,12 +1474,16 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 
 	vsi = i40e_find_vsi_from_id(pf, info->vsi_id);
 	if (!test_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states) ||
-	    !test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps) ||
 	    !i40e_vc_isvalid_vsi_id(vf, info->vsi_id)) {
-		dev_err(&pf->pdev->dev,
-			"VF %d doesn't meet requirements to enter promiscuous mode\n",
-			vf->vf_id);
 		aq_ret = I40E_ERR_PARAM;
+		goto error_param;
+	}
+	if (!test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps)) {
+		dev_err(&pf->pdev->dev,
+			"Unprivileged VF %d is attempting to configure promiscuous mode\n",
+			vf->vf_id);
+		/* Lie to the VF on purpose. */
+		aq_ret = 0;
 		goto error_param;
 	}
 	/* Multicast promiscuous handling*/
