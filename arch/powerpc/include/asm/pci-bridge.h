@@ -209,14 +209,14 @@ struct pci_dn {
 #ifdef CONFIG_EEH
 	struct eeh_dev *edev;		/* eeh device */
 #endif
-#define IODA_INVALID_PE		(-1)
+#define IODA_INVALID_PE		0xFFFFFFFF
 #ifdef CONFIG_PPC_POWERNV
-	int	pe_number;
+	unsigned int pe_number;
 	int     vf_index;		/* VF index in the PF */
 #ifdef CONFIG_PCI_IOV
 	u16     vfs_expanded;		/* number of VFs IOV BAR expanded */
 	u16     num_vfs;		/* number of VFs enabled*/
-	int     *pe_num_map;		/* PE# for the first VF PE or array */
+	unsigned int *pe_num_map;	/* PE# for the first VF PE or array */
 	bool    m64_single_mode;	/* Use M64 BAR in Single Mode */
 #define IODA_INVALID_M64        (-1)
 	int     (*m64_map)[PCI_SRIOV_NUM_BARS];

@@ -138,7 +138,7 @@ static void pnv_ioda_reserve_pe(struct pnv_phb *phb, int pe_no)
 	phb->ioda.pe_array[pe_no].pe_number = pe_no;
 }
 
-static int pnv_ioda_alloc_pe(struct pnv_phb *phb)
+static unsigned int pnv_ioda_alloc_pe(struct pnv_phb *phb)
 {
 	unsigned long pe;
 
@@ -261,7 +261,7 @@ static void pnv_ioda2_reserve_m64_pe(struct pci_bus *bus,
 	}
 }
 
-static int pnv_ioda2_pick_m64_pe(struct pci_bus *bus, bool all)
+static unsigned int pnv_ioda2_pick_m64_pe(struct pci_bus *bus, bool all)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -919,7 +919,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 	struct pnv_phb *phb = hose->private_data;
 	struct pci_dn *pdn = pci_get_pdn(dev);
 	struct pnv_ioda_pe *pe;
-	int pe_num;
+	unsigned int pe_num;
 
 	if (!pdn) {
 		pr_err("%s: Device tree node not associated properly\n",
@@ -1010,7 +1010,7 @@ static void pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct pnv_phb *phb = hose->private_data;
 	struct pnv_ioda_pe *pe;
-	int pe_num = IODA_INVALID_PE;
+	unsigned int pe_num = IODA_INVALID_PE;
 
 	/* Check if PE is determined by M64 */
 	if (phb->pick_m64_pe)

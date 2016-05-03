@@ -367,7 +367,7 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 	struct pnv_phb *phb = pdn->phb->private_data;
 	u8	fstate;
 	__be16	pcierr;
-	int	pe_no;
+	unsigned int pe_no;
 	s64	rc;
 
 	/*
