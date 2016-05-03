@@ -344,7 +344,7 @@ void f2fs_evict_inode(struct inode *inode)
 	sb_start_intwrite(inode->i_sb);
 	set_inode_flag(fi, FI_NO_ALLOC);
 	i_size_write(inode, 0);
-
+retry:
 	if (F2FS_HAS_BLOCKS(inode))
 		err = f2fs_truncate(inode, true);
 
@@ -352,6 +352,12 @@ void f2fs_evict_inode(struct inode *inode)
 		f2fs_lock_op(sbi);
 		err = remove_inode_page(inode);
 		f2fs_unlock_op(sbi);
+	}
+
+	/* give more chances, if ENOMEM case */
+	if (err == -ENOMEM) {
+		err = 0;
+		goto retry;
 	}
 
 	sb_end_intwrite(inode->i_sb);
