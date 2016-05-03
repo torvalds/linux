@@ -291,8 +291,10 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 
 	/*  set control & status register */
 	byte = 0;
-	/* if we are using external start trigger (also board dislikes having
-	 * both start and conversion triggers external simultaneously) */
+	/*
+	 * If we are using external start trigger (also board dislikes having
+	 * both start and conversion triggers external simultaneously).
+	 */
 	if (cmd->start_src == TRIG_EXT && cmd->convert_src != TRIG_EXT)
 		byte |= EXT_TRIG_BIT;
 
