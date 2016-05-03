@@ -66,10 +66,10 @@
 #define DAS16M1_AI_REG			0x00	/* 16-bit register */
 #define DAS16M1_AI_TO_CHAN(x)		(((x) >> 0) & 0xf)
 #define DAS16M1_AI_TO_SAMPLE(x)		(((x) >> 4) & 0xfff)
-#define DAS16M1_CS             2
-#define   EXT_TRIG_BIT           0x1
-#define   OVRUN                  0x20
-#define   IRQDATA                0x80
+#define DAS16M1_CS_REG			0x02
+#define DAS16M1_CS_EXT_TRIG		BIT(0)
+#define DAS16M1_CS_OVRUN		BIT(5)
+#define DAS16M1_CS_IRQDATA		BIT(7)
 #define DAS16M1_DIO            3
 #define DAS16M1_CLEAR_INTR     4
 #define DAS16M1_INTR_CONTROL   5
@@ -272,9 +272,9 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	 * both start and conversion triggers external simultaneously).
 	 */
 	if (cmd->start_src == TRIG_EXT && cmd->convert_src != TRIG_EXT)
-		byte |= EXT_TRIG_BIT;
+		byte |= DAS16M1_CS_EXT_TRIG;
 
-	outb(byte, dev->iobase + DAS16M1_CS);
+	outb(byte, dev->iobase + DAS16M1_CS_REG);
 	/* clear interrupt bit */
 	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
 
@@ -301,8 +301,8 @@ static int das16m1_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inb(dev->iobase + DAS16M1_CS);
-	if (status & IRQDATA)
+	status = inb(dev->iobase + DAS16M1_CS_REG);
+	if (status & DAS16M1_CS_IRQDATA)
 		return 0;
 	return -EBUSY;
 }
@@ -329,7 +329,7 @@ static int das16m1_ai_rinsn(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		unsigned short val;
 
-		/* clear IRQDATA bit */
+		/* clear DAS16M1_CS_IRQDATA bit */
 		outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
 		/* trigger conversion */
 		outb(0, dev->iobase + DAS16M1_AI_REG);
@@ -430,7 +430,7 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	 * This probably won't catch overruns since the card doesn't generate
 	 * overrun interrupts, but we might as well try.
 	 */
-	if (status & OVRUN) {
+	if (status & DAS16M1_CS_OVRUN) {
 		async->events |= COMEDI_CB_ERROR;
 		dev_err(dev->class_dev, "fifo overflow\n");
 	}
@@ -445,7 +445,7 @@ static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*  prevent race with interrupt handler */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	status = inb(dev->iobase + DAS16M1_CS);
+	status = inb(dev->iobase + DAS16M1_CS_REG);
 	das16m1_handler(dev, status);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
@@ -464,9 +464,9 @@ static irqreturn_t das16m1_interrupt(int irq, void *d)
 	/*  prevent race with comedi_poll() */
 	spin_lock(&dev->spinlock);
 
-	status = inb(dev->iobase + DAS16M1_CS);
+	status = inb(dev->iobase + DAS16M1_CS_REG);
 
-	if ((status & (IRQDATA | OVRUN)) == 0) {
+	if ((status & (DAS16M1_CS_IRQDATA | DAS16M1_CS_OVRUN)) == 0) {
 		dev_err(dev->class_dev, "spurious interrupt\n");
 		spin_unlock(&dev->spinlock);
 		return IRQ_NONE;
