@@ -556,56 +556,38 @@ static const struct file_operations tmc_fops = {
 	.llseek		= no_llseek,
 };
 
-static ssize_t status_show(struct device *dev,
-			   struct device_attribute *attr, char *buf)
-{
-	unsigned long flags;
-	u32 tmc_rsz, tmc_sts, tmc_rrp, tmc_rwp, tmc_trg;
-	u32 tmc_ctl, tmc_ffsr, tmc_ffcr, tmc_mode, tmc_pscr;
-	u32 devid;
-	struct tmc_drvdata *drvdata = dev_get_drvdata(dev->parent);
+#define coresight_tmc_simple_func(name, offset)			\
+	coresight_simple_func(struct tmc_drvdata, name, offset)
 
-	pm_runtime_get_sync(drvdata->dev);
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-	CS_UNLOCK(drvdata->base);
+coresight_tmc_simple_func(rsz, TMC_RSZ);
+coresight_tmc_simple_func(sts, TMC_STS);
+coresight_tmc_simple_func(rrp, TMC_RRP);
+coresight_tmc_simple_func(rwp, TMC_RWP);
+coresight_tmc_simple_func(trg, TMC_TRG);
+coresight_tmc_simple_func(ctl, TMC_CTL);
+coresight_tmc_simple_func(ffsr, TMC_FFSR);
+coresight_tmc_simple_func(ffcr, TMC_FFCR);
+coresight_tmc_simple_func(mode, TMC_MODE);
+coresight_tmc_simple_func(pscr, TMC_PSCR);
+coresight_tmc_simple_func(devid, CORESIGHT_DEVID);
 
-	tmc_rsz = readl_relaxed(drvdata->base + TMC_RSZ);
-	tmc_sts = readl_relaxed(drvdata->base + TMC_STS);
-	tmc_rrp = readl_relaxed(drvdata->base + TMC_RRP);
-	tmc_rwp = readl_relaxed(drvdata->base + TMC_RWP);
-	tmc_trg = readl_relaxed(drvdata->base + TMC_TRG);
-	tmc_ctl = readl_relaxed(drvdata->base + TMC_CTL);
-	tmc_ffsr = readl_relaxed(drvdata->base + TMC_FFSR);
-	tmc_ffcr = readl_relaxed(drvdata->base + TMC_FFCR);
-	tmc_mode = readl_relaxed(drvdata->base + TMC_MODE);
-	tmc_pscr = readl_relaxed(drvdata->base + TMC_PSCR);
-	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
+static struct attribute *coresight_tmc_mgmt_attrs[] = {
+	&dev_attr_rsz.attr,
+	&dev_attr_sts.attr,
+	&dev_attr_rrp.attr,
+	&dev_attr_rwp.attr,
+	&dev_attr_trg.attr,
+	&dev_attr_ctl.attr,
+	&dev_attr_ffsr.attr,
+	&dev_attr_ffcr.attr,
+	&dev_attr_mode.attr,
+	&dev_attr_pscr.attr,
+	&dev_attr_devid.attr,
+	NULL,
+};
 
-	CS_LOCK(drvdata->base);
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	pm_runtime_put(drvdata->dev);
-
-	return sprintf(buf,
-		       "Depth:\t\t0x%x\n"
-		       "Status:\t\t0x%x\n"
-		       "RAM read ptr:\t0x%x\n"
-		       "RAM wrt ptr:\t0x%x\n"
-		       "Trigger cnt:\t0x%x\n"
-		       "Control:\t0x%x\n"
-		       "Flush status:\t0x%x\n"
-		       "Flush ctrl:\t0x%x\n"
-		       "Mode:\t\t0x%x\n"
-		       "PSRC:\t\t0x%x\n"
-		       "DEVID:\t\t0x%x\n",
-			tmc_rsz, tmc_sts, tmc_rrp, tmc_rwp, tmc_trg,
-			tmc_ctl, tmc_ffsr, tmc_ffcr, tmc_mode, tmc_pscr, devid);
-
-	return -EINVAL;
-}
-static DEVICE_ATTR_RO(status);
-
-static ssize_t trigger_cntr_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
+ssize_t trigger_cntr_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct tmc_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	unsigned long val = drvdata->trigger_cntr;
@@ -630,26 +612,25 @@ static ssize_t trigger_cntr_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(trigger_cntr);
 
-static struct attribute *coresight_etb_attrs[] = {
+static struct attribute *coresight_tmc_attrs[] = {
 	&dev_attr_trigger_cntr.attr,
-	&dev_attr_status.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(coresight_etb);
 
-static struct attribute *coresight_etr_attrs[] = {
-	&dev_attr_trigger_cntr.attr,
-	&dev_attr_status.attr,
-	NULL,
+static const struct attribute_group coresight_tmc_group = {
+	.attrs = coresight_tmc_attrs,
 };
-ATTRIBUTE_GROUPS(coresight_etr);
 
-static struct attribute *coresight_etf_attrs[] = {
-	&dev_attr_trigger_cntr.attr,
-	&dev_attr_status.attr,
+static const struct attribute_group coresight_tmc_mgmt_group = {
+	.attrs = coresight_tmc_mgmt_attrs,
+	.name = "mgmt",
+};
+
+const struct attribute_group *coresight_tmc_groups[] = {
+	&coresight_tmc_group,
+	&coresight_tmc_mgmt_group,
 	NULL,
 };
-ATTRIBUTE_GROUPS(coresight_etf);
 
 static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 {
@@ -725,20 +706,18 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	desc->pdata = pdata;
 	desc->dev = dev;
 	desc->subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
+	desc->groups = coresight_tmc_groups;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETB) {
 		desc->type = CORESIGHT_DEV_TYPE_SINK;
 		desc->ops = &tmc_etb_cs_ops;
-		desc->groups = coresight_etb_groups;
 	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		desc->type = CORESIGHT_DEV_TYPE_SINK;
 		desc->ops = &tmc_etr_cs_ops;
-		desc->groups = coresight_etr_groups;
 	} else {
 		desc->type = CORESIGHT_DEV_TYPE_LINKSINK;
 		desc->subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_FIFO;
 		desc->ops = &tmc_etf_cs_ops;
-		desc->groups = coresight_etf_groups;
 	}
 
 	drvdata->csdev = coresight_register(desc);
