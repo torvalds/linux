@@ -10,6 +10,7 @@
 #include <linux/vmalloc.h>
 #include <linux/posix_acl.h>
 #include <linux/random.h>
+#include <linux/sort.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -299,6 +300,13 @@ out:
 	return err;
 }
 
+static int frag_tree_split_cmp(const void *l, const void *r)
+{
+	struct ceph_frag_tree_split *ls = (struct ceph_frag_tree_split*)l;
+	struct ceph_frag_tree_split *rs = (struct ceph_frag_tree_split*)r;
+	return ceph_frag_compare(ls->frag, rs->frag);
+}
+
 static int ceph_fill_fragtree(struct inode *inode,
 			      struct ceph_frag_tree_head *fragtree,
 			      struct ceph_mds_reply_dirfrag *dirinfo)
@@ -330,6 +338,11 @@ static int ceph_fill_fragtree(struct inode *inode,
 	}
 	if (!update)
 		goto out_unlock;
+
+	if (nsplits > 1) {
+		sort(fragtree->splits, nsplits, sizeof(fragtree->splits[0]),
+		     frag_tree_split_cmp, NULL);
+	}
 
 	dout("fill_fragtree %llx.%llx\n", ceph_vinop(inode));
 	rb_node = rb_first(&ci->i_fragtree);
