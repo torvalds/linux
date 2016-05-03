@@ -3893,7 +3893,7 @@ const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
  * cfg80211_find_vendor_ie - find vendor specific information element in data
  *
  * @oui: vendor OUI
- * @oui_type: vendor-specific OUI type
+ * @oui_type: vendor-specific OUI type (must be < 0xff), negative means any
  * @ies: data consisting of IEs
  * @len: length of data
  *
@@ -3905,7 +3905,7 @@ const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
  * Note: There are no checks on the element length other than having to fit into
  * the given data.
  */
-const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
+const u8 *cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 				  const u8 *ies, int len);
 
 /**
