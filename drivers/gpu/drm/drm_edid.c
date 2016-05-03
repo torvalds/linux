@@ -4152,6 +4152,60 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 }
 EXPORT_SYMBOL(drm_hdmi_vendor_infoframe_from_display_mode);
 
+static int drm_parse_tiled_block(struct drm_connector *connector,
+				 struct displayid_block *block)
+{
+	struct displayid_tiled_block *tile = (struct displayid_tiled_block *)block;
+	u16 w, h;
+	u8 tile_v_loc, tile_h_loc;
+	u8 num_v_tile, num_h_tile;
+	struct drm_tile_group *tg;
+
+	w = tile->tile_size[0] | tile->tile_size[1] << 8;
+	h = tile->tile_size[2] | tile->tile_size[3] << 8;
+
+	num_v_tile = (tile->topo[0] & 0xf) | (tile->topo[2] & 0x30);
+	num_h_tile = (tile->topo[0] >> 4) | ((tile->topo[2] >> 2) & 0x30);
+	tile_v_loc = (tile->topo[1] & 0xf) | ((tile->topo[2] & 0x3) << 4);
+	tile_h_loc = (tile->topo[1] >> 4) | (((tile->topo[2] >> 2) & 0x3) << 4);
+
+	connector->has_tile = true;
+	if (tile->tile_cap & 0x80)
+		connector->tile_is_single_monitor = true;
+
+	connector->num_h_tile = num_h_tile + 1;
+	connector->num_v_tile = num_v_tile + 1;
+	connector->tile_h_loc = tile_h_loc;
+	connector->tile_v_loc = tile_v_loc;
+	connector->tile_h_size = w + 1;
+	connector->tile_v_size = h + 1;
+
+	DRM_DEBUG_KMS("tile cap 0x%x\n", tile->tile_cap);
+	DRM_DEBUG_KMS("tile_size %d x %d\n", w + 1, h + 1);
+	DRM_DEBUG_KMS("topo num tiles %dx%d, location %dx%d\n",
+		      num_h_tile + 1, num_v_tile + 1, tile_h_loc, tile_v_loc);
+	DRM_DEBUG_KMS("vend %c%c%c\n", tile->topology_id[0], tile->topology_id[1], tile->topology_id[2]);
+
+	tg = drm_mode_get_tile_group(connector->dev, tile->topology_id);
+	if (!tg) {
+		tg = drm_mode_create_tile_group(connector->dev, tile->topology_id);
+	}
+	if (!tg)
+		return -ENOMEM;
+
+	if (connector->tile_group != tg) {
+		/* if we haven't got a pointer,
+		   take the reference, drop ref to old tile group */
+		if (connector->tile_group) {
+			drm_mode_put_tile_group(connector->dev, connector->tile_group);
+		}
+		connector->tile_group = tg;
+	} else
+		/* if same tile group, then release the ref we just took. */
+		drm_mode_put_tile_group(connector->dev, tg);
+	return 0;
+}
+
 static int drm_parse_display_id(struct drm_connector *connector,
 				u8 *displayid, int length,
 				bool is_edid_extension)
@@ -4162,6 +4216,7 @@ static int drm_parse_display_id(struct drm_connector *connector,
 	struct displayid_block *block;
 	u8 csum = 0;
 	int i;
+	int ret;
 
 	if (is_edid_extension)
 		idx = 1;
@@ -4187,57 +4242,10 @@ static int drm_parse_display_id(struct drm_connector *connector,
 		      block->tag, block->rev, block->num_bytes);
 
 	switch (block->tag) {
-	case DATA_BLOCK_TILED_DISPLAY: {
-		struct displayid_tiled_block *tile = (struct displayid_tiled_block *)block;
-
-		u16 w, h;
-		u8 tile_v_loc, tile_h_loc;
-		u8 num_v_tile, num_h_tile;
-		struct drm_tile_group *tg;
-
-		w = tile->tile_size[0] | tile->tile_size[1] << 8;
-		h = tile->tile_size[2] | tile->tile_size[3] << 8;
-
-		num_v_tile = (tile->topo[0] & 0xf) | (tile->topo[2] & 0x30);
-		num_h_tile = (tile->topo[0] >> 4) | ((tile->topo[2] >> 2) & 0x30);
-		tile_v_loc = (tile->topo[1] & 0xf) | ((tile->topo[2] & 0x3) << 4);
-		tile_h_loc = (tile->topo[1] >> 4) | (((tile->topo[2] >> 2) & 0x3) << 4);
-
-		connector->has_tile = true;
-		if (tile->tile_cap & 0x80)
-			connector->tile_is_single_monitor = true;
-
-		connector->num_h_tile = num_h_tile + 1;
-		connector->num_v_tile = num_v_tile + 1;
-		connector->tile_h_loc = tile_h_loc;
-		connector->tile_v_loc = tile_v_loc;
-		connector->tile_h_size = w + 1;
-		connector->tile_v_size = h + 1;
-
-		DRM_DEBUG_KMS("tile cap 0x%x\n", tile->tile_cap);
-		DRM_DEBUG_KMS("tile_size %d x %d\n", w + 1, h + 1);
-		DRM_DEBUG_KMS("topo num tiles %dx%d, location %dx%d\n",
-		       num_h_tile + 1, num_v_tile + 1, tile_h_loc, tile_v_loc);
-		DRM_DEBUG_KMS("vend %c%c%c\n", tile->topology_id[0], tile->topology_id[1], tile->topology_id[2]);
-
-		tg = drm_mode_get_tile_group(connector->dev, tile->topology_id);
-		if (!tg) {
-			tg = drm_mode_create_tile_group(connector->dev, tile->topology_id);
-		}
-		if (!tg)
-			return -ENOMEM;
-
-		if (connector->tile_group != tg) {
-			/* if we haven't got a pointer,
-			   take the reference, drop ref to old tile group */
-			if (connector->tile_group) {
-				drm_mode_put_tile_group(connector->dev, connector->tile_group);
-			}
-			connector->tile_group = tg;
-		} else
-			/* if same tile group, then release the ref we just took. */
-			drm_mode_put_tile_group(connector->dev, tg);
-	}
+	case DATA_BLOCK_TILED_DISPLAY:
+		ret = drm_parse_tiled_block(connector, block);
+		if (ret)
+			return ret;
 		break;
 	default:
 		printk("unknown displayid tag %d\n", block->tag);
