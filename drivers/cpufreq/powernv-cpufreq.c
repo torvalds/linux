@@ -647,6 +647,8 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 	 */
 	if (gpstate_id != freq_data.pstate_id)
 		queue_gpstate_timer(gpstates);
+	else
+		del_timer_sync(&gpstates->timer);
 
 gpstates_done:
 	freq_data.gpstate_id = gpstate_id;
