@@ -2380,7 +2380,7 @@ do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
 {
 	struct map *map = act->ms.map;
 
-	if (!sort__has_dso || map == NULL)
+	if (!hists__has(browser->hists, dso) || map == NULL)
 		return 0;
 
 	if (browser->hists->dso_filter) {
@@ -2407,7 +2407,7 @@ static int
 add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 	    char **optstr, struct map *map)
 {
-	if (!sort__has_dso || map == NULL)
+	if (!hists__has(browser->hists, dso) || map == NULL)
 		return 0;
 
 	if (asprintf(optstr, "Zoom %s %s DSO",
@@ -2429,10 +2429,10 @@ do_browse_map(struct hist_browser *browser __maybe_unused,
 }
 
 static int
-add_map_opt(struct hist_browser *browser __maybe_unused,
+add_map_opt(struct hist_browser *browser,
 	    struct popup_action *act, char **optstr, struct map *map)
 {
-	if (!sort__has_dso || map == NULL)
+	if (!hists__has(browser->hists, dso) || map == NULL)
 		return 0;
 
 	if (asprintf(optstr, "Browse map details") < 0)

@@ -21,7 +21,6 @@ const char	*sort_order;
 const char	*field_order;
 regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
-int		sort__has_dso = 0;
 int		sort__has_socket = 0;
 int		sort__has_thread = 0;
 int		sort__has_comm = 0;
@@ -241,7 +240,7 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 	 * comparing symbol address alone is not enough since it's a
 	 * relative address within a dso.
 	 */
-	if (!sort__has_dso) {
+	if (!hists__has(left->hists, dso) || hists__has(right->hists, dso)) {
 		ret = sort__dso_cmp(left, right);
 		if (ret != 0)
 			return ret;
@@ -2255,7 +2254,7 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				sd->entry->se_collapse = sort__sym_sort;
 
 		} else if (sd->entry == &sort_dso) {
-			sort__has_dso = 1;
+			list->dso = 1;
 		} else if (sd->entry == &sort_socket) {
 			sort__has_socket = 1;
 		} else if (sd->entry == &sort_thread) {
@@ -2746,7 +2745,7 @@ void reset_output_field(void)
 	perf_hpp_list.need_collapse = 0;
 	perf_hpp_list.parent = 0;
 	perf_hpp_list.sym = 0;
-	sort__has_dso = 0;
+	perf_hpp_list.dso = 0;
 
 	field_order = NULL;
 	sort_order = NULL;

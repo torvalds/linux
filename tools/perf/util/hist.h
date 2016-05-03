@@ -244,6 +244,7 @@ struct perf_hpp_list {
 	int need_collapse;
 	int parent;
 	int sym;
+	int dso;
 };
 
 extern struct perf_hpp_list perf_hpp_list;
