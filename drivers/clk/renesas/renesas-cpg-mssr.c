@@ -493,9 +493,9 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 	genpd = &pd->genpd;
 	genpd->name = np->name;
 	genpd->flags = GENPD_FLAG_PM_CLK;
-	pm_genpd_init(genpd, &simple_qos_governor, false);
 	genpd->attach_dev = cpg_mssr_attach_dev;
 	genpd->detach_dev = cpg_mssr_detach_dev;
+	pm_genpd_init(genpd, &pm_domain_always_on_gov, false);
 	cpg_mssr_clk_domain = pd;
 
 	of_genpd_add_provider_simple(np, genpd);
