@@ -56,10 +56,6 @@
 #include "8255.h"
 #include "comedi_8254.h"
 
-#define DAS16M1_SIZE2 8
-
-#define FIFO_SIZE 1024		/*  1024 sample fifo */
-
 /*
  * Register map (dev->iobase)
  */
@@ -89,6 +85,10 @@
 #define DAS16M1_8255_IOBASE		0x400
 #define DAS16M1_8254_IOBASE3		0x404
 
+#define DAS16M1_SIZE2			0x08
+
+#define DAS16M1_AI_FIFO_SZ		1024	/* # samples */
+
 static const struct comedi_lrange range_das16m1 = {
 	9, {
 		BIP_RANGE(5),
@@ -108,7 +108,7 @@ struct das16m1_private_struct {
 	unsigned int intr_ctrl;
 	unsigned int adc_count;
 	u16 initial_hw_count;
-	unsigned short ai_buffer[FIFO_SIZE];
+	unsigned short ai_buffer[DAS16M1_AI_FIFO_SZ];
 	unsigned long extra_iobase;
 };
 
@@ -411,8 +411,8 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 			num_samples = cmd->stop_arg * cmd->chanlist_len;
 	}
 	/*  make sure we dont try to get too many points if fifo has overrun */
-	if (num_samples > FIFO_SIZE)
-		num_samples = FIFO_SIZE;
+	if (num_samples > DAS16M1_AI_FIFO_SZ)
+		num_samples = DAS16M1_AI_FIFO_SZ;
 	insw(dev->iobase, devpriv->ai_buffer, num_samples);
 	munge_sample_array(devpriv->ai_buffer, num_samples);
 	comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
