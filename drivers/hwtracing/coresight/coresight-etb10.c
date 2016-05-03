@@ -428,7 +428,8 @@ static void etb_update_buffer(struct coresight_device *csdev,
 		read_ptr = (write_ptr + drvdata->buffer_depth) -
 					to_read / ETB_FRAME_SIZE_WORDS;
 		/* Wrap around if need be*/
-		read_ptr &= ~(drvdata->buffer_depth - 1);
+		if (read_ptr > (drvdata->buffer_depth - 1))
+			read_ptr -= drvdata->buffer_depth;
 		/* let the decoder know we've skipped ahead */
 		local_inc(&buf->lost);
 	}
