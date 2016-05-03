@@ -854,7 +854,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		ret = 1;
 		goto fail_fw_init;
 	}
-	dev_err(&instance->pdev->dev, "Init cmd success\n");
+	dev_info(&instance->pdev->dev, "Init cmd success\n");
 
 	ret = 0;
 

@@ -5185,7 +5185,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	instance->instancet->enable_intr(instance);
 
-	dev_err(&instance->pdev->dev, "INIT adapter done\n");
+	dev_info(&instance->pdev->dev, "INIT adapter done\n");
 
 	megasas_setup_jbod_map(instance);
 
