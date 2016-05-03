@@ -62,9 +62,13 @@ int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
 {
 	struct kvm_kernel_irq_routing_entry route;
 
-	if (!irqchip_in_kernel(kvm) || msi->flags != 0)
+	if (!irqchip_in_kernel(kvm) ||
+	    (msi->flags & ~KVM_SIGNAL_MSI_FLAGS) != 0)
 		return -EINVAL;
 
+	/* assignment must copy kvm_set_routing_entry() */
+	route.type = msi->flags & KVM_SIGNAL_MSI_X2APIC ?
+		KVM_IRQ_ROUTING_MSI_X2APIC : KVM_IRQ_ROUTING_MSI;
 	route.msi.address_lo = msi->address_lo;
 	route.msi.address_hi = msi->address_hi;
 	route.msi.data = msi->data;

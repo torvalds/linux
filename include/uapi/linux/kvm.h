@@ -865,6 +865,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_SPAPR_TCE_64 125
 #define KVM_CAP_ARM_PMU_V3 126
 #define KVM_CAP_VCPU_ATTRIBUTES 127
+#define KVM_CAP_MSI_X2APIC 128
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -898,6 +899,7 @@ struct kvm_irq_routing_hv_sint {
 #define KVM_IRQ_ROUTING_MSI 2
 #define KVM_IRQ_ROUTING_S390_ADAPTER 3
 #define KVM_IRQ_ROUTING_HV_SINT 4
+#define KVM_IRQ_ROUTING_MSI_X2APIC 5 /* KVM_CAP_MSI_X2APIC */
 
 struct kvm_irq_routing_entry {
 	__u32 gsi;
@@ -1022,6 +1024,9 @@ struct kvm_one_reg {
 	__u64 id;
 	__u64 addr;
 };
+
+#define KVM_SIGNAL_MSI_X2APIC  (1 <<  0) /* KVM_CAP_X2APIC */
+#define KVM_SIGNAL_MSI_FLAGS   KVM_SIGNAL_MSI_X2APIC
 
 struct kvm_msi {
 	__u32 address_lo;

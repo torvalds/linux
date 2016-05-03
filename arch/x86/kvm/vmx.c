@@ -10829,7 +10829,8 @@ static int vmx_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
 	BUG_ON(guest_irq >= irq_rt->nr_rt_entries);
 
 	hlist_for_each_entry(e, &irq_rt->map[guest_irq], link) {
-		if (e->type != KVM_IRQ_ROUTING_MSI)
+		if (e->type != KVM_IRQ_ROUTING_MSI &&
+		    e->type != KVM_IRQ_ROUTING_MSI_X2APIC)
 			continue;
 		/*
 		 * VT-d PI cannot support posting multicast/broadcast

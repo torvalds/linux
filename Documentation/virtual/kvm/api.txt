@@ -1461,6 +1461,7 @@ struct kvm_irq_routing_entry {
 #define KVM_IRQ_ROUTING_MSI 2
 #define KVM_IRQ_ROUTING_S390_ADAPTER 3
 #define KVM_IRQ_ROUTING_HV_SINT 4
+#define KVM_IRQ_ROUTING_MSI_X2APIC 5
 
 No flags are specified so far, the corresponding field must be set to zero.
 
@@ -1488,6 +1489,11 @@ struct kvm_irq_routing_hv_sint {
 	__u32 vcpu;
 	__u32 sint;
 };
+
+KVM_IRQ_ROUTING_MSI_X2APIC can be used if KVM_CAP_MSI_X2APIC is present.
+The entry uses struct kvm_irq_routing_msi and stores APIC ID bits 8-31 in
+address_hi bits 8-31.
+
 
 4.53 KVM_ASSIGN_SET_MSIX_NR (deprecated)
 
@@ -2166,7 +2172,10 @@ struct kvm_msi {
 	__u8  pad[16];
 };
 
-No flags are defined so far. The corresponding field must be 0.
+Valid flags are 0 and bitwise OR of any following:
+* KVM_SIGNAL_MSI_X2APIC
+  - valid with capability KVM_CAP_MSI_X2APIC
+  - address_hi bits 8-31 contain APIC ID bits 8-31
 
 
 4.71 KVM_CREATE_PIT2

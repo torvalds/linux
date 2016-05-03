@@ -117,6 +117,8 @@ void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 
 	irq->dest_id = (e->msi.address_lo &
 			MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
+	if (e->type == KVM_IRQ_ROUTING_MSI_X2APIC)
+		irq->dest_id |= MSI_ADDR_EXT_DEST_ID(e->msi.address_hi);
 	irq->vector = (e->msi.data &
 			MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
 	irq->dest_mode = (1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo;
@@ -150,7 +152,8 @@ int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 	struct kvm_lapic_irq irq;
 	int r;
 
-	if (unlikely(e->type != KVM_IRQ_ROUTING_MSI))
+	if (unlikely(e->type != KVM_IRQ_ROUTING_MSI &&
+	             e->type != KVM_IRQ_ROUTING_MSI_X2APIC))
 		return -EWOULDBLOCK;
 
 	kvm_set_msi_irq(e, &irq);
@@ -281,6 +284,7 @@ int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			goto out;
 		break;
 	case KVM_IRQ_ROUTING_MSI:
+	case KVM_IRQ_ROUTING_MSI_X2APIC:
 		e->set = kvm_set_msi;
 		e->msi.address_lo = ue->u.msi.address_lo;
 		e->msi.address_hi = ue->u.msi.address_hi;
@@ -393,7 +397,8 @@ void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
 		hlist_for_each_entry(entry, &table->map[i], link) {
 			struct kvm_lapic_irq irq;
 
-			if (entry->type != KVM_IRQ_ROUTING_MSI)
+			if (entry->type != KVM_IRQ_ROUTING_MSI &&
+			    entry->type != KVM_IRQ_ROUTING_MSI_X2APIC)
 				continue;
 
 			kvm_set_msi_irq(entry, &irq);
