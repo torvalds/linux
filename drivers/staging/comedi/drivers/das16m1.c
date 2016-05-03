@@ -70,7 +70,8 @@
 #define DAS16M1_CS_EXT_TRIG		BIT(0)
 #define DAS16M1_CS_OVRUN		BIT(5)
 #define DAS16M1_CS_IRQDATA		BIT(7)
-#define DAS16M1_DIO            3
+#define DAS16M1_DI_REG			0x03
+#define DAS16M1_DO_REG			0x03
 #define DAS16M1_CLEAR_INTR     4
 #define DAS16M1_INTR_CONTROL   5
 #define   EXT_PACER              0x2
@@ -351,7 +352,7 @@ static int das16m1_di_rbits(struct comedi_device *dev,
 {
 	unsigned int bits;
 
-	bits = inb(dev->iobase + DAS16M1_DIO) & 0xf;
+	bits = inb(dev->iobase + DAS16M1_DI_REG) & 0xf;
 	data[1] = bits;
 	data[0] = 0;
 
@@ -364,7 +365,7 @@ static int das16m1_do_wbits(struct comedi_device *dev,
 			    unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		outb(s->state, dev->iobase + DAS16M1_DIO);
+		outb(s->state, dev->iobase + DAS16M1_DO_REG);
 
 	data[1] = s->state;
 
@@ -596,7 +597,7 @@ static int das16m1_attach(struct comedi_device *dev,
 		return ret;
 
 	/*  initialize digital output lines */
-	outb(0, dev->iobase + DAS16M1_DIO);
+	outb(0, dev->iobase + DAS16M1_DO_REG);
 
 	/* set the interrupt level */
 	devpriv->control_state = das16m1_irq_bits(dev->irq) << 4;
