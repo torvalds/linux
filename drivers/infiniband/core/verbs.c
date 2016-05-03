@@ -48,6 +48,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_addr.h>
+#include <rdma/rw.h>
 
 #include "core_priv.h"
 
@@ -751,6 +752,16 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 {
 	struct ib_device *device = pd ? pd->device : qp_init_attr->xrcd->device;
 	struct ib_qp *qp;
+	int ret;
+
+	/*
+	 * If the callers is using the RDMA API calculate the resources
+	 * needed for the RDMA READ/WRITE operations.
+	 *
+	 * Note that these callers need to pass in a port number.
+	 */
+	if (qp_init_attr->cap.max_rdma_ctxs)
+		rdma_rw_init_qp(device, qp_init_attr);
 
 	qp = device->create_qp(pd, qp_init_attr, NULL);
 	if (IS_ERR(qp))
@@ -764,6 +775,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 	atomic_set(&qp->usecnt, 0);
 	qp->mrs_used = 0;
 	spin_lock_init(&qp->mr_lock);
+	INIT_LIST_HEAD(&qp->rdma_mrs);
 
 	if (qp_init_attr->qp_type == IB_QPT_XRC_TGT)
 		return ib_create_xrc_qp(qp, qp_init_attr);
@@ -787,6 +799,16 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 
 	atomic_inc(&pd->usecnt);
 	atomic_inc(&qp_init_attr->send_cq->usecnt);
+
+	if (qp_init_attr->cap.max_rdma_ctxs) {
+		ret = rdma_rw_init_mrs(qp, qp_init_attr);
+		if (ret) {
+			pr_err("failed to init MR pool ret= %d\n", ret);
+			ib_destroy_qp(qp);
+			qp = ERR_PTR(ret);
+		}
+	}
+
 	return qp;
 }
 EXPORT_SYMBOL(ib_create_qp);
@@ -1270,6 +1292,9 @@ int ib_destroy_qp(struct ib_qp *qp)
 	scq  = qp->send_cq;
 	rcq  = qp->recv_cq;
 	srq  = qp->srq;
+
+	if (!qp->uobject)
+		rdma_rw_cleanup_mrs(qp);
 
 	ret = qp->device->destroy_qp(qp);
 	if (!ret) {
