@@ -272,16 +272,30 @@ static void recover_worker(struct work_struct *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
 	struct drm_device *dev = gpu->dev;
+	struct msm_gem_submit *submit;
 	uint32_t fence = gpu->funcs->last_fence(gpu);
-
-	dev_err(dev->dev, "%s: hangcheck recover!\n", gpu->name);
 
 	msm_update_fence(gpu->fctx, fence + 1);
 
 	mutex_lock(&dev->struct_mutex);
-	if (msm_gpu_active(gpu)) {
-		struct msm_gem_submit *submit;
 
+	dev_err(dev->dev, "%s: hangcheck recover!\n", gpu->name);
+	list_for_each_entry(submit, &gpu->submit_list, node) {
+		if (submit->fence->seqno == (fence + 1)) {
+			struct task_struct *task;
+
+			rcu_read_lock();
+			task = pid_task(submit->pid, PIDTYPE_PID);
+			if (task) {
+				dev_err(dev->dev, "%s: offending task: %s\n",
+						gpu->name, task->comm);
+			}
+			rcu_read_unlock();
+			break;
+		}
+	}
+
+	if (msm_gpu_active(gpu)) {
 		/* retire completed submits, plus the one that hung: */
 		retire_submits(gpu);
 
@@ -293,6 +307,7 @@ static void recover_worker(struct work_struct *work)
 			gpu->funcs->submit(gpu, submit, NULL);
 		}
 	}
+
 	mutex_unlock(&dev->struct_mutex);
 
 	msm_gpu_retire(gpu);

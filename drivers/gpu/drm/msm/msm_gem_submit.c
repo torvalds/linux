@@ -45,6 +45,7 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 
 	submit->dev = dev;
 	submit->gpu = gpu;
+	submit->pid = get_pid(task_pid(current));
 
 	/* initially, until copy_from_user() and bo lookup succeeds: */
 	submit->nr_bos = 0;
@@ -60,6 +61,7 @@ void msm_gem_submit_free(struct msm_gem_submit *submit)
 {
 	fence_put(submit->fence);
 	list_del(&submit->node);
+	put_pid(submit->pid);
 	kfree(submit);
 }
 

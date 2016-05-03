@@ -86,6 +86,7 @@ struct msm_gem_submit {
 	struct list_head bo_list;
 	struct ww_acquire_ctx ticket;
 	struct fence *fence;
+	struct pid *pid;    /* submitting process */
 	bool valid;         /* true if no cmdstream patching needed */
 	unsigned int nr_cmds;
 	unsigned int nr_bos;
