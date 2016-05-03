@@ -13,6 +13,13 @@ Required properties:
 - clock-names: Must include the following additional entries:
 	- "pcie_phy"
 
+Optional properties:
+- fsl,tx-deemph-gen1: Gen1 De-emphasis value. Default: 0
+- fsl,tx-deemph-gen2-3p5db: Gen2 (3.5db) De-emphasis value. Default: 0
+- fsl,tx-deemph-gen2-6db: Gen2 (6db) De-emphasis value. Default: 20
+- fsl,tx-swing-full: Gen2 TX SWING FULL value. Default: 127
+- fsl,tx-swing-low: TX launch amplitude swing_low value. Default: 127
+
 Example:
 
 	pcie@0x01000000 {

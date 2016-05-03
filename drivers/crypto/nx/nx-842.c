@@ -308,7 +308,7 @@ int nx842_crypto_compress(struct crypto_tfm *tfm,
 		h = !n && add_header ? hdrsize : 0;
 
 		if (ignore)
-			pr_warn("interal error, ignore is set %x\n", ignore);
+			pr_warn("internal error, ignore is set %x\n", ignore);
 
 		ret = compress(ctx, &p, &hdr->group[n], &c, &ignore, h);
 		if (ret)

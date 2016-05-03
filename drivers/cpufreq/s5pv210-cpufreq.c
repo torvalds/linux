@@ -576,10 +576,8 @@ static struct cpufreq_driver s5pv210_driver = {
 	.get		= cpufreq_generic_get,
 	.init		= s5pv210_cpu_init,
 	.name		= "s5pv210",
-#ifdef CONFIG_PM
 	.suspend	= cpufreq_generic_suspend,
 	.resume		= cpufreq_generic_suspend, /* We need to set SLEEP FREQ again */
-#endif
 };
 
 static struct notifier_block s5pv210_cpufreq_reboot_notifier = {

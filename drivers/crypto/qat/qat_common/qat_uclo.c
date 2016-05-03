@@ -688,7 +688,7 @@ static int qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 	int mflag = 0;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 
-	for (ae = 0; ae <= max_ae; ae++) {
+	for (ae = 0; ae < max_ae; ae++) {
 		if (!test_bit(ae,
 			      (unsigned long *)&handle->hal_handle->ae_mask))
 			continue;

@@ -473,7 +473,7 @@
 
 		pinctrl_pwm3: pwm3grp {
 			fsl,pins = <
-				MX6QDL_PAD_SD4_DAT1__PWM3_OUT		0x1b0b1
+				MX6QDL_PAD_SD1_DAT1__PWM3_OUT		0x1b0b1
 			>;
 		};
 

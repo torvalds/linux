@@ -21,7 +21,7 @@
 /*
  * Time till a connection expires after last use (in seconds).
  */
-unsigned rxrpc_connection_expiry = 10 * 60;
+unsigned int rxrpc_connection_expiry = 10 * 60;
 
 static void rxrpc_connection_reaper(struct work_struct *work);
 
@@ -57,10 +57,10 @@ static struct rxrpc_conn_bundle *rxrpc_alloc_bundle(gfp_t gfp)
  */
 static inline
 int rxrpc_cmp_bundle(const struct rxrpc_conn_bundle *bundle,
-		     struct key *key, __be16 service_id)
+		     struct key *key, u16 service_id)
 {
 	return (bundle->service_id - service_id) ?:
-		((unsigned long) bundle->key - (unsigned long) key);
+		((unsigned long)bundle->key - (unsigned long)key);
 }
 
 /*
@@ -69,14 +69,14 @@ int rxrpc_cmp_bundle(const struct rxrpc_conn_bundle *bundle,
 struct rxrpc_conn_bundle *rxrpc_get_bundle(struct rxrpc_sock *rx,
 					   struct rxrpc_transport *trans,
 					   struct key *key,
-					   __be16 service_id,
+					   u16 service_id,
 					   gfp_t gfp)
 {
 	struct rxrpc_conn_bundle *bundle, *candidate;
 	struct rb_node *p, *parent, **pp;
 
 	_enter("%p{%x},%x,%hx,",
-	       rx, key_serial(key), trans->debug_id, ntohs(service_id));
+	       rx, key_serial(key), trans->debug_id, service_id);
 
 	if (rx->trans == trans && rx->bundle) {
 		atomic_inc(&rx->bundle->usage);
@@ -213,7 +213,7 @@ static struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		conn->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		conn->avail_calls = RXRPC_MAXCALLS;
 		conn->size_align = 4;
-		conn->header_size = sizeof(struct rxrpc_header);
+		conn->header_size = sizeof(struct rxrpc_wire_header);
 	}
 
 	_leave(" = %p{%d}", conn, conn ? conn->debug_id : 0);
@@ -230,7 +230,7 @@ static void rxrpc_assign_connection_id(struct rxrpc_connection *conn)
 	struct rxrpc_connection *xconn;
 	struct rb_node *parent, **p;
 	__be32 epoch;
-	u32 real_conn_id;
+	u32 cid;
 
 	_enter("");
 
@@ -241,7 +241,7 @@ static void rxrpc_assign_connection_id(struct rxrpc_connection *conn)
 	conn->trans->conn_idcounter += RXRPC_CID_INC;
 	if (conn->trans->conn_idcounter < RXRPC_CID_INC)
 		conn->trans->conn_idcounter = RXRPC_CID_INC;
-	real_conn_id = conn->trans->conn_idcounter;
+	cid = conn->trans->conn_idcounter;
 
 attempt_insertion:
 	parent = NULL;
@@ -255,9 +255,9 @@ attempt_insertion:
 			p = &(*p)->rb_left;
 		else if (epoch > xconn->epoch)
 			p = &(*p)->rb_right;
-		else if (real_conn_id < xconn->real_conn_id)
+		else if (cid < xconn->cid)
 			p = &(*p)->rb_left;
-		else if (real_conn_id > xconn->real_conn_id)
+		else if (cid > xconn->cid)
 			p = &(*p)->rb_right;
 		else
 			goto id_exists;
@@ -268,20 +268,19 @@ attempt_insertion:
 	rb_link_node(&conn->node, parent, p);
 	rb_insert_color(&conn->node, &conn->trans->client_conns);
 
-	conn->real_conn_id = real_conn_id;
-	conn->cid = htonl(real_conn_id);
+	conn->cid = cid;
 	write_unlock_bh(&conn->trans->conn_lock);
-	_leave(" [CONNID %x CID %x]", real_conn_id, ntohl(conn->cid));
+	_leave(" [CID %x]", cid);
 	return;
 
 	/* we found a connection with the proposed ID - walk the tree from that
 	 * point looking for the next unused ID */
 id_exists:
 	for (;;) {
-		real_conn_id += RXRPC_CID_INC;
-		if (real_conn_id < RXRPC_CID_INC) {
-			real_conn_id = RXRPC_CID_INC;
-			conn->trans->conn_idcounter = real_conn_id;
+		cid += RXRPC_CID_INC;
+		if (cid < RXRPC_CID_INC) {
+			cid = RXRPC_CID_INC;
+			conn->trans->conn_idcounter = cid;
 			goto attempt_insertion;
 		}
 
@@ -291,7 +290,7 @@ id_exists:
 
 		xconn = rb_entry(parent, struct rxrpc_connection, node);
 		if (epoch < xconn->epoch ||
-		    real_conn_id < xconn->real_conn_id)
+		    cid < xconn->cid)
 			goto attempt_insertion;
 	}
 }
@@ -334,7 +333,7 @@ static void rxrpc_add_call_ID_to_conn(struct rxrpc_connection *conn,
  */
 static int rxrpc_connect_exclusive(struct rxrpc_sock *rx,
 				   struct rxrpc_transport *trans,
-				   __be16 service_id,
+				   u16 service_id,
 				   struct rxrpc_call *call,
 				   gfp_t gfp)
 {
@@ -404,11 +403,11 @@ found_channel:
 	conn->channels[chan] = call;
 	call->conn = conn;
 	call->channel = chan;
-	call->cid = conn->cid | htonl(chan);
-	call->call_id = htonl(++conn->call_counter);
+	call->cid = conn->cid | chan;
+	call->call_id = ++conn->call_counter;
 
 	_net("CONNECT client on conn %d chan %d as call %x",
-	     conn->debug_id, chan, ntohl(call->call_id));
+	     conn->debug_id, chan, call->call_id);
 
 	spin_unlock(&trans->client_lock);
 
@@ -593,11 +592,11 @@ found_channel:
 	conn->channels[chan] = call;
 	call->conn = conn;
 	call->channel = chan;
-	call->cid = conn->cid | htonl(chan);
-	call->call_id = htonl(++conn->call_counter);
+	call->cid = conn->cid | chan;
+	call->call_id = ++conn->call_counter;
 
 	_net("CONNECT client on conn %d chan %d as call %x",
-	     conn->debug_id, chan, ntohl(call->call_id));
+	     conn->debug_id, chan, call->call_id);
 
 	ASSERTCMP(conn->avail_calls, <, RXRPC_MAXCALLS);
 	spin_unlock(&trans->client_lock);
@@ -620,21 +619,21 @@ interrupted:
  */
 struct rxrpc_connection *
 rxrpc_incoming_connection(struct rxrpc_transport *trans,
-			  struct rxrpc_header *hdr,
+			  struct rxrpc_host_header *hdr,
 			  gfp_t gfp)
 {
 	struct rxrpc_connection *conn, *candidate = NULL;
 	struct rb_node *p, **pp;
 	const char *new = "old";
 	__be32 epoch;
-	u32 conn_id;
+	u32 cid;
 
 	_enter("");
 
 	ASSERT(hdr->flags & RXRPC_CLIENT_INITIATED);
 
 	epoch = hdr->epoch;
-	conn_id = ntohl(hdr->cid) & RXRPC_CIDMASK;
+	cid = hdr->cid & RXRPC_CIDMASK;
 
 	/* search the connection list first */
 	read_lock_bh(&trans->conn_lock);
@@ -643,15 +642,15 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 	while (p) {
 		conn = rb_entry(p, struct rxrpc_connection, node);
 
-		_debug("maybe %x", conn->real_conn_id);
+		_debug("maybe %x", conn->cid);
 
 		if (epoch < conn->epoch)
 			p = p->rb_left;
 		else if (epoch > conn->epoch)
 			p = p->rb_right;
-		else if (conn_id < conn->real_conn_id)
+		else if (cid < conn->cid)
 			p = p->rb_left;
-		else if (conn_id > conn->real_conn_id)
+		else if (cid > conn->cid)
 			p = p->rb_right;
 		else
 			goto found_extant_connection;
@@ -668,12 +667,11 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 
 	candidate->trans = trans;
 	candidate->epoch = hdr->epoch;
-	candidate->cid = hdr->cid & cpu_to_be32(RXRPC_CIDMASK);
+	candidate->cid = hdr->cid & RXRPC_CIDMASK;
 	candidate->service_id = hdr->serviceId;
 	candidate->security_ix = hdr->securityIndex;
 	candidate->in_clientflag = RXRPC_CLIENT_INITIATED;
 	candidate->out_clientflag = 0;
-	candidate->real_conn_id = conn_id;
 	candidate->state = RXRPC_CONN_SERVER;
 	if (candidate->service_id)
 		candidate->state = RXRPC_CONN_SERVER_UNSECURED;
@@ -690,9 +688,9 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 			pp = &(*pp)->rb_left;
 		else if (epoch > conn->epoch)
 			pp = &(*pp)->rb_right;
-		else if (conn_id < conn->real_conn_id)
+		else if (cid < conn->cid)
 			pp = &(*pp)->rb_left;
-		else if (conn_id > conn->real_conn_id)
+		else if (cid > conn->cid)
 			pp = &(*pp)->rb_right;
 		else
 			goto found_extant_second;
@@ -714,7 +712,7 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 	new = "new";
 
 success:
-	_net("CONNECTION %s %d {%x}", new, conn->debug_id, conn->real_conn_id);
+	_net("CONNECTION %s %d {%x}", new, conn->debug_id, conn->cid);
 
 	_leave(" = %p {u=%d}", conn, atomic_read(&conn->usage));
 	return conn;
@@ -751,18 +749,17 @@ security_mismatch:
  * packet
  */
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *trans,
-					       struct rxrpc_header *hdr)
+					       struct rxrpc_host_header *hdr)
 {
 	struct rxrpc_connection *conn;
 	struct rb_node *p;
-	__be32 epoch;
-	u32 conn_id;
+	u32 epoch, cid;
 
-	_enter(",{%x,%x}", ntohl(hdr->cid), hdr->flags);
+	_enter(",{%x,%x}", hdr->cid, hdr->flags);
 
 	read_lock_bh(&trans->conn_lock);
 
-	conn_id = ntohl(hdr->cid) & RXRPC_CIDMASK;
+	cid = hdr->cid & RXRPC_CIDMASK;
 	epoch = hdr->epoch;
 
 	if (hdr->flags & RXRPC_CLIENT_INITIATED)
@@ -773,15 +770,15 @@ struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *trans,
 	while (p) {
 		conn = rb_entry(p, struct rxrpc_connection, node);
 
-		_debug("maybe %x", conn->real_conn_id);
+		_debug("maybe %x", conn->cid);
 
 		if (epoch < conn->epoch)
 			p = p->rb_left;
 		else if (epoch > conn->epoch)
 			p = p->rb_right;
-		else if (conn_id < conn->real_conn_id)
+		else if (cid < conn->cid)
 			p = p->rb_left;
-		else if (conn_id > conn->real_conn_id)
+		else if (cid > conn->cid)
 			p = p->rb_right;
 		else
 			goto found;

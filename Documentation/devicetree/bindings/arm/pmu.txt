@@ -25,6 +25,7 @@ Required properties:
 	"qcom,scorpion-pmu"
 	"qcom,scorpion-mp-pmu"
 	"qcom,krait-pmu"
+	"cavium,thunder-pmu"
 - interrupts : 1 combined interrupt or 1 per core. If the interrupt is a per-cpu
                interrupt (PPI) then 1 interrupt should be specified.
 
@@ -45,6 +46,16 @@ Optional properties:
 
 - qcom,no-pc-write : Indicates that this PMU doesn't support the 0xc and 0xd
                      events.
+
+- secure-reg-access : Indicates that the ARMv7 Secure Debug Enable Register
+		      (SDER) is accessible. This will cause the driver to do
+		      any setup required that is only possible in ARMv7 secure
+		      state. If not present the ARMv7 SDER will not be touched,
+		      which means the PMU may fail to operate unless external
+		      code (bootloader or security monitor) has performed the
+		      appropriate initialisation. Note that this property is
+		      not valid for non-ARMv7 CPUs or ARMv7 CPUs booting Linux
+		      in Non-secure state.
 
 Example:
 

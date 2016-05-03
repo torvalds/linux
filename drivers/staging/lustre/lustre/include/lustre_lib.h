@@ -153,9 +153,9 @@ struct obd_ioctl_data {
 
 	/* buffers the kernel will treat as user pointers */
 	__u32  ioc_plen1;
-	char  *ioc_pbuf1;
+	void __user *ioc_pbuf1;
 	__u32  ioc_plen2;
-	char  *ioc_pbuf2;
+	void __user *ioc_pbuf2;
 
 	/* inline buffers for various arguments */
 	__u32  ioc_inllen1;
@@ -252,8 +252,8 @@ static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 #include "obd_support.h"
 
 /* function defined in lustre/obdclass/<platform>/<platform>-module.c */
-int obd_ioctl_getdata(char **buf, int *len, void *arg);
-int obd_ioctl_popdata(void *arg, void *data, int len);
+int obd_ioctl_getdata(char **buf, int *len, void __user *arg);
+int obd_ioctl_popdata(void __user *arg, void *data, int len);
 
 static inline void obd_ioctl_freedata(char *buf, int len)
 {
@@ -365,10 +365,10 @@ static inline void obd_ioctl_freedata(char *buf, int len)
 /* OBD_IOC_LLOG_CATINFO is deprecated */
 #define OBD_IOC_LLOG_CATINFO	   _IOWR('f', 196, OBD_IOC_DATA_TYPE)
 
-#define ECHO_IOC_GET_STRIPE	    _IOWR('f', 200, OBD_IOC_DATA_TYPE)
-#define ECHO_IOC_SET_STRIPE	    _IOWR('f', 201, OBD_IOC_DATA_TYPE)
-#define ECHO_IOC_ENQUEUE	       _IOWR('f', 202, OBD_IOC_DATA_TYPE)
-#define ECHO_IOC_CANCEL		_IOWR('f', 203, OBD_IOC_DATA_TYPE)
+/*	#define ECHO_IOC_GET_STRIPE    _IOWR('f', 200, OBD_IOC_DATA_TYPE) */
+/*	#define ECHO_IOC_SET_STRIPE    _IOWR('f', 201, OBD_IOC_DATA_TYPE) */
+/*	#define ECHO_IOC_ENQUEUE       _IOWR('f', 202, OBD_IOC_DATA_TYPE) */
+/*	#define ECHO_IOC_CANCEL        _IOWR('f', 203, OBD_IOC_DATA_TYPE) */
 
 #define OBD_IOC_GET_OBJ_VERSION	_IOR('f', 210, OBD_IOC_DATA_TYPE)
 
@@ -387,7 +387,8 @@ static inline void obd_ioctl_freedata(char *buf, int len)
  */
 
 /* Until such time as we get_info the per-stripe maximum from the OST,
- * we define this to be 2T - 4k, which is the ext3 maxbytes. */
+ * we define this to be 2T - 4k, which is the ext3 maxbytes.
+ */
 #define LUSTRE_STRIPE_MAXBYTES 0x1fffffff000ULL
 
 /* Special values for remove LOV EA from disk */
@@ -540,7 +541,7 @@ do {									   \
 	l_add_wait(&wq, &__wait);					      \
 									       \
 	/* Block all signals (just the non-fatal ones if no timeout). */       \
-	if (info->lwi_on_signal != NULL && (__timeout == 0 || __allow_intr))   \
+	if (info->lwi_on_signal && (__timeout == 0 || __allow_intr))   \
 		__blocked = cfs_block_sigsinv(LUSTRE_FATAL_SIGS);	      \
 	else								   \
 		__blocked = cfs_block_sigsinv(0);			      \
@@ -562,13 +563,13 @@ do {									   \
 			__timeout = cfs_time_sub(__timeout,		    \
 					    cfs_time_sub(interval, remaining));\
 			if (__timeout == 0) {				  \
-				if (info->lwi_on_timeout == NULL ||	    \
+				if (!info->lwi_on_timeout ||		      \
 				    info->lwi_on_timeout(info->lwi_cb_data)) { \
 					ret = -ETIMEDOUT;		      \
 					break;				 \
 				}					      \
 				/* Take signals after the timeout expires. */  \
-				if (info->lwi_on_signal != NULL)	       \
+				if (info->lwi_on_signal)		       \
 				    (void)cfs_block_sigsinv(LUSTRE_FATAL_SIGS);\
 			}						      \
 		}							      \
@@ -578,7 +579,7 @@ do {									   \
 		if (condition)						 \
 			break;						 \
 		if (cfs_signal_pending()) {				    \
-			if (info->lwi_on_signal != NULL &&		     \
+			if (info->lwi_on_signal &&		     \
 			    (__timeout == 0 || __allow_intr)) {		\
 				if (info->lwi_on_signal != LWI_ON_SIGNAL_NOOP) \
 					info->lwi_on_signal(info->lwi_cb_data);\

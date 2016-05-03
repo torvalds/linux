@@ -101,7 +101,6 @@ static int lovsub_device_init(const struct lu_env *env, struct lu_device *d,
 
 	next->ld_site = d->ld_site;
 	ldt = next->ld_type;
-	LASSERT(ldt != NULL);
 	rc = ldt->ldt_ops->ldto_device_init(env, next, ldt->ldt_name, NULL);
 	if (rc) {
 		next->ld_site = NULL;
@@ -148,8 +147,8 @@ static int lovsub_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct lovsub_req *lsr;
 	int result;
 
-	lsr = kmem_cache_alloc(lovsub_req_kmem, GFP_NOFS | __GFP_ZERO);
-	if (lsr != NULL) {
+	lsr = kmem_cache_zalloc(lovsub_req_kmem, GFP_NOFS);
+	if (lsr) {
 		cl_req_slice_add(req, &lsr->lsrq_cl, dev, &lovsub_req_ops);
 		result = 0;
 	} else
@@ -175,7 +174,7 @@ static struct lu_device *lovsub_device_alloc(const struct lu_env *env,
 	struct lovsub_device *lsd;
 
 	lsd = kzalloc(sizeof(*lsd), GFP_NOFS);
-	if (lsd != NULL) {
+	if (lsd) {
 		int result;
 
 		result = cl_device_init(&lsd->acid_cl, t);

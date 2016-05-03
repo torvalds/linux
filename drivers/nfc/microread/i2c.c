@@ -246,17 +246,9 @@ static int microread_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
 {
 	struct microread_i2c_phy *phy;
-	struct microread_nfc_platform_data *pdata =
-		dev_get_platdata(&client->dev);
 	int r;
 
 	dev_dbg(&client->dev, "client %p\n", client);
-
-	if (!pdata) {
-		nfc_err(&client->dev, "client %p: missing platform data\n",
-			client);
-		return -EINVAL;
-	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct microread_i2c_phy),
 			   GFP_KERNEL);

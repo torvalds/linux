@@ -254,8 +254,8 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 	if (status & SSSR_ROR) {
 		dev_err(&drv_data->pdev->dev, "FIFO overrun\n");
 
-		dmaengine_terminate_all(drv_data->rx_chan);
-		dmaengine_terminate_all(drv_data->tx_chan);
+		dmaengine_terminate_async(drv_data->rx_chan);
+		dmaengine_terminate_async(drv_data->tx_chan);
 
 		pxa2xx_spi_dma_transfer_complete(drv_data, true);
 		return IRQ_HANDLED;
@@ -331,13 +331,13 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 void pxa2xx_spi_dma_release(struct driver_data *drv_data)
 {
 	if (drv_data->rx_chan) {
-		dmaengine_terminate_all(drv_data->rx_chan);
+		dmaengine_terminate_sync(drv_data->rx_chan);
 		dma_release_channel(drv_data->rx_chan);
 		sg_free_table(&drv_data->rx_sgt);
 		drv_data->rx_chan = NULL;
 	}
 	if (drv_data->tx_chan) {
-		dmaengine_terminate_all(drv_data->tx_chan);
+		dmaengine_terminate_sync(drv_data->tx_chan);
 		dma_release_channel(drv_data->tx_chan);
 		sg_free_table(&drv_data->tx_sgt);
 		drv_data->tx_chan = NULL;

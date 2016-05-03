@@ -19,6 +19,10 @@
 		};
 	};
 
+	chosen {
+		stdout-path = &uart0;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -63,12 +67,28 @@
 		default-brightness-level = <6>;
 	};
 
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* audio external oscillator */
+		tlv320aic3x_mclk: oscillator@0 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency  = <24576000>;	/* 24.576MHz */
+		};
+	};
+
 	sound {
 		compatible = "ti,da830-evm-audio";
 		ti,model = "AM335x-SL50";
 		ti,audio-codec = <&audio_codec>;
 		ti,mcasp-controller = <&mcasp0>;
-		ti,codec-clock-rate = <12000000>;
+
+		clocks = <&tlv320aic3x_mclk>;
+		clock-names = "mclk";
+
 		ti,audio-routing =
 			"Headphone Jack",	"HPLOUT",
 			"Headphone Jack",	"HPROUT",
@@ -226,7 +246,7 @@
 			AM33XX_IOPAD(0x994, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_fsx.mcasp0_fsx */
 			AM33XX_IOPAD(0x990, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_aclkx.mcasp0_aclkx */
 			AM33XX_IOPAD(0x998, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_axr0.mcasp0_axr0 */
-			AM33XX_IOPAD(0x99c, PIN_INPUT_PULLDOWN | MUX_MODE2)	/* mcasp0_ahclkr.mcasp0_axr2*/
+			AM33XX_IOPAD(0x99c, PIN_OUTPUT_PULLDOWN | MUX_MODE2)	/* mcasp0_ahclkr.mcasp0_axr2 */
 		>;
 	};
 
@@ -375,19 +395,16 @@
 	pinctrl-0 = <&uart4_pins>;
 };
 
+#include "tps65217.dtsi"
+
 &tps {
-	compatible = "ti,tps65217";
 	ti,pmic-shutdown-controller;
 
 	interrupt-parent = <&intc>;
 	interrupts = <7>;	/* NNMI */
 
 	regulators {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		dcdc1_reg: regulator@0 {
-			reg = <0>;
 			/* VDDS_DDR */
 			regulator-min-microvolt = <1500000>;
 			regulator-max-microvolt = <1500000>;
@@ -395,7 +412,6 @@
 		};
 
 		dcdc2_reg: regulator@1 {
-			reg = <1>;
 			/* VDD_MPU voltage limits 0.95V - 1.26V with +/-4% tolerance */
 			regulator-name = "vdd_mpu";
 			regulator-min-microvolt = <925000>;
@@ -405,7 +421,6 @@
 		};
 
 		dcdc3_reg: regulator@2 {
-			reg = <2>;
 			/* VDD_CORE voltage limits 0.95V - 1.1V with +/-4% tolerance */
 			regulator-name = "vdd_core";
 			regulator-min-microvolt = <925000>;
@@ -415,7 +430,6 @@
 		};
 
 		ldo1_reg: regulator@3 {
-			reg = <3>;
 			/* VRTC / VIO / VDDS*/
 			regulator-always-on;
 			regulator-min-microvolt = <1800000>;
@@ -423,7 +437,6 @@
 		};
 
 		ldo2_reg: regulator@4 {
-			reg = <4>;
 			/* VDD_3V3AUX */
 			regulator-always-on;
 			regulator-min-microvolt = <3300000>;
@@ -431,7 +444,6 @@
 		};
 
 		ldo3_reg: regulator@5 {
-			reg = <5>;
 			/* VDD_1V8 */
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
@@ -439,7 +451,6 @@
 		};
 
 		ldo4_reg: regulator@6 {
-			reg = <6>;
 			/* VDD_3V3A */
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;

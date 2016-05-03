@@ -1672,11 +1672,12 @@ void bnx2x_vf_handle_classification_eqe(struct bnx2x *bp,
 {
 	unsigned long ramrod_flags = 0;
 	int rc = 0;
+	u32 echo = le32_to_cpu(elem->message.data.eth_event.echo);
 
 	/* Always push next commands out, don't wait here */
 	set_bit(RAMROD_CONT, &ramrod_flags);
 
-	switch (elem->message.data.eth_event.echo >> BNX2X_SWCID_SHIFT) {
+	switch (echo >> BNX2X_SWCID_SHIFT) {
 	case BNX2X_FILTER_MAC_PENDING:
 		rc = vfq->mac_obj.complete(bp, &vfq->mac_obj, elem,
 					   &ramrod_flags);
@@ -1686,8 +1687,7 @@ void bnx2x_vf_handle_classification_eqe(struct bnx2x *bp,
 					    &ramrod_flags);
 		break;
 	default:
-		BNX2X_ERR("Unsupported classification command: %d\n",
-			  elem->message.data.eth_event.echo);
+		BNX2X_ERR("Unsupported classification command: 0x%x\n", echo);
 		return;
 	}
 	if (rc < 0)
@@ -1747,16 +1747,14 @@ int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem)
 
 	switch (opcode) {
 	case EVENT_RING_OPCODE_CFC_DEL:
-		cid = SW_CID((__force __le32)
-			     elem->message.data.cfc_del_event.cid);
+		cid = SW_CID(elem->message.data.cfc_del_event.cid);
 		DP(BNX2X_MSG_IOV, "checking cfc-del comp cid=%d\n", cid);
 		break;
 	case EVENT_RING_OPCODE_CLASSIFICATION_RULES:
 	case EVENT_RING_OPCODE_MULTICAST_RULES:
 	case EVENT_RING_OPCODE_FILTERS_RULES:
 	case EVENT_RING_OPCODE_RSS_UPDATE_RULES:
-		cid = (elem->message.data.eth_event.echo &
-		       BNX2X_SWCID_MASK);
+		cid = SW_CID(elem->message.data.eth_event.echo);
 		DP(BNX2X_MSG_IOV, "checking filtering comp cid=%d\n", cid);
 		break;
 	case EVENT_RING_OPCODE_VF_FLR:

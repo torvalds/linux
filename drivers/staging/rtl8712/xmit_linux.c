@@ -70,10 +70,7 @@ uint _r8712_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 
 sint r8712_endofpktfile(struct pkt_file *pfile)
 {
-	if (pfile->pkt_len == 0)
-		return true;
-	else
-		return false;
+	return (pfile->pkt_len == 0);
 }
 
 
@@ -131,7 +128,7 @@ int r8712_xmit_resource_alloc(struct _adapter *padapter,
 
 	for (i = 0; i < 8; i++) {
 		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
-		if (pxmitbuf->pxmit_urb[i] == NULL) {
+		if (!pxmitbuf->pxmit_urb[i]) {
 			netdev_err(padapter->pnetdev, "pxmitbuf->pxmit_urb[i] == NULL\n");
 			return _FAIL;
 		}
@@ -164,19 +161,15 @@ int r8712_xmit_entry(_pkt *pkt, struct  net_device *pnetdev)
 	struct xmit_frame *pxmitframe = NULL;
 	struct _adapter *padapter = netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
-	int ret = 0;
 
 	if (!r8712_if_up(padapter)) {
-		ret = 0;
 		goto _xmit_entry_drop;
 	}
 	pxmitframe = r8712_alloc_xmitframe(pxmitpriv);
-	if (pxmitframe == NULL) {
-		ret = 0;
+	if (!pxmitframe) {
 		goto _xmit_entry_drop;
 	}
 	if ((!r8712_update_attrib(padapter, pkt, &pxmitframe->attrib))) {
-		ret = 0;
 		goto _xmit_entry_drop;
 	}
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_TX);
@@ -188,11 +181,11 @@ int r8712_xmit_entry(_pkt *pkt, struct  net_device *pnetdev)
 	}
 	pxmitpriv->tx_pkts++;
 	pxmitpriv->tx_bytes += pxmitframe->attrib.last_txcmdsz;
-	return ret;
+	return 0;
 _xmit_entry_drop:
 	if (pxmitframe)
 		r8712_free_xmitframe(pxmitpriv, pxmitframe);
 	pxmitpriv->tx_drop++;
 	dev_kfree_skb_any(pkt);
-	return ret;
+	return 0;
 }

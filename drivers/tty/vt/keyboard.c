@@ -1706,16 +1706,12 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
 			return -EINVAL;
 
 		if (ct) {
-			dia = kmalloc(sizeof(struct kbdiacr) * ct,
-								GFP_KERNEL);
-			if (!dia)
-				return -ENOMEM;
 
-			if (copy_from_user(dia, a->kbdiacr,
-					sizeof(struct kbdiacr) * ct)) {
-				kfree(dia);
-				return -EFAULT;
-			}
+			dia = memdup_user(a->kbdiacr,
+					sizeof(struct kbdiacr) * ct);
+			if (IS_ERR(dia))
+				return PTR_ERR(dia);
+
 		}
 
 		spin_lock_irqsave(&kbd_event_lock, flags);

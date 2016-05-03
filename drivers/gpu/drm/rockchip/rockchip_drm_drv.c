@@ -55,14 +55,12 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 
 	return arm_iommu_attach_device(dev, mapping);
 }
-EXPORT_SYMBOL_GPL(rockchip_drm_dma_attach_device);
 
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev)
 {
 	arm_iommu_detach_device(dev);
 }
-EXPORT_SYMBOL_GPL(rockchip_drm_dma_detach_device);
 
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs)
@@ -77,7 +75,6 @@ int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rockchip_register_crtc_funcs);
 
 void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 {
@@ -89,7 +86,6 @@ void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 
 	priv->crtc_funcs[pipe] = NULL;
 }
-EXPORT_SYMBOL_GPL(rockchip_unregister_crtc_funcs);
 
 static struct drm_crtc *rockchip_crtc_from_pipe(struct drm_device *drm,
 						int pipe)
@@ -387,36 +383,6 @@ static const struct dev_pm_ops rockchip_drm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(rockchip_drm_sys_suspend,
 				rockchip_drm_sys_resume)
 };
-
-/*
- * @node: device tree node containing encoder input ports
- * @encoder: drm_encoder
- */
-int rockchip_drm_encoder_get_mux_id(struct device_node *node,
-				    struct drm_encoder *encoder)
-{
-	struct device_node *ep;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct of_endpoint endpoint;
-	struct device_node *port;
-	int ret;
-
-	if (!node || !crtc)
-		return -EINVAL;
-
-	for_each_endpoint_of_node(node, ep) {
-		port = of_graph_get_remote_port(ep);
-		of_node_put(port);
-		if (port == crtc->port) {
-			ret = of_graph_parse_endpoint(ep, &endpoint);
-			of_node_put(ep);
-			return ret ?: endpoint.id;
-		}
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(rockchip_drm_encoder_get_mux_id);
 
 static int compare_of(struct device *dev, void *data)
 {

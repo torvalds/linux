@@ -172,16 +172,15 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 		spin_unlock_bh(&pstapriv->sta_hash_lock);
 		/*===============================*/
 
-		if (pstapriv->pallocated_stainfo_buf)
-			vfree(pstapriv->pallocated_stainfo_buf);
+		vfree(pstapriv->pallocated_stainfo_buf);
 	}
 
 	return _SUCCESS;
 }
 
-struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
+struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 {
-	s32	index;
+	s32 index;
 	struct list_head *phash_list;
 	struct sta_info	*psta;
 	struct __queue *pfree_sta_queue;
@@ -189,17 +188,15 @@ struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	int i = 0;
 	u16  wRxSeqInitialValue = 0xffff;
 
-
 	pfree_sta_queue = &pstapriv->free_sta_queue;
 
-	spin_lock_bh(&(pfree_sta_queue->lock));
-
-	if (list_empty(&pfree_sta_queue->queue)) {
+	spin_lock_bh(&pfree_sta_queue->lock);
+	psta = list_first_entry_or_null(&pfree_sta_queue->queue,
+					struct sta_info, list);
+	if (!psta) {
 		spin_unlock_bh(&pfree_sta_queue->lock);
-		psta = NULL;
 	} else {
-		psta = container_of((&pfree_sta_queue->queue)->next, struct sta_info, list);
-		list_del_init(&(psta->list));
+		list_del_init(&psta->list);
 		spin_unlock_bh(&pfree_sta_queue->lock);
 		_rtw_init_stainfo(psta);
 		memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
@@ -210,14 +207,11 @@ struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 			psta = NULL;
 			goto exit;
 		}
-		phash_list = &(pstapriv->sta_hash[index]);
+		phash_list = &pstapriv->sta_hash[index];
 
-		spin_lock_bh(&(pstapriv->sta_hash_lock));
-
+		spin_lock_bh(&pstapriv->sta_hash_lock);
 		list_add_tail(&psta->hash_list, phash_list);
-
 		pstapriv->asoc_sta_count++;
-
 		spin_unlock_bh(&pstapriv->sta_hash_lock);
 
 /*  Commented by Albert 2009/08/13 */
@@ -493,11 +487,9 @@ exit:
 
 struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter)
 {
-	struct sta_info		*psta;
 	struct sta_priv		*pstapriv = &padapter->stapriv;
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	 psta = rtw_get_stainfo(pstapriv, bc_addr);
-	return psta;
+	 return rtw_get_stainfo(pstapriv, bc_addr);
 }
 
 u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)

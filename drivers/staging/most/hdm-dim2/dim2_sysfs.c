@@ -63,7 +63,6 @@ static ssize_t bus_kobj_attr_show(struct kobject *kobj, struct attribute *attr,
 static ssize_t bus_kobj_attr_store(struct kobject *kobj, struct attribute *attr,
 				   const char *buf, size_t count)
 {
-	ssize_t ret;
 	struct medialb_bus *bus =
 		container_of(kobj, struct medialb_bus, kobj_group);
 	struct bus_attr *xattr = container_of(attr, struct bus_attr, attr);
@@ -71,8 +70,7 @@ static ssize_t bus_kobj_attr_store(struct kobject *kobj, struct attribute *attr,
 	if (!xattr->store)
 		return -EIO;
 
-	ret = xattr->store(bus, buf, count);
-	return ret;
+	return xattr->store(bus, buf, count);
 }
 
 static struct sysfs_ops const bus_kobj_sysfs_ops = {

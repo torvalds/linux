@@ -53,6 +53,10 @@ struct sst_dsp_device;
 /* HIPCT */
 #define SKL_ADSP_REG_HIPCT_BUSY		BIT(31)
 
+/* FW base IDs */
+#define SKL_INSTANCE_ID			0
+#define SKL_BASE_FW_MODULE_ID		0
+
 /* Intel HD Audio SRAM Window 1 */
 #define SKL_ADSP_SRAM1_BASE		0xA000
 
@@ -144,7 +148,8 @@ int skl_cldma_prepare(struct sst_dsp *ctx);
 void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state);
 struct sst_dsp *skl_dsp_ctx_init(struct device *dev,
 		struct sst_dsp_device *sst_dev, int irq);
-int skl_dsp_disable_core(struct sst_dsp  *ctx);
+int skl_dsp_enable_core(struct sst_dsp *ctx);
+int skl_dsp_disable_core(struct sst_dsp *ctx);
 bool is_skl_dsp_running(struct sst_dsp *ctx);
 irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id);
 int skl_dsp_wake(struct sst_dsp *ctx);

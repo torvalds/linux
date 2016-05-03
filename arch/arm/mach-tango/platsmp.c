@@ -9,7 +9,7 @@ static int tango_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-static struct smp_operations tango_smp_ops __initdata = {
+static const struct smp_operations tango_smp_ops __initconst = {
 	.smp_boot_secondary	= tango_boot_secondary,
 };
 

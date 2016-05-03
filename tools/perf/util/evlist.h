@@ -294,4 +294,7 @@ void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
 				     struct perf_evsel *tracking_evsel);
 
 void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr);
+
+struct perf_evsel *
+perf_evlist__find_evsel_by_str(struct perf_evlist *evlist, const char *str);
 #endif /* __PERF_EVLIST_H */

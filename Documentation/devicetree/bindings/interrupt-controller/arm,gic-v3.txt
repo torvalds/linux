@@ -24,9 +24,8 @@ Main node required properties:
 		1 = edge triggered
 		4 = level triggered
 
-  Cells 4 and beyond are reserved for future use. When the 1st cell
-  has a value of 0 or 1, cells 4 and beyond act as padding, and may be
-  ignored. It is recommended that padding cells have a value of 0.
+  Cells 4 and beyond are reserved for future use and must have a value
+  of 0 if present.
 
 - reg : Specifies base physical address(s) and size of the GIC
   registers, in the following order:

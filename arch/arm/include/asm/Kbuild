@@ -1,6 +1,7 @@
 
 
 generic-y += bitsperlong.h
+generic-y += clkdev.h
 generic-y += cputime.h
 generic-y += current.h
 generic-y += early_ioremap.h
@@ -23,7 +24,6 @@ generic-y += preempt.h
 generic-y += resource.h
 generic-y += rwsem.h
 generic-y += seccomp.h
-generic-y += sections.h
 generic-y += segment.h
 generic-y += sembuf.h
 generic-y += serial.h

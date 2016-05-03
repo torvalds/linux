@@ -1572,7 +1572,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 #endif
 		return;
 	}
-	port->flags |= ASYNC_CLOSING;
+	info->closing = 1;
 
 	tty->closing = 1;
 	/*
@@ -1603,6 +1603,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 	info->ncarrier = 0;
 
 	tty_port_close_end(port, tty);
+	info->closing = 0;
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_close normal exit\n");
 #endif
@@ -2236,7 +2237,7 @@ isdn_tty_at_cout(char *msg, modem_info *info)
 	l = strlen(msg);
 
 	spin_lock_irqsave(&info->readlock, flags);
-	if (port->flags & ASYNC_CLOSING) {
+	if (info->closing) {
 		spin_unlock_irqrestore(&info->readlock, flags);
 		return;
 	}
@@ -2386,13 +2387,12 @@ isdn_tty_modem_result(int code, modem_info *info)
 	case RESULT_NO_CARRIER:
 #ifdef ISDN_DEBUG_MODEM_HUP
 		printk(KERN_DEBUG "modem_result: NO CARRIER %d %d\n",
-		       (info->port.flags & ASYNC_CLOSING),
-		       (!info->port.tty));
+		       info->closing, !info->port.tty);
 #endif
 		m->mdmreg[REG_RINGCNT] = 0;
 		del_timer(&info->nc_timer);
 		info->ncarrier = 0;
-		if ((info->port.flags & ASYNC_CLOSING) || (!info->port.tty))
+		if (info->closing || !info->port.tty)
 			return;
 
 #ifdef CONFIG_ISDN_AUDIO
@@ -2525,7 +2525,7 @@ isdn_tty_modem_result(int code, modem_info *info)
 		}
 	}
 	if (code == RESULT_NO_CARRIER) {
-		if ((info->port.flags & ASYNC_CLOSING) || (!info->port.tty))
+		if (info->closing || (!info->port.tty))
 			return;
 
 		if (info->port.flags & ASYNC_CHECK_CD)

@@ -3735,7 +3735,7 @@ static void net2280_shutdown(struct pci_dev *pdev)
 /*-------------------------------------------------------------------------*/
 
 static const struct pci_device_id pci_ids[] = { {
-	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class =	PCI_CLASS_SERIAL_USB_DEVICE,
 	.class_mask =	~0,
 	.vendor =	PCI_VENDOR_ID_PLX_LEGACY,
 	.device =	0x2280,
@@ -3743,7 +3743,7 @@ static const struct pci_device_id pci_ids[] = { {
 	.subdevice =	PCI_ANY_ID,
 	.driver_data =	PLX_LEGACY | PLX_2280,
 	}, {
-	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class =	PCI_CLASS_SERIAL_USB_DEVICE,
 	.class_mask =	~0,
 	.vendor =	PCI_VENDOR_ID_PLX_LEGACY,
 	.device =	0x2282,
@@ -3752,7 +3752,7 @@ static const struct pci_device_id pci_ids[] = { {
 	.driver_data =	PLX_LEGACY,
 	},
 	{
-	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class =	PCI_CLASS_SERIAL_USB_DEVICE,
 	.class_mask =	~0,
 	.vendor =	PCI_VENDOR_ID_PLX,
 	.device =	0x3380,
@@ -3761,7 +3761,7 @@ static const struct pci_device_id pci_ids[] = { {
 	.driver_data =	PLX_SUPERSPEED,
 	 },
 	{
-	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class =	PCI_CLASS_SERIAL_USB_DEVICE,
 	.class_mask =	~0,
 	.vendor =	PCI_VENDOR_ID_PLX,
 	.device =	0x3382,

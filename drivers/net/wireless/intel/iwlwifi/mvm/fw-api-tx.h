@@ -510,6 +510,9 @@ struct iwl_mvm_tx_resp {
  * @scd_ssn: the index of the last contiguously sent packet
  * @txed: number of Txed frames in this batch
  * @txed_2_done: number of Acked frames in this batch
+ * @reduced_txp: power reduced according to TPC. This is the actual value and
+ *	not a copy from the LQ command. Thus, if not the first rate was used
+ *	for Tx-ing then this value will be set to 0 by FW.
  */
 struct iwl_mvm_ba_notif {
 	__le32 sta_addr_lo32;
@@ -524,7 +527,8 @@ struct iwl_mvm_ba_notif {
 	__le16 scd_ssn;
 	u8 txed;
 	u8 txed_2_done;
-	__le16 reserved1;
+	u8 reduced_txp;
+	u8 reserved1;
 } __packed;
 
 /*

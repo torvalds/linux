@@ -631,6 +631,12 @@ static int fimc_is_hw_open_sensor(struct fimc_is *is,
 
 	fimc_is_mem_barrier();
 
+	/*
+	 * Some user space use cases hang up here without this
+	 * empirically chosen delay.
+	 */
+	udelay(100);
+
 	mcuctl_write(HIC_OPEN_SENSOR, is, MCUCTL_REG_ISSR(0));
 	mcuctl_write(is->sensor_index, is, MCUCTL_REG_ISSR(1));
 	mcuctl_write(sensor->drvdata->id, is, MCUCTL_REG_ISSR(2));

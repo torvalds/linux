@@ -8,7 +8,7 @@ Original copyright statements from cpusets.txt:
 Portions Copyright (C) 2004 BULL SA.
 Portions Copyright (c) 2004-2006 Silicon Graphics, Inc.
 Modified by Paul Jackson <pj@sgi.com>
-Modified by Christoph Lameter <clameter@sgi.com>
+Modified by Christoph Lameter <cl@linux.com>
 
 CONTENTS:
 =========

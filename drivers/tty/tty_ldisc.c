@@ -140,9 +140,16 @@ static void put_ldops(struct tty_ldisc_ops *ldops)
  *	@disc: ldisc number
  *
  *	Takes a reference to a line discipline. Deals with refcounts and
- *	module locking counts. Returns NULL if the discipline is not available.
- *	Returns a pointer to the discipline and bumps the ref count if it is
- *	available
+ *	module locking counts.
+ *
+ *	Returns: -EINVAL if the discipline index is not [N_TTY..NR_LDISCS] or
+ *			 if the discipline is not registered
+ *		 -EAGAIN if request_module() failed to load or register the
+ *			 the discipline
+ *		 -ENOMEM if allocation failure
+ *
+ *		 Otherwise, returns a pointer to the discipline and bumps the
+ *		 ref count
  *
  *	Locking:
  *		takes tty_ldiscs_lock to guard against ldisc races
@@ -250,19 +257,23 @@ const struct file_operations tty_ldiscs_proc_fops = {
  *	reference to it. If the line discipline is in flux then
  *	wait patiently until it changes.
  *
+ *	Returns: NULL if the tty has been hungup and not re-opened with
+ *		 a new file descriptor, otherwise valid ldisc reference
+ *
  *	Note: Must not be called from an IRQ/timer context. The caller
  *	must also be careful not to hold other locks that will deadlock
  *	against a discipline change, such as an existing ldisc reference
  *	(which we check for)
  *
- *	Note: only callable from a file_operations routine (which
- *	guarantees tty->ldisc != NULL when the lock is acquired).
+ *	Note: a file_operations routine (read/poll/write) should use this
+ *	function to wait for any ldisc lifetime events to finish.
  */
 
 struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *tty)
 {
 	ldsem_down_read(&tty->ldisc_sem, MAX_SCHEDULE_TIMEOUT);
-	WARN_ON(!tty->ldisc);
+	if (!tty->ldisc)
+		ldsem_up_read(&tty->ldisc_sem);
 	return tty->ldisc;
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_ref_wait);
@@ -304,13 +315,13 @@ void tty_ldisc_deref(struct tty_ldisc *ld)
 EXPORT_SYMBOL_GPL(tty_ldisc_deref);
 
 
-static inline int __lockfunc
+static inline int
 __tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
 {
 	return ldsem_down_write(&tty->ldisc_sem, timeout);
 }
 
-static inline int __lockfunc
+static inline int
 __tty_ldisc_lock_nested(struct tty_struct *tty, unsigned long timeout)
 {
 	return ldsem_down_write_nested(&tty->ldisc_sem,
@@ -322,8 +333,7 @@ static inline void __tty_ldisc_unlock(struct tty_struct *tty)
 	ldsem_up_write(&tty->ldisc_sem);
 }
 
-static int __lockfunc
-tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
+static int tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout)
 {
 	int ret;
 
@@ -340,7 +350,7 @@ static void tty_ldisc_unlock(struct tty_struct *tty)
 	__tty_ldisc_unlock(tty);
 }
 
-static int __lockfunc
+static int
 tty_ldisc_lock_pair_timeout(struct tty_struct *tty, struct tty_struct *tty2,
 			    unsigned long timeout)
 {
@@ -376,14 +386,13 @@ tty_ldisc_lock_pair_timeout(struct tty_struct *tty, struct tty_struct *tty2,
 	return 0;
 }
 
-static void __lockfunc
-tty_ldisc_lock_pair(struct tty_struct *tty, struct tty_struct *tty2)
+static void tty_ldisc_lock_pair(struct tty_struct *tty, struct tty_struct *tty2)
 {
 	tty_ldisc_lock_pair_timeout(tty, tty2, MAX_SCHEDULE_TIMEOUT);
 }
 
-static void __lockfunc tty_ldisc_unlock_pair(struct tty_struct *tty,
-					     struct tty_struct *tty2)
+static void tty_ldisc_unlock_pair(struct tty_struct *tty,
+				  struct tty_struct *tty2)
 {
 	__tty_ldisc_unlock(tty);
 	if (tty2)
@@ -411,7 +420,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
 /**
  *	tty_set_termios_ldisc		-	set ldisc field
  *	@tty: tty structure
- *	@num: line discipline number
+ *	@disc: line discipline number
  *
  *	This is probably overkill for real world processors but
  *	they are not on hot paths so a little discipline won't do
@@ -424,10 +433,10 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
  *	Locking: takes termios_rwsem
  */
 
-static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
+static void tty_set_termios_ldisc(struct tty_struct *tty, int disc)
 {
 	down_write(&tty->termios_rwsem);
-	tty->termios.c_line = num;
+	tty->termios.c_line = disc;
 	up_write(&tty->termios_rwsem);
 
 	tty->disc_data = NULL;
@@ -455,7 +464,7 @@ static int tty_ldisc_open(struct tty_struct *tty, struct tty_ldisc *ld)
 		if (ret)
 			clear_bit(TTY_LDISC_OPEN, &tty->flags);
 
-		tty_ldisc_debug(tty, "%p: opened\n", tty->ldisc);
+		tty_ldisc_debug(tty, "%p: opened\n", ld);
 		return ret;
 	}
 	return 0;
@@ -476,7 +485,7 @@ static void tty_ldisc_close(struct tty_struct *tty, struct tty_ldisc *ld)
 	clear_bit(TTY_LDISC_OPEN, &tty->flags);
 	if (ld->ops->close)
 		ld->ops->close(tty);
-	tty_ldisc_debug(tty, "%p: closed\n", tty->ldisc);
+	tty_ldisc_debug(tty, "%p: closed\n", ld);
 }
 
 /**
@@ -525,12 +534,12 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
  *	the close of one side of a tty/pty pair, and eventually hangup.
  */
 
-int tty_set_ldisc(struct tty_struct *tty, int ldisc)
+int tty_set_ldisc(struct tty_struct *tty, int disc)
 {
 	int retval;
 	struct tty_ldisc *old_ldisc, *new_ldisc;
 
-	new_ldisc = tty_ldisc_get(tty, ldisc);
+	new_ldisc = tty_ldisc_get(tty, disc);
 	if (IS_ERR(new_ldisc))
 		return PTR_ERR(new_ldisc);
 
@@ -539,8 +548,13 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	if (retval)
 		goto err;
 
+	if (!tty->ldisc) {
+		retval = -EIO;
+		goto out;
+	}
+
 	/* Check the no-op case */
-	if (tty->ldisc->ops->num == ldisc)
+	if (tty->ldisc->ops->num == disc)
 		goto out;
 
 	if (test_bit(TTY_HUPPED, &tty->flags)) {
@@ -556,7 +570,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 
 	/* Now set up the new line discipline. */
 	tty->ldisc = new_ldisc;
-	tty_set_termios_ldisc(tty, ldisc);
+	tty_set_termios_ldisc(tty, disc);
 
 	retval = tty_ldisc_open(tty, new_ldisc);
 	if (retval < 0) {
@@ -590,6 +604,25 @@ err:
 }
 
 /**
+ *	tty_ldisc_kill	-	teardown ldisc
+ *	@tty: tty being released
+ *
+ *	Perform final close of the ldisc and reset tty->ldisc
+ */
+static void tty_ldisc_kill(struct tty_struct *tty)
+{
+	if (!tty->ldisc)
+		return;
+	/*
+	 * Now kill off the ldisc
+	 */
+	tty_ldisc_close(tty, tty->ldisc);
+	tty_ldisc_put(tty->ldisc);
+	/* Force an oops if we mess this up */
+	tty->ldisc = NULL;
+}
+
+/**
  *	tty_reset_termios	-	reset terminal state
  *	@tty: tty to reset
  *
@@ -609,28 +642,44 @@ static void tty_reset_termios(struct tty_struct *tty)
 /**
  *	tty_ldisc_reinit	-	reinitialise the tty ldisc
  *	@tty: tty to reinit
- *	@ldisc: line discipline to reinitialize
+ *	@disc: line discipline to reinitialize
  *
- *	Switch the tty to a line discipline and leave the ldisc
- *	state closed
+ *	Completely reinitialize the line discipline state, by closing the
+ *	current instance, if there is one, and opening a new instance. If
+ *	an error occurs opening the new non-N_TTY instance, the instance
+ *	is dropped and tty->ldisc reset to NULL. The caller can then retry
+ *	with N_TTY instead.
+ *
+ *	Returns 0 if successful, otherwise error code < 0
  */
 
-static int tty_ldisc_reinit(struct tty_struct *tty, int ldisc)
+int tty_ldisc_reinit(struct tty_struct *tty, int disc)
 {
-	struct tty_ldisc *ld = tty_ldisc_get(tty, ldisc);
+	struct tty_ldisc *ld;
+	int retval;
 
-	if (IS_ERR(ld))
-		return -1;
+	ld = tty_ldisc_get(tty, disc);
+	if (IS_ERR(ld)) {
+		BUG_ON(disc == N_TTY);
+		return PTR_ERR(ld);
+	}
 
-	tty_ldisc_close(tty, tty->ldisc);
-	tty_ldisc_put(tty->ldisc);
-	/*
-	 *	Switch the line discipline back
-	 */
+	if (tty->ldisc) {
+		tty_ldisc_close(tty, tty->ldisc);
+		tty_ldisc_put(tty->ldisc);
+	}
+
+	/* switch the line discipline */
 	tty->ldisc = ld;
-	tty_set_termios_ldisc(tty, ldisc);
-
-	return 0;
+	tty_set_termios_ldisc(tty, disc);
+	retval = tty_ldisc_open(tty, tty->ldisc);
+	if (retval) {
+		if (!WARN_ON(disc == N_TTY)) {
+			tty_ldisc_put(tty->ldisc);
+			tty->ldisc = NULL;
+		}
+	}
+	return retval;
 }
 
 /**
@@ -648,13 +697,11 @@ static int tty_ldisc_reinit(struct tty_struct *tty, int ldisc)
  *	tty itself so we must be careful about locking rules.
  */
 
-void tty_ldisc_hangup(struct tty_struct *tty)
+void tty_ldisc_hangup(struct tty_struct *tty, bool reinit)
 {
 	struct tty_ldisc *ld;
-	int reset = tty->driver->flags & TTY_DRIVER_RESET_TERMIOS;
-	int err = 0;
 
-	tty_ldisc_debug(tty, "%p: closing\n", tty->ldisc);
+	tty_ldisc_debug(tty, "%p: hangup\n", tty->ldisc);
 
 	ld = tty_ldisc_ref(tty);
 	if (ld != NULL) {
@@ -680,31 +727,17 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	 */
 	tty_ldisc_lock(tty, MAX_SCHEDULE_TIMEOUT);
 
-	if (tty->ldisc) {
-
-		/* At this point we have a halted ldisc; we want to close it and
-		   reopen a new ldisc. We could defer the reopen to the next
-		   open but it means auditing a lot of other paths so this is
-		   a FIXME */
-		if (reset == 0) {
-
-			if (!tty_ldisc_reinit(tty, tty->termios.c_line))
-				err = tty_ldisc_open(tty, tty->ldisc);
-			else
-				err = 1;
-		}
-		/* If the re-open fails or we reset then go to N_TTY. The
-		   N_TTY open cannot fail */
-		if (reset || err) {
-			BUG_ON(tty_ldisc_reinit(tty, N_TTY));
-			WARN_ON(tty_ldisc_open(tty, tty->ldisc));
-		}
-	}
-	tty_ldisc_unlock(tty);
-	if (reset)
+	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS)
 		tty_reset_termios(tty);
 
-	tty_ldisc_debug(tty, "%p: re-opened\n", tty->ldisc);
+	if (tty->ldisc) {
+		if (reinit) {
+			if (tty_ldisc_reinit(tty, tty->termios.c_line) < 0)
+				tty_ldisc_reinit(tty, N_TTY);
+		} else
+			tty_ldisc_kill(tty);
+	}
+	tty_ldisc_unlock(tty);
 }
 
 /**
@@ -719,35 +752,18 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 
 int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 {
-	struct tty_ldisc *ld = tty->ldisc;
-	int retval;
-
-	retval = tty_ldisc_open(tty, ld);
+	int retval = tty_ldisc_open(tty, tty->ldisc);
 	if (retval)
 		return retval;
 
 	if (o_tty) {
 		retval = tty_ldisc_open(o_tty, o_tty->ldisc);
 		if (retval) {
-			tty_ldisc_close(tty, ld);
+			tty_ldisc_close(tty, tty->ldisc);
 			return retval;
 		}
 	}
 	return 0;
-}
-
-static void tty_ldisc_kill(struct tty_struct *tty)
-{
-	/*
-	 * Now kill off the ldisc
-	 */
-	tty_ldisc_close(tty, tty->ldisc);
-	tty_ldisc_put(tty->ldisc);
-	/* Force an oops if we mess this up */
-	tty->ldisc = NULL;
-
-	/* Ensure the next open requests the N_TTY ldisc */
-	tty_set_termios_ldisc(tty, N_TTY);
 }
 
 /**
@@ -755,8 +771,7 @@ static void tty_ldisc_kill(struct tty_struct *tty)
  *	@tty: tty being shut down (or one end of pty pair)
  *
  *	Called during the final close of a tty or a pty pair in order to shut
- *	down the line discpline layer. On exit, each ldisc assigned is N_TTY and
- *	each ldisc has not been opened.
+ *	down the line discpline layer. On exit, each tty's ldisc is NULL.
  */
 
 void tty_ldisc_release(struct tty_struct *tty)
@@ -797,7 +812,7 @@ void tty_ldisc_init(struct tty_struct *tty)
 }
 
 /**
- *	tty_ldisc_init		-	ldisc cleanup for new tty
+ *	tty_ldisc_deinit	-	ldisc cleanup for new tty
  *	@tty: tty that was allocated recently
  *
  *	The tty structure must not becompletely set up (tty_ldisc_setup) when
@@ -805,12 +820,7 @@ void tty_ldisc_init(struct tty_struct *tty)
  */
 void tty_ldisc_deinit(struct tty_struct *tty)
 {
-	tty_ldisc_put(tty->ldisc);
+	if (tty->ldisc)
+		tty_ldisc_put(tty->ldisc);
 	tty->ldisc = NULL;
-}
-
-void tty_ldisc_begin(void)
-{
-	/* Setup the default TTY line discipline. */
-	(void) tty_register_ldisc(N_TTY, &tty_ldisc_N_TTY);
 }

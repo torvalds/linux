@@ -531,8 +531,8 @@ static struct ui_browser_colorset {
 		.bg	  = "yellow",
 	},
 	{
-		.colorset = HE_COLORSET_CODE,
-		.name	  = "code",
+		.colorset = HE_COLORSET_JUMP_ARROWS,
+		.name	  = "jump_arrows",
 		.fg	  = "blue",
 		.bg	  = "default",
 	},

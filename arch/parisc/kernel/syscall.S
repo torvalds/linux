@@ -343,7 +343,7 @@ tracesys_next:
 #endif
 
 	comiclr,>>=	__NR_Linux_syscalls, %r20, %r0
-	b,n	.Lsyscall_nosys
+	b,n	.Ltracesys_nosys
 
 	LDREGX  %r20(%r19), %r19
 
@@ -358,6 +358,9 @@ tracesys_next:
 	ldil	L%tracesys_exit,%r2
 	be      0(%sr7,%r19)
 	ldo	R%tracesys_exit(%r2),%r2
+
+.Ltracesys_nosys:
+	ldo	-ENOSYS(%r0),%r28		/* set errno */
 
 	/* Do *not* call this function on the gateway page, because it
 	makes a direct call to syscall_trace. */

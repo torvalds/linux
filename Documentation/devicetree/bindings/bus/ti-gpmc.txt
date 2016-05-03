@@ -46,6 +46,9 @@ Timing properties for child nodes. All are optional and default to 0.
  - gpmc,adv-on-ns:	Assertion time
  - gpmc,adv-rd-off-ns:	Read deassertion time
  - gpmc,adv-wr-off-ns:	Write deassertion time
+ - gpmc,adv-aad-mux-on-ns:	Assertion time for AAD
+ - gpmc,adv-aad-mux-rd-off-ns:	Read deassertion time for AAD
+ - gpmc,adv-aad-mux-wr-off-ns:	Write deassertion time for AAD
 
  WE signals timings (in nanoseconds) corresponding to GPMC_CONFIG4:
  - gpmc,we-on-ns	Assertion time
@@ -54,6 +57,8 @@ Timing properties for child nodes. All are optional and default to 0.
  OE signals timings (in nanoseconds) corresponding to GPMC_CONFIG4:
  - gpmc,oe-on-ns:	Assertion time
  - gpmc,oe-off-ns:	Deassertion time
+ - gpmc,oe-aad-mux-on-ns:	Assertion time for AAD
+ - gpmc,oe-aad-mux-off-ns:	Deassertion time for AAD
 
  Access time and cycle time timings (in nanoseconds) corresponding to
  GPMC_CONFIG5:

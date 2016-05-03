@@ -1368,6 +1368,7 @@ config DEBUG_SIRFSOC_UART
 config DEBUG_LL_INCLUDE
 	string
 	default "debug/sa1100.S" if DEBUG_SA1100
+	default "debug/palmchip.S" if DEBUG_UART_8250_PALMCHIP
 	default "debug/8250.S" if DEBUG_LL_UART_8250 || DEBUG_UART_8250
 	default "debug/at91.S" if DEBUG_AT91_UART
 	default "debug/asm9260.S" if DEBUG_ASM9260_UART
@@ -1655,6 +1656,14 @@ config DEBUG_UART_8250_WORD
 		DEBUG_DAVINCI_DA8XX_UART2 || \
 		DEBUG_BCM_KONA_UART || DEBUG_RK32_UART2 || \
 		DEBUG_BRCMSTB_UART
+
+config DEBUG_UART_8250_PALMCHIP
+	bool "8250 UART is Palmchip BK-310x"
+	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
+	help
+	  Palmchip provides a UART implementation compatible with 16550
+	  except for having a different register layout.  Say Y here if
+	  the debug UART is of this type.
 
 config DEBUG_UART_8250_FLOW_CONTROL
 	bool "Enable flow control for 8250 UART"

@@ -1289,8 +1289,7 @@ static int mixer_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int exynos_mixer_suspend(struct device *dev)
+static int __maybe_unused exynos_mixer_suspend(struct device *dev)
 {
 	struct mixer_context *ctx = dev_get_drvdata(dev);
 	struct mixer_resources *res = &ctx->mixer_res;
@@ -1306,7 +1305,7 @@ static int exynos_mixer_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos_mixer_resume(struct device *dev)
+static int __maybe_unused exynos_mixer_resume(struct device *dev)
 {
 	struct mixer_context *ctx = dev_get_drvdata(dev);
 	struct mixer_resources *res = &ctx->mixer_res;
@@ -1342,7 +1341,6 @@ static int exynos_mixer_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops exynos_mixer_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_mixer_suspend, exynos_mixer_resume, NULL)

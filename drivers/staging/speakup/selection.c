@@ -142,7 +142,9 @@ static void __speakup_paste_selection(struct work_struct *work)
 	struct tty_ldisc *ld;
 	DECLARE_WAITQUEUE(wait, current);
 
-	ld = tty_ldisc_ref_wait(tty);
+	ld = tty_ldisc_ref(tty);
+	if (!ld)
+		goto tty_unref;
 	tty_buffer_lock_exclusive(&vc->port);
 
 	add_wait_queue(&vc->paste_wait, &wait);
@@ -162,6 +164,7 @@ static void __speakup_paste_selection(struct work_struct *work)
 
 	tty_buffer_unlock_exclusive(&vc->port);
 	tty_ldisc_deref(ld);
+tty_unref:
 	tty_kref_put(tty);
 }
 

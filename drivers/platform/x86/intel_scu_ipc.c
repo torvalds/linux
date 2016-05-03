@@ -24,7 +24,6 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sfi.h>
-#include <linux/module.h>
 #include <asm/intel-mid.h>
 #include <asm/intel_scu_ipc.h>
 
@@ -611,28 +610,6 @@ static int ipc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 }
 
-/**
- *	ipc_remove	-	remove a bound IPC device
- *	@pdev: PCI device
- *
- *	In practice the SCU is not removable but this function is also
- *	called for each device on a module unload or cleanup which is the
- *	path that will get used.
- *
- *	Free up the mappings and release the PCI resources
- */
-static void ipc_remove(struct pci_dev *pdev)
-{
-	struct intel_scu_ipc_dev *scu = pci_get_drvdata(pdev);
-
-	mutex_lock(&ipclock);
-	scu->dev = NULL;
-	mutex_unlock(&ipclock);
-
-	iounmap(scu->i2c_base);
-	intel_scu_devices_destroy();
-}
-
 static const struct pci_device_id pci_ids[] = {
 	{
 		PCI_VDEVICE(INTEL, PCI_DEVICE_ID_LINCROFT),
@@ -650,17 +627,13 @@ static const struct pci_device_id pci_ids[] = {
 		0,
 	}
 };
-MODULE_DEVICE_TABLE(pci, pci_ids);
 
 static struct pci_driver ipc_driver = {
+	.driver = {
+		.suppress_bind_attrs = true,
+	},
 	.name = "intel_scu_ipc",
 	.id_table = pci_ids,
 	.probe = ipc_probe,
-	.remove = ipc_remove,
 };
-
-module_pci_driver(ipc_driver);
-
-MODULE_AUTHOR("Sreedhara DS <sreedhara.ds@intel.com>");
-MODULE_DESCRIPTION("Intel SCU IPC driver");
-MODULE_LICENSE("GPL");
+builtin_pci_driver(ipc_driver);

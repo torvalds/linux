@@ -6,6 +6,7 @@ Required properties:
 	"microchip,mcp3422" or
 	"microchip,mcp3423" or
 	"microchip,mcp3424" or
+	"microchip,mcp3425" or
 	"microchip,mcp3426" or
 	"microchip,mcp3427" or
 	"microchip,mcp3428"

@@ -41,7 +41,7 @@ static u8 _rtl_rc_get_highest_rix(struct rtl_priv *rtlpriv,
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_sta_info *sta_entry = NULL;
-	u8 wireless_mode = 0;
+	u16 wireless_mode = 0;
 
 	/*
 	 *this rate is no use for true rate, firmware
@@ -99,7 +99,7 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 {
 	struct rtl_mac *mac = rtl_mac(rtlpriv);
 	struct rtl_sta_info *sta_entry = NULL;
-	u8 wireless_mode = 0;
+	u16 wireless_mode = 0;
 	u8 sgi_20 = 0, sgi_40 = 0, sgi_80 = 0;
 
 	if (sta) {
@@ -138,6 +138,11 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 		    ((wireless_mode == WIRELESS_MODE_N_5G) ||
 		     (wireless_mode == WIRELESS_MODE_N_24G)))
 			rate->flags |= IEEE80211_TX_RC_MCS;
+		if (sta && sta->vht_cap.vht_supported &&
+		    (wireless_mode == WIRELESS_MODE_AC_5G ||
+		     wireless_mode == WIRELESS_MODE_AC_24G ||
+		     wireless_mode == WIRELESS_MODE_AC_ONLY))
+			rate->flags |= IEEE80211_TX_RC_VHT_MCS;
 	}
 }
 

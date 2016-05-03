@@ -977,9 +977,7 @@ static int exynos_dp_get_modes(struct drm_connector *connector)
 		return 0;
 	}
 
-	drm_display_mode_from_videomode(&dp->priv.vm, mode);
-	mode->width_mm = dp->priv.width_mm;
-	mode->height_mm = dp->priv.height_mm;
+	drm_display_mode_from_videomode(&dp->vm, mode);
 	connector->display_info.width_mm = mode->width_mm;
 	connector->display_info.height_mm = mode->height_mm;
 
@@ -1155,13 +1153,6 @@ static int exynos_dp_create_connector(struct drm_encoder *encoder)
 	return 0;
 }
 
-static bool exynos_dp_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void exynos_dp_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
@@ -1177,7 +1168,6 @@ static void exynos_dp_disable(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs exynos_dp_encoder_helper_funcs = {
-	.mode_fixup = exynos_dp_mode_fixup,
 	.mode_set = exynos_dp_mode_set,
 	.enable = exynos_dp_enable,
 	.disable = exynos_dp_disable,
@@ -1249,8 +1239,7 @@ static int exynos_dp_dt_parse_panel(struct exynos_dp_device *dp)
 {
 	int ret;
 
-	ret = of_get_videomode(dp->dev->of_node, &dp->priv.vm,
-			OF_USE_NATIVE_MODE);
+	ret = of_get_videomode(dp->dev->of_node, &dp->vm, OF_USE_NATIVE_MODE);
 	if (ret) {
 		DRM_ERROR("failed: of_get_videomode() : %d\n", ret);
 		return ret;
@@ -1392,7 +1381,7 @@ static const struct component_ops exynos_dp_ops = {
 static int exynos_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *panel_node = NULL, *bridge_node, *endpoint = NULL;
+	struct device_node *np = NULL, *endpoint = NULL;
 	struct exynos_dp_device *dp;
 	int ret;
 
@@ -1404,41 +1393,36 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dp);
 
 	/* This is for the backward compatibility. */
-	panel_node = of_parse_phandle(dev->of_node, "panel", 0);
-	if (panel_node) {
-		dp->panel = of_drm_find_panel(panel_node);
-		of_node_put(panel_node);
+	np = of_parse_phandle(dev->of_node, "panel", 0);
+	if (np) {
+		dp->panel = of_drm_find_panel(np);
+		of_node_put(np);
 		if (!dp->panel)
 			return -EPROBE_DEFER;
-	} else {
-		endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-		if (endpoint) {
-			panel_node = of_graph_get_remote_port_parent(endpoint);
-			if (panel_node) {
-				dp->panel = of_drm_find_panel(panel_node);
-				of_node_put(panel_node);
-				if (!dp->panel)
-					return -EPROBE_DEFER;
-			} else {
-				DRM_ERROR("no port node for panel device.\n");
-				return -EINVAL;
-			}
-		}
-	}
-
-	if (endpoint)
 		goto out;
+	}
 
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (endpoint) {
-		bridge_node = of_graph_get_remote_port_parent(endpoint);
-		if (bridge_node) {
-			dp->ptn_bridge = of_drm_find_bridge(bridge_node);
-			of_node_put(bridge_node);
-			if (!dp->ptn_bridge)
-				return -EPROBE_DEFER;
-		} else
-			return -EPROBE_DEFER;
+		np = of_graph_get_remote_port_parent(endpoint);
+		if (np) {
+			/* The remote port can be either a panel or a bridge */
+			dp->panel = of_drm_find_panel(np);
+			if (!dp->panel) {
+				dp->ptn_bridge = of_drm_find_bridge(np);
+				if (!dp->ptn_bridge) {
+					of_node_put(np);
+					return -EPROBE_DEFER;
+				}
+			}
+			of_node_put(np);
+		} else {
+			DRM_ERROR("no remote endpoint device node found.\n");
+			return -EINVAL;
+		}
+	} else {
+		DRM_ERROR("no port endpoint subnode found.\n");
+		return -EINVAL;
 	}
 
 out:

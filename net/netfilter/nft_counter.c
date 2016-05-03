@@ -100,7 +100,7 @@ static int nft_counter_init(const struct nft_ctx *ctx,
 
 	cpu_stats = netdev_alloc_pcpu_stats(struct nft_counter_percpu);
 	if (cpu_stats == NULL)
-		return ENOMEM;
+		return -ENOMEM;
 
 	preempt_disable();
 	this_cpu = this_cpu_ptr(cpu_stats);
@@ -138,7 +138,7 @@ static int nft_counter_clone(struct nft_expr *dst, const struct nft_expr *src)
 	cpu_stats = __netdev_alloc_pcpu_stats(struct nft_counter_percpu,
 					      GFP_ATOMIC);
 	if (cpu_stats == NULL)
-		return ENOMEM;
+		return -ENOMEM;
 
 	preempt_disable();
 	this_cpu = this_cpu_ptr(cpu_stats);

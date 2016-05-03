@@ -1951,6 +1951,7 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		   strcmp(token, "*") == 0 ||
 		   strcmp(token, "^") == 0 ||
 		   strcmp(token, "/") == 0 ||
+		   strcmp(token, "%") == 0 ||
 		   strcmp(token, "<") == 0 ||
 		   strcmp(token, ">") == 0 ||
 		   strcmp(token, "<=") == 0 ||
@@ -2397,6 +2398,12 @@ static int arg_num_eval(struct print_arg *arg, long long *val)
 				break;
 			*val = left + right;
 			break;
+		case '~':
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
+			*val = ~right;
+			break;
 		default:
 			do_warning("unknown op '%s'", arg->op.op);
 			ret = 0;
@@ -2634,6 +2641,7 @@ process_hex(struct event_format *event, struct print_arg *arg, char **tok)
 
 free_field:
 	free_arg(arg->hex.field);
+	arg->hex.field = NULL;
 out:
 	*tok = NULL;
 	return EVENT_ERROR;
@@ -2658,8 +2666,10 @@ process_int_array(struct event_format *event, struct print_arg *arg, char **tok)
 
 free_size:
 	free_arg(arg->int_array.count);
+	arg->int_array.count = NULL;
 free_field:
 	free_arg(arg->int_array.field);
+	arg->int_array.field = NULL;
 out:
 	*tok = NULL;
 	return EVENT_ERROR;
@@ -3688,6 +3698,9 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 			break;
 		case '/':
 			val = left / right;
+			break;
+		case '%':
+			val = left % right;
 			break;
 		case '*':
 			val = left * right;
@@ -4971,7 +4984,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 						break;
 					}
 				}
-				if (pevent->long_size == 8 && ls &&
+				if (pevent->long_size == 8 && ls == 1 &&
 				    sizeof(long) != 8) {
 					char *p;
 
@@ -5335,19 +5348,74 @@ static bool is_timestamp_in_us(char *trace_clock, bool use_trace_clock)
 	return false;
 }
 
-void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
-			struct pevent_record *record, bool use_trace_clock)
+/**
+ * pevent_find_event_by_record - return the event from a given record
+ * @pevent: a handle to the pevent
+ * @record: The record to get the event from
+ *
+ * Returns the associated event for a given record, or NULL if non is
+ * is found.
+ */
+struct event_format *
+pevent_find_event_by_record(struct pevent *pevent, struct pevent_record *record)
 {
-	static const char *spaces = "                    "; /* 20 spaces */
-	struct event_format *event;
+	int type;
+
+	if (record->size < 0) {
+		do_warning("ug! negative record size %d", record->size);
+		return NULL;
+	}
+
+	type = trace_parse_common_type(pevent, record->data);
+
+	return pevent_find_event(pevent, type);
+}
+
+/**
+ * pevent_print_event_task - Write the event task comm, pid and CPU
+ * @pevent: a handle to the pevent
+ * @s: the trace_seq to write to
+ * @event: the handle to the record's event
+ * @record: The record to get the event from
+ *
+ * Writes the tasks comm, pid and CPU to @s.
+ */
+void pevent_print_event_task(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record)
+{
+	void *data = record->data;
+	const char *comm;
+	int pid;
+
+	pid = parse_common_pid(pevent, data);
+	comm = find_cmdline(pevent, pid);
+
+	if (pevent->latency_format) {
+		trace_seq_printf(s, "%8.8s-%-5d %3d",
+		       comm, pid, record->cpu);
+	} else
+		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid, record->cpu);
+}
+
+/**
+ * pevent_print_event_time - Write the event timestamp
+ * @pevent: a handle to the pevent
+ * @s: the trace_seq to write to
+ * @event: the handle to the record's event
+ * @record: The record to get the event from
+ * @use_trace_clock: Set to parse according to the @pevent->trace_clock
+ *
+ * Writes the timestamp of the record into @s.
+ */
+void pevent_print_event_time(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record,
+			     bool use_trace_clock)
+{
 	unsigned long secs;
 	unsigned long usecs;
 	unsigned long nsecs;
-	const char *comm;
-	void *data = record->data;
-	int type;
-	int pid;
-	int len;
 	int p;
 	bool use_usec_format;
 
@@ -5358,28 +5426,9 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 		nsecs = record->ts - secs * NSECS_PER_SEC;
 	}
 
-	if (record->size < 0) {
-		do_warning("ug! negative record size %d", record->size);
-		return;
-	}
-
-	type = trace_parse_common_type(pevent, data);
-
-	event = pevent_find_event(pevent, type);
-	if (!event) {
-		do_warning("ug! no event found for type %d", type);
-		return;
-	}
-
-	pid = parse_common_pid(pevent, data);
-	comm = find_cmdline(pevent, pid);
-
 	if (pevent->latency_format) {
-		trace_seq_printf(s, "%8.8s-%-5d %3d",
-		       comm, pid, record->cpu);
 		pevent_data_lat_fmt(pevent, s, record);
-	} else
-		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid, record->cpu);
+	}
 
 	if (use_usec_format) {
 		if (pevent->flags & PEVENT_NSEC_OUTPUT) {
@@ -5387,14 +5436,36 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			p = 9;
 		} else {
 			usecs = (nsecs + 500) / NSECS_PER_USEC;
+			/* To avoid usecs larger than 1 sec */
+			if (usecs >= 1000000) {
+				usecs -= 1000000;
+				secs++;
+			}
 			p = 6;
 		}
 
-		trace_seq_printf(s, " %5lu.%0*lu: %s: ",
-					secs, p, usecs, event->name);
+		trace_seq_printf(s, " %5lu.%0*lu:", secs, p, usecs);
 	} else
-		trace_seq_printf(s, " %12llu: %s: ",
-					record->ts, event->name);
+		trace_seq_printf(s, " %12llu:", record->ts);
+}
+
+/**
+ * pevent_print_event_data - Write the event data section
+ * @pevent: a handle to the pevent
+ * @s: the trace_seq to write to
+ * @event: the handle to the record's event
+ * @record: The record to get the event from
+ *
+ * Writes the parsing of the record's data to @s.
+ */
+void pevent_print_event_data(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record)
+{
+	static const char *spaces = "                    "; /* 20 spaces */
+	int len;
+
+	trace_seq_printf(s, " %s: ", event->name);
 
 	/* Space out the event names evenly. */
 	len = strlen(event->name);
@@ -5402,6 +5473,23 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 		trace_seq_printf(s, "%.*s", 20 - len, spaces);
 
 	pevent_event_info(s, event, record);
+}
+
+void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
+			struct pevent_record *record, bool use_trace_clock)
+{
+	struct event_format *event;
+
+	event = pevent_find_event_by_record(pevent, record);
+	if (!event) {
+		do_warning("ug! no event found for type %d",
+			   trace_parse_common_type(pevent, record->data));
+		return;
+	}
+
+	pevent_print_event_task(pevent, s, event, record);
+	pevent_print_event_time(pevent, s, event, record, use_trace_clock);
+	pevent_print_event_data(pevent, s, event, record);
 }
 
 static int events_id_cmp(const void *a, const void *b)

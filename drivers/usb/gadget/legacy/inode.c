@@ -130,7 +130,8 @@ struct dev_data {
 					setup_can_stall : 1,
 					setup_out_ready : 1,
 					setup_out_error : 1,
-					setup_abort : 1;
+					setup_abort : 1,
+					gadget_registered : 1;
 	unsigned			setup_wLength;
 
 	/* the rest is basically write-once */
@@ -1179,7 +1180,8 @@ dev_release (struct inode *inode, struct file *fd)
 
 	/* closing ep0 === shutdown all */
 
-	usb_gadget_unregister_driver (&gadgetfs_driver);
+	if (dev->gadget_registered)
+		usb_gadget_unregister_driver (&gadgetfs_driver);
 
 	/* at this point "good" hardware has disconnected the
 	 * device from USB; the host won't see it any more.
@@ -1697,28 +1699,6 @@ static struct usb_gadget_driver gadgetfs_driver = {
 };
 
 /*----------------------------------------------------------------------*/
-
-static void gadgetfs_nop(struct usb_gadget *arg) { }
-
-static int gadgetfs_probe(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
-{
-	CHIP = gadget->name;
-	return -EISNAM;
-}
-
-static struct usb_gadget_driver probe_driver = {
-	.max_speed	= USB_SPEED_HIGH,
-	.bind		= gadgetfs_probe,
-	.unbind		= gadgetfs_nop,
-	.setup		= (void *)gadgetfs_nop,
-	.disconnect	= gadgetfs_nop,
-	.driver	= {
-		.name		= "nop",
-	},
-};
-
-
 /* DEVICE INITIALIZATION
  *
  *     fd = open ("/dev/gadget/$CHIP", O_RDWR)
@@ -1847,6 +1827,7 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		 * kick in after the ep0 descriptor is closed.
 		 */
 		value = len;
+		dev->gadget_registered = true;
 	}
 	return value;
 
@@ -1968,9 +1949,7 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 	if (the_device)
 		return -ESRCH;
 
-	/* fake probe to determine $CHIP */
-	CHIP = NULL;
-	usb_gadget_probe_driver(&probe_driver);
+	CHIP = usb_get_gadget_udc_name();
 	if (!CHIP)
 		return -ENODEV;
 
@@ -2031,6 +2010,8 @@ gadgetfs_kill_sb (struct super_block *sb)
 		put_dev (the_device);
 		the_device = NULL;
 	}
+	kfree(CHIP);
+	CHIP = NULL;
 }
 
 /*----------------------------------------------------------------------*/

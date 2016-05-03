@@ -105,9 +105,6 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 	return channel ? 15 : 14;
 }
 
-/* generic DMA-mapping stuff */
-#include <asm-generic/pci-dma-compat.h>
-
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PCI_H */
 

@@ -26,15 +26,16 @@ cat /sys/kernel/debug/ci_hdrc.0/registers
    On B-device:
    echo 1 > /sys/bus/platform/devices/ci_hdrc.0/inputs/b_bus_req
 
-   if HNP polling is not supported, also need:
-   On A-device:
-   echo 0 > /sys/bus/platform/devices/ci_hdrc.0/inputs/a_bus_req
-
    B-device should take host role and enumrate A-device.
 
 4) A-device switch back to host.
    On B-device:
    echo 0 > /sys/bus/platform/devices/ci_hdrc.0/inputs/b_bus_req
+
+   or, by introducing HNP polling, B-Host can know when A-peripheral wish
+   to be host role, so this role switch also can be trigged in A-peripheral
+   side by answering the polling from B-Host, this can be done on A-device:
+   echo 1 > /sys/bus/platform/devices/ci_hdrc.0/inputs/a_bus_req
 
    A-device should switch back to host and enumrate B-device.
 

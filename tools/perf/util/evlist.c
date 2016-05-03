@@ -1181,12 +1181,12 @@ void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
 	 */
 	if (cpus != evlist->cpus) {
 		cpu_map__put(evlist->cpus);
-		evlist->cpus = cpus;
+		evlist->cpus = cpu_map__get(cpus);
 	}
 
 	if (threads != evlist->threads) {
 		thread_map__put(evlist->threads);
-		evlist->threads = threads;
+		evlist->threads = thread_map__get(threads);
 	}
 
 	perf_evlist__propagate_maps(evlist);
@@ -1223,6 +1223,9 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 	int err = 0;
 
 	evlist__for_each(evlist, evsel) {
+		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+			continue;
+
 		err = perf_evsel__set_filter(evsel, filter);
 		if (err)
 			break;
@@ -1624,7 +1627,7 @@ size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp)
 	return printed + fprintf(fp, "\n");
 }
 
-int perf_evlist__strerror_open(struct perf_evlist *evlist __maybe_unused,
+int perf_evlist__strerror_open(struct perf_evlist *evlist,
 			       int err, char *buf, size_t size)
 {
 	int printed, value;
@@ -1652,7 +1655,25 @@ int perf_evlist__strerror_open(struct perf_evlist *evlist __maybe_unused,
 				    "Hint:\tTry: 'sudo sh -c \"echo -1 > /proc/sys/kernel/perf_event_paranoid\"'\n"
 				    "Hint:\tThe current value is %d.", value);
 		break;
+	case EINVAL: {
+		struct perf_evsel *first = perf_evlist__first(evlist);
+		int max_freq;
+
+		if (sysctl__read_int("kernel/perf_event_max_sample_rate", &max_freq) < 0)
+			goto out_default;
+
+		if (first->attr.sample_freq < (u64)max_freq)
+			goto out_default;
+
+		printed = scnprintf(buf, size,
+				    "Error:\t%s.\n"
+				    "Hint:\tCheck /proc/sys/kernel/perf_event_max_sample_rate.\n"
+				    "Hint:\tThe current value is %d and %" PRIu64 " is being requested.",
+				    emsg, max_freq, first->attr.sample_freq);
+		break;
+	}
 	default:
+out_default:
 		scnprintf(buf, size, "%s", emsg);
 		break;
 	}
@@ -1722,4 +1743,20 @@ void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
 	}
 
 	tracking_evsel->tracking = true;
+}
+
+struct perf_evsel *
+perf_evlist__find_evsel_by_str(struct perf_evlist *evlist,
+			       const char *str)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel) {
+		if (!evsel->name)
+			continue;
+		if (strcmp(str, evsel->name) == 0)
+			return evsel;
+	}
+
+	return NULL;
 }

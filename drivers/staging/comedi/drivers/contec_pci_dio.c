@@ -1,29 +1,30 @@
 /*
-    comedi/drivers/contec_pci_dio.c
+ * comedi/drivers/contec_pci_dio.c
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: contec_pci_dio
-Description: Contec PIO1616L digital I/O board
-Devices: [Contec] PIO1616L (contec_pci_dio)
-Author: Stefano Rivoir <s.rivoir@gts.it>
-Updated: Wed, 27 Jun 2007 13:00:06 +0100
-Status: works
-
-Configuration Options: not applicable, uses comedi PCI auto config
-*/
+ * Driver: contec_pci_dio
+ * Description: Contec PIO1616L digital I/O board
+ * Devices: [Contec] PIO1616L (contec_pci_dio)
+ * Author: Stefano Rivoir <s.rivoir@gts.it>
+ * Updated: Wed, 27 Jun 2007 13:00:06 +0100
+ * Status: works
+ *
+ * Configuration Options: not applicable, uses comedi PCI auto config
+ */
 
 #include <linux/module.h>
 

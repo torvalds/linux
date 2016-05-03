@@ -217,6 +217,21 @@ static void rbtn_notify(struct acpi_device *device, u32 event);
 static const struct acpi_device_id rbtn_ids[] = {
 	{ "DELRBTN", 0 },
 	{ "DELLABCE", 0 },
+
+	/*
+	 * This driver can also handle the "DELLABC6" device that
+	 * appears on the XPS 13 9350, but that device is disabled
+	 * by the DSDT unless booted with acpi_osi="!Windows 2012"
+	 * acpi_osi="!Windows 2013".  Even if we boot that and bind
+	 * the driver, we seem to have inconsistent behavior in
+	 * which NetworkManager can get out of sync with the rfkill
+	 * state.
+	 *
+	 * On the XPS 13 9350 and similar laptops, we're not supposed to
+	 * use DELLABC6 at all.  Instead, we handle the rfkill button
+	 * via the intel-hid driver.
+	 */
+
 	{ "", 0 },
 };
 

@@ -71,7 +71,6 @@ static int ip_forward_finish(struct net *net, struct sock *sk, struct sk_buff *s
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
 
-	skb_sender_cpu_clear(skb);
 	return dst_output(net, sk, skb);
 }
 

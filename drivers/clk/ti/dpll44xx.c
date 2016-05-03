@@ -94,7 +94,7 @@ static void omap4_dpll_lpmode_recalc(struct dpll_data *dd)
 {
 	long fint, fout;
 
-	fint = clk_get_rate(dd->clk_ref) / (dd->last_rounded_n + 1);
+	fint = clk_hw_get_rate(dd->clk_ref) / (dd->last_rounded_n + 1);
 	fout = fint * dd->last_rounded_m;
 
 	if ((fint < OMAP4_DPLL_LP_FINT_MAX) && (fout < OMAP4_DPLL_LP_FOUT_MAX))
@@ -212,13 +212,13 @@ int omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw,
 	if (!dd)
 		return -EINVAL;
 
-	if (clk_get_rate(dd->clk_bypass) == req->rate &&
+	if (clk_hw_get_rate(dd->clk_bypass) == req->rate &&
 	    (dd->modes & (1 << DPLL_LOW_POWER_BYPASS))) {
-		req->best_parent_hw = __clk_get_hw(dd->clk_bypass);
+		req->best_parent_hw = dd->clk_bypass;
 	} else {
 		req->rate = omap4_dpll_regm4xen_round_rate(hw, req->rate,
 						&req->best_parent_rate);
-		req->best_parent_hw = __clk_get_hw(dd->clk_ref);
+		req->best_parent_hw = dd->clk_ref;
 	}
 
 	req->best_parent_rate = req->rate;

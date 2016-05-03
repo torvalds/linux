@@ -116,7 +116,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 
 search_again:
 	/* First see if there is a large enough contiguous idle region... */
-	list_for_each_entry(vma, &vm->inactive_list, mm_list) {
+	list_for_each_entry(vma, &vm->inactive_list, vm_link) {
 		if (mark_free(vma, &unwind_list))
 			goto found;
 	}
@@ -125,7 +125,7 @@ search_again:
 		goto none;
 
 	/* Now merge in the soon-to-be-expired objects... */
-	list_for_each_entry(vma, &vm->active_list, mm_list) {
+	list_for_each_entry(vma, &vm->active_list, vm_link) {
 		if (mark_free(vma, &unwind_list))
 			goto found;
 	}
@@ -270,7 +270,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 		WARN_ON(!list_empty(&vm->active_list));
 	}
 
-	list_for_each_entry_safe(vma, next, &vm->inactive_list, mm_list)
+	list_for_each_entry_safe(vma, next, &vm->inactive_list, vm_link)
 		if (vma->pin_count == 0)
 			WARN_ON(i915_vma_unbind(vma));
 

@@ -74,8 +74,6 @@ void mmc_decode_cid(struct mmc_card *card)
 {
 	u32 *resp = card->raw_cid;
 
-	memset(&card->cid, 0, sizeof(struct mmc_cid));
-
 	/*
 	 * SD doesn't currently have a version field so we will
 	 * have to assume we can parse this.

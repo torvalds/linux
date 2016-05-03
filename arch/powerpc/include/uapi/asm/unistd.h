@@ -389,5 +389,6 @@
 #define __NR_userfaultfd	364
 #define __NR_membarrier		365
 #define __NR_mlock2		378
+#define __NR_copy_file_range	379
 
 #endif /* _UAPI_ASM_POWERPC_UNISTD_H_ */

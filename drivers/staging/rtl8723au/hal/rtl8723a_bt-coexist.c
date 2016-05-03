@@ -77,12 +77,6 @@ if ((BTCoexDbgLevel == _bt_dbg_on_)) {\
 
 #define PlatformZeroMemory(ptr, sz)	memset(ptr, 0, sz)
 
-#define PlatformProcessHCICommands(...)
-#define PlatformTxBTQueuedPackets(...)
-#define PlatformIndicateBTACLData(...)	(RT_STATUS_SUCCESS)
-#define PlatformAcquireSpinLock(padapter, type)
-#define PlatformReleaseSpinLock(padapter, type)
-
 #define GET_UNDECORATED_AVERAGE_RSSI(padapter)	\
 			(GET_HAL_DATA(padapter)->dmpriv.EntryMinUndecoratedSmoothedPWDB)
 #define RT_RF_CHANGE_SOURCE u32
@@ -798,11 +792,7 @@ bthci_IndicateEvent(
 	u32		dataLen
 	)
 {
-	enum rt_status	rt_status;
-
-	rt_status = PlatformIndicateBTEvent(padapter, pEvntData, dataLen);
-
-	return rt_status;
+	return PlatformIndicateBTEvent(padapter, pEvntData, dataLen);
 }
 
 static void
@@ -1454,21 +1444,11 @@ bthci_StartBeaconAndConnect(
 	}
 
 	if (pBTInfo->BtAsocEntry[CurrentAssocNum].AMPRole == AMP_BTAP_CREATOR) {
-		snprintf((char *)pBTInfo->BtAsocEntry[CurrentAssocNum].BTSsidBuf, 32, "AMP-%02x-%02x-%02x-%02x-%02x-%02x",
-		padapter->eeprompriv.mac_addr[0],
-		padapter->eeprompriv.mac_addr[1],
-		padapter->eeprompriv.mac_addr[2],
-		padapter->eeprompriv.mac_addr[3],
-		padapter->eeprompriv.mac_addr[4],
-		padapter->eeprompriv.mac_addr[5]);
+		snprintf((char *)pBTInfo->BtAsocEntry[CurrentAssocNum].BTSsidBuf, 32,
+			 "AMP-%pMF", padapter->eeprompriv.mac_addr);
 	} else if (pBTInfo->BtAsocEntry[CurrentAssocNum].AMPRole == AMP_BTAP_JOINER) {
-		snprintf((char *)pBTInfo->BtAsocEntry[CurrentAssocNum].BTSsidBuf, 32, "AMP-%02x-%02x-%02x-%02x-%02x-%02x",
-		pBTInfo->BtAsocEntry[CurrentAssocNum].BTRemoteMACAddr[0],
-		pBTInfo->BtAsocEntry[CurrentAssocNum].BTRemoteMACAddr[1],
-		pBTInfo->BtAsocEntry[CurrentAssocNum].BTRemoteMACAddr[2],
-		pBTInfo->BtAsocEntry[CurrentAssocNum].BTRemoteMACAddr[3],
-		pBTInfo->BtAsocEntry[CurrentAssocNum].BTRemoteMACAddr[4],
-		pBTInfo->BtAsocEntry[CurrentAssocNum].BTRemoteMACAddr[5]);
+		snprintf((char *)pBTInfo->BtAsocEntry[CurrentAssocNum].BTSsidBuf, 32,
+			 "AMP-%pMF", pBTInfo->BtAsocEntry[CurrentAssocNum].BTRemoteMACAddr);
 	}
 
 	FillOctetString(pBTInfo->BtAsocEntry[CurrentAssocNum].BTSsid, pBTInfo->BtAsocEntry[CurrentAssocNum].BTSsidBuf, 21);
@@ -2909,16 +2889,13 @@ bthci_CmdCreatePhysicalLink(
 	struct packet_irp_hcicmd_data *pHciCmd
 	)
 {
-	enum hci_status	status;
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_dgb *pBtDbg = &pBTInfo->BtDbg;
 
 	pBtDbg->dbgHciInfo.hciCmdCntCreatePhyLink++;
 
-	status = bthci_BuildPhysicalLink(padapter,
+	return bthci_BuildPhysicalLink(padapter,
 		pHciCmd, HCI_CREATE_PHYSICAL_LINK);
-
-	return status;
 }
 
 static enum hci_status
@@ -3184,16 +3161,13 @@ static enum hci_status
 bthci_CmdAcceptPhysicalLink(struct rtw_adapter *padapter,
 			    struct packet_irp_hcicmd_data *pHciCmd)
 {
-	enum hci_status	status;
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_dgb *pBtDbg = &pBTInfo->BtDbg;
 
 	pBtDbg->dbgHciInfo.hciCmdCntAcceptPhyLink++;
 
-	status = bthci_BuildPhysicalLink(padapter,
+	return bthci_BuildPhysicalLink(padapter,
 		pHciCmd, HCI_ACCEPT_PHYSICAL_LINK);
-
-	return status;
 }
 
 static enum hci_status
@@ -9475,10 +9449,8 @@ static void BTDM_Display8723ABtCoexInfo(struct rtw_adapter *padapter)
 			psTdmaCase = pHalData->bt_coexist.halCoex8723.btdm1Ant.curPsTdma;
 		else
 			psTdmaCase = pHalData->bt_coexist.halCoex8723.btdm2Ant.curPsTdma;
-		snprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %02x %02x %02x %02x %02x case-%d", "PS TDMA(0x3a)", \
-			pHalData->bt_coexist.fw3aVal[0], pHalData->bt_coexist.fw3aVal[1],
-			pHalData->bt_coexist.fw3aVal[2], pHalData->bt_coexist.fw3aVal[3],
-			pHalData->bt_coexist.fw3aVal[4], psTdmaCase);
+		snprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %*ph case-%d",
+			 "PS TDMA(0x3a)", 5, pHalData->bt_coexist.fw3aVal, psTdmaCase);
 		DCMD_Printf(btCoexDbgBuf);
 
 		snprintf(btCoexDbgBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d ", "Decrease Bt Power", \

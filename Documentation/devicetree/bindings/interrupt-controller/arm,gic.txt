@@ -16,6 +16,7 @@ Main node required properties:
 	"arm,cortex-a15-gic"
 	"arm,cortex-a7-gic"
 	"arm,cortex-a9-gic"
+	"arm,eb11mp-gic"
 	"arm,gic-400"
 	"arm,pl390"
 	"arm,tc11mp-gic"

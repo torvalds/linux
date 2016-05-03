@@ -1418,7 +1418,6 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 	u32 ioc_state;
 	unsigned long timeleft;
 	void *psge;
-	u32 sgl_flags;
 	u8 issue_reset = 0;
 	void *data_out = NULL;
 	dma_addr_t data_out_dma;
@@ -1507,24 +1506,10 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 	    cpu_to_le16(sizeof(struct phy_error_log_request));
 	psge = &mpi_request->SGL;
 
-	/* WRITE sgel first */
-	sgl_flags = (MPI2_SGE_FLAGS_SIMPLE_ELEMENT |
-	    MPI2_SGE_FLAGS_END_OF_BUFFER | MPI2_SGE_FLAGS_HOST_TO_IOC);
-	sgl_flags = sgl_flags << MPI2_SGE_FLAGS_SHIFT;
-	ioc->base_add_sg_single(psge, sgl_flags |
-	    sizeof(struct phy_control_request), data_out_dma);
-
-	/* incr sgel */
-	psge += ioc->sge_size;
-
-	/* READ sgel last */
-	sgl_flags = (MPI2_SGE_FLAGS_SIMPLE_ELEMENT |
-	    MPI2_SGE_FLAGS_LAST_ELEMENT | MPI2_SGE_FLAGS_END_OF_BUFFER |
-	    MPI2_SGE_FLAGS_END_OF_LIST);
-	sgl_flags = sgl_flags << MPI2_SGE_FLAGS_SHIFT;
-	ioc->base_add_sg_single(psge, sgl_flags |
-	    sizeof(struct phy_control_reply), data_out_dma +
-	    sizeof(struct phy_control_request));
+	ioc->build_sg(ioc, psge, data_out_dma,
+			    sizeof(struct phy_control_request),
+	    data_out_dma + sizeof(struct phy_control_request),
+	    sizeof(struct phy_control_reply));
 
 	dtransportprintk(ioc, pr_info(MPT3SAS_FMT
 		"phy_control - send to sas_addr(0x%016llx), phy(%d), opcode(%d)\n",
@@ -1615,7 +1600,7 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
 		    SMP_PHY_CONTROL_LINK_RESET);
 
 	/* handle hba phys */
-	memset(&mpi_request, 0, sizeof(Mpi2SasIoUnitControlReply_t));
+	memset(&mpi_request, 0, sizeof(Mpi2SasIoUnitControlRequest_t));
 	mpi_request.Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	mpi_request.Operation = hard_reset ?
 	    MPI2_SAS_OP_PHY_HARD_RESET : MPI2_SAS_OP_PHY_LINK_RESET;

@@ -787,6 +787,12 @@ static int iowarrior_probe(struct usb_interface *interface,
 	iface_desc = interface->cur_altsetting;
 	dev->product_id = le16_to_cpu(udev->descriptor.idProduct);
 
+	if (iface_desc->desc.bNumEndpoints < 1) {
+		dev_err(&interface->dev, "Invalid number of endpoints\n");
+		retval = -EINVAL;
+		goto error;
+	}
+
 	/* set up the endpoint information */
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;

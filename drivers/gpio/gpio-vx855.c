@@ -259,16 +259,7 @@ static int vx855gpio_probe(struct platform_device *pdev)
 
 	vx855gpio_gpio_setup(vg);
 
-	return gpiochip_add_data(&vg->gpio, vg);
-}
-
-static int vx855gpio_remove(struct platform_device *pdev)
-{
-	struct vx855_gpio *vg = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&vg->gpio);
-
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &vg->gpio, vg);
 }
 
 static struct platform_driver vx855gpio_driver = {
@@ -276,7 +267,6 @@ static struct platform_driver vx855gpio_driver = {
 		.name	= MODULE_NAME,
 	},
 	.probe		= vx855gpio_probe,
-	.remove		= vx855gpio_remove,
 };
 
 module_platform_driver(vx855gpio_driver);

@@ -1360,19 +1360,15 @@ struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, unsigned in
 	dfprintk(VFS, "NFS: lookup(%pd2)\n", dentry);
 	nfs_inc_stats(dir, NFSIOS_VFSLOOKUP);
 
-	res = ERR_PTR(-ENAMETOOLONG);
-	if (dentry->d_name.len > NFS_SERVER(dir)->namelen)
-		goto out;
+	if (unlikely(dentry->d_name.len > NFS_SERVER(dir)->namelen))
+		return ERR_PTR(-ENAMETOOLONG);
 
 	/*
 	 * If we're doing an exclusive create, optimize away the lookup
 	 * but don't hash the dentry.
 	 */
-	if (nfs_is_exclusive_create(dir, flags)) {
-		d_instantiate(dentry, NULL);
-		res = NULL;
-		goto out;
-	}
+	if (nfs_is_exclusive_create(dir, flags))
+		return NULL;
 
 	res = ERR_PTR(-ENOMEM);
 	fhandle = nfs_alloc_fhandle();

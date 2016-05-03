@@ -161,6 +161,26 @@ config RASPBERRYPI_FIRMWARE
 	  This option enables support for communicating with the firmware on the
 	  Raspberry Pi.
 
+config FW_CFG_SYSFS
+	tristate "QEMU fw_cfg device support in sysfs"
+	depends on SYSFS && (ARM || ARM64 || PPC_PMAC || SPARC || X86)
+	depends on HAS_IOPORT_MAP
+	default n
+	help
+	  Say Y or M here to enable the exporting of the QEMU firmware
+	  configuration (fw_cfg) file entries via sysfs. Entries are
+	  found under /sys/firmware/fw_cfg when this option is enabled
+	  and loaded.
+
+config FW_CFG_SYSFS_CMDLINE
+	bool "QEMU fw_cfg device parameter parsing"
+	depends on FW_CFG_SYSFS
+	help
+	  Allow the qemu_fw_cfg device to be initialized via the kernel
+	  command line or using a module parameter.
+	  WARNING: Using incorrect parameters (base address in particular)
+	  may crash your system.
+
 config QCOM_SCM
 	bool
 	depends on ARM || ARM64

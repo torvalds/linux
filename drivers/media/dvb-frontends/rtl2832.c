@@ -347,6 +347,10 @@ static int rtl2832_init(struct dvb_frontend *fe)
 
 	dev_dbg(&client->dev, "\n");
 
+	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x0);
+	if (ret)
+		goto err;
+
 	for (i = 0; i < ARRAY_SIZE(rtl2832_initial_regs); i++) {
 		ret = rtl2832_wr_demod_reg(dev, rtl2832_initial_regs[i].reg,
 			rtl2832_initial_regs[i].value);
@@ -404,8 +408,6 @@ static int rtl2832_init(struct dvb_frontend *fe)
 	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	c->post_bit_count.len = 1;
 	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	/* start statistics polling */
-	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(2000));
 	dev->sleeping = false;
 
 	return 0;
@@ -423,8 +425,6 @@ static int rtl2832_sleep(struct dvb_frontend *fe)
 	dev_dbg(&client->dev, "\n");
 
 	dev->sleeping = true;
-	/* stop statistics polling */
-	cancel_delayed_work_sync(&dev->stat_work);
 	dev->fe_status = 0;
 
 	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x1);
@@ -490,11 +490,6 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);
-
-	/* PIP mode related */
-	ret = rtl2832_bulk_write(client, 0x192, "\x00\x0f\xff", 3);
-	if (ret)
-		goto err;
 
 	/* If the frontend has get_if_frequency(), use it */
 	if (fe->ops.tuner_ops.get_if_frequency) {
@@ -575,11 +570,11 @@ err:
 	return ret;
 }
 
-static int rtl2832_get_frontend(struct dvb_frontend *fe)
+static int rtl2832_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[3];
 
@@ -692,8 +687,11 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct rtl2832_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u32 uninitialized_var(tmp);
+	u8 u8tmp, buf[2];
+	u16 u16tmp;
 
 	dev_dbg(&client->dev, "\n");
 
@@ -714,45 +712,6 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	}
 
 	dev->fe_status = *status;
-	return 0;
-err:
-	dev_dbg(&client->dev, "failed=%d\n", ret);
-	return ret;
-}
-
-static int rtl2832_read_snr(struct dvb_frontend *fe, u16 *snr)
-{
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-
-	/* report SNR in resolution of 0.1 dB */
-	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL)
-		*snr = div_s64(c->cnr.stat[0].svalue, 100);
-	else
-		*snr = 0;
-
-	return 0;
-}
-
-static int rtl2832_read_ber(struct dvb_frontend *fe, u32 *ber)
-{
-	struct rtl2832_dev *dev = fe->demodulator_priv;
-
-	*ber = (dev->post_bit_error - dev->post_bit_error_prev);
-	dev->post_bit_error_prev = dev->post_bit_error;
-
-	return 0;
-}
-
-static void rtl2832_stat_work(struct work_struct *work)
-{
-	struct rtl2832_dev *dev = container_of(work, struct rtl2832_dev, stat_work.work);
-	struct i2c_client *client = dev->client;
-	struct dtv_frontend_properties *c = &dev->fe.dtv_property_cache;
-	int ret, tmp;
-	u8 u8tmp, buf[2];
-	u16 u16tmp;
-
-	dev_dbg(&client->dev, "\n");
 
 	/* signal strength */
 	if (dev->fe_status & FE_HAS_SIGNAL) {
@@ -789,11 +748,11 @@ static void rtl2832_stat_work(struct work_struct *work)
 
 		constellation = (u8tmp >> 2) & 0x03; /* [3:2] */
 		if (constellation > CONSTELLATION_NUM - 1)
-			goto err_schedule_delayed_work;
+			goto err;
 
 		hierarchy = (u8tmp >> 4) & 0x07; /* [6:4] */
 		if (hierarchy > HIERARCHY_NUM - 1)
-			goto err_schedule_delayed_work;
+			goto err;
 
 		ret = rtl2832_bulk_read(client, 0x40c, buf, 2);
 		if (ret)
@@ -835,11 +794,33 @@ static void rtl2832_stat_work(struct work_struct *work)
 		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
-err_schedule_delayed_work:
-	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(2000));
-	return;
+	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int rtl2832_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	/* report SNR in resolution of 0.1 dB */
+	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL)
+		*snr = div_s64(c->cnr.stat[0].svalue, 100);
+	else
+		*snr = 0;
+
+	return 0;
+}
+
+static int rtl2832_read_ber(struct dvb_frontend *fe, u32 *ber)
+{
+	struct rtl2832_dev *dev = fe->demodulator_priv;
+
+	*ber = (dev->post_bit_error - dev->post_bit_error_prev);
+	dev->post_bit_error_prev = dev->post_bit_error;
+
+	return 0;
 }
 
 /*
@@ -1081,37 +1062,46 @@ static struct i2c_adapter *rtl2832_get_i2c_adapter(struct i2c_client *client)
 	return dev->i2c_adapter_tuner;
 }
 
-static int rtl2832_enable_slave_ts(struct i2c_client *client)
+static int rtl2832_slave_ts_ctrl(struct i2c_client *client, bool enable)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
 	int ret;
 
-	dev_dbg(&client->dev, "\n");
+	dev_dbg(&client->dev, "enable=%d\n", enable);
 
-	ret = rtl2832_bulk_write(client, 0x10c, "\x5f\xff", 2);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_wr_demod_reg(dev, DVBT_PIP_ON, 0x1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_bulk_write(client, 0x0bc, "\x18", 1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_bulk_write(client, 0x192, "\x7f\xf7\xff", 3);
-	if (ret)
-		goto err;
-
-	/* soft reset */
-	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x1);
-	if (ret)
-		goto err;
-
-	ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x0);
-	if (ret)
-		goto err;
+	if (enable) {
+		ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x0);
+		if (ret)
+			goto err;
+		ret = rtl2832_bulk_write(client, 0x10c, "\x5f\xff", 2);
+		if (ret)
+			goto err;
+		ret = rtl2832_wr_demod_reg(dev, DVBT_PIP_ON, 0x1);
+		if (ret)
+			goto err;
+		ret = rtl2832_bulk_write(client, 0x0bc, "\x18", 1);
+		if (ret)
+			goto err;
+		ret = rtl2832_bulk_write(client, 0x192, "\x7f\xf7\xff", 3);
+		if (ret)
+			goto err;
+	} else {
+		ret = rtl2832_bulk_write(client, 0x192, "\x00\x0f\xff", 3);
+		if (ret)
+			goto err;
+		ret = rtl2832_bulk_write(client, 0x0bc, "\x08", 1);
+		if (ret)
+			goto err;
+		ret = rtl2832_wr_demod_reg(dev, DVBT_PIP_ON, 0x0);
+		if (ret)
+			goto err;
+		ret = rtl2832_bulk_write(client, 0x10c, "\x00\x00", 2);
+		if (ret)
+			goto err;
+		ret = rtl2832_wr_demod_reg(dev, DVBT_SOFT_RST, 0x1);
+		if (ret)
+			goto err;
+	}
 
 	return 0;
 err:
@@ -1227,7 +1217,6 @@ static int rtl2832_probe(struct i2c_client *client,
 	dev->pdata = client->dev.platform_data;
 	dev->sleeping = true;
 	INIT_DELAYED_WORK(&dev->i2c_gate_work, rtl2832_i2c_gate_work);
-	INIT_DELAYED_WORK(&dev->stat_work, rtl2832_stat_work);
 	/* create regmap */
 	mutex_init(&dev->regmap_mutex);
 	dev->regmap_config.reg_bits =  8,
@@ -1267,7 +1256,7 @@ static int rtl2832_probe(struct i2c_client *client,
 	/* setup callbacks */
 	pdata->get_dvb_frontend = rtl2832_get_dvb_frontend;
 	pdata->get_i2c_adapter = rtl2832_get_i2c_adapter;
-	pdata->enable_slave_ts = rtl2832_enable_slave_ts;
+	pdata->slave_ts_ctrl = rtl2832_slave_ts_ctrl;
 	pdata->pid_filter = rtl2832_pid_filter;
 	pdata->pid_filter_ctrl = rtl2832_pid_filter_ctrl;
 	pdata->bulk_read = rtl2832_bulk_read;

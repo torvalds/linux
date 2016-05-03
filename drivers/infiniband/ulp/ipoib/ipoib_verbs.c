@@ -206,7 +206,8 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		init_attr.create_flags |= IB_QP_CREATE_NETIF_QP;
 
 	if (dev->features & NETIF_F_SG)
-		init_attr.cap.max_send_sge = MAX_SKB_FRAGS + 1;
+		init_attr.cap.max_send_sge =
+			min_t(u32, priv->ca->attrs.max_sge, MAX_SKB_FRAGS + 1);
 
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
@@ -232,6 +233,8 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 
 	priv->rx_wr.next = NULL;
 	priv->rx_wr.sg_list = priv->rx_sge;
+
+	priv->max_send_sge = init_attr.cap.max_send_sge;
 
 	return 0;
 

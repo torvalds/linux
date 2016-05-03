@@ -795,8 +795,6 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 			goto error;
 		}
 
-		/* propagate ecc.layout to mtd_info */
-		mtd->ecclayout = chip->ecc.layout;
 		chip->ecc.read_page = vf610_nfc_read_page;
 		chip->ecc.write_page = vf610_nfc_write_page;
 

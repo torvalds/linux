@@ -860,7 +860,7 @@ static struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
 	.s_mbus_config	= mt9v022_s_mbus_config,
 };
 
-static struct v4l2_subdev_sensor_ops mt9v022_subdev_sensor_ops = {
+static const struct v4l2_subdev_sensor_ops mt9v022_subdev_sensor_ops = {
 	.g_skip_top_lines	= mt9v022_g_skip_top_lines,
 };
 

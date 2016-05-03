@@ -162,6 +162,14 @@ static inline struct dentry *debugfs_create_symlink(const char *name,
 	return ERR_PTR(-ENODEV);
 }
 
+static inline struct dentry *debugfs_create_automount(const char *name,
+					struct dentry *parent,
+					struct vfsmount *(*f)(void *),
+					void *data)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 static inline void debugfs_remove(struct dentry *dentry)
 { }
 

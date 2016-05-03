@@ -628,6 +628,16 @@ int pevent_register_print_string(struct pevent *pevent, const char *fmt,
 				 unsigned long long addr);
 int pevent_pid_is_registered(struct pevent *pevent, int pid);
 
+void pevent_print_event_task(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record);
+void pevent_print_event_time(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record,
+			     bool use_trace_clock);
+void pevent_print_event_data(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record);
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			struct pevent_record *record, bool use_trace_clock);
 
@@ -693,6 +703,9 @@ struct event_format *pevent_find_event(struct pevent *pevent, int id);
 
 struct event_format *
 pevent_find_event_by_name(struct pevent *pevent, const char *sys, const char *name);
+
+struct event_format *
+pevent_find_event_by_record(struct pevent *pevent, struct pevent_record *record);
 
 void pevent_data_lat_fmt(struct pevent *pevent,
 			 struct trace_seq *s, struct pevent_record *record);

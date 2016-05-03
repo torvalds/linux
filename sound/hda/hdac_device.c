@@ -611,6 +611,22 @@ int snd_hdac_power_up_pm(struct hdac_device *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_power_up_pm);
 
+/* like snd_hdac_power_up_pm(), but only increment the pm count when
+ * already powered up.  Returns -1 if not powered up, 1 if incremented
+ * or 0 if unchanged.  Only used in hdac_regmap.c
+ */
+int snd_hdac_keep_power_up(struct hdac_device *codec)
+{
+	if (!atomic_inc_not_zero(&codec->in_pm)) {
+		int ret = pm_runtime_get_if_in_use(&codec->dev);
+		if (!ret)
+			return -1;
+		if (ret < 0)
+			return 0;
+	}
+	return 1;
+}
+
 /**
  * snd_hdac_power_down_pm - power down the codec
  * @codec: the codec object

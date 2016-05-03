@@ -271,7 +271,7 @@ static int restore_sigregs_ext32(struct pt_regs *regs,
 
 	/* Restore high gprs from signal stack */
 	if (__copy_from_user(&gprs_high, &sregs_ext->gprs_high,
-			     sizeof(&sregs_ext->gprs_high)))
+			     sizeof(sregs_ext->gprs_high)))
 		return -EFAULT;
 	for (i = 0; i < NUM_GPRS; i++)
 		*(__u32 *)&regs->gprs[i] = gprs_high[i];

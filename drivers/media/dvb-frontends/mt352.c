@@ -311,9 +311,9 @@ static int mt352_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int mt352_get_parameters(struct dvb_frontend* fe)
+static int mt352_get_parameters(struct dvb_frontend* fe,
+				struct dtv_frontend_properties *op)
 {
-	struct dtv_frontend_properties *op = &fe->dtv_property_cache;
 	struct mt352_state* state = fe->demodulator_priv;
 	u16 tps;
 	u16 div;

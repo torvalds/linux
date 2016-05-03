@@ -167,11 +167,11 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 	struct rxrpc_sock *rx;
 	struct key *key;
 	key_ref_t kref;
-	char kdesc[5+1+3+1];
+	char kdesc[5 + 1 + 3 + 1];
 
 	_enter("");
 
-	sprintf(kdesc, "%u:%u", ntohs(conn->service_id), conn->security_ix);
+	sprintf(kdesc, "%u:%u", conn->service_id, conn->security_ix);
 
 	sec = rxrpc_security_lookup(conn->security_ix);
 	if (!sec) {
@@ -182,7 +182,7 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 	/* find the service */
 	read_lock_bh(&local->services_lock);
 	list_for_each_entry(rx, &local->services, listen_link) {
-		if (rx->service_id == conn->service_id)
+		if (rx->srx.srx_service == conn->service_id)
 			goto found_service;
 	}
 

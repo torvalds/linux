@@ -9,6 +9,23 @@
 #include <linux/efi.h>
 #include <asm/efi.h>
 
+efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
+{
+	int block;
+
+	/* non-LPAE kernels can run anywhere */
+	if (!IS_ENABLED(CONFIG_ARM_LPAE))
+		return EFI_SUCCESS;
+
+	/* LPAE kernels need compatible hardware */
+	block = cpuid_feature_extract(CPUID_EXT_MMFR0, 0);
+	if (block < 5) {
+		pr_efi_err(sys_table_arg, "This LPAE kernel is not supported by your CPU\n");
+		return EFI_UNSUPPORTED;
+	}
+	return EFI_SUCCESS;
+}
+
 efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 				 unsigned long *image_addr,
 				 unsigned long *image_size,

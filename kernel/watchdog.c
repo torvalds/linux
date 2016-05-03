@@ -923,6 +923,9 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 		 * both lockup detectors are disabled if proc_watchdog_update()
 		 * returns an error.
 		 */
+		if (old == new)
+			goto out;
+
 		err = proc_watchdog_update();
 	}
 out:
@@ -967,7 +970,7 @@ int proc_soft_watchdog(struct ctl_table *table, int write,
 int proc_watchdog_thresh(struct ctl_table *table, int write,
 			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int err, old;
+	int err, old, new;
 
 	get_online_cpus();
 	mutex_lock(&watchdog_proc_mutex);
@@ -987,6 +990,10 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 	/*
 	 * Update the sample period. Restore on failure.
 	 */
+	new = ACCESS_ONCE(watchdog_thresh);
+	if (old == new)
+		goto out;
+
 	set_sample_period();
 	err = proc_watchdog_update();
 	if (err) {

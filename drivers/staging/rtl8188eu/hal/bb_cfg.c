@@ -598,18 +598,12 @@ static void rtl88e_phy_init_bb_rf_register_definition(struct adapter *adapter)
 
 	reg[RF_PATH_A] = &hal_data->PHYRegDef[RF_PATH_A];
 	reg[RF_PATH_B] = &hal_data->PHYRegDef[RF_PATH_B];
-	reg[RF_PATH_C] = &hal_data->PHYRegDef[RF_PATH_C];
-	reg[RF_PATH_D] = &hal_data->PHYRegDef[RF_PATH_D];
 
 	reg[RF_PATH_A]->rfintfs = rFPGA0_XAB_RFInterfaceSW;
 	reg[RF_PATH_B]->rfintfs = rFPGA0_XAB_RFInterfaceSW;
-	reg[RF_PATH_C]->rfintfs = rFPGA0_XCD_RFInterfaceSW;
-	reg[RF_PATH_D]->rfintfs = rFPGA0_XCD_RFInterfaceSW;
 
 	reg[RF_PATH_A]->rfintfi = rFPGA0_XAB_RFInterfaceRB;
 	reg[RF_PATH_B]->rfintfi = rFPGA0_XAB_RFInterfaceRB;
-	reg[RF_PATH_C]->rfintfi = rFPGA0_XCD_RFInterfaceRB;
-	reg[RF_PATH_D]->rfintfi = rFPGA0_XCD_RFInterfaceRB;
 
 	reg[RF_PATH_A]->rfintfo = rFPGA0_XA_RFInterfaceOE;
 	reg[RF_PATH_B]->rfintfo = rFPGA0_XB_RFInterfaceOE;
@@ -622,13 +616,9 @@ static void rtl88e_phy_init_bb_rf_register_definition(struct adapter *adapter)
 
 	reg[RF_PATH_A]->rfLSSI_Select = rFPGA0_XAB_RFParameter;
 	reg[RF_PATH_B]->rfLSSI_Select = rFPGA0_XAB_RFParameter;
-	reg[RF_PATH_C]->rfLSSI_Select = rFPGA0_XCD_RFParameter;
-	reg[RF_PATH_D]->rfLSSI_Select = rFPGA0_XCD_RFParameter;
 
 	reg[RF_PATH_A]->rfTxGainStage = rFPGA0_TxGainStage;
 	reg[RF_PATH_B]->rfTxGainStage = rFPGA0_TxGainStage;
-	reg[RF_PATH_C]->rfTxGainStage = rFPGA0_TxGainStage;
-	reg[RF_PATH_D]->rfTxGainStage = rFPGA0_TxGainStage;
 
 	reg[RF_PATH_A]->rfHSSIPara1 = rFPGA0_XA_HSSIParameter1;
 	reg[RF_PATH_B]->rfHSSIPara1 = rFPGA0_XB_HSSIParameter1;
@@ -638,43 +628,27 @@ static void rtl88e_phy_init_bb_rf_register_definition(struct adapter *adapter)
 
 	reg[RF_PATH_A]->rfSwitchControl = rFPGA0_XAB_SwitchControl;
 	reg[RF_PATH_B]->rfSwitchControl = rFPGA0_XAB_SwitchControl;
-	reg[RF_PATH_C]->rfSwitchControl = rFPGA0_XCD_SwitchControl;
-	reg[RF_PATH_D]->rfSwitchControl = rFPGA0_XCD_SwitchControl;
 
 	reg[RF_PATH_A]->rfAGCControl1 = rOFDM0_XAAGCCore1;
 	reg[RF_PATH_B]->rfAGCControl1 = rOFDM0_XBAGCCore1;
-	reg[RF_PATH_C]->rfAGCControl1 = rOFDM0_XCAGCCore1;
-	reg[RF_PATH_D]->rfAGCControl1 = rOFDM0_XDAGCCore1;
 
 	reg[RF_PATH_A]->rfAGCControl2 = rOFDM0_XAAGCCore2;
 	reg[RF_PATH_B]->rfAGCControl2 = rOFDM0_XBAGCCore2;
-	reg[RF_PATH_C]->rfAGCControl2 = rOFDM0_XCAGCCore2;
-	reg[RF_PATH_D]->rfAGCControl2 = rOFDM0_XDAGCCore2;
 
 	reg[RF_PATH_A]->rfRxIQImbalance = rOFDM0_XARxIQImbalance;
 	reg[RF_PATH_B]->rfRxIQImbalance = rOFDM0_XBRxIQImbalance;
-	reg[RF_PATH_C]->rfRxIQImbalance = rOFDM0_XCRxIQImbalance;
-	reg[RF_PATH_D]->rfRxIQImbalance = rOFDM0_XDRxIQImbalance;
 
 	reg[RF_PATH_A]->rfRxAFE = rOFDM0_XARxAFE;
 	reg[RF_PATH_B]->rfRxAFE = rOFDM0_XBRxAFE;
-	reg[RF_PATH_C]->rfRxAFE = rOFDM0_XCRxAFE;
-	reg[RF_PATH_D]->rfRxAFE = rOFDM0_XDRxAFE;
 
 	reg[RF_PATH_A]->rfTxIQImbalance = rOFDM0_XATxIQImbalance;
 	reg[RF_PATH_B]->rfTxIQImbalance = rOFDM0_XBTxIQImbalance;
-	reg[RF_PATH_C]->rfTxIQImbalance = rOFDM0_XCTxIQImbalance;
-	reg[RF_PATH_D]->rfTxIQImbalance = rOFDM0_XDTxIQImbalance;
 
 	reg[RF_PATH_A]->rfTxAFE = rOFDM0_XATxAFE;
 	reg[RF_PATH_B]->rfTxAFE = rOFDM0_XBTxAFE;
-	reg[RF_PATH_C]->rfTxAFE = rOFDM0_XCTxAFE;
-	reg[RF_PATH_D]->rfTxAFE = rOFDM0_XDTxAFE;
 
 	reg[RF_PATH_A]->rfLSSIReadBack = rFPGA0_XA_LSSIReadBack;
 	reg[RF_PATH_B]->rfLSSIReadBack = rFPGA0_XB_LSSIReadBack;
-	reg[RF_PATH_C]->rfLSSIReadBack = rFPGA0_XC_LSSIReadBack;
-	reg[RF_PATH_D]->rfLSSIReadBack = rFPGA0_XD_LSSIReadBack;
 
 	reg[RF_PATH_A]->rfLSSIReadBackPi = TransceiverA_HSPI_Readback;
 	reg[RF_PATH_B]->rfLSSIReadBackPi = TransceiverB_HSPI_Readback;

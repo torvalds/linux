@@ -36,7 +36,7 @@
 #define ZIIRAVE_STATE_OFF	0x1
 #define ZIIRAVE_STATE_ON	0x2
 
-static char *ziirave_reasons[] = {"power cycle", "triggered", NULL, NULL,
+static char *ziirave_reasons[] = {"power cycle", "hw watchdog", NULL, NULL,
 				  "host request", NULL, "illegal configuration",
 				  "illegal instruction", "illegal trap",
 				  "unknown"};

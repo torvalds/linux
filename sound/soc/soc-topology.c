@@ -223,51 +223,6 @@ static int get_widget_id(int tplg_type)
 	return -EINVAL;
 }
 
-static enum snd_soc_dobj_type get_dobj_mixer_type(
-	struct snd_soc_tplg_ctl_hdr *control_hdr)
-{
-	if (control_hdr == NULL)
-		return SND_SOC_DOBJ_NONE;
-
-	switch (control_hdr->ops.info) {
-	case SND_SOC_TPLG_CTL_VOLSW:
-	case SND_SOC_TPLG_CTL_VOLSW_SX:
-	case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
-	case SND_SOC_TPLG_CTL_RANGE:
-	case SND_SOC_TPLG_CTL_STROBE:
-		return SND_SOC_DOBJ_MIXER;
-	case SND_SOC_TPLG_CTL_ENUM:
-	case SND_SOC_TPLG_CTL_ENUM_VALUE:
-		return SND_SOC_DOBJ_ENUM;
-	case SND_SOC_TPLG_CTL_BYTES:
-		return SND_SOC_DOBJ_BYTES;
-	default:
-		return SND_SOC_DOBJ_NONE;
-	}
-}
-
-static enum snd_soc_dobj_type get_dobj_type(struct snd_soc_tplg_hdr *hdr,
-	struct snd_soc_tplg_ctl_hdr *control_hdr)
-{
-	switch (hdr->type) {
-	case SND_SOC_TPLG_TYPE_MIXER:
-		return get_dobj_mixer_type(control_hdr);
-	case SND_SOC_TPLG_TYPE_DAPM_GRAPH:
-	case SND_SOC_TPLG_TYPE_MANIFEST:
-		return SND_SOC_DOBJ_NONE;
-	case SND_SOC_TPLG_TYPE_DAPM_WIDGET:
-		return SND_SOC_DOBJ_WIDGET;
-	case SND_SOC_TPLG_TYPE_DAI_LINK:
-		return SND_SOC_DOBJ_DAI_LINK;
-	case SND_SOC_TPLG_TYPE_PCM:
-		return SND_SOC_DOBJ_PCM;
-	case SND_SOC_TPLG_TYPE_CODEC_LINK:
-		return SND_SOC_DOBJ_CODEC_LINK;
-	default:
-		return SND_SOC_DOBJ_NONE;
-	}
-}
-
 static inline void soc_bind_err(struct soc_tplg *tplg,
 	struct snd_soc_tplg_ctl_hdr *hdr, int index)
 {
@@ -330,12 +285,22 @@ static int soc_tplg_widget_load(struct soc_tplg *tplg,
 	return 0;
 }
 
-/* pass dynamic FEs configurations to component driver */
-static int soc_tplg_pcm_dai_load(struct soc_tplg *tplg,
-	struct snd_soc_tplg_pcm_dai *pcm_dai, int num_pcm_dai)
+/* pass DAI configurations to component driver for extra intialization */
+static int soc_tplg_dai_load(struct soc_tplg *tplg,
+	struct snd_soc_dai_driver *dai_drv)
 {
-	if (tplg->comp && tplg->ops && tplg->ops->pcm_dai_load)
-		return tplg->ops->pcm_dai_load(tplg->comp, pcm_dai, num_pcm_dai);
+	if (tplg->comp && tplg->ops && tplg->ops->dai_load)
+		return tplg->ops->dai_load(tplg->comp, dai_drv);
+
+	return 0;
+}
+
+/* pass link configurations to component driver for extra intialization */
+static int soc_tplg_dai_link_load(struct soc_tplg *tplg,
+	struct snd_soc_dai_link *link)
+{
+	if (tplg->comp && tplg->ops && tplg->ops->link_load)
+		return tplg->ops->link_load(tplg->comp, link);
 
 	return 0;
 }
@@ -495,18 +460,39 @@ static void remove_widget(struct snd_soc_component *comp,
 	/* widget w is freed by soc-dapm.c */
 }
 
-/* remove PCM DAI configurations */
-static void remove_pcm_dai(struct snd_soc_component *comp,
+/* remove DAI configurations */
+static void remove_dai(struct snd_soc_component *comp,
 	struct snd_soc_dobj *dobj, int pass)
 {
+	struct snd_soc_dai_driver *dai_drv =
+		container_of(dobj, struct snd_soc_dai_driver, dobj);
+
 	if (pass != SOC_TPLG_PASS_PCM_DAI)
 		return;
 
-	if (dobj->ops && dobj->ops->pcm_dai_unload)
-		dobj->ops->pcm_dai_unload(comp, dobj);
+	if (dobj->ops && dobj->ops->dai_unload)
+		dobj->ops->dai_unload(comp, dobj);
 
 	list_del(&dobj->list);
-	kfree(dobj);
+	kfree(dai_drv);
+}
+
+/* remove link configurations */
+static void remove_link(struct snd_soc_component *comp,
+	struct snd_soc_dobj *dobj, int pass)
+{
+	struct snd_soc_dai_link *link =
+		container_of(dobj, struct snd_soc_dai_link, dobj);
+
+	if (pass != SOC_TPLG_PASS_PCM_DAI)
+		return;
+
+	if (dobj->ops && dobj->ops->link_unload)
+		dobj->ops->link_unload(comp, dobj);
+
+	list_del(&dobj->list);
+	snd_soc_remove_dai_link(comp->card, link);
+	kfree(link);
 }
 
 /* bind a kcontrol to it's IO handlers */
@@ -1544,18 +1530,116 @@ static int soc_tplg_dapm_complete(struct soc_tplg *tplg)
 	return 0;
 }
 
-static int soc_tplg_pcm_dai_elems_load(struct soc_tplg *tplg,
+static void set_stream_info(struct snd_soc_pcm_stream *stream,
+	struct snd_soc_tplg_stream_caps *caps)
+{
+	stream->stream_name = kstrdup(caps->name, GFP_KERNEL);
+	stream->channels_min = caps->channels_min;
+	stream->channels_max = caps->channels_max;
+	stream->rates = caps->rates;
+	stream->rate_min = caps->rate_min;
+	stream->rate_max = caps->rate_max;
+	stream->formats = caps->formats;
+}
+
+static int soc_tplg_dai_create(struct soc_tplg *tplg,
+	struct snd_soc_tplg_pcm *pcm)
+{
+	struct snd_soc_dai_driver *dai_drv;
+	struct snd_soc_pcm_stream *stream;
+	struct snd_soc_tplg_stream_caps *caps;
+	int ret;
+
+	dai_drv = kzalloc(sizeof(struct snd_soc_dai_driver), GFP_KERNEL);
+	if (dai_drv == NULL)
+		return -ENOMEM;
+
+	dai_drv->name = pcm->dai_name;
+	dai_drv->id = pcm->dai_id;
+
+	if (pcm->playback) {
+		stream = &dai_drv->playback;
+		caps = &pcm->caps[SND_SOC_TPLG_STREAM_PLAYBACK];
+		set_stream_info(stream, caps);
+	}
+
+	if (pcm->capture) {
+		stream = &dai_drv->capture;
+		caps = &pcm->caps[SND_SOC_TPLG_STREAM_CAPTURE];
+		set_stream_info(stream, caps);
+	}
+
+	/* pass control to component driver for optional further init */
+	ret = soc_tplg_dai_load(tplg, dai_drv);
+	if (ret < 0) {
+		dev_err(tplg->comp->dev, "ASoC: DAI loading failed\n");
+		kfree(dai_drv);
+		return ret;
+	}
+
+	dai_drv->dobj.index = tplg->index;
+	dai_drv->dobj.ops = tplg->ops;
+	dai_drv->dobj.type = SND_SOC_DOBJ_PCM;
+	list_add(&dai_drv->dobj.list, &tplg->comp->dobj_list);
+
+	/* register the DAI to the component */
+	return snd_soc_register_dai(tplg->comp, dai_drv);
+}
+
+static int soc_tplg_link_create(struct soc_tplg *tplg,
+	struct snd_soc_tplg_pcm *pcm)
+{
+	struct snd_soc_dai_link *link;
+	int ret;
+
+	link = kzalloc(sizeof(struct snd_soc_dai_link), GFP_KERNEL);
+	if (link == NULL)
+		return -ENOMEM;
+
+	link->name = pcm->pcm_name;
+	link->stream_name = pcm->pcm_name;
+
+	/* pass control to component driver for optional further init */
+	ret = soc_tplg_dai_link_load(tplg, link);
+	if (ret < 0) {
+		dev_err(tplg->comp->dev, "ASoC: FE link loading failed\n");
+		kfree(link);
+		return ret;
+	}
+
+	link->dobj.index = tplg->index;
+	link->dobj.ops = tplg->ops;
+	link->dobj.type = SND_SOC_DOBJ_DAI_LINK;
+	list_add(&link->dobj.list, &tplg->comp->dobj_list);
+
+	snd_soc_add_dai_link(tplg->comp->card, link);
+	return 0;
+}
+
+/* create a FE DAI and DAI link from the PCM object */
+static int soc_tplg_pcm_create(struct soc_tplg *tplg,
+	struct snd_soc_tplg_pcm *pcm)
+{
+	int ret;
+
+	ret = soc_tplg_dai_create(tplg, pcm);
+	if (ret < 0)
+		return ret;
+
+	return  soc_tplg_link_create(tplg, pcm);
+}
+
+static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_pcm_dai *pcm_dai;
-	struct snd_soc_dobj *dobj;
+	struct snd_soc_tplg_pcm *pcm;
 	int count = hdr->count;
-	int ret;
+	int i;
 
 	if (tplg->pass != SOC_TPLG_PASS_PCM_DAI)
 		return 0;
 
-	pcm_dai = (struct snd_soc_tplg_pcm_dai *)tplg->pos;
+	pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
 
 	if (soc_tplg_check_elem_count(tplg,
 		sizeof(struct snd_soc_tplg_pcm), count,
@@ -1565,31 +1649,16 @@ static int soc_tplg_pcm_dai_elems_load(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
+	/* create the FE DAIs and DAI links */
+	for (i = 0; i < count; i++) {
+		soc_tplg_pcm_create(tplg, pcm);
+		pcm++;
+	}
+
 	dev_dbg(tplg->dev, "ASoC: adding %d PCM DAIs\n", count);
 	tplg->pos += sizeof(struct snd_soc_tplg_pcm) * count;
 
-	dobj = kzalloc(sizeof(struct snd_soc_dobj), GFP_KERNEL);
-	if (dobj == NULL)
-		return -ENOMEM;
-
-	/* Call the platform driver call back to register the dais */
-	ret = soc_tplg_pcm_dai_load(tplg, pcm_dai, count);
-	if (ret < 0) {
-		dev_err(tplg->comp->dev, "ASoC: PCM DAI loading failed\n");
-		goto err;
-	}
-
-	dobj->type = get_dobj_type(hdr, NULL);
-	dobj->pcm_dai.count = count;
-	dobj->pcm_dai.pd = pcm_dai;
-	dobj->ops = tplg->ops;
-	dobj->index = tplg->index;
-	list_add(&dobj->list, &tplg->comp->dobj_list);
 	return 0;
-
-err:
-	kfree(dobj);
-	return ret;
 }
 
 static int soc_tplg_manifest_load(struct soc_tplg *tplg,
@@ -1681,9 +1750,7 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 	case SND_SOC_TPLG_TYPE_DAPM_WIDGET:
 		return soc_tplg_dapm_widget_elems_load(tplg, hdr);
 	case SND_SOC_TPLG_TYPE_PCM:
-	case SND_SOC_TPLG_TYPE_DAI_LINK:
-	case SND_SOC_TPLG_TYPE_CODEC_LINK:
-		return soc_tplg_pcm_dai_elems_load(tplg, hdr);
+		return soc_tplg_pcm_elems_load(tplg, hdr);
 	case SND_SOC_TPLG_TYPE_MANIFEST:
 		return soc_tplg_manifest_load(tplg, hdr);
 	default:
@@ -1841,9 +1908,10 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp, u32 index)
 				remove_widget(comp, dobj, pass);
 				break;
 			case SND_SOC_DOBJ_PCM:
+				remove_dai(comp, dobj, pass);
+				break;
 			case SND_SOC_DOBJ_DAI_LINK:
-			case SND_SOC_DOBJ_CODEC_LINK:
-				remove_pcm_dai(comp, dobj, pass);
+				remove_link(comp, dobj, pass);
 				break;
 			default:
 				dev_err(comp->dev, "ASoC: invalid component type %d for removal\n",

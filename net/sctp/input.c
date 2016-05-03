@@ -221,7 +221,7 @@ int sctp_rcv(struct sk_buff *skb)
 		goto discard_release;
 
 	/* Create an SCTP packet structure. */
-	chunk = sctp_chunkify(skb, asoc, sk);
+	chunk = sctp_chunkify(skb, asoc, sk, GFP_ATOMIC);
 	if (!chunk)
 		goto discard_release;
 	SCTP_INPUT_CB(skb)->chunk = chunk;
@@ -606,7 +606,8 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 
 		/* PMTU discovery (RFC1191) */
 		if (ICMP_FRAG_NEEDED == code) {
-			sctp_icmp_frag_needed(sk, asoc, transport, info);
+			sctp_icmp_frag_needed(sk, asoc, transport,
+					      WORD_TRUNC(info));
 			goto out_unlock;
 		} else {
 			if (ICMP_PROT_UNREACH == code) {
@@ -935,15 +936,20 @@ static struct sctp_association *__sctp_lookup_association(
 					struct sctp_transport **pt)
 {
 	struct sctp_transport *t;
+	struct sctp_association *asoc = NULL;
 
 	t = sctp_addrs_lookup_transport(net, local, peer);
-	if (!t || t->dead)
-		return NULL;
+	if (!t || !sctp_transport_hold(t))
+		goto out;
 
-	sctp_association_hold(t->asoc);
+	asoc = t->asoc;
+	sctp_association_hold(asoc);
 	*pt = t;
 
-	return t->asoc;
+	sctp_transport_put(t);
+
+out:
+	return asoc;
 }
 
 /* Look up an association. protected by RCU read lock */

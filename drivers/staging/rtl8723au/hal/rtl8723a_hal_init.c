@@ -399,10 +399,8 @@ hal_ReadEFuse_WiFi(struct rtw_adapter *padapter,
 	}
 
 	efuseTbl = kmalloc(EFUSE_MAP_LEN_8723A, GFP_KERNEL);
-	if (efuseTbl == NULL) {
-		DBG_8723A("%s: alloc efuseTbl fail!\n", __func__);
+	if (!efuseTbl)
 		return;
-	}
 	/*  0xff will be efuse default value instead of 0x00. */
 	memset(efuseTbl, 0xFF, EFUSE_MAP_LEN_8723A);
 
@@ -491,10 +489,8 @@ hal_ReadEFuse_BT(struct rtw_adapter *padapter,
 	}
 
 	efuseTbl = kmalloc(EFUSE_BT_MAP_LEN, GFP_KERNEL);
-	if (efuseTbl == NULL) {
-		DBG_8723A("%s: efuseTbl malloc fail!\n", __func__);
+	if (!efuseTbl)
 		return;
-	}
 	/*  0xff will be efuse default value instead of 0x00. */
 	memset(efuseTbl, 0xFF, EFUSE_BT_MAP_LEN);
 
@@ -1044,7 +1040,7 @@ void rtl8723a_InitAntenna_Selection(struct rtw_adapter *padapter)
 	u8 val;
 
 	val = rtl8723au_read8(padapter, REG_LEDCFG2);
-	/*  Let 8051 take control antenna settting */
+	/*  Let 8051 take control antenna setting */
 	val |= BIT(7);		/*  DPDT_SEL_EN, 0x4C[23] */
 	rtl8723au_write8(padapter, REG_LEDCFG2, val);
 }
@@ -1054,7 +1050,7 @@ void rtl8723a_CheckAntenna_Selection(struct rtw_adapter *padapter)
 	u8 val;
 
 	val = rtl8723au_read8(padapter, REG_LEDCFG2);
-	/*  Let 8051 take control antenna settting */
+	/*  Let 8051 take control antenna setting */
 	if (!(val & BIT(7))) {
 		val |= BIT(7);	/*  DPDT_SEL_EN, 0x4C[23] */
 		rtl8723au_write8(padapter, REG_LEDCFG2, val);
@@ -1066,7 +1062,7 @@ void rtl8723a_DeinitAntenna_Selection(struct rtw_adapter *padapter)
 	u8 val;
 
 	val = rtl8723au_read8(padapter, REG_LEDCFG2);
-	/*  Let 8051 take control antenna settting */
+	/*  Let 8051 take control antenna setting */
 	val &= ~BIT(7);		/*  DPDT_SEL_EN, clear 0x4C[23] */
 	rtl8723au_write8(padapter, REG_LEDCFG2, val);
 }
@@ -1297,7 +1293,7 @@ static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
 		/*  If we want to SS mode, we can not reset 8051. */
 		if ((val8 & BIT(1)) && padapter->bFWReady) {
 			/* IF fw in RAM code, do reset */
-			/*  2010/08/25 MH Accordign to RD alfred's
+			/*  2010/08/25 MH According to RD alfred's
 			    suggestion, we need to disable other */
 			/*  HRCV INT to influence 8051 reset. */
 			rtl8723au_write8(padapter, REG_FWIMR, 0x20);

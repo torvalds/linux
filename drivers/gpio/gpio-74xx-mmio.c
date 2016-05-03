@@ -140,15 +140,7 @@ static int mmio_74xx_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	return gpiochip_add_data(&priv->gc, priv);
-}
-
-static int mmio_74xx_gpio_remove(struct platform_device *pdev)
-{
-	struct mmio_74xx_gpio_priv *priv = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&priv->gc);
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, &priv->gc, priv);
 }
 
 static struct platform_driver mmio_74xx_gpio_driver = {
@@ -157,7 +149,6 @@ static struct platform_driver mmio_74xx_gpio_driver = {
 		.of_match_table	= mmio_74xx_gpio_ids,
 	},
 	.probe	= mmio_74xx_gpio_probe,
-	.remove	= mmio_74xx_gpio_remove,
 };
 module_platform_driver(mmio_74xx_gpio_driver);
 

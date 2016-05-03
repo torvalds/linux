@@ -17,7 +17,9 @@
 #include <linux/suspend.h>
 #include <linux/cpu_pm.h>
 #include <linux/io.h>
-#include <linux/err.h>
+#include <linux/of.h>
+#include <linux/soc/samsung/exynos-regs-pmu.h>
+#include <linux/soc/samsung/exynos-pmu.h>
 
 #include <asm/firmware.h>
 #include <asm/smp_scu.h>
@@ -26,11 +28,7 @@
 
 #include <mach/map.h>
 
-#include <plat/pm-common.h>
-
 #include "common.h"
-#include "exynos-pmu.h"
-#include "regs-pmu.h"
 
 static inline void __iomem *exynos_boot_vector_addr(void)
 {

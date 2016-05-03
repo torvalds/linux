@@ -29,6 +29,7 @@
 #include "smu73_discrete.h"
 #include "ppatomctrl.h"
 #include "fiji_ppsmc.h"
+#include "pp_endian.h"
 
 #define FIJI_MAX_HARDWARE_POWERLEVELS	2
 #define FIJI_AT_DFLT	30
@@ -346,16 +347,5 @@ int fiji_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int fiji_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int fiji_update_acp_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int fiji_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
-
-#define PP_HOST_TO_SMC_UL(X) cpu_to_be32(X)
-#define PP_SMC_TO_HOST_UL(X) be32_to_cpu(X)
-
-#define PP_HOST_TO_SMC_US(X) cpu_to_be16(X)
-#define PP_SMC_TO_HOST_US(X) be16_to_cpu(X)
-
-#define CONVERT_FROM_HOST_TO_SMC_UL(X) ((X) = PP_HOST_TO_SMC_UL(X))
-#define CONVERT_FROM_SMC_TO_HOST_UL(X) ((X) = PP_SMC_TO_HOST_UL(X))
-
-#define CONVERT_FROM_HOST_TO_SMC_US(X) ((X) = PP_HOST_TO_SMC_US(X))
 
 #endif /* _FIJI_HWMGR_H_ */

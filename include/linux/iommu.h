@@ -133,8 +133,9 @@ struct iommu_dm_region {
 
 /**
  * struct iommu_ops - iommu ops and capabilities
- * @domain_init: init iommu domain
- * @domain_destroy: destroy iommu domain
+ * @capable: check capability
+ * @domain_alloc: allocate iommu domain
+ * @domain_free: free iommu domain
  * @attach_dev: attach device to an iommu domain
  * @detach_dev: detach device from an iommu domain
  * @map: map a physically contiguous memory region to an iommu domain
@@ -144,8 +145,15 @@ struct iommu_dm_region {
  * @iova_to_phys: translate iova to physical address
  * @add_device: add device to iommu grouping
  * @remove_device: remove device from iommu grouping
+ * @device_group: find iommu group for a particular device
  * @domain_get_attr: Query domain attributes
  * @domain_set_attr: Change domain attributes
+ * @get_dm_regions: Request list of direct mapping requirements for a device
+ * @put_dm_regions: Free list of direct mapping requirements for a device
+ * @domain_window_enable: Configure and enable a particular window for a domain
+ * @domain_window_disable: Disable a particular window for a domain
+ * @domain_set_windows: Set the number of windows for a domain
+ * @domain_get_windows: Return the number of windows for a domain
  * @of_xlate: add OF master IDs to iommu grouping
  * @pgsize_bitmap: bitmap of supported page sizes
  * @priv: per-instance data private to the iommu driver
@@ -182,9 +190,9 @@ struct iommu_ops {
 	int (*domain_window_enable)(struct iommu_domain *domain, u32 wnd_nr,
 				    phys_addr_t paddr, u64 size, int prot);
 	void (*domain_window_disable)(struct iommu_domain *domain, u32 wnd_nr);
-	/* Set the numer of window per domain */
+	/* Set the number of windows per domain */
 	int (*domain_set_windows)(struct iommu_domain *domain, u32 w_count);
-	/* Get the numer of window per domain */
+	/* Get the number of windows per domain */
 	u32 (*domain_get_windows)(struct iommu_domain *domain);
 
 #ifdef CONFIG_OF_IOMMU

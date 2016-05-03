@@ -99,13 +99,24 @@ static int amdgpu_pp_early_init(void *handle)
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
 	switch (adev->asic_type) {
-		case CHIP_TONGA:
-		case CHIP_FIJI:
-			adev->pp_enabled = (amdgpu_powerplay > 0) ? true : false;
-			break;
-		default:
-			adev->pp_enabled = (amdgpu_powerplay > 0) ? true : false;
-			break;
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+		adev->pp_enabled = (amdgpu_powerplay == 0) ? false : true;
+		break;
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+		adev->pp_enabled = (amdgpu_powerplay > 0) ? true : false;
+		break;
+	/* These chips don't have powerplay implemenations */
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+	case CHIP_KAVERI:
+	case CHIP_TOPAZ:
+	default:
+		adev->pp_enabled = false;
+		break;
 	}
 #else
 	adev->pp_enabled = false;
@@ -132,8 +143,10 @@ static int amdgpu_pp_late_init(void *handle)
 					adev->powerplay.pp_handle);
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
-	if (adev->pp_enabled)
+	if (adev->pp_enabled) {
 		amdgpu_pm_sysfs_init(adev);
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_COMPLETE_INIT, NULL, NULL);
+	}
 #endif
 	return ret;
 }

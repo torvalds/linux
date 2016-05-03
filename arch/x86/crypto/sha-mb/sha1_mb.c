@@ -762,6 +762,38 @@ static int sha1_mb_async_digest(struct ahash_request *req)
 	return crypto_ahash_digest(mcryptd_req);
 }
 
+static int sha1_mb_async_export(struct ahash_request *req, void *out)
+{
+	struct ahash_request *mcryptd_req = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct sha1_mb_ctx *ctx = crypto_ahash_ctx(tfm);
+	struct mcryptd_ahash *mcryptd_tfm = ctx->mcryptd_tfm;
+
+	memcpy(mcryptd_req, req, sizeof(*req));
+	ahash_request_set_tfm(mcryptd_req, &mcryptd_tfm->base);
+	return crypto_ahash_export(mcryptd_req, out);
+}
+
+static int sha1_mb_async_import(struct ahash_request *req, const void *in)
+{
+	struct ahash_request *mcryptd_req = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct sha1_mb_ctx *ctx = crypto_ahash_ctx(tfm);
+	struct mcryptd_ahash *mcryptd_tfm = ctx->mcryptd_tfm;
+	struct crypto_shash *child = mcryptd_ahash_child(mcryptd_tfm);
+	struct mcryptd_hash_request_ctx *rctx;
+	struct shash_desc *desc;
+
+	memcpy(mcryptd_req, req, sizeof(*req));
+	ahash_request_set_tfm(mcryptd_req, &mcryptd_tfm->base);
+	rctx = ahash_request_ctx(mcryptd_req);
+	desc = &rctx->desc;
+	desc->tfm = child;
+	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	return crypto_ahash_import(mcryptd_req, in);
+}
+
 static int sha1_mb_async_init_tfm(struct crypto_tfm *tfm)
 {
 	struct mcryptd_ahash *mcryptd_tfm;
@@ -796,8 +828,11 @@ static struct ahash_alg sha1_mb_async_alg = {
 	.final          = sha1_mb_async_final,
 	.finup          = sha1_mb_async_finup,
 	.digest         = sha1_mb_async_digest,
+	.export		= sha1_mb_async_export,
+	.import		= sha1_mb_async_import,
 	.halg = {
 		.digestsize     = SHA1_DIGEST_SIZE,
+		.statesize	= sizeof(struct sha1_hash_ctx),
 		.base = {
 			.cra_name               = "sha1",
 			.cra_driver_name        = "sha1_mb",

@@ -744,6 +744,7 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 	unsigned long handle;
 	unsigned long lock;
 	unsigned long token_mask = 0;
+	unsigned int digest_len;
 	int i;
 	int tpm2;
 
@@ -752,7 +753,6 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 		return tpm2;
 
 	opt->hash = tpm2 ? HASH_ALGO_SHA256 : HASH_ALGO_SHA1;
-	opt->digest_len = hash_digest_size[opt->hash];
 
 	while ((p = strsep(&c, " \t"))) {
 		if (*p == '\0' || *p == ' ' || *p == '\t')
@@ -812,8 +812,6 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 			for (i = 0; i < HASH_ALGO__LAST; i++) {
 				if (!strcmp(args[0].from, hash_algo_name[i])) {
 					opt->hash = i;
-					opt->digest_len =
-						hash_digest_size[opt->hash];
 					break;
 				}
 			}
@@ -825,13 +823,14 @@ static int getoptions(char *c, struct trusted_key_payload *pay,
 			}
 			break;
 		case Opt_policydigest:
-			if (!tpm2 ||
-			    strlen(args[0].from) != (2 * opt->digest_len))
+			digest_len = hash_digest_size[opt->hash];
+			if (!tpm2 || strlen(args[0].from) != (2 * digest_len))
 				return -EINVAL;
 			res = hex2bin(opt->policydigest, args[0].from,
-				      opt->digest_len);
+				      digest_len);
 			if (res < 0)
 				return -EINVAL;
+			opt->policydigest_len = digest_len;
 			break;
 		case Opt_policyhandle:
 			if (!tpm2)

@@ -112,7 +112,7 @@ asmlinkage __visible void cpu_bringup_and_idle(int cpu)
 		xen_pvh_secondary_vcpu_init(cpu);
 #endif
 	cpu_bringup();
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 static void xen_smp_intr_free(unsigned int cpu)

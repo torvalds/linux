@@ -193,6 +193,13 @@ config GENEVE
 	  To compile this driver as a module, choose M here: the module
 	  will be called geneve.
 
+config MACSEC
+	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
+	select CRYPTO_AES
+	select CRYPTO_GCM
+	---help---
+	   MACsec is an encryption standard for Ethernet.
+
 config NETCONSOLE
 	tristate "Network console logging support"
 	---help---

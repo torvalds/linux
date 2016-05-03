@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2013-2014 Renesas Solutions Corp.
  * Copyright (C) 2014 Cogent Embedded, Inc.
+ * Copyright (C) 2015-2016 Renesas Electronics Corporation
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -49,6 +50,7 @@
 	aliases {
 		serial0 = &scif0;
 		serial1 = &scifa1;
+		i2c8 = "i2cexio";
 	};
 
 	chosen {
@@ -252,6 +254,23 @@
 		#clock-cells = <0>;
 		clock-frequency = <148500000>;
 	};
+
+	/*
+	 * IIC0/I2C0 is routed to EXIO connector A, pins 114 (SCL) + 116 (SDA) only.
+	 * We use the I2C demuxer, so the desired IP core can be selected at runtime
+	 * depending on the use case (e.g. DMA with IIC0 or slave support with I2C0).
+	 * Note: For testing the I2C slave feature, it is convenient to connect this
+	 * bus with IIC3 on pins 110 (SCL) + 112 (SDA), select I2C0 at runtime, and
+	 * instantiate the slave device at runtime according to the documentation.
+	 * You can then communicate with the slave via IIC3.
+	 */
+	i2cexio: i2c@8 {
+		compatible = "i2c-demux-pinctrl";
+		i2c-parent = <&iic0>, <&i2c0>;
+		i2c-bus-name = "i2c-exio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 };
 
 &du {
@@ -291,6 +310,9 @@
 };
 
 &pfc {
+	pinctrl-0 = <&scif_clk_pins>;
+	pinctrl-names = "default";
+
 	du_pins: du {
 		renesas,groups = "du_rgb666", "du_sync_1", "du_clk_out_0";
 		renesas,function = "du";
@@ -299,6 +321,11 @@
 	scif0_pins: serial0 {
 		renesas,groups = "scif0_data";
 		renesas,function = "scif0";
+	};
+
+	scif_clk_pins: scif_clk {
+		renesas,groups = "scif_clk";
+		renesas,function = "scif_clk";
 	};
 
 	ether_pins: ether {
@@ -340,6 +367,11 @@
 		renesas,groups = "msiof1_clk", "msiof1_sync", "msiof1_rx",
 				 "msiof1_tx";
 		renesas,function = "msiof1";
+	};
+
+	i2c0_pins: i2c0 {
+		renesas,groups = "i2c0";
+		renesas,function = "i2c0";
 	};
 
 	iic0_pins: iic0 {
@@ -485,6 +517,11 @@
 	status = "okay";
 };
 
+&scif_clk {
+	clock-frequency = <14745600>;
+	status = "okay";
+};
+
 &msiof1 {
 	pinctrl-0 = <&msiof1_pins>;
 	pinctrl-names = "default";
@@ -524,10 +561,14 @@
 	cpu0-supply = <&vdd_dvfs>;
 };
 
+&i2c0	{
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "i2c-exio";
+};
+
 &iic0	{
-	status = "okay";
 	pinctrl-0 = <&iic0_pins>;
-	pinctrl-names = "default";
+	pinctrl-names = "i2c-exio";
 };
 
 &iic1	{

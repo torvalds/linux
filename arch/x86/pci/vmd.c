@@ -503,6 +503,18 @@ static struct pci_ops vmd_ops = {
 	.write		= vmd_pci_write,
 };
 
+static void vmd_attach_resources(struct vmd_dev *vmd)
+{
+	vmd->dev->resource[VMD_MEMBAR1].child = &vmd->resources[1];
+	vmd->dev->resource[VMD_MEMBAR2].child = &vmd->resources[2];
+}
+
+static void vmd_detach_resources(struct vmd_dev *vmd)
+{
+	vmd->dev->resource[VMD_MEMBAR1].child = NULL;
+	vmd->dev->resource[VMD_MEMBAR2].child = NULL;
+}
+
 /*
  * VMD domains start at 0x1000 to not clash with ACPI _SEG domains.
  */
@@ -527,11 +539,28 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 	res = &vmd->dev->resource[VMD_CFGBAR];
 	vmd->resources[0] = (struct resource) {
 		.name  = "VMD CFGBAR",
-		.start = res->start,
+		.start = 0,
 		.end   = (resource_size(res) >> 20) - 1,
 		.flags = IORESOURCE_BUS | IORESOURCE_PCI_FIXED,
 	};
 
+	/*
+	 * If the window is below 4GB, clear IORESOURCE_MEM_64 so we can
+	 * put 32-bit resources in the window.
+	 *
+	 * There's no hardware reason why a 64-bit window *couldn't*
+	 * contain a 32-bit resource, but pbus_size_mem() computes the
+	 * bridge window size assuming a 64-bit window will contain no
+	 * 32-bit resources.  __pci_assign_resource() enforces that
+	 * artificial restriction to make sure everything will fit.
+	 *
+	 * The only way we could use a 64-bit non-prefechable MEMBAR is
+	 * if its address is <4GB so that we can convert it to a 32-bit
+	 * resource.  To be visible to the host OS, all VMD endpoints must
+	 * be initially configured by platform BIOS, which includes setting
+	 * up these resources.  We can assume the device is configured
+	 * according to the platform needs.
+	 */
 	res = &vmd->dev->resource[VMD_MEMBAR1];
 	upper_bits = upper_32_bits(res->end);
 	flags = res->flags & ~IORESOURCE_SIZEALIGN;
@@ -542,6 +571,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		.start = res->start,
 		.end   = res->end,
 		.flags = flags,
+		.parent = res,
 	};
 
 	res = &vmd->dev->resource[VMD_MEMBAR2];
@@ -554,6 +584,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		.start = res->start + 0x2000,
 		.end   = res->end,
 		.flags = flags,
+		.parent = res,
 	};
 
 	sd->domain = vmd_find_free_domain();
@@ -578,6 +609,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		return -ENODEV;
 	}
 
+	vmd_attach_resources(vmd);
 	vmd_setup_dma_ops(vmd);
 	dev_set_msi_domain(&vmd->bus->dev, vmd->irq_domain);
 	pci_rescan_bus(vmd->bus);
@@ -674,6 +706,7 @@ static void vmd_remove(struct pci_dev *dev)
 {
 	struct vmd_dev *vmd = pci_get_drvdata(dev);
 
+	vmd_detach_resources(vmd);
 	pci_set_drvdata(dev, NULL);
 	sysfs_remove_link(&vmd->dev->dev.kobj, "domain");
 	pci_stop_root_bus(vmd->bus);

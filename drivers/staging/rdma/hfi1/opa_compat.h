@@ -1,13 +1,12 @@
 #ifndef _LINUX_H
 #define _LINUX_H
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -19,8 +18,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -110,20 +107,5 @@ enum opa_port_phys_state {
 	OPA_PORTPHYSSTATE_MAX = 11,
 	/* values 12-15 are reserved/ignored */
 };
-
-/* OPA_PORT_TYPE_* definitions - these belong in opa_port_info.h */
-#define OPA_PORT_TYPE_UNKNOWN          0
-#define OPA_PORT_TYPE_DISCONNECTED     1
-/* port is not currently usable, CableInfo not available */
-#define OPA_PORT_TYPE_FIXED            2
-/* A fixed backplane port in a director class switch. All OPA ASICS */
-#define OPA_PORT_TYPE_VARIABLE         3
-/* A backplane port in a blade system, possibly mixed configuration */
-#define OPA_PORT_TYPE_STANDARD         4
-/* implies a SFF-8636 defined format for CableInfo (QSFP) */
-#define OPA_PORT_TYPE_SI_PHOTONICS      5
-/* A silicon photonics module implies TBD defined format for CableInfo
- * as defined by Intel SFO group */
-/* 6 - 15 are reserved */
 
 #endif /* _LINUX_H */

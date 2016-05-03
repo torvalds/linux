@@ -285,8 +285,8 @@ static irqreturn_t pv88060_irq_handler(int irq, void *data)
 			}
 		}
 
-		err = regmap_update_bits(chip->regmap, PV88060_REG_EVENT_A,
-			PV88060_E_VDD_FLT, PV88060_E_VDD_FLT);
+		err = regmap_write(chip->regmap, PV88060_REG_EVENT_A,
+			PV88060_E_VDD_FLT);
 		if (err < 0)
 			goto error_i2c;
 
@@ -302,8 +302,8 @@ static irqreturn_t pv88060_irq_handler(int irq, void *data)
 			}
 		}
 
-		err = regmap_update_bits(chip->regmap, PV88060_REG_EVENT_A,
-			PV88060_E_OVER_TEMP, PV88060_E_OVER_TEMP);
+		err = regmap_write(chip->regmap, PV88060_REG_EVENT_A,
+			PV88060_E_OVER_TEMP);
 		if (err < 0)
 			goto error_i2c;
 

@@ -39,6 +39,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/personality.h> /* for READ_IMPLIES_EXEC */
 #include <asm/pgtable-types.h>
 
 extern void __cpu_clear_user_page(void *p, unsigned long user);

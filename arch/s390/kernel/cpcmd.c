@@ -96,8 +96,7 @@ int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 			(((unsigned long)response + rlen) >> 31)) {
 		lowbuf = kmalloc(rlen, GFP_KERNEL | GFP_DMA);
 		if (!lowbuf) {
-			pr_warning("The cpcmd kernel function failed to "
-				   "allocate a response buffer\n");
+			pr_warn("The cpcmd kernel function failed to allocate a response buffer\n");
 			return -ENOMEM;
 		}
 		spin_lock_irqsave(&cpcmd_lock, flags);

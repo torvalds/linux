@@ -208,7 +208,7 @@ static int ext4_ioctl_setflags(struct inode *inode,
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	handle_t *handle = NULL;
-	int err = EPERM, migrate = 0;
+	int err = -EPERM, migrate = 0;
 	struct ext4_iloc iloc;
 	unsigned int oldflags, mask, i;
 	unsigned int jflag;
@@ -581,6 +581,11 @@ group_extend_out:
 		if (ext4_has_feature_bigalloc(sb)) {
 			ext4_msg(sb, KERN_ERR,
 				 "Online defrag not supported with bigalloc");
+			err = -EOPNOTSUPP;
+			goto mext_out;
+		} else if (IS_DAX(inode)) {
+			ext4_msg(sb, KERN_ERR,
+				 "Online defrag not supported with DAX");
 			err = -EOPNOTSUPP;
 			goto mext_out;
 		}

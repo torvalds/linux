@@ -733,7 +733,7 @@ config INPUT_XEN_KBDDEV_FRONTEND
 	  module will be called xen-kbdfront.
 
 config INPUT_SIRFSOC_ONKEY
-	bool "CSR SiRFSoC power on/off/suspend key support"
+	tristate "CSR SiRFSoC power on/off/suspend key support"
 	depends on ARCH_SIRF && OF
 	default y
 	help

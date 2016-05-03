@@ -81,8 +81,8 @@ static inline void mdc_init_rpc_lock(struct mdc_rpc_lock *lck)
 static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
-			   it->it_op == IT_LAYOUT))
+	if (it && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+		   it->it_op == IT_LAYOUT))
 		return;
 
 	/* This would normally block until the existing request finishes.
@@ -90,7 +90,8 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 	 * done, then set rpcl_it to MDC_FAKE_RPCL_IT.  Once that is set
 	 * it will only be cleared when all fake requests are finished.
 	 * Only when all fake requests are finished can normal requests
-	 * be sent, to ensure they are recoverable again. */
+	 * be sent, to ensure they are recoverable again.
+	 */
  again:
 	mutex_lock(&lck->rpcl_mutex);
 
@@ -105,22 +106,23 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 	 * just turned off but there are still requests in progress.
 	 * Wait until they finish.  It doesn't need to be efficient
 	 * in this extremely rare case, just have low overhead in
-	 * the common case when it isn't true. */
+	 * the common case when it isn't true.
+	 */
 	while (unlikely(lck->rpcl_it == MDC_FAKE_RPCL_IT)) {
 		mutex_unlock(&lck->rpcl_mutex);
 		schedule_timeout(cfs_time_seconds(1) / 4);
 		goto again;
 	}
 
-	LASSERT(lck->rpcl_it == NULL);
+	LASSERT(!lck->rpcl_it);
 	lck->rpcl_it = it;
 }
 
 static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
-			   it->it_op == IT_LAYOUT))
+	if (it && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+		   it->it_op == IT_LAYOUT))
 		return;
 
 	if (lck->rpcl_it == MDC_FAKE_RPCL_IT) { /* OBD_FAIL_MDC_RPCS_SEM */

@@ -235,6 +235,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 /* low 64 bit */
 #define dma_frcd_page_addr(d) (d & (((u64)-1) << PAGE_SHIFT))
 
+/* PRS_REG */
+#define DMA_PRS_PPR	((u32)1)
+
 #define IOMMU_WAIT_OP(iommu, offset, op, cond, sts)			\
 do {									\
 	cycles_t start_time = get_cycles();				\

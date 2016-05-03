@@ -369,12 +369,6 @@ static inline size_t atmel_aes_padlen(size_t len, size_t block_size)
 	return len ? block_size - len : 0;
 }
 
-static inline struct aead_request *
-aead_request_cast(struct crypto_async_request *req)
-{
-	return container_of(req, struct aead_request, base);
-}
-
 static struct atmel_aes_dev *atmel_aes_find_dev(struct atmel_aes_base_ctx *ctx)
 {
 	struct atmel_aes_dev *aes_dd = NULL;
@@ -400,7 +394,7 @@ static int atmel_aes_hw_init(struct atmel_aes_dev *dd)
 {
 	int err;
 
-	err = clk_prepare_enable(dd->iclk);
+	err = clk_enable(dd->iclk);
 	if (err)
 		return err;
 
@@ -430,7 +424,7 @@ static int atmel_aes_hw_version_init(struct atmel_aes_dev *dd)
 
 	dev_info(dd->dev, "version: 0x%x\n", dd->hw_version);
 
-	clk_disable_unprepare(dd->iclk);
+	clk_disable(dd->iclk);
 	return 0;
 }
 
@@ -448,7 +442,7 @@ static inline bool atmel_aes_is_encrypt(const struct atmel_aes_dev *dd)
 
 static inline int atmel_aes_complete(struct atmel_aes_dev *dd, int err)
 {
-	clk_disable_unprepare(dd->iclk);
+	clk_disable(dd->iclk);
 	dd->flags &= ~AES_FLAGS_BUSY;
 
 	if (dd->is_async)
@@ -2085,15 +2079,19 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	}
 
 	aes_dd->io_base = devm_ioremap_resource(&pdev->dev, aes_res);
-	if (!aes_dd->io_base) {
+	if (IS_ERR(aes_dd->io_base)) {
 		dev_err(dev, "can't ioremap\n");
-		err = -ENOMEM;
+		err = PTR_ERR(aes_dd->io_base);
 		goto res_err;
 	}
 
-	err = atmel_aes_hw_version_init(aes_dd);
+	err = clk_prepare(aes_dd->iclk);
 	if (err)
 		goto res_err;
+
+	err = atmel_aes_hw_version_init(aes_dd);
+	if (err)
+		goto iclk_unprepare;
 
 	atmel_aes_get_cap(aes_dd);
 
@@ -2127,6 +2125,8 @@ err_algs:
 err_aes_dma:
 	atmel_aes_buff_cleanup(aes_dd);
 err_aes_buff:
+iclk_unprepare:
+	clk_unprepare(aes_dd->iclk);
 res_err:
 	tasklet_kill(&aes_dd->done_task);
 	tasklet_kill(&aes_dd->queue_task);
@@ -2154,6 +2154,8 @@ static int atmel_aes_remove(struct platform_device *pdev)
 
 	atmel_aes_dma_cleanup(aes_dd);
 	atmel_aes_buff_cleanup(aes_dd);
+
+	clk_unprepare(aes_dd->iclk);
 
 	return 0;
 }

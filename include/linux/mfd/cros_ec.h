@@ -245,7 +245,7 @@ int cros_ec_remove(struct cros_ec_device *ec_dev);
 int cros_ec_register(struct cros_ec_device *ec_dev);
 
 /**
- * cros_ec_register -  Query the protocol version supported by the ChromeOS EC
+ * cros_ec_query_all -  Query the protocol version supported by the ChromeOS EC
  *
  * @ec_dev: Device to register
  * @return 0 if ok, -ve on error

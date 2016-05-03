@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2016, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -407,6 +407,12 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 const char *mlx5_command_str(int command)
 {
 	switch (command) {
+	case MLX5_CMD_OP_QUERY_HCA_VPORT_CONTEXT:
+		return "QUERY_HCA_VPORT_CONTEXT";
+
+	case MLX5_CMD_OP_MODIFY_HCA_VPORT_CONTEXT:
+		return "MODIFY_HCA_VPORT_CONTEXT";
+
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
 		return "QUERY_HCA_CAP";
 
@@ -559,6 +565,18 @@ const char *mlx5_command_str(int command)
 
 	case MLX5_CMD_OP_ACCESS_REG:
 		return "MLX5_CMD_OP_ACCESS_REG";
+
+	case MLX5_CMD_OP_SET_WOL_ROL:
+		return "SET_WOL_ROL";
+
+	case MLX5_CMD_OP_QUERY_WOL_ROL:
+		return "QUERY_WOL_ROL";
+
+	case MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT:
+		return "ADD_VXLAN_UDP_DPORT";
+
+	case MLX5_CMD_OP_DELETE_VXLAN_UDP_DPORT:
+		return "DELETE_VXLAN_UDP_DPORT";
 
 	default: return "unknown command opcode";
 	}

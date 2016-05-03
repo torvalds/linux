@@ -267,13 +267,23 @@ Writing a PHY driver
    config_intr: Enable or disable interrupts
    remove: Does any driver take-down
    ts_info: Queries about the HW timestamping status
+   match_phy_device: used for Clause 45 capable PHYs to match devices
+   in package and ensure they are compatible
    hwtstamp: Set the PHY HW timestamping configuration
    rxtstamp: Requests a receive timestamp at the PHY level for a 'skb'
    txtsamp: Requests a transmit timestamp at the PHY level for a 'skb'
    set_wol: Enable Wake-on-LAN at the PHY level
    get_wol: Get the Wake-on-LAN status at the PHY level
+   link_change_notify: called to inform the core is about to change the
+   link state, can be used to work around bogus PHY between state changes
    read_mmd_indirect: Read PHY MMD indirect register
    write_mmd_indirect: Write PHY MMD indirect register
+   module_info: Get the size and type of an EEPROM contained in an plug-in
+   module
+   module_eeprom: Get EEPROM information of a plug-in module
+   get_sset_count: Get number of strings sets that get_strings will count
+   get_strings: Get strings from requested objects (statistics)
+   get_stats: Get the extended statistics from the PHY device
 
  Of these, only config_aneg and read_status are required to be
  assigned by the driver code.  The rest are optional.  Also, it is

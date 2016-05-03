@@ -52,6 +52,11 @@ int dso__read_binary_type_filename(const struct dso *dso,
 			debuglink--;
 		if (*debuglink == '/')
 			debuglink++;
+
+		ret = -1;
+		if (!is_regular_file(filename))
+			break;
+
 		ret = filename__read_debuglink(filename, debuglink,
 					       size - (debuglink - filename));
 		}

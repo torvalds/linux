@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -886,6 +886,9 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 	u16 datalen;
 	u16 flags;
 	u16 ntu;
+
+	/* pre-clean the event info */
+	memset(&e->desc, 0, sizeof(e->desc));
 
 	/* take the lock before we start messing with the ring */
 	mutex_lock(&hw->aq.arq_mutex);

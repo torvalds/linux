@@ -643,7 +643,6 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 	info->chan = chan;
 	tty_port_init(&info->port);
 	info->port.ops = &rocket_port_ops;
-	init_completion(&info->close_wait);
 	info->flags &= ~ROCKET_MODE_MASK;
 	switch (pc104[board][line]) {
 	case 422:
@@ -960,7 +959,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 			tty->alt_speed = 460800;
 
 		configure_r_port(tty, info, NULL);
-		if (tty->termios.c_cflag & CBAUD) {
+		if (C_BAUD(tty)) {
 			sSetDTR(cp);
 			sSetRTS(cp);
 		}
@@ -1043,13 +1042,12 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 		}
 	}
 	spin_lock_irq(&port->lock);
-	info->port.flags &= ~(ASYNC_INITIALIZED | ASYNC_CLOSING | ASYNC_NORMAL_ACTIVE);
+	info->port.flags &= ~(ASYNC_INITIALIZED | ASYNC_NORMAL_ACTIVE);
 	tty->closing = 0;
 	spin_unlock_irq(&port->lock);
 	mutex_unlock(&port->mutex);
 	tty_port_tty_set(port, NULL);
 
-	complete_all(&info->close_wait);
 	atomic_dec(&rp_num_ports_open);
 
 #ifdef ROCKET_DEBUG_OPEN
@@ -1086,18 +1084,18 @@ static void rp_set_termios(struct tty_struct *tty,
 	cp = &info->channel;
 
 	/* Handle transition to B0 status */
-	if ((old_termios->c_cflag & CBAUD) && !(tty->termios.c_cflag & CBAUD)) {
+	if ((old_termios->c_cflag & CBAUD) && !C_BAUD(tty)) {
 		sClrDTR(cp);
 		sClrRTS(cp);
 	}
 
 	/* Handle transition away from B0 status */
-	if (!(old_termios->c_cflag & CBAUD) && (tty->termios.c_cflag & CBAUD)) {
+	if (!(old_termios->c_cflag & CBAUD) && C_BAUD(tty)) {
 		sSetRTS(cp);
 		sSetDTR(cp);
 	}
 
-	if ((old_termios->c_cflag & CRTSCTS) && !(tty->termios.c_cflag & CRTSCTS))
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty))
 		rp_start(tty);
 }
 
@@ -1360,8 +1358,7 @@ static void rp_throttle(struct tty_struct *tty)
 	struct r_port *info = tty->driver_data;
 
 #ifdef ROCKET_DEBUG_THROTTLE
-	printk(KERN_INFO "throttle %s: %d....\n", tty->name,
-	       tty->ldisc.chars_in_buffer(tty));
+	printk(KERN_INFO "throttle %s ....\n", tty->name);
 #endif
 
 	if (rocket_paranoia_check(info, "rp_throttle"))
@@ -1377,8 +1374,7 @@ static void rp_unthrottle(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
 #ifdef ROCKET_DEBUG_THROTTLE
-	printk(KERN_INFO "unthrottle %s: %d....\n", tty->name,
-	       tty->ldisc.chars_in_buffer(tty));
+	printk(KERN_INFO "unthrottle %s ....\n", tty->name);
 #endif
 
 	if (rocket_paranoia_check(info, "rp_unthrottle"))
