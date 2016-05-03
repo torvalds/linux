@@ -62,7 +62,7 @@ For more examples of cooling devices, refer to the example sections below.
 Required properties:
 - #cooling-cells:	Used to provide cooling device specific information
   Type: unsigned	while referring to it. Must be at least 2, in order
-  Size: one cell      	to specify minimum and maximum cooling state used
+  Size: one cell	to specify minimum and maximum cooling state used
 			in the reference. The first cell is the minimum
 			cooling state requested and the second cell is
 			the maximum cooling state requested in the reference.
@@ -119,7 +119,7 @@ Required properties:
 Optional property:
 - contribution:		The cooling contribution to the thermal zone of the
   Type: unsigned	referred cooling device at the referred trip point.
-  Size: one cell      	The contribution is a ratio of the sum
+  Size: one cell	The contribution is a ratio of the sum
 			of all cooling contributions within a thermal zone.
 
 Note: Using the THERMAL_NO_LIMIT (-1UL) constant in the cooling-device phandle
@@ -145,7 +145,7 @@ Required properties:
   Size: one cell
 
 - thermal-sensors:	A list of thermal sensor phandles and sensor specifier
-  Type: list of 	used while monitoring the thermal zone.
+  Type: list of		used while monitoring the thermal zone.
   phandles + sensor
   specifier
 
@@ -473,7 +473,7 @@ thermal-zones {
 				  <&adc>;	/* pcb north */
 
 		/* hotspot = 100 * bandgap - 120 * adc + 484 */
-		coefficients = 		<100	-120	484>;
+		coefficients =		<100	-120	484>;
 
 		trips {
 			...
@@ -502,7 +502,7 @@ from the ADC sensor. The binding would be then:
         thermal-sensors =  <&adc>;
 
 		/* hotspot = 1 * adc + 6000 */
-	coefficients = 		<1	6000>;
+	coefficients =		<1	6000>;
 
 (d) - Board thermal
 
