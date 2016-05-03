@@ -505,11 +505,6 @@ static int das16m1_irq_bits(unsigned int irq)
 	}
 }
 
-/*
- * Options list:
- *   0  I/O base
- *   1  IRQ
- */
 static int das16m1_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
