@@ -1,56 +1,52 @@
 /*
-    comedi/drivers/das16m1.c
-    CIO-DAS16/M1 driver
-    Author: Frank Mori Hess, based on code from the das16
-      driver.
-    Copyright (C) 2001 Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Comedi driver for CIO-DAS16/M1
+ * Author: Frank Mori Hess, based on code from the das16 driver.
+ * Copyright (C) 2001 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: das16m1
-Description: CIO-DAS16/M1
-Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Devices: [Measurement Computing] CIO-DAS16/M1 (das16m1)
-Status: works
-
-This driver supports a single board - the CIO-DAS16/M1.
-As far as I know, there are no other boards that have
-the same register layout.  Even the CIO-DAS16/M1/16 is
-significantly different.
-
-I was _barely_ able to reach the full 1 MHz capability
-of this board, using a hard real-time interrupt
-(set the TRIG_RT flag in your struct comedi_cmd and use
-rtlinux or RTAI).  The board can't do dma, so the bottleneck is
-pulling the data across the ISA bus.  I timed the interrupt
-handler, and it took my computer ~470 microseconds to pull 512
-samples from the board.  So at 1 Mhz sampling rate,
-expect your CPU to be spending almost all of its
-time in the interrupt handler.
-
-This board has some unusual restrictions for its channel/gain list.  If the
-list has 2 or more channels in it, then two conditions must be satisfied:
-(1) - even/odd channels must appear at even/odd indices in the list
-(2) - the list must have an even number of entries.
-
-Options:
-	[0] - base io address
-	[1] - irq (optional, but you probably want it)
-
-irq can be omitted, although the cmd interface will not work without it.
-*/
+ * Driver: das16m1
+ * Description: CIO-DAS16/M1
+ * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Devices: [Measurement Computing] CIO-DAS16/M1 (das16m1)
+ * Status: works
+ *
+ * This driver supports a single board - the CIO-DAS16/M1. As far as I know,
+ * there are no other boards that have the same register layout. Even the
+ * CIO-DAS16/M1/16 is significantly different.
+ *
+ * I was _barely_ able to reach the full 1 MHz capability of this board, using
+ * a hard real-time interrupt (set the TRIG_RT flag in your struct comedi_cmd
+ * and use rtlinux or RTAI). The board can't do dma, so the bottleneck is
+ * pulling the data across the ISA bus. I timed the interrupt handler, and it
+ * took my computer ~470 microseconds to pull 512 samples from the board. So
+ * at 1 Mhz sampling rate, expect your CPU to be spending almost all of its
+ * time in the interrupt handler.
+ *
+ * This board has some unusual restrictions for its channel/gain list.  If the
+ * list has 2 or more channels in it, then two conditions must be satisfied:
+ * (1) - even/odd channels must appear at even/odd indices in the list
+ * (2) - the list must have an even number of entries.
+ *
+ * Configuration options:
+ *   [0] - base io address
+ *   [1] - irq (optional, but you probably want it)
+ *
+ * irq can be omitted, although the cmd interface will not work without it.
+ */
 
 #include <linux/module.h>
 #include <linux/slab.h>
