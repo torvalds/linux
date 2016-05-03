@@ -41,25 +41,13 @@ void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
 
 static void tmc_etb_dump_hw(struct tmc_drvdata *drvdata)
 {
-	enum tmc_mem_intf_width memwidth;
-	u8 memwords;
 	char *bufp;
 	u32 read_data;
 	int i;
 
-	memwidth = BMVAL(readl_relaxed(drvdata->base + CORESIGHT_DEVID), 8, 10);
-	if (memwidth == TMC_MEM_INTF_WIDTH_32BITS)
-		memwords = 1;
-	else if (memwidth == TMC_MEM_INTF_WIDTH_64BITS)
-		memwords = 2;
-	else if (memwidth == TMC_MEM_INTF_WIDTH_128BITS)
-		memwords = 4;
-	else
-		memwords = 8;
-
 	bufp = drvdata->buf;
 	while (1) {
-		for (i = 0; i < memwords; i++) {
+		for (i = 0; i < drvdata->memwidth; i++) {
 			read_data = readl_relaxed(drvdata->base + TMC_RRD);
 			if (read_data == 0xFFFFFFFF)
 				return;
