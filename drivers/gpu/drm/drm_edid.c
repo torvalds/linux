@@ -3901,6 +3901,29 @@ static void drm_add_display_info(struct edid *edid,
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
 }
 
+static int validate_displayid(u8 *displayid, int length, int idx)
+{
+	int i;
+	u8 csum = 0;
+	struct displayid_hdr *base;
+
+	base = (struct displayid_hdr *)&displayid[idx];
+
+	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
+		      base->rev, base->bytes, base->prod_id, base->ext_count);
+
+	if (base->bytes + 5 > length - idx)
+		return -EINVAL;
+	for (i = idx; i <= base->bytes + 5; i++) {
+		csum += displayid[i];
+	}
+	if (csum) {
+		DRM_ERROR("DisplayID checksum invalid, remainder is %d\n", csum);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /**
  * drm_add_edid_modes - add modes from EDID data, if available
  * @connector: connector we're probing
@@ -4212,30 +4235,15 @@ static int drm_parse_display_id(struct drm_connector *connector,
 {
 	/* if this is an EDID extension the first byte will be 0x70 */
 	int idx = 0;
-	struct displayid_hdr *base;
 	struct displayid_block *block;
-	u8 csum = 0;
-	int i;
 	int ret;
 
 	if (is_edid_extension)
 		idx = 1;
 
-	base = (struct displayid_hdr *)&displayid[idx];
-
-	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
-		      base->rev, base->bytes, base->prod_id, base->ext_count);
-
-	if (base->bytes + 5 > length - idx)
-		return -EINVAL;
-
-	for (i = idx; i <= base->bytes + 5; i++) {
-		csum += displayid[i];
-	}
-	if (csum) {
-		DRM_ERROR("DisplayID checksum invalid, remainder is %d\n", csum);
-		return -EINVAL;
-	}
+	ret = validate_displayid(displayid, length, idx);
+	if (ret)
+		return ret;
 
 	idx += sizeof(struct displayid_hdr);
 	while (block = (struct displayid_block *)&displayid[idx],
