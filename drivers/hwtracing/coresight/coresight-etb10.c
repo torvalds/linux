@@ -71,26 +71,6 @@
 #define ETB_FRAME_SIZE_WORDS	4
 
 /**
- * struct cs_buffer - keep track of a recording session' specifics
- * @cur:	index of the current buffer
- * @nr_pages:	max number of pages granted to us
- * @offset:	offset within the current buffer
- * @data_size:	how much we collected in this run
- * @lost:	other than zero if we had a HW buffer wrap around
- * @snapshot:	is this run in snapshot mode
- * @data_pages:	a handle the ring buffer
- */
-struct cs_buffers {
-	unsigned int		cur;
-	unsigned int		nr_pages;
-	unsigned long		offset;
-	local_t			data_size;
-	local_t			lost;
-	bool			snapshot;
-	void			**data_pages;
-};
-
-/**
  * struct etb_drvdata - specifics associated to an ETB component
  * @base:	memory mapped base address for this component.
  * @dev:	the device entity associated to this component.
