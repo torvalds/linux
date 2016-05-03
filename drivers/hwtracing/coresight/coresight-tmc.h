@@ -94,7 +94,6 @@ enum tmc_mem_intf_width {
  * @csdev:	component vitals needed by the framework.
  * @miscdev:	specifics to handle "/dev/xyz.tmc" entry.
  * @spinlock:	only one at a time pls.
- * @read_count:	manages preparation of buffer for reading.
  * @buf:	area of memory where trace data get sent.
  * @paddr:	DMA start location in RAM.
  * @vaddr:	virtual representation of @paddr.
@@ -109,7 +108,6 @@ struct tmc_drvdata {
 	struct coresight_device	*csdev;
 	struct miscdevice	miscdev;
 	spinlock_t		spinlock;
-	int			read_count;
 	bool			reading;
 	char			*buf;
 	dma_addr_t		paddr;

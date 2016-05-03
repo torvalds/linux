@@ -95,7 +95,7 @@ static int tmc_read_prepare(struct tmc_drvdata *drvdata)
 	return ret;
 }
 
-static void tmc_read_unprepare(struct tmc_drvdata *drvdata)
+static int tmc_read_unprepare(struct tmc_drvdata *drvdata)
 {
 	int ret = 0;
 
@@ -113,21 +113,20 @@ static void tmc_read_unprepare(struct tmc_drvdata *drvdata)
 
 	if (!ret)
 		dev_info(drvdata->dev, "TMC read end\n");
+
+	return ret;
 }
 
 static int tmc_open(struct inode *inode, struct file *file)
 {
+	int ret;
 	struct tmc_drvdata *drvdata = container_of(file->private_data,
 						   struct tmc_drvdata, miscdev);
-	int ret = 0;
-
-	if (drvdata->read_count++)
-		goto out;
 
 	ret = tmc_read_prepare(drvdata);
 	if (ret)
 		return ret;
-out:
+
 	nonseekable_open(inode, file);
 
 	dev_dbg(drvdata->dev, "%s: successfully opened\n", __func__);
@@ -167,19 +166,14 @@ static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 
 static int tmc_release(struct inode *inode, struct file *file)
 {
+	int ret;
 	struct tmc_drvdata *drvdata = container_of(file->private_data,
 						   struct tmc_drvdata, miscdev);
 
-	if (--drvdata->read_count) {
-		if (drvdata->read_count < 0) {
-			dev_err(drvdata->dev, "mismatched close\n");
-			drvdata->read_count = 0;
-		}
-		goto out;
-	}
+	ret = tmc_read_unprepare(drvdata);
+	if (ret)
+		return ret;
 
-	tmc_read_unprepare(drvdata);
-out:
 	dev_dbg(drvdata->dev, "%s: released\n", __func__);
 	return 0;
 }
