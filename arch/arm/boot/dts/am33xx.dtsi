@@ -679,9 +679,12 @@
 				  0x48300200 0x48300200 0x80>; /* EHRPWM */
 
 			ecap0: ecap@48300100 {
-				compatible = "ti,am33xx-ecap";
+				compatible = "ti,am3352-ecap",
+					     "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48300100 0x80>;
+				clocks = <&l4ls_gclk>;
+				clock-names = "fck";
 				interrupts = <31>;
 				interrupt-names = "ecap0";
 				ti,hwmods = "ecap0";
@@ -689,10 +692,13 @@
 			};
 
 			ehrpwm0: pwm@48300200 {
-				compatible = "ti,am33xx-ehrpwm";
+				compatible = "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48300200 0x80>;
 				ti,hwmods = "ehrpwm0";
+				clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -709,9 +715,12 @@
 				  0x48302200 0x48302200 0x80>; /* EHRPWM */
 
 			ecap1: ecap@48302100 {
-				compatible = "ti,am33xx-ecap";
+				compatible = "ti,am3352-ecap",
+					     "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48302100 0x80>;
+				clocks = <&l4ls_gclk>;
+				clock-names = "fck";
 				interrupts = <47>;
 				interrupt-names = "ecap1";
 				ti,hwmods = "ecap1";
@@ -719,10 +728,13 @@
 			};
 
 			ehrpwm1: pwm@48302200 {
-				compatible = "ti,am33xx-ehrpwm";
+				compatible = "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48302200 0x80>;
 				ti,hwmods = "ehrpwm1";
+				clocks = <&ehrpwm1_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -739,9 +751,12 @@
 				  0x48304200 0x48304200 0x80>; /* EHRPWM */
 
 			ecap2: ecap@48304100 {
-				compatible = "ti,am33xx-ecap";
+				compatible = "ti,am3352-ecap",
+					     "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48304100 0x80>;
+				clocks = <&l4ls_gclk>;
+				clock-names = "fck";
 				interrupts = <61>;
 				interrupt-names = "ecap2";
 				ti,hwmods = "ecap2";
@@ -749,10 +764,13 @@
 			};
 
 			ehrpwm2: pwm@48304200 {
-				compatible = "ti,am33xx-ehrpwm";
+				compatible = "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48304200 0x80>;
 				ti,hwmods = "ehrpwm2";
+				clocks = <&ehrpwm2_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
