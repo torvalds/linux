@@ -951,7 +951,12 @@ static void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
 {
 	if (!IS_ERR_OR_NULL(vport->ingress.drop_rule))
 		mlx5_del_flow_rule(vport->ingress.drop_rule);
+
+	if (!IS_ERR_OR_NULL(vport->ingress.allow_rule))
+		mlx5_del_flow_rule(vport->ingress.allow_rule);
+
 	vport->ingress.drop_rule = NULL;
+	vport->ingress.allow_rule = NULL;
 }
 
 static void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
@@ -978,9 +983,11 @@ static void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
 static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 				    struct mlx5_vport *vport)
 {
+	u8 smac[ETH_ALEN];
 	u32 *match_v;
 	u32 *match_c;
 	int err = 0;
+	u8 *smac_v;
 
 	if (IS_ERR_OR_NULL(vport->ingress.acl)) {
 		esw_warn(esw->dev,
@@ -989,9 +996,26 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		return -EPERM;
 	}
 
+	if (vport->spoofchk) {
+		err = mlx5_query_nic_vport_mac_address(esw->dev, vport->vport, smac);
+		if (err) {
+			esw_warn(esw->dev,
+				 "vport[%d] configure ingress rules failed, query smac failed, err(%d)\n",
+				 vport->vport, err);
+			return err;
+		}
+
+		if (!is_valid_ether_addr(smac)) {
+			mlx5_core_warn(esw->dev,
+				       "vport[%d] configure ingress rules failed, illegal mac with spoofchk\n",
+				       vport->vport);
+			return -EPERM;
+		}
+	}
+
 	esw_vport_cleanup_ingress_rules(esw, vport);
 
-	if (!vport->vlan && !vport->qos)
+	if (!vport->vlan && !vport->qos && !vport->spoofchk)
 		return 0;
 
 	esw_debug(esw->dev,
@@ -1006,23 +1030,55 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 			 vport->vport, err);
 		goto out;
 	}
-	MLX5_SET_TO_ONES(fte_match_param, match_c, outer_headers.vlan_tag);
-	MLX5_SET_TO_ONES(fte_match_param, match_v, outer_headers.vlan_tag);
 
-	vport->ingress.drop_rule =
+	if (vport->vlan || vport->qos)
+		MLX5_SET_TO_ONES(fte_match_param, match_c, outer_headers.vlan_tag);
+
+	if (vport->spoofchk) {
+		MLX5_SET_TO_ONES(fte_match_param, match_c, outer_headers.smac_47_16);
+		MLX5_SET_TO_ONES(fte_match_param, match_c, outer_headers.smac_15_0);
+		smac_v = MLX5_ADDR_OF(fte_match_param,
+				      match_v,
+				      outer_headers.smac_47_16);
+		ether_addr_copy(smac_v, smac);
+	}
+
+	vport->ingress.allow_rule =
 		mlx5_add_flow_rule(vport->ingress.acl,
 				   MLX5_MATCH_OUTER_HEADERS,
+				   match_c,
+				   match_v,
+				   MLX5_FLOW_CONTEXT_ACTION_ALLOW,
+				   0, NULL);
+	if (IS_ERR_OR_NULL(vport->ingress.allow_rule)) {
+		err = PTR_ERR(vport->ingress.allow_rule);
+		pr_warn("vport[%d] configure ingress allow rule, err(%d)\n",
+			vport->vport, err);
+		vport->ingress.allow_rule = NULL;
+		goto out;
+	}
+
+	memset(match_c, 0, MLX5_ST_SZ_BYTES(fte_match_param));
+	memset(match_v, 0, MLX5_ST_SZ_BYTES(fte_match_param));
+	vport->ingress.drop_rule =
+		mlx5_add_flow_rule(vport->ingress.acl,
+				   0,
 				   match_c,
 				   match_v,
 				   MLX5_FLOW_CONTEXT_ACTION_DROP,
 				   0, NULL);
 	if (IS_ERR_OR_NULL(vport->ingress.drop_rule)) {
 		err = PTR_ERR(vport->ingress.drop_rule);
-		pr_warn("vport[%d] configure ingress rules, err(%d)\n",
+		pr_warn("vport[%d] configure ingress drop rule, err(%d)\n",
 			vport->vport, err);
 		vport->ingress.drop_rule = NULL;
+		goto out;
 	}
+
 out:
+	if (err)
+		esw_vport_cleanup_ingress_rules(esw, vport);
+
 	kfree(match_v);
 	kfree(match_c);
 	return err;
@@ -1367,11 +1423,21 @@ int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 			       int vport, u8 mac[ETH_ALEN])
 {
 	int err = 0;
+	struct mlx5_vport *evport;
 
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
 	if (!LEGAL_VPORT(esw, vport))
 		return -EINVAL;
+
+	evport = &esw->vports[vport];
+
+	if (evport->spoofchk && !is_valid_ether_addr(mac)) {
+		mlx5_core_warn(esw->dev,
+			       "MAC invalidation is not allowed when spoofchk is on, vport(%d)\n",
+			       vport);
+		return -EPERM;
+	}
 
 	err = mlx5_modify_nic_vport_mac_address(esw->dev, vport, mac);
 	if (err) {
@@ -1380,6 +1446,11 @@ int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 			       vport, err);
 		return err;
 	}
+
+	mutex_lock(&esw->state_lock);
+	if (evport->enabled)
+		err = esw_vport_ingress_config(esw, evport);
+	mutex_unlock(&esw->state_lock);
 
 	return err;
 }
@@ -1400,6 +1471,7 @@ int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  int vport, struct ifla_vf_info *ivi)
 {
+	struct mlx5_vport *evport;
 	u16 vlan;
 	u8 qos;
 
@@ -1407,6 +1479,8 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 		return -EPERM;
 	if (!LEGAL_VPORT(esw, vport))
 		return -EINVAL;
+
+	evport = &esw->vports[vport];
 
 	memset(ivi, 0, sizeof(*ivi));
 	ivi->vf = vport - 1;
@@ -1418,7 +1492,7 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	query_esw_vport_cvlan(esw->dev, vport, &vlan, &qos);
 	ivi->vlan = vlan;
 	ivi->qos = qos;
-	ivi->spoofchk = 0;
+	ivi->spoofchk = evport->spoofchk;
 
 	return 0;
 }
@@ -1456,6 +1530,32 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 
 out:
 	mutex_unlock(&esw->state_lock);
+	return err;
+}
+
+int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
+				    int vport, bool spoofchk)
+{
+	struct mlx5_vport *evport;
+	bool pschk;
+	int err = 0;
+
+	if (!ESW_ALLOWED(esw))
+		return -EPERM;
+	if (!LEGAL_VPORT(esw, vport))
+		return -EINVAL;
+
+	evport = &esw->vports[vport];
+
+	mutex_lock(&esw->state_lock);
+	pschk = evport->spoofchk;
+	evport->spoofchk = spoofchk;
+	if (evport->enabled)
+		err = esw_vport_ingress_config(esw, evport);
+	if (err)
+		evport->spoofchk = pschk;
+	mutex_unlock(&esw->state_lock);
+
 	return err;
 }
 
