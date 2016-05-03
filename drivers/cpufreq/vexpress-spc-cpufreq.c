@@ -18,6 +18,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -26,8 +27,9 @@
 
 #include "arm_big_little.h"
 
-static int ve_spc_init_opp_table(struct device *cpu_dev)
+static int ve_spc_init_opp_table(const struct cpumask *cpumask)
 {
+	struct device *cpu_dev = get_cpu_device(cpumask_first(cpumask));
 	/*
 	 * platform specific SPC code must initialise the opp table
 	 * so just check if the OPP count is non-zero
