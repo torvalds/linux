@@ -1118,7 +1118,6 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,
 	.set_vce_clocks = &vi_set_vce_clocks,
-	.get_cu_info = &gfx_v8_0_get_cu_info,
 	/* these should be moved to their own ip modules */
 	.get_gpu_clock_counter = &gfx_v8_0_get_gpu_clock_counter,
 	.wait_for_mc_idle = &gmc_v8_0_mc_wait_for_idle,

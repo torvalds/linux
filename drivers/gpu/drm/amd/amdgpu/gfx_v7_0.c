@@ -53,7 +53,6 @@
 static void gfx_v7_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v7_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v7_0_set_gds_init(struct amdgpu_device *adev);
-int gfx_v7_0_get_cu_info(struct amdgpu_device *, struct amdgpu_cu_info *);
 
 MODULE_FIRMWARE("radeon/bonaire_pfp.bin");
 MODULE_FIRMWARE("radeon/bonaire_me.bin");
@@ -882,6 +881,7 @@ static u32 gfx_v7_0_get_csb_size(struct amdgpu_device *adev);
 static void gfx_v7_0_get_csb_buffer(struct amdgpu_device *adev, volatile u32 *buffer);
 static void gfx_v7_0_init_cp_pg_table(struct amdgpu_device *adev);
 static void gfx_v7_0_init_pg(struct amdgpu_device *adev);
+static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev);
 
 /*
  * Core functions
@@ -1718,6 +1718,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	gfx_v7_0_tiling_mode_table_init(adev);
 
 	gfx_v7_0_setup_rb(adev);
+	gfx_v7_0_get_cu_info(adev);
 
 	/* set HW defaults for 3D engine */
 	WREG32(mmCP_MEQ_THRESHOLDS,
@@ -3869,18 +3870,13 @@ static u32 gfx_v7_0_get_cu_active_bitmap(struct amdgpu_device *adev)
 
 static void gfx_v7_0_init_ao_cu_mask(struct amdgpu_device *adev)
 {
-	uint32_t tmp, active_cu_number;
-	struct amdgpu_cu_info cu_info;
+	u32 tmp;
 
-	gfx_v7_0_get_cu_info(adev, &cu_info);
-	tmp = cu_info.ao_cu_mask;
-	active_cu_number = cu_info.number;
-
-	WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, tmp);
+	WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
 
 	tmp = RREG32(mmRLC_MAX_PG_CU);
 	tmp &= ~RLC_MAX_PG_CU__MAX_POWERED_UP_CU_MASK;
-	tmp |= (active_cu_number << RLC_MAX_PG_CU__MAX_POWERED_UP_CU__SHIFT);
+	tmp |= (adev->gfx.cu_info.number << RLC_MAX_PG_CU__MAX_POWERED_UP_CU__SHIFT);
 	WREG32(mmRLC_MAX_PG_CU, tmp);
 }
 
@@ -5015,14 +5011,11 @@ static void gfx_v7_0_set_gds_init(struct amdgpu_device *adev)
 }
 
 
-int gfx_v7_0_get_cu_info(struct amdgpu_device *adev,
-			 struct amdgpu_cu_info *cu_info)
+static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 {
 	int i, j, k, counter, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
-
-	if (!adev || !cu_info)
-		return -EINVAL;
+	struct amdgpu_cu_info *cu_info = &adev->gfx.cu_info;
 
 	memset(cu_info, 0, sizeof(*cu_info));
 
@@ -5053,6 +5046,4 @@ int gfx_v7_0_get_cu_info(struct amdgpu_device *adev,
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
-
-	return 0;
 }

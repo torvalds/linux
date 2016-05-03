@@ -636,6 +636,7 @@ static void gfx_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev);
 static void gfx_v8_0_set_rlc_funcs(struct amdgpu_device *adev);
 static u32 gfx_v8_0_get_csb_size(struct amdgpu_device *adev);
+static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev);
 
 static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -3431,6 +3432,7 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	gfx_v8_0_tiling_mode_table_init(adev);
 
 	gfx_v8_0_setup_rb(adev);
+	gfx_v8_0_get_cu_info(adev);
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
@@ -6212,14 +6214,11 @@ static u32 gfx_v8_0_get_cu_active_bitmap(struct amdgpu_device *adev)
 	return (~data) & mask;
 }
 
-int gfx_v8_0_get_cu_info(struct amdgpu_device *adev,
-			 struct amdgpu_cu_info *cu_info)
+static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev)
 {
 	int i, j, k, counter, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
-
-	if (!adev || !cu_info)
-		return -EINVAL;
+	struct amdgpu_cu_info *cu_info = &adev->gfx.cu_info;
 
 	memset(cu_info, 0, sizeof(*cu_info));
 
@@ -6250,6 +6249,4 @@ int gfx_v8_0_get_cu_info(struct amdgpu_device *adev,
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
-
-	return 0;
 }

@@ -1148,6 +1148,12 @@ struct amdgpu_gca_config {
 	uint32_t macrotile_mode_array[16];
 };
 
+struct amdgpu_cu_info {
+	uint32_t number; /* total active CU number */
+	uint32_t ao_cu_mask;
+	uint32_t bitmap[4][4];
+};
+
 struct amdgpu_gfx {
 	struct mutex			gpu_clock_mutex;
 	struct amdgpu_gca_config	config;
@@ -1180,9 +1186,10 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		priv_reg_irq;
 	struct amdgpu_irq_src		priv_inst_irq;
 	/* gfx status */
-	uint32_t gfx_current_status;
+	uint32_t			gfx_current_status;
 	/* ce ram size*/
-	unsigned ce_ram_size;
+	unsigned			ce_ram_size;
+	struct amdgpu_cu_info		cu_info;
 };
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
@@ -1794,13 +1801,6 @@ struct amdgpu_allowed_register_entry {
 	bool grbm_indexed;
 };
 
-struct amdgpu_cu_info {
-	uint32_t number; /* total active CU number */
-	uint32_t ao_cu_mask;
-	uint32_t bitmap[4][4];
-};
-
-
 /*
  * ASIC specific functions.
  */
@@ -1818,7 +1818,6 @@ struct amdgpu_asic_funcs {
 	u32 (*get_xclk)(struct amdgpu_device *adev);
 	/* get the gpu clock counter */
 	uint64_t (*get_gpu_clock_counter)(struct amdgpu_device *adev);
-	int (*get_cu_info)(struct amdgpu_device *adev, struct amdgpu_cu_info *info);
 	/* MM block clocks */
 	int (*set_uvd_clocks)(struct amdgpu_device *adev, u32 vclk, u32 dclk);
 	int (*set_vce_clocks)(struct amdgpu_device *adev, u32 evclk, u32 ecclk);
@@ -2210,7 +2209,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_asic_read_disabled_bios(adev) (adev)->asic_funcs->read_disabled_bios((adev))
 #define amdgpu_asic_read_bios_from_rom(adev, b, l) (adev)->asic_funcs->read_bios_from_rom((adev), (b), (l))
 #define amdgpu_asic_read_register(adev, se, sh, offset, v)((adev)->asic_funcs->read_register((adev), (se), (sh), (offset), (v)))
-#define amdgpu_asic_get_cu_info(adev, info) (adev)->asic_funcs->get_cu_info((adev), (info))
 #define amdgpu_gart_flush_gpu_tlb(adev, vmid) (adev)->gart.gart_funcs->flush_gpu_tlb((adev), (vmid))
 #define amdgpu_gart_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gart.gart_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
 #define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))
