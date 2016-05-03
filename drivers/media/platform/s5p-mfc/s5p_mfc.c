@@ -1212,14 +1212,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->vfl_dir	= VFL_DIR_M2M;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_DEC_NAME);
 	dev->vfd_dec	= vfd;
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
-	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
-		video_device_release(vfd);
-		goto err_dec_reg;
-	}
-	v4l2_info(&dev->v4l2_dev,
-		  "decoder registered as /dev/video%d\n", vfd->num);
 	video_set_drvdata(vfd, dev);
 
 	/* encoder */
@@ -1237,14 +1229,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->vfl_dir	= VFL_DIR_M2M;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_ENC_NAME);
 	dev->vfd_enc	= vfd;
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
-	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
-		video_device_release(vfd);
-		goto err_enc_reg;
-	}
-	v4l2_info(&dev->v4l2_dev,
-		  "encoder registered as /dev/video%d\n", vfd->num);
 	video_set_drvdata(vfd, dev);
 	platform_set_drvdata(pdev, dev);
 
@@ -1261,15 +1245,34 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	s5p_mfc_init_hw_cmds(dev);
 	s5p_mfc_init_regs(dev);
 
+	/* Register decoder and encoder */
+	ret = video_register_device(dev->vfd_dec, VFL_TYPE_GRABBER, 0);
+	if (ret) {
+		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
+		video_device_release(dev->vfd_dec);
+		goto err_dec_reg;
+	}
+	v4l2_info(&dev->v4l2_dev,
+		  "decoder registered as /dev/video%d\n", dev->vfd_dec->num);
+
+	ret = video_register_device(dev->vfd_enc, VFL_TYPE_GRABBER, 0);
+	if (ret) {
+		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
+		video_device_release(dev->vfd_enc);
+		goto err_enc_reg;
+	}
+	v4l2_info(&dev->v4l2_dev,
+		  "encoder registered as /dev/video%d\n", dev->vfd_enc->num);
+
 	pr_debug("%s--\n", __func__);
 	return 0;
 
 /* Deinit MFC if probe had failed */
 err_enc_reg:
-	video_device_release(dev->vfd_enc);
-err_enc_alloc:
 	video_unregister_device(dev->vfd_dec);
 err_dec_reg:
+	video_device_release(dev->vfd_enc);
+err_enc_alloc:
 	video_device_release(dev->vfd_dec);
 err_dec_alloc:
 	v4l2_device_unregister(&dev->v4l2_dev);
