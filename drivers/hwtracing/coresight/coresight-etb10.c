@@ -440,7 +440,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 		u32 mask = ~(ETB_FRAME_SIZE_WORDS - 1);
 
 		/* The new read pointer must be frame size aligned */
-		to_read -= handle->size & mask;
+		to_read = handle->size & mask;
 		/*
 		 * Move the RAM read pointer up, keeping in mind that
 		 * everything is in frame size units.
