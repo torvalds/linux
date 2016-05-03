@@ -3240,6 +3240,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	const __be64 *prop64;
 	const __be32 *prop32;
 	int len;
+	unsigned int segno;
 	u64 phb_id;
 	void *aux;
 	long rc;
@@ -3334,8 +3335,13 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	aux = memblock_virt_alloc(size, 0);
 	phb->ioda.pe_alloc = aux;
 	phb->ioda.m32_segmap = aux + m32map_off;
-	if (phb->type == PNV_PHB_IODA1)
+	for (segno = 0; segno < phb->ioda.total_pe_num; segno++)
+		phb->ioda.m32_segmap[segno] = IODA_INVALID_PE;
+	if (phb->type == PNV_PHB_IODA1) {
 		phb->ioda.io_segmap = aux + iomap_off;
+		for (segno = 0; segno < phb->ioda.total_pe_num; segno++)
+			phb->ioda.io_segmap[segno] = IODA_INVALID_PE;
+	}
 	phb->ioda.pe_array = aux + pemap_off;
 	set_bit(phb->ioda.reserved_pe_idx, phb->ioda.pe_alloc);
 
