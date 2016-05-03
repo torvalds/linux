@@ -728,7 +728,8 @@ static void esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	int table_size = 2;
 	int err = 0;
 
-	if (!MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support))
+	if (!MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support) ||
+	    !IS_ERR_OR_NULL(vport->egress.acl))
 		return;
 
 	esw_debug(dev, "Create vport[%d] egress ACL log_max_size(%d)\n",
@@ -841,7 +842,8 @@ static void esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	int table_size = 4;
 	int err = 0;
 
-	if (!MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
+	if (!MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support) ||
+	    !IS_ERR_OR_NULL(vport->ingress.acl))
 		return;
 
 	esw_debug(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
@@ -989,13 +991,6 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	int err = 0;
 	u8 *smac_v;
 
-	if (IS_ERR_OR_NULL(vport->ingress.acl)) {
-		esw_warn(esw->dev,
-			 "vport[%d] configure ingress rules failed, ingress acl is not initialized!\n",
-			 vport->vport);
-		return -EPERM;
-	}
-
 	if (vport->spoofchk) {
 		err = mlx5_query_nic_vport_mac_address(esw->dev, vport->vport, smac);
 		if (err) {
@@ -1015,8 +1010,12 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 
 	esw_vport_cleanup_ingress_rules(esw, vport);
 
-	if (!vport->vlan && !vport->qos && !vport->spoofchk)
+	if (!vport->vlan && !vport->qos && !vport->spoofchk) {
+		esw_vport_disable_ingress_acl(esw, vport);
 		return 0;
+	}
+
+	esw_vport_enable_ingress_acl(esw, vport);
 
 	esw_debug(esw->dev,
 		  "vport[%d] configure ingress rules, vlan(%d) qos(%d)\n",
@@ -1091,16 +1090,14 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	u32 *match_c;
 	int err = 0;
 
-	if (IS_ERR_OR_NULL(vport->egress.acl)) {
-		esw_warn(esw->dev, "vport[%d] configure rgress rules failed, egress acl is not initialized!\n",
-			 vport->vport);
-		return -EPERM;
-	}
-
 	esw_vport_cleanup_egress_rules(esw, vport);
 
-	if (!vport->vlan && !vport->qos)
+	if (!vport->vlan && !vport->qos) {
+		esw_vport_disable_egress_acl(esw, vport);
 		return 0;
+	}
+
+	esw_vport_enable_egress_acl(esw, vport);
 
 	esw_debug(esw->dev,
 		  "vport[%d] configure egress rules, vlan(%d) qos(%d)\n",
@@ -1169,8 +1166,6 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 	esw_debug(esw->dev, "Enabling VPORT(%d)\n", vport_num);
 
 	if (vport_num) { /* Only VFs need ACLs for VST and spoofchk filtering */
-		esw_vport_enable_ingress_acl(esw, vport);
-		esw_vport_enable_egress_acl(esw, vport);
 		esw_vport_ingress_config(esw, vport);
 		esw_vport_egress_config(esw, vport);
 	}
