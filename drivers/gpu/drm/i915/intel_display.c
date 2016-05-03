@@ -13378,8 +13378,11 @@ static int intel_atomic_check(struct drm_device *dev,
 			return ret;
 
 		ret = intel_modeset_pipe_config(crtc, pipe_config);
-		if (ret)
+		if (ret) {
+			intel_dump_pipe_config(to_intel_crtc(crtc),
+					       pipe_config, "[failed]");
 			return ret;
+		}
 
 		if (i915.fastboot &&
 		    intel_pipe_config_compare(dev,
