@@ -260,26 +260,20 @@ static __be32 tunnel_id_to_key(__be64 x)
 #endif
 }
 
-static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
-		     int hdr_len)
+static int __ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
+		       struct ip_tunnel_net *itn, int hdr_len, bool raw_proto)
 {
-	struct net *net = dev_net(skb->dev);
 	struct metadata_dst *tun_dst = NULL;
-	struct ip_tunnel_net *itn;
 	const struct iphdr *iph;
 	struct ip_tunnel *tunnel;
-
-	if (tpi->proto == htons(ETH_P_TEB))
-		itn = net_generic(net, gre_tap_net_id);
-	else
-		itn = net_generic(net, ipgre_net_id);
 
 	iph = ip_hdr(skb);
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, tpi->flags,
 				  iph->saddr, iph->daddr, tpi->key);
 
 	if (tunnel) {
-		if (iptunnel_pull_header(skb, hdr_len, tpi->proto, false) < 0)
+		if (__iptunnel_pull_header(skb, hdr_len, tpi->proto,
+					   raw_proto, false) < 0)
 			goto drop;
 
 		skb_pop_mac_header(skb);
@@ -297,11 +291,34 @@ static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 		ip_tunnel_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
 		return PACKET_RCVD;
 	}
-	return PACKET_REJECT;
+	return PACKET_NEXT;
 
 drop:
 	kfree_skb(skb);
 	return PACKET_RCVD;
+}
+
+static int ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
+		     int hdr_len)
+{
+	struct net *net = dev_net(skb->dev);
+	struct ip_tunnel_net *itn;
+	int res;
+
+	if (tpi->proto == htons(ETH_P_TEB))
+		itn = net_generic(net, gre_tap_net_id);
+	else
+		itn = net_generic(net, ipgre_net_id);
+
+	res = __ipgre_rcv(skb, tpi, itn, hdr_len, false);
+	if (res == PACKET_NEXT && tpi->proto == htons(ETH_P_TEB)) {
+		/* ipgre tunnels in collect metadata mode should receive
+		 * also ETH_P_TEB traffic.
+		 */
+		itn = net_generic(net, ipgre_net_id);
+		res = __ipgre_rcv(skb, tpi, itn, hdr_len, true);
+	}
+	return res;
 }
 
 static int gre_rcv(struct sk_buff *skb)
