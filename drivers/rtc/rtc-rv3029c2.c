@@ -116,9 +116,8 @@
 #define RV3029_USR2_RAM_PAGE		0x3C
 #define RV3029_USR2_SECTION_LEN		0x04
 
-static int
-rv3029_i2c_read_regs(struct i2c_client *client, u8 reg, u8 *buf,
-		     unsigned len)
+static int rv3029_read_regs(struct i2c_client *client, u8 reg, u8 *buf,
+			    unsigned len)
 {
 	int ret;
 
@@ -134,9 +133,8 @@ rv3029_i2c_read_regs(struct i2c_client *client, u8 reg, u8 *buf,
 	return 0;
 }
 
-static int
-rv3029_i2c_write_regs(struct i2c_client *client, u8 reg, u8 const buf[],
-		      unsigned len)
+static int rv3029_write_regs(struct i2c_client *client, u8 reg, u8 const buf[],
+			     unsigned len)
 {
 	if ((reg > RV3029_USR1_RAM_PAGE + 7) ||
 		(reg + len > RV3029_USR1_RAM_PAGE + 8))
@@ -145,28 +143,27 @@ rv3029_i2c_write_regs(struct i2c_client *client, u8 reg, u8 const buf[],
 	return i2c_smbus_write_i2c_block_data(client, reg, len, buf);
 }
 
-static int
-rv3029_i2c_update_bits(struct i2c_client *client, u8 reg, u8 mask, u8 set)
+static int rv3029_update_bits(struct i2c_client *client, u8 reg, u8 mask,
+			      u8 set)
 {
 	u8 buf;
 	int ret;
 
-	ret = rv3029_i2c_read_regs(client, reg, &buf, 1);
+	ret = rv3029_read_regs(client, reg, &buf, 1);
 	if (ret < 0)
 		return ret;
 	buf &= ~mask;
 	buf |= set & mask;
-	ret = rv3029_i2c_write_regs(client, reg, &buf, 1);
+	ret = rv3029_write_regs(client, reg, &buf, 1);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-static int
-rv3029_i2c_get_sr(struct i2c_client *client, u8 *buf)
+static int rv3029_get_sr(struct i2c_client *client, u8 *buf)
 {
-	int ret = rv3029_i2c_read_regs(client, RV3029_STATUS, buf, 1);
+	int ret = rv3029_read_regs(client, RV3029_STATUS, buf, 1);
 
 	if (ret < 0)
 		return -EIO;
@@ -174,14 +171,13 @@ rv3029_i2c_get_sr(struct i2c_client *client, u8 *buf)
 	return 0;
 }
 
-static int
-rv3029_i2c_set_sr(struct i2c_client *client, u8 val)
+static int rv3029_set_sr(struct i2c_client *client, u8 val)
 {
 	u8 buf[1];
 	int sr;
 
 	buf[0] = val;
-	sr = rv3029_i2c_write_regs(client, RV3029_STATUS, buf, 1);
+	sr = rv3029_write_regs(client, RV3029_STATUS, buf, 1);
 	dev_dbg(&client->dev, "status = 0x%.2x (%d)\n", buf[0], buf[0]);
 	if (sr < 0)
 		return -EIO;
@@ -194,7 +190,7 @@ static int rv3029_eeprom_busywait(struct i2c_client *client)
 	u8 sr;
 
 	for (i = 100; i > 0; i--) {
-		ret = rv3029_i2c_get_sr(client, &sr);
+		ret = rv3029_get_sr(client, &sr);
 		if (ret < 0)
 			break;
 		if (!(sr & RV3029_STATUS_EEBUSY))
@@ -212,9 +208,9 @@ static int rv3029_eeprom_busywait(struct i2c_client *client)
 static int rv3029_eeprom_exit(struct i2c_client *client)
 {
 	/* Re-enable eeprom refresh */
-	return rv3029_i2c_update_bits(client, RV3029_ONOFF_CTRL,
-				      RV3029_ONOFF_CTRL_EERE,
-				      RV3029_ONOFF_CTRL_EERE);
+	return rv3029_update_bits(client, RV3029_ONOFF_CTRL,
+				  RV3029_ONOFF_CTRL_EERE,
+				  RV3029_ONOFF_CTRL_EERE);
 }
 
 static int rv3029_eeprom_enter(struct i2c_client *client)
@@ -223,7 +219,7 @@ static int rv3029_eeprom_enter(struct i2c_client *client)
 	u8 sr;
 
 	/* Check whether we are in the allowed voltage range. */
-	ret = rv3029_i2c_get_sr(client, &sr);
+	ret = rv3029_get_sr(client, &sr);
 	if (ret < 0)
 		return ret;
 	if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
@@ -232,11 +228,11 @@ static int rv3029_eeprom_enter(struct i2c_client *client)
 		 */
 		sr &= ~RV3029_STATUS_VLOW1;
 		sr &= ~RV3029_STATUS_VLOW2;
-		ret = rv3029_i2c_set_sr(client, sr);
+		ret = rv3029_set_sr(client, sr);
 		if (ret < 0)
 			return ret;
 		usleep_range(1000, 10000);
-		ret = rv3029_i2c_get_sr(client, &sr);
+		ret = rv3029_get_sr(client, &sr);
 		if (ret < 0)
 			return ret;
 		if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
@@ -247,8 +243,8 @@ static int rv3029_eeprom_enter(struct i2c_client *client)
 	}
 
 	/* Disable eeprom refresh. */
-	ret = rv3029_i2c_update_bits(client, RV3029_ONOFF_CTRL,
-				     RV3029_ONOFF_CTRL_EERE, 0);
+	ret = rv3029_update_bits(client, RV3029_ONOFF_CTRL,
+				 RV3029_ONOFF_CTRL_EERE, 0);
 	if (ret < 0)
 		return ret;
 
@@ -269,7 +265,7 @@ static int rv3029_eeprom_read(struct i2c_client *client, u8 reg,
 	if (err < 0)
 		return err;
 
-	ret = rv3029_i2c_read_regs(client, reg, buf, len);
+	ret = rv3029_read_regs(client, reg, buf, len);
 
 	err = rv3029_eeprom_exit(client);
 	if (err < 0)
@@ -290,11 +286,11 @@ static int rv3029_eeprom_write(struct i2c_client *client, u8 reg,
 		return err;
 
 	for (i = 0; i < len; i++, reg++) {
-		ret = rv3029_i2c_read_regs(client, reg, &tmp, 1);
+		ret = rv3029_read_regs(client, reg, &tmp, 1);
 		if (ret < 0)
 			break;
 		if (tmp != buf[i]) {
-			ret = rv3029_i2c_write_regs(client, reg, &buf[i], 1);
+			ret = rv3029_write_regs(client, reg, &buf[i], 1);
 			if (ret < 0)
 				break;
 		}
@@ -328,21 +324,20 @@ static int rv3029_eeprom_update_bits(struct i2c_client *client,
 	return 0;
 }
 
-static int
-rv3029_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
+static int rv3029_read_time(struct i2c_client *client, struct rtc_time *tm)
 {
 	u8 buf[1];
 	int ret;
 	u8 regs[RV3029_WATCH_SECTION_LEN] = { 0, };
 
-	ret = rv3029_i2c_get_sr(client, buf);
+	ret = rv3029_get_sr(client, buf);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: reading SR failed\n", __func__);
 		return -EIO;
 	}
 
-	ret = rv3029_i2c_read_regs(client, RV3029_W_SEC, regs,
-				   RV3029_WATCH_SECTION_LEN);
+	ret = rv3029_read_regs(client, RV3029_W_SEC, regs,
+			       RV3029_WATCH_SECTION_LEN);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: reading RTC section failed\n",
 			__func__);
@@ -375,24 +370,24 @@ rv3029_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
 
 static int rv3029_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	return rv3029_i2c_read_time(to_i2c_client(dev), tm);
+	return rv3029_read_time(to_i2c_client(dev), tm);
 }
 
-static int
-rv3029_i2c_read_alarm(struct i2c_client *client, struct rtc_wkalrm *alarm)
+static int rv3029_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rtc_time *const tm = &alarm->time;
 	int ret;
 	u8 regs[8];
 
-	ret = rv3029_i2c_get_sr(client, regs);
+	ret = rv3029_get_sr(client, regs);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: reading SR failed\n", __func__);
 		return -EIO;
 	}
 
-	ret = rv3029_i2c_read_regs(client, RV3029_A_SC, regs,
-				   RV3029_ALARM_SECTION_LEN);
+	ret = rv3029_read_regs(client, RV3029_A_SC, regs,
+			       RV3029_ALARM_SECTION_LEN);
 
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: reading alarm section failed\n",
@@ -411,21 +406,14 @@ rv3029_i2c_read_alarm(struct i2c_client *client, struct rtc_wkalrm *alarm)
 	return 0;
 }
 
-static int
-rv3029_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
-{
-	return rv3029_i2c_read_alarm(to_i2c_client(dev), alarm);
-}
-
-static int rv3029_rtc_i2c_alarm_set_irq(struct i2c_client *client,
-					int enable)
+static int rv3029_rtc_alarm_set_irq(struct i2c_client *client, int enable)
 {
 	int ret;
 
 	/* enable/disable AIE irq */
-	ret = rv3029_i2c_update_bits(client, RV3029_IRQ_CTRL,
-				     RV3029_IRQ_CTRL_AIE,
-				     (enable ? RV3029_IRQ_CTRL_AIE : 0));
+	ret = rv3029_update_bits(client, RV3029_IRQ_CTRL,
+				 RV3029_IRQ_CTRL_AIE,
+				 (enable ? RV3029_IRQ_CTRL_AIE : 0));
 	if (ret < 0) {
 		dev_err(&client->dev, "can't update INT reg\n");
 		return ret;
@@ -434,9 +422,9 @@ static int rv3029_rtc_i2c_alarm_set_irq(struct i2c_client *client,
 	return 0;
 }
 
-static int rv3029_rtc_i2c_set_alarm(struct i2c_client *client,
-				    struct rtc_wkalrm *alarm)
+static int rv3029_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rtc_time *const tm = &alarm->time;
 	int ret;
 	u8 regs[8];
@@ -449,7 +437,7 @@ static int rv3029_rtc_i2c_set_alarm(struct i2c_client *client,
 	if (tm->tm_year < 100)
 		return -EINVAL;
 
-	ret = rv3029_i2c_get_sr(client, regs);
+	ret = rv3029_get_sr(client, regs);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: reading SR failed\n", __func__);
 		return -EIO;
@@ -462,28 +450,28 @@ static int rv3029_rtc_i2c_set_alarm(struct i2c_client *client,
 	regs[RV3029_A_DW-RV3029_A_SC] = bin2bcd((tm->tm_wday & 7) - 1);
 	regs[RV3029_A_YR-RV3029_A_SC] = bin2bcd((tm->tm_year & 0x7f) - 100);
 
-	ret = rv3029_i2c_write_regs(client, RV3029_A_SC, regs,
-				    RV3029_ALARM_SECTION_LEN);
+	ret = rv3029_write_regs(client, RV3029_A_SC, regs,
+				RV3029_ALARM_SECTION_LEN);
 	if (ret < 0)
 		return ret;
 
 	if (alarm->enabled) {
 		/* clear AF flag */
-		ret = rv3029_i2c_update_bits(client, RV3029_IRQ_FLAGS,
-					     RV3029_IRQ_FLAGS_AF, 0);
+		ret = rv3029_update_bits(client, RV3029_IRQ_FLAGS,
+					 RV3029_IRQ_FLAGS_AF, 0);
 		if (ret < 0) {
 			dev_err(&client->dev, "can't clear alarm flag\n");
 			return ret;
 		}
 		/* enable AIE irq */
-		ret = rv3029_rtc_i2c_alarm_set_irq(client, 1);
+		ret = rv3029_rtc_alarm_set_irq(client, 1);
 		if (ret)
 			return ret;
 
 		dev_dbg(&client->dev, "alarm IRQ armed\n");
 	} else {
 		/* disable AIE irq */
-		ret = rv3029_rtc_i2c_alarm_set_irq(client, 0);
+		ret = rv3029_rtc_alarm_set_irq(client, 0);
 		if (ret)
 			return ret;
 
@@ -493,13 +481,7 @@ static int rv3029_rtc_i2c_set_alarm(struct i2c_client *client,
 	return 0;
 }
 
-static int rv3029_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
-{
-	return rv3029_rtc_i2c_set_alarm(to_i2c_client(dev), alarm);
-}
-
-static int
-rv3029_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
+static int rv3029_set_time(struct i2c_client *client, struct rtc_time const *tm)
 {
 	u8 regs[8];
 	int ret;
@@ -520,18 +502,18 @@ rv3029_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
 	regs[RV3029_W_DAYS-RV3029_W_SEC] = bin2bcd((tm->tm_wday & 7)+1);
 	regs[RV3029_W_YEARS-RV3029_W_SEC] = bin2bcd(tm->tm_year - 100);
 
-	ret = rv3029_i2c_write_regs(client, RV3029_W_SEC, regs,
-				    RV3029_WATCH_SECTION_LEN);
+	ret = rv3029_write_regs(client, RV3029_W_SEC, regs,
+				RV3029_WATCH_SECTION_LEN);
 	if (ret < 0)
 		return ret;
 
-	ret = rv3029_i2c_get_sr(client, regs);
+	ret = rv3029_get_sr(client, regs);
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: reading SR failed\n", __func__);
 		return ret;
 	}
 	/* clear PON bit */
-	ret = rv3029_i2c_set_sr(client, (regs[0] & ~RV3029_STATUS_PON));
+	ret = rv3029_set_sr(client, (regs[0] & ~RV3029_STATUS_PON));
 	if (ret < 0) {
 		dev_err(&client->dev, "%s: reading SR failed\n", __func__);
 		return ret;
@@ -542,7 +524,7 @@ rv3029_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
 
 static int rv3029_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	return rv3029_i2c_set_time(to_i2c_client(dev), tm);
+	return rv3029_set_time(to_i2c_client(dev), tm);
 }
 
 static const struct rv3029_trickle_tab_elem {
@@ -646,7 +628,7 @@ static int rv3029_read_temp(struct i2c_client *client, int *temp_mC)
 	int ret;
 	u8 temp;
 
-	ret = rv3029_i2c_read_regs(client, RV3029_TEMP_PAGE, &temp, 1);
+	ret = rv3029_read_regs(client, RV3029_TEMP_PAGE, &temp, 1);
 	if (ret < 0)
 		return ret;
 
@@ -743,8 +725,8 @@ static void rv3029_hwmon_register(struct i2c_client *client)
 		&client->dev, client->name, client, rv3029_hwmon_groups);
 	if (IS_ERR(hwmon_dev)) {
 		dev_warn(&client->dev,
-			"unable to register hwmon device %ld\n",
-			PTR_ERR(hwmon_dev));
+			 "unable to register hwmon device %ld\n",
+			 PTR_ERR(hwmon_dev));
 	}
 }
 
@@ -780,7 +762,7 @@ static int rv3029_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_EMUL))
 		return -ENODEV;
 
-	rc = rv3029_i2c_get_sr(client, buf);
+	rc = rv3029_get_sr(client, buf);
 	if (rc < 0) {
 		dev_err(&client->dev, "reading status failed\n");
 		return rc;
