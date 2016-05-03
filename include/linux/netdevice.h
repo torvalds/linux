@@ -569,6 +569,12 @@ struct netdev_queue {
 #if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
 	int			numa_node;
 #endif
+	unsigned long		tx_maxrate;
+	/*
+	 * Number of TX timeouts for this queue
+	 * (/sys/class/net/DEV/Q/trans_timeout)
+	 */
+	unsigned long		trans_timeout;
 /*
  * write-mostly part
  */
@@ -579,18 +585,11 @@ struct netdev_queue {
 	 */
 	unsigned long		trans_start;
 
-	/*
-	 * Number of TX timeouts for this queue
-	 * (/sys/class/net/DEV/Q/trans_timeout)
-	 */
-	unsigned long		trans_timeout;
-
 	unsigned long		state;
 
 #ifdef CONFIG_BQL
 	struct dql		dql;
 #endif
-	unsigned long		tx_maxrate;
 } ____cacheline_aligned_in_smp;
 
 static inline int netdev_queue_numa_node_read(const struct netdev_queue *q)
