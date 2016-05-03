@@ -2399,6 +2399,11 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 		return;
 	}
 
+	/* AP is probably out of range (or not reachable for another reason) so
+	 * remove the bss struct for that AP.
+	 */
+	cfg80211_unlink_bss(local->hw.wiphy, ifmgd->associated);
+
 	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
 			       WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
 			       true, frame_buf);
