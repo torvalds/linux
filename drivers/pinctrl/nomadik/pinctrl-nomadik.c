@@ -611,20 +611,6 @@ static int __maybe_unused nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev, 
 	return NMK_GPIO_ALT_C;
 }
 
-static int nmk_gpio_get_mode(struct nmk_gpio_chip *nmk_chip, int offset)
-{
-	u32 afunc, bfunc;
-
-	clk_enable(nmk_chip->clk);
-
-	afunc = readl(nmk_chip->addr + NMK_GPIO_AFSLA) & BIT(offset);
-	bfunc = readl(nmk_chip->addr + NMK_GPIO_AFSLB) & BIT(offset);
-
-	clk_disable(nmk_chip->clk);
-
-	return (afunc ? NMK_GPIO_ALT_A : 0) | (bfunc ? NMK_GPIO_ALT_B : 0);
-}
-
 /* IRQ functions */
 
 static void nmk_gpio_irq_ack(struct irq_data *d)
@@ -929,6 +915,19 @@ static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
 }
 
 #ifdef CONFIG_DEBUG_FS
+static int nmk_gpio_get_mode(struct nmk_gpio_chip *nmk_chip, int offset)
+{
+	u32 afunc, bfunc;
+
+	clk_enable(nmk_chip->clk);
+
+	afunc = readl(nmk_chip->addr + NMK_GPIO_AFSLA) & BIT(offset);
+	bfunc = readl(nmk_chip->addr + NMK_GPIO_AFSLB) & BIT(offset);
+
+	clk_disable(nmk_chip->clk);
+
+	return (afunc ? NMK_GPIO_ALT_A : 0) | (bfunc ? NMK_GPIO_ALT_B : 0);
+}
 
 #include <linux/seq_file.h>
 
