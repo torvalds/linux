@@ -2606,7 +2606,7 @@ static inline uint32_t drm_color_lut_extract(uint32_t user_input,
 	return clamp_val(val, 0, max);
 }
 
-/*
+/**
  * drm_framebuffer_reference - incr the fb refcnt
  * @fb: framebuffer
  *
