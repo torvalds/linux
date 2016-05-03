@@ -19,12 +19,15 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
+#include "venc_drv_base.h"
 #include "venc_drv_if.h"
+
 #include "mtk_vcodec_enc.h"
 #include "mtk_vcodec_enc_pm.h"
 #include "mtk_vpu.h"
 
-#include "venc_drv_base.h"
+
+struct venc_common_if *get_vp8_enc_comm_if(void);
 
 int venc_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 {
@@ -32,6 +35,8 @@ int venc_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 
 	switch (fourcc) {
 	case V4L2_PIX_FMT_VP8:
+		ctx->enc_if = get_vp8_enc_comm_if();
+		break;
 	case V4L2_PIX_FMT_H264:
 	default:
 		return -EINVAL;
