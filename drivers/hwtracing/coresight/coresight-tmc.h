@@ -18,6 +18,8 @@
 #ifndef _CORESIGHT_TMC_H
 #define _CORESIGHT_TMC_H
 
+#include <linux/miscdevice.h>
+
 #define TMC_RSZ			0x004
 #define TMC_STS			0x00c
 #define TMC_RRD			0x010
@@ -118,4 +120,20 @@ struct tmc_drvdata {
 	u32			trigger_cntr;
 };
 
+/* Generic functions */
+void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata);
+void tmc_flush_and_stop(struct tmc_drvdata *drvdata);
+void tmc_enable_hw(struct tmc_drvdata *drvdata);
+void tmc_disable_hw(struct tmc_drvdata *drvdata);
+
+/* ETB/ETF functions */
+void tmc_etb_enable_hw(struct tmc_drvdata *drvdata);
+void tmc_etb_disable_hw(struct tmc_drvdata *drvdata);
+extern const struct coresight_ops tmc_etb_cs_ops;
+extern const struct coresight_ops tmc_etf_cs_ops;
+
+/* ETR functions */
+void tmc_etr_enable_hw(struct tmc_drvdata *drvdata);
+void tmc_etr_disable_hw(struct tmc_drvdata *drvdata);
+extern const struct coresight_ops tmc_etr_cs_ops;
 #endif
