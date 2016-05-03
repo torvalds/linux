@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 
 #include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/debugfs.h>
 
 #include "omap_ssi_regs.h"
