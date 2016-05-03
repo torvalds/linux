@@ -5,7 +5,8 @@ comment "HSI controllers"
 
 config OMAP_SSI
 	tristate "OMAP SSI hardware driver"
-	depends on HSI && OF && (ARCH_OMAP3 || (ARM && COMPILE_TEST))
+	depends on HSI && OF && ARM && COMMON_CLK
+	depends on ARCH_OMAP3 || COMPILE_TEST
 	---help---
 	  SSI is a legacy version of HSI. It is usually used to connect
 	  an application engine with a cellular modem.
