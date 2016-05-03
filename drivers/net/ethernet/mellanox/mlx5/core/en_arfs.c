@@ -30,6 +30,8 @@
  * SOFTWARE.
  */
 
+#ifdef CONFIG_RFS_ACCEL
+
 #include <linux/hash.h>
 #include <linux/mlx5/fs.h>
 #include <linux/ip.h>
@@ -747,3 +749,4 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	spin_unlock_bh(&arfs->arfs_lock);
 	return arfs_rule->filter_id;
 }
+#endif
