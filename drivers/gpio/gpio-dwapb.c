@@ -588,6 +588,7 @@ MODULE_DEVICE_TABLE(of, dwapb_of_match);
 
 static const struct acpi_device_id dwapb_acpi_match[] = {
 	{"HISI0181", 0},
+	{"APMC0D07", 0},
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dwapb_acpi_match);
