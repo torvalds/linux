@@ -74,7 +74,12 @@ static void tmc_etb_disable_hw(struct tmc_drvdata *drvdata)
 	CS_UNLOCK(drvdata->base);
 
 	tmc_flush_and_stop(drvdata);
-	tmc_etb_dump_hw(drvdata);
+	/*
+	 * When operating in sysFS mode the content of the buffer needs to be
+	 * read before the TMC is disabled.
+	 */
+	if (local_read(&drvdata->mode) == CS_MODE_SYSFS)
+		tmc_etb_dump_hw(drvdata);
 	tmc_disable_hw(drvdata);
 
 	CS_LOCK(drvdata->base);
