@@ -1614,7 +1614,7 @@ static int hdac_hdmi_get_spk_alloc(struct hdac_device *hdac, int pcm_idx)
 	struct hdac_hdmi_pcm *pcm = get_hdmi_pcm_from_id(hdmi, pcm_idx);
 	struct hdac_hdmi_pin *pin = pcm->pin;
 
-	if (!pin && !pin->eld.eld_valid)
+	if (!pin || !pin->eld.eld_valid)
 		return 0;
 
 	return pin->eld.info.spk_alloc;
