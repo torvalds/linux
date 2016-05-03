@@ -180,6 +180,9 @@ static void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
 
 	CS_UNLOCK(drvdata->base);
 
+	/* Wait for TMCSReady bit to be set */
+	tmc_wait_for_tmcready(drvdata);
+
 	writel_relaxed(TMC_MODE_CIRCULAR_BUFFER, drvdata->base + TMC_MODE);
 	writel_relaxed(TMC_FFCR_EN_FMT | TMC_FFCR_EN_TI |
 		       TMC_FFCR_FON_FLIN | TMC_FFCR_FON_TRIG_EVT |
@@ -200,6 +203,9 @@ static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 	memset(drvdata->vaddr, 0, drvdata->size);
 
 	CS_UNLOCK(drvdata->base);
+
+	/* Wait for TMCSReady bit to be set */
+	tmc_wait_for_tmcready(drvdata);
 
 	writel_relaxed(drvdata->size / 4, drvdata->base + TMC_RSZ);
 	writel_relaxed(TMC_MODE_CIRCULAR_BUFFER, drvdata->base + TMC_MODE);
@@ -229,6 +235,9 @@ static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 static void tmc_etf_enable_hw(struct tmc_drvdata *drvdata)
 {
 	CS_UNLOCK(drvdata->base);
+
+	/* Wait for TMCSReady bit to be set */
+	tmc_wait_for_tmcready(drvdata);
 
 	writel_relaxed(TMC_MODE_HARDWARE_FIFO, drvdata->base + TMC_MODE);
 	writel_relaxed(TMC_FFCR_EN_FMT | TMC_FFCR_EN_TI,
