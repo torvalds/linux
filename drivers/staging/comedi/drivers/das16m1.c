@@ -357,10 +357,10 @@ static int das16m1_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das16m1_do_wbits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn,
-			    unsigned int *data)
+static int das16m1_do_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
 		outb(s->state, dev->iobase + DAS16M1_DO_REG);
@@ -580,14 +580,14 @@ static int das16m1_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= das16m1_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[2];
-	/* do */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = das16m1_do_wbits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= das16m1_do_insn_bits;
 
 	s = &dev->subdevices[3];
 	/* 8255 */
