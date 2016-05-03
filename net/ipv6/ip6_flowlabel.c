@@ -373,7 +373,7 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		struct msghdr msg;
 		struct flowi6 flowi6;
 		struct sockcm_cookie sockc_junk;
-		int junk;
+		struct ipcm6_cookie ipc6;
 
 		err = -ENOMEM;
 		fl->opt = kmalloc(sizeof(*fl->opt) + olen, GFP_KERNEL);
@@ -390,8 +390,8 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		msg.msg_control = (void *)(fl->opt+1);
 		memset(&flowi6, 0, sizeof(flowi6));
 
-		err = ip6_datagram_send_ctl(net, sk, &msg, &flowi6, fl->opt,
-					    &junk, &junk, &junk, &sockc_junk);
+		ipc6.opt = fl->opt;
+		err = ip6_datagram_send_ctl(net, sk, &msg, &flowi6, &ipc6, &sockc_junk);
 		if (err)
 			goto done;
 		err = -EINVAL;

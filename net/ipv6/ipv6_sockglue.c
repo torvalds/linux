@@ -473,7 +473,7 @@ sticky_done:
 		struct msghdr msg;
 		struct flowi6 fl6;
 		struct sockcm_cookie sockc_junk;
-		int junk;
+		struct ipcm6_cookie ipc6;
 
 		memset(&fl6, 0, sizeof(fl6));
 		fl6.flowi6_oif = sk->sk_bound_dev_if;
@@ -503,9 +503,9 @@ sticky_done:
 
 		msg.msg_controllen = optlen;
 		msg.msg_control = (void *)(opt+1);
+		ipc6.opt = opt;
 
-		retv = ip6_datagram_send_ctl(net, sk, &msg, &fl6, opt, &junk,
-					     &junk, &junk, &sockc_junk);
+		retv = ip6_datagram_send_ctl(net, sk, &msg, &fl6, &ipc6, &sockc_junk);
 		if (retv)
 			goto done;
 update:

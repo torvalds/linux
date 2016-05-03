@@ -251,6 +251,13 @@ struct ipv6_fl_socklist {
 	struct rcu_head			rcu;
 };
 
+struct ipcm6_cookie {
+	__s16 hlimit;
+	__s16 tclass;
+	__s8  dontfrag;
+	struct ipv6_txoptions *opt;
+};
+
 static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 {
 	struct ipv6_txoptions *opt;
@@ -863,9 +870,9 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr);
 int ip6_append_data(struct sock *sk,
 		    int getfrag(void *from, char *to, int offset, int len,
 				int odd, struct sk_buff *skb),
-		    void *from, int length, int transhdrlen, int hlimit,
-		    int tclass, struct ipv6_txoptions *opt, struct flowi6 *fl6,
-		    struct rt6_info *rt, unsigned int flags, int dontfrag,
+		    void *from, int length, int transhdrlen,
+		    struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
+		    struct rt6_info *rt, unsigned int flags,
 		    const struct sockcm_cookie *sockc);
 
 int ip6_push_pending_frames(struct sock *sk);
@@ -881,9 +888,8 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 			     int getfrag(void *from, char *to, int offset,
 					 int len, int odd, struct sk_buff *skb),
 			     void *from, int length, int transhdrlen,
-			     int hlimit, int tclass, struct ipv6_txoptions *opt,
-			     struct flowi6 *fl6, struct rt6_info *rt,
-			     unsigned int flags, int dontfrag,
+			     struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
+			     struct rt6_info *rt, unsigned int flags,
 			     const struct sockcm_cookie *sockc);
 
 static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
