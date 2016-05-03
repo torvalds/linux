@@ -890,44 +890,6 @@ out:
 	return 0;
 }
 
-static void pnv_ioda_link_pe_by_weight(struct pnv_phb *phb,
-				       struct pnv_ioda_pe *pe)
-{
-	struct pnv_ioda_pe *lpe;
-
-	list_for_each_entry(lpe, &phb->ioda.pe_dma_list, dma_link) {
-		if (lpe->dma_weight < pe->dma_weight) {
-			list_add_tail(&pe->dma_link, &lpe->dma_link);
-			return;
-		}
-	}
-	list_add_tail(&pe->dma_link, &phb->ioda.pe_dma_list);
-}
-
-static unsigned int pnv_ioda_dma_weight(struct pci_dev *dev)
-{
-	/* This is quite simplistic. The "base" weight of a device
-	 * is 10. 0 means no DMA is to be accounted for it.
-	 */
-
-	/* If it's a bridge, no DMA */
-	if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL)
-		return 0;
-
-	/* Reduce the weight of slow USB controllers */
-	if (dev->class == PCI_CLASS_SERIAL_USB_UHCI ||
-	    dev->class == PCI_CLASS_SERIAL_USB_OHCI ||
-	    dev->class == PCI_CLASS_SERIAL_USB_EHCI)
-		return 3;
-
-	/* Increase the weight of RAID (includes Obsidian) */
-	if ((dev->class >> 8) == PCI_CLASS_STORAGE_RAID)
-		return 15;
-
-	/* Default */
-	return 10;
-}
-
 #ifdef CONFIG_PCI_IOV
 static int pnv_pci_vf_resource_shift(struct pci_dev *dev, int offset)
 {
@@ -1032,7 +994,6 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 	pe->flags = PNV_IODA_PE_DEV;
 	pe->pdev = dev;
 	pe->pbus = NULL;
-	pe->tce32_seg = -1;
 	pe->mve_number = -1;
 	pe->rid = dev->bus->number << 8 | pdn->devfn;
 
@@ -1047,16 +1008,6 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 		pci_dev_put(dev);
 		return NULL;
 	}
-
-	/* Assign a DMA weight to the device */
-	pe->dma_weight = pnv_ioda_dma_weight(dev);
-	if (pe->dma_weight != 0) {
-		phb->ioda.dma_weight += pe->dma_weight;
-		phb->ioda.dma_pe_count++;
-	}
-
-	/* Link the PE */
-	pnv_ioda_link_pe_by_weight(phb, pe);
 
 	return pe;
 }
@@ -1075,7 +1026,6 @@ static void pnv_ioda_setup_same_PE(struct pci_bus *bus, struct pnv_ioda_pe *pe)
 		}
 		pdn->pcidev = dev;
 		pdn->pe_number = pe->pe_number;
-		pe->dma_weight += pnv_ioda_dma_weight(dev);
 		if ((pe->flags & PNV_IODA_PE_BUS_ALL) && dev->subordinate)
 			pnv_ioda_setup_same_PE(dev->subordinate, pe);
 	}
@@ -1112,10 +1062,8 @@ static void pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 	pe->flags |= (all ? PNV_IODA_PE_BUS_ALL : PNV_IODA_PE_BUS);
 	pe->pbus = bus;
 	pe->pdev = NULL;
-	pe->tce32_seg = -1;
 	pe->mve_number = -1;
 	pe->rid = bus->busn_res.start << 8;
-	pe->dma_weight = 0;
 
 	if (all)
 		pe_info(pe, "Secondary bus %d..%d associated with PE#%d\n",
@@ -1137,17 +1085,6 @@ static void pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 
 	/* Put PE to the list */
 	list_add_tail(&pe->list, &phb->ioda.pe_list);
-
-	/* Account for one DMA PE if at least one DMA capable device exist
-	 * below the bridge
-	 */
-	if (pe->dma_weight != 0) {
-		phb->ioda.dma_weight += pe->dma_weight;
-		phb->ioda.dma_pe_count++;
-	}
-
-	/* Link the PE */
-	pnv_ioda_link_pe_by_weight(phb, pe);
 }
 
 static struct pnv_ioda_pe *pnv_ioda_setup_npu_PE(struct pci_dev *npu_pdev)
@@ -1188,7 +1125,6 @@ static struct pnv_ioda_pe *pnv_ioda_setup_npu_PE(struct pci_dev *npu_pdev)
 			rid = npu_pdev->bus->number << 8 | npu_pdn->devfn;
 			npu_pdn->pcidev = npu_pdev;
 			npu_pdn->pe_number = pe_num;
-			pe->dma_weight += pnv_ioda_dma_weight(npu_pdev);
 			phb->ioda.pe_rmap[rid] = pe->pe_number;
 
 			/* Map the PE to this link */
@@ -1536,7 +1472,6 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 		pe->flags = PNV_IODA_PE_VF;
 		pe->pbus = NULL;
 		pe->parent_dev = pdev;
-		pe->tce32_seg = -1;
 		pe->mve_number = -1;
 		pe->rid = (pci_iov_virtfn_bus(pdev, vf_index) << 8) |
 			   pci_iov_virtfn_devfn(pdev, vf_index);
@@ -2027,6 +1962,54 @@ static struct iommu_table_ops pnv_ioda2_iommu_ops = {
 	.free = pnv_ioda2_table_free,
 };
 
+static int pnv_pci_ioda_dev_dma_weight(struct pci_dev *dev, void *data)
+{
+	unsigned int *weight = (unsigned int *)data;
+
+	/* This is quite simplistic. The "base" weight of a device
+	 * is 10. 0 means no DMA is to be accounted for it.
+	 */
+	if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL)
+		return 0;
+
+	if (dev->class == PCI_CLASS_SERIAL_USB_UHCI ||
+	    dev->class == PCI_CLASS_SERIAL_USB_OHCI ||
+	    dev->class == PCI_CLASS_SERIAL_USB_EHCI)
+		*weight += 3;
+	else if ((dev->class >> 8) == PCI_CLASS_STORAGE_RAID)
+		*weight += 15;
+	else
+		*weight += 10;
+
+	return 0;
+}
+
+static unsigned int pnv_pci_ioda_pe_dma_weight(struct pnv_ioda_pe *pe)
+{
+	unsigned int weight = 0;
+
+	/* SRIOV VF has same DMA32 weight as its PF */
+#ifdef CONFIG_PCI_IOV
+	if ((pe->flags & PNV_IODA_PE_VF) && pe->parent_dev) {
+		pnv_pci_ioda_dev_dma_weight(pe->parent_dev, &weight);
+		return weight;
+	}
+#endif
+
+	if ((pe->flags & PNV_IODA_PE_DEV) && pe->pdev) {
+		pnv_pci_ioda_dev_dma_weight(pe->pdev, &weight);
+	} else if ((pe->flags & PNV_IODA_PE_BUS) && pe->pbus) {
+		struct pci_dev *pdev;
+
+		list_for_each_entry(pdev, &pe->pbus->devices, bus_list)
+			pnv_pci_ioda_dev_dma_weight(pdev, &weight);
+	} else if ((pe->flags & PNV_IODA_PE_BUS_ALL) && pe->pbus) {
+		pci_walk_bus(pe->pbus, pnv_pci_ioda_dev_dma_weight, &weight);
+	}
+
+	return weight;
+}
+
 static void pnv_pci_ioda1_setup_dma_pe(struct pnv_phb *phb,
 				       struct pnv_ioda_pe *pe,
 				       unsigned int base,
@@ -2043,17 +2026,12 @@ static void pnv_pci_ioda1_setup_dma_pe(struct pnv_phb *phb,
 	/* XXX FIXME: Provide 64-bit DMA facilities & non-4K TCE tables etc.. */
 	/* XXX FIXME: Allocate multi-level tables on PHB3 */
 
-	/* We shouldn't already have a 32-bit DMA associated */
-	if (WARN_ON(pe->tce32_seg >= 0))
-		return;
-
 	tbl = pnv_pci_table_alloc(phb->hose->node);
 	iommu_register_group(&pe->table_group, phb->hose->global_number,
 			pe->pe_number);
 	pnv_pci_link_table_and_group(phb->hose->node, 0, tbl, &pe->table_group);
 
 	/* Grab a 32-bit TCE table */
-	pe->tce32_seg = base;
 	pe_info(pe, " Setting up 32-bit TCE table at %08x..%08x\n",
 		base * PNV_IODA1_DMA32_SEGSIZE,
 		(base + segs) * PNV_IODA1_DMA32_SEGSIZE - 1);
@@ -2120,8 +2098,6 @@ static void pnv_pci_ioda1_setup_dma_pe(struct pnv_phb *phb,
 	return;
  fail:
 	/* XXX Failure: Try to fallback to 64-bit only ? */
-	if (pe->tce32_seg >= 0)
-		pe->tce32_seg = -1;
 	if (tce_mem)
 		__free_pages(tce_mem, get_order(tce32_segsz * segs));
 	if (tbl) {
@@ -2532,10 +2508,6 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 {
 	int64_t rc;
 
-	/* We shouldn't already have a 32-bit DMA associated */
-	if (WARN_ON(pe->tce32_seg >= 0))
-		return;
-
 	/* TVE #1 is selected by PCI address bit 59 */
 	pe->tce_bypass_base = 1ull << 59;
 
@@ -2543,7 +2515,6 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 			pe->pe_number);
 
 	/* The PE will reserve all possible 32-bits space */
-	pe->tce32_seg = 0;
 	pe_info(pe, "Setting up 32-bit TCE table at 0..%08x\n",
 		phb->ioda.m32_pci_base);
 
@@ -2559,11 +2530,8 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 #endif
 
 	rc = pnv_pci_ioda2_setup_default_config(pe);
-	if (rc) {
-		if (pe->tce32_seg >= 0)
-			pe->tce32_seg = -1;
+	if (rc)
 		return;
-	}
 
 	if (pe->flags & PNV_IODA_PE_DEV)
 		iommu_add_device(&pe->pdev->dev);
@@ -2574,24 +2542,35 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 static void pnv_ioda_setup_dma(struct pnv_phb *phb)
 {
 	struct pci_controller *hose = phb->hose;
-	unsigned int residual, remaining, segs, tw, base;
+	unsigned int weight, total_weight, dma_pe_count;
+	unsigned int residual, remaining, segs, base;
 	struct pnv_ioda_pe *pe;
+
+	total_weight = 0;
+	pci_walk_bus(phb->hose->bus, pnv_pci_ioda_dev_dma_weight,
+		     &total_weight);
+
+	dma_pe_count = 0;
+	list_for_each_entry(pe, &phb->ioda.pe_list, list) {
+		weight = pnv_pci_ioda_pe_dma_weight(pe);
+		if (weight > 0)
+			dma_pe_count++;
+	}
 
 	/* If we have more PE# than segments available, hand out one
 	 * per PE until we run out and let the rest fail. If not,
 	 * then we assign at least one segment per PE, plus more based
 	 * on the amount of devices under that PE
 	 */
-	if (phb->ioda.dma_pe_count > phb->ioda.tce32_count)
+	if (dma_pe_count > phb->ioda.tce32_count)
 		residual = 0;
 	else
-		residual = phb->ioda.tce32_count -
-			phb->ioda.dma_pe_count;
+		residual = phb->ioda.tce32_count - dma_pe_count;
 
 	pr_info("PCI: Domain %04x has %ld available 32-bit DMA segments\n",
 		hose->global_number, phb->ioda.tce32_count);
 	pr_info("PCI: %d PE# for a total weight of %d\n",
-		phb->ioda.dma_pe_count, phb->ioda.dma_weight);
+		dma_pe_count, total_weight);
 
 	pnv_pci_ioda_setup_opal_tce_kill(phb);
 
@@ -2600,18 +2579,20 @@ static void pnv_ioda_setup_dma(struct pnv_phb *phb)
 	 * weight
 	 */
 	remaining = phb->ioda.tce32_count;
-	tw = phb->ioda.dma_weight;
 	base = 0;
-	list_for_each_entry(pe, &phb->ioda.pe_dma_list, dma_link) {
-		if (!pe->dma_weight)
+	list_for_each_entry(pe, &phb->ioda.pe_list, list) {
+		weight = pnv_pci_ioda_pe_dma_weight(pe);
+		if (!weight)
 			continue;
+
 		if (!remaining) {
 			pe_warn(pe, "No DMA32 resources available\n");
 			continue;
 		}
 		segs = 1;
 		if (residual) {
-			segs += ((pe->dma_weight * residual)  + (tw / 2)) / tw;
+			segs += ((weight * residual) + (total_weight / 2)) /
+				total_weight;
 			if (segs > remaining)
 				segs = remaining;
 		}
@@ -2623,7 +2604,7 @@ static void pnv_ioda_setup_dma(struct pnv_phb *phb)
 		 */
 		if (phb->type == PNV_PHB_IODA1) {
 			pe_info(pe, "DMA weight %d, assigned %d DMA32 segments\n",
-				pe->dma_weight, segs);
+				weight, segs);
 			pnv_pci_ioda1_setup_dma_pe(phb, pe, base, segs);
 		} else if (phb->type == PNV_PHB_IODA2) {
 			pe_info(pe, "Assign DMA32 space\n");
@@ -3167,13 +3148,18 @@ static void pnv_npu_ioda_fixup(void)
 	struct pci_controller *hose, *tmp;
 	struct pnv_phb *phb;
 	struct pnv_ioda_pe *pe;
+	unsigned int weight;
 
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		phb = hose->private_data;
 		if (phb->type != PNV_PHB_NPU)
 			continue;
 
-		list_for_each_entry(pe, &phb->ioda.pe_dma_list, dma_link) {
+		list_for_each_entry(pe, &phb->ioda.pe_list, list) {
+			weight = pnv_pci_ioda_pe_dma_weight(pe);
+			if (WARN_ON(!weight))
+				continue;
+
 			enable_bypass = dma_get_mask(&pe->pdev->dev) ==
 				DMA_BIT_MASK(64);
 			pnv_npu_init_dma_pe(pe);
@@ -3455,7 +3441,6 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	phb->ioda.pe_array = aux + pemap_off;
 	set_bit(phb->ioda.reserved_pe_idx, phb->ioda.pe_alloc);
 
-	INIT_LIST_HEAD(&phb->ioda.pe_dma_list);
 	INIT_LIST_HEAD(&phb->ioda.pe_list);
 	mutex_init(&phb->ioda.pe_list_mutex);
 

@@ -53,14 +53,7 @@ struct pnv_ioda_pe {
 	/* PE number */
 	unsigned int		pe_number;
 
-	/* "Weight" assigned to the PE for the sake of DMA resource
-	 * allocations
-	 */
-	unsigned int		dma_weight;
-
 	/* "Base" iommu table, ie, 4K TCEs, 32-bit DMA */
-	int			tce32_seg;
-	int			tce32_segcount;
 	struct iommu_table_group table_group;
 
 	/* 64-bit TCE bypass region */
@@ -78,7 +71,6 @@ struct pnv_ioda_pe {
 	struct list_head	slaves;
 
 	/* Link in list of PE#s */
-	struct list_head	dma_link;
 	struct list_head	list;
 };
 
@@ -168,17 +160,6 @@ struct pnv_phb {
 
 		/* 32-bit TCE tables allocation */
 		unsigned long		tce32_count;
-
-		/* Total "weight" for the sake of DMA resources
-		 * allocation
-		 */
-		unsigned int		dma_weight;
-		unsigned int		dma_pe_count;
-
-		/* Sorted list of used PE's, sorted at
-		 * boot for resource allocation purposes
-		 */
-		struct list_head	pe_dma_list;
 
 		/* TCE cache invalidate registers (physical and
 		 * remapped)
