@@ -1253,6 +1253,23 @@ static int ssi_port_remove(struct platform_device *pd)
 	return 0;
 }
 
+static int ssi_restore_divisor(struct omap_ssi_port *omap_port)
+{
+	writel_relaxed(omap_port->sst.divisor,
+				omap_port->sst_base + SSI_SST_DIVISOR_REG);
+
+	return 0;
+}
+
+void omap_ssi_port_update_fclk(struct hsi_controller *ssi,
+			       struct omap_ssi_port *omap_port)
+{
+	/* update divisor */
+	u32 div = ssi_calculate_div(ssi);
+	omap_port->sst.divisor = div;
+	ssi_restore_divisor(omap_port);
+}
+
 #ifdef CONFIG_PM
 static int ssi_save_port_ctx(struct omap_ssi_port *omap_port)
 {
@@ -1304,24 +1321,6 @@ static int ssi_restore_port_mode(struct omap_ssi_port *omap_port)
 
 	return 0;
 }
-
-static int ssi_restore_divisor(struct omap_ssi_port *omap_port)
-{
-	writel_relaxed(omap_port->sst.divisor,
-				omap_port->sst_base + SSI_SST_DIVISOR_REG);
-
-	return 0;
-}
-
-void omap_ssi_port_update_fclk(struct hsi_controller *ssi,
-			       struct omap_ssi_port *omap_port)
-{
-	/* update divisor */
-	u32 div = ssi_calculate_div(ssi);
-	omap_port->sst.divisor = div;
-	ssi_restore_divisor(omap_port);
-}
-EXPORT_SYMBOL_GPL(omap_ssi_port_update_fclk);
 
 static int omap_ssi_port_runtime_suspend(struct device *dev)
 {
