@@ -73,11 +73,13 @@
 #define DAS16M1_DI_REG			0x03
 #define DAS16M1_DO_REG			0x03
 #define DAS16M1_CLR_INTR_REG		0x04
-#define DAS16M1_INTR_CONTROL   5
-#define   EXT_PACER              0x2
-#define   INT_PACER              0x3
-#define   PACER_MASK             0x3
-#define   INTE                   0x80
+#define DAS16M1_INTR_CTRL_REG		0x05
+#define DAS16M1_INTR_CTRL_PACER(x)	(((x) & 0x3) << 0)
+#define DAS16M1_INTR_CTRL_PACER_EXT	DAS16M1_INTR_CTRL_PACER(2)
+#define DAS16M1_INTR_CTRL_PACER_INT	DAS16M1_INTR_CTRL_PACER(3)
+#define DAS16M1_INTR_CTRL_PACER_MASK	DAS16M1_INTR_CTRL_PACER(3)
+#define DAS16M1_INTR_CTRL_IRQ(x)	(((x) & 0x7) << 4)
+#define DAS16M1_INTR_CTRL_INTE		BIT(7)
 #define DAS16M1_QUEUE_ADDR     6
 #define DAS16M1_QUEUE_DATA     7
 #define   Q_CHAN(x)              ((x) & 0x7)
@@ -104,7 +106,7 @@ static const struct comedi_lrange range_das16m1 = {
 
 struct das16m1_private_struct {
 	struct comedi_8254 *counter;
-	unsigned int control_state;
+	unsigned int intr_ctrl;
 	unsigned int adc_count;
 	u16 initial_hw_count;
 	unsigned short ai_buffer[FIFO_SIZE];
@@ -253,13 +255,13 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	}
 
 	/* enable interrupts and set internal pacer counter mode and counts */
-	devpriv->control_state &= ~PACER_MASK;
+	devpriv->intr_ctrl &= ~DAS16M1_INTR_CTRL_PACER_MASK;
 	if (cmd->convert_src == TRIG_TIMER) {
 		comedi_8254_update_divisors(dev->pacer);
 		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
-		devpriv->control_state |= INT_PACER;
+		devpriv->intr_ctrl |= DAS16M1_INTR_CTRL_PACER_INT;
 	} else {	/* TRIG_EXT */
-		devpriv->control_state |= EXT_PACER;
+		devpriv->intr_ctrl |= DAS16M1_INTR_CTRL_PACER_EXT;
 	}
 
 	/*  set control & status register */
@@ -276,8 +278,8 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	/* clear interrupt */
 	outb(0, dev->iobase + DAS16M1_CLR_INTR_REG);
 
-	devpriv->control_state |= INTE;
-	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
+	devpriv->intr_ctrl |= DAS16M1_INTR_CTRL_INTE;
+	outb(devpriv->intr_ctrl, dev->iobase + DAS16M1_INTR_CTRL_REG);
 
 	return 0;
 }
@@ -286,8 +288,10 @@ static int das16m1_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
 
-	devpriv->control_state &= ~INTE & ~PACER_MASK;
-	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
+	/* disable interrupts and pacer */
+	devpriv->intr_ctrl &= ~(DAS16M1_INTR_CTRL_INTE |
+				DAS16M1_INTR_CTRL_PACER_MASK);
+	outb(devpriv->intr_ctrl, dev->iobase + DAS16M1_INTR_CTRL_REG);
 
 	return 0;
 }
@@ -592,8 +596,8 @@ static int das16m1_attach(struct comedi_device *dev,
 	outb(0, dev->iobase + DAS16M1_DO_REG);
 
 	/* set the interrupt level */
-	devpriv->control_state = das16m1_irq_bits(dev->irq) << 4;
-	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);
+	devpriv->intr_ctrl = DAS16M1_INTR_CTRL_IRQ(das16m1_irq_bits(dev->irq));
+	outb(devpriv->intr_ctrl, dev->iobase + DAS16M1_INTR_CTRL_REG);
 
 	return 0;
 }
