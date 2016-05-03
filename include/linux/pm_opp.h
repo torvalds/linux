@@ -67,6 +67,8 @@ void dev_pm_opp_put_regulator(struct device *dev);
 int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq);
 int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, const struct cpumask *cpumask);
 int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask);
+void dev_pm_opp_remove_table(struct device *dev);
+void dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask);
 #else
 static inline unsigned long dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 {
@@ -188,6 +190,14 @@ static inline int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, const stru
 static inline int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 {
 	return -EINVAL;
+}
+
+static inline void dev_pm_opp_remove_table(struct device *dev)
+{
+}
+
+static inline void dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask)
+{
 }
 
 #endif		/* CONFIG_PM_OPP */

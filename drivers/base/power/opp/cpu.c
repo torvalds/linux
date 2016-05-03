@@ -119,20 +119,8 @@ void dev_pm_opp_free_cpufreq_table(struct device *dev,
 EXPORT_SYMBOL_GPL(dev_pm_opp_free_cpufreq_table);
 #endif	/* CONFIG_CPU_FREQ */
 
-#ifdef CONFIG_OF
-/**
- * dev_pm_opp_of_cpumask_remove_table() - Removes OPP table for @cpumask
- * @cpumask:	cpumask for which OPP table needs to be removed
- *
- * This removes the OPP tables for CPUs present in the @cpumask.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
- */
-void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask)
+static void
+_dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, bool of)
 {
 	struct device *cpu_dev;
 	int cpu;
@@ -147,8 +135,50 @@ void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask)
 			continue;
 		}
 
-		dev_pm_opp_of_remove_table(cpu_dev);
+		if (of)
+			dev_pm_opp_of_remove_table(cpu_dev);
+		else
+			dev_pm_opp_remove_table(cpu_dev);
 	}
+}
+
+/**
+ * dev_pm_opp_cpumask_remove_table() - Removes OPP table for @cpumask
+ * @cpumask:	cpumask for which OPP table needs to be removed
+ *
+ * This removes the OPP tables for CPUs present in the @cpumask.
+ * This should be used to remove all the OPPs entries associated with
+ * the cpus in @cpumask.
+ *
+ * Locking: The internal opp_table and opp structures are RCU protected.
+ * Hence this function internally uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
+ */
+void dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask)
+{
+	_dev_pm_opp_cpumask_remove_table(cpumask, false);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_cpumask_remove_table);
+
+#ifdef CONFIG_OF
+/**
+ * dev_pm_opp_of_cpumask_remove_table() - Removes OPP table for @cpumask
+ * @cpumask:	cpumask for which OPP table needs to be removed
+ *
+ * This removes the OPP tables for CPUs present in the @cpumask.
+ * This should be used only to remove static entries created from DT.
+ *
+ * Locking: The internal opp_table and opp structures are RCU protected.
+ * Hence this function internally uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
+ */
+void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask)
+{
+	_dev_pm_opp_cpumask_remove_table(cpumask, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_remove_table);
 
