@@ -356,63 +356,90 @@ static unsigned long populate_node(const void *blob,
 	return fpsize;
 }
 
+static void reverse_nodes(struct device_node *parent)
+{
+	struct device_node *child, *next;
+
+	/* In-depth first */
+	child = parent->child;
+	while (child) {
+		reverse_nodes(child);
+
+		child = child->sibling;
+	}
+
+	/* Reverse the nodes in the child list */
+	child = parent->child;
+	parent->child = NULL;
+	while (child) {
+		next = child->sibling;
+
+		child->sibling = parent->child;
+		parent->child = child;
+		child = next;
+	}
+}
+
 /**
  * unflatten_dt_node - Alloc and populate a device_node from the flat tree
  * @blob: The parent device tree blob
  * @mem: Memory chunk to use for allocating device nodes and properties
- * @poffset: pointer to node in flat tree
  * @dad: Parent struct device_node
  * @nodepp: The device_node tree created by the call
- * @fpsize: Size of the node path up at the current depth.
- * @dryrun: If true, do not allocate device nodes but still calculate needed
- * memory size
+ *
+ * It returns the size of unflattened device tree or error code
  */
-static void *unflatten_dt_node(const void *blob,
-			       void *mem,
-			       int *poffset,
-			       struct device_node *dad,
-			       struct device_node **nodepp,
-			       unsigned long fpsize,
-			       bool dryrun)
+static int unflatten_dt_node(const void *blob,
+			     void *mem,
+			     struct device_node *dad,
+			     struct device_node **nodepp)
 {
-	struct device_node *np;
-	static int depth;
-	int old_depth;
+	struct device_node *root;
+	int offset = 0, depth = 0;
+#define FDT_MAX_DEPTH	64
+	unsigned long fpsizes[FDT_MAX_DEPTH];
+	struct device_node *nps[FDT_MAX_DEPTH];
+	void *base = mem;
+	bool dryrun = !base;
 
-	fpsize = populate_node(blob, *poffset, &mem, dad, fpsize, &np, dryrun);
-	if (!fpsize)
-		return mem;
+	if (nodepp)
+		*nodepp = NULL;
 
-	old_depth = depth;
-	*poffset = fdt_next_node(blob, *poffset, &depth);
-	if (depth < 0)
-		depth = 0;
-	while (*poffset > 0 && depth > old_depth)
-		mem = unflatten_dt_node(blob, mem, poffset, np, NULL,
-					fpsize, dryrun);
+	root = dad;
+	fpsizes[depth] = dad ? strlen(of_node_full_name(dad)) : 0;
+	nps[depth++] = dad;
+	for (offset = 0;
+	     offset >= 0;
+	     offset = fdt_next_node(blob, offset, &depth)) {
+		if (WARN_ON_ONCE(depth >= FDT_MAX_DEPTH))
+			continue;
 
-	if (*poffset < 0 && *poffset != -FDT_ERR_NOTFOUND)
-		pr_err("unflatten: error %d processing FDT\n", *poffset);
+		fpsizes[depth] = populate_node(blob, offset, &mem,
+					       nps[depth - 1],
+					       fpsizes[depth - 1],
+					       &nps[depth], dryrun);
+		if (!fpsizes[depth])
+			return mem - base;
+
+		if (!dryrun && nodepp && !*nodepp)
+			*nodepp = nps[depth];
+		if (!dryrun && !root)
+			root = nps[depth];
+	}
+
+	if (offset < 0 && offset != -FDT_ERR_NOTFOUND) {
+		pr_err("%s: Error %d processing FDT\n", __func__, offset);
+		return -EINVAL;
+	}
 
 	/*
 	 * Reverse the child list. Some drivers assumes node order matches .dts
 	 * node order
 	 */
-	if (!dryrun && np->child) {
-		struct device_node *child = np->child;
-		np->child = NULL;
-		while (child) {
-			struct device_node *next = child->sibling;
-			child->sibling = np->child;
-			np->child = child;
-			child = next;
-		}
-	}
+	if (!dryrun)
+		reverse_nodes(root);
 
-	if (nodepp)
-		*nodepp = np;
-
-	return mem;
+	return mem - base;
 }
 
 /**
@@ -431,8 +458,7 @@ static void __unflatten_device_tree(const void *blob,
 			     struct device_node **mynodes,
 			     void * (*dt_alloc)(u64 size, u64 align))
 {
-	unsigned long size;
-	int start;
+	int size;
 	void *mem;
 
 	pr_debug(" -> unflatten_device_tree()\n");
@@ -453,11 +479,12 @@ static void __unflatten_device_tree(const void *blob,
 	}
 
 	/* First pass, scan for size */
-	start = 0;
-	size = (unsigned long)unflatten_dt_node(blob, NULL, &start, NULL, NULL, 0, true);
-	size = ALIGN(size, 4);
+	size = unflatten_dt_node(blob, NULL, NULL, NULL);
+	if (size < 0)
+		return;
 
-	pr_debug("  size is %lx, allocating...\n", size);
+	size = ALIGN(size, 4);
+	pr_debug("  size is %d, allocating...\n", size);
 
 	/* Allocate memory for the expanded device tree */
 	mem = dt_alloc(size + 4, __alignof__(struct device_node));
@@ -468,8 +495,7 @@ static void __unflatten_device_tree(const void *blob,
 	pr_debug("  unflattening %p...\n", mem);
 
 	/* Second pass, do actual unflattening */
-	start = 0;
-	unflatten_dt_node(blob, mem, &start, NULL, mynodes, 0, false);
+	unflatten_dt_node(blob, mem, NULL, mynodes);
 	if (be32_to_cpup(mem + size) != 0xdeadbeef)
 		pr_warning("End of tree marker overwritten: %08x\n",
 			   be32_to_cpup(mem + size));
