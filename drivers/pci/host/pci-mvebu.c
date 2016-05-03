@@ -1003,6 +1003,7 @@ static void mvebu_pcie_msi_enable(struct mvebu_pcie *pcie)
 		pcie->msi->dev = &pcie->pdev->dev;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int mvebu_pcie_suspend(struct device *dev)
 {
 	struct mvebu_pcie *pcie;
@@ -1031,6 +1032,7 @@ static int mvebu_pcie_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static void mvebu_pcie_port_clk_put(void *data)
 {
@@ -1298,9 +1300,8 @@ static const struct of_device_id mvebu_pcie_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, mvebu_pcie_of_match_table);
 
-static struct dev_pm_ops mvebu_pcie_pm_ops = {
-	.suspend_noirq = mvebu_pcie_suspend,
-	.resume_noirq = mvebu_pcie_resume,
+static const struct dev_pm_ops mvebu_pcie_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mvebu_pcie_suspend, mvebu_pcie_resume)
 };
 
 static struct platform_driver mvebu_pcie_driver = {
