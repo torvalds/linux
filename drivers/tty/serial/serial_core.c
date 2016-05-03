@@ -95,9 +95,7 @@ static inline void uart_port_deref(struct uart_port *uport)
 
 static inline struct uart_port *uart_port_check(struct uart_state *state)
 {
-#ifdef CONFIG_LOCKDEP
-	WARN_ON(!lockdep_is_held(&state->port.mutex));
-#endif
+	lockdep_assert_held(&state->port.mutex);
 	return state->uart_port;
 }
 
