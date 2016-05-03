@@ -670,6 +670,15 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 	if (IS_ERR(ssi_private->baudclk))
 		return -EINVAL;
 
+	/*
+	 * Hardware limitation: The bclk rate must be
+	 * never greater than 1/5 IPG clock rate
+	 */
+	if (freq * 5 > clk_get_rate(ssi_private->clk)) {
+		dev_err(cpu_dai->dev, "bitclk > ipgclk/5\n");
+		return -EINVAL;
+	}
+
 	baudclk_is_used = ssi_private->baudclk_streams & ~(BIT(substream->stream));
 
 	/* It should be already enough to divide clock by setting pm alone */
@@ -685,13 +694,6 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 			clkrate = clk_get_rate(ssi_private->baudclk);
 		else
 			clkrate = clk_round_rate(ssi_private->baudclk, tmprate);
-
-		/*
-		 * Hardware limitation: The bclk rate must be
-		 * never greater than 1/5 IPG clock rate
-		 */
-		if (clkrate * 5 > clk_get_rate(ssi_private->clk))
-			continue;
 
 		clkrate /= factor;
 		afreq = clkrate / (i + 1);
