@@ -974,10 +974,8 @@ static void esw_update_vport_rx_mode(struct mlx5_eswitch *esw, u32 vport_num)
 				(promisc_all || promisc_mc));
 }
 
-static void esw_vport_change_handler(struct work_struct *work)
+static void esw_vport_change_handle_locked(struct mlx5_vport *vport)
 {
-	struct mlx5_vport *vport =
-		container_of(work, struct mlx5_vport, vport_change_handler);
 	struct mlx5_core_dev *dev = vport->dev;
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	u8 mac[ETH_ALEN];
@@ -1013,6 +1011,17 @@ static void esw_vport_change_handler(struct work_struct *work)
 	if (vport->enabled)
 		arm_vport_context_events_cmd(dev, vport->vport,
 					     vport->enabled_events);
+}
+
+static void esw_vport_change_handler(struct work_struct *work)
+{
+	struct mlx5_vport *vport =
+		container_of(work, struct mlx5_vport, vport_change_handler);
+	struct mlx5_eswitch *esw = vport->dev->priv.eswitch;
+
+	mutex_lock(&esw->state_lock);
+	esw_vport_change_handle_locked(vport);
+	mutex_unlock(&esw->state_lock);
 }
 
 static void esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
@@ -1482,7 +1491,7 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 
 	/* Sync with current vport context */
 	vport->enabled_events = enable_events;
-	esw_vport_change_handler(&vport->vport_change_handler);
+	esw_vport_change_handle_locked(vport);
 
 	vport->enabled = true;
 
@@ -1522,7 +1531,7 @@ static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 	 * Calling vport change handler while vport is disabled will cleanup
 	 * the vport resources.
 	 */
-	esw_vport_change_handler(&vport->vport_change_handler);
+	esw_vport_change_handle_locked(vport);
 	vport->enabled_events = 0;
 	if (vport_num) {
 		esw_vport_disable_egress_acl(esw, vport);
@@ -1857,6 +1866,27 @@ int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
 	mutex_unlock(&esw->state_lock);
 
 	return err;
+}
+
+int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
+				 int vport, bool setting)
+{
+	struct mlx5_vport *evport;
+
+	if (!ESW_ALLOWED(esw))
+		return -EPERM;
+	if (!LEGAL_VPORT(esw, vport))
+		return -EINVAL;
+
+	evport = &esw->vports[vport];
+
+	mutex_lock(&esw->state_lock);
+	evport->trusted = setting;
+	if (evport->enabled)
+		esw_vport_change_handle_locked(evport);
+	mutex_unlock(&esw->state_lock);
+
+	return 0;
 }
 
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
