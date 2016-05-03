@@ -3221,7 +3221,8 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 		}
 	}
 	adev->gfx.rlc.cs_data = ci_cs_data;
-	adev->gfx.rlc.cp_table_size = CP_ME_TABLE_SIZE * 5 * 4;
+	adev->gfx.rlc.cp_table_size = CP_ME_TABLE_SIZE * 5 * 4; /* CP JT */
+	adev->gfx.rlc.cp_table_size += 64 * 1024; /* GDS */
 
 	src_ptr = adev->gfx.rlc.reg_list;
 	dws = adev->gfx.rlc.reg_list_size;
