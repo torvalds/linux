@@ -581,9 +581,10 @@ void gpstate_timer_handler(unsigned long data)
 	gpstates->last_gpstate = freq_data.gpstate_id;
 	gpstates->last_lpstate = freq_data.pstate_id;
 
+	spin_unlock(&gpstates->gpstate_lock);
+
 	/* Timer may get migrated to a different cpu on cpu hot unplug */
 	smp_call_function_any(policy->cpus, set_pstate, &freq_data, 1);
-	spin_unlock(&gpstates->gpstate_lock);
 }
 
 /*
@@ -596,7 +597,6 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 {
 	struct powernv_smp_call_data freq_data;
 	unsigned int cur_msec, gpstate_id;
-	unsigned long flags;
 	struct global_pstate_info *gpstates = policy->driver_data;
 
 	if (unlikely(rebooting) && new_index != get_nominal_index())
@@ -607,7 +607,7 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 
 	cur_msec = jiffies_to_msecs(get_jiffies_64());
 
-	spin_lock_irqsave(&gpstates->gpstate_lock, flags);
+	spin_lock(&gpstates->gpstate_lock);
 	freq_data.pstate_id = powernv_freqs[new_index].driver_data;
 
 	if (!gpstates->last_sampled_time) {
@@ -654,13 +654,14 @@ gpstates_done:
 	gpstates->last_gpstate = freq_data.gpstate_id;
 	gpstates->last_lpstate = freq_data.pstate_id;
 
+	spin_unlock(&gpstates->gpstate_lock);
+
 	/*
 	 * Use smp_call_function to send IPI and execute the
 	 * mtspr on target CPU.  We could do that without IPI
 	 * if current CPU is within policy->cpus (core)
 	 */
 	smp_call_function_any(policy->cpus, set_pstate, &freq_data, 1);
-	spin_unlock_irqrestore(&gpstates->gpstate_lock, flags);
 	return 0;
 }
 
