@@ -8,22 +8,46 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/jiffies.h>
+#include <linux/mutex.h>
+#include <linux/timer.h>
 
 #include "bootrom.h"
 #include "greybus.h"
 
+/* Timeout, in jiffies, within which the next request must be received */
+#define NEXT_REQ_TIMEOUT_J	msecs_to_jiffies(1000)
 
 struct gb_bootrom {
 	struct gb_connection	*connection;
 	const struct firmware	*fw;
 	u8			protocol_major;
 	u8			protocol_minor;
+	struct timer_list	timer;
+	struct mutex		mutex; /* Protects bootrom->fw */
 };
 
 static void free_firmware(struct gb_bootrom *bootrom)
 {
+	if (!bootrom->fw)
+		return;
+
 	release_firmware(bootrom->fw);
 	bootrom->fw = NULL;
+}
+
+static void gb_bootrom_timedout(unsigned long data)
+{
+	struct gb_bootrom *bootrom = (struct gb_bootrom *)data;
+	struct device *dev = &bootrom->connection->bundle->dev;
+
+	dev_err(dev, "Timed out waiting for request from the Module\n");
+
+	mutex_lock(&bootrom->mutex);
+	free_firmware(bootrom);
+	mutex_unlock(&bootrom->mutex);
+
+	/* TODO: Power-off Module ? */
 }
 
 /*
@@ -77,8 +101,7 @@ static int download_firmware(struct gb_bootrom *bootrom, u8 stage)
 	int rc;
 
 	/* Already have a firmware, free it */
-	if (bootrom->fw)
-		free_firmware(bootrom);
+	free_firmware(bootrom);
 
 	/*
 	 * Create firmware name
@@ -114,25 +137,32 @@ static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 	struct device *dev = &op->connection->bundle->dev;
 	int ret;
 
+	/* Disable timeouts */
+	del_timer_sync(&bootrom->timer);
+
 	if (op->request->payload_size != sizeof(*size_request)) {
 		dev_err(dev, "%s: illegal size of firmware size request (%zu != %zu)\n",
 			__func__, op->request->payload_size,
 			sizeof(*size_request));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto mod_timer;
 	}
+
+	mutex_lock(&bootrom->mutex);
 
 	ret = download_firmware(bootrom, size_request->stage);
 	if (ret) {
 		dev_err(dev, "%s: failed to download firmware (%d)\n", __func__,
 			ret);
-		return ret;
+		goto unlock;
 	}
 
 	if (!gb_operation_response_alloc(op, sizeof(*size_response),
 					 GFP_KERNEL)) {
 		dev_err(dev, "%s: error allocating response\n", __func__);
 		free_firmware(bootrom);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto unlock;
 	}
 
 	size_response = op->response->payload;
@@ -140,28 +170,44 @@ static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 
 	dev_dbg(dev, "%s: firmware size %d bytes\n", __func__, size_response->size);
 
-	return 0;
+unlock:
+	mutex_unlock(&bootrom->mutex);
+
+mod_timer:
+	/* Refresh timeout */
+	mod_timer(&bootrom->timer, jiffies + NEXT_REQ_TIMEOUT_J);
+
+	return ret;
 }
 
 static int gb_bootrom_get_firmware(struct gb_operation *op)
 {
 	struct gb_bootrom *bootrom = gb_connection_get_data(op->connection);
-	const struct firmware *fw = bootrom->fw;
+	const struct firmware *fw;
 	struct gb_bootrom_get_firmware_request *firmware_request;
 	struct gb_bootrom_get_firmware_response *firmware_response;
 	struct device *dev = &op->connection->bundle->dev;
 	unsigned int offset, size;
+	int ret = 0;
+
+	/* Disable timeouts */
+	del_timer_sync(&bootrom->timer);
 
 	if (op->request->payload_size != sizeof(*firmware_request)) {
 		dev_err(dev, "%s: Illegal size of get firmware request (%zu %zu)\n",
 			__func__, op->request->payload_size,
 			sizeof(*firmware_request));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto mod_timer;
 	}
 
+	mutex_lock(&bootrom->mutex);
+
+	fw = bootrom->fw;
 	if (!fw) {
 		dev_err(dev, "%s: firmware not available\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	firmware_request = op->request->payload;
@@ -171,13 +217,15 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 	if (offset >= fw->size || size > fw->size - offset) {
 		dev_warn(dev, "bad firmware request (offs = %u, size = %u)\n",
 				offset, size);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	if (!gb_operation_response_alloc(op, sizeof(*firmware_response) + size,
 					 GFP_KERNEL)) {
 		dev_err(dev, "%s: error allocating response\n", __func__);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto unlock;
 	}
 
 	firmware_response = op->response->payload;
@@ -186,36 +234,59 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 	dev_dbg(dev, "responding with firmware (offs = %u, size = %u)\n", offset,
 		size);
 
-	return 0;
+unlock:
+	mutex_unlock(&bootrom->mutex);
+
+mod_timer:
+	/* Refresh timeout */
+	mod_timer(&bootrom->timer, jiffies + NEXT_REQ_TIMEOUT_J);
+
+	return ret;
 }
 
 static int gb_bootrom_ready_to_boot(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
+	struct gb_bootrom *bootrom = gb_connection_get_data(connection);
 	struct gb_bootrom_ready_to_boot_request *rtb_request;
 	struct device *dev = &connection->bundle->dev;
 	u8 status;
+	int ret = 0;
+
+	/* Disable timeouts */
+	del_timer_sync(&bootrom->timer);
 
 	if (op->request->payload_size != sizeof(*rtb_request)) {
 		dev_err(dev, "%s: Illegal size of ready to boot request (%zu %zu)\n",
 			__func__, op->request->payload_size,
 			sizeof(*rtb_request));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto mod_timer;
 	}
 
 	rtb_request = op->request->payload;
 	status = rtb_request->status;
 
 	/* Return error if the blob was invalid */
-	if (status == GB_BOOTROM_BOOT_STATUS_INVALID)
-		return -EINVAL;
+	if (status == GB_BOOTROM_BOOT_STATUS_INVALID) {
+		ret = -EINVAL;
+		goto mod_timer;
+	}
 
 	/*
 	 * XXX Should we return error for insecure firmware?
 	 */
 	dev_dbg(dev, "ready to boot: 0x%x, 0\n", status);
 
-	return 0;
+mod_timer:
+	/*
+	 * Refresh timeout, the Interface shall load the new personality and
+	 * send a new hotplug request, which shall get rid of the bootrom
+	 * connection. As that can take some time, increase the timeout a bit.
+	 */
+	mod_timer(&bootrom->timer, jiffies + 5 * NEXT_REQ_TIMEOUT_J);
+
+	return ret;
 }
 
 static int gb_bootrom_request_handler(struct gb_operation *op)
@@ -304,6 +375,11 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 
 	bootrom->connection = connection;
 
+	mutex_init(&bootrom->mutex);
+	init_timer(&bootrom->timer);
+	bootrom->timer.function = gb_bootrom_timedout;
+	bootrom->timer.data = (unsigned long)bootrom;
+
 	greybus_set_drvdata(bundle, bootrom);
 
 	ret = gb_connection_enable_tx(connection);
@@ -329,6 +405,9 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 		goto err_connection_disable;
 	}
 
+	/* Refresh timeout */
+	mod_timer(&bootrom->timer, jiffies + NEXT_REQ_TIMEOUT_J);
+
 	dev_dbg(&bundle->dev, "AP_READY sent\n");
 
 	return 0;
@@ -351,9 +430,16 @@ static void gb_bootrom_disconnect(struct gb_bundle *bundle)
 
 	gb_connection_disable(bootrom->connection);
 
-	/* Release firmware */
-	if (bootrom->fw)
-		free_firmware(bootrom);
+	/* Disable timeouts */
+	del_timer_sync(&bootrom->timer);
+
+	/*
+	 * Release firmware:
+	 *
+	 * As the connection and the timer are already disabled, we don't need
+	 * to lock access to bootrom->fw here.
+	 */
+	free_firmware(bootrom);
 
 	gb_connection_destroy(bootrom->connection);
 	kfree(bootrom);
