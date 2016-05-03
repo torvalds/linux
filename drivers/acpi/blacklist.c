@@ -133,6 +133,11 @@ int __init acpi_blacklisted(void)
 	return blacklisted;
 }
 #ifdef CONFIG_DMI
+static int __init dmi_enable_osi_darwin(const struct dmi_system_id *d)
+{
+	acpi_dmi_osi_darwin(1, d);	/* enable */
+	return 0;
+}
 static int __init dmi_enable_osi_linux(const struct dmi_system_id *d)
 {
 	acpi_dmi_osi_linux(1, d);	/* enable */
@@ -328,6 +333,24 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer INC."),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "1015PX"),
+		},
+	},
+
+	/*
+	 * Enable _OSI("Darwin") for all apple platforms.
+	 */
+	{
+	.callback = dmi_enable_osi_darwin,
+	.ident = "Apple hardware",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+		},
+	},
+	{
+	.callback = dmi_enable_osi_darwin,
+	.ident = "Apple hardware",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
 		},
 	},
 
