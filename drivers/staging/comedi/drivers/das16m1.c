@@ -120,10 +120,7 @@ static const struct comedi_lrange range_das16m1 = {
 struct das16m1_private_struct {
 	struct comedi_8254 *counter;
 	unsigned int control_state;
-	unsigned int adc_count;	/*  number of samples completed */
-	/* initial value in lower half of hardware conversion counter,
-	 * needed to keep track of whether new count has been loaded into
-	 * counter yet (loaded by first sample conversion) */
+	unsigned int adc_count;
 	u16 initial_hw_count;
 	unsigned short ai_buffer[FIFO_SIZE];
 	unsigned long extra_iobase;
