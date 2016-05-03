@@ -56,6 +56,13 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	return submit;
 }
 
+void msm_gem_submit_free(struct msm_gem_submit *submit)
+{
+	fence_put(submit->fence);
+	list_del(&submit->node);
+	kfree(submit);
+}
+
 static int submit_lookup_objects(struct msm_gem_submit *submit,
 		struct drm_msm_gem_submit *args, struct drm_file *file)
 {
@@ -324,7 +331,7 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 	return 0;
 }
 
-static void submit_cleanup(struct msm_gem_submit *submit, bool fail)
+static void submit_cleanup(struct msm_gem_submit *submit)
 {
 	unsigned i;
 
@@ -448,7 +455,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	args->fence = submit->fence->seqno;
 
 out:
-	submit_cleanup(submit, !!ret);
+	submit_cleanup(submit);
+	if (ret)
+		msm_gem_submit_free(submit);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }

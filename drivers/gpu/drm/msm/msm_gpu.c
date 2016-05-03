@@ -446,9 +446,7 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 		drm_gem_object_unreference(&msm_obj->base);
 	}
 
-	fence_put(submit->fence);
-	list_del(&submit->node);
-	kfree(submit);
+	msm_gem_submit_free(submit);
 }
 
 static void retire_submits(struct msm_gpu *gpu)

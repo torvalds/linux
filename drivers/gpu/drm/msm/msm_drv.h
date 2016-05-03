@@ -161,6 +161,7 @@ int msm_atomic_commit(struct drm_device *dev,
 
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 
+void msm_gem_submit_free(struct msm_gem_submit *submit);
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file);
 
