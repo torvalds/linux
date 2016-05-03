@@ -157,6 +157,26 @@ ath10k_mac_max_vht_nss(const u16 vht_mcs_mask[NL80211_VHT_NSS_MAX])
 	return 1;
 }
 
+int ath10k_mac_ext_resource_config(struct ath10k *ar, u32 val)
+{
+	enum wmi_host_platform_type platform_type;
+	int ret;
+
+	if (test_bit(WMI_SERVICE_TX_MODE_DYNAMIC, ar->wmi.svc_map))
+		platform_type = WMI_HOST_PLATFORM_LOW_PERF;
+	else
+		platform_type = WMI_HOST_PLATFORM_HIGH_PERF;
+
+	ret = ath10k_wmi_ext_resource_config(ar, platform_type, val);
+
+	if (ret && ret != -EOPNOTSUPP) {
+		ath10k_warn(ar, "failed to configure ext resource: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 /**********/
 /* Crypto */
 /**********/
@@ -449,10 +469,10 @@ static int ath10k_mac_vif_update_wep_key(struct ath10k_vif *arvif,
 	lockdep_assert_held(&ar->conf_mutex);
 
 	list_for_each_entry(peer, &ar->peers, list) {
-		if (!memcmp(peer->addr, arvif->vif->addr, ETH_ALEN))
+		if (ether_addr_equal(peer->addr, arvif->vif->addr))
 			continue;
 
-		if (!memcmp(peer->addr, arvif->bssid, ETH_ALEN))
+		if (ether_addr_equal(peer->addr, arvif->bssid))
 			continue;
 
 		if (peer->keys[key->keyidx] == key)
@@ -1752,7 +1772,7 @@ static int ath10k_mac_vif_setup_ps(struct ath10k_vif *arvif)
 
 	if (enable_ps && ath10k_mac_num_vifs_started(ar) > 1 &&
 	    !test_bit(ATH10K_FW_FEATURE_MULTI_VIF_PS_SUPPORT,
-		      ar->fw_features)) {
+		      ar->running_fw->fw_file.fw_features)) {
 		ath10k_warn(ar, "refusing to enable ps on vdev %i: not supported by fw\n",
 			    arvif->vdev_id);
 		enable_ps = false;
@@ -2040,7 +2060,8 @@ static void ath10k_peer_assoc_h_crypto(struct ath10k *ar,
 	}
 
 	if (sta->mfp &&
-	    test_bit(ATH10K_FW_FEATURE_MFP_SUPPORT, ar->fw_features)) {
+	    test_bit(ATH10K_FW_FEATURE_MFP_SUPPORT,
+		     ar->running_fw->fw_file.fw_features)) {
 		arg->peer_flags |= ar->wmi.peer_flags->pmf;
 	}
 }
@@ -3187,7 +3208,8 @@ ath10k_mac_tx_h_get_txmode(struct ath10k *ar,
 	 */
 	if (ar->htt.target_version_major < 3 &&
 	    (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc)) &&
-	    !test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX, ar->fw_features))
+	    !test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
+		      ar->running_fw->fw_file.fw_features))
 		return ATH10K_HW_TXRX_MGMT;
 
 	/* Workaround:
@@ -3337,7 +3359,7 @@ bool ath10k_mac_tx_frm_has_freq(struct ath10k *ar)
 	 */
 	return (ar->htt.target_version_major >= 3 &&
 		ar->htt.target_version_minor >= 4 &&
-		ar->htt.op_version == ATH10K_FW_HTT_OP_VERSION_TLV);
+		ar->running_fw->fw_file.htt_op_version == ATH10K_FW_HTT_OP_VERSION_TLV);
 }
 
 static int ath10k_mac_tx_wmi_mgmt(struct ath10k *ar, struct sk_buff *skb)
@@ -3374,7 +3396,7 @@ ath10k_mac_tx_h_get_txpath(struct ath10k *ar,
 		return ATH10K_MAC_TX_HTT;
 	case ATH10K_HW_TXRX_MGMT:
 		if (test_bit(ATH10K_FW_FEATURE_HAS_WMI_MGMT_TX,
-			     ar->fw_features))
+			     ar->running_fw->fw_file.fw_features))
 			return ATH10K_MAC_TX_WMI_MGMT;
 		else if (ar->htt.target_version_major >= 3)
 			return ATH10K_MAC_TX_HTT;
@@ -3846,7 +3868,7 @@ static int ath10k_scan_stop(struct ath10k *ar)
 		goto out;
 	}
 
-	ret = wait_for_completion_timeout(&ar->scan.completed, 3*HZ);
+	ret = wait_for_completion_timeout(&ar->scan.completed, 3 * HZ);
 	if (ret == 0) {
 		ath10k_warn(ar, "failed to receive scan abortion completion: timed out\n");
 		ret = -ETIMEDOUT;
@@ -3926,7 +3948,7 @@ static int ath10k_start_scan(struct ath10k *ar,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&ar->scan.started, 1*HZ);
+	ret = wait_for_completion_timeout(&ar->scan.started, 1 * HZ);
 	if (ret == 0) {
 		ret = ath10k_scan_stop(ar);
 		if (ret)
@@ -4356,7 +4378,8 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		goto err_off;
 	}
 
-	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL);
+	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL,
+				&ar->normal_mode_fw);
 	if (ret) {
 		ath10k_err(ar, "Could not init core: %d\n", ret);
 		goto err_power_down;
@@ -4414,7 +4437,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	}
 
 	if (test_bit(ATH10K_FW_FEATURE_SUPPORTS_ADAPTIVE_CCA,
-		     ar->fw_features)) {
+		     ar->running_fw->fw_file.fw_features)) {
 		ret = ath10k_wmi_pdev_enable_adaptive_cca(ar, 1,
 							  WMI_CCA_DETECT_LEVEL_AUTO,
 							  WMI_CCA_DETECT_MARGIN_AUTO);
@@ -6168,7 +6191,7 @@ exit:
 	return ret;
 }
 
-#define ATH10K_ROC_TIMEOUT_HZ (2*HZ)
+#define ATH10K_ROC_TIMEOUT_HZ (2 * HZ)
 
 static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
@@ -6232,7 +6255,7 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
-	ret = wait_for_completion_timeout(&ar->scan.on_channel, 3*HZ);
+	ret = wait_for_completion_timeout(&ar->scan.on_channel, 3 * HZ);
 	if (ret == 0) {
 		ath10k_warn(ar, "failed to switch to channel for roc scan\n");
 
@@ -6796,6 +6819,32 @@ static u64 ath10k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	return 0;
 }
 
+static void ath10k_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   u64 tsf)
+{
+	struct ath10k *ar = hw->priv;
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	u32 tsf_offset, vdev_param = ar->wmi.vdev_param->set_tsf;
+	int ret;
+
+	/* Workaround:
+	 *
+	 * Given tsf argument is entire TSF value, but firmware accepts
+	 * only TSF offset to current TSF.
+	 *
+	 * get_tsf function is used to get offset value, however since
+	 * ath10k_get_tsf is not implemented properly, it will return 0 always.
+	 * Luckily all the caller functions to set_tsf, as of now, also rely on
+	 * get_tsf function to get entire tsf value such get_tsf() + tsf_delta,
+	 * final tsf offset value to firmware will be arithmetically correct.
+	 */
+	tsf_offset = tsf - ath10k_get_tsf(hw, vif);
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
+					vdev_param, tsf_offset);
+	if (ret && ret != -EOPNOTSUPP)
+		ath10k_warn(ar, "failed to set tsf offset: %d\n", ret);
+}
+
 static int ath10k_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_ampdu_params *params)
@@ -6867,7 +6916,13 @@ ath10k_mac_update_rx_channel(struct ath10k *ar,
 			def = &vifs[0].new_ctx->def;
 
 		ar->rx_channel = def->chan;
-	} else if (ctx && ath10k_mac_num_chanctxs(ar) == 0) {
+	} else if ((ctx && ath10k_mac_num_chanctxs(ar) == 0) ||
+		   (ctx && (ar->state == ATH10K_STATE_RESTARTED))) {
+		/* During driver restart due to firmware assert, since mac80211
+		 * already has valid channel context for given radio, channel
+		 * context iteration return num_chanctx > 0. So fix rx_channel
+		 * when restart is in progress.
+		 */
 		ar->rx_channel = ctx->def.chan;
 	} else {
 		ar->rx_channel = NULL;
@@ -7252,6 +7307,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.set_bitrate_mask		= ath10k_mac_op_set_bitrate_mask,
 	.sta_rc_update			= ath10k_sta_rc_update,
 	.get_tsf			= ath10k_get_tsf,
+	.set_tsf			= ath10k_set_tsf,
 	.ampdu_action			= ath10k_ampdu_action,
 	.get_et_sset_count		= ath10k_debug_get_et_sset_count,
 	.get_et_stats			= ath10k_debug_get_et_stats,
@@ -7640,7 +7696,7 @@ int ath10k_mac_register(struct ath10k *ar)
 	ar->hw->wiphy->available_antennas_rx = ar->cfg_rx_chainmask;
 	ar->hw->wiphy->available_antennas_tx = ar->cfg_tx_chainmask;
 
-	if (!test_bit(ATH10K_FW_FEATURE_NO_P2P, ar->fw_features))
+	if (!test_bit(ATH10K_FW_FEATURE_NO_P2P, ar->normal_mode_fw.fw_file.fw_features))
 		ar->hw->wiphy->interface_modes |=
 			BIT(NL80211_IFTYPE_P2P_DEVICE) |
 			BIT(NL80211_IFTYPE_P2P_CLIENT) |
@@ -7730,7 +7786,7 @@ int ath10k_mac_register(struct ath10k *ar)
 	 */
 	ar->hw->offchannel_tx_hw_queue = IEEE80211_MAX_QUEUES - 1;
 
-	switch (ar->wmi.op_version) {
+	switch (ar->running_fw->fw_file.wmi_op_version) {
 	case ATH10K_FW_WMI_OP_VERSION_MAIN:
 		ar->hw->wiphy->iface_combinations = ath10k_if_comb;
 		ar->hw->wiphy->n_iface_combinations =

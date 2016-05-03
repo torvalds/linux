@@ -3344,6 +3344,7 @@ static int mwifiex_cfg80211_resume(struct wiphy *wiphy)
 	struct mwifiex_ds_wakeup_reason wakeup_reason;
 	struct cfg80211_wowlan_wakeup wakeup_report;
 	int i;
+	bool report_wakeup_reason = true;
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
@@ -3353,6 +3354,9 @@ static int mwifiex_cfg80211_resume(struct wiphy *wiphy)
 			mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
 		}
 	}
+
+	if (!wiphy->wowlan_config)
+		goto done;
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
 	mwifiex_get_wakeup_reason(priv, HostCmd_ACT_GEN_GET, MWIFIEX_SYNC_CMD,
@@ -3386,23 +3390,20 @@ static int mwifiex_cfg80211_resume(struct wiphy *wiphy)
 		if (wiphy->wowlan_config->n_patterns)
 			wakeup_report.pattern_idx = 1;
 		break;
-	case CONTROL_FRAME_MATCHED:
-		break;
-	case	MANAGEMENT_FRAME_MATCHED:
-		break;
 	case GTK_REKEY_FAILURE:
 		if (wiphy->wowlan_config->gtk_rekey_failure)
 			wakeup_report.gtk_rekey_failure = true;
 		break;
 	default:
+		report_wakeup_reason = false;
 		break;
 	}
 
-	if ((wakeup_reason.hs_wakeup_reason > 0) &&
-	    (wakeup_reason.hs_wakeup_reason <= 7))
+	if (report_wakeup_reason)
 		cfg80211_report_wowlan_wakeup(&priv->wdev, &wakeup_report,
 					      GFP_KERNEL);
 
+done:
 	if (adapter->nd_info) {
 		for (i = 0 ; i < adapter->nd_info->n_matches ; i++)
 			kfree(adapter->nd_info->matches[i]);

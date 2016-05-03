@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2015 Jes Sorensen <Jes.Sorensen@redhat.com>
+ * Copyright (c) 2014 - 2016 Jes Sorensen <Jes.Sorensen@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -109,6 +109,9 @@
 #define  AFE_XTAL_GATE_DIG		BIT(17)
 #define  AFE_XTAL_BT_GATE		BIT(20)
 
+/*
+ * 0x0028 is also known as REG_AFE_CTRL2 on 8723bu/8192eu
+ */
 #define REG_AFE_PLL_CTRL		0x0028
 #define  AFE_PLL_ENABLE			BIT(0)
 #define  AFE_PLL_320_ENABLE		BIT(1)
@@ -192,6 +195,7 @@
 						   control */
 #define  MULTI_GPS_FUNC_EN		BIT(22)	/* GPS function enable */
 
+#define REG_AFE_CTRL4			0x0078	/* 8192eu/8723bu */
 #define REG_LDO_SW_CTRL			0x007c	/* 8192eu */
 
 #define REG_MCU_FW_DL			0x0080
@@ -383,7 +387,7 @@
 #define REG_RQPN			0x0200
 #define  RQPN_HI_PQ_SHIFT		0
 #define  RQPN_LO_PQ_SHIFT		8
-#define  RQPN_NORM_PQ_SHIFT		16
+#define  RQPN_PUB_PQ_SHIFT		16
 #define  RQPN_LOAD			BIT(31)
 
 #define REG_FIFOPAGE			0x0204
@@ -512,6 +516,7 @@
 #define REG_PKT_VO_VI_LIFE_TIME		0x04c0
 #define REG_PKT_BE_BK_LIFE_TIME		0x04c2
 #define REG_STBC_SETTING		0x04c4
+#define REG_QUEUE_CTRL			0x04c6
 #define REG_HT_SINGLE_AMPDU_8723B	0x04c7
 #define REG_PROT_MODE_CTRL		0x04c8
 #define REG_MAX_AGGR_NUM		0x04ca
@@ -877,6 +882,10 @@
 #define  CCK0_SIDEBAND			BIT(4)
 
 #define REG_CCK0_AFE_SETTING		0x0a04
+#define  CCK0_AFE_RX_MASK		0x0f000000
+#define  CCK0_AFE_RX_ANT_AB		BIT(24)
+#define  CCK0_AFE_RX_ANT_A		0
+#define  CCK0_AFE_RX_ANT_B		(BIT(24) | BIT(26))
 
 #define REG_CONFIG_ANT_A		0x0b68
 #define REG_CONFIG_ANT_B		0x0b6c
@@ -1043,6 +1052,7 @@
 #define  USB_HIMR_ROK			BIT(0)	/*  Receive DMA OK Interrupt */
 
 #define REG_USB_SPECIAL_OPTION		0xfe55
+#define REG_USB_HRPWM			0xfe58
 #define REG_USB_DMA_AGG_TO		0xfe5b
 #define REG_USB_AGG_TO			0xfe5c
 #define REG_USB_AGG_TH			0xfe5d
@@ -1128,6 +1138,7 @@
 #define RF6052_REG_T_METER_8723B	0x42
 #define RF6052_REG_UNKNOWN_43		0x43
 #define RF6052_REG_UNKNOWN_55		0x55
+#define RF6052_REG_UNKNOWN_56		0x56
 #define RF6052_REG_S0S1			0xb0
 #define RF6052_REG_UNKNOWN_DF		0xdf
 #define RF6052_REG_UNKNOWN_ED		0xed

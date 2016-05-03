@@ -102,9 +102,7 @@ static inline struct wcn36xx_vif *get_vif_by_addr(struct wcn36xx *wcn,
 	struct wcn36xx_vif *vif_priv = NULL;
 	struct ieee80211_vif *vif = NULL;
 	list_for_each_entry(vif_priv, &wcn->vif_list, list) {
-			vif = container_of((void *)vif_priv,
-				   struct ieee80211_vif,
-				   drv_priv);
+			vif = wcn36xx_priv_to_vif(vif_priv);
 			if (memcmp(vif->addr, addr, ETH_ALEN) == 0)
 				return vif_priv;
 	}
@@ -167,9 +165,7 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 	 */
 	if (sta_priv) {
 		__vif_priv = sta_priv->vif;
-		vif = container_of((void *)__vif_priv,
-				   struct ieee80211_vif,
-				   drv_priv);
+		vif = wcn36xx_priv_to_vif(__vif_priv);
 
 		bd->dpu_sign = sta_priv->ucast_dpu_sign;
 		if (vif->type == NL80211_IFTYPE_STATION) {

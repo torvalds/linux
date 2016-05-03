@@ -63,8 +63,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 2116,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
-			.fw = QCA988X_HW_2_0_FW_FILE,
-			.otp = QCA988X_HW_2_0_OTP_FILE,
 			.board = QCA988X_HW_2_0_BOARD_DATA_FILE,
 			.board_size = QCA988X_BOARD_DATA_SZ,
 			.board_ext_size = QCA988X_BOARD_EXT_DATA_SZ,
@@ -82,8 +80,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
-			.fw = QCA6174_HW_2_1_FW_FILE,
-			.otp = QCA6174_HW_2_1_OTP_FILE,
 			.board = QCA6174_HW_2_1_BOARD_DATA_FILE,
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
@@ -102,8 +98,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
-			.fw = QCA6174_HW_2_1_FW_FILE,
-			.otp = QCA6174_HW_2_1_OTP_FILE,
 			.board = QCA6174_HW_2_1_BOARD_DATA_FILE,
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
@@ -122,8 +116,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA6174_HW_3_0_FW_DIR,
-			.fw = QCA6174_HW_3_0_FW_FILE,
-			.otp = QCA6174_HW_3_0_OTP_FILE,
 			.board = QCA6174_HW_3_0_BOARD_DATA_FILE,
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
@@ -143,8 +135,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.fw = {
 			/* uses same binaries as hw3.0 */
 			.dir = QCA6174_HW_3_0_FW_DIR,
-			.fw = QCA6174_HW_3_0_FW_FILE,
-			.otp = QCA6174_HW_3_0_OTP_FILE,
 			.board = QCA6174_HW_3_0_BOARD_DATA_FILE,
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
@@ -167,8 +157,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 12064,
 		.fw = {
 			.dir = QCA99X0_HW_2_0_FW_DIR,
-			.fw = QCA99X0_HW_2_0_FW_FILE,
-			.otp = QCA99X0_HW_2_0_OTP_FILE,
 			.board = QCA99X0_HW_2_0_BOARD_DATA_FILE,
 			.board_size = QCA99X0_BOARD_DATA_SZ,
 			.board_ext_size = QCA99X0_BOARD_EXT_DATA_SZ,
@@ -186,8 +174,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA9377_HW_1_0_FW_DIR,
-			.fw = QCA9377_HW_1_0_FW_FILE,
-			.otp = QCA9377_HW_1_0_OTP_FILE,
 			.board = QCA9377_HW_1_0_BOARD_DATA_FILE,
 			.board_size = QCA9377_BOARD_DATA_SZ,
 			.board_ext_size = QCA9377_BOARD_EXT_DATA_SZ,
@@ -205,8 +191,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 8124,
 		.fw = {
 			.dir = QCA9377_HW_1_0_FW_DIR,
-			.fw = QCA9377_HW_1_0_FW_FILE,
-			.otp = QCA9377_HW_1_0_OTP_FILE,
 			.board = QCA9377_HW_1_0_BOARD_DATA_FILE,
 			.board_size = QCA9377_BOARD_DATA_SZ,
 			.board_ext_size = QCA9377_BOARD_EXT_DATA_SZ,
@@ -229,8 +213,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.cal_data_len = 12064,
 		.fw = {
 			.dir = QCA4019_HW_1_0_FW_DIR,
-			.fw = QCA4019_HW_1_0_FW_FILE,
-			.otp = QCA4019_HW_1_0_OTP_FILE,
 			.board = QCA4019_HW_1_0_BOARD_DATA_FILE,
 			.board_size = QCA4019_BOARD_DATA_SZ,
 			.board_ext_size = QCA4019_BOARD_EXT_DATA_SZ,
@@ -279,7 +261,7 @@ void ath10k_core_get_fw_features_str(struct ath10k *ar,
 	int i;
 
 	for (i = 0; i < ATH10K_FW_FEATURE_COUNT; i++) {
-		if (test_bit(i, ar->fw_features)) {
+		if (test_bit(i, ar->normal_mode_fw.fw_file.fw_features)) {
 			if (len > 0)
 				len += scnprintf(buf + len, buf_len - len, ",");
 
@@ -556,7 +538,8 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 
 	address = ar->hw_params.patch_load_addr;
 
-	if (!ar->otp_data || !ar->otp_len) {
+	if (!ar->normal_mode_fw.fw_file.otp_data ||
+	    !ar->normal_mode_fw.fw_file.otp_len) {
 		ath10k_warn(ar,
 			    "failed to retrieve board id because of invalid otp\n");
 		return -ENODATA;
@@ -564,9 +547,11 @@ static int ath10k_core_get_board_id_from_otp(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
 		   "boot upload otp to 0x%x len %zd for board id\n",
-		   address, ar->otp_len);
+		   address, ar->normal_mode_fw.fw_file.otp_len);
 
-	ret = ath10k_bmi_fast_download(ar, address, ar->otp_data, ar->otp_len);
+	ret = ath10k_bmi_fast_download(ar, address,
+				       ar->normal_mode_fw.fw_file.otp_data,
+				       ar->normal_mode_fw.fw_file.otp_len);
 	if (ret) {
 		ath10k_err(ar, "could not write otp for board id check: %d\n",
 			   ret);
@@ -604,7 +589,9 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 	u32 bmi_otp_exe_param = ar->hw_params.otp_exe_param;
 	int ret;
 
-	ret = ath10k_download_board_data(ar, ar->board_data, ar->board_len);
+	ret = ath10k_download_board_data(ar,
+					 ar->running_fw->board_data,
+					 ar->running_fw->board_len);
 	if (ret) {
 		ath10k_err(ar, "failed to download board data: %d\n", ret);
 		return ret;
@@ -612,16 +599,20 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 
 	/* OTP is optional */
 
-	if (!ar->otp_data || !ar->otp_len) {
+	if (!ar->running_fw->fw_file.otp_data ||
+	    !ar->running_fw->fw_file.otp_len) {
 		ath10k_warn(ar, "Not running otp, calibration will be incorrect (otp-data %p otp_len %zd)!\n",
-			    ar->otp_data, ar->otp_len);
+			    ar->running_fw->fw_file.otp_data,
+			    ar->running_fw->fw_file.otp_len);
 		return 0;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot upload otp to 0x%x len %zd\n",
-		   address, ar->otp_len);
+		   address, ar->running_fw->fw_file.otp_len);
 
-	ret = ath10k_bmi_fast_download(ar, address, ar->otp_data, ar->otp_len);
+	ret = ath10k_bmi_fast_download(ar, address,
+				       ar->running_fw->fw_file.otp_data,
+				       ar->running_fw->fw_file.otp_len);
 	if (ret) {
 		ath10k_err(ar, "could not write otp (%d)\n", ret);
 		return ret;
@@ -636,7 +627,7 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot otp execute result %d\n", result);
 
 	if (!(skip_otp || test_bit(ATH10K_FW_FEATURE_IGNORE_OTP_RESULT,
-				   ar->fw_features)) &&
+				   ar->running_fw->fw_file.fw_features)) &&
 	    result != 0) {
 		ath10k_err(ar, "otp calibration failed: %d", result);
 		return -EINVAL;
@@ -645,46 +636,32 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
+static int ath10k_download_fw(struct ath10k *ar)
 {
 	u32 address, data_len;
-	const char *mode_name;
 	const void *data;
 	int ret;
 
 	address = ar->hw_params.patch_load_addr;
 
-	switch (mode) {
-	case ATH10K_FIRMWARE_MODE_NORMAL:
-		data = ar->firmware_data;
-		data_len = ar->firmware_len;
-		mode_name = "normal";
-		ret = ath10k_swap_code_seg_configure(ar,
-						     ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW);
-		if (ret) {
-			ath10k_err(ar, "failed to configure fw code swap: %d\n",
-				   ret);
-			return ret;
-		}
-		break;
-	case ATH10K_FIRMWARE_MODE_UTF:
-		data = ar->testmode.utf_firmware_data;
-		data_len = ar->testmode.utf_firmware_len;
-		mode_name = "utf";
-		break;
-	default:
-		ath10k_err(ar, "unknown firmware mode: %d\n", mode);
-		return -EINVAL;
+	data = ar->running_fw->fw_file.firmware_data;
+	data_len = ar->running_fw->fw_file.firmware_len;
+
+	ret = ath10k_swap_code_seg_configure(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to configure fw code swap: %d\n",
+			   ret);
+		return ret;
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
-		   "boot uploading firmware image %p len %d mode %s\n",
-		   data, data_len, mode_name);
+		   "boot uploading firmware image %p len %d\n",
+		   data, data_len);
 
 	ret = ath10k_bmi_fast_download(ar, address, data, data_len);
 	if (ret) {
-		ath10k_err(ar, "failed to download %s firmware: %d\n",
-			   mode_name, ret);
+		ath10k_err(ar, "failed to download firmware: %d\n",
+			   ret);
 		return ret;
 	}
 
@@ -693,34 +670,30 @@ static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
 
 static void ath10k_core_free_board_files(struct ath10k *ar)
 {
-	if (!IS_ERR(ar->board))
-		release_firmware(ar->board);
+	if (!IS_ERR(ar->normal_mode_fw.board))
+		release_firmware(ar->normal_mode_fw.board);
 
-	ar->board = NULL;
-	ar->board_data = NULL;
-	ar->board_len = 0;
+	ar->normal_mode_fw.board = NULL;
+	ar->normal_mode_fw.board_data = NULL;
+	ar->normal_mode_fw.board_len = 0;
 }
 
 static void ath10k_core_free_firmware_files(struct ath10k *ar)
 {
-	if (!IS_ERR(ar->otp))
-		release_firmware(ar->otp);
-
-	if (!IS_ERR(ar->firmware))
-		release_firmware(ar->firmware);
+	if (!IS_ERR(ar->normal_mode_fw.fw_file.firmware))
+		release_firmware(ar->normal_mode_fw.fw_file.firmware);
 
 	if (!IS_ERR(ar->cal_file))
 		release_firmware(ar->cal_file);
 
 	ath10k_swap_code_seg_release(ar);
 
-	ar->otp = NULL;
-	ar->otp_data = NULL;
-	ar->otp_len = 0;
+	ar->normal_mode_fw.fw_file.otp_data = NULL;
+	ar->normal_mode_fw.fw_file.otp_len = 0;
 
-	ar->firmware = NULL;
-	ar->firmware_data = NULL;
-	ar->firmware_len = 0;
+	ar->normal_mode_fw.fw_file.firmware = NULL;
+	ar->normal_mode_fw.fw_file.firmware_data = NULL;
+	ar->normal_mode_fw.fw_file.firmware_len = 0;
 
 	ar->cal_file = NULL;
 }
@@ -759,14 +732,14 @@ static int ath10k_core_fetch_board_data_api_1(struct ath10k *ar)
 		return -EINVAL;
 	}
 
-	ar->board = ath10k_fetch_fw_file(ar,
-					 ar->hw_params.fw.dir,
-					 ar->hw_params.fw.board);
-	if (IS_ERR(ar->board))
-		return PTR_ERR(ar->board);
+	ar->normal_mode_fw.board = ath10k_fetch_fw_file(ar,
+							ar->hw_params.fw.dir,
+							ar->hw_params.fw.board);
+	if (IS_ERR(ar->normal_mode_fw.board))
+		return PTR_ERR(ar->normal_mode_fw.board);
 
-	ar->board_data = ar->board->data;
-	ar->board_len = ar->board->size;
+	ar->normal_mode_fw.board_data = ar->normal_mode_fw.board->data;
+	ar->normal_mode_fw.board_len = ar->normal_mode_fw.board->size;
 
 	return 0;
 }
@@ -826,8 +799,8 @@ static int ath10k_core_parse_bd_ie_board(struct ath10k *ar,
 				   "boot found board data for '%s'",
 				   boardname);
 
-			ar->board_data = board_ie_data;
-			ar->board_len = board_ie_len;
+			ar->normal_mode_fw.board_data = board_ie_data;
+			ar->normal_mode_fw.board_len = board_ie_len;
 
 			ret = 0;
 			goto out;
@@ -860,12 +833,14 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 	const u8 *data;
 	int ret, ie_id;
 
-	ar->board = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir, filename);
-	if (IS_ERR(ar->board))
-		return PTR_ERR(ar->board);
+	ar->normal_mode_fw.board = ath10k_fetch_fw_file(ar,
+							ar->hw_params.fw.dir,
+							filename);
+	if (IS_ERR(ar->normal_mode_fw.board))
+		return PTR_ERR(ar->normal_mode_fw.board);
 
-	data = ar->board->data;
-	len = ar->board->size;
+	data = ar->normal_mode_fw.board->data;
+	len = ar->normal_mode_fw.board->size;
 
 	/* magic has extra null byte padded */
 	magic_len = strlen(ATH10K_BOARD_MAGIC) + 1;
@@ -932,7 +907,7 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 	}
 
 out:
-	if (!ar->board_data || !ar->board_len) {
+	if (!ar->normal_mode_fw.board_data || !ar->normal_mode_fw.board_len) {
 		ath10k_err(ar,
 			   "failed to fetch board data for %s from %s/%s\n",
 			   boardname, ar->hw_params.fw.dir, filename);
@@ -1000,51 +975,8 @@ success:
 	return 0;
 }
 
-static int ath10k_core_fetch_firmware_api_1(struct ath10k *ar)
-{
-	int ret = 0;
-
-	if (ar->hw_params.fw.fw == NULL) {
-		ath10k_err(ar, "firmware file not defined\n");
-		return -EINVAL;
-	}
-
-	ar->firmware = ath10k_fetch_fw_file(ar,
-					    ar->hw_params.fw.dir,
-					    ar->hw_params.fw.fw);
-	if (IS_ERR(ar->firmware)) {
-		ret = PTR_ERR(ar->firmware);
-		ath10k_err(ar, "could not fetch firmware (%d)\n", ret);
-		goto err;
-	}
-
-	ar->firmware_data = ar->firmware->data;
-	ar->firmware_len = ar->firmware->size;
-
-	/* OTP may be undefined. If so, don't fetch it at all */
-	if (ar->hw_params.fw.otp == NULL)
-		return 0;
-
-	ar->otp = ath10k_fetch_fw_file(ar,
-				       ar->hw_params.fw.dir,
-				       ar->hw_params.fw.otp);
-	if (IS_ERR(ar->otp)) {
-		ret = PTR_ERR(ar->otp);
-		ath10k_err(ar, "could not fetch otp (%d)\n", ret);
-		goto err;
-	}
-
-	ar->otp_data = ar->otp->data;
-	ar->otp_len = ar->otp->size;
-
-	return 0;
-
-err:
-	ath10k_core_free_firmware_files(ar);
-	return ret;
-}
-
-static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
+int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
+				     struct ath10k_fw_file *fw_file)
 {
 	size_t magic_len, len, ie_len;
 	int ie_id, i, index, bit, ret;
@@ -1053,15 +985,17 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 	__le32 *timestamp, *version;
 
 	/* first fetch the firmware file (firmware-*.bin) */
-	ar->firmware = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir, name);
-	if (IS_ERR(ar->firmware)) {
+	fw_file->firmware = ath10k_fetch_fw_file(ar, ar->hw_params.fw.dir,
+						 name);
+	if (IS_ERR(fw_file->firmware)) {
 		ath10k_err(ar, "could not fetch firmware file '%s/%s': %ld\n",
-			   ar->hw_params.fw.dir, name, PTR_ERR(ar->firmware));
-		return PTR_ERR(ar->firmware);
+			   ar->hw_params.fw.dir, name,
+			   PTR_ERR(fw_file->firmware));
+		return PTR_ERR(fw_file->firmware);
 	}
 
-	data = ar->firmware->data;
-	len = ar->firmware->size;
+	data = fw_file->firmware->data;
+	len = fw_file->firmware->size;
 
 	/* magic also includes the null byte, check that as well */
 	magic_len = strlen(ATH10K_FIRMWARE_MAGIC) + 1;
@@ -1104,15 +1038,15 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 
 		switch (ie_id) {
 		case ATH10K_FW_IE_FW_VERSION:
-			if (ie_len > sizeof(ar->hw->wiphy->fw_version) - 1)
+			if (ie_len > sizeof(fw_file->fw_version) - 1)
 				break;
 
-			memcpy(ar->hw->wiphy->fw_version, data, ie_len);
-			ar->hw->wiphy->fw_version[ie_len] = '\0';
+			memcpy(fw_file->fw_version, data, ie_len);
+			fw_file->fw_version[ie_len] = '\0';
 
 			ath10k_dbg(ar, ATH10K_DBG_BOOT,
 				   "found fw version %s\n",
-				    ar->hw->wiphy->fw_version);
+				    fw_file->fw_version);
 			break;
 		case ATH10K_FW_IE_TIMESTAMP:
 			if (ie_len != sizeof(u32))
@@ -1139,21 +1073,21 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 					ath10k_dbg(ar, ATH10K_DBG_BOOT,
 						   "Enabling feature bit: %i\n",
 						   i);
-					__set_bit(i, ar->fw_features);
+					__set_bit(i, fw_file->fw_features);
 				}
 			}
 
 			ath10k_dbg_dump(ar, ATH10K_DBG_BOOT, "features", "",
-					ar->fw_features,
-					sizeof(ar->fw_features));
+					ar->running_fw->fw_file.fw_features,
+					sizeof(fw_file->fw_features));
 			break;
 		case ATH10K_FW_IE_FW_IMAGE:
 			ath10k_dbg(ar, ATH10K_DBG_BOOT,
 				   "found fw image ie (%zd B)\n",
 				   ie_len);
 
-			ar->firmware_data = data;
-			ar->firmware_len = ie_len;
+			fw_file->firmware_data = data;
+			fw_file->firmware_len = ie_len;
 
 			break;
 		case ATH10K_FW_IE_OTP_IMAGE:
@@ -1161,8 +1095,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 				   "found otp image ie (%zd B)\n",
 				   ie_len);
 
-			ar->otp_data = data;
-			ar->otp_len = ie_len;
+			fw_file->otp_data = data;
+			fw_file->otp_len = ie_len;
 
 			break;
 		case ATH10K_FW_IE_WMI_OP_VERSION:
@@ -1171,10 +1105,10 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 
 			version = (__le32 *)data;
 
-			ar->wmi.op_version = le32_to_cpup(version);
+			fw_file->wmi_op_version = le32_to_cpup(version);
 
 			ath10k_dbg(ar, ATH10K_DBG_BOOT, "found fw ie wmi op version %d\n",
-				   ar->wmi.op_version);
+				   fw_file->wmi_op_version);
 			break;
 		case ATH10K_FW_IE_HTT_OP_VERSION:
 			if (ie_len != sizeof(u32))
@@ -1182,17 +1116,17 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 
 			version = (__le32 *)data;
 
-			ar->htt.op_version = le32_to_cpup(version);
+			fw_file->htt_op_version = le32_to_cpup(version);
 
 			ath10k_dbg(ar, ATH10K_DBG_BOOT, "found fw ie htt op version %d\n",
-				   ar->htt.op_version);
+				   fw_file->htt_op_version);
 			break;
 		case ATH10K_FW_IE_FW_CODE_SWAP_IMAGE:
 			ath10k_dbg(ar, ATH10K_DBG_BOOT,
 				   "found fw code swap image ie (%zd B)\n",
 				   ie_len);
-			ar->swap.firmware_codeswap_data = data;
-			ar->swap.firmware_codeswap_len = ie_len;
+			fw_file->codeswap_data = data;
+			fw_file->codeswap_len = ie_len;
 			break;
 		default:
 			ath10k_warn(ar, "Unknown FW IE: %u\n",
@@ -1207,7 +1141,8 @@ static int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name)
 		data += ie_len;
 	}
 
-	if (!ar->firmware_data || !ar->firmware_len) {
+	if (!fw_file->firmware_data ||
+	    !fw_file->firmware_len) {
 		ath10k_warn(ar, "No ATH10K_FW_IE_FW_IMAGE found from '%s/%s', skipping\n",
 			    ar->hw_params.fw.dir, name);
 		ret = -ENOMEDIUM;
@@ -1231,35 +1166,32 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 	ar->fw_api = 5;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API5_FILE);
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API5_FILE,
+					       &ar->normal_mode_fw.fw_file);
 	if (ret == 0)
 		goto success;
 
 	ar->fw_api = 4;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API4_FILE);
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API4_FILE,
+					       &ar->normal_mode_fw.fw_file);
 	if (ret == 0)
 		goto success;
 
 	ar->fw_api = 3;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API3_FILE);
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API3_FILE,
+					       &ar->normal_mode_fw.fw_file);
 	if (ret == 0)
 		goto success;
 
 	ar->fw_api = 2;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
-	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API2_FILE);
-	if (ret == 0)
-		goto success;
-
-	ar->fw_api = 1;
-	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
-
-	ret = ath10k_core_fetch_firmware_api_1(ar);
+	ret = ath10k_core_fetch_firmware_api_n(ar, ATH10K_FW_API2_FILE,
+					       &ar->normal_mode_fw.fw_file);
 	if (ret)
 		return ret;
 
@@ -1497,15 +1429,17 @@ static void ath10k_core_restart(struct work_struct *work)
 
 static int ath10k_core_init_firmware_features(struct ath10k *ar)
 {
-	if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, ar->fw_features) &&
-	    !test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+	struct ath10k_fw_file *fw_file = &ar->normal_mode_fw.fw_file;
+
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10_2, fw_file->fw_features) &&
+	    !test_bit(ATH10K_FW_FEATURE_WMI_10X, fw_file->fw_features)) {
 		ath10k_err(ar, "feature bits corrupted: 10.2 feature requires 10.x feature to be set as well");
 		return -EINVAL;
 	}
 
-	if (ar->wmi.op_version >= ATH10K_FW_WMI_OP_VERSION_MAX) {
+	if (fw_file->wmi_op_version >= ATH10K_FW_WMI_OP_VERSION_MAX) {
 		ath10k_err(ar, "unsupported WMI OP version (max %d): %d\n",
-			   ATH10K_FW_WMI_OP_VERSION_MAX, ar->wmi.op_version);
+			   ATH10K_FW_WMI_OP_VERSION_MAX, fw_file->wmi_op_version);
 		return -EINVAL;
 	}
 
@@ -1517,7 +1451,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		break;
 	case ATH10K_CRYPT_MODE_SW:
 		if (!test_bit(ATH10K_FW_FEATURE_RAW_MODE_SUPPORT,
-			      ar->fw_features)) {
+			      fw_file->fw_features)) {
 			ath10k_err(ar, "cryptmode > 0 requires raw mode support from firmware");
 			return -EINVAL;
 		}
@@ -1536,7 +1470,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 
 	if (rawmode) {
 		if (!test_bit(ATH10K_FW_FEATURE_RAW_MODE_SUPPORT,
-			      ar->fw_features)) {
+			      fw_file->fw_features)) {
 			ath10k_err(ar, "rawmode = 1 requires support from firmware");
 			return -EINVAL;
 		}
@@ -1561,19 +1495,19 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	/* Backwards compatibility for firmwares without
 	 * ATH10K_FW_IE_WMI_OP_VERSION.
 	 */
-	if (ar->wmi.op_version == ATH10K_FW_WMI_OP_VERSION_UNSET) {
-		if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {
+	if (fw_file->wmi_op_version == ATH10K_FW_WMI_OP_VERSION_UNSET) {
+		if (test_bit(ATH10K_FW_FEATURE_WMI_10X, fw_file->fw_features)) {
 			if (test_bit(ATH10K_FW_FEATURE_WMI_10_2,
-				     ar->fw_features))
-				ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_10_2;
+				     fw_file->fw_features))
+				fw_file->wmi_op_version = ATH10K_FW_WMI_OP_VERSION_10_2;
 			else
-				ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
+				fw_file->wmi_op_version = ATH10K_FW_WMI_OP_VERSION_10_1;
 		} else {
-			ar->wmi.op_version = ATH10K_FW_WMI_OP_VERSION_MAIN;
+			fw_file->wmi_op_version = ATH10K_FW_WMI_OP_VERSION_MAIN;
 		}
 	}
 
-	switch (ar->wmi.op_version) {
+	switch (fw_file->wmi_op_version) {
 	case ATH10K_FW_WMI_OP_VERSION_MAIN:
 		ar->max_num_peers = TARGET_NUM_PEERS;
 		ar->max_num_stations = TARGET_NUM_STATIONS;
@@ -1620,7 +1554,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->max_spatial_stream = ar->hw_params.max_spatial_stream;
 
 		if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
-			     ar->fw_features))
+			     fw_file->fw_features))
 			ar->htt.max_num_pending_tx = TARGET_10_4_NUM_MSDU_DESC_PFC;
 		else
 			ar->htt.max_num_pending_tx = TARGET_10_4_NUM_MSDU_DESC;
@@ -1634,18 +1568,18 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	/* Backwards compatibility for firmwares without
 	 * ATH10K_FW_IE_HTT_OP_VERSION.
 	 */
-	if (ar->htt.op_version == ATH10K_FW_HTT_OP_VERSION_UNSET) {
-		switch (ar->wmi.op_version) {
+	if (fw_file->htt_op_version == ATH10K_FW_HTT_OP_VERSION_UNSET) {
+		switch (fw_file->wmi_op_version) {
 		case ATH10K_FW_WMI_OP_VERSION_MAIN:
-			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_MAIN;
+			fw_file->htt_op_version = ATH10K_FW_HTT_OP_VERSION_MAIN;
 			break;
 		case ATH10K_FW_WMI_OP_VERSION_10_1:
 		case ATH10K_FW_WMI_OP_VERSION_10_2:
 		case ATH10K_FW_WMI_OP_VERSION_10_2_4:
-			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_10_1;
+			fw_file->htt_op_version = ATH10K_FW_HTT_OP_VERSION_10_1;
 			break;
 		case ATH10K_FW_WMI_OP_VERSION_TLV:
-			ar->htt.op_version = ATH10K_FW_HTT_OP_VERSION_TLV;
+			fw_file->htt_op_version = ATH10K_FW_HTT_OP_VERSION_TLV;
 			break;
 		case ATH10K_FW_WMI_OP_VERSION_10_4:
 		case ATH10K_FW_WMI_OP_VERSION_UNSET:
@@ -1658,7 +1592,8 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 	return 0;
 }
 
-int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
+int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
+		      const struct ath10k_fw_components *fw)
 {
 	int status;
 	u32 val;
@@ -1666,6 +1601,8 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	clear_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
+
+	ar->running_fw = fw;
 
 	ath10k_bmi_start(ar);
 
@@ -1685,7 +1622,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 	 * to set the clock source once the target is initialized.
 	 */
 	if (test_bit(ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT,
-		     ar->fw_features)) {
+		     ar->running_fw->fw_file.fw_features)) {
 		status = ath10k_bmi_write32(ar, hi_skip_clock_init, 1);
 		if (status) {
 			ath10k_err(ar, "could not write to skip_clock_init: %d\n",
@@ -1694,7 +1631,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		}
 	}
 
-	status = ath10k_download_fw(ar, mode);
+	status = ath10k_download_fw(ar);
 	if (status)
 		goto err;
 
@@ -1787,8 +1724,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		if (ath10k_peer_stats_enabled(ar))
 			val = WMI_10_4_PEER_STATS;
 
-		status = ath10k_wmi_ext_resource_config(ar,
-							WMI_HOST_PLATFORM_HIGH_PERF, val);
+		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {
 			ath10k_err(ar,
 				   "failed to send ext resource cfg command : %d\n",
@@ -1931,6 +1867,11 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		goto err_power_down;
 	}
 
+	BUILD_BUG_ON(sizeof(ar->hw->wiphy->fw_version) !=
+		     sizeof(ar->normal_mode_fw.fw_file.fw_version));
+	memcpy(ar->hw->wiphy->fw_version, ar->normal_mode_fw.fw_file.fw_version,
+	       sizeof(ar->hw->wiphy->fw_version));
+
 	ath10k_debug_print_hwfw_info(ar);
 
 	ret = ath10k_core_pre_cal_download(ar);
@@ -1973,7 +1914,8 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 
 	mutex_lock(&ar->conf_mutex);
 
-	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL);
+	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL,
+				&ar->normal_mode_fw);
 	if (ret) {
 		ath10k_err(ar, "could not init core (%d)\n", ret);
 		goto err_unlock;

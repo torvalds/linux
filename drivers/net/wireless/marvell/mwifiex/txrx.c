@@ -297,6 +297,13 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 		goto done;
 
 	mwifiex_set_trans_start(priv->netdev);
+
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_BRIDGED_PKT)
+		atomic_dec_return(&adapter->pending_bridged_pkts);
+
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_AGGR_PKT)
+		goto done;
+
 	if (!status) {
 		priv->stats.tx_packets++;
 		priv->stats.tx_bytes += tx_info->pkt_len;
@@ -305,12 +312,6 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 	} else {
 		priv->stats.tx_errors++;
 	}
-
-	if (tx_info->flags & MWIFIEX_BUF_FLAG_BRIDGED_PKT)
-		atomic_dec_return(&adapter->pending_bridged_pkts);
-
-	if (tx_info->flags & MWIFIEX_BUF_FLAG_AGGR_PKT)
-		goto done;
 
 	if (aggr)
 		/* For skb_aggr, do not wake up tx queue */

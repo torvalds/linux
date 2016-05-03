@@ -44,15 +44,6 @@ struct wcn36xx_fw_msg_status_rsp {
 	u32	status;
 } __packed;
 
-/* wcn3620 returns this for tigger_ba */
-
-struct wcn36xx_fw_msg_status_rsp_v2 {
-	u8	bss_id[6];
-	u32	status __packed;
-	u16	count_following_candidates __packed;
-	/* candidate list follows */
-};
-
 struct wcn36xx_hal_ind_msg {
 	struct list_head list;
 	u8 *msg;
@@ -136,4 +127,7 @@ int wcn36xx_smd_del_ba(struct wcn36xx *wcn, u16 tid, u8 sta_index);
 int wcn36xx_smd_trigger_ba(struct wcn36xx *wcn, u8 sta_index);
 
 int wcn36xx_smd_update_cfg(struct wcn36xx *wcn, u32 cfg_id, u32 value);
+int wcn36xx_smd_set_mc_list(struct wcn36xx *wcn,
+			    struct ieee80211_vif *vif,
+			    struct wcn36xx_hal_rcv_flt_mc_addr_list_type *fp);
 #endif	/* _SMD_H_ */

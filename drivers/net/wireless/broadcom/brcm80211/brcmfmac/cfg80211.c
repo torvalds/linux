@@ -250,6 +250,20 @@ struct parsed_vndr_ies {
 	struct parsed_vndr_ie_info ie_info[VNDR_IE_PARSE_LIMIT];
 };
 
+static u8 nl80211_band_to_fwil(enum nl80211_band band)
+{
+	switch (band) {
+	case NL80211_BAND_2GHZ:
+		return WLC_BAND_2G;
+	case NL80211_BAND_5GHZ:
+		return WLC_BAND_5G;
+	default:
+		WARN_ON(1);
+		break;
+	}
+	return 0;
+}
+
 static u16 chandef_to_chanspec(struct brcmu_d11inf *d11inf,
 			       struct cfg80211_chan_def *ch)
 {
@@ -1796,6 +1810,50 @@ enum nl80211_auth_type brcmf_war_auth_type(struct brcmf_if *ifp,
 	return type;
 }
 
+static void brcmf_set_join_pref(struct brcmf_if *ifp,
+				struct cfg80211_bss_selection *bss_select)
+{
+	struct brcmf_join_pref_params join_pref_params[2];
+	enum nl80211_band band;
+	int err, i = 0;
+
+	join_pref_params[i].len = 2;
+	join_pref_params[i].rssi_gain = 0;
+
+	if (bss_select->behaviour != NL80211_BSS_SELECT_ATTR_BAND_PREF)
+		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_ASSOC_PREFER, WLC_BAND_AUTO);
+
+	switch (bss_select->behaviour) {
+	case __NL80211_BSS_SELECT_ATTR_INVALID:
+		brcmf_c_set_joinpref_default(ifp);
+		return;
+	case NL80211_BSS_SELECT_ATTR_BAND_PREF:
+		join_pref_params[i].type = BRCMF_JOIN_PREF_BAND;
+		band = bss_select->param.band_pref;
+		join_pref_params[i].band = nl80211_band_to_fwil(band);
+		i++;
+		break;
+	case NL80211_BSS_SELECT_ATTR_RSSI_ADJUST:
+		join_pref_params[i].type = BRCMF_JOIN_PREF_RSSI_DELTA;
+		band = bss_select->param.adjust.band;
+		join_pref_params[i].band = nl80211_band_to_fwil(band);
+		join_pref_params[i].rssi_gain = bss_select->param.adjust.delta;
+		i++;
+		break;
+	case NL80211_BSS_SELECT_ATTR_RSSI:
+	default:
+		break;
+	}
+	join_pref_params[i].type = BRCMF_JOIN_PREF_RSSI;
+	join_pref_params[i].len = 2;
+	join_pref_params[i].rssi_gain = 0;
+	join_pref_params[i].band = 0;
+	err = brcmf_fil_iovar_data_set(ifp, "join_pref", join_pref_params,
+				       sizeof(join_pref_params));
+	if (err)
+		brcmf_err("Set join_pref error (%d)\n", err);
+}
+
 static s32
 brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		       struct cfg80211_connect_params *sme)
@@ -1951,6 +2009,8 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		ext_join_params->scan_le.passive_time = cpu_to_le32(-1);
 		ext_join_params->scan_le.nprobes = cpu_to_le32(-1);
 	}
+
+	brcmf_set_join_pref(ifp, &sme->bss_select);
 
 	err  = brcmf_fil_bsscfg_data_set(ifp, "join", ext_join_params,
 					 join_params_size);
@@ -3608,7 +3668,8 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 	if (!test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
 		wowl_config |= BRCMF_WOWL_UNASSOC;
 
-	brcmf_fil_iovar_data_set(ifp, "wowl_wakeind", "clear", strlen("clear"));
+	brcmf_fil_iovar_data_set(ifp, "wowl_wakeind", "clear",
+				 sizeof(struct brcmf_wowl_wakeind_le));
 	brcmf_fil_iovar_int_set(ifp, "wowl", wowl_config);
 	brcmf_fil_iovar_int_set(ifp, "wowl_activate", 1);
 	brcmf_bus_wowl_config(cfg->pub->bus_if, true);
@@ -6279,6 +6340,10 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 	wiphy->n_cipher_suites = ARRAY_SIZE(brcmf_cipher_suites);
 	if (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MFP))
 		wiphy->n_cipher_suites--;
+	wiphy->bss_select_support = BIT(NL80211_BSS_SELECT_ATTR_RSSI) |
+				    BIT(NL80211_BSS_SELECT_ATTR_BAND_PREF) |
+				    BIT(NL80211_BSS_SELECT_ATTR_RSSI_ADJUST);
+
 	wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT |
 			WIPHY_FLAG_OFFCHAN_TX |
 			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;

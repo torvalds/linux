@@ -20,6 +20,7 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
@@ -526,6 +527,9 @@ static int brcmf_msgbuf_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 	return -ENODEV;
 }
 
+static void brcmf_msgbuf_rxreorder(struct brcmf_if *ifp, struct sk_buff *skb)
+{
+}
 
 static void
 brcmf_msgbuf_remove_flowring(struct brcmf_msgbuf *msgbuf, u16 flowid)
@@ -1075,28 +1079,13 @@ static void brcmf_msgbuf_rxbuf_event_post(struct brcmf_msgbuf *msgbuf)
 }
 
 
-static void
-brcmf_msgbuf_rx_skb(struct brcmf_msgbuf *msgbuf, struct sk_buff *skb,
-		    u8 ifidx)
-{
-	struct brcmf_if *ifp;
-
-	ifp = brcmf_get_ifp(msgbuf->drvr, ifidx);
-	if (!ifp || !ifp->ndev) {
-		brcmf_err("Received pkt for invalid ifidx %d\n", ifidx);
-		brcmu_pkt_buf_free_skb(skb);
-		return;
-	}
-	brcmf_netif_rx(ifp, skb);
-}
-
-
 static void brcmf_msgbuf_process_event(struct brcmf_msgbuf *msgbuf, void *buf)
 {
 	struct msgbuf_rx_event *event;
 	u32 idx;
 	u16 buflen;
 	struct sk_buff *skb;
+	struct brcmf_if *ifp;
 
 	event = (struct msgbuf_rx_event *)buf;
 	idx = le32_to_cpu(event->msg.request_id);
@@ -1116,7 +1105,19 @@ static void brcmf_msgbuf_process_event(struct brcmf_msgbuf *msgbuf, void *buf)
 
 	skb_trim(skb, buflen);
 
-	brcmf_msgbuf_rx_skb(msgbuf, skb, event->msg.ifidx);
+	ifp = brcmf_get_ifp(msgbuf->drvr, event->msg.ifidx);
+	if (!ifp || !ifp->ndev) {
+		brcmf_err("Received pkt for invalid ifidx %d\n",
+			  event->msg.ifidx);
+		goto exit;
+	}
+
+	skb->protocol = eth_type_trans(skb, ifp->ndev);
+
+	brcmf_fweh_process_skb(ifp->drvr, skb);
+
+exit:
+	brcmu_pkt_buf_free_skb(skb);
 }
 
 
@@ -1128,6 +1129,7 @@ brcmf_msgbuf_process_rx_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 	u16 data_offset;
 	u16 buflen;
 	u32 idx;
+	struct brcmf_if *ifp;
 
 	brcmf_msgbuf_update_rxbufpost_count(msgbuf, 1);
 
@@ -1148,7 +1150,14 @@ brcmf_msgbuf_process_rx_complete(struct brcmf_msgbuf *msgbuf, void *buf)
 
 	skb_trim(skb, buflen);
 
-	brcmf_msgbuf_rx_skb(msgbuf, skb, rx_complete->msg.ifidx);
+	ifp = brcmf_get_ifp(msgbuf->drvr, rx_complete->msg.ifidx);
+	if (!ifp || !ifp->ndev) {
+		brcmf_err("Received pkt for invalid ifidx %d\n",
+			  rx_complete->msg.ifidx);
+		brcmu_pkt_buf_free_skb(skb);
+		return;
+	}
+	brcmf_netif_rx(ifp, skb);
 }
 
 
@@ -1460,6 +1469,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	drvr->proto->configure_addr_mode = brcmf_msgbuf_configure_addr_mode;
 	drvr->proto->delete_peer = brcmf_msgbuf_delete_peer;
 	drvr->proto->add_tdls_peer = brcmf_msgbuf_add_tdls_peer;
+	drvr->proto->rxreorder = brcmf_msgbuf_rxreorder;
 	drvr->proto->pd = msgbuf;
 
 	init_waitqueue_head(&msgbuf->ioctl_resp_wait);
