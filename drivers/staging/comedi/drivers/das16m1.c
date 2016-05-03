@@ -103,7 +103,7 @@ static const struct comedi_lrange range_das16m1 = {
 	}
 };
 
-struct das16m1_private_struct {
+struct das16m1_private {
 	struct comedi_8254 *counter;
 	unsigned int intr_ctrl;
 	unsigned int adc_count;
@@ -248,7 +248,7 @@ static int das16m1_ai_cmdtest(struct comedi_device *dev,
 static int das16m1_ai_cmd(struct comedi_device *dev,
 			  struct comedi_subdevice *s)
 {
-	struct das16m1_private_struct *devpriv = dev->private;
+	struct das16m1_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int byte;
@@ -305,7 +305,7 @@ static int das16m1_ai_cmd(struct comedi_device *dev,
 static int das16m1_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct das16m1_private_struct *devpriv = dev->private;
+	struct das16m1_private *devpriv = dev->private;
 
 	/* disable interrupts and pacer */
 	devpriv->intr_ctrl &= ~(DAS16M1_INTR_CTRL_INTE |
@@ -382,7 +382,7 @@ static int das16m1_do_insn_bits(struct comedi_device *dev,
 
 static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 {
-	struct das16m1_private_struct *devpriv = dev->private;
+	struct das16m1_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -513,7 +513,7 @@ static int das16m1_irq_bits(unsigned int irq)
 static int das16m1_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	struct das16m1_private_struct *devpriv;
+	struct das16m1_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -608,7 +608,7 @@ static int das16m1_attach(struct comedi_device *dev,
 
 static void das16m1_detach(struct comedi_device *dev)
 {
-	struct das16m1_private_struct *devpriv = dev->private;
+	struct das16m1_private *devpriv = dev->private;
 
 	if (devpriv) {
 		if (devpriv->extra_iobase)
