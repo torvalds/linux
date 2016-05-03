@@ -67,9 +67,24 @@ static ssize_t channels_show(struct device *dev,
 
 static DEVICE_ATTR_RO(channels);
 
+static ssize_t hw_override_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct stm_device *stm = to_stm_device(dev);
+	int ret;
+
+	ret = sprintf(buf, "%u\n", stm->data->hw_override);
+
+	return ret;
+}
+
+static DEVICE_ATTR_RO(hw_override);
+
 static struct attribute *stm_attrs[] = {
 	&dev_attr_masters.attr,
 	&dev_attr_channels.attr,
+	&dev_attr_hw_override.attr,
 	NULL,
 };
 
