@@ -77,7 +77,7 @@
 #define TMC_FFCR_TRIGON_TRIGIN	BIT(8)
 #define TMC_FFCR_STOP_ON_FLUSH	BIT(12)
 
-#define TMC_STS_TRIGGERED_BIT	2
+#define TMC_STS_TMCREADY_BIT	2
 #define TMC_FFCR_FLUSHMAN_BIT	6
 
 enum tmc_config_type {
@@ -132,11 +132,11 @@ struct tmc_drvdata {
 	u32			trigger_cntr;
 };
 
-static void tmc_wait_for_ready(struct tmc_drvdata *drvdata)
+static void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
 {
 	/* Ensure formatter, unformatter and hardware fifo are empty */
 	if (coresight_timeout(drvdata->base,
-			      TMC_STS, TMC_STS_TRIGGERED_BIT, 1)) {
+			      TMC_STS, TMC_STS_TMCREADY_BIT, 1)) {
 		dev_err(drvdata->dev,
 			"timeout observed when probing at offset %#x\n",
 			TMC_STS);
@@ -160,7 +160,7 @@ static void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
 			TMC_FFCR);
 	}
 
-	tmc_wait_for_ready(drvdata);
+	tmc_wait_for_tmcready(drvdata);
 }
 
 static void tmc_enable_hw(struct tmc_drvdata *drvdata)
