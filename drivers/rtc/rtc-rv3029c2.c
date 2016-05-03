@@ -125,24 +125,24 @@ struct rv3029_data {
 };
 
 static int rv3029_read_regs(struct device *dev, u8 reg, u8 *buf,
-			    unsigned len)
+			    unsigned int len)
 {
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 
 	if ((reg > RV3029_USR1_RAM_PAGE + 7) ||
-		(reg + len > RV3029_USR1_RAM_PAGE + 8))
+	    (reg + len > RV3029_USR1_RAM_PAGE + 8))
 		return -EINVAL;
 
 	return regmap_bulk_read(rv3029->regmap, reg, buf, len);
 }
 
 static int rv3029_write_regs(struct device *dev, u8 reg, u8 const buf[],
-			     unsigned len)
+			     unsigned int len)
 {
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
 
 	if ((reg > RV3029_USR1_RAM_PAGE + 7) ||
-		(reg + len > RV3029_USR1_RAM_PAGE + 8))
+	    (reg + len > RV3029_USR1_RAM_PAGE + 8))
 		return -EINVAL;
 
 	return regmap_bulk_write(rv3029->regmap, reg, buf, len);
@@ -347,12 +347,12 @@ static int rv3029_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 
-	tm->tm_sec = bcd2bin(regs[RV3029_W_SEC-RV3029_W_SEC]);
-	tm->tm_min = bcd2bin(regs[RV3029_W_MINUTES-RV3029_W_SEC]);
+	tm->tm_sec = bcd2bin(regs[RV3029_W_SEC - RV3029_W_SEC]);
+	tm->tm_min = bcd2bin(regs[RV3029_W_MINUTES - RV3029_W_SEC]);
 
 	/* HR field has a more complex interpretation */
 	{
-		const u8 _hr = regs[RV3029_W_HOURS-RV3029_W_SEC];
+		const u8 _hr = regs[RV3029_W_HOURS - RV3029_W_SEC];
 
 		if (_hr & RV3029_REG_HR_12_24) {
 			/* 12h format */
@@ -363,10 +363,10 @@ static int rv3029_read_time(struct device *dev, struct rtc_time *tm)
 			tm->tm_hour = bcd2bin(_hr & 0x3f);
 	}
 
-	tm->tm_mday = bcd2bin(regs[RV3029_W_DATE-RV3029_W_SEC]);
-	tm->tm_mon = bcd2bin(regs[RV3029_W_MONTHS-RV3029_W_SEC]) - 1;
-	tm->tm_year = bcd2bin(regs[RV3029_W_YEARS-RV3029_W_SEC]) + 100;
-	tm->tm_wday = bcd2bin(regs[RV3029_W_DAYS-RV3029_W_SEC]) - 1;
+	tm->tm_mday = bcd2bin(regs[RV3029_W_DATE - RV3029_W_SEC]);
+	tm->tm_mon = bcd2bin(regs[RV3029_W_MONTHS - RV3029_W_SEC]) - 1;
+	tm->tm_year = bcd2bin(regs[RV3029_W_YEARS - RV3029_W_SEC]) + 100;
+	tm->tm_wday = bcd2bin(regs[RV3029_W_DAYS - RV3029_W_SEC]) - 1;
 
 	return 0;
 }
@@ -391,13 +391,13 @@ static int rv3029_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		return ret;
 	}
 
-	tm->tm_sec = bcd2bin(regs[RV3029_A_SC-RV3029_A_SC] & 0x7f);
-	tm->tm_min = bcd2bin(regs[RV3029_A_MN-RV3029_A_SC] & 0x7f);
-	tm->tm_hour = bcd2bin(regs[RV3029_A_HR-RV3029_A_SC] & 0x3f);
-	tm->tm_mday = bcd2bin(regs[RV3029_A_DT-RV3029_A_SC] & 0x3f);
-	tm->tm_mon = bcd2bin(regs[RV3029_A_MO-RV3029_A_SC] & 0x1f) - 1;
-	tm->tm_year = bcd2bin(regs[RV3029_A_YR-RV3029_A_SC] & 0x7f) + 100;
-	tm->tm_wday = bcd2bin(regs[RV3029_A_DW-RV3029_A_SC] & 0x07) - 1;
+	tm->tm_sec = bcd2bin(regs[RV3029_A_SC - RV3029_A_SC] & 0x7f);
+	tm->tm_min = bcd2bin(regs[RV3029_A_MN - RV3029_A_SC] & 0x7f);
+	tm->tm_hour = bcd2bin(regs[RV3029_A_HR - RV3029_A_SC] & 0x3f);
+	tm->tm_mday = bcd2bin(regs[RV3029_A_DT - RV3029_A_SC] & 0x3f);
+	tm->tm_mon = bcd2bin(regs[RV3029_A_MO - RV3029_A_SC] & 0x1f) - 1;
+	tm->tm_year = bcd2bin(regs[RV3029_A_YR - RV3029_A_SC] & 0x7f) + 100;
+	tm->tm_wday = bcd2bin(regs[RV3029_A_DW - RV3029_A_SC] & 0x07) - 1;
 
 	return 0;
 }
@@ -436,13 +436,13 @@ static int rv3029_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		dev_err(dev, "%s: reading SR failed\n", __func__);
 		return -EIO;
 	}
-	regs[RV3029_A_SC-RV3029_A_SC] = bin2bcd(tm->tm_sec & 0x7f);
-	regs[RV3029_A_MN-RV3029_A_SC] = bin2bcd(tm->tm_min & 0x7f);
-	regs[RV3029_A_HR-RV3029_A_SC] = bin2bcd(tm->tm_hour & 0x3f);
-	regs[RV3029_A_DT-RV3029_A_SC] = bin2bcd(tm->tm_mday & 0x3f);
-	regs[RV3029_A_MO-RV3029_A_SC] = bin2bcd((tm->tm_mon & 0x1f) - 1);
-	regs[RV3029_A_DW-RV3029_A_SC] = bin2bcd((tm->tm_wday & 7) - 1);
-	regs[RV3029_A_YR-RV3029_A_SC] = bin2bcd((tm->tm_year & 0x7f) - 100);
+	regs[RV3029_A_SC - RV3029_A_SC] = bin2bcd(tm->tm_sec & 0x7f);
+	regs[RV3029_A_MN - RV3029_A_SC] = bin2bcd(tm->tm_min & 0x7f);
+	regs[RV3029_A_HR - RV3029_A_SC] = bin2bcd(tm->tm_hour & 0x3f);
+	regs[RV3029_A_DT - RV3029_A_SC] = bin2bcd(tm->tm_mday & 0x3f);
+	regs[RV3029_A_MO - RV3029_A_SC] = bin2bcd((tm->tm_mon & 0x1f) - 1);
+	regs[RV3029_A_DW - RV3029_A_SC] = bin2bcd((tm->tm_wday & 7) - 1);
+	regs[RV3029_A_YR - RV3029_A_SC] = bin2bcd((tm->tm_year & 0x7f) - 100);
 
 	ret = rv3029_write_regs(dev, RV3029_A_SC, regs,
 				RV3029_ALARM_SECTION_LEN);
@@ -488,13 +488,13 @@ static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 	if (tm->tm_year < 100)
 		return -EINVAL;
 
-	regs[RV3029_W_SEC-RV3029_W_SEC] = bin2bcd(tm->tm_sec);
-	regs[RV3029_W_MINUTES-RV3029_W_SEC] = bin2bcd(tm->tm_min);
-	regs[RV3029_W_HOURS-RV3029_W_SEC] = bin2bcd(tm->tm_hour);
-	regs[RV3029_W_DATE-RV3029_W_SEC] = bin2bcd(tm->tm_mday);
-	regs[RV3029_W_MONTHS-RV3029_W_SEC] = bin2bcd(tm->tm_mon+1);
-	regs[RV3029_W_DAYS-RV3029_W_SEC] = bin2bcd((tm->tm_wday & 7)+1);
-	regs[RV3029_W_YEARS-RV3029_W_SEC] = bin2bcd(tm->tm_year - 100);
+	regs[RV3029_W_SEC - RV3029_W_SEC] = bin2bcd(tm->tm_sec);
+	regs[RV3029_W_MINUTES - RV3029_W_SEC] = bin2bcd(tm->tm_min);
+	regs[RV3029_W_HOURS - RV3029_W_SEC] = bin2bcd(tm->tm_hour);
+	regs[RV3029_W_DATE - RV3029_W_SEC] = bin2bcd(tm->tm_mday);
+	regs[RV3029_W_MONTHS - RV3029_W_SEC] = bin2bcd(tm->tm_mon + 1);
+	regs[RV3029_W_DAYS - RV3029_W_SEC] = bin2bcd((tm->tm_wday & 7) + 1);
+	regs[RV3029_W_YEARS - RV3029_W_SEC] = bin2bcd(tm->tm_year - 100);
 
 	ret = rv3029_write_regs(dev, RV3029_W_SEC, regs,
 				RV3029_WATCH_SECTION_LEN);
@@ -515,6 +515,7 @@ static int rv3029_set_time(struct device *dev, struct rtc_time *tm)
 
 	return 0;
 }
+
 static const struct rv3029_trickle_tab_elem {
 	u32 r;		/* resistance in ohms */
 	u8 conf;	/* trickle config bits */
@@ -603,9 +604,8 @@ static void rv3029_trickle_config(struct device *dev)
 	err = rv3029_eeprom_update_bits(dev, RV3029_CONTROL_E2P_EECTRL,
 					RV3029_TRICKLE_MASK,
 					trickle_set_bits);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(dev, "Failed to update trickle charger config\n");
-	}
 }
 
 #ifdef CONFIG_RTC_DRV_RV3029_HWMON
