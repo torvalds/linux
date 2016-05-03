@@ -182,6 +182,10 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
 				struct i40e_aqc_get_switch_config_resp *buf,
 				u16 buf_size, u16 *start_seid,
 				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
+						u16 flags,
+						u16 valid_flags,
+				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_request_resource(struct i40e_hw *hw,
 				enum i40e_aq_resources_ids resource,
 				enum i40e_aq_resource_access_type access,
