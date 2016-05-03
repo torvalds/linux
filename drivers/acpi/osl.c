@@ -1763,6 +1763,9 @@ void __init acpi_osi_setup(char *str)
 				osi->enable = false;
 			}
 			return;
+		} else if (*str == '!') {
+			osi_config.default_disabling = 0;
+			return;
 		}
 		enable = false;
 	}

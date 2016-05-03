@@ -312,6 +312,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			acpi_osi=!*		# remove all strings
 			acpi_osi=!		# disable all built-in OS vendor
 						  strings
+			acpi_osi=!!		# enable all built-in OS vendor
+						  strings
 			acpi_osi=		# disable all strings
 
 			'acpi_osi=!' can be used in combination with single or
