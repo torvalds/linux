@@ -21,7 +21,6 @@ const char	*sort_order;
 const char	*field_order;
 regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
-int		sort__has_sym = 0;
 int		sort__has_dso = 0;
 int		sort__has_socket = 0;
 int		sort__has_thread = 0;
@@ -2245,7 +2244,7 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			}
 			list->parent = 1;
 		} else if (sd->entry == &sort_sym) {
-			sort__has_sym = 1;
+			list->sym = 1;
 			/*
 			 * perf diff displays the performance difference amongst
 			 * two or more perf.data files. Those files could come
@@ -2287,7 +2286,7 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			return -EINVAL;
 
 		if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to)
-			sort__has_sym = 1;
+			list->sym = 1;
 
 		__sort_dimension__add(sd, list, level);
 		return 0;
@@ -2303,7 +2302,7 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			return -EINVAL;
 
 		if (sd->entry == &sort_mem_daddr_sym)
-			sort__has_sym = 1;
+			list->sym = 1;
 
 		__sort_dimension__add(sd, list, level);
 		return 0;
@@ -2746,7 +2745,7 @@ void reset_output_field(void)
 {
 	perf_hpp_list.need_collapse = 0;
 	perf_hpp_list.parent = 0;
-	sort__has_sym = 0;
+	perf_hpp_list.sym = 0;
 	sort__has_dso = 0;
 
 	field_order = NULL;

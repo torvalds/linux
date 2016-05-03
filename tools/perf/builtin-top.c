@@ -688,7 +688,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 	struct hist_entry *he = iter->he;
 	struct perf_evsel *evsel = iter->evsel;
 
-	if (sort__has_sym && single)
+	if (perf_hpp_list.sym && single)
 		perf_top__record_precise_ip(top, he, evsel->idx, al->addr);
 
 	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
@@ -919,7 +919,7 @@ out_err:
 
 static int callchain_param__setup_sample_type(struct callchain_param *callchain)
 {
-	if (!sort__has_sym) {
+	if (!perf_hpp_list.sym) {
 		if (callchain->enabled) {
 			ui__error("Selected -g but \"sym\" not present in --sort/-s.");
 			return -EINVAL;
