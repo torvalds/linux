@@ -2320,7 +2320,8 @@ do_zoom_thread(struct hist_browser *browser, struct popup_action *act)
 {
 	struct thread *thread = act->thread;
 
-	if ((!hists__has(browser->hists, thread) && !sort__has_comm) || thread == NULL)
+	if ((!hists__has(browser->hists, thread) &&
+	     !hists__has(browser->hists, comm)) || thread == NULL)
 		return 0;
 
 	if (browser->hists->thread_filter) {
@@ -2354,7 +2355,8 @@ add_thread_opt(struct hist_browser *browser, struct popup_action *act,
 {
 	int ret;
 
-	if ((!hists__has(browser->hists, thread) && !sort__has_comm) || thread == NULL)
+	if ((!hists__has(browser->hists, thread) &&
+	     !hists__has(browser->hists, comm)) || thread == NULL)
 		return 0;
 
 	if (hists__has(browser->hists, thread)) {

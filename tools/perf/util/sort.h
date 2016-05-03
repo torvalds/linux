@@ -31,7 +31,6 @@ extern const char *parent_pattern;
 extern const char default_sort_order[];
 extern regex_t ignore_callees_regex;
 extern int have_ignore_callees;
-extern int sort__has_comm;
 extern enum sort_mode sort__mode;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;

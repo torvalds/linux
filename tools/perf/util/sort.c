@@ -21,7 +21,6 @@ const char	*sort_order;
 const char	*field_order;
 regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
-int		sort__has_comm = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 
 /*
@@ -2258,7 +2257,7 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		} else if (sd->entry == &sort_thread) {
 			list->thread = 1;
 		} else if (sd->entry == &sort_comm) {
-			sort__has_comm = 1;
+			list->comm = 1;
 		}
 
 		return __sort_dimension__add(sd, list, level);
