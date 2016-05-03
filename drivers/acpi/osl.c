@@ -1785,11 +1785,9 @@ void __init acpi_osi_setup(char *str)
 	}
 }
 
-static void __init set_osi_darwin(unsigned int enable)
+static void __init set_osi_darwin(bool enable)
 {
-	if (osi_config.darwin_enable != enable)
-		osi_config.darwin_enable = enable;
-
+	osi_config.darwin_enable = !!enable;
 	if (enable) {
 		acpi_osi_setup("!");
 		acpi_osi_setup("Darwin");
@@ -1799,7 +1797,7 @@ static void __init set_osi_darwin(unsigned int enable)
 	}
 }
 
-static void __init acpi_cmdline_osi_darwin(unsigned int enable)
+static void __init acpi_cmdline_osi_darwin(bool enable)
 {
 	/* cmdline set the default and override DMI */
 	osi_config.darwin_cmdline = 1;
@@ -1809,12 +1807,9 @@ static void __init acpi_cmdline_osi_darwin(unsigned int enable)
 	return;
 }
 
-void __init acpi_dmi_osi_darwin(int enable, const struct dmi_system_id *d)
+void __init acpi_dmi_osi_darwin(bool enable, const struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
-
-	if (enable == -1)
-		return;
 
 	/* DMI knows that this box asks OSI(Darwin) */
 	osi_config.darwin_dmi = 1;
@@ -1823,12 +1818,10 @@ void __init acpi_dmi_osi_darwin(int enable, const struct dmi_system_id *d)
 	return;
 }
 
-static void __init set_osi_linux(unsigned int enable)
+static void __init set_osi_linux(bool enable)
 {
-	if (osi_config.linux_enable != enable)
-		osi_config.linux_enable = enable;
-
-	if (osi_config.linux_enable)
+	osi_config.linux_enable = !!enable;
+	if (enable)
 		acpi_osi_setup("Linux");
 	else
 		acpi_osi_setup("!Linux");
@@ -1836,7 +1829,7 @@ static void __init set_osi_linux(unsigned int enable)
 	return;
 }
 
-static void __init acpi_cmdline_osi_linux(unsigned int enable)
+static void __init acpi_cmdline_osi_linux(bool enable)
 {
 	/* cmdline set the default and override DMI */
 	osi_config.linux_cmdline = 1;
@@ -1846,12 +1839,9 @@ static void __init acpi_cmdline_osi_linux(unsigned int enable)
 	return;
 }
 
-void __init acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d)
+void __init acpi_dmi_osi_linux(bool enable, const struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
-
-	if (enable == -1)
-		return;
 
 	/* DMI knows that this box asks OSI(Linux) */
 	osi_config.linux_dmi = 1;
@@ -1907,13 +1897,13 @@ static void __init acpi_osi_setup_late(void)
 static int __init osi_setup(char *str)
 {
 	if (str && !strcmp("Linux", str))
-		acpi_cmdline_osi_linux(1);
+		acpi_cmdline_osi_linux(true);
 	else if (str && !strcmp("!Linux", str))
-		acpi_cmdline_osi_linux(0);
+		acpi_cmdline_osi_linux(false);
 	else if (str && !strcmp("Darwin", str))
-		acpi_cmdline_osi_darwin(1);
+		acpi_cmdline_osi_darwin(true);
 	else if (str && !strcmp("!Darwin", str))
-		acpi_cmdline_osi_darwin(0);
+		acpi_cmdline_osi_darwin(false);
 	else
 		acpi_osi_setup(str);
 

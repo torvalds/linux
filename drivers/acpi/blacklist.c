@@ -135,12 +135,12 @@ int __init acpi_blacklisted(void)
 #ifdef CONFIG_DMI
 static int __init dmi_enable_osi_darwin(const struct dmi_system_id *d)
 {
-	acpi_dmi_osi_darwin(1, d);	/* enable */
+	acpi_dmi_osi_darwin(true, d);	/* enable */
 	return 0;
 }
 static int __init dmi_enable_osi_linux(const struct dmi_system_id *d)
 {
-	acpi_dmi_osi_linux(1, d);	/* enable */
+	acpi_dmi_osi_linux(true, d);	/* enable */
 	return 0;
 }
 static int __init dmi_disable_osi_vista(const struct dmi_system_id *d)
