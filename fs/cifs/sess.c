@@ -487,19 +487,27 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	sec_blob->LmChallengeResponse.MaximumLength = 0;
 
 	sec_blob->NtChallengeResponse.BufferOffset = cpu_to_le32(tmp - pbuffer);
-	rc = setup_ntlmv2_rsp(ses, nls_cp);
-	if (rc) {
-		cifs_dbg(VFS, "Error %d during NTLMSSP authentication\n", rc);
-		goto setup_ntlmv2_ret;
-	}
-	memcpy(tmp, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
-			ses->auth_key.len - CIFS_SESS_KEY_SIZE);
-	tmp += ses->auth_key.len - CIFS_SESS_KEY_SIZE;
+	if (ses->user_name != NULL) {
+		rc = setup_ntlmv2_rsp(ses, nls_cp);
+		if (rc) {
+			cifs_dbg(VFS, "Error %d during NTLMSSP authentication\n", rc);
+			goto setup_ntlmv2_ret;
+		}
+		memcpy(tmp, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
+				ses->auth_key.len - CIFS_SESS_KEY_SIZE);
+		tmp += ses->auth_key.len - CIFS_SESS_KEY_SIZE;
 
-	sec_blob->NtChallengeResponse.Length =
-			cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
-	sec_blob->NtChallengeResponse.MaximumLength =
-			cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
+		sec_blob->NtChallengeResponse.Length =
+				cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
+		sec_blob->NtChallengeResponse.MaximumLength =
+				cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
+	} else {
+		/*
+		 * don't send an NT Response for anonymous access
+		 */
+		sec_blob->NtChallengeResponse.Length = 0;
+		sec_blob->NtChallengeResponse.MaximumLength = 0;
+	}
 
 	if (ses->domainName == NULL) {
 		sec_blob->DomainName.BufferOffset = cpu_to_le32(tmp - pbuffer);
