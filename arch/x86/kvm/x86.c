@@ -2011,10 +2011,26 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time))))
 		return;
 
+	if (vcpu->arch.st.steal.version & 1)
+		vcpu->arch.st.steal.version += 1;  /* first time write, random junk */
+
+	vcpu->arch.st.steal.version += 1;
+
+	kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.st.stime,
+		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time));
+
+	smp_wmb();
+
 	vcpu->arch.st.steal.steal += current->sched_info.run_delay -
 		vcpu->arch.st.last_steal;
 	vcpu->arch.st.last_steal = current->sched_info.run_delay;
-	vcpu->arch.st.steal.version += 2;
+
+	kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.st.stime,
+		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time));
+
+	smp_wmb();
+
+	vcpu->arch.st.steal.version += 1;
 
 	kvm_write_guest_cached(vcpu->kvm, &vcpu->arch.st.stime,
 		&vcpu->arch.st.steal, sizeof(struct kvm_steal_time));
