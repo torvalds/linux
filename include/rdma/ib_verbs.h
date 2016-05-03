@@ -1435,6 +1435,7 @@ struct ib_qp {
 	spinlock_t		mr_lock;
 	int			mrs_used;
 	struct list_head	rdma_mrs;
+	struct list_head	sig_mrs;
 	struct ib_srq	       *srq;
 	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
 	struct list_head	xrcd_list;
