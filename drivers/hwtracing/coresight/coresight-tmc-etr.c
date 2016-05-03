@@ -70,7 +70,7 @@ static void tmc_etr_dump_hw(struct tmc_drvdata *drvdata)
 		drvdata->buf = drvdata->vaddr;
 }
 
-void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
+static void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)
 {
 	CS_UNLOCK(drvdata->base);
 
@@ -126,3 +126,43 @@ static const struct coresight_ops_sink tmc_etr_sink_ops = {
 const struct coresight_ops tmc_etr_cs_ops = {
 	.sink_ops	= &tmc_etr_sink_ops,
 };
+
+int tmc_read_prepare_etr(struct tmc_drvdata *drvdata)
+{
+	unsigned long flags;
+
+	/* config types are set a boot time and never change */
+	if (WARN_ON_ONCE(drvdata->config_type != TMC_CONFIG_TYPE_ETR))
+		return -EINVAL;
+
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+
+	/* Disable the TMC if need be */
+	if (drvdata->enable)
+		tmc_etr_disable_hw(drvdata);
+
+	drvdata->reading = true;
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+
+	return 0;
+}
+
+int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
+{
+	unsigned long flags;
+
+	/* config types are set a boot time and never change */
+	if (WARN_ON_ONCE(drvdata->config_type != TMC_CONFIG_TYPE_ETR))
+		return -EINVAL;
+
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+
+	/* RE-enable the TMC if need be */
+	if (drvdata->enable)
+		tmc_etr_enable_hw(drvdata);
+
+	drvdata->reading = false;
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+
+	return 0;
+}

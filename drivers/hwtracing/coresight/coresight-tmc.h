@@ -127,13 +127,13 @@ void tmc_enable_hw(struct tmc_drvdata *drvdata);
 void tmc_disable_hw(struct tmc_drvdata *drvdata);
 
 /* ETB/ETF functions */
-void tmc_etb_enable_hw(struct tmc_drvdata *drvdata);
-void tmc_etb_disable_hw(struct tmc_drvdata *drvdata);
+int tmc_read_prepare_etb(struct tmc_drvdata *drvdata);
+int tmc_read_unprepare_etb(struct tmc_drvdata *drvdata);
 extern const struct coresight_ops tmc_etb_cs_ops;
 extern const struct coresight_ops tmc_etf_cs_ops;
 
 /* ETR functions */
-void tmc_etr_enable_hw(struct tmc_drvdata *drvdata);
-void tmc_etr_disable_hw(struct tmc_drvdata *drvdata);
+int tmc_read_prepare_etr(struct tmc_drvdata *drvdata);
+int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata);
 extern const struct coresight_ops tmc_etr_cs_ops;
 #endif

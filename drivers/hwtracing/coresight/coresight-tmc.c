@@ -76,76 +76,43 @@ void tmc_disable_hw(struct tmc_drvdata *drvdata)
 static int tmc_read_prepare(struct tmc_drvdata *drvdata)
 {
 	int ret = 0;
-	unsigned long flags;
-	enum tmc_mode mode;
-
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (!drvdata->enable)
-		goto out;
 
 	switch (drvdata->config_type) {
 	case TMC_CONFIG_TYPE_ETB:
-		tmc_etb_disable_hw(drvdata);
-		break;
 	case TMC_CONFIG_TYPE_ETF:
-		/* There is no point in reading a TMC in HW FIFO mode */
-		mode = readl_relaxed(drvdata->base + TMC_MODE);
-		if (mode != TMC_MODE_CIRCULAR_BUFFER) {
-			ret = -EINVAL;
-			goto err;
-		}
-
-		tmc_etb_disable_hw(drvdata);
+		ret = tmc_read_prepare_etb(drvdata);
 		break;
 	case TMC_CONFIG_TYPE_ETR:
-		tmc_etr_disable_hw(drvdata);
+		ret = tmc_read_prepare_etr(drvdata);
 		break;
 	default:
 		ret = -EINVAL;
-		goto err;
 	}
 
-out:
-	drvdata->reading = true;
-	dev_info(drvdata->dev, "TMC read start\n");
-err:
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+	if (!ret)
+		dev_info(drvdata->dev, "TMC read start\n");
+
 	return ret;
 }
 
 static void tmc_read_unprepare(struct tmc_drvdata *drvdata)
 {
-	unsigned long flags;
-	enum tmc_mode mode;
-
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (!drvdata->enable)
-		goto out;
+	int ret = 0;
 
 	switch (drvdata->config_type) {
 	case TMC_CONFIG_TYPE_ETB:
-		tmc_etb_enable_hw(drvdata);
-		break;
 	case TMC_CONFIG_TYPE_ETF:
-		/* Make sure we don't re-enable a TMC in HW FIFO mode */
-		mode = readl_relaxed(drvdata->base + TMC_MODE);
-		if (mode != TMC_MODE_CIRCULAR_BUFFER)
-			goto err;
-
-		tmc_etb_enable_hw(drvdata);
+		ret = tmc_read_unprepare_etb(drvdata);
 		break;
 	case TMC_CONFIG_TYPE_ETR:
-		tmc_etr_disable_hw(drvdata);
+		ret = tmc_read_unprepare_etr(drvdata);
 		break;
 	default:
-		goto err;
+		ret = -EINVAL;
 	}
 
-out:
-	drvdata->reading = false;
-	dev_info(drvdata->dev, "TMC read end\n");
-err:
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+	if (!ret)
+		dev_info(drvdata->dev, "TMC read end\n");
 }
 
 static int tmc_open(struct inode *inode, struct file *file)
