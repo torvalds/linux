@@ -627,5 +627,5 @@ static struct comedi_driver das16m1_driver = {
 module_comedi_driver(das16m1_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for CIO-DAS16/M1 ISA cards");
 MODULE_LICENSE("GPL");
