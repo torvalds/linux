@@ -6091,6 +6091,12 @@ enum skl_disp_power_wells {
 #define  VLV_B0_WA_L3SQCREG1_VALUE		0x00D30000
 
 #define GEN8_L3SQCREG1				_MMIO(0xB100)
+/*
+ * Note that on CHV the following has an off-by-one error wrt. to BSpec.
+ * Using the formula in BSpec leads to a hang, while the formula here works
+ * fine and matches the formulas for all other platforms. A BSpec change
+ * request has been filed to clarify this.
+ */
 #define  L3_GENERAL_PRIO_CREDITS(x)		(((x) >> 1) << 19)
 #define  L3_HIGH_PRIO_CREDITS(x)		(((x) >> 1) << 14)
 

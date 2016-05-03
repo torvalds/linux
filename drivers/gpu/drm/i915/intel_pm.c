@@ -6696,11 +6696,33 @@ static void lpt_suspend_hw(struct drm_device *dev)
 	}
 }
 
+static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
+				   int general_prio_credits,
+				   int high_prio_credits)
+{
+	u32 misccpctl;
+
+	/* WaTempDisableDOPClkGating:bdw */
+	misccpctl = I915_READ(GEN7_MISCCPCTL);
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
+
+	I915_WRITE(GEN8_L3SQCREG1,
+		   L3_GENERAL_PRIO_CREDITS(general_prio_credits) |
+		   L3_HIGH_PRIO_CREDITS(high_prio_credits));
+
+	/*
+	 * Wait at least 100 clocks before re-enabling clock gating.
+	 * See the definition of L3SQCREG1 in BSpec.
+	 */
+	POSTING_READ(GEN8_L3SQCREG1);
+	udelay(1);
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
+}
+
 static void broadwell_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
-	uint32_t misccpctl;
 
 	ilk_init_lp_watermarks(dev);
 
@@ -6731,21 +6753,8 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 
-	/*
-	 * WaProgramL3SqcReg1Default:bdw
-	 * WaTempDisableDOPClkGating:bdw
-	 */
-	misccpctl = I915_READ(GEN7_MISCCPCTL);
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
-	I915_WRITE(GEN8_L3SQCREG1, L3_GENERAL_PRIO_CREDITS(30) |
-				   L3_HIGH_PRIO_CREDITS(2));
-	/*
-	 * Wait at least 100 clocks before re-enabling clock gating. See
-	 * the definition of L3SQCREG1 in BSpec.
-	 */
-	POSTING_READ(GEN8_L3SQCREG1);
-	udelay(1);
-	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
+	/* WaProgramL3SqcReg1Default:bdw */
+	gen8_set_l3sqc_credits(dev_priv, 30, 2);
 
 	/*
 	 * WaGttCachingOffByDefault:bdw
@@ -7014,6 +7023,13 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 	/* WaDisableSDEUnitClockGating:chv */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+
+	/*
+	 * WaProgramL3SqcReg1Default:chv
+	 * See gfxspecs/Related Documents/Performance Guide/
+	 * LSQC Setting Recommendations.
+	 */
+	gen8_set_l3sqc_credits(dev_priv, 38, 2);
 
 	/*
 	 * GTT cache may not work with big pages, so if those
