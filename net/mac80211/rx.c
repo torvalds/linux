@@ -1319,13 +1319,52 @@ int ieee80211_sta_ps_transition(struct ieee80211_sta *pubsta, bool start)
 }
 EXPORT_SYMBOL(ieee80211_sta_ps_transition);
 
+void ieee80211_sta_pspoll(struct ieee80211_sta *pubsta)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	if (test_sta_flag(sta, WLAN_STA_SP))
+		return;
+
+	if (!test_sta_flag(sta, WLAN_STA_PS_DRIVER))
+		ieee80211_sta_ps_deliver_poll_response(sta);
+	else
+		set_sta_flag(sta, WLAN_STA_PSPOLL);
+}
+EXPORT_SYMBOL(ieee80211_sta_pspoll);
+
+void ieee80211_sta_uapsd_trigger(struct ieee80211_sta *pubsta, u8 tid)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+	u8 ac = ieee802_1d_to_ac[tid & 7];
+
+	/*
+	 * If this AC is not trigger-enabled do nothing.
+	 *
+	 * NB: This could/should check a separate bitmap of trigger-
+	 * enabled queues, but for now we only implement uAPSD w/o
+	 * TSPEC changes to the ACs, so they're always the same.
+	 */
+	if (!(sta->sta.uapsd_queues & BIT(ac)))
+		return;
+
+	/* if we are in a service period, do nothing */
+	if (test_sta_flag(sta, WLAN_STA_SP))
+		return;
+
+	if (!test_sta_flag(sta, WLAN_STA_PS_DRIVER))
+		ieee80211_sta_ps_deliver_uapsd(sta);
+	else
+		set_sta_flag(sta, WLAN_STA_UAPSD);
+}
+EXPORT_SYMBOL(ieee80211_sta_uapsd_trigger);
+
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_uapsd_and_pspoll(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct ieee80211_hdr *hdr = (void *)rx->skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
-	int tid, ac;
 
 	if (!rx->sta)
 		return RX_CONTINUE;
@@ -1351,12 +1390,7 @@ ieee80211_rx_h_uapsd_and_pspoll(struct ieee80211_rx_data *rx)
 		return RX_CONTINUE;
 
 	if (unlikely(ieee80211_is_pspoll(hdr->frame_control))) {
-		if (!test_sta_flag(rx->sta, WLAN_STA_SP)) {
-			if (!test_sta_flag(rx->sta, WLAN_STA_PS_DRIVER))
-				ieee80211_sta_ps_deliver_poll_response(rx->sta);
-			else
-				set_sta_flag(rx->sta, WLAN_STA_PSPOLL);
-		}
+		ieee80211_sta_pspoll(&rx->sta->sta);
 
 		/* Free PS Poll skb here instead of returning RX_DROP that would
 		 * count as an dropped frame. */
@@ -1368,27 +1402,11 @@ ieee80211_rx_h_uapsd_and_pspoll(struct ieee80211_rx_data *rx)
 		   ieee80211_has_pm(hdr->frame_control) &&
 		   (ieee80211_is_data_qos(hdr->frame_control) ||
 		    ieee80211_is_qos_nullfunc(hdr->frame_control))) {
+		u8 tid;
+
 		tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
-		ac = ieee802_1d_to_ac[tid & 7];
 
-		/*
-		 * If this AC is not trigger-enabled do nothing.
-		 *
-		 * NB: This could/should check a separate bitmap of trigger-
-		 * enabled queues, but for now we only implement uAPSD w/o
-		 * TSPEC changes to the ACs, so they're always the same.
-		 */
-		if (!(rx->sta->sta.uapsd_queues & BIT(ac)))
-			return RX_CONTINUE;
-
-		/* if we are in a service period, do nothing */
-		if (test_sta_flag(rx->sta, WLAN_STA_SP))
-			return RX_CONTINUE;
-
-		if (!test_sta_flag(rx->sta, WLAN_STA_PS_DRIVER))
-			ieee80211_sta_ps_deliver_uapsd(rx->sta);
-		else
-			set_sta_flag(rx->sta, WLAN_STA_UAPSD);
+		ieee80211_sta_uapsd_trigger(&rx->sta->sta, tid);
 	}
 
 	return RX_CONTINUE;

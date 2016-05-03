@@ -3996,6 +3996,33 @@ static inline int ieee80211_sta_ps_transition_ni(struct ieee80211_sta *sta,
 	return ret;
 }
 
+/**
+ * ieee80211_sta_pspoll - PS-Poll frame received
+ * @sta: currently connected station
+ *
+ * When operating in AP mode with the %IEEE80211_HW_AP_LINK_PS flag set,
+ * use this function to inform mac80211 that a PS-Poll frame from a
+ * connected station was received.
+ * This must be used in conjunction with ieee80211_sta_ps_transition()
+ * and possibly ieee80211_sta_uapsd_trigger(); calls to all three must
+ * be serialized.
+ */
+void ieee80211_sta_pspoll(struct ieee80211_sta *sta);
+
+/**
+ * ieee80211_sta_uapsd_trigger - (potential) U-APSD trigger frame received
+ * @sta: currently connected station
+ * @tid: TID of the received (potential) trigger frame
+ *
+ * When operating in AP mode with the %IEEE80211_HW_AP_LINK_PS flag set,
+ * use this function to inform mac80211 that a (potential) trigger frame
+ * from a connected station was received.
+ * This must be used in conjunction with ieee80211_sta_ps_transition()
+ * and possibly ieee80211_sta_pspoll(); calls to all three must be
+ * serialized.
+ */
+void ieee80211_sta_uapsd_trigger(struct ieee80211_sta *sta, u8 tid);
+
 /*
  * The TX headroom reserved by mac80211 for its own tx_status functions.
  * This is enough for the radiotap header.
