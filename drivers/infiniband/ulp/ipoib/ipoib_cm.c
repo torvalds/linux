@@ -766,7 +766,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 		ipoib_dma_unmap_tx(priv, tx_req);
 		dev_kfree_skb_any(skb);
 	} else {
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		++tx->tx_head;
 
 		if (++priv->tx_outstanding == ipoib_sendq_size) {

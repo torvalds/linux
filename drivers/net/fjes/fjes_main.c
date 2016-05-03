@@ -718,7 +718,7 @@ fjes_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 					ret = NETDEV_TX_OK;
 				} else {
-					netdev->trans_start = jiffies;
+					netif_trans_update(netdev);
 					netif_tx_stop_queue(cur_queue);
 
 					if (!work_pending(&adapter->tx_stall_task))

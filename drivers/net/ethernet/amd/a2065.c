@@ -512,7 +512,7 @@ static inline int lance_reset(struct net_device *dev)
 	load_csrs(lp);
 
 	lance_init_ring(dev);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_start_queue(dev);
 
 	status = init_restart_lance(lp);

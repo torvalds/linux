@@ -1442,7 +1442,7 @@ static void nicvf_reset_task(struct work_struct *work)
 
 	nicvf_stop(nic->netdev);
 	nicvf_open(nic->netdev);
-	nic->netdev->trans_start = jiffies;
+	netif_trans_update(nic->netdev);
 }
 
 static int nicvf_config_loopback(struct nicvf *nic,

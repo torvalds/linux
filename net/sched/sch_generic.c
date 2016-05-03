@@ -775,7 +775,7 @@ void dev_activate(struct net_device *dev)
 		transition_one_qdisc(dev, dev_ingress_queue(dev), NULL);
 
 	if (need_watchdog) {
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		dev_watchdog_up(dev);
 	}
 }

@@ -3059,7 +3059,7 @@ static void bcmgenet_timeout(struct net_device *dev)
 	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
 	bcmgenet_intrl2_1_writel(priv, int1_enable, INTRL2_CPU_MASK_CLEAR);
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	dev->stats.tx_errors++;
 

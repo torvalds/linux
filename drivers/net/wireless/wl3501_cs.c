@@ -1287,7 +1287,7 @@ static void wl3501_tx_timeout(struct net_device *dev)
 		printk(KERN_ERR "%s: Error %d resetting card on Tx timeout!\n",
 		       dev->name, rc);
 	else {
-		dev->trans_start = jiffies; /* prevent tx timeout */
+		netif_trans_update(dev); /* prevent tx timeout */
 		netif_wake_queue(dev);
 	}
 }

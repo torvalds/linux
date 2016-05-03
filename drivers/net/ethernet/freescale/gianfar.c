@@ -2076,7 +2076,7 @@ void gfar_start(struct gfar_private *priv)
 
 	gfar_ints_enable(priv);
 
-	priv->ndev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(priv->ndev); /* prevent tx timeout */
 }
 
 static void free_grp_irqs(struct gfar_priv_grp *grp)

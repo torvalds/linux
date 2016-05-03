@@ -682,7 +682,7 @@ tso_sq_no_longer_full:
 		nes_write32(nesdev->regs+NES_WQE_ALLOC,
 				(wqe_count << 24) | (1 << 23) | nesvnic->nic.qp_id);
 
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 
 	return NETDEV_TX_OK;
 }

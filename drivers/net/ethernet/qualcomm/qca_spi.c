@@ -719,7 +719,7 @@ qcaspi_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 		qca->stats.ring_full++;
 	}
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	if (qca->spi_thread &&
 	    qca->spi_thread->state != TASK_RUNNING)

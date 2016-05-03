@@ -615,7 +615,7 @@ static void write_bulk_callback(struct urb *urb)
 		break;
 	}
 
-	net->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(net); /* prevent tx timeout */
 	netif_wake_queue(net);
 }
 

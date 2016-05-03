@@ -2026,7 +2026,7 @@ static int mpi_send_packet (struct net_device *dev)
 	} else {
 		*payloadLen = cpu_to_le16(len - sizeof(etherHead));
 
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 
 		/* copy data into airo dma buffer */
 		memcpy(sendbuf, buffer, len);
@@ -2107,7 +2107,7 @@ static void airo_end_xmit(struct net_device *dev) {
 
 	i = 0;
 	if ( status == SUCCESS ) {
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		for (; i < MAX_FIDS / 2 && (priv->fids[i] & 0xffff0000); i++);
 	} else {
 		priv->fids[fid] &= 0xffff;
@@ -2174,7 +2174,7 @@ static void airo_end_xmit11(struct net_device *dev) {
 
 	i = MAX_FIDS / 2;
 	if ( status == SUCCESS ) {
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		for (; i < MAX_FIDS && (priv->fids[i] & 0xffff0000); i++);
 	} else {
 		priv->fids[fid] &= 0xffff;

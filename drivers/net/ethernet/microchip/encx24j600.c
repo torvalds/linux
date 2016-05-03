@@ -874,7 +874,7 @@ static netdev_tx_t encx24j600_tx(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* save the timestamp */
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	/* Remember the skb for deferred processing */
 	priv->tx_skb = skb;

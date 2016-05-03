@@ -519,7 +519,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += actual;
 
-	ax->dev->trans_start = jiffies;
+	netif_trans_update(ax->dev);
 	ax->xleft = count - actual;
 	ax->xhead = ax->xbuff + actual;
 }

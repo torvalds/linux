@@ -1701,7 +1701,7 @@ static netdev_tx_t bdx_tx_transmit(struct sk_buff *skb,
 
 #endif
 #ifdef BDX_LLTX
-	ndev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
+	netif_trans_update(ndev); /* NETIF_F_LLTX driver :( */
 #endif
 	ndev->stats.tx_packets++;
 	ndev->stats.tx_bytes += skb->len;

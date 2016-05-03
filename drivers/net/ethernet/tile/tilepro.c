@@ -1883,7 +1883,7 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 
 
 	/* Save the timestamp. */
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 
 #ifdef TILE_NET_PARANOIA

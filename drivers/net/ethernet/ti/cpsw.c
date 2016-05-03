@@ -1389,7 +1389,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	int ret;
 
-	ndev->trans_start = jiffies;
+	netif_trans_update(ndev);
 
 	if (skb_padto(skb, CPSW_MIN_PACKET_SIZE)) {
 		cpsw_err(priv, tx_err, "packet pad failed\n");

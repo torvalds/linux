@@ -1117,7 +1117,7 @@ static void bcm_sysport_tx_timeout(struct net_device *dev)
 {
 	netdev_warn(dev, "transmit timeout!\n");
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	dev->stats.tx_errors++;
 
 	netif_tx_wake_all_queues(dev);

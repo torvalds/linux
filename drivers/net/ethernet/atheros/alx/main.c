@@ -745,7 +745,7 @@ static netdev_features_t alx_fix_features(struct net_device *netdev,
 
 static void alx_netif_stop(struct alx_priv *alx)
 {
-	alx->dev->trans_start = jiffies;
+	netif_trans_update(alx->dev);
 	if (netif_carrier_ok(alx->dev)) {
 		netif_carrier_off(alx->dev);
 		netif_tx_disable(alx->dev);
