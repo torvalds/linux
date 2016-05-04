@@ -73,6 +73,9 @@
 #define DT2811_DADATA_LO_REG(x)		(0x02 + ((x) * 2)) /* w D/A Data low */
 #define DT2811_DADATA_HI_REG(x)		(0x03 + ((x) * 2)) /* w D/A Data high */
 
+#define DT2811_DI_REG			0x06	/* r   Digital Input Port 0 */
+#define DT2811_DO_REG			0x06	/* w   Digital Output Port 1 */
+
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
 		UNI_RANGE(5),
@@ -128,9 +131,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 };
 
 /*
-   0x06 (R) DIO0 Digital Input Port 0
-   (W) DIO1 Digital Output Port 1
-
    0x07 TMRCTR (R/W) Timer/Counter Register
    bits 6,7 - reserved
    bits 5-3 - Timer frequency control (mantissa)
@@ -158,7 +158,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 
 #define TIMEOUT 10000
 
-#define DT2811_DIO 6
 #define DT2811_TMRCTR 7
 
 struct dt2811_board {
@@ -254,7 +253,7 @@ static int dt2811_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	data[1] = inb(dev->iobase + DT2811_DIO);
+	data[1] = inb(dev->iobase + DT2811_DI_REG);
 
 	return insn->n;
 }
@@ -265,7 +264,7 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		outb(s->state, dev->iobase + DT2811_DIO);
+		outb(s->state, dev->iobase + DT2811_DO_REG);
 
 	data[1] = s->state;
 
