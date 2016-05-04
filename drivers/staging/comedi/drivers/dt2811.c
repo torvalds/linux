@@ -63,6 +63,10 @@
 /* continuous conversion, external clock, external trigger */
 #define DT2811_ADCSR_ADMODE_EXT		DT2811_ADCSR_ADMODE(3)
 
+#define DT2811_ADGCR_REG		0x01	/* r/w  A/D Gain/Channel */
+#define DT2811_ADGCR_GAIN(x)		(((x) & 0x3) << 6)
+#define DT2811_ADGCR_CHAN(x)		(((x) & 0xf) << 0)
+
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
 		UNI_RANGE(5),
@@ -119,16 +123,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 
 /*
 
-   0x01    ADGCR R/W A/D Gain/Channel Register
-   bit 6,7 - (R/W) gain select
-   00  gain=1, both PGH, PGL models
-   01  gain=2 PGH, 10 PGL
-   10  gain=4 PGH, 100 PGL
-   11  gain=8 PGH, 500 PGL
-   bit 4,5 - reserved
-   bit 3-0 - (R/W) channel select
-   channel number from 0-15
-
    0x02,0x03 (R) ADDAT A/D Data Register
    (W) DADAT0 D/A Data Register 0
    0x02 low byte
@@ -166,7 +160,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 
 #define TIMEOUT 10000
 
-#define DT2811_ADGCR 1
 #define DT2811_ADDATLO 2
 #define DT2811_ADDATHI 3
 #define DT2811_DADAT0LO 2
@@ -219,12 +212,15 @@ static int dt2811_ai_eoc(struct comedi_device *dev,
 static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		outb(chan, dev->iobase + DT2811_ADGCR);
+		/* select channel/gain and trigger conversion */
+		outb(DT2811_ADGCR_CHAN(chan) | DT2811_ADGCR_GAIN(range),
+		     dev->iobase + DT2811_ADGCR_REG);
 
 		ret = comedi_timeout(dev, s, insn, dt2811_ai_eoc, 0);
 		if (ret)
