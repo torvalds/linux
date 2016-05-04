@@ -266,7 +266,7 @@ struct intel_connector {
 	struct intel_dp *mst_port;
 };
 
-typedef struct dpll {
+struct dpll {
 	/* given values */
 	int n;
 	int m1, m2;
@@ -276,7 +276,7 @@ typedef struct dpll {
 	int	vco;
 	int	m;
 	int	p;
-} intel_clock_t;
+};
 
 struct intel_atomic_state {
 	struct drm_atomic_state base;
@@ -1255,8 +1255,8 @@ void intel_dp_get_m_n(struct intel_crtc *crtc,
 void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
-			intel_clock_t *best_clock);
-int chv_calc_dpll_params(int refclk, intel_clock_t *pll_clock);
+			struct dpll *best_clock);
+int chv_calc_dpll_params(int refclk, struct dpll *pll_clock);
 
 bool intel_crtc_active(struct drm_crtc *crtc);
 void hsw_enable_ips(struct intel_crtc *crtc);

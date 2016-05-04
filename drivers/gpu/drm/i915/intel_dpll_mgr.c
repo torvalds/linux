@@ -1508,7 +1508,7 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	int clock = crtc_state->port_clock;
 
 	if (encoder->type == INTEL_OUTPUT_HDMI) {
-		intel_clock_t best_clock;
+		struct dpll best_clock;
 
 		/* Calculate HDMI div */
 		/*

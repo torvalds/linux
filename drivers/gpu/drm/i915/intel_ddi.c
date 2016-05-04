@@ -948,7 +948,7 @@ static int bxt_calc_pll_link(struct drm_i915_private *dev_priv,
 {
 	struct intel_shared_dpll *pll;
 	struct intel_dpll_hw_state *state;
-	intel_clock_t clock;
+	struct dpll clock;
 
 	/* For DDI ports we always use a shared PLL. */
 	if (WARN_ON(dpll == DPLL_ID_PRIVATE))

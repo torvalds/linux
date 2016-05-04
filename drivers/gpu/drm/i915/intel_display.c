@@ -582,7 +582,7 @@ static bool intel_pipe_will_have_type(const struct intel_crtc_state *crtc_state,
  * divided-down version of it.
  */
 /* m1 is reserved as 0 in Pineview, n is a ring counter */
-static int pnv_calc_dpll_params(int refclk, intel_clock_t *clock)
+static int pnv_calc_dpll_params(int refclk, struct dpll *clock)
 {
 	clock->m = clock->m2 + 2;
 	clock->p = clock->p1 * clock->p2;
@@ -599,7 +599,7 @@ static uint32_t i9xx_dpll_compute_m(struct dpll *dpll)
 	return 5 * (dpll->m1 + 2) + (dpll->m2 + 2);
 }
 
-static int i9xx_calc_dpll_params(int refclk, intel_clock_t *clock)
+static int i9xx_calc_dpll_params(int refclk, struct dpll *clock)
 {
 	clock->m = i9xx_dpll_compute_m(clock);
 	clock->p = clock->p1 * clock->p2;
@@ -611,7 +611,7 @@ static int i9xx_calc_dpll_params(int refclk, intel_clock_t *clock)
 	return clock->dot;
 }
 
-static int vlv_calc_dpll_params(int refclk, intel_clock_t *clock)
+static int vlv_calc_dpll_params(int refclk, struct dpll *clock)
 {
 	clock->m = clock->m1 * clock->m2;
 	clock->p = clock->p1 * clock->p2;
@@ -623,7 +623,7 @@ static int vlv_calc_dpll_params(int refclk, intel_clock_t *clock)
 	return clock->dot / 5;
 }
 
-int chv_calc_dpll_params(int refclk, intel_clock_t *clock)
+int chv_calc_dpll_params(int refclk, struct dpll *clock)
 {
 	clock->m = clock->m1 * clock->m2;
 	clock->p = clock->p1 * clock->p2;
@@ -644,7 +644,7 @@ int chv_calc_dpll_params(int refclk, intel_clock_t *clock)
 
 static bool intel_PLL_is_valid(struct drm_device *dev,
 			       const intel_limit_t *limit,
-			       const intel_clock_t *clock)
+			       const struct dpll *clock)
 {
 	if (clock->n   < limit->n.min   || limit->n.max   < clock->n)
 		INTELPllInvalid("n out of range\n");
@@ -716,11 +716,11 @@ i9xx_select_p2_div(const intel_limit_t *limit,
 static bool
 i9xx_find_best_dpll(const intel_limit_t *limit,
 		    struct intel_crtc_state *crtc_state,
-		    int target, int refclk, intel_clock_t *match_clock,
-		    intel_clock_t *best_clock)
+		    int target, int refclk, struct dpll *match_clock,
+		    struct dpll *best_clock)
 {
 	struct drm_device *dev = crtc_state->base.crtc->dev;
-	intel_clock_t clock;
+	struct dpll clock;
 	int err = target;
 
 	memset(best_clock, 0, sizeof(*best_clock));
@@ -773,11 +773,11 @@ i9xx_find_best_dpll(const intel_limit_t *limit,
 static bool
 pnv_find_best_dpll(const intel_limit_t *limit,
 		   struct intel_crtc_state *crtc_state,
-		   int target, int refclk, intel_clock_t *match_clock,
-		   intel_clock_t *best_clock)
+		   int target, int refclk, struct dpll *match_clock,
+		   struct dpll *best_clock)
 {
 	struct drm_device *dev = crtc_state->base.crtc->dev;
-	intel_clock_t clock;
+	struct dpll clock;
 	int err = target;
 
 	memset(best_clock, 0, sizeof(*best_clock));
@@ -828,11 +828,11 @@ pnv_find_best_dpll(const intel_limit_t *limit,
 static bool
 g4x_find_best_dpll(const intel_limit_t *limit,
 		   struct intel_crtc_state *crtc_state,
-		   int target, int refclk, intel_clock_t *match_clock,
-		   intel_clock_t *best_clock)
+		   int target, int refclk, struct dpll *match_clock,
+		   struct dpll *best_clock)
 {
 	struct drm_device *dev = crtc_state->base.crtc->dev;
-	intel_clock_t clock;
+	struct dpll clock;
 	int max_n;
 	bool found = false;
 	/* approximately equals target * 0.00585 */
@@ -878,8 +878,8 @@ g4x_find_best_dpll(const intel_limit_t *limit,
  * best configuration and error found so far. Return the calculated error.
  */
 static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
-			       const intel_clock_t *calculated_clock,
-			       const intel_clock_t *best_clock,
+			       const struct dpll *calculated_clock,
+			       const struct dpll *best_clock,
 			       unsigned int best_error_ppm,
 			       unsigned int *error_ppm)
 {
@@ -921,12 +921,12 @@ static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
 static bool
 vlv_find_best_dpll(const intel_limit_t *limit,
 		   struct intel_crtc_state *crtc_state,
-		   int target, int refclk, intel_clock_t *match_clock,
-		   intel_clock_t *best_clock)
+		   int target, int refclk, struct dpll *match_clock,
+		   struct dpll *best_clock)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
-	intel_clock_t clock;
+	struct dpll clock;
 	unsigned int bestppm = 1000000;
 	/* min update 19.2 MHz */
 	int max_n = min(limit->n.max, refclk / 19200);
@@ -980,13 +980,13 @@ vlv_find_best_dpll(const intel_limit_t *limit,
 static bool
 chv_find_best_dpll(const intel_limit_t *limit,
 		   struct intel_crtc_state *crtc_state,
-		   int target, int refclk, intel_clock_t *match_clock,
-		   intel_clock_t *best_clock)
+		   int target, int refclk, struct dpll *match_clock,
+		   struct dpll *best_clock)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	unsigned int best_error_ppm;
-	intel_clock_t clock;
+	struct dpll clock;
 	uint64_t m2;
 	int found = false;
 
@@ -1036,7 +1036,7 @@ chv_find_best_dpll(const intel_limit_t *limit,
 }
 
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
-			intel_clock_t *best_clock)
+			struct dpll *best_clock)
 {
 	int refclk = 100000;
 	const intel_limit_t *limit = &intel_limits_bxt;
@@ -7057,7 +7057,7 @@ static uint32_t i9xx_dpll_compute_fp(struct dpll *dpll)
 
 static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 				     struct intel_crtc_state *crtc_state,
-				     intel_clock_t *reduced_clock)
+				     struct dpll *reduced_clock)
 {
 	struct drm_device *dev = crtc->base.dev;
 	u32 fp, fp2 = 0;
@@ -7481,7 +7481,7 @@ void vlv_force_pll_off(struct drm_device *dev, enum pipe pipe)
 
 static void i9xx_compute_dpll(struct intel_crtc *crtc,
 			      struct intel_crtc_state *crtc_state,
-			      intel_clock_t *reduced_clock)
+			      struct dpll *reduced_clock)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7557,7 +7557,7 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 
 static void i8xx_compute_dpll(struct intel_crtc *crtc,
 			      struct intel_crtc_state *crtc_state,
-			      intel_clock_t *reduced_clock)
+			      struct dpll *reduced_clock)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -8028,7 +8028,7 @@ static void vlv_crtc_clock_get(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = pipe_config->cpu_transcoder;
-	intel_clock_t clock;
+	struct dpll clock;
 	u32 mdiv;
 	int refclk = 100000;
 
@@ -8125,7 +8125,7 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = pipe_config->cpu_transcoder;
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
-	intel_clock_t clock;
+	struct dpll clock;
 	u32 cmn_dw13, pll_dw0, pll_dw1, pll_dw2, pll_dw3;
 	int refclk = 100000;
 
@@ -8788,7 +8788,7 @@ static bool ironlake_needs_fb_cb_tune(struct dpll *dpll, int factor)
 
 static void ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *crtc_state,
-				  intel_clock_t *reduced_clock)
+				  struct dpll *reduced_clock)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct drm_device *dev = crtc->dev;
@@ -8896,7 +8896,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	intel_clock_t reduced_clock;
+	struct dpll reduced_clock;
 	bool has_reduced_clock = false;
 	struct intel_shared_dpll *pll;
 	const intel_limit_t *limit;
@@ -10626,7 +10626,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 	int pipe = pipe_config->cpu_transcoder;
 	u32 dpll = pipe_config->dpll_hw_state.dpll;
 	u32 fp;
-	intel_clock_t clock;
+	struct dpll clock;
 	int port_clock;
 	int refclk = i9xx_pll_refclk(dev, pipe_config);
 
