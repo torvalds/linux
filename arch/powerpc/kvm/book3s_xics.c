@@ -92,7 +92,7 @@ static int ics_deliver_irq(struct kvmppc_xics *xics, u32 irq, u32 level)
 	 * we are the only setter, thus concurrent access is undefined
 	 * to begin with.
 	 */
-	if (level == 1 || level == KVM_INTERRUPT_SET_LEVEL)
+	if ((level == 1 && state->lsi) || level == KVM_INTERRUPT_SET_LEVEL)
 		state->asserted = 1;
 	else if (level == 0 || level == KVM_INTERRUPT_UNSET) {
 		state->asserted = 0;
@@ -1174,9 +1174,11 @@ static int xics_get_source(struct kvmppc_xics *xics, long irq, u64 addr)
 			prio = irqp->saved_priority;
 		}
 		val |= prio << KVM_XICS_PRIORITY_SHIFT;
-		if (irqp->asserted)
-			val |= KVM_XICS_LEVEL_SENSITIVE | KVM_XICS_PENDING;
-		else if (irqp->masked_pending || irqp->resend)
+		if (irqp->lsi) {
+			val |= KVM_XICS_LEVEL_SENSITIVE;
+			if (irqp->asserted)
+				val |= KVM_XICS_PENDING;
+		} else if (irqp->masked_pending || irqp->resend)
 			val |= KVM_XICS_PENDING;
 		ret = 0;
 	}
@@ -1228,9 +1230,13 @@ static int xics_set_source(struct kvmppc_xics *xics, long irq, u64 addr)
 	irqp->priority = prio;
 	irqp->resend = 0;
 	irqp->masked_pending = 0;
+	irqp->lsi = 0;
 	irqp->asserted = 0;
-	if ((val & KVM_XICS_PENDING) && (val & KVM_XICS_LEVEL_SENSITIVE))
-		irqp->asserted = 1;
+	if (val & KVM_XICS_LEVEL_SENSITIVE) {
+		irqp->lsi = 1;
+		if (val & KVM_XICS_PENDING)
+			irqp->asserted = 1;
+	}
 	irqp->exists = 1;
 	arch_spin_unlock(&ics->lock);
 	local_irq_restore(flags);
@@ -1249,11 +1255,10 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 	return ics_deliver_irq(xics, irq, level);
 }
 
-int kvm_set_msi(struct kvm_kernel_irq_routing_entry *irq_entry, struct kvm *kvm,
-		int irq_source_id, int level, bool line_status)
+int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *irq_entry,
+			      struct kvm *kvm, int irq_source_id,
+			      int level, bool line_status)
 {
-	if (!level)
-		return -1;
 	return kvm_set_irq(kvm, irq_source_id, irq_entry->gsi,
 			   level, line_status);
 }
