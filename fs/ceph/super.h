@@ -297,6 +297,7 @@ struct ceph_inode_info {
 	u64 i_files, i_subdirs;
 
 	struct rb_root i_fragtree;
+	int i_fragtree_nsplits;
 	struct mutex i_fragtree_mutex;
 
 	struct ceph_inode_xattrs_info i_xattrs;

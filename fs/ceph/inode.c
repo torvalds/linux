@@ -326,13 +326,15 @@ static int ceph_fill_fragtree(struct inode *inode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_inode_frag *frag, *prev_frag = NULL;
 	struct rb_node *rb_node;
-	int i;
-	u32 id, nsplits;
+	unsigned i, split_by, nsplits;
+	u32 id;
 	bool update = false;
 
 	mutex_lock(&ci->i_fragtree_mutex);
 	nsplits = le32_to_cpu(fragtree->nsplits);
-	if (nsplits) {
+	if (nsplits != ci->i_fragtree_nsplits) {
+		update = true;
+	} else if (nsplits) {
 		i = prandom_u32() % nsplits;
 		id = le32_to_cpu(fragtree->splits[i].frag);
 		if (!__ceph_find_frag(ci, id))
@@ -360,6 +362,13 @@ static int ceph_fill_fragtree(struct inode *inode,
 	rb_node = rb_first(&ci->i_fragtree);
 	for (i = 0; i < nsplits; i++) {
 		id = le32_to_cpu(fragtree->splits[i].frag);
+		split_by = le32_to_cpu(fragtree->splits[i].by);
+		if (split_by == 0 || ceph_frag_bits(id) + split_by > 24) {
+			pr_err("fill_fragtree %llx.%llx invalid split %d/%u, "
+			       "frag %x split by %d\n", ceph_vinop(inode),
+			       i, nsplits, id, split_by);
+			continue;
+		}
 		frag = NULL;
 		while (rb_node) {
 			frag = rb_entry(rb_node, struct ceph_inode_frag, node);
@@ -375,6 +384,8 @@ static int ceph_fill_fragtree(struct inode *inode,
 			if (frag->split_by > 0 ||
 			    !is_frag_child(frag->frag, prev_frag)) {
 				rb_erase(&frag->node, &ci->i_fragtree);
+				if (frag->split_by > 0)
+					ci->i_fragtree_nsplits--;
 				kfree(frag);
 			}
 			frag = NULL;
@@ -384,7 +395,9 @@ static int ceph_fill_fragtree(struct inode *inode,
 			if (IS_ERR(frag))
 				continue;
 		}
-		frag->split_by = le32_to_cpu(fragtree->splits[i].by);
+		if (frag->split_by == 0)
+			ci->i_fragtree_nsplits++;
+		frag->split_by = split_by;
 		dout(" frag %x split by %d\n", frag->frag, frag->split_by);
 		prev_frag = frag;
 	}
@@ -395,6 +408,8 @@ static int ceph_fill_fragtree(struct inode *inode,
 		if (frag->split_by > 0 ||
 		    !is_frag_child(frag->frag, prev_frag)) {
 			rb_erase(&frag->node, &ci->i_fragtree);
+			if (frag->split_by > 0)
+				ci->i_fragtree_nsplits--;
 			kfree(frag);
 		}
 	}
@@ -546,6 +561,7 @@ void ceph_destroy_inode(struct inode *inode)
 		rb_erase(n, &ci->i_fragtree);
 		kfree(frag);
 	}
+	ci->i_fragtree_nsplits = 0;
 
 	__ceph_destroy_xattrs(ci);
 	if (ci->i_xattrs.blob)
