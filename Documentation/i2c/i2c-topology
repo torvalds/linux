@@ -50,7 +50,7 @@ i2c-mux-pinctrl           Normally parent-locked, mux-locked iff
 i2c-mux-reg               Parent-locked
 
 In drivers/iio/
-imu/inv_mpu6050/          Parent-locked
+imu/inv_mpu6050/          Mux-locked
 
 In drivers/media/
 dvb-frontends/m88ds3103   Parent-locked
