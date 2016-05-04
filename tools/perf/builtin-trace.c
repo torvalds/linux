@@ -36,6 +36,7 @@
 #include "util/bpf-loader.h"
 #include "callchain.h"
 #include "syscalltbl.h"
+#include "rb_resort.h"
 
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <stdlib.h>
@@ -2829,19 +2830,9 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 	return printed;
 }
 
-/* struct used to pass data to per-thread function */
-struct summary_data {
-	FILE *fp;
-	struct trace *trace;
-	size_t printed;
-};
-
-static int trace__fprintf_one_thread(struct thread *thread, void *priv)
+static size_t trace__fprintf_thread(FILE *fp, struct thread *thread, struct trace *trace)
 {
-	struct summary_data *data = priv;
-	FILE *fp = data->fp;
-	size_t printed = data->printed;
-	struct trace *trace = data->trace;
+	size_t printed = 0;
 	struct thread_trace *ttrace = thread__priv(thread);
 	double ratio;
 
@@ -2860,22 +2851,38 @@ static int trace__fprintf_one_thread(struct thread *thread, void *priv)
 	printed += fprintf(fp, ", %.3f msec\n", ttrace->runtime_ms);
 	printed += thread__dump_stats(ttrace, trace, fp);
 
-	data->printed += printed;
+	return printed;
+}
 
-	return 0;
+static unsigned long thread__nr_events(struct thread_trace *ttrace)
+{
+	return ttrace ? ttrace->nr_events : 0;
+}
+
+DEFINE_RESORT_RB(threads, (thread__nr_events(a->thread->priv) < thread__nr_events(b->thread->priv)),
+	struct thread *thread;
+)
+{
+	entry->thread = rb_entry(nd, struct thread, rb_node);
 }
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 {
-	struct summary_data data = {
-		.fp = fp,
-		.trace = trace
-	};
-	data.printed = trace__fprintf_threads_header(fp);
+	DECLARE_RESORT_RB_MACHINE_THREADS(threads, trace->host);
+	size_t printed = trace__fprintf_threads_header(fp);
+	struct rb_node *nd;
 
-	machine__for_each_thread(trace->host, trace__fprintf_one_thread, &data);
+	if (threads == NULL) {
+		fprintf(fp, "%s", "Error sorting output by nr_events!\n");
+		return 0;
+	}
 
-	return data.printed;
+	resort_rb__for_each(nd, threads)
+		printed += trace__fprintf_thread(fp, threads_entry->thread, trace);
+
+	resort_rb__delete(threads);
+
+	return printed;
 }
 
 static int trace__set_duration(const struct option *opt, const char *str,
