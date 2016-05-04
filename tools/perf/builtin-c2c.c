@@ -565,6 +565,87 @@ tot_loads_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	return tot_recs_left - tot_recs_right;
 }
 
+typedef double (get_percent_cb)(struct c2c_hist_entry *);
+
+static int
+percent_color(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+	      struct hist_entry *he, get_percent_cb get_percent)
+{
+	struct c2c_hist_entry *c2c_he;
+	int width = c2c_width(fmt, hpp, he->hists);
+	double per;
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+	per = get_percent(c2c_he);
+
+	return hpp_color_scnprintf(hpp, "%*.2f%%", width - 1, per);
+}
+
+static double percent_hitm(struct c2c_hist_entry *c2c_he)
+{
+	struct c2c_hists *hists;
+	struct c2c_stats *stats;
+	struct c2c_stats *total;
+	int tot, st;
+	double p;
+
+	hists = container_of(c2c_he->he.hists, struct c2c_hists, hists);
+	stats = &c2c_he->stats;
+	total = &hists->stats;
+
+	st  = stats->rmt_hitm;
+	tot = total->rmt_hitm;
+
+	p = tot ? (double) st / tot : 0;
+
+	return 100 * p;
+}
+
+#define PERC_STR(__s, __v)				\
+({							\
+	scnprintf(__s, sizeof(__s), "%.2F%%", __v);	\
+	__s;						\
+})
+
+static int
+percent_hitm_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		   struct hist_entry *he)
+{
+	struct c2c_hist_entry *c2c_he;
+	int width = c2c_width(fmt, hpp, he->hists);
+	char buf[10];
+	double per;
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+	per = percent_hitm(c2c_he);
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, PERC_STR(buf, per));
+}
+
+static int
+percent_hitm_color(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		   struct hist_entry *he)
+{
+	return percent_color(fmt, hpp, he, percent_hitm);
+}
+
+static int64_t
+percent_hitm_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+		 struct hist_entry *left, struct hist_entry *right)
+{
+	struct c2c_hist_entry *c2c_left;
+	struct c2c_hist_entry *c2c_right;
+	double per_left;
+	double per_right;
+
+	c2c_left  = container_of(left, struct c2c_hist_entry, he);
+	c2c_right = container_of(right, struct c2c_hist_entry, he);
+
+	per_left  = percent_hitm(c2c_left);
+	per_right = percent_hitm(c2c_right);
+
+	return per_left - per_right;
+}
+
 #define HEADER_LOW(__h)			\
 	{				\
 		.line[1] = {		\
@@ -768,6 +849,15 @@ static struct c2c_dimension dim_tot_loads = {
 	.width		= 7,
 };
 
+static struct c2c_dimension dim_percent_hitm = {
+	.header		= HEADER_LOW("%hitm"),
+	.name		= "percent_hitm",
+	.cmp		= percent_hitm_cmp,
+	.entry		= percent_hitm_entry,
+	.color		= percent_hitm_color,
+	.width		= 7,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
 	&dim_offset,
@@ -790,6 +880,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_ld_llcmiss,
 	&dim_tot_recs,
 	&dim_tot_loads,
+	&dim_percent_hitm,
 	NULL,
 };
 
