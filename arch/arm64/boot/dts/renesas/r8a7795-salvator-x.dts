@@ -208,6 +208,7 @@
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
 
+	uart-has-rtscts;
 	status = "okay";
 };
 
