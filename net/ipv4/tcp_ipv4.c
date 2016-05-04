@@ -1839,7 +1839,9 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	tcp_free_fastopen_req(tp);
 	tcp_saved_syn_free(tp);
 
+	local_bh_disable();
 	sk_sockets_allocated_dec(sk);
+	local_bh_enable();
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
 		sock_release_memcg(sk);
