@@ -573,7 +573,7 @@ err_unprepare_hsm:
 err_unprepare_pix:
 	clk_disable_unprepare(hdmi->pixel_clock);
 err_put_i2c:
-	put_device(&vc4->hdmi->ddc->dev);
+	put_device(&hdmi->ddc->dev);
 
 	return ret;
 }
