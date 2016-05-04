@@ -254,18 +254,7 @@ static struct rpmsg_driver rpmsg_sample_client = {
 	.callback	= rpmsg_sample_cb,
 	.remove		= rpmsg_sample_remove,
 };
-
-static int __init init(void)
-{
-	return register_rpmsg_driver(&rpmsg_sample_client);
-}
-module_init(init);
-
-static void __exit fini(void)
-{
-	unregister_rpmsg_driver(&rpmsg_sample_client);
-}
-module_exit(fini);
+module_rpmsg_driver(rpmsg_sample_client);
 
 Note: a similar sample which can be built and loaded can be found
 in samples/rpmsg/.

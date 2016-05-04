@@ -82,18 +82,7 @@ static struct rpmsg_driver rpmsg_sample_client = {
 	.callback	= rpmsg_sample_cb,
 	.remove		= rpmsg_sample_remove,
 };
-
-static int __init rpmsg_client_sample_init(void)
-{
-	return register_rpmsg_driver(&rpmsg_sample_client);
-}
-module_init(rpmsg_client_sample_init);
-
-static void __exit rpmsg_client_sample_fini(void)
-{
-	unregister_rpmsg_driver(&rpmsg_sample_client);
-}
-module_exit(rpmsg_client_sample_fini);
+module_rpmsg_driver(rpmsg_sample_client);
 
 MODULE_DESCRIPTION("Remote processor messaging sample client driver");
 MODULE_LICENSE("GPL v2");
