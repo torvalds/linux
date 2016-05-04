@@ -1457,7 +1457,6 @@ error_free_sched_entity:
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
-	struct amdgpu_vm_id *id, *id_tmp;
 	int i;
 
 	amd_sched_entity_fini(vm->entity.sched, &vm->entity);
@@ -1481,18 +1480,6 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	amdgpu_bo_unref(&vm->page_directory);
 	fence_put(vm->page_directory_fence);
-
-	mutex_lock(&adev->vm_manager.lock);
-	list_for_each_entry_safe(id, id_tmp, &adev->vm_manager.ids_lru,
-				 list) {
-		if (!id)
-			continue;
-		if (atomic_long_read(&id->owner) == vm->client_id) {
-			atomic_long_set(&id->owner, 0);
-			id->pd_gpu_addr = 0;
-		}
-	}
-	mutex_unlock(&adev->vm_manager.lock);
 }
 
 /**
