@@ -2452,6 +2452,25 @@ void wm_adsp2_remove(struct wm_adsp *dsp)
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_remove);
 
+static inline int wm_adsp_compr_attached(struct wm_adsp_compr *compr)
+{
+	return compr->buf != NULL;
+}
+
+static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
+{
+	/*
+	 * Note this will be more complex once each DSP can support multiple
+	 * streams
+	 */
+	if (!compr->dsp->buffer)
+		return -EINVAL;
+
+	compr->buf = compr->dsp->buffer;
+
+	return 0;
+}
+
 int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 {
 	struct wm_adsp_compr *compr;
@@ -2806,25 +2825,6 @@ static int wm_adsp_buffer_free(struct wm_adsp *dsp)
 
 		dsp->buffer = NULL;
 	}
-
-	return 0;
-}
-
-static inline int wm_adsp_compr_attached(struct wm_adsp_compr *compr)
-{
-	return compr->buf != NULL;
-}
-
-static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
-{
-	/*
-	 * Note this will be more complex once each DSP can support multiple
-	 * streams
-	 */
-	if (!compr->dsp->buffer)
-		return -EINVAL;
-
-	compr->buf = compr->dsp->buffer;
 
 	return 0;
 }
