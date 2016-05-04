@@ -197,8 +197,10 @@ static int dt2811_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int dt2811_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
@@ -283,17 +285,17 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* initialize the ADC subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE |
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE |
 			  (it->options[2] == 1) ? SDF_DIFF :
 			  (it->options[2] == 2) ? SDF_COMMON : SDF_GROUND;
-	s->n_chan = (it->options[2] == 1) ? 8 : 16;
-	s->insn_read = dt2811_ai_insn;
-	s->maxdata = 0xfff;
+	s->n_chan	= (it->options[2] == 1) ? 8 : 16;
+	s->maxdata	= 0x0fff;
 	s->range_table	= board->is_pgh ? &dt2811_pgh_ai_ranges
 					: &dt2811_pgl_ai_ranges;
+	s->insn_read	= dt2811_ai_insn_read;
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
