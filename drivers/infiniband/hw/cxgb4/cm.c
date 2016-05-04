@@ -3509,6 +3509,19 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 				stop_ep_timer(ep);
 				close_complete_upcall(ep, -EIO);
 			}
+			if (ep->com.qp) {
+				struct c4iw_qp_attributes attrs;
+
+				attrs.next_state = C4IW_QP_STATE_ERROR;
+				ret = c4iw_modify_qp(ep->com.qp->rhp,
+						     ep->com.qp,
+						     C4IW_QP_ATTR_NEXT_STATE,
+						     &attrs, 1);
+				if (ret)
+					pr_err(MOD
+					       "%s - qp <- error failed!\n",
+					       __func__);
+			}
 			fatal = 1;
 		}
 	}
