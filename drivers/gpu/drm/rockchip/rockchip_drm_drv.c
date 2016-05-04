@@ -36,6 +36,8 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
+static bool is_support_iommu = true;
+
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
  * device.  This is used by the VOPs to map GEM buffers to a common DMA
@@ -46,6 +48,9 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 {
 	struct dma_iommu_mapping *mapping = drm_dev->dev->archdata.mapping;
 	int ret;
+
+	if (!is_support_iommu)
+		return 0;
 
 	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	if (ret)
@@ -59,6 +64,9 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev)
 {
+	if (!is_support_iommu)
+		return;
+
 	arm_iommu_detach_device(dev);
 }
 
@@ -127,7 +135,7 @@ static void rockchip_drm_crtc_disable_vblank(struct drm_device *dev,
 static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 {
 	struct rockchip_drm_private *private;
-	struct dma_iommu_mapping *mapping;
+	struct dma_iommu_mapping *mapping = NULL;
 	struct device *dev = drm_dev->dev;
 	struct drm_connector *connector;
 	int ret;
@@ -152,23 +160,26 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 		goto err_config_cleanup;
 	}
 
-	/* TODO(djkurtz): fetch the mapping start/size from somewhere */
-	mapping = arm_iommu_create_mapping(&platform_bus_type, 0x00000000,
-					   SZ_2G);
-	if (IS_ERR(mapping)) {
-		ret = PTR_ERR(mapping);
-		goto err_config_cleanup;
+	if (is_support_iommu) {
+		/* TODO(djkurtz): fetch the mapping start/size from somewhere */
+		mapping = arm_iommu_create_mapping(&platform_bus_type,
+						   0x00000000,
+						   SZ_2G);
+		if (IS_ERR(mapping)) {
+			ret = PTR_ERR(mapping);
+			goto err_config_cleanup;
+		}
+
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+		if (ret)
+			goto err_release_mapping;
+
+		dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
+
+		ret = arm_iommu_attach_device(dev, mapping);
+		if (ret)
+			goto err_release_mapping;
 	}
-
-	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-	if (ret)
-		goto err_release_mapping;
-
-	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
-
-	ret = arm_iommu_attach_device(dev, mapping);
-	if (ret)
-		goto err_release_mapping;
 
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev, drm_dev);
@@ -218,6 +229,8 @@ static int rockchip_drm_load(struct drm_device *drm_dev, unsigned long flags)
 	if (ret)
 		goto err_vblank_cleanup;
 
+	if (is_support_iommu)
+		arm_iommu_release_mapping(mapping);
 	return 0;
 err_vblank_cleanup:
 	drm_vblank_cleanup(drm_dev);
@@ -226,9 +239,11 @@ err_kms_helper_poll_fini:
 err_unbind:
 	component_unbind_all(dev, drm_dev);
 err_detach_device:
-	arm_iommu_detach_device(dev);
+	if (is_support_iommu)
+		arm_iommu_detach_device(dev);
 err_release_mapping:
-	arm_iommu_release_mapping(dev->archdata.mapping);
+	if (is_support_iommu)
+		arm_iommu_release_mapping(mapping);
 err_config_cleanup:
 	drm_mode_config_cleanup(drm_dev);
 	drm_dev->dev_private = NULL;
@@ -243,8 +258,8 @@ static int rockchip_drm_unload(struct drm_device *drm_dev)
 	drm_vblank_cleanup(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
 	component_unbind_all(dev, drm_dev);
-	arm_iommu_detach_device(dev);
-	arm_iommu_release_mapping(dev->archdata.mapping);
+	if (is_support_iommu)
+		arm_iommu_detach_device(dev);
 	drm_mode_config_cleanup(drm_dev);
 	drm_dev->dev_private = NULL;
 
@@ -488,6 +503,8 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	 * works as expected.
 	 */
 	for (i = 0;; i++) {
+		struct device_node *iommu;
+
 		port = of_parse_phandle(np, "ports", i);
 		if (!port)
 			break;
@@ -495,6 +512,17 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 		if (!of_device_is_available(port->parent)) {
 			of_node_put(port);
 			continue;
+		}
+
+		iommu = of_parse_phandle(port->parent, "iommus", 0);
+		if (!iommu || !of_device_is_available(iommu->parent)) {
+			dev_dbg(dev, "no iommu attached for %s, using non-iommu buffers\n",
+				port->parent->full_name);
+			/*
+			 * if there is a crtc not support iommu, force set all
+			 * crtc use non-iommu buffer.
+			 */
+			is_support_iommu = false;
 		}
 
 		component_match_add(dev, &match, compare_of, port->parent);
