@@ -1010,8 +1010,8 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq,
 		   "Locally retrieved addresses (from %s) announced via TT (TTVN: %u):\n",
 		   net_dev->name, (u8)atomic_read(&bat_priv->tt.vn));
-	seq_printf(seq, "       %-13s  %s %-8s %-9s (%-10s)\n", "Client", "VID",
-		   "Flags", "Last seen", "CRC");
+	seq_puts(seq,
+		 "       Client         VID Flags    Last seen (CRC       )\n");
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -1680,9 +1680,8 @@ int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq,
 		   "Globally announced TT entries received via the mesh %s\n",
 		   net_dev->name);
-	seq_printf(seq, "       %-13s  %s  %s       %-15s %s (%-10s) %s\n",
-		   "Client", "VID", "(TTVN)", "Originator", "(Curr TTVN)",
-		   "CRC", "Flags");
+	seq_puts(seq,
+		 "       Client         VID  (TTVN)       Originator      (Curr TTVN) (CRC       ) Flags\n");
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -3201,7 +3200,7 @@ static void batadv_tt_purge(struct work_struct *work)
 	struct batadv_priv_tt *priv_tt;
 	struct batadv_priv *bat_priv;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	priv_tt = container_of(delayed_work, struct batadv_priv_tt, work);
 	bat_priv = container_of(priv_tt, struct batadv_priv, tt);
 

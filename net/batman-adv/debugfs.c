@@ -365,14 +365,17 @@ static int batadv_nc_nodes_open(struct inode *inode, struct file *file)
 
 #define BATADV_DEBUGINFO(_name, _mode, _open)		\
 struct batadv_debuginfo batadv_debuginfo_##_name = {	\
-	.attr = { .name = __stringify(_name),		\
-		  .mode = _mode, },			\
-	.fops = { .owner = THIS_MODULE,			\
-		  .open = _open,			\
-		  .read	= seq_read,			\
-		  .llseek = seq_lseek,			\
-		  .release = single_release,		\
-		}					\
+	.attr = {					\
+		.name = __stringify(_name),		\
+		.mode = _mode,				\
+	},						\
+	.fops = {					\
+		.owner = THIS_MODULE,			\
+		.open = _open,				\
+		.read	= seq_read,			\
+		.llseek = seq_lseek,			\
+		.release = single_release,		\
+	},						\
 }
 
 /* the following attributes are general and therefore they will be directly

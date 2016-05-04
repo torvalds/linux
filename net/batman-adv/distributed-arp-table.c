@@ -152,7 +152,7 @@ static void batadv_dat_purge(struct work_struct *work)
 	struct batadv_priv_dat *priv_dat;
 	struct batadv_priv *bat_priv;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	priv_dat = container_of(delayed_work, struct batadv_priv_dat, work);
 	bat_priv = container_of(priv_dat, struct batadv_priv, dat);
 
@@ -720,7 +720,7 @@ void batadv_dat_status_update(struct net_device *net_dev)
 }
 
 /**
- * batadv_gw_tvlv_ogm_handler_v1 - process incoming dat tvlv container
+ * batadv_dat_tvlv_ogm_handler_v1 - process incoming dat tvlv container
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: the orig_node of the ogm
  * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
@@ -817,8 +817,8 @@ int batadv_dat_cache_seq_print_text(struct seq_file *seq, void *offset)
 		goto out;
 
 	seq_printf(seq, "Distributed ARP Table (%s):\n", net_dev->name);
-	seq_printf(seq, "          %-7s          %-9s %4s %11s\n", "IPv4",
-		   "MAC", "VID", "last-seen");
+	seq_puts(seq,
+		 "          IPv4             MAC        VID   last-seen\n");
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];

@@ -282,7 +282,7 @@ void batadv_neigh_node_put(struct batadv_neigh_node *neigh_node)
 }
 
 /**
- * batadv_orig_node_get_router - router to the originator depending on iface
+ * batadv_orig_router_get - router to the originator depending on iface
  * @orig_node: the orig node for the router
  * @if_outgoing: the interface where the payload packet has been received or
  *  the OGM should be sent to
@@ -1217,7 +1217,7 @@ static void batadv_purge_orig(struct work_struct *work)
 	struct delayed_work *delayed_work;
 	struct batadv_priv *bat_priv;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	bat_priv = container_of(delayed_work, struct batadv_priv, orig_work);
 	_batadv_purge_orig(bat_priv);
 	queue_delayed_work(batadv_event_workqueue,

@@ -120,7 +120,7 @@ static int batadv_compare_backbone_gw(const struct hlist_node *node,
 }
 
 /**
- * batadv_compare_backbone_gw - compare address and vid of two claims
+ * batadv_compare_claim - compare address and vid of two claims
  * @node: list node of the first entry to compare
  * @data2: pointer to the second claims
  *
@@ -200,9 +200,9 @@ static void batadv_claim_put(struct batadv_bla_claim *claim)
  *
  * Return: claim if found or NULL otherwise.
  */
-static struct batadv_bla_claim
-*batadv_claim_hash_find(struct batadv_priv *bat_priv,
-			struct batadv_bla_claim *data)
+static struct batadv_bla_claim *
+batadv_claim_hash_find(struct batadv_priv *bat_priv,
+		       struct batadv_bla_claim *data)
 {
 	struct batadv_hashtable *hash = bat_priv->bla.claim_hash;
 	struct hlist_head *head;
@@ -1303,7 +1303,7 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 	struct batadv_hard_iface *primary_if;
 	int i;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	priv_bla = container_of(delayed_work, struct batadv_priv_bla, work);
 	bat_priv = container_of(priv_bla, struct batadv_priv, bla);
 	primary_if = batadv_primary_if_get_selected(bat_priv);
@@ -1575,7 +1575,7 @@ int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 }
 
 /**
- * batadv_bla_init - free all bla structures
+ * batadv_bla_free - free all bla structures
  * @bat_priv: the bat priv with all the soft interface information
  *
  * for softinterface free or module unload
@@ -1815,8 +1815,8 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 		   "Claims announced for the mesh %s (orig %pM, group id %#.4x)\n",
 		   net_dev->name, primary_addr,
 		   ntohs(bat_priv->bla.claim_dest.group));
-	seq_printf(seq, "   %-17s    %-5s    %-17s [o] (%-6s)\n",
-		   "Client", "VID", "Originator", "CRC");
+	seq_puts(seq,
+		 "   Client               VID      Originator        [o] (CRC   )\n");
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
@@ -1873,8 +1873,7 @@ int batadv_bla_backbone_table_seq_print_text(struct seq_file *seq, void *offset)
 		   "Backbones announced for the mesh %s (orig %pM, group id %#.4x)\n",
 		   net_dev->name, primary_addr,
 		   ntohs(bat_priv->bla.claim_dest.group));
-	seq_printf(seq, "   %-17s    %-5s %-9s (%-6s)\n",
-		   "Originator", "VID", "last seen", "CRC");
+	seq_puts(seq, "   Originator           VID   last seen (CRC   )\n");
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
