@@ -18,53 +18,23 @@
 
 static const struct dvb_frontend_ops si2168_ops;
 
-/* Own I2C adapter locking is needed because of I2C gate logic. */
-static int si2168_i2c_master_send_unlocked(const struct i2c_client *client,
-					   const char *buf, int count)
-{
-	int ret;
-	struct i2c_msg msg = {
-		.addr = client->addr,
-		.flags = 0,
-		.len = count,
-		.buf = (char *)buf,
-	};
-
-	ret = __i2c_transfer(client->adapter, &msg, 1);
-	return (ret == 1) ? count : ret;
-}
-
-static int si2168_i2c_master_recv_unlocked(const struct i2c_client *client,
-					   char *buf, int count)
-{
-	int ret;
-	struct i2c_msg msg = {
-		.addr = client->addr,
-		.flags = I2C_M_RD,
-		.len = count,
-		.buf = buf,
-	};
-
-	ret = __i2c_transfer(client->adapter, &msg, 1);
-	return (ret == 1) ? count : ret;
-}
-
 /* execute firmware command */
-static int si2168_cmd_execute_unlocked(struct i2c_client *client,
-				       struct si2168_cmd *cmd)
+static int si2168_cmd_execute(struct i2c_client *client, struct si2168_cmd *cmd)
 {
+	struct si2168_dev *dev = i2c_get_clientdata(client);
 	int ret;
 	unsigned long timeout;
 
+	mutex_lock(&dev->i2c_mutex);
+
 	if (cmd->wlen) {
 		/* write cmd and args for firmware */
-		ret = si2168_i2c_master_send_unlocked(client, cmd->args,
-						      cmd->wlen);
+		ret = i2c_master_send(client, cmd->args, cmd->wlen);
 		if (ret < 0) {
-			goto err;
+			goto err_mutex_unlock;
 		} else if (ret != cmd->wlen) {
 			ret = -EREMOTEIO;
-			goto err;
+			goto err_mutex_unlock;
 		}
 	}
 
@@ -73,13 +43,12 @@ static int si2168_cmd_execute_unlocked(struct i2c_client *client,
 		#define TIMEOUT 70
 		timeout = jiffies + msecs_to_jiffies(TIMEOUT);
 		while (!time_after(jiffies, timeout)) {
-			ret = si2168_i2c_master_recv_unlocked(client, cmd->args,
-							      cmd->rlen);
+			ret = i2c_master_recv(client, cmd->args, cmd->rlen);
 			if (ret < 0) {
-				goto err;
+				goto err_mutex_unlock;
 			} else if (ret != cmd->rlen) {
 				ret = -EREMOTEIO;
-				goto err;
+				goto err_mutex_unlock;
 			}
 
 			/* firmware ready? */
@@ -94,29 +63,20 @@ static int si2168_cmd_execute_unlocked(struct i2c_client *client,
 		/* error bit set? */
 		if ((cmd->args[0] >> 6) & 0x01) {
 			ret = -EREMOTEIO;
-			goto err;
+			goto err_mutex_unlock;
 		}
 
 		if (!((cmd->args[0] >> 7) & 0x01)) {
 			ret = -ETIMEDOUT;
-			goto err;
+			goto err_mutex_unlock;
 		}
 	}
 
+	mutex_unlock(&dev->i2c_mutex);
 	return 0;
-err:
+err_mutex_unlock:
+	mutex_unlock(&dev->i2c_mutex);
 	dev_dbg(&client->dev, "failed=%d\n", ret);
-	return ret;
-}
-
-static int si2168_cmd_execute(struct i2c_client *client, struct si2168_cmd *cmd)
-{
-	int ret;
-
-	i2c_lock_adapter(client->adapter);
-	ret = si2168_cmd_execute_unlocked(client, cmd);
-	i2c_unlock_adapter(client->adapter);
-
 	return ret;
 }
 
@@ -610,11 +570,6 @@ static int si2168_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-/*
- * I2C gate logic
- * We must use unlocked I2C I/O because I2C adapter lock is already taken
- * by the caller (usually tuner driver).
- */
 static int si2168_select(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct i2c_client *client = i2c_mux_priv(muxc);
@@ -625,7 +580,7 @@ static int si2168_select(struct i2c_mux_core *muxc, u32 chan)
 	memcpy(cmd.args, "\xc0\x0d\x01", 3);
 	cmd.wlen = 3;
 	cmd.rlen = 0;
-	ret = si2168_cmd_execute_unlocked(client, &cmd);
+	ret = si2168_cmd_execute(client, &cmd);
 	if (ret)
 		goto err;
 
@@ -645,7 +600,7 @@ static int si2168_deselect(struct i2c_mux_core *muxc, u32 chan)
 	memcpy(cmd.args, "\xc0\x0d\x00", 3);
 	cmd.wlen = 3;
 	cmd.rlen = 0;
-	ret = si2168_cmd_execute_unlocked(client, &cmd);
+	ret = si2168_cmd_execute(client, &cmd);
 	if (ret)
 		goto err;
 
@@ -708,9 +663,11 @@ static int si2168_probe(struct i2c_client *client,
 		goto err;
 	}
 
+	mutex_init(&dev->i2c_mutex);
+
 	/* create mux i2c adapter for tuner */
 	dev->muxc = i2c_mux_alloc(client->adapter, &client->dev,
-				  1, 0, 0,
+				  1, 0, I2C_MUX_LOCKED,
 				  si2168_select, si2168_deselect);
 	if (!dev->muxc) {
 		ret = -ENOMEM;
