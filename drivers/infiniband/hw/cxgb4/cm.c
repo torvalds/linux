@@ -1601,7 +1601,19 @@ out:
 	return disconnect;
 }
 
-static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
+/*
+ * process_mpa_request - process streaming mode MPA request
+ *
+ * Returns:
+ *
+ * 0 upon success indicating a connect request was delivered to the ULP
+ * or the mpa request is incomplete but valid so far.
+ *
+ * 1 if a failure requires the caller to close the connection.
+ *
+ * 2 if a failure requires the caller to abort the connection.
+ */
+static int process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 {
 	struct mpa_message *mpa;
 	struct mpa_v2_conn_params *mpa_v2_params;
@@ -1613,11 +1625,8 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * If we get more than the supported amount of private data
 	 * then we must fail this connection.
 	 */
-	if (ep->mpa_pkt_len + skb->len > sizeof(ep->mpa_pkt)) {
-		(void)stop_ep_timer(ep);
-		abort_connection(ep, skb, GFP_KERNEL);
-		return;
-	}
+	if (ep->mpa_pkt_len + skb->len > sizeof(ep->mpa_pkt))
+		goto err_stop_timer;
 
 	PDBG("%s enter (%s line %u)\n", __func__, __FILE__, __LINE__);
 
@@ -1633,7 +1642,7 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * We'll continue process when more data arrives.
 	 */
 	if (ep->mpa_pkt_len < sizeof(*mpa))
-		return;
+		return 0;
 
 	PDBG("%s enter (%s line %u)\n", __func__, __FILE__, __LINE__);
 	mpa = (struct mpa_message *) ep->mpa_pkt;
@@ -1644,43 +1653,32 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	if (mpa->revision > mpa_rev) {
 		printk(KERN_ERR MOD "%s MPA version mismatch. Local = %d,"
 		       " Received = %d\n", __func__, mpa_rev, mpa->revision);
-		(void)stop_ep_timer(ep);
-		abort_connection(ep, skb, GFP_KERNEL);
-		return;
+		goto err_stop_timer;
 	}
 
-	if (memcmp(mpa->key, MPA_KEY_REQ, sizeof(mpa->key))) {
-		(void)stop_ep_timer(ep);
-		abort_connection(ep, skb, GFP_KERNEL);
-		return;
-	}
+	if (memcmp(mpa->key, MPA_KEY_REQ, sizeof(mpa->key)))
+		goto err_stop_timer;
 
 	plen = ntohs(mpa->private_data_size);
 
 	/*
 	 * Fail if there's too much private data.
 	 */
-	if (plen > MPA_MAX_PRIVATE_DATA) {
-		(void)stop_ep_timer(ep);
-		abort_connection(ep, skb, GFP_KERNEL);
-		return;
-	}
+	if (plen > MPA_MAX_PRIVATE_DATA)
+		goto err_stop_timer;
 
 	/*
 	 * If plen does not account for pkt size
 	 */
-	if (ep->mpa_pkt_len > (sizeof(*mpa) + plen)) {
-		(void)stop_ep_timer(ep);
-		abort_connection(ep, skb, GFP_KERNEL);
-		return;
-	}
+	if (ep->mpa_pkt_len > (sizeof(*mpa) + plen))
+		goto err_stop_timer;
 	ep->plen = (u8) plen;
 
 	/*
 	 * If we don't have all the pdata yet, then bail.
 	 */
 	if (ep->mpa_pkt_len < (sizeof(*mpa) + plen))
-		return;
+		return 0;
 
 	/*
 	 * If we get here we have accumulated the entire mpa
@@ -1742,13 +1740,21 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 				  SINGLE_DEPTH_NESTING);
 		if (ep->parent_ep->com.state != DEAD) {
 			if (connect_request_upcall(ep))
-				abort_connection(ep, skb, GFP_KERNEL);
+				goto err_unlock_parent;
 		} else {
-			abort_connection(ep, skb, GFP_KERNEL);
+			goto err_unlock_parent;
 		}
 		mutex_unlock(&ep->parent_ep->com.mutex);
 	}
-	return;
+	return 0;
+
+err_unlock_parent:
+	mutex_unlock(&ep->parent_ep->com.mutex);
+	goto err_out;
+err_stop_timer:
+	(void)stop_ep_timer(ep);
+err_out:
+	return 2;
 }
 
 static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
