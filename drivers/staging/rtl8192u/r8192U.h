@@ -1132,7 +1132,7 @@ int read_nic_word(struct net_device *dev, int x, u16 *data);
 int write_nic_byte(struct net_device *dev, int x, u8 y);
 int write_nic_byte_E(struct net_device *dev, int x, u8 y);
 int write_nic_word(struct net_device *dev, int x, u16 y);
-void write_nic_dword(struct net_device *dev, int x, u32 y);
+int write_nic_dword(struct net_device *dev, int x, u32 y);
 void force_pci_posting(struct net_device *dev);
 
 void rtl8192_rtx_disable(struct net_device *);

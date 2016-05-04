@@ -356,7 +356,7 @@ int write_nic_word(struct net_device *dev, int indx, u16 data)
 }
 
 
-void write_nic_dword(struct net_device *dev, int indx, u32 data)
+int write_nic_dword(struct net_device *dev, int indx, u32 data)
 {
 	int status;
 
@@ -365,7 +365,7 @@ void write_nic_dword(struct net_device *dev, int indx, u32 data)
 	u32 *usbdata = kzalloc(sizeof(data), GFP_KERNEL);
 
 	if (!usbdata)
-		return;
+		return -ENOMEM;
 	*usbdata = data;
 
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
@@ -375,9 +375,13 @@ void write_nic_dword(struct net_device *dev, int indx, u32 data)
 	kfree(usbdata);
 
 
-	if (status < 0)
+	if (status < 0) {
 		netdev_err(dev, "write_nic_dword TimeOut! status: %d\n",
 			   status);
+		return status;
+	}
+
+	return 0;
 }
 
 
