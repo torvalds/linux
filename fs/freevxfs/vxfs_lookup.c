@@ -45,7 +45,7 @@
 /*
  * Number of VxFS blocks per page.
  */
-#define VXFS_BLOCK_PER_PAGE(sbp)  ((PAGE_CACHE_SIZE / (sbp)->s_blocksize))
+#define VXFS_BLOCK_PER_PAGE(sbp)  ((PAGE_SIZE / (sbp)->s_blocksize))
 
 
 static struct dentry *	vxfs_lookup(struct inode *, struct dentry *, unsigned int);
@@ -175,7 +175,7 @@ vxfs_inode_by_name(struct inode *dip, struct dentry *dp)
 	if (de) {
 		ino = de->d_ino;
 		kunmap(pp);
-		page_cache_release(pp);
+		put_page(pp);
 	}
 	
 	return (ino);
@@ -255,8 +255,8 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 	nblocks = dir_blocks(ip);
 	pblocks = VXFS_BLOCK_PER_PAGE(sbp);
 
-	page = pos >> PAGE_CACHE_SHIFT;
-	offset = pos & ~PAGE_CACHE_MASK;
+	page = pos >> PAGE_SHIFT;
+	offset = pos & ~PAGE_MASK;
 	block = (u_long)(pos >> sbp->s_blocksize_bits) % pblocks;
 
 	for (; page < npages; page++, block = 0) {
@@ -289,7 +289,7 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 					continue;
 
 				offset = (char *)de - kaddr;
-				ctx->pos = ((page << PAGE_CACHE_SHIFT) | offset) + 2;
+				ctx->pos = ((page << PAGE_SHIFT) | offset) + 2;
 				if (!dir_emit(ctx, de->d_name, de->d_namelen,
 					de->d_ino, DT_UNKNOWN)) {
 					vxfs_put_page(pp);
@@ -301,6 +301,6 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 		vxfs_put_page(pp);
 		offset = 0;
 	}
-	ctx->pos = ((page << PAGE_CACHE_SHIFT) | offset) + 2;
+	ctx->pos = ((page << PAGE_SHIFT) | offset) + 2;
 	return 0;
 }

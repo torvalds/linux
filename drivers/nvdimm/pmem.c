@@ -99,10 +99,24 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 		if (unlikely(bad_pmem))
 			rc = -EIO;
 		else {
-			memcpy_from_pmem(mem + off, pmem_addr, len);
+			rc = memcpy_from_pmem(mem + off, pmem_addr, len);
 			flush_dcache_page(page);
 		}
 	} else {
+		/*
+		 * Note that we write the data both before and after
+		 * clearing poison.  The write before clear poison
+		 * handles situations where the latest written data is
+		 * preserved and the clear poison operation simply marks
+		 * the address range as valid without changing the data.
+		 * In this case application software can assume that an
+		 * interrupted write will either return the new good
+		 * data or an error.
+		 *
+		 * However, if pmem_clear_poison() leaves the data in an
+		 * indeterminate state we need to perform the write
+		 * after clear poison.
+		 */
 		flush_dcache_page(page);
 		memcpy_to_pmem(pmem_addr, mem + off, len);
 		if (unlikely(bad_pmem)) {
@@ -151,7 +165,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 	int rc;
 
-	rc = pmem_do_bvec(pmem, page, PAGE_CACHE_SIZE, 0, rw, sector);
+	rc = pmem_do_bvec(pmem, page, PAGE_SIZE, 0, rw, sector);
 	if (rw & WRITE)
 		wmb_pmem();
 
@@ -244,7 +258,9 @@ static void pmem_detach_disk(struct pmem_device *pmem)
 static int pmem_attach_disk(struct device *dev,
 		struct nd_namespace_common *ndns, struct pmem_device *pmem)
 {
+	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	int nid = dev_to_node(dev);
+	struct resource bb_res;
 	struct gendisk *disk;
 
 	blk_queue_make_request(pmem->pmem_queue, pmem_make_request);
@@ -271,8 +287,17 @@ static int pmem_attach_disk(struct device *dev,
 	devm_exit_badblocks(dev, &pmem->bb);
 	if (devm_init_badblocks(dev, &pmem->bb))
 		return -ENOMEM;
-	nvdimm_namespace_add_poison(ndns, &pmem->bb, pmem->data_offset);
+	bb_res.start = nsio->res.start + pmem->data_offset;
+	bb_res.end = nsio->res.end;
+	if (is_nd_pfn(dev)) {
+		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
 
+		bb_res.start += __le32_to_cpu(pfn_sb->start_pad);
+		bb_res.end -= __le32_to_cpu(pfn_sb->end_trunc);
+	}
+	nvdimm_badblocks_populate(to_nd_region(dev->parent), &pmem->bb,
+			&bb_res);
 	disk->bb = &pmem->bb;
 	add_disk(disk);
 	revalidate_disk(disk);
@@ -295,7 +320,7 @@ static int pmem_rw_bytes(struct nd_namespace_common *ndns,
 
 		if (unlikely(is_bad_pmem(&pmem->bb, offset / 512, sz_align)))
 			return -EIO;
-		memcpy_from_pmem(buf, pmem->virt_addr + offset, size);
+		return memcpy_from_pmem(buf, pmem->virt_addr + offset, size);
 	} else {
 		memcpy_to_pmem(pmem->virt_addr + offset, buf, size);
 		wmb_pmem();
@@ -553,7 +578,7 @@ static int nd_pmem_probe(struct device *dev)
 	ndns->rw_bytes = pmem_rw_bytes;
 	if (devm_init_badblocks(dev, &pmem->bb))
 		return -ENOMEM;
-	nvdimm_namespace_add_poison(ndns, &pmem->bb, 0);
+	nvdimm_badblocks_populate(nd_region, &pmem->bb, &nsio->res);
 
 	if (is_nd_btt(dev)) {
 		/* btt allocates its own request_queue */
@@ -595,14 +620,25 @@ static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 {
 	struct pmem_device *pmem = dev_get_drvdata(dev);
 	struct nd_namespace_common *ndns = pmem->ndns;
+	struct nd_region *nd_region = to_nd_region(dev->parent);
+	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+	struct resource res = {
+		.start = nsio->res.start + pmem->data_offset,
+		.end = nsio->res.end,
+	};
 
 	if (event != NVDIMM_REVALIDATE_POISON)
 		return;
 
-	if (is_nd_btt(dev))
-		nvdimm_namespace_add_poison(ndns, &pmem->bb, 0);
-	else
-		nvdimm_namespace_add_poison(ndns, &pmem->bb, pmem->data_offset);
+	if (is_nd_pfn(dev)) {
+		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
+
+		res.start += __le32_to_cpu(pfn_sb->start_pad);
+		res.end -= __le32_to_cpu(pfn_sb->end_trunc);
+	}
+
+	nvdimm_badblocks_populate(nd_region, &pmem->bb, &res);
 }
 
 MODULE_ALIAS("pmem");

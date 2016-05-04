@@ -338,10 +338,8 @@ static void target_fabric_nacl_base_release(struct config_item *item)
 {
 	struct se_node_acl *se_nacl = container_of(to_config_group(item),
 			struct se_node_acl, acl_group);
-	struct target_fabric_configfs *tf = se_nacl->se_tpg->se_tpg_wwn->wwn_tf;
 
-	if (tf->tf_ops->fabric_cleanup_nodeacl)
-		tf->tf_ops->fabric_cleanup_nodeacl(se_nacl);
+	configfs_remove_default_groups(&se_nacl->acl_fabric_stat_group);
 	core_tpg_del_initiator_node_acl(se_nacl);
 }
 
@@ -383,14 +381,6 @@ static struct config_group *target_fabric_make_nodeacl(
 	if (IS_ERR(se_nacl))
 		return ERR_CAST(se_nacl);
 
-	if (tf->tf_ops->fabric_init_nodeacl) {
-		int ret = tf->tf_ops->fabric_init_nodeacl(se_nacl, name);
-		if (ret) {
-			core_tpg_del_initiator_node_acl(se_nacl);
-			return ERR_PTR(ret);
-		}
-	}
-
 	config_group_init_type_name(&se_nacl->acl_group, name,
 			&tf->tf_tpg_nacl_base_cit);
 
@@ -413,6 +403,15 @@ static struct config_group *target_fabric_make_nodeacl(
 			"fabric_statistics", &tf->tf_tpg_nacl_stat_cit);
 	configfs_add_default_group(&se_nacl->acl_fabric_stat_group,
 			&se_nacl->acl_group);
+
+	if (tf->tf_ops->fabric_init_nodeacl) {
+		int ret = tf->tf_ops->fabric_init_nodeacl(se_nacl, name);
+		if (ret) {
+			configfs_remove_default_groups(&se_nacl->acl_fabric_stat_group);
+			core_tpg_del_initiator_node_acl(se_nacl);
+			return ERR_PTR(ret);
+		}
+	}
 
 	return &se_nacl->acl_group;
 }
@@ -892,6 +891,7 @@ static void target_fabric_release_wwn(struct config_item *item)
 				struct se_wwn, wwn_group);
 	struct target_fabric_configfs *tf = wwn->wwn_tf;
 
+	configfs_remove_default_groups(&wwn->fabric_stat_group);
 	tf->tf_ops->fabric_drop_wwn(wwn);
 }
 
@@ -945,6 +945,8 @@ static struct config_group *target_fabric_make_wwn(
 			&tf->tf_wwn_fabric_stats_cit);
 	configfs_add_default_group(&wwn->fabric_stat_group, &wwn->wwn_group);
 
+	if (tf->tf_ops->add_wwn_groups)
+		tf->tf_ops->add_wwn_groups(wwn);
 	return &wwn->wwn_group;
 }
 

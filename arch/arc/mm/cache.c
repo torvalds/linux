@@ -628,7 +628,7 @@ void flush_dcache_page(struct page *page)
 
 		/* kernel reading from page with U-mapping */
 		phys_addr_t paddr = (unsigned long)page_address(page);
-		unsigned long vaddr = page->index << PAGE_CACHE_SHIFT;
+		unsigned long vaddr = page->index << PAGE_SHIFT;
 
 		if (addr_not_cache_congruent(paddr, vaddr))
 			__flush_dcache_page(paddr, vaddr);

@@ -1327,8 +1327,8 @@ struct bm_extent {
 #endif
 #endif
 
-/* BIO_MAX_SIZE is 256 * PAGE_CACHE_SIZE,
- * so for typical PAGE_CACHE_SIZE of 4k, that is (1<<20) Byte.
+/* BIO_MAX_SIZE is 256 * PAGE_SIZE,
+ * so for typical PAGE_SIZE of 4k, that is (1<<20) Byte.
  * Since we may live in a mixed-platform cluster,
  * we limit us to a platform agnostic constant here for now.
  * A followup commit may allow even bigger BIO sizes,
