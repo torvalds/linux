@@ -2922,14 +2922,14 @@ int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 	set_bit(ULP_REJECT, &ep->com.history);
 	BUG_ON(ep->com.state != MPA_REQ_RCVD);
 	if (mpa_rev == 0)
-		abort_connection(ep, NULL, GFP_KERNEL);
+		disconnect = 2;
 	else {
 		err = send_mpa_reject(ep, pdata, pdata_len);
 		disconnect = 1;
 	}
 	mutex_unlock(&ep->com.mutex);
 	if (disconnect)
-		err = c4iw_ep_disconnect(ep, 0, GFP_KERNEL);
+		err = c4iw_ep_disconnect(ep, disconnect == 2, GFP_KERNEL);
 	c4iw_put_ep(&ep->com);
 	return 0;
 }
@@ -2942,13 +2942,14 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_ep *ep = to_ep(cm_id);
 	struct c4iw_dev *h = to_c4iw_dev(cm_id->device);
 	struct c4iw_qp *qp = get_qhp(h, conn_param->qpn);
+	int abort = 0;
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
 	mutex_lock(&ep->com.mutex);
 	if (ep->com.state == DEAD) {
 		err = -ECONNRESET;
-		goto err;
+		goto err_out;
 	}
 
 	BUG_ON(ep->com.state != MPA_REQ_RCVD);
@@ -2957,9 +2958,8 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	set_bit(ULP_ACCEPT, &ep->com.history);
 	if ((conn_param->ord > cur_max_read_depth(ep->com.dev)) ||
 	    (conn_param->ird > cur_max_read_depth(ep->com.dev))) {
-		abort_connection(ep, NULL, GFP_KERNEL);
 		err = -EINVAL;
-		goto err;
+		goto err_abort;
 	}
 
 	if (ep->mpa_attr.version == 2 && ep->mpa_attr.enhanced_rdma_conn) {
@@ -2971,9 +2971,8 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 				ep->ord = conn_param->ord;
 				send_mpa_reject(ep, conn_param->private_data,
 						conn_param->private_data_len);
-				abort_connection(ep, NULL, GFP_KERNEL);
 				err = -ENOMEM;
-				goto err;
+				goto err_abort;
 			}
 		}
 		if (conn_param->ird < ep->ord) {
@@ -2981,9 +2980,8 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			    ep->ord <= h->rdev.lldi.max_ordird_qp) {
 				conn_param->ird = ep->ord;
 			} else {
-				abort_connection(ep, NULL, GFP_KERNEL);
 				err = -ENOMEM;
-				goto err;
+				goto err_abort;
 			}
 		}
 	}
@@ -3024,23 +3022,26 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	err = c4iw_modify_qp(ep->com.qp->rhp,
 			     ep->com.qp, mask, &attrs, 1);
 	if (err)
-		goto err1;
+		goto err_deref_cm_id;
 	err = send_mpa_reply(ep, conn_param->private_data,
 			     conn_param->private_data_len);
 	if (err)
-		goto err1;
+		goto err_deref_cm_id;
 
 	__state_set(&ep->com, FPDU_MODE);
 	established_upcall(ep);
 	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 	return 0;
-err1:
+err_deref_cm_id:
 	ep->com.cm_id = NULL;
-	abort_connection(ep, NULL, GFP_KERNEL);
 	cm_id->rem_ref(cm_id);
-err:
+err_abort:
+	abort = 1;
+err_out:
 	mutex_unlock(&ep->com.mutex);
+	if (abort)
+		c4iw_ep_disconnect(ep, 1, GFP_KERNEL);
 	c4iw_put_ep(&ep->com);
 	return err;
 }
