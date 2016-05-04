@@ -168,8 +168,6 @@ static const struct comedi_lrange dt2811_ao_ranges = {
 	}
 };
 
-#define TIMEOUT 10000
-
 struct dt2811_board {
 	const char *name;
 	unsigned int is_pgh:1;
