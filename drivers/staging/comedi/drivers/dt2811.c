@@ -33,14 +33,17 @@
  *	   0 = single-ended (16 channels)
  *	   1 = differential (8 channels)
  *	   2 = pseudo-differential (16 channels)
- *   [3] - A/D range
- *	   0 = [-5, 5]
- *	   1 = [-2.5, 2.5]
- *	   2 = [0, 5]
+ *   [3] - A/D range (deprecated, see below)
  *   [4] - D/A 0 range (deprecated, see below)
  *   [5] - D/A 1 range (deprecated, see below)
  *
  * Notes:
+ *   - A/D ranges are not programmable but the gain is. The AI subdevice has
+ *     a range_table containing all the possible analog input range/gain
+ *     options for the dt2811-pgh or dt2811-pgl. Use the range that matches
+ *     your board configuration and the desired gain to correctly convert
+ *     between data values and physical units and to set the correct output
+ *     gain.
  *   - D/A ranges are not programmable. The AO subdevice has a range_table
  *     containing all the possible analog output ranges. Use the range
  *     that matches your board configuration to convert between data
@@ -99,57 +102,52 @@
 #define DT2811_TMRCTR_MANTISSA(x)	(((x) & 0x7) << 3)
 #define DT2811_TMRCTR_EXPONENT(x)	(((x) & 0x7) << 0)
 
-static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
-	4, {
-		UNI_RANGE(5),
-		UNI_RANGE(2.5),
-		UNI_RANGE(1.25),
-		UNI_RANGE(0.625)
+/*
+ * The Analog Input range is set using jumpers on the board.
+ *
+ * Input Range		W9  W10
+ * -5V to +5V		In  Out
+ * -2.5V to +2.5V	In  In
+ * 0V to +5V		Out In
+ *
+ * The gain may be set to 1, 2, 4, or 8 (on the dt2811-pgh) or to
+ * 1, 10, 100, 500 (on the dt2811-pgl).
+ */
+static const struct comedi_lrange dt2811_pgh_ai_ranges = {
+	12, {
+		BIP_RANGE(5),		/* range 0: gain=1 */
+		BIP_RANGE(2.5),		/* range 1: gain=2 */
+		BIP_RANGE(1.25),	/* range 2: gain=4 */
+		BIP_RANGE(0.625),	/* range 3: gain=8 */
+
+		BIP_RANGE(2.5),		/* range 0+4: gain=1 */
+		BIP_RANGE(1.25),	/* range 1+4: gain=2 */
+		BIP_RANGE(0.625),	/* range 2+4: gain=4 */
+		BIP_RANGE(0.3125),	/* range 3+4: gain=8 */
+
+		UNI_RANGE(5),		/* range 0+8: gain=1 */
+		UNI_RANGE(2.5),		/* range 1+8: gain=2 */
+		UNI_RANGE(1.25),	/* range 2+8: gain=4 */
+		UNI_RANGE(0.625)	/* range 3+8: gain=8 */
 	}
 };
 
-static const struct comedi_lrange range_dt2811_pgh_ai_2_5_bipolar = {
-	4, {
-		BIP_RANGE(2.5),
-		BIP_RANGE(1.25),
-		BIP_RANGE(0.625),
-		BIP_RANGE(0.3125)
-	}
-};
+static const struct comedi_lrange dt2811_pgl_ai_ranges = {
+	12, {
+		BIP_RANGE(5),		/* range 0: gain=1 */
+		BIP_RANGE(0.5),		/* range 1: gain=10 */
+		BIP_RANGE(0.05),	/* range 2: gain=100 */
+		BIP_RANGE(0.01),	/* range 3: gain=500 */
 
-static const struct comedi_lrange range_dt2811_pgh_ai_5_bipolar = {
-	4, {
-		BIP_RANGE(5),
-		BIP_RANGE(2.5),
-		BIP_RANGE(1.25),
-		BIP_RANGE(0.625)
-	}
-};
+		BIP_RANGE(2.5),		/* range 0+4: gain=1 */
+		BIP_RANGE(0.25),	/* range 1+4: gain=10 */
+		BIP_RANGE(0.025),	/* range 2+4: gain=100 */
+		BIP_RANGE(0.005),	/* range 3+4: gain=500 */
 
-static const struct comedi_lrange range_dt2811_pgl_ai_5_unipolar = {
-	4, {
-		UNI_RANGE(5),
-		UNI_RANGE(0.5),
-		UNI_RANGE(0.05),
-		UNI_RANGE(0.01)
-	}
-};
-
-static const struct comedi_lrange range_dt2811_pgl_ai_2_5_bipolar = {
-	4, {
-		BIP_RANGE(2.5),
-		BIP_RANGE(0.25),
-		BIP_RANGE(0.025),
-		BIP_RANGE(0.005)
-	}
-};
-
-static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
-	4, {
-		BIP_RANGE(5),
-		BIP_RANGE(0.5),
-		BIP_RANGE(0.05),
-		BIP_RANGE(0.01)
+		UNI_RANGE(5),		/* range 0+8: gain=1 */
+		UNI_RANGE(0.5),		/* range 1+8: gain=10 */
+		UNI_RANGE(0.05),	/* range 2+8: gain=100 */
+		UNI_RANGE(0.01)		/* range 3+8: gain=500 */
 	}
 };
 
@@ -174,12 +172,17 @@ static const struct comedi_lrange dt2811_ao_ranges = {
 
 struct dt2811_board {
 	const char *name;
-	const struct comedi_lrange *bip_5;
-	const struct comedi_lrange *bip_2_5;
-	const struct comedi_lrange *unip_5;
+	unsigned int is_pgh:1;
 };
 
-enum { card_2811_pgh, card_2811_pgl };
+static const struct dt2811_board boardtypes[] = {
+	{
+		.name		= "dt2811-pgh",
+		.is_pgh		= 1,
+	}, {
+		.name		= "dt2811-pgl",
+	},
+};
 
 static int dt2811_ai_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
@@ -289,18 +292,8 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = (it->options[2] == 1) ? 8 : 16;
 	s->insn_read = dt2811_ai_insn;
 	s->maxdata = 0xfff;
-	switch (it->options[3]) {
-	case 0:
-	default:
-		s->range_table = board->bip_5;
-		break;
-	case 1:
-		s->range_table = board->bip_2_5;
-		break;
-	case 2:
-		s->range_table = board->unip_5;
-		break;
-	}
+	s->range_table	= board->is_pgh ? &dt2811_pgh_ai_ranges
+					: &dt2811_pgl_ai_ranges;
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
@@ -335,20 +328,6 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	return 0;
 }
-
-static const struct dt2811_board boardtypes[] = {
-	{
-		.name		= "dt2811-pgh",
-		.bip_5		= &range_dt2811_pgh_ai_5_bipolar,
-		.bip_2_5	= &range_dt2811_pgh_ai_2_5_bipolar,
-		.unip_5		= &range_dt2811_pgh_ai_5_unipolar,
-	}, {
-		.name		= "dt2811-pgl",
-		.bip_5		= &range_dt2811_pgl_ai_5_bipolar,
-		.bip_2_5	= &range_dt2811_pgl_ai_2_5_bipolar,
-		.unip_5		= &range_dt2811_pgl_ai_5_unipolar,
-	},
-};
 
 static struct comedi_driver dt2811_driver = {
 	.driver_name	= "dt2811",
