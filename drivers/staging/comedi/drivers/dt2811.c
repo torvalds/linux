@@ -240,7 +240,8 @@ static int dt2811_ao_insn_write(struct comedi_device *dev,
 
 static int dt2811_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	data[1] = inb(dev->iobase + DT2811_DI_REG);
 
@@ -357,24 +358,23 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	/* di subdevice */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 8;
-	s->insn_bits = dt2811_di_insn_bits;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= dt2811_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	/* do subdevice */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 8;
-	s->insn_bits = dt2811_do_insn_bits;
-	s->maxdata = 1;
-	s->state = 0;
-	s->range_table = &range_digital;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= dt2811_do_insn_bits;
 
 	return 0;
 }
