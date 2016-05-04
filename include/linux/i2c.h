@@ -524,6 +524,7 @@ struct i2c_adapter {
 
 	/* data fields that are valid for all devices	*/
 	struct rt_mutex bus_lock;
+	struct rt_mutex mux_lock;
 
 	int timeout;			/* in jiffies */
 	int retries;

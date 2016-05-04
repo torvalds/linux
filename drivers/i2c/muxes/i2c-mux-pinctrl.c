@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include "../../pinctrl/core.h"
 
 struct i2c_mux_pinctrl {
 	struct i2c_mux_pinctrl_platform_data *pdata;
@@ -120,10 +121,31 @@ static inline int i2c_mux_pinctrl_parse_dt(struct i2c_mux_pinctrl *mux,
 }
 #endif
 
+static struct i2c_adapter *i2c_mux_pinctrl_root_adapter(
+	struct pinctrl_state *state)
+{
+	struct i2c_adapter *root = NULL;
+	struct pinctrl_setting *setting;
+	struct i2c_adapter *pin_root;
+
+	list_for_each_entry(setting, &state->settings, node) {
+		pin_root = i2c_root_adapter(setting->pctldev->dev);
+		if (!pin_root)
+			return NULL;
+		if (!root)
+			root = pin_root;
+		else if (root != pin_root)
+			return NULL;
+	}
+
+	return root;
+}
+
 static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 {
 	struct i2c_mux_core *muxc;
 	struct i2c_mux_pinctrl *mux;
+	struct i2c_adapter *root;
 	int i, ret;
 
 	mux = devm_kzalloc(&pdev->dev, sizeof(*mux), GFP_KERNEL);
@@ -201,6 +223,22 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 		ret = -EPROBE_DEFER;
 		goto err;
 	}
+
+	root = i2c_root_adapter(&muxc->parent->dev);
+
+	muxc->mux_locked = true;
+	for (i = 0; i < mux->pdata->bus_count; i++) {
+		if (root != i2c_mux_pinctrl_root_adapter(mux->states[i])) {
+			muxc->mux_locked = false;
+			break;
+		}
+	}
+	if (muxc->mux_locked && mux->pdata->pinctrl_state_idle &&
+	    root != i2c_mux_pinctrl_root_adapter(mux->state_idle))
+		muxc->mux_locked = false;
+
+	if (muxc->mux_locked)
+		dev_info(&pdev->dev, "mux-locked i2c mux\n");
 
 	for (i = 0; i < mux->pdata->bus_count; i++) {
 		u32 bus = mux->pdata->base_bus_num ?
