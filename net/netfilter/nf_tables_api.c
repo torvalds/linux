@@ -2317,7 +2317,7 @@ nft_select_set_ops(const struct nlattr * const nla[],
 static const struct nla_policy nft_set_policy[NFTA_SET_MAX + 1] = {
 	[NFTA_SET_TABLE]		= { .type = NLA_STRING },
 	[NFTA_SET_NAME]			= { .type = NLA_STRING,
-					    .len = IFNAMSIZ - 1 },
+					    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_SET_FLAGS]		= { .type = NLA_U32 },
 	[NFTA_SET_KEY_TYPE]		= { .type = NLA_U32 },
 	[NFTA_SET_KEY_LEN]		= { .type = NLA_U32 },
@@ -2401,7 +2401,7 @@ static int nf_tables_set_alloc_name(struct nft_ctx *ctx, struct nft_set *set,
 	unsigned long *inuse;
 	unsigned int n = 0, min = 0;
 
-	p = strnchr(name, IFNAMSIZ, '%');
+	p = strnchr(name, NFT_SET_MAXNAMELEN, '%');
 	if (p != NULL) {
 		if (p[1] != 'd' || strchr(p + 2, '%'))
 			return -EINVAL;
@@ -2696,7 +2696,7 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 	struct nft_table *table;
 	struct nft_set *set;
 	struct nft_ctx ctx;
-	char name[IFNAMSIZ];
+	char name[NFT_SET_MAXNAMELEN];
 	unsigned int size;
 	bool create;
 	u64 timeout;
