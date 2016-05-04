@@ -11,9 +11,10 @@
 
 #include <drm/drmP.h>
 
-#include <drm/exynos_drm.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_fb.h"
@@ -57,11 +58,12 @@ static int exynos_plane_get_size(int start, unsigned length, unsigned last)
 }
 
 static void exynos_plane_mode_set(struct exynos_drm_plane_state *exynos_state)
-
 {
 	struct drm_plane_state *state = &exynos_state->base;
-	struct drm_crtc *crtc = exynos_state->base.crtc;
-	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_crtc_state *crtc_state =
+			drm_atomic_get_existing_crtc_state(state->state, crtc);
+	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
 	unsigned int src_x, src_y;

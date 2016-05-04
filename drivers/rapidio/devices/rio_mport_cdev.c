@@ -886,7 +886,7 @@ rio_dma_transfer(struct file *filp, uint32_t transfer_mode,
 		}
 
 		down_read(&current->mm->mmap_sem);
-		pinned = get_user_pages(current, current->mm,
+		pinned = get_user_pages(
 				(unsigned long)xfer->loc_addr & PAGE_MASK,
 				nr_pages, dir == DMA_FROM_DEVICE, 0,
 				page_list, NULL);
@@ -2669,9 +2669,9 @@ static int __init mport_init(void)
 
 	/* Create device class needed by udev */
 	dev_class = class_create(THIS_MODULE, DRV_NAME);
-	if (!dev_class) {
+	if (IS_ERR(dev_class)) {
 		rmcd_error("Unable to create " DRV_NAME " class");
-		return -EINVAL;
+		return PTR_ERR(dev_class);
 	}
 
 	ret = alloc_chrdev_region(&dev_number, 0, RIO_MAX_MPORTS, DRV_NAME);

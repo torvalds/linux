@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/kfifo.h>
+#include <linux/spinlock.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -89,6 +90,7 @@ struct f_midi {
 	unsigned int buflen, qlen;
 	/* This fifo is used as a buffer ring for pre-allocated IN usb_requests */
 	DECLARE_KFIFO_PTR(in_req_fifo, struct usb_request *);
+	spinlock_t transmit_lock;
 	unsigned int in_last_port;
 
 	struct gmidi_in_port	in_ports_array[/* in_ports */];
@@ -358,7 +360,9 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	/* allocate a bunch of read buffers and queue them all at once. */
 	for (i = 0; i < midi->qlen && err == 0; i++) {
 		struct usb_request *req =
-			midi_alloc_ep_req(midi->out_ep, midi->buflen);
+			midi_alloc_ep_req(midi->out_ep,
+				max_t(unsigned, midi->buflen,
+					bulk_out_desc.wMaxPacketSize));
 		if (req == NULL)
 			return -ENOMEM;
 
@@ -597,16 +601,23 @@ static void f_midi_transmit(struct f_midi *midi)
 {
 	struct usb_ep *ep = midi->in_ep;
 	int ret;
+	unsigned long flags;
 
 	/* We only care about USB requests if IN endpoint is enabled */
 	if (!ep || !ep->enabled)
 		goto drop_out;
 
+	spin_lock_irqsave(&midi->transmit_lock, flags);
+
 	do {
 		ret = f_midi_do_transmit(midi, ep);
-		if (ret < 0)
+		if (ret < 0) {
+			spin_unlock_irqrestore(&midi->transmit_lock, flags);
 			goto drop_out;
+		}
 	} while (ret);
+
+	spin_unlock_irqrestore(&midi->transmit_lock, flags);
 
 	return;
 
@@ -1200,6 +1211,8 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	status = kfifo_alloc(&midi->in_req_fifo, midi->qlen, GFP_KERNEL);
 	if (status)
 		goto setup_fail;
+
+	spin_lock_init(&midi->transmit_lock);
 
 	++opts->refcnt;
 	mutex_unlock(&opts->lock);
