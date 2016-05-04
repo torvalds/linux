@@ -48,6 +48,11 @@ Required properties:
 			  receive data by following their own bit clocks and
 			  frame sync clocks separately.
 
+Optional properties (for mx6ul):
+
+  - fsl,sai-mclk-direction-output: This is a boolean property. If present,
+			 indicates that SAI will output the SAI MCLK clock.
+
 Note:
 - If both fsl,sai-asynchronous and fsl,sai-synchronous-rx are absent, the
   default synchronous mode (sync Rx with Tx) will be used, which means both
