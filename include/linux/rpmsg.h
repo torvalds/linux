@@ -169,13 +169,17 @@ struct rpmsg_driver {
 
 int register_rpmsg_device(struct rpmsg_channel *dev);
 void unregister_rpmsg_device(struct rpmsg_channel *dev);
-int register_rpmsg_driver(struct rpmsg_driver *drv);
+int __register_rpmsg_driver(struct rpmsg_driver *drv, struct module *owner);
 void unregister_rpmsg_driver(struct rpmsg_driver *drv);
 void rpmsg_destroy_ept(struct rpmsg_endpoint *);
 struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_channel *,
 				rpmsg_rx_cb_t cb, void *priv, u32 addr);
 int
 rpmsg_send_offchannel_raw(struct rpmsg_channel *, u32, u32, void *, int, bool);
+
+/* use a macro to avoid include chaining to get THIS_MODULE */
+#define register_rpmsg_driver(drv) \
+	__register_rpmsg_driver(drv, THIS_MODULE)
 
 /**
  * rpmsg_send() - send a message across to the remote processor
