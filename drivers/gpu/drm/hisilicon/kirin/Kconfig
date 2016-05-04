@@ -1,0 +1,18 @@
+config DRM_HISI_KIRIN
+	tristate "DRM Support for Hisilicon Kirin series SoCs Platform"
+	depends on DRM && OF && ARM64
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_CMA_HELPER
+	help
+	  Choose this option if you have a hisilicon Kirin chipsets(hi6220).
+	  If M is selected the module will be called kirin-drm.
+
+config HISI_KIRIN_DW_DSI
+	tristate "HiSilicon Kirin specific extensions for Synopsys DW MIPI DSI"
+	depends on DRM_HISI_KIRIN
+	select DRM_MIPI_DSI
+	help
+	 This selects support for HiSilicon Kirin SoC specific extensions for
+	 the Synopsys DesignWare DSI driver. If you want to enable MIPI DSI on
+	 hi6220 based SoC, you should selet this option.
