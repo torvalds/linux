@@ -2020,17 +2020,7 @@ static inline int dgnc_get_mstat(struct channel_t *ch)
 static int dgnc_get_modem_info(struct channel_t *ch,
 			       unsigned int  __user *value)
 {
-	int result;
-
-	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return -ENXIO;
-
-	result = dgnc_get_mstat(ch);
-
-	if (result < 0)
-		return -ENXIO;
-
-	return put_user(result, value);
+	return put_user(dgnc_get_mstat(ch), value);
 }
 
 /*
