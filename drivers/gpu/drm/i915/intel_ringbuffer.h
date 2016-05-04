@@ -270,6 +270,7 @@ struct  intel_engine_cs {
 	spinlock_t execlist_lock; /* used inside tasklet, use spin_lock_bh */
 	struct list_head execlist_queue;
 	struct list_head execlist_retired_req_list;
+	unsigned int fw_domains;
 	unsigned int next_context_status_buffer;
 	unsigned int idle_lite_restore_wa;
 	bool disable_lite_restore_wa;

@@ -58,8 +58,6 @@
 #define	SLAVE_ADDR1	0x70
 #define	SLAVE_ADDR2	0x72
 
-static int panel_type;
-
 /* Get BDB block size given a pointer to Block ID. */
 static u32 _get_blocksize(const u8 *block_base)
 {
@@ -205,17 +203,32 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	const struct lvds_dvo_timing *panel_dvo_timing;
 	const struct lvds_fp_timing *fp_timing;
 	struct drm_display_mode *panel_fixed_mode;
+	int panel_type;
 	int drrs_mode;
+	int ret;
 
 	lvds_options = find_section(bdb, BDB_LVDS_OPTIONS);
 	if (!lvds_options)
 		return;
 
 	dev_priv->vbt.lvds_dither = lvds_options->pixel_dither;
-	if (lvds_options->panel_type == 0xff)
-		return;
 
-	panel_type = lvds_options->panel_type;
+	ret = intel_opregion_get_panel_type(dev_priv->dev);
+	if (ret >= 0) {
+		WARN_ON(ret > 0xf);
+		panel_type = ret;
+		DRM_DEBUG_KMS("Panel type: %d (OpRegion)\n", panel_type);
+	} else {
+		if (lvds_options->panel_type > 0xf) {
+			DRM_DEBUG_KMS("Invalid VBT panel type 0x%x\n",
+				      lvds_options->panel_type);
+			return;
+		}
+		panel_type = lvds_options->panel_type;
+		DRM_DEBUG_KMS("Panel type: %d (VBT)\n", panel_type);
+	}
+
+	dev_priv->vbt.panel_type = panel_type;
 
 	drrs_mode = (lvds_options->dps_panel_type_bits
 				>> (panel_type * 2)) & MODE_MASK;
@@ -251,7 +264,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 
 	panel_dvo_timing = get_lvds_dvo_timing(lvds_lfp_data,
 					       lvds_lfp_data_ptrs,
-					       lvds_options->panel_type);
+					       panel_type);
 
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 	if (!panel_fixed_mode)
@@ -266,7 +279,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 
 	fp_timing = get_lvds_fp_timing(bdb, lvds_lfp_data,
 				       lvds_lfp_data_ptrs,
-				       lvds_options->panel_type);
+				       panel_type);
 	if (fp_timing) {
 		/* check the resolution, just to be sure */
 		if (fp_timing->x_res == panel_fixed_mode->hdisplay &&
@@ -284,6 +297,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 {
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct bdb_lfp_backlight_data_entry *entry;
+	int panel_type = dev_priv->vbt.panel_type;
 
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
@@ -546,6 +560,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 	const struct bdb_edp *edp;
 	const struct edp_power_seq *edp_pps;
 	const struct edp_link_params *edp_link_params;
+	int panel_type = dev_priv->vbt.panel_type;
 
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
@@ -657,6 +672,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 {
 	const struct bdb_psr *psr;
 	const struct psr_table *psr_table;
+	int panel_type = dev_priv->vbt.panel_type;
 
 	psr = find_section(bdb, BDB_PSR);
 	if (!psr) {
@@ -703,6 +719,7 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 	const struct bdb_mipi_config *start;
 	const struct mipi_config *config;
 	const struct mipi_pps_data *pps;
+	int panel_type = dev_priv->vbt.panel_type;
 
 	/* parse MIPI blocks only if LFP type is MIPI */
 	if (!intel_bios_is_dsi_present(dev_priv, NULL))
@@ -910,6 +927,7 @@ static void
 parse_mipi_sequence(struct drm_i915_private *dev_priv,
 		    const struct bdb_header *bdb)
 {
+	int panel_type = dev_priv->vbt.panel_type;
 	const struct bdb_mipi_sequence *sequence;
 	const u8 *seq_data;
 	u32 seq_size;

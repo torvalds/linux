@@ -443,9 +443,17 @@ void intel_prepare_ddi_buffer(struct intel_encoder *encoder)
 	} else if (IS_BROADWELL(dev_priv)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
-		ddi_translations_edp = bdw_ddi_translations_edp;
+
+		if (dev_priv->vbt.edp.low_vswing) {
+			ddi_translations_edp = bdw_ddi_translations_edp;
+			n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
+		} else {
+			ddi_translations_edp = bdw_ddi_translations_dp;
+			n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
+		}
+
 		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
-		n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
+
 		n_dp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
 		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
 		hdmi_default_entry = 7;
@@ -1722,11 +1730,77 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	}
 }
 
+static bool broxton_phy_is_enabled(struct drm_i915_private *dev_priv,
+				   enum dpio_phy phy)
+{
+	if (!(I915_READ(BXT_P_CR_GT_DISP_PWRON) & GT_DISPLAY_POWER_ON(phy)))
+		return false;
+
+	if ((I915_READ(BXT_PORT_CL1CM_DW0(phy)) &
+	     (PHY_POWER_GOOD | PHY_RESERVED)) != PHY_POWER_GOOD) {
+		DRM_DEBUG_DRIVER("DDI PHY %d powered, but power hasn't settled\n",
+				 phy);
+
+		return false;
+	}
+
+	if (phy == DPIO_PHY1 &&
+	    !(I915_READ(BXT_PORT_REF_DW3(DPIO_PHY1)) & GRC_DONE)) {
+		DRM_DEBUG_DRIVER("DDI PHY 1 powered, but GRC isn't done\n");
+
+		return false;
+	}
+
+	if (!(I915_READ(BXT_PHY_CTL_FAMILY(phy)) & COMMON_RESET_DIS)) {
+		DRM_DEBUG_DRIVER("DDI PHY %d powered, but still in reset\n",
+				 phy);
+
+		return false;
+	}
+
+	return true;
+}
+
+static u32 broxton_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+{
+	u32 val = I915_READ(BXT_PORT_REF_DW6(phy));
+
+	return (val & GRC_CODE_MASK) >> GRC_CODE_SHIFT;
+}
+
+static void broxton_phy_wait_grc_done(struct drm_i915_private *dev_priv,
+				      enum dpio_phy phy)
+{
+	if (wait_for(I915_READ(BXT_PORT_REF_DW3(phy)) & GRC_DONE, 10))
+		DRM_ERROR("timeout waiting for PHY%d GRC\n", phy);
+}
+
+static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
+				     enum dpio_phy phy);
+
 static void broxton_phy_init(struct drm_i915_private *dev_priv,
 			     enum dpio_phy phy)
 {
 	enum port port;
 	u32 ports, val;
+
+	if (broxton_phy_is_enabled(dev_priv, phy)) {
+		/* Still read out the GRC value for state verification */
+		if (phy == DPIO_PHY0)
+			dev_priv->bxt_phy_grc = broxton_get_grc(dev_priv, phy);
+
+		if (broxton_phy_verify_state(dev_priv, phy)) {
+			DRM_DEBUG_DRIVER("DDI PHY %d already enabled, "
+					 "won't reprogram it\n", phy);
+
+			return;
+		}
+
+		DRM_DEBUG_DRIVER("DDI PHY %d enabled with invalid state, "
+				 "force reprogramming it\n", phy);
+	} else {
+		DRM_DEBUG_DRIVER("DDI PHY %d not enabled, enabling it\n", phy);
+	}
 
 	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
 	val |= GT_DISPLAY_POWER_ON(phy);
@@ -1798,6 +1872,9 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 	 * enabled.
 	 * TODO: port C is only connected on BXT-P, so on BXT0/1 we should
 	 * power down the second channel on PHY0 as well.
+	 *
+	 * FIXME: Clarify programming of the following, the register is
+	 * read-only with bit 6 fixed at 0 at least in stepping A.
 	 */
 	if (phy == DPIO_PHY1)
 		val |= OCL2_LDOFUSE_PWR_DIS;
@@ -1810,12 +1887,10 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 		 * the corresponding calibrated value from PHY1, and disable
 		 * the automatic calibration on PHY0.
 		 */
-		if (wait_for(I915_READ(BXT_PORT_REF_DW3(DPIO_PHY1)) & GRC_DONE,
-			     10))
-			DRM_ERROR("timeout waiting for PHY1 GRC\n");
+		broxton_phy_wait_grc_done(dev_priv, DPIO_PHY1);
 
-		val = I915_READ(BXT_PORT_REF_DW6(DPIO_PHY1));
-		val = (val & GRC_CODE_MASK) >> GRC_CODE_SHIFT;
+		val = dev_priv->bxt_phy_grc = broxton_get_grc(dev_priv,
+							      DPIO_PHY1);
 		grc_code = val << GRC_CODE_FAST_SHIFT |
 			   val << GRC_CODE_SLOW_SHIFT |
 			   val;
@@ -1825,17 +1900,27 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 		val |= GRC_DIS | GRC_RDY_OVRD;
 		I915_WRITE(BXT_PORT_REF_DW8(DPIO_PHY0), val);
 	}
+	/*
+	 * During PHY1 init delay waiting for GRC calibration to finish, since
+	 * it can happen in parallel with the subsequent PHY0 init.
+	 */
 
 	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
 	val |= COMMON_RESET_DIS;
 	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
 }
 
-void broxton_ddi_phy_init(struct drm_device *dev)
+void broxton_ddi_phy_init(struct drm_i915_private *dev_priv)
 {
 	/* Enable PHY1 first since it provides Rcomp for PHY0 */
-	broxton_phy_init(dev->dev_private, DPIO_PHY1);
-	broxton_phy_init(dev->dev_private, DPIO_PHY0);
+	broxton_phy_init(dev_priv, DPIO_PHY1);
+	broxton_phy_init(dev_priv, DPIO_PHY0);
+
+	/*
+	 * If BIOS enabled only PHY0 and not PHY1, we skipped waiting for the
+	 * PHY1 GRC calibration to finish, so wait for it here.
+	 */
+	broxton_phy_wait_grc_done(dev_priv, DPIO_PHY1);
 }
 
 static void broxton_phy_uninit(struct drm_i915_private *dev_priv,
@@ -1846,17 +1931,126 @@ static void broxton_phy_uninit(struct drm_i915_private *dev_priv,
 	val = I915_READ(BXT_PHY_CTL_FAMILY(phy));
 	val &= ~COMMON_RESET_DIS;
 	I915_WRITE(BXT_PHY_CTL_FAMILY(phy), val);
+
+	val = I915_READ(BXT_P_CR_GT_DISP_PWRON);
+	val &= ~GT_DISPLAY_POWER_ON(phy);
+	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
 }
 
-void broxton_ddi_phy_uninit(struct drm_device *dev)
+void broxton_ddi_phy_uninit(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	broxton_phy_uninit(dev_priv, DPIO_PHY1);
 	broxton_phy_uninit(dev_priv, DPIO_PHY0);
+}
 
-	/* FIXME: do this in broxton_phy_uninit per phy */
-	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, 0);
+static bool __printf(6, 7)
+__phy_reg_verify_state(struct drm_i915_private *dev_priv, enum dpio_phy phy,
+		       i915_reg_t reg, u32 mask, u32 expected,
+		       const char *reg_fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	u32 val;
+
+	val = I915_READ(reg);
+	if ((val & mask) == expected)
+		return true;
+
+	va_start(args, reg_fmt);
+	vaf.fmt = reg_fmt;
+	vaf.va = &args;
+
+	DRM_DEBUG_DRIVER("DDI PHY %d reg %pV [%08x] state mismatch: "
+			 "current %08x, expected %08x (mask %08x)\n",
+			 phy, &vaf, reg.reg, val, (val & ~mask) | expected,
+			 mask);
+
+	va_end(args);
+
+	return false;
+}
+
+static bool broxton_phy_verify_state(struct drm_i915_private *dev_priv,
+				     enum dpio_phy phy)
+{
+	enum port port;
+	u32 ports;
+	uint32_t mask;
+	bool ok;
+
+#define _CHK(reg, mask, exp, fmt, ...)					\
+	__phy_reg_verify_state(dev_priv, phy, reg, mask, exp, fmt,	\
+			       ## __VA_ARGS__)
+
+	/* We expect the PHY to be always enabled */
+	if (!broxton_phy_is_enabled(dev_priv, phy))
+		return false;
+
+	ok = true;
+
+	if (phy == DPIO_PHY0)
+		ports = BIT(PORT_B) | BIT(PORT_C);
+	else
+		ports = BIT(PORT_A);
+
+	for_each_port_masked(port, ports) {
+		int lane;
+
+		for (lane = 0; lane < 4; lane++)
+			ok &= _CHK(BXT_PORT_TX_DW14_LN(port, lane),
+				    LATENCY_OPTIM,
+				    lane != 1 ? LATENCY_OPTIM : 0,
+				    "BXT_PORT_TX_DW14_LN(%d, %d)", port, lane);
+	}
+
+	/* PLL Rcomp code offset */
+	ok &= _CHK(BXT_PORT_CL1CM_DW9(phy),
+		    IREF0RC_OFFSET_MASK, 0xe4 << IREF0RC_OFFSET_SHIFT,
+		    "BXT_PORT_CL1CM_DW9(%d)", phy);
+	ok &= _CHK(BXT_PORT_CL1CM_DW10(phy),
+		    IREF1RC_OFFSET_MASK, 0xe4 << IREF1RC_OFFSET_SHIFT,
+		    "BXT_PORT_CL1CM_DW10(%d)", phy);
+
+	/* Power gating */
+	mask = OCL1_POWER_DOWN_EN | DW28_OLDO_DYN_PWR_DOWN_EN | SUS_CLK_CONFIG;
+	ok &= _CHK(BXT_PORT_CL1CM_DW28(phy), mask, mask,
+		    "BXT_PORT_CL1CM_DW28(%d)", phy);
+
+	if (phy == DPIO_PHY0)
+		ok &= _CHK(BXT_PORT_CL2CM_DW6_BC,
+			   DW6_OLDO_DYN_PWR_DOWN_EN, DW6_OLDO_DYN_PWR_DOWN_EN,
+			   "BXT_PORT_CL2CM_DW6_BC");
+
+	/*
+	 * TODO: Verify BXT_PORT_CL1CM_DW30 bit OCL2_LDOFUSE_PWR_DIS,
+	 * at least on stepping A this bit is read-only and fixed at 0.
+	 */
+
+	if (phy == DPIO_PHY0) {
+		u32 grc_code = dev_priv->bxt_phy_grc;
+
+		grc_code = grc_code << GRC_CODE_FAST_SHIFT |
+			   grc_code << GRC_CODE_SLOW_SHIFT |
+			   grc_code;
+		mask = GRC_CODE_FAST_MASK | GRC_CODE_SLOW_MASK |
+		       GRC_CODE_NOM_MASK;
+		ok &= _CHK(BXT_PORT_REF_DW6(DPIO_PHY0), mask, grc_code,
+			    "BXT_PORT_REF_DW6(%d)", DPIO_PHY0);
+
+		mask = GRC_DIS | GRC_RDY_OVRD;
+		ok &= _CHK(BXT_PORT_REF_DW8(DPIO_PHY0), mask, mask,
+			    "BXT_PORT_REF_DW8(%d)", DPIO_PHY0);
+	}
+
+	return ok;
+#undef _CHK
+}
+
+void broxton_ddi_phy_verify_state(struct drm_i915_private *dev_priv)
+{
+	if (!broxton_phy_verify_state(dev_priv, DPIO_PHY0) ||
+	    !broxton_phy_verify_state(dev_priv, DPIO_PHY1))
+		i915_report_error(dev_priv, "DDI PHY state mismatch\n");
 }
 
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
@@ -2044,12 +2238,6 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	intel_ddi_clock_get(encoder, pipe_config);
 }
 
-static void intel_ddi_destroy(struct drm_encoder *encoder)
-{
-	/* HDMI has nothing special to destroy, so we can go with this. */
-	intel_dp_encoder_destroy(encoder);
-}
-
 static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config)
 {
@@ -2068,7 +2256,8 @@ static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 }
 
 static const struct drm_encoder_funcs intel_ddi_funcs = {
-	.destroy = intel_ddi_destroy,
+	.reset = intel_dp_encoder_reset,
+	.destroy = intel_dp_encoder_destroy,
 };
 
 static struct intel_connector *
@@ -2167,6 +2356,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->post_disable = intel_ddi_post_disable;
 	intel_encoder->get_hw_state = intel_ddi_get_hw_state;
 	intel_encoder->get_config = intel_ddi_get_config;
+	intel_encoder->suspend = intel_dp_encoder_suspend;
 
 	intel_dig_port->port = port;
 	intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &

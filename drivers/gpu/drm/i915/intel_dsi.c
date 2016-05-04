@@ -290,15 +290,25 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
-	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
+	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	int ret;
 
 	DRM_DEBUG_KMS("\n");
 
 	pipe_config->has_dsi_encoder = true;
 
-	if (fixed_mode)
+	if (fixed_mode) {
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+
+		if (HAS_GMCH_DISPLAY(dev_priv))
+			intel_gmch_panel_fitting(crtc, pipe_config,
+						 intel_connector->panel.fitting_mode);
+		else
+			intel_pch_panel_fitting(crtc, pipe_config,
+						intel_connector->panel.fitting_mode);
+	}
 
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
 	adjusted_mode->flags = 0;
@@ -310,6 +320,12 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 		else
 			pipe_config->cpu_transcoder = TRANSCODER_DSI_A;
 	}
+
+	ret = intel_compute_dsi_pll(encoder, pipe_config);
+	if (ret)
+		return false;
+
+	pipe_config->clock_set = true;
 
 	return true;
 }
@@ -498,14 +514,19 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	enum port port;
 	u32 tmp;
 
 	DRM_DEBUG_KMS("\n");
 
-	intel_enable_dsi_pll(encoder);
+	/*
+	 * The BIOS may leave the PLL in a wonky state where it doesn't
+	 * lock. It needs to be fully powered down to fix it.
+	 */
+	intel_disable_dsi_pll(encoder);
+	intel_enable_dsi_pll(encoder, crtc->config);
+
 	intel_dsi_prepare(encoder);
 
 	/* Panel Enable over CRC PMIC */
@@ -515,19 +536,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	msleep(intel_dsi->panel_on_delay);
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
-		/*
-		 * Disable DPOunit clock gating, can stall pipe
-		 * and we need DPLL REFA always enabled
-		 */
-		tmp = I915_READ(DPLL(pipe));
-		tmp |= DPLL_REF_CLK_ENABLE_VLV;
-		I915_WRITE(DPLL(pipe), tmp);
-
-		/* update the hw state for DPLL */
-		intel_crtc->config->dpll_hw_state.dpll =
-				DPLL_INTEGRATED_REF_CLK_VLV |
-					DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
-
+		/* Disable DPOunit clock gating, can stall pipe */
 		tmp = I915_READ(DSPCLK_GATE_D);
 		tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
 		I915_WRITE(DSPCLK_GATE_D, tmp);
@@ -679,11 +688,16 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 	drm_panel_unprepare(intel_dsi->panel);
 
 	msleep(intel_dsi->panel_off_delay);
-	msleep(intel_dsi->panel_pwr_cycle_delay);
 
 	/* Panel Disable over CRC PMIC */
 	if (intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 0);
+
+	/*
+	 * FIXME As we do with eDP, just make a note of the time here
+	 * and perform the wait before the next panel power on.
+	 */
+	msleep(intel_dsi->panel_pwr_cycle_delay);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
@@ -716,11 +730,12 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
 		bool enabled = I915_READ(ctrl_reg) & DPI_ENABLE;
 
-		/* Due to some hardware limitations on BYT, MIPI Port C DPI
-		 * Enable bit does not get set. To check whether DSI Port C
-		 * was enabled in BIOS, check the Pipe B enable bit
+		/*
+		 * Due to some hardware limitations on VLV/CHV, the DPI enable
+		 * bit in port C control register does not get set. As a
+		 * workaround, check pipe B conf instead.
 		 */
-		if (IS_VALLEYVIEW(dev) && port == PORT_C)
+		if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) && port == PORT_C)
 			enabled = I915_READ(PIPECONF(PIPE_B)) & PIPECONF_ENABLE;
 
 		/* Try command mode if video mode not enabled */
@@ -826,13 +841,8 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	if (IS_BROXTON(dev))
 		bxt_dsi_get_pipe_config(encoder, pipe_config);
 
-	/*
-	 * DPLL_MD is not used in case of DSI, reading will get some default value
-	 * set dpll_md = 0
-	 */
-	pipe_config->dpll_hw_state.dpll_md = 0;
-
-	pclk = intel_dsi_get_pclk(encoder, pipe_config->pipe_bpp);
+	pclk = intel_dsi_get_pclk(encoder, pipe_config->pipe_bpp,
+				  pipe_config);
 	if (!pclk)
 		return;
 
@@ -845,7 +855,7 @@ intel_dsi_mode_valid(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
+	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 
 	DRM_DEBUG_KMS("\n");
@@ -1183,6 +1193,48 @@ static int intel_dsi_get_modes(struct drm_connector *connector)
 	return 1;
 }
 
+static int intel_dsi_set_property(struct drm_connector *connector,
+				  struct drm_property *property,
+				  uint64_t val)
+{
+	struct drm_device *dev = connector->dev;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct drm_crtc *crtc;
+	int ret;
+
+	ret = drm_object_property_set_value(&connector->base, property, val);
+	if (ret)
+		return ret;
+
+	if (property == dev->mode_config.scaling_mode_property) {
+		if (val == DRM_MODE_SCALE_NONE) {
+			DRM_DEBUG_KMS("no scaling not supported\n");
+			return -EINVAL;
+		}
+		if (HAS_GMCH_DISPLAY(dev) &&
+		    val == DRM_MODE_SCALE_CENTER) {
+			DRM_DEBUG_KMS("centering not supported\n");
+			return -EINVAL;
+		}
+
+		if (intel_connector->panel.fitting_mode == val)
+			return 0;
+
+		intel_connector->panel.fitting_mode = val;
+	}
+
+	crtc = intel_attached_encoder(connector)->base.crtc;
+	if (crtc && crtc->state->enable) {
+		/*
+		 * If the CRTC is enabled, the display will be changed
+		 * according to the new panel fitting mode.
+		 */
+		intel_crtc_restore_mode(crtc);
+	}
+
+	return 0;
+}
+
 static void intel_dsi_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
@@ -1225,10 +1277,24 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.detect = intel_dsi_detect,
 	.destroy = intel_dsi_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.set_property = intel_dsi_set_property,
 	.atomic_get_property = intel_connector_atomic_get_property,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
+
+static void intel_dsi_add_properties(struct intel_connector *connector)
+{
+	struct drm_device *dev = connector->base.dev;
+
+	if (connector->panel.fixed_mode) {
+		drm_mode_create_scaling_mode_property(dev);
+		drm_object_attach_property(&connector->base.base,
+					   dev->mode_config.scaling_mode_property,
+					   DRM_MODE_SCALE_ASPECT);
+		connector->panel.fitting_mode = DRM_MODE_SCALE_ASPECT;
+	}
+}
 
 void intel_dsi_init(struct drm_device *dev)
 {
@@ -1353,8 +1419,6 @@ void intel_dsi_init(struct drm_device *dev)
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
-	drm_connector_register(connector);
-
 	drm_panel_attach(intel_dsi->panel, connector);
 
 	mutex_lock(&dev->mode_config.mutex);
@@ -1373,6 +1437,11 @@ void intel_dsi_init(struct drm_device *dev)
 	}
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
+
+	intel_dsi_add_properties(intel_connector);
+
+	drm_connector_register(connector);
+
 	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
 	return;

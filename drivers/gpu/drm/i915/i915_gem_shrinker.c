@@ -70,6 +70,10 @@ static bool swap_available(void)
 
 static bool can_release_pages(struct drm_i915_gem_object *obj)
 {
+	/* Only shmemfs objects are backed by swap */
+	if (!obj->base.filp)
+		return false;
+
 	/* Only report true if by unbinding the object and putting its pages
 	 * we can actually make forward progress towards freeing physical
 	 * pages.
@@ -336,7 +340,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 		container_of(nb, struct drm_i915_private, mm.oom_notifier);
 	struct shrinker_lock_uninterruptible slu;
 	struct drm_i915_gem_object *obj;
-	unsigned long pinned, bound, unbound, freed_pages;
+	unsigned long unevictable, bound, unbound, freed_pages;
 
 	if (!i915_gem_shrinker_lock_uninterruptible(dev_priv, &slu, 5000))
 		return NOTIFY_DONE;
@@ -347,33 +351,28 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	 * assert that there are no objects with pinned pages that are not
 	 * being pointed to by hardware.
 	 */
-	unbound = bound = pinned = 0;
+	unbound = bound = unevictable = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
-		if (!obj->base.filp) /* not backed by a freeable object */
-			continue;
-
-		if (obj->pages_pin_count)
-			pinned += obj->base.size;
+		if (!can_release_pages(obj))
+			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
-			unbound += obj->base.size;
+			unbound += obj->base.size >> PAGE_SHIFT;
 	}
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (!obj->base.filp)
-			continue;
-
-		if (obj->pages_pin_count)
-			pinned += obj->base.size;
+		if (!can_release_pages(obj))
+			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
-			bound += obj->base.size;
+			bound += obj->base.size >> PAGE_SHIFT;
 	}
 
 	i915_gem_shrinker_unlock_uninterruptible(dev_priv, &slu);
 
 	if (freed_pages || unbound || bound)
-		pr_info("Purging GPU memory, %lu bytes freed, %lu bytes still pinned.\n",
-			freed_pages << PAGE_SHIFT, pinned);
+		pr_info("Purging GPU memory, %lu pages freed, "
+			"%lu pages still pinned.\n",
+			freed_pages, unevictable);
 	if (unbound || bound)
-		pr_err("%lu and %lu bytes still available in the "
+		pr_err("%lu and %lu pages still available in the "
 		       "bound and unbound GPU page lists.\n",
 		       bound, unbound);
 

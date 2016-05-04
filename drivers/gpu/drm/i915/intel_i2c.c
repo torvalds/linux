@@ -571,15 +571,14 @@ clear_err:
 	goto out;
 
 timeout:
-	DRM_INFO("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
-		 bus->adapter.name, bus->reg0 & 0xff);
+	DRM_DEBUG_KMS("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
+		      bus->adapter.name, bus->reg0 & 0xff);
 	I915_WRITE(GMBUS0, 0);
 
 	/*
 	 * Hardware may not support GMBUS over these pins? Try GPIO bitbanging
 	 * instead. Use EAGAIN to have i2c core retry.
 	 */
-	bus->force_bit = 1;
 	ret = -EAGAIN;
 
 out:
@@ -597,10 +596,15 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 	mutex_lock(&dev_priv->gmbus_mutex);
 
-	if (bus->force_bit)
+	if (bus->force_bit) {
 		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
-	else
+		if (ret < 0)
+			bus->force_bit &= ~GMBUS_FORCE_BIT_RETRY;
+	} else {
 		ret = do_gmbus_xfer(adapter, msgs, num);
+		if (ret == -EAGAIN)
+			bus->force_bit |= GMBUS_FORCE_BIT_RETRY;
+	}
 
 	mutex_unlock(&dev_priv->gmbus_mutex);
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
@@ -718,11 +722,16 @@ void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed)
 void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+
+	mutex_lock(&dev_priv->gmbus_mutex);
 
 	bus->force_bit += force_bit ? 1 : -1;
 	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit now %d\n",
 		      force_bit ? "en" : "dis", adapter->name,
 		      bus->force_bit);
+
+	mutex_unlock(&dev_priv->gmbus_mutex);
 }
 
 void intel_teardown_gmbus(struct drm_device *dev)

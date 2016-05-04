@@ -89,27 +89,34 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const char *get_pin_flag(struct drm_i915_gem_object *obj)
+static const char get_active_flag(struct drm_i915_gem_object *obj)
 {
-	if (obj->pin_display)
-		return "p";
-	else
-		return " ";
+	return obj->active ? '*' : ' ';
 }
 
-static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
+static const char get_pin_flag(struct drm_i915_gem_object *obj)
+{
+	return obj->pin_display ? 'p' : ' ';
+}
+
+static const char get_tiling_flag(struct drm_i915_gem_object *obj)
 {
 	switch (obj->tiling_mode) {
 	default:
-	case I915_TILING_NONE: return " ";
-	case I915_TILING_X: return "X";
-	case I915_TILING_Y: return "Y";
+	case I915_TILING_NONE: return ' ';
+	case I915_TILING_X: return 'X';
+	case I915_TILING_Y: return 'Y';
 	}
 }
 
-static inline const char *get_global_flag(struct drm_i915_gem_object *obj)
+static inline const char get_global_flag(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_obj_to_ggtt(obj) ? "g" : " ";
+	return i915_gem_obj_to_ggtt(obj) ? 'g' : ' ';
+}
+
+static inline const char get_pin_mapped_flag(struct drm_i915_gem_object *obj)
+{
+	return obj->mapping ? 'M' : ' ';
 }
 
 static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
@@ -136,12 +143,13 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	seq_printf(m, "%pK: %s%s%s%s %8zdKiB %02x %02x [ ",
+	seq_printf(m, "%pK: %c%c%c%c%c %8zdKiB %02x %02x [ ",
 		   &obj->base,
-		   obj->active ? "*" : " ",
+		   get_active_flag(obj),
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
 		   get_global_flag(obj),
+		   get_pin_mapped_flag(obj),
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain);
@@ -435,6 +443,8 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	u32 count, mappable_count, purgeable_count;
 	u64 size, mappable_size, purgeable_size;
+	unsigned long pin_mapped_count = 0, pin_mapped_purgeable_count = 0;
+	u64 pin_mapped_size = 0, pin_mapped_purgeable_size = 0;
 	struct drm_i915_gem_object *obj;
 	struct drm_file *file;
 	struct i915_vma *vma;
@@ -468,6 +478,14 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		size += obj->base.size, ++count;
 		if (obj->madv == I915_MADV_DONTNEED)
 			purgeable_size += obj->base.size, ++purgeable_count;
+		if (obj->mapping) {
+			pin_mapped_count++;
+			pin_mapped_size += obj->base.size;
+			if (obj->pages_pin_count == 0) {
+				pin_mapped_purgeable_count++;
+				pin_mapped_purgeable_size += obj->base.size;
+			}
+		}
 	}
 	seq_printf(m, "%u unbound objects, %llu bytes\n", count, size);
 
@@ -485,6 +503,14 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 			purgeable_size += obj->base.size;
 			++purgeable_count;
 		}
+		if (obj->mapping) {
+			pin_mapped_count++;
+			pin_mapped_size += obj->base.size;
+			if (obj->pages_pin_count == 0) {
+				pin_mapped_purgeable_count++;
+				pin_mapped_purgeable_size += obj->base.size;
+			}
+		}
 	}
 	seq_printf(m, "%u purgeable objects, %llu bytes\n",
 		   purgeable_count, purgeable_size);
@@ -492,6 +518,10 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   mappable_count, mappable_size);
 	seq_printf(m, "%u fault mappable objects, %llu bytes\n",
 		   count, size);
+	seq_printf(m,
+		   "%lu [%lu] pin mapped objects, %llu [%llu] bytes [purgeable]\n",
+		   pin_mapped_count, pin_mapped_purgeable_count,
+		   pin_mapped_size, pin_mapped_purgeable_size);
 
 	seq_printf(m, "%llu [%llu] gtt total\n",
 		   ggtt->base.total, ggtt->mappable_end - ggtt->base.start);
@@ -1216,12 +1246,12 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		rpdeclimit = I915_READ(GEN6_RP_DOWN_THRESHOLD);
 
 		rpstat = I915_READ(GEN6_RPSTAT1);
-		rpupei = I915_READ(GEN6_RP_CUR_UP_EI);
-		rpcurup = I915_READ(GEN6_RP_CUR_UP);
-		rpprevup = I915_READ(GEN6_RP_PREV_UP);
-		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI);
-		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN);
-		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN);
+		rpupei = I915_READ(GEN6_RP_CUR_UP_EI) & GEN6_CURICONT_MASK;
+		rpcurup = I915_READ(GEN6_RP_CUR_UP) & GEN6_CURBSYTAVG_MASK;
+		rpprevup = I915_READ(GEN6_RP_PREV_UP) & GEN6_CURBSYTAVG_MASK;
+		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI) & GEN6_CURIAVG_MASK;
+		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN) & GEN6_CURBSYTAVG_MASK;
+		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN) & GEN6_CURBSYTAVG_MASK;
 		if (IS_GEN9(dev))
 			cagf = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
 		else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
@@ -1261,21 +1291,21 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "RPDECLIMIT: 0x%08x\n", rpdeclimit);
 		seq_printf(m, "RPNSWREQ: %dMHz\n", reqf);
 		seq_printf(m, "CAGF: %dMHz\n", cagf);
-		seq_printf(m, "RP CUR UP EI: %dus\n", rpupei &
-			   GEN6_CURICONT_MASK);
-		seq_printf(m, "RP CUR UP: %dus\n", rpcurup &
-			   GEN6_CURBSYTAVG_MASK);
-		seq_printf(m, "RP PREV UP: %dus\n", rpprevup &
-			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "RP CUR UP EI: %d (%dus)\n",
+			   rpupei, GT_PM_INTERVAL_TO_US(dev_priv, rpupei));
+		seq_printf(m, "RP CUR UP: %d (%dus)\n",
+			   rpcurup, GT_PM_INTERVAL_TO_US(dev_priv, rpcurup));
+		seq_printf(m, "RP PREV UP: %d (%dus)\n",
+			   rpprevup, GT_PM_INTERVAL_TO_US(dev_priv, rpprevup));
 		seq_printf(m, "Up threshold: %d%%\n",
 			   dev_priv->rps.up_threshold);
 
-		seq_printf(m, "RP CUR DOWN EI: %dus\n", rpdownei &
-			   GEN6_CURIAVG_MASK);
-		seq_printf(m, "RP CUR DOWN: %dus\n", rpcurdown &
-			   GEN6_CURBSYTAVG_MASK);
-		seq_printf(m, "RP PREV DOWN: %dus\n", rpprevdown &
-			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "RP CUR DOWN EI: %d (%dus)\n",
+			   rpdownei, GT_PM_INTERVAL_TO_US(dev_priv, rpdownei));
+		seq_printf(m, "RP CUR DOWN: %d (%dus)\n",
+			   rpcurdown, GT_PM_INTERVAL_TO_US(dev_priv, rpcurdown));
+		seq_printf(m, "RP PREV DOWN: %d (%dus)\n",
+			   rpprevdown, GT_PM_INTERVAL_TO_US(dev_priv, rpprevdown));
 		seq_printf(m, "Down threshold: %d%%\n",
 			   dev_priv->rps.down_threshold);
 
@@ -1469,12 +1499,11 @@ static int i915_forcewake_domains(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_uncore_forcewake_domain *fw_domain;
-	int i;
 
 	spin_lock_irq(&dev_priv->uncore.lock);
-	for_each_fw_domain(fw_domain, dev_priv, i) {
+	for_each_fw_domain(fw_domain, dev_priv) {
 		seq_printf(m, "%s.wake_count = %u\n",
-			   intel_uncore_forcewake_domain_to_str(i),
+			   intel_uncore_forcewake_domain_to_str(fw_domain->id),
 			   fw_domain->wake_count);
 	}
 	spin_unlock_irq(&dev_priv->uncore.lock);
@@ -2405,10 +2434,11 @@ static int i915_llc(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	const bool edram = INTEL_GEN(dev_priv) > 8;
 
-	/* Size calculation for LLC is a bit of a pain. Ignore for now. */
 	seq_printf(m, "LLC: %s\n", yesno(HAS_LLC(dev)));
-	seq_printf(m, "eLLC: %zuMB\n", dev_priv->ellc_size);
+	seq_printf(m, "%s: %lluMB\n", edram ? "eDRAM" : "eLLC",
+		   intel_uncore_edram_size(dev_priv)/1024/1024);
 
 	return 0;
 }
@@ -4723,7 +4753,7 @@ i915_wedged_get(void *data, u64 *val)
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	*val = atomic_read(&dev_priv->gpu_error.reset_counter);
+	*val = i915_terminally_wedged(&dev_priv->gpu_error);
 
 	return 0;
 }

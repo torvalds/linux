@@ -1295,17 +1295,9 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	uint32_t temp;
 	enum port port = (enum port)pll->id;	/* 1:1 port->PLL mapping */
 
-	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
-	/*
-	 * Definition of each bit polarity has been changed
-	 * after A1 stepping
-	 */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
-		temp &= ~PORT_PLL_REF_SEL;
-	else
-		temp |= PORT_PLL_REF_SEL;
-
 	/* Non-SSC reference */
+	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
+	temp |= PORT_PLL_REF_SEL;
 	I915_WRITE(BXT_PORT_PLL_ENABLE(port), temp);
 
 	/* Disable 10 bit clock */
@@ -1652,10 +1644,7 @@ static void intel_ddi_pll_init(struct drm_device *dev)
 			DRM_DEBUG_KMS("Sanitized cdclk programmed by pre-os\n");
 		if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE))
 			DRM_ERROR("LCPLL1 is disabled\n");
-	} else if (IS_BROXTON(dev)) {
-		broxton_init_cdclk(dev);
-		broxton_ddi_phy_init(dev);
-	} else {
+	} else if (!IS_BROXTON(dev_priv)) {
 		/*
 		 * The LCPLL register should be turned on by the BIOS. For now
 		 * let's just check its state and print errors in case

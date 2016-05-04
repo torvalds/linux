@@ -2215,6 +2215,15 @@ static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
 	POSTING_READ(DP_A);
 	udelay(500);
 
+	/*
+	 * [DevILK] Work around required when enabling DP PLL
+	 * while a pipe is enabled going to FDI:
+	 * 1. Wait for the start of vertical blank on the enabled pipe going to FDI
+	 * 2. Program DP PLL enable
+	 */
+	if (IS_GEN5(dev_priv))
+		intel_wait_for_vblank_if_active(dev_priv->dev, !crtc->pipe);
+
 	intel_dp->DP |= DP_PLL_ENABLE;
 
 	I915_WRITE(DP_A, intel_dp->DP);
@@ -2630,7 +2639,6 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
-	enum port port = dp_to_dig_port(intel_dp)->port;
 	enum pipe pipe = crtc->pipe;
 
 	if (WARN_ON(dp_reg & DP_PORT_EN))
@@ -2641,34 +2649,11 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		vlv_init_panel_power_sequencer(intel_dp);
 
-	/*
-	 * We get an occasional spurious underrun between the port
-	 * enable and vdd enable, when enabling port A eDP.
-	 *
-	 * FIXME: Not sure if this applies to (PCH) port D eDP as well
-	 */
-	if (port == PORT_A)
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-
 	intel_dp_enable_port(intel_dp);
-
-	if (port == PORT_A && IS_GEN5(dev_priv)) {
-		/*
-		 * Underrun reporting for the other pipe was disabled in
-		 * g4x_pre_enable_dp(). The eDP PLL and port have now been
-		 * enabled, so it's now safe to re-enable underrun reporting.
-		 */
-		intel_wait_for_vblank_if_active(dev_priv->dev, !pipe);
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, !pipe, true);
-		intel_set_pch_fifo_underrun_reporting(dev_priv, !pipe, true);
-	}
 
 	edp_panel_vdd_on(intel_dp);
 	edp_panel_on(intel_dp);
 	edp_panel_vdd_off(intel_dp, true);
-
-	if (port == PORT_A)
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	pps_unlock(intel_dp);
 
@@ -2711,25 +2696,10 @@ static void vlv_enable_dp(struct intel_encoder *encoder)
 
 static void g4x_pre_enable_dp(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
-	enum pipe pipe = to_intel_crtc(encoder->base.crtc)->pipe;
 
 	intel_dp_prepare(encoder);
-
-	if (port == PORT_A && IS_GEN5(dev_priv)) {
-		/*
-		 * We get FIFO underruns on the other pipe when
-		 * enabling the CPU eDP PLL, and when enabling CPU
-		 * eDP port. We could potentially avoid the PLL
-		 * underrun with a vblank wait just prior to enabling
-		 * the PLL, but that doesn't appear to help the port
-		 * enable case. Just sweep it all under the rug.
-		 */
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, !pipe, false);
-		intel_set_pch_fifo_underrun_reporting(dev_priv, !pipe, false);
-	}
 
 	/* Only ilk+ has port A */
 	if (port == PORT_A)
@@ -3806,7 +3776,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	 * downstream port information. So, an early return here saves
 	 * time from performing other operations which are not required.
 	 */
-	if (!intel_dp->sink_count)
+	if (!is_edp(intel_dp) && !intel_dp->sink_count)
 		return false;
 
 	/* Check if the panel supports PSR */
@@ -4339,6 +4309,9 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	if (!intel_dp_get_dpcd(intel_dp))
 		return connector_status_disconnected;
 
+	if (is_edp(intel_dp))
+		return connector_status_connected;
+
 	/* if there's no downstream port, we're done */
 	if (!(dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT))
 		return connector_status_connected;
@@ -4608,6 +4581,15 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 		intel_dp->compliance_test_type = 0;
 		intel_dp->compliance_test_data = 0;
 
+		if (intel_dp->is_mst) {
+			DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n",
+				      intel_dp->is_mst,
+				      intel_dp->mst_mgr.mst_state);
+			intel_dp->is_mst = false;
+			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
+							intel_dp->is_mst);
+		}
+
 		goto out;
 	}
 
@@ -4665,20 +4647,9 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 	}
 
 out:
-	if (status != connector_status_connected) {
+	if ((status != connector_status_connected) &&
+	    (intel_dp->is_mst == false))
 		intel_dp_unset_edid(intel_dp);
-		/*
-		 * If we were in MST mode, and device is not there,
-		 * get out of MST mode
-		 */
-		if (intel_dp->is_mst) {
-			DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n",
-				      intel_dp->is_mst, intel_dp->mst_mgr.mst_state);
-			intel_dp->is_mst = false;
-			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
-							intel_dp->is_mst);
-		}
-	}
 
 	intel_display_power_put(to_i915(dev), power_domain);
 	return;
@@ -4851,6 +4822,11 @@ intel_dp_set_property(struct drm_connector *connector,
 			DRM_DEBUG_KMS("no scaling not supported\n");
 			return -EINVAL;
 		}
+		if (HAS_GMCH_DISPLAY(dev_priv) &&
+		    val == DRM_MODE_SCALE_CENTER) {
+			DRM_DEBUG_KMS("centering not supported\n");
+			return -EINVAL;
+		}
 
 		if (intel_connector->panel.fitting_mode == val) {
 			/* the eDP scaling property is not changed */
@@ -4914,7 +4890,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	kfree(intel_dig_port);
 }
 
-static void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
+void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
 
@@ -4956,7 +4932,7 @@ static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 	edp_panel_vdd_schedule_off(intel_dp);
 }
 
-static void intel_dp_encoder_reset(struct drm_encoder *encoder)
+void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	struct intel_dp *intel_dp;
 

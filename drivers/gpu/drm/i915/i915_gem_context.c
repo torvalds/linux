@@ -342,7 +342,7 @@ void i915_gem_context_reset(struct drm_device *dev)
 		struct intel_context *ctx;
 
 		list_for_each_entry(ctx, &dev_priv->context_list, link)
-			intel_lr_context_reset(dev, ctx);
+			intel_lr_context_reset(dev_priv, ctx);
 	}
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
@@ -539,7 +539,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 	len = 4;
 	if (INTEL_INFO(engine->dev)->gen >= 7)
-		len += 2 + (num_rings ? 4*num_rings + 2 : 0);
+		len += 2 + (num_rings ? 4*num_rings + 6 : 0);
 
 	ret = intel_ring_begin(req, len);
 	if (ret)
@@ -579,6 +579,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	if (INTEL_INFO(engine->dev)->gen >= 7) {
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
+			i915_reg_t last_reg = {}; /* keep gcc quiet */
 
 			intel_ring_emit(engine,
 					MI_LOAD_REGISTER_IMM(num_rings));
@@ -586,11 +587,19 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 				if (signaller == engine)
 					continue;
 
-				intel_ring_emit_reg(engine,
-						    RING_PSMI_CTL(signaller->mmio_base));
+				last_reg = RING_PSMI_CTL(signaller->mmio_base);
+				intel_ring_emit_reg(engine, last_reg);
 				intel_ring_emit(engine,
 						_MASKED_BIT_DISABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 			}
+
+			/* Insert a delay before the next switch! */
+			intel_ring_emit(engine,
+					MI_STORE_REGISTER_MEM |
+					MI_SRM_LRM_GLOBAL_GTT);
+			intel_ring_emit_reg(engine, last_reg);
+			intel_ring_emit(engine, engine->scratch.gtt_offset);
+			intel_ring_emit(engine, MI_NOOP);
 		}
 		intel_ring_emit(engine, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 	}
@@ -600,50 +609,48 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	return ret;
 }
 
-static inline bool should_skip_switch(struct intel_engine_cs *engine,
-				      struct intel_context *from,
-				      struct intel_context *to)
+static inline bool skip_rcs_switch(struct intel_engine_cs *engine,
+				   struct intel_context *to)
 {
 	if (to->remap_slice)
 		return false;
 
-	if (to->ppgtt && from == to &&
-	    !(intel_engine_flag(engine) & to->ppgtt->pd_dirty_rings))
-		return true;
+	if (!to->legacy_hw_ctx.initialized)
+		return false;
 
-	return false;
+	if (to->ppgtt &&
+	    !(intel_engine_flag(engine) & to->ppgtt->pd_dirty_rings))
+		return false;
+
+	return to == engine->last_context;
 }
 
 static bool
 needs_pd_load_pre(struct intel_engine_cs *engine, struct intel_context *to)
 {
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
-
 	if (!to->ppgtt)
 		return false;
 
-	if (INTEL_INFO(engine->dev)->gen < 8)
+	if (engine->last_context == to &&
+	    !(intel_engine_flag(engine) & to->ppgtt->pd_dirty_rings))
+		return false;
+
+	if (engine->id != RCS)
 		return true;
 
-	if (engine != &dev_priv->engine[RCS])
+	if (INTEL_INFO(engine->dev)->gen < 8)
 		return true;
 
 	return false;
 }
 
 static bool
-needs_pd_load_post(struct intel_engine_cs *engine, struct intel_context *to,
-		   u32 hw_flags)
+needs_pd_load_post(struct intel_context *to, u32 hw_flags)
 {
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
-
 	if (!to->ppgtt)
 		return false;
 
-	if (!IS_GEN8(engine->dev))
-		return false;
-
-	if (engine != &dev_priv->engine[RCS])
+	if (!IS_GEN8(to->i915))
 		return false;
 
 	if (hw_flags & MI_RESTORE_INHIBIT)
@@ -652,59 +659,32 @@ needs_pd_load_post(struct intel_engine_cs *engine, struct intel_context *to,
 	return false;
 }
 
-static int do_switch(struct drm_i915_gem_request *req)
+static int do_rcs_switch(struct drm_i915_gem_request *req)
 {
 	struct intel_context *to = req->ctx;
 	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = req->i915;
-	struct intel_context *from = engine->last_context;
-	u32 hw_flags = 0;
-	bool uninitialized = false;
+	struct intel_context *from;
+	u32 hw_flags;
 	int ret, i;
 
-	if (from != NULL && engine == &dev_priv->engine[RCS]) {
-		BUG_ON(from->legacy_hw_ctx.rcs_state == NULL);
-		BUG_ON(!i915_gem_obj_is_pinned(from->legacy_hw_ctx.rcs_state));
-	}
-
-	if (should_skip_switch(engine, from, to))
+	if (skip_rcs_switch(engine, to))
 		return 0;
 
 	/* Trying to pin first makes error handling easier. */
-	if (engine == &dev_priv->engine[RCS]) {
-		ret = i915_gem_obj_ggtt_pin(to->legacy_hw_ctx.rcs_state,
-					    get_context_alignment(engine->dev),
-					    0);
-		if (ret)
-			return ret;
-	}
+	ret = i915_gem_obj_ggtt_pin(to->legacy_hw_ctx.rcs_state,
+				    get_context_alignment(engine->dev),
+				    0);
+	if (ret)
+		return ret;
 
 	/*
 	 * Pin can switch back to the default context if we end up calling into
 	 * evict_everything - as a last ditch gtt defrag effort that also
 	 * switches to the default context. Hence we need to reload from here.
+	 *
+	 * XXX: Doing so is painfully broken!
 	 */
 	from = engine->last_context;
-
-	if (needs_pd_load_pre(engine, to)) {
-		/* Older GENs and non render rings still want the load first,
-		 * "PP_DCLV followed by PP_DIR_BASE register through Load
-		 * Register Immediate commands in Ring Buffer before submitting
-		 * a context."*/
-		trace_switch_mm(engine, to);
-		ret = to->ppgtt->switch_mm(to->ppgtt, req);
-		if (ret)
-			goto unpin_out;
-
-		/* Doing a PD load always reloads the page dirs */
-		to->ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
-	}
-
-	if (engine != &dev_priv->engine[RCS]) {
-		if (from)
-			i915_gem_context_unreference(from);
-		goto done;
-	}
 
 	/*
 	 * Clear this page out of any CPU caches for coherent swap-in/out. Note
@@ -718,53 +698,37 @@ static int do_switch(struct drm_i915_gem_request *req)
 	if (ret)
 		goto unpin_out;
 
-	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to)) {
-		hw_flags |= MI_RESTORE_INHIBIT;
+	if (needs_pd_load_pre(engine, to)) {
+		/* Older GENs and non render rings still want the load first,
+		 * "PP_DCLV followed by PP_DIR_BASE register through Load
+		 * Register Immediate commands in Ring Buffer before submitting
+		 * a context."*/
+		trace_switch_mm(engine, to);
+		ret = to->ppgtt->switch_mm(to->ppgtt, req);
+		if (ret)
+			goto unpin_out;
+	}
+
+	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to))
 		/* NB: If we inhibit the restore, the context is not allowed to
 		 * die because future work may end up depending on valid address
 		 * space. This means we must enforce that a page table load
 		 * occur when this occurs. */
-	} else if (to->ppgtt &&
-		   (intel_engine_flag(engine) & to->ppgtt->pd_dirty_rings)) {
-		hw_flags |= MI_FORCE_RESTORE;
-		to->ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
-	}
+		hw_flags = MI_RESTORE_INHIBIT;
+	else if (to->ppgtt &&
+		 intel_engine_flag(engine) & to->ppgtt->pd_dirty_rings)
+		hw_flags = MI_FORCE_RESTORE;
+	else
+		hw_flags = 0;
 
 	/* We should never emit switch_mm more than once */
 	WARN_ON(needs_pd_load_pre(engine, to) &&
-		needs_pd_load_post(engine, to, hw_flags));
+		needs_pd_load_post(to, hw_flags));
 
-	ret = mi_set_context(req, hw_flags);
-	if (ret)
-		goto unpin_out;
-
-	/* GEN8 does *not* require an explicit reload if the PDPs have been
-	 * setup, and we do not wish to move them.
-	 */
-	if (needs_pd_load_post(engine, to, hw_flags)) {
-		trace_switch_mm(engine, to);
-		ret = to->ppgtt->switch_mm(to->ppgtt, req);
-		/* The hardware context switch is emitted, but we haven't
-		 * actually changed the state - so it's probably safe to bail
-		 * here. Still, let the user know something dangerous has
-		 * happened.
-		 */
-		if (ret) {
-			DRM_ERROR("Failed to change address space on context switch\n");
-			goto unpin_out;
-		}
-	}
-
-	for (i = 0; i < MAX_L3_SLICES; i++) {
-		if (!(to->remap_slice & (1<<i)))
-			continue;
-
-		ret = i915_gem_l3_remap(req, i);
-		/* If it failed, try again next round */
+	if (to != from || (hw_flags & MI_FORCE_RESTORE)) {
+		ret = mi_set_context(req, hw_flags);
 		if (ret)
-			DRM_DEBUG_DRIVER("L3 remapping failed\n");
-		else
-			to->remap_slice &= ~(1<<i);
+			goto unpin_out;
 	}
 
 	/* The backing object for the context is done after switching to the
@@ -789,27 +753,51 @@ static int do_switch(struct drm_i915_gem_request *req)
 		i915_gem_object_ggtt_unpin(from->legacy_hw_ctx.rcs_state);
 		i915_gem_context_unreference(from);
 	}
-
-	uninitialized = !to->legacy_hw_ctx.initialized;
-	to->legacy_hw_ctx.initialized = true;
-
-done:
 	i915_gem_context_reference(to);
 	engine->last_context = to;
 
-	if (uninitialized) {
+	/* GEN8 does *not* require an explicit reload if the PDPs have been
+	 * setup, and we do not wish to move them.
+	 */
+	if (needs_pd_load_post(to, hw_flags)) {
+		trace_switch_mm(engine, to);
+		ret = to->ppgtt->switch_mm(to->ppgtt, req);
+		/* The hardware context switch is emitted, but we haven't
+		 * actually changed the state - so it's probably safe to bail
+		 * here. Still, let the user know something dangerous has
+		 * happened.
+		 */
+		if (ret)
+			return ret;
+	}
+
+	if (to->ppgtt)
+		to->ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
+
+	for (i = 0; i < MAX_L3_SLICES; i++) {
+		if (!(to->remap_slice & (1<<i)))
+			continue;
+
+		ret = i915_gem_l3_remap(req, i);
+		if (ret)
+			return ret;
+
+		to->remap_slice &= ~(1<<i);
+	}
+
+	if (!to->legacy_hw_ctx.initialized) {
 		if (engine->init_context) {
 			ret = engine->init_context(req);
 			if (ret)
-				DRM_ERROR("ring init context: %d\n", ret);
+				return ret;
 		}
+		to->legacy_hw_ctx.initialized = true;
 	}
 
 	return 0;
 
 unpin_out:
-	if (engine->id == RCS)
-		i915_gem_object_ggtt_unpin(to->legacy_hw_ctx.rcs_state);
+	i915_gem_object_ggtt_unpin(to->legacy_hw_ctx.rcs_state);
 	return ret;
 }
 
@@ -834,17 +822,33 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	WARN_ON(i915.enable_execlists);
 	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
-	if (req->ctx->legacy_hw_ctx.rcs_state == NULL) { /* We have the fake context */
-		if (req->ctx != engine->last_context) {
-			i915_gem_context_reference(req->ctx);
+	if (engine->id != RCS ||
+	    req->ctx->legacy_hw_ctx.rcs_state == NULL) {
+		struct intel_context *to = req->ctx;
+
+		if (needs_pd_load_pre(engine, to)) {
+			int ret;
+
+			trace_switch_mm(engine, to);
+			ret = to->ppgtt->switch_mm(to->ppgtt, req);
+			if (ret)
+				return ret;
+
+			/* Doing a PD load always reloads the page dirs */
+			to->ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
+		}
+
+		if (to != engine->last_context) {
+			i915_gem_context_reference(to);
 			if (engine->last_context)
 				i915_gem_context_unreference(engine->last_context);
-			engine->last_context = req->ctx;
+			engine->last_context = to;
 		}
+
 		return 0;
 	}
 
-	return do_switch(req);
+	return do_rcs_switch(req);
 }
 
 static bool contexts_enabled(struct drm_device *dev)

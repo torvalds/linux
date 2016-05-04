@@ -2483,7 +2483,7 @@ static void ilk_wm_merge(struct drm_device *dev,
 	/* ILK/SNB/IVB: LP1+ watermarks only w/ single pipe */
 	if ((INTEL_INFO(dev)->gen <= 6 || IS_IVYBRIDGE(dev)) &&
 	    config->num_pipes_active > 1)
-		return;
+		last_enabled_level = 0;
 
 	/* ILK: FBC WM must be disabled always */
 	merged->fbc_wm_enabled = INTEL_INFO(dev)->gen >= 6;
@@ -4587,12 +4587,19 @@ void intel_set_rps(struct drm_device *dev, u8 val)
 		gen6_set_rps(dev, val);
 }
 
-static void gen9_disable_rps(struct drm_device *dev)
+static void gen9_disable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 	I915_WRITE(GEN9_PG_ENABLE, 0);
+}
+
+static void gen9_disable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(GEN6_RP_CONTROL, 0);
 }
 
 static void gen6_disable_rps(struct drm_device *dev)
@@ -4601,6 +4608,7 @@ static void gen6_disable_rps(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 	I915_WRITE(GEN6_RPNSWREQ, 1 << 31);
+	I915_WRITE(GEN6_RP_CONTROL, 0);
 }
 
 static void cherryview_disable_rps(struct drm_device *dev)
@@ -4804,6 +4812,16 @@ static void gen9_enable_rps(struct drm_device *dev)
 
 	/* WaGsvDisableTurbo: Workaround to disable turbo on BXT A* */
 	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
+		/*
+		 * BIOS could leave the Hw Turbo enabled, so need to explicitly
+		 * clear out the Control register just to avoid inconsitency
+		 * with debugfs interface, which will show  Turbo as enabled
+		 * only and that is not expected by the User after adding the
+		 * WaGsvDisableTurbo. Apart from this there is no problem even
+		 * if the Turbo is left enabled in the Control register, as the
+		 * Up/Down interrupts would remain masked.
+		 */
+		gen9_disable_rps(dev);
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 		return;
 	}
@@ -4997,7 +5015,8 @@ static void gen6_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_STATE, 0);
 
 	/* Clear the DBG now so we don't confuse earlier errors */
-	if ((gtfifodbg = I915_READ(GTFIFODBG))) {
+	gtfifodbg = I915_READ(GTFIFODBG);
+	if (gtfifodbg) {
 		DRM_ERROR("GT fifo had a previous error %x\n", gtfifodbg);
 		I915_WRITE(GTFIFODBG, gtfifodbg);
 	}
@@ -5528,7 +5547,8 @@ static void cherryview_enable_rps(struct drm_device *dev)
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
-	gtfifodbg = I915_READ(GTFIFODBG);
+	gtfifodbg = I915_READ(GTFIFODBG) & ~(GT_FIFO_SBDEDICATE_FREE_ENTRY_CHV |
+					     GT_FIFO_FREE_ENTRIES_CHV);
 	if (gtfifodbg) {
 		DRM_DEBUG_DRIVER("GT fifo had a previous error %x\n",
 				 gtfifodbg);
@@ -5627,7 +5647,8 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	valleyview_check_pctx(dev_priv);
 
-	if ((gtfifodbg = I915_READ(GTFIFODBG))) {
+	gtfifodbg = I915_READ(GTFIFODBG);
+	if (gtfifodbg) {
 		DRM_DEBUG_DRIVER("GT fifo had a previous error %x\n",
 				 gtfifodbg);
 		I915_WRITE(GTFIFODBG, gtfifodbg);
@@ -6265,9 +6286,10 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 		intel_suspend_gt_powersave(dev);
 
 		mutex_lock(&dev_priv->rps.hw_lock);
-		if (INTEL_INFO(dev)->gen >= 9)
+		if (INTEL_INFO(dev)->gen >= 9) {
+			gen9_disable_rc6(dev);
 			gen9_disable_rps(dev);
-		else if (IS_CHERRYVIEW(dev))
+		} else if (IS_CHERRYVIEW(dev))
 			cherryview_disable_rps(dev);
 		else if (IS_VALLEYVIEW(dev))
 			valleyview_disable_rps(dev);
@@ -6882,22 +6904,9 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	gen6_check_mch_setup(dev);
 }
 
-static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
-{
-	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
-
-	/*
-	 * Disable trickle feed and enable pnd deadline calculation
-	 */
-	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
-	I915_WRITE(CBR1_VLV, 0);
-}
-
 static void valleyview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	vlv_init_display_clock_gating(dev_priv);
 
 	/* WaDisableEarlyCull:vlv */
 	I915_WRITE(_3D_CHICKEN3,
@@ -6980,8 +6989,6 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 static void cherryview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	vlv_init_display_clock_gating(dev_priv);
 
 	/* WaVSRefCountFullforceMissDisable:chv */
 	/* WaDSRefCountFullforceMissDisable:chv */

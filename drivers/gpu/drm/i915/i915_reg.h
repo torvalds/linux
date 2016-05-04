@@ -79,6 +79,16 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 /* PCI config space */
 
+#define MCHBAR_I915 0x44
+#define MCHBAR_I965 0x48
+#define MCHBAR_SIZE (4 * 4096)
+
+#define DEVEN 0x54
+#define   DEVEN_MCHBAR_EN (1 << 28)
+
+#define BSM 0x5c
+#define   BSM_MASK (0xFFFF << 20)
+
 #define HPLLCC	0xc0 /* 85x only */
 #define   GC_CLOCK_CONTROL_MASK		(0x7 << 0)
 #define   GC_CLOCK_133_200		(0 << 0)
@@ -89,6 +99,16 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   GC_CLOCK_133_266_2		(5 << 0)
 #define   GC_CLOCK_166_266		(6 << 0)
 #define   GC_CLOCK_166_250		(7 << 0)
+
+#define I915_GDRST 0xc0 /* PCI config register */
+#define   GRDOM_FULL		(0 << 2)
+#define   GRDOM_RENDER		(1 << 2)
+#define   GRDOM_MEDIA		(3 << 2)
+#define   GRDOM_MASK		(3 << 2)
+#define   GRDOM_RESET_STATUS	(1 << 1)
+#define   GRDOM_RESET_ENABLE	(1 << 0)
+
+#define GCDGMBUS 0xcc
 
 #define GCFGC2	0xda
 #define GCFGC	0xf0 /* 915+ only */
@@ -121,18 +141,16 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   I915_GC_RENDER_CLOCK_166_MHZ	(0 << 0)
 #define   I915_GC_RENDER_CLOCK_200_MHZ	(1 << 0)
 #define   I915_GC_RENDER_CLOCK_333_MHZ	(4 << 0)
-#define GCDGMBUS 0xcc
-#define PCI_LBPC 0xf4 /* legacy/combination backlight modes, also called LBB */
 
+#define ASLE	0xe4
+#define ASLS	0xfc
 
-/* Graphics reset regs */
-#define I915_GDRST 0xc0 /* PCI config register */
-#define  GRDOM_FULL	(0<<2)
-#define  GRDOM_RENDER	(1<<2)
-#define  GRDOM_MEDIA	(3<<2)
-#define  GRDOM_MASK	(3<<2)
-#define  GRDOM_RESET_STATUS (1<<1)
-#define  GRDOM_RESET_ENABLE (1<<0)
+#define SWSCI	0xe8
+#define   SWSCI_SCISEL	(1 << 15)
+#define   SWSCI_GSSCIE	(1 << 0)
+
+#define LBPC 0xf4 /* legacy/combination backlight modes, also called LBB */
+
 
 #define ILK_GDSR _MMIO(MCHBAR_MIRROR_BASE + 0x2ca4)
 #define  ILK_GRDOM_FULL		(0<<1)
@@ -1375,14 +1393,10 @@ enum skl_disp_power_wells {
 
 #define _PORT_REF_DW6_A			0x162198
 #define _PORT_REF_DW6_BC		0x6C198
-/*
- * FIXME: BSpec/CHV ConfigDB disagrees on the following two fields, fix them
- * after testing.
- */
-#define   GRC_CODE_SHIFT		23
-#define   GRC_CODE_MASK			(0x1FF << GRC_CODE_SHIFT)
+#define   GRC_CODE_SHIFT		24
+#define   GRC_CODE_MASK			(0xFF << GRC_CODE_SHIFT)
 #define   GRC_CODE_FAST_SHIFT		16
-#define   GRC_CODE_FAST_MASK		(0x7F << GRC_CODE_FAST_SHIFT)
+#define   GRC_CODE_FAST_MASK		(0xFF << GRC_CODE_FAST_SHIFT)
 #define   GRC_CODE_SLOW_SHIFT		8
 #define   GRC_CODE_SLOW_MASK		(0xFF << GRC_CODE_SLOW_SHIFT)
 #define   GRC_CODE_NOM_MASK		0xFF
@@ -2934,7 +2948,14 @@ enum skl_disp_power_wells {
 #define GEN6_RP_STATE_CAP	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5998)
 #define BXT_RP_STATE_CAP        _MMIO(0x138170)
 
-#define INTERVAL_1_28_US(us)	(((us) * 100) >> 7)
+/*
+ * Make these a multiple of magic 25 to avoid SNB (eg. Dell XPS
+ * 8300) freezing up around GPU hangs. Looks as if even
+ * scheduling/timer interrupts start misbehaving if the RPS
+ * EI/thresholds are "bad", leading to a very sluggish or even
+ * frozen machine.
+ */
+#define INTERVAL_1_28_US(us)	roundup(((us) * 100) >> 7, 25)
 #define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
 #define INTERVAL_0_833_US(us)	(((us) * 6) / 5)
 #define GT_INTERVAL_FROM_US(dev_priv, us) (IS_GEN9(dev_priv) ? \
@@ -2942,6 +2963,15 @@ enum skl_disp_power_wells {
 				INTERVAL_0_833_US(us) : \
 				INTERVAL_1_33_US(us)) : \
 				INTERVAL_1_28_US(us))
+
+#define INTERVAL_1_28_TO_US(interval)  (((interval) << 7) / 100)
+#define INTERVAL_1_33_TO_US(interval)  (((interval) << 2) / 3)
+#define INTERVAL_0_833_TO_US(interval) (((interval) * 5)  / 6)
+#define GT_PM_INTERVAL_TO_US(dev_priv, interval) (IS_GEN9(dev_priv) ? \
+                           (IS_BROXTON(dev_priv) ? \
+                           INTERVAL_0_833_TO_US(interval) : \
+                           INTERVAL_1_33_TO_US(interval)) : \
+                           INTERVAL_1_28_TO_US(interval))
 
 /*
  * Logical Context regs
@@ -6866,6 +6896,8 @@ enum skl_disp_power_wells {
 #define  VLV_SPAREG2H				_MMIO(0xA194)
 
 #define  GTFIFODBG				_MMIO(0x120000)
+#define    GT_FIFO_SBDEDICATE_FREE_ENTRY_CHV	(0x1f << 20)
+#define    GT_FIFO_FREE_ENTRIES_CHV		(0x7f << 13)
 #define    GT_FIFO_SBDROPERR			(1<<6)
 #define    GT_FIFO_BLOBDROPERR			(1<<5)
 #define    GT_FIFO_SB_READ_ABORTERR		(1<<4)
@@ -6882,8 +6914,11 @@ enum skl_disp_power_wells {
 
 #define  HSW_IDICR				_MMIO(0x9008)
 #define    IDIHASHMSK(x)			(((x) & 0x3f) << 16)
-#define  HSW_EDRAM_PRESENT			_MMIO(0x120010)
+#define  HSW_EDRAM_CAP				_MMIO(0x120010)
 #define    EDRAM_ENABLED			0x1
+#define    EDRAM_NUM_BANKS(cap)			(((cap) >> 1) & 0xf)
+#define    EDRAM_WAYS_IDX(cap)			(((cap) >> 5) & 0x7)
+#define    EDRAM_SETS_IDX(cap)			(((cap) >> 8) & 0x3)
 
 #define GEN6_UCGCTL1				_MMIO(0x9400)
 # define GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE		(1 << 16)
@@ -7161,6 +7196,7 @@ enum skl_disp_power_wells {
 
 #define GEN9_HALF_SLICE_CHICKEN7	_MMIO(0xe194)
 #define   GEN9_ENABLE_YV12_BUGFIX	(1<<4)
+#define   GEN9_ENABLE_GPGPU_PREEMPTION	(1<<2)
 
 /* Audio */
 #define G4X_AUD_VID_DID			_MMIO(dev_priv->info.display_mmio_offset + 0x62020)

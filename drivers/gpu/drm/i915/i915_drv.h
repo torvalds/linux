@@ -33,34 +33,40 @@
 #include <uapi/drm/i915_drm.h>
 #include <uapi/drm/drm_fourcc.h>
 
-#include <drm/drmP.h>
-#include "i915_params.h"
-#include "i915_reg.h"
-#include "intel_bios.h"
-#include "intel_ringbuffer.h"
-#include "intel_lrc.h"
-#include "i915_gem_gtt.h"
-#include "i915_gem_render_state.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <drm/intel-gtt.h>
-#include <drm/drm_legacy.h> /* for struct drm_dma_handle */
-#include <drm/drm_gem.h>
 #include <linux/backlight.h>
 #include <linux/hashtable.h>
 #include <linux/intel-iommu.h>
 #include <linux/kref.h>
 #include <linux/pm_qos.h>
-#include "intel_guc.h"
+#include <linux/shmem_fs.h>
+
+#include <drm/drmP.h>
+#include <drm/intel-gtt.h>
+#include <drm/drm_legacy.h> /* for struct drm_dma_handle */
+#include <drm/drm_gem.h>
+
+#include "i915_params.h"
+#include "i915_reg.h"
+
+#include "intel_bios.h"
 #include "intel_dpll_mgr.h"
+#include "intel_guc.h"
+#include "intel_lrc.h"
+#include "intel_ringbuffer.h"
+
+#include "i915_gem.h"
+#include "i915_gem_gtt.h"
+#include "i915_gem_render_state.h"
 
 /* General customization:
  */
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20160411"
+#define DRIVER_DATE		"20160425"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -634,6 +640,13 @@ enum forcewake_domains {
 			 FORCEWAKE_MEDIA)
 };
 
+#define FW_REG_READ  (1)
+#define FW_REG_WRITE (2)
+
+enum forcewake_domains
+intel_uncore_forcewake_for_reg(struct drm_i915_private *dev_priv,
+			       i915_reg_t reg, unsigned int op);
+
 struct intel_uncore_funcs {
 	void (*force_wake_get)(struct drm_i915_private *dev_priv,
 							enum forcewake_domains domains);
@@ -666,8 +679,9 @@ struct intel_uncore {
 	struct intel_uncore_forcewake_domain {
 		struct drm_i915_private *i915;
 		enum forcewake_domain_id id;
+		enum forcewake_domains mask;
 		unsigned wake_count;
-		struct timer_list timer;
+		struct hrtimer timer;
 		i915_reg_t reg_set;
 		u32 val_set;
 		u32 val_clear;
@@ -680,14 +694,14 @@ struct intel_uncore {
 };
 
 /* Iterate over initialised fw domains */
-#define for_each_fw_domain_mask(domain__, mask__, dev_priv__, i__) \
-	for ((i__) = 0, (domain__) = &(dev_priv__)->uncore.fw_domain[0]; \
-	     (i__) < FW_DOMAIN_ID_COUNT; \
-	     (i__)++, (domain__) = &(dev_priv__)->uncore.fw_domain[i__]) \
-		for_each_if (((mask__) & (dev_priv__)->uncore.fw_domains) & (1 << (i__)))
+#define for_each_fw_domain_masked(domain__, mask__, dev_priv__) \
+	for ((domain__) = &(dev_priv__)->uncore.fw_domain[0]; \
+	     (domain__) < &(dev_priv__)->uncore.fw_domain[FW_DOMAIN_ID_COUNT]; \
+	     (domain__)++) \
+		for_each_if ((mask__) & (domain__)->mask)
 
-#define for_each_fw_domain(domain__, dev_priv__, i__) \
-	for_each_fw_domain_mask(domain__, FORCEWAKE_ALL, dev_priv__, i__)
+#define for_each_fw_domain(domain__, dev_priv__) \
+	for_each_fw_domain_masked(domain__, FORCEWAKE_ALL, dev_priv__)
 
 #define CSR_VERSION(major, minor)	((major) << 16 | (minor))
 #define CSR_VERSION_MAJOR(version)	((version) >> 16)
@@ -996,6 +1010,7 @@ struct intel_fbc_work;
 
 struct intel_gmbus {
 	struct i2c_adapter adapter;
+#define GMBUS_FORCE_BIT_RETRY (1U << 31)
 	u32 force_bit;
 	u32 reg0;
 	i915_reg_t gpio_reg;
@@ -1385,9 +1400,6 @@ struct i915_gpu_error {
 
 	/* For missed irq/seqno simulation. */
 	unsigned int test_irq_rings;
-
-	/* Used to prevent gem_check_wedged returning -EAGAIN during gpu reset   */
-	bool reload_in_reset;
 };
 
 enum modeset_restore {
@@ -1444,6 +1456,7 @@ struct intel_vbt_data {
 	unsigned int lvds_use_ssc:1;
 	unsigned int display_clock_mode:1;
 	unsigned int fdi_rx_polarity_inverted:1;
+	unsigned int panel_type:4;
 	int lvds_ssc_freq;
 	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
 
@@ -1863,7 +1876,7 @@ struct drm_i915_private {
 	struct intel_l3_parity l3_parity;
 
 	/* Cannot be determined by PCIID. You must always read a register. */
-	size_t ellc_size;
+	u32 edram_cap;
 
 	/* gen6+ rps state */
 	struct intel_gen6_power_mgmt rps;
@@ -1911,6 +1924,7 @@ struct drm_i915_private {
 	 * crappiness (can't read out DPLL_MD for pipes B & C).
 	 */
 	u32 chv_dpll_md[I915_MAX_PIPES];
+	u32 bxt_phy_grc;
 
 	u32 suspend_count;
 	bool suspended_to_idle;
@@ -2237,6 +2251,7 @@ struct drm_i915_gem_request {
 	/** On Which ring this request was generated */
 	struct drm_i915_private *i915;
 	struct intel_engine_cs *engine;
+	unsigned reset_counter;
 
 	 /** GEM sequence number associated with the previous request,
 	  * when the HWS breadcrumb is equal to this the GPU is processing
@@ -2317,7 +2332,6 @@ struct drm_i915_gem_request {
 struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct intel_context *ctx);
-void i915_gem_request_cancel(struct drm_i915_gem_request *req);
 void i915_gem_request_free(struct kref *req_ref);
 int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 				   struct drm_file *file);
@@ -2487,6 +2501,7 @@ struct drm_i915_cmd_table {
 	__p; \
 })
 #define INTEL_INFO(p) 	(&__I915__(p)->info)
+#define INTEL_GEN(p)	(INTEL_INFO(p)->gen)
 #define INTEL_DEVID(p)	(INTEL_INFO(p)->device_id)
 #define INTEL_REVID(p)	(__I915__(p)->dev->pdev->revision)
 
@@ -2613,8 +2628,9 @@ struct drm_i915_cmd_table {
 #define HAS_VEBOX(dev)		(INTEL_INFO(dev)->ring_mask & VEBOX_RING)
 #define HAS_LLC(dev)		(INTEL_INFO(dev)->has_llc)
 #define HAS_SNOOP(dev)		(INTEL_INFO(dev)->has_snoop)
+#define HAS_EDRAM(dev)		(__I915__(dev)->edram_cap & EDRAM_ENABLED)
 #define HAS_WT(dev)		((IS_HASWELL(dev) || IS_BROADWELL(dev)) && \
-				 __I915__(dev)->ellc_size)
+				 HAS_EDRAM(dev))
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)
@@ -2631,8 +2647,9 @@ struct drm_i915_cmd_table {
 
 /* WaRsDisableCoarsePowerGating:skl,bxt */
 #define NEEDS_WaRsDisableCoarsePowerGating(dev) (IS_BXT_REVID(dev, 0, BXT_REVID_A1) || \
-						 ((IS_SKL_GT3(dev) || IS_SKL_GT4(dev)) && \
-						  IS_SKL_REVID(dev, 0, SKL_REVID_F0)))
+						 IS_SKL_GT3(dev) || \
+						 IS_SKL_GT4(dev))
+
 /*
  * dp aux and gmbus irq on gen4 seems to be able to generate legacy interrupts
  * even when in MSI mode. This results in spurious interrupt warnings if the
@@ -2667,7 +2684,7 @@ struct drm_i915_cmd_table {
 #define HAS_RUNTIME_PM(dev)	(IS_GEN6(dev) || IS_HASWELL(dev) || \
 				 IS_BROADWELL(dev) || IS_VALLEYVIEW(dev) || \
 				 IS_CHERRYVIEW(dev) || IS_SKYLAKE(dev) || \
-				 IS_KABYLAKE(dev))
+				 IS_KABYLAKE(dev) || IS_BROXTON(dev))
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
 #define HAS_RC6p(dev)		(INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
 
@@ -2791,6 +2808,8 @@ void intel_uncore_forcewake_get__locked(struct drm_i915_private *dev_priv,
 					enum forcewake_domains domains);
 void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
 					enum forcewake_domains domains);
+u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
+
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
 static inline bool intel_vgpu_active(struct drm_device *dev)
 {
@@ -2869,7 +2888,6 @@ int i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 void i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 					struct drm_i915_gem_request *req);
-void i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params);
 int i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 				   struct drm_i915_gem_execbuffer2 *args,
 				   struct list_head *vmas);
@@ -3000,9 +3018,11 @@ static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
  * pages and then returns a contiguous mapping of the backing storage into
  * the kernel address space.
  *
- * The caller must hold the struct_mutex.
+ * The caller must hold the struct_mutex, and is responsible for calling
+ * i915_gem_object_unpin_map() when the mapping is no longer required.
  *
- * Returns the pointer through which to access the backing storage.
+ * Returns the pointer through which to access the mapped object, or an
+ * ERR_PTR() on error.
  */
 void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj);
 
@@ -3069,23 +3089,45 @@ i915_gem_find_active_request(struct intel_engine_cs *engine);
 
 bool i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_retire_requests_ring(struct intel_engine_cs *engine);
-int __must_check i915_gem_check_wedge(struct i915_gpu_error *error,
-				      bool interruptible);
+
+static inline u32 i915_reset_counter(struct i915_gpu_error *error)
+{
+	return atomic_read(&error->reset_counter);
+}
+
+static inline bool __i915_reset_in_progress(u32 reset)
+{
+	return unlikely(reset & I915_RESET_IN_PROGRESS_FLAG);
+}
+
+static inline bool __i915_reset_in_progress_or_wedged(u32 reset)
+{
+	return unlikely(reset & (I915_RESET_IN_PROGRESS_FLAG | I915_WEDGED));
+}
+
+static inline bool __i915_terminally_wedged(u32 reset)
+{
+	return unlikely(reset & I915_WEDGED);
+}
 
 static inline bool i915_reset_in_progress(struct i915_gpu_error *error)
 {
-	return unlikely(atomic_read(&error->reset_counter)
-			& (I915_RESET_IN_PROGRESS_FLAG | I915_WEDGED));
+	return __i915_reset_in_progress(i915_reset_counter(error));
+}
+
+static inline bool i915_reset_in_progress_or_wedged(struct i915_gpu_error *error)
+{
+	return __i915_reset_in_progress_or_wedged(i915_reset_counter(error));
 }
 
 static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 {
-	return atomic_read(&error->reset_counter) & I915_WEDGED;
+	return __i915_terminally_wedged(i915_reset_counter(error));
 }
 
 static inline u32 i915_reset_count(struct i915_gpu_error *error)
 {
-	return ((atomic_read(&error->reset_counter) & ~I915_WEDGED) + 1) / 2;
+	return ((i915_reset_counter(error) & ~I915_WEDGED) + 1) / 2;
 }
 
 static inline bool i915_stop_ring_allow_ban(struct drm_i915_private *dev_priv)
@@ -3118,7 +3160,6 @@ void __i915_add_request(struct drm_i915_gem_request *req,
 #define i915_add_request_no_flush(req) \
 	__i915_add_request(req, NULL, false)
 int __i915_wait_request(struct drm_i915_gem_request *req,
-			unsigned reset_counter,
 			bool interruptible,
 			s64 *timeout,
 			struct intel_rps_client *rps);
@@ -3455,6 +3496,7 @@ extern int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 					 bool enable);
 extern int intel_opregion_notify_adapter(struct drm_device *dev,
 					 pci_power_t state);
+extern int intel_opregion_get_panel_type(struct drm_device *dev);
 #else
 static inline int intel_opregion_setup(struct drm_device *dev) { return 0; }
 static inline void intel_opregion_init(struct drm_device *dev) { return; }
@@ -3469,6 +3511,10 @@ static inline int
 intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
 {
 	return 0;
+}
+static inline int intel_opregion_get_panel_type(struct drm_device *dev)
+{
+	return -ENODEV;
 }
 #endif
 
