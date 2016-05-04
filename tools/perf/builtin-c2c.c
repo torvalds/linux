@@ -459,6 +459,61 @@ ld_llcmiss_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	return llc_miss(&c2c_left->stats) - llc_miss(&c2c_right->stats);
 }
 
+static uint64_t total_records(struct c2c_stats *stats)
+{
+	uint64_t lclmiss, ldcnt, total;
+
+	lclmiss  = stats->lcl_dram +
+		   stats->rmt_dram +
+		   stats->rmt_hitm +
+		   stats->rmt_hit;
+
+	ldcnt    = lclmiss +
+		   stats->ld_fbhit +
+		   stats->ld_l1hit +
+		   stats->ld_l2hit +
+		   stats->ld_llchit +
+		   stats->lcl_hitm;
+
+	total    = ldcnt +
+		   stats->st_l1hit +
+		   stats->st_l1miss;
+
+	return total;
+}
+
+static int
+tot_recs_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		struct hist_entry *he)
+{
+	struct c2c_hist_entry *c2c_he;
+	int width = c2c_width(fmt, hpp, he->hists);
+	uint64_t tot_recs;
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+	tot_recs = total_records(&c2c_he->stats);
+
+	return scnprintf(hpp->buf, hpp->size, "%*" PRIu64, width, tot_recs);
+}
+
+static int64_t
+tot_recs_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+	     struct hist_entry *left, struct hist_entry *right)
+{
+	struct c2c_hist_entry *c2c_left;
+	struct c2c_hist_entry *c2c_right;
+	uint64_t tot_recs_left;
+	uint64_t tot_recs_right;
+
+	c2c_left  = container_of(left, struct c2c_hist_entry, he);
+	c2c_right = container_of(right, struct c2c_hist_entry, he);
+
+	tot_recs_left  = total_records(&c2c_left->stats);
+	tot_recs_right = total_records(&c2c_right->stats);
+
+	return tot_recs_left - tot_recs_right;
+}
+
 #define HEADER_LOW(__h)			\
 	{				\
 		.line[1] = {		\
@@ -646,6 +701,14 @@ static struct c2c_dimension dim_ld_llcmiss = {
 	.width		= 7,
 };
 
+static struct c2c_dimension dim_tot_recs = {
+	.header		= HEADER_BOTH("Total", "records"),
+	.name		= "tot_recs",
+	.cmp		= tot_recs_cmp,
+	.entry		= tot_recs_entry,
+	.width		= 7,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
 	&dim_offset,
@@ -666,6 +729,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_ld_llchit,
 	&dim_ld_rmthit,
 	&dim_ld_llcmiss,
+	&dim_tot_recs,
 	NULL,
 };
 
