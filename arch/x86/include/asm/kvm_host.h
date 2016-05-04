@@ -993,6 +993,10 @@ struct kvm_x86_ops {
 	 */
 	int (*pre_block)(struct kvm_vcpu *vcpu);
 	void (*post_block)(struct kvm_vcpu *vcpu);
+
+	void (*vcpu_blocking)(struct kvm_vcpu *vcpu);
+	void (*vcpu_unblocking)(struct kvm_vcpu *vcpu);
+
 	int (*update_pi_irte)(struct kvm *kvm, unsigned int host_irq,
 			      uint32_t guest_irq, bool set);
 };
@@ -1344,8 +1348,18 @@ bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
 void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 		     struct kvm_lapic_irq *irq);
 
-static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
-static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
+{
+	if (kvm_x86_ops->vcpu_blocking)
+		kvm_x86_ops->vcpu_blocking(vcpu);
+}
+
+static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu)
+{
+	if (kvm_x86_ops->vcpu_unblocking)
+		kvm_x86_ops->vcpu_unblocking(vcpu);
+}
+
 static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 
 #endif /* _ASM_X86_KVM_HOST_H */
