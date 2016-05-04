@@ -217,7 +217,7 @@ int sun4i_rgb_init(struct drm_device *drm)
 	int ret;
 
 	/* If we don't have a panel, there's no point in going on */
-	if (!tcon->panel)
+	if (IS_ERR(tcon->panel))
 		return -ENODEV;
 
 	rgb = devm_kzalloc(drm->dev, sizeof(*rgb), GFP_KERNEL);
