@@ -118,19 +118,16 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc);
 static void intel_modeset_setup_hw_state(struct drm_device *dev);
 static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
 
-typedef struct {
-	int	min, max;
-} intel_range_t;
-
-typedef struct {
-	int	dot_limit;
-	int	p2_slow, p2_fast;
-} intel_p2_t;
-
 typedef struct intel_limit intel_limit_t;
 struct intel_limit {
-	intel_range_t   dot, vco, n, m, m1, m2, p, p1;
-	intel_p2_t	    p2;
+	struct {
+		int min, max;
+	} dot, vco, n, m, m1, m2, p, p1;
+
+	struct {
+		int dot_limit;
+		int p2_slow, p2_fast;
+	} p2;
 };
 
 /* returns HPLL frequency in kHz */
