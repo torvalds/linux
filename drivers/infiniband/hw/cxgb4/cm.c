@@ -1179,14 +1179,6 @@ static void close_complete_upcall(struct c4iw_ep *ep, int status)
 	}
 }
 
-static int abort_connection(struct c4iw_ep *ep, struct sk_buff *skb, gfp_t gfp)
-{
-	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-	__state_set(&ep->com, ABORTING);
-	set_bit(ABORT_CONN, &ep->com.history);
-	return send_abort(ep, skb, gfp);
-}
-
 static void peer_close_upcall(struct c4iw_ep *ep)
 {
 	struct iw_cm_event event;
@@ -3977,9 +3969,9 @@ static void process_timeout(struct c4iw_ep *ep)
 			__func__, ep, ep->hwtid, ep->com.state);
 		abort = 0;
 	}
-	if (abort)
-		abort_connection(ep, NULL, GFP_KERNEL);
 	mutex_unlock(&ep->com.mutex);
+	if (abort)
+		c4iw_ep_disconnect(ep, 1, GFP_KERNEL);
 	c4iw_put_ep(&ep->com);
 }
 
