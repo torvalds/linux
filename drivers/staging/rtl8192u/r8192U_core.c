@@ -253,7 +253,7 @@ u32 read_cam(struct net_device *dev, u8 addr)
 	return data;
 }
 
-void write_nic_byte_E(struct net_device *dev, int indx, u8 data)
+int write_nic_byte_E(struct net_device *dev, int indx, u8 data)
 {
 	int status;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -261,7 +261,7 @@ void write_nic_byte_E(struct net_device *dev, int indx, u8 data)
 	u8 *usbdata = kzalloc(sizeof(data), GFP_KERNEL);
 
 	if (!usbdata)
-		return;
+		return -ENOMEM;
 	*usbdata = data;
 
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
@@ -269,9 +269,12 @@ void write_nic_byte_E(struct net_device *dev, int indx, u8 data)
 				 indx | 0xfe00, 0, usbdata, 1, HZ / 2);
 	kfree(usbdata);
 
-	if (status < 0)
+	if (status < 0){
 		netdev_err(dev, "write_nic_byte_E TimeOut! status: %d\n",
 			   status);
+		return status;
+	}
+	return 0;
 }
 
 int read_nic_byte_E(struct net_device *dev, int indx, u8 *data)
