@@ -249,7 +249,6 @@ MODULE_DEVICE_TABLE(rpmsg, rpmsg_driver_sample_id_table);
 
 static struct rpmsg_driver rpmsg_sample_client = {
 	.drv.name	= KBUILD_MODNAME,
-	.drv.owner	= THIS_MODULE,
 	.id_table	= rpmsg_driver_sample_id_table,
 	.probe		= rpmsg_sample_probe,
 	.callback	= rpmsg_sample_cb,
