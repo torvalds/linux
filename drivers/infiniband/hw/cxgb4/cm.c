@@ -3467,8 +3467,13 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 			set_bit(EP_DISC_CLOSE, &ep->com.history);
 			ret = send_halfclose(ep, gfp);
 		}
-		if (ret)
+		if (ret) {
+			if (!abrupt) {
+				stop_ep_timer(ep);
+				close_complete_upcall(ep, -EIO);
+			}
 			fatal = 1;
+		}
 	}
 	mutex_unlock(&ep->com.mutex);
 	if (fatal)
