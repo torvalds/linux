@@ -19,7 +19,7 @@
 static struct kset *manager_kset;
 
 static LIST_HEAD(modules_list);
-static DEFINE_RWLOCK(modules_lock);
+static DECLARE_RWSEM(modules_rwsem);
 static DEFINE_IDA(module_id);
 
 /* helpers */
@@ -42,7 +42,6 @@ static struct gb_audio_manager_module *gb_audio_manager_get_locked(int id)
 int gb_audio_manager_add(struct gb_audio_manager_module_descriptor *desc)
 {
 	struct gb_audio_manager_module *module;
-	unsigned long flags;
 	int id;
 	int err;
 
@@ -55,9 +54,9 @@ int gb_audio_manager_add(struct gb_audio_manager_module_descriptor *desc)
 	}
 
 	/* Add it to the list */
-	write_lock_irqsave(&modules_lock, flags);
+	down_write(&modules_rwsem);
 	list_add_tail(&module->list, &modules_list);
-	write_unlock_irqrestore(&modules_lock, flags);
+	up_write(&modules_rwsem);
 
 	return module->id;
 }
@@ -66,20 +65,18 @@ EXPORT_SYMBOL_GPL(gb_audio_manager_add);
 int gb_audio_manager_remove(int id)
 {
 	struct gb_audio_manager_module *module;
-	unsigned long flags;
 
-	write_lock_irqsave(&modules_lock, flags);
+	down_write(&modules_rwsem);
 
 	module = gb_audio_manager_get_locked(id);
 	if (!module) {
-		write_unlock_irqrestore(&modules_lock, flags);
+		up_write(&modules_rwsem);
 		return -EINVAL;
 	}
-
-	ida_simple_remove(&module_id, module->id);
 	list_del(&module->list);
 	kobject_put(&module->kobj);
-	write_unlock_irqrestore(&modules_lock, flags);
+	up_write(&modules_rwsem);
+	ida_simple_remove(&module_id, module->id);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gb_audio_manager_remove);
@@ -88,9 +85,8 @@ void gb_audio_manager_remove_all(void)
 {
 	struct gb_audio_manager_module *module, *next;
 	int is_empty = 1;
-	unsigned long flags;
 
-	write_lock_irqsave(&modules_lock, flags);
+	down_write(&modules_rwsem);
 
 	list_for_each_entry_safe(module, next, &modules_list, list) {
 		list_del(&module->list);
@@ -99,7 +95,7 @@ void gb_audio_manager_remove_all(void)
 
 	is_empty = list_empty(&modules_list);
 
-	write_unlock_irqrestore(&modules_lock, flags);
+	up_write(&modules_rwsem);
 
 	if (!is_empty)
 		pr_warn("Not all nodes were deleted\n");
@@ -109,12 +105,11 @@ EXPORT_SYMBOL_GPL(gb_audio_manager_remove_all);
 struct gb_audio_manager_module *gb_audio_manager_get_module(int id)
 {
 	struct gb_audio_manager_module *module;
-	unsigned long flags;
 
-	read_lock_irqsave(&modules_lock, flags);
+	down_read(&modules_rwsem);
 	module = gb_audio_manager_get_locked(id);
 	kobject_get(&module->kobj);
-	read_unlock_irqrestore(&modules_lock, flags);
+	up_read(&modules_rwsem);
 	return module;
 }
 EXPORT_SYMBOL_GPL(gb_audio_manager_get_module);
@@ -128,11 +123,10 @@ EXPORT_SYMBOL_GPL(gb_audio_manager_put_module);
 int gb_audio_manager_dump_module(int id)
 {
 	struct gb_audio_manager_module *module;
-	unsigned long flags;
 
-	read_lock_irqsave(&modules_lock, flags);
+	down_read(&modules_rwsem);
 	module = gb_audio_manager_get_locked(id);
-	read_unlock_irqrestore(&modules_lock, flags);
+	up_read(&modules_rwsem);
 
 	if (!module)
 		return -EINVAL;
@@ -146,14 +140,13 @@ void gb_audio_manager_dump_all(void)
 {
 	struct gb_audio_manager_module *module;
 	int count = 0;
-	unsigned long flags;
 
-	read_lock_irqsave(&modules_lock, flags);
+	down_read(&modules_rwsem);
 	list_for_each_entry(module, &modules_list, list) {
 		gb_audio_manager_module_dump(module);
 		count++;
 	}
-	read_unlock_irqrestore(&modules_lock, flags);
+	up_read(&modules_rwsem);
 
 	pr_info("Number of connected modules: %d\n", count);
 }
