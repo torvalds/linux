@@ -488,7 +488,7 @@ static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 	if (page_offset & 3) {
 		u32 pad = 4 - (page_offset & 3);
 
-		head->arg.page_len += pad;
+		head->arg.tail[0].iov_len += pad;
 		head->arg.len += pad;
 		head->arg.buflen += pad;
 		page_offset += pad;
