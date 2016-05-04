@@ -14,9 +14,6 @@
 #include "audio_apbridgea.h"
 #include "audio_manager.h"
 
-static DEFINE_MUTEX(gb_codec_list_lock);
-static LIST_HEAD(gb_codec_list);
-
 /*
  * gb_snd management functions
  */
@@ -241,16 +238,13 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	if (bundle->num_cports < 2)
 		return -ENODEV;
 
-	mutex_lock(&gb_codec_list_lock);
 	/*
 	 * There can be only one Management connection and any number of data
 	 * connections.
 	 */
 	gbmodule = devm_kzalloc(dev, sizeof(*gbmodule), GFP_KERNEL);
-	if (!gbmodule) {
-		mutex_unlock(&gb_codec_list_lock);
+	if (!gbmodule)
 		return -ENOMEM;
-	}
 
 	gbmodule->num_data_connections = bundle->num_cports - 1;
 	mutex_init(&gbmodule->lock);
@@ -348,7 +342,6 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	gbmodule->manager_id = gb_audio_manager_add(&desc);
 
 	dev_dbg(dev, "Add GB Audio device:%s\n", gbmodule->name);
-	mutex_unlock(&gb_codec_list_lock);
 
 	return 0;
 
@@ -378,7 +371,6 @@ destroy_connections:
 		gb_connection_destroy(gbmodule->mgmt_connection);
 
 	devm_kfree(dev, gbmodule);
-	mutex_unlock(&gb_codec_list_lock);
 
 	return ret;
 }
@@ -387,8 +379,6 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 {
 	struct gbaudio_module_info *gbmodule = greybus_get_drvdata(bundle);
 	struct gbaudio_data_connection *dai, *_dai;
-
-	mutex_lock(&gb_codec_list_lock);
 
 	gbaudio_unregister_module(gbmodule);
 
@@ -409,7 +399,6 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 	gbmodule->mgmt_connection = NULL;
 
 	devm_kfree(&bundle->dev, gbmodule);
-	mutex_unlock(&gb_codec_list_lock);
 }
 
 static const struct greybus_bundle_id gb_audio_id_table[] = {
