@@ -60,7 +60,6 @@ static int gbaudio_module_disable(struct gbaudio_codec_info *codec,
 
 	dai_name = codec->stream[dir].dai_name;
 
-	mutex_lock(&module->lock);
 	module_state = module->ctrlstate[dir];
 	if (module_state == GBAUDIO_CODEC_SHUTDOWN) {
 		dev_dbg(codec->dev, "%s: module already configured\n",
@@ -129,7 +128,6 @@ static int gbaudio_module_disable(struct gbaudio_codec_info *codec,
 	module->ctrlstate[dir] = GBAUDIO_CODEC_SHUTDOWN;
 
 func_exit:
-	mutex_unlock(&module->lock);
 	mutex_unlock(&codec->lock);
 	return ret;
 }
@@ -160,7 +158,6 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 	rate = codec->stream[dir].rate;
 	sig_bits = codec->stream[dir].sig_bits;
 
-	mutex_lock(&module->lock);
 	module_state = module->ctrlstate[dir];
 	if (module_state == codec_state) {
 		dev_dbg(codec->dev, "%s: module already configured\n",
@@ -272,7 +269,6 @@ static int gbaudio_module_enable(struct gbaudio_codec_info *codec,
 
 func_exit:
 	module->ctrlstate[dir] = module_state;
-	mutex_unlock(&module->lock);
 	mutex_unlock(&codec->lock);
 	return ret;
 }
@@ -342,18 +338,11 @@ static int gbcodec_startup(struct snd_pcm_substream *substream,
 
 	state = codec->stream[substream->stream].state;
 	list_for_each_entry(module, &codec->module_list, list) {
-		mutex_lock(&module->lock);
-		if (!module->is_connected) {
-			mutex_unlock(&module->lock);
-			continue;
-		}
-
 		/* find the dai */
 		data = find_data(module, dai->name);
 		if (!data) {
 			dev_err(dai->dev, "%s:%s DATA connection missing\n",
 				dai->name, module->name);
-			mutex_unlock(&module->lock);
 			continue;
 		}
 
@@ -375,7 +364,6 @@ static int gbcodec_startup(struct snd_pcm_substream *substream,
 			break;
 		default:
 			dev_err(dai->dev, "Inavlid stream\n");
-			mutex_unlock(&module->lock);
 			mutex_unlock(&codec->lock);
 			return -EINVAL;
 		}
@@ -384,7 +372,6 @@ static int gbcodec_startup(struct snd_pcm_substream *substream,
 		state = GBAUDIO_CODEC_STARTUP;
 		module->ctrlstate[substream->stream] = state;
 		dev_dbg(dai->dev, "%s: state:%d\n", module->name, state);
-		mutex_unlock(&module->lock);
 	}
 	codec->stream[substream->stream].state = state;
 	codec->stream[substream->stream].dai_name = dai->name;
@@ -492,19 +479,11 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 
 	state = codec->stream[substream->stream].state;
 	list_for_each_entry(module, &codec->module_list, list) {
-		mutex_lock(&module->lock);
-		if (!module->is_connected) {
-			dev_err(dai->dev, "%s:%s module not connected\n",
-				__func__, module->name);
-			mutex_unlock(&module->lock);
-			continue;
-		}
 		/* find the dai */
 		data = find_data(module, dai->name);
 		if (!data) {
 			dev_err(dai->dev, "%s:%s DATA connection missing\n",
 				dai->name, module->name);
-			mutex_unlock(&module->lock);
 			continue;
 		}
 
@@ -523,7 +502,6 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 		state = GBAUDIO_CODEC_SHUTDOWN;
 		module->ctrlstate[substream->stream] = state;
 		dev_dbg(dai->dev, "%s: state:%d\n", module->name, state);
-		mutex_unlock(&module->lock);
 	}
 	codec->stream[substream->stream].state = state;
 	codec->stream[substream->stream].dai_name = NULL;
@@ -583,21 +561,11 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 
 	state = codec->stream[substream->stream].state;
 	list_for_each_entry(module, &codec->module_list, list) {
-		mutex_lock(&module->lock);
-		if (!module->is_connected) {
-			dev_err(dai->dev, "%s:%s module not connected\n",
-				__func__, module->name);
-			ret = -ENODEV;
-			mutex_unlock(&module->lock);
-			continue;
-		}
-
 		/* find the data connection */
 		data = find_data(module, dai->name);
 		if (!data) {
 			dev_err(dai->dev, "%s:%s DATA connection missing\n",
 				dai->name, module->name);
-			mutex_unlock(&module->lock);
 			continue;
 		}
 
@@ -612,7 +580,6 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 					  format, rate, channels, sig_bits);
 		if (ret) {
 			dev_err(dai->dev, "%d: Error during set_pcm\n", ret);
-			mutex_unlock(&module->lock);
 			goto func_exit;
 		}
 		if (state < GBAUDIO_CODEC_HWPARAMS) {
@@ -623,14 +590,12 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 			if (ret) {
 				dev_err(dai->dev,
 					"%d: Error during set_config\n", ret);
-				mutex_unlock(&module->lock);
 				goto func_exit;
 			}
 		}
 		state = GBAUDIO_CODEC_HWPARAMS;
 		module->ctrlstate[substream->stream] = state;
 		dev_dbg(dai->dev, "%s: state:%d\n", module->name, state);
-		mutex_unlock(&module->lock);
 	}
 	codec->stream[substream->stream].state = state;
 	codec->stream[substream->stream].format = format;
@@ -731,18 +696,11 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 
 	state = codec->stream[substream->stream].state;
 	list_for_each_entry(module, &codec->module_list, list) {
-		mutex_lock(&module->lock);
-		if (!module->is_connected) {
-			mutex_unlock(&module->lock);
-			continue;
-		}
-
 		/* find the dai */
 		data = find_data(module, dai->name);
 		if (!data) {
 			dev_err(dai->dev, "%s:%s DATA connection missing\n",
 				dai->name, module->name);
-			mutex_unlock(&module->lock);
 			continue;
 		}
 
@@ -759,14 +717,12 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 		if (ret == -ENODEV)
 			continue;
 		if (ret) {
-			mutex_unlock(&module->lock);
 			goto func_exit;
 		}
 
 		state = GBAUDIO_CODEC_PREPARE;
 		module->ctrlstate[substream->stream] = state;
 		dev_dbg(dai->dev, "%s: state:%d\n", module->name, state);
-		mutex_unlock(&module->lock);
 	}
 	codec->stream[substream->stream].state = state;
 
@@ -824,12 +780,6 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 	}
 
 	list_for_each_entry(module, &codec->module_list, list) {
-		mutex_lock(&module->lock);
-		if (!module->is_connected) {
-			mutex_unlock(&module->lock);
-			continue;
-		}
-
 		/* find the dai */
 		data = find_data(module, dai->name);
 		if (data)
@@ -839,7 +789,6 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 		dev_err(dai->dev, "%s:%s DATA connection missing\n",
 			dai->name, module->name);
 		ret = -ENODEV;
-		mutex_unlock(&module->lock);
 		goto func_exit;
 	}
 	if (start && tx) {
@@ -873,7 +822,6 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 	if (ret)
 		dev_err(dai->dev, "%s:Error during %s stream:%d\n",
 			module->name, start ? "Start" : "Stop", ret);
-	mutex_unlock(&module->lock);
 
 func_exit:
 	mutex_unlock(&codec->lock);
@@ -1118,7 +1066,6 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 	down_write(&card->controls_rwsem);
 	mutex_lock(&gbcodec->lock);
 	dev_dbg(codec->dev, "Process Unregister %s module\n", module->name);
-	mutex_lock(&module->lock);
 
 #ifdef CONFIG_SND_JACK
 	/* free jack devices for this module from codec->jack_list */
@@ -1133,7 +1080,6 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 
 	gbaudio_codec_cleanup(module);
 
-	module->is_connected = 0;
 	if (module->dapm_routes) {
 		dev_dbg(codec->dev, "Removing %d routes\n",
 			module->num_dapm_routes);
@@ -1152,8 +1098,6 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 		snd_soc_dapm_free_controls(&codec->dapm, module->dapm_widgets,
 					   module->num_dapm_widgets);
 	}
-
-	mutex_unlock(&module->lock);
 
 	list_del(&module->list);
 	dev_dbg(codec->dev, "Unregistered %s module\n", module->name);

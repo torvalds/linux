@@ -172,8 +172,6 @@ struct gbaudio_module_info {
 	struct snd_soc_jack button_jack;
 
 	/* used by codec_ops */
-	struct mutex lock;
-	int is_connected;
 	int ctrlstate[2];	/* PB/CAP */
 
 	/* connection info */

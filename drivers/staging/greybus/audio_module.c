@@ -26,12 +26,10 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 	dev_warn(module->dev, "Jack Event received: type: %u, event: %u\n",
 		 req->jack_attribute, req->event);
 
-	mutex_lock(&module->lock);
 	if (req->event == GB_AUDIO_JACK_EVENT_REMOVAL) {
 		module->jack_type = 0;
 		button_status = module->button_status;
 		module->button_status = 0;
-		mutex_unlock(&module->lock);
 		if (button_status)
 			snd_soc_jack_report(&module->button_jack, 0,
 					    GBCODEC_JACK_BUTTON_MASK);
@@ -48,7 +46,6 @@ static int gbaudio_request_jack(struct gbaudio_module_info *module,
 			 module->jack_type, report);
 
 	module->jack_type = report;
-	mutex_unlock(&module->lock);
 	snd_soc_jack_report(&module->headset_jack, report, GBCODEC_JACK_MASK);
 
 	return 0;
@@ -63,10 +60,8 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 		 req->button_id, req->event);
 
 	/* currently supports 4 buttons only */
-	mutex_lock(&module->lock);
 	if (!module->jack_type) {
 		dev_err(module->dev, "Jack not present. Bogus event!!\n");
-		mutex_unlock(&module->lock);
 		return -EINVAL;
 	}
 
@@ -99,8 +94,6 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 		report = report & ~soc_button_id;
 
 	module->button_status = report;
-
-	mutex_unlock(&module->lock);
 
 	snd_soc_jack_report(&module->button_jack, report,
 			    GBCODEC_JACK_BUTTON_MASK);
@@ -247,7 +240,6 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 		return -ENOMEM;
 
 	gbmodule->num_data_connections = bundle->num_cports - 1;
-	mutex_init(&gbmodule->lock);
 	INIT_LIST_HEAD(&gbmodule->data_list);
 	INIT_LIST_HEAD(&gbmodule->widget_list);
 	INIT_LIST_HEAD(&gbmodule->ctl_list);
@@ -327,7 +319,6 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 		if (ret)
 			goto disable_data_connection;
 	}
-	gbmodule->is_connected = 1;
 
 	/* inform above layer for uevent */
 	dev_dbg(dev, "Inform set_event:%d to above layer\n", 1);
