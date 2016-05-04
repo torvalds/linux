@@ -32,6 +32,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 
 	machine->threads = RB_ROOT;
 	pthread_rwlock_init(&machine->threads_lock, NULL);
+	machine->nr_threads = 0;
 	INIT_LIST_HEAD(&machine->dead_threads);
 	machine->last_match = NULL;
 
@@ -430,6 +431,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		 */
 		thread__get(th);
 		machine->last_match = th;
+		++machine->nr_threads;
 	}
 
 	return th;
@@ -681,10 +683,12 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
 
 size_t machine__fprintf(struct machine *machine, FILE *fp)
 {
-	size_t ret = 0;
+	size_t ret;
 	struct rb_node *nd;
 
 	pthread_rwlock_rdlock(&machine->threads_lock);
+
+	ret = fprintf(fp, "Threads: %u\n", machine->nr_threads);
 
 	for (nd = rb_first(&machine->threads); nd; nd = rb_next(nd)) {
 		struct thread *pos = rb_entry(nd, struct thread, rb_node);
@@ -1419,6 +1423,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread *th,
 		pthread_rwlock_wrlock(&machine->threads_lock);
 	rb_erase_init(&th->rb_node, &machine->threads);
 	RB_CLEAR_NODE(&th->rb_node);
+	--machine->nr_threads;
 	/*
 	 * Move it first to the dead_threads list, then drop the reference,
 	 * if this is the last reference, then the thread__delete destructor

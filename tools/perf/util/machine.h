@@ -31,6 +31,7 @@ struct machine {
 	char		  *root_dir;
 	struct rb_root	  threads;
 	pthread_rwlock_t  threads_lock;
+	unsigned int	  nr_threads;
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
 	struct vdso_info  *vdso_info;
