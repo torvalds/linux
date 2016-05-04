@@ -23,6 +23,8 @@ struct gb_svc_deferred_request {
 };
 
 
+static int gb_svc_queue_deferred_request(struct gb_operation *operation);
+
 static ssize_t endo_id_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -695,7 +697,7 @@ static int gb_svc_hello(struct gb_operation *op)
 
 	gb_svc_debugfs_init(svc);
 
-	return 0;
+	return gb_svc_queue_deferred_request(op);
 }
 
 static struct gb_interface *gb_svc_interface_lookup(struct gb_svc *svc,
@@ -752,6 +754,35 @@ static void gb_svc_intf_reenable(struct gb_svc *svc, struct gb_interface *intf)
 	}
 
 	mutex_unlock(&intf->mutex);
+}
+
+static void gb_svc_process_hello_deferred(struct gb_operation *operation)
+{
+	struct gb_connection *connection = operation->connection;
+	struct gb_svc *svc = gb_connection_get_data(connection);
+	int ret;
+
+	/*
+	 * XXX This is a hack/work-around to reconfigure the APBridgeA-Switch
+	 * link to PWM G2, 1 Lane, Slow Auto, so that it has sufficient
+	 * bandwidth for 3 audio streams plus boot-over-UniPro of a hot-plugged
+	 * module.
+	 *
+	 * The code should be removed once SW-2217, Heuristic for UniPro
+	 * Power Mode Changes is resolved.
+	 */
+	ret = gb_svc_intf_set_power_mode(svc, svc->ap_intf_id,
+					GB_SVC_UNIPRO_HS_SERIES_A,
+					GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+					2, 1,
+					GB_SVC_UNIPRO_SLOW_AUTO_MODE,
+					2, 1,
+					0, 0);
+
+	if (ret)
+		dev_warn(&svc->dev,
+			"power mode change failed on AP to switch link: %d\n",
+			ret);
 }
 
 static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
@@ -963,6 +994,9 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 	type = operation->request->header->type;
 
 	switch (type) {
+	case GB_SVC_TYPE_SVC_HELLO:
+		gb_svc_process_hello_deferred(operation);
+		break;
 	case GB_SVC_TYPE_INTF_HOTPLUG:
 		gb_svc_process_intf_hotplug(operation);
 		break;

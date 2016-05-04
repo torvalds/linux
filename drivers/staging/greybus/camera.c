@@ -131,9 +131,9 @@ static int gb_camera_set_intf_power_mode(struct gb_camera *gcam, u8 intf_id,
 		ret = gb_svc_intf_set_power_mode(svc, intf_id,
 						 GB_SVC_UNIPRO_HS_SERIES_A,
 						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-						 1, 2,
+						 2, 1,
 						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
-						 1, 2,
+						 2, 1,
 						 0, 0);
 
 	return ret;
