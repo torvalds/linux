@@ -415,6 +415,9 @@ STAT_FN(lcl_hitm)
 STAT_FN(store)
 STAT_FN(st_l1hit)
 STAT_FN(st_l1miss)
+STAT_FN(ld_fbhit)
+STAT_FN(ld_l1hit)
+STAT_FN(ld_l2hit)
 
 #define HEADER_LOW(__h)			\
 	{				\
@@ -555,6 +558,30 @@ static struct c2c_dimension dim_cl_stores_l1miss = {
 	.width		= 7,
 };
 
+static struct c2c_dimension dim_ld_fbhit = {
+	.header		= HEADER_SPAN("----- Core Load Hit -----", "FB", 2),
+	.name		= "ld_fbhit",
+	.cmp		= ld_fbhit_cmp,
+	.entry		= ld_fbhit_entry,
+	.width		= 7,
+};
+
+static struct c2c_dimension dim_ld_l1hit = {
+	.header		= HEADER_SPAN_LOW("L1"),
+	.name		= "ld_l1hit",
+	.cmp		= ld_l1hit_cmp,
+	.entry		= ld_l1hit_entry,
+	.width		= 7,
+};
+
+static struct c2c_dimension dim_ld_l2hit = {
+	.header		= HEADER_SPAN_LOW("L2"),
+	.name		= "ld_l2hit",
+	.cmp		= ld_l2hit_cmp,
+	.entry		= ld_l2hit_entry,
+	.width		= 7,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
 	&dim_offset,
@@ -569,6 +596,9 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_stores_l1miss,
 	&dim_cl_stores_l1hit,
 	&dim_cl_stores_l1miss,
+	&dim_ld_fbhit,
+	&dim_ld_l1hit,
+	&dim_ld_l2hit,
 	NULL,
 };
 
