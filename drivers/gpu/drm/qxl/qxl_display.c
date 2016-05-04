@@ -460,7 +460,7 @@ static const struct drm_crtc_funcs qxl_crtc_funcs = {
 	.page_flip = qxl_crtc_page_flip,
 };
 
-static void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
+void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct qxl_framebuffer *qxl_fb = to_qxl_framebuffer(fb);
 
@@ -522,12 +522,13 @@ int
 qxl_framebuffer_init(struct drm_device *dev,
 		     struct qxl_framebuffer *qfb,
 		     const struct drm_mode_fb_cmd2 *mode_cmd,
-		     struct drm_gem_object *obj)
+		     struct drm_gem_object *obj,
+		     const struct drm_framebuffer_funcs *funcs)
 {
 	int ret;
 
 	qfb->obj = obj;
-	ret = drm_framebuffer_init(dev, &qfb->base, &qxl_fb_funcs);
+	ret = drm_framebuffer_init(dev, &qfb->base, funcs);
 	if (ret) {
 		qfb->obj = NULL;
 		return ret;
@@ -994,7 +995,7 @@ qxl_user_framebuffer_create(struct drm_device *dev,
 	if (qxl_fb == NULL)
 		return NULL;
 
-	ret = qxl_framebuffer_init(dev, qxl_fb, mode_cmd, obj);
+	ret = qxl_framebuffer_init(dev, qxl_fb, mode_cmd, obj, &qxl_fb_funcs);
 	if (ret) {
 		kfree(qxl_fb);
 		drm_gem_object_unreference_unlocked(obj);

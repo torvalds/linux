@@ -145,7 +145,7 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 			continue;
 
 		/*
-		 * FIXME: Async commits can race with connector unplugging and
+		 * FIXME: Nonblocking commits can race with connector unplugging and
 		 * there's currently nothing that prevents cleanup up state for
 		 * deleted connectors. As long as the callback doesn't look at
 		 * the connector we'll be fine though, so make sure that's the
@@ -262,6 +262,8 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 {
 	int ret, index = drm_crtc_index(crtc);
 	struct drm_crtc_state *crtc_state;
+
+	WARN_ON(!state->acquire_ctx);
 
 	crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
 	if (crtc_state)
@@ -622,6 +624,8 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 	int ret, index = drm_plane_index(plane);
 	struct drm_plane_state *plane_state;
 
+	WARN_ON(!state->acquire_ctx);
+
 	plane_state = drm_atomic_get_existing_plane_state(state, plane);
 	if (plane_state)
 		return plane_state;
@@ -889,6 +893,8 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	int ret, index;
 	struct drm_mode_config *config = &connector->dev->mode_config;
 	struct drm_connector_state *connector_state;
+
+	WARN_ON(!state->acquire_ctx);
 
 	ret = drm_modeset_lock(&config->connection_mutex, state->acquire_ctx);
 	if (ret)
@@ -1390,7 +1396,7 @@ int drm_atomic_commit(struct drm_atomic_state *state)
 EXPORT_SYMBOL(drm_atomic_commit);
 
 /**
- * drm_atomic_async_commit - atomic&async configuration commit
+ * drm_atomic_nonblocking_commit - atomic&nonblocking configuration commit
  * @state: atomic configuration to check
  *
  * Note that this function can return -EDEADLK if the driver needed to acquire
@@ -1405,7 +1411,7 @@ EXPORT_SYMBOL(drm_atomic_commit);
  * Returns:
  * 0 on success, negative error code on failure.
  */
-int drm_atomic_async_commit(struct drm_atomic_state *state)
+int drm_atomic_nonblocking_commit(struct drm_atomic_state *state)
 {
 	struct drm_mode_config *config = &state->dev->mode_config;
 	int ret;
@@ -1414,11 +1420,11 @@ int drm_atomic_async_commit(struct drm_atomic_state *state)
 	if (ret)
 		return ret;
 
-	DRM_DEBUG_ATOMIC("commiting %p asynchronously\n", state);
+	DRM_DEBUG_ATOMIC("commiting %p nonblocking\n", state);
 
 	return config->funcs->atomic_commit(state->dev, state, true);
 }
-EXPORT_SYMBOL(drm_atomic_async_commit);
+EXPORT_SYMBOL(drm_atomic_nonblocking_commit);
 
 /*
  * The big monstor ioctl
@@ -1687,7 +1693,7 @@ retry:
 		 */
 		ret = drm_atomic_check_only(state);
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
-		ret = drm_atomic_async_commit(state);
+		ret = drm_atomic_nonblocking_commit(state);
 	} else {
 		ret = drm_atomic_commit(state);
 	}

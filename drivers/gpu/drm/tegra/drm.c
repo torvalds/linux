@@ -74,7 +74,7 @@ static void tegra_atomic_work(struct work_struct *work)
 }
 
 static int tegra_atomic_commit(struct drm_device *drm,
-			       struct drm_atomic_state *state, bool async)
+			       struct drm_atomic_state *state, bool nonblock)
 {
 	struct tegra_drm *tegra = drm->dev_private;
 	int err;
@@ -83,7 +83,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 	if (err)
 		return err;
 
-	/* serialize outstanding asynchronous commits */
+	/* serialize outstanding nonblocking commits */
 	mutex_lock(&tegra->commit.lock);
 	flush_work(&tegra->commit.work);
 
@@ -95,7 +95,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 
 	drm_atomic_helper_swap_state(drm, state);
 
-	if (async)
+	if (nonblock)
 		tegra_atomic_schedule(tegra, state);
 	else
 		tegra_atomic_complete(tegra, state);

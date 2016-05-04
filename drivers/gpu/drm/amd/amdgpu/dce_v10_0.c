@@ -3370,7 +3370,7 @@ static int dce_v10_0_pageflip_irq(struct amdgpu_device *adev,
 
 	/* wakeup usersapce */
 	if (works->event)
-		drm_send_vblank_event(adev->ddev, crtc_id, works->event);
+		drm_crtc_send_vblank_event(&amdgpu_crtc->base, works->event);
 
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 

@@ -52,6 +52,7 @@ config DRM_KMS_FB_HELPER
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_DEFERRED_IO
 	help
 	  FBDEV helpers for KMS drivers.
 

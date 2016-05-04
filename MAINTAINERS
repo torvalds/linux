@@ -3768,6 +3768,21 @@ F:	drivers/gpu/vga/
 F:	include/drm/
 F:	include/uapi/drm/
 
+DRM DRIVER FOR AST SERVER GRAPHICS CHIPS
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/ast/
+
+DRM DRIVER FOR BOCHS VIRTUAL GPU
+M:	Gerd Hoffmann <kraxel@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/bochs/
+
+DRM DRIVER FOR QEMU'S CIRRUS DEVICE
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/cirrus/
+
 RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
 M:	Christian König <christian.koenig@amd.com>
@@ -3800,7 +3815,7 @@ T:	git git://anongit.freedesktop.org/drm-intel
 S:	Supported
 F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
-F:	include/uapi/drm/i915*
+F:	include/uapi/drm/i915_drm.h
 
 DRM DRIVERS FOR ATMEL HLCDC
 M:	Boris Brezillon <boris.brezillon@free-electrons.com>
@@ -3825,8 +3840,8 @@ L:	dri-devel@lists.freedesktop.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/daeinki/drm-exynos.git
 S:	Supported
 F:	drivers/gpu/drm/exynos/
-F:	include/drm/exynos*
-F:	include/uapi/drm/exynos*
+F:	include/uapi/drm/exynos_drm.h
+F:	Documentation/devicetree/bindings/display/exynos/
 
 DRM DRIVERS FOR FREESCALE DCU
 M:	Stefan Agner <stefan@agner.ch>
@@ -3863,6 +3878,31 @@ S:	Maintained
 F:	drivers/gpu/drm/hisilicon/
 F:	Documentation/devicetree/bindings/display/hisilicon/
 
+DRM DRIVER FOR INTEL I810 VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/i810/
+F:	include/uapi/drm/i810_drm.h
+
+DRM DRIVER FOR MSM ADRENO GPU
+M:	Rob Clark <robdclark@gmail.com>
+L:	linux-arm-msm@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+L:	freedreno@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~robclark/linux
+S:	Maintained
+F:	drivers/gpu/drm/msm/
+F:	include/uapi/drm/msm_drm.h
+F:	Documentation/devicetree/bindings/display/msm/
+
+DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
+M:	Ben Skeggs <bskeggs@redhat.com>
+L:	dri-devel@lists.freedesktop.org
+L:	nouveau@lists.freedesktop.org
+T:	git git://github.com/skeggsb/linux
+S:	Supported
+F:	drivers/gpu/drm/nouveau/
+F:	include/uapi/drm/nouveau_drm.h
+
 DRM DRIVERS FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>
 M:	Terje Bergström <tbergstrom@nvidia.com>
@@ -3876,22 +3916,54 @@ F:	include/linux/host1x.h
 F:	include/uapi/drm/tegra_drm.h
 F:	Documentation/devicetree/bindings/display/tegra/nvidia,tegra20-host1x.txt
 
+DRM DRIVER FOR MATROX G200/G400 GRAPHICS CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/mga/
+F:	include/uapi/drm/mga_drm.h
+
+DRM DRIVER FOR MGA G200 SERVER GRAPHICS CHIPS
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/mgag200/
+
+DRM DRIVER FOR RAGE 128 VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/r128/
+F:	include/uapi/drm/r128_drm.h
+
 DRM DRIVERS FOR RENESAS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-renesas-soc@vger.kernel.org
-T:	git git://people.freedesktop.org/~airlied/linux
+T:	git git://linuxtv.org/pinchartl/fbdev
 S:	Supported
 F:	drivers/gpu/drm/rcar-du/
 F:	drivers/gpu/drm/shmobile/
 F:	include/linux/platform_data/shmob_drm.h
+F:	Documentation/devicetree/bindings/display/renesas,du.txt
+
+DRM DRIVER FOR QXL VIRTUAL GPU
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/qxl/
+F:	include/uapi/drm/qxl_drm.h
 
 DRM DRIVERS FOR ROCKCHIP
 M:	Mark Yao <mark.yao@rock-chips.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/rockchip/
-F:	Documentation/devicetree/bindings/display/rockchip*
+F:	Documentation/devicetree/bindings/display/rockchip/
+
+DRM DRIVER FOR SAVAGE VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/savage/
+F:	include/uapi/drm/savage_drm.h
+
+DRM DRIVER FOR SIS VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/sis/
+F:	include/uapi/drm/sis_drm.h
 
 DRM DRIVERS FOR STI
 M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
@@ -3902,14 +3974,43 @@ S:	Maintained
 F:	drivers/gpu/drm/sti
 F:	Documentation/devicetree/bindings/display/st,stih4xx.txt
 
+DRM DRIVER FOR TDFX VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/tdfx/
+
+DRM DRIVER FOR USB DISPLAYLINK VIDEO ADAPTERS
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/udl/
+
 DRM DRIVERS FOR VIVANTE GPU IP
 M:	Lucas Stach <l.stach@pengutronix.de>
 R:	Russell King <linux+etnaviv@arm.linux.org.uk>
 R:	Christian Gmeiner <christian.gmeiner@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
-F:	drivers/gpu/drm/etnaviv
-F:	Documentation/devicetree/bindings/display/etnaviv
+F:	drivers/gpu/drm/etnaviv/
+F:	include/uapi/drm/etnaviv_drm.h
+F:	Documentation/devicetree/bindings/display/etnaviv/
+
+DRM DRIVER FOR VMWARE VIRTUAL GPU
+M:	"VMware Graphics" <linux-graphics-maintainer@vmware.com>
+M:	Sinclair Yeh <syeh@vmware.com>
+M:	Thomas Hellstrom <thellstrom@vmware.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~syeh/repos_linux
+T:	git git://people.freedesktop.org/~thomash/linux
+S:	Supported
+F:	drivers/gpu/drm/vmwgfx/
+F:	include/uapi/drm/vmwgfx_drm.h
+
+DRM DRIVERS FOR VC4
+M:	Eric Anholt <eric@anholt.net>
+T:	git git://github.com/anholt/linux
+S:	Supported
+F:	drivers/gpu/drm/vc4/
+F:	include/uapi/drm/vc4_drm.h
+F:	Documentation/devicetree/bindings/display/brcm,bcm-vc4.txt
 
 DSBR100 USB FM RADIO DRIVER
 M:	Alexey Klimov <klimov.linux@gmail.com>
@@ -6931,6 +7032,8 @@ MARVELL ARMADA DRM SUPPORT
 M:	Russell King <rmk+kernel@arm.linux.org.uk>
 S:	Maintained
 F:	drivers/gpu/drm/armada/
+F:	include/uapi/drm/armada_drm.h
+F:	Documentation/devicetree/bindings/display/armada/
 
 MARVELL 88E6352 DSA support
 M:	Guenter Roeck <linux@roeck-us.net>

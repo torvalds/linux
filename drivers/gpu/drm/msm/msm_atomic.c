@@ -190,17 +190,16 @@ int msm_atomic_check(struct drm_device *dev,
  * drm_atomic_helper_commit - commit validated state object
  * @dev: DRM device
  * @state: the driver state object
- * @async: asynchronous commit
+ * @nonblock: nonblocking commit
  *
  * This function commits a with drm_atomic_helper_check() pre-validated state
- * object. This can still fail when e.g. the framebuffer reservation fails. For
- * now this doesn't implement asynchronous commits.
+ * object. This can still fail when e.g. the framebuffer reservation fails.
  *
  * RETURNS
  * Zero for success or -errno.
  */
 int msm_atomic_commit(struct drm_device *dev,
-		struct drm_atomic_state *state, bool async)
+		struct drm_atomic_state *state, bool nonblock)
 {
 	int nplanes = dev->mode_config.num_total_plane;
 	int ncrtcs = dev->mode_config.num_crtc;
@@ -276,7 +275,7 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * current layout.
 	 */
 
-	if (async) {
+	if (nonblock) {
 		msm_queue_fence_cb(dev, &c->fence_cb, c->fence);
 		return 0;
 	}
