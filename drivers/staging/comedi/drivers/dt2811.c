@@ -76,6 +76,23 @@
 #define DT2811_DI_REG			0x06	/* r   Digital Input Port 0 */
 #define DT2811_DO_REG			0x06	/* w   Digital Output Port 1 */
 
+/*
+ * Timer frequency control:
+ *   DT2811_TMRCTR_MANTISSA	DT2811_TMRCTR_EXPONENT
+ *   val  divisor  frequency	val  multiply divisor/divide frequency by
+ *    0      1      600 kHz	 0   1
+ *    1     10       60 kHz	 1   10
+ *    2      2      300 kHz	 2   100
+ *    3      3      200 kHz	 3   1000
+ *    4      4      150 kHz	 4   10000
+ *    5      5      120 kHz	 5   100000
+ *    6      6      100 kHz	 6   1000000
+ *    7     12       50 kHz	 7   10000000
+ */
+#define DT2811_TMRCTR_REG		0x07	/* r/w  Timer/Counter */
+#define DT2811_TMRCTR_MANTISSA(x)	(((x) & 0x7) << 3)
+#define DT2811_TMRCTR_EXPONENT(x)	(((x) & 0x7) << 0)
+
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
 		UNI_RANGE(5),
@@ -130,35 +147,7 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 	}
 };
 
-/*
-   0x07 TMRCTR (R/W) Timer/Counter Register
-   bits 6,7 - reserved
-   bits 5-3 - Timer frequency control (mantissa)
-   543  divisor  freqency (kHz)
-   000  1        600
-   001  10       60
-   010  2        300
-   011  3        200
-   100  4        150
-   101  5        120
-   110  6        100
-   111  12       50
-   bits 2-0 - Timer frequency control (exponent)
-   210  multiply divisor/divide frequency by
-   000  1
-   001  10
-   010  100
-   011  1000
-   100  10000
-   101  100000
-   110  1000000
-   111  10000000
-
- */
-
 #define TIMEOUT 10000
-
-#define DT2811_TMRCTR 7
 
 struct dt2811_board {
 	const char *name;
