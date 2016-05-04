@@ -4834,6 +4834,15 @@ static void svm_sched_in(struct kvm_vcpu *vcpu, int cpu)
 {
 }
 
+static inline void avic_post_state_restore(struct kvm_vcpu *vcpu)
+{
+	if (avic_handle_apic_id_update(vcpu) != 0)
+		return;
+	if (avic_handle_dfr_update(vcpu) != 0)
+		return;
+	avic_handle_ldr_update(vcpu);
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -4914,6 +4923,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.sync_pir_to_irr = svm_sync_pir_to_irr,
 	.hwapic_irr_update = svm_hwapic_irr_update,
 	.hwapic_isr_update = svm_hwapic_isr_update,
+	.apicv_post_state_restore = avic_post_state_restore,
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,
