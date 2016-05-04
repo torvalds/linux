@@ -45,8 +45,10 @@ enum fs_node_type {
 };
 
 enum fs_flow_table_type {
-	FS_FT_NIC_RX	 = 0x0,
-	FS_FT_FDB	 = 0X4,
+	FS_FT_NIC_RX          = 0x0,
+	FS_FT_ESW_EGRESS_ACL  = 0x2,
+	FS_FT_ESW_INGRESS_ACL = 0x3,
+	FS_FT_FDB             = 0X4,
 };
 
 enum fs_fte_status {
@@ -79,6 +81,7 @@ struct mlx5_flow_rule {
 struct mlx5_flow_table {
 	struct fs_node			node;
 	u32				id;
+	u16				vport;
 	unsigned int			max_fte;
 	unsigned int			level;
 	enum fs_flow_table_type		type;

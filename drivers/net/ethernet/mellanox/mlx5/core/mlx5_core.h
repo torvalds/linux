@@ -42,6 +42,8 @@
 #define DRIVER_VERSION "3.0-1"
 #define DRIVER_RELDATE  "January 2015"
 
+#define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs(mdev->pdev))
+
 extern int mlx5_core_debug_mask;
 
 #define mlx5_core_dbg(__dev, format, ...)				\
