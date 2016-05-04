@@ -67,6 +67,9 @@
 #define DT2811_ADGCR_GAIN(x)		(((x) & 0x3) << 6)
 #define DT2811_ADGCR_CHAN(x)		(((x) & 0xf) << 0)
 
+#define DT2811_ADDATA_LO_REG		0x02	/* r   A/D Data low byte */
+#define DT2811_ADDATA_HI_REG		0x03	/* r   A/D Data high byte */
+
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
 		UNI_RANGE(5),
@@ -123,7 +126,7 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 
 /*
 
-   0x02,0x03 (R) ADDAT A/D Data Register
+   0x02,0x03
    (W) DADAT0 D/A Data Register 0
    0x02 low byte
    0x03 high byte
@@ -160,8 +163,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 
 #define TIMEOUT 10000
 
-#define DT2811_ADDATLO 2
-#define DT2811_ADDATHI 3
 #define DT2811_DADAT0LO 2
 #define DT2811_DADAT0HI 3
 #define DT2811_DADAT1LO 4
@@ -218,6 +219,8 @@ static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
+		unsigned int val;
+
 		/* select channel/gain and trigger conversion */
 		outb(DT2811_ADGCR_CHAN(chan) | DT2811_ADGCR_GAIN(range),
 		     dev->iobase + DT2811_ADGCR_REG);
@@ -226,9 +229,11 @@ static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (ret)
 			return ret;
 
-		data[i] = inb(dev->iobase + DT2811_ADDATLO);
-		data[i] |= inb(dev->iobase + DT2811_ADDATHI) << 8;
-		data[i] &= 0xfff;
+		val = inb(dev->iobase + DT2811_ADDATA_LO_REG) |
+		      (inb(dev->iobase + DT2811_ADDATA_HI_REG) << 8);
+		val &= s->maxdata;
+
+		data[i] = val;
 	}
 
 	return i;
