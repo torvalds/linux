@@ -21,7 +21,7 @@
 #define MP8865_MAX_VSEL			0x7f
 #define VOL_MIN_IDX			0x00
 #define VOL_MAX_IDX			0x7f
-#define MP8865_ENABLE_TIME		100
+#define MP8865_ENABLE_TIME		150
 
 /* Register definitions */
 #define MP8865_VOUT_REG			0
