@@ -1698,8 +1698,11 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 	/* Stop the timer in case it's a reset to an active apic */
 	hrtimer_cancel(&apic->lapic_timer.timer);
 
-	if (!init_event)
+	if (!init_event) {
+		kvm_lapic_set_base(vcpu, APIC_DEFAULT_PHYS_BASE |
+		                         MSR_IA32_APICBASE_ENABLE);
 		kvm_apic_set_xapic_id(apic, vcpu->vcpu_id);
+	}
 	kvm_apic_set_version(apic->vcpu);
 
 	for (i = 0; i < APIC_LVT_NUM; i++)
@@ -1838,9 +1841,6 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	 * thinking that APIC satet has changed.
 	 */
 	vcpu->arch.apic_base = MSR_IA32_APICBASE_ENABLE;
-	kvm_lapic_set_base(vcpu,
-			APIC_DEFAULT_PHYS_BASE | MSR_IA32_APICBASE_ENABLE);
-
 	static_key_slow_inc(&apic_sw_disabled.key); /* sw disabled at reset */
 	kvm_lapic_reset(vcpu, false);
 	kvm_iodevice_init(&apic->dev, &apic_mmio_ops);
