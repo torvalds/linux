@@ -229,8 +229,6 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 	curseg = CURSEG_I(sbi, CURSEG_WARM_NODE);
 	blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 
-	ra_meta_pages(sbi, blkaddr, 1, META_POR, true);
-
 	while (1) {
 		struct fsync_inode_entry *entry;
 
