@@ -1092,7 +1092,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_cr_intercept(svm, INTERCEPT_CR0_WRITE);
 	set_cr_intercept(svm, INTERCEPT_CR3_WRITE);
 	set_cr_intercept(svm, INTERCEPT_CR4_WRITE);
-	set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
+	if (!kvm_vcpu_apicv_active(&svm->vcpu))
+		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 
 	set_dr_intercepts(svm);
 
@@ -4078,11 +4079,17 @@ static void svm_set_irq(struct kvm_vcpu *vcpu)
 		SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR;
 }
 
+static inline bool svm_nested_virtualize_tpr(struct kvm_vcpu *vcpu)
+{
+	return is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK);
+}
+
 static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
+	if (svm_nested_virtualize_tpr(vcpu) ||
+	    kvm_vcpu_apicv_active(vcpu))
 		return;
 
 	clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
@@ -4255,7 +4262,7 @@ static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
+	if (svm_nested_virtualize_tpr(vcpu))
 		return;
 
 	if (!is_cr_intercept(svm, INTERCEPT_CR8_WRITE)) {
@@ -4269,7 +4276,8 @@ static inline void sync_lapic_to_cr8(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 cr8;
 
-	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
+	if (svm_nested_virtualize_tpr(vcpu) ||
+	    kvm_vcpu_apicv_active(vcpu))
 		return;
 
 	cr8 = kvm_get_cr8(vcpu);
