@@ -791,13 +791,6 @@ static struct rtc_class_ops rv3029_rtc_ops = {
 	.set_time	= rv3029_set_time,
 };
 
-static struct i2c_device_id rv3029_id[] = {
-	{ "rv3029", 0 },
-	{ "rv3029c2", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, rv3029_id);
-
 static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 			const char *name)
 {
@@ -874,6 +867,13 @@ static int rv3029_i2c_probe(struct i2c_client *client,
 
 	return rv3029_probe(&client->dev, regmap, client->irq, client->name);
 }
+
+static struct i2c_device_id rv3029_id[] = {
+	{ "rv3029", 0 },
+	{ "rv3029c2", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, rv3029_id);
 
 static struct i2c_driver rv3029_driver = {
 	.driver = {
