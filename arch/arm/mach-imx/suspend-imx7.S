@@ -309,9 +309,9 @@
 
 	ldr	r11, [r0, #PM_INFO_MX7_ANATOP_V_OFFSET]
 	ldr	r7, [r11, #ANADIG_DIGPROG]
-	and	r7, r7, #0x11
-	cmp	r7, #0x10
-	beq	10f
+	and	r7, r7, #0xff
+	cmp	r7, #0x11
+	bne	10f
 
 	/* TO 1.1 */
 	ldr	r11, [r0, #PM_INFO_MX7_IOMUXC_GPR_V_OFFSET]
@@ -405,9 +405,9 @@
 	str	r7, [r2, r6]
 
 	ldr	r7, [r1, #ANADIG_DIGPROG]
-	and	r7, r7, #0x11
-	cmp	r7, #0x10
-	beq	12f
+	and	r7, r7, #0xff
+	cmp	r7, #0x11
+	bne	12f
 
 	/*
 	 * TKT262940:
