@@ -1690,7 +1690,6 @@ static int add_free_nid(struct f2fs_sb_info *sbi, nid_t nid, bool build)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i;
 	struct nat_entry *ne;
-	bool allocated = false;
 
 	if (!available_free_memory(sbi, FREE_NIDS))
 		return -1;
@@ -1704,8 +1703,6 @@ static int add_free_nid(struct f2fs_sb_info *sbi, nid_t nid, bool build)
 		ne = __lookup_nat_cache(nm_i, nid);
 		if (ne && (!get_nat_flag(ne, IS_CHECKPOINTED) ||
 				nat_get_blkaddr(ne) != NULL_ADDR))
-			allocated = true;
-		if (allocated)
 			return 0;
 	}
 
