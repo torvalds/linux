@@ -72,6 +72,21 @@
 })
 #endif
 
+#define pool_tgt_size(p)	((p)->pool_obds.op_size)
+#define pool_tgt_count(p)	((p)->pool_obds.op_count)
+#define pool_tgt_array(p)	((p)->pool_obds.op_array)
+#define pool_tgt_rw_sem(p)	((p)->pool_obds.op_rw_sem)
+
+struct pool_desc {
+	char			 pool_name[LOV_MAXPOOLNAME + 1];
+	struct ost_pool		 pool_obds;
+	atomic_t		 pool_refcount;
+	struct hlist_node	 pool_hash;		/* access by poolname */
+	struct list_head	 pool_list;		/* serial access */
+	struct dentry		*pool_debugfs_entry;	/* file in debugfs */
+	struct obd_device	*pool_lobd;		/* owner */
+};
+
 struct lov_request {
 	struct obd_info	  rq_oi;
 	struct lov_request_set  *rq_rqset;
@@ -149,10 +164,6 @@ int lov_stripe_number(struct lov_stripe_md *lsm, u64 lov_off);
 pgoff_t lov_stripe_pgoff(struct lov_stripe_md *lsm, pgoff_t stripe_index,
 			 int stripe);
 
-/* lov_qos.c */
-#define LOV_USES_ASSIGNED_STRIPE	0
-#define LOV_USES_DEFAULT_STRIPE	 1
-
 /* lov_request.c */
 int lov_update_common_set(struct lov_request_set *set,
 			  struct lov_request *req, int rc);
@@ -178,6 +189,8 @@ int lov_fini_statfs_set(struct lov_request_set *set);
 int lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc);
 
 /* lov_obd.c */
+void lov_stripe_lock(struct lov_stripe_md *md);
+void lov_stripe_unlock(struct lov_stripe_md *md);
 void lov_fix_desc(struct lov_desc *desc);
 void lov_fix_desc_stripe_size(__u64 *val);
 void lov_fix_desc_stripe_count(__u32 *val);

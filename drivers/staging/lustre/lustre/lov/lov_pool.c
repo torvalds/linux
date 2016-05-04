@@ -65,7 +65,6 @@ void lov_pool_putref(struct pool_desc *pool)
 		LASSERT(hlist_unhashed(&pool->pool_hash));
 		LASSERT(list_empty(&pool->pool_list));
 		LASSERT(!pool->pool_debugfs_entry);
-		lov_ost_pool_free(&(pool->pool_rr.lqr_pool));
 		lov_ost_pool_free(&(pool->pool_obds));
 		kfree(pool);
 	}
@@ -424,11 +423,6 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	if (rc)
 		goto out_err;
 
-	memset(&(new_pool->pool_rr), 0, sizeof(struct lov_qos_rr));
-	rc = lov_ost_pool_init(&new_pool->pool_rr.lqr_pool, 0);
-	if (rc)
-		goto out_free_pool_obds;
-
 	INIT_HLIST_NODE(&new_pool->pool_hash);
 
 	/* get ref for debugfs file */
@@ -469,13 +463,10 @@ out_err:
 	list_del_init(&new_pool->pool_list);
 	lov->lov_pool_count--;
 	spin_unlock(&obd->obd_dev_lock);
-
 	ldebugfs_remove(&new_pool->pool_debugfs_entry);
-
-	lov_ost_pool_free(&new_pool->pool_rr.lqr_pool);
-out_free_pool_obds:
 	lov_ost_pool_free(&new_pool->pool_obds);
 	kfree(new_pool);
+
 	return rc;
 }
 
@@ -543,8 +534,6 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 	if (rc)
 		goto out;
 
-	pool->pool_rr.lqr_dirty = 1;
-
 	CDEBUG(D_CONFIG, "Added %s to "LOV_POOLNAMEF" as member %d\n",
 	       ostname, poolname,  pool_tgt_count(pool));
 
@@ -588,8 +577,6 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 	}
 
 	lov_ost_pool_remove(&pool->pool_obds, lov_idx);
-
-	pool->pool_rr.lqr_dirty = 1;
 
 	CDEBUG(D_CONFIG, "%s removed from "LOV_POOLNAMEF"\n", ostname,
 	       poolname);
