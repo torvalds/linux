@@ -412,6 +412,9 @@ __f ## _cmp(struct perf_hpp_fmt *fmt __maybe_unused,			\
 
 STAT_FN(rmt_hitm)
 STAT_FN(lcl_hitm)
+STAT_FN(store)
+STAT_FN(st_l1hit)
+STAT_FN(st_l1miss)
 
 #define HEADER_LOW(__h)			\
 	{				\
@@ -512,6 +515,46 @@ static struct c2c_dimension dim_cl_lcl_hitm = {
 	.width		= 7,
 };
 
+static struct c2c_dimension dim_stores = {
+	.header		= HEADER_SPAN("---- Store Reference ----", "Total", 2),
+	.name		= "stores",
+	.cmp		= store_cmp,
+	.entry		= store_entry,
+	.width		= 7,
+};
+
+static struct c2c_dimension dim_stores_l1hit = {
+	.header		= HEADER_SPAN_LOW("L1Hit"),
+	.name		= "stores_l1hit",
+	.cmp		= st_l1hit_cmp,
+	.entry		= st_l1hit_entry,
+	.width		= 7,
+};
+
+static struct c2c_dimension dim_stores_l1miss = {
+	.header		= HEADER_SPAN_LOW("L1Miss"),
+	.name		= "stores_l1miss",
+	.cmp		= st_l1miss_cmp,
+	.entry		= st_l1miss_entry,
+	.width		= 7,
+};
+
+static struct c2c_dimension dim_cl_stores_l1hit = {
+	.header		= HEADER_SPAN("-- Store Refs --", "L1 Hit", 1),
+	.name		= "cl_stores_l1hit",
+	.cmp		= st_l1hit_cmp,
+	.entry		= st_l1hit_entry,
+	.width		= 7,
+};
+
+static struct c2c_dimension dim_cl_stores_l1miss = {
+	.header		= HEADER_SPAN_LOW("L1 Miss"),
+	.name		= "cl_stores_l1miss",
+	.cmp		= st_l1miss_cmp,
+	.entry		= st_l1miss_entry,
+	.width		= 7,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
 	&dim_offset,
@@ -521,6 +564,11 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_rmt_hitm,
 	&dim_cl_lcl_hitm,
 	&dim_cl_rmt_hitm,
+	&dim_stores,
+	&dim_stores_l1hit,
+	&dim_stores_l1miss,
+	&dim_cl_stores_l1hit,
+	&dim_cl_stores_l1miss,
 	NULL,
 };
 
