@@ -15,6 +15,7 @@
 #define _KEYS_ASYMMETRIC_TYPE_H
 
 #include <linux/key-type.h>
+#include <linux/verification.h>
 
 extern struct key_type key_type_asymmetric;
 
@@ -74,6 +75,11 @@ const struct asymmetric_key_ids *asymmetric_key_ids(const struct key *key)
 {
 	return key->payload.data[asym_key_ids];
 }
+
+extern struct key *find_asymmetric_key(struct key *keyring,
+				       const struct asymmetric_key_id *id_0,
+				       const struct asymmetric_key_id *id_1,
+				       bool partial);
 
 /*
  * The payload is at the discretion of the subtype.

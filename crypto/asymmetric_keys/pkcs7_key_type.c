@@ -13,12 +13,9 @@
 #include <linux/key.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/verification.h>
 #include <linux/key-type.h>
-#include <keys/asymmetric-type.h>
-#include <crypto/pkcs7.h>
 #include <keys/user-type.h>
-#include <keys/system_keyring.h>
-#include "pkcs7_parser.h"
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("PKCS#7 testing key type");
@@ -29,57 +26,44 @@ MODULE_PARM_DESC(pkcs7_usage,
 		 "Usage to specify when verifying the PKCS#7 message");
 
 /*
+ * Retrieve the PKCS#7 message content.
+ */
+static int pkcs7_view_content(void *ctx, const void *data, size_t len,
+			      size_t asn1hdrlen)
+{
+	struct key_preparsed_payload *prep = ctx;
+	const void *saved_prep_data;
+	size_t saved_prep_datalen;
+	int ret;
+
+	saved_prep_data = prep->data;
+	saved_prep_datalen = prep->datalen;
+	prep->data = data;
+	prep->datalen = len;
+
+	ret = user_preparse(prep);
+
+	prep->data = saved_prep_data;
+	prep->datalen = saved_prep_datalen;
+	return ret;
+}
+
+/*
  * Preparse a PKCS#7 wrapped and validated data blob.
  */
 static int pkcs7_preparse(struct key_preparsed_payload *prep)
 {
 	enum key_being_used_for usage = pkcs7_usage;
-	struct pkcs7_message *pkcs7;
-	const void *data, *saved_prep_data;
-	size_t datalen, saved_prep_datalen;
-	bool trusted;
-	int ret;
-
-	kenter("");
 
 	if (usage >= NR__KEY_BEING_USED_FOR) {
 		pr_err("Invalid usage type %d\n", usage);
 		return -EINVAL;
 	}
 
-	saved_prep_data = prep->data;
-	saved_prep_datalen = prep->datalen;
-	pkcs7 = pkcs7_parse_message(saved_prep_data, saved_prep_datalen);
-	if (IS_ERR(pkcs7)) {
-		ret = PTR_ERR(pkcs7);
-		goto error;
-	}
-
-	ret = pkcs7_verify(pkcs7, usage);
-	if (ret < 0)
-		goto error_free;
-
-	ret = pkcs7_validate_trust(pkcs7, system_trusted_keyring, &trusted);
-	if (ret < 0)
-		goto error_free;
-	if (!trusted)
-		pr_warn("PKCS#7 message doesn't chain back to a trusted key\n");
-
-	ret = pkcs7_get_content_data(pkcs7, &data, &datalen, false);
-	if (ret < 0)
-		goto error_free;
-
-	prep->data = data;
-	prep->datalen = datalen;
-	ret = user_preparse(prep);
-	prep->data = saved_prep_data;
-	prep->datalen = saved_prep_datalen;
-
-error_free:
-	pkcs7_free_message(pkcs7);
-error:
-	kleave(" = %d", ret);
-	return ret;
+	return verify_pkcs7_signature(NULL, 0,
+				      prep->data, prep->datalen,
+				      NULL, usage,
+				      pkcs7_view_content, prep);
 }
 
 /*

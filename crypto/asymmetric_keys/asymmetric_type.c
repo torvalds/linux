@@ -35,6 +35,95 @@ static LIST_HEAD(asymmetric_key_parsers);
 static DECLARE_RWSEM(asymmetric_key_parsers_sem);
 
 /**
+ * find_asymmetric_key - Find a key by ID.
+ * @keyring: The keys to search.
+ * @id_0: The first ID to look for or NULL.
+ * @id_1: The second ID to look for or NULL.
+ * @partial: Use partial match if true, exact if false.
+ *
+ * Find a key in the given keyring by identifier.  The preferred identifier is
+ * the id_0 and the fallback identifier is the id_1.  If both are given, the
+ * lookup is by the former, but the latter must also match.
+ */
+struct key *find_asymmetric_key(struct key *keyring,
+				const struct asymmetric_key_id *id_0,
+				const struct asymmetric_key_id *id_1,
+				bool partial)
+{
+	struct key *key;
+	key_ref_t ref;
+	const char *lookup;
+	char *req, *p;
+	int len;
+
+	if (id_0) {
+		lookup = id_0->data;
+		len = id_0->len;
+	} else {
+		lookup = id_1->data;
+		len = id_1->len;
+	}
+
+	/* Construct an identifier "id:<keyid>". */
+	p = req = kmalloc(2 + 1 + len * 2 + 1, GFP_KERNEL);
+	if (!req)
+		return ERR_PTR(-ENOMEM);
+
+	if (partial) {
+		*p++ = 'i';
+		*p++ = 'd';
+	} else {
+		*p++ = 'e';
+		*p++ = 'x';
+	}
+	*p++ = ':';
+	p = bin2hex(p, lookup, len);
+	*p = 0;
+
+	pr_debug("Look up: \"%s\"\n", req);
+
+	ref = keyring_search(make_key_ref(keyring, 1),
+			     &key_type_asymmetric, req);
+	if (IS_ERR(ref))
+		pr_debug("Request for key '%s' err %ld\n", req, PTR_ERR(ref));
+	kfree(req);
+
+	if (IS_ERR(ref)) {
+		switch (PTR_ERR(ref)) {
+			/* Hide some search errors */
+		case -EACCES:
+		case -ENOTDIR:
+		case -EAGAIN:
+			return ERR_PTR(-ENOKEY);
+		default:
+			return ERR_CAST(ref);
+		}
+	}
+
+	key = key_ref_to_ptr(ref);
+	if (id_0 && id_1) {
+		const struct asymmetric_key_ids *kids = asymmetric_key_ids(key);
+
+		if (!kids->id[0]) {
+			pr_debug("First ID matches, but second is missing\n");
+			goto reject;
+		}
+		if (!asymmetric_key_id_same(id_1, kids->id[1])) {
+			pr_debug("First ID matches, but second does not\n");
+			goto reject;
+		}
+	}
+
+	pr_devel("<==%s() = 0 [%x]\n", __func__, key_serial(key));
+	return key;
+
+reject:
+	key_put(key);
+	return ERR_PTR(-EKEYREJECTED);
+}
+EXPORT_SYMBOL_GPL(find_asymmetric_key);
+
+/**
  * asymmetric_key_generate_id: Construct an asymmetric key ID
  * @val_1: First binary blob
  * @len_1: Length of first binary blob

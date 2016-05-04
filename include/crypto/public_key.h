@@ -15,20 +15,6 @@
 #define _LINUX_PUBLIC_KEY_H
 
 /*
- * The use to which an asymmetric key is being put.
- */
-enum key_being_used_for {
-	VERIFYING_MODULE_SIGNATURE,
-	VERIFYING_FIRMWARE_SIGNATURE,
-	VERIFYING_KEXEC_PE_SIGNATURE,
-	VERIFYING_KEY_SIGNATURE,
-	VERIFYING_KEY_SELF_SIGNATURE,
-	VERIFYING_UNSPECIFIED_SIGNATURE,
-	NR__KEY_BEING_USED_FOR
-};
-extern const char *const key_being_used_for[NR__KEY_BEING_USED_FOR];
-
-/*
  * Cryptographic data for the public-key subtype of the asymmetric key type.
  *
  * Note that this may include private part of the key as well as the public
@@ -61,14 +47,15 @@ extern void public_key_signature_free(struct public_key_signature *sig);
 extern struct asymmetric_key_subtype public_key_subtype;
 
 struct key;
+struct key_type;
+union key_payload;
+
+extern int restrict_link_by_signature(struct key *trust_keyring,
+				      const struct key_type *type,
+				      const union key_payload *payload);
+
 extern int verify_signature(const struct key *key,
 			    const struct public_key_signature *sig);
-
-struct asymmetric_key_id;
-extern struct key *x509_request_asymmetric_key(struct key *keyring,
-					       const struct asymmetric_key_id *id,
-					       const struct asymmetric_key_id *skid,
-					       bool partial);
 
 int public_key_verify_signature(const struct public_key *pkey,
 				const struct public_key_signature *sig);
