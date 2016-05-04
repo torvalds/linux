@@ -103,6 +103,7 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	} else if (is_gb_control(dev)) {
 		control = to_gb_control(dev);
 		intf = control->intf;
+		module = intf->module;
 		hd = intf->hd;
 	} else if (is_gb_bundle(dev)) {
 		bundle = to_gb_bundle(dev);
