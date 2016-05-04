@@ -2,11 +2,7 @@
  * Comedi driver for Data Translation DT2811
  *
  * COMEDI - Linux Control and Measurement Device Interface
- * History:
- * Base Version  - David A. Schleef <ds@schleef.org>
- * December 1998 - Updated to work.  David does not have a DT2811
- * board any longer so this was suffering from bitrot.
- * Updated performed by ...
+ * Copyright (C) David A. Schleef <ds@schleef.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +24,7 @@
  *
  * Configuration options:
  *   [0] - I/O port base address
- *   [1] - IRQ, although this is currently unused
+ *   [1] - IRQ (optional, needed for async command support)
  *   [2] - A/D reference (# of analog inputs)
  *	   0 = single-ended (16 channels)
  *	   1 = differential (8 channels)
@@ -51,6 +47,9 @@
  */
 
 #include <linux/module.h>
+#include <linux/interrupt.h>
+#include <linux/delay.h>
+
 #include "../comedidev.h"
 
 /*
@@ -61,16 +60,9 @@
 #define DT2811_ADCSR_ADERROR		BIT(6)	/* r      1=A/D error */
 #define DT2811_ADCSR_ADBUSY		BIT(5)	/* r      1=A/D busy */
 #define DT2811_ADCSR_CLRERROR		BIT(4)
-#define DT2811_ADCSR_INTENB		BIT(2)	/* r/w	  1=interupts ena */
+#define DT2811_ADCSR_DMAENB		BIT(3)	/* r/w    1=dma ena */
+#define DT2811_ADCSR_INTENB		BIT(2)	/* r/w    1=interupts ena */
 #define DT2811_ADCSR_ADMODE(x)		(((x) & 0x3) << 0)
-/* single conversion on ADGCR load */
-#define DT2811_ADCSR_ADMODE_SINGLE	DT2811_ADCSR_ADMODE(0)
-/* continuous conversion, internal clock, (clock enabled on ADGCR load) */
-#define DT2811_ADCSR_ADMODE_CONT	DT2811_ADCSR_ADMODE(1)
-/* continuous conversion, internal clock, external trigger */
-#define DT2811_ADCSR_ADMODE_EXT_TRIG	DT2811_ADCSR_ADMODE(2)
-/* continuous conversion, external clock, external trigger */
-#define DT2811_ADCSR_ADMODE_EXT		DT2811_ADCSR_ADMODE(3)
 
 #define DT2811_ADGCR_REG		0x01	/* r/w  A/D Gain/Channel */
 #define DT2811_ADGCR_GAIN(x)		(((x) & 0x3) << 6)
@@ -85,6 +77,12 @@
 #define DT2811_DI_REG			0x06	/* r   Digital Input Port 0 */
 #define DT2811_DO_REG			0x06	/* w   Digital Output Port 1 */
 
+#define DT2811_TMRCTR_REG		0x07	/* r/w  Timer/Counter */
+#define DT2811_TMRCTR_MANTISSA(x)	(((x) & 0x7) << 3)
+#define DT2811_TMRCTR_EXPONENT(x)	(((x) & 0x7) << 0)
+
+#define DT2811_OSC_BASE			1666	/* 600 kHz = 1666.6667ns */
+
 /*
  * Timer frequency control:
  *   DT2811_TMRCTR_MANTISSA	DT2811_TMRCTR_EXPONENT
@@ -98,9 +96,13 @@
  *    6      6      100 kHz	 6   1000000
  *    7     12       50 kHz	 7   10000000
  */
-#define DT2811_TMRCTR_REG		0x07	/* r/w  Timer/Counter */
-#define DT2811_TMRCTR_MANTISSA(x)	(((x) & 0x7) << 3)
-#define DT2811_TMRCTR_EXPONENT(x)	(((x) & 0x7) << 0)
+const unsigned int dt2811_clk_dividers[] = {
+	1, 10, 2, 3, 4, 5, 6, 12
+};
+
+const unsigned int dt2811_clk_multipliers[] = {
+	1, 10, 100, 1000, 10000, 100000, 1000000, 10000000
+};
 
 /*
  * The Analog Input range is set using jumpers on the board.
@@ -182,6 +184,287 @@ static const struct dt2811_board dt2811_boards[] = {
 	},
 };
 
+struct dt2811_private {
+	unsigned int ai_divisor;
+};
+
+static unsigned int dt2811_ai_read_sample(struct comedi_device *dev,
+					  struct comedi_subdevice *s)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + DT2811_ADDATA_LO_REG) |
+	      (inb(dev->iobase + DT2811_ADDATA_HI_REG) << 8);
+
+	return val & s->maxdata;
+}
+
+static irqreturn_t dt2811_interrupt(int irq, void *d)
+{
+	struct comedi_device *dev = d;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int status;
+
+	if (!dev->attached)
+		return IRQ_NONE;
+
+	status = inb(dev->iobase + DT2811_ADCSR_REG);
+
+	if (status & DT2811_ADCSR_ADERROR) {
+		async->events |= COMEDI_CB_OVERFLOW;
+
+		outb(status | DT2811_ADCSR_CLRERROR,
+		     dev->iobase + DT2811_ADCSR_REG);
+	}
+
+	if (status & DT2811_ADCSR_ADDONE) {
+		unsigned short val;
+
+		val = dt2811_ai_read_sample(dev, s);
+		comedi_buf_write_samples(s, &val, 1);
+	}
+
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
+		async->events |= COMEDI_CB_EOA;
+
+	comedi_handle_events(dev, s);
+
+	return IRQ_HANDLED;
+}
+
+static int dt2811_ai_cancel(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
+{
+	/*
+	 * Mode 0
+	 * Single conversion
+	 *
+	 * Loading a chanspec will trigger a conversion.
+	 */
+	outb(DT2811_ADCSR_ADMODE(0), dev->iobase + DT2811_ADCSR_REG);
+
+	return 0;
+}
+
+static void dt2811_ai_set_chanspec(struct comedi_device *dev,
+				   unsigned int chanspec)
+{
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+
+	outb(DT2811_ADGCR_CHAN(chan) | DT2811_ADGCR_GAIN(range),
+	     dev->iobase + DT2811_ADGCR_REG);
+}
+
+static int dt2811_ai_cmd(struct comedi_device *dev,
+			 struct comedi_subdevice *s)
+{
+	struct dt2811_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int mode;
+
+	if (cmd->start_src == TRIG_NOW) {
+		/*
+		 * Mode 1
+		 * Continuous conversion, internal trigger and clock
+		 *
+		 * This resets the trigger flip-flop, disabling A/D strobes.
+		 * The timer/counter register is loaded with the division
+		 * ratio which will give the required sample rate.
+		 *
+		 * Loading the first chanspec sets the trigger flip-flop,
+		 * enabling the timer/counter. A/D strobes are then generated
+		 * at the rate set by the internal clock/divider.
+		 */
+		mode = DT2811_ADCSR_ADMODE(1);
+	} else { /* TRIG_EXT */
+		if (cmd->convert_src == TRIG_TIMER) {
+			/*
+			 * Mode 2
+			 * Continuous conversion, external trigger
+			 *
+			 * Similar to Mode 1, with the exception that the
+			 * trigger flip-flop must be set by a negative edge
+			 * on the external trigger input.
+			 */
+			mode = DT2811_ADCSR_ADMODE(2);
+		} else { /* TRIG_EXT */
+			/*
+			 * Mode 3
+			 * Continuous conversion, external trigger, clock
+			 *
+			 * Similar to Mode 2, with the exception that the
+			 * conversion rate is set by the frequency on the
+			 * external clock/divider.
+			 */
+			mode = DT2811_ADCSR_ADMODE(3);
+		}
+	}
+	outb(mode | DT2811_ADCSR_INTENB, dev->iobase + DT2811_ADCSR_REG);
+
+	/* load timer */
+	outb(devpriv->ai_divisor, dev->iobase + DT2811_TMRCTR_REG);
+
+	/* load chanspec - enables timer */
+	dt2811_ai_set_chanspec(dev, cmd->chanlist[0]);
+
+	return 0;
+}
+
+static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
+				       unsigned int flags)
+{
+	unsigned long long ns = *nanosec;
+	unsigned int ns_lo = COMEDI_MIN_SPEED;
+	unsigned int ns_hi = 0;
+	unsigned int divisor_hi = 0;
+	unsigned int divisor_lo = 0;
+	unsigned int _div;
+	unsigned int _mult;
+
+	/*
+	 * Work through all the divider/multiplier values to find the two
+	 * closest divisors to generate the requested nanosecond timing.
+	 */
+	for (_div = 0; _div <= 7; _div++) {
+		for (_mult = 0; _mult <= 7; _mult++) {
+			unsigned int div = dt2811_clk_dividers[_div];
+			unsigned int mult = dt2811_clk_multipliers[_mult];
+			unsigned long long divider = div * mult;
+			unsigned int divisor = DT2811_TMRCTR_MANTISSA(_div) |
+					       DT2811_TMRCTR_EXPONENT(_mult);
+
+			/*
+			 * The timer can be configured to run at a slowest
+			 * speed of 0.005hz (600 Khz/120000000), which requires
+			 * 37-bits to represent the nanosecond value. Limit the
+			 * slowest timing to what comedi handles (32-bits).
+			 */
+			ns = divider * DT2811_OSC_BASE;
+			if (ns > COMEDI_MIN_SPEED)
+				continue;
+
+			/* Check for fastest found timing */
+			if (ns <= *nanosec && ns > ns_hi) {
+				ns_hi = ns;
+				divisor_hi = divisor;
+			}
+			/* Check for slowest found timing */
+			if (ns >= *nanosec && ns < ns_lo) {
+				ns_lo = ns;
+				divisor_lo = divisor;
+			}
+		}
+	}
+
+	/*
+	 * The slowest found timing will be invalid if the requested timing
+	 * is faster than what can be generated by the timer. Fix it so that
+	 * CMDF_ROUND_UP returns valid timing.
+	 */
+	if (ns_lo == COMEDI_MIN_SPEED) {
+		ns_lo = ns_hi;
+		divisor_lo = divisor_hi;
+	}
+	/*
+	 * The fastest found timing will be invalid if the requested timing
+	 * is less than what can be generated by the timer. Fix it so that
+	 * CMDF_ROUND_NEAREST and CMDF_ROUND_DOWN return valid timing.
+	 */
+	if (ns_hi == 0) {
+		ns_hi = ns_lo;
+		divisor_hi = divisor_lo;
+	}
+
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
+	default:
+		if (ns_hi - *nanosec < *nanosec - ns_lo) {
+			*nanosec = ns_lo;
+			return divisor_lo;
+		}
+		*nanosec = ns_hi;
+		return divisor_hi;
+	case CMDF_ROUND_UP:
+		*nanosec = ns_lo;
+		return divisor_lo;
+	case CMDF_ROUND_DOWN:
+		*nanosec = ns_hi;
+		return divisor_hi;
+	}
+}
+
+static int dt2811_ai_cmdtest(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_cmd *cmd)
+{
+	struct dt2811_private *devpriv = dev->private;
+	unsigned int arg;
+	int err = 0;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (cmd->convert_src == TRIG_EXT && cmd->start_src != TRIG_EXT)
+		err |= -EINVAL;
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 12500);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	if (err)
+		return 3;
+
+	/* Step 4: fix up any arguments */
+
+	if (cmd->convert_src == TRIG_TIMER) {
+		arg = cmd->convert_arg;
+		devpriv->ai_divisor = dt2811_ns_to_timer(&arg, cmd->flags);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
+	} else { /* TRIG_EXT */
+		/* The convert_arg is used to set the divisor. */
+		devpriv->ai_divisor = cmd->convert_arg;
+	}
+
+	if (err)
+		return 4;
+
+	/* Step 5: check channel list if it exists */
+
+	return 0;
+}
+
 static int dt2811_ai_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 struct comedi_insn *insn,
@@ -200,30 +483,22 @@ static int dt2811_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int range = CR_RANGE(insn->chanspec);
 	int ret;
 	int i;
 
+	/* We will already be in Mode 0 */
 	for (i = 0; i < insn->n; i++) {
-		unsigned int val;
-
-		/* select channel/gain and trigger conversion */
-		outb(DT2811_ADGCR_CHAN(chan) | DT2811_ADGCR_GAIN(range),
-		     dev->iobase + DT2811_ADGCR_REG);
+		/* load chanspec and trigger conversion */
+		dt2811_ai_set_chanspec(dev, insn->chanspec);
 
 		ret = comedi_timeout(dev, s, insn, dt2811_ai_eoc, 0);
 		if (ret)
 			return ret;
 
-		val = inb(dev->iobase + DT2811_ADDATA_LO_REG) |
-		      (inb(dev->iobase + DT2811_ADDATA_HI_REG) << 8);
-		val &= s->maxdata;
-
-		data[i] = val;
+		data[i] = dt2811_ai_read_sample(dev, s);
 	}
 
-	return i;
+	return insn->n;
 }
 
 static int dt2811_ao_insn_write(struct comedi_device *dev,
@@ -269,15 +544,41 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static void dt2811_reset(struct comedi_device *dev)
+{
+	/* This is the initialization sequence from the users manual */
+	outb(DT2811_ADCSR_ADMODE(0), dev->iobase + DT2811_ADCSR_REG);
+	usleep_range(100, 1000);
+	inb(dev->iobase + DT2811_ADDATA_LO_REG);
+	inb(dev->iobase + DT2811_ADDATA_HI_REG);
+	outb(DT2811_ADCSR_ADMODE(0) | DT2811_ADCSR_CLRERROR,
+	     dev->iobase + DT2811_ADCSR_REG);
+}
+
 static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dt2811_board *board = dev->board_ptr;
+	struct dt2811_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
+
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x8);
 	if (ret)
 		return ret;
+
+	dt2811_reset(dev);
+
+	/* IRQ's 2,3,5,7 are valid for async command support */
+	if (it->options[1] <= 7  && (BIT(it->options[1]) & 0xac)) {
+		ret = request_irq(it->options[1], dt2811_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
+	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -294,6 +595,14 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table	= board->is_pgh ? &dt2811_pgh_ai_ranges
 					: &dt2811_pgl_ai_ranges;
 	s->insn_read	= dt2811_ai_insn_read;
+	if (dev->irq) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= 1;
+		s->do_cmdtest	= dt2811_ai_cmdtest;
+		s->do_cmd	= dt2811_ai_cmd;
+		s->cancel	= dt2811_ai_cancel;
+	}
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
