@@ -636,7 +636,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 
 	/* Decode the RDMA header. */
 	rmsgp = (struct rpcrdma_msg *)rqstp->rq_arg.head[0].iov_base;
-	ret = svc_rdma_xdr_decode_req(rmsgp, rqstp);
+	ret = svc_rdma_xdr_decode_req(&rqstp->rq_arg);
 	if (ret < 0)
 		goto out_err;
 	if (ret == 0)
