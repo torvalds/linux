@@ -142,9 +142,8 @@ static int mdc_getattr_common(struct obd_export *exp,
 
 	CDEBUG(D_NET, "mode: %o\n", body->mode);
 
+	mdc_update_max_ea_from_body(exp, body);
 	if (body->eadatasize != 0) {
-		mdc_update_max_ea_from_body(exp, body);
-
 		eadata = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
 						      body->eadatasize);
 		if (!eadata)

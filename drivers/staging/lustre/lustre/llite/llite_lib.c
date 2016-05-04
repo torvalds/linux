@@ -445,7 +445,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	/* make root inode
 	 * XXX: move this to after cbd setup?
 	 */
-	valid = OBD_MD_FLGETATTR | OBD_MD_FLBLOCKS;
+	valid = OBD_MD_FLGETATTR | OBD_MD_FLBLOCKS | OBD_MD_FLMODEASIZE;
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT)
 		valid |= OBD_MD_FLRMTPERM;
 	else if (sbi->ll_flags & LL_SBI_ACL)
