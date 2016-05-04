@@ -5390,12 +5390,20 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 			gfx_v8_0_enable_gfx_dynamic_mg_power_gating(adev, false);
 		break;
 	case CHIP_POLARIS11:
-		if (adev->pg_flags & AMD_PG_SUPPORT_GFX_SMG)
-			gfx_v8_0_enable_gfx_static_mg_power_gating(adev, enable);
-		else if (adev->pg_flags & AMD_PG_SUPPORT_GFX_DMG)
-			gfx_v8_0_enable_gfx_dynamic_mg_power_gating(adev, enable);
+		if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_SMG) && enable)
+			gfx_v8_0_enable_gfx_static_mg_power_gating(adev, true);
 		else
-			polaris11_enable_gfx_quick_mg_power_gating(adev, enable);
+			gfx_v8_0_enable_gfx_static_mg_power_gating(adev, false);
+
+		if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_DMG) && enable)
+			gfx_v8_0_enable_gfx_dynamic_mg_power_gating(adev, true);
+		else
+			gfx_v8_0_enable_gfx_dynamic_mg_power_gating(adev, false);
+
+		if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_QUICK_MG) && enable)
+			polaris11_enable_gfx_quick_mg_power_gating(adev, true);
+		else
+			polaris11_enable_gfx_quick_mg_power_gating(adev, false);
 		break;
 	default:
 		break;
