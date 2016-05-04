@@ -25,6 +25,22 @@
 		stdout-path = "serial3:115200n8";
 	};
 
+	fiq-debugger {
+		compatible = "android,irq-hi6220-uart";
+		reg = <0x0 0xf7113000 0x0 0x1000>;
+		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fiq", "signal";
+	};
+
+	uart_overlay@0 {
+		fragment@0 {
+			target-path="/soc/uart@f7113000";
+			__overlay__ {
+				status = "disabled";
+			};
+		};
+	};
+
 	/*
 	 * Reserve below regions from memory node:
 	 *
