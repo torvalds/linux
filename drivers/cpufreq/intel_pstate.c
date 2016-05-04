@@ -380,6 +380,9 @@ static void intel_pstate_init_acpi_perf_limits(struct cpufreq_policy *policy)
 	int ret;
 	int i;
 
+	if (hwp_active)
+		return;
+
 	if (!intel_pstate_get_ppc_enable_status())
 		return;
 
