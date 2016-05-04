@@ -933,20 +933,17 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 	card = codec->card->snd_card;
 
 	down_write(&card->controls_rwsem);
-	mutex_lock(&gbcodec->lock);
 
 	if (module->num_dais) {
 		dev_err(gbcodec->dev,
 			"%d:DAIs not supported via gbcodec driver\n",
 			module->num_dais);
-		mutex_unlock(&gbcodec->lock);
 		up_write(&card->controls_rwsem);
 		return -EINVAL;
 	}
 
 	ret = gbaudio_init_jack(module, codec);
 	if (ret) {
-		mutex_unlock(&gbcodec->lock);
 		up_write(&card->controls_rwsem);
 		return ret;
 	}
@@ -976,12 +973,14 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 #endif
 	}
 
+	mutex_lock(&gbcodec->lock);
 	list_add(&module->list, &gbcodec->module_list);
+	mutex_unlock(&gbcodec->lock);
+
 	if (codec->card->instantiated)
 		ret = snd_soc_dapm_new_widgets(&codec->dapm);
 	dev_dbg(codec->dev, "Registered %s module\n", module->name);
 
-	mutex_unlock(&gbcodec->lock);
 	up_write(&card->controls_rwsem);
 	return ret;
 }
@@ -1065,6 +1064,7 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 	gbaudio_codec_cleanup(module);
 	list_del(&module->list);
 	dev_dbg(codec->dev, "Process Unregister %s module\n", module->name);
+	mutex_unlock(&gbcodec->lock);
 
 #ifdef CONFIG_SND_JACK
 	/* free jack devices for this module from codec->jack_list */
@@ -1098,7 +1098,6 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 
 	dev_dbg(codec->dev, "Unregistered %s module\n", module->name);
 
-	mutex_unlock(&gbcodec->lock);
 	up_write(&card->controls_rwsem);
 }
 EXPORT_SYMBOL(gbaudio_unregister_module);
