@@ -444,8 +444,8 @@
 &usdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
-	cd-gpios = <&gpio5 0 0>;
-	wp-gpios = <&gpio5 1 0>;
+	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 	no-1-8-v;
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
