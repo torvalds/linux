@@ -185,15 +185,24 @@ static int spa_max_procs(int spa_size)
 
 int cxl_alloc_spa(struct cxl_afu *afu)
 {
+	unsigned spa_size;
+
 	/* Work out how many pages to allocate */
 	afu->native->spa_order = 0;
 	do {
 		afu->native->spa_order++;
-		afu->native->spa_size = (1 << afu->native->spa_order) * PAGE_SIZE;
+		spa_size = (1 << afu->native->spa_order) * PAGE_SIZE;
+
+		if (spa_size > 0x100000) {
+			dev_warn(&afu->dev, "num_of_processes too large for the SPA, limiting to %i (0x%x)\n",
+					afu->native->spa_max_procs, afu->native->spa_size);
+			afu->num_procs = afu->native->spa_max_procs;
+			break;
+		}
+
+		afu->native->spa_size = spa_size;
 		afu->native->spa_max_procs = spa_max_procs(afu->native->spa_size);
 	} while (afu->native->spa_max_procs < afu->num_procs);
-
-	WARN_ON(afu->native->spa_size > 0x100000); /* Max size supported by the hardware */
 
 	if (!(afu->native->spa = (struct cxl_process_element *)
 	      __get_free_pages(GFP_KERNEL | __GFP_ZERO, afu->native->spa_order))) {
