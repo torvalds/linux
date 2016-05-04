@@ -975,7 +975,11 @@ static void nrs_svcpt_cleanup_locked(struct ptlrpc_service_part *svcpt)
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 
 again:
-	nrs = nrs_svcpt2nrs(svcpt, hp);
+	/* scp_nrs_hp could be NULL due to short of memory. */
+	nrs = hp ? svcpt->scp_nrs_hp : &svcpt->scp_nrs_reg;
+	/* check the nrs_svcpt to see if nrs is initialized. */
+	if (!nrs || !nrs->nrs_svcpt)
+		return;
 	nrs->nrs_stopping = 1;
 
 	list_for_each_entry_safe(policy, tmp, &nrs->nrs_policy_list, pol_list) {
