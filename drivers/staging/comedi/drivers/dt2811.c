@@ -299,22 +299,14 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 
 static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	/* int i; */
 	const struct dt2811_board *board = dev->board_ptr;
 	struct dt2811_private *devpriv;
-	int ret;
 	struct comedi_subdevice *s;
+	int ret;
 
 	ret = comedi_request_region(dev, it->options[0], 0x8);
 	if (ret)
 		return ret;
-
-#if 0
-	outb(0, dev->iobase + DT2811_ADCSR);
-	udelay(100);
-	i = inb(dev->iobase + DT2811_ADDATLO);
-	i = inb(dev->iobase + DT2811_ADDATHI);
-#endif
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
