@@ -120,6 +120,8 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_SDMA			(1 << 8)
 #define AMD_PG_SUPPORT_ACP			(1 << 9)
 #define AMD_PG_SUPPORT_SAMU			(1 << 10)
+#define AMD_PG_SUPPORT_GFX_QUICK_MG		(1 << 11)
+#define AMD_PG_SUPPORT_GFX_PIPELINE		(1 << 12)
 
 enum amd_pm_state_type {
 	/* not used for dpm */
