@@ -1804,6 +1804,7 @@ static int dump_station(struct wiphy *wiphy, struct net_device *dev,
 
 	wilc_get_rssi(vif, &sinfo->signal);
 
+	memcpy(mac, priv->au8AssociatedBss, ETH_ALEN);
 	return 0;
 }
 
