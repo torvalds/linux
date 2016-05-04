@@ -101,7 +101,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    struct napi_struct *napi,
 					    struct sk_buff *skb,
 					    struct ieee80211_hdr *hdr, u16 len,
-					    u32 ampdu_status, u8 crypt_len,
+					    u8 crypt_len,
 					    struct iwl_rx_cmd_buffer *rxb)
 {
 	unsigned int hdrlen, fraglen;
@@ -268,7 +268,6 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	u32 len;
-	u32 ampdu_status;
 	u32 rate_n_flags;
 	u32 rx_pkt_status;
 	u8 crypt_len = 0;
@@ -480,7 +479,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		iwl_mvm_ref(mvm, IWL_MVM_REF_RX);
 
 	iwl_mvm_pass_packet_to_mac80211(mvm, sta, napi, skb, hdr, len,
-					ampdu_status, crypt_len, rxb);
+					crypt_len, rxb);
 
 	if (take_ref)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_RX);
