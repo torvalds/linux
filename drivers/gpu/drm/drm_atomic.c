@@ -31,6 +31,8 @@
 #include <drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
 
+#include "drm_crtc_internal.h"
+
 /**
  * drm_atomic_state_default_release -
  * release memory initialized by drm_atomic_state_init

@@ -3851,8 +3851,7 @@ M:	Patrik Jakobsson <patrik.r.jakobsson@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://github.com/patjak/drm-gma500
 S:	Maintained
-F:	drivers/gpu/drm/gma500
-F:	include/drm/gma500*
+F:	drivers/gpu/drm/gma500/
 
 DRM DRIVERS FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>

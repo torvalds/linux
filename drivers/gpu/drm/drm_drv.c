@@ -121,19 +121,11 @@ static void drm_master_destroy(struct kref *kref)
 {
 	struct drm_master *master = container_of(kref, struct drm_master, refcount);
 	struct drm_device *dev = master->minor->dev;
-	struct drm_map_list *r_list, *list_temp;
 
-	mutex_lock(&dev->struct_mutex);
 	if (dev->driver->master_destroy)
 		dev->driver->master_destroy(dev, master);
 
-	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head) {
-		if (r_list->master == master) {
-			drm_legacy_rmmap_locked(dev, r_list->map);
-			r_list = NULL;
-		}
-	}
-	mutex_unlock(&dev->struct_mutex);
+	drm_legacy_master_rmmaps(dev, master);
 
 	idr_destroy(&master->magic_map);
 	kfree(master->unique);
@@ -598,6 +590,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	spin_lock_init(&dev->buf_lock);
 	spin_lock_init(&dev->event_lock);
 	mutex_init(&dev->struct_mutex);
+	mutex_init(&dev->filelist_mutex);
 	mutex_init(&dev->ctxlist_mutex);
 	mutex_init(&dev->master_mutex);
 
