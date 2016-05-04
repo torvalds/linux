@@ -1,0 +1,20 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6ull-ddr3-arm2.dts"
+
+&usdhc1 {
+	assigned-clocks = <&clks IMX6UL_CLK_USDHC1_SEL>, <&clks IMX6UL_CLK_USDHC1>;
+	assigned-clock-parents = <&clks IMX6UL_CLK_PLL2_PFD0>;
+	assigned-clock-rates = <0>, <176000000>;
+	cd-gpios = <>;
+	wp-gpios = <>;
+	vmmc-supply = <>;
+	non-removable;
+	status = "okay";
+};
