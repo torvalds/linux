@@ -273,8 +273,11 @@ struct wm_adsp_buffer {
 	__be32 words_written[2];	/* total words written (64 bit) */
 };
 
+struct wm_adsp_compr;
+
 struct wm_adsp_compr_buf {
 	struct wm_adsp *dsp;
+	struct wm_adsp_compr *compr;
 
 	struct wm_adsp_buffer_region *regions;
 	u32 host_buf_ptr;
@@ -2467,8 +2470,24 @@ static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
 		return -EINVAL;
 
 	compr->buf = compr->dsp->buffer;
+	compr->buf->compr = compr;
 
 	return 0;
+}
+
+static void wm_adsp_compr_detach(struct wm_adsp_compr *compr)
+{
+	if (!compr)
+		return;
+
+	/* Wake the poll so it can see buffer is no longer attached */
+	if (compr->stream)
+		snd_compr_fragment_elapsed(compr->stream);
+
+	if (wm_adsp_compr_attached(compr)) {
+		compr->buf->compr = NULL;
+		compr->buf = NULL;
+	}
 }
 
 int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
@@ -2524,6 +2543,7 @@ int wm_adsp_compr_free(struct snd_compr_stream *stream)
 
 	mutex_lock(&dsp->pwr_lock);
 
+	wm_adsp_compr_detach(compr);
 	dsp->compr = NULL;
 
 	kfree(compr->raw_buf);
@@ -2820,6 +2840,8 @@ err_buffer:
 static int wm_adsp_buffer_free(struct wm_adsp *dsp)
 {
 	if (dsp->buffer) {
+		wm_adsp_compr_detach(dsp->buffer->compr);
+
 		kfree(dsp->buffer->regions);
 		kfree(dsp->buffer);
 
