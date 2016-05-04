@@ -35,8 +35,10 @@ config ARC
 	select NO_BOOTMEM
 	select OF
 	select OF_EARLY_FLATTREE
+	select OF_RESERVED_MEM
 	select PERF_USE_VMALLOC
 	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_GENERIC_DMA_COHERENT
 
 config MIGHT_HAVE_PCI
 	bool
