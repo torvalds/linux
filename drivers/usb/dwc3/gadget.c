@@ -1616,36 +1616,11 @@ static void dwc3_gadget_disable_irq(struct dwc3 *dwc)
 static irqreturn_t dwc3_interrupt(int irq, void *_dwc);
 static irqreturn_t dwc3_thread_interrupt(int irq, void *_dwc);
 
-static int dwc3_gadget_start(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int __dwc3_gadget_start(struct dwc3 *dwc)
 {
-	struct dwc3		*dwc = gadget_to_dwc(g);
 	struct dwc3_ep		*dep;
-	unsigned long		flags;
 	int			ret = 0;
-	int			irq;
 	u32			reg;
-
-	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
-	ret = request_threaded_irq(irq, dwc3_interrupt, dwc3_thread_interrupt,
-			IRQF_SHARED, "dwc3", dwc->ev_buf);
-	if (ret) {
-		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
-				irq, ret);
-		goto err0;
-	}
-
-	spin_lock_irqsave(&dwc->lock, flags);
-
-	if (dwc->gadget_driver) {
-		dev_err(dwc->dev, "%s is already bound to %s\n",
-				dwc->gadget.name,
-				dwc->gadget_driver->driver.name);
-		ret = -EBUSY;
-		goto err1;
-	}
-
-	dwc->gadget_driver	= driver;
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
 	reg &= ~(DWC3_DCFG_SPEED_MASK);
@@ -1709,7 +1684,7 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 			false);
 	if (ret) {
 		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
-		goto err2;
+		goto err0;
 	}
 
 	dep = dwc->eps[1];
@@ -1717,7 +1692,7 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 			false);
 	if (ret) {
 		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
-		goto err3;
+		goto err1;
 	}
 
 	/* begin to receive SETUP packets */
@@ -1726,23 +1701,61 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 
 	dwc3_gadget_enable_irq(dwc);
 
+	return 0;
+
+err1:
+	__dwc3_gadget_ep_disable(dwc->eps[0]);
+
+err0:
+	return ret;
+}
+
+static int dwc3_gadget_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
+{
+	struct dwc3		*dwc = gadget_to_dwc(g);
+	unsigned long		flags;
+	int			ret = 0;
+	int			irq;
+
+	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
+	ret = request_threaded_irq(irq, dwc3_interrupt, dwc3_thread_interrupt,
+			IRQF_SHARED, "dwc3", dwc->ev_buf);
+	if (ret) {
+		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
+				irq, ret);
+		goto err0;
+	}
+
+	spin_lock_irqsave(&dwc->lock, flags);
+	if (dwc->gadget_driver) {
+		dev_err(dwc->dev, "%s is already bound to %s\n",
+				dwc->gadget.name,
+				dwc->gadget_driver->driver.name);
+		ret = -EBUSY;
+		goto err1;
+	}
+
+	dwc->gadget_driver	= driver;
+
+	__dwc3_gadget_start(dwc);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
 
-err3:
-	__dwc3_gadget_ep_disable(dwc->eps[0]);
-
-err2:
-	dwc->gadget_driver = NULL;
-
 err1:
 	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	free_irq(irq, dwc->ev_buf);
+	free_irq(irq, dwc);
 
 err0:
 	return ret;
+}
+
+static void __dwc3_gadget_stop(struct dwc3 *dwc)
+{
+	dwc3_gadget_disable_irq(dwc);
+	__dwc3_gadget_ep_disable(dwc->eps[0]);
+	__dwc3_gadget_ep_disable(dwc->eps[1]);
 }
 
 static int dwc3_gadget_stop(struct usb_gadget *g)
@@ -1752,13 +1765,8 @@ static int dwc3_gadget_stop(struct usb_gadget *g)
 	int			irq;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-
-	dwc3_gadget_disable_irq(dwc);
-	__dwc3_gadget_ep_disable(dwc->eps[0]);
-	__dwc3_gadget_ep_disable(dwc->eps[1]);
-
+	__dwc3_gadget_stop(dwc);
 	dwc->gadget_driver	= NULL;
-
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
