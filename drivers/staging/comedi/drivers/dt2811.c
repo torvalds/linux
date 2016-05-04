@@ -44,6 +44,25 @@
 #include <linux/module.h>
 #include "../comedidev.h"
 
+/*
+ * Register I/O map
+ */
+#define DT2811_ADCSR_REG		0x00	/* r/w  A/D Control/Status */
+#define DT2811_ADCSR_ADDONE		BIT(7)	/* r      1=A/D conv done */
+#define DT2811_ADCSR_ADERROR		BIT(6)	/* r      1=A/D error */
+#define DT2811_ADCSR_ADBUSY		BIT(5)	/* r      1=A/D busy */
+#define DT2811_ADCSR_CLRERROR		BIT(4)
+#define DT2811_ADCSR_INTENB		BIT(2)	/* r/w	  1=interupts ena */
+#define DT2811_ADCSR_ADMODE(x)		(((x) & 0x3) << 0)
+/* single conversion on ADGCR load */
+#define DT2811_ADCSR_ADMODE_SINGLE	DT2811_ADCSR_ADMODE(0)
+/* continuous conversion, internal clock, (clock enabled on ADGCR load) */
+#define DT2811_ADCSR_ADMODE_CONT	DT2811_ADCSR_ADMODE(1)
+/* continuous conversion, internal clock, external trigger */
+#define DT2811_ADCSR_ADMODE_EXT_TRIG	DT2811_ADCSR_ADMODE(2)
+/* continuous conversion, external clock, external trigger */
+#define DT2811_ADCSR_ADMODE_EXT		DT2811_ADCSR_ADMODE(3)
+
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
 		UNI_RANGE(5),
@@ -100,28 +119,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 
 /*
 
-   0x00    ADCSR R/W  A/D Control/Status Register
-   bit 7 - (R) 1 indicates A/D conversion done
-   reading ADDAT clears bit
-   (W) ignored
-   bit 6 - (R) 1 indicates A/D error
-   (W) ignored
-   bit 5 - (R) 1 indicates A/D busy, cleared at end
-   of conversion
-   (W) ignored
-   bit 4 - (R) 0
-   (W)
-   bit 3 - (R) 0
-   bit 2 - (R/W) 1 indicates interrupts enabled
-   bits 1,0 - (R/W) mode bits
-   00  single conversion on ADGCR load
-   01  continuous conversion, internal clock,
-   (clock enabled on ADGCR load)
-   10  continuous conversion, internal clock,
-   external trigger
-   11  continuous conversion, external clock,
-   external trigger
-
    0x01    ADGCR R/W A/D Gain/Channel Register
    bit 6,7 - (R/W) gain select
    00  gain=1, both PGH, PGL models
@@ -169,7 +166,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 
 #define TIMEOUT 10000
 
-#define DT2811_ADCSR 0
 #define DT2811_ADGCR 1
 #define DT2811_ADDATLO 2
 #define DT2811_ADDATHI 3
@@ -179,19 +175,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 #define DT2811_DADAT1HI 5
 #define DT2811_DIO 6
 #define DT2811_TMRCTR 7
-
-/*
- * flags
- */
-
-/* ADCSR */
-
-#define DT2811_ADDONE   0x80
-#define DT2811_ADERROR  0x40
-#define DT2811_ADBUSY   0x20
-#define DT2811_CLRERROR 0x10
-#define DT2811_INTENB   0x04
-#define DT2811_ADMODE   0x03
 
 struct dt2811_board {
 	const char *name;
@@ -227,8 +210,8 @@ static int dt2811_ai_eoc(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inb(dev->iobase + DT2811_ADCSR);
-	if ((status & DT2811_ADBUSY) == 0)
+	status = inb(dev->iobase + DT2811_ADCSR_REG);
+	if ((status & DT2811_ADCSR_ADBUSY) == 0)
 		return 0;
 	return -EBUSY;
 }
