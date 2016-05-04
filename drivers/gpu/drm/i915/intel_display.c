@@ -118,7 +118,6 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc);
 static void intel_modeset_setup_hw_state(struct drm_device *dev);
 static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
 
-typedef struct intel_limit intel_limit_t;
 struct intel_limit {
 	struct {
 		int min, max;
@@ -253,7 +252,7 @@ intel_fdi_link_freq(struct drm_i915_private *dev_priv,
 		return 270000;
 }
 
-static const intel_limit_t intel_limits_i8xx_dac = {
+static const struct intel_limit intel_limits_i8xx_dac = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 908000, .max = 1512000 },
 	.n = { .min = 2, .max = 16 },
@@ -266,7 +265,7 @@ static const intel_limit_t intel_limits_i8xx_dac = {
 		.p2_slow = 4, .p2_fast = 2 },
 };
 
-static const intel_limit_t intel_limits_i8xx_dvo = {
+static const struct intel_limit intel_limits_i8xx_dvo = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 908000, .max = 1512000 },
 	.n = { .min = 2, .max = 16 },
@@ -279,7 +278,7 @@ static const intel_limit_t intel_limits_i8xx_dvo = {
 		.p2_slow = 4, .p2_fast = 4 },
 };
 
-static const intel_limit_t intel_limits_i8xx_lvds = {
+static const struct intel_limit intel_limits_i8xx_lvds = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 908000, .max = 1512000 },
 	.n = { .min = 2, .max = 16 },
@@ -292,7 +291,7 @@ static const intel_limit_t intel_limits_i8xx_lvds = {
 		.p2_slow = 14, .p2_fast = 7 },
 };
 
-static const intel_limit_t intel_limits_i9xx_sdvo = {
+static const struct intel_limit intel_limits_i9xx_sdvo = {
 	.dot = { .min = 20000, .max = 400000 },
 	.vco = { .min = 1400000, .max = 2800000 },
 	.n = { .min = 1, .max = 6 },
@@ -305,7 +304,7 @@ static const intel_limit_t intel_limits_i9xx_sdvo = {
 		.p2_slow = 10, .p2_fast = 5 },
 };
 
-static const intel_limit_t intel_limits_i9xx_lvds = {
+static const struct intel_limit intel_limits_i9xx_lvds = {
 	.dot = { .min = 20000, .max = 400000 },
 	.vco = { .min = 1400000, .max = 2800000 },
 	.n = { .min = 1, .max = 6 },
@@ -319,7 +318,7 @@ static const intel_limit_t intel_limits_i9xx_lvds = {
 };
 
 
-static const intel_limit_t intel_limits_g4x_sdvo = {
+static const struct intel_limit intel_limits_g4x_sdvo = {
 	.dot = { .min = 25000, .max = 270000 },
 	.vco = { .min = 1750000, .max = 3500000},
 	.n = { .min = 1, .max = 4 },
@@ -334,7 +333,7 @@ static const intel_limit_t intel_limits_g4x_sdvo = {
 	},
 };
 
-static const intel_limit_t intel_limits_g4x_hdmi = {
+static const struct intel_limit intel_limits_g4x_hdmi = {
 	.dot = { .min = 22000, .max = 400000 },
 	.vco = { .min = 1750000, .max = 3500000},
 	.n = { .min = 1, .max = 4 },
@@ -347,7 +346,7 @@ static const intel_limit_t intel_limits_g4x_hdmi = {
 		.p2_slow = 10, .p2_fast = 5 },
 };
 
-static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
+static const struct intel_limit intel_limits_g4x_single_channel_lvds = {
 	.dot = { .min = 20000, .max = 115000 },
 	.vco = { .min = 1750000, .max = 3500000 },
 	.n = { .min = 1, .max = 3 },
@@ -361,7 +360,7 @@ static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
 	},
 };
 
-static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
+static const struct intel_limit intel_limits_g4x_dual_channel_lvds = {
 	.dot = { .min = 80000, .max = 224000 },
 	.vco = { .min = 1750000, .max = 3500000 },
 	.n = { .min = 1, .max = 3 },
@@ -375,7 +374,7 @@ static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
 	},
 };
 
-static const intel_limit_t intel_limits_pineview_sdvo = {
+static const struct intel_limit intel_limits_pineview_sdvo = {
 	.dot = { .min = 20000, .max = 400000},
 	.vco = { .min = 1700000, .max = 3500000 },
 	/* Pineview's Ncounter is a ring counter */
@@ -390,7 +389,7 @@ static const intel_limit_t intel_limits_pineview_sdvo = {
 		.p2_slow = 10, .p2_fast = 5 },
 };
 
-static const intel_limit_t intel_limits_pineview_lvds = {
+static const struct intel_limit intel_limits_pineview_lvds = {
 	.dot = { .min = 20000, .max = 400000 },
 	.vco = { .min = 1700000, .max = 3500000 },
 	.n = { .min = 3, .max = 6 },
@@ -408,7 +407,7 @@ static const intel_limit_t intel_limits_pineview_lvds = {
  * We calculate clock using (register_value + 2) for N/M1/M2, so here
  * the range value for them is (actual_value - 2).
  */
-static const intel_limit_t intel_limits_ironlake_dac = {
+static const struct intel_limit intel_limits_ironlake_dac = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 5 },
@@ -421,7 +420,7 @@ static const intel_limit_t intel_limits_ironlake_dac = {
 		.p2_slow = 10, .p2_fast = 5 },
 };
 
-static const intel_limit_t intel_limits_ironlake_single_lvds = {
+static const struct intel_limit intel_limits_ironlake_single_lvds = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 3 },
@@ -434,7 +433,7 @@ static const intel_limit_t intel_limits_ironlake_single_lvds = {
 		.p2_slow = 14, .p2_fast = 14 },
 };
 
-static const intel_limit_t intel_limits_ironlake_dual_lvds = {
+static const struct intel_limit intel_limits_ironlake_dual_lvds = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 3 },
@@ -448,7 +447,7 @@ static const intel_limit_t intel_limits_ironlake_dual_lvds = {
 };
 
 /* LVDS 100mhz refclk limits. */
-static const intel_limit_t intel_limits_ironlake_single_lvds_100m = {
+static const struct intel_limit intel_limits_ironlake_single_lvds_100m = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 2 },
@@ -461,7 +460,7 @@ static const intel_limit_t intel_limits_ironlake_single_lvds_100m = {
 		.p2_slow = 14, .p2_fast = 14 },
 };
 
-static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
+static const struct intel_limit intel_limits_ironlake_dual_lvds_100m = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 1760000, .max = 3510000 },
 	.n = { .min = 1, .max = 3 },
@@ -474,7 +473,7 @@ static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
 		.p2_slow = 7, .p2_fast = 7 },
 };
 
-static const intel_limit_t intel_limits_vlv = {
+static const struct intel_limit intel_limits_vlv = {
 	 /*
 	  * These are the data rate limits (measured in fast clocks)
 	  * since those are the strictest limits we have. The fast
@@ -490,7 +489,7 @@ static const intel_limit_t intel_limits_vlv = {
 	.p2 = { .p2_slow = 2, .p2_fast = 20 }, /* slow=min, fast=max */
 };
 
-static const intel_limit_t intel_limits_chv = {
+static const struct intel_limit intel_limits_chv = {
 	/*
 	 * These are the data rate limits (measured in fast clocks)
 	 * since those are the strictest limits we have.  The fast
@@ -506,7 +505,7 @@ static const intel_limit_t intel_limits_chv = {
 	.p2 = {	.p2_slow = 1, .p2_fast = 14 },
 };
 
-static const intel_limit_t intel_limits_bxt = {
+static const struct intel_limit intel_limits_bxt = {
 	/* FIXME: find real dot limits */
 	.dot = { .min = 0, .max = INT_MAX },
 	.vco = { .min = 4800000, .max = 6700000 },
@@ -640,7 +639,7 @@ int chv_calc_dpll_params(int refclk, struct dpll *clock)
  */
 
 static bool intel_PLL_is_valid(struct drm_device *dev,
-			       const intel_limit_t *limit,
+			       const struct intel_limit *limit,
 			       const struct dpll *clock)
 {
 	if (clock->n   < limit->n.min   || limit->n.max   < clock->n)
@@ -676,7 +675,7 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 }
 
 static int
-i9xx_select_p2_div(const intel_limit_t *limit,
+i9xx_select_p2_div(const struct intel_limit *limit,
 		   const struct intel_crtc_state *crtc_state,
 		   int target)
 {
@@ -711,7 +710,7 @@ i9xx_select_p2_div(const intel_limit_t *limit,
  * divider from @match_clock used for LVDS downclocking.
  */
 static bool
-i9xx_find_best_dpll(const intel_limit_t *limit,
+i9xx_find_best_dpll(const struct intel_limit *limit,
 		    struct intel_crtc_state *crtc_state,
 		    int target, int refclk, struct dpll *match_clock,
 		    struct dpll *best_clock)
@@ -768,7 +767,7 @@ i9xx_find_best_dpll(const intel_limit_t *limit,
  * divider from @match_clock used for LVDS downclocking.
  */
 static bool
-pnv_find_best_dpll(const intel_limit_t *limit,
+pnv_find_best_dpll(const struct intel_limit *limit,
 		   struct intel_crtc_state *crtc_state,
 		   int target, int refclk, struct dpll *match_clock,
 		   struct dpll *best_clock)
@@ -823,7 +822,7 @@ pnv_find_best_dpll(const intel_limit_t *limit,
  * divider from @match_clock used for LVDS downclocking.
  */
 static bool
-g4x_find_best_dpll(const intel_limit_t *limit,
+g4x_find_best_dpll(const struct intel_limit *limit,
 		   struct intel_crtc_state *crtc_state,
 		   int target, int refclk, struct dpll *match_clock,
 		   struct dpll *best_clock)
@@ -916,7 +915,7 @@ static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
  * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
  */
 static bool
-vlv_find_best_dpll(const intel_limit_t *limit,
+vlv_find_best_dpll(const struct intel_limit *limit,
 		   struct intel_crtc_state *crtc_state,
 		   int target, int refclk, struct dpll *match_clock,
 		   struct dpll *best_clock)
@@ -975,7 +974,7 @@ vlv_find_best_dpll(const intel_limit_t *limit,
  * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
  */
 static bool
-chv_find_best_dpll(const intel_limit_t *limit,
+chv_find_best_dpll(const struct intel_limit *limit,
 		   struct intel_crtc_state *crtc_state,
 		   int target, int refclk, struct dpll *match_clock,
 		   struct dpll *best_clock)
@@ -1036,7 +1035,7 @@ bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
 			struct dpll *best_clock)
 {
 	int refclk = 100000;
-	const intel_limit_t *limit = &intel_limits_bxt;
+	const struct intel_limit *limit = &intel_limits_bxt;
 
 	return chv_find_best_dpll(limit, crtc_state,
 				  target_clock, refclk, NULL, best_clock);
@@ -7808,7 +7807,7 @@ static int i8xx_crtc_compute_clock(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const intel_limit_t *limit;
+	const struct intel_limit *limit;
 	int refclk = 48000;
 
 	memset(&crtc_state->dpll_hw_state, 0,
@@ -7844,7 +7843,7 @@ static int g4x_crtc_compute_clock(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const intel_limit_t *limit;
+	const struct intel_limit *limit;
 	int refclk = 96000;
 
 	memset(&crtc_state->dpll_hw_state, 0,
@@ -7887,7 +7886,7 @@ static int pnv_crtc_compute_clock(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const intel_limit_t *limit;
+	const struct intel_limit *limit;
 	int refclk = 96000;
 
 	memset(&crtc_state->dpll_hw_state, 0,
@@ -7921,7 +7920,7 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const intel_limit_t *limit;
+	const struct intel_limit *limit;
 	int refclk = 96000;
 
 	memset(&crtc_state->dpll_hw_state, 0,
@@ -7954,7 +7953,7 @@ static int chv_crtc_compute_clock(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state)
 {
 	int refclk = 100000;
-	const intel_limit_t *limit = &intel_limits_chv;
+	const struct intel_limit *limit = &intel_limits_chv;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
@@ -7975,7 +7974,7 @@ static int vlv_crtc_compute_clock(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state)
 {
 	int refclk = 100000;
-	const intel_limit_t *limit = &intel_limits_vlv;
+	const struct intel_limit *limit = &intel_limits_vlv;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
@@ -8896,7 +8895,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	struct dpll reduced_clock;
 	bool has_reduced_clock = false;
 	struct intel_shared_dpll *pll;
-	const intel_limit_t *limit;
+	const struct intel_limit *limit;
 	int refclk = 120000;
 
 	memset(&crtc_state->dpll_hw_state, 0,
