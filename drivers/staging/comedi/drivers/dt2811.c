@@ -29,10 +29,10 @@
  * Configuration options:
  *   [0] - I/O port base address
  *   [1] - IRQ, although this is currently unused
- *   [2] - A/D reference
- *	   0 = single-ended
- *	   1 = differential
- *	   2 = pseudo-differential (common reference)
+ *   [2] - A/D reference (# of analog inputs)
+ *	   0 = single-ended (16 channels)
+ *	   1 = differential (8 channels)
+ *	   2 = pseudo-differential (16 channels)
  *   [3] - A/D range
  *	   0 = [-5, 5]
  *	   1 = [-2.5, 2.5]
@@ -184,9 +184,6 @@ enum { card_2811_pgh, card_2811_pgl };
 struct dt2811_private {
 	int ntrig;
 	int curadchan;
-	enum {
-		adc_singleended, adc_diff, adc_pseudo_diff
-	} adc_mux;
 };
 
 static int dt2811_ai_eoc(struct comedi_device *dev,
@@ -293,26 +290,13 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 
-	switch (it->options[2]) {
-	case 0:
-		devpriv->adc_mux = adc_singleended;
-		break;
-	case 1:
-		devpriv->adc_mux = adc_diff;
-		break;
-	case 2:
-		devpriv->adc_mux = adc_pseudo_diff;
-		break;
-	default:
-		devpriv->adc_mux = adc_singleended;
-		break;
-	}
-
 	s = &dev->subdevices[0];
 	/* initialize the ADC subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = devpriv->adc_mux == adc_diff ? 8 : 16;
+	s->subdev_flags = SDF_READABLE |
+			  (it->options[2] == 1) ? SDF_DIFF :
+			  (it->options[2] == 2) ? SDF_COMMON : SDF_GROUND;
+	s->n_chan = (it->options[2] == 1) ? 8 : 16;
 	s->insn_read = dt2811_ai_insn;
 	s->maxdata = 0xfff;
 	switch (it->options[3]) {
