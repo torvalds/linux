@@ -173,7 +173,7 @@ struct dt2811_board {
 	unsigned int is_pgh:1;
 };
 
-static const struct dt2811_board boardtypes[] = {
+static const struct dt2811_board dt2811_boards[] = {
 	{
 		.name		= "dt2811-pgh",
 		.is_pgh		= 1,
@@ -334,8 +334,8 @@ static struct comedi_driver dt2811_driver = {
 	.module		= THIS_MODULE,
 	.attach		= dt2811_attach,
 	.detach		= comedi_legacy_detach,
-	.board_name	= &boardtypes[0].name,
-	.num_names	= ARRAY_SIZE(boardtypes),
+	.board_name	= &dt2811_boards[0].name,
+	.num_names	= ARRAY_SIZE(dt2811_boards),
 	.offset		= sizeof(struct dt2811_board),
 };
 module_comedi_driver(dt2811_driver);
