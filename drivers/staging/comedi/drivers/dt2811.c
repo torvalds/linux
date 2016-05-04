@@ -181,11 +181,6 @@ struct dt2811_board {
 
 enum { card_2811_pgh, card_2811_pgl };
 
-struct dt2811_private {
-	int ntrig;
-	int curadchan;
-};
-
 static int dt2811_ai_eoc(struct comedi_device *dev,
 			 struct comedi_subdevice *s,
 			 struct comedi_insn *insn,
@@ -274,7 +269,6 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dt2811_board *board = dev->board_ptr;
-	struct dt2811_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -285,10 +279,6 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	s = &dev->subdevices[0];
 	/* initialize the ADC subdevice */
