@@ -394,17 +394,11 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 
 	/* Allocate HW buffers on provided NUMA node */
 	set_dev_node(&mdev->dev->persist->pdev->dev, node);
-	err = mlx4_alloc_hwq_res(mdev->dev, &ring->wqres,
-				 ring->buf_size, 2 * PAGE_SIZE);
+	err = mlx4_alloc_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
 	if (err)
 		goto err_info;
 
-	err = mlx4_en_map_buffer(&ring->wqres.buf);
-	if (err) {
-		en_err(priv, "Failed to map RX buffer\n");
-		goto err_hwq;
-	}
 	ring->buf = ring->wqres.buf.direct.buf;
 
 	ring->hwtstamp_rx_filter = priv->hwtstamp_config.rx_filter;
@@ -412,8 +406,6 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	*pring = ring;
 	return 0;
 
-err_hwq:
-	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 err_info:
 	vfree(ring->rx_info);
 	ring->rx_info = NULL;
@@ -517,7 +509,6 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_rx_ring *ring = *pring;
 
-	mlx4_en_unmap_buffer(&ring->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
 	vfree(ring->rx_info);
 	ring->rx_info = NULL;
