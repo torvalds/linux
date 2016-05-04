@@ -36,6 +36,9 @@
 		serial5 = &uart6;
 		serial6 = &uart7;
 		serial7 = &uart8;
+		sai1 = &sai1;
+		sai2 = &sai2;
+		sai3 = &sai3;
 		spi0 = &ecspi1;
 		spi1 = &ecspi2;
 		spi2 = &ecspi3;
