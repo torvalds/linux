@@ -784,7 +784,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 		} else {
 			modem_ctl[0] &= ~0x7B;
 			modem_ctl[0] |= 0x01;
-			modem_ctl[1] |= 0x40;
+			modem_ctl[1] = 0x40;
 			dev_dbg(dev, "%s - flow control = NONE\n", __func__);
 		}
 
