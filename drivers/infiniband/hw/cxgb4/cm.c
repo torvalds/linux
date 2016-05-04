@@ -1346,6 +1346,18 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 
 #define RELAXED_IRD_NEGOTIATION 1
 
+/*
+ * process_mpa_reply - process streaming mode MPA reply
+ *
+ * Returns:
+ *
+ * 0 upon success indicating a connect request was delivered to the ULP
+ * or the mpa request is incomplete but valid so far.
+ *
+ * 1 if a failure requires the caller to close the connection.
+ *
+ * 2 if a failure requires the caller to abort the connection.
+ */
 static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 {
 	struct mpa_message *mpa;
@@ -1575,8 +1587,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	}
 	goto out;
 err:
-	__state_set(&ep->com, ABORTING);
-	send_abort(ep, skb, GFP_KERNEL);
+	disconnect = 2;
 out:
 	connect_reply_upcall(ep, err);
 	return disconnect;
