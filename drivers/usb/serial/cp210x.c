@@ -995,34 +995,22 @@ static void cp210x_set_termios(struct tty_struct *tty,
 		dev_dbg(dev, "%s - read ulControlHandshake=0x%08x, ulFlowReplace=0x%08x\n",
 				__func__, ctl_hs, flow_repl);
 
+		ctl_hs &= ~CP210X_SERIAL_DSR_HANDSHAKE;
+		ctl_hs &= ~CP210X_SERIAL_DCD_HANDSHAKE;
+		ctl_hs &= ~CP210X_SERIAL_DSR_SENSITIVITY;
+		ctl_hs &= ~CP210X_SERIAL_DTR_MASK;
+		ctl_hs |= CP210X_SERIAL_DTR_SHIFT(CP210X_SERIAL_DTR_ACTIVE);
 		if (cflag & CRTSCTS) {
-			ctl_hs &= ~(CP210X_SERIAL_DTR_MASK |
-					CP210X_SERIAL_CTS_HANDSHAKE |
-					CP210X_SERIAL_DSR_HANDSHAKE |
-					CP210X_SERIAL_DCD_HANDSHAKE |
-					CP210X_SERIAL_DSR_SENSITIVITY);
-			ctl_hs |= CP210X_SERIAL_DTR_SHIFT(
-					CP210X_SERIAL_DTR_ACTIVE);
 			ctl_hs |= CP210X_SERIAL_CTS_HANDSHAKE;
-			/*
-			 * FIXME: Why clear bits unrelated to flow control.
-			 * Why clear CP210X_SERIAL_XOFF_CONTINUE which is
-			 * never set
-			 */
-			flow_repl = 0;
+
+			flow_repl &= ~CP210X_SERIAL_RTS_MASK;
 			flow_repl |= CP210X_SERIAL_RTS_SHIFT(
 					CP210X_SERIAL_RTS_FLOW_CTL);
 			dev_dbg(dev, "%s - flow control = CRTSCTS\n", __func__);
 		} else {
-			ctl_hs &= ~(CP210X_SERIAL_DTR_MASK |
-					CP210X_SERIAL_CTS_HANDSHAKE |
-					CP210X_SERIAL_DSR_HANDSHAKE |
-					CP210X_SERIAL_DCD_HANDSHAKE |
-					CP210X_SERIAL_DSR_SENSITIVITY);
-			ctl_hs |= CP210X_SERIAL_DTR_SHIFT(
-					CP210X_SERIAL_DTR_ACTIVE);
-			/* FIXME: Why clear bits unrelated to flow control */
-			flow_repl &= 0xffffff00;
+			ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
+
+			flow_repl &= ~CP210X_SERIAL_RTS_MASK;
 			flow_repl |= CP210X_SERIAL_RTS_SHIFT(
 					CP210X_SERIAL_RTS_ACTIVE);
 			dev_dbg(dev, "%s - flow control = NONE\n", __func__);
