@@ -1933,8 +1933,8 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 	/* set SPIV separately to get count of SW disabled APICs right */
 	apic_set_spiv(apic, *((u32 *)(s->regs + APIC_SPIV)));
 	memcpy(vcpu->arch.apic->regs, s->regs, sizeof *s);
-	/* call kvm_apic_set_id() to put apic into apic_map */
-	kvm_apic_set_id(apic, kvm_apic_id(apic));
+	/* put apic into apic_map */
+	recalculate_apic_map(vcpu->kvm);
 	kvm_apic_set_version(vcpu);
 
 	apic_update_ppr(apic);
