@@ -47,8 +47,8 @@ static void report_access(const char *access, struct task_struct *target,
 {
 	char *target_cmd, *agent_cmd;
 
-	target_cmd = kstrdup_quotable_cmdline(target, GFP_KERNEL);
-	agent_cmd = kstrdup_quotable_cmdline(agent, GFP_KERNEL);
+	target_cmd = kstrdup_quotable_cmdline(target, GFP_ATOMIC);
+	agent_cmd = kstrdup_quotable_cmdline(agent, GFP_ATOMIC);
 
 	pr_notice_ratelimited(
 		"ptrace %s of \"%s\"[%d] was attempted by \"%s\"[%d]\n",
