@@ -23,8 +23,11 @@
 static void eprom_cs(struct net_device *dev, short bit)
 {
 	u8 cmdreg;
+	int err;
 
-	read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	err = read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	if (err)
+		return;
 	if (bit)
 		/* enable EPROM */
 		write_nic_byte_E(dev, EPROM_CMD, cmdreg | EPROM_CS_BIT);
@@ -40,8 +43,11 @@ static void eprom_cs(struct net_device *dev, short bit)
 static void eprom_ck_cycle(struct net_device *dev)
 {
 	u8 cmdreg;
+	int err;
 
-	read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	err = read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	if (err)
+		return;
 	write_nic_byte_E(dev, EPROM_CMD, cmdreg | EPROM_CK_BIT);
 	force_pci_posting(dev);
 	udelay(EPROM_DELAY);
@@ -56,8 +62,11 @@ static void eprom_ck_cycle(struct net_device *dev)
 static void eprom_w(struct net_device *dev, short bit)
 {
 	u8 cmdreg;
+	int err;
 
-	read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	err = read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	if (err)
+		return;
 	if (bit)
 		write_nic_byte_E(dev, EPROM_CMD, cmdreg | EPROM_W_BIT);
 	else
@@ -71,8 +80,12 @@ static void eprom_w(struct net_device *dev, short bit)
 static short eprom_r(struct net_device *dev)
 {
 	u8 bit;
+	int err;
 
-	read_nic_byte_E(dev, EPROM_CMD, &bit);
+	err = read_nic_byte_E(dev, EPROM_CMD, &bit);
+	if (err)
+		return err;
+
 	udelay(EPROM_DELAY);
 
 	if (bit & EPROM_R_BIT)
