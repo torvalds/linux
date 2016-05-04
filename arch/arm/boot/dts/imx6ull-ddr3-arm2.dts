@@ -996,10 +996,10 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
-	cd-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
-	wp-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+	non-removable;
+	no-1-8-v;	/* VSELECT not connected by default */
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
 	vmmc-supply = <&reg_sd2_vmmc>;
-	status = "disabled";
+	status = "okay";
 };
