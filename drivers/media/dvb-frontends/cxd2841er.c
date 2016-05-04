@@ -433,6 +433,15 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 static int cxd2841er_sleep_tc_to_active_c_band(struct cxd2841er_priv *priv,
 					       u32 bandwidth);
 
+static int cxd2841er_sleep_tc_to_active_i(struct cxd2841er_priv *priv,
+		u32 bandwidth);
+
+static int cxd2841er_active_i_to_sleep_tc(struct cxd2841er_priv *priv);
+
+static int cxd2841er_sleep_tc_to_shutdown(struct cxd2841er_priv *priv);
+
+static int cxd2841er_shutdown_to_sleep_tc(struct cxd2841er_priv *priv);
+
 static int cxd2841er_retune_active(struct cxd2841er_priv *priv,
 				   struct dtv_frontend_properties *p)
 {
@@ -460,7 +469,13 @@ static int cxd2841er_retune_active(struct cxd2841er_priv *priv,
 					priv, p->bandwidth_hz);
 		case SYS_DVBC_ANNEX_A:
 			return cxd2841er_sleep_tc_to_active_c_band(
-					priv, 8000000);
+					priv, p->bandwidth_hz);
+		case SYS_ISDBT:
+			cxd2841er_active_i_to_sleep_tc(priv);
+			cxd2841er_sleep_tc_to_shutdown(priv);
+			cxd2841er_shutdown_to_sleep_tc(priv);
+			return cxd2841er_sleep_tc_to_active_i(
+					priv, p->bandwidth_hz);
 		}
 	}
 	dev_dbg(&priv->i2c->dev, "%s(): invalid delivery system %d\n",
@@ -1092,6 +1107,50 @@ static int cxd2841er_get_carrier_offset_s_s2(struct cxd2841er_priv *priv,
 	if (cfrl_ctrlval > 0)
 		temp_q *= -1;
 	*offset = temp_q;
+	return 0;
+}
+
+static int cxd2841er_get_carrier_offset_i(struct cxd2841er_priv *priv,
+					   u32 bandwidth, int *offset)
+{
+	u8 data[4];
+
+	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+	if (priv->state != STATE_ACTIVE_TC) {
+		dev_dbg(&priv->i2c->dev, "%s(): invalid state %d\n",
+			__func__, priv->state);
+		return -EINVAL;
+	}
+	if (priv->system != SYS_ISDBT) {
+		dev_dbg(&priv->i2c->dev, "%s(): invalid delivery system %d\n",
+			__func__, priv->system);
+		return -EINVAL;
+	}
+	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x60);
+	cxd2841er_read_regs(priv, I2C_SLVT, 0x4c, data, sizeof(data));
+	*offset = -1 * sign_extend32(
+		((u32)(data[0] & 0x1F) << 24) | ((u32)data[1] << 16) |
+		((u32)data[2] << 8) | (u32)data[3], 29);
+
+	switch (bandwidth) {
+	case 6000000:
+		*offset = -1 * ((*offset) * 8/264);
+		break;
+	case 7000000:
+		*offset = -1 * ((*offset) * 8/231);
+		break;
+	case 8000000:
+		*offset = -1 * ((*offset) * 8/198);
+		break;
+	default:
+		dev_dbg(&priv->i2c->dev, "%s(): invalid bandwidth %d\n",
+				__func__, bandwidth);
+		return -EINVAL;
+	}
+
+	dev_dbg(&priv->i2c->dev, "%s(): bandwidth %d offset %d\n",
+			__func__, bandwidth, *offset);
+
 	return 0;
 }
 
@@ -2941,6 +3000,11 @@ static int cxd2841er_tune_tc(struct dvb_frontend *fe,
 		cxd2841er_read_status_tc(fe, status);
 		if (*status & FE_HAS_LOCK) {
 			switch (priv->system) {
+			case SYS_ISDBT:
+				ret = cxd2841er_get_carrier_offset_i(
+						priv, p->bandwidth_hz,
+						&carrier_offset);
+				break;
 			case SYS_DVBT:
 				ret = cxd2841er_get_carrier_offset_t(
 					priv, p->bandwidth_hz,
