@@ -328,14 +328,14 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	}
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
-	/* ao subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 2;
-	s->maxdata = 0xfff;
-	s->range_table = &dt2811_ao_ranges;
-	s->insn_write = dt2811_ao_insn_write;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 2;
+	s->maxdata	= 0x0fff;
+	s->range_table	= &dt2811_ao_ranges;
+	s->insn_write	= dt2811_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)
