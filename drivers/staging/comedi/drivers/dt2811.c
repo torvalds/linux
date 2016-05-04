@@ -37,8 +37,14 @@
  *	   0 = [-5, 5]
  *	   1 = [-2.5, 2.5]
  *	   2 = [0, 5]
- *   [4] - D/A 0 range (same as A/D range)
- *   [5] - D/A 1 range (same as A/D range)
+ *   [4] - D/A 0 range (deprecated, see below)
+ *   [5] - D/A 1 range (deprecated, see below)
+ *
+ * Notes:
+ *   - D/A ranges are not programmable. The AO subdevice has a range_table
+ *     containing all the possible analog output ranges. Use the range
+ *     that matches your board configuration to convert between data
+ *     values and physical units.
  */
 
 #include <linux/module.h>
@@ -147,6 +153,23 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 	}
 };
 
+/*
+ * The Analog Output range is set per-channel using jumpers on the board.
+ *
+ *			DAC0 Jumpers		DAC1 Jumpers
+ * Output Range		W5  W6  W7  W8		W1  W2  W3  W4
+ * -5V to +5V		In  Out In  Out		In  Out In  Out
+ * -2.5V to +2.5V	In  Out Out In		In  Out Out In
+ * 0 to +5V		Out In  Out In		Out In  Out In
+ */
+static const struct comedi_lrange dt2811_ao_ranges = {
+	3, {
+		BIP_RANGE(5),	/* default setting from factory */
+		BIP_RANGE(2.5),
+		UNI_RANGE(5)
+	}
+};
+
 #define TIMEOUT 10000
 
 struct dt2811_board {
@@ -164,16 +187,6 @@ struct dt2811_private {
 	enum {
 		adc_singleended, adc_diff, adc_pseudo_diff
 	} adc_mux;
-	enum {
-		dac_bipolar_5, dac_bipolar_2_5, dac_unipolar_5
-	} dac_range[2];
-	const struct comedi_lrange *range_type_list[2];
-};
-
-static const struct comedi_lrange *dac_range_types[] = {
-	&range_bipolar5,
-	&range_bipolar2_5,
-	&range_unipolar5
 };
 
 static int dt2811_ai_eoc(struct comedi_device *dev,
@@ -294,34 +307,6 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->adc_mux = adc_singleended;
 		break;
 	}
-	switch (it->options[4]) {
-	case 0:
-		devpriv->dac_range[0] = dac_bipolar_5;
-		break;
-	case 1:
-		devpriv->dac_range[0] = dac_bipolar_2_5;
-		break;
-	case 2:
-		devpriv->dac_range[0] = dac_unipolar_5;
-		break;
-	default:
-		devpriv->dac_range[0] = dac_bipolar_5;
-		break;
-	}
-	switch (it->options[5]) {
-	case 0:
-		devpriv->dac_range[1] = dac_bipolar_5;
-		break;
-	case 1:
-		devpriv->dac_range[1] = dac_bipolar_2_5;
-		break;
-	case 2:
-		devpriv->dac_range[1] = dac_unipolar_5;
-		break;
-	default:
-		devpriv->dac_range[1] = dac_bipolar_5;
-		break;
-	}
 
 	s = &dev->subdevices[0];
 	/* initialize the ADC subdevice */
@@ -349,9 +334,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 2;
 	s->maxdata = 0xfff;
-	s->range_table_list = devpriv->range_type_list;
-	devpriv->range_type_list[0] = dac_range_types[devpriv->dac_range[0]];
-	devpriv->range_type_list[1] = dac_range_types[devpriv->dac_range[1]];
+	s->range_table = &dt2811_ao_ranges;
 	s->insn_write = dt2811_ao_insn_write;
 
 	ret = comedi_alloc_subdev_readback(s);
