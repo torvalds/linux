@@ -42,6 +42,15 @@ config FIQ_DEBUGGER_CONSOLE_DEFAULT_ENABLE
 	  If enabled, this puts the fiq debugger into console mode by default.
 	  Otherwise, the fiq debugger will start out in debug mode.
 
+config FIQ_DEBUGGER_UART_OVERLAY
+	bool "Install uart DT overlay"
+	depends on FIQ_DEBUGGER
+	select OF_OVERLAY
+	default n
+	help
+	  If enabled, fiq debugger is calling fiq_debugger_uart_overlay()
+	  that will apply overlay uart_overlay@0 to disable proper uart.
+
 config FIQ_WATCHDOG
 	bool
 	select FIQ_DEBUGGER
