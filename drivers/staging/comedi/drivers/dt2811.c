@@ -1,45 +1,45 @@
 /*
-   comedi/drivers/dt2811.c
-   Hardware driver for Data Translation DT2811
-
-   COMEDI - Linux Control and Measurement Device Interface
-   History:
-   Base Version  - David A. Schleef <ds@schleef.org>
-   December 1998 - Updated to work.  David does not have a DT2811
-   board any longer so this was suffering from bitrot.
-   Updated performed by ...
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * Comedi driver for Data Translation DT2811
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * History:
+ * Base Version  - David A. Schleef <ds@schleef.org>
+ * December 1998 - Updated to work.  David does not have a DT2811
+ * board any longer so this was suffering from bitrot.
+ * Updated performed by ...
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
-/*
-Driver: dt2811
-Description: Data Translation DT2811
-Author: ds
-Devices: [Data Translation] DT2811-PGL (dt2811-pgl), DT2811-PGH (dt2811-pgh)
-Status: works
 
-Configuration options:
-  [0] - I/O port base address
-  [1] - IRQ, although this is currently unused
-  [2] - A/D reference
-	  0 = signle-ended
-	  1 = differential
-	  2 = pseudo-differential (common reference)
-  [3] - A/D range
-	  0 = [-5, 5]
-	  1 = [-2.5, 2.5]
-	  2 = [0, 5]
-  [4] - D/A 0 range (same choices)
-  [4] - D/A 1 range (same choices)
-*/
+/*
+ * Driver: dt2811
+ * Description: Data Translation DT2811
+ * Author: ds
+ * Devices: [Data Translation] DT2811-PGL (dt2811-pgl), DT2811-PGH (dt2811-pgh)
+ * Status: works
+ *
+ * Configuration options:
+ *   [0] - I/O port base address
+ *   [1] - IRQ, although this is currently unused
+ *   [2] - A/D reference
+ *	   0 = single-ended
+ *	   1 = differential
+ *	   2 = pseudo-differential (common reference)
+ *   [3] - A/D range
+ *	   0 = [-5, 5]
+ *	   1 = [-2.5, 2.5]
+ *	   2 = [0, 5]
+ *   [4] - D/A 0 range (same as A/D range)
+ *   [5] - D/A 1 range (same as A/D range)
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
