@@ -391,13 +391,13 @@ static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
 	int retval = 0;
 
 	if (snd_BUG_ON(!data))
-		return -EFAULT;
+		return POLLERR;
 
 	stream = &data->stream;
 
 	mutex_lock(&stream->device->lock);
 	if (stream->runtime->state == SNDRV_PCM_STATE_OPEN) {
-		retval = -EBADFD;
+		retval = snd_compr_get_poll(stream) | POLLERR;
 		goto out;
 	}
 	poll_wait(f, &stream->runtime->sleep, wait);
