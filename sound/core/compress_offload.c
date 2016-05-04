@@ -392,9 +392,8 @@ static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
 
 	if (snd_BUG_ON(!data))
 		return -EFAULT;
+
 	stream = &data->stream;
-	if (snd_BUG_ON(!stream))
-		return -EFAULT;
 
 	mutex_lock(&stream->device->lock);
 	if (stream->runtime->state == SNDRV_PCM_STATE_OPEN) {
@@ -799,9 +798,9 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 	if (snd_BUG_ON(!data))
 		return -EFAULT;
+
 	stream = &data->stream;
-	if (snd_BUG_ON(!stream))
-		return -EFAULT;
+
 	mutex_lock(&stream->device->lock);
 	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(SNDRV_COMPRESS_IOCTL_VERSION):
