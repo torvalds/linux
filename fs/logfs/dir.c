@@ -793,5 +793,5 @@ const struct file_operations logfs_dir_fops = {
 	.unlocked_ioctl	= logfs_ioctl,
 	.iterate_shared	= logfs_readdir,
 	.read		= generic_read_dir,
-	.llseek		= default_llseek,
+	.llseek		= generic_file_llseek,
 };
