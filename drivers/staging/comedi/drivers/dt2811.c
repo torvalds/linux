@@ -297,26 +297,6 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-  options[0]   Board base address
-  options[1]   IRQ
-  options[2]   Input configuration
-		 0 == single-ended
-		 1 == differential
-		 2 == pseudo-differential
-  options[3]   Analog input range configuration
-		 0 == bipolar 5  (-5V -- +5V)
-		 1 == bipolar 2.5V  (-2.5V -- +2.5V)
-		 2 == unipolar 5V  (0V -- +5V)
-  options[4]   Analog output 0 range configuration
-		 0 == bipolar 5  (-5V -- +5V)
-		 1 == bipolar 2.5V  (-2.5V -- +2.5V)
-		 2 == unipolar 5V  (0V -- +5V)
-  options[5]   Analog output 1 range configuration
-		 0 == bipolar 5  (-5V -- +5V)
-		 1 == bipolar 2.5V  (-2.5V -- +2.5V)
-		 2 == unipolar 5V  (0V -- +5V)
-*/
 static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	/* int i; */
