@@ -91,6 +91,12 @@
 			reg-shift = <2>;
 		};
 
+		watchdog@1fd00 {
+			compatible = "sigma,smp8759-wdt";
+			reg = <0x1fd00 8>;
+			clocks = <&xtal>;
+		};
+
 		eth0: ethernet@26000 {
 			compatible = "sigma,smp8734-ethernet";
 			reg = <0x26000 0x800>;
