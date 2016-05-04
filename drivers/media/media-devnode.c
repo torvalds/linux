@@ -63,13 +63,8 @@ static void media_devnode_release(struct device *cd)
 	struct media_devnode *devnode = to_media_devnode(cd);
 
 	mutex_lock(&media_devnode_lock);
-
-	/* Delete the cdev on this minor as well */
-	cdev_del(&devnode->cdev);
-
 	/* Mark device node number as free */
 	clear_bit(devnode->minor, media_devnode_nums);
-
 	mutex_unlock(&media_devnode_lock);
 
 	/* Release media_devnode and perform other cleanups as needed. */
@@ -77,6 +72,7 @@ static void media_devnode_release(struct device *cd)
 		devnode->release(devnode);
 
 	kfree(devnode);
+	pr_debug("%s: Media Devnode Deallocated\n", __func__);
 }
 
 static struct bus_type media_bus_type = {
@@ -205,6 +201,8 @@ static int media_release(struct inode *inode, struct file *filp)
 	/* decrease the refcount unconditionally since the release()
 	   return value is ignored. */
 	put_device(&devnode->dev);
+
+	pr_debug("%s: Media Release\n", __func__);
 	return 0;
 }
 
@@ -235,6 +233,7 @@ int __must_check media_devnode_register(struct media_device *mdev,
 	if (minor == MEDIA_NUM_DEVICES) {
 		mutex_unlock(&media_devnode_lock);
 		pr_err("could not get a free minor\n");
+		kfree(devnode);
 		return -ENFILE;
 	}
 
@@ -244,27 +243,31 @@ int __must_check media_devnode_register(struct media_device *mdev,
 	devnode->minor = minor;
 	devnode->media_dev = mdev;
 
-	/* Part 2: Initialize and register the character device */
-	cdev_init(&devnode->cdev, &media_devnode_fops);
-	devnode->cdev.owner = owner;
-
-	ret = cdev_add(&devnode->cdev, MKDEV(MAJOR(media_dev_t), devnode->minor), 1);
-	if (ret < 0) {
-		pr_err("%s: cdev_add failed\n", __func__);
-		goto error;
-	}
-
-	/* Part 3: Register the media device */
+	/* Part 1: Initialize dev now to use dev.kobj for cdev.kobj.parent */
 	devnode->dev.bus = &media_bus_type;
 	devnode->dev.devt = MKDEV(MAJOR(media_dev_t), devnode->minor);
 	devnode->dev.release = media_devnode_release;
 	if (devnode->parent)
 		devnode->dev.parent = devnode->parent;
 	dev_set_name(&devnode->dev, "media%d", devnode->minor);
-	ret = device_register(&devnode->dev);
+	device_initialize(&devnode->dev);
+
+	/* Part 2: Initialize and register the character device */
+	cdev_init(&devnode->cdev, &media_devnode_fops);
+	devnode->cdev.owner = owner;
+	devnode->cdev.kobj.parent = &devnode->dev.kobj;
+
+	ret = cdev_add(&devnode->cdev, MKDEV(MAJOR(media_dev_t), devnode->minor), 1);
 	if (ret < 0) {
-		pr_err("%s: device_register failed\n", __func__);
-		goto error;
+		pr_err("%s: cdev_add failed\n", __func__);
+		goto cdev_add_error;
+	}
+
+	/* Part 3: Add the media device */
+	ret = device_add(&devnode->dev);
+	if (ret < 0) {
+		pr_err("%s: device_add failed\n", __func__);
+		goto device_add_error;
 	}
 
 	/* Part 4: Activate this minor. The char device can now be used. */
@@ -272,12 +275,15 @@ int __must_check media_devnode_register(struct media_device *mdev,
 
 	return 0;
 
-error:
-	mutex_lock(&media_devnode_lock);
+device_add_error:
 	cdev_del(&devnode->cdev);
+cdev_add_error:
+	mutex_lock(&media_devnode_lock);
 	clear_bit(devnode->minor, media_devnode_nums);
+	devnode->media_dev = NULL;
 	mutex_unlock(&media_devnode_lock);
 
+	put_device(&devnode->dev);
 	return ret;
 }
 
@@ -289,8 +295,12 @@ void media_devnode_unregister(struct media_devnode *devnode)
 
 	mutex_lock(&media_devnode_lock);
 	clear_bit(MEDIA_FLAG_REGISTERED, &devnode->flags);
+	/* Delete the cdev on this minor as well */
+	cdev_del(&devnode->cdev);
 	mutex_unlock(&media_devnode_lock);
-	device_unregister(&devnode->dev);
+	device_del(&devnode->dev);
+	devnode->media_dev = NULL;
+	put_device(&devnode->dev);
 }
 
 /*
