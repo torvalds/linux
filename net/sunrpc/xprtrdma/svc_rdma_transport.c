@@ -1180,6 +1180,9 @@ static void __svc_rdma_free(struct work_struct *work)
 
 	dprintk("svcrdma: %s(%p)\n", __func__, rdma);
 
+	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
+		ib_drain_qp(rdma->sc_qp);
+
 	/* We should only be called from kref_put */
 	if (atomic_read(&xprt->xpt_ref.refcount) != 0)
 		pr_err("svcrdma: sc_xprt still in use? (%d)\n",
