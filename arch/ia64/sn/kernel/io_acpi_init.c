@@ -426,7 +426,6 @@ sn_acpi_get_pcidev_info(struct pci_dev *dev, struct pcidev_info **pcidev_info,
 void
 sn_acpi_slot_fixup(struct pci_dev *dev)
 {
-	void __iomem *addr;
 	struct pcidev_info *pcidev_info = NULL;
 	struct sn_irq_info *sn_irq_info = NULL;
 	struct resource *res;
