@@ -473,11 +473,12 @@ static int imxfb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static void imxfb_enable_controller(struct imxfb_info *fbi)
+static int imxfb_enable_controller(struct imxfb_info *fbi)
 {
+	int ret;
 
 	if (fbi->enabled)
-		return;
+		return 0;
 
 	pr_debug("Enabling LCD controller\n");
 
@@ -496,10 +497,29 @@ static void imxfb_enable_controller(struct imxfb_info *fbi)
 	 */
 	writel(RMCR_LCDC_EN_MX1, fbi->regs + LCDC_RMCR);
 
-	clk_prepare_enable(fbi->clk_ipg);
-	clk_prepare_enable(fbi->clk_ahb);
-	clk_prepare_enable(fbi->clk_per);
+	ret = clk_prepare_enable(fbi->clk_ipg);
+	if (ret)
+		goto err_enable_ipg;
+
+	ret = clk_prepare_enable(fbi->clk_ahb);
+	if (ret)
+		goto err_enable_ahb;
+
+	ret = clk_prepare_enable(fbi->clk_per);
+	if (ret)
+		goto err_enable_per;
+
 	fbi->enabled = true;
+	return 0;
+
+err_enable_per:
+	clk_disable_unprepare(fbi->clk_ahb);
+err_enable_ahb:
+	clk_disable_unprepare(fbi->clk_ipg);
+err_enable_ipg:
+	writel(0, fbi->regs + LCDC_RMCR);
+
+	return ret;
 }
 
 static void imxfb_disable_controller(struct imxfb_info *fbi)
@@ -510,8 +530,8 @@ static void imxfb_disable_controller(struct imxfb_info *fbi)
 	pr_debug("Disabling LCD controller\n");
 
 	clk_disable_unprepare(fbi->clk_per);
-	clk_disable_unprepare(fbi->clk_ipg);
 	clk_disable_unprepare(fbi->clk_ahb);
+	clk_disable_unprepare(fbi->clk_ipg);
 	fbi->enabled = false;
 
 	writel(0, fbi->regs + LCDC_RMCR);
@@ -532,8 +552,7 @@ static int imxfb_blank(int blank, struct fb_info *info)
 		break;
 
 	case FB_BLANK_UNBLANK:
-		imxfb_enable_controller(fbi);
-		break;
+		return imxfb_enable_controller(fbi);
 	}
 	return 0;
 }
