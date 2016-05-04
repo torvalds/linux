@@ -2177,8 +2177,8 @@ out:
  * cmdline option.
  *
  * The other option is to just disable fbdev emulation since very likely the
- * first modest from userspace will crash in the same way, and is even easier to
- * debug. This can be done by setting the drm_kms_helper.fbdev_emulation=0
+ * first modeset from userspace will crash in the same way, and is even easier
+ * to debug. This can be done by setting the drm_kms_helper.fbdev_emulation=0
  * kernel cmdline option.
  *
  * RETURNS:
@@ -2223,7 +2223,7 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
  * hotplug interrupt).
  *
  * Note that drivers may call this even before calling
- * drm_fb_helper_initial_config but only aftert drm_fb_helper_init. This allows
+ * drm_fb_helper_initial_config but only after drm_fb_helper_init. This allows
  * for a race-free fbcon setup and will make sure that the fbdev emulation will
  * not miss any hotplug events.
  *
