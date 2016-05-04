@@ -65,7 +65,6 @@
  */
 struct rpcrdma_ia {
 	const struct rpcrdma_memreg_ops	*ri_ops;
-	rwlock_t		ri_qplock;
 	struct ib_device	*ri_device;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
