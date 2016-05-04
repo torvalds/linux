@@ -227,13 +227,12 @@ unsigned long dev_trans_start(struct net_device *dev)
 
 	if (is_vlan_dev(dev))
 		dev = vlan_dev_real_dev(dev);
-	res = dev->trans_start;
-	for (i = 0; i < dev->num_tx_queues; i++) {
+	res = netdev_get_tx_queue(dev, 0)->trans_start;
+	for (i = 1; i < dev->num_tx_queues; i++) {
 		val = netdev_get_tx_queue(dev, i)->trans_start;
 		if (val && time_after(val, res))
 			res = val;
 	}
-	dev->trans_start = res;
 
 	return res;
 }
@@ -256,10 +255,7 @@ static void dev_watchdog(unsigned long arg)
 				struct netdev_queue *txq;
 
 				txq = netdev_get_tx_queue(dev, i);
-				/*
-				 * old device drivers set dev->trans_start
-				 */
-				trans_start = txq->trans_start ? : dev->trans_start;
+				trans_start = txq->trans_start;
 				if (netif_xmit_stopped(txq) &&
 				    time_after(jiffies, (trans_start +
 							 dev->watchdog_timeo))) {
@@ -775,7 +771,7 @@ void dev_activate(struct net_device *dev)
 		transition_one_qdisc(dev, dev_ingress_queue(dev), NULL);
 
 	if (need_watchdog) {
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		dev_watchdog_up(dev);
 	}
 }

@@ -194,7 +194,7 @@ lec_send(struct atm_vcc *vcc, struct sk_buff *skb)
 static void lec_tx_timeout(struct net_device *dev)
 {
 	pr_info("%s\n", dev->name);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	netif_wake_queue(dev);
 }
 
@@ -324,7 +324,7 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 out:
 	if (entry)
 		lec_arp_put(entry);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	return NETDEV_TX_OK;
 }
 

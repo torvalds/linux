@@ -581,7 +581,7 @@ struct netdev_queue {
 	spinlock_t		_xmit_lock ____cacheline_aligned_in_smp;
 	int			xmit_lock_owner;
 	/*
-	 * please use this field instead of dev->trans_start
+	 * Time (in jiffies) of last Tx
 	 */
 	unsigned long		trans_start;
 
@@ -1545,7 +1545,6 @@ enum netdev_priv_flags {
  *
  *	@offload_fwd_mark:	Offload device fwding mark
  *
- *	@trans_start:		Time (in jiffies) of last Tx
  *	@watchdog_timeo:	Represents the timeout that is used by
  *				the watchdog (see dev_watchdog())
  *	@watchdog_timer:	List of timers
@@ -1794,13 +1793,6 @@ struct net_device {
 #endif
 
 	/* These may be needed for future network-power-down code. */
-
-	/*
-	 * trans_start here is expensive for high speed devices on SMP,
-	 * please use netdev_queue->trans_start instead.
-	 */
-	unsigned long		trans_start;
-
 	struct timer_list	watchdog_timer;
 
 	int __percpu		*pcpu_refcnt;
@@ -3478,6 +3470,15 @@ static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 static inline void txq_trans_update(struct netdev_queue *txq)
 {
 	if (txq->xmit_lock_owner != -1)
+		txq->trans_start = jiffies;
+}
+
+/* legacy drivers only, netdev_start_xmit() sets txq->trans_start */
+static inline void netif_trans_update(struct net_device *dev)
+{
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
+
+	if (txq->trans_start != jiffies)
 		txq->trans_start = jiffies;
 }
 

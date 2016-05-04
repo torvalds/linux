@@ -2954,7 +2954,7 @@ static int __ipw2100_tx_process(struct ipw2100_priv *priv)
 
 		/* A packet was processed by the hardware, so update the
 		 * watchdog */
-		priv->net_dev->trans_start = jiffies;
+		netif_trans_update(priv->net_dev);
 
 		break;
 

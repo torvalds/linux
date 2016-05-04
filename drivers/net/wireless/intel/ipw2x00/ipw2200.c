@@ -7707,7 +7707,7 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 	struct ipw_rx_packet *pkt = (struct ipw_rx_packet *)rxb->skb->data;
 
 	/* We received data from the HW, so stop the watchdog */
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	/* We only process data packets if the
 	 * interface is open */
@@ -7770,7 +7770,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 	unsigned short len = le16_to_cpu(pkt->u.frame.length);
 
 	/* We received data from the HW, so stop the watchdog */
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	/* We only process data packets if the
 	 * interface is open */
@@ -7952,7 +7952,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 		return;
 
 	/* We received data from the HW, so stop the watchdog */
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	if (unlikely((len + IPW_RX_FRAME_SIZE) > skb_tailroom(rxb->skb))) {
 		dev->stats.rx_errors++;

@@ -328,7 +328,7 @@ static void i40e_tx_timeout(struct net_device *netdev)
 		unsigned long trans_start;
 
 		q = netdev_get_tx_queue(netdev, i);
-		trans_start = q->trans_start ? : netdev->trans_start;
+		trans_start = q->trans_start;
 		if (netif_xmit_stopped(q) &&
 		    time_after(jiffies,
 			       (trans_start + netdev->watchdog_timeo))) {

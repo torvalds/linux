@@ -383,7 +383,7 @@ static void igb_dump(struct igb_adapter *adapter)
 		dev_info(&adapter->pdev->dev, "Net device Info\n");
 		pr_info("Device Name     state            trans_start      last_rx\n");
 		pr_info("%-15s %016lX %016lX %016lX\n", netdev->name,
-			netdev->state, netdev->trans_start, netdev->last_rx);
+			netdev->state, dev_trans_start(netdev), netdev->last_rx);
 	}
 
 	/* Print Registers */

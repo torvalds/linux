@@ -393,7 +393,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 		goto failed;
 	}
 
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 
 	netdev->stats.tx_packets++;
 	/* count only the packet payload */

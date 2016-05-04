@@ -1336,7 +1336,7 @@ de4x5_open(struct net_device *dev)
     }
 
     lp->interrupt = UNMASK_INTERRUPTS;
-    dev->trans_start = jiffies; /* prevent tx timeout */
+    netif_trans_update(dev); /* prevent tx timeout */
 
     START_DE4X5;
 
@@ -1935,7 +1935,7 @@ set_multicast_list(struct net_device *dev)
 
 	    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 	    outl(POLL_DEMAND, DE4X5_TPD);       /* Start the TX */
-	    dev->trans_start = jiffies; /* prevent tx timeout */
+	    netif_trans_update(dev); /* prevent tx timeout */
 	}
     }
 }
