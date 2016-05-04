@@ -2514,8 +2514,8 @@ static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 
 	set_bit(Blocked, &rdev->flags);
 	set_bit(Faulty, &rdev->flags);
-	set_bit(MD_CHANGE_DEVS, &mddev->flags);
-	set_bit(MD_CHANGE_PENDING, &mddev->flags);
+	set_mask_bits(&mddev->flags, 0,
+		      BIT(MD_CHANGE_DEVS) | BIT(MD_CHANGE_PENDING));
 	printk(KERN_ALERT
 	       "md/raid:%s: Disk failure on %s, disabling device.\n"
 	       "md/raid:%s: Operation continuing on %d devices.\n",
