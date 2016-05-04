@@ -2429,9 +2429,13 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16 tmpValue = 0;
 	int i;
+	int ret;
 
 	RT_TRACE(COMP_EPROM, "===========>%s()\n", __func__);
-	wEPROM_ID = eprom_read(dev, 0); /* first read EEPROM ID out; */
+	ret = eprom_read(dev, 0); /* first read EEPROM ID out; */
+	if (ret < 0)
+		return;
+	wEPROM_ID = (u16)ret;
 	RT_TRACE(COMP_EPROM, "EEPROM ID is 0x%x\n", wEPROM_ID);
 
 	if (wEPROM_ID != RTL8190_EEPROM_ID)
@@ -2443,13 +2447,25 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	if (bLoad_From_EEPOM) {
 		tmpValue = eprom_read(dev, EEPROM_VID >> 1);
+		ret = eprom_read(dev, EEPROM_VID >> 1);
+		if (ret < 0)
+			return;
+		tmpValue = (u16)ret;
 		priv->eeprom_vid = endian_swap(&tmpValue);
-		priv->eeprom_pid = eprom_read(dev, EEPROM_PID >> 1);
-		tmpValue = eprom_read(dev, EEPROM_ChannelPlan >> 1);
+		ret = eprom_read(dev, EEPROM_PID >> 1);
+		if (ret < 0)
+			return;
+		priv->eeprom_pid = (u16)ret;
+		ret = eprom_read(dev, EEPROM_ChannelPlan >> 1);
+		if (ret < 0)
+			return;
+		tmpValue = (u16)ret;
 		priv->eeprom_ChannelPlan = (tmpValue & 0xff00) >> 8;
 		priv->btxpowerdata_readfromEEPORM = true;
-		priv->eeprom_CustomerID =
-			eprom_read(dev, (EEPROM_Customer_ID >> 1)) >> 8;
+		ret = eprom_read(dev, (EEPROM_Customer_ID >> 1)) >> 8;
+		if (ret < 0)
+			return;
+		priv->eeprom_CustomerID = (u16)ret;
 	} else {
 		priv->eeprom_vid = 0;
 		priv->eeprom_pid = 0;
@@ -2467,10 +2483,10 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 		int i;
 
 		for (i = 0; i < 6; i += 2) {
-			u16 tmp = 0;
-
-			tmp = eprom_read(dev, (u16)((EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1));
-			*(u16 *)(&dev->dev_addr[i]) = tmp;
+			ret = eprom_read(dev, (u16)((EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1));
+			if (ret < 0)
+				return;
+			*(u16 *)(&dev->dev_addr[i]) = (u16)ret;
 		}
 	} else {
 		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
@@ -2482,52 +2498,72 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	if (priv->card_8192_version == (u8)VERSION_819xU_A) {
 		/* read Tx power gain offset of legacy OFDM to HT rate */
-		if (bLoad_From_EEPOM)
-			priv->EEPROMTxPowerDiff = (eprom_read(dev, (EEPROM_TxPowerDiff >> 1)) & 0xff00) >> 8;
-		else
+		if (bLoad_From_EEPOM) {
+			ret = eprom_read(dev, (EEPROM_TxPowerDiff >> 1));
+			if (ret < 0)
+				return;
+			priv->EEPROMTxPowerDiff = ((u16)ret & 0xff00) >> 8;
+		} else
 			priv->EEPROMTxPowerDiff = EEPROM_Default_TxPower;
 		RT_TRACE(COMP_EPROM, "TxPowerDiff:%d\n", priv->EEPROMTxPowerDiff);
 		/* read ThermalMeter from EEPROM */
-		if (bLoad_From_EEPOM)
-			priv->EEPROMThermalMeter = (u8)(eprom_read(dev, (EEPROM_ThermalMeter >> 1)) & 0x00ff);
-		else
+		if (bLoad_From_EEPOM) {
+			ret = eprom_read(dev, (EEPROM_ThermalMeter >> 1));
+			if (ret < 0)
+				return;
+			priv->EEPROMThermalMeter = (u8)((u16)ret & 0x00ff);
+		} else
 			priv->EEPROMThermalMeter = EEPROM_Default_ThermalMeter;
 		RT_TRACE(COMP_EPROM, "ThermalMeter:%d\n", priv->EEPROMThermalMeter);
 		/* for tx power track */
 		priv->TSSI_13dBm = priv->EEPROMThermalMeter * 100;
 		/* read antenna tx power offset of B/C/D to A from EEPROM */
-		if (bLoad_From_EEPOM)
-			priv->EEPROMPwDiff = (eprom_read(dev, (EEPROM_PwDiff >> 1)) & 0x0f00) >> 8;
-		else
+		if (bLoad_From_EEPOM) {
+			ret = eprom_read(dev, (EEPROM_PwDiff >> 1));
+			if (ret < 0)
+				return;
+			priv->EEPROMPwDiff = ((u16)ret & 0x0f00) >> 8;
+		} else
 			priv->EEPROMPwDiff = EEPROM_Default_PwDiff;
 		RT_TRACE(COMP_EPROM, "TxPwDiff:%d\n", priv->EEPROMPwDiff);
 		/* Read CrystalCap from EEPROM */
-		if (bLoad_From_EEPOM)
-			priv->EEPROMCrystalCap = (eprom_read(dev, (EEPROM_CrystalCap >> 1)) & 0x0f);
-		else
+		if (bLoad_From_EEPOM) {
+			ret = eprom_read(dev, (EEPROM_CrystalCap >> 1));
+			if (ret < 0)
+				return;
+			priv->EEPROMCrystalCap = (u16)ret & 0x0f;
+		} else
 			priv->EEPROMCrystalCap = EEPROM_Default_CrystalCap;
 		RT_TRACE(COMP_EPROM, "CrystalCap = %d\n", priv->EEPROMCrystalCap);
 		/* get per-channel Tx power level */
-		if (bLoad_From_EEPOM)
-			priv->EEPROM_Def_Ver = (eprom_read(dev, (EEPROM_TxPwIndex_Ver >> 1)) & 0xff00) >> 8;
-		else
+		if (bLoad_From_EEPOM) {
+			ret = eprom_read(dev, (EEPROM_TxPwIndex_Ver >> 1));
+			if (ret < 0)
+				return;
+			priv->EEPROM_Def_Ver = ((u16)ret & 0xff00) >> 8;
+		} else
 			priv->EEPROM_Def_Ver = 1;
 		RT_TRACE(COMP_EPROM, "EEPROM_DEF_VER:%d\n", priv->EEPROM_Def_Ver);
 		if (priv->EEPROM_Def_Ver == 0) { /* old eeprom definition */
 			int i;
 
-			if (bLoad_From_EEPOM)
-				priv->EEPROMTxPowerLevelCCK = (eprom_read(dev, (EEPROM_TxPwIndex_CCK >> 1)) & 0xff) >> 8;
-			else
+			if (bLoad_From_EEPOM) {
+				ret = eprom_read(dev, (EEPROM_TxPwIndex_CCK >> 1));
+				if (ret < 0)
+					return;
+				priv->EEPROMTxPowerLevelCCK = ((u16)ret & 0xff) >> 8;
+			} else
 				priv->EEPROMTxPowerLevelCCK = 0x10;
 			RT_TRACE(COMP_EPROM, "CCK Tx Power Levl: 0x%02x\n", priv->EEPROMTxPowerLevelCCK);
 			for (i = 0; i < 3; i++) {
 				if (bLoad_From_EEPOM) {
-					tmpValue = eprom_read(dev, (EEPROM_TxPwIndex_OFDM_24G + i) >> 1);
+					ret = eprom_read(dev, (EEPROM_TxPwIndex_OFDM_24G + i) >> 1);
+					if ( ret < 0)
+						return;
 					if (((EEPROM_TxPwIndex_OFDM_24G + i) % 2) == 0)
-						tmpValue = tmpValue & 0x00ff;
+						tmpValue = (u16)ret & 0x00ff;
 					else
-						tmpValue = (tmpValue & 0xff00) >> 8;
+						tmpValue = ((u16)ret & 0xff00) >> 8;
 				} else {
 					tmpValue = 0x10;
 				}
@@ -2536,17 +2572,21 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 			}
 		} else if (priv->EEPROM_Def_Ver == 1) {
 			if (bLoad_From_EEPOM) {
-				tmpValue = eprom_read(dev,
-						EEPROM_TxPwIndex_CCK_V1 >> 1);
-				tmpValue = (tmpValue & 0xff00) >> 8;
+				ret = eprom_read(dev, EEPROM_TxPwIndex_CCK_V1 >> 1);
+				if (ret < 0)
+					return;
+				tmpValue = ((u16)ret & 0xff00) >> 8;
 			} else {
 				tmpValue = 0x10;
 			}
 			priv->EEPROMTxPowerLevelCCK_V1[0] = (u8)tmpValue;
 
-			if (bLoad_From_EEPOM)
-				tmpValue = eprom_read(dev, (EEPROM_TxPwIndex_CCK_V1 + 2) >> 1);
-			else
+			if (bLoad_From_EEPOM) {
+				ret = eprom_read(dev, (EEPROM_TxPwIndex_CCK_V1 + 2) >> 1);
+				if (ret < 0)
+					return;
+				tmpValue = (u16)ret;
+			} else
 				tmpValue = 0x1010;
 			*((u16 *)(&priv->EEPROMTxPowerLevelCCK_V1[1])) = tmpValue;
 			if (bLoad_From_EEPOM)
