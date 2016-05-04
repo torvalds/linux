@@ -1271,9 +1271,14 @@ static int cs47l24_probe(struct platform_device *pdev)
 
 static int cs47l24_remove(struct platform_device *pdev)
 {
+	struct cs47l24_priv *cs47l24 = platform_get_drvdata(pdev);
+
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	wm_adsp2_remove(&cs47l24->core.adsp[1]);
+	wm_adsp2_remove(&cs47l24->core.adsp[2]);
 
 	return 0;
 }
