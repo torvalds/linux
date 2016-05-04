@@ -173,7 +173,7 @@ static int gb_audio_add_mgmt_connection(struct gbaudio_module_info *gbmodule,
 	if (IS_ERR(connection))
 		return PTR_ERR(connection);
 
-	connection->private = gbmodule;
+	greybus_set_drvdata(bundle, gbmodule);
 	gbmodule->mgmt_connection = connection;
 
 	return 0;
@@ -201,7 +201,7 @@ static int gb_audio_add_data_connection(struct gbaudio_module_info *gbmodule,
 		return PTR_ERR(connection);
 	}
 
-	connection->private = gbmodule;
+	greybus_set_drvdata(bundle, gbmodule);
 	/* dai->name should be same as codec->dai_name */
 	strlcpy(dai->name, "greybus-apb1", NAME_SIZE);
 	dai->data_cport = connection->intf_cport_id;
