@@ -310,12 +310,21 @@ static int frag_tree_split_cmp(const void *l, const void *r)
 	return ceph_frag_compare(ls->frag, rs->frag);
 }
 
+static bool is_frag_child(u32 f, struct ceph_inode_frag *frag)
+{
+	if (!frag)
+		return f == ceph_frag_make(0, 0);
+	if (ceph_frag_bits(f) != ceph_frag_bits(frag->frag) + frag->split_by)
+		return false;
+	return ceph_frag_contains_value(frag->frag, ceph_frag_value(f));
+}
+
 static int ceph_fill_fragtree(struct inode *inode,
 			      struct ceph_frag_tree_head *fragtree,
 			      struct ceph_mds_reply_dirfrag *dirinfo)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_inode_frag *frag;
+	struct ceph_inode_frag *frag, *prev_frag = NULL;
 	struct rb_node *rb_node;
 	int i;
 	u32 id, nsplits;
@@ -362,8 +371,12 @@ static int ceph_fill_fragtree(struct inode *inode,
 				break;
 			}
 			rb_node = rb_next(rb_node);
-			rb_erase(&frag->node, &ci->i_fragtree);
-			kfree(frag);
+			/* delete stale split/leaf node */
+			if (frag->split_by > 0 ||
+			    !is_frag_child(frag->frag, prev_frag)) {
+				rb_erase(&frag->node, &ci->i_fragtree);
+				kfree(frag);
+			}
 			frag = NULL;
 		}
 		if (!frag) {
@@ -373,12 +386,17 @@ static int ceph_fill_fragtree(struct inode *inode,
 		}
 		frag->split_by = le32_to_cpu(fragtree->splits[i].by);
 		dout(" frag %x split by %d\n", frag->frag, frag->split_by);
+		prev_frag = frag;
 	}
 	while (rb_node) {
 		frag = rb_entry(rb_node, struct ceph_inode_frag, node);
 		rb_node = rb_next(rb_node);
-		rb_erase(&frag->node, &ci->i_fragtree);
-		kfree(frag);
+		/* delete stale split/leaf node */
+		if (frag->split_by > 0 ||
+		    !is_frag_child(frag->frag, prev_frag)) {
+			rb_erase(&frag->node, &ci->i_fragtree);
+			kfree(frag);
+		}
 	}
 out_unlock:
 	mutex_unlock(&ci->i_fragtree_mutex);
