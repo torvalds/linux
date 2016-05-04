@@ -106,7 +106,7 @@ static void eprom_send_bits_string(struct net_device *dev, short b[], int len)
 }
 
 
-u32 eprom_read(struct net_device *dev, u32 addr)
+int eprom_read(struct net_device *dev, u32 addr)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	short read_cmd[] = {1, 1, 0};
@@ -114,6 +114,7 @@ u32 eprom_read(struct net_device *dev, u32 addr)
 	int i;
 	int addr_len;
 	u32 ret;
+	int err;
 
 	ret = 0;
 	/* enable EPROM programming */
@@ -157,7 +158,11 @@ u32 eprom_read(struct net_device *dev, u32 addr)
 		 * and reading data. (eeprom outs a dummy 0)
 		 */
 		eprom_ck_cycle(dev);
-		ret |= (eprom_r(dev)<<(15-i));
+		err = eprom_r(dev);
+		if (err < 0)
+			return err;
+
+		ret |= err<<(15-i);
 	}
 
 	eprom_cs(dev, 0);
