@@ -3416,6 +3416,12 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 	PDBG("%s ep %p state %s, abrupt %d\n", __func__, ep,
 	     states[ep->com.state], abrupt);
 
+	/*
+	 * Ref the ep here in case we have fatal errors causing the
+	 * ep to be released and freed.
+	 */
+	c4iw_get_ep(&ep->com);
+
 	rdev = &ep->com.dev->rdev;
 	if (c4iw_fatal_error(rdev)) {
 		fatal = 1;
@@ -3476,6 +3482,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 		}
 	}
 	mutex_unlock(&ep->com.mutex);
+	c4iw_put_ep(&ep->com);
 	if (fatal)
 		release_ep_resources(ep);
 	return ret;
