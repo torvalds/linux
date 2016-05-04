@@ -84,6 +84,12 @@ Optional properties:
 - prefetch-instr : Instruction prefetch. Value: <0> (forcibly disable),
   <1> (forcibly enable), property absent (retain settings set by
   firmware)
+- arm,dynamic-clock-gating : L2 dynamic clock gating. Value: <0> (forcibly
+  disable), <1> (forcibly enable), property absent (OS specific behavior,
+  preferrably retain firmware settings)
+- arm,standby-mode: L2 standby mode enable. Value <0> (forcibly disable),
+  <1> (forcibly enable), property absent (OS specific behavior,
+  preferrably retain firmware settings)
 
 Example:
 
