@@ -528,7 +528,6 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 		 * Before we come here, old entry is removed.
 		 * We just write new entry.
 		 */
-		memset(last, 0, newsize);
 		last->e_name_index = index;
 		last->e_name_len = len;
 		memcpy(last->e_name, name, len);
