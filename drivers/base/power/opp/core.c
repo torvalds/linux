@@ -1845,21 +1845,11 @@ struct srcu_notifier_head *dev_pm_opp_get_notifier(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
 
-#ifdef CONFIG_OF
-/**
- * dev_pm_opp_of_remove_table() - Free OPP table entries created from static DT
- *				  entries
- * @dev:	device pointer used to lookup OPP table.
- *
- * Free OPPs created using static entries present in DT.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function indirectly uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
+/*
+ * Free OPPs either created using static entries present in DT or even the
+ * dynamically added entries based on remove_all param.
  */
-void dev_pm_opp_of_remove_table(struct device *dev)
+static void _dev_pm_opp_remove_table(struct device *dev, bool remove_all)
 {
 	struct opp_table *opp_table;
 	struct dev_pm_opp *opp, *tmp;
@@ -1884,7 +1874,7 @@ void dev_pm_opp_of_remove_table(struct device *dev)
 	if (list_is_singular(&opp_table->dev_list)) {
 		/* Free static OPPs */
 		list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, node) {
-			if (!opp->dynamic)
+			if (remove_all || !opp->dynamic)
 				_opp_remove(opp_table, opp, true);
 		}
 	} else {
@@ -1893,6 +1883,44 @@ void dev_pm_opp_of_remove_table(struct device *dev)
 
 unlock:
 	mutex_unlock(&opp_table_lock);
+}
+
+/**
+ * dev_pm_opp_remove_table() - Free all OPPs associated with the device
+ * @dev:	device pointer used to lookup OPP table.
+ *
+ * Free both OPPs created using static entries present in DT and the
+ * dynamically added entries.
+ *
+ * Locking: The internal opp_table and opp structures are RCU protected.
+ * Hence this function indirectly uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
+ */
+void dev_pm_opp_remove_table(struct device *dev)
+{
+	_dev_pm_opp_remove_table(dev, true);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_remove_table);
+
+#ifdef CONFIG_OF
+/**
+ * dev_pm_opp_of_remove_table() - Free OPP table entries created from static DT
+ *				  entries
+ * @dev:	device pointer used to lookup OPP table.
+ *
+ * Free OPPs created using static entries present in DT.
+ *
+ * Locking: The internal opp_table and opp structures are RCU protected.
+ * Hence this function indirectly uses RCU updater strategy with mutex locks
+ * to keep the integrity of the internal data structures. Callers should ensure
+ * that this function is *NOT* called under RCU protection or in contexts where
+ * mutex cannot be locked.
+ */
+void dev_pm_opp_of_remove_table(struct device *dev)
+{
+	_dev_pm_opp_remove_table(dev, false);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 
