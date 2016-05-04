@@ -122,6 +122,9 @@ static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
 			     IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
 	};
 
+	if (mvm->trans->num_rx_queues == 1)
+		return 0;
+
 	/* Do not direct RSS traffic to Q 0 which is our fallback queue */
 	for (i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
 		cmd.indirection_table[i] =
