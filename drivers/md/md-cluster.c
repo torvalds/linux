@@ -520,11 +520,13 @@ static void process_readd_disk(struct mddev *mddev, struct cluster_msg *msg)
 			__func__, __LINE__, le32_to_cpu(msg->raid_slot));
 }
 
-static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
+static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 {
+	int ret = 0;
+
 	if (WARN(mddev->cluster_info->slot_number - 1 == le32_to_cpu(msg->slot),
 		"node %d received it's own msg\n", le32_to_cpu(msg->slot)))
-		return;
+		return -1;
 	switch (le32_to_cpu(msg->type)) {
 	case METADATA_UPDATED:
 		process_metadata_update(mddev, msg);
@@ -547,9 +549,11 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		__recover_slot(mddev, le32_to_cpu(msg->slot));
 		break;
 	default:
+		ret = -1;
 		pr_warn("%s:%d Received unknown message from %d\n",
 			__func__, __LINE__, msg->slot);
 	}
+	return ret;
 }
 
 /*
@@ -573,7 +577,9 @@ static void recv_daemon(struct md_thread *thread)
 
 	/* read lvb and wake up thread to process this message_lockres */
 	memcpy(&msg, message_lockres->lksb.sb_lvbptr, sizeof(struct cluster_msg));
-	process_recvd_msg(thread->mddev, &msg);
+	ret = process_recvd_msg(thread->mddev, &msg);
+	if (ret)
+		goto out;
 
 	/*release CR on ack_lockres*/
 	ret = dlm_unlock_sync(ack_lockres);
@@ -587,6 +593,7 @@ static void recv_daemon(struct md_thread *thread)
 	ret = dlm_lock_sync(ack_lockres, DLM_LOCK_CR);
 	if (unlikely(ret != 0))
 		pr_info("lock CR on ack failed return %d\n", ret);
+out:
 	/*release CR on message_lockres*/
 	ret = dlm_unlock_sync(message_lockres);
 	if (unlikely(ret != 0))
