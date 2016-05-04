@@ -70,6 +70,9 @@
 #define DT2811_ADDATA_LO_REG		0x02	/* r   A/D Data low byte */
 #define DT2811_ADDATA_HI_REG		0x03	/* r   A/D Data high byte */
 
+#define DT2811_DADATA_LO_REG(x)		(0x02 + ((x) * 2)) /* w D/A Data low */
+#define DT2811_DADATA_HI_REG(x)		(0x03 + ((x) * 2)) /* w D/A Data high */
+
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
 		UNI_RANGE(5),
@@ -125,14 +128,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 };
 
 /*
-
-   0x02,0x03
-   (W) DADAT0 D/A Data Register 0
-   0x02 low byte
-   0x03 high byte
-
-   0x04,0x05 (W) DADAT0 D/A Data Register 1
-
    0x06 (R) DIO0 Digital Input Port 0
    (W) DIO1 Digital Output Port 1
 
@@ -163,10 +158,6 @@ static const struct comedi_lrange range_dt2811_pgl_ai_5_bipolar = {
 
 #define TIMEOUT 10000
 
-#define DT2811_DADAT0LO 2
-#define DT2811_DADAT0HI 3
-#define DT2811_DADAT1LO 4
-#define DT2811_DADAT1HI 5
 #define DT2811_DIO 6
 #define DT2811_TMRCTR 7
 
@@ -250,9 +241,9 @@ static int dt2811_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		outb(val & 0xff, dev->iobase + DT2811_DADAT0LO + 2 * chan);
+		outb(val & 0xff, dev->iobase + DT2811_DADATA_LO_REG(chan));
 		outb((val >> 8) & 0xff,
-		     dev->iobase + DT2811_DADAT0HI + 2 * chan);
+		     dev->iobase + DT2811_DADATA_HI_REG(chan));
 	}
 	s->readback[chan] = val;
 
