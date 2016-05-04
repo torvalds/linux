@@ -2785,15 +2785,29 @@ static size_t trace__fprintf_threads_header(FILE *fp)
 	return printed;
 }
 
+DEFINE_RESORT_RB(syscall_stats, a->msecs > b->msecs,
+	struct stats 	*stats;
+	double		msecs;
+	int		syscall;
+)
+{
+	struct int_node *source = rb_entry(nd, struct int_node, rb_node);
+	struct stats *stats = source->priv;
+
+	entry->syscall = source->i;
+	entry->stats   = stats;
+	entry->msecs   = stats ? (u64)stats->n * (avg_stats(stats) / NSEC_PER_MSEC) : 0;
+}
+
 static size_t thread__dump_stats(struct thread_trace *ttrace,
 				 struct trace *trace, FILE *fp)
 {
-	struct stats *stats;
 	size_t printed = 0;
 	struct syscall *sc;
-	struct int_node *inode = intlist__first(ttrace->syscall_stats);
+	struct rb_node *nd;
+	DECLARE_RESORT_RB_INTLIST(syscall_stats, ttrace->syscall_stats);
 
-	if (inode == NULL)
+	if (syscall_stats == NULL)
 		return 0;
 
 	printed += fprintf(fp, "\n");
@@ -2802,9 +2816,8 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 	printed += fprintf(fp, "                               (msec)    (msec)    (msec)    (msec)        (%%)\n");
 	printed += fprintf(fp, "   --------------- -------- --------- --------- --------- ---------     ------\n");
 
-	/* each int_node is a syscall */
-	while (inode) {
-		stats = inode->priv;
+	resort_rb__for_each(nd, syscall_stats) {
+		struct stats *stats = syscall_stats_entry->stats;
 		if (stats) {
 			double min = (double)(stats->min) / NSEC_PER_MSEC;
 			double max = (double)(stats->max) / NSEC_PER_MSEC;
@@ -2815,16 +2828,15 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 			pct = avg ? 100.0 * stddev_stats(stats)/avg : 0.0;
 			avg /= NSEC_PER_MSEC;
 
-			sc = &trace->syscalls.table[inode->i];
+			sc = &trace->syscalls.table[syscall_stats_entry->syscall];
 			printed += fprintf(fp, "   %-15s", sc->name);
 			printed += fprintf(fp, " %8" PRIu64 " %9.3f %9.3f %9.3f",
-					   n, avg * n, min, avg);
+					   n, syscall_stats_entry->msecs, min, avg);
 			printed += fprintf(fp, " %9.3f %9.2f%%\n", max, pct);
 		}
-
-		inode = intlist__next(inode);
 	}
 
+	resort_rb__delete(syscall_stats);
 	printed += fprintf(fp, "\n\n");
 
 	return printed;
