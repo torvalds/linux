@@ -55,7 +55,7 @@ imu/inv_mpu6050/          Mux-locked
 In drivers/media/
 dvb-frontends/m88ds3103   Parent-locked
 dvb-frontends/rtl2830     Parent-locked
-dvb-frontends/rtl2832     Parent-locked
+dvb-frontends/rtl2832     Mux-locked
 dvb-frontends/si2168      Mux-locked
 usb/cx231xx/              Parent-locked
 

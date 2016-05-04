@@ -35,6 +35,7 @@
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
 #include <linux/math64.h>
+#include <linux/regmap.h>
 
 static bool rtl2832_sdr_emulated_fmt;
 module_param_named(emulated_formats, rtl2832_sdr_emulated_fmt, bool, 0644);
@@ -169,9 +170,9 @@ static int rtl2832_sdr_wr_regs(struct rtl2832_sdr_dev *dev, u16 reg,
 {
 	struct platform_device *pdev = dev->pdev;
 	struct rtl2832_sdr_platform_data *pdata = pdev->dev.platform_data;
-	struct i2c_client *client = pdata->i2c_client;
+	struct regmap *regmap = pdata->regmap;
 
-	return pdata->bulk_write(client, reg, val, len);
+	return regmap_bulk_write(regmap, reg, val, len);
 }
 
 #if 0
@@ -181,9 +182,9 @@ static int rtl2832_sdr_rd_regs(struct rtl2832_sdr_dev *dev, u16 reg, u8 *val,
 {
 	struct platform_device *pdev = dev->pdev;
 	struct rtl2832_sdr_platform_data *pdata = pdev->dev.platform_data;
-	struct i2c_client *client = pdata->i2c_client;
+	struct regmap *regmap = pdata->regmap;
 
-	return pdata->bulk_read(client, reg, val, len);
+	return regmap_bulk_read(regmap, reg, val, len);
 }
 #endif
 
@@ -199,9 +200,9 @@ static int rtl2832_sdr_wr_reg_mask(struct rtl2832_sdr_dev *dev, u16 reg,
 {
 	struct platform_device *pdev = dev->pdev;
 	struct rtl2832_sdr_platform_data *pdata = pdev->dev.platform_data;
-	struct i2c_client *client = pdata->i2c_client;
+	struct regmap *regmap = pdata->regmap;
 
-	return pdata->update_bits(client, reg, mask, val);
+	return regmap_update_bits(regmap, reg, mask, val);
 }
 
 /* Private functions */
