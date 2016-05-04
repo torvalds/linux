@@ -103,7 +103,6 @@ struct lov_request {
 };
 
 struct lov_request_set {
-	struct ldlm_enqueue_info	*set_ei;
 	struct obd_info			*set_oi;
 	atomic_t			set_refcount;
 	struct obd_export		*set_exp;
@@ -117,10 +116,8 @@ struct lov_request_set {
 	atomic_t			set_finish_checked;
 	struct llog_cookie		*set_cookies;
 	int				set_cookie_sent;
-	struct obd_trans_info		*set_oti;
 	struct list_head			set_list;
 	wait_queue_head_t			set_waitq;
-	spinlock_t			set_lock;
 };
 
 extern struct kmem_cache *lov_oinfo_slab;
@@ -128,12 +125,6 @@ extern struct kmem_cache *lov_oinfo_slab;
 extern struct lu_kmem_descr lov_caches[];
 
 void lov_finish_set(struct lov_request_set *set);
-
-static inline void lov_get_reqset(struct lov_request_set *set)
-{
-	LASSERT(atomic_read(&set->set_refcount) > 0);
-	atomic_inc(&set->set_refcount);
-}
 
 static inline void lov_put_reqset(struct lov_request_set *set)
 {
@@ -246,8 +237,6 @@ int lov_pool_new(struct obd_device *obd, char *poolname);
 int lov_pool_del(struct obd_device *obd, char *poolname);
 int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname);
 int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname);
-struct pool_desc *lov_find_pool(struct lov_obd *lov, char *poolname);
-int lov_check_index_in_pool(__u32 idx, struct pool_desc *pool);
 void lov_pool_putref(struct pool_desc *pool);
 
 static inline struct lov_stripe_md *lsm_addref(struct lov_stripe_md *lsm)
