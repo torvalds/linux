@@ -1275,8 +1275,21 @@ int i915_parse_cmds(struct intel_engine_cs *engine,
  *
  * Return: the current version number of the cmd parser
  */
-int i915_cmd_parser_get_version(void)
+int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 {
+	struct intel_engine_cs *engine;
+	bool active = false;
+
+	/* If the command parser is not enabled, report 0 - unsupported */
+	for_each_engine(engine, dev_priv) {
+		if (i915_needs_cmd_parser(engine)) {
+			active = true;
+			break;
+		}
+	}
+	if (!active)
+		return 0;
+
 	/*
 	 * Command parser version history
 	 *

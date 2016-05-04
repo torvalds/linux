@@ -3442,7 +3442,7 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone);
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */
-int i915_cmd_parser_get_version(void);
+int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv);
 int i915_cmd_parser_init_ring(struct intel_engine_cs *engine);
 void i915_cmd_parser_fini_ring(struct intel_engine_cs *engine);
 bool i915_needs_cmd_parser(struct intel_engine_cs *engine);
