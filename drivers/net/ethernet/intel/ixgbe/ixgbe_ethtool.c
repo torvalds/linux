@@ -533,10 +533,8 @@ static void ixgbe_get_regs(struct net_device *netdev,
 
 	/* Flow Control */
 	regs_buff[30] = IXGBE_READ_REG(hw, IXGBE_PFCTOP);
-	regs_buff[31] = IXGBE_READ_REG(hw, IXGBE_FCTTV(0));
-	regs_buff[32] = IXGBE_READ_REG(hw, IXGBE_FCTTV(1));
-	regs_buff[33] = IXGBE_READ_REG(hw, IXGBE_FCTTV(2));
-	regs_buff[34] = IXGBE_READ_REG(hw, IXGBE_FCTTV(3));
+	for (i = 0; i < 4; i++)
+		regs_buff[31 + i] = IXGBE_READ_REG(hw, IXGBE_FCTTV(i));
 	for (i = 0; i < 8; i++) {
 		switch (hw->mac.type) {
 		case ixgbe_mac_82598EB:
@@ -720,8 +718,10 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[939] = IXGBE_GET_STAT(adapter, bprc);
 	regs_buff[940] = IXGBE_GET_STAT(adapter, mprc);
 	regs_buff[941] = IXGBE_GET_STAT(adapter, gptc);
-	regs_buff[942] = IXGBE_GET_STAT(adapter, gorc);
-	regs_buff[944] = IXGBE_GET_STAT(adapter, gotc);
+	regs_buff[942] = (u32)IXGBE_GET_STAT(adapter, gorc);
+	regs_buff[943] = (u32)(IXGBE_GET_STAT(adapter, gorc) >> 32);
+	regs_buff[944] = (u32)IXGBE_GET_STAT(adapter, gotc);
+	regs_buff[945] = (u32)(IXGBE_GET_STAT(adapter, gotc) >> 32);
 	for (i = 0; i < 8; i++)
 		regs_buff[946 + i] = IXGBE_GET_STAT(adapter, rnbc[i]);
 	regs_buff[954] = IXGBE_GET_STAT(adapter, ruc);
@@ -731,7 +731,8 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[958] = IXGBE_GET_STAT(adapter, mngprc);
 	regs_buff[959] = IXGBE_GET_STAT(adapter, mngpdc);
 	regs_buff[960] = IXGBE_GET_STAT(adapter, mngptc);
-	regs_buff[961] = IXGBE_GET_STAT(adapter, tor);
+	regs_buff[961] = (u32)IXGBE_GET_STAT(adapter, tor);
+	regs_buff[962] = (u32)(IXGBE_GET_STAT(adapter, tor) >> 32);
 	regs_buff[963] = IXGBE_GET_STAT(adapter, tpr);
 	regs_buff[964] = IXGBE_GET_STAT(adapter, tpt);
 	regs_buff[965] = IXGBE_GET_STAT(adapter, ptc64);
@@ -803,15 +804,11 @@ static void ixgbe_get_regs(struct net_device *netdev,
 		regs_buff[1096 + i] = IXGBE_READ_REG(hw, IXGBE_TIC_DW(i));
 	regs_buff[1100] = IXGBE_READ_REG(hw, IXGBE_TDPROBE);
 	regs_buff[1101] = IXGBE_READ_REG(hw, IXGBE_TXBUFCTRL);
-	regs_buff[1102] = IXGBE_READ_REG(hw, IXGBE_TXBUFDATA0);
-	regs_buff[1103] = IXGBE_READ_REG(hw, IXGBE_TXBUFDATA1);
-	regs_buff[1104] = IXGBE_READ_REG(hw, IXGBE_TXBUFDATA2);
-	regs_buff[1105] = IXGBE_READ_REG(hw, IXGBE_TXBUFDATA3);
+	for (i = 0; i < 4; i++)
+		regs_buff[1102 + i] = IXGBE_READ_REG(hw, IXGBE_TXBUFDATA(i));
 	regs_buff[1106] = IXGBE_READ_REG(hw, IXGBE_RXBUFCTRL);
-	regs_buff[1107] = IXGBE_READ_REG(hw, IXGBE_RXBUFDATA0);
-	regs_buff[1108] = IXGBE_READ_REG(hw, IXGBE_RXBUFDATA1);
-	regs_buff[1109] = IXGBE_READ_REG(hw, IXGBE_RXBUFDATA2);
-	regs_buff[1110] = IXGBE_READ_REG(hw, IXGBE_RXBUFDATA3);
+	for (i = 0; i < 4; i++)
+		regs_buff[1107 + i] = IXGBE_READ_REG(hw, IXGBE_RXBUFDATA(i));
 	for (i = 0; i < 8; i++)
 		regs_buff[1111 + i] = IXGBE_READ_REG(hw, IXGBE_PCIE_DIAG(i));
 	regs_buff[1119] = IXGBE_READ_REG(hw, IXGBE_RFVAL);

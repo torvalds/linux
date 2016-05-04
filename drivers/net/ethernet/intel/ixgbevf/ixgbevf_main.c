@@ -62,10 +62,14 @@ static char ixgbevf_copyright[] =
 	"Copyright (c) 2009 - 2015 Intel Corporation.";
 
 static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
-	[board_82599_vf] = &ixgbevf_82599_vf_info,
-	[board_X540_vf]  = &ixgbevf_X540_vf_info,
-	[board_X550_vf]  = &ixgbevf_X550_vf_info,
-	[board_X550EM_x_vf] = &ixgbevf_X550EM_x_vf_info,
+	[board_82599_vf]	= &ixgbevf_82599_vf_info,
+	[board_82599_vf_hv]	= &ixgbevf_82599_vf_hv_info,
+	[board_X540_vf]		= &ixgbevf_X540_vf_info,
+	[board_X540_vf_hv]	= &ixgbevf_X540_vf_hv_info,
+	[board_X550_vf]		= &ixgbevf_X550_vf_info,
+	[board_X550_vf_hv]	= &ixgbevf_X550_vf_hv_info,
+	[board_X550EM_x_vf]	= &ixgbevf_X550EM_x_vf_info,
+	[board_X550EM_x_vf_hv]	= &ixgbevf_X550EM_x_vf_hv_info,
 };
 
 /* ixgbevf_pci_tbl - PCI Device ID Table
@@ -78,9 +82,13 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
  */
 static const struct pci_device_id ixgbevf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF), board_82599_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF_HV), board_82599_vf_hv },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF), board_X540_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF_HV), board_X540_vf_hv },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF), board_X550_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550_VF_HV), board_X550_vf_hv },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF), board_X550EM_x_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X550EM_X_VF_HV), board_X550EM_x_vf_hv},
 	/* required last entry */
 	{0, }
 };
@@ -1752,9 +1760,15 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_VFRDLEN(reg_idx),
 			ring->count * sizeof(union ixgbe_adv_rx_desc));
 
+#ifndef CONFIG_SPARC
 	/* enable relaxed ordering */
 	IXGBE_WRITE_REG(hw, IXGBE_VFDCA_RXCTRL(reg_idx),
 			IXGBE_DCA_RXCTRL_DESC_RRO_EN);
+#else
+	IXGBE_WRITE_REG(hw, IXGBE_VFDCA_RXCTRL(reg_idx),
+			IXGBE_DCA_RXCTRL_DESC_RRO_EN |
+			IXGBE_DCA_RXCTRL_DATA_WRO_EN);
+#endif
 
 	/* reset head and tail pointers */
 	IXGBE_WRITE_REG(hw, IXGBE_VFRDH(reg_idx), 0);
@@ -1795,7 +1809,7 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 		ixgbevf_setup_vfmrqc(adapter);
 
 	/* notify the PF of our intent to use this size of frame */
-	ixgbevf_rlpml_set_vf(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
+	hw->mac.ops.set_rlpml(hw, netdev->mtu + ETH_HLEN + ETH_FCS_LEN);
 
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
@@ -1908,7 +1922,7 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 
 	spin_lock_bh(&adapter->mbx_lock);
 
-	hw->mac.ops.update_xcast_mode(hw, netdev, xcast_mode);
+	hw->mac.ops.update_xcast_mode(hw, xcast_mode);
 
 	/* reprogram multicast list */
 	hw->mac.ops.update_mc_addr_list(hw, netdev);
@@ -3740,7 +3754,7 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	netdev->mtu = new_mtu;
 
 	/* notify the PF of our intent to use this size of frame */
-	ixgbevf_rlpml_set_vf(hw, max_frame);
+	hw->mac.ops.set_rlpml(hw, max_frame);
 
 	return 0;
 }

@@ -644,6 +644,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_VXLAN_OFFLOAD_CAPABLE	BIT(24)
 #define IXGBE_FLAG_RX_HWTSTAMP_ENABLED		BIT(25)
 #define IXGBE_FLAG_RX_HWTSTAMP_IN_REGISTER	BIT(26)
+#define IXGBE_FLAG_DCB_CAPABLE			BIT(27)
 
 	u32 flags2;
 #define IXGBE_FLAG2_RSC_CAPABLE			BIT(0)
@@ -792,7 +793,7 @@ struct ixgbe_adapter {
 	unsigned long fwd_bitmask; /* Bitmask indicating in use pools */
 
 #define IXGBE_MAX_LINK_HANDLE 10
-	struct ixgbe_mat_field *jump_tables[IXGBE_MAX_LINK_HANDLE];
+	struct ixgbe_jump_table *jump_tables[IXGBE_MAX_LINK_HANDLE];
 	unsigned long tables;
 
 /* maximum number of RETA entries among all devices supported by ixgbe
@@ -895,8 +896,8 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *, struct ixgbe_ring *);
 void ixgbe_disable_rx_queue(struct ixgbe_adapter *adapter, struct ixgbe_ring *);
 void ixgbe_update_stats(struct ixgbe_adapter *adapter);
 int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter);
-int ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
-			       u16 subdevice_id);
+bool ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
+			 u16 subdevice_id);
 #ifdef CONFIG_PCI_IOV
 void ixgbe_full_sync_mac_table(struct ixgbe_adapter *adapter);
 #endif

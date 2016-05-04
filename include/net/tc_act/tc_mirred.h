@@ -2,6 +2,7 @@
 #define __NET_TC_MIR_H
 
 #include <net/act_api.h>
+#include <linux/tc_act/tc_mirred.h>
 
 struct tcf_mirred {
 	struct tcf_common	common;
@@ -13,5 +14,19 @@ struct tcf_mirred {
 };
 #define to_mirred(a) \
 	container_of(a->priv, struct tcf_mirred, common)
+
+static inline bool is_tcf_mirred_redirect(const struct tc_action *a)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	if (a->ops && a->ops->type == TCA_ACT_MIRRED)
+		return to_mirred(a)->tcfm_eaction == TCA_EGRESS_REDIR;
+#endif
+	return false;
+}
+
+static inline int tcf_mirred_ifindex(const struct tc_action *a)
+{
+	return to_mirred(a)->tcfm_ifindex;
+}
 
 #endif /* __NET_TC_MIR_H */
