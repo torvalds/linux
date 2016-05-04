@@ -71,7 +71,6 @@ struct extent_io_ops {
 			     u64 start, u64 end, int *page_started,
 			     unsigned long *nr_written);
 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
-	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
 	extent_submit_bio_hook_t *submit_bio_hook;
 	int (*merge_bio_hook)(int rw, struct page *page, unsigned long offset,
 			      size_t size, struct bio *bio,
