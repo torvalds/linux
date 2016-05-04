@@ -178,15 +178,6 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_SR_An_MP  (1ull << (63-62)) /* Master Process */
 #define CXL_PSL_SR_An_LE  (1ull << (63-63)) /* Little Endian */
 
-/****** CXL_PSL_LLCMD_An ****************************************************/
-#define CXL_LLCMD_TERMINATE   0x0001000000000000ULL
-#define CXL_LLCMD_REMOVE      0x0002000000000000ULL
-#define CXL_LLCMD_SUSPEND     0x0003000000000000ULL
-#define CXL_LLCMD_RESUME      0x0004000000000000ULL
-#define CXL_LLCMD_ADD         0x0005000000000000ULL
-#define CXL_LLCMD_UPDATE      0x0006000000000000ULL
-#define CXL_LLCMD_HANDLE_MASK 0x000000000000ffffULL
-
 /****** CXL_PSL_ID_An ****************************************************/
 #define CXL_PSL_ID_An_F	(1ull << (63-31))
 #define CXL_PSL_ID_An_L	(1ull << (63-30))
