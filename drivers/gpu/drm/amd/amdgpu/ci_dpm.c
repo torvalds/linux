@@ -6402,6 +6402,7 @@ static int ci_dpm_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs ci_dpm_ip_funcs = {
+	.name = "ci_dpm",
 	.early_init = ci_dpm_early_init,
 	.late_init = ci_dpm_late_init,
 	.sw_init = ci_dpm_sw_init,

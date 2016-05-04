@@ -739,6 +739,7 @@ static int uvd_v4_2_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
+	.name = "uvd_v4_2",
 	.early_init = uvd_v4_2_early_init,
 	.late_init = NULL,
 	.sw_init = uvd_v4_2_sw_init,

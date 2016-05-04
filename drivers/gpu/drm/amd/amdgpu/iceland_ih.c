@@ -394,6 +394,7 @@ static int iceland_ih_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs iceland_ih_ip_funcs = {
+	.name = "iceland_ih",
 	.early_init = iceland_ih_early_init,
 	.late_init = NULL,
 	.sw_init = iceland_ih_sw_init,

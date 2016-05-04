@@ -340,6 +340,7 @@ static int pp_resume(void *handle)
 }
 
 const struct amd_ip_funcs pp_ip_funcs = {
+	.name = "powerplay",
 	.early_init = pp_early_init,
 	.late_init = NULL,
 	.sw_init = pp_sw_init,

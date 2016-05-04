@@ -3238,6 +3238,7 @@ static int kv_dpm_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs kv_dpm_ip_funcs = {
+	.name = "kv_dpm",
 	.early_init = kv_dpm_early_init,
 	.late_init = kv_dpm_late_init,
 	.sw_init = kv_dpm_sw_init,

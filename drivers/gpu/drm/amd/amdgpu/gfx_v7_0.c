@@ -4894,6 +4894,7 @@ static int gfx_v7_0_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
+	.name = "gfx_v7_0",
 	.early_init = gfx_v7_0_early_init,
 	.late_init = gfx_v7_0_late_init,
 	.sw_init = gfx_v7_0_sw_init,

@@ -1230,6 +1230,7 @@ static int sdma_v2_4_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs sdma_v2_4_ip_funcs = {
+	.name = "sdma_v2_4",
 	.early_init = sdma_v2_4_early_init,
 	.late_init = NULL,
 	.sw_init = sdma_v2_4_sw_init,

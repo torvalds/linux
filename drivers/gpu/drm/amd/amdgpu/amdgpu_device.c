@@ -1196,7 +1196,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 				if (r == -ENOENT) {
 					adev->ip_block_status[i].valid = false;
 				} else if (r) {
-					DRM_ERROR("early_init %d failed %d\n", i, r);
+					DRM_ERROR("early_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 					return r;
 				} else {
 					adev->ip_block_status[i].valid = true;

@@ -6066,6 +6066,7 @@ static int gfx_v8_0_priv_inst_irq(struct amdgpu_device *adev,
 }
 
 const struct amd_ip_funcs gfx_v8_0_ip_funcs = {
+	.name = "gfx_v8_0",
 	.early_init = gfx_v8_0_early_init,
 	.late_init = gfx_v8_0_late_init,
 	.sw_init = gfx_v8_0_sw_init,

@@ -1408,6 +1408,7 @@ static int vi_common_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs vi_common_ip_funcs = {
+	.name = "vi_common",
 	.early_init = vi_common_early_init,
 	.late_init = NULL,
 	.sw_init = vi_common_sw_init,

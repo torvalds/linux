@@ -396,6 +396,7 @@ static int cz_ih_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs cz_ih_ip_funcs = {
+	.name = "cz_ih",
 	.early_init = cz_ih_early_init,
 	.late_init = NULL,
 	.sw_init = cz_ih_sw_init,

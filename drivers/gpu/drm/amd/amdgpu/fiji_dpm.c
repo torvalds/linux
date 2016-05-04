@@ -143,6 +143,7 @@ static int fiji_dpm_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs fiji_dpm_ip_funcs = {
+	.name = "fiji_dpm",
 	.early_init = fiji_dpm_early_init,
 	.late_init = NULL,
 	.sw_init = fiji_dpm_sw_init,

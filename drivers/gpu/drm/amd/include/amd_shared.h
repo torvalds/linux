@@ -143,6 +143,8 @@ enum amd_pm_state_type {
 };
 
 struct amd_ip_funcs {
+	/* Name of IP block */
+	char *name;
 	/* sets up early driver state (pre sw_init), does not configure hw - Optional */
 	int (*early_init)(void *handle);
 	/* sets up late driver/hw state (post hw_init) - Optional */

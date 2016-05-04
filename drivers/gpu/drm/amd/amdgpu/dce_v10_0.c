@@ -3499,6 +3499,7 @@ static int dce_v10_0_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs dce_v10_0_ip_funcs = {
+	.name = "dce_v10_0",
 	.early_init = dce_v10_0_early_init,
 	.late_init = NULL,
 	.sw_init = dce_v10_0_sw_init,

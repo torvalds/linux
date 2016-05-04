@@ -2232,6 +2232,7 @@ static int cik_common_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs cik_common_ip_funcs = {
+	.name = "cik_common",
 	.early_init = cik_common_early_init,
 	.late_init = NULL,
 	.sw_init = cik_common_sw_init,
