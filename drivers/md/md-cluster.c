@@ -61,6 +61,10 @@ struct resync_info {
  * the lock.
  */
 #define		MD_CLUSTER_SEND_LOCKED_ALREADY		5
+/* We should receive message after node joined cluster and
+ * set up all the related infos such as bitmap and personality */
+#define		MD_CLUSTER_ALREADY_IN_CLUSTER		6
+#define		MD_CLUSTER_PENDING_RECV_EVENT		7
 
 
 struct md_cluster_info {
@@ -376,8 +380,12 @@ static void ack_bast(void *arg, int mode)
 	struct dlm_lock_resource *res = arg;
 	struct md_cluster_info *cinfo = res->mddev->cluster_info;
 
-	if (mode == DLM_LOCK_EX)
-		md_wakeup_thread(cinfo->recv_thread);
+	if (mode == DLM_LOCK_EX) {
+		if (test_bit(MD_CLUSTER_ALREADY_IN_CLUSTER, &cinfo->state))
+			md_wakeup_thread(cinfo->recv_thread);
+		else
+			set_bit(MD_CLUSTER_PENDING_RECV_EVENT, &cinfo->state);
+	}
 }
 
 static void __remove_suspend_info(struct md_cluster_info *cinfo, int slot)
@@ -846,10 +854,6 @@ static int join(struct mddev *mddev, int nodes)
 	if (!cinfo->resync_lockres)
 		goto err;
 
-	ret = gather_all_resync_info(mddev, nodes);
-	if (ret)
-		goto err;
-
 	return 0;
 err:
 	md_unregister_thread(&cinfo->recovery_thread);
@@ -865,6 +869,19 @@ err:
 	mddev->cluster_info = NULL;
 	kfree(cinfo);
 	return ret;
+}
+
+static void load_bitmaps(struct mddev *mddev, int total_slots)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	/* load all the node's bitmap info for resync */
+	if (gather_all_resync_info(mddev, total_slots))
+		pr_err("md-cluster: failed to gather all resyn infos\n");
+	set_bit(MD_CLUSTER_ALREADY_IN_CLUSTER, &cinfo->state);
+	/* wake up recv thread in case something need to be handled */
+	if (test_and_clear_bit(MD_CLUSTER_PENDING_RECV_EVENT, &cinfo->state))
+		md_wakeup_thread(cinfo->recv_thread);
 }
 
 static void resync_bitmap(struct mddev *mddev)
@@ -1208,6 +1225,7 @@ static struct md_cluster_operations cluster_ops = {
 	.add_new_disk_cancel = add_new_disk_cancel,
 	.new_disk_ack = new_disk_ack,
 	.remove_disk = remove_disk,
+	.load_bitmaps = load_bitmaps,
 	.gather_bitmaps = gather_bitmaps,
 	.lock_all_bitmaps = lock_all_bitmaps,
 	.unlock_all_bitmaps = unlock_all_bitmaps,

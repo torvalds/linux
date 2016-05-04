@@ -1848,6 +1848,9 @@ int bitmap_load(struct mddev *mddev)
 	if (!bitmap)
 		goto out;
 
+	if (mddev_is_clustered(mddev))
+		md_cluster_ops->load_bitmaps(mddev, mddev->bitmap_info.nodes);
+
 	/* Clear out old bitmap info first:  Either there is none, or we
 	 * are resuming after someone else has possibly changed things,
 	 * so we should forget old cached info.
