@@ -1392,16 +1392,38 @@ intel_hdmi_unset_edid(struct drm_connector *connector)
 }
 
 static void
-intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector)
+intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector, bool has_edid)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_hdmi *hdmi = intel_attached_hdmi(connector);
+	enum port port = hdmi_to_dig_port(hdmi)->port;
 	struct i2c_adapter *adapter =
 		intel_gmbus_get_adapter(dev_priv, hdmi->ddc_bus);
 	enum drm_dp_dual_mode_type type = drm_dp_dual_mode_detect(adapter);
 
-	if (type == DRM_DP_DUAL_MODE_NONE ||
-	    type == DRM_DP_DUAL_MODE_UNKNOWN)
+	/*
+	 * Type 1 DVI adaptors are not required to implement any
+	 * registers, so we can't always detect their presence.
+	 * Ideally we should be able to check the state of the
+	 * CONFIG1 pin, but no such luck on our hardware.
+	 *
+	 * The only method left to us is to check the VBT to see
+	 * if the port is a dual mode capable DP port. But let's
+	 * only do that when we sucesfully read the EDID, to avoid
+	 * confusing log messages about DP dual mode adaptors when
+	 * there's nothing connected to the port.
+	 */
+	if (type == DRM_DP_DUAL_MODE_UNKNOWN) {
+		if (has_edid &&
+		    intel_bios_is_port_dp_dual_mode(dev_priv, port)) {
+			DRM_DEBUG_KMS("Assuming DP dual mode adaptor presence based on VBT\n");
+			type = DRM_DP_DUAL_MODE_TYPE1_DVI;
+		} else {
+			type = DRM_DP_DUAL_MODE_NONE;
+		}
+	}
+
+	if (type == DRM_DP_DUAL_MODE_NONE)
 		return;
 
 	hdmi->dp_dual_mode.type = type;
@@ -1428,7 +1450,7 @@ intel_hdmi_set_edid(struct drm_connector *connector, bool force)
 				    intel_gmbus_get_adapter(dev_priv,
 				    intel_hdmi->ddc_bus));
 
-		intel_hdmi_dp_dual_mode_detect(connector);
+		intel_hdmi_dp_dual_mode_detect(connector, edid != NULL);
 
 		intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
 	}
