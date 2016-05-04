@@ -2201,6 +2201,9 @@ static int osc_enqueue_interpret(const struct lu_env *env,
 	 */
 	ldlm_lock_addref(lockh, mode);
 
+	/* Let cl_lock_state_wait fail with -ERESTARTSYS to unuse sublocks. */
+	OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_ENQUEUE_HANG, 2);
+
 	/* Let CP AST to grant the lock first. */
 	OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_CP_ENQ_RACE, 1);
 
