@@ -5406,9 +5406,15 @@ static int btrfs_ioctl_set_features(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
+	ret = mnt_want_write_file(file);
+	if (ret)
+		return ret;
+
 	trans = btrfs_start_transaction(root, 0);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto out_drop_write;
+	}
 
 	spin_lock(&root->fs_info->super_lock);
 	newflags = btrfs_super_compat_flags(super_block);
@@ -5427,7 +5433,11 @@ static int btrfs_ioctl_set_features(struct file *file, void __user *arg)
 	btrfs_set_super_incompat_flags(super_block, newflags);
 	spin_unlock(&root->fs_info->super_lock);
 
-	return btrfs_commit_transaction(trans, root);
+	ret = btrfs_commit_transaction(trans, root);
+out_drop_write:
+	mnt_drop_write_file(file);
+
+	return ret;
 }
 
 long btrfs_ioctl(struct file *file, unsigned int
