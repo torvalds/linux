@@ -163,7 +163,7 @@ static void isp1761_pci_shutdown(struct pci_dev *dev)
 	printk(KERN_ERR "ips1761_pci_shutdown\n");
 }
 
-static const struct pci_device_id isp1760_plx [] = {
+static const struct pci_device_id isp1760_plx[] = {
 	{
 		.class          = PCI_CLASS_BRIDGE_OTHER << 8,
 		.class_mask     = ~0,
