@@ -185,7 +185,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (!id)
 			continue;
 
-		if (atomic_long_read(&id->owner) != vm->client_id)
+		if (atomic64_read(&id->owner) != vm->client_id)
 			continue;
 
 		if (pd_addr != id->pd_gpu_addr)
@@ -261,7 +261,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
 	id->last_user = ring;
-	atomic_long_set(&id->owner, vm->client_id);
+	atomic64_set(&id->owner, vm->client_id);
 	vm->ids[ring->idx] = id;
 
 	*vm_id = id - adev->vm_manager.ids;

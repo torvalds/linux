@@ -897,7 +897,7 @@ struct amdgpu_vm_id {
 	struct amdgpu_sync	active;
 	struct fence		*last_flush;
 	struct amdgpu_ring      *last_user;
-	atomic_long_t		owner;
+	atomic64_t		owner;
 
 	uint64_t		pd_gpu_addr;
 	/* last flushed PD/PT update */
