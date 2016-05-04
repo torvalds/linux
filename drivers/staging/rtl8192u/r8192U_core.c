@@ -299,7 +299,7 @@ int read_nic_byte_E(struct net_device *dev, int indx, u8 *data)
 }
 
 /* as 92U has extend page from 4 to 16, so modify functions below. */
-void write_nic_byte(struct net_device *dev, int indx, u8 data)
+int write_nic_byte(struct net_device *dev, int indx, u8 data)
 {
 	int status;
 
@@ -308,7 +308,7 @@ void write_nic_byte(struct net_device *dev, int indx, u8 data)
 	u8 *usbdata = kzalloc(sizeof(data), GFP_KERNEL);
 
 	if (!usbdata)
-		return;
+		return -ENOMEM;
 	*usbdata = data;
 
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
@@ -317,8 +317,12 @@ void write_nic_byte(struct net_device *dev, int indx, u8 data)
 				 usbdata, 1, HZ / 2);
 	kfree(usbdata);
 
-	if (status < 0)
+	if (status < 0) {
 		netdev_err(dev, "write_nic_byte TimeOut! status: %d\n", status);
+		return status;
+	}
+
+	return 0;
 }
 
 
