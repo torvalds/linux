@@ -1504,7 +1504,7 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	}
 
 	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
-	atomic64_set(&adev->vm_manager.client_counter, AMDGPU_CLIENT_ID_RESERVED);
+	atomic64_set(&adev->vm_manager.client_counter, 0);
 }
 
 /**
