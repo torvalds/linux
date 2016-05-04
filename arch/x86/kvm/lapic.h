@@ -9,6 +9,9 @@
 #define KVM_APIC_SIPI		1
 #define KVM_APIC_LVT_NUM	6
 
+#define KVM_APIC_SHORT_MASK	0xc0000
+#define KVM_APIC_DEST_MASK	0x800
+
 struct kvm_timer {
 	struct hrtimer timer;
 	s64 period; 				/* unit: ns */

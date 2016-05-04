@@ -775,6 +775,7 @@ struct kvm_arch {
 	bool disabled_lapic_found;
 
 	/* Struct members for AVIC */
+	u32 ldr_mode;
 	struct page *avic_logical_id_table_page;
 	struct page *avic_physical_id_table_page;
 };
