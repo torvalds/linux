@@ -1,4 +1,4 @@
-#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "tango4-common.dtsi"
 
 / {
 	cpus {
