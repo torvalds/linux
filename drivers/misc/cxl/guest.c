@@ -552,6 +552,17 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 
 	elem->common.sstp0  = cpu_to_be64(ctx->sstp0);
 	elem->common.sstp1  = cpu_to_be64(ctx->sstp1);
+
+	/*
+	 * Ensure we have at least one interrupt allocated to take faults for
+	 * kernel contexts that may not have allocated any AFU IRQs at all:
+	 */
+	if (ctx->irqs.range[0] == 0) {
+		rc = afu_register_irqs(ctx, 0);
+		if (rc)
+			goto out_free;
+	}
+
 	for (r = 0; r < CXL_IRQ_RANGES; r++) {
 		for (i = 0; i < ctx->irqs.range[r]; i++) {
 			if (r == 0 && i == 0) {
@@ -597,6 +608,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 		enable_afu_irqs(ctx);
 	}
 
+out_free:
 	free_page((u64)elem);
 	return rc;
 }

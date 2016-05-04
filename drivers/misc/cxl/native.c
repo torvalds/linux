@@ -534,6 +534,15 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 	ctx->elem->common.sstp0 = cpu_to_be64(ctx->sstp0);
 	ctx->elem->common.sstp1 = cpu_to_be64(ctx->sstp1);
 
+	/*
+	 * Ensure we have the multiplexed PSL interrupt set up to take faults
+	 * for kernel contexts that may not have allocated any AFU IRQs at all:
+	 */
+	if (ctx->irqs.range[0] == 0) {
+		ctx->irqs.offset[0] = ctx->afu->native->psl_hwirq;
+		ctx->irqs.range[0] = 1;
+	}
+
 	for (r = 0; r < CXL_IRQ_RANGES; r++) {
 		ctx->elem->ivte_offsets[r] = cpu_to_be16(ctx->irqs.offset[r]);
 		ctx->elem->ivte_ranges[r] = cpu_to_be16(ctx->irqs.range[r]);
