@@ -890,32 +890,6 @@ static bool rtl2832_volatile_reg(struct device *dev, unsigned int reg)
 	return false;
 }
 
-/*
- * FIXME: Hack. Implement own regmap locking in order to silence lockdep
- * recursive lock warning. That happens when regmap I2C client calls I2C mux
- * adapter, which leads demod I2C repeater enable via demod regmap. Operation
- * takes two regmap locks recursively - but those are different regmap instances
- * in a two different I2C drivers, so it is not deadlock. Proper fix is to make
- * regmap aware of lockdep.
- */
-static void rtl2832_regmap_lock(void *__dev)
-{
-	struct rtl2832_dev *dev = __dev;
-	struct i2c_client *client = dev->client;
-
-	dev_dbg(&client->dev, "\n");
-	mutex_lock(&dev->regmap_mutex);
-}
-
-static void rtl2832_regmap_unlock(void *__dev)
-{
-	struct rtl2832_dev *dev = __dev;
-	struct i2c_client *client = dev->client;
-
-	dev_dbg(&client->dev, "\n");
-	mutex_unlock(&dev->regmap_mutex);
-}
-
 static struct dvb_frontend *rtl2832_get_dvb_frontend(struct i2c_client *client)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
@@ -1082,12 +1056,8 @@ static int rtl2832_probe(struct i2c_client *client,
 	dev->sleeping = true;
 	INIT_DELAYED_WORK(&dev->i2c_gate_work, rtl2832_i2c_gate_work);
 	/* create regmap */
-	mutex_init(&dev->regmap_mutex);
 	dev->regmap_config.reg_bits =  8,
 	dev->regmap_config.val_bits =  8,
-	dev->regmap_config.lock = rtl2832_regmap_lock,
-	dev->regmap_config.unlock = rtl2832_regmap_unlock,
-	dev->regmap_config.lock_arg = dev,
 	dev->regmap_config.volatile_reg = rtl2832_volatile_reg,
 	dev->regmap_config.max_register = 5 * 0x100,
 	dev->regmap_config.ranges = regmap_range_cfg,
