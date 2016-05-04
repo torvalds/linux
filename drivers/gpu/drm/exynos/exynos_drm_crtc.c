@@ -233,20 +233,15 @@ void exynos_drm_crtc_cancel_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+
 	e = exynos_crtc->event;
 	if (e && e->base.file_priv == file) {
 		exynos_crtc->event = NULL;
-		/*
-		 * event will be destroyed by core part
-		 * so below line should be removed later with core changes
-		 */
-		e->base.destroy(&e->base);
-		/*
-		 * event_space will be increased by core part
-		 * so below line should be removed later with core changes.
-		 */
-		file->event_space += sizeof(e->event);
 		atomic_dec(&exynos_crtc->pending_update);
 	}
+
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+	if (e && e->base.file_priv == file)
+		drm_event_cancel_free(crtc->dev, &e->base);
 }
