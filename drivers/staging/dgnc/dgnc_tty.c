@@ -224,6 +224,11 @@ int dgnc_tty_register(struct dgnc_board *brd)
 					     TTY_DRIVER_DYNAMIC_DEV |
 					     TTY_DRIVER_HARDWARE_BREAK);
 
+	if (IS_ERR(brd->print_driver)) {
+		rc = PTR_ERR(brd->print_driver);
+		goto unregister_serial_driver;
+	}
+
 	snprintf(brd->print_name, MAXTTYNAMELEN, "pr_dgnc_%d_", brd->boardnum);
 
 	brd->print_driver->name = brd->print_name;
@@ -234,11 +239,6 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	brd->print_driver->subtype = SERIAL_TYPE_NORMAL;
 	brd->print_driver->init_termios = DgncDefaultTermios;
 	brd->print_driver->driver_name = DRVSTR;
-
-	if (IS_ERR(brd->print_driver)) {
-		rc = PTR_ERR(brd->print_driver);
-		goto unregister_serial_driver;
-	}
 
 	/*
 	 * Entry points for driver.  Called by the kernel from
