@@ -508,11 +508,10 @@ static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 	return ret;
 }
 
-static int rdma_read_complete(struct svc_rqst *rqstp,
-			      struct svc_rdma_op_ctxt *head)
+static void rdma_read_complete(struct svc_rqst *rqstp,
+			       struct svc_rdma_op_ctxt *head)
 {
 	int page_no;
-	int ret;
 
 	/* Copy RPC pages */
 	for (page_no = 0; page_no < head->count; page_no++) {
@@ -548,23 +547,6 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 	rqstp->rq_arg.tail[0] = head->arg.tail[0];
 	rqstp->rq_arg.len = head->arg.len;
 	rqstp->rq_arg.buflen = head->arg.buflen;
-
-	/* Free the context */
-	svc_rdma_put_context(head, 0);
-
-	/* XXX: What should this be? */
-	rqstp->rq_prot = IPPROTO_MAX;
-	svc_xprt_copy_addrs(rqstp, rqstp->rq_xprt);
-
-	ret = rqstp->rq_arg.head[0].iov_len
-		+ rqstp->rq_arg.page_len
-		+ rqstp->rq_arg.tail[0].iov_len;
-	dprintk("svcrdma: deferred read ret=%d, rq_arg.len=%u, "
-		"rq_arg.head[0].iov_base=%p, rq_arg.head[0].iov_len=%zu\n",
-		ret, rqstp->rq_arg.len,	rqstp->rq_arg.head[0].iov_base,
-		rqstp->rq_arg.head[0].iov_len);
-
-	return ret;
 }
 
 /* By convention, backchannel calls arrive via rdma_msg type
@@ -622,7 +604,8 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 				  dto_q);
 		list_del_init(&ctxt->dto_q);
 		spin_unlock_bh(&rdma_xprt->sc_rq_dto_lock);
-		return rdma_read_complete(rqstp, ctxt);
+		rdma_read_complete(rqstp, ctxt);
+		goto complete;
 	} else if (!list_empty(&rdma_xprt->sc_rq_dto_q)) {
 		ctxt = list_entry(rdma_xprt->sc_rq_dto_q.next,
 				  struct svc_rdma_op_ctxt,
@@ -680,6 +663,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 		return 0;
 	}
 
+complete:
 	ret = rqstp->rq_arg.head[0].iov_len
 		+ rqstp->rq_arg.page_len
 		+ rqstp->rq_arg.tail[0].iov_len;
