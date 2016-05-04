@@ -308,17 +308,21 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	}
 	gbmodule->topology = topology;
 
-	/* register module with gbcodec */
-	ret = gbaudio_register_module(gbmodule);
-	if (ret)
-		goto release_topology;
-
 	/* Initialize data connections */
 	list_for_each_entry(dai, &gbmodule->data_list, list) {
 		ret = gb_connection_enable(dai->connection);
-		if (ret)
+		if (ret) {
+			dev_err(dev,
+				"%d:Error while enabling %d:data connection\n",
+				ret, dai->data_cport);
 			goto disable_data_connection;
+		}
 	}
+
+	/* register module with gbcodec */
+	ret = gbaudio_register_module(gbmodule);
+	if (ret)
+		goto disable_data_connection;
 
 	/* inform above layer for uevent */
 	dev_dbg(dev, "Inform set_event:%d to above layer\n", 1);
@@ -339,9 +343,6 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 disable_data_connection:
 	list_for_each_entry_safe(dai, _dai, &gbmodule->data_list, list)
 		gb_connection_disable(dai->connection);
-	gbaudio_unregister_module(gbmodule);
-
-release_topology:
 	gbaudio_tplg_release(gbmodule);
 	gbmodule->topology = NULL;
 
@@ -371,11 +372,11 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 	struct gbaudio_module_info *gbmodule = greybus_get_drvdata(bundle);
 	struct gbaudio_data_connection *dai, *_dai;
 
-	gbaudio_unregister_module(gbmodule);
 
 	/* inform uevent to above layers */
 	gb_audio_manager_remove(gbmodule->manager_id);
 
+	gbaudio_unregister_module(gbmodule);
 	gbaudio_tplg_release(gbmodule);
 	gbmodule->topology = NULL;
 	kfree(gbmodule->topology);

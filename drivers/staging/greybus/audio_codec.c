@@ -963,27 +963,27 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 
 	/* card already instantiated, create widgets here only */
 	if (codec->card->instantiated) {
-		ret = snd_soc_dapm_new_widgets(&codec->dapm);
-		if (!ret)
-			snd_soc_dapm_link_component_dai_widgets(codec->card,
-								&codec->dapm);
-	}
-
+		snd_soc_dapm_link_component_dai_widgets(codec->card,
+							&codec->dapm);
 #ifdef CONFIG_SND_JACK
-	/* register jack devices for this module from codec->jack_list */
-	list_for_each_entry(jack, &codec->jack_list, list) {
-		if ((jack == &module->headset_jack)
-		    || (jack == &module->button_jack))
-			snd_device_register(codec->card->snd_card, jack->jack);
-	}
+		/* register jack devices for this module from codec->jack_list */
+		list_for_each_entry(jack, &codec->jack_list, list) {
+			if ((jack == &module->headset_jack)
+			    || (jack == &module->button_jack))
+				snd_device_register(codec->card->snd_card,
+						    jack->jack);
+		}
 #endif
+	}
 
 	list_add(&module->list, &gbcodec->module_list);
+	if (codec->card->instantiated)
+		ret = snd_soc_dapm_new_widgets(&codec->dapm);
 	dev_dbg(codec->dev, "Registered %s module\n", module->name);
 
 	mutex_unlock(&gbcodec->lock);
 	up_write(&card->controls_rwsem);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(gbaudio_register_module);
 
@@ -1060,11 +1060,10 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 
 	dev_dbg(codec->dev, "Unregister %s module\n", module->name);
 
-	/* complete widget processing, if ongoing */
-	snd_soc_dapm_sync(&codec->dapm);
-
 	down_write(&card->controls_rwsem);
 	mutex_lock(&gbcodec->lock);
+	gbaudio_codec_cleanup(module);
+	list_del(&module->list);
 	dev_dbg(codec->dev, "Process Unregister %s module\n", module->name);
 
 #ifdef CONFIG_SND_JACK
@@ -1077,8 +1076,6 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 		}
 	}
 #endif
-
-	gbaudio_codec_cleanup(module);
 
 	if (module->dapm_routes) {
 		dev_dbg(codec->dev, "Removing %d routes\n",
@@ -1099,7 +1096,6 @@ void gbaudio_unregister_module(struct gbaudio_module_info *module)
 					   module->num_dapm_widgets);
 	}
 
-	list_del(&module->list);
 	dev_dbg(codec->dev, "Unregistered %s module\n", module->name);
 
 	mutex_unlock(&gbcodec->lock);
