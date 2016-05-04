@@ -418,6 +418,8 @@ STAT_FN(st_l1miss)
 STAT_FN(ld_fbhit)
 STAT_FN(ld_l1hit)
 STAT_FN(ld_l2hit)
+STAT_FN(ld_llchit)
+STAT_FN(rmt_hit)
 
 #define HEADER_LOW(__h)			\
 	{				\
@@ -582,6 +584,22 @@ static struct c2c_dimension dim_ld_l2hit = {
 	.width		= 7,
 };
 
+static struct c2c_dimension dim_ld_llchit = {
+	.header		= HEADER_SPAN("-- LLC Load Hit --", "Llc", 1),
+	.name		= "ld_lclhit",
+	.cmp		= ld_llchit_cmp,
+	.entry		= ld_llchit_entry,
+	.width		= 8,
+};
+
+static struct c2c_dimension dim_ld_rmthit = {
+	.header		= HEADER_SPAN_LOW("Rmt"),
+	.name		= "ld_rmthit",
+	.cmp		= rmt_hit_cmp,
+	.entry		= rmt_hit_entry,
+	.width		= 8,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
 	&dim_offset,
@@ -599,6 +617,8 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_ld_fbhit,
 	&dim_ld_l1hit,
 	&dim_ld_l2hit,
+	&dim_ld_llchit,
+	&dim_ld_rmthit,
 	NULL,
 };
 
