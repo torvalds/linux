@@ -1185,6 +1185,7 @@ static inline void kvm_vcpu_set_dy_eligible(struct kvm_vcpu *vcpu, bool val)
 #endif /* CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT */
 
 #ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
+bool kvm_arch_has_irq_bypass(void);
 int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *,
 			   struct irq_bypass_producer *);
 void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *,

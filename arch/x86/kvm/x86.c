@@ -8358,19 +8358,21 @@ bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
 }
 EXPORT_SYMBOL_GPL(kvm_arch_has_noncoherent_dma);
 
+bool kvm_arch_has_irq_bypass(void)
+{
+	return kvm_x86_ops->update_pi_irte != NULL;
+}
+
 int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *cons,
 				      struct irq_bypass_producer *prod)
 {
 	struct kvm_kernel_irqfd *irqfd =
 		container_of(cons, struct kvm_kernel_irqfd, consumer);
 
-	if (kvm_x86_ops->update_pi_irte) {
-		irqfd->producer = prod;
-		return kvm_x86_ops->update_pi_irte(irqfd->kvm,
-				prod->irq, irqfd->gsi, 1);
-	}
+	irqfd->producer = prod;
 
-	return -EINVAL;
+	return kvm_x86_ops->update_pi_irte(irqfd->kvm,
+					   prod->irq, irqfd->gsi, 1);
 }
 
 void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
@@ -8379,11 +8381,6 @@ void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 	int ret;
 	struct kvm_kernel_irqfd *irqfd =
 		container_of(cons, struct kvm_kernel_irqfd, consumer);
-
-	if (!kvm_x86_ops->update_pi_irte) {
-		WARN_ON(irqfd->producer != NULL);
-		return;
-	}
 
 	WARN_ON(irqfd->producer != prod);
 	irqfd->producer = NULL;
