@@ -804,7 +804,8 @@ kiblnd_queue2str(kib_conn_t *conn, struct list_head *q)
 #define IBLND_WID_TX	1
 #define IBLND_WID_RX	2
 #define IBLND_WID_RDMA	3
-#define IBLND_WID_MASK	3UL
+#define IBLND_WID_MR	4
+#define IBLND_WID_MASK	7UL
 
 static inline __u64
 kiblnd_ptr2wreqid(void *ptr, int type)
