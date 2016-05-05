@@ -66,8 +66,8 @@ void gb_##__driver##_exit(void)				\
 	gb_gpbridge_deregister(&__driver);			\
 }
 
-extern int gb_gpio_protocol_init(void);
-extern void gb_gpio_protocol_exit(void);
+extern int gb_gpio_driver_init(void);
+extern void gb_gpio_driver_exit(void);
 
 extern int gb_pwm_driver_init(void);
 extern void gb_pwm_driver_exit(void);
