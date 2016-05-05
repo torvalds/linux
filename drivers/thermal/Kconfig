@@ -399,4 +399,9 @@ config GENERIC_ADC_THERMAL
 	  to this driver. This driver reports the temperature by reading ADC
 	  channel and converts it to temperature based on lookup table.
 
+menu "Qualcomm thermal drivers"
+depends on (ARCH_QCOM && OF) || COMPILE_TEST
+source "drivers/thermal/qcom/Kconfig"
+endmenu
+
 endif
