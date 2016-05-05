@@ -1335,12 +1335,8 @@ static int kiblnd_fmr_flush_trigger(int ncpts)
 	return max(IBLND_FMR_POOL_FLUSH, size);
 }
 
-static int kiblnd_create_fmr_pool(kib_fmr_poolset_t *fps,
-				  kib_fmr_pool_t **pp_fpo)
+static int kiblnd_alloc_fmr_pool(kib_fmr_poolset_t *fps, kib_fmr_pool_t *fpo)
 {
-	/* FMR pool for RDMA */
-	kib_dev_t *dev = fps->fps_net->ibn_dev;
-	kib_fmr_pool_t *fpo;
 	struct ib_fmr_pool_param param = {
 		.max_pages_per_fmr = LNET_MAX_PAYLOAD / PAGE_SIZE,
 		.page_shift        = PAGE_SHIFT,
@@ -1351,6 +1347,26 @@ static int kiblnd_create_fmr_pool(kib_fmr_poolset_t *fps,
 		.flush_function    = NULL,
 		.flush_arg         = NULL,
 		.cache             = !!*kiblnd_tunables.kib_fmr_cache};
+	int rc = 0;
+
+	fpo->fmr.fpo_fmr_pool = ib_create_fmr_pool(fpo->fpo_hdev->ibh_pd,
+						   &param);
+	if (IS_ERR(fpo->fmr.fpo_fmr_pool)) {
+		rc = PTR_ERR(fpo->fmr.fpo_fmr_pool);
+		if (rc != -ENOSYS)
+			CERROR("Failed to create FMR pool: %d\n", rc);
+		else
+			CERROR("FMRs are not supported\n");
+	}
+
+	return rc;
+}
+
+static int kiblnd_create_fmr_pool(kib_fmr_poolset_t *fps,
+				  kib_fmr_pool_t **pp_fpo)
+{
+	kib_dev_t *dev = fps->fps_net->ibn_dev;
+	kib_fmr_pool_t *fpo;
 	int rc;
 
 	LIBCFS_CPT_ALLOC(fpo, lnet_cpt_table(), fps->fps_cpt, sizeof(*fpo));
@@ -1359,21 +1375,32 @@ static int kiblnd_create_fmr_pool(kib_fmr_poolset_t *fps,
 
 	fpo->fpo_hdev = kiblnd_current_hdev(dev);
 
-	fpo->fmr.fpo_fmr_pool = ib_create_fmr_pool(fpo->fpo_hdev->ibh_pd, &param);
-	if (IS_ERR(fpo->fmr.fpo_fmr_pool)) {
-		rc = PTR_ERR(fpo->fmr.fpo_fmr_pool);
-		CERROR("Failed to create FMR pool: %d\n", rc);
-
-		kiblnd_hdev_decref(fpo->fpo_hdev);
-		LIBCFS_FREE(fpo, sizeof(*fpo));
-		return rc;
+	/* Check for FMR support */
+	if (fpo->fpo_hdev->ibh_ibdev->alloc_fmr &&
+	    fpo->fpo_hdev->ibh_ibdev->dealloc_fmr &&
+	    fpo->fpo_hdev->ibh_ibdev->map_phys_fmr &&
+	    fpo->fpo_hdev->ibh_ibdev->unmap_fmr) {
+		LCONSOLE_INFO("Using FMR for registration\n");
+	} else {
+		rc = -ENOSYS;
+		LCONSOLE_ERROR_MSG(rc, "IB device does not support FMRs, can't register memory\n");
+		goto out_fpo;
 	}
 
+	rc = kiblnd_alloc_fmr_pool(fps, fpo);
+	if (rc)
+		goto out_fpo;
+
 	fpo->fpo_deadline = cfs_time_shift(IBLND_POOL_DEADLINE);
-	fpo->fpo_owner    = fps;
+	fpo->fpo_owner = fps;
 	*pp_fpo = fpo;
 
 	return 0;
+
+out_fpo:
+	kiblnd_hdev_decref(fpo->fpo_hdev);
+	LIBCFS_FREE(fpo, sizeof(*fpo));
+	return rc;
 }
 
 static void kiblnd_fail_fmr_poolset(kib_fmr_poolset_t *fps,
