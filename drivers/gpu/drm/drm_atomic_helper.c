@@ -696,6 +696,8 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 			continue;
 
 		funcs = encoder->helper_private;
+		if (!funcs)
+			continue;
 
 		DRM_DEBUG_ATOMIC("disabling [ENCODER:%d:%s]\n",
 				 encoder->base.id, encoder->name);
@@ -711,7 +713,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 			funcs->prepare(encoder);
 		else if (funcs->disable)
 			funcs->disable(encoder);
-		else
+		else if (funcs->dpms)
 			funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
 
 		drm_bridge_post_disable(encoder->bridge);
@@ -859,6 +861,9 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		encoder = connector->state->best_encoder;
 		funcs = encoder->helper_private;
+		if (!funcs)
+			continue;
+
 		new_crtc_state = connector->state->crtc->state;
 		mode = &new_crtc_state->mode;
 		adjusted_mode = &new_crtc_state->adjusted_mode;
@@ -964,6 +969,8 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 
 		encoder = connector->state->best_encoder;
 		funcs = encoder->helper_private;
+		if (!funcs)
+			continue;
 
 		DRM_DEBUG_ATOMIC("enabling [ENCODER:%d:%s]\n",
 				 encoder->base.id, encoder->name);
@@ -976,7 +983,7 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 
 		if (funcs->enable)
 			funcs->enable(encoder);
-		else
+		else if (funcs->commit)
 			funcs->commit(encoder);
 
 		drm_bridge_enable(encoder->bridge);
