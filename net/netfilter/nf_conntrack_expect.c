@@ -86,6 +86,17 @@ static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple
 	return reciprocal_scale(hash, nf_ct_expect_hsize);
 }
 
+static bool
+nf_ct_exp_equal(const struct nf_conntrack_tuple *tuple,
+		const struct nf_conntrack_expect *i,
+		const struct nf_conntrack_zone *zone,
+		const struct net *net)
+{
+	return nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask) &&
+	       net_eq(net, nf_ct_net(i->master)) &&
+	       nf_ct_zone_equal_any(i->master, zone);
+}
+
 struct nf_conntrack_expect *
 __nf_ct_expect_find(struct net *net,
 		    const struct nf_conntrack_zone *zone,
@@ -99,8 +110,7 @@ __nf_ct_expect_find(struct net *net,
 
 	h = nf_ct_expect_dst_hash(tuple);
 	hlist_for_each_entry_rcu(i, &net->ct.expect_hash[h], hnode) {
-		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask) &&
-		    nf_ct_zone_equal_any(i->master, zone))
+		if (nf_ct_exp_equal(tuple, i, zone, net))
 			return i;
 	}
 	return NULL;
@@ -141,8 +151,7 @@ nf_ct_find_expectation(struct net *net,
 	h = nf_ct_expect_dst_hash(tuple);
 	hlist_for_each_entry(i, &net->ct.expect_hash[h], hnode) {
 		if (!(i->flags & NF_CT_EXPECT_INACTIVE) &&
-		    nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask) &&
-		    nf_ct_zone_equal_any(i->master, zone)) {
+		    nf_ct_exp_equal(tuple, i, zone, net)) {
 			exp = i;
 			break;
 		}
@@ -222,6 +231,7 @@ static inline int expect_clash(const struct nf_conntrack_expect *a,
 	}
 
 	return nf_ct_tuple_mask_cmp(&a->tuple, &b->tuple, &intersect_mask) &&
+	       net_eq(nf_ct_net(a->master), nf_ct_net(b->master)) &&
 	       nf_ct_zone_equal_any(a->master, nf_ct_zone(b->master));
 }
 
@@ -231,6 +241,7 @@ static inline int expect_matches(const struct nf_conntrack_expect *a,
 	return a->master == b->master && a->class == b->class &&
 	       nf_ct_tuple_equal(&a->tuple, &b->tuple) &&
 	       nf_ct_tuple_mask_equal(&a->mask, &b->mask) &&
+	       net_eq(nf_ct_net(a->master), nf_ct_net(b->master)) &&
 	       nf_ct_zone_equal_any(a->master, nf_ct_zone(b->master));
 }
 

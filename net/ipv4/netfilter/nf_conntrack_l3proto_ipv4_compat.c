@@ -301,6 +301,9 @@ static int exp_seq_show(struct seq_file *s, void *v)
 
 	exp = hlist_entry(n, struct nf_conntrack_expect, hnode);
 
+	if (!net_eq(nf_ct_net(exp->master), seq_file_net(s)))
+		return 0;
+
 	if (exp->tuple.src.l3num != AF_INET)
 		return 0;
 

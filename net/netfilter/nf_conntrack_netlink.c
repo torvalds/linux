@@ -2636,6 +2636,10 @@ restart:
 				     hnode) {
 			if (l3proto && exp->tuple.src.l3num != l3proto)
 				continue;
+
+			if (!net_eq(nf_ct_net(exp->master), net))
+				continue;
+
 			if (cb->args[1]) {
 				if (exp != last)
 					continue;
@@ -2888,6 +2892,10 @@ static int ctnetlink_del_expect(struct net *net, struct sock *ctnl,
 			hlist_for_each_entry_safe(exp, next,
 						  &net->ct.expect_hash[i],
 						  hnode) {
+
+				if (!net_eq(nf_ct_exp_net(exp), net))
+					continue;
+
 				m_help = nfct_help(exp->master);
 				if (!strcmp(m_help->helper->name, name) &&
 				    del_timer(&exp->timeout)) {
@@ -2906,6 +2914,10 @@ static int ctnetlink_del_expect(struct net *net, struct sock *ctnl,
 			hlist_for_each_entry_safe(exp, next,
 						  &net->ct.expect_hash[i],
 						  hnode) {
+
+				if (!net_eq(nf_ct_exp_net(exp), net))
+					continue;
+
 				if (del_timer(&exp->timeout)) {
 					nf_ct_unlink_expect_report(exp,
 							NETLINK_CB(skb).portid,
