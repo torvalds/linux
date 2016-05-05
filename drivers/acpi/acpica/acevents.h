@@ -72,6 +72,7 @@ acpi_status acpi_ev_init_global_lock_handler(void);
 ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
 			    acpi_ev_acquire_global_lock(u16 timeout))
 ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_ev_release_global_lock(void))
+
 acpi_status acpi_ev_remove_global_lock_handler(void);
 
 /*

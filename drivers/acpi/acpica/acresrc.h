@@ -223,16 +223,16 @@ acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
  * rscalc
  */
 acpi_status
-acpi_rs_get_list_length(u8 * aml_buffer,
-			u32 aml_buffer_length, acpi_size * size_needed);
+acpi_rs_get_list_length(u8 *aml_buffer,
+			u32 aml_buffer_length, acpi_size *size_needed);
 
 acpi_status
 acpi_rs_get_aml_length(struct acpi_resource *resource_list,
-		       acpi_size resource_list_size, acpi_size * size_needed);
+		       acpi_size resource_list_size, acpi_size *size_needed);
 
 acpi_status
 acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
-				     acpi_size * buffer_size_needed);
+				     acpi_size *buffer_size_needed);
 
 acpi_status
 acpi_rs_convert_aml_to_resources(u8 * aml,

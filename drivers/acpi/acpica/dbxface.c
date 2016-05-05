@@ -162,8 +162,8 @@ void acpi_db_signal_break_point(struct acpi_walk_state *walk_state)
  ******************************************************************************/
 
 acpi_status
-acpi_db_single_step(struct acpi_walk_state * walk_state,
-		    union acpi_parse_object * op, u32 opcode_class)
+acpi_db_single_step(struct acpi_walk_state *walk_state,
+		    union acpi_parse_object *op, u32 opcode_class)
 {
 	union acpi_parse_object *next;
 	acpi_status status = AE_OK;

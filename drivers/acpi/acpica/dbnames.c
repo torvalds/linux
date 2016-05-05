@@ -285,7 +285,7 @@ void acpi_db_dump_namespace_by_owner(char *owner_arg, char *depth_arg)
 	u32 max_depth = ACPI_UINT32_MAX;
 	acpi_owner_id owner_id;
 
-	owner_id = (acpi_owner_id) strtoul(owner_arg, NULL, 0);
+	owner_id = (acpi_owner_id)strtoul(owner_arg, NULL, 0);
 
 	/* Now we can check for the depth argument */
 

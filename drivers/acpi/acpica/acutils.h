@@ -136,16 +136,16 @@ extern const char *acpi_gbl_pt_decode[];
 #define ACPI_SMALL_VARIABLE_LENGTH      3
 
 typedef
-acpi_status(*acpi_walk_aml_callback) (u8 *aml,
-				      u32 length,
-				      u32 offset,
-				      u8 resource_index, void **context);
+acpi_status (*acpi_walk_aml_callback) (u8 *aml,
+				       u32 length,
+				       u32 offset,
+				       u8 resource_index, void **context);
 
 typedef
-acpi_status(*acpi_pkg_callback) (u8 object_type,
-				 union acpi_operand_object *source_object,
-				 union acpi_generic_state * state,
-				 void *context);
+acpi_status (*acpi_pkg_callback) (u8 object_type,
+				  union acpi_operand_object * source_object,
+				  union acpi_generic_state * state,
+				  void *context);
 
 struct acpi_pkg_info {
 	u8 *free_space;
@@ -424,7 +424,7 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size);
 union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size);
 
 acpi_status
-acpi_ut_get_object_size(union acpi_operand_object *obj, acpi_size * obj_length);
+acpi_ut_get_object_size(union acpi_operand_object *obj, acpi_size *obj_length);
 
 /*
  * utosi - Support for the _OSI predefined control method
@@ -541,9 +541,9 @@ acpi_ut_display_init_pathname(u8 type,
 /*
  * utownerid - Support for Table/Method Owner IDs
  */
-acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id);
+acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id);
 
-void acpi_ut_release_owner_id(acpi_owner_id * owner_id);
+void acpi_ut_release_owner_id(acpi_owner_id *owner_id);
 
 /*
  * utresrc

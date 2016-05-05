@@ -490,8 +490,8 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 
 			status =
 			    acpi_ds_create_index_field(op,
-						       (acpi_handle) arg->
-						       common.node, walk_state);
+						       (acpi_handle)arg->common.
+						       node, walk_state);
 			break;
 
 		case AML_BANK_FIELD_OP:

@@ -108,7 +108,7 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_physical_table_override
 acpi_status
 acpi_os_physical_table_override(struct acpi_table_header *existing_table,
-				acpi_physical_address * new_address,
+				acpi_physical_address *new_address,
 				u32 *new_table_length);
 #endif
 
@@ -203,7 +203,7 @@ void acpi_os_unmap_memory(void *logical_address, acpi_size size);
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_physical_address
 acpi_status
 acpi_os_get_physical_address(void *logical_address,
-			     acpi_physical_address * physical_address);
+			     acpi_physical_address *physical_address);
 #endif
 
 /*
@@ -379,14 +379,14 @@ acpi_status
 acpi_os_get_table_by_name(char *signature,
 			  u32 instance,
 			  struct acpi_table_header **table,
-			  acpi_physical_address * address);
+			  acpi_physical_address *address);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_index
 acpi_status
 acpi_os_get_table_by_index(u32 index,
 			   struct acpi_table_header **table,
-			   u32 *instance, acpi_physical_address * address);
+			   u32 *instance, acpi_physical_address *address);
 #endif
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_table_by_address

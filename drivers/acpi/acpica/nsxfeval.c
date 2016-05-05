@@ -256,7 +256,7 @@ acpi_evaluate_object(acpi_handle handle,
 		 * Allocate a new parameter block for the internal objects
 		 * Add 1 to count to allow for null terminated internal list
 		 */
-		info->parameters = ACPI_ALLOCATE_ZEROED(((acpi_size) info->
+		info->parameters = ACPI_ALLOCATE_ZEROED(((acpi_size)info->
 							 param_count +
 							 1) * sizeof(void *));
 		if (!info->parameters) {

@@ -188,7 +188,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 
 acpi_status
 acpi_ds_initialize_objects(u32 table_index,
-			   struct acpi_namespace_node * start_node)
+			   struct acpi_namespace_node *start_node)
 {
 	acpi_status status;
 	struct acpi_init_walk_info info;

@@ -91,10 +91,9 @@ acpi_status acpi_reset(void)
 		 * compatibility with other ACPI implementations that have allowed
 		 * BIOS code with bad register width values to go unnoticed.
 		 */
-		status =
-		    acpi_os_write_port((acpi_io_address) reset_reg->address,
-				       acpi_gbl_FADT.reset_value,
-				       ACPI_RESET_REGISTER_WIDTH);
+		status = acpi_os_write_port((acpi_io_address)reset_reg->address,
+					    acpi_gbl_FADT.reset_value,
+					    ACPI_RESET_REGISTER_WIDTH);
 	} else {
 		/* Write the reset value to the reset register */
 

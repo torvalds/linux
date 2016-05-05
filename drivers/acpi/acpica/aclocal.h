@@ -278,7 +278,7 @@ struct acpi_create_field_info {
 };
 
 typedef
-acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
+acpi_status (*acpi_internal_method) (struct acpi_walk_state * walk_state);
 
 /*
  * Bitmapped ACPI types. Used internally only
@@ -395,11 +395,12 @@ union acpi_predefined_info {
 
 /* Return object auto-repair info */
 
-typedef acpi_status(*acpi_object_converter) (struct acpi_namespace_node * scope,
-					     union acpi_operand_object
-					     *original_object,
-					     union acpi_operand_object
-					     **converted_object);
+typedef acpi_status (*acpi_object_converter) (struct acpi_namespace_node *
+					      scope,
+					      union acpi_operand_object *
+					      original_object,
+					      union acpi_operand_object **
+					      converted_object);
 
 struct acpi_simple_repair_info {
 	char name[ACPI_NAME_SIZE];
@@ -539,10 +540,10 @@ struct acpi_gpe_device_info {
 	struct acpi_namespace_node *gpe_device;
 };
 
-typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
-					 gpe_xrupt_info,
-					 struct acpi_gpe_block_info *gpe_block,
-					 void *context);
+typedef acpi_status (*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
+					  gpe_xrupt_info,
+					  struct acpi_gpe_block_info *
+					  gpe_block, void *context);
 
 /* Information about each particular fixed event */
 
@@ -657,10 +658,11 @@ struct acpi_result_values {
 };
 
 typedef
-acpi_status(*acpi_parse_downwards) (struct acpi_walk_state * walk_state,
-				    union acpi_parse_object ** out_op);
+acpi_status (*acpi_parse_downwards) (struct acpi_walk_state * walk_state,
+				     union acpi_parse_object ** out_op);
 
-typedef acpi_status(*acpi_parse_upwards) (struct acpi_walk_state * walk_state);
+typedef
+acpi_status (*acpi_parse_upwards) (struct acpi_walk_state * walk_state);
 
 /* Global handlers for AML Notifies */
 
@@ -700,7 +702,8 @@ union acpi_generic_state {
  *
  ****************************************************************************/
 
-typedef acpi_status(*acpi_execute_op) (struct acpi_walk_state * walk_state);
+typedef
+acpi_status (*acpi_execute_op) (struct acpi_walk_state * walk_state);
 
 /* Address Range info block */
 

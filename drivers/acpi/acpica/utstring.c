@@ -130,7 +130,7 @@ void acpi_ut_print_string(char *string, u16 max_length)
 			} else {
 				/* All others will be Hex escapes */
 
-				acpi_os_printf("\\x%2.2X", (s32) string[i]);
+				acpi_os_printf("\\x%2.2X", (s32)string[i]);
 			}
 			break;
 		}

@@ -294,7 +294,7 @@ int ap_dump_table_by_address(char *ascii_address)
 		return (-1);
 	}
 
-	address = (acpi_physical_address) long_address;
+	address = (acpi_physical_address)long_address;
 	status = acpi_os_get_table_by_address(address, &table);
 	if (ACPI_FAILURE(status)) {
 		acpi_log_error("Could not get table at 0x%8.8X%8.8X, %s\n",

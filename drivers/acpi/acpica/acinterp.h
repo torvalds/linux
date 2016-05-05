@@ -370,7 +370,7 @@ acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
 acpi_status
 acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			 union acpi_operand_object *operand,
-			 acpi_object_type * return_type,
+			 acpi_object_type *return_type,
 			 union acpi_operand_object **return_desc);
 
 /*

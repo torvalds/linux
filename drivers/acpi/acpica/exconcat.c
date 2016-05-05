@@ -340,7 +340,7 @@ acpi_ex_convert_to_object_type_string(union acpi_operand_object *obj_desc,
 
 	type_string = acpi_ut_get_type_name(obj_desc->common.type);
 
-	return_desc = acpi_ut_create_string_object(((acpi_size) strlen(type_string) + 9));	/* 9 For "[ Object]" */
+	return_desc = acpi_ut_create_string_object(((acpi_size)strlen(type_string) + 9));	/* 9 For "[ Object]" */
 	if (!return_desc) {
 		return (AE_NO_MEMORY);
 	}
@@ -372,7 +372,7 @@ acpi_status
 acpi_ex_concat_template(union acpi_operand_object *operand0,
 			union acpi_operand_object *operand1,
 			union acpi_operand_object **actual_return_desc,
-			struct acpi_walk_state * walk_state)
+			struct acpi_walk_state *walk_state)
 {
 	acpi_status status;
 	union acpi_operand_object *return_desc;

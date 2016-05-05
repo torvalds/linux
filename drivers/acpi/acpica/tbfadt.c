@@ -344,7 +344,7 @@ void acpi_tb_parse_fadt(void)
 
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
-	acpi_tb_install_fixed_table((acpi_physical_address) acpi_gbl_FADT.Xdsdt,
+	acpi_tb_install_fixed_table((acpi_physical_address)acpi_gbl_FADT.Xdsdt,
 				    ACPI_SIG_DSDT, &acpi_gbl_dsdt_index);
 
 	/* If Hardware Reduced flag is set, there is no FACS */
