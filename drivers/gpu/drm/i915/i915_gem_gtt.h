@@ -520,7 +520,6 @@ int i915_ggtt_init_hw(struct drm_device *dev);
 void i915_gem_init_ggtt(struct drm_device *dev);
 void i915_ggtt_cleanup_hw(struct drm_device *dev);
 
-int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
 int i915_ppgtt_init_hw(struct drm_device *dev);
 void i915_ppgtt_release(struct kref *kref);
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_device *dev,

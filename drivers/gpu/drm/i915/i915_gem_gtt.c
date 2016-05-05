@@ -2156,7 +2156,7 @@ static void gtt_write_workarounds(struct drm_device *dev)
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
 }
 
-int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
+static int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
