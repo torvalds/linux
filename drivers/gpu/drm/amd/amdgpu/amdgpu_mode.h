@@ -283,7 +283,7 @@ struct amdgpu_display_funcs {
 	u32 (*hpd_get_gpio_reg)(struct amdgpu_device *adev);
 	/* pageflipping */
 	void (*page_flip)(struct amdgpu_device *adev,
-			 int crtc_id, u64 crtc_base);
+			  int crtc_id, u64 crtc_base, bool async);
 	int (*page_flip_get_scanoutpos)(struct amdgpu_device *adev, int crtc,
 					u32 *vbl, u32 *position);
 	/* display topology setup */
