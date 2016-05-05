@@ -109,11 +109,14 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	blk_start_plug(&plug);
 	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, type,
 			&bio);
-	if (!ret && bio)
+	if (!ret && bio) {
 		ret = submit_bio_wait(type, bio);
+		if (ret == -EOPNOTSUPP)
+			ret = 0;
+	}
 	blk_finish_plug(&plug);
 
-	return ret != -EOPNOTSUPP ? ret : 0;
+	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_discard);
 
