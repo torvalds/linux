@@ -83,13 +83,19 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (clock > MMC_HIGH_52_MAX_DTR && (!IS_ERR(sdhci_arasan->phy)))
 		ctrl_phy = true;
 
-	if (ctrl_phy)
+	if (ctrl_phy) {
+		spin_unlock_irq(&host->lock);
 		phy_power_off(sdhci_arasan->phy);
+		spin_lock_irq(&host->lock);
+	}
 
 	sdhci_set_clock(host, clock);
 
-	if (ctrl_phy)
+	if (ctrl_phy) {
+		spin_unlock_irq(&host->lock);
 		phy_power_on(sdhci_arasan->phy);
+		spin_lock_irq(&host->lock);
+	}
 }
 
 static struct sdhci_ops sdhci_arasan_ops = {
