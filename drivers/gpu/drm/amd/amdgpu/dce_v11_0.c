@@ -2419,10 +2419,6 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 
 		if (ENCODER_MODE_IS_DP(amdgpu_atombios_encoder_get_encoder_mode(amdgpu_crtc->encoder)))
 			return ATOM_DP_DTO;
-		/* use the same PPLL for all monitors with the same clock */
-		pll = amdgpu_pll_get_shared_nondp_ppll(crtc);
-		if (pll != ATOM_PPLL_INVALID)
-			return pll;
 
 		switch (amdgpu_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
