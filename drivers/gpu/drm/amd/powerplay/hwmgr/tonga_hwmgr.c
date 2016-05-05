@@ -2420,8 +2420,7 @@ static uint8_t tonga_get_sleep_divider_id_from_clock(struct pp_hwmgr *hwmgr,
 		uint32_t engine_clock, uint32_t min_engine_clock_in_sr)
 {
 	uint32_t i, temp;
-	uint32_t min = (min_engine_clock_in_sr > TONGA_MINIMUM_ENGINE_CLOCK) ?
-			min_engine_clock_in_sr : TONGA_MINIMUM_ENGINE_CLOCK;
+	uint32_t min = max(min_engine_clock_in_sr, (uint32_t)TONGA_MINIMUM_ENGINE_CLOCK);
 
 	PP_ASSERT_WITH_CODE((engine_clock >= min),
 			"Engine clock can't satisfy stutter requirement!", return 0);

@@ -2176,8 +2176,7 @@ static u8 kv_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
 	struct kv_power_info *pi = kv_get_pi(adev);
 	u32 i;
 	u32 temp;
-	u32 min = (min_sclk_in_sr > KV_MINIMUM_ENGINE_CLOCK) ?
-		min_sclk_in_sr : KV_MINIMUM_ENGINE_CLOCK;
+	u32 min = max(min_sclk_in_sr, (u32)KV_MINIMUM_ENGINE_CLOCK);
 
 	if (sclk < min)
 		return 0;

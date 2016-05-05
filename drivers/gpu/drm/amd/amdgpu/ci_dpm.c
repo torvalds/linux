@@ -2554,8 +2554,7 @@ static u8 ci_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
 {
 	u32 i;
 	u32 tmp;
-	u32 min = (min_sclk_in_sr > CISLAND_MINIMUM_ENGINE_CLOCK) ?
-		min_sclk_in_sr : CISLAND_MINIMUM_ENGINE_CLOCK;
+	u32 min = max(min_sclk_in_sr, (u32)CISLAND_MINIMUM_ENGINE_CLOCK);
 
 	if (sclk < min)
 		return 0;
