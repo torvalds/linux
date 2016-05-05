@@ -2017,7 +2017,7 @@ static int lmv_sync(struct obd_export *exp, const struct lu_fid *fid,
  * |s|e|f|p|ent| 0 | ... | 0 |
  * '-----------------   -----'
  *
- * However, on hosts where the native VM page size (PAGE_CACHE_SIZE) is
+ * However, on hosts where the native VM page size (PAGE_SIZE) is
  * larger than LU_PAGE_SIZE, a single host page may contain multiple
  * lu_dirpages. After reading the lu_dirpages from the MDS, the
  * ldp_hash_end of the first lu_dirpage refers to the one immediately
@@ -2048,7 +2048,7 @@ static int lmv_sync(struct obd_export *exp, const struct lu_fid *fid,
  * - Adjust the lde_reclen of the ending entry of each lu_dirpage to span
  *   to the first entry of the next lu_dirpage.
  */
-#if PAGE_CACHE_SIZE > LU_PAGE_SIZE
+#if PAGE_SIZE > LU_PAGE_SIZE
 static void lmv_adjust_dirpages(struct page **pages, int ncfspgs, int nlupgs)
 {
 	int i;
@@ -2101,7 +2101,7 @@ static void lmv_adjust_dirpages(struct page **pages, int ncfspgs, int nlupgs)
 }
 #else
 #define lmv_adjust_dirpages(pages, ncfspgs, nlupgs) do {} while (0)
-#endif	/* PAGE_CACHE_SIZE > LU_PAGE_SIZE */
+#endif	/* PAGE_SIZE > LU_PAGE_SIZE */
 
 static int lmv_readpage(struct obd_export *exp, struct md_op_data *op_data,
 			struct page **pages, struct ptlrpc_request **request)
@@ -2110,7 +2110,7 @@ static int lmv_readpage(struct obd_export *exp, struct md_op_data *op_data,
 	struct lmv_obd		*lmv = &obd->u.lmv;
 	__u64			offset = op_data->op_offset;
 	int			rc;
-	int			ncfspgs; /* pages read in PAGE_CACHE_SIZE */
+	int			ncfspgs; /* pages read in PAGE_SIZE */
 	int			nlupgs; /* pages read in LU_PAGE_SIZE */
 	struct lmv_tgt_desc	*tgt;
 
@@ -2129,8 +2129,8 @@ static int lmv_readpage(struct obd_export *exp, struct md_op_data *op_data,
 	if (rc != 0)
 		return rc;
 
-	ncfspgs = ((*request)->rq_bulk->bd_nob_transferred + PAGE_CACHE_SIZE - 1)
-		 >> PAGE_CACHE_SHIFT;
+	ncfspgs = ((*request)->rq_bulk->bd_nob_transferred + PAGE_SIZE - 1)
+		 >> PAGE_SHIFT;
 	nlupgs = (*request)->rq_bulk->bd_nob_transferred >> LU_PAGE_SHIFT;
 	LASSERT(!((*request)->rq_bulk->bd_nob_transferred & ~LU_PAGE_MASK));
 	LASSERT(ncfspgs > 0 && ncfspgs <= op_data->op_npages);

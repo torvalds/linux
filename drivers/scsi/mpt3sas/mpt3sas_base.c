@@ -5030,7 +5030,7 @@ _base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, int sleep_flag,
 static int
 _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 {
-	int r, i;
+	int r, i, index;
 	unsigned long	flags;
 	u32 reply_address;
 	u16 smid;
@@ -5039,8 +5039,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	struct _event_ack_list *delayed_event_ack, *delayed_event_ack_next;
 	u8 hide_flag;
 	struct adapter_reply_queue *reply_q;
-	long reply_post_free;
-	u32 reply_post_free_sz, index = 0;
+	Mpi2ReplyDescriptorsUnion_t *reply_post_free_contig;
 
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT "%s\n", ioc->name,
 	    __func__));
@@ -5124,27 +5123,27 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 		_base_assign_reply_queues(ioc);
 
 	/* initialize Reply Post Free Queue */
-	reply_post_free_sz = ioc->reply_post_queue_depth *
-	    sizeof(Mpi2DefaultReplyDescriptor_t);
-	reply_post_free = (long)ioc->reply_post[index].reply_post_free;
+	index = 0;
+	reply_post_free_contig = ioc->reply_post[0].reply_post_free;
 	list_for_each_entry(reply_q, &ioc->reply_queue_list, list) {
+		/*
+		 * If RDPQ is enabled, switch to the next allocation.
+		 * Otherwise advance within the contiguous region.
+		 */
+		if (ioc->rdpq_array_enable) {
+			reply_q->reply_post_free =
+				ioc->reply_post[index++].reply_post_free;
+		} else {
+			reply_q->reply_post_free = reply_post_free_contig;
+			reply_post_free_contig += ioc->reply_post_queue_depth;
+		}
+
 		reply_q->reply_post_host_index = 0;
-		reply_q->reply_post_free = (Mpi2ReplyDescriptorsUnion_t *)
-		    reply_post_free;
 		for (i = 0; i < ioc->reply_post_queue_depth; i++)
 			reply_q->reply_post_free[i].Words =
 			    cpu_to_le64(ULLONG_MAX);
 		if (!_base_is_controller_msix_enabled(ioc))
 			goto skip_init_reply_post_free_queue;
-		/*
-		 * If RDPQ is enabled, switch to the next allocation.
-		 * Otherwise advance within the contiguous region.
-		 */
-		if (ioc->rdpq_array_enable)
-			reply_post_free = (long)
-			    ioc->reply_post[++index].reply_post_free;
-		else
-			reply_post_free += reply_post_free_sz;
 	}
  skip_init_reply_post_free_queue:
 

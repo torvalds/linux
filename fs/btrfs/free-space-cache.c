@@ -29,7 +29,7 @@
 #include "inode-map.h"
 #include "volumes.h"
 
-#define BITS_PER_BITMAP		(PAGE_CACHE_SIZE * 8)
+#define BITS_PER_BITMAP		(PAGE_SIZE * 8)
 #define MAX_CACHE_BYTES_PER_GIG	SZ_32K
 
 struct btrfs_trim_range {
@@ -295,7 +295,7 @@ static int readahead_cache(struct inode *inode)
 		return -ENOMEM;
 
 	file_ra_state_init(ra, inode->i_mapping);
-	last_index = (i_size_read(inode) - 1) >> PAGE_CACHE_SHIFT;
+	last_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;
 
 	page_cache_sync_readahead(inode->i_mapping, ra, NULL, 0, last_index);
 
@@ -310,14 +310,14 @@ static int io_ctl_init(struct btrfs_io_ctl *io_ctl, struct inode *inode,
 	int num_pages;
 	int check_crcs = 0;
 
-	num_pages = DIV_ROUND_UP(i_size_read(inode), PAGE_CACHE_SIZE);
+	num_pages = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
 
 	if (btrfs_ino(inode) != BTRFS_FREE_INO_OBJECTID)
 		check_crcs = 1;
 
 	/* Make sure we can fit our crcs into the first page */
 	if (write && check_crcs &&
-	    (num_pages * sizeof(u32)) >= PAGE_CACHE_SIZE)
+	    (num_pages * sizeof(u32)) >= PAGE_SIZE)
 		return -ENOSPC;
 
 	memset(io_ctl, 0, sizeof(struct btrfs_io_ctl));
@@ -354,9 +354,9 @@ static void io_ctl_map_page(struct btrfs_io_ctl *io_ctl, int clear)
 	io_ctl->page = io_ctl->pages[io_ctl->index++];
 	io_ctl->cur = page_address(io_ctl->page);
 	io_ctl->orig = io_ctl->cur;
-	io_ctl->size = PAGE_CACHE_SIZE;
+	io_ctl->size = PAGE_SIZE;
 	if (clear)
-		memset(io_ctl->cur, 0, PAGE_CACHE_SIZE);
+		memset(io_ctl->cur, 0, PAGE_SIZE);
 }
 
 static void io_ctl_drop_pages(struct btrfs_io_ctl *io_ctl)
@@ -369,7 +369,7 @@ static void io_ctl_drop_pages(struct btrfs_io_ctl *io_ctl)
 		if (io_ctl->pages[i]) {
 			ClearPageChecked(io_ctl->pages[i]);
 			unlock_page(io_ctl->pages[i]);
-			page_cache_release(io_ctl->pages[i]);
+			put_page(io_ctl->pages[i]);
 		}
 	}
 }
@@ -475,7 +475,7 @@ static void io_ctl_set_crc(struct btrfs_io_ctl *io_ctl, int index)
 		offset = sizeof(u32) * io_ctl->num_pages;
 
 	crc = btrfs_csum_data(io_ctl->orig + offset, crc,
-			      PAGE_CACHE_SIZE - offset);
+			      PAGE_SIZE - offset);
 	btrfs_csum_final(crc, (char *)&crc);
 	io_ctl_unmap_page(io_ctl);
 	tmp = page_address(io_ctl->pages[0]);
@@ -503,7 +503,7 @@ static int io_ctl_check_crc(struct btrfs_io_ctl *io_ctl, int index)
 
 	io_ctl_map_page(io_ctl, 0);
 	crc = btrfs_csum_data(io_ctl->orig + offset, crc,
-			      PAGE_CACHE_SIZE - offset);
+			      PAGE_SIZE - offset);
 	btrfs_csum_final(crc, (char *)&crc);
 	if (val != crc) {
 		btrfs_err_rl(io_ctl->root->fs_info,
@@ -561,7 +561,7 @@ static int io_ctl_add_bitmap(struct btrfs_io_ctl *io_ctl, void *bitmap)
 		io_ctl_map_page(io_ctl, 0);
 	}
 
-	memcpy(io_ctl->cur, bitmap, PAGE_CACHE_SIZE);
+	memcpy(io_ctl->cur, bitmap, PAGE_SIZE);
 	io_ctl_set_crc(io_ctl, io_ctl->index - 1);
 	if (io_ctl->index < io_ctl->num_pages)
 		io_ctl_map_page(io_ctl, 0);
@@ -621,7 +621,7 @@ static int io_ctl_read_bitmap(struct btrfs_io_ctl *io_ctl,
 	if (ret)
 		return ret;
 
-	memcpy(entry->bitmap, io_ctl->cur, PAGE_CACHE_SIZE);
+	memcpy(entry->bitmap, io_ctl->cur, PAGE_SIZE);
 	io_ctl_unmap_page(io_ctl);
 
 	return 0;
@@ -775,7 +775,7 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 		} else {
 			ASSERT(num_bitmaps);
 			num_bitmaps--;
-			e->bitmap = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
+			e->bitmap = kzalloc(PAGE_SIZE, GFP_NOFS);
 			if (!e->bitmap) {
 				kmem_cache_free(
 					btrfs_free_space_cachep, e);
@@ -1660,7 +1660,7 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	 * sure we don't go over our overall goal of MAX_CACHE_BYTES_PER_GIG as
 	 * we add more bitmaps.
 	 */
-	bitmap_bytes = (ctl->total_bitmaps + 1) * PAGE_CACHE_SIZE;
+	bitmap_bytes = (ctl->total_bitmaps + 1) * PAGE_SIZE;
 
 	if (bitmap_bytes >= max_bytes) {
 		ctl->extents_thresh = 0;
@@ -2111,7 +2111,7 @@ new_bitmap:
 		}
 
 		/* allocate the bitmap */
-		info->bitmap = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
+		info->bitmap = kzalloc(PAGE_SIZE, GFP_NOFS);
 		spin_lock(&ctl->tree_lock);
 		if (!info->bitmap) {
 			ret = -ENOMEM;
@@ -3580,7 +3580,7 @@ again:
 	}
 
 	if (!map) {
-		map = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
+		map = kzalloc(PAGE_SIZE, GFP_NOFS);
 		if (!map) {
 			kmem_cache_free(btrfs_free_space_cachep, info);
 			return -ENOMEM;

@@ -83,7 +83,7 @@
 			};
 
 			pll: pll-controller@18050000 {
-				compatible = "qca,ar9132-ppl",
+				compatible = "qca,ar9132-pll",
 						"qca,ar9130-pll";
 				reg = <0x18050000 0x20>;
 

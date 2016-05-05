@@ -5001,7 +5001,7 @@ static int decode_space_limit(struct xdr_stream *xdr,
 		blocksize = be32_to_cpup(p);
 		maxsize = (uint64_t)nblocks * (uint64_t)blocksize;
 	}
-	maxsize >>= PAGE_CACHE_SHIFT;
+	maxsize >>= PAGE_SHIFT;
 	*pagemod_limit = min_t(u64, maxsize, ULONG_MAX);
 	return 0;
 out_overflow:

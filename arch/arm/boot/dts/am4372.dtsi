@@ -207,7 +207,7 @@
 			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
 				   <&edma_tptc2 0>;
 
-			ti,edma-memcpy-channels = <32 33>;
+			ti,edma-memcpy-channels = <58 59>;
 		};
 
 		edma_tptc0: tptc@49800000 {
@@ -884,7 +884,7 @@
 		gpmc: gpmc@50000000 {
 			compatible = "ti,am3352-gpmc";
 			ti,hwmods = "gpmc";
-			dmas = <&edma 52>;
+			dmas = <&edma 52 0>;
 			dma-names = "rxtx";
 			clocks = <&l3s_gclk>;
 			clock-names = "fck";

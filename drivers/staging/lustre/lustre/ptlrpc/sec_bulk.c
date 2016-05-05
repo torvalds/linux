@@ -58,7 +58,7 @@
  * bulk encryption page pools	   *
  ****************************************/
 
-#define POINTERS_PER_PAGE	(PAGE_CACHE_SIZE / sizeof(void *))
+#define POINTERS_PER_PAGE	(PAGE_SIZE / sizeof(void *))
 #define PAGES_PER_POOL		(POINTERS_PER_PAGE)
 
 #define IDLE_IDX_MAX	 (100)

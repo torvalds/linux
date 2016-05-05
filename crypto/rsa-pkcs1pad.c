@@ -387,16 +387,16 @@ static int pkcs1pad_decrypt(struct akcipher_request *req)
 	req_ctx->child_req.src = req->src;
 	req_ctx->child_req.src_len = req->src_len;
 	req_ctx->child_req.dst = req_ctx->out_sg;
-	req_ctx->child_req.dst_len = ctx->key_size - 1;
+	req_ctx->child_req.dst_len = ctx->key_size ;
 
-	req_ctx->out_buf = kmalloc(ctx->key_size - 1,
+	req_ctx->out_buf = kmalloc(ctx->key_size,
 			(req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 			GFP_KERNEL : GFP_ATOMIC);
 	if (!req_ctx->out_buf)
 		return -ENOMEM;
 
 	pkcs1pad_sg_set_buf(req_ctx->out_sg, req_ctx->out_buf,
-			ctx->key_size - 1, NULL);
+			    ctx->key_size, NULL);
 
 	akcipher_request_set_tfm(&req_ctx->child_req, ctx->child);
 	akcipher_request_set_callback(&req_ctx->child_req, req->base.flags,
@@ -595,16 +595,16 @@ static int pkcs1pad_verify(struct akcipher_request *req)
 	req_ctx->child_req.src = req->src;
 	req_ctx->child_req.src_len = req->src_len;
 	req_ctx->child_req.dst = req_ctx->out_sg;
-	req_ctx->child_req.dst_len = ctx->key_size - 1;
+	req_ctx->child_req.dst_len = ctx->key_size;
 
-	req_ctx->out_buf = kmalloc(ctx->key_size - 1,
+	req_ctx->out_buf = kmalloc(ctx->key_size,
 			(req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 			GFP_KERNEL : GFP_ATOMIC);
 	if (!req_ctx->out_buf)
 		return -ENOMEM;
 
 	pkcs1pad_sg_set_buf(req_ctx->out_sg, req_ctx->out_buf,
-			ctx->key_size - 1, NULL);
+			    ctx->key_size, NULL);
 
 	akcipher_request_set_tfm(&req_ctx->child_req, ctx->child);
 	akcipher_request_set_callback(&req_ctx->child_req, req->base.flags,

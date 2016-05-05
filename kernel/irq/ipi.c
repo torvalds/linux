@@ -94,6 +94,7 @@ unsigned int irq_reserve_ipi(struct irq_domain *domain,
 		data = irq_get_irq_data(virq + i);
 		cpumask_copy(data->common->affinity, dest);
 		data->common->ipi_offset = offset;
+		irq_set_status_flags(virq + i, IRQ_NO_BALANCING);
 	}
 	return virq;
 

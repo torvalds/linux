@@ -546,7 +546,7 @@ static inline int ldlm_req_handles_avail(int req_size, int off)
 {
 	int avail;
 
-	avail = min_t(int, LDLM_MAXREQSIZE, PAGE_CACHE_SIZE - 512) - req_size;
+	avail = min_t(int, LDLM_MAXREQSIZE, PAGE_SIZE - 512) - req_size;
 	if (likely(avail >= 0))
 		avail /= (int)sizeof(struct lustre_handle);
 	else

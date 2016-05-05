@@ -386,7 +386,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 		goto finished;
 	}
 	/* read file tail into part of page */
-	offset = (cpu_key_k_offset(&key) - 1) & (PAGE_CACHE_SIZE - 1);
+	offset = (cpu_key_k_offset(&key) - 1) & (PAGE_SIZE - 1);
 	copy_item_head(&tmp_ih, ih);
 
 	/*
@@ -587,10 +587,10 @@ static int convert_tail_for_hole(struct inode *inode,
 		return -EIO;
 
 	/* always try to read until the end of the block */
-	tail_start = tail_offset & (PAGE_CACHE_SIZE - 1);
+	tail_start = tail_offset & (PAGE_SIZE - 1);
 	tail_end = (tail_start | (bh_result->b_size - 1)) + 1;
 
-	index = tail_offset >> PAGE_CACHE_SHIFT;
+	index = tail_offset >> PAGE_SHIFT;
 	/*
 	 * hole_page can be zero in case of direct_io, we are sure
 	 * that we cannot get here if we write with O_DIRECT into tail page
@@ -629,7 +629,7 @@ static int convert_tail_for_hole(struct inode *inode,
 unlock:
 	if (tail_page != hole_page) {
 		unlock_page(tail_page);
-		page_cache_release(tail_page);
+		put_page(tail_page);
 	}
 out:
 	return retval;
@@ -2189,11 +2189,11 @@ static int grab_tail_page(struct inode *inode,
 	 * we want the page with the last byte in the file,
 	 * not the page that will hold the next byte for appending
 	 */
-	unsigned long index = (inode->i_size - 1) >> PAGE_CACHE_SHIFT;
+	unsigned long index = (inode->i_size - 1) >> PAGE_SHIFT;
 	unsigned long pos = 0;
 	unsigned long start = 0;
 	unsigned long blocksize = inode->i_sb->s_blocksize;
-	unsigned long offset = (inode->i_size) & (PAGE_CACHE_SIZE - 1);
+	unsigned long offset = (inode->i_size) & (PAGE_SIZE - 1);
 	struct buffer_head *bh;
 	struct buffer_head *head;
 	struct page *page;
@@ -2251,7 +2251,7 @@ out:
 
 unlock:
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 	return error;
 }
 
@@ -2265,7 +2265,7 @@ int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
 {
 	struct reiserfs_transaction_handle th;
 	/* we want the offset for the first byte after the end of the file */
-	unsigned long offset = inode->i_size & (PAGE_CACHE_SIZE - 1);
+	unsigned long offset = inode->i_size & (PAGE_SIZE - 1);
 	unsigned blocksize = inode->i_sb->s_blocksize;
 	unsigned length;
 	struct page *page = NULL;
@@ -2345,7 +2345,7 @@ int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
 			}
 		}
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	reiserfs_write_unlock(inode->i_sb);
@@ -2354,7 +2354,7 @@ int reiserfs_truncate_file(struct inode *inode, int update_timestamps)
 out:
 	if (page) {
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	reiserfs_write_unlock(inode->i_sb);
@@ -2426,7 +2426,7 @@ research:
 	} else if (is_direct_le_ih(ih)) {
 		char *p;
 		p = page_address(bh_result->b_page);
-		p += (byte_offset - 1) & (PAGE_CACHE_SIZE - 1);
+		p += (byte_offset - 1) & (PAGE_SIZE - 1);
 		copy_size = ih_item_len(ih) - pos_in_item;
 
 		fs_gen = get_generation(inode->i_sb);
@@ -2525,7 +2525,7 @@ static int reiserfs_write_full_page(struct page *page,
 				    struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
-	unsigned long end_index = inode->i_size >> PAGE_CACHE_SHIFT;
+	unsigned long end_index = inode->i_size >> PAGE_SHIFT;
 	int error = 0;
 	unsigned long block;
 	sector_t last_block;
@@ -2535,7 +2535,7 @@ static int reiserfs_write_full_page(struct page *page,
 	int checked = PageChecked(page);
 	struct reiserfs_transaction_handle th;
 	struct super_block *s = inode->i_sb;
-	int bh_per_page = PAGE_CACHE_SIZE / s->s_blocksize;
+	int bh_per_page = PAGE_SIZE / s->s_blocksize;
 	th.t_trans_id = 0;
 
 	/* no logging allowed when nonblocking or from PF_MEMALLOC */
@@ -2564,16 +2564,16 @@ static int reiserfs_write_full_page(struct page *page,
 	if (page->index >= end_index) {
 		unsigned last_offset;
 
-		last_offset = inode->i_size & (PAGE_CACHE_SIZE - 1);
+		last_offset = inode->i_size & (PAGE_SIZE - 1);
 		/* no file contents in this page */
 		if (page->index >= end_index + 1 || !last_offset) {
 			unlock_page(page);
 			return 0;
 		}
-		zero_user_segment(page, last_offset, PAGE_CACHE_SIZE);
+		zero_user_segment(page, last_offset, PAGE_SIZE);
 	}
 	bh = head;
-	block = page->index << (PAGE_CACHE_SHIFT - s->s_blocksize_bits);
+	block = page->index << (PAGE_SHIFT - s->s_blocksize_bits);
 	last_block = (i_size_read(inode) - 1) >> inode->i_blkbits;
 	/* first map all the buffers, logging any direct items we find */
 	do {
@@ -2774,7 +2774,7 @@ static int reiserfs_write_begin(struct file *file,
 		*fsdata = (void *)(unsigned long)flags;
 	}
 
-	index = pos >> PAGE_CACHE_SHIFT;
+	index = pos >> PAGE_SHIFT;
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
@@ -2822,7 +2822,7 @@ static int reiserfs_write_begin(struct file *file,
 	}
 	if (ret) {
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		/* Truncate allocated blocks */
 		reiserfs_truncate_failed_write(inode);
 	}
@@ -2909,7 +2909,7 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 	else
 		th = NULL;
 
-	start = pos & (PAGE_CACHE_SIZE - 1);
+	start = pos & (PAGE_SIZE - 1);
 	if (unlikely(copied < len)) {
 		if (!PageUptodate(page))
 			copied = 0;
@@ -2974,7 +2974,7 @@ out:
 	if (locked)
 		reiserfs_write_unlock(inode->i_sb);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	if (pos + len > inode->i_size)
 		reiserfs_truncate_failed_write(inode);
@@ -2996,7 +2996,7 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 			  unsigned from, unsigned to)
 {
 	struct inode *inode = page->mapping->host;
-	loff_t pos = ((loff_t) page->index << PAGE_CACHE_SHIFT) + to;
+	loff_t pos = ((loff_t) page->index << PAGE_SHIFT) + to;
 	int ret = 0;
 	int update_sd = 0;
 	struct reiserfs_transaction_handle *th = NULL;
@@ -3181,7 +3181,7 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
 	struct inode *inode = page->mapping->host;
 	unsigned int curr_off = 0;
 	unsigned int stop = offset + length;
-	int partial_page = (offset || length < PAGE_CACHE_SIZE);
+	int partial_page = (offset || length < PAGE_SIZE);
 	int ret = 1;
 
 	BUG_ON(!PageLocked(page));

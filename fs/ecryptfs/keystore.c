@@ -1798,7 +1798,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 	 * added the our &auth_tok_list */
 	next_packet_is_auth_tok_packet = 1;
 	while (next_packet_is_auth_tok_packet) {
-		size_t max_packet_size = ((PAGE_CACHE_SIZE - 8) - i);
+		size_t max_packet_size = ((PAGE_SIZE - 8) - i);
 
 		switch (src[i]) {
 		case ECRYPTFS_TAG_3_PACKET_TYPE:
