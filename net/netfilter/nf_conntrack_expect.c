@@ -24,6 +24,7 @@
 #include <linux/moduleparam.h>
 #include <linux/export.h>
 #include <net/net_namespace.h>
+#include <net/netns/hash.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -73,15 +74,17 @@ static void nf_ct_expectation_timed_out(unsigned long ul_expect)
 	nf_ct_expect_put(exp);
 }
 
-static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple)
+static unsigned int nf_ct_expect_dst_hash(const struct net *n, const struct nf_conntrack_tuple *tuple)
 {
-	unsigned int hash;
+	unsigned int hash, seed;
 
 	get_random_once(&nf_ct_expect_hashrnd, sizeof(nf_ct_expect_hashrnd));
 
+	seed = nf_ct_expect_hashrnd ^ net_hash_mix(n);
+
 	hash = jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
 		      (((tuple->dst.protonum ^ tuple->src.l3num) << 16) |
-		       (__force __u16)tuple->dst.u.all) ^ nf_ct_expect_hashrnd);
+		       (__force __u16)tuple->dst.u.all) ^ seed);
 
 	return reciprocal_scale(hash, nf_ct_expect_hsize);
 }
@@ -108,7 +111,7 @@ __nf_ct_expect_find(struct net *net,
 	if (!net->ct.expect_count)
 		return NULL;
 
-	h = nf_ct_expect_dst_hash(tuple);
+	h = nf_ct_expect_dst_hash(net, tuple);
 	hlist_for_each_entry_rcu(i, &net->ct.expect_hash[h], hnode) {
 		if (nf_ct_exp_equal(tuple, i, zone, net))
 			return i;
@@ -148,7 +151,7 @@ nf_ct_find_expectation(struct net *net,
 	if (!net->ct.expect_count)
 		return NULL;
 
-	h = nf_ct_expect_dst_hash(tuple);
+	h = nf_ct_expect_dst_hash(net, tuple);
 	hlist_for_each_entry(i, &net->ct.expect_hash[h], hnode) {
 		if (!(i->flags & NF_CT_EXPECT_INACTIVE) &&
 		    nf_ct_exp_equal(tuple, i, zone, net)) {
@@ -352,7 +355,7 @@ static int nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	struct nf_conn_help *master_help = nfct_help(exp->master);
 	struct nf_conntrack_helper *helper;
 	struct net *net = nf_ct_exp_net(exp);
-	unsigned int h = nf_ct_expect_dst_hash(&exp->tuple);
+	unsigned int h = nf_ct_expect_dst_hash(net, &exp->tuple);
 
 	/* two references : one for hash insert, one for the timer */
 	atomic_add(2, &exp->use);
@@ -411,7 +414,7 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 		ret = -ESHUTDOWN;
 		goto out;
 	}
-	h = nf_ct_expect_dst_hash(&expect->tuple);
+	h = nf_ct_expect_dst_hash(net, &expect->tuple);
 	hlist_for_each_entry_safe(i, next, &net->ct.expect_hash[h], hnode) {
 		if (expect_matches(i, expect)) {
 			if (del_timer(&i->timeout)) {
