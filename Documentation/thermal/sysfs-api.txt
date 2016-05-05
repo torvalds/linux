@@ -140,6 +140,18 @@ temperature) and throttle appropriate devices.
 	Normally this function will not need to be called and the resource
 	management code will ensure that the resource is freed.
 
+1.1.7 int thermal_zone_get_slope(struct thermal_zone_device *tz)
+
+	This interface is used to read the slope attribute value
+	for the thermal zone device, which might be useful for platform
+	drivers for temperature calculations.
+
+1.1.8 int thermal_zone_get_offset(struct thermal_zone_device *tz)
+
+	This interface is used to read the offset attribute value
+	for the thermal zone device, which might be useful for platform
+	drivers for temperature calculations.
+
 1.2 thermal cooling device interface
 1.2.1 struct thermal_cooling_device *thermal_cooling_device_register(char *name,
 		void *devdata, struct thermal_cooling_device_ops *)
