@@ -596,17 +596,8 @@ bool sched_can_stop_tick(struct rq *rq)
 		return false;
 
 	/*
-	 * FIFO realtime policy runs the highest priority task (after DEADLINE).
-	 * Other runnable tasks are of a lower priority. The scheduler tick
-	 * isn't needed.
-	 */
-	fifo_nr_running = rq->rt.rt_nr_running - rq->rt.rr_nr_running;
-	if (fifo_nr_running)
-		return true;
-
-	/*
-	 * Round-robin realtime tasks time slice with other tasks at the same
-	 * realtime priority.
+	 * If there are more than one RR tasks, we need the tick to effect the
+	 * actual RR behaviour.
 	 */
 	if (rq->rt.rr_nr_running) {
 		if (rq->rt.rr_nr_running == 1)
@@ -615,8 +606,20 @@ bool sched_can_stop_tick(struct rq *rq)
 			return false;
 	}
 
-	/* Normal multitasking need periodic preemption checks */
-	if (rq->cfs.nr_running > 1)
+	/*
+	 * If there's no RR tasks, but FIFO tasks, we can skip the tick, no
+	 * forced preemption between FIFO tasks.
+	 */
+	fifo_nr_running = rq->rt.rt_nr_running - rq->rt.rr_nr_running;
+	if (fifo_nr_running)
+		return true;
+
+	/*
+	 * If there are no DL,RR/FIFO tasks, there must only be CFS tasks left;
+	 * if there's more than one we need the tick for involuntary
+	 * preemption.
+	 */
+	if (rq->nr_running > 1)
 		return false;
 
 	return true;

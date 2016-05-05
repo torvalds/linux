@@ -4,6 +4,9 @@ config MMU
 config ZONE_DMA
 	def_bool y
 
+config CPU_BIG_ENDIAN
+	def_bool y
+
 config LOCKDEP_SUPPORT
 	def_bool y
 

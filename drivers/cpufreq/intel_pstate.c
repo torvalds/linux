@@ -1130,6 +1130,10 @@ static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
 		sample_ratio = div_fp(int_tofp(pid_params.sample_rate_ns),
 				      int_tofp(duration_ns));
 		core_busy = mul_fp(core_busy, sample_ratio);
+	} else {
+		sample_ratio = div_fp(100 * cpu->sample.mperf, cpu->sample.tsc);
+		if (sample_ratio < int_tofp(1))
+			core_busy = 0;
 	}
 
 	cpu->sample.busy_scaled = core_busy;
