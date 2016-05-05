@@ -1481,6 +1481,8 @@ widget:
 	widget->dobj.type = SND_SOC_DOBJ_WIDGET;
 	widget->dobj.ops = tplg->ops;
 	widget->dobj.index = tplg->index;
+	kfree(template.sname);
+	kfree(template.name);
 	list_add(&widget->dobj.list, &tplg->comp->dobj_list);
 	return 0;
 
