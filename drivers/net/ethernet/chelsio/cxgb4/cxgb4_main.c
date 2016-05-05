@@ -304,6 +304,22 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 }
 #endif /* CONFIG_CHELSIO_T4_DCB */
 
+int cxgb4_dcb_enabled(const struct net_device *dev)
+{
+#ifdef CONFIG_CHELSIO_T4_DCB
+	struct port_info *pi = netdev_priv(dev);
+
+	if (!pi->dcb.enabled)
+		return 0;
+
+	return ((pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED) ||
+		(pi->dcb.state == CXGB4_DCB_STATE_HOST));
+#else
+	return 0;
+#endif
+}
+EXPORT_SYMBOL(cxgb4_dcb_enabled);
+
 void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 {
 	struct net_device *dev = adapter->port[port_id];
@@ -314,8 +330,10 @@ void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 			netif_carrier_on(dev);
 		else {
 #ifdef CONFIG_CHELSIO_T4_DCB
-			cxgb4_dcb_state_init(dev);
-			dcb_tx_queue_prio_enable(dev, false);
+			if (cxgb4_dcb_enabled(dev)) {
+				cxgb4_dcb_state_init(dev);
+				dcb_tx_queue_prio_enable(dev, false);
+			}
 #endif /* CONFIG_CHELSIO_T4_DCB */
 			netif_carrier_off(dev);
 		}
@@ -493,22 +511,6 @@ static int link_start(struct net_device *dev)
 
 	return ret;
 }
-
-int cxgb4_dcb_enabled(const struct net_device *dev)
-{
-#ifdef CONFIG_CHELSIO_T4_DCB
-	struct port_info *pi = netdev_priv(dev);
-
-	if (!pi->dcb.enabled)
-		return 0;
-
-	return ((pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED) ||
-		(pi->dcb.state == CXGB4_DCB_STATE_HOST));
-#else
-	return 0;
-#endif
-}
-EXPORT_SYMBOL(cxgb4_dcb_enabled);
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 /* Handle a Data Center Bridging update message from the firmware. */
