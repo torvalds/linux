@@ -18,7 +18,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/export.h>
-#include <linux/of.h>
 #include <linux/slab.h>
 
 #include "opp.h"
@@ -119,8 +118,7 @@ void dev_pm_opp_free_cpufreq_table(struct device *dev,
 EXPORT_SYMBOL_GPL(dev_pm_opp_free_cpufreq_table);
 #endif	/* CONFIG_CPU_FREQ */
 
-static void
-_dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, bool of)
+void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, bool of)
 {
 	struct device *cpu_dev;
 	int cpu;
@@ -161,145 +159,6 @@ void dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask)
 	_dev_pm_opp_cpumask_remove_table(cpumask, false);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_cpumask_remove_table);
-
-#ifdef CONFIG_OF
-/**
- * dev_pm_opp_of_cpumask_remove_table() - Removes OPP table for @cpumask
- * @cpumask:	cpumask for which OPP table needs to be removed
- *
- * This removes the OPP tables for CPUs present in the @cpumask.
- * This should be used only to remove static entries created from DT.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
- */
-void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask)
-{
-	_dev_pm_opp_cpumask_remove_table(cpumask, true);
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_remove_table);
-
-/**
- * dev_pm_opp_of_cpumask_add_table() - Adds OPP table for @cpumask
- * @cpumask:	cpumask for which OPP table needs to be added.
- *
- * This adds the OPP tables for CPUs present in the @cpumask.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
- */
-int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
-{
-	struct device *cpu_dev;
-	int cpu, ret = 0;
-
-	WARN_ON(cpumask_empty(cpumask));
-
-	for_each_cpu(cpu, cpumask) {
-		cpu_dev = get_cpu_device(cpu);
-		if (!cpu_dev) {
-			pr_err("%s: failed to get cpu%d device\n", __func__,
-			       cpu);
-			continue;
-		}
-
-		ret = dev_pm_opp_of_add_table(cpu_dev);
-		if (ret) {
-			pr_err("%s: couldn't find opp table for cpu:%d, %d\n",
-			       __func__, cpu, ret);
-
-			/* Free all other OPPs */
-			dev_pm_opp_of_cpumask_remove_table(cpumask);
-			break;
-		}
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_add_table);
-
-/*
- * Works only for OPP v2 bindings.
- *
- * Returns -ENOENT if operating-points-v2 bindings aren't supported.
- */
-/**
- * dev_pm_opp_of_get_sharing_cpus() - Get cpumask of CPUs sharing OPPs with
- *				      @cpu_dev using operating-points-v2
- *				      bindings.
- *
- * @cpu_dev:	CPU device for which we do this operation
- * @cpumask:	cpumask to update with information of sharing CPUs
- *
- * This updates the @cpumask with CPUs that are sharing OPPs with @cpu_dev.
- *
- * Returns -ENOENT if operating-points-v2 isn't present for @cpu_dev.
- *
- * Locking: The internal opp_table and opp structures are RCU protected.
- * Hence this function internally uses RCU updater strategy with mutex locks
- * to keep the integrity of the internal data structures. Callers should ensure
- * that this function is *NOT* called under RCU protection or in contexts where
- * mutex cannot be locked.
- */
-int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
-{
-	struct device_node *np, *tmp_np;
-	struct device *tcpu_dev;
-	int cpu, ret = 0;
-
-	/* Get OPP descriptor node */
-	np = _of_get_opp_desc_node(cpu_dev);
-	if (!np) {
-		dev_dbg(cpu_dev, "%s: Couldn't find cpu_dev node.\n", __func__);
-		return -ENOENT;
-	}
-
-	cpumask_set_cpu(cpu_dev->id, cpumask);
-
-	/* OPPs are shared ? */
-	if (!of_property_read_bool(np, "opp-shared"))
-		goto put_cpu_node;
-
-	for_each_possible_cpu(cpu) {
-		if (cpu == cpu_dev->id)
-			continue;
-
-		tcpu_dev = get_cpu_device(cpu);
-		if (!tcpu_dev) {
-			dev_err(cpu_dev, "%s: failed to get cpu%d device\n",
-				__func__, cpu);
-			ret = -ENODEV;
-			goto put_cpu_node;
-		}
-
-		/* Get OPP descriptor node */
-		tmp_np = _of_get_opp_desc_node(tcpu_dev);
-		if (!tmp_np) {
-			dev_err(tcpu_dev, "%s: Couldn't find tcpu_dev node.\n",
-				__func__);
-			ret = -ENOENT;
-			goto put_cpu_node;
-		}
-
-		/* CPUs are sharing opp node */
-		if (np == tmp_np)
-			cpumask_set_cpu(cpu, cpumask);
-
-		of_node_put(tmp_np);
-	}
-
-put_cpu_node:
-	of_node_put(np);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
-#endif
 
 /**
  * dev_pm_opp_set_sharing_cpus() - Mark OPP table as shared by few CPUs
