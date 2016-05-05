@@ -144,6 +144,7 @@ int snd_hdac_ext_bus_device_init(struct hdac_ext_bus *ebus, int addr)
 	if (!edev)
 		return -ENOMEM;
 	hdev = &edev->hdac;
+	edev->ebus = ebus;
 
 	snprintf(name, sizeof(name), "ehdaudio%dD%d", ebus->idx, addr);
 
