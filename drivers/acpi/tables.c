@@ -36,6 +36,10 @@
 #include <linux/memblock.h>
 #include "internal.h"
 
+#ifdef CONFIG_ACPI_CUSTOM_DSDT
+#include CONFIG_ACPI_CUSTOM_DSDT_FILE
+#endif
+
 #define ACPI_MAX_TABLES		128
 
 static char *mps_inti_flags_polarity[] = { "dfl", "high", "res", "low" };

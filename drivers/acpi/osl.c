@@ -56,10 +56,6 @@ struct acpi_os_dpc {
 	struct work_struct work;
 };
 
-#ifdef CONFIG_ACPI_CUSTOM_DSDT
-#include CONFIG_ACPI_CUSTOM_DSDT_FILE
-#endif
-
 #ifdef ENABLE_DEBUGGER
 #include <linux/kdb.h>
 
