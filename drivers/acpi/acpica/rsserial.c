@@ -151,7 +151,7 @@ struct acpi_rsconvert_info acpi_rs_convert_gpio[18] = {
  *
  ******************************************************************************/
 
-struct acpi_rsconvert_info acpi_rs_convert_i2c_serial_bus[16] = {
+struct acpi_rsconvert_info acpi_rs_convert_i2c_serial_bus[17] = {
 	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_SERIAL_BUS,
 	 ACPI_RS_SIZE(struct acpi_resource_i2c_serialbus),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_i2c_serial_bus)},
@@ -176,6 +176,11 @@ struct acpi_rsconvert_info acpi_rs_convert_i2c_serial_bus[16] = {
 	 ACPI_RS_OFFSET(data.common_serial_bus.producer_consumer),
 	 AML_OFFSET(common_serial_bus.flags),
 	 1},
+
+	{ACPI_RSC_1BITFLAG,
+	 ACPI_RS_OFFSET(data.common_serial_bus.connection_sharing),
+	 AML_OFFSET(common_serial_bus.flags),
+	 2},
 
 	{ACPI_RSC_MOVE8,
 	 ACPI_RS_OFFSET(data.common_serial_bus.type_revision_id),
@@ -237,7 +242,7 @@ struct acpi_rsconvert_info acpi_rs_convert_i2c_serial_bus[16] = {
  *
  ******************************************************************************/
 
-struct acpi_rsconvert_info acpi_rs_convert_spi_serial_bus[20] = {
+struct acpi_rsconvert_info acpi_rs_convert_spi_serial_bus[21] = {
 	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_SERIAL_BUS,
 	 ACPI_RS_SIZE(struct acpi_resource_spi_serialbus),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_spi_serial_bus)},
@@ -262,6 +267,11 @@ struct acpi_rsconvert_info acpi_rs_convert_spi_serial_bus[20] = {
 	 ACPI_RS_OFFSET(data.common_serial_bus.producer_consumer),
 	 AML_OFFSET(common_serial_bus.flags),
 	 1},
+
+	{ACPI_RSC_1BITFLAG,
+	 ACPI_RS_OFFSET(data.common_serial_bus.connection_sharing),
+	 AML_OFFSET(common_serial_bus.flags),
+	 2},
 
 	{ACPI_RSC_MOVE8,
 	 ACPI_RS_OFFSET(data.common_serial_bus.type_revision_id),
@@ -339,7 +349,7 @@ struct acpi_rsconvert_info acpi_rs_convert_spi_serial_bus[20] = {
  *
  ******************************************************************************/
 
-struct acpi_rsconvert_info acpi_rs_convert_uart_serial_bus[22] = {
+struct acpi_rsconvert_info acpi_rs_convert_uart_serial_bus[23] = {
 	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_SERIAL_BUS,
 	 ACPI_RS_SIZE(struct acpi_resource_uart_serialbus),
 	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_uart_serial_bus)},
@@ -364,6 +374,11 @@ struct acpi_rsconvert_info acpi_rs_convert_uart_serial_bus[22] = {
 	 ACPI_RS_OFFSET(data.common_serial_bus.producer_consumer),
 	 AML_OFFSET(common_serial_bus.flags),
 	 1},
+
+	{ACPI_RSC_1BITFLAG,
+	 ACPI_RS_OFFSET(data.common_serial_bus.connection_sharing),
+	 AML_OFFSET(common_serial_bus.flags),
+	 2},
 
 	{ACPI_RSC_MOVE8,
 	 ACPI_RS_OFFSET(data.common_serial_bus.type_revision_id),
