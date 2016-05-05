@@ -17,6 +17,7 @@
 
 struct gb_i2c_device {
 	struct gb_connection	*connection;
+	struct gpbridge_device	*gpbdev;
 
 	u32			functionality;
 
@@ -71,6 +72,7 @@ static struct gb_operation *
 gb_i2c_operation_create(struct gb_connection *connection,
 			struct i2c_msg *msgs, u32 msg_count)
 {
+	struct gb_i2c_device *gb_i2c_dev = gb_connection_get_data(connection);
 	struct gb_i2c_transfer_request *request;
 	struct gb_operation *operation;
 	struct gb_i2c_transfer_op *op;
@@ -83,7 +85,7 @@ gb_i2c_operation_create(struct gb_connection *connection,
 	u32 i;
 
 	if (msg_count > (u32)U16_MAX) {
-		dev_err(&connection->bundle->dev, "msg_count (%u) too big\n",
+		dev_err(&gb_i2c_dev->gpbdev->dev, "msg_count (%u) too big\n",
 			msg_count);
 		return NULL;
 	}
@@ -166,7 +168,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 					struct i2c_msg *msgs, u32 msg_count)
 {
 	struct gb_connection *connection = gb_i2c_dev->connection;
-	struct device *dev = &connection->bundle->dev;
+	struct device *dev = &gb_i2c_dev->gpbdev->dev;
 	struct gb_operation *operation;
 	int ret;
 
@@ -240,8 +242,10 @@ static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 	return gb_i2c_functionality_operation(gb_i2c_dev);
 }
 
-static int gb_i2c_connection_init(struct gb_connection *connection)
+static int gb_i2c_probe(struct gpbridge_device *gpbdev,
+			 const struct gpbridge_device_id *id)
 {
+	struct gb_connection *connection;
 	struct gb_i2c_device *gb_i2c_dev;
 	struct i2c_adapter *adapter;
 	int ret;
@@ -250,12 +254,30 @@ static int gb_i2c_connection_init(struct gb_connection *connection)
 	if (!gb_i2c_dev)
 		return -ENOMEM;
 
-	gb_i2c_dev->connection = connection;	/* refcount? */
+	connection = gb_connection_create(gpbdev->bundle,
+					  le16_to_cpu(gpbdev->cport_desc->id),
+					  NULL);
+	if (IS_ERR(connection)) {
+		ret = PTR_ERR(connection);
+		goto exit_i2cdev_free;
+	}
+
+	gb_i2c_dev->connection = connection;
 	gb_connection_set_data(connection, gb_i2c_dev);
+	gb_i2c_dev->gpbdev = gpbdev;
+	gb_gpbridge_set_data(gpbdev, gb_i2c_dev);
+
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto exit_connection_destroy;
+
+	ret = gb_gpbridge_get_version(connection);
+	if (ret)
+		goto exit_connection_disable;
 
 	ret = gb_i2c_device_setup(gb_i2c_dev);
 	if (ret)
-		goto out_err;
+		goto exit_connection_disable;
 
 	/* Looks good; up our i2c adapter */
 	adapter = &gb_i2c_dev->adapter;
@@ -264,39 +286,46 @@ static int gb_i2c_connection_init(struct gb_connection *connection)
 	adapter->algo = &gb_i2c_algorithm;
 	/* adapter->algo_data = what? */
 
-	adapter->dev.parent = &connection->bundle->dev;
+	adapter->dev.parent = &gpbdev->dev;
 	snprintf(adapter->name, sizeof(adapter->name), "Greybus i2c adapter");
 	i2c_set_adapdata(adapter, gb_i2c_dev);
 
 	ret = i2c_add_adapter(adapter);
 	if (ret)
-		goto out_err;
+		goto exit_connection_disable;
 
 	return 0;
-out_err:
-	/* kref_put(gb_i2c_dev->connection) */
+
+exit_connection_disable:
+	gb_connection_disable(connection);
+exit_connection_destroy:
+	gb_connection_destroy(connection);
+exit_i2cdev_free:
 	kfree(gb_i2c_dev);
 
 	return ret;
 }
 
-static void gb_i2c_connection_exit(struct gb_connection *connection)
+static void gb_i2c_remove(struct gpbridge_device *gpbdev)
 {
-	struct gb_i2c_device *gb_i2c_dev = gb_connection_get_data(connection);
+	struct gb_i2c_device *gb_i2c_dev = gb_gpbridge_get_data(gpbdev);
+	struct gb_connection *connection = gb_i2c_dev->connection;
 
 	i2c_del_adapter(&gb_i2c_dev->adapter);
-	/* kref_put(gb_i2c_dev->connection) */
+	gb_connection_disable(connection);
+	gb_connection_destroy(connection);
 	kfree(gb_i2c_dev);
 }
 
-static struct gb_protocol i2c_protocol = {
-	.name			= "i2c",
-	.id			= GREYBUS_PROTOCOL_I2C,
-	.major			= GB_I2C_VERSION_MAJOR,
-	.minor			= GB_I2C_VERSION_MINOR,
-	.connection_init	= gb_i2c_connection_init,
-	.connection_exit	= gb_i2c_connection_exit,
-	.request_recv		= NULL,	/* no incoming requests */
+static const struct gpbridge_device_id gb_i2c_id_table[] = {
+	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_I2C) },
+	{ },
 };
 
-gb_builtin_protocol_driver(i2c_protocol);
+static struct gpbridge_driver i2c_driver = {
+	.name		= "i2c",
+	.probe		= gb_i2c_probe,
+	.remove		= gb_i2c_remove,
+	.id_table	= gb_i2c_id_table,
+};
+gb_gpbridge_builtin_driver(i2c_driver);
