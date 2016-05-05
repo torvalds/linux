@@ -852,11 +852,6 @@ static int msm_pdev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id msm_id[] = {
-	{ "mdp", 0 },
-	{ }
-};
-
 static const struct of_device_id dt_match[] = {
 	{ .compatible = "qcom,mdp4", .data = (void *) 4 },	/* mdp4 */
 	{ .compatible = "qcom,mdp5", .data = (void *) 5 },	/* mdp5 */
@@ -874,7 +869,6 @@ static struct platform_driver msm_platform_driver = {
 		.of_match_table = dt_match,
 		.pm     = &msm_pm_ops,
 	},
-	.id_table   = msm_id,
 };
 
 static int __init msm_drm_register(void)
