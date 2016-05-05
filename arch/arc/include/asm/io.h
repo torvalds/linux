@@ -13,6 +13,15 @@
 #include <asm/byteorder.h>
 #include <asm/page.h>
 
+#ifdef CONFIG_ISA_ARCV2
+#include <asm/barrier.h>
+#define __iormb()		rmb()
+#define __iowmb()		wmb()
+#else
+#define __iormb()		do { } while (0)
+#define __iowmb()		do { } while (0)
+#endif
+
 extern void __iomem *ioremap(unsigned long physaddr, unsigned long size);
 extern void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
 				  unsigned long flags);
@@ -21,6 +30,15 @@ extern void iounmap(const void __iomem *addr);
 #define ioremap_nocache(phy, sz)	ioremap(phy, sz)
 #define ioremap_wc(phy, sz)		ioremap(phy, sz)
 #define ioremap_wt(phy, sz)		ioremap(phy, sz)
+
+/*
+ * io{read,write}{16,32}be() macros
+ */
+#define ioread16be(p)		({ u16 __v = be16_to_cpu((__force __be16)__raw_readw(p)); __iormb(); __v; })
+#define ioread32be(p)		({ u32 __v = be32_to_cpu((__force __be32)__raw_readl(p)); __iormb(); __v; })
+
+#define iowrite16be(v,p)	({ __iowmb(); __raw_writew((__force u16)cpu_to_be16(v), p); })
+#define iowrite32be(v,p)	({ __iowmb(); __raw_writel((__force u32)cpu_to_be32(v), p); })
 
 /* Change struct page to physical address */
 #define page_to_phys(page)		(page_to_pfn(page) << PAGE_SHIFT)
@@ -98,15 +116,6 @@ static inline void __raw_writel(u32 w, volatile void __iomem *addr)
 	: "memory");
 
 }
-
-#ifdef CONFIG_ISA_ARCV2
-#include <asm/barrier.h>
-#define __iormb()		rmb()
-#define __iowmb()		wmb()
-#else
-#define __iormb()		do { } while (0)
-#define __iowmb()		do { } while (0)
-#endif
 
 /*
  * MMIO can also get buffered/optimized in micro-arch, so barriers needed
