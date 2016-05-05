@@ -127,10 +127,14 @@ int sun4i_dclk_create(struct device *dev, struct sun4i_tcon *tcon)
 	const char *clk_name, *parent_name;
 	struct clk_init_data init;
 	struct sun4i_dclk *dclk;
+	int ret;
 
 	parent_name = __clk_get_name(tcon->sclk0);
-	of_property_read_string_index(dev->of_node, "clock-output-names", 0,
-				      &clk_name);
+	ret = of_property_read_string_index(dev->of_node,
+					    "clock-output-names", 0,
+					    &clk_name);
+	if (ret)
+		return ret;
 
 	dclk = devm_kzalloc(dev, sizeof(*dclk), GFP_KERNEL);
 	if (!dclk)
