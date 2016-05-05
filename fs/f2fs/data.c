@@ -648,6 +648,8 @@ next_dnode:
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, pgofs, mode);
 	if (err) {
+		if (flag == F2FS_GET_BLOCK_BMAP)
+			map->m_pblk = 0;
 		if (err == -ENOENT) {
 			err = 0;
 			if (map->m_next_pgofs)
@@ -683,17 +685,18 @@ next_block:
 			map->m_flags = F2FS_MAP_NEW;
 			blkaddr = dn.data_blkaddr;
 		} else {
+			if (flag == F2FS_GET_BLOCK_BMAP) {
+				map->m_pblk = 0;
+				goto sync_out;
+			}
 			if (flag == F2FS_GET_BLOCK_FIEMAP &&
 						blkaddr == NULL_ADDR) {
 				if (map->m_next_pgofs)
 					*map->m_next_pgofs = pgofs + 1;
 			}
 			if (flag != F2FS_GET_BLOCK_FIEMAP ||
-						blkaddr != NEW_ADDR) {
-				if (flag == F2FS_GET_BLOCK_BMAP)
-					err = -ENOENT;
+						blkaddr != NEW_ADDR)
 				goto sync_out;
-			}
 		}
 	}
 
