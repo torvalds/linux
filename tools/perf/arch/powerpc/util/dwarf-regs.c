@@ -10,19 +10,26 @@
  */
 
 #include <stddef.h>
+#include <errno.h>
+#include <string.h>
 #include <dwarf-regs.h>
-
+#include <linux/ptrace.h>
+#include <linux/kernel.h>
+#include "util.h"
 
 struct pt_regs_dwarfnum {
 	const char *name;
 	unsigned int dwarfnum;
+	unsigned int ptregs_offset;
 };
 
-#define STR(s) #s
-#define REG_DWARFNUM_NAME(r, num) {.name = r, .dwarfnum = num}
-#define GPR_DWARFNUM_NAME(num)	\
-	{.name = STR(%gpr##num), .dwarfnum = num}
-#define REG_DWARFNUM_END {.name = NULL, .dwarfnum = 0}
+#define REG_DWARFNUM_NAME(r, num)					\
+		{.name = STR(%)STR(r), .dwarfnum = num,			\
+		.ptregs_offset = offsetof(struct pt_regs, r)}
+#define GPR_DWARFNUM_NAME(num)						\
+		{.name = STR(%gpr##num), .dwarfnum = num,		\
+		.ptregs_offset = offsetof(struct pt_regs, gpr[num])}
+#define REG_DWARFNUM_END {.name = NULL, .dwarfnum = 0, .ptregs_offset = 0}
 
 /*
  * Reference:
@@ -61,12 +68,12 @@ static const struct pt_regs_dwarfnum regdwarfnum_table[] = {
 	GPR_DWARFNUM_NAME(29),
 	GPR_DWARFNUM_NAME(30),
 	GPR_DWARFNUM_NAME(31),
-	REG_DWARFNUM_NAME("%msr",   66),
-	REG_DWARFNUM_NAME("%ctr",   109),
-	REG_DWARFNUM_NAME("%link",  108),
-	REG_DWARFNUM_NAME("%xer",   101),
-	REG_DWARFNUM_NAME("%dar",   119),
-	REG_DWARFNUM_NAME("%dsisr", 118),
+	REG_DWARFNUM_NAME(msr,   66),
+	REG_DWARFNUM_NAME(ctr,   109),
+	REG_DWARFNUM_NAME(link,  108),
+	REG_DWARFNUM_NAME(xer,   101),
+	REG_DWARFNUM_NAME(dar,   119),
+	REG_DWARFNUM_NAME(dsisr, 118),
 	REG_DWARFNUM_END,
 };
 
@@ -85,4 +92,13 @@ const char *get_arch_regstr(unsigned int n)
 		if (roff->dwarfnum == n)
 			return roff->name;
 	return NULL;
+}
+
+int regs_query_register_offset(const char *name)
+{
+	const struct pt_regs_dwarfnum *roff;
+	for (roff = regdwarfnum_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return roff->ptregs_offset;
+	return -EINVAL;
 }
