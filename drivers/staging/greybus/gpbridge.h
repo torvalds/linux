@@ -56,6 +56,16 @@ void gb_gpbridge_deregister_driver(struct gpbridge_driver *driver);
 #define gb_gpbridge_deregister(driver) \
 	gb_gpbridge_deregister_driver(driver)
 
+#define gb_gpbridge_builtin_driver(__driver)		\
+	int __init gb_##__driver##_init(void)		\
+{							\
+	return gb_gpbridge_register(&__driver);		\
+}							\
+void gb_##__driver##_exit(void)				\
+{							\
+	gb_gpbridge_deregister(&__driver);			\
+}
+
 extern int gb_gpio_protocol_init(void);
 extern void gb_gpio_protocol_exit(void);
 
