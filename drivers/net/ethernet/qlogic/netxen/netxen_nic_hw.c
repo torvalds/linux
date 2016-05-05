@@ -1944,7 +1944,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 				if (adapter->phy_read &&
 				    adapter->phy_read(adapter,
 						      NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-						      &autoneg) != 0)
+						      &autoneg) == 0)
 					adapter->link_autoneg = autoneg;
 			} else
 				goto link_down;
