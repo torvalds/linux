@@ -17,6 +17,16 @@ config BMA180
 	  To compile this driver as a module, choose M here: the
 	  module will be called bma180.
 
+config BMA220
+    tristate "Bosch BMA220 3-Axis Accelerometer Driver"
+	depends on SPI
+    help
+      Say yes here to add support for the Bosch BMA220 triaxial
+      acceleration sensor.
+
+      To compile this driver as a module, choose M here: the
+      module will be called bma220_spi.
+
 config BMC150_ACCEL
 	tristate "Bosch BMC150 Accelerometer Driver"
 	select IIO_BUFFER
