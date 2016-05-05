@@ -377,20 +377,8 @@ no_delete:
 		alloc_nid_failed(sbi, inode->i_ino);
 		clear_inode_flag(fi, FI_FREE_NID);
 	}
-
-	if (err && err != -ENOENT) {
-		if (!exist_written_data(sbi, inode->i_ino, ORPHAN_INO)) {
-			/*
-			 * get here because we failed to release resource
-			 * of inode previously, reminder our user to run fsck
-			 * for fixing.
-			 */
-			set_sbi_flag(sbi, SBI_NEED_FSCK);
-			f2fs_msg(sbi->sb, KERN_WARNING,
-				"inode (ino:%lu) resource leak, run fsck "
-				"to fix this issue!", inode->i_ino);
-		}
-	}
+	f2fs_bug_on(sbi, err &&
+		!exist_written_data(sbi, inode->i_ino, ORPHAN_INO));
 out_clear:
 	fscrypt_put_encryption_info(inode, NULL);
 	clear_inode(inode);
