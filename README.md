@@ -1,5 +1,6 @@
 # Cigdem
 
+![alt text](https://raw.githubusercontent.com/kozdincer/cigdem/master/sunflower_seed.jpg "Baş koymuşum Türkiyemin yoluna.")
 Milli linux çekirdeği projesi.
 
 ## Çiğdem nedir?
