@@ -38,6 +38,7 @@ struct gb_usb_hub_control_response {
 
 struct gb_usb_device {
 	struct gb_connection *connection;
+	struct gpbridge_device *gpbdev;
 };
 
 static inline struct gb_usb_device *to_gb_usb_device(struct usb_hcd *hcd)
@@ -58,8 +59,7 @@ static void hcd_stop(struct usb_hcd *hcd)
 	ret = gb_operation_sync(dev->connection, GB_USB_TYPE_HCD_STOP,
 				NULL, 0, NULL, 0);
 	if (ret)
-		dev_err(&dev->connection->bundle->dev,
-			"HCD stop failed '%d'\n", ret);
+		dev_err(&dev->gpbdev->dev, "HCD stop failed '%d'\n", ret);
 }
 
 static int hcd_start(struct usb_hcd *hcd)
@@ -71,8 +71,7 @@ static int hcd_start(struct usb_hcd *hcd)
 	ret = gb_operation_sync(dev->connection, GB_USB_TYPE_HCD_START,
 				NULL, 0, NULL, 0);
 	if (ret) {
-		dev_err(&dev->connection->bundle->dev,
-			"HCD start failed '%d'\n", ret);
+		dev_err(&dev->gpbdev->dev, "HCD start failed '%d'\n", ret);
 		return ret;
 	}
 
@@ -162,23 +161,42 @@ static struct hc_driver usb_gb_hc_driver = {
 	.hub_control = hub_control,
 };
 
-static int gb_usb_connection_init(struct gb_connection *connection)
+static int gb_usb_probe(struct gpbridge_device *gpbdev,
+			const struct gpbridge_device_id *id)
 {
-	struct device *dev = &connection->bundle->dev;
+	struct gb_connection *connection;
+	struct device *dev = &gpbdev->dev;
 	struct gb_usb_device *gb_usb_dev;
 	struct usb_hcd *hcd;
-
 	int retval;
 
 	hcd = usb_create_hcd(&usb_gb_hc_driver, dev, dev_name(dev));
 	if (!hcd)
 		return -ENOMEM;
 
+	connection = gb_connection_create(gpbdev->bundle,
+					  le16_to_cpu(gpbdev->cport_desc->id),
+					  NULL);
+	if (IS_ERR(connection)) {
+		retval = PTR_ERR(connection);
+		goto exit_usb_put;
+	}
+
 	gb_usb_dev = to_gb_usb_device(hcd);
 	gb_usb_dev->connection = connection;
 	gb_connection_set_data(connection, gb_usb_dev);
+	gb_usb_dev->gpbdev = gpbdev;
+	gb_gpbridge_set_data(gpbdev, gb_usb_dev);
 
 	hcd->has_tt = 1;
+
+	retval = gb_connection_enable(connection);
+	if (retval)
+		goto exit_connection_destroy;
+
+	retval = gb_gpbridge_get_version(connection);
+	if (retval)
+		goto exit_connection_disable;
 
 	/*
 	 * FIXME: The USB bridged-PHY protocol driver depends on changes to
@@ -189,38 +207,46 @@ static int gb_usb_connection_init(struct gb_connection *connection)
 	if (1) {
 		dev_warn(dev, "USB protocol disabled\n");
 		retval = -EPROTONOSUPPORT;
-		goto err_put_hcd;
+		goto exit_connection_disable;
 	}
 
 	retval = usb_add_hcd(hcd, 0, 0);
 	if (retval)
-		goto err_put_hcd;
+		goto exit_connection_disable;
 
 	return 0;
 
-err_put_hcd:
+exit_connection_disable:
+	gb_connection_disable(connection);
+exit_connection_destroy:
+	gb_connection_destroy(connection);
+exit_usb_put:
 	usb_put_hcd(hcd);
 
 	return retval;
 }
 
-static void gb_usb_connection_exit(struct gb_connection *connection)
+static void gb_usb_remove(struct gpbridge_device *gpbdev)
 {
-	struct gb_usb_device *gb_usb_dev = gb_connection_get_data(connection);
+	struct gb_usb_device *gb_usb_dev = gb_gpbridge_get_data(gpbdev);
+	struct gb_connection *connection = gb_usb_dev->connection;
 	struct usb_hcd *hcd = gb_usb_device_to_hcd(gb_usb_dev);
 
 	usb_remove_hcd(hcd);
+	gb_connection_disable(connection);
+	gb_connection_destroy(connection);
 	usb_put_hcd(hcd);
 }
 
-static struct gb_protocol usb_protocol = {
-	.name			= "usb",
-	.id			= GREYBUS_PROTOCOL_USB,
-	.major			= GB_USB_VERSION_MAJOR,
-	.minor			= GB_USB_VERSION_MINOR,
-	.connection_init	= gb_usb_connection_init,
-	.connection_exit	= gb_usb_connection_exit,
-	.request_recv		= NULL,	/* FIXME we have requests!!! */
+static const struct gpbridge_device_id gb_usb_id_table[] = {
+	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_USB) },
+	{ },
 };
 
-gb_builtin_protocol_driver(usb_protocol);
+static struct gpbridge_driver usb_driver = {
+	.name		= "usb",
+	.probe		= gb_usb_probe,
+	.remove		= gb_usb_remove,
+	.id_table	= gb_usb_id_table,
+};
+gb_gpbridge_builtin_driver(usb_driver);
