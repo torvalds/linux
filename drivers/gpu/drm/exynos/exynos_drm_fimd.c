@@ -397,8 +397,15 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 		const struct drm_display_mode *mode)
 {
-	unsigned long ideal_clk = mode->htotal * mode->vtotal * mode->vrefresh;
+	unsigned long ideal_clk;
 	u32 clkdiv;
+
+	if (mode->clock == 0) {
+		DRM_ERROR("Mode has zero clock value.\n");
+		return 0xff;
+	}
+
+	ideal_clk = mode->clock * 1000;
 
 	if (ctx->i80_if) {
 		/*
