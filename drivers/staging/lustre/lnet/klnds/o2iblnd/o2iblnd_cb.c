@@ -561,7 +561,7 @@ kiblnd_kvaddr_to_page(unsigned long vaddr)
 }
 
 static int
-kiblnd_fmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, int nob)
+kiblnd_fmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, __u32 nob)
 {
 	kib_hca_dev_t *hdev;
 	__u64 *pages = tx->tx_pages;
@@ -588,7 +588,8 @@ kiblnd_fmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, int nob)
 	cpt = tx->tx_pool->tpo_pool.po_owner->ps_cpt;
 
 	fps = net->ibn_fmr_ps[cpt];
-	rc = kiblnd_fmr_pool_map(fps, pages, npages, 0, &tx->fmr);
+	rc = kiblnd_fmr_pool_map(fps, pages, npages, nob, 0, (rd != tx->tx_rd),
+				 &tx->fmr);
 	if (rc) {
 		CERROR("Can't map %d pages: %d\n", npages, rc);
 		return rc;
@@ -598,8 +599,7 @@ kiblnd_fmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, int nob)
 	 * If rd is not tx_rd, it's going to get sent to a peer, who will need
 	 * the rkey
 	 */
-	rd->rd_key = (rd != tx->tx_rd) ? tx->fmr.fmr_pfmr->fmr->rkey :
-					 tx->fmr.fmr_pfmr->fmr->lkey;
+	rd->rd_key = tx->fmr.fmr_key;
 	rd->rd_frags[0].rf_addr &= ~hdev->ibh_page_mask;
 	rd->rd_frags[0].rf_nob = nob;
 	rd->rd_nfrags = 1;

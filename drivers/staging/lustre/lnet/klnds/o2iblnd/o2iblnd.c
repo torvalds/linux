@@ -1506,7 +1506,7 @@ void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status)
 }
 
 int kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
-			__u64 iov, kib_fmr_t *fmr)
+			__u32 nob, __u64 iov, bool is_rx, kib_fmr_t *fmr)
 {
 	struct ib_pool_fmr *pfmr;
 	kib_fmr_pool_t *fpo;
@@ -1524,16 +1524,19 @@ int kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
 		pfmr = ib_fmr_pool_map_phys(fpo->fmr.fpo_fmr_pool,
 					    pages, npages, iov);
 		if (likely(!IS_ERR(pfmr))) {
-			fmr->fmr_pool = fpo;
+			fmr->fmr_key = is_rx ? pfmr->fmr->rkey :
+					       pfmr->fmr->lkey;
 			fmr->fmr_pfmr = pfmr;
+			fmr->fmr_pool = fpo;
 			return 0;
 		}
+		rc = PTR_ERR(pfmr);
 
 		spin_lock(&fps->fps_lock);
 		fpo->fpo_map_count--;
-		if (PTR_ERR(pfmr) != -EAGAIN) {
+		if (rc != -EAGAIN) {
 			spin_unlock(&fps->fps_lock);
-			return PTR_ERR(pfmr);
+			return rc;
 		}
 
 		/* EAGAIN and ... */
