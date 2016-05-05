@@ -8,18 +8,30 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/jiffies.h>
+#include <linux/mutex.h>
+#include <linux/timer.h>
 #include "firmware.h"
 #include "greybus.h"
 
 /* Length of the string in format: ara_%08x_%08x_%08x_%08x_%s.tftf */
 #define FW_NAME_LEN		56
+/* Estimated minimum buffer size, actual size can be smaller than this */
+#define MIN_FETCH_SIZE		512
+/* Timeout, in jiffies, within which fetch or release firmware must be called */
+#define NEXT_REQ_TIMEOUT_J	msecs_to_jiffies(1000)
 
 struct fw_request {
 	u8			firmware_id;
+	bool			disabled;
+	bool			timedout;
 	char			name[FW_NAME_LEN];
 	const struct firmware	*fw;
 	struct list_head	node;
 
+	struct timer_list	timer;
+	/* Timeout, in jiffies, within which the firmware shall download */
+	unsigned long		release_timeout_j;
 	struct kref		kref;
 	struct fw_download	*fw_download;
 };
@@ -29,6 +41,7 @@ struct fw_download {
 	struct gb_connection	*connection;
 	struct list_head	fw_requests;
 	struct ida		id_map;
+	struct mutex		mutex;
 };
 
 static void fw_req_release(struct kref *kref)
@@ -39,8 +52,43 @@ static void fw_req_release(struct kref *kref)
 		fw_req->name);
 
 	release_firmware(fw_req->fw);
-	ida_simple_remove(&fw_req->fw_download->id_map, fw_req->firmware_id);
+
+	/*
+	 * The request timed out and the module may send a fetch-fw or
+	 * release-fw request later. Lets block the id we allocated for this
+	 * request, so that the AP doesn't refer to a later fw-request (with
+	 * same firmware_id) for the old timedout fw-request.
+	 *
+	 * NOTE:
+	 *
+	 * This also means that after 255 timeouts we will fail to service new
+	 * firmware downloads. But what else can we do in that case anyway? Lets
+	 * just hope that it never happens.
+	 */
+	if (!fw_req->timedout)
+		ida_simple_remove(&fw_req->fw_download->id_map,
+				  fw_req->firmware_id);
+
 	kfree(fw_req);
+}
+
+/*
+ * Incoming requests are serialized for a connection, and the only race possible
+ * is between the timeout handler freeing this and an incoming request.
+ *
+ * The operations on the fw-request list are protected by the mutex and
+ * get_fw_req() increments the reference count before returning a fw_req pointer
+ * to the users.
+ *
+ * free_firmware() also takes the mutex while removing an entry from the list,
+ * it guarantees that every user of fw_req has taken a kref-reference by now and
+ * we wouldn't have any new users.
+ *
+ * Once the last user drops the reference, the fw_req structure is freed.
+ */
+static void put_fw_req(struct fw_request *fw_req)
+{
+	kref_put(&fw_req->kref, fw_req_release);
 }
 
 /* Caller must call put_fw_req() after using struct fw_request */
@@ -49,31 +97,66 @@ static struct fw_request *get_fw_req(struct fw_download *fw_download,
 {
 	struct fw_request *fw_req;
 
+	mutex_lock(&fw_download->mutex);
+
 	list_for_each_entry(fw_req, &fw_download->fw_requests, node) {
 		if (fw_req->firmware_id == firmware_id) {
 			kref_get(&fw_req->kref);
-			return fw_req;
+			goto unlock;
 		}
 	}
 
-	return NULL;
-}
+	fw_req = NULL;
 
-/*
- * Incoming requests are serialized for a connection, and this will never be
- * racy.
- */
-static void put_fw_req(struct fw_request *fw_req)
-{
-	kref_put(&fw_req->kref, fw_req_release);
+unlock:
+	mutex_unlock(&fw_download->mutex);
+
+	return fw_req;
 }
 
 static void free_firmware(struct fw_download *fw_download,
 			  struct fw_request *fw_req)
 {
-	list_del(&fw_req->node);
+	/* Already disabled from timeout handlers */
+	if (fw_req->disabled)
+		return;
 
+	mutex_lock(&fw_download->mutex);
+	list_del(&fw_req->node);
+	mutex_unlock(&fw_download->mutex);
+
+	fw_req->disabled = true;
 	put_fw_req(fw_req);
+}
+
+static void fw_request_timedout(unsigned long data)
+{
+	struct fw_request *fw_req = (struct fw_request *)data;
+	struct fw_download *fw_download = fw_req->fw_download;
+
+	dev_err(fw_download->parent,
+		"Timed out waiting for fetch / release firmware requests: %u\n",
+		fw_req->firmware_id);
+
+	fw_req->timedout = true;
+	free_firmware(fw_download, fw_req);
+}
+
+static int exceeds_release_timeout(struct fw_request *fw_req)
+{
+	struct fw_download *fw_download = fw_req->fw_download;
+
+	if (time_before(jiffies, fw_req->release_timeout_j))
+		return 0;
+
+	dev_err(fw_download->parent,
+		"Firmware download didn't finish in time, abort: %d\n",
+		fw_req->firmware_id);
+
+	fw_req->timedout = true;
+	free_firmware(fw_download, fw_req);
+
+	return -ETIMEDOUT;
 }
 
 /* This returns path of the firmware blob on the disk */
@@ -82,7 +165,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 {
 	struct gb_interface *intf = fw_download->connection->bundle->intf;
 	struct fw_request *fw_req;
-	int ret;
+	int ret, req_count;
 
 	fw_req = kzalloc(sizeof(*fw_req), GFP_KERNEL);
 	if (!fw_req)
@@ -115,7 +198,20 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 
 	fw_req->fw_download = fw_download;
 	kref_init(&fw_req->kref);
+
+	mutex_lock(&fw_download->mutex);
 	list_add(&fw_req->node, &fw_download->fw_requests);
+	mutex_unlock(&fw_download->mutex);
+
+	/* Timeout, in jiffies, within which firmware should get loaded */
+	req_count = DIV_ROUND_UP(fw_req->fw->size, MIN_FETCH_SIZE);
+	fw_req->release_timeout_j = jiffies + req_count * NEXT_REQ_TIMEOUT_J;
+
+	init_timer(&fw_req->timer);
+	fw_req->timer.function = fw_request_timedout;
+	fw_req->timer.expires = jiffies + NEXT_REQ_TIMEOUT_J;
+	fw_req->timer.data = (unsigned long)fw_req;
+	add_timer(&fw_req->timer);
 
 	return fw_req;
 
@@ -204,6 +300,24 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 		return -EINVAL;
 	}
 
+	/* Make sure timer handler isn't running in parallel */
+	del_timer_sync(&fw_req->timer);
+
+	/* We timed-out before reaching here ? */
+	if (fw_req->disabled) {
+		ret = -ETIMEDOUT;
+		goto put_fw;
+	}
+
+	/*
+	 * Firmware download must finish within a limited time interval. If it
+	 * doesn't, then we might have a buggy Module on the other side. Abort
+	 * download.
+	 */
+	ret = exceeds_release_timeout(fw_req);
+	if (ret)
+		goto put_fw;
+
 	fw = fw_req->fw;
 
 	if (offset >= fw->size || size > fw->size - offset) {
@@ -228,6 +342,9 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 	dev_dbg(fw_download->parent,
 		"responding with firmware (offs = %u, size = %u)\n", offset,
 		size);
+
+	/* Refresh timeout */
+	mod_timer(&fw_req->timer, jiffies + NEXT_REQ_TIMEOUT_J);
 
 put_fw:
 	put_fw_req(fw_req);
@@ -259,6 +376,8 @@ static int fw_download_release_firmware(struct gb_operation *op)
 			"firmware not available for id: %02u\n", firmware_id);
 		return -EINVAL;
 	}
+
+	del_timer_sync(&fw_req->timer);
 
 	free_firmware(fw_download, fw_req);
 	put_fw_req(fw_req);
@@ -303,6 +422,7 @@ int gb_fw_download_connection_init(struct gb_connection *connection)
 	ida_init(&fw_download->id_map);
 	gb_connection_set_data(connection, fw_download);
 	fw_download->connection = connection;
+	mutex_init(&fw_download->mutex);
 
 	ret = gb_connection_enable(connection);
 	if (ret)
@@ -328,9 +448,21 @@ void gb_fw_download_connection_exit(struct gb_connection *connection)
 	fw_download = gb_connection_get_data(connection);
 	gb_connection_disable(fw_download->connection);
 
+	/*
+	 * Make sure we have a reference to the pending requests, before they
+	 * are freed from the timeout handler.
+	 */
+	mutex_lock(&fw_download->mutex);
+	list_for_each_entry(fw_req, &fw_download->fw_requests, node)
+		kref_get(&fw_req->kref);
+	mutex_unlock(&fw_download->mutex);
+
 	/* Release pending firmware packages */
-	list_for_each_entry_safe(fw_req, tmp, &fw_download->fw_requests, node)
+	list_for_each_entry_safe(fw_req, tmp, &fw_download->fw_requests, node) {
+		del_timer_sync(&fw_req->timer);
 		free_firmware(fw_download, fw_req);
+		put_fw_req(fw_req);
+	}
 
 	ida_destroy(&fw_download->id_map);
 	kfree(fw_download);
