@@ -122,10 +122,10 @@ static int tsens_probe(struct platform_device *pdev)
 	np = dev->of_node;
 
 	id = of_match_node(tsens_table, np);
-	if (!id)
-		return -EINVAL;
-
-	data = id->data;
+	if (id)
+		data = id->data;
+	else
+		data = &data_8960;
 
 	if (data->num_sensors <= 0) {
 		dev_err(dev, "invalid number of sensors\n");
