@@ -1,6 +1,12 @@
 Device tree binding for NVIDIA Tegra XUSB pad controller
 ========================================================
 
+NOTE: It turns out that this binding isn't an accurate description of the XUSB
+pad controller. While the description is good enough for the functional subset
+required for PCIe and SATA, it lacks the flexibility to represent the features
+needed for USB. For the new binding, see ../phy/nvidia,tegra-xusb-padctl.txt.
+The binding described in this file is deprecated and should not be used.
+
 The Tegra XUSB pad controller manages a set of lanes, each of which can be
 assigned to one out of a set of different pads. Some of these pads have an
 associated PHY that must be powered up before the pad can be used.
@@ -23,6 +29,15 @@ Required properties:
   - padctl
 - #phy-cells: Should be 1. The specifier is the index of the PHY to reference.
   See <dt-bindings/pinctrl/pinctrl-tegra-xusb.h> for the list of valid values.
+- mboxes: Must contain an entry for the XUSB mailbox channel.
+  See ../mailbox/mailbox.txt for details.
+- mbox-names: Must include the following entries:
+  - xusb
+
+Optional properties:
+-------------------
+- vbus-{0,1,2}-supply: VBUS regulator for the corresponding UTMI pad.
+- vddio-hsic-supply: VDDIO regulator for the HSIC pads.
 
 Lane muxing:
 ------------
@@ -52,26 +67,46 @@ Optional properties:
   pin or group should be assigned to. Valid values for function names are
   listed below.
 - nvidia,iddq: Enables IDDQ mode of the lane. (0: no, 1: yes)
+- nvidia,usb2-port: USB2 port (0, 1, or 2) to which the lane is mapped.
+- nvidia,usb3-port: USB3 port (0 or 1) to which the lane is mapped.
+- nvidia,hsic-strobe-trim: HSIC strobe trimmer value.
+- nvidia,hsic-rx-strobe-trim: HSIC RX strobe trimmer value. (0 - 7)
+- nvidia,hsic-rx-data-trim: HSIC RX data trimmer value. (0 - 7)
+- nvidia,hsic-tx-rtune-n: HSIC TX RTUNEN value. (0 - 7)
+- nvidia,hsic-tx-rtune-p: HSIC TX RTUNEP value. (0 - 7)
+- nvidia,hsic-tx-slew-n: HSIC TX SLEWN value. (0 - 7)
+- nvidia,hsic-tx-slew-p: HSIC TX SLEWP value. (0 - 7)
+- nvidia,hsic-auto-term: Enables HSIC AUTO_TERM. (0: no, 1: yes)
+- nvidia,otg-hs-curr-level-offset: Offset to be applied to the pad's fused
+  HS_CURR_LEVEL value. (0 - 63)
 
 Note that not all of these properties are valid for all lanes. Lanes can be
-divided into three groups:
+divided into four groups:
 
   - otg-0, otg-1, otg-2:
 
     Valid functions for this group are: "snps", "xusb", "uart", "rsvd".
 
-    The nvidia,iddq property does not apply to this group.
+    Only the nvidia,otg-hs-curr-level-offset property applies.
 
-  - ulpi-0, hsic-0, hsic-1:
+  - ulpi-0:
 
     Valid functions for this group are: "snps", "xusb".
 
-    The nvidia,iddq property does not apply to this group.
+  - hsic-0, hsic-1:
+
+    Valid functions for this group are: "snps", "xusb".
+
+    Only the nvidia,hsic-* properties apply, and only when the function is
+    xusb.
 
   - pcie-0, pcie-1, pcie-2, pcie-3, pcie-4, sata-0:
 
     Valid functions for this group are: "pcie", "usb3", "sata", "rsvd".
 
+    Only the nvidia,iddq, nvidia,usb2-port, and nvidia,usb3-port properties
+    apply. The nvidia,usb2-port and nvidia,usb3-port properties are required
+    when the function is usb3.
 
 Example:
 ========
@@ -84,6 +119,8 @@ SoC file extract:
 		reg = <0x0 0x7009f000 0x0 0x1000>;
 		resets = <&tegra_car 142>;
 		reset-names = "padctl";
+		mboxes = <&xusb_mbox>;
+		mbox-names = "xusb";
 
 		#phy-cells = <1>;
 	};
@@ -102,15 +139,35 @@ Board file extract:
 
 	...
 
+	usb@0,70090000 {
+		...
+
+		phys = <&padctl 5>, <&padctl 6>, <&padctl 7>;
+		phy-names = "utmi-1", "utmi-2", "usb3-0";
+
+		...
+	}
+
+	...
+
 	padctl: padctl@0,7009f000 {
 		pinctrl-0 = <&padctl_default>;
 		pinctrl-names = "default";
 
+		vbus-2-supply = <&vdd_usb3_vbus>;
+
 		padctl_default: pinmux {
-			usb3 {
-				nvidia,lanes = "pcie-0", "pcie-1";
+			otg {
+				nvidia,lanes = "otg-1", "otg-2";
+				nvidia,function = "xusb";
+			};
+
+			usb3p0 {
+				nvidia,lanes = "pcie-0";
 				nvidia,function = "usb3";
 				nvidia,iddq = <0>;
+				nvidia,usb2-port = <2>;
+				nvidia,usb3-port = <0>;
 			};
 
 			pcie {
