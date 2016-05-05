@@ -1413,8 +1413,15 @@ static int __acquire_chip_resource(struct hfi1_devdata *dd, u32 resource)
 
 	if (resource & CR_DYN_MASK) {
 		/* a dynamic resource is in use if either HFI has set the bit */
-		all_bits = resource_mask(0, resource) |
+		if (dd->pcidev->device == PCI_DEVICE_ID_INTEL0 &&
+		    (resource & (CR_I2C1 | CR_I2C2))) {
+			/* discrete devices must serialize across both chains */
+			all_bits = resource_mask(0, CR_I2C1 | CR_I2C2) |
+					resource_mask(1, CR_I2C1 | CR_I2C2);
+		} else {
+			all_bits = resource_mask(0, resource) |
 						resource_mask(1, resource);
+		}
 		my_bit = resource_mask(dd->hfi1_id, resource);
 	} else {
 		/* non-dynamic resources are not split between HFIs */

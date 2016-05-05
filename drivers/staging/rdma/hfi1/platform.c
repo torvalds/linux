@@ -114,21 +114,11 @@ static int qual_power(struct hfi1_pportdata *ppd)
 	if (ret)
 		return ret;
 
-	if (QSFP_HIGH_PWR(cache[QSFP_MOD_PWR_OFFS]) != 4)
-		cable_power_class = QSFP_HIGH_PWR(cache[QSFP_MOD_PWR_OFFS]);
-	else
-		cable_power_class = QSFP_PWR(cache[QSFP_MOD_PWR_OFFS]);
+	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
 
-	if (cable_power_class <= 3 && cable_power_class > (power_class_max - 1))
+	if (cable_power_class > power_class_max)
 		ppd->offline_disabled_reason =
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_POWER_POLICY);
-	else if (cable_power_class > 4 && cable_power_class > (power_class_max))
-		ppd->offline_disabled_reason =
-			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_POWER_POLICY);
-	/*
-	 * cable_power_class will never have value 4 as this simply
-	 * means the high power settings are unused
-	 */
 
 	if (ppd->offline_disabled_reason ==
 			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_POWER_POLICY)) {
@@ -173,12 +163,9 @@ static int set_qsfp_high_power(struct hfi1_pportdata *ppd)
 	u8 *cache = ppd->qsfp_info.cache;
 	int ret;
 
-	if (QSFP_HIGH_PWR(cache[QSFP_MOD_PWR_OFFS]) != 4)
-		cable_power_class = QSFP_HIGH_PWR(cache[QSFP_MOD_PWR_OFFS]);
-	else
-		cable_power_class = QSFP_PWR(cache[QSFP_MOD_PWR_OFFS]);
+	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
 
-	if (cable_power_class) {
+	if (cable_power_class > QSFP_POWER_CLASS_1) {
 		power_ctrl_byte = cache[QSFP_PWR_CTRL_BYTE_OFFS];
 
 		power_ctrl_byte |= 1;
@@ -190,8 +177,7 @@ static int set_qsfp_high_power(struct hfi1_pportdata *ppd)
 		if (ret != 1)
 			return -EIO;
 
-		if (cable_power_class > 3) {
-			/* > power class 4*/
+		if (cable_power_class > QSFP_POWER_CLASS_4) {
 			power_ctrl_byte |= (1 << 2);
 			ret = qsfp_write(ppd, ppd->dd->hfi1_id,
 					 QSFP_PWR_CTRL_BYTE_OFFS,
@@ -212,12 +198,21 @@ static void apply_rx_cdr(struct hfi1_pportdata *ppd,
 {
 	u32 rx_preset;
 	u8 *cache = ppd->qsfp_info.cache;
+	int cable_power_class;
 
 	if (!((cache[QSFP_MOD_PWR_OFFS] & 0x4) &&
 	      (cache[QSFP_CDR_INFO_OFFS] & 0x40)))
 		return;
 
-	/* rx_preset preset to zero to catch error */
+	/* RX CDR present, bypass supported */
+	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
+
+	if (cable_power_class <= QSFP_POWER_CLASS_3) {
+		/* Power class <= 3, ignore config & turn RX CDR on */
+		*cdr_ctrl_byte |= 0xF;
+		return;
+	}
+
 	get_platform_config_field(
 		ppd->dd, PLATFORM_CONFIG_RX_PRESET_TABLE,
 		rx_preset_index, RX_PRESET_TABLE_QSFP_RX_CDR_APPLY,
@@ -250,14 +245,24 @@ static void apply_rx_cdr(struct hfi1_pportdata *ppd,
 
 static void apply_tx_cdr(struct hfi1_pportdata *ppd,
 			 u32 tx_preset_index,
-			 u8 *ctr_ctrl_byte)
+			 u8 *cdr_ctrl_byte)
 {
 	u32 tx_preset;
 	u8 *cache = ppd->qsfp_info.cache;
+	int cable_power_class;
 
 	if (!((cache[QSFP_MOD_PWR_OFFS] & 0x8) &&
 	      (cache[QSFP_CDR_INFO_OFFS] & 0x80)))
 		return;
+
+	/* TX CDR present, bypass supported */
+	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
+
+	if (cable_power_class <= QSFP_POWER_CLASS_3) {
+		/* Power class <= 3, ignore config & turn TX CDR on */
+		*cdr_ctrl_byte |= 0xF0;
+		return;
+	}
 
 	get_platform_config_field(
 		ppd->dd,
@@ -282,10 +287,10 @@ static void apply_tx_cdr(struct hfi1_pportdata *ppd,
 			(tx_preset << 2) | (tx_preset << 3));
 
 	if (tx_preset)
-		*ctr_ctrl_byte |= (tx_preset << 4);
+		*cdr_ctrl_byte |= (tx_preset << 4);
 	else
 		/* Preserve current/determined RX CDR status */
-		*ctr_ctrl_byte &= ((tx_preset << 4) | 0xF);
+		*cdr_ctrl_byte &= ((tx_preset << 4) | 0xF);
 }
 
 static void apply_cdr_settings(
@@ -598,6 +603,7 @@ static void apply_tunings(
 		       "Applying TX settings");
 }
 
+/* Must be holding the QSFP i2c resource */
 static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 			    u32 *ptr_rx_preset, u32 *ptr_total_atten)
 {
@@ -605,26 +611,19 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 	u16 lss = ppd->link_speed_supported, lse = ppd->link_speed_enabled;
 	u8 *cache = ppd->qsfp_info.cache;
 
-	ret = acquire_chip_resource(ppd->dd, qsfp_resource(ppd->dd), QSFP_WAIT);
-	if (ret) {
-		dd_dev_err(ppd->dd, "%s: hfi%d: cannot lock i2c chain\n",
-			   __func__, (int)ppd->dd->hfi1_id);
-		return ret;
-	}
-
 	ppd->qsfp_info.limiting_active = 1;
 
 	ret = set_qsfp_tx(ppd, 0);
 	if (ret)
-		goto bail_unlock;
+		return ret;
 
 	ret = qual_power(ppd);
 	if (ret)
-		goto bail_unlock;
+		return ret;
 
 	ret = qual_bitrate(ppd);
 	if (ret)
-		goto bail_unlock;
+		return ret;
 
 	if (ppd->qsfp_info.reset_needed) {
 		reset_qsfp(ppd);
@@ -636,7 +635,7 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 
 	ret = set_qsfp_high_power(ppd);
 	if (ret)
-		goto bail_unlock;
+		return ret;
 
 	if (cache[QSFP_EQ_INFO_OFFS] & 0x4) {
 		ret = get_platform_config_field(
@@ -646,7 +645,7 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 			ptr_tx_preset, 4);
 		if (ret) {
 			*ptr_tx_preset = OPA_INVALID_INDEX;
-			goto bail_unlock;
+			return ret;
 		}
 	} else {
 		ret = get_platform_config_field(
@@ -656,7 +655,7 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 			ptr_tx_preset, 4);
 		if (ret) {
 			*ptr_tx_preset = OPA_INVALID_INDEX;
-			goto bail_unlock;
+			return ret;
 		}
 	}
 
@@ -665,7 +664,7 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 		PORT_TABLE_RX_PRESET_IDX, ptr_rx_preset, 4);
 	if (ret) {
 		*ptr_rx_preset = OPA_INVALID_INDEX;
-		goto bail_unlock;
+		return ret;
 	}
 
 	if ((lss & OPA_LINK_SPEED_25G) && (lse & OPA_LINK_SPEED_25G))
@@ -685,8 +684,6 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 
 	ret = set_qsfp_tx(ppd, 1);
 
-bail_unlock:
-	release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
 	return ret;
 }
 
@@ -833,12 +830,22 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 			total_atten = platform_atten + remote_atten;
 
 			tuning_method = OPA_PASSIVE_TUNING;
-		} else
+		} else {
 			ppd->offline_disabled_reason =
 			     HFI1_ODR_MASK(OPA_LINKDOWN_REASON_CHASSIS_CONFIG);
+			goto bail;
+		}
 		break;
 	case PORT_TYPE_QSFP:
 		if (qsfp_mod_present(ppd)) {
+			ret = acquire_chip_resource(ppd->dd,
+						    qsfp_resource(ppd->dd),
+						    QSFP_WAIT);
+			if (ret) {
+				dd_dev_err(ppd->dd, "%s: hfi%d: cannot lock i2c chain\n",
+					   __func__, (int)ppd->dd->hfi1_id);
+				goto bail;
+			}
 			refresh_qsfp_cache(ppd, &ppd->qsfp_info);
 
 			if (ppd->qsfp_info.cache_valid) {
@@ -853,21 +860,23 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 				 * update the cache to reflect the changes
 				 */
 				refresh_qsfp_cache(ppd, &ppd->qsfp_info);
-				if (ret)
-					goto bail;
-
 				limiting_active =
 						ppd->qsfp_info.limiting_active;
 			} else {
 				dd_dev_err(dd,
 					   "%s: Reading QSFP memory failed\n",
 					   __func__);
-				goto bail;
+				ret = -EINVAL; /* a fail indication */
 			}
-		} else
+			release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
+			if (ret)
+				goto bail;
+		} else {
 			ppd->offline_disabled_reason =
 			   HFI1_ODR_MASK(
 				OPA_LINKDOWN_REASON_LOCAL_MEDIA_NOT_INSTALLED);
+			goto bail;
+		}
 		break;
 	default:
 		dd_dev_info(ppd->dd, "%s: Unknown port type\n", __func__);

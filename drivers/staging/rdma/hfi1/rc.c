@@ -1497,7 +1497,7 @@ reserved:
 		/* Ignore reserved NAK codes. */
 		goto bail_stop;
 	}
-	return ret;
+	/* cannot be reached  */
 bail_stop:
 	hfi1_stop_rc_timers(qp);
 	return ret;
@@ -2021,8 +2021,6 @@ void process_becn(struct hfi1_pportdata *ppd, u8 sl, u16 rlid, u32 lqpn,
 	if (sl >= OPA_MAX_SLS)
 		return;
 
-	cca_timer = &ppd->cca_timer[sl];
-
 	cc_state = get_cc_state(ppd);
 
 	if (!cc_state)
@@ -2041,6 +2039,7 @@ void process_becn(struct hfi1_pportdata *ppd, u8 sl, u16 rlid, u32 lqpn,
 
 	spin_lock_irqsave(&ppd->cca_timer_lock, flags);
 
+	cca_timer = &ppd->cca_timer[sl];
 	if (cca_timer->ccti < ccti_limit) {
 		if (cca_timer->ccti + ccti_incr <= ccti_limit)
 			cca_timer->ccti += ccti_incr;
@@ -2048,8 +2047,6 @@ void process_becn(struct hfi1_pportdata *ppd, u8 sl, u16 rlid, u32 lqpn,
 			cca_timer->ccti = ccti_limit;
 		set_link_ipg(ppd);
 	}
-
-	spin_unlock_irqrestore(&ppd->cca_timer_lock, flags);
 
 	ccti = cca_timer->ccti;
 
@@ -2060,6 +2057,8 @@ void process_becn(struct hfi1_pportdata *ppd, u8 sl, u16 rlid, u32 lqpn,
 		hrtimer_start(&cca_timer->hrtimer, ns_to_ktime(nsec),
 			      HRTIMER_MODE_REL);
 	}
+
+	spin_unlock_irqrestore(&ppd->cca_timer_lock, flags);
 
 	if ((trigger_threshold != 0) && (ccti >= trigger_threshold))
 		log_cca_event(ppd, sl, rlid, lqpn, rqpn, svc_type);

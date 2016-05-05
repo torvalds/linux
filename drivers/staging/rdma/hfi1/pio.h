@@ -51,7 +51,8 @@
 #define SC_KERNEL 0
 #define SC_ACK    1
 #define SC_USER   2
-#define SC_MAX    3
+#define SC_VL15   3
+#define SC_MAX    4
 
 /* invalid send context index */
 #define INVALID_SCI 0xff
@@ -293,6 +294,7 @@ void sc_group_release_update(struct hfi1_devdata *dd, u32 hw_context);
 void sc_add_credit_return_intr(struct send_context *sc);
 void sc_del_credit_return_intr(struct send_context *sc);
 void sc_set_cr_threshold(struct send_context *sc, u32 new_threshold);
+u32 sc_percent_to_threshold(struct send_context *sc, u32 percent);
 u32 sc_mtu_to_threshold(struct send_context *sc, u32 mtu, u32 hdrqentsize);
 void hfi1_sc_wantpiobuf_intr(struct send_context *sc, u32 needint);
 void sc_wait(struct hfi1_devdata *dd);

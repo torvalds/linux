@@ -53,20 +53,6 @@
 #include "sdma.h"
 #include "trace.h"
 
-struct cpu_mask_set {
-	struct cpumask mask;
-	struct cpumask used;
-	uint gen;
-};
-
-struct hfi1_affinity {
-	struct cpu_mask_set def_intr;
-	struct cpu_mask_set rcv_intr;
-	struct cpu_mask_set proc;
-	/* spin lock to protect affinity struct */
-	spinlock_t lock;
-};
-
 /* Name of IRQ types, indexed by enum irq_type */
 static const char * const irq_type_names[] = {
 	"SDMA",
@@ -82,6 +68,48 @@ static inline void init_cpu_mask_set(struct cpu_mask_set *set)
 	set->gen = 0;
 }
 
+/* Initialize non-HT cpu cores mask */
+int init_real_cpu_mask(struct hfi1_devdata *dd)
+{
+	struct hfi1_affinity *info;
+	int possible, curr_cpu, i, ht;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	cpumask_clear(&info->real_cpu_mask);
+
+	/* Start with cpu online mask as the real cpu mask */
+	cpumask_copy(&info->real_cpu_mask, cpu_online_mask);
+
+	/*
+	 * Remove HT cores from the real cpu mask.  Do this in two steps below.
+	 */
+	possible = cpumask_weight(&info->real_cpu_mask);
+	ht = cpumask_weight(topology_sibling_cpumask(
+					cpumask_first(&info->real_cpu_mask)));
+	/*
+	 * Step 1.  Skip over the first N HT siblings and use them as the
+	 * "real" cores.  Assumes that HT cores are not enumerated in
+	 * succession (except in the single core case).
+	 */
+	curr_cpu = cpumask_first(&info->real_cpu_mask);
+	for (i = 0; i < possible / ht; i++)
+		curr_cpu = cpumask_next(curr_cpu, &info->real_cpu_mask);
+	/*
+	 * Step 2.  Remove the remaining HT siblings.  Use cpumask_next() to
+	 * skip any gaps.
+	 */
+	for (; i < possible; i++) {
+		cpumask_clear_cpu(curr_cpu, &info->real_cpu_mask);
+		curr_cpu = cpumask_next(curr_cpu, &info->real_cpu_mask);
+	}
+
+	dd->affinity = info;
+	return 0;
+}
+
 /*
  * Interrupt affinity.
  *
@@ -93,20 +121,17 @@ static inline void init_cpu_mask_set(struct cpu_mask_set *set)
  * to the node relative 1 as necessary.
  *
  */
-int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
+void hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 {
 	int node = pcibus_to_node(dd->pcidev->bus);
-	struct hfi1_affinity *info;
+	struct hfi1_affinity *info = dd->affinity;
 	const struct cpumask *local_mask;
-	int curr_cpu, possible, i, ht;
+	int curr_cpu, possible, i;
 
 	if (node < 0)
 		node = numa_node_id();
 	dd->node = node;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
 	spin_lock_init(&info->lock);
 
 	init_cpu_mask_set(&info->def_intr);
@@ -116,30 +141,8 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 	local_mask = cpumask_of_node(dd->node);
 	if (cpumask_first(local_mask) >= nr_cpu_ids)
 		local_mask = topology_core_cpumask(0);
-	/* use local mask as default */
-	cpumask_copy(&info->def_intr.mask, local_mask);
-	/*
-	 * Remove HT cores from the default mask.  Do this in two steps below.
-	 */
-	possible = cpumask_weight(&info->def_intr.mask);
-	ht = cpumask_weight(topology_sibling_cpumask(
-					cpumask_first(&info->def_intr.mask)));
-	/*
-	 * Step 1.  Skip over the first N HT siblings and use them as the
-	 * "real" cores.  Assumes that HT cores are not enumerated in
-	 * succession (except in the single core case).
-	 */
-	curr_cpu = cpumask_first(&info->def_intr.mask);
-	for (i = 0; i < possible / ht; i++)
-		curr_cpu = cpumask_next(curr_cpu, &info->def_intr.mask);
-	/*
-	 * Step 2.  Remove the remaining HT siblings.  Use cpumask_next() to
-	 * skip any gaps.
-	 */
-	for (; i < possible; i++) {
-		cpumask_clear_cpu(curr_cpu, &info->def_intr.mask);
-		curr_cpu = cpumask_next(curr_cpu, &info->def_intr.mask);
-	}
+	/* Use the "real" cpu mask of this node as the default */
+	cpumask_and(&info->def_intr.mask, &info->real_cpu_mask, local_mask);
 
 	/*  fill in the receive list */
 	possible = cpumask_weight(&info->def_intr.mask);
@@ -167,8 +170,6 @@ int hfi1_dev_affinity_init(struct hfi1_devdata *dd)
 	}
 
 	cpumask_copy(&info->proc.mask, cpu_online_mask);
-	dd->affinity = info;
-	return 0;
 }
 
 void hfi1_dev_affinity_free(struct hfi1_devdata *dd)

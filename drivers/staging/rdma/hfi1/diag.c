@@ -413,7 +413,8 @@ static ssize_t diagpkt_send(struct diag_pkt *dp)
 		goto bail;
 	}
 	/* can only use kernel contexts */
-	if (dd->send_contexts[dp->sw_index].type != SC_KERNEL) {
+	if (dd->send_contexts[dp->sw_index].type != SC_KERNEL &&
+	    dd->send_contexts[dp->sw_index].type != SC_VL15) {
 		ret = -EINVAL;
 		goto bail;
 	}
