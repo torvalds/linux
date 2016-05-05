@@ -141,6 +141,15 @@ control of this block device to that new IO scheduler. Note that writing
 an IO scheduler name to this file will attempt to load that IO scheduler
 module, if it isn't already present in the system.
 
+write_cache (RW)
+----------------
+When read, this file will display whether the device has write back
+caching enabled or not. It will return "write back" for the former
+case, and "write through" for the latter. Writing to this file can
+change the kernels view of the device, but it doesn't alter the
+device state. This means that it might not be safe to toggle the
+setting from "write back" to "write through", since that will also
+eliminate cache flushes issued by the kernel.
 
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009
