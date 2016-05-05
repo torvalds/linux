@@ -305,12 +305,21 @@ static unsigned long find_random_addr(unsigned long minimum,
 	return slots_fetch_random();
 }
 
-unsigned char *choose_random_location(unsigned char *input,
+unsigned char *choose_random_location(unsigned char *input_ptr,
 				      unsigned long input_size,
-				      unsigned char *output,
+				      unsigned char *output_ptr,
 				      unsigned long output_size)
 {
-	unsigned long choice = (unsigned long)output;
+	/*
+	 * The caller of choose_random_location() uses unsigned char * for
+	 * buffer pointers since it performs decompression, elf parsing, etc.
+	 * Since this code examines addresses much more numerically,
+	 * unsigned long is used internally here. Instead of sprinkling
+	 * more casts into extract_kernel, do them here and at return.
+	 */
+	unsigned long input = (unsigned long)input_ptr;
+	unsigned long output = (unsigned long)output_ptr;
+	unsigned long choice = output;
 	unsigned long random_addr;
 
 #ifdef CONFIG_HIBERNATION
@@ -328,11 +337,10 @@ unsigned char *choose_random_location(unsigned char *input,
 	boot_params->hdr.loadflags |= KASLR_FLAG;
 
 	/* Record the various known unsafe memory ranges. */
-	mem_avoid_init((unsigned long)input, input_size,
-		       (unsigned long)output, output_size);
+	mem_avoid_init(input, input_size, output, output_size);
 
 	/* Walk e820 and find a random address. */
-	random_addr = find_random_addr(choice, output_size);
+	random_addr = find_random_addr(output, output_size);
 	if (!random_addr) {
 		warn("KASLR disabled: could not find suitable E820 region!");
 		goto out;

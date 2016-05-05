@@ -67,20 +67,20 @@ int cmdline_find_option_bool(const char *option);
 
 #if CONFIG_RANDOMIZE_BASE
 /* kaslr.c */
-unsigned char *choose_random_location(unsigned char *input,
+unsigned char *choose_random_location(unsigned char *input_ptr,
 				      unsigned long input_size,
-				      unsigned char *output,
+				      unsigned char *output_ptr,
 				      unsigned long output_size);
 /* cpuflags.c */
 bool has_cpuflag(int flag);
 #else
 static inline
-unsigned char *choose_random_location(unsigned char *input,
+unsigned char *choose_random_location(unsigned char *input_ptr,
 				      unsigned long input_size,
-				      unsigned char *output,
+				      unsigned char *output_ptr,
 				      unsigned long output_size)
 {
-	return output;
+	return output_ptr;
 }
 #endif
 
