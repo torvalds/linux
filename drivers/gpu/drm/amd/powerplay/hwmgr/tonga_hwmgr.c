@@ -2416,8 +2416,8 @@ int tonga_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static uint8_t tonga_get_sleep_divider_id_from_clock(struct pp_hwmgr *hwmgr,
-		uint32_t engine_clock, uint32_t min_engine_clock_in_sr)
+static uint8_t tonga_get_sleep_divider_id_from_clock(uint32_t engine_clock,
+		uint32_t min_engine_clock_in_sr)
 {
 	uint32_t i, temp;
 	uint32_t min = max(min_engine_clock_in_sr, (uint32_t)TONGA_MINIMUM_ENGINE_CLOCK);
@@ -2486,7 +2486,7 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr, uint32_t 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep))
 		graphic_level->DeepSleepDivId =
-				tonga_get_sleep_divider_id_from_clock(hwmgr, engine_clock,
+				tonga_get_sleep_divider_id_from_clock(engine_clock,
 						data->display_timing.min_clock_insr);
 
 	/* Default to slow, highest DPM level will be set to PPSMC_DISPLAY_WATERMARK_LOW later.*/

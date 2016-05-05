@@ -1898,8 +1898,8 @@ static int fiji_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static uint8_t fiji_get_sleep_divider_id_from_clock(struct pp_hwmgr *hwmgr,
-						uint32_t clock, uint32_t clock_insr)
+static uint8_t fiji_get_sleep_divider_id_from_clock(uint32_t clock,
+		uint32_t clock_insr)
 {
 	uint8_t i;
 	uint32_t temp;
@@ -1961,7 +1961,7 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	data->display_timing.min_clock_in_sr = hwmgr->display_config.min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
-		level->DeepSleepDivId = fiji_get_sleep_divider_id_from_clock(hwmgr, clock,
+		level->DeepSleepDivId = fiji_get_sleep_divider_id_from_clock(clock,
 								hwmgr->display_config.min_core_set_clock_in_sr);
 
 

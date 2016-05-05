@@ -2549,8 +2549,7 @@ static int ci_get_dependency_volt_by_clk(struct amdgpu_device *adev,
 	return 0;
 }
 
-static u8 ci_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
-					     u32 sclk, u32 min_sclk_in_sr)
+static u8 ci_get_sleep_divider_id_from_clock(u32 sclk, u32 min_sclk_in_sr)
 {
 	u32 i;
 	u32 tmp;
@@ -3357,8 +3356,7 @@ static int ci_populate_single_graphic_level(struct amdgpu_device *adev,
 	graphic_level->PowerThrottle = 0;
 
 	if (pi->caps_sclk_ds)
-		graphic_level->DeepSleepDivId = ci_get_sleep_divider_id_from_clock(adev,
-										   engine_clock,
+		graphic_level->DeepSleepDivId = ci_get_sleep_divider_id_from_clock(engine_clock,
 										   CISLAND_MINIMUM_ENGINE_CLOCK);
 
 	graphic_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
