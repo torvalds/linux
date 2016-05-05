@@ -66,6 +66,7 @@
 #include <stdlib.h>
 #include <sys/prctl.h>
 #include <locale.h>
+#include <math.h>
 
 #define DEFAULT_SEPARATOR	" "
 #define CNTR_NOT_SUPPORTED	"<not supported>"
@@ -986,12 +987,12 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 	const char *fmt;
 
 	if (csv_output) {
-		fmt = sc != 1.0 ?  "%.2f%s" : "%.0f%s";
+		fmt = floor(sc) != sc ?  "%.2f%s" : "%.0f%s";
 	} else {
 		if (big_num)
-			fmt = sc != 1.0 ? "%'18.2f%s" : "%'18.0f%s";
+			fmt = floor(sc) != sc ? "%'18.2f%s" : "%'18.0f%s";
 		else
-			fmt = sc != 1.0 ? "%18.2f%s" : "%18.0f%s";
+			fmt = floor(sc) != sc ? "%18.2f%s" : "%18.0f%s";
 	}
 
 	aggr_printout(evsel, id, nr);
@@ -1995,7 +1996,7 @@ static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
 				    union perf_event *event,
 				    struct perf_session *session)
 {
-	struct stat_round_event *round = &event->stat_round;
+	struct stat_round_event *stat_round = &event->stat_round;
 	struct perf_evsel *counter;
 	struct timespec tsh, *ts = NULL;
 	const char **argv = session->header.env.cmdline_argv;
@@ -2004,12 +2005,12 @@ static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
 	evlist__for_each(evsel_list, counter)
 		perf_stat_process_counter(&stat_config, counter);
 
-	if (round->type == PERF_STAT_ROUND_TYPE__FINAL)
-		update_stats(&walltime_nsecs_stats, round->time);
+	if (stat_round->type == PERF_STAT_ROUND_TYPE__FINAL)
+		update_stats(&walltime_nsecs_stats, stat_round->time);
 
-	if (stat_config.interval && round->time) {
-		tsh.tv_sec  = round->time / NSECS_PER_SEC;
-		tsh.tv_nsec = round->time % NSECS_PER_SEC;
+	if (stat_config.interval && stat_round->time) {
+		tsh.tv_sec  = stat_round->time / NSECS_PER_SEC;
+		tsh.tv_nsec = stat_round->time % NSECS_PER_SEC;
 		ts = &tsh;
 	}
 
