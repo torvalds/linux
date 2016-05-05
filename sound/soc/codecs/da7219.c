@@ -1426,6 +1426,12 @@ static const struct of_device_id da7219_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, da7219_of_match);
 
+static const struct acpi_device_id da7219_acpi_match[] = {
+	{ .id = "DLGS7219", },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, da7219_acpi_match);
+
 static enum da7219_micbias_voltage
 	da7219_of_micbias_lvl(struct snd_soc_codec *codec, u32 val)
 {
@@ -1955,6 +1961,7 @@ static struct i2c_driver da7219_i2c_driver = {
 	.driver = {
 		.name = "da7219",
 		.of_match_table = of_match_ptr(da7219_of_match),
+		.acpi_match_table = ACPI_PTR(da7219_acpi_match),
 	},
 	.probe		= da7219_i2c_probe,
 	.remove		= da7219_i2c_remove,
