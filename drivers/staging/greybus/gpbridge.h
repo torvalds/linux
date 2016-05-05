@@ -9,6 +9,53 @@
 #ifndef __GPBRIDGE_H
 #define __GPBRIDGE_H
 
+struct gpbridge_device {
+	u32 id;
+	struct greybus_descriptor_cport *cport_desc;
+	struct gb_bundle *bundle;
+	struct list_head list;
+	struct device dev;
+};
+#define to_gpbridge_dev(d) container_of(d, struct gpbridge_device, dev)
+
+static inline void *gb_gpbridge_get_data(struct gpbridge_device *gdev)
+{
+	return dev_get_drvdata(&gdev->dev);
+}
+
+static inline void gb_gpbridge_set_data(struct gpbridge_device *gdev, void *data)
+{
+	dev_set_drvdata(&gdev->dev, data);
+}
+
+struct gpbridge_device_id {
+	__u8 protocol_id;
+};
+
+#define GPBRIDGE_PROTOCOL(p)		\
+	.protocol_id	= (p),
+
+struct gpbridge_driver {
+	const char *name;
+	int (*probe)(struct gpbridge_device *,
+		     const struct gpbridge_device_id *id);
+	void (*remove)(struct gpbridge_device *);
+	const struct gpbridge_device_id *id_table;
+
+	struct device_driver driver;
+};
+#define to_gpbridge_driver(d) container_of(d, struct gpbridge_driver, driver)
+
+int gb_gpbridge_get_version(struct gb_connection *connection);
+int gb_gpbridge_register_driver(struct gpbridge_driver *driver,
+			     struct module *owner, const char *mod_name);
+void gb_gpbridge_deregister_driver(struct gpbridge_driver *driver);
+
+#define gb_gpbridge_register(driver) \
+	gb_gpbridge_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
+#define gb_gpbridge_deregister(driver) \
+	gb_gpbridge_deregister_driver(driver)
+
 extern int gb_gpio_protocol_init(void);
 extern void gb_gpio_protocol_exit(void);
 
