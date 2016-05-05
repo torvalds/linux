@@ -121,7 +121,7 @@ struct mem_vector {
 	unsigned long size;
 };
 
-#define MEM_AVOID_MAX 5
+#define MEM_AVOID_MAX 4
 static struct mem_vector mem_avoid[MEM_AVOID_MAX];
 
 static bool mem_contains(struct mem_vector *region, struct mem_vector *item)
@@ -146,22 +146,71 @@ static bool mem_overlaps(struct mem_vector *one, struct mem_vector *two)
 	return true;
 }
 
+/*
+ * In theroy, KASLR can put the kernel anywhere in area of [16M, 64T). The
+ * mem_avoid array is used to store the ranges that need to be avoided when
+ * KASLR searches for a an appropriate random address. We must avoid any
+ * regions that are unsafe to overlap with during decompression, and other
+ * things like the initrd, cmdline and boot_params.
+ *
+ * How to calculate the unsafe areas is detailed here, and is informed by
+ * the decompression calculations in header.S, and the diagram in misc.c.
+ *
+ * The compressed vmlinux (ZO) plus relocs and the run space of ZO can't be
+ * overwritten by decompression output.
+ *
+ * ZO sits against the end of the decompression buffer, so we can calculate
+ * where text, data, bss, etc of ZO are positioned.
+ *
+ * The follow are already enforced by the code:
+ *  - init_size >= kernel_total_size
+ *  - input + input_len >= output + output_len
+ *  - kernel_total_size could be >= or < output_len
+ *
+ * From this, we can make several observations, illustrated by a diagram:
+ *  - init_size >= kernel_total_size
+ *  - input + input_len > output + output_len
+ *  - kernel_total_size >= output_len
+ *
+ * 0   output            input            input+input_len    output+init_size
+ * |     |                 |                       |                       |
+ * |     |                 |                       |                       |
+ * |-----|--------|--------|------------------|----|------------|----------|
+ *                |                           |                 |
+ *                |                           |                 |
+ * output+init_size-ZO_INIT_SIZE   output+output_len  output+kernel_total_size
+ *
+ * [output, output+init_size) is for the buffer for decompressing the
+ * compressed kernel (ZO).
+ *
+ * [output, output+kernel_total_size) is for the uncompressed kernel (VO)
+ * and its bss, brk, etc.
+ * [output, output+output_len) is VO plus relocs
+ *
+ * [output+init_size-ZO_INIT_SIZE, output+init_size) is the copied ZO.
+ * [input, input+input_len) is the copied compressed (VO (vmlinux after
+ * objcopy) plus relocs), not the ZO.
+ *
+ * [input+input_len, output+init_size) is [_text, _end) for ZO. That was the
+ * first range in mem_avoid, which included ZO's heap and stack. Also
+ * [input, input+input_size) need be put in mem_avoid array, but since it
+ * is adjacent to the first entry, they can be merged. This is how we get
+ * the first entry in mem_avoid[].
+ */
 static void mem_avoid_init(unsigned long input, unsigned long input_size,
-			   unsigned long output, unsigned long output_size)
+			   unsigned long output)
 {
+	unsigned long init_size = boot_params->hdr.init_size;
 	u64 initrd_start, initrd_size;
 	u64 cmd_line, cmd_line_size;
-	unsigned long unsafe, unsafe_len;
 	char *ptr;
 
 	/*
 	 * Avoid the region that is unsafe to overlap during
-	 * decompression (see calculations in ../header.S).
+	 * decompression.
 	 */
-	unsafe_len = (output_size >> 12) + 32768 + 18;
-	unsafe = (unsigned long)input + input_size - unsafe_len;
-	mem_avoid[0].start = unsafe;
-	mem_avoid[0].size = unsafe_len;
+	mem_avoid[0].start = input;
+	mem_avoid[0].size = (output + init_size) - input;
 
 	/* Avoid initrd. */
 	initrd_start  = (u64)boot_params->ext_ramdisk_image << 32;
@@ -181,13 +230,9 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	mem_avoid[2].start = cmd_line;
 	mem_avoid[2].size = cmd_line_size;
 
-	/* Avoid heap memory. */
-	mem_avoid[3].start = (unsigned long)free_mem_ptr;
-	mem_avoid[3].size = BOOT_HEAP_SIZE;
-
-	/* Avoid stack memory. */
-	mem_avoid[4].start = (unsigned long)free_mem_end_ptr;
-	mem_avoid[4].size = BOOT_STACK_SIZE;
+	/* Avoid params */
+	mem_avoid[3].start = (unsigned long)boot_params;
+	mem_avoid[3].size = sizeof(*boot_params);
 }
 
 /* Does this memory vector overlap a known avoided area? */
@@ -337,7 +382,7 @@ unsigned char *choose_random_location(unsigned char *input_ptr,
 	boot_params->hdr.loadflags |= KASLR_FLAG;
 
 	/* Record the various known unsafe memory ranges. */
-	mem_avoid_init(input, input_size, output, output_size);
+	mem_avoid_init(input, input_size, output);
 
 	/* Walk e820 and find a random address. */
 	random_addr = find_random_addr(output, output_size);
