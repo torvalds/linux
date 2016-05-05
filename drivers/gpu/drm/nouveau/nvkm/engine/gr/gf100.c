@@ -1717,6 +1717,8 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	gf100_gr_mmio(gr, gr->func->mmio);
 
+	nvkm_mask(device, TPC_UNIT(0, 0, 0x05c), 0x00000001, 0x00000001);
+
 	memcpy(tpcnr, gr->tpc_nr, sizeof(gr->tpc_nr));
 	for (i = 0, gpc = -1; i < gr->tpc_total; i++) {
 		do {

@@ -148,7 +148,7 @@ static void regulator_lock_supply(struct regulator_dev *rdev)
 {
 	int i;
 
-	for (i = 0; rdev->supply; rdev = rdev_get_supply(rdev), i++)
+	for (i = 0; rdev; rdev = rdev_get_supply(rdev), i++)
 		mutex_lock_nested(&rdev->mutex, i);
 }
 

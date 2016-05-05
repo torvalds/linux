@@ -130,26 +130,14 @@ static void dwc_desc_put(struct dw_dma_chan *dwc, struct dw_desc *desc)
 static void dwc_initialize(struct dw_dma_chan *dwc)
 {
 	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
-	struct dw_dma_slave *dws = dwc->chan.private;
 	u32 cfghi = DWC_CFGH_FIFO_MODE;
 	u32 cfglo = DWC_CFGL_CH_PRIOR(dwc->priority);
 
 	if (dwc->initialized == true)
 		return;
 
-	if (dws) {
-		/*
-		 * We need controller-specific data to set up slave
-		 * transfers.
-		 */
-		BUG_ON(!dws->dma_dev || dws->dma_dev != dw->dma.dev);
-
-		cfghi |= DWC_CFGH_DST_PER(dws->dst_id);
-		cfghi |= DWC_CFGH_SRC_PER(dws->src_id);
-	} else {
-		cfghi |= DWC_CFGH_DST_PER(dwc->dst_id);
-		cfghi |= DWC_CFGH_SRC_PER(dwc->src_id);
-	}
+	cfghi |= DWC_CFGH_DST_PER(dwc->dst_id);
+	cfghi |= DWC_CFGH_SRC_PER(dwc->src_id);
 
 	channel_writel(dwc, CFG_LO, cfglo);
 	channel_writel(dwc, CFG_HI, cfghi);
@@ -936,7 +924,7 @@ bool dw_dma_filter(struct dma_chan *chan, void *param)
 	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
 	struct dw_dma_slave *dws = param;
 
-	if (!dws || dws->dma_dev != chan->device->dev)
+	if (dws->dma_dev != chan->device->dev)
 		return false;
 
 	/* We have to copy data since dws can be temporary storage */
@@ -1160,6 +1148,14 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 	 * doesn't mean what you think it means), and status writeback.
 	 */
 
+	/*
+	 * We need controller-specific data to set up slave transfers.
+	 */
+	if (chan->private && !dw_dma_filter(chan, chan->private)) {
+		dev_warn(chan2dev(chan), "Wrong controller-specific data\n");
+		return -EINVAL;
+	}
+
 	/* Enable controller here if needed */
 	if (!dw->in_use)
 		dw_dma_on(dw);
@@ -1221,6 +1217,14 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	spin_lock_irqsave(&dwc->lock, flags);
 	list_splice_init(&dwc->free_list, &list);
 	dwc->descs_allocated = 0;
+
+	/* Clear custom channel configuration */
+	dwc->src_id = 0;
+	dwc->dst_id = 0;
+
+	dwc->src_master = 0;
+	dwc->dst_master = 0;
+
 	dwc->initialized = false;
 
 	/* Disable interrupts */

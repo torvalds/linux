@@ -225,6 +225,9 @@ static int ccp_aes_cmac_export(struct ahash_request *req, void *out)
 	struct ccp_aes_cmac_req_ctx *rctx = ahash_request_ctx(req);
 	struct ccp_aes_cmac_exp_ctx state;
 
+	/* Don't let anything leak to 'out' */
+	memset(&state, 0, sizeof(state));
+
 	state.null_msg = rctx->null_msg;
 	memcpy(state.iv, rctx->iv, sizeof(state.iv));
 	state.buf_count = rctx->buf_count;
