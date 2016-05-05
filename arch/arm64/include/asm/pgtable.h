@@ -592,9 +592,9 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
-static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
-				       unsigned long address, pmd_t *pmdp)
+#define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
+static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
+					    unsigned long address, pmd_t *pmdp)
 {
 	return pte_pmd(ptep_get_and_clear(mm, address, (pte_t *)pmdp));
 }
