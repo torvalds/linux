@@ -15,8 +15,10 @@ enum arche_platform_state {
 	ARCHE_PLATFORM_STATE_ACTIVE,
 	ARCHE_PLATFORM_STATE_STANDBY,
 	ARCHE_PLATFORM_STATE_FW_FLASHING,
+	ARCHE_PLATFORM_STATE_TIME_SYNC,
 };
 
+int arche_platform_change_state(enum arche_platform_state state);
 
 int __init arche_apb_init(void);
 void __exit arche_apb_exit(void);
