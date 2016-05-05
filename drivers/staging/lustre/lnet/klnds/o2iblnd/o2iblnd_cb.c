@@ -613,10 +613,8 @@ static void kiblnd_unmap_tx(lnet_ni_t *ni, kib_tx_t *tx)
 
 	LASSERT(net);
 
-	if (net->ibn_fmr_ps && tx->fmr.fmr_pfmr) {
+	if (net->ibn_fmr_ps)
 		kiblnd_fmr_pool_unmap(&tx->fmr, tx->tx_status);
-		tx->fmr.fmr_pfmr = NULL;
-	}
 
 	if (tx->tx_nfrags) {
 		kiblnd_dma_unmap_sg(tx->tx_pool->tpo_hdev->ibh_ibdev,

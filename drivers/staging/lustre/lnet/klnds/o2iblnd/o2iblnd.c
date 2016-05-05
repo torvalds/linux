@@ -1470,13 +1470,20 @@ void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status)
 {
 	LIST_HEAD(zombies);
 	kib_fmr_pool_t *fpo = fmr->fmr_pool;
-	kib_fmr_poolset_t *fps = fpo->fpo_owner;
+	kib_fmr_poolset_t *fps;
 	unsigned long now = cfs_time_current();
 	kib_fmr_pool_t *tmp;
 	int rc;
 
-	rc = ib_fmr_pool_unmap(fmr->fmr_pfmr);
-	LASSERT(!rc);
+	if (!fpo)
+		return;
+
+	fps = fpo->fpo_owner;
+	if (fmr->fmr_pfmr) {
+		rc = ib_fmr_pool_unmap(fmr->fmr_pfmr);
+		LASSERT(!rc);
+		fmr->fmr_pfmr = NULL;
+	}
 
 	if (status) {
 		rc = ib_flush_fmr_pool(fpo->fmr.fpo_fmr_pool);
@@ -1484,7 +1491,6 @@ void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status)
 	}
 
 	fmr->fmr_pool = NULL;
-	fmr->fmr_pfmr = NULL;
 
 	spin_lock(&fps->fps_lock);
 	fpo->fpo_map_count--;  /* decref the pool */
