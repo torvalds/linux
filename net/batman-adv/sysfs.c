@@ -389,12 +389,12 @@ static int batadv_store_uint_attr(const char *buff, size_t count,
 	return count;
 }
 
-static inline ssize_t
-__batadv_store_uint_attr(const char *buff, size_t count,
-			 int min, int max,
-			 void (*post_func)(struct net_device *),
-			 const struct attribute *attr,
-			 atomic_t *attr_store, struct net_device *net_dev)
+static ssize_t __batadv_store_uint_attr(const char *buff, size_t count,
+					int min, int max,
+					void (*post_func)(struct net_device *),
+					const struct attribute *attr,
+					atomic_t *attr_store,
+					struct net_device *net_dev)
 {
 	int ret;
 
