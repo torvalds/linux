@@ -9612,21 +9612,21 @@ static int btrfs_whiteout_for_rename(struct btrfs_trans_handle *trans,
 	ret = btrfs_init_inode_security(trans, inode, dir,
 				&dentry->d_name);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = btrfs_add_nondir(trans, dir, dentry,
 				inode, 0, index);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = btrfs_update_inode(trans, root, inode);
-	if (ret)
-		return ret;
-
+out:
 	unlock_new_inode(inode);
+	if (ret)
+		inode_dec_link_count(inode);
 	iput(inode);
 
-	return 0;
+	return ret;
 }
 
 static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
