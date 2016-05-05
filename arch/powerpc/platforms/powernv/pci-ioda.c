@@ -48,6 +48,9 @@
 #include "powernv.h"
 #include "pci.h"
 
+#define PNV_IODA1_M64_NUM	16	/* Number of M64 BARs	*/
+#define PNV_IODA1_M64_SEGS	8	/* Segments per M64 BAR	*/
+
 /* 256M DMA window, 4K TCE pages, 8 bytes TCE */
 #define TCE32_TABLE_SIZE	((0x10000000 / 0x1000) * 8)
 
@@ -246,6 +249,64 @@ static void pnv_ioda_reserve_dev_m64_pe(struct pci_dev *pdev,
 	}
 }
 
+static int pnv_ioda1_init_m64(struct pnv_phb *phb)
+{
+	struct resource *r;
+	int index;
+
+	/*
+	 * There are 16 M64 BARs, each of which has 8 segments. So
+	 * there are as many M64 segments as the maximum number of
+	 * PEs, which is 128.
+	 */
+	for (index = 0; index < PNV_IODA1_M64_NUM; index++) {
+		unsigned long base, segsz = phb->ioda.m64_segsize;
+		int64_t rc;
+
+		base = phb->ioda.m64_base +
+		       index * PNV_IODA1_M64_SEGS * segsz;
+		rc = opal_pci_set_phb_mem_window(phb->opal_id,
+				OPAL_M64_WINDOW_TYPE, index, base, 0,
+				PNV_IODA1_M64_SEGS * segsz);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("  Error %lld setting M64 PHB#%d-BAR#%d\n",
+				rc, phb->hose->global_number, index);
+			goto fail;
+		}
+
+		rc = opal_pci_phb_mmio_enable(phb->opal_id,
+				OPAL_M64_WINDOW_TYPE, index,
+				OPAL_ENABLE_M64_SPLIT);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("  Error %lld enabling M64 PHB#%d-BAR#%d\n",
+				rc, phb->hose->global_number, index);
+			goto fail;
+		}
+	}
+
+	/*
+	 * Exclude the segment used by the reserved PE, which
+	 * is expected to be 0 or last supported PE#.
+	 */
+	r = &phb->hose->mem_resources[1];
+	if (phb->ioda.reserved_pe_idx == 0)
+		r->start += phb->ioda.m64_segsize;
+	else if (phb->ioda.reserved_pe_idx == (phb->ioda.total_pe_num - 1))
+		r->end -= phb->ioda.m64_segsize;
+	else
+		WARN(1, "Wrong reserved PE#%d on PHB#%d\n",
+		     phb->ioda.reserved_pe_idx, phb->hose->global_number);
+
+	return 0;
+
+fail:
+	for ( ; index >= 0; index--)
+		opal_pci_phb_mmio_enable(phb->opal_id,
+			OPAL_M64_WINDOW_TYPE, index, OPAL_DISABLE_M64);
+
+	return -EIO;
+}
+
 static void pnv_ioda_reserve_m64_pe(struct pci_bus *bus,
 				    unsigned long *pe_bitmap,
 				    bool all)
@@ -315,6 +376,26 @@ static unsigned int pnv_ioda_pick_m64_pe(struct pci_bus *bus, bool all)
 			pe->master = master_pe;
 			list_add_tail(&pe->list, &master_pe->slaves);
 		}
+
+		/*
+		 * P7IOC supports M64DT, which helps mapping M64 segment
+		 * to one particular PE#. However, PHB3 has fixed mapping
+		 * between M64 segment and PE#. In order to have same logic
+		 * for P7IOC and PHB3, we enforce fixed mapping between M64
+		 * segment and PE# on P7IOC.
+		 */
+		if (phb->type == PNV_PHB_IODA1) {
+			int64_t rc;
+
+			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
+					pe->pe_number, OPAL_M64_WINDOW_TYPE,
+					pe->pe_number / PNV_IODA1_M64_SEGS,
+					pe->pe_number % PNV_IODA1_M64_SEGS);
+			if (rc != OPAL_SUCCESS)
+				pr_warn("%s: Error %lld mapping M64 for PHB#%d-PE#%d\n",
+					__func__, rc, phb->hose->global_number,
+					pe->pe_number);
+		}
 	}
 
 	kfree(pe_alloc);
@@ -329,8 +410,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	const u32 *r;
 	u64 pci_addr;
 
-	/* FIXME: Support M64 for P7IOC */
-	if (phb->type != PNV_PHB_IODA2) {
+	if (phb->type != PNV_PHB_IODA1 && phb->type != PNV_PHB_IODA2) {
 		pr_info("  Not support M64 window\n");
 		return;
 	}
@@ -364,7 +444,10 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 
 	/* Use last M64 BAR to cover M64 window */
 	phb->ioda.m64_bar_idx = 15;
-	phb->init_m64 = pnv_ioda2_init_m64;
+	if (phb->type == PNV_PHB_IODA1)
+		phb->init_m64 = pnv_ioda1_init_m64;
+	else
+		phb->init_m64 = pnv_ioda2_init_m64;
 	phb->reserve_m64_pe = pnv_ioda_reserve_m64_pe;
 	phb->pick_m64_pe = pnv_ioda_pick_m64_pe;
 }
