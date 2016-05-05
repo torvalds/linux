@@ -315,3 +315,7 @@
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
 	};
 };
+
+&usbdrd_dwc3_0 {
+	dr_mode = "peripheral";
+};
