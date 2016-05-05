@@ -1818,9 +1818,11 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		case 4:
 			__get_user_asmx(val, op.ea, err, "lwarx");
 			break;
+#ifdef __powerpc64__
 		case 8:
 			__get_user_asmx(val, op.ea, err, "ldarx");
 			break;
+#endif
 		default:
 			return 0;
 		}
@@ -1841,9 +1843,11 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		case 4:
 			__put_user_asmx(op.val, op.ea, err, "stwcx.", cr);
 			break;
+#ifdef __powerpc64__
 		case 8:
 			__put_user_asmx(op.val, op.ea, err, "stdcx.", cr);
 			break;
+#endif
 		default:
 			return 0;
 		}
