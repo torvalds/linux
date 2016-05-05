@@ -112,11 +112,8 @@ static const struct clk_div_table cpu_div_table[] = {
 };
 
 PNAME(p_clk81)		= { "fclk_div3", "fclk_div4", "fclk_div5" };
-PNAME(p_mali)		= { "fclk_div3", "fclk_div4", "fclk_div5",
-			    "fclk_div7", "zero" };
 
 static u32 mux_table_clk81[]	= { 6, 5, 7 };
-static u32 mux_table_mali[]	= { 6, 5, 7, 4, 0 };
 
 static const struct composite_conf clk81_conf __initconst = {
 	.mux_table		= mux_table_clk81,
@@ -126,26 +123,10 @@ static const struct composite_conf clk81_conf __initconst = {
 	.gate_parm		= PARM(0x00, 7, 1),
 };
 
-static const struct composite_conf mali_conf __initconst = {
-	.mux_table		= mux_table_mali,
-	.mux_parm		= PARM(0x00, 9, 3),
-	.div_parm		= PARM(0x00, 0, 7),
-	.gate_parm		= PARM(0x00, 8, 1),
-};
-
 static struct clk_fixed_rate meson8b_xtal = {
 	.fixed_rate = 24000000,
 	.hw.init = &(struct clk_init_data){
 		.name = "xtal",
-		.num_parents = 0,
-		.ops = &clk_fixed_rate_ops,
-	},
-};
-
-static struct clk_fixed_rate meson8b_zero = {
-	.fixed_rate = 0,
-	.hw.init = &(struct clk_init_data){
-		.name = "zero",
 		.num_parents = 0,
 		.ops = &clk_fixed_rate_ops,
 	},
@@ -301,8 +282,6 @@ static struct meson_clk_cpu meson8b_cpu_clk = {
 static const struct clk_conf meson8b_clk_confs[] __initconst = {
 	COMPOSITE(MESON8B_REG_HHI_MPEG, CLKID_CLK81, "clk81", p_clk81,
 		  CLK_SET_RATE_NO_REPARENT | CLK_IGNORE_UNUSED, &clk81_conf),
-	COMPOSITE(MESON8B_REG_MALI, CLKID_MALI, "mali", p_mali,
-		  CLK_IGNORE_UNUSED, &mali_conf),
 };
 
 /*
@@ -315,7 +294,6 @@ static const struct clk_conf meson8b_clk_confs[] __initconst = {
 static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 	.hws = {
 		[CLKID_XTAL] = &meson8b_xtal.hw,
-		[CLKID_ZERO] = &meson8b_zero.hw,
 		[CLKID_PLL_FIXED] = &meson8b_fixed_pll.hw,
 		[CLKID_PLL_VID] = &meson8b_vid_pll.hw,
 		[CLKID_PLL_SYS] = &meson8b_sys_pll.hw,
