@@ -65,7 +65,6 @@ struct gb_tty {
 static struct tty_driver *gb_tty_driver;
 static DEFINE_IDR(tty_minors);
 static DEFINE_MUTEX(table_lock);
-static atomic_t reference_count = ATOMIC_INIT(0);
 
 static int gb_uart_receive_data_handler(struct gb_operation *op)
 {
@@ -553,6 +552,7 @@ static int wait_serial_change(struct gb_tty *gb_tty, unsigned long arg)
 	} while (!retval);
 
 	return retval;
+
 }
 
 static int get_serial_usage(struct gb_tty *gb_tty,
@@ -619,9 +619,6 @@ static const struct tty_operations gb_ops = {
 
 static struct tty_port_operations null_ops = { };
 
-static int gb_tty_init(void);
-static void gb_tty_exit(void);
-
 static int gb_uart_probe(struct gpbridge_device *gpbdev,
 			 const struct gpbridge_device_id *id)
 {
@@ -632,20 +629,9 @@ static int gb_uart_probe(struct gpbridge_device *gpbdev,
 	int retval;
 	int minor;
 
-	/* First time here, initialize the tty structures */
-	if (atomic_inc_return(&reference_count) == 1) {
-		retval = gb_tty_init();
-		if (retval) {
-			atomic_dec(&reference_count);
-			return retval;
-		}
-	}
-
 	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
-	if (!gb_tty) {
-		retval = -ENOMEM;
-		goto exit_tty;
-	}
+	if (!gb_tty)
+		return -ENOMEM;
 
 	connection = gb_connection_create(gpbdev->bundle,
 					  le16_to_cpu(gpbdev->cport_desc->id),
@@ -737,9 +723,6 @@ exit_connection_destroy:
 	gb_connection_destroy(connection);
 exit_tty_free:
 	kfree(gb_tty);
-exit_tty:
-	if (atomic_dec_return(&reference_count) == 0)
-		gb_tty_exit();
 
 	return retval;
 }
@@ -772,10 +755,6 @@ static void gb_uart_remove(struct gpbridge_device *gpbdev)
 	gb_connection_destroy(connection);
 	kfree(gb_tty->buffer);
 	kfree(gb_tty);
-
-	/* If last device is gone, tear down the tty structures */
-	if (atomic_dec_return(&reference_count) == 0)
-		gb_tty_exit();
 }
 
 static int gb_tty_init(void)
@@ -832,4 +811,26 @@ static struct gpbridge_driver uart_driver = {
 	.remove		= gb_uart_remove,
 	.id_table	= gb_uart_id_table,
 };
-gb_gpbridge_builtin_driver(uart_driver);
+
+int gb_uart_driver_init(void)
+{
+	int ret;
+
+	ret = gb_tty_init();
+	if (ret)
+		return ret;
+
+	ret = gb_gpbridge_register(&uart_driver);
+	if (ret) {
+		gb_tty_exit();
+		return ret;
+	}
+
+	return 0;
+}
+
+void gb_uart_driver_exit(void)
+{
+	gb_gpbridge_deregister(&uart_driver);
+	gb_tty_exit();
+}
