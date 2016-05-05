@@ -256,6 +256,7 @@ static const struct greybus_bundle_id gb_gpbridge_id_table[] = {
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_I2C) },
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_PWM) },
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_SDIO) },
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_SPI) },
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_UART) },
 	{ },
 };
@@ -308,8 +309,8 @@ static int __init gpbridge_init(void)
 		pr_err("error initializing i2c driver\n");
 		goto error_i2c;
 	}
-	if (gb_spi_protocol_init()) {
-		pr_err("error initializing spi protocol\n");
+	if (gb_spi_driver_init()) {
+		pr_err("error initializing spi driver\n");
 		goto error_spi;
 	}
 
@@ -338,7 +339,7 @@ module_init(gpbridge_init);
 
 static void __exit gpbridge_exit(void)
 {
-	gb_spi_protocol_exit();
+	gb_spi_driver_exit();
 	gb_i2c_driver_exit();
 	gb_usb_protocol_exit();
 	gb_sdio_driver_exit();

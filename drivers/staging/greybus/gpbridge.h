@@ -84,8 +84,8 @@ extern void gb_usb_protocol_exit(void);
 extern int gb_i2c_driver_init(void);
 extern void gb_i2c_driver_exit(void);
 
-extern int gb_spi_protocol_init(void);
-extern void gb_spi_protocol_exit(void);
+extern int gb_spi_driver_init(void);
+extern void gb_spi_driver_exit(void);
 
 #endif /* __GPBRIDGE_H */
 

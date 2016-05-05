@@ -18,6 +18,7 @@
 
 struct gb_spi {
 	struct gb_connection	*connection;
+	struct gpbridge_device	*gpbdev;
 	struct spi_transfer	*first_xfer;
 	struct spi_transfer	*last_xfer;
 	u32			rx_xfer_offset;
@@ -174,7 +175,7 @@ gb_spi_operation_create(struct gb_spi *spi, struct gb_connection *connection,
 		spi->last_xfer = xfer;
 
 		if (!xfer->tx_buf && !xfer->rx_buf) {
-			dev_err(&connection->bundle->dev,
+			dev_err(&spi->gpbdev->dev,
 				"bufferless transfer, length %u\n", xfer->len);
 			msg->state = GB_SPI_STATE_MSG_ERROR;
 			return NULL;
@@ -342,7 +343,7 @@ static int gb_spi_transfer_one_message(struct spi_master *master,
 			if (response)
 				gb_spi_decode_response(spi, msg, response);
 		} else {
-			dev_err(&connection->bundle->dev,
+			dev_err(&spi->gpbdev->dev,
 				"transfer operation failed: %d\n", ret);
 			msg->state = GB_SPI_STATE_MSG_ERROR;
 		}
@@ -450,28 +451,48 @@ static int gb_spi_setup_device(struct gb_spi *spi, u8 cs)
 	return 0;
 }
 
-static int gb_spi_connection_init(struct gb_connection *connection)
+static int gb_spi_probe(struct gpbridge_device *gpbdev,
+			const struct gpbridge_device_id *id)
 {
+	struct gb_connection *connection;
 	struct gb_spi *spi;
 	struct spi_master *master;
 	int ret;
 	u8 i;
 
 	/* Allocate master with space for data */
-	master = spi_alloc_master(&connection->bundle->dev, sizeof(*spi));
+	master = spi_alloc_master(&gpbdev->dev, sizeof(*spi));
 	if (!master) {
-		dev_err(&connection->bundle->dev, "cannot alloc SPI master\n");
+		dev_err(&gpbdev->dev, "cannot alloc SPI master\n");
 		return -ENOMEM;
+	}
+
+	connection = gb_connection_create(gpbdev->bundle,
+					  le16_to_cpu(gpbdev->cport_desc->id),
+					  NULL);
+	if (IS_ERR(connection)) {
+		ret = PTR_ERR(connection);
+		goto exit_spi_put;
 	}
 
 	spi = spi_master_get_devdata(master);
 	spi->connection = connection;
 	gb_connection_set_data(connection, master);
+	spi->gpbdev = gpbdev;
+	gb_gpbridge_set_data(gpbdev, master);
+
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto exit_connection_destroy;
+
+	ret = gb_gpbridge_get_version(connection);
+	if (ret)
+		goto exit_connection_disable;
 
 	/* get master configuration */
 	ret = gb_spi_get_master_config(spi);
 	if (ret)
-		goto out_put_master;
+		goto exit_connection_disable;
 
 	master->bus_num = -1; /* Allow spi-core to allocate it dynamically */
 	master->num_chipselect = spi->num_chipselect;
@@ -486,42 +507,54 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 
 	ret = spi_register_master(master);
 	if (ret < 0)
-		goto out_put_master;
+		goto exit_connection_disable;
 
 	/* now, fetch the devices configuration */
 	for (i = 0; i < spi->num_chipselect; i++) {
 		ret = gb_spi_setup_device(spi, i);
 		if (ret < 0) {
-			dev_err(&connection->bundle->dev,
-				"failed to allocated spi device: %d\n", ret);
-			spi_unregister_master(master);
-			break;
+			dev_err(&gpbdev->dev,
+				"failed to allocate spi device %d: %d\n",
+				i, ret);
+			goto exit_spi_unregister;
 		}
 	}
 
 	return ret;
 
-out_put_master:
+exit_spi_unregister:
+	spi_unregister_master(master);
+exit_connection_disable:
+	gb_connection_disable(connection);
+exit_connection_destroy:
+	gb_connection_destroy(connection);
+exit_spi_put:
 	spi_master_put(master);
 
 	return ret;
 }
 
-static void gb_spi_connection_exit(struct gb_connection *connection)
+static void gb_spi_remove(struct gpbridge_device *gpbdev)
 {
-	struct spi_master *master = gb_connection_get_data(connection);
+	struct spi_master *master = gb_gpbridge_get_data(gpbdev);
+	struct gb_spi *spi = spi_master_get_devdata(master);
+	struct gb_connection *connection = spi->connection;
 
 	spi_unregister_master(master);
+	gb_connection_disable(connection);
+	gb_connection_destroy(connection);
+	spi_master_put(master);
 }
 
-static struct gb_protocol spi_protocol = {
-	.name			= "spi",
-	.id			= GREYBUS_PROTOCOL_SPI,
-	.major			= GB_SPI_VERSION_MAJOR,
-	.minor			= GB_SPI_VERSION_MINOR,
-	.connection_init	= gb_spi_connection_init,
-	.connection_exit	= gb_spi_connection_exit,
-	.request_recv		= NULL,
+static const struct gpbridge_device_id gb_spi_id_table[] = {
+	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_SPI) },
+	{ },
 };
 
-gb_builtin_protocol_driver(spi_protocol);
+static struct gpbridge_driver spi_driver = {
+	.name		= "spi",
+	.probe		= gb_spi_probe,
+	.remove		= gb_spi_remove,
+	.id_table	= gb_spi_id_table,
+};
+gb_gpbridge_builtin_driver(spi_driver);
