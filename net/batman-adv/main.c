@@ -64,6 +64,7 @@
 #include "routing.h"
 #include "send.h"
 #include "soft-interface.h"
+#include "tp_meter.h"
 #include "translation-table.h"
 
 /* List manipulations on hardif_list have to be rtnl_lock()'ed,
@@ -89,6 +90,7 @@ static int __init batadv_init(void)
 	batadv_v_init();
 	batadv_iv_init();
 	batadv_nc_init();
+	batadv_tp_meter_init();
 
 	batadv_event_workqueue = create_singlethread_workqueue("bat_events");
 
@@ -142,6 +144,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	spin_lock_init(&bat_priv->tvlv.container_list_lock);
 	spin_lock_init(&bat_priv->tvlv.handler_list_lock);
 	spin_lock_init(&bat_priv->softif_vlan_list_lock);
+	spin_lock_init(&bat_priv->tp_list_lock);
 
 	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
@@ -160,6 +163,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	INIT_HLIST_HEAD(&bat_priv->tvlv.container_list);
 	INIT_HLIST_HEAD(&bat_priv->tvlv.handler_list);
 	INIT_HLIST_HEAD(&bat_priv->softif_vlan_list);
+	INIT_HLIST_HEAD(&bat_priv->tp_list);
 
 	ret = batadv_v_mesh_init(bat_priv);
 	if (ret < 0)

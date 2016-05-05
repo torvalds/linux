@@ -46,6 +46,7 @@
 #include "packet.h"
 #include "send.h"
 #include "soft-interface.h"
+#include "tp_meter.h"
 #include "translation-table.h"
 #include "tvlv.h"
 
@@ -276,6 +277,13 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 		ret = NET_RX_SUCCESS;
 
 		break;
+	case BATADV_TP:
+		if (!pskb_may_pull(skb, sizeof(struct batadv_icmp_tp_packet)))
+			goto out;
+
+		batadv_tp_meter_recv(bat_priv, skb);
+		ret = NET_RX_SUCCESS;
+		goto out;
 	default:
 		/* drop unknown type */
 		goto out;

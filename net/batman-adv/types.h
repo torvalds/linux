@@ -33,6 +33,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <uapi/linux/batman_adv.h>
 
 #include "packet.h"
 
@@ -833,6 +834,111 @@ struct batadv_priv_nc {
 };
 
 /**
+ * struct batadv_tp_unacked - unacked packet meta-information
+ * @seqno: seqno of the unacked packet
+ * @len: length of the packet
+ * @list: list node for batadv_tp_vars::unacked_list
+ *
+ * This struct is supposed to represent a buffer unacked packet. However, since
+ * the purpose of the TP meter is to count the traffic only, there is no need to
+ * store the entire sk_buff, the starting offset and the length are enough
+ */
+struct batadv_tp_unacked {
+	u32 seqno;
+	u16 len;
+	struct list_head list;
+};
+
+/**
+ * enum batadv_tp_meter_role - Modus in tp meter session
+ * @BATADV_TP_RECEIVER: Initialized as receiver
+ * @BATADV_TP_SENDER: Initialized as sender
+ */
+enum batadv_tp_meter_role {
+	BATADV_TP_RECEIVER,
+	BATADV_TP_SENDER
+};
+
+/**
+ * struct batadv_tp_vars - tp meter private variables per session
+ * @list: list node for bat_priv::tp_list
+ * @timer: timer for ack (receiver) and retry (sender)
+ * @bat_priv: pointer to the mesh object
+ * @start_time: start time in jiffies
+ * @other_end: mac address of remote
+ * @role: receiver/sender modi
+ * @sending: sending binary semaphore: 1 if sending, 0 is not
+ * @reason: reason for a stopped session
+ * @finish_work: work item for the finishing procedure
+ * @test_length: test length in milliseconds
+ * @session: TP session identifier
+ * @icmp_uid: local ICMP "socket" index
+ * @dec_cwnd: decimal part of the cwnd used during linear growth
+ * @cwnd: current size of the congestion window
+ * @cwnd_lock: lock do protect @cwnd & @dec_cwnd
+ * @ss_threshold: Slow Start threshold. Once cwnd exceeds this value the
+ *  connection switches to the Congestion Avoidance state
+ * @last_acked: last acked byte
+ * @last_sent: last sent byte, not yet acked
+ * @tot_sent: amount of data sent/ACKed so far
+ * @dup_acks: duplicate ACKs counter
+ * @fast_recovery: true if in Fast Recovery mode
+ * @recover: last sent seqno when entering Fast Recovery
+ * @rto: sender timeout
+ * @srtt: smoothed RTT scaled by 2^3
+ * @rttvar: RTT variation scaled by 2^2
+ * @more_bytes: waiting queue anchor when waiting for more ack/retry timeout
+ * @prerandom_offset: offset inside the prerandom buffer
+ * @prerandom_lock: spinlock protecting access to prerandom_offset
+ * @last_recv: last in-order received packet
+ * @unacked_list: list of unacked packets (meta-info only)
+ * @unacked_lock: protect unacked_list
+ * @last_recv_time: time time (jiffies) a msg was received
+ * @refcount: number of context where the object is used
+ * @rcu: struct used for freeing in an RCU-safe manner
+ */
+struct batadv_tp_vars {
+	struct hlist_node list;
+	struct timer_list timer;
+	struct batadv_priv *bat_priv;
+	unsigned long start_time;
+	u8 other_end[ETH_ALEN];
+	enum batadv_tp_meter_role role;
+	atomic_t sending;
+	enum batadv_tp_meter_reason reason;
+	struct delayed_work finish_work;
+	u32 test_length;
+	u8 session[2];
+	u8 icmp_uid;
+
+	/* sender variables */
+	u16 dec_cwnd;
+	u32 cwnd;
+	spinlock_t cwnd_lock; /* Protects cwnd & dec_cwnd */
+	u32 ss_threshold;
+	atomic_t last_acked;
+	u32 last_sent;
+	atomic64_t tot_sent;
+	atomic_t dup_acks;
+	bool fast_recovery;
+	u32 recover;
+	u32 rto;
+	u32 srtt;
+	u32 rttvar;
+	wait_queue_head_t more_bytes;
+	u32 prerandom_offset;
+	spinlock_t prerandom_lock; /* Protects prerandom_offset */
+
+	/* receiver variables */
+	u32 last_recv;
+	struct list_head unacked_list;
+	spinlock_t unacked_lock; /* Protects unacked_list */
+	unsigned long last_recv_time;
+	struct kref refcount;
+	struct rcu_head rcu;
+};
+
+/**
  * struct batadv_softif_vlan - per VLAN attributes set
  * @bat_priv: pointer to the mesh object
  * @vid: VLAN identifier
@@ -900,9 +1006,12 @@ struct batadv_priv_bat_v {
  * @debug_dir: dentry for debugfs batman-adv subdirectory
  * @forw_bat_list: list of aggregated OGMs that will be forwarded
  * @forw_bcast_list: list of broadcast packets that will be rebroadcasted
+ * @tp_list: list of tp sessions
+ * @tp_num: number of currently active tp sessions
  * @orig_hash: hash table containing mesh participants (orig nodes)
  * @forw_bat_list_lock: lock protecting forw_bat_list
  * @forw_bcast_list_lock: lock protecting forw_bcast_list
+ * @tp_list_lock: spinlock protecting @tp_list
  * @orig_work: work queue callback item for orig node purging
  * @cleanup_work: work queue callback item for soft-interface deinit
  * @primary_if: one of the hard-interfaces assigned to this mesh interface
@@ -956,9 +1065,12 @@ struct batadv_priv {
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
 	struct hlist_head forw_bcast_list;
+	struct hlist_head tp_list;
 	struct batadv_hashtable *orig_hash;
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects forw_bcast_list */
+	spinlock_t tp_list_lock; /* protects tp_list */
+	atomic_t tp_num;
 	struct delayed_work orig_work;
 	struct work_struct cleanup_work;
 	struct batadv_hard_iface __rcu *primary_if;  /* rcu protected pointer */

@@ -51,17 +51,19 @@ static inline void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
  * @BATADV_DBG_DAT: ARP snooping and DAT related messages
  * @BATADV_DBG_NC: network coding related messages
  * @BATADV_DBG_MCAST: multicast related messages
+ * @BATADV_DBG_TP_METER: throughput meter messages
  * @BATADV_DBG_ALL: the union of all the above log levels
  */
 enum batadv_dbg_level {
-	BATADV_DBG_BATMAN = BIT(0),
-	BATADV_DBG_ROUTES = BIT(1),
-	BATADV_DBG_TT	  = BIT(2),
-	BATADV_DBG_BLA    = BIT(3),
-	BATADV_DBG_DAT    = BIT(4),
-	BATADV_DBG_NC	  = BIT(5),
-	BATADV_DBG_MCAST  = BIT(6),
-	BATADV_DBG_ALL    = 127,
+	BATADV_DBG_BATMAN	= BIT(0),
+	BATADV_DBG_ROUTES	= BIT(1),
+	BATADV_DBG_TT		= BIT(2),
+	BATADV_DBG_BLA		= BIT(3),
+	BATADV_DBG_DAT		= BIT(4),
+	BATADV_DBG_NC		= BIT(5),
+	BATADV_DBG_MCAST	= BIT(6),
+	BATADV_DBG_TP_METER	= BIT(7),
+	BATADV_DBG_ALL		= 127,
 };
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG

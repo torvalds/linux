@@ -100,6 +100,9 @@
 #define BATADV_NUM_BCASTS_WIRELESS 3
 #define BATADV_NUM_BCASTS_MAX 3
 
+/* length of the single packet used by the TP meter */
+#define BATADV_TP_PACKET_LEN ETH_DATA_LEN
+
 /* msecs after which an ARP_REQUEST is sent in broadcast as fallback */
 #define ARP_REQ_DELAY 250
 /* numbers of originator to contact for any PUT/GET DHT operation */
@@ -130,6 +133,11 @@
 #define BATADV_EXPECTED_SEQNO_RANGE	65536
 
 #define BATADV_NC_NODE_TIMEOUT 10000 /* Milliseconds */
+
+/**
+ * BATADV_TP_MAX_NUM - maximum number of simultaneously active tp sessions
+ */
+#define BATADV_TP_MAX_NUM 5
 
 enum batadv_mesh_state {
 	BATADV_MESH_INACTIVE,

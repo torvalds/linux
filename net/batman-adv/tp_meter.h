@@ -1,6 +1,6 @@
-/* Copyright (C) 2016 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2012-2016 B.A.T.M.A.N. contributors:
  *
- * Matthias Schiffer
+ * Edo Monticelli, Antonio Quartulli
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -15,18 +15,20 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _NET_BATMAN_ADV_NETLINK_H_
-#define _NET_BATMAN_ADV_NETLINK_H_
+#ifndef _NET_BATMAN_ADV_TP_METER_H_
+#define _NET_BATMAN_ADV_TP_METER_H_
 
 #include "main.h"
 
 #include <linux/types.h>
 
-void batadv_netlink_register(void);
-void batadv_netlink_unregister(void);
+struct sk_buff;
 
-int batadv_netlink_tpmeter_notify(struct batadv_priv *bat_priv, const u8 *dst,
-				  u8 result, u32 test_time, u64 total_bytes,
-				  u32 cookie);
+void batadv_tp_meter_init(void);
+void batadv_tp_start(struct batadv_priv *bat_priv, const u8 *dst,
+		     u32 test_length, u32 *cookie);
+void batadv_tp_stop(struct batadv_priv *bat_priv, const u8 *dst,
+		    u8 return_value);
+void batadv_tp_meter_recv(struct batadv_priv *bat_priv, struct sk_buff *skb);
 
-#endif /* _NET_BATMAN_ADV_NETLINK_H_ */
+#endif /* _NET_BATMAN_ADV_TP_METER_H_ */
