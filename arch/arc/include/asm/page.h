@@ -72,6 +72,13 @@ typedef unsigned long pgprot_t;
 
 typedef pte_t * pgtable_t;
 
+/*
+ * Use virt_to_pfn with caution:
+ * If used in pte or paddr related macros, it could cause truncation
+ * in PAE40 builds
+ * As a rule of thumb, only use it in helpers starting with virt_
+ * You have been warned !
+ */
 #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 
 #define ARCH_PFN_OFFSET		virt_to_pfn(CONFIG_LINUX_LINK_BASE)
@@ -85,7 +92,7 @@ typedef pte_t * pgtable_t;
  * virt here means link-address/program-address as embedded in object code.
  * And for ARC, link-addr = physical address
  */
-#define __pa(vaddr)  ((unsigned long)vaddr)
+#define __pa(vaddr)  ((unsigned long)(vaddr))
 #define __va(paddr)  ((void *)((unsigned long)(paddr)))
 
 #define virt_to_page(kaddr)	\
