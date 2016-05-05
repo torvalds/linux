@@ -237,7 +237,6 @@ static void legacy_disconnect(struct gb_bundle *bundle)
 
 static const struct greybus_bundle_id legacy_id_table[] = {
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_USB) },
-	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_SDIO) },
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_SPI) },
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_CAMERA) },
 	{ }

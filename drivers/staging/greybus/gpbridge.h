@@ -75,8 +75,8 @@ extern void gb_pwm_driver_exit(void);
 extern int gb_uart_driver_init(void);
 extern void gb_uart_driver_exit(void);
 
-extern int gb_sdio_protocol_init(void);
-extern void gb_sdio_protocol_exit(void);
+extern int gb_sdio_driver_init(void);
+extern void gb_sdio_driver_exit(void);
 
 extern int gb_usb_protocol_init(void);
 extern void gb_usb_protocol_exit(void);

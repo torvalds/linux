@@ -19,6 +19,7 @@
 
 struct gb_sdio_host {
 	struct gb_connection	*connection;
+	struct gpbridge_device	*gpbdev;
 	struct mmc_host		*mmc;
 	struct mmc_request	*mrq;
 	struct mutex		lock;	/* lock for this host */
@@ -199,11 +200,12 @@ static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
 	return 0;
 }
 
-static int gb_sdio_event_recv(u8 type, struct gb_operation *op)
+static int gb_sdio_request_handler(struct gb_operation *op)
 {
 	struct gb_sdio_host *host = gb_connection_get_data(op->connection);
 	struct gb_message *request;
 	struct gb_sdio_event_request *payload;
+	u8 type = op->type;
 	int ret =  0;
 	u8 event;
 
@@ -706,16 +708,26 @@ static const struct mmc_host_ops gb_sdio_ops = {
 	.get_cd		= gb_mmc_get_cd,
 };
 
-static int gb_sdio_connection_init(struct gb_connection *connection)
+static int gb_sdio_probe(struct gpbridge_device *gpbdev,
+			 const struct gpbridge_device_id *id)
 {
+	struct gb_connection *connection;
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
 	size_t max_buffer;
 	int ret = 0;
 
-	mmc = mmc_alloc_host(sizeof(*host), &connection->bundle->dev);
+	mmc = mmc_alloc_host(sizeof(*host), &gpbdev->dev);
 	if (!mmc)
 		return -ENOMEM;
+
+	connection = gb_connection_create(gpbdev->bundle,
+					  le16_to_cpu(gpbdev->cport_desc->id),
+					  gb_sdio_request_handler);
+	if (IS_ERR(connection)) {
+		ret = PTR_ERR(connection);
+		goto exit_mmc_free;
+	}
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -723,10 +735,20 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 
 	host->connection = connection;
 	gb_connection_set_data(connection, host);
+	host->gpbdev = gpbdev;
+	gb_gpbridge_set_data(gpbdev, host);
+
+	ret = gb_connection_enable_tx(connection);
+	if (ret)
+		goto exit_connection_destroy;
+
+	ret = gb_gpbridge_get_version(connection);
+	if (ret)
+		goto exit_connection_disable;
 
 	ret = gb_sdio_get_caps(host);
 	if (ret < 0)
-		goto free_mmc;
+		goto exit_connection_disable;
 
 	mmc->ops = &gb_sdio_ops;
 
@@ -740,45 +762,50 @@ static int gb_sdio_connection_init(struct gb_connection *connection)
 	host->xfer_buffer = kzalloc(max_buffer, GFP_KERNEL);
 	if (!host->xfer_buffer) {
 		ret = -ENOMEM;
-		goto free_mmc;
+		goto exit_connection_disable;
 	}
 	mutex_init(&host->lock);
 	spin_lock_init(&host->xfer);
 	host->mrq_workqueue = alloc_workqueue("mmc-%s", 0, 1,
-					      dev_name(&connection->bundle->dev));
+					      dev_name(&gpbdev->dev));
 	if (!host->mrq_workqueue) {
 		ret = -ENOMEM;
-		goto free_buffer;
+		goto exit_buf_free;
 	}
 	INIT_WORK(&host->mrqwork, gb_sdio_mrq_work);
 
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto exit_wq_destroy;
+
 	ret = mmc_add_host(mmc);
 	if (ret < 0)
-		goto free_work;
+		goto exit_wq_destroy;
 	host->removed = false;
 	ret = _gb_sdio_process_events(host, host->queued_events);
 	host->queued_events = 0;
 
 	return ret;
 
-free_work:
+exit_wq_destroy:
 	destroy_workqueue(host->mrq_workqueue);
-free_buffer:
+exit_buf_free:
 	kfree(host->xfer_buffer);
-free_mmc:
-	gb_connection_set_data(connection, NULL);
+exit_connection_disable:
+	gb_connection_disable(connection);
+exit_connection_destroy:
+	gb_connection_destroy(connection);
+exit_mmc_free:
 	mmc_free_host(mmc);
 
 	return ret;
 }
 
-static void gb_sdio_connection_exit(struct gb_connection *connection)
+static void gb_sdio_remove(struct gpbridge_device *gpbdev)
 {
+	struct gb_sdio_host *host = gb_gpbridge_get_data(gpbdev);
+	struct gb_connection *connection = host->connection;
 	struct mmc_host *mmc;
-	struct gb_sdio_host *host = gb_connection_get_data(connection);
-
-	if (!host)
-		return;
 
 	mutex_lock(&host->lock);
 	host->removed = true;
@@ -788,19 +815,23 @@ static void gb_sdio_connection_exit(struct gb_connection *connection)
 
 	flush_workqueue(host->mrq_workqueue);
 	destroy_workqueue(host->mrq_workqueue);
+	gb_connection_disable_rx(connection);
 	mmc_remove_host(mmc);
+	gb_connection_disable(connection);
+	gb_connection_destroy(connection);
 	kfree(host->xfer_buffer);
 	mmc_free_host(mmc);
 }
 
-static struct gb_protocol sdio_protocol = {
-	.name			= "sdio",
-	.id			= GREYBUS_PROTOCOL_SDIO,
-	.major			= GB_SDIO_VERSION_MAJOR,
-	.minor			= GB_SDIO_VERSION_MINOR,
-	.connection_init	= gb_sdio_connection_init,
-	.connection_exit	= gb_sdio_connection_exit,
-	.request_recv		= gb_sdio_event_recv,
+static const struct gpbridge_device_id gb_sdio_id_table[] = {
+	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_SDIO) },
+	{ },
 };
 
-gb_builtin_protocol_driver(sdio_protocol);
+static struct gpbridge_driver sdio_driver = {
+	.name		= "sdio",
+	.probe		= gb_sdio_probe,
+	.remove		= gb_sdio_remove,
+	.id_table	= gb_sdio_id_table,
+};
+gb_gpbridge_builtin_driver(sdio_driver);
