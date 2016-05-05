@@ -19,6 +19,9 @@ struct fw_request {
 	char			name[FW_NAME_LEN];
 	const struct firmware	*fw;
 	struct list_head	node;
+
+	struct kref		kref;
+	struct fw_download	*fw_download;
 };
 
 struct fw_download {
@@ -28,26 +31,49 @@ struct fw_download {
 	struct ida		id_map;
 };
 
-static struct fw_request *match_firmware(struct fw_download *fw_download,
-					 u8 firmware_id)
+static void fw_req_release(struct kref *kref)
+{
+	struct fw_request *fw_req = container_of(kref, struct fw_request, kref);
+
+	dev_dbg(fw_req->fw_download->parent, "firmware %s released\n",
+		fw_req->name);
+
+	release_firmware(fw_req->fw);
+	ida_simple_remove(&fw_req->fw_download->id_map, fw_req->firmware_id);
+	kfree(fw_req);
+}
+
+/* Caller must call put_fw_req() after using struct fw_request */
+static struct fw_request *get_fw_req(struct fw_download *fw_download,
+				     u8 firmware_id)
 {
 	struct fw_request *fw_req;
 
 	list_for_each_entry(fw_req, &fw_download->fw_requests, node) {
-		if (fw_req->firmware_id == firmware_id)
+		if (fw_req->firmware_id == firmware_id) {
+			kref_get(&fw_req->kref);
 			return fw_req;
+		}
 	}
 
 	return NULL;
+}
+
+/*
+ * Incoming requests are serialized for a connection, and this will never be
+ * racy.
+ */
+static void put_fw_req(struct fw_request *fw_req)
+{
+	kref_put(&fw_req->kref, fw_req_release);
 }
 
 static void free_firmware(struct fw_download *fw_download,
 			  struct fw_request *fw_req)
 {
 	list_del(&fw_req->node);
-	release_firmware(fw_req->fw);
-	ida_simple_remove(&fw_download->id_map, fw_req->firmware_id);
-	kfree(fw_req);
+
+	put_fw_req(fw_req);
 }
 
 /* This returns path of the firmware blob on the disk */
@@ -87,6 +113,8 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 		goto err_free_id;
 	}
 
+	fw_req->fw_download = fw_download;
+	kref_init(&fw_req->kref);
 	list_add(&fw_req->node, &fw_download->fw_requests);
 
 	return fw_req;
@@ -155,6 +183,7 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 	const struct firmware *fw;
 	unsigned int offset, size;
 	u8 firmware_id;
+	int ret = 0;
 
 	if (op->request->payload_size != sizeof(*request)) {
 		dev_err(fw_download->parent,
@@ -168,7 +197,7 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 	size = le32_to_cpu(request->size);
 	firmware_id = request->firmware_id;
 
-	fw_req = match_firmware(fw_download, firmware_id);
+	fw_req = get_fw_req(fw_download, firmware_id);
 	if (!fw_req) {
 		dev_err(fw_download->parent,
 			"firmware not available for id: %02u\n", firmware_id);
@@ -181,14 +210,16 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 		dev_err(fw_download->parent,
 			"bad fetch firmware request (offs = %u, size = %u)\n",
 			offset, size);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto put_fw;
 	}
 
 	if (!gb_operation_response_alloc(op, sizeof(*response) + size,
 					 GFP_KERNEL)) {
 		dev_err(fw_download->parent,
 			"error allocating fetch firmware response\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto put_fw;
 	}
 
 	response = op->response->payload;
@@ -198,7 +229,10 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 		"responding with firmware (offs = %u, size = %u)\n", offset,
 		size);
 
-	return 0;
+put_fw:
+	put_fw_req(fw_req);
+
+	return ret;
 }
 
 static int fw_download_release_firmware(struct gb_operation *op)
@@ -219,7 +253,7 @@ static int fw_download_release_firmware(struct gb_operation *op)
 	request = op->request->payload;
 	firmware_id = request->firmware_id;
 
-	fw_req = match_firmware(fw_download, firmware_id);
+	fw_req = get_fw_req(fw_download, firmware_id);
 	if (!fw_req) {
 		dev_err(fw_download->parent,
 			"firmware not available for id: %02u\n", firmware_id);
@@ -227,6 +261,7 @@ static int fw_download_release_firmware(struct gb_operation *op)
 	}
 
 	free_firmware(fw_download, fw_req);
+	put_fw_req(fw_req);
 
 	dev_dbg(fw_download->parent, "release firmware\n");
 
