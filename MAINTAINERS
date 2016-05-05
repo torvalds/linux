@@ -6426,7 +6426,7 @@ F:	net/l3mdev
 F:	include/net/l3mdev.h
 
 LANTIQ MIPS ARCHITECTURE
-M:	John Crispin <blogic@openwrt.org>
+M:	John Crispin <john@phrozen.org>
 L:	linux-mips@linux-mips.org
 S:	Maintained
 F:	arch/mips/lantiq
@@ -9200,7 +9200,7 @@ S:	Maintained
 F:	drivers/video/fbdev/aty/aty128fb.c
 
 RALINK MIPS ARCHITECTURE
-M:	John Crispin <blogic@openwrt.org>
+M:	John Crispin <john@phrozen.org>
 L:	linux-mips@linux-mips.org
 S:	Maintained
 F:	arch/mips/ralink
