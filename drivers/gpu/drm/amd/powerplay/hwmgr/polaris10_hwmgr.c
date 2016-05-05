@@ -1175,11 +1175,11 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	if (phm_cap_enabled(hwmgr->platformDescriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
 		level->DeepSleepDivId = PhwFiji_GetSleepDividerIdFromClock(hwmgr, clock, minClocks.engineClockInSR);
 	*/
-	PP_ASSERT_WITH_CODE((clock >= 2500), "Engine clock can't satisfy stutter requirement!", return 0);
+	PP_ASSERT_WITH_CODE((clock >= POLARIS10_MINIMUM_ENGINE_CLOCK), "Engine clock can't satisfy stutter requirement!", return 0);
 	for (i = POLARIS10_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
 		temp = clock / (1UL << i);
 
-		if (temp >= 2500 || i == 0)
+		if (temp >= POLARIS10_MINIMUM_ENGINE_CLOCK || i == 0)
 			break;
 	}
 

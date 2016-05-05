@@ -1903,7 +1903,8 @@ static uint8_t fiji_get_sleep_divider_id_from_clock(struct pp_hwmgr *hwmgr,
 {
 	uint8_t i;
 	uint32_t temp;
-	uint32_t min = clock_insr > 2500 ? clock_insr : 2500;
+	uint32_t min = clock_insr > FIJI_MINIMUM_ENGINE_CLOCK ?
+			clock_insr : FIJI_MINIMUM_ENGINE_CLOCK;
 
 	PP_ASSERT_WITH_CODE((clock >= min), "Engine clock can't satisfy stutter requirement!", return 0);
 	for (i = FIJI_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
