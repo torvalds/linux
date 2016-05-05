@@ -291,6 +291,14 @@ typedef struct {
 						   /* failed to allocate */
 } kib_fmr_poolset_t;
 
+struct kib_fast_reg_descriptor { /* For fast registration */
+	struct list_head		 frd_list;
+	struct ib_send_wr		 frd_inv_wr;
+	struct ib_reg_wr		 frd_fastreg_wr;
+	struct ib_mr			*frd_mr;
+	bool				 frd_valid;
+};
+
 typedef struct {
 	struct list_head      fpo_list;            /* chain on pool list */
 	struct kib_hca_dev    *fpo_hdev;           /* device for this pool */
@@ -299,16 +307,22 @@ typedef struct {
 		struct {
 			struct ib_fmr_pool *fpo_fmr_pool; /* IB FMR pool */
 		} fmr;
+		struct { /* For fast registration */
+			struct list_head    fpo_pool_list;
+			int		    fpo_pool_size;
+		} fast_reg;
 	};
 	unsigned long         fpo_deadline;        /* deadline of this pool */
 	int                   fpo_failed;          /* fmr pool is failed */
 	int                   fpo_map_count;       /* # of mapped FMR */
+	int		      fpo_is_fmr;
 } kib_fmr_pool_t;
 
 typedef struct {
-	kib_fmr_pool_t        *fmr_pool;           /* pool of FMR */
-	struct ib_pool_fmr    *fmr_pfmr;           /* IB pool fmr */
-	u32		       fmr_key;
+	kib_fmr_pool_t			*fmr_pool;	/* pool of FMR */
+	struct ib_pool_fmr		*fmr_pfmr;	/* IB pool fmr */
+	struct kib_fast_reg_descriptor	*fmr_frd;
+	u32				 fmr_key;
 } kib_fmr_t;
 
 typedef struct kib_net {
@@ -961,8 +975,9 @@ void kiblnd_unmap_rx_descs(kib_conn_t *conn);
 void kiblnd_pool_free_node(kib_pool_t *pool, struct list_head *node);
 struct list_head *kiblnd_pool_alloc_node(kib_poolset_t *ps);
 
-int  kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
-			 __u32 nob, __u64 iov, bool is_rx, kib_fmr_t *fmr);
+int  kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, kib_tx_t *tx,
+			 kib_rdma_desc_t *rd, __u32 nob, __u64 iov,
+			 kib_fmr_t *fmr);
 void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status);
 
 int  kiblnd_tunables_init(void);

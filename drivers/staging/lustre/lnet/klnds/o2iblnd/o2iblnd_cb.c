@@ -564,34 +564,20 @@ static int
 kiblnd_fmr_map_tx(kib_net_t *net, kib_tx_t *tx, kib_rdma_desc_t *rd, __u32 nob)
 {
 	kib_hca_dev_t *hdev;
-	__u64 *pages = tx->tx_pages;
 	kib_fmr_poolset_t *fps;
-	int npages;
-	int size;
 	int cpt;
 	int rc;
-	int i;
 
 	LASSERT(tx->tx_pool);
 	LASSERT(tx->tx_pool->tpo_pool.po_owner);
 
 	hdev = tx->tx_pool->tpo_hdev;
-
-	for (i = 0, npages = 0; i < rd->rd_nfrags; i++) {
-		for (size = 0; size <  rd->rd_frags[i].rf_nob;
-			       size += hdev->ibh_page_size) {
-			pages[npages++] = (rd->rd_frags[i].rf_addr &
-					    hdev->ibh_page_mask) + size;
-		}
-	}
-
 	cpt = tx->tx_pool->tpo_pool.po_owner->ps_cpt;
 
 	fps = net->ibn_fmr_ps[cpt];
-	rc = kiblnd_fmr_pool_map(fps, pages, npages, nob, 0, (rd != tx->tx_rd),
-				 &tx->fmr);
+	rc = kiblnd_fmr_pool_map(fps, tx, rd, nob, 0, &tx->fmr);
 	if (rc) {
-		CERROR("Can't map %d pages: %d\n", npages, rc);
+		CERROR("Can't map %u bytes: %d\n", nob, rc);
 		return rc;
 	}
 
@@ -849,14 +835,26 @@ kiblnd_post_tx_locked(kib_conn_t *conn, kib_tx_t *tx, int credit)
 		/* close_conn will launch failover */
 		rc = -ENETDOWN;
 	} else {
-		struct ib_send_wr *wrq = &tx->tx_wrq[tx->tx_nwrq - 1].wr;
+		struct kib_fast_reg_descriptor *frd = tx->fmr.fmr_frd;
+		struct ib_send_wr *bad = &tx->tx_wrq[tx->tx_nwrq - 1].wr;
+		struct ib_send_wr *wrq = &tx->tx_wrq[0].wr;
 
-		LASSERTF(wrq->wr_id == kiblnd_ptr2wreqid(tx, IBLND_WID_TX),
+		if (frd) {
+			if (!frd->frd_valid) {
+				wrq = &frd->frd_inv_wr;
+				wrq->next = &frd->frd_fastreg_wr.wr;
+			} else {
+				wrq = &frd->frd_fastreg_wr.wr;
+			}
+			frd->frd_fastreg_wr.wr.next = &tx->tx_wrq[0].wr;
+		}
+
+		LASSERTF(bad->wr_id == kiblnd_ptr2wreqid(tx, IBLND_WID_TX),
 			 "bad wr_id %llx, opc %d, flags %d, peer: %s\n",
-			 wrq->wr_id, wrq->opcode, wrq->send_flags,
-		libcfs_nid2str(conn->ibc_peer->ibp_nid));
-		wrq = NULL;
-		rc = ib_post_send(conn->ibc_cmid->qp, &tx->tx_wrq->wr, &wrq);
+			 bad->wr_id, bad->opcode, bad->send_flags,
+			 libcfs_nid2str(conn->ibc_peer->ibp_nid));
+		bad = NULL;
+		rc = ib_post_send(conn->ibc_cmid->qp, wrq, &bad);
 	}
 
 	conn->ibc_last_send = jiffies;
@@ -1064,7 +1062,7 @@ kiblnd_init_rdma(kib_conn_t *conn, kib_tx_t *tx, int type,
 	kib_msg_t *ibmsg = tx->tx_msg;
 	kib_rdma_desc_t *srcrd = tx->tx_rd;
 	struct ib_sge *sge = &tx->tx_sge[0];
-	struct ib_rdma_wr *wrq = &tx->tx_wrq[0], *next;
+	struct ib_rdma_wr *wrq, *next;
 	int rc  = resid;
 	int srcidx = 0;
 	int dstidx = 0;
@@ -3427,6 +3425,12 @@ kiblnd_complete(struct ib_wc *wc)
 	switch (kiblnd_wreqid2type(wc->wr_id)) {
 	default:
 		LBUG();
+
+	case IBLND_WID_MR:
+		if (wc->status != IB_WC_SUCCESS &&
+		    wc->status != IB_WC_WR_FLUSH_ERR)
+			CNETERR("FastReg failed: %d\n", wc->status);
+		break;
 
 	case IBLND_WID_RDMA:
 		/*
