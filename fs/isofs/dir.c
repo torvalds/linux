@@ -58,7 +58,7 @@ int get_acorn_filename(struct iso_directory_record *de,
 	std = sizeof(struct iso_directory_record) + de->name_len[0];
 	if (std & 1)
 		std++;
-	if ((*((unsigned char *) de) - std) != 32)
+	if (de->length[0] - std != 32)
 		return retnamlen;
 	chr = ((unsigned char *) de) + std;
 	if (strncmp(chr, "ARCHIMEDES", 10))
