@@ -68,12 +68,15 @@ pte_t *kmap_pte;
 EXPORT_SYMBOL(kmap_pte);
 pgprot_t kmap_prot;
 EXPORT_SYMBOL(kmap_prot);
+#define TOP_ZONE ZONE_HIGHMEM
 
 static inline pte_t *virt_to_kpte(unsigned long vaddr)
 {
 	return pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr),
 			vaddr), vaddr), vaddr);
 }
+#else
+#define TOP_ZONE ZONE_NORMAL
 #endif
 
 int page_is_ram(unsigned long pfn)
@@ -267,14 +270,9 @@ void __init limit_zone_pfn(enum zone_type zone, unsigned long pfn_limit)
  */
 int dma_pfn_limit_to_zone(u64 pfn_limit)
 {
-	enum zone_type top_zone = ZONE_NORMAL;
 	int i;
 
-#ifdef CONFIG_HIGHMEM
-	top_zone = ZONE_HIGHMEM;
-#endif
-
-	for (i = top_zone; i >= 0; i--) {
+	for (i = TOP_ZONE; i >= 0; i--) {
 		if (max_zone_pfns[i] <= pfn_limit)
 			return i;
 	}
@@ -289,7 +287,6 @@ void __init paging_init(void)
 {
 	unsigned long long total_ram = memblock_phys_mem_size();
 	phys_addr_t top_of_ram = memblock_end_of_DRAM();
-	enum zone_type top_zone;
 
 #ifdef CONFIG_PPC32
 	unsigned long v = __fix_to_virt(__end_of_fixed_addresses - 1);
@@ -313,13 +310,9 @@ void __init paging_init(void)
 	       (long int)((top_of_ram - total_ram) >> 20));
 
 #ifdef CONFIG_HIGHMEM
-	top_zone = ZONE_HIGHMEM;
 	limit_zone_pfn(ZONE_NORMAL, lowmem_end_addr >> PAGE_SHIFT);
-#else
-	top_zone = ZONE_NORMAL;
 #endif
-
-	limit_zone_pfn(top_zone, top_of_ram >> PAGE_SHIFT);
+	limit_zone_pfn(TOP_ZONE, top_of_ram >> PAGE_SHIFT);
 	zone_limits_final = true;
 	free_area_init_nodes(max_zone_pfns);
 
