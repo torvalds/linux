@@ -262,7 +262,8 @@
 
 /* Generic (power-of-two) rounding */
 
-#define ACPI_IS_POWER_OF_TWO(a)             (((a) & ((a) - 1)) == 0)
+#define ACPI_IS_ALIGNED(a, s)               (((a) & ((s) - 1)) == 0)
+#define ACPI_IS_POWER_OF_TWO(a)             ACPI_IS_ALIGNED(a, a)
 
 /*
  * Bitmask creation
