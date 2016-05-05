@@ -897,17 +897,9 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 
 	access_bit_width = ACPI_MUL_8(obj_desc->common_field.access_byte_width);
 
-	/*
-	 * Create the bitmasks used for bit insertion.
-	 * Note: This if/else is used to bypass compiler differences with the
-	 * shift operator
-	 */
-	if (access_bit_width == ACPI_INTEGER_BIT_SIZE) {
-		width_mask = ACPI_UINT64_MAX;
-	} else {
-		width_mask = ACPI_MASK_BITS_ABOVE(access_bit_width);
-	}
+	/* Create the bitmasks used for bit insertion */
 
+	width_mask = ACPI_MASK_BITS_ABOVE_64(access_bit_width);
 	mask = width_mask &
 	    ACPI_MASK_BITS_BELOW(obj_desc->common_field.start_field_bit_offset);
 
