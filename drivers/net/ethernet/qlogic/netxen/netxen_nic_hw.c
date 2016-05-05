@@ -1015,20 +1015,24 @@ static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
 {
 	int i, v, addr;
 	__le32 *ptr32;
+	int ret;
 
 	addr = base;
 	ptr32 = buf;
 	for (i = 0; i < size / sizeof(u32); i++) {
-		if (netxen_rom_fast_read(adapter, addr, &v) == -1)
-			return -1;
+		ret = netxen_rom_fast_read(adapter, addr, &v);
+		if (ret)
+			return ret;
+
 		*ptr32 = cpu_to_le32(v);
 		ptr32++;
 		addr += sizeof(u32);
 	}
 	if ((char *)buf + size > (char *)ptr32) {
 		__le32 local;
-		if (netxen_rom_fast_read(adapter, addr, &v) == -1)
-			return -1;
+		ret = netxen_rom_fast_read(adapter, addr, &v);
+		if (ret)
+			return ret;
 		local = cpu_to_le32(v);
 		memcpy(ptr32, &local, (char *)buf + size - (char *)ptr32);
 	}
