@@ -400,7 +400,7 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 	spin_lock_bh(&nf_conntrack_expect_lock);
 	for (i = 0; i < nf_ct_expect_hsize; i++) {
 		hlist_for_each_entry_safe(exp, next,
-					  &net->ct.expect_hash[i], hnode) {
+					  &nf_ct_expect_hash[i], hnode) {
 			struct nf_conn_help *help = nfct_help(exp->master);
 			if ((rcu_dereference_protected(
 					help->helper,

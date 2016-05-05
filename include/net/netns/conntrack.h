@@ -94,7 +94,6 @@ struct netns_ct {
 	int			sysctl_checksum;
 
 	struct kmem_cache	*nf_conntrack_cachep;
-	struct hlist_head	*expect_hash;
 	struct ct_pcpu __percpu *pcpu_lists;
 	struct ip_conntrack_stat __percpu *stat;
 	struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb;

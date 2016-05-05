@@ -36,6 +36,9 @@
 unsigned int nf_ct_expect_hsize __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_expect_hsize);
 
+struct hlist_head *nf_ct_expect_hash __read_mostly;
+EXPORT_SYMBOL_GPL(nf_ct_expect_hash);
+
 unsigned int nf_ct_expect_max __read_mostly;
 
 static struct kmem_cache *nf_ct_expect_cachep __read_mostly;
@@ -112,7 +115,7 @@ __nf_ct_expect_find(struct net *net,
 		return NULL;
 
 	h = nf_ct_expect_dst_hash(net, tuple);
-	hlist_for_each_entry_rcu(i, &net->ct.expect_hash[h], hnode) {
+	hlist_for_each_entry_rcu(i, &nf_ct_expect_hash[h], hnode) {
 		if (nf_ct_exp_equal(tuple, i, zone, net))
 			return i;
 	}
@@ -152,7 +155,7 @@ nf_ct_find_expectation(struct net *net,
 		return NULL;
 
 	h = nf_ct_expect_dst_hash(net, tuple);
-	hlist_for_each_entry(i, &net->ct.expect_hash[h], hnode) {
+	hlist_for_each_entry(i, &nf_ct_expect_hash[h], hnode) {
 		if (!(i->flags & NF_CT_EXPECT_INACTIVE) &&
 		    nf_ct_exp_equal(tuple, i, zone, net)) {
 			exp = i;
@@ -363,7 +366,7 @@ static int nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	hlist_add_head(&exp->lnode, &master_help->expectations);
 	master_help->expecting[exp->class]++;
 
-	hlist_add_head_rcu(&exp->hnode, &net->ct.expect_hash[h]);
+	hlist_add_head_rcu(&exp->hnode, &nf_ct_expect_hash[h]);
 	net->ct.expect_count++;
 
 	setup_timer(&exp->timeout, nf_ct_expectation_timed_out,
@@ -415,7 +418,7 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 		goto out;
 	}
 	h = nf_ct_expect_dst_hash(net, &expect->tuple);
-	hlist_for_each_entry_safe(i, next, &net->ct.expect_hash[h], hnode) {
+	hlist_for_each_entry_safe(i, next, &nf_ct_expect_hash[h], hnode) {
 		if (expect_matches(i, expect)) {
 			if (del_timer(&i->timeout)) {
 				nf_ct_unlink_expect(i);
@@ -481,12 +484,11 @@ struct ct_expect_iter_state {
 
 static struct hlist_node *ct_expect_get_first(struct seq_file *seq)
 {
-	struct net *net = seq_file_net(seq);
 	struct ct_expect_iter_state *st = seq->private;
 	struct hlist_node *n;
 
 	for (st->bucket = 0; st->bucket < nf_ct_expect_hsize; st->bucket++) {
-		n = rcu_dereference(hlist_first_rcu(&net->ct.expect_hash[st->bucket]));
+		n = rcu_dereference(hlist_first_rcu(&nf_ct_expect_hash[st->bucket]));
 		if (n)
 			return n;
 	}
@@ -496,14 +498,13 @@ static struct hlist_node *ct_expect_get_first(struct seq_file *seq)
 static struct hlist_node *ct_expect_get_next(struct seq_file *seq,
 					     struct hlist_node *head)
 {
-	struct net *net = seq_file_net(seq);
 	struct ct_expect_iter_state *st = seq->private;
 
 	head = rcu_dereference(hlist_next_rcu(head));
 	while (head == NULL) {
 		if (++st->bucket >= nf_ct_expect_hsize)
 			return NULL;
-		head = rcu_dereference(hlist_first_rcu(&net->ct.expect_hash[st->bucket]));
+		head = rcu_dereference(hlist_first_rcu(&nf_ct_expect_hash[st->bucket]));
 	}
 	return head;
 }
@@ -636,28 +637,13 @@ module_param_named(expect_hashsize, nf_ct_expect_hsize, uint, 0400);
 
 int nf_conntrack_expect_pernet_init(struct net *net)
 {
-	int err = -ENOMEM;
-
 	net->ct.expect_count = 0;
-	net->ct.expect_hash = nf_ct_alloc_hashtable(&nf_ct_expect_hsize, 0);
-	if (net->ct.expect_hash == NULL)
-		goto err1;
-
-	err = exp_proc_init(net);
-	if (err < 0)
-		goto err2;
-
-	return 0;
-err2:
-	nf_ct_free_hashtable(net->ct.expect_hash, nf_ct_expect_hsize);
-err1:
-	return err;
+	return exp_proc_init(net);
 }
 
 void nf_conntrack_expect_pernet_fini(struct net *net)
 {
 	exp_proc_remove(net);
-	nf_ct_free_hashtable(net->ct.expect_hash, nf_ct_expect_hsize);
 }
 
 int nf_conntrack_expect_init(void)
@@ -673,6 +659,13 @@ int nf_conntrack_expect_init(void)
 				0, 0, NULL);
 	if (!nf_ct_expect_cachep)
 		return -ENOMEM;
+
+	nf_ct_expect_hash = nf_ct_alloc_hashtable(&nf_ct_expect_hsize, 0);
+	if (!nf_ct_expect_hash) {
+		kmem_cache_destroy(nf_ct_expect_cachep);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -680,4 +673,5 @@ void nf_conntrack_expect_fini(void)
 {
 	rcu_barrier(); /* Wait for call_rcu() before destroy */
 	kmem_cache_destroy(nf_ct_expect_cachep);
+	nf_ct_free_hashtable(nf_ct_expect_hash, nf_ct_expect_hsize);
 }
