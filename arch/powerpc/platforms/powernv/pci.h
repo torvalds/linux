@@ -142,6 +142,10 @@ struct pnv_phb {
 		unsigned int		*m32_segmap;
 		unsigned int		*io_segmap;
 
+		/* DMA32 segment maps - IODA1 only */
+		unsigned int		dma32_count;
+		unsigned int		*dma32_segmap;
+
 		/* IRQ chip */
 		int			irq_chip_init;
 		struct irq_chip		irq_chip;
@@ -157,9 +161,6 @@ struct pnv_phb {
 		 * bus { bus, devfn }
 		 */
 		unsigned char		pe_rmap[0x10000];
-
-		/* 32-bit TCE tables allocation */
-		unsigned long		tce32_count;
 
 		/* TCE cache invalidate registers (physical and
 		 * remapped)
