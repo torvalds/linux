@@ -711,6 +711,10 @@ enum {
 	MAX_TIME,
 };
 
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+#define F2FS_KEY_DESC_PREFIX "f2fs:"
+#define F2FS_KEY_DESC_PREFIX_SIZE 5
+#endif
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
@@ -718,6 +722,10 @@ struct f2fs_sb_info {
 	int valid_super_block;			/* valid super block no */
 	int s_flag;				/* flags for sbi */
 
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+	u8 key_prefix[F2FS_KEY_DESC_PREFIX_SIZE];
+	u8 key_prefix_size;
+#endif
 	/* for node-related operations */
 	struct f2fs_nm_info *nm_info;		/* node manager */
 	struct inode *node_inode;		/* cache node blocks */
