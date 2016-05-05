@@ -57,7 +57,7 @@
 			compatible = "arm,cortex-a9";
 			next-level-cache = <&L2>;
 			enable-method = "brcm,bcm-nsp-smp";
-			secondary-boot-reg = <0xffff042c>;
+			secondary-boot-reg = <0xffff0fec>;
 			reg = <0x1>;
 		};
 	};
