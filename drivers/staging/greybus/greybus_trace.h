@@ -17,9 +17,9 @@
 struct gb_message;
 struct gb_host_device;
 
-#define gb_bundle_name(message)                                  \
-	(message->operation->connection->bundle ?                 \
-	dev_name(&message->operation->connection->bundle->dev) :  \
+#define gb_bundle_name(message)						\
+	(message->operation->connection->bundle ?			\
+	dev_name(&message->operation->connection->bundle->dev) :	\
 	dev_name(&message->operation->connection->hd->svc->dev))
 
 DECLARE_EVENT_CLASS(gb_message,
