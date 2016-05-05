@@ -162,6 +162,14 @@ Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The interface-unique id of the bundle B.
 
+What:		/sys/bus/greybus/devices/N-M.I.B/gpbX
+Date:		April 2016
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The General Purpose Bridged PHY device of the bundle B,
+		where X is a dynamically assigned 0-based id.
+
 What:		/sys/bus/greybus/devices/N-M.I.B/state
 Date:		October 2015
 KernelVersion:	4.XX
