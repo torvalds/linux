@@ -1298,27 +1298,27 @@ struct ib_mr *kiblnd_find_rd_dma_mr(kib_hca_dev_t *hdev, kib_rdma_desc_t *rd,
 	return hdev->ibh_mrs;
 }
 
-static void kiblnd_destroy_fmr_pool(kib_fmr_pool_t *pool)
+static void kiblnd_destroy_fmr_pool(kib_fmr_pool_t *fpo)
 {
-	LASSERT(!pool->fpo_map_count);
+	LASSERT(!fpo->fpo_map_count);
 
-	if (pool->fpo_fmr_pool)
-		ib_destroy_fmr_pool(pool->fpo_fmr_pool);
+	if (fpo->fpo_fmr_pool)
+		ib_destroy_fmr_pool(fpo->fpo_fmr_pool);
 
-	if (pool->fpo_hdev)
-		kiblnd_hdev_decref(pool->fpo_hdev);
+	if (fpo->fpo_hdev)
+		kiblnd_hdev_decref(fpo->fpo_hdev);
 
-	LIBCFS_FREE(pool, sizeof(*pool));
+	LIBCFS_FREE(fpo, sizeof(*fpo));
 }
 
 static void kiblnd_destroy_fmr_pool_list(struct list_head *head)
 {
-	kib_fmr_pool_t *pool;
+	kib_fmr_pool_t *fpo;
 
 	while (!list_empty(head)) {
-		pool = list_entry(head->next, kib_fmr_pool_t, fpo_list);
-		list_del(&pool->fpo_list);
-		kiblnd_destroy_fmr_pool(pool);
+		fpo = list_entry(head->next, kib_fmr_pool_t, fpo_list);
+		list_del(&fpo->fpo_list);
+		kiblnd_destroy_fmr_pool(fpo);
 	}
 }
 
