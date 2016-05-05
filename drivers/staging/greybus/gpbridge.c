@@ -252,6 +252,7 @@ static int gb_gpbridge_probe(struct gb_bundle *bundle,
 
 static const struct greybus_bundle_id gb_gpbridge_id_table[] = {
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_BRIDGED_PHY) },
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_UART) },
 	{ },
 };
 MODULE_DEVICE_TABLE(greybus, gb_gpbridge_id_table);
@@ -287,8 +288,8 @@ static int __init gpbridge_init(void)
 		pr_err("error initializing pwm protocol\n");
 		goto error_pwm;
 	}
-	if (gb_uart_protocol_init()) {
-		pr_err("error initializing uart protocol\n");
+	if (gb_uart_driver_init()) {
+		pr_err("error initializing uart driver\n");
 		goto error_uart;
 	}
 	if (gb_sdio_protocol_init()) {
@@ -317,7 +318,7 @@ error_i2c:
 error_usb:
 	gb_sdio_protocol_exit();
 error_sdio:
-	gb_uart_protocol_exit();
+	gb_uart_driver_exit();
 error_uart:
 	gb_pwm_protocol_exit();
 error_pwm:
@@ -337,7 +338,7 @@ static void __exit gpbridge_exit(void)
 	gb_i2c_protocol_exit();
 	gb_usb_protocol_exit();
 	gb_sdio_protocol_exit();
-	gb_uart_protocol_exit();
+	gb_uart_driver_exit();
 	gb_pwm_protocol_exit();
 	gb_gpio_protocol_exit();
 

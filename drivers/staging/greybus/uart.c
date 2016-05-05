@@ -42,6 +42,7 @@ struct gb_tty_line_coding {
 };
 
 struct gb_tty {
+	struct gpbridge_device *gpbdev;
 	struct tty_port port;
 	void *buffer;
 	size_t buffer_payload_max;
@@ -78,7 +79,7 @@ static int gb_uart_receive_data_handler(struct gb_operation *op)
 	unsigned long tty_flags = TTY_NORMAL;
 
 	if (request->payload_size < sizeof(*receive_data)) {
-		dev_err(&connection->bundle->dev,
+		dev_err(&gb_tty->gpbdev->dev,
 				"short receive-data request received (%zu < %zu)\n",
 				request->payload_size, sizeof(*receive_data));
 		return -EINVAL;
@@ -88,7 +89,7 @@ static int gb_uart_receive_data_handler(struct gb_operation *op)
 	recv_data_size = le16_to_cpu(receive_data->size);
 
 	if (recv_data_size != request->payload_size - sizeof(*receive_data)) {
-		dev_err(&connection->bundle->dev,
+		dev_err(&gb_tty->gpbdev->dev,
 				"malformed receive-data request received (%u != %zu)\n",
 				recv_data_size,
 				request->payload_size - sizeof(*receive_data));
@@ -113,7 +114,7 @@ static int gb_uart_receive_data_handler(struct gb_operation *op)
 	count = tty_insert_flip_string_fixed_flag(port, receive_data->data,
 						  tty_flags, recv_data_size);
 	if (count != recv_data_size) {
-		dev_err(&connection->bundle->dev,
+		dev_err(&gb_tty->gpbdev->dev,
 			"UART: RX 0x%08x bytes only wrote 0x%08x\n",
 			recv_data_size, count);
 	}
@@ -130,7 +131,7 @@ static int gb_uart_serial_state_handler(struct gb_operation *op)
 	struct gb_uart_serial_state_request *serial_state;
 
 	if (request->payload_size < sizeof(*serial_state)) {
-		dev_err(&connection->bundle->dev,
+		dev_err(&gb_tty->gpbdev->dev,
 				"short serial-state event received (%zu < %zu)\n",
 				request->payload_size, sizeof(*serial_state));
 		return -EINVAL;
@@ -142,9 +143,11 @@ static int gb_uart_serial_state_handler(struct gb_operation *op)
 	return 0;
 }
 
-static int gb_uart_request_recv(u8 type, struct gb_operation *op)
+static int gb_uart_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
+	struct gb_tty *gb_tty = gb_connection_get_data(connection);
+	int type = op->type;
 	int ret;
 
 	switch (type) {
@@ -155,7 +158,7 @@ static int gb_uart_request_recv(u8 type, struct gb_operation *op)
 		ret = gb_uart_serial_state_handler(op);
 		break;
 	default:
-		dev_err(&connection->bundle->dev,
+		dev_err(&gb_tty->gpbdev->dev,
 			"unsupported unsolicited request: 0x%02x\n", type);
 		ret = -EINVAL;
 	}
@@ -209,7 +212,7 @@ static int send_break(struct gb_tty *gb_tty, u8 state)
 	struct gb_uart_set_break_request request;
 
 	if ((state != 0) && (state != 1)) {
-		dev_err(&gb_tty->connection->bundle->dev,
+		dev_err(&gb_tty->gpbdev->dev,
 			"invalid break state of %d\n", state);
 		return -EINVAL;
 	}
@@ -619,8 +622,10 @@ static struct tty_port_operations null_ops = { };
 static int gb_tty_init(void);
 static void gb_tty_exit(void);
 
-static int gb_uart_connection_init(struct gb_connection *connection)
+static int gb_uart_probe(struct gpbridge_device *gpbdev,
+			 const struct gpbridge_device_id *id)
 {
+	struct gb_connection *connection;
 	size_t max_payload;
 	struct gb_tty *gb_tty;
 	struct device *tty_dev;
@@ -639,13 +644,21 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
 	if (!gb_tty) {
 		retval = -ENOMEM;
-		goto error_alloc;
+		goto exit_tty;
+	}
+
+	connection = gb_connection_create(gpbdev->bundle,
+					  le16_to_cpu(gpbdev->cport_desc->id),
+					  gb_uart_request_handler);
+	if (IS_ERR(connection)) {
+		retval = PTR_ERR(connection);
+		goto exit_tty_free;
 	}
 
 	max_payload = gb_operation_get_payload_size_max(connection);
 	if (max_payload < sizeof(struct gb_uart_send_data_request)) {
 		retval = -EINVAL;
-		goto error_payload;
+		goto exit_connection_destroy;
 	}
 
 	gb_tty->buffer_payload_max = max_payload -
@@ -654,11 +667,8 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	gb_tty->buffer = kzalloc(gb_tty->buffer_payload_max, GFP_KERNEL);
 	if (!gb_tty->buffer) {
 		retval = -ENOMEM;
-		goto error_payload;
+		goto exit_connection_destroy;
 	}
-
-	gb_tty->connection = connection;
-	gb_connection_set_data(connection, gb_tty);
 
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
@@ -666,10 +676,10 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 			dev_err(&connection->bundle->dev,
 				"no more free minor numbers\n");
 			retval = -ENODEV;
-			goto error_minor;
+		} else {
+			retval = minor;
 		}
-		retval = minor;
-		goto error_minor;
+		goto exit_buf_free;
 	}
 
 	gb_tty->minor = minor;
@@ -681,6 +691,19 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	tty_port_init(&gb_tty->port);
 	gb_tty->port.ops = &null_ops;
 
+	gb_tty->connection = connection;
+	gb_tty->gpbdev = gpbdev;
+	gb_connection_set_data(connection, gb_tty);
+	gb_gpbridge_set_data(gpbdev, gb_tty);
+
+	retval = gb_connection_enable_tx(connection);
+	if (retval)
+		goto exit_release_minor;
+
+	retval = gb_gpbridge_get_version(connection);
+	if (retval)
+		goto exit_connection_disable;
+
 	send_control(gb_tty, gb_tty->ctrlout);
 
 	/* initialize the uart to be 9600n81 */
@@ -690,41 +713,47 @@ static int gb_uart_connection_init(struct gb_connection *connection)
 	gb_tty->line_coding.data_bits = 8;
 	send_line_coding(gb_tty);
 
+	retval = gb_connection_enable(connection);
+	if (retval)
+		goto exit_connection_disable;
+
 	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
-					   &connection->bundle->dev);
+					   &gpbdev->dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
-		goto error;
+		goto exit_connection_disable;
 	}
 
+
 	return 0;
-error:
-	tty_port_destroy(&gb_tty->port);
+
+exit_connection_disable:
+	gb_connection_disable(connection);
+exit_release_minor:
 	release_minor(gb_tty);
-error_minor:
-	gb_connection_set_data(connection, NULL);
+exit_buf_free:
 	kfree(gb_tty->buffer);
-error_payload:
+exit_connection_destroy:
+	gb_connection_destroy(connection);
+exit_tty_free:
 	kfree(gb_tty);
-error_alloc:
+exit_tty:
 	if (atomic_dec_return(&reference_count) == 0)
 		gb_tty_exit();
+
 	return retval;
 }
 
-static void gb_uart_connection_exit(struct gb_connection *connection)
+static void gb_uart_remove(struct gpbridge_device *gpbdev)
 {
-	struct gb_tty *gb_tty = gb_connection_get_data(connection);
+	struct gb_tty *gb_tty = gb_gpbridge_get_data(gpbdev);
+	struct gb_connection *connection = gb_tty->connection;
 	struct tty_struct *tty;
-
-	if (!gb_tty)
-		return;
 
 	mutex_lock(&gb_tty->mutex);
 	gb_tty->disconnected = true;
 
 	wake_up_all(&gb_tty->wioctl);
-	gb_connection_set_data(connection, NULL);
 	mutex_unlock(&gb_tty->mutex);
 
 	tty = tty_port_tty_get(&gb_tty->port);
@@ -732,13 +761,15 @@ static void gb_uart_connection_exit(struct gb_connection *connection)
 		tty_vhangup(tty);
 		tty_kref_put(tty);
 	}
-	/* FIXME - stop all traffic */
 
+	gb_connection_disable_rx(connection);
 	tty_unregister_device(gb_tty_driver, gb_tty->minor);
 
 	/* FIXME - free transmit / receive buffers */
 
+	gb_connection_disable(connection);
 	tty_port_destroy(&gb_tty->port);
+	gb_connection_destroy(connection);
 	kfree(gb_tty->buffer);
 	kfree(gb_tty);
 
@@ -790,14 +821,15 @@ static void gb_tty_exit(void)
 	idr_destroy(&tty_minors);
 }
 
-static struct gb_protocol uart_protocol = {
-	.name			= "uart",
-	.id			= GREYBUS_PROTOCOL_UART,
-	.major			= GB_UART_VERSION_MAJOR,
-	.minor			= GB_UART_VERSION_MINOR,
-	.connection_init	= gb_uart_connection_init,
-	.connection_exit	= gb_uart_connection_exit,
-	.request_recv		= gb_uart_request_recv,
+static const struct gpbridge_device_id gb_uart_id_table[] = {
+	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_UART) },
+	{ },
 };
 
-gb_builtin_protocol_driver(uart_protocol);
+static struct gpbridge_driver uart_driver = {
+	.name		= "uart",
+	.probe		= gb_uart_probe,
+	.remove		= gb_uart_remove,
+	.id_table	= gb_uart_id_table,
+};
+gb_gpbridge_builtin_driver(uart_driver);
