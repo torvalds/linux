@@ -1293,6 +1293,51 @@ static const struct panel_desc shelly_sca07010_bfn_lnn = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+static const struct drm_display_mode tpk_f07a_0102_mode = {
+	.clock = 33260,
+	.hdisplay = 800,
+	.hsync_start = 800 + 40,
+	.hsync_end = 800 + 40 + 128,
+	.htotal = 800 + 40 + 128 + 88,
+	.vdisplay = 480,
+	.vsync_start = 480 + 10,
+	.vsync_end = 480 + 10 + 2,
+	.vtotal = 480 + 10 + 2 + 33,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc tpk_f07a_0102 = {
+	.modes = &tpk_f07a_0102_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 152,
+		.height = 91,
+	},
+	.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
+};
+
+static const struct drm_display_mode tpk_f10a_0102_mode = {
+	.clock = 45000,
+	.hdisplay = 1024,
+	.hsync_start = 1024 + 176,
+	.hsync_end = 1024 + 176 + 5,
+	.htotal = 1024 + 176 + 5 + 88,
+	.vdisplay = 600,
+	.vsync_start = 600 + 20,
+	.vsync_end = 600 + 20 + 5,
+	.vtotal = 600 + 20 + 5 + 25,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc tpk_f10a_0102 = {
+	.modes = &tpk_f10a_0102_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 223,
+		.height = 125,
+	},
+};
+
 static const struct display_timing urt_umsh_8596md_timing = {
 	.pixelclock = { 33260000, 33260000, 33260000 },
 	.hactive = { 800, 800, 800 },
@@ -1444,6 +1489,12 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "shelly,sca07010-bfn-lnn",
 		.data = &shelly_sca07010_bfn_lnn,
+	}, {
+		.compatible = "tpk,f07a-0102",
+		.data = &tpk_f07a_0102,
+	}, {
+		.compatible = "tpk,f10a-0102",
+		.data = &tpk_f10a_0102,
 	}, {
 		.compatible = "urt,umsh-8596md-t",
 		.data = &urt_umsh_8596md_parallel,

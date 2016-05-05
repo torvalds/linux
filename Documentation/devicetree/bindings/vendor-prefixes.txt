@@ -249,6 +249,7 @@ toradex	Toradex AG
 toshiba	Toshiba Corporation
 toumaz	Toumaz
 tplink	TP-LINK Technologies Co., Ltd.
+tpk	TPK U.S.A. LLC
 tronfy	Tronfy
 tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
