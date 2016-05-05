@@ -178,8 +178,10 @@ static const struct pwm_ops gb_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int gb_pwm_connection_init(struct gb_connection *connection)
+static int gb_pwm_probe(struct gpbridge_device *gpbdev,
+			const struct gpbridge_device_id *id)
 {
+	struct gb_connection *connection;
 	struct gb_pwm_chip *pwmc;
 	struct pwm_chip *pwm;
 	int ret;
@@ -187,17 +189,35 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 	pwmc = kzalloc(sizeof(*pwmc), GFP_KERNEL);
 	if (!pwmc)
 		return -ENOMEM;
+
+	connection = gb_connection_create(gpbdev->bundle,
+					  le16_to_cpu(gpbdev->cport_desc->id),
+					  NULL);
+	if (IS_ERR(connection)) {
+		ret = PTR_ERR(connection);
+		goto exit_pwmc_free;
+	}
+
 	pwmc->connection = connection;
 	gb_connection_set_data(connection, pwmc);
+	gb_gpbridge_set_data(gpbdev, pwmc);
+
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto exit_connection_destroy;
+
+	ret = gb_gpbridge_get_version(connection);
+	if (ret)
+		goto exit_connection_disable;
 
 	/* Query number of pwms present */
 	ret = gb_pwm_count_operation(pwmc);
 	if (ret)
-		goto out_err;
+		goto exit_connection_disable;
 
 	pwm = &pwmc->chip;
 
-	pwm->dev = &connection->bundle->dev;
+	pwm->dev = &gpbdev->dev;
 	pwm->ops = &gb_pwm_ops;
 	pwm->base = -1;			/* Allocate base dynamically */
 	pwm->npwm = pwmc->pwm_max + 1;
@@ -205,36 +225,42 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 
 	ret = pwmchip_add(pwm);
 	if (ret) {
-		dev_err(&connection->bundle->dev,
+		dev_err(&gpbdev->dev,
 			"failed to register PWM: %d\n", ret);
-		goto out_err;
+		goto exit_connection_disable;
 	}
 
 	return 0;
-out_err:
+
+exit_connection_disable:
+	gb_connection_disable(connection);
+exit_connection_destroy:
+	gb_connection_destroy(connection);
+exit_pwmc_free:
 	kfree(pwmc);
 	return ret;
 }
 
-static void gb_pwm_connection_exit(struct gb_connection *connection)
+static void gb_pwm_remove(struct gpbridge_device *gpbdev)
 {
-	struct gb_pwm_chip *pwmc = gb_connection_get_data(connection);
-	if (!pwmc)
-		return;
+	struct gb_pwm_chip *pwmc = gb_gpbridge_get_data(gpbdev);
+	struct gb_connection *connection = pwmc->connection;
 
 	pwmchip_remove(&pwmc->chip);
-	/* kref_put(pwmc->connection) */
+	gb_connection_disable(connection);
+	gb_connection_destroy(connection);
 	kfree(pwmc);
 }
 
-static struct gb_protocol pwm_protocol = {
-	.name			= "pwm",
-	.id			= GREYBUS_PROTOCOL_PWM,
-	.major			= GB_PWM_VERSION_MAJOR,
-	.minor			= GB_PWM_VERSION_MINOR,
-	.connection_init	= gb_pwm_connection_init,
-	.connection_exit	= gb_pwm_connection_exit,
-	.request_recv		= NULL, /* no incoming requests */
+static const struct gpbridge_device_id gb_pwm_id_table[] = {
+	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_PWM) },
+	{ },
 };
 
-gb_builtin_protocol_driver(pwm_protocol);
+static struct gpbridge_driver pwm_driver = {
+	.name		= "pwm",
+	.probe		= gb_pwm_probe,
+	.remove		= gb_pwm_remove,
+	.id_table	= gb_pwm_id_table,
+};
+gb_gpbridge_builtin_driver(pwm_driver);

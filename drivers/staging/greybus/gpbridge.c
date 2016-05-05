@@ -252,6 +252,7 @@ static int gb_gpbridge_probe(struct gb_bundle *bundle,
 
 static const struct greybus_bundle_id gb_gpbridge_id_table[] = {
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_BRIDGED_PHY) },
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_PWM) },
 	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_UART) },
 	{ },
 };
@@ -284,8 +285,8 @@ static int __init gpbridge_init(void)
 		pr_err("error initializing gpio protocol\n");
 		goto error_gpio;
 	}
-	if (gb_pwm_protocol_init()) {
-		pr_err("error initializing pwm protocol\n");
+	if (gb_pwm_driver_init()) {
+		pr_err("error initializing pwm driver\n");
 		goto error_pwm;
 	}
 	if (gb_uart_driver_init()) {
@@ -320,7 +321,7 @@ error_usb:
 error_sdio:
 	gb_uart_driver_exit();
 error_uart:
-	gb_pwm_protocol_exit();
+	gb_pwm_driver_exit();
 error_pwm:
 	gb_gpio_protocol_exit();
 error_gpio:
@@ -339,7 +340,7 @@ static void __exit gpbridge_exit(void)
 	gb_usb_protocol_exit();
 	gb_sdio_protocol_exit();
 	gb_uart_driver_exit();
-	gb_pwm_protocol_exit();
+	gb_pwm_driver_exit();
 	gb_gpio_protocol_exit();
 
 	greybus_deregister(&gb_gpbridge_driver);
