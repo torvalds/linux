@@ -1040,15 +1040,19 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	switch (s->output_type) {
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
+		VOP_CTRL_SET(vop, rgb_pin_pol, val);
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
 		VOP_CTRL_SET(vop, edp_en, 1);
+		VOP_CTRL_SET(vop, edp_pin_pol, val);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
 		VOP_CTRL_SET(vop, hdmi_en, 1);
+		VOP_CTRL_SET(vop, hdmi_pin_pol, val);
 		break;
 	case DRM_MODE_CONNECTOR_DSI:
 		VOP_CTRL_SET(vop, mipi_en, 1);
+		VOP_CTRL_SET(vop, mipi_pin_pol, val);
 		break;
 	default:
 		DRM_ERROR("unsupport connector_type[%d]\n", s->output_type);
