@@ -51,6 +51,10 @@ ACPI_MODULE_NAME("hwregs")
 
 #if (!ACPI_REDUCED_HARDWARE)
 /* Local Prototypes */
+static u8
+acpi_hw_get_access_bit_width(struct acpi_generic_address *reg,
+			     u8 max_bit_width);
+
 static acpi_status
 acpi_hw_read_multiple(u32 *value,
 		      struct acpi_generic_address *register_a,
@@ -62,6 +66,48 @@ acpi_hw_write_multiple(u32 value,
 		       struct acpi_generic_address *register_b);
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_hw_get_access_bit_width
+ *
+ * PARAMETERS:  reg                 - GAS register structure
+ *              max_bit_width       - Max bit_width supported (32 or 64)
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Obtain optimal access bit width
+ *
+ ******************************************************************************/
+
+static u8
+acpi_hw_get_access_bit_width(struct acpi_generic_address *reg, u8 max_bit_width)
+{
+	u64 address;
+
+	if (!reg->access_width) {
+		/*
+		 * Detect old register descriptors where only the bit_width field
+		 * makes senses. The target address is copied to handle possible
+		 * alignment issues.
+		 */
+		ACPI_MOVE_64_TO_64(&address, &reg->address);
+		if (!reg->bit_offset && reg->bit_width &&
+		    ACPI_IS_POWER_OF_TWO(reg->bit_width) &&
+		    ACPI_IS_ALIGNED(reg->bit_width, 8) &&
+		    ACPI_IS_ALIGNED(address, reg->bit_width)) {
+			return (reg->bit_width);
+		} else {
+			if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+				return (32);
+			} else {
+				return (max_bit_width);
+			}
+		}
+	} else {
+		return (1 << (reg->access_width + 2));
+	}
+}
 
 /******************************************************************************
  *
@@ -122,8 +168,7 @@ acpi_hw_validate_register(struct acpi_generic_address *reg,
 
 	/* Validate the bit_width, convert access_width into number of bits */
 
-	access_width = reg->access_width ? reg->access_width : 1;
-	access_width = 1 << (access_width + 2);
+	access_width = acpi_hw_get_access_bit_width(reg, max_bit_width);
 	bit_width =
 	    ACPI_ROUND_UP(reg->bit_offset + reg->bit_width, access_width);
 	if (max_bit_width < bit_width) {
