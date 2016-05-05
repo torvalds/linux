@@ -707,6 +707,8 @@ struct batadv_priv_debug_log {
  * @list: list of available gateway nodes
  * @list_lock: lock protecting gw_list & curr_gw
  * @curr_gw: pointer to currently selected gateway node
+ * @mode: gateway operation: off, client or server (see batadv_gw_modes)
+ * @sel_class: gateway selection class (applies if gw_mode client)
  * @bandwidth_down: advertised uplink download bandwidth (if gw_mode server)
  * @bandwidth_up: advertised uplink upload bandwidth (if gw_mode server)
  * @reselect: bool indicating a gateway re-selection is in progress
@@ -715,6 +717,8 @@ struct batadv_priv_gw {
 	struct hlist_head list;
 	spinlock_t list_lock; /* protects gw_list & curr_gw */
 	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
+	atomic_t mode;
+	atomic_t sel_class;
 	atomic_t bandwidth_down;
 	atomic_t bandwidth_up;
 	atomic_t reselect;
@@ -865,8 +869,6 @@ struct batadv_priv_bat_v {
  *  enabled
  * @multicast_mode: Enable or disable multicast optimizations on this node's
  *  sender/originating side
- * @gw_mode: gateway operation: off, client or server (see batadv_gw_modes)
- * @gw_sel_class: gateway selection class (applies if gw_mode client)
  * @orig_interval: OGM broadcast interval in milliseconds
  * @hop_penalty: penalty which will be applied to an OGM's tq-field on every hop
  * @log_level: configured log level (see batadv_dbg_level)
@@ -922,8 +924,6 @@ struct batadv_priv {
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	atomic_t multicast_mode;
 #endif
-	atomic_t gw_mode;
-	atomic_t gw_sel_class;
 	atomic_t orig_interval;
 	atomic_t hop_penalty;
 #ifdef CONFIG_BATMAN_ADV_DEBUG
