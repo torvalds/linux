@@ -31,9 +31,6 @@ struct gb_interface {
 	u32 product_id;
 	u64 serial_number;
 
-	u16 version_major;
-	u16 version_minor;
-
 	struct gb_host_device *hd;
 	struct gb_module *module;
 

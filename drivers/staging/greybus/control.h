@@ -40,7 +40,6 @@ int gb_control_mode_switch_operation(struct gb_control *control);
 int gb_control_get_manifest_size_operation(struct gb_interface *intf);
 int gb_control_get_manifest_operation(struct gb_interface *intf, void *manifest,
 				      size_t size);
-int gb_control_get_interface_version_operation(struct gb_interface *intf);
 int gb_control_timesync_enable(struct gb_control *control, u8 count,
 			       u64 frame_time, u32 strobe_delay, u32 refclk);
 int gb_control_timesync_disable(struct gb_control *control);

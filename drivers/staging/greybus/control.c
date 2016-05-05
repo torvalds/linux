@@ -156,34 +156,6 @@ int gb_control_mode_switch_operation(struct gb_control *control)
 						NULL, 0);
 }
 
-int gb_control_get_interface_version_operation(struct gb_interface *intf)
-{
-	struct gb_control_interface_version_response response;
-	struct gb_connection *connection = intf->control->connection;
-	int ret;
-
-	if (intf->quirks & GB_INTERFACE_QUIRK_NO_INTERFACE_VERSION)
-		return 0;
-
-	ret = gb_operation_sync(connection, GB_CONTROL_TYPE_INTERFACE_VERSION,
-				NULL, 0, &response, sizeof(response));
-	if (ret) {
-		dev_err(&connection->intf->dev,
-			"failed to get interface version: %d\n", ret);
-		/*
-		 * FIXME: Return success until the time we bump version of
-		 * control protocol. The interface-version is already set to
-		 * 0.0, so no need to update that.
-		 */
-		return 0;
-	}
-
-	intf->version_major = le16_to_cpu(response.major);
-	intf->version_minor = le16_to_cpu(response.minor);
-
-	return 0;
-}
-
 int gb_control_timesync_enable(struct gb_control *control, u8 count,
 			       u64 frame_time, u32 strobe_delay, u32 refclk)
 {

@@ -254,16 +254,6 @@ gb_interface_attr(vendor_id, "0x%08x");
 gb_interface_attr(product_id, "0x%08x");
 gb_interface_attr(serial_number, "0x%016llx");
 
-static ssize_t version_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
-{
-	struct gb_interface *intf = to_gb_interface(dev);
-
-	return scnprintf(buf, PAGE_SIZE, "%u.%u\n", intf->version_major,
-			 intf->version_minor);
-}
-static DEVICE_ATTR_RO(version);
-
 static ssize_t voltage_now_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -328,7 +318,6 @@ static struct attribute *interface_attrs[] = {
 	&dev_attr_vendor_id.attr,
 	&dev_attr_product_id.attr,
 	&dev_attr_serial_number.attr,
-	&dev_attr_version.attr,
 	&dev_attr_voltage_now.attr,
 	&dev_attr_current_now.attr,
 	&dev_attr_power_now.attr,
@@ -620,10 +609,6 @@ int gb_interface_enable(struct gb_interface *intf)
 		ret = -EINVAL;
 		goto err_destroy_bundles;
 	}
-
-	ret = gb_control_get_interface_version_operation(intf);
-	if (ret)
-		goto err_destroy_bundles;
 
 	ret = gb_control_get_bundle_versions(intf->control);
 	if (ret)
