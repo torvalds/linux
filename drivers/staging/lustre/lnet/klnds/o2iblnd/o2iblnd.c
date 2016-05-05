@@ -1302,8 +1302,8 @@ static void kiblnd_destroy_fmr_pool(kib_fmr_pool_t *fpo)
 {
 	LASSERT(!fpo->fpo_map_count);
 
-	if (fpo->fpo_fmr_pool)
-		ib_destroy_fmr_pool(fpo->fpo_fmr_pool);
+	if (fpo->fmr.fpo_fmr_pool)
+		ib_destroy_fmr_pool(fpo->fmr.fpo_fmr_pool);
 
 	if (fpo->fpo_hdev)
 		kiblnd_hdev_decref(fpo->fpo_hdev);
@@ -1359,9 +1359,9 @@ static int kiblnd_create_fmr_pool(kib_fmr_poolset_t *fps,
 
 	fpo->fpo_hdev = kiblnd_current_hdev(dev);
 
-	fpo->fpo_fmr_pool = ib_create_fmr_pool(fpo->fpo_hdev->ibh_pd, &param);
-	if (IS_ERR(fpo->fpo_fmr_pool)) {
-		rc = PTR_ERR(fpo->fpo_fmr_pool);
+	fpo->fmr.fpo_fmr_pool = ib_create_fmr_pool(fpo->fpo_hdev->ibh_pd, &param);
+	if (IS_ERR(fpo->fmr.fpo_fmr_pool)) {
+		rc = PTR_ERR(fpo->fmr.fpo_fmr_pool);
 		CERROR("Failed to create FMR pool: %d\n", rc);
 
 		kiblnd_hdev_decref(fpo->fpo_hdev);
@@ -1452,7 +1452,7 @@ void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status)
 	LASSERT(!rc);
 
 	if (status) {
-		rc = ib_flush_fmr_pool(fpo->fpo_fmr_pool);
+		rc = ib_flush_fmr_pool(fpo->fmr.fpo_fmr_pool);
 		LASSERT(!rc);
 	}
 
@@ -1494,7 +1494,7 @@ int kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
 		fpo->fpo_map_count++;
 		spin_unlock(&fps->fps_lock);
 
-		pfmr = ib_fmr_pool_map_phys(fpo->fpo_fmr_pool,
+		pfmr = ib_fmr_pool_map_phys(fpo->fmr.fpo_fmr_pool,
 					    pages, npages, iov);
 		if (likely(!IS_ERR(pfmr))) {
 			fmr->fmr_pool = fpo;

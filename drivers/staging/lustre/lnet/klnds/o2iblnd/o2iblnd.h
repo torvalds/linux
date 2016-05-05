@@ -295,15 +295,19 @@ typedef struct {
 	struct list_head      fpo_list;            /* chain on pool list */
 	struct kib_hca_dev    *fpo_hdev;           /* device for this pool */
 	kib_fmr_poolset_t     *fpo_owner;          /* owner of this pool */
-	struct ib_fmr_pool    *fpo_fmr_pool;       /* IB FMR pool */
+	union {
+		struct {
+			struct ib_fmr_pool *fpo_fmr_pool; /* IB FMR pool */
+		} fmr;
+	};
 	unsigned long         fpo_deadline;        /* deadline of this pool */
 	int                   fpo_failed;          /* fmr pool is failed */
 	int                   fpo_map_count;       /* # of mapped FMR */
 } kib_fmr_pool_t;
 
 typedef struct {
-	struct ib_pool_fmr    *fmr_pfmr;           /* IB pool fmr */
 	kib_fmr_pool_t        *fmr_pool;           /* pool of FMR */
+	struct ib_pool_fmr    *fmr_pfmr;           /* IB pool fmr */
 } kib_fmr_t;
 
 typedef struct kib_net {
