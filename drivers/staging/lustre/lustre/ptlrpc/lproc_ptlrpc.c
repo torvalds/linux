@@ -308,7 +308,7 @@ ptlrpc_lprocfs_req_history_max_seq_write(struct file *file,
 	 * hose a kernel by allowing the request history to grow too
 	 * far.
 	 */
-	bufpages = (svc->srv_buf_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	bufpages = (svc->srv_buf_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (val > totalram_pages / (2 * bufpages))
 		return -ERANGE;
 
@@ -1226,7 +1226,7 @@ int lprocfs_wr_import(struct file *file, const char __user *buffer,
 	const char prefix[] = "connection=";
 	const int prefix_len = sizeof(prefix) - 1;
 
-	if (count > PAGE_CACHE_SIZE - 1 || count <= prefix_len)
+	if (count > PAGE_SIZE - 1 || count <= prefix_len)
 		return -EINVAL;
 
 	kbuf = kzalloc(count + 1, GFP_NOFS);

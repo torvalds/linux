@@ -1374,6 +1374,7 @@ static int check_ld_abs(struct verifier_env *env, struct bpf_insn *insn)
 	}
 
 	if (insn->dst_reg != BPF_REG_0 || insn->off != 0 ||
+	    BPF_SIZE(insn->code) == BPF_DW ||
 	    (mode == BPF_ABS && insn->src_reg != BPF_REG_0)) {
 		verbose("BPF_LD_ABS uses reserved fields\n");
 		return -EINVAL;
@@ -2029,7 +2030,6 @@ static int replace_map_fd_with_map_ptr(struct verifier_env *env)
 			if (IS_ERR(map)) {
 				verbose("fd %d is not pointing to valid bpf_map\n",
 					insn->imm);
-				fdput(f);
 				return PTR_ERR(map);
 			}
 

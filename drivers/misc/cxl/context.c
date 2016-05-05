@@ -223,6 +223,13 @@ int __detach_context(struct cxl_context *ctx)
 		cxl_ops->link_ok(ctx->afu->adapter, ctx->afu));
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
 
+	/*
+	 * Wait until no further interrupts are presented by the PSL
+	 * for this context.
+	 */
+	if (cxl_ops->irq_wait)
+		cxl_ops->irq_wait(ctx);
+
 	/* release the reference to the group leader and mm handling pid */
 	put_pid(ctx->pid);
 	put_pid(ctx->glpid);

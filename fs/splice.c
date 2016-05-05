@@ -88,7 +88,7 @@ out_unlock:
 static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
 					struct pipe_buffer *buf)
 {
-	page_cache_release(buf->page);
+	put_page(buf->page);
 	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
@@ -268,7 +268,7 @@ EXPORT_SYMBOL_GPL(splice_to_pipe);
 
 void spd_release_page(struct splice_pipe_desc *spd, unsigned int i)
 {
-	page_cache_release(spd->pages[i]);
+	put_page(spd->pages[i]);
 }
 
 /*
@@ -328,9 +328,9 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	if (splice_grow_spd(pipe, &spd))
 		return -ENOMEM;
 
-	index = *ppos >> PAGE_CACHE_SHIFT;
-	loff = *ppos & ~PAGE_CACHE_MASK;
-	req_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	index = *ppos >> PAGE_SHIFT;
+	loff = *ppos & ~PAGE_MASK;
+	req_pages = (len + loff + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	nr_pages = min(req_pages, spd.nr_pages_max);
 
 	/*
@@ -365,7 +365,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 			error = add_to_page_cache_lru(page, mapping, index,
 				   mapping_gfp_constraint(mapping, GFP_KERNEL));
 			if (unlikely(error)) {
-				page_cache_release(page);
+				put_page(page);
 				if (error == -EEXIST)
 					continue;
 				break;
@@ -385,7 +385,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	 * Now loop over the map and see if we need to start IO on any
 	 * pages, fill in the partial map, etc.
 	 */
-	index = *ppos >> PAGE_CACHE_SHIFT;
+	index = *ppos >> PAGE_SHIFT;
 	nr_pages = spd.nr_pages;
 	spd.nr_pages = 0;
 	for (page_nr = 0; page_nr < nr_pages; page_nr++) {
@@ -397,7 +397,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		/*
 		 * this_len is the max we'll use from this page
 		 */
-		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
+		this_len = min_t(unsigned long, len, PAGE_SIZE - loff);
 		page = spd.pages[page_nr];
 
 		if (PageReadahead(page))
@@ -426,7 +426,7 @@ retry_lookup:
 					error = -ENOMEM;
 					break;
 				}
-				page_cache_release(spd.pages[page_nr]);
+				put_page(spd.pages[page_nr]);
 				spd.pages[page_nr] = page;
 			}
 			/*
@@ -456,7 +456,7 @@ fill_it:
 		 * i_size must be checked after PageUptodate.
 		 */
 		isize = i_size_read(mapping->host);
-		end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
+		end_index = (isize - 1) >> PAGE_SHIFT;
 		if (unlikely(!isize || index > end_index))
 			break;
 
@@ -470,7 +470,7 @@ fill_it:
 			/*
 			 * max good bytes in this page
 			 */
-			plen = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
+			plen = ((isize - 1) & ~PAGE_MASK) + 1;
 			if (plen <= loff)
 				break;
 
@@ -494,8 +494,8 @@ fill_it:
 	 * we got, 'nr_pages' is how many pages are in the map.
 	 */
 	while (page_nr < nr_pages)
-		page_cache_release(spd.pages[page_nr++]);
-	in->f_ra.prev_pos = (loff_t)index << PAGE_CACHE_SHIFT;
+		put_page(spd.pages[page_nr++]);
+	in->f_ra.prev_pos = (loff_t)index << PAGE_SHIFT;
 
 	if (spd.nr_pages)
 		error = splice_to_pipe(pipe, &spd);
@@ -636,8 +636,8 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 			goto shrink_ret;
 	}
 
-	offset = *ppos & ~PAGE_CACHE_MASK;
-	nr_pages = (len + offset + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	offset = *ppos & ~PAGE_MASK;
+	nr_pages = (len + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	for (i = 0; i < nr_pages && i < spd.nr_pages_max && len; i++) {
 		struct page *page;
@@ -647,7 +647,7 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 		if (!page)
 			goto err;
 
-		this_len = min_t(size_t, len, PAGE_CACHE_SIZE - offset);
+		this_len = min_t(size_t, len, PAGE_SIZE - offset);
 		vec[i].iov_base = (void __user *) page_address(page);
 		vec[i].iov_len = this_len;
 		spd.pages[i] = page;

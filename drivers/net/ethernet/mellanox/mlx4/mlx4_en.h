@@ -323,6 +323,7 @@ struct mlx4_en_rx_ring {
 	unsigned long csum_ok;
 	unsigned long csum_none;
 	unsigned long csum_complete;
+	unsigned long dropped;
 	int hwtstamp_rx_filter;
 	cpumask_var_t affinity_mask;
 };
