@@ -9668,6 +9668,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			   unsigned int flags)
 {
 	struct btrfs_trans_handle *trans;
+	unsigned int trans_num_items;
 	struct btrfs_root *root = BTRFS_I(old_dir)->root;
 	struct btrfs_root *dest = BTRFS_I(new_dir)->root;
 	struct inode *new_inode = d_inode(new_dentry);
@@ -9730,8 +9731,14 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * would require 5 item modifications, so we'll assume they are normal
 	 * inodes.  So 5 * 2 is 10, plus 1 for the new link, so 11 total items
 	 * should cover the worst case number of items we'll modify.
+	 * If our rename has the whiteout flag, we need more 5 units for the
+	 * new inode (1 inode item, 1 inode ref, 2 dir items and 1 xattr item
+	 * when selinux is enabled).
 	 */
-	trans = btrfs_start_transaction(root, 11);
+	trans_num_items = 11;
+	if (flags & RENAME_WHITEOUT)
+		trans_num_items += 5;
+	trans = btrfs_start_transaction(root, trans_num_items);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		goto out_notrans;
