@@ -563,6 +563,9 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 
 	free_from = (pgoff_t)F2FS_BYTES_TO_BLK(from + blocksize - 1);
 
+	if (free_from >= sbi->max_file_blocks)
+		goto free_partial;
+
 	if (lock)
 		f2fs_lock_op(sbi);
 
@@ -604,7 +607,7 @@ free_next:
 out:
 	if (lock)
 		f2fs_unlock_op(sbi);
-
+free_partial:
 	/* lastly zero out the first data page */
 	if (!err)
 		err = truncate_partial_data_page(inode, from, truncate_page);
