@@ -163,7 +163,7 @@ acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 acpi_status
 acpi_ev_get_gpe_xrupt_block(u32 interrupt_number,
-			    struct acpi_gpe_xrupt_info ** gpe_xrupt_block)
+			    struct acpi_gpe_xrupt_info **gpe_xrupt_block)
 {
 	struct acpi_gpe_xrupt_info *next_gpe_xrupt;
 	struct acpi_gpe_xrupt_info *gpe_xrupt;
@@ -320,7 +320,7 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 		/* Now look at the individual GPEs in this byte register */
 
 		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
-			gpe_event_info = &gpe_block->event_info[((acpi_size) i *
+			gpe_event_info = &gpe_block->event_info[((acpi_size)i *
 								 ACPI_GPE_REGISTER_WIDTH)
 								+ j];
 

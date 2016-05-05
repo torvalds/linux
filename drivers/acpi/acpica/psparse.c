@@ -130,8 +130,8 @@ u16 acpi_ps_peek_opcode(struct acpi_parse_state * parser_state)
  ******************************************************************************/
 
 acpi_status
-acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
-			 union acpi_parse_object * op)
+acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
+			 union acpi_parse_object *op)
 {
 	union acpi_parse_object *prev;
 	union acpi_parse_object *next;

@@ -72,6 +72,7 @@ acpi_status acpi_ev_init_global_lock_handler(void);
 ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
 			    acpi_ev_acquire_global_lock(u16 timeout))
 ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_ev_release_global_lock(void))
+
 acpi_status acpi_ev_remove_global_lock_handler(void);
 
 /*
@@ -197,8 +198,6 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 void
 acpi_ev_detach_region(union acpi_operand_object *region_obj,
 		      u8 acpi_ns_is_locked);
-
-void acpi_ev_associate_reg_method(union acpi_operand_object *region_obj);
 
 void
 acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,

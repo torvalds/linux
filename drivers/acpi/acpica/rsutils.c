@@ -338,7 +338,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 	 * Note: Some resource descriptors will have an additional null, so
 	 * we add 1 to the minimum length.
 	 */
-	if (total_length > (acpi_rsdesc_size) (minimum_length + 1)) {
+	if (total_length > (acpi_rsdesc_size)(minimum_length + 1)) {
 
 		/* Get the resource_source_index */
 
@@ -377,7 +377,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 				   ACPI_CAST_PTR(char,
 						 &aml_resource_source[1]));
 
-		return ((acpi_rs_length) total_length);
+		return ((acpi_rs_length)total_length);
 	}
 
 	/* resource_source is not present */
@@ -406,9 +406,9 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
  ******************************************************************************/
 
 acpi_rsdesc_size
-acpi_rs_set_resource_source(union aml_resource * aml,
+acpi_rs_set_resource_source(union aml_resource *aml,
 			    acpi_rs_length minimum_length,
-			    struct acpi_resource_source * resource_source)
+			    struct acpi_resource_source *resource_source)
 {
 	u8 *aml_resource_source;
 	acpi_rsdesc_size descriptor_length;
@@ -466,8 +466,8 @@ acpi_rs_set_resource_source(union aml_resource * aml,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_prt_method_data(struct acpi_namespace_node * node,
-			    struct acpi_buffer * ret_buffer)
+acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
@@ -671,7 +671,7 @@ acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
 
 acpi_status
 acpi_rs_get_method_data(acpi_handle handle,
-			char *path, struct acpi_buffer *ret_buffer)
+			const char *path, struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
