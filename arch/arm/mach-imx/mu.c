@@ -388,6 +388,9 @@ static int imx_mu_probe(struct platform_device *pdev)
 		/* enable the bit26(RIE1) of MU_ACR */
 		writel_relaxed(readl_relaxed(mu_base + MU_ACR) |
 			BIT(26) | BIT(27), mu_base + MU_ACR);
+		/* MU always as a wakeup source for low power mode */
+		imx_gpcv2_add_m4_wake_up_irq(irq_to_desc(irq)->irq_data.hwirq,
+			true);
 	} else {
 		INIT_DELAYED_WORK(&mu_work, mu_work_handler);
 

@@ -117,6 +117,23 @@ static u32 gpcv2_mf_request_on[IMR_NUM];
 static DEFINE_SPINLOCK(gpcv2_lock);
 static struct notifier_block nb_mipi, nb_pcie;
 
+void imx_gpcv2_add_m4_wake_up_irq(u32 hwirq, bool enable)
+{
+	unsigned int idx = hwirq / 32;
+	unsigned long flags;
+	u32 mask;
+
+	/* Sanity check for SPI irq */
+	if (hwirq < 32)
+		return;
+
+	mask = 1 << hwirq % 32;
+	spin_lock_irqsave(&gpcv2_lock, flags);
+	gpcv2_wake_irqs[idx] = enable ? gpcv2_wake_irqs[idx] | mask :
+		gpcv2_wake_irqs[idx] & ~mask;
+	spin_unlock_irqrestore(&gpcv2_lock, flags);
+}
+
 static int imx_gpcv2_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	unsigned int idx = d->hwirq / 32;

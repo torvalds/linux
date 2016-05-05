@@ -143,9 +143,11 @@ int imx_gpc_mf_power_on(unsigned int irq, unsigned int on);
 #ifdef CONFIG_HAVE_IMX_GPCV2
 int imx_gpcv2_mf_power_on(unsigned int irq, unsigned int on);
 void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
+void imx_gpcv2_add_m4_wake_up_irq(u32 hwirq, bool enable);
 #else
 static inline int imx_gpcv2_mf_power_on(unsigned int irq, unsigned int on) { return 0; }
 static inline void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn) {}
+static void imx_gpcv2_add_m4_wake_up_irq(u32 hwirq, bool enable) {}
 #endif
 void __init imx_gpcv2_check_dt(void);
 void imx_gpcv2_set_lpm_mode(enum mxc_cpu_pwr_mode mode);
