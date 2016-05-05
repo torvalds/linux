@@ -12,7 +12,8 @@ config BMP280
 	select REGMAP_I2C
 	help
 	  Say yes here to build support for Bosch Sensortec BMP180 and BMP280
-	  pressure and temperature sensors.
+	  pressure and temperature sensors. Also supports the BE280 with
+	  an additional humidty sensor channel.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called bmp280.
