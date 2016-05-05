@@ -617,6 +617,7 @@ void gb_connection_disable_rx(struct gb_connection *connection)
 out_unlock:
 	mutex_unlock(&connection->mutex);
 }
+EXPORT_SYMBOL_GPL(gb_connection_disable_rx);
 
 void gb_connection_disable(struct gb_connection *connection)
 {
