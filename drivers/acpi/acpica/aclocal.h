@@ -856,24 +856,24 @@ struct acpi_parse_state {
 
 /* Parse object flags */
 
-#define ACPI_PARSEOP_GENERIC            0x01
-#define ACPI_PARSEOP_NAMED              0x02
-#define ACPI_PARSEOP_DEFERRED           0x04
-#define ACPI_PARSEOP_BYTELIST           0x08
-#define ACPI_PARSEOP_IN_STACK           0x10
-#define ACPI_PARSEOP_TARGET             0x20
-#define ACPI_PARSEOP_IN_CACHE           0x80
+#define ACPI_PARSEOP_GENERIC                0x01
+#define ACPI_PARSEOP_NAMED_OBJECT           0x02
+#define ACPI_PARSEOP_DEFERRED               0x04
+#define ACPI_PARSEOP_BYTELIST               0x08
+#define ACPI_PARSEOP_IN_STACK               0x10
+#define ACPI_PARSEOP_TARGET                 0x20
+#define ACPI_PARSEOP_IN_CACHE               0x80
 
 /* Parse object disasm_flags */
 
-#define ACPI_PARSEOP_IGNORE             0x01
-#define ACPI_PARSEOP_PARAMLIST          0x02
-#define ACPI_PARSEOP_EMPTY_TERMLIST     0x04
-#define ACPI_PARSEOP_PREDEF_CHECKED     0x08
-#define ACPI_PARSEOP_CLOSING_PAREN      0x10
-#define ACPI_PARSEOP_COMPOUND           0x20
-#define ACPI_PARSEOP_ASSIGNMENT         0x40
-#define ACPI_PARSEOP_ELSEIF             0x80
+#define ACPI_PARSEOP_IGNORE                 0x01
+#define ACPI_PARSEOP_PARAMETER_LIST         0x02
+#define ACPI_PARSEOP_EMPTY_TERMLIST         0x04
+#define ACPI_PARSEOP_PREDEFINED_CHECKED     0x08
+#define ACPI_PARSEOP_CLOSING_PAREN          0x10
+#define ACPI_PARSEOP_COMPOUND_ASSIGNMENT    0x20
+#define ACPI_PARSEOP_ASSIGNMENT             0x40
+#define ACPI_PARSEOP_ELSEIF                 0x80
 
 /*****************************************************************************
  *
