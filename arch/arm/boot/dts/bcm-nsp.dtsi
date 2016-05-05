@@ -290,6 +290,18 @@
 		ranges = <0x82000000 0 0x08000000 0x08000000 0 0x8000000>;
 
 		status = "disabled";
+
+		msi-parent = <&msi0>;
+		msi0: msi@18012000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 127 IRQ_TYPE_NONE>,
+				     <GIC_SPI 128 IRQ_TYPE_NONE>,
+				     <GIC_SPI 129 IRQ_TYPE_NONE>,
+				     <GIC_SPI 130 IRQ_TYPE_NONE>;
+			brcm,pcie-msi-inten;
+		};
 	};
 
 	pcie1: pcie@18013000 {
@@ -314,6 +326,18 @@
 		ranges = <0x82000000 0 0x40000000 0x40000000 0 0x8000000>;
 
 		status = "disabled";
+
+		msi-parent = <&msi1>;
+		msi1: msi@18013000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 133 IRQ_TYPE_NONE>,
+				     <GIC_SPI 134 IRQ_TYPE_NONE>,
+				     <GIC_SPI 135 IRQ_TYPE_NONE>,
+				     <GIC_SPI 136 IRQ_TYPE_NONE>;
+			brcm,pcie-msi-inten;
+		};
 	};
 
 	pcie2: pcie@18014000 {
@@ -338,5 +362,17 @@
 		ranges = <0x82000000 0 0x48000000 0x48000000 0 0x8000000>;
 
 		status = "disabled";
+
+		msi-parent = <&msi2>;
+		msi2: msi@18014000 {
+			compatible = "brcm,iproc-msi";
+			msi-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 139 IRQ_TYPE_NONE>,
+				     <GIC_SPI 140 IRQ_TYPE_NONE>,
+				     <GIC_SPI 141 IRQ_TYPE_NONE>,
+				     <GIC_SPI 142 IRQ_TYPE_NONE>;
+			brcm,pcie-msi-inten;
+		};
 	};
 };
