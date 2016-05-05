@@ -4023,12 +4023,6 @@ skip_create_disk:
 	blk_queue_io_min(dd->queue, 4096);
 	blk_queue_bounce_limit(dd->queue, dd->pdev->dma_mask);
 
-	/*
-	 * write back cache is not supported in the device. FUA depends on
-	 * write back cache support, hence setting flush support to zero.
-	 */
-	blk_queue_flush(dd->queue, 0);
-
 	/* Signal trim support */
 	if (dd->trim_supp == true) {
 		set_bit(QUEUE_FLAG_DISCARD, &dd->queue->queue_flags);

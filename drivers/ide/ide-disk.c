@@ -522,7 +522,7 @@ static int ide_do_setfeature(ide_drive_t *drive, u8 feature, u8 nsect)
 static void update_flush(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
-	unsigned flush = 0;
+	bool wc = false;
 
 	if (drive->dev_flags & IDE_DFLAG_WCACHE) {
 		unsigned long long capacity;
@@ -546,12 +546,12 @@ static void update_flush(ide_drive_t *drive)
 		       drive->name, barrier ? "" : "not ");
 
 		if (barrier) {
-			flush = REQ_FLUSH;
+			wc = true;
 			blk_queue_prep_rq(drive->queue, idedisk_prep_fn);
 		}
 	}
 
-	blk_queue_flush(drive->queue, flush);
+	blk_queue_write_cache(drive->queue, wc, false);
 }
 
 ide_devset_get_flag(wcache, IDE_DFLAG_WCACHE);

@@ -486,7 +486,6 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 	struct buffer_head map_bh;
 	loff_t i_size = i_size_read(inode);
 	int ret = 0;
-	int wr = (wbc->sync_mode == WB_SYNC_ALL ?  WRITE_SYNC : WRITE);
 
 	if (page_has_buffers(page)) {
 		struct buffer_head *head = page_buffers(page);
@@ -595,7 +594,7 @@ page_is_mapped:
 	 * This page will go to BIO.  Do we need to send this BIO off first?
 	 */
 	if (bio && mpd->last_block_in_bio != blocks[0] - 1)
-		bio = mpage_bio_submit(wr, bio);
+		bio = mpage_bio_submit(wbc_to_write_cmd(wbc), bio);
 
 alloc_new:
 	if (bio == NULL) {
@@ -622,7 +621,7 @@ alloc_new:
 	wbc_account_io(wbc, page, PAGE_SIZE);
 	length = first_unmapped << blkbits;
 	if (bio_add_page(bio, page, length, 0) < length) {
-		bio = mpage_bio_submit(wr, bio);
+		bio = mpage_bio_submit(wbc_to_write_cmd(wbc), bio);
 		goto alloc_new;
 	}
 
@@ -632,7 +631,7 @@ alloc_new:
 	set_page_writeback(page);
 	unlock_page(page);
 	if (boundary || (first_unmapped != blocks_per_page)) {
-		bio = mpage_bio_submit(wr, bio);
+		bio = mpage_bio_submit(wbc_to_write_cmd(wbc), bio);
 		if (boundary_block) {
 			write_boundary_block(boundary_bdev,
 					boundary_block, 1 << blkbits);
@@ -644,7 +643,7 @@ alloc_new:
 
 confused:
 	if (bio)
-		bio = mpage_bio_submit(wr, bio);
+		bio = mpage_bio_submit(wbc_to_write_cmd(wbc), bio);
 
 	if (mpd->use_writepage) {
 		ret = mapping->a_ops->writepage(page, wbc);

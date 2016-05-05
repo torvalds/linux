@@ -4412,7 +4412,7 @@ static int skd_cons_disk(struct skd_device *skdev)
 	disk->queue = q;
 	q->queuedata = skdev;
 
-	blk_queue_flush(q, REQ_FLUSH | REQ_FUA);
+	blk_queue_write_cache(q, true, true);
 	blk_queue_max_segments(q, skdev->sgs_per_request);
 	blk_queue_max_hw_sectors(q, SKD_N_MAX_SECTORS);
 
