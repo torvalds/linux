@@ -1,8 +1,8 @@
 VERSION = 4
 PATCHLEVEL = 6
 SUBLEVEL = 0
-EXTRAVERSION = -rc4
-NAME = Blurry Fish Butt
+EXTRAVERSION = -rc6
+NAME = Charred Weasel
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -1008,7 +1008,8 @@ prepare0: archprepare FORCE
 prepare: prepare0 prepare-objtool
 
 ifdef CONFIG_STACK_VALIDATION
-  has_libelf := $(shell echo "int main() {}" | $(HOSTCC) -xc -o /dev/null -lelf - &> /dev/null && echo 1 || echo 0)
+  has_libelf := $(call try-run,\
+		echo "int main() {}" | $(HOSTCC) -xc -o /dev/null -lelf -,1,0)
   ifeq ($(has_libelf),1)
     objtool_target := tools/objtool FORCE
   else

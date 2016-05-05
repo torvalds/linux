@@ -13,6 +13,7 @@
 #ifdef CONFIG_BLK_DEV_INITRD
 #include <linux/initrd.h>
 #endif
+#include <linux/of_fdt.h>
 #include <linux/swap.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
@@ -135,6 +136,9 @@ void __init setup_arch_memory(void)
 	if (initrd_start)
 		memblock_reserve(__pa(initrd_start), initrd_end - initrd_start);
 #endif
+
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
 	memblock_dump_all();
 
