@@ -1012,7 +1012,7 @@ static void qup_i2c_issue_read(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 {
 	u32 addr, len, val;
 
-	addr = (msg->addr << 1) | 1;
+	addr = i2c_8bit_addr_from_msg(msg);
 
 	/* 0 is used to specify a length 256 (QUP_READ_LIMIT) */
 	len = (msg->len == QUP_READ_LIMIT) ? 0 : msg->len;
