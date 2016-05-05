@@ -55,7 +55,7 @@ struct arche_platform_drvdata {
 
 	enum svc_wakedetect_state wake_detect_state;
 	int wake_detect_irq;
-	spinlock_t lock;
+	spinlock_t wake_lock;	/* Protect wake_detect_state */
 	unsigned long wake_detect_start;
 	struct notifier_block pm_notifier;
 
@@ -117,15 +117,15 @@ static irqreturn_t arche_platform_wd_irq_thread(int irq, void *devid)
 	struct arche_platform_drvdata *arche_pdata = devid;
 	unsigned long flags;
 
-	spin_lock_irqsave(&arche_pdata->lock, flags);
+	spin_lock_irqsave(&arche_pdata->wake_lock, flags);
 	if (arche_pdata->wake_detect_state != WD_STATE_COLDBOOT_TRIG) {
 		/* Something is wrong */
-		spin_unlock_irqrestore(&arche_pdata->lock, flags);
+		spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
 		return IRQ_HANDLED;
 	}
 
 	arche_pdata->wake_detect_state = WD_STATE_COLDBOOT_START;
-	spin_unlock_irqrestore(&arche_pdata->lock, flags);
+	spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
 
 	/* It should complete power cycle, so first make sure it is poweroff */
 	device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
@@ -137,9 +137,9 @@ static irqreturn_t arche_platform_wd_irq_thread(int irq, void *devid)
 	if (usb3613_hub_mode_ctrl(true))
 		dev_warn(arche_pdata->dev, "failed to control hub device\n");
 
-	spin_lock_irqsave(&arche_pdata->lock, flags);
+	spin_lock_irqsave(&arche_pdata->wake_lock, flags);
 	arche_pdata->wake_detect_state = WD_STATE_IDLE;
-	spin_unlock_irqrestore(&arche_pdata->lock, flags);
+	spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -149,7 +149,7 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 	struct arche_platform_drvdata *arche_pdata = devid;
 	unsigned long flags;
 
-	spin_lock_irqsave(&arche_pdata->lock, flags);
+	spin_lock_irqsave(&arche_pdata->wake_lock, flags);
 
 	if (gpio_get_value(arche_pdata->wake_detect_gpio)) {
 		/* wake/detect rising */
@@ -170,7 +170,9 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 						WD_STATE_COLDBOOT_START) {
 					arche_pdata->wake_detect_state =
 						WD_STATE_COLDBOOT_TRIG;
-					spin_unlock_irqrestore(&arche_pdata->lock, flags);
+					spin_unlock_irqrestore(
+						&arche_pdata->wake_lock,
+						flags);
 					return IRQ_WAKE_THREAD;
 				}
 			}
@@ -188,7 +190,7 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 		}
 	}
 
-	spin_unlock_irqrestore(&arche_pdata->lock, flags);
+	spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -257,9 +259,9 @@ static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pda
 		/* Send disconnect/detach event to SVC */
 		gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
 		usleep_range(100, 200);
-		spin_lock_irqsave(&arche_pdata->lock, flags);
+		spin_lock_irqsave(&arche_pdata->wake_lock, flags);
 		arche_pdata->wake_detect_state = WD_STATE_IDLE;
-		spin_unlock_irqrestore(&arche_pdata->lock, flags);
+		spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
 
 		clk_disable_unprepare(arche_pdata->svc_ref_clk);
 	}
@@ -465,7 +467,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 
 	arche_pdata->dev = &pdev->dev;
 
-	spin_lock_init(&arche_pdata->lock);
+	spin_lock_init(&arche_pdata->wake_lock);
 	arche_pdata->wake_detect_irq =
 		gpio_to_irq(arche_pdata->wake_detect_gpio);
 
