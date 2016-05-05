@@ -167,6 +167,15 @@ struct acpi_pkg_info {
 #define DB_QWORD_DISPLAY    8
 
 /*
+ * utascii - ASCII utilities
+ */
+u8 acpi_ut_valid_nameseg(char *signature);
+
+u8 acpi_ut_valid_name_char(char character, u32 position);
+
+void acpi_ut_check_and_repair_ascii(u8 *name, char *repaired_name, u32 count);
+
+/*
  * utnonansi - Non-ANSI C library functions
  */
 void acpi_ut_strupr(char *src_string);
@@ -578,10 +587,6 @@ void acpi_ut_print_string(char *string, u16 max_length);
 #if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
 void ut_convert_backslashes(char *pathname);
 #endif
-
-u8 acpi_ut_valid_acpi_name(char *name);
-
-u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
 void acpi_ut_repair_name(char *name);
 

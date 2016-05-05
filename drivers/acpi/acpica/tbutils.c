@@ -380,30 +380,3 @@ next_table:
 	acpi_os_unmap_memory(table, length);
 	return_ACPI_STATUS(AE_OK);
 }
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_is_valid_signature
- *
- * PARAMETERS:  signature           - Sig string to be validated
- *
- * RETURN:      TRUE if signature is has 4 valid ACPI characters
- *
- * DESCRIPTION: Validate an ACPI table signature.
- *
- ******************************************************************************/
-
-u8 acpi_is_valid_signature(char *signature)
-{
-	u32 i;
-
-	/* Validate each character in the signature */
-
-	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		if (!acpi_ut_valid_acpi_char(signature[i], i)) {
-			return (FALSE);
-		}
-	}
-
-	return (TRUE);
-}

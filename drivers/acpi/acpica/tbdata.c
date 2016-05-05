@@ -401,9 +401,9 @@ acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc, char *signature)
 			ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY,
 					"%4.4s 0x%8.8X%8.8X"
 					" Attempted table install failed",
-					acpi_ut_valid_acpi_name(table_desc->
-								signature.
-								ascii) ?
+					acpi_ut_valid_nameseg(table_desc->
+							      signature.
+							      ascii) ?
 					table_desc->signature.ascii : "????",
 					ACPI_FORMAT_UINT64(table_desc->
 							   address)));

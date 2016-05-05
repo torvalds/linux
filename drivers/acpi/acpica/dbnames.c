@@ -709,7 +709,7 @@ acpi_db_integrity_walk(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	if (!acpi_ut_valid_acpi_name(node->name.ascii)) {
+	if (!acpi_ut_valid_nameseg(node->name.ascii)) {
 		acpi_os_printf("Invalid AcpiName for Node %p\n", node);
 		return (AE_OK);
 	}
