@@ -26,3 +26,7 @@ Tüm yerli donanımların dışında, 32-bit x86, Compaq Alpha AXP, Sun SPARC ve
 ## Katkıcılar
 
 Tüm millet.
+
+## Nasıl katkı verebilirim?
+
+![alt text](https://raw.githubusercontent.com/kozdincer/cigdem/master/milli.png "Irmağının akışına ölürüm.")
