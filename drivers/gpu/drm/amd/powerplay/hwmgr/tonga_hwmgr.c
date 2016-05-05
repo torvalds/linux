@@ -2426,7 +2426,7 @@ static uint8_t tonga_get_sleep_divider_id_from_clock(struct pp_hwmgr *hwmgr,
 			"Engine clock can't satisfy stutter requirement!", return 0);
 
 	for (i = TONGA_MAX_DEEPSLEEP_DIVIDER_ID;; i--) {
-		temp = engine_clock / (1 << i);
+		temp = engine_clock >> i;
 
 		if(temp >= min || i == 0)
 			break;

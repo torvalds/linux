@@ -2560,7 +2560,7 @@ static u8 ci_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
 		return 0;
 
 	for (i = CISLAND_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
-		tmp = sclk / (1 << i);
+		tmp = sclk >> i;
 		if (tmp >= min || i == 0)
 			break;
 	}

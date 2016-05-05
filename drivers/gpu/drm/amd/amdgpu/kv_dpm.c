@@ -135,11 +135,6 @@ static void sumo_take_smu_control(struct amdgpu_device *adev, bool enable)
 #endif
 }
 
-static u32 sumo_get_sleep_divider_from_id(u32 id)
-{
-	return 1 << id;
-}
-
 static void sumo_construct_sclk_voltage_mapping_table(struct amdgpu_device *adev,
 						      struct sumo_sclk_voltage_mapping_table *sclk_voltage_mapping_table,
 						      ATOM_AVAILABLE_SCLK_LIST *table)
@@ -2185,7 +2180,7 @@ static u8 kv_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
 		return 0;
 
 	for (i = KV_MAX_DEEPSLEEP_DIVIDER_ID; i > 0; i--) {
-		temp = sclk / sumo_get_sleep_divider_from_id(i);
+		temp = sclk >> i;
 		if (temp >= min)
 			break;
 	}

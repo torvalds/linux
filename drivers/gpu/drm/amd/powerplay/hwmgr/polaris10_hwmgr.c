@@ -1177,7 +1177,7 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	*/
 	PP_ASSERT_WITH_CODE((clock >= POLARIS10_MINIMUM_ENGINE_CLOCK), "Engine clock can't satisfy stutter requirement!", return 0);
 	for (i = POLARIS10_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
-		temp = clock / (1UL << i);
+		temp = clock >> i;
 
 		if (temp >= POLARIS10_MINIMUM_ENGINE_CLOCK || i == 0)
 			break;
