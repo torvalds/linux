@@ -582,29 +582,23 @@ err_mark:
 	return ret;
 }
 
-struct factory_blks {
-	struct nvm_dev *dev;
-	int flags;
-	unsigned long *blks;
-};
-
 static int factory_nblks(int nblks)
 {
 	/* Round up to nearest BITS_PER_LONG */
 	return (nblks + (BITS_PER_LONG - 1)) & ~(BITS_PER_LONG - 1);
 }
 
-static unsigned int factory_blk_offset(struct nvm_dev *dev, int ch, int lun)
+static unsigned int factory_blk_offset(struct nvm_dev *dev, struct ppa_addr ppa)
 {
 	int nblks = factory_nblks(dev->blks_per_lun);
 
-	return ((ch * dev->luns_per_chnl * nblks) + (lun * nblks)) /
+	return ((ppa.g.ch * dev->luns_per_chnl * nblks) + (ppa.g.lun * nblks)) /
 								BITS_PER_LONG;
 }
 
 static int nvm_factory_blks(struct nvm_dev *dev, struct ppa_addr ppa,
 					u8 *blks, int nr_blks,
-					struct factory_blks *f)
+					unsigned long *blk_bitmap, int flags)
 {
 	int i, lunoff;
 
@@ -612,25 +606,25 @@ static int nvm_factory_blks(struct nvm_dev *dev, struct ppa_addr ppa,
 	if (nr_blks < 0)
 		return nr_blks;
 
-	lunoff = factory_blk_offset(dev, ppa.g.ch, ppa.g.lun);
+	lunoff = factory_blk_offset(dev, ppa);
 
 	/* non-set bits correspond to the block must be erased */
 	for (i = 0; i < nr_blks; i++) {
 		switch (blks[i]) {
 		case NVM_BLK_T_FREE:
-			if (f->flags & NVM_FACTORY_ERASE_ONLY_USER)
-				set_bit(i, &f->blks[lunoff]);
+			if (flags & NVM_FACTORY_ERASE_ONLY_USER)
+				set_bit(i, &blk_bitmap[lunoff]);
 			break;
 		case NVM_BLK_T_HOST:
-			if (!(f->flags & NVM_FACTORY_RESET_HOST_BLKS))
-				set_bit(i, &f->blks[lunoff]);
+			if (!(flags & NVM_FACTORY_RESET_HOST_BLKS))
+				set_bit(i, &blk_bitmap[lunoff]);
 			break;
 		case NVM_BLK_T_GRWN_BAD:
-			if (!(f->flags & NVM_FACTORY_RESET_GRWN_BBLKS))
-				set_bit(i, &f->blks[lunoff]);
+			if (!(flags & NVM_FACTORY_RESET_GRWN_BBLKS))
+				set_bit(i, &blk_bitmap[lunoff]);
 			break;
 		default:
-			set_bit(i, &f->blks[lunoff]);
+			set_bit(i, &blk_bitmap[lunoff]);
 			break;
 		}
 	}
@@ -639,7 +633,7 @@ static int nvm_factory_blks(struct nvm_dev *dev, struct ppa_addr ppa,
 }
 
 static int nvm_fact_get_blks(struct nvm_dev *dev, struct ppa_addr *erase_list,
-					int max_ppas, struct factory_blks *f)
+					int max_ppas, unsigned long *blk_bitmap)
 {
 	struct ppa_addr ppa;
 	int ch, lun, blkid, idx, done = 0, ppa_cnt = 0;
@@ -648,8 +642,8 @@ static int nvm_fact_get_blks(struct nvm_dev *dev, struct ppa_addr *erase_list,
 	while (!done) {
 		done = 1;
 		nvm_for_each_lun_ppa(dev, ppa, ch, lun) {
-			idx = factory_blk_offset(dev, ch, lun);
-			offset = &f->blks[idx];
+			idx = factory_blk_offset(dev, ppa);
+			offset = &blk_bitmap[idx];
 
 			blkid = find_first_zero_bit(offset,
 						dev->blks_per_lun);
@@ -675,10 +669,11 @@ static int nvm_fact_get_blks(struct nvm_dev *dev, struct ppa_addr *erase_list,
 	return ppa_cnt;
 }
 
-static int nvm_fact_select_blks(struct nvm_dev *dev, struct factory_blks *f)
+static int nvm_fact_select_blks(struct nvm_dev *dev, unsigned long *blk_bitmap,
+								int flags)
 {
 	struct ppa_addr ppa;
-	int ch, lun, nr_blks, ret;
+	int ch, lun, nr_blks, ret = 0;
 	u8 *blks;
 
 	nr_blks = dev->blks_per_lun * dev->plane_mode;
@@ -692,43 +687,42 @@ static int nvm_fact_select_blks(struct nvm_dev *dev, struct factory_blks *f)
 			pr_err("nvm: failed bb tbl for ch%u lun%u\n",
 							ppa.g.ch, ppa.g.blk);
 
-		ret = nvm_factory_blks(dev, ppa, blks, nr_blks, f);
+		ret = nvm_factory_blks(dev, ppa, blks, nr_blks, blk_bitmap,
+									flags);
 		if (ret)
-			return ret;
+			break;
 	}
 
 	kfree(blks);
-	return 0;
+	return ret;
 }
 
 int nvm_dev_factory(struct nvm_dev *dev, int flags)
 {
-	struct factory_blks f;
 	struct ppa_addr *ppas;
 	int ppa_cnt, ret = -ENOMEM;
 	int max_ppas = dev->ops->max_phys_sect / dev->nr_planes;
 	struct ppa_addr sysblk_ppas[MAX_SYSBLKS];
 	struct sysblk_scan s;
+	unsigned long *blk_bitmap;
 
-	f.blks = kzalloc(factory_nblks(dev->blks_per_lun) * dev->nr_luns,
+	blk_bitmap = kzalloc(factory_nblks(dev->blks_per_lun) * dev->nr_luns,
 								GFP_KERNEL);
-	if (!f.blks)
+	if (!blk_bitmap)
 		return ret;
 
 	ppas = kcalloc(max_ppas, sizeof(struct ppa_addr), GFP_KERNEL);
 	if (!ppas)
 		goto err_blks;
 
-	f.dev = dev;
-	f.flags = flags;
-
 	/* create list of blks to be erased */
-	ret = nvm_fact_select_blks(dev, &f);
+	ret = nvm_fact_select_blks(dev, blk_bitmap, flags);
 	if (ret)
 		goto err_ppas;
 
 	/* continue to erase until list of blks until empty */
-	while ((ppa_cnt = nvm_fact_get_blks(dev, ppas, max_ppas, &f)) > 0)
+	while ((ppa_cnt =
+			nvm_fact_get_blks(dev, ppas, max_ppas, blk_bitmap)) > 0)
 		nvm_erase_ppa(dev, ppas, ppa_cnt);
 
 	/* mark host reserved blocks free */
@@ -743,7 +737,7 @@ int nvm_dev_factory(struct nvm_dev *dev, int flags)
 err_ppas:
 	kfree(ppas);
 err_blks:
-	kfree(f.blks);
+	kfree(blk_bitmap);
 	return ret;
 }
 EXPORT_SYMBOL(nvm_dev_factory);
