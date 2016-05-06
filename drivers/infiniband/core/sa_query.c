@@ -1820,7 +1820,7 @@ static int __init ib_sa_init(void)
 		goto err3;
 	}
 
-	if (ibnl_add_client(RDMA_NL_LS, RDMA_NL_LS_NUM_OPS,
+	if (ibnl_add_client(RDMA_NL_LS, ARRAY_SIZE(ib_sa_cb_table),
 			    ib_sa_cb_table)) {
 		pr_err("Failed to add netlink callback\n");
 		ret = -EINVAL;
