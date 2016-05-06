@@ -74,8 +74,6 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
 	}
 
-	ib->vm_id = 0;
-
 	return 0;
 }
 
@@ -147,7 +145,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return -EINVAL;
 	}
 
-	if (vm && !ibs->vm_id) {
+	if (vm && !job->vm_id) {
 		dev_err(adev->dev, "VM IB without ID\n");
 		return -EINVAL;
 	}
@@ -162,10 +160,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
 	if (vm) {
-		r = amdgpu_vm_flush(ring, ib->vm_id, ib->vm_pd_addr,
-				    ib->gds_base, ib->gds_size,
-				    ib->gws_base, ib->gws_size,
-				    ib->oa_base, ib->oa_size);
+		r = amdgpu_vm_flush(ring, job->vm_id, job->vm_pd_addr,
+				    job->gds_base, job->gds_size,
+				    job->gws_base, job->gws_size,
+				    job->oa_base, job->oa_size);
 		if (r) {
 			amdgpu_ring_undo(ring);
 			return r;
@@ -187,7 +185,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && skip_preamble)
 			continue;
 
-		amdgpu_ring_emit_ib(ring, ib, need_ctx_switch);
+		amdgpu_ring_emit_ib(ring, ib, job ? job->vm_id : 0,
+				    need_ctx_switch);
 		need_ctx_switch = false;
 	}
 
@@ -197,8 +196,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	r = amdgpu_fence_emit(ring, &hwf);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
-		if (ib->vm_id)
-			amdgpu_vm_reset_id(adev, ib->vm_id);
+		if (job && job->vm_id)
+			amdgpu_vm_reset_id(adev, job->vm_id);
 		amdgpu_ring_undo(ring);
 		return r;
 	}

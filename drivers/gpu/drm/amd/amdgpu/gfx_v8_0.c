@@ -5646,7 +5646,8 @@ static void gfx_v8_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 }
 
 static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
-				      struct amdgpu_ib *ib, bool ctx_switch)
+				      struct amdgpu_ib *ib,
+				      unsigned vm_id, bool ctx_switch)
 {
 	u32 header, control = 0;
 	u32 next_rptr = ring->wptr + 5;
@@ -5672,7 +5673,7 @@ static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	else
 		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw | (ib->vm_id << 24);
+	control |= ib->length_dw | (vm_id << 24);
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,
@@ -5685,7 +5686,8 @@ static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 }
 
 static void gfx_v8_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
-					  struct amdgpu_ib *ib, bool ctx_switch)
+					  struct amdgpu_ib *ib,
+					  unsigned vm_id, bool ctx_switch)
 {
 	u32 header, control = 0;
 	u32 next_rptr = ring->wptr + 5;
@@ -5701,7 +5703,7 @@ static void gfx_v8_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 
 	header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw | (ib->vm_id << 24);
+	control |= ib->length_dw | (vm_id << 24);
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,

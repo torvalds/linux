@@ -473,6 +473,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		goto error_validate;
 
 	if (p->bo_list) {
+		struct amdgpu_bo *gds = p->bo_list->gds_obj;
+		struct amdgpu_bo *gws = p->bo_list->gws_obj;
+		struct amdgpu_bo *oa = p->bo_list->oa_obj;
 		struct amdgpu_vm *vm = &fpriv->vm;
 		unsigned i;
 
@@ -480,6 +483,19 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 			struct amdgpu_bo *bo = p->bo_list->array[i].robj;
 
 			p->bo_list->array[i].bo_va = amdgpu_vm_bo_find(vm, bo);
+		}
+
+		if (gds) {
+			p->job->gds_base = amdgpu_bo_gpu_offset(gds);
+			p->job->gds_size = amdgpu_bo_size(gds);
+		}
+		if (gws) {
+			p->job->gws_base = amdgpu_bo_gpu_offset(gws);
+			p->job->gws_size = amdgpu_bo_size(gws);
+		}
+		if (oa) {
+			p->job->oa_base = amdgpu_bo_gpu_offset(oa);
+			p->job->oa_size = amdgpu_bo_size(oa);
 		}
 	}
 
@@ -744,26 +760,6 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		j++;
 	}
 
-	/* add GDS resources to first IB */
-	if (parser->bo_list) {
-		struct amdgpu_bo *gds = parser->bo_list->gds_obj;
-		struct amdgpu_bo *gws = parser->bo_list->gws_obj;
-		struct amdgpu_bo *oa = parser->bo_list->oa_obj;
-		struct amdgpu_ib *ib = &parser->job->ibs[0];
-
-		if (gds) {
-			ib->gds_base = amdgpu_bo_gpu_offset(gds);
-			ib->gds_size = amdgpu_bo_size(gds);
-		}
-		if (gws) {
-			ib->gws_base = amdgpu_bo_gpu_offset(gws);
-			ib->gws_size = amdgpu_bo_size(gws);
-		}
-		if (oa) {
-			ib->oa_base = amdgpu_bo_gpu_offset(oa);
-			ib->oa_size = amdgpu_bo_size(oa);
-		}
-	}
 	/* wrap the last IB with user fence */
 	if (parser->job->uf.bo) {
 		struct amdgpu_ib *ib = &parser->job->ibs[parser->job->num_ibs - 1];
