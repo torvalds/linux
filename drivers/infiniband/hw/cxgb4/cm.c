@@ -1047,7 +1047,6 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	 */
 	skb_get(skb);
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
-	t4_set_arp_err_handler(skb, NULL, arp_failure_discard);
 	BUG_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
 	ep->snd_seq += mpalen;
@@ -1132,7 +1131,6 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	 * Function fw4_ack() will deref it.
 	 */
 	skb_get(skb);
-	t4_set_arp_err_handler(skb, NULL, arp_failure_discard);
 	ep->mpa_skb = skb;
 	__state_set(&ep->com, MPA_REP_SENT);
 	ep->snd_seq += mpalen;
@@ -1744,25 +1742,17 @@ static int process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	     ep->mpa_attr.xmit_marker_enabled, ep->mpa_attr.version,
 	     ep->mpa_attr.p2p_type);
 
-	/*
-	 * If the endpoint timer already expired, then we ignore
-	 * the start request.  process_timeout() will abort
-	 * the connection.
-	 */
-	if (!stop_ep_timer(ep)) {
-		__state_set(&ep->com, MPA_REQ_RCVD);
+	__state_set(&ep->com, MPA_REQ_RCVD);
 
-		/* drive upcall */
-		mutex_lock_nested(&ep->parent_ep->com.mutex,
-				  SINGLE_DEPTH_NESTING);
-		if (ep->parent_ep->com.state != DEAD) {
-			if (connect_request_upcall(ep))
-				goto err_unlock_parent;
-		} else {
+	/* drive upcall */
+	mutex_lock_nested(&ep->parent_ep->com.mutex, SINGLE_DEPTH_NESTING);
+	if (ep->parent_ep->com.state != DEAD) {
+		if (connect_request_upcall(ep))
 			goto err_unlock_parent;
-		}
-		mutex_unlock(&ep->parent_ep->com.mutex);
+	} else {
+		goto err_unlock_parent;
 	}
+	mutex_unlock(&ep->parent_ep->com.mutex);
 	return 0;
 
 err_unlock_parent:
@@ -2926,6 +2916,10 @@ static int fw4_ack(struct c4iw_dev *dev, struct sk_buff *skb)
 		     state_read(&ep->com), ep->mpa_attr.initiator ? 1 : 0);
 		kfree_skb(ep->mpa_skb);
 		ep->mpa_skb = NULL;
+		mutex_lock(&ep->com.mutex);
+		if (test_bit(STOP_MPA_TIMER, &ep->com.flags))
+			stop_ep_timer(ep);
+		mutex_unlock(&ep->com.mutex);
 	}
 	return 0;
 }
@@ -2952,8 +2946,10 @@ int c4iw_reject_cr(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 		disconnect = 1;
 	}
 	mutex_unlock(&ep->com.mutex);
-	if (disconnect)
+	if (disconnect) {
+		stop_ep_timer(ep);
 		err = c4iw_ep_disconnect(ep, disconnect == 2, GFP_KERNEL);
+	}
 	c4iw_put_ep(&ep->com);
 	return 0;
 }
@@ -3047,6 +3043,8 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			     ep->com.qp, mask, &attrs, 1);
 	if (err)
 		goto err_deref_cm_id;
+
+	set_bit(STOP_MPA_TIMER, &ep->com.flags);
 	err = send_mpa_reply(ep, conn_param->private_data,
 			     conn_param->private_data_len);
 	if (err)
@@ -3968,6 +3966,7 @@ static void process_timeout(struct c4iw_ep *ep)
 		connect_reply_upcall(ep, -ETIMEDOUT);
 		break;
 	case MPA_REQ_WAIT:
+	case MPA_REP_SENT:
 		__state_set(&ep->com, ABORTING);
 		break;
 	case CLOSING:
