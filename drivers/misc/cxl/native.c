@@ -494,8 +494,9 @@ static u64 calculate_sr(struct cxl_context *ctx)
 	if (mfspr(SPRN_LPCR) & LPCR_TC)
 		sr |= CXL_PSL_SR_An_TC;
 	if (ctx->kernel) {
-		sr |= CXL_PSL_SR_An_R | (mfmsr() & MSR_SF);
-		sr |= CXL_PSL_SR_An_HV;
+		if (!ctx->real_mode)
+			sr |= CXL_PSL_SR_An_R;
+		sr |= (mfmsr() & MSR_SF) | CXL_PSL_SR_An_HV;
 	} else {
 		sr |= CXL_PSL_SR_An_PR | CXL_PSL_SR_An_R;
 		sr &= ~(CXL_PSL_SR_An_HV);
