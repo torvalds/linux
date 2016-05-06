@@ -27,6 +27,7 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/seq_file.h>
+#include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
@@ -275,6 +276,9 @@ static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
 
 	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
 	ifinfo2 = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
+
+	if (WARN_ON(!ifinfo1 || !ifinfo2))
+		return false;
 
 	threshold = ifinfo1->bat_v.throughput / 4;
 	threshold = ifinfo1->bat_v.throughput - threshold;
