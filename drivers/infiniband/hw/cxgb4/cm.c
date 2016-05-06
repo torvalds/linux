@@ -3971,12 +3971,10 @@ static void process_timeout(struct c4iw_ep *ep)
 	set_bit(TIMEDOUT, &ep->com.history);
 	switch (ep->com.state) {
 	case MPA_REQ_SENT:
-		__state_set(&ep->com, ABORTING);
 		connect_reply_upcall(ep, -ETIMEDOUT);
 		break;
 	case MPA_REQ_WAIT:
 	case MPA_REP_SENT:
-		__state_set(&ep->com, ABORTING);
 		break;
 	case CLOSING:
 	case MORIBUND:
@@ -3986,7 +3984,6 @@ static void process_timeout(struct c4iw_ep *ep)
 				     ep->com.qp, C4IW_QP_ATTR_NEXT_STATE,
 				     &attrs, 1);
 		}
-		__state_set(&ep->com, ABORTING);
 		close_complete_upcall(ep, -ETIMEDOUT);
 		break;
 	case ABORTING:
