@@ -1918,8 +1918,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 }
 
 static void
-logical_ring_default_vfuncs(struct drm_device *dev,
-			    struct intel_engine_cs *engine)
+logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 {
 	/* Default vfuncs which can be overriden by each engine. */
 	engine->init_hw = gen8_init_common_ring;
@@ -1930,7 +1929,7 @@ logical_ring_default_vfuncs(struct drm_device *dev,
 	engine->emit_bb_start = gen8_emit_bb_start;
 	engine->get_seqno = gen8_get_seqno;
 	engine->set_seqno = gen8_set_seqno;
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
+	if (IS_BXT_REVID(engine->dev, 0, BXT_REVID_A1)) {
 		engine->irq_seqno_barrier = bxt_a_seqno_barrier;
 		engine->set_seqno = bxt_a_set_seqno;
 	}
@@ -1941,6 +1940,7 @@ logical_ring_default_irqs(struct intel_engine_cs *engine, unsigned shift)
 {
 	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT << shift;
 	engine->irq_keep_mask = GT_CONTEXT_SWITCH_INTERRUPT << shift;
+	init_waitqueue_head(&engine->irq_queue);
 }
 
 static int
@@ -1961,31 +1961,68 @@ lrc_setup_hws(struct intel_engine_cs *engine,
 	return 0;
 }
 
-static int
-logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
+static const struct logical_ring_info {
+	const char *name;
+	unsigned exec_id;
+	unsigned guc_id;
+	u32 mmio_base;
+	unsigned irq_shift;
+} logical_rings[] = {
+	[RCS] = {
+		.name = "render ring",
+		.exec_id = I915_EXEC_RENDER,
+		.guc_id = GUC_RENDER_ENGINE,
+		.mmio_base = RENDER_RING_BASE,
+		.irq_shift = GEN8_RCS_IRQ_SHIFT,
+	},
+	[BCS] = {
+		.name = "blitter ring",
+		.exec_id = I915_EXEC_BLT,
+		.guc_id = GUC_BLITTER_ENGINE,
+		.mmio_base = BLT_RING_BASE,
+		.irq_shift = GEN8_BCS_IRQ_SHIFT,
+	},
+	[VCS] = {
+		.name = "bsd ring",
+		.exec_id = I915_EXEC_BSD,
+		.guc_id = GUC_VIDEO_ENGINE,
+		.mmio_base = GEN6_BSD_RING_BASE,
+		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
+	},
+	[VCS2] = {
+		.name = "bsd2 ring",
+		.exec_id = I915_EXEC_BSD,
+		.guc_id = GUC_VIDEO_ENGINE2,
+		.mmio_base = GEN8_BSD2_RING_BASE,
+		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
+	},
+	[VECS] = {
+		.name = "video enhancement ring",
+		.exec_id = I915_EXEC_VEBOX,
+		.guc_id = GUC_VIDEOENHANCE_ENGINE,
+		.mmio_base = VEBOX_RING_BASE,
+		.irq_shift = GEN8_VECS_IRQ_SHIFT,
+	},
+};
+
+static struct intel_engine_cs *
+logical_ring_setup(struct drm_device *dev, enum intel_engine_id id)
 {
+	const struct logical_ring_info *info = &logical_rings[id];
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_context *dctx = dev_priv->kernel_context;
+	struct intel_engine_cs *engine = &dev_priv->engine[id];
 	enum forcewake_domains fw_domains;
-	int ret;
+
+	engine->id = id;
+	engine->name = info->name;
+	engine->exec_id = info->exec_id;
+	engine->guc_id = info->guc_id;
+	engine->mmio_base = info->mmio_base;
+
+	engine->dev = dev;
 
 	/* Intentionally left blank. */
 	engine->buffer = NULL;
-
-	engine->dev = dev;
-	INIT_LIST_HEAD(&engine->active_list);
-	INIT_LIST_HEAD(&engine->request_list);
-	i915_gem_batch_pool_init(dev, &engine->batch_pool);
-	init_waitqueue_head(&engine->irq_queue);
-
-	INIT_LIST_HEAD(&engine->buffers);
-	INIT_LIST_HEAD(&engine->execlist_queue);
-	spin_lock_init(&engine->execlist_lock);
-
-	tasklet_init(&engine->irq_tasklet,
-		     intel_lrc_irq_handler, (unsigned long)engine);
-
-	logical_ring_init_platform_invariants(engine);
 
 	fw_domains = intel_uncore_forcewake_for_reg(dev_priv,
 						    RING_ELSP(engine),
@@ -2000,6 +2037,31 @@ logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 						     FW_REG_READ);
 
 	engine->fw_domains = fw_domains;
+
+	INIT_LIST_HEAD(&engine->active_list);
+	INIT_LIST_HEAD(&engine->request_list);
+	INIT_LIST_HEAD(&engine->buffers);
+	INIT_LIST_HEAD(&engine->execlist_queue);
+	spin_lock_init(&engine->execlist_lock);
+
+	tasklet_init(&engine->irq_tasklet,
+		     intel_lrc_irq_handler, (unsigned long)engine);
+
+	logical_ring_init_platform_invariants(engine);
+	logical_ring_default_vfuncs(engine);
+	logical_ring_default_irqs(engine, info->irq_shift);
+
+	intel_engine_init_hangcheck(engine);
+	i915_gem_batch_pool_init(engine->dev, &engine->batch_pool);
+
+	return engine;
+}
+
+static int
+logical_ring_init(struct intel_engine_cs *engine)
+{
+	struct intel_context *dctx = to_i915(engine->dev)->kernel_context;
+	int ret;
 
 	ret = i915_cmd_parser_init_ring(engine);
 	if (ret)
@@ -2033,21 +2095,11 @@ error:
 
 static int logical_render_ring_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
+	struct intel_engine_cs *engine = logical_ring_setup(dev, RCS);
 	int ret;
 
-	engine->name = "render ring";
-	engine->id = RCS;
-	engine->exec_id = I915_EXEC_RENDER;
-	engine->guc_id = GUC_RENDER_ENGINE;
-	engine->mmio_base = RENDER_RING_BASE;
-
-	logical_ring_default_irqs(engine, GEN8_RCS_IRQ_SHIFT);
 	if (HAS_L3_DPF(dev))
 		engine->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-
-	logical_ring_default_vfuncs(dev, engine);
 
 	/* Override some for render ring. */
 	if (INTEL_INFO(dev)->gen >= 9)
@@ -2058,8 +2110,6 @@ static int logical_render_ring_init(struct drm_device *dev)
 	engine->cleanup = intel_fini_pipe_control;
 	engine->emit_flush = gen8_emit_flush_render;
 	engine->emit_request = gen8_emit_request_render;
-
-	engine->dev = dev;
 
 	ret = intel_init_pipe_control(engine);
 	if (ret)
@@ -2076,7 +2126,7 @@ static int logical_render_ring_init(struct drm_device *dev)
 			  ret);
 	}
 
-	ret = logical_ring_init(dev, engine);
+	ret = logical_ring_init(engine);
 	if (ret) {
 		lrc_destroy_wa_ctx_obj(engine);
 	}
@@ -2086,70 +2136,30 @@ static int logical_render_ring_init(struct drm_device *dev)
 
 static int logical_bsd_ring_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine = &dev_priv->engine[VCS];
+	struct intel_engine_cs *engine = logical_ring_setup(dev, VCS);
 
-	engine->name = "bsd ring";
-	engine->id = VCS;
-	engine->exec_id = I915_EXEC_BSD;
-	engine->guc_id = GUC_VIDEO_ENGINE;
-	engine->mmio_base = GEN6_BSD_RING_BASE;
-
-	logical_ring_default_irqs(engine, GEN8_VCS1_IRQ_SHIFT);
-	logical_ring_default_vfuncs(dev, engine);
-
-	return logical_ring_init(dev, engine);
+	return logical_ring_init(engine);
 }
 
 static int logical_bsd2_ring_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine = &dev_priv->engine[VCS2];
+	struct intel_engine_cs *engine = logical_ring_setup(dev, VCS2);
 
-	engine->name = "bsd2 ring";
-	engine->id = VCS2;
-	engine->exec_id = I915_EXEC_BSD;
-	engine->guc_id = GUC_VIDEO_ENGINE2;
-	engine->mmio_base = GEN8_BSD2_RING_BASE;
-
-	logical_ring_default_irqs(engine, GEN8_VCS2_IRQ_SHIFT);
-	logical_ring_default_vfuncs(dev, engine);
-
-	return logical_ring_init(dev, engine);
+	return logical_ring_init(engine);
 }
 
 static int logical_blt_ring_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine = &dev_priv->engine[BCS];
+	struct intel_engine_cs *engine = logical_ring_setup(dev, BCS);
 
-	engine->name = "blitter ring";
-	engine->id = BCS;
-	engine->exec_id = I915_EXEC_BLT;
-	engine->guc_id = GUC_BLITTER_ENGINE;
-	engine->mmio_base = BLT_RING_BASE;
-
-	logical_ring_default_irqs(engine, GEN8_BCS_IRQ_SHIFT);
-	logical_ring_default_vfuncs(dev, engine);
-
-	return logical_ring_init(dev, engine);
+	return logical_ring_init(engine);
 }
 
 static int logical_vebox_ring_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine = &dev_priv->engine[VECS];
+	struct intel_engine_cs *engine = logical_ring_setup(dev, VECS);
 
-	engine->name = "video enhancement ring";
-	engine->id = VECS;
-	engine->exec_id = I915_EXEC_VEBOX;
-	engine->guc_id = GUC_VIDEOENHANCE_ENGINE;
-	engine->mmio_base = VEBOX_RING_BASE;
-
-	logical_ring_default_irqs(engine, GEN8_VECS_IRQ_SHIFT);
-	logical_ring_default_vfuncs(dev, engine);
-
-	return logical_ring_init(dev, engine);
+	return logical_ring_init(engine);
 }
 
 /**
