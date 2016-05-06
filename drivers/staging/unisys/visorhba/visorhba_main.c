@@ -950,14 +950,15 @@ static void process_disk_notify(struct Scsi_Host *shost,
 	struct diskaddremove *dar;
 
 	dar = kzalloc(sizeof(*dar), GFP_ATOMIC);
-	if (dar) {
-		dar->add = cmdrsp->disknotify.add;
-		dar->shost = shost;
-		dar->channel = cmdrsp->disknotify.channel;
-		dar->id = cmdrsp->disknotify.id;
-		dar->lun = cmdrsp->disknotify.lun;
-		queue_disk_add_remove(dar);
-	}
+	if (!dar)
+		return;
+
+	dar->add = cmdrsp->disknotify.add;
+	dar->shost = shost;
+	dar->channel = cmdrsp->disknotify.channel;
+	dar->id = cmdrsp->disknotify.id;
+	dar->lun = cmdrsp->disknotify.lun;
+	queue_disk_add_remove(dar);
 }
 
 /**
