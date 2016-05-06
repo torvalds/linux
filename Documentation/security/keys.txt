@@ -1445,6 +1445,15 @@ The structure has a number of fields, some of which are mandatory:
      	 The authorisation key.
 
 
+ (*) struct key_restriction *(*lookup_restriction)(const char *params);
+
+     This optional method is used to enable userspace configuration of keyring
+     restrictions. The restriction parameter string (not including the key type
+     name) is passed in, and this method returns a pointer to a key_restriction
+     structure containing the relevant functions and data to evaluate each
+     attempted key link operation. If there is no match, -EINVAL is returned.
+
+
 ============================
 REQUEST-KEY CALLBACK SERVICE
 ============================
