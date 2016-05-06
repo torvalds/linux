@@ -185,8 +185,10 @@ TRACE_EVENT(kvm_s390_intercept_prog,
 		    __entry->code = code;
 		    ),
 
-	    VCPU_TP_PRINTK("intercepted program interruption %04x",
-			   __entry->code)
+	    VCPU_TP_PRINTK("intercepted program interruption %04x (%s)",
+			   __entry->code,
+			   __print_symbolic(__entry->code,
+					    icpt_prog_codes))
 	);
 
 /*
