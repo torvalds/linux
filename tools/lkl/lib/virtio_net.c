@@ -150,7 +150,7 @@ static void free_queue_locks(struct lkl_mutex_t **queues, int num_queues)
 		return;
 
 	for (i = 0; i < num_queues; i++)
-		lkl_host_ops.mem_free(queues[i]);
+		lkl_host_ops.mutex_free(queues[i]);
 
 	lkl_host_ops.mem_free(queues);
 }

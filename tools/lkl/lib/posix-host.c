@@ -90,6 +90,12 @@ static struct lkl_sem_t *sem_alloc(int count)
 
 static void sem_free(struct lkl_sem_t *sem)
 {
+#ifdef _POSIX_SEMAPHORES
+	WARN_UNLESS(sem_destroy(&sem->sem));
+#else
+	WARN_PTHREAD(pthread_cond_destroy(&sem->cond));
+	WARN_PTHREAD(pthread_mutex_destroy(&sem->lock));
+#endif /* _POSIX_SEMAPHORES */
 	free(sem);
 }
 
