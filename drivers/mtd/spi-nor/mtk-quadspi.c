@@ -261,7 +261,7 @@ static ssize_t mt8173_nor_read(struct spi_nor *nor, loff_t from, size_t length,
 			return ret;
 		buf[i] = readb(mt8173_nor->base + MTK_NOR_RDATA_REG);
 	}
-	return 0;
+	return length;
 }
 
 static int mt8173_nor_write_single_byte(struct mt8173_nor *mt8173_nor,
@@ -302,6 +302,7 @@ static ssize_t mt8173_nor_write(struct spi_nor *nor, loff_t to, size_t len,
 {
 	int ret;
 	struct mt8173_nor *mt8173_nor = nor->priv;
+	size_t i;
 
 	ret = mt8173_nor_write_buffer_enable(mt8173_nor);
 	if (ret < 0) {
@@ -309,13 +310,12 @@ static ssize_t mt8173_nor_write(struct spi_nor *nor, loff_t to, size_t len,
 		return ret;
 	}
 
-	while (len >= SFLASH_WRBUF_SIZE) {
+	for (i = 0; i + SFLASH_WRBUF_SIZE <= len; i += SFLASH_WRBUF_SIZE) {
 		ret = mt8173_nor_write_buffer(mt8173_nor, to, buf);
 		if (ret < 0) {
 			dev_err(mt8173_nor->dev, "write buffer failed!\n");
 			return ret;
 		}
-		len -= SFLASH_WRBUF_SIZE;
 		to += SFLASH_WRBUF_SIZE;
 		buf += SFLASH_WRBUF_SIZE;
 		(*retlen) += SFLASH_WRBUF_SIZE;
@@ -326,9 +326,9 @@ static ssize_t mt8173_nor_write(struct spi_nor *nor, loff_t to, size_t len,
 		return ret;
 	}
 
-	if (len) {
-		ret = mt8173_nor_write_single_byte(mt8173_nor, to, (int)len,
-						   (u8 *)buf);
+	if (i < len) {
+		ret = mt8173_nor_write_single_byte(mt8173_nor, to,
+						   (int)(len - i), (u8 *)buf);
 		if (ret < 0) {
 			dev_err(mt8173_nor->dev, "write single byte failed!\n");
 			return ret;
@@ -336,7 +336,7 @@ static ssize_t mt8173_nor_write(struct spi_nor *nor, loff_t to, size_t len,
 		(*retlen) += len;
 	}
 
-	return 0;
+	return len;
 }
 
 static int mt8173_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
