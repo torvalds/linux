@@ -15,7 +15,8 @@
 
 #define SVC_KEY_ARA_BUTTON	KEY_A
 
-#define SVC_INTF_EJECT_TIMEOUT	9000
+#define SVC_INTF_EJECT_TIMEOUT		9000
+#define SVC_INTF_ACTIVATE_TIMEOUT	6000
 
 struct gb_svc_deferred_request {
 	struct work_struct work;
@@ -326,9 +327,21 @@ int gb_svc_intf_unipro_set(struct gb_svc *svc, u8 intf_id, bool enable)
 
 int gb_svc_intf_activate(struct gb_svc *svc, u8 intf_id, u8 *intf_type)
 {
-	/* FIXME: implement */
+	struct gb_svc_intf_activate_request request;
+	struct gb_svc_intf_activate_response response;
+	int ret;
 
-	*intf_type = GB_SVC_INTF_TYPE_GREYBUS;
+	request.intf_id = intf_id;
+
+	ret = gb_operation_sync_timeout(svc->connection,
+			GB_SVC_TYPE_INTF_ACTIVATE,
+			&request, sizeof(request),
+			&response, sizeof(response),
+			SVC_INTF_ACTIVATE_TIMEOUT);
+	if (ret < 0)
+		return ret;
+
+	*intf_type = response.intf_type;
 
 	return 0;
 }
