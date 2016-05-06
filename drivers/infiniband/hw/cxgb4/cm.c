@@ -217,6 +217,8 @@ static int c4iw_l2t_send(struct c4iw_rdev *rdev, struct sk_buff *skb,
 	error = cxgb4_l2t_send(rdev->lldi.ports[0], skb, l2e);
 	if (error < 0)
 		kfree_skb(skb);
+	else if (error == NET_XMIT_DROP)
+		return -ENOMEM;
 	return error < 0 ? error : 0;
 }
 
@@ -879,10 +881,10 @@ clip_release:
 	return ret;
 }
 
-static void send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
-		u8 mpa_rev_to_use)
+static int send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
+			u8 mpa_rev_to_use)
 {
-	int mpalen, wrlen;
+	int mpalen, wrlen, ret;
 	struct fw_ofld_tx_data_wr *req;
 	struct mpa_message *mpa;
 	struct mpa_v2_conn_params mpa_v2_params;
@@ -898,7 +900,7 @@ static void send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	skb = get_skb(skb, wrlen, GFP_KERNEL);
 	if (!skb) {
 		connect_reply_upcall(ep, -ENOMEM);
-		return;
+		return -ENOMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
@@ -966,12 +968,14 @@ static void send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 	t4_set_arp_err_handler(skb, NULL, arp_failure_discard);
 	BUG_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
-	c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
+	ret = c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
+	if (ret)
+		return ret;
 	start_ep_timer(ep);
 	__state_set(&ep->com, MPA_REQ_SENT);
 	ep->mpa_attr.initiator = 1;
 	ep->snd_seq += mpalen;
-	return;
+	return ret;
 }
 
 static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
@@ -1174,9 +1178,11 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 	if (ret)
 		goto err;
 	if (ep->retry_with_mpa_v1)
-		send_mpa_req(ep, skb, 1);
+		ret = send_mpa_req(ep, skb, 1);
 	else
-		send_mpa_req(ep, skb, mpa_rev);
+		ret = send_mpa_req(ep, skb, mpa_rev);
+	if (ret)
+		goto err;
 	mutex_unlock(&ep->com.mutex);
 	return 0;
 err:
@@ -1850,7 +1856,7 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
+static int send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 {
 	struct sk_buff *skb;
 	struct fw_ofld_connection_wr *req;
@@ -1920,7 +1926,7 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	req->tcb.opt2 = cpu_to_be32((__force u32)req->tcb.opt2);
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, ep->ctrlq_idx);
 	set_bit(ACT_OFLD_CONN, &ep->com.history);
-	c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
+	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
 
 /*
@@ -2146,6 +2152,7 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct sockaddr_in *ra;
 	struct sockaddr_in6 *la6;
 	struct sockaddr_in6 *ra6;
+	int ret = 0;
 
 	ep = lookup_atid(t, atid);
 	la = (struct sockaddr_in *)&ep->com.local_addr;
@@ -2181,9 +2188,10 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		mutex_unlock(&dev->rdev.stats.lock);
 		if (ep->com.local_addr.ss_family == AF_INET &&
 		    dev->rdev.lldi.enable_fw_ofld_conn) {
-			send_fw_act_open_req(ep,
-					     TID_TID_G(AOPEN_ATID_G(
-					     ntohl(rpl->atid_status))));
+			ret = send_fw_act_open_req(ep, TID_TID_G(AOPEN_ATID_G(
+						   ntohl(rpl->atid_status))));
+			if (ret)
+				goto fail;
 			return 0;
 		}
 		break;
@@ -2223,6 +2231,7 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		break;
 	}
 
+fail:
 	connect_reply_upcall(ep, status2errno(status));
 	state_set(&ep->com, DEAD);
 
