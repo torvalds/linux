@@ -507,7 +507,6 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 				       "needed for --call-graph fp\n");
 			break;
 
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
 		/* Dwarf style */
 		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
 			const unsigned long default_stack_dump_size = 8192;
@@ -523,7 +522,6 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 				ret = get_stack_size(tok, &size);
 				param->dump_size = size;
 			}
-#endif /* HAVE_DWARF_UNWIND_SUPPORT */
 		} else if (!strncmp(name, "lbr", sizeof("lbr"))) {
 			if (!strtok_r(NULL, ",", &saveptr)) {
 				param->record_mode = CALLCHAIN_LBR;
