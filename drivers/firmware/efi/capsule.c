@@ -22,11 +22,12 @@ typedef struct {
 } efi_capsule_block_desc_t;
 
 static bool capsule_pending;
+static bool stop_capsules;
 static int efi_reset_type = -1;
 
 /*
  * capsule_mutex serialises access to both capsule_pending and
- * efi_reset_type.
+ * efi_reset_type and stop_capsules.
  */
 static DEFINE_MUTEX(capsule_mutex);
 
@@ -50,18 +51,13 @@ static DEFINE_MUTEX(capsule_mutex);
  */
 bool efi_capsule_pending(int *reset_type)
 {
-	bool rv = false;
-
-	mutex_lock(&capsule_mutex);
 	if (!capsule_pending)
-		goto out;
+		return false;
 
 	if (reset_type)
 		*reset_type = efi_reset_type;
-	rv = true;
-out:
-	mutex_unlock(&capsule_mutex);
-	return rv;
+
+	return true;
 }
 
 /*
@@ -176,7 +172,7 @@ efi_capsule_update_locked(efi_capsule_header_t *capsule,
 	 * whether to force an EFI reboot), and we're racing against
 	 * that call. Abort in that case.
 	 */
-	if (unlikely(system_state == SYSTEM_RESTART)) {
+	if (unlikely(stop_capsules)) {
 		pr_warn("Capsule update raced with reboot, aborting.\n");
 		return -EINVAL;
 	}
@@ -298,3 +294,22 @@ out:
 	return rv;
 }
 EXPORT_SYMBOL_GPL(efi_capsule_update);
+
+static int capsule_reboot_notify(struct notifier_block *nb, unsigned long event, void *cmd)
+{
+	mutex_lock(&capsule_mutex);
+	stop_capsules = true;
+	mutex_unlock(&capsule_mutex);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block capsule_reboot_nb = {
+	.notifier_call = capsule_reboot_notify,
+};
+
+static int __init capsule_reboot_register(void)
+{
+	return register_reboot_notifier(&capsule_reboot_nb);
+}
+core_initcall(capsule_reboot_register);
