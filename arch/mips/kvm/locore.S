@@ -32,7 +32,6 @@
     EXPORT(x);
 
 /* Overload, Danger Will Robinson!! */
-#define PT_HOST_ASID        PT_BVADDR
 #define PT_HOST_USERLOCAL   PT_EPC
 
 #define CP0_DDATA_LO        $28,3
@@ -103,11 +102,6 @@ FEXPORT(__kvm_mips_vcpu_run)
 	/* Save host status */
 	mfc0	v0, CP0_STATUS
 	LONG_S	v0, PT_STATUS(k1)
-
-	/* Save host ASID, shove it into the BVADDR location */
-	mfc0	v1, CP0_ENTRYHI
-	andi	v1, 0xff
-	LONG_S	v1, PT_HOST_ASID(k1)
 
 	/* Save DDATA_LO, will be used to store pointer to vcpu */
 	mfc0	v1, CP0_DDATA_LO
@@ -550,12 +544,6 @@ __kvm_mips_return_to_host:
 	/* Restore host DDATA_LO */
 	LONG_L	k0, PT_HOST_USERLOCAL(k1)
 	mtc0	k0, CP0_DDATA_LO
-
-	/* Restore host ASID */
-	LONG_L	k0, PT_HOST_ASID(sp)
-	andi	k0, 0xff
-	mtc0	k0,CP0_ENTRYHI
-	ehb
 
 	/* Load context saved on the host stack */
 	LONG_L	$0, PT_R0(k1)
