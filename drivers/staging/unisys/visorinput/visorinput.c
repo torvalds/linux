@@ -467,18 +467,14 @@ handle_locking_key(struct input_dev *visorinput_dev,
 		break;
 	default:
 		led = -1;
-		break;
+		return;
 	}
-	if (led >= 0) {
-		int old_state = (test_bit(led, visorinput_dev->led));
-
-		if (old_state != desired_state) {
-			input_report_key(visorinput_dev, keycode, 1);
-			input_sync(visorinput_dev);
-			input_report_key(visorinput_dev, keycode, 0);
-			input_sync(visorinput_dev);
-			__change_bit(led, visorinput_dev->led);
-		}
+	if (test_bit(led, visorinput_dev->led) != desired_state) {
+		input_report_key(visorinput_dev, keycode, 1);
+		input_sync(visorinput_dev);
+		input_report_key(visorinput_dev, keycode, 0);
+		input_sync(visorinput_dev);
+		__change_bit(led, visorinput_dev->led);
 	}
 }
 
