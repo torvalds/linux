@@ -48,7 +48,6 @@
  * a1: vcpu
  */
 	.set	noreorder
-	.set	noat
 
 FEXPORT(__kvm_mips_vcpu_run)
 	/* k0/k1 not being used in host kernel context */
@@ -145,6 +144,7 @@ FEXPORT(__kvm_mips_load_asid)
 	/* Disable RDHWR access */
 	mtc0	zero, CP0_HWRENA
 
+	.set	noat
 	/* Now load up the Guest Context from VCPU */
 	LONG_L	$1, VCPU_R1(k1)
 	LONG_L	$2, VCPU_R2(k1)
@@ -256,6 +256,8 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	LONG_S	$30, VCPU_R30(k1)
 	LONG_S	$31, VCPU_R31(k1)
 
+	.set at
+
 	/* We need to save hi/lo and restore them on the way out */
 	mfhi	t0
 	LONG_S	t0, VCPU_HI(k1)
@@ -307,9 +309,7 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	/* load up the host EBASE */
 	mfc0	v0, CP0_STATUS
 
-	.set	at
 	or	k0, v0, ST0_BEV
-	.set	noat
 
 	mtc0	k0, CP0_STATUS
 	ehb
@@ -321,7 +321,6 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	 * If FPU is enabled, save FCR31 and clear it so that later ctc1's don't
 	 * trigger FPE for pending exceptions.
 	 */
-	.set	at
 	and	v1, v0, ST0_CU1
 	beqz	v1, 1f
 	 nop
@@ -331,7 +330,6 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	sw	t0, VCPU_FCR31(k1)
 	ctc1	zero,fcr31
 	.set	pop
-	.set	noat
 1:
 
 #ifdef CONFIG_CPU_HAS_MSA
@@ -354,10 +352,8 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 #endif
 
 	/* Now that the new EBASE has been loaded, unset BEV and KSU_USER */
-	.set	at
 	and	v0, v0, ~(ST0_EXL | KSU_USER | ST0_IE)
 	or	v0, v0, ST0_CU0
-	.set	noat
 	mtc0	v0, CP0_STATUS
 	ehb
 
@@ -424,18 +420,14 @@ __kvm_mips_return_to_guest:
 
 	/* Switch EBASE back to the one used by KVM */
 	mfc0	v1, CP0_STATUS
-	.set	at
 	or	k0, v1, ST0_BEV
-	.set	noat
 	mtc0	k0, CP0_STATUS
 	ehb
 	mtc0	t0, CP0_EBASE
 
 	/* Setup status register for running guest in UM */
-	.set	at
 	or	v1, v1, (ST0_EXL | KSU_USER | ST0_IE)
 	and	v1, v1, ~(ST0_CU0 | ST0_MX)
-	.set	noat
 	mtc0	v1, CP0_STATUS
 	ehb
 
@@ -464,6 +456,7 @@ __kvm_mips_return_to_guest:
 	/* Disable RDHWR access */
 	mtc0	zero, CP0_HWRENA
 
+	.set	noat
 	/* load the guest context from VCPU and return */
 	LONG_L	$0, VCPU_R0(k1)
 	LONG_L	$1, VCPU_R1(k1)
@@ -509,6 +502,7 @@ FEXPORT(__kvm_mips_skip_guest_restore)
 	LONG_L	k1, VCPU_R27(k1)
 
 	eret
+	.set	at
 
 __kvm_mips_return_to_host:
 	/* EBASE is already pointing to Linux */
