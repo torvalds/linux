@@ -175,7 +175,7 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 	 * which is called by mtd_ooblayout_count_eccbytes().
 	 * Make sure they are properly initialized before calling
 	 * mtd_ooblayout_count_eccbytes().
-	 * FIXME: we should probaly rework the sequencing in nand_scan_tail()
+	 * FIXME: we should probably rework the sequencing in nand_scan_tail()
 	 * to avoid setting those fields twice.
 	 */
 	nand->ecc.steps = eccsteps;
