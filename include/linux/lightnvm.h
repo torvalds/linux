@@ -323,6 +323,8 @@ struct nvm_dev {
 	int sec_per_pg; /* only sectors for a single page */
 	int pgs_per_blk;
 	int blks_per_lun;
+	int fpg_size;
+	int pfpg_size; /* size of buffer if all pages are to be read */
 	int sec_size;
 	int oob_size;
 	int mccap;

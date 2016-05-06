@@ -476,6 +476,8 @@ static int nvm_core_init(struct nvm_dev *dev)
 	dev->pgs_per_blk = grp->num_pg;
 	dev->blks_per_lun = grp->num_blk;
 	dev->nr_planes = grp->num_pln;
+	dev->fpg_size = grp->fpg_sz;
+	dev->pfpg_size = grp->fpg_sz * grp->num_pln;
 	dev->sec_size = grp->csecs;
 	dev->oob_size = grp->sos;
 	dev->sec_per_pg = grp->fpg_sz / grp->csecs;

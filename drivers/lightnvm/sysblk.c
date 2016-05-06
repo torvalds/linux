@@ -154,13 +154,12 @@ static int nvm_scan_block(struct nvm_dev *dev, struct ppa_addr *ppa,
 						struct nvm_system_block *sblk)
 {
 	struct nvm_system_block *cur;
-	int pg, cursz, ret, found = 0;
+	int pg, ret, found = 0;
 
 	/* the full buffer for a flash page is allocated. Only the first of it
 	 * contains the system block information
 	 */
-	cursz = dev->sec_size * dev->sec_per_pg * dev->nr_planes;
-	cur = kmalloc(cursz, GFP_KERNEL);
+	cur = kmalloc(dev->pfpg_size, GFP_KERNEL);
 	if (!cur)
 		return -ENOMEM;
 
@@ -169,7 +168,7 @@ static int nvm_scan_block(struct nvm_dev *dev, struct ppa_addr *ppa,
 		ppa->g.pg = ppa_to_slc(dev, pg);
 
 		ret = nvm_submit_ppa(dev, ppa, 1, NVM_OP_PREAD, NVM_IO_SLC_MODE,
-								cur, cursz);
+							cur, dev->pfpg_size);
 		if (ret) {
 			if (ret == NVM_RSP_ERR_EMPTYPAGE) {
 				pr_debug("nvm: sysblk scan empty ppa (%u %u %u %u)\n",
@@ -272,14 +271,12 @@ static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
 {
 	struct nvm_system_block nvmsb;
 	void *buf;
-	int i, sect, ret = 0, bufsz;
+	int i, sect, ret = 0;
 	struct ppa_addr *ppas;
 
 	nvm_cpu_to_sysblk(&nvmsb, info);
 
-	/* buffer for flash page */
-	bufsz = dev->sec_size * dev->sec_per_pg * dev->nr_planes;
-	buf = kzalloc(bufsz, GFP_KERNEL);
+	buf = kzalloc(dev->pfpg_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 	memcpy(buf, &nvmsb, sizeof(struct nvm_system_block));
@@ -309,7 +306,7 @@ static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
 		}
 
 		ret = nvm_submit_ppa(dev, ppas, dev->sec_per_pg, NVM_OP_PWRITE,
-						NVM_IO_SLC_MODE, buf, bufsz);
+					NVM_IO_SLC_MODE, buf, dev->pfpg_size);
 		if (ret) {
 			pr_err("nvm: sysblk failed program (%u %u %u)\n",
 							ppas[0].g.ch,
@@ -319,7 +316,7 @@ static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
 		}
 
 		ret = nvm_submit_ppa(dev, ppas, dev->sec_per_pg, NVM_OP_PREAD,
-						NVM_IO_SLC_MODE, buf, bufsz);
+					NVM_IO_SLC_MODE, buf, dev->pfpg_size);
 		if (ret) {
 			pr_err("nvm: sysblk failed read (%u %u %u)\n",
 							ppas[0].g.ch,
