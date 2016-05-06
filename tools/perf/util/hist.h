@@ -82,6 +82,8 @@ struct hists {
 	int			nr_hpp_node;
 };
 
+#define hists__has(__h, __f) (__h)->hpp_list->__f
+
 struct hist_entry_iter;
 
 struct hist_iter_ops {
@@ -238,6 +240,14 @@ struct perf_hpp_fmt {
 struct perf_hpp_list {
 	struct list_head fields;
 	struct list_head sorts;
+
+	int need_collapse;
+	int parent;
+	int sym;
+	int dso;
+	int socket;
+	int thread;
+	int comm;
 };
 
 extern struct perf_hpp_list perf_hpp_list;

@@ -1665,5 +1665,5 @@ int hist_entry__annotate(struct hist_entry *he, size_t privsize)
 
 bool ui__has_annotation(void)
 {
-	return use_browser == 1 && sort__has_sym;
+	return use_browser == 1 && perf_hpp_list.sym;
 }

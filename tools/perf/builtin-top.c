@@ -688,7 +688,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 	struct hist_entry *he = iter->he;
 	struct perf_evsel *evsel = iter->evsel;
 
-	if (sort__has_sym && single)
+	if (perf_hpp_list.sym && single)
 		perf_top__record_precise_ip(top, he, evsel->idx, al->addr);
 
 	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
@@ -919,7 +919,7 @@ out_err:
 
 static int callchain_param__setup_sample_type(struct callchain_param *callchain)
 {
-	if (!sort__has_sym) {
+	if (!perf_hpp_list.sym) {
 		if (callchain->enabled) {
 			ui__error("Selected -g but \"sym\" not present in --sort/-s.");
 			return -EINVAL;
@@ -962,7 +962,7 @@ static int __cmd_top(struct perf_top *top)
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
 				    top->evlist->threads, false, opts->proc_map_timeout);
 
-	if (sort__has_socket) {
+	if (perf_hpp_list.socket) {
 		ret = perf_env__read_cpu_topology_map(&perf_env);
 		if (ret < 0)
 			goto out_err_cpu_topo;
@@ -1255,7 +1255,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	sort__mode = SORT_MODE__TOP;
 	/* display thread wants entries to be collapsed in a different tree */
-	sort__need_collapse = 1;
+	perf_hpp_list.need_collapse = 1;
 
 	if (top.use_stdio)
 		use_browser = 0;

@@ -234,7 +234,7 @@ static int report__setup_sample_type(struct report *rep)
 		sample_type |= PERF_SAMPLE_BRANCH_STACK;
 
 	if (!is_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
-		if (sort__has_parent) {
+		if (perf_hpp_list.parent) {
 			ui__error("Selected --sort parent, but no "
 				    "callchain data. Did you call "
 				    "'perf record' without -g?\n");
@@ -936,7 +936,7 @@ repeat:
 			goto error;
 		}
 
-		sort__need_collapse = true;
+		perf_hpp_list.need_collapse = true;
 	}
 
 	/* Force tty output for header output and per-thread stat. */

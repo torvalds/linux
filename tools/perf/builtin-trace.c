@@ -36,6 +36,7 @@
 #include "util/bpf-loader.h"
 #include "callchain.h"
 #include "syscalltbl.h"
+#include "rb_resort.h"
 
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <stdlib.h>
@@ -2784,15 +2785,29 @@ static size_t trace__fprintf_threads_header(FILE *fp)
 	return printed;
 }
 
+DEFINE_RESORT_RB(syscall_stats, a->msecs > b->msecs,
+	struct stats 	*stats;
+	double		msecs;
+	int		syscall;
+)
+{
+	struct int_node *source = rb_entry(nd, struct int_node, rb_node);
+	struct stats *stats = source->priv;
+
+	entry->syscall = source->i;
+	entry->stats   = stats;
+	entry->msecs   = stats ? (u64)stats->n * (avg_stats(stats) / NSEC_PER_MSEC) : 0;
+}
+
 static size_t thread__dump_stats(struct thread_trace *ttrace,
 				 struct trace *trace, FILE *fp)
 {
-	struct stats *stats;
 	size_t printed = 0;
 	struct syscall *sc;
-	struct int_node *inode = intlist__first(ttrace->syscall_stats);
+	struct rb_node *nd;
+	DECLARE_RESORT_RB_INTLIST(syscall_stats, ttrace->syscall_stats);
 
-	if (inode == NULL)
+	if (syscall_stats == NULL)
 		return 0;
 
 	printed += fprintf(fp, "\n");
@@ -2801,9 +2816,8 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 	printed += fprintf(fp, "                               (msec)    (msec)    (msec)    (msec)        (%%)\n");
 	printed += fprintf(fp, "   --------------- -------- --------- --------- --------- ---------     ------\n");
 
-	/* each int_node is a syscall */
-	while (inode) {
-		stats = inode->priv;
+	resort_rb__for_each(nd, syscall_stats) {
+		struct stats *stats = syscall_stats_entry->stats;
 		if (stats) {
 			double min = (double)(stats->min) / NSEC_PER_MSEC;
 			double max = (double)(stats->max) / NSEC_PER_MSEC;
@@ -2814,34 +2828,23 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 			pct = avg ? 100.0 * stddev_stats(stats)/avg : 0.0;
 			avg /= NSEC_PER_MSEC;
 
-			sc = &trace->syscalls.table[inode->i];
+			sc = &trace->syscalls.table[syscall_stats_entry->syscall];
 			printed += fprintf(fp, "   %-15s", sc->name);
 			printed += fprintf(fp, " %8" PRIu64 " %9.3f %9.3f %9.3f",
-					   n, avg * n, min, avg);
+					   n, syscall_stats_entry->msecs, min, avg);
 			printed += fprintf(fp, " %9.3f %9.2f%%\n", max, pct);
 		}
-
-		inode = intlist__next(inode);
 	}
 
+	resort_rb__delete(syscall_stats);
 	printed += fprintf(fp, "\n\n");
 
 	return printed;
 }
 
-/* struct used to pass data to per-thread function */
-struct summary_data {
-	FILE *fp;
-	struct trace *trace;
-	size_t printed;
-};
-
-static int trace__fprintf_one_thread(struct thread *thread, void *priv)
+static size_t trace__fprintf_thread(FILE *fp, struct thread *thread, struct trace *trace)
 {
-	struct summary_data *data = priv;
-	FILE *fp = data->fp;
-	size_t printed = data->printed;
-	struct trace *trace = data->trace;
+	size_t printed = 0;
 	struct thread_trace *ttrace = thread__priv(thread);
 	double ratio;
 
@@ -2857,25 +2860,45 @@ static int trace__fprintf_one_thread(struct thread *thread, void *priv)
 		printed += fprintf(fp, ", %lu majfaults", ttrace->pfmaj);
 	if (ttrace->pfmin)
 		printed += fprintf(fp, ", %lu minfaults", ttrace->pfmin);
-	printed += fprintf(fp, ", %.3f msec\n", ttrace->runtime_ms);
+	if (trace->sched)
+		printed += fprintf(fp, ", %.3f msec\n", ttrace->runtime_ms);
+	else if (fputc('\n', fp) != EOF)
+		++printed;
+
 	printed += thread__dump_stats(ttrace, trace, fp);
 
-	data->printed += printed;
+	return printed;
+}
 
-	return 0;
+static unsigned long thread__nr_events(struct thread_trace *ttrace)
+{
+	return ttrace ? ttrace->nr_events : 0;
+}
+
+DEFINE_RESORT_RB(threads, (thread__nr_events(a->thread->priv) < thread__nr_events(b->thread->priv)),
+	struct thread *thread;
+)
+{
+	entry->thread = rb_entry(nd, struct thread, rb_node);
 }
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 {
-	struct summary_data data = {
-		.fp = fp,
-		.trace = trace
-	};
-	data.printed = trace__fprintf_threads_header(fp);
+	DECLARE_RESORT_RB_MACHINE_THREADS(threads, trace->host);
+	size_t printed = trace__fprintf_threads_header(fp);
+	struct rb_node *nd;
 
-	machine__for_each_thread(trace->host, trace__fprintf_one_thread, &data);
+	if (threads == NULL) {
+		fprintf(fp, "%s", "Error sorting output by nr_events!\n");
+		return 0;
+	}
 
-	return data.printed;
+	resort_rb__for_each(nd, threads)
+		printed += trace__fprintf_thread(fp, threads_entry->thread, trace);
+
+	resort_rb__delete(threads);
+
+	return printed;
 }
 
 static int trace__set_duration(const struct option *opt, const char *str,
