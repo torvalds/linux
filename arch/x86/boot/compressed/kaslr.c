@@ -241,6 +241,8 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	 */
 	mem_avoid[MEM_AVOID_ZO_RANGE].start = input;
 	mem_avoid[MEM_AVOID_ZO_RANGE].size = (output + init_size) - input;
+	add_identity_map(mem_avoid[MEM_AVOID_ZO_RANGE].start,
+			 mem_avoid[MEM_AVOID_ZO_RANGE].size);
 
 	/* Avoid initrd. */
 	initrd_start  = (u64)boot_params->ext_ramdisk_image << 32;
@@ -249,6 +251,7 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	initrd_size |= boot_params->hdr.ramdisk_size;
 	mem_avoid[MEM_AVOID_INITRD].start = initrd_start;
 	mem_avoid[MEM_AVOID_INITRD].size = initrd_size;
+	/* No need to set mapping for initrd, it will be handled in VO. */
 
 	/* Avoid kernel command line. */
 	cmd_line  = (u64)boot_params->ext_cmd_line_ptr << 32;
@@ -259,10 +262,21 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 		;
 	mem_avoid[MEM_AVOID_CMDLINE].start = cmd_line;
 	mem_avoid[MEM_AVOID_CMDLINE].size = cmd_line_size;
+	add_identity_map(mem_avoid[MEM_AVOID_CMDLINE].start,
+			 mem_avoid[MEM_AVOID_CMDLINE].size);
 
 	/* Avoid boot parameters. */
 	mem_avoid[MEM_AVOID_BOOTPARAMS].start = (unsigned long)boot_params;
 	mem_avoid[MEM_AVOID_BOOTPARAMS].size = sizeof(*boot_params);
+	add_identity_map(mem_avoid[MEM_AVOID_BOOTPARAMS].start,
+			 mem_avoid[MEM_AVOID_BOOTPARAMS].size);
+
+	/* We don't need to set a mapping for setup_data. */
+
+#ifdef CONFIG_X86_VERBOSE_BOOTUP
+	/* Make sure video RAM can be used. */
+	add_identity_map(0, PMD_SIZE);
+#endif
 }
 
 /* Does this memory vector overlap a known avoided area? */
@@ -421,6 +435,9 @@ unsigned char *choose_random_location(unsigned long input,
 		goto out;
 
 	choice = random_addr;
+
+	add_identity_map(choice, output_size);
+	finalize_identity_maps();
 out:
 	return (unsigned char *)choice;
 }
