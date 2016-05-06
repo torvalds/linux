@@ -351,6 +351,11 @@ int nvm_submit_ppa(struct nvm_dev *dev, struct ppa_addr *ppa, int nr_ppas,
 	nvm_generic_to_addr_mode(dev, &rqd);
 
 	ret = dev->ops->submit_io(dev, &rqd);
+	if (ret) {
+		nvm_free_rqd_ppalist(dev, &rqd);
+		bio_put(bio);
+		return ret;
+	}
 
 	/* Prevent hang_check timer from firing at us during very long I/O */
 	hang_check = sysctl_hung_task_timeout_secs;
