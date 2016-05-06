@@ -151,8 +151,6 @@ struct putfile_active_buffer {
 	/* a payload from a controlvm message, containing a file data buffer */
 	struct parser_context *parser_ctx;
 	/* points within data area of parser_ctx to next byte of data */
-	u8 *pnext;
-	/* # bytes left from <pnext> to the end of this data buffer */
 	size_t bytes_remaining;
 };
 
@@ -166,13 +164,9 @@ struct putfile_request {
 
 	/* header from original TransmitFile request */
 	struct controlvm_message_header controlvm_header;
-	u64 file_request_number;	/* from original TransmitFile request */
 
 	/* link to next struct putfile_request */
 	struct list_head next_putfile_request;
-
-	/* most-recent sequence number supplied via a controlvm message */
-	u64 data_sequence_number;
 
 	/* head of putfile_buffer_entry list, which describes the data to be
 	 * supplied as putfile data;
