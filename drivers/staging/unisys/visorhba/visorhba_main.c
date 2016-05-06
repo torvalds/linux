@@ -235,16 +235,17 @@ static void *del_scsipending_ent(struct visorhba_devdata *devdata,
 				 int del)
 {
 	unsigned long flags;
-	void *sent = NULL;
+	void *sent;
 
-	if (del < MAX_PENDING_REQUESTS) {
-		spin_lock_irqsave(&devdata->privlock, flags);
-		sent = devdata->pending[del].sent;
+	if (del >= MAX_PENDING_REQUESTS)
+		return NULL;
 
-		devdata->pending[del].cmdtype = 0;
-		devdata->pending[del].sent = NULL;
-		spin_unlock_irqrestore(&devdata->privlock, flags);
-	}
+	spin_lock_irqsave(&devdata->privlock, flags);
+	sent = devdata->pending[del].sent;
+
+	devdata->pending[del].cmdtype = 0;
+	devdata->pending[del].sent = NULL;
+	spin_unlock_irqrestore(&devdata->privlock, flags);
 
 	return sent;
 }
