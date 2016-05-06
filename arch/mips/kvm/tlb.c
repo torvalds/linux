@@ -748,7 +748,8 @@ uint32_t kvm_get_inst(uint32_t *opc, struct kvm_vcpu *vcpu)
 			inst = *(opc);
 		} else {
 			vpn2 = (unsigned long) opc & VPN2_MASK;
-			asid = kvm_read_c0_guest_entryhi(cop0) & ASID_MASK;
+			asid = kvm_read_c0_guest_entryhi(cop0) &
+						KVM_ENTRYHI_ASID;
 			index = kvm_mips_guest_tlb_lookup(vcpu, vpn2 | asid);
 			if (index < 0) {
 				kvm_err("%s: get_user_failed for %p, vcpu: %p, ASID: %#lx\n",
