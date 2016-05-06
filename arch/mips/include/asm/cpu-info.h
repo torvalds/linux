@@ -132,4 +132,14 @@ struct proc_cpuinfo_notifier_args {
 # define cpu_vpe_id(cpuinfo)	({ (void)cpuinfo; 0; })
 #endif
 
+static inline unsigned long cpu_asid_inc(void)
+{
+	return 1 << CONFIG_MIPS_ASID_SHIFT;
+}
+
+static inline unsigned long cpu_asid_mask(struct cpuinfo_mips *cpuinfo)
+{
+	return ((1 << CONFIG_MIPS_ASID_BITS) - 1) << CONFIG_MIPS_ASID_SHIFT;
+}
+
 #endif /* __ASM_CPU_INFO_H */

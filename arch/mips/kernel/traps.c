@@ -2136,7 +2136,7 @@ void per_cpu_trap_init(bool is_boot_cpu)
 	}
 
 	if (!cpu_data[cpu].asid_cache)
-		cpu_data[cpu].asid_cache = ASID_FIRST_VERSION;
+		cpu_data[cpu].asid_cache = asid_first_version(cpu);
 
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;

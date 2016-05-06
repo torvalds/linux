@@ -2449,6 +2449,17 @@ config CPU_R4000_WORKAROUNDS
 config CPU_R4400_WORKAROUNDS
 	bool
 
+config MIPS_ASID_SHIFT
+	int
+	default 6 if CPU_R3000 || CPU_TX39XX
+	default 4 if CPU_R8000
+	default 0
+
+config MIPS_ASID_BITS
+	int
+	default 6 if CPU_R3000 || CPU_TX39XX
+	default 8
+
 #
 # - Highmem only makes sense for the 32-bit kernel.
 # - The current highmem code will only work properly on physically indexed
