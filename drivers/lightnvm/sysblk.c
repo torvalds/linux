@@ -631,33 +631,28 @@ static int nvm_fact_get_blks(struct nvm_dev *dev, struct ppa_addr *erase_list,
 
 	while (!done) {
 		done = 1;
-		for (ch = 0; ch < dev->nr_chnls; ch++) {
-			for (lun = 0; lun < dev->luns_per_chnl; lun++) {
-				idx = factory_blk_offset(dev, ch, lun);
-				offset = &f->blks[idx];
+		nvm_for_each_lun_ppa(dev, ppa, ch, lun) {
+			idx = factory_blk_offset(dev, ch, lun);
+			offset = &f->blks[idx];
 
-				blkid = find_first_zero_bit(offset,
-							dev->blks_per_lun);
-				if (blkid >= dev->blks_per_lun)
-					continue;
-				set_bit(blkid, offset);
+			blkid = find_first_zero_bit(offset,
+						dev->blks_per_lun);
+			if (blkid >= dev->blks_per_lun)
+				continue;
+			set_bit(blkid, offset);
 
-				ppa.ppa = 0;
-				ppa.g.ch = ch;
-				ppa.g.lun = lun;
-				ppa.g.blk = blkid;
-				pr_debug("nvm: erase ppa (%u %u %u)\n",
-								ppa.g.ch,
-								ppa.g.lun,
-								ppa.g.blk);
+			ppa.g.blk = blkid;
+			pr_debug("nvm: erase ppa (%u %u %u)\n",
+							ppa.g.ch,
+							ppa.g.lun,
+							ppa.g.blk);
 
-				erase_list[ppa_cnt] = ppa;
-				ppa_cnt++;
-				done = 0;
+			erase_list[ppa_cnt] = ppa;
+			ppa_cnt++;
+			done = 0;
 
-				if (ppa_cnt == max_ppas)
-					return ppa_cnt;
-			}
+			if (ppa_cnt == max_ppas)
+				return ppa_cnt;
 		}
 	}
 
@@ -684,17 +679,10 @@ static int nvm_fact_select_blks(struct nvm_dev *dev, struct factory_blks *f)
 	int ch, lun, ret;
 	struct ppa_addr ppa;
 
-	ppa.ppa = 0;
-	for (ch = 0; ch < dev->nr_chnls; ch++) {
-		for (lun = 0; lun < dev->luns_per_chnl; lun++) {
-			ppa.g.ch = ch;
-			ppa.g.lun = lun;
-
-			ret = nvm_fact_get_bb_tbl(dev, ppa, nvm_factory_blks,
-									f);
-			if (ret)
-				return ret;
-		}
+	nvm_for_each_lun_ppa(dev, ppa, ch, lun) {
+		ret = nvm_fact_get_bb_tbl(dev, ppa, nvm_factory_blks, f);
+		if (ret)
+			return ret;
 	}
 
 	return 0;

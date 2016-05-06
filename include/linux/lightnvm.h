@@ -559,6 +559,13 @@ extern int nvm_update_sysblock(struct nvm_dev *, struct nvm_sb_info *);
 extern int nvm_init_sysblock(struct nvm_dev *, struct nvm_sb_info *);
 
 extern int nvm_dev_factory(struct nvm_dev *, int flags);
+
+#define nvm_for_each_lun_ppa(dev, ppa, chid, lunid)			\
+	for ((chid) = 0, (ppa).ppa = 0; (chid) < (dev)->nr_chnls;	\
+					(chid)++, (ppa).g.ch = (chid))	\
+		for ((lunid) = 0; (lunid) < (dev)->luns_per_chnl;	\
+					(lunid)++, (ppa).g.lun = (lunid))
+
 #else /* CONFIG_NVM */
 struct nvm_dev_ops;
 
