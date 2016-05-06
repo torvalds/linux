@@ -385,8 +385,8 @@ static int dspi_transfer_one_message(struct spi_master *master,
 		dspi->cur_chip = spi_get_ctldata(spi);
 		dspi->cs = spi->chip_select;
 		dspi->cs_change = 0;
-		if (dspi->cur_transfer->transfer_list.next
-				== &dspi->cur_msg->transfers)
+		if (list_is_last(&dspi->cur_transfer->transfer_list,
+				 &dspi->cur_msg->transfers) || transfer->cs_change)
 			dspi->cs_change = 1;
 		dspi->void_write_data = dspi->cur_chip->void_write_data;
 
