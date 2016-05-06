@@ -93,11 +93,15 @@ void nvm_setup_sysblk_scan(struct nvm_dev *dev, struct sysblk_scan *s,
 	s->nr_rows = nvm_setup_sysblks(dev, sysblk_ppas);
 }
 
-static int sysblk_get_host_blks(struct ppa_addr ppa, int nr_blks, u8 *blks,
-								void *private)
+static int sysblk_get_host_blks(struct nvm_dev *dev, struct ppa_addr ppa,
+					u8 *blks, int nr_blks, void *private)
 {
 	struct sysblk_scan *s = private;
 	int i, nr_sysblk = 0;
+
+	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
+	if (nr_blks < 0)
+		return nr_blks;
 
 	for (i = 0; i < nr_blks; i++) {
 		if (blks[i] != NVM_BLK_T_HOST)
@@ -130,7 +134,7 @@ static int nvm_get_all_sysblks(struct nvm_dev *dev, struct sysblk_scan *s,
 		dppa = generic_to_dev_addr(dev, ppas[i]);
 		s->row = i;
 
-		ret = dev->ops->get_bb_tbl(dev, dppa, dev->blks_per_lun, fn, s);
+		ret = dev->ops->get_bb_tbl(dev, dppa, fn, s);
 		if (ret) {
 			pr_err("nvm: failed bb tbl for ppa (%u %u)\n",
 							ppas[i].g.ch,
@@ -235,12 +239,16 @@ static int nvm_set_bb_tbl(struct nvm_dev *dev, struct sysblk_scan *s, int type)
 	return 0;
 }
 
-static int sysblk_get_free_blks(struct ppa_addr ppa, int nr_blks, u8 *blks,
-								void *private)
+static int sysblk_get_free_blks(struct nvm_dev *dev, struct ppa_addr ppa,
+					u8 *blks, int nr_blks, void *private)
 {
 	struct sysblk_scan *s = private;
 	struct ppa_addr *sppa;
 	int i, blkid = 0;
+
+	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
+	if (nr_blks < 0)
+		return nr_blks;
 
 	for (i = 0; i < nr_blks; i++) {
 		if (blks[i] == NVM_BLK_T_HOST)
@@ -578,12 +586,15 @@ static unsigned int factory_blk_offset(struct nvm_dev *dev, int ch, int lun)
 								BITS_PER_LONG;
 }
 
-static int nvm_factory_blks(struct ppa_addr ppa, int nr_blks, u8 *blks,
-								void *private)
+static int nvm_factory_blks(struct nvm_dev *dev, struct ppa_addr ppa,
+					u8 *blks, int nr_blks, void *private)
 {
 	struct factory_blks *f = private;
-	struct nvm_dev *dev = f->dev;
 	int i, lunoff;
+
+	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
+	if (nr_blks < 0)
+		return nr_blks;
 
 	lunoff = factory_blk_offset(dev, ppa.g.ch, ppa.g.lun);
 
@@ -661,7 +672,7 @@ static int nvm_fact_get_bb_tbl(struct nvm_dev *dev, struct ppa_addr ppa,
 
 	dev_ppa = generic_to_dev_addr(dev, ppa);
 
-	ret = dev->ops->get_bb_tbl(dev, dev_ppa, dev->blks_per_lun, fn, priv);
+	ret = dev->ops->get_bb_tbl(dev, dev_ppa, fn, priv);
 	if (ret)
 		pr_err("nvm: failed bb tbl for ch%u lun%u\n",
 							ppa.g.ch, ppa.g.blk);

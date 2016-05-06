@@ -420,6 +420,41 @@ int nvm_submit_ppa(struct nvm_dev *dev, struct ppa_addr *ppa, int nr_ppas,
 }
 EXPORT_SYMBOL(nvm_submit_ppa);
 
+/*
+ * folds a bad block list from its plane representation to its virtual
+ * block representation. The fold is done in place and reduced size is
+ * returned.
+ *
+ * If any of the planes status are bad or grown bad block, the virtual block
+ * is marked bad. If not bad, the first plane state acts as the block state.
+ */
+int nvm_bb_tbl_fold(struct nvm_dev *dev, u8 *blks, int nr_blks)
+{
+	int blk, offset, pl, blktype;
+
+	if (nr_blks != dev->blks_per_lun * dev->plane_mode)
+		return -EINVAL;
+
+	for (blk = 0; blk < dev->blks_per_lun; blk++) {
+		offset = blk * dev->plane_mode;
+		blktype = blks[offset];
+
+		/* Bad blocks on any planes take precedence over other types */
+		for (pl = 0; pl < dev->plane_mode; pl++) {
+			if (blks[offset + pl] &
+					(NVM_BLK_T_BAD|NVM_BLK_T_GRWN_BAD)) {
+				blktype = blks[offset + pl];
+				break;
+			}
+		}
+
+		blks[blk] = blktype;
+	}
+
+	return dev->blks_per_lun;
+}
+EXPORT_SYMBOL(nvm_bb_tbl_fold);
+
 static int nvm_init_slc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
 {
 	int i;

@@ -129,18 +129,21 @@ static int gennvm_luns_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	return 0;
 }
 
-static int gennvm_block_bb(struct ppa_addr ppa, int nr_blocks, u8 *blks,
-								void *private)
+static int gennvm_block_bb(struct nvm_dev *dev, struct ppa_addr ppa,
+					u8 *blks, int nr_blks, void *private)
 {
 	struct gen_nvm *gn = private;
-	struct nvm_dev *dev = gn->dev;
 	struct gen_lun *lun;
 	struct nvm_block *blk;
 	int i;
 
+	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
+	if (nr_blks < 0)
+		return nr_blks;
+
 	lun = &gn->luns[(dev->luns_per_chnl * ppa.g.ch) + ppa.g.lun];
 
-	for (i = 0; i < nr_blocks; i++) {
+	for (i = 0; i < nr_blks; i++) {
 		if (blks[i] == 0)
 			continue;
 
@@ -250,8 +253,7 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 			ppa = generic_to_dev_addr(dev, ppa);
 
 			ret = dev->ops->get_bb_tbl(dev, ppa,
-						dev->blks_per_lun,
-						gennvm_block_bb, gn);
+							gennvm_block_bb, gn);
 			if (ret)
 				pr_err("gennvm: could not read BB table\n");
 		}
