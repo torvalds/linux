@@ -85,12 +85,6 @@ static struct visor_driver visorhba_driver = {
 MODULE_DEVICE_TABLE(visorbus, visorhba_channel_types);
 MODULE_ALIAS("visorbus:" SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR);
 
-struct visor_thread_info {
-	struct task_struct *task;
-	struct completion has_stopped;
-	int id;
-};
-
 struct visordisk_info {
 	u32 valid;
 	u32 channel, id, lun;	/* Disk Path */
@@ -137,7 +131,7 @@ struct visorhba_devdata {
 	struct visordisk_info head;
 	unsigned int max_buff_len;
 	int devnum;
-	struct visor_thread_info threadinfo;
+	struct task_struct *thread;
 	int thread_wait_ms;
 };
 
@@ -154,28 +148,36 @@ static struct visorhba_devices_open visorhbas_open[VISORHBA_OPEN_MAX];
 		    (iter->lun == match->lun))
 /**
  *	visor_thread_start - starts a thread for the device
- *	@thrinfo: The thread to start
  *	@threadfn: Function the thread starts
  *	@thrcontext: Context to pass to the thread, i.e. devdata
  *	@name: string describing name of thread
  *
  *	Starts a thread for the device.
  *
- *	Return 0 on success;
+ *	Return the task_struct * denoting the thread on success,
+ *             or NULL on failure
  */
-static int visor_thread_start(struct visor_thread_info *thrinfo,
-			      int (*threadfn)(void *),
-			      void *thrcontext, char *name)
+static struct task_struct *visor_thread_start
+(int (*threadfn)(void *), void *thrcontext, char *name)
 {
-	/* used to stop the thread */
-	init_completion(&thrinfo->has_stopped);
-	thrinfo->task = kthread_run(threadfn, thrcontext, "%s", name);
-	if (IS_ERR(thrinfo->task)) {
-		thrinfo->id = 0;
-		return PTR_ERR(thrinfo->task);
+	struct task_struct *task;
+
+	task = kthread_run(threadfn, thrcontext, "%s", name);
+	if (IS_ERR(task)) {
+		pr_err("visorbus failed to start thread\n");
+		return NULL;
 	}
-	thrinfo->id = thrinfo->task->pid;
-	return 0;
+	return task;
+}
+
+/**
+ *      visor_thread_stop - stops the thread if it is running
+ */
+static void visor_thread_stop(struct task_struct *task)
+{
+	if (!task)
+		return;  /* no thread running */
+	kthread_stop(task);
 }
 
 /**
@@ -683,7 +685,7 @@ static void visorhba_serverdown_complete(struct visorhba_devdata *devdata)
 	/* Stop using the IOVM response queue (queue should be drained
 	 * by the end)
 	 */
-	kthread_stop(devdata->threadinfo.task);
+	visor_thread_stop(devdata->thread);
 
 	/* Fail commands that weren't completed */
 	spin_lock_irqsave(&devdata->privlock, flags);
@@ -1082,8 +1084,8 @@ static int visorhba_resume(struct visor_device *dev,
 	if (devdata->serverdown && !devdata->serverchangingstate)
 		devdata->serverchangingstate = true;
 
-	visor_thread_start(&devdata->threadinfo, process_incoming_rsps,
-			   devdata, "vhba_incming");
+	devdata->thread = visor_thread_start(process_incoming_rsps, devdata,
+					     "vhba_incming");
 
 	devdata->serverdown = false;
 	devdata->serverchangingstate = false;
@@ -1159,8 +1161,8 @@ static int visorhba_probe(struct visor_device *dev)
 		goto err_scsi_remove_host;
 
 	devdata->thread_wait_ms = 2;
-	visor_thread_start(&devdata->threadinfo, process_incoming_rsps,
-			   devdata, "vhba_incoming");
+	devdata->thread = visor_thread_start(process_incoming_rsps, devdata,
+					     "vhba_incoming");
 
 	scsi_scan_host(scsihost);
 
@@ -1190,7 +1192,7 @@ static void visorhba_remove(struct visor_device *dev)
 		return;
 
 	scsihost = devdata->scsihost;
-	kthread_stop(devdata->threadinfo.task);
+	visor_thread_stop(devdata->thread);
 	scsi_remove_host(scsihost);
 	scsi_host_put(scsihost);
 
