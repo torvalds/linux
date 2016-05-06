@@ -4821,9 +4821,6 @@ i915_gem_init_hw(struct drm_device *dev)
 	struct intel_engine_cs *engine;
 	int ret;
 
-	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
-		return -EIO;
-
 	/* Double layer security blanket, see i915_gem_init() */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
