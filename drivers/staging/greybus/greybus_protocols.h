@@ -840,6 +840,12 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_TIMESYNC_PING		0x1a
 #define GB_SVC_TYPE_MODULE_INSERTED		0x1f
 #define GB_SVC_TYPE_MODULE_REMOVED		0x20
+#define GB_SVC_TYPE_INTF_VSYS_ENABLE		0x21
+#define GB_SVC_TYPE_INTF_VSYS_DISABLE		0x22
+#define GB_SVC_TYPE_INTF_REFCLK_ENABLE		0x23
+#define GB_SVC_TYPE_INTF_REFCLK_DISABLE		0x24
+#define GB_SVC_TYPE_INTF_UNIPRO_ENABLE		0x25
+#define GB_SVC_TYPE_INTF_UNIPRO_DISABLE		0x26
 #define GB_SVC_TYPE_INTF_ACTIVATE		0x27
 #define GB_SVC_TYPE_INTF_MAILBOX_EVENT		0x29
 
@@ -953,6 +959,43 @@ struct gb_svc_route_destroy_request {
 	__u8	intf2_id;
 } __packed;
 /* route destroy response has no payload */
+
+/* used for svc_intf_vsys_{enable,disable} */
+struct gb_svc_intf_vsys_request {
+	__u8	intf_id;
+} __packed;
+
+struct gb_svc_intf_vsys_response {
+	__u8	result_code;
+#define GB_SVC_INTF_VSYS_OK				0x00
+#define GB_SVC_INTF_VSYS_BUSY				0x01
+#define GB_SVC_INTF_VSYS_FAIL				0x02
+} __packed;
+
+/* used for svc_intf_refclk_{enable,disable} */
+struct gb_svc_intf_refclk_request {
+	__u8	intf_id;
+} __packed;
+
+struct gb_svc_intf_refclk_response {
+	__u8	result_code;
+#define GB_SVC_INTF_REFCLK_OK				0x00
+#define GB_SVC_INTF_REFCLK_BUSY				0x01
+#define GB_SVC_INTF_REFCLK_FAIL				0x02
+} __packed;
+
+/* used for svc_intf_unipro_{enable,disable} */
+struct gb_svc_intf_unipro_request {
+	__u8	intf_id;
+} __packed;
+
+struct gb_svc_intf_unipro_response {
+	__u8	result_code;
+#define GB_SVC_INTF_UNIPRO_OK				0x00
+#define GB_SVC_INTF_UNIPRO_BUSY				0x01
+#define GB_SVC_INTF_UNIPRO_FAIL				0x02
+#define GB_SVC_INTF_UNIPRO_NOT_OFF			0x03
+} __packed;
 
 struct gb_svc_timesync_enable_request {
 	__u8	count;
