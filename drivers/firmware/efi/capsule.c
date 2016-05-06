@@ -86,33 +86,26 @@ bool efi_capsule_pending(int *reset_type)
  */
 int efi_capsule_supported(efi_guid_t guid, u32 flags, size_t size, int *reset)
 {
-	efi_capsule_header_t *capsule;
+	efi_capsule_header_t capsule;
+	efi_capsule_header_t *cap_list[] = { &capsule };
 	efi_status_t status;
 	u64 max_size;
-	int rv = 0;
 
 	if (flags & ~EFI_CAPSULE_SUPPORTED_FLAG_MASK)
 		return -EINVAL;
 
-	capsule = kmalloc(sizeof(*capsule), GFP_KERNEL);
-	if (!capsule)
-		return -ENOMEM;
+	capsule.headersize = capsule.imagesize = sizeof(capsule);
+	memcpy(&capsule.guid, &guid, sizeof(efi_guid_t));
+	capsule.flags = flags;
 
-	capsule->headersize = capsule->imagesize = sizeof(*capsule);
-	memcpy(&capsule->guid, &guid, sizeof(efi_guid_t));
-	capsule->flags = flags;
-
-	status = efi.query_capsule_caps(&capsule, 1, &max_size, reset);
-	if (status != EFI_SUCCESS) {
-		rv = efi_status_to_err(status);
-		goto out;
-	}
+	status = efi.query_capsule_caps(cap_list, 1, &max_size, reset);
+	if (status != EFI_SUCCESS)
+		return efi_status_to_err(status);
 
 	if (size > max_size)
-		rv = -ENOSPC;
-out:
-	kfree(capsule);
-	return rv;
+		return -ENOSPC;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(efi_capsule_supported);
 
