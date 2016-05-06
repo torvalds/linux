@@ -359,7 +359,7 @@
 			};
 
 			vusbdac_reg: LDO8 {
-			     regulator-name = "VUSB/VDAC_3.3V_C210";
+			     regulator-name = "VUSB+VDAC_3.3V_C210";
 			     regulator-min-microvolt = <3300000>;
 			     regulator-max-microvolt = <3300000>;
 			};
