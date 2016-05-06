@@ -383,6 +383,12 @@
 	status = "okay";
 
 	rx-sample-delay-ns = <12>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <50000000>;
+		reg = <0>;
+	};
 };
 
 &tsadc {
