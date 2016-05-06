@@ -45,13 +45,39 @@ struct qcom_smd_driver {
 	int (*callback)(struct qcom_smd_device *, const void *, size_t);
 };
 
+#if IS_ENABLED(CONFIG_QCOM_SMD)
+
 int qcom_smd_driver_register(struct qcom_smd_driver *drv);
 void qcom_smd_driver_unregister(struct qcom_smd_driver *drv);
+
+int qcom_smd_send(struct qcom_smd_channel *channel, const void *data, int len);
+
+#else
+
+static inline int qcom_smd_driver_register(struct qcom_smd_driver *drv)
+{
+	return -ENXIO;
+}
+
+static inline void qcom_smd_driver_unregister(struct qcom_smd_driver *drv)
+{
+	/* This shouldn't be possible */
+	WARN_ON(1);
+}
+
+static inline int qcom_smd_send(struct qcom_smd_channel *channel,
+				const void *data, int len)
+{
+	/* This shouldn't be possible */
+	WARN_ON(1);
+	return -ENXIO;
+}
+
+#endif
 
 #define module_qcom_smd_driver(__smd_driver) \
 	module_driver(__smd_driver, qcom_smd_driver_register, \
 		      qcom_smd_driver_unregister)
 
-int qcom_smd_send(struct qcom_smd_channel *channel, const void *data, int len);
 
 #endif
