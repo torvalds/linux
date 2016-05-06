@@ -446,7 +446,7 @@ static void gennvm_mark_blk_bad(struct nvm_dev *dev, struct nvm_rq *rqd)
 	nvm_addr_to_generic_mode(dev, rqd);
 
 	/* look up blocks and mark them as bad */
-	if (rqd->nr_pages == 1) {
+	if (rqd->nr_ppas == 1) {
 		gennvm_mark_blk(dev, rqd->ppa_addr, NVM_BLK_ST_BAD);
 		return;
 	}

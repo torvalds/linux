@@ -695,7 +695,7 @@ static void rrpc_end_io(struct nvm_rq *rqd)
 {
 	struct rrpc *rrpc = container_of(rqd->ins, struct rrpc, instance);
 	struct rrpc_rq *rrqd = nvm_rq_to_pdu(rqd);
-	uint8_t npages = rqd->nr_pages;
+	uint8_t npages = rqd->nr_ppas;
 	sector_t laddr = rrpc_get_laddr(rqd->bio) - npages;
 
 	if (bio_data_dir(rqd->bio) == WRITE)
@@ -883,7 +883,7 @@ static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 	bio_get(bio);
 	rqd->bio = bio;
 	rqd->ins = &rrpc->instance;
-	rqd->nr_pages = nr_pages;
+	rqd->nr_ppas = nr_pages;
 	rrq->flags = flags;
 
 	err = nvm_submit_io(rrpc->dev, rqd);
@@ -892,7 +892,7 @@ static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 		bio_put(bio);
 		if (!(flags & NVM_IOTYPE_GC)) {
 			rrpc_unlock_rq(rrpc, rqd);
-			if (rqd->nr_pages > 1)
+			if (rqd->nr_ppas > 1)
 				nvm_dev_dma_free(rrpc->dev,
 			rqd->ppa_list, rqd->dma_ppa_list);
 		}

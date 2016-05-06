@@ -471,7 +471,7 @@ static inline void nvme_nvm_rqtocmd(struct request *rq, struct nvm_rq *rqd,
 	c->ph_rw.spba = cpu_to_le64(rqd->ppa_addr.ppa);
 	c->ph_rw.metadata = cpu_to_le64(rqd->dma_meta_list);
 	c->ph_rw.control = cpu_to_le16(rqd->flags);
-	c->ph_rw.length = cpu_to_le16(rqd->nr_pages - 1);
+	c->ph_rw.length = cpu_to_le16(rqd->nr_ppas - 1);
 
 	if (rqd->opcode == NVM_OP_HBWRITE || rqd->opcode == NVM_OP_HBREAD)
 		c->hb_rw.slba = cpu_to_le64(nvme_block_nr(ns,
@@ -542,7 +542,7 @@ static int nvme_nvm_erase_block(struct nvm_dev *dev, struct nvm_rq *rqd)
 	c.erase.opcode = NVM_OP_ERASE;
 	c.erase.nsid = cpu_to_le32(ns->ns_id);
 	c.erase.spba = cpu_to_le64(rqd->ppa_addr.ppa);
-	c.erase.length = cpu_to_le16(rqd->nr_pages - 1);
+	c.erase.length = cpu_to_le16(rqd->nr_ppas - 1);
 
 	return nvme_submit_sync_cmd(q, (struct nvme_command *)&c, NULL, 0);
 }

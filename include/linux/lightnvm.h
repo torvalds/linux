@@ -244,7 +244,7 @@ struct nvm_rq {
 	nvm_end_io_fn *end_io;
 
 	uint8_t opcode;
-	uint16_t nr_pages;
+	uint16_t nr_ppas;
 	uint16_t flags;
 
 	u64 ppa_status; /* ppa media status */

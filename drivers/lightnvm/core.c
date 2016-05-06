@@ -226,8 +226,8 @@ void nvm_addr_to_generic_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
 	int i;
 
-	if (rqd->nr_pages > 1) {
-		for (i = 0; i < rqd->nr_pages; i++)
+	if (rqd->nr_ppas > 1) {
+		for (i = 0; i < rqd->nr_ppas; i++)
 			rqd->ppa_list[i] = dev_to_generic_addr(dev,
 							rqd->ppa_list[i]);
 	} else {
@@ -240,8 +240,8 @@ void nvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
 	int i;
 
-	if (rqd->nr_pages > 1) {
-		for (i = 0; i < rqd->nr_pages; i++)
+	if (rqd->nr_ppas > 1) {
+		for (i = 0; i < rqd->nr_ppas; i++)
 			rqd->ppa_list[i] = generic_to_dev_addr(dev,
 							rqd->ppa_list[i]);
 	} else {
@@ -256,13 +256,13 @@ int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 	int i, plane_cnt, pl_idx;
 
 	if ((!vblk || dev->plane_mode == NVM_PLANE_SINGLE) && nr_ppas == 1) {
-		rqd->nr_pages = nr_ppas;
+		rqd->nr_ppas = nr_ppas;
 		rqd->ppa_addr = ppas[0];
 
 		return 0;
 	}
 
-	rqd->nr_pages = nr_ppas;
+	rqd->nr_ppas = nr_ppas;
 	rqd->ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL, &rqd->dma_ppa_list);
 	if (!rqd->ppa_list) {
 		pr_err("nvm: failed to allocate dma memory\n");
@@ -274,7 +274,7 @@ int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 			rqd->ppa_list[i] = ppas[i];
 	} else {
 		plane_cnt = dev->plane_mode;
-		rqd->nr_pages *= plane_cnt;
+		rqd->nr_ppas *= plane_cnt;
 
 		for (i = 0; i < nr_ppas; i++) {
 			for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
@@ -395,7 +395,7 @@ int nvm_submit_ppa_list(struct nvm_dev *dev, struct ppa_addr *ppa_list,
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	rqd.nr_pages = nr_ppas;
+	rqd.nr_ppas = nr_ppas;
 	if (nr_ppas > 1)
 		rqd.ppa_list = ppa_list;
 	else
