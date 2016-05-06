@@ -2000,6 +2000,7 @@ config CPU_MIPSR2
 config CPU_MIPSR6
 	bool
 	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6
+	select HAVE_ARCH_BITREVERSE
 	select MIPS_SPRAM
 
 config EVA
