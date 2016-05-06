@@ -215,7 +215,8 @@ static const struct drm_i915_cmd_descriptor hsw_render_cmds[] = {
 	CMD(  MI_RS_CONTEXT,                    SMI,    F,  1,      S  ),
 	CMD(  MI_LOAD_SCAN_LINES_INCL,          SMI,   !F,  0x3F,   M  ),
 	CMD(  MI_LOAD_SCAN_LINES_EXCL,          SMI,   !F,  0x3F,   R  ),
-	CMD(  MI_LOAD_REGISTER_REG,             SMI,   !F,  0xFF,   R  ),
+	CMD(  MI_LOAD_REGISTER_REG,             SMI,   !F,  0xFF,   W,
+	      .reg = { .offset = 1, .mask = 0x007FFFFC, .step = 1 }    ),
 	CMD(  MI_RS_STORE_DATA_IMM,             SMI,   !F,  0xFF,   S  ),
 	CMD(  MI_LOAD_URB_MEM,                  SMI,   !F,  0xFF,   S  ),
 	CMD(  MI_STORE_URB_MEM,                 SMI,   !F,  0xFF,   S  ),
@@ -1098,6 +1099,11 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 					return false;
 				}
 
+				if (desc->cmd.value == MI_LOAD_REGISTER_REG) {
+					DRM_DEBUG_DRIVER("CMD: Rejected LRR to OACONTROL\n");
+					return false;
+				}
+
 				if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1))
 					*oacontrol_set = (cmd[offset + 1] != 0);
 			}
@@ -1109,6 +1115,12 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 			if (reg->mask) {
 				if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
 					DRM_DEBUG_DRIVER("CMD: Rejected LRM to masked register 0x%08X\n",
+							 reg_addr);
+					return false;
+				}
+
+				if (desc->cmd.value == MI_LOAD_REGISTER_REG) {
+					DRM_DEBUG_DRIVER("CMD: Rejected LRR to masked register 0x%08X\n",
 							 reg_addr);
 					return false;
 				}
@@ -1301,6 +1313,7 @@ int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 	 * 4. L3 atomic chicken bits of HSW_SCRATCH1 and HSW_ROW_CHICKEN3.
 	 * 5. GPGPU dispatch compute indirect registers.
 	 * 6. TIMESTAMP register and Haswell CS GPR registers
+	 * 7. Allow MI_LOAD_REGISTER_REG between whitelisted registers.
 	 */
-	return 6;
+	return 7;
 }
