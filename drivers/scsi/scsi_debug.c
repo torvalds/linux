@@ -925,9 +925,10 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 static const char * inq_vendor_id = "Linux   ";
 static const char * inq_product_id = "scsi_debug      ";
 static const char *inq_product_rev = "0186";	/* version less '.' */
-static const u64 naa5_comp_a = 0x5222222000000000ULL;
-static const u64 naa5_comp_b = 0x5333333000000000ULL;
-static const u64 naa5_comp_c = 0x5111111000000000ULL;
+/* Use some locally assigned NAAs for SAS addresses. */
+static const u64 naa3_comp_a = 0x3222222000000000ULL;
+static const u64 naa3_comp_b = 0x3333333000000000ULL;
+static const u64 naa3_comp_c = 0x3111111000000000ULL;
 
 /* Device identification VPD page. Returns number of bytes placed in arr */
 static int inquiry_vpd_83(unsigned char *arr, int port_group_id,
@@ -961,12 +962,12 @@ static int inquiry_vpd_83(unsigned char *arr, int port_group_id,
 			memcpy(arr + num, lu_name, 16);
 			num += 16;
 		} else {
-			/* NAA-5, Logical unit identifier (binary) */
+			/* NAA-3, Logical unit identifier (binary) */
 			arr[num++] = 0x1;  /* binary (not necessarily sas) */
 			arr[num++] = 0x3;  /* PIV=0, lu, naa */
 			arr[num++] = 0x0;
 			arr[num++] = 0x8;
-			put_unaligned_be64(naa5_comp_b + dev_id_num, arr + num);
+			put_unaligned_be64(naa3_comp_b + dev_id_num, arr + num);
 			num += 8;
 		}
 		/* Target relative port number */
@@ -979,14 +980,14 @@ static int inquiry_vpd_83(unsigned char *arr, int port_group_id,
 		arr[num++] = 0x0;
 		arr[num++] = 0x1;	/* relative port A */
 	}
-	/* NAA-5, Target port identifier */
+	/* NAA-3, Target port identifier */
 	arr[num++] = 0x61;	/* proto=sas, binary */
 	arr[num++] = 0x93;	/* piv=1, target port, naa */
 	arr[num++] = 0x0;
 	arr[num++] = 0x8;
-	put_unaligned_be64(naa5_comp_a + port_a, arr + num);
+	put_unaligned_be64(naa3_comp_a + port_a, arr + num);
 	num += 8;
-	/* NAA-5, Target port group identifier */
+	/* NAA-3, Target port group identifier */
 	arr[num++] = 0x61;	/* proto=sas, binary */
 	arr[num++] = 0x95;	/* piv=1, target port group id */
 	arr[num++] = 0x0;
@@ -995,19 +996,19 @@ static int inquiry_vpd_83(unsigned char *arr, int port_group_id,
 	arr[num++] = 0;
 	put_unaligned_be16(port_group_id, arr + num);
 	num += 2;
-	/* NAA-5, Target device identifier */
+	/* NAA-3, Target device identifier */
 	arr[num++] = 0x61;	/* proto=sas, binary */
 	arr[num++] = 0xa3;	/* piv=1, target device, naa */
 	arr[num++] = 0x0;
 	arr[num++] = 0x8;
-	put_unaligned_be64(naa5_comp_a + target_dev_id, arr + num);
+	put_unaligned_be64(naa3_comp_a + target_dev_id, arr + num);
 	num += 8;
 	/* SCSI name string: Target device identifier */
 	arr[num++] = 0x63;	/* proto=sas, UTF-8 */
 	arr[num++] = 0xa8;	/* piv=1, target device, SCSI name string */
 	arr[num++] = 0x0;
 	arr[num++] = 24;
-	memcpy(arr + num, "naa.52222220", 12);
+	memcpy(arr + num, "naa.32222220", 12);
 	num += 12;
 	snprintf(b, sizeof(b), "%08X", target_dev_id);
 	memcpy(arr + num, b, 8);
@@ -1086,7 +1087,7 @@ static int inquiry_vpd_88(unsigned char *arr, int target_dev_id)
 	arr[num++] = 0x93;	/* PIV=1, target port, NAA */
 	arr[num++] = 0x0;	/* reserved */
 	arr[num++] = 0x8;	/* length */
-	put_unaligned_be64(naa5_comp_a + port_a, arr + num);
+	put_unaligned_be64(naa3_comp_a + port_a, arr + num);
 	num += 8;
 	arr[num++] = 0x0;	/* reserved */
 	arr[num++] = 0x0;	/* reserved */
@@ -1101,7 +1102,7 @@ static int inquiry_vpd_88(unsigned char *arr, int target_dev_id)
 	arr[num++] = 0x93;	/* PIV=1, target port, NAA */
 	arr[num++] = 0x0;	/* reserved */
 	arr[num++] = 0x8;	/* length */
-	put_unaligned_be64(naa5_comp_a + port_b, arr + num);
+	put_unaligned_be64(naa3_comp_a + port_b, arr + num);
 	num += 8;
 
 	return num;
@@ -1931,10 +1932,10 @@ static int resp_sas_pcd_m_spg(unsigned char * p, int pcontrol, int target,
 		};
 	int port_a, port_b;
 
-	put_unaligned_be64(naa5_comp_a, sas_pcd_m_pg + 16);
-	put_unaligned_be64(naa5_comp_c + 1, sas_pcd_m_pg + 24);
-	put_unaligned_be64(naa5_comp_a, sas_pcd_m_pg + 64);
-	put_unaligned_be64(naa5_comp_c + 1, sas_pcd_m_pg + 72);
+	put_unaligned_be64(naa3_comp_a, sas_pcd_m_pg + 16);
+	put_unaligned_be64(naa3_comp_c + 1, sas_pcd_m_pg + 24);
+	put_unaligned_be64(naa3_comp_a, sas_pcd_m_pg + 64);
+	put_unaligned_be64(naa3_comp_c + 1, sas_pcd_m_pg + 72);
 	port_a = target_dev_id + 1;
 	port_b = port_a + 1;
 	memcpy(p, sas_pcd_m_pg, sizeof(sas_pcd_m_pg));
