@@ -1158,10 +1158,11 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 					loff_t len, int mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	pgoff_t index, pg_start, pg_end;
+	struct f2fs_map_blocks map = { .m_next_pgofs = NULL };
+	pgoff_t pg_end;
 	loff_t new_size = i_size_read(inode);
-	loff_t off_start, off_end;
-	int ret = 0;
+	loff_t off_end;
+	int ret;
 
 	ret = inode_newsize_ok(inode, (len + offset));
 	if (ret)
@@ -1173,43 +1174,35 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 
 	f2fs_balance_fs(sbi, true);
 
-	pg_start = ((unsigned long long) offset) >> PAGE_SHIFT;
-	pg_end = ((unsigned long long) offset + len) >> PAGE_SHIFT;
-
-	off_start = offset & (PAGE_SIZE - 1);
+	pg_end = ((unsigned long long)offset + len) >> PAGE_SHIFT;
 	off_end = (offset + len) & (PAGE_SIZE - 1);
 
-	f2fs_lock_op(sbi);
+	map.m_lblk = ((unsigned long long)offset) >> PAGE_SHIFT;
+	map.m_len = pg_end - map.m_lblk;
+	if (off_end)
+		map.m_len++;
 
-	for (index = pg_start; index <= pg_end; index++) {
-		struct dnode_of_data dn;
+	ret = f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_PRE_AIO);
+	if (ret) {
+		pgoff_t last_off;
 
-		if (index == pg_end && !off_end)
-			goto noalloc;
+		if (!map.m_len)
+			return ret;
 
-		set_new_dnode(&dn, inode, NULL, NULL, 0);
-		ret = f2fs_reserve_block(&dn, index);
-		if (ret)
-			break;
-noalloc:
-		if (pg_start == pg_end)
-			new_size = offset + len;
-		else if (index == pg_start && off_start)
-			new_size = (loff_t)(index + 1) << PAGE_SHIFT;
-		else if (index == pg_end)
-			new_size = ((loff_t)index << PAGE_SHIFT) +
-								off_end;
-		else
-			new_size += PAGE_SIZE;
+		last_off = map.m_lblk + map.m_len - 1;
+
+		/* update new size to the failed position */
+		new_size = (last_off == pg_end) ? offset + len:
+					(loff_t)(last_off + 1) << PAGE_SHIFT;
+	} else {
+		new_size = ((loff_t)pg_end << PAGE_SHIFT) + off_end;
 	}
 
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-		i_size_read(inode) < new_size) {
+	if (!(mode & FALLOC_FL_KEEP_SIZE) && i_size_read(inode) < new_size) {
 		i_size_write(inode, new_size);
 		mark_inode_dirty(inode);
 		update_inode_page(inode);
 	}
-	f2fs_unlock_op(sbi);
 
 	return ret;
 }
