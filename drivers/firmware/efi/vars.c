@@ -419,8 +419,7 @@ static void dup_variable_bug(efi_char16_t *str16, efi_guid_t *vendor_guid,
  * Returns 0 on success, or a kernel error code on failure.
  */
 int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
-		void *data, bool atomic, bool duplicates,
-		struct list_head *head)
+		void *data, bool duplicates, struct list_head *head)
 {
 	const struct efivar_operations *ops = __efivars->ops;
 	unsigned long variable_name_size = 1024;
@@ -450,7 +449,7 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
 						&vendor_guid);
 		switch (status) {
 		case EFI_SUCCESS:
-			if (!atomic)
+			if (duplicates)
 				spin_unlock_irq(&__efivars->lock);
 
 			variable_name_size = var_name_strnsize(variable_name,
@@ -465,21 +464,19 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
 			 * and may end up looping here forever.
 			 */
 			if (duplicates &&
-			    variable_is_present(variable_name, &vendor_guid, head)) {
+			    variable_is_present(variable_name, &vendor_guid,
+						head)) {
 				dup_variable_bug(variable_name, &vendor_guid,
 						 variable_name_size);
-				if (!atomic)
-					spin_lock_irq(&__efivars->lock);
-
 				status = EFI_NOT_FOUND;
-				break;
+			} else {
+				err = func(variable_name, vendor_guid,
+					   variable_name_size, data);
+				if (err)
+					status = EFI_NOT_FOUND;
 			}
 
-			err = func(variable_name, vendor_guid, variable_name_size, data);
-			if (err)
-				status = EFI_NOT_FOUND;
-
-			if (!atomic)
+			if (duplicates)
 				spin_lock_irq(&__efivars->lock);
 
 			break;
