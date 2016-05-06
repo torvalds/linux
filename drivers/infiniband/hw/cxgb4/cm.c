@@ -1396,20 +1396,12 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
 	/*
-	 * Stop mpa timer.  If it expired, then
-	 * we ignore the MPA reply.  process_timeout()
-	 * will abort the connection.
-	 */
-	if (stop_ep_timer(ep))
-		return 0;
-
-	/*
 	 * If we get more than the supported amount of private data
 	 * then we must fail this connection.
 	 */
 	if (ep->mpa_pkt_len + skb->len > sizeof(ep->mpa_pkt)) {
 		err = -EINVAL;
-		goto err;
+		goto err_stop_timer;
 	}
 
 	/*
@@ -1431,11 +1423,11 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		printk(KERN_ERR MOD "%s MPA version mismatch. Local = %d,"
 		       " Received = %d\n", __func__, mpa_rev, mpa->revision);
 		err = -EPROTO;
-		goto err;
+		goto err_stop_timer;
 	}
 	if (memcmp(mpa->key, MPA_KEY_REP, sizeof(mpa->key))) {
 		err = -EPROTO;
-		goto err;
+		goto err_stop_timer;
 	}
 
 	plen = ntohs(mpa->private_data_size);
@@ -1445,7 +1437,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 */
 	if (plen > MPA_MAX_PRIVATE_DATA) {
 		err = -EPROTO;
-		goto err;
+		goto err_stop_timer;
 	}
 
 	/*
@@ -1453,7 +1445,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 */
 	if (ep->mpa_pkt_len > (sizeof(*mpa) + plen)) {
 		err = -EPROTO;
-		goto err;
+		goto err_stop_timer;
 	}
 
 	ep->plen = (u8) plen;
@@ -1467,8 +1459,16 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 
 	if (mpa->flags & MPA_REJECT) {
 		err = -ECONNREFUSED;
-		goto err;
+		goto err_stop_timer;
 	}
+
+	/*
+	 * Stop mpa timer.  If it expired, then
+	 * we ignore the MPA reply.  process_timeout()
+	 * will abort the connection.
+	 */
+	if (stop_ep_timer(ep))
+		return 0;
 
 	/*
 	 * If we get here we have accumulated the entire mpa
@@ -1609,6 +1609,8 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		goto out;
 	}
 	goto out;
+err_stop_timer:
+	stop_ep_timer(ep);
 err:
 	disconnect = 2;
 out:
