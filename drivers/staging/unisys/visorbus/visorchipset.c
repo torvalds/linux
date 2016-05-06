@@ -2348,7 +2348,7 @@ module_param_named(major, visorchipset_major, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_major,
 		 "major device number to use for the device node");
 module_param_named(visorbusregwait, visorchipset_visorbusregwait, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_visorbusreqwait,
+MODULE_PARM_DESC(visorchipset_visorbusregwait,
 		 "1 to have the module wait for the visor bus to register");
 
 module_init(init_unisys);
