@@ -596,13 +596,52 @@ err_fmtype:
 	return ret;
 }
 
+static void nvm_remove_target(struct nvm_target *t)
+{
+	struct nvm_tgt_type *tt = t->type;
+	struct gendisk *tdisk = t->disk;
+	struct request_queue *q = tdisk->queue;
+
+	lockdep_assert_held(&nvm_lock);
+
+	del_gendisk(tdisk);
+	blk_cleanup_queue(q);
+
+	if (tt->exit)
+		tt->exit(tdisk->private_data);
+
+	put_disk(tdisk);
+
+	list_del(&t->list);
+	kfree(t);
+}
+
+static void nvm_free_mgr(struct nvm_dev *dev)
+{
+	struct nvm_target *tgt, *tmp;
+
+	if (!dev->mt)
+		return;
+
+	down_write(&nvm_lock);
+	list_for_each_entry_safe(tgt, tmp, &nvm_targets, list) {
+		if (tgt->dev != dev)
+			continue;
+
+		nvm_remove_target(tgt);
+	}
+	up_write(&nvm_lock);
+
+	dev->mt->unregister_mgr(dev);
+	dev->mt = NULL;
+}
+
 static void nvm_free(struct nvm_dev *dev)
 {
 	if (!dev)
 		return;
 
-	if (dev->mt)
-		dev->mt->unregister_mgr(dev);
+	nvm_free_mgr(dev);
 
 	kfree(dev->lptbl);
 	kfree(dev->lun_map);
@@ -808,6 +847,7 @@ static int nvm_create_target(struct nvm_dev *dev,
 
 	t->type = tt;
 	t->disk = tdisk;
+	t->dev = dev;
 
 	down_write(&nvm_lock);
 	list_add_tail(&t->list, &nvm_targets);
@@ -821,26 +861,6 @@ err_queue:
 err_t:
 	kfree(t);
 	return -ENOMEM;
-}
-
-static void nvm_remove_target(struct nvm_target *t)
-{
-	struct nvm_tgt_type *tt = t->type;
-	struct gendisk *tdisk = t->disk;
-	struct request_queue *q = tdisk->queue;
-
-	lockdep_assert_held(&nvm_lock);
-
-	del_gendisk(tdisk);
-	blk_cleanup_queue(q);
-
-	if (tt->exit)
-		tt->exit(tdisk->private_data);
-
-	put_disk(tdisk);
-
-	list_del(&t->list);
-	kfree(t);
 }
 
 static int __nvm_configure_create(struct nvm_ioctl_create *create)
@@ -1231,10 +1251,7 @@ static long nvm_ioctl_dev_factory(struct file *file, void __user *arg)
 		return -EINVAL;
 	}
 
-	if (dev->mt) {
-		dev->mt->unregister_mgr(dev);
-		dev->mt = NULL;
-	}
+	nvm_free_mgr(dev);
 
 	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT)
 		return nvm_dev_factory(dev, fact.flags);

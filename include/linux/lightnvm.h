@@ -200,6 +200,7 @@ struct nvm_id {
 
 struct nvm_target {
 	struct list_head list;
+	struct nvm_dev *dev;
 	struct nvm_tgt_type *type;
 	struct gendisk *disk;
 };
