@@ -405,9 +405,8 @@ static void rrpc_block_gc(struct work_struct *work)
 									ws_gc);
 	struct rrpc *rrpc = gcb->rrpc;
 	struct rrpc_block *rblk = gcb->rblk;
+	struct rrpc_lun *rlun = rblk->rlun;
 	struct nvm_dev *dev = rrpc->dev;
-	struct nvm_lun *lun = rblk->parent->lun;
-	struct rrpc_lun *rlun = &rrpc->luns[lun->id - rrpc->lun_offset];
 
 	mempool_free(gcb, rrpc->gcb_pool);
 	pr_debug("nvm: block '%lu' being reclaimed\n", rblk->parent->id);
@@ -508,9 +507,9 @@ static void rrpc_gc_queue(struct work_struct *work)
 									ws_gc);
 	struct rrpc *rrpc = gcb->rrpc;
 	struct rrpc_block *rblk = gcb->rblk;
+	struct rrpc_lun *rlun = rblk->rlun;
 	struct nvm_lun *lun = rblk->parent->lun;
 	struct nvm_block *blk = rblk->parent;
-	struct rrpc_lun *rlun = &rrpc->luns[lun->id - rrpc->lun_offset];
 
 	spin_lock(&rlun->lock);
 	list_add_tail(&rblk->prio, &rlun->prio_list);
