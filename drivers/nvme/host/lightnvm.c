@@ -441,8 +441,8 @@ out:
 	return ret;
 }
 
-static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct nvm_rq *rqd,
-								int type)
+static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr *ppas,
+							int nr_ppas, int type)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_nvm_command c = {};
@@ -450,8 +450,8 @@ static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct nvm_rq *rqd,
 
 	c.set_bb.opcode = nvme_nvm_admin_set_bb_tbl;
 	c.set_bb.nsid = cpu_to_le32(ns->ns_id);
-	c.set_bb.spba = cpu_to_le64(rqd->ppa_addr.ppa);
-	c.set_bb.nlb = cpu_to_le16(rqd->nr_pages - 1);
+	c.set_bb.spba = cpu_to_le64(ppas->ppa);
+	c.set_bb.nlb = cpu_to_le16(nr_ppas - 1);
 	c.set_bb.value = type;
 
 	ret = nvme_submit_sync_cmd(ns->ctrl->admin_q, (struct nvme_command *)&c,

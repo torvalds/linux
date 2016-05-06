@@ -280,7 +280,7 @@ static int nvm_set_bb_tbl(struct nvm_dev *dev, struct sysblk_scan *s, int type)
 	nvm_set_rqd_ppalist(dev, &rqd, s->ppas, s->nr_ppas, 1);
 	nvm_generic_to_addr_mode(dev, &rqd);
 
-	ret = dev->ops->set_bb_tbl(dev, &rqd, type);
+	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_pages, type);
 	nvm_free_rqd_ppalist(dev, &rqd);
 	if (ret) {
 		pr_err("nvm: sysblk failed bb mark\n");
