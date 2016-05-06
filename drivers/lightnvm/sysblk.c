@@ -277,7 +277,7 @@ static int nvm_set_bb_tbl(struct nvm_dev *dev, struct sysblk_scan *s, int type)
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	nvm_set_rqd_ppalist(dev, &rqd, s->ppas, s->nr_ppas);
+	nvm_set_rqd_ppalist(dev, &rqd, s->ppas, s->nr_ppas, 1);
 	nvm_generic_to_addr_mode(dev, &rqd);
 
 	ret = dev->ops->set_bb_tbl(dev, &rqd, type);
