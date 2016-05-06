@@ -338,6 +338,7 @@ struct vpu_subdev_data {
 struct vpu_service_info {
 	struct wake_lock wake_lock;
 	struct delayed_work power_off_work;
+	ktime_t last; /* record previous power-on time */
 	/* vpu service structure global lock */
 	struct mutex lock;
 	/* link to link_reg in struct vpu_reg */
@@ -790,13 +791,12 @@ static void vpu_power_off_work(struct work_struct *work_s)
 static void vpu_service_power_on(struct vpu_service_info *pservice)
 {
 	int ret;
-	static ktime_t last;
 	ktime_t now = ktime_get();
 
-	if (ktime_to_ns(ktime_sub(now, last)) > NSEC_PER_SEC) {
+	if (ktime_to_ns(ktime_sub(now, pservice->last)) > NSEC_PER_SEC) {
 		cancel_delayed_work_sync(&pservice->power_off_work);
 		vpu_queue_power_off_work(pservice);
-		last = now;
+		pservice->last = now;
 	}
 	ret = atomic_add_unless(&pservice->enabled, 1, 1);
 	if (!ret)
@@ -2461,6 +2461,7 @@ static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 	atomic_set(&pservice->reset_request, 0);
 
 	INIT_DELAYED_WORK(&pservice->power_off_work, vpu_power_off_work);
+	pservice->last.tv64 = 0;
 
 	pservice->ion_client = rockchip_ion_client_create("vpu");
 	if (IS_ERR(pservice->ion_client)) {
