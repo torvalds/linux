@@ -542,62 +542,6 @@ static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
 
 #define SCA_FILENAME syscall_arg__scnprintf_filename
 
-static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
-					       struct syscall_arg *arg)
-{
-	int printed = 0, flags = arg->val;
-
-	if (!(flags & O_CREAT))
-		arg->mask |= 1 << (arg->idx + 1); /* Mask the mode parm */
-
-	if (flags == 0)
-		return scnprintf(bf, size, "RDONLY");
-#define	P_FLAG(n) \
-	if (flags & O_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
-		flags &= ~O_##n; \
-	}
-
-	P_FLAG(APPEND);
-	P_FLAG(ASYNC);
-	P_FLAG(CLOEXEC);
-	P_FLAG(CREAT);
-	P_FLAG(DIRECT);
-	P_FLAG(DIRECTORY);
-	P_FLAG(EXCL);
-	P_FLAG(LARGEFILE);
-	P_FLAG(NOATIME);
-	P_FLAG(NOCTTY);
-#ifdef O_NONBLOCK
-	P_FLAG(NONBLOCK);
-#elif O_NDELAY
-	P_FLAG(NDELAY);
-#endif
-#ifdef O_PATH
-	P_FLAG(PATH);
-#endif
-	P_FLAG(RDWR);
-#ifdef O_DSYNC
-	if ((flags & O_SYNC) == O_SYNC)
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", "SYNC");
-	else {
-		P_FLAG(DSYNC);
-	}
-#else
-	P_FLAG(SYNC);
-#endif
-	P_FLAG(TRUNC);
-	P_FLAG(WRONLY);
-#undef P_FLAG
-
-	if (flags)
-		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
-
-	return printed;
-}
-
-#define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags
-
 static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 						struct syscall_arg *arg)
 {
@@ -738,6 +682,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 #include "trace/beauty/mmap.c"
 #include "trace/beauty/mode_t.c"
 #include "trace/beauty/msg_flags.c"
+#include "trace/beauty/open_flags.c"
 #include "trace/beauty/perf_event_open.c"
 #include "trace/beauty/sched_policy.c"
 #include "trace/beauty/signum.c"
