@@ -1033,8 +1033,8 @@ void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_reset_rps_interrupts(struct drm_device *dev);
-void gen6_enable_rps_interrupts(struct drm_device *dev);
-void gen6_disable_rps_interrupts(struct drm_device *dev);
+void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv);
+void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv);
 u32 gen6_sanitize_rps_pm_mask(struct drm_i915_private *dev_priv, u32 mask);
 void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv);
@@ -1171,10 +1171,10 @@ struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj);
-void intel_prepare_page_flip(struct drm_device *dev, int plane);
-void intel_finish_page_flip(struct drm_device *dev, int pipe);
-void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
-void intel_check_page_flip(struct drm_device *dev, int pipe);
+void intel_prepare_page_flip(struct drm_i915_private *dev_priv, int plane);
+void intel_finish_page_flip(struct drm_i915_private *dev_priv, int pipe);
+void intel_finish_page_flip_plane(struct drm_i915_private *dev_priv, int plane);
+void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe);
 int intel_prepare_plane_fb(struct drm_plane *plane,
 			   const struct drm_plane_state *new_state);
 void intel_cleanup_plane_fb(struct drm_plane *plane,
@@ -1625,8 +1625,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv);
 void gen6_rps_boost(struct drm_i915_private *dev_priv,
 		    struct intel_rps_client *rps,
 		    unsigned long submitted);
-void intel_queue_rps_boost_for_request(struct drm_device *dev,
-				       struct drm_i915_gem_request *req);
+void intel_queue_rps_boost_for_request(struct drm_i915_gem_request *req);
 void vlv_wm_get_hw_state(struct drm_device *dev);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 void skl_wm_get_hw_state(struct drm_device *dev);

@@ -612,7 +612,7 @@ struct drm_i915_display_funcs {
 			  struct drm_i915_gem_object *obj,
 			  struct drm_i915_gem_request *req,
 			  uint32_t flags);
-	void (*hpd_irq_setup)(struct drm_device *dev);
+	void (*hpd_irq_setup)(struct drm_i915_private *dev_priv);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */
@@ -2788,7 +2788,8 @@ extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 
 /* intel_hotplug.c */
-void intel_hpd_irq_handler(struct drm_device *dev, u32 pin_mask, u32 long_mask);
+void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
+			   u32 pin_mask, u32 long_mask);
 void intel_hpd_init(struct drm_i915_private *dev_priv);
 void intel_hpd_init_work(struct drm_i915_private *dev_priv);
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
@@ -3493,7 +3494,7 @@ bool intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 extern int intel_opregion_setup(struct drm_device *dev);
 extern void intel_opregion_init(struct drm_device *dev);
 extern void intel_opregion_fini(struct drm_device *dev);
-extern void intel_opregion_asle_intr(struct drm_device *dev);
+extern void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
 extern int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 					 bool enable);
 extern int intel_opregion_notify_adapter(struct drm_device *dev,
@@ -3503,7 +3504,9 @@ extern int intel_opregion_get_panel_type(struct drm_device *dev);
 static inline int intel_opregion_setup(struct drm_device *dev) { return 0; }
 static inline void intel_opregion_init(struct drm_device *dev) { return; }
 static inline void intel_opregion_fini(struct drm_device *dev) { return; }
-static inline void intel_opregion_asle_intr(struct drm_device *dev) { return; }
+static inline void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
+{
+}
 static inline int
 intel_opregion_notify_encoder(struct intel_encoder *intel_encoder, bool enable)
 {
@@ -3539,7 +3542,7 @@ extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
 extern void intel_display_resume(struct drm_device *dev);
 extern void i915_redisable_vga(struct drm_device *dev);
 extern void i915_redisable_vga_power_on(struct drm_device *dev);
-extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
+extern bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);
 extern void intel_set_rps(struct drm_device *dev, u8 val);
 extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
