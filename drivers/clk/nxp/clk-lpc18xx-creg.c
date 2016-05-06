@@ -147,6 +147,7 @@ static struct clk *clk_register_creg_clk(struct device *dev,
 	init.name = creg_clk->name;
 	init.parent_names = parent_name;
 	init.num_parents = 1;
+	init.flags = 0;
 
 	creg_clk->reg = syscon;
 	creg_clk->hw.init = &init;
