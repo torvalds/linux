@@ -121,7 +121,14 @@ struct mem_vector {
 	unsigned long size;
 };
 
-#define MEM_AVOID_MAX 4
+enum mem_avoid_index {
+	MEM_AVOID_ZO_RANGE = 0,
+	MEM_AVOID_INITRD,
+	MEM_AVOID_CMDLINE,
+	MEM_AVOID_BOOTPARAMS,
+	MEM_AVOID_MAX,
+};
+
 static struct mem_vector mem_avoid[MEM_AVOID_MAX];
 
 static bool mem_contains(struct mem_vector *region, struct mem_vector *item)
@@ -147,55 +154,78 @@ static bool mem_overlaps(struct mem_vector *one, struct mem_vector *two)
 }
 
 /*
- * In theroy, KASLR can put the kernel anywhere in area of [16M, 64T). The
- * mem_avoid array is used to store the ranges that need to be avoided when
- * KASLR searches for a an appropriate random address. We must avoid any
+ * In theory, KASLR can put the kernel anywhere in the range of [16M, 64T).
+ * The mem_avoid array is used to store the ranges that need to be avoided
+ * when KASLR searches for an appropriate random address. We must avoid any
  * regions that are unsafe to overlap with during decompression, and other
- * things like the initrd, cmdline and boot_params.
+ * things like the initrd, cmdline and boot_params. This comment seeks to
+ * explain mem_avoid as clearly as possible since incorrect mem_avoid
+ * memory ranges lead to really hard to debug boot failures.
  *
- * How to calculate the unsafe areas is detailed here, and is informed by
- * the decompression calculations in header.S, and the diagram in misc.c.
+ * The initrd, cmdline, and boot_params are trivial to identify for
+ * avoiding. The are MEM_AVOID_INITRD, MEM_AVOID_CMDLINE, and
+ * MEM_AVOID_BOOTPARAMS respectively below.
  *
- * The compressed vmlinux (ZO) plus relocs and the run space of ZO can't be
- * overwritten by decompression output.
+ * What is not obvious how to avoid is the range of memory that is used
+ * during decompression (MEM_AVOID_ZO_RANGE below). This range must cover
+ * the compressed kernel (ZO) and its run space, which is used to extract
+ * the uncompressed kernel (VO) and relocs.
  *
- * ZO sits against the end of the decompression buffer, so we can calculate
- * where text, data, bss, etc of ZO are positioned.
+ * ZO's full run size sits against the end of the decompression buffer, so
+ * we can calculate where text, data, bss, etc of ZO are positioned more
+ * easily.
  *
- * The follow are already enforced by the code:
- *  - init_size >= kernel_total_size
- *  - input + input_len >= output + output_len
- *  - kernel_total_size could be >= or < output_len
+ * For additional background, the decompression calculations can be found
+ * in header.S, and the memory diagram is based on the one found in misc.c.
  *
- * From this, we can make several observations, illustrated by a diagram:
- *  - init_size >= kernel_total_size
- *  - input + input_len > output + output_len
- *  - kernel_total_size >= output_len
+ * The following conditions are already enforced by the image layouts and
+ * associated code:
+ *  - input + input_size >= output + output_size
+ *  - kernel_total_size <= init_size
+ *  - kernel_total_size <= output_size (see Note below)
+ *  - output + init_size >= output + output_size
  *
- * 0   output            input            input+input_len    output+init_size
- * |     |                 |                       |                       |
- * |     |                 |                       |                       |
- * |-----|--------|--------|------------------|----|------------|----------|
- *                |                           |                 |
- *                |                           |                 |
- * output+init_size-ZO_INIT_SIZE   output+output_len  output+kernel_total_size
+ * (Note that kernel_total_size and output_size have no fundamental
+ * relationship, but output_size is passed to choose_random_location
+ * as a maximum of the two. The diagram is showing a case where
+ * kernel_total_size is larger than output_size, but this case is
+ * handled by bumping output_size.)
  *
- * [output, output+init_size) is for the buffer for decompressing the
- * compressed kernel (ZO).
+ * The above conditions can be illustrated by a diagram:
  *
- * [output, output+kernel_total_size) is for the uncompressed kernel (VO)
- * and its bss, brk, etc.
- * [output, output+output_len) is VO plus relocs
+ * 0   output            input            input+input_size    output+init_size
+ * |     |                 |                             |             |
+ * |     |                 |                             |             |
+ * |-----|--------|--------|--------------|-----------|--|-------------|
+ *                |                       |           |
+ *                |                       |           |
+ * output+init_size-ZO_INIT_SIZE  output+output_size  output+kernel_total_size
  *
- * [output+init_size-ZO_INIT_SIZE, output+init_size) is the copied ZO.
- * [input, input+input_len) is the copied compressed (VO (vmlinux after
- * objcopy) plus relocs), not the ZO.
+ * [output, output+init_size) is the entire memory range used for
+ * extracting the compressed image.
  *
- * [input+input_len, output+init_size) is [_text, _end) for ZO. That was the
- * first range in mem_avoid, which included ZO's heap and stack. Also
- * [input, input+input_size) need be put in mem_avoid array, but since it
- * is adjacent to the first entry, they can be merged. This is how we get
- * the first entry in mem_avoid[].
+ * [output, output+kernel_total_size) is the range needed for the
+ * uncompressed kernel (VO) and its run size (bss, brk, etc).
+ *
+ * [output, output+output_size) is VO plus relocs (i.e. the entire
+ * uncompressed payload contained by ZO). This is the area of the buffer
+ * written to during decompression.
+ *
+ * [output+init_size-ZO_INIT_SIZE, output+init_size) is the worst-case
+ * range of the copied ZO and decompression code. (i.e. the range
+ * covered backwards of size ZO_INIT_SIZE, starting from output+init_size.)
+ *
+ * [input, input+input_size) is the original copied compressed image (ZO)
+ * (i.e. it does not include its run size). This range must be avoided
+ * because it contains the data used for decompression.
+ *
+ * [input+input_size, output+init_size) is [_text, _end) for ZO. This
+ * range includes ZO's heap and stack, and must be avoided since it
+ * performs the decompression.
+ *
+ * Since the above two ranges need to be avoided and they are adjacent,
+ * they can be merged, resulting in: [input, output+init_size) which
+ * becomes the MEM_AVOID_ZO_RANGE below.
  */
 static void mem_avoid_init(unsigned long input, unsigned long input_size,
 			   unsigned long output)
@@ -209,16 +239,16 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	 * Avoid the region that is unsafe to overlap during
 	 * decompression.
 	 */
-	mem_avoid[0].start = input;
-	mem_avoid[0].size = (output + init_size) - input;
+	mem_avoid[MEM_AVOID_ZO_RANGE].start = input;
+	mem_avoid[MEM_AVOID_ZO_RANGE].size = (output + init_size) - input;
 
 	/* Avoid initrd. */
 	initrd_start  = (u64)boot_params->ext_ramdisk_image << 32;
 	initrd_start |= boot_params->hdr.ramdisk_image;
 	initrd_size  = (u64)boot_params->ext_ramdisk_size << 32;
 	initrd_size |= boot_params->hdr.ramdisk_size;
-	mem_avoid[1].start = initrd_start;
-	mem_avoid[1].size = initrd_size;
+	mem_avoid[MEM_AVOID_INITRD].start = initrd_start;
+	mem_avoid[MEM_AVOID_INITRD].size = initrd_size;
 
 	/* Avoid kernel command line. */
 	cmd_line  = (u64)boot_params->ext_cmd_line_ptr << 32;
@@ -227,12 +257,12 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 	ptr = (char *)(unsigned long)cmd_line;
 	for (cmd_line_size = 0; ptr[cmd_line_size++]; )
 		;
-	mem_avoid[2].start = cmd_line;
-	mem_avoid[2].size = cmd_line_size;
+	mem_avoid[MEM_AVOID_CMDLINE].start = cmd_line;
+	mem_avoid[MEM_AVOID_CMDLINE].size = cmd_line_size;
 
-	/* Avoid params */
-	mem_avoid[3].start = (unsigned long)boot_params;
-	mem_avoid[3].size = sizeof(*boot_params);
+	/* Avoid boot parameters. */
+	mem_avoid[MEM_AVOID_BOOTPARAMS].start = (unsigned long)boot_params;
+	mem_avoid[MEM_AVOID_BOOTPARAMS].size = sizeof(*boot_params);
 }
 
 /* Does this memory vector overlap a known avoided area? */
