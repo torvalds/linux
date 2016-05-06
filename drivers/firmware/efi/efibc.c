@@ -17,6 +17,7 @@
 #include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
 
 static void efibc_str_to_str16(const char *str, efi_char16_t *str16)
 {
@@ -28,41 +29,52 @@ static void efibc_str_to_str16(const char *str, efi_char16_t *str16)
 	str16[i] = '\0';
 }
 
-static void efibc_set_variable(const char *name, const char *value)
+static int efibc_set_variable(const char *name, const char *value)
 {
 	int ret;
 	efi_guid_t guid = LINUX_EFI_LOADER_ENTRY_GUID;
-	struct efivar_entry entry;
+	struct efivar_entry *entry;
 	size_t size = (strlen(value) + 1) * sizeof(efi_char16_t);
 
-	if (size > sizeof(entry.var.Data))
+	if (size > sizeof(entry->var.Data)) {
 		pr_err("value is too large");
+		return -EINVAL;
+	}
 
-	efibc_str_to_str16(name, entry.var.VariableName);
-	efibc_str_to_str16(value, (efi_char16_t *)entry.var.Data);
-	memcpy(&entry.var.VendorGuid, &guid, sizeof(guid));
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		pr_err("failed to allocate efivar entry");
+		return -ENOMEM;
+	}
 
-	ret = efivar_entry_set(&entry,
+	efibc_str_to_str16(name, entry->var.VariableName);
+	efibc_str_to_str16(value, (efi_char16_t *)entry->var.Data);
+	memcpy(&entry->var.VendorGuid, &guid, sizeof(guid));
+
+	ret = efivar_entry_set(entry,
 			       EFI_VARIABLE_NON_VOLATILE
 			       | EFI_VARIABLE_BOOTSERVICE_ACCESS
 			       | EFI_VARIABLE_RUNTIME_ACCESS,
-			       size, entry.var.Data, NULL);
+			       size, entry->var.Data, NULL);
 	if (ret)
 		pr_err("failed to set %s EFI variable: 0x%x\n",
 		       name, ret);
+
+	kfree(entry);
+	return ret;
 }
 
 static int efibc_reboot_notifier_call(struct notifier_block *notifier,
 				      unsigned long event, void *data)
 {
 	const char *reason = "shutdown";
+	int ret;
 
 	if (event == SYS_RESTART)
 		reason = "reboot";
 
-	efibc_set_variable("LoaderEntryRebootReason", reason);
-
-	if (!data)
+	ret = efibc_set_variable("LoaderEntryRebootReason", reason);
+	if (ret || !data)
 		return NOTIFY_DONE;
 
 	efibc_set_variable("LoaderEntryOneShot", (char *)data);
