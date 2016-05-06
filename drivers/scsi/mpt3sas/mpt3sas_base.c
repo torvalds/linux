@@ -1104,18 +1104,16 @@ _base_is_controller_msix_enabled(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_base_flush_reply_queues - flushing the MSIX reply queues
+ * mpt3sas_base_sync_reply_irqs - flush pending MSIX interrupts
  * @ioc: per adapter object
- * Context: ISR conext
+ * Context: non ISR conext
  *
- * Called when a Task Management request has completed. We want
- * to flush the other reply queues so all the outstanding IO has been
- * completed back to OS before we process the TM completetion.
+ * Called when a Task Management request has completed.
  *
  * Return nothing.
  */
 void
-mpt3sas_base_flush_reply_queues(struct MPT3SAS_ADAPTER *ioc)
+mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc)
 {
 	struct adapter_reply_queue *reply_q;
 
@@ -1126,12 +1124,13 @@ mpt3sas_base_flush_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 		return;
 
 	list_for_each_entry(reply_q, &ioc->reply_queue_list, list) {
-		if (ioc->shost_recovery)
+		if (ioc->shost_recovery || ioc->remove_host ||
+				ioc->pci_error_recovery)
 			return;
 		/* TMs are on msix_index == 0 */
 		if (reply_q->msix_index == 0)
 			continue;
-		_base_interrupt(reply_q->vector, (void *)reply_q);
+		synchronize_irq(reply_q->vector);
 	}
 }
 
