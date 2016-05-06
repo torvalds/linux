@@ -515,6 +515,11 @@ static void arp_failure_discard(void *handle, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
+static void mpa_start_arp_failure(void *handle, struct sk_buff *skb)
+{
+	pr_err("ARP failure during MPA Negotiation - Closing Connection\n");
+}
+
 enum {
 	NUM_FAKE_CPLS = 2,
 	FAKE_CPL_PUT_EP_SAFE = NUM_CPL_CMDS + 0,
@@ -1118,6 +1123,7 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	 */
 	skb_get(skb);
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
+	t4_set_arp_err_handler(skb, NULL, mpa_start_arp_failure);
 	BUG_ON(ep->mpa_skb);
 	ep->mpa_skb = skb;
 	ep->snd_seq += mpalen;
@@ -1202,6 +1208,7 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 	 * Function fw4_ack() will deref it.
 	 */
 	skb_get(skb);
+	t4_set_arp_err_handler(skb, NULL, mpa_start_arp_failure);
 	ep->mpa_skb = skb;
 	__state_set(&ep->com, MPA_REP_SENT);
 	ep->snd_seq += mpalen;
