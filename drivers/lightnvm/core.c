@@ -30,7 +30,7 @@
 #include <linux/sched/sysctl.h>
 #include <uapi/linux/lightnvm.h>
 
-static LIST_HEAD(nvm_targets);
+static LIST_HEAD(nvm_tgt_types);
 static LIST_HEAD(nvm_mgrs);
 static LIST_HEAD(nvm_devices);
 static DECLARE_RWSEM(nvm_lock);
@@ -39,14 +39,14 @@ static struct nvm_tgt_type *nvm_find_target_type(const char *name)
 {
 	struct nvm_tgt_type *tt;
 
-	list_for_each_entry(tt, &nvm_targets, list)
+	list_for_each_entry(tt, &nvm_tgt_types, list)
 		if (!strcmp(name, tt->name))
 			return tt;
 
 	return NULL;
 }
 
-int nvm_register_target(struct nvm_tgt_type *tt)
+int nvm_register_tgt_type(struct nvm_tgt_type *tt)
 {
 	int ret = 0;
 
@@ -54,14 +54,14 @@ int nvm_register_target(struct nvm_tgt_type *tt)
 	if (nvm_find_target_type(tt->name))
 		ret = -EEXIST;
 	else
-		list_add(&tt->list, &nvm_targets);
+		list_add(&tt->list, &nvm_tgt_types);
 	up_write(&nvm_lock);
 
 	return ret;
 }
-EXPORT_SYMBOL(nvm_register_target);
+EXPORT_SYMBOL(nvm_register_tgt_type);
 
-void nvm_unregister_target(struct nvm_tgt_type *tt)
+void nvm_unregister_tgt_type(struct nvm_tgt_type *tt)
 {
 	if (!tt)
 		return;
@@ -70,7 +70,7 @@ void nvm_unregister_target(struct nvm_tgt_type *tt)
 	list_del(&tt->list);
 	up_write(&nvm_lock);
 }
-EXPORT_SYMBOL(nvm_unregister_target);
+EXPORT_SYMBOL(nvm_unregister_tgt_type);
 
 void *nvm_dev_dma_alloc(struct nvm_dev *dev, gfp_t mem_flags,
 							dma_addr_t *dma_handler)
@@ -1020,7 +1020,7 @@ static long nvm_ioctl_info(struct file *file, void __user *arg)
 	info->version[2] = NVM_VERSION_PATCH;
 
 	down_write(&nvm_lock);
-	list_for_each_entry(tt, &nvm_targets, list) {
+	list_for_each_entry(tt, &nvm_tgt_types, list) {
 		struct nvm_ioctl_info_tgt *tgt = &info->tgts[tgt_iter];
 
 		tgt->version[0] = tt->version[0];

@@ -1469,12 +1469,12 @@ static struct nvm_tgt_type tt_rrpc = {
 
 static int __init rrpc_module_init(void)
 {
-	return nvm_register_target(&tt_rrpc);
+	return nvm_register_tgt_type(&tt_rrpc);
 }
 
 static void rrpc_module_exit(void)
 {
-	nvm_unregister_target(&tt_rrpc);
+	nvm_unregister_tgt_type(&tt_rrpc);
 }
 
 module_init(rrpc_module_init);

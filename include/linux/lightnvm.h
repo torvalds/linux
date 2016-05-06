@@ -453,8 +453,8 @@ struct nvm_tgt_type {
 	struct list_head list;
 };
 
-extern int nvm_register_target(struct nvm_tgt_type *);
-extern void nvm_unregister_target(struct nvm_tgt_type *);
+extern int nvm_register_tgt_type(struct nvm_tgt_type *);
+extern void nvm_unregister_tgt_type(struct nvm_tgt_type *);
 
 extern void *nvm_dev_dma_alloc(struct nvm_dev *, gfp_t, dma_addr_t *);
 extern void nvm_dev_dma_free(struct nvm_dev *, void *, dma_addr_t);
