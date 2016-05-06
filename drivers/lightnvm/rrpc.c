@@ -1207,10 +1207,6 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 
 		INIT_WORK(&rlun->ws_gc, rrpc_lun_gc);
 		spin_lock_init(&rlun->lock);
-
-		rrpc->total_blocks += dev->blks_per_lun;
-		rrpc->nr_sects += dev->sec_per_lun;
-
 	}
 
 	return 0;
@@ -1388,6 +1384,8 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 	INIT_WORK(&rrpc->ws_requeue, rrpc_requeue);
 
 	rrpc->nr_luns = lun_end - lun_begin + 1;
+	rrpc->total_blocks = (unsigned long)dev->blks_per_lun * rrpc->nr_luns;
+	rrpc->nr_sects = (unsigned long long)dev->sec_per_lun * rrpc->nr_luns;
 
 	/* simple round-robin strategy */
 	atomic_set(&rrpc->next_lun, -1);
