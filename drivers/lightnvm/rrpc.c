@@ -711,8 +711,6 @@ static void rrpc_end_io(struct nvm_rq *rqd)
 
 	if (npages > 1)
 		nvm_dev_dma_free(rrpc->dev, rqd->ppa_list, rqd->dma_ppa_list);
-	if (rqd->metadata)
-		nvm_dev_dma_free(rrpc->dev, rqd->metadata, rqd->dma_metadata);
 
 	mempool_free(rqd, rrpc->rq_pool);
 }
