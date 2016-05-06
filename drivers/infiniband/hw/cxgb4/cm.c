@@ -4038,7 +4038,9 @@ static void process_timeout(struct c4iw_ep *ep)
 		connect_reply_upcall(ep, -ETIMEDOUT);
 		break;
 	case MPA_REQ_WAIT:
+	case MPA_REQ_RCVD:
 	case MPA_REP_SENT:
+	case FPDU_MODE:
 		break;
 	case CLOSING:
 	case MORIBUND:
