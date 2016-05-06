@@ -534,6 +534,8 @@ extern int nvm_erase_blk(struct nvm_dev *, struct nvm_block *);
 extern void nvm_end_io(struct nvm_rq *, int);
 extern int nvm_submit_ppa(struct nvm_dev *, struct ppa_addr *, int, int, int,
 								void *, int);
+extern int nvm_submit_ppa_list(struct nvm_dev *, struct ppa_addr *, int, int,
+							int, void *, int);
 
 /* sysblk.c */
 #define NVM_SYSBLK_MAGIC 0x4E564D53 /* "NVMS" */

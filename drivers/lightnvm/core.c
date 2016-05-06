@@ -322,11 +322,10 @@ static void nvm_end_io_sync(struct nvm_rq *rqd)
 	complete(waiting);
 }
 
-int nvm_submit_ppa(struct nvm_dev *dev, struct ppa_addr *ppa, int nr_ppas,
-				int opcode, int flags, void *buf, int len)
+int __nvm_submit_ppa(struct nvm_dev *dev, struct nvm_rq *rqd, int opcode,
+						int flags, void *buf, int len)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
-	struct nvm_rq rqd;
 	struct bio *bio;
 	int ret;
 	unsigned long hang_check;
@@ -335,24 +334,17 @@ int nvm_submit_ppa(struct nvm_dev *dev, struct ppa_addr *ppa, int nr_ppas,
 	if (IS_ERR_OR_NULL(bio))
 		return -ENOMEM;
 
-	memset(&rqd, 0, sizeof(struct nvm_rq));
-	ret = nvm_set_rqd_ppalist(dev, &rqd, ppa, nr_ppas);
-	if (ret) {
-		bio_put(bio);
-		return ret;
-	}
+	nvm_generic_to_addr_mode(dev, rqd);
 
-	rqd.opcode = opcode;
-	rqd.bio = bio;
-	rqd.wait = &wait;
-	rqd.dev = dev;
-	rqd.end_io = nvm_end_io_sync;
-	rqd.flags = flags;
-	nvm_generic_to_addr_mode(dev, &rqd);
+	rqd->dev = dev;
+	rqd->opcode = opcode;
+	rqd->flags = flags;
+	rqd->bio = bio;
+	rqd->wait = &wait;
+	rqd->end_io = nvm_end_io_sync;
 
-	ret = dev->ops->submit_io(dev, &rqd);
+	ret = dev->ops->submit_io(dev, rqd);
 	if (ret) {
-		nvm_free_rqd_ppalist(dev, &rqd);
 		bio_put(bio);
 		return ret;
 	}
@@ -364,9 +356,67 @@ int nvm_submit_ppa(struct nvm_dev *dev, struct ppa_addr *ppa, int nr_ppas,
 	else
 		wait_for_completion_io(&wait);
 
+	return rqd->error;
+}
+
+/**
+ * nvm_submit_ppa_list - submit user-defined ppa list to device. The user must
+ *			 take to free ppa list if necessary.
+ * @dev:	device
+ * @ppa_list:	user created ppa_list
+ * @nr_ppas:	length of ppa_list
+ * @opcode:	device opcode
+ * @flags:	device flags
+ * @buf:	data buffer
+ * @len:	data buffer length
+ */
+int nvm_submit_ppa_list(struct nvm_dev *dev, struct ppa_addr *ppa_list,
+			int nr_ppas, int opcode, int flags, void *buf, int len)
+{
+	struct nvm_rq rqd;
+
+	if (dev->ops->max_phys_sect < nr_ppas)
+		return -EINVAL;
+
+	memset(&rqd, 0, sizeof(struct nvm_rq));
+
+	rqd.nr_pages = nr_ppas;
+	if (nr_ppas > 1)
+		rqd.ppa_list = ppa_list;
+	else
+		rqd.ppa_addr = ppa_list[0];
+
+	return __nvm_submit_ppa(dev, &rqd, opcode, flags, buf, len);
+}
+EXPORT_SYMBOL(nvm_submit_ppa_list);
+
+/**
+ * nvm_submit_ppa - submit PPAs to device. PPAs will automatically be unfolded
+ *		    as single, dual, quad plane PPAs depending on device type.
+ * @dev:	device
+ * @ppa:	user created ppa_list
+ * @nr_ppas:	length of ppa_list
+ * @opcode:	device opcode
+ * @flags:	device flags
+ * @buf:	data buffer
+ * @len:	data buffer length
+ */
+int nvm_submit_ppa(struct nvm_dev *dev, struct ppa_addr *ppa, int nr_ppas,
+				int opcode, int flags, void *buf, int len)
+{
+	struct nvm_rq rqd;
+	int ret;
+
+	memset(&rqd, 0, sizeof(struct nvm_rq));
+	ret = nvm_set_rqd_ppalist(dev, &rqd, ppa, nr_ppas);
+	if (ret)
+		return ret;
+
+	ret = __nvm_submit_ppa(dev, &rqd, opcode, flags, buf, len);
+
 	nvm_free_rqd_ppalist(dev, &rqd);
 
-	return rqd.error;
+	return ret;
 }
 EXPORT_SYMBOL(nvm_submit_ppa);
 
