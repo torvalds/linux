@@ -148,11 +148,6 @@ static int gennvm_block_bb(struct gen_nvm *gn, struct ppa_addr ppa,
 			continue;
 
 		blk = &lun->vlun.blocks[i];
-		if (!blk) {
-			pr_err("gennvm: BB data is out of bounds.\n");
-			return -EINVAL;
-		}
-
 		list_move_tail(&blk->list, &lun->bb_list);
 		lun->vlun.nr_bad_blocks++;
 		lun->vlun.nr_free_blocks--;
@@ -257,7 +252,7 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 
 			ppa.ppa = 0;
 			ppa.g.ch = lun->vlun.chnl_id;
-			ppa.g.lun = lun->vlun.id;
+			ppa.g.lun = lun->vlun.lun_id;
 
 			ret = nvm_get_bb_tbl(dev, ppa, blks);
 			if (ret)
