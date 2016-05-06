@@ -122,7 +122,7 @@ static int nvm_get_all_sysblks(struct nvm_dev *dev, struct sysblk_scan *s,
 				struct ppa_addr *ppas, nvm_bb_update_fn *fn)
 {
 	struct ppa_addr dppa;
-	int i, ret;
+	int i, ret = 0;
 
 	s->nr_ppas = 0;
 
@@ -272,7 +272,7 @@ static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
 {
 	struct nvm_system_block nvmsb;
 	void *buf;
-	int i, sect, ret, bufsz;
+	int i, sect, ret = 0, bufsz;
 	struct ppa_addr *ppas;
 
 	nvm_cpu_to_sysblk(&nvmsb, info);
