@@ -827,7 +827,7 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 	bool enable_by_default = IS_HASWELL(dev_priv) ||
 				 IS_BROADWELL(dev_priv);
 
-	if (intel_vgpu_active(dev_priv->dev)) {
+	if (intel_vgpu_active(dev_priv)) {
 		fbc->no_fbc_reason = "VGPU is active";
 		return false;
 	}

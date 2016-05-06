@@ -1508,9 +1508,8 @@ static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay,
 
 
 struct intel_overlay_error_state *
-intel_overlay_capture_error_state(struct drm_device *dev)
+intel_overlay_capture_error_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_overlay *overlay = dev_priv->overlay;
 	struct intel_overlay_error_state *error;
 	struct overlay_registers __iomem *regs;

@@ -1381,7 +1381,7 @@ void intel_uncore_init(struct drm_device *dev)
 		break;
 	}
 
-	if (intel_vgpu_active(dev)) {
+	if (intel_vgpu_active(dev_priv)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(vgpu);
 		ASSIGN_READ_MMIO_VFUNCS(vgpu);
 	}
@@ -1663,8 +1663,8 @@ static int wait_for_register_fw(struct drm_i915_private *dev_priv,
 
 static int gen8_request_engine_reset(struct intel_engine_cs *engine)
 {
+	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 
 	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
 		      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
@@ -1682,7 +1682,7 @@ static int gen8_request_engine_reset(struct intel_engine_cs *engine)
 
 static void gen8_unrequest_engine_reset(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct drm_i915_private *dev_priv = engine->i915;
 
 	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
 		      _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET));
@@ -1802,10 +1802,10 @@ intel_uncore_forcewake_for_read(struct drm_i915_private *dev_priv,
 {
 	enum forcewake_domains fw_domains;
 
-	if (intel_vgpu_active(dev_priv->dev))
+	if (intel_vgpu_active(dev_priv))
 		return 0;
 
-	switch (INTEL_INFO(dev_priv)->gen) {
+	switch (INTEL_GEN(dev_priv)) {
 	case 9:
 		fw_domains = __gen9_reg_read_fw_domains(i915_mmio_reg_offset(reg));
 		break;
@@ -1842,10 +1842,10 @@ intel_uncore_forcewake_for_write(struct drm_i915_private *dev_priv,
 {
 	enum forcewake_domains fw_domains;
 
-	if (intel_vgpu_active(dev_priv->dev))
+	if (intel_vgpu_active(dev_priv))
 		return 0;
 
-	switch (INTEL_INFO(dev_priv)->gen) {
+	switch (INTEL_GEN(dev_priv)) {
 	case 9:
 		fw_domains = __gen9_reg_write_fw_domains(i915_mmio_reg_offset(reg));
 		break;

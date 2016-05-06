@@ -186,7 +186,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 1;
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
-		value = i915_semaphore_is_enabled(dev);
+		value = i915_semaphore_is_enabled(dev_priv);
 		break;
 	case I915_PARAM_HAS_PRIME_VMAP_FLUSH:
 		value = 1;
@@ -970,7 +970,8 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 			 info->has_eu_pg ? "y" : "n");
 
 	i915.enable_execlists =
-		intel_sanitize_enable_execlists(dev, i915.enable_execlists);
+		intel_sanitize_enable_execlists(dev_priv,
+					       	i915.enable_execlists);
 
 	/*
 	 * i915.enable_ppgtt is read-only, so do an early pass to validate the
@@ -979,7 +980,7 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 	 * than every time we check intel_enable_ppgtt().
 	 */
 	i915.enable_ppgtt =
-		intel_sanitize_enable_ppgtt(dev, i915.enable_ppgtt);
+		intel_sanitize_enable_ppgtt(dev_priv, i915.enable_ppgtt);
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
 }
 
@@ -1345,7 +1346,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	 * Notify a valid surface after modesetting,
 	 * when running inside a VM.
 	 */
-	if (intel_vgpu_active(dev))
+	if (intel_vgpu_active(dev_priv))
 		I915_WRITE(vgtif_reg(display_ready), VGT_DRV_DISPLAY_READY);
 
 	i915_setup_sysfs(dev);

@@ -751,12 +751,12 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
 	int cmd_table_count;
 	int ret;
 
-	if (!IS_GEN7(engine->dev))
+	if (!IS_GEN7(engine->i915))
 		return 0;
 
 	switch (engine->id) {
 	case RCS:
-		if (IS_HASWELL(engine->dev)) {
+		if (IS_HASWELL(engine->i915)) {
 			cmd_tables = hsw_render_ring_cmds;
 			cmd_table_count =
 				ARRAY_SIZE(hsw_render_ring_cmds);
@@ -765,7 +765,7 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
 			cmd_table_count = ARRAY_SIZE(gen7_render_cmds);
 		}
 
-		if (IS_HASWELL(engine->dev)) {
+		if (IS_HASWELL(engine->i915)) {
 			engine->reg_tables = hsw_render_reg_tables;
 			engine->reg_table_count = ARRAY_SIZE(hsw_render_reg_tables);
 		} else {
@@ -781,7 +781,7 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
 		engine->get_cmd_length_mask = gen7_bsd_get_cmd_length_mask;
 		break;
 	case BCS:
-		if (IS_HASWELL(engine->dev)) {
+		if (IS_HASWELL(engine->i915)) {
 			cmd_tables = hsw_blt_ring_cmds;
 			cmd_table_count = ARRAY_SIZE(hsw_blt_ring_cmds);
 		} else {
@@ -789,7 +789,7 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
 			cmd_table_count = ARRAY_SIZE(gen7_blt_cmds);
 		}
 
-		if (IS_HASWELL(engine->dev)) {
+		if (IS_HASWELL(engine->i915)) {
 			engine->reg_tables = hsw_blt_reg_tables;
 			engine->reg_table_count = ARRAY_SIZE(hsw_blt_reg_tables);
 		} else {
@@ -1036,7 +1036,7 @@ bool i915_needs_cmd_parser(struct intel_engine_cs *engine)
 	if (!engine->needs_cmd_parser)
 		return false;
 
-	if (!USES_PPGTT(engine->dev))
+	if (!USES_PPGTT(engine->i915))
 		return false;
 
 	return (i915.enable_cmd_parser == 1);

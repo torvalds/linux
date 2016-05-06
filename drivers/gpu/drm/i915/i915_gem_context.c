@@ -99,28 +99,27 @@
 #define GEN6_CONTEXT_ALIGN (64<<10)
 #define GEN7_CONTEXT_ALIGN 4096
 
-static size_t get_context_alignment(struct drm_device *dev)
+static size_t get_context_alignment(struct drm_i915_private *dev_priv)
 {
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev_priv))
 		return GEN6_CONTEXT_ALIGN;
 
 	return GEN7_CONTEXT_ALIGN;
 }
 
-static int get_context_size(struct drm_device *dev)
+static int get_context_size(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 	u32 reg;
 
-	switch (INTEL_INFO(dev)->gen) {
+	switch (INTEL_GEN(dev_priv)) {
 	case 6:
 		reg = I915_READ(CXT_SIZE);
 		ret = GEN6_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	case 7:
 		reg = I915_READ(GEN7_CXT_SIZE);
-		if (IS_HASWELL(dev))
+		if (IS_HASWELL(dev_priv))
 			ret = HSW_CXT_TOTAL_SIZE;
 		else
 			ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
@@ -224,7 +223,7 @@ static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
 		 * Flush any pending retires to hopefully release some
 		 * stale contexts and try again.
 		 */
-		i915_gem_retire_requests(dev_priv->dev);
+		i915_gem_retire_requests(dev_priv);
 		ret = ida_simple_get(&dev_priv->context_hw_ida,
 				     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
 		if (ret < 0)
@@ -320,7 +319,7 @@ i915_gem_create_context(struct drm_device *dev,
 		 * context.
 		 */
 		ret = i915_gem_obj_ggtt_pin(ctx->legacy_hw_ctx.rcs_state,
-					    get_context_alignment(dev), 0);
+					    get_context_alignment(to_i915(dev)), 0);
 		if (ret) {
 			DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
 			goto err_destroy;
@@ -389,7 +388,8 @@ int i915_gem_context_init(struct drm_device *dev)
 	if (WARN_ON(dev_priv->kernel_context))
 		return 0;
 
-	if (intel_vgpu_active(dev) && HAS_LOGICAL_RING_CONTEXTS(dev)) {
+	if (intel_vgpu_active(dev_priv) &&
+	    HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
 		if (!i915.enable_execlists) {
 			DRM_INFO("Only EXECLIST mode is supported in vgpu.\n");
 			return -EINVAL;
@@ -404,8 +404,9 @@ int i915_gem_context_init(struct drm_device *dev)
 		/* NB: intentionally left blank. We will allocate our own
 		 * backing objects as we need them, thank you very much */
 		dev_priv->hw_context_size = 0;
-	} else if (HAS_HW_CONTEXTS(dev)) {
-		dev_priv->hw_context_size = round_up(get_context_size(dev), 4096);
+	} else if (HAS_HW_CONTEXTS(dev_priv)) {
+		dev_priv->hw_context_size =
+			round_up(get_context_size(dev_priv), 4096);
 		if (dev_priv->hw_context_size > (1<<20)) {
 			DRM_DEBUG_DRIVER("Disabling HW Contexts; invalid size %d\n",
 					 dev_priv->hw_context_size);
@@ -509,12 +510,13 @@ i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 static inline int
 mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 {
+	struct drm_i915_private *dev_priv = req->i915;
 	struct intel_engine_cs *engine = req->engine;
 	u32 flags = hw_flags | MI_MM_SPACE_GTT;
 	const int num_rings =
 		/* Use an extended w/a on ivb+ if signalling from other rings */
-		i915_semaphore_is_enabled(engine->dev) ?
-		hweight32(INTEL_INFO(engine->dev)->ring_mask) - 1 :
+		i915_semaphore_is_enabled(dev_priv) ?
+		hweight32(INTEL_INFO(dev_priv)->ring_mask) - 1 :
 		0;
 	int len, ret;
 
@@ -523,21 +525,21 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	 * explicitly, so we rely on the value at ring init, stored in
 	 * itlb_before_ctx_switch.
 	 */
-	if (IS_GEN6(engine->dev)) {
+	if (IS_GEN6(dev_priv)) {
 		ret = engine->flush(req, I915_GEM_GPU_DOMAINS, 0);
 		if (ret)
 			return ret;
 	}
 
 	/* These flags are for resource streamer on HSW+ */
-	if (IS_HASWELL(engine->dev) || INTEL_INFO(engine->dev)->gen >= 8)
+	if (IS_HASWELL(dev_priv) || INTEL_GEN(dev_priv) >= 8)
 		flags |= (HSW_MI_RS_SAVE_STATE_EN | HSW_MI_RS_RESTORE_STATE_EN);
-	else if (INTEL_INFO(engine->dev)->gen < 8)
+	else if (INTEL_GEN(dev_priv) < 8)
 		flags |= (MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN);
 
 
 	len = 4;
-	if (INTEL_INFO(engine->dev)->gen >= 7)
+	if (INTEL_GEN(dev_priv) >= 7)
 		len += 2 + (num_rings ? 4*num_rings + 6 : 0);
 
 	ret = intel_ring_begin(req, len);
@@ -545,14 +547,14 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 		return ret;
 
 	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw,chv */
-	if (INTEL_INFO(engine->dev)->gen >= 7) {
+	if (INTEL_GEN(dev_priv) >= 7) {
 		intel_ring_emit(engine, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
 
 			intel_ring_emit(engine,
 					MI_LOAD_REGISTER_IMM(num_rings));
-			for_each_engine(signaller, to_i915(engine->dev)) {
+			for_each_engine(signaller, dev_priv) {
 				if (signaller == engine)
 					continue;
 
@@ -575,14 +577,14 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	 */
 	intel_ring_emit(engine, MI_NOOP);
 
-	if (INTEL_INFO(engine->dev)->gen >= 7) {
+	if (INTEL_GEN(dev_priv) >= 7) {
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
 			i915_reg_t last_reg = {}; /* keep gcc quiet */
 
 			intel_ring_emit(engine,
 					MI_LOAD_REGISTER_IMM(num_rings));
-			for_each_engine(signaller, to_i915(engine->dev)) {
+			for_each_engine(signaller, dev_priv) {
 				if (signaller == engine)
 					continue;
 
@@ -673,7 +675,7 @@ needs_pd_load_pre(struct i915_hw_ppgtt *ppgtt,
 	if (engine->id != RCS)
 		return true;
 
-	if (INTEL_INFO(engine->dev)->gen < 8)
+	if (INTEL_GEN(engine->i915) < 8)
 		return true;
 
 	return false;
@@ -710,7 +712,7 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 
 	/* Trying to pin first makes error handling easier. */
 	ret = i915_gem_obj_ggtt_pin(to->legacy_hw_ctx.rcs_state,
-				    get_context_alignment(engine->dev),
+				    get_context_alignment(engine->i915),
 				    0);
 	if (ret)
 		return ret;

@@ -154,7 +154,7 @@ none:
 		if (ret)
 			return ret;
 
-		i915_gem_retire_requests(dev);
+		i915_gem_retire_requests(to_i915(dev));
 		goto search_again;
 	}
 
@@ -265,7 +265,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 		if (ret)
 			return ret;
 
-		i915_gem_retire_requests(vm->dev);
+		i915_gem_retire_requests(to_i915(vm->dev));
 
 		WARN_ON(!list_empty(&vm->active_list));
 	}

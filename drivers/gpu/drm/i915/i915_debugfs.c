@@ -1380,7 +1380,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seqno[id] = engine->get_seqno(engine);
 	}
 
-	i915_get_extra_instdone(dev, instdone);
+	i915_get_extra_instdone(dev_priv, instdone);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -3157,7 +3157,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	enum intel_engine_id id;
 	int j, ret;
 
-	if (!i915_semaphore_is_enabled(dev)) {
+	if (!i915_semaphore_is_enabled(dev_priv)) {
 		seq_puts(m, "Semaphores are disabled\n");
 		return 0;
 	}
@@ -4757,7 +4757,7 @@ i915_wedged_set(void *data, u64 val)
 
 	intel_runtime_pm_get(dev_priv);
 
-	i915_handle_error(dev, val,
+	i915_handle_error(dev_priv, val,
 			  "Manually setting wedged to %llu", val);
 
 	intel_runtime_pm_put(dev_priv);
@@ -4907,7 +4907,7 @@ i915_drop_caches_set(void *data, u64 val)
 	}
 
 	if (val & (DROP_RETIRE | DROP_ACTIVE))
-		i915_gem_retire_requests(dev);
+		i915_gem_retire_requests(dev_priv);
 
 	if (val & DROP_BOUND)
 		i915_gem_shrink(dev_priv, LONG_MAX, I915_SHRINK_BOUND);

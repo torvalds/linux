@@ -141,7 +141,8 @@ struct  i915_ctx_workarounds {
 	struct drm_i915_gem_object *obj;
 };
 
-struct  intel_engine_cs {
+struct intel_engine_cs {
+	struct drm_i915_private *i915;
 	const char	*name;
 	enum intel_engine_id {
 		RCS = 0,
@@ -156,7 +157,6 @@ struct  intel_engine_cs {
 	unsigned int hw_id;
 	unsigned int guc_id; /* XXX same as hw_id? */
 	u32		mmio_base;
-	struct		drm_device *dev;
 	struct intel_ringbuffer *buffer;
 	struct list_head buffers;
 
@@ -350,7 +350,7 @@ struct  intel_engine_cs {
 static inline bool
 intel_engine_initialized(struct intel_engine_cs *engine)
 {
-	return engine->dev != NULL;
+	return engine->i915 != NULL;
 }
 
 static inline unsigned
@@ -425,7 +425,7 @@ intel_write_status_page(struct intel_engine_cs *engine,
 
 struct intel_ringbuffer *
 intel_engine_create_ringbuffer(struct intel_engine_cs *engine, int size);
-int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
+int intel_pin_and_map_ringbuffer_obj(struct drm_i915_private *dev_priv,
 				     struct intel_ringbuffer *ringbuf);
 void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
 void intel_ringbuffer_free(struct intel_ringbuffer *ring);

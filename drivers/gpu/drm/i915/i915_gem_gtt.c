@@ -110,17 +110,19 @@ const struct i915_ggtt_view i915_ggtt_view_rotated = {
 	.type = I915_GGTT_VIEW_ROTATED,
 };
 
-int intel_sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
+int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
+			       	int enable_ppgtt)
 {
 	bool has_aliasing_ppgtt;
 	bool has_full_ppgtt;
 	bool has_full_48bit_ppgtt;
 
-	has_aliasing_ppgtt = INTEL_INFO(dev)->gen >= 6;
-	has_full_ppgtt = INTEL_INFO(dev)->gen >= 7;
-	has_full_48bit_ppgtt = IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9;
+	has_aliasing_ppgtt = INTEL_GEN(dev_priv) >= 6;
+	has_full_ppgtt = INTEL_GEN(dev_priv) >= 7;
+	has_full_48bit_ppgtt =
+	       	IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9;
 
-	if (intel_vgpu_active(dev))
+	if (intel_vgpu_active(dev_priv))
 		has_full_ppgtt = false; /* emulation is too hard */
 
 	if (!has_aliasing_ppgtt)
@@ -130,7 +132,7 @@ int intel_sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
 	 * execlists, the sole mechanism available to submit work.
 	 */
-	if (enable_ppgtt == 0 && INTEL_INFO(dev)->gen < 9)
+	if (enable_ppgtt == 0 && INTEL_GEN(dev_priv) < 9)
 		return 0;
 
 	if (enable_ppgtt == 1)
@@ -144,19 +146,19 @@ int intel_sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 
 #ifdef CONFIG_INTEL_IOMMU
 	/* Disable ppgtt on SNB if VT-d is on. */
-	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped) {
+	if (IS_GEN6(dev_priv) && intel_iommu_gfx_mapped) {
 		DRM_INFO("Disabling PPGTT because VT-d is on\n");
 		return 0;
 	}
 #endif
 
 	/* Early VLV doesn't have this */
-	if (IS_VALLEYVIEW(dev) && dev->pdev->revision < 0xb) {
+	if (IS_VALLEYVIEW(dev_priv) && dev_priv->dev->pdev->revision < 0xb) {
 		DRM_DEBUG_DRIVER("disabling PPGTT on pre-B3 step VLV\n");
 		return 0;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 8 && i915.enable_execlists)
+	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists)
 		return has_full_48bit_ppgtt ? 3 : 2;
 	else
 		return has_aliasing_ppgtt ? 1 : 0;
@@ -994,7 +996,7 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 
-	if (intel_vgpu_active(vm->dev))
+	if (intel_vgpu_active(to_i915(vm->dev)))
 		gen8_ppgtt_notify_vgt(ppgtt, false);
 
 	if (!USES_FULL_48BIT_PPGTT(ppgtt->base.dev))
@@ -1545,14 +1547,14 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 							      0, 0,
 							      GEN8_PML4E_SHIFT);
 
-		if (intel_vgpu_active(ppgtt->base.dev)) {
+		if (intel_vgpu_active(to_i915(ppgtt->base.dev))) {
 			ret = gen8_preallocate_top_level_pdps(ppgtt);
 			if (ret)
 				goto free_scratch;
 		}
 	}
 
-	if (intel_vgpu_active(ppgtt->base.dev))
+	if (intel_vgpu_active(to_i915(ppgtt->base.dev)))
 		gen8_ppgtt_notify_vgt(ppgtt, true);
 
 	return 0;
@@ -2080,7 +2082,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	} else
 		BUG();
 
-	if (intel_vgpu_active(dev))
+	if (intel_vgpu_active(dev_priv))
 		ppgtt->switch_mm = vgpu_mm_switch;
 
 	ret = gen6_ppgtt_alloc(ppgtt);
@@ -2729,7 +2731,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 	i915_address_space_init(&ggtt->base, dev_priv);
 	ggtt->base.total += PAGE_SIZE;
 
-	if (intel_vgpu_active(dev)) {
+	if (intel_vgpu_active(dev_priv)) {
 		ret = intel_vgt_balloon(dev);
 		if (ret)
 			return ret;
@@ -2833,7 +2835,7 @@ void i915_ggtt_cleanup_hw(struct drm_device *dev)
 	i915_gem_cleanup_stolen(dev);
 
 	if (drm_mm_initialized(&ggtt->base.mm)) {
-		if (intel_vgpu_active(dev))
+		if (intel_vgpu_active(dev_priv))
 			intel_vgt_deballoon();
 
 		drm_mm_takedown(&ggtt->base.mm);

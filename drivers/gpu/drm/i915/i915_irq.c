@@ -2537,15 +2537,15 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv,
  * Fire an error uevent so userspace can see that a hang or error
  * was detected.
  */
-static void i915_reset_and_wakeup(struct drm_device *dev)
+static void i915_reset_and_wakeup(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct kobject *kobj = &dev_priv->dev->primary->kdev->kobj;
 	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
 	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
 	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
 	int ret;
 
-	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, error_event);
+	kobject_uevent_env(kobj, KOBJ_CHANGE, error_event);
 
 	/*
 	 * Note that there's only one work item which does gpu resets, so we
@@ -2559,8 +2559,7 @@ static void i915_reset_and_wakeup(struct drm_device *dev)
 	 */
 	if (i915_reset_in_progress(&dev_priv->gpu_error)) {
 		DRM_DEBUG_DRIVER("resetting chip\n");
-		kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE,
-				   reset_event);
+		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_event);
 
 		/*
 		 * In most cases it's guaranteed that we get here with an RPM
@@ -2571,7 +2570,7 @@ static void i915_reset_and_wakeup(struct drm_device *dev)
 		 */
 		intel_runtime_pm_get(dev_priv);
 
-		intel_prepare_reset(dev);
+		intel_prepare_reset(dev_priv);
 
 		/*
 		 * All state reset _must_ be completed before we update the
@@ -2579,14 +2578,14 @@ static void i915_reset_and_wakeup(struct drm_device *dev)
 		 * pending state and not properly drop locks, resulting in
 		 * deadlocks with the reset work.
 		 */
-		ret = i915_reset(dev);
+		ret = i915_reset(dev_priv);
 
-		intel_finish_reset(dev);
+		intel_finish_reset(dev_priv);
 
 		intel_runtime_pm_put(dev_priv);
 
 		if (ret == 0)
-			kobject_uevent_env(&dev->primary->kdev->kobj,
+			kobject_uevent_env(kobj,
 					   KOBJ_CHANGE, reset_done_event);
 
 		/*
@@ -2597,9 +2596,8 @@ static void i915_reset_and_wakeup(struct drm_device *dev)
 	}
 }
 
-static void i915_report_and_clear_eir(struct drm_device *dev)
+static void i915_report_and_clear_eir(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t instdone[I915_NUM_INSTDONE_REG];
 	u32 eir = I915_READ(EIR);
 	int pipe, i;
@@ -2609,9 +2607,9 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 
 	pr_err("render error detected, EIR: 0x%08x\n", eir);
 
-	i915_get_extra_instdone(dev, instdone);
+	i915_get_extra_instdone(dev_priv, instdone);
 
-	if (IS_G4X(dev)) {
+	if (IS_G4X(dev_priv)) {
 		if (eir & (GM45_ERROR_MEM_PRIV | GM45_ERROR_CP_PRIV)) {
 			u32 ipeir = I915_READ(IPEIR_I965);
 
@@ -2633,7 +2631,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 		}
 	}
 
-	if (!IS_GEN2(dev)) {
+	if (!IS_GEN2(dev_priv)) {
 		if (eir & I915_ERROR_PAGE_TABLE) {
 			u32 pgtbl_err = I915_READ(PGTBL_ER);
 			pr_err("page table error\n");
@@ -2655,7 +2653,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 		pr_err("  INSTPM: 0x%08x\n", I915_READ(INSTPM));
 		for (i = 0; i < ARRAY_SIZE(instdone); i++)
 			pr_err("  INSTDONE_%d: 0x%08x\n", i, instdone[i]);
-		if (INTEL_INFO(dev)->gen < 4) {
+		if (INTEL_GEN(dev_priv) < 4) {
 			u32 ipeir = I915_READ(IPEIR);
 
 			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR));
@@ -2699,10 +2697,10 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
  * so userspace knows something bad happened (should trigger collection
  * of a ring dump etc.).
  */
-void i915_handle_error(struct drm_device *dev, u32 engine_mask,
+void i915_handle_error(struct drm_i915_private *dev_priv,
+		       u32 engine_mask,
 		       const char *fmt, ...)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	va_list args;
 	char error_msg[80];
 
@@ -2710,8 +2708,8 @@ void i915_handle_error(struct drm_device *dev, u32 engine_mask,
 	vscnprintf(error_msg, sizeof(error_msg), fmt, args);
 	va_end(args);
 
-	i915_capture_error_state(dev, engine_mask, error_msg);
-	i915_report_and_clear_eir(dev);
+	i915_capture_error_state(dev_priv, engine_mask, error_msg);
+	i915_report_and_clear_eir(dev_priv);
 
 	if (engine_mask) {
 		atomic_or(I915_RESET_IN_PROGRESS_FLAG,
@@ -2733,7 +2731,7 @@ void i915_handle_error(struct drm_device *dev, u32 engine_mask,
 		i915_error_wake_up(dev_priv, false);
 	}
 
-	i915_reset_and_wakeup(dev);
+	i915_reset_and_wakeup(dev_priv);
 }
 
 /* Called from drm generic code, passed 'crtc' which
@@ -2851,9 +2849,9 @@ ring_idle(struct intel_engine_cs *engine, u32 seqno)
 }
 
 static bool
-ipehr_is_semaphore_wait(struct drm_device *dev, u32 ipehr)
+ipehr_is_semaphore_wait(struct drm_i915_private *dev_priv, u32 ipehr)
 {
-	if (INTEL_INFO(dev)->gen >= 8) {
+	if (INTEL_GEN(dev_priv) >= 8) {
 		return (ipehr >> 23) == 0x1c;
 	} else {
 		ipehr &= ~MI_SEMAPHORE_SYNC_MASK;
@@ -2866,10 +2864,10 @@ static struct intel_engine_cs *
 semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 				 u64 offset)
 {
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct drm_i915_private *dev_priv = engine->i915;
 	struct intel_engine_cs *signaller;
 
-	if (INTEL_INFO(dev_priv)->gen >= 8) {
+	if (INTEL_GEN(dev_priv) >= 8) {
 		for_each_engine(signaller, dev_priv) {
 			if (engine == signaller)
 				continue;
@@ -2898,7 +2896,7 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 static struct intel_engine_cs *
 semaphore_waits_for(struct intel_engine_cs *engine, u32 *seqno)
 {
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct drm_i915_private *dev_priv = engine->i915;
 	u32 cmd, ipehr, head;
 	u64 offset = 0;
 	int i, backwards;
@@ -2924,7 +2922,7 @@ semaphore_waits_for(struct intel_engine_cs *engine, u32 *seqno)
 		return NULL;
 
 	ipehr = I915_READ(RING_IPEHR(engine->mmio_base));
-	if (!ipehr_is_semaphore_wait(engine->dev, ipehr))
+	if (!ipehr_is_semaphore_wait(engine->i915, ipehr))
 		return NULL;
 
 	/*
@@ -2936,7 +2934,7 @@ semaphore_waits_for(struct intel_engine_cs *engine, u32 *seqno)
 	 * ringbuffer itself.
 	 */
 	head = I915_READ_HEAD(engine) & HEAD_ADDR;
-	backwards = (INTEL_INFO(engine->dev)->gen >= 8) ? 5 : 4;
+	backwards = (INTEL_GEN(dev_priv) >= 8) ? 5 : 4;
 
 	for (i = backwards; i; --i) {
 		/*
@@ -2958,7 +2956,7 @@ semaphore_waits_for(struct intel_engine_cs *engine, u32 *seqno)
 		return NULL;
 
 	*seqno = ioread32(engine->buffer->virtual_start + head + 4) + 1;
-	if (INTEL_INFO(engine->dev)->gen >= 8) {
+	if (INTEL_GEN(dev_priv) >= 8) {
 		offset = ioread32(engine->buffer->virtual_start + head + 12);
 		offset <<= 32;
 		offset = ioread32(engine->buffer->virtual_start + head + 8);
@@ -2968,7 +2966,7 @@ semaphore_waits_for(struct intel_engine_cs *engine, u32 *seqno)
 
 static int semaphore_passed(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct drm_i915_private *dev_priv = engine->i915;
 	struct intel_engine_cs *signaller;
 	u32 seqno;
 
@@ -3010,7 +3008,7 @@ static bool subunits_stuck(struct intel_engine_cs *engine)
 	if (engine->id != RCS)
 		return true;
 
-	i915_get_extra_instdone(engine->dev, instdone);
+	i915_get_extra_instdone(engine->i915, instdone);
 
 	/* There might be unstable subunit states even when
 	 * actual head is not moving. Filter out the unstable ones by
@@ -3051,8 +3049,7 @@ head_stuck(struct intel_engine_cs *engine, u64 acthd)
 static enum intel_ring_hangcheck_action
 ring_stuck(struct intel_engine_cs *engine, u64 acthd)
 {
-	struct drm_device *dev = engine->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = engine->i915;
 	enum intel_ring_hangcheck_action ha;
 	u32 tmp;
 
@@ -3060,7 +3057,7 @@ ring_stuck(struct intel_engine_cs *engine, u64 acthd)
 	if (ha != HANGCHECK_HUNG)
 		return ha;
 
-	if (IS_GEN2(dev))
+	if (IS_GEN2(dev_priv))
 		return HANGCHECK_HUNG;
 
 	/* Is the chip hanging on a WAIT_FOR_EVENT?
@@ -3070,19 +3067,19 @@ ring_stuck(struct intel_engine_cs *engine, u64 acthd)
 	 */
 	tmp = I915_READ_CTL(engine);
 	if (tmp & RING_WAIT) {
-		i915_handle_error(dev, 0,
+		i915_handle_error(dev_priv, 0,
 				  "Kicking stuck wait on %s",
 				  engine->name);
 		I915_WRITE_CTL(engine, tmp);
 		return HANGCHECK_KICK;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 6 && tmp & RING_WAIT_SEMAPHORE) {
+	if (INTEL_GEN(dev_priv) >= 6 && tmp & RING_WAIT_SEMAPHORE) {
 		switch (semaphore_passed(engine)) {
 		default:
 			return HANGCHECK_HUNG;
 		case 1:
-			i915_handle_error(dev, 0,
+			i915_handle_error(dev_priv, 0,
 					  "Kicking stuck semaphore on %s",
 					  engine->name);
 			I915_WRITE_CTL(engine, tmp);
@@ -3097,7 +3094,7 @@ ring_stuck(struct intel_engine_cs *engine, u64 acthd)
 
 static unsigned kick_waiters(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *i915 = to_i915(engine->dev);
+	struct drm_i915_private *i915 = engine->i915;
 	unsigned user_interrupts = READ_ONCE(engine->user_interrupts);
 
 	if (engine->hangcheck.user_interrupts == user_interrupts &&
@@ -3126,7 +3123,6 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv),
 			     gpu_error.hangcheck_work.work);
-	struct drm_device *dev = dev_priv->dev;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int busy_count = 0, rings_hung = 0;
@@ -3254,22 +3250,22 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	}
 
 	if (rings_hung) {
-		i915_handle_error(dev, rings_hung, "Engine(s) hung");
+		i915_handle_error(dev_priv, rings_hung, "Engine(s) hung");
 		goto out;
 	}
 
 	if (busy_count)
 		/* Reset timer case chip hangs without another request
 		 * being added */
-		i915_queue_hangcheck(dev);
+		i915_queue_hangcheck(dev_priv);
 
 out:
 	ENABLE_RPM_WAKEREF_ASSERTS(dev_priv);
 }
 
-void i915_queue_hangcheck(struct drm_device *dev)
+void i915_queue_hangcheck(struct drm_i915_private *dev_priv)
 {
-	struct i915_gpu_error *e = &to_i915(dev)->gpu_error;
+	struct i915_gpu_error *e = &dev_priv->gpu_error;
 
 	if (!i915.enable_hangcheck)
 		return;

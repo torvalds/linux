@@ -131,7 +131,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	unsigned long count = 0;
 
 	trace_i915_gem_shrink(dev_priv, target, flags);
-	i915_gem_retire_requests(dev_priv->dev);
+	i915_gem_retire_requests(dev_priv);
 
 	/*
 	 * Unbinding of objects will require HW access; Let us not wake the
@@ -209,7 +209,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	if (flags & I915_SHRINK_BOUND)
 		intel_runtime_pm_put(dev_priv);
 
-	i915_gem_retire_requests(dev_priv->dev);
+	i915_gem_retire_requests(dev_priv);
 
 	return count;
 }

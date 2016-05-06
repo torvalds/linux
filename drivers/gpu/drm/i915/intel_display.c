@@ -3144,28 +3144,26 @@ static void intel_update_primary_planes(struct drm_device *dev)
 	}
 }
 
-void intel_prepare_reset(struct drm_device *dev)
+void intel_prepare_reset(struct drm_i915_private *dev_priv)
 {
 	/* no reset support for gen2 */
-	if (IS_GEN2(dev))
+	if (IS_GEN2(dev_priv))
 		return;
 
 	/* reset doesn't touch the display */
-	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
+	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		return;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_lock_all(dev_priv->dev);
 	/*
 	 * Disabling the crtcs gracefully seems nicer. Also the
 	 * g33 docs say we should at least disable all the planes.
 	 */
-	intel_display_suspend(dev);
+	intel_display_suspend(dev_priv->dev);
 }
 
-void intel_finish_reset(struct drm_device *dev)
+void intel_finish_reset(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	/*
 	 * Flips in the rings will be nuked by the reset,
 	 * so complete all pending flips so that user space
@@ -3174,11 +3172,11 @@ void intel_finish_reset(struct drm_device *dev)
 	intel_complete_page_flips(dev_priv);
 
 	/* no reset support for gen2 */
-	if (IS_GEN2(dev))
+	if (IS_GEN2(dev_priv))
 		return;
 
 	/* reset doesn't touch the display */
-	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev)) {
+	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)) {
 		/*
 		 * Flips in the rings have been nuked by the reset,
 		 * so update the base address of all primary
@@ -3188,7 +3186,7 @@ void intel_finish_reset(struct drm_device *dev)
 		 * FIXME: Atomic will make this obsolete since we won't schedule
 		 * CS-based flips (which might get lost in gpu resets) any more.
 		 */
-		intel_update_primary_planes(dev);
+		intel_update_primary_planes(dev_priv->dev);
 		return;
 	}
 
@@ -3199,18 +3197,18 @@ void intel_finish_reset(struct drm_device *dev)
 	intel_runtime_pm_disable_interrupts(dev_priv);
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
-	intel_modeset_init_hw(dev);
+	intel_modeset_init_hw(dev_priv->dev);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	intel_display_resume(dev);
+	intel_display_resume(dev_priv->dev);
 
 	intel_hpd_init(dev_priv);
 
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(dev_priv->dev);
 }
 
 static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
@@ -11255,7 +11253,7 @@ static bool use_mmio_flip(struct intel_engine_cs *engine,
 	if (engine == NULL)
 		return true;
 
-	if (INTEL_INFO(engine->dev)->gen < 5)
+	if (INTEL_GEN(engine->i915) < 5)
 		return false;
 
 	if (i915.use_mmio_flip < 0)
@@ -16187,9 +16185,8 @@ struct intel_display_error_state {
 };
 
 struct intel_display_error_state *
-intel_display_capture_error_state(struct drm_device *dev)
+intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_display_error_state *error;
 	int transcoders[] = {
 		TRANSCODER_A,
@@ -16199,14 +16196,14 @@ intel_display_capture_error_state(struct drm_device *dev)
 	};
 	int i;
 
-	if (INTEL_INFO(dev)->num_pipes == 0)
+	if (INTEL_INFO(dev_priv)->num_pipes == 0)
 		return NULL;
 
 	error = kzalloc(sizeof(*error), GFP_ATOMIC);
 	if (error == NULL)
 		return NULL;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		error->power_well_driver = I915_READ(HSW_PWR_WELL_DRIVER);
 
 	for_each_pipe(dev_priv, i) {
@@ -16222,25 +16219,25 @@ intel_display_capture_error_state(struct drm_device *dev)
 
 		error->plane[i].control = I915_READ(DSPCNTR(i));
 		error->plane[i].stride = I915_READ(DSPSTRIDE(i));
-		if (INTEL_INFO(dev)->gen <= 3) {
+		if (INTEL_GEN(dev_priv) <= 3) {
 			error->plane[i].size = I915_READ(DSPSIZE(i));
 			error->plane[i].pos = I915_READ(DSPPOS(i));
 		}
-		if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
+		if (INTEL_GEN(dev_priv) <= 7 && !IS_HASWELL(dev_priv))
 			error->plane[i].addr = I915_READ(DSPADDR(i));
-		if (INTEL_INFO(dev)->gen >= 4) {
+		if (INTEL_GEN(dev_priv) >= 4) {
 			error->plane[i].surface = I915_READ(DSPSURF(i));
 			error->plane[i].tile_offset = I915_READ(DSPTILEOFF(i));
 		}
 
 		error->pipe[i].source = I915_READ(PIPESRC(i));
 
-		if (HAS_GMCH_DISPLAY(dev))
+		if (HAS_GMCH_DISPLAY(dev_priv))
 			error->pipe[i].stat = I915_READ(PIPESTAT(i));
 	}
 
 	/* Note: this does not include DSI transcoders. */
-	error->num_transcoders = INTEL_INFO(dev)->num_pipes;
+	error->num_transcoders = INTEL_INFO(dev_priv)->num_pipes;
 	if (HAS_DDI(dev_priv))
 		error->num_transcoders++; /* Account for eDP. */
 

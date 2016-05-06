@@ -530,9 +530,9 @@ void intel_detect_pch(struct drm_device *dev)
 	pci_dev_put(pch);
 }
 
-bool i915_semaphore_is_enabled(struct drm_device *dev)
+bool i915_semaphore_is_enabled(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_INFO(dev)->gen < 6)
+	if (INTEL_GEN(dev_priv) < 6)
 		return false;
 
 	if (i915.semaphores >= 0)
@@ -544,7 +544,7 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 
 #ifdef CONFIG_INTEL_IOMMU
 	/* Enable semaphores on SNB when IO remapping is off */
-	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped)
+	if (IS_GEN6(dev_priv) && intel_iommu_gfx_mapped)
 		return false;
 #endif
 
@@ -914,9 +914,9 @@ int i915_resume_switcheroo(struct drm_device *dev)
  *   - re-init interrupt state
  *   - re-init display
  */
-int i915_reset(struct drm_device *dev)
+int i915_reset(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_device *dev = dev_priv->dev;
 	struct i915_gpu_error *error = &dev_priv->gpu_error;
 	unsigned reset_counter;
 	int ret;

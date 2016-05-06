@@ -2754,7 +2754,8 @@ extern int i915_max_ioctl;
 extern int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
 extern int i915_resume_switcheroo(struct drm_device *dev);
 
-int intel_sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt);
+int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
+			       	int enable_ppgtt);
 
 /* i915_dma.c */
 void __printf(3, 4)
@@ -2778,7 +2779,7 @@ extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 #endif
 extern int intel_gpu_reset(struct drm_device *dev, u32 engine_mask);
 extern bool intel_has_gpu_reset(struct drm_device *dev);
-extern int i915_reset(struct drm_device *dev);
+extern int i915_reset(struct drm_i915_private *dev_priv);
 extern int intel_guc_reset(struct drm_i915_private *dev_priv);
 extern void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
 extern unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
@@ -2796,9 +2797,10 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
 bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port);
 
 /* i915_irq.c */
-void i915_queue_hangcheck(struct drm_device *dev);
+void i915_queue_hangcheck(struct drm_i915_private *dev_priv);
 __printf(3, 4)
-void i915_handle_error(struct drm_device *dev, u32 engine_mask,
+void i915_handle_error(struct drm_i915_private *dev_priv,
+		       u32 engine_mask,
 		       const char *fmt, ...);
 
 extern void intel_irq_init(struct drm_i915_private *dev_priv);
@@ -2828,9 +2830,9 @@ void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
 u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
 
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
-static inline bool intel_vgpu_active(struct drm_device *dev)
+static inline bool intel_vgpu_active(struct drm_i915_private *dev_priv)
 {
-	return to_i915(dev)->vgpu.active;
+	return dev_priv->vgpu.active;
 }
 
 void
@@ -3098,13 +3100,13 @@ static inline bool i915_gem_request_completed(struct drm_i915_gem_request *req,
 				 req->seqno);
 }
 
-int __must_check i915_gem_get_seqno(struct drm_device *dev, u32 *seqno);
+int __must_check i915_gem_get_seqno(struct drm_i915_private *dev_priv, u32 *seqno);
 int __must_check i915_gem_set_seqno(struct drm_device *dev, u32 seqno);
 
 struct drm_i915_gem_request *
 i915_gem_find_active_request(struct intel_engine_cs *engine);
 
-bool i915_gem_retire_requests(struct drm_device *dev);
+bool i915_gem_retire_requests(struct drm_i915_private *dev_priv);
 void i915_gem_retire_requests_ring(struct intel_engine_cs *engine);
 
 static inline u32 i915_reset_counter(struct i915_gpu_error *error)
@@ -3351,9 +3353,9 @@ int __must_check i915_gem_evict_for_vma(struct i915_vma *target);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 
 /* belongs in i915_gem_gtt.h */
-static inline void i915_gem_chipset_flush(struct drm_device *dev)
+static inline void i915_gem_chipset_flush(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_INFO(dev)->gen < 6)
+	if (INTEL_GEN(dev_priv) < 6)
 		intel_gtt_chipset_flush();
 }
 
@@ -3432,14 +3434,15 @@ static inline void i915_error_state_buf_release(
 {
 	kfree(eb->buf);
 }
-void i915_capture_error_state(struct drm_device *dev, u32 engine_mask,
+void i915_capture_error_state(struct drm_i915_private *dev_priv,
+			      u32 engine_mask,
 			      const char *error_msg);
 void i915_error_state_get(struct drm_device *dev,
 			  struct i915_error_state_file_priv *error_priv);
 void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
 void i915_destroy_error_state(struct drm_device *dev);
 
-void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone);
+void i915_get_extra_instdone(struct drm_i915_private *dev_priv, uint32_t *instdone);
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */
@@ -3550,18 +3553,20 @@ extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 extern void intel_detect_pch(struct drm_device *dev);
 extern int intel_enable_rc6(const struct drm_device *dev);
 
-extern bool i915_semaphore_is_enabled(struct drm_device *dev);
+extern bool i915_semaphore_is_enabled(struct drm_i915_private *dev_priv);
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 int i915_get_reset_stats_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file);
 
 /* overlay */
-extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
+extern struct intel_overlay_error_state *
+intel_overlay_capture_error_state(struct drm_i915_private *dev_priv);
 extern void intel_overlay_print_error_state(struct drm_i915_error_state_buf *e,
 					    struct intel_overlay_error_state *error);
 
-extern struct intel_display_error_state *intel_display_capture_error_state(struct drm_device *dev);
+extern struct intel_display_error_state *
+intel_display_capture_error_state(struct drm_i915_private *dev_priv);
 extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 					    struct drm_device *dev,
 					    struct intel_display_error_state *error);

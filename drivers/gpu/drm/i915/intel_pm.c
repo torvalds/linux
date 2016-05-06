@@ -6344,7 +6344,7 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* Powersaving is controlled by the host when inside a VM */
-	if (intel_vgpu_active(dev))
+	if (intel_vgpu_active(dev_priv))
 		return;
 
 	if (IS_IRONLAKE_M(dev)) {
@@ -7400,8 +7400,7 @@ static void __intel_rps_boost_work(struct work_struct *work)
 	struct drm_i915_gem_request *req = boost->req;
 
 	if (!i915_gem_request_completed(req, true))
-		gen6_rps_boost(to_i915(req->engine->dev), NULL,
-			       req->emitted_jiffies);
+		gen6_rps_boost(req->i915, NULL, req->emitted_jiffies);
 
 	i915_gem_request_unreference(req);
 	kfree(boost);
