@@ -540,12 +540,18 @@ static void act_open_req_arp_failure(void *handle, struct sk_buff *skb)
  */
 static void abort_arp_failure(void *handle, struct sk_buff *skb)
 {
-	struct c4iw_rdev *rdev = handle;
+	int ret;
+	struct c4iw_ep *ep = handle;
+	struct c4iw_rdev *rdev = &ep->com.dev->rdev;
 	struct cpl_abort_req *req = cplhdr(skb);
 
 	PDBG("%s rdev %p\n", __func__, rdev);
 	req->cmd = CPL_ABORT_NO_RST;
-	c4iw_ofld_send(rdev, skb);
+	ret = c4iw_ofld_send(rdev, skb);
+	if (ret) {
+		__state_set(&ep->com, DEAD);
+		queue_arp_failure_cpl(ep, skb, FAKE_CPL_PUT_EP_SAFE);
+	}
 }
 
 static int send_flowc(struct c4iw_ep *ep, struct sk_buff *skb)
@@ -642,7 +648,7 @@ static int send_abort(struct c4iw_ep *ep, struct sk_buff *skb, gfp_t gfp)
 		return -ENOMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
-	t4_set_arp_err_handler(skb, &ep->com.dev->rdev, abort_arp_failure);
+	t4_set_arp_err_handler(skb, ep, abort_arp_failure);
 	req = (struct cpl_abort_req *) skb_put(skb, wrlen);
 	memset(req, 0, wrlen);
 	INIT_TP_WR(req, ep->hwtid);
