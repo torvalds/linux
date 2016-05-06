@@ -789,9 +789,6 @@ jbd2_time_diff(unsigned long start, unsigned long end)
  * @j_wbufsize: maximum number of buffer_heads allowed in j_wbuf, the
  *	number that will fit in j_blocksize
  * @j_last_sync_writer: most recent pid which did a synchronous write
- * @j_history: Buffer storing the transactions statistics history
- * @j_history_max: Maximum number of transactions in the statistics history
- * @j_history_cur: Current number of transactions in the statistics history
  * @j_history_lock: Protect the transactions statistics history
  * @j_proc_entry: procfs entry for the jbd statistics directory
  * @j_stats: Overall statistics
