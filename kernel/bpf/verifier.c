@@ -1704,12 +1704,11 @@ static int check_cond_jmp_op(struct verifier_env *env,
 			 */
 			regs[insn->dst_reg].type = PTR_TO_MAP_VALUE;
 			/* branch targer cannot access it, since reg == 0 */
-			other_branch->regs[insn->dst_reg].type = CONST_IMM;
-			other_branch->regs[insn->dst_reg].imm = 0;
+			mark_reg_unknown_value(other_branch->regs,
+					       insn->dst_reg);
 		} else {
 			other_branch->regs[insn->dst_reg].type = PTR_TO_MAP_VALUE;
-			regs[insn->dst_reg].type = CONST_IMM;
-			regs[insn->dst_reg].imm = 0;
+			mark_reg_unknown_value(regs, insn->dst_reg);
 		}
 	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JGT &&
 		   dst_reg->type == PTR_TO_PACKET &&
@@ -1718,22 +1717,6 @@ static int check_cond_jmp_op(struct verifier_env *env,
 	} else if (is_pointer_value(env, insn->dst_reg)) {
 		verbose("R%d pointer comparison prohibited\n", insn->dst_reg);
 		return -EACCES;
-	} else if (BPF_SRC(insn->code) == BPF_K &&
-		   (opcode == BPF_JEQ || opcode == BPF_JNE)) {
-
-		if (opcode == BPF_JEQ) {
-			/* detect if (R == imm) goto
-			 * and in the target state recognize that R = imm
-			 */
-			other_branch->regs[insn->dst_reg].type = CONST_IMM;
-			other_branch->regs[insn->dst_reg].imm = insn->imm;
-		} else {
-			/* detect if (R != imm) goto
-			 * and in the fall-through state recognize that R = imm
-			 */
-			regs[insn->dst_reg].type = CONST_IMM;
-			regs[insn->dst_reg].imm = insn->imm;
-		}
 	}
 	if (log_level)
 		print_verifier_state(&env->cur_state);
