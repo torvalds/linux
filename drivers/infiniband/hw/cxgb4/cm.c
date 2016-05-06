@@ -364,6 +364,8 @@ void _c4iw_free_ep(struct kref *kref)
 		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid);
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
+		if (ep->mpa_skb)
+			kfree_skb(ep->mpa_skb);
 	}
 	kfree(ep);
 }
