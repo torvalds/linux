@@ -393,6 +393,15 @@ static void __init gic_dist_init(void)
 	writel_relaxed(0, base + GICD_CTLR);
 	gic_dist_wait_for_rwp();
 
+	/*
+	 * Configure SPIs as non-secure Group-1. This will only matter
+	 * if the GIC only has a single security state. This will not
+	 * do the right thing if the kernel is running in secure mode,
+	 * but that's not the intended use case anyway.
+	 */
+	for (i = 32; i < gic_data.irq_nr; i += 32)
+		writel_relaxed(~0, base + GICD_IGROUPR + i / 8);
+
 	gic_dist_config(base, gic_data.irq_nr, gic_dist_wait_for_rwp);
 
 	/* Enable distributor with ARE, Group1 */
@@ -509,6 +518,9 @@ static void gic_cpu_init(void)
 	gic_enable_redist(true);
 
 	rbase = gic_data_rdist_sgi_base();
+
+	/* Configure SGIs/PPIs as non-secure Group-1 */
+	writel_relaxed(~0, rbase + GICR_IGROUPR0);
 
 	gic_cpu_config(rbase, gic_redist_wait_for_rwp);
 
