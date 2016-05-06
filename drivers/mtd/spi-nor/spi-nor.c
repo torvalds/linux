@@ -1031,12 +1031,13 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 	if (ret)
 		return ret;
 
-	ret = nor->read(nor, from, len, retlen, buf);
+	ret = nor->read(nor, from, len, buf);
 
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_READ);
 	if (ret < 0)
 		return ret;
 
+	*retlen += ret;
 	return 0;
 }
 
@@ -1063,7 +1064,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		nor->program_opcode = SPINOR_OP_BP;
 
 		/* write one byte. */
-		ret = nor->write(nor, to, 1, retlen, buf);
+		ret = nor->write(nor, to, 1, buf);
 		if (ret < 0)
 			goto sst_write_err;
 		WARN(ret != 1, "While writing 1 byte written %i bytes\n",
@@ -1079,7 +1080,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		nor->program_opcode = SPINOR_OP_AAI_WP;
 
 		/* write two bytes. */
-		ret = nor->write(nor, to, 2, retlen, buf + actual);
+		ret = nor->write(nor, to, 2, buf + actual);
 		if (ret < 0)
 			goto sst_write_err;
 		WARN(ret != 2, "While writing 2 bytes written %i bytes\n",
@@ -1102,7 +1103,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		write_enable(nor);
 
 		nor->program_opcode = SPINOR_OP_BP;
-		ret = nor->write(nor, to, 1, retlen, buf + actual);
+		ret = nor->write(nor, to, 1, buf + actual);
 		if (ret < 0)
 			goto sst_write_err;
 		WARN(ret != 1, "While writing 1 byte written %i bytes\n",
@@ -1111,8 +1112,10 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 		if (ret)
 			goto sst_write_err;
 		write_disable(nor);
+		actual += 1;
 	}
 sst_write_err:
+	*retlen += actual;
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_WRITE);
 	return ret;
 }
@@ -1141,15 +1144,17 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	/* do all the bytes fit onto one page? */
 	if (page_offset + len <= nor->page_size) {
-		ret = nor->write(nor, to, len, retlen, buf);
+		ret = nor->write(nor, to, len, buf);
 		if (ret < 0)
 			goto write_err;
+		*retlen += ret;
 	} else {
 		/* the size of data remaining on the first page */
 		page_size = nor->page_size - page_offset;
-		ret = nor->write(nor, to, page_size, retlen, buf);
+		ret = nor->write(nor, to, page_size, buf);
 		if (ret < 0)
 			goto write_err;
+		*retlen += ret;
 
 		/* write everything in nor->page_size chunks */
 		for (i = ret; i < len; ) {
@@ -1163,10 +1168,10 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 			write_enable(nor);
 
-			ret = nor->write(nor, to + i, page_size, retlen,
-					 buf + i);
+			ret = nor->write(nor, to + i, page_size, buf + i);
 			if (ret < 0)
 				goto write_err;
+			*retlen += ret;
 			i += ret;
 		}
 	}

@@ -173,7 +173,7 @@ static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 }
 
 static ssize_t nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
-			      size_t *retlen, u_char *buf)
+			      u_char *buf)
 {
 	struct nxp_spifi *spifi = nor->priv;
 	int ret;
@@ -183,13 +183,12 @@ static ssize_t nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
 		return ret;
 
 	memcpy_fromio(buf, spifi->flash_base + from, len);
-	*retlen += len;
 
 	return len;
 }
 
 static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
-			       size_t *retlen, const u_char *buf)
+			       const u_char *buf)
 {
 	struct nxp_spifi *spifi = nor->priv;
 	u32 cmd;
@@ -201,7 +200,6 @@ static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 		return ret;
 
 	writel(to, spifi->io_base + SPIFI_ADDR);
-	*retlen += len;
 
 	cmd = SPIFI_CMD_DOUT |
 	      SPIFI_CMD_DATALEN(len) |

@@ -74,7 +74,7 @@ static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 }
 
 static ssize_t m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
-			size_t *retlen, const u_char *buf)
+			    const u_char *buf)
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;
@@ -106,7 +106,6 @@ static ssize_t m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 	ret = m.actual_length - cmd_sz;
 	if (ret < 0)
 		return -EIO;
-	*retlen += ret;
 	return ret;
 }
 
@@ -127,7 +126,7 @@ static inline unsigned int m25p80_rx_nbits(struct spi_nor *nor)
  * may be any size provided it is within the physical boundaries.
  */
 static ssize_t m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
-			size_t *retlen, u_char *buf)
+			   u_char *buf)
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;
@@ -156,7 +155,6 @@ static ssize_t m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 		msg.data_nbits = m25p80_rx_nbits(nor);
 
 		ret = spi_flash_read(spi, &msg);
-		*retlen = msg.retlen;
 		if (ret < 0)
 			return ret;
 		return msg.retlen;
@@ -184,7 +182,6 @@ static ssize_t m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 	ret = m.actual_length - m25p_cmdsz(nor) - dummy;
 	if (ret < 0)
 		return -EIO;
-	*retlen += ret;
 	return ret;
 }
 
