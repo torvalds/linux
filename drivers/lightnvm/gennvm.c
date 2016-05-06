@@ -407,29 +407,28 @@ static void gennvm_put_blk(struct nvm_dev *dev, struct nvm_block *blk)
 	spin_unlock(&vlun->lock);
 }
 
-static void gennvm_blk_set_type(struct nvm_dev *dev, struct ppa_addr *ppa,
-								int type)
+static void gennvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type)
 {
 	struct gen_nvm *gn = dev->mp;
 	struct gen_lun *lun;
 	struct nvm_block *blk;
 
 	pr_debug("gennvm: ppa  (ch: %u lun: %u blk: %u pg: %u) -> %u\n",
-			ppa->g.ch, ppa->g.lun, ppa->g.blk, ppa->g.pg, type);
+			ppa.g.ch, ppa.g.lun, ppa.g.blk, ppa.g.pg, type);
 
-	if (unlikely(ppa->g.ch > dev->nr_chnls ||
-					ppa->g.lun > dev->luns_per_chnl ||
-					ppa->g.blk > dev->blks_per_lun)) {
+	if (unlikely(ppa.g.ch > dev->nr_chnls ||
+					ppa.g.lun > dev->luns_per_chnl ||
+					ppa.g.blk > dev->blks_per_lun)) {
 		WARN_ON_ONCE(1);
 		pr_err("gennvm: ppa broken (ch: %u > %u lun: %u > %u blk: %u > %u",
-				ppa->g.ch, dev->nr_chnls,
-				ppa->g.lun, dev->luns_per_chnl,
-				ppa->g.blk, dev->blks_per_lun);
+				ppa.g.ch, dev->nr_chnls,
+				ppa.g.lun, dev->luns_per_chnl,
+				ppa.g.blk, dev->blks_per_lun);
 		return;
 	}
 
-	lun = &gn->luns[ppa->g.lun * ppa->g.ch];
-	blk = &lun->vlun.blocks[ppa->g.blk];
+	lun = &gn->luns[ppa.g.lun * ppa.g.ch];
+	blk = &lun->vlun.blocks[ppa.g.blk];
 
 	/* will be moved to bb list on put_blk from target */
 	blk->state = type;
@@ -448,12 +447,12 @@ static void gennvm_mark_blk_bad(struct nvm_dev *dev, struct nvm_rq *rqd)
 
 	/* look up blocks and mark them as bad */
 	if (rqd->nr_pages == 1) {
-		gennvm_blk_set_type(dev, &rqd->ppa_addr, NVM_BLK_ST_BAD);
+		gennvm_mark_blk(dev, rqd->ppa_addr, NVM_BLK_ST_BAD);
 		return;
 	}
 
 	while ((bit = find_next_bit(comp_bits, max_secs, bit + 1)) < max_secs)
-		gennvm_blk_set_type(dev, &rqd->ppa_list[bit], NVM_BLK_ST_BAD);
+		gennvm_mark_blk(dev, rqd->ppa_list[bit], NVM_BLK_ST_BAD);
 }
 
 static void gennvm_end_io(struct nvm_rq *rqd)
@@ -543,6 +542,8 @@ static struct nvmm_type gennvm = {
 
 	.submit_io		= gennvm_submit_io,
 	.erase_blk		= gennvm_erase_blk,
+
+	.mark_blk		= gennvm_mark_blk,
 
 	.get_lun		= gennvm_get_lun,
 	.reserve_lun		= gennvm_reserve_lun,

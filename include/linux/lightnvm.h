@@ -467,6 +467,7 @@ typedef void (nvmm_flush_blk_fn)(struct nvm_dev *, struct nvm_block *);
 typedef int (nvmm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct nvm_block *,
 								unsigned long);
+typedef void (nvmm_mark_blk_fn)(struct nvm_dev *, struct ppa_addr, int);
 typedef struct nvm_lun *(nvmm_get_lun_fn)(struct nvm_dev *, int);
 typedef int (nvmm_reserve_lun)(struct nvm_dev *, int);
 typedef void (nvmm_release_lun)(struct nvm_dev *, int);
@@ -493,6 +494,9 @@ struct nvmm_type {
 
 	nvmm_submit_io_fn *submit_io;
 	nvmm_erase_blk_fn *erase_blk;
+
+	/* Bad block mgmt */
+	nvmm_mark_blk_fn *mark_blk;
 
 	/* Configuration management */
 	nvmm_get_lun_fn *get_lun;
