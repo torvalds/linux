@@ -41,13 +41,10 @@ struct nvm_id;
 struct nvm_dev;
 
 typedef int (nvm_l2p_update_fn)(u64, u32, __le64 *, void *);
-typedef int (nvm_bb_update_fn)(struct nvm_dev *, struct ppa_addr, u8 *, int,
-								void *);
 typedef int (nvm_id_fn)(struct nvm_dev *, struct nvm_id *);
 typedef int (nvm_get_l2p_tbl_fn)(struct nvm_dev *, u64, u32,
 				nvm_l2p_update_fn *, void *);
-typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr,
-				nvm_bb_update_fn *, void *);
+typedef int (nvm_op_bb_tbl_fn)(struct nvm_dev *, struct ppa_addr, u8 *);
 typedef int (nvm_op_set_bb_fn)(struct nvm_dev *, struct nvm_rq *, int);
 typedef int (nvm_submit_io_fn)(struct nvm_dev *, struct nvm_rq *);
 typedef int (nvm_erase_blk_fn)(struct nvm_dev *, struct nvm_rq *);
@@ -539,6 +536,7 @@ extern int nvm_submit_ppa(struct nvm_dev *, struct ppa_addr *, int, int, int,
 extern int nvm_submit_ppa_list(struct nvm_dev *, struct ppa_addr *, int, int,
 							int, void *, int);
 extern int nvm_bb_tbl_fold(struct nvm_dev *, u8 *, int);
+extern int nvm_get_bb_tbl(struct nvm_dev *, struct ppa_addr, u8 *);
 
 /* sysblk.c */
 #define NVM_SYSBLK_MAGIC 0x4E564D53 /* "NVMS" */

@@ -129,10 +129,10 @@ static int gennvm_luns_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	return 0;
 }
 
-static int gennvm_block_bb(struct nvm_dev *dev, struct ppa_addr ppa,
-					u8 *blks, int nr_blks, void *private)
+static int gennvm_block_bb(struct gen_nvm *gn, struct ppa_addr ppa,
+							u8 *blks, int nr_blks)
 {
-	struct gen_nvm *gn = private;
+	struct nvm_dev *dev = gn->dev;
 	struct gen_lun *lun;
 	struct nvm_block *blk;
 	int i;
@@ -219,13 +219,21 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 	struct gen_lun *lun;
 	struct nvm_block *block;
 	sector_t lun_iter, blk_iter, cur_block_id = 0;
-	int ret;
+	int ret, nr_blks;
+	u8 *blks;
+
+	nr_blks = dev->blks_per_lun * dev->plane_mode;
+	blks = kmalloc(nr_blks, GFP_KERNEL);
+	if (!blks)
+		return -ENOMEM;
 
 	gennvm_for_each_lun(gn, lun, lun_iter) {
 		lun->vlun.blocks = vzalloc(sizeof(struct nvm_block) *
 							dev->blks_per_lun);
-		if (!lun->vlun.blocks)
+		if (!lun->vlun.blocks) {
+			kfree(blks);
 			return -ENOMEM;
+		}
 
 		for (blk_iter = 0; blk_iter < dev->blks_per_lun; blk_iter++) {
 			block = &lun->vlun.blocks[blk_iter];
@@ -250,12 +258,14 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 			ppa.ppa = 0;
 			ppa.g.ch = lun->vlun.chnl_id;
 			ppa.g.lun = lun->vlun.id;
-			ppa = generic_to_dev_addr(dev, ppa);
 
-			ret = dev->ops->get_bb_tbl(dev, ppa,
-							gennvm_block_bb, gn);
+			ret = nvm_get_bb_tbl(dev, ppa, blks);
 			if (ret)
-				pr_err("gennvm: could not read BB table\n");
+				pr_err("gennvm: could not get BB table\n");
+
+			ret = gennvm_block_bb(gn, ppa, blks, nr_blks);
+			if (ret)
+				pr_err("gennvm: BB table map failed\n");
 		}
 	}
 
@@ -268,6 +278,7 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 		}
 	}
 
+	kfree(blks);
 	return 0;
 }
 

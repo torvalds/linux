@@ -388,7 +388,7 @@ out:
 }
 
 static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
-				nvm_bb_update_fn *update_bbtbl, void *priv)
+								u8 *blks)
 {
 	struct request_queue *q = nvmdev->q;
 	struct nvme_ns *ns = q->queuedata;
@@ -435,9 +435,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 		goto out;
 	}
 
-	ppa = dev_to_generic_addr(nvmdev, ppa);
-	ret = update_bbtbl(nvmdev, ppa, bb_tbl->blk, nr_blks, priv);
-
+	memcpy(blks, bb_tbl->blk, nvmdev->blks_per_lun * nvmdev->plane_mode);
 out:
 	kfree(bb_tbl);
 	return ret;

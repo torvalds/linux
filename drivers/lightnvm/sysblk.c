@@ -93,10 +93,45 @@ void nvm_setup_sysblk_scan(struct nvm_dev *dev, struct sysblk_scan *s,
 	s->nr_rows = nvm_setup_sysblks(dev, sysblk_ppas);
 }
 
-static int sysblk_get_host_blks(struct nvm_dev *dev, struct ppa_addr ppa,
-					u8 *blks, int nr_blks, void *private)
+static int sysblk_get_free_blks(struct nvm_dev *dev, struct ppa_addr ppa,
+					u8 *blks, int nr_blks,
+					struct sysblk_scan *s)
 {
-	struct sysblk_scan *s = private;
+	struct ppa_addr *sppa;
+	int i, blkid = 0;
+
+	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
+	if (nr_blks < 0)
+		return nr_blks;
+
+	for (i = 0; i < nr_blks; i++) {
+		if (blks[i] == NVM_BLK_T_HOST)
+			return -EEXIST;
+
+		if (blks[i] != NVM_BLK_T_FREE)
+			continue;
+
+		sppa = &s->ppas[scan_ppa_idx(s->row, blkid)];
+		sppa->g.ch = ppa.g.ch;
+		sppa->g.lun = ppa.g.lun;
+		sppa->g.blk = i;
+		s->nr_ppas++;
+		blkid++;
+
+		pr_debug("nvm: use (%u %u %u) as sysblk\n",
+					sppa->g.ch, sppa->g.lun, sppa->g.blk);
+		if (blkid > MAX_BLKS_PR_SYSBLK - 1)
+			return 0;
+	}
+
+	pr_err("nvm: sysblk failed get sysblk\n");
+	return -EINVAL;
+}
+
+static int sysblk_get_host_blks(struct nvm_dev *dev, struct ppa_addr ppa,
+					u8 *blks, int nr_blks,
+					struct sysblk_scan *s)
+{
 	int i, nr_sysblk = 0;
 
 	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
@@ -123,26 +158,42 @@ static int sysblk_get_host_blks(struct nvm_dev *dev, struct ppa_addr ppa,
 }
 
 static int nvm_get_all_sysblks(struct nvm_dev *dev, struct sysblk_scan *s,
-				struct ppa_addr *ppas, nvm_bb_update_fn *fn)
+				struct ppa_addr *ppas, int get_free)
 {
-	struct ppa_addr dppa;
-	int i, ret = 0;
+	int i, nr_blks, ret = 0;
+	u8 *blks;
 
 	s->nr_ppas = 0;
+	nr_blks = dev->blks_per_lun * dev->plane_mode;
+
+	blks = kmalloc(nr_blks, GFP_KERNEL);
+	if (!blks)
+		return -ENOMEM;
 
 	for (i = 0; i < s->nr_rows; i++) {
-		dppa = generic_to_dev_addr(dev, ppas[i]);
 		s->row = i;
 
-		ret = dev->ops->get_bb_tbl(dev, dppa, fn, s);
+		ret = nvm_get_bb_tbl(dev, ppas[i], blks);
 		if (ret) {
 			pr_err("nvm: failed bb tbl for ppa (%u %u)\n",
 							ppas[i].g.ch,
 							ppas[i].g.blk);
-			return ret;
+			goto err_get;
 		}
+
+		if (get_free)
+			ret = sysblk_get_free_blks(dev, ppas[i], blks, nr_blks,
+									s);
+		else
+			ret = sysblk_get_host_blks(dev, ppas[i], blks, nr_blks,
+									s);
+
+		if (ret)
+			goto err_get;
 	}
 
+err_get:
+	kfree(blks);
 	return ret;
 }
 
@@ -237,41 +288,6 @@ static int nvm_set_bb_tbl(struct nvm_dev *dev, struct sysblk_scan *s, int type)
 	}
 
 	return 0;
-}
-
-static int sysblk_get_free_blks(struct nvm_dev *dev, struct ppa_addr ppa,
-					u8 *blks, int nr_blks, void *private)
-{
-	struct sysblk_scan *s = private;
-	struct ppa_addr *sppa;
-	int i, blkid = 0;
-
-	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
-	if (nr_blks < 0)
-		return nr_blks;
-
-	for (i = 0; i < nr_blks; i++) {
-		if (blks[i] == NVM_BLK_T_HOST)
-			return -EEXIST;
-
-		if (blks[i] != NVM_BLK_T_FREE)
-			continue;
-
-		sppa = &s->ppas[scan_ppa_idx(s->row, blkid)];
-		sppa->g.ch = ppa.g.ch;
-		sppa->g.lun = ppa.g.lun;
-		sppa->g.blk = i;
-		s->nr_ppas++;
-		blkid++;
-
-		pr_debug("nvm: use (%u %u %u) as sysblk\n",
-					sppa->g.ch, sppa->g.lun, sppa->g.blk);
-		if (blkid > MAX_BLKS_PR_SYSBLK - 1)
-			return 0;
-	}
-
-	pr_err("nvm: sysblk failed get sysblk\n");
-	return -EINVAL;
 }
 
 static int nvm_write_and_verify(struct nvm_dev *dev, struct nvm_sb_info *info,
@@ -393,7 +409,7 @@ int nvm_get_sysblock(struct nvm_dev *dev, struct nvm_sb_info *info)
 	nvm_setup_sysblk_scan(dev, &s, sysblk_ppas);
 
 	mutex_lock(&dev->mlock);
-	ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas, sysblk_get_host_blks);
+	ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas, 0);
 	if (ret)
 		goto err_sysblk;
 
@@ -453,7 +469,7 @@ int nvm_update_sysblock(struct nvm_dev *dev, struct nvm_sb_info *new)
 	nvm_setup_sysblk_scan(dev, &s, sysblk_ppas);
 
 	mutex_lock(&dev->mlock);
-	ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas, sysblk_get_host_blks);
+	ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas, 0);
 	if (ret)
 		goto err_sysblk;
 
@@ -551,7 +567,7 @@ int nvm_init_sysblock(struct nvm_dev *dev, struct nvm_sb_info *info)
 	nvm_setup_sysblk_scan(dev, &s, sysblk_ppas);
 
 	mutex_lock(&dev->mlock);
-	ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas, sysblk_get_free_blks);
+	ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas, 1);
 	if (ret)
 		goto err_mark;
 
@@ -587,9 +603,9 @@ static unsigned int factory_blk_offset(struct nvm_dev *dev, int ch, int lun)
 }
 
 static int nvm_factory_blks(struct nvm_dev *dev, struct ppa_addr ppa,
-					u8 *blks, int nr_blks, void *private)
+					u8 *blks, int nr_blks,
+					struct factory_blks *f)
 {
-	struct factory_blks *f = private;
 	int i, lunoff;
 
 	nr_blks = nvm_bb_tbl_fold(dev, blks, nr_blks);
@@ -659,32 +675,29 @@ static int nvm_fact_get_blks(struct nvm_dev *dev, struct ppa_addr *erase_list,
 	return ppa_cnt;
 }
 
-static int nvm_fact_get_bb_tbl(struct nvm_dev *dev, struct ppa_addr ppa,
-					nvm_bb_update_fn *fn, void *priv)
-{
-	struct ppa_addr dev_ppa;
-	int ret;
-
-	dev_ppa = generic_to_dev_addr(dev, ppa);
-
-	ret = dev->ops->get_bb_tbl(dev, dev_ppa, fn, priv);
-	if (ret)
-		pr_err("nvm: failed bb tbl for ch%u lun%u\n",
-							ppa.g.ch, ppa.g.blk);
-	return ret;
-}
-
 static int nvm_fact_select_blks(struct nvm_dev *dev, struct factory_blks *f)
 {
-	int ch, lun, ret;
 	struct ppa_addr ppa;
+	int ch, lun, nr_blks, ret;
+	u8 *blks;
+
+	nr_blks = dev->blks_per_lun * dev->plane_mode;
+	blks = kmalloc(nr_blks, GFP_KERNEL);
+	if (!blks)
+		return -ENOMEM;
 
 	nvm_for_each_lun_ppa(dev, ppa, ch, lun) {
-		ret = nvm_fact_get_bb_tbl(dev, ppa, nvm_factory_blks, f);
+		ret = nvm_get_bb_tbl(dev, ppa, blks);
+		if (ret)
+			pr_err("nvm: failed bb tbl for ch%u lun%u\n",
+							ppa.g.ch, ppa.g.blk);
+
+		ret = nvm_factory_blks(dev, ppa, blks, nr_blks, f);
 		if (ret)
 			return ret;
 	}
 
+	kfree(blks);
 	return 0;
 }
 
@@ -722,8 +735,7 @@ int nvm_dev_factory(struct nvm_dev *dev, int flags)
 	if (flags & NVM_FACTORY_RESET_HOST_BLKS) {
 		nvm_setup_sysblk_scan(dev, &s, sysblk_ppas);
 		mutex_lock(&dev->mlock);
-		ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas,
-							sysblk_get_host_blks);
+		ret = nvm_get_all_sysblks(dev, &s, sysblk_ppas, 0);
 		if (!ret)
 			ret = nvm_set_bb_tbl(dev, &s, NVM_BLK_T_FREE);
 		mutex_unlock(&dev->mlock);

@@ -467,6 +467,14 @@ int nvm_bb_tbl_fold(struct nvm_dev *dev, u8 *blks, int nr_blks)
 }
 EXPORT_SYMBOL(nvm_bb_tbl_fold);
 
+int nvm_get_bb_tbl(struct nvm_dev *dev, struct ppa_addr ppa, u8 *blks)
+{
+	ppa = generic_to_dev_addr(dev, ppa);
+
+	return dev->ops->get_bb_tbl(dev, ppa, blks);
+}
+EXPORT_SYMBOL(nvm_get_bb_tbl);
+
 static int nvm_init_slc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
 {
 	int i;
