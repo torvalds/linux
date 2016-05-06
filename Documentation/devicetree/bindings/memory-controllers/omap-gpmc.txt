@@ -32,6 +32,19 @@ Required properties:
 			bootloader) are used for the physical address decoding.
 			As this will change in the future, filling correct
 			values here is a requirement.
+ - interrupt-controller: The GPMC driver implements and interrupt controller for
+			the NAND events "fifoevent" and "termcount" plus the
+			rising/falling edges on the GPMC_WAIT pins.
+			The interrupt number mapping is as follows
+			0 - NAND_fifoevent
+			1 - NAND_termcount
+			2 - GPMC_WAIT0 pin edge
+			3 - GPMC_WAIT1 pin edge, and so on.
+ - interrupt-cells:	Must be set to 2
+ - gpio-controller:	The GPMC driver implements a GPIO controller for the
+			GPMC WAIT pins that can be used as general purpose inputs.
+			0 maps to GPMC_WAIT0 pin.
+ - gpio-cells:		Must be set to 2
 
 Timing properties for child nodes. All are optional and default to 0.
 
@@ -130,6 +143,10 @@ Example for an AM33xx board:
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges = <0 0 0x08000000 0x10000000>; /* CS0 @addr 0x8000000, size 0x10000000 */
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
 
 		/* child nodes go here */
 	};

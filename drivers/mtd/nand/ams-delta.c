@@ -224,6 +224,7 @@ static int ams_delta_init(struct platform_device *pdev)
 	/* 25 us command delay time */
 	this->chip_delay = 30;
 	this->ecc.mode = NAND_ECC_SOFT;
+	this->ecc.algo = NAND_ECC_HAMMING;
 
 	platform_set_drvdata(pdev, io_base);
 
