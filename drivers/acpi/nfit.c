@@ -287,8 +287,11 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 					offset);
 			rc = -ENXIO;
 		}
-	} else
+	} else {
 		rc = 0;
+		if (cmd_rc)
+			*cmd_rc = xlat_status(buf, cmd);
+	}
 
  out:
 	ACPI_FREE(out_obj);
