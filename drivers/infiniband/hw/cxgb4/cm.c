@@ -453,8 +453,9 @@ static void arp_failure_discard(void *handle, struct sk_buff *skb)
 }
 
 enum {
-	NUM_FAKE_CPLS = 1,
+	NUM_FAKE_CPLS = 2,
 	FAKE_CPL_PUT_EP_SAFE = NUM_CPL_CMDS + 0,
+	FAKE_CPL_PASS_PUT_EP_SAFE = NUM_CPL_CMDS + 1,
 };
 
 static int _put_ep_safe(struct c4iw_dev *dev, struct sk_buff *skb)
@@ -466,18 +467,29 @@ static int _put_ep_safe(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
+static int _put_pass_ep_safe(struct c4iw_dev *dev, struct sk_buff *skb)
+{
+	struct c4iw_ep *ep;
+
+	ep = *((struct c4iw_ep **)(skb->cb + 2 * sizeof(void *)));
+	c4iw_put_ep(&ep->parent_ep->com);
+	release_ep_resources(ep);
+	return 0;
+}
+
 /*
  * Fake up a special CPL opcode and call sched() so process_work() will call
  * _put_ep_safe() in a safe context to free the ep resources.  This is needed
  * because ARP error handlers are called in an ATOMIC context, and
  * _c4iw_free_ep() needs to block.
  */
-static void queue_arp_failure_cpl(struct c4iw_ep *ep, struct sk_buff *skb)
+static void queue_arp_failure_cpl(struct c4iw_ep *ep, struct sk_buff *skb,
+				  int cpl)
 {
 	struct cpl_act_establish *rpl = cplhdr(skb);
 
 	/* Set our special ARP_FAILURE opcode */
-	rpl->ot.opcode = FAKE_CPL_PUT_EP_SAFE;
+	rpl->ot.opcode = cpl;
 
 	/*
 	 * Save ep in the skb->cb area, after where sched() will save the dev
@@ -496,7 +508,7 @@ static void pass_accept_rpl_arp_failure(void *handle, struct sk_buff *skb)
 	       ep->hwtid);
 
 	__state_set(&ep->com, DEAD);
-	queue_arp_failure_cpl(ep, skb);
+	queue_arp_failure_cpl(ep, skb, FAKE_CPL_PASS_PUT_EP_SAFE);
 }
 
 /*
@@ -517,7 +529,7 @@ static void act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 	}
 	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
-	queue_arp_failure_cpl(ep, skb);
+	queue_arp_failure_cpl(ep, skb, FAKE_CPL_PUT_EP_SAFE);
 }
 
 /*
@@ -3935,7 +3947,8 @@ static c4iw_handler_func work_handlers[NUM_CPL_CMDS + NUM_FAKE_CPLS] = {
 	[CPL_FW4_ACK] = fw4_ack,
 	[CPL_FW6_MSG] = deferred_fw6_msg,
 	[CPL_RX_PKT] = rx_pkt,
-	[FAKE_CPL_PUT_EP_SAFE] = _put_ep_safe
+	[FAKE_CPL_PUT_EP_SAFE] = _put_ep_safe,
+	[FAKE_CPL_PASS_PUT_EP_SAFE] = _put_pass_ep_safe
 };
 
 static void process_timeout(struct c4iw_ep *ep)
