@@ -121,18 +121,26 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib *ib = &ibs[0];
-	struct fence *hwf;
-	struct amdgpu_vm *vm = NULL;
-	unsigned i, patch_offset = ~0;
 	bool skip_preamble, need_ctx_switch;
+	unsigned patch_offset = ~0;
+	struct amdgpu_vm *vm;
+	struct fence *hwf;
+	uint64_t ctx;
 
+	unsigned i;
 	int r = 0;
 
 	if (num_ibs == 0)
 		return -EINVAL;
 
-	if (job) /* for domain0 job like ring test, ibs->job is not assigned */
+	/* ring tests don't use a job */
+	if (job) {
 		vm = job->vm;
+		ctx = job->ctx;
+	} else {
+		vm = NULL;
+		ctx = 0;
+	}
 
 	if (!ring->ready) {
 		dev_err(adev->dev, "couldn't schedule ib\n");
@@ -170,8 +178,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* always set cond_exec_polling to CONTINUE */
 	*ring->cond_exe_cpu_addr = 1;
 
-	skip_preamble = ring->current_ctx == ib->ctx;
-	need_ctx_switch = ring->current_ctx != ib->ctx;
+	skip_preamble = ring->current_ctx == ctx;
+	need_ctx_switch = ring->current_ctx != ctx;
 	for (i = 0; i < num_ibs; ++i) {
 		ib = &ibs[i];
 
@@ -209,7 +217,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);
 
-	ring->current_ctx = ibs->ctx;
+	ring->current_ctx = ctx;
 	amdgpu_ring_commit(ring);
 	return 0;
 }

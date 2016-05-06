@@ -122,14 +122,13 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		return -EINVAL;
 
 	r = amd_sched_job_init(&job->base, &ring->sched,
-							entity,
-							amdgpu_job_timeout_func,
-							amdgpu_job_free_func,
-							owner, &fence);
+			       entity, amdgpu_job_timeout_func,
+			       amdgpu_job_free_func, owner, &fence);
 	if (r)
 		return r;
 
 	job->owner = owner;
+	job->ctx = entity->fence_context;
 	*f = fence_get(fence);
 	amd_sched_entity_push_job(&job->base);
 

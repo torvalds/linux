@@ -743,7 +743,6 @@ struct amdgpu_ib {
 	struct amdgpu_user_fence        *user;
 	unsigned			vm_id;
 	uint64_t			vm_pd_addr;
-	uint64_t			ctx;
 	uint32_t			gds_base, gds_size;
 	uint32_t			gws_base, gws_size;
 	uint32_t			oa_base, oa_size;
@@ -1262,6 +1261,7 @@ struct amdgpu_job {
 	struct fence		*fence; /* the hw fence */
 	uint32_t		num_ibs;
 	void			*owner;
+	uint64_t		ctx;
 	struct amdgpu_user_fence uf;
 };
 #define to_amdgpu_job(sched_job)		\
