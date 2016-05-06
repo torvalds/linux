@@ -125,6 +125,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	struct fence *hwf;
 	struct amdgpu_vm *vm = NULL;
 	unsigned i, patch_offset = ~0;
+	bool skip_preamble;
 
 	int r = 0;
 
@@ -172,9 +173,14 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* always set cond_exec_polling to CONTINUE */
 	*ring->cond_exe_cpu_addr = 1;
 
+	skip_preamble = ring->current_ctx == ctx;
 	old_ctx = ring->current_ctx;
 	for (i = 0; i < num_ibs; ++i) {
-		ib = &ibs[i];
+
+		/* drop preamble IBs if we don't have a context switch */
+		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && skip_preamble)
+			continue;
+
 		amdgpu_ring_emit_ib(ring, ib);
 		ring->current_ctx = ctx;
 	}

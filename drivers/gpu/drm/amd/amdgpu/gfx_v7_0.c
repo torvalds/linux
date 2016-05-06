@@ -2036,10 +2036,6 @@ static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	u32 header, control = 0;
 	u32 next_rptr = ring->wptr + 5;
 
-	/* drop the CE preamble IB for the same context */
-	if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && !need_ctx_switch)
-		return;
-
 	if (need_ctx_switch)
 		next_rptr += 2;
 
