@@ -351,7 +351,6 @@ struct nvm_dev {
 	unsigned long total_blocks;
 	unsigned long total_secs;
 	int nr_luns;
-	unsigned max_pages_per_blk;
 
 	unsigned long *lun_map;
 	void *dma_pool;

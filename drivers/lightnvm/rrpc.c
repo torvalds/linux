@@ -1264,7 +1264,7 @@ static sector_t rrpc_capacity(void *private)
 	sector_t reserved, provisioned;
 
 	/* cur, gc, and two emergency blocks for each lun */
-	reserved = rrpc->nr_luns * dev->max_pages_per_blk * 4;
+	reserved = rrpc->nr_luns * dev->sec_per_blk * 4;
 	provisioned = rrpc->nr_sects - reserved;
 
 	if (reserved > rrpc->nr_sects) {
