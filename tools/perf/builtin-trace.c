@@ -1606,7 +1606,12 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 						     "%ld", val);
 			}
 		}
-	} else {
+	} else if (IS_ERR(sc->tp_format)) {
+		/*
+		 * If we managed to read the tracepoint /format file, then we
+		 * may end up not having any args, like with gettid(), so only
+		 * print the raw args when we didn't manage to read it.
+		 */
 		int i = 0;
 
 		while (i < 6) {
