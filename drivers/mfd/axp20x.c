@@ -130,6 +130,12 @@ static struct resource axp152_pek_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP152_IRQ_PEK_FAL_EDGE, "PEK_DBF"),
 };
 
+static struct resource axp20x_ac_power_supply_resources[] = {
+	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_ACIN_PLUGIN, "ACIN_PLUGIN"),
+	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_ACIN_REMOVAL, "ACIN_REMOVAL"),
+	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_ACIN_OVER_V, "ACIN_OVER_V"),
+};
+
 static struct resource axp20x_pek_resources[] = {
 	{
 		.name	= "PEK_DBR",
@@ -498,6 +504,11 @@ static struct mfd_cell axp20x_cells[] = {
 		.resources	= axp20x_pek_resources,
 	}, {
 		.name		= "axp20x-regulator",
+	}, {
+		.name		= "axp20x-ac-power-supply",
+		.of_compatible	= "x-powers,axp202-ac-power-supply",
+		.num_resources	= ARRAY_SIZE(axp20x_ac_power_supply_resources),
+		.resources	= axp20x_ac_power_supply_resources,
 	}, {
 		.name		= "axp20x-usb-power-supply",
 		.of_compatible	= "x-powers,axp202-usb-power-supply",
