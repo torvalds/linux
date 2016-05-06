@@ -195,10 +195,13 @@ static struct alua_port_group *alua_find_get_pg(char *id_str, size_t id_size,
 {
 	struct alua_port_group *pg;
 
+	if (!id_str || !id_size || !strlen(id_str))
+		return NULL;
+
 	list_for_each_entry(pg, &port_group_list, node) {
 		if (pg->group_id != group_id)
 			continue;
-		if (pg->device_id_len != id_size)
+		if (!pg->device_id_len || pg->device_id_len != id_size)
 			continue;
 		if (strncmp(pg->device_id_str, id_str, id_size))
 			continue;
@@ -232,14 +235,14 @@ static struct alua_port_group *alua_alloc_pg(struct scsi_device *sdev,
 					    sizeof(pg->device_id_str));
 	if (pg->device_id_len <= 0) {
 		/*
-		 * Internal error: TPGS supported but no device
-		 * identifcation found. Disable ALUA support.
+		 * TPGS supported but no device identification found.
+		 * Generate private device identification.
 		 */
-		kfree(pg);
 		sdev_printk(KERN_INFO, sdev,
 			    "%s: No device descriptors found\n",
 			    ALUA_DH_NAME);
-		return ERR_PTR(-ENXIO);
+		pg->device_id_str[0] = '\0';
+		pg->device_id_len = 0;
 	}
 	pg->group_id = group_id;
 	pg->tpgs = tpgs;
@@ -354,9 +357,15 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 			return SCSI_DH_NOMEM;
 		return SCSI_DH_DEV_UNSUPP;
 	}
-	sdev_printk(KERN_INFO, sdev,
-		    "%s: device %s port group %x rel port %x\n",
-		    ALUA_DH_NAME, pg->device_id_str, group_id, rel_port);
+	if (pg->device_id_len)
+		sdev_printk(KERN_INFO, sdev,
+			    "%s: device %s port group %x rel port %x\n",
+			    ALUA_DH_NAME, pg->device_id_str,
+			    group_id, rel_port);
+	else
+		sdev_printk(KERN_INFO, sdev,
+			    "%s: port group %x rel port %x\n",
+			    ALUA_DH_NAME, group_id, rel_port);
 
 	/* Check for existing port group references */
 	spin_lock(&h->pg_lock);
