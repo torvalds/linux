@@ -504,6 +504,7 @@ static int nvm_core_init(struct nvm_dev *dev)
 {
 	struct nvm_id *id = &dev->identity;
 	struct nvm_id_group *grp = &id->groups[0];
+	int ret;
 
 	/* device values */
 	dev->nr_chnls = grp->num_ch;
@@ -522,32 +523,15 @@ static int nvm_core_init(struct nvm_dev *dev)
 	dev->plane_mode = NVM_PLANE_SINGLE;
 	dev->max_rq_size = dev->ops->max_phys_sect * dev->sec_size;
 
-	if (grp->mtype != 0) {
-		pr_err("nvm: memory type not supported\n");
-		return -EINVAL;
-	}
-
-	switch (grp->fmtype) {
-	case NVM_ID_FMTYPE_SLC:
-		if (nvm_init_slc_tbl(dev, grp))
-			return -ENOMEM;
-		break;
-	case NVM_ID_FMTYPE_MLC:
-		if (nvm_init_mlc_tbl(dev, grp))
-			return -ENOMEM;
-		break;
-	default:
-		pr_err("nvm: flash type not supported\n");
-		return -EINVAL;
-	}
-
-	if (!dev->lps_per_blk)
-		pr_info("nvm: lower page programming table missing\n");
-
 	if (grp->mpos & 0x020202)
 		dev->plane_mode = NVM_PLANE_DOUBLE;
 	if (grp->mpos & 0x040404)
 		dev->plane_mode = NVM_PLANE_QUAD;
+
+	if (grp->mtype != 0) {
+		pr_err("nvm: memory type not supported\n");
+		return -EINVAL;
+	}
 
 	/* calculated values */
 	dev->sec_per_pl = dev->sec_per_pg * dev->nr_planes;
@@ -560,11 +544,34 @@ static int nvm_core_init(struct nvm_dev *dev)
 					sizeof(unsigned long), GFP_KERNEL);
 	if (!dev->lun_map)
 		return -ENOMEM;
+
+	switch (grp->fmtype) {
+	case NVM_ID_FMTYPE_SLC:
+		if (nvm_init_slc_tbl(dev, grp)) {
+			ret = -ENOMEM;
+			goto err_fmtype;
+		}
+		break;
+	case NVM_ID_FMTYPE_MLC:
+		if (nvm_init_mlc_tbl(dev, grp)) {
+			ret = -ENOMEM;
+			goto err_fmtype;
+		}
+		break;
+	default:
+		pr_err("nvm: flash type not supported\n");
+		ret = -EINVAL;
+		goto err_fmtype;
+	}
+
 	INIT_LIST_HEAD(&dev->online_targets);
 	mutex_init(&dev->mlock);
 	spin_lock_init(&dev->lock);
 
 	return 0;
+err_fmtype:
+	kfree(dev->lun_map);
+	return ret;
 }
 
 static void nvm_free(struct nvm_dev *dev)
@@ -576,6 +583,7 @@ static void nvm_free(struct nvm_dev *dev)
 		dev->mt->unregister_mgr(dev);
 
 	kfree(dev->lptbl);
+	kfree(dev->lun_map);
 }
 
 static int nvm_init(struct nvm_dev *dev)
@@ -705,7 +713,6 @@ void nvm_unregister(char *disk_name)
 	up_write(&nvm_lock);
 
 	nvm_exit(dev);
-	kfree(dev->lun_map);
 	kfree(dev);
 }
 EXPORT_SYMBOL(nvm_unregister);
