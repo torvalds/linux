@@ -52,6 +52,8 @@ static int visorhba_resume(struct visor_device *dev,
 
 static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 				 size_t len, loff_t *offset);
+static int set_no_disk_inquiry_result(unsigned char *buf,
+				      size_t len, bool is_lun0);
 static struct dentry *visorhba_debugfs_dir;
 static const struct file_operations debugfs_info_fops = {
 	.read = info_debugfs_read,
@@ -772,6 +774,24 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 	}
 }
 
+static int set_no_disk_inquiry_result(unsigned char *buf,
+				      size_t len, bool is_lun0)
+{
+	if (!buf || len < NO_DISK_INQUIRY_RESULT_LEN)
+		return -EINVAL;
+	memset(buf, 0, NO_DISK_INQUIRY_RESULT_LEN);
+	buf[2] = SCSI_SPC2_VER;
+	if (is_lun0) {
+		buf[0] = DEV_DISK_CAPABLE_NOT_PRESENT;
+		buf[3] = DEV_HISUPPORT;
+	} else {
+		buf[0] = DEV_NOT_CAPABLE;
+	}
+	buf[4] = NO_DISK_INQUIRY_RESULT_LEN - 5;
+	strncpy(buf + 8, "DELLPSEUDO DEVICE .", NO_DISK_INQUIRY_RESULT_LEN - 8);
+	return 0;
+}
+
 /**
  *	do_scsi_nolinuxstat - scsi command didn't have linuxstat
  *	@cmdrsp: response from IOVM
@@ -804,10 +824,8 @@ do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 		 * a disk there so we'll present a processor
 		 * there.
 		 */
-		SET_NO_DISK_INQUIRY_RESULT(buf, cmdrsp->scsi.bufflen,
-					   scsidev->lun,
-					   DEV_DISK_CAPABLE_NOT_PRESENT,
-					   DEV_NOT_CAPABLE);
+		set_no_disk_inquiry_result(buf, (size_t)cmdrsp->scsi.bufflen,
+					   scsidev->lun == 0);
 
 		if (scsi_sg_count(scsicmd) == 0) {
 			memcpy(scsi_sglist(scsicmd), buf,
