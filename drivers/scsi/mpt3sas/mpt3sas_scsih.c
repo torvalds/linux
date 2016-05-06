@@ -7848,6 +7848,7 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	Mpi2EventNotificationReply_t *mpi_reply;
 	u16 event;
 	u16 sz;
+	Mpi26EventDataActiveCableExcept_t *ActiveCableEventData;
 
 	/* events turned off due to host reset or driver unloading */
 	if (ioc->remove_host || ioc->pci_error_recovery)
@@ -7959,6 +7960,18 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 		_scsih_temp_threshold_events(ioc,
 			(Mpi2EventDataTemperature_t *)
 			mpi_reply->EventData);
+		break;
+	case MPI2_EVENT_ACTIVE_CABLE_EXCEPTION:
+		ActiveCableEventData =
+		    (Mpi26EventDataActiveCableExcept_t *) mpi_reply->EventData;
+		if (ActiveCableEventData->ReasonCode ==
+				MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER)
+			pr_info(MPT3SAS_FMT "Currently an active cable with ReceptacleID %d",
+			    ioc->name, ActiveCableEventData->ReceptacleID);
+			pr_info("cannot be powered and devices connected to this active cable");
+			pr_info("will not be seen. This active cable");
+			pr_info("requires %d mW of power",
+			    ActiveCableEventData->ActiveCablePowerRequirement);
 		break;
 
 	default: /* ignore the rest */
