@@ -11,6 +11,7 @@
  * option) any later version.
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/of_device.h>
