@@ -73,7 +73,7 @@ static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return spi_write(spi, flash->command, len + 1);
 }
 
-static void m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
+static ssize_t m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 			size_t *retlen, const u_char *buf)
 {
 	struct m25p *flash = nor->priv;
@@ -101,6 +101,7 @@ static void m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 	spi_sync(spi, &m);
 
 	*retlen += m.actual_length - cmd_sz;
+	return 0;
 }
 
 static inline unsigned int m25p80_rx_nbits(struct spi_nor *nor)
@@ -119,7 +120,7 @@ static inline unsigned int m25p80_rx_nbits(struct spi_nor *nor)
  * Read an address range from the nor chip.  The address range
  * may be any size provided it is within the physical boundaries.
  */
-static int m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
+static ssize_t m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 			size_t *retlen, u_char *buf)
 {
 	struct m25p *flash = nor->priv;

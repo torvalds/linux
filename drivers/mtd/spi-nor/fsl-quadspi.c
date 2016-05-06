@@ -868,7 +868,7 @@ static int fsl_qspi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return ret;
 }
 
-static void fsl_qspi_write(struct spi_nor *nor, loff_t to,
+static ssize_t fsl_qspi_write(struct spi_nor *nor, loff_t to,
 		size_t len, size_t *retlen, const u_char *buf)
 {
 	struct fsl_qspi *q = nor->priv;
@@ -878,9 +878,10 @@ static void fsl_qspi_write(struct spi_nor *nor, loff_t to,
 
 	/* invalid the data in the AHB buffer. */
 	fsl_qspi_invalid(q);
+	return 0;
 }
 
-static int fsl_qspi_read(struct spi_nor *nor, loff_t from,
+static ssize_t fsl_qspi_read(struct spi_nor *nor, loff_t from,
 		size_t len, size_t *retlen, u_char *buf)
 {
 	struct fsl_qspi *q = nor->priv;

@@ -172,8 +172,8 @@ static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return nxp_spifi_wait_for_cmd(spifi);
 }
 
-static int nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
-			  size_t *retlen, u_char *buf)
+static ssize_t nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
+			      size_t *retlen, u_char *buf)
 {
 	struct nxp_spifi *spifi = nor->priv;
 	int ret;
@@ -188,8 +188,8 @@ static int nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
 	return 0;
 }
 
-static void nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
-			    size_t *retlen, const u_char *buf)
+static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
+			       size_t *retlen, const u_char *buf)
 {
 	struct nxp_spifi *spifi = nor->priv;
 	u32 cmd;
@@ -197,7 +197,7 @@ static void nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 
 	ret = nxp_spifi_set_memory_mode_off(spifi);
 	if (ret)
-		return;
+		return ret;
 
 	writel(to, spifi->io_base + SPIFI_ADDR);
 	*retlen += len;
@@ -212,7 +212,7 @@ static void nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 	while (len--)
 		writeb(*buf++, spifi->io_base + SPIFI_DATA);
 
-	nxp_spifi_wait_for_cmd(spifi);
+	return nxp_spifi_wait_for_cmd(spifi);
 }
 
 static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
