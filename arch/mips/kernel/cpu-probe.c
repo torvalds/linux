@@ -732,6 +732,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	unsigned int newcf4;
 	unsigned int mmuextdef;
 	unsigned int ftlb_page = MIPS_CONF4_FTLBPAGESIZE;
+	unsigned long asid_mask;
 
 	config4 = read_c0_config4();
 
@@ -791,6 +792,18 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 	}
 
 	c->kscratch_mask = (config4 >> 16) & 0xff;
+
+	asid_mask = MIPS_ENTRYHI_ASID;
+	if (config4 & MIPS_CONF4_AE)
+		asid_mask |= MIPS_ENTRYHI_ASIDX;
+	set_cpu_asid_mask(c, asid_mask);
+
+	/*
+	 * Warn if the computed ASID mask doesn't match the mask the kernel
+	 * is built for. This may indicate either a serious problem or an
+	 * easy optimisation opportunity, but either way should be addressed.
+	 */
+	WARN_ON(asid_mask != cpu_asid_mask(c));
 
 	return config4 & MIPS_CONF_M;
 }

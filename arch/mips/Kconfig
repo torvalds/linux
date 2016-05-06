@@ -1706,6 +1706,7 @@ config CPU_XLP
 	select CPU_HAS_PREFETCH
 	select CPU_MIPSR2
 	select CPU_SUPPORTS_HUGEPAGES
+	select MIPS_ASID_BITS_VARIABLE
 	help
 	  Netlogic Microsystems XLP processors.
 endchoice
@@ -2001,6 +2002,7 @@ config CPU_MIPSR6
 	bool
 	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6
 	select HAVE_ARCH_BITREVERSE
+	select MIPS_ASID_BITS_VARIABLE
 	select MIPS_SPRAM
 
 config EVA
@@ -2457,8 +2459,12 @@ config MIPS_ASID_SHIFT
 
 config MIPS_ASID_BITS
 	int
+	default 0 if MIPS_ASID_BITS_VARIABLE
 	default 6 if CPU_R3000 || CPU_TX39XX
 	default 8
+
+config MIPS_ASID_BITS_VARIABLE
+	bool
 
 #
 # - Highmem only makes sense for the 32-bit kernel.

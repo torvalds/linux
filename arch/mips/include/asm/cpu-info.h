@@ -40,6 +40,9 @@ struct cache_desc {
 
 struct cpuinfo_mips {
 	unsigned long		asid_cache;
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	unsigned long		asid_mask;
+#endif
 
 	/*
 	 * Capability and feature descriptor structure for MIPS CPU
@@ -139,7 +142,18 @@ static inline unsigned long cpu_asid_inc(void)
 
 static inline unsigned long cpu_asid_mask(struct cpuinfo_mips *cpuinfo)
 {
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	return cpuinfo->asid_mask;
+#endif
 	return ((1 << CONFIG_MIPS_ASID_BITS) - 1) << CONFIG_MIPS_ASID_SHIFT;
+}
+
+static inline void set_cpu_asid_mask(struct cpuinfo_mips *cpuinfo,
+				     unsigned long asid_mask)
+{
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	cpuinfo->asid_mask = asid_mask;
+#endif
 }
 
 #endif /* __ASM_CPU_INFO_H */

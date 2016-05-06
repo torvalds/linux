@@ -137,7 +137,14 @@ FEXPORT(__kvm_mips_load_asid)
 	INT_SLL	t2, t2, 2                   /* x4 */
 	REG_ADDU t3, t1, t2
 	LONG_L	k0, (t3)
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	li	t3, CPUINFO_SIZE/4
+	mul	t2, t2, t3		/* x sizeof(struct cpuinfo_mips)/4 */
+	LONG_L	t2, (cpu_data + CPUINFO_ASID_MASK)(t2)
+	and	k0, k0, t2
+#else
 	andi	k0, k0, MIPS_ENTRYHI_ASID
+#endif
 	mtc0	k0, CP0_ENTRYHI
 	ehb
 
@@ -449,7 +456,14 @@ __kvm_mips_return_to_guest:
 	INT_SLL	t2, t2, 2		/* x4 */
 	REG_ADDU t3, t1, t2
 	LONG_L	k0, (t3)
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	li	t3, CPUINFO_SIZE/4
+	mul	t2, t2, t3		/* x sizeof(struct cpuinfo_mips)/4 */
+	LONG_L	t2, (cpu_data + CPUINFO_ASID_MASK)(t2)
+	and	k0, k0, t2
+#else
 	andi	k0, k0, MIPS_ENTRYHI_ASID
+#endif
 	mtc0	k0, CP0_ENTRYHI
 	ehb
 
