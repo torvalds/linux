@@ -1864,7 +1864,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 		break;
 	case MPA_REQ_WAIT:
 		ep->rcv_seq += dlen;
-		process_mpa_request(ep, skb);
+		disconnect = process_mpa_request(ep, skb);
 		break;
 	case FPDU_MODE: {
 		struct c4iw_qp_attributes attrs;
@@ -1885,7 +1885,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	mutex_unlock(&ep->com.mutex);
 	if (disconnect)
-		c4iw_ep_disconnect(ep, 0, GFP_KERNEL);
+		c4iw_ep_disconnect(ep, disconnect == 2, GFP_KERNEL);
 	c4iw_put_ep(&ep->com);
 	return 0;
 }
