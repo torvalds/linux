@@ -164,7 +164,7 @@ FEXPORT(__kvm_mips_load_asid)
 	INT_SLL	t2, t2, 2                   /* x4 */
 	REG_ADDU t3, t1, t2
 	LONG_L	k0, (t3)
-	andi	k0, k0, 0xff
+	andi	k0, k0, MIPS_ENTRYHI_ASID
 	mtc0	k0, CP0_ENTRYHI
 	ehb
 
@@ -483,7 +483,7 @@ __kvm_mips_return_to_guest:
 	INT_SLL	t2, t2, 2		/* x4 */
 	REG_ADDU t3, t1, t2
 	LONG_L	k0, (t3)
-	andi	k0, k0, 0xff
+	andi	k0, k0, MIPS_ENTRYHI_ASID
 	mtc0	k0, CP0_ENTRYHI
 	ehb
 

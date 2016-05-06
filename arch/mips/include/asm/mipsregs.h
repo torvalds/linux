@@ -229,6 +229,8 @@
 
 /* MIPS32/64 EntryHI bit definitions */
 #define MIPS_ENTRYHI_EHINV	(_ULCAST_(1) << 10)
+#define MIPS_ENTRYHI_ASIDX	(_ULCAST_(0x3) << 8)
+#define MIPS_ENTRYHI_ASID	(_ULCAST_(0xff) << 0)
 
 /*
  * R4x00 interrupt enable / cause bits
