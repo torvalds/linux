@@ -419,6 +419,9 @@ static void gennvm_blk_set_type(struct nvm_dev *dev, struct ppa_addr *ppa,
 	struct gen_lun *lun;
 	struct nvm_block *blk;
 
+	pr_debug("gennvm: ppa  (ch: %u lun: %u blk: %u pg: %u) -> %u\n",
+			ppa->g.ch, ppa->g.lun, ppa->g.blk, ppa->g.pg, type);
+
 	if (unlikely(ppa->g.ch > dev->nr_chnls ||
 					ppa->g.lun > dev->luns_per_chnl ||
 					ppa->g.blk > dev->blks_per_lun)) {
@@ -437,39 +440,33 @@ static void gennvm_blk_set_type(struct nvm_dev *dev, struct ppa_addr *ppa,
 	blk->state = type;
 }
 
-/* mark block bad. It is expected the target recover from the error. */
+/*
+ * mark block bad in gennvm. It is expected that the target recovers separately
+ */
 static void gennvm_mark_blk_bad(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
-	int i;
-
-	if (!dev->ops->set_bb_tbl)
-		return;
-
-	if (dev->ops->set_bb_tbl(dev, rqd, 1))
-		return;
+	int bit = -1;
+	int max_secs = dev->ops->max_phys_sect;
+	void *comp_bits = &rqd->ppa_status;
 
 	nvm_addr_to_generic_mode(dev, rqd);
 
 	/* look up blocks and mark them as bad */
-	if (rqd->nr_pages > 1)
-		for (i = 0; i < rqd->nr_pages; i++)
-			gennvm_blk_set_type(dev, &rqd->ppa_list[i],
-						NVM_BLK_ST_BAD);
-	else
+	if (rqd->nr_pages == 1) {
 		gennvm_blk_set_type(dev, &rqd->ppa_addr, NVM_BLK_ST_BAD);
+		return;
+	}
+
+	while ((bit = find_next_bit(comp_bits, max_secs, bit + 1)) < max_secs)
+		gennvm_blk_set_type(dev, &rqd->ppa_list[bit], NVM_BLK_ST_BAD);
 }
 
 static void gennvm_end_io(struct nvm_rq *rqd)
 {
 	struct nvm_tgt_instance *ins = rqd->ins;
 
-	switch (rqd->error) {
-	case NVM_RSP_SUCCESS:
-	case NVM_RSP_ERR_EMPTYPAGE:
-		break;
-	case NVM_RSP_ERR_FAILWRITE:
+	if (rqd->error == NVM_RSP_ERR_FAILWRITE)
 		gennvm_mark_blk_bad(rqd->dev, rqd);
-	}
 
 	ins->tt->end_io(rqd);
 }
