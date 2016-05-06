@@ -201,7 +201,7 @@ visor_copy_fragsinfo_from_skb(struct sk_buff *skb, unsigned int firstfraglen,
 			      unsigned int frags_max,
 			      struct phys_info frags[])
 {
-	unsigned int count = 0, ii, size, offset = 0, numfrags;
+	unsigned int count = 0, frag, size, offset = 0, numfrags;
 	unsigned int total_count;
 
 	numfrags = skb_shinfo(skb)->nr_frags;
@@ -243,12 +243,12 @@ visor_copy_fragsinfo_from_skb(struct sk_buff *skb, unsigned int firstfraglen,
 		if ((count + numfrags) > frags_max)
 			return -EINVAL;
 
-		for (ii = 0; ii < numfrags; ii++) {
+		for (frag = 0; frag < numfrags; frag++) {
 			count = add_physinfo_entries(page_to_pfn(
-				skb_frag_page(&skb_shinfo(skb)->frags[ii])),
-					      skb_shinfo(skb)->frags[ii].
+				skb_frag_page(&skb_shinfo(skb)->frags[frag])),
+					      skb_shinfo(skb)->frags[frag].
 					      page_offset,
-					      skb_shinfo(skb)->frags[ii].
+					      skb_shinfo(skb)->frags[frag].
 					      size, count, frags_max, frags);
 			/* add_physinfo_entries only returns
 			 * zero if the frags array is out of room
