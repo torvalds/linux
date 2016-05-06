@@ -407,6 +407,29 @@ cache:
 	up_write(&nm_i->nat_tree_lock);
 }
 
+/*
+ * readahead MAX_RA_NODE number of node pages.
+ */
+static void ra_node_pages(struct page *parent, int start, int n)
+{
+	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
+	struct blk_plug plug;
+	int i, end;
+	nid_t nid;
+
+	blk_start_plug(&plug);
+
+	/* Then, try readahead for siblings of the desired node */
+	end = start + n;
+	end = min(end, NIDS_PER_BLOCK);
+	for (i = start; i < end; i++) {
+		nid = get_nid(parent, i, false);
+		ra_node_page(sbi, nid);
+	}
+
+	blk_finish_plug(&plug);
+}
+
 pgoff_t get_next_page_offset(struct dnode_of_data *dn, pgoff_t pgofs)
 {
 	const long direct_index = ADDRS_PER_INODE(dn->inode);
@@ -707,6 +730,8 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 		return PTR_ERR(page);
 	}
 
+	ra_node_pages(page, ofs, NIDS_PER_BLOCK);
+
 	rn = F2FS_NODE(page);
 	if (depth < 3) {
 		for (i = ofs; i < NIDS_PER_BLOCK; i++, freed++) {
@@ -783,6 +808,8 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 		}
 		nid[i + 1] = get_nid(pages[i], offset[i + 1], false);
 	}
+
+	ra_node_pages(pages[idx], offset[idx + 1], NIDS_PER_BLOCK);
 
 	/* free direct nodes linked to a partial indirect node */
 	for (i = offset[idx + 1]; i < NIDS_PER_BLOCK; i++) {
@@ -1095,29 +1122,6 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	f2fs_put_page(apage, err ? 1 : 0);
 }
 
-/*
- * readahead MAX_RA_NODE number of node pages.
- */
-static void ra_node_pages(struct page *parent, int start)
-{
-	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
-	struct blk_plug plug;
-	int i, end;
-	nid_t nid;
-
-	blk_start_plug(&plug);
-
-	/* Then, try readahead for siblings of the desired node */
-	end = start + MAX_RA_NODE;
-	end = min(end, NIDS_PER_BLOCK);
-	for (i = start; i < end; i++) {
-		nid = get_nid(parent, i, false);
-		ra_node_page(sbi, nid);
-	}
-
-	blk_finish_plug(&plug);
-}
-
 static struct page *__get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid,
 					struct page *parent, int start)
 {
@@ -1141,7 +1145,7 @@ repeat:
 	}
 
 	if (parent)
-		ra_node_pages(parent, start + 1);
+		ra_node_pages(parent, start + 1, MAX_RA_NODE);
 
 	lock_page(page);
 
