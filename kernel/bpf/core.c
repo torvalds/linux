@@ -794,6 +794,11 @@ void __weak bpf_int_jit_compile(struct bpf_prog *prog)
 {
 }
 
+bool __weak bpf_helper_changes_skb_data(void *func)
+{
+	return false;
+}
+
 /* To execute LD_ABS/LD_IND instructions __bpf_prog_run() may call
  * skb_copy_bits(), so provide a weak definition of it for NET-less config.
  */

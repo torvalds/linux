@@ -370,6 +370,8 @@ struct __sk_buff {
 	__u32 cb[5];
 	__u32 hash;
 	__u32 tc_classid;
+	__u32 data;
+	__u32 data_end;
 };
 
 struct bpf_tunnel_key {
