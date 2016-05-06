@@ -259,6 +259,10 @@ static int sti_cpufreq_init(void)
 {
 	int ret;
 
+	if ((!of_machine_is_compatible("st,stih407")) &&
+		(!of_machine_is_compatible("st,stih410")))
+		return -ENODEV;
+
 	ddata.cpu = get_cpu_device(0);
 	if (!ddata.cpu) {
 		dev_err(ddata.cpu, "Failed to get device for CPU0\n");
