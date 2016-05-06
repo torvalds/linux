@@ -39,7 +39,7 @@
 
 #define SIZE_ALIGN_32(x)    (((x) + 31) / 32 * 32)
 
-static enum cz_scratch_entry firmware_list[] = {
+static const enum cz_scratch_entry firmware_list[] = {
 	CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0,
 	CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1,
 	CZ_SCRATCH_ENTRY_UCODE_ID_CP_CE,

@@ -755,4 +755,4 @@ const struct drm_ioctl_desc amdgpu_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_OP, amdgpu_gem_op_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(AMDGPU_GEM_USERPTR, amdgpu_gem_userptr_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 };
-int amdgpu_max_kms_ioctl = ARRAY_SIZE(amdgpu_ioctls_kms);
+const int amdgpu_max_kms_ioctl = ARRAY_SIZE(amdgpu_ioctls_kms);

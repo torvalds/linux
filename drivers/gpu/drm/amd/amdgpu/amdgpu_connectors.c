@@ -439,7 +439,7 @@ static void amdgpu_connector_add_common_modes(struct drm_encoder *encoder,
 	struct drm_display_mode *mode = NULL;
 	struct drm_display_mode *native_mode = &amdgpu_encoder->native_mode;
 	int i;
-	struct mode_size {
+	static const struct mode_size {
 		int w;
 		int h;
 	} common_modes[17] = {

@@ -34,6 +34,7 @@
 extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
 
 int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -66,6 +67,10 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 			break;
 		case CHIP_FIJI:
 			fiji_hwmgr_init(hwmgr);
+			break;
+		case CHIP_POLARIS11:
+		case CHIP_POLARIS10:
+			polaris10_hwmgr_init(hwmgr);
 			break;
 		default:
 			return -EINVAL;

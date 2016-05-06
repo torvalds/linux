@@ -353,6 +353,8 @@ struct tonga_hwmgr {
 	bool                           acp_power_gated;  /* 1: gated, 0:not gated */
 	bool                           pg_acp_init;
 
+	/* soft pptable for re-uploading into smu */
+	void *soft_pp_table;
 };
 
 typedef struct tonga_hwmgr tonga_hwmgr;

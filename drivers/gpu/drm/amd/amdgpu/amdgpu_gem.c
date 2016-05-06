@@ -797,7 +797,7 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list amdgpu_debugfs_gem_list[] = {
+static const struct drm_info_list amdgpu_debugfs_gem_list[] = {
 	{"amdgpu_gem_info", &amdgpu_debugfs_gem_info, 0, NULL},
 };
 #endif

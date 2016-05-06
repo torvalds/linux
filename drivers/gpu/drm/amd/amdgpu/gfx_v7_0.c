@@ -4414,7 +4414,7 @@ static int gfx_v7_0_sw_init(void *handle)
 		ring = &adev->gfx.gfx_ring[i];
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "gfx");
-		r = amdgpu_ring_init(adev, ring, 1024 * 1024,
+		r = amdgpu_ring_init(adev, ring, 1024,
 				     PACKET3(PACKET3_NOP, 0x3FFF), 0xf,
 				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP,
 				     AMDGPU_RING_TYPE_GFX);
@@ -4438,10 +4438,10 @@ static int gfx_v7_0_sw_init(void *handle)
 		ring->me = 1; /* first MEC */
 		ring->pipe = i / 8;
 		ring->queue = i % 8;
-		sprintf(ring->name, "comp %d.%d.%d", ring->me, ring->pipe, ring->queue);
+		sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		/* type-2 packets are deprecated on MEC, use type-3 instead */
-		r = amdgpu_ring_init(adev, ring, 1024 * 1024,
+		r = amdgpu_ring_init(adev, ring, 1024,
 				     PACKET3(PACKET3_NOP, 0x3FFF), 0xf,
 				     &adev->gfx.eop_irq, irq_type,
 				     AMDGPU_RING_TYPE_COMPUTE);
@@ -4572,256 +4572,6 @@ static int gfx_v7_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static void gfx_v7_0_print_status(void *handle)
-{
-	int i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "GFX 7.x registers\n");
-	dev_info(adev->dev, "  GRBM_STATUS=0x%08X\n",
-		RREG32(mmGRBM_STATUS));
-	dev_info(adev->dev, "  GRBM_STATUS2=0x%08X\n",
-		RREG32(mmGRBM_STATUS2));
-	dev_info(adev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
-		RREG32(mmGRBM_STATUS_SE0));
-	dev_info(adev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
-		RREG32(mmGRBM_STATUS_SE1));
-	dev_info(adev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
-		RREG32(mmGRBM_STATUS_SE2));
-	dev_info(adev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
-		RREG32(mmGRBM_STATUS_SE3));
-	dev_info(adev->dev, "  CP_STAT = 0x%08x\n", RREG32(mmCP_STAT));
-	dev_info(adev->dev, "  CP_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(mmCP_STALLED_STAT1));
-	dev_info(adev->dev, "  CP_STALLED_STAT2 = 0x%08x\n",
-		 RREG32(mmCP_STALLED_STAT2));
-	dev_info(adev->dev, "  CP_STALLED_STAT3 = 0x%08x\n",
-		 RREG32(mmCP_STALLED_STAT3));
-	dev_info(adev->dev, "  CP_CPF_BUSY_STAT = 0x%08x\n",
-		 RREG32(mmCP_CPF_BUSY_STAT));
-	dev_info(adev->dev, "  CP_CPF_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(mmCP_CPF_STALLED_STAT1));
-	dev_info(adev->dev, "  CP_CPF_STATUS = 0x%08x\n", RREG32(mmCP_CPF_STATUS));
-	dev_info(adev->dev, "  CP_CPC_BUSY_STAT = 0x%08x\n", RREG32(mmCP_CPC_BUSY_STAT));
-	dev_info(adev->dev, "  CP_CPC_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(mmCP_CPC_STALLED_STAT1));
-	dev_info(adev->dev, "  CP_CPC_STATUS = 0x%08x\n", RREG32(mmCP_CPC_STATUS));
-
-	for (i = 0; i < 32; i++) {
-		dev_info(adev->dev, "  GB_TILE_MODE%d=0x%08X\n",
-			 i, RREG32(mmGB_TILE_MODE0 + (i * 4)));
-	}
-	for (i = 0; i < 16; i++) {
-		dev_info(adev->dev, "  GB_MACROTILE_MODE%d=0x%08X\n",
-			 i, RREG32(mmGB_MACROTILE_MODE0 + (i * 4)));
-	}
-	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
-		dev_info(adev->dev, "  se: %d\n", i);
-		gfx_v7_0_select_se_sh(adev, i, 0xffffffff);
-		dev_info(adev->dev, "  PA_SC_RASTER_CONFIG=0x%08X\n",
-			 RREG32(mmPA_SC_RASTER_CONFIG));
-		dev_info(adev->dev, "  PA_SC_RASTER_CONFIG_1=0x%08X\n",
-			 RREG32(mmPA_SC_RASTER_CONFIG_1));
-	}
-	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
-
-	dev_info(adev->dev, "  GB_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmGB_ADDR_CONFIG));
-	dev_info(adev->dev, "  HDP_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmHDP_ADDR_CONFIG));
-	dev_info(adev->dev, "  DMIF_ADDR_CALC=0x%08X\n",
-		 RREG32(mmDMIF_ADDR_CALC));
-
-	dev_info(adev->dev, "  CP_MEQ_THRESHOLDS=0x%08X\n",
-		 RREG32(mmCP_MEQ_THRESHOLDS));
-	dev_info(adev->dev, "  SX_DEBUG_1=0x%08X\n",
-		 RREG32(mmSX_DEBUG_1));
-	dev_info(adev->dev, "  TA_CNTL_AUX=0x%08X\n",
-		 RREG32(mmTA_CNTL_AUX));
-	dev_info(adev->dev, "  SPI_CONFIG_CNTL=0x%08X\n",
-		 RREG32(mmSPI_CONFIG_CNTL));
-	dev_info(adev->dev, "  SQ_CONFIG=0x%08X\n",
-		 RREG32(mmSQ_CONFIG));
-	dev_info(adev->dev, "  DB_DEBUG=0x%08X\n",
-		 RREG32(mmDB_DEBUG));
-	dev_info(adev->dev, "  DB_DEBUG2=0x%08X\n",
-		 RREG32(mmDB_DEBUG2));
-	dev_info(adev->dev, "  DB_DEBUG3=0x%08X\n",
-		 RREG32(mmDB_DEBUG3));
-	dev_info(adev->dev, "  CB_HW_CONTROL=0x%08X\n",
-		 RREG32(mmCB_HW_CONTROL));
-	dev_info(adev->dev, "  SPI_CONFIG_CNTL_1=0x%08X\n",
-		 RREG32(mmSPI_CONFIG_CNTL_1));
-	dev_info(adev->dev, "  PA_SC_FIFO_SIZE=0x%08X\n",
-		 RREG32(mmPA_SC_FIFO_SIZE));
-	dev_info(adev->dev, "  VGT_NUM_INSTANCES=0x%08X\n",
-		 RREG32(mmVGT_NUM_INSTANCES));
-	dev_info(adev->dev, "  CP_PERFMON_CNTL=0x%08X\n",
-		 RREG32(mmCP_PERFMON_CNTL));
-	dev_info(adev->dev, "  PA_SC_FORCE_EOV_MAX_CNTS=0x%08X\n",
-		 RREG32(mmPA_SC_FORCE_EOV_MAX_CNTS));
-	dev_info(adev->dev, "  VGT_CACHE_INVALIDATION=0x%08X\n",
-		 RREG32(mmVGT_CACHE_INVALIDATION));
-	dev_info(adev->dev, "  VGT_GS_VERTEX_REUSE=0x%08X\n",
-		 RREG32(mmVGT_GS_VERTEX_REUSE));
-	dev_info(adev->dev, "  PA_SC_LINE_STIPPLE_STATE=0x%08X\n",
-		 RREG32(mmPA_SC_LINE_STIPPLE_STATE));
-	dev_info(adev->dev, "  PA_CL_ENHANCE=0x%08X\n",
-		 RREG32(mmPA_CL_ENHANCE));
-	dev_info(adev->dev, "  PA_SC_ENHANCE=0x%08X\n",
-		 RREG32(mmPA_SC_ENHANCE));
-
-	dev_info(adev->dev, "  CP_ME_CNTL=0x%08X\n",
-		 RREG32(mmCP_ME_CNTL));
-	dev_info(adev->dev, "  CP_MAX_CONTEXT=0x%08X\n",
-		 RREG32(mmCP_MAX_CONTEXT));
-	dev_info(adev->dev, "  CP_ENDIAN_SWAP=0x%08X\n",
-		 RREG32(mmCP_ENDIAN_SWAP));
-	dev_info(adev->dev, "  CP_DEVICE_ID=0x%08X\n",
-		 RREG32(mmCP_DEVICE_ID));
-
-	dev_info(adev->dev, "  CP_SEM_WAIT_TIMER=0x%08X\n",
-		 RREG32(mmCP_SEM_WAIT_TIMER));
-	if (adev->asic_type != CHIP_HAWAII)
-		dev_info(adev->dev, "  CP_SEM_INCOMPLETE_TIMER_CNTL=0x%08X\n",
-			 RREG32(mmCP_SEM_INCOMPLETE_TIMER_CNTL));
-
-	dev_info(adev->dev, "  CP_RB_WPTR_DELAY=0x%08X\n",
-		 RREG32(mmCP_RB_WPTR_DELAY));
-	dev_info(adev->dev, "  CP_RB_VMID=0x%08X\n",
-		 RREG32(mmCP_RB_VMID));
-	dev_info(adev->dev, "  CP_RB0_CNTL=0x%08X\n",
-		 RREG32(mmCP_RB0_CNTL));
-	dev_info(adev->dev, "  CP_RB0_WPTR=0x%08X\n",
-		 RREG32(mmCP_RB0_WPTR));
-	dev_info(adev->dev, "  CP_RB0_RPTR_ADDR=0x%08X\n",
-		 RREG32(mmCP_RB0_RPTR_ADDR));
-	dev_info(adev->dev, "  CP_RB0_RPTR_ADDR_HI=0x%08X\n",
-		 RREG32(mmCP_RB0_RPTR_ADDR_HI));
-	dev_info(adev->dev, "  CP_RB0_CNTL=0x%08X\n",
-		 RREG32(mmCP_RB0_CNTL));
-	dev_info(adev->dev, "  CP_RB0_BASE=0x%08X\n",
-		 RREG32(mmCP_RB0_BASE));
-	dev_info(adev->dev, "  CP_RB0_BASE_HI=0x%08X\n",
-		 RREG32(mmCP_RB0_BASE_HI));
-	dev_info(adev->dev, "  CP_MEC_CNTL=0x%08X\n",
-		 RREG32(mmCP_MEC_CNTL));
-	dev_info(adev->dev, "  CP_CPF_DEBUG=0x%08X\n",
-		 RREG32(mmCP_CPF_DEBUG));
-
-	dev_info(adev->dev, "  SCRATCH_ADDR=0x%08X\n",
-		 RREG32(mmSCRATCH_ADDR));
-	dev_info(adev->dev, "  SCRATCH_UMSK=0x%08X\n",
-		 RREG32(mmSCRATCH_UMSK));
-
-	/* init the pipes */
-	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < (adev->gfx.mec.num_pipe * adev->gfx.mec.num_mec); i++) {
-		int me = (i < 4) ? 1 : 2;
-		int pipe = (i < 4) ? i : (i - 4);
-		int queue;
-
-		dev_info(adev->dev, "  me: %d, pipe: %d\n", me, pipe);
-		cik_srbm_select(adev, me, pipe, 0, 0);
-		dev_info(adev->dev, "  CP_HPD_EOP_BASE_ADDR=0x%08X\n",
-			 RREG32(mmCP_HPD_EOP_BASE_ADDR));
-		dev_info(adev->dev, "  CP_HPD_EOP_BASE_ADDR_HI=0x%08X\n",
-			 RREG32(mmCP_HPD_EOP_BASE_ADDR_HI));
-		dev_info(adev->dev, "  CP_HPD_EOP_VMID=0x%08X\n",
-			 RREG32(mmCP_HPD_EOP_VMID));
-		dev_info(adev->dev, "  CP_HPD_EOP_CONTROL=0x%08X\n",
-			 RREG32(mmCP_HPD_EOP_CONTROL));
-
-		for (queue = 0; queue < 8; queue++) {
-			cik_srbm_select(adev, me, pipe, queue, 0);
-			dev_info(adev->dev, "  queue: %d\n", queue);
-			dev_info(adev->dev, "  CP_PQ_WPTR_POLL_CNTL=0x%08X\n",
-				 RREG32(mmCP_PQ_WPTR_POLL_CNTL));
-			dev_info(adev->dev, "  CP_HQD_PQ_DOORBELL_CONTROL=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_DOORBELL_CONTROL));
-			dev_info(adev->dev, "  CP_HQD_ACTIVE=0x%08X\n",
-				 RREG32(mmCP_HQD_ACTIVE));
-			dev_info(adev->dev, "  CP_HQD_DEQUEUE_REQUEST=0x%08X\n",
-				 RREG32(mmCP_HQD_DEQUEUE_REQUEST));
-			dev_info(adev->dev, "  CP_HQD_PQ_RPTR=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_RPTR));
-			dev_info(adev->dev, "  CP_HQD_PQ_WPTR=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_WPTR));
-			dev_info(adev->dev, "  CP_HQD_PQ_BASE=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_BASE));
-			dev_info(adev->dev, "  CP_HQD_PQ_BASE_HI=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_BASE_HI));
-			dev_info(adev->dev, "  CP_HQD_PQ_CONTROL=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_CONTROL));
-			dev_info(adev->dev, "  CP_HQD_PQ_WPTR_POLL_ADDR=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR));
-			dev_info(adev->dev, "  CP_HQD_PQ_WPTR_POLL_ADDR_HI=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR_HI));
-			dev_info(adev->dev, "  CP_HQD_PQ_RPTR_REPORT_ADDR=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR));
-			dev_info(adev->dev, "  CP_HQD_PQ_RPTR_REPORT_ADDR_HI=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI));
-			dev_info(adev->dev, "  CP_HQD_PQ_DOORBELL_CONTROL=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_DOORBELL_CONTROL));
-			dev_info(adev->dev, "  CP_HQD_PQ_WPTR=0x%08X\n",
-				 RREG32(mmCP_HQD_PQ_WPTR));
-			dev_info(adev->dev, "  CP_HQD_VMID=0x%08X\n",
-				 RREG32(mmCP_HQD_VMID));
-			dev_info(adev->dev, "  CP_MQD_BASE_ADDR=0x%08X\n",
-				 RREG32(mmCP_MQD_BASE_ADDR));
-			dev_info(adev->dev, "  CP_MQD_BASE_ADDR_HI=0x%08X\n",
-				 RREG32(mmCP_MQD_BASE_ADDR_HI));
-			dev_info(adev->dev, "  CP_MQD_CONTROL=0x%08X\n",
-				 RREG32(mmCP_MQD_CONTROL));
-		}
-	}
-	cik_srbm_select(adev, 0, 0, 0, 0);
-	mutex_unlock(&adev->srbm_mutex);
-
-	dev_info(adev->dev, "  CP_INT_CNTL_RING0=0x%08X\n",
-		 RREG32(mmCP_INT_CNTL_RING0));
-	dev_info(adev->dev, "  RLC_LB_CNTL=0x%08X\n",
-		 RREG32(mmRLC_LB_CNTL));
-	dev_info(adev->dev, "  RLC_CNTL=0x%08X\n",
-		 RREG32(mmRLC_CNTL));
-	dev_info(adev->dev, "  RLC_CGCG_CGLS_CTRL=0x%08X\n",
-		 RREG32(mmRLC_CGCG_CGLS_CTRL));
-	dev_info(adev->dev, "  RLC_LB_CNTR_INIT=0x%08X\n",
-		 RREG32(mmRLC_LB_CNTR_INIT));
-	dev_info(adev->dev, "  RLC_LB_CNTR_MAX=0x%08X\n",
-		 RREG32(mmRLC_LB_CNTR_MAX));
-	dev_info(adev->dev, "  RLC_LB_INIT_CU_MASK=0x%08X\n",
-		 RREG32(mmRLC_LB_INIT_CU_MASK));
-	dev_info(adev->dev, "  RLC_LB_PARAMS=0x%08X\n",
-		 RREG32(mmRLC_LB_PARAMS));
-	dev_info(adev->dev, "  RLC_LB_CNTL=0x%08X\n",
-		 RREG32(mmRLC_LB_CNTL));
-	dev_info(adev->dev, "  RLC_MC_CNTL=0x%08X\n",
-		 RREG32(mmRLC_MC_CNTL));
-	dev_info(adev->dev, "  RLC_UCODE_CNTL=0x%08X\n",
-		 RREG32(mmRLC_UCODE_CNTL));
-
-	if (adev->asic_type == CHIP_BONAIRE)
-		dev_info(adev->dev, "  RLC_DRIVER_CPDMA_STATUS=0x%08X\n",
-			 RREG32(mmRLC_DRIVER_CPDMA_STATUS));
-
-	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < 16; i++) {
-		cik_srbm_select(adev, 0, 0, 0, i);
-		dev_info(adev->dev, "  VM %d:\n", i);
-		dev_info(adev->dev, "  SH_MEM_CONFIG=0x%08X\n",
-			 RREG32(mmSH_MEM_CONFIG));
-		dev_info(adev->dev, "  SH_MEM_APE1_BASE=0x%08X\n",
-			 RREG32(mmSH_MEM_APE1_BASE));
-		dev_info(adev->dev, "  SH_MEM_APE1_LIMIT=0x%08X\n",
-			 RREG32(mmSH_MEM_APE1_LIMIT));
-		dev_info(adev->dev, "  SH_MEM_BASES=0x%08X\n",
-			 RREG32(mmSH_MEM_BASES));
-	}
-	cik_srbm_select(adev, 0, 0, 0, 0);
-	mutex_unlock(&adev->srbm_mutex);
-}
-
 static int gfx_v7_0_soft_reset(void *handle)
 {
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
@@ -4855,7 +4605,6 @@ static int gfx_v7_0_soft_reset(void *handle)
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_GRBM_MASK;
 
 	if (grbm_soft_reset || srbm_soft_reset) {
-		gfx_v7_0_print_status((void *)adev);
 		/* disable CG/PG */
 		gfx_v7_0_fini_pg(adev);
 		gfx_v7_0_update_cg(adev, false);
@@ -4898,7 +4647,6 @@ static int gfx_v7_0_soft_reset(void *handle)
 		}
 		/* Wait a little for things to settle down */
 		udelay(50);
-		gfx_v7_0_print_status((void *)adev);
 	}
 	return 0;
 }
@@ -5161,7 +4909,6 @@ const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
 	.is_idle = gfx_v7_0_is_idle,
 	.wait_for_idle = gfx_v7_0_wait_for_idle,
 	.soft_reset = gfx_v7_0_soft_reset,
-	.print_status = gfx_v7_0_print_status,
 	.set_clockgating_state = gfx_v7_0_set_clockgating_state,
 	.set_powergating_state = gfx_v7_0_set_powergating_state,
 };

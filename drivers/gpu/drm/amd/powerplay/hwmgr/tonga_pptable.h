@@ -209,6 +209,20 @@ typedef struct _ATOM_Tonga_PCIE_Table {
 	ATOM_Tonga_PCIE_Record entries[1];							/* Dynamically allocate entries. */
 } ATOM_Tonga_PCIE_Table;
 
+typedef struct _ATOM_Polaris10_PCIE_Record {
+	UCHAR ucPCIEGenSpeed;
+	UCHAR usPCIELaneWidth;
+	UCHAR ucReserved[2];
+	ULONG ulPCIE_Sclk;
+} ATOM_Polaris10_PCIE_Record;
+
+typedef struct _ATOM_Polaris10_PCIE_Table {
+	UCHAR ucRevId;
+	UCHAR ucNumEntries;                                         /* Number of entries. */
+	ATOM_Polaris10_PCIE_Record entries[1];                      /* Dynamically allocate entries. */
+} ATOM_Polaris10_PCIE_Table;
+
+
 typedef struct _ATOM_Tonga_MM_Dependency_Record {
 	UCHAR   ucVddcInd;											 /* VDDC voltage */
 	USHORT  usVddgfxOffset;									  /* Offset relative to VDDC voltage */

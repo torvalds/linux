@@ -168,7 +168,6 @@ const struct amd_ip_funcs iceland_dpm_ip_funcs = {
 	.is_idle = NULL,
 	.wait_for_idle = NULL,
 	.soft_reset = NULL,
-	.print_status = NULL,
 	.set_clockgating_state = iceland_dpm_set_clockgating_state,
 	.set_powergating_state = iceland_dpm_set_powergating_state,
 };

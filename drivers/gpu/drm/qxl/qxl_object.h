@@ -31,7 +31,7 @@ static inline int qxl_bo_reserve(struct qxl_bo *bo, bool no_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
 			struct qxl_device *qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
@@ -67,7 +67,7 @@ static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
 			struct qxl_device *qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
@@ -79,7 +79,7 @@ static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 
-	r = ttm_bo_wait(&bo->tbo, true, true, no_wait);
+	r = ttm_bo_wait(&bo->tbo, true, no_wait);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }

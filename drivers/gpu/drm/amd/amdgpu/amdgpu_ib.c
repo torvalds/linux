@@ -124,7 +124,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	struct amdgpu_ctx *ctx, *old_ctx;
 	struct amdgpu_vm *vm;
 	struct fence *hwf;
-	unsigned i;
+	unsigned i, patch_offset = ~0;
+
 	int r = 0;
 
 	if (num_ibs == 0)
@@ -149,16 +150,26 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return r;
 	}
 
+	if (ring->type == AMDGPU_RING_TYPE_SDMA && ring->funcs->init_cond_exec)
+		patch_offset = amdgpu_ring_init_cond_exec(ring);
+
 	if (vm) {
 		/* do context switch */
-		amdgpu_vm_flush(ring, ib->vm_id, ib->vm_pd_addr,
-				ib->gds_base, ib->gds_size,
-				ib->gws_base, ib->gws_size,
-				ib->oa_base, ib->oa_size);
+		r = amdgpu_vm_flush(ring, ib->vm_id, ib->vm_pd_addr,
+				    ib->gds_base, ib->gds_size,
+				    ib->gws_base, ib->gws_size,
+				    ib->oa_base, ib->oa_size);
+		if (r) {
+			amdgpu_ring_undo(ring);
+			return r;
+		}
 
 		if (ring->funcs->emit_hdp_flush)
 			amdgpu_ring_emit_hdp_flush(ring);
 	}
+
+	/* always set cond_exec_polling to CONTINUE */
+	*ring->cond_exe_cpu_addr = 1;
 
 	old_ctx = ring->current_ctx;
 	for (i = 0; i < num_ibs; ++i) {
@@ -200,6 +211,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	if (f)
 		*f = fence_get(hwf);
+
+	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
+		amdgpu_ring_patch_cond_exec(ring, patch_offset);
 
 	amdgpu_ring_commit(ring);
 	return 0;
@@ -315,7 +329,7 @@ static int amdgpu_debugfs_sa_info(struct seq_file *m, void *data)
 
 }
 
-static struct drm_info_list amdgpu_debugfs_sa_list[] = {
+static const struct drm_info_list amdgpu_debugfs_sa_list[] = {
 	{"amdgpu_sa_info", &amdgpu_debugfs_sa_info, 0, NULL},
 };
 

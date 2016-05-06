@@ -351,35 +351,6 @@ static int cz_ih_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static void cz_ih_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "CZ IH registers\n");
-	dev_info(adev->dev, "  SRBM_STATUS=0x%08X\n",
-		RREG32(mmSRBM_STATUS));
-	dev_info(adev->dev, "  SRBM_STATUS2=0x%08X\n",
-		RREG32(mmSRBM_STATUS2));
-	dev_info(adev->dev, "  INTERRUPT_CNTL=0x%08X\n",
-		 RREG32(mmINTERRUPT_CNTL));
-	dev_info(adev->dev, "  INTERRUPT_CNTL2=0x%08X\n",
-		 RREG32(mmINTERRUPT_CNTL2));
-	dev_info(adev->dev, "  IH_CNTL=0x%08X\n",
-		 RREG32(mmIH_CNTL));
-	dev_info(adev->dev, "  IH_RB_CNTL=0x%08X\n",
-		 RREG32(mmIH_RB_CNTL));
-	dev_info(adev->dev, "  IH_RB_BASE=0x%08X\n",
-		 RREG32(mmIH_RB_BASE));
-	dev_info(adev->dev, "  IH_RB_WPTR_ADDR_LO=0x%08X\n",
-		 RREG32(mmIH_RB_WPTR_ADDR_LO));
-	dev_info(adev->dev, "  IH_RB_WPTR_ADDR_HI=0x%08X\n",
-		 RREG32(mmIH_RB_WPTR_ADDR_HI));
-	dev_info(adev->dev, "  IH_RB_RPTR=0x%08X\n",
-		 RREG32(mmIH_RB_RPTR));
-	dev_info(adev->dev, "  IH_RB_WPTR=0x%08X\n",
-		 RREG32(mmIH_RB_WPTR));
-}
-
 static int cz_ih_soft_reset(void *handle)
 {
 	u32 srbm_soft_reset = 0;
@@ -391,8 +362,6 @@ static int cz_ih_soft_reset(void *handle)
 						SOFT_RESET_IH, 1);
 
 	if (srbm_soft_reset) {
-		cz_ih_print_status((void *)adev);
-
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
 		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
@@ -407,8 +376,6 @@ static int cz_ih_soft_reset(void *handle)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-
-		cz_ih_print_status((void *)adev);
 	}
 
 	return 0;
@@ -440,7 +407,6 @@ const struct amd_ip_funcs cz_ih_ip_funcs = {
 	.is_idle = cz_ih_is_idle,
 	.wait_for_idle = cz_ih_wait_for_idle,
 	.soft_reset = cz_ih_soft_reset,
-	.print_status = cz_ih_print_status,
 	.set_clockgating_state = cz_ih_set_clockgating_state,
 	.set_powergating_state = cz_ih_set_powergating_state,
 };

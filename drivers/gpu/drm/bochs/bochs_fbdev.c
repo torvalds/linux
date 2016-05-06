@@ -82,7 +82,7 @@ static int bochsfb_create(struct drm_fb_helper *helper,
 
 	bo = gem_to_bochs_bo(gobj);
 
-	ret = ttm_bo_reserve(&bo->bo, true, false, false, NULL);
+	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 	if (ret)
 		return ret;
 

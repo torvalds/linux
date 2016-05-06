@@ -3130,14 +3130,6 @@ static int dce_v10_0_wait_for_idle(void *handle)
 	return 0;
 }
 
-static void dce_v10_0_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "DCE 10.x registers\n");
-	/* XXX todo */
-}
-
 static int dce_v10_0_soft_reset(void *handle)
 {
 	u32 srbm_soft_reset = 0, tmp;
@@ -3147,8 +3139,6 @@ static int dce_v10_0_soft_reset(void *handle)
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_DC_MASK;
 
 	if (srbm_soft_reset) {
-		dce_v10_0_print_status((void *)adev);
-
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
 		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
@@ -3163,7 +3153,6 @@ static int dce_v10_0_soft_reset(void *handle)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-		dce_v10_0_print_status((void *)adev);
 	}
 	return 0;
 }
@@ -3512,7 +3501,6 @@ const struct amd_ip_funcs dce_v10_0_ip_funcs = {
 	.is_idle = dce_v10_0_is_idle,
 	.wait_for_idle = dce_v10_0_wait_for_idle,
 	.soft_reset = dce_v10_0_soft_reset,
-	.print_status = dce_v10_0_print_status,
 	.set_clockgating_state = dce_v10_0_set_clockgating_state,
 	.set_powergating_state = dce_v10_0_set_powergating_state,
 };

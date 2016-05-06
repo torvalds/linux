@@ -138,12 +138,15 @@ const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
 
 	u16 size;
 	u8 frev, crev;
-	void *table_address;
+	void *table_address = (void *)hwmgr->soft_pp_table;
 
-	table_address = (ATOM_Tonga_POWERPLAYTABLE *)
-		cgs_atom_get_data_table(hwmgr->device, index, &size, &frev, &crev);
-
-	hwmgr->soft_pp_table = table_address;	/*Cache the result in RAM.*/
+	if (!table_address) {
+		table_address = (ATOM_Tonga_POWERPLAYTABLE *)
+				cgs_atom_get_data_table(hwmgr->device,
+						index, &size, &frev, &crev);
+		hwmgr->soft_pp_table = table_address;	/*Cache the result in RAM.*/
+		hwmgr->soft_pp_table_size = size;
+	}
 
 	return table_address;
 }
@@ -448,47 +451,90 @@ static int get_sclk_voltage_dependency_table(
 static int get_pcie_table(
 		struct pp_hwmgr *hwmgr,
 		phm_ppt_v1_pcie_table **pp_tonga_pcie_table,
-		const ATOM_Tonga_PCIE_Table * atom_pcie_table
+		const PPTable_Generic_SubTable_Header * pTable
 		)
 {
 	uint32_t table_size, i, pcie_count;
 	phm_ppt_v1_pcie_table *pcie_table;
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	PP_ASSERT_WITH_CODE((0 != atom_pcie_table->ucNumEntries),
-		"Invalid PowerPlay Table!", return -1);
 
-	table_size = sizeof(uint32_t) +
-		sizeof(phm_ppt_v1_pcie_record) * atom_pcie_table->ucNumEntries;
+	if (pTable->ucRevId < 1) {
+		const ATOM_Tonga_PCIE_Table *atom_pcie_table = (ATOM_Tonga_PCIE_Table *)pTable;
+		PP_ASSERT_WITH_CODE((atom_pcie_table->ucNumEntries != 0),
+			"Invalid PowerPlay Table!", return -1);
 
-	pcie_table = (phm_ppt_v1_pcie_table *)kzalloc(table_size, GFP_KERNEL);
+		table_size = sizeof(uint32_t) +
+			sizeof(phm_ppt_v1_pcie_record) * atom_pcie_table->ucNumEntries;
 
-	if (NULL == pcie_table)
-		return -ENOMEM;
+		pcie_table = (phm_ppt_v1_pcie_table *)kzalloc(table_size, GFP_KERNEL);
 
-	memset(pcie_table, 0x00, table_size);
+		if (pcie_table == NULL)
+			return -ENOMEM;
 
-	/*
-	* Make sure the number of pcie entries are less than or equal to sclk dpm levels.
-	* Since first PCIE entry is for ULV, #pcie has to be <= SclkLevel + 1.
-	*/
-	pcie_count = (pp_table_information->vdd_dep_on_sclk->count) + 1;
-	if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
-		pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
-	else
-		printk(KERN_ERR "[ powerplay ] Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
-		Disregarding the excess entries... \n");
+		memset(pcie_table, 0x00, table_size);
 
-	pcie_table->count = pcie_count;
+		/*
+		* Make sure the number of pcie entries are less than or equal to sclk dpm levels.
+		* Since first PCIE entry is for ULV, #pcie has to be <= SclkLevel + 1.
+		*/
+		pcie_count = (pp_table_information->vdd_dep_on_sclk->count) + 1;
+		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
+			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
+		else
+			printk(KERN_ERR "[ powerplay ] Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
+			Disregarding the excess entries... \n");
 
-	for (i = 0; i < pcie_count; i++) {
-		pcie_table->entries[i].gen_speed =
-			atom_pcie_table->entries[i].ucPCIEGenSpeed;
-		pcie_table->entries[i].lane_width =
-			atom_pcie_table->entries[i].usPCIELaneWidth;
+		pcie_table->count = pcie_count;
+
+		for (i = 0; i < pcie_count; i++) {
+			pcie_table->entries[i].gen_speed =
+				atom_pcie_table->entries[i].ucPCIEGenSpeed;
+			pcie_table->entries[i].lane_width =
+				atom_pcie_table->entries[i].usPCIELaneWidth;
+		}
+
+		*pp_tonga_pcie_table = pcie_table;
+	} else {
+		/* Polaris10/Polaris11 and newer. */
+		const ATOM_Polaris10_PCIE_Table *atom_pcie_table = (ATOM_Polaris10_PCIE_Table *)pTable;
+		PP_ASSERT_WITH_CODE((atom_pcie_table->ucNumEntries != 0),
+			"Invalid PowerPlay Table!", return -1);
+
+		table_size = sizeof(uint32_t) +
+			sizeof(phm_ppt_v1_pcie_record) * atom_pcie_table->ucNumEntries;
+
+		pcie_table = (phm_ppt_v1_pcie_table *)kzalloc(table_size, GFP_KERNEL);
+
+		if (pcie_table == NULL)
+			return -ENOMEM;
+
+		memset(pcie_table, 0x00, table_size);
+
+		/*
+		* Make sure the number of pcie entries are less than or equal to sclk dpm levels.
+		* Since first PCIE entry is for ULV, #pcie has to be <= SclkLevel + 1.
+		*/
+		pcie_count = (pp_table_information->vdd_dep_on_sclk->count) + 1;
+		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
+			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
+		else
+			printk(KERN_ERR "[ powerplay ] Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
+			Disregarding the excess entries... \n");
+
+		pcie_table->count = pcie_count;
+
+		for (i = 0; i < pcie_count; i++) {
+			pcie_table->entries[i].gen_speed =
+				atom_pcie_table->entries[i].ucPCIEGenSpeed;
+			pcie_table->entries[i].lane_width =
+				atom_pcie_table->entries[i].usPCIELaneWidth;
+			pcie_table->entries[i].pcie_sclk =
+				atom_pcie_table->entries[i].ulPCIE_Sclk;
+		}
+
+		*pp_tonga_pcie_table = pcie_table;
 	}
-
-	*pp_tonga_pcie_table = pcie_table;
 
 	return 0;
 }
@@ -668,8 +714,8 @@ static int init_clock_voltage_dependency(
 	const ATOM_Tonga_Hard_Limit_Table *pHardLimits =
 		(const ATOM_Tonga_Hard_Limit_Table *)(((unsigned long) powerplay_table) +
 		le16_to_cpu(powerplay_table->usHardLimitTableOffset));
-	const ATOM_Tonga_PCIE_Table *pcie_table =
-		(const ATOM_Tonga_PCIE_Table *)(((unsigned long) powerplay_table) +
+	const PPTable_Generic_SubTable_Header *pcie_table =
+		(const PPTable_Generic_SubTable_Header *)(((unsigned long) powerplay_table) +
 		le16_to_cpu(powerplay_table->usPCIETableOffset));
 
 	pp_table_information->vdd_dep_on_sclk = NULL;

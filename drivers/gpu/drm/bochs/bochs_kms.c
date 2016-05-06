@@ -43,7 +43,7 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (old_fb) {
 		bochs_fb = to_bochs_framebuffer(old_fb);
 		bo = gem_to_bochs_bo(bochs_fb->obj);
-		ret = ttm_bo_reserve(&bo->bo, true, false, false, NULL);
+		ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 		if (ret) {
 			DRM_ERROR("failed to reserve old_fb bo\n");
 		} else {
@@ -57,7 +57,7 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 
 	bochs_fb = to_bochs_framebuffer(crtc->primary->fb);
 	bo = gem_to_bochs_bo(bochs_fb->obj);
-	ret = ttm_bo_reserve(&bo->bo, true, false, false, NULL);
+	ret = ttm_bo_reserve(&bo->bo, true, false, NULL);
 	if (ret)
 		return ret;
 
