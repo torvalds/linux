@@ -3956,9 +3956,11 @@ sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
 		break;
 	case TC_ACT_SHOT:
 		qdisc_qstats_cpu_drop(cl->q);
+		kfree_skb(skb);
+		return NULL;
 	case TC_ACT_STOLEN:
 	case TC_ACT_QUEUED:
-		kfree_skb(skb);
+		consume_skb(skb);
 		return NULL;
 	case TC_ACT_REDIRECT:
 		/* skb_mac_header check was done by cls/act_bpf, so
