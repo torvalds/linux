@@ -367,8 +367,8 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 		ret = nvme_submit_sync_cmd(ns->ctrl->admin_q,
 				(struct nvme_command *)&c, entries, len);
 		if (ret) {
-			dev_err(ns->ctrl->dev, "L2P table transfer failed (%d)\n",
-									ret);
+			dev_err(ns->ctrl->device,
+				"L2P table transfer failed (%d)\n", ret);
 			ret = -EIO;
 			goto out;
 		}
@@ -410,27 +410,28 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 	ret = nvme_submit_sync_cmd(ctrl->admin_q, (struct nvme_command *)&c,
 								bb_tbl, tblsz);
 	if (ret) {
-		dev_err(ctrl->dev, "get bad block table failed (%d)\n", ret);
+		dev_err(ctrl->device, "get bad block table failed (%d)\n", ret);
 		ret = -EIO;
 		goto out;
 	}
 
 	if (bb_tbl->tblid[0] != 'B' || bb_tbl->tblid[1] != 'B' ||
 		bb_tbl->tblid[2] != 'L' || bb_tbl->tblid[3] != 'T') {
-		dev_err(ctrl->dev, "bbt format mismatch\n");
+		dev_err(ctrl->device, "bbt format mismatch\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (le16_to_cpu(bb_tbl->verid) != 1) {
 		ret = -EINVAL;
-		dev_err(ctrl->dev, "bbt version not supported\n");
+		dev_err(ctrl->device, "bbt version not supported\n");
 		goto out;
 	}
 
 	if (le32_to_cpu(bb_tbl->tblks) != nr_blks) {
 		ret = -EINVAL;
-		dev_err(ctrl->dev, "bbt unsuspected blocks returned (%u!=%u)",
+		dev_err(ctrl->device,
+				"bbt unsuspected blocks returned (%u!=%u)",
 				le32_to_cpu(bb_tbl->tblks), nr_blks);
 		goto out;
 	}
@@ -457,7 +458,8 @@ static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr *ppas,
 	ret = nvme_submit_sync_cmd(ns->ctrl->admin_q, (struct nvme_command *)&c,
 								NULL, 0);
 	if (ret)
-		dev_err(ns->ctrl->dev, "set bad block table failed (%d)\n", ret);
+		dev_err(ns->ctrl->device, "set bad block table failed (%d)\n",
+									ret);
 	return ret;
 }
 
