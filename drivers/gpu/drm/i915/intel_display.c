@@ -12032,11 +12032,16 @@ static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
 	struct intel_connector *connector;
 
 	for_each_intel_connector(dev, connector) {
+		if (connector->base.state->crtc)
+			drm_connector_unreference(&connector->base);
+
 		if (connector->base.encoder) {
 			connector->base.state->best_encoder =
 				connector->base.encoder;
 			connector->base.state->crtc =
 				connector->base.encoder->crtc;
+
+			drm_connector_reference(&connector->base);
 		} else {
 			connector->base.state->best_encoder = NULL;
 			connector->base.state->crtc = NULL;
