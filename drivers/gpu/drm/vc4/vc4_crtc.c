@@ -506,6 +506,7 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 	if (vc4_crtc->event) {
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
+		drm_crtc_vblank_put(crtc);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -556,6 +557,7 @@ vc4_async_page_flip_complete(struct vc4_seqno_cb *cb)
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
+	drm_crtc_vblank_put(crtc);
 	drm_framebuffer_unreference(flip_state->fb);
 	kfree(flip_state);
 
@@ -597,6 +599,8 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 		kfree(flip_state);
 		return ret;
 	}
+
+	WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
 	/* Immediately update the plane's legacy fb pointer, so that later
 	 * modeset prep sees the state that will be present when the semaphore
