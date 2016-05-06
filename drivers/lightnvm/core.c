@@ -33,7 +33,19 @@
 static LIST_HEAD(nvm_tgt_types);
 static LIST_HEAD(nvm_mgrs);
 static LIST_HEAD(nvm_devices);
+static LIST_HEAD(nvm_targets);
 static DECLARE_RWSEM(nvm_lock);
+
+static struct nvm_target *nvm_find_target(const char *name)
+{
+	struct nvm_target *tgt;
+
+	list_for_each_entry(tgt, &nvm_targets, list)
+		if (!strcmp(name, tgt->disk->disk_name))
+			return tgt;
+
+	return NULL;
+}
 
 static struct nvm_tgt_type *nvm_find_target_type(const char *name)
 {
@@ -564,7 +576,6 @@ static int nvm_core_init(struct nvm_dev *dev)
 		goto err_fmtype;
 	}
 
-	INIT_LIST_HEAD(&dev->online_targets);
 	mutex_init(&dev->mlock);
 	spin_lock_init(&dev->lock);
 
@@ -744,12 +755,11 @@ static int nvm_create_target(struct nvm_dev *dev,
 		return -EINVAL;
 	}
 
-	list_for_each_entry(t, &dev->online_targets, list) {
-		if (!strcmp(create->tgtname, t->disk->disk_name)) {
-			pr_err("nvm: target name already exists.\n");
-			up_write(&nvm_lock);
-			return -EINVAL;
-		}
+	t = nvm_find_target(create->tgtname);
+	if (t) {
+		pr_err("nvm: target name already exists.\n");
+		up_write(&nvm_lock);
+		return -EINVAL;
 	}
 	up_write(&nvm_lock);
 
@@ -789,7 +799,7 @@ static int nvm_create_target(struct nvm_dev *dev,
 	t->disk = tdisk;
 
 	down_write(&nvm_lock);
-	list_add_tail(&t->list, &dev->online_targets);
+	list_add_tail(&t->list, &nvm_targets);
 	up_write(&nvm_lock);
 
 	return 0;
@@ -852,25 +862,18 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 
 static int __nvm_configure_remove(struct nvm_ioctl_remove *remove)
 {
-	struct nvm_target *t = NULL;
-	struct nvm_dev *dev;
-	int ret = -1;
+	struct nvm_target *t;
 
 	down_write(&nvm_lock);
-	list_for_each_entry(dev, &nvm_devices, devices)
-		list_for_each_entry(t, &dev->online_targets, list) {
-			if (!strcmp(remove->tgtname, t->disk->disk_name)) {
-				nvm_remove_target(t);
-				ret = 0;
-				break;
-			}
-		}
-	up_write(&nvm_lock);
-
-	if (ret) {
+	t = nvm_find_target(remove->tgtname);
+	if (!t) {
 		pr_err("nvm: target \"%s\" doesn't exist.\n", remove->tgtname);
+		up_write(&nvm_lock);
 		return -EINVAL;
 	}
+
+	nvm_remove_target(t);
+	up_write(&nvm_lock);
 
 	return 0;
 }

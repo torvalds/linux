@@ -308,7 +308,6 @@ struct nvm_dev {
 	struct nvm_dev_ops *ops;
 
 	struct list_head devices;
-	struct list_head online_targets;
 
 	/* Media manager */
 	struct nvmm_type *mt;
