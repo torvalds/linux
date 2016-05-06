@@ -230,8 +230,8 @@ struct nvm_rq {
 
 	struct ppa_addr *ppa_list;
 
-	void *metadata;
-	dma_addr_t dma_metadata;
+	void *meta_list;
+	dma_addr_t dma_meta_list;
 
 	struct completion *wait;
 	nvm_end_io_fn *end_io;
