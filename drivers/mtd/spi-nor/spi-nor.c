@@ -1031,14 +1031,27 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 	if (ret)
 		return ret;
 
-	ret = nor->read(nor, from, len, buf);
+	while (len) {
+		ret = nor->read(nor, from, len, buf);
+		if (ret == 0) {
+			/* We shouldn't see 0-length reads */
+			ret = -EIO;
+			goto read_err;
+		}
+		if (ret < 0)
+			goto read_err;
 
+		WARN_ON(ret > len);
+		*retlen += ret;
+		buf += ret;
+		from += ret;
+		len -= ret;
+	}
+	ret = 0;
+
+read_err:
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_READ);
-	if (ret < 0)
-		return ret;
-
-	*retlen += ret;
-	return 0;
+	return ret;
 }
 
 static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
