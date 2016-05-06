@@ -1491,21 +1491,23 @@ static void palmas_dt_to_pdata(struct device *dev,
 	}
 
 	for (idx = 0; idx < ddata->max_reg; idx++) {
-		if (!ddata->palmas_matches[idx].init_data ||
-		    !ddata->palmas_matches[idx].of_node)
+		static struct of_regulator_match *match;
+
+		match = &ddata->palmas_matches[idx];
+
+		if (!match->init_data || !match->of_node)
 			continue;
 
-		pdata->reg_data[idx] = ddata->palmas_matches[idx].init_data;
+		pdata->reg_data[idx] = match->init_data;
 
 		pdata->reg_init[idx] = devm_kzalloc(dev,
 				sizeof(struct palmas_reg_init), GFP_KERNEL);
 
 		pdata->reg_init[idx]->warm_reset =
-			of_property_read_bool(ddata->palmas_matches[idx].of_node,
-					      "ti,warm-reset");
+			of_property_read_bool(match->of_node, "ti,warm-reset");
 
-		ret = of_property_read_u32(ddata->palmas_matches[idx].of_node,
-					   "ti,roof-floor", &prop);
+		ret = of_property_read_u32(match->of_node, "ti,roof-floor",
+					   &prop);
 		/* EINVAL: Property not found */
 		if (ret != -EINVAL) {
 			int econtrol;
@@ -1527,27 +1529,26 @@ static void palmas_dt_to_pdata(struct device *dev,
 					WARN_ON(1);
 					dev_warn(dev,
 						 "%s: Invalid roof-floor option: %u\n",
-					     palmas_matches[idx].name, prop);
+						 match->name, prop);
 					break;
 				}
 			}
 			pdata->reg_init[idx]->roof_floor = econtrol;
 		}
 
-		ret = of_property_read_u32(ddata->palmas_matches[idx].of_node,
-					   "ti,mode-sleep", &prop);
+		ret = of_property_read_u32(match->of_node, "ti,mode-sleep",
+					   &prop);
 		if (!ret)
 			pdata->reg_init[idx]->mode_sleep = prop;
 
-		ret = of_property_read_bool(ddata->palmas_matches[idx].of_node,
-					    "ti,smps-range");
+		ret = of_property_read_bool(match->of_node, "ti,smps-range");
 		if (ret)
 			pdata->reg_init[idx]->vsel =
 				PALMAS_SMPS12_VOLTAGE_RANGE;
 
 		if (idx == PALMAS_REG_LDO8)
 			pdata->enable_ldo8_tracking = of_property_read_bool(
-						ddata->palmas_matches[idx].of_node,
+						match->of_node,
 						"ti,enable-ldo8-tracking");
 	}
 
