@@ -329,13 +329,12 @@ static int arc_emac_poll(struct napi_struct *napi, int budget)
 	struct arc_emac_priv *priv = netdev_priv(ndev);
 	unsigned int work_done;
 
-	arc_emac_tx_clean(ndev);
 	arc_emac_rx_miss_handle(ndev);
 
 	work_done = arc_emac_rx(ndev, budget);
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
-		arc_reg_or(priv, R_ENABLE, RXINT_MASK | TXINT_MASK);
+		arc_reg_or(priv, R_ENABLE, RXINT_MASK);
 	}
 
 	arc_emac_rx_stall_check(ndev, budget, work_done);
@@ -366,9 +365,9 @@ static irqreturn_t arc_emac_intr(int irq, void *dev_instance)
 	/* Reset all flags except "MDIO complete" */
 	arc_reg_set(priv, R_STATUS, status);
 
-	if (status & (RXINT_MASK | TXINT_MASK)) {
+	if (status & RXINT_MASK) {
 		if (likely(napi_schedule_prep(&priv->napi))) {
-			arc_reg_clr(priv, R_ENABLE, RXINT_MASK | TXINT_MASK);
+			arc_reg_clr(priv, R_ENABLE, RXINT_MASK);
 			__napi_schedule(&priv->napi);
 		}
 	}
@@ -484,7 +483,7 @@ static int arc_emac_open(struct net_device *ndev)
 	arc_reg_set(priv, R_TX_RING, (unsigned int)priv->txbd_dma);
 
 	/* Enable interrupts */
-	arc_reg_set(priv, R_ENABLE, RXINT_MASK | TXINT_MASK | ERR_MASK);
+	arc_reg_set(priv, R_ENABLE, RXINT_MASK | ERR_MASK);
 
 	/* Set CONTROL */
 	arc_reg_set(priv, R_CTRL,
@@ -622,7 +621,7 @@ static int arc_emac_stop(struct net_device *ndev)
 	phy_stop(ndev->phydev);
 
 	/* Disable interrupts */
-	arc_reg_clr(priv, R_ENABLE, RXINT_MASK | TXINT_MASK | ERR_MASK);
+	arc_reg_clr(priv, R_ENABLE, RXINT_MASK | ERR_MASK);
 
 	/* Disable EMAC */
 	arc_reg_clr(priv, R_CTRL, EN_MASK);
@@ -683,6 +682,8 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 	struct net_device_stats *stats = &ndev->stats;
 	__le32 *info = &priv->txbd[*txbd_curr].info;
 	dma_addr_t addr;
+
+	arc_emac_tx_clean(ndev);
 
 	if (skb_padto(skb, ETH_ZLEN))
 		return NETDEV_TX_OK;
