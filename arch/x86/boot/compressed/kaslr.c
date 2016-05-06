@@ -350,20 +350,15 @@ static unsigned long find_random_addr(unsigned long minimum,
 	return slots_fetch_random();
 }
 
-unsigned char *choose_random_location(unsigned char *input_ptr,
+/*
+ * Since this function examines addresses much more numerically,
+ * it takes the input and output pointers as 'unsigned long'.
+ */
+unsigned char *choose_random_location(unsigned long input,
 				      unsigned long input_size,
-				      unsigned char *output_ptr,
+				      unsigned long output,
 				      unsigned long output_size)
 {
-	/*
-	 * The caller of choose_random_location() uses unsigned char * for
-	 * buffer pointers since it performs decompression, elf parsing, etc.
-	 * Since this code examines addresses much more numerically,
-	 * unsigned long is used internally here. Instead of sprinkling
-	 * more casts into extract_kernel, do them here and at return.
-	 */
-	unsigned long input = (unsigned long)input_ptr;
-	unsigned long output = (unsigned long)output_ptr;
 	unsigned long choice = output;
 	unsigned long random_addr;
 
