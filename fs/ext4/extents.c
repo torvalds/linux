@@ -912,13 +912,6 @@ ext4_find_extent(struct inode *inode, ext4_lblk_t block,
 
 		eh = ext_block_hdr(bh);
 		ppos++;
-		if (unlikely(ppos > depth)) {
-			put_bh(bh);
-			EXT4_ERROR_INODE(inode,
-					 "ppos %d > depth %d", ppos, depth);
-			ret = -EFSCORRUPTED;
-			goto err;
-		}
 		path[ppos].p_bh = bh;
 		path[ppos].p_hdr = eh;
 	}
