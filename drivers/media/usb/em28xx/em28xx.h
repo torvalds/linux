@@ -145,6 +145,7 @@
 #define EM2861_BOARD_LEADTEK_VC100                95
 #define EM28178_BOARD_TERRATEC_T2_STICK_HD        96
 #define EM2884_BOARD_ELGATO_EYETV_HYBRID_2008     97
+#define EM28178_BOARD_PLEX_PX_BCUD                98
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
