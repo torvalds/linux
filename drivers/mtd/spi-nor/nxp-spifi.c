@@ -185,7 +185,7 @@ static ssize_t nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
 	memcpy_fromio(buf, spifi->flash_base + from, len);
 	*retlen += len;
 
-	return 0;
+	return len;
 }
 
 static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
@@ -194,6 +194,7 @@ static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 	struct nxp_spifi *spifi = nor->priv;
 	u32 cmd;
 	int ret;
+	size_t i;
 
 	ret = nxp_spifi_set_memory_mode_off(spifi);
 	if (ret)
@@ -209,10 +210,14 @@ static ssize_t nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 	      SPIFI_CMD_FRAMEFORM(spifi->nor.addr_width + 1);
 	writel(cmd, spifi->io_base + SPIFI_CMD);
 
-	while (len--)
-		writeb(*buf++, spifi->io_base + SPIFI_DATA);
+	for (i = 0; i < len; i++)
+		writeb(buf[i], spifi->io_base + SPIFI_DATA);
 
-	return nxp_spifi_wait_for_cmd(spifi);
+	ret = nxp_spifi_wait_for_cmd(spifi);
+	if (ret)
+		return ret;
+
+	return len;
 }
 
 static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
