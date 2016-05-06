@@ -590,7 +590,7 @@ static int i40e_config_vsi_rx_queue(struct i40e_vf *vf, u16 vsi_id,
 		}
 		rx_ctx.hbuff = info->hdr_size >> I40E_RXQ_CTX_HBUFF_SHIFT;
 
-		/* set splitalways mode 10b */
+		/* set split mode 10b */
 		rx_ctx.dtype = I40E_RX_DTYPE_HEADER_SPLIT;
 	}
 
@@ -1544,7 +1544,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 	} else if (i40e_getnum_vf_vsi_vlan_filters(vsi)) {
 		list_for_each_entry(f, &vsi->mac_filter_list, list) {
 			aq_ret = 0;
-			if (f->vlan >= 0 && f->vlan <= I40E_MAX_VLANID)
+			if (f->vlan >= 0 && f->vlan <= I40E_MAX_VLANID) {
 				aq_ret =
 				i40e_aq_set_vsi_uc_promisc_on_vlan(hw,
 								   vsi->seid,
@@ -1552,6 +1552,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 								   f->vlan,
 								   NULL);
 				aq_err = pf->hw.aq.asq_last_status;
+			}
 			if (aq_ret)
 				dev_err(&pf->pdev->dev,
 					"Could not add VLAN %d to Unicast promiscuous domain err %s aq_err %s\n",

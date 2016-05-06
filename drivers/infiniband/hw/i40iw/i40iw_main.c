@@ -1863,7 +1863,7 @@ static enum i40iw_status_code i40iw_virtchnl_send(struct i40iw_sc_dev *dev,
 }
 
 /* client interface functions */
-static struct i40e_client_ops i40e_ops = {
+static const struct i40e_client_ops i40e_ops = {
 	.open = i40iw_open,
 	.close = i40iw_close,
 	.l2_param_change = i40iw_l2param_change,

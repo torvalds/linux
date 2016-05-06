@@ -80,9 +80,6 @@ struct i40e_vsi {
 #define I40EVF_REQ_DESCRIPTOR_MULTIPLE  32
 
 /* Supported Rx Buffer Sizes */
-#define I40EVF_RXBUFFER_64    64     /* Used for packet split */
-#define I40EVF_RXBUFFER_128   128    /* Used for packet split */
-#define I40EVF_RXBUFFER_256   256    /* Used for packet split */
 #define I40EVF_RXBUFFER_2048  2048
 #define I40EVF_MAX_RXBUFFER   16384  /* largest size for single descriptor */
 #define I40EVF_MAX_AQ_BUF_SIZE    4096
@@ -208,9 +205,6 @@ struct i40evf_adapter {
 
 	u32 flags;
 #define I40EVF_FLAG_RX_CSUM_ENABLED              BIT(0)
-#define I40EVF_FLAG_RX_1BUF_CAPABLE              BIT(1)
-#define I40EVF_FLAG_RX_PS_CAPABLE                BIT(2)
-#define I40EVF_FLAG_RX_PS_ENABLED                BIT(3)
 #define I40EVF_FLAG_IMIR_ENABLED                 BIT(5)
 #define I40EVF_FLAG_MQ_CAPABLE                   BIT(6)
 #define I40EVF_FLAG_NEED_LINK_UPDATE             BIT(7)
@@ -295,7 +289,6 @@ struct i40evf_adapter {
 
 
 /* Ethtool Private Flags */
-#define I40EVF_PRIV_FLAGS_PS		BIT(0)
 
 /* needed by i40evf_ethtool.c */
 extern char i40evf_driver_name[];

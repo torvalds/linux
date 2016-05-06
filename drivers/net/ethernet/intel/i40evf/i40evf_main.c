@@ -641,28 +641,11 @@ static void i40evf_configure_tx(struct i40evf_adapter *adapter)
 static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 {
 	struct i40e_hw *hw = &adapter->hw;
-	struct net_device *netdev = adapter->netdev;
-	int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	int i;
-	int rx_buf_len;
-
-
-	/* Set the RX buffer length according to the mode */
-	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED ||
-	    netdev->mtu <= ETH_DATA_LEN)
-		rx_buf_len = I40EVF_RXBUFFER_2048;
-	else
-		rx_buf_len = ALIGN(max_frame, 1024);
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		adapter->rx_rings[i].tail = hw->hw_addr + I40E_QRX_TAIL1(i);
-		adapter->rx_rings[i].rx_buf_len = rx_buf_len;
-		if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
-			set_ring_ps_enabled(&adapter->rx_rings[i]);
-			adapter->rx_rings[i].rx_hdr_len = I40E_RX_HDR_SIZE;
-		} else {
-			clear_ring_ps_enabled(&adapter->rx_rings[i]);
-		}
+		adapter->rx_rings[i].rx_buf_len = I40EVF_RXBUFFER_2048;
 	}
 }
 
@@ -1007,14 +990,7 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		struct i40e_ring *ring = &adapter->rx_rings[i];
 
-	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
-		i40evf_alloc_rx_headers(ring);
-		i40evf_alloc_rx_buffers_ps(ring, ring->count);
-	} else {
-		i40evf_alloc_rx_buffers_1buf(ring, ring->count);
-	}
-		ring->next_to_use = ring->count - 1;
-		writel(ring->next_to_use, ring->tail);
+		i40evf_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
 	}
 }
 
@@ -2423,11 +2399,6 @@ static void i40evf_init_task(struct work_struct *work)
 	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 
 	adapter->flags |= I40EVF_FLAG_RX_CSUM_ENABLED;
-	adapter->flags |= I40EVF_FLAG_RX_1BUF_CAPABLE;
-	adapter->flags |= I40EVF_FLAG_RX_PS_CAPABLE;
-
-	/* Default to single buffer rx, can be changed through ethtool. */
-	adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
 
 	netdev->netdev_ops = &i40evf_netdev_ops;
 	i40evf_set_ethtool_ops(netdev);
@@ -2795,7 +2766,6 @@ static void i40evf_remove(struct pci_dev *pdev)
 
 	iounmap(hw->hw_addr);
 	pci_release_regions(pdev);
-
 	i40evf_free_all_tx_resources(adapter);
 	i40evf_free_all_rx_resources(adapter);
 	i40evf_free_queues(adapter);
