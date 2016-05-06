@@ -119,7 +119,7 @@ MODULE_PARM_DESC(ep_timeout_secs, "CM Endpoint operation timeout "
 static int mpa_rev = 2;
 module_param(mpa_rev, int, 0644);
 MODULE_PARM_DESC(mpa_rev, "MPA Revision, 0 supports amso1100, "
-		"1 is RFC0544 spec compliant, 2 is IETF MPA Peer Connect Draft"
+		"1 is RFC5044 spec compliant, 2 is IETF MPA Peer Connect Draft"
 		" compliant (default=2)");
 
 static int markers_enabled;
