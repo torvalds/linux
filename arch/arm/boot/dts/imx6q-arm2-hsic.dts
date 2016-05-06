@@ -22,11 +22,3 @@
 	osc-clkgate-delay = <0x3>;
 	status = "okay";
 };
-
-&usbh3 {
-	pinctrl-names = "idle", "active";
-	pinctrl-0 = <&pinctrl_usbh3_1>;
-	pinctrl-1 = <&pinctrl_usbh3_2>;
-	osc-clkgate-delay = <0x3>;
-	status = "okay";
-};
