@@ -97,7 +97,7 @@ void amdgpu_job_free(struct amdgpu_job *job)
 		amdgpu_sa_bo_free(job->adev, &job->ibs[i].sa_bo, f);
 	fence_put(job->fence);
 
-	amdgpu_bo_unref(&job->uf.bo);
+	amdgpu_bo_unref(&job->uf_bo);
 	amdgpu_sync_free(&job->sync);
 
 	if (!job->base.use_sched)

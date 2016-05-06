@@ -203,10 +203,11 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	}
 
 	/* wrap the last IB with fence */
-	if (ib->user) {
-		uint64_t addr = amdgpu_bo_gpu_offset(ib->user->bo);
-		addr += ib->user->offset;
-		amdgpu_ring_emit_fence(ring, addr, ib->sequence,
+	if (job && job->uf_bo) {
+		uint64_t addr = amdgpu_bo_gpu_offset(job->uf_bo);
+
+		addr += job->uf_offset;
+		amdgpu_ring_emit_fence(ring, addr, job->uf_sequence,
 				       AMDGPU_FENCE_FLAG_64BIT);
 	}
 

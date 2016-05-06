@@ -368,13 +368,6 @@ struct amdgpu_fence_driver {
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
 
-struct amdgpu_user_fence {
-	/* write-back bo */
-	struct amdgpu_bo	*bo;
-	/* write-back address offset to bo start */
-	uint32_t                offset;
-};
-
 int amdgpu_fence_driver_init(struct amdgpu_device *adev);
 void amdgpu_fence_driver_fini(struct amdgpu_device *adev);
 void amdgpu_fence_driver_force_completion(struct amdgpu_device *adev);
@@ -741,10 +734,7 @@ struct amdgpu_ib {
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
-	struct amdgpu_user_fence        *user;
 	uint32_t			flags;
-	/* resulting sequence number */
-	uint64_t			sequence;
 };
 
 enum amdgpu_ring_type {
@@ -1219,7 +1209,7 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring);
 struct amdgpu_cs_chunk {
 	uint32_t		chunk_id;
 	uint32_t		length_dw;
-	uint32_t		*kdata;
+	void			*kdata;
 };
 
 struct amdgpu_cs_parser {
@@ -1263,7 +1253,12 @@ struct amdgpu_job {
 	uint32_t		gds_base, gds_size;
 	uint32_t		gws_base, gws_size;
 	uint32_t		oa_base, oa_size;
-	struct amdgpu_user_fence uf;
+
+	/* user fence handling */
+	struct amdgpu_bo	*uf_bo;
+	uint32_t		uf_offset;
+	uint64_t		uf_sequence;
+
 };
 #define to_amdgpu_job(sched_job)		\
 		container_of((sched_job), struct amdgpu_job, base)
