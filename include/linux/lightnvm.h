@@ -18,7 +18,7 @@ enum {
 #define NVM_SEC_BITS (8)
 #define NVM_PL_BITS  (8)
 #define NVM_LUN_BITS (8)
-#define NVM_CH_BITS  (8)
+#define NVM_CH_BITS  (7)
 
 struct ppa_addr {
 	/* Generic structure for all addresses */
@@ -30,7 +30,13 @@ struct ppa_addr {
 			u64 pl		: NVM_PL_BITS;
 			u64 lun		: NVM_LUN_BITS;
 			u64 ch		: NVM_CH_BITS;
+			u64 reserved	: 1;
 		} g;
+
+		struct {
+			u64 line	: 63;
+			u64 is_cached	: 1;
+		} c;
 
 		u64 ppa;
 	};
