@@ -121,18 +121,16 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib *ib = &ibs[0];
-	uint64_t ctx, old_ctx;
 	struct fence *hwf;
 	struct amdgpu_vm *vm = NULL;
 	unsigned i, patch_offset = ~0;
-	bool skip_preamble;
+	bool skip_preamble, need_ctx_switch;
 
 	int r = 0;
 
 	if (num_ibs == 0)
 		return -EINVAL;
 
-	ctx = ibs->ctx;
 	if (job) /* for domain0 job like ring test, ibs->job is not assigned */
 		vm = job->vm;
 
@@ -156,7 +154,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
 	if (vm) {
-		/* do context switch */
 		r = amdgpu_vm_flush(ring, ib->vm_id, ib->vm_pd_addr,
 				    ib->gds_base, ib->gds_size,
 				    ib->gws_base, ib->gws_size,
@@ -173,16 +170,17 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* always set cond_exec_polling to CONTINUE */
 	*ring->cond_exe_cpu_addr = 1;
 
-	skip_preamble = ring->current_ctx == ctx;
-	old_ctx = ring->current_ctx;
+	skip_preamble = ring->current_ctx == ib->ctx;
+	need_ctx_switch = ring->current_ctx != ib->ctx;
 	for (i = 0; i < num_ibs; ++i) {
+		ib = &ibs[i];
 
 		/* drop preamble IBs if we don't have a context switch */
 		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && skip_preamble)
 			continue;
 
-		amdgpu_ring_emit_ib(ring, ib);
-		ring->current_ctx = ctx;
+		amdgpu_ring_emit_ib(ring, ib, need_ctx_switch);
+		need_ctx_switch = false;
 	}
 
 	if (ring->funcs->emit_hdp_invalidate)
@@ -191,7 +189,6 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	r = amdgpu_fence_emit(ring, &hwf);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
-		ring->current_ctx = old_ctx;
 		if (ib->vm_id)
 			amdgpu_vm_reset_id(adev, ib->vm_id);
 		amdgpu_ring_undo(ring);
@@ -212,6 +209,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);
 
+	ring->current_ctx = ibs->ctx;
 	amdgpu_ring_commit(ring);
 	return 0;
 }

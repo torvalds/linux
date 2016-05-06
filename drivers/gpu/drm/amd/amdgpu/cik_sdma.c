@@ -210,7 +210,7 @@ static void cik_sdma_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  * Schedule an IB in the DMA ring (CIK).
  */
 static void cik_sdma_ring_emit_ib(struct amdgpu_ring *ring,
-			   struct amdgpu_ib *ib)
+			   struct amdgpu_ib *ib, bool ctx_switch)
 {
 	u32 extra_bits = ib->vm_id & 0xf;
 	u32 next_rptr = ring->wptr + 5;

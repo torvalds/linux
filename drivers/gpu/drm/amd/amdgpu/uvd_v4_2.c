@@ -489,7 +489,7 @@ static int uvd_v4_2_ring_test_ring(struct amdgpu_ring *ring)
  * Write ring commands to execute the indirect buffer
  */
 static void uvd_v4_2_ring_emit_ib(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib)
+				  struct amdgpu_ib *ib, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, PACKET0(mmUVD_RBC_IB_BASE, 0));
 	amdgpu_ring_write(ring, ib->gpu_addr);
