@@ -565,10 +565,10 @@ static void *nvme_nvm_dev_dma_alloc(struct nvm_dev *dev, void *pool,
 	return dma_pool_alloc(pool, mem_flags, dma_handler);
 }
 
-static void nvme_nvm_dev_dma_free(void *pool, void *ppa_list,
+static void nvme_nvm_dev_dma_free(void *pool, void *addr,
 							dma_addr_t dma_handler)
 {
-	dma_pool_free(pool, ppa_list, dma_handler);
+	dma_pool_free(pool, addr, dma_handler);
 }
 
 static struct nvm_dev_ops nvme_nvm_dev_ops = {

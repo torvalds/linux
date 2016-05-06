@@ -87,15 +87,15 @@ EXPORT_SYMBOL(nvm_unregister_tgt_type);
 void *nvm_dev_dma_alloc(struct nvm_dev *dev, gfp_t mem_flags,
 							dma_addr_t *dma_handler)
 {
-	return dev->ops->dev_dma_alloc(dev, dev->ppalist_pool, mem_flags,
+	return dev->ops->dev_dma_alloc(dev, dev->dma_pool, mem_flags,
 								dma_handler);
 }
 EXPORT_SYMBOL(nvm_dev_dma_alloc);
 
-void nvm_dev_dma_free(struct nvm_dev *dev, void *ppa_list,
+void nvm_dev_dma_free(struct nvm_dev *dev, void *addr,
 							dma_addr_t dma_handler)
 {
-	dev->ops->dev_dma_free(dev->ppalist_pool, ppa_list, dma_handler);
+	dev->ops->dev_dma_free(dev->dma_pool, addr, dma_handler);
 }
 EXPORT_SYMBOL(nvm_dev_dma_free);
 
@@ -652,8 +652,8 @@ err:
 
 static void nvm_exit(struct nvm_dev *dev)
 {
-	if (dev->ppalist_pool)
-		dev->ops->destroy_dma_pool(dev->ppalist_pool);
+	if (dev->dma_pool)
+		dev->ops->destroy_dma_pool(dev->dma_pool);
 	nvm_free(dev);
 
 	pr_info("nvm: successfully unloaded\n");
@@ -687,9 +687,9 @@ int nvm_register(struct request_queue *q, char *disk_name,
 	}
 
 	if (dev->ops->max_phys_sect > 1) {
-		dev->ppalist_pool = dev->ops->create_dma_pool(dev, "ppalist");
-		if (!dev->ppalist_pool) {
-			pr_err("nvm: could not create ppa pool\n");
+		dev->dma_pool = dev->ops->create_dma_pool(dev, "ppalist");
+		if (!dev->dma_pool) {
+			pr_err("nvm: could not create dma pool\n");
 			ret = -ENOMEM;
 			goto err_init;
 		}

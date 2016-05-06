@@ -347,7 +347,7 @@ struct nvm_dev {
 	unsigned max_pages_per_blk;
 
 	unsigned long *lun_map;
-	void *ppalist_pool;
+	void *dma_pool;
 
 	struct nvm_id identity;
 
