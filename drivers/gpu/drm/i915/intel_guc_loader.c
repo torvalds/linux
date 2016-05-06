@@ -59,7 +59,7 @@
  *
  */
 
-#define I915_SKL_GUC_UCODE "i915/skl_guc_ver6.bin"
+#define I915_SKL_GUC_UCODE "i915/skl_guc_ver6_1.bin"
 MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
 
 /* User-friendly representation of an enum */
