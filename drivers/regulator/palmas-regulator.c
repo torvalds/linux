@@ -1492,19 +1492,19 @@ static void palmas_dt_to_pdata(struct device *dev,
 
 	for (idx = 0; idx < ddata->max_reg; idx++) {
 		static struct of_regulator_match *match;
+		struct palmas_reg_init *rinit;
 
 		match = &ddata->palmas_matches[idx];
 
 		if (!match->init_data || !match->of_node)
 			continue;
 
+		rinit = devm_kzalloc(dev, sizeof(*rinit), GFP_KERNEL);
 		pdata->reg_data[idx] = match->init_data;
+		pdata->reg_init[idx] = rinit;
 
-		pdata->reg_init[idx] = devm_kzalloc(dev,
-				sizeof(struct palmas_reg_init), GFP_KERNEL);
-
-		pdata->reg_init[idx]->warm_reset =
-			of_property_read_bool(match->of_node, "ti,warm-reset");
+		rinit->warm_reset = of_property_read_bool(match->of_node,
+							  "ti,warm-reset");
 
 		ret = of_property_read_u32(match->of_node, "ti,roof-floor",
 					   &prop);
@@ -1533,18 +1533,17 @@ static void palmas_dt_to_pdata(struct device *dev,
 					break;
 				}
 			}
-			pdata->reg_init[idx]->roof_floor = econtrol;
+			rinit->roof_floor = econtrol;
 		}
 
 		ret = of_property_read_u32(match->of_node, "ti,mode-sleep",
 					   &prop);
 		if (!ret)
-			pdata->reg_init[idx]->mode_sleep = prop;
+			rinit->mode_sleep = prop;
 
 		ret = of_property_read_bool(match->of_node, "ti,smps-range");
 		if (ret)
-			pdata->reg_init[idx]->vsel =
-				PALMAS_SMPS12_VOLTAGE_RANGE;
+			rinit->vsel = PALMAS_SMPS12_VOLTAGE_RANGE;
 
 		if (idx == PALMAS_REG_LDO8)
 			pdata->enable_ldo8_tracking = of_property_read_bool(
