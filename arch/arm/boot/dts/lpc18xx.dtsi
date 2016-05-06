@@ -186,6 +186,10 @@
 			clock-names = "stmmaceth";
 			resets = <&rgu 22>;
 			reset-names = "stmmaceth";
+			rx-fifo-depth = <256>;
+			tx-fifo-depth = <256>;
+			snps,pbl = <4>; /* 32 (8x mode) */
+			snps,force_thresh_dma_mode;
 			status = "disabled";
 		};
 
