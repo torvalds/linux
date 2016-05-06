@@ -66,6 +66,7 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+	struct drm_connector *con = &fsl_dev->connector.base;
 	struct drm_display_mode *mode = &crtc->state->mode;
 	unsigned int hbp, hfp, hsw, vbp, vfp, vsw, index, pol = 0;
 
@@ -79,6 +80,10 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	vbp = mode->vtotal - mode->vsync_end;
 	vfp = mode->vsync_start - mode->vdisplay;
 	vsw = mode->vsync_end - mode->vsync_start;
+
+	/* INV_PXCK as default (most display sample data on rising edge) */
+	if (!(con->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE))
+		pol |= DCU_SYN_POL_INV_PXCK;
 
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		pol |= DCU_SYN_POL_INV_HS_LOW;

@@ -118,6 +118,14 @@ enum subpixel_order {
 #define DRM_COLOR_FORMAT_RGB444		(1<<0)
 #define DRM_COLOR_FORMAT_YCRCB444	(1<<1)
 #define DRM_COLOR_FORMAT_YCRCB422	(1<<2)
+
+#define DRM_BUS_FLAG_DE_LOW		(1<<0)
+#define DRM_BUS_FLAG_DE_HIGH		(1<<1)
+/* drive data on pos. edge */
+#define DRM_BUS_FLAG_PIXDATA_POSEDGE	(1<<2)
+/* drive data on neg. edge */
+#define DRM_BUS_FLAG_PIXDATA_NEGEDGE	(1<<3)
+
 /*
  * Describes a given display (e.g. CRT or flat panel) and its limitations.
  */
@@ -139,6 +147,7 @@ struct drm_display_info {
 
 	const u32 *bus_formats;
 	unsigned int num_bus_formats;
+	u32 bus_flags;
 
 	/* Mask of supported hdmi deep color modes */
 	u8 edid_hdmi_dc_modes;
