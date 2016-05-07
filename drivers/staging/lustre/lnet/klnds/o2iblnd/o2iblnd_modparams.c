@@ -171,6 +171,17 @@ kib_tunables_t kiblnd_tunables = {
 	.kib_nscheds           = &nscheds
 };
 
+/* # messages/RDMAs in-flight */
+int kiblnd_msg_queue_size(int version, lnet_ni_t *ni)
+{
+	if (version == IBLND_MSG_VERSION_1)
+		return IBLND_MSG_QUEUE_SIZE_V1;
+	else if (ni)
+		return ni->ni_peertxcredits;
+	else
+		return peer_credits;
+}
+
 int
 kiblnd_tunables_init(void)
 {
