@@ -87,18 +87,10 @@ typedef struct {
 	int *kib_timeout;                /* comms timeout (seconds) */
 	int *kib_keepalive;              /* keepalive timeout (seconds) */
 	int *kib_ntx;                    /* # tx descs */
-	int *kib_peercredits_hiw;        /* # when eagerly to return credits */
 	char **kib_default_ipif;         /* default IPoIB interface */
 	int *kib_retry_count;
 	int *kib_rnr_retry_count;
-	int *kib_concurrent_sends;       /* send work queue sizing */
 	int *kib_ib_mtu;                 /* IB MTU */
-	int *kib_map_on_demand;          /* map-on-demand if RD has more */
-					 /* fragments than this value, 0 */
-					 /* disable map-on-demand */
-	int *kib_fmr_pool_size;          /* # FMRs in pool */
-	int *kib_fmr_flush_trigger;      /* When to trigger FMR flush */
-	int *kib_fmr_cache;              /* enable FMR pool cache? */
 	int *kib_require_priv_port;      /* accept only privileged ports */
 	int *kib_use_priv_port; /* use privileged port for active connect */
 	int *kib_nscheds;                /* # threads on each CPT */
@@ -112,9 +104,10 @@ extern kib_tunables_t  kiblnd_tunables;
 #define IBLND_CREDITS_DEFAULT     8 /* default # of peer credits */
 #define IBLND_CREDITS_MAX	  ((typeof(((kib_msg_t *) 0)->ibm_credits)) - 1)  /* Max # of peer credits */
 
-#define IBLND_CREDITS_HIGHWATER(v) ((v) == IBLND_MSG_VERSION_1 ? \
-				     IBLND_CREDIT_HIGHWATER_V1 : \
-				     *kiblnd_tunables.kib_peercredits_hiw) /* when eagerly to return credits */
+/* when eagerly to return credits */
+#define IBLND_CREDITS_HIGHWATER(t, v)	((v) == IBLND_MSG_VERSION_1 ? \
+					IBLND_CREDIT_HIGHWATER_V1 : \
+					t->lnd_peercredits_hiw)
 
 #define kiblnd_rdma_create_id(cb, dev, ps, qpt) rdma_create_id(&init_net, \
 							       cb, dev, \
@@ -260,6 +253,7 @@ typedef struct {
 	int                   fps_cpt;             /* CPT id */
 	int                   fps_pool_size;
 	int                   fps_flush_trigger;
+	int		      fps_cache;
 	int                   fps_increasing;      /* is allocating new pool */
 	unsigned long         fps_next_retry;      /* time stamp for retry if*/
 						   /* failed to allocate */
@@ -614,7 +608,11 @@ int kiblnd_msg_queue_size(int version, struct lnet_ni *ni);
 static inline int
 kiblnd_cfg_rdma_frags(struct lnet_ni *ni)
 {
-	int mod = *kiblnd_tunables.kib_map_on_demand;
+	struct lnet_ioctl_config_o2iblnd_tunables *tunables;
+	int mod;
+
+	tunables = &ni->ni_lnd_tunables->lt_tun_u.lt_o2ib;
+	mod = tunables->lnd_map_on_demand;
 	return mod ? mod : IBLND_MAX_RDMA_FRAGS;
 }
 
@@ -629,9 +627,11 @@ kiblnd_rdma_frags(int version, struct lnet_ni *ni)
 static inline int
 kiblnd_concurrent_sends(int version, struct lnet_ni *ni)
 {
+	struct lnet_ioctl_config_o2iblnd_tunables *tunables;
 	int concurrent_sends;
 
-	concurrent_sends = *kiblnd_tunables.kib_concurrent_sends;
+	tunables = &ni->ni_lnd_tunables->lt_tun_u.lt_o2ib;
+	concurrent_sends = tunables->lnd_concurrent_sends;
 
 	if (version == IBLND_MSG_VERSION_1) {
 		if (concurrent_sends > IBLND_MSG_QUEUE_SIZE_V1 * 2)
@@ -766,10 +766,14 @@ kiblnd_send_keepalive(kib_conn_t *conn)
 static inline int
 kiblnd_need_noop(kib_conn_t *conn)
 {
+	struct lnet_ioctl_config_o2iblnd_tunables *tunables;
+	lnet_ni_t *ni = conn->ibc_peer->ibp_ni;
+
 	LASSERT(conn->ibc_state >= IBLND_CONN_ESTABLISHED);
+	tunables = &ni->ni_lnd_tunables->lt_tun_u.lt_o2ib;
 
 	if (conn->ibc_outstanding_credits <
-	    IBLND_CREDITS_HIGHWATER(conn->ibc_version) &&
+	    IBLND_CREDITS_HIGHWATER(tunables, conn->ibc_version) &&
 	    !kiblnd_send_keepalive(conn))
 		return 0; /* No need to send NOOP */
 
@@ -977,8 +981,7 @@ static inline unsigned int kiblnd_sg_dma_len(struct ib_device *dev,
 #define KIBLND_CONN_PARAM(e)     ((e)->param.conn.private_data)
 #define KIBLND_CONN_PARAM_LEN(e) ((e)->param.conn.private_data_len)
 
-struct ib_mr *kiblnd_find_rd_dma_mr(kib_hca_dev_t *hdev,
-				    kib_rdma_desc_t *rd,
+struct ib_mr *kiblnd_find_rd_dma_mr(struct lnet_ni *ni, kib_rdma_desc_t *rd,
 				    int negotiated_nfrags);
 void kiblnd_map_rx_descs(kib_conn_t *conn);
 void kiblnd_unmap_rx_descs(kib_conn_t *conn);

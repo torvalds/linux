@@ -612,8 +612,8 @@ static void kiblnd_unmap_tx(lnet_ni_t *ni, kib_tx_t *tx)
 static int kiblnd_map_tx(lnet_ni_t *ni, kib_tx_t *tx, kib_rdma_desc_t *rd,
 			 int nfrags)
 {
-	kib_hca_dev_t *hdev = tx->tx_pool->tpo_hdev;
 	kib_net_t *net = ni->ni_data;
+	kib_hca_dev_t *hdev = net->ibn_dev->ibd_hdev;
 	struct ib_mr *mr    = NULL;
 	__u32 nob;
 	int i;
@@ -636,7 +636,7 @@ static int kiblnd_map_tx(lnet_ni_t *ni, kib_tx_t *tx, kib_rdma_desc_t *rd,
 		nob += rd->rd_frags[i].rf_nob;
 	}
 
-	mr = kiblnd_find_rd_dma_mr(hdev, rd, tx->tx_conn ?
+	mr = kiblnd_find_rd_dma_mr(ni, rd, tx->tx_conn ?
 				   tx->tx_conn->ibc_max_frags : -1);
 	if (mr) {
 		/* found pre-mapping MR */
@@ -2577,12 +2577,15 @@ kiblnd_check_reconnect(kib_conn_t *conn, int version,
 		reason = "Unknown";
 		break;
 
-	case IBLND_REJECT_RDMA_FRAGS:
+	case IBLND_REJECT_RDMA_FRAGS: {
+		struct lnet_ioctl_config_lnd_tunables *tunables;
+
 		if (!cp) {
 			reason = "can't negotiate max frags";
 			goto out;
 		}
-		if (!*kiblnd_tunables.kib_map_on_demand) {
+		tunables = peer->ibp_ni->ni_lnd_tunables;
+		if (!tunables->lt_tun_u.lt_o2ib.lnd_map_on_demand) {
 			reason = "map_on_demand must be enabled";
 			goto out;
 		}
@@ -2594,7 +2597,7 @@ kiblnd_check_reconnect(kib_conn_t *conn, int version,
 		peer->ibp_max_frags = frag_num;
 		reason = "rdma fragments";
 		break;
-
+	}
 	case IBLND_REJECT_MSG_QUEUE_SIZE:
 		if (!cp) {
 			reason = "can't negotiate queue depth";
