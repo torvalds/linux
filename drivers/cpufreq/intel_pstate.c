@@ -1404,14 +1404,9 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 static unsigned int intel_pstate_get(unsigned int cpu_num)
 {
-	struct sample *sample;
-	struct cpudata *cpu;
+	struct cpudata *cpu = all_cpu_data[cpu_num];
 
-	cpu = all_cpu_data[cpu_num];
-	if (!cpu)
-		return 0;
-	sample = &cpu->sample;
-	return get_avg_frequency(cpu);
+	return cpu ? get_avg_frequency(cpu) : 0;
 }
 
 static void intel_pstate_set_update_util_hook(unsigned int cpu_num)
