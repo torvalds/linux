@@ -1202,32 +1202,6 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		}
 
 		cond_resched();
-
-		/*
-		 * We've written the data and are going to read it back to make
-		 * sure it was written correctly.
-		 */
-		memset(ubi->peb_buf, 0xFF, aldata_size);
-		err = ubi_io_read_data(ubi, ubi->peb_buf, to, 0, aldata_size);
-		if (err) {
-			if (err != UBI_IO_BITFLIPS) {
-				ubi_warn(ubi, "error %d while reading data back from PEB %d",
-					 err, to);
-				if (is_error_sane(err))
-					err = MOVE_TARGET_RD_ERR;
-			} else
-				err = MOVE_TARGET_BITFLIPS;
-			goto out_unlock_buf;
-		}
-
-		cond_resched();
-
-		if (crc != crc32(UBI_CRC32_INIT, ubi->peb_buf, data_size)) {
-			ubi_warn(ubi, "read data back from PEB %d and it is different",
-				 to);
-			err = -EINVAL;
-			goto out_unlock_buf;
-		}
 	}
 
 	ubi_assert(vol->eba_tbl[lnum] == from);
