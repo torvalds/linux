@@ -1648,25 +1648,18 @@ EXPORT_SYMBOL(LNetNIFini);
  * parameters
  *
  * \param[in] ni network       interface structure
- * \param[out] cpt_count       the number of cpts the ni is on
- * \param[out] nid             Network Interface ID
- * \param[out] peer_timeout    NI peer timeout
- * \param[out] peer_tx_crdits  NI peer transmit credits
- * \param[out] peer_rtr_credits NI peer router credits
- * \param[out] max_tx_credits  NI max transmit credit
- * \param[out] net_config      Network configuration
+ * \param[out] config	       NI configuration
  */
 static void
-lnet_fill_ni_info(struct lnet_ni *ni, __u32 *cpt_count, __u64 *nid,
-		  int *peer_timeout, int *peer_tx_credits,
-		  int *peer_rtr_credits, int *max_tx_credits,
-		  struct lnet_ioctl_net_config *net_config)
+lnet_fill_ni_info(struct lnet_ni *ni, struct lnet_ioctl_config_data *config)
 {
+	struct lnet_ioctl_net_config *net_config;
 	int i;
 
-	if (!ni)
+	if (!ni || !config)
 		return;
 
+	net_config = (struct lnet_ioctl_net_config *) config->cfg_bulk;
 	if (!net_config)
 		return;
 
@@ -1682,11 +1675,11 @@ lnet_fill_ni_info(struct lnet_ni *ni, __u32 *cpt_count, __u64 *nid,
 			sizeof(net_config->ni_interfaces[i]));
 	}
 
-	*nid = ni->ni_nid;
-	*peer_timeout = ni->ni_peertimeout;
-	*peer_tx_credits = ni->ni_peertxcredits;
-	*peer_rtr_credits = ni->ni_peerrtrcredits;
-	*max_tx_credits = ni->ni_maxtxcredits;
+	config->cfg_nid = ni->ni_nid;
+	config->cfg_config_u.cfg_net.net_peer_timeout = ni->ni_peertimeout;
+	config->cfg_config_u.cfg_net.net_max_tx_credits = ni->ni_maxtxcredits;
+	config->cfg_config_u.cfg_net.net_peer_tx_credits = ni->ni_peertxcredits;
+	config->cfg_config_u.cfg_net.net_peer_rtr_credits = ni->ni_peerrtrcredits;
 
 	net_config->ni_status = ni->ni_status->ns_status;
 
@@ -1696,18 +1689,16 @@ lnet_fill_ni_info(struct lnet_ni *ni, __u32 *cpt_count, __u64 *nid,
 		for (i = 0; i < num_cpts; i++)
 			net_config->ni_cpts[i] = ni->ni_cpts[i];
 
-		*cpt_count = num_cpts;
+		config->cfg_ncpts = num_cpts;
 	}
 }
 
-int
-lnet_get_net_config(int idx, __u32 *cpt_count, __u64 *nid, int *peer_timeout,
-		    int *peer_tx_credits, int *peer_rtr_credits,
-		    int *max_tx_credits,
-		    struct lnet_ioctl_net_config *net_config)
+static int
+lnet_get_net_config(struct lnet_ioctl_config_data *config)
 {
 	struct lnet_ni *ni;
 	struct list_head *tmp;
+	int idx = config->cfg_count;
 	int cpt, i = 0;
 	int rc = -ENOENT;
 
@@ -1719,9 +1710,7 @@ lnet_get_net_config(int idx, __u32 *cpt_count, __u64 *nid, int *peer_timeout,
 
 		ni = list_entry(tmp, lnet_ni_t, ni_list);
 		lnet_ni_lock(ni);
-		lnet_fill_ni_info(ni, cpt_count, nid, peer_timeout,
-				  peer_tx_credits, peer_rtr_credits,
-				  max_tx_credits, net_config);
+		lnet_fill_ni_info(ni, config);
 		lnet_ni_unlock(ni);
 		rc = 0;
 		break;
@@ -1927,27 +1916,14 @@ LNetCtl(unsigned int cmd, void *arg)
 				      &config->cfg_config_u.cfg_route.rtr_priority);
 
 	case IOC_LIBCFS_GET_NET: {
-		struct lnet_ioctl_net_config *net_config;
-		size_t total = sizeof(*config) + sizeof(*net_config);
-
+		size_t total = sizeof(*config) +
+			       sizeof(struct lnet_ioctl_net_config);
 		config = arg;
 
 		if (config->cfg_hdr.ioc_len < total)
 			return -EINVAL;
 
-		net_config = (struct lnet_ioctl_net_config *)
-				config->cfg_bulk;
-		if (!net_config)
-			return -EINVAL;
-
-		return lnet_get_net_config(config->cfg_count,
-					   &config->cfg_ncpts,
-					   &config->cfg_nid,
-					   &config->cfg_config_u.cfg_net.net_peer_timeout,
-					   &config->cfg_config_u.cfg_net.net_peer_tx_credits,
-					   &config->cfg_config_u.cfg_net.net_peer_rtr_credits,
-					   &config->cfg_config_u.cfg_net.net_max_tx_credits,
-					   net_config);
+		return lnet_get_net_config(config);
 	}
 
 	case IOC_LIBCFS_GET_LNET_STATS: {

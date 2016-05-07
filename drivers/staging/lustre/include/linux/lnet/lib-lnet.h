@@ -463,10 +463,6 @@ int lnet_del_route(__u32 net, lnet_nid_t gw_nid);
 void lnet_destroy_routes(void);
 int lnet_get_route(int idx, __u32 *net, __u32 *hops,
 		   lnet_nid_t *gateway, __u32 *alive, __u32 *priority);
-int lnet_get_net_config(int idx, __u32 *cpt_count, __u64 *nid,
-			int *peer_timeout, int *peer_tx_credits,
-			int *peer_rtr_cr, int *max_tx_credits,
-			struct lnet_ioctl_net_config *net_config);
 int lnet_get_rtr_pool_cfg(int idx, struct lnet_ioctl_pool_cfg *pool_cfg);
 
 void lnet_router_debugfs_init(void);
