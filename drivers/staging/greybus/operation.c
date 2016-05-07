@@ -238,7 +238,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 		dev_err(&connection->hd->dev,
 			"%s: failed to send response %d for type 0x%02x: %d\n",
 			connection->name, status, operation->type, ret);
-			return;
+		return;
 	}
 }
 
