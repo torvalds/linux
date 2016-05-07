@@ -522,12 +522,14 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 	}
 
 	/* TX IRQ */
-	if (isr & tx_irq_mask) {
+	if (isr & IFI_CANFD_INTERRUPT_TXFIFO_REMOVE) {
 		stats->tx_bytes += can_get_echo_skb(ndev, 0);
 		stats->tx_packets++;
 		can_led_event(ndev, CAN_LED_EVENT_TX);
-		netif_wake_queue(ndev);
 	}
+
+	if (isr & tx_irq_mask)
+		netif_wake_queue(ndev);
 
 	return IRQ_HANDLED;
 }
