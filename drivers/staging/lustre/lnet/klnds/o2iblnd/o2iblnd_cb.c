@@ -2360,7 +2360,7 @@ kiblnd_passive_connect(struct rdma_cm_id *cmid, void *priv, int priv_nob)
 		      reqmsg->ibm_u.connparams.ibcp_max_frags,
 		      kiblnd_rdma_frags(version, ni));
 
-		if (version >= IBLND_MSG_VERSION)
+		if (version == IBLND_MSG_VERSION)
 			rej.ibr_why = IBLND_REJECT_RDMA_FRAGS;
 
 		goto failed;
