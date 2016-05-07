@@ -794,19 +794,9 @@ void update_dirty_page(struct inode *inode, struct page *page)
 	f2fs_trace_pid(page);
 }
 
-void add_dirty_dir_inode(struct inode *inode)
-{
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-
-	spin_lock(&sbi->inode_lock[DIR_INODE]);
-	__add_dirty_inode(inode, DIR_INODE);
-	spin_unlock(&sbi->inode_lock[DIR_INODE]);
-}
-
 void remove_dirty_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct f2fs_inode_info *fi = F2FS_I(inode);
 	enum inode_type type = S_ISDIR(inode->i_mode) ? DIR_INODE : FILE_INODE;
 
 	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode) &&
@@ -816,12 +806,6 @@ void remove_dirty_inode(struct inode *inode)
 	spin_lock(&sbi->inode_lock[type]);
 	__remove_dirty_inode(inode, type);
 	spin_unlock(&sbi->inode_lock[type]);
-
-	/* Only from the recovery routine */
-	if (is_inode_flag_set(fi, FI_DELAY_IPUT)) {
-		clear_inode_flag(fi, FI_DELAY_IPUT);
-		iput(inode);
-	}
 }
 
 int sync_dirty_inodes(struct f2fs_sb_info *sbi, enum inode_type type)
