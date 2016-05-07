@@ -273,6 +273,8 @@ typedef struct lnet_ni {
 	int			**ni_refs;	/* percpt reference count */
 	time64_t		  ni_last_alive;/* when I was last alive */
 	lnet_ni_status_t	 *ni_status;	/* my health status */
+	/* per NI LND tunables */
+	struct lnet_ioctl_config_lnd_tunables *ni_lnd_tunables;
 	/* equivalent interfaces to use */
 	char			 *ni_interfaces[LNET_MAX_INTERFACES];
 } lnet_ni_t;
