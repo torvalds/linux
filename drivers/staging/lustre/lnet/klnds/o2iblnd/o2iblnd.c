@@ -336,7 +336,7 @@ int kiblnd_create_peer(lnet_ni_t *ni, kib_peer_t **peerp, lnet_nid_t nid)
 	peer->ibp_error = 0;
 	peer->ibp_last_alive = 0;
 	peer->ibp_max_frags = kiblnd_cfg_rdma_frags(peer->ibp_ni);
-	peer->ibp_queue_depth = *kiblnd_tunables.kib_peertxcredits;
+	peer->ibp_queue_depth = ni->ni_peertxcredits;
 	atomic_set(&peer->ibp_refcount, 1);  /* 1 ref for caller */
 
 	INIT_LIST_HEAD(&peer->ibp_list);     /* not in the peer table yet */
@@ -2920,13 +2920,9 @@ static int kiblnd_startup(lnet_ni_t *ni)
 	net->ibn_incarnation = tv.tv_sec * USEC_PER_SEC +
 			       tv.tv_nsec / NSEC_PER_USEC;
 
-	rc = kiblnd_tunables_setup();
+	rc = kiblnd_tunables_setup(ni);
 	if (rc)
 		goto net_failed;
-	ni->ni_peertimeout    = *kiblnd_tunables.kib_peertimeout;
-	ni->ni_maxtxcredits   = *kiblnd_tunables.kib_credits;
-	ni->ni_peertxcredits  = *kiblnd_tunables.kib_peertxcredits;
-	ni->ni_peerrtrcredits = *kiblnd_tunables.kib_peerrtrcredits;
 
 	if (ni->ni_interfaces[0]) {
 		/* Use the IPoIB interface specified in 'networks=' */

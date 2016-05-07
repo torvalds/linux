@@ -87,11 +87,7 @@ typedef struct {
 	int *kib_timeout;                /* comms timeout (seconds) */
 	int *kib_keepalive;              /* keepalive timeout (seconds) */
 	int *kib_ntx;                    /* # tx descs */
-	int *kib_credits;                /* # concurrent sends */
-	int *kib_peertxcredits;          /* # concurrent sends to 1 peer */
-	int *kib_peerrtrcredits;         /* # per-peer router buffer credits */
 	int *kib_peercredits_hiw;        /* # when eagerly to return credits */
-	int *kib_peertimeout;            /* seconds to consider peer dead */
 	char **kib_default_ipif;         /* default IPoIB interface */
 	int *kib_retry_count;
 	int *kib_rnr_retry_count;
@@ -994,7 +990,7 @@ int  kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, kib_tx_t *tx,
 			 kib_fmr_t *fmr);
 void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status);
 
-int kiblnd_tunables_setup(void);
+int kiblnd_tunables_setup(struct lnet_ni *ni);
 void kiblnd_tunables_init(void);
 void kiblnd_tunables_fini(void);
 

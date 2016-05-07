@@ -152,11 +152,7 @@ kib_tunables_t kiblnd_tunables = {
 	.kib_timeout           = &timeout,
 	.kib_keepalive         = &keepalive,
 	.kib_ntx               = &ntx,
-	.kib_credits           = &credits,
-	.kib_peertxcredits     = &peer_credits,
 	.kib_peercredits_hiw   = &peer_credits_hiw,
-	.kib_peerrtrcredits    = &peer_buffer_credits,
-	.kib_peertimeout       = &peer_timeout,
 	.kib_default_ipif      = &ipif_name,
 	.kib_retry_count       = &retry_count,
 	.kib_rnr_retry_count   = &rnr_retry_count,
@@ -184,7 +180,7 @@ int kiblnd_msg_queue_size(int version, lnet_ni_t *ni)
 		return peer_credits;
 }
 
-int kiblnd_tunables_setup(void)
+int kiblnd_tunables_setup(struct lnet_ni *ni)
 {
 	if (kiblnd_translate_mtu(*kiblnd_tunables.kib_ib_mtu) < 0) {
 		CERROR("Invalid ib_mtu %d, expected 256/512/1024/2048/4096\n",
@@ -192,20 +188,32 @@ int kiblnd_tunables_setup(void)
 		return -EINVAL;
 	}
 
-	if (*kiblnd_tunables.kib_peertxcredits < IBLND_CREDITS_DEFAULT)
-		*kiblnd_tunables.kib_peertxcredits = IBLND_CREDITS_DEFAULT;
+	if (!ni->ni_peertimeout)
+		ni->ni_peertimeout = peer_timeout;
 
-	if (*kiblnd_tunables.kib_peertxcredits > IBLND_CREDITS_MAX)
-		*kiblnd_tunables.kib_peertxcredits = IBLND_CREDITS_MAX;
+	if (!ni->ni_maxtxcredits)
+		ni->ni_maxtxcredits = credits;
 
-	if (*kiblnd_tunables.kib_peertxcredits > *kiblnd_tunables.kib_credits)
-		*kiblnd_tunables.kib_peertxcredits = *kiblnd_tunables.kib_credits;
+	if (!ni->ni_peertxcredits)
+		ni->ni_peertxcredits = peer_credits;
 
-	if (*kiblnd_tunables.kib_peercredits_hiw < *kiblnd_tunables.kib_peertxcredits / 2)
-		*kiblnd_tunables.kib_peercredits_hiw = *kiblnd_tunables.kib_peertxcredits / 2;
+	if (!ni->ni_peerrtrcredits)
+		ni->ni_peerrtrcredits = peer_buffer_credits;
 
-	if (*kiblnd_tunables.kib_peercredits_hiw >= *kiblnd_tunables.kib_peertxcredits)
-		*kiblnd_tunables.kib_peercredits_hiw = *kiblnd_tunables.kib_peertxcredits - 1;
+	if (ni->ni_peertxcredits < IBLND_CREDITS_DEFAULT)
+		ni->ni_peertxcredits = IBLND_CREDITS_DEFAULT;
+
+	if (ni->ni_peertxcredits > IBLND_CREDITS_MAX)
+		ni->ni_peertxcredits = IBLND_CREDITS_MAX;
+
+	if (ni->ni_peertxcredits > credits)
+		ni->ni_peertxcredits = credits;
+
+	if (*kiblnd_tunables.kib_peercredits_hiw < ni->ni_peertxcredits / 2)
+		*kiblnd_tunables.kib_peercredits_hiw = ni->ni_peertxcredits / 2;
+
+	if (*kiblnd_tunables.kib_peercredits_hiw >= ni->ni_peertxcredits)
+		*kiblnd_tunables.kib_peercredits_hiw = ni->ni_peertxcredits - 1;
 
 	if (*kiblnd_tunables.kib_map_on_demand < 0 ||
 	    *kiblnd_tunables.kib_map_on_demand > IBLND_MAX_RDMA_FRAGS)
@@ -217,20 +225,20 @@ int kiblnd_tunables_setup(void)
 	if (!*kiblnd_tunables.kib_concurrent_sends) {
 		if (*kiblnd_tunables.kib_map_on_demand > 0 &&
 		    *kiblnd_tunables.kib_map_on_demand <= IBLND_MAX_RDMA_FRAGS / 8)
-			*kiblnd_tunables.kib_concurrent_sends = (*kiblnd_tunables.kib_peertxcredits) * 2;
+			*kiblnd_tunables.kib_concurrent_sends = ni->ni_peertxcredits * 2;
 		else
-			*kiblnd_tunables.kib_concurrent_sends = (*kiblnd_tunables.kib_peertxcredits);
+			*kiblnd_tunables.kib_concurrent_sends = ni->ni_peertxcredits;
 	}
 
-	if (*kiblnd_tunables.kib_concurrent_sends > *kiblnd_tunables.kib_peertxcredits * 2)
-		*kiblnd_tunables.kib_concurrent_sends = *kiblnd_tunables.kib_peertxcredits * 2;
+	if (*kiblnd_tunables.kib_concurrent_sends > ni->ni_peertxcredits * 2)
+		*kiblnd_tunables.kib_concurrent_sends = ni->ni_peertxcredits * 2;
 
-	if (*kiblnd_tunables.kib_concurrent_sends < *kiblnd_tunables.kib_peertxcredits / 2)
-		*kiblnd_tunables.kib_concurrent_sends = *kiblnd_tunables.kib_peertxcredits / 2;
+	if (*kiblnd_tunables.kib_concurrent_sends < ni->ni_peertxcredits / 2)
+		*kiblnd_tunables.kib_concurrent_sends = ni->ni_peertxcredits / 2;
 
-	if (*kiblnd_tunables.kib_concurrent_sends < *kiblnd_tunables.kib_peertxcredits) {
+	if (*kiblnd_tunables.kib_concurrent_sends < ni->ni_peertxcredits) {
 		CWARN("Concurrent sends %d is lower than message queue size: %d, performance may drop slightly.\n",
-		      *kiblnd_tunables.kib_concurrent_sends, *kiblnd_tunables.kib_peertxcredits);
+		      *kiblnd_tunables.kib_concurrent_sends, ni->ni_peertxcredits);
 	}
 
 	return 0;
