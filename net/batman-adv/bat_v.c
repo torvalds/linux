@@ -40,6 +40,16 @@
 
 static void batadv_v_iface_activate(struct batadv_hard_iface *hard_iface)
 {
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_hard_iface *primary_if;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+
+	if (primary_if) {
+		batadv_v_elp_iface_activate(primary_if, hard_iface);
+		batadv_hardif_put(primary_if);
+	}
+
 	/* B.A.T.M.A.N. V does not use any queuing mechanism, therefore it can
 	 * set the interface as ACTIVE right away, without any risk of race
 	 * condition
