@@ -171,6 +171,8 @@ kib_tunables_t kiblnd_tunables = {
 	.kib_nscheds           = &nscheds
 };
 
+static struct lnet_ioctl_config_o2iblnd_tunables default_tunables;
+
 /* # messages/RDMAs in-flight */
 int kiblnd_msg_queue_size(int version, lnet_ni_t *ni)
 {
@@ -182,8 +184,7 @@ int kiblnd_msg_queue_size(int version, lnet_ni_t *ni)
 		return peer_credits;
 }
 
-int
-kiblnd_tunables_init(void)
+int kiblnd_tunables_setup(void)
 {
 	if (kiblnd_translate_mtu(*kiblnd_tunables.kib_ib_mtu) < 0) {
 		CERROR("Invalid ib_mtu %d, expected 256/512/1024/2048/4096\n",
@@ -233,4 +234,15 @@ kiblnd_tunables_init(void)
 	}
 
 	return 0;
+}
+
+void kiblnd_tunables_init(void)
+{
+	default_tunables.lnd_version = 0;
+	default_tunables.lnd_peercredits_hiw = peer_credits_hiw,
+	default_tunables.lnd_map_on_demand = map_on_demand;
+	default_tunables.lnd_concurrent_sends = concurrent_sends;
+	default_tunables.lnd_fmr_pool_size = fmr_pool_size;
+	default_tunables.lnd_fmr_flush_trigger = fmr_flush_trigger;
+	default_tunables.lnd_fmr_cache = fmr_cache;
 }

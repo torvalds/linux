@@ -994,7 +994,8 @@ int  kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, kib_tx_t *tx,
 			 kib_fmr_t *fmr);
 void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status);
 
-int  kiblnd_tunables_init(void);
+int kiblnd_tunables_setup(void);
+void kiblnd_tunables_init(void);
 void kiblnd_tunables_fini(void);
 
 int  kiblnd_connd(void *arg);

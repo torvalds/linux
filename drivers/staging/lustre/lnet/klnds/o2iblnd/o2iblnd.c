@@ -2920,6 +2920,9 @@ static int kiblnd_startup(lnet_ni_t *ni)
 	net->ibn_incarnation = tv.tv_sec * USEC_PER_SEC +
 			       tv.tv_nsec / NSEC_PER_USEC;
 
+	rc = kiblnd_tunables_setup();
+	if (rc)
+		goto net_failed;
 	ni->ni_peertimeout    = *kiblnd_tunables.kib_peertimeout;
 	ni->ni_maxtxcredits   = *kiblnd_tunables.kib_credits;
 	ni->ni_peertxcredits  = *kiblnd_tunables.kib_peertxcredits;
@@ -3005,8 +3008,6 @@ static void __exit ko2iblnd_exit(void)
 
 static int __init ko2iblnd_init(void)
 {
-	int rc;
-
 	CLASSERT(sizeof(kib_msg_t) <= IBLND_MSG_SIZE);
 	CLASSERT(offsetof(kib_msg_t,
 			  ibm_u.get.ibgm_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
@@ -3015,9 +3016,7 @@ static int __init ko2iblnd_init(void)
 			  ibm_u.putack.ibpam_rd.rd_frags[IBLND_MAX_RDMA_FRAGS])
 			  <= IBLND_MSG_SIZE);
 
-	rc = kiblnd_tunables_init();
-	if (rc)
-		return rc;
+	kiblnd_tunables_init();
 
 	lnet_register_lnd(&the_o2iblnd);
 
