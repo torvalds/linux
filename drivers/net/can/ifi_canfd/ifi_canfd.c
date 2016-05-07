@@ -544,18 +544,6 @@ static const struct can_bittiming_const ifi_canfd_bittiming_const = {
 	.brp_inc	= 1,
 };
 
-static const struct can_bittiming_const ifi_canfd_data_bittiming_const = {
-	.name		= KBUILD_MODNAME,
-	.tseg1_min	= 1,	/* Time segment 1 = prop_seg + phase_seg1 */
-	.tseg1_max	= 256,
-	.tseg2_min	= 2,	/* Time segment 2 = phase_seg2 */
-	.tseg2_max	= 256,
-	.sjw_max	= 128,
-	.brp_min	= 2,
-	.brp_max	= 512,
-	.brp_inc	= 1,
-};
-
 static void ifi_canfd_set_bittiming(struct net_device *ndev)
 {
 	struct ifi_canfd_priv *priv = netdev_priv(ndev);
@@ -866,7 +854,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 	priv->can.clock.freq = readl(addr + IFI_CANFD_CANCLOCK);
 
 	priv->can.bittiming_const	= &ifi_canfd_bittiming_const;
-	priv->can.data_bittiming_const	= &ifi_canfd_data_bittiming_const;
+	priv->can.data_bittiming_const	= &ifi_canfd_bittiming_const;
 	priv->can.do_set_mode		= ifi_canfd_set_mode;
 	priv->can.do_get_berr_counter	= ifi_canfd_get_berr_counter;
 
