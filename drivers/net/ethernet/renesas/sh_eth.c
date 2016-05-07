@@ -725,8 +725,9 @@ static struct sh_eth_cpu_data sh7757_data = {
 #define GIGA_MAHR(port)		(SH_GIGA_ETH_BASE + 0x800 * (port) + 0x05c0)
 static void sh_eth_chip_reset_giga(struct net_device *ndev)
 {
-	int i;
+	struct sh_eth_private *mdp = netdev_priv(ndev);
 	u32 mahr[2], malr[2];
+	int i;
 
 	/* save MAHR and MALR */
 	for (i = 0; i < 2; i++) {
@@ -735,7 +736,7 @@ static void sh_eth_chip_reset_giga(struct net_device *ndev)
 	}
 
 	/* reset device */
-	iowrite32(ARSTR_ARST, (void *)(SH_GIGA_ETH_BASE + 0x1800));
+	sh_eth_tsu_write(mdp, ARSTR_ARST, ARSTR);
 	mdelay(1);
 
 	/* restore MAHR and MALR */
