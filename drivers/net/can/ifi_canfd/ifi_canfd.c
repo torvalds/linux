@@ -497,7 +497,8 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 	struct ifi_canfd_priv *priv = netdev_priv(ndev);
 	struct net_device_stats *stats = &ndev->stats;
 	const u32 rx_irq_mask = IFI_CANFD_INTERRUPT_RXFIFO_NEMPTY |
-				IFI_CANFD_INTERRUPT_RXFIFO_NEMPTY_PER;
+				IFI_CANFD_INTERRUPT_RXFIFO_NEMPTY_PER |
+				IFI_CANFD_INTERRUPT_ERROR_WARNING;
 	const u32 tx_irq_mask = IFI_CANFD_INTERRUPT_TXFIFO_EMPTY |
 				IFI_CANFD_INTERRUPT_TXFIFO_REMOVE;
 	const u32 clr_irq_mask = ~(IFI_CANFD_INTERRUPT_SET_IRQ |
@@ -513,7 +514,7 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 	/* Clear all pending interrupts but ErrWarn */
 	writel(clr_irq_mask, priv->base + IFI_CANFD_INTERRUPT);
 
-	/* RX IRQ, start NAPI */
+	/* RX IRQ or bus warning, start NAPI */
 	if (isr & rx_irq_mask) {
 		ifi_canfd_irq_enable(ndev, 0);
 		napi_schedule(&priv->napi);
