@@ -1164,11 +1164,11 @@ static int musb_gadget_disable(struct usb_ep *ep)
 		musb_writew(epio, MUSB_RXMAXP, 0);
 	}
 
-	musb_ep->desc = NULL;
-	musb_ep->end_point.desc = NULL;
-
 	/* abort all pending DMA and requests */
 	nuke(musb_ep, -ESHUTDOWN);
+
+	musb_ep->desc = NULL;
+	musb_ep->end_point.desc = NULL;
 
 	schedule_work(&musb->irq_work);
 
