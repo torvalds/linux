@@ -644,10 +644,11 @@ static void ifi_canfd_start(struct net_device *ndev)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		stcmd |= IFI_CANFD_STCMD_LOOPBACK;
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_FD)
+	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) &&
+	    !(priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO))
 		stcmd |= IFI_CANFD_STCMD_ENABLE_ISO;
 
-	if (!(priv->can.ctrlmode & (CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO)))
+	if (!(priv->can.ctrlmode & CAN_CTRLMODE_FD))
 		stcmd |= IFI_CANFD_STCMD_DISABLE_CANFD;
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
