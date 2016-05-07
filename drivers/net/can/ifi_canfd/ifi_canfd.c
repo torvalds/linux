@@ -34,6 +34,7 @@
 #define IFI_CANFD_STCMD_LOOPBACK		BIT(18)
 #define IFI_CANFD_STCMD_DISABLE_CANFD		BIT(24)
 #define IFI_CANFD_STCMD_ENABLE_ISO		BIT(25)
+#define IFI_CANFD_STCMD_ENABLE_7_9_8_8_TIMING	BIT(26)
 #define IFI_CANFD_STCMD_NORMAL_MODE		((u32)BIT(31))
 
 #define IFI_CANFD_RXSTCMD			0x4
@@ -71,12 +72,12 @@
 #define IFI_CANFD_TIME_TIMEB_OFF		0
 #define IFI_CANFD_TIME_TIMEA_OFF		8
 #define IFI_CANFD_TIME_PRESCALE_OFF		16
-#define IFI_CANFD_TIME_SJW_OFF_ISO		25
-#define IFI_CANFD_TIME_SJW_OFF_BOSCH		28
-#define IFI_CANFD_TIME_SET_SJW_BOSCH		BIT(6)
-#define IFI_CANFD_TIME_SET_TIMEB_BOSCH		BIT(7)
-#define IFI_CANFD_TIME_SET_PRESC_BOSCH		BIT(14)
-#define IFI_CANFD_TIME_SET_TIMEA_BOSCH		BIT(15)
+#define IFI_CANFD_TIME_SJW_OFF_7_9_8_8		25
+#define IFI_CANFD_TIME_SJW_OFF_4_12_6_6		28
+#define IFI_CANFD_TIME_SET_SJW_4_12_6_6		BIT(6)
+#define IFI_CANFD_TIME_SET_TIMEB_4_12_6_6	BIT(7)
+#define IFI_CANFD_TIME_SET_PRESC_4_12_6_6	BIT(14)
+#define IFI_CANFD_TIME_SET_TIMEA_4_12_6_6	BIT(15)
 
 #define IFI_CANFD_TDELAY			0x1c
 
@@ -534,24 +535,24 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 static const struct can_bittiming_const ifi_canfd_bittiming_const = {
 	.name		= KBUILD_MODNAME,
 	.tseg1_min	= 1,	/* Time segment 1 = prop_seg + phase_seg1 */
-	.tseg1_max	= 64,
+	.tseg1_max	= 256,
 	.tseg2_min	= 2,	/* Time segment 2 = phase_seg2 */
-	.tseg2_max	= 64,
-	.sjw_max	= 16,
+	.tseg2_max	= 256,
+	.sjw_max	= 128,
 	.brp_min	= 2,
-	.brp_max	= 256,
+	.brp_max	= 512,
 	.brp_inc	= 1,
 };
 
 static const struct can_bittiming_const ifi_canfd_data_bittiming_const = {
 	.name		= KBUILD_MODNAME,
 	.tseg1_min	= 1,	/* Time segment 1 = prop_seg + phase_seg1 */
-	.tseg1_max	= 64,
+	.tseg1_max	= 256,
 	.tseg2_min	= 2,	/* Time segment 2 = phase_seg2 */
-	.tseg2_max	= 64,
-	.sjw_max	= 16,
+	.tseg2_max	= 256,
+	.sjw_max	= 128,
 	.brp_min	= 2,
-	.brp_max	= 256,
+	.brp_max	= 512,
 	.brp_inc	= 1,
 };
 
@@ -561,19 +562,6 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	const struct can_bittiming *bt = &priv->can.bittiming;
 	const struct can_bittiming *dbt = &priv->can.data_bittiming;
 	u16 brp, sjw, tseg1, tseg2;
-	u32 noniso_arg = 0;
-	u32 time_off;
-
-	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) &&
-	    !(priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO)) {
-		time_off = IFI_CANFD_TIME_SJW_OFF_ISO;
-	} else {
-		noniso_arg = IFI_CANFD_TIME_SET_TIMEB_BOSCH |
-			     IFI_CANFD_TIME_SET_TIMEA_BOSCH |
-			     IFI_CANFD_TIME_SET_PRESC_BOSCH |
-			     IFI_CANFD_TIME_SET_SJW_BOSCH;
-		time_off = IFI_CANFD_TIME_SJW_OFF_BOSCH;
-	}
 
 	/* Configure bit timing */
 	brp = bt->brp - 2;
@@ -583,8 +571,7 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	writel((tseg2 << IFI_CANFD_TIME_TIMEB_OFF) |
 	       (tseg1 << IFI_CANFD_TIME_TIMEA_OFF) |
 	       (brp << IFI_CANFD_TIME_PRESCALE_OFF) |
-	       (sjw << time_off) |
-	       noniso_arg,
+	       (sjw << IFI_CANFD_TIME_SJW_OFF_7_9_8_8),
 	       priv->base + IFI_CANFD_TIME);
 
 	/* Configure data bit timing */
@@ -595,8 +582,7 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	writel((tseg2 << IFI_CANFD_TIME_TIMEB_OFF) |
 	       (tseg1 << IFI_CANFD_TIME_TIMEA_OFF) |
 	       (brp << IFI_CANFD_TIME_PRESCALE_OFF) |
-	       (sjw << time_off) |
-	       noniso_arg,
+	       (sjw << IFI_CANFD_TIME_SJW_OFF_7_9_8_8),
 	       priv->base + IFI_CANFD_FTIME);
 }
 
@@ -641,7 +627,8 @@ static void ifi_canfd_start(struct net_device *ndev)
 
 	/* Reset the IP */
 	writel(IFI_CANFD_STCMD_HARDRESET, priv->base + IFI_CANFD_STCMD);
-	writel(0, priv->base + IFI_CANFD_STCMD);
+	writel(IFI_CANFD_STCMD_ENABLE_7_9_8_8_TIMING,
+	       priv->base + IFI_CANFD_STCMD);
 
 	ifi_canfd_set_bittiming(ndev);
 	ifi_canfd_set_filters(ndev);
@@ -660,7 +647,8 @@ static void ifi_canfd_start(struct net_device *ndev)
 	writel((u32)(~IFI_CANFD_INTERRUPT_SET_IRQ),
 	       priv->base + IFI_CANFD_INTERRUPT);
 
-	stcmd = IFI_CANFD_STCMD_ENABLE | IFI_CANFD_STCMD_NORMAL_MODE;
+	stcmd = IFI_CANFD_STCMD_ENABLE | IFI_CANFD_STCMD_NORMAL_MODE |
+		IFI_CANFD_STCMD_ENABLE_7_9_8_8_TIMING;
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		stcmd |= IFI_CANFD_STCMD_BUSMONITOR;
