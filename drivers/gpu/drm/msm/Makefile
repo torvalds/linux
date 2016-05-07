@@ -35,6 +35,7 @@ msm-y := \
 	mdp/mdp5/mdp5_crtc.o \
 	mdp/mdp5/mdp5_encoder.o \
 	mdp/mdp5/mdp5_irq.o \
+	mdp/mdp5/mdp5_mdss.o \
 	mdp/mdp5/mdp5_kms.o \
 	mdp/mdp5/mdp5_plane.o \
 	mdp/mdp5/mdp5_smp.o \
