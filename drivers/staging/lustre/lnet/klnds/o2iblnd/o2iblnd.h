@@ -995,7 +995,6 @@ void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status);
 
 int kiblnd_tunables_setup(struct lnet_ni *ni);
 void kiblnd_tunables_init(void);
-void kiblnd_tunables_fini(void);
 
 int  kiblnd_connd(void *arg);
 int  kiblnd_scheduler(void *arg);
