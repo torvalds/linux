@@ -437,6 +437,8 @@ unsigned char *choose_random_location(unsigned long input,
 	choice = random_addr;
 
 	add_identity_map(choice, output_size);
+
+	/* This actually loads the identity pagetable on x86_64. */
 	finalize_identity_maps();
 out:
 	return (unsigned char *)choice;
