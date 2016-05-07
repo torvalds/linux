@@ -1217,6 +1217,7 @@ lnet_shutdown_lndni(struct lnet_ni *ni)
 static int
 lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 {
+	struct lnet_ioctl_config_lnd_tunables *lnd_tunables = NULL;
 	int rc = -EINVAL;
 	int lnd_type;
 	lnd_t *lnd;
@@ -1273,6 +1274,21 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 	lnet_net_unlock(LNET_LOCK_EX);
 
 	ni->ni_lnd = lnd;
+
+	if (conf && conf->cfg_hdr.ioc_len > sizeof(*conf))
+		lnd_tunables = (struct lnet_ioctl_config_lnd_tunables *)conf->cfg_bulk;
+
+	if (lnd_tunables) {
+		LIBCFS_ALLOC(ni->ni_lnd_tunables,
+			     sizeof(*ni->ni_lnd_tunables));
+		if (!ni->ni_lnd_tunables) {
+			mutex_unlock(&the_lnet.ln_lnd_mutex);
+			rc = -ENOMEM;
+			goto failed0;
+		}
+		memcpy(ni->ni_lnd_tunables, lnd_tunables,
+		       sizeof(*ni->ni_lnd_tunables));
+	}
 
 	rc = lnd->lnd_startup(ni);
 
@@ -1653,7 +1669,9 @@ EXPORT_SYMBOL(LNetNIFini);
 static void
 lnet_fill_ni_info(struct lnet_ni *ni, struct lnet_ioctl_config_data *config)
 {
+	struct lnet_ioctl_config_lnd_tunables *lnd_cfg = NULL;
 	struct lnet_ioctl_net_config *net_config;
+	size_t min_size, tunable_size = 0;
 	int i;
 
 	if (!ni || !config)
@@ -1690,6 +1708,30 @@ lnet_fill_ni_info(struct lnet_ni *ni, struct lnet_ioctl_config_data *config)
 			net_config->ni_cpts[i] = ni->ni_cpts[i];
 
 		config->cfg_ncpts = num_cpts;
+	}
+
+	/*
+	 * See if user land tools sent in a newer and larger version
+	 * of struct lnet_tunables than what the kernel uses.
+	 */
+	min_size = sizeof(*config) + sizeof(*net_config);
+
+	if (config->cfg_hdr.ioc_len > min_size)
+		tunable_size = config->cfg_hdr.ioc_len - min_size;
+
+	/* Don't copy to much data to user space */
+	min_size = min(tunable_size, sizeof(*ni->ni_lnd_tunables));
+	lnd_cfg = (struct lnet_ioctl_config_lnd_tunables *)net_config->cfg_bulk;
+
+	if (ni->ni_lnd_tunables && lnd_cfg && min_size) {
+		memcpy(lnd_cfg, ni->ni_lnd_tunables, min_size);
+		config->cfg_config_u.cfg_net.net_interface_count = 1;
+
+		/* Tell user land that kernel side has less data */
+		if (tunable_size > sizeof(*ni->ni_lnd_tunables)) {
+			min_size = tunable_size - sizeof(ni->ni_lnd_tunables);
+			config->cfg_hdr.ioc_len -= min_size;
+		}
 	}
 }
 
