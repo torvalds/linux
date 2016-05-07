@@ -18,7 +18,6 @@ int bpf_prog1(struct pt_regs *ctx)
 		u64 cookie;
 	} data;
 
-	memset(&data, 0, sizeof(data));
 	data.pid = bpf_get_current_pid_tgid();
 	data.cookie = 0x12345678;
 

@@ -1420,32 +1420,39 @@ static int hdmi_codec_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int hdmi_codec_resume(struct snd_soc_codec *codec)
+static int hdmi_codec_prepare(struct device *dev)
 {
-	struct hdac_ext_device *edev = snd_soc_codec_get_drvdata(codec);
+	struct hdac_ext_device *edev = to_hda_ext_device(dev);
+	struct hdac_device *hdac = &edev->hdac;
+
+	pm_runtime_get_sync(&edev->hdac.dev);
+
+	/*
+	 * Power down afg.
+	 * codec_read is preferred over codec_write to set the power state.
+	 * This way verb is send to set the power state and response
+	 * is received. So setting power state is ensured without using loop
+	 * to read the state.
+	 */
+	snd_hdac_codec_read(hdac, hdac->afg, 0,	AC_VERB_SET_POWER_STATE,
+							AC_PWRST_D3);
+
+	return 0;
+}
+
+static void hdmi_codec_complete(struct device *dev)
+{
+	struct hdac_ext_device *edev = to_hda_ext_device(dev);
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	struct hdac_hdmi_pin *pin;
 	struct hdac_device *hdac = &edev->hdac;
-	struct hdac_bus *bus = hdac->bus;
-	int err;
-	unsigned long timeout;
+
+	/* Power up afg */
+	snd_hdac_codec_read(hdac, hdac->afg, 0,	AC_VERB_SET_POWER_STATE,
+							AC_PWRST_D0);
 
 	hdac_hdmi_skl_enable_all_pins(&edev->hdac);
 	hdac_hdmi_skl_enable_dp12(&edev->hdac);
-
-	/* Power up afg */
-	if (!snd_hdac_check_power_state(hdac, hdac->afg, AC_PWRST_D0)) {
-
-		snd_hdac_codec_write(hdac, hdac->afg, 0,
-			AC_VERB_SET_POWER_STATE, AC_PWRST_D0);
-
-		/* Wait till power state is set to D0 */
-		timeout = jiffies + msecs_to_jiffies(1000);
-		while (!snd_hdac_check_power_state(hdac, hdac->afg, AC_PWRST_D0)
-				&& time_before(jiffies, timeout)) {
-			msleep(50);
-		}
-	}
 
 	/*
 	 * As the ELD notify callback request is not entertained while the
@@ -1455,28 +1462,16 @@ static int hdmi_codec_resume(struct snd_soc_codec *codec)
 	list_for_each_entry(pin, &hdmi->pin_list, head)
 		hdac_hdmi_present_sense(pin, 1);
 
-	/*
-	 * Codec power is turned ON during controller resume.
-	 * Turn it OFF here
-	 */
-	err = snd_hdac_display_power(bus, false);
-	if (err < 0) {
-		dev_err(bus->dev,
-			"Cannot turn OFF display power on i915, err: %d\n",
-			err);
-		return err;
-	}
-
-	return 0;
+	pm_runtime_put_sync(&edev->hdac.dev);
 }
 #else
-#define hdmi_codec_resume NULL
+#define hdmi_codec_prepare NULL
+#define hdmi_codec_complete NULL
 #endif
 
 static struct snd_soc_codec_driver hdmi_hda_codec = {
 	.probe		= hdmi_codec_probe,
 	.remove		= hdmi_codec_remove,
-	.resume		= hdmi_codec_resume,
 	.idle_bias_off	= true,
 };
 
@@ -1561,7 +1556,6 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 	struct hdac_ext_device *edev = to_hda_ext_device(dev);
 	struct hdac_device *hdac = &edev->hdac;
 	struct hdac_bus *bus = hdac->bus;
-	unsigned long timeout;
 	int err;
 
 	dev_dbg(dev, "Enter: %s\n", __func__);
@@ -1570,20 +1564,15 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 	if (!bus)
 		return 0;
 
-	/* Power down afg */
-	if (!snd_hdac_check_power_state(hdac, hdac->afg, AC_PWRST_D3)) {
-		snd_hdac_codec_write(hdac, hdac->afg, 0,
-			AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
-
-		/* Wait till power state is set to D3 */
-		timeout = jiffies + msecs_to_jiffies(1000);
-		while (!snd_hdac_check_power_state(hdac, hdac->afg, AC_PWRST_D3)
-				&& time_before(jiffies, timeout)) {
-
-			msleep(50);
-		}
-	}
-
+	/*
+	 * Power down afg.
+	 * codec_read is preferred over codec_write to set the power state.
+	 * This way verb is send to set the power state and response
+	 * is received. So setting power state is ensured without using loop
+	 * to read the state.
+	 */
+	snd_hdac_codec_read(hdac, hdac->afg, 0,	AC_VERB_SET_POWER_STATE,
+							AC_PWRST_D3);
 	err = snd_hdac_display_power(bus, false);
 	if (err < 0) {
 		dev_err(bus->dev, "Cannot turn on display power on i915\n");
@@ -1616,9 +1605,8 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 	hdac_hdmi_skl_enable_dp12(&edev->hdac);
 
 	/* Power up afg */
-	if (!snd_hdac_check_power_state(hdac, hdac->afg, AC_PWRST_D0))
-		snd_hdac_codec_write(hdac, hdac->afg, 0,
-			AC_VERB_SET_POWER_STATE, AC_PWRST_D0);
+	snd_hdac_codec_read(hdac, hdac->afg, 0,	AC_VERB_SET_POWER_STATE,
+							AC_PWRST_D0);
 
 	return 0;
 }
@@ -1629,6 +1617,8 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops hdac_hdmi_pm = {
 	SET_RUNTIME_PM_OPS(hdac_hdmi_runtime_suspend, hdac_hdmi_runtime_resume, NULL)
+	.prepare = hdmi_codec_prepare,
+	.complete = hdmi_codec_complete,
 };
 
 static const struct hda_device_id hdmi_list[] = {

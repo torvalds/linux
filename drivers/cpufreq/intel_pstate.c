@@ -453,6 +453,14 @@ static void intel_pstate_hwp_set(const struct cpumask *cpumask)
 	}
 }
 
+static int intel_pstate_hwp_set_policy(struct cpufreq_policy *policy)
+{
+	if (hwp_active)
+		intel_pstate_hwp_set(policy->cpus);
+
+	return 0;
+}
+
 static void intel_pstate_hwp_set_online_cpus(void)
 {
 	get_online_cpus();
@@ -813,6 +821,11 @@ static int core_get_max_pstate(void)
 			if (err)
 				goto skip_tar;
 
+			/* For level 1 and 2, bits[23:16] contain the ratio */
+			if (tdp_ctrl)
+				tdp_ratio >>= 16;
+
+			tdp_ratio &= 0xff; /* ratios are only 8 bits long */
 			if (tdp_ratio - 1 == tar) {
 				max_pstate = tar;
 				pr_debug("max_pstate=TAC %x\n", max_pstate);
@@ -1057,8 +1070,9 @@ static inline bool intel_pstate_sample(struct cpudata *cpu, u64 time)
 
 static inline int32_t get_avg_frequency(struct cpudata *cpu)
 {
-	return div64_u64(cpu->pstate.max_pstate_physical * cpu->sample.aperf *
-		cpu->pstate.scaling, cpu->sample.mperf);
+	return fp_toint(mul_fp(cpu->sample.core_pct_busy,
+			       int_tofp(cpu->pstate.max_pstate_physical *
+						cpu->pstate.scaling / 100)));
 }
 
 static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
@@ -1100,8 +1114,6 @@ static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
 {
 	int32_t core_busy, max_pstate, current_pstate, sample_ratio;
 	u64 duration_ns;
-
-	intel_pstate_calc_busy(cpu);
 
 	/*
 	 * core_busy is the ratio of actual performance to max
@@ -1186,8 +1198,11 @@ static void intel_pstate_update_util(struct update_util_data *data, u64 time,
 	if ((s64)delta_ns >= pid_params.sample_rate_ns) {
 		bool sample_taken = intel_pstate_sample(cpu, time);
 
-		if (sample_taken && !hwp_active)
-			intel_pstate_adjust_busy_pstate(cpu);
+		if (sample_taken) {
+			intel_pstate_calc_busy(cpu);
+			if (!hwp_active)
+				intel_pstate_adjust_busy_pstate(cpu);
+		}
 	}
 }
 
@@ -1341,8 +1356,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
  out:
 	intel_pstate_set_update_util_hook(policy->cpu);
 
-	if (hwp_active)
-		intel_pstate_hwp_set(policy->cpus);
+	intel_pstate_hwp_set_policy(policy);
 
 	return 0;
 }
@@ -1406,6 +1420,7 @@ static struct cpufreq_driver intel_pstate_driver = {
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.verify		= intel_pstate_verify_policy,
 	.setpolicy	= intel_pstate_set_policy,
+	.resume		= intel_pstate_hwp_set_policy,
 	.get		= intel_pstate_get,
 	.init		= intel_pstate_cpu_init,
 	.stop_cpu	= intel_pstate_stop_cpu,
