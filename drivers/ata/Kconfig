@@ -202,6 +202,14 @@ config SATA_FSL
 
 	  If unsure, say N.
 
+config SATA_AHCI_SEATTLE
+	tristate "AMD Seattle 6.0Gbps AHCI SATA host controller support"
+	depends on ARCH_SEATTLE
+	help
+	 This option enables support for AMD Seattle SATA host controller.
+
+	 If unsure, say N
+
 config SATA_INIC162X
 	tristate "Initio 162x SATA support (Very Experimental)"
 	depends on PCI
