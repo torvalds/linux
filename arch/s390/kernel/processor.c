@@ -6,6 +6,7 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/cpufeature.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
