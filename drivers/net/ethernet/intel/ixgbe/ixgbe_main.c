@@ -8300,14 +8300,50 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 static int ixgbe_delete_clsu32(struct ixgbe_adapter *adapter,
 			       struct tc_cls_u32_offload *cls)
 {
+	u32 hdl = cls->knode.handle;
 	u32 uhtid = TC_U32_USERHTID(cls->knode.handle);
-	u32 loc;
-	int err;
+	u32 loc = cls->knode.handle & 0xfffff;
+	int err = 0, i, j;
+	struct ixgbe_jump_table *jump = NULL;
+
+	if (loc > IXGBE_MAX_HW_ENTRIES)
+		return -EINVAL;
 
 	if ((uhtid != 0x800) && (uhtid >= IXGBE_MAX_LINK_HANDLE))
 		return -EINVAL;
 
-	loc = cls->knode.handle & 0xfffff;
+	/* Clear this filter in the link data it is associated with */
+	if (uhtid != 0x800) {
+		jump = adapter->jump_tables[uhtid];
+		if (jump)
+			clear_bit(loc - 1, jump->child_loc_map);
+	}
+
+	/* Check if the filter being deleted is a link */
+	for (i = 1; i < IXGBE_MAX_LINK_HANDLE; i++) {
+		jump = adapter->jump_tables[i];
+		if (jump && jump->link_hdl == hdl) {
+			/* Delete filters in the hardware in the child hash
+			 * table associated with this link
+			 */
+			for (j = 0; j < IXGBE_MAX_HW_ENTRIES; j++) {
+				if (!test_bit(j, jump->child_loc_map))
+					continue;
+				spin_lock(&adapter->fdir_perfect_lock);
+				err = ixgbe_update_ethtool_fdir_entry(adapter,
+								      NULL,
+								      j + 1);
+				spin_unlock(&adapter->fdir_perfect_lock);
+				clear_bit(j, jump->child_loc_map);
+			}
+			/* Remove resources for this link */
+			kfree(jump->input);
+			kfree(jump->mask);
+			kfree(jump);
+			adapter->jump_tables[i] = NULL;
+			return err;
+		}
+	}
 
 	spin_lock(&adapter->fdir_perfect_lock);
 	err = ixgbe_update_ethtool_fdir_entry(adapter, NULL, loc);
@@ -8541,6 +8577,18 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 		if (!test_bit(link_uhtid - 1, &adapter->tables))
 			return err;
 
+		/* Multiple filters as links to the same hash table are not
+		 * supported. To add a new filter with the same next header
+		 * but different match/jump conditions, create a new hash table
+		 * and link to it.
+		 */
+		if (adapter->jump_tables[link_uhtid] &&
+		    (adapter->jump_tables[link_uhtid])->link_hdl) {
+			e_err(drv, "Link filter exists for link: %x\n",
+			      link_uhtid);
+			return err;
+		}
+
 		for (i = 0; nexthdr[i].jump; i++) {
 			if (nexthdr[i].o != cls->knode.sel->offoff ||
 			    nexthdr[i].s != cls->knode.sel->offshift ||
@@ -8558,10 +8606,12 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 			mask = kzalloc(sizeof(*mask), GFP_KERNEL);
 			if (!mask) {
 				err = -ENOMEM;
-				goto free_input;
+				goto err_out;
 			}
 			jump->input = input;
 			jump->mask = mask;
+			jump->link_hdl = cls->knode.handle;
+
 			err = ixgbe_clsu32_build_input(input, mask, cls,
 						       field_ptr, &nexthdr[i]);
 			if (!err) {
@@ -8579,7 +8629,7 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 	mask = kzalloc(sizeof(*mask), GFP_KERNEL);
 	if (!mask) {
 		err = -ENOMEM;
-		goto free_input;
+		goto err_out;
 	}
 
 	if ((uhtid != 0x800) && (adapter->jump_tables[uhtid])) {
@@ -8620,14 +8670,25 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 		ixgbe_update_ethtool_fdir_entry(adapter, input, input->sw_idx);
 	spin_unlock(&adapter->fdir_perfect_lock);
 
+	if ((uhtid != 0x800) && (adapter->jump_tables[uhtid])) {
+		struct ixgbe_jump_table *link = adapter->jump_tables[uhtid];
+
+		if (test_bit(loc - 1, link->child_loc_map)) {
+			e_err(drv, "Filter: %x exists in hash table: %x\n",
+			      loc, uhtid);
+			err = -EINVAL;
+			goto free_mask;
+		}
+		set_bit(loc - 1, link->child_loc_map);
+	}
 	kfree(mask);
 	return err;
 err_out_w_lock:
 	spin_unlock(&adapter->fdir_perfect_lock);
 err_out:
-	kfree(mask);
-free_input:
 	kfree(input);
+free_mask:
+	kfree(mask);
 free_jump:
 	kfree(jump);
 	return err;
