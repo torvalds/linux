@@ -244,7 +244,12 @@ err_drm_dev_unref:
 
 static void kirin_drm_unbind(struct device *dev)
 {
-	drm_put_dev(dev_get_drvdata(dev));
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	drm_connector_unregister_all(drm_dev);
+	drm_dev_unregister(drm_dev);
+	kirin_drm_kms_cleanup(drm_dev);
+	drm_dev_unref(drm_dev);
 }
 
 static const struct component_master_ops kirin_drm_ops = {
