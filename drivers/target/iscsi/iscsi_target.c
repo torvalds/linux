@@ -904,7 +904,14 @@ static int iscsit_map_iovec(
 	/*
 	 * We know each entry in t_data_sg contains a page.
 	 */
-	sg = &cmd->se_cmd.t_data_sg[data_offset / PAGE_SIZE];
+	u32 ent = data_offset / PAGE_SIZE;
+
+	if (ent >= cmd->se_cmd.t_data_nents) {
+		pr_err("Initial page entry out-of-bounds\n");
+		return -1;
+	}
+
+	sg = &cmd->se_cmd.t_data_sg[ent];
 	page_off = (data_offset % PAGE_SIZE);
 
 	cmd->first_data_sg = sg;
