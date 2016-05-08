@@ -529,6 +529,16 @@ enum {
 };
 #define IFLA_PPP_MAX (__IFLA_PPP_MAX - 1)
 
+/* GTP section */
+enum {
+	IFLA_GTP_UNSPEC,
+	IFLA_GTP_FD0,
+	IFLA_GTP_FD1,
+	IFLA_GTP_PDP_HASHSIZE,
+	__IFLA_GTP_MAX,
+};
+#define IFLA_GTP_MAX (__IFLA_GTP_MAX - 1)
+
 /* Bonding section */
 
 enum {
