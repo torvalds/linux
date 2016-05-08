@@ -1,0 +1,68 @@
+/*
+ * Samsung's Exynos54xx SoC series common device tree source
+ *
+ * Copyright (c) 2012-2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ * Copyright (c) 2016 Krzysztof Kozlowski
+ *
+ * Device nodes common for Samsung Exynos5410/5420/5422/5800. Specific
+ * Exynos 54xx SoCs should include this file and customize it further
+ * (e.g. with clocks).
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "skeleton.dtsi"
+#include "exynos5.dtsi"
+
+/ {
+	compatible = "samsung,exynos5";
+
+	soc: soc {
+		sysram@02020000 {
+			compatible = "mmio-sram";
+			reg = <0x02020000 0x54000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x02020000 0x54000>;
+
+			smp-sysram@0 {
+				compatible = "samsung,exynos4210-sysram";
+				reg = <0x0 0x1000>;
+			};
+
+			smp-sysram@53000 {
+				compatible = "samsung,exynos4210-sysram-ns";
+				reg = <0x53000 0x1000>;
+			};
+		};
+
+		mct: mct@101c0000 {
+			compatible = "samsung,exynos4210-mct";
+			reg = <0x101c0000 0xb00>;
+			interrupt-parent = <&mct_map>;
+			interrupts = <0>, <1>, <2>, <3>, <4>, <5>, <6>, <7>,
+					<8>, <9>, <10>, <11>;
+
+			mct_map: mct-map {
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				#size-cells = <0>;
+				interrupt-map = <0 &combiner 23 3>,
+						<1 &combiner 23 4>,
+						<2 &combiner 25 2>,
+						<3 &combiner 25 3>,
+						<4 &gic 0 120 0>,
+						<5 &gic 0 121 0>,
+						<6 &gic 0 122 0>,
+						<7 &gic 0 123 0>,
+						<8 &gic 0 128 0>,
+						<9 &gic 0 129 0>,
+						<10 &gic 0 130 0>,
+						<11 &gic 0 131 0>;
+			};
+		};
+	};
+};
