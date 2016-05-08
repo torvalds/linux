@@ -1082,12 +1082,6 @@ static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 	return 0;
 }
 
-static inline void stop_urb(struct urb *urb)
-{
-	if (urb && urb->status == -EINPROGRESS)
-		usb_kill_urb(urb);
-}
-
 static void keyspan_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct keyspan_port_private *p_priv = usb_get_serial_port_data(port);
@@ -1114,10 +1108,10 @@ static void keyspan_close(struct usb_serial_port *port)
 	p_priv->out_flip = 0;
 	p_priv->in_flip = 0;
 
-	stop_urb(p_priv->inack_urb);
+	usb_kill_urb(p_priv->inack_urb);
 	for (i = 0; i < 2; i++) {
-		stop_urb(p_priv->in_urbs[i]);
-		stop_urb(p_priv->out_urbs[i]);
+		usb_kill_urb(p_priv->in_urbs[i]);
+		usb_kill_urb(p_priv->out_urbs[i]);
 	}
 }
 
@@ -2365,9 +2359,9 @@ static void keyspan_disconnect(struct usb_serial *serial)
 
 	s_priv = usb_get_serial_data(serial);
 
-	stop_urb(s_priv->instat_urb);
-	stop_urb(s_priv->glocont_urb);
-	stop_urb(s_priv->indat_urb);
+	usb_kill_urb(s_priv->instat_urb);
+	usb_kill_urb(s_priv->glocont_urb);
+	usb_kill_urb(s_priv->indat_urb);
 }
 
 static void keyspan_release(struct usb_serial *serial)
@@ -2495,11 +2489,11 @@ static int keyspan_port_remove(struct usb_serial_port *port)
 
 	p_priv = usb_get_serial_port_data(port);
 
-	stop_urb(p_priv->inack_urb);
-	stop_urb(p_priv->outcont_urb);
+	usb_kill_urb(p_priv->inack_urb);
+	usb_kill_urb(p_priv->outcont_urb);
 	for (i = 0; i < 2; i++) {
-		stop_urb(p_priv->in_urbs[i]);
-		stop_urb(p_priv->out_urbs[i]);
+		usb_kill_urb(p_priv->in_urbs[i]);
+		usb_kill_urb(p_priv->out_urbs[i]);
 	}
 
 	usb_free_urb(p_priv->inack_urb);
