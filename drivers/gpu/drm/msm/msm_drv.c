@@ -237,6 +237,8 @@ static int msm_drm_uninit(struct device *dev)
 
 	component_unbind_all(dev, ddev);
 
+	msm_mdss_destroy(ddev);
+
 	ddev->dev_private = NULL;
 	drm_dev_unref(ddev);
 
@@ -351,6 +353,13 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	ddev->dev_private = priv;
 
+	ret = msm_mdss_init(ddev);
+	if (ret) {
+		kfree(priv);
+		drm_dev_unref(ddev);
+		return ret;
+	}
+
 	priv->wq = alloc_ordered_workqueue("msm", 0);
 	priv->atomic_wq = alloc_ordered_workqueue("msm:atomic", 0);
 	init_waitqueue_head(&priv->pending_crtcs_event);
@@ -365,6 +374,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	/* Bind all our sub-components: */
 	ret = component_bind_all(dev, ddev);
 	if (ret) {
+		msm_mdss_destroy(ddev);
 		kfree(priv);
 		drm_dev_unref(ddev);
 		return ret;
@@ -377,9 +387,10 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	switch (get_mdp_ver(pdev)) {
 	case 4:
 		kms = mdp4_kms_init(ddev);
+		priv->kms = kms;
 		break;
 	case 5:
-		kms = mdp5_kms_init(ddev);
+		kms = mdp5_kms_init2(ddev);
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);
@@ -397,8 +408,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		ret = PTR_ERR(kms);
 		goto fail;
 	}
-
-	priv->kms = kms;
 
 	if (kms) {
 		pm_runtime_enable(dev);
