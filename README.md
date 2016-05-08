@@ -13,16 +13,16 @@ Tüm yerli donanımların dışında, 32-bit x86, Compaq Alpha AXP, Sun SPARC ve
 
 ## Yapılandırma
 
-* "yap config"       Düz metin arayüzü.
-* "yap menuconfig"   Metin tabanlı renkli menü.
-* "yap nconfig"      Gelişmiş metin tabanlı renkli menü.
-* "yap xconfig"      Qt tabanlı yapılandırma aracı.
-* "yap milli"        Milli yapılandırma arayüzü.
+* "make config"       Düz metin arayüzü.
+* "make menuconfig"   Metin tabanlı renkli menü.
+* "make nconfig"      Gelişmiş metin tabanlı renkli menü.
+* "make xconfig"      Qt tabanlı yapılandırma aracı.
+* "make milli"        Milli yapılandırma arayüzü.
 
 ## Derleme
 
-* "yap v=1 all"      Normal derleme.
-* "yap v=1 milli"    Milli derleme.
+* "make v=1 all"      Normal derleme.
+* "make v=1 milli"    Milli derleme.
 
 ## Katkıcılar
 
