@@ -41,8 +41,6 @@
 		spi0 = &spi_0;
 		spi1 = &spi_1;
 		spi2 = &spi_2;
-		usbdrdphy0 = &usbdrd_phy0;
-		usbdrdphy1 = &usbdrd_phy1;
 	};
 
 	/*
@@ -806,98 +804,6 @@
 			clock-names = "secss";
 		};
 
-		usbdrd3_0: usb3-0 {
-			compatible = "samsung,exynos5250-dwusb3";
-			clocks = <&clock CLK_USBD300>;
-			clock-names = "usbdrd30";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
-
-			usbdrd_dwc3_0: dwc3@12000000 {
-				compatible = "snps,dwc3";
-				reg = <0x12000000 0x10000>;
-				interrupts = <0 72 0>;
-				phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
-				phy-names = "usb2-phy", "usb3-phy";
-			};
-		};
-
-		usbdrd_phy0: phy@12100000 {
-			compatible = "samsung,exynos5420-usbdrd-phy";
-			reg = <0x12100000 0x100>;
-			clocks = <&clock CLK_USBD300>, <&clock CLK_SCLK_USBPHY300>;
-			clock-names = "phy", "ref";
-			samsung,pmu-syscon = <&pmu_system_controller>;
-			#phy-cells = <1>;
-		};
-
-		usbdrd3_1: usb3-1 {
-			compatible = "samsung,exynos5250-dwusb3";
-			clocks = <&clock CLK_USBD301>;
-			clock-names = "usbdrd30";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
-
-			usbdrd_dwc3_1: dwc3@12400000 {
-				compatible = "snps,dwc3";
-				reg = <0x12400000 0x10000>;
-				interrupts = <0 73 0>;
-				phys = <&usbdrd_phy1 0>, <&usbdrd_phy1 1>;
-				phy-names = "usb2-phy", "usb3-phy";
-			};
-		};
-
-		usbdrd_phy1: phy@12500000 {
-			compatible = "samsung,exynos5420-usbdrd-phy";
-			reg = <0x12500000 0x100>;
-			clocks = <&clock CLK_USBD301>, <&clock CLK_SCLK_USBPHY301>;
-			clock-names = "phy", "ref";
-			samsung,pmu-syscon = <&pmu_system_controller>;
-			#phy-cells = <1>;
-		};
-
-		usbhost2: usb@12110000 {
-			compatible = "samsung,exynos4210-ehci";
-			reg = <0x12110000 0x100>;
-			interrupts = <0 71 0>;
-
-			clocks = <&clock CLK_USBH20>;
-			clock-names = "usbhost";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				phys = <&usb2_phy 1>;
-			};
-		};
-
-		usbhost1: usb@12120000 {
-			compatible = "samsung,exynos4210-ohci";
-			reg = <0x12120000 0x100>;
-			interrupts = <0 71 0>;
-
-			clocks = <&clock CLK_USBH20>;
-			clock-names = "usbhost";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				phys = <&usb2_phy 1>;
-			};
-		};
-
-		usb2_phy: phy@12130000 {
-			compatible = "samsung,exynos5250-usb2-phy";
-			reg = <0x12130000 0x100>;
-			clocks = <&clock CLK_USBH20>, <&clock CLK_SCLK_USBPHY300>;
-			clock-names = "phy", "ref";
-			#phy-cells = <1>;
-			samsung,sysreg-phandle = <&sysreg_system_controller>;
-			samsung,pmureg-phandle = <&pmu_system_controller>;
-		};
-
 		sysmmu_g2dr: sysmmu@0x10A60000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x10A60000 0x1000>;
@@ -1558,6 +1464,45 @@
 &serial_3 {
 	clocks = <&clock CLK_UART3>, <&clock CLK_SCLK_UART3>;
 	clock-names = "uart", "clk_uart_baud0";
+};
+
+&usbdrd3_0 {
+	clocks = <&clock CLK_USBD300>;
+	clock-names = "usbdrd30";
+};
+
+&usbdrd_phy0 {
+	clocks = <&clock CLK_USBD300>, <&clock CLK_SCLK_USBPHY300>;
+	clock-names = "phy", "ref";
+	samsung,pmu-syscon = <&pmu_system_controller>;
+};
+
+&usbdrd3_1 {
+	clocks = <&clock CLK_USBD301>;
+	clock-names = "usbdrd30";
+};
+
+&usbdrd_phy1 {
+	clocks = <&clock CLK_USBD301>, <&clock CLK_SCLK_USBPHY301>;
+	clock-names = "phy", "ref";
+	samsung,pmu-syscon = <&pmu_system_controller>;
+};
+
+&usbhost1 {
+	clocks = <&clock CLK_USBH20>;
+	clock-names = "usbhost";
+};
+
+&usbhost2 {
+	clocks = <&clock CLK_USBH20>;
+	clock-names = "usbhost";
+};
+
+&usb2_phy {
+	clocks = <&clock CLK_USBH20>, <&clock CLK_SCLK_USBPHY300>;
+	clock-names = "phy", "ref";
+	samsung,sysreg-phandle = <&sysreg_system_controller>;
+	samsung,pmureg-phandle = <&pmu_system_controller>;
 };
 
 #include "exynos5420-pinctrl.dtsi"

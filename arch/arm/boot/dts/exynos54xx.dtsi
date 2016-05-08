@@ -20,6 +20,11 @@
 / {
 	compatible = "samsung,exynos5";
 
+	aliases {
+		usbdrdphy0 = &usbdrd_phy0;
+		usbdrdphy1 = &usbdrd_phy1;
+	};
+
 	soc: soc {
 		sysram@02020000 {
 			compatible = "mmio-sram";
@@ -63,6 +68,80 @@
 						<10 &gic 0 130 0>,
 						<11 &gic 0 131 0>;
 			};
+		};
+
+		usbdrd3_0: usb3-0 {
+			compatible = "samsung,exynos5250-dwusb3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			usbdrd_dwc3_0: dwc3@12000000 {
+				compatible = "snps,dwc3";
+				reg = <0x12000000 0x10000>;
+				interrupts = <0 72 0>;
+				phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
+				phy-names = "usb2-phy", "usb3-phy";
+			};
+		};
+
+		usbdrd_phy0: phy@12100000 {
+			compatible = "samsung,exynos5420-usbdrd-phy";
+			reg = <0x12100000 0x100>;
+			#phy-cells = <1>;
+		};
+
+		usbdrd3_1: usb3-1 {
+			compatible = "samsung,exynos5250-dwusb3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			usbdrd_dwc3_1: dwc3@12400000 {
+				compatible = "snps,dwc3";
+				reg = <0x12400000 0x10000>;
+				interrupts = <0 73 0>;
+				phys = <&usbdrd_phy1 0>, <&usbdrd_phy1 1>;
+				phy-names = "usb2-phy", "usb3-phy";
+			};
+		};
+
+		usbdrd_phy1: phy@12500000 {
+			compatible = "samsung,exynos5420-usbdrd-phy";
+			reg = <0x12500000 0x100>;
+			#phy-cells = <1>;
+		};
+
+		usbhost2: usb@12110000 {
+			compatible = "samsung,exynos4210-ehci";
+			reg = <0x12110000 0x100>;
+			interrupts = <0 71 0>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				phys = <&usb2_phy 1>;
+			};
+		};
+
+		usbhost1: usb@12120000 {
+			compatible = "samsung,exynos4210-ohci";
+			reg = <0x12120000 0x100>;
+			interrupts = <0 71 0>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+				phys = <&usb2_phy 1>;
+			};
+		};
+
+		usb2_phy: phy@12130000 {
+			compatible = "samsung,exynos5250-usb2-phy";
+			reg = <0x12130000 0x100>;
+			#phy-cells = <1>;
 		};
 	};
 };

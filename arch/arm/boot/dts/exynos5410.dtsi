@@ -188,4 +188,43 @@
 		  3 0 0x07000000 0x20000>;
 };
 
+&usbdrd3_0 {
+	clocks = <&clock CLK_USBD300>;
+	clock-names = "usbdrd30";
+};
+
+&usbdrd_phy0 {
+	clocks = <&clock CLK_USBD300>, <&clock CLK_SCLK_USBPHY300>;
+	clock-names = "phy", "ref";
+	samsung,pmu-syscon = <&pmu_system_controller>;
+};
+
+&usbdrd3_1 {
+	clocks = <&clock CLK_USBD301>;
+	clock-names = "usbdrd30";
+};
+
+&usbdrd_phy1 {
+	clocks = <&clock CLK_USBD301>, <&clock CLK_SCLK_USBPHY301>;
+	clock-names = "phy", "ref";
+	samsung,pmu-syscon = <&pmu_system_controller>;
+};
+
+&usbhost1 {
+	clocks = <&clock CLK_USBH20>;
+	clock-names = "usbhost";
+};
+
+&usbhost2 {
+	clocks = <&clock CLK_USBH20>;
+	clock-names = "usbhost";
+};
+
+&usb2_phy {
+	clocks = <&clock CLK_USBH20>, <&clock CLK_SCLK_USBPHY300>;
+	clock-names = "phy", "ref";
+	samsung,sysreg-phandle = <&sysreg_system_controller>;
+	samsung,pmureg-phandle = <&pmu_system_controller>;
+};
+
 #include "exynos5410-pinctrl.dtsi"
