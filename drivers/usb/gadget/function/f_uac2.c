@@ -1291,6 +1291,7 @@ in_rq_cur(struct usb_function *fn, const struct usb_ctrlrequest *cr)
 
 	if (control_selector == UAC2_CS_CONTROL_SAM_FREQ) {
 		struct cntrl_cur_lay3 c;
+		memset(&c, 0, sizeof(struct cntrl_cur_lay3));
 
 		if (entity_id == USB_IN_CLK_ID)
 			c.dCUR = p_srate;
