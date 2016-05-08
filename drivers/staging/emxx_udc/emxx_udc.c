@@ -3051,7 +3051,7 @@ static int nbu2ss_gad_vbus_session(struct usb_gadget *pgadget, int is_active)
 }
 
 /*-------------------------------------------------------------------------*/
-static int nbu2ss_gad_vbus_draw(struct usb_gadget *pgadget, unsigned mA)
+static int nbu2ss_gad_vbus_draw(struct usb_gadget *pgadget, unsigned int mA)
 {
 	struct nbu2ss_udc	*udc;
 	unsigned long		flags;
@@ -3101,7 +3101,7 @@ static int nbu2ss_gad_pullup(struct usb_gadget *pgadget, int is_on)
 /*-------------------------------------------------------------------------*/
 static int nbu2ss_gad_ioctl(
 	struct usb_gadget *pgadget,
-	unsigned code,
+	unsigned int code,
 	unsigned long param)
 {
 	return 0;
