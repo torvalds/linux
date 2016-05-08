@@ -271,7 +271,8 @@ static int socfpga_dwmac_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-SIMPLE_DEV_PM_OPS(socfpga_dwmac_pm_ops, stmmac_suspend, socfpga_dwmac_resume);
+static SIMPLE_DEV_PM_OPS(socfpga_dwmac_pm_ops, stmmac_suspend,
+					       socfpga_dwmac_resume);
 
 static const struct of_device_id socfpga_dwmac_match[] = {
 	{ .compatible = "altr,socfpga-stmmac" },
