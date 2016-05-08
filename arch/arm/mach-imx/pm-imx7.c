@@ -212,7 +212,7 @@ static const u32 imx7d_ddrc_lpddr3_setting[][2] __initconst = {
 	{ 0x1a4, READ_DATA_FROM_HARDWARE },
 	{ 0x1a8, READ_DATA_FROM_HARDWARE },
 	{ 0x64, READ_DATA_FROM_HARDWARE },
-	{ 0xd0, 0xc0350001 },
+	{ 0xd0, READ_DATA_FROM_HARDWARE },
 	{ 0xdc, READ_DATA_FROM_HARDWARE },
 	{ 0xe0, READ_DATA_FROM_HARDWARE },
 	{ 0xe4, READ_DATA_FROM_HARDWARE },
@@ -224,6 +224,7 @@ static const u32 imx7d_ddrc_lpddr3_setting[][2] __initconst = {
 	{ 0x110, READ_DATA_FROM_HARDWARE },
 	{ 0x114, READ_DATA_FROM_HARDWARE },
 	{ 0x118, READ_DATA_FROM_HARDWARE },
+	{ 0x120, READ_DATA_FROM_HARDWARE },
 	{ 0x11c, READ_DATA_FROM_HARDWARE },
 	{ 0x180, READ_DATA_FROM_HARDWARE },
 	{ 0x184, READ_DATA_FROM_HARDWARE },
@@ -231,9 +232,10 @@ static const u32 imx7d_ddrc_lpddr3_setting[][2] __initconst = {
 	{ 0x194, READ_DATA_FROM_HARDWARE },
 	{ 0x200, READ_DATA_FROM_HARDWARE },
 	{ 0x204, READ_DATA_FROM_HARDWARE },
+	{ 0x210, READ_DATA_FROM_HARDWARE },
 	{ 0x214, READ_DATA_FROM_HARDWARE },
 	{ 0x218, READ_DATA_FROM_HARDWARE },
-	{ 0x240, 0x06000601 },
+	{ 0x240, READ_DATA_FROM_HARDWARE },
 	{ 0x244, READ_DATA_FROM_HARDWARE },
 };
 
@@ -242,6 +244,7 @@ static const u32 imx7d_ddrc_phy_lpddr3_setting[][2] __initconst = {
 	{ 0x4, READ_DATA_FROM_HARDWARE },
 	{ 0x8, READ_DATA_FROM_HARDWARE },
 	{ 0x10, READ_DATA_FROM_HARDWARE },
+	{ 0xb0, READ_DATA_FROM_HARDWARE },
 	{ 0x1c, READ_DATA_FROM_HARDWARE },
 	{ 0x9c, READ_DATA_FROM_HARDWARE },
 	{ 0x7c, READ_DATA_FROM_HARDWARE },
@@ -266,8 +269,8 @@ static const u32 imx7d_ddrc_ddr3_setting[][2] __initconst = {
 	{ 0x1a4, READ_DATA_FROM_HARDWARE },
 	{ 0x1a8, READ_DATA_FROM_HARDWARE },
 	{ 0x64, READ_DATA_FROM_HARDWARE },
-	{ 0x490, 0x00000001 },
-	{ 0xd0, 0xc0020001 },
+	{ 0x490, READ_DATA_FROM_HARDWARE },
+	{ 0xd0, READ_DATA_FROM_HARDWARE },
 	{ 0xd4, READ_DATA_FROM_HARDWARE },
 	{ 0xdc, READ_DATA_FROM_HARDWARE },
 	{ 0xe0, READ_DATA_FROM_HARDWARE },
@@ -279,7 +282,7 @@ static const u32 imx7d_ddrc_ddr3_setting[][2] __initconst = {
 	{ 0x10c, READ_DATA_FROM_HARDWARE },
 	{ 0x110, READ_DATA_FROM_HARDWARE },
 	{ 0x114, READ_DATA_FROM_HARDWARE },
-	{ 0x120, 0x03030803 },
+	{ 0x120, READ_DATA_FROM_HARDWARE },
 	{ 0x180, READ_DATA_FROM_HARDWARE },
 	{ 0x190, READ_DATA_FROM_HARDWARE },
 	{ 0x194, READ_DATA_FROM_HARDWARE },
@@ -287,7 +290,7 @@ static const u32 imx7d_ddrc_ddr3_setting[][2] __initconst = {
 	{ 0x204, READ_DATA_FROM_HARDWARE },
 	{ 0x214, READ_DATA_FROM_HARDWARE },
 	{ 0x218, READ_DATA_FROM_HARDWARE },
-	{ 0x240, 0x06000601 },
+	{ 0x240, READ_DATA_FROM_HARDWARE },
 	{ 0x244, READ_DATA_FROM_HARDWARE },
 };
 
@@ -295,6 +298,7 @@ static const u32 imx7d_ddrc_phy_ddr3_setting[][2] __initconst = {
 	{ 0x0, READ_DATA_FROM_HARDWARE },
 	{ 0x4, READ_DATA_FROM_HARDWARE },
 	{ 0x10, READ_DATA_FROM_HARDWARE },
+	{ 0xb0, READ_DATA_FROM_HARDWARE },
 	{ 0x9c, READ_DATA_FROM_HARDWARE },
 	{ 0x7c, READ_DATA_FROM_HARDWARE },
 	{ 0x80, READ_DATA_FROM_HARDWARE },
@@ -1000,6 +1004,9 @@ static int __init imx7_suspend_init(const struct imx7_pm_socdata *socdata)
 				ddrc_offset_array[i][0]);
 		else
 			pm_info->ddrc_val[i][1] = ddrc_offset_array[i][1];
+
+		if (pm_info->ddrc_val[i][0] == 0xd0)
+			pm_info->ddrc_val[i][1] |= 0xc0000000;
 	}
 
 	/* initialize DDRC PHY settings */
