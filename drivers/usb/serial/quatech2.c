@@ -141,6 +141,7 @@ static void qt2_release(struct usb_serial *serial)
 
 	serial_priv = usb_get_serial_data(serial);
 
+	usb_kill_urb(serial_priv->read_urb);
 	usb_free_urb(serial_priv->read_urb);
 	kfree(serial_priv);
 }
