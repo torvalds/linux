@@ -317,6 +317,13 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.match_flags = IEEE1394_MATCH_VERSION,
 		.version     = DICE_INTERFACE,
 	},
+	/* M-Audio Profire 610/2626 has a different value in version field. */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID,
+		.vendor_id	= 0x000d6c,
+		.specifier_id	= 0x000d6c,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(ieee1394, dice_id_table);

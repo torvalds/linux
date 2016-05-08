@@ -184,7 +184,7 @@ Sequence flow for gapless would be:
 - Fill data of the first track
 - Trigger start
 - User-space finished sending all,
-- Indicaite next track data by sending set_next_track
+- Indicate next track data by sending set_next_track
 - Set metadata of the next track
 - then call partial_drain to flush most of buffer in DSP
 - Fill data of the next track

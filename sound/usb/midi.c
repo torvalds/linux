@@ -911,6 +911,7 @@ static void snd_usbmidi_us122l_output(struct snd_usb_midi_out_endpoint *ep,
 	switch (snd_usb_get_speed(ep->umidi->dev)) {
 	case USB_SPEED_HIGH:
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
 		count = 1;
 		break;
 	default:
