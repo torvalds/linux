@@ -19,6 +19,10 @@
 #define CYCLES_PER_SECOND	8000
 #define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
 
+/* Always support Linux tracing subsystem. */
+#define CREATE_TRACE_POINTS
+#include "amdtp-stream-trace.h"
+
 #define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
 
 /* isochronous header parameters */
@@ -409,7 +413,7 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 }
 
 static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
-			     unsigned int syt)
+			     unsigned int cycle, unsigned int syt)
 {
 	__be32 *buffer;
 	unsigned int payload_length;
@@ -428,8 +432,10 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 				(syt & CIP_SYT_MASK));
 
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
-
 	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
+
+	trace_out_packet(s, cycle, buffer, payload_length);
+
 	if (queue_out_packet(s, payload_length, false) < 0)
 		return -EIO;
 
@@ -443,7 +449,8 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 
 static int handle_in_packet(struct amdtp_stream *s,
 			    unsigned int payload_quadlets, __be32 *buffer,
-			    unsigned int *data_blocks, unsigned int syt)
+			    unsigned int *data_blocks, unsigned int cycle,
+			    unsigned int syt)
 {
 	u32 cip_header[2];
 	unsigned int fmt, fdf;
@@ -454,6 +461,8 @@ static int handle_in_packet(struct amdtp_stream *s,
 
 	cip_header[0] = be32_to_cpu(buffer[0]);
 	cip_header[1] = be32_to_cpu(buffer[1]);
+
+	trace_in_packet(s, cycle, cip_header, payload_quadlets);
 
 	/*
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
@@ -595,7 +604,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		syt = calculate_syt(s, cycle);
 		data_blocks = calculate_data_blocks(s, syt);
 
-		if (handle_out_packet(s, data_blocks, syt) < 0) {
+		if (handle_out_packet(s, data_blocks, cycle, syt) < 0) {
 			s->packet_index = -1;
 			amdtp_stream_pcm_abort(s);
 			return;
@@ -647,7 +656,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 		syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
 		if (handle_in_packet(s, payload_quadlets, buffer,
-						&data_blocks, syt) < 0) {
+						&data_blocks, cycle, syt) < 0) {
 			s->packet_index = -1;
 			break;
 		}
@@ -655,7 +664,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		/* Process sync slave stream */
 		if (s->sync_slave && s->sync_slave->callbacked) {
 			if (handle_out_packet(s->sync_slave,
-					      data_blocks, syt) < 0) {
+					      data_blocks, cycle, syt) < 0) {
 				s->packet_index = -1;
 				break;
 			}
