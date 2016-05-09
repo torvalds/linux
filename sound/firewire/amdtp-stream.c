@@ -566,6 +566,13 @@ static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
 	return cycle;
 }
 
+static inline u32 decrement_cycle_count(u32 cycle, unsigned int subtrahend)
+{
+	if (cycle < subtrahend)
+		cycle += 8 * CYCLES_PER_SECOND;
+	return cycle - subtrahend;
+}
+
 static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				size_t header_length, void *header,
 				void *private_data)
@@ -607,6 +614,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	unsigned int payload_quadlets, max_payload_quadlets;
 	unsigned int data_blocks;
 	__be32 *buffer, *headers = header;
+	u32 cycle;
 
 	if (s->packet_index < 0)
 		return;
@@ -614,10 +622,16 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	/* The number of packets in buffer */
 	packets = header_length / IN_PACKET_HEADER_SIZE;
 
+	cycle = compute_cycle_count(tstamp);
+
+	/* Align to actual cycle count for the last packet. */
+	cycle = decrement_cycle_count(cycle, packets);
+
 	/* For buffer-over-run prevention. */
 	max_payload_quadlets = amdtp_stream_get_max_payload(s) / 4;
 
 	for (p = 0; p < packets; p++) {
+		cycle = increment_cycle_count(cycle, 1);
 		buffer = s->buffer.packets[s->packet_index].buffer;
 
 		/* The number of quadlets in this packet */
