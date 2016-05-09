@@ -20,6 +20,15 @@ Required properties for power domain sub nodes:
 	"include/dt-bindings/power/rk3399-power.h" - for RK3399 type power domain.
 - clocks (optional): phandles to clocks which need to be enabled while power domain
 	switches state.
+- pm_qos (optional): phandles to qos blocks which need to be saved and restored
+	while power domain switches state.
+
+Qos Example:
+
+	qos_gpu: qos_gpu@ffaf0000 {
+		compatible ="syscon";
+		reg = <0x0 0xffaf0000 0x0 0x20>;
+	};
 
 Example:
 
@@ -32,6 +41,7 @@ Example:
 		pd_gpu {
 			reg = <RK3288_PD_GPU>;
 			clocks = <&cru ACLK_GPU>;
+			pm_qos = <&qos_gpu>;
 		};
 	};
 
