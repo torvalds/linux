@@ -804,6 +804,7 @@ static const struct gpbridge_device_id gb_uart_id_table[] = {
 	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_UART) },
 	{ },
 };
+MODULE_DEVICE_TABLE(gpbridge, gb_uart_id_table);
 
 static struct gpbridge_driver uart_driver = {
 	.name		= "uart",
@@ -812,7 +813,7 @@ static struct gpbridge_driver uart_driver = {
 	.id_table	= gb_uart_id_table,
 };
 
-int gb_uart_driver_init(void)
+static int gb_uart_driver_init(void)
 {
 	int ret;
 
@@ -828,9 +829,13 @@ int gb_uart_driver_init(void)
 
 	return 0;
 }
+module_init(gb_uart_driver_init);
 
-void gb_uart_driver_exit(void)
+static void gb_uart_driver_exit(void)
 {
 	gb_gpbridge_deregister(&uart_driver);
 	gb_tty_exit();
 }
+
+module_exit(gb_uart_driver_exit);
+MODULE_LICENSE("GPL v2");

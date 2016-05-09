@@ -15,7 +15,6 @@ greybus-y :=	core.o		\
 		legacy.o
 
 gb-phy-y :=	gpbridge.o	\
-		uart.o	\
 		usb.o
 
 # Prefix all modules with gb-
@@ -37,6 +36,7 @@ gb-camera-y := camera.o
 gb-firmware-y := fw-core.o fw-download.o
 gb-spi-y := spi.o
 gb-sdio-y := sdio.o
+gb-uart-y := uart.o
 gb-pwm-y := pwm.o
 gb-gpio-y := gpio.o
 gb-i2c-y := i2c.o
@@ -64,6 +64,7 @@ obj-m += gb-audio-manager.o
 obj-m += gb-firmware.o
 obj-m += gb-spi.o
 obj-m += gb-sdio.o
+obj-m += gb-uart.o
 obj-m += gb-pwm.o
 obj-m += gb-gpio.o
 obj-m += gb-i2c.o
