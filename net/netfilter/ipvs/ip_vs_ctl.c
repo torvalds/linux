@@ -567,6 +567,36 @@ bool ip_vs_has_real_service(struct netns_ipvs *ipvs, int af, __u16 protocol,
 	return false;
 }
 
+/* Find real service record by <proto,addr,port>.
+ * In case of multiple records with the same <proto,addr,port>, only
+ * the first found record is returned.
+ *
+ * To be called under RCU lock.
+ */
+struct ip_vs_dest *ip_vs_find_real_service(struct netns_ipvs *ipvs, int af,
+					   __u16 protocol,
+					   const union nf_inet_addr *daddr,
+					   __be16 dport)
+{
+	unsigned int hash;
+	struct ip_vs_dest *dest;
+
+	/* Check for "full" addressed entries */
+	hash = ip_vs_rs_hashkey(af, daddr, dport);
+
+	hlist_for_each_entry_rcu(dest, &ipvs->rs_table[hash], d_list) {
+		if (dest->port == dport &&
+		    dest->af == af &&
+		    ip_vs_addr_equal(af, &dest->addr, daddr) &&
+			(dest->protocol == protocol || dest->vfwmark)) {
+			/* HIT */
+			return dest;
+		}
+	}
+
+	return NULL;
+}
+
 /* Lookup destination by {addr,port} in the given service
  * Called under RCU lock.
  */
@@ -1253,6 +1283,8 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		atomic_inc(&ipvs->ftpsvc_counter);
 	else if (svc->port == 0)
 		atomic_inc(&ipvs->nullsvc_counter);
+	if (svc->pe && svc->pe->conn_out)
+		atomic_inc(&ipvs->conn_out_counter);
 
 	ip_vs_start_estimator(ipvs, &svc->stats);
 
@@ -1293,6 +1325,7 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	struct ip_vs_scheduler *sched = NULL, *old_sched;
 	struct ip_vs_pe *pe = NULL, *old_pe = NULL;
 	int ret = 0;
+	bool new_pe_conn_out, old_pe_conn_out;
 
 	/*
 	 * Lookup the scheduler, by 'u->sched_name'
@@ -1355,8 +1388,16 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	svc->netmask = u->netmask;
 
 	old_pe = rcu_dereference_protected(svc->pe, 1);
-	if (pe != old_pe)
+	if (pe != old_pe) {
 		rcu_assign_pointer(svc->pe, pe);
+		/* check for optional methods in new pe */
+		new_pe_conn_out = (pe && pe->conn_out) ? true : false;
+		old_pe_conn_out = (old_pe && old_pe->conn_out) ? true : false;
+		if (new_pe_conn_out && !old_pe_conn_out)
+			atomic_inc(&svc->ipvs->conn_out_counter);
+		if (old_pe_conn_out && !new_pe_conn_out)
+			atomic_dec(&svc->ipvs->conn_out_counter);
+	}
 
 out:
 	ip_vs_scheduler_put(old_sched);
@@ -1389,6 +1430,8 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 
 	/* Unbind persistence engine, keep svc->pe */
 	old_pe = rcu_dereference_protected(svc->pe, 1);
+	if (old_pe && old_pe->conn_out)
+		atomic_dec(&ipvs->conn_out_counter);
 	ip_vs_pe_put(old_pe);
 
 	/*
@@ -3969,6 +4012,7 @@ int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 		    (unsigned long) ipvs);
 	atomic_set(&ipvs->ftpsvc_counter, 0);
 	atomic_set(&ipvs->nullsvc_counter, 0);
+	atomic_set(&ipvs->conn_out_counter, 0);
 
 	/* procfs stats */
 	ipvs->tot_stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);

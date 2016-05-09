@@ -303,7 +303,7 @@ void nft_unregister_set(struct nft_set_ops *ops);
 struct nft_set {
 	struct list_head		list;
 	struct list_head		bindings;
-	char				name[IFNAMSIZ];
+	char				name[NFT_SET_MAXNAMELEN];
 	u32				ktype;
 	u32				dtype;
 	u32				size;

@@ -29,6 +29,17 @@ struct nft_rbtree_elem {
 	struct nft_set_ext	ext;
 };
 
+static bool nft_rbtree_interval_end(const struct nft_rbtree_elem *rbe)
+{
+	return nft_set_ext_exists(&rbe->ext, NFT_SET_EXT_FLAGS) &&
+	       (*nft_set_ext_flags(&rbe->ext) & NFT_SET_ELEM_INTERVAL_END);
+}
+
+static bool nft_rbtree_equal(const struct nft_set *set, const void *this,
+			     const struct nft_rbtree_elem *interval)
+{
+	return memcmp(this, nft_set_ext_key(&interval->ext), set->klen) == 0;
+}
 
 static bool nft_rbtree_lookup(const struct nft_set *set, const u32 *key,
 			      const struct nft_set_ext **ext)
@@ -37,6 +48,7 @@ static bool nft_rbtree_lookup(const struct nft_set *set, const u32 *key,
 	const struct nft_rbtree_elem *rbe, *interval = NULL;
 	const struct rb_node *parent;
 	u8 genmask = nft_genmask_cur(read_pnet(&set->pnet));
+	const void *this;
 	int d;
 
 	spin_lock_bh(&nft_rbtree_lock);
@@ -44,9 +56,16 @@ static bool nft_rbtree_lookup(const struct nft_set *set, const u32 *key,
 	while (parent != NULL) {
 		rbe = rb_entry(parent, struct nft_rbtree_elem, node);
 
-		d = memcmp(nft_set_ext_key(&rbe->ext), key, set->klen);
+		this = nft_set_ext_key(&rbe->ext);
+		d = memcmp(this, key, set->klen);
 		if (d < 0) {
 			parent = parent->rb_left;
+			/* In case of adjacent ranges, we always see the high
+			 * part of the range in first place, before the low one.
+			 * So don't update interval if the keys are equal.
+			 */
+			if (interval && nft_rbtree_equal(set, this, interval))
+				continue;
 			interval = rbe;
 		} else if (d > 0)
 			parent = parent->rb_right;
@@ -56,9 +75,7 @@ found:
 				parent = parent->rb_left;
 				continue;
 			}
-			if (nft_set_ext_exists(&rbe->ext, NFT_SET_EXT_FLAGS) &&
-			    *nft_set_ext_flags(&rbe->ext) &
-			    NFT_SET_ELEM_INTERVAL_END)
+			if (nft_rbtree_interval_end(rbe))
 				goto out;
 			spin_unlock_bh(&nft_rbtree_lock);
 
@@ -98,9 +115,16 @@ static int __nft_rbtree_insert(const struct nft_set *set,
 		else if (d > 0)
 			p = &parent->rb_right;
 		else {
-			if (nft_set_elem_active(&rbe->ext, genmask))
-				return -EEXIST;
-			p = &parent->rb_left;
+			if (nft_set_elem_active(&rbe->ext, genmask)) {
+				if (nft_rbtree_interval_end(rbe) &&
+				    !nft_rbtree_interval_end(new))
+					p = &parent->rb_left;
+				else if (!nft_rbtree_interval_end(rbe) &&
+					 nft_rbtree_interval_end(new))
+					p = &parent->rb_right;
+				else
+					return -EEXIST;
+			}
 		}
 	}
 	rb_link_node(&new->node, parent, p);
@@ -145,7 +169,7 @@ static void *nft_rbtree_deactivate(const struct nft_set *set,
 {
 	const struct nft_rbtree *priv = nft_set_priv(set);
 	const struct rb_node *parent = priv->root.rb_node;
-	struct nft_rbtree_elem *rbe;
+	struct nft_rbtree_elem *rbe, *this = elem->priv;
 	u8 genmask = nft_genmask_cur(read_pnet(&set->pnet));
 	int d;
 
@@ -161,6 +185,15 @@ static void *nft_rbtree_deactivate(const struct nft_set *set,
 		else {
 			if (!nft_set_elem_active(&rbe->ext, genmask)) {
 				parent = parent->rb_left;
+				continue;
+			}
+			if (nft_rbtree_interval_end(rbe) &&
+			    !nft_rbtree_interval_end(this)) {
+				parent = parent->rb_left;
+				continue;
+			} else if (!nft_rbtree_interval_end(rbe) &&
+				   nft_rbtree_interval_end(this)) {
+				parent = parent->rb_right;
 				continue;
 			}
 			nft_set_elem_change_active(set, &rbe->ext);

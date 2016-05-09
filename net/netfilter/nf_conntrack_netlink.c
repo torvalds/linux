@@ -824,19 +824,22 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	last = (struct nf_conn *)cb->args[1];
 
 	local_bh_disable();
-	for (; cb->args[0] < net->ct.htable_size; cb->args[0]++) {
+	for (; cb->args[0] < nf_conntrack_htable_size; cb->args[0]++) {
 restart:
 		lockp = &nf_conntrack_locks[cb->args[0] % CONNTRACK_LOCKS];
 		nf_conntrack_lock(lockp);
-		if (cb->args[0] >= net->ct.htable_size) {
+		if (cb->args[0] >= nf_conntrack_htable_size) {
 			spin_unlock(lockp);
 			goto out;
 		}
-		hlist_nulls_for_each_entry(h, n, &net->ct.hash[cb->args[0]],
-					 hnnode) {
+		hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[cb->args[0]],
+					   hnnode) {
 			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
+			if (!net_eq(net, nf_ct_net(ct)))
+				continue;
+
 			/* Dump entries of a given L3 protocol number.
 			 * If it is not specified, ie. l3proto == 0,
 			 * then dump everything. */
@@ -2629,10 +2632,14 @@ ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	last = (struct nf_conntrack_expect *)cb->args[1];
 	for (; cb->args[0] < nf_ct_expect_hsize; cb->args[0]++) {
 restart:
-		hlist_for_each_entry(exp, &net->ct.expect_hash[cb->args[0]],
+		hlist_for_each_entry(exp, &nf_ct_expect_hash[cb->args[0]],
 				     hnode) {
 			if (l3proto && exp->tuple.src.l3num != l3proto)
 				continue;
+
+			if (!net_eq(nf_ct_net(exp->master), net))
+				continue;
+
 			if (cb->args[1]) {
 				if (exp != last)
 					continue;
@@ -2883,8 +2890,12 @@ static int ctnetlink_del_expect(struct net *net, struct sock *ctnl,
 		spin_lock_bh(&nf_conntrack_expect_lock);
 		for (i = 0; i < nf_ct_expect_hsize; i++) {
 			hlist_for_each_entry_safe(exp, next,
-						  &net->ct.expect_hash[i],
+						  &nf_ct_expect_hash[i],
 						  hnode) {
+
+				if (!net_eq(nf_ct_exp_net(exp), net))
+					continue;
+
 				m_help = nfct_help(exp->master);
 				if (!strcmp(m_help->helper->name, name) &&
 				    del_timer(&exp->timeout)) {
@@ -2901,8 +2912,12 @@ static int ctnetlink_del_expect(struct net *net, struct sock *ctnl,
 		spin_lock_bh(&nf_conntrack_expect_lock);
 		for (i = 0; i < nf_ct_expect_hsize; i++) {
 			hlist_for_each_entry_safe(exp, next,
-						  &net->ct.expect_hash[i],
+						  &nf_ct_expect_hash[i],
 						  hnode) {
+
+				if (!net_eq(nf_ct_exp_net(exp), net))
+					continue;
+
 				if (del_timer(&exp->timeout)) {
 					nf_ct_unlink_expect_report(exp,
 							NETLINK_CB(skb).portid,
