@@ -173,7 +173,7 @@ int mv88e6xxx_reg_write(struct mv88e6xxx_priv_state *ps, int addr,
 	return ret;
 }
 
-int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr)
+static int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int err;
@@ -192,7 +192,7 @@ int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr)
 				   (addr[4] << 8) | addr[5]);
 }
 
-int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr)
+static int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
@@ -223,6 +223,16 @@ int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr)
 	}
 
 	return 0;
+}
+
+int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_SWITCH_MAC))
+		return mv88e6xxx_set_addr_indirect(ds, addr);
+	else
+		return mv88e6xxx_set_addr_direct(ds, addr);
 }
 
 static int _mv88e6xxx_phy_read(struct mv88e6xxx_priv_state *ps, int addr,

@@ -367,6 +367,13 @@ enum mv88e6xxx_cap {
 	 */
 	MV88E6XXX_CAP_SMI_PHY,
 
+	/* Switch MAC/WoL/WoF register.
+	 * This requires an indirect access to set the switch MAC address
+	 * through GLOBAL2_SWITCH_MAC, otherwise GLOBAL_MAC_01, GLOBAL_MAC_23,
+	 * and GLOBAL_MAC_45 are used with a direct access.
+	 */
+	MV88E6XXX_CAP_SWITCH_MAC_WOL_WOF,
+
 	/* Internal temperature sensor.
 	 * Available from any enabled port's PHY register 26, page 6.
 	 */
@@ -378,6 +385,7 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_EEPROM		BIT(MV88E6XXX_CAP_EEPROM)
 #define MV88E6XXX_FLAG_PPU		BIT(MV88E6XXX_CAP_PPU)
 #define MV88E6XXX_FLAG_SMI_PHY		BIT(MV88E6XXX_CAP_SMI_PHY)
+#define MV88E6XXX_FLAG_SWITCH_MAC	BIT(MV88E6XXX_CAP_SWITCH_MAC_WOL_WOF)
 #define MV88E6XXX_FLAG_TEMP		BIT(MV88E6XXX_CAP_TEMP)
 #define MV88E6XXX_FLAG_TEMP_LIMIT	BIT(MV88E6XXX_CAP_TEMP_LIMIT)
 
@@ -388,7 +396,8 @@ enum mv88e6xxx_cap {
 	MV88E6XXX_FLAG_PPU
 
 #define MV88E6XXX_FLAGS_FAMILY_6165	\
-	MV88E6XXX_FLAG_TEMP
+	(MV88E6XXX_FLAG_SWITCH_MAC |	\
+	 MV88E6XXX_FLAG_TEMP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6185	\
 	MV88E6XXX_FLAG_PPU
@@ -396,16 +405,19 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAGS_FAMILY_6320	\
 	(MV88E6XXX_FLAG_EEPROM |	\
 	 MV88E6XXX_FLAG_SMI_PHY |	\
+	 MV88E6XXX_FLAG_SWITCH_MAC |	\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
 	(MV88E6XXX_FLAG_SMI_PHY |	\
+	 MV88E6XXX_FLAG_SWITCH_MAC |	\
 	 MV88E6XXX_FLAG_TEMP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6352	\
 	(MV88E6XXX_FLAG_EEPROM |	\
 	 MV88E6XXX_FLAG_SMI_PHY	|	\
+	 MV88E6XXX_FLAG_SWITCH_MAC |	\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT)
 
@@ -525,8 +537,7 @@ int mv88e6xxx_setup_global(struct dsa_switch *ds);
 int mv88e6xxx_reg_read(struct mv88e6xxx_priv_state *ps, int addr, int reg);
 int mv88e6xxx_reg_write(struct mv88e6xxx_priv_state *ps, int addr,
 			int reg, u16 val);
-int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr);
-int mv88e6xxx_set_addr_indirect(struct dsa_switch *ds, u8 *addr);
+int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr);
 int mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum);
 int mv88e6xxx_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val);
 void mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data);
