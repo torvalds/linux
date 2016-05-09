@@ -1789,7 +1789,7 @@ static int usdhi6_probe(struct platform_device *pdev)
 	/* Set .max_segs to some random number. Feel free to adjust. */
 	mmc->max_segs = 32;
 	mmc->max_blk_size = 512;
-	mmc->max_req_size = PAGE_CACHE_SIZE * mmc->max_segs;
+	mmc->max_req_size = PAGE_SIZE * mmc->max_segs;
 	mmc->max_blk_count = mmc->max_req_size / mmc->max_blk_size;
 	/*
 	 * Setting .max_seg_size to 1 page would simplify our page-mapping code,

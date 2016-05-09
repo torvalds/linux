@@ -1143,7 +1143,7 @@ next:
 	} while (!first_pte_in_page(++pte) && pfn <= last_pfn);
 }
 
-/* free page table pages. last level pte should already be cleared */
+/* clear last level (leaf) ptes and free page table pages. */
 static void dma_pte_free_pagetable(struct dmar_domain *domain,
 				   unsigned long start_pfn,
 				   unsigned long last_pfn)
@@ -2458,7 +2458,7 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 	}
 
 	/* register PCI DMA alias device */
-	if (req_id != dma_alias && dev_is_pci(dev)) {
+	if (dev_is_pci(dev) && req_id != dma_alias) {
 		tmp = dmar_insert_one_dev_info(iommu, PCI_BUS_NUM(dma_alias),
 					       dma_alias & 0xff, NULL, domain);
 

@@ -3502,8 +3502,6 @@ returnbi:
 				dev = &sh->dev[i];
 			} else if (test_bit(R5_Discard, &dev->flags))
 				discard_pending = 1;
-			WARN_ON(test_bit(R5_SkipCopy, &dev->flags));
-			WARN_ON(dev->page != dev->orig_page);
 		}
 
 	r5l_stripe_write_finished(sh);

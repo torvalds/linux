@@ -136,7 +136,7 @@ static ssize_t iotlb_dump_cr(struct omap_iommu *obj, struct cr_regs *cr,
 			     struct seq_file *s)
 {
 	seq_printf(s, "%08x %08x %01x\n", cr->cam, cr->ram,
-			  (cr->cam & MMU_CAM_P) ? 1 : 0);
+		   (cr->cam & MMU_CAM_P) ? 1 : 0);
 	return 0;
 }
 

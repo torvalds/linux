@@ -414,11 +414,11 @@ static noinline int btrfs_copy_from_user(loff_t pos, size_t write_bytes,
 	size_t copied = 0;
 	size_t total_copied = 0;
 	int pg = 0;
-	int offset = pos & (PAGE_CACHE_SIZE - 1);
+	int offset = pos & (PAGE_SIZE - 1);
 
 	while (write_bytes > 0) {
 		size_t count = min_t(size_t,
-				     PAGE_CACHE_SIZE - offset, write_bytes);
+				     PAGE_SIZE - offset, write_bytes);
 		struct page *page = prepared_pages[pg];
 		/*
 		 * Copy data from userspace to the current page
@@ -448,7 +448,7 @@ static noinline int btrfs_copy_from_user(loff_t pos, size_t write_bytes,
 		if (unlikely(copied == 0))
 			break;
 
-		if (copied < PAGE_CACHE_SIZE - offset) {
+		if (copied < PAGE_SIZE - offset) {
 			offset += copied;
 		} else {
 			pg++;
@@ -473,7 +473,7 @@ static void btrfs_drop_pages(struct page **pages, size_t num_pages)
 		 */
 		ClearPageChecked(pages[i]);
 		unlock_page(pages[i]);
-		page_cache_release(pages[i]);
+		put_page(pages[i]);
 	}
 }
 
@@ -1297,7 +1297,7 @@ static int prepare_uptodate_page(struct inode *inode,
 {
 	int ret = 0;
 
-	if (((pos & (PAGE_CACHE_SIZE - 1)) || force_uptodate) &&
+	if (((pos & (PAGE_SIZE - 1)) || force_uptodate) &&
 	    !PageUptodate(page)) {
 		ret = btrfs_readpage(NULL, page);
 		if (ret)
@@ -1323,7 +1323,7 @@ static noinline int prepare_pages(struct inode *inode, struct page **pages,
 				  size_t write_bytes, bool force_uptodate)
 {
 	int i;
-	unsigned long index = pos >> PAGE_CACHE_SHIFT;
+	unsigned long index = pos >> PAGE_SHIFT;
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	int err = 0;
 	int faili;
@@ -1345,7 +1345,7 @@ again:
 			err = prepare_uptodate_page(inode, pages[i],
 						    pos + write_bytes, false);
 		if (err) {
-			page_cache_release(pages[i]);
+			put_page(pages[i]);
 			if (err == -EAGAIN) {
 				err = 0;
 				goto again;
@@ -1360,7 +1360,7 @@ again:
 fail:
 	while (faili >= 0) {
 		unlock_page(pages[faili]);
-		page_cache_release(pages[faili]);
+		put_page(pages[faili]);
 		faili--;
 	}
 	return err;
@@ -1408,7 +1408,7 @@ lock_and_cleanup_extent_if_need(struct inode *inode, struct page **pages,
 					     cached_state, GFP_NOFS);
 			for (i = 0; i < num_pages; i++) {
 				unlock_page(pages[i]);
-				page_cache_release(pages[i]);
+				put_page(pages[i]);
 			}
 			btrfs_start_ordered_extent(inode, ordered, 1);
 			btrfs_put_ordered_extent(ordered);
@@ -1497,8 +1497,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	bool force_page_uptodate = false;
 	bool need_unlock;
 
-	nrptrs = min(DIV_ROUND_UP(iov_iter_count(i), PAGE_CACHE_SIZE),
-			PAGE_CACHE_SIZE / (sizeof(struct page *)));
+	nrptrs = min(DIV_ROUND_UP(iov_iter_count(i), PAGE_SIZE),
+			PAGE_SIZE / (sizeof(struct page *)));
 	nrptrs = min(nrptrs, current->nr_dirtied_pause - current->nr_dirtied);
 	nrptrs = max(nrptrs, 8);
 	pages = kmalloc_array(nrptrs, sizeof(struct page *), GFP_KERNEL);
@@ -1506,13 +1506,13 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		return -ENOMEM;
 
 	while (iov_iter_count(i) > 0) {
-		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
+		size_t offset = pos & (PAGE_SIZE - 1);
 		size_t sector_offset;
 		size_t write_bytes = min(iov_iter_count(i),
-					 nrptrs * (size_t)PAGE_CACHE_SIZE -
+					 nrptrs * (size_t)PAGE_SIZE -
 					 offset);
 		size_t num_pages = DIV_ROUND_UP(write_bytes + offset,
-						PAGE_CACHE_SIZE);
+						PAGE_SIZE);
 		size_t reserve_bytes;
 		size_t dirty_pages;
 		size_t copied;
@@ -1547,7 +1547,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 			 * write_bytes, so scale down.
 			 */
 			num_pages = DIV_ROUND_UP(write_bytes + offset,
-						 PAGE_CACHE_SIZE);
+						 PAGE_SIZE);
 			reserve_bytes = round_up(write_bytes + sector_offset,
 					root->sectorsize);
 			goto reserve_metadata;
@@ -1609,7 +1609,7 @@ again:
 		} else {
 			force_page_uptodate = false;
 			dirty_pages = DIV_ROUND_UP(copied + offset,
-						   PAGE_CACHE_SIZE);
+						   PAGE_SIZE);
 		}
 
 		/*
@@ -1641,7 +1641,7 @@ again:
 				u64 __pos;
 
 				__pos = round_down(pos, root->sectorsize) +
-					(dirty_pages << PAGE_CACHE_SHIFT);
+					(dirty_pages << PAGE_SHIFT);
 				btrfs_delalloc_release_space(inode, __pos,
 							     release_bytes);
 			}
@@ -1682,7 +1682,7 @@ again:
 		cond_resched();
 
 		balance_dirty_pages_ratelimited(inode->i_mapping);
-		if (dirty_pages < (root->nodesize >> PAGE_CACHE_SHIFT) + 1)
+		if (dirty_pages < (root->nodesize >> PAGE_SHIFT) + 1)
 			btrfs_btree_balance_dirty(root);
 
 		pos += copied;
@@ -1738,8 +1738,8 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 		goto out;
 	written += written_buffered;
 	iocb->ki_pos = pos + written_buffered;
-	invalidate_mapping_pages(file->f_mapping, pos >> PAGE_CACHE_SHIFT,
-				 endbyte >> PAGE_CACHE_SHIFT);
+	invalidate_mapping_pages(file->f_mapping, pos >> PAGE_SHIFT,
+				 endbyte >> PAGE_SHIFT);
 out:
 	return written ? written : err;
 }
@@ -1905,7 +1905,7 @@ static int start_ordered_ops(struct inode *inode, loff_t start, loff_t end)
  */
 int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct dentry *dentry = file->f_path.dentry;
+	struct dentry *dentry = file_dentry(file);
 	struct inode *inode = d_inode(dentry);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
@@ -2682,9 +2682,12 @@ static long btrfs_fallocate(struct file *file, int mode,
 		return ret;
 
 	inode_lock(inode);
-	ret = inode_newsize_ok(inode, alloc_end);
-	if (ret)
-		goto out;
+
+	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size) {
+		ret = inode_newsize_ok(inode, offset + len);
+		if (ret)
+			goto out;
+	}
 
 	/*
 	 * TODO: Move these two operations after we have checked

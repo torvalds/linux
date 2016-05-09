@@ -5680,11 +5680,12 @@ static int b43_bcma_probe(struct bcma_device *core)
 	INIT_WORK(&wl->firmware_load, b43_request_firmware);
 	schedule_work(&wl->firmware_load);
 
-bcma_out:
 	return err;
 
 bcma_err_wireless_exit:
 	ieee80211_free_hw(wl->hw);
+bcma_out:
+	kfree(dev);
 	return err;
 }
 
@@ -5712,8 +5713,8 @@ static void b43_bcma_remove(struct bcma_device *core)
 	b43_rng_exit(wl);
 
 	b43_leds_unregister(wl);
-
 	ieee80211_free_hw(wl->hw);
+	kfree(wldev->dev);
 }
 
 static struct bcma_driver b43_bcma_driver = {
@@ -5796,6 +5797,7 @@ static void b43_ssb_remove(struct ssb_device *sdev)
 
 	b43_leds_unregister(wl);
 	b43_wireless_exit(dev, wl);
+	kfree(dev);
 }
 
 static struct ssb_driver b43_ssb_driver = {

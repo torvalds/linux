@@ -919,14 +919,14 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 #endif
 	}
 
-	ret = udf_CS0toUTF8(outstr, 31, pvoldesc->volIdent, 32);
+	ret = udf_dstrCS0toUTF8(outstr, 31, pvoldesc->volIdent, 32);
 	if (ret < 0)
 		goto out_bh;
 
 	strncpy(UDF_SB(sb)->s_volume_ident, outstr, ret);
 	udf_debug("volIdent[] = '%s'\n", UDF_SB(sb)->s_volume_ident);
 
-	ret = udf_CS0toUTF8(outstr, 127, pvoldesc->volSetIdent, 128);
+	ret = udf_dstrCS0toUTF8(outstr, 127, pvoldesc->volSetIdent, 128);
 	if (ret < 0)
 		goto out_bh;
 

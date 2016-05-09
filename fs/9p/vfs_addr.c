@@ -153,7 +153,7 @@ static void v9fs_invalidate_page(struct page *page, unsigned int offset,
 	 * If called with zero offset, we should release
 	 * the private state assocated with the page
 	 */
-	if (offset == 0 && length == PAGE_CACHE_SIZE)
+	if (offset == 0 && length == PAGE_SIZE)
 		v9fs_fscache_invalidate_page(page);
 }
 
@@ -166,10 +166,10 @@ static int v9fs_vfs_writepage_locked(struct page *page)
 	struct bio_vec bvec;
 	int err, len;
 
-	if (page->index == size >> PAGE_CACHE_SHIFT)
-		len = size & ~PAGE_CACHE_MASK;
+	if (page->index == size >> PAGE_SHIFT)
+		len = size & ~PAGE_MASK;
 	else
-		len = PAGE_CACHE_SIZE;
+		len = PAGE_SIZE;
 
 	bvec.bv_page = page;
 	bvec.bv_offset = 0;
@@ -271,7 +271,7 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 	int retval = 0;
 	struct page *page;
 	struct v9fs_inode *v9inode;
-	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	pgoff_t index = pos >> PAGE_SHIFT;
 	struct inode *inode = mapping->host;
 
 
@@ -288,11 +288,11 @@ start:
 	if (PageUptodate(page))
 		goto out;
 
-	if (len == PAGE_CACHE_SIZE)
+	if (len == PAGE_SIZE)
 		goto out;
 
 	retval = v9fs_fid_readpage(v9inode->writeback_fid, page);
-	page_cache_release(page);
+	put_page(page);
 	if (!retval)
 		goto start;
 out:
@@ -313,7 +313,7 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 		/*
 		 * zero out the rest of the area
 		 */
-		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+		unsigned from = pos & (PAGE_SIZE - 1);
 
 		zero_user(page, from + copied, len - copied);
 		flush_dcache_page(page);
@@ -331,7 +331,7 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 	}
 	set_page_dirty(page);
 	unlock_page(page);
-	page_cache_release(page);
+	put_page(page);
 
 	return copied;
 }
