@@ -1582,9 +1582,16 @@ balance:
 	 * One idle CPU per node is evaluated for a task numa move.
 	 * Call select_idle_sibling to maybe find a better one.
 	 */
-	if (!cur)
+	if (!cur) {
+		/*
+		 * select_idle_siblings() uses an per-cpu cpumask that
+		 * can be used from IRQ context.
+		 */
+		local_irq_disable();
 		env->dst_cpu = select_idle_sibling(env->p, env->src_cpu,
 						   env->dst_cpu);
+		local_irq_enable();
+	}
 
 assign:
 	task_numa_assign(env, cur, imp);
@@ -4616,6 +4623,11 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 }
 
 #ifdef CONFIG_SMP
+
+/* Working cpumask for: load_balance, load_balance_newidle. */
+DEFINE_PER_CPU(cpumask_var_t, load_balance_mask);
+DEFINE_PER_CPU(cpumask_var_t, select_idle_mask);
+
 #ifdef CONFIG_NO_HZ_COMMON
 /*
  * per rq 'load' arrray crap; XXX kill this.
@@ -5280,65 +5292,231 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 }
 
 /*
- * Try and locate an idle CPU in the sched_domain.
+ * Implement a for_each_cpu() variant that starts the scan at a given cpu
+ * (@start), and wraps around.
+ *
+ * This is used to scan for idle CPUs; such that not all CPUs looking for an
+ * idle CPU find the same CPU. The down-side is that tasks tend to cycle
+ * through the LLC domain.
+ *
+ * Especially tbench is found sensitive to this.
+ */
+
+static int cpumask_next_wrap(int n, const struct cpumask *mask, int start, int *wrapped)
+{
+	int next;
+
+again:
+	next = find_next_bit(cpumask_bits(mask), nr_cpumask_bits, n+1);
+
+	if (*wrapped) {
+		if (next >= start)
+			return nr_cpumask_bits;
+	} else {
+		if (next >= nr_cpumask_bits) {
+			*wrapped = 1;
+			n = -1;
+			goto again;
+		}
+	}
+
+	return next;
+}
+
+#define for_each_cpu_wrap(cpu, mask, start, wrap)				\
+	for ((wrap) = 0, (cpu) = (start)-1;					\
+		(cpu) = cpumask_next_wrap((cpu), (mask), (start), &(wrap)),	\
+		(cpu) < nr_cpumask_bits; )
+
+#ifdef CONFIG_SCHED_SMT
+
+static inline void set_idle_cores(int cpu, int val)
+{
+	struct sched_domain_shared *sds;
+
+	sds = rcu_dereference(per_cpu(sd_llc_shared, cpu));
+	if (sds)
+		WRITE_ONCE(sds->has_idle_cores, val);
+}
+
+static inline bool test_idle_cores(int cpu, bool def)
+{
+	struct sched_domain_shared *sds;
+
+	sds = rcu_dereference(per_cpu(sd_llc_shared, cpu));
+	if (sds)
+		return READ_ONCE(sds->has_idle_cores);
+
+	return def;
+}
+
+/*
+ * Scans the local SMT mask to see if the entire core is idle, and records this
+ * information in sd_llc_shared->has_idle_cores.
+ *
+ * Since SMT siblings share all cache levels, inspecting this limited remote
+ * state should be fairly cheap.
+ */
+void update_idle_core(struct rq *rq)
+{
+	int core = cpu_of(rq);
+	int cpu;
+
+	rcu_read_lock();
+	if (test_idle_cores(core, true))
+		goto unlock;
+
+	for_each_cpu(cpu, cpu_smt_mask(core)) {
+		if (cpu == core)
+			continue;
+
+		if (!idle_cpu(cpu))
+			goto unlock;
+	}
+
+	set_idle_cores(core, 1);
+unlock:
+	rcu_read_unlock();
+}
+
+/*
+ * Scan the entire LLC domain for idle cores; this dynamically switches off if
+ * there are no idle cores left in the system; tracked through
+ * sd_llc->shared->has_idle_cores and enabled through update_idle_core() above.
+ */
+static int select_idle_core(struct task_struct *p, struct sched_domain *sd, int target)
+{
+	struct cpumask *cpus = this_cpu_cpumask_var_ptr(select_idle_mask);
+	int core, cpu, wrap;
+
+	if (!test_idle_cores(target, false))
+		return -1;
+
+	cpumask_and(cpus, sched_domain_span(sd), tsk_cpus_allowed(p));
+
+	for_each_cpu_wrap(core, cpus, target, wrap) {
+		bool idle = true;
+
+		for_each_cpu(cpu, cpu_smt_mask(core)) {
+			cpumask_clear_cpu(cpu, cpus);
+			if (!idle_cpu(cpu))
+				idle = false;
+		}
+
+		if (idle)
+			return core;
+	}
+
+	/*
+	 * Failed to find an idle core; stop looking for one.
+	 */
+	set_idle_cores(target, 0);
+
+	return -1;
+}
+
+/*
+ * Scan the local SMT mask for idle CPUs.
+ */
+static int select_idle_smt(struct task_struct *p, struct sched_domain *sd, int target)
+{
+	int cpu;
+
+	for_each_cpu(cpu, cpu_smt_mask(target)) {
+		if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
+			continue;
+		if (idle_cpu(cpu))
+			return cpu;
+	}
+
+	return -1;
+}
+
+#else /* CONFIG_SCHED_SMT */
+
+static inline int select_idle_core(struct task_struct *p, struct sched_domain *sd, int target)
+{
+	return -1;
+}
+
+static inline int select_idle_smt(struct task_struct *p, struct sched_domain *sd, int target)
+{
+	return -1;
+}
+
+#endif /* CONFIG_SCHED_SMT */
+
+/*
+ * Scan the LLC domain for idle CPUs; this is dynamically regulated by
+ * comparing the average scan cost (tracked in sd->avg_scan_cost) against the
+ * average idle time for this rq (as found in rq->avg_idle).
+ */
+static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int target)
+{
+	struct sched_domain *this_sd = rcu_dereference(*this_cpu_ptr(&sd_llc));
+	u64 avg_idle = this_rq()->avg_idle;
+	u64 avg_cost = this_sd->avg_scan_cost;
+	u64 time, cost;
+	s64 delta;
+	int cpu, wrap;
+
+	/*
+	 * Due to large variance we need a large fuzz factor; hackbench in
+	 * particularly is sensitive here.
+	 */
+	if ((avg_idle / 512) < avg_cost)
+		return -1;
+
+	time = local_clock();
+
+	for_each_cpu_wrap(cpu, sched_domain_span(sd), target, wrap) {
+		if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
+			continue;
+		if (idle_cpu(cpu))
+			break;
+	}
+
+	time = local_clock() - time;
+	cost = this_sd->avg_scan_cost;
+	delta = (s64)(time - cost) / 8;
+	this_sd->avg_scan_cost += delta;
+
+	return cpu;
+}
+
+/*
+ * Try and locate an idle core/thread in the LLC cache domain.
  */
 static int select_idle_sibling(struct task_struct *p, int prev, int target)
 {
 	struct sched_domain *sd;
-	struct sched_group *sg;
+	int i;
 
 	if (idle_cpu(target))
 		return target;
 
 	/*
-	 * If the prevous cpu is cache affine and idle, don't be stupid.
+	 * If the previous cpu is cache affine and idle, don't be stupid.
 	 */
 	if (prev != target && cpus_share_cache(prev, target) && idle_cpu(prev))
 		return prev;
 
-	/*
-	 * Otherwise, iterate the domains and find an eligible idle cpu.
-	 *
-	 * A completely idle sched group at higher domains is more
-	 * desirable than an idle group at a lower level, because lower
-	 * domains have smaller groups and usually share hardware
-	 * resources which causes tasks to contend on them, e.g. x86
-	 * hyperthread siblings in the lowest domain (SMT) can contend
-	 * on the shared cpu pipeline.
-	 *
-	 * However, while we prefer idle groups at higher domains
-	 * finding an idle cpu at the lowest domain is still better than
-	 * returning 'target', which we've already established, isn't
-	 * idle.
-	 */
 	sd = rcu_dereference(per_cpu(sd_llc, target));
-	for_each_lower_domain(sd) {
-		sg = sd->groups;
-		do {
-			int i;
+	if (!sd)
+		return target;
 
-			if (!cpumask_intersects(sched_group_cpus(sg),
-						tsk_cpus_allowed(p)))
-				goto next;
+	i = select_idle_core(p, sd, target);
+	if ((unsigned)i < nr_cpumask_bits)
+		return i;
 
-			/* Ensure the entire group is idle */
-			for_each_cpu(i, sched_group_cpus(sg)) {
-				if (i == target || !idle_cpu(i))
-					goto next;
-			}
+	i = select_idle_cpu(p, sd, target);
+	if ((unsigned)i < nr_cpumask_bits)
+		return i;
 
-			/*
-			 * It doesn't matter which cpu we pick, the
-			 * whole group is idle.
-			 */
-			target = cpumask_first_and(sched_group_cpus(sg),
-					tsk_cpus_allowed(p));
-			goto done;
-next:
-			sg = sg->next;
-		} while (sg != sd->groups);
-	}
-done:
+	i = select_idle_smt(p, sd, target);
+	if ((unsigned)i < nr_cpumask_bits)
+		return i;
+
 	return target;
 }
 
@@ -7396,9 +7574,6 @@ static struct rq *find_busiest_queue(struct lb_env *env,
  * so long as it is large enough.
  */
 #define MAX_PINNED_INTERVAL	512
-
-/* Working cpumask for load_balance and load_balance_newidle. */
-DEFINE_PER_CPU(cpumask_var_t, load_balance_mask);
 
 static int need_active_balance(struct lb_env *env)
 {
