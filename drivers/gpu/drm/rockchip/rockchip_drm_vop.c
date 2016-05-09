@@ -1065,7 +1065,7 @@ static void vop_crtc_destroy_state(struct drm_crtc *crtc,
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
 
-	__drm_atomic_helper_crtc_destroy_state(crtc, &s->base);
+	__drm_atomic_helper_crtc_destroy_state(&s->base);
 	kfree(s);
 }
 

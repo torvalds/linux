@@ -12924,7 +12924,7 @@ verify_crtc_state(struct drm_crtc *crtc,
 	bool active;
 
 	old_state = old_crtc_state->state;
-	__drm_atomic_helper_crtc_destroy_state(crtc, old_crtc_state);
+	__drm_atomic_helper_crtc_destroy_state(old_crtc_state);
 	pipe_config = to_intel_crtc_state(old_crtc_state);
 	memset(pipe_config, 0, sizeof(*pipe_config));
 	pipe_config->base.crtc = crtc;
@@ -15760,7 +15760,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		struct intel_crtc_state *crtc_state = crtc->config;
 		int pixclk = 0;
 
-		__drm_atomic_helper_crtc_destroy_state(&crtc->base, &crtc_state->base);
+		__drm_atomic_helper_crtc_destroy_state(&crtc_state->base);
 		memset(crtc_state, 0, sizeof(*crtc_state));
 		crtc_state->base.crtc = &crtc->base;
 
