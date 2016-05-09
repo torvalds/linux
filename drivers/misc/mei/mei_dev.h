@@ -382,7 +382,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  *
  * @hbuf_depth  : depth of hardware host/write buffer is slots
  * @hbuf_is_ready : query if the host host/write buffer is ready
- * @wr_msg      : the buffer for hbm control messages
  *
  * @version     : HBM protocol version in use
  * @hbm_f_pg_supported  : hbm feature pgi protocol
@@ -466,12 +465,6 @@ struct mei_device {
 	/* write buffer */
 	u8 hbuf_depth;
 	bool hbuf_is_ready;
-
-	/* used for control messages */
-	struct {
-		struct mei_msg_hdr hdr;
-		unsigned char data[128];
-	} wr_msg;
 
 	struct hbm_version version;
 	unsigned int hbm_f_pg_supported:1;
@@ -670,8 +663,7 @@ static inline size_t mei_hbuf_max_len(const struct mei_device *dev)
 }
 
 static inline int mei_write_message(struct mei_device *dev,
-			struct mei_msg_hdr *hdr,
-			unsigned char *buf)
+			struct mei_msg_hdr *hdr, void *buf)
 {
 	return dev->ops->write(dev, hdr, buf);
 }
