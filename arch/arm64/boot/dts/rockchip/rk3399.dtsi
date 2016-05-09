@@ -311,6 +311,7 @@
 		reg-offset = <0xf780>;
 		#phy-cells = <0>;
 		rockchip,grf = <&grf>;
+		ctrl-base = <0xfe330000>;
 		status = "disabled";
 	};
 
