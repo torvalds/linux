@@ -84,7 +84,6 @@ struct netns_ct {
 	struct ctl_table_header	*event_sysctl_header;
 	struct ctl_table_header	*helper_sysctl_header;
 #endif
-	char			*slabname;
 	unsigned int		sysctl_log_invalid; /* Log invalid packets */
 	int			sysctl_events;
 	int			sysctl_acct;
@@ -93,7 +92,6 @@ struct netns_ct {
 	int			sysctl_tstamp;
 	int			sysctl_checksum;
 
-	struct kmem_cache	*nf_conntrack_cachep;
 	struct ct_pcpu __percpu *pcpu_lists;
 	struct ip_conntrack_stat __percpu *stat;
 	struct nf_ct_event_notifier __rcu *nf_conntrack_event_cb;
