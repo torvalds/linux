@@ -3691,13 +3691,14 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				} else if (!dev_drv->win[win_id]->state) {
 					dev_drv->ops->open(dev_drv, win_id, 1);
 					dev_drv->suspend_flag = 0;
-					mutex_lock(&dev_drv->win_config);
-					info->var.xoffset = 0;
-					info->var.yoffset = 0;
-					info->fbops->fb_set_par(info);
-					info->fbops->fb_pan_display(&info->var,
-								    info);
-					mutex_unlock(&dev_drv->win_config);
+					/* mutex_lock(&dev_drv->win_config);
+					 * info->var.xoffset = 0;
+					 * info->var.yoffset = 0;
+					 * info->fbops->fb_set_par(info);
+					 * info->fbops->fb_pan_display(&info->var,
+					 *			    info);
+					 * mutex_unlock(&dev_drv->win_config);
+					 */
 				}
 			}
 		}
