@@ -58,17 +58,6 @@ static const char *mv88e6171_drv_probe(struct device *dsa_dev,
 				   ARRAY_SIZE(mv88e6171_table));
 }
 
-static int mv88e6171_setup_global(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-
-	/* Disable remote management for now, and set the switch's
-	 * DSA device number.
-	 */
-	return mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL_2,
-				   ds->index & 0x1f);
-}
-
 static int mv88e6171_setup(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -77,10 +66,6 @@ static int mv88e6171_setup(struct dsa_switch *ds)
 	ps->ds = ds;
 
 	ret = mv88e6xxx_setup_common(ps);
-	if (ret < 0)
-		return ret;
-
-	ret = mv88e6171_setup_global(ds);
 	if (ret < 0)
 		return ret;
 

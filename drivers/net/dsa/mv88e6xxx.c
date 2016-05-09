@@ -2950,6 +2950,13 @@ static int mv88e6xxx_setup_global(struct mv88e6xxx_priv_state *ps)
 	if (err)
 		return err;
 
+	/* Disable remote management, and set the switch's DSA device number. */
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL_2,
+				   GLOBAL_CONTROL_2_MULTIPLE_CASCADE |
+				   (ds->index & 0x1f));
+	if (err)
+		return err;
+
 	/* Set the default address aging time to 5 minutes, and
 	 * enable address learn messages to be sent to all message
 	 * ports.
