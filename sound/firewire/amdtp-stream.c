@@ -411,15 +411,18 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 			    amdtp_stream_get_max_payload(s), false);
 }
 
-static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
-			     unsigned int cycle, unsigned int syt)
+static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle)
 {
 	__be32 *buffer;
+	unsigned int syt;
+	unsigned int data_blocks;
 	unsigned int payload_length;
 	unsigned int pcm_frames;
 	struct snd_pcm_substream *pcm;
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
+	syt = calculate_syt(s, cycle);
+	data_blocks = calculate_data_blocks(s, syt);
 	pcm_frames = s->process_data_blocks(s, buffer + 2, data_blocks, &syt);
 
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
@@ -588,8 +591,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				void *private_data)
 {
 	struct amdtp_stream *s = private_data;
-	unsigned int i, syt, packets = header_length / 4;
-	unsigned int data_blocks;
+	unsigned int i, packets = header_length / 4;
 	u32 cycle;
 
 	if (s->packet_index < 0)
@@ -602,10 +604,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	for (i = 0; i < packets; ++i) {
 		cycle = increment_cycle_count(cycle, 1);
-		syt = calculate_syt(s, cycle);
-		data_blocks = calculate_data_blocks(s, syt);
-
-		if (handle_out_packet(s, data_blocks, cycle, syt) < 0) {
+		if (handle_out_packet(s, cycle) < 0) {
 			s->packet_index = -1;
 			amdtp_stream_pcm_abort(s);
 			return;
