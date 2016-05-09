@@ -546,10 +546,10 @@ static void __init serial8250_isa_init_ports(void)
 
 		port->iobase   = old_serial_port[i].port;
 		port->irq      = irq_canonicalize(old_serial_port[i].irq);
-		port->irqflags = old_serial_port[i].irqflags;
+		port->irqflags = 0;
 		port->uartclk  = old_serial_port[i].baud_base * 16;
 		port->flags    = old_serial_port[i].flags;
-		port->hub6     = old_serial_port[i].hub6;
+		port->hub6     = 0;
 		port->membase  = old_serial_port[i].iomem_base;
 		port->iotype   = old_serial_port[i].io_type;
 		port->regshift = old_serial_port[i].iomem_reg_shift;

@@ -53,11 +53,9 @@ struct old_serial_port {
 	unsigned int port;
 	unsigned int irq;
 	upf_t        flags;
-	unsigned char hub6;
 	unsigned char io_type;
 	unsigned char __iomem *iomem_base;
 	unsigned short iomem_reg_shift;
-	unsigned long irqflags;
 };
 
 struct serial8250_config {
