@@ -72,7 +72,7 @@ static unsigned long get_random_boot(void)
 	return hash;
 }
 
-static unsigned long get_random_long(void)
+static unsigned long get_random_long(const char *purpose)
 {
 #ifdef CONFIG_X86_64
 	const unsigned long mix_const = 0x5d6008cbf3848dd3UL;
@@ -82,7 +82,8 @@ static unsigned long get_random_long(void)
 	unsigned long raw, random = get_random_boot();
 	bool use_i8254 = true;
 
-	debug_putstr("KASLR using");
+	debug_putstr(purpose);
+	debug_putstr(" KASLR using");
 
 	if (has_cpuflag(X86_FEATURE_RDRAND)) {
 		debug_putstr(" RDRAND");
@@ -365,7 +366,7 @@ static unsigned long slots_fetch_random(void)
 	if (slot_max == 0)
 		return 0;
 
-	return slots[get_random_long() % slot_max];
+	return slots[get_random_long("Physical") % slot_max];
 }
 
 static void process_e820_entry(struct e820entry *entry,
@@ -453,7 +454,7 @@ static unsigned long find_random_virt_addr(unsigned long minimum,
 	slots = (KERNEL_IMAGE_SIZE - minimum - image_size) /
 		 CONFIG_PHYSICAL_ALIGN + 1;
 
-	random_addr = get_random_long() % slots;
+	random_addr = get_random_long("Virtual") % slots;
 
 	return random_addr * CONFIG_PHYSICAL_ALIGN + minimum;
 }
