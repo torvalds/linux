@@ -2559,6 +2559,68 @@ restore_page_0:
 	return ret;
 }
 
+static int mv88e6xxx_switch_reset(struct mv88e6xxx_priv_state *ps)
+{
+	bool ppu_active = mv88e6xxx_has(ps, MV88E6XXX_FLAG_PPU_ACTIVE);
+	u16 is_reset = (ppu_active ? 0x8800 : 0xc800);
+	struct gpio_desc *gpiod = ps->ds->pd->reset;
+	unsigned long timeout;
+	int ret;
+	int i;
+
+	/* Set all ports to the disabled state. */
+	for (i = 0; i < ps->info->num_ports; i++) {
+		ret = _mv88e6xxx_reg_read(ps, REG_PORT(i), PORT_CONTROL);
+		if (ret < 0)
+			return ret;
+
+		ret = _mv88e6xxx_reg_write(ps, REG_PORT(i), PORT_CONTROL,
+					   ret & 0xfffc);
+		if (ret)
+			return ret;
+	}
+
+	/* Wait for transmit queues to drain. */
+	usleep_range(2000, 4000);
+
+	/* If there is a gpio connected to the reset pin, toggle it */
+	if (gpiod) {
+		gpiod_set_value_cansleep(gpiod, 1);
+		usleep_range(10000, 20000);
+		gpiod_set_value_cansleep(gpiod, 0);
+		usleep_range(10000, 20000);
+	}
+
+	/* Reset the switch. Keep the PPU active if requested. The PPU
+	 * needs to be active to support indirect phy register access
+	 * through global registers 0x18 and 0x19.
+	 */
+	if (ppu_active)
+		ret = _mv88e6xxx_reg_write(ps, REG_GLOBAL, 0x04, 0xc000);
+	else
+		ret = _mv88e6xxx_reg_write(ps, REG_GLOBAL, 0x04, 0xc400);
+	if (ret)
+		return ret;
+
+	/* Wait up to one second for reset to complete. */
+	timeout = jiffies + 1 * HZ;
+	while (time_before(jiffies, timeout)) {
+		ret = _mv88e6xxx_reg_read(ps, REG_GLOBAL, 0x00);
+		if (ret < 0)
+			return ret;
+
+		if ((ret & is_reset) == is_reset)
+			break;
+		usleep_range(1000, 2000);
+	}
+	if (time_after(jiffies, timeout))
+		ret = -ETIMEDOUT;
+	else
+		ret = 0;
+
+	return ret;
+}
+
 static int mv88e6xxx_power_on_serdes(struct mv88e6xxx_priv_state *ps)
 {
 	int ret;
@@ -2860,6 +2922,8 @@ int mv88e6xxx_setup_ports(struct dsa_switch *ds)
 
 int mv88e6xxx_setup_common(struct mv88e6xxx_priv_state *ps)
 {
+	int err;
+
 	mutex_init(&ps->smi_mutex);
 
 	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
@@ -2870,7 +2934,13 @@ int mv88e6xxx_setup_common(struct mv88e6xxx_priv_state *ps)
 	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_PPU))
 		mv88e6xxx_ppu_state_init(ps);
 
-	return 0;
+	mutex_lock(&ps->smi_mutex);
+
+	err = mv88e6xxx_switch_reset(ps);
+
+	mutex_unlock(&ps->smi_mutex);
+
+	return err;
 }
 
 int mv88e6xxx_setup_global(struct dsa_switch *ds)
@@ -3044,71 +3114,6 @@ unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	return err;
-}
-
-int mv88e6xxx_switch_reset(struct mv88e6xxx_priv_state *ps, bool ppu_active)
-{
-	u16 is_reset = (ppu_active ? 0x8800 : 0xc800);
-	struct gpio_desc *gpiod = ps->ds->pd->reset;
-	unsigned long timeout;
-	int ret;
-	int i;
-
-	mutex_lock(&ps->smi_mutex);
-
-	/* Set all ports to the disabled state. */
-	for (i = 0; i < ps->info->num_ports; i++) {
-		ret = _mv88e6xxx_reg_read(ps, REG_PORT(i), PORT_CONTROL);
-		if (ret < 0)
-			goto unlock;
-
-		ret = _mv88e6xxx_reg_write(ps, REG_PORT(i), PORT_CONTROL,
-					   ret & 0xfffc);
-		if (ret)
-			goto unlock;
-	}
-
-	/* Wait for transmit queues to drain. */
-	usleep_range(2000, 4000);
-
-	/* If there is a gpio connected to the reset pin, toggle it */
-	if (gpiod) {
-		gpiod_set_value_cansleep(gpiod, 1);
-		usleep_range(10000, 20000);
-		gpiod_set_value_cansleep(gpiod, 0);
-		usleep_range(10000, 20000);
-	}
-
-	/* Reset the switch. Keep the PPU active if requested. The PPU
-	 * needs to be active to support indirect phy register access
-	 * through global registers 0x18 and 0x19.
-	 */
-	if (ppu_active)
-		ret = _mv88e6xxx_reg_write(ps, REG_GLOBAL, 0x04, 0xc000);
-	else
-		ret = _mv88e6xxx_reg_write(ps, REG_GLOBAL, 0x04, 0xc400);
-	if (ret)
-		goto unlock;
-
-	/* Wait up to one second for reset to complete. */
-	timeout = jiffies + 1 * HZ;
-	while (time_before(jiffies, timeout)) {
-		ret = _mv88e6xxx_reg_read(ps, REG_GLOBAL, 0x00);
-		if (ret < 0)
-			goto unlock;
-
-		if ((ret & is_reset) == is_reset)
-			break;
-		usleep_range(1000, 2000);
-	}
-	if (time_after(jiffies, timeout))
-		ret = -ETIMEDOUT;
-	else
-		ret = 0;
-unlock:
-	mutex_unlock(&ps->smi_mutex);
-
-	return ret;
 }
 
 int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg)

@@ -132,10 +132,6 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	ret = mv88e6xxx_switch_reset(ps, false);
-	if (ret < 0)
-		return ret;
-
 	ret = mv88e6131_setup_global(ds);
 	if (ret < 0)
 		return ret;
