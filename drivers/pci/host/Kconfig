@@ -245,4 +245,13 @@ config PCIE_ARMADA_8K
 	  Designware hardware and therefore the driver re-uses the
 	  Designware core functions to implement the driver.
 
+config PCIE_ARTPEC6
+	bool "Axis ARTPEC-6 PCIe controller"
+	depends on MACH_ARTPEC6
+	select PCIE_DW
+	select PCIEPORTBUS
+	help
+	  Say Y here to enable PCIe controller support on Axis ARTPEC-6
+	  SoCs.  This PCIe controller uses the DesignWare core.
+
 endmenu
