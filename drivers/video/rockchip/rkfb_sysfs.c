@@ -688,7 +688,7 @@ static ssize_t show_overlay(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
-	int ovl;
+	int ovl = 0;
 
 	if (dev_drv->ops->ovl_mgr)
 		ovl = dev_drv->ops->ovl_mgr(dev_drv, 0, 0);
@@ -727,7 +727,7 @@ static ssize_t show_fps(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
-	int fps;
+	int fps = 0;
 
 	if (dev_drv->ops->fps_mgr)
 		fps = dev_drv->ops->fps_mgr(dev_drv, 0, 0);
@@ -958,7 +958,7 @@ static ssize_t set_dsp_cabc(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
-	int space_max, ret, mode = 0, calc = 0, up = 0, down = 0, global = 0;
+	int space_max, ret = 0, mode = 0, calc = 0, up = 0, down = 0, global = 0;
 	const char *start = buf;
 
 	space_max = 10;	/*max space number 10*/
@@ -1005,7 +1005,7 @@ static ssize_t show_dsp_bcsh(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
-	int brightness, contrast, sat_con, sin_hue, cos_hue;
+	int brightness = 0, contrast = 0, sat_con = 0, sin_hue = 0, cos_hue = 0;
 
 	if (dev_drv->ops->get_dsp_bcsh_bcs) {
 		brightness = dev_drv->ops->get_dsp_bcsh_bcs(dev_drv,

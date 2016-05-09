@@ -1985,7 +1985,7 @@ static int vop_dpi_win_sel(struct rk_lcdc_driver *dev_drv, int win_id)
 static int vop_dpi_status(struct rk_lcdc_driver *dev_drv)
 {
 	struct vop_device *vop_dev = to_vop_dev(dev_drv);
-	int status;
+	int status = 0;
 
 	spin_lock(&vop_dev->reg_lock);
 

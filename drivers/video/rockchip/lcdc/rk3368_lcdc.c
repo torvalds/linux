@@ -372,7 +372,7 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 	struct rk_screen *screen = lcdc_dev->driver.cur_screen;
 	u32 h_pw_bp = screen->mode.hsync_len + screen->mode.left_margin;
 	u32 v_pw_bp = screen->mode.vsync_len + screen->mode.upper_margin;
-	u32 st_x, st_y;
+	u32 st_x = 0, st_y = 0;
 	struct rk_lcdc_win *win0 = lcdc_dev->driver.win[0];
 
 	spin_lock(&lcdc_dev->reg_lock);
@@ -718,8 +718,9 @@ static int rk3368_lcdc_alpha_cfg(struct rk_lcdc_driver *dev_drv, int win_id)
 	struct alpha_config alpha_config;
 	u32 mask, val;
 	int ppixel_alpha = 0, global_alpha = 0, i;
-	u32 src_alpha_ctl, dst_alpha_ctl;
+	u32 src_alpha_ctl = 0, dst_alpha_ctl = 0;
 
+	memset(&alpha_config, 0, sizeof(struct alpha_config));
 	for (i = 0; i < win->area_num; i++) {
 		ppixel_alpha |= ((win->area[i].format == ARGB888) ||
 				 (win->area[i].format == FBDC_ARGB_888) ||
@@ -991,12 +992,12 @@ static int rk3368_init_fbdc_config(struct rk_lcdc_driver *dev_drv, int win_id)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_lcdc_win *win = dev_drv->win[win_id];
-	u8 fbdc_dsp_width_ratio;
-	u16 fbdc_mb_vir_width, fbdc_mb_vir_height;
-	u16 fbdc_mb_width, fbdc_mb_height;
-	u16 fbdc_mb_xst, fbdc_mb_yst, fbdc_num_tiles;
-	u16 fbdc_cmp_index_init;
-	u8 mb_w_size, mb_h_size;
+	u8 fbdc_dsp_width_ratio = 0;
+	u16 fbdc_mb_vir_width = 0, fbdc_mb_vir_height = 0;
+	u16 fbdc_mb_width = 0, fbdc_mb_height = 0;
+	u16 fbdc_mb_xst = 0, fbdc_mb_yst = 0, fbdc_num_tiles = 0;
+	u16 fbdc_cmp_index_init = 0;
+	u8 mb_w_size = 0, mb_h_size = 0;
 	struct rk_screen *screen = dev_drv->cur_screen;
 
 	if (screen->mode.flag & FB_VMODE_INTERLACED) {
@@ -1958,7 +1959,7 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_screen *screen = dev_drv->cur_screen;
-	u32 mask, val;
+	u32 mask = 0, val = 0;
 
 	if (unlikely(!lcdc_dev->clk_on)) {
 		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
@@ -2482,27 +2483,27 @@ static int rk3368_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win,
 				   struct rk_screen *screen)
 {
-	u16 srcW;
-	u16 srcH;
-	u16 dstW;
-	u16 dstH;
-	u16 yrgb_srcW;
-	u16 yrgb_srcH;
-	u16 yrgb_dstW;
-	u16 yrgb_dstH;
-	u32 yrgb_vscalednmult;
-	u32 yrgb_xscl_factor;
-	u32 yrgb_yscl_factor;
+	u16 srcW = 0;
+	u16 srcH = 0;
+	u16 dstW = 0;
+	u16 dstH = 0;
+	u16 yrgb_srcW = 0;
+	u16 yrgb_srcH = 0;
+	u16 yrgb_dstW = 0;
+	u16 yrgb_dstH = 0;
+	u32 yrgb_vscalednmult = 0;
+	u32 yrgb_xscl_factor = 0;
+	u32 yrgb_yscl_factor = 0;
 	u8 yrgb_vsd_bil_gt2 = 0;
 	u8 yrgb_vsd_bil_gt4 = 0;
 
-	u16 cbcr_srcW;
-	u16 cbcr_srcH;
-	u16 cbcr_dstW;
-	u16 cbcr_dstH;
-	u32 cbcr_vscalednmult;
-	u32 cbcr_xscl_factor;
-	u32 cbcr_yscl_factor;
+	u16 cbcr_srcW = 0;
+	u16 cbcr_srcH = 0;
+	u16 cbcr_dstW = 0;
+	u16 cbcr_dstH = 0;
+	u32 cbcr_vscalednmult = 0;
+	u32 cbcr_xscl_factor = 0;
+	u32 cbcr_yscl_factor = 0;
 	u8 cbcr_vsd_bil_gt2 = 0;
 	u8 cbcr_vsd_bil_gt4 = 0;
 	u8 yuv_fmt = 0;
@@ -2971,8 +2972,8 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 static int win_0_1_set_par(struct lcdc_device *lcdc_dev,
 			   struct rk_screen *screen, struct rk_lcdc_win *win)
 {
-	u32 xact, yact, xvir, yvir, xpos, ypos;
-	u8 fmt_cfg = 0, swap_rb, swap_uv = 0;
+	u32 xact = 0, yact = 0, xvir = 0, yvir = 0, xpos = 0, ypos = 0;
+	u8 fmt_cfg = 0, swap_rb = 0, swap_uv = 0;
 	char fmt[9] = "NULL";
 
 	xpos = dsp_x_pos(win->xmirror, screen, &win->area[0]);
@@ -3102,7 +3103,7 @@ static int win_2_3_set_par(struct lcdc_device *lcdc_dev,
 			   struct rk_screen *screen, struct rk_lcdc_win *win)
 {
 	int i;
-	u8 fmt_cfg, swap_rb;
+	u8 fmt_cfg = 0, swap_rb = 0;
 	char fmt[9] = "NULL";
 
 	if (win->ymirror)
@@ -3187,8 +3188,8 @@ static int win_2_3_set_par(struct lcdc_device *lcdc_dev,
 static int hwc_set_par(struct lcdc_device *lcdc_dev,
 		       struct rk_screen *screen, struct rk_lcdc_win *win)
 {
-	u32 xact, yact, xvir, yvir, xpos, ypos;
-	u8 fmt_cfg = 0, swap_rb;
+	u32 xact = 0, yact = 0, xvir = 0, yvir = 0, xpos = 0, ypos = 0;
+	u8 fmt_cfg = 0, swap_rb = 0;
 	char fmt[9] = "NULL";
 
 	xpos = win->area[0].xpos + screen->mode.left_margin +
@@ -3537,10 +3538,10 @@ static int rk3368_lcdc_ovl_mgr(struct rk_lcdc_driver *dev_drv, int swap,
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_lcdc_win *win = NULL;
-	int i, ovl;
+	int i, ovl = 0;
 	unsigned int mask, val;
 	int z_order_num = 0;
-	int layer0_sel, layer1_sel, layer2_sel, layer3_sel;
+	int layer0_sel = 0, layer1_sel = 1, layer2_sel = 2, layer3_sel = 3;
 
 	if (swap == 0) {
 		for (i = 0; i < 4; i++) {
@@ -4371,7 +4372,7 @@ static int rk3368_lcdc_get_bcsh_hue(struct rk_lcdc_driver *dev_drv,
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	u32 val;
+	u32 val = 0;
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
@@ -4417,7 +4418,7 @@ static int rk3368_lcdc_set_bcsh_bcs(struct rk_lcdc_driver *dev_drv,
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	u32 mask, val;
+	u32 mask = 0, val = 0;
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
@@ -4462,7 +4463,7 @@ static int rk3368_lcdc_get_bcsh_bcs(struct rk_lcdc_driver *dev_drv,
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	u32 val;
+	u32 val = 0;
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {

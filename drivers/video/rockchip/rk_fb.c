@@ -208,7 +208,7 @@ int rk_fb_pixel_width(int data_format)
 
 static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 {
-	int fb_data_fmt;
+	int fb_data_fmt = 0;
 
 	if (data_format) {
 		switch (data_format) {
@@ -2194,24 +2194,24 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 	struct rk_screen *screen = dev_drv->cur_screen;/*screen0;*/
 	struct fb_info *fbi;
 	int i, ion_fd, acq_fence_fd;
-	u32 xvir, yvir;
-	u32 xoffset, yoffset;
+	u32 xvir = 0, yvir = 0;
+	u32 xoffset = 0, yoffset = 0;
 
 	struct ion_handle *hdl;
 	size_t len;
-	int index_buf;
-	u8 fb_data_fmt;
-	u8 pixel_width;
-	u32 vir_width_bit;
-	u32 stride, uv_stride;
-	u32 stride_32bit_1;
-	u32 stride_32bit_2;
-	u16 uv_x_off, uv_y_off, uv_y_act;
+	int index_buf = 0;
+	u8 fb_data_fmt = 0;
+	u8 pixel_width = 0;
+	u32 vir_width_bit = 0;
+	u32 stride = 0, uv_stride = 0;
+	u32 stride_32bit_1 = 0;
+	u32 stride_32bit_2 = 0;
+	u16 uv_x_off = 0, uv_y_off = 0, uv_y_act = 0;
 	u8 is_pic_yuv = 0;
 	u8 ppixel_a = 0, global_a = 0;
 	ion_phys_addr_t phy_addr;
 	int ret = 0;
-	int buff_len;
+	int buff_len = 0;
 
 	reg_win_data->reg_area_data[0].smem_start = -1;
 	reg_win_data->area_num = 0;
@@ -3185,9 +3185,9 @@ static int rk_fb_set_par(struct fb_info *info)
 	u32 xvir = var->xres_virtual;
 	u8 data_format = var->nonstd & 0xff;
 	u8 fb_data_fmt;
-	u8 pixel_width;
+	u8 pixel_width = 0;
 	u32 vir_width_bit;
-	u32 stride, uv_stride;
+	u32 stride, uv_stride = 0;
 	u32 stride_32bit_1;
 	u32 stride_32bit_2;
 	u16 uv_x_off, uv_y_off, uv_y_act;

@@ -74,9 +74,9 @@ static void yuv_to_rgb(int y, int u, int v, int *r, int *g, int *b)
 int bmpencoder(void *__iomem *vaddr, int width, int height, u8 data_format,
 	       void *data, void (*fn)(void *, void *, int))
 {
-	uint32_t *d, *d1, *d2;
-	uint8_t *dst, *yrgb, *uv, *y1, *y2;
-	int y, u, v, r, g, b;
+	uint32_t *d = NULL, *d1 = NULL, *d2 = NULL;
+	uint8_t *dst = NULL, *yrgb = NULL, *uv = NULL, *y1 = NULL, *y2 = NULL;
+	int y = 0, u = 0, v = 0, r = 0, g = 0, b = 0;
 
 	int yu = width * 4 % 4;
 	int byteperline;

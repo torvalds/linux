@@ -856,7 +856,7 @@ static int vop_post_csc_cfg(struct rk_lcdc_driver *dev_drv)
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
 	int output_color = dev_drv->output_color;
-	int win_csc, overlay_mode;
+	int win_csc = 0, overlay_mode = 0;
 	u64 val;
 
 	if (VOP_CHIP(vop_dev) == VOP_RK322X) {
@@ -1095,9 +1095,10 @@ static int vop_alpha_cfg(struct rk_lcdc_driver *dev_drv, int win_id)
 	struct alpha_config alpha_config;
 	u64 val;
 	int ppixel_alpha = 0, global_alpha = 0, i;
-	u32 src_alpha_ctl, dst_alpha_ctl;
+	u32 src_alpha_ctl = 0, dst_alpha_ctl = 0;
 	int alpha_en = 1;
 
+	memset(&alpha_config, 0, sizeof(struct alpha_config));
 	for (i = 0; i < win->area_num; i++) {
 		ppixel_alpha |= ((win->area[i].format == ARGB888) ||
 				 (win->area[i].format == FBDC_ARGB_888) ||
@@ -1915,7 +1916,7 @@ static int vop_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
 	struct rk_screen *screen = dev_drv->cur_screen;
-	u64 val;
+	u64 val = 0;
 
 	if (unlikely(!vop_dev->clk_on)) {
 		pr_info("%s,clk_on = %d\n", __func__, vop_dev->clk_on);
@@ -2319,27 +2320,27 @@ static int vop_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 
 static int vop_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 {
-	u16 srcW;
-	u16 srcH;
-	u16 dstW;
-	u16 dstH;
-	u16 yrgb_srcW;
-	u16 yrgb_srcH;
-	u16 yrgb_dstW;
-	u16 yrgb_dstH;
-	u32 yrgb_vscalednmult;
-	u32 yrgb_xscl_factor;
-	u32 yrgb_yscl_factor;
+	u16 srcW = 0;
+	u16 srcH = 0;
+	u16 dstW = 0;
+	u16 dstH = 0;
+	u16 yrgb_srcW = 0;
+	u16 yrgb_srcH = 0;
+	u16 yrgb_dstW = 0;
+	u16 yrgb_dstH = 0;
+	u32 yrgb_vscalednmult = 0;
+	u32 yrgb_xscl_factor = 0;
+	u32 yrgb_yscl_factor = 0;
 	u8 yrgb_vsd_bil_gt2 = 0;
 	u8 yrgb_vsd_bil_gt4 = 0;
 
-	u16 cbcr_srcW;
-	u16 cbcr_srcH;
-	u16 cbcr_dstW;
-	u16 cbcr_dstH;
-	u32 cbcr_vscalednmult;
-	u32 cbcr_xscl_factor;
-	u32 cbcr_yscl_factor;
+	u16 cbcr_srcW = 0;
+	u16 cbcr_srcH = 0;
+	u16 cbcr_dstW = 0;
+	u16 cbcr_dstH = 0;
+	u32 cbcr_vscalednmult = 0;
+	u32 cbcr_xscl_factor = 0;
+	u32 cbcr_yscl_factor = 0;
 	u8 cbcr_vsd_bil_gt2 = 0;
 	u8 cbcr_vsd_bil_gt4 = 0;
 	u8 yuv_fmt = 0;
@@ -2854,8 +2855,8 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 static int win_0_1_set_par(struct vop_device *vop_dev,
 			   struct rk_screen *screen, struct rk_lcdc_win *win)
 {
-	u32 xact, yact, xvir, yvir, xpos, ypos;
-	u8 fmt_cfg = 0, swap_rb, swap_uv = 0;
+	u32 xact = 0, yact = 0, xvir = 0, yvir = 0, xpos = 0, ypos = 0;
+	u8 fmt_cfg = 0, swap_rb = 0, swap_uv = 0;
 	char fmt[9] = "NULL";
 
 	xpos = dsp_x_pos(win->xmirror, screen, &win->area[0]);
@@ -3008,7 +3009,7 @@ static int win_2_3_set_par(struct vop_device *vop_dev,
 			   struct rk_screen *screen, struct rk_lcdc_win *win)
 {
 	int i;
-	u8 fmt_cfg, swap_rb;
+	u8 fmt_cfg = 0, swap_rb = 0;
 	char fmt[9] = "NULL";
 
 	if (VOP_CHIP(vop_dev) == VOP_RK322X) {
@@ -3098,8 +3099,8 @@ static int win_2_3_set_par(struct vop_device *vop_dev,
 static int hwc_set_par(struct vop_device *vop_dev,
 		       struct rk_screen *screen, struct rk_lcdc_win *win)
 {
-	u32 xact, yact, xvir, yvir, xpos, ypos;
-	u8 fmt_cfg = 0, swap_rb;
+	u32 xact = 0, yact = 0, xvir = 0, yvir = 0, xpos = 0, ypos = 0;
+	u8 fmt_cfg = 0, swap_rb = 0;
 	char fmt[9] = "NULL";
 
 	xpos = win->area[0].xpos + screen->mode.left_margin +
@@ -3524,10 +3525,10 @@ static int vop_ovl_mgr(struct rk_lcdc_driver *dev_drv, int swap, bool set)
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
 	struct rk_lcdc_win *win = NULL;
-	int i, ovl;
+	int i, ovl = 0;
 	u64 val;
 	int z_order_num = 0;
-	int layer0_sel, layer1_sel, layer2_sel, layer3_sel;
+	int layer0_sel = 0, layer1_sel = 1, layer2_sel = 2, layer3_sel = 3;
 
 	if (swap == 0) {
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
@@ -4296,7 +4297,7 @@ static int vop_get_bcsh_hue(struct rk_lcdc_driver *dev_drv, bcsh_hue_mode mode)
 {
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
-	u32 val;
+	u32 val = 0;
 
 	spin_lock(&vop_dev->reg_lock);
 	if (vop_dev->clk_on) {
@@ -4410,7 +4411,7 @@ static int vop_set_bcsh_bcs(struct rk_lcdc_driver *dev_drv,
 {
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
-	u64 val;
+	u64 val = 0;
 
 	spin_lock(&vop_dev->reg_lock);
 	if (vop_dev->clk_on) {
@@ -4446,7 +4447,7 @@ static int vop_get_bcsh_bcs(struct rk_lcdc_driver *dev_drv, bcsh_bcs_mode mode)
 {
 	struct vop_device *vop_dev =
 	    container_of(dev_drv, struct vop_device, driver);
-	u64 val;
+	u64 val = 0;
 
 	spin_lock(&vop_dev->reg_lock);
 	if (vop_dev->clk_on) {
