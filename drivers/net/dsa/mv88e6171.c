@@ -133,6 +133,8 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 #ifdef CONFIG_NET_DSA_HWMON
 	.get_temp               = mv88e6xxx_get_temp,
 #endif
+	.get_eeprom		= mv88e6xxx_get_eeprom,
+	.set_eeprom		= mv88e6xxx_set_eeprom,
 	.get_regs_len		= mv88e6xxx_get_regs_len,
 	.get_regs		= mv88e6xxx_get_regs,
 	.port_bridge_join	= mv88e6xxx_port_bridge_join,
