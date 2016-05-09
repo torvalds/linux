@@ -2275,6 +2275,11 @@ int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 			       const struct switchdev_obj_port_fdb *fdb,
 			       struct switchdev_trans *trans)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_ATU))
+		return -EOPNOTSUPP;
+
 	/* We don't need any dynamic resource from the kernel (yet),
 	 * so skip the prepare phase.
 	 */
@@ -2290,6 +2295,9 @@ void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 		GLOBAL_ATU_DATA_STATE_UC_STATIC;
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_ATU))
+		return;
+
 	mutex_lock(&ps->smi_mutex);
 	if (_mv88e6xxx_port_fdb_load(ps, port, fdb->addr, fdb->vid, state))
 		netdev_err(ds->ports[port], "failed to load MAC address\n");
@@ -2301,6 +2309,9 @@ int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
+
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_ATU))
+		return -EOPNOTSUPP;
 
 	mutex_lock(&ps->smi_mutex);
 	ret = _mv88e6xxx_port_fdb_load(ps, port, fdb->addr, fdb->vid,
@@ -2406,6 +2417,9 @@ int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 	};
 	u16 fid;
 	int err;
+
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_ATU))
+		return -EOPNOTSUPP;
 
 	mutex_lock(&ps->smi_mutex);
 
