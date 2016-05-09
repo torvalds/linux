@@ -115,8 +115,8 @@ static void imx_pd_encoder_dpms(struct drm_encoder *encoder, int mode)
 static void imx_pd_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_parallel_display *imxpd = enc_to_imxpd(encoder);
-
-	imx_drm_set_bus_format(encoder, imxpd->bus_format);
+	imx_drm_set_bus_config(encoder, imxpd->bus_format, 2, 3,
+			       imxpd->connector.display_info.bus_flags);
 }
 
 static void imx_pd_encoder_commit(struct drm_encoder *encoder)
