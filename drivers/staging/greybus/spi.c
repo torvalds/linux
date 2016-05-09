@@ -550,6 +550,7 @@ static const struct gpbridge_device_id gb_spi_id_table[] = {
 	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_SPI) },
 	{ },
 };
+MODULE_DEVICE_TABLE(gpbridge, gb_spi_id_table);
 
 static struct gpbridge_driver spi_driver = {
 	.name		= "spi",
@@ -557,4 +558,6 @@ static struct gpbridge_driver spi_driver = {
 	.remove		= gb_spi_remove,
 	.id_table	= gb_spi_id_table,
 };
-gb_gpbridge_builtin_driver(spi_driver);
+
+module_gpbridge_driver(spi_driver);
+MODULE_LICENSE("GPL v2");

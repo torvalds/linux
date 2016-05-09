@@ -325,15 +325,9 @@ static int __init gpbridge_init(void)
 		pr_err("error initializing usb driver\n");
 		goto error_usb;
 	}
-	if (gb_spi_driver_init()) {
-		pr_err("error initializing spi driver\n");
-		goto error_spi;
-	}
 
 	return 0;
 
-error_spi:
-	gb_usb_driver_exit();
 error_usb:
 	gb_uart_driver_exit();
 error_uart:
@@ -347,7 +341,6 @@ module_init(gpbridge_init);
 
 static void __exit gpbridge_exit(void)
 {
-	gb_spi_driver_exit();
 	gb_usb_driver_exit();
 	gb_uart_driver_exit();
 
