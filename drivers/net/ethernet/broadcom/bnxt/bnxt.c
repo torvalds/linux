@@ -1439,6 +1439,10 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 		if (!TX_CMP_VALID(txcmp, raw_cons))
 			break;
 
+		/* The valid test of the entry must be done first before
+		 * reading any further.
+		 */
+		rmb();
 		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_TX_L2_CMP) {
 			tx_pkts++;
 			/* return full budget so NAPI will complete. */
@@ -4096,9 +4100,11 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 }
 
 static int bnxt_cfg_rx_mode(struct bnxt *);
+static bool bnxt_mc_list_updated(struct bnxt *, u32 *);
 
 static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 {
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
 	int rc = 0;
 
 	if (irq_re_init) {
@@ -4154,13 +4160,22 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 		netdev_err(bp->dev, "HWRM vnic filter failure rc: %x\n", rc);
 		goto err_out;
 	}
-	bp->vnic_info[0].uc_filter_count = 1;
+	vnic->uc_filter_count = 1;
 
-	bp->vnic_info[0].rx_mask = CFA_L2_SET_RX_MASK_REQ_MASK_BCAST;
+	vnic->rx_mask = CFA_L2_SET_RX_MASK_REQ_MASK_BCAST;
 
 	if ((bp->dev->flags & IFF_PROMISC) && BNXT_PF(bp))
-		bp->vnic_info[0].rx_mask |=
-				CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
+		vnic->rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
+
+	if (bp->dev->flags & IFF_ALLMULTI) {
+		vnic->rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST;
+		vnic->mc_list_count = 0;
+	} else {
+		u32 mask = 0;
+
+		bnxt_mc_list_updated(bp, &mask);
+		vnic->rx_mask |= mask;
+	}
 
 	rc = bnxt_cfg_rx_mode(bp);
 	if (rc)

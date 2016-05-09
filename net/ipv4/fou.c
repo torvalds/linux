@@ -227,8 +227,6 @@ static int fou_gro_complete(struct sock *sk, struct sk_buff *skb,
 	int err = -ENOSYS;
 	const struct net_offload **offloads;
 
-	udp_tunnel_gro_complete(skb, nhoff);
-
 	rcu_read_lock();
 	offloads = NAPI_GRO_CB(skb)->is_ipv6 ? inet6_offloads : inet_offloads;
 	ops = rcu_dereference(offloads[proto]);
@@ -236,6 +234,8 @@ static int fou_gro_complete(struct sock *sk, struct sk_buff *skb,
 		goto out_unlock;
 
 	err = ops->callbacks.gro_complete(skb, nhoff);
+
+	skb_set_inner_mac_header(skb, nhoff);
 
 out_unlock:
 	rcu_read_unlock();
@@ -411,6 +411,8 @@ static int gue_gro_complete(struct sock *sk, struct sk_buff *skb, int nhoff)
 		goto out_unlock;
 
 	err = ops->callbacks.gro_complete(skb, nhoff + guehlen);
+
+	skb_set_inner_mac_header(skb, nhoff + guehlen);
 
 out_unlock:
 	rcu_read_unlock();
