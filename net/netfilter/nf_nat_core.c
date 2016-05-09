@@ -118,7 +118,7 @@ EXPORT_SYMBOL(nf_xfrm_me_harder);
 
 /* We keep an extra hash for each conntrack, for fast searching. */
 static inline unsigned int
-hash_by_src(const struct net *net, const struct nf_conntrack_tuple *tuple)
+hash_by_src(const struct net *n, const struct nf_conntrack_tuple *tuple)
 {
 	unsigned int hash;
 
@@ -126,9 +126,9 @@ hash_by_src(const struct net *net, const struct nf_conntrack_tuple *tuple)
 
 	/* Original src, to ensure we map it consistently if poss. */
 	hash = jhash2((u32 *)&tuple->src, sizeof(tuple->src) / sizeof(u32),
-		      tuple->dst.protonum ^ nf_nat_hash_rnd);
+		      tuple->dst.protonum ^ nf_nat_hash_rnd ^ net_hash_mix(n));
 
-	return reciprocal_scale(hash, net->ct.nat_htable_size);
+	return reciprocal_scale(hash, n->ct.nat_htable_size);
 }
 
 /* Is this tuple already taken? (not by us) */
