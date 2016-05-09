@@ -145,7 +145,7 @@ static void nps_enet_tx_handler(struct net_device *ndev)
 	u32 tx_ctrl_nt = (tx_ctrl_value & TX_CTL_NT_MASK) >> TX_CTL_NT_SHIFT;
 
 	/* Check if we got TX */
-	if (!priv->tx_packet_sent || tx_ctrl_ct)
+	if (!priv->tx_skb || tx_ctrl_ct)
 		return;
 
 	/* Ack Tx ctrl register */
@@ -160,7 +160,7 @@ static void nps_enet_tx_handler(struct net_device *ndev)
 	}
 
 	dev_kfree_skb(priv->tx_skb);
-	priv->tx_packet_sent = false;
+	priv->tx_skb = NULL;
 
 	if (netif_queue_stopped(ndev))
 		netif_wake_queue(ndev);
@@ -217,7 +217,7 @@ static irqreturn_t nps_enet_irq_handler(s32 irq, void *dev_instance)
 	u32 tx_ctrl_ct = (tx_ctrl_value & TX_CTL_CT_MASK) >> TX_CTL_CT_SHIFT;
 	u32 rx_ctrl_cr = (rx_ctrl_value & RX_CTL_CR_MASK) >> RX_CTL_CR_SHIFT;
 
-	if ((!tx_ctrl_ct && priv->tx_packet_sent) || rx_ctrl_cr)
+	if ((!tx_ctrl_ct && priv->tx_skb) || rx_ctrl_cr)
 		if (likely(napi_schedule_prep(&priv->napi))) {
 			nps_enet_reg_set(priv, NPS_ENET_REG_BUF_INT_ENABLE, 0);
 			__napi_schedule(&priv->napi);
@@ -387,8 +387,6 @@ static void nps_enet_send_frame(struct net_device *ndev,
 	/* Write the length of the Frame */
 	tx_ctrl_value |= length << TX_CTL_NT_SHIFT;
 
-	/* Indicate SW is done */
-	priv->tx_packet_sent = true;
 	tx_ctrl_value |= NPS_ENET_ENABLE << TX_CTL_CT_SHIFT;
 	/* Send Frame */
 	nps_enet_reg_set(priv, NPS_ENET_REG_TX_CTL, tx_ctrl_value);
@@ -465,7 +463,7 @@ static s32 nps_enet_open(struct net_device *ndev)
 	s32 err;
 
 	/* Reset private variables */
-	priv->tx_packet_sent = false;
+	priv->tx_skb = NULL;
 	priv->ge_mac_cfg_2_value = 0;
 	priv->ge_mac_cfg_3_value = 0;
 
@@ -533,6 +531,11 @@ static netdev_tx_t nps_enet_start_xmit(struct sk_buff *skb,
 	netif_stop_queue(ndev);
 
 	priv->tx_skb = skb;
+
+	/* make sure tx_skb is actually written to the memory
+	 * before the HW is informed and the IRQ is fired.
+	 */
+	wmb();
 
 	nps_enet_send_frame(ndev, skb);
 
