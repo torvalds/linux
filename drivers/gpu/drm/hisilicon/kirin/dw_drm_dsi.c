@@ -430,12 +430,13 @@ static void dsi_set_mipi_phy(void __iomem *base,
 	 * wait for phy's clock ready
 	 */
 	delay_count = 100;
-	while (delay_count--) {
+	while (delay_count) {
 		val = readl(base +  PHY_STATUS);
 		if ((BIT(0) | BIT(2)) & val)
 			break;
 
 		udelay(1);
+		delay_count--;
 	}
 
 	if (!delay_count)
