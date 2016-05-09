@@ -269,7 +269,7 @@
 			omap5_pmx_wkup: pinmux@c840 {
 				compatible = "ti,omap5-padconf",
 					     "pinctrl-single";
-				reg = <0xc840 0x0038>;
+				reg = <0xc840 0x003c>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				#interrupt-cells = <1>;
