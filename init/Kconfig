@@ -272,8 +272,9 @@ config CROSS_MEMORY_ATTACH
 	  See the man page for more details.
 
 config FHANDLE
-	bool "open by fhandle syscalls"
+	bool "open by fhandle syscalls" if EXPERT
 	select EXPORTFS
+	default y
 	help
 	  If you say Y here, a user level program will be able to map
 	  file names to handle and then later use the handle for

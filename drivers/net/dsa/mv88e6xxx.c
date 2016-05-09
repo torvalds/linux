@@ -2264,6 +2264,57 @@ static void mv88e6xxx_bridge_work(struct work_struct *work)
 	mutex_unlock(&ps->smi_mutex);
 }
 
+static int _mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
+				     int reg, int val)
+{
+	int ret;
+
+	ret = _mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
+	if (ret < 0)
+		goto restore_page_0;
+
+	ret = _mv88e6xxx_phy_write_indirect(ds, port, reg, val);
+restore_page_0:
+	_mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+
+	return ret;
+}
+
+static int _mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page,
+				    int reg)
+{
+	int ret;
+
+	ret = _mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
+	if (ret < 0)
+		goto restore_page_0;
+
+	ret = _mv88e6xxx_phy_read_indirect(ds, port, reg);
+restore_page_0:
+	_mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+
+	return ret;
+}
+
+static int mv88e6xxx_power_on_serdes(struct dsa_switch *ds)
+{
+	int ret;
+
+	ret = _mv88e6xxx_phy_page_read(ds, REG_FIBER_SERDES, PAGE_FIBER_SERDES,
+				       MII_BMCR);
+	if (ret < 0)
+		return ret;
+
+	if (ret & BMCR_PDOWN) {
+		ret &= ~BMCR_PDOWN;
+		ret = _mv88e6xxx_phy_page_write(ds, REG_FIBER_SERDES,
+						PAGE_FIBER_SERDES, MII_BMCR,
+						ret);
+	}
+
+	return ret;
+}
+
 static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -2365,6 +2416,23 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 					   PORT_CONTROL, reg);
 		if (ret)
 			goto abort;
+	}
+
+	/* If this port is connected to a SerDes, make sure the SerDes is not
+	 * powered down.
+	 */
+	if (mv88e6xxx_6352_family(ds)) {
+		ret = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_STATUS);
+		if (ret < 0)
+			goto abort;
+		ret &= PORT_STATUS_CMODE_MASK;
+		if ((ret == PORT_STATUS_CMODE_100BASE_X) ||
+		    (ret == PORT_STATUS_CMODE_1000BASE_X) ||
+		    (ret == PORT_STATUS_CMODE_SGMII)) {
+			ret = mv88e6xxx_power_on_serdes(ds);
+			if (ret < 0)
+				goto abort;
+		}
 	}
 
 	/* Port Control 2: don't force a good FCS, set the maximum frame size to
@@ -2714,13 +2782,9 @@ int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg)
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
-	if (ret < 0)
-		goto error;
-	ret = _mv88e6xxx_phy_read_indirect(ds, port, reg);
-error:
-	_mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+	ret = _mv88e6xxx_phy_page_read(ds, port, page, reg);
 	mutex_unlock(&ps->smi_mutex);
+
 	return ret;
 }
 
@@ -2731,14 +2795,9 @@ int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
 	int ret;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_phy_write_indirect(ds, port, 0x16, page);
-	if (ret < 0)
-		goto error;
-
-	ret = _mv88e6xxx_phy_write_indirect(ds, port, reg, val);
-error:
-	_mv88e6xxx_phy_write_indirect(ds, port, 0x16, 0x0);
+	ret = _mv88e6xxx_phy_page_write(ds, port, page, reg, val);
 	mutex_unlock(&ps->smi_mutex);
+
 	return ret;
 }
 

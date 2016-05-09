@@ -13,13 +13,14 @@
 
 #include <scsi/scsi_host.h>
 
-#define PSEUDO_DMA
-
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
 #define NCR5380_read(reg)		cumanascsi_read(instance, reg)
 #define NCR5380_write(reg, value)	cumanascsi_write(instance, reg, value)
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+#define NCR5380_dma_recv_setup		cumanascsi_pread
+#define NCR5380_dma_send_setup		cumanascsi_pwrite
+#define NCR5380_dma_residual(instance)	(0)
 
 #define NCR5380_intr			cumanascsi_intr
 #define NCR5380_queue_command		cumanascsi_queue_command
@@ -41,8 +42,8 @@ void cumanascsi_setup(char *str, int *ints)
 #define L(v)	(((v)<<16)|((v) & 0x0000ffff))
 #define H(v)	(((v)>>16)|((v) & 0xffff0000))
 
-static inline int
-NCR5380_pwrite(struct Scsi_Host *host, unsigned char *addr, int len)
+static inline int cumanascsi_pwrite(struct Scsi_Host *host,
+                                    unsigned char *addr, int len)
 {
   unsigned long *laddr;
   void __iomem *dma = priv(host)->dma + 0x2000;
@@ -101,11 +102,14 @@ NCR5380_pwrite(struct Scsi_Host *host, unsigned char *addr, int len)
   }
 end:
   writeb(priv(host)->ctrl | 0x40, priv(host)->base + CTRL);
-  return len;
+
+	if (len)
+		return -1;
+	return 0;
 }
 
-static inline int
-NCR5380_pread(struct Scsi_Host *host, unsigned char *addr, int len)
+static inline int cumanascsi_pread(struct Scsi_Host *host,
+                                   unsigned char *addr, int len)
 {
   unsigned long *laddr;
   void __iomem *dma = priv(host)->dma + 0x2000;
@@ -163,7 +167,10 @@ NCR5380_pread(struct Scsi_Host *host, unsigned char *addr, int len)
   }
 end:
   writeb(priv(host)->ctrl | 0x40, priv(host)->base + CTRL);
-  return len;
+
+	if (len)
+		return -1;
+	return 0;
 }
 
 static unsigned char cumanascsi_read(struct Scsi_Host *host, unsigned int reg)
@@ -239,7 +246,7 @@ static int cumanascsi1_probe(struct expansion_card *ec,
 
 	host->irq = ec->irq;
 
-	ret = NCR5380_init(host, 0);
+	ret = NCR5380_init(host, FLAG_DMA_FIXUP | FLAG_LATE_DMA_SETUP);
 	if (ret)
 		goto out_unmap;
 

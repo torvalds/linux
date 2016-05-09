@@ -27,13 +27,15 @@ parameters may be changed at runtime by the command
 	aic79xx=	[HW,SCSI]
 			See Documentation/scsi/aic79xx.txt.
 
-	atascsi=	[HW,SCSI] Atari SCSI
+	atascsi=	[HW,SCSI]
+			See drivers/scsi/atari_scsi.c.
 
 	BusLogic=	[HW,SCSI]
 			See drivers/scsi/BusLogic.c, comment before function
 			BusLogic_ParseDriverOptions().
 
 	dtc3181e=	[HW,SCSI]
+			See Documentation/scsi/g_NCR5380.txt.
 
 	eata=		[HW,SCSI]
 
@@ -51,8 +53,8 @@ parameters may be changed at runtime by the command
 	ips=		[HW,SCSI] Adaptec / IBM ServeRAID controller
 			See header of drivers/scsi/ips.c.
 
-	mac5380=	[HW,SCSI] Format:
-			<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
+	mac5380=	[HW,SCSI]
+			See drivers/scsi/mac_scsi.c.
 
 	max_luns=	[SCSI] Maximum number of LUNs to probe.
 			Should be between 1 and 2^32-1.
@@ -65,10 +67,13 @@ parameters may be changed at runtime by the command
 			See header of drivers/scsi/NCR_D700.c.
 
 	ncr5380=	[HW,SCSI]
+			See Documentation/scsi/g_NCR5380.txt.
 
 	ncr53c400=	[HW,SCSI]
+			See Documentation/scsi/g_NCR5380.txt.
 
 	ncr53c400a=	[HW,SCSI]
+			See Documentation/scsi/g_NCR5380.txt.
 
 	ncr53c406a=	[HW,SCSI]
 

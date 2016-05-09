@@ -14,13 +14,6 @@
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
 
-#ifdef CONFIG_SCSI_GENERIC_NCR53C400
-#define BIOSPARAM
-#define NCR5380_BIOSPARAM generic_NCR5380_biosparam
-#else
-#define NCR5380_BIOSPARAM NULL
-#endif
-
 #define __STRVAL(x) #x
 #define STRVAL(x) __STRVAL(x)
 
@@ -29,12 +22,6 @@
 
 #define NCR5380_map_type int
 #define NCR5380_map_name port
-
-#ifdef CONFIG_SCSI_GENERIC_NCR53C400
-#define NCR5380_region_size 16
-#else
-#define NCR5380_region_size 8
-#endif
 
 #define NCR5380_read(reg) \
 	inb(instance->io_port + (reg))
@@ -55,7 +42,7 @@
 #define NCR5380_map_name base
 #define NCR53C400_mem_base 0x3880
 #define NCR53C400_host_buffer 0x3900
-#define NCR5380_region_size 0x3a00
+#define NCR53C400_region_size 0x3a00
 
 #define NCR5380_read(reg) \
 	readb(((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
@@ -66,6 +53,7 @@
 
 #define NCR5380_implementation_fields \
 	void __iomem *iomem; \
+	resource_size_t iomem_size; \
 	int c400_ctl_status; \
 	int c400_blk_cnt; \
 	int c400_host_buf;
@@ -73,16 +61,18 @@
 #endif
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
-        generic_NCR5380_dma_xfer_len(cmd)
+        generic_NCR5380_dma_xfer_len(instance, cmd)
+#define NCR5380_dma_recv_setup		generic_NCR5380_pread
+#define NCR5380_dma_send_setup		generic_NCR5380_pwrite
+#define NCR5380_dma_residual(instance)	(0)
 
 #define NCR5380_intr generic_NCR5380_intr
 #define NCR5380_queue_command generic_NCR5380_queue_command
 #define NCR5380_abort generic_NCR5380_abort
 #define NCR5380_bus_reset generic_NCR5380_bus_reset
-#define NCR5380_pread generic_NCR5380_pread
-#define NCR5380_pwrite generic_NCR5380_pwrite
 #define NCR5380_info generic_NCR5380_info
-#define NCR5380_show_info generic_NCR5380_show_info
+
+#define NCR5380_io_delay(x)		udelay(x)
 
 #define BOARD_NCR5380	0
 #define BOARD_NCR53C400	1

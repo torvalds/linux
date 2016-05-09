@@ -589,6 +589,8 @@ typedef int(*cgs_get_active_displays_info)(
 					void *cgs_device,
 					struct cgs_display_info *info);
 
+typedef int (*cgs_notify_dpm_enabled)(void *cgs_device, bool enabled);
+
 typedef int (*cgs_call_acpi_method)(void *cgs_device,
 					uint32_t acpi_method,
 					uint32_t acpi_function,
@@ -644,6 +646,8 @@ struct cgs_ops {
 	cgs_set_clockgating_state set_clockgating_state;
 	/* display manager */
 	cgs_get_active_displays_info get_active_displays_info;
+	/* notify dpm enabled */
+	cgs_notify_dpm_enabled notify_dpm_enabled;
 	/* ACPI */
 	cgs_call_acpi_method call_acpi_method;
 	/* get system info */
@@ -734,8 +738,12 @@ struct cgs_device
 	CGS_CALL(set_powergating_state, dev, block_type, state)
 #define cgs_set_clockgating_state(dev, block_type, state)	\
 	CGS_CALL(set_clockgating_state, dev, block_type, state)
+#define cgs_notify_dpm_enabled(dev, enabled)	\
+	CGS_CALL(notify_dpm_enabled, dev, enabled)
+
 #define cgs_get_active_displays_info(dev, info)	\
 	CGS_CALL(get_active_displays_info, dev, info)
+
 #define cgs_call_acpi_method(dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)	\
 	CGS_CALL(call_acpi_method, dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)
 #define cgs_query_system_info(dev, sys_info)	\

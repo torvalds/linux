@@ -218,7 +218,7 @@ extern pgprot_t PAGE_KERNEL_LOCKED;
 extern pgprot_t PAGE_COPY;
 extern pgprot_t PAGE_SHARED;
 
-/* XXX This uglyness is for the atyfb driver's sparc mmap() support. XXX */
+/* XXX This ugliness is for the atyfb driver's sparc mmap() support. XXX */
 extern unsigned long _PAGE_IE;
 extern unsigned long _PAGE_E;
 extern unsigned long _PAGE_CACHE;

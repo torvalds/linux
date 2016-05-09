@@ -47,11 +47,11 @@ static void read_cache_pages_invalidate_page(struct address_space *mapping,
 		if (!trylock_page(page))
 			BUG();
 		page->mapping = mapping;
-		do_invalidatepage(page, 0, PAGE_CACHE_SIZE);
+		do_invalidatepage(page, 0, PAGE_SIZE);
 		page->mapping = NULL;
 		unlock_page(page);
 	}
-	page_cache_release(page);
+	put_page(page);
 }
 
 /*
@@ -93,14 +93,14 @@ int read_cache_pages(struct address_space *mapping, struct list_head *pages,
 			read_cache_pages_invalidate_page(mapping, page);
 			continue;
 		}
-		page_cache_release(page);
+		put_page(page);
 
 		ret = filler(data, page);
 		if (unlikely(ret)) {
 			read_cache_pages_invalidate_pages(mapping, pages);
 			break;
 		}
-		task_io_account_read(PAGE_CACHE_SIZE);
+		task_io_account_read(PAGE_SIZE);
 	}
 	return ret;
 }
@@ -130,7 +130,7 @@ static int read_pages(struct address_space *mapping, struct file *filp,
 				mapping_gfp_constraint(mapping, GFP_KERNEL))) {
 			mapping->a_ops->readpage(filp, page);
 		}
-		page_cache_release(page);
+		put_page(page);
 	}
 	ret = 0;
 
@@ -163,7 +163,7 @@ int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 	if (isize == 0)
 		goto out;
 
-	end_index = ((isize - 1) >> PAGE_CACHE_SHIFT);
+	end_index = ((isize - 1) >> PAGE_SHIFT);
 
 	/*
 	 * Preallocate as many pages as we will need.
@@ -216,7 +216,7 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
 	while (nr_to_read) {
 		int err;
 
-		unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_CACHE_SIZE;
+		unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_SIZE;
 
 		if (this_chunk > nr_to_read)
 			this_chunk = nr_to_read;
@@ -425,7 +425,7 @@ ondemand_readahead(struct address_space *mapping,
 	 * trivial case: (offset - prev_offset) == 1
 	 * unaligned reads: (offset - prev_offset) == 0
 	 */
-	prev_offset = (unsigned long long)ra->prev_pos >> PAGE_CACHE_SHIFT;
+	prev_offset = (unsigned long long)ra->prev_pos >> PAGE_SHIFT;
 	if (offset - prev_offset <= 1UL)
 		goto initial_readahead;
 
@@ -558,8 +558,8 @@ SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
 	if (f.file) {
 		if (f.file->f_mode & FMODE_READ) {
 			struct address_space *mapping = f.file->f_mapping;
-			pgoff_t start = offset >> PAGE_CACHE_SHIFT;
-			pgoff_t end = (offset + count - 1) >> PAGE_CACHE_SHIFT;
+			pgoff_t start = offset >> PAGE_SHIFT;
+			pgoff_t end = (offset + count - 1) >> PAGE_SHIFT;
 			unsigned long len = end - start + 1;
 			ret = do_readahead(mapping, f.file, start, len);
 		}

@@ -1,6 +1,3 @@
-#define PSEUDO_DMA
-#define DONT_USE_INTR
-
 /*
  * DTC 3180/3280 driver, by
  *	Ray Van Tassle	rayvt@comm.mot.com
@@ -54,7 +51,6 @@
 #include <scsi/scsi_host.h>
 
 #include "dtc.h"
-#define AUTOPROBE_IRQ
 #include "NCR5380.h"
 
 /*
@@ -229,7 +225,7 @@ found:
 		instance->base = addr;
 		((struct NCR5380_hostdata *)(instance)->hostdata)->base = base;
 
-		if (NCR5380_init(instance, FLAG_NO_DMA_FIXUP))
+		if (NCR5380_init(instance, FLAG_LATE_DMA_SETUP))
 			goto out_unregister;
 
 		NCR5380_maybe_reset_bus(instance);
@@ -244,9 +240,10 @@ found:
 		if (instance->irq == 255)
 			instance->irq = NO_IRQ;
 
-#ifndef DONT_USE_INTR
 		/* With interrupts enabled, it will sometimes hang when doing heavy
 		 * reads. So better not enable them until I finger it out. */
+		instance->irq = NO_IRQ;
+
 		if (instance->irq != NO_IRQ)
 			if (request_irq(instance->irq, dtc_intr, 0,
 					"dtc", instance)) {
@@ -258,11 +255,7 @@ found:
 			printk(KERN_WARNING "scsi%d : interrupts not enabled. for better interactive performance,\n", instance->host_no);
 			printk(KERN_WARNING "scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
 		}
-#else
-		if (instance->irq != NO_IRQ)
-			printk(KERN_WARNING "scsi%d : interrupts not used. Might as well not jumper it.\n", instance->host_no);
-		instance->irq = NO_IRQ;
-#endif
+
 		dprintk(NDEBUG_INIT, "scsi%d : irq = %d\n",
 		        instance->host_no, instance->irq);
 
@@ -323,7 +316,8 @@ static int dtc_biosparam(struct scsi_device *sdev, struct block_device *dev,
  * 	timeout.
 */
 
-static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
+static inline int dtc_pread(struct Scsi_Host *instance,
+                            unsigned char *dst, int len)
 {
 	unsigned char *d = dst;
 	int i;			/* For counting time spent in the poll-loop */
@@ -352,8 +346,6 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 	while (!(NCR5380_read(DTC_CONTROL_REG) & D_CR_ACCESS))
 		++i;
 	rtrc(0);
-	if (i > hostdata->spin_max_r)
-		hostdata->spin_max_r = i;
 	return (0);
 }
 
@@ -370,7 +362,8 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
  * 	timeout.
 */
 
-static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
+static inline int dtc_pwrite(struct Scsi_Host *instance,
+                             unsigned char *src, int len)
 {
 	int i;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
@@ -400,8 +393,6 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
 	rtrc(7);
 	/* Check for parity error here. fixme. */
 	rtrc(0);
-	if (i > hostdata->spin_max_w)
-		hostdata->spin_max_w = i;
 	return (0);
 }
 
@@ -440,8 +431,6 @@ static struct scsi_host_template driver_template = {
 	.detect			= dtc_detect,
 	.release		= dtc_release,
 	.proc_name		= "dtc3x80",
-	.show_info		= dtc_show_info,
-	.write_info		= dtc_write_info,
 	.info			= dtc_info,
 	.queuecommand		= dtc_queue_command,
 	.eh_abort_handler	= dtc_abort,

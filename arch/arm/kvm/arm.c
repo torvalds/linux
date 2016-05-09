@@ -1061,15 +1061,27 @@ static void cpu_init_hyp_mode(void *dummy)
 	kvm_arm_init_debug();
 }
 
+static void cpu_hyp_reinit(void)
+{
+	if (is_kernel_in_hyp_mode()) {
+		/*
+		 * cpu_init_stage2() is safe to call even if the PM
+		 * event was cancelled before the CPU was reset.
+		 */
+		cpu_init_stage2(NULL);
+	} else {
+		if (__hyp_get_vectors() == hyp_default_vectors)
+			cpu_init_hyp_mode(NULL);
+	}
+}
+
 static int hyp_init_cpu_notify(struct notifier_block *self,
 			       unsigned long action, void *cpu)
 {
 	switch (action) {
 	case CPU_STARTING:
 	case CPU_STARTING_FROZEN:
-		if (__hyp_get_vectors() == hyp_default_vectors)
-			cpu_init_hyp_mode(NULL);
-		break;
+		cpu_hyp_reinit();
 	}
 
 	return NOTIFY_OK;
@@ -1084,9 +1096,8 @@ static int hyp_init_cpu_pm_notifier(struct notifier_block *self,
 				    unsigned long cmd,
 				    void *v)
 {
-	if (cmd == CPU_PM_EXIT &&
-	    __hyp_get_vectors() == hyp_default_vectors) {
-		cpu_init_hyp_mode(NULL);
+	if (cmd == CPU_PM_EXIT) {
+		cpu_hyp_reinit();
 		return NOTIFY_OK;
 	}
 
@@ -1126,6 +1137,22 @@ static int init_common_resources(void)
 static int init_subsystems(void)
 {
 	int err;
+
+	/*
+	 * Register CPU Hotplug notifier
+	 */
+	cpu_notifier_register_begin();
+	err = __register_cpu_notifier(&hyp_init_cpu_nb);
+	cpu_notifier_register_done();
+	if (err) {
+		kvm_err("Cannot register KVM init CPU notifier (%d)\n", err);
+		return err;
+	}
+
+	/*
+	 * Register CPU lower-power notifier
+	 */
+	hyp_cpu_pm_init();
 
 	/*
 	 * Init HYP view of VGIC
@@ -1269,19 +1296,6 @@ static int init_hyp_mode(void)
 #ifndef CONFIG_HOTPLUG_CPU
 	free_boot_hyp_pgd();
 #endif
-
-	cpu_notifier_register_begin();
-
-	err = __register_cpu_notifier(&hyp_init_cpu_nb);
-
-	cpu_notifier_register_done();
-
-	if (err) {
-		kvm_err("Cannot register HYP init CPU notifier (%d)\n", err);
-		goto out_err;
-	}
-
-	hyp_cpu_pm_init();
 
 	/* set size of VMID supported by CPU */
 	kvm_vmid_bits = kvm_get_vmid_bits();

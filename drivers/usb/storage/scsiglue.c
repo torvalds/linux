@@ -123,7 +123,7 @@ static int slave_configure(struct scsi_device *sdev)
 		unsigned int max_sectors = 64;
 
 		if (us->fflags & US_FL_MAX_SECTORS_MIN)
-			max_sectors = PAGE_CACHE_SIZE >> 9;
+			max_sectors = PAGE_SIZE >> 9;
 		if (queue_max_hw_sectors(sdev->request_queue) > max_sectors)
 			blk_queue_max_hw_sectors(sdev->request_queue,
 					      max_sectors);
@@ -563,7 +563,7 @@ static const struct scsi_host_template usb_stor_host_template = {
 	.target_alloc =			target_alloc,
 
 	/* lots of sg segments can be handled */
-	.sg_tablesize =			SCSI_MAX_SG_CHAIN_SEGMENTS,
+	.sg_tablesize =			SG_MAX_SEGMENTS,
 
 	/* limit the total size of a transfer to 120 KB */
 	.max_sectors =                  240,

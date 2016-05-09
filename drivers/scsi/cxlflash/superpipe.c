@@ -1615,6 +1615,13 @@ err1:
  * place at the same time and the failure was due to CXL services being
  * unable to keep up.
  *
+ * As this routine is called on ioctl context, it holds the ioctl r/w
+ * semaphore that is used to drain ioctls in recovery scenarios. The
+ * implementation to achieve the pacing described above (a local mutex)
+ * requires that the ioctl r/w semaphore be dropped and reacquired to
+ * avoid a 3-way deadlock when multiple process recoveries operate in
+ * parallel.
+ *
  * Because a user can detect an error condition before the kernel, it is
  * quite possible for this routine to act as the kernel's EEH detection
  * source (MMIO read of mbox_r). Because of this, there is a window of
@@ -1642,9 +1649,17 @@ static int cxlflash_afu_recover(struct scsi_device *sdev,
 	int rc = 0;
 
 	atomic_inc(&cfg->recovery_threads);
+	up_read(&cfg->ioctl_rwsem);
 	rc = mutex_lock_interruptible(mutex);
+	down_read(&cfg->ioctl_rwsem);
 	if (rc)
 		goto out;
+	rc = check_state(cfg);
+	if (rc) {
+		dev_err(dev, "%s: Failed state! rc=%d\n", __func__, rc);
+		rc = -ENODEV;
+		goto out;
+	}
 
 	dev_dbg(dev, "%s: reason 0x%016llX rctxid=%016llX\n",
 		__func__, recover->reason, rctxid);

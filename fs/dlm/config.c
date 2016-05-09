@@ -343,13 +343,12 @@ static struct config_group *make_cluster(struct config_group *g,
 	struct dlm_cluster *cl = NULL;
 	struct dlm_spaces *sps = NULL;
 	struct dlm_comms *cms = NULL;
-	void *gps = NULL;
 
 	cl = kzalloc(sizeof(struct dlm_cluster), GFP_NOFS);
 	sps = kzalloc(sizeof(struct dlm_spaces), GFP_NOFS);
 	cms = kzalloc(sizeof(struct dlm_comms), GFP_NOFS);
 
-	if (!cl || !gps || !sps || !cms)
+	if (!cl || !sps || !cms)
 		goto fail;
 
 	config_group_init_type_name(&cl->group, name, &cluster_type);

@@ -81,6 +81,7 @@ const char *scsi_host_state_name(enum scsi_host_state state)
 	return name;
 }
 
+#ifdef CONFIG_SCSI_DH
 static const struct {
 	unsigned char	value;
 	char		*name;
@@ -94,7 +95,7 @@ static const struct {
 	{ SCSI_ACCESS_STATE_TRANSITIONING, "transitioning" },
 };
 
-const char *scsi_access_state_name(unsigned char state)
+static const char *scsi_access_state_name(unsigned char state)
 {
 	int i;
 	char *name = NULL;
@@ -107,6 +108,7 @@ const char *scsi_access_state_name(unsigned char state)
 	}
 	return name;
 }
+#endif
 
 static int check_set(unsigned long long *val, char *src)
 {
@@ -143,7 +145,8 @@ static int scsi_scan(struct Scsi_Host *shost, const char *str)
 	if (shost->transportt->user_scan)
 		res = shost->transportt->user_scan(shost, channel, id, lun);
 	else
-		res = scsi_scan_host_selected(shost, channel, id, lun, 1);
+		res = scsi_scan_host_selected(shost, channel, id, lun,
+					      SCSI_SCAN_MANUAL);
 	return res;
 }
 
@@ -226,7 +229,7 @@ show_shost_state(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 /* DEVICE_ATTR(state) clashes with dev_attr_state for sdev */
-struct device_attribute dev_attr_hstate =
+static struct device_attribute dev_attr_hstate =
 	__ATTR(state, S_IRUGO | S_IWUSR, show_shost_state, store_shost_state);
 
 static ssize_t
@@ -401,7 +404,7 @@ static struct attribute *scsi_sysfs_shost_attrs[] = {
 	NULL
 };
 
-struct attribute_group scsi_shost_attr_group = {
+static struct attribute_group scsi_shost_attr_group = {
 	.attrs =	scsi_sysfs_shost_attrs,
 };
 
@@ -1364,18 +1367,18 @@ static void __scsi_remove_target(struct scsi_target *starget)
 void scsi_remove_target(struct device *dev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
-	struct scsi_target *starget, *last_target = NULL;
+	struct scsi_target *starget;
 	unsigned long flags;
 
 restart:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_for_each_entry(starget, &shost->__targets, siblings) {
 		if (starget->state == STARGET_DEL ||
-		    starget == last_target)
+		    starget->state == STARGET_REMOVE)
 			continue;
 		if (starget->dev.parent == dev || &starget->dev == dev) {
 			kref_get(&starget->reap_ref);
-			last_target = starget;
+			starget->state = STARGET_REMOVE;
 			spin_unlock_irqrestore(shost->host_lock, flags);
 			__scsi_remove_target(starget);
 			scsi_target_reap(starget);
