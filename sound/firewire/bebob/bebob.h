@@ -94,7 +94,6 @@ struct snd_bebob {
 
 	bool connected;
 
-	struct amdtp_stream *master;
 	struct amdtp_stream tx_stream;
 	struct amdtp_stream rx_stream;
 	struct cmp_connection out_conn;
