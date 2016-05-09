@@ -14,11 +14,18 @@ int __dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
 
 #ifdef CONFIG_FS_DAX
 struct page *read_dax_sector(struct block_device *bdev, sector_t n);
+int __dax_zero_page_range(struct block_device *bdev, sector_t sector,
+		unsigned int offset, unsigned int length);
 #else
 static inline struct page *read_dax_sector(struct block_device *bdev,
 		sector_t n)
 {
 	return ERR_PTR(-ENXIO);
+}
+static inline int __dax_zero_page_range(struct block_device *bdev,
+		sector_t sector, unsigned int offset, unsigned int length)
+{
+	return -ENXIO;
 }
 #endif
 
