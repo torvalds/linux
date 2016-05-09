@@ -18,7 +18,7 @@
 #include "serialio.h"
 
 #define MAXSYNTHS       16      /* Max number of synths in array. */
-static struct spk_synth *synths[MAXSYNTHS];
+static struct spk_synth *synths[MAXSYNTHS + 1];
 struct spk_synth *synth;
 char spk_pitch_buff[32] = "";
 static int module_status;
