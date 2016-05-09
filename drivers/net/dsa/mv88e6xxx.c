@@ -1596,6 +1596,9 @@ int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
 	u16 pvid;
 	int err;
 
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_VTU))
+		return -EOPNOTSUPP;
+
 	mutex_lock(&ps->smi_mutex);
 
 	err = _mv88e6xxx_port_pvid_get(ps, port, &pvid);
@@ -2019,6 +2022,9 @@ int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 		PORT_CONTROL_2_8021Q_DISABLED;
 	int ret;
 
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_VTU))
+		return -EOPNOTSUPP;
+
 	mutex_lock(&ps->smi_mutex);
 
 	ret = _mv88e6xxx_reg_read(ps, REG_PORT(port), PORT_CONTROL_2);
@@ -2052,7 +2058,11 @@ int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_vlan *vlan,
 				struct switchdev_trans *trans)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int err;
+
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_VTU))
+		return -EOPNOTSUPP;
 
 	/* If the requested port doesn't belong to the same bridge as the VLAN
 	 * members, do not support it (yet) and fallback to software VLAN.
@@ -2093,6 +2103,9 @@ void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	u16 vid;
+
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_VTU))
+		return;
 
 	mutex_lock(&ps->smi_mutex);
 
@@ -2150,6 +2163,9 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	u16 pvid, vid;
 	int err = 0;
+
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_VTU))
+		return -EOPNOTSUPP;
 
 	mutex_lock(&ps->smi_mutex);
 
