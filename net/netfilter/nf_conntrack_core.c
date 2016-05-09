@@ -626,7 +626,6 @@ static void nf_ct_acct_merge(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 	acct = nf_conn_acct_find(loser_ct);
 	if (acct) {
 		struct nf_conn_counter *counter = acct->counter;
-		enum ip_conntrack_info ctinfo;
 		unsigned int bytes;
 
 		/* u32 should be fine since we must have seen one packet. */
