@@ -59,7 +59,8 @@ struct mmu_rb_node {
 struct mmu_rb_ops {
 	bool (*filter)(struct mmu_rb_node *, unsigned long, unsigned long);
 	int (*insert)(struct rb_root *, struct mmu_rb_node *);
-	void (*remove)(struct rb_root *, struct mmu_rb_node *, bool);
+	void (*remove)(struct rb_root *, struct mmu_rb_node *,
+		       struct mm_struct *);
 	int (*invalidate)(struct rb_root *, struct mmu_rb_node *);
 };
 

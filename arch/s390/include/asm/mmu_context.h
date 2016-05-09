@@ -26,12 +26,28 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
 #endif
-	if (mm->context.asce_limit == 0) {
+	switch (mm->context.asce_limit) {
+	case 1UL << 42:
+		/*
+		 * forked 3-level task, fall through to set new asce with new
+		 * mm->pgd
+		 */
+	case 0:
 		/* context created by exec, set asce limit to 4TB */
-		mm->context.asce_bits = _ASCE_TABLE_LENGTH |
-			_ASCE_USER_BITS | _ASCE_TYPE_REGION3;
 		mm->context.asce_limit = STACK_TOP_MAX;
-	} else if (mm->context.asce_limit == (1UL << 31)) {
+		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
+		break;
+	case 1UL << 53:
+		/* forked 4-level task, set new asce with new mm->pgd */
+		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+				   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
+		break;
+	case 1UL << 31:
+		/* forked 2-level compat task, set new asce with new mm->pgd */
+		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
+		/* pgd_alloc() did not increase mm->nr_pmds */
 		mm_inc_nr_pmds(mm);
 	}
 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
@@ -42,7 +58,7 @@ static inline int init_new_context(struct task_struct *tsk,
 
 static inline void set_user_asce(struct mm_struct *mm)
 {
-	S390_lowcore.user_asce = mm->context.asce_bits | __pa(mm->pgd);
+	S390_lowcore.user_asce = mm->context.asce;
 	if (current->thread.mm_segment.ar4)
 		__ctl_load(S390_lowcore.user_asce, 7, 7);
 	set_cpu_flag(CIF_ASCE);
@@ -71,7 +87,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	int cpu = smp_processor_id();
 
-	S390_lowcore.user_asce = next->context.asce_bits | __pa(next->pgd);
+	S390_lowcore.user_asce = next->context.asce;
 	if (prev == next)
 		return;
 	if (MACHINE_HAS_TLB_LC)
