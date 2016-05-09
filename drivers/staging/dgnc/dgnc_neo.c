@@ -379,12 +379,6 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 	unsigned char cause;
 	unsigned long flags;
 
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
-		return;
-
-	if (port >= brd->maxports)
-		return;
-
 	ch = brd->channels[port];
 	if (ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
