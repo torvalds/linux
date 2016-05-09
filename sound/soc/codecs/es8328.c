@@ -60,7 +60,11 @@ static const char * const supply_names[ES8328_SUPPLY_NUM] = {
 #define ES8328_RATES (SNDRV_PCM_RATE_44100 | \
 		SNDRV_PCM_RATE_22050 | \
 		SNDRV_PCM_RATE_11025)
-#define ES8328_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
+#define ES8328_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
+		SNDRV_PCM_FMTBIT_S18_3LE | \
+		SNDRV_PCM_FMTBIT_S20_3LE | \
+		SNDRV_PCM_FMTBIT_S24_LE | \
+		SNDRV_PCM_FMTBIT_S32_LE)
 
 struct es8328_priv {
 	struct regmap *regmap;
@@ -449,6 +453,7 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 	int i;
 	int reg;
 	int val;
+	int wl;
 	u8 ratio;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -470,10 +475,28 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 			 ES8328_SYSCLK_RATE_1X, ES8328_SYSCLK_RATE_2X);
 		return -EINVAL;
 	}
-	ret = snd_soc_update_bits(codec, ES8328_MASTERMODE,
+	snd_soc_update_bits(codec, ES8328_MASTERMODE,
 			ES8328_MASTERMODE_MCLKDIV2, val);
-	if (ret < 0)
-		return ret;
+
+	switch (params_width(params)) {
+	case 16:
+		wl = 3;
+		break;
+	case 18:
+		wl = 2;
+		break;
+	case 20:
+		wl = 1;
+		break;
+	case 24:
+		wl = 0;
+		break;
+	case 32:
+		wl = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* find master mode MCLK to sampling frequency ratio */
 	ratio = mclk_ratios[0].rate;
@@ -484,14 +507,14 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		snd_soc_update_bits(codec, ES8328_DACCONTROL1,
 				ES8328_DACCONTROL1_DACWL_MASK,
-				ES8328_DACCONTROL1_DACWL_16);
+				wl << ES8328_DACCONTROL1_DACWL_SHIFT);
 
 		es8328->playback_fs = params_rate(params);
 		es8328_set_deemph(codec);
 	} else
 		snd_soc_update_bits(codec, ES8328_ADCCONTROL4,
 				ES8328_ADCCONTROL4_ADCWL_MASK,
-				ES8328_ADCCONTROL4_ADCWL_16);
+				wl << ES8328_ADCCONTROL4_ADCWL_SHIFT);
 
 	return snd_soc_update_bits(codec, reg, ES8328_RATEMASK, ratio);
 }
