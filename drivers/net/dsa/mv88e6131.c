@@ -58,20 +58,6 @@ static const char *mv88e6131_drv_probe(struct device *dsa_dev,
 				   ARRAY_SIZE(mv88e6131_table));
 }
 
-static int mv88e6131_setup_global(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-
-	/* Force the priority of IGMP/MLD snoop frames and ARP frames
-	 * to the highest setting.
-	 */
-	return mv88e6xxx_reg_write(ps, REG_GLOBAL2, GLOBAL2_PRIO_OVERRIDE,
-				   GLOBAL2_PRIO_OVERRIDE_FORCE_SNOOP |
-				   7 << GLOBAL2_PRIO_OVERRIDE_SNOOP_SHIFT |
-				   GLOBAL2_PRIO_OVERRIDE_FORCE_ARP |
-				   7 << GLOBAL2_PRIO_OVERRIDE_ARP_SHIFT);
-}
-
 static int mv88e6131_setup(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
@@ -80,10 +66,6 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 	ps->ds = ds;
 
 	ret = mv88e6xxx_setup_common(ps);
-	if (ret < 0)
-		return ret;
-
-	ret = mv88e6131_setup_global(ds);
 	if (ret < 0)
 		return ret;
 
