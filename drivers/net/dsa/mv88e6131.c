@@ -58,24 +58,10 @@ static const char *mv88e6131_drv_probe(struct device *dsa_dev,
 				   ARRAY_SIZE(mv88e6131_table));
 }
 
-static int mv88e6131_setup(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int ret;
-
-	ps->ds = ds;
-
-	ret = mv88e6xxx_setup_common(ps);
-	if (ret < 0)
-		return ret;
-
-	return mv88e6xxx_setup_ports(ds);
-}
-
 struct dsa_switch_driver mv88e6131_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_DSA,
 	.probe			= mv88e6131_drv_probe,
-	.setup			= mv88e6131_setup,
+	.setup			= mv88e6xxx_setup,
 	.set_addr		= mv88e6xxx_set_addr,
 	.phy_read		= mv88e6xxx_phy_read,
 	.phy_write		= mv88e6xxx_phy_write,

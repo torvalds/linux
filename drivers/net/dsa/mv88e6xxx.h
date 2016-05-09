@@ -588,8 +588,7 @@ const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
 				const struct mv88e6xxx_info *table,
 				unsigned int num);
 
-int mv88e6xxx_setup_ports(struct dsa_switch *ds);
-int mv88e6xxx_setup_common(struct mv88e6xxx_priv_state *ps);
+int mv88e6xxx_setup(struct dsa_switch *ds);
 int mv88e6xxx_reg_read(struct mv88e6xxx_priv_state *ps, int addr, int reg);
 int mv88e6xxx_reg_write(struct mv88e6xxx_priv_state *ps, int addr,
 			int reg, u16 val);
