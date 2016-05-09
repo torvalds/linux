@@ -10,7 +10,7 @@
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
-#include <linux/timer.h>
+#include <linux/workqueue.h>
 #include "firmware.h"
 #include "greybus.h"
 
@@ -29,7 +29,7 @@ struct fw_request {
 	const struct firmware	*fw;
 	struct list_head	node;
 
-	struct timer_list	timer;
+	struct delayed_work	dwork;
 	/* Timeout, in jiffies, within which the firmware shall download */
 	unsigned long		release_timeout_j;
 	struct kref		kref;
@@ -129,9 +129,10 @@ static void free_firmware(struct fw_download *fw_download,
 	put_fw_req(fw_req);
 }
 
-static void fw_request_timedout(unsigned long data)
+static void fw_request_timedout(struct work_struct *work)
 {
-	struct fw_request *fw_req = (struct fw_request *)data;
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct fw_request *fw_req = container_of(dwork, struct fw_request, dwork);
 	struct fw_download *fw_download = fw_req->fw_download;
 
 	dev_err(fw_download->parent,
@@ -207,11 +208,8 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 	req_count = DIV_ROUND_UP(fw_req->fw->size, MIN_FETCH_SIZE);
 	fw_req->release_timeout_j = jiffies + req_count * NEXT_REQ_TIMEOUT_J;
 
-	init_timer(&fw_req->timer);
-	fw_req->timer.function = fw_request_timedout;
-	fw_req->timer.expires = jiffies + NEXT_REQ_TIMEOUT_J;
-	fw_req->timer.data = (unsigned long)fw_req;
-	add_timer(&fw_req->timer);
+	INIT_DELAYED_WORK(&fw_req->dwork, fw_request_timedout);
+	schedule_delayed_work(&fw_req->dwork, NEXT_REQ_TIMEOUT_J);
 
 	return fw_req;
 
@@ -300,8 +298,8 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	/* Make sure timer handler isn't running in parallel */
-	del_timer_sync(&fw_req->timer);
+	/* Make sure work handler isn't running in parallel */
+	cancel_delayed_work_sync(&fw_req->dwork);
 
 	/* We timed-out before reaching here ? */
 	if (fw_req->disabled) {
@@ -344,7 +342,7 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 		size);
 
 	/* Refresh timeout */
-	mod_timer(&fw_req->timer, jiffies + NEXT_REQ_TIMEOUT_J);
+	schedule_delayed_work(&fw_req->dwork, NEXT_REQ_TIMEOUT_J);
 
 put_fw:
 	put_fw_req(fw_req);
@@ -377,7 +375,7 @@ static int fw_download_release_firmware(struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	del_timer_sync(&fw_req->timer);
+	cancel_delayed_work_sync(&fw_req->dwork);
 
 	free_firmware(fw_download, fw_req);
 	put_fw_req(fw_req);
@@ -459,7 +457,7 @@ void gb_fw_download_connection_exit(struct gb_connection *connection)
 
 	/* Release pending firmware packages */
 	list_for_each_entry_safe(fw_req, tmp, &fw_download->fw_requests, node) {
-		del_timer_sync(&fw_req->timer);
+		cancel_delayed_work_sync(&fw_req->dwork);
 		free_firmware(fw_download, fw_req);
 		put_fw_req(fw_req);
 	}
