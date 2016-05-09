@@ -1665,9 +1665,8 @@ static void hpsa_figure_phys_disk_ptrs(struct ctlr_info *h,
 		for (j = 0; j < ndevices; j++) {
 			if (dev[j] == NULL)
 				continue;
-			if (dev[j]->devtype != TYPE_DISK)
-				continue;
-			if (dev[j]->devtype != TYPE_ZBC)
+			if (dev[j]->devtype != TYPE_DISK &&
+			    dev[j]->devtype != TYPE_ZBC)
 				continue;
 			if (is_logical_device(dev[j]))
 				continue;
@@ -1712,9 +1711,8 @@ static void hpsa_update_log_drive_phys_drive_ptrs(struct ctlr_info *h,
 	for (i = 0; i < ndevices; i++) {
 		if (dev[i] == NULL)
 			continue;
-		if (dev[i]->devtype != TYPE_DISK)
-			continue;
-		if (dev[i]->devtype != TYPE_ZBC)
+		if (dev[i]->devtype != TYPE_DISK &&
+		    dev[i]->devtype != TYPE_ZBC)
 			continue;
 		if (!is_logical_device(dev[i]))
 			continue;
