@@ -81,12 +81,16 @@ static int lp8752_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		ret = regmap_update_bits(pchip->regmap,
 					 rdev->desc->enable_reg,
 					 msk, 0x1);
+		break;
 	case REGULATOR_MODE_NORMAL:
 		/* automatic pwm/pfm mode */
 		ret = regmap_update_bits(pchip->regmap,
 					 rdev->desc->enable_reg,
 					 msk, 0x0);
+		break;
 	default:
+		dev_err(pchip->dev, "error:lp8752 only support auto and pwm mode\n");
+		ret = -EINVAL;
 		break;
 	}
 
