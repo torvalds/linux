@@ -15,7 +15,6 @@ greybus-y :=	core.o		\
 		legacy.o
 
 gb-phy-y :=	gpbridge.o	\
-		sdio.o	\
 		uart.o	\
 		spi.o	\
 		usb.o
@@ -37,6 +36,7 @@ gb-audio-manager-y += audio_manager.o
 gb-audio-manager-y += audio_manager_module.o
 gb-camera-y := camera.o
 gb-firmware-y := fw-core.o fw-download.o
+gb-sdio-y := sdio.o
 gb-pwm-y := pwm.o
 gb-gpio-y := gpio.o
 gb-i2c-y := i2c.o
@@ -62,6 +62,7 @@ obj-m += gb-audio-gb.o
 obj-m += gb-audio-apbridgea.o
 obj-m += gb-audio-manager.o
 obj-m += gb-firmware.o
+obj-m += gb-sdio.o
 obj-m += gb-pwm.o
 obj-m += gb-gpio.o
 obj-m += gb-i2c.o

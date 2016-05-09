@@ -827,6 +827,7 @@ static const struct gpbridge_device_id gb_sdio_id_table[] = {
 	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_SDIO) },
 	{ },
 };
+MODULE_DEVICE_TABLE(gpbridge, gb_sdio_id_table);
 
 static struct gpbridge_driver sdio_driver = {
 	.name		= "sdio",
@@ -834,4 +835,6 @@ static struct gpbridge_driver sdio_driver = {
 	.remove		= gb_sdio_remove,
 	.id_table	= gb_sdio_id_table,
 };
-gb_gpbridge_builtin_driver(sdio_driver);
+
+module_gpbridge_driver(sdio_driver);
+MODULE_LICENSE("GPL v2");

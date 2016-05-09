@@ -321,10 +321,6 @@ static int __init gpbridge_init(void)
 		pr_err("error initializing uart driver\n");
 		goto error_uart;
 	}
-	if (gb_sdio_driver_init()) {
-		pr_err("error initializing sdio driver\n");
-		goto error_sdio;
-	}
 	if (gb_usb_driver_init()) {
 		pr_err("error initializing usb driver\n");
 		goto error_usb;
@@ -339,8 +335,6 @@ static int __init gpbridge_init(void)
 error_spi:
 	gb_usb_driver_exit();
 error_usb:
-	gb_sdio_driver_exit();
-error_sdio:
 	gb_uart_driver_exit();
 error_uart:
 	greybus_deregister(&gb_gpbridge_driver);
@@ -355,7 +349,6 @@ static void __exit gpbridge_exit(void)
 {
 	gb_spi_driver_exit();
 	gb_usb_driver_exit();
-	gb_sdio_driver_exit();
 	gb_uart_driver_exit();
 
 	greybus_deregister(&gb_gpbridge_driver);
