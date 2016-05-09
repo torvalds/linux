@@ -19,6 +19,10 @@
 #define CYCLES_PER_SECOND	8000
 #define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
 
+/* Always support Linux tracing subsystem. */
+#define CREATE_TRACE_POINTS
+#include "amdtp-stream-trace.h"
+
 #define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
 
 /* isochronous header parameters */
@@ -409,7 +413,7 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 }
 
 static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
-			     unsigned int syt)
+			     unsigned int cycle, unsigned int syt)
 {
 	__be32 *buffer;
 	unsigned int payload_length;
@@ -428,8 +432,10 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 				(syt & CIP_SYT_MASK));
 
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
-
 	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
+
+	trace_out_packet(s, cycle, buffer, payload_length);
+
 	if (queue_out_packet(s, payload_length, false) < 0)
 		return -EIO;
 
@@ -443,7 +449,8 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 
 static int handle_in_packet(struct amdtp_stream *s,
 			    unsigned int payload_quadlets, __be32 *buffer,
-			    unsigned int *data_blocks, unsigned int syt)
+			    unsigned int *data_blocks, unsigned int cycle,
+			    unsigned int syt)
 {
 	u32 cip_header[2];
 	unsigned int fmt, fdf;
@@ -454,6 +461,8 @@ static int handle_in_packet(struct amdtp_stream *s,
 
 	cip_header[0] = be32_to_cpu(buffer[0]);
 	cip_header[1] = be32_to_cpu(buffer[1]);
+
+	trace_in_packet(s, cycle, cip_header, payload_quadlets);
 
 	/*
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
@@ -548,29 +557,54 @@ end:
 	return 0;
 }
 
-static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
+/*
+ * In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
+ * the other hand, in DMA descriptors of 1394 OHCI, 3 bits are used to represent
+ * it. Thus, via Linux firewire subsystem, we can get the 3 bits for second.
+ */
+static inline u32 compute_cycle_count(u32 tstamp)
+{
+	return (((tstamp >> 13) & 0x07) * 8000) + (tstamp & 0x1fff);
+}
+
+static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
+{
+	cycle += addend;
+	if (cycle >= 8 * CYCLES_PER_SECOND)
+		cycle -= 8 * CYCLES_PER_SECOND;
+	return cycle;
+}
+
+static inline u32 decrement_cycle_count(u32 cycle, unsigned int subtrahend)
+{
+	if (cycle < subtrahend)
+		cycle += 8 * CYCLES_PER_SECOND;
+	return cycle - subtrahend;
+}
+
+static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				size_t header_length, void *header,
 				void *private_data)
 {
 	struct amdtp_stream *s = private_data;
 	unsigned int i, syt, packets = header_length / 4;
 	unsigned int data_blocks;
+	u32 cycle;
 
 	if (s->packet_index < 0)
 		return;
 
-	/*
-	 * Compute the cycle of the last queued packet.
-	 * (We need only the four lowest bits for the SYT, so we can ignore
-	 * that bits 0-11 must wrap around at 3072.)
-	 */
-	cycle += QUEUE_LENGTH - packets;
+	cycle = compute_cycle_count(tstamp);
+
+	/* Align to actual cycle count for the last packet. */
+	cycle = increment_cycle_count(cycle, QUEUE_LENGTH - packets);
 
 	for (i = 0; i < packets; ++i) {
-		syt = calculate_syt(s, ++cycle);
+		cycle = increment_cycle_count(cycle, 1);
+		syt = calculate_syt(s, cycle);
 		data_blocks = calculate_data_blocks(s, syt);
 
-		if (handle_out_packet(s, data_blocks, syt) < 0) {
+		if (handle_out_packet(s, data_blocks, cycle, syt) < 0) {
 			s->packet_index = -1;
 			amdtp_stream_pcm_abort(s);
 			return;
@@ -580,7 +614,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
 	fw_iso_context_queue_flush(s->context);
 }
 
-static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
+static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			       size_t header_length, void *header,
 			       void *private_data)
 {
@@ -589,6 +623,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 	unsigned int payload_quadlets, max_payload_quadlets;
 	unsigned int data_blocks;
 	__be32 *buffer, *headers = header;
+	u32 cycle;
 
 	if (s->packet_index < 0)
 		return;
@@ -596,10 +631,16 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 	/* The number of packets in buffer */
 	packets = header_length / IN_PACKET_HEADER_SIZE;
 
+	cycle = compute_cycle_count(tstamp);
+
+	/* Align to actual cycle count for the last packet. */
+	cycle = decrement_cycle_count(cycle, packets);
+
 	/* For buffer-over-run prevention. */
 	max_payload_quadlets = amdtp_stream_get_max_payload(s) / 4;
 
 	for (p = 0; p < packets; p++) {
+		cycle = increment_cycle_count(cycle, 1);
 		buffer = s->buffer.packets[s->packet_index].buffer;
 
 		/* The number of quadlets in this packet */
@@ -615,7 +656,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 
 		syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
 		if (handle_in_packet(s, payload_quadlets, buffer,
-						&data_blocks, syt) < 0) {
+						&data_blocks, cycle, syt) < 0) {
 			s->packet_index = -1;
 			break;
 		}
@@ -623,7 +664,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 		/* Process sync slave stream */
 		if (s->sync_slave && s->sync_slave->callbacked) {
 			if (handle_out_packet(s->sync_slave,
-					      data_blocks, syt) < 0) {
+					      data_blocks, cycle, syt) < 0) {
 				s->packet_index = -1;
 				break;
 			}
@@ -650,7 +691,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 }
 
 /* processing is done by master callback */
-static void slave_stream_callback(struct fw_iso_context *context, u32 cycle,
+static void slave_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				  size_t header_length, void *header,
 				  void *private_data)
 {
@@ -659,7 +700,7 @@ static void slave_stream_callback(struct fw_iso_context *context, u32 cycle,
 
 /* this is executed one time */
 static void amdtp_stream_first_callback(struct fw_iso_context *context,
-					u32 cycle, size_t header_length,
+					u32 tstamp, size_t header_length,
 					void *header, void *private_data)
 {
 	struct amdtp_stream *s = private_data;
@@ -678,7 +719,7 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	else
 		context->callback.sc = out_stream_callback;
 
-	context->callback.sc(context, cycle, header_length, header, s);
+	context->callback.sc(context, tstamp, header_length, header, s);
 }
 
 /**
