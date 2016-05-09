@@ -163,11 +163,13 @@ int gb_gpbridge_register_driver(struct gpbridge_driver *driver,
 	pr_info("registered new driver %s\n", driver->name);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(gb_gpbridge_register_driver);
 
 void gb_gpbridge_deregister_driver(struct gpbridge_driver *driver)
 {
 	driver_unregister(&driver->driver);
 }
+EXPORT_SYMBOL_GPL(gb_gpbridge_deregister_driver);
 
 int gb_gpbridge_get_version(struct gb_connection *connection)
 {
@@ -194,6 +196,7 @@ int gb_gpbridge_get_version(struct gb_connection *connection)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(gb_gpbridge_get_version);
 
 static struct gpbridge_device *gb_gpbridge_create_dev(struct gb_bundle *bundle,
 				struct greybus_descriptor_cport *cport_desc)
