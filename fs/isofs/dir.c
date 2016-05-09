@@ -269,7 +269,7 @@ const struct file_operations isofs_dir_operations =
 {
 	.llseek = generic_file_llseek,
 	.read = generic_read_dir,
-	.iterate = isofs_readdir,
+	.iterate_shared = isofs_readdir,
 };
 
 /*
