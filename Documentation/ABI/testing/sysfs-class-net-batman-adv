@@ -4,7 +4,7 @@ Date:           Feb 2014
 Contact:        Linus Lüssing <linus.luessing@web.de>
 Description:
                 Defines the interval in milliseconds in which batman
-                sends its probing packets for link quality measurements.
+                emits probing packets for neighbor sensing (ELP).
 
 What:           /sys/class/net/<iface>/batman-adv/iface_status
 Date:           May 2010
