@@ -3462,6 +3462,24 @@ int drm_mode_addfb2(struct drm_device *dev,
 	return 0;
 }
 
+struct drm_mode_rmfb_work {
+	struct work_struct work;
+	struct list_head fbs;
+};
+
+static void drm_mode_rmfb_work_fn(struct work_struct *w)
+{
+	struct drm_mode_rmfb_work *arg = container_of(w, typeof(*arg), work);
+
+	while (!list_empty(&arg->fbs)) {
+		struct drm_framebuffer *fb =
+			list_first_entry(&arg->fbs, typeof(*fb), filp_head);
+
+		list_del_init(&fb->filp_head);
+		drm_framebuffer_remove(fb);
+	}
+}
+
 /**
  * drm_mode_rmfb - remove an FB from the configuration
  * @dev: drm device for the ioctl
@@ -3502,11 +3520,28 @@ int drm_mode_rmfb(struct drm_device *dev,
 	list_del_init(&fb->filp_head);
 	mutex_unlock(&file_priv->fbs_lock);
 
-	/* we now own the reference that was stored in the fbs list */
-	drm_framebuffer_unreference(fb);
-
 	/* drop the reference we picked up in framebuffer lookup */
 	drm_framebuffer_unreference(fb);
+
+	/*
+	 * we now own the reference that was stored in the fbs list
+	 *
+	 * drm_framebuffer_remove may fail with -EINTR on pending signals,
+	 * so run this in a separate stack as there's no way to correctly
+	 * handle this after the fb is already removed from the lookup table.
+	 */
+	if (drm_framebuffer_read_refcount(fb) > 1) {
+		struct drm_mode_rmfb_work arg;
+
+		INIT_WORK_ONSTACK(&arg.work, drm_mode_rmfb_work_fn);
+		INIT_LIST_HEAD(&arg.fbs);
+		list_add_tail(&fb->filp_head, &arg.fbs);
+
+		schedule_work(&arg.work);
+		flush_work(&arg.work);
+		destroy_work_on_stack(&arg.work);
+	} else
+		drm_framebuffer_unreference(fb);
 
 	return 0;
 
@@ -3657,7 +3692,6 @@ out_err1:
 	return ret;
 }
 
-
 /**
  * drm_fb_release - remove and free the FBs on this file
  * @priv: drm file for the ioctl
@@ -3672,6 +3706,9 @@ out_err1:
 void drm_fb_release(struct drm_file *priv)
 {
 	struct drm_framebuffer *fb, *tfb;
+	struct drm_mode_rmfb_work arg;
+
+	INIT_LIST_HEAD(&arg.fbs);
 
 	/*
 	 * When the file gets released that means no one else can access the fb
@@ -3684,10 +3721,22 @@ void drm_fb_release(struct drm_file *priv)
 	 * at it any more.
 	 */
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
-		list_del_init(&fb->filp_head);
+		if (drm_framebuffer_read_refcount(fb) > 1) {
+			list_move_tail(&fb->filp_head, &arg.fbs);
+		} else {
+			list_del_init(&fb->filp_head);
 
-		/* This drops the fpriv->fbs reference. */
-		drm_framebuffer_unreference(fb);
+			/* This drops the fpriv->fbs reference. */
+			drm_framebuffer_unreference(fb);
+		}
+	}
+
+	if (!list_empty(&arg.fbs)) {
+		INIT_WORK_ONSTACK(&arg.work, drm_mode_rmfb_work_fn);
+
+		schedule_work(&arg.work);
+		flush_work(&arg.work);
+		destroy_work_on_stack(&arg.work);
 	}
 }
 
