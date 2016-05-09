@@ -1094,7 +1094,7 @@ static inline bool f2fs_has_xattr_block(unsigned int ofs)
 }
 
 static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
-				 struct inode *inode, blkcnt_t count)
+				 struct inode *inode, blkcnt_t *count)
 {
 	block_t	valid_block_count;
 
@@ -1106,14 +1106,19 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 	}
 #endif
 	valid_block_count =
-		sbi->total_valid_block_count + (block_t)count;
+		sbi->total_valid_block_count + (block_t)(*count);
 	if (unlikely(valid_block_count > sbi->user_block_count)) {
-		spin_unlock(&sbi->stat_lock);
-		return false;
+		*count = sbi->user_block_count - sbi->total_valid_block_count;
+		if (!*count) {
+			spin_unlock(&sbi->stat_lock);
+			return false;
+		}
 	}
-	inode->i_blocks += count;
-	sbi->total_valid_block_count = valid_block_count;
-	sbi->alloc_valid_block_count += (block_t)count;
+	/* *count can be recalculated */
+	inode->i_blocks += *count;
+	sbi->total_valid_block_count =
+		sbi->total_valid_block_count + (block_t)(*count);
+	sbi->alloc_valid_block_count += (block_t)(*count);
 	spin_unlock(&sbi->stat_lock);
 	return true;
 }
@@ -1945,6 +1950,7 @@ int f2fs_submit_page_bio(struct f2fs_io_info *);
 void f2fs_submit_page_mbio(struct f2fs_io_info *);
 void set_data_blkaddr(struct dnode_of_data *);
 void f2fs_update_data_blkaddr(struct dnode_of_data *, block_t);
+int reserve_new_blocks(struct dnode_of_data *, blkcnt_t);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_get_block(struct dnode_of_data *, pgoff_t);
 ssize_t f2fs_preallocate_blocks(struct kiocb *, struct iov_iter *);

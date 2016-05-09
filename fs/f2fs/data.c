@@ -278,6 +278,16 @@ alloc_new:
 	trace_f2fs_submit_page_mbio(fio->page, fio);
 }
 
+static void __set_data_blkaddr(struct dnode_of_data *dn)
+{
+	struct f2fs_node *rn = F2FS_NODE(dn->node_page);
+	__le32 *addr_array;
+
+	/* Get physical address of data block */
+	addr_array = blkaddr_in_node(rn);
+	addr_array[dn->ofs_in_node] = cpu_to_le32(dn->data_blkaddr);
+}
+
 /*
  * Lock ordering for the change of data block address:
  * ->data_page
@@ -286,19 +296,9 @@ alloc_new:
  */
 void set_data_blkaddr(struct dnode_of_data *dn)
 {
-	struct f2fs_node *rn;
-	__le32 *addr_array;
-	struct page *node_page = dn->node_page;
-	unsigned int ofs_in_node = dn->ofs_in_node;
-
-	f2fs_wait_on_page_writeback(node_page, NODE, true);
-
-	rn = F2FS_NODE(node_page);
-
-	/* Get physical address of data block */
-	addr_array = blkaddr_in_node(rn);
-	addr_array[ofs_in_node] = cpu_to_le32(dn->data_blkaddr);
-	if (set_page_dirty(node_page))
+	f2fs_wait_on_page_writeback(dn->node_page, NODE, true);
+	__set_data_blkaddr(dn);
+	if (set_page_dirty(dn->node_page))
 		dn->node_changed = true;
 }
 
@@ -309,22 +309,51 @@ void f2fs_update_data_blkaddr(struct dnode_of_data *dn, block_t blkaddr)
 	f2fs_update_extent_cache(dn);
 }
 
-int reserve_new_block(struct dnode_of_data *dn)
+/* dn->ofs_in_node will be returned with up-to-date last block pointer */
+int reserve_new_blocks(struct dnode_of_data *dn, blkcnt_t count)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 
+	if (!count)
+		return 0;
+
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return -EPERM;
-	if (unlikely(!inc_valid_block_count(sbi, dn->inode, 1)))
+	if (unlikely(!inc_valid_block_count(sbi, dn->inode, &count)))
 		return -ENOSPC;
 
-	trace_f2fs_reserve_new_block(dn->inode, dn->nid, dn->ofs_in_node);
+	trace_f2fs_reserve_new_blocks(dn->inode, dn->nid,
+						dn->ofs_in_node, count);
 
-	dn->data_blkaddr = NEW_ADDR;
-	set_data_blkaddr(dn);
+	f2fs_wait_on_page_writeback(dn->node_page, NODE, true);
+
+	for (; count > 0; dn->ofs_in_node++) {
+		block_t blkaddr =
+			datablock_addr(dn->node_page, dn->ofs_in_node);
+		if (blkaddr == NULL_ADDR) {
+			dn->data_blkaddr = NEW_ADDR;
+			__set_data_blkaddr(dn);
+			count--;
+		}
+	}
+
+	if (set_page_dirty(dn->node_page))
+		dn->node_changed = true;
+
 	mark_inode_dirty(dn->inode);
 	sync_inode_page(dn);
 	return 0;
+}
+
+/* Should keep dn->ofs_in_node unchanged */
+int reserve_new_block(struct dnode_of_data *dn)
+{
+	unsigned int ofs_in_node = dn->ofs_in_node;
+	int ret;
+
+	ret = reserve_new_blocks(dn, 1);
+	dn->ofs_in_node = ofs_in_node;
+	return ret;
 }
 
 int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index)
@@ -545,6 +574,7 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	struct node_info ni;
 	int seg = CURSEG_WARM_DATA;
 	pgoff_t fofs;
+	blkcnt_t count = 1;
 
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return -EPERM;
@@ -553,7 +583,7 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	if (dn->data_blkaddr == NEW_ADDR)
 		goto alloc;
 
-	if (unlikely(!inc_valid_block_count(sbi, dn->inode, 1)))
+	if (unlikely(!inc_valid_block_count(sbi, dn->inode, &count)))
 		return -ENOSPC;
 
 alloc:
@@ -621,8 +651,10 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 	struct dnode_of_data dn;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	int mode = create ? ALLOC_NODE : LOOKUP_NODE_RA;
-	pgoff_t pgofs, end_offset;
+	pgoff_t pgofs, end_offset, end;
 	int err = 0, ofs = 1;
+	unsigned int ofs_in_node, last_ofs_in_node;
+	blkcnt_t prealloc;
 	struct extent_info ei;
 	bool allocated = false;
 	block_t blkaddr;
@@ -632,6 +664,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 
 	/* it only supports block size == page size */
 	pgofs =	(pgoff_t)map->m_lblk;
+	end = pgofs + maxblocks;
 
 	if (!create && f2fs_lookup_extent_cache(inode, pgofs, &ei)) {
 		map->m_pblk = ei.blk + pgofs - ei.fofs;
@@ -659,6 +692,8 @@ next_dnode:
 		goto unlock_out;
 	}
 
+	prealloc = 0;
+	ofs_in_node = dn.ofs_in_node;
 	end_offset = ADDRS_PER_PAGE(dn.node_page, inode);
 
 next_block:
@@ -671,17 +706,20 @@ next_block:
 				goto sync_out;
 			}
 			if (flag == F2FS_GET_BLOCK_PRE_AIO) {
-				if (blkaddr == NULL_ADDR)
-					err = reserve_new_block(&dn);
+				if (blkaddr == NULL_ADDR) {
+					prealloc++;
+					last_ofs_in_node = dn.ofs_in_node;
+				}
 			} else {
 				err = __allocate_data_block(&dn);
-				if (!err)
+				if (!err) {
 					set_inode_flag(F2FS_I(inode),
 							FI_APPEND_WRITE);
+					allocated = true;
+				}
 			}
 			if (err)
 				goto sync_out;
-			allocated = true;
 			map->m_flags = F2FS_MAP_NEW;
 			blkaddr = dn.data_blkaddr;
 		} else {
@@ -700,6 +738,9 @@ next_block:
 		}
 	}
 
+	if (flag == F2FS_GET_BLOCK_PRE_AIO)
+		goto skip;
+
 	if (map->m_len == 0) {
 		/* preallocated unwritten block should be mapped for fiemap. */
 		if (blkaddr == NEW_ADDR)
@@ -711,32 +752,49 @@ next_block:
 	} else if ((map->m_pblk != NEW_ADDR &&
 			blkaddr == (map->m_pblk + ofs)) ||
 			(map->m_pblk == NEW_ADDR && blkaddr == NEW_ADDR) ||
-			flag == F2FS_GET_BLOCK_PRE_DIO ||
-			flag == F2FS_GET_BLOCK_PRE_AIO) {
+			flag == F2FS_GET_BLOCK_PRE_DIO) {
 		ofs++;
 		map->m_len++;
 	} else {
 		goto sync_out;
 	}
 
+skip:
 	dn.ofs_in_node++;
 	pgofs++;
 
-	if (map->m_len < maxblocks) {
-		if (dn.ofs_in_node < end_offset)
-			goto next_block;
+	/* preallocate blocks in batch for one dnode page */
+	if (flag == F2FS_GET_BLOCK_PRE_AIO &&
+			(pgofs == end || dn.ofs_in_node == end_offset)) {
 
-		if (allocated)
-			sync_inode_page(&dn);
-		f2fs_put_dnode(&dn);
+		dn.ofs_in_node = ofs_in_node;
+		err = reserve_new_blocks(&dn, prealloc);
+		if (err)
+			goto sync_out;
 
-		if (create) {
-			f2fs_unlock_op(sbi);
-			f2fs_balance_fs(sbi, allocated);
+		map->m_len += dn.ofs_in_node - ofs_in_node;
+		if (prealloc && dn.ofs_in_node != last_ofs_in_node + 1) {
+			err = -ENOSPC;
+			goto sync_out;
 		}
-		allocated = false;
-		goto next_dnode;
+		dn.ofs_in_node = end_offset;
 	}
+
+	if (pgofs >= end)
+		goto sync_out;
+	else if (dn.ofs_in_node < end_offset)
+		goto next_block;
+
+	if (allocated)
+		sync_inode_page(&dn);
+	f2fs_put_dnode(&dn);
+
+	if (create) {
+		f2fs_unlock_op(sbi);
+		f2fs_balance_fs(sbi, allocated);
+	}
+	allocated = false;
+	goto next_dnode;
 
 sync_out:
 	if (allocated)
