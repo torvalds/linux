@@ -1637,9 +1637,9 @@ bail:
 	spin_unlock_irqrestore(&qp->s_hlock, flags);
 	if (nreq) {
 		if (call_send)
-			rdi->driver_f.schedule_send_no_lock(qp);
-		else
 			rdi->driver_f.do_send(qp);
+		else
+			rdi->driver_f.schedule_send_no_lock(qp);
 	}
 	return err;
 }

@@ -945,6 +945,11 @@ static long vop_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			goto free_ret;
 		}
+		/* Ensure desc has not changed between the two reads */
+		if (memcmp(&dd, dd_config, sizeof(dd))) {
+			ret = -EINVAL;
+			goto free_ret;
+		}
 		mutex_lock(&vdev->vdev_mutex);
 		mutex_lock(&vi->vop_mutex);
 		ret = vop_virtio_add_device(vdev, dd_config);

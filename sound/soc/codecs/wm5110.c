@@ -2298,6 +2298,8 @@ static int wm5110_codec_remove(struct snd_soc_codec *codec)
 
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 
+	arizona_free_spk(codec);
+
 	return 0;
 }
 
