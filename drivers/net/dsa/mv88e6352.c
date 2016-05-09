@@ -80,20 +80,6 @@ static const char *mv88e6352_drv_probe(struct device *dsa_dev,
 static int mv88e6352_setup_global(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	u32 upstream_port = dsa_upstream_port(ds);
-	int ret;
-	u32 reg;
-
-	/* Configure the upstream port, and configure the upstream
-	 * port as the port to which ingress and egress monitor frames
-	 * are to be sent.
-	 */
-	reg = upstream_port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
-		upstream_port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
-		upstream_port << GLOBAL_MONITOR_CONTROL_ARP_SHIFT;
-	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
-	if (ret)
-		return ret;
 
 	/* Disable remote management for now, and set the switch's
 	 * DSA device number.

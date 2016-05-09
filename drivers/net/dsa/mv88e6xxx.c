@@ -2922,6 +2922,8 @@ int mv88e6xxx_setup_ports(struct dsa_switch *ds)
 
 static int mv88e6xxx_setup_global(struct mv88e6xxx_priv_state *ps)
 {
+	struct dsa_switch *ds = ps->ds;
+	u32 upstream_port = dsa_upstream_port(ds);
 	u16 reg;
 	int err;
 	int i;
@@ -2935,6 +2937,16 @@ static int mv88e6xxx_setup_global(struct mv88e6xxx_priv_state *ps)
 		reg |= GLOBAL_CONTROL_PPU_ENABLE;
 
 	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL, reg);
+	if (err)
+		return err;
+
+	/* Configure the upstream port, and configure it as the port to which
+	 * ingress and egress and ARP monitor frames are to be sent.
+	 */
+	reg = upstream_port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
+		upstream_port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
+		upstream_port << GLOBAL_MONITOR_CONTROL_ARP_SHIFT;
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
 	if (err)
 		return err;
 

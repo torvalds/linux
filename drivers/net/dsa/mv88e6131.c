@@ -61,20 +61,7 @@ static const char *mv88e6131_drv_probe(struct device *dsa_dev,
 static int mv88e6131_setup_global(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	u32 upstream_port = dsa_upstream_port(ds);
 	int ret;
-	u32 reg;
-
-	/* Disable ARP mirroring, and configure the upstream port as
-	 * the port to which ingress and egress monitor frames are to
-	 * be sent.
-	 */
-	reg = upstream_port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
-		upstream_port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
-		GLOBAL_MONITOR_CONTROL_ARP_DISABLED;
-	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
-	if (ret)
-		return ret;
 
 	/* Disable cascade port functionality unless this device
 	 * is used in a cascade configuration, and set the switch's
