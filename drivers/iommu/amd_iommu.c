@@ -489,70 +489,6 @@ static void iommu_uninit_device(struct device *dev)
 	 */
 }
 
-#ifdef CONFIG_AMD_IOMMU_STATS
-
-/*
- * Initialization code for statistics collection
- */
-
-DECLARE_STATS_COUNTER(compl_wait);
-DECLARE_STATS_COUNTER(cnt_map_single);
-DECLARE_STATS_COUNTER(cnt_unmap_single);
-DECLARE_STATS_COUNTER(cnt_map_sg);
-DECLARE_STATS_COUNTER(cnt_unmap_sg);
-DECLARE_STATS_COUNTER(cnt_alloc_coherent);
-DECLARE_STATS_COUNTER(cnt_free_coherent);
-DECLARE_STATS_COUNTER(cross_page);
-DECLARE_STATS_COUNTER(domain_flush_single);
-DECLARE_STATS_COUNTER(domain_flush_all);
-DECLARE_STATS_COUNTER(alloced_io_mem);
-DECLARE_STATS_COUNTER(total_map_requests);
-DECLARE_STATS_COUNTER(complete_ppr);
-DECLARE_STATS_COUNTER(invalidate_iotlb);
-DECLARE_STATS_COUNTER(invalidate_iotlb_all);
-DECLARE_STATS_COUNTER(pri_requests);
-
-static struct dentry *stats_dir;
-static struct dentry *de_fflush;
-
-static void amd_iommu_stats_add(struct __iommu_counter *cnt)
-{
-	if (stats_dir == NULL)
-		return;
-
-	cnt->dent = debugfs_create_u64(cnt->name, 0444, stats_dir,
-				       &cnt->value);
-}
-
-static void amd_iommu_stats_init(void)
-{
-	stats_dir = debugfs_create_dir("amd-iommu", NULL);
-	if (stats_dir == NULL)
-		return;
-
-	de_fflush  = debugfs_create_bool("fullflush", 0444, stats_dir,
-					 &amd_iommu_unmap_flush);
-
-	amd_iommu_stats_add(&compl_wait);
-	amd_iommu_stats_add(&cnt_map_single);
-	amd_iommu_stats_add(&cnt_unmap_single);
-	amd_iommu_stats_add(&cnt_map_sg);
-	amd_iommu_stats_add(&cnt_unmap_sg);
-	amd_iommu_stats_add(&cnt_alloc_coherent);
-	amd_iommu_stats_add(&cnt_free_coherent);
-	amd_iommu_stats_add(&cross_page);
-	amd_iommu_stats_add(&domain_flush_single);
-	amd_iommu_stats_add(&domain_flush_all);
-	amd_iommu_stats_add(&alloced_io_mem);
-	amd_iommu_stats_add(&total_map_requests);
-	amd_iommu_stats_add(&complete_ppr);
-	amd_iommu_stats_add(&invalidate_iotlb);
-	amd_iommu_stats_add(&invalidate_iotlb_all);
-	amd_iommu_stats_add(&pri_requests);
-}
-
-#endif
-
 /****************************************************************************
  *
  * Interrupt handling functions
@@ -674,8 +610,6 @@ static void iommu_poll_events(struct amd_iommu *iommu)
 static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u64 *raw)
 {
 	struct amd_iommu_fault fault;
-
-	INC_STATS_COUNTER(pri_requests);
 
 	if (PPR_REQ_TYPE(raw[0]) != PPR_REQ_FAULT) {
 		pr_err_ratelimited("AMD-Vi: Unknown PPR request received\n");
@@ -2641,11 +2575,6 @@ static dma_addr_t __map_single(struct device *dev,
 	pages = iommu_num_pages(paddr, size, PAGE_SIZE);
 	paddr &= PAGE_MASK;
 
-	INC_STATS_COUNTER(total_map_requests);
-
-	if (pages > 1)
-		INC_STATS_COUNTER(cross_page);
-
 	if (align)
 		align_mask = (1UL << get_order(size)) - 1;
 
@@ -2665,8 +2594,6 @@ static dma_addr_t __map_single(struct device *dev,
 		start += PAGE_SIZE;
 	}
 	address += offset;
-
-	ADD_STATS_COUNTER(alloced_io_mem, size);
 
 	if (unlikely(amd_iommu_np_cache)) {
 		domain_flush_pages(&dma_dom->domain, address, size);
@@ -2715,8 +2642,6 @@ static void __unmap_single(struct dma_ops_domain *dma_dom,
 		start += PAGE_SIZE;
 	}
 
-	SUB_STATS_COUNTER(alloced_io_mem, size);
-
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 }
 
@@ -2731,8 +2656,6 @@ static dma_addr_t map_page(struct device *dev, struct page *page,
 	phys_addr_t paddr = page_to_phys(page) + offset;
 	struct protection_domain *domain;
 	u64 dma_mask;
-
-	INC_STATS_COUNTER(cnt_map_single);
 
 	domain = get_domain(dev);
 	if (PTR_ERR(domain) == -EINVAL)
@@ -2753,8 +2676,6 @@ static void unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
 		       enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	struct protection_domain *domain;
-
-	INC_STATS_COUNTER(cnt_unmap_single);
 
 	domain = get_domain(dev);
 	if (IS_ERR(domain))
@@ -2777,8 +2698,6 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 	phys_addr_t paddr;
 	int mapped_elems = 0;
 	u64 dma_mask;
-
-	INC_STATS_COUNTER(cnt_map_sg);
 
 	domain = get_domain(dev);
 	if (IS_ERR(domain))
@@ -2825,8 +2744,6 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
 	struct scatterlist *s;
 	int i;
 
-	INC_STATS_COUNTER(cnt_unmap_sg);
-
 	domain = get_domain(dev);
 	if (IS_ERR(domain))
 		return;
@@ -2848,8 +2765,6 @@ static void *alloc_coherent(struct device *dev, size_t size,
 	u64 dma_mask = dev->coherent_dma_mask;
 	struct protection_domain *domain;
 	struct page *page;
-
-	INC_STATS_COUNTER(cnt_alloc_coherent);
 
 	domain = get_domain(dev);
 	if (PTR_ERR(domain) == -EINVAL) {
@@ -2903,8 +2818,6 @@ static void free_coherent(struct device *dev, size_t size,
 {
 	struct protection_domain *domain;
 	struct page *page;
-
-	INC_STATS_COUNTER(cnt_free_coherent);
 
 	page = virt_to_page(virt_addr);
 	size = PAGE_ALIGN(size);
@@ -2996,8 +2909,6 @@ int __init amd_iommu_init_dma_ops(void)
 	 */
 	if (!swiotlb)
 		dma_ops = &nommu_dma_ops;
-
-	amd_iommu_stats_init();
 
 	if (amd_iommu_unmap_flush)
 		pr_info("AMD-Vi: IO/TLB flush on unmap enabled\n");
@@ -3489,8 +3400,6 @@ out:
 static int __amd_iommu_flush_page(struct protection_domain *domain, int pasid,
 				  u64 address)
 {
-	INC_STATS_COUNTER(invalidate_iotlb);
-
 	return __flush_pasid(domain, pasid, address, false);
 }
 
@@ -3511,8 +3420,6 @@ EXPORT_SYMBOL(amd_iommu_flush_page);
 
 static int __amd_iommu_flush_tlb(struct protection_domain *domain, int pasid)
 {
-	INC_STATS_COUNTER(invalidate_iotlb_all);
-
 	return __flush_pasid(domain, pasid, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
 			     true);
 }
@@ -3631,8 +3538,6 @@ int amd_iommu_complete_ppr(struct pci_dev *pdev, int pasid,
 	struct iommu_dev_data *dev_data;
 	struct amd_iommu *iommu;
 	struct iommu_cmd cmd;
-
-	INC_STATS_COUNTER(complete_ppr);
 
 	dev_data = get_dev_data(&pdev->dev);
 	iommu    = amd_iommu_rlookup_table[dev_data->devid];
