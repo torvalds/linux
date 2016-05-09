@@ -96,6 +96,10 @@
 #define OFFLOADS_NUM_PRIOS 1
 #define OFFLOADS_MIN_LEVEL (ANCHOR_MIN_LEVEL + 1)
 
+#define LAG_PRIO_NUM_LEVELS 1
+#define LAG_NUM_PRIOS 1
+#define LAG_MIN_LEVEL (OFFLOADS_MIN_LEVEL + 1)
+
 struct node_caps {
 	size_t	arr_sz;
 	long	*caps;
@@ -111,12 +115,16 @@ static struct init_tree_node {
 	int num_levels;
 } root_fs = {
 	.type = FS_TYPE_NAMESPACE,
-	.ar_size = 6,
+	.ar_size = 7,
 	.children = (struct init_tree_node[]) {
 		ADD_PRIO(0, BY_PASS_MIN_LEVEL, 0,
 			 FS_CHAINING_CAPS,
 			 ADD_NS(ADD_MULTIPLE_PRIO(MLX5_BY_PASS_NUM_PRIOS,
 						  BY_PASS_PRIO_NUM_LEVELS))),
+		ADD_PRIO(0, LAG_MIN_LEVEL, 0,
+			 FS_CHAINING_CAPS,
+			 ADD_NS(ADD_MULTIPLE_PRIO(LAG_NUM_PRIOS,
+						  LAG_PRIO_NUM_LEVELS))),
 		ADD_PRIO(0, OFFLOADS_MIN_LEVEL, 0, {},
 			 ADD_NS(ADD_MULTIPLE_PRIO(OFFLOADS_NUM_PRIOS, OFFLOADS_MAX_FT))),
 		ADD_PRIO(0, ETHTOOL_MIN_LEVEL, 0,
@@ -1396,6 +1404,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 
 	switch (type) {
 	case MLX5_FLOW_NAMESPACE_BYPASS:
+	case MLX5_FLOW_NAMESPACE_LAG:
 	case MLX5_FLOW_NAMESPACE_OFFLOADS:
 	case MLX5_FLOW_NAMESPACE_ETHTOOL:
 	case MLX5_FLOW_NAMESPACE_KERNEL:
