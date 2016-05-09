@@ -1029,7 +1029,6 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 {
 	uint8_t *keys;
 	uint64_t hva;
-	unsigned long curkey;
 	int i, r = 0;
 
 	if (args->flags != 0)
@@ -1058,12 +1057,9 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 			break;
 		}
 
-		curkey = get_guest_storage_key(current->mm, hva);
-		if (IS_ERR_VALUE(curkey)) {
-			r = curkey;
+		r = get_guest_storage_key(current->mm, hva, &keys[i]);
+		if (r)
 			break;
-		}
-		keys[i] = curkey;
 	}
 	up_read(&current->mm->mmap_sem);
 
