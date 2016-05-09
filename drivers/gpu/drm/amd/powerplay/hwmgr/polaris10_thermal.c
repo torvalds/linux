@@ -21,6 +21,7 @@
  *
  */
 
+#include <asm/div64.h>
 #include "polaris10_thermal.h"
 #include "polaris10_hwmgr.h"
 #include "polaris10_smumgr.h"
