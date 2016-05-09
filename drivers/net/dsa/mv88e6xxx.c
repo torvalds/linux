@@ -467,8 +467,8 @@ static bool mv88e6xxx_has_stu(struct mv88e6xxx_priv_state *ps)
  * phy. However, in the case of a fixed link phy, we force the port
  * settings from the fixed link settings.
  */
-void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
-			   struct phy_device *phydev)
+static void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
+				  struct phy_device *phydev)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	u32 reg;
@@ -714,7 +714,8 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_priv_state *ps,
 	return value;
 }
 
-void mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+static void mv88e6xxx_get_strings(struct dsa_switch *ds, int port,
+				  uint8_t *data)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mv88e6xxx_hw_stat *stat;
@@ -730,7 +731,7 @@ void mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
 	}
 }
 
-int mv88e6xxx_get_sset_count(struct dsa_switch *ds)
+static int mv88e6xxx_get_sset_count(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mv88e6xxx_hw_stat *stat;
@@ -744,9 +745,8 @@ int mv88e6xxx_get_sset_count(struct dsa_switch *ds)
 	return j;
 }
 
-void
-mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
-			    int port, uint64_t *data)
+static void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
+					uint64_t *data)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mv88e6xxx_hw_stat *stat;
@@ -771,13 +771,13 @@ mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 	mutex_unlock(&ps->smi_mutex);
 }
 
-int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port)
+static int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port)
 {
 	return 32 * sizeof(u16);
 }
 
-void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
-			struct ethtool_regs *regs, void *_p)
+static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
+			       struct ethtool_regs *regs, void *_p)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	u16 *p = _p;
@@ -876,8 +876,8 @@ error:
 	return ret;
 }
 
-int mv88e6xxx_get_eeprom(struct dsa_switch *ds, struct ethtool_eeprom *eeprom,
-			 u8 *data)
+static int mv88e6xxx_get_eeprom(struct dsa_switch *ds,
+				struct ethtool_eeprom *eeprom, u8 *data)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int offset;
@@ -982,8 +982,8 @@ error:
 	return ret;
 }
 
-int mv88e6xxx_set_eeprom(struct dsa_switch *ds, struct ethtool_eeprom *eeprom,
-			 u8 *data)
+static int mv88e6xxx_set_eeprom(struct dsa_switch *ds,
+				struct ethtool_eeprom *eeprom, u8 *data)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int offset;
@@ -1104,7 +1104,8 @@ static int _mv88e6xxx_phy_write_indirect(struct mv88e6xxx_priv_state *ps,
 	return _mv88e6xxx_phy_wait(ps);
 }
 
-int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
+static int mv88e6xxx_get_eee(struct dsa_switch *ds, int port,
+			     struct ethtool_eee *e)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int reg;
@@ -1133,8 +1134,8 @@ out:
 	return reg;
 }
 
-int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
-		      struct phy_device *phydev, struct ethtool_eee *e)
+static int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
+			     struct phy_device *phydev, struct ethtool_eee *e)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int reg;
@@ -1364,7 +1365,8 @@ static int _mv88e6xxx_port_based_vlan_map(struct mv88e6xxx_priv_state *ps,
 	return _mv88e6xxx_reg_write(ps, REG_PORT(port), PORT_BASE_VLAN, reg);
 }
 
-void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
+static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
+					 u8 state)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int stp_state;
@@ -1587,9 +1589,9 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_priv_state *ps,
 	return 0;
 }
 
-int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
-			     struct switchdev_obj_port_vlan *vlan,
-			     int (*cb)(struct switchdev_obj *obj))
+static int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
+				    struct switchdev_obj_port_vlan *vlan,
+				    int (*cb)(struct switchdev_obj *obj))
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mv88e6xxx_vtu_stu_entry next;
@@ -2014,8 +2016,8 @@ static const char * const mv88e6xxx_port_8021q_mode_names[] = {
 	[PORT_CONTROL_2_8021Q_SECURE] = "Secure",
 };
 
-int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
-				  bool vlan_filtering)
+static int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
+					 bool vlan_filtering)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	u16 old, new = vlan_filtering ? PORT_CONTROL_2_8021Q_SECURE :
@@ -2054,9 +2056,9 @@ unlock:
 	return ret;
 }
 
-int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_vlan *vlan,
-				struct switchdev_trans *trans)
+static int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
+				       const struct switchdev_obj_port_vlan *vlan,
+				       struct switchdev_trans *trans)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int err;
@@ -2095,9 +2097,9 @@ static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_priv_state *ps, int port,
 	return _mv88e6xxx_vtu_loadpurge(ps, &vlan);
 }
 
-void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
-			     const struct switchdev_obj_port_vlan *vlan,
-			     struct switchdev_trans *trans)
+static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
+				    const struct switchdev_obj_port_vlan *vlan,
+				    struct switchdev_trans *trans)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
@@ -2157,8 +2159,8 @@ static int _mv88e6xxx_port_vlan_del(struct mv88e6xxx_priv_state *ps,
 	return _mv88e6xxx_atu_remove(ps, vlan.fid, port, false);
 }
 
-int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan)
+static int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
+				   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	u16 pvid, vid;
@@ -2271,9 +2273,9 @@ static int _mv88e6xxx_port_fdb_load(struct mv88e6xxx_priv_state *ps, int port,
 	return _mv88e6xxx_atu_load(ps, &entry);
 }
 
-int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
-			       const struct switchdev_obj_port_fdb *fdb,
-			       struct switchdev_trans *trans)
+static int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
+				      const struct switchdev_obj_port_fdb *fdb,
+				      struct switchdev_trans *trans)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
@@ -2286,9 +2288,9 @@ int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_fdb *fdb,
-			    struct switchdev_trans *trans)
+static void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
+				   const struct switchdev_obj_port_fdb *fdb,
+				   struct switchdev_trans *trans)
 {
 	int state = is_multicast_ether_addr(fdb->addr) ?
 		GLOBAL_ATU_DATA_STATE_MC_STATIC :
@@ -2304,8 +2306,8 @@ void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
 	mutex_unlock(&ps->smi_mutex);
 }
 
-int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_fdb *fdb)
+static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
+				  const struct switchdev_obj_port_fdb *fdb)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
@@ -2407,9 +2409,9 @@ static int _mv88e6xxx_port_fdb_dump_one(struct mv88e6xxx_priv_state *ps,
 	return err;
 }
 
-int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
-			    struct switchdev_obj_port_fdb *fdb,
-			    int (*cb)(struct switchdev_obj *obj))
+static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
+				   struct switchdev_obj_port_fdb *fdb,
+				   int (*cb)(struct switchdev_obj *obj))
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mv88e6xxx_vtu_stu_entry vlan = {
@@ -2457,8 +2459,8 @@ unlock:
 	return err;
 }
 
-int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
-			       struct net_device *bridge)
+static int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
+				      struct net_device *bridge)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int i, err = 0;
@@ -2484,7 +2486,7 @@ int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 	return err;
 }
 
-void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
+static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct net_device *bridge = ps->ports[port].bridge_dev;
@@ -3108,7 +3110,7 @@ static int mv88e6xxx_setup_global(struct mv88e6xxx_priv_state *ps)
 	return err;
 }
 
-int mv88e6xxx_setup(struct dsa_switch *ds)
+static int mv88e6xxx_setup(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int err;
@@ -3181,8 +3183,7 @@ static int mv88e6xxx_port_to_phy_addr(struct mv88e6xxx_priv_state *ps,
 	return -EINVAL;
 }
 
-int
-mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum)
+static int mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int addr = mv88e6xxx_port_to_phy_addr(ps, port);
@@ -3204,8 +3205,8 @@ mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum)
 	return ret;
 }
 
-int
-mv88e6xxx_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
+static int mv88e6xxx_phy_write(struct dsa_switch *ds, int port, int regnum,
+			       u16 val)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int addr = mv88e6xxx_port_to_phy_addr(ps, port);
@@ -3291,7 +3292,7 @@ static int mv88e63xx_get_temp(struct dsa_switch *ds, int *temp)
 	return 0;
 }
 
-int mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp)
+static int mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
@@ -3304,7 +3305,7 @@ int mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp)
 	return mv88e61xx_get_temp(ds, temp);
 }
 
-int mv88e6xxx_get_temp_limit(struct dsa_switch *ds, int *temp)
+static int mv88e6xxx_get_temp_limit(struct dsa_switch *ds, int *temp)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int phy = mv88e6xxx_6320_family(ps) ? 3 : 0;
@@ -3324,7 +3325,7 @@ int mv88e6xxx_get_temp_limit(struct dsa_switch *ds, int *temp)
 	return 0;
 }
 
-int mv88e6xxx_set_temp_limit(struct dsa_switch *ds, int temp)
+static int mv88e6xxx_set_temp_limit(struct dsa_switch *ds, int temp)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int phy = mv88e6xxx_6320_family(ps) ? 3 : 0;
@@ -3341,7 +3342,7 @@ int mv88e6xxx_set_temp_limit(struct dsa_switch *ds, int temp)
 					(ret & 0xe0ff) | (temp << 8));
 }
 
-int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
+static int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int phy = mv88e6xxx_6320_family(ps) ? 3 : 0;
@@ -3362,6 +3363,161 @@ int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
 }
 #endif /* CONFIG_NET_DSA_HWMON */
 
+static const struct mv88e6xxx_info mv88e6xxx_table[] = {
+	[MV88E6085] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6085,
+		.family = MV88E6XXX_FAMILY_6097,
+		.name = "Marvell 88E6085",
+		.num_databases = 4096,
+		.num_ports = 10,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6097,
+	},
+
+	[MV88E6095] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6095,
+		.family = MV88E6XXX_FAMILY_6095,
+		.name = "Marvell 88E6095/88E6095F",
+		.num_databases = 256,
+		.num_ports = 11,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6095,
+	},
+
+	[MV88E6123] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6123,
+		.family = MV88E6XXX_FAMILY_6165,
+		.name = "Marvell 88E6123",
+		.num_databases = 4096,
+		.num_ports = 3,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
+	},
+
+	[MV88E6131] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6131,
+		.family = MV88E6XXX_FAMILY_6185,
+		.name = "Marvell 88E6131",
+		.num_databases = 256,
+		.num_ports = 8,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6185,
+	},
+
+	[MV88E6161] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6161,
+		.family = MV88E6XXX_FAMILY_6165,
+		.name = "Marvell 88E6161",
+		.num_databases = 4096,
+		.num_ports = 6,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
+	},
+
+	[MV88E6165] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6165,
+		.family = MV88E6XXX_FAMILY_6165,
+		.name = "Marvell 88E6165",
+		.num_databases = 4096,
+		.num_ports = 6,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6165,
+	},
+
+	[MV88E6171] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6171,
+		.family = MV88E6XXX_FAMILY_6351,
+		.name = "Marvell 88E6171",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
+	},
+
+	[MV88E6172] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6172,
+		.family = MV88E6XXX_FAMILY_6352,
+		.name = "Marvell 88E6172",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
+	},
+
+	[MV88E6175] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6175,
+		.family = MV88E6XXX_FAMILY_6351,
+		.name = "Marvell 88E6175",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
+	},
+
+	[MV88E6176] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6176,
+		.family = MV88E6XXX_FAMILY_6352,
+		.name = "Marvell 88E6176",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
+	},
+
+	[MV88E6185] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6185,
+		.family = MV88E6XXX_FAMILY_6185,
+		.name = "Marvell 88E6185",
+		.num_databases = 256,
+		.num_ports = 10,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6185,
+	},
+
+	[MV88E6240] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6240,
+		.family = MV88E6XXX_FAMILY_6352,
+		.name = "Marvell 88E6240",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
+	},
+
+	[MV88E6320] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6320,
+		.family = MV88E6XXX_FAMILY_6320,
+		.name = "Marvell 88E6320",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6320,
+	},
+
+	[MV88E6321] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6321,
+		.family = MV88E6XXX_FAMILY_6320,
+		.name = "Marvell 88E6321",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6320,
+	},
+
+	[MV88E6350] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6350,
+		.family = MV88E6XXX_FAMILY_6351,
+		.name = "Marvell 88E6350",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
+	},
+
+	[MV88E6351] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6351,
+		.family = MV88E6XXX_FAMILY_6351,
+		.name = "Marvell 88E6351",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6351,
+	},
+
+	[MV88E6352] = {
+		.prod_num = PORT_SWITCH_ID_PROD_NUM_6352,
+		.family = MV88E6XXX_FAMILY_6352,
+		.name = "Marvell 88E6352",
+		.num_databases = 4096,
+		.num_ports = 7,
+		.flags = MV88E6XXX_FLAGS_FAMILY_6352,
+	},
+};
+
 static const struct mv88e6xxx_info *
 mv88e6xxx_lookup_info(unsigned int prod_num, const struct mv88e6xxx_info *table,
 		      unsigned int num)
@@ -3375,10 +3531,9 @@ mv88e6xxx_lookup_info(unsigned int prod_num, const struct mv88e6xxx_info *table,
 	return NULL;
 }
 
-const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
-				int sw_addr, void **priv,
-				const struct mv88e6xxx_info *table,
-				unsigned int num)
+static const char *mv88e6xxx_probe(struct device *dsa_dev,
+				   struct device *host_dev, int sw_addr,
+				   void **priv)
 {
 	const struct mv88e6xxx_info *info;
 	struct mv88e6xxx_priv_state *ps;
@@ -3397,7 +3552,8 @@ const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
 	prod_num = (id & 0xfff0) >> 4;
 	rev = id & 0x000f;
 
-	info = mv88e6xxx_lookup_info(prod_num, table, num);
+	info = mv88e6xxx_lookup_info(prod_num, mv88e6xxx_table,
+				     ARRAY_SIZE(mv88e6xxx_table));
 	if (!info)
 		return NULL;
 
@@ -3419,41 +3575,73 @@ const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
 	return name;
 }
 
+struct dsa_switch_driver mv88e6xxx_switch_driver = {
+	.tag_protocol		= DSA_TAG_PROTO_EDSA,
+	.probe			= mv88e6xxx_probe,
+	.setup			= mv88e6xxx_setup,
+	.set_addr		= mv88e6xxx_set_addr,
+	.phy_read		= mv88e6xxx_phy_read,
+	.phy_write		= mv88e6xxx_phy_write,
+	.adjust_link		= mv88e6xxx_adjust_link,
+	.get_strings		= mv88e6xxx_get_strings,
+	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
+	.get_sset_count		= mv88e6xxx_get_sset_count,
+	.set_eee		= mv88e6xxx_set_eee,
+	.get_eee		= mv88e6xxx_get_eee,
+#ifdef CONFIG_NET_DSA_HWMON
+	.get_temp		= mv88e6xxx_get_temp,
+	.get_temp_limit		= mv88e6xxx_get_temp_limit,
+	.set_temp_limit		= mv88e6xxx_set_temp_limit,
+	.get_temp_alarm		= mv88e6xxx_get_temp_alarm,
+#endif
+	.get_eeprom		= mv88e6xxx_get_eeprom,
+	.set_eeprom		= mv88e6xxx_set_eeprom,
+	.get_regs_len		= mv88e6xxx_get_regs_len,
+	.get_regs		= mv88e6xxx_get_regs,
+	.port_bridge_join	= mv88e6xxx_port_bridge_join,
+	.port_bridge_leave	= mv88e6xxx_port_bridge_leave,
+	.port_stp_state_set	= mv88e6xxx_port_stp_state_set,
+	.port_vlan_filtering	= mv88e6xxx_port_vlan_filtering,
+	.port_vlan_prepare	= mv88e6xxx_port_vlan_prepare,
+	.port_vlan_add		= mv88e6xxx_port_vlan_add,
+	.port_vlan_del		= mv88e6xxx_port_vlan_del,
+	.port_vlan_dump		= mv88e6xxx_port_vlan_dump,
+	.port_fdb_prepare       = mv88e6xxx_port_fdb_prepare,
+	.port_fdb_add           = mv88e6xxx_port_fdb_add,
+	.port_fdb_del           = mv88e6xxx_port_fdb_del,
+	.port_fdb_dump          = mv88e6xxx_port_fdb_dump,
+};
+
 static int __init mv88e6xxx_init(void)
 {
-#if IS_ENABLED(CONFIG_NET_DSA_MV88E6131)
-	register_switch_driver(&mv88e6131_switch_driver);
-#endif
-#if IS_ENABLED(CONFIG_NET_DSA_MV88E6123)
-	register_switch_driver(&mv88e6123_switch_driver);
-#endif
-#if IS_ENABLED(CONFIG_NET_DSA_MV88E6352)
-	register_switch_driver(&mv88e6352_switch_driver);
-#endif
-#if IS_ENABLED(CONFIG_NET_DSA_MV88E6171)
-	register_switch_driver(&mv88e6171_switch_driver);
-#endif
+	register_switch_driver(&mv88e6xxx_switch_driver);
+
 	return 0;
 }
 module_init(mv88e6xxx_init);
 
 static void __exit mv88e6xxx_cleanup(void)
 {
-#if IS_ENABLED(CONFIG_NET_DSA_MV88E6171)
-	unregister_switch_driver(&mv88e6171_switch_driver);
-#endif
-#if IS_ENABLED(CONFIG_NET_DSA_MV88E6352)
-	unregister_switch_driver(&mv88e6352_switch_driver);
-#endif
-#if IS_ENABLED(CONFIG_NET_DSA_MV88E6123)
-	unregister_switch_driver(&mv88e6123_switch_driver);
-#endif
-#if IS_ENABLED(CONFIG_NET_DSA_MV88E6131)
-	unregister_switch_driver(&mv88e6131_switch_driver);
-#endif
+	unregister_switch_driver(&mv88e6xxx_switch_driver);
 }
 module_exit(mv88e6xxx_cleanup);
 
+MODULE_ALIAS("platform:mv88e6085");
+MODULE_ALIAS("platform:mv88e6095");
+MODULE_ALIAS("platform:mv88e6095f");
+MODULE_ALIAS("platform:mv88e6123");
+MODULE_ALIAS("platform:mv88e6131");
+MODULE_ALIAS("platform:mv88e6161");
+MODULE_ALIAS("platform:mv88e6165");
+MODULE_ALIAS("platform:mv88e6171");
+MODULE_ALIAS("platform:mv88e6172");
+MODULE_ALIAS("platform:mv88e6175");
+MODULE_ALIAS("platform:mv88e6176");
+MODULE_ALIAS("platform:mv88e6320");
+MODULE_ALIAS("platform:mv88e6321");
+MODULE_ALIAS("platform:mv88e6350");
+MODULE_ALIAS("platform:mv88e6351");
+MODULE_ALIAS("platform:mv88e6352");
 MODULE_AUTHOR("Lennert Buytenhek <buytenh@wantstofly.org>");
 MODULE_DESCRIPTION("Driver for Marvell 88E6XXX ethernet switch chips");
 MODULE_LICENSE("GPL");

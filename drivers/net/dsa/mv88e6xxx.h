@@ -338,6 +338,27 @@
 
 #define MV88E6XXX_N_FID		4096
 
+/* List of supported models */
+enum mv88e6xxx_model {
+	MV88E6085,
+	MV88E6095,
+	MV88E6123,
+	MV88E6131,
+	MV88E6161,
+	MV88E6165,
+	MV88E6171,
+	MV88E6172,
+	MV88E6175,
+	MV88E6176,
+	MV88E6185,
+	MV88E6240,
+	MV88E6320,
+	MV88E6321,
+	MV88E6350,
+	MV88E6351,
+	MV88E6352,
+};
+
 enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_NONE,
 	MV88E6XXX_FAMILY_6065,	/* 6031 6035 6061 6065 */
@@ -582,75 +603,5 @@ static inline bool mv88e6xxx_has(struct mv88e6xxx_priv_state *ps,
 {
 	return (ps->info->flags & flags) == flags;
 }
-
-const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
-				int sw_addr, void **priv,
-				const struct mv88e6xxx_info *table,
-				unsigned int num);
-
-int mv88e6xxx_setup(struct dsa_switch *ds);
-int mv88e6xxx_reg_read(struct mv88e6xxx_priv_state *ps, int addr, int reg);
-int mv88e6xxx_reg_write(struct mv88e6xxx_priv_state *ps, int addr,
-			int reg, u16 val);
-int mv88e6xxx_set_addr(struct dsa_switch *ds, u8 *addr);
-int mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum);
-int mv88e6xxx_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val);
-void mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data);
-void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
-				 uint64_t *data);
-int mv88e6xxx_get_sset_count(struct dsa_switch *ds);
-int mv88e6xxx_get_sset_count_basic(struct dsa_switch *ds);
-void mv88e6xxx_adjust_link(struct dsa_switch *ds, int port,
-			   struct phy_device *phydev);
-int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port);
-void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
-			struct ethtool_regs *regs, void *_p);
-int mv88e6xxx_get_temp(struct dsa_switch *ds, int *temp);
-int mv88e6xxx_get_temp_limit(struct dsa_switch *ds, int *temp);
-int mv88e6xxx_set_temp_limit(struct dsa_switch *ds, int temp);
-int mv88e6xxx_get_temp_alarm(struct dsa_switch *ds, bool *alarm);
-int mv88e6xxx_get_eeprom(struct dsa_switch *ds, struct ethtool_eeprom *eeprom,
-			 u8 *data);
-int mv88e6xxx_set_eeprom(struct dsa_switch *ds, struct ethtool_eeprom *eeprom,
-			 u8 *data);
-int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
-int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
-		      struct phy_device *phydev, struct ethtool_eee *e);
-int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
-			       struct net_device *bridge);
-void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port);
-void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
-int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
-				  bool vlan_filtering);
-int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_vlan *vlan,
-				struct switchdev_trans *trans);
-void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
-			     const struct switchdev_obj_port_vlan *vlan,
-			     struct switchdev_trans *trans);
-int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan);
-int mv88e6xxx_port_vlan_dump(struct dsa_switch *ds, int port,
-			     struct switchdev_obj_port_vlan *vlan,
-			     int (*cb)(struct switchdev_obj *obj));
-int mv88e6xxx_port_fdb_prepare(struct dsa_switch *ds, int port,
-			       const struct switchdev_obj_port_fdb *fdb,
-			       struct switchdev_trans *trans);
-void mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_fdb *fdb,
-			    struct switchdev_trans *trans);
-int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
-			   const struct switchdev_obj_port_fdb *fdb);
-int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
-			    struct switchdev_obj_port_fdb *fdb,
-			    int (*cb)(struct switchdev_obj *obj));
-int mv88e6xxx_phy_page_read(struct dsa_switch *ds, int port, int page, int reg);
-int mv88e6xxx_phy_page_write(struct dsa_switch *ds, int port, int page,
-			     int reg, int val);
-
-extern struct dsa_switch_driver mv88e6131_switch_driver;
-extern struct dsa_switch_driver mv88e6123_switch_driver;
-extern struct dsa_switch_driver mv88e6352_switch_driver;
-extern struct dsa_switch_driver mv88e6171_switch_driver;
 
 #endif
