@@ -420,6 +420,7 @@ struct batadv_unicast_4addr_packet {
  * @dest: final destination used when routing fragments
  * @orig: originator of the fragment used when merging the packet
  * @no: fragment number within this sequence
+ * @priority: priority of frame, from ToS IP precedence or 802.1p
  * @reserved: reserved byte for alignment
  * @seqno: sequence identification
  * @total_size: size of the merged packet
@@ -430,9 +431,11 @@ struct batadv_frag_packet {
 	u8     ttl;
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8     no:4;
-	u8     reserved:4;
+	u8     priority:3;
+	u8     reserved:1;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u8     reserved:4;
+	u8     reserved:1;
+	u8     priority:3;
 	u8     no:4;
 #else
 #error "unknown bitfield endianness"
