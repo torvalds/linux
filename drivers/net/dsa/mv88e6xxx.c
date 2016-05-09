@@ -2920,6 +2920,177 @@ int mv88e6xxx_setup_ports(struct dsa_switch *ds)
 	return 0;
 }
 
+static int mv88e6xxx_setup_global(struct mv88e6xxx_priv_state *ps)
+{
+	int err;
+	int i;
+
+	/* Set the default address aging time to 5 minutes, and
+	 * enable address learn messages to be sent to all message
+	 * ports.
+	 */
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_ATU_CONTROL,
+				   0x0140 | GLOBAL_ATU_CONTROL_LEARN2ALL);
+	if (err)
+		return err;
+
+	/* Configure the IP ToS mapping registers. */
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_0, 0x0000);
+	if (err)
+		return err;
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_1, 0x0000);
+	if (err)
+		return err;
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_2, 0x5555);
+	if (err)
+		return err;
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_3, 0x5555);
+	if (err)
+		return err;
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_4, 0xaaaa);
+	if (err)
+		return err;
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_5, 0xaaaa);
+	if (err)
+		return err;
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_6, 0xffff);
+	if (err)
+		return err;
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_7, 0xffff);
+	if (err)
+		return err;
+
+	/* Configure the IEEE 802.1p priority mapping register. */
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IEEE_PRI, 0xfa41);
+	if (err)
+		return err;
+
+	/* Send all frames with destination addresses matching
+	 * 01:80:c2:00:00:0x to the CPU port.
+	 */
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2, GLOBAL2_MGMT_EN_0X, 0xffff);
+	if (err)
+		return err;
+
+	/* Ignore removed tag data on doubly tagged packets, disable
+	 * flow control messages, force flow control priority to the
+	 * highest, and send all special multicast frames to the CPU
+	 * port at the highest priority.
+	 */
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2, GLOBAL2_SWITCH_MGMT,
+				   0x7 | GLOBAL2_SWITCH_MGMT_RSVD2CPU | 0x70 |
+				   GLOBAL2_SWITCH_MGMT_FORCE_FLOW_CTRL_PRI);
+	if (err)
+		return err;
+
+	/* Program the DSA routing table. */
+	for (i = 0; i < 32; i++) {
+		int nexthop = 0x1f;
+
+		if (ps->ds->pd->rtable &&
+		    i != ps->ds->index && i < ps->ds->dst->pd->nr_chips)
+			nexthop = ps->ds->pd->rtable[i] & 0x1f;
+
+		err = _mv88e6xxx_reg_write(
+			ps, REG_GLOBAL2,
+			GLOBAL2_DEVICE_MAPPING,
+			GLOBAL2_DEVICE_MAPPING_UPDATE |
+			(i << GLOBAL2_DEVICE_MAPPING_TARGET_SHIFT) | nexthop);
+		if (err)
+			return err;
+	}
+
+	/* Clear all trunk masks. */
+	for (i = 0; i < 8; i++) {
+		err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2, GLOBAL2_TRUNK_MASK,
+					   0x8000 |
+					   (i << GLOBAL2_TRUNK_MASK_NUM_SHIFT) |
+					   ((1 << ps->info->num_ports) - 1));
+		if (err)
+			return err;
+	}
+
+	/* Clear all trunk mappings. */
+	for (i = 0; i < 16; i++) {
+		err = _mv88e6xxx_reg_write(
+			ps, REG_GLOBAL2,
+			GLOBAL2_TRUNK_MAPPING,
+			GLOBAL2_TRUNK_MAPPING_UPDATE |
+			(i << GLOBAL2_TRUNK_MAPPING_ID_SHIFT));
+		if (err)
+			return err;
+	}
+
+	if (mv88e6xxx_6352_family(ps) || mv88e6xxx_6351_family(ps) ||
+	    mv88e6xxx_6165_family(ps) || mv88e6xxx_6097_family(ps) ||
+	    mv88e6xxx_6320_family(ps)) {
+		/* Send all frames with destination addresses matching
+		 * 01:80:c2:00:00:2x to the CPU port.
+		 */
+		err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2,
+					   GLOBAL2_MGMT_EN_2X, 0xffff);
+		if (err)
+			return err;
+
+		/* Initialise cross-chip port VLAN table to reset
+		 * defaults.
+		 */
+		err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2,
+					   GLOBAL2_PVT_ADDR, 0x9000);
+		if (err)
+			return err;
+
+		/* Clear the priority override table. */
+		for (i = 0; i < 16; i++) {
+			err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2,
+						   GLOBAL2_PRIO_OVERRIDE,
+						   0x8000 | (i << 8));
+			if (err)
+				return err;
+		}
+	}
+
+	if (mv88e6xxx_6352_family(ps) || mv88e6xxx_6351_family(ps) ||
+	    mv88e6xxx_6165_family(ps) || mv88e6xxx_6097_family(ps) ||
+	    mv88e6xxx_6185_family(ps) || mv88e6xxx_6095_family(ps) ||
+	    mv88e6xxx_6320_family(ps)) {
+		/* Disable ingress rate limiting by resetting all
+		 * ingress rate limit registers to their initial
+		 * state.
+		 */
+		for (i = 0; i < ps->info->num_ports; i++) {
+			err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2,
+						   GLOBAL2_INGRESS_OP,
+						   0x9000 | (i << 8));
+			if (err)
+				return err;
+		}
+	}
+
+	/* Clear the statistics counters for all ports */
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_STATS_OP,
+				   GLOBAL_STATS_OP_FLUSH_ALL);
+	if (err)
+		return err;
+
+	/* Wait for the flush to complete. */
+	err = _mv88e6xxx_stats_wait(ps);
+	if (err)
+		return err;
+
+	/* Clear all ATU entries */
+	err = _mv88e6xxx_atu_flush(ps, 0, true);
+	if (err)
+		return err;
+
+	/* Clear all the VTU and STU entries */
+	err = _mv88e6xxx_vtu_stu_flush(ps);
+	if (err < 0)
+		return err;
+
+	return err;
+}
+
 int mv88e6xxx_setup_common(struct mv88e6xxx_priv_state *ps)
 {
 	int err;
@@ -2937,179 +3108,11 @@ int mv88e6xxx_setup_common(struct mv88e6xxx_priv_state *ps)
 	mutex_lock(&ps->smi_mutex);
 
 	err = mv88e6xxx_switch_reset(ps);
-
-	mutex_unlock(&ps->smi_mutex);
-
-	return err;
-}
-
-int mv88e6xxx_setup_global(struct dsa_switch *ds)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int err;
-	int i;
-
-	mutex_lock(&ps->smi_mutex);
-	/* Set the default address aging time to 5 minutes, and
-	 * enable address learn messages to be sent to all message
-	 * ports.
-	 */
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_ATU_CONTROL,
-				   0x0140 | GLOBAL_ATU_CONTROL_LEARN2ALL);
 	if (err)
 		goto unlock;
 
-	/* Configure the IP ToS mapping registers. */
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_0, 0x0000);
-	if (err)
-		goto unlock;
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_1, 0x0000);
-	if (err)
-		goto unlock;
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_2, 0x5555);
-	if (err)
-		goto unlock;
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_3, 0x5555);
-	if (err)
-		goto unlock;
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_4, 0xaaaa);
-	if (err)
-		goto unlock;
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_5, 0xaaaa);
-	if (err)
-		goto unlock;
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_6, 0xffff);
-	if (err)
-		goto unlock;
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IP_PRI_7, 0xffff);
-	if (err)
-		goto unlock;
+	err = mv88e6xxx_setup_global(ps);
 
-	/* Configure the IEEE 802.1p priority mapping register. */
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_IEEE_PRI, 0xfa41);
-	if (err)
-		goto unlock;
-
-	/* Send all frames with destination addresses matching
-	 * 01:80:c2:00:00:0x to the CPU port.
-	 */
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2, GLOBAL2_MGMT_EN_0X, 0xffff);
-	if (err)
-		goto unlock;
-
-	/* Ignore removed tag data on doubly tagged packets, disable
-	 * flow control messages, force flow control priority to the
-	 * highest, and send all special multicast frames to the CPU
-	 * port at the highest priority.
-	 */
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2, GLOBAL2_SWITCH_MGMT,
-				   0x7 | GLOBAL2_SWITCH_MGMT_RSVD2CPU | 0x70 |
-				   GLOBAL2_SWITCH_MGMT_FORCE_FLOW_CTRL_PRI);
-	if (err)
-		goto unlock;
-
-	/* Program the DSA routing table. */
-	for (i = 0; i < 32; i++) {
-		int nexthop = 0x1f;
-
-		if (ds->pd->rtable &&
-		    i != ds->index && i < ds->dst->pd->nr_chips)
-			nexthop = ds->pd->rtable[i] & 0x1f;
-
-		err = _mv88e6xxx_reg_write(
-			ps, REG_GLOBAL2,
-			GLOBAL2_DEVICE_MAPPING,
-			GLOBAL2_DEVICE_MAPPING_UPDATE |
-			(i << GLOBAL2_DEVICE_MAPPING_TARGET_SHIFT) | nexthop);
-		if (err)
-			goto unlock;
-	}
-
-	/* Clear all trunk masks. */
-	for (i = 0; i < 8; i++) {
-		err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2, GLOBAL2_TRUNK_MASK,
-					   0x8000 |
-					   (i << GLOBAL2_TRUNK_MASK_NUM_SHIFT) |
-					   ((1 << ps->info->num_ports) - 1));
-		if (err)
-			goto unlock;
-	}
-
-	/* Clear all trunk mappings. */
-	for (i = 0; i < 16; i++) {
-		err = _mv88e6xxx_reg_write(
-			ps, REG_GLOBAL2,
-			GLOBAL2_TRUNK_MAPPING,
-			GLOBAL2_TRUNK_MAPPING_UPDATE |
-			(i << GLOBAL2_TRUNK_MAPPING_ID_SHIFT));
-		if (err)
-			goto unlock;
-	}
-
-	if (mv88e6xxx_6352_family(ps) || mv88e6xxx_6351_family(ps) ||
-	    mv88e6xxx_6165_family(ps) || mv88e6xxx_6097_family(ps) ||
-	    mv88e6xxx_6320_family(ps)) {
-		/* Send all frames with destination addresses matching
-		 * 01:80:c2:00:00:2x to the CPU port.
-		 */
-		err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2,
-					   GLOBAL2_MGMT_EN_2X, 0xffff);
-		if (err)
-			goto unlock;
-
-		/* Initialise cross-chip port VLAN table to reset
-		 * defaults.
-		 */
-		err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2,
-					   GLOBAL2_PVT_ADDR, 0x9000);
-		if (err)
-			goto unlock;
-
-		/* Clear the priority override table. */
-		for (i = 0; i < 16; i++) {
-			err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2,
-						   GLOBAL2_PRIO_OVERRIDE,
-						   0x8000 | (i << 8));
-			if (err)
-				goto unlock;
-		}
-	}
-
-	if (mv88e6xxx_6352_family(ps) || mv88e6xxx_6351_family(ps) ||
-	    mv88e6xxx_6165_family(ps) || mv88e6xxx_6097_family(ps) ||
-	    mv88e6xxx_6185_family(ps) || mv88e6xxx_6095_family(ps) ||
-	    mv88e6xxx_6320_family(ps)) {
-		/* Disable ingress rate limiting by resetting all
-		 * ingress rate limit registers to their initial
-		 * state.
-		 */
-		for (i = 0; i < ps->info->num_ports; i++) {
-			err = _mv88e6xxx_reg_write(ps, REG_GLOBAL2,
-						   GLOBAL2_INGRESS_OP,
-						   0x9000 | (i << 8));
-			if (err)
-				goto unlock;
-		}
-	}
-
-	/* Clear the statistics counters for all ports */
-	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_STATS_OP,
-				   GLOBAL_STATS_OP_FLUSH_ALL);
-	if (err)
-		goto unlock;
-
-	/* Wait for the flush to complete. */
-	err = _mv88e6xxx_stats_wait(ps);
-	if (err < 0)
-		goto unlock;
-
-	/* Clear all ATU entries */
-	err = _mv88e6xxx_atu_flush(ps, 0, true);
-	if (err < 0)
-		goto unlock;
-
-	/* Clear all the VTU and STU entries */
-	err = _mv88e6xxx_vtu_stu_flush(ps);
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 

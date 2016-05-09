@@ -65,10 +65,6 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	int ret;
 	u32 reg;
 
-	ret = mv88e6xxx_setup_global(ds);
-	if (ret)
-		return ret;
-
 	/* Enable the PHY polling unit, don't discard packets with
 	 * excessive collisions, use a weighted fair queueing scheme
 	 * to arbitrate between packet queues, set the maximum frame

@@ -58,10 +58,6 @@ static int mv88e6123_setup_global(struct dsa_switch *ds)
 	int ret;
 	u32 reg;
 
-	ret = mv88e6xxx_setup_global(ds);
-	if (ret)
-		return ret;
-
 	/* Disable the PHY polling unit (since there won't be any
 	 * external PHYs to poll), don't discard packets with
 	 * excessive collisions, and mask all interrupt sources.

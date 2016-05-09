@@ -84,10 +84,6 @@ static int mv88e6352_setup_global(struct dsa_switch *ds)
 	int ret;
 	u32 reg;
 
-	ret = mv88e6xxx_setup_global(ds);
-	if (ret)
-		return ret;
-
 	/* Discard packets with excessive collisions,
 	 * mask all interrupt sources, enable PPU (bit 14, undocumented).
 	 */
