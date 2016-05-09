@@ -58,6 +58,9 @@ config GENERIC_CSUM
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
+config ARCH_DISCONTIGMEM_ENABLE
+	def_bool y
+
 config ARCH_FLATMEM_ENABLE
 	def_bool y
 
@@ -347,6 +350,15 @@ config ARC_HUGEPAGE_16M
 
 endchoice
 
+config NODES_SHIFT
+	int "Maximum NUMA Nodes (as a power of 2)"
+	default "1" if !DISCONTIGMEM
+	default "2" if DISCONTIGMEM
+	depends on NEED_MULTIPLE_NODES
+	---help---
+	  Accessing memory beyond 1GB (with or w/o PAE) requires 2 memory
+	  zones.
+
 if ISA_ARCOMPACT
 
 config ARC_COMPACT_IRQ_LEVELS
@@ -455,6 +467,7 @@ config LINUX_LINK_BASE
 
 config HIGHMEM
 	bool "High Memory Support"
+	select DISCONTIGMEM
 	help
 	  With ARC 2G:2G address split, only upper 2G is directly addressable by
 	  kernel. Enable this to potentially allow access to rest of 2G and PAE
