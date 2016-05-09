@@ -1105,6 +1105,9 @@ int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int reg;
 
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_EEE))
+		return -EOPNOTSUPP;
+
 	mutex_lock(&ps->smi_mutex);
 
 	reg = _mv88e6xxx_phy_read_indirect(ps, port, 16);
@@ -1132,6 +1135,9 @@ int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int reg;
 	int ret;
+
+	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_EEE))
+		return -EOPNOTSUPP;
 
 	mutex_lock(&ps->smi_mutex);
 
