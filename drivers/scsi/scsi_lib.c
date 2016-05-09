@@ -3064,6 +3064,7 @@ int scsi_vpd_lun_id(struct scsi_device *sdev, char *id, size_t id_len)
 	 * - EUI-64 based 12-byte
 	 * - NAA IEEE Registered
 	 * - NAA IEEE Extended
+	 * - T10 Vendor ID
 	 * as longer descriptors reduce the likelyhood
 	 * of identification clashes.
 	 */
@@ -3082,6 +3083,21 @@ int scsi_vpd_lun_id(struct scsi_device *sdev, char *id, size_t id_len)
 			goto next_desig;
 
 		switch (d[1] & 0xf) {
+		case 0x1:
+			/* T10 Vendor ID */
+			if (cur_id_size > d[3])
+				break;
+			/* Prefer anything */
+			if (cur_id_type > 0x01 && cur_id_type != 0xff)
+				break;
+			cur_id_size = d[3];
+			if (cur_id_size + 4 > id_len)
+				cur_id_size = id_len - 4;
+			cur_id_str = d + 4;
+			cur_id_type = d[1] & 0xf;
+			id_size = snprintf(id, id_len, "t10.%*pE",
+					   cur_id_size, cur_id_str);
+			break;
 		case 0x2:
 			/* EUI-64 */
 			if (cur_id_size > d[3])
