@@ -87,5 +87,16 @@ extern void gb_i2c_driver_exit(void);
 extern int gb_spi_driver_init(void);
 extern void gb_spi_driver_exit(void);
 
+/**
+ * module_gpbridge_driver() - Helper macro for registering a gpbridge driver
+ * @__gpbridge_driver: gpbridge_driver structure
+ *
+ * Helper macro for gpbridge drivers to set up proper module init / exit
+ * functions.  Replaces module_init() and module_exit() and keeps people from
+ * printing pointless things to the kernel log when their driver is loaded.
+ */
+#define module_gpbridge_driver(__gpbridge_driver)	\
+	module_driver(__gpbridge_driver, gb_gpbridge_register, gb_gpbridge_deregister)
+
 #endif /* __GPBRIDGE_H */
 
