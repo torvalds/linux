@@ -22,7 +22,7 @@ int es8328_probe(struct device *dev, struct regmap *regmap);
 #define ES8328_CONTROL1_VMIDSEL_50k (1 << 0)
 #define ES8328_CONTROL1_VMIDSEL_500k (2 << 0)
 #define ES8328_CONTROL1_VMIDSEL_5k (3 << 0)
-#define ES8328_CONTROL1_VMIDSEL_MASK (7 << 0)
+#define ES8328_CONTROL1_VMIDSEL_MASK (3 << 0)
 #define ES8328_CONTROL1_ENREF (1 << 2)
 #define ES8328_CONTROL1_SEQEN (1 << 3)
 #define ES8328_CONTROL1_SAMEFS (1 << 4)
