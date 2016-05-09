@@ -548,26 +548,44 @@ end:
 	return 0;
 }
 
-static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
+/*
+ * In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
+ * the other hand, in DMA descriptors of 1394 OHCI, 3 bits are used to represent
+ * it. Thus, via Linux firewire subsystem, we can get the 3 bits for second.
+ */
+static inline u32 compute_cycle_count(u32 tstamp)
+{
+	return (((tstamp >> 13) & 0x07) * 8000) + (tstamp & 0x1fff);
+}
+
+static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
+{
+	cycle += addend;
+	if (cycle >= 8 * CYCLES_PER_SECOND)
+		cycle -= 8 * CYCLES_PER_SECOND;
+	return cycle;
+}
+
+static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				size_t header_length, void *header,
 				void *private_data)
 {
 	struct amdtp_stream *s = private_data;
 	unsigned int i, syt, packets = header_length / 4;
 	unsigned int data_blocks;
+	u32 cycle;
 
 	if (s->packet_index < 0)
 		return;
 
-	/*
-	 * Compute the cycle of the last queued packet.
-	 * (We need only the four lowest bits for the SYT, so we can ignore
-	 * that bits 0-11 must wrap around at 3072.)
-	 */
-	cycle += QUEUE_LENGTH - packets;
+	cycle = compute_cycle_count(tstamp);
+
+	/* Align to actual cycle count for the last packet. */
+	cycle = increment_cycle_count(cycle, QUEUE_LENGTH - packets);
 
 	for (i = 0; i < packets; ++i) {
-		syt = calculate_syt(s, ++cycle);
+		cycle = increment_cycle_count(cycle, 1);
+		syt = calculate_syt(s, cycle);
 		data_blocks = calculate_data_blocks(s, syt);
 
 		if (handle_out_packet(s, data_blocks, syt) < 0) {
@@ -580,7 +598,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
 	fw_iso_context_queue_flush(s->context);
 }
 
-static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
+static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			       size_t header_length, void *header,
 			       void *private_data)
 {
@@ -650,7 +668,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 }
 
 /* processing is done by master callback */
-static void slave_stream_callback(struct fw_iso_context *context, u32 cycle,
+static void slave_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				  size_t header_length, void *header,
 				  void *private_data)
 {
@@ -659,7 +677,7 @@ static void slave_stream_callback(struct fw_iso_context *context, u32 cycle,
 
 /* this is executed one time */
 static void amdtp_stream_first_callback(struct fw_iso_context *context,
-					u32 cycle, size_t header_length,
+					u32 tstamp, size_t header_length,
 					void *header, void *private_data)
 {
 	struct amdtp_stream *s = private_data;
@@ -678,7 +696,7 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	else
 		context->callback.sc = out_stream_callback;
 
-	context->callback.sc(context, cycle, header_length, header, s);
+	context->callback.sc(context, tstamp, header_length, header, s);
 }
 
 /**
