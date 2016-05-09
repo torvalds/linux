@@ -126,7 +126,7 @@ struct rio_mport_mapping {
 	struct list_head node;
 	struct mport_dev *md;
 	enum rio_mport_map_dir dir;
-	u32 rioid;
+	u16 rioid;
 	u64 rio_addr;
 	dma_addr_t phys_addr; /* for mmap */
 	void *virt_addr; /* kernel address, for dma_free_coherent */
@@ -137,7 +137,7 @@ struct rio_mport_mapping {
 
 struct rio_mport_dma_map {
 	int valid;
-	uint64_t length;
+	u64 length;
 	void *vaddr;
 	dma_addr_t paddr;
 };
@@ -208,7 +208,7 @@ struct mport_cdev_priv {
 	struct kfifo            event_fifo;
 	wait_queue_head_t       event_rx_wait;
 	spinlock_t              fifo_lock;
-	unsigned int            event_mask; /* RIO_DOORBELL, RIO_PORTWRITE */
+	u32			event_mask; /* RIO_DOORBELL, RIO_PORTWRITE */
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
 	struct dma_chan		*dmach;
 	struct list_head	async_list;
@@ -276,7 +276,8 @@ static int rio_mport_maint_rd(struct mport_cdev_priv *priv, void __user *arg,
 		return -EFAULT;
 
 	if ((maint_io.offset % 4) ||
-	    (maint_io.length == 0) || (maint_io.length % 4))
+	    (maint_io.length == 0) || (maint_io.length % 4) ||
+	    (maint_io.length + maint_io.offset) > RIO_MAINT_SPACE_SZ)
 		return -EINVAL;
 
 	buffer = vmalloc(maint_io.length);
@@ -298,7 +299,8 @@ static int rio_mport_maint_rd(struct mport_cdev_priv *priv, void __user *arg,
 		offset += 4;
 	}
 
-	if (unlikely(copy_to_user(maint_io.buffer, buffer, maint_io.length)))
+	if (unlikely(copy_to_user((void __user *)(uintptr_t)maint_io.buffer,
+				   buffer, maint_io.length)))
 		ret = -EFAULT;
 out:
 	vfree(buffer);
@@ -319,7 +321,8 @@ static int rio_mport_maint_wr(struct mport_cdev_priv *priv, void __user *arg,
 		return -EFAULT;
 
 	if ((maint_io.offset % 4) ||
-	    (maint_io.length == 0) || (maint_io.length % 4))
+	    (maint_io.length == 0) || (maint_io.length % 4) ||
+	    (maint_io.length + maint_io.offset) > RIO_MAINT_SPACE_SZ)
 		return -EINVAL;
 
 	buffer = vmalloc(maint_io.length);
@@ -327,7 +330,8 @@ static int rio_mport_maint_wr(struct mport_cdev_priv *priv, void __user *arg,
 		return -ENOMEM;
 	length = maint_io.length;
 
-	if (unlikely(copy_from_user(buffer, maint_io.buffer, length))) {
+	if (unlikely(copy_from_user(buffer,
+			(void __user *)(uintptr_t)maint_io.buffer, length))) {
 		ret = -EFAULT;
 		goto out;
 	}
@@ -360,7 +364,7 @@ out:
  */
 static int
 rio_mport_create_outbound_mapping(struct mport_dev *md, struct file *filp,
-				  u32 rioid, u64 raddr, u32 size,
+				  u16 rioid, u64 raddr, u32 size,
 				  dma_addr_t *paddr)
 {
 	struct rio_mport *mport = md->mport;
@@ -369,7 +373,7 @@ rio_mport_create_outbound_mapping(struct mport_dev *md, struct file *filp,
 
 	rmcd_debug(OBW, "did=%d ra=0x%llx sz=0x%x", rioid, raddr, size);
 
-	map = kzalloc(sizeof(struct rio_mport_mapping), GFP_KERNEL);
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (map == NULL)
 		return -ENOMEM;
 
@@ -394,7 +398,7 @@ err_map_outb:
 
 static int
 rio_mport_get_outbound_mapping(struct mport_dev *md, struct file *filp,
-			       u32 rioid, u64 raddr, u32 size,
+			       u16 rioid, u64 raddr, u32 size,
 			       dma_addr_t *paddr)
 {
 	struct rio_mport_mapping *map;
@@ -433,7 +437,7 @@ static int rio_mport_obw_map(struct file *filp, void __user *arg)
 	dma_addr_t paddr;
 	int ret;
 
-	if (unlikely(copy_from_user(&map, arg, sizeof(struct rio_mmap))))
+	if (unlikely(copy_from_user(&map, arg, sizeof(map))))
 		return -EFAULT;
 
 	rmcd_debug(OBW, "did=%d ra=0x%llx sz=0x%llx",
@@ -448,7 +452,7 @@ static int rio_mport_obw_map(struct file *filp, void __user *arg)
 
 	map.handle = paddr;
 
-	if (unlikely(copy_to_user(arg, &map, sizeof(struct rio_mmap))))
+	if (unlikely(copy_to_user(arg, &map, sizeof(map))))
 		return -EFAULT;
 	return 0;
 }
@@ -469,7 +473,7 @@ static int rio_mport_obw_free(struct file *filp, void __user *arg)
 	if (!md->mport->ops->unmap_outb)
 		return -EPROTONOSUPPORT;
 
-	if (copy_from_user(&handle, arg, sizeof(u64)))
+	if (copy_from_user(&handle, arg, sizeof(handle)))
 		return -EFAULT;
 
 	rmcd_debug(OBW, "h=0x%llx", handle);
@@ -498,9 +502,9 @@ static int rio_mport_obw_free(struct file *filp, void __user *arg)
 static int maint_hdid_set(struct mport_cdev_priv *priv, void __user *arg)
 {
 	struct mport_dev *md = priv->md;
-	uint16_t hdid;
+	u16 hdid;
 
-	if (copy_from_user(&hdid, arg, sizeof(uint16_t)))
+	if (copy_from_user(&hdid, arg, sizeof(hdid)))
 		return -EFAULT;
 
 	md->mport->host_deviceid = hdid;
@@ -520,9 +524,9 @@ static int maint_hdid_set(struct mport_cdev_priv *priv, void __user *arg)
 static int maint_comptag_set(struct mport_cdev_priv *priv, void __user *arg)
 {
 	struct mport_dev *md = priv->md;
-	uint32_t comptag;
+	u32 comptag;
 
-	if (copy_from_user(&comptag, arg, sizeof(uint32_t)))
+	if (copy_from_user(&comptag, arg, sizeof(comptag)))
 		return -EFAULT;
 
 	rio_local_write_config_32(md->mport, RIO_COMPONENT_TAG_CSR, comptag);
@@ -837,7 +841,7 @@ err_out:
  * @xfer: data transfer descriptor structure
  */
 static int
-rio_dma_transfer(struct file *filp, uint32_t transfer_mode,
+rio_dma_transfer(struct file *filp, u32 transfer_mode,
 		 enum rio_transfer_sync sync, enum dma_data_direction dir,
 		 struct rio_transfer_io *xfer)
 {
@@ -875,7 +879,7 @@ rio_dma_transfer(struct file *filp, uint32_t transfer_mode,
 		unsigned long offset;
 		long pinned;
 
-		offset = (unsigned long)xfer->loc_addr & ~PAGE_MASK;
+		offset = (unsigned long)(uintptr_t)xfer->loc_addr & ~PAGE_MASK;
 		nr_pages = PAGE_ALIGN(xfer->length + offset) >> PAGE_SHIFT;
 
 		page_list = kmalloc_array(nr_pages,
@@ -1015,19 +1019,20 @@ static int rio_mport_transfer_ioctl(struct file *filp, void __user *arg)
 	if (unlikely(copy_from_user(&transaction, arg, sizeof(transaction))))
 		return -EFAULT;
 
-	if (transaction.count != 1)
+	if (transaction.count != 1) /* only single transfer for now */
 		return -EINVAL;
 
 	if ((transaction.transfer_mode &
 	     priv->md->properties.transfer_mode) == 0)
 		return -ENODEV;
 
-	transfer = vmalloc(transaction.count * sizeof(struct rio_transfer_io));
+	transfer = vmalloc(transaction.count * sizeof(*transfer));
 	if (!transfer)
 		return -ENOMEM;
 
-	if (unlikely(copy_from_user(transfer, transaction.block,
-	      transaction.count * sizeof(struct rio_transfer_io)))) {
+	if (unlikely(copy_from_user(transfer,
+				    (void __user *)(uintptr_t)transaction.block,
+				    transaction.count * sizeof(*transfer)))) {
 		ret = -EFAULT;
 		goto out_free;
 	}
@@ -1038,8 +1043,9 @@ static int rio_mport_transfer_ioctl(struct file *filp, void __user *arg)
 		ret = rio_dma_transfer(filp, transaction.transfer_mode,
 			transaction.sync, dir, &transfer[i]);
 
-	if (unlikely(copy_to_user(transaction.block, transfer,
-	      transaction.count * sizeof(struct rio_transfer_io))))
+	if (unlikely(copy_to_user((void __user *)(uintptr_t)transaction.block,
+				  transfer,
+				  transaction.count * sizeof(*transfer))))
 		ret = -EFAULT;
 
 out_free:
@@ -1129,11 +1135,11 @@ err_tmo:
 }
 
 static int rio_mport_create_dma_mapping(struct mport_dev *md, struct file *filp,
-			uint64_t size, struct rio_mport_mapping **mapping)
+			u64 size, struct rio_mport_mapping **mapping)
 {
 	struct rio_mport_mapping *map;
 
-	map = kzalloc(sizeof(struct rio_mport_mapping), GFP_KERNEL);
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (map == NULL)
 		return -ENOMEM;
 
@@ -1165,7 +1171,7 @@ static int rio_mport_alloc_dma(struct file *filp, void __user *arg)
 	struct rio_mport_mapping *mapping = NULL;
 	int ret;
 
-	if (unlikely(copy_from_user(&map, arg, sizeof(struct rio_dma_mem))))
+	if (unlikely(copy_from_user(&map, arg, sizeof(map))))
 		return -EFAULT;
 
 	ret = rio_mport_create_dma_mapping(md, filp, map.length, &mapping);
@@ -1174,7 +1180,7 @@ static int rio_mport_alloc_dma(struct file *filp, void __user *arg)
 
 	map.dma_handle = mapping->phys_addr;
 
-	if (unlikely(copy_to_user(arg, &map, sizeof(struct rio_dma_mem)))) {
+	if (unlikely(copy_to_user(arg, &map, sizeof(map)))) {
 		mutex_lock(&md->buf_mutex);
 		kref_put(&mapping->ref, mport_release_mapping);
 		mutex_unlock(&md->buf_mutex);
@@ -1192,7 +1198,7 @@ static int rio_mport_free_dma(struct file *filp, void __user *arg)
 	int ret = -EFAULT;
 	struct rio_mport_mapping *map, *_map;
 
-	if (copy_from_user(&handle, arg, sizeof(u64)))
+	if (copy_from_user(&handle, arg, sizeof(handle)))
 		return -EFAULT;
 	rmcd_debug(EXIT, "filp=%p", filp);
 
@@ -1242,14 +1248,18 @@ static int rio_mport_free_dma(struct file *filp, void __user *arg)
 
 static int
 rio_mport_create_inbound_mapping(struct mport_dev *md, struct file *filp,
-				u64 raddr, u32 size,
+				u64 raddr, u64 size,
 				struct rio_mport_mapping **mapping)
 {
 	struct rio_mport *mport = md->mport;
 	struct rio_mport_mapping *map;
 	int ret;
 
-	map = kzalloc(sizeof(struct rio_mport_mapping), GFP_KERNEL);
+	/* rio_map_inb_region() accepts u32 size */
+	if (size > 0xffffffff)
+		return -EINVAL;
+
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (map == NULL)
 		return -ENOMEM;
 
@@ -1262,7 +1272,7 @@ rio_mport_create_inbound_mapping(struct mport_dev *md, struct file *filp,
 
 	if (raddr == RIO_MAP_ANY_ADDR)
 		raddr = map->phys_addr;
-	ret = rio_map_inb_region(mport, map->phys_addr, raddr, size, 0);
+	ret = rio_map_inb_region(mport, map->phys_addr, raddr, (u32)size, 0);
 	if (ret < 0)
 		goto err_map_inb;
 
@@ -1288,7 +1298,7 @@ err_dma_alloc:
 
 static int
 rio_mport_get_inbound_mapping(struct mport_dev *md, struct file *filp,
-			      u64 raddr, u32 size,
+			      u64 raddr, u64 size,
 			      struct rio_mport_mapping **mapping)
 {
 	struct rio_mport_mapping *map;
@@ -1331,7 +1341,7 @@ static int rio_mport_map_inbound(struct file *filp, void __user *arg)
 
 	if (!md->mport->ops->map_inb)
 		return -EPROTONOSUPPORT;
-	if (unlikely(copy_from_user(&map, arg, sizeof(struct rio_mmap))))
+	if (unlikely(copy_from_user(&map, arg, sizeof(map))))
 		return -EFAULT;
 
 	rmcd_debug(IBW, "%s filp=%p", dev_name(&priv->md->dev), filp);
@@ -1344,7 +1354,7 @@ static int rio_mport_map_inbound(struct file *filp, void __user *arg)
 	map.handle = mapping->phys_addr;
 	map.rio_addr = mapping->rio_addr;
 
-	if (unlikely(copy_to_user(arg, &map, sizeof(struct rio_mmap)))) {
+	if (unlikely(copy_to_user(arg, &map, sizeof(map)))) {
 		/* Delete mapping if it was created by this request */
 		if (ret == 0 && mapping->filp == filp) {
 			mutex_lock(&md->buf_mutex);
@@ -1375,7 +1385,7 @@ static int rio_mport_inbound_free(struct file *filp, void __user *arg)
 	if (!md->mport->ops->unmap_inb)
 		return -EPROTONOSUPPORT;
 
-	if (copy_from_user(&handle, arg, sizeof(u64)))
+	if (copy_from_user(&handle, arg, sizeof(handle)))
 		return -EFAULT;
 
 	mutex_lock(&md->buf_mutex);
@@ -1401,7 +1411,7 @@ static int rio_mport_inbound_free(struct file *filp, void __user *arg)
 static int maint_port_idx_get(struct mport_cdev_priv *priv, void __user *arg)
 {
 	struct mport_dev *md = priv->md;
-	uint32_t port_idx = md->mport->index;
+	u32 port_idx = md->mport->index;
 
 	rmcd_debug(MPORT, "port_index=%d", port_idx);
 
@@ -1451,7 +1461,7 @@ static void rio_mport_doorbell_handler(struct rio_mport *mport, void *dev_id,
 	handled = 0;
 	spin_lock(&data->db_lock);
 	list_for_each_entry(db_filter, &data->doorbells, data_node) {
-		if (((db_filter->filter.rioid == 0xffffffff ||
+		if (((db_filter->filter.rioid == RIO_INVALID_DESTID ||
 		      db_filter->filter.rioid == src)) &&
 		      info >= db_filter->filter.low &&
 		      info <= db_filter->filter.high) {
@@ -1524,6 +1534,9 @@ static int rio_mport_remove_db_filter(struct mport_cdev_priv *priv,
 
 	if (copy_from_user(&filter, arg, sizeof(filter)))
 		return -EFAULT;
+
+	if (filter.low > filter.high)
+		return -EINVAL;
 
 	spin_lock_irqsave(&priv->md->db_lock, flags);
 	list_for_each_entry(db_filter, &priv->db_filters, priv_node) {
@@ -1737,10 +1750,10 @@ static int rio_mport_add_riodev(struct mport_cdev_priv *priv,
 		return -EEXIST;
 	}
 
-	size = sizeof(struct rio_dev);
+	size = sizeof(*rdev);
 	mport = md->mport;
-	destid = (u16)dev_info.destid;
-	hopcount = (u8)dev_info.hopcount;
+	destid = dev_info.destid;
+	hopcount = dev_info.hopcount;
 
 	if (rio_mport_read_config_32(mport, destid, hopcount,
 				     RIO_PEF_CAR, &rval))
@@ -1872,8 +1885,8 @@ static int rio_mport_del_riodev(struct mport_cdev_priv *priv, void __user *arg)
 		do {
 			rdev = rio_get_comptag(dev_info.comptag, rdev);
 			if (rdev && rdev->dev.parent == &mport->net->dev &&
-			    rdev->destid == (u16)dev_info.destid &&
-			    rdev->hopcount == (u8)dev_info.hopcount)
+			    rdev->destid == dev_info.destid &&
+			    rdev->hopcount == dev_info.hopcount)
 				break;
 		} while (rdev);
 	}
@@ -2146,8 +2159,8 @@ static long mport_cdev_ioctl(struct file *filp,
 		return maint_port_idx_get(data, (void __user *)arg);
 	case RIO_MPORT_GET_PROPERTIES:
 		md->properties.hdid = md->mport->host_deviceid;
-		if (copy_to_user((void __user *)arg, &(data->md->properties),
-				 sizeof(data->md->properties)))
+		if (copy_to_user((void __user *)arg, &(md->properties),
+				 sizeof(md->properties)))
 			return -EFAULT;
 		return 0;
 	case RIO_ENABLE_DOORBELL_RANGE:
@@ -2159,11 +2172,11 @@ static long mport_cdev_ioctl(struct file *filp,
 	case RIO_DISABLE_PORTWRITE_RANGE:
 		return rio_mport_remove_pw_filter(data, (void __user *)arg);
 	case RIO_SET_EVENT_MASK:
-		data->event_mask = arg;
+		data->event_mask = (u32)arg;
 		return 0;
 	case RIO_GET_EVENT_MASK:
 		if (copy_to_user((void __user *)arg, &data->event_mask,
-				    sizeof(data->event_mask)))
+				    sizeof(u32)))
 			return -EFAULT;
 		return 0;
 	case RIO_MAP_OUTBOUND:
@@ -2374,7 +2387,7 @@ static ssize_t mport_write(struct file *filp, const char __user *buf,
 			return -EINVAL;
 
 		ret = rio_mport_send_doorbell(mport,
-					      (u16)event.u.doorbell.rioid,
+					      event.u.doorbell.rioid,
 					      event.u.doorbell.payload);
 		if (ret < 0)
 			return ret;
@@ -2421,7 +2434,7 @@ static struct mport_dev *mport_cdev_add(struct rio_mport *mport)
 	struct mport_dev *md;
 	struct rio_mport_attr attr;
 
-	md = kzalloc(sizeof(struct mport_dev), GFP_KERNEL);
+	md = kzalloc(sizeof(*md), GFP_KERNEL);
 	if (!md) {
 		rmcd_error("Unable allocate a device object");
 		return NULL;
@@ -2470,7 +2483,7 @@ static struct mport_dev *mport_cdev_add(struct rio_mport *mport)
 	/* The transfer_mode property will be returned through mport query
 	 * interface
 	 */
-#ifdef CONFIG_PPC /* for now: only on Freescale's SoCs */
+#ifdef CONFIG_FSL_RIO /* for now: only on Freescale's SoCs */
 	md->properties.transfer_mode |= RIO_TRANSFER_MODE_MAPPED;
 #else
 	md->properties.transfer_mode |= RIO_TRANSFER_MODE_TRANSFER;

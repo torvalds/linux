@@ -39,16 +39,16 @@
 #ifndef _RIO_MPORT_CDEV_H_
 #define _RIO_MPORT_CDEV_H_
 
-#ifndef __user
-#define __user
-#endif
+#include <linux/ioctl.h>
+#include <linux/types.h>
 
 struct rio_mport_maint_io {
-	uint32_t rioid;		/* destID of remote device */
-	uint32_t hopcount;	/* hopcount to remote device */
-	uint32_t offset;	/* offset in register space */
-	size_t length;		/* length in bytes */
-	void __user *buffer;	/* data buffer */
+	__u16 rioid;		/* destID of remote device */
+	__u8  hopcount;		/* hopcount to remote device */
+	__u8  pad0[5];
+	__u32 offset;		/* offset in register space */
+	__u32 length;		/* length in bytes */
+	__u64 buffer;		/* pointer to data buffer */
 };
 
 /*
@@ -66,22 +66,23 @@ struct rio_mport_maint_io {
 #define RIO_CAP_MAP_INB			(1 << 7)
 
 struct rio_mport_properties {
-	uint16_t hdid;
-	uint8_t id;			/* Physical port ID */
-	uint8_t  index;
-	uint32_t flags;
-	uint32_t sys_size;		/* Default addressing size */
-	uint8_t  port_ok;
-	uint8_t  link_speed;
-	uint8_t  link_width;
-	uint32_t dma_max_sge;
-	uint32_t dma_max_size;
-	uint32_t dma_align;
-	uint32_t transfer_mode;		/* Default transfer mode */
-	uint32_t cap_sys_size;		/* Capable system sizes */
-	uint32_t cap_addr_size;		/* Capable addressing sizes */
-	uint32_t cap_transfer_mode;	/* Capable transfer modes */
-	uint32_t cap_mport;		/* Mport capabilities */
+	__u16 hdid;
+	__u8  id;			/* Physical port ID */
+	__u8  index;
+	__u32 flags;
+	__u32 sys_size;		/* Default addressing size */
+	__u8  port_ok;
+	__u8  link_speed;
+	__u8  link_width;
+	__u8  pad0;
+	__u32 dma_max_sge;
+	__u32 dma_max_size;
+	__u32 dma_align;
+	__u32 transfer_mode;		/* Default transfer mode */
+	__u32 cap_sys_size;		/* Capable system sizes */
+	__u32 cap_addr_size;		/* Capable addressing sizes */
+	__u32 cap_transfer_mode;	/* Capable transfer modes */
+	__u32 cap_mport;		/* Mport capabilities */
 };
 
 /*
@@ -93,54 +94,57 @@ struct rio_mport_properties {
 #define RIO_PORTWRITE	(1 << 1)
 
 struct rio_doorbell {
-	uint32_t rioid;
-	uint16_t payload;
+	__u16 rioid;
+	__u16 payload;
 };
 
 struct rio_doorbell_filter {
-	uint32_t rioid;			/* 0xffffffff to match all ids */
-	uint16_t low;
-	uint16_t high;
+	__u16 rioid;	/* Use RIO_INVALID_DESTID to match all ids */
+	__u16 low;
+	__u16 high;
+	__u16 pad0;
 };
 
 
 struct rio_portwrite {
-	uint32_t payload[16];
+	__u32 payload[16];
 };
 
 struct rio_pw_filter {
-	uint32_t mask;
-	uint32_t low;
-	uint32_t high;
+	__u32 mask;
+	__u32 low;
+	__u32 high;
+	__u32 pad0;
 };
 
 /* RapidIO base address for inbound requests set to value defined below
  * indicates that no specific RIO-to-local address translation is requested
  * and driver should use direct (one-to-one) address mapping.
 */
-#define RIO_MAP_ANY_ADDR	(uint64_t)(~((uint64_t) 0))
+#define RIO_MAP_ANY_ADDR	(__u64)(~((__u64) 0))
 
 struct rio_mmap {
-	uint32_t rioid;
-	uint64_t rio_addr;
-	uint64_t length;
-	uint64_t handle;
-	void *address;
+	__u16 rioid;
+	__u16 pad0[3];
+	__u64 rio_addr;
+	__u64 length;
+	__u64 handle;
+	__u64 address;
 };
 
 struct rio_dma_mem {
-	uint64_t length;		/* length of DMA memory */
-	uint64_t dma_handle;		/* handle associated with this memory */
-	void *buffer;			/* pointer to this memory */
+	__u64 length;		/* length of DMA memory */
+	__u64 dma_handle;	/* handle associated with this memory */
+	__u64 address;
 };
 
-
 struct rio_event {
-	unsigned int header;	/* event type RIO_DOORBELL or RIO_PORTWRITE */
+	__u32 header;	/* event type RIO_DOORBELL or RIO_PORTWRITE */
 	union {
 		struct rio_doorbell doorbell;	/* header for RIO_DOORBELL */
 		struct rio_portwrite portwrite; /* header for RIO_PORTWRITE */
 	} u;
+	__u32 pad0;
 };
 
 enum rio_transfer_sync {
@@ -184,35 +188,37 @@ enum rio_exchange {
 };
 
 struct rio_transfer_io {
-	uint32_t rioid;			/* Target destID */
-	uint64_t rio_addr;		/* Address in target's RIO mem space */
-	enum rio_exchange method;	/* Data exchange method */
-	void __user *loc_addr;
-	uint64_t handle;
-	uint64_t offset;		/* Offset in buffer */
-	uint64_t length;		/* Length in bytes */
-	uint32_t completion_code;	/* Completion code for this transfer */
+	__u64 rio_addr;	/* Address in target's RIO mem space */
+	__u64 loc_addr;
+	__u64 handle;
+	__u64 offset;	/* Offset in buffer */
+	__u64 length;	/* Length in bytes */
+	__u16 rioid;	/* Target destID */
+	__u16 method;	/* Data exchange method, one of rio_exchange enum */
+	__u32 completion_code;	/* Completion code for this transfer */
 };
 
 struct rio_transaction {
-	uint32_t transfer_mode;		/* Data transfer mode */
-	enum rio_transfer_sync sync;	/* Synchronization method */
-	enum rio_transfer_dir dir;	/* Transfer direction */
-	size_t count;			/* Number of transfers */
-	struct rio_transfer_io __user *block;	/* Array of <count> transfers */
+	__u64 block;	/* Pointer to array of <count> transfers */
+	__u32 count;	/* Number of transfers */
+	__u32 transfer_mode;	/* Data transfer mode */
+	__u16 sync;	/* Synch method, one of rio_transfer_sync enum */
+	__u16 dir;	/* Transfer direction, one of rio_transfer_dir enum */
+	__u32 pad0;
 };
 
 struct rio_async_tx_wait {
-	uint32_t token;		/* DMA transaction ID token */
-	uint32_t timeout;	/* Wait timeout in msec, if 0 use default TO */
+	__u32 token;	/* DMA transaction ID token */
+	__u32 timeout;	/* Wait timeout in msec, if 0 use default TO */
 };
 
 #define RIO_MAX_DEVNAME_SZ	20
 
 struct rio_rdev_info {
-	uint32_t destid;
-	uint8_t hopcount;
-	uint32_t comptag;
+	__u16 destid;
+	__u8 hopcount;
+	__u8 pad0;
+	__u32 comptag;
 	char name[RIO_MAX_DEVNAME_SZ + 1];
 };
 
@@ -220,11 +226,11 @@ struct rio_rdev_info {
 #define RIO_MPORT_DRV_MAGIC           'm'
 
 #define RIO_MPORT_MAINT_HDID_SET	\
-	_IOW(RIO_MPORT_DRV_MAGIC, 1, uint16_t)
+	_IOW(RIO_MPORT_DRV_MAGIC, 1, __u16)
 #define RIO_MPORT_MAINT_COMPTAG_SET	\
-	_IOW(RIO_MPORT_DRV_MAGIC, 2, uint32_t)
+	_IOW(RIO_MPORT_DRV_MAGIC, 2, __u32)
 #define RIO_MPORT_MAINT_PORT_IDX_GET	\
-	_IOR(RIO_MPORT_DRV_MAGIC, 3, uint32_t)
+	_IOR(RIO_MPORT_DRV_MAGIC, 3, __u32)
 #define RIO_MPORT_GET_PROPERTIES \
 	_IOR(RIO_MPORT_DRV_MAGIC, 4, struct rio_mport_properties)
 #define RIO_MPORT_MAINT_READ_LOCAL \
@@ -244,9 +250,9 @@ struct rio_rdev_info {
 #define RIO_DISABLE_PORTWRITE_RANGE	\
 	_IOW(RIO_MPORT_DRV_MAGIC, 12, struct rio_pw_filter)
 #define RIO_SET_EVENT_MASK		\
-	_IOW(RIO_MPORT_DRV_MAGIC, 13, unsigned int)
+	_IOW(RIO_MPORT_DRV_MAGIC, 13, __u32)
 #define RIO_GET_EVENT_MASK		\
-	_IOR(RIO_MPORT_DRV_MAGIC, 14, unsigned int)
+	_IOR(RIO_MPORT_DRV_MAGIC, 14, __u32)
 #define RIO_MAP_OUTBOUND \
 	_IOWR(RIO_MPORT_DRV_MAGIC, 15, struct rio_mmap)
 #define RIO_UNMAP_OUTBOUND \
@@ -254,11 +260,11 @@ struct rio_rdev_info {
 #define RIO_MAP_INBOUND \
 	_IOWR(RIO_MPORT_DRV_MAGIC, 17, struct rio_mmap)
 #define RIO_UNMAP_INBOUND \
-	_IOW(RIO_MPORT_DRV_MAGIC, 18, uint64_t)
+	_IOW(RIO_MPORT_DRV_MAGIC, 18, __u64)
 #define RIO_ALLOC_DMA \
 	_IOWR(RIO_MPORT_DRV_MAGIC, 19, struct rio_dma_mem)
 #define RIO_FREE_DMA \
-	_IOW(RIO_MPORT_DRV_MAGIC, 20, uint64_t)
+	_IOW(RIO_MPORT_DRV_MAGIC, 20, __u64)
 #define RIO_TRANSFER \
 	_IOWR(RIO_MPORT_DRV_MAGIC, 21, struct rio_transaction)
 #define RIO_WAIT_FOR_ASYNC \
