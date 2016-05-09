@@ -333,10 +333,6 @@ static int __init gpbridge_init(void)
 		pr_err("error initializing usb driver\n");
 		goto error_usb;
 	}
-	if (gb_i2c_driver_init()) {
-		pr_err("error initializing i2c driver\n");
-		goto error_i2c;
-	}
 	if (gb_spi_driver_init()) {
 		pr_err("error initializing spi driver\n");
 		goto error_spi;
@@ -345,8 +341,6 @@ static int __init gpbridge_init(void)
 	return 0;
 
 error_spi:
-	gb_i2c_driver_exit();
-error_i2c:
 	gb_usb_driver_exit();
 error_usb:
 	gb_sdio_driver_exit();
@@ -366,7 +360,6 @@ module_init(gpbridge_init);
 static void __exit gpbridge_exit(void)
 {
 	gb_spi_driver_exit();
-	gb_i2c_driver_exit();
 	gb_usb_driver_exit();
 	gb_sdio_driver_exit();
 	gb_uart_driver_exit();

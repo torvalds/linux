@@ -321,6 +321,7 @@ static const struct gpbridge_device_id gb_i2c_id_table[] = {
 	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_I2C) },
 	{ },
 };
+MODULE_DEVICE_TABLE(gpbridge, gb_i2c_id_table);
 
 static struct gpbridge_driver i2c_driver = {
 	.name		= "i2c",
@@ -328,4 +329,6 @@ static struct gpbridge_driver i2c_driver = {
 	.remove		= gb_i2c_remove,
 	.id_table	= gb_i2c_id_table,
 };
-gb_gpbridge_builtin_driver(i2c_driver);
+
+module_gpbridge_driver(i2c_driver);
+MODULE_LICENSE("GPL v2");

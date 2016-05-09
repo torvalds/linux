@@ -78,9 +78,6 @@ extern void gb_sdio_driver_exit(void);
 extern int gb_usb_driver_init(void);
 extern void gb_usb_driver_exit(void);
 
-extern int gb_i2c_driver_init(void);
-extern void gb_i2c_driver_exit(void);
-
 extern int gb_spi_driver_init(void);
 extern void gb_spi_driver_exit(void);
 
