@@ -997,6 +997,49 @@ static int f2fs_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	return ret;
 }
 
+static int f2fs_do_zero_range(struct dnode_of_data *dn, pgoff_t start,
+								pgoff_t end)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
+	pgoff_t index = start;
+	unsigned int ofs_in_node = dn->ofs_in_node;
+	blkcnt_t count = 0;
+	int ret;
+
+	for (; index < end; index++, dn->ofs_in_node++) {
+		if (datablock_addr(dn->node_page, dn->ofs_in_node) == NULL_ADDR)
+			count++;
+	}
+
+	dn->ofs_in_node = ofs_in_node;
+	ret = reserve_new_blocks(dn, count);
+	if (ret)
+		return ret;
+
+	dn->ofs_in_node = ofs_in_node;
+	for (index = start; index < end; index++, dn->ofs_in_node++) {
+		dn->data_blkaddr =
+				datablock_addr(dn->node_page, dn->ofs_in_node);
+		/*
+		 * reserve_new_blocks will not guarantee entire block
+		 * allocation.
+		 */
+		if (dn->data_blkaddr == NULL_ADDR) {
+			ret = -ENOSPC;
+			break;
+		}
+		if (dn->data_blkaddr != NEW_ADDR) {
+			invalidate_blocks(sbi, dn->data_blkaddr);
+			dn->data_blkaddr = NEW_ADDR;
+			set_data_blkaddr(dn);
+		}
+	}
+
+	f2fs_update_extent_cache_range(dn, start, 0, index - start);
+
+	return ret;
+}
+
 static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 								int mode)
 {
@@ -1047,35 +1090,32 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 					(loff_t)pg_start << PAGE_SHIFT);
 		}
 
-		for (index = pg_start; index < pg_end; index++) {
+		for (index = pg_start; index < pg_end;) {
 			struct dnode_of_data dn;
-			struct page *ipage;
+			unsigned int end_offset;
+			pgoff_t end;
 
 			f2fs_lock_op(sbi);
 
-			ipage = get_node_page(sbi, inode->i_ino);
-			if (IS_ERR(ipage)) {
-				ret = PTR_ERR(ipage);
-				f2fs_unlock_op(sbi);
-				goto out;
-			}
-
-			set_new_dnode(&dn, inode, ipage, NULL, 0);
-			ret = f2fs_reserve_block(&dn, index);
+			set_new_dnode(&dn, inode, NULL, NULL, 0);
+			ret = get_dnode_of_data(&dn, index, ALLOC_NODE);
 			if (ret) {
 				f2fs_unlock_op(sbi);
 				goto out;
 			}
 
-			if (dn.data_blkaddr != NEW_ADDR) {
-				invalidate_blocks(sbi, dn.data_blkaddr);
-				f2fs_update_data_blkaddr(&dn, NEW_ADDR);
-			}
+			end_offset = ADDRS_PER_PAGE(dn.node_page, inode);
+			end = min(pg_end, end_offset - dn.ofs_in_node + index);
+
+			ret = f2fs_do_zero_range(&dn, index, end);
 			f2fs_put_dnode(&dn);
 			f2fs_unlock_op(sbi);
+			if (ret)
+				goto out;
 
+			index = end;
 			new_size = max_t(loff_t, new_size,
-				(loff_t)(index + 1) << PAGE_SHIFT);
+					(loff_t)index << PAGE_SHIFT);
 		}
 
 		if (off_end) {
