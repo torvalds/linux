@@ -56,16 +56,6 @@ void gb_gpbridge_deregister_driver(struct gpbridge_driver *driver);
 #define gb_gpbridge_deregister(driver) \
 	gb_gpbridge_deregister_driver(driver)
 
-#define gb_gpbridge_builtin_driver(__driver)		\
-	int __init gb_##__driver##_init(void)		\
-{							\
-	return gb_gpbridge_register(&__driver);		\
-}							\
-void gb_##__driver##_exit(void)				\
-{							\
-	gb_gpbridge_deregister(&__driver);			\
-}
-
 /**
  * module_gpbridge_driver() - Helper macro for registering a gpbridge driver
  * @__gpbridge_driver: gpbridge_driver structure
