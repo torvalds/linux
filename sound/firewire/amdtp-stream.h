@@ -24,8 +24,6 @@
  *	The value of data_block_quadlets is used instead of reported value.
  * @CIP_SKIP_DBC_ZERO_CHECK: Only for in-stream.  Packets with zero in dbc is
  *	skipped for detecting discontinuity.
- * @CIP_SKIP_INIT_DBC_CHECK: Only for in-stream. The value of dbc in first
- *	packet is not continuous from an initial value.
  * @CIP_EMPTY_HAS_WRONG_DBC: Only for in-stream. The value of dbc in empty
  *	packet is wrong but the others are correct.
  * @CIP_JUMBO_PAYLOAD: Only for in-stream. The number of data blocks in an
@@ -39,9 +37,8 @@ enum cip_flags {
 	CIP_DBC_IS_END_EVENT	= 0x04,
 	CIP_WRONG_DBS		= 0x08,
 	CIP_SKIP_DBC_ZERO_CHECK	= 0x10,
-	CIP_SKIP_INIT_DBC_CHECK	= 0x20,
-	CIP_EMPTY_HAS_WRONG_DBC	= 0x40,
-	CIP_JUMBO_PAYLOAD	= 0x80,
+	CIP_EMPTY_HAS_WRONG_DBC	= 0x20,
+	CIP_JUMBO_PAYLOAD	= 0x40,
 };
 
 /**

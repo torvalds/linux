@@ -723,8 +723,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 		goto err_unlock;
 	}
 
-	if (s->direction == AMDTP_IN_STREAM &&
-	    s->flags & CIP_SKIP_INIT_DBC_CHECK)
+	if (s->direction == AMDTP_IN_STREAM)
 		s->data_block_counter = UINT_MAX;
 	else
 		s->data_block_counter = 0;

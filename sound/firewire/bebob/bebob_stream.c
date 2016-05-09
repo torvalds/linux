@@ -526,8 +526,6 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 		goto end;
 	}
 
-	bebob->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK;
-
 	/*
 	 * BeBoB v3 transfers packets with these qurks:
 	 *  - In the beginning of streaming, the value of dbc is incremented
