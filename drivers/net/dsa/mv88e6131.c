@@ -59,7 +59,7 @@ static const char *mv88e6131_drv_probe(struct device *dsa_dev,
 }
 
 struct dsa_switch_driver mv88e6131_switch_driver = {
-	.tag_protocol		= DSA_TAG_PROTO_DSA,
+	.tag_protocol		= DSA_TAG_PROTO_EDSA,
 	.probe			= mv88e6131_drv_probe,
 	.setup			= mv88e6xxx_setup,
 	.set_addr		= mv88e6xxx_set_addr,
