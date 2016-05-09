@@ -5935,10 +5935,8 @@ static void free_sched_groups(struct sched_group *sg, int free_sgc)
 	} while (sg != first);
 }
 
-static void free_sched_domain(struct rcu_head *rcu)
+static void destroy_sched_domain(struct sched_domain *sd)
 {
-	struct sched_domain *sd = container_of(rcu, struct sched_domain, rcu);
-
 	/*
 	 * If its an overlapping domain it has private groups, iterate and
 	 * nuke them all.
@@ -5952,15 +5950,21 @@ static void free_sched_domain(struct rcu_head *rcu)
 	kfree(sd);
 }
 
-static void destroy_sched_domain(struct sched_domain *sd)
+static void destroy_sched_domains_rcu(struct rcu_head *rcu)
 {
-	call_rcu(&sd->rcu, free_sched_domain);
+	struct sched_domain *sd = container_of(rcu, struct sched_domain, rcu);
+
+	while (sd) {
+		struct sched_domain *parent = sd->parent;
+		destroy_sched_domain(sd);
+		sd = parent;
+	}
 }
 
 static void destroy_sched_domains(struct sched_domain *sd)
 {
-	for (; sd; sd = sd->parent)
-		destroy_sched_domain(sd);
+	if (sd)
+		call_rcu(&sd->rcu, destroy_sched_domains_rcu);
 }
 
 /*
