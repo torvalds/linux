@@ -546,6 +546,30 @@ struct wil_blob_wrapper {
 	struct debugfs_blob_wrapper blob;
 };
 
+#define WIL_LED_MAX_ID			(2)
+#define WIL_LED_INVALID_ID		(0xF)
+#define WIL_LED_BLINK_ON_SLOW_MS	(300)
+#define WIL_LED_BLINK_OFF_SLOW_MS	(300)
+#define WIL_LED_BLINK_ON_MED_MS		(200)
+#define WIL_LED_BLINK_OFF_MED_MS	(200)
+#define WIL_LED_BLINK_ON_FAST_MS	(100)
+#define WIL_LED_BLINK_OFF_FAST_MS	(100)
+enum {
+	WIL_LED_TIME_SLOW = 0,
+	WIL_LED_TIME_MED,
+	WIL_LED_TIME_FAST,
+	WIL_LED_TIME_LAST,
+};
+
+struct blink_on_off_time {
+	u32 on_ms;
+	u32 off_ms;
+};
+
+extern struct blink_on_off_time led_blink_time[WIL_LED_TIME_LAST];
+extern u8 led_id;
+extern u8 led_polarity;
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	struct wireless_dev *wdev;
@@ -834,6 +858,7 @@ int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
 int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
 		  u8 chan, u8 hidden_ssid, u8 is_go);
 int wmi_pcp_stop(struct wil6210_priv *wil);
+int wmi_led_cfg(struct wil6210_priv *wil, bool enable);
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			u16 reason_code, bool from_event);
 void wil_probe_client_flush(struct wil6210_priv *wil);

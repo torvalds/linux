@@ -1441,6 +1441,118 @@ static const struct file_operations fops_sta = {
 	.llseek		= seq_lseek,
 };
 
+static ssize_t wil_read_file_led_cfg(struct file *file, char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	char buf[80];
+	int n;
+
+	n = snprintf(buf, sizeof(buf),
+		     "led_id is set to %d, echo 1 to enable, 0 to disable\n",
+		     led_id);
+
+	n = min_t(int, n, sizeof(buf));
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       buf, n);
+}
+
+static ssize_t wil_write_file_led_cfg(struct file *file,
+				      const char __user *buf_,
+				      size_t count, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	int val;
+	int rc;
+
+	rc = kstrtoint_from_user(buf_, count, 0, &val);
+	if (rc) {
+		wil_err(wil, "Invalid argument\n");
+		return rc;
+	}
+
+	wil_info(wil, "%s led %d\n", val ? "Enabling" : "Disabling", led_id);
+	rc = wmi_led_cfg(wil, val);
+	if (rc) {
+		wil_info(wil, "%s led %d failed\n",
+			 val ? "Enabling" : "Disabling", led_id);
+		return rc;
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_led_cfg = {
+	.read = wil_read_file_led_cfg,
+	.write = wil_write_file_led_cfg,
+	.open  = simple_open,
+};
+
+/* led_blink_time, write:
+ * "<blink_on_slow> <blink_off_slow> <blink_on_med> <blink_off_med> <blink_on_fast> <blink_off_fast>
+ */
+static ssize_t wil_write_led_blink_time(struct file *file,
+					const char __user *buf,
+					size_t len, loff_t *ppos)
+{
+	int rc;
+	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
+
+	if (!kbuf)
+		return -ENOMEM;
+
+	rc = simple_write_to_buffer(kbuf, len, ppos, buf, len);
+	if (rc != len) {
+		kfree(kbuf);
+		return rc >= 0 ? -EIO : rc;
+	}
+
+	kbuf[len] = '\0';
+	rc = sscanf(kbuf, "%d %d %d %d %d %d",
+		    &led_blink_time[WIL_LED_TIME_SLOW].on_ms,
+		    &led_blink_time[WIL_LED_TIME_SLOW].off_ms,
+		    &led_blink_time[WIL_LED_TIME_MED].on_ms,
+		    &led_blink_time[WIL_LED_TIME_MED].off_ms,
+		    &led_blink_time[WIL_LED_TIME_FAST].on_ms,
+		    &led_blink_time[WIL_LED_TIME_FAST].off_ms);
+	kfree(kbuf);
+
+	if (rc < 0)
+		return rc;
+	if (rc < 6)
+		return -EINVAL;
+
+	return len;
+}
+
+static ssize_t wil_read_led_blink_time(struct file *file, char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	static char text[400];
+
+	snprintf(text, sizeof(text),
+		 "To set led blink on/off time variables write:\n"
+		 "<blink_on_slow> <blink_off_slow> <blink_on_med> "
+		 "<blink_off_med> <blink_on_fast> <blink_off_fast>\n"
+		 "The current values are:\n"
+		 "%d %d %d %d %d %d\n",
+		 led_blink_time[WIL_LED_TIME_SLOW].on_ms,
+		 led_blink_time[WIL_LED_TIME_SLOW].off_ms,
+		 led_blink_time[WIL_LED_TIME_MED].on_ms,
+		 led_blink_time[WIL_LED_TIME_MED].off_ms,
+		 led_blink_time[WIL_LED_TIME_FAST].on_ms,
+		 led_blink_time[WIL_LED_TIME_FAST].off_ms);
+
+	return simple_read_from_buffer(user_buf, count, ppos, text,
+				       sizeof(text));
+}
+
+static const struct file_operations fops_led_blink_time = {
+	.read = wil_read_led_blink_time,
+	.write = wil_write_led_blink_time,
+	.open  = simple_open,
+};
+
 /*----------------*/
 static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 				       struct dentry *dbg)
@@ -1489,6 +1601,8 @@ static const struct {
 	{"link",	S_IRUGO,		&fops_link},
 	{"info",	S_IRUGO,		&fops_info},
 	{"recovery",	S_IRUGO | S_IWUSR,	&fops_recovery},
+	{"led_cfg",	S_IRUGO | S_IWUSR,	&fops_led_cfg},
+	{"led_blink_time",	S_IRUGO | S_IWUSR,	&fops_led_blink_time},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
@@ -1551,6 +1665,7 @@ static const struct dbg_off dbg_statics[] = {
 	{"mem_addr",	S_IRUGO | S_IWUSR, (ulong)&mem_addr, doff_u32},
 	{"vring_idle_trsh", S_IRUGO | S_IWUSR, (ulong)&vring_idle_trsh,
 	 doff_u32},
+	{"led_polarity", S_IRUGO | S_IWUSR, (ulong)&led_polarity, doff_u8},
 	{},
 };
 

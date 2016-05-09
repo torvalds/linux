@@ -841,6 +841,9 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 	wil_bcast_fini(wil);
 
+	/* Disable device led before reset*/
+	wmi_led_cfg(wil, false);
+
 	/* prevent NAPI from being scheduled and prevent wmi commands */
 	mutex_lock(&wil->wmi_mutex);
 	bitmap_zero(wil->status, wil_status_last);
