@@ -784,8 +784,6 @@ static void __init __s5pv210_clk_init(struct device_node *np,
 	struct samsung_clk_provider *ctx;
 
 	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
-	if (!ctx)
-		panic("%s: unable to allocate context.\n", __func__);
 
 	samsung_clk_register_mux(ctx, early_mux_clks,
 					ARRAY_SIZE(early_mux_clks));

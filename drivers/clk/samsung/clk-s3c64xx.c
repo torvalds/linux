@@ -471,8 +471,6 @@ void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 	}
 
 	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
-	if (!ctx)
-		panic("%s: unable to allocate context.\n", __func__);
 
 	/* Register external clocks. */
 	if (!np)
