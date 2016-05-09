@@ -103,9 +103,5 @@ struct netns_ct {
 	unsigned int		labels_used;
 	u8			label_words;
 #endif
-#ifdef CONFIG_NF_NAT_NEEDED
-	struct hlist_head	*nat_bysource;
-	unsigned int		nat_htable_size;
-#endif
 };
 #endif
