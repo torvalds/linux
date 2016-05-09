@@ -417,8 +417,8 @@ static void process_e820_entry(struct e820entry *entry,
 	}
 }
 
-static unsigned long find_random_addr(unsigned long minimum,
-				      unsigned long size)
+static unsigned long find_random_phys_addr(unsigned long minimum,
+					   unsigned long image_size)
 {
 	int i;
 	unsigned long addr;
@@ -428,10 +428,34 @@ static unsigned long find_random_addr(unsigned long minimum,
 
 	/* Verify potential e820 positions, appending to slots list. */
 	for (i = 0; i < boot_params->e820_entries; i++) {
-		process_e820_entry(&boot_params->e820_map[i], minimum, size);
+		process_e820_entry(&boot_params->e820_map[i], minimum,
+				   image_size);
 	}
 
 	return slots_fetch_random();
+}
+
+static unsigned long find_random_virt_addr(unsigned long minimum,
+					   unsigned long image_size)
+{
+	unsigned long slots, random_addr;
+
+	/* Make sure minimum is aligned. */
+	minimum = ALIGN(minimum, CONFIG_PHYSICAL_ALIGN);
+	/* Align image_size for easy slot calculations. */
+	image_size = ALIGN(image_size, CONFIG_PHYSICAL_ALIGN);
+
+	/*
+	 * There are how many CONFIG_PHYSICAL_ALIGN-sized slots
+	 * that can hold image_size within the range of minimum to
+	 * KERNEL_IMAGE_SIZE?
+	 */
+	slots = (KERNEL_IMAGE_SIZE - minimum - image_size) /
+		 CONFIG_PHYSICAL_ALIGN + 1;
+
+	random_addr = get_random_long() % slots;
+
+	return random_addr * CONFIG_PHYSICAL_ALIGN + minimum;
 }
 
 /*
@@ -464,7 +488,7 @@ unsigned char *choose_random_location(unsigned long input,
 	mem_avoid_init(input, input_size, output);
 
 	/* Walk e820 and find a random address. */
-	random_addr = find_random_addr(output, output_size);
+	random_addr = find_random_phys_addr(output, output_size);
 	if (!random_addr) {
 		warn("KASLR disabled: could not find suitable E820 region!");
 		goto out;
