@@ -1120,8 +1120,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 			break;
 		}
 
-		r = set_guest_storage_key(current->mm, hva,
-					  (unsigned long)keys[i], 0);
+		r = set_guest_storage_key(current->mm, hva, keys[i], 0);
 		if (r)
 			break;
 	}
