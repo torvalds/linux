@@ -349,6 +349,15 @@ static int handle_partial_execution(struct kvm_vcpu *vcpu)
 	return -EOPNOTSUPP;
 }
 
+static int handle_operexc(struct kvm_vcpu *vcpu)
+{
+	vcpu->stat.exit_operation_exception++;
+	trace_kvm_s390_handle_operexc(vcpu, vcpu->arch.sie_block->ipa,
+				      vcpu->arch.sie_block->ipb);
+
+	return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
+}
+
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 {
 	if (kvm_is_ucontrol(vcpu->kvm))
@@ -370,6 +379,8 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 		return handle_validity(vcpu);
 	case 0x28:
 		return handle_stop(vcpu);
+	case 0x2c:
+		return handle_operexc(vcpu);
 	case 0x38:
 		return handle_partial_execution(vcpu);
 	default:
