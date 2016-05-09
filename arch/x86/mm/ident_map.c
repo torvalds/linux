@@ -1,3 +1,7 @@
+/*
+ * Helper routines for building identity mapping page tables. This is
+ * included by both the compressed kernel and the regular kernel.
+ */
 
 static void ident_pmd_init(unsigned long pmd_flag, pmd_t *pmd_page,
 			   unsigned long addr, unsigned long end)
@@ -10,6 +14,7 @@ static void ident_pmd_init(unsigned long pmd_flag, pmd_t *pmd_page,
 			set_pmd(pmd, __pmd(addr | pmd_flag));
 	}
 }
+
 static int ident_pud_init(struct x86_mapping_info *info, pud_t *pud_page,
 			  unsigned long addr, unsigned long end)
 {

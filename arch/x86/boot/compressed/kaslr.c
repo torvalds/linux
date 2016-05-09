@@ -163,7 +163,7 @@ static bool mem_overlaps(struct mem_vector *one, struct mem_vector *two)
  * memory ranges lead to really hard to debug boot failures.
  *
  * The initrd, cmdline, and boot_params are trivial to identify for
- * avoiding. The are MEM_AVOID_INITRD, MEM_AVOID_CMDLINE, and
+ * avoiding. They are MEM_AVOID_INITRD, MEM_AVOID_CMDLINE, and
  * MEM_AVOID_BOOTPARAMS respectively below.
  *
  * What is not obvious how to avoid is the range of memory that is used
