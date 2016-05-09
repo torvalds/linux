@@ -425,6 +425,10 @@ static int acp_resume(void *handle)
 	struct acp_pm_domain *apd;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	/* return early if no ACP */
+	if (!adev->acp.acp_genpd)
+		return 0;
+
 	/* SMU block will power on ACP irrespective of ACP runtime status.
 	 * Power off explicitly based on genpd ACP runtime status so that ACP
 	 * hw and ACP-genpd status are in sync.

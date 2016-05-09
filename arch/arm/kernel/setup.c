@@ -512,7 +512,7 @@ static void __init elf_hwcap_fixup(void)
 	 */
 	if (cpuid_feature_extract(CPUID_EXT_ISAR3, 12) > 1 ||
 	    (cpuid_feature_extract(CPUID_EXT_ISAR3, 12) == 1 &&
-	     cpuid_feature_extract(CPUID_EXT_ISAR3, 20) >= 3))
+	     cpuid_feature_extract(CPUID_EXT_ISAR4, 20) >= 3))
 		elf_hwcap &= ~HWCAP_SWP;
 }
 

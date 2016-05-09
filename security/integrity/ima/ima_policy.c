@@ -884,10 +884,10 @@ static char *func_tokens[] = {
 	"BPRM_CHECK",
 	"MODULE_CHECK",
 	"FIRMWARE_CHECK",
+	"POST_SETATTR",
 	"KEXEC_KERNEL_CHECK",
 	"KEXEC_INITRAMFS_CHECK",
-	"POLICY_CHECK",
-	"POST_SETATTR"
+	"POLICY_CHECK"
 };
 
 void *ima_policy_start(struct seq_file *m, loff_t *pos)

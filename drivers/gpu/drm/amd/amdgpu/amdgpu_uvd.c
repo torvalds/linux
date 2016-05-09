@@ -181,6 +181,9 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	    ((version_major == 0x01) && (version_minor >= 0x50)))
 		adev->uvd.max_handles = AMDGPU_MAX_UVD_HANDLES;
 
+	adev->uvd.fw_version = ((version_major << 24) | (version_minor << 16) |
+				(family_id << 8));
+
 	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
 		  +  AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE
 		  +  AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles;
@@ -278,6 +281,8 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 
 	if (i == AMDGPU_MAX_UVD_HANDLES)
 		return 0;
+
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
 	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
 	ptr = adev->uvd.cpu_addr;

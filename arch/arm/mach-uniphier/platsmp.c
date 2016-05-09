@@ -120,7 +120,7 @@ static int __init uniphier_smp_prepare_trampoline(unsigned int max_cpus)
 	if (ret)
 		return ret;
 
-	uniphier_smp_rom_boot_rsv2 = ioremap(rom_rsv2_phys, sizeof(SZ_4));
+	uniphier_smp_rom_boot_rsv2 = ioremap(rom_rsv2_phys, SZ_4);
 	if (!uniphier_smp_rom_boot_rsv2) {
 		pr_err("failed to map ROM_BOOT_RSV2 register\n");
 		return -ENOMEM;

@@ -684,6 +684,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 		wacom->tool[idx] = wacom_intuos_get_tool_type(wacom->id[idx]);
 
+		wacom->shared->stylus_in_proximity = true;
 		return 1;
 	}
 
@@ -2426,6 +2427,17 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	}
 
 	/*
+	 * Hack for the Bamboo One:
+	 * the device presents a PAD/Touch interface as most Bamboos and even
+	 * sends ghosts PAD data on it. However, later, we must disable this
+	 * ghost interface, and we can not detect it unless we set it here
+	 * to WACOM_DEVICETYPE_PAD or WACOM_DEVICETYPE_TOUCH.
+	 */
+	if (features->type == BAMBOO_PEN &&
+	    features->pktlen == WACOM_PKGLEN_BBTOUCH3)
+		features->device_type |= WACOM_DEVICETYPE_PAD;
+
+	/*
 	 * Raw Wacom-mode pen and touch events both come from interface
 	 * 0, whose HID descriptor has an application usage of 0xFF0D
 	 * (i.e., WACOM_VENDORDEFINED_PEN). We route pen packets back
@@ -3384,6 +3396,10 @@ static const struct wacom_features wacom_features_0x33E =
 	{ "Wacom Intuos PT M 2", 21600, 13500, 2047, 63,
 	  INTUOSHT2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
+static const struct wacom_features wacom_features_0x343 =
+	{ "Wacom DTK1651", 34616, 19559, 1023, 0,
+	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC };
@@ -3549,6 +3565,7 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x33C) },
 	{ USB_DEVICE_WACOM(0x33D) },
 	{ USB_DEVICE_WACOM(0x33E) },
+	{ USB_DEVICE_WACOM(0x343) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },

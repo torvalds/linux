@@ -110,8 +110,7 @@ static inline void __tlb_flush_asce(struct mm_struct *mm, unsigned long asce)
 static inline void __tlb_flush_kernel(void)
 {
 	if (MACHINE_HAS_IDTE)
-		__tlb_flush_idte((unsigned long) init_mm.pgd |
-				 init_mm.context.asce_bits);
+		__tlb_flush_idte(init_mm.context.asce);
 	else
 		__tlb_flush_global();
 }
@@ -133,8 +132,7 @@ static inline void __tlb_flush_asce(struct mm_struct *mm, unsigned long asce)
 static inline void __tlb_flush_kernel(void)
 {
 	if (MACHINE_HAS_TLB_LC)
-		__tlb_flush_idte_local((unsigned long) init_mm.pgd |
-				       init_mm.context.asce_bits);
+		__tlb_flush_idte_local(init_mm.context.asce);
 	else
 		__tlb_flush_local();
 }
@@ -148,8 +146,7 @@ static inline void __tlb_flush_mm(struct mm_struct * mm)
 	 * only ran on the local cpu.
 	 */
 	if (MACHINE_HAS_IDTE && list_empty(&mm->context.gmap_list))
-		__tlb_flush_asce(mm, (unsigned long) mm->pgd |
-				 mm->context.asce_bits);
+		__tlb_flush_asce(mm, mm->context.asce);
 	else
 		__tlb_flush_full(mm);
 }

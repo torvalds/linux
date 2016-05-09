@@ -1639,6 +1639,7 @@ struct amdgpu_uvd {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
+	unsigned		fw_version;
 	void			*saved_bo;
 	unsigned		max_handles;
 	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
@@ -2074,6 +2075,7 @@ struct amdgpu_device {
 
 	/* tracking pinned memory */
 	u64 vram_pin_size;
+	u64 invisible_pin_size;
 	u64 gart_pin_size;
 
 	/* amdkfd interface */

@@ -7,7 +7,7 @@
  * defined; unless noted otherwise, they are optional, and can be
  * filled in with a null pointer.
  *
- * struct tty_struct * (*lookup)(struct tty_driver *self, int idx)
+ * struct tty_struct * (*lookup)(struct tty_driver *self, struct file *, int idx)
  *
  *	Return the tty device corresponding to idx, NULL if there is not
  *	one currently in use and an ERR_PTR value on error. Called under
@@ -250,7 +250,7 @@ struct serial_icounter_struct;
 
 struct tty_operations {
 	struct tty_struct * (*lookup)(struct tty_driver *driver,
-			struct inode *inode, int idx);
+			struct file *filp, int idx);
 	int  (*install)(struct tty_driver *driver, struct tty_struct *tty);
 	void (*remove)(struct tty_driver *driver, struct tty_struct *tty);
 	int  (*open)(struct tty_struct * tty, struct file * filp);

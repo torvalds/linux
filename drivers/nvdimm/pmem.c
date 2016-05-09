@@ -103,6 +103,20 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 			flush_dcache_page(page);
 		}
 	} else {
+		/*
+		 * Note that we write the data both before and after
+		 * clearing poison.  The write before clear poison
+		 * handles situations where the latest written data is
+		 * preserved and the clear poison operation simply marks
+		 * the address range as valid without changing the data.
+		 * In this case application software can assume that an
+		 * interrupted write will either return the new good
+		 * data or an error.
+		 *
+		 * However, if pmem_clear_poison() leaves the data in an
+		 * indeterminate state we need to perform the write
+		 * after clear poison.
+		 */
 		flush_dcache_page(page);
 		memcpy_to_pmem(pmem_addr, mem + off, len);
 		if (unlikely(bad_pmem)) {
@@ -383,10 +397,17 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	 */
 	start += start_pad;
 	npfns = (pmem->size - start_pad - end_trunc - SZ_8K) / SZ_4K;
-	if (nd_pfn->mode == PFN_MODE_PMEM)
-		offset = ALIGN(start + SZ_8K + 64 * npfns, nd_pfn->align)
+	if (nd_pfn->mode == PFN_MODE_PMEM) {
+		unsigned long memmap_size;
+
+		/*
+		 * vmemmap_populate_hugepages() allocates the memmap array in
+		 * HPAGE_SIZE chunks.
+		 */
+		memmap_size = ALIGN(64 * npfns, HPAGE_SIZE);
+		offset = ALIGN(start + SZ_8K + memmap_size, nd_pfn->align)
 			- start;
-	else if (nd_pfn->mode == PFN_MODE_RAM)
+	} else if (nd_pfn->mode == PFN_MODE_RAM)
 		offset = ALIGN(start + SZ_8K, nd_pfn->align) - start;
 	else
 		goto err;

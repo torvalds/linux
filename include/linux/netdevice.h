@@ -4004,7 +4004,7 @@ netdev_features_t netif_skb_features(struct sk_buff *skb);
 
 static inline bool net_gso_ok(netdev_features_t features, int gso_type)
 {
-	netdev_features_t feature = gso_type << NETIF_F_GSO_SHIFT;
+	netdev_features_t feature = (netdev_features_t)gso_type << NETIF_F_GSO_SHIFT;
 
 	/* check flags correspondence */
 	BUILD_BUG_ON(SKB_GSO_TCPV4   != (NETIF_F_TSO >> NETIF_F_GSO_SHIFT));
