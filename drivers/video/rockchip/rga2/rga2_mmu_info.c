@@ -563,6 +563,8 @@ static int rga2_mmu_info_color_palette_mode(struct rga2_reg *reg, struct rga2_re
     byte_num = sw >> shift;
     stride = (byte_num + 3) & (~3);
 
+    SrcStart = 0;
+    DstStart = 0;
     SrcMemSize = 0;
     DstMemSize = 0;
 
@@ -659,6 +661,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
     int ret;
     int status;
 
+    DstMemSize = 0;
     MMU_Base = NULL;
 
     do {
