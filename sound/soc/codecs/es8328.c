@@ -482,9 +482,16 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 			ratio = mclk_ratios[i].ratio;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		snd_soc_update_bits(codec, ES8328_DACCONTROL1,
+				ES8328_DACCONTROL1_DACWL_MASK,
+				ES8328_DACCONTROL1_DACWL_16);
+
 		es8328->playback_fs = params_rate(params);
 		es8328_set_deemph(codec);
-	}
+	} else
+		snd_soc_update_bits(codec, ES8328_ADCCONTROL4,
+				ES8328_ADCCONTROL4_ADCWL_MASK,
+				ES8328_ADCCONTROL4_ADCWL_16);
 
 	return snd_soc_update_bits(codec, reg, ES8328_RATEMASK, ratio);
 }
@@ -493,8 +500,8 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u8 dac_mode = ES8328_DACCONTROL1_DACWL_16;
-	u8 adc_mode = ES8328_ADCCONTROL4_ADCWL_16;
+	u8 dac_mode = 0;
+	u8 adc_mode = 0;
 
 	/* set master/slave audio interface */
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBM_CFM)
@@ -522,8 +529,10 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	if ((fmt & SND_SOC_DAIFMT_INV_MASK) != SND_SOC_DAIFMT_NB_NF)
 		return -EINVAL;
 
-	snd_soc_write(codec, ES8328_DACCONTROL1, dac_mode);
-	snd_soc_write(codec, ES8328_ADCCONTROL4, adc_mode);
+	snd_soc_update_bits(codec, ES8328_DACCONTROL1,
+			ES8328_DACCONTROL1_DACFORMAT_MASK, dac_mode);
+	snd_soc_update_bits(codec, ES8328_ADCCONTROL4,
+			ES8328_ADCCONTROL4_ADCFORMAT_MASK, adc_mode);
 
 	/* Master serial port mode, with BCLK generated automatically */
 	snd_soc_update_bits(codec, ES8328_MASTERMODE,
