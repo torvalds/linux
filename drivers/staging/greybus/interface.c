@@ -217,18 +217,15 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 
 	/*
 	 * Check if the interface is executing the quirky ES3 bootrom that
-	 * requires E2EFC, CSD and CSV to be disabled and that does not
-	 * support the interface-version request.
+	 * requires E2EFC, CSD and CSV to be disabled.
 	 */
 	switch (init_status) {
 	case GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED:
 	case GB_INIT_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED:
 		intf->quirks |= GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
-		intf->quirks |= GB_INTERFACE_QUIRK_NO_INTERFACE_VERSION;
 		break;
 	default:
 		intf->quirks &= ~GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
-		intf->quirks &= ~GB_INTERFACE_QUIRK_NO_INTERFACE_VERSION;
 	}
 
 	/* Clear the init status. */
