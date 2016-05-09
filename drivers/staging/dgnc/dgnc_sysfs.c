@@ -189,19 +189,21 @@ static ssize_t dgnc_ports_msignals_show(struct device *p,
 	DGNC_VERIFY_BOARD(p, bd);
 
 	for (i = 0; i < bd->nasync; i++) {
-		if (bd->channels[i]->ch_open_count) {
+		struct channel_t *ch = bd->channels[i];
+
+		if (ch->ch_open_count) {
 			count += snprintf(buf + count, PAGE_SIZE - count,
 				"%d %s %s %s %s %s %s\n",
-				bd->channels[i]->ch_portnum,
-				(bd->channels[i]->ch_mostat & UART_MCR_RTS) ? "RTS" : "",
-				(bd->channels[i]->ch_mistat & UART_MSR_CTS) ? "CTS" : "",
-				(bd->channels[i]->ch_mostat & UART_MCR_DTR) ? "DTR" : "",
-				(bd->channels[i]->ch_mistat & UART_MSR_DSR) ? "DSR" : "",
-				(bd->channels[i]->ch_mistat & UART_MSR_DCD) ? "DCD" : "",
-				(bd->channels[i]->ch_mistat & UART_MSR_RI)  ? "RI"  : "");
+				ch->ch_portnum,
+				(ch->ch_mostat & UART_MCR_RTS) ? "RTS" : "",
+				(ch->ch_mistat & UART_MSR_CTS) ? "CTS" : "",
+				(ch->ch_mostat & UART_MCR_DTR) ? "DTR" : "",
+				(ch->ch_mistat & UART_MSR_DSR) ? "DSR" : "",
+				(ch->ch_mistat & UART_MSR_DCD) ? "DCD" : "",
+				(ch->ch_mistat & UART_MSR_RI)  ? "RI"  : "");
 		} else {
 			count += snprintf(buf + count, PAGE_SIZE - count,
-				"%d\n", bd->channels[i]->ch_portnum);
+				"%d\n", ch->ch_portnum);
 		}
 	}
 	return count;
