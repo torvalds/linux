@@ -11245,14 +11245,13 @@ S:	Maintained
 F:	drivers/media/i2c/tc358743*
 F:	include/media/i2c/tc358743.h
 
-TMIO MMC DRIVER
-M:	Ian Molton <ian@mnementh.co.uk>
+TMIO/SDHI MMC DRIVER
+M:	Wolfram Sang <wsa+renesas@sang-engineering.com>
 L:	linux-mmc@vger.kernel.org
-S:	Maintained
+S:	Supported
 F:	drivers/mmc/host/tmio_mmc*
 F:	drivers/mmc/host/sh_mobile_sdhi.c
-F:	include/linux/mmc/tmio.h
-F:	include/linux/mmc/sh_mobile_sdhi.h
+F:	include/linux/mfd/tmio.h
 
 TMP401 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
