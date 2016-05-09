@@ -16,6 +16,7 @@ conditions.
                         "arm,mmu-400"
                         "arm,mmu-401"
                         "arm,mmu-500"
+                        "cavium,smmu-v2"
 
                   depending on the particular implementation and/or the
                   version of the architecture implemented.
