@@ -1686,7 +1686,7 @@ static void serial8250_read_char(struct uart_8250_port *up, unsigned char lsr)
 		lsr &= port->read_status_mask;
 
 		if (lsr & UART_LSR_BI) {
-			DEBUG_INTR("handling break....");
+			pr_debug("%s: handling break\n", __func__);
 			flag = TTY_BREAK;
 		} else if (lsr & UART_LSR_PE)
 			flag = TTY_PARITY;
@@ -1757,7 +1757,7 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
-	DEBUG_INTR("THRE...");
+	pr_debug("%s: THRE\n", __func__);
 
 	/*
 	 * With RPM enabled, we have to wait until the FIFO is empty before the
@@ -1823,7 +1823,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 
 	status = serial_port_in(port, UART_LSR);
 
-	DEBUG_INTR("status = %x...", status);
+	pr_debug("%s: status = %x\n", __func__, status);
 
 	if (status & (UART_LSR_DR | UART_LSR_BI)) {
 		if (!up->dma || handle_rx_dma(up, iir))
