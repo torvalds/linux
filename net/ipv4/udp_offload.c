@@ -399,6 +399,11 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff)
 
 	uh->len = newlen;
 
+	/* Set encapsulation before calling into inner gro_complete() functions
+	 * to make them set up the inner offsets.
+	 */
+	skb->encapsulation = 1;
+
 	rcu_read_lock();
 
 	uo_priv = rcu_dereference(udp_offload_base);
@@ -420,9 +425,6 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff)
 
 	if (skb->remcsum_offload)
 		skb_shinfo(skb)->gso_type |= SKB_GSO_TUNNEL_REMCSUM;
-
-	skb->encapsulation = 1;
-	skb_set_inner_mac_header(skb, nhoff + sizeof(struct udphdr));
 
 	return err;
 }

@@ -504,8 +504,6 @@ static int geneve_gro_complete(struct sk_buff *skb, int nhoff,
 	int gh_len;
 	int err = -ENOSYS;
 
-	udp_tunnel_gro_complete(skb, nhoff);
-
 	gh = (struct genevehdr *)(skb->data + nhoff);
 	gh_len = geneve_hlen(gh);
 	type = gh->proto_type;
@@ -516,6 +514,9 @@ static int geneve_gro_complete(struct sk_buff *skb, int nhoff,
 		err = ptype->callbacks.gro_complete(skb, nhoff + gh_len);
 
 	rcu_read_unlock();
+
+	skb_set_inner_mac_header(skb, nhoff + gh_len);
+
 	return err;
 }
 

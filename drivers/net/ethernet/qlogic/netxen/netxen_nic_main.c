@@ -852,7 +852,8 @@ netxen_check_options(struct netxen_adapter *adapter)
 	ptr32 = (__le32 *)&serial_num;
 	offset = NX_FW_SERIAL_NUM_OFFSET;
 	for (i = 0; i < 8; i++) {
-		if (netxen_rom_fast_read(adapter, offset, &val) == -1) {
+		err = netxen_rom_fast_read(adapter, offset, &val);
+		if (err) {
 			dev_err(&pdev->dev, "error reading board info\n");
 			adapter->driver_mismatch = 1;
 			return;

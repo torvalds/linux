@@ -69,18 +69,18 @@ LCO: Local Checksum Offload
 LCO is a technique for efficiently computing the outer checksum of an
  encapsulated datagram when the inner checksum is due to be offloaded.
 The ones-complement sum of a correctly checksummed TCP or UDP packet is
- equal to the sum of the pseudo header, because everything else gets
- 'cancelled out' by the checksum field.  This is because the sum was
+ equal to the complement of the sum of the pseudo header, because everything
+ else gets 'cancelled out' by the checksum field.  This is because the sum was
  complemented before being written to the checksum field.
 More generally, this holds in any case where the 'IP-style' ones complement
  checksum is used, and thus any checksum that TX Checksum Offload supports.
 That is, if we have set up TX Checksum Offload with a start/offset pair, we
- know that _after the device has filled in that checksum_, the ones
+ know that after the device has filled in that checksum, the ones
  complement sum from csum_start to the end of the packet will be equal to
- _whatever value we put in the checksum field beforehand_.  This allows us
- to compute the outer checksum without looking at the payload: we simply
- stop summing when we get to csum_start, then add the 16-bit word at
- (csum_start + csum_offset).
+ the complement of whatever value we put in the checksum field beforehand.
+ This allows us to compute the outer checksum without looking at the payload:
+ we simply stop summing when we get to csum_start, then add the complement of
+ the 16-bit word at (csum_start + csum_offset).
 Then, when the true inner checksum is filled in (either by hardware or by
  skb_checksum_help()), the outer checksum will become correct by virtue of
  the arithmetic.

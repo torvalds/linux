@@ -616,8 +616,9 @@ out:
 static int vxlan_gro_complete(struct sk_buff *skb, int nhoff,
 			      struct udp_offload *uoff)
 {
-	udp_tunnel_gro_complete(skb, nhoff);
-
+	/* Sets 'skb->inner_mac_header' since we are always called with
+	 * 'skb->encapsulation' set.
+	 */
 	return eth_gro_complete(skb, nhoff + sizeof(struct vxlanhdr));
 }
 

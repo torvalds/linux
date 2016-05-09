@@ -421,7 +421,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	u8 xmit_type;
 	u16 idx;
 	u16 hlen;
-	bool data_split;
+	bool data_split = false;
 
 	/* Get tx-queue context and netdev index */
 	txq_index = skb_get_queue_mapping(skb);
@@ -1938,8 +1938,6 @@ static struct qede_dev *qede_alloc_etherdev(struct qed_dev *cdev,
 	edev->q_num_rx_buffers = NUM_RX_BDS_DEF;
 	edev->q_num_tx_buffers = NUM_TX_BDS_DEF;
 
-	DP_INFO(edev, "Allocated netdev with 64 tx queues and 64 rx queues\n");
-
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	memset(&edev->stats, 0, sizeof(edev->stats));
@@ -2090,9 +2088,9 @@ static void qede_update_pf_params(struct qed_dev *cdev)
 {
 	struct qed_pf_params pf_params;
 
-	/* 16 rx + 16 tx */
+	/* 64 rx + 64 tx */
 	memset(&pf_params, 0, sizeof(struct qed_pf_params));
-	pf_params.eth_pf_params.num_cons = 32;
+	pf_params.eth_pf_params.num_cons = 128;
 	qed_ops->common->update_pf_params(cdev, &pf_params);
 }
 
