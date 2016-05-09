@@ -266,7 +266,7 @@ static const struct file_operations fops_tx99_power = {
 
 void ath9k_tx99_init_debug(struct ath_softc *sc)
 {
-	if (!AR_SREV_9300_20_OR_LATER(sc->sc_ah))
+	if (!AR_SREV_9280_20_OR_LATER(sc->sc_ah))
 		return;
 
 	debugfs_create_file("tx99", S_IRUSR | S_IWUSR,
