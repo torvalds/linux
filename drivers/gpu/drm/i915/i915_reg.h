@@ -2907,7 +2907,14 @@ enum skl_disp_power_wells {
 #define GEN6_RP_STATE_CAP	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5998)
 #define BXT_RP_STATE_CAP        _MMIO(0x138170)
 
-#define INTERVAL_1_28_US(us)	(((us) * 100) >> 7)
+/*
+ * Make these a multiple of magic 25 to avoid SNB (eg. Dell XPS
+ * 8300) freezing up around GPU hangs. Looks as if even
+ * scheduling/timer interrupts start misbehaving if the RPS
+ * EI/thresholds are "bad", leading to a very sluggish or even
+ * frozen machine.
+ */
+#define INTERVAL_1_28_US(us)	roundup(((us) * 100) >> 7, 25)
 #define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
 #define INTERVAL_0_833_US(us)	(((us) * 6) / 5)
 #define GT_INTERVAL_FROM_US(dev_priv, us) (IS_GEN9(dev_priv) ? \

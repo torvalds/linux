@@ -1955,10 +1955,15 @@ err_adsp2_codec_probe:
 static int wm5102_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm5102_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->core.arizona;
 
 	wm_adsp2_codec_remove(&priv->core.adsp[0], codec);
 
 	priv->core.arizona->dapm = NULL;
+
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
+
+	arizona_free_spk(codec);
 
 	return 0;
 }

@@ -1415,6 +1415,9 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_OFFSET(page, lru);
 	VMCOREINFO_OFFSET(page, _mapcount);
 	VMCOREINFO_OFFSET(page, private);
+	VMCOREINFO_OFFSET(page, compound_dtor);
+	VMCOREINFO_OFFSET(page, compound_order);
+	VMCOREINFO_OFFSET(page, compound_head);
 	VMCOREINFO_OFFSET(pglist_data, node_zones);
 	VMCOREINFO_OFFSET(pglist_data, nr_zones);
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
@@ -1447,8 +1450,8 @@ static int __init crash_save_vmcoreinfo_init(void)
 #ifdef CONFIG_X86
 	VMCOREINFO_NUMBER(KERNEL_IMAGE_SIZE);
 #endif
-#ifdef CONFIG_HUGETLBFS
-	VMCOREINFO_SYMBOL(free_huge_page);
+#ifdef CONFIG_HUGETLB_PAGE
+	VMCOREINFO_NUMBER(HUGETLB_PAGE_DTOR);
 #endif
 
 	arch_crash_save_vmcoreinfo();

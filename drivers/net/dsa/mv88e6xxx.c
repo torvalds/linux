@@ -2181,26 +2181,9 @@ int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 			       struct net_device *bridge)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	u16 fid;
-	int i, err;
+	int i, err = 0;
 
 	mutex_lock(&ps->smi_mutex);
-
-	/* Get or create the bridge FID and assign it to the port */
-	for (i = 0; i < ps->num_ports; ++i)
-		if (ps->ports[i].bridge_dev == bridge)
-			break;
-
-	if (i < ps->num_ports)
-		err = _mv88e6xxx_port_fid_get(ds, i, &fid);
-	else
-		err = _mv88e6xxx_fid_new(ds, &fid);
-	if (err)
-		goto unlock;
-
-	err = _mv88e6xxx_port_fid_set(ds, port, fid);
-	if (err)
-		goto unlock;
 
 	/* Assign the bridge and remap each port's VLANTable */
 	ps->ports[port].bridge_dev = bridge;
@@ -2213,7 +2196,6 @@ int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 		}
 	}
 
-unlock:
 	mutex_unlock(&ps->smi_mutex);
 
 	return err;
@@ -2223,15 +2205,9 @@ void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct net_device *bridge = ps->ports[port].bridge_dev;
-	u16 fid;
 	int i;
 
 	mutex_lock(&ps->smi_mutex);
-
-	/* Give the port a fresh Filtering Information Database */
-	if (_mv88e6xxx_fid_new(ds, &fid) ||
-	    _mv88e6xxx_port_fid_set(ds, port, fid))
-		netdev_warn(ds->ports[port], "failed to assign a new FID\n");
 
 	/* Unassign the bridge and remap each port's VLANTable */
 	ps->ports[port].bridge_dev = NULL;
@@ -2476,9 +2452,9 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	 * the other bits clear.
 	 */
 	reg = 1 << port;
-	/* Disable learning for DSA and CPU ports */
-	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
-		reg = PORT_ASSOC_VECTOR_LOCKED_PORT;
+	/* Disable learning for CPU port */
+	if (dsa_is_cpu_port(ds, port))
+		reg = 0;
 
 	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_ASSOC_VECTOR, reg);
 	if (ret)
@@ -2558,11 +2534,11 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	if (ret)
 		goto abort;
 
-	/* Port based VLAN map: give each port its own address
+	/* Port based VLAN map: give each port the same default address
 	 * database, and allow bidirectional communication between the
 	 * CPU and DSA port(s), and the other ports.
 	 */
-	ret = _mv88e6xxx_port_fid_set(ds, port, port + 1);
+	ret = _mv88e6xxx_port_fid_set(ds, port, 0);
 	if (ret)
 		goto abort;
 
