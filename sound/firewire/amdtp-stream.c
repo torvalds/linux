@@ -91,7 +91,6 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 
 	init_waitqueue_head(&s->callback_wait);
 	s->callbacked = false;
-	s->sync_slave = NULL;
 
 	s->fmt = fmt;
 	s->process_data_blocks = process_data_blocks;
@@ -650,52 +649,23 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			dev_err(&s->unit->device,
 				"Detect jumbo payload: %02x %02x\n",
 				payload_quadlets, max_payload_quadlets);
-			s->packet_index = -1;
 			break;
 		}
 
 		syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
 		if (handle_in_packet(s, payload_quadlets, buffer,
-						&data_blocks, cycle, syt) < 0) {
-			s->packet_index = -1;
+						&data_blocks, cycle, syt) < 0)
 			break;
-		}
-
-		/* Process sync slave stream */
-		if (s->sync_slave && s->sync_slave->callbacked) {
-			if (handle_out_packet(s->sync_slave,
-					      data_blocks, cycle, syt) < 0) {
-				s->packet_index = -1;
-				break;
-			}
-		}
 	}
 
-	/* Queueing error or detecting discontinuity */
-	if (s->packet_index < 0) {
+	/* Queueing error or detecting invalid payload. */
+	if (p < packets) {
+		s->packet_index = -1;
 		amdtp_stream_pcm_abort(s);
-
-		/* Abort sync slave. */
-		if (s->sync_slave) {
-			s->sync_slave->packet_index = -1;
-			amdtp_stream_pcm_abort(s->sync_slave);
-		}
 		return;
 	}
 
-	/* when sync to device, flush the packets for slave stream */
-	if (s->sync_slave && s->sync_slave->callbacked)
-		fw_iso_context_queue_flush(s->sync_slave->context);
-
 	fw_iso_context_queue_flush(s->context);
-}
-
-/* processing is done by master callback */
-static void slave_stream_callback(struct fw_iso_context *context, u32 tstamp,
-				  size_t header_length, void *header,
-				  void *private_data)
-{
-	return;
 }
 
 /* this is executed one time */
@@ -714,8 +684,6 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 
 	if (s->direction == AMDTP_IN_STREAM)
 		context->callback.sc = in_stream_callback;
-	else if (s->flags & CIP_SYNC_TO_DEVICE)
-		context->callback.sc = slave_stream_callback;
 	else
 		context->callback.sc = out_stream_callback;
 
