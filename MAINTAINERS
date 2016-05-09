@@ -978,6 +978,13 @@ F:	arch/arm/mach-artpec
 F:	arch/arm/boot/dts/artpec6*
 F:	drivers/clk/clk-artpec6.c
 
+ARM/ASPEED MACHINE SUPPORT
+M:	Joel Stanley <joel@jms.id.au>
+S:	Maintained
+F:	arch/arm/mach-aspeed/
+F:	arch/arm/boot/dts/aspeed-*
+F:	drivers/*/*aspeed*
+
 ARM/ATMEL AT91RM9200, AT91SAM9 AND SAMA5 SOC SUPPORT
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 M:	Alexandre Belloni <alexandre.belloni@free-electrons.com>
