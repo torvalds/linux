@@ -493,7 +493,8 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	u8 mode = ES8328_DACCONTROL1_DACWL_16;
+	u8 dac_mode = ES8328_DACCONTROL1_DACWL_16;
+	u8 adc_mode = ES8328_ADCCONTROL4_ADCWL_16;
 
 	/* set master/slave audio interface */
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBM_CFM)
@@ -502,13 +503,16 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		mode |= ES8328_DACCONTROL1_DACFORMAT_I2S;
+		dac_mode |= ES8328_DACCONTROL1_DACFORMAT_I2S;
+		adc_mode |= ES8328_ADCCONTROL4_ADCFORMAT_I2S;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		mode |= ES8328_DACCONTROL1_DACFORMAT_RJUST;
+		dac_mode |= ES8328_DACCONTROL1_DACFORMAT_RJUST;
+		adc_mode |= ES8328_ADCCONTROL4_ADCFORMAT_RJUST;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		mode |= ES8328_DACCONTROL1_DACFORMAT_LJUST;
+		dac_mode |= ES8328_DACCONTROL1_DACFORMAT_LJUST;
+		adc_mode |= ES8328_ADCCONTROL4_ADCFORMAT_LJUST;
 		break;
 	default:
 		return -EINVAL;
@@ -518,8 +522,8 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	if ((fmt & SND_SOC_DAIFMT_INV_MASK) != SND_SOC_DAIFMT_NB_NF)
 		return -EINVAL;
 
-	snd_soc_write(codec, ES8328_DACCONTROL1, mode);
-	snd_soc_write(codec, ES8328_ADCCONTROL4, mode);
+	snd_soc_write(codec, ES8328_DACCONTROL1, dac_mode);
+	snd_soc_write(codec, ES8328_ADCCONTROL4, adc_mode);
 
 	/* Master serial port mode, with BCLK generated automatically */
 	snd_soc_update_bits(codec, ES8328_MASTERMODE,
