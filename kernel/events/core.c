@@ -351,7 +351,7 @@ static struct srcu_struct pmus_srcu;
  *   1 - disallow cpu events for unpriv
  *   2 - disallow kernel profiling for unpriv
  */
-int sysctl_perf_event_paranoid __read_mostly = 1;
+int sysctl_perf_event_paranoid __read_mostly = 2;
 
 /* Minimum for 512 kiB + 1 user control page */
 int sysctl_perf_event_mlock __read_mostly = 512 + (PAGE_SIZE / 1024); /* 'free' kiB per user */
