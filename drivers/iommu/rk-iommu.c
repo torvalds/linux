@@ -766,7 +766,7 @@ int rockchip_iommu_tlb_invalidate_global(struct device *dev)
 {
 	unsigned long flags;
 	struct iommu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
-	int ret;
+	int ret = 0;
 
 	spin_lock_irqsave(&data->data_lock, flags);
 
