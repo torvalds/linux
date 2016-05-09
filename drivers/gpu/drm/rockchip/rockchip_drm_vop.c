@@ -822,7 +822,7 @@ static void vop_atomic_plane_destroy_state(struct drm_plane *plane,
 {
 	struct vop_plane_state *vop_state = to_vop_plane_state(state);
 
-	__drm_atomic_helper_plane_destroy_state(plane, state);
+	__drm_atomic_helper_plane_destroy_state(state);
 
 	kfree(vop_state);
 }

@@ -434,7 +434,7 @@ static void tegra_plane_reset(struct drm_plane *plane)
 	struct tegra_plane_state *state;
 
 	if (plane->state)
-		__drm_atomic_helper_plane_destroy_state(plane, plane->state);
+		__drm_atomic_helper_plane_destroy_state(plane->state);
 
 	kfree(plane->state);
 	plane->state = NULL;
@@ -466,7 +466,7 @@ static struct drm_plane_state *tegra_plane_atomic_duplicate_state(struct drm_pla
 static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
 					     struct drm_plane_state *state)
 {
-	__drm_atomic_helper_plane_destroy_state(plane, state);
+	__drm_atomic_helper_plane_destroy_state(state);
 	kfree(state);
 }
 
