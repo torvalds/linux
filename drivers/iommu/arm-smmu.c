@@ -351,6 +351,7 @@ struct arm_smmu_device {
 	unsigned long			va_size;
 	unsigned long			ipa_size;
 	unsigned long			pa_size;
+	unsigned long			pgsize_bitmap;
 
 	u32				num_global_irqs;
 	u32				num_context_irqs;
@@ -395,8 +396,6 @@ struct arm_smmu_domain {
 	struct mutex			init_mutex; /* Protects smmu pointer */
 	struct iommu_domain		domain;
 };
-
-static struct iommu_ops arm_smmu_ops;
 
 static DEFINE_SPINLOCK(arm_smmu_devices_lock);
 static LIST_HEAD(arm_smmu_devices);
@@ -957,7 +956,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	}
 
 	pgtbl_cfg = (struct io_pgtable_cfg) {
-		.pgsize_bitmap	= arm_smmu_ops.pgsize_bitmap,
+		.pgsize_bitmap	= smmu->pgsize_bitmap,
 		.ias		= ias,
 		.oas		= oas,
 		.tlb		= &arm_smmu_gather_ops,
@@ -971,8 +970,8 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		goto out_clear_smmu;
 	}
 
-	/* Update our support page sizes to reflect the page table format */
-	arm_smmu_ops.pgsize_bitmap = pgtbl_cfg.pgsize_bitmap;
+	/* Update the domain's page sizes to reflect the page table format */
+	domain->pgsize_bitmap = pgtbl_cfg.pgsize_bitmap;
 
 	/* Initialise the context bank with our page table cfg */
 	arm_smmu_init_context_bank(smmu_domain, &pgtbl_cfg);
@@ -1814,19 +1813,23 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	}
 
 	/* Now we've corralled the various formats, what'll it do? */
-	size = 0;
 	if (smmu->features & ARM_SMMU_FEAT_FMT_AARCH32_S)
-		size |= SZ_4K | SZ_64K | SZ_1M | SZ_16M;
+		smmu->pgsize_bitmap |= SZ_4K | SZ_64K | SZ_1M | SZ_16M;
 	if (smmu->features &
 	    (ARM_SMMU_FEAT_FMT_AARCH32_L | ARM_SMMU_FEAT_FMT_AARCH64_4K))
-		size |= SZ_4K | SZ_2M | SZ_1G;
+		smmu->pgsize_bitmap |= SZ_4K | SZ_2M | SZ_1G;
 	if (smmu->features & ARM_SMMU_FEAT_FMT_AARCH64_16K)
-		size |= SZ_16K | SZ_32M;
+		smmu->pgsize_bitmap |= SZ_16K | SZ_32M;
 	if (smmu->features & ARM_SMMU_FEAT_FMT_AARCH64_64K)
-		size |= SZ_64K | SZ_512M;
+		smmu->pgsize_bitmap |= SZ_64K | SZ_512M;
 
-	arm_smmu_ops.pgsize_bitmap &= size;
-	dev_notice(smmu->dev, "\tSupported page sizes: 0x%08lx\n", size);
+	if (arm_smmu_ops.pgsize_bitmap == -1UL)
+		arm_smmu_ops.pgsize_bitmap = smmu->pgsize_bitmap;
+	else
+		arm_smmu_ops.pgsize_bitmap |= smmu->pgsize_bitmap;
+	dev_notice(smmu->dev, "\tSupported page sizes: 0x%08lx\n",
+		   smmu->pgsize_bitmap);
+
 
 	if (smmu->features & ARM_SMMU_FEAT_TRANS_S1)
 		dev_notice(smmu->dev, "\tStage-1: %lu-bit VA -> %lu-bit IPA\n",
