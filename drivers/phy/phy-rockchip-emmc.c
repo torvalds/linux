@@ -15,6 +15,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -39,7 +40,11 @@
 #define GRF_EMMCPHY_CON5		0x14
 #define GRF_EMMCPHY_CON6		0x18
 #define GRF_EMMCPHY_STATUS		0x20
+#define CTRL_OFFSET			0x2c
 
+#define CTRL_INTER_CLKEN		0x1
+#define CTRL_INTER_CLKRDY		0x1
+#define CTRL_INTER_CLKOUT		0x1
 #define PHYCTRL_PDB_MASK		0x1
 #define PHYCTRL_PDB_SHIFT		0x0
 #define PHYCTRL_PDB_PWR_ON		0x1
@@ -78,6 +83,7 @@
 struct rockchip_emmc_phy {
 	unsigned int	reg_offset;
 	struct regmap	*reg_base;
+	void __iomem *ctrl_base;
 	u32	freq_sel;
 	u32	dr_sel;
 	u32	opdelay;
@@ -88,6 +94,8 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 {
 	unsigned int caldone;
 	unsigned int dllrdy;
+	u16 ctrl_val;
+	unsigned long timeout;
 
 	/*
 	 * Keep phyctrl_pdb and phyctrl_endll low to allow
@@ -107,6 +115,22 @@ static int rockchip_emmc_phy_power(struct rockchip_emmc_phy *rk_phy,
 	/* Already finish power_off above */
 	if (on_off == PHYCTRL_PDB_PWR_OFF)
 		return 0;
+
+	ctrl_val = readw(rk_phy->ctrl_base + CTRL_OFFSET);
+	ctrl_val |= CTRL_INTER_CLKEN;
+	writew(ctrl_val, rk_phy->ctrl_base + CTRL_OFFSET);
+	/* Wait max 20 ms */
+	while (!((ctrl_val = readw(rk_phy->ctrl_base + CTRL_OFFSET))
+		& CTRL_INTER_CLKRDY)) {
+		if (timeout == 0) {
+			pr_err("rockchip_emmc_phy_power_on: inter_clk not rdy\n");
+			return -EINVAL;
+		}
+		timeout--;
+		mdelay(1);
+	}
+	ctrl_val |= CTRL_INTER_CLKOUT;
+	writew(ctrl_val, rk_phy->ctrl_base + CTRL_OFFSET);
 
 	/*
 	 * According to the user manual, calpad calibration
@@ -232,6 +256,7 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	u32 freq_sel;
 	u32 dr_sel;
 	u32 opdelay;
+	u32 ctrl_base;
 
 	grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
 	if (IS_ERR(grf)) {
@@ -247,6 +272,18 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 		dev_err(dev, "missing reg property in node %s\n",
 			dev->of_node->name);
 		return -EINVAL;
+	}
+
+	if (of_property_read_u32(dev->of_node, "ctrl-base", &ctrl_base)) {
+		dev_err(dev, "missing ctrl-base property in node %s\n",
+			dev->of_node->name);
+		return -EINVAL;
+	}
+
+	rk_phy->ctrl_base = ioremap(ctrl_base, SZ_1K);
+	if (!rk_phy->ctrl_base) {
+		dev_err(dev, "failed to remap ctrl_base!\n");
+		return -ENOMEM;
 	}
 
 	rk_phy->freq_sel = 0x0;
@@ -308,6 +345,7 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	generic_phy = devm_phy_create(dev, dev->of_node, &ops);
 	if (IS_ERR(generic_phy)) {
 		dev_err(dev, "failed to create PHY\n");
+		iounmap(rk_phy->ctrl_base);
 		return PTR_ERR(generic_phy);
 	}
 
