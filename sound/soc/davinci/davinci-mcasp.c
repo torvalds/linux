@@ -540,11 +540,9 @@ out:
 	return ret;
 }
 
-static int __davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
+static int __davinci_mcasp_set_clkdiv(struct davinci_mcasp *mcasp, int div_id,
 				      int div, bool explicit)
 {
-	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
-
 	pm_runtime_get_sync(mcasp->dev);
 	switch (div_id) {
 	case MCASP_CLKDIV_AUXCLK:			/* MCLK divider */
@@ -592,7 +590,9 @@ static int __davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
 static int davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
 				    int div)
 {
-	return __davinci_mcasp_set_clkdiv(dai, div_id, div, 1);
+	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
+
+	return __davinci_mcasp_set_clkdiv(mcasp, div_id, div, 1);
 }
 
 static int davinci_mcasp_set_sysclk(struct snd_soc_dai *dai, int clk_id,
@@ -1056,7 +1056,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 			dev_info(mcasp->dev, "Sample-rate is off by %d PPM\n",
 				 ppm);
 
-		__davinci_mcasp_set_clkdiv(cpu_dai, 1, div, 0);
+		__davinci_mcasp_set_clkdiv(mcasp, 1, div, 0);
 	}
 
 	ret = mcasp_common_hw_param(mcasp, substream->stream,
