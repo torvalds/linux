@@ -2756,8 +2756,7 @@ void drm_atomic_helper_connector_reset(struct drm_connector *connector)
 		kzalloc(sizeof(*conn_state), GFP_KERNEL);
 
 	if (connector->state)
-		__drm_atomic_helper_connector_destroy_state(connector,
-							    connector->state);
+		__drm_atomic_helper_connector_destroy_state(connector->state);
 
 	kfree(connector->state);
 	__drm_atomic_helper_connector_reset(connector, conn_state);
@@ -2890,7 +2889,6 @@ EXPORT_SYMBOL(drm_atomic_helper_duplicate_state);
 
 /**
  * __drm_atomic_helper_connector_destroy_state - release connector state
- * @connector: connector object
  * @state: connector state object to release
  *
  * Releases all resources stored in the connector state without actually
@@ -2898,8 +2896,7 @@ EXPORT_SYMBOL(drm_atomic_helper_duplicate_state);
  * subclass the connector state.
  */
 void
-__drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
-					    struct drm_connector_state *state)
+__drm_atomic_helper_connector_destroy_state(struct drm_connector_state *state)
 {
 	/*
 	 * This is currently a placeholder so that drivers that subclass the
@@ -2922,7 +2919,7 @@ EXPORT_SYMBOL(__drm_atomic_helper_connector_destroy_state);
 void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 					  struct drm_connector_state *state)
 {
-	__drm_atomic_helper_connector_destroy_state(connector, state);
+	__drm_atomic_helper_connector_destroy_state(state);
 	kfree(state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_destroy_state);

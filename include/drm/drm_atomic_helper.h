@@ -144,8 +144,7 @@ struct drm_atomic_state *
 drm_atomic_helper_duplicate_state(struct drm_device *dev,
 				  struct drm_modeset_acquire_ctx *ctx);
 void
-__drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
-					    struct drm_connector_state *state);
+__drm_atomic_helper_connector_destroy_state(struct drm_connector_state *state);
 void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 					  struct drm_connector_state *state);
 void drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
