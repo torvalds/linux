@@ -564,7 +564,7 @@ int gb_interface_enable(struct gb_interface *intf)
 	/* Establish control connection */
 	control = gb_control_create(intf);
 	if (IS_ERR(control)) {
-		dev_err(&intf->dev, "failed to create control device: %lu\n",
+		dev_err(&intf->dev, "failed to create control device: %ld\n",
 				PTR_ERR(control));
 		return PTR_ERR(control);
 	}
