@@ -242,6 +242,7 @@ static const struct gpbridge_device_id gb_usb_id_table[] = {
 	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_USB) },
 	{ },
 };
+MODULE_DEVICE_TABLE(gpbridge, gb_usb_id_table);
 
 static struct gpbridge_driver usb_driver = {
 	.name		= "usb",
@@ -249,4 +250,6 @@ static struct gpbridge_driver usb_driver = {
 	.remove		= gb_usb_remove,
 	.id_table	= gb_usb_id_table,
 };
-gb_gpbridge_builtin_driver(usb_driver);
+
+module_gpbridge_driver(usb_driver);
+MODULE_LICENSE("GPL v2");

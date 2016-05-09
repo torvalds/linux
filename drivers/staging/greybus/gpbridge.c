@@ -317,15 +317,8 @@ static int __init gpbridge_init(void)
 		goto error_gpbridge;
 	}
 
-	if (gb_usb_driver_init()) {
-		pr_err("error initializing usb driver\n");
-		goto error_usb;
-	}
-
 	return 0;
 
-error_usb:
-	greybus_deregister(&gb_gpbridge_driver);
 error_gpbridge:
 	bus_unregister(&gpbridge_bus_type);
 	ida_destroy(&gpbridge_id);
@@ -335,8 +328,6 @@ module_init(gpbridge_init);
 
 static void __exit gpbridge_exit(void)
 {
-	gb_usb_driver_exit();
-
 	greybus_deregister(&gb_gpbridge_driver);
 	bus_unregister(&gpbridge_bus_type);
 	ida_destroy(&gpbridge_id);

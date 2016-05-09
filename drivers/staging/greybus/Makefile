@@ -14,8 +14,7 @@ greybus-y :=	core.o		\
 		operation.o	\
 		legacy.o
 
-gb-phy-y :=	gpbridge.o	\
-		usb.o
+gb-phy-y :=	gpbridge.o
 
 # Prefix all modules with gb-
 gb-vibrator-y := vibrator.o
@@ -40,6 +39,7 @@ gb-uart-y := uart.o
 gb-pwm-y := pwm.o
 gb-gpio-y := gpio.o
 gb-i2c-y := i2c.o
+gb-usb-y := usb.o
 
 obj-m += greybus.o
 obj-m += gb-phy.o
@@ -68,6 +68,7 @@ obj-m += gb-uart.o
 obj-m += gb-pwm.o
 obj-m += gb-gpio.o
 obj-m += gb-i2c.o
+obj-m += gb-usb.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
