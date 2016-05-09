@@ -68,15 +68,18 @@ static int pp_sw_init(void *handle)
 		return -EINVAL;
 
 	ret = hwmgr->pptable_func->pptable_init(hwmgr);
-
-	if (ret == 0)
-		ret = hwmgr->hwmgr_func->backend_init(hwmgr);
-
 	if (ret)
-		printk(KERN_ERR "amdgpu: powerplay initialization failed\n");
-	else
-		printk(KERN_INFO "amdgpu: powerplay initialized\n");
+		goto err;
 
+	ret = hwmgr->hwmgr_func->backend_init(hwmgr);
+	if (ret)
+		goto err;
+
+	pr_info("amdgpu: powerplay initialized\n");
+
+	return 0;
+err:
+	pr_err("amdgpu: powerplay initialization failed\n");
 	return ret;
 }
 
