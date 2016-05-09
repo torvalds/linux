@@ -317,10 +317,6 @@ static int __init gpbridge_init(void)
 		goto error_gpbridge;
 	}
 
-	if (gb_gpio_driver_init()) {
-		pr_err("error initializing gpio driver\n");
-		goto error_gpio;
-	}
 	if (gb_pwm_driver_init()) {
 		pr_err("error initializing pwm driver\n");
 		goto error_pwm;
@@ -359,8 +355,6 @@ error_sdio:
 error_uart:
 	gb_pwm_driver_exit();
 error_pwm:
-	gb_gpio_driver_exit();
-error_gpio:
 	greybus_deregister(&gb_gpbridge_driver);
 error_gpbridge:
 	bus_unregister(&gpbridge_bus_type);
@@ -377,7 +371,6 @@ static void __exit gpbridge_exit(void)
 	gb_sdio_driver_exit();
 	gb_uart_driver_exit();
 	gb_pwm_driver_exit();
-	gb_gpio_driver_exit();
 
 	greybus_deregister(&gb_gpbridge_driver);
 	bus_unregister(&gpbridge_bus_type);

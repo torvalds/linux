@@ -18,7 +18,6 @@ gb-phy-y :=	gpbridge.o	\
 		sdio.o	\
 		uart.o	\
 		pwm.o	\
-		gpio.o	\
 		i2c.o	\
 		spi.o	\
 		usb.o
@@ -40,6 +39,7 @@ gb-audio-manager-y += audio_manager.o
 gb-audio-manager-y += audio_manager_module.o
 gb-camera-y := camera.o
 gb-firmware-y := fw-core.o fw-download.o
+gb-gpio-y := gpio.o
 
 obj-m += greybus.o
 obj-m += gb-phy.o
@@ -62,6 +62,7 @@ obj-m += gb-audio-gb.o
 obj-m += gb-audio-apbridgea.o
 obj-m += gb-audio-manager.o
 obj-m += gb-firmware.o
+obj-m += gb-gpio.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
