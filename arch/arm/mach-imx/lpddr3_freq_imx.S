@@ -224,7 +224,7 @@
 	ldr	r8, =0x9880
 	str	r7, [r2, r8]
 
-	ldr	r7, =0x02020070
+	ldr	r7, =0x1010007e
 	str	r7, [r5, #DDRPHY_MDLL_CON0]
 
 	ldr	r7, =0x10000008
