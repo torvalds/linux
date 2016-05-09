@@ -1230,10 +1230,14 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	int i, dir;
 	int tdm_slots = mcasp->tdm_slots;
 
-	if (mcasp->tdm_mask[substream->stream])
-		tdm_slots = hweight32(mcasp->tdm_mask[substream->stream]);
+	/* Do not allow more then one stream per direction */
+	if (mcasp->substreams[substream->stream])
+		return -EBUSY;
 
 	mcasp->substreams[substream->stream] = substream;
+
+	if (mcasp->tdm_mask[substream->stream])
+		tdm_slots = hweight32(mcasp->tdm_mask[substream->stream]);
 
 	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE)
 		return 0;
