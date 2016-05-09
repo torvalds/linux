@@ -213,14 +213,16 @@ static irqreturn_t qup_i2c_interrupt(int irq, void *dev)
 	bus_err &= I2C_STATUS_ERROR_MASK;
 	qup_err &= QUP_STATUS_ERROR_FLAGS;
 
-	if (qup_err) {
-		/* Clear Error interrupt */
+	/* Clear the error bits in QUP_ERROR_FLAGS */
+	if (qup_err)
 		writel(qup_err, qup->base + QUP_ERROR_FLAGS);
-		goto done;
-	}
 
-	if (bus_err) {
-		/* Clear Error interrupt */
+	/* Clear the error bits in QUP_I2C_STATUS */
+	if (bus_err)
+		writel(bus_err, qup->base + QUP_I2C_STATUS);
+
+	/* Reset the QUP State in case of error */
+	if (qup_err || bus_err) {
 		writel(QUP_RESET_STATE, qup->base + QUP_STATE);
 		goto done;
 	}
