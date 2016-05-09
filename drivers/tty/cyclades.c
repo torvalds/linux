@@ -2288,7 +2288,6 @@ static int cy_get_serial_info(struct cyclades_port *info,
 		.closing_wait = info->port.closing_wait,
 		.baud_base = info->baud,
 		.custom_divisor = info->custom_divisor,
-		.hub6 = 0,		/*!!! */
 	};
 	return copy_to_user(retinfo, &tmp, sizeof(*retinfo)) ? -EFAULT : 0;
 }
