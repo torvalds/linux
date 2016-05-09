@@ -109,7 +109,7 @@ extern kib_tunables_t  kiblnd_tunables;
 					IBLND_CREDIT_HIGHWATER_V1 : \
 					t->lnd_peercredits_hiw)
 
-#define kiblnd_rdma_create_id(cb, dev, ps, qpt) rdma_create_id(&init_net, \
+#define kiblnd_rdma_create_id(cb, dev, ps, qpt) rdma_create_id(current->nsproxy->net_ns, \
 							       cb, dev, \
 							       ps, qpt)
 
