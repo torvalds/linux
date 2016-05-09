@@ -510,34 +510,39 @@ static int btmrvl_download_cal_data(struct btmrvl_private *priv,
 static int btmrvl_check_device_tree(struct btmrvl_private *priv)
 {
 	struct device_node *dt_node;
+	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
 	u8 cal_data[BT_CAL_HDR_LEN + BT_CAL_DATA_SIZE];
-	int ret;
-	u32 val;
+	int ret = 0;
+	u16 gpio, gap;
 
-	for_each_compatible_node(dt_node, NULL, "btmrvl,cfgdata") {
-		ret = of_property_read_u32(dt_node, "btmrvl,gpio-gap", &val);
-		if (!ret)
-			priv->btmrvl_dev.gpio_gap = val;
+	if (card->plt_of_node) {
+		dt_node = card->plt_of_node;
+		ret = of_property_read_u16(dt_node, "marvell,wakeup-pin",
+					   &gpio);
+		if (ret)
+			gpio = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
 
-		ret = of_property_read_u8_array(dt_node, "btmrvl,cal-data",
+		ret = of_property_read_u16(dt_node, "marvell,wakeup-gap-ms",
+					   &gap);
+		if (ret)
+			gap = (u8)(priv->btmrvl_dev.gpio_gap & 0x00ff);
+
+		priv->btmrvl_dev.gpio_gap = (gpio << 8) + gap;
+
+		ret = of_property_read_u8_array(dt_node, "marvell,cal-data",
 						cal_data + BT_CAL_HDR_LEN,
 						BT_CAL_DATA_SIZE);
-		if (ret) {
-			of_node_put(dt_node);
+		if (ret)
 			return ret;
-		}
 
 		BT_DBG("Use cal data from device tree");
 		ret = btmrvl_download_cal_data(priv, cal_data,
 					       BT_CAL_DATA_SIZE);
-		if (ret) {
+		if (ret)
 			BT_ERR("Fail to download calibrate data");
-			of_node_put(dt_node);
-			return ret;
-		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int btmrvl_setup(struct hci_dev *hdev)
