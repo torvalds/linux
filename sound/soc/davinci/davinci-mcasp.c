@@ -1003,13 +1003,31 @@ static int davinci_mcasp_calc_clk_div(struct davinci_mcasp *mcasp,
 				      unsigned int bclk_freq, bool set)
 {
 	int error_ppm;
-	int div = mcasp->sysclk_freq / bclk_freq;
-	int rem = mcasp->sysclk_freq % bclk_freq;
+	unsigned int sysclk_freq = mcasp->sysclk_freq;
+	u32 reg = mcasp_get_reg(mcasp, DAVINCI_MCASP_AHCLKXCTL_REG);
+	int div = sysclk_freq / bclk_freq;
+	int rem = sysclk_freq % bclk_freq;
+	int aux_div = 1;
+
+	if (div > (ACLKXDIV_MASK + 1)) {
+		if (reg & AHCLKXE) {
+			aux_div = div / (ACLKXDIV_MASK + 1);
+			if (div % (ACLKXDIV_MASK + 1))
+				aux_div++;
+
+			sysclk_freq /= aux_div;
+			div = sysclk_freq / bclk_freq;
+			rem = sysclk_freq % bclk_freq;
+		} else if (set) {
+			dev_warn(mcasp->dev, "Too fast reference clock (%u)\n",
+				 sysclk_freq);
+		}
+	}
 
 	if (rem != 0) {
 		if (div == 0 ||
-		    ((mcasp->sysclk_freq / div) - bclk_freq) >
-		    (bclk_freq - (mcasp->sysclk_freq / (div+1)))) {
+		    ((sysclk_freq / div) - bclk_freq) >
+		    (bclk_freq - (sysclk_freq / (div+1)))) {
 			div++;
 			rem = rem - bclk_freq;
 		}
@@ -1023,6 +1041,9 @@ static int davinci_mcasp_calc_clk_div(struct davinci_mcasp *mcasp,
 				 error_ppm);
 
 		__davinci_mcasp_set_clkdiv(mcasp, MCASP_CLKDIV_BCLK, div, 0);
+		if (reg & AHCLKXE)
+			__davinci_mcasp_set_clkdiv(mcasp, MCASP_CLKDIV_AUXCLK,
+						   aux_div, 0);
 	}
 
 	return error_ppm;
