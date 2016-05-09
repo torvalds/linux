@@ -58,14 +58,6 @@ static int mv88e6123_setup_global(struct dsa_switch *ds)
 	int ret;
 	u32 reg;
 
-	/* Disable the PHY polling unit (since there won't be any
-	 * external PHYs to poll), don't discard packets with
-	 * excessive collisions, and mask all interrupt sources.
-	 */
-	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL, 0x0000);
-	if (ret)
-		return ret;
-
 	/* Configure the upstream port, and configure the upstream
 	 * port as the port to which ingress and egress monitor frames
 	 * are to be sent.

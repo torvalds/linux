@@ -65,17 +65,6 @@ static int mv88e6131_setup_global(struct dsa_switch *ds)
 	int ret;
 	u32 reg;
 
-	/* Enable the PHY polling unit, don't discard packets with
-	 * excessive collisions, use a weighted fair queueing scheme
-	 * to arbitrate between packet queues, set the maximum frame
-	 * size to 1632, and mask all interrupt sources.
-	 */
-	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL,
-				  GLOBAL_CONTROL_PPU_ENABLE |
-				  GLOBAL_CONTROL_MAX_FRAME_1632);
-	if (ret)
-		return ret;
-
 	/* Set the VLAN ethertype to 0x8100. */
 	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CORE_TAG_TYPE, 0x8100);
 	if (ret)

@@ -84,15 +84,6 @@ static int mv88e6352_setup_global(struct dsa_switch *ds)
 	int ret;
 	u32 reg;
 
-	/* Discard packets with excessive collisions,
-	 * mask all interrupt sources, enable PPU (bit 14, undocumented).
-	 */
-	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL,
-				  GLOBAL_CONTROL_PPU_ENABLE |
-				  GLOBAL_CONTROL_DISCARD_EXCESS);
-	if (ret)
-		return ret;
-
 	/* Configure the upstream port, and configure the upstream
 	 * port as the port to which ingress and egress monitor frames
 	 * are to be sent.
