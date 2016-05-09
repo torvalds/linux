@@ -54,7 +54,7 @@
 #include <linux/usb/wusb.h>
 #include <linux/scatterlist.h>
 
-static int debug_crypto_verify = 0;
+static int debug_crypto_verify;
 
 module_param(debug_crypto_verify, int, 0);
 MODULE_PARM_DESC(debug_crypto_verify, "verify the key generation algorithms");
