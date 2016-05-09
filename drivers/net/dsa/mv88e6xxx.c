@@ -241,24 +241,23 @@ static int _mv88e6xxx_phy_write(struct mv88e6xxx_priv_state *ps, int addr,
 	return 0;
 }
 
-#ifdef CONFIG_NET_DSA_MV88E6XXX_NEED_PPU
 static int mv88e6xxx_ppu_disable(struct mv88e6xxx_priv_state *ps)
 {
 	int ret;
 	unsigned long timeout;
 
-	ret = mv88e6xxx_reg_read(ps, REG_GLOBAL, GLOBAL_CONTROL);
+	ret = _mv88e6xxx_reg_read(ps, REG_GLOBAL, GLOBAL_CONTROL);
 	if (ret < 0)
 		return ret;
 
-	ret = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL,
-				  ret & ~GLOBAL_CONTROL_PPU_ENABLE);
+	ret = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL,
+				   ret & ~GLOBAL_CONTROL_PPU_ENABLE);
 	if (ret)
 		return ret;
 
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
-		ret = mv88e6xxx_reg_read(ps, REG_GLOBAL, GLOBAL_STATUS);
+		ret = _mv88e6xxx_reg_read(ps, REG_GLOBAL, GLOBAL_STATUS);
 		if (ret < 0)
 			return ret;
 
@@ -361,35 +360,33 @@ void mv88e6xxx_ppu_state_init(struct mv88e6xxx_priv_state *ps)
 	ps->ppu_timer.function = mv88e6xxx_ppu_reenable_timer;
 }
 
-int mv88e6xxx_phy_read_ppu(struct dsa_switch *ds, int addr, int regnum)
+static int mv88e6xxx_phy_read_ppu(struct mv88e6xxx_priv_state *ps, int addr,
+				  int regnum)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
 	ret = mv88e6xxx_ppu_access_get(ps);
 	if (ret >= 0) {
-		ret = mv88e6xxx_reg_read(ps, addr, regnum);
+		ret = _mv88e6xxx_reg_read(ps, addr, regnum);
 		mv88e6xxx_ppu_access_put(ps);
 	}
 
 	return ret;
 }
 
-int mv88e6xxx_phy_write_ppu(struct dsa_switch *ds, int addr,
-			    int regnum, u16 val)
+static int mv88e6xxx_phy_write_ppu(struct mv88e6xxx_priv_state *ps, int addr,
+				   int regnum, u16 val)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
 
 	ret = mv88e6xxx_ppu_access_get(ps);
 	if (ret >= 0) {
-		ret = mv88e6xxx_reg_write(ps, addr, regnum, val);
+		ret = _mv88e6xxx_reg_write(ps, addr, regnum, val);
 		mv88e6xxx_ppu_access_put(ps);
 	}
 
 	return ret;
 }
-#endif
 
 static bool mv88e6xxx_6065_family(struct mv88e6xxx_priv_state *ps)
 {
@@ -2599,6 +2596,9 @@ int mv88e6xxx_setup_common(struct mv88e6xxx_priv_state *ps)
 
 	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
 
+	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_PPU))
+		mv88e6xxx_ppu_state_init(ps);
+
 	return 0;
 }
 
@@ -2884,7 +2884,12 @@ mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum)
 		return 0xffff;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_phy_read(ps, addr, regnum);
+
+	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_PPU))
+		ret = mv88e6xxx_phy_read_ppu(ps, addr, regnum);
+	else
+		ret = _mv88e6xxx_phy_read(ps, addr, regnum);
+
 	mutex_unlock(&ps->smi_mutex);
 	return ret;
 }
@@ -2900,7 +2905,12 @@ mv88e6xxx_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
 		return 0xffff;
 
 	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_phy_write(ps, addr, regnum, val);
+
+	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_PPU))
+		ret = mv88e6xxx_phy_write_ppu(ps, addr, regnum, val);
+	else
+		ret = _mv88e6xxx_phy_write(ps, addr, regnum, val);
+
 	mutex_unlock(&ps->smi_mutex);
 	return ret;
 }
