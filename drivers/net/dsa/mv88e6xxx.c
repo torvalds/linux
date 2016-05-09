@@ -2887,6 +2887,8 @@ mv88e6xxx_phy_read(struct dsa_switch *ds, int port, int regnum)
 
 	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_PPU))
 		ret = mv88e6xxx_phy_read_ppu(ps, addr, regnum);
+	else if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_SMI_PHY))
+		ret = _mv88e6xxx_phy_read_indirect(ps, addr, regnum);
 	else
 		ret = _mv88e6xxx_phy_read(ps, addr, regnum);
 
@@ -2908,42 +2910,11 @@ mv88e6xxx_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
 
 	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_PPU))
 		ret = mv88e6xxx_phy_write_ppu(ps, addr, regnum, val);
+	else if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_SMI_PHY))
+		ret = _mv88e6xxx_phy_write_indirect(ps, addr, regnum, val);
 	else
 		ret = _mv88e6xxx_phy_write(ps, addr, regnum, val);
 
-	mutex_unlock(&ps->smi_mutex);
-	return ret;
-}
-
-int
-mv88e6xxx_phy_read_indirect(struct dsa_switch *ds, int port, int regnum)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6xxx_port_to_phy_addr(ps, port);
-	int ret;
-
-	if (addr < 0)
-		return 0xffff;
-
-	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_phy_read_indirect(ps, addr, regnum);
-	mutex_unlock(&ps->smi_mutex);
-	return ret;
-}
-
-int
-mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int port, int regnum,
-			     u16 val)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6xxx_port_to_phy_addr(ps, port);
-	int ret;
-
-	if (addr < 0)
-		return addr;
-
-	mutex_lock(&ps->smi_mutex);
-	ret = _mv88e6xxx_phy_write_indirect(ps, addr, regnum, val);
 	mutex_unlock(&ps->smi_mutex);
 	return ret;
 }
