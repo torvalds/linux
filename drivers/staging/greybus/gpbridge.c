@@ -317,10 +317,6 @@ static int __init gpbridge_init(void)
 		goto error_gpbridge;
 	}
 
-	if (gb_pwm_driver_init()) {
-		pr_err("error initializing pwm driver\n");
-		goto error_pwm;
-	}
 	if (gb_uart_driver_init()) {
 		pr_err("error initializing uart driver\n");
 		goto error_uart;
@@ -347,8 +343,6 @@ error_usb:
 error_sdio:
 	gb_uart_driver_exit();
 error_uart:
-	gb_pwm_driver_exit();
-error_pwm:
 	greybus_deregister(&gb_gpbridge_driver);
 error_gpbridge:
 	bus_unregister(&gpbridge_bus_type);
@@ -363,7 +357,6 @@ static void __exit gpbridge_exit(void)
 	gb_usb_driver_exit();
 	gb_sdio_driver_exit();
 	gb_uart_driver_exit();
-	gb_pwm_driver_exit();
 
 	greybus_deregister(&gb_gpbridge_driver);
 	bus_unregister(&gpbridge_bus_type);
