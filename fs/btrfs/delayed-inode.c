@@ -134,7 +134,7 @@ again:
 	/* cached in the btrfs inode and can be accessed */
 	atomic_add(2, &node->refs);
 
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	ret = radix_tree_preload(GFP_NOFS);
 	if (ret) {
 		kmem_cache_free(delayed_node_cache, node);
 		return ERR_PTR(ret);
