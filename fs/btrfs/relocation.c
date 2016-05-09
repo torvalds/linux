@@ -4255,6 +4255,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	       rc->block_group->key.objectid, rc->block_group->flags);
 
 	btrfs_wait_block_group_reservations(rc->block_group);
+	btrfs_wait_nocow_writers(rc->block_group);
 	btrfs_wait_ordered_roots(fs_info, -1,
 				 rc->block_group->key.objectid,
 				 rc->block_group->key.offset);

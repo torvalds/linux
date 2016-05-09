@@ -1382,6 +1382,9 @@ next_slot:
 			 */
 			if (csum_exist_in_range(root, disk_bytenr, num_bytes))
 				goto out_check;
+			if (!btrfs_inc_nocow_writers(root->fs_info,
+						     disk_bytenr))
+				goto out_check;
 			nocow = 1;
 		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
 			extent_end = found_key.offset +
@@ -1396,6 +1399,9 @@ out_check:
 			path->slots[0]++;
 			if (!nolock && nocow)
 				btrfs_end_write_no_snapshoting(root);
+			if (nocow)
+				btrfs_dec_nocow_writers(root->fs_info,
+							disk_bytenr);
 			goto next_slot;
 		}
 		if (!nocow) {
@@ -1416,6 +1422,9 @@ out_check:
 			if (ret) {
 				if (!nolock && nocow)
 					btrfs_end_write_no_snapshoting(root);
+				if (nocow)
+					btrfs_dec_nocow_writers(root->fs_info,
+								disk_bytenr);
 				goto error;
 			}
 			cow_start = (u64)-1;
@@ -1458,6 +1467,8 @@ out_check:
 
 		ret = btrfs_add_ordered_extent(inode, cur_offset, disk_bytenr,
 					       num_bytes, num_bytes, type);
+		if (nocow)
+			btrfs_dec_nocow_writers(root->fs_info, disk_bytenr);
 		BUG_ON(ret); /* -ENOMEM */
 
 		if (root->root_key.objectid ==
@@ -7657,7 +7668,8 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 		block_start = em->block_start + (start - em->start);
 
 		if (can_nocow_extent(inode, start, &len, &orig_start,
-				     &orig_block_len, &ram_bytes) == 1) {
+				     &orig_block_len, &ram_bytes) == 1 &&
+		    btrfs_inc_nocow_writers(root->fs_info, block_start)) {
 
 			/*
 			 * Create the ordered extent before the extent map. This
@@ -7672,6 +7684,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 			 */
 			ret = btrfs_add_ordered_extent_dio(inode, start,
 					   block_start, len, len, type);
+			btrfs_dec_nocow_writers(root->fs_info, block_start);
 			if (ret) {
 				free_extent_map(em);
 				goto unlock_err;
