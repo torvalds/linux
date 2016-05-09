@@ -911,7 +911,7 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 		if (w > 64 || h > 64 || (w > 32 && h > 32))
 			return -ENOMEM;
 
-		obj = armada_gem_object_lookup(dev, file, handle);
+		obj = armada_gem_object_lookup(file, handle);
 		if (!obj)
 			return -ENOENT;
 

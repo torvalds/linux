@@ -101,7 +101,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		unsigned priority;
 
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
-		gobj = drm_gem_object_lookup(ddev, p->filp, r->handle);
+		gobj = drm_gem_object_lookup(p->filp, r->handle);
 		if (gobj == NULL) {
 			DRM_ERROR("gem object lookup failed 0x%x\n",
 				  r->handle);

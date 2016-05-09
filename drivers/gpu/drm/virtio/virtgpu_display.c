@@ -68,7 +68,7 @@ static int virtio_gpu_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	/* lookup the cursor */
-	gobj = drm_gem_object_lookup(crtc->dev, file_priv, handle);
+	gobj = drm_gem_object_lookup(file_priv, handle);
 	if (gobj == NULL)
 		return -ENOENT;
 
@@ -447,7 +447,7 @@ virtio_gpu_user_framebuffer_create(struct drm_device *dev,
 	int ret;
 
 	/* lookup object associated with res handle */
-	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
+	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (!obj)
 		return ERR_PTR(-EINVAL);
 

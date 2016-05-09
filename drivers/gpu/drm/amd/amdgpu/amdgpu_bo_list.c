@@ -106,7 +106,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 		struct amdgpu_bo *bo;
 		struct mm_struct *usermm;
 
-		gobj = drm_gem_object_lookup(adev->ddev, filp, info[i].bo_handle);
+		gobj = drm_gem_object_lookup(filp, info[i].bo_handle);
 		if (!gobj) {
 			r = -ENOENT;
 			goto error_free;

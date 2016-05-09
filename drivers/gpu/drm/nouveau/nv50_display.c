@@ -1314,7 +1314,7 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		if (width != 64 || height != 64)
 			return -EINVAL;
 
-		gem = drm_gem_object_lookup(dev, file_priv, handle);
+		gem = drm_gem_object_lookup(file_priv, handle);
 		if (unlikely(!gem))
 			return -ENOENT;
 		nvbo = nouveau_gem_object(gem);
