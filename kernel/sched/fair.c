@@ -5357,7 +5357,7 @@ static inline bool test_idle_cores(int cpu, bool def)
  * Since SMT siblings share all cache levels, inspecting this limited remote
  * state should be fairly cheap.
  */
-void update_idle_core(struct rq *rq)
+void __update_idle_core(struct rq *rq)
 {
 	int core = cpu_of(rq);
 	int cpu;
@@ -5388,6 +5388,9 @@ static int select_idle_core(struct task_struct *p, struct sched_domain *sd, int 
 {
 	struct cpumask *cpus = this_cpu_cpumask_var_ptr(select_idle_mask);
 	int core, cpu, wrap;
+
+	if (!static_branch_likely(&sched_smt_present))
+		return -1;
 
 	if (!test_idle_cores(target, false))
 		return -1;
@@ -5421,6 +5424,9 @@ static int select_idle_core(struct task_struct *p, struct sched_domain *sd, int 
 static int select_idle_smt(struct task_struct *p, struct sched_domain *sd, int target)
 {
 	int cpu;
+
+	if (!static_branch_likely(&sched_smt_present))
+		return -1;
 
 	for_each_cpu(cpu, cpu_smt_mask(target)) {
 		if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
