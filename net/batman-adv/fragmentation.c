@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
-#include <linux/pkt_sched.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -414,7 +413,7 @@ static struct sk_buff *batadv_frag_create(struct sk_buff *skb,
 	if (!skb_fragment)
 		goto err;
 
-	skb->priority = TC_PRIO_CONTROL;
+	skb_fragment->priority = skb->priority;
 
 	/* Eat the last mtu-bytes of the skb */
 	skb_reserve(skb_fragment, header_size + ETH_HLEN);
