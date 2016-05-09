@@ -35,6 +35,7 @@
 
 int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 			       u16 vport,
+			       enum fs_flow_table_op_mod op_mod,
 			       enum fs_flow_table_type type, unsigned int level,
 			       unsigned int log_size, struct mlx5_flow_table
 			       *next_ft, unsigned int *table_id);
