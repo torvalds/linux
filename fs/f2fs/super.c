@@ -87,6 +87,7 @@ enum {
 	Opt_inline_xattr,
 	Opt_inline_data,
 	Opt_inline_dentry,
+	Opt_noinline_dentry,
 	Opt_flush_merge,
 	Opt_noflush_merge,
 	Opt_nobarrier,
@@ -118,6 +119,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_inline_xattr, "inline_xattr"},
 	{Opt_inline_data, "inline_data"},
 	{Opt_inline_dentry, "inline_dentry"},
+	{Opt_noinline_dentry, "noinline_dentry"},
 	{Opt_flush_merge, "flush_merge"},
 	{Opt_noflush_merge, "noflush_merge"},
 	{Opt_nobarrier, "nobarrier"},
@@ -487,6 +489,9 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_inline_dentry:
 			set_opt(sbi, INLINE_DENTRY);
+			break;
+		case Opt_noinline_dentry:
+			clear_opt(sbi, INLINE_DENTRY);
 			break;
 		case Opt_flush_merge:
 			set_opt(sbi, FLUSH_MERGE);
@@ -878,6 +883,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",noinline_data");
 	if (test_opt(sbi, INLINE_DENTRY))
 		seq_puts(seq, ",inline_dentry");
+	else
+		seq_puts(seq, ",noinline_dentry");
 	if (!f2fs_readonly(sbi->sb) && test_opt(sbi, FLUSH_MERGE))
 		seq_puts(seq, ",flush_merge");
 	if (test_opt(sbi, NOBARRIER))
@@ -975,6 +982,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 
 	set_opt(sbi, BG_GC);
 	set_opt(sbi, INLINE_DATA);
+	set_opt(sbi, INLINE_DENTRY);
 	set_opt(sbi, EXTENT_CACHE);
 	sbi->sb->s_flags |= MS_LAZYTIME;
 	set_opt(sbi, FLUSH_MERGE);
