@@ -787,13 +787,17 @@ void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 
 	memset(p, 0xff, 32 * sizeof(u16));
 
+	mutex_lock(&ps->smi_mutex);
+
 	for (i = 0; i < 32; i++) {
 		int ret;
 
-		ret = mv88e6xxx_reg_read(ps, REG_PORT(port), i);
+		ret = _mv88e6xxx_reg_read(ps, REG_PORT(port), i);
 		if (ret >= 0)
 			p[i] = ret;
 	}
+
+	mutex_unlock(&ps->smi_mutex);
 }
 
 static int _mv88e6xxx_wait(struct mv88e6xxx_priv_state *ps, int reg, int offset,
