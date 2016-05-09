@@ -445,9 +445,10 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct es8328_priv *es8328 = snd_soc_codec_get_drvdata(codec);
-	int clk_rate;
+	int clk_rate = clk_get_rate(es8328->clk);
 	int i;
 	int reg;
+	int val;
 	u8 ratio;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -455,16 +456,24 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 	else
 		reg = ES8328_ADCCONTROL5;
 
-	clk_rate = clk_get_rate(es8328->clk);
-
-	if ((clk_rate != ES8328_SYSCLK_RATE_1X) &&
-		(clk_rate != ES8328_SYSCLK_RATE_2X)) {
+	switch (clk_rate) {
+	case ES8328_SYSCLK_RATE_1X:
+		val = 0;
+		break;
+	case ES8328_SYSCLK_RATE_2X:
+		val = ES8328_MASTERMODE_MCLKDIV2;
+		break;
+	default:
 		dev_err(codec->dev,
 			"%s: clock is running at %d Hz, not %d or %d Hz\n",
 			 __func__, clk_rate,
 			 ES8328_SYSCLK_RATE_1X, ES8328_SYSCLK_RATE_2X);
 		return -EINVAL;
 	}
+	ret = snd_soc_update_bits(codec, ES8328_MASTERMODE,
+			ES8328_MASTERMODE_MCLKDIV2, val);
+	if (ret < 0)
+		return ret;
 
 	/* find master mode MCLK to sampling frequency ratio */
 	ratio = mclk_ratios[0].rate;
@@ -484,8 +493,6 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct es8328_priv *es8328 = snd_soc_codec_get_drvdata(codec);
-	int clk_rate;
 	u8 mode = ES8328_DACCONTROL1_DACWL_16;
 
 	/* set master/slave audio interface */
@@ -515,14 +522,8 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	snd_soc_write(codec, ES8328_ADCCONTROL4, mode);
 
 	/* Master serial port mode, with BCLK generated automatically */
-	clk_rate = clk_get_rate(es8328->clk);
-	if (clk_rate == ES8328_SYSCLK_RATE_1X)
-		snd_soc_write(codec, ES8328_MASTERMODE,
-				ES8328_MASTERMODE_MSC);
-	else
-		snd_soc_write(codec, ES8328_MASTERMODE,
-				ES8328_MASTERMODE_MCLKDIV2 |
-				ES8328_MASTERMODE_MSC);
+	snd_soc_update_bits(codec, ES8328_MASTERMODE,
+			ES8328_MASTERMODE_MSC, ES8328_MASTERMODE_MSC);
 
 	return 0;
 }
