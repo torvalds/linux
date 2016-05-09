@@ -13351,14 +13351,13 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (crtc_state->mode.private_flags != crtc->state->mode.private_flags)
 			crtc_state->mode_changed = true;
 
-		if (!crtc_state->enable) {
-			if (needs_modeset(crtc_state))
-				any_ms = true;
-			continue;
-		}
-
 		if (!needs_modeset(crtc_state))
 			continue;
+
+		if (!crtc_state->enable) {
+			any_ms = true;
+			continue;
+		}
 
 		/* FIXME: For only active_changed we shouldn't need to do any
 		 * state recomputation at all. */
@@ -13382,13 +13381,12 @@ static int intel_atomic_check(struct drm_device *dev,
 			to_intel_crtc_state(crtc_state)->update_pipe = true;
 		}
 
-		if (needs_modeset(crtc_state)) {
+		if (needs_modeset(crtc_state))
 			any_ms = true;
 
-			ret = drm_atomic_add_affected_planes(state, crtc);
-			if (ret)
-				return ret;
-		}
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret)
+			return ret;
 
 		intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
 				       needs_modeset(crtc_state) ?
