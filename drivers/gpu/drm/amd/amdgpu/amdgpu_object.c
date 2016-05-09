@@ -424,9 +424,11 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 		bo->pin_count = 1;
 		if (gpu_addr != NULL)
 			*gpu_addr = amdgpu_bo_gpu_offset(bo);
-		if (domain == AMDGPU_GEM_DOMAIN_VRAM)
+		if (domain == AMDGPU_GEM_DOMAIN_VRAM) {
 			bo->adev->vram_pin_size += amdgpu_bo_size(bo);
-		else
+			if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+				bo->adev->invisible_pin_size += amdgpu_bo_size(bo);
+		} else
 			bo->adev->gart_pin_size += amdgpu_bo_size(bo);
 	} else {
 		dev_err(bo->adev->dev, "%p pin failed\n", bo);
@@ -456,9 +458,11 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 	}
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 	if (likely(r == 0)) {
-		if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
+		if (bo->tbo.mem.mem_type == TTM_PL_VRAM) {
 			bo->adev->vram_pin_size -= amdgpu_bo_size(bo);
-		else
+			if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+				bo->adev->invisible_pin_size -= amdgpu_bo_size(bo);
+		} else
 			bo->adev->gart_pin_size -= amdgpu_bo_size(bo);
 	} else {
 		dev_err(bo->adev->dev, "%p validate failed for unpin\n", bo);
@@ -537,6 +541,7 @@ int amdgpu_bo_set_metadata (struct amdgpu_bo *bo, void *metadata,
 	if (!metadata_size) {
 		if (bo->metadata_size) {
 			kfree(bo->metadata);
+			bo->metadata = NULL;
 			bo->metadata_size = 0;
 		}
 		return 0;

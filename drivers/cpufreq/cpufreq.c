@@ -1491,6 +1491,9 @@ static unsigned int cpufreq_update_current_freq(struct cpufreq_policy *policy)
 {
 	unsigned int new_freq;
 
+	if (cpufreq_suspended)
+		return 0;
+
 	new_freq = cpufreq_driver->get(policy->cpu);
 	if (!new_freq)
 		return 0;
@@ -1554,21 +1557,25 @@ void cpufreq_suspend(void)
 	if (!cpufreq_driver)
 		return;
 
-	if (!has_target())
+	if (!has_target() && !cpufreq_driver->suspend)
 		goto suspend;
 
 	pr_debug("%s: Suspending Governors\n", __func__);
 
 	for_each_active_policy(policy) {
-		down_write(&policy->rwsem);
-		ret = cpufreq_governor(policy, CPUFREQ_GOV_STOP);
-		up_write(&policy->rwsem);
+		if (has_target()) {
+			down_write(&policy->rwsem);
+			ret = cpufreq_governor(policy, CPUFREQ_GOV_STOP);
+			up_write(&policy->rwsem);
 
-		if (ret)
-			pr_err("%s: Failed to stop governor for policy: %p\n",
-				__func__, policy);
-		else if (cpufreq_driver->suspend
-		    && cpufreq_driver->suspend(policy))
+			if (ret) {
+				pr_err("%s: Failed to stop governor for policy: %p\n",
+					__func__, policy);
+				continue;
+			}
+		}
+
+		if (cpufreq_driver->suspend && cpufreq_driver->suspend(policy))
 			pr_err("%s: Failed to suspend driver: %p\n", __func__,
 				policy);
 	}
@@ -1593,7 +1600,7 @@ void cpufreq_resume(void)
 
 	cpufreq_suspended = false;
 
-	if (!has_target())
+	if (!has_target() && !cpufreq_driver->resume)
 		return;
 
 	pr_debug("%s: Resuming Governors\n", __func__);
@@ -1602,7 +1609,7 @@ void cpufreq_resume(void)
 		if (cpufreq_driver->resume && cpufreq_driver->resume(policy)) {
 			pr_err("%s: Failed to resume driver: %p\n", __func__,
 				policy);
-		} else {
+		} else if (has_target()) {
 			down_write(&policy->rwsem);
 			ret = cpufreq_start_governor(policy);
 			up_write(&policy->rwsem);
