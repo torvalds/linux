@@ -151,6 +151,4 @@ static struct platform_driver ged_driver = {
 		.acpi_match_table = ACPI_PTR(ged_acpi_ids),
 	},
 };
-
-module_platform_driver(ged_driver);
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(ged_driver);
