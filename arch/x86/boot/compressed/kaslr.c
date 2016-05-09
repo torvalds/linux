@@ -279,15 +279,24 @@ static void mem_avoid_init(unsigned long input, unsigned long input_size,
 #endif
 }
 
-/* Does this memory vector overlap a known avoided area? */
-static bool mem_avoid_overlap(struct mem_vector *img)
+/*
+ * Does this memory vector overlap a known avoided area? If so, record the
+ * overlap region with the lowest address.
+ */
+static bool mem_avoid_overlap(struct mem_vector *img,
+			      struct mem_vector *overlap)
 {
 	int i;
 	struct setup_data *ptr;
+	unsigned long earliest = img->start + img->size;
+	bool is_overlapping = false;
 
 	for (i = 0; i < MEM_AVOID_MAX; i++) {
-		if (mem_overlaps(img, &mem_avoid[i]))
-			return true;
+		if (mem_overlaps(img, &mem_avoid[i]) &&
+		    mem_avoid[i].start < earliest) {
+			*overlap = mem_avoid[i];
+			is_overlapping = true;
+		}
 	}
 
 	/* Avoid all entries in the setup_data linked list. */
@@ -298,13 +307,15 @@ static bool mem_avoid_overlap(struct mem_vector *img)
 		avoid.start = (unsigned long)ptr;
 		avoid.size = sizeof(*ptr) + ptr->len;
 
-		if (mem_overlaps(img, &avoid))
-			return true;
+		if (mem_overlaps(img, &avoid) && (avoid.start < earliest)) {
+			*overlap = avoid;
+			is_overlapping = true;
+		}
 
 		ptr = (struct setup_data *)(unsigned long)ptr->next;
 	}
 
-	return false;
+	return is_overlapping;
 }
 
 static unsigned long slots[KERNEL_IMAGE_SIZE / CONFIG_PHYSICAL_ALIGN];
@@ -361,7 +372,7 @@ static void process_e820_entry(struct e820entry *entry,
 			       unsigned long minimum,
 			       unsigned long image_size)
 {
-	struct mem_vector region, img;
+	struct mem_vector region, img, overlap;
 
 	/* Skip non-RAM entries. */
 	if (entry->type != E820_RAM)
@@ -400,7 +411,7 @@ static void process_e820_entry(struct e820entry *entry,
 	for (img.start = region.start, img.size = image_size ;
 	     mem_contains(&region, &img) ;
 	     img.start += CONFIG_PHYSICAL_ALIGN) {
-		if (mem_avoid_overlap(&img))
+		if (mem_avoid_overlap(&img, &overlap))
 			continue;
 		slots_append(img.start);
 	}
