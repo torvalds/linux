@@ -56,6 +56,8 @@
 #ifndef __gc_hal_enum_h_
 #define __gc_hal_enum_h_
 
+#include "gc_hal_options.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -82,6 +84,7 @@ typedef enum _gceCHIPMODEL
     gcv800  = 0x0800,
     gcv860  = 0x0860,
     gcv880  = 0x0880,
+    gcv900  = 0x0900,
     gcv1000 = 0x1000,
     gcv1500 = 0x1500,
     gcv2000 = 0x2000,
@@ -93,6 +96,8 @@ typedef enum _gceCHIPMODEL
     gcv5000 = 0x5000,
     gcv5200 = 0x5200,
     gcv6400 = 0x6400,
+    gcv7000 = 0x7000,
+    gcv7400 = 0x7400,
 }
 gceCHIPMODEL;
 
@@ -136,7 +141,6 @@ typedef enum _gceFEATURE
     gcvFEATURE_SHADER_HAS_CEIL,
     gcvFEATURE_SHADER_HAS_SQRT,
     gcvFEATURE_SHADER_HAS_TRIG,
-    gcvFEATURE_VAA,
     gcvFEATURE_HZ,
     gcvFEATURE_CORRECT_STENCIL,
     gcvFEATURE_VG20,
@@ -176,11 +180,9 @@ typedef enum _gceFEATURE
     gcvFEATURE_2D_MULTI_SOURCE_BLT_EX,
     gcvFEATURE_BUG_FIXES10,
     gcvFEATURE_2D_MINOR_TILING,
-    /* Supertiled compressed textures are supported. */
-    gcvFEATURE_TEX_COMPRRESSION_SUPERTILED,
+    gcvFEATURE_TEX_COMPRRESSION_SUPERTILED, /* Supertiled compressed textures are supported. */
     gcvFEATURE_FAST_MSAA,
     gcvFEATURE_BUG_FIXED_INDEXED_TRIANGLE_STRIP,
-    gcvFEATURE_INDEX_FETCH_FIX,
     gcvFEATURE_TEXTURE_TILE_STATUS_READ,
     gcvFEATURE_DEPTH_BIAS_FIX,
     gcvFEATURE_RECT_PRIMITIVE,
@@ -214,6 +216,7 @@ typedef enum _gceFEATURE
     gcvFEATURE_HALTI0,
     gcvFEATURE_HALTI1,
     gcvFEATURE_HALTI2,
+    gcvFEATURE_SUPPORT_GCREGTX,
     gcvFEATURE_2D_MIRROR_EXTENSION,
     gcvFEATURE_TEXTURE_ASTC,
     gcvFEATURE_TEXTURE_ASTC_FIX,
@@ -238,16 +241,18 @@ typedef enum _gceFEATURE
     gcvFEATURE_2D_FILTERBLIT_A8_ALPHA,
     gcvFEATURE_2D_MULTI_SRC_BLT_TO_UNIFIED_DST_RECT,
     gcvFEATURE_2D_MULTI_SRC_BLT_BILINEAR_FILTER,
+    gcvFEATURE_2D_MULTI_SRC_BLT_1_5_ENHANCEMENT,
     gcvFEATURE_V2_COMPRESSION_Z16_FIX,
-
     gcvFEATURE_VERTEX_INST_ID_AS_INTEGER,
     gcvFEATURE_2D_YUV_MODE,
     gcvFEATURE_2D_CACHE_128B256BPERLINE,
     gcvFEATURE_2D_MAJOR_SUPER_TILE,
     gcvFEATURE_2D_V4COMPRESSION,
+    gcvFEATURE_2D_VMSAA,
+    gcvFEATURE_2D_10BIT_OUTPUT_LINEAR,
+    gcvFEATURE_2D_YUV420_OUTPUT_LINEAR,
     gcvFEATURE_ACE,
     gcvFEATURE_COLOR_COMPRESSION,
-
     gcvFEATURE_32BPP_COMPONENT_TEXTURE_CHANNEL_SWIZZLE,
     gcvFEATURE_64BPP_HW_CLEAR_SUPPORT,
     gcvFEATURE_TX_LERP_PRECISION_FIX,
@@ -259,72 +264,214 @@ typedef enum _gceFEATURE
     gcvFEATURE_COMPRESSION_V1,
     gcvFEATURE_V1_COMPRESSION_Z16_DECOMPRESS_FIX,
     gcvFEATURE_RTT,
-    gcvFEATURE_GENERICS,
+    gcvFEATURE_GENERIC_ATTRIB,
     gcvFEATURE_2D_ONE_PASS_FILTER,
     gcvFEATURE_2D_ONE_PASS_FILTER_TAP,
     gcvFEATURE_2D_POST_FLIP,
     gcvFEATURE_2D_PIXEL_ALIGNMENT,
     gcvFEATURE_CORRECT_AUTO_DISABLE_COUNT,
     gcvFEATURE_CORRECT_AUTO_DISABLE_COUNT_WIDTH,
-
+    gcvFEATURE_8K_RT,
     gcvFEATURE_HALTI3,
     gcvFEATURE_EEZ,
     gcvFEATURE_INTEGER_SIGNEXT_FIX,
-    gcvFEATURE_INTEGER_PIPE_FIX,
     gcvFEATURE_PSOUTPUT_MAPPING,
     gcvFEATURE_8K_RT_FIX,
     gcvFEATURE_TX_TILE_STATUS_MAPPING,
     gcvFEATURE_SRGB_RT_SUPPORT,
-    gcvFEATURE_UNIFORM_APERTURE,
     gcvFEATURE_TEXTURE_16K,
     gcvFEATURE_PA_FARZCLIPPING_FIX,
     gcvFEATURE_PE_DITHER_COLORMASK_FIX,
     gcvFEATURE_ZSCALE_FIX,
-
     gcvFEATURE_MULTI_PIXELPIPES,
     gcvFEATURE_PIPE_CL,
-
     gcvFEATURE_BUG_FIXES18,
-
     gcvFEATURE_UNIFIED_SAMPLERS,
     gcvFEATURE_CL_PS_WALKER,
     gcvFEATURE_NEW_HZ,
-
     gcvFEATURE_TX_FRAC_PRECISION_6BIT,
     gcvFEATURE_SH_INSTRUCTION_PREFETCH,
     gcvFEATURE_PROBE,
-
-    gcvFEATURE_BUG_FIXES8,
-    gcvFEATURE_2D_ALL_QUAD,
-
     gcvFEATURE_SINGLE_PIPE_HALTI1,
-
-    gcvFEATURE_BLOCK_SIZE_16x16,
-
+    gcvFEATURE_BUG_FIXES8, /* This HW feature is wrong, we can't use this to check integer branch!!!*/
+    gcvFEATURE_2D_ALL_QUAD,
+    gcvFEATURE_SEPARATE_SRC_DST,
+    gcvFEATURE_TX_HOR_ALIGN_SEL,
+    gcvFEATURE_HALTI4,
+    gcvFEATURE_MRT_FC_FIX,
+    gcvFEATURE_TESSELLATION,
+    gcvFEATURE_DRAW_INDIRECT,
+    gcvFEATURE_COMPUTE_INDIRECT,
+    gcvFEATURE_MSAA_TEXTURE,
+    gcvFEATURE_STENCIL_TEXTURE,
+    gcvFEATURE_S8_ONLY_RENDERING,
+    gcvFEATURE_D24S8_SAMPLE_STENCIL,
+    gcvFEATURE_ADVANCED_BLEND_MODE_PART0,
+    gcvFEATURE_RA_DEPTH_WRITE,
+    gcvFEATURE_RS_DS_DOWNSAMPLE_NATIVE_SUPPORT,
+    gcvFEATURE_S8_MSAA_COMPRESSION,
+    gcvFEATURE_MSAA_FRAGMENT_OPERATION,
+    gcvFEATURE_FE_START_VERTEX_SUPPORT,
+    gcvFEATURE_DIVISOR_STREAM_ADDR_FIX,
+    gcvFEATURE_ZERO_ATTRIB_SUPPORT,
+    gcvFEATURE_DANGLING_VERTEX_FIX,
+    gcvFEATURE_PE_DISABLE_COLOR_PIPE,
+    gcvFEATURE_FE_12bit_stride,
+    gcvFEATURE_TX_LOD_GUARDBAND,
+    gcvFEATURE_HAS_PRODUCTID,
+    gcvFEATURE_INTEGER32_FIX,
+    gcvFEATURE_TEXTURE_GATHER,
+    gcvFEATURE_IMG_INSTRUCTION,
+    gcvFEATURE_HELPER_INVOCATION,
     gcvFEATURE_NO_USER_CSC,
     gcvFEATURE_ANDROID_ONLY,
-    gcvFEATURE_HAS_PRODUCTID,
-
-    gcvFEATURE_V2_MSAA_COMP_FIX,
-
-    gcvFEATURE_S8_ONLY_RENDERING,
-
-    gcvFEATURE_SEPARATE_SRC_DST,
-
-    gcvFEATURE_FE_START_VERTEX_SUPPORT,
-    gcvFEATURE_FE_RESET_VERTEX_ID,
-    gcvFEATURE_RS_DEPTHSTENCIL_NATIVE_SUPPORT,
-
-    gcvFEATURE_HALTI4,
-    gcvFEATURE_MSAA_FRAGMENT_OPERATION,
-    gcvFEATURE_ZERO_ATTRIB_SUPPORT,
-    gcvFEATURE_TEX_CACHE_FLUSH_FIX,
-    gcvFEATURE_PE_DITHER_FIX2,
+    gcvFEATURE_V2_MSAA_COHERENCY_FIX,
+    gcvFEATURE_BLOCK_SIZE_16x16,
+    gcvFEATURE_TX_SUPPORT_DEC,
+    gcvFEATURE_RSBLT_MSAA_DECOMPRESSION,
+    gcvFEATURE_TILEFILLER_32TILE_ALIGNED,
+    gcvFEATURE_GEOMETRY_SHADER,
+    gcvFEATURE_HALTI5,
+    gcvFEATURE_PIPELINE_32_ATTRIBUTES,
+    gcvFEATURE_USC,
+    gcvFEATURE_CUBEMAP_ARRAY,
+    gcvFEATURE_TX_DESCRIPTOR,
+    gcvFEATURE_SEPARATE_RT_CTRL,
+    gcvFEATURE_RENDER_ARRAY,
+    gcvFEATURE_BLT_ENGINE,
+    gcvFEATURE_SMALLDRAW_BATCH,
+    gcvFEATURE_TEXTURE_BUFFER,
+    gcvFEATURE_GS_SUPPORT_EMIT,
+    gcvFEATURE_SAMPLER_BASE_OFFSET,
+    gcvFEATURE_IMAGE_OUT_BOUNDARY_FIX,
+    gcvFEATURE_TX_BORDER_CLAMP,
+    gcvFEATURE_MSAA_SHADING,
+    gcvFEATURE_ADVANCED_SH_INST,
     gcvFEATURE_LOD_FIX_FOR_BASELEVEL,
+    gcvFEATURE_MULTIDRAW_INDIRECT,
+    gcvFEATURE_DRAW_ELEMENTS_BASE_VERTEX,
+    gcvFEATURE_NEW_STEERING_AND_ICACHE_FLUSH, /* Steering base on register base. Trigger-style Icache flush state. */
+    gcvFEATURE_PE_DITHER_FIX2,
+    gcvFEATURE_INDEX_FETCH_FIX,
+    gcvFEATURE_TEX_BASELOD,
+    gcvFEATURE_TEX_SEAMLESS_CUBE,
+    gcvFEATURE_TEX_ETC2,
+    gcvFEATURE_TEX_CUBE_BORDER_LOD,
+    gcvFEATURE_FE_ALLOW_STALL_PREFETCH_ENG,
+    gcvFEATURE_TX_8BPP_TS_FIX,
+    gcvFEATURE_HW_TFB,
+    gcvFEATURE_COMPRESSION_V4,
+    gcvFEATURE_FENCE,
+    gcvFEATURE_R8_UNORM,
+    gcvFEATURE_TX_DEFAULT_VALUE_FIX,
+    gcvFEATURE_TX_8bit_UVFrac,
+    gcvFEATURE_TX_MIPFILTER_NONE_FIX,
+    gcvFEATURE_MC_STENCIL_CTRL,
+    gcvFEATURE_DEPTH_MATH_FIX,
+    gcvFEATURE_PE_B2B_PIXEL_FIX,
+    gcvFEATURE_TEXTURE_GATHER_OFFSETS,
+    gcvFEATURE_TEX_CACHE_FLUSH_FIX,
+    gcvFEATURE_WIDE_LINE_FIX,
+    gcvFEATURE_LINE_DIAMOND_RULE_FIX,
+    gcvFEATURE_MULTIGPU_SYNC_V2,
+    gcvFEATURE_DRAW_ID,
+    gcvFEATURE_SNAPPAGE_CMD,
+    gcvFEATURE_COMMAND_PREFETCH,
+    gcvFEATURE_SAMPLEPOS_SWIZZLE_FIX,
+    gcvFEATURE_SELECTMAP_SRC0_SWIZZLE_FIX,
+    gcvFEATURE_LOADATTR_OOB_FIX,
+    gcvFEATURE_RA_DEPTH_WRITE_MSAA1X_FIX,
+    gcvFEATURE_MRT_8BIT_DUAL_PIPE_FIX,
+    gcvFEATURE_BUG_FIXES1,
+    gcvFEATURE_MULTI_SOURCE_BLT,
+    gcvFEATURE_ZCOMPRESSION,
+    gcvFEATURE_DITHER_AND_FILTER_PLUS_ALPHA_2D,
+    gcvFEATURE_ONE_PASS_2D_FILTER,
+    gcvFEATURE_TX_FILTER,
+    gcvFEATURE_CHIPENABLE_LINK,
+    gcvFEATURE_TEXTURE_BIAS_LOD_FIX,
+    gcvFEATURE_USE_GL_Z,
+    gcvFEATURE_SUPPORT_INTEGER,
+    /* PARTLY_SUPPORT_INTEGER_BRANCH:
+    **      chips can support all integer types for compare instructions, e.g, CMP, SELECT.
+    ** FULLLY_SUPPORT_INTEGER_BRANCH:
+    **      chips can support all integer types for JMP instruction.
+    ** If PARTLY_SUPPORT_INTEGER_BRANCH is TRUE but FULLLY_SUPPORT_INTEGER_BRANCH is FALSE,
+    ** then this chip can only support INT32/UINT32 JMP instruction.
+    */
+    gcvFEATURE_PARTLY_SUPPORT_INTEGER_BRANCH,
+    gcvFEATURE_FULLLY_SUPPORT_INTEGER_BRANCH,
+    gcvFEATURE_SUPPORT_INTEGER_ATTRIBUTE,
+    gcvFEATURE_SUPPORT_MOVAI,
+    gcvFEATURE_NEED_FIX_FOR_CL_X,
+    gcvFEATURE_NEED_FIX_FOR_CL_XE,
+    gcvFEATURE_HAS_OUTPUT_COUNT_FIX,
+    gcvFEATURE_VARYING_PACKING_LIMITATION,
+    gcvFEATURE_HIGHP_VARYING_SHIFT,
+    gcvFEATURE_BUG_FIXES2,
+    gcvFEATURE_64K_L2_CACHE,
+    gcvFEATURE_128BTILE,
+    gcvFEATURE_ADVANCED_BLEND_OPT,
+    gcvFEATURE_SNAPPAGE_CMD_FIX,
+    gcvFEATURE_L2_CACHE_FOR_2D_420,
+    gcvFEATURE_TILE_STATUS_2BITS,
+    gcvFEATURE_EXTRA_SHADER_INSTRUCTIONS0,
+    gcvFEATURE_EXTRA_SHADER_INSTRUCTIONS1,
+    gcvFEATURE_EXTRA_SHADER_INSTRUCTIONS2,
+    gcvFEATURE_MEDIUM_PRECISION,
+    gcvFEATURE_FE20_BIT_INDEX,
+    gcvFEATURE_BUG_FIXES4,
+    gcvFEATURE_BUG_FIXES12,
+    gcvFEATURE_VMSAA,
+    gcvFEATURE_ROBUST_ATOMIC,
+    gcvFEATURE_32F_COLORMASK_FIX,
+    gcvFEATURE_NEW_GPIPE,
+    gcvFEATURE_RS_NEW_BASEADDR,
+    gcvFEATURE_TX_DXT,
+    gcvFEATURE_SH_FLAT_INTERPOLATION_DUAL16_FIX,
+    gcvFEATURE_EVIS,
+    gcvFEATURE_SH_SUPPORT_V4,
+    gcvFEATURE_SH_SUPPORT_ALPHA_KILL,
+    gcvFEATURE_PE_NO_ALPHA_TEST,
+    gcvFEATURE_SH_SNAP2PAGE_MAXPAGES_FIX,
+    gcvFEATURE_USC_FULLCACHE_FIX,
+    gcvFEATURE_PE_64bit_FENCE_FIX,
+    gcvFEATURE_BLT_8bit_256TILE_FC_FIX,
+    gcvFEATURE_PE_RGBA16I_FIX,
+    gcvFEATURE_BLT_64bpp_MASKED_CLEAR_FIX,
+    gcvFEATURE_SH_PSO_MSAA1x_FIX,
+    gcvFEATURE_USC_ATOMIC_FIX,
+    gcvFEATURE_SH_NO_INDEX_CONST_ON_A0,
+    gcvFEATURE_SH_NO_ONECONST_LIMIT,
+    gcvFEATURE_EVIS_NO_ABSDIFF,
+    gcvFEATURE_EVIS_NO_BITREPLACE,
+    gcvFEATURE_EVIS_NO_BOXFILTER,
+    gcvFEATURE_EVIS_NO_CORDIAC,
+    gcvFEATURE_EVIS_NO_DP32,
+    gcvFEATURE_EVIS_NO_FILTER,
+    gcvFEATURE_EVIS_NO_IADD,
+    gcvFEATURE_EVIS_NO_SELECTADD,
+    gcvFEATURE_EVIS_LERP_7OUTPUT,
+    gcvFEATURE_EVIS_ACCSQ_8OUTPUT,
+    gcvFEATURE_ROBUSTNESS,
+    gcvFEATURE_SECURITY,
+    gcvFEATURE_TX_YUV_ASSEMBLER_10BIT,
+    gcvFEATURE_USC_GOS_ADDR_FIX,
+    gcvFEATURE_SUPPORT_MSAA2X,
+    gcvFEATURE_TX_DESC_CACHE_CLOCKGATE_FIX,
+    gcvFEATURE_TX_INTEGER_COORDINATE,
+    gcvFEATURE_PSIO_SAMPLEMASK_IN_R0ZW_FIX,
+    gcvFEATURE_MULTI_CORE_BLOCK_SET_CONFIG,
+    gcvFEATURE_SH_IMG_LDST_ON_TEMP,
+    gcvFEATURE_TX_INTEGER_COORDINATE_V2,
+    gcvFEATURE_COMPUTE_ONLY,
+    gcvFEATURE_SH_IMG_LDST_CLAMP,
+    gcvFEATURE_SH_ICACHE_ALLOC_COUNT_FIX,
 
     gcvFEATURE_MSAA_OQ_FIX,
 
     gcvFEATURE_PE_ENHANCEMENTS2,
+    gcvFEATURE_PSIO_MSAA_CL_FIX,
     gcvFEATURE_FE_NEED_DUMMYDRAW,
 
     /* Insert features above this comment only. */
@@ -348,15 +495,21 @@ gceSWWA;
 /* Option Set*/
 typedef enum _gceOPTION
 {
-    /* HW setting we take PREFER */
-    gcvOPTION_PREFER_MULTIPIPE_RS = 0,
-    gcvOPTION_PREFER_ZCONVERT_BYPASS =1,
+    /* HW setting. */
+    gcvOPTION_PREFER_ZCONVERT_BYPASS = 0,
+    gcvOPTION_PREFER_TILED_DISPLAY_BUFFER = 1,
+    gcvOPTION_PREFER_GUARDBAND = 2,
+    gcvOPTION_PREFER_TPG_TRIVIALMODEL = 3,
+    gcvOPTION_PREFER_RA_DEPTH_WRITE = 4,
+    gcvOPTION_PREFER_USC_RECONFIG = 5,
 
-
+    /* SW options */
     gcvOPTION_HW_NULL = 50,
     gcvOPTION_PRINT_OPTION = 51,
-
-    gcvOPTION_FBO_PREFER_MEM = 80,
+    gcvOPTION_KERNEL_FENCE = 52,
+    gcvOPTION_ASYNC_BLT = 53,
+    gcvOPTION_FBO_PREFER_MEM = 54,
+    gcvOPTION_GPU_TEX_UPLOAD = 55,
 
     /* Insert option above this comment only */
     gcvOPTION_COUNT                     /* Not a OPTION*/
@@ -365,11 +518,16 @@ gceOPTION;
 
 typedef enum _gceFRAMEINFO
 {
+    /* Total frame count in one run */
     gcvFRAMEINFO_FRAME_NUM       = 0,
+    /* Total draw count in current frame, including draw/compute */
     gcvFRAMEINFO_DRAW_NUM        = 1,
-    gcvFRAMEINFO_DRAW_DUAL16_NUM = 2,
-    gcvFRAMEINFO_DRAW_FL32_NUM   = 3,
-
+    /* Total compute count in current frame, subset of drawNum */
+    gcvFRAMEINFO_COMPUTE_NUM     = 2,
+    /* Total dual16 draw/compute count in current frame, subset of drawNum */
+    gcvFRAMEINFO_DUAL16_NUM      = 3,
+    /* Current programID is being set. only valid for ES20 driver right now */
+    gcvFRAMEINFO_PROGRAM_ID     = 4,
 
     gcvFRAMEINFO_COUNT,
 }
@@ -381,7 +539,7 @@ typedef enum _gceFRAMEINFO_OP
     gcvFRAMEINFO_OP_DEC       = 1,
     gcvFRAMEINFO_OP_ZERO      = 2,
     gcvFRAMEINFO_OP_GET       = 3,
-
+    gcvFRAMEINFO_OP_SET       = 4,
     gcvFRAMEINFO_OP_COUNT,
 }
 gceFRAMEINFO_OP;
@@ -408,9 +566,9 @@ gceCHIPPOWERSTATE;
 /* CPU cache operations */
 typedef enum _gceCACHEOPERATION
 {
-    gcvCACHE_CLEAN      = 0x01,
-    gcvCACHE_INVALIDATE = 0x02,
-    gcvCACHE_FLUSH      = gcvCACHE_CLEAN  | gcvCACHE_INVALIDATE,
+    gcvCACHE_CLEAN      = 0x01,     /* Flush CPU cache to mem */
+    gcvCACHE_INVALIDATE = 0x02,     /* Invalidte CPU cache */
+    gcvCACHE_FLUSH      = gcvCACHE_CLEAN  | gcvCACHE_INVALIDATE,    /* Both flush & invalidate */
     gcvCACHE_MEMORY_BARRIER = 0x04
 }
 gceCACHEOPERATION;
@@ -430,6 +588,10 @@ typedef enum _gceSURF_TYPE
     gcvSURF_MASK,
     gcvSURF_SCISSOR,
     gcvSURF_HIERARCHICAL_DEPTH,
+    gcvSURF_ICACHE,
+    gcvSURF_TXDESC,
+    gcvSURF_FENCE,
+    gcvSURF_TFBHEADER,
     gcvSURF_NUM_TYPES, /* Make sure this is the last one! */
 
     /* Combinations. */
@@ -438,7 +600,7 @@ typedef enum _gceSURF_TYPE
                                        In Android, vidmem node is allocated by another process. */
     gcvSURF_CACHEABLE      = 0x400, /* Used to allocate a cacheable surface */
 
-    gcvSURF_FLIP           = 0x800, /* The Resolve Target the will been flip resolve from RT */
+    gcvSURF_TILE_RLV_FENCE = 0x800, /* create texture fence as tile */
 
     gcvSURF_TILE_STATUS_DIRTY  = 0x1000, /* Init tile status to all dirty */
 
@@ -448,10 +610,16 @@ typedef enum _gceSURF_TYPE
 
     gcvSURF_PROTECTED_CONTENT  = 0x8000,  /* create it as content protected */
 
+    gcvSURF_CREATE_AS_DISPLAYBUFFER = 0x10000, /*create it as a display buffer surface */
+
+    gcvSURF_CONTIGUOUS         = 0x20000,      /*create it as contiguous */
+
     /* Create it as no compression, valid on when it has tile status. */
     gcvSURF_NO_COMPRESSION     = 0x40000,
 
-    gcvSURF_CONTIGUOUS         = 0x20000,      /*create it as contiguous */
+    gcvSURF_DEC                = 0x80000,  /* Surface is DEC compressed */
+
+    gcvSURF_NO_HZ              = 0x100000,
 
     gcvSURF_TEXTURE_LINEAR               = gcvSURF_TEXTURE
                                          | gcvSURF_LINEAR,
@@ -461,6 +629,9 @@ typedef enum _gceSURF_TYPE
 
     gcvSURF_RENDER_TARGET_NO_TILE_STATUS = gcvSURF_RENDER_TARGET
                                          | gcvSURF_NO_TILE_STATUS,
+
+    gcvSURF_RENDER_TARGET_NO_COMPRESSION = gcvSURF_RENDER_TARGET
+                                         | gcvSURF_NO_COMPRESSION,
 
     gcvSURF_RENDER_TARGET_TS_DIRTY = gcvSURF_RENDER_TARGET
                                          | gcvSURF_TILE_STATUS_DIRTY,
@@ -484,9 +655,6 @@ typedef enum _gceSURF_TYPE
 
     gcvSURF_CACHEABLE_BITMAP             = gcvSURF_BITMAP
                                          | gcvSURF_CACHEABLE,
-
-    gcvSURF_FLIP_BITMAP                  = gcvSURF_BITMAP
-                                         | gcvSURF_FLIP,
 }
 gceSURF_TYPE;
 
@@ -540,12 +708,8 @@ typedef enum _gceSURF_FLAG
     gcvSURF_FLAG_CONTENT_UPDATED     = 0x2,
     /* content is y inverted */
     gcvSURF_FLAG_CONTENT_YINVERTED   = 0x4,
-    /* content is protected */
-    gcvSURF_FLAG_CONTENT_PROTECTED   = 0x8,
-    /* surface is contiguous. */
-    gcvSURF_FLAG_CONTIGUOUS          = (1 << 4),
     /* surface has multiple nodes */
-    gcvSURF_FLAG_MULTI_NODE          = (1 << 5),
+    gcvSURF_FLAG_MULTI_NODE          = 0x8,
 }
 gceSURF_FLAG;
 
@@ -555,7 +719,9 @@ typedef enum _gceMIPMAP_IMAGE_FORMAT
 }
 gceMIPMAP_IMAGE_FORMAT;
 
-/* Surface formats. */
+/* Surface formats.
+** Name rules is from MSB->LSB.
+*/
 typedef enum _gceSURF_FORMAT
 {
     /* Unknown format. */
@@ -565,6 +731,9 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_INDEX1              = 100,
     gcvSURF_INDEX4,
     gcvSURF_INDEX8,
+#if gcdVG_ONLY
+    gcvSURF_INDEX2,
+#endif
 
     /* RGB formats. */
     gcvSURF_A2R2G2B2            = 200,
@@ -597,7 +766,7 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_A16R16G16B16_2_A8R8G8B8,
     gcvSURF_A32R32G32B32_2_G32R32F,
     gcvSURF_A32R32G32B32_4_A8R8G8B8,
-
+    gcvSURF_R10G10B10A2,
     /* BGR formats. */
     gcvSURF_A4B4G4R4            = 300,
     gcvSURF_A1B5G5R5,
@@ -625,6 +794,7 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_X8B8G8R8_SNORM,
     gcvSURF_A8B8G8R8_SNORM,
     gcvSURF_A8B12G12R12_2_A8R8G8B8,
+    gcvSURF_B10G10R10A2,
 
     /* Compressed formats. */
     gcvSURF_DXT1                = 400,
@@ -656,6 +826,19 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_NV61,
     gcvSURF_YVYU,
     gcvSURF_VYUY,
+    gcvSURF_AYUV,
+    gcvSURF_YUV420_10_ST,
+    gcvSURF_YUV420_TILE_ST,
+    gcvSURF_YUV420_TILE_10_ST,
+#if gcdVG_ONLY
+    gcvSURF_AYUY2,
+    gcvSURF_ANV12,
+    gcvSURF_ANV16,
+#endif
+    gcvSURF_NV12_10BIT,
+    gcvSURF_NV21_10BIT,
+    gcvSURF_NV16_10BIT,
+    gcvSURF_NV61_10BIT,
 
     /* Depth formats. */
     gcvSURF_D16                 = 600,
@@ -668,6 +851,8 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_S8D32F_2_A8R8G8B8,
     gcvSURF_D24S8_1_A8R8G8B8,
     gcvSURF_S8,
+    gcvSURF_X24S8,
+    gcvSURF_X24S8_1_A8R8G8B8,
 
     /* Alpha formats. */
     gcvSURF_A4                  = 700,
@@ -753,6 +938,7 @@ typedef enum _gceSURF_FORMAT
 
     gcvSURF_X16B16G16R16F_2_A8R8G8B8,
     gcvSURF_A16B16G16R16F_2_A8R8G8B8,
+    gcvSURF_A16B16G16R16F_2_G16R16F,
     gcvSURF_G32R32F_2_A8R8G8B8,
     gcvSURF_X32B32G32R32F_2_G32R32F,
     gcvSURF_A32B32G32R32F_2_G32R32F,
@@ -765,14 +951,20 @@ typedef enum _gceSURF_FORMAT
 
     gcvSURF_R32F_1_A8R8G8B8,
     gcvSURF_B32G32R32F_3_A8R8G8B8,
-
     gcvSURF_B10G11R11F_1_A8R8G8B8,
+
+    gcvSURF_A32F_1_R32F,
+    gcvSURF_L32F_1_R32F,
+    gcvSURF_A32L32F_1_G32R32F,
+
 
 
     /* sRGB format. */
     gcvSURF_SBGR8               = 1400,
     gcvSURF_A8_SBGR8,
     gcvSURF_X8_SBGR8,
+    gcvSURF_A8_SRGB8,
+    gcvSURF_X8_SRGB8,
 
     /* Integer formats. */
     gcvSURF_R8I                 = 1500,
@@ -819,17 +1011,25 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_A32B32G32R32UI,
     gcvSURF_A2B10G10R10UI,
     gcvSURF_G32R32I_2_A8R8G8B8,
+    gcvSURF_G32R32I_1_G32R32F,
     gcvSURF_G32R32UI_2_A8R8G8B8,
+    gcvSURF_G32R32UI_1_G32R32F,
     gcvSURF_X16B16G16R16I_2_A8R8G8B8,
+    gcvSURF_X16B16G16R16I_1_G32R32F,
     gcvSURF_A16B16G16R16I_2_A8R8G8B8,
+    gcvSURF_A16B16G16R16I_1_G32R32F,
     gcvSURF_X16B16G16R16UI_2_A8R8G8B8,
+    gcvSURF_X16B16G16R16UI_1_G32R32F,
     gcvSURF_A16B16G16R16UI_2_A8R8G8B8,
+    gcvSURF_A16B16G16R16UI_1_G32R32F,
     gcvSURF_X32B32G32R32I_2_G32R32I,
     gcvSURF_A32B32G32R32I_2_G32R32I,
+    gcvSURF_A32B32G32R32I_2_G32R32F,
     gcvSURF_X32B32G32R32I_3_A8R8G8B8,
     gcvSURF_A32B32G32R32I_4_A8R8G8B8,
     gcvSURF_X32B32G32R32UI_2_G32R32UI,
     gcvSURF_A32B32G32R32UI_2_G32R32UI,
+    gcvSURF_A32B32G32R32UI_2_G32R32F,
     gcvSURF_X32B32G32R32UI_3_A8R8G8B8,
     gcvSURF_A32B32G32R32UI_4_A8R8G8B8,
     gcvSURF_A2B10G10R10UI_1_A8R8G8B8,
@@ -856,9 +1056,17 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_B8G8R8I_1_A8R8G8B8,
     gcvSURF_B8G8R8UI_1_A8R8G8B8,
     gcvSURF_B16G16R16I_2_A8R8G8B8,
+    gcvSURF_B16G16R16I_1_G32R32F,
     gcvSURF_B16G16R16UI_2_A8R8G8B8,
+    gcvSURF_B16G16R16UI_1_G32R32F,
     gcvSURF_B32G32R32I_3_A8R8G8B8,
     gcvSURF_B32G32R32UI_3_A8R8G8B8,
+    gcvSURF_A16B16G16R16_2_A8R8G8B8,
+    gcvSURF_R8G8B8_1_A8R8G8B8,
+    gcvSURF_G16R16_1_A8R8G8B8,
+    gcvSURF_A2B10G10R10_1_A8R8G8B8,
+    gcvSURF_A2R10G10B10_1_A8R8G8B8,
+    gcvSURF_A2W10V10U10_1_A8R8G8B8,
 
     /* ASTC formats. */
     gcvSURF_ASTC4x4             = 1600,
@@ -890,6 +1098,30 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_ASTC12x10_SRGB,
     gcvSURF_ASTC12x12_SRGB,
 
+    /* Recompile format*/
+    gcvSURF_L16_1_A4R4G4B4 = 1700,
+    gcvSURF_V16U16_1_A8R8G8B8,
+    gcvSURF_Q8W8V8U8_1_A8R8G8B8,
+    gcvSURF_X8L8V8U8_1_A8R8G8B8,
+    gcvSURF_R3G3B2_1_A8R8G8B8,
+    gcvSURF_A8R3G3B2_1_A8R8G8B8,
+    gcvSURF_W11V11U10_1_A8R8G8B8,
+    gcvSURF_Q16W16V16U16_2_A8R8G8B8,
+    gcvSURF_W11V11U10,
+    gcvSURF_V8U8_1_A4R4G4B4,
+    gcvSURF_A8B8G8R8_1_A8R8G8B8,
+    gcvSURF_A32R32G32B32_1_A8R8G8B8,
+    gcvSURF_X16B16G16R16F_1_A8R8G8B8,
+    gcvSURF_A16B16G16R16F_1_A8R8G8B8,
+    gcvSURF_G32R32F_1_A8R8G8B8,
+    gcvSURF_X32B32G32R32F_1_A8R8G8B8,
+    gcvSURF_A32B32G32R32F_1_A8R8G8B8,
+    gcvSURF_G32R32I_1_A8R8G8B8,
+    gcvSURF_G32R32UI_1_A8R8G8B8,
+    gcvSURF_A32B32G32R32I_1_A8R8G8B8,
+    gcvSURF_A32B32G32R32UI_1_A8R8G8B8,
+    gcvSURF_Q16W16V16U16_1_A8R8G8B8,
+    gcvSURF_A16B16G16R16_1_A8R8G8B8,
     gcvSURF_FORMAT_COUNT
 }
 gceSURF_FORMAT;
@@ -902,6 +1134,13 @@ typedef enum _gceSURF_YUV_COLOR_SPACE
 }
 gceSURF_YUV_COLOR_SPACE;
 
+typedef enum _gceSURF_YUV_SAMPLE_RANGE
+{
+    gcvSURF_YUV_FULL_RANGE,
+    gcvSURF_YUV_NARROW_RANGE,
+}
+gceSURF_YUV_SAMPLE_RANGE;
+
 typedef enum _gceSURF_YUV_CHROMA_SITING
 {
     gcvSURF_YUV_CHROMA_SITING_0,
@@ -909,12 +1148,13 @@ typedef enum _gceSURF_YUV_CHROMA_SITING
 }
 gceSURF_YUV_CHROMA_SITING;
 
-typedef enum _gceSURF_YUV_SAMPLE_RANGE
+typedef enum _gceSURF_INFO_TYPE
 {
-    gcvSURF_YUV_FULL_RANGE,
-    gcvSURF_YUV_NARROW_RANGE,
+    gcvSURF_INFO_UNKNOWN   = 0,
+    gcvSURF_INFO_LAYERSIZE = 1,
+    gcvSURF_INFO_SLICESIZE = 2,
 }
-gceSURF_YUV_SAMPLE_RANGE;
+gceSURF_INFO_TYPE;
 
 /* Format modifiers. */
 typedef enum _gceSURF_FORMAT_MODE
@@ -1209,6 +1449,9 @@ typedef enum _gceTEXTURE_TYPE
     gcvTEXTURE_CUBEMAP,
     gcvTEXTURE_1D_ARRAY,
     gcvTEXTURE_2D_ARRAY,
+    gcvTEXTURE_2D_MS,
+    gcvTEXTURE_2D_MS_ARRAY,
+    gcvTEXTURE_CUBEMAP_ARRAY,
     gcvTEXTURE_EXTERNAL
 }
 gceTEXTURE_TYPE;
@@ -1287,7 +1530,7 @@ typedef enum _gceTILING
 
     /* Tiling special layouts. */
     gcvTILING_SPLIT_BUFFER = 0x100,
-    gcvTILING_Y_MAJOR      = 0x200,
+    gcvTILING_Y_MAJOR         = 0x200,
 
     /* Tiling combination layouts. */
     gcvMULTI_TILED      = gcvTILED
@@ -1300,6 +1543,16 @@ typedef enum _gceTILING
                         | gcvTILING_Y_MAJOR,
 }
 gceTILING;
+
+typedef enum _gceCACHE_MODE
+{
+    gcvCACHE_NONE,
+    gcvCACHE_128,
+    gcvCACHE_256,
+}
+gceCACHE_MODE;
+
+#define DEFAULT_CACHE_MODE    gcvCACHE_256
 
 /* 2D pattern type. */
 typedef enum _gce2D_PATTERN
@@ -1333,18 +1586,16 @@ gcePIPE_SELECT;
 /* Hardware type. */
 typedef enum _gceHARDWARE_TYPE
 {
-    gcvHARDWARE_INVALID = 0x00,
-    gcvHARDWARE_3D      = 0x01,
-    gcvHARDWARE_2D      = 0x02,
-    gcvHARDWARE_VG      = 0x04,
-#if gcdMULTI_GPU_AFFINITY
-    gcvHARDWARE_OCL     = 0x05,
-#endif
-    gcvHARDWARE_3D2D    = gcvHARDWARE_3D | gcvHARDWARE_2D,
+    gcvHARDWARE_INVALID,
+    gcvHARDWARE_3D,
+    gcvHARDWARE_2D,
+    gcvHARDWARE_VG,
+    gcvHARDWARE_3D2D,
+    gcvHARDWARE_NUM_TYPES,
 }
 gceHARDWARE_TYPE;
 
-#define gcdCHIP_COUNT               3
+#define gcdCHIP_COUNT               gcvCORE_COUNT
 
 typedef enum _gceMMU_MODE
 {
@@ -1392,6 +1643,7 @@ typedef enum _gceKERNEL_WHERE
     gcvKERNEL_TRIANGLE,
     gcvKERNEL_TEXTURE,
     gcvKERNEL_PIXEL,
+    gcvKERNEL_BLT,
 }
 gceKERNEL_WHERE;
 
@@ -1551,12 +1803,27 @@ typedef enum _gceTEXTURE_SWIZZLE
     gcvTEXTURE_SWIZZLE_INVALID,
 } gceTEXTURE_SWIZZLE;
 
+typedef enum _gceTEXTURE_SRGBDECODE
+{
+    gcvTEXTURE_SRGB_INVALID = 0,
+    gcvTEXTURE_DECODE,
+    gcvTEXTURE_SKIP_DECODE,
+}gceTEXTURE_SRGBDECODE;
+
 typedef enum _gceTEXTURE_COMPARE_MODE
 {
     gcvTEXTURE_COMPARE_MODE_INVALID  = 0,
     gcvTEXTURE_COMPARE_MODE_NONE,
     gcvTEXTURE_COMPARE_MODE_REF,
 } gceTEXTURE_COMPARE_MODE;
+
+typedef enum _gceTEXTURE_DS_MODE
+{
+    gcvTEXTURE_DS_MODE_INVALID = 0,
+    gcvTEXTURE_DS_MODE_DEPTH   = 1,
+    gcvTEXTURE_DS_MODE_STENCIL = 2,
+}gceTEXTURE_DS_MODE;
+
 
 /* Pixel output swizzle modes. */
 typedef enum _gcePIXEL_SWIZZLE
@@ -1580,6 +1847,11 @@ typedef enum _gcePRIMITIVE
     gcvPRIMITIVE_TRIANGLE_STRIP,
     gcvPRIMITIVE_TRIANGLE_FAN,
     gcvPRIMITIVE_RECTANGLE,
+    gcvPRIMITIVE_LINES_ADJACENCY,
+    gcvPRIMITIVE_LINE_STRIP_ADJACENCY,
+    gcvPRIMITIVE_TRIANGLES_ADJACENCY,
+    gcvPRIMITIVE_TRIANGLE_STRIP_ADJACENCY,
+    gcvPRIMITIVE_PATCH_LIST,
 }
 gcePRIMITIVE;
 
@@ -1600,7 +1872,8 @@ typedef enum _gceMULTI_GPU_RENDERING_MODE
     gcvMULTI_GPU_RENDERING_MODE_SPLIT_HEIGHT,
     gcvMULTI_GPU_RENDERING_MODE_INTERLEAVED_64x64,
     gcvMULTI_GPU_RENDERING_MODE_INTERLEAVED_128x64,
-    gcvMULTI_GPU_RENDERING_MODE_INTERLEAVED_128x128
+    gcvMULTI_GPU_RENDERING_MODE_INTERLEAVED_128x128,
+    gcvMULTI_GPU_RENDERING_MODE_INVALID
 }
 gceMULTI_GPU_RENDERING_MODE;
 
@@ -1637,7 +1910,6 @@ typedef enum _gceMACHINECODE
 
     gcvMACHINECODE_GLB25_RELEASE_0,
     gcvMACHINECODE_GLB25_RELEASE_1,
-    gcvMACHINECODE_GLB25_RELEASE_2,
 
     /* keep it as the last enum */
     gcvMACHINECODE_COUNT
@@ -1654,6 +1926,7 @@ typedef enum _gceUNIFORMCVT
 typedef enum _gceHAL_ARG_VERSION
 {
     gcvHAL_ARG_VERSION_V1 = 0x0,
+    gcvHAL_ARG_VERSION_V2,
 }
 gceHAL_ARG_VERSION;
 
@@ -1669,15 +1942,65 @@ typedef enum _gceCMDBUF_TYPE
 }
 gceCMDBUF_SOURCE;
 
-typedef enum _gceCHIP_FALG
+typedef enum _gceCHIP_FLAG
 {
     gcvCHIP_FLAG_MSAA_COHERENCEY_ECO_FIX = 1 << 0,
     gcvCHIP_FLAG_GC2000_R2               = 1 << 1,
 }
 gceCHIP_FLAG;
 
+typedef enum
+{
+    gcvENGINE_RENDER   = 0,
+    gcvENGINE_BLT      = 1,
+    gcvENGINE_COUNT    = 2,
+}
+gceENGINE;
+
+/* CORE enum. */
+typedef enum _gceCORE
+{
+    gcvCORE_MAJOR,
+    gcvCORE_3D1,
+    gcvCORE_3D2,
+    gcvCORE_3D3,
+    gcvCORE_2D,
+    gcvCORE_VG,
+#if gcdENABLE_DEC_COMPRESSION
+    gcvCORE_DEC,
+#endif
+    gcvCORE_COUNT
+}
+gceCORE;
+
+
+typedef enum _gceADDRESS_AREA
+{
+    gcvADDRESS_AREA_NORMAL,
+    gcvADDRESS_AREA_SECURE,
+
+    gcvADDRESS_AREA_COUNT
+}
+gceADDRESS_AREA;
+
+typedef enum _gceSECURE_MODE
+{
+    /* For cores without gcvFEATURE_SECURITY. */
+    gcvSECURE_NONE,
+
+    /* Use registers added in gcvFEATURE_SECURITY in normal driver,
+    ** In this mode, GPU always works under non secure mode and
+    ** should not touch secure buffer. It is used to test basic function.
+    */
+    gcvSECURE_IN_NORMAL,
+
+    /* Make use of gcvFEATURE_SECURITY in trust application. */
+    gcvSECURE_IN_TA
+}
+gceSECURE_MODE;
+
 /*
-* Bit of a requirment is 1 means requirement is a must, 0 means requirement can
+* Bit of a requirement is 1 means requirement is a must, 0 means requirement can
 * be ignored.
 */
 #define gcvALLOC_FLAG_CONTIGUOUS_BIT        0
@@ -1687,6 +2010,7 @@ gceCHIP_FLAG;
 #define gcvALLOC_FLAG_MEMLIMIT_BIT          4
 #define gcvALLOC_FLAG_DMABUF_BIT            5
 #define gcvALLOC_FLAG_USERMEMORY_BIT        6
+#define gcvALLOC_FLAG_EXTERNAL_MEMORY_BIT   7
 
 /* No special needs. */
 #define gcvALLOC_FLAG_NONE              (0)
@@ -1698,13 +2022,14 @@ gceCHIP_FLAG;
 #define gcvALLOC_FLAG_SECURITY          (1 << gcvALLOC_FLAG_SECURITY_BIT)
 /* Physical non contiguous. */
 #define gcvALLOC_FLAG_NON_CONTIGUOUS    (1 << gcvALLOC_FLAG_NON_CONTIGUOUS_BIT)
-
 #define gcvALLOC_FLAG_MEMLIMIT          (1 << gcvALLOC_FLAG_MEMLIMIT_BIT)
 
 /* Import DMABUF. */
 #define gcvALLOC_FLAG_DMABUF            (1 << gcvALLOC_FLAG_DMABUF_BIT)
 /* Import USERMEMORY. */
 #define gcvALLOC_FLAG_USERMEMORY        (1 << gcvALLOC_FLAG_USERMEMORY_BIT)
+/* Import an External Buffer. */
+#define gcvALLOC_FLAG_EXTERNAL_MEMORY   (1 << gcvALLOC_FLAG_EXTERNAL_MEMORY_BIT)
 
 /* GL_VIV internal usage */
 #ifndef GL_MAP_BUFFER_OBJ_VIV
@@ -1714,6 +2039,9 @@ gceCHIP_FLAG;
 /* Command buffer usage. */
 #define gcvCOMMAND_2D   (1 << 0)
 #define gcvCOMMAND_3D   (1 << 1)
+
+/* Default chip ID means chip ID same as core index. */
+#define gcvCHIP_ID_DEFAULT             (~0U)
 
 /******************************************************************************\
 ****************************** Object Declarations *****************************
@@ -1727,6 +2055,7 @@ typedef struct _gcsQUEUE            * gcsQUEUE_PTR;
 typedef struct _gcoQUEUE            * gcoQUEUE;
 typedef struct _gcsHAL_INTERFACE    * gcsHAL_INTERFACE_PTR;
 typedef struct _gcs2D_PROFILE       * gcs2D_PROFILE_PTR;
+
 
 #if gcdENABLE_VG
 typedef struct _gcoVGHARDWARE *            gcoVGHARDWARE;

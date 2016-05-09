@@ -154,7 +154,6 @@ struct _gcsDEBUGFS_Node
 #endif
     struct dentry *parent ; /*parent directory*/
     struct dentry *filen ; /*filename*/
-    struct dentry *vidmem;
     struct semaphore sem ; /* mutual exclusion semaphore */
     char *data ; /* The circular buffer data */
     int size ; /* Size of the buffer pointed to by 'data' */
@@ -202,9 +201,30 @@ static int gc_debugfs_open(struct inode *inode, struct file *file)
     return single_open(file, node->info->show, node);
 }
 
+static ssize_t
+gc_debugfs_write(
+    struct file *file,
+    const char __user *buf,
+    size_t count,
+    loff_t *pos
+    )
+{
+    struct seq_file *s = file->private_data;
+    gcsINFO_NODE *node = s->private;
+    gcsINFO *info = node->info;
+
+    if (info->write)
+    {
+        info->write(buf, count, node);
+    }
+
+    return count;
+}
+
 static const struct file_operations gc_debugfs_operations = {
     .owner = THIS_MODULE,
     .open = gc_debugfs_open,
+    .write = gc_debugfs_write,
     .read = seq_read,
     .llseek = seq_lseek,
     .release = single_release,
@@ -658,222 +678,6 @@ _DebugFSWrite (
     return n ;
 }
 
-int dumpProcess = 0;
-
-void
-_PrintCounter(
-    struct seq_file *file,
-    gcsDATABASE_COUNTERS * counter,
-    gctCONST_STRING Name
-    )
-{
-    seq_printf(file,"Counter: %s\n", Name);
-
-    seq_printf(file,"%-9s%10s","", "All");
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"%-9s","Current");
-
-    seq_printf(file,"%10lld", counter->bytes);
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"%-9s","Maximum");
-
-    seq_printf(file,"%10lld", counter->maxBytes);
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"%-9s","Total");
-
-    seq_printf(file,"%10lld", counter->totalBytes);
-
-    seq_printf(file, "\n");
-}
-
-void
-_ShowCounters(
-    struct seq_file *file,
-    gcsDATABASE_PTR database
-    )
-{
-    gctUINT i = 0;
-    gcsDATABASE_COUNTERS * counter;
-    gcsDATABASE_COUNTERS * nonPaged;
-
-    static gctCONST_STRING surfaceTypes[] = {
-        "UNKNOWN",
-        "Index",
-        "Vertex",
-        "Texture",
-        "RT",
-        "Depth",
-        "Bitmap",
-        "TS",
-        "Image",
-        "Mask",
-        "Scissor",
-        "HZDepth",
-    };
-
-    /* Get pointer to counters. */
-    counter = &database->vidMem;
-
-    nonPaged = &database->nonPaged;
-
-    seq_printf(file,"Counter: vidMem (for each surface type)\n");
-
-    seq_printf(file,"%-9s%10s","", "All");
-
-    for (i = 1; i < gcvSURF_NUM_TYPES; i++)
-    {
-        counter = &database->vidMemType[i];
-
-        seq_printf(file, "%10s",surfaceTypes[i]);
-    }
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"%-9s","Current");
-
-    seq_printf(file,"%10lld", database->vidMem.bytes);
-
-    for (i = 1; i < gcvSURF_NUM_TYPES; i++)
-    {
-        counter = &database->vidMemType[i];
-
-        seq_printf(file,"%10lld", counter->bytes);
-    }
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"%-9s","Maximum");
-
-    seq_printf(file,"%10lld", database->vidMem.maxBytes);
-
-    for (i = 1; i < gcvSURF_NUM_TYPES; i++)
-    {
-        counter = &database->vidMemType[i];
-
-        seq_printf(file,"%10lld", counter->maxBytes);
-    }
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"%-9s","Total");
-
-    seq_printf(file,"%10lld", database->vidMem.totalBytes);
-
-    for (i = 1; i < gcvSURF_NUM_TYPES; i++)
-    {
-        counter = &database->vidMemType[i];
-
-        seq_printf(file,"%10lld", counter->totalBytes);
-    }
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"Counter: vidMem (for each pool)\n");
-
-    seq_printf(file,"%-9s%10s","", "All");
-
-    for (i = 1; i < gcvPOOL_NUMBER_OF_POOLS; i++)
-    {
-        seq_printf(file, "%10d", i);
-    }
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"%-9s","Current");
-
-    seq_printf(file,"%10lld", database->vidMem.bytes);
-
-    for (i = 1; i < gcvPOOL_NUMBER_OF_POOLS; i++)
-    {
-        counter = &database->vidMemPool[i];
-
-        seq_printf(file,"%10lld", counter->bytes);
-    }
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"%-9s","Maximum");
-
-    seq_printf(file,"%10lld", database->vidMem.maxBytes);
-
-    for (i = 1; i < gcvPOOL_NUMBER_OF_POOLS; i++)
-    {
-        counter = &database->vidMemPool[i];
-
-        seq_printf(file,"%10lld", counter->maxBytes);
-    }
-
-    seq_printf(file, "\n");
-
-    seq_printf(file,"%-9s","Total");
-
-    seq_printf(file,"%10lld", database->vidMem.totalBytes);
-
-    for (i = 1; i < gcvPOOL_NUMBER_OF_POOLS; i++)
-    {
-        counter = &database->vidMemPool[i];
-
-        seq_printf(file,"%10lld", counter->totalBytes);
-    }
-
-    seq_printf(file, "\n");
-
-    /* Print nonPaged. */
-    _PrintCounter(file, &database->nonPaged, "nonPaged");
-    _PrintCounter(file, &database->contiguous, "contiguous");
-    _PrintCounter(file, &database->mapUserMemory, "mapUserMemory");
-    _PrintCounter(file, &database->mapMemory, "mapMemory");
-}
-
-static int vidmem_show(struct seq_file *file, void *unused)
-{
-    gceSTATUS status;
-    gcsDATABASE_PTR database;
-    gckGALDEVICE device = file->private;
-
-    gckKERNEL kernel = _GetValidKernel(device);
-
-    /* Find the database. */
-    gcmkONERROR(
-        gckKERNEL_FindDatabase(kernel, dumpProcess, gcvFALSE, &database));
-
-    seq_printf(file, "VidMem Usage (Process %d):\n", dumpProcess);
-
-    _ShowCounters(file, database);
-
-    return 0;
-
-OnError:
-    return 0;
-}
-
-static int
-vidmem_open(
-    struct inode *inode,
-    struct file *file
-    )
-{
-    return single_open(file, vidmem_show, inode->i_private);
-}
-
-static ssize_t
-vidmem_write(
-    struct file *file,
-    const char __user *buf,
-    size_t count,
-    loff_t *pos
-    )
-{
-    dumpProcess = simple_strtol(buf, NULL, 0);
-    return count;
-}
-
 /*******************************************************************************
  **
  ** File Operations Table
@@ -884,15 +688,6 @@ static const struct file_operations debugfs_operations = {
                                                           .open = _DebugFSOpen ,
                                                           .read = _DebugFSRead ,
                                                           .write = _DebugFSWrite ,
-} ;
-
-static const struct file_operations vidmem_operations = {
-    .owner = THIS_MODULE ,
-    .open = vidmem_open,
-    .read = seq_read,
-    .write = vidmem_write,
-    .llseek = seq_lseek,
-    .release = single_release,
 } ;
 
 /*******************************************************************************
@@ -1036,9 +831,6 @@ gckDEBUGFS_CreateNode (
                                           &debugfs_operations);
     }
 
-    node->vidmem
-        = debugfs_create_file("vidmem", S_IRUGO|S_IWUSR, node->parent, Device, &vidmem_operations);
-
     /* add it to our linked list */
     node->next = gc_dbgfs.linkedlist ;
     gc_dbgfs.linkedlist = node ;
@@ -1086,11 +878,6 @@ gckDEBUGFS_FreeNode (
     kfree(Node->temp);
 
     /*Close Debug fs*/
-    if (Node->vidmem)
-    {
-        debugfs_remove(Node->vidmem);
-    }
-
     if ( Node->filen )
     {
         debugfs_remove ( Node->filen ) ;

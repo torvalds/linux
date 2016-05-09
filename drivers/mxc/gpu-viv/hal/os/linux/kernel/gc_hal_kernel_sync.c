@@ -161,19 +161,47 @@ viv_sync_pt_free(
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0)
     obj = (struct viv_sync_timeline *) sync_pt_parent(sync_pt);
 #else
-    obj = (struct viv_sync_timeline *)sync_pt->parent;
+    obj = (struct viv_sync_timeline *) sync_pt->parent;
 #endif
 
     gckOS_DestroySyncPoint(obj->os, pt->sync);
 }
 
+static void
+viv_timeline_value_str(
+    struct sync_timeline * timeline,
+    char * str,
+    int size
+    )
+{
+    struct viv_sync_timeline * obj;
+
+    obj = (struct viv_sync_timeline *) timeline;
+    snprintf(str, size, "%u", obj->stamp);
+}
+
+static void
+viv_pt_value_str(
+    struct sync_pt * sync_pt,
+    char * str,
+    int size
+    )
+{
+    struct viv_sync_pt * pt;
+
+    pt = (struct viv_sync_pt *) sync_pt;
+    snprintf(str, size, "%u", pt->stamp);
+}
+
 static struct sync_timeline_ops viv_timeline_ops =
 {
-    .driver_name = "viv_sync",
+    .driver_name = "viv_hw_sync",
     .dup = viv_sync_pt_dup,
     .has_signaled = viv_sync_pt_has_signaled,
     .compare = viv_sync_pt_compare,
     .free_pt = viv_sync_pt_free,
+    .timeline_value_str = viv_timeline_value_str,
+    .pt_value_str = viv_pt_value_str,
 };
 
 struct viv_sync_timeline *

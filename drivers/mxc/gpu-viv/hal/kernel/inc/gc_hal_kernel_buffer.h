@@ -67,6 +67,21 @@ extern "C" {
 /* The number of context buffers per user. */
 #define gcdCONTEXT_BUFFER_COUNT 2
 
+#define gcdRENDER_FENCE_LENGTH                      (6 * gcmSIZEOF(gctUINT32))
+#define gcdBLT_FENCE_LENGTH                         (10 * gcmSIZEOF(gctUINT32))
+#define gcdRESERVED_FLUSHCACHE_LENGTH               (2 * gcmSIZEOF(gctUINT32))
+#define gcdRESERVED_PAUSE_OQ_LENGTH                 (2 * gcmSIZEOF(gctUINT32))
+#define gcdRESERVED_PAUSE_XFBWRITTEN_QUERY_LENGTH   (4 * gcmSIZEOF(gctUINT32))
+#define gcdRESERVED_PAUSE_PRIMGEN_QUERY_LENGTH      (4 * gcmSIZEOF(gctUINT32))
+#define gcdRESERVED_PAUSE_XFB_LENGTH                (2 * gcmSIZEOF(gctUINT32))
+#define gcdRESERVED_HW_FENCE                        (4 * gcmSIZEOF(gctUINT32))
+
+#define gcdRESUME_OQ_LENGTH                         (2 * gcmSIZEOF(gctUINT32))
+#define gcdRESUME_XFBWRITTEN_QUERY_LENGTH           (4 * gcmSIZEOF(gctUINT32))
+#define gcdRESUME_PRIMGEN_QUERY_LENGTH              (4 * gcmSIZEOF(gctUINT32))
+#define gcdRESUME_XFB_LENGH                         (2 * gcmSIZEOF(gctUINT32))
+
+
 /* State delta record. */
 typedef struct _gcsSTATE_DELTA_RECORD * gcsSTATE_DELTA_RECORD_PTR;
 typedef struct _gcsSTATE_DELTA_RECORD
@@ -86,9 +101,7 @@ gcsSTATE_DELTA_RECORD;
 typedef struct _gcsSTATE_DELTA
 {
     /* For debugging: the number of delta in the order of creation. */
-#if gcmIS_DEBUG(gcdDEBUG_CODE)
     gctUINT                     num;
-#endif
 
     /* Main state delta ID. Every time state delta structure gets reinitialized,
        main ID is incremented. If main state ID overflows, all map entry IDs get
@@ -124,28 +137,32 @@ typedef struct _gcsSTATE_DELTA
 }
 gcsSTATE_DELTA;
 
-/* Command buffer patch record. */
-struct _gcsPATCH
-{
-    /* Pointer within the buffer. */
-    gctUINT32_PTR               pointer;
+#define gcdPATCH_LIST_SIZE      1024
 
-    /* 32-bit data to write at the specified offset. */
-    gctUINT32                   data;
-};
+/* Command buffer patch record. */
+typedef struct _gcsPATCH
+{
+    /* Handle of a video memory node. */
+    gctUINT32                   handle;
+
+    /* Flag */
+    gctUINT32                   flag;
+}
+gcsPATCH;
 
 /* List of patches for the command buffer. */
-struct _gcsPATCH_LIST
+typedef struct _gcsPATCH_LIST
 {
     /* Array of patch records. */
-    struct _gcsPATCH            patch[1024];
+    struct _gcsPATCH            patch[gcdPATCH_LIST_SIZE];
 
     /* Number of patches in the array. */
     gctUINT                     count;
 
     /* Next item in the list. */
     struct _gcsPATCH_LIST       *next;
-};
+}
+gcsPATCH_LIST;
 
 /* Command buffer object. */
 struct _gcoCMDBUF
@@ -163,8 +180,9 @@ struct _gcoCMDBUF
     /* Feature usage flags. */
     gctBOOL                     using2D;
     gctBOOL                     using3D;
-    gctBOOL                     usingFilterBlit;
-    gctBOOL                     usingPalette;
+
+    /* Size of reserved tail for each commit. */
+    gctUINT32                   reservedTail;
 
     /* Physical address of command buffer. Just a name. */
     gctUINT32                   physical;
@@ -195,23 +213,28 @@ struct _gcoCMDBUF
     gctUINT64                   hintArrayTail;
 #endif
 
-#if gcmIS_DEBUG(gcdDEBUG_CODE)
     /* Last load state command location and hardware address. */
     gctUINT64                   lastLoadStatePtr;
     gctUINT32                   lastLoadStateAddress;
     gctUINT32                   lastLoadStateCount;
-#endif
+
+    /* List of patches. */
+    gctUINT64                   patchHead;
+
+    /*
+    * Put pointer type member after this line.
+    */
 
     /* Completion signal. */
     gctSIGNAL                   signal;
 
-    /* List of patches. */
-    struct _gcsPATCH_LIST       *patchHead;
-    struct _gcsPATCH_LIST       *patchTail;
-
     /* Link to the siblings. */
     gcoCMDBUF                   prev;
     gcoCMDBUF                   next;
+
+    /* Mirror command buffer(s). */
+    gcoCMDBUF                   *mirrors;
+    gctUINT32                   mirrorCount;
 };
 
 typedef struct _gcsQUEUE
@@ -243,6 +266,8 @@ struct _gcoQUEUE
     #define gcdIN_QUEUE_RECORD_LIMIT 16
     /* Number of records currently in queue */
     gctUINT32                   recordCount;
+
+    gceENGINE                   engine;
 };
 
 struct _gcsTEMPCMDBUF

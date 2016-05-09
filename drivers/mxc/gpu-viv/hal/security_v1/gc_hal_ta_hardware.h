@@ -53,64 +53,87 @@
 *****************************************************************************/
 
 
-#ifndef __gc_hal_kernel_allocator_array_h_
-#define __gc_hal_kernel_allocator_array_h_
+#ifndef _GC_HAL_TA_HARDWARE_H_
+#define _GC_HAL_TA_HARDWARE_H_
+#include "gc_hal_types.h"
+#include "gc_hal_security_interface.h"
 
-extern gceSTATUS
-_DefaultAlloctorInit(
-    IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
-
-extern gceSTATUS
-_UserMemoryAlloctorInit(
-    IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
-
-#if LINUX_CMA_FSL
-extern gceSTATUS
-_CMAFSLAlloctorInit(
-    IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#ifdef CONFIG_DMA_SHARED_BUFFER
-extern gceSTATUS
-_DmabufAlloctorInit(
-    IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
-#endif
-
-#ifndef NO_DMA_COHERENT
-extern gceSTATUS
-_DmaAlloctorInit(
-    IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
-#endif
-
-gcsALLOCATOR_DESC allocatorArray[] =
+typedef struct _gcsMMU_TABLE_ARRAY_ENTRY
 {
-#if LINUX_CMA_FSL
-    gcmkDEFINE_ALLOCATOR_DESC("cmafsl", _CMAFSLAlloctorInit),
-#endif
-    /* Default allocator. */
-    gcmkDEFINE_ALLOCATOR_DESC("default", _DefaultAlloctorInit),
+    gctUINT32                   low;
+    gctUINT32                   high;
+}
+gcsMMU_TABLE_ARRAY_ENTRY;
 
-    /* User memory importer. */
-    gcmkDEFINE_ALLOCATOR_DESC("user", _UserMemoryAlloctorInit),
+typedef struct _gcsHARDWARE_PAGETABLE_ARRAY
+{
+    /* Number of entries in page table array. */
+    gctUINT                     num;
 
-#ifdef CONFIG_DMA_SHARED_BUFFER
-    /* Dmabuf allocator. */
-    gcmkDEFINE_ALLOCATOR_DESC("dmabuf", _DmabufAlloctorInit),
+    /* Size in bytes of array. */
+    gctSIZE_T                   size;
+
+    /* Physical address of array. */
+    gctPHYS_ADDR_T              address;
+
+    /* Memory descriptor. */
+    gctPOINTER                  physical;
+
+    /* Logical address of array. */
+    gctPOINTER                  logical;
+}
+gcsHARDWARE_PAGETABLE_ARRAY;
+
+typedef struct _gcsHARWARE_FUNCTION
+{
+    /* Entry of the function. */
+    gctUINT32                   address;
+
+    /* CPU address of the function. */
+    gctUINT8_PTR                logical;
+
+    /* Bytes of the function. */
+    gctUINT32                   bytes;
+
+    /* Hardware address of END in this function. */
+    gctUINT32                   endAddress;
+
+    /* Logical of END in this function. */
+    gctUINT8_PTR                endLogical;
+}
+gcsHARDWARE_FUNCTION;
+
+typedef struct _gcTA_HARDWARE
+{
+    gctaOS                      os;
+    gcTA                        ta;
+
+    gctUINT32                   chipModel;
+    gctUINT32                   chipRevision;
+    gctUINT32                   productID;
+    gctUINT32                   ecoID;
+    gctUINT32                   customerID;
+
+    gctPOINTER                  featureDatabase;
+
+    gcsHARDWARE_PAGETABLE_ARRAY pagetableArray;
+
+    /* Function used by gctaHARDWARE. */
+    gctPHYS_ADDR                functionPhysical;
+    gctPOINTER                  functionLogical;
+    gctUINT32                   functionAddress;
+    gctSIZE_T                   functionBytes;
+
+    gcsHARDWARE_FUNCTION        functions[1];
+}
+gcsTA_HARDWARE;
+
+#ifdef __cplusplus
+}
+#endif
 #endif
 
-#ifndef NO_DMA_COHERENT
-    gcmkDEFINE_ALLOCATOR_DESC("dma", _DmaAlloctorInit),
-#endif
-};
-
-#endif

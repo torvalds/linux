@@ -52,7 +52,6 @@
 *
 *****************************************************************************/
 
-
 #ifndef __gc_hal_driver_h_
 #define __gc_hal_driver_h_
 
@@ -212,7 +211,7 @@ typedef enum _gceHAL_COMMAND_CODES
     /* Create native fence and return its fd. */
     gcvHAL_CREATE_NATIVE_FENCE,
 
-    /* Wait native fence for GPU. */
+    /* Let GPU wait on native fence. */
     gcvHAL_WAIT_NATIVE_FENCE,
 
     /* Destory MMU. */
@@ -221,14 +220,18 @@ typedef enum _gceHAL_COMMAND_CODES
     /* Shared buffer. */
     gcvHAL_SHBUF,
 
-    /* Config power management. */
-    gcvHAL_CONFIG_POWER_MANAGEMENT,
 
     /* Connect a video node to an OS native fd. */
     gcvHAL_GET_VIDEO_MEMORY_FD,
 
+    /* Config power management. */
+    gcvHAL_CONFIG_POWER_MANAGEMENT,
+
     /* Wrap a user memory into a video memory node. */
     gcvHAL_WRAP_USER_MEMORY,
+
+    /* Wait until GPU finishes access to a resource. */
+    gcvHAL_WAIT_FENCE,
 
 #if gcdENABLE_DEC_COMPRESSION && gcdDEC_ENABLE_AHB
     gcvHAL_DEC300_READ,
@@ -265,9 +268,11 @@ typedef struct _gcsUSER_MEMORY_DESC
     gctUINT64                  logical;
     gctUINT32                  physical;
     gctUINT32                  size;
+
+    /* gcvALLOC_FLAG_EXTERNAL_MEMORY */
+    gcsEXTERNAL_MEMORY_INFO    externalMemoryInfo;
 }
 gcsUSER_MEMORY_DESC;
-
 
 /* gcvHAL_QUERY_CHIP_IDENTITY */
 typedef struct _gcsHAL_QUERY_CHIP_IDENTITY * gcsHAL_QUERY_CHIP_IDENTITY_PTR;
@@ -280,6 +285,10 @@ typedef struct _gcsHAL_QUERY_CHIP_IDENTITY
     /* Revision value.*/
     gctUINT32                   chipRevision;
 
+    /* Chip date. */
+    gctUINT32                   chipDate;
+
+#if gcdENABLE_VG
     /* Supported feature fields. */
     gctUINT32                   chipFeatures;
 
@@ -301,29 +310,18 @@ typedef struct _gcsHAL_QUERY_CHIP_IDENTITY
     /* Supported minor feature 5 fields. */
     gctUINT32                   chipMinorFeatures5;
 
-    /* Supported minor feature 5 fields. */
+    /* Supported minor feature 6 fields. */
     gctUINT32                   chipMinorFeatures6;
+#endif
 
     /* Number of streams supported. */
     gctUINT32                   streamCount;
 
-    /* Total number of temporary registers per thread. */
-    gctUINT32                   registerMax;
-
-    /* Maximum number of threads. */
-    gctUINT32                   threadCount;
-
-    /* Number of shader cores. */
-    gctUINT32                   shaderCoreCount;
-
-    /* Size of the vertex cache. */
-    gctUINT32                   vertexCacheSize;
-
-    /* Number of entries in the vertex output buffer. */
-    gctUINT32                   vertexOutputBufferSize;
-
     /* Number of pixel pipes. */
     gctUINT32                   pixelPipes;
+
+    /* Number of resolve pipes. */
+    gctUINT32                   resolvePipes;
 
     /* Number of instructions. */
     gctUINT32                   instructionCount;
@@ -331,28 +329,23 @@ typedef struct _gcsHAL_QUERY_CHIP_IDENTITY
     /* Number of constants. */
     gctUINT32                   numConstants;
 
-    /* Buffer size */
-    gctUINT32                   bufferSize;
-
     /* Number of varyings */
     gctUINT32                   varyingsCount;
 
-    /* Supertile layout style in hardware */
-    gctUINT32                   superTileMode;
-
-#if gcdMULTI_GPU
     /* Number of 3D GPUs */
     gctUINT32                   gpuCoreCount;
-#endif
-
-    /* Special control bits for 2D chip. */
-    gctUINT32                   chip2DControl;
 
     /* Product ID */
     gctUINT32                   productID;
 
     /* Special chip flag bits */
     gceCHIP_FLAG                chipFlags;
+
+    /* ECO ID. */
+    gctUINT32                   ecoID;
+
+    /* Customer ID. */
+    gctUINT32                   customerID;
 }
 gcsHAL_QUERY_CHIP_IDENTITY;
 
@@ -394,6 +387,9 @@ typedef struct _gcsHAL_INTERFACE
     /* Hardware type. */
     gceHARDWARE_TYPE            hardwareType;
 
+    /* Core index for current hardware type. */
+    gctUINT32                   coreIndex;
+
     /* Status value. */
     gceSTATUS                   status;
 
@@ -403,6 +399,9 @@ typedef struct _gcsHAL_INTERFACE
     /* Pid of the client. */
     gctUINT32                   pid;
 
+    /* Engine */
+    gceENGINE                   engine;
+
     /* Union of command structures. */
     union _u
     {
@@ -411,6 +410,12 @@ typedef struct _gcsHAL_INTERFACE
         {
             /* Physical memory address of internal memory. */
             OUT gctUINT32               baseAddress;
+
+            /* Start of flat mapping range. */
+            OUT gctUINT32               flatMappingStart;
+
+            /* End of flat mapping range. */
+            OUT gctUINT32               flatMappingEnd;
         }
         GetBaseAddress;
 
@@ -635,11 +640,7 @@ typedef struct _gcsHAL_INTERFACE
             /* Event queue in gcsQUEUE. */
             IN gctUINT64            queue;
 
-#if gcdMULTI_GPU
-            IN gceCORE_3D_MASK     chipEnable;
-
-            IN gceMULTI_GPU_MODE    gpuMode;
-#endif
+            IN gceENGINE            engine;
         }
         Event;
 
@@ -658,11 +659,14 @@ typedef struct _gcsHAL_INTERFACE
             /* Event queue in gcsQUEUE. */
             IN gctUINT64            queue;
 
-#if gcdMULTI_GPU
-            IN gceCORE_3D_MASK      chipEnable;
+            /* Used to distinguish different FE. */
+            IN gceENGINE            engine;
 
-            IN gceMULTI_GPU_MODE    gpuMode;
-#endif
+            /* The command buffer is linked to multiple command queue. */
+            IN gctBOOL              shared;
+
+            /* Index of command queue. */
+            IN gctUINT32            index;
         }
         Commit;
 
@@ -813,7 +817,6 @@ typedef struct _gcsHAL_INTERFACE
         }
         WriteRegisterData;
 
-#if gcdMULTI_GPU
         /* gcvHAL_READ_REGISTER_EX */
         struct _gcsHAL_READ_REGISTER_EX
         {
@@ -823,7 +826,7 @@ typedef struct _gcsHAL_INTERFACE
             IN gctUINT32            coreSelect;
 
             /* Data read. */
-            OUT gctUINT32           data[gcdMULTI_GPU];
+            OUT gctUINT32           data[4];
         }
         ReadRegisterDataEx;
 
@@ -836,10 +839,9 @@ typedef struct _gcsHAL_INTERFACE
             IN gctUINT32            coreSelect;
 
             /* Data read. */
-            IN gctUINT32            data[gcdMULTI_GPU];
+            IN gctUINT32            data[4];
         }
         WriteRegisterDataEx;
-#endif
 
 #if VIVANTE_PROFILER
         /* gcvHAL_GET_PROFILE_SETTING */
@@ -847,6 +849,7 @@ typedef struct _gcsHAL_INTERFACE
         {
             /* Enable profiling */
             OUT gctBOOL             enable;
+            OUT gctBOOL             syncMode;
         }
         GetProfileSetting;
 
@@ -855,6 +858,7 @@ typedef struct _gcsHAL_INTERFACE
         {
             /* Enable profiling */
             IN gctBOOL              enable;
+            IN gctBOOL              syncMode;
         }
         SetProfileSetting;
 
@@ -1017,6 +1021,9 @@ typedef struct _gcsHAL_INTERFACE
 
             /* Chip types. */
             OUT gceHARDWARE_TYPE        types[gcdCHIP_COUNT];
+
+            /* Chip IDs. */
+            OUT gctUINT32               ids[gcvCORE_COUNT];
         }
         ChipInfo;
 
@@ -1131,6 +1138,7 @@ typedef struct _gcsHAL_INTERFACE
         struct _gcsHAL_QUERY_RESET_TIME_STAMP
         {
             OUT gctUINT64           timeStamp;
+            OUT gctUINT64           contextID;
         }
         QueryResetTimeStamp;
 
@@ -1193,11 +1201,6 @@ typedef struct _gcsHAL_INTERFACE
         }
         ShBuf;
 
-        struct _gcsHAL_CONFIG_POWER_MANAGEMENT
-        {
-            IN gctBOOL                  enable;
-        }
-        ConfigPowerManagement;
 
         struct _gcsHAL_GET_VIDEO_MEMORY_FD
         {
@@ -1205,6 +1208,12 @@ typedef struct _gcsHAL_INTERFACE
             OUT gctINT              fd;
         }
         GetVideoMemoryFd;
+
+        struct _gcsHAL_CONFIG_POWER_MANAGEMENT
+        {
+            IN gctBOOL                  enable;
+        }
+        ConfigPowerManagement;
 
         struct _gcsHAL_WRAP_USER_MEMORY
         {
@@ -1221,6 +1230,19 @@ typedef struct _gcsHAL_INTERFACE
             IN gcsUSER_MEMORY_DESC      desc;
         }
         WrapUserMemory;
+
+        struct _gcsHAL_WAIT_FENCE
+        {
+            IN gctUINT32                handle;
+            IN gctUINT32                timeOut;
+        }
+        WaitFence;
+
+        struct _gcsHAL_COMMIT_DONE
+        {
+            IN gctUINT64                context;
+        }
+        CommitDone;
 
 #if gcdENABLE_DEC_COMPRESSION && gcdDEC_ENABLE_AHB
         struct _gcsHAL_DEC300_READ

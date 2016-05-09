@@ -53,64 +53,60 @@
 *****************************************************************************/
 
 
-#ifndef __gc_hal_kernel_allocator_array_h_
-#define __gc_hal_kernel_allocator_array_h_
+#include "gc_hal_kernel_linux.h"
 
-extern gceSTATUS
-_DefaultAlloctorInit(
+#define _GC_OBJ_ZONE gcvZONE_OS
+
+#if gcdENABLE_TRUST_APPLICATION
+
+gceSTATUS
+gckOS_OpenSecurityChannel(
     IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
-
-extern gceSTATUS
-_UserMemoryAlloctorInit(
-    IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
-
-#if LINUX_CMA_FSL
-extern gceSTATUS
-_CMAFSLAlloctorInit(
-    IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
-#endif
-
-#ifdef CONFIG_DMA_SHARED_BUFFER
-extern gceSTATUS
-_DmabufAlloctorInit(
-    IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
-#endif
-
-#ifndef NO_DMA_COHERENT
-extern gceSTATUS
-_DmaAlloctorInit(
-    IN gckOS Os,
-    OUT gckALLOCATOR * Allocator
-    );
-#endif
-
-gcsALLOCATOR_DESC allocatorArray[] =
+    IN gceCORE Core,
+    OUT gctUINT32 *Channel
+    )
 {
-#if LINUX_CMA_FSL
-    gcmkDEFINE_ALLOCATOR_DESC("cmafsl", _CMAFSLAlloctorInit),
-#endif
-    /* Default allocator. */
-    gcmkDEFINE_ALLOCATOR_DESC("default", _DefaultAlloctorInit),
+    *Channel = 0x1;
+    return gcvSTATUS_OK;
+}
 
-    /* User memory importer. */
-    gcmkDEFINE_ALLOCATOR_DESC("user", _UserMemoryAlloctorInit),
+gceSTATUS
+gckOS_InitSecurityChannel(
+    OUT gctUINT32 Channel
+    )
+{
+    return gcvSTATUS_OK;
+}
 
-#ifdef CONFIG_DMA_SHARED_BUFFER
-    /* Dmabuf allocator. */
-    gcmkDEFINE_ALLOCATOR_DESC("dmabuf", _DmabufAlloctorInit),
-#endif
+gceSTATUS
+gckOS_CloseSecurityChannel(
+    IN gctUINT32 Channel
+    )
+{
+    return gcvSTATUS_OK;
+}
 
-#ifndef NO_DMA_COHERENT
-    gcmkDEFINE_ALLOCATOR_DESC("dma", _DmaAlloctorInit),
-#endif
-};
+extern gceSTATUS
+TAEmulator (
+    void *
+    );
+
+gceSTATUS
+gckOS_CallSecurityService(
+    IN gctUINT32 Channel,
+    IN gcsTA_INTERFACE *Interface
+    )
+{
+    gceSTATUS status;
+    gcmkHEADER();
+    gcmkVERIFY_ARGUMENT(Channel != 0);
+
+    TAEmulator(Interface);
+
+    status = Interface->result;
+
+    gcmkFOOTER();
+    return status;
+}
 
 #endif

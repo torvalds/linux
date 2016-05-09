@@ -75,6 +75,7 @@ typedef struct _gcsINFO
 {
     const char *        name;
     int                 (*show)(struct seq_file*, void*);
+    int                 (*write)(const char __user *buf, size_t count, void*);
 }
 gcsINFO;
 

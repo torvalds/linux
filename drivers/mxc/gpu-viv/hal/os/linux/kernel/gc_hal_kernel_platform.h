@@ -59,18 +59,9 @@
 
 typedef struct _gcsMODULE_PARAMETERS
 {
-#if gcdMULTI_GPU || gcdMULTI_GPU_AFFINITY
-    gctINT  irqLine3D0;
-    gctUINT registerMemBase3D0;
-    gctUINT registerMemSize3D0;
-    gctINT  irqLine3D1;
-    gctUINT registerMemBase3D1;
-    gctUINT registerMemSize3D1;
-#else
     gctINT  irqLine;
     gctUINT registerMemBase;
     gctUINT registerMemSize;
-#endif
     gctINT  irqLine2D;
     gctUINT registerMemBase2D;
     gctUINT registerMemSize2D;
@@ -95,6 +86,10 @@ typedef struct _gcsMODULE_PARAMETERS
     gctUINT gpu3DMinClock;
     gctBOOL registerMemMapped;
     gctPOINTER registerMemAddress;
+    gctINT  irqs[gcvCORE_COUNT];
+    gctUINT registerBases[gcvCORE_COUNT];
+    gctUINT registerSizes[gcvCORE_COUNT];
+    gctUINT chipIDs[gcvCORE_COUNT];
 }
 gcsMODULE_PARAMETERS;
 
@@ -253,6 +248,20 @@ typedef struct _gcsPLATFORM_OPERATIONS
         IN gckPLATFORM Platform,
         IN gctPHYS_ADDR_T CPUPhysical,
         OUT gctPHYS_ADDR_T * GPUPhysical
+        );
+
+    /*******************************************************************************
+    **
+    **  getGPUPhysical
+    **
+    **  Convert GPU physical address to CPU physical address if they are
+    **  different.
+    */
+    gceSTATUS
+    (*getCPUPhysical)(
+        IN gckPLATFORM Platform,
+        IN gctUINT32 GPUPhysical,
+        OUT gctPHYS_ADDR_T * CPUPhysical
         );
 
     /*******************************************************************************

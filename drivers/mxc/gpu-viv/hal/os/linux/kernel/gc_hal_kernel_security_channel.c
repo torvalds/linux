@@ -113,6 +113,7 @@ gpu3d_allocate_secure_mem(
     status = gckOS_PhysicalToPhysicalAddress(
                 Os,
                 handle,
+                0,
                 &phyAddr);
 
     if (gcmIS_ERROR(status))

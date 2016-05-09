@@ -66,10 +66,6 @@
 #include "gc_hal_statistics.h"
 #endif
 
-#if gcdSECURITY
-#include "gc_hal_security_interface.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -146,6 +142,7 @@ extern "C" {
 \******************************************************************************/
 
 #define gcvINVALID_ADDRESS          ~0U
+#define gcvINVALID_VALUE            0xCCCCCCCC
 
 #define gcmGET_PRE_ROTATION(rotate) \
     ((rotate) & (~(gcvSURF_POST_FLIP_X | gcvSURF_POST_FLIP_Y)))
@@ -191,6 +188,7 @@ typedef enum _gceOBJECT_TYPE
     gcvOBJ_QUEUE                = gcmCC('Q','U','E',' '),
     gcvOBJ_SAMPLER              = gcmCC('S','A','M','P'),
     gcvOBJ_SHADER               = gcmCC('S','H','D','R'),
+    gcvOBJ_VIR_SHADER           = gcmCC('V','S','D','R'),
     gcvOBJ_STREAM               = gcmCC('S','T','R','M'),
     gcvOBJ_SURF                 = gcmCC('S','U','R','F'),
     gcvOBJ_TEXTURE              = gcmCC('T','X','T','R'),
@@ -202,6 +200,8 @@ typedef enum _gceOBJECT_TYPE
     gcvOBJ_BUFOBJ               = gcmCC('B','U','F','O'),
     gcvOBJ_UNIFORM_BLOCK        = gcmCC('U','B','L','K'),
     gcvOBJ_CL                   = gcmCC('C','L',' ',' '),
+    gcvOBJ_STORAGE_BLOCK        = gcmCC('S','B','L','K'),
+    gcvOBJ_IO_BLOCK             = gcmCC('I','O','B','K'),
 }
 gceOBJECT_TYPE;
 
@@ -215,25 +215,10 @@ gcsOBJECT;
 
 typedef struct _gckHARDWARE *       gckHARDWARE;
 
-/* CORE flags. */
-typedef enum _gceCORE
-{
-    gcvCORE_MAJOR       = 0x0,
-    gcvCORE_2D          = 0x1,
-    gcvCORE_VG          = 0x2,
-#if gcdMULTI_GPU_AFFINITY
-    gcvCORE_OCL         = 0x3,
-#endif
-#if gcdENABLE_DEC_COMPRESSION
-    gcvCORE_DEC         = 0x4,
-#endif
-    gcvCORE_COUNT
-}
-gceCORE;
 
 #define gcdMAX_GPU_COUNT               gcvCORE_COUNT
 
-#define gcdMAX_SURF_LAYERS              4
+#define gcdMAX_SURF_LAYERS             4
 
 #define gcdMAX_DRAW_BUFFERS            8
 
@@ -428,7 +413,8 @@ gckOS_MapPagesEx(
     IN gctPHYS_ADDR Physical,
     IN gctSIZE_T PageCount,
     IN gctUINT32 Address,
-    IN gctPOINTER PageTable
+    IN gctPOINTER PageTable,
+    IN gctBOOL Writable
     );
 
 gceSTATUS
@@ -513,7 +499,7 @@ gceSTATUS
 gckOS_UserLogicalToPhysical(
     IN gckOS Os,
     IN gctPOINTER Logical,
-    OUT gctUINT64 * Address
+    OUT gctPHYS_ADDR_T * Address
     );
 
 /* Map physical memory. */
@@ -538,6 +524,7 @@ gceSTATUS
 gckOS_PhysicalToPhysicalAddress(
     IN gckOS Os,
     IN gctPOINTER Physical,
+    IN gctUINT32 Offset,
     OUT gctPHYS_ADDR_T * PhysicalAddress
     );
 
@@ -574,26 +561,6 @@ gckOS_WriteRegisterEx(
     IN gctUINT32 Address,
     IN gctUINT32 Data
     );
-
-#if gcdMULTI_GPU
-gceSTATUS
-gckOS_ReadRegisterByCoreId(
-    IN gckOS Os,
-    IN gceCORE Core,
-    IN gctUINT32 CoreId,
-    IN gctUINT32 Address,
-    OUT gctUINT32 * Data
-    );
-
-gceSTATUS
-gckOS_WriteRegisterByCoreId(
-    IN gckOS Os,
-    IN gceCORE Core,
-    IN gctUINT32 CoreId,
-    IN gctUINT32 Address,
-    IN gctUINT32 Data
-    );
-#endif
 
 /* Write data to a 32-bit memory location. */
 gceSTATUS
@@ -858,7 +825,7 @@ gckOS_AtomDecrement(
     OUT gctINT32_PTR Value
     );
 
-/* Delay a number of microseconds. */
+/* Delay a number of milliseconds. */
 gceSTATUS
 gckOS_Delay(
     IN gckOS Os,
@@ -1103,40 +1070,6 @@ gckOS_GetThreadID(
     OUT gctUINT32_PTR ThreadID
     );
 
-#if gcdSECURITY
-gceSTATUS
-gckOS_OpenSecurityChannel(
-    IN gckOS Os,
-    IN gceCORE Core,
-    OUT gctUINT32 *Channel
-    );
-
-gceSTATUS
-gckOS_CloseSecurityChannel(
-    IN gctUINT32 Channel
-    );
-
-gceSTATUS
-gckOS_CallSecurityService(
-    IN gctUINT32 Channel,
-    IN gcsTA_INTERFACE * Interface
-    );
-
-gceSTATUS
-gckOS_InitSecurityChannel(
-    OUT gctUINT32 Channel
-    );
-
-gceSTATUS
-gckOS_AllocatePageArray(
-    IN gckOS Os,
-    IN gctPHYS_ADDR Physical,
-    IN gctSIZE_T PageCount,
-    OUT gctPOINTER * PageArrayLogical,
-    OUT gctPHYS_ADDR * PageArrayPhysical
-    );
-#endif
-
 /******************************************************************************\
 ********************************** Signal Object *********************************
 \******************************************************************************/
@@ -1231,7 +1164,8 @@ gckOS_WrapMemory(
     IN gckOS Os,
     IN gcsUSER_MEMORY_DESC_PTR Desc,
     OUT gctSIZE_T *Bytes,
-    OUT gctPHYS_ADDR * Physical
+    OUT gctPHYS_ADDR * Physical,
+    OUT gctBOOL *Contiguous
     );
 
 /******************************************************************************\
@@ -1240,6 +1174,7 @@ gckOS_WrapMemory(
 gceSTATUS
 gckOS_CreateSyncTimeline(
     IN gckOS Os,
+    IN gceCORE Core,
     OUT gctHANDLE * Timeline
     );
 
@@ -1392,7 +1327,7 @@ gceSTATUS
 gckOS_GPUPhysicalToCPUPhysical(
     IN gckOS Os,
     IN gctUINT32 GPUPhysical,
-    IN gctUINT32_PTR CPUPhysical
+    IN gctPHYS_ADDR_T * CPUPhysical
     );
 
 gceSTATUS
@@ -1689,6 +1624,9 @@ typedef struct _gckVIDMEM *         gckVIDMEM;
 typedef struct _gckKERNEL *         gckKERNEL;
 typedef struct _gckDB *             gckDB;
 typedef struct _gckDVFS *           gckDVFS;
+typedef struct _gcsASYNC_COMMAND *  gckASYNC_COMMAND;
+typedef struct _gckMMU *            gckMMU;
+typedef struct _gcsDEVICE *         gckDEVICE;
 
 /* Construct a new gckVIDMEM object. */
 gceSTATUS
@@ -1761,6 +1699,22 @@ gckVIDMEM_DestroyVirtual(
     IN gcuVIDMEM_NODE_PTR Node
     );
 
+gceSTATUS
+gckVIDMEM_SetCommitStamp(
+    IN gckKERNEL Kernel,
+    IN gceENGINE Engine,
+    IN gctUINT32 Handle,
+    IN gctUINT64 CommitStamp
+    );
+
+gceSTATUS
+gckVIDMEM_GetCommitStamp(
+    IN gckKERNEL Kernel,
+    IN gceENGINE Engine,
+    IN gctUINT32 Handle,
+    OUT gctUINT64_PTR CommitStamp
+    );
+
 /******************************************************************************\
 ******************************** gckKERNEL Object ******************************
 \******************************************************************************/
@@ -1782,18 +1736,24 @@ typedef enum _gceKERNEL_FLUSH
     gcvFLUSH_DEPTH              = 0x02,
     gcvFLUSH_TEXTURE            = 0x04,
     gcvFLUSH_2D                 = 0x08,
-#if gcdMULTI_GPU
     gcvFLUSH_L2                 = 0x10,
-#endif
     gcvFLUSH_TILE_STATUS        = 0x20,
+    gcvFLUSH_ICACHE             = 0x40,
+    gcvFLUSH_TXDESC             = 0x80,
+    gcvFLUSH_FENCE              = 0x100,
+    gcvFLUSH_VERTEX             = 0x200,
+    gcvFLUSH_TFBHEADER          = 0x400,
     gcvFLUSH_ALL                = gcvFLUSH_COLOR
                                 | gcvFLUSH_DEPTH
                                 | gcvFLUSH_TEXTURE
                                 | gcvFLUSH_2D
-#if gcdMULTI_GPU
                                 | gcvFLUSH_L2
-#endif
                                 | gcvFLUSH_TILE_STATUS
+                                | gcvFLUSH_ICACHE
+                                | gcvFLUSH_TXDESC
+                                | gcvFLUSH_FENCE
+                                | gcvFLUSH_VERTEX
+                                | gcvFLUSH_TFBHEADER
 }
 gceKERNEL_FLUSH;
 
@@ -1802,7 +1762,9 @@ gceSTATUS
 gckKERNEL_Construct(
     IN gckOS Os,
     IN gceCORE Core,
+    IN gctUINT ChipID,
     IN gctPOINTER Context,
+    IN gckDEVICE Device,
     IN gckDB SharedDB,
     OUT gckKERNEL * Kernel
     );
@@ -1939,9 +1901,6 @@ gckKERNEL_UnmapMemory(
 gceSTATUS
 gckKERNEL_Notify(
     IN gckKERNEL Kernel,
-#if gcdMULTI_GPU
-    IN gctUINT CoreId,
-#endif
     IN gceNOTIFY Notifcation,
     IN gctBOOL Data
     );
@@ -2068,6 +2027,7 @@ gckHARDWARE_BuildVirtualAddress(
 gceSTATUS
 gckHARDWARE_QueryCommandBuffer(
     IN gckHARDWARE Hardware,
+    IN gceENGINE Engine,
     OUT gctUINT32 * Alignment,
     OUT gctUINT32 * ReservedHead,
     OUT gctUINT32 * ReservedTail
@@ -2078,6 +2038,7 @@ gceSTATUS
 gckHARDWARE_WaitLink(
     IN gckHARDWARE Hardware,
     IN gctPOINTER Logical,
+    IN gctUINT32 Address,
     IN gctUINT32 Offset,
     IN OUT gctUINT32 * Bytes,
     OUT gctUINT32 * WaitOffset,
@@ -2100,7 +2061,6 @@ gckHARDWARE_End(
     IN OUT gctUINT32 * Bytes
     );
 
-#if gcdMULTI_GPU
 gceSTATUS
 gckHARDWARE_ChipEnable(
     IN gckHARDWARE Hardware,
@@ -2108,7 +2068,6 @@ gckHARDWARE_ChipEnable(
     IN gceCORE_3D_MASK ChipEnable,
     IN OUT gctSIZE_T * Bytes
     );
-#endif
 
 /* Add a NOP command in the command queue. */
 gceSTATUS
@@ -2209,9 +2168,6 @@ gckHARDWARE_ConvertLogical(
 gceSTATUS
 gckHARDWARE_Interrupt(
     IN gckHARDWARE Hardware,
-#if gcdMULTI_GPU
-    IN gctUINT CoreId,
-#endif
     IN gctBOOL InterruptValid
     );
 
@@ -2301,12 +2257,6 @@ gceSTATUS
 gckHARDWARE_SetPowerManagement(
     IN gckHARDWARE Hardware,
     IN gctBOOL PowerManagement
-    );
-
-gceSTATUS
-gckHARDWARE_SetPowerManagementLock(
-    IN gckHARDWARE Hardware,
-    IN gctBOOL Lock
     );
 
 gceSTATUS
@@ -2450,6 +2400,16 @@ gckHARDWARE_QueryStateTimer(
     OUT gctUINT64_PTR Suspend
     );
 
+gceSTATUS
+gckHARDWARE_Fence(
+    IN gckHARDWARE Hardware,
+    IN gceENGINE Engine,
+    IN gctPOINTER Logical,
+    IN gctUINT32 FenceAddress,
+    IN gctUINT64 FenceData,
+    IN OUT gctUINT32 * Bytes
+    );
+
 #if !gcdENABLE_VG
 /******************************************************************************\
 ***************************** gckINTERRUPT Object ******************************
@@ -2505,16 +2465,6 @@ gckEVENT_Destroy(
     );
 
 /* Reserve the next available hardware event. */
-#if gcdMULTI_GPU
-gceSTATUS
-gckEVENT_GetEvent(
-    IN gckEVENT Event,
-    IN gctBOOL Wait,
-    OUT gctUINT8 * EventID,
-    IN gceKERNEL_WHERE Source,
-    IN gceCORE_3D_MASK ChipEnable
-    );
-#else
 gceSTATUS
 gckEVENT_GetEvent(
     IN gckEVENT Event,
@@ -2522,7 +2472,6 @@ gckEVENT_GetEvent(
     OUT gctUINT8 * EventID,
     IN gceKERNEL_WHERE Source
    );
-#endif
 
 /* Add a new event to the list of events. */
 gceSTATUS
@@ -2582,7 +2531,8 @@ gckEVENT_Unlock(
 gceSTATUS
 gckEVENT_CommitDone(
     IN gckEVENT Event,
-    IN gceKERNEL_WHERE FromWhere
+    IN gceKERNEL_WHERE FromWhere,
+    IN gckCONTEXT Context
     );
 
 /* Schedule a FreeVirtualCommandBuffer event. */
@@ -2595,37 +2545,18 @@ gckEVENT_DestroyVirtualCommandBuffer(
     IN gceKERNEL_WHERE FromWhere
     );
 
-#if gcdMULTI_GPU
-gceSTATUS
-gckEVENT_Submit(
-    IN gckEVENT Event,
-    IN gctBOOL Wait,
-    IN gctBOOL FromPower,
-    IN gceCORE_3D_MASK ChipEnable
-    );
-#else
 gceSTATUS
 gckEVENT_Submit(
     IN gckEVENT Event,
     IN gctBOOL Wait,
     IN gctBOOL FromPower
     );
-#endif
 
-#if gcdMULTI_GPU
-gceSTATUS
-gckEVENT_Commit(
-    IN gckEVENT Event,
-    IN gcsQUEUE_PTR Queue,
-    IN gceCORE_3D_MASK ChipEnable
-    );
-#else
 gceSTATUS
 gckEVENT_Commit(
     IN gckEVENT Event,
     IN gcsQUEUE_PTR Queue
     );
-#endif
 
 /* Schedule a composition event. */
 gceSTATUS
@@ -2645,9 +2576,6 @@ gckEVENT_Notify(
 gceSTATUS
 gckEVENT_Interrupt(
     IN gckEVENT Event,
-#if gcdMULTI_GPU
-    IN gctUINT CoreId,
-#endif
     IN gctUINT32 IDs
     );
 
@@ -2697,12 +2625,9 @@ gckCOMMAND_Start(
 /* Stop the command queue. */
 gceSTATUS
 gckCOMMAND_Stop(
-    IN gckCOMMAND Command,
-    IN gctBOOL FromRecovery
+    IN gckCOMMAND Command
     );
 
-#if gcdMULTI_GPU
-/* Commit a buffer to the command queue. */
 gceSTATUS
 gckCOMMAND_Commit(
     IN gckCOMMAND Command,
@@ -2711,19 +2636,9 @@ gckCOMMAND_Commit(
     IN gcsSTATE_DELTA_PTR StateDelta,
     IN gcsQUEUE_PTR EventQueue,
     IN gctUINT32 ProcessID,
-    IN gceCORE_3D_MASK ChipEnable
+    IN gctBOOL Shared,
+    IN gctUINT32 Index
     );
-#else
-gceSTATUS
-gckCOMMAND_Commit(
-    IN gckCOMMAND Command,
-    IN gckCONTEXT Context,
-    IN gcoCMDBUF CommandBuffer,
-    IN gcsSTATE_DELTA_PTR StateDelta,
-    IN gcsQUEUE_PTR EventQueue,
-    IN gctUINT32 ProcessID
-    );
-#endif
 
 /* Reserve space in the command buffer. */
 gceSTATUS
@@ -2742,20 +2657,11 @@ gckCOMMAND_Execute(
     );
 
 /* Stall the command queue. */
-#if gcdMULTI_GPU
-gceSTATUS
-gckCOMMAND_Stall(
-    IN gckCOMMAND Command,
-    IN gctBOOL FromPower,
-    IN gceCORE_3D_MASK ChipEnable
-    );
-#else
 gceSTATUS
 gckCOMMAND_Stall(
     IN gckCOMMAND Command,
     IN gctBOOL FromPower
     );
-#endif
 
 /* Attach user process. */
 gceSTATUS
@@ -2792,8 +2698,6 @@ gckCOMMAND_AddressInKernelCommandBuffer(
 ********************************* gckMMU Object ********************************
 \******************************************************************************/
 
-typedef struct _gckMMU *            gckMMU;
-
 /* Construct a new gckMMU object. */
 gceSTATUS
 gckMMU_Construct(
@@ -2822,6 +2726,7 @@ gckMMU_AllocatePagesEx(
     IN gckMMU Mmu,
     IN gctSIZE_T PageCount,
     IN gceSURF_TYPE Type,
+    IN gctBOOL Secure,
     OUT gctPOINTER * PageTable,
     OUT gctUINT32 * Address
     );
@@ -2830,6 +2735,8 @@ gckMMU_AllocatePagesEx(
 gceSTATUS
 gckMMU_FreePages(
     IN gckMMU Mmu,
+    IN gctBOOL Secure,
+    IN gctUINT32 Address,
     IN gctPOINTER PageTable,
     IN gctSIZE_T PageCount
     );
@@ -2839,6 +2746,7 @@ gceSTATUS
 gckMMU_SetPage(
    IN gckMMU Mmu,
    IN gctPHYS_ADDR_T PageAddress,
+   IN gctBOOL Writable,
    IN gctUINT32 *PageEntry
    );
 
@@ -2852,6 +2760,20 @@ gceSTATUS
 gckMMU_DumpPageTableEntry(
     IN gckMMU Mmu,
     IN gctUINT32 Address
+    );
+
+gceSTATUS
+gckMMU_FillFlatMapping(
+    IN gckMMU Mmu,
+    IN gctUINT32 PhysBase,
+    IN gctSIZE_T Size
+    );
+
+gceSTATUS
+gckMMU_IsFlatMapped(
+    IN gckMMU Mmu,
+    OUT gctUINT32 Physical,
+    OUT gctBOOL *In
     );
 
 
@@ -2883,20 +2805,6 @@ gckHARDWARE_UpdateContextProfile(
 gceSTATUS
 gckHARDWARE_InitProfiler(
     IN gckHARDWARE Hardware
-    );
-
-gceSTATUS
-gckOS_SignalQueryHardware(
-    IN gckOS Os,
-    IN gctSIGNAL Signal,
-    OUT gckHARDWARE * Hardware
-    );
-
-gceSTATUS
-gckOS_SignalSetHardware(
-    IN gckOS Os,
-    IN gctSIGNAL Signal,
-    gckHARDWARE Hardware
     );
 
 gceSTATUS

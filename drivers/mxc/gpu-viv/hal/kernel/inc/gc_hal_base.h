@@ -74,14 +74,11 @@ typedef struct _gcoOS *                 gcoOS;
 typedef struct _gco2D *                 gco2D;
 typedef struct gcsATOM *                gcsATOM_PTR;
 
-#if gcdENABLE_3D
 typedef struct _gco3D *                 gco3D;
 typedef struct _gcoCL *                 gcoCL;
 typedef struct _gcsFAST_FLUSH *         gcsFAST_FLUSH_PTR;
-#endif
 
 typedef struct _gcoSURF *               gcoSURF;
-typedef struct _gcsSURF_INFO *          gcsSURF_INFO_PTR;
 typedef struct _gcsSURF_NODE *          gcsSURF_NODE_PTR;
 typedef struct _gcsSURF_FORMAT_INFO *   gcsSURF_FORMAT_INFO_PTR;
 typedef struct _gcsPOINT *              gcsPOINT_PTR;
@@ -101,17 +98,18 @@ typedef struct _gcsCONTEXT_MAP *        gcsCONTEXT_MAP_PTR;
 typedef void *                          gcoVG;
 #endif
 
-#if gcdGC355_PROFILER
-typedef struct _gcsPROFILERFUNCData * gcsPROFILERFUNCData_PTR;
-typedef struct _gcsPROFILERFUNCNODE * gcsPROFILERFUNCNODE_PTR;
-#endif
-
-#if gcdSYNC
 typedef struct _gcoFENCE *              gcoFENCE;
 typedef struct _gcsSYNC_CONTEXT *       gcsSYNC_CONTEXT_PTR;
-#endif
+
+typedef enum {
+    gcvFENCE_TYPE_READ          = 0x1,
+    gcvFENCE_TYPE_WRITE         = 0x2,
+    gcvFENCE_TYPE_ALL           = gcvFENCE_TYPE_READ | gcvFENCE_TYPE_WRITE,
+}
+gceFENCE_TYPE;
 
 typedef struct _gcsUSER_MEMORY_DESC *   gcsUSER_MEMORY_DESC_PTR;
+
 
 /******************************************************************************\
 ********************* Share obj lock/unlock macros. ****************************
@@ -133,6 +131,14 @@ typedef struct _gcsUSER_MEMORY_DESC *   gcsUSER_MEMORY_DESC_PTR;
         (gcoOS_ReleaseMutex(gcvNULL, Obj->sharedLock));\
     }\
 }
+
+typedef struct _gcsSystemInfo
+{
+    /* memory latency number for SH data fetch, in SH cycle*/
+    gctUINT32 memoryLatencySH;
+}
+gcsSystemInfo;
+
 
 #if gcdENABLE_3D
 #define gcPLS_INITIALIZER \
@@ -201,6 +207,11 @@ typedef struct _gcsTLS
 {
     gceHARDWARE_TYPE            currentType;
 
+    /* To which core device control is called,
+    * it is index in a hardware type.
+    */
+    gctUINT32                   currentCoreIndex;
+
     /* Current 3D hardwre of this thread */
     gcoHARDWARE                 currentHardware;
 
@@ -218,6 +229,9 @@ typedef struct _gcsTLS
 #endif
 #if gcdENABLE_2D
     gco2D                       engine2D;
+#if gcdDUMP_2D
+    gctUINT32                   newDump2DFlag;
+#endif
 #endif
 
     /*thread data */
@@ -292,11 +306,28 @@ gceBLEND_FUNCTION;
 /* Blending modes. */
 typedef enum _gceBLEND_MODE
 {
-    gcvBLEND_ADD,
+    gcvBLEND_ADD = 0,
     gcvBLEND_SUBTRACT,
     gcvBLEND_REVERSE_SUBTRACT,
     gcvBLEND_MIN,
     gcvBLEND_MAX,
+    gcvBLEND_MULTIPLY,
+    gcvBLEND_SCREEN,
+    gcvBLEND_OVERLAY,
+    gcvBLEND_DARKEN,
+    gcvBLEND_LIGHTEN,
+    gcvBLEND_COLORDODGE,
+    gcvBLEND_COLORBURN,
+    gcvBLEND_HARDLIGHT,
+    gcvBLEND_SOFTLIGHT,
+    gcvBLEND_DIFFERENCE,
+    gcvBLEND_EXCLUSION,
+    gcvBLEND_HSL_HUE,
+    gcvBLEND_HSL_SATURATION,
+    gcvBLEND_HSL_COLOR,
+    gcvBLEND_HSL_LUMINOSITY,
+
+    gcvBLEND_TOTAL
 }
 gceBLEND_MODE;
 
@@ -310,7 +341,7 @@ typedef enum _gceDEPTH_MODE
 gceDEPTH_MODE;
 #endif /* gcdENABLE_3D */
 
-#if (gcdENABLE_3D || gcdENABLE_VG)
+
 /* API flags. */
 typedef enum _gceAPI
 {
@@ -318,19 +349,21 @@ typedef enum _gceAPI
     gcvAPI_OPENGL_ES11,
     gcvAPI_OPENGL_ES20,
     gcvAPI_OPENGL_ES30,
+    gcvAPI_OPENGL_ES31,
+    gcvAPI_OPENGL_ES32,
     gcvAPI_OPENGL,
     gcvAPI_OPENVG,
     gcvAPI_OPENCL,
 }
 gceAPI;
-#endif
-
 
 typedef enum _gceWHERE
 {
+    gcvWHERE_COMMAND_PREFETCH = 0,
     gcvWHERE_COMMAND,
     gcvWHERE_RASTER,
     gcvWHERE_PIXEL,
+    gcvWHERE_BLT,
 }
 gceWHERE;
 
@@ -365,6 +398,19 @@ typedef struct _gcsHAL_LIMITS
 
 }gcsHAL_LIMITS;
 
+#define gcdEXTERNAL_MEMORY_NAME_MAX 32
+#define gcdEXTERNAL_MEMORY_DATA_MAX 8
+
+typedef struct _gcsEXTERNAL_MEMORY_INFO
+{
+    /* Name of allocator used to attach this memory. */
+    gctCHAR                allocatorName[gcdEXTERNAL_MEMORY_NAME_MAX];
+
+    /* User defined data which will be passed to allocator. */
+    gctUINT32              userData[gcdEXTERNAL_MEMORY_DATA_MAX];
+}
+gcsEXTERNAL_MEMORY_INFO;
+
 /******************************************************************************\
 *********** Generic Memory Allocation Optimization Using Containers ************
 \******************************************************************************/
@@ -397,31 +443,6 @@ typedef struct _gcsCONTAINER
     gcsCONTAINER_RECORD             allocList;
 }
 gcsCONTAINER;
-
-#if gcdGC355_PROFILER
-/*------------------------GC355_PROFILER function node structure--------------*/
-typedef struct _gcsPROFILERFUNCData
-{
-    gctSTRING funcName;
-    gctSTRING Tag;
-    gctUINT   TreeDepth;
-    gctUINT   saveLayerTreeDepth;
-    gctUINT   varTreeDepth;
-    gctUINT64 elapsedTime;
-    gctUINT64 cpuTime;
-    gctUINT64 gpuTime;
-}gcsPROFILERFUNCData;
-
-
-typedef struct _gcsPROFILERFUNCNODE
-{
-    gcsPROFILERFUNCData_PTR data;
-    gcsPROFILERFUNCNODE_PTR pre;
-    gcsPROFILERFUNCNODE_PTR next;
-}gcsPROFILERFUNCNODE;
-/*----------------------------------------------------------------------------*/
-#endif
-
 
 gceSTATUS
 gcsCONTAINER_Construct(
@@ -499,6 +520,13 @@ gcoHAL_FrameInfoOps(
     IN OUT gctUINT * Val
     );
 
+/* Set HAL options */
+gceSTATUS
+gcoHAL_SetOption(
+     IN gcoHAL Hal,
+     IN gceOPTION Option,
+     IN gctBOOL Value
+    );
 
 gceSTATUS
 gcoHAL_GetHardware(
@@ -602,19 +630,21 @@ gcoHAL_QueryChipIdentity(
     OUT gctUINT32* ChipMinorFeatures
     );
 
-/* Query the minor features of the hardware. */
-gceSTATUS gcoHAL_QueryChipMinorFeatures(
-    IN gcoHAL Hal,
-    OUT gctUINT32* NumFeatures,
-    OUT gctUINT32* ChipMinorFeatures
+
+gceSTATUS
+gcoHAL_QuerySuperTileMode(
+    OUT gctUINT32_PTR SuperTileMode
     );
 
+
+#ifdef LINUX
 gctINT32
 gcoOS_EndRecordAllocation(void);
 void
 gcoOS_RecordAllocation(void);
 void
 gcoOS_AddRecordAllocation(gctSIZE_T Size);
+#endif
 
 /* Query the amount of video memory. */
 gceSTATUS
@@ -797,13 +827,6 @@ gcoHAL_ScheduleEvent(
     IN OUT gcsHAL_INTERFACE_PTR Interface
     );
 
-/* Destroy a surface. */
-gceSTATUS
-gcoHAL_DestroySurface(
-    IN gcoHAL Hal,
-    IN gcoSURF Surface
-    );
-
 /* Request a start/stop timestamp. */
 gceSTATUS
 gcoHAL_SetTimer(
@@ -852,6 +875,14 @@ gcoHAL_Query3DCoreCount(
     );
 
 gceSTATUS
+gcoHAL_QueryCoreCount(
+    IN gcoHAL Hal,
+    IN gceHARDWARE_TYPE Type,
+    OUT gctUINT *Count,
+    OUT gctUINT_PTR ChipIDs
+    );
+
+gceSTATUS
 gcoHAL_QuerySeparated2D(
     IN gcoHAL Hal
     );
@@ -872,15 +903,25 @@ gceSTATUS
 gcoHAL_QueryChipLimits(
     IN gcoHAL           Hal,
     IN gctINT32         Chip,
-    IN gctINT32         Mask,
     OUT gcsHAL_LIMITS   *Limits);
 
 gceSTATUS
 gcoHAL_QueryChipFeature(
     IN gcoHAL       Hal,
     IN gctINT32     Chip,
-    IN gctINT32     Mask,
     IN gceFEATURE   Feature);
+
+gceSTATUS
+gcoHAL_SetCoreIndex(
+    IN gcoHAL Hal,
+    IN gctUINT32 Core
+    );
+
+gceSTATUS
+gcoHAL_GetCurrentCoreIndex(
+    IN gcoHAL Hal,
+    OUT gctUINT32 *Core
+    );
 
 /*----------------------------------------------------------------------------*/
 /*----- Shared Buffer --------------------------------------------------------*/
@@ -952,8 +993,16 @@ gcoHAL_UnlockVideoMemory(
     );
 
 gceSTATUS
-    gcoHAL_ReleaseVideoMemory(
+gcoHAL_ReleaseVideoMemory(
     IN gctUINT32 Node
+    );
+
+gceSTATUS
+gcoHAL_AllocateContiguous(
+    IN gcoOS Os,
+    IN OUT gctSIZE_T * Bytes,
+    OUT gctPHYS_ADDR * Physical,
+    OUT gctPOINTER * Logical
     );
 
 #if gcdENABLE_3D || gcdENABLE_VG
@@ -973,6 +1022,34 @@ gcoHAL_WrapUserMemory(
     IN gcsUSER_MEMORY_DESC_PTR UserMemoryDesc,
     OUT gctUINT32_PTR Node
     );
+
+gceSTATUS
+gcoHAL_QueryResetTimeStamp(
+    OUT gctUINT64_PTR ResetTimeStamp,
+    OUT gctUINT64_PTR ContextID
+    );
+
+gceSTATUS
+gcoHAL_WaitFence(
+    IN gctUINT32 Handle,
+    IN gctUINT32 TimeOut
+    );
+
+#if gcdENABLE_2D
+gceSTATUS
+gcoHAL_AttachExternalMemory(
+    IN gcoHAL Hal,
+    IN gcsEXTERNAL_MEMORY_INFO * External,
+    OUT gctPOINTER * Handle,
+    OUT gctUINT32_PTR GPU2DAddress
+    );
+
+gceSTATUS
+gcoHAL_DetachExternalMemory(
+    IN gcoHAL Hal,
+    IN gctPOINTER * Handle
+    );
+#endif
 
 /******************************************************************************\
 ********************************** gcoOS Object *********************************
@@ -1008,8 +1085,18 @@ gcoOS_GetTLS(
     OUT gcsTLS_PTR * TLS
     );
 
-    /* Copy the TLS from a source thread. */
-    gceSTATUS gcoOS_CopyTLS(IN gcsTLS_PTR Source);
+/* Copy the TLS from a source thread. */
+gceSTATUS
+gcoOS_CopyTLS(
+    IN gcsTLS_PTR Source
+    );
+
+/* Query the thread local storage. */
+gceSTATUS
+gcoOS_QueryTLS(
+    OUT gcsTLS_PTR * TLS
+    );
+
 
 /* Destroy the objects associated with the current thread. */
 void
@@ -1088,16 +1175,6 @@ gceSTATUS
 gcoOS_FreeMemory(
     IN gcoOS Os,
     IN gctPOINTER Memory
-    );
-
-/* Allocate contiguous memory. */
-gceSTATUS
-gcoOS_AllocateContiguous(
-    IN gcoOS Os,
-    IN gctBOOL InUserSpace,
-    IN OUT gctSIZE_T * Bytes,
-    OUT gctPHYS_ADDR * Physical,
-    OUT gctPOINTER * Logical
     );
 
 /* Free contiguous memory. */
@@ -1525,6 +1602,12 @@ gcoOS_SetProfileSetting(
         );
 #endif
 
+/* Get the amount of physical system memory */
+gceSTATUS
+gcoOS_GetPhysicalSystemMemorySize(
+    OUT gctSIZE_T * PhysicalSystemMemorySize
+    );
+
 /* Query the video memory. */
 gceSTATUS
 gcoOS_QueryVideoMemory(
@@ -1542,6 +1625,7 @@ gcoOS_QueryCurrentProcessName(
     OUT gctSTRING Name,
     IN gctSIZE_T Size
     );
+
 
 /*----------------------------------------------------------------------------*/
 /*----- Atoms ----------------------------------------------------------------*/
@@ -1848,6 +1932,12 @@ gcoOS_CPUPhysicalToGPUPhysical(
     OUT gctUINT32_PTR GPUPhysical
     );
 
+gceSTATUS
+gcoOS_QuerySystemInfo(
+    IN gcoOS Os,
+    OUT gcsSystemInfo *Info
+    );
+
 /*----------------------------------------------------------------------------*/
 /*----- Profile --------------------------------------------------------------*/
 
@@ -2012,25 +2102,26 @@ typedef struct _gcsRECT
 }
 gcsRECT;
 
-typedef union _gcsPIXEL
+typedef struct _gcsPIXEL
 {
-    struct
+    union
     {
-        gctFLOAT r, g, b, a;
-        gctFLOAT d, s;
-    } pf;
+        struct
+        {
+            gctFLOAT r, g, b, a;
+        } f;
+        struct
+        {
+            gctINT32 r, g, b, a;
+        } i;
+        struct
+        {
+            gctUINT32 r, g, b, a;
+        } ui;
+    } color;
 
-    struct
-    {
-        gctINT32 r, g, b, a;
-        gctINT32 d, s;
-    } pi;
-
-    struct
-    {
-        gctUINT32 r, g, b, a;
-        gctUINT32 d, s;
-    } pui;
+    gctFLOAT  d;
+    gctUINT32 s;
 
 } gcsPIXEL;
 
@@ -2051,6 +2142,7 @@ typedef enum _gceFORMAT_CLASS
     gcvFORMAT_CLASS_BUMP,
     gcvFORMAT_CLASS_DEPTH,
     gcvFORMAT_CLASS_ASTC,
+    gcvFORMAT_CLASS_COMPRESSED,
     gcvFORMAT_CLASS_OTHER
 }
 gceFORMAT_CLASS;
@@ -2383,6 +2475,14 @@ gcoSURF_GetSize(
     OUT gctUINT * Depth
     );
 
+/* Get surface information */
+gceSTATUS
+gcoSURF_GetInfo(
+    IN gcoSURF Surface,
+    IN gceSURF_INFO_TYPE InfoType,
+    IN OUT gctINT32 *Value
+    );
+
 /* Get surface aligned sizes. */
 gceSTATUS
 gcoSURF_GetAlignedSize(
@@ -2440,13 +2540,6 @@ gcoSURF_GetTiling(
     OUT gceTILING * Tiling
     );
 
-/* Get flip bitmap offset bytes. */
-gceSTATUS
-gcoSURF_GetFlipBitmapOffset(
-    IN gcoSURF Surface,
-    OUT gctUINT_PTR FlipBitmapOffset
-    );
-
 /* Get bottom buffer offset bytes. */
 gceSTATUS
 gcoSURF_GetBottomBufferOffset(
@@ -2462,14 +2555,6 @@ gcoSURF_Lock(
     IN OUT gctPOINTER * Memory
     );
 
-gceSTATUS
-gcoSURF_LockEx(
-    IN gcoSURF Surface,
-    OPTIONAL OUT gctUINT32 * Address,
-    OPTIONAL OUT gctPOINTER * Memory,
-    OPTIONAL OUT gctPHYS_ADDR_T *BusAddress
-    );
-
 /* Unlock the surface. */
 gceSTATUS
 gcoSURF_Unlock(
@@ -2482,6 +2567,12 @@ gceSTATUS
 gcoSURF_QueryFlags(
     IN gcoSURF Surface,
     IN gceSURF_FLAG Flag
+    );
+
+gceSTATUS
+gcoSURF_QueryHints(
+    IN gcoSURF Surface,
+    IN gceSURF_TYPE Hints
     );
 
 /* Return pixel format parameters; Info is required to be a pointer to an
@@ -2525,10 +2616,10 @@ gcoSURF_Fill(
 /* Alpha blend two surfaces together. */
 gceSTATUS
 gcoSURF_Blend(
-    IN gcoSURF SrcSurface,
-    IN gcoSURF DestSurface,
-    IN gcsPOINT_PTR SrcOrig,
-    IN gcsPOINT_PTR DestOrigin,
+    IN gcoSURF SrcSurf,
+    IN gcoSURF DstSurf,
+    IN gcsPOINT_PTR SrcOrigin,
+    IN gcsPOINT_PTR DstOrigin,
     IN gcsSIZE_PTR Size,
     IN gceSURF_BLEND_MODE Mode
     );
@@ -2559,19 +2650,6 @@ gcoSURF_SetBuffer(
     IN gctUINT32 Physical
     );
 
-/* Set the underlying video buffer for the surface wrapper. */
-gceSTATUS
-gcoSURF_SetVideoBuffer(
-    IN gcoSURF Surface,
-    IN gceSURF_TYPE Type,
-    IN gceSURF_FORMAT Format,
-    IN gctUINT Width,
-    IN gctUINT Height,
-    IN gctUINT Stride,
-    IN gctPOINTER *LogicalPlane1,
-    IN gctUINT32 *PhysicalPlane1
-    );
-
 /* Set the size of the surface in pixels and map the underlying buffer. */
 gceSTATUS
 gcoSURF_SetWindow(
@@ -2580,6 +2658,17 @@ gcoSURF_SetWindow(
     IN gctUINT Y,
     IN gctUINT Width,
     IN gctUINT Height
+    );
+
+/* Set the size of the surface in pixels and map the underlying buffer. */
+gceSTATUS
+gcoSURF_SetImage(
+    IN gcoSURF Surface,
+    IN gctUINT X,
+    IN gctUINT Y,
+    IN gctUINT Width,
+    IN gctUINT Height,
+    IN gctUINT Depth
     );
 
 /* Set width/height alignment of the surface directly and calculate stride/size. This is only for dri backend now. Please be careful before use. */
@@ -2618,17 +2707,31 @@ gcoSURF_QueryOrientation(
     );
 
 gceSTATUS
-gcoSURF_SetOffset(
-    IN gcoSURF Surface,
-    IN gctSIZE_T Offset
-    );
-
-gceSTATUS
 gcoSURF_NODE_Cache(
     IN gcsSURF_NODE_PTR Node,
     IN gctPOINTER Logical,
     IN gctSIZE_T Bytes,
     IN gceCACHEOPERATION Operation
+    );
+
+gceSTATUS
+gcsSURF_NODE_SetHardwareAddress(
+    IN gcsSURF_NODE_PTR Node,
+    IN gctUINT32 Address
+    );
+
+gceSTATUS
+gcsSURF_NODE_GetHardwareAddress(
+    IN gcsSURF_NODE_PTR Node,
+    OUT gctUINT32_PTR Physical,
+    OUT gctUINT32_PTR Physical2,
+    OUT gctUINT32_PTR Physical3,
+    OUT gctUINT32_PTR PhysicalBottom
+    );
+
+gctUINT32
+gcsSURF_NODE_GetHWAddress(
+    IN gcsSURF_NODE_PTR Node
     );
 
 /* Lock and unlock surface node */
@@ -2662,19 +2765,6 @@ gcoSURF_CPUCacheOperation(
     IN gceCACHEOPERATION Operation
     );
 
-gceSTATUS
-gcoSURF_WrapUserMultiBuffer(
-    IN gcoHAL Hal,
-    IN gctUINT Width,
-    IN gctUINT Height,
-    IN gceSURF_TYPE Type,
-    IN gceSURF_FORMAT Format,
-    IN gctUINT Stride[3],
-    IN gctUINT32 Handle[3],
-    IN gctUINT BufferOffset[3],
-    IN gctUINT32 Flag,
-    OUT gcoSURF * Surface
-    );
 
 gceSTATUS
 gcoSURF_Swap(
@@ -2756,9 +2846,9 @@ gcoSURF_GetSamples(
     OUT gctUINT_PTR Samples
     );
 
-/* Append tile status buffer. */
+/* Append tile status buffer to user pool surface. */
 gceSTATUS
-gcoSURF_AttachTileStatus(
+gcoSURF_AppendTileStatus(
     IN gcoSURF Surface
     );
 #endif
@@ -2776,6 +2866,32 @@ gcoSURF_WrapUserMemory(
     IN gctUINT32 Flag,
     OUT gcoSURF * Surface
     );
+
+gceSTATUS
+gcoSURF_WrapUserMultiBuffer(
+    IN gcoHAL Hal,
+    IN gctUINT Width,
+    IN gctUINT Height,
+    IN gceSURF_TYPE Type,
+    IN gceSURF_FORMAT Format,
+    IN gctUINT Stride[3],
+    IN gctUINT32 Handle[3],
+    IN gctUINT BufferOffset[3],
+    IN gctUINT32 Flag,
+    OUT gcoSURF * Surface
+    );
+
+#define MAX_SURF_MIX_SRC_NUM 64
+gceSTATUS
+gcoSURF_MixSurfacesCPU(
+    IN gcoSURF TargetSurface,
+    IN gctUINT TargetSliceIndex,
+    IN gcoSURF *SourceSurface,
+    IN gctUINT *SourceSliceIndices,
+    IN gctFLOAT *Weights,
+    IN gctINT Count
+    );
+
 
 /******************************************************************************\
 ********************************* gcoDUMP Object ********************************
@@ -3042,15 +3158,6 @@ gcoOS_ReplaceDebugFile(
     IN gctFILE fp
     );
 
-void
-gcoOS_SysTraceBegin(
-    IN gctCONST_STRING FuncName
-    );
-
-void
-gcoOS_SysTraceEnd(
-    IN void);
-
 /*******************************************************************************
 **
 **  gcmFATAL
@@ -3173,58 +3280,61 @@ gcoOS_DebugTrace(
 #define gcvZONE_OS              (1 << 0)
 #define gcvZONE_HARDWARE        (1 << 1)
 #define gcvZONE_HEAP            (1 << 2)
-#define gcvZONE_SIGNAL          (1 << 27)
+#define gcvZONE_SIGNAL          (1 << 3)
 
 /* Kernel zones. */
-#define gcvZONE_KERNEL          (1 << 3)
-#define gcvZONE_VIDMEM          (1 << 4)
-#define gcvZONE_COMMAND         (1 << 5)
-#define gcvZONE_DRIVER          (1 << 6)
-#define gcvZONE_CMODEL          (1 << 7)
-#define gcvZONE_MMU             (1 << 8)
-#define gcvZONE_EVENT           (1 << 9)
-#define gcvZONE_DEVICE          (1 << 10)
-#define gcvZONE_DATABASE        (1 << 11)
-#define gcvZONE_INTERRUPT       (1 << 12)
-#define gcvZONE_POWER           (1 << 13)
-#define gcvZONE_ALLOCATOR       (1 << 14)
+#define gcvZONE_KERNEL          (1 << 4)
+#define gcvZONE_VIDMEM          (1 << 5)
+#define gcvZONE_COMMAND         (1 << 6)
+#define gcvZONE_DRIVER          (1 << 7)
+#define gcvZONE_CMODEL          (1 << 8)
+#define gcvZONE_MMU             (1 << 9)
+#define gcvZONE_EVENT           (1 << 10)
+#define gcvZONE_DEVICE          (1 << 11)
+#define gcvZONE_DATABASE        (1 << 12)
+#define gcvZONE_INTERRUPT       (1 << 13)
+#define gcvZONE_POWER           (1 << 14)
+#define gcvZONE_ASYNC_COMMAND   (1 << 15)
+#define gcvZONE_ALLOCATOR       (1 << 16)
 
 /* User zones. */
-#define gcvZONE_HAL             (1 << 3)
-#define gcvZONE_BUFFER          (1 << 4)
-#define gcvZONE_CONTEXT         (1 << 5)
-#define gcvZONE_SURFACE         (1 << 6)
-#define gcvZONE_INDEX           (1 << 7)
-#define gcvZONE_STREAM          (1 << 8)
-#define gcvZONE_TEXTURE         (1 << 9)
-#define gcvZONE_2D              (1 << 10)
-#define gcvZONE_3D              (1 << 11)
-#define gcvZONE_COMPILER        (1 << 12)
-#define gcvZONE_MEMORY          (1 << 13)
-#define gcvZONE_STATE           (1 << 14)
-#define gcvZONE_AUX             (1 << 15)
-#define gcvZONE_VERTEX          (1 << 16)
-#define gcvZONE_CL              (1 << 17)
-#define gcvZONE_COMPOSITION     (1 << 17)
-#define gcvZONE_VG              (1 << 18)
-#define gcvZONE_IMAGE           (1 << 19)
-#define gcvZONE_UTILITY         (1 << 20)
-#define gcvZONE_PARAMETERS      (1 << 21)
-#define gcvZONE_BUFOBJ          (1 << 22)
-#define gcvZONE_SHADER          (1 << 23)
-#define gcvZONE_STREAM_OUT      (1 << 24)
+#define gcvZONE_HAL             (1 << 4)
+#define gcvZONE_BUFFER          (1 << 5)
+#define gcvZONE_CONTEXT         (1 << 6)
+#define gcvZONE_SURFACE         (1 << 7)
+#define gcvZONE_INDEX           (1 << 8)
+#define gcvZONE_STREAM          (1 << 9)
+#define gcvZONE_TEXTURE         (1 << 10)
+#define gcvZONE_2D              (1 << 11)
+#define gcvZONE_3D              (1 << 12)
+#define gcvZONE_COMPILER        (1 << 13)
+#define gcvZONE_MEMORY          (1 << 14)
+#define gcvZONE_STATE           (1 << 15)
+#define gcvZONE_AUX             (1 << 16)
+#define gcvZONE_VERTEX          (1 << 17)
+#define gcvZONE_CL              (1 << 18)
+#define gcvZONE_VG              (1 << 19)
+#define gcvZONE_VX              (1 << 20)
+#define gcvZONE_IMAGE           (1 << 21)
+#define gcvZONE_UTILITY         (1 << 22)
+#define gcvZONE_PARAMETERS      (1 << 23)
+#define gcvZONE_BUFOBJ          (1 << 24)
+#define gcvZONE_SHADER          (1 << 25)
+#define gcvZONE_STREAM_OUT      (1 << 26)
 
 /* API definitions. */
-#define gcvZONE_API_HAL         (1 << 28)
-#define gcvZONE_API_EGL         (2 << 28)
-#define gcvZONE_API_ES11        (3 << 28)
-#define gcvZONE_API_ES20        (4 << 28)
-#define gcvZONE_API_VG11        (5 << 28)
-#define gcvZONE_API_GL          (6 << 28)
-#define gcvZONE_API_DFB         (7 << 28)
-#define gcvZONE_API_GDI         ((gctUINT32)8 << 28)
-#define gcvZONE_API_D3D         ((gctUINT32)9 << 28)
-#define gcvZONE_API_ES30        ((gctUINT32)10 << 28)
+#define gcvZONE_API_HAL         ((gctUINT32) 1  << 28)
+#define gcvZONE_API_EGL         ((gctUINT32) 2  << 28)
+#define gcvZONE_API_ES11        ((gctUINT32) 3  << 28)
+#define gcvZONE_API_ES20        ((gctUINT32) 4  << 28)
+#define gcvZONE_API_ES30        ((gctUINT32) 4  << 28)
+#define gcvZONE_API_VG11        ((gctUINT32) 5  << 28)
+#define gcvZONE_API_GL          ((gctUINT32) 6  << 28)
+#define gcvZONE_API_DFB         ((gctUINT32) 7  << 28)
+#define gcvZONE_API_GDI         ((gctUINT32) 8  << 28)
+#define gcvZONE_API_D3D         ((gctUINT32) 9  << 28)
+#define gcvZONE_API_CL          ((gctUINT32) 10 << 28)
+#define gcvZONE_API_VX          ((gctUINT32) 11 << 28)
 
 
 #define gcmZONE_GET_API(zone)   ((zone) >> 28)
@@ -3238,6 +3348,7 @@ will enable print EGL module debug info*/
 
 /*Dump API depth set 1 for API, 2 for API and API behavior*/
 #define gcvDUMP_API_DEPTH       1
+
 
 /*******************************************************************************
 **
@@ -3314,6 +3425,7 @@ gcoOS_DebugTraceZone(
 #   define gcmkTRACE_ZONE_N         __dummy_trace_zone_n
 #endif
 
+
 /*******************************************************************************
 **
 **  gcmDEBUG_ONLY
@@ -3330,11 +3442,13 @@ gcoOS_DebugTraceZone(
 #   define gcmDEBUG_ONLY(f)
 #endif
 
+
 /*******************************************************************************
 **
 **  gcmSTACK_PUSH
 **  gcmSTACK_POP
 **  gcmSTACK_DUMP
+**  gcmSTACK_REMOVE
 **
 **      Push or pop a function with entry arguments on the trace stack.
 **
@@ -3344,40 +3458,85 @@ gcoOS_DebugTraceZone(
 **      Line        Line number.
 **      Text        Optional text.
 **      ...         Optional arguments for text.
+**
+**      Thread      Thread id.
 */
-#if gcmIS_DEBUG(gcdDEBUG_STACK)
-    void gcoOS_StackPush(IN gctINT8_PTR Identity, IN gctCONST_STRING Function, IN gctINT Line, IN gctCONST_STRING Text, ...);
-    void gcoOS_StackPop(IN gctINT8_PTR Identity, IN gctCONST_STRING Function);
-    void gcoOS_StackDump(void);
-    void gcoOS_StackRemove(IN gctHANDLE Thread);
+void
+gcoOS_StackPush(
+    IN gctINT8_PTR Identity,
+    IN gctCONST_STRING Function,
+    IN gctINT Line,
+    IN gctCONST_STRING Text,
+    ...
+    );
 
+void
+gcoOS_StackPop(
+    IN gctINT8_PTR Identity,
+    IN gctCONST_STRING Function
+    );
+
+void
+gcoOS_StackDump(
+    void);
+
+void
+gcoOS_StackRemove(
+    IN gctHANDLE Thread
+    );
+
+#if gcmIS_DEBUG(gcdDEBUG_STACK)
 #   define gcmSTACK_PUSH            gcoOS_StackPush
 #   define gcmSTACK_POP             gcoOS_StackPop
 #   define gcmSTACK_DUMP            gcoOS_StackDump
 #   define gcmSTACK_REMOVE          gcoOS_StackRemove
 #elif gcdHAS_ELLIPSIS
-#   define gcmSTACK_PUSH(...)       do { } while (0)
-#   define gcmSTACK_POP(...)        do { } while (0)
-#   define gcmSTACK_DUMP()          do { } while (0)
-#   define gcmSTACK_REMOVE(...)     do { } while (0)
+#   define gcmSTACK_PUSH(...)
+#   define gcmSTACK_POP(...)
+#   define gcmSTACK_DUMP()
+#   define gcmSTACK_REMOVE(...)
 #else
     gcmINLINE static void
     __dummy_stack_push(
         IN gctCONST_STRING Function,
         IN gctINT Line,
-        IN gctCONST_STRING Text, ...
+        IN gctCONST_STRING Text,
+        ...
         )
     {
     }
+
+    gcmINLINE static void
+    __dummy_stack_pop(
+        IN gctINT8_PTR Identity,
+        IN gctCONST_STRING Function
+        );
+
+    gcmINLINE static void
+    __dummy_stack_remove(
+        IN gctHANDLE Thread
+        );
+
 #   define gcmSTACK_PUSH            __dummy_stack_push
-#   define gcmSTACK_POP(a,b)        do { } while (0)
-#   define gcmSTACK_DUMP()          do { } while (0)
-#   define gcmSTACK_REMOVE(a)       do { } while (0)
+#   define gcmSTACK_POP(a,b)        __dummy_stack_pop
+#   define gcmSTACK_DUMP()
+#   define gcmSTACK_REMOVE(a)       __dummy_stack_remove
 #endif
 
-/******************************************************************************\
-******************************** Binary Trace **********************************
-\******************************************************************************/
+
+/*******************************************************************************
+**
+**  gcmBINARY_TRACE
+**
+**      Push or pop a function with entry arguments on the trace stack.
+**
+**  ARGUMENTS:
+**
+**      Function    Name of function
+**      Line        Line number
+**      Text        Optional text
+**      ...         Optional arguments for text.
+*/
 typedef struct _gcsBINARY_TRACE_MESSAGE * gcsBINARY_TRACE_MESSAGE_PTR;
 typedef struct _gcsBINARY_TRACE_MESSAGE
 {
@@ -3390,25 +3549,25 @@ typedef struct _gcsBINARY_TRACE_MESSAGE
 }
 gcsBINARY_TRACE_MESSAGE;
 
+void
+gcoOS_BinaryTrace(
+    IN gctCONST_STRING Function,
+    IN gctINT Line,
+    IN gctCONST_STRING Text OPTIONAL,
+    ...
+    );
+
+void
+gckOS_BinaryTrace(
+    IN gctCONST_STRING Function,
+    IN gctINT Line,
+    IN gctCONST_STRING Text OPTIONAL,
+    ...
+    );
+
 #define gcdBINARY_TRACE_MESSAGE_SIZE 240
 
 #if gcdBINARY_TRACE
-    void
-    gcoOS_BinaryTrace(
-        IN gctCONST_STRING Function,
-        IN gctINT Line,
-        IN gctCONST_STRING Text OPTIONAL,
-        ...
-        );
-
-    void
-    gckOS_BinaryTrace(
-        IN gctCONST_STRING Function,
-        IN gctINT Line,
-        IN gctCONST_STRING Text OPTIONAL,
-        ...
-        );
-
 #   define gcmBINARY_TRACE          gcoOS_BinaryTrace
 #   define gcmkBINARY_TRACE         gckOS_BinaryTrace
 #elif gcdHAS_ELLIPSIS
@@ -3428,11 +3587,68 @@ gcsBINARY_TRACE_MESSAGE;
 #   define gcmkBINARY_TRACE         __dummy_binary_trace
 #endif
 
+
+/*******************************************************************************
+**
+**  gcmSYSTRACE_BEGIN
+**  gcmSYSTRACE_END
+**
+**      Systrace is a performance tunning tool on linux.
+**
+**  ARGUMENTS:
+**
+**      FuncName Function name
+**      Zone     Systrace zone. Only specified zones are traced.
+*/
+
+void
+gcoOS_SysTraceBegin(
+    IN gctUINT32 Zone,
+    IN gctCONST_STRING FuncName
+    );
+
+void
+gcoOS_SysTraceEnd(
+    IN gctUINT32 Zone
+    );
+
+#if defined(LINUX) && gcdSYSTRACE
+#   define gcmSYSTRACE_BEGIN    gcoOS_SysTraceBegin
+#   define gcmSYSTRACE_END      gcoOS_SysTraceEnd
+#elif gcdHAS_ELLIPSIS
+#   define gcmSYSTRACE_BEGIN(...)
+#   define gcmSYSTRACE_END(...)
+#else
+    gcmINLINE static void
+    __dummy_systrace_begin(
+        IN gctUINT32 Zone,
+        IN gctCONST_STRING FuncName
+        )
+    {
+    }
+
+    gcmINLINE static void
+    __dummy_systrace_end(
+        IN gctUINT32 Zone
+        )
+    {
+    }
+
+#   define gcmSYSTRACE_BEGIN        __dummy_systrace_begin
+#   define gcmSYSTRACE_END          __dummy_systrace_end
+#endif
+
+
 /******************************************************************************\
 ******************************** Logging Macros ********************************
 \******************************************************************************/
 
 #define gcdHEADER_LEVEL             gcvLEVEL_VERBOSE
+
+/* Always enable header/footer when systrace build is on */
+#if defined(LINUX) && gcdSYSTRACE
+#undef gcdEMPTY_HEADER_FOOTER
+#endif
 
 #ifndef gcdEMPTY_HEADER_FOOTER
 #define gcdEMPTY_HEADER_FOOTER 0
@@ -3450,35 +3666,39 @@ gcoOS_ProfileDB(
     static gctBOOL __profile__initialized__ = gcvFALSE; \
     gcmSTACK_PUSH(&__user__, __FUNCTION__, __LINE__, gcvNULL, gcvNULL); \
     gcoOS_ProfileDB(__FUNCTION__, &__profile__initialized__)
+
 #define gcmHEADER_ARG(...) \
     gctINT8 __user__ = 1; \
     static gctBOOL __profile__initialized__ = gcvFALSE; \
     gcmSTACK_PUSH(&__user__, __FUNCTION__, __LINE__, Text, __VA_ARGS__); \
     gcoOS_ProfileDB(__FUNCTION__, &__profile__initialized__)
+
 #define gcmFOOTER() \
     gcmSTACK_POP(&__user__, __FUNCTION__); \
     gcoOS_ProfileDB(__FUNCTION__, gcvNULL)
+
 #define gcmFOOTER_NO() \
     gcmSTACK_POP(&__user__, __FUNCTION__); \
     gcoOS_ProfileDB(__FUNCTION__, gcvNULL)
+
 #define gcmFOOTER_ARG(...) \
     gcmSTACK_POP(&__user__, __FUNCTION__); \
     gcoOS_ProfileDB(__FUNCTION__, gcvNULL)
+
 #define gcmFOOTER_KILL() \
     gcmSTACK_POP(&__user__, __FUNCTION__); \
     gcoOS_ProfileDB(gcvNULL, gcvNULL)
 
-#else /* gcdENABLE_PROFILING */
+#else /* !gcdENABLE_PROFILING */
 
-#ifdef gcdFSL_REL_BUILD
-#define gcmHEADER()
-#elif gcdEMPTY_HEADER_FOOTER
+#if gcdEMPTY_HEADER_FOOTER
 #   define gcmHEADER()
 #elif gcdHAS_ELLIPSIS
 #define gcmHEADER() \
     gctINT8 __user__ = 1; \
     gctINT8_PTR __user_ptr__ = &__user__; \
     gcmSTACK_PUSH(__user_ptr__, __FUNCTION__, __LINE__, gcvNULL, gcvNULL); \
+    gcmSYSTRACE_BEGIN(_GC_OBJ_ZONE, __FUNCTION__); \
     gcmBINARY_TRACE(__FUNCTION__, __LINE__, gcvNULL, gcvNULL); \
     gcmTRACE_ZONE(gcdHEADER_LEVEL, _GC_OBJ_ZONE, \
                   "++%s(%d)", __FUNCTION__, __LINE__)
@@ -3490,9 +3710,7 @@ gcoOS_ProfileDB(
 #   define gcmHEADER                   __dummy_header
 #endif
 
-#ifdef gcdFSL_REL_BUILD
-#define gcmHEADER_ARG(Text, ...)
-#elif gcdHAS_ELLIPSIS
+#if gcdHAS_ELLIPSIS
 #if gcdEMPTY_HEADER_FOOTER
 #   define gcmHEADER_ARG(Text, ...)
 #else
@@ -3500,6 +3718,7 @@ gcoOS_ProfileDB(
         gctINT8 __user__ = 1; \
         gctINT8_PTR __user_ptr__ = &__user__; \
         gcmSTACK_PUSH(__user_ptr__, __FUNCTION__, __LINE__, Text, __VA_ARGS__); \
+        gcmSYSTRACE_BEGIN(_GC_OBJ_ZONE, __FUNCTION__); \
         gcmBINARY_TRACE(__FUNCTION__, __LINE__, Text, __VA_ARGS__); \
         gcmTRACE_ZONE(gcdHEADER_LEVEL, _GC_OBJ_ZONE, \
                       "++%s(%d): " Text, __FUNCTION__, __LINE__, __VA_ARGS__)
@@ -3515,18 +3734,17 @@ gcoOS_ProfileDB(
 #   define gcmHEADER_ARG                __dummy_header_arg
 #endif
 
-#ifdef gcdFSL_REL_BUILD
-#   define gcmFOOTER()
-#elif gcdEMPTY_HEADER_FOOTER
+#if gcdEMPTY_HEADER_FOOTER
 #   define gcmFOOTER()
 #elif gcdHAS_ELLIPSIS
 #   define gcmFOOTER() \
     gcmSTACK_POP(__user_ptr__, __FUNCTION__); \
+    gcmSYSTRACE_END(_GC_OBJ_ZONE); \
     gcmBINARY_TRACE(__FUNCTION__, __LINE__, gcvNULL, gcvNULL); \
     gcmTRACE_ZONE(gcdHEADER_LEVEL, _GC_OBJ_ZONE, \
                   "--%s(%d): status=%d(%s)", \
                   __FUNCTION__, __LINE__, \
-                  status, gcoOS_DebugStatus2Name(status)); \
+                  status, gcmSTATUS2NAME(status)); \
     *__user_ptr__ -= 1
 #else
     gcmINLINE static void
@@ -3536,13 +3754,12 @@ gcoOS_ProfileDB(
 #   define gcmFOOTER                    __dummy_footer
 #endif
 
-#ifdef gcdFSL_REL_BUILD
-#define gcmFOOTER_NO()
-#elif gcdEMPTY_HEADER_FOOTER
+#if gcdEMPTY_HEADER_FOOTER
 #   define gcmFOOTER_NO()
 #elif gcdHAS_ELLIPSIS
 #define gcmFOOTER_NO() \
     gcmSTACK_POP(__user_ptr__, __FUNCTION__); \
+    gcmSYSTRACE_END(_GC_OBJ_ZONE); \
     gcmBINARY_TRACE(__FUNCTION__, __LINE__, gcvNULL, gcvNULL); \
     gcmTRACE_ZONE(gcdHEADER_LEVEL, _GC_OBJ_ZONE, \
                   "--%s(%d)", __FUNCTION__, __LINE__); \
@@ -3555,13 +3772,12 @@ gcoOS_ProfileDB(
 #   define gcmFOOTER_NO                 __dummy_footer_no
 #endif
 
-#ifdef gcdFSL_REL_BUILD
-#define gcmFOOTER_KILL()
-#elif gcdEMPTY_HEADER_FOOTER
+#if gcdEMPTY_HEADER_FOOTER
 #   define gcmFOOTER_KILL()
 #elif gcdHAS_ELLIPSIS
 #define gcmFOOTER_KILL() \
     gcmSTACK_POP(__user_ptr__, __FUNCTION__); \
+    gcmSYSTRACE_END(_GC_OBJ_ZONE); \
     gcmBINARY_TRACE(__FUNCTION__, __LINE__, gcvNULL, gcvNULL); \
     gcmTRACE_ZONE(gcdHEADER_LEVEL, _GC_OBJ_ZONE, \
                   "--%s(%d)", __FUNCTION__, __LINE__); \
@@ -3574,14 +3790,13 @@ gcoOS_ProfileDB(
 #   define gcmFOOTER_KILL               __dummy_footer_kill
 #endif
 
-#ifdef gcdFSL_REL_BUILD
-#   define gcmFOOTER_ARG(Text, ...)
-#elif gcdHAS_ELLIPSIS
+#if gcdHAS_ELLIPSIS
 #if gcdEMPTY_HEADER_FOOTER
 #   define gcmFOOTER_ARG(Text, ...)
 #else
 #   define gcmFOOTER_ARG(Text, ...) \
         gcmSTACK_POP(__user_ptr__, __FUNCTION__); \
+        gcmSYSTRACE_END(_GC_OBJ_ZONE); \
         gcmBINARY_TRACE(__FUNCTION__, __LINE__, Text, __VA_ARGS__); \
         gcmTRACE_ZONE(gcdHEADER_LEVEL, _GC_OBJ_ZONE, \
                       "--%s(%d): " Text, __FUNCTION__, __LINE__, __VA_ARGS__); \
@@ -3600,9 +3815,7 @@ gcoOS_ProfileDB(
 
 #endif /* gcdENABLE_PROFILING */
 
-#ifdef gcdFSL_REL_BUILD
-#define gcmkHEADER()
-#elif gcdHAS_ELLIPSIS
+#if gcdHAS_ELLIPSIS
 #define gcmkHEADER() \
     gctINT8 __kernel__ = 1; \
     gctINT8_PTR __kernel_ptr__ = &__kernel__; \
@@ -3617,9 +3830,7 @@ gcoOS_ProfileDB(
 #   define gcmkHEADER                  __dummy_kheader
 #endif
 
-#ifdef gcdFSL_REL_BUILD
-#   define gcmkHEADER_ARG(Text, ...)
-#elif gcdHAS_ELLIPSIS
+#if gcdHAS_ELLIPSIS
 #   define gcmkHEADER_ARG(Text, ...) \
         gctINT8 __kernel__ = 1; \
         gctINT8_PTR __kernel_ptr__ = &__kernel__; \
@@ -3637,14 +3848,12 @@ gcoOS_ProfileDB(
 #   define gcmkHEADER_ARG               __dummy_kheader_arg
 #endif
 
-#ifdef gcdFSL_REL_BUILD
-#define gcmkFOOTER()
-#elif gcdHAS_ELLIPSIS
+#if gcdHAS_ELLIPSIS
 #define gcmkFOOTER() \
     gcmkBINARY_TRACE(__FUNCTION__, __LINE__, gcvNULL, status); \
     gcmkTRACE_ZONE(gcdHEADER_LEVEL, _GC_OBJ_ZONE, \
                    "--%s(%d): status=%d(%s)", \
-                   __FUNCTION__, __LINE__, status, gckOS_DebugStatus2Name(status)); \
+                   __FUNCTION__, __LINE__, status, gcmkSTATUS2NAME(status)); \
     *__kernel_ptr__ -= 1
 #else
     gcmINLINE static void
@@ -3654,9 +3863,7 @@ gcoOS_ProfileDB(
 #   define gcmkFOOTER                   __dummy_kfooter
 #endif
 
-#ifdef gcdFSL_REL_BUILD
-#define gcmkFOOTER_NO()
-#elif gcdHAS_ELLIPSIS
+#if gcdHAS_ELLIPSIS
 #define gcmkFOOTER_NO() \
     gcmkBINARY_TRACE(__FUNCTION__, __LINE__, gcvNULL, gcvNULL); \
     gcmkTRACE_ZONE(gcdHEADER_LEVEL, _GC_OBJ_ZONE, \
@@ -3670,9 +3877,7 @@ gcoOS_ProfileDB(
 #   define gcmkFOOTER_NO                __dummy_kfooter_no
 #endif
 
-#ifdef gcdFSL_REL_BUILD
-#   define gcmkFOOTER_ARG(Text, ...)
-#elif gcdHAS_ELLIPSIS
+#if gcdHAS_ELLIPSIS
 #   define gcmkFOOTER_ARG(Text, ...) \
         gcmkBINARY_TRACE(__FUNCTION__, __LINE__, Text, __VA_ARGS__); \
         gcmkTRACE_ZONE(gcdHEADER_LEVEL, _GC_OBJ_ZONE, \
@@ -3755,7 +3960,7 @@ void
 gckOS_DumpBuffer(
     IN gckOS Os,
     IN gctPOINTER Buffer,
-    IN gctUINT Size,
+    IN gctSIZE_T Size,
     IN gceDUMP_BUFFER Type,
     IN gctBOOL CopyMessage
     );
@@ -3795,7 +4000,7 @@ gckOS_DebugFlush(
     gceSTATUS
     gcfDumpFrameRate(
         void
-    );
+        );
 #   define gcmDUMP_FRAMERATE        gcfDumpFrameRate
 #elif gcdHAS_ELLIPSIS
 #   define gcmDUMP_FRAMERATE(...)
@@ -3917,7 +4122,7 @@ gcfDumpBuffer(
     IN gctSTRING Tag,
     IN gctUINT32 Physical,
     IN gctPOINTER Logical,
-    IN gctUINT32 Offset,
+    IN gctSIZE_T Offset,
     IN gctSIZE_T Bytes
     );
 #   define gcmDUMP_BUFFER       gcfDumpBuffer
@@ -3936,6 +4141,42 @@ gcfDumpBuffer(
     {
     }
 #   define gcmDUMP_BUFFER       __dummy_dump_buffer
+#endif
+
+#if gcdDUMP
+void
+gcfDumpLock(
+    void
+    );
+#   define gcmDUMP_LOCK       gcfDumpLock
+#elif gcdHAS_ELLIPSIS
+#   define gcmDUMP_LOCK(...)
+#else
+    gcmINLINE static void
+    __dummy_dump_lock(
+        void
+        )
+    {
+    }
+#   define gcmDUMP_LOCK       __dummy_dump_lock
+#endif
+
+#if gcdDUMP
+void
+gcfDumpUnlock(
+    void
+    );
+#   define gcmDUMP_UNLOCK       gcfDumpUnlock
+#elif gcdHAS_ELLIPSIS
+#   define gcmDUMP_UNLOCK(...)
+#else
+    gcmINLINE static void
+    __dummy_dump_unlock(
+        void
+        )
+    {
+    }
+#   define gcmDUMP_UNLOCK       __dummy_dump_unlock
 #endif
 
 /*******************************************************************************
@@ -4059,7 +4300,9 @@ gceSTATUS gcfDumpApiData(IN gctCONST_POINTER Data, IN gctSIZE_T Size);
 */
 gceSTATUS gcfDump2DCommand(IN gctUINT32_PTR Command, IN gctUINT32 Size);
 #if gcdDUMP_2D
-#   define gcmDUMP_2D_COMMAND       gcfDump2DCommand
+#   define gcmDUMP_2D_COMMAND(cmd, size) \
+        if (Hardware->newDump2DLevel > 0) \
+            gcfDump2DCommand(cmd, size)
 #elif gcdHAS_ELLIPSIS
 #   define gcmDUMP_2D_COMMAND(...)
 #else
@@ -4085,7 +4328,9 @@ gceSTATUS gcfDump2DCommand(IN gctUINT32_PTR Command, IN gctUINT32 Size);
 */
 gceSTATUS gcfDump2DSurface(IN gctBOOL Src, IN gctUINT32 Address);
 #if gcdDUMP_2D
-#   define gcmDUMP_2D_SURFACE       gcfDump2DSurface
+#   define gcmDUMP_2D_SURFACE(src, addr) \
+        if (Hardware->newDump2DLevel > 1) \
+           gcfDump2DSurface(src, addr)
 #elif gcdHAS_ELLIPSIS
 #   define gcmDUMP_2D_SURFACE(...)
 #else
@@ -4343,6 +4588,14 @@ gckOS_DebugStatus2Name(
     gceSTATUS status
     );
 
+#if gcmIS_DEBUG(gcdDEBUG)
+#   define gcmSTATUS2NAME             gcoOS_DebugStatus2Name
+#   define gcmkSTATUS2NAME            gckOS_DebugStatus2Name
+#else
+#   define gcmSTATUS2NAME(status)     status
+#   define gcmkSTATUS2NAME(status)    status
+#endif
+
 /*******************************************************************************
 **
 **  gcmERR_BREAK
@@ -4364,7 +4617,7 @@ gckOS_DebugStatus2Name(
         prefix##PRINT_VERSION(); \
         prefix##TRACE(gcvLEVEL_ERROR, \
             #prefix "ERR_BREAK: status=%d(%s) @ %s(%d)", \
-            status, gcoOS_DebugStatus2Name(status), __FUNCTION__, __LINE__); \
+            status, gcmSTATUS2NAME(status), __FUNCTION__, __LINE__); \
         break; \
     } \
     do { } while (gcvFALSE)
@@ -4403,7 +4656,7 @@ gckOS_DebugStatus2Name(
         prefix##PRINT_VERSION(); \
         prefix##TRACE(gcvLEVEL_ERROR, \
             #prefix "ERR_RETURN: status=%d(%s) @ %s(%d)", \
-            status, gcoOS_DebugStatus2Name(status), __FUNCTION__, __LINE__); \
+            status, gcmSTATUS2NAME(status), __FUNCTION__, __LINE__); \
         prefix##FOOTER(); \
         return status; \
     } \
@@ -4415,7 +4668,7 @@ gckOS_DebugStatus2Name(
         prefix##PRINT_VERSION(); \
         prefix##TRACE(gcvLEVEL_ERROR, \
             #prefix "ERR_RETURN: status=%d(%s) @ %s(%d)", \
-            status, gckOS_DebugStatus2Name(status), __FUNCTION__, __LINE__); \
+            status, gcmkSTATUS2NAME(status), __FUNCTION__, __LINE__); \
         prefix##FOOTER(); \
         return status; \
     } \
@@ -4447,7 +4700,7 @@ gckOS_DebugStatus2Name(
             prefix##PRINT_VERSION(); \
             prefix##TRACE(gcvLEVEL_ERROR, \
                 #prefix "ONERROR: status=%d(%s) @ %s(%d)", \
-                status, gcoOS_DebugStatus2Name(status), __FUNCTION__, __LINE__); \
+                status, gcmSTATUS2NAME(status), __FUNCTION__, __LINE__); \
             goto OnError; \
         } \
     } \
@@ -4461,7 +4714,7 @@ gckOS_DebugStatus2Name(
             prefix##PRINT_VERSION(); \
             prefix##TRACE(gcvLEVEL_ERROR, \
                 #prefix "ONERROR: status=%d(%s) @ %s(%d)", \
-                status, gckOS_DebugStatus2Name(status), __FUNCTION__, __LINE__); \
+                status, gcmkSTATUS2NAME(status), __FUNCTION__, __LINE__); \
             goto OnError; \
         } \
     } \
@@ -4492,7 +4745,7 @@ gckOS_DebugStatus2Name(
         if (gcmSIZEOF(gctSIZE_T) > gcmSIZEOF(gctUINT32)) \
         { \
             gcmkASSERT(tmp <= gcvMAXUINT32); \
-            } \
+        } \
         (x) = tmp; \
     } \
     while (gcvFALSE)
@@ -4504,7 +4757,7 @@ gckOS_DebugStatus2Name(
         if (gcmSIZEOF(gctSIZE_T) > gcmSIZEOF(gctUINT32)) \
         { \
             gcmASSERT(tmp <= gcvMAXUINT32); \
-            } \
+        } \
         (x) = tmp; \
     } \
     while (gcvFALSE)
@@ -4523,7 +4776,7 @@ gckOS_DebugStatus2Name(
 **  ARGUMENTS:
 **
 **      x   A gctUINT32 variable
-**      y   A gctSIZE_T variable
+**      y   A gctPHYS_ADDR_T variable
 */
 #define gcmkSAFECASTPHYSADDRT(x, y) \
     do \
@@ -4531,9 +4784,37 @@ gckOS_DebugStatus2Name(
     gctUINT32 tmp = (gctUINT32)(y); \
     if (gcmSIZEOF(gctPHYS_ADDR_T) > gcmSIZEOF(gctUINT32)) \
     { \
-    gcmkASSERT(tmp <= gcvMAXUINT32); \
+        gcmkASSERT(tmp <= gcvMAXUINT32); \
     } \
     (x) = tmp; \
+    } \
+    while (gcvFALSE)
+
+/*******************************************************************************
+**
+**  gcmSAFECASTPHYSADDRT
+**
+**      Check whether value of a gctPHYS_ADDR_T variable beyond the capability
+**      of 32bits GPU hardware.
+**
+**  ASSUMPTIONS:
+**
+**
+**
+**  ARGUMENTS:
+**
+**      x   A gctUINT32 variable
+**      y   A gctPHYS_ADDR_T variable
+*/
+#define gcmSAFECASTPHYSADDRT(x, y) \
+    do \
+    { \
+        gctUINT32 tmp = (gctUINT32)(y); \
+        if (gcmSIZEOF(gctPHYS_ADDR_T) > gcmSIZEOF(gctUINT32)) \
+        { \
+            gcmASSERT(tmp <= gcvMAXUINT32); \
+        } \
+        (x) = tmp; \
     } \
     while (gcvFALSE)
 
@@ -4614,7 +4895,7 @@ gckOS_DebugStatus2Name(
         { \
             prefix##TRACE(gcvLEVEL_ERROR, \
                 #prefix "CHECK_STATUS: status=%d(%s) @ %s(%d)", \
-                last, gcoOS_DebugStatus2Name(last), __FUNCTION__, __LINE__); \
+                last, gcmSTATUS2NAME(last), __FUNCTION__, __LINE__); \
             status = last; \
         } \
     } \
@@ -4627,7 +4908,7 @@ gckOS_DebugStatus2Name(
         { \
             prefix##TRACE(gcvLEVEL_ERROR, \
                 #prefix "CHECK_STATUS: status=%d(%s) @ %s(%d)", \
-                last, gckOS_DebugStatus2Name(last), __FUNCTION__, __LINE__); \
+                last, gcmkSTATUS2NAME(last), __FUNCTION__, __LINE__); \
             status = last; \
         } \
     } \
@@ -4734,7 +5015,6 @@ gcsUSER_DEBUG_OPTION *
 gcGetUserDebugOption(
     void
     );
-
 
 #if gcdHAS_ELLIPSIS
 #define gcmUSER_DEBUG_MSG(level, ...) \
@@ -4884,12 +5164,13 @@ gcGetUserDebugOption(
     gctSIZE_T ReserveSize; \
     gcoCMDBUF CommandBuffer; \
     gctUINT32_PTR Memory; \
-    gcsSTATE_DELTA_PTR StateDelta
+    gcsSTATE_DELTA_PTR StateDelta; \
+    gceENGINE CurrentEngine = gcvENGINE_RENDER
 
 #define gcmBEGINSTATEBUFFER(Hardware, CommandBuffer, StateDelta, Memory, ReserveSize) \
 { \
     gcmONERROR(gcoBUFFER_Reserve( \
-        Hardware->buffer, ReserveSize, gcvTRUE, gcvCOMMAND_3D, &CommandBuffer \
+        Hardware->engine[CurrentEngine].buffer, ReserveSize, gcvTRUE, gcvCOMMAND_3D, &CommandBuffer \
         )); \
     \
     Memory = (gctUINT32_PTR) gcmUINT64_TO_PTR(CommandBuffer->lastReserve); \
@@ -5037,7 +5318,7 @@ gcGetUserDebugOption(
 
 #define gcmSETSEMASTALLPIPE(StateDelta, CommandBuffer, Memory, Data) \
 { \
-    gcmSETSINGLESTATE(StateDelta, CommandBuffer, Memory, gcvFALSE, AQSemaphoreRegAddrs, Data); \
+    gcmSETSINGLECTRLSTATE(StateDelta, CommandBuffer, Memory, gcvFALSE, AQSemaphoreRegAddrs, Data); \
     \
     *Memory++ = gcmSETFIELDVALUE(0, STALL_COMMAND, OPCODE, STALL); \
     \
@@ -5080,7 +5361,8 @@ gcGetUserDebugOption(
     gcmDEFINELOADSTATEBASE() \
     gcsTEMPCMDBUF CommandBuffer = gcvNULL; \
     gctUINT32_PTR Memory; \
-    gcsSTATE_DELTA_PTR StateDelta
+    gcsSTATE_DELTA_PTR StateDelta; \
+    gceENGINE CurrentEngine = gcvENGINE_RENDER
 
 
 #define gcmBEGINSTATEBUFFER_NEW(Hardware, CommandBuffer, StateDelta, Memory, OutSide) \
@@ -5092,7 +5374,7 @@ gcGetUserDebugOption(
     else \
     {\
         gcmONERROR(gcoBUFFER_StartTEMPCMDBUF( \
-            Hardware->buffer, &CommandBuffer \
+            Hardware->engine[CurrentEngine].buffer, &CommandBuffer \
             ));\
         \
         Memory = (gctUINT32_PTR)(CommandBuffer->buffer); \
@@ -5117,9 +5399,34 @@ gcGetUserDebugOption(
         CommandBuffer->currentByteSize = (gctUINT32)((gctUINT8_PTR)Memory -  \
                                          (gctUINT8_PTR)CommandBuffer->buffer); \
         \
-        gcmONERROR(gcoBUFFER_EndTEMPCMDBUF(Hardware->buffer));\
+        gcmONERROR(gcoBUFFER_EndTEMPCMDBUF(Hardware->engine[CurrentEngine].buffer, gcvFALSE));\
     }\
     gcmUNSETLOADSTATEBASE()\
+}
+
+#define gcmDEFINECTRLSTATEBUFFER(CommandBuffer, Memory)                         \
+    gcmDEFINESECUREUSER()                                                       \
+    gcmDEFINELOADSTATEBASE()                                                    \
+    gcsTEMPCMDBUF CommandBuffer = gcvNULL;                                      \
+    gctUINT32_PTR Memory;                                                       \
+    gceENGINE CurrentEngine = gcvENGINE_RENDER
+
+#define gcmBEGINCTRLSTATEBUFFER(Hardware, CommandBuffer, Memory, OutSide)       \
+{                                                                               \
+    if (OutSide)                                                                \
+    {                                                                           \
+        Memory = (gctUINT32_PTR)*OutSide;                                       \
+    }                                                                           \
+    else                                                                        \
+    {                                                                           \
+        gcmONERROR(gcoBUFFER_StartTEMPCMDBUF(                                   \
+            Hardware->engine[CurrentEngine].buffer, &CommandBuffer              \
+            ));                                                                 \
+                                                                                \
+        Memory = (gctUINT32_PTR)(CommandBuffer->buffer);                        \
+    }                                                                           \
+    gcmBEGINSECUREUSER();                                                       \
+    gcmSETLOADSTATEBASE(CommandBuffer,OutSide);                                 \
 }
 
 /*----------------------------------------------------------------------------*/
@@ -5148,7 +5455,7 @@ gcGetUserDebugOption(
 { \
     gctUINT32 __temp_data32__; \
     \
-    __temp_data32__ = Data; \
+    gcmSAFECASTSIZET(__temp_data32__, Data); \
     \
     *Memory++ = __temp_data32__; \
     \
@@ -5233,7 +5540,7 @@ gcGetUserDebugOption(
 
 #define gcmSETSEMASTALLPIPE_NEW(StateDelta, CommandBuffer, Memory, Data) \
 { \
-    gcmSETSINGLESTATE_NEW(StateDelta, CommandBuffer, Memory, gcvFALSE, AQSemaphoreRegAddrs, Data); \
+    gcmSETSINGLECTRLSTATE_NEW(StateDelta, CommandBuffer, Memory, gcvFALSE, AQSemaphoreRegAddrs, Data); \
     \
     *Memory++ = gcmSETFIELDVALUE(0, STALL_COMMAND, OPCODE, STALL); \
     \
@@ -5368,7 +5675,7 @@ gcGetUserDebugOption(
 #define gcmBEGINSTATEBUFFER_FAST(Hardware, CommandBuffer, Memory, ReserveSize) \
 { \
     gcmONERROR(gcoBUFFER_Reserve( \
-        Hardware->buffer, ReserveSize, gcvTRUE, &CommandBuffer \
+    Hardware->engine[gcvENGINE_RENDER].buffer, ReserveSize, gcvTRUE, &CommandBuffer \
         )); \
     \
     Memory = (gctUINT32_PTR) gcmUINT64_TO_PTR(CommandBuffer->lastReserve); \
@@ -5385,7 +5692,7 @@ gcGetUserDebugOption(
     else \
     {\
         gcmONERROR(gcoBUFFER_StartTEMPCMDBUF( \
-            Hardware->buffer, &CommandBuffer \
+            Hardware->engine[gcvENGINE_RENDER].buffer, &CommandBuffer \
             ));\
         \
         Memory = (gctUINT32_PTR)(CommandBuffer->buffer); \
@@ -5395,6 +5702,25 @@ gcGetUserDebugOption(
     gcmBEGINSECUREUSER(); \
     gcmSETLOADSTATEBASE(CommandBuffer,OutSide);\
 }
+
+#define gcmENDSTATEBUFFER_NEW_FAST(Hardware, CommandBuffer, Memory, OutSide) \
+{ \
+    gcmENDSECUREUSER(); \
+    \
+    if (OutSide) \
+    {\
+        *OutSide = Memory; \
+    }\
+    else \
+    {\
+        CommandBuffer->currentByteSize = (gctUINT32)((gctUINT8_PTR)Memory -  \
+                                         (gctUINT8_PTR)CommandBuffer->buffer); \
+        \
+        gcmONERROR(gcoBUFFER_EndTEMPCMDBUF(Hardware->engine[gcvENGINE_RENDER].buffer, gcvFALSE));\
+    }\
+    gcmUNSETLOADSTATEBASE()\
+}
+
 /*******************************************************************************
 **
 **  gcmCONFIGUREUNIFORMS
@@ -5405,7 +5731,7 @@ gcGetUserDebugOption(
 #define gcmCONFIGUREUNIFORMS(ChipModel, ChipRevision, NumConstants, \
              UnifiedConst, VsConstBase, PsConstBase, VsConstMax, PsConstMax, ConstMax) \
 { \
-    if (ChipModel == gcv2000 && ChipRevision == 0x5118) \
+    if (ChipModel == gcv2000 && (ChipRevision == 0x5118 || ChipRevision == 0x5140)) \
     { \
         UnifiedConst = gcvFALSE; \
         VsConstBase  = AQVertexShaderConstRegAddrs; \
@@ -5462,21 +5788,38 @@ gcGetUserDebugOption(
     } \
 }
 #else
-#define gcmCONFIGUREUNIFORMS(ChipModel, ChipRevision, NumConstants, \
+#define gcmCONFIGUREUNIFORMS(ChipModel, ChipRevision, Halti5Avail, NumConstants, \
              UnifiedConst, VsConstBase, PsConstBase, VsConstMax, PsConstMax, ConstMax) \
 { \
     if (NumConstants > 256) \
     { \
         UnifiedConst = gcvTRUE; \
-        VsConstBase  = gcregSHUniformsRegAddrs; \
-        PsConstBase  = gcregSHUniformsRegAddrs; \
-        VsConstMax   = gcmMIN(512, NumConstants - 64); \
-        PsConstMax   = gcmMIN(512, NumConstants - 64); \
-        ConstMax     = NumConstants; \
+        if (Halti5Avail) \
+        { \
+            VsConstBase  = gcregGpipeUniformsRegAddrs; \
+            PsConstBase  = gcregPixelUniformsRegAddrs; \
+        } \
+        else \
+        {\
+            VsConstBase  = gcregSHUniformsRegAddrs; \
+            PsConstBase  = gcregSHUniformsRegAddrs; \
+        }\
+        if ((ChipModel == gcv880) && ((ChipRevision & 0xfff0) == 0x5120)) \
+        { \
+            VsConstMax   = 512; \
+            PsConstMax   = 64; \
+            ConstMax     = 576; \
+        } \
+        else \
+        { \
+            VsConstMax   = gcmMIN(512, NumConstants - 64); \
+            PsConstMax   = gcmMIN(512, NumConstants - 64); \
+            ConstMax     = NumConstants; \
+        } \
     } \
     else if (NumConstants == 256) \
     { \
-        if (ChipModel == gcv2000 && ChipRevision == 0x5118) \
+        if (ChipModel == gcv2000 && (ChipRevision == 0x5118 || ChipRevision == 0x5140)) \
         { \
             UnifiedConst = gcvFALSE; \
             VsConstBase  = AQVertexShaderConstRegAddrs; \

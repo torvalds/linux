@@ -62,45 +62,48 @@
 #include <asm/atomic.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
-typedef struct _gcsCMA_PRIV * gcsCMA_PRIV_PTR;
-typedef struct _gcsCMA_PRIV {
-    gctUINT32 cmasize;
+typedef struct _gcsDMA_PRIV * gcsDMA_PRIV_PTR;
+typedef struct _gcsDMA_PRIV {
+    gctUINT32 size;
 }
-gcsCMA_PRIV;
+gcsDMA_PRIV;
 
-struct mdl_cma_priv {
+struct mdl_dma_priv {
     gctPOINTER kvaddr;
-    dma_addr_t physical;
+    dma_addr_t dmaHandle;
 };
 
-int gc_cma_usage_show(struct seq_file* m, void* data)
+/*
+* Debugfs support.
+*/
+int gc_dma_usage_show(struct seq_file* m, void* data)
 {
     gcsINFO_NODE *node = m->private;
     gckALLOCATOR Allocator = node->device;
-    gcsCMA_PRIV_PTR priv = Allocator->privateData;
+    gcsDMA_PRIV_PTR priv = Allocator->privateData;
 
-    seq_printf(m, "cma:  %u bytes\n", priv->cmasize);
+    seq_printf(m, "dma:  %u bytes\n", priv->size);
 
     return 0;
 }
 
 static gcsINFO InfoList[] =
 {
-    {"cmausage", gc_cma_usage_show},
+    {"dmausage", gc_dma_usage_show},
 };
 
 static void
-_DefaultAllocatorDebugfsInit(
+_DebugfsInit(
     IN gckALLOCATOR Allocator,
     IN gckDEBUGFS_DIR Root
     )
 {
     gcmkVERIFY_OK(
-        gckDEBUGFS_DIR_Init(&Allocator->debugfsDir, Root->root, "cma"));
+        gckDEBUGFS_DIR_Init(&Allocator->debugfsDir, Root->root, "dma"));
 
     gcmkVERIFY_OK(gckDEBUGFS_DIR_CreateFiles(
         &Allocator->debugfsDir,
@@ -111,7 +114,7 @@ _DefaultAllocatorDebugfsInit(
 }
 
 static void
-_DefaultAllocatorDebugfsCleanup(
+_DebugfsCleanup(
     IN gckALLOCATOR Allocator
     )
 {
@@ -124,8 +127,27 @@ _DefaultAllocatorDebugfsCleanup(
     gckDEBUGFS_DIR_Deinit(&Allocator->debugfsDir);
 }
 
+#ifdef CONFIG_ARM64
+static struct device *
+_GetDevice(
+    IN gckOS Os
+    )
+{
+    gcsPLATFORM *platform;
+
+    platform = Os->device->platform;
+
+    if (!platform)
+    {
+        return gcvNULL;
+    }
+
+    return &platform->device->dev;
+}
+#endif
+
 static gceSTATUS
-_CMAFSLAlloc(
+_DmaAlloc(
     IN gckALLOCATOR Allocator,
     INOUT PLINUX_MDL Mdl,
     IN gctSIZE_T NumPages,
@@ -133,68 +155,98 @@ _CMAFSLAlloc(
     )
 {
     gceSTATUS status;
-    gcsCMA_PRIV_PTR priv = (gcsCMA_PRIV_PTR)Allocator->privateData;
+    gcsDMA_PRIV_PTR allocatorPriv = (gcsDMA_PRIV_PTR)Allocator->privateData;
 
-    struct mdl_cma_priv *mdl_priv=gcvNULL;
+    struct mdl_dma_priv *mdlPriv=gcvNULL;
     gckOS os = Allocator->os;
+
+#if defined CONFIG_ARM64
+    struct device *dev = _GetDevice(os);
+#endif
 
     gcmkHEADER_ARG("Mdl=%p NumPages=%d", Mdl, NumPages);
 
-    gcmkONERROR(gckOS_Allocate(os, sizeof(struct mdl_cma_priv), (gctPOINTER *)&mdl_priv));
-    mdl_priv->kvaddr = gcvNULL;
+#if defined CONFIG_ARM64
+    gcmkVERIFY_ARGUMENT(dev);
+#endif
 
-    mdl_priv->kvaddr = dma_alloc_writecombine(gcvNULL,
-            NumPages * PAGE_SIZE,
-            &mdl_priv->physical,
-            GFP_KERNEL | gcdNOWARN);
+    gcmkONERROR(gckOS_Allocate(os, sizeof(struct mdl_dma_priv), (gctPOINTER *)&mdlPriv));
 
-    if (mdl_priv->kvaddr == gcvNULL)
+    mdlPriv->kvaddr
+#if defined CONFIG_ARM64
+        = dma_alloc_coherent(dev, NumPages * PAGE_SIZE, &mdlPriv->dmaHandle, GFP_KERNEL | gcdNOWARN);
+#elif defined CONFIG_MIPS
+        = dma_alloc_coherent(gcvNULL, NumPages * PAGE_SIZE, &mdlPriv->dmaHandle, GFP_KERNEL | gcdNOWARN);
+#else
+        = dma_alloc_writecombine(gcvNULL, NumPages * PAGE_SIZE,  &mdlPriv->dmaHandle, GFP_KERNEL | gcdNOWARN);
+#endif
+
+#ifdef CONFLICT_BETWEEN_BASE_AND_PHYS
+    if ((os->device->baseAddress & 0x80000000) != (mdlPriv->dmaHandle & 0x80000000))
+    {
+        mdlPriv->dmaHandle = (mdlPriv->dmaHandle & ~0x80000000)
+                            | (os->device->baseAddress & 0x80000000);
+    }
+#endif
+
+    if (mdlPriv->kvaddr == gcvNULL)
     {
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
     }
 
-    Mdl->priv = mdl_priv;
-    priv->cmasize += NumPages * PAGE_SIZE;
+    Mdl->priv = mdlPriv;
+
+    Mdl->dmaHandle = mdlPriv->dmaHandle;
+
+    /* Statistic. */
+    allocatorPriv->size += NumPages * PAGE_SIZE;
 
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
 
 OnError:
-    if(mdl_priv)
-        gckOS_Free(os, mdl_priv);
+    if(mdlPriv)
+    {
+        gckOS_Free(os, mdlPriv);
+    }
+
     gcmkFOOTER();
     return status;
 }
 
 static void
-_CMAFSLFree(
+_DmaFree(
     IN gckALLOCATOR Allocator,
     IN OUT PLINUX_MDL Mdl
     )
 {
     gckOS os = Allocator->os;
-    struct mdl_cma_priv *mdl_priv=(struct mdl_cma_priv *)Mdl->priv;
-    gcsCMA_PRIV_PTR priv = (gcsCMA_PRIV_PTR)Allocator->privateData;
-    dma_free_writecombine(gcvNULL,
-            Mdl->numPages * PAGE_SIZE,
-            mdl_priv->kvaddr,
-            mdl_priv->physical);
-     gckOS_Free(os, mdl_priv);
-    priv->cmasize -= Mdl->numPages * PAGE_SIZE;
+    struct mdl_dma_priv *mdlPriv=(struct mdl_dma_priv *)Mdl->priv;
+    gcsDMA_PRIV_PTR allocatorPriv = (gcsDMA_PRIV_PTR)Allocator->privateData;
+
+#if defined CONFIG_ARM64 || defined CONFIG_MIPS
+    dma_free_coherent(gcvNULL, Mdl->numPages * PAGE_SIZE, mdlPriv->kvaddr, mdlPriv->dmaHandle);
+#else
+    dma_free_writecombine(gcvNULL, Mdl->numPages * PAGE_SIZE, mdlPriv->kvaddr, mdlPriv->dmaHandle);
+#endif
+
+    gckOS_Free(os, mdlPriv);
+
+    /* Statistic. */
+    allocatorPriv->size -= Mdl->numPages * PAGE_SIZE;
 }
 
-static gctINT
-_CMAFSLMapUser(
-    IN gckALLOCATOR Allocator,
-    IN PLINUX_MDL Mdl,
-    IN gctBOOL Cacheable,
+gctINT
+_DmaMapUser(
+    gckALLOCATOR Allocator,
+    PLINUX_MDL Mdl,
+    gctBOOL Cacheable,
     OUT gctPOINTER * UserLogical
     )
 {
 
     PLINUX_MDL      mdl = Mdl;
-    struct mdl_cma_priv *mdl_priv=(struct mdl_cma_priv *)Mdl->priv;
-    gckOS           os = Allocator->os;
+    struct mdl_dma_priv *mdlPriv=(struct mdl_dma_priv *)Mdl->priv;
     struct vm_area_struct * vma;
     gctPOINTER      userLogical = gcvNULL;
 
@@ -258,43 +310,36 @@ _CMAFSLMapUser(
         return gcvSTATUS_OUT_OF_RESOURCES;
     }
 
-    /* Now map all the vmalloc pages to this user address. */
-    if (mdl->contiguous)
+    /* map kernel memory to user space.. */
+#if defined CONFIG_MIPS
+    if (remap_pfn_range(
+            vma,
+            vma->vm_start,
+            mdlPriv->dmaHandle >> PAGE_SHIFT,
+            mdl->numPages * PAGE_SIZE,
+            gcmkNONPAGED_MEMROY_PROT(vma->vm_page_prot)) < 0)
+#else
+    /* map kernel memory to user space.. */
+    if (dma_mmap_writecombine(gcvNULL,
+            vma,
+            mdlPriv->kvaddr,
+            mdlPriv->dmaHandle,
+            mdl->numPages * PAGE_SIZE) < 0)
+#endif
     {
-        /* map kernel memory to user space.. */
-        if (dma_mmap_writecombine(gcvNULL,
-                vma,
-                mdl_priv->kvaddr,
-                mdl_priv->physical,
-                mdl->numPages * PAGE_SIZE) < 0)
-        {
-            up_write(&current->mm->mmap_sem);
+        up_write(&current->mm->mmap_sem);
 
-            gcmkTRACE_ZONE(
-                gcvLEVEL_WARNING, gcvZONE_OS,
-                "%s(%d): dma_mmap_attrs error",
-                __FUNCTION__, __LINE__
-                );
+        gcmkTRACE_ZONE(
+            gcvLEVEL_WARNING, gcvZONE_OS,
+            "%s(%d): dma_mmap_attrs error",
+            __FUNCTION__, __LINE__
+            );
 
-            gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_MEMORY);
-            return gcvSTATUS_OUT_OF_MEMORY;
-        }
-    }
-    else
-    {
-        gckOS_Print("incorrect mdl:conti%d\n",mdl->contiguous);
+        gcmkFOOTER_ARG("*status=%d", gcvSTATUS_OUT_OF_MEMORY);
+        return gcvSTATUS_OUT_OF_MEMORY;
     }
 
     up_write(&current->mm->mmap_sem);
-
-    gcmkVERIFY_OK(gckOS_CacheFlush(
-        os,
-        _GetProcessID(),
-        mdl,
-        gcvINVALID_ADDRESS,
-        (gctPOINTER)userLogical,
-        mdl->numPages * PAGE_SIZE
-        ));
 
     *UserLogical = userLogical;
 
@@ -303,7 +348,7 @@ _CMAFSLMapUser(
 }
 
 void
-_CMAUnmapUser(
+_DmaUnmapUser(
     IN gckALLOCATOR Allocator,
     IN gctPOINTER Logical,
     IN gctUINT32 Size
@@ -339,19 +384,19 @@ _CMAUnmapUser(
 }
 
 gceSTATUS
-_CMAMapKernel(
+_DmaMapKernel(
     IN gckALLOCATOR Allocator,
     IN PLINUX_MDL Mdl,
     OUT gctPOINTER *Logical
     )
 {
-    struct mdl_cma_priv *mdl_priv=(struct mdl_cma_priv *)Mdl->priv;
-    *Logical =mdl_priv->kvaddr;
+    struct mdl_dma_priv *mdlPriv=(struct mdl_dma_priv *)Mdl->priv;
+    *Logical =mdlPriv->kvaddr;
     return gcvSTATUS_OK;
 }
 
 gceSTATUS
-_CMAUnmapKernel(
+_DmaUnmapKernel(
     IN gckALLOCATOR Allocator,
     IN PLINUX_MDL Mdl,
     IN gctPOINTER Logical
@@ -371,16 +416,16 @@ _DefaultCache(
     );
 
 gceSTATUS
-_CMAPhysical(
+_DmaPhysical(
     IN gckALLOCATOR Allocator,
     IN PLINUX_MDL Mdl,
     IN gctUINT32 Offset,
     OUT gctPHYS_ADDR_T * Physical
     )
 {
-    struct mdl_cma_priv *mdl_priv=(struct mdl_cma_priv *)Mdl->priv;
+    struct mdl_dma_priv *mdlPriv=(struct mdl_dma_priv *)Mdl->priv;
 
-    *Physical = mdl_priv->physical + Offset;
+    *Physical = mdlPriv->dmaHandle + Offset;
 
     return gcvSTATUS_OK;
 }
@@ -391,32 +436,31 @@ _DefaultAllocatorDestructor(
     );
 
 /* Default allocator operations. */
-gcsALLOCATOR_OPERATIONS CMAFSLAllocatorOperations = {
-    .Alloc              = _CMAFSLAlloc,
-    .Free               = _CMAFSLFree,
-    .MapUser            = _CMAFSLMapUser,
-    .UnmapUser          = _CMAUnmapUser,
-    .MapKernel          = _CMAMapKernel,
-    .UnmapKernel        = _CMAUnmapKernel,
+gcsALLOCATOR_OPERATIONS DmaAllocatorOperations = {
+    .Alloc              = _DmaAlloc,
+    .Free               = _DmaFree,
+    .MapUser            = _DmaMapUser,
+    .UnmapUser          = _DmaUnmapUser,
+    .MapKernel          = _DmaMapKernel,
+    .UnmapKernel        = _DmaUnmapKernel,
     .Cache              = _DefaultCache,
-    .Physical           = _CMAPhysical,
+    .Physical           = _DmaPhysical,
 };
 
 /* Default allocator entry. */
 gceSTATUS
-_CMAFSLAlloctorInit(
+_DmaAlloctorInit(
     IN gckOS Os,
     OUT gckALLOCATOR * Allocator
     )
 {
     gceSTATUS status;
     gckALLOCATOR allocator;
-    gcsCMA_PRIV_PTR priv = gcvNULL;
+    gcsDMA_PRIV_PTR priv = gcvNULL;
 
-    gcmkONERROR(
-        gckALLOCATOR_Construct(Os, &CMAFSLAllocatorOperations, &allocator));
+    gcmkONERROR(gckALLOCATOR_Construct(Os, &DmaAllocatorOperations, &allocator));
 
-    priv = kzalloc(gcmSIZEOF(gcsCMA_PRIV), GFP_KERNEL | gcdNOWARN);
+    priv = kzalloc(gcmSIZEOF(gcsDMA_PRIV), GFP_KERNEL | gcdNOWARN);
 
     if (!priv)
     {
@@ -427,10 +471,12 @@ _CMAFSLAlloctorInit(
     allocator->privateData = priv;
     allocator->privateDataDestructor = _DefaultAllocatorDestructor;
 
-    allocator->debugfsInit = _DefaultAllocatorDebugfsInit;
-    allocator->debugfsCleanup = _DefaultAllocatorDebugfsCleanup;
+    /* Register debugfs callbacks. */
+    allocator->debugfsInit = _DebugfsInit;
+    allocator->debugfsCleanup = _DebugfsCleanup;
 
-    allocator->capability = gcvALLOC_FLAG_CONTIGUOUS;
+    /* dma allocator is only used when NO_DMA_COHERENT is not defined. */
+    allocator->capability = gcvALLOC_FLAG_NONE;
 
     *Allocator = allocator;
 

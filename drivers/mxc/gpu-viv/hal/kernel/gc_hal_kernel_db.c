@@ -737,9 +737,6 @@ gckKERNEL_CreateProcessDB(
     database->mapUserMemory.bytes      = 0;
     database->mapUserMemory.maxBytes   = 0;
     database->mapUserMemory.totalBytes = 0;
-    database->virtualCommandBuffer.bytes = 0;
-    database->virtualCommandBuffer.maxBytes = 0;
-    database->virtualCommandBuffer.totalBytes = 0;
 
     for (i = 0; i < gcmCOUNTOF(database->list); i++)
     {
@@ -992,10 +989,6 @@ gckKERNEL_AddProcessDB(
         count = &database->mapUserMemory;
         break;
 
-    case gcvDB_COMMAND_BUFFER:
-        count = &database->virtualCommandBuffer;
-        break;
-
     default:
         count = gcvNULL;
         break;
@@ -1144,11 +1137,6 @@ gckKERNEL_RemoveProcessDB(
     case gcvDB_MAP_USER_MEMORY:
         database->mapUserMemory.bytes -= bytes;
         database->mapUserMemory.freeCount++;
-        break;
-
-    case gcvDB_COMMAND_BUFFER:
-        database->virtualCommandBuffer.bytes -= bytes;
-        database->virtualCommandBuffer.freeCount++;
         break;
 
     default:
@@ -1656,12 +1644,6 @@ gckKERNEL_QueryProcessDB(
                                   gcmSIZEOF(database->mapUserMemory));
         break;
 
-    case gcvDB_COMMAND_BUFFER:
-        gckOS_MemCopy(&Info->counters,
-                                  &database->virtualCommandBuffer,
-                                  gcmSIZEOF(database->virtualCommandBuffer));
-        break;
-
     default:
         break;
     }
@@ -1868,6 +1850,10 @@ gckKERNEL_DumpVidMemUsage(
         "MASK",
         "SCISSOR",
         "HIERARCHICAL_DEPTH",
+        "ICACHE",
+        "TXDESC",
+        "FENCE",
+        "TFBHEADER",
     };
 
     gcmkHEADER_ARG("Kernel=0x%x ProcessID=%d",

@@ -215,41 +215,6 @@ gcoSURF_DisableAlphaBlend(
     IN gcoSURF Surface
     );
 
-/* Copy a rectangular area with format conversion. */
-gceSTATUS
-gcoSURF_CopyPixels(
-    IN gcoSURF Source,
-    IN gcoSURF Target,
-    IN gctINT SourceX,
-    IN gctINT SourceY,
-    IN gctINT TargetX,
-    IN gctINT TargetY,
-    IN gctINT Width,
-    IN gctINT Height
-    );
-
-/* Read surface pixel. */
-gceSTATUS
-gcoSURF_ReadPixel(
-    IN gcoSURF Surface,
-    IN gctPOINTER Memory,
-    IN gctINT X,
-    IN gctINT Y,
-    IN gceSURF_FORMAT Format,
-    OUT gctPOINTER PixelValue
-    );
-
-/* Write surface pixel. */
-gceSTATUS
-gcoSURF_WritePixel(
-    IN gcoSURF Surface,
-    IN gctPOINTER Memory,
-    IN gctINT X,
-    IN gctINT Y,
-    IN gceSURF_FORMAT Format,
-    IN gctPOINTER PixelValue
-    );
-
 gceSTATUS
 gcoSURF_SetDither(
     IN gcoSURF Surface,

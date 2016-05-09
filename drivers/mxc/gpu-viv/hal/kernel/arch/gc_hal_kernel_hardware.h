@@ -68,7 +68,8 @@ typedef enum {
     gcvHARDWARE_FUNCTION_MMU,
     gcvHARDWARE_FUNCTION_FLUSH,
 
-    gcvHARDWARE_FUNCTION_DUMMY_DRAW,
+    /* BLT engine command sequence. */
+    gcvHARDWARE_FUNCTION_BLT_EVENT,
     gcvHARDWARE_FUNCTION_NUM,
 }
 gceHARDWARE_FUNCTION;
@@ -78,6 +79,9 @@ typedef struct _gcsHARWARE_FUNCTION
 {
     /* Entry of the function. */
     gctUINT32                   address;
+
+    /* CPU address of the function. */
+    gctUINT8_PTR                logical;
 
     /* Bytes of the function. */
     gctUINT32                   bytes;
@@ -99,6 +103,54 @@ typedef struct _gcsSTATETIMER
     gctUINT64                   elapse[4];
 }
 gcsSTATETIMER;
+
+typedef struct _gcsHARDWARE_SIGNATURE
+{
+    /* Chip model. */
+    gceCHIPMODEL                chipModel;
+
+    /* Revision value.*/
+    gctUINT32                   chipRevision;
+
+    /* Supported feature fields. */
+    gctUINT32                   chipFeatures;
+
+    /* Supported minor feature fields. */
+    gctUINT32                   chipMinorFeatures;
+
+    /* Supported minor feature 1 fields. */
+    gctUINT32                   chipMinorFeatures1;
+
+    /* Supported minor feature 2 fields. */
+    gctUINT32                   chipMinorFeatures2;
+}
+gcsHARDWARE_SIGNATURE;
+
+typedef struct _gcsMMU_TABLE_ARRAY_ENTRY
+{
+    gctUINT32                   low;
+    gctUINT32                   high;
+}
+gcsMMU_TABLE_ARRAY_ENTRY;
+
+typedef struct _gcsHARDWARE_PAGETABLE_ARRAY
+{
+    /* Number of entries in page table array. */
+    gctUINT                     num;
+
+    /* Size in bytes of array. */
+    gctSIZE_T                   size;
+
+    /* Physical address of array. */
+    gctPHYS_ADDR_T              address;
+
+    /* Memory descriptor. */
+    gctPHYS_ADDR                physical;
+
+    /* Logical address of array. */
+    gctPOINTER                  logical;
+}
+gcsHARDWARE_PAGETABLE_ARRAY;
 
 /* gckHARDWARE object. */
 struct _gckHARDWARE
@@ -124,6 +176,9 @@ struct _gckHARDWARE
 
     /* Big endian */
     gctBOOL                     bigEndian;
+
+    /* Base address. */
+    gctUINT32                   baseAddress;
 
     /* Chip status */
     gctPOINTER                  powerMutex;
@@ -162,16 +217,16 @@ struct _gckHARDWARE
     gctPOINTER                  pageTableDirty;
 
 #if gcdLINK_QUEUE_SIZE
-    struct _gckLINKQUEUE        linkQueue;
+    struct _gckQUEUE            linkQueue;
 #endif
 
     gctBOOL                     powerManagement;
-    gctBOOL                     powerManagementLock;
     gctBOOL                     gpuProfiler;
 
-    gctBOOL                     endAfterFlushMmuCache;
+    gctBOOL                     stallFEPrefetch;
 
     gctUINT32                   minFscaleValue;
+    gctUINT                     waitCount;
 
     gctPOINTER                  pendingEvent;
 
@@ -186,7 +241,65 @@ struct _gckHARDWARE
     gcsSTATETIMER               powerStateTimer;
     gctUINT32                   executeCount;
     gctUINT32                   lastExecuteAddress;
+
+    /* Head for hardware list in gckMMU. */
+    gcsLISTHEAD                 mmuHead;
+
+    gctPOINTER                  featureDatabase;
+
+    gcsHARDWARE_SIGNATURE       signature;
+
+    gctUINT32                   maxOutstandingReads;
+
+    gcsHARDWARE_PAGETABLE_ARRAY pagetableArray;
+
+    gceSECURE_MODE              secureMode;
+
+    gctUINT64                   contextID;
 };
+
+typedef struct _gcsFEDescriptor
+{
+    gctUINT32                   start;
+    gctUINT32                   end;
+}
+gcsFEDescriptor;
+
+typedef struct _gcsFE *         gckFE;
+typedef struct _gcsFE
+{
+    gckOS                       os;
+
+    /* Number of free descriptors. */
+    gctPOINTER                  freeDscriptors;
+}
+gcsFE;
+
+gceSTATUS
+gckFE_Initialize(
+    IN gckHARDWARE Hardware,
+    OUT gckFE FE
+    );
+
+gceSTATUS
+gckFE_ReserveSlot(
+    IN gckHARDWARE Hardware,
+    IN gckFE FE,
+    OUT gctBOOL * Available
+    );
+
+void
+gckFE_UpdateAvaiable(
+    IN gckHARDWARE Hardware,
+    OUT gckFE FE
+    );
+
+void
+gckFE_Execute(
+    IN gckHARDWARE Hardware,
+    IN gckFE FE,
+    IN gcsFEDescriptor * Desc
+    );
 
 gceSTATUS
 gckHARDWARE_GetBaseAddress(
@@ -206,6 +319,13 @@ gckHARDWARE_GetFrameInfo(
     IN gckHARDWARE Hardware,
     OUT gcsHAL_FRAME_INFO * FrameInfo
     );
+
+#define gcmkWRITE_MEMORY(logical, data) \
+    do { \
+    gcmkVERIFY_OK(gckOS_WriteMemory(os, logical, data)); \
+    logical++; \
+    }\
+    while (0) ; \
 
 gceSTATUS
 gckHARDWARE_DummyDraw(

@@ -145,6 +145,7 @@ typedef struct _gcsPARSER
     gctUINT32           skipCount;
 
     gctBOOL             allow;
+    gctBOOL             stop;
 
     /* Callback used by parser to handle a command. */
     gckPARSER_HANDLER   commandHandler;
@@ -156,7 +157,7 @@ typedef struct _gcsMIRROR
     gctUINT32_PTR       logical[gcdNUM_RECORDS];
     gctUINT32           bytes;
     gcsSTATE_MAP_PTR    map;
-    gctUINT32           maxState;
+    gctSIZE_T           maxState;
 }
 gcsMIRROR;
 
@@ -308,6 +309,16 @@ _GetCommand(
         Parser->skipCount = 0;
         break;
 
+    case 0x07:
+        Parser->currentCmdBufferAddr = Parser->currentCmdBufferAddr + 8;
+        Parser->skipCount = 0;
+        break;
+
+    case 0x08:
+        /* Commands after LINK isn't executed, skip them. */
+        Parser->stop = gcvTRUE;
+        break;
+
     default:
         /* Unknown command is a risk. */
         Parser->allow = gcvFALSE;
@@ -354,6 +365,7 @@ gckPARSER_Parse(
     parser->currentCmdBufferAddr = (gctUINT8_PTR)Buffer;
     parser->skip = 0;
     parser->allow = gcvTRUE;
+    parser->stop  = gcvFALSE;
 
     /* Go through command buffer until reaching the end
     ** or meeting an error. */
@@ -363,7 +375,10 @@ gckPARSER_Parse(
 
         _ParseCommand(parser);
     }
-    while ((parser->currentCmdBufferAddr < end) && (parser->allow == gcvTRUE));
+    while ((parser->currentCmdBufferAddr < end)
+        && (parser->allow == gcvTRUE)
+        && (parser->stop == gcvFALSE)
+        );
 
     if (parser->allow == gcvFALSE)
     {
@@ -469,7 +484,7 @@ gckRECORDER_Construct(
     gceSTATUS status;
     gckCONTEXT context = gcvNULL;
     gckRECORDER recorder = gcvNULL;
-    gctUINT32 mapSize;
+    gctSIZE_T mapSize;
     gctUINT i;
     gctBOOL virtualCommandBuffer = Hardware->kernel->virtualCommandBuffer;
 

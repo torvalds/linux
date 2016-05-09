@@ -60,16 +60,16 @@ AQROOT := $(srctree)/drivers/mxc/gpu-viv
 
 include $(AQROOT)/config
 
+PLATFORM ?= default/gc_hal_kernel_platform_default
+
 KERNEL_DIR ?= $(TOOL_DIR)/kernel
 
 OS_KERNEL_DIR   := hal/os/linux/kernel
 ARCH_KERNEL_DIR := hal/kernel/arch
 ARCH_VG_KERNEL_DIR := hal/kernel/archvg
 HAL_KERNEL_DIR  := hal/kernel
+TA_DIR          := hal/security_v1
 HOST := $(shell hostname)
-
-# Check and include platform config.
-ifneq ($(PLATFORM),)
 
 # Get platform config path.
 PLATFORM_CONFIG ?= $(AQROOT)/$(OS_KERNEL_DIR)/platform/$(PLATFORM).config
@@ -80,8 +80,6 @@ PLATFORM_CONFIG := $(wildcard $(PLATFORM_CONFIG))
 # Include it if exists.
 ifneq ($(PLATFORM_CONFIG),)
 include $(PLATFORM_CONFIG)
-endif
-
 endif
 
 MODULE_NAME ?= galcore
@@ -96,6 +94,10 @@ OBJS := $(OS_KERNEL_DIR)/gc_hal_kernel_device.o \
         $(OS_KERNEL_DIR)/gc_hal_kernel_os.o \
         $(OS_KERNEL_DIR)/gc_hal_kernel_debugfs.o \
         $(OS_KERNEL_DIR)/gc_hal_kernel_allocator.o \
+        $(OS_KERNEL_DIR)/allocator/default/gc_hal_kernel_allocator_user_memory.o \
+        $(OS_KERNEL_DIR)/allocator/default/gc_hal_kernel_allocator_dma.o \
+        $(OS_KERNEL_DIR)/gc_hal_kernel_driver.o \
+        $(OS_KERNEL_DIR)/platform/$(PLATFORM).o
 
 ifneq ($(CONFIG_DMA_SHARED_BUFFER),)
 OBJS += $(OS_KERNEL_DIR)/allocator/default/gc_hal_kernel_allocator_dmabuf.o
@@ -105,22 +107,17 @@ ifneq ($(CONFIG_IOMMU_SUPPORT),)
 OBJS += $(OS_KERNEL_DIR)/gc_hal_kernel_iommu.o
 endif
 
-ifneq ($(PLATFORM),)
-OBJS += $(OS_KERNEL_DIR)/gc_hal_kernel_probe.o
-OBJS += $(OS_KERNEL_DIR)/platform/$(PLATFORM).o
-else
-OBJS += $(OS_KERNEL_DIR)/gc_hal_kernel_driver.o
-endif
-
 OBJS += $(HAL_KERNEL_DIR)/gc_hal_kernel.o \
         $(HAL_KERNEL_DIR)/gc_hal_kernel_command.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_async_command.o \
         $(HAL_KERNEL_DIR)/gc_hal_kernel_db.o \
         $(HAL_KERNEL_DIR)/gc_hal_kernel_debug.o \
         $(HAL_KERNEL_DIR)/gc_hal_kernel_event.o \
         $(HAL_KERNEL_DIR)/gc_hal_kernel_heap.o \
         $(HAL_KERNEL_DIR)/gc_hal_kernel_mmu.o \
         $(HAL_KERNEL_DIR)/gc_hal_kernel_video_memory.o \
-        $(HAL_KERNEL_DIR)/gc_hal_kernel_power.o
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_power.o \
+        $(HAL_KERNEL_DIR)/gc_hal_kernel_security_v1.o
 
 OBJS += $(ARCH_KERNEL_DIR)/gc_hal_kernel_context.o \
         $(ARCH_KERNEL_DIR)/gc_hal_kernel_hardware.o
@@ -153,6 +150,12 @@ endif
 ifneq ($(CUSTOMER_ALLOCATOR_OBJS),)
 OBJS += $(CUSTOMER_ALLOCATOR_OBJS)
 endif
+
+OBJS += $(OS_KERNEL_DIR)/gc_hal_kernel_security_channel_emulator.o \
+        $(TA_DIR)/gc_hal_ta.o \
+        $(TA_DIR)/gc_hal_ta_hardware.o \
+        $(TA_DIR)/gc_hal_ta_mmu.o \
+        $(TA_DIR)/os/emulator/gc_hal_ta_emulator.o
 
 ifeq ($(KERNELRELEASE), )
 
@@ -239,12 +242,6 @@ else
 EXTRA_CFLAGS += -DgcdCACHE_FUNCTION_UNIMPLEMENTED=0
 endif
 
-ifeq ($(CONFIG_SMP), y)
-EXTRA_CFLAGS += -DgcdSMP=1
-else
-EXTRA_CFLAGS += -DgcdSMP=0
-endif
-
 ifeq ($(VIVANTE_ENABLE_3D),0)
 EXTRA_CFLAGS += -DgcdENABLE_3D=0
 else
@@ -261,12 +258,6 @@ ifeq ($(VIVANTE_ENABLE_VG),0)
 EXTRA_CFLAGS += -DgcdENABLE_VG=0
 else
 EXTRA_CFLAGS += -DgcdENABLE_VG=1
-endif
-
-ifeq ($(ENABLE_OUTER_CACHE_PATCH), 1)
-EXTRA_CFLAGS += -DgcdENABLE_OUTER_CACHE_PATCH=1
-else
-EXTRA_CFLAGS += -DgcdENABLE_OUTER_CACHE_PATCH=0
 endif
 
 ifeq ($(USE_BANK_ALIGNMENT), 1)
@@ -299,12 +290,15 @@ EXTRA_CFLAGS += -I$(AQROOT)/hal/kernel/arch
 EXTRA_CFLAGS += -I$(AQROOT)/hal/kernel/inc
 EXTRA_CFLAGS += -I$(AQROOT)/hal/os/linux/kernel
 EXTRA_CFLAGS += -I$(AQROOT)/$(ALLOCATOR_ARRAY_H_LOCATION)
+EXTRA_CFLAGS += -I$(AQROOT)/hal/security_v1/
 
 ifeq ($(VIVANTE_ENABLE_VG), 1)
 EXTRA_CFLAGS += -I$(AQROOT)/hal/kernel/archvg
 endif
 
 EXTRA_CFLAGS += -DHOST=\"$(HOST)\"
+
+EXTRA_CFLAGS += -DgcdENABLE_TRUST_APPLICATION=1
 
 obj-$(CONFIG_MXC_GPU_VIV) = $(MODULE_NAME).o
 

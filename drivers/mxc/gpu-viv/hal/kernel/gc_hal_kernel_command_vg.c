@@ -1609,14 +1609,26 @@ _TaskSignal(
 
         /* Map the signal into kernel space. */
 #ifdef __QNXNTO__
-        gcmkERR_BREAK(gckOS_UserSignal(
+        status = gckOS_UserSignal(
             Command->os, task->signal, task->rcvid, task->coid
-            ));
+            );
 #else
-        gcmkERR_BREAK(gckOS_UserSignal(
+        status = gckOS_UserSignal(
             Command->os, task->signal, task->process
-            ));
+            );
 #endif /* __QNXNTO__ */
+
+        if (gcmIS_ERROR(status))
+        {
+            if (status == gcvSTATUS_NOT_FOUND)
+            {
+                status = gcvSTATUS_OK;
+            }
+            else
+            {
+                break;
+            }
+        }
 
         /* Update the reference counter. */
         TaskHeader->container->referenceCount -= 1;

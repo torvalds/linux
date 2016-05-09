@@ -52,7 +52,6 @@
 *
 *****************************************************************************/
 
-
 #ifndef __gc_hal_options_h_
 #define __gc_hal_options_h_
 
@@ -71,6 +70,19 @@
 */
 #ifndef gcdPRINT_VERSION
 #   define gcdPRINT_VERSION                     0
+#endif
+
+/*
+USE_KERNEL_VIRTUAL_BUFFERS
+
+This define enables the use of VM for gckCommand and fence buffers.
+*/
+#ifndef USE_KERNEL_VIRTUAL_BUFFERS
+#if defined(UNDER_CE)
+#   define USE_KERNEL_VIRTUAL_BUFFERS           1
+#else
+#   define USE_KERNEL_VIRTUAL_BUFFERS           0
+#endif
 #endif
 
 /*
@@ -104,13 +116,22 @@
 #   define VIVANTE_PROFILER_PERDRAW             0
 #endif
 
-#ifndef VIVANTE_PROFILER_NEW
-#   define VIVANTE_PROFILER_NEW                 0
+#ifndef VIVANTE_PROFILER_PROBE
+#   define VIVANTE_PROFILER_PROBE               0
+#endif
+
+#ifndef VIVANTE_PROFILER_MULTI_GPU
+#   define VIVANTE_PROFILER_MULTI_GPU           0
+#endif
+
+#ifndef VIVANTE_PROFILER_ALL_COUNTER
+#   define VIVANTE_PROFILER_ALL_COUNTER         0
 #endif
 
 #ifndef VIVANTE_PROFILER_PM
 #   define VIVANTE_PROFILER_PM                  1
 #endif
+
 /*
     gcdUSE_VG
 
@@ -118,6 +139,15 @@
 */
 #ifndef gcdUSE_VG
 #   define gcdUSE_VG                            0
+#endif
+
+/*
+    gcdUSE_VX
+
+        Enable VX HAL layer.
+*/
+#ifndef gcdUSE_VX
+#   define gcdUSE_VX                            1
 #endif
 
 /*
@@ -209,7 +239,15 @@
 #   define gcdDUMP_API                          0
 #endif
 
+/*
+    gcdDUMP_AHB_ACCESS
 
+        When set to 1, a dump of all AHB register access will be printed to kernel
+        message.
+*/
+#ifndef gcdDUMP_AHB_ACCESS
+#   define gcdDUMP_AHB_ACCESS                   0
+#endif
 
 /*
     gcdDEBUG_OPTION
@@ -272,18 +310,38 @@
 #           define gcdDEBUG_OPTION_NONE_DEPTH                   0
 #       endif
 
+/*
+    gcdDEBUG_FORCE_CONTEXT_UPDATE
+        When set to 1, context will be updated before every commit.
+*/
+#ifndef gcdDEBUG_FORCE_CONTEXT_UPDATE
+#           define gcdDEBUG_FORCE_CONTEXT_UPDATE                0
+#       endif
+
+
+/*
+    gcdDEBUG_FORCE_CONTEXT_UPDATE
+        When set to 1, pool of each type surface can be specified by
+        changing poolPerType[] in gcsSURF_NODE_Construct.
+*/
+#ifndef gcdDEBUG_OPTION_SPECIFY_POOL
+#           define gcdDEBUG_OPTION_SPECIFY_POOL                 0
+#       endif
+
 #   endif
 #endif
 
 /*
-    gcdDUMP_SWAP_PER_DRAW
+    gcdDUMP_VERIFY_PER_DRAW
 
-        When set to 1, dump swap command for every single draw to make simulation comparison happy.
+        When set to 1, verify RT and images(if used) for every single draw to ease simulation debug.
         Only valid for ES3 driver for now.
 */
-#ifndef gcdDUMP_SWAP_PER_DRAW
-#   define gcdDUMP_SWAP_PER_DRAW                0
+#ifndef gcdDUMP_VERIFY_PER_DRAW
+#   define gcdDUMP_VERIFY_PER_DRAW                0
 #endif
+
+
 
 /*
     gcdDUMP_FRAMERATE
@@ -374,6 +432,15 @@
 #endif
 
 /*
+    gcdCMD_BLT_BUFFER_SIZE
+
+        Number of bytes in a command buffer.
+*/
+#ifndef gcdCMD_BLT_BUFFER_SIZE
+#   define gcdCMD_BLT_BUFFER_SIZE                (1 << 10)
+#endif
+
+/*
     gcdCMD_BUFFERS
 
         Number of command buffers to use per client.
@@ -412,33 +479,18 @@
 #endif
 
 /*
-    gcdMIRROR_PAGETABLE
-
-        Enable it when GPUs with old MMU and new MMU exist at same SoC. It makes
-        each GPU use same virtual address to access same physical memory.
-*/
-#ifndef gcdMIRROR_PAGETABLE
-#   define gcdMIRROR_PAGETABLE                  0
-#endif
-
-/*
     gcdMMU_SIZE
 
         Size of the MMU page table in bytes.  Each 4 bytes can hold 4kB worth of
         virtual data.
 */
 #ifndef gcdMMU_SIZE
-#if gcdMIRROR_PAGETABLE
-#   define gcdMMU_SIZE                          0x200000
-#else
 #   define gcdMMU_SIZE                          (2048 << 10)
-#endif
 #endif
 
 #ifndef gcdGC355_VGMMU_MEMORY_SIZE_KB
 #   define gcdGC355_VGMMU_MEMORY_SIZE_KB   32
 #endif
-
 /*
     gcdSECURE_USER
 
@@ -535,7 +587,7 @@
 */
 #ifndef gcdGPU_TIMEOUT
 #if gcdFPGA_BUILD
-#       define gcdGPU_TIMEOUT                   0
+#       define gcdGPU_TIMEOUT                   (3600 * 1000)
 #   else
 #       define gcdGPU_TIMEOUT                   20000
 #   endif
@@ -703,14 +755,6 @@
 #endif
 
 /*
-    gcdDISABLE_CORES_2D3D
-            disable the 2D3D cores for 2D openVG
-*/
-#ifndef gcdDISABLE_CORES_2D3D
-#   define gcdDISABLE_CORES_2D3D                0
-#endif
-
-/*
    gcdPAGED_MEMORY_CACHEABLE
 
         When non-zero, paged memory will be cacheable.
@@ -755,27 +799,6 @@
 #endif
 
 /*
-    gcdMULTI_GPU
-
-    Enable/disable multi-GPU support.
-    0      : Disable multi-GPU support
-    1      : Enable one of the 3D cores
-    [2..X] : Number of 3D GPU Cores
-*/
-#ifndef gcdMULTI_GPU
-#   define gcdMULTI_GPU                         0
-#endif
-
-/*
-    gcdMULTI_GPU_AFFINITY
-
-    Enable/disable the binding of a context to one GPU
-*/
-#ifndef gcdMULTI_GPU_AFFINITY
-#   define gcdMULTI_GPU_AFFINITY                0
-#endif
-
-/*
     gcdPOWEROFF_TIMEOUT
 
         When non-zero, GPU will power off automatically from
@@ -804,24 +827,6 @@
 #endif
 
 /*
-    gcdSMP
-
-        This define enables SMP support.
-
-        Currently, it only works on Linux/Android,
-        Kbuild will config it according to whether
-        CONFIG_SMP is set.
-
-*/
-#ifndef gcdSMP
-#ifdef __APPLE__
-#   define gcdSMP                               1
-#else
-#   define gcdSMP                               0
-#endif
-#endif
-
-/*
     gcdSHARED_RESOLVE_BUFFER_ENABLED
 
         Use shared resolve buffer for all app buffers.
@@ -835,15 +840,6 @@
  */
 #ifndef gcdUSE_TRIANGLE_STRIP_PATCH
 #   define gcdUSE_TRIANGLE_STRIP_PATCH          1
-#endif
-
-/*
-    gcdENABLE_OUTER_CACHE_PATCH
-
-        Enable the outer cache patch.
-*/
-#ifndef gcdENABLE_OUTER_CACHE_PATCH
-#   define gcdENABLE_OUTER_CACHE_PATCH          0
 #endif
 
 /*
@@ -865,7 +861,7 @@
         they can use same GPU virtual address.
 */
 #ifndef gcdSHARED_PAGETABLE
-#   define gcdSHARED_PAGETABLE                  !gcdPROCESS_ADDRESS_SPACE
+#   define gcdSHARED_PAGETABLE                  0
 #endif
 
 #ifndef gcdUSE_PVR
@@ -942,25 +938,6 @@
 #    define gcdGLB27_SHADER_REPLACE_OPTIMIZATION 1
 #endif
 
-/*
-    gcdSTREAM_OUT_BUFFER
-
-        Enable suppport for the secondary stream out buffer.
-*/
-#ifndef gcdSTREAM_OUT_BUFFER
-#   define gcdSTREAM_OUT_BUFFER                 0
-#   define gcdSTREAM_OUT_NAIVE_SYNC             0
-#endif
-
-/*
-    gcdUSE_HARDWARE_CONFIGURATION_TABLES
-
-        Enable the use of hardware configuration tables,
-        instead of query hardware and determine the features.
-*/
-#ifndef gcdUSE_HARDWARE_CONFIGURATION_TABLES
-#   define gcdUSE_HARDWARE_CONFIGURATION_TABLES 0
-#endif
 
 /*
     gcdSUPPORT_SWAP_RECTANGLE
@@ -987,15 +964,16 @@
 /*
     gcdENABLE_RENDER_INTO_WINDOW
 
-        Enable Render-Into-Window (ie, No-Resolve or direct rendering) feature.
+        Enable Render-Into-Window (ie, No-Resolve) feature on android.
         NOTE that even if enabled, it still depends on hardware feature and
-        application behavior. When hardware feature or application
+        android application behavior. When hardware feature or application
         behavior can not support render into window mode, it will fail back
         to normal mode.
-        On android, if Render-Into-Window is finally used, window back buffer
-        of applications will be allocated matching render target tiling format.
+        When Render-Into-Window is finally used, window back buffer of android
+        applications will be allocated matching render target tiling format.
         Otherwise buffer tiling is decided by the above option
         'gcdGPU_LINEAR_BUFFER_ENABLED'.
+        Android only for now.
 */
 #ifndef gcdENABLE_RENDER_INTO_WINDOW
 #   define gcdENABLE_RENDER_INTO_WINDOW         1
@@ -1009,7 +987,7 @@
         This will dynamically check if color compression is available.
 */
 #ifndef gcdENABLE_RENDER_INTO_WINDOW_WITH_FC
-#   define gcdENABLE_RENDER_INTO_WINDOW_WITH_FC 1
+#   define gcdENABLE_RENDER_INTO_WINDOW_WITH_FC 0
 #endif
 
 /*
@@ -1076,16 +1054,6 @@
 #endif
 
 /*
-    gcdANDROID_UNALIGNED_LINEAR_COMPOSITION_ADJUST
-
-        Enable source surface address adjust when composition on android.
-        Android only.
-*/
-#ifndef gcdANDROID_UNALIGNED_LINEAR_COMPOSITION_ADJUST
-#   define  gcdANDROID_UNALIGNED_LINEAR_COMPOSITION_ADJUST      1
-#endif
-
-/*
     gcdUSE_WCLIP_PATCH
 
         Enable wclipping patch.
@@ -1096,15 +1064,6 @@
 
 #ifndef gcdUSE_NPOT_PATCH
 #   define gcdUSE_NPOT_PATCH                    1
-#endif
-
-/*
-    gcd3DBLIT
-
-        TODO: Should be replaced by feature bit if available.
-*/
-#ifndef gcd3DBLIT
-#   define gcd3DBLIT                            0
 #endif
 
 /*
@@ -1163,7 +1122,7 @@
 #   define gcdENABLE_TS_DOUBLE_BUFFER           1
 #else
 #if gcdMOVG
-#       define gcdENABLE_TS_DOUBLE_BUFFER       0
+#   define gcdENABLE_TS_DOUBLE_BUFFER           0
 #else
 #       define gcdENABLE_TS_DOUBLE_BUFFER       1
 #endif
@@ -1175,27 +1134,11 @@
  */
 
 #ifndef gcdINTERRUPT_STATISTIC
-#if defined(LINUX)
+#if defined(LINUX) || defined(__QNXNTO__) || defined(UNDER_CE)
 #   define gcdINTERRUPT_STATISTIC               1
 #else
 #   define gcdINTERRUPT_STATISTIC               0
 #endif
-#endif
-
-/*
-    gcdYINVERTED_RENDERING
-        When it's not zero, we will rendering display buffer
-        with top-bottom direction. All other offscreen rendering
-        will be bottom-top, which follow OpenGL ES spec.
-*/
-#ifndef gcdYINVERTED_RENDERING
-#   define gcdYINVERTED_RENDERING 1
-#endif
-
-#if gcdYINVERTED_RENDERING
-/* disable unaligned linear composition adjust in Y-inverted rendering mode. */
-#   undef  gcdANDROID_UNALIGNED_LINEAR_COMPOSITION_ADJUST
-#   define gcdANDROID_UNALIGNED_LINEAR_COMPOSITION_ADJUST 0
 #endif
 
 /*
@@ -1204,15 +1147,6 @@
 */
 #ifndef gcdFENCE_WAIT_LOOP_COUNT
 #   define gcdFENCE_WAIT_LOOP_COUNT 100
-#endif
-
-/*
-    gcdHAL_3D_DRAWBLIT
-        When it's not zero, we will enable HAL 3D drawblit
-        to replace client 3dblit.
-*/
-#ifndef gcdHAL_3D_DRAWBLIT
-#   define gcdHAL_3D_DRAWBLIT 1
 #endif
 
 /*
@@ -1232,7 +1166,17 @@
         It wil become to a parameter of resolve function.
 */
 #ifndef gcdREMOVE_SURF_ORIENTATION
-#   define gcdREMOVE_SURF_ORIENTATION 0
+#   define gcdREMOVE_SURF_ORIENTATION 1
+#endif
+
+
+
+/*
+    gcdTEST_DEC200
+        Test part for DEC200. Remove when release.
+*/
+#ifndef gcdTEST_DEC200
+#   define gcdTEST_DEC200                       0
 #endif
 
 /*
@@ -1252,25 +1196,31 @@
 #endif
 
 /*
+    gcdPERFORMANCE_ANALYSIS
+
+        When set to 1, driver will pass information through loadstate
+        to HW. This loadstate does not impact HW execution.
+*/
+#ifndef gcdPERFORMANCE_ANALYSIS
+#   define gcdPERFORMANCE_ANALYSIS              0
+#endif
+
+/*
     gcdFRAMEINFO_STATISTIC
         When enable, collect frame information.
 */
 #ifndef gcdFRAMEINFO_STATISTIC
 
-#if (defined(DBG) && DBG) || defined(DEBUG) || defined(_DEBUG) || gcdDUMP
+#if (defined(DBG) && DBG) || defined(DEBUG)                || \
+     defined(_DEBUG) || gcdDUMP || gcdPERFORMANCE_ANALYSIS || \
+     (defined(WIN32) && !defined(UNDER_CE))                || \
+     gcdFPGA_BUILD
+
 #   define gcdFRAMEINFO_STATISTIC      1
 #else
 #   define gcdFRAMEINFO_STATISTIC      0
 #endif
 
-#endif
-
-/*
-    gcdPACKED_OUTPUT_ADDRESS
-        When it's not zero, ps output is already packed after linked
-*/
-#ifndef gcdPACKED_OUTPUT_ADDRESS
-#   define gcdPACKED_OUTPUT_ADDRESS             1
 #endif
 
 /*
@@ -1291,6 +1241,15 @@
 #ifndef gcdDEC_ENABLE_AHB
 #   define gcdDEC_ENABLE_AHB                    0
 #endif
+
+#endif
+
+/*
+    gcdENABLE_UNIFIED_CONSTANT
+        Enable unified constant or not.
+*/
+#ifndef gcdENABLE_UNIFIED_CONSTANT
+#   define gcdENABLE_UNIFIED_CONSTANT           1
 #endif
 
 /*
@@ -1308,6 +1267,40 @@
 #   define gcdENABLE_VG                         0
 #endif
 
+#ifndef gcdVG_ONLY
+#   define  gcdVG_ONLY  (!gcdENABLE_3D && !gcdENABLE_2D && gcdENABLE_VG)
+#endif
+
+#if defined(WIN32) && !defined(UNDER_CE) && (gcdENABLE_VG == 1)
+
+#ifdef gcdUSE_VX
+#undef gcdUSE_VX
+#endif
+
+#ifdef COMMAND_PROCESSOR_VERSION
+#undef  COMMAND_PROCESSOR_VERSION
+#endif
+
+#ifdef gcdENABLE_TRUST_APPLICATION
+#undef  gcdENABLE_TRUST_APPLICATION
+#endif
+
+#ifdef gcdENABLE_3D
+#undef  gcdENABLE_3D
+#endif
+
+#ifdef gcdENABLE_2D
+#undef  gcdENABLE_2D
+#endif
+
+#define gcdENABLE_3D 0
+#define gcdENABLE_2D 0
+#define gcdUSE_VX 0
+#define COMMAND_PROCESSOR_VERSION 2
+#define gcdENABLE_TRUST_APPLICATION 0
+
+#endif  /* Only for GC355 Cmodel build. */
+
 #ifndef gcdGC355_PROFILER
 #   define gcdGC355_PROFILER                    0
 #endif
@@ -1321,9 +1314,6 @@
 #   endif
 #endif
 
-#ifndef gcdENABLE_UNIFIED_CONSTANT
-#   define gcdENABLE_UNIFIED_CONSTANT           1
-#endif
 
 /*
     gcdRECORD_COMMAND
@@ -1341,6 +1331,87 @@
 */
 #ifndef gcdALLOC_CMD_FROM_RESERVE
 #   define gcdALLOC_CMD_FROM_RESERVE            0
+#endif
+
+/*
+    gcdBOUNDARY_CHECK
+
+    When enabled, add bounary before and after a range of
+    GPU address. So overflow can be trapped by MMU exception.
+    This is a debug option for new MMU and gcdUSE_MMU_EXCEPTION
+    is enabled.
+*/
+#ifndef gcdBOUNDARY_CHECK
+#   define gcdBOUNDARY_CHECK                    0
+#endif
+
+/*
+    gcdRENDER_QUALITY_CHECK
+
+    When enabled, we disable performance opt patch
+    to get know rendering quality comparing with other vendor.
+*/
+#ifndef gcdRENDER_QUALITY_CHECK
+#   define gcdRENDER_QUALITY_CHECK              0
+#endif
+
+/*
+    gcdSYSTRACE
+
+    When enabled, we embed systrace in function header/footer
+    to gather time information on linux platforms include android.
+    '1' to trace API (EGL, ES11, ES2x, ES3x, etc)
+    '2' to trace HAL (except compiler)
+    '4' to trace HAL compiler
+    See gc_hal_user_debug.c for more detailed trace zones.
+*/
+#ifndef gcdSYSTRACE
+#   define gcdSYSTRACE                          0
+#endif
+
+#ifndef gcdENABLE_APPCTXT_BLITDRAW
+#   define gcdENABLE_APPCTXT_BLITDRAW                     0
+#endif
+
+/*
+    gcdENABLE_TRUST_APPLICATION
+
+    When enabled, trust application is used to handle 'security' registers.
+
+    1) If HW doesn't have robust and security feature, this option is meaningless.
+    2) If HW have robust and security and this option is not enable,
+       security registers are handled by non secure driver. It is for
+       platform doesn't want/need to use trust zone.
+*/
+#ifndef gcdENABLE_TRUST_APPLICATION
+#if (defined(_WIN32) && !defined(UNDER_CE)) || (defined (LINUX) && !defined(EMULATOR))
+#   define gcdENABLE_TRUST_APPLICATION          1
+#else
+#   define gcdENABLE_TRUST_APPLICATION          0
+#endif
+#endif
+
+/* Disable gcdENABLE_TRUST_APPLICATION when oboslete gcdSECURITY enabled. */
+#if gcdSECURITY
+#undef gcdENABLE_TRUST_APPLICATION
+#define gcdENABLE_TRUST_APPLICATION             0
+#endif
+
+#ifndef gcdMMU_SECURE_AREA_SIZE
+#   define gcdMMU_SECURE_AREA_SIZE              128
+#endif
+
+/*
+VIV:gcdUSE_MMU_EXCEPTION
+
+    When enabled, enable and check exception interrupt raised by MMU.
+*/
+#ifndef gcdUSE_MMU_EXCEPTION
+#   define gcdUSE_MMU_EXCEPTION                 1
+#endif
+
+#ifndef gcdVX_OPTIMIZER
+#   define gcdVX_OPTIMIZER                      0
 #endif
 
 #endif /* __gc_hal_options_h_ */

@@ -524,7 +524,7 @@ static gcfGETITEMSIZE _itemSize[] =
 ******************************* Printing Functions *****************************
 \******************************************************************************/
 
-#if gcdDEBUG || gcdBUFFERED_OUTPUT
+#if gcmIS_DEBUG(gcdDEBUG_TRACE) || gcdBUFFERED_OUTPUT
 static void
 _DirectPrint(
     gctCONST_STRING Message,
@@ -629,7 +629,7 @@ _PrintBuffer(
     IN gctPOINTER PrefixData,
     IN gctPOINTER Data,
     IN gctUINT Address,
-    IN gctUINT DataSize,
+    IN gctSIZE_T DataSize,
     IN gceDUMP_BUFFER Type,
     IN gctUINT32 DmaAddress
     )
@@ -646,7 +646,8 @@ _PrintBuffer(
 
     static const gctINT COLUMN_COUNT = 8;
 
-    gctUINT i, count, column, address;
+    gctUINT i, column, address;
+    gctSIZE_T count;
     gctUINT32_PTR data;
     gctCHAR buffer[768];
     gctUINT indent, len;
@@ -714,7 +715,7 @@ _PrintBuffer(
     {
         gcmkSPRINTF2(
             buffer + indent, gcmSIZEOF(buffer) - indent,
-            "@[kernel.command %08X %08X\n", Address, DataSize
+            "@[kernel.command %08X %08X\n", Address, (gctUINT32)DataSize
             );
 
         gcmkOUTPUT_STRING(buffer);
@@ -1969,7 +1970,7 @@ void
 gckOS_DumpBuffer(
     IN gckOS Os,
     IN gctPOINTER Buffer,
-    IN gctUINT Size,
+    IN gctSIZE_T Size,
     IN gceDUMP_BUFFER Type,
     IN gctBOOL CopyMessage
     )
@@ -1988,14 +1989,33 @@ gckOS_DumpBuffer(
     if (Type == gceDUMP_BUFFER_FROM_USER)
     {
         if ((Size > 2)
-        && (buffer[0] == '@')
-        && (buffer[1] == '['))
+         && (!strncmp(buffer, "@[", 2) || !strncmp(buffer, "#[", 2))
+        )
         {
             /* Beginning of a user dump. */
             gcmkLOCKSECTION(lockHandle);
             userLocked = gcvTRUE;
         }
         /* Else, let it pass through. */
+
+        /* Some format check. */
+        if ((Size > 2)
+         && (buffer[0] == '@' || buffer[0] == '#')
+         && (buffer[1] != '[')
+        )
+        {
+            /* No error tolerence in parser, so we stop on error to make noise. */
+            for (;;)
+            {
+                gcmkPRINT(
+                    "[galcore]: %s(%d): Illegal dump message %s\n",
+                    __FUNCTION__, __LINE__,
+                    buffer
+                    );
+
+                gckOS_Delay(Os, 10 * 1000);
+            }
+        }
     }
     else
     {
@@ -2049,10 +2069,7 @@ gckOS_DumpBuffer(
         /* Print/schedule the buffer. */
         if (Type == gceDUMP_BUFFER_FROM_USER)
         {
-            gcdOUTPUTSTRING(
-                outputBuffer, outputBuffer->indent,
-                Buffer, 0, gcvNULL
-                );
+            gckOS_CopyPrint(Buffer);
         }
         else
         {
@@ -2068,15 +2085,20 @@ gckOS_DumpBuffer(
        or coming from user and not yet locked. */
     if (userLocked)
     {
-        if ((Size > 4)
-        && (buffer[0] == ']')
-        && (buffer[1] == ' ')
-        && (buffer[2] == '-')
-        && (buffer[3] == '-'))
+        gctUINT i = 0;
+
+        while (i < Size && buffer[i])
         {
-            /* End of a user dump. */
-            gcmkUNLOCKSECTION(lockHandle);
-            userLocked = gcvFALSE;
+            if (buffer[i] == ']')
+            {
+                /* End of a user dump. */
+                userLocked = gcvFALSE;
+                gcmkUNLOCKSECTION(lockHandle);
+
+                break;
+            }
+
+            i++;
         }
         /* Else, let it pass through, don't unlock. */
     }
@@ -2583,8 +2605,6 @@ gckOS_DebugStatus2Name(
         return "gcvSTATUS_TOO_MANY_ATTRIBUTES";
     case gcvSTATUS_TOO_MANY_UNIFORMS:
         return "gcvSTATUS_TOO_MANY_UNIFORMS";
-    case gcvSTATUS_TOO_MANY_SAMPLER:
-        return "gcvSTATUS_TOO_MANY_SAMPLER";
     case gcvSTATUS_TOO_MANY_VARYINGS:
         return "gcvSTATUS_TOO_MANY_VARYINGS";
     case gcvSTATUS_UNDECLARED_VARYING:
@@ -2623,13 +2643,24 @@ gckOS_DebugStatus2Name(
         return "gcvSTATUS_NOT_SUPPORT_CL";
     case gcvSTATUS_NOT_SUPPORT_INTEGER:
         return "gcvSTATUS_NOT_SUPPORT_INTEGER";
+    case gcvSTATUS_UNIFORM_TYPE_MISMATCH:
+        return "gcvSTATUS_UNIFORM_TYPE_MISMATCH";
+    case gcvSTATUS_MISSING_PRIMITIVE_TYPE:
+        return "gcvSTATUS_MISSING_PRIMITIVE_TYPE";
+    case gcvSTATUS_MISSING_OUTPUT_VERTEX_COUNT:
+        return "gcvSTATUS_MISSING_OUTPUT_VERTEX_COUNT";
+    case gcvSTATUS_NON_INVOCATION_ID_AS_INDEX:
+        return "gcvSTATUS_NON_INVOCATION_ID_AS_INDEX";
+    case gcvSTATUS_INPUT_ARRAY_SIZE_MISMATCH:
+        return "gcvSTATUS_INPUT_ARRAY_SIZE_MISMATCH";
+    case gcvSTATUS_OUTPUT_ARRAY_SIZE_MISMATCH:
+        return "gcvSTATUS_OUTPUT_ARRAY_SIZE_MISMATCH";
 
     /* Compiler errors. */
     case gcvSTATUS_COMPILER_FE_PREPROCESSOR_ERROR:
         return "gcvSTATUS_COMPILER_FE_PREPROCESSOR_ERROR";
     case gcvSTATUS_COMPILER_FE_PARSER_ERROR:
         return "gcvSTATUS_COMPILER_FE_PARSER_ERROR";
-
     default:
         return "nil";
     }

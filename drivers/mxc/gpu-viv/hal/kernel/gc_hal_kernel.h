@@ -66,7 +66,7 @@
 #include "gc_hal_kernel_vg.h"
 #endif
 
-#if gcdSECURITY
+#if gcdSECURITY || gcdENABLE_TRUST_APPLICATION
 #include "gc_hal_security_interface.h"
 #endif
 
@@ -106,6 +106,9 @@ extern "C" {
 #define gcdMMU_OFFSET_4K_MASK       ((1U << gcdMMU_OFFSET_4K_BITS) - 1)
 #define gcdMMU_OFFSET_16K_BITS      (32 - gcdMMU_MTLB_BITS - gcdMMU_STLB_16K_BITS)
 #define gcdMMU_OFFSET_16K_MASK      ((1U << gcdMMU_OFFSET_16K_BITS) - 1)
+
+#define gcdMMU_MTLB_ENTRY_HINTS_BITS 6
+#define gcdMMU_MTLB_ENTRY_STLB_MASK  (~((1U << gcdMMU_MTLB_ENTRY_HINTS_BITS) - 1))
 
 #define gcdMMU_MTLB_PRESENT         0x00000001
 #define gcdMMU_MTLB_EXCEPTION       0x00000002
@@ -257,7 +260,6 @@ typedef struct _gcsDATABASE
     gcsDATABASE_COUNTERS                contiguous;
     gcsDATABASE_COUNTERS                mapUserMemory;
     gcsDATABASE_COUNTERS                mapMemory;
-    gcsDATABASE_COUNTERS                virtualCommandBuffer;
 
     gcsDATABASE_COUNTERS                vidMemType[gcvSURF_NUM_TYPES];
     /* Counter for each video memory pool. */
@@ -285,14 +287,15 @@ typedef struct _gcsDATABASE
 }
 gcsDATABASE;
 
-typedef struct _gcsRECORDER * gckRECORDER;
-
 typedef struct _gcsFDPRIVATE *          gcsFDPRIVATE_PTR;
 typedef struct _gcsFDPRIVATE
 {
     gctINT                              (* release) (gcsFDPRIVATE_PTR Private);
 }
 gcsFDPRIVATE;
+
+typedef struct _gcsRECORDER * gckRECORDER;
+
 
 /* Create a process database that will contain all its allocations. */
 gceSTATUS
@@ -385,16 +388,10 @@ gckKERNEL_GetProcessMMU(
     );
 
 gceSTATUS
-gckKERNEL_SetRecovery(
-    IN gckKERNEL Kernel,
-    IN gctBOOL   Recovery,
-    IN gctUINT32 StuckDump
-    );
-
-gceSTATUS
 gckMMU_FlatMapping(
     IN gckMMU Mmu,
-    IN gctUINT32 Physical
+    IN gctUINT32 Physical,
+    IN gctUINT32 NumPages
     );
 
 gceSTATUS
@@ -409,6 +406,17 @@ gckMMU_FreePagesEx(
     IN gckMMU Mmu,
     IN gctUINT32 Address,
     IN gctSIZE_T PageCount
+    );
+
+gceSTATUS
+gckMMU_AttachHardware(
+    IN gckMMU Mmu,
+    IN gckHARDWARE Hardware
+    );
+
+void
+gckMMU_DumpRecentFreedAddress(
+    IN gckMMU Mmu
     );
 
 gceSTATUS
@@ -508,8 +516,8 @@ struct _gckDB
     gctPOINTER                  pointerDatabaseMutex;
 };
 
-typedef struct _gckVIRTUAL_COMMAND_BUFFER * gckVIRTUAL_COMMAND_BUFFER_PTR;
-typedef struct _gckVIRTUAL_COMMAND_BUFFER
+typedef struct _gckVIRTUAL_BUFFER * gckVIRTUAL_BUFFER_PTR;
+typedef struct _gckVIRTUAL_BUFFER
 {
     gctPHYS_ADDR                physical;
     gctPOINTER                  userLogical;
@@ -519,12 +527,19 @@ typedef struct _gckVIRTUAL_COMMAND_BUFFER
     gctPOINTER                  pageTable;
     gctUINT32                   gpuAddress;
     gctUINT                     pid;
-    gckVIRTUAL_COMMAND_BUFFER_PTR   next;
-    gckVIRTUAL_COMMAND_BUFFER_PTR   prev;
     gckKERNEL                   kernel;
 #if gcdPROCESS_ADDRESS_SPACE
     gckMMU                      mmu;
 #endif
+}
+gckVIRTUAL_BUFFER;
+
+typedef struct _gckVIRTUAL_COMMAND_BUFFER * gckVIRTUAL_COMMAND_BUFFER_PTR;
+typedef struct _gckVIRTUAL_COMMAND_BUFFER
+{
+    gckVIRTUAL_BUFFER               virtualBuffer;
+    gckVIRTUAL_COMMAND_BUFFER_PTR   next;
+    gckVIRTUAL_COMMAND_BUFFER_PTR   prev;
 }
 gckVIRTUAL_COMMAND_BUFFER;
 
@@ -561,6 +576,8 @@ struct _gckKERNEL
 #if VIVANTE_PROFILER
     /* Enable profiling */
     gctBOOL                     profileEnable;
+    /* profiling sync mode*/
+    gctBOOL                     profileSyncMode;
     /* Clear profile register or not*/
     gctBOOL                     profileCleanRegister;
 #endif
@@ -605,7 +622,7 @@ struct _gckKERNEL
     /* Level of dump information after stuck. */
     gctUINT                     stuckDump;
 
-#if gcdSECURITY
+#if gcdSECURITY || gcdENABLE_TRUST_APPLICATION
     gctUINT32                   securityChannel;
 #endif
 
@@ -620,7 +637,16 @@ struct _gckKERNEL
     gctUINT32                   lastCommitStamp;
     gctUINT32                   timer;
     gctUINT32                   restoreAddress;
-    gctUINT32                   restoreMask;
+    gctINT32                   restoreMask;
+
+    /* 3DBLIT */
+    gckASYNC_COMMAND            asyncCommand;
+    gckEVENT                    asyncEvent;
+
+    /* Pointer to gckDEVICE object. */
+    gckDEVICE                   device;
+
+    gctUINT                     chipID;
 };
 
 struct _FrequencyHistory
@@ -646,14 +672,34 @@ struct _gckDVFS
 typedef struct _gcsFENCE * gckFENCE;
 typedef struct _gcsFENCE
 {
+    /* Pointer to required object. */
+    gckKERNEL                   kernel;
+
     /* Fence location. */
     gctPHYS_ADDR                physical;
     gctPOINTER                  logical;
     gctUINT32                   address;
 
+    gcsLISTHEAD                 waitingList;
     gctPOINTER                  mutex;
 }
 gcsFENCE;
+
+/* A sync point attached to fence. */
+typedef struct _gcsFENCE_SYNC * gckFENCE_SYNC;
+typedef struct _gcsFENCE_SYNC
+{
+    /* Stamp of commit access this node. */
+    gctUINT64                   commitStamp;
+
+    /* Attach to waiting list. */
+    gcsLISTHEAD                 head;
+
+    gctPOINTER                  signal;
+
+    gctBOOL                     inList;
+}
+gcsFENCE_SYNC;
 
 /* gckCOMMAND object. */
 struct _gckCOMMAND
@@ -702,6 +748,7 @@ struct _gckCOMMAND
     }
     queues[gcdCOMMAND_QUEUES];
 
+    gctPHYS_ADDR                virtualMemory;
     gctUINT32                   physical;
     gctPOINTER                  logical;
     gctUINT32                   address;
@@ -726,7 +773,6 @@ struct _gckCOMMAND
     /* Command buffer alignment. */
     gctUINT32                   alignment;
     gctUINT32                   reservedHead;
-    gctUINT32                   reservedTail;
 
     /* Commit counter. */
     gctPOINTER                  atomCommit;
@@ -747,9 +793,17 @@ struct _gckCOMMAND
 #if gcdPROCESS_ADDRESS_SPACE
     gckMMU                      currentMmu;
 #endif
-    struct _gckENTRYQUEUE       queue;
+
+#if gcdRECORD_COMMAND
+    gckRECORDER                 recorder;
+#endif
+
+    gctPOINTER                  kList;
 
     gckFENCE                    fence;
+
+    /* For getting state from async command buffer. */
+    gckASYNC_COMMAND            asyncCommand;
 };
 
 typedef struct _gcsEVENT *      gcsEVENT_PTR;
@@ -784,11 +838,6 @@ typedef struct _gcsEVENT_QUEUE
 
     /* Source of the event. */
     gceKERNEL_WHERE             source;
-
-#if gcdMULTI_GPU
-    /* Which chip(s) of the event */
-    gceCORE_3D_MASK             chipEnable;
-#endif
 
     /* Pointer to head of event queue. */
     gcsEVENT_PTR                head;
@@ -828,6 +877,9 @@ struct _gckEVENT
     gckOS                       os;
     gckKERNEL                   kernel;
 
+    /* Pointer to gckASYNC_COMMAND object. */
+    gckASYNC_COMMAND            asyncCommand;
+
     /* Time stamp. */
     gctUINT64                   stamp;
     gctUINT32                   lastCommitStamp;
@@ -837,28 +889,11 @@ struct _gckEVENT
 
     /* Array of event queues. */
     gcsEVENT_QUEUE              queues[29];
+    gctINT32                    freeQueueCount;
     gctUINT8                    lastID;
-    gctPOINTER                  freeAtom;
 
     /* Pending events. */
-#if gcdSMP
-#if gcdMULTI_GPU
-    gctPOINTER                  pending3D[gcdMULTI_GPU];
-    gctPOINTER                  pending3DMask[gcdMULTI_GPU];
-    gctPOINTER                  pendingMask;
-#endif
     gctPOINTER                  pending;
-#else
-#if gcdMULTI_GPU
-    volatile gctUINT            pending3D[gcdMULTI_GPU];
-    volatile gctUINT            pending3DMask[gcdMULTI_GPU];
-    volatile gctUINT            pendingMask;
-#endif
-    volatile gctUINT            pending;
-#endif
-#if gcdMULTI_GPU
-    gctUINT32                   busy;
-#endif
 
     /* List of free event structures and its mutex. */
     gcsEVENT_PTR                freeEventList;
@@ -876,10 +911,6 @@ struct _gckEVENT
 
 #if gcdINTERRUPT_STATISTIC
     gctPOINTER                  interruptCount;
-#endif
-
-#if gcdRECORD_COMMAND
-    gckRECORDER                 recorder;
 #endif
 };
 
@@ -996,19 +1027,17 @@ typedef union _gcuVIDMEM_NODE
 
         /* Used only when node is not contiguous */
         gctPOINTER              pageTables[gcdMAX_GPU_COUNT];
-        /* Pointer to gckKERNEL object who lock this. */
-        gckKERNEL               lockKernels[gcdMAX_GPU_COUNT];
         /* Actual physical address */
         gctUINT32               addresses[gcdMAX_GPU_COUNT];
 
         /* Locked counter. */
         gctINT32                lockeds[gcdMAX_GPU_COUNT];
 
-        /* Process ID owning this memory. */
-        gctUINT32               processID;
-
         /* Surface type. */
         gceSURF_TYPE            type;
+
+        /* Secure GPU virtual address. */
+        gctBOOL                 secure;
     }
     Virtual;
 }
@@ -1070,6 +1099,8 @@ typedef struct _gcsVIDMEM_NODE
 
     /* Pool from which node is allocated. */
     gcePOOL                     pool;
+
+    gcsFENCE_SYNC               sync[gcvENGINE_COUNT];
 }
 gcsVIDMEM_NODE;
 
@@ -1103,6 +1134,42 @@ typedef struct _gcsSHBUF
     gctPOINTER                  data;
 }
 gcsSHBUF;
+
+typedef struct _gcsCORE_INFO
+{
+    gceHARDWARE_TYPE            type;
+    gceCORE                     core;
+    gckKERNEL                   kernel;
+    gctUINT                     chipID;
+}
+gcsCORE_INFO;
+
+typedef struct _gcsCORE_LIST
+{
+    gckKERNEL                   kernels[gcvCORE_COUNT];
+    gctUINT32                   num;
+}
+gcsCORE_LIST;
+
+/* A gckDEVICE is a group of cores (gckKERNEL in software). */
+typedef struct _gcsDEVICE
+{
+    gcsCORE_INFO                coreInfoArray[gcvCORE_COUNT];
+    gctUINT32                   coreNum;
+    gcsCORE_LIST                map[gcvHARDWARE_NUM_TYPES];
+
+    gckOS                       os;
+
+    /* Process resource database. */
+    gckDB                       database;
+
+    /* Same hardware type shares one MMU. */
+    gckMMU                      mmus[gcvHARDWARE_NUM_TYPES];
+
+    /* Mutex to make sure stuck dump for multiple cores doesn't interleave. */
+    gctPOINTER                  stuckDumpMutex;
+}
+gcsDEVICE;
 
 gceSTATUS
 gckVIDMEM_HANDLE_Reference(
@@ -1162,6 +1229,13 @@ gckVIDMEM_NODE_Import(
     );
 
 gceSTATUS
+gckVIDMEM_NODE_GetFd(
+    IN gckKERNEL Kernel,
+    IN gctUINT32 Handle,
+    OUT gctINT * Fd
+    );
+
+gceSTATUS
 gckVIDMEM_HANDLE_LookupAndReference(
     IN gckKERNEL Kernel,
     IN gctUINT32 Handle,
@@ -1174,13 +1248,6 @@ gckVIDMEM_HANDLE_Lookup(
     IN gctUINT32 ProcessID,
     IN gctUINT32 Handle,
     OUT gckVIDMEM_NODE * Node
-    );
-
-gceSTATUS
-gckVIDMEM_NODE_GetFd(
-    IN gckKERNEL Kernel,
-    IN gctUINT32 Handle,
-    OUT gctINT * Fd
     );
 
 gceSTATUS
@@ -1199,6 +1266,24 @@ gckEVENT_DestroyMmu(
     );
 #endif
 
+typedef struct _gcsADDRESS_AREA * gcsADDRESS_AREA_PTR;
+typedef struct _gcsADDRESS_AREA
+{
+    /* Page table information. */
+    gctSIZE_T                   pageTableSize;
+    gctPHYS_ADDR                pageTablePhysical;
+    gctUINT32_PTR               pageTableLogical;
+    gctUINT32                   pageTableEntries;
+
+    /* Free entries. */
+    gctUINT32                   heapList;
+    gctBOOL                     freeNodes;
+
+    gctUINT32                   dynamicMappingStart;
+    gctUINT32_PTR               mapLogical;
+}
+gcsADDRESS_AREA;
+
 /* gckMMU object. */
 struct _gckMMU
 {
@@ -1214,33 +1299,54 @@ struct _gckMMU
     /* The page table mutex. */
     gctPOINTER                  pageTableMutex;
 
-    /* Page table information. */
-    gctSIZE_T                   pageTableSize;
-    gctPHYS_ADDR                pageTablePhysical;
-    gctUINT32_PTR               pageTableLogical;
-    gctUINT32                   pageTableEntries;
-
     /* Master TLB information. */
     gctSIZE_T                   mtlbSize;
     gctPHYS_ADDR                mtlbPhysical;
     gctUINT32_PTR               mtlbLogical;
     gctUINT32                   mtlbEntries;
 
-    /* Free entries. */
-    gctUINT32                   heapList;
-    gctBOOL                     freeNodes;
-
     gctPOINTER                  staticSTLB;
     gctBOOL                     enabled;
 
-    gctUINT32                   dynamicMappingStart;
-
-    gctUINT32_PTR               mapLogical;
 #if gcdPROCESS_ADDRESS_SPACE
     gctPOINTER                  pageTableDirty[gcdMAX_GPU_COUNT];
     gctPOINTER                  stlbs;
 #endif
+
+    gctPOINTER                  safePageLogical;
+    gctPHYS_ADDR                safePagePhysical;
+    gctUINT32                   safeAddress;
+    gctSIZE_T                   safePageSize;
+
+    gctUINT32                   flatMappingStart;
+    gctUINT32                   flatMappingEnd;
+
+    /* List of hardware which uses this MMU. */
+    gcsLISTHEAD                 hardwareList;
+
+    struct _gckQUEUE            recentFreedAddresses;
+
+    gcsADDRESS_AREA             area[gcvADDRESS_AREA_COUNT];
 };
+
+typedef struct _gcsASYNC_COMMAND
+{
+    gckOS                           os;
+    gckHARDWARE                     hardware;
+    gckKERNEL                       kernel;
+
+    gctPOINTER                      mutex;
+    gcsFE                           fe;
+
+    gctUINT32                       reservedTail;
+    gctUINT64                       commitStamp;
+
+    gckFENCE                        fence;
+
+    gctPOINTER                      kList;
+}
+gcsASYNC_COMMAND;
+
 
 gceSTATUS
 gckOS_CreateKernelVirtualMapping(
@@ -1283,6 +1389,34 @@ gckOS_GetFd(
     OUT gctINT *Fd
     );
 
+/*******************************************************************************
+**
+**  gckOS_ReadMappedPointer
+**
+**  Read pointer mapped from user pointer which returned by gckOS_MapUserPointer.
+**
+**  INPUT:
+**
+**      gckOS Os
+**          Pointer to an gckOS object.
+**
+**      gctPOINTER Address
+**          Pointer returned by gckOS_MapUserPointer.
+**
+**      gctUINT32_PTR Data
+**          Pointer to hold 32 bits data.
+**
+**  OUTPUT:
+**
+**      Nothing.
+*/
+gceSTATUS
+gckOS_ReadMappedPointer(
+    IN gckOS Os,
+    IN gctPOINTER Address,
+    IN gctUINT32_PTR Data
+    );
+
 gceSTATUS
 gckKERNEL_AllocateVirtualCommandBuffer(
     IN gckKERNEL Kernel,
@@ -1301,11 +1435,28 @@ gckKERNEL_DestroyVirtualCommandBuffer(
     );
 
 gceSTATUS
+gckKERNEL_AllocateVirtualMemory(
+    IN gckKERNEL Kernel,
+    IN gctBOOL NonPaged,
+    IN gctBOOL InUserSpace,
+    IN OUT gctSIZE_T * Bytes,
+    OUT gctPHYS_ADDR * Physical,
+    OUT gctPOINTER * Logical
+    );
+
+gceSTATUS
+gckKERNEL_FreeVirtualMemory(
+    IN gctPHYS_ADDR Physical,
+    IN gctPOINTER Logical,
+    IN gctBOOL NonPaged
+    );
+
+gceSTATUS
 gckKERNEL_GetGPUAddress(
     IN gckKERNEL Kernel,
     IN gctPOINTER Logical,
     IN gctBOOL InUserSpace,
-    IN gckVIRTUAL_COMMAND_BUFFER_PTR Buffer,
+    IN gctPHYS_ADDR Physical,
     OUT gctUINT32 * Address
     );
 
@@ -1353,10 +1504,24 @@ gckHARDWARE_QueryIdle(
     );
 
 gceSTATUS
+gckHARDWARE_WaitFence(
+    IN gckHARDWARE Hardware,
+    IN gctPOINTER Logical,
+    IN gctUINT64 FenceData,
+    IN gctUINT32 FenceAddress,
+    OUT gctUINT32 *Bytes
+    );
+
+gceSTATUS
 gckHARDWARE_AddressInHardwareFuncions(
     IN gckHARDWARE Hardware,
     IN gctUINT32 Address,
     OUT gctPOINTER *Pointer
+    );
+
+gceSTATUS
+gckHARDWARE_UpdateContextID(
+    IN gckHARDWARE Hardware
     );
 
 #if gcdSECURITY
@@ -1416,6 +1581,61 @@ gckKERNEL_SecurityUnmapMemory(
     IN gckKERNEL Kernel,
     IN gctUINT32 GPUAddress,
     IN gctUINT32 PageCount
+    );
+
+#endif
+
+#if gcdENABLE_TRUST_APPLICATION
+gceSTATUS
+gckKERNEL_SecurityOpen(
+    IN gckKERNEL Kernel,
+    IN gctUINT32 GPU,
+    OUT gctUINT32 *Channel
+    );
+
+/*
+** Close a security service channel
+*/
+gceSTATUS
+gckKERNEL_SecurityClose(
+    IN gctUINT32 Channel
+    );
+
+/*
+** Security service interface.
+*/
+gceSTATUS
+gckKERNEL_SecurityCallService(
+    IN gctUINT32 Channel,
+    IN OUT gcsTA_INTERFACE * Interface
+    );
+
+gceSTATUS
+gckKERNEL_SecurityStartCommand(
+    IN gckKERNEL Kernel,
+    IN gctUINT32 Address,
+    IN gctUINT32 Bytes
+    );
+
+gceSTATUS
+gckKERNEL_SecurityMapMemory(
+    IN gckKERNEL Kernel,
+    IN gctUINT32 *PhysicalArray,
+    IN gctPHYS_ADDR_T Physical,
+    IN gctUINT32 PageCount,
+    OUT gctUINT32 * GPUAddress
+    );
+
+gceSTATUS
+gckKERNEL_SecurityUnmapMemory(
+    IN gckKERNEL Kernel,
+    IN gctUINT32 GPUAddress,
+    IN gctUINT32 PageCount
+    );
+
+gceSTATUS
+gckKERNEL_SecurityDumpMMUException(
+    IN gckKERNEL Kernel
     );
 
 #endif
@@ -1489,36 +1709,30 @@ gckCONTEXT_MapBuffer(
     OUT gctUINT32 *Bytes
     );
 
-#if gcdLINK_QUEUE_SIZE
 void
-gckLINKQUEUE_Enqueue(
-    IN gckLINKQUEUE LinkQueue,
-    IN gctUINT32 start,
-    IN gctUINT32 end,
-    IN gctUINT32 LinkLow,
-    IN gctUINT32 LinkHigh
+gckQUEUE_Enqueue(
+    IN gckQUEUE LinkQueue,
+    IN gcuQUEUEDATA *Data
     );
 
 void
-gckLINKQUEUE_GetData(
-    IN gckLINKQUEUE LinkQueue,
+gckQUEUE_GetData(
+    IN gckQUEUE LinkQueue,
     IN gctUINT32 Index,
-    OUT gckLINKDATA * Data
-    );
-#endif
-
-gceSTATUS
-gckENTRYQUEUE_Enqueue(
-    IN gckKERNEL Kernel,
-    IN gckENTRYQUEUE Queue,
-    IN gctUINT32 physical,
-    IN gctUINT32 bytes
+    OUT gcuQUEUEDATA ** Data
     );
 
 gceSTATUS
-gckENTRYQUEUE_Dequeue(
-    IN gckENTRYQUEUE Queue,
-    OUT gckENTRYDATA * Data
+gckQUEUE_Allocate(
+    IN gckOS Os,
+    IN gckQUEUE Queue,
+    IN gctUINT32 Size
+    );
+
+gceSTATUS
+gckQUEUE_Free(
+    IN gckOS Os,
+    IN gckQUEUE Queue
     );
 
 /******************************************************************************\
@@ -1564,6 +1778,78 @@ gckRECORDER_UpdateMirror(
     gctUINT32 Data
     );
 
+/******************************************************************************\
+*************************** gckASYNC_COMMAND Object ****************************
+\******************************************************************************/
+gceSTATUS
+gckASYNC_COMMAND_Construct(
+    IN gckKERNEL Kernel,
+    OUT gckASYNC_COMMAND * Command
+    );
+
+gceSTATUS
+gckASYNC_COMMAND_Destroy(
+    IN gckASYNC_COMMAND Command
+    );
+
+gceSTATUS
+gckASYNC_COMMAND_Commit(
+    IN gckASYNC_COMMAND Command,
+    IN gcoCMDBUF CommandBuffer,
+    IN gcsQUEUE_PTR EventQueue
+    );
+
+gceSTATUS
+gckASYNC_COMMAND_EnterCommit(
+    IN gckASYNC_COMMAND Command
+    );
+
+gceSTATUS
+gckASYNC_COMMAND_ExitCommit(
+    IN gckASYNC_COMMAND Command
+    );
+
+gceSTATUS
+gckASYNC_COMMAND_Execute(
+    IN gckASYNC_COMMAND Command,
+    IN gctUINT32 Start,
+    IN gctUINT32 End
+    );
+
+void
+gcsLIST_Init(
+    gcsLISTHEAD_PTR Node
+    );
+
+void
+gcsLIST_Add(
+    gcsLISTHEAD_PTR New,
+    gcsLISTHEAD_PTR Head
+    );
+
+void
+gcsLIST_AddTail(
+    gcsLISTHEAD_PTR New,
+    gcsLISTHEAD_PTR Head
+    );
+
+void
+gcsLIST_Del(
+    gcsLISTHEAD_PTR Node
+    );
+
+gctBOOL
+gcsLIST_Empty(
+    gcsLISTHEAD_PTR Head
+    );
+
+#define gcmkLIST_FOR_EACH(pos, head) \
+    for (pos = (head)->next; pos != (head); pos = pos->next)
+
+#define gcmkLIST_FOR_EACH_SAFE(pos, n, head) \
+    for (pos = (head)->next, n = pos->next; pos != (head); \
+        pos = n, n = pos->next)
+
 gceSTATUS
 gckFENCE_Create(
     IN gckOS Os,
@@ -1576,6 +1862,106 @@ gckFENCE_Destory(
     IN gckOS Os,
     OUT gckFENCE Fence
     );
+
+gceSTATUS
+gckFENCE_Signal(
+    IN gckOS Os,
+    IN gckFENCE Fence
+    );
+
+gceSTATUS
+gckDEVICE_Construct(
+    IN gckOS Os,
+    OUT gckDEVICE * Device
+    );
+
+gceSTATUS
+gckDEVICE_AddCore(
+    IN gckDEVICE Device,
+    IN gceCORE Core,
+    IN gctUINT chipID,
+    IN gctPOINTER Context,
+    IN gckKERNEL * Kernel
+    );
+
+gceSTATUS
+gckDEVICE_Destroy(
+    IN gckOS Os,
+    IN gckDEVICE Device
+    );
+
+gceSTATUS
+gckDEVICE_Dispatch(
+    IN gckDEVICE Device,
+    IN gcsHAL_INTERFACE_PTR Interface
+    );
+
+gceSTATUS
+gckDEVICE_GetMMU(
+    IN gckDEVICE Device,
+    IN gceHARDWARE_TYPE Type,
+    IN gckMMU *Mmu
+    );
+
+gceSTATUS
+gckDEVICE_SetMMU(
+    IN gckDEVICE Device,
+    IN gceHARDWARE_TYPE Type,
+    IN gckMMU Mmu
+    );
+
+gceSTATUS
+gckDEVICE_QueryGPUAddress(
+    IN gckDEVICE Device,
+    IN gckKERNEL Kernel,
+    IN gctUINT32 GPUAddress,
+    OUT gckVIRTUAL_COMMAND_BUFFER_PTR * Buffer
+    );
+
+#if gcdENABLE_TRUST_APPLICATION
+gceSTATUS
+gckKERNEL_MapInTrustApplicaiton(
+    IN gckKERNEL Kernel,
+    IN gctPOINTER Logical,
+    IN gctPHYS_ADDR Physical,
+    IN gctUINT32 GPUAddress,
+    IN gctSIZE_T PageCount
+    );
+#endif
+
+#if gcdSECURITY || gcdENABLE_TRUST_APPLICATION
+gceSTATUS
+gckOS_OpenSecurityChannel(
+    IN gckOS Os,
+    IN gceCORE Core,
+    OUT gctUINT32 *Channel
+    );
+
+gceSTATUS
+gckOS_CloseSecurityChannel(
+    IN gctUINT32 Channel
+    );
+
+gceSTATUS
+gckOS_CallSecurityService(
+    IN gctUINT32 Channel,
+    IN gcsTA_INTERFACE * Interface
+    );
+
+gceSTATUS
+gckOS_InitSecurityChannel(
+    OUT gctUINT32 Channel
+    );
+
+gceSTATUS
+gckOS_AllocatePageArray(
+    IN gckOS Os,
+    IN gctPHYS_ADDR Physical,
+    IN gctSIZE_T PageCount,
+    OUT gctPOINTER * PageArrayLogical,
+    OUT gctPHYS_ADDR * PageArrayPhysical
+    );
+#endif
 
 #ifdef __cplusplus
 }

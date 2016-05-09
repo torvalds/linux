@@ -252,147 +252,6 @@ gceSTATUS gckVGKERNEL_Destroy(
 
 /*******************************************************************************
 **
-**  gckKERNEL_AllocateLinearMemory
-**
-**  Function walks all required memory pools and allocates the requested
-**  amount of video memory.
-**
-**  INPUT:
-**
-**      gckKERNEL Kernel
-**          Pointer to an gckKERNEL object.
-**
-**      gcePOOL * Pool
-**          Pointer the desired memory pool.
-**
-**      gctSIZE_T Bytes
-**          Number of bytes to allocate.
-**
-**      gctSIZE_T Alignment
-**          Required buffer alignment.
-**
-**      gceSURF_TYPE Type
-**          Surface type.
-**
-**  OUTPUT:
-**
-**      gcePOOL * Pool
-**          Pointer to the actual pool where the memory was allocated.
-**
-**      gcuVIDMEM_NODE_PTR * Node
-**          Allocated node.
-*/
-gceSTATUS
-gckVGKERNEL_AllocateLinearMemory(
-    IN gckKERNEL Kernel,
-    IN OUT gcePOOL * Pool,
-    IN gctSIZE_T Bytes,
-    IN gctUINT32 Alignment,
-    IN gceSURF_TYPE Type,
-    OUT gcuVIDMEM_NODE_PTR * Node
-    )
-{
-    gcePOOL pool;
-    gceSTATUS status;
-    gckVIDMEM videoMemory;
-
-    /* Get initial pool. */
-    switch (pool = *Pool)
-    {
-    case gcvPOOL_DEFAULT:
-    case gcvPOOL_LOCAL:
-        pool = gcvPOOL_LOCAL_INTERNAL;
-        break;
-
-    case gcvPOOL_UNIFIED:
-        pool = gcvPOOL_SYSTEM;
-        break;
-
-    default:
-        break;
-    }
-
-    do
-    {
-        /* Verify the number of bytes to allocate. */
-        if (Bytes == 0)
-        {
-            status = gcvSTATUS_INVALID_ARGUMENT;
-            break;
-        }
-
-        if (pool == gcvPOOL_VIRTUAL)
-        {
-            /* Create a gcuVIDMEM_NODE for virtual memory. */
-            gcmkERR_BREAK(gckVIDMEM_ConstructVirtual(Kernel, gcvFALSE, Bytes, Node));
-
-            /* Success. */
-            break;
-        }
-
-        else
-        {
-            /* Get pointer to gckVIDMEM object for pool. */
-            status = gckKERNEL_GetVideoMemoryPool(Kernel, pool, &videoMemory);
-
-            if (status == gcvSTATUS_OK)
-            {
-                /* Allocate memory. */
-                status = gckVIDMEM_AllocateLinear(Kernel,
-                                                  videoMemory,
-                                                  Bytes,
-                                                  Alignment,
-                                                  Type,
-                                                  (*Pool == gcvPOOL_SYSTEM),
-                                                  Node);
-
-                if (status == gcvSTATUS_OK)
-                {
-                    /* Memory allocated. */
-                    break;
-                }
-            }
-        }
-
-        if (pool == gcvPOOL_LOCAL_INTERNAL)
-        {
-            /* Advance to external memory. */
-            pool = gcvPOOL_LOCAL_EXTERNAL;
-        }
-        else if (pool == gcvPOOL_LOCAL_EXTERNAL)
-        {
-            /* Advance to contiguous system memory. */
-            pool = gcvPOOL_SYSTEM;
-        }
-        else if (pool == gcvPOOL_SYSTEM)
-        {
-            /* Advance to virtual memory. */
-            pool = gcvPOOL_VIRTUAL;
-        }
-        else
-        {
-            /* Out of pools. */
-            break;
-        }
-    }
-    /* Loop only for multiple selection pools. */
-    while ((*Pool == gcvPOOL_DEFAULT)
-    ||     (*Pool == gcvPOOL_LOCAL)
-    ||     (*Pool == gcvPOOL_UNIFIED)
-    );
-
-    if (gcmIS_SUCCESS(status))
-    {
-        /* Return pool used for allocation. */
-        *Pool = pool;
-    }
-
-    /* Return status. */
-    return status;
-}
-
-/*******************************************************************************
-**
 **  gckKERNEL_Dispatch
 **
 **  Dispatch a command received from the user HAL layer.
@@ -422,7 +281,6 @@ gceSTATUS gckVGKERNEL_Dispatch(
     gcsHAL_INTERFACE * kernelInterface = Interface;
     gctUINT32 processID;
     gckKERNEL kernel = Kernel;
-    gctPOINTER info = gcvNULL;
     gctPHYS_ADDR physical = gcvNULL;
     gctPOINTER logical = gcvNULL;
     gctSIZE_T bytes = 0;
@@ -438,19 +296,14 @@ gceSTATUS gckVGKERNEL_Dispatch(
     /* Dispatch on command. */
     switch (Interface->command)
     {
-    case gcvHAL_QUERY_VIDEO_MEMORY:
-        /* Query video memory size. */
-        gcmkERR_BREAK(gckKERNEL_QueryVideoMemory(
-            Kernel, kernelInterface
-            ));
-        break;
-
     case gcvHAL_QUERY_CHIP_IDENTITY:
         /* Query chip identity. */
         gcmkERR_BREAK(gckVGHARDWARE_QueryChipIdentity(
             Kernel->vg->hardware,
             &kernelInterface->u.QueryChipIdentity.chipModel,
             &kernelInterface->u.QueryChipIdentity.chipRevision,
+            &kernelInterface->u.QueryChipIdentity.productID,
+            &kernelInterface->u.QueryChipIdentity.ecoID,
             &kernelInterface->u.QueryChipIdentity.chipFeatures,
             &kernelInterface->u.QueryChipIdentity.chipMinorFeatures,
             &kernelInterface->u.QueryChipIdentity.chipMinorFeatures2
@@ -464,6 +317,7 @@ gceSTATUS gckVGKERNEL_Dispatch(
             &kernelInterface->u.QueryCommandBuffer.information
             ));
         break;
+
     case gcvHAL_ALLOCATE_NON_PAGED_MEMORY:
         bytes = (gctSIZE_T) kernelInterface->u.AllocateNonPagedMemory.bytes;
         /* Allocate non-paged memory. */
@@ -543,45 +397,6 @@ gceSTATUS gckVGKERNEL_Dispatch(
         gcmkERR_BREAK(gcvSTATUS_NOT_SUPPORTED);
         break;
 
-    case gcvHAL_ALLOCATE_LINEAR_VIDEO_MEMORY:
-        /* Allocate memory. */
-        gcmkERR_BREAK(gckKERNEL_AllocateLinearMemory(
-            Kernel, processID,
-            &kernelInterface->u.AllocateLinearVideoMemory.pool,
-            kernelInterface->u.AllocateLinearVideoMemory.bytes,
-            kernelInterface->u.AllocateLinearVideoMemory.alignment,
-            kernelInterface->u.AllocateLinearVideoMemory.type,
-            kernelInterface->u.AllocateLinearVideoMemory.flag,
-            &kernelInterface->u.AllocateLinearVideoMemory.node
-            ));
-
-        break;
-
-    case gcvHAL_RELEASE_VIDEO_MEMORY:
-        /* Free video memory. */
-        gcmkERR_BREAK(gckKERNEL_ReleaseVideoMemory(
-            Kernel, processID,
-            (gctUINT32)kernelInterface->u.ReleaseVideoMemory.node
-            ));
-    {
-        gckVIDMEM_NODE nodeObject;
-
-        /* Remove record from process db. */
-        gcmkERR_BREAK(
-            gckKERNEL_RemoveProcessDB(Kernel, processID,
-                                      gcvDB_VIDEO_MEMORY_LOCKED,
-                                      (gctPOINTER)kernelInterface->u.ReleaseVideoMemory.node));
-
-        gcmkERR_BREAK(
-            gckVIDMEM_HANDLE_Lookup(Kernel, processID,
-                                    (gctUINT32)kernelInterface->u.ReleaseVideoMemory.node, &nodeObject));
-
-        gckVIDMEM_NODE_Dereference(Kernel, nodeObject);
-    }
-
-
-        break;
-
     case gcvHAL_MAP_MEMORY:
         /* Map memory. */
         gcmkERR_BREAK(gckKERNEL_MapMemory(
@@ -604,43 +419,19 @@ gceSTATUS gckVGKERNEL_Dispatch(
         break;
 
     case gcvHAL_MAP_USER_MEMORY:
-        /* Map user memory to DMA. */
-        gcmkERR_BREAK(gckOS_MapUserMemory(
-            Kernel->os,
-            gcvCORE_VG,
-            gcmUINT64_TO_PTR(kernelInterface->u.MapUserMemory.memory),
-            kernelInterface->u.MapUserMemory.physical,
-            (gctSIZE_T) kernelInterface->u.MapUserMemory.size,
-            &info,
-            &kernelInterface->u.MapUserMemory.address
-            ));
 
-        kernelInterface->u.MapUserMemory.info = gcmPTR_TO_NAME(info);
+        gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
 
-        /* Clear temp storage. */
-        info = gcvNULL;
         break;
 
     case gcvHAL_UNMAP_USER_MEMORY:
-        /* Unmap user memory. */
-        gcmkERR_BREAK(gckOS_UnmapUserMemory(
-            Kernel->os,
-            gcvCORE_VG,
-            gcmUINT64_TO_PTR(kernelInterface->u.UnmapUserMemory.memory),
-            (gctSIZE_T) kernelInterface->u.UnmapUserMemory.size,
-            gcmNAME_TO_PTR(kernelInterface->u.UnmapUserMemory.info),
-            kernelInterface->u.UnmapUserMemory.address
-            ));
 
-        gcmRELEASE_NAME(kernelInterface->u.UnmapUserMemory.info);
+        gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
+
         break;
 
     case gcvHAL_LOCK_VIDEO_MEMORY:
         gcmkONERROR(gckKERNEL_LockVideoMemory(Kernel, gcvCORE_VG, processID, FromUser, Interface));
-        break;
-
-    case gcvHAL_UNLOCK_VIDEO_MEMORY:
-        gcmkONERROR(gckKERNEL_UnlockVideoMemory(Kernel, processID, Interface));
         break;
 
     case gcvHAL_USER_SIGNAL:
@@ -708,153 +499,12 @@ gceSTATUS gckVGKERNEL_Dispatch(
             gcmUINT64_TO_PTR(kernelInterface->u.VGCommit.taskTable)
             ));
         break;
-    case gcvHAL_VERSION:
-        kernelInterface->u.Version.major = gcvVERSION_MAJOR;
-        kernelInterface->u.Version.minor = gcvVERSION_MINOR;
-        kernelInterface->u.Version.patch = gcvVERSION_PATCH;
-        kernelInterface->u.Version.build = gcvVERSION_BUILD;
-        status = gcvSTATUS_OK;
-        break;
 
     case gcvHAL_GET_BASE_ADDRESS:
-        /* Get base address. */
-        gcmkERR_BREAK(
-            gckOS_GetBaseAddress(Kernel->os,
-                                 &kernelInterface->u.GetBaseAddress.baseAddress));
-        break;
-    case gcvHAL_IMPORT_VIDEO_MEMORY:
-        gcmkONERROR(gckVIDMEM_NODE_Import(Kernel,
-                                          Interface->u.ImportVideoMemory.name,
-                                            &Interface->u.ImportVideoMemory.handle));
-        gcmkONERROR(gckKERNEL_AddProcessDB(Kernel,
-                                    processID, gcvDB_VIDEO_MEMORY,
-                                    gcmINT2PTR(Interface->u.ImportVideoMemory.handle),
-                                    gcvNULL,
-                                    0));
-        break;
-
-    case gcvHAL_NAME_VIDEO_MEMORY:
-        gcmkONERROR(gckVIDMEM_NODE_Name(Kernel,
-                                         Interface->u.NameVideoMemory.handle,
-                                         &Interface->u.NameVideoMemory.name));
-        break;
-
-    case gcvHAL_DATABASE:
-        gcmkONERROR(gckKERNEL_QueryDatabase(Kernel, processID, Interface));
-        break;
-    case gcvHAL_SHBUF:
-        {
-            gctSHBUF shBuf;
-            gctPOINTER uData;
-            gctUINT32 bytes;
-
-            switch (Interface->u.ShBuf.command)
-            {
-            case gcvSHBUF_CREATE:
-                bytes = Interface->u.ShBuf.bytes;
-
-                /* Create. */
-                gcmkONERROR(gckKERNEL_CreateShBuffer(Kernel, bytes, &shBuf));
-
-                Interface->u.ShBuf.id = gcmPTR_TO_UINT64(shBuf);
-
-                gcmkVERIFY_OK(
-                    gckKERNEL_AddProcessDB(Kernel,
-                                           processID,
-                                           gcvDB_SHBUF,
-                                           shBuf,
-                                           gcvNULL,
-                                           0));
-                break;
-
-            case gcvSHBUF_DESTROY:
-                shBuf = gcmUINT64_TO_PTR(Interface->u.ShBuf.id);
-
-                /* Check db first to avoid illegal destroy in the process. */
-                gcmkONERROR(
-                    gckKERNEL_RemoveProcessDB(Kernel,
-                                              processID,
-                                              gcvDB_SHBUF,
-                                              shBuf));
-
-                gcmkONERROR(gckKERNEL_DestroyShBuffer(Kernel, shBuf));
-                break;
-
-            case gcvSHBUF_MAP:
-                shBuf = gcmUINT64_TO_PTR(Interface->u.ShBuf.id);
-
-                /* Map for current process access. */
-                gcmkONERROR(gckKERNEL_MapShBuffer(Kernel, shBuf));
-
-                gcmkVERIFY_OK(
-                    gckKERNEL_AddProcessDB(Kernel,
-                                           processID,
-                                           gcvDB_SHBUF,
-                                           shBuf,
-                                           gcvNULL,
-                                           0));
-                break;
-
-            case gcvSHBUF_WRITE:
-                shBuf = gcmUINT64_TO_PTR(Interface->u.ShBuf.id);
-                uData = gcmUINT64_TO_PTR(Interface->u.ShBuf.data);
-                bytes = Interface->u.ShBuf.bytes;
-
-                /* Write. */
-                gcmkONERROR(
-                    gckKERNEL_WriteShBuffer(Kernel, shBuf, uData, bytes));
-                break;
-
-            case gcvSHBUF_READ:
-                shBuf = gcmUINT64_TO_PTR(Interface->u.ShBuf.id);
-                uData = gcmUINT64_TO_PTR(Interface->u.ShBuf.data);
-                bytes = Interface->u.ShBuf.bytes;
-
-                /* Read. */
-                gcmkONERROR(
-                    gckKERNEL_ReadShBuffer(Kernel,
-                                           shBuf,
-                                           uData,
-                                           bytes,
-                                           &bytes));
-
-                /* Return copied size. */
-                Interface->u.ShBuf.bytes = bytes;
-                break;
-
-            default:
-                gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
-                break;
-            }
-        }
-        break;
-    case gcvHAL_READ_REGISTER:
-#if gcdREGISTER_ACCESS_FROM_USER
-        /* Read a register. */
-        gcmkONERROR(gckOS_ReadRegisterEx(
-            Kernel->os,
-            Kernel->core,
-            Interface->u.ReadRegisterData.address,
-            &Interface->u.ReadRegisterData.data));
-#else
-        /* No access from user land to read registers. */
-        Interface->u.ReadRegisterData.data = 0;
-        status = gcvSTATUS_NOT_SUPPORTED;
-#endif
-        break;
-
-    case gcvHAL_WRITE_REGISTER:
-#if gcdREGISTER_ACCESS_FROM_USER
-        /* Write a register. */
+       /* Get base address. */
         gcmkONERROR(
-            gckOS_WriteRegisterEx(Kernel->os,
-                                  Kernel->core,
-                                  Interface->u.WriteRegisterData.address,
-                                  Interface->u.WriteRegisterData.data));
-#else
-        /* No access from user land to write registers. */
-        status = gcvSTATUS_NOT_SUPPORTED;
-#endif
+            gckOS_GetBaseAddress(Kernel->os,
+                                 &Interface->u.GetBaseAddress.baseAddress));
         break;
 
     case gcvHAL_EVENT_COMMIT:
@@ -862,8 +512,8 @@ gceSTATUS gckVGKERNEL_Dispatch(
         break;
 
     default:
-        /* Invalid command. */
-        status = gcvSTATUS_INVALID_ARGUMENT;
+        /* Invalid command, try gckKERNEL_Dispatch */
+        status = gckKERNEL_Dispatch(Kernel, gcvTRUE, Interface);
     }
 
 OnError:

@@ -71,6 +71,9 @@ struct _gckVGHARDWARE
     /* Chip characteristics. */
     gceCHIPMODEL                chipModel;
     gctUINT32                   chipRevision;
+    gctUINT32                   productID;
+    gctUINT32                   ecoID;
+    gctUINT32                   customerID;
     gctUINT32                   chipFeatures;
     gctUINT32                   chipMinorFeatures;
     gctUINT32                   chipMinorFeatures2;
@@ -80,6 +83,7 @@ struct _gckVGHARDWARE
     gctBOOL                     fe20;
     gctBOOL                     vg20;
     gctBOOL                     vg21;
+    gctBOOL                     fc;
 
     /* Event mask. */
     gctUINT32                   eventMask;
@@ -102,6 +106,8 @@ struct _gckVGHARDWARE
 #endif
 
     gctBOOL                     powerManagement;
+
+    gctPOINTER                  featureDatabase;
 };
 
 #endif /* __gc_hal_kernel_hardware_h_ */
