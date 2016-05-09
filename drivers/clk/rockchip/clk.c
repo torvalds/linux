@@ -347,6 +347,9 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	ctx->grf = ERR_PTR(-EPROBE_DEFER);
 	spin_lock_init(&ctx->lock);
 
+	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
+						   "rockchip,grf");
+
 	return ctx;
 
 err_free:
@@ -360,14 +363,6 @@ void __init rockchip_clk_of_add_provider(struct device_node *np,
 	if (of_clk_add_provider(np, of_clk_src_onecell_get,
 				&ctx->clk_data))
 		pr_err("%s: could not register clk provider\n", __func__);
-}
-
-struct regmap *rockchip_clk_get_grf(struct rockchip_clk_provider *ctx)
-{
-	if (IS_ERR(ctx->grf))
-		ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
-							   "rockchip,grf");
-	return ctx->grf;
 }
 
 void rockchip_clk_add_lookup(struct rockchip_clk_provider *ctx,
