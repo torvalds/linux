@@ -90,23 +90,17 @@ static void prepare_level4(void)
 }
 
 /*
- * Mapping information structure passed to kernel_ident_mapping_init().
- * Since this never changes, there's no reason to repeatedly fill it
- * in on the stack when calling add_identity_map().
- */
-static struct x86_mapping_info mapping_info = {
-	.alloc_pgt_page	= alloc_pgt_page,
-	.context	= &pgt_data,
-	.pmd_flag	= __PAGE_KERNEL_LARGE_EXEC,
-};
-
-/*
  * Adds the specified range to what will become the new identity mappings.
  * Once all ranges have been added, the new mapping is activated by calling
  * finalize_identity_maps() below.
  */
 void add_identity_map(unsigned long start, unsigned long size)
 {
+	struct x86_mapping_info mapping_info = {
+		.alloc_pgt_page	= alloc_pgt_page,
+		.context	= &pgt_data,
+		.pmd_flag	= __PAGE_KERNEL_LARGE_EXEC,
+	};
 	unsigned long end = start + size;
 
 	/* Make sure we have a top level page table ready to use. */
