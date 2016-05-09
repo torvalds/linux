@@ -23,6 +23,13 @@ config DRM_MSM_REGISTER_LOGGING
 	  that can be parsed by envytools demsm tool.  If enabled, register
 	  logging can be switched on via msm.reglog=y module param.
 
+config DRM_MSM_HDMI_HDCP
+	bool "Enable HDMI HDCP support in MSM DRM driver"
+	depends on DRM_MSM && QCOM_SCM
+	default y
+	help
+	  Choose this option to enable HDCP state machine
+
 config DRM_MSM_DSI
 	bool "Enable DSI support in MSM DRM driver"
 	depends on DRM_MSM
