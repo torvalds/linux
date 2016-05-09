@@ -526,7 +526,7 @@ static void __init
 intel_graphics_stolen(int num, int slot, int func,
 		      const struct intel_early_ops *early_ops)
 {
-	phys_addr_t base;
+	phys_addr_t base, end;
 	size_t size;
 
 	size = early_ops->stolen_size(num, slot, func);
@@ -535,8 +535,9 @@ intel_graphics_stolen(int num, int slot, int func,
 	if (!size || !base)
 		return;
 
-	printk(KERN_INFO "Reserving Intel graphics stolen memory at "
-	       "0x%llx-0x%llx\n", base, base + size - 1);
+	end = base + size - 1;
+	printk(KERN_INFO "Reserving Intel graphics memory at %pa-%pa\n",
+	       &base, &end);
 
 	/* Mark this space as reserved */
 	e820_add_region(base, size, E820_RESERVED);
