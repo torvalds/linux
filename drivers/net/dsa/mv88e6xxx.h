@@ -350,12 +350,27 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6352,	/* 6172 6176 6240 6352 */
 };
 
+#define MV88E6XXX_FLAGS_FAMILY_6095	0
+
+#define MV88E6XXX_FLAGS_FAMILY_6097	0
+
+#define MV88E6XXX_FLAGS_FAMILY_6165	0
+
+#define MV88E6XXX_FLAGS_FAMILY_6185	0
+
+#define MV88E6XXX_FLAGS_FAMILY_6320	0
+
+#define MV88E6XXX_FLAGS_FAMILY_6351	0
+
+#define MV88E6XXX_FLAGS_FAMILY_6352	0
+
 struct mv88e6xxx_info {
 	enum mv88e6xxx_family family;
 	u16 prod_num;
 	const char *name;
 	unsigned int num_databases;
 	unsigned int num_ports;
+	unsigned long flags;
 };
 
 struct mv88e6xxx_atu_entry {
@@ -448,6 +463,12 @@ struct mv88e6xxx_hw_stat {
 	int reg;
 	enum stat_type type;
 };
+
+static inline bool mv88e6xxx_has(struct mv88e6xxx_priv_state *ps,
+				 unsigned long flags)
+{
+	return (ps->info->flags & flags) == flags;
+}
 
 int mv88e6xxx_switch_reset(struct mv88e6xxx_priv_state *ps, bool ppu_active);
 const char *mv88e6xxx_drv_probe(struct device *dsa_dev, struct device *host_dev,
