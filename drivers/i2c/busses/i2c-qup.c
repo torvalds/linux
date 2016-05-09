@@ -659,23 +659,24 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 	u8 *tags;
 
 	while (idx < num) {
-		blocks = (msg->len + limit) / limit;
-		rem = msg->len % limit;
 		tx_len = 0, len = 0, i = 0;
 
 		qup->is_last = (idx == (num - 1));
 
 		qup_i2c_set_blk_data(qup, msg);
 
+		blocks = qup->blk.count;
+		rem = msg->len - (blocks - 1) * limit;
+
 		if (msg->flags & I2C_M_RD) {
 			rx_nents += (blocks * 2) + 1;
 			tx_nents += 1;
 
 			while (qup->blk.pos < blocks) {
-				/* length set to '0' implies 256 bytes */
-				tlen = (i == (blocks - 1)) ? rem : 0;
+				tlen = (i == (blocks - 1)) ? rem : limit;
 				tags = &qup->start_tag.start[off + len];
 				len += qup_i2c_set_tags(tags, qup, msg, 1);
+				qup->blk.data_len -= tlen;
 
 				/* scratch buf to read the start and len tags */
 				ret = qup_sg_set_buf(&qup->brx.sg[rx_buf++],
@@ -712,9 +713,10 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 			tx_nents += (blocks * 2);
 
 			while (qup->blk.pos < blocks) {
-				tlen = (i == (blocks - 1)) ? rem : 0;
+				tlen = (i == (blocks - 1)) ? rem : limit;
 				tags = &qup->start_tag.start[off + tx_len];
 				len = qup_i2c_set_tags(tags, qup, msg, 1);
+				qup->blk.data_len -= tlen;
 
 				ret = qup_sg_set_buf(&qup->btx.sg[tx_buf++],
 						     tags, len,
