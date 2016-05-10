@@ -819,7 +819,6 @@ static int fjes_change_mtu(struct net_device *netdev, int new_mtu)
 	netdev->mtu = new_mtu;
 
 	if (running) {
-		spin_lock_irqsave(&hw->rx_status_lock, flags);
 		for (epidx = 0; epidx < hw->max_epid; epidx++) {
 			if (epidx == hw->my_epid)
 				continue;
