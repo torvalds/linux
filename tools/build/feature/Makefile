@@ -31,6 +31,8 @@ FILES=					\
 	test-libunwind-x86_64.bin	\
 	test-libunwind-arm.bin		\
 	test-libunwind-aarch64.bin	\
+	test-libunwind-debug-frame-arm.bin	\
+	test-libunwind-debug-frame-aarch64.bin	\
 	test-pthread-attr-setaffinity-np.bin	\
 	test-stackprotector-all.bin	\
 	test-timerfd.bin		\
@@ -119,6 +121,11 @@ $(OUTPUT)test-libunwind-arm.bin:
 $(OUTPUT)test-libunwind-aarch64.bin:
 	$(BUILD) -lelf -lunwind-aarch64
 
+$(OUTPUT)test-libunwind-debug-frame-arm.bin:
+	$(BUILD) -lelf -lunwind-arm
+
+$(OUTPUT)test-libunwind-debug-frame-aarch64.bin:
+	$(BUILD) -lelf -lunwind-aarch64
 
 $(OUTPUT)test-libaudit.bin:
 	$(BUILD) -laudit
