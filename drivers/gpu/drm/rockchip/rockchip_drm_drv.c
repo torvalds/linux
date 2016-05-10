@@ -257,7 +257,7 @@ static void rockchip_drm_unbind(struct device *dev)
 	dev_set_drvdata(dev, NULL);
 }
 
-void rockchip_drm_lastclose(struct drm_device *dev)
+static void rockchip_drm_lastclose(struct drm_device *dev)
 {
 	struct rockchip_drm_private *priv = dev->dev_private;
 
