@@ -368,9 +368,8 @@ static void pcm_period_tasklet(unsigned long data)
 		snd_pcm_period_elapsed(pcm);
 }
 
-static int queue_packet(struct amdtp_stream *s,
-			unsigned int header_length,
-			unsigned int payload_length, bool skip)
+static int queue_packet(struct amdtp_stream *s, unsigned int header_length,
+			unsigned int payload_length)
 {
 	struct fw_iso_packet p = {0};
 	int err = 0;
@@ -381,8 +380,10 @@ static int queue_packet(struct amdtp_stream *s,
 	p.interrupt = IS_ALIGNED(s->packet_index + 1, INTERRUPT_INTERVAL);
 	p.tag = TAG_CIP;
 	p.header_length = header_length;
-	p.payload_length = (!skip) ? payload_length : 0;
-	p.skip = skip;
+	if (payload_length > 0)
+		p.payload_length = payload_length;
+	else
+		p.skip = true;
 	err = fw_iso_context_queue(s->context, &p, &s->buffer.iso_buffer,
 				   s->buffer.packets[s->packet_index].offset);
 	if (err < 0) {
@@ -397,16 +398,15 @@ end:
 }
 
 static inline int queue_out_packet(struct amdtp_stream *s,
-				   unsigned int payload_length, bool skip)
+				   unsigned int payload_length)
 {
-	return queue_packet(s, OUT_PACKET_HEADER_SIZE,
-			    payload_length, skip);
+	return queue_packet(s, OUT_PACKET_HEADER_SIZE, payload_length);
 }
 
 static inline int queue_in_packet(struct amdtp_stream *s)
 {
 	return queue_packet(s, IN_PACKET_HEADER_SIZE,
-			    amdtp_stream_get_max_payload(s), false);
+			    amdtp_stream_get_max_payload(s));
 }
 
 static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
@@ -437,7 +437,7 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
 
 	trace_out_packet(s, cycle, buffer, payload_length, index);
 
-	if (queue_out_packet(s, payload_length, false) < 0)
+	if (queue_out_packet(s, payload_length) < 0)
 		return -EIO;
 
 	pcm = ACCESS_ONCE(s->pcm);
@@ -764,7 +764,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 		if (s->direction == AMDTP_IN_STREAM)
 			err = queue_in_packet(s);
 		else
-			err = queue_out_packet(s, 0, true);
+			err = queue_out_packet(s, 0);
 		if (err < 0)
 			goto err_context;
 	} while (s->packet_index > 0);
