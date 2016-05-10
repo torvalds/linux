@@ -70,8 +70,8 @@ config ARCH_MESON
 
 config ARCH_MVEBU
 	bool "Marvell EBU SoC Family"
-	select ARMADA_AP806_CORE_CLK
-	select ARMADA_AP806_RING_CLK
+	select ARMADA_AP806_SYSCON
+	select ARMADA_CP110_SYSCON
 	select MVEBU_ODMI
 	help
 	  This enables support for Marvell EBU familly, including:
