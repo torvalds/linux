@@ -3573,46 +3573,11 @@ static int fiji_force_dpm_highest(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static void fiji_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
-{
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)hwmgr->pptable;
-	struct phm_clock_voltage_dependency_table *table =
-				table_info->vddc_dep_on_dal_pwrl;
-	struct phm_ppt_v1_clock_voltage_dependency_table *vddc_table;
-	enum PP_DAL_POWERLEVEL dal_power_level = hwmgr->dal_power_level;
-	uint32_t req_vddc = 0, req_volt, i;
-
-	if (!table && !(dal_power_level >= PP_DAL_POWERLEVEL_ULTRALOW &&
-			dal_power_level <= PP_DAL_POWERLEVEL_PERFORMANCE))
-		return;
-
-	for (i= 0; i < table->count; i++) {
-		if (dal_power_level == table->entries[i].clk) {
-			req_vddc = table->entries[i].v;
-			break;
-		}
-	}
-
-	vddc_table = table_info->vdd_dep_on_sclk;
-	for (i= 0; i < vddc_table->count; i++) {
-		if (req_vddc <= vddc_table->entries[i].vddc) {
-			req_volt = (((uint32_t)vddc_table->entries[i].vddc) * VOLTAGE_SCALE)
-					<< VDDC_SHIFT;
-			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-					PPSMC_MSG_VddC_Request, req_volt);
-			return;
-		}
-	}
-	printk(KERN_ERR "DAL requested level can not"
-			" found a available voltage in VDDC DPM Table \n");
-}
-
 static int fiji_upload_dpmlevel_enable_mask(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 
-	fiji_apply_dal_min_voltage_request(hwmgr);
+	phm_apply_dal_min_voltage_request(hwmgr);
 
 	if (!data->sclk_dpm_key_disabled) {
 		if (data->dpm_level_enable_mask.sclk_dpm_enable_mask)
