@@ -541,6 +541,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 			load_gs_index(0);
 			ret = wrmsrl_safe(MSR_KERNEL_GS_BASE, addr);
 		}
+		put_cpu();
 		break;
 	case ARCH_SET_FS:
 		/* Not strictly needed for fs, but do it for symmetry
