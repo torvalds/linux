@@ -453,16 +453,6 @@ static bool mv88e6xxx_has_fid_reg(struct mv88e6xxx_priv_state *ps)
 	return false;
 }
 
-static bool mv88e6xxx_has_stu(struct mv88e6xxx_priv_state *ps)
-{
-	/* Does the device have STU and dedicated SID registers for VTU ops? */
-	if (mv88e6xxx_6097_family(ps) || mv88e6xxx_6165_family(ps) ||
-	    mv88e6xxx_6351_family(ps) || mv88e6xxx_6352_family(ps))
-		return true;
-
-	return false;
-}
-
 /* We expect the switch to perform auto negotiation if there is a real
  * phy. However, in the case of a fixed link phy, we force the port
  * settings from the fixed link settings.
@@ -1599,7 +1589,7 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_priv_state *ps,
 			next.fid |= ret & 0xf;
 		}
 
-		if (mv88e6xxx_has_stu(ps)) {
+		if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_STU)) {
 			ret = _mv88e6xxx_reg_read(ps, REG_GLOBAL,
 						  GLOBAL_VTU_SID);
 			if (ret < 0)
@@ -1686,7 +1676,7 @@ static int _mv88e6xxx_vtu_loadpurge(struct mv88e6xxx_priv_state *ps,
 	if (ret < 0)
 		return ret;
 
-	if (mv88e6xxx_has_stu(ps)) {
+	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_STU)) {
 		reg = entry->sid & GLOBAL_VTU_SID_MASK;
 		ret = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_VTU_SID, reg);
 		if (ret < 0)
