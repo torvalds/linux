@@ -1498,6 +1498,18 @@ static int _mv88e6xxx_vtu_stu_data_read(struct mv88e6xxx_priv_state *ps,
 	return 0;
 }
 
+static int mv88e6xxx_vtu_data_read(struct mv88e6xxx_priv_state *ps,
+				   struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	return _mv88e6xxx_vtu_stu_data_read(ps, entry, 0);
+}
+
+static int mv88e6xxx_stu_data_read(struct mv88e6xxx_priv_state *ps,
+				   struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	return _mv88e6xxx_vtu_stu_data_read(ps, entry, 2);
+}
+
 static int _mv88e6xxx_vtu_stu_data_write(struct mv88e6xxx_priv_state *ps,
 					 struct mv88e6xxx_vtu_stu_entry *entry,
 					 unsigned int nibble_offset)
@@ -1521,6 +1533,18 @@ static int _mv88e6xxx_vtu_stu_data_write(struct mv88e6xxx_priv_state *ps,
 	}
 
 	return 0;
+}
+
+static int mv88e6xxx_vtu_data_write(struct mv88e6xxx_priv_state *ps,
+				    struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	return _mv88e6xxx_vtu_stu_data_write(ps, entry, 0);
+}
+
+static int mv88e6xxx_stu_data_write(struct mv88e6xxx_priv_state *ps,
+				    struct mv88e6xxx_vtu_stu_entry *entry)
+{
+	return _mv88e6xxx_vtu_stu_data_write(ps, entry, 2);
 }
 
 static int _mv88e6xxx_vtu_vid_write(struct mv88e6xxx_priv_state *ps, u16 vid)
@@ -1551,7 +1575,7 @@ static int _mv88e6xxx_vtu_getnext(struct mv88e6xxx_priv_state *ps,
 	next.valid = !!(ret & GLOBAL_VTU_VID_VALID);
 
 	if (next.valid) {
-		ret = _mv88e6xxx_vtu_stu_data_read(ps, &next, 0);
+		ret = mv88e6xxx_vtu_data_read(ps, &next);
 		if (ret < 0)
 			return ret;
 
@@ -1658,7 +1682,7 @@ static int _mv88e6xxx_vtu_loadpurge(struct mv88e6xxx_priv_state *ps,
 		goto loadpurge;
 
 	/* Write port member tags */
-	ret = _mv88e6xxx_vtu_stu_data_write(ps, entry, 0);
+	ret = mv88e6xxx_vtu_data_write(ps, entry);
 	if (ret < 0)
 		return ret;
 
@@ -1724,7 +1748,7 @@ static int _mv88e6xxx_stu_getnext(struct mv88e6xxx_priv_state *ps, u8 sid,
 	next.valid = !!(ret & GLOBAL_VTU_VID_VALID);
 
 	if (next.valid) {
-		ret = _mv88e6xxx_vtu_stu_data_read(ps, &next, 2);
+		ret = mv88e6xxx_stu_data_read(ps, &next);
 		if (ret < 0)
 			return ret;
 	}
@@ -1747,7 +1771,7 @@ static int _mv88e6xxx_stu_loadpurge(struct mv88e6xxx_priv_state *ps,
 		goto loadpurge;
 
 	/* Write port states */
-	ret = _mv88e6xxx_vtu_stu_data_write(ps, entry, 2);
+	ret = mv88e6xxx_stu_data_write(ps, entry);
 	if (ret < 0)
 		return ret;
 
