@@ -467,7 +467,7 @@ static void __init gic_dist_init(struct gic_chip_data *gic)
 	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
 }
 
-static void gic_cpu_init(struct gic_chip_data *gic)
+static int gic_cpu_init(struct gic_chip_data *gic)
 {
 	void __iomem *dist_base = gic_data_dist_base(gic);
 	void __iomem *base = gic_data_cpu_base(gic);
@@ -483,7 +483,9 @@ static void gic_cpu_init(struct gic_chip_data *gic)
 		/*
 		 * Get what the GIC says our CPU mask is.
 		 */
-		BUG_ON(cpu >= NR_GIC_CPU_IF);
+		if (WARN_ON(cpu >= NR_GIC_CPU_IF))
+			return -EINVAL;
+
 		cpu_mask = gic_get_cpumask(gic);
 		gic_cpu_map[cpu] = cpu_mask;
 
@@ -500,6 +502,8 @@ static void gic_cpu_init(struct gic_chip_data *gic)
 
 	writel_relaxed(GICC_INT_PRI_THRESHOLD, base + GIC_CPU_PRIMASK);
 	gic_cpu_if_up(gic);
+
+	return 0;
 }
 
 int gic_cpu_if_down(unsigned int gic_nr)
@@ -713,26 +717,39 @@ static struct notifier_block gic_notifier_block = {
 	.notifier_call = gic_notifier,
 };
 
-static void __init gic_pm_init(struct gic_chip_data *gic)
+static int __init gic_pm_init(struct gic_chip_data *gic)
 {
 	gic->saved_ppi_enable = __alloc_percpu(DIV_ROUND_UP(32, 32) * 4,
 		sizeof(u32));
-	BUG_ON(!gic->saved_ppi_enable);
+	if (WARN_ON(!gic->saved_ppi_enable))
+		return -ENOMEM;
 
 	gic->saved_ppi_active = __alloc_percpu(DIV_ROUND_UP(32, 32) * 4,
 		sizeof(u32));
-	BUG_ON(!gic->saved_ppi_active);
+	if (WARN_ON(!gic->saved_ppi_active))
+		goto free_ppi_enable;
 
 	gic->saved_ppi_conf = __alloc_percpu(DIV_ROUND_UP(32, 16) * 4,
 		sizeof(u32));
-	BUG_ON(!gic->saved_ppi_conf);
+	if (WARN_ON(!gic->saved_ppi_conf))
+		goto free_ppi_active;
 
 	if (gic == &gic_data[0])
 		cpu_pm_register_notifier(&gic_notifier_block);
+
+	return 0;
+
+free_ppi_active:
+	free_percpu(gic->saved_ppi_active);
+free_ppi_enable:
+	free_percpu(gic->saved_ppi_enable);
+
+	return -ENOMEM;
 }
 #else
-static void __init gic_pm_init(struct gic_chip_data *gic)
+static int __init gic_pm_init(struct gic_chip_data *gic)
 {
+	return 0;
 }
 #endif
 
@@ -1005,13 +1022,13 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 	.unmap = gic_irq_domain_unmap,
 };
 
-static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
+static int __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 			   void __iomem *dist_base, void __iomem *cpu_base,
 			   u32 percpu_offset, struct fwnode_handle *handle)
 {
 	irq_hw_number_t hwirq_base;
 	struct gic_chip_data *gic;
-	int gic_irqs, irq_base, i;
+	int gic_irqs, irq_base, i, ret;
 
 	BUG_ON(gic_nr >= CONFIG_ARM_GIC_MAX_NR);
 
@@ -1026,7 +1043,7 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 		gic->chip.irq_mask = gic_eoimode1_mask_irq;
 		gic->chip.irq_eoi = gic_eoimode1_eoi_irq;
 		gic->chip.irq_set_vcpu_affinity = gic_irq_set_vcpu_affinity;
-		gic->chip.name = "GICv2";
+		gic->chip.name = kasprintf(GFP_KERNEL, "GICv2");
 	} else {
 		gic->chip.name = kasprintf(GFP_KERNEL, "GIC-%d", gic_nr);
 	}
@@ -1036,17 +1053,16 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 		gic->chip.irq_set_affinity = gic_set_affinity;
 #endif
 
-#ifdef CONFIG_GIC_NON_BANKED
-	if (percpu_offset) { /* Frankein-GIC without banked registers... */
+	if (IS_ENABLED(CONFIG_GIC_NON_BANKED) && percpu_offset) {
+		/* Frankein-GIC without banked registers... */
 		unsigned int cpu;
 
 		gic->dist_base.percpu_base = alloc_percpu(void __iomem *);
 		gic->cpu_base.percpu_base = alloc_percpu(void __iomem *);
 		if (WARN_ON(!gic->dist_base.percpu_base ||
 			    !gic->cpu_base.percpu_base)) {
-			free_percpu(gic->dist_base.percpu_base);
-			free_percpu(gic->cpu_base.percpu_base);
-			return;
+			ret = -ENOMEM;
+			goto error;
 		}
 
 		for_each_possible_cpu(cpu) {
@@ -1058,9 +1074,8 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 		}
 
 		gic_set_base_accessor(gic, gic_get_percpu_base);
-	} else
-#endif
-	{			/* Normal, sane GIC... */
+	} else {
+		/* Normal, sane GIC... */
 		WARN(percpu_offset,
 		     "GIC_NON_BANKED not enabled, ignoring %08x offset!",
 		     percpu_offset);
@@ -1110,8 +1125,10 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 					hwirq_base, &gic_irq_domain_ops, gic);
 	}
 
-	if (WARN_ON(!gic->domain))
-		return;
+	if (WARN_ON(!gic->domain)) {
+		ret = -ENODEV;
+		goto error;
+	}
 
 	if (gic_nr == 0) {
 		/*
@@ -1131,8 +1148,25 @@ static void __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 	}
 
 	gic_dist_init(gic);
-	gic_cpu_init(gic);
-	gic_pm_init(gic);
+	ret = gic_cpu_init(gic);
+	if (ret)
+		goto error;
+
+	ret = gic_pm_init(gic);
+	if (ret)
+		goto error;
+
+	return 0;
+
+error:
+	if (IS_ENABLED(CONFIG_GIC_NON_BANKED) && percpu_offset) {
+		free_percpu(gic->dist_base.percpu_base);
+		free_percpu(gic->cpu_base.percpu_base);
+	}
+
+	kfree(gic->chip.name);
+
+	return ret;
 }
 
 void __init gic_init(unsigned int gic_nr, int irq_start,
@@ -1193,7 +1227,7 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 	void __iomem *cpu_base;
 	void __iomem *dist_base;
 	u32 percpu_offset;
-	int irq;
+	int irq, ret;
 
 	if (WARN_ON(!node))
 		return -ENODEV;
@@ -1218,8 +1252,14 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 	if (of_property_read_u32(node, "cpu-offset", &percpu_offset))
 		percpu_offset = 0;
 
-	__gic_init_bases(gic_cnt, -1, dist_base, cpu_base, percpu_offset,
+	ret = __gic_init_bases(gic_cnt, -1, dist_base, cpu_base, percpu_offset,
 			 &node->fwnode);
+	if (ret) {
+		iounmap(dist_base);
+		iounmap(cpu_base);
+		return ret;
+	}
+
 	if (!gic_cnt)
 		gic_init_physaddr(node);
 
@@ -1308,7 +1348,7 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 	struct acpi_madt_generic_distributor *dist;
 	void __iomem *cpu_base, *dist_base;
 	struct fwnode_handle *domain_handle;
-	int count;
+	int count, ret;
 
 	/* Collect CPU base addresses */
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT,
@@ -1351,7 +1391,14 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 		return -ENOMEM;
 	}
 
-	__gic_init_bases(0, -1, dist_base, cpu_base, 0, domain_handle);
+	ret = __gic_init_bases(0, -1, dist_base, cpu_base, 0, domain_handle);
+	if (ret) {
+		pr_err("Failed to initialise GIC\n");
+		irq_domain_free_fwnode(domain_handle);
+		iounmap(cpu_base);
+		iounmap(dist_base);
+		return ret;
+	}
 
 	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, domain_handle);
 
