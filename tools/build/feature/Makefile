@@ -27,6 +27,10 @@ FILES=					\
 	test-libcrypto.bin		\
 	test-libunwind.bin		\
 	test-libunwind-debug-frame.bin	\
+	test-libunwind-x86.bin		\
+	test-libunwind-x86_64.bin	\
+	test-libunwind-arm.bin		\
+	test-libunwind-aarch64.bin	\
 	test-pthread-attr-setaffinity-np.bin	\
 	test-stackprotector-all.bin	\
 	test-timerfd.bin		\
@@ -103,6 +107,18 @@ $(OUTPUT)test-libunwind.bin:
 
 $(OUTPUT)test-libunwind-debug-frame.bin:
 	$(BUILD) -lelf
+$(OUTPUT)test-libunwind-x86.bin:
+	$(BUILD) -lelf -lunwind-x86
+
+$(OUTPUT)test-libunwind-x86_64.bin:
+	$(BUILD) -lelf -lunwind-x86_64
+
+$(OUTPUT)test-libunwind-arm.bin:
+	$(BUILD) -lelf -lunwind-arm
+
+$(OUTPUT)test-libunwind-aarch64.bin:
+	$(BUILD) -lelf -lunwind-aarch64
+
 
 $(OUTPUT)test-libaudit.bin:
 	$(BUILD) -laudit
