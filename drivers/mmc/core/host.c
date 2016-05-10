@@ -290,7 +290,7 @@ int mmc_of_parse(struct mmc_host *host)
 	if (of_property_read_bool(np, "mmc-hs400-1_2v"))
 		host->caps2 |= MMC_CAP2_HS400_1_2V | MMC_CAP2_HS200_1_2V_SDR;
 	if (of_property_read_bool(np, "mmc-hs400-enhanced-strobe"))
-		host->caps2 |= MMC_CAP2_HS400_ENHANCED_STROBE;
+		host->caps2 |= MMC_CAP2_HS400_ES;
 
 	if (of_property_read_bool(np, "supports-sd"))
 		host->restrict_caps |= RESTRICT_CARD_TYPE_SD;

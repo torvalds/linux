@@ -57,21 +57,19 @@ static unsigned int sdhci_arasan_get_timeout_clock(struct sdhci_host *host)
 	return freq;
 }
 
-static int sdhci_arasan_enhanced_strobe(struct mmc_host *mmc,
-					bool enable)
+static void sdhci_arasan_enhanced_strobe(struct mmc_host *mmc,
+					 struct mmc_ios *ios)
 {
 	u32 vendor;
 	struct sdhci_host *host = mmc_priv(mmc);
 
 	vendor = readl(host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
-	if (enable)
+	if (ios->enhanced_strobe)
 		vendor |= VENDOR_ENHANCED_STROBE;
 	else
 		vendor &= (~VENDOR_ENHANCED_STROBE);
 
 	writel(vendor, host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
-
-	return 0;
 }
 
 static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
@@ -275,7 +273,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 			goto err_phy_power;
 		}
 
-		host->mmc_host_ops.prepare_enhanced_strobe =
+		host->mmc_host_ops.hs400_enhanced_strobe =
 					sdhci_arasan_enhanced_strobe;
 	}
 

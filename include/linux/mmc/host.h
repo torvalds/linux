@@ -78,6 +78,8 @@ struct mmc_ios {
 #define MMC_SET_DRIVER_TYPE_A	1
 #define MMC_SET_DRIVER_TYPE_C	2
 #define MMC_SET_DRIVER_TYPE_D	3
+
+	bool enhanced_strobe;			/* hs400 enhanced strobe selection */
 };
 
 struct mmc_host_ops {
@@ -135,7 +137,7 @@ struct mmc_host_ops {
 	/* Prepare HS400 target operating frequency depending host driver */
 	int	(*prepare_hs400_tuning)(struct mmc_host *host, struct mmc_ios *ios);
 	/* Prepare enhanced strobe depending host driver */
-	int	(*prepare_enhanced_strobe)(struct mmc_host *host, bool enable);
+	void	(*hs400_enhanced_strobe)(struct mmc_host *host, struct mmc_ios *ios);
 	int	(*select_drive_strength)(struct mmc_card *card,
 					 unsigned int max_dtr, int host_drv,
 					 int card_drv, int *drv_type);
@@ -293,7 +295,7 @@ struct mmc_host {
 #define MMC_CAP2_HSX00_1_2V	(MMC_CAP2_HS200_1_2V_SDR | MMC_CAP2_HS400_1_2V)
 #define MMC_CAP2_SDIO_IRQ_NOTHREAD (1 << 17)
 #define MMC_CAP2_NO_WRITE_PROTECT (1 << 18)	/* No physical write protect pin, assume that card is always read-write */
-#define MMC_CAP2_HS400_ENHANCED_STROBE (1 << 20) /* Host supports enhanced strobe */
+#define MMC_CAP2_HS400_ES         (1 << 20) /* Host supports enhanced strobe */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -498,7 +500,7 @@ static inline int mmc_host_uhs(struct mmc_host *host)
 
 static inline int mmc_host_hs400_enhanced_strobe(struct mmc_host *host)
 {
-	return host->caps2 & MMC_CAP2_HS400_ENHANCED_STROBE;
+	return host->caps2 & MMC_CAP2_HS400_ES;
 }
 
 static inline int mmc_host_packed_wr(struct mmc_host *host)
@@ -535,11 +537,7 @@ static inline bool mmc_card_hs400(struct mmc_card *card)
 
 static inline bool mmc_card_hs400es(struct mmc_card *card)
 {
-	if (mmc_card_hs400(card) &&
-	    (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400ES))
-		return 1;
-
-	return 0;
+	return card->host->ios.enhanced_strobe;
 }
 
 void mmc_retune_timer_stop(struct mmc_host *host);

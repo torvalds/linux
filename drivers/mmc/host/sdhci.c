@@ -2089,16 +2089,6 @@ out_unlock:
 	return err;
 }
 
-static int sdhci_prepare_enhanced_strobe(struct mmc_host *mmc, bool enable)
-{
-	/*
-	* Currently we can't find a register to enable enhanced strobe
-	* function for standard sdhci, so we expect variant drivers to
-	* overwrite it.
-	*/
-	return -EINVAL;
-}
-
 static int sdhci_select_drive_strength(struct mmc_card *card,
 				       unsigned int max_dtr, int host_drv,
 				       int card_drv, int *drv_type)
@@ -2235,7 +2225,6 @@ static const struct mmc_host_ops sdhci_ops = {
 	.enable_sdio_irq = sdhci_enable_sdio_irq,
 	.start_signal_voltage_switch	= sdhci_start_signal_voltage_switch,
 	.prepare_hs400_tuning		= sdhci_prepare_hs400_tuning,
-	.prepare_enhanced_strobe	= sdhci_prepare_enhanced_strobe,
 	.execute_tuning			= sdhci_execute_tuning,
 	.select_drive_strength		= sdhci_select_drive_strength,
 	.card_event			= sdhci_card_event,

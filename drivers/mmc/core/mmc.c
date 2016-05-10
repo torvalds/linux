@@ -235,10 +235,9 @@ static void mmc_select_card_type(struct mmc_card *card)
 		avail_type |= EXT_CSD_CARD_TYPE_HS400_1_2V;
 	}
 
-	if ((caps2 & MMC_CAP2_HS400_ENHANCED_STROBE) &&
+	if ((caps2 & MMC_CAP2_HS400_ES) &&
 		card->ext_csd.strobe_support &&
-		((card_type & EXT_CSD_CARD_TYPE_HS400_1_2V) ||
-		(card_type & EXT_CSD_CARD_TYPE_HS400_1_8V)))
+		(avail_type & EXT_CSD_CARD_TYPE_HS400))
 		avail_type |= EXT_CSD_CARD_TYPE_HS400ES;
 
 	card->ext_csd.hs_max_dtr = hs_max_dtr;
@@ -1075,11 +1074,10 @@ static int mmc_select_hs400(struct mmc_card *card)
 	u8 val;
 
 	/*
-	 * HS400(ES) mode requires 8-bit bus width
+	 * HS400 mode requires 8-bit bus width
 	 */
-	if (!(((card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400) ||
-		(card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400ES)) &&
-		host->ios.bus_width == MMC_BUS_WIDTH_8))
+	if (!(card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400 &&
+	      host->ios.bus_width == MMC_BUS_WIDTH_8))
 		return 0;
 
 	if (host->caps & MMC_CAP_WAIT_WHILE_BUSY)
@@ -1111,26 +1109,9 @@ static int mmc_select_hs400(struct mmc_card *card)
 	}
 
 	/* Switch card to DDR */
-	val = EXT_CSD_DDR_BUS_WIDTH_8;
-	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400ES) {
-		val |= EXT_CSD_BUS_WIDTH_STROBE;
-		/*
-		 * Make sure we are in non-enhanced strobe mode before we
-		 * actually enable it in ext_csd.
-		 */
-		if (host->ops->prepare_enhanced_strobe)
-			err = host->ops->prepare_enhanced_strobe(host, false);
-
-		if (err) {
-			pr_err("%s: unprepare_enhanced strobe failed, err:%d\n",
-				mmc_hostname(host), err);
-			return err;
-		}
-	}
-
 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			 EXT_CSD_BUS_WIDTH,
-			 val,
+			 EXT_CSD_DDR_BUS_WIDTH_8,
 			 card->ext_csd.generic_cmd6_time);
 	if (err) {
 		pr_err("%s: switch to bus width for hs400 failed, err:%d\n",
@@ -1154,35 +1135,6 @@ static int mmc_select_hs400(struct mmc_card *card)
 	/* Set host controller to HS400 timing and frequency */
 	mmc_set_timing(host, MMC_TIMING_MMC_HS400);
 	mmc_set_bus_speed(card);
-
-	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400ES) {
-		/* Controller enable enhanced strobe function */
-		if (host->ops->prepare_enhanced_strobe)
-			err = host->ops->prepare_enhanced_strobe(host, true);
-
-		if (err) {
-			pr_err("%s: prepare enhanced strobe failed, err:%d\n",
-				mmc_hostname(host), err);
-			return err;
-		}
-
-		/*
-		 * After switching to hs400 enhanced strobe mode, we expect to
-		 * verify whether it works or not. If controller can't handle
-		 * bus width test, compare ext_csd previously read in 1 bit mode
-		 * against ext_csd at new bus width
-		 */
-		if (!(host->caps & MMC_CAP_BUS_WIDTH_TEST))
-			err = mmc_compare_ext_csds(card, MMC_BUS_WIDTH_8);
-		else
-			err = mmc_bus_test(card, MMC_BUS_WIDTH_8);
-
-		if (err) {
-			pr_warn("%s: switch to enhanced strobe failed\n",
-				mmc_hostname(host));
-			return err;
-		}
-	}
 
 	if (!send_status) {
 		err = mmc_switch_status(card);
@@ -1356,9 +1308,81 @@ err:
 	return err;
 }
 
+static int mmc_select_hs400es(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	int err = 0;
+	u8 val;
+
+	if (!(host->caps & MMC_CAP_8_BIT_DATA)) {
+		err = -ENOTSUPP;
+		goto out_err;
+	}
+
+	err = mmc_select_bus_width(card);
+	if (IS_ERR_VALUE(err))
+		goto out_err;
+
+	/* Switch card to HS mode */
+	err = mmc_select_hs(card);
+	if (err) {
+		pr_err("%s: switch to high-speed failed, err:%d\n",
+			mmc_hostname(host), err);
+		goto out_err;
+	}
+
+	err = mmc_switch_status(card);
+	if (err)
+		goto out_err;
+
+	/* Switch card to DDR with strobe bit */
+	val = EXT_CSD_DDR_BUS_WIDTH_8 | EXT_CSD_BUS_WIDTH_STROBE;
+
+	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			 EXT_CSD_BUS_WIDTH,
+			 val,
+			 card->ext_csd.generic_cmd6_time);
+	if (err) {
+		pr_err("%s: switch to bus width for hs400es failed, err:%d\n",
+			mmc_hostname(host), err);
+		goto out_err;
+	}
+
+	/* Switch card to HS400 */
+	val = EXT_CSD_TIMING_HS400 |
+	      card->drive_strength << EXT_CSD_DRV_STR_SHIFT;
+	err = __mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+			   EXT_CSD_HS_TIMING, val,
+			   card->ext_csd.generic_cmd6_time,
+			   true, false, true);
+	if (err) {
+		pr_err("%s: switch to hs400es failed, err:%d\n",
+			 mmc_hostname(host), err);
+		goto out_err;
+	}
+
+	/* Set host controller to HS400 timing and frequency */
+	mmc_set_timing(host, MMC_TIMING_MMC_HS400);
+
+	/* Controller enable enhanced strobe function */
+	host->ios.enhanced_strobe = true;
+	if (host->ops->hs400_enhanced_strobe)
+		host->ops->hs400_enhanced_strobe(host, &host->ios);
+
+	err = mmc_switch_status(card);
+	if (err)
+		goto out_err;
+
+	return 0;
+
+out_err:
+	pr_err("%s: %s failed, error %d\n", mmc_hostname(card->host),
+	       __func__, err);
+	return err;
+}
+
 /*
- * Activate High Speed or HS200 mode if supported. For HS400
- * with enhanced strobe mode, we should activate High Speed.
+ * Activate High Speed or HS200 or HS400ES mode if supported.
  */
 static int mmc_select_timing(struct mmc_card *card)
 {
@@ -1368,7 +1392,7 @@ static int mmc_select_timing(struct mmc_card *card)
 		goto bus_speed;
 
 	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400ES)
-		err = mmc_select_hs(card);
+		err = mmc_select_hs400es(card);
 	else if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
 		err = mmc_select_hs200(card);
 	else if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS)
@@ -1640,15 +1664,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	} else if (mmc_card_hs(card)) {
 		/* Select the desired bus width optionally */
 		err = mmc_select_bus_width(card);
-		if (IS_ERR_VALUE(err))
-			goto free_card;
-
-		if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400ES) {
-			/* Directly from HS to HS400-ES */
-			err = mmc_select_hs400(card);
-			if (err)
-				goto free_card;
-		} else {
+		if (!IS_ERR_VALUE(err)) {
 			err = mmc_select_hs_ddr(card);
 			if (err)
 				goto free_card;
