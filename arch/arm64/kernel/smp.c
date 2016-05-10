@@ -264,8 +264,6 @@ asmlinkage void secondary_start_kernel(void)
 	pr_info("CPU%u: Booted secondary processor [%08x]\n",
 					 cpu, read_cpuid_id());
 	update_cpu_boot_status(CPU_BOOT_SUCCESS);
-	/* Make sure the status update is visible before we complete */
-	smp_wmb();
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
