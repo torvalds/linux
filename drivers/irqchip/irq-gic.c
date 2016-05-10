@@ -72,6 +72,9 @@ struct gic_chip_data {
 	struct irq_chip chip;
 	union gic_base dist_base;
 	union gic_base cpu_base;
+	void __iomem *raw_dist_base;
+	void __iomem *raw_cpu_base;
+	u32 percpu_offset;
 #ifdef CONFIG_CPU_PM
 	u32 saved_spi_enable[DIV_ROUND_UP(1020, 32)];
 	u32 saved_spi_active[DIV_ROUND_UP(1020, 32)];
@@ -1026,38 +1029,36 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 	.unmap = gic_irq_domain_unmap,
 };
 
-static int __init __gic_init_bases(unsigned int gic_nr, int irq_start,
-			   void __iomem *dist_base, void __iomem *cpu_base,
-			   u32 percpu_offset, struct fwnode_handle *handle)
+static int __init __gic_init_bases(struct gic_chip_data *gic, int irq_start,
+				   struct fwnode_handle *handle)
 {
 	irq_hw_number_t hwirq_base;
-	struct gic_chip_data *gic;
 	int gic_irqs, irq_base, i, ret;
 
-	BUG_ON(gic_nr >= CONFIG_ARM_GIC_MAX_NR);
+	if (WARN_ON(!gic || gic->domain))
+		return -EINVAL;
 
 	gic_check_cpu_features();
-
-	gic = &gic_data[gic_nr];
 
 	/* Initialize irq_chip */
 	gic->chip = gic_chip;
 
-	if (static_key_true(&supports_deactivate) && gic_nr == 0) {
+	if (static_key_true(&supports_deactivate) && gic == &gic_data[0]) {
 		gic->chip.irq_mask = gic_eoimode1_mask_irq;
 		gic->chip.irq_eoi = gic_eoimode1_eoi_irq;
 		gic->chip.irq_set_vcpu_affinity = gic_irq_set_vcpu_affinity;
 		gic->chip.name = kasprintf(GFP_KERNEL, "GICv2");
 	} else {
-		gic->chip.name = kasprintf(GFP_KERNEL, "GIC-%d", gic_nr);
+		gic->chip.name = kasprintf(GFP_KERNEL, "GIC-%d",
+					   (int)(gic - &gic_data[0]));
 	}
 
 #ifdef CONFIG_SMP
-	if (gic_nr == 0)
+	if (gic == &gic_data[0])
 		gic->chip.irq_set_affinity = gic_set_affinity;
 #endif
 
-	if (IS_ENABLED(CONFIG_GIC_NON_BANKED) && percpu_offset) {
+	if (IS_ENABLED(CONFIG_GIC_NON_BANKED) && gic->percpu_offset) {
 		/* Frankein-GIC without banked registers... */
 		unsigned int cpu;
 
@@ -1072,19 +1073,21 @@ static int __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 		for_each_possible_cpu(cpu) {
 			u32 mpidr = cpu_logical_map(cpu);
 			u32 core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-			unsigned long offset = percpu_offset * core_id;
-			*per_cpu_ptr(gic->dist_base.percpu_base, cpu) = dist_base + offset;
-			*per_cpu_ptr(gic->cpu_base.percpu_base, cpu) = cpu_base + offset;
+			unsigned long offset = gic->percpu_offset * core_id;
+			*per_cpu_ptr(gic->dist_base.percpu_base, cpu) =
+				gic->raw_dist_base + offset;
+			*per_cpu_ptr(gic->cpu_base.percpu_base, cpu) =
+				gic->raw_cpu_base + offset;
 		}
 
 		gic_set_base_accessor(gic, gic_get_percpu_base);
 	} else {
 		/* Normal, sane GIC... */
-		WARN(percpu_offset,
+		WARN(gic->percpu_offset,
 		     "GIC_NON_BANKED not enabled, ignoring %08x offset!",
-		     percpu_offset);
-		gic->dist_base.common_base = dist_base;
-		gic->cpu_base.common_base = cpu_base;
+		     gic->percpu_offset);
+		gic->dist_base.common_base = gic->raw_dist_base;
+		gic->cpu_base.common_base = gic->raw_cpu_base;
 		gic_set_base_accessor(gic, gic_get_common_base);
 	}
 
@@ -1107,7 +1110,7 @@ static int __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 		 * For primary GICs, skip over SGIs.
 		 * For secondary GICs, skip over PPIs, too.
 		 */
-		if (gic_nr == 0 && (irq_start & 31) > 0) {
+		if (gic == &gic_data[0] && (irq_start & 31) > 0) {
 			hwirq_base = 16;
 			if (irq_start != -1)
 				irq_start = (irq_start & ~31) + 16;
@@ -1134,7 +1137,7 @@ static int __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 		goto error;
 	}
 
-	if (gic_nr == 0) {
+	if (gic == &gic_data[0]) {
 		/*
 		 * Initialize the CPU interface map to all CPUs.
 		 * It will be refined as each CPU probes its ID.
@@ -1163,7 +1166,7 @@ static int __init __gic_init_bases(unsigned int gic_nr, int irq_start,
 	return 0;
 
 error:
-	if (IS_ENABLED(CONFIG_GIC_NON_BANKED) && percpu_offset) {
+	if (IS_ENABLED(CONFIG_GIC_NON_BANKED) && gic->percpu_offset) {
 		free_percpu(gic->dist_base.percpu_base);
 		free_percpu(gic->cpu_base.percpu_base);
 	}
@@ -1176,12 +1179,22 @@ error:
 void __init gic_init(unsigned int gic_nr, int irq_start,
 		     void __iomem *dist_base, void __iomem *cpu_base)
 {
+	struct gic_chip_data *gic;
+
+	if (WARN_ON(gic_nr >= CONFIG_ARM_GIC_MAX_NR))
+		return;
+
 	/*
 	 * Non-DT/ACPI systems won't run a hypervisor, so let's not
 	 * bother with these...
 	 */
 	static_key_slow_dec(&supports_deactivate);
-	__gic_init_bases(gic_nr, irq_start, dist_base, cpu_base, 0, NULL);
+
+	gic = &gic_data[gic_nr];
+	gic->raw_dist_base = dist_base;
+	gic->raw_cpu_base = cpu_base;
+
+	__gic_init_bases(gic, irq_start, NULL);
 }
 
 #ifdef CONFIG_OF
@@ -1228,21 +1241,24 @@ static bool gic_check_eoimode(struct device_node *node, void __iomem **base)
 int __init
 gic_of_init(struct device_node *node, struct device_node *parent)
 {
-	void __iomem *cpu_base;
-	void __iomem *dist_base;
-	u32 percpu_offset;
+	struct gic_chip_data *gic;
 	int irq, ret;
 
 	if (WARN_ON(!node))
 		return -ENODEV;
 
-	dist_base = of_iomap(node, 0);
-	if (WARN(!dist_base, "unable to map gic dist registers\n"))
+	if (WARN_ON(gic_cnt >= CONFIG_ARM_GIC_MAX_NR))
+		return -EINVAL;
+
+	gic = &gic_data[gic_cnt];
+
+	gic->raw_dist_base = of_iomap(node, 0);
+	if (WARN(!gic->raw_dist_base, "unable to map gic dist registers\n"))
 		return -ENOMEM;
 
-	cpu_base = of_iomap(node, 1);
-	if (WARN(!cpu_base, "unable to map gic cpu registers\n")) {
-		iounmap(dist_base);
+	gic->raw_cpu_base = of_iomap(node, 1);
+	if (WARN(!gic->raw_cpu_base, "unable to map gic cpu registers\n")) {
+		iounmap(gic->raw_dist_base);
 		return -ENOMEM;
 	}
 
@@ -1250,17 +1266,16 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 	 * Disable split EOI/Deactivate if either HYP is not available
 	 * or the CPU interface is too small.
 	 */
-	if (gic_cnt == 0 && !gic_check_eoimode(node, &cpu_base))
+	if (gic_cnt == 0 && !gic_check_eoimode(node, &gic->raw_cpu_base))
 		static_key_slow_dec(&supports_deactivate);
 
-	if (of_property_read_u32(node, "cpu-offset", &percpu_offset))
-		percpu_offset = 0;
+	if (of_property_read_u32(node, "cpu-offset", &gic->percpu_offset))
+		gic->percpu_offset = 0;
 
-	ret = __gic_init_bases(gic_cnt, -1, dist_base, cpu_base, percpu_offset,
-			 &node->fwnode);
+	ret = __gic_init_bases(gic, -1, &node->fwnode);
 	if (ret) {
-		iounmap(dist_base);
-		iounmap(cpu_base);
+		iounmap(gic->raw_dist_base);
+		iounmap(gic->raw_cpu_base);
 		return ret;
 	}
 
@@ -1350,8 +1365,8 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 				   const unsigned long end)
 {
 	struct acpi_madt_generic_distributor *dist;
-	void __iomem *cpu_base, *dist_base;
 	struct fwnode_handle *domain_handle;
+	struct gic_chip_data *gic = &gic_data[0];
 	int count, ret;
 
 	/* Collect CPU base addresses */
@@ -1362,17 +1377,18 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 		return -EINVAL;
 	}
 
-	cpu_base = ioremap(cpu_phy_base, ACPI_GIC_CPU_IF_MEM_SIZE);
-	if (!cpu_base) {
+	gic->raw_cpu_base = ioremap(cpu_phy_base, ACPI_GIC_CPU_IF_MEM_SIZE);
+	if (!gic->raw_cpu_base) {
 		pr_err("Unable to map GICC registers\n");
 		return -ENOMEM;
 	}
 
 	dist = (struct acpi_madt_generic_distributor *)header;
-	dist_base = ioremap(dist->base_address, ACPI_GICV2_DIST_MEM_SIZE);
-	if (!dist_base) {
+	gic->raw_dist_base = ioremap(dist->base_address,
+				     ACPI_GICV2_DIST_MEM_SIZE);
+	if (!gic->raw_dist_base) {
 		pr_err("Unable to map GICD registers\n");
-		iounmap(cpu_base);
+		iounmap(gic->raw_cpu_base);
 		return -ENOMEM;
 	}
 
@@ -1387,20 +1403,20 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 	/*
 	 * Initialize GIC instance zero (no multi-GIC support).
 	 */
-	domain_handle = irq_domain_alloc_fwnode(dist_base);
+	domain_handle = irq_domain_alloc_fwnode(gic->raw_dist_base);
 	if (!domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
-		iounmap(cpu_base);
-		iounmap(dist_base);
+		iounmap(gic->raw_cpu_base);
+		iounmap(gic->raw_dist_base);
 		return -ENOMEM;
 	}
 
-	ret = __gic_init_bases(0, -1, dist_base, cpu_base, 0, domain_handle);
+	ret = __gic_init_bases(gic, -1, domain_handle);
 	if (ret) {
 		pr_err("Failed to initialise GIC\n");
 		irq_domain_free_fwnode(domain_handle);
-		iounmap(cpu_base);
-		iounmap(dist_base);
+		iounmap(gic->raw_cpu_base);
+		iounmap(gic->raw_dist_base);
 		return ret;
 	}
 
