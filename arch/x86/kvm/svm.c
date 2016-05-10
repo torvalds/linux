@@ -4202,7 +4202,7 @@ static void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
 {
 }
 
-static void svm_hwapic_isr_update(struct kvm *kvm, int isr)
+static void svm_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr)
 {
 }
 
