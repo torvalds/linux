@@ -746,6 +746,10 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 					    DA7213_DAI_CLK_EN_MASK,
 					    DA7213_DAI_CLK_EN_MASK);
 
+		/* PC synchronised to DAI */
+		snd_soc_update_bits(codec, DA7213_PC_COUNT,
+				    DA7213_PC_FREERUN_MASK, 0);
+
 		/* Slave mode, if SRM not enabled no need for status checks */
 		pll_ctrl = snd_soc_read(codec, DA7213_PLL_CTRL);
 		if (!(pll_ctrl & DA7213_PLL_SRM_EN))
@@ -767,6 +771,11 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 
 		return 0;
 	case SND_SOC_DAPM_POST_PMD:
+		/* PC free-running */
+		snd_soc_update_bits(codec, DA7213_PC_COUNT,
+				    DA7213_PC_FREERUN_MASK,
+				    DA7213_PC_FREERUN_MASK);
+
 		/* Disable DAI clks if in master mode */
 		if (da7213->master)
 			snd_soc_update_bits(codec, DA7213_DAI_CLK_MODE,
@@ -1598,6 +1607,10 @@ static int da7213_probe(struct snd_soc_codec *codec)
 
 	/* Default to using SRM for slave mode */
 	da7213->srm_en = true;
+
+	/* Default PC counter to free-running */
+	snd_soc_update_bits(codec, DA7213_PC_COUNT, DA7213_PC_FREERUN_MASK,
+			    DA7213_PC_FREERUN_MASK);
 
 	/* Enable all Gain Ramps */
 	snd_soc_update_bits(codec, DA7213_AUX_L_CTRL,

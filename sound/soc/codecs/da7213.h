@@ -413,6 +413,9 @@
 #define DA7213_DMIC_CLK_RATE_SHIFT				2
 #define DA7213_DMIC_CLK_RATE_MASK				(0x1 << 2)
 
+/* DA7213_PC_COUNT = 0x94 */
+#define DA7213_PC_FREERUN_MASK					(0x1 << 0)
+
 /* DA7213_DIG_CTRL = 0x99 */
 #define DA7213_DAC_L_INV_SHIFT					3
 #define DA7213_DAC_R_INV_SHIFT					7
