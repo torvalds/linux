@@ -1637,6 +1637,23 @@ static int resort_cl_cb(struct hist_entry *he)
 	c2c_hists = c2c_he->hists;
 
 	if (c2c_hists) {
+		c2c_hists__reinit(c2c_hists,
+			"percent_rmt_hitm,"
+			"percent_lcl_hitm,"
+			"percent_stores_l1hit,"
+			"percent_stores_l1miss,"
+			"offset,"
+			"pid,"
+			"tid,"
+			"mean_rmt,"
+			"mean_lcl,"
+			"mean_load,"
+			"cpucnt,"
+			"symbol,"
+			"dso,"
+			"node",
+			"offset,rmt_hitm,lcl_hitm");
+
 		hists__collapse_resort(&c2c_hists->hists, NULL);
 		hists__output_resort_cb(&c2c_hists->hists, NULL, filter_cb);
 	}
@@ -1767,6 +1784,20 @@ static int perf_c2c__report(int argc, const char **argv)
 		pr_err("failed to process sample\n");
 		goto out_session;
 	}
+
+	c2c_hists__reinit(&c2c.hists,
+			"dcacheline,"
+			"tot_recs,"
+			"percent_hitm,"
+			"tot_hitm,lcl_hitm,rmt_hitm,"
+			"stores,stores_l1hit,stores_l1miss,"
+			"dram_lcl,dram_rmt,"
+			"ld_llcmiss,"
+			"tot_loads,"
+			"ld_fbhit,ld_l1hit,ld_l2hit,"
+			"ld_lclhit,ld_rmthit",
+			"rmt_hitm"
+			);
 
 	ui_progress__init(&prog, c2c.hists.hists.nr_entries, "Sorting...");
 
