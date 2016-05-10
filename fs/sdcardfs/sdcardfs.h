@@ -396,7 +396,7 @@ extern struct mutex sdcardfs_super_list_lock;
 extern struct list_head sdcardfs_super_list;
 
 /* for packagelist.c */
-extern appid_t get_appid(void *pkgl_id, const char *app_name);
+extern appid_t get_appid(const char *app_name);
 extern int check_caller_access_to_name(struct inode *parent_node, const char* name);
 extern int open_flags_to_access_mode(int open_flags);
 extern int packagelist_init(void);
