@@ -309,9 +309,11 @@ static int handle_alias(int *argcp, const char ***argv)
 			if (*argcp > 1) {
 				struct strbuf buf;
 
-				strbuf_init(&buf, PATH_MAX);
-				strbuf_addstr(&buf, alias_string);
-				sq_quote_argv(&buf, (*argv) + 1, PATH_MAX);
+				if (strbuf_init(&buf, PATH_MAX) < 0 ||
+				    strbuf_addstr(&buf, alias_string) < 0 ||
+				    sq_quote_argv(&buf, (*argv) + 1,
+						  PATH_MAX) < 0)
+					die("Failed to allocate memory.");
 				free(alias_string);
 				alias_string = buf.buf;
 			}
