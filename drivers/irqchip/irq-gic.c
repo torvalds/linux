@@ -1197,6 +1197,17 @@ void __init gic_init(unsigned int gic_nr, int irq_start,
 	__gic_init_bases(gic, irq_start, NULL);
 }
 
+static void gic_teardown(struct gic_chip_data *gic)
+{
+	if (WARN_ON(!gic))
+		return;
+
+	if (gic->raw_dist_base)
+		iounmap(gic->raw_dist_base);
+	if (gic->raw_cpu_base)
+		iounmap(gic->raw_cpu_base);
+}
+
 #ifdef CONFIG_OF
 static int gic_cnt __initdata;
 
@@ -1238,6 +1249,30 @@ static bool gic_check_eoimode(struct device_node *node, void __iomem **base)
 	return true;
 }
 
+static int gic_of_setup(struct gic_chip_data *gic, struct device_node *node)
+{
+	if (!gic || !node)
+		return -EINVAL;
+
+	gic->raw_dist_base = of_iomap(node, 0);
+	if (WARN(!gic->raw_dist_base, "unable to map gic dist registers\n"))
+		goto error;
+
+	gic->raw_cpu_base = of_iomap(node, 1);
+	if (WARN(!gic->raw_cpu_base, "unable to map gic cpu registers\n"))
+		goto error;
+
+	if (of_property_read_u32(node, "cpu-offset", &gic->percpu_offset))
+		gic->percpu_offset = 0;
+
+	return 0;
+
+error:
+	gic_teardown(gic);
+
+	return -ENOMEM;
+}
+
 int __init
 gic_of_init(struct device_node *node, struct device_node *parent)
 {
@@ -1252,15 +1287,9 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 
 	gic = &gic_data[gic_cnt];
 
-	gic->raw_dist_base = of_iomap(node, 0);
-	if (WARN(!gic->raw_dist_base, "unable to map gic dist registers\n"))
-		return -ENOMEM;
-
-	gic->raw_cpu_base = of_iomap(node, 1);
-	if (WARN(!gic->raw_cpu_base, "unable to map gic cpu registers\n")) {
-		iounmap(gic->raw_dist_base);
-		return -ENOMEM;
-	}
+	ret = gic_of_setup(gic, node);
+	if (ret)
+		return ret;
 
 	/*
 	 * Disable split EOI/Deactivate if either HYP is not available
@@ -1269,13 +1298,9 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 	if (gic_cnt == 0 && !gic_check_eoimode(node, &gic->raw_cpu_base))
 		static_key_slow_dec(&supports_deactivate);
 
-	if (of_property_read_u32(node, "cpu-offset", &gic->percpu_offset))
-		gic->percpu_offset = 0;
-
 	ret = __gic_init_bases(gic, -1, &node->fwnode);
 	if (ret) {
-		iounmap(gic->raw_dist_base);
-		iounmap(gic->raw_cpu_base);
+		gic_teardown(gic);
 		return ret;
 	}
 
@@ -1388,7 +1413,7 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 				     ACPI_GICV2_DIST_MEM_SIZE);
 	if (!gic->raw_dist_base) {
 		pr_err("Unable to map GICD registers\n");
-		iounmap(gic->raw_cpu_base);
+		gic_teardown(gic);
 		return -ENOMEM;
 	}
 
@@ -1406,8 +1431,7 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 	domain_handle = irq_domain_alloc_fwnode(gic->raw_dist_base);
 	if (!domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
-		iounmap(gic->raw_cpu_base);
-		iounmap(gic->raw_dist_base);
+		gic_teardown(gic);
 		return -ENOMEM;
 	}
 
@@ -1415,8 +1439,7 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 	if (ret) {
 		pr_err("Failed to initialise GIC\n");
 		irq_domain_free_fwnode(domain_handle);
-		iounmap(gic->raw_cpu_base);
-		iounmap(gic->raw_dist_base);
+		gic_teardown(gic);
 		return ret;
 	}
 
