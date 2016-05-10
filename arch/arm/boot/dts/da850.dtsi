@@ -19,7 +19,7 @@
 			compatible = "ti,cp-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
-			ti,intc-size = <100>;
+			ti,intc-size = <101>;
 			reg = <0xfffee000 0x2000>;
 		};
 	};
@@ -120,7 +120,19 @@
 					0x4 0x00000004 0x0000000f
 				>;
 			};
-			spi1_pins: pinmux_spi_pins {
+			spi0_pins: pinmux_spi0_pins {
+				pinctrl-single,bits = <
+					/* SIMO, SOMI, CLK */
+					0xc 0x00001101 0x0000ff0f
+				>;
+			};
+			spi0_cs0_pin: pinmux_spi0_cs0 {
+				pinctrl-single,bits = <
+					/* CS0 */
+					0x10 0x00000010 0x000000f0
+				>;
+			};
+			spi1_pins: pinmux_spi1_pins {
 				pinctrl-single,bits = <
 					/* SIMO, SOMI, CLK */
 					0x14 0x00110100 0x00ff0f00
@@ -291,6 +303,16 @@
 			reg = <0x308000 0x80>;
 			status = "disabled";
 		};
+		spi0: spi@41000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,da830-spi";
+			reg = <0x41000 0x1000>;
+			num-cs = <6>;
+			ti,davinci-spi-intr-line = <1>;
+			interrupts = <20>;
+			status = "disabled";
+		};
 		spi1: spi@30e000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -308,6 +330,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x224000 0x1000>;
+			status = "disabled";
 		};
 		eth0: ethernet@220000 {
 			compatible = "ti,davinci-dm6467-emac";
@@ -322,6 +345,7 @@
 					35
 					36
 					>;
+			status = "disabled";
 		};
 		gpio: gpio@226000 {
 			compatible = "ti,dm6441-gpio";
