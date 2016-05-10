@@ -66,6 +66,7 @@ static int mcb_probe(struct device *dev)
 	if (!found_id)
 		return -ENODEV;
 
+	get_device(dev);
 	return mdrv->probe(mdev, found_id);
 }
 
