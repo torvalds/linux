@@ -64,6 +64,7 @@ struct perf_callchain_entry {
 struct perf_callchain_entry_ctx {
 	struct perf_callchain_entry *entry;
 	u32			    max_stack;
+	u32			    nr;
 };
 
 struct perf_raw_record {
@@ -1080,9 +1081,10 @@ extern int sysctl_perf_event_max_stack;
 
 static inline int perf_callchain_store(struct perf_callchain_entry_ctx *ctx, u64 ip)
 {
-	struct perf_callchain_entry *entry = ctx->entry;
-	if (entry->nr < ctx->max_stack) {
+	if (ctx->nr < ctx->max_stack) {
+		struct perf_callchain_entry *entry = ctx->entry;
 		entry->ip[entry->nr++] = ip;
+		++ctx->nr;
 		return 0;
 	} else {
 		return -1; /* no more room, stop walking the stack */

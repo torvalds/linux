@@ -196,8 +196,7 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 
 	ctx.entry     = entry;
 	ctx.max_stack = max_stack;
-
-	entry->nr = init_nr;
+	ctx.nr	      = entry->nr = init_nr;
 
 	if (kernel && !user_mode(regs)) {
 		if (add_mark)

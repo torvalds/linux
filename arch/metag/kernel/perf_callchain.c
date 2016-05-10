@@ -65,7 +65,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs
 
 	--frame;
 
-	while ((entry->entry->nr < entry->max_stack) && frame)
+	while ((entry->nr < entry->max_stack) && frame)
 		frame = user_backtrace(frame, entry);
 }
 

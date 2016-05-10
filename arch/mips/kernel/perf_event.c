@@ -35,7 +35,7 @@ static void save_raw_perf_callchain(struct perf_callchain_entry_ctx *entry,
 		addr = *sp++;
 		if (__kernel_text_address(addr)) {
 			perf_callchain_store(entry, addr);
-			if (entry->entry->nr >= entry->max_stack)
+			if (entry->nr >= entry->max_stack)
 				break;
 		}
 	}
@@ -59,7 +59,7 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 	}
 	do {
 		perf_callchain_store(entry, pc);
-		if (entry->entry->nr >= entry->max_stack)
+		if (entry->nr >= entry->max_stack)
 			break;
 		pc = unwind_stack(current, &sp, pc, &ra);
 	} while (pc);
