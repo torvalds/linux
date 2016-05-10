@@ -72,9 +72,6 @@
  * if fec is not present
  * <data_blocks> <verity_tree> <verity_metdata_32K>
  */
-/* TODO: rearrange structure to reduce memory holes
- * depends on userspace change.
- */
 struct fec_header {
 	__le32 magic;
 	__le32 version;
@@ -83,7 +80,7 @@ struct fec_header {
 	__le32 fec_size;
 	__le64 inp_size;
 	u8 hash[SHA256_DIGEST_SIZE];
-};
+} __attribute__((packed));
 
 struct android_metadata_header {
 	__le32 magic_number;
