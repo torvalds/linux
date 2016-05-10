@@ -3132,8 +3132,6 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 
 	ps->ds = ds;
 
-	mutex_init(&ps->smi_mutex);
-
 	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
 
 	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_EEPROM))
@@ -3580,6 +3578,7 @@ static const char *mv88e6xxx_probe(struct device *dsa_dev,
 	ps->bus = bus;
 	ps->sw_addr = sw_addr;
 	ps->info = info;
+	mutex_init(&ps->smi_mutex);
 
 	*priv = ps;
 
