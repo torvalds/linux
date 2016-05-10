@@ -48,6 +48,7 @@
 #include "distributed-arp-table.h"
 #include "gateway_client.h"
 #include "icmp_socket.h"
+#include "multicast.h"
 #include "network-coding.h"
 #include "originator.h"
 #include "translation-table.h"
@@ -363,6 +364,22 @@ static int batadv_nc_nodes_open(struct inode *inode, struct file *file)
 }
 #endif
 
+#ifdef CONFIG_BATMAN_ADV_MCAST
+/**
+ * batadv_mcast_flags_open - prepare file handler for reads from mcast_flags
+ * @inode: inode which was opened
+ * @file: file handle to be initialized
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
+static int batadv_mcast_flags_open(struct inode *inode, struct file *file)
+{
+	struct net_device *net_dev = (struct net_device *)inode->i_private;
+
+	return single_open(file, batadv_mcast_flags_seq_print_text, net_dev);
+}
+#endif
+
 #define BATADV_DEBUGINFO(_name, _mode, _open)		\
 struct batadv_debuginfo batadv_debuginfo_##_name = {	\
 	.attr = {					\
@@ -407,6 +424,9 @@ static BATADV_DEBUGINFO(transtable_local, S_IRUGO,
 #ifdef CONFIG_BATMAN_ADV_NC
 static BATADV_DEBUGINFO(nc_nodes, S_IRUGO, batadv_nc_nodes_open);
 #endif
+#ifdef CONFIG_BATMAN_ADV_MCAST
+static BATADV_DEBUGINFO(mcast_flags, S_IRUGO, batadv_mcast_flags_open);
+#endif
 
 static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 	&batadv_debuginfo_neighbors,
@@ -423,6 +443,9 @@ static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 	&batadv_debuginfo_transtable_local,
 #ifdef CONFIG_BATMAN_ADV_NC
 	&batadv_debuginfo_nc_nodes,
+#endif
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	&batadv_debuginfo_mcast_flags,
 #endif
 	NULL,
 };
