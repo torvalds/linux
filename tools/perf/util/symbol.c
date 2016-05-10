@@ -301,7 +301,7 @@ static struct symbol *symbols__find(struct rb_root *symbols, u64 ip)
 
 		if (ip < s->start)
 			n = n->rb_left;
-		else if (ip >= s->end)
+		else if (ip > s->end || (ip == s->end && ip != s->start))
 			n = n->rb_right;
 		else
 			return s;

@@ -208,6 +208,10 @@ static struct test generic_tests[] = {
 		.func = test__event_times,
 	},
 	{
+		.desc = "Test backward reading from ring buffer",
+		.func = test__backward_ring_buffer,
+	},
+	{
 		.func = NULL,
 	},
 };

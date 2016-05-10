@@ -1294,6 +1294,7 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 {
 	struct available_var_finder *af = data;
 	struct variable_list *vl;
+	struct strbuf buf = STRBUF_INIT;
 	int tag, ret;
 
 	vl = &af->vls[af->nvls - 1];
@@ -1307,25 +1308,26 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 		if (ret == 0 || ret == -ERANGE) {
 			int ret2;
 			bool externs = !af->child;
-			struct strbuf buf;
 
-			strbuf_init(&buf, 64);
+			if (strbuf_init(&buf, 64) < 0)
+				goto error;
 
 			if (probe_conf.show_location_range) {
-				if (!externs) {
-					if (ret)
-						strbuf_add(&buf, "[INV]\t", 6);
-					else
-						strbuf_add(&buf, "[VAL]\t", 6);
-				} else
-					strbuf_add(&buf, "[EXT]\t", 6);
+				if (!externs)
+					ret2 = strbuf_add(&buf,
+						ret ? "[INV]\t" : "[VAL]\t", 6);
+				else
+					ret2 = strbuf_add(&buf, "[EXT]\t", 6);
+				if (ret2)
+					goto error;
 			}
 
 			ret2 = die_get_varname(die_mem, &buf);
 
 			if (!ret2 && probe_conf.show_location_range &&
 				!externs) {
-				strbuf_addch(&buf, '\t');
+				if (strbuf_addch(&buf, '\t') < 0)
+					goto error;
 				ret2 = die_get_var_range(&af->pf.sp_die,
 							die_mem, &buf);
 			}
@@ -1334,8 +1336,8 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 			if (ret2 == 0) {
 				strlist__add(vl->vars,
 					strbuf_detach(&buf, NULL));
-			} else
-				strbuf_release(&buf);
+			}
+			strbuf_release(&buf);
 		}
 	}
 
@@ -1343,6 +1345,10 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 		return DIE_FIND_CB_CONTINUE;
 	else
 		return DIE_FIND_CB_SIBLING;
+error:
+	strbuf_release(&buf);
+	pr_debug("Error in strbuf\n");
+	return DIE_FIND_CB_END;
 }
 
 /* Add a found vars into available variables list */

@@ -1062,7 +1062,7 @@ static void set_table_handlers(struct tables *tables)
 			tables->dbe.cpr = call_path_root__new();
 
 		if (!tables->dbe.cpr)
-			Py_FatalError("failed to create calls processor");
+			Py_FatalError("failed to create call path root");
 	}
 
 	tables->db_export_mode = true;

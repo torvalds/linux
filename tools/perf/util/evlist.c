@@ -766,6 +766,56 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 	return perf_mmap__read(md, evlist->overwrite, old, head, &md->prev);
 }
 
+union perf_event *
+perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
+{
+	struct perf_mmap *md = &evlist->mmap[idx];
+	u64 head, end;
+	u64 start = md->prev;
+
+	/*
+	 * Check if event was unmapped due to a POLLHUP/POLLERR.
+	 */
+	if (!atomic_read(&md->refcnt))
+		return NULL;
+
+	head = perf_mmap__read_head(md);
+	if (!head)
+		return NULL;
+
+	/*
+	 * 'head' pointer starts from 0. Kernel minus sizeof(record) form
+	 * it each time when kernel writes to it, so in fact 'head' is
+	 * negative. 'end' pointer is made manually by adding the size of
+	 * the ring buffer to 'head' pointer, means the validate data can
+	 * read is the whole ring buffer. If 'end' is positive, the ring
+	 * buffer has not fully filled, so we must adjust 'end' to 0.
+	 *
+	 * However, since both 'head' and 'end' is unsigned, we can't
+	 * simply compare 'end' against 0. Here we compare '-head' and
+	 * the size of the ring buffer, where -head is the number of bytes
+	 * kernel write to the ring buffer.
+	 */
+	if (-head < (u64)(md->mask + 1))
+		end = 0;
+	else
+		end = head + md->mask + 1;
+
+	return perf_mmap__read(md, false, start, end, &md->prev);
+}
+
+void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
+{
+	struct perf_mmap *md = &evlist->mmap[idx];
+	u64 head;
+
+	if (!atomic_read(&md->refcnt))
+		return;
+
+	head = perf_mmap__read_head(md);
+	md->prev = head;
+}
+
 static bool perf_mmap__empty(struct perf_mmap *md)
 {
 	return perf_mmap__read_head(md) == md->prev && !md->auxtrace_mmap.base;
