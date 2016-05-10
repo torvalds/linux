@@ -1992,7 +1992,6 @@ static int i40iw_addr_resolve_neigh(struct i40iw_device *iwdev,
 /**
  * i40iw_get_dst_ipv6
  */
-#if IS_ENABLED(CONFIG_IPV6)
 static struct dst_entry *i40iw_get_dst_ipv6(struct sockaddr_in6 *src_addr,
 					    struct sockaddr_in6 *dst_addr)
 {
@@ -2008,7 +2007,6 @@ static struct dst_entry *i40iw_get_dst_ipv6(struct sockaddr_in6 *src_addr,
 	dst = ip6_route_output(&init_net, NULL, &fl6);
 	return dst;
 }
-#endif
 
 /**
  * i40iw_addr_resolve_neigh_ipv6 - resolve neighbor ipv6 address
@@ -2016,7 +2014,6 @@ static struct dst_entry *i40iw_get_dst_ipv6(struct sockaddr_in6 *src_addr,
  * @dst_ip: remote ip address
  * @arpindex: if there is an arp entry
  */
-#if IS_ENABLED(CONFIG_IPV6)
 static int i40iw_addr_resolve_neigh_ipv6(struct i40iw_device *iwdev,
 					 u32 *src,
 					 u32 *dest,
@@ -2089,7 +2086,6 @@ static int i40iw_addr_resolve_neigh_ipv6(struct i40iw_device *iwdev,
 	dst_release(dst);
 	return rc;
 }
-#endif
 
 /**
  * i40iw_ipv4_is_loopback - check if loopback
@@ -2190,13 +2186,13 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 							    cm_info->loc_addr[0],
 							    cm_info->rem_addr[0],
 							    oldarpindex);
-#if IS_ENABLED(CONFIG_IPV6)
-		else
+		else if (IS_ENABLED(CONFIG_IPV6))
 			arpindex = i40iw_addr_resolve_neigh_ipv6(iwdev,
 								 cm_info->loc_addr,
 								 cm_info->rem_addr,
 								 oldarpindex);
-#endif
+		else
+			arpindex = -EINVAL;
 	}
 	if (arpindex < 0) {
 		i40iw_pr_err("cm_node arpindex\n");

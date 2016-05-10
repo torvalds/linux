@@ -189,7 +189,7 @@ static inline uint64_t cvmx_ptr_to_phys(void *ptr)
 static inline void *cvmx_phys_to_ptr(uint64_t physical_address)
 {
 	if (sizeof(void *) == 8) {
-		/* Just set the top bit, avoiding any TLB uglyness */
+		/* Just set the top bit, avoiding any TLB ugliness */
 		return CASTPTR(void,
 			       CVMX_ADD_SEG(CVMX_MIPS_SPACE_XKPHYS,
 					    physical_address));

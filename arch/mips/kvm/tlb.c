@@ -632,7 +632,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	kvm_debug("%s: vcpu %p, cpu: %d\n", __func__, vcpu, cpu);
 
-	/* Alocate new kernel and user ASIDs if needed */
+	/* Allocate new kernel and user ASIDs if needed */
 
 	local_irq_save(flags);
 

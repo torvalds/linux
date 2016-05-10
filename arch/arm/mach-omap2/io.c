@@ -368,6 +368,7 @@ void __init omap5_map_io(void)
 void __init dra7xx_map_io(void)
 {
 	iotable_init(dra7xx_io_desc, ARRAY_SIZE(dra7xx_io_desc));
+	omap_barriers_init();
 }
 #endif
 /*

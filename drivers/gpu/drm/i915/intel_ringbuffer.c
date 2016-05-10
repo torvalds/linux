@@ -968,7 +968,7 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 
 	/* WaForceContextSaveRestoreNonCoherent:skl,bxt */
 	tmp = HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT;
-	if (IS_SKL_REVID(dev, SKL_REVID_F0, SKL_REVID_F0) ||
+	if (IS_SKL_REVID(dev, SKL_REVID_F0, REVID_FOREVER) ||
 	    IS_BXT_REVID(dev, BXT_REVID_B0, REVID_FOREVER))
 		tmp |= HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE;
 	WA_SET_BIT_MASKED(HDC_CHICKEN0, tmp);
@@ -1085,7 +1085,8 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
-	if (IS_SKL_REVID(dev, 0, SKL_REVID_F0)) {
+	/* This is tied to WaForceContextSaveRestoreNonCoherent */
+	if (IS_SKL_REVID(dev, 0, REVID_FOREVER)) {
 		/*
 		 *Use Force Non-Coherent whenever executing a 3D context. This
 		 * is a workaround for a possible hang in the unlikely event
@@ -2090,10 +2091,12 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = ringbuf->obj;
+	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
+	unsigned flags = PIN_OFFSET_BIAS | 4096;
 	int ret;
 
 	if (HAS_LLC(dev_priv) && !obj->stolen) {
-		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, 0);
+		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, flags);
 		if (ret)
 			return ret;
 
@@ -2109,7 +2112,8 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 			return -ENOMEM;
 		}
 	} else {
-		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE, PIN_MAPPABLE);
+		ret = i915_gem_obj_ggtt_pin(obj, PAGE_SIZE,
+					    flags | PIN_MAPPABLE);
 		if (ret)
 			return ret;
 
@@ -2454,11 +2458,11 @@ static int __intel_ring_prepare(struct intel_engine_cs *ring, int bytes)
 		if (unlikely(total_bytes > remain_usable)) {
 			/*
 			 * The base request will fit but the reserved space
-			 * falls off the end. So only need to to wait for the
-			 * reserved size after flushing out the remainder.
+			 * falls off the end. So don't need an immediate wrap
+			 * and only need to effectively wait for the reserved
+			 * size space from the start of ringbuffer.
 			 */
 			wait_bytes = remain_actual + ringbuf->reserved_size;
-			need_wrap = true;
 		} else if (total_bytes > ringbuf->space) {
 			/* No wrapping required, just waiting. */
 			wait_bytes = total_bytes;

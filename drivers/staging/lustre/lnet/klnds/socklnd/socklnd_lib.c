@@ -291,7 +291,7 @@ ksocknal_lib_kiov_vmap(lnet_kiov_t *kiov, int niov,
 
 	for (nob = i = 0; i < niov; i++) {
 		if ((kiov[i].kiov_offset && i > 0) ||
-		    (kiov[i].kiov_offset + kiov[i].kiov_len != PAGE_CACHE_SIZE && i < niov - 1))
+		    (kiov[i].kiov_offset + kiov[i].kiov_len != PAGE_SIZE && i < niov - 1))
 			return NULL;
 
 		pages[i] = kiov[i].kiov_page;

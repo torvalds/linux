@@ -288,10 +288,6 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 	    (priv->pcs == STMMAC_PCS_RTBI))
 		goto out;
 
-	/* Never init EEE in case of a switch is attached */
-	if (priv->phydev->is_pseudo_fixed_link)
-		goto out;
-
 	/* MAC core supports the EEE feature. */
 	if (priv->dma_cap.eee) {
 		int tx_lpi_timer = priv->tx_lpi_timer;
@@ -771,10 +767,16 @@ static void stmmac_adjust_link(struct net_device *dev)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* At this stage, it could be needed to setup the EEE or adjust some
-	 * MAC related HW registers.
-	 */
-	priv->eee_enabled = stmmac_eee_init(priv);
+	if (phydev->is_pseudo_fixed_link)
+		/* Stop PHY layer to call the hook to adjust the link in case
+		 * of a switch is attached to the stmmac driver.
+		 */
+		phydev->irq = PHY_IGNORE_INTERRUPT;
+	else
+		/* At this stage, init the EEE if supported.
+		 * Never called in case of fixed_link.
+		 */
+		priv->eee_enabled = stmmac_eee_init(priv);
 }
 
 /**
@@ -864,10 +866,6 @@ static int stmmac_init_phy(struct net_device *dev)
 		phy_disconnect(phydev);
 		return -ENODEV;
 	}
-
-	/* If attached to a switch, there is no reason to poll phy handler */
-	if (phydev->is_pseudo_fixed_link)
-		phydev->irq = PHY_IGNORE_INTERRUPT;
 
 	pr_debug("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);

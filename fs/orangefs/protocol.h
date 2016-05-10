@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/spinlock_types.h>
 #include <linux/slab.h>
@@ -74,8 +75,8 @@ static inline void ORANGEFS_khandle_to(const struct orangefs_khandle *kh,
 				   void *p, int size)
 {
 
-	memset(p, 0, size);
 	memcpy(p, kh->u, 16);
+	memset(p + 16, 0, size - 16);
 
 }
 
@@ -427,26 +428,28 @@ struct ORANGEFS_dev_map_desc {
 /* gossip.h *****************************************************************/
 
 #ifdef GOSSIP_DISABLE_DEBUG
-#define gossip_debug(mask, format, f...) do {} while (0)
+#define gossip_debug(mask, fmt, ...)					\
+do {									\
+	if (0)								\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
+} while (0)
 #else
 extern __u64 gossip_debug_mask;
 extern struct client_debug_mask client_debug_mask;
 
 /* try to avoid function call overhead by checking masks in macro */
-#define gossip_debug(mask, format, f...)			\
-do {								\
-	if (gossip_debug_mask & mask)				\
-		printk(format, ##f);				\
+#define gossip_debug(mask, fmt, ...)					\
+do {									\
+	if (gossip_debug_mask & (mask))					\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
 } while (0)
 #endif /* GOSSIP_DISABLE_DEBUG */
 
 /* do file and line number printouts w/ the GNU preprocessor */
-#define gossip_ldebug(mask, format, f...)				\
-		gossip_debug(mask, "%s: " format, __func__, ##f)
+#define gossip_ldebug(mask, fmt, ...)					\
+	gossip_debug(mask, "%s: " fmt, __func__, ##__VA_ARGS__)
 
-#define gossip_err printk
-#define gossip_lerr(format, f...)					\
-		gossip_err("%s line %d: " format,			\
-			   __FILE__,					\
-			   __LINE__,					\
-			   ##f)
+#define gossip_err pr_err
+#define gossip_lerr(fmt, ...)						\
+	gossip_err("%s line %d: " fmt,					\
+		   __FILE__, __LINE__, ##__VA_ARGS__)

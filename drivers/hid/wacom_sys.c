@@ -152,6 +152,25 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 		hid_data->inputmode = field->report->id;
 		hid_data->inputmode_index = usage->usage_index;
 		break;
+
+	case HID_UP_DIGITIZER:
+		if (field->report->id == 0x0B &&
+		    (field->application == WACOM_G9_DIGITIZER ||
+		     field->application == WACOM_G11_DIGITIZER)) {
+			wacom->wacom_wac.mode_report = field->report->id;
+			wacom->wacom_wac.mode_value = 0;
+		}
+		break;
+
+	case WACOM_G9_PAGE:
+	case WACOM_G11_PAGE:
+		if (field->report->id == 0x03 &&
+		    (field->application == WACOM_G9_TOUCHSCREEN ||
+		     field->application == WACOM_G11_TOUCHSCREEN)) {
+			wacom->wacom_wac.mode_report = field->report->id;
+			wacom->wacom_wac.mode_value = 0;
+		}
+		break;
 	}
 }
 
@@ -322,26 +341,41 @@ static int wacom_hid_set_device_mode(struct hid_device *hdev)
 	return 0;
 }
 
-static int wacom_set_device_mode(struct hid_device *hdev, int report_id,
-		int length, int mode)
+static int wacom_set_device_mode(struct hid_device *hdev,
+				 struct wacom_wac *wacom_wac)
 {
-	unsigned char *rep_data;
+	u8 *rep_data;
+	struct hid_report *r;
+	struct hid_report_enum *re;
+	int length;
 	int error = -ENOMEM, limit = 0;
 
-	rep_data = kzalloc(length, GFP_KERNEL);
+	if (wacom_wac->mode_report < 0)
+		return 0;
+
+	re = &(hdev->report_enum[HID_FEATURE_REPORT]);
+	r = re->report_id_hash[wacom_wac->mode_report];
+	if (!r)
+		return -EINVAL;
+
+	rep_data = hid_alloc_report_buf(r, GFP_KERNEL);
 	if (!rep_data)
-		return error;
+		return -ENOMEM;
+
+	length = hid_report_len(r);
 
 	do {
-		rep_data[0] = report_id;
-		rep_data[1] = mode;
+		rep_data[0] = wacom_wac->mode_report;
+		rep_data[1] = wacom_wac->mode_value;
 
 		error = wacom_set_report(hdev, HID_FEATURE_REPORT, rep_data,
 					 length, 1);
 		if (error >= 0)
 			error = wacom_get_report(hdev, HID_FEATURE_REPORT,
 			                         rep_data, length, 1);
-	} while (error >= 0 && rep_data[1] != mode && limit++ < WAC_MSG_RETRIES);
+	} while (error >= 0 &&
+		 rep_data[1] != wacom_wac->mode_report &&
+		 limit++ < WAC_MSG_RETRIES);
 
 	kfree(rep_data);
 
@@ -411,31 +445,40 @@ static int wacom_bt_query_tablet_data(struct hid_device *hdev, u8 speed,
 static int wacom_query_tablet_data(struct hid_device *hdev,
 		struct wacom_features *features)
 {
+	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+
 	if (hdev->bus == BUS_BLUETOOTH)
 		return wacom_bt_query_tablet_data(hdev, 1, features);
 
-	if (features->type == HID_GENERIC)
-		return wacom_hid_set_device_mode(hdev);
-
-	if (features->device_type & WACOM_DEVICETYPE_TOUCH) {
-		if (features->type > TABLETPC) {
-			/* MT Tablet PC touch */
-			return wacom_set_device_mode(hdev, 3, 4, 4);
-		}
-		else if (features->type == WACOM_24HDT) {
-			return wacom_set_device_mode(hdev, 18, 3, 2);
-		}
-		else if (features->type == WACOM_27QHDT) {
-			return wacom_set_device_mode(hdev, 131, 3, 2);
-		}
-		else if (features->type == BAMBOO_PAD) {
-			return wacom_set_device_mode(hdev, 2, 2, 2);
-		}
-	} else if (features->device_type & WACOM_DEVICETYPE_PEN) {
-		if (features->type <= BAMBOO_PT) {
-			return wacom_set_device_mode(hdev, 2, 2, 2);
+	if (features->type != HID_GENERIC) {
+		if (features->device_type & WACOM_DEVICETYPE_TOUCH) {
+			if (features->type > TABLETPC) {
+				/* MT Tablet PC touch */
+				wacom_wac->mode_report = 3;
+				wacom_wac->mode_value = 4;
+			} else if (features->type == WACOM_24HDT) {
+				wacom_wac->mode_report = 18;
+				wacom_wac->mode_value = 2;
+			} else if (features->type == WACOM_27QHDT) {
+				wacom_wac->mode_report = 131;
+				wacom_wac->mode_value = 2;
+			} else if (features->type == BAMBOO_PAD) {
+				wacom_wac->mode_report = 2;
+				wacom_wac->mode_value = 2;
+			}
+		} else if (features->device_type & WACOM_DEVICETYPE_PEN) {
+			if (features->type <= BAMBOO_PT) {
+				wacom_wac->mode_report = 2;
+				wacom_wac->mode_value = 2;
+			}
 		}
 	}
+
+	wacom_set_device_mode(hdev, wacom_wac);
+
+	if (features->type == HID_GENERIC)
+		return wacom_hid_set_device_mode(hdev);
 
 	return 0;
 }
@@ -1816,6 +1859,9 @@ static int wacom_probe(struct hid_device *hdev,
 		error = -ENODEV;
 		goto fail_type;
 	}
+
+	wacom_wac->hid_data.inputmode = -1;
+	wacom_wac->mode_report = -1;
 
 	wacom->usbdev = dev;
 	wacom->intf = intf;

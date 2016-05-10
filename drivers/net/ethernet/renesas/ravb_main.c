@@ -1691,6 +1691,9 @@ static int ravb_set_gti(struct net_device *ndev)
 	rate = clk_get_rate(clk);
 	clk_put(clk);
 
+	if (!rate)
+		return -EINVAL;
+
 	inc = 1000000000ULL << 20;
 	do_div(inc, rate);
 

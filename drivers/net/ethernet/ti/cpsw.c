@@ -1251,11 +1251,11 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	int i, ret;
 	u32 reg;
 
+	pm_runtime_get_sync(&priv->pdev->dev);
+
 	if (!cpsw_common_res_usage_state(priv))
 		cpsw_intr_disable(priv);
 	netif_carrier_off(ndev);
-
-	pm_runtime_get_sync(&priv->pdev->dev);
 
 	reg = priv->version;
 

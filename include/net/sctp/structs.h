@@ -847,6 +847,11 @@ struct sctp_transport {
 	 */
 	ktime_t last_time_heard;
 
+	/* When was the last time that we sent a chunk using this
+	 * transport? We use this to check for idle transports
+	 */
+	unsigned long last_time_sent;
+
 	/* Last time(in jiffies) when cwnd is reduced due to the congestion
 	 * indication based on ECNE chunk.
 	 */
@@ -952,7 +957,8 @@ void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
 			  struct sctp_sock *);
 void sctp_transport_pmtu(struct sctp_transport *, struct sock *sk);
 void sctp_transport_free(struct sctp_transport *);
-void sctp_transport_reset_timers(struct sctp_transport *);
+void sctp_transport_reset_t3_rtx(struct sctp_transport *);
+void sctp_transport_reset_hb_timer(struct sctp_transport *);
 int sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);

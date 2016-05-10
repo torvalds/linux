@@ -1002,10 +1002,10 @@ restart_bulk:
 
 	/* NB req now owns desc and will free it when it gets freed */
 	for (i = 0; i < op_data->op_npages; i++)
-		ptlrpc_prep_bulk_page_pin(desc, pages[i], 0, PAGE_CACHE_SIZE);
+		ptlrpc_prep_bulk_page_pin(desc, pages[i], 0, PAGE_SIZE);
 
 	mdc_readdir_pack(req, op_data->op_offset,
-			 PAGE_CACHE_SIZE * op_data->op_npages,
+			 PAGE_SIZE * op_data->op_npages,
 			 &op_data->op_fid1);
 
 	ptlrpc_request_set_replen(req);
@@ -1037,7 +1037,7 @@ restart_bulk:
 	if (req->rq_bulk->bd_nob_transferred & ~LU_PAGE_MASK) {
 		CERROR("Unexpected # bytes transferred: %d (%ld expected)\n",
 		       req->rq_bulk->bd_nob_transferred,
-		       PAGE_CACHE_SIZE * op_data->op_npages);
+		       PAGE_SIZE * op_data->op_npages);
 		ptlrpc_req_finished(req);
 		return -EPROTO;
 	}
