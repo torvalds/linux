@@ -11,6 +11,7 @@
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
+#include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
@@ -77,7 +78,7 @@ pte_t __ref *vmem_pte_alloc(void)
 /*
  * Add a physical memory range to the 1:1 mapping.
  */
-static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
+static int vmem_add_mem(unsigned long start, unsigned long size)
 {
 	unsigned long end = start + size;
 	unsigned long address = start;
@@ -99,8 +100,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
 		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end) &&
 		     !debug_pagealloc_enabled()) {
-			pud_val(*pu_dir) = address |
-				pgprot_val(ro ? REGION3_KERNEL_RO : REGION3_KERNEL);
+			pud_val(*pu_dir) = address | pgprot_val(REGION3_KERNEL);
 			address += PUD_SIZE;
 			continue;
 		}
@@ -114,8 +114,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
 		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end) &&
 		    !debug_pagealloc_enabled()) {
-			pmd_val(*pm_dir) = address |
-				pgprot_val(ro ? SEGMENT_KERNEL_RO : SEGMENT_KERNEL);
+			pmd_val(*pm_dir) = address | pgprot_val(SEGMENT_KERNEL);
 			address += PMD_SIZE;
 			continue;
 		}
@@ -127,8 +126,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		pte_val(*pt_dir) = address |
-			pgprot_val(ro ? PAGE_KERNEL_RO : PAGE_KERNEL);
+		pte_val(*pt_dir) = address |  pgprot_val(PAGE_KERNEL);
 		address += PAGE_SIZE;
 	}
 	ret = 0;
@@ -338,7 +336,7 @@ int vmem_add_mapping(unsigned long start, unsigned long size)
 	if (ret)
 		goto out_free;
 
-	ret = vmem_add_mem(start, size, 0);
+	ret = vmem_add_mem(start, size);
 	if (ret)
 		goto out_remove;
 	goto out;
@@ -361,29 +359,12 @@ void __init vmem_map_init(void)
 {
 	unsigned long ro_start, ro_end;
 	struct memblock_region *reg;
-	phys_addr_t start, end;
 
+	for_each_memblock(memory, reg)
+		vmem_add_mem(reg->base, reg->size);
 	ro_start = PFN_ALIGN((unsigned long)&_stext);
 	ro_end = (unsigned long)&_eshared & PAGE_MASK;
-	for_each_memblock(memory, reg) {
-		start = reg->base;
-		end = reg->base + reg->size;
-		if (start >= ro_end || end <= ro_start)
-			vmem_add_mem(start, end - start, 0);
-		else if (start >= ro_start && end <= ro_end)
-			vmem_add_mem(start, end - start, 1);
-		else if (start >= ro_start) {
-			vmem_add_mem(start, ro_end - start, 1);
-			vmem_add_mem(ro_end, end - ro_end, 0);
-		} else if (end < ro_end) {
-			vmem_add_mem(start, ro_start - start, 0);
-			vmem_add_mem(ro_start, end - ro_start, 1);
-		} else {
-			vmem_add_mem(start, ro_start - start, 0);
-			vmem_add_mem(ro_start, ro_end - ro_start, 1);
-			vmem_add_mem(ro_end, end - ro_end, 0);
-		}
-	}
+	set_memory_ro(ro_start, (ro_end - ro_start) >> PAGE_SHIFT);
 }
 
 /*
