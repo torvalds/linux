@@ -2582,7 +2582,7 @@ static int mv88e6xxx_switch_reset(struct mv88e6xxx_priv_state *ps)
 {
 	bool ppu_active = mv88e6xxx_has(ps, MV88E6XXX_FLAG_PPU_ACTIVE);
 	u16 is_reset = (ppu_active ? 0x8800 : 0xc800);
-	struct gpio_desc *gpiod = ps->ds->pd->reset;
+	struct gpio_desc *gpiod = ps->reset;
 	unsigned long timeout;
 	int ret;
 	int i;
@@ -3634,6 +3634,7 @@ int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	struct mv88e6xxx_priv_state *ps;
 	int id, prod_num, rev;
 	struct dsa_switch *ds;
+	int err;
 
 	ds = devm_kzalloc(dev, sizeof(*ds) + sizeof(*ps), GFP_KERNEL);
 	if (!ds)
@@ -3662,6 +3663,17 @@ int mv88e6xxx_probe(struct mdio_device *mdiodev)
 					 ARRAY_SIZE(mv88e6xxx_table));
 	if (!ps->info)
 		return -ENODEV;
+
+	ps->reset = devm_gpiod_get(&mdiodev->dev, "reset", GPIOD_ASIS);
+	if (IS_ERR(ps->reset)) {
+		err = PTR_ERR(ps->reset);
+		if (err == -ENOENT) {
+			/* Optional, so not an error */
+			ps->reset = NULL;
+		} else {
+			return err;
+		}
+	}
 
 	dev_set_drvdata(dev, ds);
 

@@ -659,9 +659,6 @@ static int dsa_of_probe(struct device *dev)
 	const char *port_name;
 	int chip_index, port_index;
 	const unsigned int *sw_addr, *port_reg;
-	int gpio;
-	enum of_gpio_flags of_flags;
-	unsigned long flags;
 	u32 eeprom_len;
 	int ret;
 
@@ -739,19 +736,6 @@ static int dsa_of_probe(struct device *dev)
 			 */
 			put_device(cd->host_dev);
 			cd->host_dev = &mdio_bus_switch->dev;
-		}
-		gpio = of_get_named_gpio_flags(child, "reset-gpios", 0,
-					       &of_flags);
-		if (gpio_is_valid(gpio)) {
-			flags = (of_flags == OF_GPIO_ACTIVE_LOW ?
-				 GPIOF_ACTIVE_LOW : 0);
-			ret = devm_gpio_request_one(dev, gpio, flags,
-						    "switch_reset");
-			if (ret)
-				goto out_free_chip;
-
-			cd->reset = gpio_to_desc(gpio);
-			gpiod_direction_output(cd->reset, 0);
 		}
 
 		for_each_available_child_of_node(child, port) {
