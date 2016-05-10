@@ -643,20 +643,20 @@ static int pmu_resolve_param_term(struct parse_events_term *term,
 static char *pmu_formats_string(struct list_head *formats)
 {
 	struct perf_pmu_format *format;
-	char *str;
-	struct strbuf buf;
+	char *str = NULL;
+	struct strbuf buf = STRBUF_INIT;
 	unsigned i = 0;
 
 	if (!formats)
 		return NULL;
 
-	strbuf_init(&buf, 0);
 	/* sysfs exported terms */
 	list_for_each_entry(format, formats, list)
-		strbuf_addf(&buf, i++ ? ",%s" : "%s",
-			    format->name);
+		if (strbuf_addf(&buf, i++ ? ",%s" : "%s", format->name) < 0)
+			goto error;
 
 	str = strbuf_detach(&buf, NULL);
+error:
 	strbuf_release(&buf);
 
 	return str;
