@@ -29,6 +29,7 @@
 #include <linux/log2.h>
 #include <linux/cleancache.h>
 #include <linux/dax.h>
+#include <linux/badblocks.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -553,6 +554,40 @@ int bdev_dax_supported(struct super_block *sb, int blocksize)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bdev_dax_supported);
+
+/**
+ * bdev_dax_capable() - Return if the raw device is capable for dax
+ * @bdev: The device for raw block device access
+ */
+bool bdev_dax_capable(struct block_device *bdev)
+{
+	struct gendisk *disk = bdev->bd_disk;
+	struct blk_dax_ctl dax = {
+		.size = PAGE_SIZE,
+	};
+
+	if (!IS_ENABLED(CONFIG_FS_DAX))
+		return false;
+
+	dax.sector = 0;
+	if (bdev_direct_access(bdev, &dax) < 0)
+		return false;
+
+	dax.sector = bdev->bd_part->nr_sects - (PAGE_SIZE / 512);
+	if (bdev_direct_access(bdev, &dax) < 0)
+		return false;
+
+	/*
+	 * If the device has known bad blocks, force all I/O through the
+	 * driver / page cache.
+	 *
+	 * TODO: support finer grained dax error handling
+	 */
+	if (disk->bb && disk->bb->count)
+		return false;
+
+	return true;
+}
 
 /*
  * pseudo-fs
@@ -1295,7 +1330,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 
 			if (!ret) {
 				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
-				if (!blkdev_dax_capable(bdev))
+				if (!bdev_dax_capable(bdev))
 					bdev->bd_inode->i_flags &= ~S_DAX;
 			}
 
@@ -1332,7 +1367,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				goto out_clear;
 			}
 			bd_set_size(bdev, (loff_t)bdev->bd_part->nr_sects << 9);
-			if (!blkdev_dax_capable(bdev))
+			if (!bdev_dax_capable(bdev))
 				bdev->bd_inode->i_flags &= ~S_DAX;
 		}
 	} else {
