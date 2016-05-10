@@ -343,7 +343,7 @@ static struct ip6_tnl *ip6gre_tunnel_locate(struct net *net,
 		goto failed_free;
 
 	/* Can use a lockless transmit, unless we generate output sequences */
-	if (!(nt->parms.o_flags & GRE_SEQ))
+	if (!(nt->parms.o_flags & TUNNEL_SEQ))
 		dev->features |= NETIF_F_LLTX;
 
 	dev_hold(dev);
@@ -1314,7 +1314,7 @@ static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
 	dev->features		|= GRE6_FEATURES;
 	dev->hw_features	|= GRE6_FEATURES;
 
-	if (!(nt->parms.o_flags & GRE_SEQ)) {
+	if (!(nt->parms.o_flags & TUNNEL_SEQ)) {
 		/* TCP segmentation offload is not supported when we
 		 * generate output sequences.
 		 */
