@@ -1168,6 +1168,13 @@
 				status = "disabled";
 			};
 
+			trng@fc01c000 {
+				compatible = "atmel,at91sam9g45-trng";
+				reg = <0xfc01c000 0x100>;
+				interrupts = <47 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&trng_clk>;
+			};
+
 			aic: interrupt-controller@fc020000 {
 				#interrupt-cells = <3>;
 				compatible = "atmel,sama5d2-aic";
