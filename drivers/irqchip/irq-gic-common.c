@@ -56,12 +56,20 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 
 	/*
 	 * Write back the new configuration, and possibly re-enable
-	 * the interrupt. If we fail to write a new configuration,
-	 * return an error.
+	 * the interrupt. If we fail to write a new configuration for
+	 * an SPI then WARN and return an error. If we fail to write the
+	 * configuration for a PPI this is most likely because the GIC
+	 * does not allow us to set the configuration or we are in a
+	 * non-secure mode, and hence it may not be catastrophic.
 	 */
 	writel_relaxed(val, base + GIC_DIST_CONFIG + confoff);
-	if (readl_relaxed(base + GIC_DIST_CONFIG + confoff) != val)
-		ret = -EINVAL;
+	if (readl_relaxed(base + GIC_DIST_CONFIG + confoff) != val) {
+		if (WARN_ON(irq >= 32))
+			ret = -EINVAL;
+		else
+			pr_warn("GIC: PPI%d is secure or misconfigured\n",
+				irq - 16);
+	}
 
 	if (sync_access)
 		sync_access();
