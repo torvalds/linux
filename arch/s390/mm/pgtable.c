@@ -543,7 +543,7 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 }
 EXPORT_SYMBOL(set_guest_storage_key);
 
-unsigned char get_guest_storage_key(struct mm_struct *mm, unsigned long addr)
+unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr)
 {
 	unsigned char key;
 	spinlock_t *ptl;

@@ -893,7 +893,7 @@ void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
 bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long address);
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned char key, bool nq);
-unsigned char get_guest_storage_key(struct mm_struct *mm, unsigned long addr);
+unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr);
 
 /*
  * Certain architectures need to do special things when PTEs
