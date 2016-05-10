@@ -312,8 +312,8 @@ static void comedi_file_reset(struct file *file)
 	}
 	cfp->last_attached = dev->attached;
 	cfp->last_detach_count = dev->detach_count;
-	ACCESS_ONCE(cfp->read_subdev) = read_s;
-	ACCESS_ONCE(cfp->write_subdev) = write_s;
+	WRITE_ONCE(cfp->read_subdev, read_s);
+	WRITE_ONCE(cfp->write_subdev, write_s);
 }
 
 static void comedi_file_check(struct file *file)
@@ -331,7 +331,7 @@ static struct comedi_subdevice *comedi_file_read_subdevice(struct file *file)
 	struct comedi_file *cfp = file->private_data;
 
 	comedi_file_check(file);
-	return ACCESS_ONCE(cfp->read_subdev);
+	return READ_ONCE(cfp->read_subdev);
 }
 
 static struct comedi_subdevice *comedi_file_write_subdevice(struct file *file)
@@ -339,7 +339,7 @@ static struct comedi_subdevice *comedi_file_write_subdevice(struct file *file)
 	struct comedi_file *cfp = file->private_data;
 
 	comedi_file_check(file);
-	return ACCESS_ONCE(cfp->write_subdev);
+	return READ_ONCE(cfp->write_subdev);
 }
 
 static int resize_async_buffer(struct comedi_device *dev,
@@ -1992,7 +1992,7 @@ static int do_setrsubd_ioctl(struct comedi_device *dev, unsigned long arg,
 	    !(s_old->async->cmd.flags & CMDF_WRITE))
 		return -EBUSY;
 
-	ACCESS_ONCE(cfp->read_subdev) = s_new;
+	WRITE_ONCE(cfp->read_subdev, s_new);
 	return 0;
 }
 
@@ -2034,7 +2034,7 @@ static int do_setwsubd_ioctl(struct comedi_device *dev, unsigned long arg,
 	    (s_old->async->cmd.flags & CMDF_WRITE))
 		return -EBUSY;
 
-	ACCESS_ONCE(cfp->write_subdev) = s_new;
+	WRITE_ONCE(cfp->write_subdev, s_new);
 	return 0;
 }
 
