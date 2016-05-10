@@ -130,52 +130,9 @@ static inline bool netif_index_is_l3_master(struct net *net, int ifindex)
 	return rc;
 }
 
-static inline int l3mdev_get_saddr(struct net *net, int ifindex,
-				   struct flowi4 *fl4)
-{
-	struct net_device *dev;
-	int rc = 0;
+int l3mdev_get_saddr(struct net *net, int ifindex, struct flowi4 *fl4);
 
-	if (ifindex) {
-
-		rcu_read_lock();
-
-		dev = dev_get_by_index_rcu(net, ifindex);
-		if (dev && netif_is_l3_master(dev) &&
-		    dev->l3mdev_ops->l3mdev_get_saddr) {
-			rc = dev->l3mdev_ops->l3mdev_get_saddr(dev, fl4);
-		}
-
-		rcu_read_unlock();
-	}
-
-	return rc;
-}
-
-static inline struct dst_entry *l3mdev_get_rt6_dst(const struct net_device *dev,
-						   const struct flowi6 *fl6)
-{
-	if (netif_is_l3_master(dev) && dev->l3mdev_ops->l3mdev_get_rt6_dst)
-		return dev->l3mdev_ops->l3mdev_get_rt6_dst(dev, fl6);
-
-	return NULL;
-}
-
-static inline
-struct dst_entry *l3mdev_rt6_dst_by_oif(struct net *net,
-					const struct flowi6 *fl6)
-{
-	struct dst_entry *dst = NULL;
-	struct net_device *dev;
-
-	dev = dev_get_by_index(net, fl6->flowi6_oif);
-	if (dev) {
-		dst = l3mdev_get_rt6_dst(dev, fl6);
-		dev_put(dev);
-	}
-
-	return dst;
-}
+struct dst_entry *l3mdev_get_rt6_dst(struct net *net, const struct flowi6 *fl6);
 
 #else
 
@@ -233,14 +190,7 @@ static inline int l3mdev_get_saddr(struct net *net, int ifindex,
 }
 
 static inline
-struct dst_entry *l3mdev_get_rt6_dst(const struct net_device *dev,
-				     const struct flowi6 *fl6)
-{
-	return NULL;
-}
-static inline
-struct dst_entry *l3mdev_rt6_dst_by_oif(struct net *net,
-					const struct flowi6 *fl6)
+struct dst_entry *l3mdev_get_rt6_dst(struct net *net, const struct flowi6 *fl6)
 {
 	return NULL;
 }
