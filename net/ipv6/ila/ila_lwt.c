@@ -133,7 +133,7 @@ static int ila_fill_encap_info(struct sk_buff *skb,
 	if (nla_put_u64_64bit(skb, ILA_ATTR_LOCATOR, (__force u64)p->locator.v64,
 			      ILA_ATTR_PAD))
 		goto nla_put_failure;
-	if (nla_put_u64(skb, ILA_ATTR_CSUM_MODE, (__force u8)p->csum_mode))
+	if (nla_put_u8(skb, ILA_ATTR_CSUM_MODE, (__force u8)p->csum_mode))
 		goto nla_put_failure;
 
 	return 0;
@@ -144,7 +144,9 @@ nla_put_failure:
 
 static int ila_encap_nlsize(struct lwtunnel_state *lwtstate)
 {
-	return nla_total_size(sizeof(u64)); /* ILA_ATTR_LOCATOR */
+	return nla_total_size_64bit(sizeof(u64)) + /* ILA_ATTR_LOCATOR */
+	       nla_total_size(sizeof(u8)) +        /* ILA_ATTR_CSUM_MODE */
+	       0;
 }
 
 static int ila_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
