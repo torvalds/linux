@@ -1475,21 +1475,23 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Update time before taking page lock */
 	file_update_time(vma->vm_file);
 
-	lock_page(page);
+	do {
+		lock_page(page);
 
-	if ((off > size) || (page->mapping != inode->i_mapping)) {
-		unlock_page(page);
-		ret = VM_FAULT_NOPAGE;
-		goto out;
-	}
+		if ((off > size) || (page->mapping != inode->i_mapping)) {
+			unlock_page(page);
+			ret = VM_FAULT_NOPAGE;
+			break;
+		}
 
-	ret = ceph_update_writeable_page(vma->vm_file, off, len, page);
-	if (ret >= 0) {
-		/* success.  we'll keep the page locked. */
-		set_page_dirty(page);
-		ret = VM_FAULT_LOCKED;
-	}
-out:
+		ret = ceph_update_writeable_page(vma->vm_file, off, len, page);
+		if (ret >= 0) {
+			/* success.  we'll keep the page locked. */
+			set_page_dirty(page);
+			ret = VM_FAULT_LOCKED;
+		}
+	} while (ret == -EAGAIN);
+
 	if (ret == VM_FAULT_LOCKED ||
 	    ci->i_inline_version != CEPH_INLINE_NONE) {
 		int dirty;
