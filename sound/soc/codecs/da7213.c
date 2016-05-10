@@ -734,6 +734,9 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct da7213_priv *da7213 = snd_soc_codec_get_drvdata(codec);
+	u8 pll_ctrl, pll_status;
+	int i = 0;
+	bool srm_lock = false;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -742,6 +745,26 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 			snd_soc_update_bits(codec, DA7213_DAI_CLK_MODE,
 					    DA7213_DAI_CLK_EN_MASK,
 					    DA7213_DAI_CLK_EN_MASK);
+
+		/* Slave mode, if SRM not enabled no need for status checks */
+		pll_ctrl = snd_soc_read(codec, DA7213_PLL_CTRL);
+		if (!(pll_ctrl & DA7213_PLL_SRM_EN))
+			return 0;
+
+		/* Check SRM has locked */
+		do {
+			pll_status = snd_soc_read(codec, DA7213_PLL_STATUS);
+			if (pll_status & DA7219_PLL_SRM_LOCK) {
+				srm_lock = true;
+			} else {
+				++i;
+				msleep(50);
+			}
+		} while ((i < DA7213_SRM_CHECK_RETRIES) & (!srm_lock));
+
+		if (!srm_lock)
+			dev_warn(codec->dev, "SRM failed to lock\n");
+
 		return 0;
 	case SND_SOC_DAPM_POST_PMD:
 		/* Disable DAI clks if in master mode */

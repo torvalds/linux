@@ -142,6 +142,9 @@
  * Bit fields
  */
 
+/* DA7213_PLL_STATUS = 0x03 */
+#define DA7219_PLL_SRM_LOCK					(0x1 << 1)
+
 /* DA7213_SR = 0x22 */
 #define DA7213_SR_8000						(0x1 << 0)
 #define DA7213_SR_11025						(0x2 << 0)
@@ -502,6 +505,7 @@
 #define DA7213_PLL_INDIV_10_20_MHZ_VAL	4
 #define DA7213_PLL_INDIV_20_40_MHZ_VAL	8
 #define DA7213_PLL_INDIV_40_54_MHZ_VAL	16
+#define DA7213_SRM_CHECK_RETRIES	8
 
 enum da7213_clk_src {
 	DA7213_CLKSRC_MCLK = 0,
