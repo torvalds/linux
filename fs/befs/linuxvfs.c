@@ -66,7 +66,7 @@ static struct kmem_cache *befs_inode_cachep;
 
 static const struct file_operations befs_dir_operations = {
 	.read		= generic_read_dir,
-	.iterate	= befs_readdir,
+	.iterate_shared	= befs_readdir,
 	.llseek		= generic_file_llseek,
 };
 
