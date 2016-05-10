@@ -108,6 +108,14 @@ struct exception_table_entry {
 
 #define ARCH_HAS_RELATIVE_EXTABLE
 
+#define swap_ex_entry_fixup(a, b, tmp, delta)			\
+	do {							\
+		(a)->fixup = (b)->fixup + (delta);		\
+		(b)->fixup = (tmp).fixup - (delta);		\
+		(a)->handler = (b)->handler + (delta);		\
+		(b)->handler = (tmp).handler - (delta);		\
+	} while (0)
+
 extern int fixup_exception(struct pt_regs *regs, int trapnr);
 extern bool ex_has_fault_handler(unsigned long ip);
 extern int early_fixup_exception(unsigned long *ip);
