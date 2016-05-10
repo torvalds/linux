@@ -1391,7 +1391,7 @@ void intel_uncore_fini(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_reset(dev_priv, false);
 }
 
-#define GEN_RANGE(l, h) GENMASK(h, l)
+#define GEN_RANGE(l, h) GENMASK((h) - 1, (l) - 1)
 
 static const struct register_whitelist {
 	i915_reg_t offset_ldw, offset_udw;
@@ -1416,7 +1416,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 
 	for (i = 0; i < ARRAY_SIZE(whitelist); i++, entry++) {
 		if (i915_mmio_reg_offset(entry->offset_ldw) == (reg->offset & -entry->size) &&
-		    (1 << INTEL_INFO(dev)->gen & entry->gen_bitmask))
+		    (INTEL_INFO(dev)->gen_mask & entry->gen_bitmask))
 			break;
 	}
 

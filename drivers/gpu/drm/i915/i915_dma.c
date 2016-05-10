@@ -1073,6 +1073,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	memcpy(device_info, info, sizeof(dev_priv->info));
 	device_info->device_id = dev->pdev->device;
 
+	BUG_ON(device_info->gen > sizeof(device_info->gen_mask) * BITS_PER_BYTE);
+	device_info->gen_mask = BIT(device_info->gen - 1);
+
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
 	mutex_init(&dev_priv->backlight_lock);

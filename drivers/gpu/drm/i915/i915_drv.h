@@ -760,6 +760,7 @@ struct intel_device_info {
 	u8 num_pipes:3;
 	u8 num_sprites[I915_MAX_PIPES];
 	u8 gen;
+	u16 gen_mask;
 	u8 ring_mask; /* Rings supported by the HW */
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG, SEP_SEMICOLON);
 	/* Register offsets for the various display pipes and transcoders */
@@ -2620,14 +2621,14 @@ struct drm_i915_cmd_table {
  * have their own (e.g. HAS_PCH_SPLIT for ILK+ display, IS_foo for particular
  * chips, etc.).
  */
-#define IS_GEN2(dev)	(INTEL_INFO(dev)->gen == 2)
-#define IS_GEN3(dev)	(INTEL_INFO(dev)->gen == 3)
-#define IS_GEN4(dev)	(INTEL_INFO(dev)->gen == 4)
-#define IS_GEN5(dev)	(INTEL_INFO(dev)->gen == 5)
-#define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
-#define IS_GEN7(dev)	(INTEL_INFO(dev)->gen == 7)
-#define IS_GEN8(dev)	(INTEL_INFO(dev)->gen == 8)
-#define IS_GEN9(dev)	(INTEL_INFO(dev)->gen == 9)
+#define IS_GEN2(dev)	(INTEL_INFO(dev)->gen_mask & BIT(1))
+#define IS_GEN3(dev)	(INTEL_INFO(dev)->gen_mask & BIT(2))
+#define IS_GEN4(dev)	(INTEL_INFO(dev)->gen_mask & BIT(3))
+#define IS_GEN5(dev)	(INTEL_INFO(dev)->gen_mask & BIT(4))
+#define IS_GEN6(dev)	(INTEL_INFO(dev)->gen_mask & BIT(5))
+#define IS_GEN7(dev)	(INTEL_INFO(dev)->gen_mask & BIT(6))
+#define IS_GEN8(dev)	(INTEL_INFO(dev)->gen_mask & BIT(7))
+#define IS_GEN9(dev)	(INTEL_INFO(dev)->gen_mask & BIT(8))
 
 #define RENDER_RING		(1<<RCS)
 #define BSD_RING		(1<<VCS)
