@@ -157,6 +157,8 @@ struct mlx5e_params {
 	u8  log_rq_size;
 	u16 num_channels;
 	u8  num_tc;
+	bool rx_cqe_compress_admin;
+	bool rx_cqe_compress;
 	u16 rx_cq_moderation_usec;
 	u16 rx_cq_moderation_pkts;
 	u16 tx_cq_moderation_usec;
@@ -201,6 +203,13 @@ struct mlx5e_cq {
 	struct mlx5_core_cq        mcq;
 	struct mlx5e_channel      *channel;
 	struct mlx5e_priv         *priv;
+
+	/* cqe decompression */
+	struct mlx5_cqe64          title;
+	struct mlx5_mini_cqe8      mini_arr[MLX5_MINI_CQE_ARRAY_SIZE];
+	u8                         mini_arr_idx;
+	u16                        decmprs_left;
+	u16                        decmprs_wqe_counter;
 
 	/* control */
 	struct mlx5_wq_ctrl        wq_ctrl;
@@ -616,6 +625,7 @@ void mlx5e_timestamp_init(struct mlx5e_priv *priv);
 void mlx5e_timestamp_cleanup(struct mlx5e_priv *priv);
 int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr);
 int mlx5e_hwstamp_get(struct net_device *dev, struct ifreq *ifr);
+void mlx5e_modify_rx_cqe_compression(struct mlx5e_priv *priv, bool val);
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 			  u16 vid);

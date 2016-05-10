@@ -114,6 +114,8 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
 		s->rx_mpwqe_filler += rq_stats->mpwqe_filler;
 		s->rx_mpwqe_frag   += rq_stats->mpwqe_frag;
 		s->rx_buff_alloc_err += rq_stats->buff_alloc_err;
+		s->rx_cqe_compress_blks += rq_stats->cqe_compress_blks;
+		s->rx_cqe_compress_pkts += rq_stats->cqe_compress_pkts;
 
 		for (j = 0; j < priv->params.num_tc; j++) {
 			sq_stats = &priv->channel[i]->sq[j].stats;
@@ -1204,6 +1206,10 @@ static void mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	}
 
 	MLX5_SET(cqc, cqc, log_cq_size, log_cq_size);
+	if (priv->params.rx_cqe_compress) {
+		MLX5_SET(cqc, cqc, mini_cqe_res_format, MLX5_CQE_FORMAT_CSUM);
+		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
+	}
 
 	mlx5e_build_common_cq_param(priv, param);
 }
