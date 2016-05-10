@@ -637,6 +637,7 @@ struct bnxt_napi {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	atomic_t		poll_state;
 #endif
+	bool			in_reset;
 };
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
