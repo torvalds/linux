@@ -3023,9 +3023,9 @@ static int mv88e6xxx_setup_global(struct mv88e6xxx_priv_state *ps)
 	for (i = 0; i < 32; i++) {
 		int nexthop = 0x1f;
 
-		if (ps->ds->pd->rtable &&
+		if (ps->ds->cd->rtable &&
 		    i != ps->ds->index && i < ps->ds->dst->pd->nr_chips)
-			nexthop = ps->ds->pd->rtable[i] & 0x1f;
+			nexthop = ps->ds->cd->rtable[i] & 0x1f;
 
 		err = _mv88e6xxx_reg_write(
 			ps, REG_GLOBAL2,

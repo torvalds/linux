@@ -137,7 +137,7 @@ struct dsa_switch {
 	/*
 	 * Configuration data for this switch.
 	 */
-	struct dsa_chip_data	*pd;
+	struct dsa_chip_data	*cd;
 
 	/*
 	 * The used switch driver.
@@ -190,7 +190,7 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 	if (dst->cpu_switch == ds->index)
 		return dst->cpu_port;
 	else
-		return ds->pd->rtable[dst->cpu_switch];
+		return ds->cd->rtable[dst->cpu_switch];
 }
 
 struct switchdev_trans;
