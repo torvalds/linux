@@ -3258,6 +3258,8 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
 bool is_skb_forwardable(const struct net_device *dev,
 			const struct sk_buff *skb);
 
+void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev);
+
 extern int		netdev_budget;
 
 /* Called by rtnetlink.c:rtnl_unlock() */
