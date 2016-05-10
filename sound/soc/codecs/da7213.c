@@ -1344,26 +1344,26 @@ static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	/* Workout input divider based on MCLK rate */
 	if ((da7213->mclk_rate == 32768) && (source == DA7213_SYSCLK_PLL)) {
 		/* 32KHz PLL Mode */
-		indiv_bits = DA7213_PLL_INDIV_10_20_MHZ;
-		indiv = DA7213_PLL_INDIV_10_20_MHZ_VAL;
+		indiv_bits = DA7213_PLL_INDIV_9_TO_18_MHZ;
+		indiv = DA7213_PLL_INDIV_9_TO_18_MHZ_VAL;
 		freq_ref = 3750000;
 		pll_ctrl |= DA7213_PLL_32K_MODE;
 	} else {
 		/* 5 - 54MHz MCLK */
 		if (da7213->mclk_rate < 5000000) {
 			goto pll_err;
-		} else if (da7213->mclk_rate <= 10000000) {
-			indiv_bits = DA7213_PLL_INDIV_5_10_MHZ;
-			indiv = DA7213_PLL_INDIV_5_10_MHZ_VAL;
-		} else if (da7213->mclk_rate <= 20000000) {
-			indiv_bits = DA7213_PLL_INDIV_10_20_MHZ;
-			indiv = DA7213_PLL_INDIV_10_20_MHZ_VAL;
-		} else if (da7213->mclk_rate <= 40000000) {
-			indiv_bits = DA7213_PLL_INDIV_20_40_MHZ;
-			indiv = DA7213_PLL_INDIV_20_40_MHZ_VAL;
+		} else if (da7213->mclk_rate <= 9000000) {
+			indiv_bits = DA7213_PLL_INDIV_5_TO_9_MHZ;
+			indiv = DA7213_PLL_INDIV_5_TO_9_MHZ_VAL;
+		} else if (da7213->mclk_rate <= 18000000) {
+			indiv_bits = DA7213_PLL_INDIV_9_TO_18_MHZ;
+			indiv = DA7213_PLL_INDIV_9_TO_18_MHZ_VAL;
+		} else if (da7213->mclk_rate <= 36000000) {
+			indiv_bits = DA7213_PLL_INDIV_18_TO_36_MHZ;
+			indiv = DA7213_PLL_INDIV_18_TO_36_MHZ_VAL;
 		} else if (da7213->mclk_rate <= 54000000) {
-			indiv_bits = DA7213_PLL_INDIV_40_54_MHZ;
-			indiv = DA7213_PLL_INDIV_40_54_MHZ_VAL;
+			indiv_bits = DA7213_PLL_INDIV_36_TO_54_MHZ;
+			indiv = DA7213_PLL_INDIV_36_TO_54_MHZ_VAL;
 		} else {
 			goto pll_err;
 		}
