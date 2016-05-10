@@ -771,7 +771,7 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->netinfo_task = kthread_run(&deliver_netinfo_thread, (void *)dev,
 					"dim2_netinfo");
 	if (IS_ERR(dev->netinfo_task))
-		ret = PTR_ERR(dev->netinfo_task);
+		return PTR_ERR(dev->netinfo_task);
 
 	for (i = 0; i < DMA_CHANNELS; i++) {
 		struct most_channel_capability *cap = dev->capabilities + i;

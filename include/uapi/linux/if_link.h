@@ -153,6 +153,8 @@ enum {
 	IFLA_LINK_NETNSID,
 	IFLA_PHYS_PORT_NAME,
 	IFLA_PROTO_DOWN,
+	IFLA_GSO_MAX_SEGS,
+	IFLA_GSO_MAX_SIZE,
 	__IFLA_MAX
 };
 
@@ -486,6 +488,7 @@ enum {
 	IFLA_VXLAN_REMCSUM_NOPARTIAL,
 	IFLA_VXLAN_COLLECT_METADATA,
 	IFLA_VXLAN_LABEL,
+	IFLA_VXLAN_GPE,
 	__IFLA_VXLAN_MAX
 };
 #define IFLA_VXLAN_MAX	(__IFLA_VXLAN_MAX - 1)
@@ -599,6 +602,8 @@ enum {
 				 */
 	IFLA_VF_STATS,		/* network device statistics */
 	IFLA_VF_TRUST,		/* Trust VF */
+	IFLA_VF_IB_NODE_GUID,	/* VF Infiniband node GUID */
+	IFLA_VF_IB_PORT_GUID,	/* VF Infiniband port GUID */
 	__IFLA_VF_MAX,
 };
 
@@ -629,6 +634,11 @@ struct ifla_vf_rate {
 struct ifla_vf_spoofchk {
 	__u32 vf;
 	__u32 setting;
+};
+
+struct ifla_vf_guid {
+	__u32 vf;
+	__u64 guid;
 };
 
 enum {

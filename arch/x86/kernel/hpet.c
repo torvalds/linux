@@ -717,7 +717,7 @@ static int hpet_cpuhp_notify(struct notifier_block *n,
 	struct hpet_work_struct work;
 	struct hpet_dev *hdev = per_cpu(cpu_hpet_dev, cpu);
 
-	switch (action & 0xf) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 		INIT_DELAYED_WORK_ONSTACK(&work.work, hpet_work);
 		init_completion(&work.complete);

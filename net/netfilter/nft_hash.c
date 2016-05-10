@@ -192,7 +192,7 @@ static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 	u8 genmask = nft_genmask_cur(read_pnet(&set->pnet));
 	int err;
 
-	err = rhashtable_walk_init(&priv->ht, &hti);
+	err = rhashtable_walk_init(&priv->ht, &hti, GFP_KERNEL);
 	iter->err = err;
 	if (err)
 		return;
@@ -248,7 +248,7 @@ static void nft_hash_gc(struct work_struct *work)
 	priv = container_of(work, struct nft_hash, gc_work.work);
 	set  = nft_set_container_of(priv);
 
-	err = rhashtable_walk_init(&priv->ht, &hti);
+	err = rhashtable_walk_init(&priv->ht, &hti, GFP_KERNEL);
 	if (err)
 		goto schedule;
 

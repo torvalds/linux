@@ -42,7 +42,8 @@
 #define		NFC_SR_UNDEF		(1 << 21)
 #define		NFC_SR_AWB		(1 << 22)
 #define		NFC_SR_ASE		(1 << 23)
-#define		NFC_SR_RB_EDGE		(1 << 24)
+#define		NFC_SR_RB_EDGE0		(1 << 24)
+#define		NFC_SR_RB_EDGE3		(1 << 27)
 
 #define ATMEL_HSMC_NFC_IER	0x0c
 #define ATMEL_HSMC_NFC_IDR	0x10

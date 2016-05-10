@@ -3,13 +3,9 @@
 
 #include <data.h>
 
-extern int jit_process(struct perf_session *session,
-		       struct perf_data_file *output,
-		       struct machine *machine,
-		       char *filename,
-		       pid_t pid,
-		       u64 *nbytes);
+int jit_process(struct perf_session *session, struct perf_data_file *output,
+		struct machine *machine, char *filename, pid_t pid, u64 *nbytes);
 
-extern int jit_inject_record(const char *filename);
+int jit_inject_record(const char *filename);
 
 #endif /* __JIT_H__ */

@@ -156,7 +156,7 @@ static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
 
 static const struct iwl_ht_params iwl7000_ht_params = {
 	.stbc = true,
-	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
+	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
 };
 
 #define IWL_DEVICE_7000_COMMON					\
@@ -287,7 +287,7 @@ static const struct iwl_pwr_tx_backoff iwl7265_pwr_tx_backoffs[] = {
 static const struct iwl_ht_params iwl7265_ht_params = {
 	.stbc = true,
 	.ldpc = true,
-	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
+	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
 };
 
 const struct iwl_cfg iwl3165_2ac_cfg = {

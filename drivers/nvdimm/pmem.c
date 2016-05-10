@@ -99,7 +99,7 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 		if (unlikely(bad_pmem))
 			rc = -EIO;
 		else {
-			memcpy_from_pmem(mem + off, pmem_addr, len);
+			rc = memcpy_from_pmem(mem + off, pmem_addr, len);
 			flush_dcache_page(page);
 		}
 	} else {
@@ -151,7 +151,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 	int rc;
 
-	rc = pmem_do_bvec(pmem, page, PAGE_CACHE_SIZE, 0, rw, sector);
+	rc = pmem_do_bvec(pmem, page, PAGE_SIZE, 0, rw, sector);
 	if (rw & WRITE)
 		wmb_pmem();
 
@@ -295,7 +295,7 @@ static int pmem_rw_bytes(struct nd_namespace_common *ndns,
 
 		if (unlikely(is_bad_pmem(&pmem->bb, offset / 512, sz_align)))
 			return -EIO;
-		memcpy_from_pmem(buf, pmem->virt_addr + offset, size);
+		return memcpy_from_pmem(buf, pmem->virt_addr + offset, size);
 	} else {
 		memcpy_to_pmem(pmem->virt_addr + offset, buf, size);
 		wmb_pmem();

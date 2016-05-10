@@ -159,11 +159,6 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 		ae_handle->qs[i]->tx_ring.q = ae_handle->qs[i];
 
 		ring_pair_cb->used_by_vf = 1;
-		if (port_idx < DSAF_SERVICE_PORT_NUM_PER_DSAF)
-			ring_pair_cb->port_id_in_dsa = port_idx;
-		else
-			ring_pair_cb->port_id_in_dsa = 0;
-
 		ring_pair_cb++;
 	}
 
@@ -175,6 +170,7 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	ae_handle->phy_node = vf_cb->mac_cb->phy_node;
 	ae_handle->if_support = vf_cb->mac_cb->if_support;
 	ae_handle->port_type = vf_cb->mac_cb->mac_type;
+	ae_handle->dport_id = port_idx;
 
 	return ae_handle;
 vf_id_err:
@@ -403,11 +399,16 @@ static void hns_ae_get_ring_bdnum_limit(struct hnae_queue *queue,
 static void hns_ae_get_pauseparam(struct hnae_handle *handle,
 				  u32 *auto_neg, u32 *rx_en, u32 *tx_en)
 {
-	assert(handle);
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 
-	hns_mac_get_autoneg(hns_get_mac_cb(handle), auto_neg);
+	hns_mac_get_autoneg(mac_cb, auto_neg);
 
-	hns_mac_get_pauseparam(hns_get_mac_cb(handle), rx_en, tx_en);
+	hns_mac_get_pauseparam(mac_cb, rx_en, tx_en);
+
+	/* Service port's pause feature is provided by DSAF, not mac */
+	if (handle->port_type == HNAE_PORT_SERVICE)
+		hns_dsaf_get_rx_mac_pause_en(dsaf_dev, mac_cb->mac_id, rx_en);
 }
 
 static int hns_ae_set_autoneg(struct hnae_handle *handle, u8 enable)
@@ -419,7 +420,10 @@ static int hns_ae_set_autoneg(struct hnae_handle *handle, u8 enable)
 
 static void hns_ae_set_promisc_mode(struct hnae_handle *handle, u32 en)
 {
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
 	hns_dsaf_set_promisc_mode(hns_ae_get_dsaf_dev(handle->dev), en);
+	hns_mac_set_promisc(mac_cb, (u8)!!en);
 }
 
 static int hns_ae_get_autoneg(struct hnae_handle *handle)
@@ -437,71 +441,67 @@ static int hns_ae_set_pauseparam(struct hnae_handle *handle,
 				 u32 autoneg, u32 rx_en, u32 tx_en)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 	int ret;
 
 	ret = hns_mac_set_autoneg(mac_cb, autoneg);
 	if (ret)
 		return ret;
 
+	/* Service port's pause feature is provided by DSAF, not mac */
+	if (handle->port_type == HNAE_PORT_SERVICE) {
+		ret = hns_dsaf_set_rx_mac_pause_en(dsaf_dev,
+						   mac_cb->mac_id, rx_en);
+		if (ret)
+			return ret;
+		rx_en = 0;
+	}
 	return hns_mac_set_pauseparam(mac_cb, rx_en, tx_en);
 }
 
 static void hns_ae_get_coalesce_usecs(struct hnae_handle *handle,
 				      u32 *tx_usecs, u32 *rx_usecs)
 {
-	int port;
+	struct ring_pair_cb *ring_pair =
+		container_of(handle->qs[0], struct ring_pair_cb, q);
 
-	port = hns_ae_map_eport_to_dport(handle->eport_id);
-
-	*tx_usecs = hns_rcb_get_coalesce_usecs(
-		hns_ae_get_dsaf_dev(handle->dev),
-		hns_dsaf_get_comm_idx_by_port(port));
-	*rx_usecs = hns_rcb_get_coalesce_usecs(
-		hns_ae_get_dsaf_dev(handle->dev),
-		hns_dsaf_get_comm_idx_by_port(port));
+	*tx_usecs = hns_rcb_get_coalesce_usecs(ring_pair->rcb_common,
+					       ring_pair->port_id_in_comm);
+	*rx_usecs = hns_rcb_get_coalesce_usecs(ring_pair->rcb_common,
+					       ring_pair->port_id_in_comm);
 }
 
 static void hns_ae_get_rx_max_coalesced_frames(struct hnae_handle *handle,
 					       u32 *tx_frames, u32 *rx_frames)
 {
-	int port;
+	struct ring_pair_cb *ring_pair =
+		container_of(handle->qs[0], struct ring_pair_cb, q);
 
-	assert(handle);
-
-	port = hns_ae_map_eport_to_dport(handle->eport_id);
-
-	*tx_frames = hns_rcb_get_coalesced_frames(
-		hns_ae_get_dsaf_dev(handle->dev), port);
-	*rx_frames = hns_rcb_get_coalesced_frames(
-		hns_ae_get_dsaf_dev(handle->dev), port);
+	*tx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
+						  ring_pair->port_id_in_comm);
+	*rx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
+						  ring_pair->port_id_in_comm);
 }
 
-static void hns_ae_set_coalesce_usecs(struct hnae_handle *handle,
-				      u32 timeout)
+static int hns_ae_set_coalesce_usecs(struct hnae_handle *handle,
+				     u32 timeout)
 {
-	int port;
+	struct ring_pair_cb *ring_pair =
+		container_of(handle->qs[0], struct ring_pair_cb, q);
 
-	assert(handle);
-
-	port = hns_ae_map_eport_to_dport(handle->eport_id);
-
-	hns_rcb_set_coalesce_usecs(hns_ae_get_dsaf_dev(handle->dev),
-				   port, timeout);
+	return hns_rcb_set_coalesce_usecs(
+		ring_pair->rcb_common, ring_pair->port_id_in_comm, timeout);
 }
 
 static int  hns_ae_set_coalesce_frames(struct hnae_handle *handle,
 				       u32 coalesce_frames)
 {
-	int port;
-	int ret;
+	struct ring_pair_cb *ring_pair =
+		container_of(handle->qs[0], struct ring_pair_cb, q);
 
-	assert(handle);
-
-	port = hns_ae_map_eport_to_dport(handle->eport_id);
-
-	ret = hns_rcb_set_coalesced_frames(hns_ae_get_dsaf_dev(handle->dev),
-					   port, coalesce_frames);
-	return ret;
+	return hns_rcb_set_coalesced_frames(
+		ring_pair->rcb_common,
+		ring_pair->port_id_in_comm, coalesce_frames);
 }
 
 void hns_ae_update_stats(struct hnae_handle *handle,
@@ -787,7 +787,8 @@ static int hns_ae_get_rss(struct hnae_handle *handle, u32 *indir, u8 *key,
 		memcpy(key, ppe_cb->rss_key, HNS_PPEV2_RSS_KEY_SIZE);
 
 	/* update the current hash->queue mappings from the shadow RSS table */
-	memcpy(indir, ppe_cb->rss_indir_table, HNS_PPEV2_RSS_IND_TBL_SIZE);
+	memcpy(indir, ppe_cb->rss_indir_table,
+	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
 
 	return 0;
 }
@@ -799,10 +800,11 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 
 	/* set the RSS Hash Key if specififed by the user */
 	if (key)
-		hns_ppe_set_rss_key(ppe_cb, (int *)key);
+		hns_ppe_set_rss_key(ppe_cb, (u32 *)key);
 
 	/* update the shadow RSS table with user specified qids */
-	memcpy(ppe_cb->rss_indir_table, indir, HNS_PPEV2_RSS_IND_TBL_SIZE);
+	memcpy(ppe_cb->rss_indir_table, indir,
+	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
 
 	/* now update the hardware */
 	hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);

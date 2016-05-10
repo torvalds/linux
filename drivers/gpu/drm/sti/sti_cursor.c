@@ -5,12 +5,10 @@
  *          for STMicroelectronics.
  * License terms:  GNU General Public License (GPL), version 2
  */
-#include <drm/drmP.h>
 
-#include <drm/drm_atomic_helper.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_plane_helper.h>
 
 #include "sti_compositor.h"
 #include "sti_cursor.h"
@@ -74,6 +72,82 @@ static const uint32_t cursor_supported_formats[] = {
 
 #define to_sti_cursor(x) container_of(x, struct sti_cursor, plane)
 
+#define DBGFS_DUMP(reg) seq_printf(s, "\n  %-25s 0x%08X", #reg, \
+				   readl(cursor->regs + reg))
+
+static void cursor_dbg_vpo(struct seq_file *s, u32 val)
+{
+	seq_printf(s, "\txdo:%4d\tydo:%4d", val & 0x0FFF, (val >> 16) & 0x0FFF);
+}
+
+static void cursor_dbg_size(struct seq_file *s, u32 val)
+{
+	seq_printf(s, "\t%d x %d", val & 0x07FF, (val >> 16) & 0x07FF);
+}
+
+static void cursor_dbg_pml(struct seq_file *s,
+			   struct sti_cursor *cursor, u32 val)
+{
+	if (cursor->pixmap.paddr == val)
+		seq_printf(s, "\tVirt @: %p", cursor->pixmap.base);
+}
+
+static void cursor_dbg_cml(struct seq_file *s,
+			   struct sti_cursor *cursor, u32 val)
+{
+	if (cursor->clut_paddr == val)
+		seq_printf(s, "\tVirt @: %p", cursor->clut);
+}
+
+static int cursor_dbg_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct sti_cursor *cursor = (struct sti_cursor *)node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	seq_printf(s, "%s: (vaddr = 0x%p)",
+		   sti_plane_to_str(&cursor->plane), cursor->regs);
+
+	DBGFS_DUMP(CUR_CTL);
+	DBGFS_DUMP(CUR_VPO);
+	cursor_dbg_vpo(s, readl(cursor->regs + CUR_VPO));
+	DBGFS_DUMP(CUR_PML);
+	cursor_dbg_pml(s, cursor, readl(cursor->regs + CUR_PML));
+	DBGFS_DUMP(CUR_PMP);
+	DBGFS_DUMP(CUR_SIZE);
+	cursor_dbg_size(s, readl(cursor->regs + CUR_SIZE));
+	DBGFS_DUMP(CUR_CML);
+	cursor_dbg_cml(s, cursor, readl(cursor->regs + CUR_CML));
+	DBGFS_DUMP(CUR_AWS);
+	DBGFS_DUMP(CUR_AWE);
+	seq_puts(s, "\n");
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
+static struct drm_info_list cursor_debugfs_files[] = {
+	{ "cursor", cursor_dbg_show, 0, NULL },
+};
+
+static int cursor_debugfs_init(struct sti_cursor *cursor,
+			       struct drm_minor *minor)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(cursor_debugfs_files); i++)
+		cursor_debugfs_files[i].data = cursor;
+
+	return drm_debugfs_create_files(cursor_debugfs_files,
+					ARRAY_SIZE(cursor_debugfs_files),
+					minor->debugfs_root, minor);
+}
+
 static void sti_cursor_argb8888_to_clut8(struct sti_cursor *cursor, u32 *src)
 {
 	u8  *dst = cursor->pixmap.base;
@@ -110,35 +184,31 @@ static void sti_cursor_init(struct sti_cursor *cursor)
 						  (b * 5);
 }
 
-static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
-				     struct drm_plane_state *oldstate)
+static int sti_cursor_atomic_check(struct drm_plane *drm_plane,
+				   struct drm_plane_state *state)
 {
-	struct drm_plane_state *state = drm_plane->state;
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_cursor *cursor = to_sti_cursor(plane);
 	struct drm_crtc *crtc = state->crtc;
-	struct sti_mixer *mixer = to_sti_mixer(crtc);
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_display_mode *mode = &crtc->mode;
-	int dst_x = state->crtc_x;
-	int dst_y = state->crtc_y;
-	int dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
-	int dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
+	struct drm_crtc_state *crtc_state;
+	struct drm_display_mode *mode;
+	int dst_x, dst_y, dst_w, dst_h;
+	int src_w, src_h;
+
+	/* no need for further checks if the plane is being disabled */
+	if (!crtc || !fb)
+		return 0;
+
+	crtc_state = drm_atomic_get_crtc_state(state->state, crtc);
+	mode = &crtc_state->mode;
+	dst_x = state->crtc_x;
+	dst_y = state->crtc_y;
+	dst_w = clamp_val(state->crtc_w, 0, mode->crtc_hdisplay - dst_x);
+	dst_h = clamp_val(state->crtc_h, 0, mode->crtc_vdisplay - dst_y);
 	/* src_x are in 16.16 format */
-	int src_w = state->src_w >> 16;
-	int src_h = state->src_h >> 16;
-	bool first_prepare = plane->status == STI_PLANE_DISABLED ? true : false;
-	struct drm_gem_cma_object *cma_obj;
-	u32 y, x;
-	u32 val;
-
-	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
-		      crtc->base.id, sti_mixer_to_str(mixer),
-		      drm_plane->base.id, sti_plane_to_str(plane));
-	DRM_DEBUG_KMS("(%dx%d)@(%d,%d)\n", dst_w, dst_h, dst_x, dst_y);
-
-	dev_dbg(cursor->dev, "%s %s\n", __func__,
-		sti_plane_to_str(plane));
+	src_w = state->src_w >> 16;
+	src_h = state->src_h >> 16;
 
 	if (src_w < STI_CURS_MIN_SIZE ||
 	    src_h < STI_CURS_MIN_SIZE ||
@@ -146,7 +216,7 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 	    src_h > STI_CURS_MAX_SIZE) {
 		DRM_ERROR("Invalid cursor size (%dx%d)\n",
 				src_w, src_h);
-		return;
+		return -EINVAL;
 	}
 
 	/* If the cursor size has changed, re-allocated the pixmap */
@@ -168,15 +238,45 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 						   GFP_KERNEL | GFP_DMA);
 		if (!cursor->pixmap.base) {
 			DRM_ERROR("Failed to allocate memory for pixmap\n");
-			return;
+			return -EINVAL;
 		}
 	}
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	if (!cma_obj) {
+	if (!drm_fb_cma_get_gem_obj(fb, 0)) {
 		DRM_ERROR("Can't get CMA GEM object for fb\n");
-		return;
+		return -EINVAL;
 	}
+
+	DRM_DEBUG_KMS("CRTC:%d (%s) drm plane:%d (%s)\n",
+		      crtc->base.id, sti_mixer_to_str(to_sti_mixer(crtc)),
+		      drm_plane->base.id, sti_plane_to_str(plane));
+	DRM_DEBUG_KMS("(%dx%d)@(%d,%d)\n", dst_w, dst_h, dst_x, dst_y);
+
+	return 0;
+}
+
+static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
+				     struct drm_plane_state *oldstate)
+{
+	struct drm_plane_state *state = drm_plane->state;
+	struct sti_plane *plane = to_sti_plane(drm_plane);
+	struct sti_cursor *cursor = to_sti_cursor(plane);
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = state->fb;
+	struct drm_display_mode *mode;
+	int dst_x, dst_y;
+	struct drm_gem_cma_object *cma_obj;
+	u32 y, x;
+	u32 val;
+
+	if (!crtc || !fb)
+		return;
+
+	mode = &crtc->mode;
+	dst_x = state->crtc_x;
+	dst_y = state->crtc_y;
+
+	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 
 	/* Convert ARGB8888 to CLUT8 */
 	sti_cursor_argb8888_to_clut8(cursor, (u32 *)cma_obj->vaddr);
@@ -191,20 +291,20 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 	val = y << 16 | x;
 	writel(val, cursor->regs + CUR_AWE);
 
-	if (first_prepare) {
-		/* Set and fetch CLUT */
-		writel(cursor->clut_paddr, cursor->regs + CUR_CML);
-		writel(CUR_CTL_CLUT_UPDATE, cursor->regs + CUR_CTL);
-	}
-
 	/* Set memory location, size, and position */
 	writel(cursor->pixmap.paddr, cursor->regs + CUR_PML);
 	writel(cursor->width, cursor->regs + CUR_PMP);
 	writel(cursor->height << 16 | cursor->width, cursor->regs + CUR_SIZE);
 
 	y = sti_vtg_get_line_number(*mode, dst_y);
-	x = sti_vtg_get_pixel_number(*mode, dst_y);
+	x = sti_vtg_get_pixel_number(*mode, dst_x);
 	writel((y << 16) | x, cursor->regs + CUR_VPO);
+
+	/* Set and fetch CLUT */
+	writel(cursor->clut_paddr, cursor->regs + CUR_CML);
+	writel(CUR_CTL_CLUT_UPDATE, cursor->regs + CUR_CTL);
+
+	sti_plane_update_fps(plane, true, false);
 
 	plane->status = STI_PLANE_UPDATED;
 }
@@ -213,7 +313,6 @@ static void sti_cursor_atomic_disable(struct drm_plane *drm_plane,
 				      struct drm_plane_state *oldstate)
 {
 	struct sti_plane *plane = to_sti_plane(drm_plane);
-	struct sti_mixer *mixer = to_sti_mixer(drm_plane->crtc);
 
 	if (!drm_plane->crtc) {
 		DRM_DEBUG_DRIVER("drm plane:%d not enabled\n",
@@ -222,13 +321,15 @@ static void sti_cursor_atomic_disable(struct drm_plane *drm_plane,
 	}
 
 	DRM_DEBUG_DRIVER("CRTC:%d (%s) drm plane:%d (%s)\n",
-			 drm_plane->crtc->base.id, sti_mixer_to_str(mixer),
+			 drm_plane->crtc->base.id,
+			 sti_mixer_to_str(to_sti_mixer(drm_plane->crtc)),
 			 drm_plane->base.id, sti_plane_to_str(plane));
 
 	plane->status = STI_PLANE_DISABLING;
 }
 
 static const struct drm_plane_helper_funcs sti_cursor_helpers_funcs = {
+	.atomic_check = sti_cursor_atomic_check,
 	.atomic_update = sti_cursor_atomic_update,
 	.atomic_disable = sti_cursor_atomic_disable,
 };
@@ -280,6 +381,9 @@ struct drm_plane *sti_cursor_create(struct drm_device *drm_dev,
 			     &sti_cursor_helpers_funcs);
 
 	sti_plane_init_property(&cursor->plane, DRM_PLANE_TYPE_CURSOR);
+
+	if (cursor_debugfs_init(cursor, drm_dev->primary))
+		DRM_ERROR("CURSOR debugfs setup failed\n");
 
 	return &cursor->plane.drm_plane;
 

@@ -188,9 +188,6 @@ static const struct file_operations armada_drm_fops = {
 
 static struct drm_driver armada_drm_driver = {
 	.load			= armada_drm_load,
-	.open			= NULL,
-	.preclose		= NULL,
-	.postclose		= NULL,
 	.lastclose		= armada_drm_lastclose,
 	.unload			= armada_drm_unload,
 	.set_busid		= drm_platform_set_busid,

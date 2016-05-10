@@ -995,7 +995,6 @@ static const struct clk_ops dfll_clk_ops = {
 };
 
 static struct clk_init_data dfll_clk_init_data = {
-	.flags		= CLK_IS_ROOT,
 	.ops		= &dfll_clk_ops,
 	.num_parents	= 0,
 };

@@ -1,0 +1,17 @@
+ARM AMBA Primecell SP805 Watchdog
+
+Required properties:
+- compatible: Should be "arm,sp805" & "arm,primecell"
+- reg: Should contain location and length for watchdog timer register.
+- interrupts: Should contain the list of watchdog timer interrupts.
+- clocks: clocks driving the watchdog timer hardware. This list should be 2
+	clocks. With 2 clocks, the order is wdogclk clock, apb_pclk.
+
+Example:
+	watchdog@66090000 {
+		compatible = "arm,sp805", "arm,primecell";
+		reg = <0x66090000 0x1000>;
+		interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&apb_pclk>,<&apb_pclk>;
+		clock-names = "wdogclk", "apb_pclk";
+	};

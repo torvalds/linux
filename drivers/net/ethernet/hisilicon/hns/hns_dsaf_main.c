@@ -748,8 +748,9 @@ static void hns_dsaf_tbl_stat_en(struct dsaf_device *dsaf_dev)
  */
 static void hns_dsaf_rocee_bp_en(struct dsaf_device *dsaf_dev)
 {
-	dsaf_set_dev_bit(dsaf_dev, DSAF_XGE_CTRL_SIG_CFG_0_REG,
-			 DSAF_FC_XGE_TX_PAUSE_S, 1);
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+		dsaf_set_dev_bit(dsaf_dev, DSAF_XGE_CTRL_SIG_CFG_0_REG,
+				 DSAF_FC_XGE_TX_PAUSE_S, 1);
 }
 
 /* set msk for dsaf exception irq*/
@@ -1021,12 +1022,52 @@ static void hns_dsaf_tbl_tcam_init(struct dsaf_device *dsaf_dev)
  * @mac_cb: mac contrl block
  */
 static void hns_dsaf_pfc_en_cfg(struct dsaf_device *dsaf_dev,
-				int mac_id, int en)
+				int mac_id, int tc_en)
 {
-	if (!en)
-		dsaf_write_dev(dsaf_dev, DSAF_PFC_EN_0_REG + mac_id * 4, 0);
+	dsaf_write_dev(dsaf_dev, DSAF_PFC_EN_0_REG + mac_id * 4, tc_en);
+}
+
+static void hns_dsaf_set_pfc_pause(struct dsaf_device *dsaf_dev,
+				   int mac_id, int tx_en, int rx_en)
+{
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver)) {
+		if (!tx_en || !rx_en)
+			dev_err(dsaf_dev->dev, "dsaf v1 can not close pfc!\n");
+
+		return;
+	}
+
+	dsaf_set_dev_bit(dsaf_dev, DSAF_PAUSE_CFG_REG + mac_id * 4,
+			 DSAF_PFC_PAUSE_RX_EN_B, !!rx_en);
+	dsaf_set_dev_bit(dsaf_dev, DSAF_PAUSE_CFG_REG + mac_id * 4,
+			 DSAF_PFC_PAUSE_TX_EN_B, !!tx_en);
+}
+
+int hns_dsaf_set_rx_mac_pause_en(struct dsaf_device *dsaf_dev, int mac_id,
+				 u32 en)
+{
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver)) {
+		if (!en)
+			dev_err(dsaf_dev->dev, "dsafv1 can't close rx_pause!\n");
+
+		return -EINVAL;
+	}
+
+	dsaf_set_dev_bit(dsaf_dev, DSAF_PAUSE_CFG_REG + mac_id * 4,
+			 DSAF_MAC_PAUSE_RX_EN_B, !!en);
+
+	return 0;
+}
+
+void hns_dsaf_get_rx_mac_pause_en(struct dsaf_device *dsaf_dev, int mac_id,
+				  u32 *en)
+{
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+		*en = 1;
 	else
-		dsaf_write_dev(dsaf_dev, DSAF_PFC_EN_0_REG + mac_id * 4, 0xff);
+		*en = dsaf_get_dev_bit(dsaf_dev,
+				       DSAF_PAUSE_CFG_REG + mac_id * 4,
+				       DSAF_MAC_PAUSE_RX_EN_B);
 }
 
 /**
@@ -1038,6 +1079,7 @@ static void hns_dsaf_comm_init(struct dsaf_device *dsaf_dev)
 {
 	u32 i;
 	u32 o_dsaf_cfg;
+	bool is_ver1 = AE_IS_VER1(dsaf_dev->dsaf_ver);
 
 	o_dsaf_cfg = dsaf_read_dev(dsaf_dev, DSAF_CFG_0_REG);
 	dsaf_set_bit(o_dsaf_cfg, DSAF_CFG_EN_S, dsaf_dev->dsaf_en);
@@ -1063,8 +1105,10 @@ static void hns_dsaf_comm_init(struct dsaf_device *dsaf_dev)
 	hns_dsaf_sw_port_type_cfg(dsaf_dev, DSAF_SW_PORT_TYPE_NON_VLAN);
 
 	/*set dsaf pfc  to 0 for parseing rx pause*/
-	for (i = 0; i < DSAF_COMM_CHN; i++)
+	for (i = 0; i < DSAF_COMM_CHN; i++) {
 		hns_dsaf_pfc_en_cfg(dsaf_dev, i, 0);
+		hns_dsaf_set_pfc_pause(dsaf_dev, i, is_ver1, is_ver1);
+	}
 
 	/*msk and  clr exception irqs */
 	for (i = 0; i < DSAF_COMM_CHN; i++) {
@@ -2012,6 +2056,8 @@ void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 node_num)
 {
 	struct dsaf_hw_stats *hw_stats
 		= &dsaf_dev->hw_stats[node_num];
+	bool is_ver1 = AE_IS_VER1(dsaf_dev->dsaf_ver);
+	u32 reg_tmp;
 
 	hw_stats->pad_drop += dsaf_read_dev(dsaf_dev,
 		DSAF_INODE_PAD_DISCARD_NUM_0_REG + 0x80 * (u64)node_num);
@@ -2021,8 +2067,12 @@ void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 node_num)
 		DSAF_INODE_FINAL_IN_PKT_NUM_0_REG + 0x80 * (u64)node_num);
 	hw_stats->rx_pkt_id += dsaf_read_dev(dsaf_dev,
 		DSAF_INODE_SBM_PID_NUM_0_REG + 0x80 * (u64)node_num);
-	hw_stats->rx_pause_frame += dsaf_read_dev(dsaf_dev,
-		DSAF_INODE_FINAL_IN_PAUSE_NUM_0_REG + 0x80 * (u64)node_num);
+
+	reg_tmp = is_ver1 ? DSAF_INODE_FINAL_IN_PAUSE_NUM_0_REG :
+			    DSAFV2_INODE_FINAL_IN_PAUSE_NUM_0_REG;
+	hw_stats->rx_pause_frame +=
+		dsaf_read_dev(dsaf_dev, reg_tmp + 0x80 * (u64)node_num);
+
 	hw_stats->release_buf_num += dsaf_read_dev(dsaf_dev,
 		DSAF_INODE_SBM_RELS_NUM_0_REG + 0x80 * (u64)node_num);
 	hw_stats->sbm_drop += dsaf_read_dev(dsaf_dev,
@@ -2055,6 +2105,8 @@ void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 	u32 i = 0;
 	u32 j;
 	u32 *p = data;
+	u32 reg_tmp;
+	bool is_ver1 = AE_IS_VER1(ddev->dsaf_ver);
 
 	/* dsaf common registers */
 	p[0] = dsaf_read_dev(ddev, DSAF_SRAM_INIT_OVER_0_REG);
@@ -2119,8 +2171,9 @@ void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 				DSAF_INODE_FINAL_IN_PKT_NUM_0_REG + j * 0x80);
 		p[190 + i] = dsaf_read_dev(ddev,
 				DSAF_INODE_SBM_PID_NUM_0_REG + j * 0x80);
-		p[193 + i] = dsaf_read_dev(ddev,
-				DSAF_INODE_FINAL_IN_PAUSE_NUM_0_REG + j * 0x80);
+		reg_tmp = is_ver1 ? DSAF_INODE_FINAL_IN_PAUSE_NUM_0_REG :
+				    DSAFV2_INODE_FINAL_IN_PAUSE_NUM_0_REG;
+		p[193 + i] = dsaf_read_dev(ddev, reg_tmp + j * 0x80);
 		p[196 + i] = dsaf_read_dev(ddev,
 				DSAF_INODE_SBM_RELS_NUM_0_REG + j * 0x80);
 		p[199 + i] = dsaf_read_dev(ddev,
@@ -2218,17 +2271,17 @@ void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 	/* dsaf onode registers */
 	for (i = 0; i < DSAF_XOD_NUM; i++) {
 		p[311 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_TSA_TC0_TC3_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_TSA_TC0_TC3_CFG_0_REG + i * 0x90);
 		p[319 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_TSA_TC4_TC7_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_TSA_TC4_TC7_CFG_0_REG + i * 0x90);
 		p[327 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_BW_TC0_TC3_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_BW_TC0_TC3_CFG_0_REG + i * 0x90);
 		p[335 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_BW_TC4_TC7_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_BW_TC4_TC7_CFG_0_REG + i * 0x90);
 		p[343 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_BW_OFFSET_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_BW_OFFSET_CFG_0_REG + i * 0x90);
 		p[351 + i] = dsaf_read_dev(ddev,
-				DSAF_XOD_ETS_TOKEN_CFG_0_REG + j * 0x90);
+				DSAF_XOD_ETS_TOKEN_CFG_0_REG + i * 0x90);
 	}
 
 	p[359] = dsaf_read_dev(ddev, DSAF_XOD_PFS_CFG_0_0_REG + port * 0x90);
@@ -2367,8 +2420,11 @@ void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 	p[496] = dsaf_read_dev(ddev, DSAF_NETPORT_CTRL_SIG_0_REG + port * 0x4);
 	p[497] = dsaf_read_dev(ddev, DSAF_XGE_CTRL_SIG_CFG_0_REG + port * 0x4);
 
+	if (!is_ver1)
+		p[498] = dsaf_read_dev(ddev, DSAF_PAUSE_CFG_REG + port * 0x4);
+
 	/* mark end of dsaf regs */
-	for (i = 498; i < 504; i++)
+	for (i = 499; i < 504; i++)
 		p[i] = 0xdddddddd;
 }
 

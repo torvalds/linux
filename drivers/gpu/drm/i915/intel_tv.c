@@ -897,6 +897,10 @@ intel_tv_mode_valid(struct drm_connector *connector,
 {
 	struct intel_tv *intel_tv = intel_attached_tv(connector);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+
+	if (mode->clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
 
 	/* Ensure TV refresh is close to desired refresh */
 	if (tv_mode && abs(tv_mode->refresh - drm_mode_vrefresh(mode) * 1000)
@@ -1178,10 +1182,9 @@ static int
 intel_tv_detect_type(struct intel_tv *intel_tv,
 		      struct drm_connector *connector)
 {
-	struct drm_encoder *encoder = &intel_tv->base.base;
-	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_crtc *crtc = connector->state->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 tv_ctl, save_tv_ctl;
 	u32 tv_dac, save_tv_dac;
@@ -1230,8 +1233,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	I915_WRITE(TV_DAC, tv_dac);
 	POSTING_READ(TV_DAC);
 
-	intel_wait_for_vblank(intel_tv->base.base.dev,
-			      to_intel_crtc(intel_tv->base.base.crtc)->pipe);
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	type = -1;
 	tv_dac = I915_READ(TV_DAC);
@@ -1261,8 +1263,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	POSTING_READ(TV_CTL);
 
 	/* For unknown reasons the hw barfs if we don't do this vblank wait. */
-	intel_wait_for_vblank(intel_tv->base.base.dev,
-			      to_intel_crtc(intel_tv->base.base.crtc)->pipe);
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	/* Restore interrupt config */
 	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {
@@ -1420,6 +1421,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 		if (!mode_ptr)
 			continue;
 		strncpy(mode_ptr->name, input->name, DRM_DISPLAY_MODE_LEN);
+		mode_ptr->name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
 
 		mode_ptr->hdisplay = hactive_s;
 		mode_ptr->hsync_start = hactive_s + 1;

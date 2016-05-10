@@ -24,22 +24,6 @@
  * Small attribute lists are packed as tightly as possible so as
  * to fit into the literal area of the inode.
  */
-
-/*
- * Entries are packed toward the top as tight as possible.
- */
-typedef struct xfs_attr_shortform {
-	struct xfs_attr_sf_hdr {	/* constant-structure header block */
-		__be16	totsize;	/* total bytes in shortform list */
-		__u8	count;	/* count of active entries */
-	} hdr;
-	struct xfs_attr_sf_entry {
-		__uint8_t namelen;	/* actual length of name (no NULL) */
-		__uint8_t valuelen;	/* actual length of value (no NULL) */
-		__uint8_t flags;	/* flags bits (see xfs_attr_leaf.h) */
-		__uint8_t nameval[1];	/* name & value bytes concatenated */
-	} list[1];			/* variable sized array */
-} xfs_attr_shortform_t;
 typedef struct xfs_attr_sf_hdr xfs_attr_sf_hdr_t;
 typedef struct xfs_attr_sf_entry xfs_attr_sf_entry_t;
 

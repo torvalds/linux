@@ -319,7 +319,7 @@ static int pxa_set_target(struct cpufreq_policy *policy, unsigned int idx)
 	local_irq_save(flags);
 
 	/* Set new the CCCR and prepare CCLKCFG */
-	CCCR = pxa_freq_settings[idx].cccr;
+	writel(pxa_freq_settings[idx].cccr, CCCR);
 	cclkcfg = pxa_freq_settings[idx].cclkcfg;
 
 	asm volatile("							\n\

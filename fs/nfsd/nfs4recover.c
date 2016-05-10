@@ -1266,6 +1266,7 @@ nfsd4_umh_cltrack_init(struct net *net)
 	/* XXX: The usermode helper s not working in container yet. */
 	if (net != &init_net) {
 		pr_warn("NFSD: attempt to initialize umh client tracking in a container ignored.\n");
+		kfree(grace_start);
 		return -EINVAL;
 	}
 

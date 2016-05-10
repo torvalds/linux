@@ -274,11 +274,6 @@ int topology_update_package_map(unsigned int apicid, unsigned int cpu)
 	if (test_and_set_bit(pkg, physical_package_map))
 		goto found;
 
-	if (pkg < __max_logical_packages) {
-		set_bit(pkg, logical_package_map);
-		physical_to_logical_pkg[pkg] = pkg;
-		goto found;
-	}
 	new = find_first_zero_bit(logical_package_map, __max_logical_packages);
 	if (new >= __max_logical_packages) {
 		physical_to_logical_pkg[pkg] = -1;
@@ -317,9 +312,27 @@ static void __init smp_init_package_map(void)
 	/*
 	 * Today neither Intel nor AMD support heterogenous systems. That
 	 * might change in the future....
+	 *
+	 * While ideally we'd want '* smp_num_siblings' in the below @ncpus
+	 * computation, this won't actually work since some Intel BIOSes
+	 * report inconsistent HT data when they disable HT.
+	 *
+	 * In particular, they reduce the APIC-IDs to only include the cores,
+	 * but leave the CPUID topology to say there are (2) siblings.
+	 * This means we don't know how many threads there will be until
+	 * after the APIC enumeration.
+	 *
+	 * By not including this we'll sometimes over-estimate the number of
+	 * logical packages by the amount of !present siblings, but this is
+	 * still better than MAX_LOCAL_APIC.
+	 *
+	 * We use total_cpus not nr_cpu_ids because nr_cpu_ids can be limited
+	 * on the command line leading to a similar issue as the HT disable
+	 * problem because the hyperthreads are usually enumerated after the
+	 * primary cores.
 	 */
-	ncpus = boot_cpu_data.x86_max_cores * smp_num_siblings;
-	__max_logical_packages = DIV_ROUND_UP(nr_cpu_ids, ncpus);
+	ncpus = boot_cpu_data.x86_max_cores;
+	__max_logical_packages = DIV_ROUND_UP(total_cpus, ncpus);
 
 	/*
 	 * Possibly larger than what we need as the number of apic ids per
@@ -409,7 +422,7 @@ static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 
 		if (c->phys_proc_id == o->phys_proc_id &&
 		    per_cpu(cpu_llc_id, cpu1) == per_cpu(cpu_llc_id, cpu2) &&
-		    c->compute_unit_id == o->compute_unit_id)
+		    c->cpu_core_id == o->cpu_core_id)
 			return topology_sane(c, o, "smt");
 
 	} else if (c->phys_proc_id == o->phys_proc_id &&

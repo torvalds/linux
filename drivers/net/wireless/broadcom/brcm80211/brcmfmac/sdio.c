@@ -535,9 +535,6 @@ static int qcount[NUMPRIO];
 
 #define RETRYCHAN(chan) ((chan) == SDPCM_EVENT_CHANNEL)
 
-/* Retry count for register access failures */
-static const uint retry_limit = 2;
-
 /* Limit on rounding up frames */
 static const uint max_roundup = 512;
 
@@ -3261,7 +3258,7 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus,
 					const struct firmware *fw,
 					void *nvram, u32 nvlen)
 {
-	int bcmerror = -EFAULT;
+	int bcmerror;
 	u32 rstvec;
 
 	sdio_claim_host(bus->sdiodev->func[1]);

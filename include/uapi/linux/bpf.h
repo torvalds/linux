@@ -92,6 +92,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_KPROBE,
 	BPF_PROG_TYPE_SCHED_CLS,
 	BPF_PROG_TYPE_SCHED_ACT,
+	BPF_PROG_TYPE_TRACEPOINT,
 };
 
 #define BPF_PSEUDO_MAP_FD	1
@@ -375,6 +376,7 @@ struct bpf_tunnel_key {
 	};
 	__u8 tunnel_tos;
 	__u8 tunnel_ttl;
+	__u16 tunnel_ext;
 	__u32 tunnel_label;
 };
 

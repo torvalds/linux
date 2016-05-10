@@ -53,7 +53,7 @@ static DEFINE_RWLOCK(ccp_unit_lock);
 static LIST_HEAD(ccp_units);
 
 /* Round-robin counter */
-static DEFINE_RWLOCK(ccp_rr_lock);
+static DEFINE_SPINLOCK(ccp_rr_lock);
 static struct ccp_device *ccp_rr;
 
 /* Ever-increasing value to produce unique unit numbers */
@@ -128,14 +128,14 @@ static struct ccp_device *ccp_get_device(void)
 	 */
 	read_lock_irqsave(&ccp_unit_lock, flags);
 	if (!list_empty(&ccp_units)) {
-		write_lock_irqsave(&ccp_rr_lock, flags);
+		spin_lock(&ccp_rr_lock);
 		dp = ccp_rr;
 		if (list_is_last(&ccp_rr->entry, &ccp_units))
 			ccp_rr = list_first_entry(&ccp_units, struct ccp_device,
 						  entry);
 		else
 			ccp_rr = list_next_entry(ccp_rr, entry);
-		write_unlock_irqrestore(&ccp_rr_lock, flags);
+		spin_unlock(&ccp_rr_lock);
 	}
 	read_unlock_irqrestore(&ccp_unit_lock, flags);
 

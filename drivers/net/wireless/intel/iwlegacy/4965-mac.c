@@ -457,7 +457,7 @@ il4965_rxq_stop(struct il_priv *il)
 }
 
 int
-il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
+il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum nl80211_band band)
 {
 	int idx = 0;
 	int band_offset = 0;
@@ -468,7 +468,7 @@ il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
 		return idx;
 		/* Legacy rate format, search for match in table */
 	} else {
-		if (band == IEEE80211_BAND_5GHZ)
+		if (band == NL80211_BAND_5GHZ)
 			band_offset = IL_FIRST_OFDM_RATE;
 		for (idx = band_offset; idx < RATE_COUNT_LEGACY; idx++)
 			if (il_rates[idx].plcp == (rate_n_flags & 0xFF))
@@ -688,8 +688,8 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	rx_status.mactime = le64_to_cpu(phy_res->timestamp);
 	rx_status.band =
 	    (phy_res->
-	     phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ? IEEE80211_BAND_2GHZ :
-	    IEEE80211_BAND_5GHZ;
+	     phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ? NL80211_BAND_2GHZ :
+	    NL80211_BAND_5GHZ;
 	rx_status.freq =
 	    ieee80211_channel_to_frequency(le16_to_cpu(phy_res->channel),
 					   rx_status.band);
@@ -766,7 +766,7 @@ il4965_hdl_rx_phy(struct il_priv *il, struct il_rx_buf *rxb)
 
 static int
 il4965_get_channels_for_scan(struct il_priv *il, struct ieee80211_vif *vif,
-			     enum ieee80211_band band, u8 is_active,
+			     enum nl80211_band band, u8 is_active,
 			     u8 n_probes, struct il_scan_channel *scan_ch)
 {
 	struct ieee80211_channel *chan;
@@ -822,7 +822,7 @@ il4965_get_channels_for_scan(struct il_priv *il, struct ieee80211_vif *vif,
 		 * power level:
 		 * scan_ch->tx_gain = ((1 << 5) | (2 << 3)) | 3;
 		 */
-		if (band == IEEE80211_BAND_5GHZ)
+		if (band == NL80211_BAND_5GHZ)
 			scan_ch->tx_gain = ((1 << 5) | (3 << 3)) | 3;
 		else
 			scan_ch->tx_gain = ((1 << 5) | (5 << 3));
@@ -870,7 +870,7 @@ il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	u32 rate_flags = 0;
 	u16 cmd_len;
 	u16 rx_chain = 0;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	u8 n_probes = 0;
 	u8 rx_ant = il->hw_params.valid_rx_ant;
 	u8 rate;
@@ -944,7 +944,7 @@ il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	switch (il->scan_band) {
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		chan_mod =
 		    le32_to_cpu(il->active.flags & RXON_FLG_CHANNEL_MODE_MSK) >>
@@ -956,7 +956,7 @@ il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 			rate_flags = RATE_MCS_CCK_MSK;
 		}
 		break;
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		rate = RATE_6M_PLCP;
 		break;
 	default:
@@ -1590,7 +1590,7 @@ il4965_tx_cmd_build_rate(struct il_priv *il,
 	    || rate_idx > RATE_COUNT_LEGACY)
 		rate_idx = rate_lowest_index(&il->bands[info->band], sta);
 	/* For 5 GHZ band, remap mac80211 rate indices into driver indices */
-	if (info->band == IEEE80211_BAND_5GHZ)
+	if (info->band == NL80211_BAND_5GHZ)
 		rate_idx += IL_FIRST_OFDM_RATE;
 	/* Get PLCP rate for tx_cmd->rate_n_flags */
 	rate_plcp = il_rates[rate_idx].plcp;
@@ -3051,7 +3051,7 @@ il4965_sta_alloc_lq(struct il_priv *il, u8 sta_id)
 	}
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
-	if (il->band == IEEE80211_BAND_5GHZ)
+	if (il->band == NL80211_BAND_5GHZ)
 		r = RATE_6M_IDX;
 	else
 		r = RATE_1M_IDX;
@@ -5553,6 +5553,7 @@ __il4965_up(struct il_priv *il)
 
 	il4965_prepare_card_hw(il);
 	if (!il->hw_ready) {
+		il_dealloc_bcast_stations(il);
 		IL_ERR("HW not ready\n");
 		return -EIO;
 	}
@@ -5564,6 +5565,7 @@ __il4965_up(struct il_priv *il)
 		set_bit(S_RFKILL, &il->status);
 		wiphy_rfkill_set_hw_state(il->hw->wiphy, true);
 
+		il_dealloc_bcast_stations(il);
 		il_enable_rfkill_int(il);
 		IL_WARN("Radio disabled by HW RF Kill switch\n");
 		return 0;
@@ -5577,6 +5579,7 @@ __il4965_up(struct il_priv *il)
 	ret = il4965_hw_nic_init(il);
 	if (ret) {
 		IL_ERR("Unable to init nic\n");
+		il_dealloc_bcast_stations(il);
 		return ret;
 	}
 
@@ -5787,12 +5790,12 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 
 	hw->max_listen_interval = IL_CONN_MAX_LISTEN_INTERVAL;
 
-	if (il->bands[IEEE80211_BAND_2GHZ].n_channels)
-		il->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
-		    &il->bands[IEEE80211_BAND_2GHZ];
-	if (il->bands[IEEE80211_BAND_5GHZ].n_channels)
-		il->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-		    &il->bands[IEEE80211_BAND_5GHZ];
+	if (il->bands[NL80211_BAND_2GHZ].n_channels)
+		il->hw->wiphy->bands[NL80211_BAND_2GHZ] =
+		    &il->bands[NL80211_BAND_2GHZ];
+	if (il->bands[NL80211_BAND_5GHZ].n_channels)
+		il->hw->wiphy->bands[NL80211_BAND_5GHZ] =
+		    &il->bands[NL80211_BAND_5GHZ];
 
 	il_leds_init(il);
 
@@ -6365,7 +6368,7 @@ il4965_init_drv(struct il_priv *il)
 
 	il->ieee_channels = NULL;
 	il->ieee_rates = NULL;
-	il->band = IEEE80211_BAND_2GHZ;
+	il->band = NL80211_BAND_2GHZ;
 
 	il->iw_mode = NL80211_IFTYPE_STATION;
 	il->current_ht_config.smps = IEEE80211_SMPS_STATIC;
@@ -6477,7 +6480,7 @@ il4965_set_hw_params(struct il_priv *il)
 	il->hw_params.max_data_size = IL49_RTC_DATA_SIZE;
 	il->hw_params.max_inst_size = IL49_RTC_INST_SIZE;
 	il->hw_params.max_bsm_size = BSM_SRAM_SIZE;
-	il->hw_params.ht40_channel = BIT(IEEE80211_BAND_5GHZ);
+	il->hw_params.ht40_channel = BIT(NL80211_BAND_5GHZ);
 
 	il->hw_params.rx_wrt_ptr_reg = FH49_RSCSR_CHNL0_WPTR;
 

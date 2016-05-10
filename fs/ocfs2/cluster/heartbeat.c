@@ -417,13 +417,13 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
 	bio->bi_private = wc;
 	bio->bi_end_io = o2hb_bio_end_io;
 
-	vec_start = (cs << bits) % PAGE_CACHE_SIZE;
+	vec_start = (cs << bits) % PAGE_SIZE;
 	while(cs < max_slots) {
 		current_page = cs / spp;
 		page = reg->hr_slot_data[current_page];
 
-		vec_len = min(PAGE_CACHE_SIZE - vec_start,
-			      (max_slots-cs) * (PAGE_CACHE_SIZE/spp) );
+		vec_len = min(PAGE_SIZE - vec_start,
+			      (max_slots-cs) * (PAGE_SIZE/spp) );
 
 		mlog(ML_HB_BIO, "page %d, vec_len = %u, vec_start = %u\n",
 		     current_page, vec_len, vec_start);
@@ -431,7 +431,7 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
 		len = bio_add_page(bio, page, vec_len, vec_start);
 		if (len != vec_len) break;
 
-		cs += vec_len / (PAGE_CACHE_SIZE/spp);
+		cs += vec_len / (PAGE_SIZE/spp);
 		vec_start = 0;
 	}
 
@@ -1444,8 +1444,8 @@ static void o2hb_region_release(struct config_item *item)
 	debugfs_remove(reg->hr_debug_dir);
 	kfree(reg->hr_db_livenodes);
 	kfree(reg->hr_db_regnum);
-	kfree(reg->hr_debug_elapsed_time);
-	kfree(reg->hr_debug_pinned);
+	kfree(reg->hr_db_elapsed_time);
+	kfree(reg->hr_db_pinned);
 
 	spin_lock(&o2hb_live_lock);
 	list_del(&reg->hr_all_item);
@@ -1576,7 +1576,7 @@ static ssize_t o2hb_region_dev_show(struct config_item *item, char *page)
 
 static void o2hb_init_region_params(struct o2hb_region *reg)
 {
-	reg->hr_slots_per_page = PAGE_CACHE_SIZE >> reg->hr_block_bits;
+	reg->hr_slots_per_page = PAGE_SIZE >> reg->hr_block_bits;
 	reg->hr_timeout_ms = O2HB_REGION_TIMEOUT_MS;
 
 	mlog(ML_HEARTBEAT, "hr_start_block = %llu, hr_blocks = %u\n",

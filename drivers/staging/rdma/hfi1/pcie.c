@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,6 +54,7 @@
 
 #include "hfi.h"
 #include "chip_registers.h"
+#include "aspm.h"
 
 /* link speed vector for Gen3 speed - not in Linux headers */
 #define GEN1_SPEED_VECTOR 0x1
@@ -122,8 +120,9 @@ int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto bail;
 		}
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-	} else
+	} else {
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+	}
 	if (ret) {
 		hfi1_early_err(&pdev->dev,
 			       "Unable to set DMA consistent mask: %d\n", ret);
@@ -131,13 +130,7 @@ int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	pci_set_master(pdev);
-	ret = pci_enable_pcie_error_reporting(pdev);
-	if (ret) {
-		hfi1_early_err(&pdev->dev,
-			       "Unable to enable pcie error reporting: %d\n",
-			      ret);
-		ret = 0;
-	}
+	(void)pci_enable_pcie_error_reporting(pdev);
 	goto done;
 
 bail:
@@ -222,10 +215,9 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev,
 	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL, &dd->pcie_devctl);
 	pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKCTL, &dd->pcie_lnkctl);
 	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL2,
-							&dd->pcie_devctl2);
+				  &dd->pcie_devctl2);
 	pci_read_config_dword(dd->pcidev, PCI_CFG_MSIX0, &dd->pci_msix0);
-	pci_read_config_dword(dd->pcidev, PCIE_CFG_SPCIE1,
-							&dd->pci_lnkctl3);
+	pci_read_config_dword(dd->pcidev, PCIE_CFG_SPCIE1, &dd->pci_lnkctl3);
 	pci_read_config_dword(dd->pcidev, PCIE_CFG_TPH2, &dd->pci_tph2);
 
 	return 0;
@@ -238,7 +230,7 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev,
  */
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *dd)
 {
-	u64 __iomem *base = (void __iomem *) dd->kregbase;
+	u64 __iomem *base = (void __iomem *)dd->kregbase;
 
 	dd->flags &= ~HFI1_PRESENT;
 	dd->kregbase = NULL;
@@ -274,7 +266,7 @@ void hfi1_pcie_flr(struct hfi1_devdata *dd)
 
 clear:
 	pcie_capability_set_word(dd->pcidev, PCI_EXP_DEVCTL,
-						PCI_EXP_DEVCTL_BCR_FLR);
+				 PCI_EXP_DEVCTL_BCR_FLR);
 	/* PCIe spec requires the function to be back within 100ms */
 	msleep(100);
 }
@@ -287,9 +279,11 @@ static void msix_setup(struct hfi1_devdata *dd, int pos, u32 *msixcnt,
 	struct msix_entry *msix_entry;
 	int i;
 
-	/* We can't pass hfi1_msix_entry array to msix_setup
+	/*
+	 * We can't pass hfi1_msix_entry array to msix_setup
 	 * so use a dummy msix_entry array and copy the allocated
-	 * irq back to the hfi1_msix_entry array. */
+	 * irq back to the hfi1_msix_entry array.
+	 */
 	msix_entry = kmalloc_array(nvec, sizeof(*msix_entry), GFP_KERNEL);
 	if (!msix_entry) {
 		ret = -ENOMEM;
@@ -319,7 +313,6 @@ do_intx:
 		   nvec, ret);
 	*msixcnt = 0;
 	hfi1_enable_intx(dd->pcidev);
-
 }
 
 /* return the PCIe link speed from the given link status */
@@ -367,6 +360,7 @@ static void update_lbus_info(struct hfi1_devdata *dd)
 int pcie_speeds(struct hfi1_devdata *dd)
 {
 	u32 linkcap;
+	struct pci_dev *parent = dd->pcidev->bus->self;
 
 	if (!pci_is_pcie(dd->pcidev)) {
 		dd_dev_err(dd, "Can't find PCI Express capability!\n");
@@ -379,15 +373,15 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	pcie_capability_read_dword(dd->pcidev, PCI_EXP_LNKCAP, &linkcap);
 	if ((linkcap & PCI_EXP_LNKCAP_SLS) != GEN3_SPEED_VECTOR) {
 		dd_dev_info(dd,
-			"This HFI is not Gen3 capable, max speed 0x%x, need 0x3\n",
-			linkcap & PCI_EXP_LNKCAP_SLS);
+			    "This HFI is not Gen3 capable, max speed 0x%x, need 0x3\n",
+			    linkcap & PCI_EXP_LNKCAP_SLS);
 		dd->link_gen3_capable = 0;
 	}
 
 	/*
 	 * bus->max_bus_speed is set from the bridge's linkcap Max Link Speed
 	 */
-	if (dd->pcidev->bus->max_bus_speed != PCIE_SPEED_8_0GT) {
+	if (parent && dd->pcidev->bus->max_bus_speed != PCIE_SPEED_8_0GT) {
 		dd_dev_info(dd, "Parent PCIe bridge does not support Gen3\n");
 		dd->link_gen3_capable = 0;
 	}
@@ -395,9 +389,7 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	/* obtain the link width and current speed */
 	update_lbus_info(dd);
 
-	/* check against expected pcie width and complain if "wrong" */
-	if (dd->lbus_width < 16)
-		dd_dev_err(dd, "PCIe width %u (x16 HFI)\n", dd->lbus_width);
+	dd_dev_info(dd, "%s\n", dd->lbus_info);
 
 	return 0;
 }
@@ -436,22 +428,17 @@ void hfi1_enable_intx(struct pci_dev *pdev)
 void restore_pci_variables(struct hfi1_devdata *dd)
 {
 	pci_write_config_word(dd->pcidev, PCI_COMMAND, dd->pci_command);
-	pci_write_config_dword(dd->pcidev,
-				PCI_BASE_ADDRESS_0, dd->pcibar0);
-	pci_write_config_dword(dd->pcidev,
-				PCI_BASE_ADDRESS_1, dd->pcibar1);
-	pci_write_config_dword(dd->pcidev,
-				PCI_ROM_ADDRESS, dd->pci_rom);
+	pci_write_config_dword(dd->pcidev, PCI_BASE_ADDRESS_0, dd->pcibar0);
+	pci_write_config_dword(dd->pcidev, PCI_BASE_ADDRESS_1, dd->pcibar1);
+	pci_write_config_dword(dd->pcidev, PCI_ROM_ADDRESS, dd->pci_rom);
 	pcie_capability_write_word(dd->pcidev, PCI_EXP_DEVCTL, dd->pcie_devctl);
 	pcie_capability_write_word(dd->pcidev, PCI_EXP_LNKCTL, dd->pcie_lnkctl);
 	pcie_capability_write_word(dd->pcidev, PCI_EXP_DEVCTL2,
-							dd->pcie_devctl2);
+				   dd->pcie_devctl2);
 	pci_write_config_dword(dd->pcidev, PCI_CFG_MSIX0, dd->pci_msix0);
-	pci_write_config_dword(dd->pcidev, PCIE_CFG_SPCIE1,
-							dd->pci_lnkctl3);
+	pci_write_config_dword(dd->pcidev, PCIE_CFG_SPCIE1, dd->pci_lnkctl3);
 	pci_write_config_dword(dd->pcidev, PCIE_CFG_TPH2, dd->pci_tph2);
 }
-
 
 /*
  * BIOS may not set PCIe bus-utilization parameters for best performance.
@@ -460,6 +447,10 @@ void restore_pci_variables(struct hfi1_devdata *dd)
 static int hfi1_pcie_caps;
 module_param_named(pcie_caps, hfi1_pcie_caps, int, S_IRUGO);
 MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (0..3), ReadReq (4..7)");
+
+uint aspm_mode = ASPM_MODE_DISABLED;
+module_param_named(aspm, aspm_mode, uint, S_IRUGO);
+MODULE_PARM_DESC(aspm, "PCIe ASPM: 0: disable, 1: enable, 2: dynamic");
 
 static void tune_pcie_caps(struct hfi1_devdata *dd)
 {
@@ -479,6 +470,12 @@ static void tune_pcie_caps(struct hfi1_devdata *dd)
 	}
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
+	/*
+	 * The driver cannot perform the tuning if it does not have
+	 * access to the upstream component.
+	 */
+	if (!parent)
+		return;
 	if (!pci_is_root_bus(parent->bus)) {
 		dd_dev_info(dd, "Parent not root\n");
 		return;
@@ -532,6 +529,7 @@ static void tune_pcie_caps(struct hfi1_devdata *dd)
 		pcie_set_readrq(dd->pcidev, ep_mrrs);
 	}
 }
+
 /* End of PCIe capability tuning */
 
 /*
@@ -746,21 +744,22 @@ static int load_eq_table(struct hfi1_devdata *dd, const u8 eq[11][3], u8 fs,
 		c0 = fs - (eq[i][PREC] / div) - (eq[i][POST] / div);
 		c_plus1 = eq[i][POST] / div;
 		pci_write_config_dword(pdev, PCIE_CFG_REG_PL102,
-			eq_value(c_minus1, c0, c_plus1));
+				       eq_value(c_minus1, c0, c_plus1));
 		/* check if these coefficients violate EQ rules */
 		pci_read_config_dword(dd->pcidev, PCIE_CFG_REG_PL105,
-								&violation);
+				      &violation);
 		if (violation
 		    & PCIE_CFG_REG_PL105_GEN3_EQ_VIOLATE_COEF_RULES_SMASK){
 			if (hit_error == 0) {
 				dd_dev_err(dd,
-					"Gen3 EQ Table Coefficient rule violations\n");
+					   "Gen3 EQ Table Coefficient rule violations\n");
 				dd_dev_err(dd, "         prec   attn   post\n");
 			}
 			dd_dev_err(dd, "   p%02d:   %02x     %02x     %02x\n",
-				i, (u32)eq[i][0], (u32)eq[i][1], (u32)eq[i][2]);
+				   i, (u32)eq[i][0], (u32)eq[i][1],
+				   (u32)eq[i][2]);
 			dd_dev_err(dd, "            %02x     %02x     %02x\n",
-				(u32)c_minus1, (u32)c0, (u32)c_plus1);
+				   (u32)c_minus1, (u32)c0, (u32)c_plus1);
 			hit_error = 1;
 		}
 	}
@@ -772,7 +771,7 @@ static int load_eq_table(struct hfi1_devdata *dd, const u8 eq[11][3], u8 fs,
 /*
  * Steps to be done after the PCIe firmware is downloaded and
  * before the SBR for the Pcie Gen3.
- * The hardware mutex is already being held.
+ * The SBus resource is already being held.
  */
 static void pcie_post_steps(struct hfi1_devdata *dd)
 {
@@ -815,8 +814,8 @@ static int trigger_sbr(struct hfi1_devdata *dd)
 	list_for_each_entry(pdev, &dev->bus->devices, bus_list)
 		if (pdev != dev) {
 			dd_dev_err(dd,
-				"%s: another device is on the same bus\n",
-				__func__);
+				   "%s: another device is on the same bus\n",
+				   __func__);
 			return -ENOTTY;
 		}
 
@@ -840,8 +839,8 @@ static void write_gasket_interrupt(struct hfi1_devdata *dd, int index,
 				   u16 code, u16 data)
 {
 	write_csr(dd, ASIC_PCIE_SD_INTRPT_LIST + (index * 8),
-	    (((u64)code << ASIC_PCIE_SD_INTRPT_LIST_INTRPT_CODE_SHIFT)
-	    |((u64)data << ASIC_PCIE_SD_INTRPT_LIST_INTRPT_DATA_SHIFT)));
+		  (((u64)code << ASIC_PCIE_SD_INTRPT_LIST_INTRPT_CODE_SHIFT) |
+		   ((u64)data << ASIC_PCIE_SD_INTRPT_LIST_INTRPT_DATA_SHIFT)));
 }
 
 /*
@@ -851,14 +850,13 @@ static void arm_gasket_logic(struct hfi1_devdata *dd)
 {
 	u64 reg;
 
-	reg = (((u64)1 << dd->hfi1_id)
-			<< ASIC_PCIE_SD_HOST_CMD_INTRPT_CMD_SHIFT)
-		| ((u64)pcie_serdes_broadcast[dd->hfi1_id]
-			<< ASIC_PCIE_SD_HOST_CMD_SBUS_RCVR_ADDR_SHIFT
-		| ASIC_PCIE_SD_HOST_CMD_SBR_MODE_SMASK
-		| ((u64)SBR_DELAY_US & ASIC_PCIE_SD_HOST_CMD_TIMER_MASK)
-			<< ASIC_PCIE_SD_HOST_CMD_TIMER_SHIFT
-		);
+	reg = (((u64)1 << dd->hfi1_id) <<
+	       ASIC_PCIE_SD_HOST_CMD_INTRPT_CMD_SHIFT) |
+	      ((u64)pcie_serdes_broadcast[dd->hfi1_id] <<
+	       ASIC_PCIE_SD_HOST_CMD_SBUS_RCVR_ADDR_SHIFT |
+	       ASIC_PCIE_SD_HOST_CMD_SBR_MODE_SMASK |
+	       ((u64)SBR_DELAY_US & ASIC_PCIE_SD_HOST_CMD_TIMER_MASK) <<
+	       ASIC_PCIE_SD_HOST_CMD_TIMER_SHIFT);
 	write_csr(dd, ASIC_PCIE_SD_HOST_CMD, reg);
 	/* read back to push the write */
 	read_csr(dd, ASIC_PCIE_SD_HOST_CMD);
@@ -946,7 +944,7 @@ static void write_xmt_margin(struct hfi1_devdata *dd, const char *fname)
  */
 int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 {
-	struct pci_dev *parent;
+	struct pci_dev *parent = dd->pcidev->bus->self;
 	u64 fw_ctrl;
 	u64 reg, therm;
 	u32 reg32, fs, lf;
@@ -955,8 +953,7 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	int do_retry, retry_count = 0;
 	uint default_pset;
 	u16 target_vector, target_speed;
-	u16 lnkctl, lnkctl2, vendor;
-	u8 nsbr = 1;
+	u16 lnkctl2, vendor;
 	u8 div;
 	const u8 (*eq)[3];
 	int return_error = 0;
@@ -983,17 +980,21 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	/* if already at target speed, done (unless forced) */
 	if (dd->lbus_speed == target_speed) {
 		dd_dev_info(dd, "%s: PCIe already at gen%d, %s\n", __func__,
-			pcie_target,
-			pcie_force ? "re-doing anyway" : "skipping");
+			    pcie_target,
+			    pcie_force ? "re-doing anyway" : "skipping");
 		if (!pcie_force)
 			return 0;
 	}
 
 	/*
-	 * A0 needs an additional SBR
+	 * The driver cannot do the transition if it has no access to the
+	 * upstream component
 	 */
-	if (is_ax(dd))
-		nsbr++;
+	if (!parent) {
+		dd_dev_info(dd, "%s: No upstream, Can't do gen3 transition\n",
+			    __func__);
+		return 0;
+	}
 
 	/*
 	 * Do the Gen3 transition.  Steps are those of the PCIe Gen3
@@ -1009,10 +1010,13 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 		goto done_no_mutex;
 	}
 
-	/* hold the HW mutex across the firmware download and SBR */
-	ret = acquire_hw_mutex(dd);
-	if (ret)
+	/* hold the SBus resource across the firmware download and SBR */
+	ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
+	if (ret) {
+		dd_dev_err(dd, "%s: unable to acquire SBus resource\n",
+			   __func__);
 		return ret;
+	}
 
 	/* make sure thermal polling is not causing interrupts */
 	therm = read_csr(dd, ASIC_CFG_THERM_POLL_EN);
@@ -1030,8 +1034,11 @@ retry:
 	/* step 4: download PCIe Gen3 SerDes firmware */
 	dd_dev_info(dd, "%s: downloading firmware\n", __func__);
 	ret = load_pcie_firmware(dd);
-	if (ret)
+	if (ret) {
+		/* do not proceed if the firmware cannot be downloaded */
+		return_error = 1;
 		goto done;
+	}
 
 	/* step 5: set up device parameter settings */
 	dd_dev_info(dd, "%s: setting PCIe registers\n", __func__);
@@ -1091,8 +1098,10 @@ retry:
 		default_pset = DEFAULT_MCP_PSET;
 	}
 	pci_write_config_dword(dd->pcidev, PCIE_CFG_REG_PL101,
-		(fs << PCIE_CFG_REG_PL101_GEN3_EQ_LOCAL_FS_SHIFT)
-		| (lf << PCIE_CFG_REG_PL101_GEN3_EQ_LOCAL_LF_SHIFT));
+			       (fs <<
+				PCIE_CFG_REG_PL101_GEN3_EQ_LOCAL_FS_SHIFT) |
+			       (lf <<
+				PCIE_CFG_REG_PL101_GEN3_EQ_LOCAL_LF_SHIFT));
 	ret = load_eq_table(dd, eq, fs, div);
 	if (ret)
 		goto done;
@@ -1106,15 +1115,15 @@ retry:
 		pcie_pset = default_pset;
 	if (pcie_pset > 10) {	/* valid range is 0-10, inclusive */
 		dd_dev_err(dd, "%s: Invalid Eq Pset %u, setting to %d\n",
-			__func__, pcie_pset, default_pset);
+			   __func__, pcie_pset, default_pset);
 		pcie_pset = default_pset;
 	}
 	dd_dev_info(dd, "%s: using EQ Pset %u\n", __func__, pcie_pset);
 	pci_write_config_dword(dd->pcidev, PCIE_CFG_REG_PL106,
-		((1 << pcie_pset)
-			<< PCIE_CFG_REG_PL106_GEN3_EQ_PSET_REQ_VEC_SHIFT)
-		| PCIE_CFG_REG_PL106_GEN3_EQ_EVAL2MS_DISABLE_SMASK
-		| PCIE_CFG_REG_PL106_GEN3_EQ_PHASE23_EXIT_MODE_SMASK);
+			       ((1 << pcie_pset) <<
+			PCIE_CFG_REG_PL106_GEN3_EQ_PSET_REQ_VEC_SHIFT) |
+			PCIE_CFG_REG_PL106_GEN3_EQ_EVAL2MS_DISABLE_SMASK |
+			PCIE_CFG_REG_PL106_GEN3_EQ_PHASE23_EXIT_MODE_SMASK);
 
 	/*
 	 * step 5b: Do post firmware download steps via SBus
@@ -1142,11 +1151,12 @@ retry:
 	 */
 	write_xmt_margin(dd, __func__);
 
-	/* step 5e: disable active state power management (ASPM) */
+	/*
+	 * step 5e: disable active state power management (ASPM). It
+	 * will be enabled if required later
+	 */
 	dd_dev_info(dd, "%s: clearing ASPM\n", __func__);
-	pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKCTL, &lnkctl);
-	lnkctl &= ~PCI_EXP_LNKCTL_ASPMC;
-	pcie_capability_write_word(dd->pcidev, PCI_EXP_LNKCTL, lnkctl);
+	aspm_hw_disable_l1(dd);
 
 	/*
 	 * step 5f: clear DirectSpeedChange
@@ -1165,16 +1175,15 @@ retry:
 	 * that it is Gen3 capable earlier.
 	 */
 	dd_dev_info(dd, "%s: setting parent target link speed\n", __func__);
-	parent = dd->pcidev->bus->self;
 	pcie_capability_read_word(parent, PCI_EXP_LNKCTL2, &lnkctl2);
 	dd_dev_info(dd, "%s: ..old link control2: 0x%x\n", __func__,
-		(u32)lnkctl2);
+		    (u32)lnkctl2);
 	/* only write to parent if target is not as high as ours */
 	if ((lnkctl2 & LNKCTL2_TARGET_LINK_SPEED_MASK) < target_vector) {
 		lnkctl2 &= ~LNKCTL2_TARGET_LINK_SPEED_MASK;
 		lnkctl2 |= target_vector;
 		dd_dev_info(dd, "%s: ..new link control2: 0x%x\n", __func__,
-			(u32)lnkctl2);
+			    (u32)lnkctl2);
 		pcie_capability_write_word(parent, PCI_EXP_LNKCTL2, lnkctl2);
 	} else {
 		dd_dev_info(dd, "%s: ..target speed is OK\n", __func__);
@@ -1183,17 +1192,17 @@ retry:
 	dd_dev_info(dd, "%s: setting target link speed\n", __func__);
 	pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKCTL2, &lnkctl2);
 	dd_dev_info(dd, "%s: ..old link control2: 0x%x\n", __func__,
-		(u32)lnkctl2);
+		    (u32)lnkctl2);
 	lnkctl2 &= ~LNKCTL2_TARGET_LINK_SPEED_MASK;
 	lnkctl2 |= target_vector;
 	dd_dev_info(dd, "%s: ..new link control2: 0x%x\n", __func__,
-		(u32)lnkctl2);
+		    (u32)lnkctl2);
 	pcie_capability_write_word(dd->pcidev, PCI_EXP_LNKCTL2, lnkctl2);
 
 	/* step 5h: arm gasket logic */
 	/* hold DC in reset across the SBR */
 	write_csr(dd, CCE_DC_CTRL, CCE_DC_CTRL_DC_RESET_SMASK);
-	(void) read_csr(dd, CCE_DC_CTRL); /* DC reset hold */
+	(void)read_csr(dd, CCE_DC_CTRL); /* DC reset hold */
 	/* save firmware control across the SBR */
 	fw_ctrl = read_csr(dd, MISC_CFG_FW_CTRL);
 
@@ -1224,8 +1233,8 @@ retry:
 	ret = pci_read_config_word(dd->pcidev, PCI_VENDOR_ID, &vendor);
 	if (ret) {
 		dd_dev_info(dd,
-			"%s: read of VendorID failed after SBR, err %d\n",
-			__func__, ret);
+			    "%s: read of VendorID failed after SBR, err %d\n",
+			    __func__, ret);
 		return_error = 1;
 		goto done;
 	}
@@ -1265,8 +1274,7 @@ retry:
 	write_csr(dd, CCE_DC_CTRL, 0);
 
 	/* Set the LED off */
-	if (is_ax(dd))
-		setextled(dd, 0);
+	setextled(dd, 0);
 
 	/* check for any per-lane errors */
 	pci_read_config_dword(dd->pcidev, PCIE_CFG_SPCIE2, &reg32);
@@ -1277,8 +1285,8 @@ retry:
 			& ASIC_PCIE_SD_HOST_STATUS_FW_DNLD_STS_MASK;
 	if ((status & (1 << dd->hfi1_id)) == 0) {
 		dd_dev_err(dd,
-			"%s: gasket status 0x%x, expecting 0x%x\n",
-			__func__, status, 1 << dd->hfi1_id);
+			   "%s: gasket status 0x%x, expecting 0x%x\n",
+			   __func__, status, 1 << dd->hfi1_id);
 		ret = -EIO;
 		goto done;
 	}
@@ -1295,13 +1303,13 @@ retry:
 	/* update our link information cache */
 	update_lbus_info(dd);
 	dd_dev_info(dd, "%s: new speed and width: %s\n", __func__,
-		dd->lbus_info);
+		    dd->lbus_info);
 
 	if (dd->lbus_speed != target_speed) { /* not target */
 		/* maybe retry */
 		do_retry = retry_count < pcie_retry;
 		dd_dev_err(dd, "PCIe link speed did not switch to Gen%d%s\n",
-			pcie_target, do_retry ? ", retrying" : "");
+			   pcie_target, do_retry ? ", retrying" : "");
 		retry_count++;
 		if (do_retry) {
 			msleep(100); /* allow time to settle */
@@ -1317,7 +1325,7 @@ done:
 		dd_dev_info(dd, "%s: Re-enable therm polling\n",
 			    __func__);
 	}
-	release_hw_mutex(dd);
+	release_chip_resource(dd, CR_SBUS);
 done_no_mutex:
 	/* return no error if it is OK to be at current speed */
 	if (ret && !return_error) {

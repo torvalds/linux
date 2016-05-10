@@ -128,7 +128,7 @@ ENTRY(_startup)
 	wsr	a0, icountlevel
 
 	.set	_index, 0
-	.rept	XCHAL_NUM_DBREAK - 1
+	.rept	XCHAL_NUM_DBREAK
 	wsr	a0, SREG_DBREAKC + _index
 	.set	_index, _index + 1
 	.endr
@@ -196,11 +196,6 @@ ENTRY(_startup)
 					# WOE=1, INTLEVEL=LOCKLEVEL, UM=0
 	wsr	a2, ps			# (enable reg-windows; progmode stack)
 	rsync
-
-	/* Set up EXCSAVE[DEBUGLEVEL] to point to the Debug Exception Handler.*/
-
-	movi	a2, debug_exception
-	wsr	a2, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 
 #ifdef CONFIG_SMP
 	/*

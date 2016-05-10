@@ -885,7 +885,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 {
 	union mips_instruction insn;
 	unsigned long value;
-	unsigned int res;
+	unsigned int res, preempted;
 	unsigned long origpc;
 	unsigned long orig31;
 	void __user *fault_addr = NULL;
@@ -1226,27 +1226,36 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			if (!access_ok(VERIFY_READ, addr, sizeof(*fpr)))
 				goto sigbus;
 
-			/*
-			 * Disable preemption to avoid a race between copying
-			 * state from userland, migrating to another CPU and
-			 * updating the hardware vector register below.
-			 */
-			preempt_disable();
+			do {
+				/*
+				 * If we have live MSA context keep track of
+				 * whether we get preempted in order to avoid
+				 * the register context we load being clobbered
+				 * by the live context as it's saved during
+				 * preemption. If we don't have live context
+				 * then it can't be saved to clobber the value
+				 * we load.
+				 */
+				preempted = test_thread_flag(TIF_USEDMSA);
 
-			res = __copy_from_user_inatomic(fpr, addr,
-							sizeof(*fpr));
-			if (res)
-				goto fault;
+				res = __copy_from_user_inatomic(fpr, addr,
+								sizeof(*fpr));
+				if (res)
+					goto fault;
 
-			/*
-			 * Update the hardware register if it is in use by the
-			 * task in this quantum, in order to avoid having to
-			 * save & restore the whole vector context.
-			 */
-			if (test_thread_flag(TIF_USEDMSA))
-				write_msa_wr(wd, fpr, df);
-
-			preempt_enable();
+				/*
+				 * Update the hardware register if it is in use
+				 * by the task in this quantum, in order to
+				 * avoid having to save & restore the whole
+				 * vector context.
+				 */
+				preempt_disable();
+				if (test_thread_flag(TIF_USEDMSA)) {
+					write_msa_wr(wd, fpr, df);
+					preempted = 0;
+				}
+				preempt_enable();
+			} while (preempted);
 			break;
 
 		case msa_st_op:

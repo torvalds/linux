@@ -574,12 +574,16 @@ static int quadfs_pll_fs660c32_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct stm_fs params;
 	long hwrate = 0;
 	unsigned long flags = 0;
+	int ret;
 
 	if (!rate || !parent_rate)
 		return -EINVAL;
 
-	if (!clk_fs660c32_vco_get_params(parent_rate, rate, &params))
-		clk_fs660c32_vco_get_rate(parent_rate, &params, &hwrate);
+	ret = clk_fs660c32_vco_get_params(parent_rate, rate, &params);
+	if (ret)
+		return ret;
+
+	clk_fs660c32_vco_get_rate(parent_rate, &params, &hwrate);
 
 	pr_debug("%s: %s new rate %ld [ndiv=0x%x]\n",
 		 __func__, clk_hw_get_name(hw),

@@ -279,14 +279,6 @@ static void udl_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 }
 
-static bool udl_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-
-{
-	return true;
-}
-
 #if 0
 static int
 udl_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
@@ -402,7 +394,6 @@ static void udl_crtc_commit(struct drm_crtc *crtc)
 
 static const struct drm_crtc_helper_funcs udl_helper_funcs = {
 	.dpms = udl_crtc_dpms,
-	.mode_fixup = udl_crtc_mode_fixup,
 	.mode_set = udl_crtc_mode_set,
 	.prepare = udl_crtc_prepare,
 	.commit = udl_crtc_commit,

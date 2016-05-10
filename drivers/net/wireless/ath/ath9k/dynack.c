@@ -212,7 +212,7 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 		struct ieee80211_tx_rate *rates = info->status.rates;
 
 		rate = &common->sbands[info->band].bitrates[rates[ridx].idx];
-		if (info->band == IEEE80211_BAND_2GHZ &&
+		if (info->band == NL80211_BAND_2GHZ &&
 		    !(rate->flags & IEEE80211_RATE_ERP_G))
 			phy = WLAN_RC_PHY_CCK;
 		else

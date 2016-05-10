@@ -1,5 +1,5 @@
 /*
- * Common definitions accross all variants of ICP and ICS interrupt
+ * Common definitions across all variants of ICP and ICS interrupt
  * controllers.
  */
 

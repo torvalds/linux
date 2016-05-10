@@ -119,12 +119,18 @@ int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 	struct zone *zone;
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
+	int rc;
 
 	pgdata = NODE_DATA(nid);
 
 	start = (unsigned long)__va(start);
-	if (create_section_mapping(start, start + size))
-		return -EINVAL;
+	rc = create_section_mapping(start, start + size);
+	if (rc) {
+		pr_warning(
+			"Unable to create mapping for hot added memory 0x%llx..0x%llx: %d\n",
+			start, start + size, rc);
+		return -EFAULT;
+	}
 
 	/* this should work for most non-highmem platforms */
 	zone = pgdata->node_zones +

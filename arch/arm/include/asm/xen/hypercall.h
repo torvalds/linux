@@ -33,6 +33,8 @@
 #ifndef _ASM_ARM_XEN_HYPERCALL_H
 #define _ASM_ARM_XEN_HYPERCALL_H
 
+#include <linux/bug.h>
+
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
 #include <xen/interface/platform.h>

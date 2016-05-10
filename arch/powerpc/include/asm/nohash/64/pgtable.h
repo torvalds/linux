@@ -108,6 +108,9 @@
 #ifndef __ASSEMBLY__
 /* pte_clear moved to later in this file */
 
+/* Pointers in the page table tree are virtual addresses */
+#define __pgtable_ptr_val(ptr)	((unsigned long)(ptr))
+
 #define PMD_BAD_BITS		(PTE_TABLE_SIZE-1)
 #define PUD_BAD_BITS		(PMD_TABLE_SIZE-1)
 

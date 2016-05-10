@@ -589,7 +589,7 @@ config RTC_DRV_RV3029_HWMON
 	default y
 	help
 	  Say Y here if you want to expose temperature sensor data on
-	  rtc-rv3029c2.
+	  rtc-rv3029.
 
 config RTC_DRV_RV8803
 	tristate "Micro Crystal RV8803"

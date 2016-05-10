@@ -40,7 +40,7 @@
 			pinctrl-0 = <&pmx_select28 &pmx_sdio_cd &pmx_select34>;
 			pinctrl-names = "default";
 
-			pmx_select28: pmx-select-uart-sd {
+			pmx_select28: pmx-select-rs232-rs485 {
 				marvell,pins = "mpp28";
 				marvell,function = "gpio";
 			};
@@ -48,7 +48,7 @@
 				marvell,pins = "mpp29";
 				marvell,function = "gpio";
 			};
-			pmx_select34: pmx-select-rs232-rs484 {
+			pmx_select34: pmx-select-uart-sd {
 				marvell,pins = "mpp34";
 				marvell,function = "gpio";
 			};
@@ -64,6 +64,43 @@
 		mvsdio@90000 {
 			status = "okay";
 			cd-gpios = <&gpio0 29 9>;
+		};
+		gpio@10100 {
+			p28 {
+				gpio-hog;
+				gpios = <28 GPIO_ACTIVE_HIGH>;
+				/*
+				 * SelRS232or485 selects between RS-232 or RS-485
+				 * mode for the second UART.
+				 *
+				 * Low: RS-232
+				 * High: RS-485
+				 *
+				 * To use the second UART, you need to change also
+				 * the SelUARTorSD.
+				 */
+				output-low;
+				line-name = "SelRS232or485";
+			};
+		};
+		gpio@10140 {
+			p2 {
+				gpio-hog;
+				gpios = <2 GPIO_ACTIVE_HIGH>;
+				/*
+				 * SelUARTorSD selects between the second UART
+				 * (serial@12100) and SD (mvsdio@90000).
+				 *
+				 * Low: UART
+				 * High: SD
+				 *
+				 * When changing this line make sure the newly
+				 * selected device node is enabled and the
+				 * previously selected device node is disabled.
+				 */
+				output-high; /* Select SD by default */
+				line-name = "SelUARTorSD";
+			};
 		};
 	};
 };

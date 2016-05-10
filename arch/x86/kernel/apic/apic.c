@@ -1611,7 +1611,7 @@ void __init enable_IR_x2apic(void)
 	legacy_pic->mask_all();
 	mask_ioapic_entries();
 
-	/* If irq_remapping_prepare() succeded, try to enable it */
+	/* If irq_remapping_prepare() succeeded, try to enable it */
 	if (ir_stat >= 0)
 		ir_stat = try_to_enable_IR();
 	/* ir_stat contains the remap mode or an error code */

@@ -1682,6 +1682,8 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 
 	/* setup work queue for validate server*/
 	INIT_WORK(&device->kick_validate, dasd_eckd_do_validate_server);
+	/* setup work queue for summary unit check */
+	INIT_WORK(&device->suc_work, dasd_alias_handle_summary_unit_check);
 
 	if (!ccw_device_is_pathgroup(device->cdev)) {
 		dev_warn(&device->cdev->dev,
@@ -2549,14 +2551,6 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 		    device->state == DASD_STATE_ONLINE &&
 		    !test_bit(DASD_FLAG_OFFLINE, &device->flags) &&
 		    !test_bit(DASD_FLAG_SUSPENDED, &device->flags)) {
-			/*
-			 * the state change could be caused by an alias
-			 * reassignment remove device from alias handling
-			 * to prevent new requests from being scheduled on
-			 * the wrong alias device
-			 */
-			dasd_alias_remove_device(device);
-
 			/* schedule worker to reload device */
 			dasd_reload_device(device);
 		}
@@ -2571,7 +2565,27 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 	/* summary unit check */
 	if ((sense[27] & DASD_SENSE_BIT_0) && (sense[7] == 0x0D) &&
 	    (scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK)) {
-		dasd_alias_handle_summary_unit_check(device, irb);
+		if (test_and_set_bit(DASD_FLAG_SUC, &device->flags)) {
+			DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+				      "eckd suc: device already notified");
+			return;
+		}
+		sense = dasd_get_sense(irb);
+		if (!sense) {
+			DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+				      "eckd suc: no reason code available");
+			clear_bit(DASD_FLAG_SUC, &device->flags);
+			return;
+
+		}
+		private->suc_reason = sense[8];
+		DBF_DEV_EVENT(DBF_NOTICE, device, "%s %x",
+			      "eckd handle summary unit check: reason",
+			      private->suc_reason);
+		dasd_get_device(device);
+		if (!schedule_work(&device->suc_work))
+			dasd_put_device(device);
+
 		return;
 	}
 
@@ -4494,6 +4508,12 @@ static int dasd_eckd_reload_device(struct dasd_device *device)
 	char print_uid[60];
 	struct dasd_uid uid;
 	unsigned long flags;
+
+	/*
+	 * remove device from alias handling to prevent new requests
+	 * from being scheduled on the wrong alias device
+	 */
+	dasd_alias_remove_device(device);
 
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	old_base = private->uid.base_unit_addr;

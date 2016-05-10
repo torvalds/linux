@@ -96,9 +96,9 @@ static inline void rate_control_add_sta_debugfs(struct sta_info *sta)
 {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct rate_control_ref *ref = sta->rate_ctrl;
-	if (ref && sta->debugfs.dir && ref->ops->add_sta_debugfs)
+	if (ref && sta->debugfs_dir && ref->ops->add_sta_debugfs)
 		ref->ops->add_sta_debugfs(ref->priv, sta->rate_ctrl_priv,
-					  sta->debugfs.dir);
+					  sta->debugfs_dir);
 #endif
 }
 

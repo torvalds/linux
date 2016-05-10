@@ -107,7 +107,7 @@ static struct notifier_block mvebu_hwcc_nb = {
 	.notifier_call = mvebu_hwcc_notifier,
 };
 
-static struct notifier_block mvebu_hwcc_pci_nb = {
+static struct notifier_block mvebu_hwcc_pci_nb __maybe_unused = {
 	.notifier_call = mvebu_hwcc_notifier,
 };
 

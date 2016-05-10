@@ -251,7 +251,7 @@ static void __init spear320_clk_init(void __iomem *soc_config_base,
 	struct clk *clk;
 
 	clk = clk_register_fixed_rate(NULL, "smii_125m_pad_clk", NULL,
-			CLK_IS_ROOT, 125000000);
+			0, 125000000);
 	clk_register_clkdev(clk, "smii_125m_pad", NULL);
 
 	clk = clk_register_fixed_factor(NULL, "clcd_clk", "ras_pll3_clk", 0,
@@ -391,12 +391,10 @@ void __init spear3xx_clk_init(void __iomem *misc_base, void __iomem *soc_config_
 {
 	struct clk *clk, *clk1, *ras_apb_clk;
 
-	clk = clk_register_fixed_rate(NULL, "osc_32k_clk", NULL, CLK_IS_ROOT,
-			32000);
+	clk = clk_register_fixed_rate(NULL, "osc_32k_clk", NULL, 0, 32000);
 	clk_register_clkdev(clk, "osc_32k_clk", NULL);
 
-	clk = clk_register_fixed_rate(NULL, "osc_24m_clk", NULL, CLK_IS_ROOT,
-			24000000);
+	clk = clk_register_fixed_rate(NULL, "osc_24m_clk", NULL, 0, 24000000);
 	clk_register_clkdev(clk, "osc_24m_clk", NULL);
 
 	/* clock derived from 32 KHz osc clk */

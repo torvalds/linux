@@ -102,10 +102,16 @@ static void a4xx_enable_hwcg(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A4XX_RBBM_CLOCK_DELAY_TSE_RAS_RBBM, 0x00000222);
 	gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL_HLSQ , 0x00000000);
 	gpu_write(gpu, REG_A4XX_RBBM_CLOCK_HYST_HLSQ, 0x00000000);
-	gpu_write(gpu, REG_A4XX_RBBM_CLOCK_DELAY_HLSQ, 0x00020000);
-	gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL, 0xAAAAAAAA);
+	gpu_write(gpu, REG_A4XX_RBBM_CLOCK_DELAY_HLSQ, 0x00220000);
+	/* Early A430's have a timing issue with SP/TP power collapse;
+	   disabling HW clock gating prevents it. */
+	if (adreno_is_a430(adreno_gpu) && adreno_gpu->rev.patchid < 2)
+		gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL, 0);
+	else
+		gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL, 0xAAAAAAAA);
 	gpu_write(gpu, REG_A4XX_RBBM_CLOCK_CTL2, 0);
 }
+
 
 static void a4xx_me_init(struct msm_gpu *gpu)
 {
@@ -141,9 +147,16 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	uint32_t *ptr, len;
 	int i, ret;
 
-	if (adreno_is_a4xx(adreno_gpu)) {
+	if (adreno_is_a420(adreno_gpu)) {
 		gpu_write(gpu, REG_A4XX_VBIF_ABIT_SORT, 0x0001001F);
 		gpu_write(gpu, REG_A4XX_VBIF_ABIT_SORT_CONF, 0x000000A4);
+		gpu_write(gpu, REG_A4XX_VBIF_GATE_OFF_WRREQ_EN, 0x00000001);
+		gpu_write(gpu, REG_A4XX_VBIF_IN_RD_LIM_CONF0, 0x18181818);
+		gpu_write(gpu, REG_A4XX_VBIF_IN_RD_LIM_CONF1, 0x00000018);
+		gpu_write(gpu, REG_A4XX_VBIF_IN_WR_LIM_CONF0, 0x18181818);
+		gpu_write(gpu, REG_A4XX_VBIF_IN_WR_LIM_CONF1, 0x00000018);
+		gpu_write(gpu, REG_A4XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x00000003);
+	} else if (adreno_is_a430(adreno_gpu)) {
 		gpu_write(gpu, REG_A4XX_VBIF_GATE_OFF_WRREQ_EN, 0x00000001);
 		gpu_write(gpu, REG_A4XX_VBIF_IN_RD_LIM_CONF0, 0x18181818);
 		gpu_write(gpu, REG_A4XX_VBIF_IN_RD_LIM_CONF1, 0x00000018);
@@ -160,6 +173,10 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	/* Tune the hystersis counters for SP and CP idle detection */
 	gpu_write(gpu, REG_A4XX_RBBM_SP_HYST_CNT, 0x10);
 	gpu_write(gpu, REG_A4XX_RBBM_WAIT_IDLE_CLOCKS_CTL, 0x10);
+
+	if (adreno_is_a430(adreno_gpu)) {
+		gpu_write(gpu, REG_A4XX_RBBM_WAIT_IDLE_CLOCKS_CTL2, 0x30);
+	}
 
 	 /* Enable the RBBM error reporting bits */
 	gpu_write(gpu, REG_A4XX_RBBM_AHB_CTL0, 0x00000001);
@@ -183,12 +200,29 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	/* Turn on performance counters: */
 	gpu_write(gpu, REG_A4XX_RBBM_PERFCTR_CTL, 0x01);
 
+	/* use the first CP counter for timestamp queries.. userspace may set
+	 * this as well but it selects the same counter/countable:
+	 */
+	gpu_write(gpu, REG_A4XX_CP_PERFCTR_CP_SEL_0, CP_ALWAYS_COUNT);
+
+	if (adreno_is_a430(adreno_gpu))
+		gpu_write(gpu, REG_A4XX_UCHE_CACHE_WAYS_VFD, 0x07);
+
 	/* Disable L2 bypass to avoid UCHE out of bounds errors */
 	gpu_write(gpu, REG_A4XX_UCHE_TRAP_BASE_LO, 0xffff0000);
 	gpu_write(gpu, REG_A4XX_UCHE_TRAP_BASE_HI, 0xffff0000);
 
 	gpu_write(gpu, REG_A4XX_CP_DEBUG, (1 << 25) |
 			(adreno_is_a420(adreno_gpu) ? (1 << 29) : 0));
+
+	/* On A430 enable SP regfile sleep for power savings */
+	/* TODO downstream does this for !420, so maybe applies for 405 too? */
+	if (!adreno_is_a420(adreno_gpu)) {
+		gpu_write(gpu, REG_A4XX_RBBM_SP_REGFILE_SLEEP_CNTL_0,
+			0x00000441);
+		gpu_write(gpu, REG_A4XX_RBBM_SP_REGFILE_SLEEP_CNTL_1,
+			0x00000441);
+	}
 
 	a4xx_enable_hwcg(gpu);
 
@@ -203,10 +237,6 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 		val |= 2 << A4XX_CGC_HLSQ_EARLY_CYC__SHIFT;
 		gpu_write(gpu, REG_A4XX_RBBM_CLOCK_DELAY_HLSQ, val);
 	}
-
-	ret = adreno_hw_init(gpu);
-	if (ret)
-		return ret;
 
 	/* setup access protection: */
 	gpu_write(gpu, REG_A4XX_CP_PROTECT_CTRL, 0x00000007);
@@ -263,6 +293,7 @@ static int a4xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A4XX_CP_ME_CNTL, 0);
 
 	a4xx_me_init(gpu);
+
 	return 0;
 }
 
@@ -316,6 +347,13 @@ static irqreturn_t a4xx_irq(struct msm_gpu *gpu)
 
 	status = gpu_read(gpu, REG_A4XX_RBBM_INT_0_STATUS);
 	DBG("%s: Int status %08x", gpu->name, status);
+
+	if (status & A4XX_INT0_CP_REG_PROTECT_FAULT) {
+		uint32_t reg = gpu_read(gpu, REG_A4XX_CP_PROTECT_STATUS);
+		printk("CP | Protected mode error| %s | addr=%x\n",
+			reg & (1 << 24) ? "WRITE" : "READ",
+			(reg & 0xFFFFF) >> 2);
+	}
 
 	gpu_write(gpu, REG_A4XX_RBBM_INT_CLEAR_CMD, status);
 
@@ -512,12 +550,63 @@ static void a4xx_dump(struct msm_gpu *gpu)
 	adreno_dump(gpu);
 }
 
+static int a4xx_pm_resume(struct msm_gpu *gpu) {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int ret;
+
+	ret = msm_gpu_pm_resume(gpu);
+	if (ret)
+		return ret;
+
+	if (adreno_is_a430(adreno_gpu)) {
+		unsigned int reg;
+		/* Set the default register values; set SW_COLLAPSE to 0 */
+		gpu_write(gpu, REG_A4XX_RBBM_POWER_CNTL_IP, 0x778000);
+		do {
+			udelay(5);
+			reg = gpu_read(gpu, REG_A4XX_RBBM_POWER_STATUS);
+		} while (!(reg & A4XX_RBBM_POWER_CNTL_IP_SP_TP_PWR_ON));
+	}
+	return 0;
+}
+
+static int a4xx_pm_suspend(struct msm_gpu *gpu) {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int ret;
+
+	ret = msm_gpu_pm_suspend(gpu);
+	if (ret)
+		return ret;
+
+	if (adreno_is_a430(adreno_gpu)) {
+		/* Set the default register values; set SW_COLLAPSE to 1 */
+		gpu_write(gpu, REG_A4XX_RBBM_POWER_CNTL_IP, 0x778001);
+	}
+	return 0;
+}
+
+static int a4xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
+{
+	uint32_t hi, lo, tmp;
+
+	tmp = gpu_read(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_HI);
+	do {
+		hi = tmp;
+		lo = gpu_read(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_LO);
+		tmp = gpu_read(gpu, REG_A4XX_RBBM_PERFCTR_CP_0_HI);
+	} while (tmp != hi);
+
+	*value = (((uint64_t)hi) << 32) | lo;
+
+	return 0;
+}
+
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
 		.hw_init = a4xx_hw_init,
-		.pm_suspend = msm_gpu_pm_suspend,
-		.pm_resume = msm_gpu_pm_resume,
+		.pm_suspend = a4xx_pm_suspend,
+		.pm_resume = a4xx_pm_resume,
 		.recover = a4xx_recover,
 		.last_fence = adreno_last_fence,
 		.submit = adreno_submit,
@@ -529,6 +618,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.show = a4xx_show,
 #endif
 	},
+	.get_timestamp = a4xx_get_timestamp,
 };
 
 struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)

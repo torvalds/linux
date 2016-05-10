@@ -1,8 +1,5 @@
 if PLAT_VERSATILE
 
-config PLAT_VERSATILE_CLOCK
-	bool
-
 config PLAT_VERSATILE_SCHED_CLOCK
 	bool
 

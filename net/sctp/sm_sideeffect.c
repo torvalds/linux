@@ -215,10 +215,14 @@ static int sctp_gen_sack(struct sctp_association *asoc, int force,
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_RESTART,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
 	} else {
+		__u32 old_a_rwnd = asoc->a_rwnd;
+
 		asoc->a_rwnd = asoc->rwnd;
 		sack = sctp_make_sack(asoc);
-		if (!sack)
+		if (!sack) {
+			asoc->a_rwnd = old_a_rwnd;
 			goto nomem;
+		}
 
 		asoc->peer.sack_needed = 0;
 		asoc->peer.sack_cnt = 0;

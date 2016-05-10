@@ -464,8 +464,13 @@ static int nvm_core_init(struct nvm_dev *dev)
 	dev->nr_luns = dev->luns_per_chnl * dev->nr_chnls;
 
 	dev->total_secs = dev->nr_luns * dev->sec_per_lun;
+	dev->lun_map = kcalloc(BITS_TO_LONGS(dev->nr_luns),
+					sizeof(unsigned long), GFP_KERNEL);
+	if (!dev->lun_map)
+		return -ENOMEM;
 	INIT_LIST_HEAD(&dev->online_targets);
 	mutex_init(&dev->mlock);
+	spin_lock_init(&dev->lock);
 
 	return 0;
 }
@@ -585,6 +590,7 @@ int nvm_register(struct request_queue *q, char *disk_name,
 
 	return 0;
 err_init:
+	kfree(dev->lun_map);
 	kfree(dev);
 	return ret;
 }
@@ -607,6 +613,7 @@ void nvm_unregister(char *disk_name)
 	up_write(&nvm_lock);
 
 	nvm_exit(dev);
+	kfree(dev->lun_map);
 	kfree(dev);
 }
 EXPORT_SYMBOL(nvm_unregister);

@@ -125,17 +125,5 @@ static struct usb_driver udl_driver = {
 	.disconnect = udl_usb_disconnect,
 	.id_table = id_table,
 };
-
-static int __init udl_init(void)
-{
-	return usb_register(&udl_driver);
-}
-
-static void __exit udl_exit(void)
-{
-	usb_deregister(&udl_driver);
-}
-
-module_init(udl_init);
-module_exit(udl_exit);
+module_usb_driver(udl_driver);
 MODULE_LICENSE("GPL");

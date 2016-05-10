@@ -78,7 +78,7 @@ struct ps3_bmp {
 /**
  * struct ps3_private - a per cpu data structure
  * @bmp: ps3_bmp structure
- * @bmp_lock: Syncronize access to bmp.
+ * @bmp_lock: Synchronize access to bmp.
  * @ipi_debug_brk_mask: Mask for debug break IPIs
  * @ppe_id: HV logical_ppe_id
  * @thread_id: HV thread_id

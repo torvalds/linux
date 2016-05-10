@@ -417,7 +417,7 @@ static int carl9170_rx_mac_status(struct ar9170 *ar,
 
 			return -EINVAL;
 		}
-		if (status->band == IEEE80211_BAND_2GHZ)
+		if (status->band == NL80211_BAND_2GHZ)
 			status->rate_idx += 4;
 		break;
 

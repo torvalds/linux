@@ -98,6 +98,44 @@ static inline void native_write_cr8(unsigned long val)
 }
 #endif
 
+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+static inline u32 __read_pkru(void)
+{
+	u32 ecx = 0;
+	u32 edx, pkru;
+
+	/*
+	 * "rdpkru" instruction.  Places PKRU contents in to EAX,
+	 * clears EDX and requires that ecx=0.
+	 */
+	asm volatile(".byte 0x0f,0x01,0xee\n\t"
+		     : "=a" (pkru), "=d" (edx)
+		     : "c" (ecx));
+	return pkru;
+}
+
+static inline void __write_pkru(u32 pkru)
+{
+	u32 ecx = 0, edx = 0;
+
+	/*
+	 * "wrpkru" instruction.  Loads contents in EAX to PKRU,
+	 * requires that ecx = edx = 0.
+	 */
+	asm volatile(".byte 0x0f,0x01,0xef\n\t"
+		     : : "a" (pkru), "c"(ecx), "d"(edx));
+}
+#else
+static inline u32 __read_pkru(void)
+{
+	return 0;
+}
+
+static inline void __write_pkru(u32 pkru)
+{
+}
+#endif
+
 static inline void native_wbinvd(void)
 {
 	asm volatile("wbinvd": : :"memory");

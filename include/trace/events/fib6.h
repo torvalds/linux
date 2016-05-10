@@ -37,7 +37,7 @@ TRACE_EVENT(fib6_table_lookup,
 		__entry->tb_id = tb_id;
 		__entry->oif = flp->flowi6_oif;
 		__entry->iif = flp->flowi6_iif;
-		__entry->tos = flp->flowi6_tos;
+		__entry->tos = ip6_tclass(flp->flowlabel);
 		__entry->scope = flp->flowi6_scope;
 		__entry->flags = flp->flowi6_flags;
 

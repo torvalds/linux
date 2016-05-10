@@ -22,19 +22,18 @@ struct tracepoint_path {
 	struct tracepoint_path *next;
 };
 
-extern struct tracepoint_path *tracepoint_id_to_path(u64 config);
-extern struct tracepoint_path *tracepoint_name_to_path(const char *name);
-extern bool have_tracepoints(struct list_head *evlist);
+struct tracepoint_path *tracepoint_id_to_path(u64 config);
+struct tracepoint_path *tracepoint_name_to_path(const char *name);
+bool have_tracepoints(struct list_head *evlist);
 
 const char *event_type(int type);
 
-extern int parse_events_option(const struct option *opt, const char *str,
-			       int unset);
-extern int parse_events(struct perf_evlist *evlist, const char *str,
-			struct parse_events_error *error);
-extern int parse_events_terms(struct list_head *terms, const char *str);
-extern int parse_filter(const struct option *opt, const char *str, int unset);
-extern int exclude_perf(const struct option *opt, const char *arg, int unset);
+int parse_events_option(const struct option *opt, const char *str, int unset);
+int parse_events(struct perf_evlist *evlist, const char *str,
+		 struct parse_events_error *error);
+int parse_events_terms(struct list_head *terms, const char *str);
+int parse_filter(const struct option *opt, const char *str, int unset);
+int exclude_perf(const struct option *opt, const char *arg, int unset);
 
 #define EVENTS_HELP_MAX (128*1024)
 
@@ -183,7 +182,7 @@ void print_symbol_events(const char *event_glob, unsigned type,
 void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 			     bool name_only);
 int print_hwcache_events(const char *event_glob, bool name_only);
-extern int is_valid_tracepoint(const char *event_string);
+int is_valid_tracepoint(const char *event_string);
 
 int valid_event_mount(const char *eventfs);
 char *parse_events_formats_error_string(char *additional_terms);

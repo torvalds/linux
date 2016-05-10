@@ -494,13 +494,13 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 							*scan_chan_list,
 				 u8 filtered_scan)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int chan_idx = 0, i;
 
-	for (band = 0; (band < IEEE80211_NUM_BANDS) ; band++) {
+	for (band = 0; (band < NUM_NL80211_BANDS) ; band++) {
 
 		if (!priv->wdev.wiphy->bands[band])
 			continue;
@@ -557,13 +557,13 @@ mwifiex_bgscan_create_channel_list(struct mwifiex_private *priv,
 				   struct mwifiex_chan_scan_param_set
 						*scan_chan_list)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int chan_idx = 0, i;
 
-	for (band = 0; (band < IEEE80211_NUM_BANDS); band++) {
+	for (band = 0; (band < NUM_NL80211_BANDS); band++) {
 		if (!priv->wdev.wiphy->bands[band])
 			continue;
 

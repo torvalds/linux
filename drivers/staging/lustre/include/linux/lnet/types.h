@@ -514,7 +514,7 @@ typedef struct {
 	/**
 	 * Starting offset of the fragment within the page. Note that the
 	 * end of the fragment must not pass the end of the page; i.e.,
-	 * kiov_len + kiov_offset <= PAGE_CACHE_SIZE.
+	 * kiov_len + kiov_offset <= PAGE_SIZE.
 	 */
 	unsigned int	 kiov_offset;
 } lnet_kiov_t;

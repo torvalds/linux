@@ -6,13 +6,13 @@
 #if defined(__sparc__) && defined(__arch64__)
 /* 64 bit sparc */
 struct stat {
-	unsigned   st_dev;
+	unsigned int st_dev;
 	ino_t   st_ino;
 	mode_t  st_mode;
 	short   st_nlink;
 	uid_t   st_uid;
 	gid_t   st_gid;
-	unsigned   st_rdev;
+	unsigned int st_rdev;
 	off_t   st_size;
 	time_t  st_atime;
 	time_t  st_mtime;

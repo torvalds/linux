@@ -149,7 +149,7 @@ int ath10k_htt_connect(struct ath10k_htt *htt)
 	memset(&conn_resp, 0, sizeof(conn_resp));
 
 	conn_req.ep_ops.ep_tx_complete = ath10k_htt_htc_tx_complete;
-	conn_req.ep_ops.ep_rx_complete = ath10k_htt_t2h_msg_handler;
+	conn_req.ep_ops.ep_rx_complete = ath10k_htt_htc_t2h_msg_handler;
 
 	/* connect to control service */
 	conn_req.service_id = ATH10K_HTC_SVC_ID_HTT_DATA_MSG;

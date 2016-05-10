@@ -5427,10 +5427,8 @@ void pevent_print_event_time(struct pevent *pevent, struct trace_seq *s,
 	}
 
 	if (pevent->latency_format) {
-		trace_seq_printf(s, " %3d", record->cpu);
 		pevent_data_lat_fmt(pevent, s, record);
-	} else
-		trace_seq_printf(s, " [%03d]", record->cpu);
+	}
 
 	if (use_usec_format) {
 		if (pevent->flags & PEVENT_NSEC_OUTPUT) {

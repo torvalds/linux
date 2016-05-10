@@ -235,8 +235,8 @@
 #define __NR_io_getevents       (__NR_Linux + 217)
 #define __NR_io_submit          (__NR_Linux + 218)
 #define __NR_io_cancel          (__NR_Linux + 219)
-#define __NR_alloc_hugepages    (__NR_Linux + 220)
-#define __NR_free_hugepages     (__NR_Linux + 221)
+#define __NR_alloc_hugepages    (__NR_Linux + 220) /* not used */
+#define __NR_free_hugepages     (__NR_Linux + 221) /* not used */
 #define __NR_exit_group         (__NR_Linux + 222)
 #define __NR_lookup_dcookie     (__NR_Linux + 223)
 #define __NR_epoll_create       (__NR_Linux + 224)
@@ -362,8 +362,10 @@
 #define __NR_userfaultfd	(__NR_Linux + 344)
 #define __NR_mlock2		(__NR_Linux + 345)
 #define __NR_copy_file_range	(__NR_Linux + 346)
+#define __NR_preadv2		(__NR_Linux + 347)
+#define __NR_pwritev2		(__NR_Linux + 348)
 
-#define __NR_Linux_syscalls	(__NR_copy_file_range + 1)
+#define __NR_Linux_syscalls	(__NR_pwritev2 + 1)
 
 
 #define __IGNORE_select		/* newselect */

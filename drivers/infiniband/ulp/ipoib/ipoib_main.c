@@ -51,6 +51,7 @@
 #include <net/addrconf.h>
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
+#include <linux/pci.h>
 
 #define DRV_VERSION "1.0.0"
 
@@ -1590,11 +1591,67 @@ void ipoib_dev_cleanup(struct net_device *dev)
 	priv->tx_ring = NULL;
 }
 
+static int ipoib_set_vf_link_state(struct net_device *dev, int vf, int link_state)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+
+	return ib_set_vf_link_state(priv->ca, vf, priv->port, link_state);
+}
+
+static int ipoib_get_vf_config(struct net_device *dev, int vf,
+			       struct ifla_vf_info *ivf)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	int err;
+
+	err = ib_get_vf_config(priv->ca, vf, priv->port, ivf);
+	if (err)
+		return err;
+
+	ivf->vf = vf;
+
+	return 0;
+}
+
+static int ipoib_set_vf_guid(struct net_device *dev, int vf, u64 guid, int type)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+
+	if (type != IFLA_VF_IB_NODE_GUID && type != IFLA_VF_IB_PORT_GUID)
+		return -EINVAL;
+
+	return ib_set_vf_guid(priv->ca, vf, priv->port, guid, type);
+}
+
+static int ipoib_get_vf_stats(struct net_device *dev, int vf,
+			      struct ifla_vf_stats *vf_stats)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+
+	return ib_get_vf_stats(priv->ca, vf, priv->port, vf_stats);
+}
+
 static const struct header_ops ipoib_header_ops = {
 	.create	= ipoib_hard_header,
 };
 
-static const struct net_device_ops ipoib_netdev_ops = {
+static const struct net_device_ops ipoib_netdev_ops_pf = {
+	.ndo_uninit		 = ipoib_uninit,
+	.ndo_open		 = ipoib_open,
+	.ndo_stop		 = ipoib_stop,
+	.ndo_change_mtu		 = ipoib_change_mtu,
+	.ndo_fix_features	 = ipoib_fix_features,
+	.ndo_start_xmit		 = ipoib_start_xmit,
+	.ndo_tx_timeout		 = ipoib_timeout,
+	.ndo_set_rx_mode	 = ipoib_set_mcast_list,
+	.ndo_get_iflink		 = ipoib_get_iflink,
+	.ndo_set_vf_link_state	 = ipoib_set_vf_link_state,
+	.ndo_get_vf_config	 = ipoib_get_vf_config,
+	.ndo_get_vf_stats	 = ipoib_get_vf_stats,
+	.ndo_set_vf_guid	 = ipoib_set_vf_guid,
+};
+
+static const struct net_device_ops ipoib_netdev_ops_vf = {
 	.ndo_uninit		 = ipoib_uninit,
 	.ndo_open		 = ipoib_open,
 	.ndo_stop		 = ipoib_stop,
@@ -1610,7 +1667,11 @@ void ipoib_setup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	dev->netdev_ops		 = &ipoib_netdev_ops;
+	if (priv->hca_caps & IB_DEVICE_VIRTUAL_FUNCTION)
+		dev->netdev_ops	= &ipoib_netdev_ops_vf;
+	else
+		dev->netdev_ops	= &ipoib_netdev_ops_pf;
+
 	dev->header_ops		 = &ipoib_header_ops;
 
 	ipoib_set_ethtool_ops(dev);

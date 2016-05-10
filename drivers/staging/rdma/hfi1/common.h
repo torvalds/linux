@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -341,19 +338,16 @@ struct hfi1_message_header {
 #define FULL_MGMT_P_KEY      0xFFFF
 
 #define DEFAULT_P_KEY LIM_MGMT_P_KEY
-#define HFI1_PERMISSIVE_LID 0xFFFF
 #define HFI1_AETH_CREDIT_SHIFT 24
 #define HFI1_AETH_CREDIT_MASK 0x1F
 #define HFI1_AETH_CREDIT_INVAL 0x1F
 #define HFI1_MSN_MASK 0xFFFFFF
-#define HFI1_QPN_MASK 0xFFFFFF
 #define HFI1_FECN_SHIFT 31
 #define HFI1_FECN_MASK 1
-#define HFI1_FECN_SMASK (1 << HFI1_FECN_SHIFT)
+#define HFI1_FECN_SMASK BIT(HFI1_FECN_SHIFT)
 #define HFI1_BECN_SHIFT 30
 #define HFI1_BECN_MASK 1
-#define HFI1_BECN_SMASK (1 << HFI1_BECN_SHIFT)
-#define HFI1_MULTICAST_LID_BASE 0xC000
+#define HFI1_BECN_SMASK BIT(HFI1_BECN_SHIFT)
 
 static inline __u64 rhf_to_cpu(const __le32 *rbuf)
 {

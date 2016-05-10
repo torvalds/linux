@@ -570,11 +570,12 @@ int intel_pmu_drain_bts_buffer(void)
 	 * We will overwrite the from and to address before we output
 	 * the sample.
 	 */
+	rcu_read_lock();
 	perf_prepare_sample(&header, &data, event, &regs);
 
 	if (perf_output_begin(&handle, event, header.size *
 			      (top - base - skip)))
-		return 1;
+		goto unlock;
 
 	for (at = base; at < top; at++) {
 		/* Filter out any records that contain kernel addresses. */
@@ -593,6 +594,8 @@ int intel_pmu_drain_bts_buffer(void)
 	/* There's new data available. */
 	event->hw.interrupts++;
 	event->pending_kill = POLL_IN;
+unlock:
+	rcu_read_unlock();
 	return 1;
 }
 

@@ -48,6 +48,9 @@ extern bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 				     struct drm_display_mode *mode,
 				     int x, int y,
 				     struct drm_framebuffer *old_fb);
+extern void drm_helper_crtc_enable_color_mgmt(struct drm_crtc *crtc,
+					      int degamma_lut_size,
+					      int gamma_lut_size);
 extern bool drm_helper_crtc_in_use(struct drm_crtc *crtc);
 extern bool drm_helper_encoder_in_use(struct drm_encoder *encoder);
 

@@ -1,6 +1,6 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
- * Copyright (c) 2014-2015 Broadcom Corporation
+ * Copyright (c) 2014-2016 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -771,12 +771,8 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 			    PORT_PHY_QCFG_RESP_LINK_NO_LINK) {
 				phy_qcfg_resp.link =
 					PORT_PHY_QCFG_RESP_LINK_LINK;
-				if (phy_qcfg_resp.auto_link_speed)
-					phy_qcfg_resp.link_speed =
-						phy_qcfg_resp.auto_link_speed;
-				else
-					phy_qcfg_resp.link_speed =
-						phy_qcfg_resp.force_link_speed;
+				phy_qcfg_resp.link_speed = cpu_to_le16(
+					PORT_PHY_QCFG_RESP_LINK_SPEED_10GB);
 				phy_qcfg_resp.duplex =
 					PORT_PHY_QCFG_RESP_DUPLEX_FULL;
 				phy_qcfg_resp.pause =
@@ -859,8 +855,8 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 	 *    default but the stored zero MAC will allow the VF user to change
 	 *    the random MAC address using ndo_set_mac_address() if he wants.
 	 */
-	if (!ether_addr_equal(resp->perm_mac_address, bp->vf.mac_addr))
-		memcpy(bp->vf.mac_addr, resp->perm_mac_address, ETH_ALEN);
+	if (!ether_addr_equal(resp->mac_address, bp->vf.mac_addr))
+		memcpy(bp->vf.mac_addr, resp->mac_address, ETH_ALEN);
 
 	/* overwrite netdev dev_addr with admin VF MAC */
 	if (is_valid_ether_addr(bp->vf.mac_addr))

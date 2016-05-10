@@ -119,6 +119,64 @@ struct vxlanhdr_gbp {
 #define VXLAN_GBP_POLICY_APPLIED	(BIT(3) << 16)
 #define VXLAN_GBP_ID_MASK		(0xFFFF)
 
+/*
+ * VXLAN Generic Protocol Extension (VXLAN_F_GPE):
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |R|R|Ver|I|P|R|O|       Reserved                |Next Protocol  |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                VXLAN Network Identifier (VNI) |   Reserved    |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ * Ver = Version. Indicates VXLAN GPE protocol version.
+ *
+ * P = Next Protocol Bit. The P bit is set to indicate that the
+ *     Next Protocol field is present.
+ *
+ * O = OAM Flag Bit. The O bit is set to indicate that the packet
+ *     is an OAM packet.
+ *
+ * Next Protocol = This 8 bit field indicates the protocol header
+ * immediately following the VXLAN GPE header.
+ *
+ * https://tools.ietf.org/html/draft-ietf-nvo3-vxlan-gpe-01
+ */
+
+struct vxlanhdr_gpe {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u8	oam_flag:1,
+		reserved_flags1:1,
+		np_applied:1,
+		instance_applied:1,
+		version:2,
+reserved_flags2:2;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u8	reserved_flags2:2,
+		version:2,
+		instance_applied:1,
+		np_applied:1,
+		reserved_flags1:1,
+		oam_flag:1;
+#endif
+	u8	reserved_flags3;
+	u8	reserved_flags4;
+	u8	next_protocol;
+	__be32	vx_vni;
+};
+
+/* VXLAN-GPE header flags. */
+#define VXLAN_HF_VER	cpu_to_be32(BIT(29) | BIT(28))
+#define VXLAN_HF_NP	cpu_to_be32(BIT(26))
+#define VXLAN_HF_OAM	cpu_to_be32(BIT(24))
+
+#define VXLAN_GPE_USED_BITS (VXLAN_HF_VER | VXLAN_HF_NP | VXLAN_HF_OAM | \
+			     cpu_to_be32(0xff))
+
+/* VXLAN-GPE header Next Protocol. */
+#define VXLAN_GPE_NP_IPV4      0x01
+#define VXLAN_GPE_NP_IPV6      0x02
+#define VXLAN_GPE_NP_ETHERNET  0x03
+#define VXLAN_GPE_NP_NSH       0x04
+
 struct vxlan_metadata {
 	u32		gbp;
 };
@@ -131,7 +189,6 @@ struct vxlan_sock {
 	struct rcu_head	  rcu;
 	struct hlist_head vni_list[VNI_HASH_SIZE];
 	atomic_t	  refcnt;
-	struct udp_offload udp_offloads;
 	u32		  flags;
 };
 
@@ -206,14 +263,24 @@ struct vxlan_dev {
 #define VXLAN_F_GBP			0x800
 #define VXLAN_F_REMCSUM_NOPARTIAL	0x1000
 #define VXLAN_F_COLLECT_METADATA	0x2000
+#define VXLAN_F_GPE			0x4000
 
 /* Flags that are used in the receive path. These flags must match in
  * order for a socket to be shareable
  */
 #define VXLAN_F_RCV_FLAGS		(VXLAN_F_GBP |			\
+					 VXLAN_F_GPE |			\
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
 					 VXLAN_F_REMCSUM_RX |		\
 					 VXLAN_F_REMCSUM_NOPARTIAL |	\
+					 VXLAN_F_COLLECT_METADATA)
+
+/* Flags that can be set together with VXLAN_F_GPE. */
+#define VXLAN_F_ALLOWED_GPE		(VXLAN_F_GPE |			\
+					 VXLAN_F_IPV6 |			\
+					 VXLAN_F_UDP_ZERO_CSUM_TX |	\
+					 VXLAN_F_UDP_ZERO_CSUM6_TX |	\
+					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
 					 VXLAN_F_COLLECT_METADATA)
 
 struct net_device *vxlan_dev_create(struct net *net, const char *name,
@@ -271,36 +338,36 @@ static inline struct vxlanhdr *vxlan_hdr(struct sk_buff *skb)
 static inline __be32 vxlan_vni(__be32 vni_field)
 {
 #if defined(__BIG_ENDIAN)
-	return vni_field >> 8;
+	return (__force __be32)((__force u32)vni_field >> 8);
 #else
-	return (vni_field & VXLAN_VNI_MASK) << 8;
+	return (__force __be32)((__force u32)(vni_field & VXLAN_VNI_MASK) << 8);
 #endif
 }
 
 static inline __be32 vxlan_vni_field(__be32 vni)
 {
 #if defined(__BIG_ENDIAN)
-	return vni << 8;
+	return (__force __be32)((__force u32)vni << 8);
 #else
-	return vni >> 8;
+	return (__force __be32)((__force u32)vni >> 8);
 #endif
 }
 
 static inline __be32 vxlan_tun_id_to_vni(__be64 tun_id)
 {
 #if defined(__BIG_ENDIAN)
-	return tun_id;
+	return (__force __be32)tun_id;
 #else
-	return tun_id >> 32;
+	return (__force __be32)((__force u64)tun_id >> 32);
 #endif
 }
 
 static inline __be64 vxlan_vni_to_tun_id(__be32 vni)
 {
 #if defined(__BIG_ENDIAN)
-	return (__be64)vni;
+	return (__force __be64)vni;
 #else
-	return (__be64)vni << 32;
+	return (__force __be64)((u64)(__force u32)vni << 32);
 #endif
 }
 

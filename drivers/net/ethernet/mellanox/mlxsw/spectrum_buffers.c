@@ -34,6 +34,8 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/dcbnl.h>
+#include <linux/if_ether.h>
 
 #include "spectrum.h"
 #include "core.h"
@@ -52,15 +54,15 @@ struct mlxsw_sp_pb {
 	}
 
 static const struct mlxsw_sp_pb mlxsw_sp_pbs[] = {
-	MLXSW_SP_PB(0, 208),
-	MLXSW_SP_PB(1, 208),
-	MLXSW_SP_PB(2, 208),
-	MLXSW_SP_PB(3, 208),
-	MLXSW_SP_PB(4, 208),
-	MLXSW_SP_PB(5, 208),
-	MLXSW_SP_PB(6, 208),
-	MLXSW_SP_PB(7, 208),
-	MLXSW_SP_PB(9, 208),
+	MLXSW_SP_PB(0, 2 * MLXSW_SP_BYTES_TO_CELLS(ETH_FRAME_LEN)),
+	MLXSW_SP_PB(1, 0),
+	MLXSW_SP_PB(2, 0),
+	MLXSW_SP_PB(3, 0),
+	MLXSW_SP_PB(4, 0),
+	MLXSW_SP_PB(5, 0),
+	MLXSW_SP_PB(6, 0),
+	MLXSW_SP_PB(7, 0),
+	MLXSW_SP_PB(9, 2 * MLXSW_SP_BYTES_TO_CELLS(MLXSW_PORT_MAX_MTU)),
 };
 
 #define MLXSW_SP_PBS_LEN ARRAY_SIZE(mlxsw_sp_pbs)
@@ -78,25 +80,45 @@ static int mlxsw_sp_port_pb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 		pb = &mlxsw_sp_pbs[i];
 		mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl, pb->index, pb->size);
 	}
+	mlxsw_reg_pbmc_lossy_buffer_pack(pbmc_pl,
+					 MLXSW_REG_PBMC_PORT_SHARED_BUF_IDX, 0);
 	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core,
 			       MLXSW_REG(pbmc), pbmc_pl);
 }
 
-#define MLXSW_SP_SB_BYTES_PER_CELL 96
+static int mlxsw_sp_port_pb_prio_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	char pptb_pl[MLXSW_REG_PPTB_LEN];
+	int i;
+
+	mlxsw_reg_pptb_pack(pptb_pl, mlxsw_sp_port->local_port);
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		mlxsw_reg_pptb_prio_to_buff_set(pptb_pl, i, 0);
+	return mlxsw_reg_write(mlxsw_sp_port->mlxsw_sp->core, MLXSW_REG(pptb),
+			       pptb_pl);
+}
+
+static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	int err;
+
+	err = mlxsw_sp_port_pb_init(mlxsw_sp_port);
+	if (err)
+		return err;
+	return mlxsw_sp_port_pb_prio_init(mlxsw_sp_port);
+}
 
 struct mlxsw_sp_sb_pool {
 	u8 pool;
-	enum mlxsw_reg_sbpr_dir dir;
+	enum mlxsw_reg_sbxx_dir dir;
 	enum mlxsw_reg_sbpr_mode mode;
 	u32 size;
 };
 
 #define MLXSW_SP_SB_POOL_INGRESS_SIZE				\
-	((15000000 - (2 * 20000 * MLXSW_PORT_MAX_PORTS)) /	\
-	 MLXSW_SP_SB_BYTES_PER_CELL)
+	(15000000 - (2 * 20000 * MLXSW_PORT_MAX_PORTS))
 #define MLXSW_SP_SB_POOL_EGRESS_SIZE				\
-	((14000000 - (8 * 1500 * MLXSW_PORT_MAX_PORTS)) /	\
-	 MLXSW_SP_SB_BYTES_PER_CELL)
+	(14000000 - (8 * 1500 * MLXSW_PORT_MAX_PORTS))
 
 #define MLXSW_SP_SB_POOL(_pool, _dir, _mode, _size)		\
 	{							\
@@ -107,22 +129,22 @@ struct mlxsw_sp_sb_pool {
 	}
 
 #define MLXSW_SP_SB_POOL_INGRESS(_pool, _size)			\
-	MLXSW_SP_SB_POOL(_pool, MLXSW_REG_SBPR_DIR_INGRESS,	\
+	MLXSW_SP_SB_POOL(_pool, MLXSW_REG_SBXX_DIR_INGRESS,	\
 			 MLXSW_REG_SBPR_MODE_DYNAMIC, _size)
 
 #define MLXSW_SP_SB_POOL_EGRESS(_pool, _size)			\
-	MLXSW_SP_SB_POOL(_pool, MLXSW_REG_SBPR_DIR_EGRESS,	\
+	MLXSW_SP_SB_POOL(_pool, MLXSW_REG_SBXX_DIR_EGRESS,	\
 			 MLXSW_REG_SBPR_MODE_DYNAMIC, _size)
 
 static const struct mlxsw_sp_sb_pool mlxsw_sp_sb_pools[] = {
-	MLXSW_SP_SB_POOL_INGRESS(0, MLXSW_SP_SB_POOL_INGRESS_SIZE),
+	MLXSW_SP_SB_POOL_INGRESS(0, MLXSW_SP_BYTES_TO_CELLS(MLXSW_SP_SB_POOL_INGRESS_SIZE)),
 	MLXSW_SP_SB_POOL_INGRESS(1, 0),
 	MLXSW_SP_SB_POOL_INGRESS(2, 0),
 	MLXSW_SP_SB_POOL_INGRESS(3, 0),
-	MLXSW_SP_SB_POOL_EGRESS(0, MLXSW_SP_SB_POOL_EGRESS_SIZE),
+	MLXSW_SP_SB_POOL_EGRESS(0, MLXSW_SP_BYTES_TO_CELLS(MLXSW_SP_SB_POOL_EGRESS_SIZE)),
 	MLXSW_SP_SB_POOL_EGRESS(1, 0),
 	MLXSW_SP_SB_POOL_EGRESS(2, 0),
-	MLXSW_SP_SB_POOL_EGRESS(2, MLXSW_SP_SB_POOL_EGRESS_SIZE),
+	MLXSW_SP_SB_POOL_EGRESS(2, MLXSW_SP_BYTES_TO_CELLS(MLXSW_SP_SB_POOL_EGRESS_SIZE)),
 };
 
 #define MLXSW_SP_SB_POOLS_LEN ARRAY_SIZE(mlxsw_sp_sb_pools)
@@ -151,7 +173,7 @@ struct mlxsw_sp_sb_cm {
 		u8 pg;
 		u8 tc;
 	} u;
-	enum mlxsw_reg_sbcm_dir dir;
+	enum mlxsw_reg_sbxx_dir dir;
 	u32 min_buff;
 	u32 max_buff;
 	u8 pool;
@@ -167,18 +189,18 @@ struct mlxsw_sp_sb_cm {
 	}
 
 #define MLXSW_SP_SB_CM_INGRESS(_pg, _min_buff, _max_buff)		\
-	MLXSW_SP_SB_CM(_pg, MLXSW_REG_SBCM_DIR_INGRESS,			\
+	MLXSW_SP_SB_CM(_pg, MLXSW_REG_SBXX_DIR_INGRESS,			\
 		       _min_buff, _max_buff, 0)
 
 #define MLXSW_SP_SB_CM_EGRESS(_tc, _min_buff, _max_buff)		\
-	MLXSW_SP_SB_CM(_tc, MLXSW_REG_SBCM_DIR_EGRESS,			\
+	MLXSW_SP_SB_CM(_tc, MLXSW_REG_SBXX_DIR_EGRESS,			\
 		       _min_buff, _max_buff, 0)
 
 #define MLXSW_SP_CPU_PORT_SB_CM_EGRESS(_tc)				\
-	MLXSW_SP_SB_CM(_tc, MLXSW_REG_SBCM_DIR_EGRESS, 104, 2, 3)
+	MLXSW_SP_SB_CM(_tc, MLXSW_REG_SBXX_DIR_EGRESS, 104, 2, 3)
 
 static const struct mlxsw_sp_sb_cm mlxsw_sp_sb_cms[] = {
-	MLXSW_SP_SB_CM_INGRESS(0, 10000 / MLXSW_SP_SB_BYTES_PER_CELL, 8),
+	MLXSW_SP_SB_CM_INGRESS(0, MLXSW_SP_BYTES_TO_CELLS(10000), 8),
 	MLXSW_SP_SB_CM_INGRESS(1, 0, 0),
 	MLXSW_SP_SB_CM_INGRESS(2, 0, 0),
 	MLXSW_SP_SB_CM_INGRESS(3, 0, 0),
@@ -186,15 +208,15 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp_sb_cms[] = {
 	MLXSW_SP_SB_CM_INGRESS(5, 0, 0),
 	MLXSW_SP_SB_CM_INGRESS(6, 0, 0),
 	MLXSW_SP_SB_CM_INGRESS(7, 0, 0),
-	MLXSW_SP_SB_CM_INGRESS(9, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff),
-	MLXSW_SP_SB_CM_EGRESS(0, 1500 / MLXSW_SP_SB_BYTES_PER_CELL, 9),
-	MLXSW_SP_SB_CM_EGRESS(1, 1500 / MLXSW_SP_SB_BYTES_PER_CELL, 9),
-	MLXSW_SP_SB_CM_EGRESS(2, 1500 / MLXSW_SP_SB_BYTES_PER_CELL, 9),
-	MLXSW_SP_SB_CM_EGRESS(3, 1500 / MLXSW_SP_SB_BYTES_PER_CELL, 9),
-	MLXSW_SP_SB_CM_EGRESS(4, 1500 / MLXSW_SP_SB_BYTES_PER_CELL, 9),
-	MLXSW_SP_SB_CM_EGRESS(5, 1500 / MLXSW_SP_SB_BYTES_PER_CELL, 9),
-	MLXSW_SP_SB_CM_EGRESS(6, 1500 / MLXSW_SP_SB_BYTES_PER_CELL, 9),
-	MLXSW_SP_SB_CM_EGRESS(7, 1500 / MLXSW_SP_SB_BYTES_PER_CELL, 9),
+	MLXSW_SP_SB_CM_INGRESS(9, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff),
+	MLXSW_SP_SB_CM_EGRESS(0, MLXSW_SP_BYTES_TO_CELLS(1500), 9),
+	MLXSW_SP_SB_CM_EGRESS(1, MLXSW_SP_BYTES_TO_CELLS(1500), 9),
+	MLXSW_SP_SB_CM_EGRESS(2, MLXSW_SP_BYTES_TO_CELLS(1500), 9),
+	MLXSW_SP_SB_CM_EGRESS(3, MLXSW_SP_BYTES_TO_CELLS(1500), 9),
+	MLXSW_SP_SB_CM_EGRESS(4, MLXSW_SP_BYTES_TO_CELLS(1500), 9),
+	MLXSW_SP_SB_CM_EGRESS(5, MLXSW_SP_BYTES_TO_CELLS(1500), 9),
+	MLXSW_SP_SB_CM_EGRESS(6, MLXSW_SP_BYTES_TO_CELLS(1500), 9),
+	MLXSW_SP_SB_CM_EGRESS(7, MLXSW_SP_BYTES_TO_CELLS(1500), 9),
 	MLXSW_SP_SB_CM_EGRESS(8, 0, 0),
 	MLXSW_SP_SB_CM_EGRESS(9, 0, 0),
 	MLXSW_SP_SB_CM_EGRESS(10, 0, 0),
@@ -282,7 +304,7 @@ static int mlxsw_sp_cpu_port_sb_cms_init(struct mlxsw_sp *mlxsw_sp)
 
 struct mlxsw_sp_sb_pm {
 	u8 pool;
-	enum mlxsw_reg_sbpm_dir dir;
+	enum mlxsw_reg_sbxx_dir dir;
 	u32 min_buff;
 	u32 max_buff;
 };
@@ -296,11 +318,11 @@ struct mlxsw_sp_sb_pm {
 	}
 
 #define MLXSW_SP_SB_PM_INGRESS(_pool, _min_buff, _max_buff)	\
-	MLXSW_SP_SB_PM(_pool, MLXSW_REG_SBPM_DIR_INGRESS,	\
+	MLXSW_SP_SB_PM(_pool, MLXSW_REG_SBXX_DIR_INGRESS,	\
 		       _min_buff, _max_buff)
 
 #define MLXSW_SP_SB_PM_EGRESS(_pool, _min_buff, _max_buff)	\
-	MLXSW_SP_SB_PM(_pool, MLXSW_REG_SBPM_DIR_EGRESS,	\
+	MLXSW_SP_SB_PM(_pool, MLXSW_REG_SBXX_DIR_EGRESS,	\
 		       _min_buff, _max_buff)
 
 static const struct mlxsw_sp_sb_pm mlxsw_sp_sb_pms[] = {
@@ -353,21 +375,21 @@ struct mlxsw_sp_sb_mm {
 	}
 
 static const struct mlxsw_sp_sb_mm mlxsw_sp_sb_mms[] = {
-	MLXSW_SP_SB_MM(0, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(1, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(2, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(3, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(4, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(5, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(6, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(7, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(8, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(9, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(10, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(11, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(12, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(13, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
-	MLXSW_SP_SB_MM(14, 20000 / MLXSW_SP_SB_BYTES_PER_CELL, 0xff, 0),
+	MLXSW_SP_SB_MM(0, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(1, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(2, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(3, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(4, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(5, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(6, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(7, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(8, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(9, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(10, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(11, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(12, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(13, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
+	MLXSW_SP_SB_MM(14, MLXSW_SP_BYTES_TO_CELLS(20000), 0xff, 0),
 };
 
 #define MLXSW_SP_SB_MMS_LEN ARRAY_SIZE(mlxsw_sp_sb_mms)
@@ -410,7 +432,7 @@ int mlxsw_sp_port_buffers_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	int err;
 
-	err = mlxsw_sp_port_pb_init(mlxsw_sp_port);
+	err = mlxsw_sp_port_headroom_init(mlxsw_sp_port);
 	if (err)
 		return err;
 	err = mlxsw_sp_port_sb_cms_init(mlxsw_sp_port);

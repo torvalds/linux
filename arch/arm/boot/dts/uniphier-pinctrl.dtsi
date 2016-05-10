@@ -63,6 +63,11 @@
 		function = "i2c3";
 	};
 
+	pinctrl_i2c4: i2c4_grp {
+		groups = "i2c4";
+		function = "i2c4";
+	};
+
 	pinctrl_uart0: uart0_grp {
 		groups = "uart0";
 		function = "uart0";

@@ -192,6 +192,10 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 
 	pr_efi(sys_table, "Booting Linux Kernel...\n");
 
+	status = check_platform_features(sys_table);
+	if (status != EFI_SUCCESS)
+		goto fail;
+
 	/*
 	 * Get a handle to the loaded image protocol.  This is used to get
 	 * information about the running image, such as size and the command

@@ -257,6 +257,17 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static inline unsigned FNAME(gpte_pkeys)(struct kvm_vcpu *vcpu, u64 gpte)
+{
+	unsigned pkeys = 0;
+#if PTTYPE == 64
+	pte_t pte = {.pte = gpte};
+
+	pkeys = pte_flags_pkey(pte_flags(pte));
+#endif
+	return pkeys;
+}
+
 /*
  * Fetch a guest pte for a guest virtual address
  */
@@ -268,7 +279,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	pt_element_t pte;
 	pt_element_t __user *uninitialized_var(ptep_user);
 	gfn_t table_gfn;
-	unsigned index, pt_access, pte_access, accessed_dirty;
+	unsigned index, pt_access, pte_access, accessed_dirty, pte_pkey;
 	gpa_t pte_gpa;
 	int offset;
 	const int write_fault = access & PFERR_WRITE_MASK;
@@ -359,10 +370,10 @@ retry_walk:
 		walker->ptes[walker->level - 1] = pte;
 	} while (!is_last_gpte(mmu, walker->level, pte));
 
-	if (unlikely(permission_fault(vcpu, mmu, pte_access, access))) {
-		errcode |= PFERR_PRESENT_MASK;
+	pte_pkey = FNAME(gpte_pkeys)(vcpu, pte);
+	errcode = permission_fault(vcpu, mmu, pte_access, pte_pkey, access);
+	if (unlikely(errcode))
 		goto error;
-	}
 
 	gfn = gpte_to_gfn_lvl(pte, walker->level);
 	gfn += (addr & PT_LVL_OFFSET_MASK(walker->level)) >> PAGE_SHIFT;
@@ -949,6 +960,12 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 			return 0;
 
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
+			/*
+			 * Update spte before increasing tlbs_dirty to make
+			 * sure no tlb flush is lost after spte is zapped; see
+			 * the comments in kvm_flush_remote_tlbs().
+			 */
+			smp_wmb();
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
@@ -964,6 +981,11 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		if (gfn != sp->gfns[i]) {
 			drop_spte(vcpu->kvm, &sp->spt[i]);
+			/*
+			 * The same as above where we are doing
+			 * prefetch_invalid_gpte().
+			 */
+			smp_wmb();
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}

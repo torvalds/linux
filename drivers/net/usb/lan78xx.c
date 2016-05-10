@@ -3261,54 +3261,6 @@ void lan78xx_tx_timeout(struct net_device *net)
 	tasklet_schedule(&dev->bh);
 }
 
-struct rtnl_link_stats64 *lan78xx_get_stats64(struct net_device *netdev,
-					      struct rtnl_link_stats64 *storage)
-{
-	struct lan78xx_net *dev = netdev_priv(netdev);
-	struct lan78xx_statstage64 stats;
-
-	/* curr_stat is updated by timer.
-	 * periodic reading from HW will prevent from entering USB auto suspend.
-	 * if autosuspend is disabled, read from HW.
-	 */
-	if (!dev->udev->dev.power.runtime_auto)
-		lan78xx_update_stats(dev);
-
-	mutex_lock(&dev->stats.access_lock);
-	memcpy(&stats, &dev->stats.curr_stat, sizeof(stats));
-	mutex_unlock(&dev->stats.access_lock);
-
-	/* calc by driver */
-	storage->rx_packets = (__u64)netdev->stats.rx_packets;
-	storage->tx_packets = (__u64)netdev->stats.tx_packets;
-	storage->rx_bytes = (__u64)netdev->stats.rx_bytes;
-	storage->tx_bytes = (__u64)netdev->stats.tx_bytes;
-
-	/* use counter */
-	storage->rx_length_errors = stats.rx_undersize_frame_errors +
-				    stats.rx_oversize_frame_errors;
-	storage->rx_crc_errors = stats.rx_fcs_errors;
-	storage->rx_frame_errors = stats.rx_alignment_errors;
-	storage->rx_fifo_errors = stats.rx_dropped_frames;
-	storage->rx_over_errors = stats.rx_oversize_frame_errors;
-	storage->rx_errors = stats.rx_fcs_errors +
-			     stats.rx_alignment_errors +
-			     stats.rx_fragment_errors +
-			     stats.rx_jabber_errors +
-			     stats.rx_undersize_frame_errors +
-			     stats.rx_oversize_frame_errors +
-			     stats.rx_dropped_frames;
-
-	storage->tx_carrier_errors = stats.tx_carrier_errors;
-	storage->tx_errors = stats.tx_fcs_errors +
-			     stats.tx_excess_deferral_errors +
-			     stats.tx_carrier_errors;
-
-	storage->multicast = stats.rx_multicast_frames;
-
-	return storage;
-}
-
 static const struct net_device_ops lan78xx_netdev_ops = {
 	.ndo_open		= lan78xx_open,
 	.ndo_stop		= lan78xx_stop,
@@ -3322,7 +3274,6 @@ static const struct net_device_ops lan78xx_netdev_ops = {
 	.ndo_set_features	= lan78xx_set_features,
 	.ndo_vlan_rx_add_vid	= lan78xx_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= lan78xx_vlan_rx_kill_vid,
-	.ndo_get_stats64	= lan78xx_get_stats64,
 };
 
 static void lan78xx_stat_monitor(unsigned long param)

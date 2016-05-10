@@ -68,7 +68,7 @@ void il4965_rx_replenish(struct il_priv *il);
 void il4965_rx_replenish_now(struct il_priv *il);
 void il4965_rx_queue_free(struct il_priv *il, struct il_rx_queue *rxq);
 int il4965_rxq_stop(struct il_priv *il);
-int il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
+int il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum nl80211_band band);
 void il4965_rx_handle(struct il_priv *il);
 
 /* tx */

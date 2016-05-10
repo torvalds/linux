@@ -29,6 +29,8 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/memblock.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -172,6 +174,7 @@ disable:
 #endif
 }
 
+#ifndef CONFIG_GENERIC_CALIBRATE_DELAY
 void calibrate_delay(void)
 {
 	struct clk *clk = clk_get(NULL, "cpu_clk");
@@ -187,6 +190,7 @@ void calibrate_delay(void)
 			 (loops_per_jiffy/(5000/HZ)) % 100,
 			 loops_per_jiffy);
 }
+#endif
 
 void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 						unsigned long end_pfn)
@@ -237,6 +241,29 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 void __init __weak plat_early_device_setup(void)
 {
 }
+
+#ifdef CONFIG_OF
+void __ref sh_fdt_init(phys_addr_t dt_phys)
+{
+	static int done = 0;
+	void *dt_virt;
+
+	/* Avoid calling an __init function on secondary cpus. */
+	if (done) return;
+
+	dt_virt = phys_to_virt(dt_phys);
+
+	if (!dt_virt || !early_init_dt_scan(dt_virt)) {
+		pr_crit("Error: invalid device tree blob"
+			" at physical address %p\n", (void *)dt_phys);
+
+		while (true)
+			cpu_relax();
+	}
+
+	done = 1;
+}
+#endif
 
 void __init setup_arch(char **cmdline_p)
 {

@@ -501,7 +501,8 @@ static int ila_nl_dump_start(struct netlink_callback *cb)
 	struct ila_net *ilan = net_generic(net, ila_net_id);
 	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args;
 
-	return rhashtable_walk_init(&ilan->rhash_table, &iter->rhiter);
+	return rhashtable_walk_init(&ilan->rhash_table, &iter->rhiter,
+				    GFP_KERNEL);
 }
 
 static int ila_nl_dump_done(struct netlink_callback *cb)

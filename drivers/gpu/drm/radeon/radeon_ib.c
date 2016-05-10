@@ -274,7 +274,7 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
 			if (i == RADEON_RING_TYPE_GFX_INDEX) {
 				/* oh, oh, that's really bad */
 				DRM_ERROR("radeon: failed testing IB on GFX ring (%d).\n", r);
-		                rdev->accel_working = false;
+				rdev->accel_working = false;
 				return r;
 
 			} else {
@@ -304,7 +304,7 @@ static int radeon_debugfs_sa_info(struct seq_file *m, void *data)
 }
 
 static struct drm_info_list radeon_debugfs_sa_list[] = {
-        {"radeon_sa_info", &radeon_debugfs_sa_info, 0, NULL},
+	{"radeon_sa_info", &radeon_debugfs_sa_info, 0, NULL},
 };
 
 #endif

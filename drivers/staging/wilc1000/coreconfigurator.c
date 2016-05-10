@@ -338,8 +338,10 @@ s32 wilc_parse_network_info(u8 *msg_buffer,
 
 		if (ies_len > 0) {
 			network_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
-			if (!network_info->ies)
+			if (!network_info->ies) {
+				kfree(network_info);
 				return -ENOMEM;
+			}
 		}
 		network_info->ies_len = ies_len;
 	}
@@ -373,8 +375,10 @@ s32 wilc_parse_assoc_resp_info(u8 *buffer, u32 buffer_len,
 					    AID_LEN);
 
 		connect_resp_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
-		if (!connect_resp_info->ies)
+		if (!connect_resp_info->ies) {
+			kfree(connect_resp_info);
 			return -ENOMEM;
+		}
 
 		connect_resp_info->ies_len = ies_len;
 	}

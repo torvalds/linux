@@ -22,6 +22,7 @@
 #include <net/cfg80211.h>
 #include <linux/timex.h>
 #include <linux/types.h>
+#include "wmi.h"
 #include "wil_platform.h"
 
 extern bool no_fw_recovery;
@@ -131,6 +132,7 @@ struct RGF_ICR {
 /* registers - FW addresses */
 #define RGF_USER_USAGE_1		(0x880004)
 #define RGF_USER_USAGE_6		(0x880018)
+	#define BIT_USER_OOB_MODE		BIT(31)
 #define RGF_USER_HW_MACHINE_STATE	(0x8801dc)
 	#define HW_MACHINE_BOOT_DONE	(0x3fffffd)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
@@ -334,29 +336,11 @@ struct wil6210_mbox_hdr {
 /* max. value for wil6210_mbox_hdr.len */
 #define MAX_MBOXITEM_SIZE   (240)
 
-/**
- * struct wil6210_mbox_hdr_wmi - WMI header
- *
- * @mid: MAC ID
- *	00 - default, created by FW
- *	01..0f - WiFi ports, driver to create
- *	10..fe - debug
- *	ff - broadcast
- * @id: command/event ID
- * @timestamp: FW fills for events, free-running msec timer
- */
-struct wil6210_mbox_hdr_wmi {
-	u8 mid;
-	u8 reserved;
-	__le16 id;
-	__le32 timestamp;
-} __packed;
-
 struct pending_wmi_event {
 	struct list_head list;
 	struct {
 		struct wil6210_mbox_hdr hdr;
-		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_cmd_hdr wmi;
 		u8 data[0];
 	} __packed event;
 };
@@ -455,6 +439,29 @@ struct wil_tid_ampdu_rx {
 	bool first_time; /* is it 1-st time this buffer used? */
 };
 
+/**
+ * struct wil_tid_crypto_rx_single - TID crypto information (Rx).
+ *
+ * @pn: GCMP PN for the session
+ * @key_set: valid key present
+ */
+struct wil_tid_crypto_rx_single {
+	u8 pn[IEEE80211_GCMP_PN_LEN];
+	bool key_set;
+};
+
+struct wil_tid_crypto_rx {
+	struct wil_tid_crypto_rx_single key_id[4];
+};
+
+struct wil_p2p_info {
+	struct ieee80211_channel listen_chan;
+	u8 discovery_started;
+	u64 cookie;
+	struct timer_list discovery_timer; /* listen/search duration */
+	struct work_struct discovery_expired_work; /* listen/search expire */
+};
+
 enum wil_sta_status {
 	wil_sta_unused = 0,
 	wil_sta_conn_pending = 1,
@@ -474,6 +481,7 @@ struct wil_net_stats {
 	unsigned long	rx_non_data_frame;
 	unsigned long	rx_short_frame;
 	unsigned long	rx_large_frame;
+	unsigned long	rx_replay;
 	u16 last_mcs_rx;
 	u64 rx_per_mcs[WIL_MCS_MAX + 1];
 };
@@ -495,6 +503,8 @@ struct wil_sta_info {
 	spinlock_t tid_rx_lock; /* guarding tid_rx array */
 	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
+	struct wil_tid_crypto_rx tid_crypto_rx[WIL_STA_TID_NUM];
+	struct wil_tid_crypto_rx group_crypto_rx;
 };
 
 enum {
@@ -505,24 +515,6 @@ enum {
 
 enum {
 	hw_capability_last
-};
-
-struct wil_back_rx {
-	struct list_head list;
-	/* request params, converted to CPU byte order - what we asked for */
-	u8 cidxtid;
-	u8 dialog_token;
-	u16 ba_param_set;
-	u16 ba_timeout;
-	u16 ba_seq_ctrl;
-};
-
-struct wil_back_tx {
-	struct list_head list;
-	/* request params, converted to CPU byte order - what we asked for */
-	u8 ringid;
-	u8 agg_wsize;
-	u16 agg_timeout;
 };
 
 struct wil_probe_client_req {
@@ -595,13 +587,6 @@ struct wil6210_priv {
 	spinlock_t wmi_ev_lock;
 	struct napi_struct napi_rx;
 	struct napi_struct napi_tx;
-	/* BACK */
-	struct list_head back_rx_pending;
-	struct mutex back_rx_mutex; /* protect @back_rx_pending */
-	struct work_struct back_rx_worker;
-	struct list_head back_tx_pending;
-	struct mutex back_tx_mutex; /* protect @back_tx_pending */
-	struct work_struct back_tx_worker;
 	/* keep alive */
 	struct list_head probe_client_pending;
 	struct mutex probe_client_mutex; /* protect @probe_client_pending */
@@ -622,11 +607,21 @@ struct wil6210_priv {
 	/* debugfs */
 	struct dentry *debug;
 	struct debugfs_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
+	u8 discovery_mode;
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
 
 	struct pmc_ctx pmc;
+
+	bool pbss;
+
+	struct wil_p2p_info p2p;
+
+	/* P2P_DEVICE vif */
+	struct wireless_dev *p2p_wdev;
+	struct mutex p2p_wdev_mutex; /* protect @p2p_wdev */
+	struct wireless_dev *radio_wdev;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -722,6 +717,7 @@ void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_reset(struct wil6210_priv *wil, bool no_fw);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
+bool wil_is_recovery_blocked(struct wil6210_priv *wil);
 int wil_up(struct wil6210_priv *wil);
 int __wil_up(struct wil6210_priv *wil);
 int wil_down(struct wil6210_priv *wil);
@@ -752,7 +748,6 @@ int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
-int wmi_p2p_cfg(struct wil6210_priv *wil, int channel);
 int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
 int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason,
@@ -765,11 +760,7 @@ int wmi_addba_rx_resp(struct wil6210_priv *wil, u8 cid, u8 tid, u8 token,
 int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
 			 u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
-void wil_back_rx_worker(struct work_struct *work);
-void wil_back_rx_flush(struct wil6210_priv *wil);
 int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize);
-void wil_back_tx_worker(struct work_struct *work);
-void wil_back_tx_flush(struct wil6210_priv *wil);
 
 void wil6210_clear_irq(struct wil6210_priv *wil);
 int wil6210_init_irq(struct wil6210_priv *wil, int irq, bool use_msi);
@@ -779,6 +770,24 @@ void wil_unmask_irq(struct wil6210_priv *wil);
 void wil_configure_interrupt_moderation(struct wil6210_priv *wil);
 void wil_disable_irq(struct wil6210_priv *wil);
 void wil_enable_irq(struct wil6210_priv *wil);
+
+/* P2P */
+void wil_p2p_discovery_timer_fn(ulong x);
+int wil_p2p_search(struct wil6210_priv *wil,
+		   struct cfg80211_scan_request *request);
+int wil_p2p_listen(struct wil6210_priv *wil, unsigned int duration,
+		   struct ieee80211_channel *chan, u64 *cookie);
+u8 wil_p2p_stop_discovery(struct wil6210_priv *wil);
+int wil_p2p_cancel_listen(struct wil6210_priv *wil, u64 cookie);
+void wil_p2p_listen_expired(struct work_struct *work);
+void wil_p2p_search_expired(struct work_struct *work);
+
+/* WMI for P2P */
+int wmi_p2p_cfg(struct wil6210_priv *wil, int channel, int bi);
+int wmi_start_listen(struct wil6210_priv *wil);
+int wmi_start_search(struct wil6210_priv *wil);
+int wmi_stop_discovery(struct wil6210_priv *wil);
+
 int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct cfg80211_mgmt_tx_params *params,
 			 u64 *cookie);
@@ -790,10 +799,11 @@ int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 
 struct wireless_dev *wil_cfg80211_init(struct device *dev);
 void wil_wdev_free(struct wil6210_priv *wil);
+void wil_p2p_wdev_free(struct wil6210_priv *wil);
 
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
 int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
-		  u8 chan, u8 hidden_ssid);
+		  u8 chan, u8 hidden_ssid, u8 is_go);
 int wmi_pcp_stop(struct wil6210_priv *wil);
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			u16 reason_code, bool from_event);

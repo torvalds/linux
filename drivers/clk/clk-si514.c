@@ -313,7 +313,7 @@ static int si514_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	init.ops = &si514_clk_ops;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 	init.num_parents = 0;
 	data->hw.init = &init;
 	data->i2c_client = client;

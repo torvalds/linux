@@ -145,14 +145,14 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 }
 
 static bool ath9k_hw_get_nf_thresh(struct ath_hw *ah,
-				   enum ieee80211_band band,
+				   enum nl80211_band band,
 				   int16_t *nft)
 {
 	switch (band) {
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		*nft = (int8_t)ah->eep_ops->get_eeprom(ah, EEP_NFTHRESH_5);
 		break;
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		*nft = (int8_t)ah->eep_ops->get_eeprom(ah, EEP_NFTHRESH_2);
 		break;
 	default:

@@ -88,20 +88,20 @@
 		reg = <0xffff78 8>;
 		interrupts = <88 0>, <89 0>, <90 0>, <91 0>;
 		clocks = <&fclk>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 	};
 	sci1: serial@ffff80 {
 		compatible = "renesas,sci";
 		reg = <0xffff80 8>;
 		interrupts = <92 0>, <93 0>, <94 0>, <95 0>;
 		clocks = <&fclk>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 	};
 	sci2: serial@ffff88 {
 		compatible = "renesas,sci";
 		reg = <0xffff88 8>;
 		interrupts = <96 0>, <97 0>, <98 0>, <99 0>;
 		clocks = <&fclk>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 	};
 };

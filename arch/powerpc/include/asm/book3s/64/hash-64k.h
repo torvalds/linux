@@ -1,15 +1,14 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_HASH_64K_H
 #define _ASM_POWERPC_BOOK3S_64_HASH_64K_H
 
-#include <asm-generic/pgtable-nopud.h>
-
 #define PTE_INDEX_SIZE  8
-#define PMD_INDEX_SIZE  10
-#define PUD_INDEX_SIZE	0
+#define PMD_INDEX_SIZE  5
+#define PUD_INDEX_SIZE	5
 #define PGD_INDEX_SIZE  12
 
 #define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
 #define PTRS_PER_PMD	(1 << PMD_INDEX_SIZE)
+#define PTRS_PER_PUD	(1 << PUD_INDEX_SIZE)
 #define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
 
 /* With 4k base page size, hugepage PTEs go at the PMD level */
@@ -20,13 +19,18 @@
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 
-/* PGDIR_SHIFT determines what a third-level page table entry can map */
-#define PGDIR_SHIFT	(PMD_SHIFT + PMD_INDEX_SIZE)
+/* PUD_SHIFT determines what a third-level page table entry can map */
+#define PUD_SHIFT	(PMD_SHIFT + PMD_INDEX_SIZE)
+#define PUD_SIZE	(1UL << PUD_SHIFT)
+#define PUD_MASK	(~(PUD_SIZE-1))
+
+/* PGDIR_SHIFT determines what a fourth-level page table entry can map */
+#define PGDIR_SHIFT	(PUD_SHIFT + PUD_INDEX_SIZE)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
-#define _PAGE_COMBO	0x00040000 /* this is a combo 4k page */
-#define _PAGE_4K_PFN	0x00080000 /* PFN is for a single 4k page */
+#define _PAGE_COMBO	0x00001000 /* this is a combo 4k page */
+#define _PAGE_4K_PFN	0x00002000 /* PFN is for a single 4k page */
 /*
  * Used to track subpage group valid if _PAGE_COMBO is set
  * This overloads _PAGE_F_GIX and _PAGE_F_SECOND
@@ -39,10 +43,12 @@
 
 /* Shift to put page number into pte.
  *
- * That gives us a max RPN of 34 bits, which means a max of 50 bits
- * of addressable physical space, or 46 bits for the special 4k PFNs.
+ * That gives us a max RPN of 41 bits, which means a max of 57 bits
+ * of addressable physical space, or 53 bits for the special 4k PFNs.
  */
-#define PTE_RPN_SHIFT	(30)
+#define PTE_RPN_SHIFT	(16)
+#define PTE_RPN_SIZE	(41)
+
 /*
  * we support 16 fragments per PTE page of 64K size.
  */
@@ -54,13 +60,12 @@
 #define PTE_FRAG_SIZE_SHIFT  12
 #define PTE_FRAG_SIZE (1UL << PTE_FRAG_SIZE_SHIFT)
 
-/*
- * Bits to mask out from a PMD to get to the PTE page
- * PMDs point to PTE table fragments which are PTE_FRAG_SIZE aligned.
- */
-#define PMD_MASKED_BITS		(PTE_FRAG_SIZE - 1)
-/* Bits to mask out from a PGD/PUD to get to the PMD page */
-#define PUD_MASKED_BITS		0x1ff
+/* Bits to mask out from a PMD to get to the PTE page */
+#define PMD_MASKED_BITS		0xc0000000000000ffUL
+/* Bits to mask out from a PUD to get to the PMD page */
+#define PUD_MASKED_BITS		0xc0000000000000ffUL
+/* Bits to mask out from a PGD to get to the PUD page */
+#define PGD_MASKED_BITS		0xc0000000000000ffUL
 
 #ifndef __ASSEMBLY__
 
@@ -120,7 +125,7 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 	(((pte) & _PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)
 
 #define remap_4k_pfn(vma, addr, pfn, prot)				\
-	(WARN_ON(((pfn) >= (1UL << (64 - PTE_RPN_SHIFT)))) ? -EINVAL :	\
+	(WARN_ON(((pfn) >= (1UL << PTE_RPN_SIZE))) ? -EINVAL :	\
 		remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE,	\
 			__pgprot(pgprot_val((prot)) | _PAGE_4K_PFN)))
 
@@ -130,10 +135,8 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 #else
 #define PMD_TABLE_SIZE	(sizeof(pmd_t) << PMD_INDEX_SIZE)
 #endif
+#define PUD_TABLE_SIZE	(sizeof(pud_t) << PUD_INDEX_SIZE)
 #define PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
-
-#define pgd_pte(pgd)	(pud_pte(((pud_t){ pgd })))
-#define pte_pgd(pte)	((pgd_t)pte_pud(pte))
 
 #ifdef CONFIG_HUGETLB_PAGE
 /*
@@ -208,30 +211,30 @@ static inline char *get_hpte_slot_array(pmd_t *pmdp)
 /*
  * The linux hugepage PMD now include the pmd entries followed by the address
  * to the stashed pgtable_t. The stashed pgtable_t contains the hpte bits.
- * [ 1 bit secondary | 3 bit hidx | 1 bit valid | 000]. We use one byte per
+ * [ 000 | 1 bit secondary | 3 bit hidx | 1 bit valid]. We use one byte per
  * each HPTE entry. With 16MB hugepage and 64K HPTE we need 256 entries and
  * with 4K HPTE we need 4096 entries. Both will fit in a 4K pgtable_t.
  *
- * The last three bits are intentionally left to zero. This memory location
+ * The top three bits are intentionally left as zero. This memory location
  * are also used as normal page PTE pointers. So if we have any pointers
  * left around while we collapse a hugepage, we need to make sure
  * _PAGE_PRESENT bit of that is zero when we look at them
  */
 static inline unsigned int hpte_valid(unsigned char *hpte_slot_array, int index)
 {
-	return (hpte_slot_array[index] >> 3) & 0x1;
+	return hpte_slot_array[index] & 0x1;
 }
 
 static inline unsigned int hpte_hash_index(unsigned char *hpte_slot_array,
 					   int index)
 {
-	return hpte_slot_array[index] >> 4;
+	return hpte_slot_array[index] >> 1;
 }
 
 static inline void mark_hpte_slot_valid(unsigned char *hpte_slot_array,
 					unsigned int index, unsigned int hidx)
 {
-	hpte_slot_array[index] = hidx << 4 | 0x1 << 3;
+	hpte_slot_array[index] = (hidx << 1) | 0x1;
 }
 
 /*

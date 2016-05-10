@@ -746,8 +746,10 @@ struct ring_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 
 	rb->user_page = all_buf;
 	rb->data_pages[0] = all_buf + PAGE_SIZE;
-	rb->page_order = ilog2(nr_pages);
-	rb->nr_pages = !!nr_pages;
+	if (nr_pages) {
+		rb->nr_pages = 1;
+		rb->page_order = ilog2(nr_pages);
+	}
 
 	ring_buffer_init(rb, watermark, flags);
 

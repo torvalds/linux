@@ -104,6 +104,15 @@ struct dispc_features {
 	bool supports_sync_align:1;
 
 	bool has_writeback:1;
+
+	bool supports_double_pixel:1;
+
+	/*
+	 * Field order for VENC is different than HDMI. We should handle this in
+	 * some intelligent manner, but as the SoCs have either HDMI or VENC,
+	 * never both, we can just use this flag for now.
+	 */
+	bool reverse_ilace_field_order:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -2552,47 +2561,6 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 	return 0;
 }
 
-int dispc_ovl_check(enum omap_plane plane, enum omap_channel channel,
-		const struct omap_overlay_info *oi,
-		const struct omap_video_timings *timings,
-		int *x_predecim, int *y_predecim)
-{
-	enum omap_overlay_caps caps = dss_feat_get_overlay_caps(plane);
-	bool five_taps = true;
-	bool fieldmode = false;
-	u16 in_height = oi->height;
-	u16 in_width = oi->width;
-	bool ilace = timings->interlace;
-	u16 out_width, out_height;
-	int pos_x = oi->pos_x;
-	unsigned long pclk = dispc_mgr_pclk_rate(channel);
-	unsigned long lclk = dispc_mgr_lclk_rate(channel);
-
-	out_width = oi->out_width == 0 ? oi->width : oi->out_width;
-	out_height = oi->out_height == 0 ? oi->height : oi->out_height;
-
-	if (ilace && oi->height == out_height)
-		fieldmode = true;
-
-	if (ilace) {
-		if (fieldmode)
-			in_height /= 2;
-		out_height /= 2;
-
-		DSSDBG("adjusting for ilace: height %d, out_height %d\n",
-				in_height, out_height);
-	}
-
-	if (!dss_feat_color_mode_supported(plane, oi->color_mode))
-		return -EINVAL;
-
-	return dispc_ovl_calc_scaling(pclk, lclk, caps, timings, in_width,
-			in_height, out_width, out_height, oi->color_mode,
-			&five_taps, x_predecim, y_predecim, pos_x,
-			oi->rotation_type, false);
-}
-EXPORT_SYMBOL(dispc_ovl_check);
-
 static int dispc_ovl_setup_common(enum omap_plane plane,
 		enum omap_overlay_caps caps, u32 paddr, u32 p_uv_addr,
 		u16 screen_width, int pos_x, int pos_y, u16 width, u16 height,
@@ -2747,6 +2715,9 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 
 	dispc_ovl_configure_burst_type(plane, rotation_type);
 
+	if (dispc.feat->reverse_ilace_field_order)
+		swap(offset0, offset1);
+
 	dispc_ovl_set_ba0(plane, paddr + offset0);
 	dispc_ovl_set_ba1(plane, paddr + offset1);
 
@@ -2897,6 +2868,12 @@ bool dispc_ovl_enabled(enum omap_plane plane)
 	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
 }
 EXPORT_SYMBOL(dispc_ovl_enabled);
+
+enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channel)
+{
+	return dss_feat_get_supported_outputs(channel);
+}
+EXPORT_SYMBOL(dispc_mgr_get_supported_outputs);
 
 void dispc_mgr_enable(enum omap_channel channel, bool enable)
 {
@@ -3287,6 +3264,10 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	} else {
 		if (t.interlace)
 			t.y_res /= 2;
+
+		if (dispc.feat->supports_double_pixel)
+			REG_FLD_MOD(DISPC_CONTROL, t.double_pixel ? 1 : 0,
+				19, 17);
 	}
 
 	dispc_mgr_set_size(channel, t.x_res, t.y_res);
@@ -3951,6 +3932,8 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.set_max_preload	=	true,
 	.supports_sync_align	=	true,
 	.has_writeback		=	true,
+	.supports_double_pixel	=	true,
+	.reverse_ilace_field_order =	true,
 };
 
 static const struct dispc_features omap54xx_dispc_feats = {
@@ -3974,6 +3957,8 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.set_max_preload	=	true,
 	.supports_sync_align	=	true,
 	.has_writeback		=	true,
+	.supports_double_pixel	=	true,
+	.reverse_ilace_field_order =	true,
 };
 
 static int dispc_init_features(struct platform_device *pdev)
@@ -4129,8 +4114,6 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 
 	dispc_runtime_put();
 
-	dss_init_overlay_managers();
-
 	dss_debugfs_create_file("dispc", dispc_dump_regs);
 
 	return 0;
@@ -4144,8 +4127,6 @@ static void dispc_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
 	pm_runtime_disable(dev);
-
-	dss_uninit_overlay_managers();
 }
 
 static const struct component_ops dispc_component_ops = {

@@ -450,6 +450,199 @@ DEFINE_EVENT(cxl_pe_class, cxl_slbia,
 	TP_ARGS(ctx)
 );
 
+TRACE_EVENT(cxl_hcall,
+	TP_PROTO(u64 unit_address, u64 process_token, long rc),
+
+	TP_ARGS(unit_address, process_token, rc),
+
+	TP_STRUCT__entry(
+		__field(u64, unit_address)
+		__field(u64, process_token)
+		__field(long, rc)
+	),
+
+	TP_fast_assign(
+		__entry->unit_address = unit_address;
+		__entry->process_token = process_token;
+		__entry->rc = rc;
+	),
+
+	TP_printk("unit_address=0x%016llx process_token=0x%016llx rc=%li",
+		__entry->unit_address,
+		__entry->process_token,
+		__entry->rc
+	)
+);
+
+TRACE_EVENT(cxl_hcall_control,
+	TP_PROTO(u64 unit_address, char *fct, u64 p1, u64 p2, u64 p3,
+	u64 p4, unsigned long r4, long rc),
+
+	TP_ARGS(unit_address, fct, p1, p2, p3, p4, r4, rc),
+
+	TP_STRUCT__entry(
+		__field(u64, unit_address)
+		__field(char *, fct)
+		__field(u64, p1)
+		__field(u64, p2)
+		__field(u64, p3)
+		__field(u64, p4)
+		__field(unsigned long, r4)
+		__field(long, rc)
+	),
+
+	TP_fast_assign(
+		__entry->unit_address = unit_address;
+		__entry->fct = fct;
+		__entry->p1 = p1;
+		__entry->p2 = p2;
+		__entry->p3 = p3;
+		__entry->p4 = p4;
+		__entry->r4 = r4;
+		__entry->rc = rc;
+	),
+
+	TP_printk("unit_address=%#.16llx %s(%#llx, %#llx, %#llx, %#llx, R4: %#lx)): %li",
+		__entry->unit_address,
+		__entry->fct,
+		__entry->p1,
+		__entry->p2,
+		__entry->p3,
+		__entry->p4,
+		__entry->r4,
+		__entry->rc
+	)
+);
+
+TRACE_EVENT(cxl_hcall_attach,
+	TP_PROTO(u64 unit_address, u64 phys_addr, unsigned long process_token,
+		unsigned long mmio_addr, unsigned long mmio_size, long rc),
+
+	TP_ARGS(unit_address, phys_addr, process_token,
+		mmio_addr, mmio_size, rc),
+
+	TP_STRUCT__entry(
+		__field(u64, unit_address)
+		__field(u64, phys_addr)
+		__field(unsigned long, process_token)
+		__field(unsigned long, mmio_addr)
+		__field(unsigned long, mmio_size)
+		__field(long, rc)
+	),
+
+	TP_fast_assign(
+		__entry->unit_address = unit_address;
+		__entry->phys_addr = phys_addr;
+		__entry->process_token = process_token;
+		__entry->mmio_addr = mmio_addr;
+		__entry->mmio_size = mmio_size;
+		__entry->rc = rc;
+	),
+
+	TP_printk("unit_address=0x%016llx phys_addr=0x%016llx "
+		"token=0x%.8lx mmio_addr=0x%lx mmio_size=0x%lx rc=%li",
+		__entry->unit_address,
+		__entry->phys_addr,
+		__entry->process_token,
+		__entry->mmio_addr,
+		__entry->mmio_size,
+		__entry->rc
+	)
+);
+
+DEFINE_EVENT(cxl_hcall, cxl_hcall_detach,
+	TP_PROTO(u64 unit_address, u64 process_token, long rc),
+	TP_ARGS(unit_address, process_token, rc)
+);
+
+DEFINE_EVENT(cxl_hcall_control, cxl_hcall_control_function,
+	TP_PROTO(u64 unit_address, char *fct, u64 p1, u64 p2, u64 p3,
+	u64 p4, unsigned long r4, long rc),
+	TP_ARGS(unit_address, fct, p1, p2, p3, p4, r4, rc)
+);
+
+DEFINE_EVENT(cxl_hcall, cxl_hcall_collect_int_info,
+	TP_PROTO(u64 unit_address, u64 process_token, long rc),
+	TP_ARGS(unit_address, process_token, rc)
+);
+
+TRACE_EVENT(cxl_hcall_control_faults,
+	TP_PROTO(u64 unit_address, u64 process_token,
+		u64 control_mask, u64 reset_mask, unsigned long r4,
+		long rc),
+
+	TP_ARGS(unit_address, process_token,
+		control_mask, reset_mask, r4, rc),
+
+	TP_STRUCT__entry(
+		__field(u64, unit_address)
+		__field(u64, process_token)
+		__field(u64, control_mask)
+		__field(u64, reset_mask)
+		__field(unsigned long, r4)
+		__field(long, rc)
+	),
+
+	TP_fast_assign(
+		__entry->unit_address = unit_address;
+		__entry->process_token = process_token;
+		__entry->control_mask = control_mask;
+		__entry->reset_mask = reset_mask;
+		__entry->r4 = r4;
+		__entry->rc = rc;
+	),
+
+	TP_printk("unit_address=0x%016llx process_token=0x%llx "
+		"control_mask=%#llx reset_mask=%#llx r4=%#lx rc=%li",
+		__entry->unit_address,
+		__entry->process_token,
+		__entry->control_mask,
+		__entry->reset_mask,
+		__entry->r4,
+		__entry->rc
+	)
+);
+
+DEFINE_EVENT(cxl_hcall_control, cxl_hcall_control_facility,
+	TP_PROTO(u64 unit_address, char *fct, u64 p1, u64 p2, u64 p3,
+	u64 p4, unsigned long r4, long rc),
+	TP_ARGS(unit_address, fct, p1, p2, p3, p4, r4, rc)
+);
+
+TRACE_EVENT(cxl_hcall_download_facility,
+	TP_PROTO(u64 unit_address, char *fct, u64 list_address, u64 num,
+	unsigned long r4, long rc),
+
+	TP_ARGS(unit_address, fct, list_address, num, r4, rc),
+
+	TP_STRUCT__entry(
+		__field(u64, unit_address)
+		__field(char *, fct)
+		__field(u64, list_address)
+		__field(u64, num)
+		__field(unsigned long, r4)
+		__field(long, rc)
+	),
+
+	TP_fast_assign(
+		__entry->unit_address = unit_address;
+		__entry->fct = fct;
+		__entry->list_address = list_address;
+		__entry->num = num;
+		__entry->r4 = r4;
+		__entry->rc = rc;
+	),
+
+	TP_printk("%#.16llx, %s(%#llx, %#llx), %#lx): %li",
+		__entry->unit_address,
+		__entry->fct,
+		__entry->list_address,
+		__entry->num,
+		__entry->r4,
+		__entry->rc
+	)
+);
+
 #endif /* _CXL_TRACE_H */
 
 /* This part must be outside protection */

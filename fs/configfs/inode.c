@@ -201,9 +201,17 @@ int configfs_create(struct dentry * dentry, umode_t mode, void (*init)(struct in
 	configfs_set_inode_lock_class(sd, inode);
 
 	init(inode);
-	d_instantiate(dentry, inode);
-	if (S_ISDIR(mode) || S_ISLNK(mode))
+	if (S_ISDIR(mode) || S_ISLNK(mode)) {
+		/*
+		 * ->symlink(), ->mkdir(), configfs_register_subsystem() or
+		 * create_default_group() - already hashed.
+		 */
+		d_instantiate(dentry, inode);
 		dget(dentry);  /* pin link and directory dentries in core */
+	} else {
+		/* ->lookup() */
+		d_add(dentry, inode);
+	}
 	return error;
 }
 

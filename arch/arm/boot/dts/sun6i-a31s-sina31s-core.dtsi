@@ -61,12 +61,14 @@
 };
 
 /* eMMC on core board */
-&mmc2 {
+&mmc3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc2_8bit_emmc_pins>;
+	pinctrl-0 = <&mmc3_8bit_emmc_pins>;
 	vmmc-supply = <&reg_dcdc1>;
+	vqmmc-supply = <&reg_dcdc1>;
 	bus-width = <8>;
 	non-removable;
+	cap-mmc-hw-reset;
 	status = "okay";
 };
 

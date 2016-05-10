@@ -491,7 +491,8 @@ static const struct stmmac_ops dwmac1000_ops = {
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
-					int perfect_uc_entries)
+					int perfect_uc_entries,
+					int *synopsys_id)
 {
 	struct mac_device_info *mac;
 	u32 hwid = readl(ioaddr + GMAC_VERSION);
@@ -516,7 +517,9 @@ struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
 	mac->link.speed = GMAC_CONTROL_FES;
 	mac->mii.addr = GMAC_MII_ADDR;
 	mac->mii.data = GMAC_MII_DATA;
-	mac->synopsys_uid = hwid;
+
+	/* Get and dump the chip ID */
+	*synopsys_id = stmmac_get_synopsys_id(hwid);
 
 	return mac;
 }

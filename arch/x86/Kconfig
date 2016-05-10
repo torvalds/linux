@@ -28,6 +28,7 @@ config X86
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_KCOV			if X86_64
 	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_MMIO_FLUSH
 	select ARCH_HAS_SG_CHAIN
@@ -155,6 +156,9 @@ config X86
 	select VIRT_TO_BUS
 	select X86_DEV_DMA_OPS			if X86_64
 	select X86_FEATURE_NAMES		if PROC_FS
+	select HAVE_STACK_VALIDATION		if X86_64
+	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
+	select ARCH_HAS_PKEYS			if X86_INTEL_MEMORY_PROTECTION_KEYS
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -1206,6 +1210,15 @@ config MICROCODE_OLD_INTERFACE
 	def_bool y
 	depends on MICROCODE
 
+config PERF_EVENTS_AMD_POWER
+	depends on PERF_EVENTS && CPU_SUP_AMD
+	tristate "AMD Processor Power Reporting Mechanism"
+	---help---
+	  Provide power reporting mechanism support for AMD processors.
+	  Currently, it leverages X86_FEATURE_ACC_POWER
+	  (CPUID Fn8000_0007_EDX[12]) interface to calculate the
+	  average power consumption on Family 15h processors.
+
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
 	---help---
@@ -1717,6 +1730,20 @@ config X86_INTEL_MPX
 	  For details, see Documentation/x86/intel_mpx.txt
 
 	  If unsure, say N.
+
+config X86_INTEL_MEMORY_PROTECTION_KEYS
+	prompt "Intel Memory Protection Keys"
+	def_bool y
+	# Note: only available in 64-bit mode
+	depends on CPU_SUP_INTEL && X86_64
+	---help---
+	  Memory Protection Keys provides a mechanism for enforcing
+	  page-based protections, but without requiring modification of the
+	  page tables when an application changes protection domains.
+
+	  For details, see Documentation/x86/protection-keys.txt
+
+	  If unsure, say y.
 
 config EFI
 	bool "EFI runtime service support"

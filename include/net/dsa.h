@@ -299,8 +299,8 @@ struct dsa_switch_driver {
 	int	(*port_bridge_join)(struct dsa_switch *ds, int port,
 				    struct net_device *bridge);
 	void	(*port_bridge_leave)(struct dsa_switch *ds, int port);
-	int	(*port_stp_update)(struct dsa_switch *ds, int port,
-				   u8 state);
+	void	(*port_stp_state_set)(struct dsa_switch *ds, int port,
+				      u8 state);
 
 	/*
 	 * VLAN support
@@ -310,7 +310,7 @@ struct dsa_switch_driver {
 	int	(*port_vlan_prepare)(struct dsa_switch *ds, int port,
 				     const struct switchdev_obj_port_vlan *vlan,
 				     struct switchdev_trans *trans);
-	int	(*port_vlan_add)(struct dsa_switch *ds, int port,
+	void	(*port_vlan_add)(struct dsa_switch *ds, int port,
 				 const struct switchdev_obj_port_vlan *vlan,
 				 struct switchdev_trans *trans);
 	int	(*port_vlan_del)(struct dsa_switch *ds, int port,
@@ -325,7 +325,7 @@ struct dsa_switch_driver {
 	int	(*port_fdb_prepare)(struct dsa_switch *ds, int port,
 				    const struct switchdev_obj_port_fdb *fdb,
 				    struct switchdev_trans *trans);
-	int	(*port_fdb_add)(struct dsa_switch *ds, int port,
+	void	(*port_fdb_add)(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_fdb *fdb,
 				struct switchdev_trans *trans);
 	int	(*port_fdb_del)(struct dsa_switch *ds, int port,

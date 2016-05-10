@@ -1265,10 +1265,10 @@ struct ath5k_hw {
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
-	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band sbands[NUM_NL80211_BANDS];
 	struct ieee80211_channel channels[ATH_CHAN_MAX];
-	struct ieee80211_rate	rates[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
-	s8			rate_idx[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
+	struct ieee80211_rate	rates[NUM_NL80211_BANDS][AR5K_MAX_RATES];
+	s8			rate_idx[NUM_NL80211_BANDS][AR5K_MAX_RATES];
 	enum nl80211_iftype	opmode;
 
 #ifdef CONFIG_ATH5K_DEBUG
@@ -1532,7 +1532,7 @@ int ath5k_eeprom_mode_from_channel(struct ath5k_hw *ah,
 
 /* Protocol Control Unit Functions */
 /* Helpers */
-int ath5k_hw_get_frame_duration(struct ath5k_hw *ah, enum ieee80211_band band,
+int ath5k_hw_get_frame_duration(struct ath5k_hw *ah, enum nl80211_band band,
 		int len, struct ieee80211_rate *rate, bool shortpre);
 unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah);
 unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah);
@@ -1611,7 +1611,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel);
 
 /* PHY functions */
 /* Misc PHY functions */
-u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, enum ieee80211_band band);
+u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, enum nl80211_band band);
 int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* Gain_F optimization */
 enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah);

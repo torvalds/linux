@@ -75,39 +75,11 @@ struct sdhci_acpi_host {
 	const struct sdhci_acpi_slot	*slot;
 	struct platform_device		*pdev;
 	bool				use_runtime_pm;
-	bool				dma_setup;
 };
 
 static inline bool sdhci_acpi_flag(struct sdhci_acpi_host *c, unsigned int flag)
 {
 	return c->slot && (c->slot->flags & flag);
-}
-
-static int sdhci_acpi_enable_dma(struct sdhci_host *host)
-{
-	struct sdhci_acpi_host *c = sdhci_priv(host);
-	struct device *dev = &c->pdev->dev;
-	int err = -1;
-
-	if (c->dma_setup)
-		return 0;
-
-	if (host->flags & SDHCI_USE_64_BIT_DMA) {
-		if (host->quirks2 & SDHCI_QUIRK2_BROKEN_64_BIT_DMA) {
-			host->flags &= ~SDHCI_USE_64_BIT_DMA;
-		} else {
-			err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-			if (err)
-				dev_warn(dev, "Failed to set 64-bit DMA mask\n");
-		}
-	}
-
-	if (err)
-		err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-
-	c->dma_setup = !err;
-
-	return err;
 }
 
 static void sdhci_acpi_int_hw_reset(struct sdhci_host *host)
@@ -127,7 +99,6 @@ static void sdhci_acpi_int_hw_reset(struct sdhci_host *host)
 
 static const struct sdhci_ops sdhci_acpi_ops_dflt = {
 	.set_clock = sdhci_set_clock,
-	.enable_dma = sdhci_acpi_enable_dma,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
@@ -135,7 +106,6 @@ static const struct sdhci_ops sdhci_acpi_ops_dflt = {
 
 static const struct sdhci_ops sdhci_acpi_ops_int = {
 	.set_clock = sdhci_set_clock,
-	.enable_dma = sdhci_acpi_enable_dma,
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
@@ -264,6 +234,17 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
 	.probe_slot	= sdhci_acpi_sd_probe_slot,
 };
 
+static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd_3v = {
+	.quirks  = SDHCI_QUIRK_BROKEN_CARD_DETECTION,
+	.quirks2 = SDHCI_QUIRK2_NO_1_8_V,
+	.caps    = MMC_CAP_NONREMOVABLE,
+};
+
+static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd = {
+	.quirks  = SDHCI_QUIRK_BROKEN_CARD_DETECTION,
+	.caps    = MMC_CAP_NONREMOVABLE,
+};
+
 struct sdhci_acpi_uid_slot {
 	const char *hid;
 	const char *uid;
@@ -284,6 +265,8 @@ static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
 	{ "INT344D"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "PNP0FFF"  , "3" , &sdhci_acpi_slot_int_sd   },
 	{ "PNP0D40"  },
+	{ "QCOM8051", NULL, &sdhci_acpi_slot_qcom_sd_3v },
+	{ "QCOM8052", NULL, &sdhci_acpi_slot_qcom_sd },
 	{ },
 };
 
@@ -298,6 +281,8 @@ static const struct acpi_device_id sdhci_acpi_ids[] = {
 	{ "INT3436"  },
 	{ "INT344D"  },
 	{ "PNP0D40"  },
+	{ "QCOM8051" },
+	{ "QCOM8052" },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, sdhci_acpi_ids);
@@ -417,6 +402,8 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		pm_runtime_use_autosuspend(dev);
 		pm_runtime_enable(dev);
 	}
+
+	device_enable_async_suspend(dev);
 
 	return 0;
 

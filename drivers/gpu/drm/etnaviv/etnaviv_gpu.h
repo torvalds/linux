@@ -23,6 +23,7 @@
 #include "etnaviv_drv.h"
 
 struct etnaviv_gem_submit;
+struct etnaviv_vram_mapping;
 
 struct etnaviv_chip_identity {
 	/* Chip model. */
@@ -103,6 +104,7 @@ struct etnaviv_gpu {
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf *buffer;
+	int exec_state;
 
 	/* bus base address of memory  */
 	u32 memory_base;
@@ -166,7 +168,7 @@ struct etnaviv_cmdbuf {
 	struct list_head node;
 	/* BOs attached to this command buffer */
 	unsigned int nr_bos;
-	struct etnaviv_gem_object *bo[0];
+	struct etnaviv_vram_mapping *bo_map[0];
 };
 
 static inline void gpu_write(struct etnaviv_gpu *gpu, u32 reg, u32 data)

@@ -297,7 +297,7 @@
 
 	backup_led_pin: backup-led-pin {
 		marvell,pins = "mpp63";
-		marvell,function = "gpo";
+		marvell,function = "gpio";
 	};
 
 	power_led_pin: power-led-pin {
