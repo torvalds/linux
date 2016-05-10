@@ -90,7 +90,7 @@
 	@ Linux expects to have irqs off. Do it here before taking stack space
 	cpsid	i
 
-	sub	sp, #S_FRAME_SIZE-S_IP
+	sub	sp, #PT_REGS_SIZE-S_IP
 	stmdb	sp!, {r0-r11}
 
 	@ load saved r12, lr, return address and xPSR.
@@ -160,7 +160,7 @@
 	ldmia	sp!, {r0-r11}
 
 	@ restore main sp
-	add	sp, sp, #S_FRAME_SIZE-S_IP
+	add	sp, sp, #PT_REGS_SIZE-S_IP
 
 	cpsie	i
 	bx	lr
@@ -307,7 +307,7 @@
 	.endif
 	mov	r0, r0				@ ARMv5T and earlier require a nop
 						@ after ldm {}^
-	add	sp, sp, #\offset + S_FRAME_SIZE
+	add	sp, sp, #\offset + PT_REGS_SIZE
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 #elif defined(CONFIG_CPU_V7M)
 	@ V7M restore.
@@ -334,7 +334,7 @@
 	.else
 	ldmdb	sp, {r0 - r12}			@ get calling r0 - r12
 	.endif
-	add	sp, sp, #S_FRAME_SIZE - S_SP
+	add	sp, sp, #PT_REGS_SIZE - S_SP
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 #endif	/* !CONFIG_THUMB2_KERNEL */
 	.endm
