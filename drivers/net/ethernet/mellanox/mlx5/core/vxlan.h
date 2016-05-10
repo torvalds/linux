@@ -48,18 +48,12 @@ struct mlx5e_vxlan_work {
 
 static inline bool mlx5e_vxlan_allowed(struct mlx5_core_dev *mdev)
 {
-	return IS_ENABLED(CONFIG_MLX5_CORE_EN_VXLAN) &&
-		(MLX5_CAP_ETH(mdev, tunnel_stateless_vxlan) &&
+	return (MLX5_CAP_ETH(mdev, tunnel_stateless_vxlan) &&
 		mlx5_core_is_pf(mdev));
 }
 
-#ifdef CONFIG_MLX5_CORE_EN_VXLAN
 void mlx5e_vxlan_init(struct mlx5e_priv *priv);
 void mlx5e_vxlan_cleanup(struct mlx5e_priv *priv);
-#else
-static inline void mlx5e_vxlan_init(struct mlx5e_priv *priv) {}
-static inline void mlx5e_vxlan_cleanup(struct mlx5e_priv *priv) {}
-#endif
 
 void mlx5e_vxlan_queue_work(struct mlx5e_priv *priv, sa_family_t sa_family,
 			    u16 port, int add);
