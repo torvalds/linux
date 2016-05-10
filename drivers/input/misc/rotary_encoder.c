@@ -47,13 +47,13 @@ struct rotary_encoder {
 	bool armed;
 	signed char dir;	/* 1 - clockwise, -1 - CCW */
 
-	unsigned last_stable;
+	unsigned int last_stable;
 };
 
-static unsigned rotary_encoder_get_state(struct rotary_encoder *encoder)
+static unsigned int rotary_encoder_get_state(struct rotary_encoder *encoder)
 {
 	int i;
-	unsigned ret = 0;
+	unsigned int ret = 0;
 
 	for (i = 0; i < encoder->gpios->ndescs; ++i) {
 		int val = gpiod_get_value_cansleep(encoder->gpios->desc[i]);
@@ -100,7 +100,7 @@ static void rotary_encoder_report_event(struct rotary_encoder *encoder)
 static irqreturn_t rotary_encoder_irq(int irq, void *dev_id)
 {
 	struct rotary_encoder *encoder = dev_id;
-	unsigned state;
+	unsigned int state;
 
 	mutex_lock(&encoder->access_mutex);
 
