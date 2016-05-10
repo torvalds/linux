@@ -1345,7 +1345,8 @@ static int vop_create_crtc(struct vop *vop)
 		    win->type != DRM_PLANE_TYPE_CURSOR)
 			continue;
 
-		if (vop_plane_init(vop, win, 0))
+		ret = vop_plane_init(vop, win, 0);
+		if (ret)
 			goto err_cleanup_planes;
 
 		plane = &win->base;
@@ -1374,7 +1375,8 @@ static int vop_create_crtc(struct vop *vop)
 		if (win->type != DRM_PLANE_TYPE_OVERLAY)
 			continue;
 
-		if (vop_plane_init(vop, win, possible_crtcs))
+		ret = vop_plane_init(vop, win, possible_crtcs);
+		if (ret)
 			goto err_cleanup_crtc;
 	}
 
