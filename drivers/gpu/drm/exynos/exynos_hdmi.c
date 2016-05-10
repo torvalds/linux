@@ -146,6 +146,7 @@ struct hdmi_context {
 	struct clk			**clk_muxes;
 	struct regulator_bulk_data	regul_bulk[ARRAY_SIZE(supply)];
 	struct regulator		*reg_hdmi_en;
+	struct exynos_drm_clk		phy_clk;
 };
 
 static inline struct hdmi_context *encoder_to_hdmi(struct drm_encoder *e)
@@ -1445,7 +1446,6 @@ static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 
 static void hdmi_conf_apply(struct hdmi_context *hdata)
 {
-	hdmiphy_conf_apply(hdata);
 	hdmi_start(hdata, false);
 	hdmi_conf_init(hdata);
 	hdmi_audio_init(hdata);
@@ -1478,10 +1478,8 @@ static void hdmi_set_refclk(struct hdmi_context *hdata, bool on)
 			   SYSREG_HDMI_REFCLK_INT_CLK, on ? ~0 : 0);
 }
 
-static void hdmi_enable(struct drm_encoder *encoder)
+static void hdmiphy_enable(struct hdmi_context *hdata)
 {
-	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
-
 	if (hdata->powered)
 		return;
 
@@ -1497,9 +1495,38 @@ static void hdmi_enable(struct drm_encoder *encoder)
 
 	hdmi_reg_writemask(hdata, HDMI_PHY_CON_0, 0, HDMI_PHY_POWER_OFF_EN);
 
-	hdmi_conf_apply(hdata);
+	hdmiphy_conf_apply(hdata);
 
 	hdata->powered = true;
+}
+
+static void hdmiphy_disable(struct hdmi_context *hdata)
+{
+	if (!hdata->powered)
+		return;
+
+	hdmi_reg_writemask(hdata, HDMI_CON_0, 0, HDMI_EN);
+
+	hdmi_reg_writemask(hdata, HDMI_PHY_CON_0, ~0, HDMI_PHY_POWER_OFF_EN);
+
+	hdmi_set_refclk(hdata, false);
+
+	regmap_update_bits(hdata->pmureg, PMU_HDMI_PHY_CONTROL,
+			PMU_HDMI_PHY_ENABLE_BIT, 0);
+
+	regulator_bulk_disable(ARRAY_SIZE(supply), hdata->regul_bulk);
+
+	pm_runtime_put_sync(hdata->dev);
+
+	hdata->powered = false;
+}
+
+static void hdmi_enable(struct drm_encoder *encoder)
+{
+	struct hdmi_context *hdata = encoder_to_hdmi(encoder);
+
+	hdmiphy_enable(hdata);
+	hdmi_conf_apply(hdata);
 }
 
 static void hdmi_disable(struct drm_encoder *encoder)
@@ -1525,22 +1552,9 @@ static void hdmi_disable(struct drm_encoder *encoder)
 	if (funcs && funcs->disable)
 		(*funcs->disable)(crtc);
 
-	hdmi_reg_writemask(hdata, HDMI_CON_0, 0, HDMI_EN);
-
 	cancel_delayed_work(&hdata->hotplug_work);
 
-	hdmi_reg_writemask(hdata, HDMI_PHY_CON_0, ~0, HDMI_PHY_POWER_OFF_EN);
-
-	hdmi_set_refclk(hdata, false);
-
-	regmap_update_bits(hdata->pmureg, PMU_HDMI_PHY_CONTROL,
-			PMU_HDMI_PHY_ENABLE_BIT, 0);
-
-	regulator_bulk_disable(ARRAY_SIZE(supply), hdata->regul_bulk);
-
-	pm_runtime_put_sync(hdata->dev);
-
-	hdata->powered = false;
+	hdmiphy_disable(hdata);
 }
 
 static const struct drm_encoder_helper_funcs exynos_hdmi_encoder_helper_funcs = {
@@ -1624,6 +1638,17 @@ static int hdmi_clk_init(struct hdmi_context *hdata)
 	return hdmi_clks_get(hdata, &drv_data->clk_muxes, hdata->clk_muxes);
 }
 
+
+static void hdmiphy_clk_enable(struct exynos_drm_clk *clk, bool enable)
+{
+	struct hdmi_context *hdata = container_of(clk, struct hdmi_context,
+						  phy_clk);
+
+	if (enable)
+		hdmiphy_enable(hdata);
+	else
+		hdmiphy_disable(hdata);
+}
 
 static int hdmi_resources_init(struct hdmi_context *hdata)
 {
@@ -1709,6 +1734,10 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 						  EXYNOS_DISPLAY_TYPE_HDMI);
 	if (pipe < 0)
 		return pipe;
+
+	hdata->phy_clk.enable = hdmiphy_clk_enable;
+
+	exynos_drm_crtc_from_pipe(drm_dev, pipe)->pipe_clk = &hdata->phy_clk;
 
 	encoder->possible_crtcs = 1 << pipe;
 
