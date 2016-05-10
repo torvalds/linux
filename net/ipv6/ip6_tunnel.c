@@ -1114,8 +1114,6 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 		dst_cache_set_ip6(&t->dst_cache, ndst, &fl6->saddr);
 	skb_dst_set(skb, dst);
 
-	skb->transport_header = skb->network_header;
-
 	if (encap_limit >= 0) {
 		init_tel_txopt(&opt, encap_limit);
 		ipv6_push_nfrag_opts(skb, &opt.ops, &proto, NULL);
