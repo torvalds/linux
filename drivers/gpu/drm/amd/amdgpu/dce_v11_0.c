@@ -1602,6 +1602,7 @@ static const u32 pin_offsets[] =
 	AUD4_REGISTER_OFFSET,
 	AUD5_REGISTER_OFFSET,
 	AUD6_REGISTER_OFFSET,
+	AUD7_REGISTER_OFFSET,
 };
 
 static int dce_v11_0_audio_init(struct amdgpu_device *adev)

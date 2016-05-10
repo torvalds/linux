@@ -54,7 +54,8 @@
 #define AUD3_REGISTER_OFFSET                 (0x17b4 - 0x17a8)
 #define AUD4_REGISTER_OFFSET                 (0x17b8 - 0x17a8)
 #define AUD5_REGISTER_OFFSET                 (0x17bc - 0x17a8)
-#define AUD6_REGISTER_OFFSET                 (0x17c4 - 0x17a8)
+#define AUD6_REGISTER_OFFSET                 (0x17c0 - 0x17a8)
+#define AUD7_REGISTER_OFFSET                 (0x17c4 - 0x17a8)
 
 /* hpd instance offsets */
 #define HPD0_REGISTER_OFFSET                 (0x1898 - 0x1898)
