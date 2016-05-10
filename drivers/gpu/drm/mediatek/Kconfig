@@ -1,0 +1,16 @@
+config DRM_MEDIATEK
+	tristate "DRM Support for Mediatek SoCs"
+	depends on DRM
+	depends on ARCH_MEDIATEK || (ARM && COMPILE_TEST)
+	select DRM_GEM_CMA_HELPER
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	select IOMMU_DMA
+	select MEMORY
+	select MTK_SMI
+	help
+	  Choose this option if you have a Mediatek SoCs.
+	  The module will be called mediatek-drm
+	  This driver provides kernel mode setting and
+	  buffer management to userspace.

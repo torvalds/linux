@@ -91,6 +91,7 @@ int mtk_smi_larb_get(struct device *larbdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mtk_smi_larb_get);
 
 void mtk_smi_larb_put(struct device *larbdev)
 {
@@ -106,6 +107,7 @@ void mtk_smi_larb_put(struct device *larbdev)
 	mtk_smi_disable(&larb->smi);
 	mtk_smi_disable(common);
 }
+EXPORT_SYMBOL_GPL(mtk_smi_larb_put);
 
 static int
 mtk_smi_larb_bind(struct device *dev, struct device *master, void *data)
