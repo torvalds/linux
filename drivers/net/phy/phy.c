@@ -1347,3 +1347,27 @@ void phy_ethtool_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
 		phydev->drv->get_wol(phydev, wol);
 }
 EXPORT_SYMBOL(phy_ethtool_get_wol);
+
+int phy_ethtool_get_link_ksettings(struct net_device *ndev,
+				   struct ethtool_link_ksettings *cmd)
+{
+	struct phy_device *phydev = ndev->phydev;
+
+	if (!phydev)
+		return -ENODEV;
+
+	return phy_ethtool_ksettings_get(phydev, cmd);
+}
+EXPORT_SYMBOL(phy_ethtool_get_link_ksettings);
+
+int phy_ethtool_set_link_ksettings(struct net_device *ndev,
+				   const struct ethtool_link_ksettings *cmd)
+{
+	struct phy_device *phydev = ndev->phydev;
+
+	if (!phydev)
+		return -ENODEV;
+
+	return phy_ethtool_ksettings_set(phydev, cmd);
+}
+EXPORT_SYMBOL(phy_ethtool_set_link_ksettings);

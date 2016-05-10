@@ -829,6 +829,10 @@ int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data);
 int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
 void phy_ethtool_get_wol(struct phy_device *phydev,
 			 struct ethtool_wolinfo *wol);
+int phy_ethtool_get_link_ksettings(struct net_device *ndev,
+				   struct ethtool_link_ksettings *cmd);
+int phy_ethtool_set_link_ksettings(struct net_device *ndev,
+				   const struct ethtool_link_ksettings *cmd);
 
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
