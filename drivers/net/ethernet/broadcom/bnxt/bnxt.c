@@ -867,6 +867,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 
 	rxr->rx_prod = NEXT_RX(prod);
 	cons = NEXT_RX(cons);
+	rxr->rx_next_cons = NEXT_RX(cons);
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
 
 	bnxt_reuse_rx_data(rxr, cons, cons_rx_buf->data);
@@ -1245,6 +1246,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 
 next_rx:
 	rxr->rx_prod = NEXT_RX(prod);
+	rxr->rx_next_cons = NEXT_RX(cons);
 
 next_rx_no_prod:
 	*raw_cons = tmp_raw_cons;
@@ -2486,6 +2488,7 @@ static void bnxt_clear_ring_indices(struct bnxt *bp)
 			rxr->rx_prod = 0;
 			rxr->rx_agg_prod = 0;
 			rxr->rx_sw_agg_prod = 0;
+			rxr->rx_next_cons = 0;
 		}
 	}
 }

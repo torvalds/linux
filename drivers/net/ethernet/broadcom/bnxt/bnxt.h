@@ -584,6 +584,7 @@ struct bnxt_rx_ring_info {
 	u16			rx_prod;
 	u16			rx_agg_prod;
 	u16			rx_sw_agg_prod;
+	u16			rx_next_cons;
 	void __iomem		*rx_doorbell;
 	void __iomem		*rx_agg_doorbell;
 
