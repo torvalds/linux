@@ -2519,9 +2519,29 @@ struct drm_i915_cmd_table {
 #define INTEL_INFO(p) 	(&__I915__(p)->info)
 #define INTEL_GEN(p)	(INTEL_INFO(p)->gen)
 #define INTEL_DEVID(p)	(INTEL_INFO(p)->device_id)
-#define INTEL_REVID(p)	(__I915__(p)->dev->pdev->revision)
 
 #define REVID_FOREVER		0xff
+#define INTEL_REVID(p)	(__I915__(p)->dev->pdev->revision)
+
+#define GEN_FOREVER (0)
+/*
+ * Returns true if Gen is in inclusive range [Start, End].
+ *
+ * Use GEN_FOREVER for unbound start and or end.
+ */
+#define IS_GEN(p, s, e) ({ \
+	unsigned int __s = (s), __e = (e); \
+	BUILD_BUG_ON(!__builtin_constant_p(s)); \
+	BUILD_BUG_ON(!__builtin_constant_p(e)); \
+	if ((__s) != GEN_FOREVER) \
+		__s = (s) - 1; \
+	if ((__e) == GEN_FOREVER) \
+		__e = BITS_PER_LONG - 1; \
+	else \
+		__e = (e) - 1; \
+	!!(INTEL_INFO(p)->gen_mask & GENMASK((__e), (__s))); \
+})
+
 /*
  * Return true if revision is in range [since,until] inclusive.
  *

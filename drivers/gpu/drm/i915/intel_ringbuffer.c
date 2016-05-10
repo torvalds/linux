@@ -506,7 +506,7 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 	 * arises: do we still need this and if so how should we go about
 	 * invalidating the TLB?
 	 */
-	if (INTEL_GEN(dev_priv) >= 6 && INTEL_GEN(dev_priv) < 8) {
+	if (IS_GEN(dev_priv, 6, 7)) {
 		i915_reg_t reg = RING_INSTPM(engine->mmio_base);
 
 		/* ring should be idle before issuing a sync flush*/
@@ -1206,7 +1206,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 		return ret;
 
 	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
-	if (INTEL_GEN(dev_priv) >= 4 && INTEL_GEN(dev_priv) < 7)
+	if (IS_GEN(dev_priv, 4, 6))
 		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));
 
 	/* We need to disable the AsyncFlip performance optimisations in order
@@ -1215,7 +1215,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 	 *
 	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv
 	 */
-	if (INTEL_GEN(dev_priv) >= 6 && INTEL_GEN(dev_priv) < 8)
+	if (IS_GEN(dev_priv, 6, 7))
 		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
 
 	/* Required for the hardware to program scanline values for waiting */
@@ -1240,7 +1240,7 @@ static int init_render_ring(struct intel_engine_cs *engine)
 			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
 	}
 
-	if (INTEL_GEN(dev_priv) >= 6 && INTEL_GEN(dev_priv) < 8)
+	if (IS_GEN(dev_priv, 6, 7))
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	if (HAS_L3_DPF(dev_priv))
