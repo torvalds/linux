@@ -758,7 +758,7 @@ struct intel_csr {
 struct intel_device_info {
 	u32 display_mmio_offset;
 	u16 device_id;
-	u8 num_pipes:3;
+	u8 num_pipes;
 	u8 num_sprites[I915_MAX_PIPES];
 	u8 gen;
 	u16 gen_mask;
