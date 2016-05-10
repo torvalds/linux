@@ -85,7 +85,8 @@ static const char *const compat_hwcap_str[] = {
 	"idivt",
 	"vfpd32",
 	"lpae",
-	"evtstrm"
+	"evtstrm",
+	NULL
 };
 
 static const char *const compat_hwcap2_str[] = {
