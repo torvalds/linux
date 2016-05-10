@@ -1991,7 +1991,7 @@ struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 
 	ifp = kmalloc(sizeof(*ifp), GFP_NOFS);
 	if (!ifp) {
-		kfree(fspath);
+		vfree(fspath);
 		return ERR_PTR(-ENOMEM);
 	}
 
