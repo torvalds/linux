@@ -772,6 +772,8 @@ struct batadv_mcast_querier_state {
  *  multicast traffic
  * @want_all_ipv4_list: a list of orig_nodes wanting all IPv4 multicast traffic
  * @want_all_ipv6_list: a list of orig_nodes wanting all IPv6 multicast traffic
+ * @querier_ipv4: the current state of an IGMP querier in the mesh
+ * @querier_ipv6: the current state of an MLD querier in the mesh
  * @flags: the flags we have last sent in our mcast tvlv
  * @enabled: whether the multicast tvlv is currently enabled
  * @bridged: whether the soft interface has a bridge on top
@@ -787,6 +789,8 @@ struct batadv_priv_mcast {
 	struct hlist_head want_all_unsnoopables_list;
 	struct hlist_head want_all_ipv4_list;
 	struct hlist_head want_all_ipv6_list;
+	struct batadv_mcast_querier_state querier_ipv4;
+	struct batadv_mcast_querier_state querier_ipv6;
 	u8 flags;
 	bool enabled;
 	bool bridged;

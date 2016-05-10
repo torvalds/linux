@@ -231,6 +231,7 @@ __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr);
  * @BATADV_DBG_BLA: bridge loop avoidance messages
  * @BATADV_DBG_DAT: ARP snooping and DAT related messages
  * @BATADV_DBG_NC: network coding related messages
+ * @BATADV_DBG_MCAST: multicast related messages
  * @BATADV_DBG_ALL: the union of all the above log levels
  */
 enum batadv_dbg_level {
@@ -240,7 +241,8 @@ enum batadv_dbg_level {
 	BATADV_DBG_BLA    = BIT(3),
 	BATADV_DBG_DAT    = BIT(4),
 	BATADV_DBG_NC	  = BIT(5),
-	BATADV_DBG_ALL    = 63,
+	BATADV_DBG_MCAST  = BIT(6),
+	BATADV_DBG_ALL    = 127,
 };
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
