@@ -37,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
+#include "bat_algo.h"
 #include "bridge_loop_avoidance.h"
 #include "debugfs.h"
 #include "distributed-arp-table.h"
@@ -682,6 +683,8 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	hard_iface->num_bcasts = BATADV_NUM_BCASTS_DEFAULT;
 	if (batadv_is_wifi_netdev(net_dev))
 		hard_iface->num_bcasts = BATADV_NUM_BCASTS_WIRELESS;
+
+	batadv_v_hardif_init(hard_iface);
 
 	/* extra reference for return */
 	kref_init(&hard_iface->refcount);
