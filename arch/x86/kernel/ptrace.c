@@ -392,7 +392,7 @@ static int putreg(struct task_struct *child,
 
 #ifdef CONFIG_X86_64
 	case offsetof(struct user_regs_struct,fs_base):
-		if (value >= TASK_SIZE_OF(child))
+		if (value >= TASK_SIZE_MAX)
 			return -EIO;
 		/*
 		 * When changing the segment base, use do_arch_prctl
@@ -406,7 +406,7 @@ static int putreg(struct task_struct *child,
 		/*
 		 * Exactly the same here as the %fs handling above.
 		 */
-		if (value >= TASK_SIZE_OF(child))
+		if (value >= TASK_SIZE_MAX)
 			return -EIO;
 		if (child->thread.gsbase != value)
 			return do_arch_prctl(child, ARCH_SET_GS, value);
