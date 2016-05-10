@@ -726,6 +726,36 @@ static const struct snd_kcontrol_new da7213_dapm_mixoutr_controls[] = {
 
 
 /*
+ * DAPM Events
+ */
+
+static int da7213_dai_event(struct snd_soc_dapm_widget *w,
+			    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct da7213_priv *da7213 = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Enable DAI clks for master mode */
+		if (da7213->master)
+			snd_soc_update_bits(codec, DA7213_DAI_CLK_MODE,
+					    DA7213_DAI_CLK_EN_MASK,
+					    DA7213_DAI_CLK_EN_MASK);
+		return 0;
+	case SND_SOC_DAPM_POST_PMD:
+		/* Disable DAI clks if in master mode */
+		if (da7213->master)
+			snd_soc_update_bits(codec, DA7213_DAI_CLK_MODE,
+					    DA7213_DAI_CLK_EN_MASK, 0);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+
+/*
  * DAPM widgets
  */
 
@@ -736,7 +766,8 @@ static const struct snd_soc_dapm_widget da7213_dapm_widgets[] = {
 
 	/* Use a supply here as this controls both input & output DAIs */
 	SND_SOC_DAPM_SUPPLY("DAI", DA7213_DAI_CTRL, DA7213_DAI_EN_SHIFT,
-			    DA7213_NO_INVERT, NULL, 0),
+			    DA7213_NO_INVERT, da7213_dai_event,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/*
 	 * Input
@@ -1143,11 +1174,9 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	/* Set master/slave mode */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		dai_clk_mode |= DA7213_DAI_CLK_EN_MASTER_MODE;
 		da7213->master = true;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		dai_clk_mode |= DA7213_DAI_CLK_EN_SLAVE_MODE;
 		da7213->master = false;
 		break;
 	default:

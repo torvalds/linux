@@ -178,8 +178,6 @@
 #define DA7213_DAI_BCLKS_PER_WCLK_MASK				(0x3 << 0)
 #define DA7213_DAI_CLK_POL_INV					(0x1 << 2)
 #define DA7213_DAI_WCLK_POL_INV					(0x1 << 3)
-#define DA7213_DAI_CLK_EN_SLAVE_MODE				(0x0 << 7)
-#define DA7213_DAI_CLK_EN_MASTER_MODE				(0x1 << 7)
 #define DA7213_DAI_CLK_EN_MASK					(0x1 << 7)
 
 /* DA7213_DAI_CTRL = 0x29 */
