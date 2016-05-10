@@ -1677,28 +1677,37 @@ char *synthesize_perf_probe_arg(struct perf_probe_arg *pa)
 {
 	struct perf_probe_arg_field *field = pa->field;
 	struct strbuf buf;
-	char *ret;
+	char *ret = NULL;
+	int err;
 
-	strbuf_init(&buf, 64);
+	if (strbuf_init(&buf, 64) < 0)
+		return NULL;
+
 	if (pa->name && pa->var)
-		strbuf_addf(&buf, "%s=%s", pa->name, pa->var);
+		err = strbuf_addf(&buf, "%s=%s", pa->name, pa->var);
 	else
-		strbuf_addstr(&buf, pa->name ?: pa->var);
+		err = strbuf_addstr(&buf, pa->name ?: pa->var);
+	if (err)
+		goto out;
 
 	while (field) {
 		if (field->name[0] == '[')
-			strbuf_addstr(&buf, field->name);
+			err = strbuf_addstr(&buf, field->name);
 		else
-			strbuf_addf(&buf, "%s%s", field->ref ? "->" : ".",
-				    field->name);
+			err = strbuf_addf(&buf, "%s%s", field->ref ? "->" : ".",
+					  field->name);
 		field = field->next;
+		if (err)
+			goto out;
 	}
 
 	if (pa->type)
-		strbuf_addf(&buf, ":%s", pa->type);
+		if (strbuf_addf(&buf, ":%s", pa->type) < 0)
+			goto out;
 
 	ret = strbuf_detach(&buf, NULL);
-
+out:
+	strbuf_release(&buf);
 	return ret;
 }
 
@@ -1706,18 +1715,23 @@ char *synthesize_perf_probe_arg(struct perf_probe_arg *pa)
 static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 {
 	struct strbuf buf;
-	char *tmp;
-	int len;
+	char *tmp, *ret = NULL;
+	int len, err = 0;
 
-	strbuf_init(&buf, 64);
+	if (strbuf_init(&buf, 64) < 0)
+		return NULL;
+
 	if (pp->function) {
-		strbuf_addstr(&buf, pp->function);
+		if (strbuf_addstr(&buf, pp->function) < 0)
+			goto out;
 		if (pp->offset)
-			strbuf_addf(&buf, "+%lu", pp->offset);
+			err = strbuf_addf(&buf, "+%lu", pp->offset);
 		else if (pp->line)
-			strbuf_addf(&buf, ":%d", pp->line);
+			err = strbuf_addf(&buf, ":%d", pp->line);
 		else if (pp->retprobe)
-			strbuf_addstr(&buf, "%return");
+			err = strbuf_addstr(&buf, "%return");
+		if (err)
+			goto out;
 	}
 	if (pp->file) {
 		tmp = pp->file;
@@ -1726,12 +1740,15 @@ static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 			tmp = strchr(pp->file + len - 30, '/');
 			tmp = tmp ? tmp + 1 : pp->file + len - 30;
 		}
-		strbuf_addf(&buf, "@%s", tmp);
-		if (!pp->function && pp->line)
-			strbuf_addf(&buf, ":%d", pp->line);
+		err = strbuf_addf(&buf, "@%s", tmp);
+		if (!err && !pp->function && pp->line)
+			err = strbuf_addf(&buf, ":%d", pp->line);
 	}
-
-	return strbuf_detach(&buf, NULL);
+	if (!err)
+		ret = strbuf_detach(&buf, NULL);
+out:
+	strbuf_release(&buf);
+	return ret;
 }
 
 #if 0
@@ -1762,28 +1779,30 @@ char *synthesize_perf_probe_command(struct perf_probe_event *pev)
 static int __synthesize_probe_trace_arg_ref(struct probe_trace_arg_ref *ref,
 					    struct strbuf *buf, int depth)
 {
+	int err;
 	if (ref->next) {
 		depth = __synthesize_probe_trace_arg_ref(ref->next, buf,
 							 depth + 1);
 		if (depth < 0)
-			goto out;
+			return depth;
 	}
-	strbuf_addf(buf, "%+ld(", ref->offset);
-out:
-	return depth;
+	err = strbuf_addf(buf, "%+ld(", ref->offset);
+	return (err < 0) ? err : depth;
 }
 
 static int synthesize_probe_trace_arg(struct probe_trace_arg *arg,
 				      struct strbuf *buf)
 {
 	struct probe_trace_arg_ref *ref = arg->ref;
-	int depth = 0;
+	int depth = 0, err;
 
 	/* Argument name or separator */
 	if (arg->name)
-		strbuf_addf(buf, " %s=", arg->name);
+		err = strbuf_addf(buf, " %s=", arg->name);
 	else
-		strbuf_addch(buf, ' ');
+		err = strbuf_addch(buf, ' ');
+	if (err)
+		return err;
 
 	/* Special case: @XXX */
 	if (arg->value[0] == '@' && arg->ref)
@@ -1798,18 +1817,19 @@ static int synthesize_probe_trace_arg(struct probe_trace_arg *arg,
 
 	/* Print argument value */
 	if (arg->value[0] == '@' && arg->ref)
-		strbuf_addf(buf, "%s%+ld", arg->value, arg->ref->offset);
+		err = strbuf_addf(buf, "%s%+ld", arg->value, arg->ref->offset);
 	else
-		strbuf_addstr(buf, arg->value);
+		err = strbuf_addstr(buf, arg->value);
 
 	/* Closing */
-	while (depth--)
-		strbuf_addch(buf, ')');
-	/* Print argument type */
-	if (arg->type)
-		strbuf_addf(buf, ":%s", arg->type);
+	while (!err && depth--)
+		err = strbuf_addch(buf, ')');
 
-	return 0;
+	/* Print argument type */
+	if (!err && arg->type)
+		err = strbuf_addf(buf, ":%s", arg->type);
+
+	return err;
 }
 
 char *synthesize_probe_trace_command(struct probe_trace_event *tev)
@@ -1817,15 +1837,18 @@ char *synthesize_probe_trace_command(struct probe_trace_event *tev)
 	struct probe_trace_point *tp = &tev->point;
 	struct strbuf buf;
 	char *ret = NULL;
-	int i;
+	int i, err;
 
 	/* Uprobes must have tp->module */
 	if (tev->uprobes && !tp->module)
 		return NULL;
 
-	strbuf_init(&buf, 32);
-	strbuf_addf(&buf, "%c:%s/%s ", tp->retprobe ? 'r' : 'p',
-		    tev->group, tev->event);
+	if (strbuf_init(&buf, 32) < 0)
+		return NULL;
+
+	if (strbuf_addf(&buf, "%c:%s/%s ", tp->retprobe ? 'r' : 'p',
+			tev->group, tev->event) < 0)
+		goto error;
 	/*
 	 * If tp->address == 0, then this point must be a
 	 * absolute address uprobe.
@@ -1839,14 +1862,16 @@ char *synthesize_probe_trace_command(struct probe_trace_event *tev)
 
 	/* Use the tp->address for uprobes */
 	if (tev->uprobes)
-		strbuf_addf(&buf, "%s:0x%lx", tp->module, tp->address);
+		err = strbuf_addf(&buf, "%s:0x%lx", tp->module, tp->address);
 	else if (!strncmp(tp->symbol, "0x", 2))
 		/* Absolute address. See try_to_find_absolute_address() */
-		strbuf_addf(&buf, "%s%s0x%lx", tp->module ?: "",
-			    tp->module ? ":" : "", tp->address);
+		err = strbuf_addf(&buf, "%s%s0x%lx", tp->module ?: "",
+				  tp->module ? ":" : "", tp->address);
 	else
-		strbuf_addf(&buf, "%s%s%s+%lu", tp->module ?: "",
-			    tp->module ? ":" : "", tp->symbol, tp->offset);
+		err = strbuf_addf(&buf, "%s%s%s+%lu", tp->module ?: "",
+				tp->module ? ":" : "", tp->symbol, tp->offset);
+	if (err)
+		goto error;
 
 	for (i = 0; i < tev->nargs; i++)
 		if (synthesize_probe_trace_arg(&tev->args[i], &buf) < 0)
@@ -1960,14 +1985,15 @@ static int convert_to_perf_probe_event(struct probe_trace_event *tev,
 		if (tev->args[i].name)
 			pev->args[i].name = strdup(tev->args[i].name);
 		else {
-			strbuf_init(&buf, 32);
+			if ((ret = strbuf_init(&buf, 32)) < 0)
+				goto error;
 			ret = synthesize_probe_trace_arg(&tev->args[i], &buf);
 			pev->args[i].name = strbuf_detach(&buf, NULL);
 		}
 		if (pev->args[i].name == NULL && ret >= 0)
 			ret = -ENOMEM;
 	}
-
+error:
 	if (ret < 0)
 		clear_perf_probe_event(pev);
 
@@ -2140,37 +2166,40 @@ static int perf_probe_event__sprintf(const char *group, const char *event,
 				     const char *module,
 				     struct strbuf *result)
 {
-	int i;
+	int i, ret;
 	char *buf;
 
 	if (asprintf(&buf, "%s:%s", group, event) < 0)
 		return -errno;
-	strbuf_addf(result, "  %-20s (on ", buf);
+	ret = strbuf_addf(result, "  %-20s (on ", buf);
 	free(buf);
+	if (ret)
+		return ret;
 
 	/* Synthesize only event probe point */
 	buf = synthesize_perf_probe_point(&pev->point);
 	if (!buf)
 		return -ENOMEM;
-	strbuf_addstr(result, buf);
+	ret = strbuf_addstr(result, buf);
 	free(buf);
 
-	if (module)
-		strbuf_addf(result, " in %s", module);
+	if (!ret && module)
+		ret = strbuf_addf(result, " in %s", module);
 
-	if (pev->nargs > 0) {
-		strbuf_add(result, " with", 5);
-		for (i = 0; i < pev->nargs; i++) {
+	if (!ret && pev->nargs > 0) {
+		ret = strbuf_add(result, " with", 5);
+		for (i = 0; !ret && i < pev->nargs; i++) {
 			buf = synthesize_perf_probe_arg(&pev->args[i]);
 			if (!buf)
 				return -ENOMEM;
-			strbuf_addf(result, " %s", buf);
+			ret = strbuf_addf(result, " %s", buf);
 			free(buf);
 		}
 	}
-	strbuf_addch(result, ')');
+	if (!ret)
+		ret = strbuf_addch(result, ')');
 
-	return 0;
+	return ret;
 }
 
 /* Show an event */
