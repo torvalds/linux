@@ -2716,17 +2716,69 @@ static bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 		MLX5_CAP_ETH(mdev, reg_umr_sq);
 }
 
+static int mlx5e_get_pci_bw(struct mlx5_core_dev *mdev, u32 *pci_bw)
+{
+	enum pcie_link_width width;
+	enum pci_bus_speed speed;
+	int err = 0;
+
+	err = pcie_get_minimum_link(mdev->pdev, &speed, &width);
+	if (err)
+		return err;
+
+	if (speed == PCI_SPEED_UNKNOWN || width == PCIE_LNK_WIDTH_UNKNOWN)
+		return -EINVAL;
+
+	switch (speed) {
+	case PCIE_SPEED_2_5GT:
+		*pci_bw = 2500 * width;
+		break;
+	case PCIE_SPEED_5_0GT:
+		*pci_bw = 5000 * width;
+		break;
+	case PCIE_SPEED_8_0GT:
+		*pci_bw = 8000 * width;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static bool cqe_compress_heuristic(u32 link_speed, u32 pci_bw)
+{
+	return (link_speed && pci_bw &&
+		(pci_bw < 40000) && (pci_bw < link_speed));
+}
+
 static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 				    struct net_device *netdev,
 				    int num_channels)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	u32 link_speed = 0;
+	u32 pci_bw = 0;
 
 	priv->params.log_sq_size           =
 		MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
 	priv->params.rq_wq_type = mlx5e_check_fragmented_striding_rq_cap(mdev) ?
 		MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ :
 		MLX5_WQ_TYPE_LINKED_LIST;
+
+	/* set CQE compression */
+	priv->params.rx_cqe_compress_admin = false;
+	if (MLX5_CAP_GEN(mdev, cqe_compression) &&
+	    MLX5_CAP_GEN(mdev, vport_group_manager)) {
+		mlx5e_get_max_linkspeed(mdev, &link_speed);
+		mlx5e_get_pci_bw(mdev, &pci_bw);
+		mlx5_core_dbg(mdev, "Max link speed = %d, PCI BW = %d\n",
+			      link_speed, pci_bw);
+		priv->params.rx_cqe_compress_admin =
+			cqe_compress_heuristic(link_speed, pci_bw);
+	}
+
+	priv->params.rx_cqe_compress = priv->params.rx_cqe_compress_admin;
 
 	switch (priv->params.rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
