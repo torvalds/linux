@@ -609,7 +609,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	}
 
 	/* Make room for fw's virtual image pages, if it exists */
-	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size)
+	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
+	    mvm->fw_paging_db[0].fw_paging_block)
 		file_len += mvm->num_of_paging_blk *
 			(sizeof(*dump_data) +
 			 sizeof(struct iwl_fw_error_dump_paging) +
@@ -750,7 +751,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	}
 
 	/* Dump fw's virtual image */
-	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size) {
+	if (mvm->fw->img[mvm->cur_ucode].paging_mem_size &&
+	    mvm->fw_paging_db[0].fw_paging_block) {
 		for (i = 1; i < mvm->num_of_paging_blk + 1; i++) {
 			struct iwl_fw_error_dump_paging *paging;
 			struct page *pages =
