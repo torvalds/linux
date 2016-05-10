@@ -896,6 +896,7 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			       unsigned char key, unsigned char *oldkey,
 			       bool nq, bool mr, bool mc);
+int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr);
 int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned char *key);
 
