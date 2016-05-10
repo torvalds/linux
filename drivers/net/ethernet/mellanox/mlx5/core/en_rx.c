@@ -127,7 +127,7 @@ static inline u32 mlx5e_decompress_cqes_cont(struct mlx5e_rq *rq,
 
 	for (i = update_owner_only; i < cqe_count;
 	     i++, cq->mini_arr_idx++, cqcc++) {
-		if (unlikely(cq->mini_arr_idx == MLX5_MINI_CQE_ARRAY_SIZE))
+		if (cq->mini_arr_idx == MLX5_MINI_CQE_ARRAY_SIZE)
 			mlx5e_read_mini_arr_slot(cq, cqcc);
 
 		mlx5e_decompress_cqe_no_hash(rq, cq, cqcc);
@@ -212,6 +212,11 @@ err_free_skb:
 	return -ENOMEM;
 }
 
+static inline int mlx5e_mpwqe_strides_per_page(struct mlx5e_rq *rq)
+{
+	return rq->mpwqe_num_strides >> MLX5_MPWRQ_WQE_PAGE_ORDER;
+}
+
 static inline void
 mlx5e_dma_pre_sync_linear_mpwqe(struct device *pdev,
 				struct mlx5e_mpw_info *wi,
@@ -230,13 +235,13 @@ mlx5e_dma_pre_sync_fragmented_mpwqe(struct device *pdev,
 }
 
 static inline void
-mlx5e_add_skb_frag_linear_mpwqe(struct device *pdev,
+mlx5e_add_skb_frag_linear_mpwqe(struct mlx5e_rq *rq,
 				struct sk_buff *skb,
 				struct mlx5e_mpw_info *wi,
 				u32 page_idx, u32 frag_offset,
 				u32 len)
 {
-	unsigned int truesize =	ALIGN(len, MLX5_MPWRQ_STRIDE_SIZE);
+	unsigned int truesize =	ALIGN(len, rq->mpwqe_stride_sz);
 
 	wi->skbs_frags[page_idx]++;
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
@@ -245,15 +250,15 @@ mlx5e_add_skb_frag_linear_mpwqe(struct device *pdev,
 }
 
 static inline void
-mlx5e_add_skb_frag_fragmented_mpwqe(struct device *pdev,
+mlx5e_add_skb_frag_fragmented_mpwqe(struct mlx5e_rq *rq,
 				    struct sk_buff *skb,
 				    struct mlx5e_mpw_info *wi,
 				    u32 page_idx, u32 frag_offset,
 				    u32 len)
 {
-	unsigned int truesize =	ALIGN(len, MLX5_MPWRQ_STRIDE_SIZE);
+	unsigned int truesize =	ALIGN(len, rq->mpwqe_stride_sz);
 
-	dma_sync_single_for_cpu(pdev,
+	dma_sync_single_for_cpu(rq->pdev,
 				wi->umr.dma_info[page_idx].addr + frag_offset,
 				len, DMA_FROM_DEVICE);
 	wi->skbs_frags[page_idx]++;
@@ -293,7 +298,6 @@ mlx5e_copy_skb_header_fragmented_mpwqe(struct device *pdev,
 	skb_copy_to_linear_data_offset(skb, 0,
 				       page_address(dma_info->page) + offset,
 				       len);
-#if (MLX5_MPWRQ_SMALL_PACKET_THRESHOLD >= MLX5_MPWRQ_STRIDE_SIZE)
 	if (unlikely(offset + headlen > PAGE_SIZE)) {
 		dma_info++;
 		headlen_pg = len;
@@ -304,7 +308,6 @@ mlx5e_copy_skb_header_fragmented_mpwqe(struct device *pdev,
 					       page_address(dma_info->page),
 					       len);
 	}
-#endif
 }
 
 static u16 mlx5e_get_wqe_mtt_offset(u16 rq_ix, u16 wqe_ix)
@@ -430,7 +433,7 @@ static int mlx5e_alloc_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
 		if (unlikely(mlx5e_alloc_and_map_page(rq, wi, i)))
 			goto err_unmap;
-		atomic_add(MLX5_MPWRQ_STRIDES_PER_PAGE,
+		atomic_add(mlx5e_mpwqe_strides_per_page(rq),
 			   &wi->umr.dma_info[i].page->_count);
 		wi->skbs_frags[i] = 0;
 	}
@@ -449,7 +452,7 @@ err_unmap:
 	while (--i >= 0) {
 		dma_unmap_page(rq->pdev, wi->umr.dma_info[i].addr, PAGE_SIZE,
 			       PCI_DMA_FROMDEVICE);
-		atomic_sub(MLX5_MPWRQ_STRIDES_PER_PAGE,
+		atomic_sub(mlx5e_mpwqe_strides_per_page(rq),
 			   &wi->umr.dma_info[i].page->_count);
 		put_page(wi->umr.dma_info[i].page);
 	}
@@ -474,7 +477,7 @@ void mlx5e_free_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
 		dma_unmap_page(rq->pdev, wi->umr.dma_info[i].addr, PAGE_SIZE,
 			       PCI_DMA_FROMDEVICE);
-		atomic_sub(MLX5_MPWRQ_STRIDES_PER_PAGE - wi->skbs_frags[i],
+		atomic_sub(mlx5e_mpwqe_strides_per_page(rq) - wi->skbs_frags[i],
 			   &wi->umr.dma_info[i].page->_count);
 		put_page(wi->umr.dma_info[i].page);
 	}
@@ -524,7 +527,7 @@ static int mlx5e_alloc_rx_linear_mpwqe(struct mlx5e_rq *rq,
 	 */
 	split_page(wi->dma_info.page, MLX5_MPWRQ_WQE_PAGE_ORDER);
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
-		atomic_add(MLX5_MPWRQ_STRIDES_PER_PAGE,
+		atomic_add(mlx5e_mpwqe_strides_per_page(rq),
 			   &wi->dma_info.page[i]._count);
 		wi->skbs_frags[i] = 0;
 	}
@@ -548,7 +551,7 @@ void mlx5e_free_rx_linear_mpwqe(struct mlx5e_rq *rq,
 	dma_unmap_page(rq->pdev, wi->dma_info.addr, rq->wqe_sz,
 		       PCI_DMA_FROMDEVICE);
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
-		atomic_sub(MLX5_MPWRQ_STRIDES_PER_PAGE - wi->skbs_frags[i],
+		atomic_sub(mlx5e_mpwqe_strides_per_page(rq) - wi->skbs_frags[i],
 			   &wi->dma_info.page[i]._count);
 		put_page(&wi->dma_info.page[i]);
 	}
@@ -793,9 +796,9 @@ static inline void mlx5e_mpwqe_fill_rx_skb(struct mlx5e_rq *rq,
 					   u32 cqe_bcnt,
 					   struct sk_buff *skb)
 {
-	u32 consumed_bytes = ALIGN(cqe_bcnt, MLX5_MPWRQ_STRIDE_SIZE);
+	u32 consumed_bytes = ALIGN(cqe_bcnt, rq->mpwqe_stride_sz);
 	u16 stride_ix      = mpwrq_get_cqe_stride_index(cqe);
-	u32 wqe_offset     = stride_ix * MLX5_MPWRQ_STRIDE_SIZE;
+	u32 wqe_offset     = stride_ix * rq->mpwqe_stride_sz;
 	u32 head_offset    = wqe_offset & (PAGE_SIZE - 1);
 	u32 page_idx       = wqe_offset >> PAGE_SHIFT;
 	u32 head_page_idx  = page_idx;
@@ -803,19 +806,17 @@ static inline void mlx5e_mpwqe_fill_rx_skb(struct mlx5e_rq *rq,
 	u32 frag_offset    = head_offset + headlen;
 	u16 byte_cnt       = cqe_bcnt - headlen;
 
-#if (MLX5_MPWRQ_SMALL_PACKET_THRESHOLD >= MLX5_MPWRQ_STRIDE_SIZE)
 	if (unlikely(frag_offset >= PAGE_SIZE)) {
 		page_idx++;
 		frag_offset -= PAGE_SIZE;
 	}
-#endif
 	wi->dma_pre_sync(rq->pdev, wi, wqe_offset, consumed_bytes);
 
 	while (byte_cnt) {
 		u32 pg_consumed_bytes =
 			min_t(u32, PAGE_SIZE - frag_offset, byte_cnt);
 
-		wi->add_skb_frag(rq->pdev, skb, wi, page_idx, frag_offset,
+		wi->add_skb_frag(rq, skb, wi, page_idx, frag_offset,
 				 pg_consumed_bytes);
 		byte_cnt -= pg_consumed_bytes;
 		frag_offset = 0;
@@ -865,7 +866,7 @@ void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
 
 mpwrq_cqe_out:
-	if (likely(wi->consumed_strides < MLX5_MPWRQ_NUM_STRIDES))
+	if (likely(wi->consumed_strides < rq->mpwqe_num_strides))
 		return;
 
 	wi->free_wqe(rq, wi);

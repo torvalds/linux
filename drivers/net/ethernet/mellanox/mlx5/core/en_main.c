@@ -307,7 +307,9 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
 		rq->handle_rx_cqe = mlx5e_handle_rx_cqe_mpwrq;
 		rq->alloc_wqe = mlx5e_alloc_rx_mpwqe;
 
-		rq->wqe_sz = MLX5_MPWRQ_NUM_STRIDES * MLX5_MPWRQ_STRIDE_SIZE;
+		rq->mpwqe_stride_sz = BIT(priv->params.mpwqe_log_stride_sz);
+		rq->mpwqe_num_strides = BIT(priv->params.mpwqe_log_num_strides);
+		rq->wqe_sz = rq->mpwqe_stride_sz * rq->mpwqe_num_strides;
 		byte_count = rq->wqe_sz;
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
@@ -1130,9 +1132,9 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 	switch (priv->params.rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		MLX5_SET(wq, wq, log_wqe_num_of_strides,
-			 MLX5_MPWRQ_LOG_NUM_STRIDES - 9);
+			 priv->params.mpwqe_log_num_strides - 9);
 		MLX5_SET(wq, wq, log_wqe_stride_size,
-			 MLX5_MPWRQ_LOG_STRIDE_SIZE - 6);
+			 priv->params.mpwqe_log_stride_sz - 6);
 		MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ);
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
@@ -1199,7 +1201,7 @@ static void mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
 	switch (priv->params.rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		log_cq_size = priv->params.log_rq_size +
-			MLX5_MPWRQ_LOG_NUM_STRIDES;
+			priv->params.mpwqe_log_num_strides;
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
 		log_cq_size = priv->params.log_rq_size;
@@ -2729,11 +2731,24 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	switch (priv->params.rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		priv->params.log_rq_size = MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW;
+		priv->params.mpwqe_log_stride_sz =
+			priv->params.rx_cqe_compress ?
+			MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS :
+			MLX5_MPWRQ_LOG_STRIDE_SIZE;
+		priv->params.mpwqe_log_num_strides = MLX5_MPWRQ_LOG_WQE_SZ -
+			priv->params.mpwqe_log_stride_sz;
 		priv->params.lro_en = true;
 		break;
 	default: /* MLX5_WQ_TYPE_LINKED_LIST */
 		priv->params.log_rq_size = MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE;
 	}
+
+	mlx5_core_info(mdev,
+		       "MLX5E: StrdRq(%d) RqSz(%ld) StrdSz(%ld) RxCqeCmprss(%d)\n",
+		       priv->params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ,
+		       BIT(priv->params.log_rq_size),
+		       BIT(priv->params.mpwqe_log_stride_sz),
+		       priv->params.rx_cqe_compress_admin);
 
 	priv->params.min_rx_wqes = mlx5_min_rx_wqes(priv->params.rq_wq_type,
 					    BIT(priv->params.log_rq_size));

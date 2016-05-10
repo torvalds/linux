@@ -64,12 +64,9 @@
 #define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW            0x4
 #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW            0x6
 
-#define MLX5_MPWRQ_LOG_NUM_STRIDES		11 /* >= 9, HW restriction */
 #define MLX5_MPWRQ_LOG_STRIDE_SIZE		6  /* >= 6, HW restriction */
-#define MLX5_MPWRQ_NUM_STRIDES			BIT(MLX5_MPWRQ_LOG_NUM_STRIDES)
-#define MLX5_MPWRQ_STRIDE_SIZE			BIT(MLX5_MPWRQ_LOG_STRIDE_SIZE)
-#define MLX5_MPWRQ_LOG_WQE_SZ			(MLX5_MPWRQ_LOG_NUM_STRIDES +\
-						 MLX5_MPWRQ_LOG_STRIDE_SIZE)
+#define MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS	8  /* >= 6, HW restriction */
+#define MLX5_MPWRQ_LOG_WQE_SZ			17
 #define MLX5_MPWRQ_WQE_PAGE_ORDER  (MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT > 0 ? \
 				    MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT : 0)
 #define MLX5_MPWRQ_PAGES_PER_WQE		BIT(MLX5_MPWRQ_WQE_PAGE_ORDER)
@@ -154,6 +151,8 @@ struct mlx5e_umr_wqe {
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
+	u8  mpwqe_log_stride_sz;
+	u8  mpwqe_log_num_strides;
 	u8  log_rq_size;
 	u16 num_channels;
 	u8  num_tc;
@@ -249,6 +248,8 @@ struct mlx5e_rq {
 	/* control */
 	struct mlx5_wq_ctrl    wq_ctrl;
 	u8                     wq_type;
+	u32                    mpwqe_stride_sz;
+	u32                    mpwqe_num_strides;
 	u32                    rqn;
 	struct mlx5e_channel  *channel;
 	struct mlx5e_priv     *priv;
@@ -272,7 +273,7 @@ struct mlx5e_mpw_info {
 	void (*dma_pre_sync)(struct device *pdev,
 			     struct mlx5e_mpw_info *wi,
 			     u32 wqe_offset, u32 len);
-	void (*add_skb_frag)(struct device *pdev,
+	void (*add_skb_frag)(struct mlx5e_rq *rq,
 			     struct sk_buff *skb,
 			     struct mlx5e_mpw_info *wi,
 			     u32 page_idx, u32 frag_offset, u32 len);
