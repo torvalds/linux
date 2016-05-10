@@ -1656,6 +1656,7 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 				win->area[i].smem_start =
 					reg_win_data->reg_area_data[i].smem_start;
 				if (inf->disp_mode == DUAL ||
+				    inf->disp_mode == DUAL_LCD ||
 				    inf->disp_mode == NO_DUAL) {
 					win->area[i].xpos =
 						reg_win_data->reg_area_data[i].xpos;
@@ -4420,13 +4421,15 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		struct fb_info *extend_fbi = rk_fb->fb[dev_drv->fb_index_base];
 
 		extend_fbi->var.pixclock = rk_fb->fb[0]->var.pixclock;
-		extend_fbi->fbops->fb_open(extend_fbi, 1);
-		if (dev_drv->iommu_enabled) {
-			if (dev_drv->mmu_dev)
-				rockchip_iovmm_set_fault_handler(dev_drv->dev,
-								 rk_fb_sysmmu_fault_handler);
+		if (rk_fb->disp_mode == DUAL_LCD) {
+			extend_fbi->fbops->fb_open(extend_fbi, 1);
+			if (dev_drv->iommu_enabled) {
+				if (dev_drv->mmu_dev)
+					rockchip_iovmm_set_fault_handler(dev_drv->dev,
+									 rk_fb_sysmmu_fault_handler);
+			}
+			rk_fb_alloc_buffer(extend_fbi);
 		}
-		rk_fb_alloc_buffer(extend_fbi);
 	}
 #endif
 	return 0;

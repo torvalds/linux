@@ -12,6 +12,7 @@
 #define NO_DUAL		0
 #define ONE_DUAL	1
 #define DUAL		2
+#define DUAL_LCD	3
 /********************************************************************
 **          display output interface supported by rockchip	   **
 ********************************************************************/
