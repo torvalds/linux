@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/amba/bus.h>
+#include <linux/platform_device.h>
 #include <linux/pci-ats.h>
 #include <linux/bitmap.h>
 #include <linux/slab.h>
@@ -2958,6 +2959,9 @@ int __init amd_iommu_init_api(void)
 	if (err)
 		return err;
 #endif
+	err = bus_set_iommu(&platform_bus_type, &amd_iommu_ops);
+	if (err)
+		return err;
 	return 0;
 }
 
