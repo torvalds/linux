@@ -382,13 +382,14 @@ unsigned long arch_align_stack(unsigned long sp)
 	return sp & ~0xf;
 }
 
-static unsigned long randomize_base(unsigned long base)
-{
-	unsigned long range_end = base + (STACK_RND_MASK << PAGE_SHIFT) + 1;
-	return randomize_range(base, range_end, 0) ? : base;
-}
-
 unsigned long arch_randomize_brk(struct mm_struct *mm)
 {
-	return randomize_base(mm->brk);
+	unsigned long range_end = mm->brk;
+
+	if (is_compat_task())
+		range_end += 0x02000000;
+	else
+		range_end += 0x40000000;
+
+	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
 }
