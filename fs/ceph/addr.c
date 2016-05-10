@@ -1351,10 +1351,9 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	got = 0;
 	ret = ceph_get_caps(ci, CEPH_CAP_FILE_RD, want, -1, &got, &pinned_page);
-	if (ret < 0) {
-		ret = VM_FAULT_SIGBUS;
+	if (ret < 0)
 		goto out_restore;
-	}
+
 	dout("filemap_fault %p %llu~%zd got cap refs on %s\n",
 	     inode, off, (size_t)PAGE_SIZE, ceph_cap_string(got));
 
@@ -1392,7 +1391,10 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		if (ret1 < 0 || off >= i_size_read(inode)) {
 			unlock_page(page);
 			put_page(page);
-			ret = VM_FAULT_SIGBUS;
+			if (ret1 < 0)
+				ret = ret1;
+			else
+				ret = VM_FAULT_SIGBUS;
 			goto out_inline;
 		}
 		if (ret1 < PAGE_SIZE)
@@ -1408,6 +1410,9 @@ out_inline:
 	}
 out_restore:
 	ceph_restore_sigs(&oldset);
+	if (ret < 0)
+		ret = (ret == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
+
 	return ret;
 }
 
@@ -1429,7 +1434,7 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
-		return VM_FAULT_SIGBUS;
+		return VM_FAULT_OOM;
 
 	ceph_block_sigs(&oldset);
 
@@ -1442,10 +1447,8 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		ret = ceph_uninline_data(vma->vm_file, locked_page);
 		if (locked_page)
 			unlock_page(locked_page);
-		if (ret < 0) {
-			ret = VM_FAULT_SIGBUS;
+		if (ret < 0)
 			goto out_free;
-		}
 	}
 
 	if (off + PAGE_SIZE <= size)
@@ -1463,10 +1466,9 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	got = 0;
 	ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, off + len,
 			    &got, NULL);
-	if (ret < 0) {
-		ret = VM_FAULT_SIGBUS;
+	if (ret < 0)
 		goto out_free;
-	}
+
 	dout("page_mkwrite %p %llu~%zd got cap refs on %s\n",
 	     inode, off, len, ceph_cap_string(got));
 
@@ -1475,10 +1477,9 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	lock_page(page);
 
-	ret = VM_FAULT_NOPAGE;
-	if ((off > size) ||
-	    (page->mapping != inode->i_mapping)) {
+	if ((off > size) || (page->mapping != inode->i_mapping)) {
 		unlock_page(page);
+		ret = VM_FAULT_NOPAGE;
 		goto out;
 	}
 
@@ -1487,11 +1488,6 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		/* success.  we'll keep the page locked. */
 		set_page_dirty(page);
 		ret = VM_FAULT_LOCKED;
-	} else {
-		if (ret == -ENOMEM)
-			ret = VM_FAULT_OOM;
-		else
-			ret = VM_FAULT_SIGBUS;
 	}
 out:
 	if (ret == VM_FAULT_LOCKED ||
@@ -1512,7 +1508,8 @@ out:
 out_free:
 	ceph_restore_sigs(&oldset);
 	ceph_free_cap_flush(prealloc_cf);
-
+	if (ret < 0)
+		ret = (ret == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
 	return ret;
 }
 
