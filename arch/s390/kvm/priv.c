@@ -654,8 +654,10 @@ static int handle_epsw(struct kvm_vcpu *vcpu)
 
 static int handle_pfmf(struct kvm_vcpu *vcpu)
 {
+	bool mr = false, mc = false, nq;
 	int reg1, reg2;
 	unsigned long start, end;
+	unsigned char key;
 
 	vcpu->stat.instruction_pfmf++;
 
@@ -675,6 +677,15 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 	    !test_kvm_facility(vcpu->kvm, 14))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
+	/* Only provide conditional-SSKE support if enabled for the guest */
+	if (vcpu->run->s.regs.gprs[reg1] & PFMF_SK &&
+	    test_kvm_facility(vcpu->kvm, 10)) {
+		mr = vcpu->run->s.regs.gprs[reg1] & PFMF_MR;
+		mc = vcpu->run->s.regs.gprs[reg1] & PFMF_MC;
+	}
+
+	nq = vcpu->run->s.regs.gprs[reg1] & PFMF_NQ;
+	key = vcpu->run->s.regs.gprs[reg1] & PFMF_KEY;
 	start = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
 	start = kvm_s390_logical_to_effective(vcpu, start);
 
@@ -723,11 +734,10 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 			if (rc)
 				return rc;
 			down_read(&current->mm->mmap_sem);
-			rc = set_guest_storage_key(current->mm, useraddr,
-					vcpu->run->s.regs.gprs[reg1] & PFMF_KEY,
-					vcpu->run->s.regs.gprs[reg1] & PFMF_NQ);
+			rc = cond_set_guest_storage_key(current->mm, useraddr,
+							key, NULL, nq, mr, mc);
 			up_read(&current->mm->mmap_sem);
-			if (rc)
+			if (rc < 0)
 				return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		}
 

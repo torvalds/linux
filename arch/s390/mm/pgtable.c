@@ -539,6 +539,39 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 }
 EXPORT_SYMBOL(set_guest_storage_key);
 
+/**
+ * Conditionally set a guest storage key (handling csske).
+ * oldkey will be updated when either mr or mc is set and a pointer is given.
+ *
+ * Returns 0 if a guests storage key update wasn't necessary, 1 if the guest
+ * storage key was updated and -EFAULT on access errors.
+ */
+int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+			       unsigned char key, unsigned char *oldkey,
+			       bool nq, bool mr, bool mc)
+{
+	unsigned char tmp, mask = _PAGE_ACC_BITS | _PAGE_FP_BIT;
+	int rc;
+
+	/* we can drop the pgste lock between getting and setting the key */
+	if (mr | mc) {
+		rc = get_guest_storage_key(current->mm, addr, &tmp);
+		if (rc)
+			return rc;
+		if (oldkey)
+			*oldkey = tmp;
+		if (!mr)
+			mask |= _PAGE_REFERENCED;
+		if (!mc)
+			mask |= _PAGE_CHANGED;
+		if (!((tmp ^ key) & mask))
+			return 0;
+	}
+	rc = set_guest_storage_key(current->mm, addr, key, nq);
+	return rc < 0 ? rc : 1;
+}
+EXPORT_SYMBOL(cond_set_guest_storage_key);
+
 int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned char *key)
 {
