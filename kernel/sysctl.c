@@ -1149,7 +1149,7 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.procname	= "perf_event_max_stack",
-		.data		= NULL, /* filled in by handler */
+		.data		= &sysctl_perf_event_max_stack,
 		.maxlen		= sizeof(sysctl_perf_event_max_stack),
 		.mode		= 0644,
 		.proc_handler	= perf_event_max_stack_handler,

@@ -228,7 +228,8 @@ exit_put:
 int perf_event_max_stack_handler(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int new_value = sysctl_perf_event_max_stack, ret;
+	int *value = table->data;
+	int new_value = *value, ret;
 	struct ctl_table new_table = *table;
 
 	new_table.data = &new_value;
@@ -240,7 +241,7 @@ int perf_event_max_stack_handler(struct ctl_table *table, int write,
 	if (atomic_read(&nr_callchain_events))
 		ret = -EBUSY;
 	else
-		sysctl_perf_event_max_stack = new_value;
+		*value = new_value;
 
 	mutex_unlock(&callchain_mutex);
 
