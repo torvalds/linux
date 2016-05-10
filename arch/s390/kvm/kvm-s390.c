@@ -1151,6 +1151,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	rc = -ENOMEM;
 
+	ratelimit_state_init(&kvm->arch.sthyi_limit, 5 * HZ, 500);
+
 	kvm->arch.use_esca = 0; /* start with basic SCA */
 	rwlock_init(&kvm->arch.sca_lock);
 	kvm->arch.sca = (struct bsca_block *) get_zeroed_page(GFP_KERNEL);

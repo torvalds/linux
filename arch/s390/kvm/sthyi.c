@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
+#include <linux/ratelimit.h>
 
 #include <asm/kvm_host.h>
 #include <asm/asm-offsets.h>
@@ -402,6 +403,16 @@ int handle_sthyi(struct kvm_vcpu *vcpu)
 	int reg1, reg2, r = 0;
 	u64 code, addr, cc = 0;
 	struct sthyi_sctns *sctns = NULL;
+
+	/*
+	 * STHYI requires extensive locking in the higher hypervisors
+	 * and is very computational/memory expensive. Therefore we
+	 * ratelimit the executions per VM.
+	 */
+	if (!__ratelimit(&vcpu->kvm->arch.sthyi_limit)) {
+		kvm_s390_retry_instr(vcpu);
+		return 0;
+	}
 
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 	code = vcpu->run->s.regs.gprs[reg1];
