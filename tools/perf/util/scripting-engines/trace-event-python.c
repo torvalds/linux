@@ -408,8 +408,11 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 
-	if (!event)
-		die("ug! no event found for type %d", (int)evsel->attr.config);
+	if (!event) {
+		snprintf(handler_name, sizeof(handler_name),
+			 "ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+		Py_FatalError(handler_name);
+	}
 
 	pid = raw_field_value(event, "common_pid", data);
 
