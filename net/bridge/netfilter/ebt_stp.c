@@ -17,24 +17,24 @@
 #define BPDU_TYPE_TCN 0x80
 
 struct stp_header {
-	uint8_t dsap;
-	uint8_t ssap;
-	uint8_t ctrl;
-	uint8_t pid;
-	uint8_t vers;
-	uint8_t type;
+	u8 dsap;
+	u8 ssap;
+	u8 ctrl;
+	u8 pid;
+	u8 vers;
+	u8 type;
 };
 
 struct stp_config_pdu {
-	uint8_t flags;
-	uint8_t root[8];
-	uint8_t root_cost[4];
-	uint8_t sender[8];
-	uint8_t port[2];
-	uint8_t msg_age[2];
-	uint8_t max_age[2];
-	uint8_t hello_time[2];
-	uint8_t forward_delay[2];
+	u8 flags;
+	u8 root[8];
+	u8 root_cost[4];
+	u8 sender[8];
+	u8 port[2];
+	u8 msg_age[2];
+	u8 max_age[2];
+	u8 hello_time[2];
+	u8 forward_delay[2];
 };
 
 #define NR16(p) (p[0] << 8 | p[1])
@@ -44,8 +44,8 @@ static bool ebt_filter_config(const struct ebt_stp_info *info,
 			      const struct stp_config_pdu *stpc)
 {
 	const struct ebt_stp_config_info *c;
-	uint16_t v16;
-	uint32_t v32;
+	u16 v16;
+	u32 v32;
 	int verdict, i;
 
 	c = &info->config;
@@ -125,7 +125,7 @@ ebt_stp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	const struct ebt_stp_info *info = par->matchinfo;
 	const struct stp_header *sp;
 	struct stp_header _stph;
-	const uint8_t header[6] = {0x42, 0x42, 0x03, 0x00, 0x00, 0x00};
+	const u8 header[6] = {0x42, 0x42, 0x03, 0x00, 0x00, 0x00};
 
 	sp = skb_header_pointer(skb, 0, sizeof(_stph), &_stph);
 	if (sp == NULL)
@@ -156,8 +156,8 @@ ebt_stp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 static int ebt_stp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_stp_info *info = par->matchinfo;
-	const uint8_t bridge_ula[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
-	const uint8_t msk[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	const u8 bridge_ula[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
+	const u8 msk[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	const struct ebt_entry *e = par->entryinfo;
 
 	if (info->bitmask & ~EBT_STP_MASK || info->invflags & ~EBT_STP_MASK ||
