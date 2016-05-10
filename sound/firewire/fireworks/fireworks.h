@@ -84,7 +84,6 @@ struct snd_efw {
 	unsigned int pcm_capture_channels[SND_EFW_MULTIPLIER_MODES];
 	unsigned int pcm_playback_channels[SND_EFW_MULTIPLIER_MODES];
 
-	struct amdtp_stream *master;
 	struct amdtp_stream tx_stream;
 	struct amdtp_stream rx_stream;
 	struct cmp_connection out_conn;
