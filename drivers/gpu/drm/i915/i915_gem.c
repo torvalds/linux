@@ -1981,7 +1981,7 @@ i915_gem_get_gtt_size(struct drm_device *dev, uint32_t size, int tiling_mode)
 		return size;
 
 	/* Previous chips need a power-of-two fence region when tiling */
-	if (INTEL_INFO(dev)->gen == 3)
+	if (IS_GEN3(dev))
 		gtt_size = 1024*1024;
 	else
 		gtt_size = 512*1024;

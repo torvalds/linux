@@ -411,7 +411,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		err_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
 	}
 
-	if (INTEL_INFO(dev)->gen == 7)
+	if (IS_GEN7(dev))
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++)

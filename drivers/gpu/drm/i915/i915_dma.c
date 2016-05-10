@@ -889,7 +889,7 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 		DRM_INFO("Display disabled (module parameter)\n");
 		info->num_pipes = 0;
 	} else if (info->num_pipes > 0 &&
-		   (INTEL_INFO(dev)->gen == 7 || INTEL_INFO(dev)->gen == 8) &&
+		   (IS_GEN7(dev_priv) || IS_GEN8(dev_priv)) &&
 		   HAS_PCH_SPLIT(dev)) {
 		u32 fuse_strap = I915_READ(FUSE_STRAP);
 		u32 sfuse_strap = I915_READ(SFUSE_STRAP);
@@ -913,7 +913,7 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 			DRM_INFO("PipeC fused off\n");
 			info->num_pipes -= 1;
 		}
-	} else if (info->num_pipes > 0 && INTEL_INFO(dev)->gen == 9) {
+	} else if (info->num_pipes > 0 && IS_GEN9(dev_priv)) {
 		u32 dfsm = I915_READ(SKL_DFSM);
 		u8 disabled_mask = 0;
 		bool invalid;

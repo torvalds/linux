@@ -2146,14 +2146,14 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 static void intel_fixup_spr_wm_latency(struct drm_device *dev, uint16_t wm[5])
 {
 	/* ILK sprite LP0 latency is 1300 ns */
-	if (INTEL_INFO(dev)->gen == 5)
+	if (IS_GEN5(dev))
 		wm[0] = 13;
 }
 
 static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
 {
 	/* ILK cursor LP0 latency is 1300 ns */
-	if (INTEL_INFO(dev)->gen == 5)
+	if (IS_GEN5(dev))
 		wm[0] = 13;
 
 	/* WaDoubleCursorLP3Latency:ivb */

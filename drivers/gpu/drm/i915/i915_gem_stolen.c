@@ -56,7 +56,7 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 
 	/* See the comment at the drm_mm_init() call for more about this check.
 	 * WaSkipStolenMemoryFirstPage:bdw,chv (incomplete) */
-	if (INTEL_INFO(dev_priv)->gen == 8 && start < 4096)
+	if (IS_GEN8(dev_priv) && start < 4096)
 		start = 4096;
 
 	mutex_lock(&dev_priv->mm.stolen_lock);
