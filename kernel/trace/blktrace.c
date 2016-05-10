@@ -1349,6 +1349,7 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 	if (t->action == BLK_TN_MESSAGE) {
 		log_action(iter, long_act ? "message" : "m");
 		blk_log_msg(s, iter->ent);
+		return trace_handle_return(s);
 	}
 
 	if (unlikely(what == 0 || what >= ARRAY_SIZE(what2act)))
