@@ -700,7 +700,7 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 	struct net_device *dev = t->dev;
 	struct __ip6_tnl_parm *p = &t->parms;
 	struct flowi6 *fl6 = &t->fl.u.ip6;
-	int addend = sizeof(struct ipv6hdr) + 4;
+	int t_hlen;
 
 	if (dev->type != ARPHRD_ETHER) {
 		memcpy(dev->dev_addr, &p->laddr, sizeof(struct in6_addr));
@@ -727,16 +727,11 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 	else
 		dev->flags &= ~IFF_POINTOPOINT;
 
-	/* Precalculate GRE options length */
-	if (t->parms.o_flags&(GRE_CSUM|GRE_KEY|GRE_SEQ)) {
-		if (t->parms.o_flags&GRE_CSUM)
-			addend += 4;
-		if (t->parms.o_flags&GRE_KEY)
-			addend += 4;
-		if (t->parms.o_flags&GRE_SEQ)
-			addend += 4;
-	}
-	t->hlen = addend;
+	t->tun_hlen = gre_calc_hlen(t->parms.o_flags);
+
+	t->hlen = t->tun_hlen;
+
+	t_hlen = t->hlen + sizeof(struct ipv6hdr);
 
 	if (p->flags & IP6_TNL_F_CAP_XMIT) {
 		int strict = (ipv6_addr_type(&p->raddr) &
@@ -750,10 +745,11 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu)
 			return;
 
 		if (rt->dst.dev) {
-			dev->hard_header_len = rt->dst.dev->hard_header_len + addend;
+			dev->hard_header_len = rt->dst.dev->hard_header_len +
+					       t_hlen;
 
 			if (set_mtu) {
-				dev->mtu = rt->dst.dev->mtu - addend;
+				dev->mtu = rt->dst.dev->mtu - t_hlen;
 				if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 					dev->mtu -= 8;
 				if (dev->type == ARPHRD_ETHER)
@@ -1027,11 +1023,12 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 
 	tunnel->tun_hlen = gre_calc_hlen(tunnel->parms.o_flags);
 
+	tunnel->hlen = tunnel->tun_hlen;
+
 	t_hlen = tunnel->hlen + sizeof(struct ipv6hdr);
 
-	dev->needed_headroom	= LL_MAX_HEADER + t_hlen + 4;
-	dev->mtu		= ETH_DATA_LEN - t_hlen - 4;
-
+	dev->hard_header_len = LL_MAX_HEADER + t_hlen;
+	dev->mtu = ETH_DATA_LEN - t_hlen;
 	if (!(tunnel->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 		dev->mtu -= 8;
 
