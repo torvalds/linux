@@ -47,7 +47,6 @@ void setup_derived_state(struct inode *inode, perm_t perm,
 /* While renaming, there is a point where we want the path from dentry, but the name from newdentry */
 void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, struct dentry *newdentry)
 {
-	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 	struct sdcardfs_inode_info *info = SDCARDFS_I(dentry->d_inode);
 	struct sdcardfs_inode_info *parent_info= SDCARDFS_I(parent->d_inode);
 	appid_t appid;
@@ -96,7 +95,7 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, st
 		case PERM_ANDROID_DATA:
 		case PERM_ANDROID_OBB:
 		case PERM_ANDROID_MEDIA:
-			appid = get_appid(sbi->pkgl_id, newdentry->d_name.name);
+			appid = get_appid(newdentry->d_name.name);
 			if (appid != 0) {
 				info->d_uid = multiuser_get_uid(parent_info->userid, appid);
 			}
