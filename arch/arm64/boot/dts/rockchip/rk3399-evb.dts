@@ -1,8 +1,5 @@
 /*
- * Device Tree Source for RK3368 SoC thermal
- *
- * Copyright (c) 2015, Fuzhou Rockchip Electronics Co., Ltd
- * Caesar Wang <wxt@rock-chips.com>
+ * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,70 +40,85 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <dt-bindings/thermal/thermal.h>
+/dts-v1/;
+#include <dt-bindings/pwm/pwm.h>
+#include "rk3399.dtsi"
 
-cpu_thermal: cpu_thermal {
-	polling-delay-passive = <100>; /* milliseconds */
-	polling-delay = <5000>; /* milliseconds */
+/ {
+	model = "Rockchip RK3399 Evaluation Board";
+	compatible = "rockchip,rk3399-evb", "rockchip,rk3399",
+		     "google,rk3399evb-rev2";
 
-	thermal-sensors = <&tsadc 0>;
-
-	trips {
-		cpu_alert0: cpu_alert0 {
-			temperature = <75000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "passive";
-		};
-		cpu_alert1: cpu_alert1 {
-			temperature = <80000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "passive";
-		};
-		cpu_crit: cpu_crit {
-			temperature = <95000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "critical";
-		};
+	vdd_center: vdd-center {
+		compatible = "pwm-regulator";
+		pwms = <&pwm3 0 25000 0>;
+		regulator-name = "vdd_center";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <1400000>;
+		regulator-always-on;
+		regulator-boot-on;
+		status = "okay";
 	};
 
-	cooling-maps {
-		map0 {
-			trip = <&cpu_alert0>;
-			cooling-device =
-				<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-		};
-		map1 {
-			trip = <&cpu_alert1>;
-			cooling-device =
-				<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-		};
+	vcc3v3_sys: vcc3v3-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vcc_phy: vcc-phy-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_phy";
+		regulator-always-on;
+		regulator-boot-on;
 	};
 };
 
-gpu_thermal: gpu_thermal {
-	polling-delay-passive = <100>; /* milliseconds */
-	polling-delay = <5000>; /* milliseconds */
+&pwm0 {
+	status = "okay";
+};
 
-	thermal-sensors = <&tsadc 1>;
+&pwm2 {
+	status = "okay";
+};
 
-	trips {
-		gpu_alert0: gpu_alert0 {
-			temperature = <80000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "passive";
+&pwm3 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+&pinctrl {
+	pmic {
+		pmic_int_l: pmic-int-l {
+			rockchip,pins =
+				<1 21 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
-		gpu_crit: gpu_crit {
-			temperature = <1150000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "critical";
-		};
-	};
 
-	cooling-maps {
-		map0 {
-			trip = <&gpu_alert0>;
-			cooling-device =
-				<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		pmic_dvs2: pmic-dvs2 {
+			rockchip,pins =
+				<1 18 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 };
