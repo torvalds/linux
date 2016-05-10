@@ -606,7 +606,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_guc_suspend(dev);
 
-	intel_suspend_gt_powersave(dev);
+	intel_suspend_gt_powersave(dev_priv);
 
 	intel_display_suspend(dev);
 
@@ -626,7 +626,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_notify_adapter(dev, opregion_target_state);
 
-	intel_uncore_forcewake_reset(dev, false);
+	intel_uncore_forcewake_reset(dev_priv, false);
 	intel_opregion_fini(dev);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
@@ -866,9 +866,9 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
 			  ret);
 
-	intel_uncore_early_sanitize(dev, true);
+	intel_uncore_early_sanitize(dev_priv, true);
 
-	if (IS_BROXTON(dev)) {
+	if (IS_BROXTON(dev_priv)) {
 		if (!dev_priv->suspended_to_idle)
 			gen9_sanitize_dc_state(dev_priv);
 		bxt_disable_dc9(dev_priv);
@@ -876,7 +876,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		hsw_disable_pc8(dev_priv);
 	}
 
-	intel_uncore_sanitize(dev);
+	intel_uncore_sanitize(dev_priv);
 
 	if (IS_BROXTON(dev_priv) ||
 	    !(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
@@ -926,7 +926,7 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	unsigned reset_counter;
 	int ret;
 
-	intel_reset_gt_powersave(dev);
+	intel_reset_gt_powersave(dev_priv);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -942,7 +942,7 @@ int i915_reset(struct drm_i915_private *dev_priv)
 
 	i915_gem_reset(dev);
 
-	ret = intel_gpu_reset(dev, ALL_ENGINES);
+	ret = intel_gpu_reset(dev_priv, ALL_ENGINES);
 
 	/* Also reset the gpu hangman. */
 	if (error->stop_rings != 0) {
@@ -997,7 +997,7 @@ int i915_reset(struct drm_i915_private *dev_priv)
 	 * of re-init after reset.
 	 */
 	if (INTEL_INFO(dev)->gen > 5)
-		intel_enable_gt_powersave(dev);
+		intel_enable_gt_powersave(dev_priv);
 
 	return 0;
 
@@ -1474,7 +1474,7 @@ static int intel_runtime_suspend(struct device *device)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	if (WARN_ON_ONCE(!(dev_priv->rps.enabled && intel_enable_rc6(dev))))
+	if (WARN_ON_ONCE(!(dev_priv->rps.enabled && intel_enable_rc6())))
 		return -ENODEV;
 
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev)))
@@ -1513,7 +1513,7 @@ static int intel_runtime_suspend(struct device *device)
 
 	intel_guc_suspend(dev);
 
-	intel_suspend_gt_powersave(dev);
+	intel_suspend_gt_powersave(dev_priv);
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
 	ret = 0;
@@ -1535,7 +1535,7 @@ static int intel_runtime_suspend(struct device *device)
 		return ret;
 	}
 
-	intel_uncore_forcewake_reset(dev, false);
+	intel_uncore_forcewake_reset(dev_priv, false);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 	WARN_ON_ONCE(atomic_read(&dev_priv->pm.wakeref_count));
@@ -1616,7 +1616,7 @@ static int intel_runtime_resume(struct device *device)
 	 * we can do is to hope that things will still work (and disable RPM).
 	 */
 	i915_gem_init_swizzling(dev);
-	gen6_update_ring_freq(dev);
+	gen6_update_ring_freq(dev_priv);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
@@ -1628,7 +1628,7 @@ static int intel_runtime_resume(struct device *device)
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_init(dev_priv);
 
-	intel_enable_gt_powersave(dev);
+	intel_enable_gt_powersave(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 

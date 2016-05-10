@@ -1032,7 +1032,7 @@ void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void gen6_reset_rps_interrupts(struct drm_device *dev);
+void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv);
 void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv);
 u32 gen6_sanitize_rps_pm_mask(struct drm_i915_private *dev_priv, u32 mask);
@@ -1612,13 +1612,13 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv);
 void intel_pm_setup(struct drm_device *dev);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 void intel_gpu_ips_teardown(void);
-void intel_init_gt_powersave(struct drm_device *dev);
-void intel_cleanup_gt_powersave(struct drm_device *dev);
-void intel_enable_gt_powersave(struct drm_device *dev);
-void intel_disable_gt_powersave(struct drm_device *dev);
-void intel_suspend_gt_powersave(struct drm_device *dev);
-void intel_reset_gt_powersave(struct drm_device *dev);
-void gen6_update_ring_freq(struct drm_device *dev);
+void intel_init_gt_powersave(struct drm_i915_private *dev_priv);
+void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv);
+void intel_enable_gt_powersave(struct drm_i915_private *dev_priv);
+void intel_disable_gt_powersave(struct drm_i915_private *dev_priv);
+void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv);
+void intel_reset_gt_powersave(struct drm_i915_private *dev_priv);
+void gen6_update_ring_freq(struct drm_i915_private *dev_priv);
 void gen6_rps_busy(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
@@ -1633,7 +1633,11 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */);
 uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config);
 bool ilk_disable_lp_wm(struct drm_device *dev);
-int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6);
+int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6);
+static inline int intel_enable_rc6(void)
+{
+	return i915.enable_rc6;
+}
 
 /* intel_sdvo.c */
 bool intel_sdvo_init(struct drm_device *dev,

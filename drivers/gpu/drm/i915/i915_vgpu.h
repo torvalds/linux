@@ -110,7 +110,7 @@ struct vgt_if {
 #define VGT_DRV_DISPLAY_NOT_READY 0
 #define VGT_DRV_DISPLAY_READY     1  /* ready for display switch */
 
-extern void i915_check_vgpu(struct drm_device *dev);
+extern void i915_check_vgpu(struct drm_i915_private *dev_priv);
 extern int intel_vgt_balloon(struct drm_device *dev);
 extern void intel_vgt_deballoon(void);
 

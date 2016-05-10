@@ -2777,8 +2777,8 @@ extern void i915_driver_postclose(struct drm_device *dev,
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 #endif
-extern int intel_gpu_reset(struct drm_device *dev, u32 engine_mask);
-extern bool intel_has_gpu_reset(struct drm_device *dev);
+extern int intel_gpu_reset(struct drm_i915_private *dev_priv, u32 engine_mask);
+extern bool intel_has_gpu_reset(struct drm_i915_private *dev_priv);
 extern int i915_reset(struct drm_i915_private *dev_priv);
 extern int intel_guc_reset(struct drm_i915_private *dev_priv);
 extern void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
@@ -2807,14 +2807,15 @@ extern void intel_irq_init(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
 void intel_irq_uninstall(struct drm_i915_private *dev_priv);
 
-extern void intel_uncore_sanitize(struct drm_device *dev);
-extern void intel_uncore_early_sanitize(struct drm_device *dev,
+extern void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
+extern void intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 					bool restore_forcewake);
-extern void intel_uncore_init(struct drm_device *dev);
+extern void intel_uncore_init(struct drm_i915_private *dev_priv);
 extern bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv);
 extern bool intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv);
-extern void intel_uncore_fini(struct drm_device *dev);
-extern void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore);
+extern void intel_uncore_fini(struct drm_i915_private *dev_priv);
+extern void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
+					 bool restore);
 const char *intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id);
 void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 				enum forcewake_domains domains);
@@ -3547,11 +3548,10 @@ extern void i915_redisable_vga(struct drm_device *dev);
 extern void i915_redisable_vga_power_on(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);
-extern void intel_set_rps(struct drm_device *dev, u8 val);
+extern void intel_set_rps(struct drm_i915_private *dev_priv, u8 val);
 extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);
 extern void intel_detect_pch(struct drm_device *dev);
-extern int intel_enable_rc6(const struct drm_device *dev);
 
 extern bool i915_semaphore_is_enabled(struct drm_i915_private *dev_priv);
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,

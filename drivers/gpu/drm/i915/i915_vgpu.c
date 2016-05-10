@@ -58,15 +58,14 @@
  * This function is called at the initialization stage, to detect whether
  * running on a vGPU.
  */
-void i915_check_vgpu(struct drm_device *dev)
+void i915_check_vgpu(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint64_t magic;
 	uint32_t version;
 
 	BUILD_BUG_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 
-	if (!IS_HASWELL(dev))
+	if (!IS_HASWELL(dev_priv))
 		return;
 
 	magic = __raw_i915_read64(dev_priv, vgtif_reg(magic));
@@ -136,7 +135,7 @@ static int vgt_balloon_space(struct drm_mm *mm,
 
 /**
  * intel_vgt_balloon - balloon out reserved graphics address trunks
- * @dev: drm device
+ * @dev_priv: i915 device
  *
  * This function is called at the initialization stage, to balloon out the
  * graphic address space allocated to other vGPUs, by marking these spaces as

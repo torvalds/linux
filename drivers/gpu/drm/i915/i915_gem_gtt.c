@@ -2279,12 +2279,11 @@ static void undo_idling(struct drm_i915_private *dev_priv, bool interruptible)
 		dev_priv->mm.interruptible = interruptible;
 }
 
-void i915_check_and_clear_faults(struct drm_device *dev)
+void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 
-	if (INTEL_INFO(dev)->gen < 6)
+	if (INTEL_INFO(dev_priv)->gen < 6)
 		return;
 
 	for_each_engine(engine, dev_priv) {
@@ -2328,7 +2327,7 @@ void i915_gem_suspend_gtt_mappings(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 6)
 		return;
 
-	i915_check_and_clear_faults(dev);
+	i915_check_and_clear_faults(dev_priv);
 
 	ggtt->base.clear_range(&ggtt->base, ggtt->base.start, ggtt->base.total,
 			     true);
@@ -3248,7 +3247,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	struct i915_vma *vma;
 	bool flush;
 
-	i915_check_and_clear_faults(dev);
+	i915_check_and_clear_faults(dev_priv);
 
 	/* First fill our portion of the GTT with scratch pages */
 	ggtt->base.clear_range(&ggtt->base, ggtt->base.start, ggtt->base.total,

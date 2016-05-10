@@ -336,9 +336,8 @@ void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 	__gen6_disable_pm_irq(dev_priv, mask);
 }
 
-void gen6_reset_rps_interrupts(struct drm_device *dev)
+void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	i915_reg_t reg = gen6_pm_iir(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);
@@ -1168,7 +1167,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	new_delay += adj;
 	new_delay = clamp_t(int, new_delay, min, max);
 
-	intel_set_rps(dev_priv->dev, new_delay);
+	intel_set_rps(dev_priv, new_delay);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 out:

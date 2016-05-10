@@ -158,8 +158,7 @@ static int host2guc_sample_forcewake(struct intel_guc *guc,
 
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
 	/* WaRsDisableCoarsePowerGating:skl,bxt */
-	if (!intel_enable_rc6(dev) ||
-	    NEEDS_WaRsDisableCoarsePowerGating(dev))
+	if (!intel_enable_rc6() || NEEDS_WaRsDisableCoarsePowerGating(dev))
 		data[1] = 0;
 	else
 		/* bit 0 and 1 are for Render and Media domain separately */

@@ -223,8 +223,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 			return -ENODEV;
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
-		value = i915.enable_hangcheck &&
-			intel_has_gpu_reset(dev);
+		value = i915.enable_hangcheck && intel_has_gpu_reset(dev_priv);
 		break;
 	case I915_PARAM_HAS_RESOURCE_STREAMER:
 		value = HAS_RESOURCE_STREAMER(dev);
@@ -427,6 +426,8 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 
 static void i915_gem_fini(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
 	/*
 	 * Neither the BIOS, ourselves or any other kernel
 	 * expects the system to be in execlists mode on startup,
@@ -447,7 +448,7 @@ static void i915_gem_fini(struct drm_device *dev)
 	 * machine in an unusable condition.
 	 */
 	if (HAS_HW_CONTEXTS(dev)) {
-		int reset = intel_gpu_reset(dev, ALL_ENGINES);
+		int reset = intel_gpu_reset(dev_priv, ALL_ENGINES);
 		WARN_ON(reset && reset != -ENODEV);
 	}
 
@@ -1189,7 +1190,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	if (ret < 0)
 		goto put_bridge;
 
-	intel_uncore_init(dev);
+	intel_uncore_init(dev_priv);
 
 	return 0;
 
@@ -1207,7 +1208,7 @@ static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	intel_uncore_fini(dev);
+	intel_uncore_fini(dev_priv);
 	i915_mmio_cleanup(dev);
 	pci_dev_put(dev_priv->bridge_dev);
 }
@@ -1288,7 +1289,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY,
 			   PM_QOS_DEFAULT_VALUE);
 
-	intel_uncore_sanitize(dev);
+	intel_uncore_sanitize(dev_priv);
 
 	intel_opregion_setup(dev);
 

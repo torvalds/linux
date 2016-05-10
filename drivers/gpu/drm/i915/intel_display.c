@@ -15283,7 +15283,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 	dev_priv->atomic_cdclk_freq = dev_priv->cdclk_freq;
 
 	intel_init_clock_gating(dev);
-	intel_enable_gt_powersave(dev);
+	intel_enable_gt_powersave(dev_priv);
 }
 
 /*
@@ -16011,11 +16011,12 @@ retry:
 
 void intel_modeset_gem_init(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *c;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	intel_init_gt_powersave(dev);
+	intel_init_gt_powersave(dev_priv);
 
 	intel_modeset_init_hw(dev);
 
@@ -16062,7 +16063,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_connector *connector;
 
-	intel_disable_gt_powersave(dev);
+	intel_disable_gt_powersave(dev_priv);
 
 	intel_backlight_unregister(dev);
 
@@ -16094,7 +16095,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_cleanup_overlay(dev);
 
-	intel_cleanup_gt_powersave(dev);
+	intel_cleanup_gt_powersave(dev_priv);
 
 	intel_teardown_gmbus(dev);
 }

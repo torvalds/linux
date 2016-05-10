@@ -536,7 +536,7 @@ static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 		kref_put(&ppgtt->ref, i915_ppgtt_release);
 }
 
-void i915_check_and_clear_faults(struct drm_device *dev);
+void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 
