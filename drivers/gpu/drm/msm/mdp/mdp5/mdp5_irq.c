@@ -23,9 +23,9 @@
 void mdp5_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask,
 		uint32_t old_irqmask)
 {
-	mdp5_write(to_mdp5_kms(mdp_kms), REG_MDP5_MDP_INTR_CLEAR(0),
-		irqmask ^ (irqmask & old_irqmask));
-	mdp5_write(to_mdp5_kms(mdp_kms), REG_MDP5_MDP_INTR_EN(0), irqmask);
+	mdp5_write(to_mdp5_kms(mdp_kms), REG_MDP5_INTR_CLEAR,
+		   irqmask ^ (irqmask & old_irqmask));
+	mdp5_write(to_mdp5_kms(mdp_kms), REG_MDP5_INTR_EN, irqmask);
 }
 
 static void mdp5_irq_error_handler(struct mdp_irq *irq, uint32_t irqstatus)
@@ -37,8 +37,8 @@ void mdp5_irq_preinstall(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	mdp5_enable(mdp5_kms);
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_INTR_CLEAR(0), 0xffffffff);
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_INTR_EN(0), 0x00000000);
+	mdp5_write(mdp5_kms, REG_MDP5_INTR_CLEAR, 0xffffffff);
+	mdp5_write(mdp5_kms, REG_MDP5_INTR_EN, 0x00000000);
 	mdp5_disable(mdp5_kms);
 }
 
@@ -63,7 +63,7 @@ void mdp5_irq_uninstall(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	mdp5_enable(mdp5_kms);
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_INTR_EN(0), 0x00000000);
+	mdp5_write(mdp5_kms, REG_MDP5_INTR_EN, 0x00000000);
 	mdp5_disable(mdp5_kms);
 }
 
@@ -76,9 +76,9 @@ irqreturn_t mdp5_irq(struct msm_kms *kms)
 	unsigned int id;
 	uint32_t status, enable;
 
-	enable = mdp5_read(mdp5_kms, REG_MDP5_MDP_INTR_EN(0));
-	status = mdp5_read(mdp5_kms, REG_MDP5_MDP_INTR_STATUS(0)) & enable;
-	mdp5_write(mdp5_kms, REG_MDP5_MDP_INTR_CLEAR(0), status);
+	enable = mdp5_read(mdp5_kms, REG_MDP5_INTR_EN);
+	status = mdp5_read(mdp5_kms, REG_MDP5_INTR_STATUS) & enable;
+	mdp5_write(mdp5_kms, REG_MDP5_INTR_CLEAR, status);
 
 	VERB("status=%08x", status);
 
