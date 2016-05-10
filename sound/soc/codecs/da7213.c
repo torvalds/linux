@@ -1342,7 +1342,7 @@ static int da7213_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	pll_ctrl = 0;
 
 	/* Workout input divider based on MCLK rate */
-	if ((da7213->mclk_rate == 32768) && (source == DA7213_SYSCLK_PLL)) {
+	if (da7213->mclk_rate == 32768) {
 		/* 32KHz PLL Mode */
 		indiv_bits = DA7213_PLL_INDIV_9_TO_18_MHZ;
 		indiv = DA7213_PLL_INDIV_9_TO_18_MHZ_VAL;
