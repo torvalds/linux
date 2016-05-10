@@ -4634,7 +4634,6 @@ static int pskb_carve_inside_header(struct sk_buff *skb, const u32 off,
 	int size = skb_end_offset(skb);
 	int new_hlen = headlen - off;
 	u8 *data;
-	int doff = 0;
 
 	size = SKB_DATA_ALIGN(size);
 
@@ -4674,13 +4673,11 @@ static int pskb_carve_inside_header(struct sk_buff *skb, const u32 off,
 		skb_free_head(skb);
 	}
 
-	doff = (data - skb->head);
 	skb->head = data;
 	skb->data = data;
 	skb->head_frag = 0;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb->end = size;
-	doff = 0;
 #else
 	skb->end = skb->head + size;
 #endif
@@ -4761,7 +4758,6 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 	u8 *data;
 	const int nfrags = skb_shinfo(skb)->nr_frags;
 	struct skb_shared_info *shinfo;
-	int doff = 0;
 
 	size = SKB_DATA_ALIGN(size);
 
@@ -4816,13 +4812,11 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 	}
 	skb_release_data(skb);
 
-	doff = (data - skb->head);
 	skb->head = data;
 	skb->head_frag = 0;
 	skb->data = data;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb->end = size;
-	doff = 0;
 #else
 	skb->end = skb->head + size;
 #endif
