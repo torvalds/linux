@@ -160,12 +160,6 @@ static inline char *gitstrchrnul(const char *s, int c)
 }
 #endif
 
-/*
- * Wrappers:
- */
-void *xrealloc(void *ptr, size_t size) __attribute__((weak));
-
-
 static inline void *zalloc(size_t size)
 {
 	return calloc(1, size);

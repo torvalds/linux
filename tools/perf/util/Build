@@ -27,7 +27,6 @@ libperf-y += strlist.o
 libperf-y += strfilter.o
 libperf-y += top.o
 libperf-y += usage.o
-libperf-y += wrapper.o
 libperf-y += dso.o
 libperf-y += symbol.o
 libperf-y += symbol_fprintf.o
