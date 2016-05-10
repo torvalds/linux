@@ -1315,6 +1315,17 @@ const struct address_space_operations ceph_aops = {
 	.direct_IO = ceph_direct_io,
 };
 
+static void ceph_block_sigs(sigset_t *oldset)
+{
+	sigset_t mask;
+	siginitsetinv(&mask, sigmask(SIGKILL));
+	sigprocmask(SIG_BLOCK, &mask, oldset);
+}
+
+static void ceph_restore_sigs(sigset_t *oldset)
+{
+	sigprocmask(SIG_SETMASK, oldset, NULL);
+}
 
 /*
  * vm ops
@@ -1327,6 +1338,9 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct page *pinned_page = NULL;
 	loff_t off = vmf->pgoff << PAGE_SHIFT;
 	int want, got, ret;
+	sigset_t oldset;
+
+	ceph_block_sigs(&oldset);
 
 	dout("filemap_fault %p %llx.%llx %llu~%zd trying to get caps\n",
 	     inode, ceph_vinop(inode), off, (size_t)PAGE_SIZE);
@@ -1334,16 +1348,12 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		want = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 	else
 		want = CEPH_CAP_FILE_CACHE;
-	while (1) {
-		got = 0;
-		ret = ceph_get_caps(ci, CEPH_CAP_FILE_RD, want,
-				    -1, &got, &pinned_page);
-		if (ret == 0)
-			break;
-		if (ret != -ERESTARTSYS) {
-			WARN_ON(1);
-			return VM_FAULT_SIGBUS;
-		}
+
+	got = 0;
+	ret = ceph_get_caps(ci, CEPH_CAP_FILE_RD, want, -1, &got, &pinned_page);
+	if (ret < 0) {
+		ret = VM_FAULT_SIGBUS;
+		goto out_restore;
 	}
 	dout("filemap_fault %p %llu~%zd got cap refs on %s\n",
 	     inode, off, (size_t)PAGE_SIZE, ceph_cap_string(got));
@@ -1361,7 +1371,7 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ceph_put_cap_refs(ci, got);
 
 	if (ret != -EAGAIN)
-		return ret;
+		goto out_restore;
 
 	/* read inline data */
 	if (off >= PAGE_SIZE) {
@@ -1375,7 +1385,7 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 						~__GFP_FS));
 		if (!page) {
 			ret = VM_FAULT_OOM;
-			goto out;
+			goto out_inline;
 		}
 		ret1 = __ceph_do_getattr(inode, page,
 					 CEPH_STAT_CAP_INLINE_DATA, true);
@@ -1383,7 +1393,7 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			unlock_page(page);
 			put_page(page);
 			ret = VM_FAULT_SIGBUS;
-			goto out;
+			goto out_inline;
 		}
 		if (ret1 < PAGE_SIZE)
 			zero_user_segment(page, ret1, PAGE_SIZE);
@@ -1392,10 +1402,12 @@ static int ceph_filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		SetPageUptodate(page);
 		vmf->page = page;
 		ret = VM_FAULT_MAJOR | VM_FAULT_LOCKED;
+out_inline:
+		dout("filemap_fault %p %llu~%zd read inline data ret %d\n",
+		     inode, off, (size_t)PAGE_SIZE, ret);
 	}
-out:
-	dout("filemap_fault %p %llu~%zd read inline data ret %d\n",
-	     inode, off, (size_t)PAGE_SIZE, ret);
+out_restore:
+	ceph_restore_sigs(&oldset);
 	return ret;
 }
 
@@ -1413,10 +1425,13 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	loff_t size = i_size_read(inode);
 	size_t len;
 	int want, got, ret;
+	sigset_t oldset;
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
 		return VM_FAULT_SIGBUS;
+
+	ceph_block_sigs(&oldset);
 
 	if (ci->i_inline_version != CEPH_INLINE_NONE) {
 		struct page *locked_page = NULL;
@@ -1444,17 +1459,13 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
 	else
 		want = CEPH_CAP_FILE_BUFFER;
-	while (1) {
-		got = 0;
-		ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, off + len,
-				    &got, NULL);
-		if (ret == 0)
-			break;
-		if (ret != -ERESTARTSYS) {
-			WARN_ON(1);
-			ret = VM_FAULT_SIGBUS;
-			goto out_free;
-		}
+
+	got = 0;
+	ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, off + len,
+			    &got, NULL);
+	if (ret < 0) {
+		ret = VM_FAULT_SIGBUS;
+		goto out_free;
 	}
 	dout("page_mkwrite %p %llu~%zd got cap refs on %s\n",
 	     inode, off, len, ceph_cap_string(got));
@@ -1499,6 +1510,7 @@ out:
 	     inode, off, len, ceph_cap_string(got), ret);
 	ceph_put_cap_refs(ci, got);
 out_free:
+	ceph_restore_sigs(&oldset);
 	ceph_free_cap_flush(prealloc_cf);
 
 	return ret;
