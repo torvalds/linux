@@ -41,7 +41,7 @@ TRACE_EVENT(kvm_s390_skey_related_inst,
 	    TP_fast_assign(
 		    VCPU_ASSIGN_COMMON
 		    ),
-	    VCPU_TP_PRINTK("%s", "first instruction related to skeys on vcpu")
+	    VCPU_TP_PRINTK("%s", "storage key related instruction")
 	);
 
 TRACE_EVENT(kvm_s390_major_guest_pfault,

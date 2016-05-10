@@ -152,24 +152,27 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 static int __skey_check_enable(struct kvm_vcpu *vcpu)
 {
 	int rc = 0;
+
+	trace_kvm_s390_skey_related_inst(vcpu);
 	if (!(vcpu->arch.sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)))
 		return rc;
 
 	rc = s390_enable_skey();
-	VCPU_EVENT(vcpu, 3, "%s", "enabling storage keys for guest");
-	trace_kvm_s390_skey_related_inst(vcpu);
-	vcpu->arch.sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
+	VCPU_EVENT(vcpu, 3, "enabling storage keys for guest: %d", rc);
+	if (!rc)
+		vcpu->arch.sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
 	return rc;
 }
 
 
 static int handle_skey(struct kvm_vcpu *vcpu)
 {
-	int rc = __skey_check_enable(vcpu);
+	int rc;
 
+	vcpu->stat.instruction_storage_key++;
+	rc = __skey_check_enable(vcpu);
 	if (rc)
 		return rc;
-	vcpu->stat.instruction_storage_key++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
