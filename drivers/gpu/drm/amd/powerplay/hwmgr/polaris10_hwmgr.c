@@ -199,8 +199,9 @@ void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
 	enum PP_DAL_POWERLEVEL dal_power_level = hwmgr->dal_power_level;
 	uint32_t req_vddc = 0, req_volt, i;
 
-	if (!table && !(dal_power_level >= PP_DAL_POWERLEVEL_ULTRALOW &&
-			dal_power_level <= PP_DAL_POWERLEVEL_PERFORMANCE))
+	if (!table || table-count <= 0
+		|| dal_power_level < PP_DAL_POWERLEVEL_ULTRALOW
+		|| dal_power_level > PP_DAL_POWERLEVEL_PERFORMANCE)
 		return;
 
 	for (i = 0; i < table->count; i++) {
