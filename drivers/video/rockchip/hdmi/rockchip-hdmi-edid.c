@@ -339,7 +339,7 @@ static void hdmi_edid_parse_yuv420cmdb(unsigned char *buf, int count,
 {
 	struct list_head *pos;
 	struct display_modelist *modelist;
-	int i, j, yuv420_mask, vic;
+	int i, j, yuv420_mask = 0, vic;
 
 	for (i = 0; i < count - 1; i++) {
 		EDBG("vic which support yuv420 mode is %x\n", buf[i]);

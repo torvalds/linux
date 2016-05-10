@@ -882,7 +882,7 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 int hdmi_find_best_mode(struct hdmi *hdmi, int vic)
 {
 	struct list_head *pos, *head = &hdmi->edid.modelist;
-	struct display_modelist *modelist;
+	struct display_modelist *modelist = NULL;
 	int found = 0;
 
 	if (vic) {

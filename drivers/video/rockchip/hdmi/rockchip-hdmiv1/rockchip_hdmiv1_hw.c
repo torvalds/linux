@@ -514,7 +514,8 @@ static void rockchip_hdmiv1_config_avi(struct hdmi *hdmi_drv,
 		avi_color_mode = AVI_COLOR_MODE_YCBCR444;
 	else if (output_color == HDMI_COLOR_YCBCR422)
 		avi_color_mode = AVI_COLOR_MODE_YCBCR422;
-
+	else
+		avi_color_mode = HDMI_COLOR_RGB_0_255;
 	info[4] = (avi_color_mode << 5);
 	info[5] =
 	    (AVI_COLORIMETRY_NO_DATA << 6) |

@@ -17,6 +17,7 @@ enum {
 
 /* Color Space Conversion Mode */
 enum {
+	CSC_BYPASS,
 	CSC_RGB_0_255_TO_RGB_16_235_8BIT,	/* RGB 0-255 input to RGB
 						 * 16-235 output that is 8bit
 						 * clolor depth
