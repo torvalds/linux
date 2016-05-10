@@ -735,6 +735,7 @@ struct intel_csr {
 	func(is_valleyview) sep \
 	func(is_cherryview) sep \
 	func(is_haswell) sep \
+	func(is_broadwell) sep \
 	func(is_skylake) sep \
 	func(is_broxton) sep \
 	func(is_kabylake) sep \
@@ -2553,7 +2554,7 @@ struct drm_i915_cmd_table {
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_cherryview)
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
-#define IS_BROADWELL(dev)	(!INTEL_INFO(dev)->is_cherryview && IS_GEN8(dev))
+#define IS_BROADWELL(dev)	(INTEL_INFO(dev)->is_broadwell)
 #define IS_SKYLAKE(dev)	(INTEL_INFO(dev)->is_skylake)
 #define IS_BROXTON(dev)		(INTEL_INFO(dev)->is_broxton)
 #define IS_KABYLAKE(dev)	(INTEL_INFO(dev)->is_kabylake)

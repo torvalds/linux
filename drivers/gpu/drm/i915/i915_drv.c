@@ -300,22 +300,26 @@ static const struct intel_device_info intel_haswell_m_info = {
 static const struct intel_device_info intel_broadwell_d_info = {
 	BDW_FEATURES,
 	.gen = 8,
+	.is_broadwell = 1,
 };
 
 static const struct intel_device_info intel_broadwell_m_info = {
 	BDW_FEATURES,
 	.gen = 8, .is_mobile = 1,
+	.is_broadwell = 1,
 };
 
 static const struct intel_device_info intel_broadwell_gt3d_info = {
 	BDW_FEATURES,
 	.gen = 8,
+	.is_broadwell = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
 static const struct intel_device_info intel_broadwell_gt3m_info = {
 	BDW_FEATURES,
 	.gen = 8, .is_mobile = 1,
+	.is_broadwell = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
