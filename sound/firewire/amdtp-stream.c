@@ -409,7 +409,8 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 			    amdtp_stream_get_max_payload(s), false);
 }
 
-static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle)
+static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
+			     unsigned int index)
 {
 	__be32 *buffer;
 	unsigned int syt;
@@ -434,7 +435,7 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle)
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
 	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
 
-	trace_out_packet(s, cycle, buffer, payload_length);
+	trace_out_packet(s, cycle, buffer, payload_length, index);
 
 	if (queue_out_packet(s, payload_length, false) < 0)
 		return -EIO;
@@ -448,7 +449,8 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle)
 }
 
 static int handle_in_packet(struct amdtp_stream *s,
-			    unsigned int payload_quadlets, unsigned int cycle)
+			    unsigned int payload_quadlets, unsigned int cycle,
+			    unsigned int index)
 {
 	__be32 *buffer;
 	u32 cip_header[2];
@@ -463,7 +465,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 	cip_header[0] = be32_to_cpu(buffer[0]);
 	cip_header[1] = be32_to_cpu(buffer[1]);
 
-	trace_in_packet(s, cycle, cip_header, payload_quadlets);
+	trace_in_packet(s, cycle, cip_header, payload_quadlets, index);
 
 	/*
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
@@ -602,7 +604,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	for (i = 0; i < packets; ++i) {
 		cycle = increment_cycle_count(cycle, 1);
-		if (handle_out_packet(s, cycle) < 0) {
+		if (handle_out_packet(s, cycle, i) < 0) {
 			s->packet_index = -1;
 			amdtp_stream_pcm_abort(s);
 			return;
@@ -649,7 +651,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			break;
 		}
 
-		if (handle_in_packet(s, payload_quadlets, cycle) < 0)
+		if (handle_in_packet(s, payload_quadlets, cycle, i) < 0)
 			break;
 	}
 
