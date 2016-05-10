@@ -4314,7 +4314,7 @@ static int fiji_populate_and_upload_sclk_mclk_dpm_levels(
 
 	if (data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK)) {
-		result = fiji_populate_all_memory_levels(hwmgr);
+		result = fiji_populate_all_graphic_levels(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == result),
 				"Failed to populate SCLK during PopulateNewDPMClocksStates Function!",
 				return result);
