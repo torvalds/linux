@@ -411,7 +411,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	ds->pd = pd;
 	ds->drv = drv;
 	ds->priv = priv;
-	ds->master_dev = host_dev;
+	ds->dev = parent;
 
 	ret = dsa_switch_setup_one(ds, parent);
 	if (ret)

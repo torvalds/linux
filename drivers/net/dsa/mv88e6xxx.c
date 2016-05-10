@@ -3642,6 +3642,7 @@ int mv88e6xxx_probe(struct mdio_device *mdiodev)
 
 	ps = (struct mv88e6xxx_priv_state *)(ds + 1);
 	ds->priv = ps;
+	ds->dev = dev;
 	ps->dev = dev;
 	ps->ds = ds;
 	ps->bus = mdiodev->bus;

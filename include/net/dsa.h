@@ -120,6 +120,8 @@ struct dsa_switch_tree {
 };
 
 struct dsa_switch {
+	struct device *dev;
+
 	/*
 	 * Parent switch tree, and switch index.
 	 */
@@ -141,11 +143,6 @@ struct dsa_switch {
 	 * The used switch driver.
 	 */
 	struct dsa_switch_driver	*drv;
-
-	/*
-	 * Reference to host device to use.
-	 */
-	struct device		*master_dev;
 
 #ifdef CONFIG_NET_DSA_HWMON
 	/*
