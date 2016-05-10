@@ -83,10 +83,13 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 	}
 	nvkm_done(mem);
 
-	if (nvkm_memory_target(mem) == NVKM_MEM_TARGET_VRAM)
-		target = 0;
-	else
-		target = 3;
+	switch (nvkm_memory_target(mem)) {
+	case NVKM_MEM_TARGET_VRAM: target = 0; break;
+	case NVKM_MEM_TARGET_NCOH: target = 3; break;
+	default:
+		WARN_ON(1);
+		return;
+	}
 
 	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(mem) >> 12) |
 				    (target << 28));

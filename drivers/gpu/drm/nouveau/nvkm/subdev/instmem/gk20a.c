@@ -116,7 +116,7 @@ struct gk20a_instmem {
 static enum nvkm_memory_target
 gk20a_instobj_target(struct nvkm_memory *memory)
 {
-	return NVKM_MEM_TARGET_HOST;
+	return NVKM_MEM_TARGET_NCOH;
 }
 
 static u64

@@ -136,10 +136,13 @@ nvkm_falcon_v1_bind_context(struct nvkm_falcon *falcon, struct nvkm_gpuobj *ctx)
 	nvkm_falcon_wr32(falcon, 0xe00 + 4 * FALCON_DMAIDX_PHYS_SYS_NCOH, 0x6);
 
 	/* Set context */
-	if (nvkm_memory_target(ctx->memory) == NVKM_MEM_TARGET_VRAM)
-		inst_loc = 0x0; /* FB */
-	else
-		inst_loc = 0x3; /* Non-coherent sysmem */
+	switch (nvkm_memory_target(ctx->memory)) {
+	case NVKM_MEM_TARGET_VRAM: inst_loc = 0; break;
+	case NVKM_MEM_TARGET_NCOH: inst_loc = 3; break;
+	default:
+		WARN_ON(1);
+		return;
+	}
 
 	/* Enable context */
 	nvkm_falcon_mask(falcon, 0x048, 0x1, 0x1);

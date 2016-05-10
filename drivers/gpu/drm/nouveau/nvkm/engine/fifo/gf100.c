@@ -68,7 +68,14 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 	}
 	nvkm_done(cur);
 
-	target = (nvkm_memory_target(cur) == NVKM_MEM_TARGET_HOST) ? 0x3 : 0x0;
+	switch (nvkm_memory_target(cur)) {
+	case NVKM_MEM_TARGET_VRAM: target = 0; break;
+	case NVKM_MEM_TARGET_NCOH: target = 3; break;
+	default:
+		mutex_unlock(&subdev->mutex);
+		WARN_ON(1);
+		return;
+	}
 
 	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(cur) >> 12) |
 				    (target << 28));
