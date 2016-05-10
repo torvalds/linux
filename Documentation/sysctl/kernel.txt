@@ -645,7 +645,7 @@ allowed to execute.
 perf_event_paranoid:
 
 Controls use of the performance events system by unprivileged
-users (without CAP_SYS_ADMIN).  The default value is 1.
+users (without CAP_SYS_ADMIN).  The default value is 2.
 
  -1: Allow use of (almost) all events by all users
 >=0: Disallow raw tracepoint access by users without CAP_IOC_LOCK
