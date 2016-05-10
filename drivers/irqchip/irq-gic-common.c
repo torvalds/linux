@@ -50,13 +50,17 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 	else if (type & IRQ_TYPE_EDGE_BOTH)
 		val |= confmask;
 
+	/* If the current configuration is the same, then we are done */
+	if (val == oldval)
+		return 0;
+
 	/*
 	 * Write back the new configuration, and possibly re-enable
-	 * the interrupt. If we tried to write a new configuration and failed,
+	 * the interrupt. If we fail to write a new configuration,
 	 * return an error.
 	 */
 	writel_relaxed(val, base + GIC_DIST_CONFIG + confoff);
-	if (readl_relaxed(base + GIC_DIST_CONFIG + confoff) != val && val != oldval)
+	if (readl_relaxed(base + GIC_DIST_CONFIG + confoff) != val)
 		ret = -EINVAL;
 
 	if (sync_access)
