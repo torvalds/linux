@@ -1209,10 +1209,14 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 		return -ENODEV;
 
 	dist_base = of_iomap(node, 0);
-	WARN(!dist_base, "unable to map gic dist registers\n");
+	if (WARN(!dist_base, "unable to map gic dist registers\n"))
+		return -ENOMEM;
 
 	cpu_base = of_iomap(node, 1);
-	WARN(!cpu_base, "unable to map gic cpu registers\n");
+	if (WARN(!cpu_base, "unable to map gic cpu registers\n")) {
+		iounmap(dist_base);
+		return -ENOMEM;
+	}
 
 	/*
 	 * Disable split EOI/Deactivate if either HYP is not available
