@@ -55,16 +55,16 @@ enum greybus_protocol {
 enum greybus_class_type {
 	GREYBUS_CLASS_CONTROL		= 0x00,
 	/* 0x01 is unused */
-	GREYBUS_CLASS_GPIO		= 0x02,
-	GREYBUS_CLASS_I2C		= 0x03,
-	GREYBUS_CLASS_UART		= 0x04,
+	/* 0x02 is unused */
+	/* 0x03 is unused */
+	/* 0x04 is unused */
 	GREYBUS_CLASS_HID		= 0x05,
-	GREYBUS_CLASS_USB		= 0x06,
-	GREYBUS_CLASS_SDIO		= 0x07,
+	/* 0x06 is unused */
+	/* 0x07 is unused */
 	GREYBUS_CLASS_POWER_SUPPLY	= 0x08,
-	GREYBUS_CLASS_PWM		= 0x09,
+	/* 0x09 is unused */
 	GREYBUS_CLASS_BRIDGED_PHY	= 0x0a,
-	GREYBUS_CLASS_SPI		= 0x0b,
+	/* 0x0b is unused */
 	GREYBUS_CLASS_DISPLAY		= 0x0c,
 	GREYBUS_CLASS_CAMERA		= 0x0d,
 	GREYBUS_CLASS_SENSOR		= 0x0e,
