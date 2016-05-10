@@ -869,6 +869,16 @@ error:
 	return ret;
 }
 
+static int mv88e6xxx_get_eeprom_len(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_EEPROM))
+		return ps->eeprom_len;
+
+	return 0;
+}
+
 static int mv88e6xxx_get_eeprom(struct dsa_switch *ds,
 				struct ethtool_eeprom *eeprom, u8 *data)
 {
@@ -3610,6 +3620,7 @@ struct dsa_switch_driver mv88e6xxx_switch_driver = {
 	.set_temp_limit		= mv88e6xxx_set_temp_limit,
 	.get_temp_alarm		= mv88e6xxx_get_temp_alarm,
 #endif
+	.get_eeprom_len		= mv88e6xxx_get_eeprom_len,
 	.get_eeprom		= mv88e6xxx_get_eeprom,
 	.set_eeprom		= mv88e6xxx_set_eeprom,
 	.get_regs_len		= mv88e6xxx_get_regs_len,
@@ -3631,9 +3642,11 @@ struct dsa_switch_driver mv88e6xxx_switch_driver = {
 int mv88e6xxx_probe(struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
+	struct device_node *np = dev->of_node;
 	struct mv88e6xxx_priv_state *ps;
 	int id, prod_num, rev;
 	struct dsa_switch *ds;
+	u32 eeprom_len;
 	int err;
 
 	ds = devm_kzalloc(dev, sizeof(*ds) + sizeof(*ps), GFP_KERNEL);
@@ -3675,6 +3688,10 @@ int mv88e6xxx_probe(struct mdio_device *mdiodev)
 			return err;
 		}
 	}
+
+	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_EEPROM) &&
+	    !of_property_read_u32(np, "eeprom-length", &eeprom_len))
+		ps->eeprom_len = eeprom_len;
 
 	dev_set_drvdata(dev, ds);
 

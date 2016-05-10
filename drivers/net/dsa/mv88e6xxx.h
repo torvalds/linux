@@ -602,6 +602,9 @@ struct mv88e6xxx_priv_state {
 	 * switch soft reset.
 	 */
 	struct gpio_desc *reset;
+
+	/* set to size of eeprom if supported by the switch */
+	int		eeprom_len;
 };
 
 enum stat_type {
