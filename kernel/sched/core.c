@@ -1709,14 +1709,22 @@ static void
 ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
 		 struct pin_cookie cookie)
 {
+	int en_flags = ENQUEUE_WAKEUP;
+
 	lockdep_assert_held(&rq->lock);
 
 #ifdef CONFIG_SMP
 	if (p->sched_contributes_to_load)
 		rq->nr_uninterruptible--;
+
+	/*
+	 * If we migrated; we must have called sched_class::task_waking().
+	 */
+	if (wake_flags & WF_MIGRATED)
+		en_flags |= ENQUEUE_WAKING;
 #endif
 
-	ttwu_activate(rq, p, ENQUEUE_WAKEUP | ENQUEUE_WAKING);
+	ttwu_activate(rq, p, en_flags);
 	ttwu_do_wakeup(rq, p, wake_flags, cookie);
 }
 
@@ -1762,7 +1770,11 @@ void sched_ttwu_pending(void)
 	while (llist) {
 		p = llist_entry(llist, struct task_struct, wake_entry);
 		llist = llist_next(llist);
-		ttwu_do_activate(rq, p, 0, cookie);
+		/*
+		 * See ttwu_queue(); we only call ttwu_queue_remote() when
+		 * its a x-cpu wakeup.
+		 */
+		ttwu_do_activate(rq, p, WF_MIGRATED, cookie);
 	}
 
 	lockdep_unpin_lock(&rq->lock, cookie);
@@ -1849,7 +1861,7 @@ bool cpus_share_cache(int this_cpu, int that_cpu)
 }
 #endif /* CONFIG_SMP */
 
-static void ttwu_queue(struct task_struct *p, int cpu)
+static void ttwu_queue(struct task_struct *p, int cpu, int wake_flags)
 {
 	struct rq *rq = cpu_rq(cpu);
 	struct pin_cookie cookie;
@@ -1864,7 +1876,7 @@ static void ttwu_queue(struct task_struct *p, int cpu)
 
 	raw_spin_lock(&rq->lock);
 	cookie = lockdep_pin_lock(&rq->lock);
-	ttwu_do_activate(rq, p, 0, cookie);
+	ttwu_do_activate(rq, p, wake_flags, cookie);
 	lockdep_unpin_lock(&rq->lock, cookie);
 	raw_spin_unlock(&rq->lock);
 }
@@ -2034,17 +2046,18 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	p->sched_contributes_to_load = !!task_contributes_to_load(p);
 	p->state = TASK_WAKING;
 
-	if (p->sched_class->task_waking)
-		p->sched_class->task_waking(p);
-
 	cpu = select_task_rq(p, p->wake_cpu, SD_BALANCE_WAKE, wake_flags);
 	if (task_cpu(p) != cpu) {
 		wake_flags |= WF_MIGRATED;
+
+		if (p->sched_class->task_waking)
+			p->sched_class->task_waking(p);
+
 		set_task_cpu(p, cpu);
 	}
 #endif /* CONFIG_SMP */
 
-	ttwu_queue(p, cpu);
+	ttwu_queue(p, cpu, wake_flags);
 stat:
 	if (schedstat_enabled())
 		ttwu_stat(p, cpu, wake_flags);
