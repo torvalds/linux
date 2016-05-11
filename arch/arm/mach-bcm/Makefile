@@ -26,7 +26,10 @@ obj-$(CONFIG_ARCH_BCM_281XX)	+= board_bcm281xx.o
 # BCM21664
 obj-$(CONFIG_ARCH_BCM_21664)	+= board_bcm21664.o
 
-# BCM281XX and BCM21664 SMP support
+# BCM23550
+obj-$(CONFIG_ARCH_BCM_23550)	+= board_bcm23550.o
+
+# BCM281XX, BCM21664 and BCM23550 SMP support
 obj-$(CONFIG_ARCH_BCM_MOBILE_SMP) += platsmp.o
 
 # BCM281XX and BCM21664 L2 cache control
