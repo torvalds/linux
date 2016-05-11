@@ -16,6 +16,9 @@ struct gb_message;
 struct gb_hd_driver {
 	size_t	hd_priv_size;
 
+	int (*cport_allocate)(struct gb_host_device *hd, int cport_id,
+				unsigned long flags);
+	void (*cport_release)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_enable)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_disable)(struct gb_host_device *hd, u16 cport_id);
 	int (*message_send)(struct gb_host_device *hd, u16 dest_cport_id,
@@ -51,7 +54,8 @@ struct gb_host_device {
 #define to_gb_host_device(d) container_of(d, struct gb_host_device, dev)
 
 int gb_hd_cport_reserve(struct gb_host_device *hd, u16 cport_id);
-int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id);
+int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id,
+					unsigned long flags);
 void gb_hd_cport_release(struct gb_host_device *hd, u16 cport_id);
 
 struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,

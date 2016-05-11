@@ -152,7 +152,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 		goto err_unlock;
 	}
 
-	ret = gb_hd_cport_allocate(hd, hd_cport_id);
+	ret = gb_hd_cport_allocate(hd, hd_cport_id, flags);
 	if (ret < 0) {
 		dev_err(&hd->dev, "failed to allocate cport: %d\n", ret);
 		goto err_unlock;
