@@ -450,7 +450,7 @@ static void bpf_jit_prologue(struct bpf_jit *jit)
 		emit_load_skb_data_hlen(jit);
 	if (jit->seen & SEEN_SKB_CHANGE)
 		/* stg %b1,ST_OFF_SKBP(%r0,%r15) */
-		EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0, REG_15,
+		EMIT6_DISP_LH(0xe3000000, 0x0024, BPF_REG_1, REG_0, REG_15,
 			      STK_OFF_SKBP);
 }
 
