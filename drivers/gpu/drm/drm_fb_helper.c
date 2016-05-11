@@ -85,14 +85,14 @@ static LIST_HEAD(kernel_fb_helper_list);
  * should call drm_fb_helper_single_add_all_connectors() followed by
  * drm_fb_helper_initial_config().
  *
- * If CONFIG_FB_DEFERRED_IO is enabled and &drm_framebuffer_funcs ->dirty is
- * set, the drm_fb_helper_{cfb,sys}_{write,fillrect,copyarea,imageblit}
- * functions will accumulate changes and schedule &fb_helper .dirty_work to run
- * right away. This worker then calls the dirty() function ensuring that it
- * will always run in process context since the fb_*() function could be
- * running in atomic context. If drm_fb_helper_deferred_io() is used as the
- * deferred_io callback it will also schedule dirty_work with the damage
- * collected from the mmap page writes.
+ * If &drm_framebuffer_funcs ->dirty is set, the
+ * drm_fb_helper_{cfb,sys}_{write,fillrect,copyarea,imageblit} functions will
+ * accumulate changes and schedule &drm_fb_helper ->dirty_work to run right
+ * away. This worker then calls the dirty() function ensuring that it will
+ * always run in process context since the fb_*() function could be running in
+ * atomic context. If drm_fb_helper_deferred_io() is used as the deferred_io
+ * callback it will also schedule dirty_work with the damage collected from the
+ * mmap page writes.
  */
 
 /**
