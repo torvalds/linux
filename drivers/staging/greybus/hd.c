@@ -39,6 +39,21 @@ static struct attribute *bus_attrs[] = {
 };
 ATTRIBUTE_GROUPS(bus);
 
+int gb_hd_cport_reserve(struct gb_host_device *hd, u16 cport_id)
+{
+	struct ida *id_map = &hd->cport_id_map;
+	int ret;
+
+	ret = ida_simple_get(id_map, cport_id, cport_id + 1, GFP_KERNEL);
+	if (ret < 0) {
+		dev_err(&hd->dev, "failed to reserve cport %u\n", cport_id);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gb_hd_cport_reserve);
+
 /* Locking: Caller guarantees serialisation */
 int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id)
 {

@@ -18,6 +18,11 @@
 #include "connection.h"
 #include "greybus_trace.h"
 
+
+/* Fixed CPort numbers */
+#define ES2_CPORT_CDSI0		16
+#define ES2_CPORT_CDSI1		17
+
 /* Memory sizes for the buffers sent to/from the ES2 controller */
 #define ES2_GBUF_MSG_SIZE_MAX	2048
 
@@ -941,7 +946,6 @@ static int ap_probe(struct usb_interface *interface,
 	int retval;
 	int i;
 	int num_cports;
-	int cport_id;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
@@ -960,14 +964,6 @@ static int ap_probe(struct usb_interface *interface,
 		return PTR_ERR(hd);
 	}
 
-	/*
-	 * CPorts 16 and 17 are reserved for CDSI0 and CDSI1, make sure they
-	 * won't be allocated dynamically.
-	 */
-	do {
-		cport_id = ida_simple_get(&hd->cport_id_map, 16, 18, GFP_KERNEL);
-	} while (cport_id > 0);
-
 	es2 = hd_to_es2(hd);
 	es2->hd = hd;
 	es2->usb_intf = interface;
@@ -975,6 +971,17 @@ static int ap_probe(struct usb_interface *interface,
 	spin_lock_init(&es2->cport_out_urb_lock);
 	INIT_KFIFO(es2->apb_log_fifo);
 	usb_set_intfdata(interface, es2);
+
+	/*
+	 * Reserve the CDSI0 and CDSI1 CPorts so they won't be allocated
+	 * dynamically.
+	 */
+	retval = gb_hd_cport_reserve(hd, ES2_CPORT_CDSI0);
+	if (retval)
+		goto error;
+	retval = gb_hd_cport_reserve(hd, ES2_CPORT_CDSI1);
+	if (retval)
+		goto error;
 
 	es2->cport_to_ep = kcalloc(hd->num_cports, sizeof(*es2->cport_to_ep),
 				   GFP_KERNEL);
