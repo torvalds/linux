@@ -5901,16 +5901,15 @@ static int broxton_calc_cdclk(int max_pixclk)
 {
 	/*
 	 * FIXME:
-	 * - remove the guardband, it's not needed on BXT
 	 * - set 19.2MHz bypass frequency if there are no active pipes
 	 */
-	if (max_pixclk > 576000*9/10)
+	if (max_pixclk > 576000)
 		return 624000;
-	else if (max_pixclk > 384000*9/10)
+	else if (max_pixclk > 384000)
 		return 576000;
-	else if (max_pixclk > 288000*9/10)
+	else if (max_pixclk > 288000)
 		return 384000;
-	else if (max_pixclk > 144000*9/10)
+	else if (max_pixclk > 144000)
 		return 288000;
 	else
 		return 144000;
