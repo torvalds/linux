@@ -140,6 +140,13 @@ struct qed_link_output {
 	u32	pause_config;
 };
 
+struct qed_probe_params {
+	enum qed_protocol protocol;
+	u32 dp_module;
+	u8 dp_level;
+	bool is_vf;
+};
+
 #define QED_DRV_VER_STR_SIZE 12
 struct qed_slowpath_params {
 	u32	int_mode;
@@ -207,8 +214,7 @@ struct qed_common_ops {
 	struct qed_selftest_ops *selftest;
 
 	struct qed_dev*	(*probe)(struct pci_dev *dev,
-				 enum qed_protocol protocol,
-				 u32 dp_module, u8 dp_level);
+				 struct qed_probe_params *params);
 
 	void		(*remove)(struct qed_dev *cdev);
 

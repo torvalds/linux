@@ -21,6 +21,9 @@
 #endif
 #define IS_PF_SRIOV_ALLOC(p_hwfn)       (!!((p_hwfn)->pf_iov_info))
 
+#define QED_MAX_VF_CHAINS_PER_PF 16
+#define QED_ETH_VF_NUM_VLAN_FILTERS 2
+
 /* This struct is part of qed_dev and contains data relevant to all hwfns;
  * Initialized only if SR-IOV cpabability is exposed in PCIe config space.
  */
@@ -60,7 +63,17 @@ struct qed_iov_vf_mbx {
 	struct vfpf_first_tlv first_tlv;
 };
 
+struct qed_vf_q_info {
+	u16 fw_rx_qid;
+	u16 fw_tx_qid;
+	u8 fw_cid;
+	u8 rxq_active;
+	u8 txq_active;
+};
+
 enum vf_state {
+	VF_FREE = 0,		/* VF ready to be acquired holds no resc */
+	VF_ACQUIRED,		/* VF, acquired, but not initalized */
 	VF_STOPPED		/* VF, Stopped */
 };
 
@@ -82,6 +95,17 @@ struct qed_vf_info {
 #define QED_VF_ABS_ID(p_hwfn, p_vf)	(QED_PATH_ID(p_hwfn) ?		      \
 					 (p_vf)->abs_vf_id + MAX_NUM_VFS_BB : \
 					 (p_vf)->abs_vf_id)
+
+	u8 num_rxqs;
+	u8 num_txqs;
+
+	u8 num_sbs;
+
+	u8 num_mac_filters;
+	u8 num_vlan_filters;
+	struct qed_vf_q_info vf_queues[QED_MAX_VF_CHAINS_PER_PF];
+	u16 igu_sbs[QED_MAX_VF_CHAINS_PER_PF];
+
 };
 
 /* This structure is part of qed_hwfn and used only for PFs that have sriov
@@ -134,6 +158,26 @@ u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id);
 int qed_iov_hw_info(struct qed_hwfn *p_hwfn);
 
 /**
+ * @brief qed_add_tlv - place a given tlv on the tlv buffer at next offset
+ *
+ * @param p_hwfn
+ * @param p_iov
+ * @param type
+ * @param length
+ *
+ * @return pointer to the newly placed tlv
+ */
+void *qed_add_tlv(struct qed_hwfn *p_hwfn, u8 **offset, u16 type, u16 length);
+
+/**
+ * @brief list the types and lengths of the tlvs on the buffer
+ *
+ * @param p_hwfn
+ * @param tlvs_list
+ */
+void qed_dp_tlv_list(struct qed_hwfn *p_hwfn, void *tlvs_list);
+
+/**
  * @brief qed_iov_alloc - allocate sriov related resources
  *
  * @param p_hwfn
@@ -179,6 +223,7 @@ void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first);
 int qed_iov_wq_start(struct qed_dev *cdev);
 
 void qed_schedule_iov(struct qed_hwfn *hwfn, enum qed_iov_wq_flag flag);
+void qed_vf_start_iov_wq(struct qed_dev *cdev);
 #else
 static inline u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn,
 					     u16 rel_vf_id)
@@ -226,6 +271,10 @@ static inline int qed_iov_wq_start(struct qed_dev *cdev)
 
 static inline void qed_schedule_iov(struct qed_hwfn *hwfn,
 				    enum qed_iov_wq_flag flag)
+{
+}
+
+static inline void qed_vf_start_iov_wq(struct qed_dev *cdev)
 {
 }
 #endif

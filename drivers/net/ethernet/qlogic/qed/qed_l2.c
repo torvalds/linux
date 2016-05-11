@@ -34,6 +34,7 @@
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
 
 struct qed_rss_params {
 	u8	update_rss_config;
@@ -1580,32 +1581,53 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 
 	info->num_tc = 1;
 
-	if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
-		for_each_hwfn(cdev, i)
-			info->num_queues += FEAT_NUM(&cdev->hwfns[i],
-						     QED_PF_L2_QUE);
-		if (cdev->int_params.fp_msix_cnt)
-			info->num_queues = min_t(u8, info->num_queues,
-						 cdev->int_params.fp_msix_cnt);
+	if (IS_PF(cdev)) {
+		if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
+			for_each_hwfn(cdev, i)
+			    info->num_queues +=
+			    FEAT_NUM(&cdev->hwfns[i], QED_PF_L2_QUE);
+			if (cdev->int_params.fp_msix_cnt)
+				info->num_queues =
+				    min_t(u8, info->num_queues,
+					  cdev->int_params.fp_msix_cnt);
+		} else {
+			info->num_queues = cdev->num_hwfns;
+		}
+
+		info->num_vlan_filters = RESC_NUM(&cdev->hwfns[0], QED_VLAN);
+		ether_addr_copy(info->port_mac,
+				cdev->hwfns[0].hw_info.hw_mac_addr);
 	} else {
-		info->num_queues = cdev->num_hwfns;
+		qed_vf_get_num_rxqs(QED_LEADING_HWFN(cdev), &info->num_queues);
+		if (cdev->num_hwfns > 1) {
+			u8 queues = 0;
+
+			qed_vf_get_num_rxqs(&cdev->hwfns[1], &queues);
+			info->num_queues += queues;
+		}
+
+		qed_vf_get_num_vlan_filters(&cdev->hwfns[0],
+					    &info->num_vlan_filters);
+		qed_vf_get_port_mac(&cdev->hwfns[0], info->port_mac);
 	}
 
-	info->num_vlan_filters = RESC_NUM(&cdev->hwfns[0], QED_VLAN);
-	ether_addr_copy(info->port_mac,
-			cdev->hwfns[0].hw_info.hw_mac_addr);
-
 	qed_fill_dev_info(cdev, &info->common);
+
+	if (IS_VF(cdev))
+		memset(info->common.hw_mac, 0, ETH_ALEN);
 
 	return 0;
 }
 
 static void qed_register_eth_ops(struct qed_dev *cdev,
-				 struct qed_eth_cb_ops *ops,
-				 void *cookie)
+				 struct qed_eth_cb_ops *ops, void *cookie)
 {
-	cdev->protocol_ops.eth	= ops;
-	cdev->ops_cookie	= cookie;
+	cdev->protocol_ops.eth = ops;
+	cdev->ops_cookie = cookie;
+
+	/* For VF, we start bulletin reading */
+	if (IS_VF(cdev))
+		qed_vf_start_iov_wq(cdev);
 }
 
 static int qed_start_vport(struct qed_dev *cdev,
@@ -1889,6 +1911,9 @@ static int qed_tunn_configure(struct qed_dev *cdev,
 {
 	struct qed_tunn_update_params tunn_info;
 	int i, rc;
+
+	if (IS_VF(cdev))
+		return 0;
 
 	memset(&tunn_info, 0, sizeof(tunn_info));
 	if (tunn_params->update_vxlan_port == 1) {

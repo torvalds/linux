@@ -23,6 +23,7 @@
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_reg_addr.h"
+#include "qed_sriov.h"
 
 #define QED_BAR_ACQUIRE_TIMEOUT 1000
 
@@ -236,8 +237,12 @@ static void qed_memcpy_hw(struct qed_hwfn *p_hwfn,
 		quota = min_t(size_t, n - done,
 			      PXP_EXTERNAL_BAR_PF_WINDOW_SINGLE_SIZE);
 
-		qed_ptt_set_win(p_hwfn, p_ptt, hw_addr + done);
-		hw_offset = qed_ptt_get_bar_addr(p_ptt);
+		if (IS_PF(p_hwfn->cdev)) {
+			qed_ptt_set_win(p_hwfn, p_ptt, hw_addr + done);
+			hw_offset = qed_ptt_get_bar_addr(p_ptt);
+		} else {
+			hw_offset = hw_addr + done;
+		}
 
 		dw_count = quota / 4;
 		host_addr = (u32 *)((u8 *)addr + done);
@@ -808,6 +813,9 @@ u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
 		break;
 	case PROTOCOLID_ETH:
 		pq_id = p_params->eth.tc;
+		if (p_params->eth.is_vf)
+			pq_id += p_hwfn->qm_info.vf_queues_offset +
+				 p_params->eth.vf_id;
 		break;
 	default:
 		pq_id = 0;

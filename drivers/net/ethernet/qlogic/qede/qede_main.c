@@ -2283,8 +2283,9 @@ enum qede_probe_mode {
 };
 
 static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
-			enum qede_probe_mode mode)
+			bool is_vf, enum qede_probe_mode mode)
 {
+	struct qed_probe_params probe_params;
 	struct qed_slowpath_params params;
 	struct qed_dev_eth_info dev_info;
 	struct qede_dev *edev;
@@ -2294,8 +2295,12 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	if (unlikely(dp_level & QED_LEVEL_INFO))
 		pr_notice("Starting qede probe\n");
 
-	cdev = qed_ops->common->probe(pdev, QED_PROTOCOL_ETH,
-				      dp_module, dp_level);
+	memset(&probe_params, 0, sizeof(probe_params));
+	probe_params.protocol = QED_PROTOCOL_ETH;
+	probe_params.dp_module = dp_module;
+	probe_params.dp_level = dp_level;
+	probe_params.is_vf = is_vf;
+	cdev = qed_ops->common->probe(pdev, &probe_params);
 	if (!cdev) {
 		rc = -ENODEV;
 		goto err0;
@@ -2365,7 +2370,7 @@ static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	qede_config_debug(debug, &dp_module, &dp_level);
 
-	return __qede_probe(pdev, dp_module, dp_level,
+	return __qede_probe(pdev, dp_module, dp_level, false,
 			    QEDE_PROBE_NORMAL);
 }
 

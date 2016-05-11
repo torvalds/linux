@@ -387,6 +387,9 @@ static int qed_cqe_completion(
 	struct eth_slow_path_rx_cqe *cqe,
 	enum protocol_type protocol)
 {
+	if (IS_VF(p_hwfn->cdev))
+		return 0;
+
 	/* @@@tmp - it's possible we'll eventually want to handle some
 	 * actual commands that can arrive here, but for now this is only
 	 * used to complete the ramrod using the echo value on the cqe

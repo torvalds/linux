@@ -20,6 +20,7 @@
 #include "qed_int.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
 
 int qed_sp_init_request(struct qed_hwfn *p_hwfn,
 			struct qed_spq_entry **pp_ent,
@@ -356,6 +357,13 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	qed_tunn_set_pf_start_params(p_hwfn, p_tunn,
 				     &p_ramrod->tunnel_config);
 	p_hwfn->hw_info.personality = PERSONALITY_ETH;
+
+	if (p_hwfn->cdev->p_iov_info) {
+		struct qed_hw_sriov_info *p_iov = p_hwfn->cdev->p_iov_info;
+
+		p_ramrod->base_vf_id = (u8) p_iov->first_vf_in_pf;
+		p_ramrod->num_vfs = (u8) p_iov->total_vfs;
+	}
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
 		   "Setting event_ring_sb [id %04x index %02x], outer_tag [%d]\n",

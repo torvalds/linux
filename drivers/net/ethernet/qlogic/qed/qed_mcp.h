@@ -149,13 +149,16 @@ int qed_mcp_set_link(struct qed_hwfn   *p_hwfn,
 /**
  * @brief Get the management firmware version value
  *
- * @param cdev       - qed dev pointer
- * @param mfw_ver    - mfw version value
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_mfw_ver    - mfw version value
+ * @param p_running_bundle_id	- image id in nvram; Optional.
  *
- * @return int - 0 - operation was successul.
+ * @return int - 0 - operation was successful.
  */
-int qed_mcp_get_mfw_ver(struct qed_dev *cdev,
-			u32 *mfw_ver);
+int qed_mcp_get_mfw_ver(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt,
+			u32 *p_mfw_ver, u32 *p_running_bundle_id);
 
 /**
  * @brief Get media type value of the port.
@@ -418,6 +421,20 @@ int qed_mcp_reset(struct qed_hwfn *p_hwfn,
  * @return true iff MFW is running and mcp_info is initialized
  */
 bool qed_mcp_is_init(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief request MFW to configure MSI-X for a VF
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param vf_id - absolute inside engine
+ * @param num_sbs - number of entries to request
+ *
+ * @return int
+ */
+int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u8 vf_id, u8 num);
+
 int qed_configure_pf_min_bandwidth(struct qed_dev *cdev, u8 min_bw);
 int qed_configure_pf_max_bandwidth(struct qed_dev *cdev, u8 max_bw);
 int __qed_configure_pf_max_bandwidth(struct qed_hwfn *p_hwfn,

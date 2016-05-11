@@ -311,6 +311,8 @@ struct qed_hwfn {
 	bool				first_on_engine;
 	bool				hw_init_done;
 
+	u8				num_funcs_on_engine;
+
 	/* BAR access */
 	void __iomem			*regview;
 	void __iomem			*doorbells;
@@ -361,6 +363,7 @@ struct qed_hwfn {
 	/* True if the driver requests for the link */
 	bool				b_drv_link_init;
 
+	struct qed_vf_iov		*vf_iov_info;
 	struct qed_pf_iov		*pf_iov_info;
 	struct qed_mcp_info		*mcp_info;
 
@@ -497,6 +500,8 @@ struct qed_dev {
 #define IS_QED_SRIOV(cdev)              (!!(cdev)->p_iov_info)
 
 	unsigned long			tunn_mode;
+
+	bool				b_is_vf;
 	u32				drv_type;
 
 	struct qed_eth_stats		*reset_stats;

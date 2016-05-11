@@ -19,6 +19,8 @@
 #include "qed_hw.h"
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
+#include "qed_sriov.h"
+
 #define CHIP_MCP_RESP_ITER_US 10
 
 #define QED_DRV_MB_MAX_RETRIES	(500 * 1000)	/* Account for 5 sec */
@@ -787,26 +789,42 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int qed_mcp_get_mfw_ver(struct qed_dev *cdev,
-			u32 *p_mfw_ver)
+int qed_mcp_get_mfw_ver(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt,
+			u32 *p_mfw_ver, u32 *p_running_bundle_id)
 {
-	struct qed_hwfn *p_hwfn = &cdev->hwfns[0];
-	struct qed_ptt *p_ptt;
 	u32 global_offsize;
 
-	p_ptt = qed_ptt_acquire(p_hwfn);
-	if (!p_ptt)
-		return -EBUSY;
+	if (IS_VF(p_hwfn->cdev)) {
+		if (p_hwfn->vf_iov_info) {
+			struct pfvf_acquire_resp_tlv *p_resp;
+
+			p_resp = &p_hwfn->vf_iov_info->acquire_resp;
+			*p_mfw_ver = p_resp->pfdev_info.mfw_ver;
+			return 0;
+		} else {
+			DP_VERBOSE(p_hwfn,
+				   QED_MSG_IOV,
+				   "VF requested MFW version prior to ACQUIRE\n");
+			return -EINVAL;
+		}
+	}
 
 	global_offsize = qed_rd(p_hwfn, p_ptt,
-				SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->
-						     public_base,
+				SECTION_OFFSIZE_ADDR(p_hwfn->
+						     mcp_info->public_base,
 						     PUBLIC_GLOBAL));
-	*p_mfw_ver = qed_rd(p_hwfn, p_ptt,
-			    SECTION_ADDR(global_offsize, 0) +
-			    offsetof(struct public_global, mfw_ver));
+	*p_mfw_ver =
+	    qed_rd(p_hwfn, p_ptt,
+		   SECTION_ADDR(global_offsize,
+				0) + offsetof(struct public_global, mfw_ver));
 
-	qed_ptt_release(p_hwfn, p_ptt);
+	if (p_running_bundle_id != NULL) {
+		*p_running_bundle_id = qed_rd(p_hwfn, p_ptt,
+					      SECTION_ADDR(global_offsize, 0) +
+					      offsetof(struct public_global,
+						       running_bundle_id));
+	}
 
 	return 0;
 }
@@ -816,6 +834,9 @@ int qed_mcp_get_media_type(struct qed_dev *cdev,
 {
 	struct qed_hwfn *p_hwfn = &cdev->hwfns[0];
 	struct qed_ptt  *p_ptt;
+
+	if (IS_VF(cdev))
+		return -EINVAL;
 
 	if (!qed_mcp_is_init(p_hwfn)) {
 		DP_NOTICE(p_hwfn, "MFW is not initialized !\n");
@@ -951,6 +972,9 @@ int qed_mcp_get_flash_size(struct qed_hwfn *p_hwfn,
 {
 	u32 flash_size;
 
+	if (IS_VF(p_hwfn->cdev))
+		return -EINVAL;
+
 	flash_size = qed_rd(p_hwfn, p_ptt, MCP_REG_NVM_CFG4);
 	flash_size = (flash_size & MCP_REG_NVM_CFG4_FLASH_SIZE) >>
 		      MCP_REG_NVM_CFG4_FLASH_SIZE_SHIFT;
@@ -959,6 +983,37 @@ int qed_mcp_get_flash_size(struct qed_hwfn *p_hwfn,
 	*p_flash_size = flash_size;
 
 	return 0;
+}
+
+int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u8 vf_id, u8 num)
+{
+	u32 resp = 0, param = 0, rc_param = 0;
+	int rc;
+
+	/* Only Leader can configure MSIX, and need to take CMT into account */
+	if (!IS_LEAD_HWFN(p_hwfn))
+		return 0;
+	num *= p_hwfn->cdev->num_hwfns;
+
+	param |= (vf_id << DRV_MB_PARAM_CFG_VF_MSIX_VF_ID_SHIFT) &
+		 DRV_MB_PARAM_CFG_VF_MSIX_VF_ID_MASK;
+	param |= (num << DRV_MB_PARAM_CFG_VF_MSIX_SB_NUM_SHIFT) &
+		 DRV_MB_PARAM_CFG_VF_MSIX_SB_NUM_MASK;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_CFG_VF_MSIX, param,
+			 &resp, &rc_param);
+
+	if (resp != FW_MSG_CODE_DRV_CFG_VF_MSIX_DONE) {
+		DP_NOTICE(p_hwfn, "VF[%d]: MFW failed to set MSI-X\n", vf_id);
+		rc = -EINVAL;
+	} else {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "Requested 0x%02x MSI-x interrupts from VF 0x%02x\n",
+			   num, vf_id);
+	}
+
+	return rc;
 }
 
 int

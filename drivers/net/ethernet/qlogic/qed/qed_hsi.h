@@ -29,7 +29,7 @@ struct qed_ptt;
 enum common_event_opcode {
 	COMMON_EVENT_PF_START,
 	COMMON_EVENT_PF_STOP,
-	COMMON_EVENT_RESERVED,
+	COMMON_EVENT_VF_START,
 	COMMON_EVENT_RESERVED2,
 	COMMON_EVENT_VF_PF_CHANNEL,
 	COMMON_EVENT_RESERVED4,
@@ -44,7 +44,7 @@ enum common_ramrod_cmd_id {
 	COMMON_RAMROD_UNUSED,
 	COMMON_RAMROD_PF_START /* PF Function Start Ramrod */,
 	COMMON_RAMROD_PF_STOP /* PF Function Stop Ramrod */,
-	COMMON_RAMROD_RESERVED,
+	COMMON_RAMROD_VF_START,
 	COMMON_RAMROD_RESERVED2,
 	COMMON_RAMROD_PF_UPDATE,
 	COMMON_RAMROD_EMPTY,
@@ -573,6 +573,14 @@ union event_ring_element {
 	struct event_ring_next_addr	next_addr;
 };
 
+struct mstorm_non_trigger_vf_zone {
+	struct eth_mstorm_per_queue_stat eth_queue_stat;
+};
+
+struct mstorm_vf_zone {
+	struct mstorm_non_trigger_vf_zone non_trigger;
+};
+
 enum personality_type {
 	BAD_PERSONALITY_TYP,
 	PERSONALITY_RESERVED,
@@ -671,6 +679,16 @@ enum ports_mode {
 	MAX_PORTS_MODE
 };
 
+struct pstorm_non_trigger_vf_zone {
+	struct eth_pstorm_per_queue_stat eth_queue_stat;
+	struct regpair reserved[2];
+};
+
+struct pstorm_vf_zone {
+	struct pstorm_non_trigger_vf_zone non_trigger;
+	struct regpair reserved[7];
+};
+
 /* Ramrod Header of SPQE */
 struct ramrod_header {
 	__le32	cid /* Slowpath Connection CID */;
@@ -698,6 +716,29 @@ struct tstorm_per_port_stat {
 	struct regpair	eth_irregular_pkt;
 	struct regpair	toe_irregular_pkt;
 	struct regpair	preroce_irregular_pkt;
+};
+
+struct ustorm_non_trigger_vf_zone {
+	struct eth_ustorm_per_queue_stat eth_queue_stat;
+	struct regpair vf_pf_msg_addr;
+};
+
+struct ustorm_trigger_vf_zone {
+	u8 vf_pf_msg_valid;
+	u8 reserved[7];
+};
+
+struct ustorm_vf_zone {
+	struct ustorm_non_trigger_vf_zone non_trigger;
+	struct ustorm_trigger_vf_zone trigger;
+};
+
+struct vf_start_ramrod_data {
+	u8 vf_id;
+	u8 enable_flr_ack;
+	__le16 opaque_fid;
+	u8 personality;
+	u8 reserved[3];
 };
 
 struct atten_status_block {
@@ -1026,7 +1067,7 @@ enum init_phases {
 	PHASE_ENGINE,
 	PHASE_PORT,
 	PHASE_PF,
-	PHASE_RESERVED,
+	PHASE_VF,
 	PHASE_QM_PF,
 	MAX_INIT_PHASES
 };

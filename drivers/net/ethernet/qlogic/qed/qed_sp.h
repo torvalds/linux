@@ -62,6 +62,8 @@ union ramrod_data {
 	struct vport_stop_ramrod_data vport_stop;
 	struct vport_update_ramrod_data vport_update;
 	struct vport_filter_update_ramrod_data vport_filter_update;
+
+	struct vf_start_ramrod_data vf_start;
 };
 
 #define EQ_MAX_CREDIT   0xffffffff

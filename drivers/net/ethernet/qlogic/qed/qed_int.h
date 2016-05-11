@@ -20,6 +20,12 @@
 #define IGU_PF_CONF_ATTN_BIT_EN   (0x1 << 3)    /* attention enable       */
 #define IGU_PF_CONF_SINGLE_ISR_EN (0x1 << 4)    /* single ISR mode enable */
 #define IGU_PF_CONF_SIMD_MODE     (0x1 << 5)    /* simd all ones mode     */
+/* Fields of IGU VF CONFIGRATION REGISTER */
+#define IGU_VF_CONF_FUNC_EN        (0x1 << 0)	/* function enable        */
+#define IGU_VF_CONF_MSI_MSIX_EN    (0x1 << 1)	/* MSI/MSIX enable        */
+#define IGU_VF_CONF_SINGLE_ISR_EN  (0x1 << 4)	/* single ISR mode enable */
+#define IGU_VF_CONF_PARENT_MASK    (0xF)	/* Parent PF              */
+#define IGU_VF_CONF_PARENT_SHIFT   5		/* Parent PF              */
 
 /* Igu control commands
  */
@@ -363,6 +369,16 @@ void qed_int_free(struct qed_hwfn *p_hwfn);
  */
 void qed_int_setup(struct qed_hwfn *p_hwfn,
 		   struct qed_ptt *p_ptt);
+
+/**
+ * @brief - Returns an Rx queue index appropriate for usage with given SB.
+ *
+ * @param p_hwfn
+ * @param sb_id - absolute index of SB
+ *
+ * @return index of Rx queue
+ */
+u16 qed_int_queue_id_from_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
 
 /**
  * @brief - Enable Interrupt & Attention for hw function

@@ -126,7 +126,7 @@ static int qed_init_pci(struct qed_dev *cdev,
 		goto err1;
 	}
 
-	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
+	if (IS_PF(cdev) && !(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
 		DP_NOTICE(cdev, "No memory region found in bar #2\n");
 		rc = -EIO;
 		goto err1;
@@ -176,12 +176,14 @@ static int qed_init_pci(struct qed_dev *cdev,
 		goto err2;
 	}
 
-	cdev->db_phys_addr = pci_resource_start(cdev->pdev, 2);
-	cdev->db_size = pci_resource_len(cdev->pdev, 2);
-	cdev->doorbells = ioremap_wc(cdev->db_phys_addr, cdev->db_size);
-	if (!cdev->doorbells) {
-		DP_NOTICE(cdev, "Cannot map doorbell space\n");
-		return -ENOMEM;
+	if (IS_PF(cdev)) {
+			cdev->db_phys_addr = pci_resource_start(cdev->pdev, 2);
+		cdev->db_size = pci_resource_len(cdev->pdev, 2);
+		cdev->doorbells = ioremap_wc(cdev->db_phys_addr, cdev->db_size);
+		if (!cdev->doorbells) {
+			DP_NOTICE(cdev, "Cannot map doorbell space\n");
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
@@ -208,20 +210,32 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	dev_info->is_mf_default = IS_MF_DEFAULT(&cdev->hwfns[0]);
 	ether_addr_copy(dev_info->hw_mac, cdev->hwfns[0].hw_info.hw_mac_addr);
 
-	dev_info->fw_major = FW_MAJOR_VERSION;
-	dev_info->fw_minor = FW_MINOR_VERSION;
-	dev_info->fw_rev = FW_REVISION_VERSION;
-	dev_info->fw_eng = FW_ENGINEERING_VERSION;
-	dev_info->mf_mode = cdev->mf_mode;
+	if (IS_PF(cdev)) {
+		dev_info->fw_major = FW_MAJOR_VERSION;
+		dev_info->fw_minor = FW_MINOR_VERSION;
+		dev_info->fw_rev = FW_REVISION_VERSION;
+		dev_info->fw_eng = FW_ENGINEERING_VERSION;
+		dev_info->mf_mode = cdev->mf_mode;
+	} else {
+		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
+				      &dev_info->fw_minor, &dev_info->fw_rev,
+				      &dev_info->fw_eng);
+	}
 
-	qed_mcp_get_mfw_ver(cdev, &dev_info->mfw_rev);
+	if (IS_PF(cdev)) {
+		ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
+		if (ptt) {
+			qed_mcp_get_mfw_ver(QED_LEADING_HWFN(cdev), ptt,
+					    &dev_info->mfw_rev, NULL);
 
-	ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
-	if (ptt) {
-		qed_mcp_get_flash_size(QED_LEADING_HWFN(cdev), ptt,
-				       &dev_info->flash_size);
+			qed_mcp_get_flash_size(QED_LEADING_HWFN(cdev), ptt,
+					       &dev_info->flash_size);
 
-		qed_ptt_release(QED_LEADING_HWFN(cdev), ptt);
+			qed_ptt_release(QED_LEADING_HWFN(cdev), ptt);
+		}
+	} else {
+		qed_mcp_get_mfw_ver(QED_LEADING_HWFN(cdev), NULL,
+				    &dev_info->mfw_rev, NULL);
 	}
 
 	return 0;
@@ -258,9 +272,7 @@ static int qed_set_power_state(struct qed_dev *cdev,
 
 /* probing */
 static struct qed_dev *qed_probe(struct pci_dev *pdev,
-				 enum qed_protocol protocol,
-				 u32 dp_module,
-				 u8 dp_level)
+				 struct qed_probe_params *params)
 {
 	struct qed_dev *cdev;
 	int rc;
@@ -269,9 +281,12 @@ static struct qed_dev *qed_probe(struct pci_dev *pdev,
 	if (!cdev)
 		goto err0;
 
-	cdev->protocol = protocol;
+	cdev->protocol = params->protocol;
 
-	qed_init_dp(cdev, dp_module, dp_level);
+	if (params->is_vf)
+		cdev->b_is_vf = true;
+
+	qed_init_dp(cdev, params->dp_module, params->dp_level);
 
 	rc = qed_init_pci(cdev, pdev);
 	if (rc) {
@@ -665,6 +680,35 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	return 0;
 }
 
+static int qed_slowpath_vf_setup_int(struct qed_dev *cdev)
+{
+	int rc;
+
+	memset(&cdev->int_params, 0, sizeof(struct qed_int_params));
+	cdev->int_params.in.int_mode = QED_INT_MODE_MSIX;
+
+	qed_vf_get_num_rxqs(QED_LEADING_HWFN(cdev),
+			    &cdev->int_params.in.num_vectors);
+	if (cdev->num_hwfns > 1) {
+		u8 vectors = 0;
+
+		qed_vf_get_num_rxqs(&cdev->hwfns[1], &vectors);
+		cdev->int_params.in.num_vectors += vectors;
+	}
+
+	/* We want a minimum of one fastpath vector per vf hwfn */
+	cdev->int_params.in.min_msix_cnt = cdev->num_hwfns;
+
+	rc = qed_set_int_mode(cdev, true);
+	if (rc)
+		return rc;
+
+	cdev->int_params.fp_msix_base = 0;
+	cdev->int_params.fp_msix_cnt = cdev->int_params.out.num_vectors;
+
+	return 0;
+}
+
 u32 qed_unzip_data(struct qed_hwfn *p_hwfn, u32 input_len,
 		   u8 *input_buf, u32 max_size, u8 *unzip_buf)
 {
@@ -755,32 +799,38 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	if (qed_iov_wq_start(cdev))
 		goto err;
 
-	rc = request_firmware(&cdev->firmware, QED_FW_FILE_NAME,
-			      &cdev->pdev->dev);
-	if (rc) {
-		DP_NOTICE(cdev,
-			  "Failed to find fw file - /lib/firmware/%s\n",
-			  QED_FW_FILE_NAME);
-		goto err;
+	if (IS_PF(cdev)) {
+		rc = request_firmware(&cdev->firmware, QED_FW_FILE_NAME,
+				      &cdev->pdev->dev);
+		if (rc) {
+			DP_NOTICE(cdev,
+				  "Failed to find fw file - /lib/firmware/%s\n",
+				  QED_FW_FILE_NAME);
+			goto err;
+		}
 	}
 
 	rc = qed_nic_setup(cdev);
 	if (rc)
 		goto err;
 
-	rc = qed_slowpath_setup_int(cdev, params->int_mode);
+	if (IS_PF(cdev))
+		rc = qed_slowpath_setup_int(cdev, params->int_mode);
+	else
+		rc = qed_slowpath_vf_setup_int(cdev);
 	if (rc)
 		goto err1;
 
-	/* Allocate stream for unzipping */
-	rc = qed_alloc_stream_mem(cdev);
-	if (rc) {
-		DP_NOTICE(cdev, "Failed to allocate stream memory\n");
-		goto err2;
-	}
+	if (IS_PF(cdev)) {
+		/* Allocate stream for unzipping */
+		rc = qed_alloc_stream_mem(cdev);
+		if (rc) {
+			DP_NOTICE(cdev, "Failed to allocate stream memory\n");
+			goto err2;
+		}
 
-	/* Start the slowpath */
-	data = cdev->firmware->data;
+		data = cdev->firmware->data;
+	}
 
 	memset(&tunn_info, 0, sizeof(tunn_info));
 	tunn_info.tunn_mode |=  1 << QED_MODE_VXLAN_TUNN |
@@ -793,6 +843,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	tunn_info.tunn_clss_l2gre = QED_TUNN_CLSS_MAC_VLAN;
 	tunn_info.tunn_clss_ipgre = QED_TUNN_CLSS_MAC_VLAN;
 
+	/* Start the slowpath */
 	rc = qed_hw_init(cdev, &tunn_info, true,
 			 cdev->int_params.out.int_mode,
 			 true, data);
@@ -802,18 +853,20 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	DP_INFO(cdev,
 		"HW initialization and function start completed successfully\n");
 
-	hwfn = QED_LEADING_HWFN(cdev);
-	drv_version.version = (params->drv_major << 24) |
-			      (params->drv_minor << 16) |
-			      (params->drv_rev << 8) |
-			      (params->drv_eng);
-	strlcpy(drv_version.name, params->name,
-		MCP_DRV_VER_STR_SIZE - 4);
-	rc = qed_mcp_send_drv_version(hwfn, hwfn->p_main_ptt,
-				      &drv_version);
-	if (rc) {
-		DP_NOTICE(cdev, "Failed sending drv version command\n");
-		return rc;
+	if (IS_PF(cdev)) {
+		hwfn = QED_LEADING_HWFN(cdev);
+		drv_version.version = (params->drv_major << 24) |
+				      (params->drv_minor << 16) |
+				      (params->drv_rev << 8) |
+				      (params->drv_eng);
+		strlcpy(drv_version.name, params->name,
+			MCP_DRV_VER_STR_SIZE - 4);
+		rc = qed_mcp_send_drv_version(hwfn, hwfn->p_main_ptt,
+					      &drv_version);
+		if (rc) {
+			DP_NOTICE(cdev, "Failed sending drv version command\n");
+			return rc;
+		}
 	}
 
 	qed_reset_vport_stats(cdev);
@@ -822,13 +875,15 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 
 err2:
 	qed_hw_timers_stop_all(cdev);
-	qed_slowpath_irq_free(cdev);
+	if (IS_PF(cdev))
+		qed_slowpath_irq_free(cdev);
 	qed_free_stream_mem(cdev);
 	qed_disable_msix(cdev);
 err1:
 	qed_resc_free(cdev);
 err:
-	release_firmware(cdev->firmware);
+	if (IS_PF(cdev))
+		release_firmware(cdev->firmware);
 
 	qed_iov_wq_stop(cdev, false);
 
@@ -840,17 +895,20 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 	if (!cdev)
 		return -ENODEV;
 
-	qed_free_stream_mem(cdev);
+	if (IS_PF(cdev)) {
+		qed_free_stream_mem(cdev);
 
-	qed_nic_stop(cdev);
-	qed_slowpath_irq_free(cdev);
+		qed_nic_stop(cdev);
+		qed_slowpath_irq_free(cdev);
+	}
 
 	qed_disable_msix(cdev);
 	qed_nic_reset(cdev);
 
 	qed_iov_wq_stop(cdev, true);
 
-	release_firmware(cdev->firmware);
+	if (IS_PF(cdev))
+		release_firmware(cdev->firmware);
 
 	return 0;
 }
@@ -939,6 +997,9 @@ static int qed_set_link(struct qed_dev *cdev,
 
 	if (!cdev)
 		return -ENODEV;
+
+	if (IS_VF(cdev))
+		return 0;
 
 	/* The link should be set only once per PF */
 	hwfn = &cdev->hwfns[0];
@@ -1051,10 +1112,16 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	memset(if_link, 0, sizeof(*if_link));
 
 	/* Prepare source inputs */
-	memcpy(&params, qed_mcp_get_link_params(hwfn), sizeof(params));
-	memcpy(&link, qed_mcp_get_link_state(hwfn), sizeof(link));
-	memcpy(&link_caps, qed_mcp_get_link_capabilities(hwfn),
-	       sizeof(link_caps));
+	if (IS_PF(hwfn->cdev)) {
+		memcpy(&params, qed_mcp_get_link_params(hwfn), sizeof(params));
+		memcpy(&link, qed_mcp_get_link_state(hwfn), sizeof(link));
+		memcpy(&link_caps, qed_mcp_get_link_capabilities(hwfn),
+		       sizeof(link_caps));
+	} else {
+		memset(&params, 0, sizeof(params));
+		memset(&link, 0, sizeof(link));
+		memset(&link_caps, 0, sizeof(link_caps));
+	}
 
 	/* Set the link parameters to pass to protocol driver */
 	if (link.link_up)
@@ -1176,6 +1243,9 @@ static int qed_drain(struct qed_dev *cdev)
 	struct qed_hwfn *hwfn;
 	struct qed_ptt *ptt;
 	int i, rc;
+
+	if (IS_VF(cdev))
+		return 0;
 
 	for_each_hwfn(cdev, i) {
 		hwfn = &cdev->hwfns[i];
