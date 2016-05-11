@@ -430,12 +430,23 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 		deferred_error_interrupt_enable(c);
 }
 
-static void __log_error(unsigned int bank, bool threshold_err, u64 misc)
+static void
+__log_error(unsigned int bank, bool deferred_err, bool threshold_err, u64 misc)
 {
+	u32 msr_status = msr_ops.status(bank);
+	u32 msr_addr = msr_ops.addr(bank);
 	struct mce m;
 	u64 status;
 
-	rdmsrl(msr_ops.status(bank), status);
+	WARN_ON_ONCE(deferred_err && threshold_err);
+
+	if (deferred_err && mce_flags.smca) {
+		msr_status = MSR_AMD64_SMCA_MCx_DESTAT(bank);
+		msr_addr = MSR_AMD64_SMCA_MCx_DEADDR(bank);
+	}
+
+	rdmsrl(msr_status, status);
+
 	if (!(status & MCI_STATUS_VAL))
 		return;
 
@@ -448,10 +459,11 @@ static void __log_error(unsigned int bank, bool threshold_err, u64 misc)
 		m.misc = misc;
 
 	if (m.status & MCI_STATUS_ADDRV)
-		rdmsrl(msr_ops.addr(bank), m.addr);
+		rdmsrl(msr_addr, m.addr);
 
 	mce_log(&m);
-	wrmsrl(msr_ops.status(bank), 0);
+
+	wrmsrl(msr_status, 0);
 }
 
 static inline void __smp_deferred_error_interrupt(void)
@@ -479,17 +491,21 @@ asmlinkage __visible void smp_trace_deferred_error_interrupt(void)
 /* APIC interrupt handler for deferred errors */
 static void amd_deferred_error_interrupt(void)
 {
-	u64 status;
 	unsigned int bank;
+	u32 msr_status;
+	u64 status;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
-		rdmsrl(msr_ops.status(bank), status);
+		msr_status = (mce_flags.smca) ? MSR_AMD64_SMCA_MCx_DESTAT(bank)
+					      : msr_ops.status(bank);
+
+		rdmsrl(msr_status, status);
 
 		if (!(status & MCI_STATUS_VAL) ||
 		    !(status & MCI_STATUS_DEFERRED))
 			continue;
 
-		__log_error(bank, false, 0);
+		__log_error(bank, true, false, 0);
 		break;
 	}
 }
@@ -544,7 +560,7 @@ static void amd_threshold_interrupt(void)
 	return;
 
 log:
-	__log_error(bank, true, ((u64)high << 32) | low);
+	__log_error(bank, false, true, ((u64)high << 32) | low);
 }
 
 /*
