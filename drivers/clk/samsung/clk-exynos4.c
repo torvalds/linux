@@ -1211,7 +1211,7 @@ static struct samsung_clock_alias exynos4x12_aliases[] __initdata = {
  * controller is first remapped and the value of XOM[0] bit is read to
  * determine the parent clock.
  */
-static unsigned long exynos4_get_xom(void)
+static unsigned long __init exynos4_get_xom(void)
 {
 	unsigned long xom = 0;
 	void __iomem *chipid_base;
