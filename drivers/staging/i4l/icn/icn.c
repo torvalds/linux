@@ -980,18 +980,17 @@ icn_loadproto(u_char __user *buffer, icn_card *card)
 				       card->secondhalf);
 #endif
 				spin_lock_irqsave(&card->lock, flags);
-				init_timer(&card->st_timer);
-				card->st_timer.expires = jiffies + ICN_TIMER_DCREAD;
-				card->st_timer.function = icn_polldchan;
-				card->st_timer.data = (unsigned long) card;
-				add_timer(&card->st_timer);
+				setup_timer(&card->st_timer, icn_polldchan,
+					    (unsigned long)card);
+				mod_timer(&card->st_timer,
+					  jiffies + ICN_TIMER_DCREAD);
 				card->flags |= ICN_FLAGS_RUNNING;
 				if (card->doubleS0) {
-					init_timer(&card->other->st_timer);
-					card->other->st_timer.expires = jiffies + ICN_TIMER_DCREAD;
-					card->other->st_timer.function = icn_polldchan;
-					card->other->st_timer.data = (unsigned long) card->other;
-					add_timer(&card->other->st_timer);
+					setup_timer(&card->other->st_timer,
+						    icn_polldchan,
+						    (unsigned long)card->other);
+					mod_timer(&card->other->st_timer,
+						  jiffies + ICN_TIMER_DCREAD);
 					card->other->flags |= ICN_FLAGS_RUNNING;
 				}
 				spin_unlock_irqrestore(&card->lock, flags);
