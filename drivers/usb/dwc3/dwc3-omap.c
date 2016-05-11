@@ -234,8 +234,7 @@ static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 		val &= ~(USBOTGSS_UTMI_OTG_CTRL_IDDIG
 				| USBOTGSS_UTMI_OTG_CTRL_VBUSVALID
 				| USBOTGSS_UTMI_OTG_CTRL_SESSEND);
-		val |= USBOTGSS_UTMI_OTG_CTRL_SESSVALID
-				| USBOTGSS_UTMI_OTG_CTRL_POWERPRESENT;
+		val |= USBOTGSS_UTMI_OTG_CTRL_SESSVALID;
 		dwc3_omap_write_utmi_ctrl(omap, val);
 		break;
 
@@ -244,8 +243,7 @@ static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 		val &= ~USBOTGSS_UTMI_OTG_CTRL_SESSEND;
 		val |= USBOTGSS_UTMI_OTG_CTRL_IDDIG
 				| USBOTGSS_UTMI_OTG_CTRL_VBUSVALID
-				| USBOTGSS_UTMI_OTG_CTRL_SESSVALID
-				| USBOTGSS_UTMI_OTG_CTRL_POWERPRESENT;
+				| USBOTGSS_UTMI_OTG_CTRL_SESSVALID;
 		dwc3_omap_write_utmi_ctrl(omap, val);
 		break;
 
@@ -256,8 +254,7 @@ static void dwc3_omap_set_mailbox(struct dwc3_omap *omap,
 	case OMAP_DWC3_VBUS_OFF:
 		val = dwc3_omap_read_utmi_ctrl(omap);
 		val &= ~(USBOTGSS_UTMI_OTG_CTRL_SESSVALID
-				| USBOTGSS_UTMI_OTG_CTRL_VBUSVALID
-				| USBOTGSS_UTMI_OTG_CTRL_POWERPRESENT);
+				| USBOTGSS_UTMI_OTG_CTRL_VBUSVALID);
 		val |= USBOTGSS_UTMI_OTG_CTRL_SESSEND
 				| USBOTGSS_UTMI_OTG_CTRL_IDDIG;
 		dwc3_omap_write_utmi_ctrl(omap, val);
