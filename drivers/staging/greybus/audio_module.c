@@ -146,15 +146,6 @@ static int gbaudio_codec_request_handler(struct gb_operation *op)
 	return ret;
 }
 
-static int gbaudio_data_connection_request_handler(struct gb_operation *op)
-{
-	struct gb_connection *connection = op->connection;
-
-	dev_warn(&connection->bundle->dev, "Audio Event received\n");
-
-	return 0;
-}
-
 static int gb_audio_add_mgmt_connection(struct gbaudio_module_info *gbmodule,
 				struct greybus_descriptor_cport *cport_desc,
 				struct gb_bundle *bundle)
@@ -192,9 +183,8 @@ static int gb_audio_add_data_connection(struct gbaudio_module_info *gbmodule,
 		return -ENOMEM;
 	}
 
-	connection = gb_connection_create_flags(bundle,
+	connection = gb_connection_create_offloaded(bundle,
 					le16_to_cpu(cport_desc->id),
-					gbaudio_data_connection_request_handler,
 					GB_CONNECTION_FLAG_CSD);
 	if (IS_ERR(connection)) {
 		devm_kfree(gbmodule->dev, dai);
