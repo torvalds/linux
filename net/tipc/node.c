@@ -542,7 +542,7 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 	struct tipc_link *ol = node_active_link(n, 0);
 	struct tipc_link *nl = n->links[bearer_id].link;
 
-	if (!nl)
+	if (!nl || tipc_link_is_up(nl))
 		return;
 
 	tipc_link_fsm_evt(nl, LINK_ESTABLISH_EVT);
