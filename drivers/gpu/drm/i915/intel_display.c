@@ -5556,13 +5556,13 @@ static unsigned int skl_cdclk_get_vco(unsigned int freq)
 }
 
 static void
-skl_dpll0_enable(struct drm_i915_private *dev_priv, unsigned int required_vco)
+skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 {
 	int min_cdclk;
 	u32 val;
 
 	/* select the minimum CDCLK before enabling DPLL 0 */
-	if (required_vco == 8640)
+	if (vco == 8640)
 		min_cdclk = 308570;
 	else
 		min_cdclk = 337500;
@@ -5585,7 +5585,7 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, unsigned int required_vco)
 	val &= ~(DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) | DPLL_CTRL1_SSC(SKL_DPLL0) |
 		 DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0));
 	val |= DPLL_CTRL1_OVERRIDE(SKL_DPLL0);
-	if (required_vco == 8640)
+	if (vco == 8640)
 		val |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080,
 					    SKL_DPLL0);
 	else
@@ -5699,13 +5699,13 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	unsigned int required_vco;
+	unsigned int vco;
 
 	/* DPLL0 not enabled (happens on early BIOS versions) */
 	if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE)) {
 		/* enable DPLL0 */
-		required_vco = skl_cdclk_get_vco(dev_priv->skl_boot_cdclk);
-		skl_dpll0_enable(dev_priv, required_vco);
+		vco = skl_cdclk_get_vco(dev_priv->skl_boot_cdclk);
+		skl_dpll0_enable(dev_priv, vco);
 	}
 
 	/* set CDCLK to the frequency the BIOS chose */
