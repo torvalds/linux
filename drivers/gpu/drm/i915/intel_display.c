@@ -5429,24 +5429,18 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 		if (wait_for(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK, 1))
 			DRM_ERROR("timeout waiting for DE PLL lock\n");
 
-		val = I915_READ(CDCLK_CTL);
+		val = divider | skl_cdclk_decimal(cdclk);
 		/*
 		 * FIXME if only the cd2x divider needs changing, it could be done
 		 * without shutting off the pipe (if only one pipe is active).
 		 */
 		val |= BXT_CDCLK_CD2X_PIPE_NONE;
-		val &= ~BXT_CDCLK_CD2X_DIV_SEL_MASK;
-		val |= divider;
 		/*
 		 * Disable SSA Precharge when CD clock frequency < 500 MHz,
 		 * enable otherwise.
 		 */
-		val &= ~BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 		if (cdclk >= 500000)
 			val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
-
-		val &= ~CDCLK_FREQ_DECIMAL_MASK;
-		val |= skl_cdclk_decimal(cdclk);
 		I915_WRITE(CDCLK_CTL, val);
 	}
 
