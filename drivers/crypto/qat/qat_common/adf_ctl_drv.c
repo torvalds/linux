@@ -270,10 +270,9 @@ static int adf_ctl_is_device_in_use(int id)
 	return 0;
 }
 
-static int adf_ctl_stop_devices(uint32_t id)
+static void adf_ctl_stop_devices(uint32_t id)
 {
 	struct adf_accel_dev *accel_dev;
-	int ret = 0;
 
 	list_for_each_entry(accel_dev, adf_devmgr_get_head(), list) {
 		if (id == accel_dev->accel_id || id == ADF_CFG_ALL_DEVICES) {
@@ -298,7 +297,6 @@ static int adf_ctl_stop_devices(uint32_t id)
 			adf_dev_shutdown(accel_dev);
 		}
 	}
-	return ret;
 }
 
 static int adf_ctl_ioctl_dev_stop(struct file *fp, unsigned int cmd,
@@ -327,9 +325,8 @@ static int adf_ctl_ioctl_dev_stop(struct file *fp, unsigned int cmd,
 		pr_info("QAT: Stopping acceleration device qat_dev%d.\n",
 			ctl_data->device_id);
 
-	ret = adf_ctl_stop_devices(ctl_data->device_id);
-	if (ret)
-		pr_err("QAT: failed to stop device.\n");
+	adf_ctl_stop_devices(ctl_data->device_id);
+
 out:
 	kfree(ctl_data);
 	return ret;
