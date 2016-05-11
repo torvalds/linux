@@ -94,6 +94,7 @@ enum qed_tpa_mode {
 struct qed_sp_vport_start_params {
 	enum qed_tpa_mode tpa_mode;
 	bool remove_inner_vlan;
+	bool only_untagged;
 	bool drop_ttl0;
 	u8 max_buffers_per_cqe;
 	u32 concrete_fid;
@@ -140,6 +141,11 @@ struct qed_sp_vport_update_params {
 	u8				vport_active_tx_flg;
 	u8				update_inner_vlan_removal_flg;
 	u8				inner_vlan_removal_flg;
+	u8				silent_vlan_removal_flg;
+	u8				update_default_vlan_enable_flg;
+	u8				default_vlan_enable_flg;
+	u8				update_default_vlan_flg;
+	u16				default_vlan;
 	u8				update_tx_switching_flg;
 	u8				tx_switching_flg;
 	u8				update_approx_mcast_flg;

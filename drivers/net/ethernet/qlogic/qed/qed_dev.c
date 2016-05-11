@@ -1104,9 +1104,16 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 	u8 num_funcs = p_hwfn->num_funcs_on_engine;
 	u32 *resc_num = p_hwfn->hw_info.resc_num;
 	struct qed_sb_cnt_info sb_cnt_info;
-	int i;
+	int i, max_vf_vlan_filters;
 
 	memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+
+#ifdef CONFIG_QED_SRIOV
+	max_vf_vlan_filters = QED_ETH_MAX_VF_NUM_VLAN_FILTERS;
+#else
+	max_vf_vlan_filters = 0;
+#endif
+
 	qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
 
 	resc_num[QED_SB] = min_t(u32,

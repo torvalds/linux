@@ -474,7 +474,7 @@ int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
 			  u16 mtu,
 			  u8 inner_vlan_removal,
 			  enum qed_tpa_mode tpa_mode,
-			  u8 max_buffers_per_cqe)
+			  u8 max_buffers_per_cqe, u8 only_untagged)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct vfpf_vport_start_tlv *req;
@@ -489,6 +489,7 @@ int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
 	req->inner_vlan_removal = inner_vlan_removal;
 	req->tpa_mode = tpa_mode;
 	req->max_buffers_per_cqe = max_buffers_per_cqe;
+	req->only_untagged = only_untagged;
 
 	/* status blocks */
 	for (i = 0; i < p_hwfn->vf_iov_info->acquire_resp.resc.num_sbs; i++)
@@ -547,6 +548,8 @@ qed_vf_handle_vp_update_is_needed(struct qed_hwfn *p_hwfn,
 		return !!p_data->update_tx_switching_flg;
 	case CHANNEL_TLV_VPORT_UPDATE_VLAN_STRIP:
 		return !!p_data->update_inner_vlan_removal_flg;
+	case CHANNEL_TLV_VPORT_UPDATE_ACCEPT_ANY_VLAN:
+		return !!p_data->update_accept_any_vlan_flg;
 	case CHANNEL_TLV_VPORT_UPDATE_MCAST:
 		return !!p_data->update_approx_mcast_flg;
 	case CHANNEL_TLV_VPORT_UPDATE_ACCEPT_PARAM:
@@ -694,6 +697,19 @@ int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
 		       sizeof(rss_params->rss_ind_table));
 		memcpy(p_rss_tlv->rss_key, rss_params->rss_key,
 		       sizeof(rss_params->rss_key));
+	}
+
+	if (p_params->update_accept_any_vlan_flg) {
+		struct vfpf_vport_update_accept_any_vlan_tlv *p_any_vlan_tlv;
+
+		size = sizeof(struct vfpf_vport_update_accept_any_vlan_tlv);
+		tlv = CHANNEL_TLV_VPORT_UPDATE_ACCEPT_ANY_VLAN;
+		p_any_vlan_tlv = qed_add_tlv(p_hwfn, &p_iov->offset, tlv, size);
+
+		resp_size += sizeof(struct pfvf_def_resp_tlv);
+		p_any_vlan_tlv->accept_any_vlan = p_params->accept_any_vlan;
+		p_any_vlan_tlv->update_accept_any_vlan_flg =
+		    p_params->update_accept_any_vlan_flg;
 	}
 
 	/* add list termination tlv */

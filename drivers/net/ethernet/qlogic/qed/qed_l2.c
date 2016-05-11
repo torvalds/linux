@@ -114,7 +114,8 @@ int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
 					     p_params->mtu,
 					     p_params->remove_inner_vlan,
 					     p_params->tpa_mode,
-					     p_params->max_buffers_per_cqe);
+					     p_params->max_buffers_per_cqe,
+					     p_params->only_untagged);
 	}
 
 	return qed_sp_eth_vport_start(p_hwfn, p_params);
@@ -367,6 +368,16 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	p_cmn->inner_vlan_removal_en = p_params->inner_vlan_removal_flg;
 	val = p_params->update_inner_vlan_removal_flg;
 	p_cmn->update_inner_vlan_removal_en_flg = val;
+
+	p_cmn->default_vlan_en = p_params->default_vlan_enable_flg;
+	val = p_params->update_default_vlan_enable_flg;
+	p_cmn->update_default_vlan_en_flg = val;
+
+	p_cmn->default_vlan = cpu_to_le16(p_params->default_vlan);
+	p_cmn->update_default_vlan_flg = p_params->update_default_vlan_flg;
+
+	p_cmn->silent_vlan_removal_en = p_params->silent_vlan_removal_flg;
+
 	p_ramrod->common.tx_switching_en = p_params->tx_switching_flg;
 	p_cmn->update_tx_switching_en_flg = p_params->update_tx_switching_flg;
 
@@ -1702,6 +1713,7 @@ static int qed_start_vport(struct qed_dev *cdev,
 		start.tpa_mode = params->gro_enable ? QED_TPA_MODE_GRO :
 							QED_TPA_MODE_NONE;
 		start.remove_inner_vlan = params->remove_inner_vlan;
+		start.only_untagged = true;	/* untagged only */
 		start.drop_ttl0 = params->drop_ttl0;
 		start.opaque_fid = p_hwfn->hw_info.opaque_fid;
 		start.concrete_fid = p_hwfn->hw_info.concrete_fid;

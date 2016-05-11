@@ -417,6 +417,16 @@ union pfvf_tlvs {
 	struct pfvf_start_queue_resp_tlv queue_start;
 };
 
+enum qed_bulletin_bit {
+	/* Alert the VF that a forced VLAN was set by the PF */
+	VLAN_ADDR_FORCED = 2,
+
+	/* Indicate that `default_only_untagged' contains actual data */
+	VFPF_BULLETIN_UNTAGGED_DEFAULT = 3,
+	VFPF_BULLETIN_UNTAGGED_DEFAULT_FORCED = 4,
+
+};
+
 struct qed_bulletin_content {
 	/* crc of structure to ensure is not in mid-update */
 	u32 crc;
@@ -465,6 +475,10 @@ struct qed_bulletin_content {
 	u32 partner_adv_speed;
 
 	u32 capability_speed;
+
+	/* Forced vlan */
+	u16 pvid;
+	u16 padding5;
 };
 
 struct qed_bulletin {
@@ -737,7 +751,7 @@ int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
 			  u16 mtu,
 			  u8 inner_vlan_removal,
 			  enum qed_tpa_mode tpa_mode,
-			  u8 max_buffers_per_cqe);
+			  u8 max_buffers_per_cqe, u8 only_untagged);
 
 /**
  * @brief qed_vf_pf_vport_stop - stop the VF's vport
@@ -898,7 +912,8 @@ static inline int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
 					u16 mtu,
 					u8 inner_vlan_removal,
 					enum qed_tpa_mode tpa_mode,
-					u8 max_buffers_per_cqe)
+					u8 max_buffers_per_cqe,
+					u8 only_untagged)
 {
 	return -EINVAL;
 }

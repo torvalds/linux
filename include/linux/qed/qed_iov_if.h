@@ -15,6 +15,7 @@
 struct qed_iov_hv_ops {
 	int (*configure)(struct qed_dev *cdev, int num_vfs_param);
 
+	int (*set_vlan) (struct qed_dev *cdev, u16 vid, int vfid);
 };
 
 #endif

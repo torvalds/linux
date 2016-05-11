@@ -24,6 +24,9 @@
 #define QED_MAX_VF_CHAINS_PER_PF 16
 #define QED_ETH_VF_NUM_VLAN_FILTERS 2
 
+#define QED_ETH_MAX_VF_NUM_VLAN_FILTERS	\
+	(MAX_NUM_VFS * QED_ETH_VF_NUM_VLAN_FILTERS)
+
 enum qed_iov_vport_update_flag {
 	QED_IOV_VP_UPDATE_ACTIVATE,
 	QED_IOV_VP_UPDATE_VLAN_STRIP,
@@ -40,6 +43,7 @@ struct qed_public_vf_info {
 	/* These copies will later be reflected in the bulletin board,
 	 * but this copy should be newer.
 	 */
+	u16 forced_vlan;
 	u8 mac[ETH_ALEN];
 };
 
@@ -98,6 +102,18 @@ enum vf_state {
 	VF_STOPPED		/* VF, Stopped */
 };
 
+struct qed_vf_vlan_shadow {
+	bool used;
+	u16 vid;
+};
+
+struct qed_vf_shadow_config {
+	/* Shadow copy of all guest vlans */
+	struct qed_vf_vlan_shadow vlans[QED_ETH_VF_NUM_VLAN_FILTERS + 1];
+
+	u8 inner_vlan_removal;
+};
+
 /* PFs maintain an array of this structure, per VF */
 struct qed_vf_info {
 	struct qed_iov_vf_mbx vf_mbx;
@@ -131,6 +147,16 @@ struct qed_vf_info {
 	u16 igu_sbs[QED_MAX_VF_CHAINS_PER_PF];
 	u8 num_active_rxqs;
 	struct qed_public_vf_info p_vf_info;
+
+	/* Stores the configuration requested by VF */
+	struct qed_vf_shadow_config shadow_config;
+
+	/* A bitfield using bulletin's valid-map bits, used to indicate
+	 * which of the bulletin board features have been configured.
+	 */
+	u64 configured_features;
+#define QED_IOV_CONFIGURED_FEATURES_MASK        ((1 << MAC_ADDR_FORCED) | \
+						 (1 << VLAN_ADDR_FORCED))
 };
 
 /* This structure is part of qed_hwfn and used only for PFs that have sriov

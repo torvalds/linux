@@ -1075,6 +1075,7 @@ static void qed_iov_vf_cleanup(struct qed_hwfn *p_hwfn,
 	p_vf->vport_instance = 0;
 	p_vf->num_mac_filters = 0;
 	p_vf->num_vlan_filters = 0;
+	p_vf->configured_features = 0;
 
 	/* If VF previously requested less resources, go back to default */
 	p_vf->num_rxqs = p_vf->num_sbs;
@@ -1085,6 +1086,7 @@ static void qed_iov_vf_cleanup(struct qed_hwfn *p_hwfn,
 	for (i = 0; i < QED_MAX_VF_CHAINS_PER_PF; i++)
 		p_vf->vf_queues[i].rxq_active = 0;
 
+	memset(&p_vf->shadow_config, 0, sizeof(p_vf->shadow_config));
 	qed_iov_clean_vf(p_hwfn, p_vf->relative_vf_id);
 }
 
@@ -1232,6 +1234,149 @@ out:
 			     sizeof(struct pfvf_acquire_resp_tlv), vfpf_status);
 }
 
+static int qed_iov_reconfigure_unicast_vlan(struct qed_hwfn *p_hwfn,
+					    struct qed_vf_info *p_vf)
+{
+	struct qed_filter_ucast filter;
+	int rc = 0;
+	int i;
+
+	memset(&filter, 0, sizeof(filter));
+	filter.is_rx_filter = 1;
+	filter.is_tx_filter = 1;
+	filter.vport_to_add_to = p_vf->vport_id;
+	filter.opcode = QED_FILTER_ADD;
+
+	/* Reconfigure vlans */
+	for (i = 0; i < QED_ETH_VF_NUM_VLAN_FILTERS + 1; i++) {
+		if (!p_vf->shadow_config.vlans[i].used)
+			continue;
+
+		filter.type = QED_FILTER_VLAN;
+		filter.vlan = p_vf->shadow_config.vlans[i].vid;
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_IOV,
+			   "Reconfiguring VLAN [0x%04x] for VF [%04x]\n",
+			   filter.vlan, p_vf->relative_vf_id);
+		rc = qed_sp_eth_filter_ucast(p_hwfn,
+					     p_vf->opaque_fid,
+					     &filter,
+					     QED_SPQ_MODE_CB, NULL);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "Failed to configure VLAN [%04x] to VF [%04x]\n",
+				  filter.vlan, p_vf->relative_vf_id);
+			break;
+		}
+	}
+
+	return rc;
+}
+
+static int
+qed_iov_reconfigure_unicast_shadow(struct qed_hwfn *p_hwfn,
+				   struct qed_vf_info *p_vf, u64 events)
+{
+	int rc = 0;
+
+	if ((events & (1 << VLAN_ADDR_FORCED)) &&
+	    !(p_vf->configured_features & (1 << VLAN_ADDR_FORCED)))
+		rc = qed_iov_reconfigure_unicast_vlan(p_hwfn, p_vf);
+
+	return rc;
+}
+
+static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
+					  struct qed_vf_info *p_vf, u64 events)
+{
+	int rc = 0;
+	struct qed_filter_ucast filter;
+
+	if (!p_vf->vport_instance)
+		return -EINVAL;
+
+	if (events & (1 << VLAN_ADDR_FORCED)) {
+		struct qed_sp_vport_update_params vport_update;
+		u8 removal;
+		int i;
+
+		memset(&filter, 0, sizeof(filter));
+		filter.type = QED_FILTER_VLAN;
+		filter.is_rx_filter = 1;
+		filter.is_tx_filter = 1;
+		filter.vport_to_add_to = p_vf->vport_id;
+		filter.vlan = p_vf->bulletin.p_virt->pvid;
+		filter.opcode = filter.vlan ? QED_FILTER_REPLACE :
+					      QED_FILTER_FLUSH;
+
+		/* Send the ramrod */
+		rc = qed_sp_eth_filter_ucast(p_hwfn, p_vf->opaque_fid,
+					     &filter, QED_SPQ_MODE_CB, NULL);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "PF failed to configure VLAN for VF\n");
+			return rc;
+		}
+
+		/* Update the default-vlan & silent vlan stripping */
+		memset(&vport_update, 0, sizeof(vport_update));
+		vport_update.opaque_fid = p_vf->opaque_fid;
+		vport_update.vport_id = p_vf->vport_id;
+		vport_update.update_default_vlan_enable_flg = 1;
+		vport_update.default_vlan_enable_flg = filter.vlan ? 1 : 0;
+		vport_update.update_default_vlan_flg = 1;
+		vport_update.default_vlan = filter.vlan;
+
+		vport_update.update_inner_vlan_removal_flg = 1;
+		removal = filter.vlan ? 1
+				      : p_vf->shadow_config.inner_vlan_removal;
+		vport_update.inner_vlan_removal_flg = removal;
+		vport_update.silent_vlan_removal_flg = filter.vlan ? 1 : 0;
+		rc = qed_sp_vport_update(p_hwfn,
+					 &vport_update,
+					 QED_SPQ_MODE_EBLOCK, NULL);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "PF failed to configure VF vport for vlan\n");
+			return rc;
+		}
+
+		/* Update all the Rx queues */
+		for (i = 0; i < QED_MAX_VF_CHAINS_PER_PF; i++) {
+			u16 qid;
+
+			if (!p_vf->vf_queues[i].rxq_active)
+				continue;
+
+			qid = p_vf->vf_queues[i].fw_rx_qid;
+
+			rc = qed_sp_eth_rx_queues_update(p_hwfn, qid,
+							 1, 0, 1,
+							 QED_SPQ_MODE_EBLOCK,
+							 NULL);
+			if (rc) {
+				DP_NOTICE(p_hwfn,
+					  "Failed to send Rx update fo queue[0x%04x]\n",
+					  qid);
+				return rc;
+			}
+		}
+
+		if (filter.vlan)
+			p_vf->configured_features |= 1 << VLAN_ADDR_FORCED;
+		else
+			p_vf->configured_features &= ~(1 << VLAN_ADDR_FORCED);
+	}
+
+	/* If forced features are terminated, we need to configure the shadow
+	 * configuration back again.
+	 */
+	if (events)
+		qed_iov_reconfigure_unicast_shadow(p_hwfn, p_vf, events);
+
+	return rc;
+}
+
 static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 				       struct qed_ptt *p_ptt,
 				       struct qed_vf_info *vf)
@@ -1241,6 +1386,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	struct vfpf_vport_start_tlv *start;
 	u8 status = PFVF_STATUS_SUCCESS;
 	struct qed_vf_info *vf_info;
+	u64 *p_bitmap;
 	int sb_id;
 	int rc;
 
@@ -1272,10 +1418,24 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	qed_iov_enable_vf_traffic(p_hwfn, p_ptt, vf);
 
 	vf->mtu = start->mtu;
+	vf->shadow_config.inner_vlan_removal = start->inner_vlan_removal;
+
+	/* Take into consideration configuration forced by hypervisor;
+	 * If none is configured, use the supplied VF values [for old
+	 * vfs that would still be fine, since they passed '0' as padding].
+	 */
+	p_bitmap = &vf_info->bulletin.p_virt->valid_bitmap;
+	if (!(*p_bitmap & (1 << VFPF_BULLETIN_UNTAGGED_DEFAULT_FORCED))) {
+		u8 vf_req = start->only_untagged;
+
+		vf_info->bulletin.p_virt->default_only_untagged = vf_req;
+		*p_bitmap |= 1 << VFPF_BULLETIN_UNTAGGED_DEFAULT;
+	}
 
 	params.tpa_mode = start->tpa_mode;
 	params.remove_inner_vlan = start->inner_vlan_removal;
 
+	params.only_untagged = vf_info->bulletin.p_virt->default_only_untagged;
 	params.drop_ttl0 = false;
 	params.concrete_fid = vf->concrete_fid;
 	params.opaque_fid = vf->opaque_fid;
@@ -1290,6 +1450,9 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 		status = PFVF_STATUS_FAILURE;
 	} else {
 		vf->vport_instance++;
+
+		/* Force configuration if needed on the newly opened vport */
+		qed_iov_configure_vport_forced(p_hwfn, vf, *p_bitmap);
 	}
 	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_VPORT_START,
 			     sizeof(struct pfvf_def_resp_tlv), status);
@@ -1310,6 +1473,10 @@ static void qed_iov_vf_mbx_stop_vport(struct qed_hwfn *p_hwfn,
 		       rc);
 		status = PFVF_STATUS_FAILURE;
 	}
+
+	/* Forget the configuration on the vport */
+	vf->configured_features = 0;
+	memset(&vf->shadow_config, 0, sizeof(vf->shadow_config));
 
 	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_VPORT_TEARDOWN,
 			     sizeof(struct pfvf_def_resp_tlv), status);
@@ -1634,8 +1801,13 @@ qed_iov_vp_update_vlan_param(struct qed_hwfn *p_hwfn,
 	if (!p_vlan_tlv)
 		return;
 
-	p_data->update_inner_vlan_removal_flg = 1;
-	p_data->inner_vlan_removal_flg = p_vlan_tlv->remove_vlan;
+	p_vf->shadow_config.inner_vlan_removal = p_vlan_tlv->remove_vlan;
+
+	/* Ignore the VF request if we're forcing a vlan */
+	if (!(p_vf->configured_features & (1 << VLAN_ADDR_FORCED))) {
+		p_data->update_inner_vlan_removal_flg = 1;
+		p_data->inner_vlan_removal_flg = p_vlan_tlv->remove_vlan;
+	}
 
 	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_VLAN_STRIP;
 }
@@ -1886,6 +2058,67 @@ out:
 	qed_iov_send_response(p_hwfn, p_ptt, vf, length, status);
 }
 
+static int qed_iov_vf_update_unicast_shadow(struct qed_hwfn *p_hwfn,
+					    struct qed_vf_info *p_vf,
+					    struct qed_filter_ucast *p_params)
+{
+	int i;
+
+	if (p_params->type == QED_FILTER_MAC)
+		return 0;
+
+	/* First remove entries and then add new ones */
+	if (p_params->opcode == QED_FILTER_REMOVE) {
+		for (i = 0; i < QED_ETH_VF_NUM_VLAN_FILTERS + 1; i++)
+			if (p_vf->shadow_config.vlans[i].used &&
+			    p_vf->shadow_config.vlans[i].vid ==
+			    p_params->vlan) {
+				p_vf->shadow_config.vlans[i].used = false;
+				break;
+			}
+		if (i == QED_ETH_VF_NUM_VLAN_FILTERS + 1) {
+			DP_VERBOSE(p_hwfn,
+				   QED_MSG_IOV,
+				   "VF [%d] - Tries to remove a non-existing vlan\n",
+				   p_vf->relative_vf_id);
+			return -EINVAL;
+		}
+	} else if (p_params->opcode == QED_FILTER_REPLACE ||
+		   p_params->opcode == QED_FILTER_FLUSH) {
+		for (i = 0; i < QED_ETH_VF_NUM_VLAN_FILTERS + 1; i++)
+			p_vf->shadow_config.vlans[i].used = false;
+	}
+
+	/* In forced mode, we're willing to remove entries - but we don't add
+	 * new ones.
+	 */
+	if (p_vf->bulletin.p_virt->valid_bitmap & (1 << VLAN_ADDR_FORCED))
+		return 0;
+
+	if (p_params->opcode == QED_FILTER_ADD ||
+	    p_params->opcode == QED_FILTER_REPLACE) {
+		for (i = 0; i < QED_ETH_VF_NUM_VLAN_FILTERS + 1; i++) {
+			if (p_vf->shadow_config.vlans[i].used)
+				continue;
+
+			p_vf->shadow_config.vlans[i].used = true;
+			p_vf->shadow_config.vlans[i].vid = p_params->vlan;
+			break;
+		}
+
+		if (i == QED_ETH_VF_NUM_VLAN_FILTERS + 1) {
+			DP_VERBOSE(p_hwfn,
+				   QED_MSG_IOV,
+				   "VF [%d] - Tries to configure more than %d vlan filters\n",
+				   p_vf->relative_vf_id,
+				   QED_ETH_VF_NUM_VLAN_FILTERS + 1);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 int qed_iov_chk_ucast(struct qed_hwfn *hwfn,
 		      int vfid, struct qed_filter_ucast *params)
 {
@@ -1907,6 +2140,7 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 					struct qed_ptt *p_ptt,
 					struct qed_vf_info *vf)
 {
+	struct qed_bulletin_content *p_bulletin = vf->bulletin.p_virt;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
 	struct vfpf_ucast_filter_tlv *req;
 	u8 status = PFVF_STATUS_SUCCESS;
@@ -1943,6 +2177,25 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 			   "No VPORT instance available for VF[%d], failing ucast MAC configuration\n",
 			   vf->abs_vf_id);
 		status = PFVF_STATUS_FAILURE;
+		goto out;
+	}
+
+	/* Update shadow copy of the VF configuration */
+	if (qed_iov_vf_update_unicast_shadow(p_hwfn, vf, &params)) {
+		status = PFVF_STATUS_FAILURE;
+		goto out;
+	}
+
+	/* Determine if the unicast filtering is acceptible by PF */
+	if ((p_bulletin->valid_bitmap & (1 << VLAN_ADDR_FORCED)) &&
+	    (params.type == QED_FILTER_VLAN ||
+	     params.type == QED_FILTER_MAC_VLAN)) {
+		/* Once VLAN is forced or PVID is set, do not allow
+		 * to add/replace any further VLANs.
+		 */
+		if (params.opcode == QED_FILTER_ADD ||
+		    params.opcode == QED_FILTER_REPLACE)
+			status = PFVF_STATUS_FORCED;
 		goto out;
 	}
 
@@ -2449,6 +2702,29 @@ static int qed_iov_copy_vf_msg(struct qed_hwfn *p_hwfn, struct qed_ptt *ptt,
 	return 0;
 }
 
+void qed_iov_bulletin_set_forced_vlan(struct qed_hwfn *p_hwfn,
+				      u16 pvid, int vfid)
+{
+	struct qed_vf_info *vf_info;
+	u64 feature;
+
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	if (!vf_info) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "Can not set forced MAC, invalid vfid [%d]\n", vfid);
+		return;
+	}
+
+	feature = 1 << VLAN_ADDR_FORCED;
+	vf_info->bulletin.p_virt->pvid = pvid;
+	if (pvid)
+		vf_info->bulletin.p_virt->valid_bitmap |= feature;
+	else
+		vf_info->bulletin.p_virt->valid_bitmap &= ~feature;
+
+	qed_iov_configure_vport_forced(p_hwfn, vf_info, feature);
+}
+
 bool qed_iov_is_vf_stopped(struct qed_hwfn *p_hwfn, int vfid)
 {
 	struct qed_vf_info *p_vf_info;
@@ -2458,6 +2734,20 @@ bool qed_iov_is_vf_stopped(struct qed_hwfn *p_hwfn, int vfid)
 		return true;
 
 	return p_vf_info->state == VF_STOPPED;
+}
+
+u16 qed_iov_bulletin_get_forced_vlan(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
+{
+	struct qed_vf_info *p_vf;
+
+	p_vf = qed_iov_get_vf_info(p_hwfn, rel_vf_id, true);
+	if (!p_vf || !p_vf->bulletin.p_virt)
+		return 0;
+
+	if (!(p_vf->bulletin.p_virt->valid_bitmap & (1 << VLAN_ADDR_FORCED)))
+		return 0;
+
+	return p_vf->bulletin.p_virt->pvid;
 }
 
 /**
@@ -2609,6 +2899,38 @@ static int qed_sriov_configure(struct qed_dev *cdev, int num_vfs_param)
 		return qed_sriov_disable(cdev, true);
 }
 
+static int qed_sriov_pf_set_vlan(struct qed_dev *cdev, u16 vid, int vfid)
+{
+	int i;
+
+	if (!IS_QED_SRIOV(cdev) || !IS_PF_SRIOV_ALLOC(&cdev->hwfns[0])) {
+		DP_VERBOSE(cdev, QED_MSG_IOV,
+			   "Cannot set a VF MAC; Sriov is not enabled\n");
+		return -EINVAL;
+	}
+
+	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vfid, true)) {
+		DP_VERBOSE(cdev, QED_MSG_IOV,
+			   "Cannot set VF[%d] MAC (VF is not active)\n", vfid);
+		return -EINVAL;
+	}
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *hwfn = &cdev->hwfns[i];
+		struct qed_public_vf_info *vf_info;
+
+		vf_info = qed_iov_get_public_vf_info(hwfn, vfid, true);
+		if (!vf_info)
+			continue;
+
+		/* Set the forced vlan, and schedule the IOV task */
+		vf_info->forced_vlan = vid;
+		qed_schedule_iov(hwfn, QED_IOV_WQ_SET_UNICAST_FILTER_FLAG);
+	}
+
+	return 0;
+}
+
 void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
 {
 	struct qed_mcp_link_capabilities caps;
@@ -2671,6 +2993,38 @@ static void qed_handle_vf_msg(struct qed_hwfn *hwfn)
 	qed_ptt_release(hwfn, ptt);
 }
 
+static void qed_handle_pf_set_vf_unicast(struct qed_hwfn *hwfn)
+{
+	int i;
+
+	qed_for_each_vf(hwfn, i) {
+		struct qed_public_vf_info *info;
+		bool update = false;
+
+		info = qed_iov_get_public_vf_info(hwfn, i, true);
+		if (!info)
+			continue;
+
+		/* Update data on bulletin board */
+
+		if (qed_iov_bulletin_get_forced_vlan(hwfn, i) ^
+		    info->forced_vlan) {
+			DP_VERBOSE(hwfn,
+				   QED_MSG_IOV,
+				   "Handling PF setting of pvid [0x%04x] to VF 0x%02x [Abs 0x%02x]\n",
+				   info->forced_vlan,
+				   i,
+				   hwfn->cdev->p_iov_info->first_vf_in_pf + i);
+			qed_iov_bulletin_set_forced_vlan(hwfn,
+							 info->forced_vlan, i);
+			update = true;
+		}
+
+		if (update)
+			qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
+	}
+}
+
 static void qed_handle_bulletin_post(struct qed_hwfn *hwfn)
 {
 	struct qed_ptt *ptt;
@@ -2715,6 +3069,11 @@ void qed_iov_pf_task(struct work_struct *work)
 
 	if (test_and_clear_bit(QED_IOV_WQ_MSG_FLAG, &hwfn->iov_task_flags))
 		qed_handle_vf_msg(hwfn);
+
+	if (test_and_clear_bit(QED_IOV_WQ_SET_UNICAST_FILTER_FLAG,
+			       &hwfn->iov_task_flags))
+		qed_handle_pf_set_vf_unicast(hwfn);
+
 	if (test_and_clear_bit(QED_IOV_WQ_BULLETIN_UPDATE_FLAG,
 			       &hwfn->iov_task_flags))
 		qed_handle_bulletin_post(hwfn);
@@ -2774,4 +3133,5 @@ int qed_iov_wq_start(struct qed_dev *cdev)
 
 const struct qed_iov_hv_ops qed_iov_ops_pass = {
 	.configure = &qed_sriov_configure,
+	.set_vlan = &qed_sriov_pf_set_vlan,
 };
