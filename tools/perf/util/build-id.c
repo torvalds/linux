@@ -365,39 +365,17 @@ static char *build_id_cache__dirname_from_path(const char *name,
 int build_id_cache__list_build_ids(const char *pathname,
 				   struct strlist **result)
 {
-	struct strlist *list;
 	char *dir_name;
-	DIR *dir;
-	struct dirent *d;
 	int ret = 0;
 
-	list = strlist__new(NULL, NULL);
 	dir_name = build_id_cache__dirname_from_path(pathname, false, false);
-	if (!list || !dir_name) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!dir_name)
+		return -ENOMEM;
 
-	/* List up all dirents */
-	dir = opendir(dir_name);
-	if (!dir) {
+	*result = lsdir(dir_name, lsdir_no_dot_filter);
+	if (!*result)
 		ret = -errno;
-		goto out;
-	}
-
-	while ((d = readdir(dir)) != NULL) {
-		if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
-			continue;
-		strlist__add(list, d->d_name);
-	}
-	closedir(dir);
-
-out:
 	free(dir_name);
-	if (ret)
-		strlist__delete(list);
-	else
-		*result = list;
 
 	return ret;
 }
