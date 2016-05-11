@@ -183,6 +183,8 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	connection->bundle = bundle;
 	connection->handler = handler;
 	connection->flags = flags;
+	if (intf && (intf->quirks & GB_INTERFACE_QUIRK_NO_CPORT_FEATURES))
+		connection->flags |= GB_CONNECTION_FLAG_NO_FLOWCTRL;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	atomic_set(&connection->op_cycle, 0);
@@ -338,11 +340,10 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 	intf = connection->intf;
 
 	/*
-	 * Enable either E2EFC or CSD, unless the interface does not support
-	 * any CPort features.
+	 * Enable either E2EFC or CSD, unless no flow control is requested.
 	 */
 	cport_flags = GB_SVC_CPORT_FLAG_CSV_N;
-	if (intf->quirks & GB_INTERFACE_QUIRK_NO_CPORT_FEATURES) {
+	if (gb_connection_flow_control_disabled(connection)) {
 		cport_flags |= GB_SVC_CPORT_FLAG_CSD_N;
 	} else if (gb_connection_e2efc_enabled(connection)) {
 		cport_flags |= GB_SVC_CPORT_FLAG_CSD_N |

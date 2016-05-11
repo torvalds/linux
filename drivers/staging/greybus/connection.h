@@ -14,6 +14,7 @@
 #include <linux/kfifo.h>
 
 #define GB_CONNECTION_FLAG_CSD		BIT(0)
+#define GB_CONNECTION_FLAG_NO_FLOWCTRL	BIT(1)
 
 enum gb_connection_state {
 	GB_CONNECTION_STATE_INVALID	= 0,
@@ -86,6 +87,12 @@ void gb_connection_latency_tag_disable(struct gb_connection *connection);
 static inline bool gb_connection_e2efc_enabled(struct gb_connection *connection)
 {
 	return !(connection->flags & GB_CONNECTION_FLAG_CSD);
+}
+
+static inline bool
+gb_connection_flow_control_disabled(struct gb_connection *connection)
+{
+	return connection->flags & GB_CONNECTION_FLAG_NO_FLOWCTRL;
 }
 
 static inline void *gb_connection_get_data(struct gb_connection *connection)
