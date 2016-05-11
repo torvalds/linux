@@ -23,7 +23,7 @@ static const char *const stih41x_dt_match[] __initconst = {
 	NULL
 };
 
-DT_MACHINE_START(STM, "STiH415/416 SoC with Flattened Device Tree")
+DT_MACHINE_START(STM, "STi SoC with Flattened Device Tree")
 	.dt_compat	= stih41x_dt_match,
 	.l2c_aux_val	= L2C_AUX_CTRL_SHARED_OVERRIDE |
 			  L310_AUX_CTRL_DATA_PREFETCH |
