@@ -2248,7 +2248,7 @@ __init int intel_pmu_init(void)
 			}
 
 			c->idxmsk64 &=
-				~(~0UL << (INTEL_PMC_IDX_FIXED + x86_pmu.num_counters_fixed));
+				~(~0ULL << (INTEL_PMC_IDX_FIXED + x86_pmu.num_counters_fixed));
 			c->weight = hweight64(c->idxmsk64);
 
 		}
