@@ -64,9 +64,11 @@ struct gb_connection *gb_connection_create_static(struct gb_host_device *hd,
 struct gb_connection *gb_connection_create_control(struct gb_interface *intf);
 struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 				u16 cport_id, gb_request_handler_t handler);
-struct gb_connection * gb_connection_create_flags(struct gb_bundle *bundle,
+struct gb_connection *gb_connection_create_flags(struct gb_bundle *bundle,
 				u16 cport_id, gb_request_handler_t handler,
 				unsigned long flags);
+struct gb_connection *gb_connection_create_offloaded(struct gb_bundle *bundle,
+				u16 cport_id, unsigned long flags);
 void gb_connection_destroy(struct gb_connection *connection);
 
 static inline bool gb_connection_is_static(struct gb_connection *connection)

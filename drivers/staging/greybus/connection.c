@@ -264,6 +264,19 @@ gb_connection_create_flags(struct gb_bundle *bundle, u16 cport_id,
 }
 EXPORT_SYMBOL_GPL(gb_connection_create_flags);
 
+struct gb_connection *
+gb_connection_create_offloaded(struct gb_bundle *bundle, u16 cport_id,
+					unsigned long flags)
+{
+	struct gb_interface *intf = bundle->intf;
+
+	flags |= GB_CONNECTION_FLAG_OFFLOADED;
+
+	return _gb_connection_create(intf->hd, -1, intf, bundle, cport_id,
+					NULL, flags);
+}
+EXPORT_SYMBOL_GPL(gb_connection_create_offloaded);
+
 static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 {
 	struct gb_host_device *hd = connection->hd;
