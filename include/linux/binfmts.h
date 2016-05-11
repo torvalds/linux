@@ -64,6 +64,7 @@ struct coredump_params {
 	struct file *file;
 	unsigned long limit;
 	unsigned long mm_flags;
+	loff_t written;
 };
 
 /*
