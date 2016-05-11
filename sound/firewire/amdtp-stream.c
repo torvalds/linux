@@ -251,7 +251,6 @@ void amdtp_stream_pcm_prepare(struct amdtp_stream *s)
 	tasklet_kill(&s->period_tasklet);
 	s->pcm_buffer_pointer = 0;
 	s->pcm_period_pointer = 0;
-	s->pointer_flush = true;
 }
 EXPORT_SYMBOL(amdtp_stream_pcm_prepare);
 
@@ -356,7 +355,6 @@ static void update_pcm_pointers(struct amdtp_stream *s,
 	s->pcm_period_pointer += frames;
 	if (s->pcm_period_pointer >= pcm->runtime->period_size) {
 		s->pcm_period_pointer -= pcm->runtime->period_size;
-		s->pointer_flush = false;
 		tasklet_hi_schedule(&s->period_tasklet);
 	}
 }
@@ -803,11 +801,24 @@ EXPORT_SYMBOL(amdtp_stream_start);
  */
 unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s)
 {
-	/* this optimization is allowed to be racy */
-	if (s->pointer_flush && amdtp_stream_running(s))
+	/*
+	 * This function is called in software IRQ context of period_tasklet or
+	 * process context.
+	 *
+	 * When the software IRQ context was scheduled by software IRQ context
+	 * of IR/IT contexts, queued packets were already handled. Therefore,
+	 * no need to flush the queue in buffer anymore.
+	 *
+	 * When the process context reach here, some packets will be already
+	 * queued in the buffer. These packets should be handled immediately
+	 * to keep better granularity of PCM pointer.
+	 *
+	 * Later, the process context will sometimes schedules software IRQ
+	 * context of the period_tasklet. Then, no need to flush the queue by
+	 * the same reason as described for IR/IT contexts.
+	 */
+	if (!in_interrupt() && amdtp_stream_running(s))
 		fw_iso_context_flush_completions(s->context);
-	else
-		s->pointer_flush = true;
 
 	return ACCESS_ONCE(s->pcm_buffer_pointer);
 }

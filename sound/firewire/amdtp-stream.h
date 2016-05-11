@@ -126,7 +126,6 @@ struct amdtp_stream {
 	struct tasklet_struct period_tasklet;
 	unsigned int pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
-	bool pointer_flush;
 
 	/* To wait for first packet. */
 	bool callbacked;
