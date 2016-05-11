@@ -324,10 +324,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		al.sym = node->sym;
 		al.map = node->map;
 		al.machine = machine;
-		if (al.map)
-			al.addr = al.map->map_ip(al.map, node->ip);
-		else
-			al.addr = node->ip;
+		al.addr = node->ip;
 
 		db_ids_from_al(dbe, &al, &dso_db_id, &sym_db_id, &offset);
 
