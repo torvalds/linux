@@ -340,6 +340,11 @@ int gb_svc_intf_activate(struct gb_svc *svc, u8 intf_id, u8 *intf_type)
 			SVC_INTF_ACTIVATE_TIMEOUT);
 	if (ret < 0)
 		return ret;
+	if (response.status != GB_SVC_OP_SUCCESS) {
+		dev_err(&svc->dev, "failed to activate interface %u: %u\n",
+				intf_id, response.status);
+		return -EREMOTEIO;
+	}
 
 	*intf_type = response.intf_type;
 

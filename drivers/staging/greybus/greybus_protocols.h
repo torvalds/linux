@@ -849,6 +849,24 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_INTF_ACTIVATE		0x27
 #define GB_SVC_TYPE_INTF_MAILBOX_EVENT		0x29
 
+/* Greybus SVC protocol status values */
+#define GB_SVC_OP_SUCCESS			0x00
+#define GB_SVC_OP_UNKNOWN_ERROR			0x01
+#define GB_SVC_INTF_NOT_DETECTED		0x02
+#define GB_SVC_INTF_NO_UPRO_LINK		0x03
+#define GB_SVC_INTF_UPRO_NOT_DOWN		0x04
+#define GB_SVC_INTF_UPRO_NOT_HIBERNATED		0x05
+#define GB_SVC_INTF_NO_V_SYS			0x06
+#define GB_SVC_INTF_V_CHG			0x07
+#define GB_SVC_INTF_WAKE_BUSY			0x08
+#define GB_SVC_INTF_NO_REFCLK			0x09
+#define GB_SVC_INTF_RELEASING			0x0a
+#define GB_SVC_INTF_NO_ORDER			0x0b
+#define GB_SVC_INTF_MBOX_SET			0x0c
+#define GB_SVC_INTF_BAD_MBOX			0x0d
+#define GB_SVC_INTF_OP_TIMEOUT			0x0e
+#define GB_SVC_PWRMON_OP_NOT_PRESENT		0x0f
+
 struct gb_svc_version_request {
 	__u8	major;
 	__u8	minor;
@@ -1133,6 +1151,7 @@ struct gb_svc_intf_activate_request {
 #define GB_SVC_INTF_TYPE_GREYBUS		0x03
 
 struct gb_svc_intf_activate_response {
+	__u8	status;
 	__u8	intf_type;
 } __packed;
 
