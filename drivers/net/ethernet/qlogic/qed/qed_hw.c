@@ -338,6 +338,17 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn,
 	       *(u32 *)&p_ptt->pxp.pretend);
 }
 
+u32 qed_vfid_to_concrete(struct qed_hwfn *p_hwfn, u8 vfid)
+{
+	u32 concrete_fid = 0;
+
+	SET_FIELD(concrete_fid, PXP_CONCRETE_FID_PFID, p_hwfn->rel_pf_id);
+	SET_FIELD(concrete_fid, PXP_CONCRETE_FID_VFID, vfid);
+	SET_FIELD(concrete_fid, PXP_CONCRETE_FID_VFVALID, 1);
+
+	return concrete_fid;
+}
+
 /* DMAE */
 static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 			    const u8 is_src_type_grc,

@@ -152,6 +152,7 @@ enum QED_RESOURCES {
 
 enum QED_FEATURE {
 	QED_PF_L2_QUE,
+	QED_VF,
 	QED_MAX_FEATURES,
 };
 
@@ -360,6 +361,7 @@ struct qed_hwfn {
 	/* True if the driver requests for the link */
 	bool				b_drv_link_init;
 
+	struct qed_pf_iov		*pf_iov_info;
 	struct qed_mcp_info		*mcp_info;
 
 	struct qed_hw_cid_data		*p_tx_cids;
@@ -484,6 +486,10 @@ struct qed_dev {
 	u8				num_hwfns;
 	struct qed_hwfn			hwfns[MAX_HWFNS_PER_DEVICE];
 
+	/* SRIOV */
+	struct qed_hw_sriov_info *p_iov_info;
+#define IS_QED_SRIOV(cdev)              (!!(cdev)->p_iov_info)
+
 	unsigned long			tunn_mode;
 	u32				drv_type;
 
@@ -514,6 +520,7 @@ struct qed_dev {
 	const struct firmware		*firmware;
 };
 
+#define NUM_OF_VFS(dev)         MAX_NUM_VFS_BB
 #define NUM_OF_SBS(dev)         MAX_SB_PER_PATH_BB
 #define NUM_OF_ENG_PFS(dev)     MAX_NUM_PFS_BB
 

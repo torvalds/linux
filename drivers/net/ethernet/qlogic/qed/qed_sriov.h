@@ -1,0 +1,185 @@
+/* QLogic qed NIC Driver
+ * Copyright (c) 2015 QLogic Corporation
+ *
+ * This software is available under the terms of the GNU General Public License
+ * (GPL) Version 2, available from the file COPYING in the main directory of
+ * this source tree.
+ */
+
+#ifndef _QED_SRIOV_H
+#define _QED_SRIOV_H
+#include <linux/types.h>
+#include "qed_vf.h"
+#define QED_VF_ARRAY_LENGTH (3)
+
+#define IS_VF(cdev)             ((cdev)->b_is_vf)
+#define IS_PF(cdev)             (!((cdev)->b_is_vf))
+#ifdef CONFIG_QED_SRIOV
+#define IS_PF_SRIOV(p_hwfn)     (!!((p_hwfn)->cdev->p_iov_info))
+#else
+#define IS_PF_SRIOV(p_hwfn)     (0)
+#endif
+#define IS_PF_SRIOV_ALLOC(p_hwfn)       (!!((p_hwfn)->pf_iov_info))
+
+/* This struct is part of qed_dev and contains data relevant to all hwfns;
+ * Initialized only if SR-IOV cpabability is exposed in PCIe config space.
+ */
+struct qed_hw_sriov_info {
+	int pos;		/* capability position */
+	int nres;		/* number of resources */
+	u32 cap;		/* SR-IOV Capabilities */
+	u16 ctrl;		/* SR-IOV Control */
+	u16 total_vfs;		/* total VFs associated with the PF */
+	u16 num_vfs;		/* number of vfs that have been started */
+	u16 initial_vfs;	/* initial VFs associated with the PF */
+	u16 nr_virtfn;		/* number of VFs available */
+	u16 offset;		/* first VF Routing ID offset */
+	u16 stride;		/* following VF stride */
+	u16 vf_device_id;	/* VF device id */
+	u32 pgsz;		/* page size for BAR alignment */
+	u8 link;		/* Function Dependency Link */
+
+	u32 first_vf_in_pf;
+};
+
+/* This mailbox is maintained per VF in its PF contains all information
+ * required for sending / receiving a message.
+ */
+struct qed_iov_vf_mbx {
+	union vfpf_tlvs *req_virt;
+	dma_addr_t req_phys;
+	union pfvf_tlvs *reply_virt;
+	dma_addr_t reply_phys;
+};
+
+enum vf_state {
+	VF_STOPPED		/* VF, Stopped */
+};
+
+/* PFs maintain an array of this structure, per VF */
+struct qed_vf_info {
+	struct qed_iov_vf_mbx vf_mbx;
+	enum vf_state state;
+	bool b_init;
+
+	struct qed_bulletin bulletin;
+	dma_addr_t vf_bulletin;
+
+	u32 concrete_fid;
+	u16 opaque_fid;
+
+	u8 vport_id;
+	u8 relative_vf_id;
+	u8 abs_vf_id;
+#define QED_VF_ABS_ID(p_hwfn, p_vf)	(QED_PATH_ID(p_hwfn) ?		      \
+					 (p_vf)->abs_vf_id + MAX_NUM_VFS_BB : \
+					 (p_vf)->abs_vf_id)
+};
+
+/* This structure is part of qed_hwfn and used only for PFs that have sriov
+ * capability enabled.
+ */
+struct qed_pf_iov {
+	struct qed_vf_info vfs_array[MAX_NUM_VFS];
+	u64 pending_events[QED_VF_ARRAY_LENGTH];
+	u64 pending_flr[QED_VF_ARRAY_LENGTH];
+
+	/* Allocate message address continuosuly and split to each VF */
+	void *mbx_msg_virt_addr;
+	dma_addr_t mbx_msg_phys_addr;
+	u32 mbx_msg_size;
+	void *mbx_reply_virt_addr;
+	dma_addr_t mbx_reply_phys_addr;
+	u32 mbx_reply_size;
+	void *p_bulletins;
+	dma_addr_t bulletins_phys;
+	u32 bulletins_size;
+};
+
+#ifdef CONFIG_QED_SRIOV
+/**
+ * @brief - Given a VF index, return index of next [including that] active VF.
+ *
+ * @param p_hwfn
+ * @param rel_vf_id
+ *
+ * @return MAX_NUM_VFS in case no further active VFs, otherwise index.
+ */
+u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id);
+
+/**
+ * @brief Read sriov related information and allocated resources
+ *  reads from configuraiton space, shmem, etc.
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+int qed_iov_hw_info(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief qed_iov_alloc - allocate sriov related resources
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+int qed_iov_alloc(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief qed_iov_setup - setup sriov related resources
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+void qed_iov_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief qed_iov_free - free sriov related resources
+ *
+ * @param p_hwfn
+ */
+void qed_iov_free(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief free sriov related memory that was allocated during hw_prepare
+ *
+ * @param cdev
+ */
+void qed_iov_free_hw_info(struct qed_dev *cdev);
+#else
+static inline u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn,
+					     u16 rel_vf_id)
+{
+	return MAX_NUM_VFS;
+}
+
+static inline int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
+{
+	return 0;
+}
+
+static inline int qed_iov_alloc(struct qed_hwfn *p_hwfn)
+{
+	return 0;
+}
+
+static inline void qed_iov_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+}
+
+static inline void qed_iov_free(struct qed_hwfn *p_hwfn)
+{
+}
+
+static inline void qed_iov_free_hw_info(struct qed_dev *cdev)
+{
+}
+#endif
+
+#define qed_for_each_vf(_p_hwfn, _i)			  \
+	for (_i = qed_iov_get_next_active_vf(_p_hwfn, 0); \
+	     _i < MAX_NUM_VFS;				  \
+	     _i = qed_iov_get_next_active_vf(_p_hwfn, _i + 1))
+
+#endif

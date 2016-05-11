@@ -30,6 +30,7 @@
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
 
 /* API common to all protocols */
 enum BAR_ID {
@@ -136,6 +137,7 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_eq_free(p_hwfn, p_hwfn->p_eq);
 		qed_consq_free(p_hwfn, p_hwfn->p_consq);
 		qed_int_free(p_hwfn);
+		qed_iov_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
 	}
 }
@@ -316,6 +318,10 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (rc)
 			goto alloc_err;
 
+		rc = qed_iov_alloc(p_hwfn);
+		if (rc)
+			goto alloc_err;
+
 		/* EQ */
 		p_eq = qed_eq_alloc(p_hwfn, 256);
 		if (!p_eq) {
@@ -373,6 +379,8 @@ void qed_resc_setup(struct qed_dev *cdev)
 		       p_hwfn->mcp_info->mfw_mb_length);
 
 		qed_int_setup(p_hwfn, p_hwfn->p_main_ptt);
+
+		qed_iov_setup(p_hwfn, p_hwfn->p_main_ptt);
 	}
 }
 
@@ -1238,6 +1246,13 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 	u32 port_mode;
 	int rc;
 
+	/* Since all information is common, only first hwfns should do this */
+	if (IS_LEAD_HWFN(p_hwfn)) {
+		rc = qed_iov_hw_info(p_hwfn);
+		if (rc)
+			return rc;
+	}
+
 	/* Read the port mode */
 	port_mode = qed_rd(p_hwfn, p_ptt,
 			   CNIG_REG_NW_PORT_MODE_BB_B0);
@@ -1397,6 +1412,8 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 
 	return rc;
 err2:
+	if (IS_LEAD_HWFN(p_hwfn))
+		qed_iov_free_hw_info(p_hwfn->cdev);
 	qed_mcp_free(p_hwfn);
 err1:
 	qed_hw_hwfn_free(p_hwfn);
@@ -1463,6 +1480,8 @@ void qed_hw_remove(struct qed_dev *cdev)
 		qed_hw_hwfn_free(p_hwfn);
 		qed_mcp_free(p_hwfn);
 	}
+
+	qed_iov_free_hw_info(cdev);
 }
 
 int qed_chain_alloc(struct qed_dev *cdev,
