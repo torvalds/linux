@@ -22,6 +22,8 @@ struct qed_iov_hv_ops {
 	int (*set_link_state) (struct qed_dev *cdev, int vf_id,
 			       int link_state);
 
+	int (*set_spoof) (struct qed_dev *cdev, int vfid, bool val);
+
 	int (*set_rate) (struct qed_dev *cdev, int vfid,
 			 u32 min_rate, u32 max_rate);
 };

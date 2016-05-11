@@ -381,6 +381,10 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	p_ramrod->common.tx_switching_en = p_params->tx_switching_flg;
 	p_cmn->update_tx_switching_en_flg = p_params->update_tx_switching_flg;
 
+	p_cmn->anti_spoofing_en = p_params->anti_spoofing_en;
+	val = p_params->update_anti_spoofing_en_flg;
+	p_ramrod->common.update_anti_spoofing_en_flg = val;
+
 	rc = qed_sp_vport_update_rss(p_hwfn, p_ramrod, p_rss_params);
 	if (rc) {
 		/* Return spq entry which is taken in qed_sp_init_request()*/

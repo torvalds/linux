@@ -1802,6 +1802,16 @@ static int qede_set_vf_rate(struct net_device *dev, int vfidx,
 					max_tx_rate);
 }
 
+static int qede_set_vf_spoofchk(struct net_device *dev, int vfidx, bool val)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev->ops)
+		return -EINVAL;
+
+	return edev->ops->iov->set_spoof(edev->cdev, vfidx, val);
+}
+
 static int qede_set_vf_link_state(struct net_device *dev, int vfidx,
 				  int link_state)
 {
@@ -2142,6 +2152,7 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_get_stats64 = qede_get_stats64,
 #ifdef CONFIG_QED_SRIOV
 	.ndo_set_vf_link_state = qede_set_vf_link_state,
+	.ndo_set_vf_spoofchk = qede_set_vf_spoofchk,
 	.ndo_set_vf_rate = qede_set_vf_rate,
 #endif
 #ifdef CONFIG_QEDE_VXLAN

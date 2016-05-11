@@ -154,6 +154,8 @@ struct qed_vf_info {
 	u16 igu_sbs[QED_MAX_VF_CHAINS_PER_PF];
 	u8 num_active_rxqs;
 	struct qed_public_vf_info p_vf_info;
+	bool spoof_chk;
+	bool req_spoofchk_val;
 
 	/* Stores the configuration requested by VF */
 	struct qed_vf_shadow_config shadow_config;

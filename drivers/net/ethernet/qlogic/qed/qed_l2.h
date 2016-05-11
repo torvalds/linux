@@ -149,6 +149,8 @@ struct qed_sp_vport_update_params {
 	u8				update_tx_switching_flg;
 	u8				tx_switching_flg;
 	u8				update_approx_mcast_flg;
+	u8				update_anti_spoofing_en_flg;
+	u8				anti_spoofing_en;
 	u8				update_accept_any_vlan_flg;
 	u8				accept_any_vlan;
 	unsigned long			bins[8];
