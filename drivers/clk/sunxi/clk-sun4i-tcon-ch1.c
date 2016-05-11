@@ -85,9 +85,6 @@ static u8 tcon_ch1_get_parent(struct clk_hw *hw)
 	reg = readl(tclk->reg) >> TCON_CH1_SCLK2_MUX_SHIFT;
 	reg &= reg >> TCON_CH1_SCLK2_MUX_MASK;
 
-	if (reg >= num_parents)
-		return -EINVAL;
-
 	return reg;
 }
 
