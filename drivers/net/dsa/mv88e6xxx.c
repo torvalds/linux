@@ -5,6 +5,8 @@
  * Copyright (c) 2015 CMC Electronics, Inc.
  *	Added support for VLAN Table Unit operations
  *
+ * Copyright (c) 2016 Andrew Lunn <andrew@lunn.ch>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -17,6 +19,7 @@
 #include <linux/if_bridge.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
+#include <linux/mdio.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/gpio/consumer.h>
@@ -864,6 +867,16 @@ static int mv88e6xxx_read_eeprom_word(struct dsa_switch *ds, int addr)
 error:
 	mutex_unlock(&ps->eeprom_mutex);
 	return ret;
+}
+
+static int mv88e6xxx_get_eeprom_len(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_EEPROM))
+		return ps->eeprom_len;
+
+	return 0;
 }
 
 static int mv88e6xxx_get_eeprom(struct dsa_switch *ds,
@@ -2579,7 +2592,7 @@ static int mv88e6xxx_switch_reset(struct mv88e6xxx_priv_state *ps)
 {
 	bool ppu_active = mv88e6xxx_has(ps, MV88E6XXX_FLAG_PPU_ACTIVE);
 	u16 is_reset = (ppu_active ? 0x8800 : 0xc800);
-	struct gpio_desc *gpiod = ps->ds->pd->reset;
+	struct gpio_desc *gpiod = ps->reset;
 	unsigned long timeout;
 	int ret;
 	int i;
@@ -3020,9 +3033,9 @@ static int mv88e6xxx_setup_global(struct mv88e6xxx_priv_state *ps)
 	for (i = 0; i < 32; i++) {
 		int nexthop = 0x1f;
 
-		if (ps->ds->pd->rtable &&
+		if (ps->ds->cd->rtable &&
 		    i != ps->ds->index && i < ps->ds->dst->pd->nr_chips)
-			nexthop = ps->ds->pd->rtable[i] & 0x1f;
+			nexthop = ps->ds->cd->rtable[i] & 0x1f;
 
 		err = _mv88e6xxx_reg_write(
 			ps, REG_GLOBAL2,
@@ -3131,8 +3144,6 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 	int i;
 
 	ps->ds = ds;
-
-	mutex_init(&ps->smi_mutex);
 
 	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
 
@@ -3545,9 +3556,9 @@ mv88e6xxx_lookup_info(unsigned int prod_num, const struct mv88e6xxx_info *table,
 	return NULL;
 }
 
-static const char *mv88e6xxx_probe(struct device *dsa_dev,
-				   struct device *host_dev, int sw_addr,
-				   void **priv)
+static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
+				       struct device *host_dev, int sw_addr,
+				       void **priv)
 {
 	const struct mv88e6xxx_info *info;
 	struct mv88e6xxx_priv_state *ps;
@@ -3580,6 +3591,7 @@ static const char *mv88e6xxx_probe(struct device *dsa_dev,
 	ps->bus = bus;
 	ps->sw_addr = sw_addr;
 	ps->info = info;
+	mutex_init(&ps->smi_mutex);
 
 	*priv = ps;
 
@@ -3591,7 +3603,7 @@ static const char *mv88e6xxx_probe(struct device *dsa_dev,
 
 struct dsa_switch_driver mv88e6xxx_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_EDSA,
-	.probe			= mv88e6xxx_probe,
+	.probe			= mv88e6xxx_drv_probe,
 	.setup			= mv88e6xxx_setup,
 	.set_addr		= mv88e6xxx_set_addr,
 	.phy_read		= mv88e6xxx_phy_read,
@@ -3608,6 +3620,7 @@ struct dsa_switch_driver mv88e6xxx_switch_driver = {
 	.set_temp_limit		= mv88e6xxx_set_temp_limit,
 	.get_temp_alarm		= mv88e6xxx_get_temp_alarm,
 #endif
+	.get_eeprom_len		= mv88e6xxx_get_eeprom_len,
 	.get_eeprom		= mv88e6xxx_get_eeprom,
 	.set_eeprom		= mv88e6xxx_set_eeprom,
 	.get_regs_len		= mv88e6xxx_get_regs_len,
@@ -3626,36 +3639,106 @@ struct dsa_switch_driver mv88e6xxx_switch_driver = {
 	.port_fdb_dump          = mv88e6xxx_port_fdb_dump,
 };
 
+int mv88e6xxx_probe(struct mdio_device *mdiodev)
+{
+	struct device *dev = &mdiodev->dev;
+	struct device_node *np = dev->of_node;
+	struct mv88e6xxx_priv_state *ps;
+	int id, prod_num, rev;
+	struct dsa_switch *ds;
+	u32 eeprom_len;
+	int err;
+
+	ds = devm_kzalloc(dev, sizeof(*ds) + sizeof(*ps), GFP_KERNEL);
+	if (!ds)
+		return -ENOMEM;
+
+	ps = (struct mv88e6xxx_priv_state *)(ds + 1);
+	ds->priv = ps;
+	ds->dev = dev;
+	ps->dev = dev;
+	ps->ds = ds;
+	ps->bus = mdiodev->bus;
+	ps->sw_addr = mdiodev->addr;
+	mutex_init(&ps->smi_mutex);
+
+	get_device(&ps->bus->dev);
+
+	ds->drv = &mv88e6xxx_switch_driver;
+
+	id = mv88e6xxx_reg_read(ps, REG_PORT(0), PORT_SWITCH_ID);
+	if (id < 0)
+		return id;
+
+	prod_num = (id & 0xfff0) >> 4;
+	rev = id & 0x000f;
+
+	ps->info = mv88e6xxx_lookup_info(prod_num, mv88e6xxx_table,
+					 ARRAY_SIZE(mv88e6xxx_table));
+	if (!ps->info)
+		return -ENODEV;
+
+	ps->reset = devm_gpiod_get(&mdiodev->dev, "reset", GPIOD_ASIS);
+	if (IS_ERR(ps->reset)) {
+		err = PTR_ERR(ps->reset);
+		if (err == -ENOENT) {
+			/* Optional, so not an error */
+			ps->reset = NULL;
+		} else {
+			return err;
+		}
+	}
+
+	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_EEPROM) &&
+	    !of_property_read_u32(np, "eeprom-length", &eeprom_len))
+		ps->eeprom_len = eeprom_len;
+
+	dev_set_drvdata(dev, ds);
+
+	dev_info(dev, "switch 0x%x probed: %s, revision %u\n",
+		 prod_num, ps->info->name, rev);
+
+	return 0;
+}
+
+static void mv88e6xxx_remove(struct mdio_device *mdiodev)
+{
+	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	put_device(&ps->bus->dev);
+}
+
+static const struct of_device_id mv88e6xxx_of_match[] = {
+	{ .compatible = "marvell,mv88e6085" },
+	{ /* sentinel */ },
+};
+
+MODULE_DEVICE_TABLE(of, mv88e6xxx_of_match);
+
+static struct mdio_driver mv88e6xxx_driver = {
+	.probe	= mv88e6xxx_probe,
+	.remove = mv88e6xxx_remove,
+	.mdiodrv.driver = {
+		.name = "mv88e6085",
+		.of_match_table = mv88e6xxx_of_match,
+	},
+};
+
 static int __init mv88e6xxx_init(void)
 {
 	register_switch_driver(&mv88e6xxx_switch_driver);
-
-	return 0;
+	return mdio_driver_register(&mv88e6xxx_driver);
 }
 module_init(mv88e6xxx_init);
 
 static void __exit mv88e6xxx_cleanup(void)
 {
+	mdio_driver_unregister(&mv88e6xxx_driver);
 	unregister_switch_driver(&mv88e6xxx_switch_driver);
 }
 module_exit(mv88e6xxx_cleanup);
 
-MODULE_ALIAS("platform:mv88e6085");
-MODULE_ALIAS("platform:mv88e6095");
-MODULE_ALIAS("platform:mv88e6095f");
-MODULE_ALIAS("platform:mv88e6123");
-MODULE_ALIAS("platform:mv88e6131");
-MODULE_ALIAS("platform:mv88e6161");
-MODULE_ALIAS("platform:mv88e6165");
-MODULE_ALIAS("platform:mv88e6171");
-MODULE_ALIAS("platform:mv88e6172");
-MODULE_ALIAS("platform:mv88e6175");
-MODULE_ALIAS("platform:mv88e6176");
-MODULE_ALIAS("platform:mv88e6320");
-MODULE_ALIAS("platform:mv88e6321");
-MODULE_ALIAS("platform:mv88e6350");
-MODULE_ALIAS("platform:mv88e6351");
-MODULE_ALIAS("platform:mv88e6352");
 MODULE_AUTHOR("Lennert Buytenhek <buytenh@wantstofly.org>");
 MODULE_DESCRIPTION("Driver for Marvell 88E6XXX ethernet switch chips");
 MODULE_LICENSE("GPL");

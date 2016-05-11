@@ -12,6 +12,7 @@
 #define __MV88E6XXX_H
 
 #include <linux/if_vlan.h>
+#include <linux/gpio/consumer.h>
 
 #ifndef UINT64_MAX
 #define UINT64_MAX		(u64)(~((u64)0))
@@ -595,6 +596,15 @@ struct mv88e6xxx_priv_state {
 	DECLARE_BITMAP(port_state_update_mask, DSA_MAX_PORTS);
 
 	struct work_struct bridge_work;
+
+	/* A switch may have a GPIO line tied to its reset pin. Parse
+	 * this from the device tree, and use it before performing
+	 * switch soft reset.
+	 */
+	struct gpio_desc *reset;
+
+	/* set to size of eeprom if supported by the switch */
+	int		eeprom_len;
 };
 
 enum stat_type {

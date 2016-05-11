@@ -16,7 +16,6 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/ethtool.h>
@@ -65,13 +64,6 @@ struct dsa_chip_data {
 	 * NULL if there is only one switch chip.
 	 */
 	s8		*rtable;
-
-	/*
-	 * A switch may have a GPIO line tied to its reset pin. Parse
-	 * this from the device tree, and use it before performing
-	 * switch soft reset.
-	 */
-	struct gpio_desc *reset;
 };
 
 struct dsa_platform_data {
@@ -128,6 +120,8 @@ struct dsa_switch_tree {
 };
 
 struct dsa_switch {
+	struct device *dev;
+
 	/*
 	 * Parent switch tree, and switch index.
 	 */
@@ -143,17 +137,12 @@ struct dsa_switch {
 	/*
 	 * Configuration data for this switch.
 	 */
-	struct dsa_chip_data	*pd;
+	struct dsa_chip_data	*cd;
 
 	/*
 	 * The used switch driver.
 	 */
 	struct dsa_switch_driver	*drv;
-
-	/*
-	 * Reference to host device to use.
-	 */
-	struct device		*master_dev;
 
 #ifdef CONFIG_NET_DSA_HWMON
 	/*
@@ -201,7 +190,7 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 	if (dst->cpu_switch == ds->index)
 		return dst->cpu_port;
 	else
-		return ds->pd->rtable[dst->cpu_switch];
+		return ds->cd->rtable[dst->cpu_switch];
 }
 
 struct switchdev_trans;

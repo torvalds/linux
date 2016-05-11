@@ -50,8 +50,8 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 	ds->slave_mii_bus->read = dsa_slave_phy_read;
 	ds->slave_mii_bus->write = dsa_slave_phy_write;
 	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d:%.2x",
-			ds->index, ds->pd->sw_addr);
-	ds->slave_mii_bus->parent = ds->master_dev;
+			ds->index, ds->cd->sw_addr);
+	ds->slave_mii_bus->parent = ds->dev;
 	ds->slave_mii_bus->phy_mask = ~ds->phys_mii_mask;
 }
 
@@ -615,8 +615,8 @@ static int dsa_slave_get_eeprom_len(struct net_device *dev)
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 
-	if (ds->pd->eeprom_len)
-		return ds->pd->eeprom_len;
+	if (ds->cd->eeprom_len)
+		return ds->cd->eeprom_len;
 
 	if (ds->drv->get_eeprom_len)
 		return ds->drv->get_eeprom_len(ds);
@@ -999,7 +999,7 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 				struct net_device *slave_dev)
 {
 	struct dsa_switch *ds = p->parent;
-	struct dsa_chip_data *cd = ds->pd;
+	struct dsa_chip_data *cd = ds->cd;
 	struct device_node *phy_dn, *port_dn;
 	bool phy_is_fixed = false;
 	u32 phy_flags = 0;
@@ -1147,7 +1147,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 				 NULL);
 
 	SET_NETDEV_DEV(slave_dev, parent);
-	slave_dev->dev.of_node = ds->pd->port_dn[port];
+	slave_dev->dev.of_node = ds->cd->port_dn[port];
 	slave_dev->vlan_features = master->vlan_features;
 
 	p = netdev_priv(slave_dev);

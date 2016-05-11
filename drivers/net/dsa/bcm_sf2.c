@@ -949,8 +949,8 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	/* All the interesting properties are at the parent device_node
 	 * level
 	 */
-	dn = ds->pd->of_node->parent;
-	bcm_sf2_identify_ports(priv, ds->pd->of_node);
+	dn = ds->cd->of_node->parent;
+	bcm_sf2_identify_ports(priv, ds->cd->of_node);
 
 	priv->irq0 = irq_of_parse_and_map(dn, 0);
 	priv->irq1 = irq_of_parse_and_map(dn, 1);
