@@ -110,9 +110,21 @@
 DECLARE_PER_CPU(int, next_tlbcam_idx);
 #endif
 
+enum {
+	MMU_FTRS_POSSIBLE = MMU_FTR_HPTE_TABLE | MMU_FTR_TYPE_8xx |
+		MMU_FTR_TYPE_40x | MMU_FTR_TYPE_44x | MMU_FTR_TYPE_FSL_E |
+		MMU_FTR_TYPE_47x | MMU_FTR_USE_HIGH_BATS | MMU_FTR_BIG_PHYS |
+		MMU_FTR_USE_TLBIVAX_BCAST | MMU_FTR_USE_TLBILX |
+		MMU_FTR_LOCK_BCAST_INVAL | MMU_FTR_NEED_DTLB_SW_LRU |
+		MMU_FTR_USE_TLBRSRV | MMU_FTR_USE_PAIRED_MAS |
+		MMU_FTR_NO_SLBIE_B | MMU_FTR_16M_PAGE | MMU_FTR_TLBIEL |
+		MMU_FTR_LOCKLESS_TLBIE | MMU_FTR_CI_LARGE_PAGE |
+		MMU_FTR_1T_SEGMENT,
+};
+
 static inline int mmu_has_feature(unsigned long feature)
 {
-	return (cur_cpu_spec->mmu_features & feature);
+	return (MMU_FTRS_POSSIBLE & cur_cpu_spec->mmu_features & feature);
 }
 
 static inline void mmu_clear_feature(unsigned long feature)
