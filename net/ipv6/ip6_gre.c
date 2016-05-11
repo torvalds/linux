@@ -468,7 +468,7 @@ static int gre_rcv(struct sk_buff *skb)
 	bool csum_err = false;
 	int hdr_len;
 
-	hdr_len = gre_parse_header(skb, &tpi, &csum_err);
+	hdr_len = gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IPV6));
 	if (hdr_len < 0)
 		goto drop;
 

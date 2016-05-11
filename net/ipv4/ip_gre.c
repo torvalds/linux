@@ -222,7 +222,7 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	struct tnl_ptk_info tpi;
 	bool csum_err = false;
 
-	if (gre_parse_header(skb, &tpi, &csum_err) < 0) {
+	if (gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP)) < 0) {
 		if (!csum_err)		/* ignore csum errors. */
 			return;
 	}
@@ -335,7 +335,7 @@ static int gre_rcv(struct sk_buff *skb)
 	}
 #endif
 
-	hdr_len = gre_parse_header(skb, &tpi, &csum_err);
+	hdr_len = gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP));
 	if (hdr_len < 0)
 		goto drop;
 
