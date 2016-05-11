@@ -5562,17 +5562,12 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, unsigned int required_vco)
 	u32 val;
 
 	/* select the minimum CDCLK before enabling DPLL 0 */
-	val = I915_READ(CDCLK_CTL);
-	val &= ~CDCLK_FREQ_SEL_MASK | ~CDCLK_FREQ_DECIMAL_MASK;
-	val |= CDCLK_FREQ_337_308;
-
 	if (required_vco == 8640)
 		min_freq = 308570;
 	else
 		min_freq = 337500;
 
 	val = CDCLK_FREQ_337_308 | skl_cdclk_decimal(min_freq);
-
 	I915_WRITE(CDCLK_CTL, val);
 	POSTING_READ(CDCLK_CTL);
 
