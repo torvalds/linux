@@ -381,7 +381,7 @@ static void samsung_clk_sleep_init(void __iomem *reg_base,
  */
 struct samsung_clk_provider * __init samsung_cmu_register_one(
 			struct device_node *np,
-			struct samsung_cmu_info *cmu)
+			const struct samsung_cmu_info *cmu)
 {
 	void __iomem *reg_base;
 	struct samsung_clk_provider *ctx;

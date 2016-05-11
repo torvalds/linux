@@ -330,28 +330,28 @@ struct samsung_clock_reg_cache {
 
 struct samsung_cmu_info {
 	/* list of pll clocks and respective count */
-	struct samsung_pll_clock *pll_clks;
+	const struct samsung_pll_clock *pll_clks;
 	unsigned int nr_pll_clks;
 	/* list of mux clocks and respective count */
-	struct samsung_mux_clock *mux_clks;
+	const struct samsung_mux_clock *mux_clks;
 	unsigned int nr_mux_clks;
 	/* list of div clocks and respective count */
-	struct samsung_div_clock *div_clks;
+	const struct samsung_div_clock *div_clks;
 	unsigned int nr_div_clks;
 	/* list of gate clocks and respective count */
-	struct samsung_gate_clock *gate_clks;
+	const struct samsung_gate_clock *gate_clks;
 	unsigned int nr_gate_clks;
 	/* list of fixed clocks and respective count */
-	struct samsung_fixed_rate_clock *fixed_clks;
+	const struct samsung_fixed_rate_clock *fixed_clks;
 	unsigned int nr_fixed_clks;
 	/* list of fixed factor clocks and respective count */
-	struct samsung_fixed_factor_clock *fixed_factor_clks;
+	const struct samsung_fixed_factor_clock *fixed_factor_clks;
 	unsigned int nr_fixed_factor_clks;
 	/* total number of clocks with IDs assigned*/
 	unsigned int nr_clk_ids;
 
 	/* list and number of clocks registers */
-	unsigned long *clk_regs;
+	const unsigned long *clk_regs;
 	unsigned int nr_clk_regs;
 };
 
@@ -395,7 +395,7 @@ extern void __init samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 
 extern struct samsung_clk_provider __init *samsung_cmu_register_one(
 			struct device_node *,
-			struct samsung_cmu_info *);
+			const struct samsung_cmu_info *);
 
 extern unsigned long _get_rate(const char *clk_name);
 
