@@ -32,9 +32,20 @@
 
 #include "bat_v_elp.h"
 #include "bat_v_ogm.h"
+#include "hard-interface.h"
 #include "hash.h"
 #include "originator.h"
 #include "packet.h"
+
+static void batadv_v_iface_activate(struct batadv_hard_iface *hard_iface)
+{
+	/* B.A.T.M.A.N. V does not use any queuing mechanism, therefore it can
+	 * set the interface as ACTIVE right away, without any risk of race
+	 * condition
+	 */
+	if (hard_iface->if_status == BATADV_IF_TO_BE_ACTIVATED)
+		hard_iface->if_status = BATADV_IF_ACTIVE;
+}
 
 static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
 {
@@ -274,6 +285,7 @@ static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
 
 static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.name = "BATMAN_V",
+	.bat_iface_activate = batadv_v_iface_activate,
 	.bat_iface_enable = batadv_v_iface_enable,
 	.bat_iface_disable = batadv_v_iface_disable,
 	.bat_iface_update_mac = batadv_v_iface_update_mac,

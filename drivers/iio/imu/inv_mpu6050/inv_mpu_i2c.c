@@ -104,6 +104,19 @@ static int inv_mpu6050_deselect_bypass(struct i2c_adapter *adap,
 	return 0;
 }
 
+static const char *inv_mpu_match_acpi_device(struct device *dev, int *chip_id)
+{
+	const struct acpi_device_id *id;
+
+	id = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!id)
+		return NULL;
+
+	*chip_id = (int)id->driver_data;
+
+	return dev_name(dev);
+}
+
 /**
  *  inv_mpu_probe() - probe function.
  *  @client:          i2c client.
@@ -115,13 +128,24 @@ static int inv_mpu_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct inv_mpu6050_state *st;
-	int result;
-	const char *name = id ? id->name : NULL;
+	int result, chip_type;
 	struct regmap *regmap;
+	const char *name;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EOPNOTSUPP;
+
+	if (id) {
+		chip_type = (int)id->driver_data;
+		name = id->name;
+	} else if (ACPI_HANDLE(&client->dev)) {
+		name = inv_mpu_match_acpi_device(&client->dev, &chip_type);
+		if (!name)
+			return -ENODEV;
+	} else {
+		return -ENOSYS;
+	}
 
 	regmap = devm_regmap_init_i2c(client, &inv_mpu_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -131,7 +155,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 	}
 
 	result = inv_mpu_core_probe(regmap, client->irq, name,
-				    NULL, id->driver_data);
+				    NULL, chip_type);
 	if (result < 0)
 		return result;
 

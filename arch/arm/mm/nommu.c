@@ -87,7 +87,6 @@ static unsigned long irbar_read(void)
 /* MPU initialisation functions */
 void __init sanity_check_meminfo_mpu(void)
 {
-	int i;
 	phys_addr_t phys_offset = PHYS_OFFSET;
 	phys_addr_t aligned_region_size, specified_mem_size, rounded_mem_size;
 	struct memblock_region *reg;
@@ -110,11 +109,13 @@ void __init sanity_check_meminfo_mpu(void)
 		} else {
 			/*
 			 * memblock auto merges contiguous blocks, remove
-			 * all blocks afterwards
+			 * all blocks afterwards in one go (we can't remove
+			 * blocks separately while iterating)
 			 */
 			pr_notice("Ignoring RAM after %pa, memory at %pa ignored\n",
-				  &mem_start, &reg->base);
-			memblock_remove(reg->base, reg->size);
+				  &mem_end, &reg->base);
+			memblock_remove(reg->base, 0 - reg->base);
+			break;
 		}
 	}
 
@@ -144,7 +145,7 @@ void __init sanity_check_meminfo_mpu(void)
 		pr_warn("Truncating memory from %pa to %pa (MPU region constraints)",
 				&specified_mem_size, &aligned_region_size);
 		memblock_remove(mem_start + aligned_region_size,
-				specified_mem_size - aligned_round_size);
+				specified_mem_size - aligned_region_size);
 
 		mem_end = mem_start + aligned_region_size;
 	}
@@ -261,7 +262,7 @@ void __init mpu_setup(void)
 		return;
 
 	region_err = mpu_setup_region(MPU_RAM_REGION, PHYS_OFFSET,
-					ilog2(meminfo.bank[0].size),
+					ilog2(memblock.memory.regions[0].size),
 					MPU_AP_PL1RW_PL0RW | MPU_RGN_NORMAL);
 	if (region_err) {
 		panic("MPU region initialization failure! %d", region_err);
@@ -285,7 +286,7 @@ void __init arm_mm_memblock_reserve(void)
 	 * some architectures which the DRAM is the exception vector to trap,
 	 * alloc_page breaks with error, although it is not NULL, but "0."
 	 */
-	memblock_reserve(CONFIG_VECTORS_BASE, PAGE_SIZE);
+	memblock_reserve(CONFIG_VECTORS_BASE, 2 * PAGE_SIZE);
 #else /* ifndef CONFIG_CPU_V7M */
 	/*
 	 * There is no dedicated vector page on V7-M. So nothing needs to be

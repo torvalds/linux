@@ -85,7 +85,7 @@ struct gcm_iv {
  * @tfm: crypto struct, key storage
  */
 struct macsec_key {
-	u64 id;
+	u8 id[MACSEC_KEYID_LEN];
 	struct crypto_aead *tfm;
 };
 
@@ -1529,7 +1529,8 @@ static const struct nla_policy macsec_genl_sa_policy[NUM_MACSEC_SA_ATTR] = {
 	[MACSEC_SA_ATTR_AN] = { .type = NLA_U8 },
 	[MACSEC_SA_ATTR_ACTIVE] = { .type = NLA_U8 },
 	[MACSEC_SA_ATTR_PN] = { .type = NLA_U32 },
-	[MACSEC_SA_ATTR_KEYID] = { .type = NLA_U64 },
+	[MACSEC_SA_ATTR_KEYID] = { .type = NLA_BINARY,
+				   .len = MACSEC_KEYID_LEN, },
 	[MACSEC_SA_ATTR_KEY] = { .type = NLA_BINARY,
 				 .len = MACSEC_MAX_KEY_LEN, },
 };
@@ -1575,6 +1576,9 @@ static bool validate_add_rxsa(struct nlattr **attrs)
 		if (nla_get_u8(attrs[MACSEC_SA_ATTR_ACTIVE]) > 1)
 			return false;
 	}
+
+	if (nla_len(attrs[MACSEC_SA_ATTR_KEYID]) != MACSEC_KEYID_LEN)
+		return false;
 
 	return true;
 }
@@ -1641,7 +1645,7 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 	if (tb_sa[MACSEC_SA_ATTR_ACTIVE])
 		rx_sa->active = !!nla_get_u8(tb_sa[MACSEC_SA_ATTR_ACTIVE]);
 
-	rx_sa->key.id = nla_get_u64(tb_sa[MACSEC_SA_ATTR_KEYID]);
+	nla_memcpy(rx_sa->key.id, tb_sa[MACSEC_SA_ATTR_KEY], MACSEC_KEYID_LEN);
 	rx_sa->sc = rx_sc;
 	rcu_assign_pointer(rx_sc->sa[assoc_num], rx_sa);
 
@@ -1722,6 +1726,9 @@ static bool validate_add_txsa(struct nlattr **attrs)
 			return false;
 	}
 
+	if (nla_len(attrs[MACSEC_SA_ATTR_KEYID]) != MACSEC_KEYID_LEN)
+		return false;
+
 	return true;
 }
 
@@ -1777,7 +1784,7 @@ static int macsec_add_txsa(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 	}
 
-	tx_sa->key.id = nla_get_u64(tb_sa[MACSEC_SA_ATTR_KEYID]);
+	nla_memcpy(tx_sa->key.id, tb_sa[MACSEC_SA_ATTR_KEY], MACSEC_KEYID_LEN);
 
 	spin_lock_bh(&tx_sa->lock);
 	tx_sa->next_pn = nla_get_u32(tb_sa[MACSEC_SA_ATTR_PN]);
@@ -2318,7 +2325,7 @@ static int dump_secy(struct macsec_secy *secy, struct net_device *dev,
 
 		if (nla_put_u8(skb, MACSEC_SA_ATTR_AN, i) ||
 		    nla_put_u32(skb, MACSEC_SA_ATTR_PN, tx_sa->next_pn) ||
-		    nla_put_u64(skb, MACSEC_SA_ATTR_KEYID, tx_sa->key.id) ||
+		    nla_put(skb, MACSEC_SA_ATTR_KEYID, MACSEC_KEYID_LEN, tx_sa->key.id) ||
 		    nla_put_u8(skb, MACSEC_SA_ATTR_ACTIVE, tx_sa->active)) {
 			nla_nest_cancel(skb, txsa_nest);
 			nla_nest_cancel(skb, txsa_list);
@@ -2419,7 +2426,7 @@ static int dump_secy(struct macsec_secy *secy, struct net_device *dev,
 
 			if (nla_put_u8(skb, MACSEC_SA_ATTR_AN, i) ||
 			    nla_put_u32(skb, MACSEC_SA_ATTR_PN, rx_sa->next_pn) ||
-			    nla_put_u64(skb, MACSEC_SA_ATTR_KEYID, rx_sa->key.id) ||
+			    nla_put(skb, MACSEC_SA_ATTR_KEYID, MACSEC_KEYID_LEN, rx_sa->key.id) ||
 			    nla_put_u8(skb, MACSEC_SA_ATTR_ACTIVE, rx_sa->active)) {
 				nla_nest_cancel(skb, rxsa_nest);
 				nla_nest_cancel(skb, rxsc_nest);

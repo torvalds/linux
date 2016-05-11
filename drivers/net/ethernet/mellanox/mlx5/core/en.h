@@ -564,9 +564,12 @@ struct mlx5e_priv {
 	struct mlx5e_flow_tables   fts;
 	struct mlx5e_eth_addr_db   eth_addr;
 	struct mlx5e_vlan_db       vlan;
+#ifdef CONFIG_MLX5_CORE_EN_VXLAN
 	struct mlx5e_vxlan_db      vxlan;
+#endif
 
 	struct mlx5e_params        params;
+	struct workqueue_struct    *wq;
 	struct work_struct         update_carrier_work;
 	struct work_struct         set_rx_mode_work;
 	struct delayed_work        update_stats_work;

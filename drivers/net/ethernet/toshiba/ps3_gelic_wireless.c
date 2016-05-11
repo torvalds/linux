@@ -1622,7 +1622,7 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 			continue;
 
 		/* copy hw scan info */
-		memcpy(target->hwinfo, scan_info, scan_info->size);
+		memcpy(target->hwinfo, scan_info, be16_to_cpu(scan_info->size));
 		target->essid_len = strnlen(scan_info->essid,
 					    sizeof(scan_info->essid));
 		target->rate_len = 0;
