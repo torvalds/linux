@@ -39,6 +39,32 @@ static struct attribute *bus_attrs[] = {
 };
 ATTRIBUTE_GROUPS(bus);
 
+/* Locking: Caller guarantees serialisation */
+int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id)
+{
+	struct ida *id_map = &hd->cport_id_map;
+	int ida_start, ida_end;
+
+	if (cport_id < 0) {
+		ida_start = 0;
+		ida_end = hd->num_cports;
+	} else if (cport_id < hd->num_cports) {
+		ida_start = cport_id;
+		ida_end = cport_id + 1;
+	} else {
+		dev_err(&hd->dev, "cport %d not available\n", cport_id);
+		return -EINVAL;
+	}
+
+	return ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
+}
+
+/* Locking: Caller guarantees serialisation */
+void gb_hd_cport_release(struct gb_host_device *hd, u16 cport_id)
+{
+	ida_simple_remove(&hd->cport_id_map, cport_id);
+}
+
 static void gb_hd_release(struct device *dev)
 {
 	struct gb_host_device *hd = to_gb_host_device(dev);

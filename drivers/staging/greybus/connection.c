@@ -142,20 +142,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 				unsigned long flags)
 {
 	struct gb_connection *connection;
-	struct ida *id_map = &hd->cport_id_map;
-	int ida_start, ida_end;
 	int ret;
-
-	if (hd_cport_id < 0) {
-		ida_start = 0;
-		ida_end = hd->num_cports;
-	} else if (hd_cport_id < hd->num_cports) {
-		ida_start = hd_cport_id;
-		ida_end = hd_cport_id + 1;
-	} else {
-		dev_err(&hd->dev, "cport %d not available\n", hd_cport_id);
-		return ERR_PTR(-EINVAL);
-	}
 
 	mutex_lock(&gb_connection_mutex);
 
@@ -165,15 +152,17 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 		goto err_unlock;
 	}
 
-	ret = ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
-	if (ret < 0)
+	ret = gb_hd_cport_allocate(hd, hd_cport_id);
+	if (ret < 0) {
+		dev_err(&hd->dev, "failed to allocate cport: %d\n", ret);
 		goto err_unlock;
+	}
 	hd_cport_id = ret;
 
 	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
 	if (!connection) {
 		ret = -ENOMEM;
-		goto err_remove_ida;
+		goto err_hd_cport_release;
 	}
 
 	connection->hd_cport_id = hd_cport_id;
@@ -219,8 +208,8 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 
 err_free_connection:
 	kfree(connection);
-err_remove_ida:
-	ida_simple_remove(id_map, hd_cport_id);
+err_hd_cport_release:
+	gb_hd_cport_release(hd, hd_cport_id);
 err_unlock:
 	mutex_unlock(&gb_connection_mutex);
 
@@ -658,8 +647,6 @@ EXPORT_SYMBOL_GPL(gb_connection_disable);
 /* Caller must have disabled the connection before destroying it. */
 void gb_connection_destroy(struct gb_connection *connection)
 {
-	struct ida *id_map;
-
 	if (!connection)
 		return;
 
@@ -672,8 +659,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 	destroy_workqueue(connection->wq);
 
-	id_map = &connection->hd->cport_id_map;
-	ida_simple_remove(id_map, connection->hd_cport_id);
+	gb_hd_cport_release(connection->hd, connection->hd_cport_id);
 	connection->hd_cport_id = CPORT_ID_BAD;
 
 	mutex_unlock(&gb_connection_mutex);
