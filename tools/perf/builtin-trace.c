@@ -41,7 +41,6 @@
 #include <libaudit.h> /* FIXME: Still needed for audit_errno_to_name */
 #include <stdlib.h>
 #include <linux/err.h>
-#include <linux/seccomp.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
 #include <sys/ptrace.h>
@@ -517,57 +516,6 @@ static const char *tioctls[] = {
 static DEFINE_STRARRAY_OFFSET(tioctls, 0x5401);
 #endif /* defined(__i386__) || defined(__x86_64__) */
 
-#ifndef SECCOMP_SET_MODE_STRICT
-#define SECCOMP_SET_MODE_STRICT 0
-#endif
-#ifndef SECCOMP_SET_MODE_FILTER
-#define SECCOMP_SET_MODE_FILTER 1
-#endif
-
-static size_t syscall_arg__scnprintf_seccomp_op(char *bf, size_t size, struct syscall_arg *arg)
-{
-	int op = arg->val;
-	size_t printed = 0;
-
-	switch (op) {
-#define	P_SECCOMP_SET_MODE_OP(n) case SECCOMP_SET_MODE_##n: printed = scnprintf(bf, size, #n); break
-	P_SECCOMP_SET_MODE_OP(STRICT);
-	P_SECCOMP_SET_MODE_OP(FILTER);
-#undef P_SECCOMP_SET_MODE_OP
-	default: printed = scnprintf(bf, size, "%#x", op);			  break;
-	}
-
-	return printed;
-}
-
-#define SCA_SECCOMP_OP  syscall_arg__scnprintf_seccomp_op
-
-#ifndef SECCOMP_FILTER_FLAG_TSYNC
-#define SECCOMP_FILTER_FLAG_TSYNC 1
-#endif
-
-static size_t syscall_arg__scnprintf_seccomp_flags(char *bf, size_t size,
-						   struct syscall_arg *arg)
-{
-	int printed = 0, flags = arg->val;
-
-#define	P_FLAG(n) \
-	if (flags & SECCOMP_FILTER_FLAG_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
-		flags &= ~SECCOMP_FILTER_FLAG_##n; \
-	}
-
-	P_FLAG(TSYNC);
-#undef P_FLAG
-
-	if (flags)
-		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
-
-	return printed;
-}
-
-#define SCA_SECCOMP_FLAGS syscall_arg__scnprintf_seccomp_flags
-
 #ifndef GRND_NONBLOCK
 #define GRND_NONBLOCK	0x0001
 #endif
@@ -612,6 +560,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 #include "trace/beauty/perf_event_open.c"
 #include "trace/beauty/pid.c"
 #include "trace/beauty/sched_policy.c"
+#include "trace/beauty/seccomp.c"
 #include "trace/beauty/signum.c"
 #include "trace/beauty/socket_type.c"
 #include "trace/beauty/waitid_options.c"
