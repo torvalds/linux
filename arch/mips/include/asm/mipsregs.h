@@ -1228,8 +1228,14 @@ do {									\
 #define read_c0_context()	__read_ulong_c0_register($4, 0)
 #define write_c0_context(val)	__write_ulong_c0_register($4, 0, val)
 
+#define read_c0_contextconfig()		__read_32bit_c0_register($4, 1)
+#define write_c0_contextconfig(val)	__write_32bit_c0_register($4, 1, val)
+
 #define read_c0_userlocal()	__read_ulong_c0_register($4, 2)
 #define write_c0_userlocal(val) __write_ulong_c0_register($4, 2, val)
+
+#define read_c0_xcontextconfig()	__read_ulong_c0_register($4, 3)
+#define write_c0_xcontextconfig(val)	__write_ulong_c0_register($4, 3, val)
 
 #define read_c0_pagemask()	__read_32bit_c0_register($5, 0)
 #define write_c0_pagemask(val)	__write_32bit_c0_register($5, 0, val)

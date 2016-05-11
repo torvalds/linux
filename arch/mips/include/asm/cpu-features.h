@@ -450,4 +450,8 @@
 # define cpu_has_badinstrp	(cpu_data[0].options & MIPS_CPU_BADINSTRP)
 #endif
 
+#ifndef cpu_has_contextconfig
+# define cpu_has_contextconfig	(cpu_data[0].options & MIPS_CPU_CTXTC)
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */
