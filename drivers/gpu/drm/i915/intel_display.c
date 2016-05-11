@@ -5336,6 +5336,12 @@ static void intel_update_cdclk(struct drm_device *dev)
 		intel_update_max_cdclk(dev);
 }
 
+/* convert from kHz to .1 fixpoint MHz with -1MHz offset */
+static int skl_cdclk_decimal(int cdclk)
+{
+	return DIV_ROUND_CLOSEST(cdclk - 1000, 500);
+}
+
 static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 {
 	uint32_t divider;
@@ -5435,8 +5441,7 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 			val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 
 		val &= ~CDCLK_FREQ_DECIMAL_MASK;
-		/* convert from kHz to .1 fixpoint MHz with -1MHz offset */
-		val |= (frequency - 1000) / 500;
+		val |= skl_cdclk_decimal(frequency);
 		I915_WRITE(CDCLK_CTL, val);
 	}
 
@@ -5535,11 +5540,6 @@ static const struct skl_cdclk_entry {
 	{ .freq = 617140, .vco = 8640 },
 	{ .freq = 675000, .vco = 8100 },
 };
-
-static unsigned int skl_cdclk_decimal(unsigned int freq)
-{
-	return (freq - 1000) / 500;
-}
 
 static unsigned int skl_cdclk_get_vco(unsigned int freq)
 {
