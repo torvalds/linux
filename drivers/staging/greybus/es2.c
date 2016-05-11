@@ -506,6 +506,11 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 	struct usb_device *udev = es2->usb_dev;
 	int retval;
 
+	switch (cport_id) {
+	case GB_SVC_CPORT_ID:
+		return 0;
+	}
+
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 GB_APB_REQUEST_RESET_CPORT,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
@@ -524,11 +529,9 @@ static int cport_enable(struct gb_host_device *hd, u16 cport_id)
 {
 	int retval;
 
-	if (cport_id != GB_SVC_CPORT_ID) {
-		retval = cport_reset(hd, cport_id);
-		if (retval)
-			return retval;
-	}
+	retval = cport_reset(hd, cport_id);
+	if (retval)
+		return retval;
 
 	return 0;
 }
