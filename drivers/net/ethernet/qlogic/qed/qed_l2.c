@@ -99,6 +99,8 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 		break;
 	}
 
+	p_ramrod->tx_switching_en = p_params->tx_switching;
+
 	/* Software Function ID in hwfn (PFs are 0 - 15, VFs are 16 - 135) */
 	p_ramrod->sw_fid = qed_concrete_to_sw_fid(p_hwfn->cdev,
 						  p_params->concrete_fid);
@@ -1792,6 +1794,8 @@ static int qed_update_vport(struct qed_dev *cdev,
 		params->update_vport_active_flg;
 	sp_params.vport_active_rx_flg = params->vport_active_flg;
 	sp_params.vport_active_tx_flg = params->vport_active_flg;
+	sp_params.update_tx_switching_flg = params->update_tx_switching_flg;
+	sp_params.tx_switching_flg = params->tx_switching_flg;
 	sp_params.accept_any_vlan = params->accept_any_vlan;
 	sp_params.update_accept_any_vlan_flg =
 		params->update_accept_any_vlan_flg;

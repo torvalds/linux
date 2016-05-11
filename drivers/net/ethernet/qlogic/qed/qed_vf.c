@@ -633,6 +633,18 @@ int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
 		}
 	}
 
+	if (p_params->update_tx_switching_flg) {
+		struct vfpf_vport_update_tx_switch_tlv *p_tx_switch_tlv;
+
+		size = sizeof(struct vfpf_vport_update_tx_switch_tlv);
+		tlv = CHANNEL_TLV_VPORT_UPDATE_TX_SWITCH;
+		p_tx_switch_tlv = qed_add_tlv(p_hwfn, &p_iov->offset,
+					      tlv, size);
+		resp_size += sizeof(struct pfvf_def_resp_tlv);
+
+		p_tx_switch_tlv->tx_switching = p_params->tx_switching_flg;
+	}
+
 	if (p_params->update_approx_mcast_flg) {
 		struct vfpf_vport_update_mcast_bin_tlv *p_mcast_tlv;
 

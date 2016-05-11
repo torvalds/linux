@@ -299,7 +299,7 @@ qed_tunn_set_pf_start_params(struct qed_hwfn *p_hwfn,
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		    struct qed_tunn_start_params *p_tunn,
-		    enum qed_mf_mode mode)
+		    enum qed_mf_mode mode, bool allow_npar_tx_switch)
 {
 	struct pf_start_ramrod_data *p_ramrod = NULL;
 	u16 sb = qed_int_get_sp_sb_id(p_hwfn);
@@ -357,6 +357,9 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	qed_tunn_set_pf_start_params(p_hwfn, p_tunn,
 				     &p_ramrod->tunnel_config);
 	p_hwfn->hw_info.personality = PERSONALITY_ETH;
+
+	if (IS_MF_SI(p_hwfn))
+		p_ramrod->allow_npar_tx_switching = allow_npar_tx_switch;
 
 	if (p_hwfn->cdev->p_iov_info) {
 		struct qed_hw_sriov_info *p_iov = p_hwfn->cdev->p_iov_info;

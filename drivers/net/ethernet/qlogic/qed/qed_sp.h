@@ -344,13 +344,14 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param p_tunn
  * @param mode
+ * @param allow_npar_tx_switch
  *
  * @return int
  */
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		    struct qed_tunn_start_params *p_tunn,
-		    enum qed_mf_mode mode);
+		    enum qed_mf_mode mode, bool allow_npar_tx_switch);
 
 /**
  * @brief qed_sp_pf_stop - PF Function Stop Ramrod

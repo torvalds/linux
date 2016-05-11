@@ -35,6 +35,8 @@ struct qed_update_vport_params {
 	u8 vport_id;
 	u8 update_vport_active_flg;
 	u8 vport_active_flg;
+	u8 update_tx_switching_flg;
+	u8 tx_switching_flg;
 	u8 update_accept_any_vlan_flg;
 	u8 accept_any_vlan;
 	u8 update_rss_flg;

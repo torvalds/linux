@@ -1490,6 +1490,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 
 	params.tpa_mode = start->tpa_mode;
 	params.remove_inner_vlan = start->inner_vlan_removal;
+	params.tx_switching = true;
 
 	params.only_untagged = vf_info->bulletin.p_virt->default_only_untagged;
 	params.drop_ttl0 = false;

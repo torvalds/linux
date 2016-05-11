@@ -93,6 +93,7 @@ struct qed_dev_info {
 
 	u32		flash_size;
 	u8		mf_mode;
+	bool		tx_switching;
 };
 
 enum qed_sb_type {
