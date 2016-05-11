@@ -1642,7 +1642,7 @@ static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 {
 	u8 host_build_id[BUILD_ID_SIZE];
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 	bool is_host = false;
 	char path[PATH_MAX];
 

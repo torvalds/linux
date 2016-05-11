@@ -1138,7 +1138,7 @@ fallback:
 
 	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(dso)) {
-		char bf[BUILD_ID_SIZE * 2 + 16] = " with build id ";
+		char bf[SBUILD_ID_SIZE + 15] = " with build id ";
 		char *build_id_msg = NULL;
 
 		if (dso->annotate_warned)
