@@ -193,4 +193,5 @@ const struct tegra_soctherm_soc tegra132_soctherm = {
 	.num_ttgs = ARRAY_SIZE(tegra132_tsensor_groups),
 	.tfuse = &tegra132_soctherm_fuse,
 	.thresh_grain = TEGRA132_THRESH_GRAIN,
+	.use_ccroc = true,
 };
