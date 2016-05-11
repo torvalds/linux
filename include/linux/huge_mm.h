@@ -127,7 +127,7 @@ static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
 	if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
 		return __pmd_trans_huge_lock(pmd, vma);
 	else
-		return false;
+		return NULL;
 }
 static inline int hpage_nr_pages(struct page *page)
 {
@@ -152,6 +152,7 @@ static inline bool is_huge_zero_pmd(pmd_t pmd)
 }
 
 struct page *get_huge_zero_page(void);
+void put_huge_zero_page(void);
 
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
 #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
@@ -208,6 +209,10 @@ static inline bool is_huge_zero_page(struct page *page)
 	return false;
 }
 
+static inline void put_huge_zero_page(void)
+{
+	BUILD_BUG();
+}
 
 static inline struct page *follow_devmap_pmd(struct vm_area_struct *vma,
 		unsigned long addr, pmd_t *pmd, int flags)

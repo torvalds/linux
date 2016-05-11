@@ -653,6 +653,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	unsigned int modes;
 
 	memset(config, 0, sizeof(*config));
+	config->watermark = ~0;
 
 	/*
 	 * If there is just one buffer and we are removing it there is nothing

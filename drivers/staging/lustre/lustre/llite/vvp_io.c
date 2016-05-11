@@ -512,9 +512,9 @@ static int vvp_io_read_start(const struct lu_env *env,
 		vio->cui_ra_window_set = 1;
 		bead->lrr_start = cl_index(obj, pos);
 		/*
-		 * XXX: explicit PAGE_CACHE_SIZE
+		 * XXX: explicit PAGE_SIZE
 		 */
-		bead->lrr_count = cl_index(obj, tot + PAGE_CACHE_SIZE - 1);
+		bead->lrr_count = cl_index(obj, tot + PAGE_SIZE - 1);
 		ll_ra_read_in(file, bead);
 	}
 
@@ -959,7 +959,7 @@ static int vvp_io_prepare_write(const struct lu_env *env,
 		 * We're completely overwriting an existing page, so _don't_
 		 * set it up to date until commit_write
 		 */
-		if (from == 0 && to == PAGE_CACHE_SIZE) {
+		if (from == 0 && to == PAGE_SIZE) {
 			CL_PAGE_HEADER(D_PAGE, env, pg, "full page write\n");
 			POISON_PAGE(page, 0x11);
 		} else
@@ -1022,7 +1022,7 @@ static int vvp_io_commit_write(const struct lu_env *env,
 			set_page_dirty(vmpage);
 			vvp_write_pending(cl2ccc(obj), cp);
 		} else if (result == -EDQUOT) {
-			pgoff_t last_index = i_size_read(inode) >> PAGE_CACHE_SHIFT;
+			pgoff_t last_index = i_size_read(inode) >> PAGE_SHIFT;
 			bool need_clip = true;
 
 			/*
@@ -1040,7 +1040,7 @@ static int vvp_io_commit_write(const struct lu_env *env,
 			 * being.
 			 */
 			if (last_index > pg->cp_index) {
-				to = PAGE_CACHE_SIZE;
+				to = PAGE_SIZE;
 				need_clip = false;
 			} else if (last_index == pg->cp_index) {
 				int size_to = i_size_read(inode) & ~CFS_PAGE_MASK;

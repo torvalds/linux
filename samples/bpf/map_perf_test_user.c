@@ -17,6 +17,7 @@
 #include <linux/bpf.h>
 #include <string.h>
 #include <time.h>
+#include <sys/resource.h>
 #include "libbpf.h"
 #include "bpf_load.h"
 

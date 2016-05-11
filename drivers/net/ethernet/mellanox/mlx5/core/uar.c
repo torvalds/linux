@@ -269,8 +269,10 @@ EXPORT_SYMBOL(mlx5_alloc_map_uar);
 
 void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar)
 {
-	iounmap(uar->map);
-	iounmap(uar->bf_map);
+	if (uar->map)
+		iounmap(uar->map);
+	else
+		iounmap(uar->bf_map);
 	mlx5_cmd_free_uar(mdev, uar->index);
 }
 EXPORT_SYMBOL(mlx5_unmap_free_uar);

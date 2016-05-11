@@ -2557,6 +2557,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 }
 
 #define EEPROM_STAT_ADDR   0x7bfc
+#define VPD_SIZE           0x800
 #define VPD_BASE           0x400
 #define VPD_BASE_OLD       0
 #define VPD_LEN            1024
@@ -2593,6 +2594,15 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	vpd = vmalloc(VPD_LEN);
 	if (!vpd)
 		return -ENOMEM;
+
+	/* We have two VPD data structures stored in the adapter VPD area.
+	 * By default, Linux calculates the size of the VPD area by traversing
+	 * the first VPD area at offset 0x0, so we need to tell the OS what
+	 * our real VPD size is.
+	 */
+	ret = pci_set_vpd_size(adapter->pdev, VPD_SIZE);
+	if (ret < 0)
+		goto out;
 
 	/* Card information normally starts at VPD_BASE but early cards had
 	 * it at 0.
@@ -6936,6 +6946,39 @@ int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 				   FW_VI_ENABLE_CMD_VIID_V(viid));
 	c.ien_to_len16 = cpu_to_be32(FW_VI_ENABLE_CMD_LED_F | FW_LEN16(c));
 	c.blinkdur = cpu_to_be16(nblinks);
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
+ *	t4_iq_stop - stop an ingress queue and its FLs
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@pf: the PF owning the queues
+ *	@vf: the VF owning the queues
+ *	@iqtype: the ingress queue type (FW_IQ_TYPE_FL_INT_CAP, etc.)
+ *	@iqid: ingress queue id
+ *	@fl0id: FL0 queue id or 0xffff if no attached FL0
+ *	@fl1id: FL1 queue id or 0xffff if no attached FL1
+ *
+ *	Stops an ingress queue and its associated FLs, if any.  This causes
+ *	any current or future data/messages destined for these queues to be
+ *	tossed.
+ */
+int t4_iq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
+	       unsigned int vf, unsigned int iqtype, unsigned int iqid,
+	       unsigned int fl0id, unsigned int fl1id)
+{
+	struct fw_iq_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_IQ_CMD) | FW_CMD_REQUEST_F |
+				  FW_CMD_EXEC_F | FW_IQ_CMD_PFN_V(pf) |
+				  FW_IQ_CMD_VFN_V(vf));
+	c.alloc_to_len16 = cpu_to_be32(FW_IQ_CMD_IQSTOP_F | FW_LEN16(c));
+	c.type_to_iqandstindex = cpu_to_be32(FW_IQ_CMD_TYPE_V(iqtype));
+	c.iqid = cpu_to_be16(iqid);
+	c.fl0id = cpu_to_be16(fl0id);
+	c.fl1id = cpu_to_be16(fl1id);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 

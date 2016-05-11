@@ -367,6 +367,7 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
 		enum ip6_defrag_users user = IP6_DEFRAG_CONNTRACK_IN + zone;
 
+		skb_orphan(skb);
 		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
 		err = nf_ct_frag6_gather(net, skb, user);
 		if (err)
@@ -535,14 +536,15 @@ static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 	switch (ctinfo) {
 	case IP_CT_RELATED:
 	case IP_CT_RELATED_REPLY:
-		if (skb->protocol == htons(ETH_P_IP) &&
+		if (IS_ENABLED(CONFIG_NF_NAT_IPV4) &&
+		    skb->protocol == htons(ETH_P_IP) &&
 		    ip_hdr(skb)->protocol == IPPROTO_ICMP) {
 			if (!nf_nat_icmp_reply_translation(skb, ct, ctinfo,
 							   hooknum))
 				err = NF_DROP;
 			goto push;
-#if IS_ENABLED(CONFIG_NF_NAT_IPV6)
-		} else if (skb->protocol == htons(ETH_P_IPV6)) {
+		} else if (IS_ENABLED(CONFIG_NF_NAT_IPV6) &&
+			   skb->protocol == htons(ETH_P_IPV6)) {
 			__be16 frag_off;
 			u8 nexthdr = ipv6_hdr(skb)->nexthdr;
 			int hdrlen = ipv6_skip_exthdr(skb,
@@ -557,7 +559,6 @@ static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 					err = NF_DROP;
 				goto push;
 			}
-#endif
 		}
 		/* Non-ICMP, fall thru to initialize if needed. */
 	case IP_CT_NEW:
@@ -664,11 +665,12 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 
 	/* Determine NAT type.
 	 * Check if the NAT type can be deduced from the tracked connection.
-	 * Make sure expected traffic is NATted only when committing.
+	 * Make sure new expected connections (IP_CT_RELATED) are NATted only
+	 * when committing.
 	 */
 	if (info->nat & OVS_CT_NAT && ctinfo != IP_CT_NEW &&
 	    ct->status & IPS_NAT_MASK &&
-	    (!(ct->status & IPS_EXPECTED_BIT) || info->commit)) {
+	    (ctinfo != IP_CT_RELATED || info->commit)) {
 		/* NAT an established or related connection like before. */
 		if (CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY)
 			/* This is the REPLY direction for a connection
@@ -968,7 +970,8 @@ static int parse_nat(const struct nlattr *attr,
 			break;
 
 		case OVS_NAT_ATTR_IP_MIN:
-			nla_memcpy(&info->range.min_addr, a, nla_len(a));
+			nla_memcpy(&info->range.min_addr, a,
+				   sizeof(info->range.min_addr));
 			info->range.flags |= NF_NAT_RANGE_MAP_IPS;
 			break;
 
@@ -1238,7 +1241,8 @@ static bool ovs_ct_nat_to_attr(const struct ovs_conntrack_info *info,
 	}
 
 	if (info->range.flags & NF_NAT_RANGE_MAP_IPS) {
-		if (info->family == NFPROTO_IPV4) {
+		if (IS_ENABLED(CONFIG_NF_NAT_IPV4) &&
+		    info->family == NFPROTO_IPV4) {
 			if (nla_put_in_addr(skb, OVS_NAT_ATTR_IP_MIN,
 					    info->range.min_addr.ip) ||
 			    (info->range.max_addr.ip
@@ -1246,8 +1250,8 @@ static bool ovs_ct_nat_to_attr(const struct ovs_conntrack_info *info,
 			     (nla_put_in_addr(skb, OVS_NAT_ATTR_IP_MAX,
 					      info->range.max_addr.ip))))
 				return false;
-#if IS_ENABLED(CONFIG_NF_NAT_IPV6)
-		} else if (info->family == NFPROTO_IPV6) {
+		} else if (IS_ENABLED(CONFIG_NF_NAT_IPV6) &&
+			   info->family == NFPROTO_IPV6) {
 			if (nla_put_in6_addr(skb, OVS_NAT_ATTR_IP_MIN,
 					     &info->range.min_addr.in6) ||
 			    (memcmp(&info->range.max_addr.in6,
@@ -1256,7 +1260,6 @@ static bool ovs_ct_nat_to_attr(const struct ovs_conntrack_info *info,
 			     (nla_put_in6_addr(skb, OVS_NAT_ATTR_IP_MAX,
 					       &info->range.max_addr.in6))))
 				return false;
-#endif
 		} else {
 			return false;
 		}

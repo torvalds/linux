@@ -46,11 +46,11 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 	 */
 	if (type == FREE_NIDS) {
 		mem_size = (nm_i->fcnt * sizeof(struct free_nid)) >>
-							PAGE_CACHE_SHIFT;
+							PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 2);
 	} else if (type == NAT_ENTRIES) {
 		mem_size = (nm_i->nat_cnt * sizeof(struct nat_entry)) >>
-							PAGE_CACHE_SHIFT;
+							PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 2);
 	} else if (type == DIRTY_DENTS) {
 		if (sbi->sb->s_bdi->wb.dirty_exceeded)
@@ -62,13 +62,13 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 
 		for (i = 0; i <= UPDATE_INO; i++)
 			mem_size += (sbi->im[i].ino_num *
-				sizeof(struct ino_entry)) >> PAGE_CACHE_SHIFT;
+				sizeof(struct ino_entry)) >> PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
 	} else if (type == EXTENT_CACHE) {
 		mem_size = (atomic_read(&sbi->total_ext_tree) *
 				sizeof(struct extent_tree) +
 				atomic_read(&sbi->total_ext_node) *
-				sizeof(struct extent_node)) >> PAGE_CACHE_SHIFT;
+				sizeof(struct extent_node)) >> PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
 	} else {
 		if (!sbi->sb->s_bdi->wb.dirty_exceeded)
@@ -121,7 +121,7 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
 
 	src_addr = page_address(src_page);
 	dst_addr = page_address(dst_page);
-	memcpy(dst_addr, src_addr, PAGE_CACHE_SIZE);
+	memcpy(dst_addr, src_addr, PAGE_SIZE);
 	set_page_dirty(dst_page);
 	f2fs_put_page(src_page, 1);
 

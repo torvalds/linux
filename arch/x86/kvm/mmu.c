@@ -557,8 +557,15 @@ static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 	      !is_writable_pte(new_spte))
 		ret = true;
 
-	if (!shadow_accessed_mask)
+	if (!shadow_accessed_mask) {
+		/*
+		 * We don't set page dirty when dropping non-writable spte.
+		 * So do it now if the new spte is becoming non-writable.
+		 */
+		if (ret)
+			kvm_set_pfn_dirty(spte_to_pfn(old_spte));
 		return ret;
+	}
 
 	/*
 	 * Flush TLB when accessed/dirty bits are changed in the page tables,
@@ -605,7 +612,8 @@ static int mmu_spte_clear_track_bits(u64 *sptep)
 
 	if (!shadow_accessed_mask || old_spte & shadow_accessed_mask)
 		kvm_set_pfn_accessed(pfn);
-	if (!shadow_dirty_mask || (old_spte & shadow_dirty_mask))
+	if (old_spte & (shadow_dirty_mask ? shadow_dirty_mask :
+					    PT_WRITABLE_MASK))
 		kvm_set_pfn_dirty(pfn);
 	return 1;
 }
@@ -2815,7 +2823,7 @@ static void transparent_hugepage_adjust(struct kvm_vcpu *vcpu,
 	 */
 	if (!is_error_noslot_pfn(pfn) && !kvm_is_reserved_pfn(pfn) &&
 	    level == PT_PAGE_TABLE_LEVEL &&
-	    PageTransCompound(pfn_to_page(pfn)) &&
+	    PageTransCompoundMap(pfn_to_page(pfn)) &&
 	    !mmu_gfn_lpage_is_disallowed(vcpu, gfn, PT_DIRECTORY_LEVEL)) {
 		unsigned long mask;
 		/*
@@ -4777,7 +4785,7 @@ restart:
 		 */
 		if (sp->role.direct &&
 			!kvm_is_reserved_pfn(pfn) &&
-			PageTransCompound(pfn_to_page(pfn))) {
+			PageTransCompoundMap(pfn_to_page(pfn))) {
 			drop_spte(kvm, sptep);
 			need_tlb_flush = 1;
 			goto restart;

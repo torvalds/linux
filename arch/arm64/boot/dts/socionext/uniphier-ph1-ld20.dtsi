@@ -201,15 +201,12 @@
 
 		i2c2: i2c@58782000 {
 			compatible = "socionext,uniphier-fi2c";
-			status = "disabled";
 			reg = <0x58782000 0x80>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <0 43 4>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_i2c2>;
 			clocks = <&i2c_clk>;
-			clock-frequency = <100000>;
+			clock-frequency = <400000>;
 		};
 
 		i2c3: i2c@58783000 {
@@ -227,12 +224,15 @@
 
 		i2c4: i2c@58784000 {
 			compatible = "socionext,uniphier-fi2c";
+			status = "disabled";
 			reg = <0x58784000 0x80>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <0 45 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i2c4>;
 			clocks = <&i2c_clk>;
-			clock-frequency = <400000>;
+			clock-frequency = <100000>;
 		};
 
 		i2c5: i2c@58785000 {
@@ -241,16 +241,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <0 25 4>;
-			clocks = <&i2c_clk>;
-			clock-frequency = <400000>;
-		};
-
-		i2c6: i2c@58786000 {
-			compatible = "socionext,uniphier-fi2c";
-			reg = <0x58786000 0x80>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			interrupts = <0 26 4>;
 			clocks = <&i2c_clk>;
 			clock-frequency = <400000>;
 		};

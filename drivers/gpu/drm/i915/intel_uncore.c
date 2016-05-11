@@ -1189,7 +1189,11 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		dev_priv->uncore.funcs.force_wake_get =
 			fw_domains_get_with_thread_status;
-		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
+		if (IS_HASWELL(dev))
+			dev_priv->uncore.funcs.force_wake_put =
+				fw_domains_put_with_fifo;
+		else
+			dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_MT, FORCEWAKE_ACK_HSW);
 	} else if (IS_IVYBRIDGE(dev)) {

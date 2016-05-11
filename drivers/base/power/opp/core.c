@@ -259,9 +259,6 @@ unsigned long dev_pm_opp_get_max_volt_latency(struct device *dev)
 	reg = opp_table->regulator;
 	if (IS_ERR(reg)) {
 		/* Regulator may not be required for device */
-		if (reg)
-			dev_err(dev, "%s: Invalid regulator (%ld)\n", __func__,
-				PTR_ERR(reg));
 		rcu_read_unlock();
 		return 0;
 	}

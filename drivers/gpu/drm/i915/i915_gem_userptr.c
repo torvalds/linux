@@ -501,19 +501,24 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	if (pvec != NULL) {
 		struct mm_struct *mm = obj->userptr.mm->mm;
 
-		down_read(&mm->mmap_sem);
-		while (pinned < npages) {
-			ret = get_user_pages_remote(work->task, mm,
-					obj->userptr.ptr + pinned * PAGE_SIZE,
-					npages - pinned,
-					!obj->userptr.read_only, 0,
-					pvec + pinned, NULL);
-			if (ret < 0)
-				break;
+		ret = -EFAULT;
+		if (atomic_inc_not_zero(&mm->mm_users)) {
+			down_read(&mm->mmap_sem);
+			while (pinned < npages) {
+				ret = get_user_pages_remote
+					(work->task, mm,
+					 obj->userptr.ptr + pinned * PAGE_SIZE,
+					 npages - pinned,
+					 !obj->userptr.read_only, 0,
+					 pvec + pinned, NULL);
+				if (ret < 0)
+					break;
 
-			pinned += ret;
+				pinned += ret;
+			}
+			up_read(&mm->mmap_sem);
+			mmput(mm);
 		}
-		up_read(&mm->mmap_sem);
 	}
 
 	mutex_lock(&dev->struct_mutex);
@@ -683,7 +688,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj)
 			set_page_dirty(page);
 
 		mark_page_accessed(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 	obj->dirty = 0;
 

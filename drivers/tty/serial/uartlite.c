@@ -72,7 +72,7 @@ static void uartlite_outbe32(u32 val, void __iomem *addr)
 	iowrite32be(val, addr);
 }
 
-static const struct uartlite_reg_ops uartlite_be = {
+static struct uartlite_reg_ops uartlite_be = {
 	.in = uartlite_inbe32,
 	.out = uartlite_outbe32,
 };
@@ -87,21 +87,21 @@ static void uartlite_outle32(u32 val, void __iomem *addr)
 	iowrite32(val, addr);
 }
 
-static const struct uartlite_reg_ops uartlite_le = {
+static struct uartlite_reg_ops uartlite_le = {
 	.in = uartlite_inle32,
 	.out = uartlite_outle32,
 };
 
 static inline u32 uart_in32(u32 offset, struct uart_port *port)
 {
-	const struct uartlite_reg_ops *reg_ops = port->private_data;
+	struct uartlite_reg_ops *reg_ops = port->private_data;
 
 	return reg_ops->in(port->membase + offset);
 }
 
 static inline void uart_out32(u32 val, u32 offset, struct uart_port *port)
 {
-	const struct uartlite_reg_ops *reg_ops = port->private_data;
+	struct uartlite_reg_ops *reg_ops = port->private_data;
 
 	reg_ops->out(val, port->membase + offset);
 }

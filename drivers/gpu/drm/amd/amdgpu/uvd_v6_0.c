@@ -214,15 +214,16 @@ static int uvd_v6_0_suspend(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	r = uvd_v6_0_hw_fini(adev);
+	if (r)
+		return r;
+
 	/* Skip this for APU for now */
 	if (!(adev->flags & AMD_IS_APU)) {
 		r = amdgpu_uvd_suspend(adev);
 		if (r)
 			return r;
 	}
-	r = uvd_v6_0_hw_fini(adev);
-	if (r)
-		return r;
 
 	return r;
 }

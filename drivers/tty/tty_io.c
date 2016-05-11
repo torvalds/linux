@@ -1367,12 +1367,12 @@ static ssize_t tty_line_name(struct tty_driver *driver, int index, char *p)
  *	Locking: tty_mutex must be held. If the tty is found, bump the tty kref.
  */
 static struct tty_struct *tty_driver_lookup_tty(struct tty_driver *driver,
-		struct inode *inode, int idx)
+		struct file *file, int idx)
 {
 	struct tty_struct *tty;
 
 	if (driver->ops->lookup)
-		tty = driver->ops->lookup(driver, inode, idx);
+		tty = driver->ops->lookup(driver, file, idx);
 	else
 		tty = driver->ttys[idx];
 
@@ -2040,7 +2040,7 @@ static struct tty_struct *tty_open_by_driver(dev_t device, struct inode *inode,
 	}
 
 	/* check whether we're reopening an existing tty */
-	tty = tty_driver_lookup_tty(driver, inode, index);
+	tty = tty_driver_lookup_tty(driver, filp, index);
 	if (IS_ERR(tty)) {
 		mutex_unlock(&tty_mutex);
 		goto out;
@@ -2049,14 +2049,13 @@ static struct tty_struct *tty_open_by_driver(dev_t device, struct inode *inode,
 	if (tty) {
 		mutex_unlock(&tty_mutex);
 		retval = tty_lock_interruptible(tty);
+		tty_kref_put(tty);  /* drop kref from tty_driver_lookup_tty() */
 		if (retval) {
 			if (retval == -EINTR)
 				retval = -ERESTARTSYS;
 			tty = ERR_PTR(retval);
 			goto out;
 		}
-		/* safe to drop the kref from tty_driver_lookup_tty() */
-		tty_kref_put(tty);
 		retval = tty_reopen(tty);
 		if (retval < 0) {
 			tty_unlock(tty);
@@ -2158,7 +2157,7 @@ retry_open:
 	read_lock(&tasklist_lock);
 	spin_lock_irq(&current->sighand->siglock);
 	noctty = (filp->f_flags & O_NOCTTY) ||
-			device == MKDEV(TTY_MAJOR, 0) ||
+			(IS_ENABLED(CONFIG_VT) && device == MKDEV(TTY_MAJOR, 0)) ||
 			device == MKDEV(TTYAUX_MAJOR, 1) ||
 			(tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 			 tty->driver->subtype == PTY_TYPE_MASTER);

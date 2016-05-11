@@ -843,8 +843,8 @@ start_lookup:
 		flush_stack(stack, count, skb, count - 1);
 	} else {
 		if (!inner_flushed)
-			UDP_INC_STATS_BH(net, UDP_MIB_IGNOREDMULTI,
-					 proto == IPPROTO_UDPLITE);
+			UDP6_INC_STATS_BH(net, UDP_MIB_IGNOREDMULTI,
+					  proto == IPPROTO_UDPLITE);
 		consume_skb(skb);
 	}
 	return 0;
@@ -1539,6 +1539,7 @@ struct proto udpv6_prot = {
 	.sendmsg	   = udpv6_sendmsg,
 	.recvmsg	   = udpv6_recvmsg,
 	.backlog_rcv	   = __udpv6_queue_rcv_skb,
+	.release_cb	   = ip6_datagram_release_cb,
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
 	.rehash		   = udp_v6_rehash,

@@ -407,6 +407,15 @@ struct rx_tpa_end_cmp_ext {
 
 #define BNXT_PAGE_SIZE	(1 << BNXT_PAGE_SHIFT)
 
+/* The RXBD length is 16-bit so we can only support page sizes < 64K */
+#if (PAGE_SHIFT > 15)
+#define BNXT_RX_PAGE_SHIFT 15
+#else
+#define BNXT_RX_PAGE_SHIFT PAGE_SHIFT
+#endif
+
+#define BNXT_RX_PAGE_SIZE (1 << BNXT_RX_PAGE_SHIFT)
+
 #define BNXT_MIN_PKT_SIZE	45
 
 #define BNXT_NUM_TESTS(bp)	0
@@ -477,6 +486,7 @@ struct rx_tpa_end_cmp_ext {
 #define RING_CMP(idx)		((idx) & bp->cp_ring_mask)
 #define NEXT_CMP(idx)		RING_CMP(ADV_RAW_CMP(idx, 1))
 
+#define BNXT_HWRM_MAX_REQ_LEN		(bp->hwrm_max_req_len)
 #define DFLT_HWRM_CMD_TIMEOUT		500
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
@@ -505,6 +515,7 @@ struct bnxt_sw_rx_bd {
 
 struct bnxt_sw_rx_agg_bd {
 	struct page		*page;
+	unsigned int		offset;
 	dma_addr_t		mapping;
 };
 
@@ -584,6 +595,9 @@ struct bnxt_rx_ring_info {
 
 	unsigned long		*rx_agg_bmap;
 	u16			rx_agg_bmap_size;
+
+	struct page		*rx_page;
+	unsigned int		rx_page_offset;
 
 	dma_addr_t		rx_desc_mapping[MAX_RX_PAGES];
 	dma_addr_t		rx_agg_desc_mapping[MAX_RX_AGG_PAGES];
@@ -953,6 +967,7 @@ struct bnxt {
 	dma_addr_t		hw_tx_port_stats_map;
 	int			hw_port_stats_size;
 
+	u16			hwrm_max_req_len;
 	int			hwrm_cmd_timeout;
 	struct mutex		hwrm_cmd_lock;	/* serialize hwrm messages */
 	struct hwrm_ver_get_output	ver_resp;

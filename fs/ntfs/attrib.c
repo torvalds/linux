@@ -152,7 +152,7 @@ int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn, ntfs_attr_search_ctx *ctx)
 			if (old_ctx.base_ntfs_ino && old_ctx.ntfs_ino !=
 					old_ctx.base_ntfs_ino) {
 				put_this_page = old_ctx.ntfs_ino->page;
-				page_cache_get(put_this_page);
+				get_page(put_this_page);
 			}
 			/*
 			 * Reinitialize the search context so we can lookup the
@@ -275,7 +275,7 @@ retry_map:
 		 * the pieces anyway.
 		 */
 		if (put_this_page)
-			page_cache_release(put_this_page);
+			put_page(put_this_page);
 	}
 	return err;
 }
@@ -1660,7 +1660,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 		memcpy(kaddr, (u8*)a +
 				le16_to_cpu(a->data.resident.value_offset),
 				attr_size);
-		memset(kaddr + attr_size, 0, PAGE_CACHE_SIZE - attr_size);
+		memset(kaddr + attr_size, 0, PAGE_SIZE - attr_size);
 		kunmap_atomic(kaddr);
 		flush_dcache_page(page);
 		SetPageUptodate(page);
@@ -1748,7 +1748,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 	if (page) {
 		set_page_dirty(page);
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 	ntfs_debug("Done.");
 	return 0;
@@ -1835,7 +1835,7 @@ rl_err_out:
 		ntfs_free(rl);
 page_err_out:
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 	if (err == -EINVAL)
 		err = -EIO;
@@ -2513,17 +2513,17 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 	BUG_ON(NInoEncrypted(ni));
 	mapping = VFS_I(ni)->i_mapping;
 	/* Work out the starting index and page offset. */
-	idx = ofs >> PAGE_CACHE_SHIFT;
-	start_ofs = ofs & ~PAGE_CACHE_MASK;
+	idx = ofs >> PAGE_SHIFT;
+	start_ofs = ofs & ~PAGE_MASK;
 	/* Work out the ending index and page offset. */
 	end = ofs + cnt;
-	end_ofs = end & ~PAGE_CACHE_MASK;
+	end_ofs = end & ~PAGE_MASK;
 	/* If the end is outside the inode size return -ESPIPE. */
 	if (unlikely(end > i_size_read(VFS_I(ni)))) {
 		ntfs_error(vol->sb, "Request exceeds end of attribute.");
 		return -ESPIPE;
 	}
-	end >>= PAGE_CACHE_SHIFT;
+	end >>= PAGE_SHIFT;
 	/* If there is a first partial page, need to do it the slow way. */
 	if (start_ofs) {
 		page = read_mapping_page(mapping, idx, NULL);
@@ -2536,7 +2536,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		 * If the last page is the same as the first page, need to
 		 * limit the write to the end offset.
 		 */
-		size = PAGE_CACHE_SIZE;
+		size = PAGE_SIZE;
 		if (idx == end)
 			size = end_ofs;
 		kaddr = kmap_atomic(page);
@@ -2544,7 +2544,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		flush_dcache_page(page);
 		kunmap_atomic(kaddr);
 		set_page_dirty(page);
-		page_cache_release(page);
+		put_page(page);
 		balance_dirty_pages_ratelimited(mapping);
 		cond_resched();
 		if (idx == end)
@@ -2561,7 +2561,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 			return -ENOMEM;
 		}
 		kaddr = kmap_atomic(page);
-		memset(kaddr, val, PAGE_CACHE_SIZE);
+		memset(kaddr, val, PAGE_SIZE);
 		flush_dcache_page(page);
 		kunmap_atomic(kaddr);
 		/*
@@ -2585,7 +2585,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		set_page_dirty(page);
 		/* Finally unlock and release the page. */
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		balance_dirty_pages_ratelimited(mapping);
 		cond_resched();
 	}
@@ -2602,7 +2602,7 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		flush_dcache_page(page);
 		kunmap_atomic(kaddr);
 		set_page_dirty(page);
-		page_cache_release(page);
+		put_page(page);
 		balance_dirty_pages_ratelimited(mapping);
 		cond_resched();
 	}

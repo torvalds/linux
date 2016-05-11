@@ -56,13 +56,22 @@ const char *perf_event__name(unsigned int id)
 	return perf_event__names[id];
 }
 
-static struct perf_sample synth_sample = {
+static int perf_tool__process_synth_event(struct perf_tool *tool,
+					  union perf_event *event,
+					  struct machine *machine,
+					  perf_event__handler_t process)
+{
+	struct perf_sample synth_sample = {
 	.pid	   = -1,
 	.tid	   = -1,
 	.time	   = -1,
 	.stream_id = -1,
 	.cpu	   = -1,
 	.period	   = 1,
+	.cpumode   = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK,
+	};
+
+	return process(tool, event, &synth_sample, machine);
 };
 
 /*
@@ -186,7 +195,7 @@ pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 	if (perf_event__prepare_comm(event, pid, machine, &tgid, &ppid) != 0)
 		return -1;
 
-	if (process(tool, event, &synth_sample, machine) != 0)
+	if (perf_tool__process_synth_event(tool, event, machine, process) != 0)
 		return -1;
 
 	return tgid;
@@ -218,7 +227,7 @@ static int perf_event__synthesize_fork(struct perf_tool *tool,
 
 	event->fork.header.size = (sizeof(event->fork) + machine->id_hdr_size);
 
-	if (process(tool, event, &synth_sample, machine) != 0)
+	if (perf_tool__process_synth_event(tool, event, machine, process) != 0)
 		return -1;
 
 	return 0;
@@ -344,7 +353,7 @@ out:
 		event->mmap2.pid = tgid;
 		event->mmap2.tid = pid;
 
-		if (process(tool, event, &synth_sample, machine) != 0) {
+		if (perf_tool__process_synth_event(tool, event, machine, process) != 0) {
 			rc = -1;
 			break;
 		}
@@ -402,7 +411,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 
 		memcpy(event->mmap.filename, pos->dso->long_name,
 		       pos->dso->long_name_len + 1);
-		if (process(tool, event, &synth_sample, machine) != 0) {
+		if (perf_tool__process_synth_event(tool, event, machine, process) != 0) {
 			rc = -1;
 			break;
 		}
@@ -472,7 +481,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		/*
 		 * Send the prepared comm event
 		 */
-		if (process(tool, comm_event, &synth_sample, machine) != 0)
+		if (perf_tool__process_synth_event(tool, comm_event, machine, process) != 0)
 			break;
 
 		rc = 0;
@@ -701,7 +710,7 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	event->mmap.len   = map->end - event->mmap.start;
 	event->mmap.pid   = machine->pid;
 
-	err = process(tool, event, &synth_sample, machine);
+	err = perf_tool__process_synth_event(tool, event, machine, process);
 	free(event);
 
 	return err;

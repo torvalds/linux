@@ -659,7 +659,7 @@ static int telemetry_plt_update_events(struct telemetry_evtconfig pss_evtconfig,
 static int telemetry_plt_set_sampling_period(u8 pss_period, u8 ioss_period)
 {
 	u32 telem_ctrl = 0;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&(telm_conf->telem_lock));
 	if (ioss_period) {

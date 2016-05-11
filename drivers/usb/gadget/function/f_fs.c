@@ -646,6 +646,7 @@ static void ffs_user_copy_worker(struct work_struct *work)
 						   work);
 	int ret = io_data->req->status ? io_data->req->status :
 					 io_data->req->actual;
+	bool kiocb_has_eventfd = io_data->kiocb->ki_flags & IOCB_EVENTFD;
 
 	if (io_data->read && ret > 0) {
 		use_mm(io_data->mm);
@@ -657,13 +658,11 @@ static void ffs_user_copy_worker(struct work_struct *work)
 
 	io_data->kiocb->ki_complete(io_data->kiocb, ret, ret);
 
-	if (io_data->ffs->ffs_eventfd &&
-	    !(io_data->kiocb->ki_flags & IOCB_EVENTFD))
+	if (io_data->ffs->ffs_eventfd && !kiocb_has_eventfd)
 		eventfd_signal(io_data->ffs->ffs_eventfd, 1);
 
 	usb_ep_free_request(io_data->ep, io_data->req);
 
-	io_data->kiocb->private = NULL;
 	if (io_data->read)
 		kfree(io_data->to_free);
 	kfree(io_data->buf);
@@ -1147,8 +1146,8 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 	ffs->sb              = sb;
 	data->ffs_data       = NULL;
 	sb->s_fs_info        = ffs;
-	sb->s_blocksize      = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	sb->s_blocksize      = PAGE_SIZE;
+	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic          = FUNCTIONFS_MAGIC;
 	sb->s_op             = &ffs_sb_operations;
 	sb->s_time_gran      = 1;

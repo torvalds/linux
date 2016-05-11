@@ -478,11 +478,8 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	 * and as part of the cleanup in the hw state restore we also redisable
 	 * the vga plane.
 	 */
-	if (!HAS_PCH_SPLIT(dev)) {
-		drm_modeset_lock_all(dev);
+	if (!HAS_PCH_SPLIT(dev))
 		intel_display_resume(dev);
-		drm_modeset_unlock_all(dev);
-	}
 
 	dev_priv->modeset_restore = MODESET_DONE;
 
