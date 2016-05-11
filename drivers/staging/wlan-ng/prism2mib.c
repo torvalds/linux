@@ -237,25 +237,25 @@ static struct mibrec mibtab[] = {
 	{0, 0, 0, 0, 0, NULL}
 };
 
-/*----------------------------------------------------------------
-* prism2mgmt_mibset_mibget
-*
-* Set the value of a mib item.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
+/*
+ * prism2mgmt_mibset_mibget
+ *
+ * Set the value of a mib item.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	msgp		ptr to msg buffer
+ *
+ * Returns:
+ *	0	success and done
+ *	<0	success, but we're waiting for something to finish.
+ *	>0	an error occurred while handling the message.
+ * Side effects:
+ *
+ * Call context:
+ *	process thread  (usually)
+ *	interrupt
+ */
 
 int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 {
@@ -346,30 +346,30 @@ done:
 	return 0;
 }
 
-/*----------------------------------------------------------------
-* prism2mib_bytearea2pstr
-*
-* Get/set pstr data to/from a byte area.
-*
-* MIB record parameters:
-*       parm1    Prism2 RID value.
-*       parm2    Number of bytes of RID data.
-*       parm3    Not used.
-*
-* Arguments:
-*       mib      MIB record.
-*       isget    MIBGET/MIBSET flag.
-*       wlandev  wlan device structure.
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       msg      Message structure.
-*       data     Data buffer.
-*
-* Returns:
-*       0   - Success.
-*       ~0  - Error.
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mib_bytearea2pstr
+ *
+ * Get/set pstr data to/from a byte area.
+ *
+ * MIB record parameters:
+ *       parm1    Prism2 RID value.
+ *       parm2    Number of bytes of RID data.
+ *       parm3    Not used.
+ *
+ * Arguments:
+ *       mib      MIB record.
+ *       isget    MIBGET/MIBSET flag.
+ *       wlandev  wlan device structure.
+ *       priv     "priv" structure.
+ *       hw       "hw" structure.
+ *       msg      Message structure.
+ *       data     Data buffer.
+ *
+ * Returns:
+ *       0   - Success.
+ *       ~0  - Error.
+ *
+ */
 
 static int prism2mib_bytearea2pstr(struct mibrec *mib,
 				   int isget,
@@ -396,30 +396,30 @@ static int prism2mib_bytearea2pstr(struct mibrec *mib,
 	return result;
 }
 
-/*----------------------------------------------------------------
-* prism2mib_uint32
-*
-* Get/set uint32 data.
-*
-* MIB record parameters:
-*       parm1    Prism2 RID value.
-*       parm2    Not used.
-*       parm3    Not used.
-*
-* Arguments:
-*       mib      MIB record.
-*       isget    MIBGET/MIBSET flag.
-*       wlandev  wlan device structure.
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       msg      Message structure.
-*       data     Data buffer.
-*
-* Returns:
-*       0   - Success.
-*       ~0  - Error.
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mib_uint32
+ *
+ * Get/set uint32 data.
+ *
+ * MIB record parameters:
+ *       parm1    Prism2 RID value.
+ *       parm2    Not used.
+ *       parm3    Not used.
+ *
+ * Arguments:
+ *       mib      MIB record.
+ *       isget    MIBGET/MIBSET flag.
+ *       wlandev  wlan device structure.
+ *       priv     "priv" structure.
+ *       hw       "hw" structure.
+ *       msg      Message structure.
+ *       data     Data buffer.
+ *
+ * Returns:
+ *       0   - Success.
+ *       ~0  - Error.
+ *
+ */
 
 static int prism2mib_uint32(struct mibrec *mib,
 			    int isget,
@@ -443,30 +443,30 @@ static int prism2mib_uint32(struct mibrec *mib,
 	return result;
 }
 
-/*----------------------------------------------------------------
-* prism2mib_flag
-*
-* Get/set a flag.
-*
-* MIB record parameters:
-*       parm1    Prism2 RID value.
-*       parm2    Bit to get/set.
-*       parm3    Not used.
-*
-* Arguments:
-*       mib      MIB record.
-*       isget    MIBGET/MIBSET flag.
-*       wlandev  wlan device structure.
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       msg      Message structure.
-*       data     Data buffer.
-*
-* Returns:
-*       0   - Success.
-*       ~0  - Error.
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mib_flag
+ *
+ * Get/set a flag.
+ *
+ * MIB record parameters:
+ *       parm1    Prism2 RID value.
+ *       parm2    Bit to get/set.
+ *       parm3    Not used.
+ *
+ * Arguments:
+ *       mib      MIB record.
+ *       isget    MIBGET/MIBSET flag.
+ *       wlandev  wlan device structure.
+ *       priv     "priv" structure.
+ *       hw       "hw" structure.
+ *       msg      Message structure.
+ *       data     Data buffer.
+ *
+ * Returns:
+ *       0   - Success.
+ *       ~0  - Error.
+ *
+ */
 
 static int prism2mib_flag(struct mibrec *mib,
 			  int isget,
@@ -500,30 +500,30 @@ static int prism2mib_flag(struct mibrec *mib,
 	return result;
 }
 
-/*----------------------------------------------------------------
-* prism2mib_wepdefaultkey
-*
-* Get/set WEP default keys.
-*
-* MIB record parameters:
-*       parm1    Prism2 RID value.
-*       parm2    Number of bytes of RID data.
-*       parm3    Not used.
-*
-* Arguments:
-*       mib      MIB record.
-*       isget    MIBGET/MIBSET flag.
-*       wlandev  wlan device structure.
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       msg      Message structure.
-*       data     Data buffer.
-*
-* Returns:
-*       0   - Success.
-*       ~0  - Error.
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mib_wepdefaultkey
+ *
+ * Get/set WEP default keys.
+ *
+ * MIB record parameters:
+ *       parm1    Prism2 RID value.
+ *       parm2    Number of bytes of RID data.
+ *       parm3    Not used.
+ *
+ * Arguments:
+ *       mib      MIB record.
+ *       isget    MIBGET/MIBSET flag.
+ *       wlandev  wlan device structure.
+ *       priv     "priv" structure.
+ *       hw       "hw" structure.
+ *       msg      Message structure.
+ *       data     Data buffer.
+ *
+ * Returns:
+ *       0   - Success.
+ *       ~0  - Error.
+ *
+ */
 
 static int prism2mib_wepdefaultkey(struct mibrec *mib,
 				   int isget,
@@ -550,30 +550,30 @@ static int prism2mib_wepdefaultkey(struct mibrec *mib,
 	return result;
 }
 
-/*----------------------------------------------------------------
-* prism2mib_privacyinvoked
-*
-* Get/set the dot11PrivacyInvoked value.
-*
-* MIB record parameters:
-*       parm1    Prism2 RID value.
-*       parm2    Bit value for PrivacyInvoked flag.
-*       parm3    Not used.
-*
-* Arguments:
-*       mib      MIB record.
-*       isget    MIBGET/MIBSET flag.
-*       wlandev  wlan device structure.
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       msg      Message structure.
-*       data     Data buffer.
-*
-* Returns:
-*       0   - Success.
-*       ~0  - Error.
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mib_privacyinvoked
+ *
+ * Get/set the dot11PrivacyInvoked value.
+ *
+ * MIB record parameters:
+ *       parm1    Prism2 RID value.
+ *       parm2    Bit value for PrivacyInvoked flag.
+ *       parm3    Not used.
+ *
+ * Arguments:
+ *       mib      MIB record.
+ *       isget    MIBGET/MIBSET flag.
+ *       wlandev  wlan device structure.
+ *       priv     "priv" structure.
+ *       hw       "hw" structure.
+ *       msg      Message structure.
+ *       data     Data buffer.
+ *
+ * Returns:
+ *       0   - Success.
+ *       ~0  - Error.
+ *
+ */
 
 static int prism2mib_privacyinvoked(struct mibrec *mib,
 				    int isget,
@@ -592,30 +592,30 @@ static int prism2mib_privacyinvoked(struct mibrec *mib,
 	return prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 }
 
-/*----------------------------------------------------------------
-* prism2mib_excludeunencrypted
-*
-* Get/set the dot11ExcludeUnencrypted value.
-*
-* MIB record parameters:
-*       parm1    Prism2 RID value.
-*       parm2    Bit value for ExcludeUnencrypted flag.
-*       parm3    Not used.
-*
-* Arguments:
-*       mib      MIB record.
-*       isget    MIBGET/MIBSET flag.
-*       wlandev  wlan device structure.
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       msg      Message structure.
-*       data     Data buffer.
-*
-* Returns:
-*       0   - Success.
-*       ~0  - Error.
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mib_excludeunencrypted
+ *
+ * Get/set the dot11ExcludeUnencrypted value.
+ *
+ * MIB record parameters:
+ *       parm1    Prism2 RID value.
+ *       parm2    Bit value for ExcludeUnencrypted flag.
+ *       parm3    Not used.
+ *
+ * Arguments:
+ *       mib      MIB record.
+ *       isget    MIBGET/MIBSET flag.
+ *       wlandev  wlan device structure.
+ *       priv     "priv" structure.
+ *       hw       "hw" structure.
+ *       msg      Message structure.
+ *       data     Data buffer.
+ *
+ * Returns:
+ *       0   - Success.
+ *       ~0  - Error.
+ *
+ */
 
 static int prism2mib_excludeunencrypted(struct mibrec *mib,
 					int isget,
@@ -628,30 +628,30 @@ static int prism2mib_excludeunencrypted(struct mibrec *mib,
 	return prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 }
 
-/*----------------------------------------------------------------
-* prism2mib_fragmentationthreshold
-*
-* Get/set the fragmentation threshold.
-*
-* MIB record parameters:
-*       parm1    Prism2 RID value.
-*       parm2    Not used.
-*       parm3    Not used.
-*
-* Arguments:
-*       mib      MIB record.
-*       isget    MIBGET/MIBSET flag.
-*       wlandev  wlan device structure.
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       msg      Message structure.
-*       data     Data buffer.
-*
-* Returns:
-*       0   - Success.
-*       ~0  - Error.
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mib_fragmentationthreshold
+ *
+ * Get/set the fragmentation threshold.
+ *
+ * MIB record parameters:
+ *       parm1    Prism2 RID value.
+ *       parm2    Not used.
+ *       parm3    Not used.
+ *
+ * Arguments:
+ *       mib      MIB record.
+ *       isget    MIBGET/MIBSET flag.
+ *       wlandev  wlan device structure.
+ *       priv     "priv" structure.
+ *       hw       "hw" structure.
+ *       msg      Message structure.
+ *       data     Data buffer.
+ *
+ * Returns:
+ *       0   - Success.
+ *       ~0  - Error.
+ *
+ */
 
 static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 					    int isget,
@@ -674,30 +674,30 @@ static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 	return prism2mib_uint32(mib, isget, wlandev, hw, msg, data);
 }
 
-/*----------------------------------------------------------------
-* prism2mib_priv
-*
-* Get/set values in the "priv" data structure.
-*
-* MIB record parameters:
-*       parm1    Not used.
-*       parm2    Not used.
-*       parm3    Not used.
-*
-* Arguments:
-*       mib      MIB record.
-*       isget    MIBGET/MIBSET flag.
-*       wlandev  wlan device structure.
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       msg      Message structure.
-*       data     Data buffer.
-*
-* Returns:
-*       0   - Success.
-*       ~0  - Error.
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mib_priv
+ *
+ * Get/set values in the "priv" data structure.
+ *
+ * MIB record parameters:
+ *       parm1    Not used.
+ *       parm2    Not used.
+ *       parm3    Not used.
+ *
+ * Arguments:
+ *       mib      MIB record.
+ *       isget    MIBGET/MIBSET flag.
+ *       wlandev  wlan device structure.
+ *       priv     "priv" structure.
+ *       hw       "hw" structure.
+ *       msg      Message structure.
+ *       data     Data buffer.
+ *
+ * Returns:
+ *       0   - Success.
+ *       ~0  - Error.
+ *
+ */
 
 static int prism2mib_priv(struct mibrec *mib,
 			  int isget,
@@ -736,20 +736,20 @@ static int prism2mib_priv(struct mibrec *mib,
 	return 0;
 }
 
-/*----------------------------------------------------------------
-* prism2mgmt_pstr2bytestr
-*
-* Convert the pstr data in the WLAN message structure into an hfa384x
-* byte string format.
-*
-* Arguments:
-*	bytestr		hfa384x byte string data type
-*	pstr		wlan message data
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mgmt_pstr2bytestr
+ *
+ * Convert the pstr data in the WLAN message structure into an hfa384x
+ * byte string format.
+ *
+ * Arguments:
+ *	bytestr		hfa384x byte string data type
+ *	pstr		wlan message data
+ *
+ * Returns:
+ * 	Nothing
+ *
+ */
 
 void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
 			     p80211pstrd_t *pstr)
@@ -758,20 +758,20 @@ void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
 	memcpy(bytestr->data, pstr->data, pstr->len);
 }
 
-/*----------------------------------------------------------------
-* prism2mgmt_bytestr2pstr
-*
-* Convert the data in an hfa384x byte string format into a
-* pstr in the WLAN message.
-*
-* Arguments:
-*	bytestr		hfa384x byte string data type
-*	msg		wlan message
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mgmt_bytestr2pstr
+ *
+ * Convert the data in an hfa384x byte string format into a
+ * pstr in the WLAN message.
+ *
+ * Arguments:
+ *	bytestr		hfa384x byte string data type
+ *	msg		wlan message
+ *
+ * Returns:
+ *	Nothing
+ *
+ */
 
 void prism2mgmt_bytestr2pstr(struct hfa384x_bytestr *bytestr,
 			     p80211pstrd_t *pstr)
@@ -780,20 +780,20 @@ void prism2mgmt_bytestr2pstr(struct hfa384x_bytestr *bytestr,
 	memcpy(pstr->data, bytestr->data, pstr->len);
 }
 
-/*----------------------------------------------------------------
-* prism2mgmt_bytearea2pstr
-*
-* Convert the data in an hfa384x byte area format into a pstr
-* in the WLAN message.
-*
-* Arguments:
-*	bytearea	hfa384x byte area data type
-*	msg		wlan message
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
+/*
+ * prism2mgmt_bytearea2pstr
+ *
+ * Convert the data in an hfa384x byte area format into a pstr
+ * in the WLAN message.
+ *
+ * Arguments:
+ *	bytearea	hfa384x byte area data type
+ *	msg		wlan message
+ *
+ * Returns:
+ *	Nothing
+ *
+ */
 
 void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len)
 {
