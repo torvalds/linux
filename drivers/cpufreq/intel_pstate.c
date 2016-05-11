@@ -1218,8 +1218,8 @@ static inline int32_t get_avg_frequency(struct cpudata *cpu)
 
 static inline int32_t get_avg_pstate(struct cpudata *cpu)
 {
-	return div64_u64(cpu->pstate.max_pstate_physical * cpu->sample.aperf,
-			 cpu->sample.mperf);
+	return mul_ext_fp(cpu->pstate.max_pstate_physical,
+			  cpu->sample.core_avg_perf);
 }
 
 static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
