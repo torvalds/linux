@@ -717,6 +717,13 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		}
 	}
 
+	if (c->extended_cpuid_level >= 0x80000007) {
+		cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
+
+		c->x86_capability[CPUID_8000_0007_EBX] = ebx;
+		c->x86_power = edx;
+	}
+
 	if (c->extended_cpuid_level >= 0x80000008) {
 		cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
 
@@ -728,9 +735,6 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 	else if (cpu_has(c, X86_FEATURE_PAE) || cpu_has(c, X86_FEATURE_PSE36))
 		c->x86_phys_bits = 36;
 #endif
-
-	if (c->extended_cpuid_level >= 0x80000007)
-		c->x86_power = cpuid_edx(0x80000007);
 
 	if (c->extended_cpuid_level >= 0x8000000a)
 		c->x86_capability[CPUID_8000_000A_EDX] = cpuid_edx(0x8000000a);
