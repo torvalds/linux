@@ -104,7 +104,17 @@ static int rtc_read_alarm_internal(struct rtc_device *rtc, struct rtc_wkalrm *al
 	else if (!rtc->ops->read_alarm)
 		err = -EINVAL;
 	else {
-		memset(alarm, 0, sizeof(struct rtc_wkalrm));
+		alarm->enabled = 0;
+		alarm->pending = 0;
+		alarm->time.tm_sec = -1;
+		alarm->time.tm_min = -1;
+		alarm->time.tm_hour = -1;
+		alarm->time.tm_mday = -1;
+		alarm->time.tm_mon = -1;
+		alarm->time.tm_year = -1;
+		alarm->time.tm_wday = -1;
+		alarm->time.tm_yday = -1;
+		alarm->time.tm_isdst = -1;
 		err = rtc->ops->read_alarm(rtc->dev.parent, alarm);
 	}
 
