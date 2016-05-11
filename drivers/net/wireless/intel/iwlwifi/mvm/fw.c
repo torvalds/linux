@@ -149,9 +149,11 @@ void iwl_free_fw_paging(struct iwl_mvm *mvm)
 
 		__free_pages(mvm->fw_paging_db[i].fw_paging_block,
 			     get_order(mvm->fw_paging_db[i].fw_paging_size));
+		mvm->fw_paging_db[i].fw_paging_block = NULL;
 	}
 	kfree(mvm->trans->paging_download_buf);
 	mvm->trans->paging_download_buf = NULL;
+	mvm->trans->paging_db = NULL;
 
 	memset(mvm->fw_paging_db, 0, sizeof(mvm->fw_paging_db));
 }
@@ -533,7 +535,7 @@ static bool iwl_wait_phy_db_entry(struct iwl_notif_wait_data *notif_wait,
 		return true;
 	}
 
-	WARN_ON(iwl_phy_db_set_section(phy_db, pkt, GFP_ATOMIC));
+	WARN_ON(iwl_phy_db_set_section(phy_db, pkt));
 
 	return false;
 }
