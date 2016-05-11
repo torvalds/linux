@@ -27,6 +27,7 @@
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
 
 /***************************************************************************
 * Structures & Definitions
@@ -242,10 +243,17 @@ static int
 qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			   struct event_ring_entry *p_eqe)
 {
-	DP_NOTICE(p_hwfn,
-		  "Unknown Async completion for protocol: %d\n",
-		   p_eqe->protocol_id);
-	return -EINVAL;
+	switch (p_eqe->protocol_id) {
+	case PROTOCOLID_COMMON:
+		return qed_sriov_eqe_event(p_hwfn,
+					   p_eqe->opcode,
+					   p_eqe->echo, &p_eqe->data);
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unknown Async completion for protocol: %d\n",
+			  p_eqe->protocol_id);
+		return -EINVAL;
+	}
 }
 
 /***************************************************************************

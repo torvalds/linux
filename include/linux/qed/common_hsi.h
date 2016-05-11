@@ -327,9 +327,14 @@ struct regpair {
 	__le32	hi;
 };
 
+struct vf_pf_channel_eqe_data {
+	struct regpair msg_addr;
+};
+
 /* Event Data Union */
 union event_ring_data {
 	u8				bytes[8];
+	struct vf_pf_channel_eqe_data	vf_pf_channel;
 	struct async_data		async_info;
 };
 

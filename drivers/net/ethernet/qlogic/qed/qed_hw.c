@@ -355,8 +355,8 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 			    const u8 is_dst_type_grc,
 			    struct qed_dmae_params *p_params)
 {
+	u16 opcode_b = 0;
 	u32 opcode = 0;
-	u16 opcodeB = 0;
 
 	/* Whether the source is the PCIe or the GRC.
 	 * 0- The source is the PCIe
@@ -398,14 +398,24 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 	opcode |= (DMAE_CMD_DST_ADDR_RESET_MASK <<
 		   DMAE_CMD_DST_ADDR_RESET_SHIFT);
 
-	opcodeB |= (DMAE_CMD_SRC_VF_ID_MASK <<
-		    DMAE_CMD_SRC_VF_ID_SHIFT);
+	/* SRC/DST VFID: all 1's - pf, otherwise VF id */
+	if (p_params->flags & QED_DMAE_FLAG_VF_SRC) {
+		opcode |= 1 << DMAE_CMD_SRC_VF_ID_VALID_SHIFT;
+		opcode_b |= p_params->src_vfid << DMAE_CMD_SRC_VF_ID_SHIFT;
+	} else {
+		opcode_b |= DMAE_CMD_SRC_VF_ID_MASK <<
+			    DMAE_CMD_SRC_VF_ID_SHIFT;
+	}
 
-	opcodeB |= (DMAE_CMD_DST_VF_ID_MASK <<
-		    DMAE_CMD_DST_VF_ID_SHIFT);
+	if (p_params->flags & QED_DMAE_FLAG_VF_DST) {
+		opcode |= 1 << DMAE_CMD_DST_VF_ID_VALID_SHIFT;
+		opcode_b |= p_params->dst_vfid << DMAE_CMD_DST_VF_ID_SHIFT;
+	} else {
+		opcode_b |= DMAE_CMD_DST_VF_ID_MASK << DMAE_CMD_DST_VF_ID_SHIFT;
+	}
 
 	p_hwfn->dmae_info.p_dmae_cmd->opcode = cpu_to_le32(opcode);
-	p_hwfn->dmae_info.p_dmae_cmd->opcode_b = cpu_to_le16(opcodeB);
+	p_hwfn->dmae_info.p_dmae_cmd->opcode_b = cpu_to_le16(opcode_b);
 }
 
 u32 qed_dmae_idx_to_go_cmd(u8 idx)
@@ -749,6 +759,28 @@ int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 				      size_in_dwords, &params);
 
 	mutex_unlock(&p_hwfn->dmae_info.mutex);
+
+	return rc;
+}
+
+int
+qed_dmae_host2host(struct qed_hwfn *p_hwfn,
+		   struct qed_ptt *p_ptt,
+		   dma_addr_t source_addr,
+		   dma_addr_t dest_addr,
+		   u32 size_in_dwords, struct qed_dmae_params *p_params)
+{
+	int rc;
+
+	mutex_lock(&(p_hwfn->dmae_info.mutex));
+
+	rc = qed_dmae_execute_command(p_hwfn, p_ptt, source_addr,
+				      dest_addr,
+				      QED_DMAE_ADDRESS_HOST_PHYS,
+				      QED_DMAE_ADDRESS_HOST_PHYS,
+				      size_in_dwords, p_params);
+
+	mutex_unlock(&(p_hwfn->dmae_info.mutex));
 
 	return rc;
 }

@@ -50,6 +50,14 @@ struct qed_iov_vf_mbx {
 	dma_addr_t req_phys;
 	union pfvf_tlvs *reply_virt;
 	dma_addr_t reply_phys;
+
+	/* Address in VF where a pending message is located */
+	dma_addr_t pending_req;
+
+	u8 *offset;
+
+	/* saved VF request header */
+	struct vfpf_first_tlv first_tlv;
 };
 
 enum vf_state {
@@ -94,6 +102,14 @@ struct qed_pf_iov {
 	void *p_bulletins;
 	dma_addr_t bulletins_phys;
 	u32 bulletins_size;
+};
+
+enum qed_iov_wq_flag {
+	QED_IOV_WQ_MSG_FLAG,
+	QED_IOV_WQ_SET_UNICAST_FILTER_FLAG,
+	QED_IOV_WQ_BULLETIN_UPDATE_FLAG,
+	QED_IOV_WQ_STOP_WQ_FLAG,
+	QED_IOV_WQ_FLR_FLAG,
 };
 
 #ifdef CONFIG_QED_SRIOV
@@ -147,6 +163,22 @@ void qed_iov_free(struct qed_hwfn *p_hwfn);
  * @param cdev
  */
 void qed_iov_free_hw_info(struct qed_dev *cdev);
+
+/**
+ * @brief qed_sriov_eqe_event - handle async sriov event arrived on eqe.
+ *
+ * @param p_hwfn
+ * @param opcode
+ * @param echo
+ * @param data
+ */
+int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
+			u8 opcode, __le16 echo, union event_ring_data *data);
+
+void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first);
+int qed_iov_wq_start(struct qed_dev *cdev);
+
+void qed_schedule_iov(struct qed_hwfn *hwfn, enum qed_iov_wq_flag flag);
 #else
 static inline u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn,
 					     u16 rel_vf_id)
@@ -173,6 +205,27 @@ static inline void qed_iov_free(struct qed_hwfn *p_hwfn)
 }
 
 static inline void qed_iov_free_hw_info(struct qed_dev *cdev)
+{
+}
+
+static inline int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
+				      u8 opcode,
+				      __le16 echo, union event_ring_data *data)
+{
+	return -EINVAL;
+}
+
+static inline void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first)
+{
+}
+
+static inline int qed_iov_wq_start(struct qed_dev *cdev)
+{
+	return 0;
+}
+
+static inline void qed_schedule_iov(struct qed_hwfn *hwfn,
+				    enum qed_iov_wq_flag flag)
 {
 }
 #endif

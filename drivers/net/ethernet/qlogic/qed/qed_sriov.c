@@ -31,6 +31,26 @@ bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
 	return true;
 }
 
+static struct qed_vf_info *qed_iov_get_vf_info(struct qed_hwfn *p_hwfn,
+					       u16 relative_vf_id,
+					       bool b_enabled_only)
+{
+	struct qed_vf_info *vf = NULL;
+
+	if (!p_hwfn->pf_iov_info) {
+		DP_NOTICE(p_hwfn->cdev, "No iov info\n");
+		return NULL;
+	}
+
+	if (qed_iov_is_valid_vfid(p_hwfn, relative_vf_id, b_enabled_only))
+		vf = &p_hwfn->pf_iov_info->vfs_array[relative_vf_id];
+	else
+		DP_ERR(p_hwfn, "qed_iov_get_vf_info: VF[%d] is not enabled\n",
+		       relative_vf_id);
+
+	return vf;
+}
+
 static int qed_iov_pci_cfg_info(struct qed_dev *cdev)
 {
 	struct qed_hw_sriov_info *iov = cdev->p_iov_info;
@@ -349,6 +369,232 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
+static bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
+{
+	/* Check PF supports sriov */
+	if (!IS_QED_SRIOV(p_hwfn->cdev) || !IS_PF_SRIOV_ALLOC(p_hwfn))
+		return false;
+
+	/* Check VF validity */
+	if (!qed_iov_is_valid_vfid(p_hwfn, vfid, true))
+		return false;
+
+	return true;
+}
+
+static bool qed_iov_tlv_supported(u16 tlvtype)
+{
+	return CHANNEL_TLV_NONE < tlvtype && tlvtype < CHANNEL_TLV_MAX;
+}
+
+/* place a given tlv on the tlv buffer, continuing current tlv list */
+void *qed_add_tlv(struct qed_hwfn *p_hwfn, u8 **offset, u16 type, u16 length)
+{
+	struct channel_tlv *tl = (struct channel_tlv *)*offset;
+
+	tl->type = type;
+	tl->length = length;
+
+	/* Offset should keep pointing to next TLV (the end of the last) */
+	*offset += length;
+
+	/* Return a pointer to the start of the added tlv */
+	return *offset - length;
+}
+
+/* list the types and lengths of the tlvs on the buffer */
+void qed_dp_tlv_list(struct qed_hwfn *p_hwfn, void *tlvs_list)
+{
+	u16 i = 1, total_length = 0;
+	struct channel_tlv *tlv;
+
+	do {
+		tlv = (struct channel_tlv *)((u8 *)tlvs_list + total_length);
+
+		/* output tlv */
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "TLV number %d: type %d, length %d\n",
+			   i, tlv->type, tlv->length);
+
+		if (tlv->type == CHANNEL_TLV_LIST_END)
+			return;
+
+		/* Validate entry - protect against malicious VFs */
+		if (!tlv->length) {
+			DP_NOTICE(p_hwfn, "TLV of length 0 found\n");
+			return;
+		}
+
+		total_length += tlv->length;
+
+		if (total_length >= sizeof(struct tlv_buffer_size)) {
+			DP_NOTICE(p_hwfn, "TLV ==> Buffer overflow\n");
+			return;
+		}
+
+		i++;
+	} while (1);
+}
+
+static void qed_iov_send_response(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt,
+				  struct qed_vf_info *p_vf,
+				  u16 length, u8 status)
+{
+	struct qed_iov_vf_mbx *mbx = &p_vf->vf_mbx;
+	struct qed_dmae_params params;
+	u8 eng_vf_id;
+
+	mbx->reply_virt->default_resp.hdr.status = status;
+
+	qed_dp_tlv_list(p_hwfn, mbx->reply_virt);
+
+	eng_vf_id = p_vf->abs_vf_id;
+
+	memset(&params, 0, sizeof(struct qed_dmae_params));
+	params.flags = QED_DMAE_FLAG_VF_DST;
+	params.dst_vfid = eng_vf_id;
+
+	qed_dmae_host2host(p_hwfn, p_ptt, mbx->reply_phys + sizeof(u64),
+			   mbx->req_virt->first_tlv.reply_address +
+			   sizeof(u64),
+			   (sizeof(union pfvf_tlvs) - sizeof(u64)) / 4,
+			   &params);
+
+	qed_dmae_host2host(p_hwfn, p_ptt, mbx->reply_phys,
+			   mbx->req_virt->first_tlv.reply_address,
+			   sizeof(u64) / 4, &params);
+
+	REG_WR(p_hwfn,
+	       GTT_BAR0_MAP_REG_USDM_RAM +
+	       USTORM_VF_PF_CHANNEL_READY_OFFSET(eng_vf_id), 1);
+}
+
+static void qed_iov_prepare_resp(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt,
+				 struct qed_vf_info *vf_info,
+				 u16 type, u16 length, u8 status)
+{
+	struct qed_iov_vf_mbx *mbx = &vf_info->vf_mbx;
+
+	mbx->offset = (u8 *)mbx->reply_virt;
+
+	qed_add_tlv(p_hwfn, &mbx->offset, type, length);
+	qed_add_tlv(p_hwfn, &mbx->offset, CHANNEL_TLV_LIST_END,
+		    sizeof(struct channel_list_end_tlv));
+
+	qed_iov_send_response(p_hwfn, p_ptt, vf_info, length, status);
+}
+
+static void qed_iov_process_mbx_dummy_resp(struct qed_hwfn *p_hwfn,
+					   struct qed_ptt *p_ptt,
+					   struct qed_vf_info *p_vf)
+{
+	qed_iov_prepare_resp(p_hwfn, p_ptt, p_vf, CHANNEL_TLV_NONE,
+			     sizeof(struct pfvf_def_resp_tlv),
+			     PFVF_STATUS_SUCCESS);
+}
+
+static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt, int vfid)
+{
+	struct qed_iov_vf_mbx *mbx;
+	struct qed_vf_info *p_vf;
+	int i;
+
+	p_vf = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	if (!p_vf)
+		return;
+
+	mbx = &p_vf->vf_mbx;
+
+	/* qed_iov_process_mbx_request */
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_IOV,
+		   "qed_iov_process_mbx_req vfid %d\n", p_vf->abs_vf_id);
+
+	mbx->first_tlv = mbx->req_virt->first_tlv;
+
+	/* check if tlv type is known */
+	if (qed_iov_tlv_supported(mbx->first_tlv.tl.type)) {
+		qed_iov_process_mbx_dummy_resp(p_hwfn, p_ptt, p_vf);
+	} else {
+		/* unknown TLV - this may belong to a VF driver from the future
+		 * - a version written after this PF driver was written, which
+		 * supports features unknown as of yet. Too bad since we don't
+		 * support them. Or this may be because someone wrote a crappy
+		 * VF driver and is sending garbage over the channel.
+		 */
+		DP_ERR(p_hwfn,
+		       "unknown TLV. type %d length %d. first 20 bytes of mailbox buffer:\n",
+		       mbx->first_tlv.tl.type, mbx->first_tlv.tl.length);
+
+		for (i = 0; i < 20; i++) {
+			DP_VERBOSE(p_hwfn,
+				   QED_MSG_IOV,
+				   "%x ",
+				   mbx->req_virt->tlv_buf_size.tlv_buffer[i]);
+		}
+	}
+}
+
+void qed_iov_pf_add_pending_events(struct qed_hwfn *p_hwfn, u8 vfid)
+{
+	u64 add_bit = 1ULL << (vfid % 64);
+
+	p_hwfn->pf_iov_info->pending_events[vfid / 64] |= add_bit;
+}
+
+static void qed_iov_pf_get_and_clear_pending_events(struct qed_hwfn *p_hwfn,
+						    u64 *events)
+{
+	u64 *p_pending_events = p_hwfn->pf_iov_info->pending_events;
+
+	memcpy(events, p_pending_events, sizeof(u64) * QED_VF_ARRAY_LENGTH);
+	memset(p_pending_events, 0, sizeof(u64) * QED_VF_ARRAY_LENGTH);
+}
+
+static int qed_sriov_vfpf_msg(struct qed_hwfn *p_hwfn,
+			      u16 abs_vfid, struct regpair *vf_msg)
+{
+	u8 min = (u8)p_hwfn->cdev->p_iov_info->first_vf_in_pf;
+	struct qed_vf_info *p_vf;
+
+	if (!qed_iov_pf_sanity_check(p_hwfn, (int)abs_vfid - min)) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_IOV,
+			   "Got a message from VF [abs 0x%08x] that cannot be handled by PF\n",
+			   abs_vfid);
+		return 0;
+	}
+	p_vf = &p_hwfn->pf_iov_info->vfs_array[(u8)abs_vfid - min];
+
+	/* List the physical address of the request so that handler
+	 * could later on copy the message from it.
+	 */
+	p_vf->vf_mbx.pending_req = (((u64)vf_msg->hi) << 32) | vf_msg->lo;
+
+	/* Mark the event and schedule the workqueue */
+	qed_iov_pf_add_pending_events(p_hwfn, p_vf->relative_vf_id);
+	qed_schedule_iov(p_hwfn, QED_IOV_WQ_MSG_FLAG);
+
+	return 0;
+}
+
+int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
+			u8 opcode, __le16 echo, union event_ring_data *data)
+{
+	switch (opcode) {
+	case COMMON_EVENT_VF_PF_CHANNEL:
+		return qed_sriov_vfpf_msg(p_hwfn, le16_to_cpu(echo),
+					  &data->vf_pf_channel.msg_addr);
+	default:
+		DP_INFO(p_hwfn->cdev, "Unknown sriov eqe event 0x%02x\n",
+			opcode);
+		return -EINVAL;
+	}
+}
+
 u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
 {
 	struct qed_hw_sriov_info *p_iov = p_hwfn->cdev->p_iov_info;
@@ -363,4 +609,143 @@ u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
 
 out:
 	return MAX_NUM_VFS;
+}
+
+static int qed_iov_copy_vf_msg(struct qed_hwfn *p_hwfn, struct qed_ptt *ptt,
+			       int vfid)
+{
+	struct qed_dmae_params params;
+	struct qed_vf_info *vf_info;
+
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	if (!vf_info)
+		return -EINVAL;
+
+	memset(&params, 0, sizeof(struct qed_dmae_params));
+	params.flags = QED_DMAE_FLAG_VF_SRC | QED_DMAE_FLAG_COMPLETION_DST;
+	params.src_vfid = vf_info->abs_vf_id;
+
+	if (qed_dmae_host2host(p_hwfn, ptt,
+			       vf_info->vf_mbx.pending_req,
+			       vf_info->vf_mbx.req_phys,
+			       sizeof(union vfpf_tlvs) / 4, &params)) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "Failed to copy message from VF 0x%02x\n", vfid);
+
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/**
+ * qed_schedule_iov - schedules IOV task for VF and PF
+ * @hwfn: hardware function pointer
+ * @flag: IOV flag for VF/PF
+ */
+void qed_schedule_iov(struct qed_hwfn *hwfn, enum qed_iov_wq_flag flag)
+{
+	smp_mb__before_atomic();
+	set_bit(flag, &hwfn->iov_task_flags);
+	smp_mb__after_atomic();
+	DP_VERBOSE(hwfn, QED_MSG_IOV, "Scheduling iov task [Flag: %d]\n", flag);
+	queue_delayed_work(hwfn->iov_wq, &hwfn->iov_task, 0);
+}
+
+static void qed_handle_vf_msg(struct qed_hwfn *hwfn)
+{
+	u64 events[QED_VF_ARRAY_LENGTH];
+	struct qed_ptt *ptt;
+	int i;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt) {
+		DP_VERBOSE(hwfn, QED_MSG_IOV,
+			   "Can't acquire PTT; re-scheduling\n");
+		qed_schedule_iov(hwfn, QED_IOV_WQ_MSG_FLAG);
+		return;
+	}
+
+	qed_iov_pf_get_and_clear_pending_events(hwfn, events);
+
+	DP_VERBOSE(hwfn, QED_MSG_IOV,
+		   "Event mask of VF events: 0x%llx 0x%llx 0x%llx\n",
+		   events[0], events[1], events[2]);
+
+	qed_for_each_vf(hwfn, i) {
+		/* Skip VFs with no pending messages */
+		if (!(events[i / 64] & (1ULL << (i % 64))))
+			continue;
+
+		DP_VERBOSE(hwfn, QED_MSG_IOV,
+			   "Handling VF message from VF 0x%02x [Abs 0x%02x]\n",
+			   i, hwfn->cdev->p_iov_info->first_vf_in_pf + i);
+
+		/* Copy VF's message to PF's request buffer for that VF */
+		if (qed_iov_copy_vf_msg(hwfn, ptt, i))
+			continue;
+
+		qed_iov_process_mbx_req(hwfn, ptt, i);
+	}
+
+	qed_ptt_release(hwfn, ptt);
+}
+
+void qed_iov_pf_task(struct work_struct *work)
+{
+	struct qed_hwfn *hwfn = container_of(work, struct qed_hwfn,
+					     iov_task.work);
+
+	if (test_and_clear_bit(QED_IOV_WQ_STOP_WQ_FLAG, &hwfn->iov_task_flags))
+		return;
+
+	if (test_and_clear_bit(QED_IOV_WQ_MSG_FLAG, &hwfn->iov_task_flags))
+		qed_handle_vf_msg(hwfn);
+}
+
+void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first)
+{
+	int i;
+
+	for_each_hwfn(cdev, i) {
+		if (!cdev->hwfns[i].iov_wq)
+			continue;
+
+		if (schedule_first) {
+			qed_schedule_iov(&cdev->hwfns[i],
+					 QED_IOV_WQ_STOP_WQ_FLAG);
+			cancel_delayed_work_sync(&cdev->hwfns[i].iov_task);
+		}
+
+		flush_workqueue(cdev->hwfns[i].iov_wq);
+		destroy_workqueue(cdev->hwfns[i].iov_wq);
+	}
+}
+
+int qed_iov_wq_start(struct qed_dev *cdev)
+{
+	char name[NAME_SIZE];
+	int i;
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		/* PFs needs a dedicated workqueue only if they support IOV. */
+		if (!IS_PF_SRIOV(p_hwfn))
+			continue;
+
+		snprintf(name, NAME_SIZE, "iov-%02x:%02x.%02x",
+			 cdev->pdev->bus->number,
+			 PCI_SLOT(cdev->pdev->devfn), p_hwfn->abs_pf_id);
+
+		p_hwfn->iov_wq = create_singlethread_workqueue(name);
+		if (!p_hwfn->iov_wq) {
+			DP_NOTICE(p_hwfn, "Cannot create iov workqueue\n");
+			return -ENOMEM;
+		}
+
+		INIT_DELAYED_WORK(&p_hwfn->iov_task, qed_iov_pf_task);
+	}
+
+	return 0;
 }

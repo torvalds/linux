@@ -24,6 +24,7 @@
 #include <linux/qed/qed_if.h>
 
 #include "qed.h"
+#include "qed_sriov.h"
 #include "qed_sp.h"
 #include "qed_dev_api.h"
 #include "qed_mcp.h"
@@ -749,7 +750,10 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	struct qed_mcp_drv_version drv_version;
 	const u8 *data = NULL;
 	struct qed_hwfn *hwfn;
-	int rc;
+	int rc = -EINVAL;
+
+	if (qed_iov_wq_start(cdev))
+		goto err;
 
 	rc = request_firmware(&cdev->firmware, QED_FW_FILE_NAME,
 			      &cdev->pdev->dev);
@@ -826,6 +830,8 @@ err1:
 err:
 	release_firmware(cdev->firmware);
 
+	qed_iov_wq_stop(cdev, false);
+
 	return rc;
 }
 
@@ -841,6 +847,8 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 
 	qed_disable_msix(cdev);
 	qed_nic_reset(cdev);
+
+	qed_iov_wq_stop(cdev, true);
 
 	release_firmware(cdev->firmware);
 

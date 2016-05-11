@@ -378,6 +378,12 @@ struct qed_hwfn {
 
 	struct qed_simd_fp_handler	simd_proto_handler[64];
 
+#ifdef CONFIG_QED_SRIOV
+	struct workqueue_struct *iov_wq;
+	struct delayed_work iov_task;
+	unsigned long iov_task_flags;
+#endif
+
 	struct z_stream_s		*stream;
 };
 

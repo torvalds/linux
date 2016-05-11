@@ -182,11 +182,15 @@ enum qed_dmae_address_type_t {
  * used mostly to write a zeroed buffer to destination address
  * using DMA
  */
-#define QED_DMAE_FLAG_RW_REPL_SRC       0x00000001
-#define QED_DMAE_FLAG_COMPLETION_DST    0x00000008
+#define QED_DMAE_FLAG_RW_REPL_SRC	0x00000001
+#define QED_DMAE_FLAG_VF_SRC		0x00000002
+#define QED_DMAE_FLAG_VF_DST		0x00000004
+#define QED_DMAE_FLAG_COMPLETION_DST	0x00000008
 
 struct qed_dmae_params {
-	u32	flags; /* consists of QED_DMAE_FLAG_* values */
+	u32 flags; /* consists of QED_DMAE_FLAG_* values */
+	u8 src_vfid;
+	u8 dst_vfid;
 };
 
 /**
@@ -207,6 +211,23 @@ qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 		  u32 grc_addr,
 		  u32 size_in_dwords,
 		  u32 flags);
+
+/**
+ * @brief qed_dmae_host2host - copy data from to source address
+ * to a destination adress (for SRIOV) using the given ptt
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param source_addr
+ * @param dest_addr
+ * @param size_in_dwords
+ * @param params
+ */
+int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       dma_addr_t source_addr,
+		       dma_addr_t dest_addr,
+		       u32 size_in_dwords, struct qed_dmae_params *p_params);
 
 /**
  * @brief qed_chain_alloc - Allocate and initialize a chain
