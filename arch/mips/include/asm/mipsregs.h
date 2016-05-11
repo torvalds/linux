@@ -1248,6 +1248,9 @@ do {									\
 #define read_c0_badvaddr()	__read_ulong_c0_register($8, 0)
 #define write_c0_badvaddr(val)	__write_ulong_c0_register($8, 0, val)
 
+#define read_c0_badinstr()	__read_32bit_c0_register($8, 1)
+#define read_c0_badinstrp()	__read_32bit_c0_register($8, 2)
+
 #define read_c0_count()		__read_32bit_c0_register($9, 0)
 #define write_c0_count(val)	__write_32bit_c0_register($9, 0, val)
 

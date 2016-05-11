@@ -442,4 +442,12 @@
 # define cpu_has_ebase_wg	(cpu_data[0].options & MIPS_CPU_EBASE_WG)
 #endif
 
+#ifndef cpu_has_badinstr
+# define cpu_has_badinstr	(cpu_data[0].options & MIPS_CPU_BADINSTR)
+#endif
+
+#ifndef cpu_has_badinstrp
+# define cpu_has_badinstrp	(cpu_data[0].options & MIPS_CPU_BADINSTRP)
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */

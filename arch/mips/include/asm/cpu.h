@@ -405,6 +405,8 @@ enum cpu_type_enum {
 #define MIPS_CPU_LDPTE		MBIT_ULL(41)	/* CPU has ldpte/lddir instructions */
 #define MIPS_CPU_MVH		MBIT_ULL(42)	/* CPU supports MFHC0/MTHC0 */
 #define MIPS_CPU_EBASE_WG	MBIT_ULL(43)	/* CPU has EBase.WG */
+#define MIPS_CPU_BADINSTR	MBIT_ULL(44)	/* CPU has BadInstr register */
+#define MIPS_CPU_BADINSTRP	MBIT_ULL(45)	/* CPU has BadInstrP register */
 
 /*
  * CPU ASE encodings
