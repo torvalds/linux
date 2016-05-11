@@ -1073,6 +1073,7 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	struct ioatdma_chan *ioat_chan;
 	bool is_raid_device = false;
 	int err;
+	u16 val16;
 
 	dma = &ioat_dma->dma_dev;
 	dma->device_prep_dma_memcpy = ioat_dma_prep_memcpy_lock;
@@ -1171,6 +1172,17 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 
 	if (dca)
 		ioat_dma->dca = ioat_dca_init(pdev, ioat_dma->reg_base);
+
+	/* disable relaxed ordering */
+	err = pcie_capability_read_word(pdev, IOAT_DEVCTRL_OFFSET, &val16);
+	if (err)
+		return err;
+
+	/* clear relaxed ordering enable */
+	val16 &= ~IOAT_DEVCTRL_ROE;
+	err = pcie_capability_write_word(pdev, IOAT_DEVCTRL_OFFSET, val16);
+	if (err)
+		return err;
 
 	return 0;
 }
