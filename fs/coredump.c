@@ -782,7 +782,7 @@ int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 	struct file *file = cprm->file;
 	loff_t pos = file->f_pos;
 	ssize_t n;
-	if (cprm->written + nr > cprm->limit)
+	if (pos + nr > cprm->limit)
 		return 0;
 	while (nr) {
 		if (dump_interrupted())
@@ -791,7 +791,6 @@ int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 		if (n <= 0)
 			return 0;
 		file->f_pos = pos;
-		cprm->written += n;
 		nr -= n;
 	}
 	return 1;
@@ -803,12 +802,11 @@ int dump_skip(struct coredump_params *cprm, size_t nr)
 	static char zeroes[PAGE_SIZE];
 	struct file *file = cprm->file;
 	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
-		if (cprm->written + nr > cprm->limit)
+		if (file->f_pos + nr > cprm->limit)
 			return 0;
 		if (dump_interrupted() ||
 		    file->f_op->llseek(file, nr, SEEK_CUR) < 0)
 			return 0;
-		cprm->written += nr;
 		return 1;
 	} else {
 		while (nr > PAGE_SIZE) {
@@ -823,7 +821,7 @@ EXPORT_SYMBOL(dump_skip);
 
 int dump_align(struct coredump_params *cprm, int align)
 {
-	unsigned mod = cprm->written & (align - 1);
+	unsigned mod = cprm->file->f_pos & (align - 1);
 	if (align & (align - 1))
 		return 0;
 	return mod ? dump_skip(cprm, align - mod) : 1;
