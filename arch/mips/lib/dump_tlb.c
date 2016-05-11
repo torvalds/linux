@@ -19,6 +19,8 @@ void dump_tlb_regs(void)
 
 	pr_info("Index    : %0x\n", read_c0_index());
 	pr_info("PageMask : %0x\n", read_c0_pagemask());
+	if (cpu_has_guestid)
+		pr_info("GuestCtl1: %0x\n", read_c0_guestctl1());
 	pr_info("EntryHi  : %0*lx\n", field, read_c0_entryhi());
 	pr_info("EntryLo0 : %0*lx\n", field, read_c0_entrylo0());
 	pr_info("EntryLo1 : %0*lx\n", field, read_c0_entrylo1());
