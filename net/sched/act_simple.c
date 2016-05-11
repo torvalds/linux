@@ -87,7 +87,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	struct tc_defact *parm;
 	struct tcf_defact *d;
 	char *defdata;
-	int ret = 0, err;
+	int ret = 0, err, exists = 0;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -99,13 +99,21 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	if (tb[TCA_DEF_PARMS] == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_DEF_DATA] == NULL)
-		return -EINVAL;
 
 	parm = nla_data(tb[TCA_DEF_PARMS]);
+	exists = tcf_hash_check(tn, parm->index, a, bind);
+	if (exists && bind)
+		return 0;
+
+	if (tb[TCA_DEF_DATA] == NULL) {
+		if (exists)
+			tcf_hash_release(a, bind);
+		return -EINVAL;
+	}
+
 	defdata = nla_data(tb[TCA_DEF_DATA]);
 
-	if (!tcf_hash_check(tn, parm->index, a, bind)) {
+	if (!exists) {
 		ret = tcf_hash_create(tn, parm->index, est, a,
 				      sizeof(*d), bind, false);
 		if (ret)
@@ -122,8 +130,6 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 	} else {
 		d = to_defact(a);
 
-		if (bind)
-			return 0;
 		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
