@@ -15023,12 +15023,13 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		dev_priv->display.fdi_link_train = hsw_fdi_link_train;
-		if (IS_BROADWELL(dev_priv)) {
-			dev_priv->display.modeset_commit_cdclk =
-				broadwell_modeset_commit_cdclk;
-			dev_priv->display.modeset_calc_cdclk =
-				broadwell_modeset_calc_cdclk;
-		}
+	}
+
+	if (IS_BROADWELL(dev_priv)) {
+		dev_priv->display.modeset_commit_cdclk =
+			broadwell_modeset_commit_cdclk;
+		dev_priv->display.modeset_calc_cdclk =
+			broadwell_modeset_calc_cdclk;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.modeset_commit_cdclk =
 			valleyview_modeset_commit_cdclk;
