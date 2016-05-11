@@ -99,9 +99,8 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
 		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end) &&
 		     !debug_pagealloc_enabled()) {
-			pud_val(*pu_dir) = __pa(address) |
-				_REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE |
-				(ro ? _REGION_ENTRY_PROTECT : 0);
+			pud_val(*pu_dir) = address |
+				pgprot_val(ro ? REGION3_KERNEL_RO : REGION3_KERNEL);
 			address += PUD_SIZE;
 			continue;
 		}
@@ -115,10 +114,8 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
 		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end) &&
 		    !debug_pagealloc_enabled()) {
-			pmd_val(*pm_dir) = __pa(address) |
-				_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
-				_SEGMENT_ENTRY_YOUNG |
-				(ro ? _SEGMENT_ENTRY_PROTECT : 0);
+			pmd_val(*pm_dir) = address |
+				pgprot_val(ro ? SEGMENT_KERNEL_RO : SEGMENT_KERNEL);
 			address += PMD_SIZE;
 			continue;
 		}
@@ -130,7 +127,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		pte_val(*pt_dir) = __pa(address) |
+		pte_val(*pt_dir) = address |
 			pgprot_val(ro ? PAGE_KERNEL_RO : PAGE_KERNEL);
 		address += PAGE_SIZE;
 	}

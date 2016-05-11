@@ -270,8 +270,19 @@ static inline int is_module_addr(void *addr)
 #define _REGION3_ENTRY		(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_LENGTH)
 #define _REGION3_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_INVALID)
 
-#define _REGION3_ENTRY_LARGE	0x400	/* RTTE-format control, large page  */
 #define _REGION3_ENTRY_RO	0x200	/* page protection bit		    */
+
+#define _REGION3_ENTRY_DIRTY	0x2000	/* SW region dirty bit */
+#define _REGION3_ENTRY_YOUNG	0x1000	/* SW region young bit */
+#define _REGION3_ENTRY_LARGE	0x0400	/* RTTE-format control, large page  */
+#define _REGION3_ENTRY_READ	0x0002	/* SW region read bit */
+#define _REGION3_ENTRY_WRITE	0x0001	/* SW region write bit */
+
+#ifdef CONFIG_MEM_SOFT_DIRTY
+#define _REGION3_ENTRY_SOFT_DIRTY 0x4000 /* SW region soft dirty bit */
+#else
+#define _REGION3_ENTRY_SOFT_DIRTY 0x0000 /* SW region soft dirty bit */
+#endif
 
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_BITS	0xfffffffffffffe33UL
@@ -297,7 +308,8 @@ static inline int is_module_addr(void *addr)
 #endif
 
 /*
- * Segment table entry encoding (R = read-only, I = invalid, y = young bit):
+ * Segment table and region3 table entry encoding
+ * (R = read-only, I = invalid, y = young bit):
  *				dy..R...I...rw
  * prot-none, clean, old	00..1...1...00
  * prot-none, clean, young	01..1...1...00
@@ -391,6 +403,33 @@ static inline int is_module_addr(void *addr)
 				 _SEGMENT_ENTRY_READ)
 #define SEGMENT_WRITE	__pgprot(_SEGMENT_ENTRY_READ | \
 				 _SEGMENT_ENTRY_WRITE)
+#define SEGMENT_KERNEL	__pgprot(_SEGMENT_ENTRY |	\
+				 _SEGMENT_ENTRY_LARGE |	\
+				 _SEGMENT_ENTRY_READ |	\
+				 _SEGMENT_ENTRY_WRITE | \
+				 _SEGMENT_ENTRY_YOUNG | \
+				 _SEGMENT_ENTRY_DIRTY)
+#define SEGMENT_KERNEL_RO __pgprot(_SEGMENT_ENTRY |	\
+				 _SEGMENT_ENTRY_LARGE |	\
+				 _SEGMENT_ENTRY_READ |	\
+				 _SEGMENT_ENTRY_YOUNG |	\
+				 _SEGMENT_ENTRY_PROTECT)
+
+/*
+ * Region3 entry (large page) protection definitions.
+ */
+
+#define REGION3_KERNEL	__pgprot(_REGION_ENTRY_TYPE_R3 | \
+				 _REGION3_ENTRY_LARGE |	 \
+				 _REGION3_ENTRY_READ |	 \
+				 _REGION3_ENTRY_WRITE |	 \
+				 _REGION3_ENTRY_YOUNG |	 \
+				 _REGION3_ENTRY_DIRTY)
+#define REGION3_KERNEL_RO __pgprot(_REGION_ENTRY_TYPE_R3 | \
+				   _REGION3_ENTRY_LARGE |  \
+				   _REGION3_ENTRY_READ |   \
+				   _REGION3_ENTRY_YOUNG |  \
+				   _REGION_ENTRY_PROTECT)
 
 static inline int mm_has_pgste(struct mm_struct *mm)
 {
