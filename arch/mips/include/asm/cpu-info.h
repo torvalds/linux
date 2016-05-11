@@ -28,6 +28,15 @@ struct cache_desc {
 	unsigned char flags;	/* Flags describing cache properties */
 };
 
+struct guest_info {
+	unsigned long		ases;
+	unsigned long		ases_dyn;
+	unsigned long long	options;
+	unsigned long long	options_dyn;
+	u8			conf;
+	u8			kscratch_mask;
+};
+
 /*
  * Flag definitions
  */
@@ -95,6 +104,11 @@ struct cpuinfo_mips {
 	 * htw_start/htw_stop calls
 	 */
 	unsigned int		htw_seq;
+
+	/* VZ & Guest features */
+	struct guest_info	guest;
+	unsigned int		gtoffset_mask;
+	unsigned int		guestid_mask;
 } __attribute__((aligned(SMP_CACHE_BYTES)));
 
 extern struct cpuinfo_mips cpu_data[];

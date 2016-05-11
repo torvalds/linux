@@ -409,6 +409,11 @@ enum cpu_type_enum {
 #define MIPS_CPU_BADINSTRP	MBIT_ULL(45)	/* CPU has BadInstrP register */
 #define MIPS_CPU_CTXTC		MBIT_ULL(46)	/* CPU has [X]ConfigContext registers */
 #define MIPS_CPU_PERF		MBIT_ULL(47)	/* CPU has MIPS performance counters */
+#define MIPS_CPU_GUESTCTL0EXT	MBIT_ULL(48)	/* CPU has VZ GuestCtl0Ext register */
+#define MIPS_CPU_GUESTCTL1	MBIT_ULL(49)	/* CPU has VZ GuestCtl1 register */
+#define MIPS_CPU_GUESTCTL2	MBIT_ULL(50)	/* CPU has VZ GuestCtl2 register */
+#define MIPS_CPU_GUESTID	MBIT_ULL(51)	/* CPU uses VZ ASE GuestID feature */
+#define MIPS_CPU_DRG		MBIT_ULL(52)	/* CPU has VZ Direct Root to Guest (DRG) */
 
 /*
  * CPU ASE encodings
