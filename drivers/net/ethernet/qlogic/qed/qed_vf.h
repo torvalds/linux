@@ -311,6 +311,18 @@ struct vfpf_vport_update_activate_tlv {
 	u8 active_tx;
 };
 
+struct vfpf_vport_update_tx_switch_tlv {
+	struct channel_tlv tl;
+	u8 tx_switching;
+	u8 padding[3];
+};
+
+struct vfpf_vport_update_vlan_strip_tlv {
+	struct channel_tlv tl;
+	u8 remove_vlan;
+	u8 padding[3];
+};
+
 struct vfpf_vport_update_mcast_bin_tlv {
 	struct channel_tlv tl;
 	u8 padding[4];
@@ -324,6 +336,40 @@ struct vfpf_vport_update_accept_param_tlv {
 	u8 update_tx_mode;
 	u8 rx_accept_filter;
 	u8 tx_accept_filter;
+};
+
+struct vfpf_vport_update_accept_any_vlan_tlv {
+	struct channel_tlv tl;
+	u8 update_accept_any_vlan_flg;
+	u8 accept_any_vlan;
+
+	u8 padding[2];
+};
+
+struct vfpf_vport_update_sge_tpa_tlv {
+	struct channel_tlv tl;
+
+	u16 sge_tpa_flags;
+#define VFPF_TPA_IPV4_EN_FLAG		BIT(0)
+#define VFPF_TPA_IPV6_EN_FLAG		BIT(1)
+#define VFPF_TPA_PKT_SPLIT_FLAG		BIT(2)
+#define VFPF_TPA_HDR_DATA_SPLIT_FLAG	BIT(3)
+#define VFPF_TPA_GRO_CONSIST_FLAG	BIT(4)
+
+	u8 update_sge_tpa_flags;
+#define VFPF_UPDATE_SGE_DEPRECATED_FLAG	BIT(0)
+#define VFPF_UPDATE_TPA_EN_FLAG		BIT(1)
+#define VFPF_UPDATE_TPA_PARAM_FLAG	BIT(2)
+
+	u8 max_buffers_per_cqe;
+
+	u16 deprecated_sge_buff_size;
+	u16 tpa_max_size;
+	u16 tpa_min_size_to_start;
+	u16 tpa_min_size_to_cont;
+
+	u8 tpa_max_aggs_num;
+	u8 padding[7];
 };
 
 /* Primary tlv as a header for various extended tlvs for
@@ -356,6 +402,7 @@ union vfpf_tlvs {
 	struct vfpf_start_txq_tlv start_txq;
 	struct vfpf_stop_rxqs_tlv stop_rxqs;
 	struct vfpf_stop_txqs_tlv stop_txqs;
+	struct vfpf_update_rxq_tlv update_rxq;
 	struct vfpf_vport_start_tlv start_vport;
 	struct vfpf_vport_update_tlv vport_update;
 	struct vfpf_ucast_filter_tlv ucast_filter;
@@ -436,21 +483,26 @@ enum {
 	CHANNEL_TLV_START_TXQ,
 	CHANNEL_TLV_STOP_RXQS,
 	CHANNEL_TLV_STOP_TXQS,
+	CHANNEL_TLV_UPDATE_RXQ,
 	CHANNEL_TLV_INT_CLEANUP,
 	CHANNEL_TLV_CLOSE,
 	CHANNEL_TLV_RELEASE,
 	CHANNEL_TLV_LIST_END,
 	CHANNEL_TLV_UCAST_FILTER,
 	CHANNEL_TLV_VPORT_UPDATE_ACTIVATE,
+	CHANNEL_TLV_VPORT_UPDATE_TX_SWITCH,
+	CHANNEL_TLV_VPORT_UPDATE_VLAN_STRIP,
 	CHANNEL_TLV_VPORT_UPDATE_MCAST,
 	CHANNEL_TLV_VPORT_UPDATE_ACCEPT_PARAM,
 	CHANNEL_TLV_VPORT_UPDATE_RSS,
+	CHANNEL_TLV_VPORT_UPDATE_ACCEPT_ANY_VLAN,
+	CHANNEL_TLV_VPORT_UPDATE_SGE_TPA,
 	CHANNEL_TLV_MAX,
 
 	/* Required for iterating over vport-update tlvs.
 	 * Will break in case non-sequential vport-update tlvs.
 	 */
-	CHANNEL_TLV_VPORT_UPDATE_MAX = CHANNEL_TLV_VPORT_UPDATE_RSS + 1,
+	CHANNEL_TLV_VPORT_UPDATE_MAX = CHANNEL_TLV_VPORT_UPDATE_SGE_TPA + 1,
 };
 
 /* This data is held in the qed_hwfn structure for VFs only. */

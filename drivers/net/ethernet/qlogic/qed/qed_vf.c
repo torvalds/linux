@@ -543,6 +543,10 @@ qed_vf_handle_vp_update_is_needed(struct qed_hwfn *p_hwfn,
 	case CHANNEL_TLV_VPORT_UPDATE_ACTIVATE:
 		return !!(p_data->update_vport_active_rx_flg ||
 			  p_data->update_vport_active_tx_flg);
+	case CHANNEL_TLV_VPORT_UPDATE_TX_SWITCH:
+		return !!p_data->update_tx_switching_flg;
+	case CHANNEL_TLV_VPORT_UPDATE_VLAN_STRIP:
+		return !!p_data->update_inner_vlan_removal_flg;
 	case CHANNEL_TLV_VPORT_UPDATE_MCAST:
 		return !!p_data->update_approx_mcast_flg;
 	case CHANNEL_TLV_VPORT_UPDATE_ACCEPT_PARAM:
@@ -550,6 +554,8 @@ qed_vf_handle_vp_update_is_needed(struct qed_hwfn *p_hwfn,
 			  p_data->accept_flags.update_tx_mode_config);
 	case CHANNEL_TLV_VPORT_UPDATE_RSS:
 		return !!p_data->rss_params;
+	case CHANNEL_TLV_VPORT_UPDATE_SGE_TPA:
+		return !!p_data->sge_tpa_params;
 	default:
 		DP_INFO(p_hwfn, "Unexpected vport-update TLV[%d]\n",
 			tlv);

@@ -961,12 +961,20 @@ static u16 qed_iov_vport_to_tlv(struct qed_hwfn *p_hwfn,
 	switch (flag) {
 	case QED_IOV_VP_UPDATE_ACTIVATE:
 		return CHANNEL_TLV_VPORT_UPDATE_ACTIVATE;
+	case QED_IOV_VP_UPDATE_VLAN_STRIP:
+		return CHANNEL_TLV_VPORT_UPDATE_VLAN_STRIP;
+	case QED_IOV_VP_UPDATE_TX_SWITCH:
+		return CHANNEL_TLV_VPORT_UPDATE_TX_SWITCH;
 	case QED_IOV_VP_UPDATE_MCAST:
 		return CHANNEL_TLV_VPORT_UPDATE_MCAST;
 	case QED_IOV_VP_UPDATE_ACCEPT_PARAM:
 		return CHANNEL_TLV_VPORT_UPDATE_ACCEPT_PARAM;
 	case QED_IOV_VP_UPDATE_RSS:
 		return CHANNEL_TLV_VPORT_UPDATE_RSS;
+	case QED_IOV_VP_UPDATE_ACCEPT_ANY_VLAN:
+		return CHANNEL_TLV_VPORT_UPDATE_ACCEPT_ANY_VLAN;
+	case QED_IOV_VP_UPDATE_SGE_TPA:
+		return CHANNEL_TLV_VPORT_UPDATE_SGE_TPA;
 	default:
 		return 0;
 	}
@@ -1516,6 +1524,51 @@ static void qed_iov_vf_mbx_stop_txqs(struct qed_hwfn *p_hwfn,
 			     length, status);
 }
 
+static void qed_iov_vf_mbx_update_rxqs(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt,
+				       struct qed_vf_info *vf)
+{
+	u16 length = sizeof(struct pfvf_def_resp_tlv);
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	struct vfpf_update_rxq_tlv *req;
+	u8 status = PFVF_STATUS_SUCCESS;
+	u8 complete_event_flg;
+	u8 complete_cqe_flg;
+	u16 qid;
+	int rc;
+	u8 i;
+
+	req = &mbx->req_virt->update_rxq;
+	complete_cqe_flg = !!(req->flags & VFPF_RXQ_UPD_COMPLETE_CQE_FLAG);
+	complete_event_flg = !!(req->flags & VFPF_RXQ_UPD_COMPLETE_EVENT_FLAG);
+
+	for (i = 0; i < req->num_rxqs; i++) {
+		qid = req->rx_qid + i;
+
+		if (!vf->vf_queues[qid].rxq_active) {
+			DP_NOTICE(p_hwfn, "VF rx_qid = %d isn`t active!\n",
+				  qid);
+			status = PFVF_STATUS_FAILURE;
+			break;
+		}
+
+		rc = qed_sp_eth_rx_queues_update(p_hwfn,
+						 vf->vf_queues[qid].fw_rx_qid,
+						 1,
+						 complete_cqe_flg,
+						 complete_event_flg,
+						 QED_SPQ_MODE_EBLOCK, NULL);
+
+		if (rc) {
+			status = PFVF_STATUS_FAILURE;
+			break;
+		}
+	}
+
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_UPDATE_RXQ,
+			     length, status);
+}
+
 void *qed_iov_search_list_tlvs(struct qed_hwfn *p_hwfn,
 			       void *p_tlvs_list, u16 req_type)
 {
@@ -1568,6 +1621,45 @@ qed_iov_vp_update_act_param(struct qed_hwfn *p_hwfn,
 }
 
 static void
+qed_iov_vp_update_vlan_param(struct qed_hwfn *p_hwfn,
+			     struct qed_sp_vport_update_params *p_data,
+			     struct qed_vf_info *p_vf,
+			     struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
+{
+	struct vfpf_vport_update_vlan_strip_tlv *p_vlan_tlv;
+	u16 tlv = CHANNEL_TLV_VPORT_UPDATE_VLAN_STRIP;
+
+	p_vlan_tlv = (struct vfpf_vport_update_vlan_strip_tlv *)
+		     qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt, tlv);
+	if (!p_vlan_tlv)
+		return;
+
+	p_data->update_inner_vlan_removal_flg = 1;
+	p_data->inner_vlan_removal_flg = p_vlan_tlv->remove_vlan;
+
+	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_VLAN_STRIP;
+}
+
+static void
+qed_iov_vp_update_tx_switch(struct qed_hwfn *p_hwfn,
+			    struct qed_sp_vport_update_params *p_data,
+			    struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
+{
+	struct vfpf_vport_update_tx_switch_tlv *p_tx_switch_tlv;
+	u16 tlv = CHANNEL_TLV_VPORT_UPDATE_TX_SWITCH;
+
+	p_tx_switch_tlv = (struct vfpf_vport_update_tx_switch_tlv *)
+			  qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt,
+						   tlv);
+	if (!p_tx_switch_tlv)
+		return;
+
+	p_data->update_tx_switching_flg = 1;
+	p_data->tx_switching_flg = p_tx_switch_tlv->tx_switching;
+	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_TX_SWITCH;
+}
+
+static void
 qed_iov_vp_update_mcast_bin_param(struct qed_hwfn *p_hwfn,
 				  struct qed_sp_vport_update_params *p_data,
 				  struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
@@ -1605,6 +1697,26 @@ qed_iov_vp_update_accept_flag(struct qed_hwfn *p_hwfn,
 	p_flags->update_tx_mode_config = p_accept_tlv->update_tx_mode;
 	p_flags->tx_accept_filter = p_accept_tlv->tx_accept_filter;
 	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_ACCEPT_PARAM;
+}
+
+static void
+qed_iov_vp_update_accept_any_vlan(struct qed_hwfn *p_hwfn,
+				  struct qed_sp_vport_update_params *p_data,
+				  struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
+{
+	struct vfpf_vport_update_accept_any_vlan_tlv *p_accept_any_vlan;
+	u16 tlv = CHANNEL_TLV_VPORT_UPDATE_ACCEPT_ANY_VLAN;
+
+	p_accept_any_vlan = (struct vfpf_vport_update_accept_any_vlan_tlv *)
+			    qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt,
+						     tlv);
+	if (!p_accept_any_vlan)
+		return;
+
+	p_data->accept_any_vlan = p_accept_any_vlan->accept_any_vlan;
+	p_data->update_accept_any_vlan_flg =
+		    p_accept_any_vlan->update_accept_any_vlan_flg;
+	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_ACCEPT_ANY_VLAN;
 }
 
 static void
@@ -1671,12 +1783,61 @@ qed_iov_vp_update_rss_param(struct qed_hwfn *p_hwfn,
 	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_RSS;
 }
 
+static void
+qed_iov_vp_update_sge_tpa_param(struct qed_hwfn *p_hwfn,
+				struct qed_vf_info *vf,
+				struct qed_sp_vport_update_params *p_data,
+				struct qed_sge_tpa_params *p_sge_tpa,
+				struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
+{
+	struct vfpf_vport_update_sge_tpa_tlv *p_sge_tpa_tlv;
+	u16 tlv = CHANNEL_TLV_VPORT_UPDATE_SGE_TPA;
+
+	p_sge_tpa_tlv = (struct vfpf_vport_update_sge_tpa_tlv *)
+	    qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt, tlv);
+
+	if (!p_sge_tpa_tlv) {
+		p_data->sge_tpa_params = NULL;
+		return;
+	}
+
+	memset(p_sge_tpa, 0, sizeof(struct qed_sge_tpa_params));
+
+	p_sge_tpa->update_tpa_en_flg =
+	    !!(p_sge_tpa_tlv->update_sge_tpa_flags & VFPF_UPDATE_TPA_EN_FLAG);
+	p_sge_tpa->update_tpa_param_flg =
+	    !!(p_sge_tpa_tlv->update_sge_tpa_flags &
+		VFPF_UPDATE_TPA_PARAM_FLAG);
+
+	p_sge_tpa->tpa_ipv4_en_flg =
+	    !!(p_sge_tpa_tlv->sge_tpa_flags & VFPF_TPA_IPV4_EN_FLAG);
+	p_sge_tpa->tpa_ipv6_en_flg =
+	    !!(p_sge_tpa_tlv->sge_tpa_flags & VFPF_TPA_IPV6_EN_FLAG);
+	p_sge_tpa->tpa_pkt_split_flg =
+	    !!(p_sge_tpa_tlv->sge_tpa_flags & VFPF_TPA_PKT_SPLIT_FLAG);
+	p_sge_tpa->tpa_hdr_data_split_flg =
+	    !!(p_sge_tpa_tlv->sge_tpa_flags & VFPF_TPA_HDR_DATA_SPLIT_FLAG);
+	p_sge_tpa->tpa_gro_consistent_flg =
+	    !!(p_sge_tpa_tlv->sge_tpa_flags & VFPF_TPA_GRO_CONSIST_FLAG);
+
+	p_sge_tpa->tpa_max_aggs_num = p_sge_tpa_tlv->tpa_max_aggs_num;
+	p_sge_tpa->tpa_max_size = p_sge_tpa_tlv->tpa_max_size;
+	p_sge_tpa->tpa_min_size_to_start = p_sge_tpa_tlv->tpa_min_size_to_start;
+	p_sge_tpa->tpa_min_size_to_cont = p_sge_tpa_tlv->tpa_min_size_to_cont;
+	p_sge_tpa->max_buffers_per_cqe = p_sge_tpa_tlv->max_buffers_per_cqe;
+
+	p_data->sge_tpa_params = p_sge_tpa;
+
+	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_SGE_TPA;
+}
+
 static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 					struct qed_ptt *p_ptt,
 					struct qed_vf_info *vf)
 {
 	struct qed_sp_vport_update_params params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	struct qed_sge_tpa_params sge_tpa_params;
 	struct qed_rss_params rss_params;
 	u8 status = PFVF_STATUS_SUCCESS;
 	u16 tlvs_mask = 0;
@@ -1692,10 +1853,15 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 	 * from VF in struct qed_sp_vport_update_params.
 	 */
 	qed_iov_vp_update_act_param(p_hwfn, &params, mbx, &tlvs_mask);
+	qed_iov_vp_update_vlan_param(p_hwfn, &params, vf, mbx, &tlvs_mask);
+	qed_iov_vp_update_tx_switch(p_hwfn, &params, mbx, &tlvs_mask);
 	qed_iov_vp_update_mcast_bin_param(p_hwfn, &params, mbx, &tlvs_mask);
 	qed_iov_vp_update_accept_flag(p_hwfn, &params, mbx, &tlvs_mask);
 	qed_iov_vp_update_rss_param(p_hwfn, vf, &params, &rss_params,
 				    mbx, &tlvs_mask);
+	qed_iov_vp_update_accept_any_vlan(p_hwfn, &params, mbx, &tlvs_mask);
+	qed_iov_vp_update_sge_tpa_param(p_hwfn, vf, &params,
+					&sge_tpa_params, mbx, &tlvs_mask);
 
 	/* Just log a message if there is no single extended tlv in buffer.
 	 * When all features of vport update ramrod would be requested by VF
@@ -2143,6 +2309,9 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 			break;
 		case CHANNEL_TLV_STOP_TXQS:
 			qed_iov_vf_mbx_stop_txqs(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_UPDATE_RXQ:
+			qed_iov_vf_mbx_update_rxqs(p_hwfn, p_ptt, p_vf);
 			break;
 		case CHANNEL_TLV_VPORT_UPDATE:
 			qed_iov_vf_mbx_vport_update(p_hwfn, p_ptt, p_vf);

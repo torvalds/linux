@@ -16,6 +16,25 @@
 #include "qed_hw.h"
 #include "qed_sp.h"
 
+struct qed_sge_tpa_params {
+	u8 max_buffers_per_cqe;
+
+	u8 update_tpa_en_flg;
+	u8 tpa_ipv4_en_flg;
+	u8 tpa_ipv6_en_flg;
+	u8 tpa_ipv4_tunn_en_flg;
+	u8 tpa_ipv6_tunn_en_flg;
+
+	u8 update_tpa_param_flg;
+	u8 tpa_pkt_split_flg;
+	u8 tpa_hdr_data_split_flg;
+	u8 tpa_gro_consistent_flg;
+	u8 tpa_max_aggs_num;
+	u16 tpa_max_size;
+	u16 tpa_min_size_to_start;
+	u16 tpa_min_size_to_cont;
+};
+
 enum qed_filter_opcode {
 	QED_FILTER_ADD,
 	QED_FILTER_REMOVE,
@@ -119,12 +138,17 @@ struct qed_sp_vport_update_params {
 	u8				vport_active_rx_flg;
 	u8				update_vport_active_tx_flg;
 	u8				vport_active_tx_flg;
+	u8				update_inner_vlan_removal_flg;
+	u8				inner_vlan_removal_flg;
+	u8				update_tx_switching_flg;
+	u8				tx_switching_flg;
 	u8				update_approx_mcast_flg;
 	u8				update_accept_any_vlan_flg;
 	u8				accept_any_vlan;
 	unsigned long			bins[8];
 	struct qed_rss_params		*rss_params;
 	struct qed_filter_accept_flags	accept_flags;
+	struct qed_sge_tpa_params	*sge_tpa_params;
 };
 
 int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
@@ -149,6 +173,34 @@ int qed_sp_vport_stop(struct qed_hwfn *p_hwfn, u16 opaque_fid, u8 vport_id);
 int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
 			    u16 opaque_fid,
 			    struct qed_filter_ucast *p_filter_cmd,
+			    enum spq_mode comp_mode,
+			    struct qed_spq_comp_cb *p_comp_data);
+
+/**
+ * @brief qed_sp_rx_eth_queues_update -
+ *
+ * This ramrod updates an RX queue. It is used for setting the active state
+ * of the queue and updating the TPA and SGE parameters.
+ *
+ * @note At the moment - only used by non-linux VFs.
+ *
+ * @param p_hwfn
+ * @param rx_queue_id		RX Queue ID
+ * @param num_rxqs		Allow to update multiple rx
+ *				queues, from rx_queue_id to
+ *				(rx_queue_id + num_rxqs)
+ * @param complete_cqe_flg	Post completion to the CQE Ring if set
+ * @param complete_event_flg	Post completion to the Event Ring if set
+ *
+ * @return int
+ */
+
+int
+qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
+			    u16 rx_queue_id,
+			    u8 num_rxqs,
+			    u8 complete_cqe_flg,
+			    u8 complete_event_flg,
 			    enum spq_mode comp_mode,
 			    struct qed_spq_comp_cb *p_comp_data);
 

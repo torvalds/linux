@@ -265,6 +265,38 @@ qed_sp_update_accept_mode(struct qed_hwfn *p_hwfn,
 }
 
 static void
+qed_sp_vport_update_sge_tpa(struct qed_hwfn *p_hwfn,
+			    struct vport_update_ramrod_data *p_ramrod,
+			    struct qed_sge_tpa_params *p_params)
+{
+	struct eth_vport_tpa_param *p_tpa;
+
+	if (!p_params) {
+		p_ramrod->common.update_tpa_param_flg = 0;
+		p_ramrod->common.update_tpa_en_flg = 0;
+		p_ramrod->common.update_tpa_param_flg = 0;
+		return;
+	}
+
+	p_ramrod->common.update_tpa_en_flg = p_params->update_tpa_en_flg;
+	p_tpa = &p_ramrod->tpa_param;
+	p_tpa->tpa_ipv4_en_flg = p_params->tpa_ipv4_en_flg;
+	p_tpa->tpa_ipv6_en_flg = p_params->tpa_ipv6_en_flg;
+	p_tpa->tpa_ipv4_tunn_en_flg = p_params->tpa_ipv4_tunn_en_flg;
+	p_tpa->tpa_ipv6_tunn_en_flg = p_params->tpa_ipv6_tunn_en_flg;
+
+	p_ramrod->common.update_tpa_param_flg = p_params->update_tpa_param_flg;
+	p_tpa->max_buff_num = p_params->max_buffers_per_cqe;
+	p_tpa->tpa_pkt_split_flg = p_params->tpa_pkt_split_flg;
+	p_tpa->tpa_hdr_data_split_flg = p_params->tpa_hdr_data_split_flg;
+	p_tpa->tpa_gro_consistent_flg = p_params->tpa_gro_consistent_flg;
+	p_tpa->tpa_max_aggs_num = p_params->tpa_max_aggs_num;
+	p_tpa->tpa_max_size = p_params->tpa_max_size;
+	p_tpa->tpa_min_size_to_start = p_params->tpa_min_size_to_start;
+	p_tpa->tpa_min_size_to_cont = p_params->tpa_min_size_to_cont;
+}
+
+static void
 qed_sp_update_mcast_bin(struct qed_hwfn *p_hwfn,
 			struct vport_update_ramrod_data *p_ramrod,
 			struct qed_sp_vport_update_params *p_params)
@@ -295,7 +327,7 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	struct qed_sp_init_data init_data;
 	struct vport_update_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
-	u8 abs_vport_id = 0;
+	u8 abs_vport_id = 0, val;
 	int rc = -EINVAL;
 
 	if (IS_VF(p_hwfn->cdev)) {
@@ -331,6 +363,13 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	p_cmn->accept_any_vlan = p_params->accept_any_vlan;
 	p_cmn->update_accept_any_vlan_flg =
 			p_params->update_accept_any_vlan_flg;
+
+	p_cmn->inner_vlan_removal_en = p_params->inner_vlan_removal_flg;
+	val = p_params->update_inner_vlan_removal_flg;
+	p_cmn->update_inner_vlan_removal_en_flg = val;
+	p_ramrod->common.tx_switching_en = p_params->tx_switching_flg;
+	p_cmn->update_tx_switching_en_flg = p_params->update_tx_switching_flg;
+
 	rc = qed_sp_vport_update_rss(p_hwfn, p_ramrod, p_rss_params);
 	if (rc) {
 		/* Return spq entry which is taken in qed_sp_init_request()*/
@@ -342,6 +381,7 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	qed_sp_update_mcast_bin(p_hwfn, p_ramrod, p_params);
 
 	qed_sp_update_accept_mode(p_hwfn, p_ramrod, p_params->accept_flags);
+	qed_sp_vport_update_sge_tpa(p_hwfn, p_ramrod, p_params->sge_tpa_params);
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
@@ -586,6 +626,56 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 
 	if (rc != 0)
 		qed_sp_release_queue_cid(p_hwfn, p_rx_cid);
+
+	return rc;
+}
+
+int qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
+				u16 rx_queue_id,
+				u8 num_rxqs,
+				u8 complete_cqe_flg,
+				u8 complete_event_flg,
+				enum spq_mode comp_mode,
+				struct qed_spq_comp_cb *p_comp_data)
+{
+	struct rx_queue_update_ramrod_data *p_ramrod = NULL;
+	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
+	struct qed_hw_cid_data *p_rx_cid;
+	u16 qid, abs_rx_q_id = 0;
+	int rc = -EINVAL;
+	u8 i;
+
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.comp_mode = comp_mode;
+	init_data.p_comp_data = p_comp_data;
+
+	for (i = 0; i < num_rxqs; i++) {
+		qid = rx_queue_id + i;
+		p_rx_cid = &p_hwfn->p_rx_cids[qid];
+
+		/* Get SPQ entry */
+		init_data.cid = p_rx_cid->cid;
+		init_data.opaque_fid = p_rx_cid->opaque_fid;
+
+		rc = qed_sp_init_request(p_hwfn, &p_ent,
+					 ETH_RAMROD_RX_QUEUE_UPDATE,
+					 PROTOCOLID_ETH, &init_data);
+		if (rc)
+			return rc;
+
+		p_ramrod = &p_ent->ramrod.rx_queue_update;
+
+		qed_fw_vport(p_hwfn, p_rx_cid->vport_id, &p_ramrod->vport_id);
+		qed_fw_l2_queue(p_hwfn, qid, &abs_rx_q_id);
+		p_ramrod->rx_queue_id = cpu_to_le16(abs_rx_q_id);
+		p_ramrod->complete_cqe_flg = complete_cqe_flg;
+		p_ramrod->complete_event_flg = complete_event_flg;
+
+		rc = qed_spq_post(p_hwfn, p_ent, NULL);
+		if (rc)
+			return rc;
+	}
 
 	return rc;
 }
