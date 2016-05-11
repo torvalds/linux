@@ -57,7 +57,7 @@ locking.
 The port_sem semaphore is used to protect against ports being added/
 removed or reconfigured at inappropriate times. Since v2.6.27, this
 semaphore has been the 'mutex' member of the tty_port struct, and
-commonly referred to as the port mutex (or port->mutex).
+commonly referred to as the port mutex.
 
 
 uart_ops
@@ -186,7 +186,7 @@ hardware.
 	should be terminated when another call is made with a zero
 	ctl.
 
-	Locking: caller holds port->mutex
+	Locking: caller holds tty_port->mutex
 
   startup(port)
 	Grab any interrupt resources and initialise any low level driver
@@ -262,14 +262,14 @@ hardware.
 	Other flags may be used (eg, xon/xoff characters) if your
 	hardware supports hardware "soft" flow control.
 
-	Locking: caller holds port->mutex
+	Locking: caller holds tty_port->mutex
 	Interrupts: caller dependent.
 	This call must not sleep
 
   set_ldisc(port,termios)
 	Notifier for discipline change. See Documentation/serial/tty.txt.
 
-	Locking: caller holds port->mutex
+	Locking: caller holds tty_port->mutex
 
   pm(port,state,oldstate)
 	Perform any power management related activities on the specified
