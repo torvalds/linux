@@ -343,6 +343,7 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 			int offset, u32 misc_high)
 {
 	unsigned int cpu = smp_processor_id();
+	u32 smca_low, smca_high, smca_addr;
 	struct threshold_block b;
 	int new;
 
@@ -361,52 +362,49 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 
 	b.interrupt_enable = 1;
 
-	if (mce_flags.smca) {
-		u32 smca_low, smca_high;
-		u32 smca_addr = MSR_AMD64_SMCA_MCx_CONFIG(bank);
-
-		if (!rdmsr_safe(smca_addr, &smca_low, &smca_high)) {
-			/*
-			 * OS is required to set the MCAX bit to acknowledge
-			 * that it is now using the new MSR ranges and new
-			 * registers under each bank. It also means that the OS
-			 * will configure deferred errors in the new MCx_CONFIG
-			 * register. If the bit is not set, uncorrectable errors
-			 * will cause a system panic.
-			 *
-			 * MCA_CONFIG[MCAX] is bit 32 (0 in the high portion of
-			 * the MSR.)
-			 */
-			smca_high |= BIT(0);
-
-			/*
-			 * SMCA logs Deferred Error information in
-			 * MCA_DE{STAT,ADDR} registers with the option of
-			 * additionally logging to MCA_{STATUS,ADDR} if
-			 * MCA_CONFIG[LogDeferredInMcaStat] is set.
-			 *
-			 * This bit is usually set by BIOS to retain the old
-			 * behavior for OSes that don't use the new registers.
-			 * Linux supports the new registers so let's disable
-			 * that additional logging here.
-			 *
-			 * MCA_CONFIG[LogDeferredInMcaStat] is bit 34 (bit 2 in
-			 * the high portion of the MSR).
-			 */
-			smca_high &= ~BIT(2);
-
-			wrmsr(smca_addr, smca_low, smca_high);
-		}
-
-		/* Gather LVT offset for thresholding: */
-		if (rdmsr_safe(MSR_CU_DEF_ERR, &smca_low, &smca_high))
-			goto out;
-
-		new = (smca_low & SMCA_THR_LVT_OFF) >> 12;
-	} else {
+	if (!mce_flags.smca) {
 		new = (misc_high & MASK_LVTOFF_HI) >> 20;
+		goto set_offset;
 	}
 
+	smca_addr = MSR_AMD64_SMCA_MCx_CONFIG(bank);
+
+	if (!rdmsr_safe(smca_addr, &smca_low, &smca_high)) {
+		/*
+		 * OS is required to set the MCAX bit to acknowledge that it is
+		 * now using the new MSR ranges and new registers under each
+		 * bank. It also means that the OS will configure deferred
+		 * errors in the new MCx_CONFIG register. If the bit is not set,
+		 * uncorrectable errors will cause a system panic.
+		 *
+		 * MCA_CONFIG[MCAX] is bit 32 (0 in the high portion of the MSR.)
+		 */
+		smca_high |= BIT(0);
+
+		/*
+		 * SMCA logs Deferred Error information in MCA_DE{STAT,ADDR}
+		 * registers with the option of additionally logging to
+		 * MCA_{STATUS,ADDR} if MCA_CONFIG[LogDeferredInMcaStat] is set.
+		 *
+		 * This bit is usually set by BIOS to retain the old behavior
+		 * for OSes that don't use the new registers. Linux supports the
+		 * new registers so let's disable that additional logging here.
+		 *
+		 * MCA_CONFIG[LogDeferredInMcaStat] is bit 34 (bit 2 in the high
+		 * portion of the MSR).
+		 */
+		smca_high &= ~BIT(2);
+
+		wrmsr(smca_addr, smca_low, smca_high);
+	}
+
+	/* Gather LVT offset for thresholding: */
+	if (rdmsr_safe(MSR_CU_DEF_ERR, &smca_low, &smca_high))
+		goto out;
+
+	new = (smca_low & SMCA_THR_LVT_OFF) >> 12;
+
+set_offset:
 	offset = setup_APIC_mce_threshold(offset, new);
 
 	if ((offset == new) && (mce_threshold_vector != amd_threshold_interrupt))
