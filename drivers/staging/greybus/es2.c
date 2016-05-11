@@ -99,6 +99,8 @@ struct es2_ap_dev {
 	bool cport_out_urb_cancelled[NUM_CPORT_OUT_URB];
 	spinlock_t cport_out_urb_lock;
 
+	bool cdsi1_in_use;
+
 	int *cport_to_ep;
 
 	struct task_struct *apb_log_task;
@@ -508,6 +510,8 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 
 	switch (cport_id) {
 	case GB_SVC_CPORT_ID:
+	case ES2_CPORT_CDSI0:
+	case ES2_CPORT_CDSI1:
 		return 0;
 	}
 
@@ -523,6 +527,59 @@ static int cport_reset(struct gb_host_device *hd, u16 cport_id)
 	}
 
 	return 0;
+}
+
+static int es2_cport_allocate(struct gb_host_device *hd, int cport_id,
+				unsigned long flags)
+{
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct ida *id_map = &hd->cport_id_map;
+	int ida_start, ida_end;
+
+	switch (cport_id) {
+	case ES2_CPORT_CDSI0:
+	case ES2_CPORT_CDSI1:
+		dev_err(&hd->dev, "cport %d not available\n", cport_id);
+		return -EBUSY;
+	}
+
+	if (flags & GB_CONNECTION_FLAG_OFFLOADED &&
+			flags & GB_CONNECTION_FLAG_CDSI1) {
+		if (es2->cdsi1_in_use) {
+			dev_err(&hd->dev, "CDSI1 already in use\n");
+			return -EBUSY;
+		}
+
+		es2->cdsi1_in_use = true;
+
+		return ES2_CPORT_CDSI1;
+	}
+
+	if (cport_id < 0) {
+		ida_start = 0;
+		ida_end = hd->num_cports;
+	} else if (cport_id < hd->num_cports) {
+		ida_start = cport_id;
+		ida_end = cport_id + 1;
+	} else {
+		dev_err(&hd->dev, "cport %d not available\n", cport_id);
+		return -EINVAL;
+	}
+
+	return ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
+}
+
+static void es2_cport_release(struct gb_host_device *hd, u16 cport_id)
+{
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+
+	switch (cport_id) {
+	case ES2_CPORT_CDSI1:
+		es2->cdsi1_in_use = false;
+		return;
+	}
+
+	ida_simple_remove(&hd->cport_id_map, cport_id);
 }
 
 static int cport_enable(struct gb_host_device *hd, u16 cport_id)
@@ -621,6 +678,8 @@ static struct gb_hd_driver es2_driver = {
 	.hd_priv_size		= sizeof(struct es2_ap_dev),
 	.message_send		= message_send,
 	.message_cancel		= message_cancel,
+	.cport_allocate		= es2_cport_allocate,
+	.cport_release		= es2_cport_release,
 	.cport_enable		= cport_enable,
 	.latency_tag_enable	= latency_tag_enable,
 	.latency_tag_disable	= latency_tag_disable,
