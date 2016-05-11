@@ -17,18 +17,34 @@
 
 /*---------------------------------------------------------------------------*/
 
-/**
+#define DEFAULT_UTILISATION_PERIOD_IN_MS (100)
+
+/*---------------------------------------------------------------------------*/
+
+/*
  * struct rk_context - work_context of platform_dependent_part_of_rk.
- * @is_powered: record the status
- *      of common_parts calling 'power_on_callback' and 'power_off_callback'.
  */
 struct rk_context {
+	/*
+	 * record the status of common_parts calling 'power_on_callback'
+	 * and 'power_off_callback'.
+	 */
 	bool is_powered;
 	struct kbase_device *kbdev;
 	struct workqueue_struct *power_off_wq;
 	struct delayed_work work;
 	unsigned int delay_ms;
+	/* debug only, the period in ms to count gpu_utilisation. */
+	unsigned int utilisation_period;
 };
+
+/*---------------------------------------------------------------------------*/
+
+static inline struct rk_context *get_rk_context(
+		const struct kbase_device *kbdev)
+{
+	return (struct rk_context *)(kbdev->platform_context);
+}
 
 #endif				/* _MALI_KBASE_RK_H_ */
 
