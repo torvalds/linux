@@ -190,7 +190,7 @@ static struct syscore_ops exynos5250_clk_syscore_ops = {
 	.resume = exynos5250_clk_resume,
 };
 
-static void exynos5250_clk_sleep_init(void)
+static void __init exynos5250_clk_sleep_init(void)
 {
 	exynos5250_save = samsung_clk_alloc_reg_dump(exynos5250_clk_regs,
 					ARRAY_SIZE(exynos5250_clk_regs));
@@ -203,7 +203,7 @@ static void exynos5250_clk_sleep_init(void)
 	register_syscore_ops(&exynos5250_clk_syscore_ops);
 }
 #else
-static void exynos5250_clk_sleep_init(void) {}
+static void __init exynos5250_clk_sleep_init(void) {}
 #endif
 
 /* list of all parent clock list */
