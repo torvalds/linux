@@ -172,7 +172,7 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 	return 0;
 }
 
-int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
+void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 {
 
 	brcmf_dbg(SDIO, "Entering oob=%d sd=%d\n",
@@ -195,6 +195,7 @@ int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 		}
 		free_irq(pdata->oob_irq_nr, &sdiodev->func[1]->dev);
 		sdiodev->irq_en = false;
+		sdiodev->oob_irq_requested = false;
 	}
 
 	if (sdiodev->sd_irq_requested) {
@@ -202,9 +203,8 @@ int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 		sdio_release_irq(sdiodev->func[2]);
 		sdio_release_irq(sdiodev->func[1]);
 		sdio_release_host(sdiodev->func[1]);
+		sdiodev->sd_irq_requested = false;
 	}
-
-	return 0;
 }
 
 void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
@@ -1201,12 +1201,17 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 	brcmf_dbg(SDIO, "sdio device ID: 0x%04x\n", func->device);
 	brcmf_dbg(SDIO, "Function: %d\n", func->num);
 
-	if (func->num != 1)
-		return;
-
 	bus_if = dev_get_drvdata(&func->dev);
 	if (bus_if) {
 		sdiodev = bus_if->bus_priv.sdio;
+
+		/* start by unregistering irqs */
+		brcmf_sdiod_intr_unregister(sdiodev);
+
+		if (func->num != 1)
+			return;
+
+		/* only proceed with rest of cleanup if func 1 */
 		brcmf_sdiod_remove(sdiodev);
 
 		dev_set_drvdata(&sdiodev->func[1]->dev, NULL);

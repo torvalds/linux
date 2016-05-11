@@ -294,7 +294,7 @@ struct sdpcmd_regs {
 
 /* Register/deregister interrupt handler. */
 int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev);
-int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
+void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
 /* sdio device register access interface */
 u8 brcmf_sdiod_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
