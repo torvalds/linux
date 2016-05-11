@@ -129,6 +129,17 @@ config PINCTRL_MESON
 	select OF_GPIO
 	select REGMAP_MMIO
 
+config PINCTRL_OXNAS
+	bool
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
+	select MFD_SYSCON
+
 config PINCTRL_ROCKCHIP
 	bool
 	select PINMUX
