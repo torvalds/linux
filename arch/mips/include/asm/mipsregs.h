@@ -676,6 +676,14 @@
 #define MIPS_MAAR_S		(_ULCAST_(1) << 1)
 #define MIPS_MAAR_V		(_ULCAST_(1) << 0)
 
+/* EBase bit definitions */
+#define MIPS_EBASE_CPUNUM_SHIFT	0
+#define MIPS_EBASE_CPUNUM	(_ULCAST_(0x3ff) << 0)
+#define MIPS_EBASE_WG_SHIFT	11
+#define MIPS_EBASE_WG		(_ULCAST_(1) << 11)
+#define MIPS_EBASE_BASE_SHIFT	12
+#define MIPS_EBASE_BASE		(~_ULCAST_((1 << MIPS_EBASE_BASE_SHIFT) - 1))
+
 /* CMGCRBase bit definitions */
 #define MIPS_CMGCRB_BASE	11
 #define MIPS_CMGCRF_BASE	(~_ULCAST_((1 << MIPS_CMGCRB_BASE) - 1))
@@ -2104,7 +2112,7 @@ __BUILD_SET_C0(brcm_mode)
  */
 static inline unsigned int get_ebase_cpunum(void)
 {
-	return read_c0_ebase() & 0x3ff;
+	return read_c0_ebase() & MIPS_EBASE_CPUNUM;
 }
 
 #endif /* !__ASSEMBLY__ */
