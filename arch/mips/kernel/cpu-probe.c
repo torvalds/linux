@@ -648,6 +648,8 @@ static inline unsigned int decode_config1(struct cpuinfo_mips *c)
 
 	if (config1 & MIPS_CONF1_MD)
 		c->ases |= MIPS_ASE_MDMX;
+	if (config1 & MIPS_CONF1_PC)
+		c->options |= MIPS_CPU_PERF;
 	if (config1 & MIPS_CONF1_WR)
 		c->options |= MIPS_CPU_WATCH;
 	if (config1 & MIPS_CONF1_CA)

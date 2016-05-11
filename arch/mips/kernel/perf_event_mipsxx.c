@@ -101,8 +101,6 @@ struct mips_pmu {
 
 static struct mips_pmu mipspmu;
 
-#define M_CONFIG1_PC	(1 << 4)
-
 #define M_PERFCTL_EXL			(1	<<  0)
 #define M_PERFCTL_KERNEL		(1	<<  1)
 #define M_PERFCTL_SUPERVISOR		(1	<<  2)
@@ -754,7 +752,7 @@ static void handle_associated_event(struct cpu_hw_events *cpuc,
 
 static int __n_counters(void)
 {
-	if (!(read_c0_config1() & M_CONFIG1_PC))
+	if (!cpu_has_perf)
 		return 0;
 	if (!(read_c0_perfctrl0() & M_PERFCTL_MORE))
 		return 1;

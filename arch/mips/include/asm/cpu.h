@@ -408,6 +408,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_BADINSTR	MBIT_ULL(44)	/* CPU has BadInstr register */
 #define MIPS_CPU_BADINSTRP	MBIT_ULL(45)	/* CPU has BadInstrP register */
 #define MIPS_CPU_CTXTC		MBIT_ULL(46)	/* CPU has [X]ConfigContext registers */
+#define MIPS_CPU_PERF		MBIT_ULL(47)	/* CPU has MIPS performance counters */
 
 /*
  * CPU ASE encodings

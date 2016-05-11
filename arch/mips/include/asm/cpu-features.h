@@ -454,4 +454,8 @@
 # define cpu_has_contextconfig	(cpu_data[0].options & MIPS_CPU_CTXTC)
 #endif
 
+#ifndef cpu_has_perf
+# define cpu_has_perf		(cpu_data[0].options & MIPS_CPU_PERF)
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */
