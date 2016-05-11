@@ -2588,6 +2588,30 @@ void qed_iov_set_link(struct qed_hwfn *p_hwfn,
 	p_bulletin->capability_speed = p_caps->speed_capabilities;
 }
 
+static void qed_iov_get_link(struct qed_hwfn *p_hwfn,
+			     u16 vfid,
+			     struct qed_mcp_link_params *p_params,
+			     struct qed_mcp_link_state *p_link,
+			     struct qed_mcp_link_capabilities *p_caps)
+{
+	struct qed_vf_info *p_vf = qed_iov_get_vf_info(p_hwfn,
+						       vfid,
+						       false);
+	struct qed_bulletin_content *p_bulletin;
+
+	if (!p_vf)
+		return;
+
+	p_bulletin = p_vf->bulletin.p_virt;
+
+	if (p_params)
+		__qed_vf_get_link_params(p_hwfn, p_params, p_bulletin);
+	if (p_link)
+		__qed_vf_get_link_state(p_hwfn, p_link, p_bulletin);
+	if (p_caps)
+		__qed_vf_get_link_caps(p_hwfn, p_caps, p_bulletin);
+}
+
 static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt, int vfid)
 {
@@ -2840,6 +2864,17 @@ bool qed_iov_is_vf_stopped(struct qed_hwfn *p_hwfn, int vfid)
 	return p_vf_info->state == VF_STOPPED;
 }
 
+static bool qed_iov_spoofchk_get(struct qed_hwfn *p_hwfn, int vfid)
+{
+	struct qed_vf_info *vf_info;
+
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	if (!vf_info)
+		return false;
+
+	return vf_info->spoof_chk;
+}
+
 int qed_iov_spoofchk_set(struct qed_hwfn *p_hwfn, int vfid, bool val)
 {
 	struct qed_vf_info *vf;
@@ -2935,6 +2970,23 @@ int qed_iov_configure_min_tx_rate(struct qed_dev *cdev, int vfid, u32 rate)
 	vport_id = vf->vport_id;
 
 	return qed_configure_vport_wfq(cdev, vport_id, rate);
+}
+
+static int qed_iov_get_vf_min_rate(struct qed_hwfn *p_hwfn, int vfid)
+{
+	struct qed_wfq_data *vf_vp_wfq;
+	struct qed_vf_info *vf_info;
+
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	if (!vf_info)
+		return 0;
+
+	vf_vp_wfq = &p_hwfn->qm_info.wfq_data[vf_info->vport_id];
+
+	if (vf_vp_wfq->configured)
+		return vf_vp_wfq->min_speed;
+	else
+		return 0;
 }
 
 /**
@@ -3149,6 +3201,46 @@ static int qed_sriov_pf_set_vlan(struct qed_dev *cdev, u16 vid, int vfid)
 		vf_info->forced_vlan = vid;
 		qed_schedule_iov(hwfn, QED_IOV_WQ_SET_UNICAST_FILTER_FLAG);
 	}
+
+	return 0;
+}
+
+static int qed_get_vf_config(struct qed_dev *cdev,
+			     int vf_id, struct ifla_vf_info *ivi)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_public_vf_info *vf_info;
+	struct qed_mcp_link_state link;
+	u32 tx_rate;
+
+	/* Sanitize request */
+	if (IS_VF(cdev))
+		return -EINVAL;
+
+	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vf_id, true)) {
+		DP_VERBOSE(cdev, QED_MSG_IOV,
+			   "VF index [%d] isn't active\n", vf_id);
+		return -EINVAL;
+	}
+
+	vf_info = qed_iov_get_public_vf_info(hwfn, vf_id, true);
+
+	qed_iov_get_link(hwfn, vf_id, NULL, &link, NULL);
+
+	/* Fill information about VF */
+	ivi->vf = vf_id;
+
+	if (is_valid_ether_addr(vf_info->forced_mac))
+		ether_addr_copy(ivi->mac, vf_info->forced_mac);
+	else
+		ether_addr_copy(ivi->mac, vf_info->mac);
+
+	ivi->vlan = vf_info->forced_vlan;
+	ivi->spoofchk = qed_iov_spoofchk_get(hwfn, vf_id);
+	ivi->linkstate = vf_info->link_state;
+	tx_rate = vf_info->tx_rate;
+	ivi->max_tx_rate = tx_rate ? tx_rate : link.speed;
+	ivi->min_tx_rate = qed_iov_get_vf_min_rate(hwfn, vf_id);
 
 	return 0;
 }
@@ -3506,6 +3598,7 @@ const struct qed_iov_hv_ops qed_iov_ops_pass = {
 	.configure = &qed_sriov_configure,
 	.set_mac = &qed_sriov_pf_set_mac,
 	.set_vlan = &qed_sriov_pf_set_vlan,
+	.get_config = &qed_get_vf_config,
 	.set_link_state = &qed_set_vf_link_state,
 	.set_spoof = &qed_spoof_configure,
 	.set_rate = &qed_set_vf_rate,

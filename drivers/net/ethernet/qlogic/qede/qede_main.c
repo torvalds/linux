@@ -1793,6 +1793,17 @@ static struct rtnl_link_stats64 *qede_get_stats64(
 }
 
 #ifdef CONFIG_QED_SRIOV
+static int qede_get_vf_config(struct net_device *dev, int vfidx,
+			      struct ifla_vf_info *ivi)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev->ops)
+		return -EINVAL;
+
+	return edev->ops->iov->get_config(edev->cdev, vfidx, ivi);
+}
+
 static int qede_set_vf_rate(struct net_device *dev, int vfidx,
 			    int min_tx_rate, int max_tx_rate)
 {
@@ -2153,6 +2164,7 @@ static const struct net_device_ops qede_netdev_ops = {
 #ifdef CONFIG_QED_SRIOV
 	.ndo_set_vf_link_state = qede_set_vf_link_state,
 	.ndo_set_vf_spoofchk = qede_set_vf_spoofchk,
+	.ndo_get_vf_config = qede_get_vf_config,
 	.ndo_set_vf_rate = qede_set_vf_rate,
 #endif
 #ifdef CONFIG_QEDE_VXLAN

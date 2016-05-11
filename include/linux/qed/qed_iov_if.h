@@ -19,6 +19,9 @@ struct qed_iov_hv_ops {
 
 	int (*set_vlan) (struct qed_dev *cdev, u16 vid, int vfid);
 
+	int (*get_config) (struct qed_dev *cdev, int vf_id,
+			   struct ifla_vf_info *ivi);
+
 	int (*set_link_state) (struct qed_dev *cdev, int vf_id,
 			       int link_state);
 
