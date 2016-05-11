@@ -36,6 +36,7 @@
 struct sock;
 
 struct inet_skb_parm {
+	int			iif;
 	struct ip_options	opt;		/* Compiled IP options		*/
 	unsigned char		flags;
 

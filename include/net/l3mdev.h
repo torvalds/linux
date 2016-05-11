@@ -25,6 +25,8 @@
 
 struct l3mdev_ops {
 	u32		(*l3mdev_fib_table)(const struct net_device *dev);
+	struct sk_buff * (*l3mdev_l3_rcv)(struct net_device *dev,
+					  struct sk_buff *skb, u16 proto);
 
 	/* IPv4 ops */
 	struct rtable *	(*l3mdev_get_rtable)(const struct net_device *dev,
@@ -134,6 +136,34 @@ int l3mdev_get_saddr(struct net *net, int ifindex, struct flowi4 *fl4);
 
 struct dst_entry *l3mdev_get_rt6_dst(struct net *net, const struct flowi6 *fl6);
 
+static inline
+struct sk_buff *l3mdev_l3_rcv(struct sk_buff *skb, u16 proto)
+{
+	struct net_device *master = NULL;
+
+	if (netif_is_l3_slave(skb->dev))
+		master = netdev_master_upper_dev_get_rcu(skb->dev);
+	else if (netif_is_l3_master(skb->dev))
+		master = skb->dev;
+
+	if (master && master->l3mdev_ops->l3mdev_l3_rcv)
+		skb = master->l3mdev_ops->l3mdev_l3_rcv(master, skb, proto);
+
+	return skb;
+}
+
+static inline
+struct sk_buff *l3mdev_ip_rcv(struct sk_buff *skb)
+{
+	return l3mdev_l3_rcv(skb, AF_INET);
+}
+
+static inline
+struct sk_buff *l3mdev_ip6_rcv(struct sk_buff *skb)
+{
+	return l3mdev_l3_rcv(skb, AF_INET6);
+}
+
 #else
 
 static inline int l3mdev_master_ifindex_rcu(const struct net_device *dev)
@@ -193,6 +223,18 @@ static inline
 struct dst_entry *l3mdev_get_rt6_dst(struct net *net, const struct flowi6 *fl6)
 {
 	return NULL;
+}
+
+static inline
+struct sk_buff *l3mdev_ip_rcv(struct sk_buff *skb)
+{
+	return skb;
+}
+
+static inline
+struct sk_buff *l3mdev_ip6_rcv(struct sk_buff *skb)
+{
+	return skb;
 }
 #endif
 
