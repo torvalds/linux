@@ -567,12 +567,22 @@ static int ssi_flush(struct hsi_client *cl)
 	return 0;
 }
 
+static void start_tx_work(struct work_struct *work)
+{
+	struct omap_ssi_port *omap_port =
+				container_of(work, struct omap_ssi_port, work);
+	struct hsi_port *port = to_hsi_port(omap_port->dev);
+	struct hsi_controller *ssi = to_hsi_controller(port->device.parent);
+	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
+
+	pm_runtime_get_sync(omap_port->pdev); /* Grab clocks */
+	writel(SSI_WAKE(0), omap_ssi->sys + SSI_SET_WAKE_REG(port->num));
+}
+
 static int ssi_start_tx(struct hsi_client *cl)
 {
 	struct hsi_port *port = hsi_get_port(cl);
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
-	struct hsi_controller *ssi = to_hsi_controller(port->device.parent);
-	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
 
 	dev_dbg(&port->device, "Wake out high %d\n", omap_port->wk_refcount);
 
@@ -581,9 +591,9 @@ static int ssi_start_tx(struct hsi_client *cl)
 		spin_unlock_bh(&omap_port->wk_lock);
 		return 0;
 	}
-	pm_runtime_get_sync(omap_port->pdev); /* Grab clocks */
-	writel(SSI_WAKE(0), omap_ssi->sys + SSI_SET_WAKE_REG(port->num));
 	spin_unlock_bh(&omap_port->wk_lock);
+
+	schedule_work(&omap_port->work);
 
 	return 0;
 }
@@ -604,8 +614,9 @@ static int ssi_stop_tx(struct hsi_client *cl)
 		return 0;
 	}
 	writel(SSI_WAKE(0), omap_ssi->sys + SSI_CLEAR_WAKE_REG(port->num));
-	pm_runtime_put_sync(omap_port->pdev); /* Release clocks */
 	spin_unlock_bh(&omap_port->wk_lock);
+
+	pm_runtime_put(omap_port->pdev); /* Release clocks */
 
 	return 0;
 }
@@ -1148,6 +1159,8 @@ static int ssi_port_probe(struct platform_device *pd)
 	omap_port->wake_gpio = cawake_gpio;
 	omap_port->pdev = &pd->dev;
 	omap_port->port_id = port_id;
+
+	INIT_WORK(&omap_port->work, start_tx_work);
 
 	/* initialize HSI port */
 	port->async	= ssi_async;

@@ -79,6 +79,7 @@ struct omap_ssm_ctx {
  * @pio_tasklet: Bottom half for PIO transfers and events
  * @flags: flags to keep track of states
  * @wk_refcount: Reference count for output wake line
+ * @work: worker for starting TX
  * @sys_mpu_enable: Context for the interrupt enable register for irq 0
  * @sst: Context for the synchronous serial transmitter
  * @ssr: Context for the synchronous serial receiver
@@ -103,6 +104,7 @@ struct omap_ssi_port {
 	bool			wktest:1; /* FIXME: HACK to be removed */
 	unsigned long		flags;
 	unsigned int		wk_refcount;
+	struct work_struct	work;
 	/* OMAP SSI port context */
 	u32			sys_mpu_enable; /* We use only one irq */
 	struct omap_ssm_ctx	sst;
