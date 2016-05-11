@@ -40,10 +40,14 @@
 
 	aliases {
 		serial0 = &uart3;
+		serial1 = &uart0;
+		serial2 = &uart1;
+		serial3 = &uart2;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+		bootargs = "earlycon=uart8250,mmio32,0x66130000";
 	};
 
 	memory {
@@ -65,6 +69,18 @@
 };
 
 &i2c1 {
+	status = "ok";
+};
+
+&uart0 {
+	status = "ok";
+};
+
+&uart1 {
+	status = "ok";
+};
+
+&uart2 {
 	status = "ok";
 };
 
