@@ -187,36 +187,67 @@ static const char * const resistor_text[] = {
 	"Off", "10 kOhm", "20 kOhm", "40 kOhm",
 };
 
-static SOC_ENUM_SINGLE_DECL(in1l_lpga_p_enum, AIC32X4_LMICPGAPIN, 6,
-		resistor_text);
-static SOC_ENUM_SINGLE_DECL(in2l_lpga_p_enum, AIC32X4_LMICPGAPIN, 4,
-		resistor_text);
-static SOC_ENUM_SINGLE_DECL(in3l_lpga_p_enum, AIC32X4_LMICPGAPIN, 2,
-		resistor_text);
-static SOC_ENUM_SINGLE_DECL(in1r_lpga_p_enum, AIC32X4_LMICPGAPIN, 0,
-		resistor_text);
+/* Left mixer pins */
+static SOC_ENUM_SINGLE_DECL(in1l_lpga_p_enum, AIC32X4_LMICPGAPIN, 6, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in2l_lpga_p_enum, AIC32X4_LMICPGAPIN, 4, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in3l_lpga_p_enum, AIC32X4_LMICPGAPIN, 2, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in1r_lpga_p_enum, AIC32X4_LMICPGAPIN, 0, resistor_text);
 
-static const struct snd_kcontrol_new left_input_mixer_controls[] = {
-	SOC_DAPM_ENUM("IN1_L P Switch", in1l_lpga_p_enum),
-	SOC_DAPM_ENUM("IN2_L P Switch", in2l_lpga_p_enum),
-	SOC_DAPM_ENUM("IN3_L P Switch", in3l_lpga_p_enum),
-	SOC_DAPM_ENUM("IN1_R P Switch", in1r_lpga_p_enum),
+static SOC_ENUM_SINGLE_DECL(cml_lpga_n_enum, AIC32X4_LMICPGANIN, 6, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in2r_lpga_n_enum, AIC32X4_LMICPGANIN, 4, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in3r_lpga_n_enum, AIC32X4_LMICPGANIN, 2, resistor_text);
+
+static const struct snd_kcontrol_new in1l_to_lmixer_controls[] = {
+	SOC_DAPM_ENUM("IN1_L L+ Switch", in1l_lpga_p_enum),
+};
+static const struct snd_kcontrol_new in2l_to_lmixer_controls[] = {
+	SOC_DAPM_ENUM("IN2_L L+ Switch", in2l_lpga_p_enum),
+};
+static const struct snd_kcontrol_new in3l_to_lmixer_controls[] = {
+	SOC_DAPM_ENUM("IN3_L L+ Switch", in3l_lpga_p_enum),
+};
+static const struct snd_kcontrol_new in1r_to_lmixer_controls[] = {
+	SOC_DAPM_ENUM("IN1_R L+ Switch", in1r_lpga_p_enum),
+};
+static const struct snd_kcontrol_new cml_to_lmixer_controls[] = {
+	SOC_DAPM_ENUM("CM_L L- Switch", cml_lpga_n_enum),
+};
+static const struct snd_kcontrol_new in2r_to_lmixer_controls[] = {
+	SOC_DAPM_ENUM("IN2_R L- Switch", in2r_lpga_n_enum),
+};
+static const struct snd_kcontrol_new in3r_to_lmixer_controls[] = {
+	SOC_DAPM_ENUM("IN3_R L- Switch", in3r_lpga_n_enum),
 };
 
-static SOC_ENUM_SINGLE_DECL(in1r_rpga_p_enum, AIC32X4_RMICPGAPIN, 6,
-		resistor_text);
-static SOC_ENUM_SINGLE_DECL(in2r_rpga_p_enum, AIC32X4_RMICPGAPIN, 4,
-		resistor_text);
-static SOC_ENUM_SINGLE_DECL(in3r_rpga_p_enum, AIC32X4_RMICPGAPIN, 2,
-		resistor_text);
-static SOC_ENUM_SINGLE_DECL(in2l_rpga_p_enum, AIC32X4_RMICPGAPIN, 0,
-		resistor_text);
+/*  Right mixer pins */
+static SOC_ENUM_SINGLE_DECL(in1r_rpga_p_enum, AIC32X4_RMICPGAPIN, 6, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in2r_rpga_p_enum, AIC32X4_RMICPGAPIN, 4, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in3r_rpga_p_enum, AIC32X4_RMICPGAPIN, 2, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in2l_rpga_p_enum, AIC32X4_RMICPGAPIN, 0, resistor_text);
+static SOC_ENUM_SINGLE_DECL(cmr_rpga_n_enum, AIC32X4_RMICPGANIN, 6, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in1l_rpga_n_enum, AIC32X4_RMICPGANIN, 4, resistor_text);
+static SOC_ENUM_SINGLE_DECL(in3l_rpga_n_enum, AIC32X4_RMICPGANIN, 2, resistor_text);
 
-static const struct snd_kcontrol_new right_input_mixer_controls[] = {
-	SOC_DAPM_ENUM("IN1_R P Switch", in1r_rpga_p_enum),
-	SOC_DAPM_ENUM("IN2_R P Switch", in2r_rpga_p_enum),
-	SOC_DAPM_ENUM("IN3_R P Switch", in3r_rpga_p_enum),
-	SOC_DAPM_ENUM("IN2_L P Switch", in2l_rpga_p_enum),
+static const struct snd_kcontrol_new in1r_to_rmixer_controls[] = {
+	SOC_DAPM_ENUM("IN1_R R+ Switch", in1r_rpga_p_enum),
+};
+static const struct snd_kcontrol_new in2r_to_rmixer_controls[] = {
+	SOC_DAPM_ENUM("IN2_R R+ Switch", in2r_rpga_p_enum),
+};
+static const struct snd_kcontrol_new in3r_to_rmixer_controls[] = {
+	SOC_DAPM_ENUM("IN3_R R+ Switch", in3r_rpga_p_enum),
+};
+static const struct snd_kcontrol_new in2l_to_rmixer_controls[] = {
+	SOC_DAPM_ENUM("IN2_L R+ Switch", in2l_rpga_p_enum),
+};
+static const struct snd_kcontrol_new cmr_to_rmixer_controls[] = {
+	SOC_DAPM_ENUM("CM_R R- Switch", cmr_rpga_n_enum),
+};
+static const struct snd_kcontrol_new in1l_to_rmixer_controls[] = {
+	SOC_DAPM_ENUM("IN1_L R- Switch", in1l_rpga_n_enum),
+};
+static const struct snd_kcontrol_new in3l_to_rmixer_controls[] = {
+	SOC_DAPM_ENUM("IN3_L R- Switch", in3l_rpga_n_enum),
 };
 
 static const struct snd_soc_dapm_widget aic32x4_dapm_widgets[] = {
@@ -240,14 +271,39 @@ static const struct snd_soc_dapm_widget aic32x4_dapm_widgets[] = {
 			   &lor_output_mixer_controls[0],
 			   ARRAY_SIZE(lor_output_mixer_controls)),
 	SND_SOC_DAPM_PGA("LOR Power", AIC32X4_OUTPWRCTL, 2, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Left Input Mixer", SND_SOC_NOPM, 0, 0,
-			   &left_input_mixer_controls[0],
-			   ARRAY_SIZE(left_input_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Right Input Mixer", SND_SOC_NOPM, 0, 0,
-			   &right_input_mixer_controls[0],
-			   ARRAY_SIZE(right_input_mixer_controls)),
-	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", AIC32X4_ADCSETUP, 7, 0),
+
 	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", AIC32X4_ADCSETUP, 6, 0),
+	SND_SOC_DAPM_MUX("IN1_R to Right Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+			in1r_to_rmixer_controls),
+	SND_SOC_DAPM_MUX("IN2_R to Right Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+			in2r_to_rmixer_controls),
+	SND_SOC_DAPM_MUX("IN3_R to Right Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+			in3r_to_rmixer_controls),
+	SND_SOC_DAPM_MUX("IN2_L to Right Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+			in2l_to_rmixer_controls),
+	SND_SOC_DAPM_MUX("CM_R to Right Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+			cmr_to_rmixer_controls),
+	SND_SOC_DAPM_MUX("IN1_L to Right Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+			in1l_to_rmixer_controls),
+	SND_SOC_DAPM_MUX("IN3_L to Right Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+			in3l_to_rmixer_controls),
+
+	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", AIC32X4_ADCSETUP, 7, 0),
+	SND_SOC_DAPM_MUX("IN1_L to Left Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+			in1l_to_lmixer_controls),
+	SND_SOC_DAPM_MUX("IN2_L to Left Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+			in2l_to_lmixer_controls),
+	SND_SOC_DAPM_MUX("IN3_L to Left Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+			in3l_to_lmixer_controls),
+	SND_SOC_DAPM_MUX("IN1_R to Left Mixer Positive Resistor", SND_SOC_NOPM, 0, 0,
+			in1r_to_lmixer_controls),
+	SND_SOC_DAPM_MUX("CM_L to Left Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+			cml_to_lmixer_controls),
+	SND_SOC_DAPM_MUX("IN2_R to Left Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+			in2r_to_lmixer_controls),
+	SND_SOC_DAPM_MUX("IN3_R to Left Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
+			in3r_to_lmixer_controls),
+
 	SND_SOC_DAPM_MICBIAS("Mic Bias", AIC32X4_MICBIAS, 6, 0),
 
 	SND_SOC_DAPM_OUTPUT("HPL"),
@@ -287,21 +343,77 @@ static const struct snd_soc_dapm_route aic32x4_dapm_routes[] = {
 	{"LOR Power", NULL, "LOR Output Mixer"},
 	{"LOR", NULL, "LOR Power"},
 
-	/* Left input */
-	{"Left Input Mixer", "IN1_L P Switch", "IN1_L"},
-	{"Left Input Mixer", "IN2_L P Switch", "IN2_L"},
-	{"Left Input Mixer", "IN3_L P Switch", "IN3_L"},
-	{"Left Input Mixer", "IN1_R P Switch", "IN1_R"},
-
-	{"Left ADC", NULL, "Left Input Mixer"},
-
 	/* Right Input */
-	{"Right Input Mixer", "IN1_R P Switch", "IN1_R"},
-	{"Right Input Mixer", "IN2_R P Switch", "IN2_R"},
-	{"Right Input Mixer", "IN3_R P Switch", "IN3_R"},
-	{"Right Input Mixer", "IN2_L P Switch", "IN2_L"},
+	{"Right ADC", NULL, "IN1_R to Right Mixer Positive Resistor"},
+	{"IN1_R to Right Mixer Positive Resistor", "10 kOhm", "IN1_R"},
+	{"IN1_R to Right Mixer Positive Resistor", "20 kOhm", "IN1_R"},
+	{"IN1_R to Right Mixer Positive Resistor", "40 kOhm", "IN1_R"},
 
-	{"Right ADC", NULL, "Right Input Mixer"},
+	{"Right ADC", NULL, "IN2_R to Right Mixer Positive Resistor"},
+	{"IN2_R to Right Mixer Positive Resistor", "10 kOhm", "IN2_R"},
+	{"IN2_R to Right Mixer Positive Resistor", "20 kOhm", "IN2_R"},
+	{"IN2_R to Right Mixer Positive Resistor", "40 kOhm", "IN2_R"},
+
+	{"Right ADC", NULL, "IN3_R to Right Mixer Positive Resistor"},
+	{"IN3_R to Right Mixer Positive Resistor", "10 kOhm", "IN3_R"},
+	{"IN3_R to Right Mixer Positive Resistor", "20 kOhm", "IN3_R"},
+	{"IN3_R to Right Mixer Positive Resistor", "40 kOhm", "IN3_R"},
+
+	{"Right ADC", NULL, "IN2_L to Right Mixer Positive Resistor"},
+	{"IN2_L to Right Mixer Positive Resistor", "10 kOhm", "IN2_L"},
+	{"IN2_L to Right Mixer Positive Resistor", "20 kOhm", "IN2_L"},
+	{"IN2_L to Right Mixer Positive Resistor", "40 kOhm", "IN2_L"},
+
+	{"Right ADC", NULL, "CM_R to Right Mixer Negative Resistor"},
+	{"CM_R to Right Mixer Negative Resistor", "10 kOhm", "CM_R"},
+	{"CM_R to Right Mixer Negative Resistor", "20 kOhm", "CM_R"},
+	{"CM_R to Right Mixer Negative Resistor", "40 kOhm", "CM_R"},
+
+	{"Right ADC", NULL, "IN1_L to Right Mixer Negative Resistor"},
+	{"IN1_L to Right Mixer Negative Resistor", "10 kOhm", "IN1_L"},
+	{"IN1_L to Right Mixer Negative Resistor", "20 kOhm", "IN1_L"},
+	{"IN1_L to Right Mixer Negative Resistor", "40 kOhm", "IN1_L"},
+
+	{"Right ADC", NULL, "IN3_L to Right Mixer Negative Resistor"},
+	{"IN3_L to Right Mixer Negative Resistor", "10 kOhm", "IN3_L"},
+	{"IN3_L to Right Mixer Negative Resistor", "20 kOhm", "IN3_L"},
+	{"IN3_L to Right Mixer Negative Resistor", "40 kOhm", "IN3_L"},
+
+	/* Left Input */
+	{"Left ADC", NULL, "IN1_L to Left Mixer Positive Resistor"},
+	{"IN1_L to Left Mixer Positive Resistor", "10 kOhm", "IN1_L"},
+	{"IN1_L to Left Mixer Positive Resistor", "20 kOhm", "IN1_L"},
+	{"IN1_L to Left Mixer Positive Resistor", "40 kOhm", "IN1_L"},
+
+	{"Left ADC", NULL, "IN2_L to Left Mixer Positive Resistor"},
+	{"IN2_L to Left Mixer Positive Resistor", "10 kOhm", "IN2_L"},
+	{"IN2_L to Left Mixer Positive Resistor", "20 kOhm", "IN2_L"},
+	{"IN2_L to Left Mixer Positive Resistor", "40 kOhm", "IN2_L"},
+
+	{"Left ADC", NULL, "IN3_L to Left Mixer Positive Resistor"},
+	{"IN3_L to Left Mixer Positive Resistor", "10 kOhm", "IN3_L"},
+	{"IN3_L to Left Mixer Positive Resistor", "20 kOhm", "IN3_L"},
+	{"IN3_L to Left Mixer Positive Resistor", "40 kOhm", "IN3_L"},
+
+	{"Left ADC", NULL, "IN1_R to Left Mixer Positive Resistor"},
+	{"IN1_R to Left Mixer Positive Resistor", "10 kOhm", "IN1_R"},
+	{"IN1_R to Left Mixer Positive Resistor", "20 kOhm", "IN1_R"},
+	{"IN1_R to Left Mixer Positive Resistor", "40 kOhm", "IN1_R"},
+
+	{"Left ADC", NULL, "CM_L to Left Mixer Negative Resistor"},
+	{"CM_L to Left Mixer Negative Resistor", "10 kOhm", "CM_L"},
+	{"CM_L to Left Mixer Negative Resistor", "20 kOhm", "CM_L"},
+	{"CM_L to Left Mixer Negative Resistor", "40 kOhm", "CM_L"},
+
+	{"Left ADC", NULL, "IN2_R to Left Mixer Negative Resistor"},
+	{"IN2_R to Left Mixer Negative Resistor", "10 kOhm", "IN2_R"},
+	{"IN2_R to Left Mixer Negative Resistor", "20 kOhm", "IN2_R"},
+	{"IN2_R to Left Mixer Negative Resistor", "40 kOhm", "IN2_R"},
+
+	{"Left ADC", NULL, "IN3_R to Left Mixer Negative Resistor"},
+	{"IN3_R to Left Mixer Negative Resistor", "10 kOhm", "IN3_R"},
+	{"IN3_R to Left Mixer Negative Resistor", "20 kOhm", "IN3_R"},
+	{"IN3_R to Left Mixer Negative Resistor", "40 kOhm", "IN3_R"},
 };
 
 static const struct regmap_range_cfg aic32x4_regmap_pages[] = {
