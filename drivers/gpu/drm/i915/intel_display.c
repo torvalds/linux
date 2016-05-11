@@ -5606,6 +5606,14 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, unsigned int required_vco)
 		DRM_ERROR("DPLL0 not locked\n");
 }
 
+static void
+skl_dpll0_disable(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) & ~LCPLL_PLL_ENABLE);
+	if (wait_for(!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK), 1))
+		DRM_ERROR("Couldn't disable DPLL0\n");
+}
+
 static bool skl_cdclk_pcu_ready(struct drm_i915_private *dev_priv)
 {
 	int ret;
@@ -5691,10 +5699,7 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
 		DRM_ERROR("DBuf power disable timeout\n");
 
-	/* disable DPLL0 */
-	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) & ~LCPLL_PLL_ENABLE);
-	if (wait_for(!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK), 1))
-		DRM_ERROR("Couldn't disable DPLL0\n");
+	skl_dpll0_disable(dev_priv);
 }
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
