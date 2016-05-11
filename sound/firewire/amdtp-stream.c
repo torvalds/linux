@@ -251,7 +251,6 @@ void amdtp_stream_pcm_prepare(struct amdtp_stream *s)
 	tasklet_kill(&s->period_tasklet);
 	s->pcm_buffer_pointer = 0;
 	s->pcm_period_pointer = 0;
-	s->pointer_flush = true;
 }
 EXPORT_SYMBOL(amdtp_stream_pcm_prepare);
 
@@ -356,7 +355,6 @@ static void update_pcm_pointers(struct amdtp_stream *s,
 	s->pcm_period_pointer += frames;
 	if (s->pcm_period_pointer >= pcm->runtime->period_size) {
 		s->pcm_period_pointer -= pcm->runtime->period_size;
-		s->pointer_flush = false;
 		tasklet_hi_schedule(&s->period_tasklet);
 	}
 }
@@ -370,9 +368,8 @@ static void pcm_period_tasklet(unsigned long data)
 		snd_pcm_period_elapsed(pcm);
 }
 
-static int queue_packet(struct amdtp_stream *s,
-			unsigned int header_length,
-			unsigned int payload_length, bool skip)
+static int queue_packet(struct amdtp_stream *s, unsigned int header_length,
+			unsigned int payload_length)
 {
 	struct fw_iso_packet p = {0};
 	int err = 0;
@@ -383,8 +380,10 @@ static int queue_packet(struct amdtp_stream *s,
 	p.interrupt = IS_ALIGNED(s->packet_index + 1, INTERRUPT_INTERVAL);
 	p.tag = TAG_CIP;
 	p.header_length = header_length;
-	p.payload_length = (!skip) ? payload_length : 0;
-	p.skip = skip;
+	if (payload_length > 0)
+		p.payload_length = payload_length;
+	else
+		p.skip = true;
 	err = fw_iso_context_queue(s->context, &p, &s->buffer.iso_buffer,
 				   s->buffer.packets[s->packet_index].offset);
 	if (err < 0) {
@@ -399,19 +398,19 @@ end:
 }
 
 static inline int queue_out_packet(struct amdtp_stream *s,
-				   unsigned int payload_length, bool skip)
+				   unsigned int payload_length)
 {
-	return queue_packet(s, OUT_PACKET_HEADER_SIZE,
-			    payload_length, skip);
+	return queue_packet(s, OUT_PACKET_HEADER_SIZE, payload_length);
 }
 
 static inline int queue_in_packet(struct amdtp_stream *s)
 {
 	return queue_packet(s, IN_PACKET_HEADER_SIZE,
-			    amdtp_stream_get_max_payload(s), false);
+			    amdtp_stream_get_max_payload(s));
 }
 
-static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle)
+static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle,
+			     unsigned int index)
 {
 	__be32 *buffer;
 	unsigned int syt;
@@ -436,9 +435,9 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle)
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
 	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
 
-	trace_out_packet(s, cycle, buffer, payload_length);
+	trace_out_packet(s, cycle, buffer, payload_length, index);
 
-	if (queue_out_packet(s, payload_length, false) < 0)
+	if (queue_out_packet(s, payload_length) < 0)
 		return -EIO;
 
 	pcm = ACCESS_ONCE(s->pcm);
@@ -450,7 +449,8 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int cycle)
 }
 
 static int handle_in_packet(struct amdtp_stream *s,
-			    unsigned int payload_quadlets, unsigned int cycle)
+			    unsigned int payload_quadlets, unsigned int cycle,
+			    unsigned int index)
 {
 	__be32 *buffer;
 	u32 cip_header[2];
@@ -465,7 +465,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 	cip_header[0] = be32_to_cpu(buffer[0]);
 	cip_header[1] = be32_to_cpu(buffer[1]);
 
-	trace_in_packet(s, cycle, cip_header, payload_quadlets);
+	trace_in_packet(s, cycle, cip_header, payload_quadlets, index);
 
 	/*
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
@@ -604,7 +604,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	for (i = 0; i < packets; ++i) {
 		cycle = increment_cycle_count(cycle, 1);
-		if (handle_out_packet(s, cycle) < 0) {
+		if (handle_out_packet(s, cycle, i) < 0) {
 			s->packet_index = -1;
 			amdtp_stream_pcm_abort(s);
 			return;
@@ -651,7 +651,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			break;
 		}
 
-		if (handle_in_packet(s, payload_quadlets, cycle) < 0)
+		if (handle_in_packet(s, payload_quadlets, cycle, i) < 0)
 			break;
 	}
 
@@ -764,7 +764,7 @@ int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed)
 		if (s->direction == AMDTP_IN_STREAM)
 			err = queue_in_packet(s);
 		else
-			err = queue_out_packet(s, 0, true);
+			err = queue_out_packet(s, 0);
 		if (err < 0)
 			goto err_context;
 	} while (s->packet_index > 0);
@@ -803,11 +803,24 @@ EXPORT_SYMBOL(amdtp_stream_start);
  */
 unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s)
 {
-	/* this optimization is allowed to be racy */
-	if (s->pointer_flush && amdtp_stream_running(s))
+	/*
+	 * This function is called in software IRQ context of period_tasklet or
+	 * process context.
+	 *
+	 * When the software IRQ context was scheduled by software IRQ context
+	 * of IR/IT contexts, queued packets were already handled. Therefore,
+	 * no need to flush the queue in buffer anymore.
+	 *
+	 * When the process context reach here, some packets will be already
+	 * queued in the buffer. These packets should be handled immediately
+	 * to keep better granularity of PCM pointer.
+	 *
+	 * Later, the process context will sometimes schedules software IRQ
+	 * context of the period_tasklet. Then, no need to flush the queue by
+	 * the same reason as described for IR/IT contexts.
+	 */
+	if (!in_interrupt() && amdtp_stream_running(s))
 		fw_iso_context_flush_completions(s->context);
-	else
-		s->pointer_flush = true;
 
 	return ACCESS_ONCE(s->pcm_buffer_pointer);
 }
