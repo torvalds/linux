@@ -31,125 +31,25 @@
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_int.h"
+#include "qed_l2.h"
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
 
-struct qed_rss_params {
-	u8	update_rss_config;
-	u8	rss_enable;
-	u8	rss_eng_id;
-	u8	update_rss_capabilities;
-	u8	update_rss_ind_table;
-	u8	update_rss_key;
-	u8	rss_caps;
-	u8	rss_table_size_log;
-	u16	rss_ind_table[QED_RSS_IND_TABLE_SIZE];
-	u32	rss_key[QED_RSS_KEY_SIZE];
-};
-
-enum qed_filter_opcode {
-	QED_FILTER_ADD,
-	QED_FILTER_REMOVE,
-	QED_FILTER_MOVE,
-	QED_FILTER_REPLACE,     /* Delete all MACs and add new one instead */
-	QED_FILTER_FLUSH,       /* Removes all filters */
-};
-
-enum qed_filter_ucast_type {
-	QED_FILTER_MAC,
-	QED_FILTER_VLAN,
-	QED_FILTER_MAC_VLAN,
-	QED_FILTER_INNER_MAC,
-	QED_FILTER_INNER_VLAN,
-	QED_FILTER_INNER_PAIR,
-	QED_FILTER_INNER_MAC_VNI_PAIR,
-	QED_FILTER_MAC_VNI_PAIR,
-	QED_FILTER_VNI,
-};
-
-struct qed_filter_ucast {
-	enum qed_filter_opcode		opcode;
-	enum qed_filter_ucast_type	type;
-	u8				is_rx_filter;
-	u8				is_tx_filter;
-	u8				vport_to_add_to;
-	u8				vport_to_remove_from;
-	unsigned char			mac[ETH_ALEN];
-	u8				assert_on_error;
-	u16				vlan;
-	u32				vni;
-};
-
-struct qed_filter_mcast {
-	/* MOVE is not supported for multicast */
-	enum qed_filter_opcode	opcode;
-	u8			vport_to_add_to;
-	u8			vport_to_remove_from;
-	u8			num_mc_addrs;
-#define QED_MAX_MC_ADDRS        64
-	unsigned char		mac[QED_MAX_MC_ADDRS][ETH_ALEN];
-};
-
-struct qed_filter_accept_flags {
-	u8	update_rx_mode_config;
-	u8	update_tx_mode_config;
-	u8	rx_accept_filter;
-	u8	tx_accept_filter;
-#define QED_ACCEPT_NONE         0x01
-#define QED_ACCEPT_UCAST_MATCHED        0x02
-#define QED_ACCEPT_UCAST_UNMATCHED      0x04
-#define QED_ACCEPT_MCAST_MATCHED        0x08
-#define QED_ACCEPT_MCAST_UNMATCHED      0x10
-#define QED_ACCEPT_BCAST                0x20
-};
-
-struct qed_sp_vport_update_params {
-	u16				opaque_fid;
-	u8				vport_id;
-	u8				update_vport_active_rx_flg;
-	u8				vport_active_rx_flg;
-	u8				update_vport_active_tx_flg;
-	u8				vport_active_tx_flg;
-	u8				update_approx_mcast_flg;
-	u8				update_accept_any_vlan_flg;
-	u8				accept_any_vlan;
-	unsigned long			bins[8];
-	struct qed_rss_params		*rss_params;
-	struct qed_filter_accept_flags	accept_flags;
-};
-
-enum qed_tpa_mode {
-	QED_TPA_MODE_NONE,
-	QED_TPA_MODE_UNUSED,
-	QED_TPA_MODE_GRO,
-	QED_TPA_MODE_MAX
-};
-
-struct qed_sp_vport_start_params {
-	enum qed_tpa_mode	tpa_mode;
-	bool			remove_inner_vlan;
-	bool			drop_ttl0;
-	u8			max_buffers_per_cqe;
-	u32			concrete_fid;
-	u16			opaque_fid;
-	u8			vport_id;
-	u16			mtu;
-};
 
 #define QED_MAX_SGES_NUM 16
 #define CRC32_POLY 0x1edc6f41
 
-static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
-			      struct qed_sp_vport_start_params *p_params)
+int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
+			   struct qed_sp_vport_start_params *p_params)
 {
 	struct vport_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent =  NULL;
 	struct qed_sp_init_data init_data;
+	u8 abs_vport_id = 0;
 	int rc = -EINVAL;
 	u16 rx_mode = 0;
-	u8 abs_vport_id = 0;
 
 	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
 	if (rc != 0)
@@ -204,6 +104,20 @@ static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
 						  p_params->concrete_fid);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
+}
+
+int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
+		       struct qed_sp_vport_start_params *p_params)
+{
+	if (IS_VF(p_hwfn->cdev)) {
+		return qed_vf_pf_vport_start(p_hwfn, p_params->vport_id,
+					     p_params->mtu,
+					     p_params->remove_inner_vlan,
+					     p_params->tpa_mode,
+					     p_params->max_buffers_per_cqe);
+	}
+
+	return qed_sp_eth_vport_start(p_hwfn, p_params);
 }
 
 static int
@@ -371,11 +285,10 @@ qed_sp_update_mcast_bin(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static int
-qed_sp_vport_update(struct qed_hwfn *p_hwfn,
-		    struct qed_sp_vport_update_params *p_params,
-		    enum spq_mode comp_mode,
-		    struct qed_spq_comp_cb *p_comp_data)
+int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
+			struct qed_sp_vport_update_params *p_params,
+			enum spq_mode comp_mode,
+			struct qed_spq_comp_cb *p_comp_data)
 {
 	struct qed_rss_params *p_rss_params = p_params->rss_params;
 	struct vport_update_ramrod_data_cmn *p_cmn;
@@ -384,6 +297,11 @@ qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	struct qed_spq_entry *p_ent = NULL;
 	u8 abs_vport_id = 0;
 	int rc = -EINVAL;
+
+	if (IS_VF(p_hwfn->cdev)) {
+		rc = qed_vf_pf_vport_update(p_hwfn, p_params);
+		return rc;
+	}
 
 	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
 	if (rc != 0)
@@ -427,15 +345,16 @@ qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
-static int qed_sp_vport_stop(struct qed_hwfn *p_hwfn,
-			     u16 opaque_fid,
-			     u8 vport_id)
+int qed_sp_vport_stop(struct qed_hwfn *p_hwfn, u16 opaque_fid, u8 vport_id)
 {
 	struct vport_stop_ramrod_data *p_ramrod;
 	struct qed_sp_init_data init_data;
 	struct qed_spq_entry *p_ent;
 	u8 abs_vport_id = 0;
 	int rc;
+
+	if (IS_VF(p_hwfn->cdev))
+		return qed_vf_pf_vport_stop(p_hwfn);
 
 	rc = qed_fw_vport(p_hwfn, vport_id, &abs_vport_id);
 	if (rc != 0)
@@ -458,13 +377,26 @@ static int qed_sp_vport_stop(struct qed_hwfn *p_hwfn,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
+static int
+qed_vf_pf_accept_flags(struct qed_hwfn *p_hwfn,
+		       struct qed_filter_accept_flags *p_accept_flags)
+{
+	struct qed_sp_vport_update_params s_params;
+
+	memset(&s_params, 0, sizeof(s_params));
+	memcpy(&s_params.accept_flags, p_accept_flags,
+	       sizeof(struct qed_filter_accept_flags));
+
+	return qed_vf_pf_vport_update(p_hwfn, &s_params);
+}
+
 static int qed_filter_accept_cmd(struct qed_dev *cdev,
 				 u8 vport,
 				 struct qed_filter_accept_flags accept_flags,
 				 u8 update_accept_any_vlan,
 				 u8 accept_any_vlan,
-				enum spq_mode comp_mode,
-				struct qed_spq_comp_cb *p_comp_data)
+				 enum spq_mode comp_mode,
+				 struct qed_spq_comp_cb *p_comp_data)
 {
 	struct qed_sp_vport_update_params vport_update_params;
 	int i, rc;
@@ -480,6 +412,13 @@ static int qed_filter_accept_cmd(struct qed_dev *cdev,
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		vport_update_params.opaque_fid = p_hwfn->hw_info.opaque_fid;
+
+		if (IS_VF(cdev)) {
+			rc = qed_vf_pf_accept_flags(p_hwfn, &accept_flags);
+			if (rc)
+				return rc;
+			continue;
+		}
 
 		rc = qed_sp_vport_update(p_hwfn, &vport_update_params,
 					 comp_mode, p_comp_data);
@@ -515,16 +454,14 @@ static int qed_sp_release_queue_cid(
 	return 0;
 }
 
-static int
-qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
-			    u16 opaque_fid,
-			    u32 cid,
-			    struct qed_queue_start_common_params *params,
-			    u8 stats_id,
-			    u16 bd_max_bytes,
-			    dma_addr_t bd_chain_phys_addr,
-			    dma_addr_t cqe_pbl_addr,
-			    u16 cqe_pbl_size)
+int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
+				u16 opaque_fid,
+				u32 cid,
+				struct qed_queue_start_common_params *params,
+				u8 stats_id,
+				u16 bd_max_bytes,
+				dma_addr_t bd_chain_phys_addr,
+				dma_addr_t cqe_pbl_addr, u16 cqe_pbl_size)
 {
 	struct rx_queue_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
@@ -593,14 +530,23 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 			  u16 bd_max_bytes,
 			  dma_addr_t bd_chain_phys_addr,
 			  dma_addr_t cqe_pbl_addr,
-			  u16 cqe_pbl_size,
-			  void __iomem **pp_prod)
+			  u16 cqe_pbl_size, void __iomem **pp_prod)
 {
 	struct qed_hw_cid_data *p_rx_cid;
 	u64 init_prod_val = 0;
 	u16 abs_l2_queue = 0;
 	u8 abs_stats_id = 0;
 	int rc;
+
+	if (IS_VF(p_hwfn->cdev)) {
+		return qed_vf_pf_rxq_start(p_hwfn,
+					   params->queue_id,
+					   params->sb,
+					   params->sb_idx,
+					   bd_max_bytes,
+					   bd_chain_phys_addr,
+					   cqe_pbl_addr, cqe_pbl_size, pp_prod);
+	}
 
 	rc = qed_fw_l2_queue(p_hwfn, params->queue_id, &abs_l2_queue);
 	if (rc != 0)
@@ -644,10 +590,9 @@ qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-static int qed_sp_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
-				    u16 rx_queue_id,
-				    bool eq_completion_only,
-				    bool cqe_completion)
+int qed_sp_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
+			     u16 rx_queue_id,
+			     bool eq_completion_only, bool cqe_completion)
 {
 	struct qed_hw_cid_data *p_rx_cid = &p_hwfn->p_rx_cids[rx_queue_id];
 	struct rx_queue_stop_ramrod_data *p_ramrod = NULL;
@@ -655,6 +600,9 @@ static int qed_sp_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
 	struct qed_sp_init_data init_data;
 	u16 abs_rx_q_id = 0;
 	int rc = -EINVAL;
+
+	if (IS_VF(p_hwfn->cdev))
+		return qed_vf_pf_rxq_stop(p_hwfn, rx_queue_id, cqe_completion);
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -691,15 +639,14 @@ static int qed_sp_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
 	return qed_sp_release_queue_cid(p_hwfn, p_rx_cid);
 }
 
-static int
-qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
-			    u16  opaque_fid,
-			    u32  cid,
-			    struct qed_queue_start_common_params *p_params,
-			    u8  stats_id,
-			    dma_addr_t pbl_addr,
-			    u16 pbl_size,
-			    union qed_qm_pq_params *p_pq_params)
+int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
+				u16  opaque_fid,
+				u32  cid,
+				struct qed_queue_start_common_params *p_params,
+				u8  stats_id,
+				dma_addr_t pbl_addr,
+				u16 pbl_size,
+				union qed_qm_pq_params *p_pq_params)
 {
 	struct tx_queue_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
@@ -753,13 +700,20 @@ qed_sp_eth_tx_queue_start(struct qed_hwfn *p_hwfn,
 			  u16 opaque_fid,
 			  struct qed_queue_start_common_params *p_params,
 			  dma_addr_t pbl_addr,
-			  u16 pbl_size,
-			  void __iomem **pp_doorbell)
+			  u16 pbl_size, void __iomem **pp_doorbell)
 {
 	struct qed_hw_cid_data *p_tx_cid;
 	union qed_qm_pq_params pq_params;
 	u8 abs_stats_id = 0;
 	int rc;
+
+	if (IS_VF(p_hwfn->cdev)) {
+		return qed_vf_pf_txq_start(p_hwfn,
+					   p_params->queue_id,
+					   p_params->sb,
+					   p_params->sb_idx,
+					   pbl_addr, pbl_size, pp_doorbell);
+	}
 
 	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_stats_id);
 	if (rc)
@@ -801,13 +755,15 @@ qed_sp_eth_tx_queue_start(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-static int qed_sp_eth_tx_queue_stop(struct qed_hwfn *p_hwfn,
-				    u16 tx_queue_id)
+int qed_sp_eth_tx_queue_stop(struct qed_hwfn *p_hwfn, u16 tx_queue_id)
 {
 	struct qed_hw_cid_data *p_tx_cid = &p_hwfn->p_tx_cids[tx_queue_id];
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
+
+	if (IS_VF(p_hwfn->cdev))
+		return qed_vf_pf_txq_stop(p_hwfn, tx_queue_id);
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -1004,11 +960,11 @@ qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-static int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
-				   u16 opaque_fid,
-				   struct qed_filter_ucast *p_filter_cmd,
-				   enum spq_mode comp_mode,
-				   struct qed_spq_comp_cb *p_comp_data)
+int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
+			    u16 opaque_fid,
+			    struct qed_filter_ucast *p_filter_cmd,
+			    enum spq_mode comp_mode,
+			    struct qed_spq_comp_cb *p_comp_data)
 {
 	struct vport_filter_update_ramrod_data	*p_ramrod	= NULL;
 	struct qed_spq_entry			*p_ent		= NULL;
@@ -1106,7 +1062,7 @@ static inline u32 qed_crc32c_le(u32 seed,
 	return qed_calc_crc32c((u8 *)packet_buf, 8, seed, 0);
 }
 
-static u8 qed_mcast_bin_from_mac(u8 *mac)
+u8 qed_mcast_bin_from_mac(u8 *mac)
 {
 	u32 crc = qed_crc32c_le(ETH_MULTICAST_BIN_FROM_MAC_SEED,
 				mac, ETH_ALEN);
@@ -1189,11 +1145,10 @@ qed_sp_eth_filter_mcast(struct qed_hwfn *p_hwfn,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
-static int
-qed_filter_mcast_cmd(struct qed_dev *cdev,
-		     struct qed_filter_mcast *p_filter_cmd,
-		     enum spq_mode comp_mode,
-		     struct qed_spq_comp_cb *p_comp_data)
+static int qed_filter_mcast_cmd(struct qed_dev *cdev,
+				struct qed_filter_mcast *p_filter_cmd,
+				enum spq_mode comp_mode,
+				struct qed_spq_comp_cb *p_comp_data)
 {
 	int rc = 0;
 	int i;
@@ -1209,8 +1164,10 @@ qed_filter_mcast_cmd(struct qed_dev *cdev,
 
 		u16 opaque_fid;
 
-		if (rc != 0)
-			break;
+		if (IS_VF(cdev)) {
+			qed_vf_pf_filter_mcast(p_hwfn, p_filter_cmd);
+			continue;
+		}
 
 		opaque_fid = p_hwfn->hw_info.opaque_fid;
 
@@ -1235,8 +1192,10 @@ static int qed_filter_ucast_cmd(struct qed_dev *cdev,
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 		u16 opaque_fid;
 
-		if (rc != 0)
-			break;
+		if (IS_VF(cdev)) {
+			rc = qed_vf_pf_filter_ucast(p_hwfn, p_filter_cmd);
+			continue;
+		}
 
 		opaque_fid = p_hwfn->hw_info.opaque_fid;
 
@@ -1245,6 +1204,8 @@ static int qed_filter_ucast_cmd(struct qed_dev *cdev,
 					     p_filter_cmd,
 					     comp_mode,
 					     p_comp_data);
+		if (rc != 0)
+			break;
 	}
 
 	return rc;
@@ -1253,12 +1214,19 @@ static int qed_filter_ucast_cmd(struct qed_dev *cdev,
 /* Statistics related code */
 static void __qed_get_vport_pstats_addrlen(struct qed_hwfn *p_hwfn,
 					   u32 *p_addr,
-					   u32 *p_len,
-					   u16 statistics_bin)
+					   u32 *p_len, u16 statistics_bin)
 {
-	*p_addr = BAR0_MAP_REG_PSDM_RAM +
-		  PSTORM_QUEUE_STAT_OFFSET(statistics_bin);
-	*p_len = sizeof(struct eth_pstorm_per_queue_stat);
+	if (IS_PF(p_hwfn->cdev)) {
+		*p_addr = BAR0_MAP_REG_PSDM_RAM +
+		    PSTORM_QUEUE_STAT_OFFSET(statistics_bin);
+		*p_len = sizeof(struct eth_pstorm_per_queue_stat);
+	} else {
+		struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+		struct pfvf_acquire_resp_tlv *p_resp = &p_iov->acquire_resp;
+
+		*p_addr = p_resp->pfdev_info.stats_info.pstats.address;
+		*p_len = p_resp->pfdev_info.stats_info.pstats.len;
+	}
 }
 
 static void __qed_get_vport_pstats(struct qed_hwfn *p_hwfn,
@@ -1273,32 +1241,15 @@ static void __qed_get_vport_pstats(struct qed_hwfn *p_hwfn,
 				       statistics_bin);
 
 	memset(&pstats, 0, sizeof(pstats));
-	qed_memcpy_from(p_hwfn, p_ptt, &pstats,
-			pstats_addr, pstats_len);
+	qed_memcpy_from(p_hwfn, p_ptt, &pstats, pstats_addr, pstats_len);
 
-	p_stats->tx_ucast_bytes +=
-		HILO_64_REGPAIR(pstats.sent_ucast_bytes);
-	p_stats->tx_mcast_bytes +=
-		HILO_64_REGPAIR(pstats.sent_mcast_bytes);
-	p_stats->tx_bcast_bytes +=
-		HILO_64_REGPAIR(pstats.sent_bcast_bytes);
-	p_stats->tx_ucast_pkts +=
-		HILO_64_REGPAIR(pstats.sent_ucast_pkts);
-	p_stats->tx_mcast_pkts +=
-		HILO_64_REGPAIR(pstats.sent_mcast_pkts);
-	p_stats->tx_bcast_pkts +=
-		HILO_64_REGPAIR(pstats.sent_bcast_pkts);
-	p_stats->tx_err_drop_pkts +=
-		HILO_64_REGPAIR(pstats.error_drop_pkts);
-}
-
-static void __qed_get_vport_tstats_addrlen(struct qed_hwfn *p_hwfn,
-					   u32 *p_addr,
-					   u32 *p_len)
-{
-	*p_addr = BAR0_MAP_REG_TSDM_RAM +
-		  TSTORM_PORT_STAT_OFFSET(MFW_PORT(p_hwfn));
-	*p_len = sizeof(struct tstorm_per_port_stat);
+	p_stats->tx_ucast_bytes += HILO_64_REGPAIR(pstats.sent_ucast_bytes);
+	p_stats->tx_mcast_bytes += HILO_64_REGPAIR(pstats.sent_mcast_bytes);
+	p_stats->tx_bcast_bytes += HILO_64_REGPAIR(pstats.sent_bcast_bytes);
+	p_stats->tx_ucast_pkts += HILO_64_REGPAIR(pstats.sent_ucast_pkts);
+	p_stats->tx_mcast_pkts += HILO_64_REGPAIR(pstats.sent_mcast_pkts);
+	p_stats->tx_bcast_pkts += HILO_64_REGPAIR(pstats.sent_bcast_pkts);
+	p_stats->tx_err_drop_pkts += HILO_64_REGPAIR(pstats.error_drop_pkts);
 }
 
 static void __qed_get_vport_tstats(struct qed_hwfn *p_hwfn,
@@ -1306,14 +1257,23 @@ static void __qed_get_vport_tstats(struct qed_hwfn *p_hwfn,
 				   struct qed_eth_stats *p_stats,
 				   u16 statistics_bin)
 {
-	u32 tstats_addr = 0, tstats_len = 0;
 	struct tstorm_per_port_stat tstats;
+	u32 tstats_addr, tstats_len;
 
-	__qed_get_vport_tstats_addrlen(p_hwfn, &tstats_addr, &tstats_len);
+	if (IS_PF(p_hwfn->cdev)) {
+		tstats_addr = BAR0_MAP_REG_TSDM_RAM +
+		    TSTORM_PORT_STAT_OFFSET(MFW_PORT(p_hwfn));
+		tstats_len = sizeof(struct tstorm_per_port_stat);
+	} else {
+		struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+		struct pfvf_acquire_resp_tlv *p_resp = &p_iov->acquire_resp;
+
+		tstats_addr = p_resp->pfdev_info.stats_info.tstats.address;
+		tstats_len = p_resp->pfdev_info.stats_info.tstats.len;
+	}
 
 	memset(&tstats, 0, sizeof(tstats));
-	qed_memcpy_from(p_hwfn, p_ptt, &tstats,
-			tstats_addr, tstats_len);
+	qed_memcpy_from(p_hwfn, p_ptt, &tstats, tstats_addr, tstats_len);
 
 	p_stats->mftag_filter_discards +=
 		HILO_64_REGPAIR(tstats.mftag_filter_discard);
@@ -1323,12 +1283,19 @@ static void __qed_get_vport_tstats(struct qed_hwfn *p_hwfn,
 
 static void __qed_get_vport_ustats_addrlen(struct qed_hwfn *p_hwfn,
 					   u32 *p_addr,
-					   u32 *p_len,
-					   u16 statistics_bin)
+					   u32 *p_len, u16 statistics_bin)
 {
-	*p_addr = BAR0_MAP_REG_USDM_RAM +
-		  USTORM_QUEUE_STAT_OFFSET(statistics_bin);
-	*p_len = sizeof(struct eth_ustorm_per_queue_stat);
+	if (IS_PF(p_hwfn->cdev)) {
+		*p_addr = BAR0_MAP_REG_USDM_RAM +
+		    USTORM_QUEUE_STAT_OFFSET(statistics_bin);
+		*p_len = sizeof(struct eth_ustorm_per_queue_stat);
+	} else {
+		struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+		struct pfvf_acquire_resp_tlv *p_resp = &p_iov->acquire_resp;
+
+		*p_addr = p_resp->pfdev_info.stats_info.ustats.address;
+		*p_len = p_resp->pfdev_info.stats_info.ustats.len;
+	}
 }
 
 static void __qed_get_vport_ustats(struct qed_hwfn *p_hwfn,
@@ -1343,31 +1310,31 @@ static void __qed_get_vport_ustats(struct qed_hwfn *p_hwfn,
 				       statistics_bin);
 
 	memset(&ustats, 0, sizeof(ustats));
-	qed_memcpy_from(p_hwfn, p_ptt, &ustats,
-			ustats_addr, ustats_len);
+	qed_memcpy_from(p_hwfn, p_ptt, &ustats, ustats_addr, ustats_len);
 
-	p_stats->rx_ucast_bytes +=
-		HILO_64_REGPAIR(ustats.rcv_ucast_bytes);
-	p_stats->rx_mcast_bytes +=
-		HILO_64_REGPAIR(ustats.rcv_mcast_bytes);
-	p_stats->rx_bcast_bytes +=
-		HILO_64_REGPAIR(ustats.rcv_bcast_bytes);
-	p_stats->rx_ucast_pkts +=
-		HILO_64_REGPAIR(ustats.rcv_ucast_pkts);
-	p_stats->rx_mcast_pkts +=
-		HILO_64_REGPAIR(ustats.rcv_mcast_pkts);
-	p_stats->rx_bcast_pkts +=
-		HILO_64_REGPAIR(ustats.rcv_bcast_pkts);
+	p_stats->rx_ucast_bytes += HILO_64_REGPAIR(ustats.rcv_ucast_bytes);
+	p_stats->rx_mcast_bytes += HILO_64_REGPAIR(ustats.rcv_mcast_bytes);
+	p_stats->rx_bcast_bytes += HILO_64_REGPAIR(ustats.rcv_bcast_bytes);
+	p_stats->rx_ucast_pkts += HILO_64_REGPAIR(ustats.rcv_ucast_pkts);
+	p_stats->rx_mcast_pkts += HILO_64_REGPAIR(ustats.rcv_mcast_pkts);
+	p_stats->rx_bcast_pkts += HILO_64_REGPAIR(ustats.rcv_bcast_pkts);
 }
 
 static void __qed_get_vport_mstats_addrlen(struct qed_hwfn *p_hwfn,
 					   u32 *p_addr,
-					   u32 *p_len,
-					   u16 statistics_bin)
+					   u32 *p_len, u16 statistics_bin)
 {
-	*p_addr = BAR0_MAP_REG_MSDM_RAM +
-		  MSTORM_QUEUE_STAT_OFFSET(statistics_bin);
-	*p_len = sizeof(struct eth_mstorm_per_queue_stat);
+	if (IS_PF(p_hwfn->cdev)) {
+		*p_addr = BAR0_MAP_REG_MSDM_RAM +
+		    MSTORM_QUEUE_STAT_OFFSET(statistics_bin);
+		*p_len = sizeof(struct eth_mstorm_per_queue_stat);
+	} else {
+		struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+		struct pfvf_acquire_resp_tlv *p_resp = &p_iov->acquire_resp;
+
+		*p_addr = p_resp->pfdev_info.stats_info.mstats.address;
+		*p_len = p_resp->pfdev_info.stats_info.mstats.len;
+	}
 }
 
 static void __qed_get_vport_mstats(struct qed_hwfn *p_hwfn,
@@ -1382,21 +1349,17 @@ static void __qed_get_vport_mstats(struct qed_hwfn *p_hwfn,
 				       statistics_bin);
 
 	memset(&mstats, 0, sizeof(mstats));
-	qed_memcpy_from(p_hwfn, p_ptt, &mstats,
-			mstats_addr, mstats_len);
+	qed_memcpy_from(p_hwfn, p_ptt, &mstats, mstats_addr, mstats_len);
 
-	p_stats->no_buff_discards +=
-		HILO_64_REGPAIR(mstats.no_buff_discard);
+	p_stats->no_buff_discards += HILO_64_REGPAIR(mstats.no_buff_discard);
 	p_stats->packet_too_big_discard +=
 		HILO_64_REGPAIR(mstats.packet_too_big_discard);
-	p_stats->ttl0_discard +=
-		HILO_64_REGPAIR(mstats.ttl0_discard);
+	p_stats->ttl0_discard += HILO_64_REGPAIR(mstats.ttl0_discard);
 	p_stats->tpa_coalesced_pkts +=
 		HILO_64_REGPAIR(mstats.tpa_coalesced_pkts);
 	p_stats->tpa_coalesced_events +=
 		HILO_64_REGPAIR(mstats.tpa_coalesced_events);
-	p_stats->tpa_aborts_num +=
-		HILO_64_REGPAIR(mstats.tpa_aborts_num);
+	p_stats->tpa_aborts_num += HILO_64_REGPAIR(mstats.tpa_aborts_num);
 	p_stats->tpa_coalesced_bytes +=
 		HILO_64_REGPAIR(mstats.tpa_coalesced_bytes);
 }
@@ -1469,44 +1432,49 @@ static void __qed_get_vport_port_stats(struct qed_hwfn *p_hwfn,
 static void __qed_get_vport_stats(struct qed_hwfn *p_hwfn,
 				  struct qed_ptt *p_ptt,
 				  struct qed_eth_stats *stats,
-				  u16 statistics_bin)
+				  u16 statistics_bin, bool b_get_port_stats)
 {
 	__qed_get_vport_mstats(p_hwfn, p_ptt, stats, statistics_bin);
 	__qed_get_vport_ustats(p_hwfn, p_ptt, stats, statistics_bin);
 	__qed_get_vport_tstats(p_hwfn, p_ptt, stats, statistics_bin);
 	__qed_get_vport_pstats(p_hwfn, p_ptt, stats, statistics_bin);
 
-	if (p_hwfn->mcp_info)
+	if (b_get_port_stats && p_hwfn->mcp_info)
 		__qed_get_vport_port_stats(p_hwfn, p_ptt, stats);
 }
 
 static void _qed_get_vport_stats(struct qed_dev *cdev,
 				 struct qed_eth_stats *stats)
 {
-	u8	fw_vport = 0;
-	int	i;
+	u8 fw_vport = 0;
+	int i;
 
 	memset(stats, 0, sizeof(*stats));
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
-		struct qed_ptt *p_ptt;
+		struct qed_ptt *p_ptt = IS_PF(cdev) ? qed_ptt_acquire(p_hwfn)
+						    :  NULL;
 
-		/* The main vport index is relative first */
-		if (qed_fw_vport(p_hwfn, 0, &fw_vport)) {
-			DP_ERR(p_hwfn, "No vport available!\n");
-			continue;
+		if (IS_PF(cdev)) {
+			/* The main vport index is relative first */
+			if (qed_fw_vport(p_hwfn, 0, &fw_vport)) {
+				DP_ERR(p_hwfn, "No vport available!\n");
+				goto out;
+			}
 		}
 
-		p_ptt = qed_ptt_acquire(p_hwfn);
-		if (!p_ptt) {
+		if (IS_PF(cdev) && !p_ptt) {
 			DP_ERR(p_hwfn, "Failed to acquire ptt\n");
 			continue;
 		}
 
-		__qed_get_vport_stats(p_hwfn, p_ptt, stats, fw_vport);
+		__qed_get_vport_stats(p_hwfn, p_ptt, stats, fw_vport,
+				      IS_PF(cdev) ? true : false);
 
-		qed_ptt_release(p_hwfn, p_ptt);
+out:
+		if (IS_PF(cdev) && p_ptt)
+			qed_ptt_release(p_hwfn, p_ptt);
 	}
 }
 
@@ -1540,10 +1508,11 @@ void qed_reset_vport_stats(struct qed_dev *cdev)
 		struct eth_mstorm_per_queue_stat mstats;
 		struct eth_ustorm_per_queue_stat ustats;
 		struct eth_pstorm_per_queue_stat pstats;
-		struct qed_ptt *p_ptt = qed_ptt_acquire(p_hwfn);
+		struct qed_ptt *p_ptt = IS_PF(cdev) ? qed_ptt_acquire(p_hwfn)
+						    : NULL;
 		u32 addr = 0, len = 0;
 
-		if (!p_ptt) {
+		if (IS_PF(cdev) && !p_ptt) {
 			DP_ERR(p_hwfn, "Failed to acquire ptt\n");
 			continue;
 		}
@@ -1560,7 +1529,8 @@ void qed_reset_vport_stats(struct qed_dev *cdev)
 		__qed_get_vport_pstats_addrlen(p_hwfn, &addr, &len, 0);
 		qed_memcpy_to(p_hwfn, p_ptt, addr, &pstats, len);
 
-		qed_ptt_release(p_hwfn, p_ptt);
+		if (IS_PF(cdev))
+			qed_ptt_release(p_hwfn, p_ptt);
 	}
 
 	/* PORT statistics are not necessarily reset, so we need to

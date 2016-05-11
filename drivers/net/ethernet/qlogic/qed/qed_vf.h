@@ -9,6 +9,11 @@
 #ifndef _QED_VF_H
 #define _QED_VF_H
 
+#include "qed_l2.h"
+
+#define T_ETH_INDIRECTION_TABLE_SIZE 128
+#define T_ETH_RSS_KEY_SIZE 10
+
 struct vf_pf_resc_request {
 	u8 num_rxqs;
 	u8 num_txqs;
@@ -24,6 +29,8 @@ struct hw_sb_info {
 	u8 sb_qid;
 	u8 padding[5];
 };
+
+#define TLV_BUFFER_SIZE                 1024
 
 enum {
 	PFVF_STATUS_WAITING,
@@ -98,6 +105,23 @@ struct vfpf_acquire_tlv {
 	u32 padding;
 };
 
+/* receive side scaling tlv */
+struct vfpf_vport_update_rss_tlv {
+	struct channel_tlv tl;
+
+	u8 update_rss_flags;
+#define VFPF_UPDATE_RSS_CONFIG_FLAG       BIT(0)
+#define VFPF_UPDATE_RSS_CAPS_FLAG         BIT(1)
+#define VFPF_UPDATE_RSS_IND_TABLE_FLAG    BIT(2)
+#define VFPF_UPDATE_RSS_KEY_FLAG          BIT(3)
+
+	u8 rss_enable;
+	u8 rss_caps;
+	u8 rss_table_size_log;	/* The table size is 2 ^ rss_table_size_log */
+	u16 rss_ind_table[T_ETH_INDIRECTION_TABLE_SIZE];
+	u32 rss_key[T_ETH_RSS_KEY_SIZE];
+};
+
 struct pfvf_storm_stats {
 	u32 address;
 	u32 len;
@@ -169,7 +193,157 @@ struct pfvf_acquire_resp_tlv {
 	u32 padding;
 };
 
-#define TLV_BUFFER_SIZE                 1024
+struct pfvf_start_queue_resp_tlv {
+	struct pfvf_tlv hdr;
+	u32 offset;		/* offset to consumer/producer of queue */
+	u8 padding[4];
+};
+
+/* Setup Queue */
+struct vfpf_start_rxq_tlv {
+	struct vfpf_first_tlv first_tlv;
+
+	/* physical addresses */
+	u64 rxq_addr;
+	u64 deprecated_sge_addr;
+	u64 cqe_pbl_addr;
+
+	u16 cqe_pbl_size;
+	u16 hw_sb;
+	u16 rx_qid;
+	u16 hc_rate;		/* desired interrupts per sec. */
+
+	u16 bd_max_bytes;
+	u16 stat_id;
+	u8 sb_index;
+	u8 padding[3];
+};
+
+struct vfpf_start_txq_tlv {
+	struct vfpf_first_tlv first_tlv;
+
+	/* physical addresses */
+	u64 pbl_addr;
+	u16 pbl_size;
+	u16 stat_id;
+	u16 tx_qid;
+	u16 hw_sb;
+
+	u32 flags;		/* VFPF_QUEUE_FLG_X flags */
+	u16 hc_rate;		/* desired interrupts per sec. */
+	u8 sb_index;
+	u8 padding[3];
+};
+
+/* Stop RX Queue */
+struct vfpf_stop_rxqs_tlv {
+	struct vfpf_first_tlv first_tlv;
+
+	u16 rx_qid;
+	u8 num_rxqs;
+	u8 cqe_completion;
+	u8 padding[4];
+};
+
+/* Stop TX Queues */
+struct vfpf_stop_txqs_tlv {
+	struct vfpf_first_tlv first_tlv;
+
+	u16 tx_qid;
+	u8 num_txqs;
+	u8 padding[5];
+};
+
+struct vfpf_update_rxq_tlv {
+	struct vfpf_first_tlv first_tlv;
+
+	u64 deprecated_sge_addr[PFVF_MAX_QUEUES_PER_VF];
+
+	u16 rx_qid;
+	u8 num_rxqs;
+	u8 flags;
+#define VFPF_RXQ_UPD_INIT_SGE_DEPRECATE_FLAG    BIT(0)
+#define VFPF_RXQ_UPD_COMPLETE_CQE_FLAG          BIT(1)
+#define VFPF_RXQ_UPD_COMPLETE_EVENT_FLAG        BIT(2)
+
+	u8 padding[4];
+};
+
+/* Set Queue Filters */
+struct vfpf_q_mac_vlan_filter {
+	u32 flags;
+#define VFPF_Q_FILTER_DEST_MAC_VALID    0x01
+#define VFPF_Q_FILTER_VLAN_TAG_VALID    0x02
+#define VFPF_Q_FILTER_SET_MAC           0x100	/* set/clear */
+
+	u8 mac[ETH_ALEN];
+	u16 vlan_tag;
+
+	u8 padding[4];
+};
+
+/* Start a vport */
+struct vfpf_vport_start_tlv {
+	struct vfpf_first_tlv first_tlv;
+
+	u64 sb_addr[PFVF_MAX_SBS_PER_VF];
+
+	u32 tpa_mode;
+	u16 dep1;
+	u16 mtu;
+
+	u8 vport_id;
+	u8 inner_vlan_removal;
+
+	u8 only_untagged;
+	u8 max_buffers_per_cqe;
+
+	u8 padding[4];
+};
+
+/* Extended tlvs - need to add rss, mcast, accept mode tlvs */
+struct vfpf_vport_update_activate_tlv {
+	struct channel_tlv tl;
+	u8 update_rx;
+	u8 update_tx;
+	u8 active_rx;
+	u8 active_tx;
+};
+
+struct vfpf_vport_update_mcast_bin_tlv {
+	struct channel_tlv tl;
+	u8 padding[4];
+
+	u64 bins[8];
+};
+
+struct vfpf_vport_update_accept_param_tlv {
+	struct channel_tlv tl;
+	u8 update_rx_mode;
+	u8 update_tx_mode;
+	u8 rx_accept_filter;
+	u8 tx_accept_filter;
+};
+
+/* Primary tlv as a header for various extended tlvs for
+ * various functionalities in vport update ramrod.
+ */
+struct vfpf_vport_update_tlv {
+	struct vfpf_first_tlv first_tlv;
+};
+
+struct vfpf_ucast_filter_tlv {
+	struct vfpf_first_tlv first_tlv;
+
+	u8 opcode;
+	u8 type;
+
+	u8 mac[ETH_ALEN];
+
+	u16 vlan;
+	u16 padding[3];
+};
+
 struct tlv_buffer_size {
 	u8 tlv_buffer[TLV_BUFFER_SIZE];
 };
@@ -177,6 +351,13 @@ struct tlv_buffer_size {
 union vfpf_tlvs {
 	struct vfpf_first_tlv first_tlv;
 	struct vfpf_acquire_tlv acquire;
+	struct vfpf_start_rxq_tlv start_rxq;
+	struct vfpf_start_txq_tlv start_txq;
+	struct vfpf_stop_rxqs_tlv stop_rxqs;
+	struct vfpf_stop_txqs_tlv stop_txqs;
+	struct vfpf_vport_start_tlv start_vport;
+	struct vfpf_vport_update_tlv vport_update;
+	struct vfpf_ucast_filter_tlv ucast_filter;
 	struct channel_list_end_tlv list_end;
 	struct tlv_buffer_size tlv_buf_size;
 };
@@ -185,6 +366,7 @@ union pfvf_tlvs {
 	struct pfvf_def_resp_tlv default_resp;
 	struct pfvf_acquire_resp_tlv acquire_resp;
 	struct tlv_buffer_size tlv_buf_size;
+	struct pfvf_start_queue_resp_tlv queue_start;
 };
 
 struct qed_bulletin_content {
@@ -206,11 +388,28 @@ struct qed_bulletin {
 enum {
 	CHANNEL_TLV_NONE,	/* ends tlv sequence */
 	CHANNEL_TLV_ACQUIRE,
+	CHANNEL_TLV_VPORT_START,
+	CHANNEL_TLV_VPORT_UPDATE,
+	CHANNEL_TLV_VPORT_TEARDOWN,
+	CHANNEL_TLV_START_RXQ,
+	CHANNEL_TLV_START_TXQ,
+	CHANNEL_TLV_STOP_RXQS,
+	CHANNEL_TLV_STOP_TXQS,
 	CHANNEL_TLV_INT_CLEANUP,
 	CHANNEL_TLV_CLOSE,
 	CHANNEL_TLV_RELEASE,
 	CHANNEL_TLV_LIST_END,
-	CHANNEL_TLV_MAX
+	CHANNEL_TLV_UCAST_FILTER,
+	CHANNEL_TLV_VPORT_UPDATE_ACTIVATE,
+	CHANNEL_TLV_VPORT_UPDATE_MCAST,
+	CHANNEL_TLV_VPORT_UPDATE_ACCEPT_PARAM,
+	CHANNEL_TLV_VPORT_UPDATE_RSS,
+	CHANNEL_TLV_MAX,
+
+	/* Required for iterating over vport-update tlvs.
+	 * Will break in case non-sequential vport-update tlvs.
+	 */
+	CHANNEL_TLV_VPORT_UPDATE_MAX = CHANNEL_TLV_VPORT_UPDATE_RSS + 1,
 };
 
 /* This data is held in the qed_hwfn structure for VFs only. */
@@ -282,6 +481,85 @@ void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
 int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn);
 
 /**
+ * @brief VF - start the RX Queue by sending a message to the PF
+ * @param p_hwfn
+ * @param cid                   - zero based within the VF
+ * @param rx_queue_id           - zero based within the VF
+ * @param sb                    - VF status block for this queue
+ * @param sb_index              - Index within the status block
+ * @param bd_max_bytes          - maximum number of bytes per bd
+ * @param bd_chain_phys_addr    - physical address of bd chain
+ * @param cqe_pbl_addr          - physical address of pbl
+ * @param cqe_pbl_size          - pbl size
+ * @param pp_prod               - pointer to the producer to be
+ *				  used in fastpath
+ *
+ * @return int
+ */
+int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
+			u8 rx_queue_id,
+			u16 sb,
+			u8 sb_index,
+			u16 bd_max_bytes,
+			dma_addr_t bd_chain_phys_addr,
+			dma_addr_t cqe_pbl_addr,
+			u16 cqe_pbl_size, void __iomem **pp_prod);
+
+/**
+ * @brief VF - start the TX queue by sending a message to the
+ *        PF.
+ *
+ * @param p_hwfn
+ * @param tx_queue_id           - zero based within the VF
+ * @param sb                    - status block for this queue
+ * @param sb_index              - index within the status block
+ * @param bd_chain_phys_addr    - physical address of tx chain
+ * @param pp_doorbell           - pointer to address to which to
+ *                      write the doorbell too..
+ *
+ * @return int
+ */
+int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
+			u16 tx_queue_id,
+			u16 sb,
+			u8 sb_index,
+			dma_addr_t pbl_addr,
+			u16 pbl_size, void __iomem **pp_doorbell);
+
+/**
+ * @brief VF - stop the RX queue by sending a message to the PF
+ *
+ * @param p_hwfn
+ * @param rx_qid
+ * @param cqe_completion
+ *
+ * @return int
+ */
+int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn,
+		       u16 rx_qid, bool cqe_completion);
+
+/**
+ * @brief VF - stop the TX queue by sending a message to the PF
+ *
+ * @param p_hwfn
+ * @param tx_qid
+ *
+ * @return int
+ */
+int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, u16 tx_qid);
+
+/**
+ * @brief VF - send a vport update command
+ *
+ * @param p_hwfn
+ * @param params
+ *
+ * @return int
+ */
+int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
+			   struct qed_sp_vport_update_params *p_params);
+
+/**
  *
  * @brief VF - send a close message to PF
  *
@@ -309,6 +587,41 @@ int qed_vf_pf_release(struct qed_hwfn *p_hwfn);
  * @return INLINE u16
  */
 u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
+
+/**
+ * @brief qed_vf_pf_vport_start - perform vport start for VF.
+ *
+ * @param p_hwfn
+ * @param vport_id
+ * @param mtu
+ * @param inner_vlan_removal
+ * @param tpa_mode
+ * @param max_buffers_per_cqe,
+ * @param only_untagged - default behavior regarding vlan acceptance
+ *
+ * @return enum _qed_status
+ */
+int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
+			  u8 vport_id,
+			  u16 mtu,
+			  u8 inner_vlan_removal,
+			  enum qed_tpa_mode tpa_mode,
+			  u8 max_buffers_per_cqe);
+
+/**
+ * @brief qed_vf_pf_vport_stop - stop the VF's vport
+ *
+ * @param p_hwfn
+ *
+ * @return enum _qed_status
+ */
+int qed_vf_pf_vport_stop(struct qed_hwfn *p_hwfn);
+
+int qed_vf_pf_filter_ucast(struct qed_hwfn *p_hwfn,
+			   struct qed_filter_ucast *p_param);
+
+void qed_vf_pf_filter_mcast(struct qed_hwfn *p_hwfn,
+			    struct qed_filter_mcast *p_filter_cmd);
 
 /**
  * @brief qed_vf_pf_int_cleanup - clean the SB of the VF
@@ -343,6 +656,46 @@ static inline int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 	return -EINVAL;
 }
 
+static inline int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
+				      u8 rx_queue_id,
+				      u16 sb,
+				      u8 sb_index,
+				      u16 bd_max_bytes,
+				      dma_addr_t bd_chain_phys_adr,
+				      dma_addr_t cqe_pbl_addr,
+				      u16 cqe_pbl_size, void __iomem **pp_prod)
+{
+	return -EINVAL;
+}
+
+static inline int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
+				      u16 tx_queue_id,
+				      u16 sb,
+				      u8 sb_index,
+				      dma_addr_t pbl_addr,
+				      u16 pbl_size, void __iomem **pp_doorbell)
+{
+	return -EINVAL;
+}
+
+static inline int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn,
+				     u16 rx_qid, bool cqe_completion)
+{
+	return -EINVAL;
+}
+
+static inline int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, u16 tx_qid)
+{
+	return -EINVAL;
+}
+
+static inline int
+qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
+		       struct qed_sp_vport_update_params *p_params)
+{
+	return -EINVAL;
+}
+
 static inline int qed_vf_pf_reset(struct qed_hwfn *p_hwfn)
 {
 	return -EINVAL;
@@ -356,6 +709,32 @@ static inline int qed_vf_pf_release(struct qed_hwfn *p_hwfn)
 static inline u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 {
 	return 0;
+}
+
+static inline int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
+					u8 vport_id,
+					u16 mtu,
+					u8 inner_vlan_removal,
+					enum qed_tpa_mode tpa_mode,
+					u8 max_buffers_per_cqe)
+{
+	return -EINVAL;
+}
+
+static inline int qed_vf_pf_vport_stop(struct qed_hwfn *p_hwfn)
+{
+	return -EINVAL;
+}
+
+static inline int qed_vf_pf_filter_ucast(struct qed_hwfn *p_hwfn,
+					 struct qed_filter_ucast *p_param)
+{
+	return -EINVAL;
+}
+
+static inline void qed_vf_pf_filter_mcast(struct qed_hwfn *p_hwfn,
+					  struct qed_filter_mcast *p_filter_cmd)
+{
 }
 
 static inline int qed_vf_pf_int_cleanup(struct qed_hwfn *p_hwfn)

@@ -532,6 +532,7 @@ struct qed_dev {
 };
 
 #define NUM_OF_VFS(dev)         MAX_NUM_VFS_BB
+#define NUM_OF_L2_QUEUES(dev)	MAX_NUM_L2_QUEUES_BB
 #define NUM_OF_SBS(dev)         MAX_SB_PER_PATH_BB
 #define NUM_OF_ENG_PFS(dev)     MAX_NUM_PFS_BB
 

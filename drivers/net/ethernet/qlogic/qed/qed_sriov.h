@@ -24,6 +24,14 @@
 #define QED_MAX_VF_CHAINS_PER_PF 16
 #define QED_ETH_VF_NUM_VLAN_FILTERS 2
 
+enum qed_iov_vport_update_flag {
+	QED_IOV_VP_UPDATE_ACTIVATE,
+	QED_IOV_VP_UPDATE_MCAST,
+	QED_IOV_VP_UPDATE_ACCEPT_PARAM,
+	QED_IOV_VP_UPDATE_RSS,
+	QED_IOV_VP_UPDATE_MAX,
+};
+
 struct qed_public_vf_info {
 	/* These copies will later be reflected in the bulletin board,
 	 * but this copy should be newer.
@@ -81,6 +89,7 @@ struct qed_vf_q_info {
 enum vf_state {
 	VF_FREE = 0,		/* VF ready to be acquired holds no resc */
 	VF_ACQUIRED,		/* VF, acquired, but not initalized */
+	VF_ENABLED,		/* VF, Enabled */
 	VF_RESET,		/* VF, FLR'd, pending cleanup */
 	VF_STOPPED		/* VF, Stopped */
 };
@@ -97,6 +106,7 @@ struct qed_vf_info {
 
 	u32 concrete_fid;
 	u16 opaque_fid;
+	u16 mtu;
 
 	u8 vport_id;
 	u8 relative_vf_id;
@@ -105,6 +115,7 @@ struct qed_vf_info {
 					 (p_vf)->abs_vf_id + MAX_NUM_VFS_BB : \
 					 (p_vf)->abs_vf_id)
 
+	u8 vport_instance;
 	u8 num_rxqs;
 	u8 num_txqs;
 
@@ -114,6 +125,7 @@ struct qed_vf_info {
 	u8 num_vlan_filters;
 	struct qed_vf_q_info vf_queues[QED_MAX_VF_CHAINS_PER_PF];
 	u16 igu_sbs[QED_MAX_VF_CHAINS_PER_PF];
+	u8 num_active_rxqs;
 	struct qed_public_vf_info p_vf_info;
 };
 
@@ -237,6 +249,18 @@ int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
  * @return 1 iff one of the PF's vfs got FLRed. 0 otherwise.
  */
 int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *disabled_vfs);
+
+/**
+ * @brief Search extended TLVs in request/reply buffer.
+ *
+ * @param p_hwfn
+ * @param p_tlvs_list - Pointer to tlvs list
+ * @param req_type - Type of TLV
+ *
+ * @return pointer to tlv type if found, otherwise returns NULL.
+ */
+void *qed_iov_search_list_tlvs(struct qed_hwfn *p_hwfn,
+			       void *p_tlvs_list, u16 req_type);
 
 void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first);
 int qed_iov_wq_start(struct qed_dev *cdev);

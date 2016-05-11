@@ -938,7 +938,12 @@ void qed_hw_stop_fastpath(struct qed_dev *cdev)
 
 	for_each_hwfn(cdev, j) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
-		struct qed_ptt *p_ptt   = p_hwfn->p_main_ptt;
+		struct qed_ptt *p_ptt = p_hwfn->p_main_ptt;
+
+		if (IS_VF(cdev)) {
+			qed_vf_pf_int_cleanup(p_hwfn);
+			continue;
+		}
 
 		DP_VERBOSE(p_hwfn,
 			   NETIF_MSG_IFDOWN,
@@ -962,6 +967,9 @@ void qed_hw_stop_fastpath(struct qed_dev *cdev)
 
 void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
 {
+	if (IS_VF(p_hwfn->cdev))
+		return;
+
 	/* Re-open incoming traffic */
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
 	       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x0);

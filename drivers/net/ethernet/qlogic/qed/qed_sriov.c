@@ -6,6 +6,7 @@
  * this source tree.
  */
 
+#include <linux/etherdevice.h>
 #include <linux/qed/qed_iov_if.h>
 #include "qed_cxt.h"
 #include "qed_hsi.h"
@@ -486,6 +487,36 @@ static void qed_iov_vf_pglue_clear_err(struct qed_hwfn *p_hwfn,
 	       1 << (abs_vfid & 0x1f));
 }
 
+static void qed_iov_vf_igu_reset(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt, struct qed_vf_info *vf)
+{
+	u16 igu_sb_id;
+	int i;
+
+	/* Set VF masks and configuration - pretend */
+	qed_fid_pretend(p_hwfn, p_ptt, (u16) vf->concrete_fid);
+
+	qed_wr(p_hwfn, p_ptt, IGU_REG_STATISTIC_NUM_VF_MSG_SENT, 0);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+		   "value in VF_CONFIGURATION of vf %d after write %x\n",
+		   vf->abs_vf_id,
+		   qed_rd(p_hwfn, p_ptt, IGU_REG_VF_CONFIGURATION));
+
+	/* unpretend */
+	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_hwfn->hw_info.concrete_fid);
+
+	/* iterate over all queues, clear sb consumer */
+	for (i = 0; i < vf->num_sbs; i++) {
+		igu_sb_id = vf->igu_sbs[i];
+		/* Set then clear... */
+		qed_int_igu_cleanup_sb(p_hwfn, p_ptt, igu_sb_id, 1,
+				       vf->opaque_fid);
+		qed_int_igu_cleanup_sb(p_hwfn, p_ptt, igu_sb_id, 0,
+				       vf->opaque_fid);
+	}
+}
+
 static void qed_iov_vf_igu_set_int(struct qed_hwfn *p_hwfn,
 				   struct qed_ptt *p_ptt,
 				   struct qed_vf_info *vf, bool enable)
@@ -583,6 +614,19 @@ static void qed_iov_config_perm_table(struct qed_hwfn *p_hwfn,
 		val = enable ? (vf->abs_vf_id | (1 << 8)) : 0;
 		qed_wr(p_hwfn, p_ptt, reg_addr, val);
 	}
+}
+
+static void qed_iov_enable_vf_traffic(struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt,
+				      struct qed_vf_info *vf)
+{
+	/* Reset vf in IGU - interrupts are still disabled */
+	qed_iov_vf_igu_reset(p_hwfn, p_ptt, vf);
+
+	qed_iov_vf_igu_set_int(p_hwfn, p_ptt, vf, 1);
+
+	/* Permission Table */
+	qed_iov_config_perm_table(p_hwfn, p_ptt, vf, true);
 }
 
 static u8 qed_iov_alloc_vf_igu_sbs(struct qed_hwfn *p_hwfn,
@@ -870,6 +914,67 @@ static void qed_iov_send_response(struct qed_hwfn *p_hwfn,
 	       USTORM_VF_PF_CHANNEL_READY_OFFSET(eng_vf_id), 1);
 }
 
+static u16 qed_iov_vport_to_tlv(struct qed_hwfn *p_hwfn,
+				enum qed_iov_vport_update_flag flag)
+{
+	switch (flag) {
+	case QED_IOV_VP_UPDATE_ACTIVATE:
+		return CHANNEL_TLV_VPORT_UPDATE_ACTIVATE;
+	case QED_IOV_VP_UPDATE_MCAST:
+		return CHANNEL_TLV_VPORT_UPDATE_MCAST;
+	case QED_IOV_VP_UPDATE_ACCEPT_PARAM:
+		return CHANNEL_TLV_VPORT_UPDATE_ACCEPT_PARAM;
+	case QED_IOV_VP_UPDATE_RSS:
+		return CHANNEL_TLV_VPORT_UPDATE_RSS;
+	default:
+		return 0;
+	}
+}
+
+static u16 qed_iov_prep_vp_update_resp_tlvs(struct qed_hwfn *p_hwfn,
+					    struct qed_vf_info *p_vf,
+					    struct qed_iov_vf_mbx *p_mbx,
+					    u8 status,
+					    u16 tlvs_mask, u16 tlvs_accepted)
+{
+	struct pfvf_def_resp_tlv *resp;
+	u16 size, total_len, i;
+
+	memset(p_mbx->reply_virt, 0, sizeof(union pfvf_tlvs));
+	p_mbx->offset = (u8 *)p_mbx->reply_virt;
+	size = sizeof(struct pfvf_def_resp_tlv);
+	total_len = size;
+
+	qed_add_tlv(p_hwfn, &p_mbx->offset, CHANNEL_TLV_VPORT_UPDATE, size);
+
+	/* Prepare response for all extended tlvs if they are found by PF */
+	for (i = 0; i < QED_IOV_VP_UPDATE_MAX; i++) {
+		if (!(tlvs_mask & (1 << i)))
+			continue;
+
+		resp = qed_add_tlv(p_hwfn, &p_mbx->offset,
+				   qed_iov_vport_to_tlv(p_hwfn, i), size);
+
+		if (tlvs_accepted & (1 << i))
+			resp->hdr.status = status;
+		else
+			resp->hdr.status = PFVF_STATUS_NOT_SUPPORTED;
+
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_IOV,
+			   "VF[%d] - vport_update response: TLV %d, status %02x\n",
+			   p_vf->relative_vf_id,
+			   qed_iov_vport_to_tlv(p_hwfn, i), resp->hdr.status);
+
+		total_len += size;
+	}
+
+	qed_add_tlv(p_hwfn, &p_mbx->offset, CHANNEL_TLV_LIST_END,
+		    sizeof(struct channel_list_end_tlv));
+
+	return total_len;
+}
+
 static void qed_iov_prepare_resp(struct qed_hwfn *p_hwfn,
 				 struct qed_ptt *p_ptt,
 				 struct qed_vf_info *vf_info,
@@ -918,12 +1023,15 @@ static void qed_iov_vf_cleanup(struct qed_hwfn *p_hwfn,
 	u32 i;
 
 	p_vf->vf_bulletin = 0;
+	p_vf->vport_instance = 0;
 	p_vf->num_mac_filters = 0;
 	p_vf->num_vlan_filters = 0;
 
 	/* If VF previously requested less resources, go back to default */
 	p_vf->num_rxqs = p_vf->num_sbs;
 	p_vf->num_txqs = p_vf->num_sbs;
+
+	p_vf->num_active_rxqs = 0;
 
 	for (i = 0; i < QED_MAX_VF_CHAINS_PER_PF; i++)
 		p_vf->vf_queues[i].rxq_active = 0;
@@ -1072,6 +1180,578 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 out:
 	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_ACQUIRE,
 			     sizeof(struct pfvf_acquire_resp_tlv), vfpf_status);
+}
+
+static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt,
+				       struct qed_vf_info *vf)
+{
+	struct qed_sp_vport_start_params params = { 0 };
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	struct vfpf_vport_start_tlv *start;
+	u8 status = PFVF_STATUS_SUCCESS;
+	struct qed_vf_info *vf_info;
+	int sb_id;
+	int rc;
+
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vf->relative_vf_id, true);
+	if (!vf_info) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "Failed to get VF info, invalid vfid [%d]\n",
+			  vf->relative_vf_id);
+		return;
+	}
+
+	vf->state = VF_ENABLED;
+	start = &mbx->req_virt->start_vport;
+
+	/* Initialize Status block in CAU */
+	for (sb_id = 0; sb_id < vf->num_sbs; sb_id++) {
+		if (!start->sb_addr[sb_id]) {
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "VF[%d] did not fill the address of SB %d\n",
+				   vf->relative_vf_id, sb_id);
+			break;
+		}
+
+		qed_int_cau_conf_sb(p_hwfn, p_ptt,
+				    start->sb_addr[sb_id],
+				    vf->igu_sbs[sb_id],
+				    vf->abs_vf_id, 1);
+	}
+	qed_iov_enable_vf_traffic(p_hwfn, p_ptt, vf);
+
+	vf->mtu = start->mtu;
+
+	params.tpa_mode = start->tpa_mode;
+	params.remove_inner_vlan = start->inner_vlan_removal;
+
+	params.drop_ttl0 = false;
+	params.concrete_fid = vf->concrete_fid;
+	params.opaque_fid = vf->opaque_fid;
+	params.vport_id = vf->vport_id;
+	params.max_buffers_per_cqe = start->max_buffers_per_cqe;
+	params.mtu = vf->mtu;
+
+	rc = qed_sp_eth_vport_start(p_hwfn, &params);
+	if (rc != 0) {
+		DP_ERR(p_hwfn,
+		       "qed_iov_vf_mbx_start_vport returned error %d\n", rc);
+		status = PFVF_STATUS_FAILURE;
+	} else {
+		vf->vport_instance++;
+	}
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_VPORT_START,
+			     sizeof(struct pfvf_def_resp_tlv), status);
+}
+
+static void qed_iov_vf_mbx_stop_vport(struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt,
+				      struct qed_vf_info *vf)
+{
+	u8 status = PFVF_STATUS_SUCCESS;
+	int rc;
+
+	vf->vport_instance--;
+
+	rc = qed_sp_vport_stop(p_hwfn, vf->opaque_fid, vf->vport_id);
+	if (rc != 0) {
+		DP_ERR(p_hwfn, "qed_iov_vf_mbx_stop_vport returned error %d\n",
+		       rc);
+		status = PFVF_STATUS_FAILURE;
+	}
+
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_VPORT_TEARDOWN,
+			     sizeof(struct pfvf_def_resp_tlv), status);
+}
+
+#define TSTORM_QZONE_START   PXP_VF_BAR0_START_SDM_ZONE_A
+#define MSTORM_QZONE_START(dev)   (TSTORM_QZONE_START +	\
+				   (TSTORM_QZONE_SIZE * NUM_OF_L2_QUEUES(dev)))
+
+static void qed_iov_vf_mbx_start_rxq_resp(struct qed_hwfn *p_hwfn,
+					  struct qed_ptt *p_ptt,
+					  struct qed_vf_info *vf, u8 status)
+{
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	struct pfvf_start_queue_resp_tlv *p_tlv;
+	struct vfpf_start_rxq_tlv *req;
+
+	mbx->offset = (u8 *)mbx->reply_virt;
+
+	p_tlv = qed_add_tlv(p_hwfn, &mbx->offset, CHANNEL_TLV_START_RXQ,
+			    sizeof(*p_tlv));
+	qed_add_tlv(p_hwfn, &mbx->offset, CHANNEL_TLV_LIST_END,
+		    sizeof(struct channel_list_end_tlv));
+
+	/* Update the TLV with the response */
+	if (status == PFVF_STATUS_SUCCESS) {
+		u16 hw_qid = 0;
+
+		req = &mbx->req_virt->start_rxq;
+		qed_fw_l2_queue(p_hwfn, vf->vf_queues[req->rx_qid].fw_rx_qid,
+				&hw_qid);
+
+		p_tlv->offset = MSTORM_QZONE_START(p_hwfn->cdev) +
+				hw_qid * MSTORM_QZONE_SIZE +
+				offsetof(struct mstorm_eth_queue_zone,
+					 rx_producers);
+	}
+
+	qed_iov_send_response(p_hwfn, p_ptt, vf, sizeof(*p_tlv), status);
+}
+
+static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     struct qed_vf_info *vf)
+{
+	struct qed_queue_start_common_params params;
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	u8 status = PFVF_STATUS_SUCCESS;
+	struct vfpf_start_rxq_tlv *req;
+	int rc;
+
+	memset(&params, 0, sizeof(params));
+	req = &mbx->req_virt->start_rxq;
+	params.queue_id =  vf->vf_queues[req->rx_qid].fw_rx_qid;
+	params.vport_id = vf->vport_id;
+	params.sb = req->hw_sb;
+	params.sb_idx = req->sb_index;
+
+	rc = qed_sp_eth_rxq_start_ramrod(p_hwfn, vf->opaque_fid,
+					 vf->vf_queues[req->rx_qid].fw_cid,
+					 &params,
+					 vf->abs_vf_id + 0x10,
+					 req->bd_max_bytes,
+					 req->rxq_addr,
+					 req->cqe_pbl_addr, req->cqe_pbl_size);
+
+	if (rc) {
+		status = PFVF_STATUS_FAILURE;
+	} else {
+		vf->vf_queues[req->rx_qid].rxq_active = true;
+		vf->num_active_rxqs++;
+	}
+
+	qed_iov_vf_mbx_start_rxq_resp(p_hwfn, p_ptt, vf, status);
+}
+
+static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     struct qed_vf_info *vf)
+{
+	u16 length = sizeof(struct pfvf_def_resp_tlv);
+	struct qed_queue_start_common_params params;
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	union qed_qm_pq_params pq_params;
+	u8 status = PFVF_STATUS_SUCCESS;
+	struct vfpf_start_txq_tlv *req;
+	int rc;
+
+	/* Prepare the parameters which would choose the right PQ */
+	memset(&pq_params, 0, sizeof(pq_params));
+	pq_params.eth.is_vf = 1;
+	pq_params.eth.vf_id = vf->relative_vf_id;
+
+	memset(&params, 0, sizeof(params));
+	req = &mbx->req_virt->start_txq;
+	params.queue_id =  vf->vf_queues[req->tx_qid].fw_tx_qid;
+	params.vport_id = vf->vport_id;
+	params.sb = req->hw_sb;
+	params.sb_idx = req->sb_index;
+
+	rc = qed_sp_eth_txq_start_ramrod(p_hwfn,
+					 vf->opaque_fid,
+					 vf->vf_queues[req->tx_qid].fw_cid,
+					 &params,
+					 vf->abs_vf_id + 0x10,
+					 req->pbl_addr,
+					 req->pbl_size, &pq_params);
+
+	if (rc)
+		status = PFVF_STATUS_FAILURE;
+	else
+		vf->vf_queues[req->tx_qid].txq_active = true;
+
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_START_TXQ,
+			     length, status);
+}
+
+static int qed_iov_vf_stop_rxqs(struct qed_hwfn *p_hwfn,
+				struct qed_vf_info *vf,
+				u16 rxq_id, u8 num_rxqs, bool cqe_completion)
+{
+	int rc = 0;
+	int qid;
+
+	if (rxq_id + num_rxqs > ARRAY_SIZE(vf->vf_queues))
+		return -EINVAL;
+
+	for (qid = rxq_id; qid < rxq_id + num_rxqs; qid++) {
+		if (vf->vf_queues[qid].rxq_active) {
+			rc = qed_sp_eth_rx_queue_stop(p_hwfn,
+						      vf->vf_queues[qid].
+						      fw_rx_qid, false,
+						      cqe_completion);
+
+			if (rc)
+				return rc;
+		}
+		vf->vf_queues[qid].rxq_active = false;
+		vf->num_active_rxqs--;
+	}
+
+	return rc;
+}
+
+static int qed_iov_vf_stop_txqs(struct qed_hwfn *p_hwfn,
+				struct qed_vf_info *vf, u16 txq_id, u8 num_txqs)
+{
+	int rc = 0;
+	int qid;
+
+	if (txq_id + num_txqs > ARRAY_SIZE(vf->vf_queues))
+		return -EINVAL;
+
+	for (qid = txq_id; qid < txq_id + num_txqs; qid++) {
+		if (vf->vf_queues[qid].txq_active) {
+			rc = qed_sp_eth_tx_queue_stop(p_hwfn,
+						      vf->vf_queues[qid].
+						      fw_tx_qid);
+
+			if (rc)
+				return rc;
+		}
+		vf->vf_queues[qid].txq_active = false;
+	}
+	return rc;
+}
+
+static void qed_iov_vf_mbx_stop_rxqs(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     struct qed_vf_info *vf)
+{
+	u16 length = sizeof(struct pfvf_def_resp_tlv);
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	u8 status = PFVF_STATUS_SUCCESS;
+	struct vfpf_stop_rxqs_tlv *req;
+	int rc;
+
+	/* We give the option of starting from qid != 0, in this case we
+	 * need to make sure that qid + num_qs doesn't exceed the actual
+	 * amount of queues that exist.
+	 */
+	req = &mbx->req_virt->stop_rxqs;
+	rc = qed_iov_vf_stop_rxqs(p_hwfn, vf, req->rx_qid,
+				  req->num_rxqs, req->cqe_completion);
+	if (rc)
+		status = PFVF_STATUS_FAILURE;
+
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_STOP_RXQS,
+			     length, status);
+}
+
+static void qed_iov_vf_mbx_stop_txqs(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     struct qed_vf_info *vf)
+{
+	u16 length = sizeof(struct pfvf_def_resp_tlv);
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	u8 status = PFVF_STATUS_SUCCESS;
+	struct vfpf_stop_txqs_tlv *req;
+	int rc;
+
+	/* We give the option of starting from qid != 0, in this case we
+	 * need to make sure that qid + num_qs doesn't exceed the actual
+	 * amount of queues that exist.
+	 */
+	req = &mbx->req_virt->stop_txqs;
+	rc = qed_iov_vf_stop_txqs(p_hwfn, vf, req->tx_qid, req->num_txqs);
+	if (rc)
+		status = PFVF_STATUS_FAILURE;
+
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_STOP_TXQS,
+			     length, status);
+}
+
+void *qed_iov_search_list_tlvs(struct qed_hwfn *p_hwfn,
+			       void *p_tlvs_list, u16 req_type)
+{
+	struct channel_tlv *p_tlv = (struct channel_tlv *)p_tlvs_list;
+	int len = 0;
+
+	do {
+		if (!p_tlv->length) {
+			DP_NOTICE(p_hwfn, "Zero length TLV found\n");
+			return NULL;
+		}
+
+		if (p_tlv->type == req_type) {
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "Extended tlv type %d, length %d found\n",
+				   p_tlv->type, p_tlv->length);
+			return p_tlv;
+		}
+
+		len += p_tlv->length;
+		p_tlv = (struct channel_tlv *)((u8 *)p_tlv + p_tlv->length);
+
+		if ((len + p_tlv->length) > TLV_BUFFER_SIZE) {
+			DP_NOTICE(p_hwfn, "TLVs has overrun the buffer size\n");
+			return NULL;
+		}
+	} while (p_tlv->type != CHANNEL_TLV_LIST_END);
+
+	return NULL;
+}
+
+static void
+qed_iov_vp_update_act_param(struct qed_hwfn *p_hwfn,
+			    struct qed_sp_vport_update_params *p_data,
+			    struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
+{
+	struct vfpf_vport_update_activate_tlv *p_act_tlv;
+	u16 tlv = CHANNEL_TLV_VPORT_UPDATE_ACTIVATE;
+
+	p_act_tlv = (struct vfpf_vport_update_activate_tlv *)
+		    qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt, tlv);
+	if (!p_act_tlv)
+		return;
+
+	p_data->update_vport_active_rx_flg = p_act_tlv->update_rx;
+	p_data->vport_active_rx_flg = p_act_tlv->active_rx;
+	p_data->update_vport_active_tx_flg = p_act_tlv->update_tx;
+	p_data->vport_active_tx_flg = p_act_tlv->active_tx;
+	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_ACTIVATE;
+}
+
+static void
+qed_iov_vp_update_mcast_bin_param(struct qed_hwfn *p_hwfn,
+				  struct qed_sp_vport_update_params *p_data,
+				  struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
+{
+	struct vfpf_vport_update_mcast_bin_tlv *p_mcast_tlv;
+	u16 tlv = CHANNEL_TLV_VPORT_UPDATE_MCAST;
+
+	p_mcast_tlv = (struct vfpf_vport_update_mcast_bin_tlv *)
+	    qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt, tlv);
+	if (!p_mcast_tlv)
+		return;
+
+	p_data->update_approx_mcast_flg = 1;
+	memcpy(p_data->bins, p_mcast_tlv->bins,
+	       sizeof(unsigned long) * ETH_MULTICAST_MAC_BINS_IN_REGS);
+	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_MCAST;
+}
+
+static void
+qed_iov_vp_update_accept_flag(struct qed_hwfn *p_hwfn,
+			      struct qed_sp_vport_update_params *p_data,
+			      struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
+{
+	struct qed_filter_accept_flags *p_flags = &p_data->accept_flags;
+	struct vfpf_vport_update_accept_param_tlv *p_accept_tlv;
+	u16 tlv = CHANNEL_TLV_VPORT_UPDATE_ACCEPT_PARAM;
+
+	p_accept_tlv = (struct vfpf_vport_update_accept_param_tlv *)
+	    qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt, tlv);
+	if (!p_accept_tlv)
+		return;
+
+	p_flags->update_rx_mode_config = p_accept_tlv->update_rx_mode;
+	p_flags->rx_accept_filter = p_accept_tlv->rx_accept_filter;
+	p_flags->update_tx_mode_config = p_accept_tlv->update_tx_mode;
+	p_flags->tx_accept_filter = p_accept_tlv->tx_accept_filter;
+	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_ACCEPT_PARAM;
+}
+
+static void
+qed_iov_vp_update_rss_param(struct qed_hwfn *p_hwfn,
+			    struct qed_vf_info *vf,
+			    struct qed_sp_vport_update_params *p_data,
+			    struct qed_rss_params *p_rss,
+			    struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
+{
+	struct vfpf_vport_update_rss_tlv *p_rss_tlv;
+	u16 tlv = CHANNEL_TLV_VPORT_UPDATE_RSS;
+	u16 i, q_idx, max_q_idx;
+	u16 table_size;
+
+	p_rss_tlv = (struct vfpf_vport_update_rss_tlv *)
+		    qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt, tlv);
+	if (!p_rss_tlv) {
+		p_data->rss_params = NULL;
+		return;
+	}
+
+	memset(p_rss, 0, sizeof(struct qed_rss_params));
+
+	p_rss->update_rss_config = !!(p_rss_tlv->update_rss_flags &
+				      VFPF_UPDATE_RSS_CONFIG_FLAG);
+	p_rss->update_rss_capabilities = !!(p_rss_tlv->update_rss_flags &
+					    VFPF_UPDATE_RSS_CAPS_FLAG);
+	p_rss->update_rss_ind_table = !!(p_rss_tlv->update_rss_flags &
+					 VFPF_UPDATE_RSS_IND_TABLE_FLAG);
+	p_rss->update_rss_key = !!(p_rss_tlv->update_rss_flags &
+				   VFPF_UPDATE_RSS_KEY_FLAG);
+
+	p_rss->rss_enable = p_rss_tlv->rss_enable;
+	p_rss->rss_eng_id = vf->relative_vf_id + 1;
+	p_rss->rss_caps = p_rss_tlv->rss_caps;
+	p_rss->rss_table_size_log = p_rss_tlv->rss_table_size_log;
+	memcpy(p_rss->rss_ind_table, p_rss_tlv->rss_ind_table,
+	       sizeof(p_rss->rss_ind_table));
+	memcpy(p_rss->rss_key, p_rss_tlv->rss_key, sizeof(p_rss->rss_key));
+
+	table_size = min_t(u16, ARRAY_SIZE(p_rss->rss_ind_table),
+			   (1 << p_rss_tlv->rss_table_size_log));
+
+	max_q_idx = ARRAY_SIZE(vf->vf_queues);
+
+	for (i = 0; i < table_size; i++) {
+		u16 index = vf->vf_queues[0].fw_rx_qid;
+
+		q_idx = p_rss->rss_ind_table[i];
+		if (q_idx >= max_q_idx)
+			DP_NOTICE(p_hwfn,
+				  "rss_ind_table[%d] = %d, rxq is out of range\n",
+				  i, q_idx);
+		else if (!vf->vf_queues[q_idx].rxq_active)
+			DP_NOTICE(p_hwfn,
+				  "rss_ind_table[%d] = %d, rxq is not active\n",
+				  i, q_idx);
+		else
+			index = vf->vf_queues[q_idx].fw_rx_qid;
+		p_rss->rss_ind_table[i] = index;
+	}
+
+	p_data->rss_params = p_rss;
+	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_RSS;
+}
+
+static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					struct qed_vf_info *vf)
+{
+	struct qed_sp_vport_update_params params;
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	struct qed_rss_params rss_params;
+	u8 status = PFVF_STATUS_SUCCESS;
+	u16 tlvs_mask = 0;
+	u16 length;
+	int rc;
+
+	memset(&params, 0, sizeof(params));
+	params.opaque_fid = vf->opaque_fid;
+	params.vport_id = vf->vport_id;
+	params.rss_params = NULL;
+
+	/* Search for extended tlvs list and update values
+	 * from VF in struct qed_sp_vport_update_params.
+	 */
+	qed_iov_vp_update_act_param(p_hwfn, &params, mbx, &tlvs_mask);
+	qed_iov_vp_update_mcast_bin_param(p_hwfn, &params, mbx, &tlvs_mask);
+	qed_iov_vp_update_accept_flag(p_hwfn, &params, mbx, &tlvs_mask);
+	qed_iov_vp_update_rss_param(p_hwfn, vf, &params, &rss_params,
+				    mbx, &tlvs_mask);
+
+	/* Just log a message if there is no single extended tlv in buffer.
+	 * When all features of vport update ramrod would be requested by VF
+	 * as extended TLVs in buffer then an error can be returned in response
+	 * if there is no extended TLV present in buffer.
+	 */
+	if (!tlvs_mask) {
+		DP_NOTICE(p_hwfn,
+			  "No feature tlvs found for vport update\n");
+		status = PFVF_STATUS_NOT_SUPPORTED;
+		goto out;
+	}
+
+	rc = qed_sp_vport_update(p_hwfn, &params, QED_SPQ_MODE_EBLOCK, NULL);
+
+	if (rc)
+		status = PFVF_STATUS_FAILURE;
+
+out:
+	length = qed_iov_prep_vp_update_resp_tlvs(p_hwfn, vf, mbx, status,
+						  tlvs_mask, tlvs_mask);
+	qed_iov_send_response(p_hwfn, p_ptt, vf, length, status);
+}
+
+int qed_iov_chk_ucast(struct qed_hwfn *hwfn,
+		      int vfid, struct qed_filter_ucast *params)
+{
+	struct qed_public_vf_info *vf;
+
+	vf = qed_iov_get_public_vf_info(hwfn, vfid, true);
+	if (!vf)
+		return -EINVAL;
+
+	/* No real decision to make; Store the configured MAC */
+	if (params->type == QED_FILTER_MAC ||
+	    params->type == QED_FILTER_MAC_VLAN)
+		ether_addr_copy(vf->mac, params->mac);
+
+	return 0;
+}
+
+static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					struct qed_vf_info *vf)
+{
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	struct vfpf_ucast_filter_tlv *req;
+	u8 status = PFVF_STATUS_SUCCESS;
+	struct qed_filter_ucast params;
+	int rc;
+
+	/* Prepare the unicast filter params */
+	memset(&params, 0, sizeof(struct qed_filter_ucast));
+	req = &mbx->req_virt->ucast_filter;
+	params.opcode = (enum qed_filter_opcode)req->opcode;
+	params.type = (enum qed_filter_ucast_type)req->type;
+
+	params.is_rx_filter = 1;
+	params.is_tx_filter = 1;
+	params.vport_to_remove_from = vf->vport_id;
+	params.vport_to_add_to = vf->vport_id;
+	memcpy(params.mac, req->mac, ETH_ALEN);
+	params.vlan = req->vlan;
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_IOV,
+		   "VF[%d]: opcode 0x%02x type 0x%02x [%s %s] [vport 0x%02x] MAC %02x:%02x:%02x:%02x:%02x:%02x, vlan 0x%04x\n",
+		   vf->abs_vf_id, params.opcode, params.type,
+		   params.is_rx_filter ? "RX" : "",
+		   params.is_tx_filter ? "TX" : "",
+		   params.vport_to_add_to,
+		   params.mac[0], params.mac[1],
+		   params.mac[2], params.mac[3],
+		   params.mac[4], params.mac[5], params.vlan);
+
+	if (!vf->vport_instance) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_IOV,
+			   "No VPORT instance available for VF[%d], failing ucast MAC configuration\n",
+			   vf->abs_vf_id);
+		status = PFVF_STATUS_FAILURE;
+		goto out;
+	}
+
+	rc = qed_iov_chk_ucast(p_hwfn, vf->relative_vf_id, &params);
+	if (rc) {
+		status = PFVF_STATUS_FAILURE;
+		goto out;
+	}
+
+	rc = qed_sp_eth_filter_ucast(p_hwfn, vf->opaque_fid, &params,
+				     QED_SPQ_MODE_CB, NULL);
+	if (rc)
+		status = PFVF_STATUS_FAILURE;
+
+out:
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_UCAST_FILTER,
+			     sizeof(struct pfvf_def_resp_tlv), status);
 }
 
 static void qed_iov_vf_mbx_int_cleanup(struct qed_hwfn *p_hwfn,
@@ -1364,6 +2044,30 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 		switch (mbx->first_tlv.tl.type) {
 		case CHANNEL_TLV_ACQUIRE:
 			qed_iov_vf_mbx_acquire(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_VPORT_START:
+			qed_iov_vf_mbx_start_vport(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_VPORT_TEARDOWN:
+			qed_iov_vf_mbx_stop_vport(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_START_RXQ:
+			qed_iov_vf_mbx_start_rxq(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_START_TXQ:
+			qed_iov_vf_mbx_start_txq(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_STOP_RXQS:
+			qed_iov_vf_mbx_stop_rxqs(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_STOP_TXQS:
+			qed_iov_vf_mbx_stop_txqs(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_VPORT_UPDATE:
+			qed_iov_vf_mbx_vport_update(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_UCAST_FILTER:
+			qed_iov_vf_mbx_ucast_filter(p_hwfn, p_ptt, p_vf);
 			break;
 		case CHANNEL_TLV_CLOSE:
 			qed_iov_vf_mbx_close(p_hwfn, p_ptt, p_vf);

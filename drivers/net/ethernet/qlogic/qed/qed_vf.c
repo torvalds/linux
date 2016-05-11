@@ -311,6 +311,400 @@ free_p_iov:
 	return -ENOMEM;
 }
 
+int qed_vf_pf_rxq_start(struct qed_hwfn *p_hwfn,
+			u8 rx_qid,
+			u16 sb,
+			u8 sb_index,
+			u16 bd_max_bytes,
+			dma_addr_t bd_chain_phys_addr,
+			dma_addr_t cqe_pbl_addr,
+			u16 cqe_pbl_size, void __iomem **pp_prod)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct pfvf_start_queue_resp_tlv *resp;
+	struct vfpf_start_rxq_tlv *req;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_START_RXQ, sizeof(*req));
+
+	req->rx_qid = rx_qid;
+	req->cqe_pbl_addr = cqe_pbl_addr;
+	req->cqe_pbl_size = cqe_pbl_size;
+	req->rxq_addr = bd_chain_phys_addr;
+	req->hw_sb = sb;
+	req->sb_index = sb_index;
+	req->bd_max_bytes = bd_max_bytes;
+	req->stat_id = -1;
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	resp = &p_iov->pf2vf_reply->queue_start;
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EINVAL;
+
+	/* Learn the address of the producer from the response */
+	if (pp_prod) {
+		u64 init_prod_val = 0;
+
+		*pp_prod = (u8 __iomem *)p_hwfn->regview + resp->offset;
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "Rxq[0x%02x]: producer at %p [offset 0x%08x]\n",
+			   rx_qid, *pp_prod, resp->offset);
+
+		/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
+		__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u64),
+				  (u32 *)&init_prod_val);
+	}
+
+	return rc;
+}
+
+int qed_vf_pf_rxq_stop(struct qed_hwfn *p_hwfn, u16 rx_qid, bool cqe_completion)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct vfpf_stop_rxqs_tlv *req;
+	struct pfvf_def_resp_tlv *resp;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_STOP_RXQS, sizeof(*req));
+
+	req->rx_qid = rx_qid;
+	req->num_rxqs = 1;
+	req->cqe_completion = cqe_completion;
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	resp = &p_iov->pf2vf_reply->default_resp;
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EINVAL;
+
+	return rc;
+}
+
+int qed_vf_pf_txq_start(struct qed_hwfn *p_hwfn,
+			u16 tx_queue_id,
+			u16 sb,
+			u8 sb_index,
+			dma_addr_t pbl_addr,
+			u16 pbl_size, void __iomem **pp_doorbell)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct vfpf_start_txq_tlv *req;
+	struct pfvf_def_resp_tlv *resp;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_START_TXQ, sizeof(*req));
+
+	req->tx_qid = tx_queue_id;
+
+	/* Tx */
+	req->pbl_addr = pbl_addr;
+	req->pbl_size = pbl_size;
+	req->hw_sb = sb;
+	req->sb_index = sb_index;
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	resp = &p_iov->pf2vf_reply->default_resp;
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EINVAL;
+
+	if (pp_doorbell) {
+		u8 cid = p_iov->acquire_resp.resc.cid[tx_queue_id];
+
+		*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells +
+					     qed_db_addr(cid, DQ_DEMS_LEGACY);
+	}
+
+	return rc;
+}
+
+int qed_vf_pf_txq_stop(struct qed_hwfn *p_hwfn, u16 tx_qid)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct vfpf_stop_txqs_tlv *req;
+	struct pfvf_def_resp_tlv *resp;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_STOP_TXQS, sizeof(*req));
+
+	req->tx_qid = tx_qid;
+	req->num_txqs = 1;
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	resp = &p_iov->pf2vf_reply->default_resp;
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EINVAL;
+
+	return rc;
+}
+
+int qed_vf_pf_vport_start(struct qed_hwfn *p_hwfn,
+			  u8 vport_id,
+			  u16 mtu,
+			  u8 inner_vlan_removal,
+			  enum qed_tpa_mode tpa_mode,
+			  u8 max_buffers_per_cqe)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct vfpf_vport_start_tlv *req;
+	struct pfvf_def_resp_tlv *resp;
+	int rc, i;
+
+	/* clear mailbox and prep first tlv */
+	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_VPORT_START, sizeof(*req));
+
+	req->mtu = mtu;
+	req->vport_id = vport_id;
+	req->inner_vlan_removal = inner_vlan_removal;
+	req->tpa_mode = tpa_mode;
+	req->max_buffers_per_cqe = max_buffers_per_cqe;
+
+	/* status blocks */
+	for (i = 0; i < p_hwfn->vf_iov_info->acquire_resp.resc.num_sbs; i++)
+		if (p_hwfn->sbs_info[i])
+			req->sb_addr[i] = p_hwfn->sbs_info[i]->sb_phys;
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	resp = &p_iov->pf2vf_reply->default_resp;
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EINVAL;
+
+	return rc;
+}
+
+int qed_vf_pf_vport_stop(struct qed_hwfn *p_hwfn)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct pfvf_def_resp_tlv *resp = &p_iov->pf2vf_reply->default_resp;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_VPORT_TEARDOWN,
+		       sizeof(struct vfpf_first_tlv));
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EINVAL;
+
+	return rc;
+}
+
+static bool
+qed_vf_handle_vp_update_is_needed(struct qed_hwfn *p_hwfn,
+				  struct qed_sp_vport_update_params *p_data,
+				  u16 tlv)
+{
+	switch (tlv) {
+	case CHANNEL_TLV_VPORT_UPDATE_ACTIVATE:
+		return !!(p_data->update_vport_active_rx_flg ||
+			  p_data->update_vport_active_tx_flg);
+	case CHANNEL_TLV_VPORT_UPDATE_MCAST:
+		return !!p_data->update_approx_mcast_flg;
+	case CHANNEL_TLV_VPORT_UPDATE_ACCEPT_PARAM:
+		return !!(p_data->accept_flags.update_rx_mode_config ||
+			  p_data->accept_flags.update_tx_mode_config);
+	case CHANNEL_TLV_VPORT_UPDATE_RSS:
+		return !!p_data->rss_params;
+	default:
+		DP_INFO(p_hwfn, "Unexpected vport-update TLV[%d]\n",
+			tlv);
+		return false;
+	}
+}
+
+static void
+qed_vf_handle_vp_update_tlvs_resp(struct qed_hwfn *p_hwfn,
+				  struct qed_sp_vport_update_params *p_data)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct pfvf_def_resp_tlv *p_resp;
+	u16 tlv;
+
+	for (tlv = CHANNEL_TLV_VPORT_UPDATE_ACTIVATE;
+	     tlv < CHANNEL_TLV_VPORT_UPDATE_MAX; tlv++) {
+		if (!qed_vf_handle_vp_update_is_needed(p_hwfn, p_data, tlv))
+			continue;
+
+		p_resp = (struct pfvf_def_resp_tlv *)
+			 qed_iov_search_list_tlvs(p_hwfn, p_iov->pf2vf_reply,
+						  tlv);
+		if (p_resp && p_resp->hdr.status)
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "TLV[%d] Configuration %s\n",
+				   tlv,
+				   (p_resp && p_resp->hdr.status) ? "succeeded"
+								  : "failed");
+	}
+}
+
+int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
+			   struct qed_sp_vport_update_params *p_params)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct vfpf_vport_update_tlv *req;
+	struct pfvf_def_resp_tlv *resp;
+	u8 update_rx, update_tx;
+	u32 resp_size = 0;
+	u16 size, tlv;
+	int rc;
+
+	resp = &p_iov->pf2vf_reply->default_resp;
+	resp_size = sizeof(*resp);
+
+	update_rx = p_params->update_vport_active_rx_flg;
+	update_tx = p_params->update_vport_active_tx_flg;
+
+	/* clear mailbox and prep header tlv */
+	qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_VPORT_UPDATE, sizeof(*req));
+
+	/* Prepare extended tlvs */
+	if (update_rx || update_tx) {
+		struct vfpf_vport_update_activate_tlv *p_act_tlv;
+
+		size = sizeof(struct vfpf_vport_update_activate_tlv);
+		p_act_tlv = qed_add_tlv(p_hwfn, &p_iov->offset,
+					CHANNEL_TLV_VPORT_UPDATE_ACTIVATE,
+					size);
+		resp_size += sizeof(struct pfvf_def_resp_tlv);
+
+		if (update_rx) {
+			p_act_tlv->update_rx = update_rx;
+			p_act_tlv->active_rx = p_params->vport_active_rx_flg;
+		}
+
+		if (update_tx) {
+			p_act_tlv->update_tx = update_tx;
+			p_act_tlv->active_tx = p_params->vport_active_tx_flg;
+		}
+	}
+
+	if (p_params->update_approx_mcast_flg) {
+		struct vfpf_vport_update_mcast_bin_tlv *p_mcast_tlv;
+
+		size = sizeof(struct vfpf_vport_update_mcast_bin_tlv);
+		p_mcast_tlv = qed_add_tlv(p_hwfn, &p_iov->offset,
+					  CHANNEL_TLV_VPORT_UPDATE_MCAST, size);
+		resp_size += sizeof(struct pfvf_def_resp_tlv);
+
+		memcpy(p_mcast_tlv->bins, p_params->bins,
+		       sizeof(unsigned long) * ETH_MULTICAST_MAC_BINS_IN_REGS);
+	}
+
+	update_rx = p_params->accept_flags.update_rx_mode_config;
+	update_tx = p_params->accept_flags.update_tx_mode_config;
+
+	if (update_rx || update_tx) {
+		struct vfpf_vport_update_accept_param_tlv *p_accept_tlv;
+
+		tlv = CHANNEL_TLV_VPORT_UPDATE_ACCEPT_PARAM;
+		size = sizeof(struct vfpf_vport_update_accept_param_tlv);
+		p_accept_tlv = qed_add_tlv(p_hwfn, &p_iov->offset, tlv, size);
+		resp_size += sizeof(struct pfvf_def_resp_tlv);
+
+		if (update_rx) {
+			p_accept_tlv->update_rx_mode = update_rx;
+			p_accept_tlv->rx_accept_filter =
+			    p_params->accept_flags.rx_accept_filter;
+		}
+
+		if (update_tx) {
+			p_accept_tlv->update_tx_mode = update_tx;
+			p_accept_tlv->tx_accept_filter =
+			    p_params->accept_flags.tx_accept_filter;
+		}
+	}
+
+	if (p_params->rss_params) {
+		struct qed_rss_params *rss_params = p_params->rss_params;
+		struct vfpf_vport_update_rss_tlv *p_rss_tlv;
+
+		size = sizeof(struct vfpf_vport_update_rss_tlv);
+		p_rss_tlv = qed_add_tlv(p_hwfn,
+					&p_iov->offset,
+					CHANNEL_TLV_VPORT_UPDATE_RSS, size);
+		resp_size += sizeof(struct pfvf_def_resp_tlv);
+
+		if (rss_params->update_rss_config)
+			p_rss_tlv->update_rss_flags |=
+			    VFPF_UPDATE_RSS_CONFIG_FLAG;
+		if (rss_params->update_rss_capabilities)
+			p_rss_tlv->update_rss_flags |=
+			    VFPF_UPDATE_RSS_CAPS_FLAG;
+		if (rss_params->update_rss_ind_table)
+			p_rss_tlv->update_rss_flags |=
+			    VFPF_UPDATE_RSS_IND_TABLE_FLAG;
+		if (rss_params->update_rss_key)
+			p_rss_tlv->update_rss_flags |= VFPF_UPDATE_RSS_KEY_FLAG;
+
+		p_rss_tlv->rss_enable = rss_params->rss_enable;
+		p_rss_tlv->rss_caps = rss_params->rss_caps;
+		p_rss_tlv->rss_table_size_log = rss_params->rss_table_size_log;
+		memcpy(p_rss_tlv->rss_ind_table, rss_params->rss_ind_table,
+		       sizeof(rss_params->rss_ind_table));
+		memcpy(p_rss_tlv->rss_key, rss_params->rss_key,
+		       sizeof(rss_params->rss_key));
+	}
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, resp_size);
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EINVAL;
+
+	qed_vf_handle_vp_update_tlvs_resp(p_hwfn, p_params);
+
+	return rc;
+}
+
 int qed_vf_pf_reset(struct qed_hwfn *p_hwfn)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
@@ -382,6 +776,57 @@ int qed_vf_pf_release(struct qed_hwfn *p_hwfn)
 	p_hwfn->vf_iov_info = NULL;
 
 	return rc;
+}
+
+void qed_vf_pf_filter_mcast(struct qed_hwfn *p_hwfn,
+			    struct qed_filter_mcast *p_filter_cmd)
+{
+	struct qed_sp_vport_update_params sp_params;
+	int i;
+
+	memset(&sp_params, 0, sizeof(sp_params));
+	sp_params.update_approx_mcast_flg = 1;
+
+	if (p_filter_cmd->opcode == QED_FILTER_ADD) {
+		for (i = 0; i < p_filter_cmd->num_mc_addrs; i++) {
+			u32 bit;
+
+			bit = qed_mcast_bin_from_mac(p_filter_cmd->mac[i]);
+			__set_bit(bit, sp_params.bins);
+		}
+	}
+
+	qed_vf_pf_vport_update(p_hwfn, &sp_params);
+}
+
+int qed_vf_pf_filter_ucast(struct qed_hwfn *p_hwfn,
+			   struct qed_filter_ucast *p_ucast)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct vfpf_ucast_filter_tlv *req;
+	struct pfvf_def_resp_tlv *resp;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_UCAST_FILTER, sizeof(*req));
+	req->opcode = (u8) p_ucast->opcode;
+	req->type = (u8) p_ucast->type;
+	memcpy(req->mac, p_ucast->mac, ETH_ALEN);
+	req->vlan = p_ucast->vlan;
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	resp = &p_iov->pf2vf_reply->default_resp;
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EAGAIN;
+
+	return 0;
 }
 
 int qed_vf_pf_int_cleanup(struct qed_hwfn *p_hwfn)
