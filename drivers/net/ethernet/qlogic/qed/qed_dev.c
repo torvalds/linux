@@ -31,6 +31,7 @@
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
+#include "qed_vf.h"
 
 /* API common to all protocols */
 enum BAR_ID {
@@ -420,14 +421,16 @@ void qed_resc_setup(struct qed_dev *cdev)
 #define FINAL_CLEANUP_POLL_CNT          (100)
 #define FINAL_CLEANUP_POLL_TIME         (10)
 int qed_final_cleanup(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      u16 id)
+		      struct qed_ptt *p_ptt, u16 id, bool is_vf)
 {
 	u32 command = 0, addr, count = FINAL_CLEANUP_POLL_CNT;
 	int rc = -EBUSY;
 
 	addr = GTT_BAR0_MAP_REG_USDM_RAM +
 		USTORM_FLR_FINAL_ACK_OFFSET(p_hwfn->rel_pf_id);
+
+	if (is_vf)
+		id += 0x10;
 
 	command |= X_FINAL_CLEANUP_AGG_INT <<
 		SDM_AGG_INT_COMP_PARAMS_AGG_INT_INDEX_SHIFT;
@@ -663,7 +666,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_ROCE_RT_OFFSET, 0);
 
 	/* Cleanup chip from previous driver if such remains exist */
-	rc = qed_final_cleanup(p_hwfn, p_ptt, rel_pf_id);
+	rc = qed_final_cleanup(p_hwfn, p_ptt, rel_pf_id, false);
 	if (rc != 0)
 		return rc;
 
@@ -880,7 +883,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 		DP_VERBOSE(p_hwfn, NETIF_MSG_IFDOWN, "Stopping hw/fw\n");
 
 		if (IS_VF(cdev)) {
-			/* To be implemented in a later patch */
+			qed_vf_pf_int_cleanup(p_hwfn);
 			continue;
 		}
 
@@ -989,7 +992,9 @@ int qed_hw_reset(struct qed_dev *cdev)
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		if (IS_VF(cdev)) {
-			/* Will be implemented in a later patch */
+			rc = qed_vf_pf_reset(p_hwfn);
+			if (rc)
+				return rc;
 			continue;
 		}
 
@@ -1590,7 +1595,7 @@ void qed_hw_remove(struct qed_dev *cdev)
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		if (IS_VF(cdev)) {
-			/* Will be implemented in a later patch */
+			qed_vf_pf_release(p_hwfn);
 			continue;
 		}
 

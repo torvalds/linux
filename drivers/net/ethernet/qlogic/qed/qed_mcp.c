@@ -442,6 +442,75 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+static void qed_mcp_handle_vf_flr(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt)
+{
+	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
+					PUBLIC_PATH);
+	u32 mfw_path_offsize = qed_rd(p_hwfn, p_ptt, addr);
+	u32 path_addr = SECTION_ADDR(mfw_path_offsize,
+				     QED_PATH_ID(p_hwfn));
+	u32 disabled_vfs[VF_MAX_STATIC / 32];
+	int i;
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "Reading Disabled VF information from [offset %08x], path_addr %08x\n",
+		   mfw_path_offsize, path_addr);
+
+	for (i = 0; i < (VF_MAX_STATIC / 32); i++) {
+		disabled_vfs[i] = qed_rd(p_hwfn, p_ptt,
+					 path_addr +
+					 offsetof(struct public_path,
+						  mcp_vf_disabled) +
+					 sizeof(u32) * i);
+		DP_VERBOSE(p_hwfn, (QED_MSG_SP | QED_MSG_IOV),
+			   "FLR-ed VFs [%08x,...,%08x] - %08x\n",
+			   i * 32, (i + 1) * 32 - 1, disabled_vfs[i]);
+	}
+
+	if (qed_iov_mark_vf_flr(p_hwfn, disabled_vfs))
+		qed_schedule_iov(p_hwfn, QED_IOV_WQ_FLR_FLAG);
+}
+
+int qed_mcp_ack_vf_flr(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt, u32 *vfs_to_ack)
+{
+	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
+					PUBLIC_FUNC);
+	u32 mfw_func_offsize = qed_rd(p_hwfn, p_ptt, addr);
+	u32 func_addr = SECTION_ADDR(mfw_func_offsize,
+				     MCP_PF_ID(p_hwfn));
+	struct qed_mcp_mb_params mb_params;
+	union drv_union_data union_data;
+	int rc;
+	int i;
+
+	for (i = 0; i < (VF_MAX_STATIC / 32); i++)
+		DP_VERBOSE(p_hwfn, (QED_MSG_SP | QED_MSG_IOV),
+			   "Acking VFs [%08x,...,%08x] - %08x\n",
+			   i * 32, (i + 1) * 32 - 1, vfs_to_ack[i]);
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_VF_DISABLED_DONE;
+	memcpy(&union_data.ack_vf_disabled, vfs_to_ack, VF_MAX_STATIC / 8);
+	mb_params.p_data_src = &union_data;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc) {
+		DP_NOTICE(p_hwfn, "Failed to pass ACK for VF flr to MFW\n");
+		return -EBUSY;
+	}
+
+	/* Clear the ACK bits */
+	for (i = 0; i < (VF_MAX_STATIC / 32); i++)
+		qed_wr(p_hwfn, p_ptt,
+		       func_addr +
+		       offsetof(struct public_func, drv_ack_vf_disabled) +
+		       i * sizeof(u32), 0);
+
+	return rc;
+}
+
 static void qed_mcp_handle_transceiver_change(struct qed_hwfn *p_hwfn,
 					      struct qed_ptt *p_ptt)
 {
@@ -752,6 +821,9 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 		switch (i) {
 		case MFW_DRV_MSG_LINK_CHANGE:
 			qed_mcp_handle_link_change(p_hwfn, p_ptt, false);
+			break;
+		case MFW_DRV_MSG_VF_DISABLED:
+			qed_mcp_handle_vf_flr(p_hwfn, p_ptt);
 			break;
 		case MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE:
 			qed_mcp_handle_transceiver_change(p_hwfn, p_ptt);

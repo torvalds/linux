@@ -897,6 +897,7 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 
 	if (IS_PF(cdev)) {
 		qed_free_stream_mem(cdev);
+		qed_sriov_disable(cdev, true);
 
 		qed_nic_stop(cdev);
 		qed_slowpath_irq_free(cdev);

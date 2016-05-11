@@ -30,7 +30,7 @@ enum common_event_opcode {
 	COMMON_EVENT_PF_START,
 	COMMON_EVENT_PF_STOP,
 	COMMON_EVENT_VF_START,
-	COMMON_EVENT_RESERVED2,
+	COMMON_EVENT_VF_STOP,
 	COMMON_EVENT_VF_PF_CHANNEL,
 	COMMON_EVENT_RESERVED4,
 	COMMON_EVENT_RESERVED5,
@@ -45,7 +45,7 @@ enum common_ramrod_cmd_id {
 	COMMON_RAMROD_PF_START /* PF Function Start Ramrod */,
 	COMMON_RAMROD_PF_STOP /* PF Function Stop Ramrod */,
 	COMMON_RAMROD_VF_START,
-	COMMON_RAMROD_RESERVED2,
+	COMMON_RAMROD_VF_STOP,
 	COMMON_RAMROD_PF_UPDATE,
 	COMMON_RAMROD_EMPTY,
 	MAX_COMMON_RAMROD_CMD_ID
@@ -739,6 +739,13 @@ struct vf_start_ramrod_data {
 	__le16 opaque_fid;
 	u8 personality;
 	u8 reserved[3];
+};
+
+struct vf_stop_ramrod_data {
+	u8 vf_id;
+	u8 reserved0;
+	__le16 reserved1;
+	__le32 reserved2;
 };
 
 struct atten_status_block {

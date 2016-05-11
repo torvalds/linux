@@ -206,6 +206,9 @@ struct qed_bulletin {
 enum {
 	CHANNEL_TLV_NONE,	/* ends tlv sequence */
 	CHANNEL_TLV_ACQUIRE,
+	CHANNEL_TLV_INT_CLEANUP,
+	CHANNEL_TLV_CLOSE,
+	CHANNEL_TLV_RELEASE,
 	CHANNEL_TLV_LIST_END,
 	CHANNEL_TLV_MAX
 };
@@ -279,6 +282,24 @@ void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
 int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn);
 
 /**
+ *
+ * @brief VF - send a close message to PF
+ *
+ * @param p_hwfn
+ *
+ * @return enum _qed_status
+ */
+int qed_vf_pf_reset(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief VF - free vf`s memories
+ *
+ * @param p_hwfn
+ *
+ * @return enum _qed_status
+ */
+int qed_vf_pf_release(struct qed_hwfn *p_hwfn);
+/**
  * @brief qed_vf_get_igu_sb_id - Get the IGU SB ID for a given
  *        sb_id. For VFs igu sbs don't have to be contiguous
  *
@@ -288,6 +309,15 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn);
  * @return INLINE u16
  */
 u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
+
+/**
+ * @brief qed_vf_pf_int_cleanup - clean the SB of the VF
+ *
+ * @param p_hwfn
+ *
+ * @return enum _qed_status
+ */
+int qed_vf_pf_int_cleanup(struct qed_hwfn *p_hwfn);
 #else
 static inline void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs)
 {
@@ -313,9 +343,24 @@ static inline int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 	return -EINVAL;
 }
 
+static inline int qed_vf_pf_reset(struct qed_hwfn *p_hwfn)
+{
+	return -EINVAL;
+}
+
+static inline int qed_vf_pf_release(struct qed_hwfn *p_hwfn)
+{
+	return -EINVAL;
+}
+
 static inline u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 {
 	return 0;
+}
+
+static inline int qed_vf_pf_int_cleanup(struct qed_hwfn *p_hwfn)
+{
+	return -EINVAL;
 }
 #endif
 

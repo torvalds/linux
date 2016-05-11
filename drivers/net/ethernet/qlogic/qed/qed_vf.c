@@ -311,6 +311,103 @@ free_p_iov:
 	return -ENOMEM;
 }
 
+int qed_vf_pf_reset(struct qed_hwfn *p_hwfn)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct pfvf_def_resp_tlv *resp;
+	struct vfpf_first_tlv *req;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_CLOSE, sizeof(*req));
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	resp = &p_iov->pf2vf_reply->default_resp;
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EAGAIN;
+
+	p_hwfn->b_int_enabled = 0;
+
+	return 0;
+}
+
+int qed_vf_pf_release(struct qed_hwfn *p_hwfn)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct pfvf_def_resp_tlv *resp;
+	struct vfpf_first_tlv *req;
+	u32 size;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_RELEASE, sizeof(*req));
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	resp = &p_iov->pf2vf_reply->default_resp;
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+
+	if (!rc && resp->hdr.status != PFVF_STATUS_SUCCESS)
+		rc = -EAGAIN;
+
+	p_hwfn->b_int_enabled = 0;
+
+	if (p_iov->vf2pf_request)
+		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+				  sizeof(union vfpf_tlvs),
+				  p_iov->vf2pf_request,
+				  p_iov->vf2pf_request_phys);
+	if (p_iov->pf2vf_reply)
+		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+				  sizeof(union pfvf_tlvs),
+				  p_iov->pf2vf_reply, p_iov->pf2vf_reply_phys);
+
+	if (p_iov->bulletin.p_virt) {
+		size = sizeof(struct qed_bulletin_content);
+		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+				  size,
+				  p_iov->bulletin.p_virt, p_iov->bulletin.phys);
+	}
+
+	kfree(p_hwfn->vf_iov_info);
+	p_hwfn->vf_iov_info = NULL;
+
+	return rc;
+}
+
+int qed_vf_pf_int_cleanup(struct qed_hwfn *p_hwfn)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct pfvf_def_resp_tlv *resp = &p_iov->pf2vf_reply->default_resp;
+	int rc;
+
+	/* clear mailbox and prep first tlv */
+	qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_INT_CLEANUP,
+		       sizeof(struct vfpf_first_tlv));
+
+	/* add list termination tlv */
+	qed_add_tlv(p_hwfn, &p_iov->offset,
+		    CHANNEL_TLV_LIST_END, sizeof(struct channel_list_end_tlv));
+
+	rc = qed_send_msg2pf(p_hwfn, &resp->hdr.status, sizeof(*resp));
+	if (rc)
+		return rc;
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS)
+		return -EINVAL;
+
+	return 0;
+}
+
 u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;

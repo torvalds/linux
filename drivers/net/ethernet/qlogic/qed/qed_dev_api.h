@@ -303,11 +303,11 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param p_ptt
  * @param id - For PF, engine-relative. For VF, PF-relative.
+ * @param is_vf - true iff cleanup is made for a VF.
  *
  * @return int
  */
 int qed_final_cleanup(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      u16 id);
+		      struct qed_ptt *p_ptt, u16 id, bool is_vf);
 
 #endif

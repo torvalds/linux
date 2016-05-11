@@ -13,6 +13,7 @@
 #include <linux/if_link.h>
 #include <linux/qed/eth_common.h>
 #include <linux/qed/qed_if.h>
+#include <linux/qed/qed_iov_if.h>
 
 struct qed_dev_eth_info {
 	struct qed_dev_info common;
@@ -125,6 +126,9 @@ struct qed_eth_cb_ops {
 
 struct qed_eth_ops {
 	const struct qed_common_ops *common;
+#ifdef CONFIG_QED_SRIOV
+	const struct qed_iov_hv_ops *iov;
+#endif
 
 	int (*fill_dev_info)(struct qed_dev *cdev,
 			     struct qed_dev_eth_info *info);

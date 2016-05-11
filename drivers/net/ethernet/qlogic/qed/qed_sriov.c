@@ -6,6 +6,7 @@
  * this source tree.
  */
 
+#include <linux/qed/qed_iov_if.h>
 #include "qed_cxt.h"
 #include "qed_hsi.h"
 #include "qed_hw.h"
@@ -44,6 +45,33 @@ static int qed_sp_vf_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->opaque_fid = cpu_to_le16(opaque_vfid);
 
 	p_ramrod->personality = PERSONALITY_ETH;
+
+	return qed_spq_post(p_hwfn, p_ent, NULL);
+}
+
+static int qed_sp_vf_stop(struct qed_hwfn *p_hwfn,
+			  u32 concrete_vfid, u16 opaque_vfid)
+{
+	struct vf_stop_ramrod_data *p_ramrod = NULL;
+	struct qed_spq_entry *p_ent = NULL;
+	struct qed_sp_init_data init_data;
+	int rc = -EINVAL;
+
+	/* Get SPQ entry */
+	memset(&init_data, 0, sizeof(init_data));
+	init_data.cid = qed_spq_get_cid(p_hwfn);
+	init_data.opaque_fid = opaque_vfid;
+	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
+
+	rc = qed_sp_init_request(p_hwfn, &p_ent,
+				 COMMON_RAMROD_VF_STOP,
+				 PROTOCOLID_COMMON, &init_data);
+	if (rc)
+		return rc;
+
+	p_ramrod = &p_ent->ramrod.vf_stop;
+
+	p_ramrod->vf_id = GET_FIELD(concrete_vfid, PXP_CONCRETE_FID_VFID);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
@@ -422,6 +450,34 @@ static bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
 	return true;
 }
 
+static void qed_iov_set_vf_to_disable(struct qed_dev *cdev,
+				      u16 rel_vf_id, u8 to_disable)
+{
+	struct qed_vf_info *vf;
+	int i;
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		vf = qed_iov_get_vf_info(p_hwfn, rel_vf_id, false);
+		if (!vf)
+			continue;
+
+		vf->to_disable = to_disable;
+	}
+}
+
+void qed_iov_set_vfs_to_disable(struct qed_dev *cdev, u8 to_disable)
+{
+	u16 i;
+
+	if (!IS_QED_SRIOV(cdev))
+		return;
+
+	for (i = 0; i < cdev->p_iov_info->total_vfs; i++)
+		qed_iov_set_vf_to_disable(cdev, i, to_disable);
+}
+
 static void qed_iov_vf_pglue_clear_err(struct qed_hwfn *p_hwfn,
 				       struct qed_ptt *p_ptt, u8 abs_vfid)
 {
@@ -430,12 +486,36 @@ static void qed_iov_vf_pglue_clear_err(struct qed_hwfn *p_hwfn,
 	       1 << (abs_vfid & 0x1f));
 }
 
+static void qed_iov_vf_igu_set_int(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   struct qed_vf_info *vf, bool enable)
+{
+	u32 igu_vf_conf;
+
+	qed_fid_pretend(p_hwfn, p_ptt, (u16) vf->concrete_fid);
+
+	igu_vf_conf = qed_rd(p_hwfn, p_ptt, IGU_REG_VF_CONFIGURATION);
+
+	if (enable)
+		igu_vf_conf |= IGU_VF_CONF_MSI_MSIX_EN;
+	else
+		igu_vf_conf &= ~IGU_VF_CONF_MSI_MSIX_EN;
+
+	qed_wr(p_hwfn, p_ptt, IGU_REG_VF_CONFIGURATION, igu_vf_conf);
+
+	/* unpretend */
+	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_hwfn->hw_info.concrete_fid);
+}
+
 static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt,
 				    struct qed_vf_info *vf)
 {
 	u32 igu_vf_conf = IGU_VF_CONF_FUNC_EN;
 	int rc;
+
+	if (vf->to_disable)
+		return 0;
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_IOV,
@@ -473,6 +553,36 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 	vf->state = VF_FREE;
 
 	return rc;
+}
+
+/**
+ * @brief qed_iov_config_perm_table - configure the permission
+ *      zone table.
+ *      In E4, queue zone permission table size is 320x9. There
+ *      are 320 VF queues for single engine device (256 for dual
+ *      engine device), and each entry has the following format:
+ *      {Valid, VF[7:0]}
+ * @param p_hwfn
+ * @param p_ptt
+ * @param vf
+ * @param enable
+ */
+static void qed_iov_config_perm_table(struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt,
+				      struct qed_vf_info *vf, u8 enable)
+{
+	u32 reg_addr, val;
+	u16 qzone_id = 0;
+	int qid;
+
+	for (qid = 0; qid < vf->num_rxqs; qid++) {
+		qed_fw_l2_queue(p_hwfn, vf->vf_queues[qid].fw_rx_qid,
+				&qzone_id);
+
+		reg_addr = PSWHST_REG_ZONE_PERMISSION_TABLE + qzone_id * 4;
+		val = enable ? (vf->abs_vf_id | (1 << 8)) : 0;
+		qed_wr(p_hwfn, p_ptt, reg_addr, val);
+	}
 }
 
 static u8 qed_iov_alloc_vf_igu_sbs(struct qed_hwfn *p_hwfn,
@@ -523,6 +633,32 @@ static u8 qed_iov_alloc_vf_igu_sbs(struct qed_hwfn *p_hwfn,
 	vf->num_sbs = (u8) num_rx_queues;
 
 	return vf->num_sbs;
+}
+
+static void qed_iov_free_vf_igu_sbs(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt,
+				    struct qed_vf_info *vf)
+{
+	struct qed_igu_info *p_info = p_hwfn->hw_info.p_igu_info;
+	int idx, igu_id;
+	u32 addr, val;
+
+	/* Invalidate igu CAM lines and mark them as free */
+	for (idx = 0; idx < vf->num_sbs; idx++) {
+		igu_id = vf->igu_sbs[idx];
+		addr = IGU_REG_MAPPING_MEMORY + sizeof(u32) * igu_id;
+
+		val = qed_rd(p_hwfn, p_ptt, addr);
+		SET_FIELD(val, IGU_MAPPING_LINE_VALID, 0);
+		qed_wr(p_hwfn, p_ptt, addr, val);
+
+		p_info->igu_map.igu_blocks[igu_id].status |=
+		    QED_IGU_STATUS_FREE;
+
+		p_hwfn->hw_info.p_igu_info->free_blks++;
+	}
+
+	vf->num_sbs = 0;
 }
 
 static int qed_iov_init_hw_for_vf(struct qed_hwfn *p_hwfn,
@@ -596,6 +732,54 @@ static int qed_iov_init_hw_for_vf(struct qed_hwfn *p_hwfn,
 	}
 
 	return rc;
+}
+
+static int qed_iov_release_hw_for_vf(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt, u16 rel_vf_id)
+{
+	struct qed_vf_info *vf = NULL;
+	int rc = 0;
+
+	vf = qed_iov_get_vf_info(p_hwfn, rel_vf_id, true);
+	if (!vf) {
+		DP_ERR(p_hwfn, "qed_iov_release_hw_for_vf : vf is NULL\n");
+		return -EINVAL;
+	}
+
+	if (vf->state != VF_STOPPED) {
+		/* Stopping the VF */
+		rc = qed_sp_vf_stop(p_hwfn, vf->concrete_fid, vf->opaque_fid);
+
+		if (rc != 0) {
+			DP_ERR(p_hwfn, "qed_sp_vf_stop returned error %d\n",
+			       rc);
+			return rc;
+		}
+
+		vf->state = VF_STOPPED;
+	}
+
+	/* disablng interrupts and resetting permission table was done during
+	 * vf-close, however, we could get here without going through vf_close
+	 */
+	/* Disable Interrupts for VF */
+	qed_iov_vf_igu_set_int(p_hwfn, p_ptt, vf, 0);
+
+	/* Reset Permission table */
+	qed_iov_config_perm_table(p_hwfn, p_ptt, vf, 0);
+
+	vf->num_rxqs = 0;
+	vf->num_txqs = 0;
+	qed_iov_free_vf_igu_sbs(p_hwfn, p_ptt, vf);
+
+	if (vf->b_init) {
+		vf->b_init = false;
+
+		if (IS_LEAD_HWFN(p_hwfn))
+			p_hwfn->cdev->p_iov_info->num_vfs--;
+	}
+
+	return 0;
 }
 
 static bool qed_iov_tlv_supported(u16 tlvtype)
@@ -700,6 +884,51 @@ static void qed_iov_prepare_resp(struct qed_hwfn *p_hwfn,
 		    sizeof(struct channel_list_end_tlv));
 
 	qed_iov_send_response(p_hwfn, p_ptt, vf_info, length, status);
+}
+
+struct qed_public_vf_info *qed_iov_get_public_vf_info(struct qed_hwfn *p_hwfn,
+						      u16 relative_vf_id,
+						      bool b_enabled_only)
+{
+	struct qed_vf_info *vf = NULL;
+
+	vf = qed_iov_get_vf_info(p_hwfn, relative_vf_id, b_enabled_only);
+	if (!vf)
+		return NULL;
+
+	return &vf->p_vf_info;
+}
+
+void qed_iov_clean_vf(struct qed_hwfn *p_hwfn, u8 vfid)
+{
+	struct qed_public_vf_info *vf_info;
+
+	vf_info = qed_iov_get_public_vf_info(p_hwfn, vfid, false);
+
+	if (!vf_info)
+		return;
+
+	/* Clear the VF mac */
+	memset(vf_info->mac, 0, ETH_ALEN);
+}
+
+static void qed_iov_vf_cleanup(struct qed_hwfn *p_hwfn,
+			       struct qed_vf_info *p_vf)
+{
+	u32 i;
+
+	p_vf->vf_bulletin = 0;
+	p_vf->num_mac_filters = 0;
+	p_vf->num_vlan_filters = 0;
+
+	/* If VF previously requested less resources, go back to default */
+	p_vf->num_rxqs = p_vf->num_sbs;
+	p_vf->num_txqs = p_vf->num_sbs;
+
+	for (i = 0; i < QED_MAX_VF_CHAINS_PER_PF; i++)
+		p_vf->vf_queues[i].rxq_active = 0;
+
+	qed_iov_clean_vf(p_hwfn, p_vf->relative_vf_id);
 }
 
 static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
@@ -845,6 +1074,271 @@ out:
 			     sizeof(struct pfvf_acquire_resp_tlv), vfpf_status);
 }
 
+static void qed_iov_vf_mbx_int_cleanup(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt,
+				       struct qed_vf_info *vf)
+{
+	int i;
+
+	/* Reset the SBs */
+	for (i = 0; i < vf->num_sbs; i++)
+		qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt,
+						vf->igu_sbs[i],
+						vf->opaque_fid, false);
+
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_INT_CLEANUP,
+			     sizeof(struct pfvf_def_resp_tlv),
+			     PFVF_STATUS_SUCCESS);
+}
+
+static void qed_iov_vf_mbx_close(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt, struct qed_vf_info *vf)
+{
+	u16 length = sizeof(struct pfvf_def_resp_tlv);
+	u8 status = PFVF_STATUS_SUCCESS;
+
+	/* Disable Interrupts for VF */
+	qed_iov_vf_igu_set_int(p_hwfn, p_ptt, vf, 0);
+
+	/* Reset Permission table */
+	qed_iov_config_perm_table(p_hwfn, p_ptt, vf, 0);
+
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_CLOSE,
+			     length, status);
+}
+
+static void qed_iov_vf_mbx_release(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   struct qed_vf_info *p_vf)
+{
+	u16 length = sizeof(struct pfvf_def_resp_tlv);
+
+	qed_iov_vf_cleanup(p_hwfn, p_vf);
+
+	qed_iov_prepare_resp(p_hwfn, p_ptt, p_vf, CHANNEL_TLV_RELEASE,
+			     length, PFVF_STATUS_SUCCESS);
+}
+
+static int
+qed_iov_vf_flr_poll_dorq(struct qed_hwfn *p_hwfn,
+			 struct qed_vf_info *p_vf, struct qed_ptt *p_ptt)
+{
+	int cnt;
+	u32 val;
+
+	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_vf->concrete_fid);
+
+	for (cnt = 0; cnt < 50; cnt++) {
+		val = qed_rd(p_hwfn, p_ptt, DORQ_REG_VF_USAGE_CNT);
+		if (!val)
+			break;
+		msleep(20);
+	}
+	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_hwfn->hw_info.concrete_fid);
+
+	if (cnt == 50) {
+		DP_ERR(p_hwfn,
+		       "VF[%d] - dorq failed to cleanup [usage 0x%08x]\n",
+		       p_vf->abs_vf_id, val);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int
+qed_iov_vf_flr_poll_pbf(struct qed_hwfn *p_hwfn,
+			struct qed_vf_info *p_vf, struct qed_ptt *p_ptt)
+{
+	u32 cons[MAX_NUM_VOQS], distance[MAX_NUM_VOQS];
+	int i, cnt;
+
+	/* Read initial consumers & producers */
+	for (i = 0; i < MAX_NUM_VOQS; i++) {
+		u32 prod;
+
+		cons[i] = qed_rd(p_hwfn, p_ptt,
+				 PBF_REG_NUM_BLOCKS_ALLOCATED_CONS_VOQ0 +
+				 i * 0x40);
+		prod = qed_rd(p_hwfn, p_ptt,
+			      PBF_REG_NUM_BLOCKS_ALLOCATED_PROD_VOQ0 +
+			      i * 0x40);
+		distance[i] = prod - cons[i];
+	}
+
+	/* Wait for consumers to pass the producers */
+	i = 0;
+	for (cnt = 0; cnt < 50; cnt++) {
+		for (; i < MAX_NUM_VOQS; i++) {
+			u32 tmp;
+
+			tmp = qed_rd(p_hwfn, p_ptt,
+				     PBF_REG_NUM_BLOCKS_ALLOCATED_CONS_VOQ0 +
+				     i * 0x40);
+			if (distance[i] > tmp - cons[i])
+				break;
+		}
+
+		if (i == MAX_NUM_VOQS)
+			break;
+
+		msleep(20);
+	}
+
+	if (cnt == 50) {
+		DP_ERR(p_hwfn, "VF[%d] - pbf polling failed on VOQ %d\n",
+		       p_vf->abs_vf_id, i);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int qed_iov_vf_flr_poll(struct qed_hwfn *p_hwfn,
+			       struct qed_vf_info *p_vf, struct qed_ptt *p_ptt)
+{
+	int rc;
+
+	rc = qed_iov_vf_flr_poll_dorq(p_hwfn, p_vf, p_ptt);
+	if (rc)
+		return rc;
+
+	rc = qed_iov_vf_flr_poll_pbf(p_hwfn, p_vf, p_ptt);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int
+qed_iov_execute_vf_flr_cleanup(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt,
+			       u16 rel_vf_id, u32 *ack_vfs)
+{
+	struct qed_vf_info *p_vf;
+	int rc = 0;
+
+	p_vf = qed_iov_get_vf_info(p_hwfn, rel_vf_id, false);
+	if (!p_vf)
+		return 0;
+
+	if (p_hwfn->pf_iov_info->pending_flr[rel_vf_id / 64] &
+	    (1ULL << (rel_vf_id % 64))) {
+		u16 vfid = p_vf->abs_vf_id;
+
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "VF[%d] - Handling FLR\n", vfid);
+
+		qed_iov_vf_cleanup(p_hwfn, p_vf);
+
+		/* If VF isn't active, no need for anything but SW */
+		if (!p_vf->b_init)
+			goto cleanup;
+
+		rc = qed_iov_vf_flr_poll(p_hwfn, p_vf, p_ptt);
+		if (rc)
+			goto cleanup;
+
+		rc = qed_final_cleanup(p_hwfn, p_ptt, vfid, true);
+		if (rc) {
+			DP_ERR(p_hwfn, "Failed handle FLR of VF[%d]\n", vfid);
+			return rc;
+		}
+
+		/* VF_STOPPED has to be set only after final cleanup
+		 * but prior to re-enabling the VF.
+		 */
+		p_vf->state = VF_STOPPED;
+
+		rc = qed_iov_enable_vf_access(p_hwfn, p_ptt, p_vf);
+		if (rc) {
+			DP_ERR(p_hwfn, "Failed to re-enable VF[%d] acces\n",
+			       vfid);
+			return rc;
+		}
+cleanup:
+		/* Mark VF for ack and clean pending state */
+		if (p_vf->state == VF_RESET)
+			p_vf->state = VF_STOPPED;
+		ack_vfs[vfid / 32] |= (1 << (vfid % 32));
+		p_hwfn->pf_iov_info->pending_flr[rel_vf_id / 64] &=
+		    ~(1ULL << (rel_vf_id % 64));
+		p_hwfn->pf_iov_info->pending_events[rel_vf_id / 64] &=
+		    ~(1ULL << (rel_vf_id % 64));
+	}
+
+	return rc;
+}
+
+int qed_iov_vf_flr_cleanup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 ack_vfs[VF_MAX_STATIC / 32];
+	int rc = 0;
+	u16 i;
+
+	memset(ack_vfs, 0, sizeof(u32) * (VF_MAX_STATIC / 32));
+
+	/* Since BRB <-> PRS interface can't be tested as part of the flr
+	 * polling due to HW limitations, simply sleep a bit. And since
+	 * there's no need to wait per-vf, do it before looping.
+	 */
+	msleep(100);
+
+	for (i = 0; i < p_hwfn->cdev->p_iov_info->total_vfs; i++)
+		qed_iov_execute_vf_flr_cleanup(p_hwfn, p_ptt, i, ack_vfs);
+
+	rc = qed_mcp_ack_vf_flr(p_hwfn, p_ptt, ack_vfs);
+	return rc;
+}
+
+int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
+{
+	u16 i, found = 0;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_IOV, "Marking FLR-ed VFs\n");
+	for (i = 0; i < (VF_MAX_STATIC / 32); i++)
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "[%08x,...,%08x]: %08x\n",
+			   i * 32, (i + 1) * 32 - 1, p_disabled_vfs[i]);
+
+	if (!p_hwfn->cdev->p_iov_info) {
+		DP_NOTICE(p_hwfn, "VF flr but no IOV\n");
+		return 0;
+	}
+
+	/* Mark VFs */
+	for (i = 0; i < p_hwfn->cdev->p_iov_info->total_vfs; i++) {
+		struct qed_vf_info *p_vf;
+		u8 vfid;
+
+		p_vf = qed_iov_get_vf_info(p_hwfn, i, false);
+		if (!p_vf)
+			continue;
+
+		vfid = p_vf->abs_vf_id;
+		if ((1 << (vfid % 32)) & p_disabled_vfs[vfid / 32]) {
+			u64 *p_flr = p_hwfn->pf_iov_info->pending_flr;
+			u16 rel_vf_id = p_vf->relative_vf_id;
+
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "VF[%d] [rel %d] got FLR-ed\n",
+				   vfid, rel_vf_id);
+
+			p_vf->state = VF_RESET;
+
+			/* No need to lock here, since pending_flr should
+			 * only change here and before ACKing MFw. Since
+			 * MFW will not trigger an additional attention for
+			 * VF flr until ACKs, we're safe.
+			 */
+			p_flr[rel_vf_id / 64] |= 1ULL << (rel_vf_id % 64);
+			found = 1;
+		}
+	}
+
+	return found;
+}
+
 static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt, int vfid)
 {
@@ -870,6 +1364,15 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 		switch (mbx->first_tlv.tl.type) {
 		case CHANNEL_TLV_ACQUIRE:
 			qed_iov_vf_mbx_acquire(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_CLOSE:
+			qed_iov_vf_mbx_close(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_INT_CLEANUP:
+			qed_iov_vf_mbx_int_cleanup(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_RELEASE:
+			qed_iov_vf_mbx_release(p_hwfn, p_ptt, p_vf);
 			break;
 		}
 	} else {
@@ -992,6 +1495,17 @@ static int qed_iov_copy_vf_msg(struct qed_hwfn *p_hwfn, struct qed_ptt *ptt,
 	return 0;
 }
 
+bool qed_iov_is_vf_stopped(struct qed_hwfn *p_hwfn, int vfid)
+{
+	struct qed_vf_info *p_vf_info;
+
+	p_vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	if (!p_vf_info)
+		return true;
+
+	return p_vf_info->state == VF_STOPPED;
+}
+
 /**
  * qed_schedule_iov - schedules IOV task for VF and PF
  * @hwfn: hardware function pointer
@@ -1013,6 +1527,132 @@ void qed_vf_start_iov_wq(struct qed_dev *cdev)
 	for_each_hwfn(cdev, i)
 	    queue_delayed_work(cdev->hwfns[i].iov_wq,
 			       &cdev->hwfns[i].iov_task, 0);
+}
+
+int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
+{
+	int i, j;
+
+	for_each_hwfn(cdev, i)
+	    if (cdev->hwfns[i].iov_wq)
+		flush_workqueue(cdev->hwfns[i].iov_wq);
+
+	/* Mark VFs for disablement */
+	qed_iov_set_vfs_to_disable(cdev, true);
+
+	if (cdev->p_iov_info && cdev->p_iov_info->num_vfs && pci_enabled)
+		pci_disable_sriov(cdev->pdev);
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *hwfn = &cdev->hwfns[i];
+		struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
+
+		/* Failure to acquire the ptt in 100g creates an odd error
+		 * where the first engine has already relased IOV.
+		 */
+		if (!ptt) {
+			DP_ERR(hwfn, "Failed to acquire ptt\n");
+			return -EBUSY;
+		}
+
+		qed_for_each_vf(hwfn, j) {
+			int k;
+
+			if (!qed_iov_is_valid_vfid(hwfn, j, true))
+				continue;
+
+			/* Wait until VF is disabled before releasing */
+			for (k = 0; k < 100; k++) {
+				if (!qed_iov_is_vf_stopped(hwfn, j))
+					msleep(20);
+				else
+					break;
+			}
+
+			if (k < 100)
+				qed_iov_release_hw_for_vf(&cdev->hwfns[i],
+							  ptt, j);
+			else
+				DP_ERR(hwfn,
+				       "Timeout waiting for VF's FLR to end\n");
+		}
+
+		qed_ptt_release(hwfn, ptt);
+	}
+
+	qed_iov_set_vfs_to_disable(cdev, false);
+
+	return 0;
+}
+
+static int qed_sriov_enable(struct qed_dev *cdev, int num)
+{
+	struct qed_sb_cnt_info sb_cnt_info;
+	int i, j, rc;
+
+	if (num >= RESC_NUM(&cdev->hwfns[0], QED_VPORT)) {
+		DP_NOTICE(cdev, "Can start at most %d VFs\n",
+			  RESC_NUM(&cdev->hwfns[0], QED_VPORT) - 1);
+		return -EINVAL;
+	}
+
+	/* Initialize HW for VF access */
+	for_each_hwfn(cdev, j) {
+		struct qed_hwfn *hwfn = &cdev->hwfns[j];
+		struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
+		int num_sbs = 0, limit = 16;
+
+		if (!ptt) {
+			DP_ERR(hwfn, "Failed to acquire ptt\n");
+			rc = -EBUSY;
+			goto err;
+		}
+
+		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+		qed_int_get_num_sbs(hwfn, &sb_cnt_info);
+		num_sbs = min_t(int, sb_cnt_info.sb_free_blk, limit);
+
+		for (i = 0; i < num; i++) {
+			if (!qed_iov_is_valid_vfid(hwfn, i, false))
+				continue;
+
+			rc = qed_iov_init_hw_for_vf(hwfn,
+						    ptt, i, num_sbs / num);
+			if (rc) {
+				DP_ERR(cdev, "Failed to enable VF[%d]\n", i);
+				qed_ptt_release(hwfn, ptt);
+				goto err;
+			}
+		}
+
+		qed_ptt_release(hwfn, ptt);
+	}
+
+	/* Enable SRIOV PCIe functions */
+	rc = pci_enable_sriov(cdev->pdev, num);
+	if (rc) {
+		DP_ERR(cdev, "Failed to enable sriov [%d]\n", rc);
+		goto err;
+	}
+
+	return num;
+
+err:
+	qed_sriov_disable(cdev, false);
+	return rc;
+}
+
+static int qed_sriov_configure(struct qed_dev *cdev, int num_vfs_param)
+{
+	if (!IS_QED_SRIOV(cdev)) {
+		DP_VERBOSE(cdev, QED_MSG_IOV, "SR-IOV is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (num_vfs_param)
+		return qed_sriov_enable(cdev, num_vfs_param);
+	else
+		return qed_sriov_disable(cdev, true);
 }
 
 static void qed_handle_vf_msg(struct qed_hwfn *hwfn)
@@ -1058,9 +1698,25 @@ void qed_iov_pf_task(struct work_struct *work)
 {
 	struct qed_hwfn *hwfn = container_of(work, struct qed_hwfn,
 					     iov_task.work);
+	int rc;
 
 	if (test_and_clear_bit(QED_IOV_WQ_STOP_WQ_FLAG, &hwfn->iov_task_flags))
 		return;
+
+	if (test_and_clear_bit(QED_IOV_WQ_FLR_FLAG, &hwfn->iov_task_flags)) {
+		struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
+
+		if (!ptt) {
+			qed_schedule_iov(hwfn, QED_IOV_WQ_FLR_FLAG);
+			return;
+		}
+
+		rc = qed_iov_vf_flr_cleanup(hwfn, ptt);
+		if (rc)
+			qed_schedule_iov(hwfn, QED_IOV_WQ_FLR_FLAG);
+
+		qed_ptt_release(hwfn, ptt);
+	}
 
 	if (test_and_clear_bit(QED_IOV_WQ_MSG_FLAG, &hwfn->iov_task_flags))
 		qed_handle_vf_msg(hwfn);
@@ -1112,3 +1768,7 @@ int qed_iov_wq_start(struct qed_dev *cdev)
 
 	return 0;
 }
+
+const struct qed_iov_hv_ops qed_iov_ops_pass = {
+	.configure = &qed_sriov_configure,
+};

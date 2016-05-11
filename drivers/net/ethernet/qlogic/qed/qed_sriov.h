@@ -24,6 +24,13 @@
 #define QED_MAX_VF_CHAINS_PER_PF 16
 #define QED_ETH_VF_NUM_VLAN_FILTERS 2
 
+struct qed_public_vf_info {
+	/* These copies will later be reflected in the bulletin board,
+	 * but this copy should be newer.
+	 */
+	u8 mac[ETH_ALEN];
+};
+
 /* This struct is part of qed_dev and contains data relevant to all hwfns;
  * Initialized only if SR-IOV cpabability is exposed in PCIe config space.
  */
@@ -74,6 +81,7 @@ struct qed_vf_q_info {
 enum vf_state {
 	VF_FREE = 0,		/* VF ready to be acquired holds no resc */
 	VF_ACQUIRED,		/* VF, acquired, but not initalized */
+	VF_RESET,		/* VF, FLR'd, pending cleanup */
 	VF_STOPPED		/* VF, Stopped */
 };
 
@@ -82,6 +90,7 @@ struct qed_vf_info {
 	struct qed_iov_vf_mbx vf_mbx;
 	enum vf_state state;
 	bool b_init;
+	u8 to_disable;
 
 	struct qed_bulletin bulletin;
 	dma_addr_t vf_bulletin;
@@ -105,7 +114,7 @@ struct qed_vf_info {
 	u8 num_vlan_filters;
 	struct qed_vf_q_info vf_queues[QED_MAX_VF_CHAINS_PER_PF];
 	u16 igu_sbs[QED_MAX_VF_CHAINS_PER_PF];
-
+	struct qed_public_vf_info p_vf_info;
 };
 
 /* This structure is part of qed_hwfn and used only for PFs that have sriov
@@ -219,11 +228,22 @@ void qed_iov_free_hw_info(struct qed_dev *cdev);
 int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
 			u8 opcode, __le16 echo, union event_ring_data *data);
 
+/**
+ * @brief Mark structs of vfs that have been FLR-ed.
+ *
+ * @param p_hwfn
+ * @param disabled_vfs - bitmask of all VFs on path that were FLRed
+ *
+ * @return 1 iff one of the PF's vfs got FLRed. 0 otherwise.
+ */
+int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *disabled_vfs);
+
 void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first);
 int qed_iov_wq_start(struct qed_dev *cdev);
 
 void qed_schedule_iov(struct qed_hwfn *hwfn, enum qed_iov_wq_flag flag);
 void qed_vf_start_iov_wq(struct qed_dev *cdev);
+int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled);
 #else
 static inline u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn,
 					     u16 rel_vf_id)
@@ -260,6 +280,12 @@ static inline int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
 	return -EINVAL;
 }
 
+static inline int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn,
+				      u32 *disabled_vfs)
+{
+	return 0;
+}
+
 static inline void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first)
 {
 }
@@ -276,6 +302,11 @@ static inline void qed_schedule_iov(struct qed_hwfn *hwfn,
 
 static inline void qed_vf_start_iov_wq(struct qed_dev *cdev)
 {
+}
+
+static inline int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
+{
+	return 0;
 }
 #endif
 

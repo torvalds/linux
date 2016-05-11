@@ -393,6 +393,18 @@ void qed_mcp_read_mb(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt);
 
 /**
+ * @brief Ack to mfw that driver finished FLR process for VFs
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param vfs_to_ack - bit mask of all engine VFs for which the PF acks.
+ *
+ * @param return int - 0 upon success.
+ */
+int qed_mcp_ack_vf_flr(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt, u32 *vfs_to_ack);
+
+/**
  * @brief - calls during init to read shmem of all function-related info.
  *
  * @param p_hwfn
