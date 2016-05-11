@@ -2606,6 +2606,7 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_FanSpeedInTableIsRPM);
+
 	if (hwmgr->chip_id == CHIP_POLARIS11)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SPLLShutdownSupport);
@@ -2937,6 +2938,9 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->voltage_control = POLARIS10_VOLTAGE_CONTROL_NONE;
 	data->vddci_control = POLARIS10_VOLTAGE_CONTROL_NONE;
 	data->mvdd_control = POLARIS10_VOLTAGE_CONTROL_NONE;
+
+	data->enable_tdc_limit_feature = true;
+	data->enable_pkg_pwr_tracking_feature = true;
 
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2))
