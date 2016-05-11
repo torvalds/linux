@@ -510,10 +510,10 @@ static u32 batadv_nc_hash_choose(const void *data, u32 size)
  * @node: node in the local table
  * @data2: second object to compare the node to
  *
- * Return: 1 if the two entry are the same, 0 otherwise
+ * Return: true if the two entry are the same, false otherwise
  */
-static int batadv_nc_hash_compare(const struct hlist_node *node,
-				  const void *data2)
+static bool batadv_nc_hash_compare(const struct hlist_node *node,
+				   const void *data2)
 {
 	const struct batadv_nc_path *nc_path1, *nc_path2;
 
@@ -521,15 +521,13 @@ static int batadv_nc_hash_compare(const struct hlist_node *node,
 	nc_path2 = data2;
 
 	/* Return 1 if the two keys are identical */
-	if (memcmp(nc_path1->prev_hop, nc_path2->prev_hop,
-		   sizeof(nc_path1->prev_hop)) != 0)
-		return 0;
+	if (!batadv_compare_eth(nc_path1->prev_hop, nc_path2->prev_hop))
+		return false;
 
-	if (memcmp(nc_path1->next_hop, nc_path2->next_hop,
-		   sizeof(nc_path1->next_hop)) != 0)
-		return 0;
+	if (!batadv_compare_eth(nc_path1->next_hop, nc_path2->next_hop))
+		return false;
 
-	return 1;
+	return true;
 }
 
 /**
@@ -856,8 +854,7 @@ batadv_nc_get_nc_node(struct batadv_priv *bat_priv,
 	if (!nc_node)
 		return NULL;
 
-	if (!kref_get_unless_zero(&orig_neigh_node->refcount))
-		goto free;
+	kref_get(&orig_neigh_node->refcount);
 
 	/* Initialize nc_node */
 	INIT_LIST_HEAD(&nc_node->list);
@@ -884,10 +881,6 @@ batadv_nc_get_nc_node(struct batadv_priv *bat_priv,
 	spin_unlock_bh(lock);
 
 	return nc_node;
-
-free:
-	kfree(nc_node);
-	return NULL;
 }
 
 /**

@@ -54,9 +54,9 @@ static void batadv_purge_orig(struct work_struct *work);
  * @node: node in the local table
  * @data2: second object to compare the node to
  *
- * Return: 1 if they are the same originator
+ * Return: true if they are the same originator
  */
-int batadv_compare_orig(const struct hlist_node *node, const void *data2)
+bool batadv_compare_orig(const struct hlist_node *node, const void *data2)
 {
 	const void *data1 = container_of(node, struct batadv_orig_node,
 					 hash_entry);
@@ -374,12 +374,8 @@ batadv_orig_ifinfo_new(struct batadv_orig_node *orig_node,
 	if (!orig_ifinfo)
 		goto out;
 
-	if (if_outgoing != BATADV_IF_DEFAULT &&
-	    !kref_get_unless_zero(&if_outgoing->refcount)) {
-		kfree(orig_ifinfo);
-		orig_ifinfo = NULL;
-		goto out;
-	}
+	if (if_outgoing != BATADV_IF_DEFAULT)
+		kref_get(&if_outgoing->refcount);
 
 	reset_time = jiffies - 1;
 	reset_time -= msecs_to_jiffies(BATADV_RESET_PROTECTION_MS);
@@ -455,11 +451,8 @@ batadv_neigh_ifinfo_new(struct batadv_neigh_node *neigh,
 	if (!neigh_ifinfo)
 		goto out;
 
-	if (if_outgoing && !kref_get_unless_zero(&if_outgoing->refcount)) {
-		kfree(neigh_ifinfo);
-		neigh_ifinfo = NULL;
-		goto out;
-	}
+	if (if_outgoing)
+		kref_get(&if_outgoing->refcount);
 
 	INIT_HLIST_NODE(&neigh_ifinfo->list);
 	kref_init(&neigh_ifinfo->refcount);
@@ -532,15 +525,11 @@ batadv_hardif_neigh_create(struct batadv_hard_iface *hard_iface,
 	if (hardif_neigh)
 		goto out;
 
-	if (!kref_get_unless_zero(&hard_iface->refcount))
-		goto out;
-
 	hardif_neigh = kzalloc(sizeof(*hardif_neigh), GFP_ATOMIC);
-	if (!hardif_neigh) {
-		batadv_hardif_put(hard_iface);
+	if (!hardif_neigh)
 		goto out;
-	}
 
+	kref_get(&hard_iface->refcount);
 	INIT_HLIST_NODE(&hardif_neigh->list);
 	ether_addr_copy(hardif_neigh->addr, neigh_addr);
 	hardif_neigh->if_incoming = hard_iface;
@@ -643,16 +632,11 @@ batadv_neigh_node_new(struct batadv_orig_node *orig_node,
 	if (!neigh_node)
 		goto out;
 
-	if (!kref_get_unless_zero(&hard_iface->refcount)) {
-		kfree(neigh_node);
-		neigh_node = NULL;
-		goto out;
-	}
-
 	INIT_HLIST_NODE(&neigh_node->list);
 	INIT_HLIST_HEAD(&neigh_node->ifinfo_list);
 	spin_lock_init(&neigh_node->ifinfo_lock);
 
+	kref_get(&hard_iface->refcount);
 	ether_addr_copy(neigh_node->addr, neigh_addr);
 	neigh_node->if_incoming = hard_iface;
 	neigh_node->orig_node = orig_node;
@@ -1160,6 +1144,9 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 		if (hard_iface->soft_iface != bat_priv->soft_iface)
 			continue;
 
+		if (!kref_get_unless_zero(&hard_iface->refcount))
+			continue;
+
 		best_neigh_node = batadv_find_best_neighbor(bat_priv,
 							    orig_node,
 							    hard_iface);
@@ -1167,6 +1154,8 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 				    best_neigh_node);
 		if (best_neigh_node)
 			batadv_neigh_node_put(best_neigh_node);
+
+		batadv_hardif_put(hard_iface);
 	}
 	rcu_read_unlock();
 
