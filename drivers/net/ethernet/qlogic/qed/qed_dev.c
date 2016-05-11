@@ -1889,6 +1889,32 @@ static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+static int __qed_configure_vport_wfq(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt, u16 vp_id, u32 rate)
+{
+	struct qed_mcp_link_state *p_link;
+	int rc = 0;
+
+	p_link = &p_hwfn->cdev->hwfns[0].mcp_info->link_output;
+
+	if (!p_link->min_pf_rate) {
+		p_hwfn->qm_info.wfq_data[vp_id].min_speed = rate;
+		p_hwfn->qm_info.wfq_data[vp_id].configured = true;
+		return rc;
+	}
+
+	rc = qed_init_wfq_param(p_hwfn, vp_id, rate, p_link->min_pf_rate);
+
+	if (rc == 0)
+		qed_configure_wfq_for_all_vports(p_hwfn, p_ptt,
+						 p_link->min_pf_rate);
+	else
+		DP_NOTICE(p_hwfn,
+			  "Validation failed while configuring min rate\n");
+
+	return rc;
+}
+
 static int __qed_configure_vp_wfq_on_link_change(struct qed_hwfn *p_hwfn,
 						 struct qed_ptt *p_ptt,
 						 u32 min_pf_rate)
@@ -1919,6 +1945,42 @@ static int __qed_configure_vp_wfq_on_link_change(struct qed_hwfn *p_hwfn,
 		qed_configure_wfq_for_all_vports(p_hwfn, p_ptt, min_pf_rate);
 	else
 		qed_disable_wfq_for_all_vports(p_hwfn, p_ptt, min_pf_rate);
+
+	return rc;
+}
+
+/* Main API for qed clients to configure vport min rate.
+ * vp_id - vport id in PF Range[0 - (total_num_vports_per_pf - 1)]
+ * rate - Speed in Mbps needs to be assigned to a given vport.
+ */
+int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate)
+{
+	int i, rc = -EINVAL;
+
+	/* Currently not supported; Might change in future */
+	if (cdev->num_hwfns > 1) {
+		DP_NOTICE(cdev,
+			  "WFQ configuration is not supported for this device\n");
+		return rc;
+	}
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+		struct qed_ptt *p_ptt;
+
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (!p_ptt)
+			return -EBUSY;
+
+		rc = __qed_configure_vport_wfq(p_hwfn, p_ptt, vp_id, rate);
+
+		if (!rc) {
+			qed_ptt_release(p_hwfn, p_ptt);
+			return rc;
+		}
+
+		qed_ptt_release(p_hwfn, p_ptt);
+	}
 
 	return rc;
 }
@@ -2068,4 +2130,18 @@ int qed_configure_pf_min_bandwidth(struct qed_dev *cdev, u8 min_bw)
 	}
 
 	return rc;
+}
+
+void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_link_state *p_link;
+
+	p_link = &p_hwfn->mcp_info->link_output;
+
+	if (p_link->min_pf_rate)
+		qed_disable_wfq_for_all_vports(p_hwfn, p_ptt,
+					       p_link->min_pf_rate);
+
+	memset(p_hwfn->qm_info.wfq_data, 0,
+	       sizeof(*p_hwfn->qm_info.wfq_data) * p_hwfn->qm_info.num_vports);
 }

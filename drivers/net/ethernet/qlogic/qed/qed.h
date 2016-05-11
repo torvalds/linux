@@ -554,8 +554,10 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 
 #define PURE_LB_TC 8
 
+int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate);
 void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate);
 
+void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 
 /* Other Linux specific common definitions */

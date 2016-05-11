@@ -18,6 +18,12 @@ struct qed_iov_hv_ops {
 	int (*set_mac) (struct qed_dev *cdev, u8 *mac, int vfid);
 
 	int (*set_vlan) (struct qed_dev *cdev, u16 vid, int vfid);
+
+	int (*set_link_state) (struct qed_dev *cdev, int vf_id,
+			       int link_state);
+
+	int (*set_rate) (struct qed_dev *cdev, int vfid,
+			 u32 min_rate, u32 max_rate);
 };
 
 #endif

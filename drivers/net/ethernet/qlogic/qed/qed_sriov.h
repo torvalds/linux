@@ -46,6 +46,12 @@ struct qed_public_vf_info {
 	u8 forced_mac[ETH_ALEN];
 	u16 forced_vlan;
 	u8 mac[ETH_ALEN];
+
+	/* IFLA_VF_LINK_STATE_<X> */
+	int link_state;
+
+	/* Currently configured Tx rate in MB/sec. 0 if unconfigured */
+	int tx_rate;
 };
 
 /* This struct is part of qed_dev and contains data relevant to all hwfns;

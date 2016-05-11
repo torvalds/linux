@@ -2822,6 +2822,46 @@ u16 qed_iov_bulletin_get_forced_vlan(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
 	return p_vf->bulletin.p_virt->pvid;
 }
 
+static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt, int vfid, int val)
+{
+	struct qed_vf_info *vf;
+	u8 abs_vp_id = 0;
+	int rc;
+
+	vf = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
+	if (!vf)
+		return -EINVAL;
+
+	rc = qed_fw_vport(p_hwfn, vf->vport_id, &abs_vp_id);
+	if (rc)
+		return rc;
+
+	return qed_init_vport_rl(p_hwfn, p_ptt, abs_vp_id, (u32)val);
+}
+
+int qed_iov_configure_min_tx_rate(struct qed_dev *cdev, int vfid, u32 rate)
+{
+	struct qed_vf_info *vf;
+	u8 vport_id;
+	int i;
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		if (!qed_iov_pf_sanity_check(p_hwfn, vfid)) {
+			DP_NOTICE(p_hwfn,
+				  "SR-IOV sanity check failed, can't set min rate\n");
+			return -EINVAL;
+		}
+	}
+
+	vf = qed_iov_get_vf_info(QED_LEADING_HWFN(cdev), (u16)vfid, true);
+	vport_id = vf->vport_id;
+
+	return qed_configure_vport_wfq(cdev, vport_id, rate);
+}
+
 /**
  * qed_schedule_iov - schedules IOV task for VF and PF
  * @hwfn: hardware function pointer
@@ -2870,6 +2910,9 @@ int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 			DP_ERR(hwfn, "Failed to acquire ptt\n");
 			return -EBUSY;
 		}
+
+		/* Clean WFQ db and configure equal weight for all vports */
+		qed_clean_wfq_db(hwfn, ptt);
 
 		qed_for_each_vf(hwfn, j) {
 			int k;
@@ -3047,15 +3090,134 @@ void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
 
 	/* Update bulletin of all future possible VFs with link configuration */
 	for (i = 0; i < hwfn->cdev->p_iov_info->total_vfs; i++) {
+		struct qed_public_vf_info *vf_info;
+
+		vf_info = qed_iov_get_public_vf_info(hwfn, i, false);
+		if (!vf_info)
+			continue;
+
 		memcpy(&params, qed_mcp_get_link_params(hwfn), sizeof(params));
 		memcpy(&link, qed_mcp_get_link_state(hwfn), sizeof(link));
 		memcpy(&caps, qed_mcp_get_link_capabilities(hwfn),
 		       sizeof(caps));
 
+		/* Modify link according to the VF's configured link state */
+		switch (vf_info->link_state) {
+		case IFLA_VF_LINK_STATE_DISABLE:
+			link.link_up = false;
+			break;
+		case IFLA_VF_LINK_STATE_ENABLE:
+			link.link_up = true;
+			/* Set speed according to maximum supported by HW.
+			 * that is 40G for regular devices and 100G for CMT
+			 * mode devices.
+			 */
+			link.speed = (hwfn->cdev->num_hwfns > 1) ?
+				     100000 : 40000;
+		default:
+			/* In auto mode pass PF link image to VF */
+			break;
+		}
+
+		if (link.link_up && vf_info->tx_rate) {
+			struct qed_ptt *ptt;
+			int rate;
+
+			rate = min_t(int, vf_info->tx_rate, link.speed);
+
+			ptt = qed_ptt_acquire(hwfn);
+			if (!ptt) {
+				DP_NOTICE(hwfn, "Failed to acquire PTT\n");
+				return;
+			}
+
+			if (!qed_iov_configure_tx_rate(hwfn, ptt, i, rate)) {
+				vf_info->tx_rate = rate;
+				link.speed = rate;
+			}
+
+			qed_ptt_release(hwfn, ptt);
+		}
+
 		qed_iov_set_link(hwfn, i, &params, &link, &caps);
 	}
 
 	qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
+}
+
+static int qed_set_vf_link_state(struct qed_dev *cdev,
+				 int vf_id, int link_state)
+{
+	int i;
+
+	/* Sanitize request */
+	if (IS_VF(cdev))
+		return -EINVAL;
+
+	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vf_id, true)) {
+		DP_VERBOSE(cdev, QED_MSG_IOV,
+			   "VF index [%d] isn't active\n", vf_id);
+		return -EINVAL;
+	}
+
+	/* Handle configuration of link state */
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *hwfn = &cdev->hwfns[i];
+		struct qed_public_vf_info *vf;
+
+		vf = qed_iov_get_public_vf_info(hwfn, vf_id, true);
+		if (!vf)
+			continue;
+
+		if (vf->link_state == link_state)
+			continue;
+
+		vf->link_state = link_state;
+		qed_inform_vf_link_state(&cdev->hwfns[i]);
+	}
+
+	return 0;
+}
+
+static int qed_configure_max_vf_rate(struct qed_dev *cdev, int vfid, int rate)
+{
+	int i;
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+		struct qed_public_vf_info *vf;
+
+		if (!qed_iov_pf_sanity_check(p_hwfn, vfid)) {
+			DP_NOTICE(p_hwfn,
+				  "SR-IOV sanity check failed, can't set tx rate\n");
+			return -EINVAL;
+		}
+
+		vf = qed_iov_get_public_vf_info(p_hwfn, vfid, true);
+
+		vf->tx_rate = rate;
+
+		qed_inform_vf_link_state(p_hwfn);
+	}
+
+	return 0;
+}
+
+static int qed_set_vf_rate(struct qed_dev *cdev,
+			   int vfid, u32 min_rate, u32 max_rate)
+{
+	int rc_min = 0, rc_max = 0;
+
+	if (max_rate)
+		rc_max = qed_configure_max_vf_rate(cdev, vfid, max_rate);
+
+	if (min_rate)
+		rc_min = qed_iov_configure_min_tx_rate(cdev, vfid, min_rate);
+
+	if (rc_max | rc_min)
+		return -EINVAL;
+
+	return 0;
 }
 
 static void qed_handle_vf_msg(struct qed_hwfn *hwfn)
@@ -3254,4 +3416,6 @@ const struct qed_iov_hv_ops qed_iov_ops_pass = {
 	.configure = &qed_sriov_configure,
 	.set_mac = &qed_sriov_pf_set_mac,
 	.set_vlan = &qed_sriov_pf_set_vlan,
+	.set_link_state = &qed_set_vf_link_state,
+	.set_rate = &qed_set_vf_rate,
 };

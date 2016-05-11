@@ -1792,6 +1792,28 @@ static struct rtnl_link_stats64 *qede_get_stats64(
 	return stats;
 }
 
+#ifdef CONFIG_QED_SRIOV
+static int qede_set_vf_rate(struct net_device *dev, int vfidx,
+			    int min_tx_rate, int max_tx_rate)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	return edev->ops->iov->set_rate(edev->cdev, vfidx, max_tx_rate,
+					max_tx_rate);
+}
+
+static int qede_set_vf_link_state(struct net_device *dev, int vfidx,
+				  int link_state)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev->ops)
+		return -EINVAL;
+
+	return edev->ops->iov->set_link_state(edev->cdev, vfidx, link_state);
+}
+#endif
+
 static void qede_config_accept_any_vlan(struct qede_dev *edev, bool action)
 {
 	struct qed_update_vport_params params;
@@ -2118,6 +2140,10 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
 	.ndo_get_stats64 = qede_get_stats64,
+#ifdef CONFIG_QED_SRIOV
+	.ndo_set_vf_link_state = qede_set_vf_link_state,
+	.ndo_set_vf_rate = qede_set_vf_rate,
+#endif
 #ifdef CONFIG_QEDE_VXLAN
 	.ndo_add_vxlan_port = qede_add_vxlan_port,
 	.ndo_del_vxlan_port = qede_del_vxlan_port,
