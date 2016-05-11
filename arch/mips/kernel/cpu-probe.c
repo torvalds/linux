@@ -860,6 +860,41 @@ static void decode_configs(struct cpuinfo_mips *c)
 	if (ok)
 		ok = decode_config5(c);
 
+	/* Probe the EBase.WG bit */
+	if (cpu_has_mips_r2_r6) {
+		u64 ebase;
+		unsigned int status;
+
+		/* {read,write}_c0_ebase_64() may be UNDEFINED prior to r6 */
+		ebase = cpu_has_mips64r6 ? read_c0_ebase_64()
+					 : (s32)read_c0_ebase();
+		if (ebase & MIPS_EBASE_WG) {
+			/* WG bit already set, we can avoid the clumsy probe */
+			c->options |= MIPS_CPU_EBASE_WG;
+		} else {
+			/* Its UNDEFINED to change EBase while BEV=0 */
+			status = read_c0_status();
+			write_c0_status(status | ST0_BEV);
+			irq_enable_hazard();
+			/*
+			 * On pre-r6 cores, this may well clobber the upper bits
+			 * of EBase. This is hard to avoid without potentially
+			 * hitting UNDEFINED dm*c0 behaviour if EBase is 32-bit.
+			 */
+			if (cpu_has_mips64r6)
+				write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+			else
+				write_c0_ebase(ebase | MIPS_EBASE_WG);
+			back_to_back_c0_hazard();
+			/* Restore BEV */
+			write_c0_status(status);
+			if (read_c0_ebase() & MIPS_EBASE_WG) {
+				c->options |= MIPS_CPU_EBASE_WG;
+				write_c0_ebase(ebase);
+			}
+		}
+	}
+
 	mips_probe_watch_registers(c);
 
 #ifndef CONFIG_MIPS_CPS

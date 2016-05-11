@@ -1458,6 +1458,9 @@ do {									\
 #define read_c0_ebase()		__read_32bit_c0_register($15, 1)
 #define write_c0_ebase(val)	__write_32bit_c0_register($15, 1, val)
 
+#define read_c0_ebase_64()	__read_64bit_c0_register($15, 1)
+#define write_c0_ebase_64(val)	__write_64bit_c0_register($15, 1, val)
+
 #define read_c0_cdmmbase()	__read_ulong_c0_register($15, 2)
 #define write_c0_cdmmbase(val)	__write_ulong_c0_register($15, 2, val)
 

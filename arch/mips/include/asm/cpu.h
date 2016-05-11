@@ -404,6 +404,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_VP		MBIT_ULL(40)	/* MIPSr6 Virtual Processors (multi-threading) */
 #define MIPS_CPU_LDPTE		MBIT_ULL(41)	/* CPU has ldpte/lddir instructions */
 #define MIPS_CPU_MVH		MBIT_ULL(42)	/* CPU supports MFHC0/MTHC0 */
+#define MIPS_CPU_EBASE_WG	MBIT_ULL(43)	/* CPU has EBase.WG */
 
 /*
  * CPU ASE encodings

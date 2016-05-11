@@ -438,4 +438,8 @@
 #define cpu_has_nan_2008	(cpu_data[0].options & MIPS_CPU_NAN_2008)
 #endif
 
+#ifndef cpu_has_ebase_wg
+# define cpu_has_ebase_wg	(cpu_data[0].options & MIPS_CPU_EBASE_WG)
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */
