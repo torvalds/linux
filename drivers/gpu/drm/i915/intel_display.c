@@ -5430,6 +5430,11 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 			DRM_ERROR("timeout waiting for DE PLL lock\n");
 
 		val = I915_READ(CDCLK_CTL);
+		/*
+		 * FIXME if only the cd2x divider needs changing, it could be done
+		 * without shutting off the pipe (if only one pipe is active).
+		 */
+		val |= BXT_CDCLK_CD2X_PIPE_NONE;
 		val &= ~BXT_CDCLK_CD2X_DIV_SEL_MASK;
 		val |= divider;
 		/*
