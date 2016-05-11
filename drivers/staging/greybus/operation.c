@@ -654,6 +654,9 @@ int gb_operation_request_send(struct gb_operation *operation,
 	unsigned int cycle;
 	int ret;
 
+	if (gb_connection_is_offloaded(connection))
+		return -EBUSY;
+
 	if (!callback)
 		return -EINVAL;
 
@@ -950,8 +953,9 @@ void gb_connection_recv(struct gb_connection *connection,
 	size_t msg_size;
 	u16 operation_id;
 
-	if (connection->state != GB_CONNECTION_STATE_ENABLED &&
-		connection->state != GB_CONNECTION_STATE_ENABLED_TX) {
+	if ((connection->state != GB_CONNECTION_STATE_ENABLED &&
+			connection->state != GB_CONNECTION_STATE_ENABLED_TX) ||
+			gb_connection_is_offloaded(connection)) {
 		dev_warn(dev, "%s: dropping %zu received bytes\n",
 				connection->name, size);
 		return;
