@@ -9675,6 +9675,18 @@ static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
 	     cdclk, dev_priv->cdclk_freq);
 }
 
+static int broadwell_calc_cdclk(int max_pixclk)
+{
+	if (max_pixclk > 540000)
+		return 675000;
+	else if (max_pixclk > 450000)
+		return 540000;
+	else if (max_pixclk > 337500)
+		return 450000;
+	else
+		return 337500;
+}
+
 static int broadwell_modeset_calc_cdclk(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
@@ -9686,14 +9698,7 @@ static int broadwell_modeset_calc_cdclk(struct drm_atomic_state *state)
 	 * FIXME should also account for plane ratio
 	 * once 64bpp pixel formats are supported.
 	 */
-	if (max_pixclk > 540000)
-		cdclk = 675000;
-	else if (max_pixclk > 450000)
-		cdclk = 540000;
-	else if (max_pixclk > 337500)
-		cdclk = 450000;
-	else
-		cdclk = 337500;
+	cdclk = broadwell_calc_cdclk(max_pixclk);
 
 	if (cdclk > dev_priv->max_cdclk_freq) {
 		DRM_DEBUG_KMS("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
@@ -9703,7 +9708,7 @@ static int broadwell_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 	intel_state->cdclk = intel_state->dev_cdclk = cdclk;
 	if (!intel_state->active_crtcs)
-		intel_state->dev_cdclk = 337500;
+		intel_state->dev_cdclk = broadwell_calc_cdclk(0);
 
 	return 0;
 }
