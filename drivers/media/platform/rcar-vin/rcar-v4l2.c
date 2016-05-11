@@ -98,7 +98,7 @@ static int __rvin_try_format_source(struct rvin_dev *vin,
 					struct rvin_source_fmt *source)
 {
 	struct v4l2_subdev *sd;
-	struct v4l2_subdev_pad_config pad_cfg;
+	struct v4l2_subdev_pad_config *pad_cfg;
 	struct v4l2_subdev_format format = {
 		.which = which,
 	};
@@ -108,10 +108,16 @@ static int __rvin_try_format_source(struct rvin_dev *vin,
 
 	v4l2_fill_mbus_format(&format.format, pix, vin->source.code);
 
+	pad_cfg = v4l2_subdev_alloc_pad_config(sd);
+	if (pad_cfg == NULL)
+		return -ENOMEM;
+
+	format.pad = vin->src_pad_idx;
+
 	ret = v4l2_device_call_until_err(sd->v4l2_dev, 0, pad, set_fmt,
-					 &pad_cfg, &format);
+					 pad_cfg, &format);
 	if (ret < 0)
-		return ret;
+		goto cleanup;
 
 	v4l2_fill_pix_format(pix, &format.format);
 
@@ -121,6 +127,8 @@ static int __rvin_try_format_source(struct rvin_dev *vin,
 	vin_dbg(vin, "Source resolution: %ux%u\n", source->width,
 		source->height);
 
+cleanup:
+	v4l2_subdev_free_pad_config(pad_cfg);
 	return 0;
 }
 
