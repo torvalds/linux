@@ -48,8 +48,8 @@ data:
 
 	port->mctrl
 	port->icount
-	info->xmit.head (circ->head)
-	info->xmit.tail (circ->tail)
+	port->state->xmit.head (circ_buf->head)
+	port->state->xmit.tail (circ_buf->tail)
 
 The low level driver is free to use this lock to provide any additional
 locking.
@@ -204,7 +204,7 @@ hardware.
 	RTS nor DTR; this will have already been done via a separate
 	call to set_mctrl.
 
-	Drivers must not access port->info once this call has completed.
+	Drivers must not access port->state once this call has completed.
 
 	This method will only be called when there are no more users of
 	this port.
@@ -216,7 +216,7 @@ hardware.
 	Flush any write buffers, reset any DMA state and stop any
 	ongoing DMA transfers.
 
-	This will be called whenever the port->info->xmit circular
+	This will be called whenever the port->state->xmit circular
 	buffer is cleared.
 
 	Locking: port->lock taken.
