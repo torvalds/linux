@@ -8,7 +8,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/hashtable.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
