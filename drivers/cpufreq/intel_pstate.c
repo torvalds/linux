@@ -168,6 +168,7 @@ struct _pid {
  * struct cpudata -	Per CPU instance data storage
  * @cpu:		CPU number for this instance data
  * @update_util:	CPUFreq utility callback information
+ * @update_util_set:	CPUFreq utility callback is set
  * @pstate:		Stores P state limits for this CPU
  * @vid:		Stores VID limits for this CPU
  * @pid:		Stores PID parameters for this CPU
@@ -187,6 +188,7 @@ struct cpudata {
 	int cpu;
 
 	struct update_util_data update_util;
+	bool   update_util_set;
 
 	struct pstate_data pstate;
 	struct vid_data vid;
@@ -1417,11 +1419,18 @@ static void intel_pstate_set_update_util_hook(unsigned int cpu_num)
 	cpu->sample.time = 0;
 	cpufreq_add_update_util_hook(cpu_num, &cpu->update_util,
 				     intel_pstate_update_util);
+	cpu->update_util_set = true;
 }
 
 static void intel_pstate_clear_update_util_hook(unsigned int cpu)
 {
+	struct cpudata *cpu_data = all_cpu_data[cpu];
+
+	if (!cpu_data->update_util_set)
+		return;
+
 	cpufreq_remove_update_util_hook(cpu);
+	cpu_data->update_util_set = false;
 	synchronize_sched();
 }
 
