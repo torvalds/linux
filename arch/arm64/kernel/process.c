@@ -265,9 +265,6 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		if (stack_start) {
 			if (is_compat_thread(task_thread_info(p)))
 				childregs->compat_sp = stack_start;
-			/* 16-byte aligned stack mandatory on AArch64 */
-			else if (stack_start & 15)
-				return -EINVAL;
 			else
 				childregs->sp = stack_start;
 		}
