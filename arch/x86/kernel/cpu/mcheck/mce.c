@@ -1683,11 +1683,9 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 		break;
 
 	case X86_VENDOR_AMD: {
-		u32 ebx = cpuid_ebx(0x80000007);
-
-		mce_flags.overflow_recov = !!(ebx & BIT(0));
-		mce_flags.succor	 = !!(ebx & BIT(1));
-		mce_flags.smca		 = !!(ebx & BIT(3));
+		mce_flags.overflow_recov = !!cpu_has(c, X86_FEATURE_OVERFLOW_RECOV);
+		mce_flags.succor	 = !!cpu_has(c, X86_FEATURE_SUCCOR);
+		mce_flags.smca		 = !!cpu_has(c, X86_FEATURE_SMCA);
 
 		/*
 		 * Install proper ops for Scalable MCA enabled processors
