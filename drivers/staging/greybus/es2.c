@@ -938,7 +938,7 @@ static int ap_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *endpoint;
 	int bulk_in = 0;
 	int bulk_out = 0;
-	int retval = -ENOMEM;
+	int retval;
 	int i;
 	int num_cports;
 	int cport_id;
@@ -1002,6 +1002,7 @@ static int ap_probe(struct usb_interface *interface,
 	}
 	if (bulk_in != NUM_BULKS || bulk_out != NUM_BULKS) {
 		dev_err(&udev->dev, "Not enough endpoints found in device, aborting!\n");
+		retval = -ENODEV;
 		goto error;
 	}
 
@@ -1014,11 +1015,15 @@ static int ap_probe(struct usb_interface *interface,
 			u8 *buffer;
 
 			urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!urb)
+			if (!urb) {
+				retval = -ENOMEM;
 				goto error;
+			}
 			buffer = kmalloc(ES2_GBUF_MSG_SIZE_MAX, GFP_KERNEL);
-			if (!buffer)
+			if (!buffer) {
+				retval = -ENOMEM;
 				goto error;
+			}
 
 			usb_fill_bulk_urb(urb, udev,
 					  usb_rcvbulkpipe(udev,
@@ -1035,8 +1040,10 @@ static int ap_probe(struct usb_interface *interface,
 		struct urb *urb;
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!urb)
+		if (!urb) {
+			retval = -ENOMEM;
 			goto error;
+		}
 
 		es2->cport_out_urb[i] = urb;
 		es2->cport_out_urb_busy[i] = false;	/* just to be anal */
