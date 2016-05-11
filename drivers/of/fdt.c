@@ -407,24 +407,24 @@ static int unflatten_dt_nodes(const void *blob,
 
 	root = dad;
 	fpsizes[depth] = dad ? strlen(of_node_full_name(dad)) : 0;
-	nps[depth++] = dad;
+	nps[depth] = dad;
 	for (offset = 0;
-	     offset >= 0;
+	     offset >= 0 && depth >= 0;
 	     offset = fdt_next_node(blob, offset, &depth)) {
 		if (WARN_ON_ONCE(depth >= FDT_MAX_DEPTH))
 			continue;
 
-		fpsizes[depth] = populate_node(blob, offset, &mem,
-					       nps[depth - 1],
-					       fpsizes[depth - 1],
-					       &nps[depth], dryrun);
-		if (!fpsizes[depth])
+		fpsizes[depth+1] = populate_node(blob, offset, &mem,
+						 nps[depth],
+						 fpsizes[depth],
+						 &nps[depth+1], dryrun);
+		if (!fpsizes[depth+1])
 			return mem - base;
 
 		if (!dryrun && nodepp && !*nodepp)
-			*nodepp = nps[depth];
+			*nodepp = nps[depth+1];
 		if (!dryrun && !root)
-			root = nps[depth];
+			root = nps[depth+1];
 	}
 
 	if (offset < 0 && offset != -FDT_ERR_NOTFOUND) {
