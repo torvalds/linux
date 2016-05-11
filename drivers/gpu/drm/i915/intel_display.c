@@ -5342,15 +5342,15 @@ static int skl_cdclk_decimal(int cdclk)
 	return DIV_ROUND_CLOSEST(cdclk - 1000, 500);
 }
 
-static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
+static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 {
 	uint32_t divider;
 	uint32_t ratio;
-	uint32_t current_freq;
+	uint32_t current_cdclk;
 	int ret;
 
 	/* frequency = 19.2MHz * ratio / 2 / div{1,1.5,2,4} */
-	switch (frequency) {
+	switch (cdclk) {
 	case 144000:
 		divider = BXT_CDCLK_CD2X_DIV_SEL_4;
 		ratio = BXT_DE_PLL_RATIO(60);
@@ -5380,7 +5380,7 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 		divider = 0;
 		break;
 	default:
-		DRM_ERROR("unsupported CDCLK freq %d", frequency);
+		DRM_ERROR("unsupported CDCLK freq %d", cdclk);
 
 		return;
 	}
@@ -5393,13 +5393,13 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 
 	if (ret) {
 		DRM_ERROR("PCode CDCLK freq change notify failed (err %d, freq %d)\n",
-			  ret, frequency);
+			  ret, cdclk);
 		return;
 	}
 
-	current_freq = I915_READ(CDCLK_CTL) & CDCLK_FREQ_DECIMAL_MASK;
+	current_cdclk = I915_READ(CDCLK_CTL) & CDCLK_FREQ_DECIMAL_MASK;
 	/* convert from .1 fixpoint MHz with -1MHz offset to kHz */
-	current_freq = current_freq * 500 + 1000;
+	current_cdclk = current_cdclk * 500 + 1000;
 
 	/*
 	 * DE PLL has to be disabled when
@@ -5407,8 +5407,8 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 	 * - before setting to 624MHz (PLL needs toggling)
 	 * - before setting to any frequency from 624MHz (PLL needs toggling)
 	 */
-	if (frequency == 19200 || frequency == 624000 ||
-	    current_freq == 624000) {
+	if (cdclk == 19200 || cdclk == 624000 ||
+	    current_cdclk == 624000) {
 		I915_WRITE(BXT_DE_PLL_ENABLE, ~BXT_DE_PLL_PLL_ENABLE);
 		/* Timeout 200us */
 		if (wait_for(!(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK),
@@ -5416,7 +5416,7 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 			DRM_ERROR("timout waiting for DE PLL unlock\n");
 	}
 
-	if (frequency != 19200) {
+	if (cdclk != 19200) {
 		uint32_t val;
 
 		val = I915_READ(BXT_DE_PLL_CTL);
@@ -5437,22 +5437,22 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int frequency)
 		 * enable otherwise.
 		 */
 		val &= ~BXT_CDCLK_SSA_PRECHARGE_ENABLE;
-		if (frequency >= 500000)
+		if (cdclk >= 500000)
 			val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 
 		val &= ~CDCLK_FREQ_DECIMAL_MASK;
-		val |= skl_cdclk_decimal(frequency);
+		val |= skl_cdclk_decimal(cdclk);
 		I915_WRITE(CDCLK_CTL, val);
 	}
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	ret = sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
-				      DIV_ROUND_UP(frequency, 25000));
+				      DIV_ROUND_UP(cdclk, 25000));
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	if (ret) {
 		DRM_ERROR("PCode CDCLK freq set failed, (err %d, freq %d)\n",
-			  ret, frequency);
+			  ret, cdclk);
 		return;
 	}
 
@@ -5558,16 +5558,16 @@ static unsigned int skl_cdclk_get_vco(unsigned int freq)
 static void
 skl_dpll0_enable(struct drm_i915_private *dev_priv, unsigned int required_vco)
 {
-	unsigned int min_freq;
+	int min_cdclk;
 	u32 val;
 
 	/* select the minimum CDCLK before enabling DPLL 0 */
 	if (required_vco == 8640)
-		min_freq = 308570;
+		min_cdclk = 308570;
 	else
-		min_freq = 337500;
+		min_cdclk = 337500;
 
-	val = CDCLK_FREQ_337_308 | skl_cdclk_decimal(min_freq);
+	val = CDCLK_FREQ_337_308 | skl_cdclk_decimal(min_cdclk);
 	I915_WRITE(CDCLK_CTL, val);
 	POSTING_READ(CDCLK_CTL);
 
@@ -5636,12 +5636,12 @@ static bool skl_cdclk_wait_for_pcu_ready(struct drm_i915_private *dev_priv)
 	return false;
 }
 
-static void skl_set_cdclk(struct drm_i915_private *dev_priv, unsigned int freq)
+static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 {
 	struct drm_device *dev = dev_priv->dev;
 	u32 freq_select, pcu_ack;
 
-	DRM_DEBUG_DRIVER("Changing CDCLK to %dKHz\n", freq);
+	DRM_DEBUG_DRIVER("Changing CDCLK to %dKHz\n", cdclk);
 
 	if (!skl_cdclk_wait_for_pcu_ready(dev_priv)) {
 		DRM_ERROR("failed to inform PCU about cdclk change\n");
@@ -5649,7 +5649,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, unsigned int freq)
 	}
 
 	/* set CDCLK_CTL */
-	switch(freq) {
+	switch (cdclk) {
 	case 450000:
 	case 432000:
 		freq_select = CDCLK_FREQ_450_432;
@@ -5672,7 +5672,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, unsigned int freq)
 		break;
 	}
 
-	I915_WRITE(CDCLK_CTL, freq_select | skl_cdclk_decimal(freq));
+	I915_WRITE(CDCLK_CTL, freq_select | skl_cdclk_decimal(cdclk));
 	POSTING_READ(CDCLK_CTL);
 
 	/* inform PCU of the change */
