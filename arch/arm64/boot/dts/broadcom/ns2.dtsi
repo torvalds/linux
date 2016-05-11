@@ -279,6 +279,26 @@
 				      IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
+		cci@65590000 {
+			compatible = "arm,cci-400";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x65590000 0x1000>;
+			ranges = <0 0x65590000 0x10000>;
+
+			pmu@9000 {
+				compatible = "arm,cci-400-pmu,r1",
+					     "arm,cci-400-pmu";
+				reg = <0x9000 0x4000>;
+				interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
 		timer0: timer@66030000 {
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x66030000 0x1000>;
