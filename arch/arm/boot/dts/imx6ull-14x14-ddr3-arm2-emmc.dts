@@ -6,7 +6,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "imx6ull-ddr3-arm2.dts"
+#include "imx6ull-14x14-ddr3-arm2.dts"
 
 &usdhc1 {
 	assigned-clocks = <&clks IMX6UL_CLK_USDHC1_SEL>, <&clks IMX6UL_CLK_USDHC1>;

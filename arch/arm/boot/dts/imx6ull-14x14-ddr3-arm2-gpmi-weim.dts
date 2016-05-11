@@ -6,16 +6,20 @@
  * published by the Free Software Foundation.
  */
 
-#include "imx6ull-ddr3-arm2.dts"
+#include "imx6ull-14x14-ddr3-arm2.dts"
 
-&flexcan2 {
-	status = "disabled";
+&gpmi {
+	status ="okay";
 };
 
-&i2c4 {
-	status = "disabled";
+&qspi {
+	status ="disabled";
 };
 
-&uart2 {
-	status = "okay";
+&usdhc2{
+	status ="disabled";
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_hog &pinctrl_hog_sd &pinctrl_hog_sd2>;
 };

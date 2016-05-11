@@ -6,15 +6,13 @@
  * published by the Free Software Foundation.
  */
 
-#include "imx6ull-ddr3-arm2.dts"
+#define REWORKED_ENABLE_ALL_QSPI
+#include "imx6ull-14x14-ddr3-arm2.dts"
 
-&usbotg1 {
-	status = "disabled";
+&gpmi {
+	status ="disabled";
 };
 
-&adc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_adc1>;
-	vref-supply = <&reg_vref_3v3>;
-	status = "okay";
+&usdhc2{
+	status ="disabled";
 };

@@ -6,17 +6,16 @@
  * published by the Free Software Foundation.
  */
 
-#include "imx6ull-ddr3-arm2.dts"
+#include "imx6ull-14x14-ddr3-arm2.dts"
 
-&ecspi1 {
-	status ="okay";
+&flexcan2 {
+	status = "disabled";
 };
 
-&esai {
-	status ="disabled";
+&i2c4 {
+	status = "disabled";
 };
 
-&ov5640{
-	status ="disabled";
+&uart2 {
+	status = "okay";
 };
-
