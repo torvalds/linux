@@ -1295,6 +1295,29 @@ static int qed_iov_configure_vport_forced(struct qed_hwfn *p_hwfn,
 	if (!p_vf->vport_instance)
 		return -EINVAL;
 
+	if (events & (1 << MAC_ADDR_FORCED)) {
+		/* Since there's no way [currently] of removing the MAC,
+		 * we can always assume this means we need to force it.
+		 */
+		memset(&filter, 0, sizeof(filter));
+		filter.type = QED_FILTER_MAC;
+		filter.opcode = QED_FILTER_REPLACE;
+		filter.is_rx_filter = 1;
+		filter.is_tx_filter = 1;
+		filter.vport_to_add_to = p_vf->vport_id;
+		ether_addr_copy(filter.mac, p_vf->bulletin.p_virt->mac);
+
+		rc = qed_sp_eth_filter_ucast(p_hwfn, p_vf->opaque_fid,
+					     &filter, QED_SPQ_MODE_CB, NULL);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "PF failed to configure MAC for VF\n");
+			return rc;
+		}
+
+		p_vf->configured_features |= 1 << MAC_ADDR_FORCED;
+	}
+
 	if (events & (1 << VLAN_ADDR_FORCED)) {
 		struct qed_sp_vport_update_params vport_update;
 		u8 removal;
@@ -2199,6 +2222,16 @@ static void qed_iov_vf_mbx_ucast_filter(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 
+	if ((p_bulletin->valid_bitmap & (1 << MAC_ADDR_FORCED)) &&
+	    (params.type == QED_FILTER_MAC ||
+	     params.type == QED_FILTER_MAC_VLAN)) {
+		if (!ether_addr_equal(p_bulletin->mac, params.mac) ||
+		    (params.opcode != QED_FILTER_ADD &&
+		     params.opcode != QED_FILTER_REPLACE))
+			status = PFVF_STATUS_FORCED;
+		goto out;
+	}
+
 	rc = qed_iov_chk_ucast(p_hwfn, vf->relative_vf_id, &params);
 	if (rc) {
 		status = PFVF_STATUS_FAILURE;
@@ -2702,6 +2735,30 @@ static int qed_iov_copy_vf_msg(struct qed_hwfn *p_hwfn, struct qed_ptt *ptt,
 	return 0;
 }
 
+static void qed_iov_bulletin_set_forced_mac(struct qed_hwfn *p_hwfn,
+					    u8 *mac, int vfid)
+{
+	struct qed_vf_info *vf_info;
+	u64 feature;
+
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
+	if (!vf_info) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "Can not set forced MAC, invalid vfid [%d]\n", vfid);
+		return;
+	}
+
+	feature = 1 << MAC_ADDR_FORCED;
+	memcpy(vf_info->bulletin.p_virt->mac, mac, ETH_ALEN);
+
+	vf_info->bulletin.p_virt->valid_bitmap |= feature;
+	/* Forced MAC will disable MAC_ADDR */
+	vf_info->bulletin.p_virt->valid_bitmap &=
+				~(1 << VFPF_BULLETIN_MAC_ADDR);
+
+	qed_iov_configure_vport_forced(p_hwfn, vf_info, feature);
+}
+
 void qed_iov_bulletin_set_forced_vlan(struct qed_hwfn *p_hwfn,
 				      u16 pvid, int vfid)
 {
@@ -2734,6 +2791,21 @@ bool qed_iov_is_vf_stopped(struct qed_hwfn *p_hwfn, int vfid)
 		return true;
 
 	return p_vf_info->state == VF_STOPPED;
+}
+
+static u8 *qed_iov_bulletin_get_forced_mac(struct qed_hwfn *p_hwfn,
+					   u16 rel_vf_id)
+{
+	struct qed_vf_info *p_vf;
+
+	p_vf = qed_iov_get_vf_info(p_hwfn, rel_vf_id, true);
+	if (!p_vf || !p_vf->bulletin.p_virt)
+		return NULL;
+
+	if (!(p_vf->bulletin.p_virt->valid_bitmap & (1 << MAC_ADDR_FORCED)))
+		return NULL;
+
+	return p_vf->bulletin.p_virt->mac;
 }
 
 u16 qed_iov_bulletin_get_forced_vlan(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
@@ -2899,6 +2971,38 @@ static int qed_sriov_configure(struct qed_dev *cdev, int num_vfs_param)
 		return qed_sriov_disable(cdev, true);
 }
 
+static int qed_sriov_pf_set_mac(struct qed_dev *cdev, u8 *mac, int vfid)
+{
+	int i;
+
+	if (!IS_QED_SRIOV(cdev) || !IS_PF_SRIOV_ALLOC(&cdev->hwfns[0])) {
+		DP_VERBOSE(cdev, QED_MSG_IOV,
+			   "Cannot set a VF MAC; Sriov is not enabled\n");
+		return -EINVAL;
+	}
+
+	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vfid, true)) {
+		DP_VERBOSE(cdev, QED_MSG_IOV,
+			   "Cannot set VF[%d] MAC (VF is not active)\n", vfid);
+		return -EINVAL;
+	}
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *hwfn = &cdev->hwfns[i];
+		struct qed_public_vf_info *vf_info;
+
+		vf_info = qed_iov_get_public_vf_info(hwfn, vfid, true);
+		if (!vf_info)
+			continue;
+
+		/* Set the forced MAC, and schedule the IOV task */
+		ether_addr_copy(vf_info->forced_mac, mac);
+		qed_schedule_iov(hwfn, QED_IOV_WQ_SET_UNICAST_FILTER_FLAG);
+	}
+
+	return 0;
+}
+
 static int qed_sriov_pf_set_vlan(struct qed_dev *cdev, u16 vid, int vfid)
 {
 	int i;
@@ -3000,12 +3104,27 @@ static void qed_handle_pf_set_vf_unicast(struct qed_hwfn *hwfn)
 	qed_for_each_vf(hwfn, i) {
 		struct qed_public_vf_info *info;
 		bool update = false;
+		u8 *mac;
 
 		info = qed_iov_get_public_vf_info(hwfn, i, true);
 		if (!info)
 			continue;
 
 		/* Update data on bulletin board */
+		mac = qed_iov_bulletin_get_forced_mac(hwfn, i);
+		if (is_valid_ether_addr(info->forced_mac) &&
+		    (!mac || !ether_addr_equal(mac, info->forced_mac))) {
+			DP_VERBOSE(hwfn,
+				   QED_MSG_IOV,
+				   "Handling PF setting of VF MAC to VF 0x%02x [Abs 0x%02x]\n",
+				   i,
+				   hwfn->cdev->p_iov_info->first_vf_in_pf + i);
+
+			/* Update bulletin board with forced MAC */
+			qed_iov_bulletin_set_forced_mac(hwfn,
+							info->forced_mac, i);
+			update = true;
+		}
 
 		if (qed_iov_bulletin_get_forced_vlan(hwfn, i) ^
 		    info->forced_vlan) {
@@ -3133,5 +3252,6 @@ int qed_iov_wq_start(struct qed_dev *cdev)
 
 const struct qed_iov_hv_ops qed_iov_ops_pass = {
 	.configure = &qed_sriov_configure,
+	.set_mac = &qed_sriov_pf_set_mac,
 	.set_vlan = &qed_sriov_pf_set_vlan,
 };

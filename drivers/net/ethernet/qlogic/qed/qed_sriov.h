@@ -43,6 +43,7 @@ struct qed_public_vf_info {
 	/* These copies will later be reflected in the bulletin board,
 	 * but this copy should be newer.
 	 */
+	u8 forced_mac[ETH_ALEN];
 	u16 forced_vlan;
 	u8 mac[ETH_ALEN];
 };

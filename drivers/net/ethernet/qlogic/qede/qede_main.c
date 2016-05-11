@@ -118,6 +118,22 @@ static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos)
 	return edev->ops->iov->set_vlan(edev->cdev, vlan, vf);
 }
 
+static int qede_set_vf_mac(struct net_device *ndev, int vfidx, u8 *mac)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+
+	DP_VERBOSE(edev, QED_MSG_IOV,
+		   "Setting MAC %02x:%02x:%02x:%02x:%02x:%02x to VF [%d]\n",
+		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], vfidx);
+
+	if (!is_valid_ether_addr(mac)) {
+		DP_VERBOSE(edev, QED_MSG_IOV, "MAC address isn't valid\n");
+		return -EINVAL;
+	}
+
+	return edev->ops->iov->set_mac(edev->cdev, mac, vfidx);
+}
+
 static int qede_sriov_configure(struct pci_dev *pdev, int num_vfs_param)
 {
 	struct qede_dev *edev = netdev_priv(pci_get_drvdata(pdev));
@@ -138,10 +154,19 @@ static struct pci_driver qede_pci_driver = {
 #endif
 };
 
+static void qede_force_mac(void *dev, u8 *mac)
+{
+	struct qede_dev *edev = dev;
+
+	ether_addr_copy(edev->ndev->dev_addr, mac);
+	ether_addr_copy(edev->primary_mac, mac);
+}
+
 static struct qed_eth_cb_ops qede_ll_ops = {
 	{
 		.link_update = qede_link_update,
 	},
+	.force_mac = qede_force_mac,
 };
 
 static int qede_netdev_event(struct notifier_block *this, unsigned long event,
@@ -2087,6 +2112,7 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = qede_change_mtu,
 #ifdef CONFIG_QED_SRIOV
+	.ndo_set_vf_mac = qede_set_vf_mac,
 	.ndo_set_vf_vlan = qede_set_vf_vlan,
 #endif
 	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
@@ -3510,6 +3536,11 @@ static int qede_set_mac_addr(struct net_device *ndev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data)) {
 		DP_NOTICE(edev, "The MAC address is not valid\n");
 		return -EFAULT;
+	}
+
+	if (!edev->ops->check_mac(edev->cdev, addr->sa_data)) {
+		DP_NOTICE(edev, "qed prevents setting MAC\n");
+		return -EINVAL;
 	}
 
 	ether_addr_copy(ndev->dev_addr, addr->sa_data);

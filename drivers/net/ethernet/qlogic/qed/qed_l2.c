@@ -1701,6 +1701,14 @@ static void qed_register_eth_ops(struct qed_dev *cdev,
 		qed_vf_start_iov_wq(cdev);
 }
 
+static bool qed_check_mac(struct qed_dev *cdev, u8 *mac)
+{
+	if (IS_PF(cdev))
+		return true;
+
+	return qed_vf_check_mac(&cdev->hwfns[0], mac);
+}
+
 static int qed_start_vport(struct qed_dev *cdev,
 			   struct qed_start_vport_params *params)
 {
@@ -2149,6 +2157,7 @@ static const struct qed_eth_ops qed_eth_ops_pass = {
 #endif
 	.fill_dev_info = &qed_fill_eth_dev_info,
 	.register_ops = &qed_register_eth_ops,
+	.check_mac = &qed_check_mac,
 	.vport_start = &qed_start_vport,
 	.vport_stop = &qed_stop_vport,
 	.vport_update = &qed_update_vport,

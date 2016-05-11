@@ -122,6 +122,7 @@ struct qed_tunn_params {
 
 struct qed_eth_cb_ops {
 	struct qed_common_cb_ops common;
+	void (*force_mac) (void *dev, u8 *mac);
 };
 
 struct qed_eth_ops {
@@ -136,6 +137,8 @@ struct qed_eth_ops {
 	void (*register_ops)(struct qed_dev *cdev,
 			     struct qed_eth_cb_ops *ops,
 			     void *cookie);
+
+	 bool(*check_mac) (struct qed_dev *cdev, u8 *mac);
 
 	int (*vport_start)(struct qed_dev *cdev,
 			   struct qed_start_vport_params *params);

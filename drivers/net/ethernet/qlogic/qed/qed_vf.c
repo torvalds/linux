@@ -7,6 +7,7 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/etherdevice.h>
 #include "qed.h"
 #include "qed_sriov.h"
 #include "qed_vf.h"
@@ -1004,6 +1005,43 @@ void qed_vf_get_num_vlan_filters(struct qed_hwfn *p_hwfn, u8 *num_vlan_filters)
 	*num_vlan_filters = p_vf->acquire_resp.resc.num_vlan_filters;
 }
 
+bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac)
+{
+	struct qed_bulletin_content *bulletin;
+
+	bulletin = &p_hwfn->vf_iov_info->bulletin_shadow;
+	if (!(bulletin->valid_bitmap & (1 << MAC_ADDR_FORCED)))
+		return true;
+
+	/* Forbid VF from changing a MAC enforced by PF */
+	if (ether_addr_equal(bulletin->mac, mac))
+		return false;
+
+	return false;
+}
+
+bool qed_vf_bulletin_get_forced_mac(struct qed_hwfn *hwfn,
+				    u8 *dst_mac, u8 *p_is_forced)
+{
+	struct qed_bulletin_content *bulletin;
+
+	bulletin = &hwfn->vf_iov_info->bulletin_shadow;
+
+	if (bulletin->valid_bitmap & (1 << MAC_ADDR_FORCED)) {
+		if (p_is_forced)
+			*p_is_forced = 1;
+	} else if (bulletin->valid_bitmap & (1 << VFPF_BULLETIN_MAC_ADDR)) {
+		if (p_is_forced)
+			*p_is_forced = 0;
+	} else {
+		return false;
+	}
+
+	ether_addr_copy(dst_mac, bulletin->mac);
+
+	return true;
+}
+
 void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
 			   u16 *fw_major, u16 *fw_minor,
 			   u16 *fw_rev, u16 *fw_eng)
@@ -1020,6 +1058,15 @@ void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
 
 static void qed_handle_bulletin_change(struct qed_hwfn *hwfn)
 {
+	struct qed_eth_cb_ops *ops = hwfn->cdev->protocol_ops.eth;
+	u8 mac[ETH_ALEN], is_mac_exist, is_mac_forced;
+	void *cookie = hwfn->cdev->ops_cookie;
+
+	is_mac_exist = qed_vf_bulletin_get_forced_mac(hwfn, mac,
+						      &is_mac_forced);
+	if (is_mac_exist && is_mac_forced && cookie)
+		ops->force_mac(cookie, mac);
+
 	/* Always update link configuration according to bulletin */
 	qed_link_update(hwfn);
 }

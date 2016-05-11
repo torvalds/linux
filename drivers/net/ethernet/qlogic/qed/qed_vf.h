@@ -418,6 +418,8 @@ union pfvf_tlvs {
 };
 
 enum qed_bulletin_bit {
+	/* Alert the VF that a forced MAC was set by the PF */
+	MAC_ADDR_FORCED = 0,
 	/* Alert the VF that a forced VLAN was set by the PF */
 	VLAN_ADDR_FORCED = 2,
 
@@ -425,6 +427,10 @@ enum qed_bulletin_bit {
 	VFPF_BULLETIN_UNTAGGED_DEFAULT = 3,
 	VFPF_BULLETIN_UNTAGGED_DEFAULT_FORCED = 4,
 
+	/* Alert the VF that suggested mac was sent by the PF.
+	 * MAC_ADDR will be disabled in case MAC_ADDR_FORCED is set.
+	 */
+	VFPF_BULLETIN_MAC_ADDR = 5
 };
 
 struct qed_bulletin_content {
@@ -600,6 +606,16 @@ void qed_vf_get_port_mac(struct qed_hwfn *p_hwfn, u8 *port_mac);
  */
 void qed_vf_get_num_vlan_filters(struct qed_hwfn *p_hwfn,
 				 u8 *num_vlan_filters);
+
+/**
+ * @brief Check if VF can set a MAC address
+ *
+ * @param p_hwfn
+ * @param mac
+ *
+ * @return bool
+ */
+bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac);
 
 /**
  * @brief Set firmware version information in dev_info from VFs acquire response tlv
@@ -839,6 +855,11 @@ static inline void qed_vf_get_port_mac(struct qed_hwfn *p_hwfn, u8 *port_mac)
 static inline void qed_vf_get_num_vlan_filters(struct qed_hwfn *p_hwfn,
 					       u8 *num_vlan_filters)
 {
+}
+
+static inline bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac)
+{
+	return false;
 }
 
 static inline void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
