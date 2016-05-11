@@ -413,6 +413,18 @@ void dso__reset_find_symbol_cache(struct dso *dso)
 	}
 }
 
+void dso__insert_symbol(struct dso *dso, enum map_type type, struct symbol *sym)
+{
+	symbols__insert(&dso->symbols[type], sym);
+
+	/* update the symbol cache if necessary */
+	if (dso->last_find_result[type].addr >= sym->start &&
+	    (dso->last_find_result[type].addr < sym->end ||
+	    sym->start == sym->end)) {
+		dso->last_find_result[type].symbol = sym;
+	}
+}
+
 struct symbol *dso__find_symbol(struct dso *dso,
 				enum map_type type, u64 addr)
 {
