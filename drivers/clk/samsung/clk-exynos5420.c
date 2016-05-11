@@ -306,7 +306,7 @@ static struct syscore_ops exynos5420_clk_syscore_ops = {
 	.resume = exynos5420_clk_resume,
 };
 
-static void exynos5420_clk_sleep_init(void)
+static void __init exynos5420_clk_sleep_init(void)
 {
 	exynos5x_save = samsung_clk_alloc_reg_dump(exynos5x_clk_regs,
 					ARRAY_SIZE(exynos5x_clk_regs));
@@ -333,7 +333,7 @@ err_soc:
 	return;
 }
 #else
-static void exynos5420_clk_sleep_init(void) {}
+static void __init exynos5420_clk_sleep_init(void) {}
 #endif
 
 /* list of all parent clocks */
@@ -1219,7 +1219,7 @@ static const struct samsung_gate_clock exynos5x_gate_clks[] __initconst = {
 	GATE(CLK_G3D, "g3d", "mout_user_aclk_g3d", GATE_IP_G3D, 9, 0, 0),
 };
 
-static const struct samsung_pll_rate_table exynos5420_pll2550x_24mhz_tbl[] = {
+static const struct samsung_pll_rate_table exynos5420_pll2550x_24mhz_tbl[] __initconst = {
 	PLL_35XX_RATE(2000000000, 250, 3, 0),
 	PLL_35XX_RATE(1900000000, 475, 6, 0),
 	PLL_35XX_RATE(1800000000, 225, 3, 0),
