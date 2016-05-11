@@ -27,6 +27,7 @@
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/anon_inodes.h>
+#include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/spinlock.h>
 #include <linux/page-flags.h>
