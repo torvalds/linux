@@ -166,6 +166,7 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 		sdio_claim_irq(sdiodev->func[1], brcmf_sdiod_ib_irqhandler);
 		sdio_claim_irq(sdiodev->func[2], brcmf_sdiod_dummy_irqhandler);
 		sdio_release_host(sdiodev->func[1]);
+		sdiodev->sd_irq_requested = true;
 	}
 
 	return 0;
@@ -173,27 +174,30 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 
 int brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 {
-	struct brcmfmac_sdio_pd *pdata;
 
-	brcmf_dbg(SDIO, "Entering\n");
+	brcmf_dbg(SDIO, "Entering oob=%d sd=%d\n",
+		  sdiodev->oob_irq_requested,
+		  sdiodev->sd_irq_requested);
 
-	pdata = &sdiodev->settings->bus.sdio;
-	if (pdata->oob_irq_supported) {
+	if (sdiodev->oob_irq_requested) {
+		struct brcmfmac_sdio_pd *pdata;
+
+		pdata = &sdiodev->settings->bus.sdio;
 		sdio_claim_host(sdiodev->func[1]);
 		brcmf_sdiod_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, 0, NULL);
 		brcmf_sdiod_regwb(sdiodev, SDIO_CCCR_IENx, 0, NULL);
 		sdio_release_host(sdiodev->func[1]);
 
-		if (sdiodev->oob_irq_requested) {
-			sdiodev->oob_irq_requested = false;
-			if (sdiodev->irq_wake) {
-				disable_irq_wake(pdata->oob_irq_nr);
-				sdiodev->irq_wake = false;
-			}
-			free_irq(pdata->oob_irq_nr, &sdiodev->func[1]->dev);
-			sdiodev->irq_en = false;
+		sdiodev->oob_irq_requested = false;
+		if (sdiodev->irq_wake) {
+			disable_irq_wake(pdata->oob_irq_nr);
+			sdiodev->irq_wake = false;
 		}
-	} else {
+		free_irq(pdata->oob_irq_nr, &sdiodev->func[1]->dev);
+		sdiodev->irq_en = false;
+	}
+
+	if (sdiodev->sd_irq_requested) {
 		sdio_claim_host(sdiodev->func[1]);
 		sdio_release_irq(sdiodev->func[2]);
 		sdio_release_irq(sdiodev->func[1]);
