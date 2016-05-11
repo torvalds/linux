@@ -279,6 +279,11 @@ enum {
 	UTP_CMD_TYPE_DEV_MANAGE		= 0x2,
 };
 
+/* To accommodate UFS2.0 required Command type */
+enum {
+	UTP_CMD_TYPE_UFS_STORAGE	= 0x1,
+};
+
 enum {
 	UTP_SCSI_COMMAND		= 0x00000000,
 	UTP_NATIVE_UFS_COMMAND		= 0x10000000,
