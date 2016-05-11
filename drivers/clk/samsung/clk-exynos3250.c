@@ -669,7 +669,7 @@ static const struct samsung_gate_clock gate_clks[] __initconst = {
 };
 
 /* APLL & MPLL & BPLL & UPLL */
-static const struct samsung_pll_rate_table exynos3250_pll_rates[] = {
+static const struct samsung_pll_rate_table exynos3250_pll_rates[] __initconst = {
 	PLL_35XX_RATE(1200000000, 400, 4, 1),
 	PLL_35XX_RATE(1100000000, 275, 3, 1),
 	PLL_35XX_RATE(1066000000, 533, 6, 1),
@@ -691,7 +691,7 @@ static const struct samsung_pll_rate_table exynos3250_pll_rates[] = {
 };
 
 /* EPLL */
-static const struct samsung_pll_rate_table exynos3250_epll_rates[] = {
+static const struct samsung_pll_rate_table exynos3250_epll_rates[] __initconst = {
 	PLL_36XX_RATE(800000000, 200, 3, 1,     0),
 	PLL_36XX_RATE(288000000,  96, 2, 2,     0),
 	PLL_36XX_RATE(192000000, 128, 2, 3,     0),
