@@ -123,11 +123,13 @@ static bool initial_console_enable;
 #endif
 
 static bool fiq_kgdb_enable;
+static bool fiq_debugger_disable;
 
 module_param_named(no_sleep, initial_no_sleep, bool, 0644);
 module_param_named(debug_enable, initial_debug_enable, bool, 0644);
 module_param_named(console_enable, initial_console_enable, bool, 0644);
 module_param_named(kgdb_enable, fiq_kgdb_enable, bool, 0644);
+module_param_named(disable, fiq_debugger_disable, bool, 0644);
 
 #ifdef CONFIG_FIQ_DEBUGGER_WAKEUP_IRQ_ALWAYS_ON
 static inline
@@ -1230,6 +1232,10 @@ int fiq_debugger_uart_overlay(void)
 
 static int __init fiq_debugger_init(void)
 {
+	if (fiq_debugger_disable) {
+		pr_err("serial_debugger: disabled\n");
+		return -ENODEV;
+	}
 #if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
 	fiq_debugger_tty_init();
 #endif
