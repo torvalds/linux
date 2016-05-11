@@ -1119,9 +1119,9 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 		memcpy(&link_caps, qed_mcp_get_link_capabilities(hwfn),
 		       sizeof(link_caps));
 	} else {
-		memset(&params, 0, sizeof(params));
-		memset(&link, 0, sizeof(link));
-		memset(&link_caps, 0, sizeof(link_caps));
+		qed_vf_get_link_params(hwfn, &params);
+		qed_vf_get_link_state(hwfn, &link);
+		qed_vf_get_link_caps(hwfn, &link_caps);
 	}
 
 	/* Set the link parameters to pass to protocol driver */
@@ -1224,7 +1224,12 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 static void qed_get_current_link(struct qed_dev *cdev,
 				 struct qed_link_output *if_link)
 {
+	int i;
+
 	qed_fill_link(&cdev->hwfns[0], if_link);
+
+	for_each_hwfn(cdev, i)
+		qed_inform_vf_link_state(&cdev->hwfns[i]);
 }
 
 void qed_link_update(struct qed_hwfn *hwfn)
@@ -1234,6 +1239,7 @@ void qed_link_update(struct qed_hwfn *hwfn)
 	struct qed_link_output if_link;
 
 	qed_fill_link(hwfn, &if_link);
+	qed_inform_vf_link_state(hwfn);
 
 	if (IS_LEAD_HWFN(hwfn) && cookie)
 		op->link_update(cookie, &if_link);

@@ -268,6 +268,7 @@ int qed_iov_wq_start(struct qed_dev *cdev);
 void qed_schedule_iov(struct qed_hwfn *hwfn, enum qed_iov_wq_flag flag);
 void qed_vf_start_iov_wq(struct qed_dev *cdev);
 int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled);
+void qed_inform_vf_link_state(struct qed_hwfn *hwfn);
 #else
 static inline u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn,
 					     u16 rel_vf_id)
@@ -331,6 +332,10 @@ static inline void qed_vf_start_iov_wq(struct qed_dev *cdev)
 static inline int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 {
 	return 0;
+}
+
+static inline void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
+{
 }
 #endif
 

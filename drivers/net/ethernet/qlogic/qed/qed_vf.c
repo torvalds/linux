@@ -6,6 +6,7 @@
  * this source tree.
  */
 
+#include <linux/crc32.h>
 #include "qed.h"
 #include "qed_sriov.h"
 #include "qed_vf.h"
@@ -865,6 +866,103 @@ u16 qed_vf_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
 	return p_iov->acquire_resp.resc.hw_sbs[sb_id].hw_sb_id;
 }
 
+int qed_vf_read_bulletin(struct qed_hwfn *p_hwfn, u8 *p_change)
+{
+	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
+	struct qed_bulletin_content shadow;
+	u32 crc, crc_size;
+
+	crc_size = sizeof(p_iov->bulletin.p_virt->crc);
+	*p_change = 0;
+
+	/* Need to guarantee PF is not in the middle of writing it */
+	memcpy(&shadow, p_iov->bulletin.p_virt, p_iov->bulletin.size);
+
+	/* If version did not update, no need to do anything */
+	if (shadow.version == p_iov->bulletin_shadow.version)
+		return 0;
+
+	/* Verify the bulletin we see is valid */
+	crc = crc32(0, (u8 *)&shadow + crc_size,
+		    p_iov->bulletin.size - crc_size);
+	if (crc != shadow.crc)
+		return -EAGAIN;
+
+	/* Set the shadow bulletin and process it */
+	memcpy(&p_iov->bulletin_shadow, &shadow, p_iov->bulletin.size);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+		   "Read a bulletin update %08x\n", shadow.version);
+
+	*p_change = 1;
+
+	return 0;
+}
+
+void __qed_vf_get_link_params(struct qed_hwfn *p_hwfn,
+			      struct qed_mcp_link_params *p_params,
+			      struct qed_bulletin_content *p_bulletin)
+{
+	memset(p_params, 0, sizeof(*p_params));
+
+	p_params->speed.autoneg = p_bulletin->req_autoneg;
+	p_params->speed.advertised_speeds = p_bulletin->req_adv_speed;
+	p_params->speed.forced_speed = p_bulletin->req_forced_speed;
+	p_params->pause.autoneg = p_bulletin->req_autoneg_pause;
+	p_params->pause.forced_rx = p_bulletin->req_forced_rx;
+	p_params->pause.forced_tx = p_bulletin->req_forced_tx;
+	p_params->loopback_mode = p_bulletin->req_loopback;
+}
+
+void qed_vf_get_link_params(struct qed_hwfn *p_hwfn,
+			    struct qed_mcp_link_params *params)
+{
+	__qed_vf_get_link_params(p_hwfn, params,
+				 &(p_hwfn->vf_iov_info->bulletin_shadow));
+}
+
+void __qed_vf_get_link_state(struct qed_hwfn *p_hwfn,
+			     struct qed_mcp_link_state *p_link,
+			     struct qed_bulletin_content *p_bulletin)
+{
+	memset(p_link, 0, sizeof(*p_link));
+
+	p_link->link_up = p_bulletin->link_up;
+	p_link->speed = p_bulletin->speed;
+	p_link->full_duplex = p_bulletin->full_duplex;
+	p_link->an = p_bulletin->autoneg;
+	p_link->an_complete = p_bulletin->autoneg_complete;
+	p_link->parallel_detection = p_bulletin->parallel_detection;
+	p_link->pfc_enabled = p_bulletin->pfc_enabled;
+	p_link->partner_adv_speed = p_bulletin->partner_adv_speed;
+	p_link->partner_tx_flow_ctrl_en = p_bulletin->partner_tx_flow_ctrl_en;
+	p_link->partner_rx_flow_ctrl_en = p_bulletin->partner_rx_flow_ctrl_en;
+	p_link->partner_adv_pause = p_bulletin->partner_adv_pause;
+	p_link->sfp_tx_fault = p_bulletin->sfp_tx_fault;
+}
+
+void qed_vf_get_link_state(struct qed_hwfn *p_hwfn,
+			   struct qed_mcp_link_state *link)
+{
+	__qed_vf_get_link_state(p_hwfn, link,
+				&(p_hwfn->vf_iov_info->bulletin_shadow));
+}
+
+void __qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
+			    struct qed_mcp_link_capabilities *p_link_caps,
+			    struct qed_bulletin_content *p_bulletin)
+{
+	memset(p_link_caps, 0, sizeof(*p_link_caps));
+	p_link_caps->speed_capabilities = p_bulletin->capability_speed;
+}
+
+void qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
+			  struct qed_mcp_link_capabilities *p_link_caps)
+{
+	__qed_vf_get_link_caps(p_hwfn, p_link_caps,
+			       &(p_hwfn->vf_iov_info->bulletin_shadow));
+}
+
 void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs)
 {
 	*num_rxqs = p_hwfn->vf_iov_info->acquire_resp.resc.num_rxqs;
@@ -896,4 +994,28 @@ void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
 	*fw_minor = info->fw_minor;
 	*fw_rev = info->fw_rev;
 	*fw_eng = info->fw_eng;
+}
+
+static void qed_handle_bulletin_change(struct qed_hwfn *hwfn)
+{
+	/* Always update link configuration according to bulletin */
+	qed_link_update(hwfn);
+}
+
+void qed_iov_vf_task(struct work_struct *work)
+{
+	struct qed_hwfn *hwfn = container_of(work, struct qed_hwfn,
+					     iov_task.work);
+	u8 change = 0;
+
+	if (test_and_clear_bit(QED_IOV_WQ_STOP_WQ_FLAG, &hwfn->iov_task_flags))
+		return;
+
+	/* Handle bulletin board changes */
+	qed_vf_read_bulletin(hwfn, &change);
+	if (change)
+		qed_handle_bulletin_change(hwfn);
+
+	/* As VF is polling bulletin board, need to constantly re-schedule */
+	queue_delayed_work(hwfn->iov_wq, &hwfn->iov_task, HZ);
 }

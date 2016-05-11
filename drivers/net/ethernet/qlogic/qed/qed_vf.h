@@ -10,6 +10,7 @@
 #define _QED_VF_H
 
 #include "qed_l2.h"
+#include "qed_mcp.h"
 
 #define T_ETH_INDIRECTION_TABLE_SIZE 128
 #define T_ETH_RSS_KEY_SIZE 10
@@ -377,6 +378,46 @@ struct qed_bulletin_content {
 
 	/* bitmap indicating which fields hold valid values */
 	u64 valid_bitmap;
+
+	/* used for MAC_ADDR or MAC_ADDR_FORCED */
+	u8 mac[ETH_ALEN];
+
+	/* If valid, 1 => only untagged Rx if no vlan is configured */
+	u8 default_only_untagged;
+	u8 padding;
+
+	/* The following is a 'copy' of qed_mcp_link_state,
+	 * qed_mcp_link_params and qed_mcp_link_capabilities. Since it's
+	 * possible the structs will increase further along the road we cannot
+	 * have it here; Instead we need to have all of its fields.
+	 */
+	u8 req_autoneg;
+	u8 req_autoneg_pause;
+	u8 req_forced_rx;
+	u8 req_forced_tx;
+	u8 padding2[4];
+
+	u32 req_adv_speed;
+	u32 req_forced_speed;
+	u32 req_loopback;
+	u32 padding3;
+
+	u8 link_up;
+	u8 full_duplex;
+	u8 autoneg;
+	u8 autoneg_complete;
+	u8 parallel_detection;
+	u8 pfc_enabled;
+	u8 partner_tx_flow_ctrl_en;
+	u8 partner_rx_flow_ctrl_en;
+	u8 partner_adv_pause;
+	u8 sfp_tx_fault;
+	u8 padding4[6];
+
+	u32 speed;
+	u32 partner_adv_speed;
+
+	u32 capability_speed;
 };
 
 struct qed_bulletin {
@@ -432,6 +473,43 @@ struct qed_vf_iov {
 };
 
 #ifdef CONFIG_QED_SRIOV
+/**
+ * @brief Read the VF bulletin and act on it if needed
+ *
+ * @param p_hwfn
+ * @param p_change - qed fills 1 iff bulletin board has changed, 0 otherwise.
+ *
+ * @return enum _qed_status
+ */
+int qed_vf_read_bulletin(struct qed_hwfn *p_hwfn, u8 *p_change);
+
+/**
+ * @brief Get link paramters for VF from qed
+ *
+ * @param p_hwfn
+ * @param params - the link params structure to be filled for the VF
+ */
+void qed_vf_get_link_params(struct qed_hwfn *p_hwfn,
+			    struct qed_mcp_link_params *params);
+
+/**
+ * @brief Get link state for VF from qed
+ *
+ * @param p_hwfn
+ * @param link - the link state structure to be filled for the VF
+ */
+void qed_vf_get_link_state(struct qed_hwfn *p_hwfn,
+			   struct qed_mcp_link_state *link);
+
+/**
+ * @brief Get link capabilities for VF from qed
+ *
+ * @param p_hwfn
+ * @param p_link_caps - the link capabilities structure to be filled for the VF
+ */
+void qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
+			  struct qed_mcp_link_capabilities *p_link_caps);
+
 /**
  * @brief Get number of Rx queues allocated for VF by qed
  *
@@ -577,6 +655,7 @@ int qed_vf_pf_reset(struct qed_hwfn *p_hwfn);
  * @return enum _qed_status
  */
 int qed_vf_pf_release(struct qed_hwfn *p_hwfn);
+
 /**
  * @brief qed_vf_get_igu_sb_id - Get the IGU SB ID for a given
  *        sb_id. For VFs igu sbs don't have to be contiguous
@@ -631,7 +710,58 @@ void qed_vf_pf_filter_mcast(struct qed_hwfn *p_hwfn,
  * @return enum _qed_status
  */
 int qed_vf_pf_int_cleanup(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief - return the link params in a given bulletin board
+ *
+ * @param p_hwfn
+ * @param p_params - pointer to a struct to fill with link params
+ * @param p_bulletin
+ */
+void __qed_vf_get_link_params(struct qed_hwfn *p_hwfn,
+			      struct qed_mcp_link_params *p_params,
+			      struct qed_bulletin_content *p_bulletin);
+
+/**
+ * @brief - return the link state in a given bulletin board
+ *
+ * @param p_hwfn
+ * @param p_link - pointer to a struct to fill with link state
+ * @param p_bulletin
+ */
+void __qed_vf_get_link_state(struct qed_hwfn *p_hwfn,
+			     struct qed_mcp_link_state *p_link,
+			     struct qed_bulletin_content *p_bulletin);
+
+/**
+ * @brief - return the link capabilities in a given bulletin board
+ *
+ * @param p_hwfn
+ * @param p_link - pointer to a struct to fill with link capabilities
+ * @param p_bulletin
+ */
+void __qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
+			    struct qed_mcp_link_capabilities *p_link_caps,
+			    struct qed_bulletin_content *p_bulletin);
+
+void qed_iov_vf_task(struct work_struct *work);
 #else
+static inline void qed_vf_get_link_params(struct qed_hwfn *p_hwfn,
+					  struct qed_mcp_link_params *params)
+{
+}
+
+static inline void qed_vf_get_link_state(struct qed_hwfn *p_hwfn,
+					 struct qed_mcp_link_state *link)
+{
+}
+
+static inline void
+qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
+		     struct qed_mcp_link_capabilities *p_link_caps)
+{
+}
+
 static inline void qed_vf_get_num_rxqs(struct qed_hwfn *p_hwfn, u8 *num_rxqs)
 {
 }
@@ -740,6 +870,32 @@ static inline void qed_vf_pf_filter_mcast(struct qed_hwfn *p_hwfn,
 static inline int qed_vf_pf_int_cleanup(struct qed_hwfn *p_hwfn)
 {
 	return -EINVAL;
+}
+
+static inline void __qed_vf_get_link_params(struct qed_hwfn *p_hwfn,
+					    struct qed_mcp_link_params
+					    *p_params,
+					    struct qed_bulletin_content
+					    *p_bulletin)
+{
+}
+
+static inline void __qed_vf_get_link_state(struct qed_hwfn *p_hwfn,
+					   struct qed_mcp_link_state *p_link,
+					   struct qed_bulletin_content
+					   *p_bulletin)
+{
+}
+
+static inline void
+__qed_vf_get_link_caps(struct qed_hwfn *p_hwfn,
+		       struct qed_mcp_link_capabilities *p_link_caps,
+		       struct qed_bulletin_content *p_bulletin)
+{
+}
+
+static inline void qed_iov_vf_task(struct work_struct *work)
+{
 }
 #endif
 

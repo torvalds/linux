@@ -7,6 +7,7 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/crc32.h>
 #include <linux/qed/qed_iov_if.h>
 #include "qed_cxt.h"
 #include "qed_hsi.h"
@@ -114,6 +115,41 @@ static struct qed_vf_info *qed_iov_get_vf_info(struct qed_hwfn *p_hwfn,
 		       relative_vf_id);
 
 	return vf;
+}
+
+int qed_iov_post_vf_bulletin(struct qed_hwfn *p_hwfn,
+			     int vfid, struct qed_ptt *p_ptt)
+{
+	struct qed_bulletin_content *p_bulletin;
+	int crc_size = sizeof(p_bulletin->crc);
+	struct qed_dmae_params params;
+	struct qed_vf_info *p_vf;
+
+	p_vf = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	if (!p_vf)
+		return -EINVAL;
+
+	if (!p_vf->vf_bulletin)
+		return -EINVAL;
+
+	p_bulletin = p_vf->bulletin.p_virt;
+
+	/* Increment bulletin board version and compute crc */
+	p_bulletin->version++;
+	p_bulletin->crc = crc32(0, (u8 *)p_bulletin + crc_size,
+				p_vf->bulletin.size - crc_size);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+		   "Posting Bulletin 0x%08x to VF[%d] (CRC 0x%08x)\n",
+		   p_bulletin->version, p_vf->relative_vf_id, p_bulletin->crc);
+
+	/* propagate bulletin board via dmae to vm memory */
+	memset(&params, 0, sizeof(params));
+	params.flags = QED_DMAE_FLAG_VF_DST;
+	params.dst_vfid = p_vf->abs_vf_id;
+	return qed_dmae_host2host(p_hwfn, p_ptt, p_vf->bulletin.phys,
+				  p_vf->vf_bulletin, p_vf->bulletin.size / 4,
+				  &params);
 }
 
 static int qed_iov_pci_cfg_info(struct qed_dev *cdev)
@@ -790,6 +826,11 @@ static int qed_iov_release_hw_for_vf(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
+	if (vf->bulletin.p_virt)
+		memset(vf->bulletin.p_virt, 0, sizeof(*vf->bulletin.p_virt));
+
+	memset(&vf->p_vf_info, 0, sizeof(vf->p_vf_info));
+
 	if (vf->state != VF_STOPPED) {
 		/* Stopping the VF */
 		rc = qed_sp_vf_stop(p_hwfn, vf->concrete_fid, vf->opaque_fid);
@@ -1159,6 +1200,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 
 	/* Fill agreed size of bulletin board in response */
 	resp->bulletin_size = vf->bulletin.size;
+	qed_iov_post_vf_bulletin(p_hwfn, vf->relative_vf_id, p_ptt);
 
 	DP_VERBOSE(p_hwfn,
 		   QED_MSG_IOV,
@@ -2019,6 +2061,45 @@ int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
 	return found;
 }
 
+void qed_iov_set_link(struct qed_hwfn *p_hwfn,
+		      u16 vfid,
+		      struct qed_mcp_link_params *params,
+		      struct qed_mcp_link_state *link,
+		      struct qed_mcp_link_capabilities *p_caps)
+{
+	struct qed_vf_info *p_vf = qed_iov_get_vf_info(p_hwfn,
+						       vfid,
+						       false);
+	struct qed_bulletin_content *p_bulletin;
+
+	if (!p_vf)
+		return;
+
+	p_bulletin = p_vf->bulletin.p_virt;
+	p_bulletin->req_autoneg = params->speed.autoneg;
+	p_bulletin->req_adv_speed = params->speed.advertised_speeds;
+	p_bulletin->req_forced_speed = params->speed.forced_speed;
+	p_bulletin->req_autoneg_pause = params->pause.autoneg;
+	p_bulletin->req_forced_rx = params->pause.forced_rx;
+	p_bulletin->req_forced_tx = params->pause.forced_tx;
+	p_bulletin->req_loopback = params->loopback_mode;
+
+	p_bulletin->link_up = link->link_up;
+	p_bulletin->speed = link->speed;
+	p_bulletin->full_duplex = link->full_duplex;
+	p_bulletin->autoneg = link->an;
+	p_bulletin->autoneg_complete = link->an_complete;
+	p_bulletin->parallel_detection = link->parallel_detection;
+	p_bulletin->pfc_enabled = link->pfc_enabled;
+	p_bulletin->partner_adv_speed = link->partner_adv_speed;
+	p_bulletin->partner_tx_flow_ctrl_en = link->partner_tx_flow_ctrl_en;
+	p_bulletin->partner_rx_flow_ctrl_en = link->partner_rx_flow_ctrl_en;
+	p_bulletin->partner_adv_pause = link->partner_adv_pause;
+	p_bulletin->sfp_tx_fault = link->sfp_tx_fault;
+
+	p_bulletin->capability_speed = p_caps->speed_capabilities;
+}
+
 static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt, int vfid)
 {
@@ -2359,6 +2440,29 @@ static int qed_sriov_configure(struct qed_dev *cdev, int num_vfs_param)
 		return qed_sriov_disable(cdev, true);
 }
 
+void qed_inform_vf_link_state(struct qed_hwfn *hwfn)
+{
+	struct qed_mcp_link_capabilities caps;
+	struct qed_mcp_link_params params;
+	struct qed_mcp_link_state link;
+	int i;
+
+	if (!hwfn->pf_iov_info)
+		return;
+
+	/* Update bulletin of all future possible VFs with link configuration */
+	for (i = 0; i < hwfn->cdev->p_iov_info->total_vfs; i++) {
+		memcpy(&params, qed_mcp_get_link_params(hwfn), sizeof(params));
+		memcpy(&link, qed_mcp_get_link_state(hwfn), sizeof(link));
+		memcpy(&caps, qed_mcp_get_link_capabilities(hwfn),
+		       sizeof(caps));
+
+		qed_iov_set_link(hwfn, i, &params, &link, &caps);
+	}
+
+	qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
+}
+
 static void qed_handle_vf_msg(struct qed_hwfn *hwfn)
 {
 	u64 events[QED_VF_ARRAY_LENGTH];
@@ -2398,6 +2502,24 @@ static void qed_handle_vf_msg(struct qed_hwfn *hwfn)
 	qed_ptt_release(hwfn, ptt);
 }
 
+static void qed_handle_bulletin_post(struct qed_hwfn *hwfn)
+{
+	struct qed_ptt *ptt;
+	int i;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt) {
+		DP_NOTICE(hwfn, "Failed allocating a ptt entry\n");
+		qed_schedule_iov(hwfn, QED_IOV_WQ_BULLETIN_UPDATE_FLAG);
+		return;
+	}
+
+	qed_for_each_vf(hwfn, i)
+	    qed_iov_post_vf_bulletin(hwfn, i, ptt);
+
+	qed_ptt_release(hwfn, ptt);
+}
+
 void qed_iov_pf_task(struct work_struct *work)
 {
 	struct qed_hwfn *hwfn = container_of(work, struct qed_hwfn,
@@ -2424,6 +2546,9 @@ void qed_iov_pf_task(struct work_struct *work)
 
 	if (test_and_clear_bit(QED_IOV_WQ_MSG_FLAG, &hwfn->iov_task_flags))
 		qed_handle_vf_msg(hwfn);
+	if (test_and_clear_bit(QED_IOV_WQ_BULLETIN_UPDATE_FLAG,
+			       &hwfn->iov_task_flags))
+		qed_handle_bulletin_post(hwfn);
 }
 
 void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first)
@@ -2453,8 +2578,10 @@ int qed_iov_wq_start(struct qed_dev *cdev)
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
-		/* PFs needs a dedicated workqueue only if they support IOV. */
-		if (!IS_PF_SRIOV(p_hwfn))
+		/* PFs needs a dedicated workqueue only if they support IOV.
+		 * VFs always require one.
+		 */
+		if (IS_PF(p_hwfn->cdev) && !IS_PF_SRIOV(p_hwfn))
 			continue;
 
 		snprintf(name, NAME_SIZE, "iov-%02x:%02x.%02x",
@@ -2467,7 +2594,10 @@ int qed_iov_wq_start(struct qed_dev *cdev)
 			return -ENOMEM;
 		}
 
-		INIT_DELAYED_WORK(&p_hwfn->iov_task, qed_iov_pf_task);
+		if (IS_PF(cdev))
+			INIT_DELAYED_WORK(&p_hwfn->iov_task, qed_iov_pf_task);
+		else
+			INIT_DELAYED_WORK(&p_hwfn->iov_task, qed_iov_vf_task);
 	}
 
 	return 0;
