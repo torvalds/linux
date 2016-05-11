@@ -685,6 +685,40 @@ struct mlx5_cqe64 {
 	u8		op_own;
 };
 
+struct mlx5_mini_cqe8 {
+	union {
+		__be32 rx_hash_result;
+		struct {
+			__be16 checksum;
+			__be16 rsvd;
+		};
+		struct {
+			__be16 wqe_counter;
+			u8  s_wqe_opcode;
+			u8  reserved;
+		} s_wqe_info;
+	};
+	__be32 byte_cnt;
+};
+
+enum {
+	MLX5_NO_INLINE_DATA,
+	MLX5_INLINE_DATA32_SEG,
+	MLX5_INLINE_DATA64_SEG,
+	MLX5_COMPRESSED,
+};
+
+enum {
+	MLX5_CQE_FORMAT_CSUM = 0x1,
+};
+
+#define MLX5_MINI_CQE_ARRAY_SIZE 8
+
+static inline int mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
+{
+	return (cqe->op_own >> 2) & 0x3;
+}
+
 static inline int get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 {
 	return (cqe->lro_tcppsh_abort_dupack >> 6) & 1;

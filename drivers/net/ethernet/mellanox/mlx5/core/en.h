@@ -64,12 +64,9 @@
 #define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW            0x4
 #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW            0x6
 
-#define MLX5_MPWRQ_LOG_NUM_STRIDES		11 /* >= 9, HW restriction */
 #define MLX5_MPWRQ_LOG_STRIDE_SIZE		6  /* >= 6, HW restriction */
-#define MLX5_MPWRQ_NUM_STRIDES			BIT(MLX5_MPWRQ_LOG_NUM_STRIDES)
-#define MLX5_MPWRQ_STRIDE_SIZE			BIT(MLX5_MPWRQ_LOG_STRIDE_SIZE)
-#define MLX5_MPWRQ_LOG_WQE_SZ			(MLX5_MPWRQ_LOG_NUM_STRIDES +\
-						 MLX5_MPWRQ_LOG_STRIDE_SIZE)
+#define MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS	8  /* >= 6, HW restriction */
+#define MLX5_MPWRQ_LOG_WQE_SZ			17
 #define MLX5_MPWRQ_WQE_PAGE_ORDER  (MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT > 0 ? \
 				    MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT : 0)
 #define MLX5_MPWRQ_PAGES_PER_WQE		BIT(MLX5_MPWRQ_WQE_PAGE_ORDER)
@@ -154,9 +151,13 @@ struct mlx5e_umr_wqe {
 struct mlx5e_params {
 	u8  log_sq_size;
 	u8  rq_wq_type;
+	u8  mpwqe_log_stride_sz;
+	u8  mpwqe_log_num_strides;
 	u8  log_rq_size;
 	u16 num_channels;
 	u8  num_tc;
+	bool rx_cqe_compress_admin;
+	bool rx_cqe_compress;
 	u16 rx_cq_moderation_usec;
 	u16 rx_cq_moderation_pkts;
 	u16 tx_cq_moderation_usec;
@@ -202,6 +203,13 @@ struct mlx5e_cq {
 	struct mlx5e_channel      *channel;
 	struct mlx5e_priv         *priv;
 
+	/* cqe decompression */
+	struct mlx5_cqe64          title;
+	struct mlx5_mini_cqe8      mini_arr[MLX5_MINI_CQE_ARRAY_SIZE];
+	u8                         mini_arr_idx;
+	u16                        decmprs_left;
+	u16                        decmprs_wqe_counter;
+
 	/* control */
 	struct mlx5_wq_ctrl        wq_ctrl;
 } ____cacheline_aligned_in_smp;
@@ -240,6 +248,8 @@ struct mlx5e_rq {
 	/* control */
 	struct mlx5_wq_ctrl    wq_ctrl;
 	u8                     wq_type;
+	u32                    mpwqe_stride_sz;
+	u32                    mpwqe_num_strides;
 	u32                    rqn;
 	struct mlx5e_channel  *channel;
 	struct mlx5e_priv     *priv;
@@ -263,7 +273,7 @@ struct mlx5e_mpw_info {
 	void (*dma_pre_sync)(struct device *pdev,
 			     struct mlx5e_mpw_info *wi,
 			     u32 wqe_offset, u32 len);
-	void (*add_skb_frag)(struct device *pdev,
+	void (*add_skb_frag)(struct mlx5e_rq *rq,
 			     struct sk_buff *skb,
 			     struct mlx5e_mpw_info *wi,
 			     u32 page_idx, u32 frag_offset, u32 len);
@@ -616,6 +626,7 @@ void mlx5e_timestamp_init(struct mlx5e_priv *priv);
 void mlx5e_timestamp_cleanup(struct mlx5e_priv *priv);
 int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr);
 int mlx5e_hwstamp_get(struct net_device *dev, struct ifreq *ifr);
+void mlx5e_modify_rx_cqe_compression(struct mlx5e_priv *priv, bool val);
 
 int mlx5e_vlan_rx_add_vid(struct net_device *dev, __always_unused __be16 proto,
 			  u16 vid);
@@ -634,6 +645,7 @@ int mlx5e_close_locked(struct net_device *netdev);
 void mlx5e_build_default_indir_rqt(struct mlx5_core_dev *mdev,
 				   u32 *indirection_rqt, int len,
 				   int num_channels);
+int mlx5e_get_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 
 static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 				      struct mlx5_wqe_ctrl_seg *ctrl, int bf_sz)

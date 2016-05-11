@@ -613,6 +613,25 @@ static u32 ptys2ethtool_supported_port(u32 eth_proto_cap)
 	return 0;
 }
 
+int mlx5e_get_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
+{
+	u32 max_speed = 0;
+	u32 proto_cap;
+	int err;
+	int i;
+
+	err = mlx5_query_port_proto_cap(mdev, &proto_cap, MLX5_PTYS_EN);
+	if (err)
+		return err;
+
+	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i)
+		if (proto_cap & MLX5E_PROT_MASK(i))
+			max_speed = max(max_speed, ptys2ethtool_table[i].speed);
+
+	*speed = max_speed;
+	return 0;
+}
+
 static void get_speed_duplex(struct net_device *netdev,
 			     u32 eth_proto_oper,
 			     struct ethtool_cmd *cmd)
