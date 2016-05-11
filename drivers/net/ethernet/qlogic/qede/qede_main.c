@@ -63,6 +63,7 @@ static const struct qed_eth_ops *qed_ops;
 #define CHIP_NUM_57980S_100		0x1644
 #define CHIP_NUM_57980S_50		0x1654
 #define CHIP_NUM_57980S_25		0x1656
+#define CHIP_NUM_57980S_IOV		0x1664
 
 #ifndef PCI_DEVICE_ID_NX2_57980E
 #define PCI_DEVICE_ID_57980S_40		CHIP_NUM_57980S_40
@@ -71,15 +72,22 @@ static const struct qed_eth_ops *qed_ops;
 #define PCI_DEVICE_ID_57980S_100	CHIP_NUM_57980S_100
 #define PCI_DEVICE_ID_57980S_50		CHIP_NUM_57980S_50
 #define PCI_DEVICE_ID_57980S_25		CHIP_NUM_57980S_25
+#define PCI_DEVICE_ID_57980S_IOV	CHIP_NUM_57980S_IOV
 #endif
 
+enum qede_pci_private {
+	QEDE_PRIVATE_PF,
+	QEDE_PRIVATE_VF
+};
+
 static const struct pci_device_id qede_pci_tbl[] = {
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_40), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_10), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_MF), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_100), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_50), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_25), 0 },
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_40), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_10), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_MF), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_100), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_50), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_25), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_IOV), QEDE_PRIVATE_VF},
 	{ 0 }
 };
 
@@ -94,11 +102,25 @@ static int qede_alloc_rx_buffer(struct qede_dev *edev,
 				struct qede_rx_queue *rxq);
 static void qede_link_update(void *dev, struct qed_link_output *link);
 
+#ifdef CONFIG_QED_SRIOV
+static int qede_sriov_configure(struct pci_dev *pdev, int num_vfs_param)
+{
+	struct qede_dev *edev = netdev_priv(pci_get_drvdata(pdev));
+
+	DP_VERBOSE(edev, QED_MSG_IOV, "Requested %d VFs\n", num_vfs_param);
+
+	return edev->ops->iov->configure(edev->cdev, num_vfs_param);
+}
+#endif
+
 static struct pci_driver qede_pci_driver = {
 	.name = "qede",
 	.id_table = qede_pci_tbl,
 	.probe = qede_probe,
 	.remove = qede_remove,
+#ifdef CONFIG_QED_SRIOV
+	.sriov_configure = qede_sriov_configure,
+#endif
 };
 
 static struct qed_eth_cb_ops qede_ll_ops = {
@@ -2334,6 +2356,9 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 		goto err2;
 	}
 
+	if (is_vf)
+		edev->flags |= QEDE_FLAG_IS_VF;
+
 	qede_init_ndev(edev);
 
 	rc = register_netdev(edev->ndev);
@@ -2365,12 +2390,24 @@ err0:
 
 static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	bool is_vf = false;
 	u32 dp_module = 0;
 	u8 dp_level = 0;
 
+	switch ((enum qede_pci_private)id->driver_data) {
+	case QEDE_PRIVATE_VF:
+		if (debug & QED_LOG_VERBOSE_MASK)
+			dev_err(&pdev->dev, "Probing a VF\n");
+		is_vf = true;
+		break;
+	default:
+		if (debug & QED_LOG_VERBOSE_MASK)
+			dev_err(&pdev->dev, "Probing a PF\n");
+	}
+
 	qede_config_debug(debug, &dp_module, &dp_level);
 
-	return __qede_probe(pdev, dp_module, dp_level, false,
+	return __qede_probe(pdev, dp_module, dp_level, is_vf,
 			    QEDE_PROBE_NORMAL);
 }
 
@@ -3067,6 +3104,7 @@ static int qede_start_queues(struct qede_dev *edev)
 	struct qed_dev *cdev = edev->cdev;
 	struct qed_update_vport_params vport_update_params;
 	struct qed_queue_start_common_params q_params;
+	struct qed_dev_info *qed_info = &edev->dev_info.common;
 	struct qed_start_vport_params start = {0};
 	bool reset_rss_indir = false;
 
