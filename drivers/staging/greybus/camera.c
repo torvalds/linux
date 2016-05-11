@@ -42,7 +42,7 @@ struct gb_camera_debugfs_buffer {
  */
 struct gb_camera {
 	struct gb_connection *connection;
-	bool data_connected;
+	struct gb_connection *data_connection;
 
 	struct {
 		struct dentry *root;
@@ -900,13 +900,9 @@ static void gb_camera_cleanup(struct gb_camera *gcam)
 {
 	gb_camera_debugfs_cleanup(gcam);
 
-	if (gcam->data_connected) {
-		struct gb_interface *intf = gcam->connection->intf;
-		struct gb_svc *svc = gcam->connection->hd->svc;
-
-		gb_svc_connection_destroy(svc, intf->interface_id,
-					  ES2_APB_CDSI0_CPORT, svc->ap_intf_id,
-					  ES2_APB_CDSI1_CPORT);
+	if (gcam->data_connection) {
+		gb_connection_disable(gcam->data_connection);
+		gb_connection_destroy(gcam->data_connection);
 	}
 
 	kfree(gcam);
@@ -914,9 +910,9 @@ static void gb_camera_cleanup(struct gb_camera *gcam)
 
 static int gb_camera_connection_init(struct gb_connection *connection)
 {
-	struct gb_svc *svc = connection->hd->svc;
+	struct gb_connection *data;
 	struct gb_camera *gcam;
-	u8 cport_flags;
+	unsigned long data_flags;
 	int ret;
 
 	gcam = kzalloc(sizeof(*gcam), GFP_KERNEL);
@@ -930,14 +926,20 @@ static int gb_camera_connection_init(struct gb_connection *connection)
 	 * Create the data connection between camera module CDSI0 and APB CDS1.
 	 * The CPort IDs are hardcoded by the ES2 bridges.
 	 */
-	cport_flags = GB_SVC_CPORT_FLAG_CSD_N | GB_SVC_CPORT_FLAG_CSV_N;
-	ret = gb_svc_connection_create(svc, connection->intf->interface_id,
-				       ES2_APB_CDSI0_CPORT, svc->ap_intf_id,
-				       ES2_APB_CDSI1_CPORT, cport_flags);
-	if (ret < 0)
-		goto error;
+	data_flags = GB_CONNECTION_FLAG_NO_FLOWCTRL | GB_CONNECTION_FLAG_CDSI1;
 
-	gcam->data_connected = true;
+	data = gb_connection_create_offloaded(connection->bundle,
+					      ES2_APB_CDSI0_CPORT,
+					      data_flags);
+	if (IS_ERR(data)) {
+		ret = PTR_ERR(data);
+		goto error;
+	}
+	gcam->data_connection = data;
+
+	ret = gb_connection_enable(data);
+	if (ret)
+		goto error;
 
 	ret = gb_camera_debugfs_init(gcam);
 	if (ret < 0)
