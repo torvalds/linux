@@ -801,7 +801,8 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 		}
 	}
 
-	c->kscratch_mask = (config4 >> 16) & 0xff;
+	c->kscratch_mask = (config4 & MIPS_CONF4_KSCREXIST)
+				>> MIPS_CONF4_KSCREXIST_SHIFT;
 
 	asid_mask = MIPS_ENTRYHI_ASID;
 	if (config4 & MIPS_CONF4_AE)
