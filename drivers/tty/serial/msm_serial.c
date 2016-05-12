@@ -232,6 +232,15 @@ static void msm_serial_set_mnd_regs_tcxoby4(struct uart_port *port)
 
 static void msm_serial_set_mnd_regs(struct uart_port *port)
 {
+	struct msm_port *msm_port = UART_TO_MSM(port);
+
+	/*
+	 * These registers don't exist so we change the clk input rate
+	 * on uartdm hardware instead
+	 */
+	if (msm_port->is_uartdm)
+		return;
+
 	if (port->uartclk == 19200000)
 		msm_serial_set_mnd_regs_tcxo(port);
 	else if (port->uartclk == 4800000)
