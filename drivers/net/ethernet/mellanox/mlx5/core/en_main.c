@@ -262,9 +262,8 @@ static void mlx5e_update_stats_work(struct work_struct *work)
 	mutex_lock(&priv->state_lock);
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		mlx5e_update_stats(priv);
-		schedule_delayed_work(dwork,
-				      msecs_to_jiffies(
-					      MLX5E_UPDATE_STATS_INTERVAL));
+		queue_delayed_work(priv->wq, dwork,
+				   msecs_to_jiffies(MLX5E_UPDATE_STATS_INTERVAL));
 	}
 	mutex_unlock(&priv->state_lock);
 }
@@ -280,7 +279,7 @@ static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
 	switch (event) {
 	case MLX5_DEV_EVENT_PORT_UP:
 	case MLX5_DEV_EVENT_PORT_DOWN:
-		schedule_work(&priv->update_carrier_work);
+		queue_work(priv->wq, &priv->update_carrier_work);
 		break;
 
 	default:
@@ -1404,24 +1403,50 @@ static int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5e_priv *priv)
 	return 0;
 }
 
-static int mlx5e_set_dev_port_mtu(struct net_device *netdev)
+static int mlx5e_set_mtu(struct mlx5e_priv *priv, u16 mtu)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	int hw_mtu;
+	u16 hw_mtu = MLX5E_SW2HW_MTU(mtu);
 	int err;
 
-	err = mlx5_set_port_mtu(mdev, MLX5E_SW2HW_MTU(netdev->mtu), 1);
+	err = mlx5_set_port_mtu(mdev, hw_mtu, 1);
 	if (err)
 		return err;
 
-	mlx5_query_port_oper_mtu(mdev, &hw_mtu, 1);
+	/* Update vport context MTU */
+	mlx5_modify_nic_vport_mtu(mdev, hw_mtu);
+	return 0;
+}
 
-	if (MLX5E_HW2SW_MTU(hw_mtu) != netdev->mtu)
-		netdev_warn(netdev, "%s: Port MTU %d is different than netdev mtu %d\n",
-			    __func__, MLX5E_HW2SW_MTU(hw_mtu), netdev->mtu);
+static void mlx5e_query_mtu(struct mlx5e_priv *priv, u16 *mtu)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u16 hw_mtu = 0;
+	int err;
 
-	netdev->mtu = MLX5E_HW2SW_MTU(hw_mtu);
+	err = mlx5_query_nic_vport_mtu(mdev, &hw_mtu);
+	if (err || !hw_mtu) /* fallback to port oper mtu */
+		mlx5_query_port_oper_mtu(mdev, &hw_mtu, 1);
+
+	*mtu = MLX5E_HW2SW_MTU(hw_mtu);
+}
+
+static int mlx5e_set_dev_port_mtu(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	u16 mtu;
+	int err;
+
+	err = mlx5e_set_mtu(priv, netdev->mtu);
+	if (err)
+		return err;
+
+	mlx5e_query_mtu(priv, &mtu);
+	if (mtu != netdev->mtu)
+		netdev_warn(netdev, "%s: VPort MTU %d is different than netdev mtu %d\n",
+			    __func__, mtu, netdev->mtu);
+
+	netdev->mtu = mtu;
 	return 0;
 }
 
@@ -1479,7 +1504,7 @@ int mlx5e_open_locked(struct net_device *netdev)
 	mlx5e_update_carrier(priv);
 	mlx5e_timestamp_init(priv);
 
-	schedule_delayed_work(&priv->update_stats_work, 0);
+	queue_delayed_work(priv->wq, &priv->update_stats_work, 0);
 
 	return 0;
 
@@ -1935,7 +1960,7 @@ static void mlx5e_set_rx_mode(struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	schedule_work(&priv->set_rx_mode_work);
+	queue_work(priv->wq, &priv->set_rx_mode_work);
 }
 
 static int mlx5e_set_mac(struct net_device *netdev, void *addr)
@@ -1950,7 +1975,7 @@ static int mlx5e_set_mac(struct net_device *netdev, void *addr)
 	ether_addr_copy(netdev->dev_addr, saddr->sa_data);
 	netif_addr_unlock_bh(netdev);
 
-	schedule_work(&priv->set_rx_mode_work);
+	queue_work(priv->wq, &priv->set_rx_mode_work);
 
 	return 0;
 }
@@ -1999,22 +2024,27 @@ static int mlx5e_set_features(struct net_device *netdev,
 	return err;
 }
 
+#define MXL5_HW_MIN_MTU 64
+#define MXL5E_MIN_MTU (MXL5_HW_MIN_MTU + ETH_FCS_LEN)
+
 static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	bool was_opened;
-	int max_mtu;
+	u16 max_mtu;
+	u16 min_mtu;
 	int err = 0;
 
 	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 
 	max_mtu = MLX5E_HW2SW_MTU(max_mtu);
+	min_mtu = MLX5E_HW2SW_MTU(MXL5E_MIN_MTU);
 
-	if (new_mtu > max_mtu) {
+	if (new_mtu > max_mtu || new_mtu < min_mtu) {
 		netdev_err(netdev,
-			   "%s: Bad MTU (%d) > (%d) Max\n",
-			   __func__, new_mtu, max_mtu);
+			   "%s: Bad MTU (%d), valid range is: [%d..%d]\n",
+			   __func__, new_mtu, min_mtu, max_mtu);
 		return -EINVAL;
 	}
 
@@ -2119,6 +2149,7 @@ static int mlx5e_get_vf_stats(struct net_device *dev,
 					    vf_stats);
 }
 
+#if IS_ENABLED(CONFIG_MLX5_CORE_EN_VXLAN)
 static void mlx5e_add_vxlan_port(struct net_device *netdev,
 				 sa_family_t sa_family, __be16 port)
 {
@@ -2127,7 +2158,7 @@ static void mlx5e_add_vxlan_port(struct net_device *netdev,
 	if (!mlx5e_vxlan_allowed(priv->mdev))
 		return;
 
-	mlx5e_vxlan_add_port(priv, be16_to_cpu(port));
+	mlx5e_vxlan_queue_work(priv, sa_family, be16_to_cpu(port), 1);
 }
 
 static void mlx5e_del_vxlan_port(struct net_device *netdev,
@@ -2138,7 +2169,7 @@ static void mlx5e_del_vxlan_port(struct net_device *netdev,
 	if (!mlx5e_vxlan_allowed(priv->mdev))
 		return;
 
-	mlx5e_vxlan_del_port(priv, be16_to_cpu(port));
+	mlx5e_vxlan_queue_work(priv, sa_family, be16_to_cpu(port), 0);
 }
 
 static netdev_features_t mlx5e_vxlan_features_check(struct mlx5e_priv *priv,
@@ -2190,6 +2221,7 @@ static netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 
 	return features;
 }
+#endif
 
 static const struct net_device_ops mlx5e_netdev_ops_basic = {
 	.ndo_open                = mlx5e_open,
@@ -2221,9 +2253,11 @@ static const struct net_device_ops mlx5e_netdev_ops_sriov = {
 	.ndo_set_features        = mlx5e_set_features,
 	.ndo_change_mtu          = mlx5e_change_mtu,
 	.ndo_do_ioctl            = mlx5e_ioctl,
+#ifdef CONFIG_MLX5_CORE_EN_VXLAN
 	.ndo_add_vxlan_port      = mlx5e_add_vxlan_port,
 	.ndo_del_vxlan_port      = mlx5e_del_vxlan_port,
 	.ndo_features_check      = mlx5e_features_check,
+#endif
 	.ndo_set_vf_mac          = mlx5e_set_vf_mac,
 	.ndo_set_vf_vlan         = mlx5e_set_vf_vlan,
 	.ndo_get_vf_config       = mlx5e_get_vf_config,
@@ -2467,10 +2501,14 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 
 	priv = netdev_priv(netdev);
 
+	priv->wq = create_singlethread_workqueue("mlx5e");
+	if (!priv->wq)
+		goto err_free_netdev;
+
 	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar, false);
 	if (err) {
 		mlx5_core_err(mdev, "alloc_map uar failed, %d\n", err);
-		goto err_free_netdev;
+		goto err_destroy_wq;
 	}
 
 	err = mlx5_core_alloc_pd(mdev, &priv->pdn);
@@ -2549,7 +2587,7 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 		vxlan_get_rx_port(netdev);
 
 	mlx5e_enable_async_events(priv);
-	schedule_work(&priv->set_rx_mode_work);
+	queue_work(priv->wq, &priv->set_rx_mode_work);
 
 	return priv;
 
@@ -2586,6 +2624,9 @@ err_dealloc_pd:
 err_unmap_free_uar:
 	mlx5_unmap_free_uar(mdev, &priv->cq_uar);
 
+err_destroy_wq:
+	destroy_workqueue(priv->wq);
+
 err_free_netdev:
 	free_netdev(netdev);
 
@@ -2599,10 +2640,19 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 
 	set_bit(MLX5E_STATE_DESTROYING, &priv->state);
 
-	schedule_work(&priv->set_rx_mode_work);
+	queue_work(priv->wq, &priv->set_rx_mode_work);
 	mlx5e_disable_async_events(priv);
-	flush_scheduled_work();
-	unregister_netdev(netdev);
+	flush_workqueue(priv->wq);
+	if (test_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &mdev->intf_state)) {
+		netif_device_detach(netdev);
+		mutex_lock(&priv->state_lock);
+		if (test_bit(MLX5E_STATE_OPENED, &priv->state))
+			mlx5e_close_locked(netdev);
+		mutex_unlock(&priv->state_lock);
+	} else {
+		unregister_netdev(netdev);
+	}
+
 	mlx5e_tc_cleanup(priv);
 	mlx5e_vxlan_cleanup(priv);
 	mlx5e_destroy_flow_tables(priv);
@@ -2615,7 +2665,11 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5_core_dealloc_transport_domain(priv->mdev, priv->tdn);
 	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
 	mlx5_unmap_free_uar(priv->mdev, &priv->cq_uar);
-	free_netdev(netdev);
+	cancel_delayed_work_sync(&priv->update_stats_work);
+	destroy_workqueue(priv->wq);
+
+	if (!test_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &mdev->intf_state))
+		free_netdev(netdev);
 }
 
 static void *mlx5e_get_netdev(void *vpriv)

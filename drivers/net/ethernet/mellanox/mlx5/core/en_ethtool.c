@@ -138,10 +138,10 @@ static const struct {
 	[MLX5E_100BASE_TX]   = {
 		.speed      = 100,
 	},
-	[MLX5E_100BASE_T]    = {
-		.supported  = SUPPORTED_100baseT_Full,
-		.advertised = ADVERTISED_100baseT_Full,
-		.speed      = 100,
+	[MLX5E_1000BASE_T]    = {
+		.supported  = SUPPORTED_1000baseT_Full,
+		.advertised = ADVERTISED_1000baseT_Full,
+		.speed      = 1000,
 	},
 	[MLX5E_10GBASE_T]    = {
 		.supported  = SUPPORTED_10000baseT_Full,

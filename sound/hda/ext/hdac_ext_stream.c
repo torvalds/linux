@@ -104,12 +104,11 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_init_all);
  */
 void snd_hdac_stream_free_all(struct hdac_ext_bus *ebus)
 {
-	struct hdac_stream *s;
+	struct hdac_stream *s, *_s;
 	struct hdac_ext_stream *stream;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 
-	while (!list_empty(&bus->stream_list)) {
-		s = list_first_entry(&bus->stream_list, struct hdac_stream, list);
+	list_for_each_entry_safe(s, _s, &bus->stream_list, list) {
 		stream = stream_to_hdac_ext_stream(s);
 		snd_hdac_ext_stream_decouple(ebus, stream, false);
 		list_del(&s->list);

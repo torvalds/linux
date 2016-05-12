@@ -1093,6 +1093,19 @@ static int mxt_t6_command(struct mxt_data *data, u16 cmd_offset,
 	return 0;
 }
 
+static int mxt_acquire_irq(struct mxt_data *data)
+{
+	int error;
+
+	enable_irq(data->irq);
+
+	error = mxt_process_messages_until_invalid(data);
+	if (error)
+		return error;
+
+	return 0;
+}
+
 static int mxt_soft_reset(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
@@ -1111,7 +1124,7 @@ static int mxt_soft_reset(struct mxt_data *data)
 	/* Ignore CHG line for 100ms after reset */
 	msleep(100);
 
-	enable_irq(data->irq);
+	mxt_acquire_irq(data);
 
 	ret = mxt_wait_for_completion(data, &data->reset_completion,
 				      MXT_RESET_TIMEOUT);
@@ -1464,19 +1477,6 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 release_mem:
 	kfree(config_mem);
 	return ret;
-}
-
-static int mxt_acquire_irq(struct mxt_data *data)
-{
-	int error;
-
-	enable_irq(data->irq);
-
-	error = mxt_process_messages_until_invalid(data);
-	if (error)
-		return error;
-
-	return 0;
 }
 
 static int mxt_get_info(struct mxt_data *data)

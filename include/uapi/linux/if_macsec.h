@@ -19,8 +19,10 @@
 
 #define MACSEC_MAX_KEY_LEN 128
 
-#define DEFAULT_CIPHER_ID   0x0080020001000001ULL
-#define DEFAULT_CIPHER_ALT  0x0080C20001000001ULL
+#define MACSEC_KEYID_LEN 16
+
+#define MACSEC_DEFAULT_CIPHER_ID   0x0080020001000001ULL
+#define MACSEC_DEFAULT_CIPHER_ALT  0x0080C20001000001ULL
 
 #define MACSEC_MIN_ICV_LEN 8
 #define MACSEC_MAX_ICV_LEN 32
@@ -77,7 +79,7 @@ enum macsec_sa_attrs {
 	MACSEC_SA_ATTR_ACTIVE, /* config/dump, u8 0..1 */
 	MACSEC_SA_ATTR_PN,     /* config/dump, u32 */
 	MACSEC_SA_ATTR_KEY,    /* config, data */
-	MACSEC_SA_ATTR_KEYID,  /* config/dump, u64 */
+	MACSEC_SA_ATTR_KEYID,  /* config/dump, 128-bit */
 	MACSEC_SA_ATTR_STATS,  /* dump, nested, macsec_sa_stats_attr */
 	__MACSEC_SA_ATTR_END,
 	NUM_MACSEC_SA_ATTR = __MACSEC_SA_ATTR_END,

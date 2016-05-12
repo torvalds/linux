@@ -87,7 +87,8 @@ static u32 find_phys_blocks(struct page **, unsigned, struct tid_pageset *);
 static int set_rcvarray_entry(struct file *, unsigned long, u32,
 			      struct tid_group *, struct page **, unsigned);
 static int mmu_rb_insert(struct rb_root *, struct mmu_rb_node *);
-static void mmu_rb_remove(struct rb_root *, struct mmu_rb_node *, bool);
+static void mmu_rb_remove(struct rb_root *, struct mmu_rb_node *,
+			  struct mm_struct *);
 static int mmu_rb_invalidate(struct rb_root *, struct mmu_rb_node *);
 static int program_rcvarray(struct file *, unsigned long, struct tid_group *,
 			    struct tid_pageset *, unsigned, u16, struct page **,
@@ -254,6 +255,8 @@ int hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct tid_group *grp, *gptr;
 
+	if (!test_bit(HFI1_CTXT_SETUP_DONE, &uctxt->event_flags))
+		return 0;
 	/*
 	 * The notifier would have been removed when the process'es mm
 	 * was freed.
@@ -899,7 +902,7 @@ static int unprogram_rcvarray(struct file *fp, u32 tidinfo,
 	if (!node || node->rcventry != (uctxt->expected_base + rcventry))
 		return -EBADF;
 	if (HFI1_CAP_IS_USET(TID_UNMAP))
-		mmu_rb_remove(&fd->tid_rb_root, &node->mmu, false);
+		mmu_rb_remove(&fd->tid_rb_root, &node->mmu, NULL);
 	else
 		hfi1_mmu_rb_remove(&fd->tid_rb_root, &node->mmu);
 
@@ -965,7 +968,7 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 					continue;
 				if (HFI1_CAP_IS_USET(TID_UNMAP))
 					mmu_rb_remove(&fd->tid_rb_root,
-						      &node->mmu, false);
+						      &node->mmu, NULL);
 				else
 					hfi1_mmu_rb_remove(&fd->tid_rb_root,
 							   &node->mmu);
@@ -1032,7 +1035,7 @@ static int mmu_rb_insert(struct rb_root *root, struct mmu_rb_node *node)
 }
 
 static void mmu_rb_remove(struct rb_root *root, struct mmu_rb_node *node,
-			  bool notifier)
+			  struct mm_struct *mm)
 {
 	struct hfi1_filedata *fdata =
 		container_of(root, struct hfi1_filedata, tid_rb_root);

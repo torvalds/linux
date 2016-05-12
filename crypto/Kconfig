@@ -96,6 +96,7 @@ config CRYPTO_AKCIPHER
 config CRYPTO_RSA
 	tristate "RSA algorithm"
 	select CRYPTO_AKCIPHER
+	select CRYPTO_MANAGER
 	select MPILIB
 	select ASN1
 	help

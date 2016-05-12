@@ -336,7 +336,7 @@ static int intel_num_cpu_cores(struct cpuinfo_x86 *c)
 {
 	unsigned int eax, ebx, ecx, edx;
 
-	if (c->cpuid_level < 4)
+	if (!IS_ENABLED(CONFIG_SMP) || c->cpuid_level < 4)
 		return 1;
 
 	/* Intel has a non-standard dependency on %ecx for this CPUID level. */

@@ -407,6 +407,15 @@ struct rx_tpa_end_cmp_ext {
 
 #define BNXT_PAGE_SIZE	(1 << BNXT_PAGE_SHIFT)
 
+/* The RXBD length is 16-bit so we can only support page sizes < 64K */
+#if (PAGE_SHIFT > 15)
+#define BNXT_RX_PAGE_SHIFT 15
+#else
+#define BNXT_RX_PAGE_SHIFT PAGE_SHIFT
+#endif
+
+#define BNXT_RX_PAGE_SIZE (1 << BNXT_RX_PAGE_SHIFT)
+
 #define BNXT_MIN_PKT_SIZE	45
 
 #define BNXT_NUM_TESTS(bp)	0
@@ -506,6 +515,7 @@ struct bnxt_sw_rx_bd {
 
 struct bnxt_sw_rx_agg_bd {
 	struct page		*page;
+	unsigned int		offset;
 	dma_addr_t		mapping;
 };
 
@@ -585,6 +595,9 @@ struct bnxt_rx_ring_info {
 
 	unsigned long		*rx_agg_bmap;
 	u16			rx_agg_bmap_size;
+
+	struct page		*rx_page;
+	unsigned int		rx_page_offset;
 
 	dma_addr_t		rx_desc_mapping[MAX_RX_PAGES];
 	dma_addr_t		rx_agg_desc_mapping[MAX_RX_AGG_PAGES];
