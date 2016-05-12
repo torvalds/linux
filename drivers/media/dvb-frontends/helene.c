@@ -522,7 +522,7 @@ static int helene_set_params_s(struct dvb_frontend *fe)
 	enum helene_tv_system_t tv_system;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct helene_priv *priv = fe->tuner_priv;
-	int frequencykHz = p->frequency / 1000;
+	int frequencykHz = p->frequency;
 	uint32_t frequency4kHz = 0;
 	u32 symbol_rate = p->symbol_rate/1000;
 
