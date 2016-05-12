@@ -3504,7 +3504,8 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 				PNV_IODA1_DMA32_SEGSIZE;
 
 	/* Allocate aux data & arrays. We don't have IO ports on PHB3 */
-	size = _ALIGN_UP(phb->ioda.total_pe_num / 8, sizeof(unsigned long));
+	size = _ALIGN_UP(max_t(unsigned, phb->ioda.total_pe_num, 8) / 8,
+			sizeof(unsigned long));
 	m64map_off = size;
 	size += phb->ioda.total_pe_num * sizeof(phb->ioda.m64_segmap[0]);
 	m32map_off = size;
