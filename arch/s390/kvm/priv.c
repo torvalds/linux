@@ -715,7 +715,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	}
 
-	while (start < end) {
+	while (start != end) {
 		unsigned long useraddr;
 
 		/* Translate guest address to host address */
