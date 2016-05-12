@@ -65,6 +65,8 @@ struct perf_callchain_entry_ctx {
 	struct perf_callchain_entry *entry;
 	u32			    max_stack;
 	u32			    nr;
+	short			    contexts;
+	bool			    contexts_maxed;
 };
 
 struct perf_raw_record {
@@ -1078,12 +1080,24 @@ extern int get_callchain_buffers(void);
 extern void put_callchain_buffers(void);
 
 extern int sysctl_perf_event_max_stack;
+extern int sysctl_perf_event_max_contexts_per_stack;
 
-#define perf_callchain_store_context(ctx, context) perf_callchain_store(ctx, context)
+static inline int perf_callchain_store_context(struct perf_callchain_entry_ctx *ctx, u64 ip)
+{
+	if (ctx->contexts < sysctl_perf_event_max_contexts_per_stack) {
+		struct perf_callchain_entry *entry = ctx->entry;
+		entry->ip[entry->nr++] = ip;
+		++ctx->contexts;
+		return 0;
+	} else {
+		ctx->contexts_maxed = true;
+		return -1; /* no more room, stop walking the stack */
+	}
+}
 
 static inline int perf_callchain_store(struct perf_callchain_entry_ctx *ctx, u64 ip)
 {
-	if (ctx->nr < ctx->max_stack) {
+	if (ctx->nr < ctx->max_stack && !ctx->contexts_maxed) {
 		struct perf_callchain_entry *entry = ctx->entry;
 		entry->ip[entry->nr++] = ip;
 		++ctx->nr;

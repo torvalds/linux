@@ -19,11 +19,13 @@ struct callchain_cpus_entries {
 };
 
 int sysctl_perf_event_max_stack __read_mostly = PERF_MAX_STACK_DEPTH;
+int sysctl_perf_event_max_contexts_per_stack __read_mostly = PERF_MAX_CONTEXTS_PER_STACK;
 
 static inline size_t perf_callchain_entry__sizeof(void)
 {
 	return (sizeof(struct perf_callchain_entry) +
-		sizeof(__u64) * sysctl_perf_event_max_stack);
+		sizeof(__u64) * (sysctl_perf_event_max_stack +
+				 sysctl_perf_event_max_contexts_per_stack));
 }
 
 static DEFINE_PER_CPU(int, callchain_recursion[PERF_NR_CONTEXTS]);
@@ -197,6 +199,8 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 	ctx.entry     = entry;
 	ctx.max_stack = max_stack;
 	ctx.nr	      = entry->nr = init_nr;
+	ctx.contexts       = 0;
+	ctx.contexts_maxed = false;
 
 	if (kernel && !user_mode(regs)) {
 		if (add_mark)
@@ -228,6 +232,10 @@ exit_put:
 	return entry;
 }
 
+/*
+ * Used for sysctl_perf_event_max_stack and
+ * sysctl_perf_event_max_contexts_per_stack.
+ */
 int perf_event_max_stack_handler(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
