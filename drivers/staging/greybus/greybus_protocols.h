@@ -123,6 +123,7 @@ struct gb_protocol_version_response {
 #define GB_CONTROL_TYPE_TIMESYNC_AUTHORITATIVE	0x09
 /*	Unused					0x0a */
 #define GB_CONTROL_TYPE_BUNDLE_VERSION		0x0b
+#define GB_CONTROL_TYPE_TIMESYNC_GET_LAST_EVENT	0x0d
 #define GB_CONTROL_TYPE_MODE_SWITCH		0x0e
 
 struct gb_control_version_request {
@@ -178,6 +179,11 @@ struct gb_control_timesync_authoritative_request {
 	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
 } __packed;
 /* timesync authoritative response has no payload */
+
+/* timesync get_last_event_request has no payload */
+struct gb_control_timesync_get_last_event_response {
+	__le64	frame_time;
+} __packed;
 
 /* APBridge protocol */
 

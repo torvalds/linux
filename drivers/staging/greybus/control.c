@@ -177,6 +177,20 @@ int gb_control_timesync_disable(struct gb_control *control)
 				 NULL, 0);
 }
 
+int gb_control_timesync_get_last_event(struct gb_control *control,
+				       u64 *frame_time)
+{
+	struct gb_control_timesync_get_last_event_response response;
+	int ret;
+
+	ret = gb_operation_sync(control->connection,
+				GB_CONTROL_TYPE_TIMESYNC_GET_LAST_EVENT,
+				NULL, 0, &response, sizeof(response));
+	if (!ret)
+		*frame_time = le64_to_cpu(response.frame_time);
+	return ret;
+}
+
 int gb_control_timesync_authoritative(struct gb_control *control,
 				      u64 *frame_time, u8 count)
 {
