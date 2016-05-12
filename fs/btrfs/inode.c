@@ -7145,6 +7145,43 @@ out:
 	return em;
 }
 
+static struct extent_map *btrfs_create_dio_extent(struct inode *inode,
+						  const u64 start,
+						  const u64 len,
+						  const u64 orig_start,
+						  const u64 block_start,
+						  const u64 block_len,
+						  const u64 orig_block_len,
+						  const u64 ram_bytes,
+						  const int type)
+{
+	struct extent_map *em = NULL;
+	int ret;
+
+	down_read(&BTRFS_I(inode)->dio_sem);
+	if (type != BTRFS_ORDERED_NOCOW) {
+		em = create_pinned_em(inode, start, len, orig_start,
+				      block_start, block_len, orig_block_len,
+				      ram_bytes, type);
+		if (IS_ERR(em))
+			goto out;
+	}
+	ret = btrfs_add_ordered_extent_dio(inode, start, block_start,
+					   len, block_len, type);
+	if (ret) {
+		if (em) {
+			free_extent_map(em);
+			btrfs_drop_extent_cache(inode, start,
+						start + len - 1, 0);
+		}
+		em = ERR_PTR(ret);
+	}
+ out:
+	up_read(&BTRFS_I(inode)->dio_sem);
+
+	return em;
+}
+
 static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 						  u64 start, u64 len)
 {
@@ -7160,43 +7197,13 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	if (ret)
 		return ERR_PTR(ret);
 
-	/*
-	 * Create the ordered extent before the extent map. This is to avoid
-	 * races with the fast fsync path that would lead to it logging file
-	 * extent items that point to disk extents that were not yet written to.
-	 * The fast fsync path collects ordered extents into a local list and
-	 * then collects all the new extent maps, so we must create the ordered
-	 * extent first and make sure the fast fsync path collects any new
-	 * ordered extents after collecting new extent maps as well.
-	 * The fsync path simply can not rely on inode_dio_wait() because it
-	 * causes deadlock with AIO.
-	 */
-	ret = btrfs_add_ordered_extent_dio(inode, start, ins.objectid,
-					   ins.offset, ins.offset, 0);
-	if (ret) {
-		btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
-		return ERR_PTR(ret);
-	}
-
+	em = btrfs_create_dio_extent(inode, start, ins.offset, start,
+				     ins.objectid, ins.offset, ins.offset,
+				     ins.offset, 0);
 	btrfs_dec_block_group_reservations(root->fs_info, ins.objectid);
-
-	em = create_pinned_em(inode, start, ins.offset, start, ins.objectid,
-			      ins.offset, ins.offset, ins.offset, 0);
-	if (IS_ERR(em)) {
-		struct btrfs_ordered_extent *oe;
-
+	if (IS_ERR(em))
 		btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
-		oe = btrfs_lookup_ordered_extent(inode, start);
-		ASSERT(oe);
-		if (WARN_ON(!oe))
-			return em;
-		set_bit(BTRFS_ORDERED_IOERR, &oe->flags);
-		set_bit(BTRFS_ORDERED_IO_DONE, &oe->flags);
-		btrfs_remove_ordered_extent(inode, oe);
-		/* Once for our lookup and once for the ordered extents tree. */
-		btrfs_put_ordered_extent(oe);
-		btrfs_put_ordered_extent(oe);
-	}
+
 	return em;
 }
 
@@ -7670,57 +7677,21 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 		if (can_nocow_extent(inode, start, &len, &orig_start,
 				     &orig_block_len, &ram_bytes) == 1 &&
 		    btrfs_inc_nocow_writers(root->fs_info, block_start)) {
+			struct extent_map *em2;
 
-			/*
-			 * Create the ordered extent before the extent map. This
-			 * is to avoid races with the fast fsync path because it
-			 * collects ordered extents into a local list and then
-			 * collects all the new extent maps, so we must create
-			 * the ordered extent first and make sure the fast fsync
-			 * path collects any new ordered extents after
-			 * collecting new extent maps as well. The fsync path
-			 * simply can not rely on inode_dio_wait() because it
-			 * causes deadlock with AIO.
-			 */
-			ret = btrfs_add_ordered_extent_dio(inode, start,
-					   block_start, len, len, type);
+			em2 = btrfs_create_dio_extent(inode, start, len,
+						      orig_start, block_start,
+						      len, orig_block_len,
+						      ram_bytes, type);
 			btrfs_dec_nocow_writers(root->fs_info, block_start);
-			if (ret) {
-				free_extent_map(em);
-				goto unlock_err;
-			}
-
 			if (type == BTRFS_ORDERED_PREALLOC) {
 				free_extent_map(em);
-				em = create_pinned_em(inode, start, len,
-						       orig_start,
-						       block_start, len,
-						       orig_block_len,
-						       ram_bytes, type);
-				if (IS_ERR(em)) {
-					struct btrfs_ordered_extent *oe;
-
-					ret = PTR_ERR(em);
-					oe = btrfs_lookup_ordered_extent(inode,
-									 start);
-					ASSERT(oe);
-					if (WARN_ON(!oe))
-						goto unlock_err;
-					set_bit(BTRFS_ORDERED_IOERR,
-						&oe->flags);
-					set_bit(BTRFS_ORDERED_IO_DONE,
-						&oe->flags);
-					btrfs_remove_ordered_extent(inode, oe);
-					/*
-					 * Once for our lookup and once for the
-					 * ordered extents tree.
-					 */
-					btrfs_put_ordered_extent(oe);
-					btrfs_put_ordered_extent(oe);
-					goto unlock_err;
-				}
+				em = em2;
 			}
-
+			if (em2 && IS_ERR(em2)) {
+				ret = PTR_ERR(em2);
+				goto unlock_err;
+			}
 			goto unlock;
 		}
 	}
@@ -9281,6 +9252,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&ei->delalloc_inodes);
 	INIT_LIST_HEAD(&ei->delayed_iput);
 	RB_CLEAR_NODE(&ei->rb_node);
+	init_rwsem(&ei->dio_sem);
 
 	return inode;
 }
