@@ -74,8 +74,8 @@ __print_symbolic(etype,                         \
 
 TRACE_EVENT(hfi1_rcvhdr,
 	    TP_PROTO(struct hfi1_devdata *dd,
-		     u64 eflags,
 		     u32 ctxt,
+		     u64 eflags,
 		     u32 etype,
 		     u32 hlen,
 		     u32 tlen,
