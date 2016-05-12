@@ -1311,6 +1311,11 @@ int btrfs_defrag_root(struct btrfs_root *root)
 	return ret;
 }
 
+/* Bisesctability fixup, remove in 4.8 */
+#ifndef btrfs_std_error
+#define btrfs_std_error btrfs_handle_fs_error
+#endif
+
 /*
  * Do all special snapshot related qgroup dirty hack.
  *
