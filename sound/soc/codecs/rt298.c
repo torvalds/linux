@@ -1184,7 +1184,7 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 
 	/* enable jack combo mode on supported devices */
 	acpiid = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (acpiid) {
+	if (acpiid && acpiid->driver_data) {
 		rt298->pdata = *(struct rt298_platform_data *)
 				acpiid->driver_data;
 	}
