@@ -3637,6 +3637,8 @@ __init int intel_pmu_init(void)
 		pr_cont("Knights Landing events, ");
 		break;
 
+	case 142: /* 14nm Kabylake Mobile */
+	case 158: /* 14nm Kabylake Desktop */
 	case 78: /* 14nm Skylake Mobile */
 	case 94: /* 14nm Skylake Desktop */
 	case 85: /* 14nm Skylake Server */

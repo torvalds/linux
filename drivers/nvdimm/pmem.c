@@ -397,10 +397,17 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	 */
 	start += start_pad;
 	npfns = (pmem->size - start_pad - end_trunc - SZ_8K) / SZ_4K;
-	if (nd_pfn->mode == PFN_MODE_PMEM)
-		offset = ALIGN(start + SZ_8K + 64 * npfns, nd_pfn->align)
+	if (nd_pfn->mode == PFN_MODE_PMEM) {
+		unsigned long memmap_size;
+
+		/*
+		 * vmemmap_populate_hugepages() allocates the memmap array in
+		 * PMD_SIZE chunks.
+		 */
+		memmap_size = ALIGN(64 * npfns, PMD_SIZE);
+		offset = ALIGN(start + SZ_8K + memmap_size, nd_pfn->align)
 			- start;
-	else if (nd_pfn->mode == PFN_MODE_RAM)
+	} else if (nd_pfn->mode == PFN_MODE_RAM)
 		offset = ALIGN(start + SZ_8K, nd_pfn->align) - start;
 	else
 		goto err;

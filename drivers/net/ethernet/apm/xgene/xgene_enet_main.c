@@ -1595,21 +1595,22 @@ static int xgene_enet_probe(struct platform_device *pdev)
 
 	ret = xgene_enet_init_hw(pdata);
 	if (ret)
-		goto err;
+		goto err_netdev;
 
 	mac_ops = pdata->mac_ops;
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
 		ret = xgene_enet_mdio_config(pdata);
 		if (ret)
-			goto err;
+			goto err_netdev;
 	} else {
 		INIT_DELAYED_WORK(&pdata->link_work, mac_ops->link_state);
 	}
 
 	xgene_enet_napi_add(pdata);
 	return 0;
-err:
+err_netdev:
 	unregister_netdev(ndev);
+err:
 	free_netdev(ndev);
 	return ret;
 }

@@ -1279,6 +1279,7 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 	struct br_ip saddr;
 	unsigned long max_delay;
 	unsigned long now = jiffies;
+	unsigned int offset = skb_transport_offset(skb);
 	__be32 group;
 	int err = 0;
 
@@ -1289,14 +1290,14 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 
 	group = ih->group;
 
-	if (skb->len == sizeof(*ih)) {
+	if (skb->len == offset + sizeof(*ih)) {
 		max_delay = ih->code * (HZ / IGMP_TIMER_SCALE);
 
 		if (!max_delay) {
 			max_delay = 10 * HZ;
 			group = 0;
 		}
-	} else if (skb->len >= sizeof(*ih3)) {
+	} else if (skb->len >= offset + sizeof(*ih3)) {
 		ih3 = igmpv3_query_hdr(skb);
 		if (ih3->nsrcs)
 			goto out;
@@ -1357,6 +1358,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 	struct br_ip saddr;
 	unsigned long max_delay;
 	unsigned long now = jiffies;
+	unsigned int offset = skb_transport_offset(skb);
 	const struct in6_addr *group = NULL;
 	bool is_general_query;
 	int err = 0;
@@ -1366,8 +1368,8 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 	    (port && port->state == BR_STATE_DISABLED))
 		goto out;
 
-	if (skb->len == sizeof(*mld)) {
-		if (!pskb_may_pull(skb, sizeof(*mld))) {
+	if (skb->len == offset + sizeof(*mld)) {
+		if (!pskb_may_pull(skb, offset + sizeof(*mld))) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -1376,7 +1378,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		if (max_delay)
 			group = &mld->mld_mca;
 	} else {
-		if (!pskb_may_pull(skb, sizeof(*mld2q))) {
+		if (!pskb_may_pull(skb, offset + sizeof(*mld2q))) {
 			err = -EINVAL;
 			goto out;
 		}

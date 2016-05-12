@@ -332,6 +332,11 @@ static void __init smp_init_package_map(void)
 	 * primary cores.
 	 */
 	ncpus = boot_cpu_data.x86_max_cores;
+	if (!ncpus) {
+		pr_warn("x86_max_cores == zero !?!?");
+		ncpus = 1;
+	}
+
 	__max_logical_packages = DIV_ROUND_UP(total_cpus, ncpus);
 
 	/*
