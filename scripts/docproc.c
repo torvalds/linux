@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <errno.h>
+#include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -68,11 +69,22 @@ FILELINE * docsection;
 #define KERNELDOCPATH "scripts/"
 #define KERNELDOC     "kernel-doc"
 #define DOCBOOK       "-docbook"
+#define RST           "-rst"
 #define LIST          "-list"
 #define FUNCTION      "-function"
 #define NOFUNCTION    "-nofunction"
 #define NODOCSECTIONS "-no-doc-sections"
 #define SHOWNOTFOUND  "-show-not-found"
+
+enum file_format {
+	FORMAT_AUTO,
+	FORMAT_DOCBOOK,
+	FORMAT_RST,
+};
+
+static enum file_format file_format = FORMAT_AUTO;
+
+#define KERNELDOC_FORMAT	(file_format == FORMAT_RST ? RST : DOCBOOK)
 
 static char *srctree, *kernsrctree;
 
@@ -95,7 +107,7 @@ static void consume_symbol(const char *sym)
 
 static void usage (void)
 {
-	fprintf(stderr, "Usage: docproc {doc|depend} file\n");
+	fprintf(stderr, "Usage: docproc [{--docbook|--rst}] {doc|depend} file\n");
 	fprintf(stderr, "Input is read from file.tmpl. Output is sent to stdout\n");
 	fprintf(stderr, "doc: frontend when generating kernel documentation\n");
 	fprintf(stderr, "depend: generate list of files referenced within file\n");
@@ -242,7 +254,7 @@ static void find_export_symbols(char * filename)
 /*
  * Document all external or internal functions in a file.
  * Call kernel-doc with following parameters:
- * kernel-doc -docbook -nofunction function_name1 filename
+ * kernel-doc [-docbook|-rst] -nofunction function_name1 filename
  * Function names are obtained from all the src files
  * by find_export_symbols.
  * intfunc uses -nofunction
@@ -263,7 +275,7 @@ static void docfunctions(char * filename, char * type)
 		exit(1);
 	}
 	vec[idx++] = KERNELDOC;
-	vec[idx++] = DOCBOOK;
+	vec[idx++] = KERNELDOC_FORMAT;
 	vec[idx++] = NODOCSECTIONS;
 	for (i=0; i < symfilecnt; i++) {
 		struct symfile * sym = &symfilelist[i];
@@ -275,7 +287,10 @@ static void docfunctions(char * filename, char * type)
 	}
 	vec[idx++]     = filename;
 	vec[idx] = NULL;
-	printf("<!-- %s -->\n", filename);
+	if (file_format == FORMAT_RST)
+		printf(".. %s\n", filename);
+	else
+		printf("<!-- %s -->\n", filename);
 	exec_kernel_doc(vec);
 	fflush(stdout);
 	free(vec);
@@ -294,7 +309,7 @@ static void singfunc(char * filename, char * line)
 	int i, idx = 0;
 	int startofsym = 1;
 	vec[idx++] = KERNELDOC;
-	vec[idx++] = DOCBOOK;
+	vec[idx++] = KERNELDOC_FORMAT;
 	vec[idx++] = SHOWNOTFOUND;
 
 	/* Split line up in individual parameters preceded by FUNCTION */
@@ -343,7 +358,7 @@ static void docsect(char *filename, char *line)
 	free(s);
 
 	vec[0] = KERNELDOC;
-	vec[1] = DOCBOOK;
+	vec[1] = KERNELDOC_FORMAT;
 	vec[2] = SHOWNOTFOUND;
 	vec[3] = FUNCTION;
 	vec[4] = line;
@@ -448,8 +463,10 @@ static char *chomp(char *s)
 /* Return pointer to directive content, or NULL if not a directive. */
 static char *is_directive(char *line)
 {
-	if (line[0] == '!')
+	if (file_format == FORMAT_DOCBOOK && line[0] == '!')
 		return line + 1;
+	else if (file_format == FORMAT_RST && !strncmp(line, ".. !", 4))
+		return line + 4;
 
 	return NULL;
 }
@@ -516,6 +533,22 @@ static void parse_file(FILE *infile)
 	fflush(stdout);
 }
 
+/*
+ * Is this a RestructuredText template?  Answer the question by seeing if its
+ * name ends in ".rst".
+ */
+static int is_rst(const char *file)
+{
+	char *dot = strrchr(file, '.');
+
+	return dot && !strcmp(dot + 1, "rst");
+}
+
+enum opts {
+	OPT_DOCBOOK,
+	OPT_RST,
+	OPT_HELP,
+};
 
 int main(int argc, char *argv[])
 {
@@ -529,13 +562,50 @@ int main(int argc, char *argv[])
 	kernsrctree = getenv("KBUILD_SRC");
 	if (!kernsrctree || !*kernsrctree)
 		kernsrctree = srctree;
-	if (argc != 3) {
+
+	for (;;) {
+		int c;
+		struct option opts[] = {
+			{ "docbook",	no_argument, NULL, OPT_DOCBOOK },
+			{ "rst",	no_argument, NULL, OPT_RST },
+			{ "help",	no_argument, NULL, OPT_HELP },
+			{}
+		};
+
+		c = getopt_long_only(argc, argv, "", opts, NULL);
+		if (c == -1)
+			break;
+
+		switch (c) {
+		case OPT_DOCBOOK:
+			file_format = FORMAT_DOCBOOK;
+			break;
+		case OPT_RST:
+			file_format = FORMAT_RST;
+			break;
+		case OPT_HELP:
+			usage();
+			return 0;
+		default:
+		case '?':
+			usage();
+			return 1;
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 2) {
 		usage();
 		exit(1);
 	}
 
-	subcommand = argv[1];
-	filename = argv[2];
+	subcommand = argv[0];
+	filename = argv[1];
+
+	if (file_format == FORMAT_AUTO)
+		file_format = is_rst(filename) ? FORMAT_RST : FORMAT_DOCBOOK;
 
 	/* Open file, exit on error */
 	infile = fopen(filename, "r");
