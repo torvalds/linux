@@ -1330,8 +1330,13 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	ib_update_fast_reg_key(desc->mr, rkey);
 
 	n = ib_map_mr_sg(desc->mr, state->sg, sg_nents, 0, dev->mr_page_size);
-	if (unlikely(n < 0))
+	if (unlikely(n < 0)) {
+		srp_fr_pool_put(ch->fr_pool, &desc, 1);
+		pr_debug("%s: ib_map_mr_sg(%d) returned %d.\n",
+			 dev_name(&req->scmnd->device->sdev_gendev), sg_nents,
+			 n);
 		return n;
+	}
 
 	req->reg_cqe.done = srp_reg_mr_err_done;
 
