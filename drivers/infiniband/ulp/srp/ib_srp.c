@@ -3431,17 +3431,6 @@ static void srp_add_one(struct ib_device *device)
 	if (!srp_dev)
 		return;
 
-	srp_dev->has_fmr = (device->alloc_fmr && device->dealloc_fmr &&
-			    device->map_phys_fmr && device->unmap_fmr);
-	srp_dev->has_fr = (device->attrs.device_cap_flags &
-			   IB_DEVICE_MEM_MGT_EXTENSIONS);
-	if (!srp_dev->has_fmr && !srp_dev->has_fr)
-		dev_warn(&device->dev, "neither FMR nor FR is supported\n");
-
-	srp_dev->use_fast_reg = (srp_dev->has_fr &&
-				 (!srp_dev->has_fmr || prefer_fr));
-	srp_dev->use_fmr = !srp_dev->use_fast_reg && srp_dev->has_fmr;
-
 	/*
 	 * Use the smallest page size supported by the HCA, down to a
 	 * minimum of 4096 bytes. We're unlikely to build large sglists
@@ -3454,6 +3443,18 @@ static void srp_add_one(struct ib_device *device)
 	do_div(max_pages_per_mr, srp_dev->mr_page_size);
 	srp_dev->max_pages_per_mr = min_t(u64, SRP_MAX_PAGES_PER_MR,
 					  max_pages_per_mr);
+
+	srp_dev->has_fmr = (device->alloc_fmr && device->dealloc_fmr &&
+			    device->map_phys_fmr && device->unmap_fmr);
+	srp_dev->has_fr = (device->attrs.device_cap_flags &
+			   IB_DEVICE_MEM_MGT_EXTENSIONS);
+	if (!srp_dev->has_fmr && !srp_dev->has_fr)
+		dev_warn(&device->dev, "neither FMR nor FR is supported\n");
+
+	srp_dev->use_fast_reg = (srp_dev->has_fr &&
+				 (!srp_dev->has_fmr || prefer_fr));
+	srp_dev->use_fmr = !srp_dev->use_fast_reg && srp_dev->has_fmr;
+
 	if (srp_dev->use_fast_reg) {
 		srp_dev->max_pages_per_mr =
 			min_t(u32, srp_dev->max_pages_per_mr,
