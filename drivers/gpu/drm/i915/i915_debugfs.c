@@ -89,17 +89,17 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const char get_active_flag(struct drm_i915_gem_object *obj)
+static char get_active_flag(struct drm_i915_gem_object *obj)
 {
 	return obj->active ? '*' : ' ';
 }
 
-static const char get_pin_flag(struct drm_i915_gem_object *obj)
+static char get_pin_flag(struct drm_i915_gem_object *obj)
 {
 	return obj->pin_display ? 'p' : ' ';
 }
 
-static const char get_tiling_flag(struct drm_i915_gem_object *obj)
+static char get_tiling_flag(struct drm_i915_gem_object *obj)
 {
 	switch (obj->tiling_mode) {
 	default:
@@ -109,12 +109,12 @@ static const char get_tiling_flag(struct drm_i915_gem_object *obj)
 	}
 }
 
-static inline const char get_global_flag(struct drm_i915_gem_object *obj)
+static char get_global_flag(struct drm_i915_gem_object *obj)
 {
 	return i915_gem_obj_to_ggtt(obj) ? 'g' : ' ';
 }
 
-static inline const char get_pin_mapped_flag(struct drm_i915_gem_object *obj)
+static char get_pin_mapped_flag(struct drm_i915_gem_object *obj)
 {
 	return obj->mapping ? 'M' : ' ';
 }
