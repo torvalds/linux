@@ -1163,18 +1163,18 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 
 static u64 hot_add_drconf_memory_max(void)
 {
-        struct device_node *memory = NULL;
-        unsigned int drconf_cell_cnt = 0;
-        u64 lmb_size = 0;
+	struct device_node *memory = NULL;
+	unsigned int drconf_cell_cnt = 0;
+	u64 lmb_size = 0;
 	const __be32 *dm = NULL;
 
-        memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-        if (memory) {
-                drconf_cell_cnt = of_get_drconf_memory(memory, &dm);
-                lmb_size = of_get_lmb_size(memory);
-                of_node_put(memory);
-        }
-        return lmb_size * drconf_cell_cnt;
+	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (memory) {
+		drconf_cell_cnt = of_get_drconf_memory(memory, &dm);
+		lmb_size = of_get_lmb_size(memory);
+		of_node_put(memory);
+	}
+	return lmb_size * drconf_cell_cnt;
 }
 
 /*
