@@ -1594,10 +1594,12 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 
 			bri->get_scl = get_scl_gpio_value;
 			bri->set_scl = set_scl_gpio_value;
-		} else if (!bri->set_scl || !bri->get_scl) {
+		} else if (bri->recover_bus == i2c_generic_scl_recovery) {
 			/* Generic SCL recovery */
-			dev_err(&adap->dev, "No {get|set}_gpio() found, not using recovery\n");
-			adap->bus_recovery_info = NULL;
+			if (!bri->set_scl || !bri->get_scl) {
+				dev_err(&adap->dev, "No {get|set}_scl() found, not using recovery\n");
+				adap->bus_recovery_info = NULL;
+			}
 		}
 	}
 
