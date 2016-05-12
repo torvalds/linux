@@ -1606,7 +1606,7 @@ static struct sock *qtaguid_find_sk(const struct sk_buff *skb,
 		 * When in TCP_TIME_WAIT the sk is not a "struct sock" but
 		 * "struct inet_timewait_sock" which is missing fields.
 		 */
-		if (sk->sk_state  == TCP_TIME_WAIT) {
+		if (!sk_fullsock(sk) || sk->sk_state  == TCP_TIME_WAIT) {
 			sock_gen_put(sk);
 			sk = NULL;
 		}
