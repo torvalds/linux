@@ -1796,7 +1796,7 @@ static int visornic_probe(struct visor_device *dev)
 				  sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!devdata->rcvbuf) {
 		err = -ENOMEM;
-		goto cleanup_rcvbuf;
+		goto cleanup_netdev;
 	}
 
 	/* set the net_xmit outstanding threshold */
@@ -1817,12 +1817,12 @@ static int visornic_probe(struct visor_device *dev)
 	devdata->cmdrsp_rcv = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (!devdata->cmdrsp_rcv) {
 		err = -ENOMEM;
-		goto cleanup_cmdrsp_rcv;
+		goto cleanup_rcvbuf;
 	}
 	devdata->xmit_cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (!devdata->xmit_cmdrsp) {
 		err = -ENOMEM;
-		goto cleanup_xmit_cmdrsp;
+		goto cleanup_cmdrsp_rcv;
 	}
 	INIT_WORK(&devdata->timeout_reset, visornic_timeout_reset);
 	devdata->server_down = false;
