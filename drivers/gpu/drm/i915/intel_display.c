@@ -16020,7 +16020,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 
 	intel_modeset_init_hw(dev);
 
-	intel_setup_overlay(dev);
+	intel_setup_overlay(dev_priv);
 
 	/*
 	 * Make sure any fbs we allocated at startup are properly
@@ -16093,7 +16093,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	drm_mode_config_cleanup(dev);
 
-	intel_cleanup_overlay(dev);
+	intel_cleanup_overlay(dev_priv);
 
 	intel_cleanup_gt_powersave(dev_priv);
 

@@ -1435,13 +1435,13 @@ void intel_attach_aspect_ratio_property(struct drm_connector *connector);
 
 
 /* intel_overlay.c */
-void intel_setup_overlay(struct drm_device *dev);
-void intel_cleanup_overlay(struct drm_device *dev);
+void intel_setup_overlay(struct drm_i915_private *dev_priv);
+void intel_cleanup_overlay(struct drm_i915_private *dev_priv);
 int intel_overlay_switch_off(struct intel_overlay *overlay);
-int intel_overlay_put_image(struct drm_device *dev, void *data,
-			    struct drm_file *file_priv);
-int intel_overlay_attrs(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
+int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file_priv);
+int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
 void intel_overlay_reset(struct drm_i915_private *dev_priv);
 
 
