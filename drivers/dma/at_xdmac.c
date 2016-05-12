@@ -1425,7 +1425,16 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	residue = desc->xfer_size;
 	/*
 	 * Flush FIFO: only relevant when the transfer is source peripheral
-	 * synchronized.
+	 * synchronized. Flush is needed before reading CUBC because data in
+	 * the FIFO are not reported by CUBC. Reporting a residue of the
+	 * transfer length while we have data in FIFO can cause issue.
+	 * Usecase: atmel USART has a timeout which means I have received
+	 * characters but there is no more character received for a while. On
+	 * timeout, it requests the residue. If the data are in the DMA FIFO,
+	 * we will return a residue of the transfer length. It means no data
+	 * received. If an application is waiting for these data, it will hang
+	 * since we won't have another USART timeout without receiving new
+	 * data.
 	 */
 	mask = AT_XDMAC_CC_TYPE | AT_XDMAC_CC_DSYNC;
 	value = AT_XDMAC_CC_TYPE_PER_TRAN | AT_XDMAC_CC_DSYNC_PER2MEM;
@@ -1478,6 +1487,19 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	if (unlikely(retry >= AT_XDMAC_RESIDUE_MAX_RETRIES)) {
 		ret = DMA_ERROR;
 		goto spin_unlock;
+	}
+
+	/*
+	 * Flush FIFO: only relevant when the transfer is source peripheral
+	 * synchronized. Another flush is needed here because CUBC is updated
+	 * when the controller sends the data write command. It can lead to
+	 * report data that are not written in the memory or the device. The
+	 * FIFO flush ensures that data are really written.
+	 */
+	if ((desc->lld.mbr_cfg & mask) == value) {
+		at_xdmac_write(atxdmac, AT_XDMAC_GSWF, atchan->mask);
+		while (!(at_xdmac_chan_read(atchan, AT_XDMAC_CIS) & AT_XDMAC_CIS_FIS))
+			cpu_relax();
 	}
 
 	/*
