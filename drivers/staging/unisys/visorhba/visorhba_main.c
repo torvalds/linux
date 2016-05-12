@@ -706,13 +706,6 @@ static void visorhba_serverdown_complete(struct visorhba_devdata *devdata)
 			wake_up_all((wait_queue_head_t *)
 				    cmdrsp->scsitaskmgmt.notify_handle);
 			break;
-		case CMD_VDISKMGMT_TYPE:
-			cmdrsp = pendingdel->sent;
-			cmdrsp->vdiskmgmt.notifyresult_handle
-							= VDISK_MGMT_FAILED;
-			wake_up_all((wait_queue_head_t *)
-				    cmdrsp->vdiskmgmt.notify_handle);
-			break;
 		default:
 			break;
 		}
@@ -878,16 +871,6 @@ complete_scsi_command(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 	scsicmd->scsi_done(scsicmd);
 }
 
-/* DELETE VDISK TASK MGMT COMMANDS */
-static inline void complete_vdiskmgmt_command(struct uiscmdrsp *cmdrsp)
-{
-	/* copy the result of the taskmgmt and
-	 * wake up the error handler that is waiting for this
-	 */
-	cmdrsp->vdiskmgmt.notifyresult_handle = cmdrsp->vdiskmgmt.result;
-	wake_up_all((wait_queue_head_t *)cmdrsp->vdiskmgmt.notify_handle);
-}
-
 /**
  *	complete_taskmgmt_command - complete task management
  *	@cmdrsp: Response from the IOVM
@@ -1003,11 +986,6 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 			 */
 			cmdrsp->disknotify.v_hba = NULL;
 			process_disk_notify(shost, cmdrsp);
-		} else if (cmdrsp->cmdtype == CMD_VDISKMGMT_TYPE) {
-			if (!del_scsipending_ent(devdata,
-						 cmdrsp->vdiskmgmt.handle))
-				break;
-			complete_vdiskmgmt_command(cmdrsp);
 		}
 		/* cmdrsp is now available for resuse */
 	}
