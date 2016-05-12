@@ -7,6 +7,7 @@
 #include "auxtrace.h"
 #include "util.h"
 #include "debug.h"
+#include "vdso.h"
 
 char dso__symtab_origin(const struct dso *dso)
 {
@@ -1169,7 +1170,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	struct dso *pos;
 
 	list_for_each_entry(pos, head, node) {
-		if (with_hits && !pos->hit)
+		if (with_hits && !pos->hit && !dso__is_vdso(pos))
 			continue;
 		if (pos->has_build_id) {
 			have_build_id = true;
