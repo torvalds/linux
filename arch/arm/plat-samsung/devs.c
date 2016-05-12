@@ -68,7 +68,7 @@
 #include <linux/platform_data/asoc-s3c.h>
 #include <linux/platform_data/spi-s3c64xx.h>
 
-static u64 samsung_device_dma_mask = DMA_BIT_MASK(32);
+#define samsung_device_dma_mask (*((u64[]) { DMA_BIT_MASK(32) }))
 
 /* AC97 */
 #ifdef CONFIG_CPU_S3C2440
