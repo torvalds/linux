@@ -529,7 +529,7 @@ static int mlx4_set_page(struct ib_mr *ibmr, u64 addr)
 }
 
 int mlx4_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
-		unsigned int sg_offset)
+		      unsigned int *sg_offset)
 {
 	struct mlx4_ib_mr *mr = to_mmr(ibmr);
 	int rc;

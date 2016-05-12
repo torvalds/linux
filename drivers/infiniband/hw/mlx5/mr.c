@@ -1752,10 +1752,11 @@ static int
 mlx5_ib_sg_to_klms(struct mlx5_ib_mr *mr,
 		   struct scatterlist *sgl,
 		   unsigned short sg_nents,
-		   unsigned int sg_offset)
+		   unsigned int *sg_offset_p)
 {
 	struct scatterlist *sg = sgl;
 	struct mlx5_klm *klms = mr->descs;
+	unsigned int sg_offset = sg_offset_p ? *sg_offset_p : 0;
 	u32 lkey = mr->ibmr.pd->local_dma_lkey;
 	int i;
 
@@ -1773,6 +1774,9 @@ mlx5_ib_sg_to_klms(struct mlx5_ib_mr *mr,
 
 		sg_offset = 0;
 	}
+
+	if (sg_offset_p)
+		*sg_offset_p = sg_offset;
 
 	return i;
 }
@@ -1792,7 +1796,7 @@ static int mlx5_set_page(struct ib_mr *ibmr, u64 addr)
 }
 
 int mlx5_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
-		unsigned int sg_offset)
+		      unsigned int *sg_offset)
 {
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	int n;

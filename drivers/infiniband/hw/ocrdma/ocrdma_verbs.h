@@ -123,6 +123,6 @@ struct ib_mr *ocrdma_alloc_mr(struct ib_pd *pd,
 			      enum ib_mr_type mr_type,
 			      u32 max_num_sg);
 int ocrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
-		unsigned sg_offset);
+		     unsigned int *sg_offset);
 
 #endif				/* __OCRDMA_VERBS_H__ */

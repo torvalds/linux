@@ -403,7 +403,7 @@ static int nes_set_page(struct ib_mr *ibmr, u64 addr)
 }
 
 static int nes_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
-		int sg_nents, unsigned int sg_offset)
+			 int sg_nents, unsigned int *sg_offset)
 {
 	struct nes_mr *nesmr = to_nesmr(ibmr);
 

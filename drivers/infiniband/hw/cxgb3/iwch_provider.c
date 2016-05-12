@@ -784,7 +784,7 @@ static int iwch_set_page(struct ib_mr *ibmr, u64 addr)
 }
 
 static int iwch_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
-		int sg_nents, unsigned sg_offset)
+			  int sg_nents, unsigned int *sg_offset)
 {
 	struct iwch_mr *mhp = to_iwch_mr(ibmr);
 

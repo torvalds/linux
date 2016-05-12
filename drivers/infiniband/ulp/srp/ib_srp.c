@@ -1329,7 +1329,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	rkey = ib_inc_rkey(desc->mr->rkey);
 	ib_update_fast_reg_key(desc->mr, rkey);
 
-	n = ib_map_mr_sg(desc->mr, state->sg, sg_nents, 0, dev->mr_page_size);
+	n = ib_map_mr_sg(desc->mr, state->sg, sg_nents, NULL, dev->mr_page_size);
 	if (unlikely(n < 0)) {
 		srp_fr_pool_put(ch->fr_pool, &desc, 1);
 		pr_debug("%s: ib_map_mr_sg(%d) returned %d.\n",

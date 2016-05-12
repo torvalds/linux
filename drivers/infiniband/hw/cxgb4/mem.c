@@ -691,7 +691,7 @@ static int c4iw_set_page(struct ib_mr *ibmr, u64 addr)
 }
 
 int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
-		unsigned int sg_offset)
+		   unsigned int *sg_offset)
 {
 	struct c4iw_mr *mhp = to_c4iw_mr(ibmr);
 

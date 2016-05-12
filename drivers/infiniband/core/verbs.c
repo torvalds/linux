@@ -1655,7 +1655,7 @@ EXPORT_SYMBOL(ib_set_vf_guid);
  * is ready for registration.
  */
 int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
-		unsigned int sg_offset, unsigned int page_size)
+		 unsigned int *sg_offset, unsigned int page_size)
 {
 	if (unlikely(!mr->device->map_mr_sg))
 		return -ENOSYS;
@@ -1672,7 +1672,10 @@ EXPORT_SYMBOL(ib_map_mr_sg);
  * @mr:            memory region
  * @sgl:           dma mapped scatterlist
  * @sg_nents:      number of entries in sg
- * @sg_offset:     offset in bytes into sg
+ * @sg_offset_p:   IN:  start offset in bytes into sg
+ *                 OUT: offset in bytes for element n of the sg of the first
+ *                      byte that has not been processed where n is the return
+ *                      value of this function.
  * @set_page:      driver page assignment function pointer
  *
  * Core service helper for drivers to convert the largest
@@ -1684,19 +1687,24 @@ EXPORT_SYMBOL(ib_map_mr_sg);
  * a page vector.
  */
 int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
-		unsigned int sg_offset, int (*set_page)(struct ib_mr *, u64))
+		unsigned int *sg_offset_p, int (*set_page)(struct ib_mr *, u64))
 {
 	struct scatterlist *sg;
 	u64 last_end_dma_addr = 0;
+	unsigned int sg_offset = sg_offset_p ? *sg_offset_p : 0;
 	unsigned int last_page_off = 0;
 	u64 page_mask = ~((u64)mr->page_size - 1);
 	int i, ret;
+
+	if (unlikely(sg_nents <= 0 || sg_offset > sg_dma_len(&sgl[0])))
+		return -EINVAL;
 
 	mr->iova = sg_dma_address(&sgl[0]) + sg_offset;
 	mr->length = 0;
 
 	for_each_sg(sgl, sg, sg_nents, i) {
 		u64 dma_addr = sg_dma_address(sg) + sg_offset;
+		u64 prev_addr = dma_addr;
 		unsigned int dma_len = sg_dma_len(sg) - sg_offset;
 		u64 end_dma_addr = dma_addr + dma_len;
 		u64 page_addr = dma_addr & page_mask;
@@ -1721,8 +1729,14 @@ int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
 
 		do {
 			ret = set_page(mr, page_addr);
-			if (unlikely(ret < 0))
-				return i ? : ret;
+			if (unlikely(ret < 0)) {
+				sg_offset = prev_addr - sg_dma_address(sg);
+				mr->length += prev_addr - dma_addr;
+				if (sg_offset_p)
+					*sg_offset_p = sg_offset;
+				return i || sg_offset ? i : ret;
+			}
+			prev_addr = page_addr;
 next_page:
 			page_addr += mr->page_size;
 		} while (page_addr < end_dma_addr);
@@ -1734,6 +1748,8 @@ next_page:
 		sg_offset = 0;
 	}
 
+	if (sg_offset_p)
+		*sg_offset_p = 0;
 	return i;
 }
 EXPORT_SYMBOL(ib_sg_to_pages);

@@ -3082,7 +3082,7 @@ static int ocrdma_set_page(struct ib_mr *ibmr, u64 addr)
 }
 
 int ocrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
-		unsigned int sg_offset)
+		     unsigned int *sg_offset)
 {
 	struct ocrdma_mr *mr = get_ocrdma_mr(ibmr);
 

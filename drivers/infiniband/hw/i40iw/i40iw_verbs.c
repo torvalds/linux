@@ -1574,7 +1574,7 @@ static int i40iw_set_page(struct ib_mr *ibmr, u64 addr)
  * @sg_nents: number of sg pages
  */
 static int i40iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
-			   int sg_nents, unsigned int sg_offset)
+			   int sg_nents, unsigned int *sg_offset)
 {
 	struct i40iw_mr *iwmr = to_iwmr(ibmr);
 
