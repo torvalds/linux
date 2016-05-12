@@ -565,9 +565,12 @@ static struct pci_driver amdgpu_kms_pci_driver = {
 	.driver.pm = &amdgpu_pm_ops,
 };
 
+
+
 static int __init amdgpu_init(void)
 {
 	amdgpu_sync_init();
+	amdgpu_fence_slab_init();
 	if (vgacon_text_force()) {
 		DRM_ERROR("VGACON disables amdgpu kernel modesetting.\n");
 		return -EINVAL;
@@ -578,7 +581,6 @@ static int __init amdgpu_init(void)
 	driver->driver_features |= DRIVER_MODESET;
 	driver->num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
-
 	/* let modprobe override vga console setting */
 	return drm_pci_init(driver, pdriver);
 }
@@ -589,6 +591,7 @@ static void __exit amdgpu_exit(void)
 	drm_pci_exit(driver, pdriver);
 	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
+	amdgpu_fence_slab_fini();
 }
 
 module_init(amdgpu_init);

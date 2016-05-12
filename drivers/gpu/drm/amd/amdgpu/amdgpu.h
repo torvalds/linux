@@ -602,6 +602,8 @@ int amdgpu_sync_wait(struct amdgpu_sync *sync);
 void amdgpu_sync_free(struct amdgpu_sync *sync);
 int amdgpu_sync_init(void);
 void amdgpu_sync_fini(void);
+int amdgpu_fence_slab_init(void);
+void amdgpu_fence_slab_fini(void);
 
 /*
  * GART structures, functions & helpers
