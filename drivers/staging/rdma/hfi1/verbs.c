@@ -946,7 +946,6 @@ static int pio_wait(struct rvt_qp *qp,
 
 			dev->n_piowait += !!(flag & RVT_S_WAIT_PIO);
 			dev->n_piodrain += !!(flag & RVT_S_WAIT_PIO_DRAIN);
-			dev->n_piowait++;
 			qp->s_flags |= flag;
 			was_empty = list_empty(&sc->piowait);
 			list_add_tail(&priv->s_iowait.list, &sc->piowait);
