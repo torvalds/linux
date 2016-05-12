@@ -291,6 +291,16 @@ struct intel_atomic_state {
 
 	bool dpll_set, modeset;
 
+	/*
+	 * Does this transaction change the pipes that are active?  This mask
+	 * tracks which CRTC's have changed their active state at the end of
+	 * the transaction (not counting the temporary disable during modesets).
+	 * This mask should only be non-zero when intel_state->modeset is true,
+	 * but the converse is not necessarily true; simply changing a mode may
+	 * not flip the final active status of any CRTC's
+	 */
+	unsigned int active_pipe_changes;
+
 	unsigned int active_crtcs;
 	unsigned int min_pixclk[I915_MAX_PIPES];
 

@@ -13270,6 +13270,9 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 			intel_state->active_crtcs |= 1 << i;
 		else
 			intel_state->active_crtcs &= ~(1 << i);
+
+		if (crtc_state->active != crtc->state->active)
+			intel_state->active_pipe_changes |= drm_crtc_mask(crtc);
 	}
 
 	/*
