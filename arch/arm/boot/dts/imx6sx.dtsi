@@ -1151,8 +1151,9 @@
 				interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_SAI1_IPG>,
 					 <&clks IMX6SX_CLK_SAI1>,
+					 <&clks IMX6SX_CLK_SAI1>,
 					 <&clks 0>, <&clks 0>;
-				clock-names = "bus", "mclk1", "mclk2", "mclk3";
+				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
 				dma-names = "rx", "tx";
 				dmas = <&sdma 31 24 0>, <&sdma 32 24 0>;
 				dma-source = <&gpr 0 15 0 16>;
@@ -1171,8 +1172,9 @@
 				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_SAI2_IPG>,
 					 <&clks IMX6SX_CLK_SAI2>,
+					 <&clks IMX6SX_CLK_SAI2>,
 					 <&clks 0>, <&clks 0>;
-				clock-names = "bus", "mclk1", "mclk2", "mclk3";
+				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
 				dma-names = "rx", "tx";
 				dmas = <&sdma 33 23 0>, <&sdma 34 23 0>;
 				dma-source = <&gpr 0 17 0 18>;

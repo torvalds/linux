@@ -1007,8 +1007,9 @@
 					interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX7D_SAI1_IPG_CLK>,
 						<&clks IMX7D_SAI1_ROOT_CLK>,
+						<&clks IMX7D_SAI1_ROOT_CLK>,
 						<&clks IMX7D_CLK_DUMMY>, <&clks IMX7D_CLK_DUMMY>;
-					clock-names = "bus", "mclk1", "mclk2", "mclk3";
+					clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
 					dma-names = "rx", "tx";
 					dmas = <&sdma 8 24 0>, <&sdma 9 24 0>;
 					status = "disabled";
@@ -1021,8 +1022,9 @@
 					interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX7D_SAI2_IPG_CLK>,
 						<&clks IMX7D_SAI2_ROOT_CLK>,
+						<&clks IMX7D_SAI2_ROOT_CLK>,
 						<&clks IMX7D_CLK_DUMMY>, <&clks IMX7D_CLK_DUMMY>;
-					clock-names = "bus", "mclk1", "mclk2", "mclk3";
+					clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
 					dma-names = "rx", "tx";
 					dmas = <&sdma 10 24 0>, <&sdma 11 24 0>;
 					status = "disabled";
@@ -1035,8 +1037,9 @@
 					interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX7D_SAI3_IPG_CLK>,
 						<&clks IMX7D_SAI3_ROOT_CLK>,
+						<&clks IMX7D_SAI3_ROOT_CLK>,
 						<&clks IMX7D_CLK_DUMMY>, <&clks IMX7D_CLK_DUMMY>;
-					clock-names = "bus", "mclk1", "mclk2", "mclk3";
+					clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
 					dma-names = "rx", "tx";
 					dmas = <&sdma 12 24 0>, <&sdma 13 24 0>;
 					status = "disabled";
