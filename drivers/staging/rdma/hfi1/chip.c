@@ -9212,9 +9212,6 @@ void reset_qsfp(struct hfi1_pportdata *ppd)
 
 	/* Reset the QSFP */
 	mask = (u64)QSFP_HFI0_RESET_N;
-	qsfp_mask = read_csr(dd, dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE);
-	qsfp_mask |= mask;
-	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE, qsfp_mask);
 
 	qsfp_mask = read_csr(dd,
 			     dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT);
