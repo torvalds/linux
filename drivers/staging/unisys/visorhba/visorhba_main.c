@@ -1204,7 +1204,7 @@ static int visorhba_init(void)
 	if (rc)
 		goto cleanup_debugfs;
 
-	return rc;
+	return 0;
 
 cleanup_debugfs:
 	debugfs_remove_recursive(visorhba_debugfs_dir);
