@@ -575,8 +575,8 @@ static void apply_tunings(
 		ret = read_8051_config(ppd->dd, DC_HOST_COMM_SETTINGS,
 				       GENERAL_CONFIG, &config_data);
 		/* Clear, then set the external device config field */
-		config_data &= ~(0xFF << 24);
-		config_data |= (external_device_config << 24);
+		config_data &= ~(u32)0xFF;
+		config_data |= external_device_config;
 		ret = load_8051_config(ppd->dd, DC_HOST_COMM_SETTINGS,
 				       GENERAL_CONFIG, config_data);
 		if (ret != HCMD_SUCCESS)
