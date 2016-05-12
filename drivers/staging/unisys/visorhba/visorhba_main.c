@@ -100,14 +100,6 @@ struct scsipending {
 	char cmdtype;		/* Type of pointer that is being stored */
 };
 
-/* Work Data for dar_work_queue */
-struct diskaddremove {
-	u8 add;			/* 0-remove, 1-add */
-	struct Scsi_Host *shost; /* Scsi Host for this visorhba instance */
-	u32 channel, id, lun;	/* Disk Path */
-	struct diskaddremove *next;
-};
-
 /* Each scsi_host has a host_data area that contains this struct. */
 struct visorhba_devdata {
 	struct Scsi_Host *scsihost;
@@ -967,62 +959,6 @@ complete_scsi_command(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 	scsicmd->scsi_done(scsicmd);
 }
 
-static struct work_struct dar_work_queue;
-static struct diskaddremove *dar_work_queue_head;
-static spinlock_t dar_work_queue_lock; /* Lock to protet dar_work_queue_head */
-static unsigned short dar_work_queue_sched;
-
-/**
- *	queue_disk_add_remove - IOSP has sent us a add/remove request
- *	@dar: disk add/remove request
- *
- *	Queue the work needed to add/remove a disk.
- *	Returns void
- */
-static inline void queue_disk_add_remove(struct diskaddremove *dar)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dar_work_queue_lock, flags);
-	if (!dar_work_queue_head) {
-		dar_work_queue_head = dar;
-		dar->next = NULL;
-	} else {
-		dar->next = dar_work_queue_head;
-		dar_work_queue_head = dar;
-	}
-	if (!dar_work_queue_sched) {
-		schedule_work(&dar_work_queue);
-		dar_work_queue_sched = 1;
-	}
-	spin_unlock_irqrestore(&dar_work_queue_lock, flags);
-}
-
-/**
- *	process_disk_notify - IOSP has sent a process disk notify event
- *	@shost: Scsi hot
- *	@cmdrsp: Response from the IOSP
- *
- *	Queue it to the work queue.
- *	Return void.
- */
-static void process_disk_notify(struct Scsi_Host *shost,
-				struct uiscmdrsp *cmdrsp)
-{
-	struct diskaddremove *dar;
-
-	dar = kzalloc(sizeof(*dar), GFP_ATOMIC);
-	if (!dar)
-		return;
-
-	dar->add = cmdrsp->disknotify.add;
-	dar->shost = shost;
-	dar->channel = cmdrsp->disknotify.channel;
-	dar->id = cmdrsp->disknotify.id;
-	dar->lun = cmdrsp->disknotify.lun;
-	queue_disk_add_remove(dar);
-}
-
 /**
  *	drain_queue - pull responses out of iochannel
  *	@cmdrsp: Response from the IOSP
@@ -1035,7 +971,6 @@ static void
 drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 {
 	struct scsi_cmnd *scsicmd;
-	struct Scsi_Host *shost = devdata->scsihost;
 
 	while (1) {
 		if (!visorchannel_signalremove(devdata->dev->visorchannel,
@@ -1059,15 +994,10 @@ drain_queue(struct uiscmdrsp *cmdrsp, struct visorhba_devdata *devdata)
 				break;
 			complete_taskmgmt_command(&devdata->idr, cmdrsp,
 						  cmdrsp->scsitaskmgmt.result);
-		} else if (cmdrsp->cmdtype == CMD_NOTIFYGUEST_TYPE) {
-			/* The vHba pointer has no meaning in a
-			 * guest partition. Let's be safe and set it
-			 * to NULL now. Do not use it here!
-			 */
-			cmdrsp->disknotify.v_hba = NULL;
-			process_disk_notify(shost, cmdrsp);
-		}
-		/* cmdrsp is now available for resuse */
+		} else if (cmdrsp->cmdtype == CMD_NOTIFYGUEST_TYPE)
+			dev_err_once(&devdata->dev->device,
+				     "ignoring unsupported NOTIFYGUEST\n");
+		/* cmdrsp is now available for re-use */
 	}
 }
 
