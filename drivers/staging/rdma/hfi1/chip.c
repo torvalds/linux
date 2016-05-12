@@ -6105,7 +6105,7 @@ int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 	}
 
 	/* this access is valid only when the link is up */
-	if ((ppd->host_link_state & HLS_UP) == 0) {
+	if (ppd->host_link_state & HLS_DOWN) {
 		dd_dev_info(dd, "%s: link state %s not up\n",
 			    __func__, link_state_name(ppd->host_link_state));
 		ret = -EBUSY;
@@ -7429,7 +7429,7 @@ void apply_link_downgrade_policy(struct hfi1_pportdata *ppd, int refresh_widths)
 retry:
 	mutex_lock(&ppd->hls_lock);
 	/* only apply if the link is up */
-	if (!(ppd->host_link_state & HLS_UP)) {
+	if (ppd->host_link_state & HLS_DOWN) {
 		/* still going up..wait and retry */
 		if (ppd->host_link_state & HLS_GOING_UP) {
 			if (++tries < 1000) {
@@ -9252,6 +9252,12 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 		dd_dev_info(dd, "%s: QSFP cable temperature too low\n",
 			    __func__);
 
+	/*
+	 * The remaining alarms/warnings don't matter if the link is down.
+	 */
+	if (ppd->host_link_state & HLS_DOWN)
+		return 0;
+
 	if ((qsfp_interrupt_status[1] & QSFP_HIGH_VCC_ALARM) ||
 	    (qsfp_interrupt_status[1] & QSFP_HIGH_VCC_WARNING))
 		dd_dev_info(dd, "%s: QSFP supply voltage too high\n",
@@ -9346,9 +9352,8 @@ void qsfp_event(struct work_struct *work)
 		return;
 
 	/*
-	 * Turn DC back on after cables has been
-	 * re-inserted. Up until now, the DC has been in
-	 * reset to save power.
+	 * Turn DC back on after cable has been re-inserted. Up until
+	 * now, the DC has been in reset to save power.
 	 */
 	dc_start(dd);
 
@@ -10074,7 +10079,7 @@ u32 driver_physical_state(struct hfi1_pportdata *ppd)
  */
 u32 driver_logical_state(struct hfi1_pportdata *ppd)
 {
-	if (ppd->host_link_state && !(ppd->host_link_state & HLS_UP))
+	if (ppd->host_link_state && (ppd->host_link_state & HLS_DOWN))
 		return IB_PORT_DOWN;
 
 	switch (ppd->host_link_state & HLS_UP) {

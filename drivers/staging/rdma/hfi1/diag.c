@@ -998,7 +998,7 @@ static long hfi1_assign_snoop_link_credits(struct hfi1_pportdata *ppd,
 	u16  per_vl_credits;
 	__be16 be_per_vl_credits;
 
-	if (!(ppd->host_link_state & HLS_UP))
+	if (ppd->host_link_state & HLS_DOWN)
 		goto err_exit;
 	if (total_credits  <  vl15_credits)
 		goto err_exit;
