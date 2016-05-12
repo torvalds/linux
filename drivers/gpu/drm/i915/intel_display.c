@@ -13600,6 +13600,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	drm_atomic_helper_swap_state(dev, state);
 	dev_priv->wm.config = intel_state->wm_config;
 	dev_priv->wm.distrust_bios_wm = false;
+	dev_priv->wm.skl_results.ddb = intel_state->ddb;
 	intel_shared_dpll_commit(state);
 
 	if (intel_state->modeset) {
@@ -13716,19 +13717,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 		intel_modeset_verify_crtc(crtc, old_crtc_state, crtc->state);
 	}
-
-	/*
-	 * Temporary sanity check: make sure our pre-computed DDB matches the
-	 * one we actually wind up programming.
-	 *
-	 * Not a great place to put this, but the easiest place we have access
-	 * to both the pre-computed and final DDB's; we'll be removing this
-	 * check in the next patch anyway.
-	 */
-	WARN(IS_GEN9(dev) &&
-	     memcmp(&intel_state->ddb, &dev_priv->wm.skl_results.ddb,
-		    sizeof(intel_state->ddb)),
-	     "Pre-computed DDB does not match final DDB!\n");
 
 	if (intel_state->modeset)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
