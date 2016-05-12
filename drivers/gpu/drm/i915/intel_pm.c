@@ -3240,16 +3240,14 @@ static bool skl_ddb_allocation_changed(const struct skl_ddb_allocation *new_ddb,
 
 static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				 struct intel_crtc_state *cstate,
-				 struct intel_plane *intel_plane,
+				 struct intel_plane_state *intel_pstate,
 				 uint16_t ddb_allocation,
 				 int level,
 				 uint16_t *out_blocks, /* out */
 				 uint8_t *out_lines /* out */)
 {
-	struct drm_plane *plane = &intel_plane->base;
-	struct drm_framebuffer *fb = plane->state->fb;
-	struct intel_plane_state *intel_pstate =
-					to_intel_plane_state(plane->state);
+	struct drm_plane_state *pstate = &intel_pstate->base;
+	struct drm_framebuffer *fb = pstate->fb;
 	uint32_t latency = dev_priv->wm.skl_latency[level];
 	uint32_t method1, method2;
 	uint32_t plane_bytes_per_line, plane_blocks_per_line;
@@ -3264,7 +3262,7 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	width = drm_rect_width(&intel_pstate->src) >> 16;
 	height = drm_rect_height(&intel_pstate->src) >> 16;
 
-	if (intel_rotation_90_or_270(plane->state->rotation))
+	if (intel_rotation_90_or_270(pstate->rotation))
 		swap(width, height);
 
 	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
@@ -3284,7 +3282,7 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
 		uint32_t min_scanlines = 4;
 		uint32_t y_tile_minimum;
-		if (intel_rotation_90_or_270(plane->state->rotation)) {
+		if (intel_rotation_90_or_270(pstate->rotation)) {
 			int cpp = (fb->pixel_format == DRM_FORMAT_NV12) ?
 				drm_format_plane_cpp(fb->pixel_format, 1) :
 				drm_format_plane_cpp(fb->pixel_format, 0);
@@ -3338,17 +3336,19 @@ static void skl_compute_wm_level(const struct drm_i915_private *dev_priv,
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->base.crtc);
 	struct intel_plane *intel_plane;
+	struct intel_plane_state *intel_pstate;
 	uint16_t ddb_blocks;
 	enum pipe pipe = intel_crtc->pipe;
 
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		int i = skl_wm_plane_id(intel_plane);
 
+		intel_pstate = to_intel_plane_state(intel_plane->base.state);
 		ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][i]);
 
 		result->plane_en[i] = skl_compute_plane_wm(dev_priv,
 						cstate,
-						intel_plane,
+						intel_pstate,
 						ddb_blocks,
 						level,
 						&result->plane_res_b[i],
