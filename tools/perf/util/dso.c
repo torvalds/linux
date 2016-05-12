@@ -38,7 +38,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 				   enum dso_binary_type type,
 				   char *root_dir, char *filename, size_t size)
 {
-	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
+	char build_id_hex[SBUILD_ID_SIZE];
 	int ret = 0;
 	size_t len;
 
@@ -1301,7 +1301,7 @@ size_t __dsos__fprintf(struct list_head *head, FILE *fp)
 
 size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 {
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
 	return fprintf(fp, "%s", sbuild_id);

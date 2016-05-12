@@ -139,7 +139,7 @@ struct strlist *lsdir(const char *name,
 
 	list = strlist__new(NULL, NULL);
 	if (!list) {
-		errno = -ENOMEM;
+		errno = ENOMEM;
 		goto out;
 	}
 

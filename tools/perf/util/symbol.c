@@ -413,6 +413,18 @@ void dso__reset_find_symbol_cache(struct dso *dso)
 	}
 }
 
+void dso__insert_symbol(struct dso *dso, enum map_type type, struct symbol *sym)
+{
+	symbols__insert(&dso->symbols[type], sym);
+
+	/* update the symbol cache if necessary */
+	if (dso->last_find_result[type].addr >= sym->start &&
+	    (dso->last_find_result[type].addr < sym->end ||
+	    sym->start == sym->end)) {
+		dso->last_find_result[type].symbol = sym;
+	}
+}
+
 struct symbol *dso__find_symbol(struct dso *dso,
 				enum map_type type, u64 addr)
 {
@@ -1596,25 +1608,27 @@ out:
 	return err;
 }
 
+static bool visible_dir_filter(const char *name, struct dirent *d)
+{
+	if (d->d_type != DT_DIR)
+		return false;
+	return lsdir_no_dot_filter(name, d);
+}
+
 static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 {
 	char kallsyms_filename[PATH_MAX];
-	struct dirent *dent;
 	int ret = -1;
-	DIR *d;
+	struct strlist *dirs;
+	struct str_node *nd;
 
-	d = opendir(dir);
-	if (!d)
+	dirs = lsdir(dir, visible_dir_filter);
+	if (!dirs)
 		return -1;
 
-	while (1) {
-		dent = readdir(d);
-		if (!dent)
-			break;
-		if (dent->d_type != DT_DIR)
-			continue;
+	strlist__for_each(nd, dirs) {
 		scnprintf(kallsyms_filename, sizeof(kallsyms_filename),
-			  "%s/%s/kallsyms", dir, dent->d_name);
+			  "%s/%s/kallsyms", dir, nd->s);
 		if (!validate_kcore_addresses(kallsyms_filename, map)) {
 			strlcpy(dir, kallsyms_filename, dir_sz);
 			ret = 0;
@@ -1622,7 +1636,7 @@ static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 		}
 	}
 
-	closedir(d);
+	strlist__delete(dirs);
 
 	return ret;
 }
@@ -1630,7 +1644,7 @@ static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 {
 	u8 host_build_id[BUILD_ID_SIZE];
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 	bool is_host = false;
 	char path[PATH_MAX];
 

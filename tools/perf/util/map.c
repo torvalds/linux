@@ -289,7 +289,7 @@ int map__load(struct map *map, symbol_filter_t filter)
 	nr = dso__load(map->dso, map, filter);
 	if (nr < 0) {
 		if (map->dso->has_build_id) {
-			char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+			char sbuild_id[SBUILD_ID_SIZE];
 
 			build_id__sprintf(map->dso->build_id,
 					  sizeof(map->dso->build_id),

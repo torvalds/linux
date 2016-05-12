@@ -408,8 +408,11 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 
-	if (!event)
-		die("ug! no event found for type %d", (int)evsel->attr.config);
+	if (!event) {
+		snprintf(handler_name, sizeof(handler_name),
+			 "ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+		Py_FatalError(handler_name);
+	}
 
 	pid = raw_field_value(event, "common_pid", data);
 
@@ -615,7 +618,7 @@ static int python_export_dso(struct db_export *dbe, struct dso *dso,
 			     struct machine *machine)
 {
 	struct tables *tables = container_of(dbe, struct tables, dbe);
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 	PyObject *t;
 
 	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);

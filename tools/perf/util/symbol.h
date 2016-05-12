@@ -246,6 +246,9 @@ int __dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
 int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
 		       symbol_filter_t filter);
 
+void dso__insert_symbol(struct dso *dso, enum map_type type,
+			struct symbol *sym);
+
 struct symbol *dso__find_symbol(struct dso *dso, enum map_type type,
 				u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,
