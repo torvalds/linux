@@ -35,5 +35,6 @@ int ocfs2_set_acl(handle_t *handle,
 			 struct posix_acl *acl,
 			 struct ocfs2_alloc_context *meta_ac,
 			 struct ocfs2_alloc_context *data_ac);
+extern int ocfs2_acl_chmod(struct inode *, struct buffer_head *);
 
 #endif /* OCFS2_ACL_H */
