@@ -3516,7 +3516,7 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 		int i, level, max_level = ilk_wm_max_level(dev);
 		enum pipe pipe = crtc->pipe;
 
-		if (!new->dirty[pipe])
+		if ((new->dirty_pipes & drm_crtc_mask(&crtc->base)) == 0)
 			continue;
 
 		I915_WRITE(PIPE_WM_LINETIME(pipe), new->wm_linetime[pipe]);
@@ -3741,7 +3741,7 @@ static void skl_update_other_pipe_wm(struct drm_device *dev,
 		WARN_ON(!wm_changed);
 
 		skl_compute_wm_results(dev, &pipe_wm, r, intel_crtc);
-		r->dirty[intel_crtc->pipe] = true;
+		r->dirty_pipes |= drm_crtc_mask(&intel_crtc->base);
 	}
 }
 
@@ -3844,7 +3844,7 @@ static void skl_update_wm(struct drm_crtc *crtc)
 
 
 	/* Clear all dirty flags */
-	memset(results->dirty, 0, sizeof(bool) * I915_MAX_PIPES);
+	results->dirty_pipes = 0;
 
 	skl_clear_wm(results, intel_crtc->pipe);
 
@@ -3852,7 +3852,7 @@ static void skl_update_wm(struct drm_crtc *crtc)
 		return;
 
 	skl_compute_wm_results(dev, pipe_wm, results, intel_crtc);
-	results->dirty[intel_crtc->pipe] = true;
+	results->dirty_pipes |= drm_crtc_mask(&intel_crtc->base);
 
 	skl_update_other_pipe_wm(dev, crtc, results);
 	skl_write_wm_values(dev_priv, results);
@@ -4011,7 +4011,7 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	if (!intel_crtc->active)
 		return;
 
-	hw->dirty[pipe] = true;
+	hw->dirty_pipes |= drm_crtc_mask(crtc);
 
 	active->linetime = hw->wm_linetime[pipe];
 

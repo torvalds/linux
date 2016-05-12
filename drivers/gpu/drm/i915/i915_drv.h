@@ -1598,7 +1598,7 @@ struct skl_ddb_allocation {
 };
 
 struct skl_wm_values {
-	bool dirty[I915_MAX_PIPES];
+	unsigned dirty_pipes;
 	struct skl_ddb_allocation ddb;
 	uint32_t wm_linetime[I915_MAX_PIPES];
 	uint32_t plane[I915_MAX_PIPES][I915_MAX_PLANES][8];
