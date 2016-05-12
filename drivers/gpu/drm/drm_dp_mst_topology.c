@@ -1665,13 +1665,19 @@ static int drm_dp_payload_send_msg(struct drm_dp_mst_topology_mgr *mgr,
 	struct drm_dp_mst_branch *mstb;
 	int len, ret, port_num;
 
+	port = drm_dp_get_validated_port_ref(mgr, port);
+	if (!port)
+		return -EINVAL;
+
 	port_num = port->port_num;
 	mstb = drm_dp_get_validated_mstb_ref(mgr, port->parent);
 	if (!mstb) {
 		mstb = drm_dp_get_last_connected_port_and_mstb(mgr, port->parent, &port_num);
 
-		if (!mstb)
+		if (!mstb) {
+			drm_dp_put_port(port);
 			return -EINVAL;
+		}
 	}
 
 	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
@@ -1697,6 +1703,7 @@ static int drm_dp_payload_send_msg(struct drm_dp_mst_topology_mgr *mgr,
 	kfree(txmsg);
 fail_put:
 	drm_dp_put_mst_branch_device(mstb);
+	drm_dp_put_port(port);
 	return ret;
 }
 
@@ -1779,6 +1786,11 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 		req_payload.start_slot = cur_slots;
 		if (mgr->proposed_vcpis[i]) {
 			port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
+			port = drm_dp_get_validated_port_ref(mgr, port);
+			if (!port) {
+				mutex_unlock(&mgr->payload_lock);
+				return -EINVAL;
+			}
 			req_payload.num_slots = mgr->proposed_vcpis[i]->num_slots;
 		} else {
 			port = NULL;
@@ -1804,6 +1816,9 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 			mgr->payloads[i].payload_state = req_payload.payload_state;
 		}
 		cur_slots += req_payload.num_slots;
+
+		if (port)
+			drm_dp_put_port(port);
 	}
 
 	for (i = 0; i < mgr->max_payloads; i++) {
@@ -2109,6 +2124,8 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr)
 
 	if (mgr->mst_primary) {
 		int sret;
+		u8 guid[16];
+
 		sret = drm_dp_dpcd_read(mgr->aux, DP_DPCD_REV, mgr->dpcd, DP_RECEIVER_CAP_SIZE);
 		if (sret != DP_RECEIVER_CAP_SIZE) {
 			DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
@@ -2123,6 +2140,16 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr)
 			ret = -1;
 			goto out_unlock;
 		}
+
+		/* Some hubs forget their guids after they resume */
+		sret = drm_dp_dpcd_read(mgr->aux, DP_GUID, guid, 16);
+		if (sret != 16) {
+			DRM_DEBUG_KMS("dpcd read failed - undocked during suspend?\n");
+			ret = -1;
+			goto out_unlock;
+		}
+		drm_dp_check_mstb_guid(mgr->mst_primary, guid);
+
 		ret = 0;
 	} else
 		ret = -1;

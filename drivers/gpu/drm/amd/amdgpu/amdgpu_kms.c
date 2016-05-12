@@ -303,7 +303,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			fw_info.feature = adev->vce.fb_version;
 			break;
 		case AMDGPU_INFO_FW_UVD:
-			fw_info.ver = 0;
+			fw_info.ver = adev->uvd.fw_version;
 			fw_info.feature = 0;
 			break;
 		case AMDGPU_INFO_FW_GMC:
