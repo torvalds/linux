@@ -5879,11 +5879,11 @@ perf_event_read_event(struct perf_event *event,
 	perf_output_end(&handle);
 }
 
-typedef void (perf_event_aux_output_cb)(struct perf_event *event, void *data);
+typedef void (perf_iterate_f)(struct perf_event *event, void *data);
 
 static void
-perf_event_aux_ctx(struct perf_event_context *ctx,
-		   perf_event_aux_output_cb output,
+perf_iterate_ctx(struct perf_event_context *ctx,
+		   perf_iterate_f output,
 		   void *data, bool all)
 {
 	struct perf_event *event;
@@ -5900,18 +5900,7 @@ perf_event_aux_ctx(struct perf_event_context *ctx,
 	}
 }
 
-static void
-perf_event_aux_task_ctx(perf_event_aux_output_cb output, void *data,
-			struct perf_event_context *task_ctx)
-{
-	rcu_read_lock();
-	preempt_disable();
-	perf_event_aux_ctx(task_ctx, output, data, false);
-	preempt_enable();
-	rcu_read_unlock();
-}
-
-static void perf_event_sb_iterate(perf_event_aux_output_cb output, void *data)
+static void perf_iterate_sb_cpu(perf_iterate_f output, void *data)
 {
 	struct pmu_event_list *pel = this_cpu_ptr(&pmu_sb_events);
 	struct perf_event *event;
@@ -5925,33 +5914,40 @@ static void perf_event_sb_iterate(perf_event_aux_output_cb output, void *data)
 	}
 }
 
+/*
+ * Iterate all events that need to receive side-band events.
+ *
+ * For new callers; ensure that account_pmu_sb_event() includes
+ * your event, otherwise it might not get delivered.
+ */
 static void
-perf_event_aux(perf_event_aux_output_cb output, void *data,
+perf_iterate_sb(perf_iterate_f output, void *data,
 	       struct perf_event_context *task_ctx)
 {
 	struct perf_event_context *ctx;
 	int ctxn;
 
+	rcu_read_lock();
+	preempt_disable();
+
 	/*
-	 * If we have task_ctx != NULL we only notify
-	 * the task context itself. The task_ctx is set
-	 * only for EXIT events before releasing task
+	 * If we have task_ctx != NULL we only notify the task context itself.
+	 * The task_ctx is set only for EXIT events before releasing task
 	 * context.
 	 */
 	if (task_ctx) {
-		perf_event_aux_task_ctx(output, data, task_ctx);
-		return;
+		perf_iterate_ctx(task_ctx, output, data, false);
+		goto done;
 	}
 
-	rcu_read_lock();
-	preempt_disable();
-	perf_event_sb_iterate(output, data);
+	perf_iterate_sb_cpu(output, data);
 
 	for_each_task_context_nr(ctxn) {
 		ctx = rcu_dereference(current->perf_event_ctxp[ctxn]);
 		if (ctx)
-			perf_event_aux_ctx(ctx, output, data, false);
+			perf_iterate_ctx(ctx, output, data, false);
 	}
+done:
 	preempt_enable();
 	rcu_read_unlock();
 }
@@ -6001,7 +5997,7 @@ void perf_event_exec(void)
 
 		perf_event_enable_on_exec(ctxn);
 
-		perf_event_aux_ctx(ctx, perf_event_addr_filters_exec, NULL,
+		perf_iterate_ctx(ctx, perf_event_addr_filters_exec, NULL,
 				   true);
 	}
 	rcu_read_unlock();
@@ -6045,9 +6041,9 @@ static int __perf_pmu_output_stop(void *info)
 	};
 
 	rcu_read_lock();
-	perf_event_aux_ctx(&cpuctx->ctx, __perf_event_output_stop, &ro, false);
+	perf_iterate_ctx(&cpuctx->ctx, __perf_event_output_stop, &ro, false);
 	if (cpuctx->task_ctx)
-		perf_event_aux_ctx(cpuctx->task_ctx, __perf_event_output_stop,
+		perf_iterate_ctx(cpuctx->task_ctx, __perf_event_output_stop,
 				   &ro, false);
 	rcu_read_unlock();
 
@@ -6176,7 +6172,7 @@ static void perf_event_task(struct task_struct *task,
 		},
 	};
 
-	perf_event_aux(perf_event_task_output,
+	perf_iterate_sb(perf_event_task_output,
 		       &task_event,
 		       task_ctx);
 }
@@ -6255,7 +6251,7 @@ static void perf_event_comm_event(struct perf_comm_event *comm_event)
 
 	comm_event->event_id.header.size = sizeof(comm_event->event_id) + size;
 
-	perf_event_aux(perf_event_comm_output,
+	perf_iterate_sb(perf_event_comm_output,
 		       comm_event,
 		       NULL);
 }
@@ -6486,7 +6482,7 @@ got_name:
 
 	mmap_event->event_id.header.size = sizeof(mmap_event->event_id) + size;
 
-	perf_event_aux(perf_event_mmap_output,
+	perf_iterate_sb(perf_event_mmap_output,
 		       mmap_event,
 		       NULL);
 
@@ -6569,7 +6565,7 @@ static void perf_addr_filters_adjust(struct vm_area_struct *vma)
 		if (!ctx)
 			continue;
 
-		perf_event_aux_ctx(ctx, __perf_addr_filters_adjust, vma, true);
+		perf_iterate_ctx(ctx, __perf_addr_filters_adjust, vma, true);
 	}
 	rcu_read_unlock();
 }
@@ -6756,7 +6752,7 @@ static void perf_event_switch(struct task_struct *task,
 		},
 	};
 
-	perf_event_aux(perf_event_switch_output,
+	perf_iterate_sb(perf_event_switch_output,
 		       &switch_event,
 		       NULL);
 }
@@ -8654,6 +8650,13 @@ static void attach_sb_event(struct perf_event *event)
 	raw_spin_unlock(&pel->lock);
 }
 
+/*
+ * We keep a list of all !task (and therefore per-cpu) events
+ * that need to receive side-band records.
+ *
+ * This avoids having to scan all the various PMU per-cpu contexts
+ * looking for them.
+ */
 static void account_pmu_sb_event(struct perf_event *event)
 {
 	struct perf_event_attr *attr = &event->attr;
