@@ -314,7 +314,7 @@ struct intel_atomic_state {
 	bool skip_intermediate_wm;
 
 	/* Gen9+ only */
-	struct skl_ddb_allocation ddb;
+	struct skl_wm_values wm_results;
 };
 
 struct intel_plane_state {

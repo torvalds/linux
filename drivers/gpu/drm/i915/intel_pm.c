@@ -3221,23 +3221,6 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 	return ret;
 }
 
-static bool skl_ddb_allocation_changed(const struct skl_ddb_allocation *new_ddb,
-				       const struct intel_crtc *intel_crtc)
-{
-	struct drm_device *dev = intel_crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct skl_ddb_allocation *cur_ddb = &dev_priv->wm.skl_hw.ddb;
-
-	/*
-	 * If ddb allocation of pipes changed, it may require recalculation of
-	 * watermarks
-	 */
-	if (memcmp(new_ddb->pipe, cur_ddb->pipe, sizeof(new_ddb->pipe)))
-		return true;
-
-	return false;
-}
-
 static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				struct intel_crtc_state *cstate,
 				struct intel_plane_state *intel_pstate,
@@ -3533,6 +3516,8 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 
 		if ((new->dirty_pipes & drm_crtc_mask(&crtc->base)) == 0)
 			continue;
+		if (!crtc->active)
+			continue;
 
 		I915_WRITE(PIPE_WM_LINETIME(pipe), new->wm_linetime[pipe]);
 
@@ -3716,64 +3701,7 @@ static int skl_update_pipe_wm(struct drm_crtc_state *cstate,
 	else
 		*changed = true;
 
-	intel_crtc->wm.active.skl = *pipe_wm;
-
 	return 0;
-}
-
-static void skl_update_other_pipe_wm(struct drm_device *dev,
-				     struct drm_crtc *crtc,
-				     struct skl_wm_values *r)
-{
-	struct intel_crtc *intel_crtc;
-	struct intel_crtc *this_crtc = to_intel_crtc(crtc);
-
-	/*
-	 * If the WM update hasn't changed the allocation for this_crtc (the
-	 * crtc we are currently computing the new WM values for), other
-	 * enabled crtcs will keep the same allocation and we don't need to
-	 * recompute anything for them.
-	 */
-	if (!skl_ddb_allocation_changed(&r->ddb, this_crtc))
-		return;
-
-	/*
-	 * Otherwise, because of this_crtc being freshly enabled/disabled, the
-	 * other active pipes need new DDB allocation and WM values.
-	 */
-	for_each_intel_crtc(dev, intel_crtc) {
-		struct skl_pipe_wm pipe_wm = {};
-		bool wm_changed;
-
-		if (this_crtc->pipe == intel_crtc->pipe)
-			continue;
-
-		if (!intel_crtc->active)
-			continue;
-
-		skl_update_pipe_wm(intel_crtc->base.state,
-				   &r->ddb, &pipe_wm, &wm_changed);
-
-		/*
-		 * If we end up re-computing the other pipe WM values, it's
-		 * because it was really needed, so we expect the WM values to
-		 * be different.
-		 */
-		WARN_ON(!wm_changed);
-
-		skl_compute_wm_results(dev, &pipe_wm, r, intel_crtc);
-		r->dirty_pipes |= drm_crtc_mask(&intel_crtc->base);
-	}
-}
-
-static void skl_clear_wm(struct skl_wm_values *watermarks, enum pipe pipe)
-{
-	watermarks->wm_linetime[pipe] = 0;
-	memset(watermarks->plane[pipe], 0,
-	       sizeof(uint32_t) * 8 * I915_MAX_PLANES);
-	memset(watermarks->plane_trans[pipe],
-	       0, sizeof(uint32_t) * I915_MAX_PLANES);
-	watermarks->plane_trans[pipe][PLANE_CURSOR] = 0;
 }
 
 static int
@@ -3783,6 +3711,7 @@ skl_compute_ddb(struct drm_atomic_state *state)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct intel_crtc *intel_crtc;
+	struct skl_ddb_allocation *ddb = &intel_state->wm_results.ddb;
 	unsigned realloc_pipes = dev_priv->active_crtcs;
 	int ret;
 
@@ -3808,8 +3737,10 @@ skl_compute_ddb(struct drm_atomic_state *state)
 	 * any other display updates race with this transaction, so we need
 	 * to grab the lock on *all* CRTC's.
 	 */
-	if (intel_state->active_pipe_changes)
+	if (intel_state->active_pipe_changes) {
 		realloc_pipes = ~0;
+		intel_state->wm_results.dirty_pipes = ~0;
+	}
 
 	for_each_intel_crtc_mask(dev, intel_crtc, realloc_pipes) {
 		struct intel_crtc_state *cstate;
@@ -3818,7 +3749,7 @@ skl_compute_ddb(struct drm_atomic_state *state)
 		if (IS_ERR(cstate))
 			return PTR_ERR(cstate);
 
-		ret = skl_allocate_pipe_ddb(cstate, &intel_state->ddb);
+		ret = skl_allocate_pipe_ddb(cstate, ddb);
 		if (ret)
 			return ret;
 	}
@@ -3831,8 +3762,11 @@ skl_compute_wm(struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *cstate;
-	int ret, i;
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct skl_wm_values *results = &intel_state->wm_results;
+	struct skl_pipe_wm *pipe_wm;
 	bool changed = false;
+	int ret, i;
 
 	/*
 	 * If this transaction isn't actually touching any CRTC's, don't
@@ -3847,9 +3781,44 @@ skl_compute_wm(struct drm_atomic_state *state)
 	if (!changed)
 		return 0;
 
+	/* Clear all dirty flags */
+	results->dirty_pipes = 0;
+
 	ret = skl_compute_ddb(state);
 	if (ret)
 		return ret;
+
+	/*
+	 * Calculate WM's for all pipes that are part of this transaction.
+	 * Note that the DDB allocation above may have added more CRTC's that
+	 * weren't otherwise being modified (and set bits in dirty_pipes) if
+	 * pipe allocations had to change.
+	 *
+	 * FIXME:  Now that we're doing this in the atomic check phase, we
+	 * should allow skl_update_pipe_wm() to return failure in cases where
+	 * no suitable watermark values can be found.
+	 */
+	for_each_crtc_in_state(state, crtc, cstate, i) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		struct intel_crtc_state *intel_cstate =
+			to_intel_crtc_state(cstate);
+
+		pipe_wm = &intel_cstate->wm.skl.optimal;
+		ret = skl_update_pipe_wm(cstate, &results->ddb, pipe_wm,
+					 &changed);
+		if (ret)
+			return ret;
+
+		if (changed)
+			results->dirty_pipes |= drm_crtc_mask(crtc);
+
+		if ((results->dirty_pipes & drm_crtc_mask(crtc)) == 0)
+			/* This pipe's WM's did not change */
+			continue;
+
+		intel_cstate->update_wm_pre = true;
+		skl_compute_wm_results(crtc->dev, pipe_wm, results, intel_crtc);
+	}
 
 	return 0;
 }
@@ -3862,26 +3831,21 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	struct skl_wm_values *results = &dev_priv->wm.skl_results;
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 	struct skl_pipe_wm *pipe_wm = &cstate->wm.skl.optimal;
-	bool wm_changed;
 
-	/* Clear all dirty flags */
-	results->dirty_pipes = 0;
-
-	skl_clear_wm(results, intel_crtc->pipe);
-
-	skl_update_pipe_wm(crtc->state, &results->ddb, pipe_wm, &wm_changed);
-	if (!wm_changed)
+	if ((results->dirty_pipes & drm_crtc_mask(crtc)) == 0)
 		return;
 
-	skl_compute_wm_results(dev, pipe_wm, results, intel_crtc);
-	results->dirty_pipes |= drm_crtc_mask(&intel_crtc->base);
+	intel_crtc->wm.active.skl = *pipe_wm;
 
-	skl_update_other_pipe_wm(dev, crtc, results);
+	mutex_lock(&dev_priv->wm.wm_mutex);
+
 	skl_write_wm_values(dev_priv, results);
 	skl_flush_wm_values(dev_priv, results);
 
 	/* store the new configuration */
 	dev_priv->wm.skl_hw = *results;
+
+	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
 
 static void ilk_compute_wm_config(struct drm_device *dev,
