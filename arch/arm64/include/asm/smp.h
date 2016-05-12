@@ -64,6 +64,15 @@ extern void secondary_entry(void);
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
+#ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+extern void arch_send_wakeup_ipi_mask(const struct cpumask *mask);
+#else
+static inline void arch_send_wakeup_ipi_mask(const struct cpumask *mask)
+{
+	BUILD_BUG();
+}
+#endif
+
 extern int __cpu_disable(void);
 
 extern void __cpu_die(unsigned int cpu);

@@ -140,12 +140,6 @@ int fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fix;
 
-	/* If we only stored 32bit addresses in the exception table we can drop
-	 * out if we faulted on a 64bit address. */
-	if ((sizeof(regs->iaoq[0]) > sizeof(fix->insn))
-		&& (regs->iaoq[0] >> 32))
-			return 0;
-
 	fix = search_exception_tables(regs->iaoq[0]);
 	if (fix) {
 		struct exception_data *d;
@@ -155,7 +149,8 @@ int fixup_exception(struct pt_regs *regs)
 		d->fault_space = regs->isr;
 		d->fault_addr = regs->ior;
 
-		regs->iaoq[0] = ((fix->fixup) & ~3);
+		regs->iaoq[0] = (unsigned long)&fix->fixup + fix->fixup;
+		regs->iaoq[0] &= ~3;
 		/*
 		 * NOTE: In some cases the faulting instruction
 		 * may be in the delay slot of a branch. We
