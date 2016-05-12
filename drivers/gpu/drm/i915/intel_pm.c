@@ -3067,8 +3067,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	enum pipe pipe = intel_crtc->pipe;
 	struct skl_ddb_entry *alloc = &ddb->pipe[pipe];
 	uint16_t alloc_size, start, cursor_blocks;
-	uint16_t minimum[I915_MAX_PLANES];
-	uint16_t y_minimum[I915_MAX_PLANES];
+	uint16_t *minimum = cstate->wm.skl.minimum_blocks;
+	uint16_t *y_minimum = cstate->wm.skl.minimum_y_blocks;
 	unsigned int total_data_rate;
 
 	skl_ddb_get_pipe_allocation_limits(dev, cstate, config, alloc);

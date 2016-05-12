@@ -431,6 +431,10 @@ struct intel_crtc_wm_state {
 			/* cached plane data rate */
 			unsigned plane_data_rate[I915_MAX_PLANES];
 			unsigned plane_y_data_rate[I915_MAX_PLANES];
+
+			/* minimum block allocation */
+			uint16_t minimum_blocks[I915_MAX_PLANES];
+			uint16_t minimum_y_blocks[I915_MAX_PLANES];
 		} skl;
 	};
 
