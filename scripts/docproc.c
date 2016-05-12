@@ -500,6 +500,7 @@ static void parse_file(FILE *infile)
 
 int main(int argc, char *argv[])
 {
+	const char *subcommand, *filename;
 	FILE * infile;
 	int i;
 
@@ -513,15 +514,19 @@ int main(int argc, char *argv[])
 		usage();
 		exit(1);
 	}
+
+	subcommand = argv[1];
+	filename = argv[2];
+
 	/* Open file, exit on error */
-	infile = fopen(argv[2], "r");
+	infile = fopen(filename, "r");
 	if (infile == NULL) {
 		fprintf(stderr, "docproc: ");
-		perror(argv[2]);
+		perror(filename);
 		exit(2);
 	}
 
-	if (strcmp("doc", argv[1]) == 0) {
+	if (strcmp("doc", subcommand) == 0) {
 		/* Need to do this in two passes.
 		 * First pass is used to collect all symbols exported
 		 * in the various files;
@@ -557,10 +562,10 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Warning: didn't use docs for %s\n",
 				all_list[i]);
 		}
-	} else if (strcmp("depend", argv[1]) == 0) {
+	} else if (strcmp("depend", subcommand) == 0) {
 		/* Create first part of dependency chain
 		 * file.tmpl */
-		printf("%s\t", argv[2]);
+		printf("%s\t", filename);
 		defaultline       = noaction;
 		internalfunctions = adddep;
 		externalfunctions = adddep;
@@ -571,7 +576,7 @@ int main(int argc, char *argv[])
 		parse_file(infile);
 		printf("\n");
 	} else {
-		fprintf(stderr, "Unknown option: %s\n", argv[1]);
+		fprintf(stderr, "Unknown option: %s\n", subcommand);
 		exit(1);
 	}
 	fclose(infile);
