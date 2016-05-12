@@ -2342,6 +2342,12 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_dpm_force_clock_level(adev, type, level) \
 		(adev)->powerplay.pp_funcs->force_clock_level((adev)->powerplay.pp_handle, type, level)
 
+#define amdgpu_dpm_get_sclk_od(adev) \
+	(adev)->powerplay.pp_funcs->get_sclk_od((adev)->powerplay.pp_handle)
+
+#define amdgpu_dpm_set_sclk_od(adev, value) \
+	(adev)->powerplay.pp_funcs->set_sclk_od((adev)->powerplay.pp_handle, value)
+
 #define amdgpu_dpm_dispatch_task(adev, event_id, input, output)		\
 	(adev)->powerplay.pp_funcs->dispatch_tasks((adev)->powerplay.pp_handle, (event_id), (input), (output))
 
