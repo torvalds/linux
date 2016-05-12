@@ -437,7 +437,7 @@ struct ring_buffer_per_cpu {
 	raw_spinlock_t			reader_lock;	/* serialize readers */
 	arch_spinlock_t			lock;
 	struct lock_class_key		lock_key;
-	unsigned int			nr_pages;
+	unsigned long			nr_pages;
 	unsigned int			current_context;
 	struct list_head		*pages;
 	struct buffer_page		*head_page;	/* read from head */
@@ -458,7 +458,7 @@ struct ring_buffer_per_cpu {
 	u64				write_stamp;
 	u64				read_stamp;
 	/* ring buffer pages to update, > 0 to add, < 0 to remove */
-	int				nr_pages_to_update;
+	long				nr_pages_to_update;
 	struct list_head		new_pages; /* new pages to add */
 	struct work_struct		update_pages_work;
 	struct completion		update_done;
@@ -1128,10 +1128,10 @@ static int rb_check_pages(struct ring_buffer_per_cpu *cpu_buffer)
 	return 0;
 }
 
-static int __rb_allocate_pages(int nr_pages, struct list_head *pages, int cpu)
+static int __rb_allocate_pages(long nr_pages, struct list_head *pages, int cpu)
 {
-	int i;
 	struct buffer_page *bpage, *tmp;
+	long i;
 
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page;
@@ -1168,7 +1168,7 @@ free_pages:
 }
 
 static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
-			     unsigned nr_pages)
+			     unsigned long nr_pages)
 {
 	LIST_HEAD(pages);
 
@@ -1193,7 +1193,7 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 }
 
 static struct ring_buffer_per_cpu *
-rb_allocate_cpu_buffer(struct ring_buffer *buffer, int nr_pages, int cpu)
+rb_allocate_cpu_buffer(struct ring_buffer *buffer, long nr_pages, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct buffer_page *bpage;
@@ -1293,8 +1293,9 @@ struct ring_buffer *__ring_buffer_alloc(unsigned long size, unsigned flags,
 					struct lock_class_key *key)
 {
 	struct ring_buffer *buffer;
+	long nr_pages;
 	int bsize;
-	int cpu, nr_pages;
+	int cpu;
 
 	/* keep it in its own cache line */
 	buffer = kzalloc(ALIGN(sizeof(*buffer), cache_line_size()),
@@ -1420,12 +1421,12 @@ static inline unsigned long rb_page_write(struct buffer_page *bpage)
 }
 
 static int
-rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned int nr_pages)
+rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned long nr_pages)
 {
 	struct list_head *tail_page, *to_remove, *next_page;
 	struct buffer_page *to_remove_page, *tmp_iter_page;
 	struct buffer_page *last_page, *first_page;
-	unsigned int nr_removed;
+	unsigned long nr_removed;
 	unsigned long head_bit;
 	int page_entries;
 
@@ -1642,7 +1643,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size,
 			int cpu_id)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
-	unsigned nr_pages;
+	unsigned long nr_pages;
 	int cpu, err = 0;
 
 	/*
@@ -4640,8 +4641,9 @@ static int rb_cpu_notify(struct notifier_block *self,
 	struct ring_buffer *buffer =
 		container_of(self, struct ring_buffer, cpu_notify);
 	long cpu = (long)hcpu;
-	int cpu_i, nr_pages_same;
-	unsigned int nr_pages;
+	long nr_pages_same;
+	int cpu_i;
+	unsigned long nr_pages;
 
 	switch (action) {
 	case CPU_UP_PREPARE:
