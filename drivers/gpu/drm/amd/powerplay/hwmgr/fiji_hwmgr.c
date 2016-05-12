@@ -5276,6 +5276,47 @@ bool fiji_check_smc_update_required_for_display_configuration(struct pp_hwmgr *h
 	return is_update_required;
 }
 
+static int fiji_get_sclk_od(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct fiji_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	int value;
+
+	value = (sclk_table->dpm_levels[sclk_table->count - 1].value -
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value) *
+			100 /
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return value;
+}
+
+static int fiji_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	struct pp_power_state  *ps;
+	struct fiji_power_state  *fiji_ps;
+
+	if (value > 20)
+		value = 20;
+
+	ps = hwmgr->request_ps;
+
+	if (ps == NULL)
+		return -EINVAL;
+
+	fiji_ps = cast_phw_fiji_power_state(&ps->hardware);
+
+	fiji_ps->performance_levels[fiji_ps->performance_level_count - 1].engine_clock =
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value *
+			value / 100 +
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return 0;
+}
 
 static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.backend_init = &fiji_hwmgr_backend_init,
@@ -5318,6 +5359,8 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.set_pp_table = fiji_set_pp_table,
 	.force_clock_level = fiji_force_clock_level,
 	.print_clock_levels = fiji_print_clock_levels,
+	.get_sclk_od = fiji_get_sclk_od,
+	.set_sclk_od = fiji_set_sclk_od,
 };
 
 int fiji_hwmgr_init(struct pp_hwmgr *hwmgr)
