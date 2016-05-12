@@ -256,6 +256,7 @@ config PARTITION_PERCPU
 
 config EZNPS_GIC
 	bool "NPS400 Global Interrupt Manager (GIM)"
+	depends on ARC || (COMPILE_TEST && !64BIT)
 	select IRQ_DOMAIN
 	help
 	  Support the EZchip NPS400 global interrupt controller
