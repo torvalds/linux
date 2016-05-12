@@ -74,6 +74,17 @@
 #define NFS4_POLL_RETRY_MIN	(HZ/10)
 #define NFS4_POLL_RETRY_MAX	(15*HZ)
 
+/* file attributes which can be mapped to nfs attributes */
+#define NFS4_VALID_ATTRS (ATTR_MODE \
+	| ATTR_UID \
+	| ATTR_GID \
+	| ATTR_SIZE \
+	| ATTR_ATIME \
+	| ATTR_MTIME \
+	| ATTR_CTIME \
+	| ATTR_ATIME_SET \
+	| ATTR_MTIME_SET)
+
 struct nfs4_opendata;
 static int _nfs4_proc_open(struct nfs4_opendata *data);
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
@@ -2558,15 +2569,20 @@ static int _nfs4_do_open(struct inode *dir,
 	if ((opendata->o_arg.open_flags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL) &&
 	    (opendata->o_arg.createmode != NFS4_CREATE_GUARDED)) {
 		nfs4_exclusive_attrset(opendata, sattr, &label);
-
-		nfs_fattr_init(opendata->o_res.f_attr);
-		status = nfs4_do_setattr(state->inode, cred,
-				opendata->o_res.f_attr, sattr,
-				state, label, olabel);
-		if (status == 0) {
-			nfs_setattr_update_inode(state->inode, sattr,
-					opendata->o_res.f_attr);
-			nfs_setsecurity(state->inode, opendata->o_res.f_attr, olabel);
+		/*
+		 * send create attributes which was not set by open
+		 * with an extra setattr.
+		 */
+		if (sattr->ia_valid & NFS4_VALID_ATTRS) {
+			nfs_fattr_init(opendata->o_res.f_attr);
+			status = nfs4_do_setattr(state->inode, cred,
+					opendata->o_res.f_attr, sattr,
+					state, label, olabel);
+			if (status == 0) {
+				nfs_setattr_update_inode(state->inode, sattr,
+						opendata->o_res.f_attr);
+				nfs_setsecurity(state->inode, opendata->o_res.f_attr, olabel);
+			}
 		}
 	}
 	if (opened && opendata->file_created)
