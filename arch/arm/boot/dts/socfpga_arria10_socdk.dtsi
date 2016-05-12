@@ -22,11 +22,12 @@
 
 	aliases {
 		ethernet0 = &gmac0;
+		serial0 = &uart1;
 	};
 
 	chosen {
 		bootargs = "earlyprintk";
-		stdout-path = "serial1:115200n8";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
