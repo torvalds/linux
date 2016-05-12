@@ -50,7 +50,8 @@ static int kernfs_sop_show_path(struct seq_file *sf, struct dentry *dentry)
 	if (scops && scops->show_path)
 		return scops->show_path(sf, node, root);
 
-	return seq_dentry(sf, dentry, " \t\n\\");
+	seq_dentry(sf, dentry, " \t\n\\");
+	return 0;
 }
 
 const struct super_operations kernfs_sops = {
