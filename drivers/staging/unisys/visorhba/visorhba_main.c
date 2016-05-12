@@ -17,6 +17,7 @@
 #include <linux/skbuff.h>
 #include <linux/kthread.h>
 #include <linux/idr.h>
+#include <linux/seq_file.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
@@ -51,14 +52,7 @@ static int visorhba_pause(struct visor_device *dev,
 static int visorhba_resume(struct visor_device *dev,
 			   visorbus_state_complete_func complete_func);
 
-static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-				 size_t len, loff_t *offset);
-static int set_no_disk_inquiry_result(unsigned char *buf,
-				      size_t len, bool is_lun0);
 static struct dentry *visorhba_debugfs_dir;
-static const struct file_operations debugfs_info_fops = {
-	.read = info_debugfs_read,
-};
 
 /* GUIDS for HBA channel type supported by this driver */
 static struct visor_channeltype_descriptor visorhba_channel_types[] = {
@@ -132,6 +126,9 @@ struct visorhba_devdata {
 	 * iovm, instead of raw pointers
 	 */
 	struct idr idr;
+
+	struct dentry *debugfs_dir;
+	struct dentry *debugfs_info;
 };
 
 struct visorhba_devices_open {
@@ -667,65 +664,48 @@ static struct scsi_host_template visorhba_driver_template = {
 };
 
 /**
- *	info_debugfs_read - debugfs interface to dump visorhba states
- *	@file: Debug file
- *	@buf: buffer to send back to user
- *	@len: len that can be written to buf
- *	@offset: offset into buf
+ *	info_debugfs_show - debugfs interface to dump visorhba states
  *
- *	Dumps information about the visorhba driver and devices
- *	TODO: Make this per vhba
- *	Returns bytes_read
+ *      This presents a file in the debugfs tree named:
+ *          /visorhba/vbus<x>:dev<y>/info
  */
-static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-				 size_t len, loff_t *offset)
+static int info_debugfs_show(struct seq_file *seq, void *v)
 {
-	ssize_t bytes_read = 0;
-	int str_pos = 0;
-	u64 phys_flags_addr;
-	int i;
-	struct visorhba_devdata *devdata;
-	char *vbuf;
+	struct visorhba_devdata *devdata = seq->private;
 
-	if (len > MAX_BUF)
-		len = MAX_BUF;
-	vbuf = kzalloc(len, GFP_KERNEL);
-	if (!vbuf)
-		return -ENOMEM;
-
-	for (i = 0; i < VISORHBA_OPEN_MAX; i++) {
-		if (!visorhbas_open[i].devdata)
-			continue;
-
-		devdata = visorhbas_open[i].devdata;
-
-		str_pos += scnprintf(vbuf + str_pos,
-				len - str_pos, "max_buff_len:%u\n",
-				devdata->max_buff_len);
-
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				"\ninterrupts_rcvd = %llu, interrupts_disabled = %llu\n",
-				devdata->interrupts_rcvd,
-				devdata->interrupts_disabled);
-		str_pos += scnprintf(vbuf + str_pos,
-				len - str_pos, "\ninterrupts_notme = %llu,\n",
-				devdata->interrupts_notme);
-		phys_flags_addr = virt_to_phys((__force  void *)
-					       devdata->flags_addr);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				"flags_addr = %p, phys_flags_addr=0x%016llx, FeatureFlags=%llu\n",
-				devdata->flags_addr, phys_flags_addr,
-				(__le64)readq(devdata->flags_addr));
-		str_pos += scnprintf(vbuf + str_pos,
-			len - str_pos, "acquire_failed_cnt:%llu\n",
-			devdata->acquire_failed_cnt);
-		str_pos += scnprintf(vbuf + str_pos, len - str_pos, "\n");
+	seq_printf(seq, "max_buff_len = %u\n", devdata->max_buff_len);
+	seq_printf(seq, "interrupts_rcvd = %llu\n", devdata->interrupts_rcvd);
+	seq_printf(seq, "interrupts_disabled = %llu\n",
+		   devdata->interrupts_disabled);
+	seq_printf(seq, "interrupts_notme = %llu\n",
+		   devdata->interrupts_notme);
+	seq_printf(seq, "flags_addr = %p\n", devdata->flags_addr);
+	if (devdata->flags_addr) {
+		u64 phys_flags_addr =
+			virt_to_phys((__force  void *)devdata->flags_addr);
+		seq_printf(seq, "phys_flags_addr = 0x%016llx\n",
+			   phys_flags_addr);
+		seq_printf(seq, "FeatureFlags = %llu\n",
+			   (__le64)readq(devdata->flags_addr));
 	}
+	seq_printf(seq, "acquire_failed_cnt = %llu\n",
+		   devdata->acquire_failed_cnt);
 
-	bytes_read = simple_read_from_buffer(buf, len, offset, vbuf, str_pos);
-	kfree(vbuf);
-	return bytes_read;
+	return 0;
 }
+
+static int info_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, info_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations info_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = info_debugfs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 
 /**
  *	complete_taskmgmt_command - complete task management
@@ -1134,6 +1114,21 @@ static int visorhba_probe(struct visor_device *dev)
 	devdata->dev = dev;
 	dev_set_drvdata(&dev->device, devdata);
 
+	devdata->debugfs_dir = debugfs_create_dir(dev_name(&dev->device),
+						  visorhba_debugfs_dir);
+	if (!devdata->debugfs_dir) {
+		err = -ENOMEM;
+		goto err_scsi_remove_host;
+	}
+	devdata->debugfs_info =
+		debugfs_create_file("info", S_IRUSR | S_IRGRP,
+				    devdata->debugfs_dir, devdata,
+				    &info_debugfs_fops);
+	if (!devdata->debugfs_info) {
+		err = -ENOMEM;
+		goto err_debugfs_dir;
+	}
+
 	init_waitqueue_head(&devdata->rsp_queue);
 	spin_lock_init(&devdata->privlock);
 	devdata->serverdown = false;
@@ -1144,11 +1139,11 @@ static int visorhba_probe(struct visor_device *dev)
 				  channel_header.features);
 	err = visorbus_read_channel(dev, channel_offset, &features, 8);
 	if (err)
-		goto err_scsi_remove_host;
+		goto err_debugfs_info;
 	features |= ULTRA_IO_CHANNEL_IS_POLLING;
 	err = visorbus_write_channel(dev, channel_offset, &features, 8);
 	if (err)
-		goto err_scsi_remove_host;
+		goto err_debugfs_info;
 
 	idr_init(&devdata->idr);
 
@@ -1159,6 +1154,12 @@ static int visorhba_probe(struct visor_device *dev)
 	scsi_scan_host(scsihost);
 
 	return 0;
+
+err_debugfs_info:
+	debugfs_remove(devdata->debugfs_info);
+
+err_debugfs_dir:
+	debugfs_remove_recursive(devdata->debugfs_dir);
 
 err_scsi_remove_host:
 	scsi_remove_host(scsihost);
@@ -1191,6 +1192,8 @@ static void visorhba_remove(struct visor_device *dev)
 	idr_destroy(&devdata->idr);
 
 	dev_set_drvdata(&dev->device, NULL);
+	debugfs_remove(devdata->debugfs_info);
+	debugfs_remove_recursive(devdata->debugfs_dir);
 }
 
 /**
@@ -1201,20 +1204,11 @@ static void visorhba_remove(struct visor_device *dev)
  */
 static int visorhba_init(void)
 {
-	struct dentry *ret;
 	int rc = -ENOMEM;
 
 	visorhba_debugfs_dir = debugfs_create_dir("visorhba", NULL);
 	if (!visorhba_debugfs_dir)
 		return -ENOMEM;
-
-	ret = debugfs_create_file("info", S_IRUSR, visorhba_debugfs_dir, NULL,
-				  &debugfs_info_fops);
-
-	if (!ret) {
-		rc = -EIO;
-		goto cleanup_debugfs;
-	}
 
 	rc = visorbus_register_visor_driver(&visorhba_driver);
 	if (rc)
