@@ -427,6 +427,10 @@ struct intel_crtc_wm_state {
 		struct {
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
+
+			/* cached plane data rate */
+			unsigned plane_data_rate[I915_MAX_PLANES];
+			unsigned plane_y_data_rate[I915_MAX_PLANES];
 		} skl;
 	};
 

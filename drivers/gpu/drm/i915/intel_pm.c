@@ -2940,6 +2940,14 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
 	struct drm_framebuffer *fb = pstate->fb;
 	uint32_t width = 0, height = 0;
+	unsigned format = fb ? fb->pixel_format : DRM_FORMAT_XRGB8888;
+
+	if (!intel_pstate->visible)
+		return 0;
+	if (pstate->plane->type == DRM_PLANE_TYPE_CURSOR)
+		return 0;
+	if (y && format != DRM_FORMAT_NV12)
+		return 0;
 
 	width = drm_rect_width(&intel_pstate->src) >> 16;
 	height = drm_rect_height(&intel_pstate->src) >> 16;
@@ -2948,17 +2956,17 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 		swap(width, height);
 
 	/* for planar format */
-	if (fb->pixel_format == DRM_FORMAT_NV12) {
+	if (format == DRM_FORMAT_NV12) {
 		if (y)  /* y-plane data rate */
 			return width * height *
-				drm_format_plane_cpp(fb->pixel_format, 0);
+				drm_format_plane_cpp(format, 0);
 		else    /* uv-plane data rate */
 			return (width / 2) * (height / 2) *
-				drm_format_plane_cpp(fb->pixel_format, 1);
+				drm_format_plane_cpp(format, 1);
 	}
 
 	/* for packed formats */
-	return width * height * drm_format_plane_cpp(fb->pixel_format, 0);
+	return width * height * drm_format_plane_cpp(format, 0);
 }
 
 /*
@@ -2967,32 +2975,34 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
  *   3 * 4096 * 8192  * 4 < 2^32
  */
 static unsigned int
-skl_get_total_relative_data_rate(const struct intel_crtc_state *cstate)
+skl_get_total_relative_data_rate(struct intel_crtc_state *cstate)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->base.crtc);
 	struct drm_device *dev = intel_crtc->base.dev;
 	const struct intel_plane *intel_plane;
-	unsigned int total_data_rate = 0;
+	unsigned int rate, total_data_rate = 0;
 
+	/* Calculate and cache data rate for each plane */
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		const struct drm_plane_state *pstate = intel_plane->base.state;
-
-		if (pstate->fb == NULL)
-			continue;
-
-		if (intel_plane->base.type == DRM_PLANE_TYPE_CURSOR)
-			continue;
+		int id = skl_wm_plane_id(intel_plane);
 
 		/* packed/uv */
-		total_data_rate += skl_plane_relative_data_rate(cstate,
-								pstate,
-								0);
+		rate = skl_plane_relative_data_rate(cstate, pstate, 0);
+		cstate->wm.skl.plane_data_rate[id] = rate;
 
-		if (pstate->fb->pixel_format == DRM_FORMAT_NV12)
-			/* y-plane */
-			total_data_rate += skl_plane_relative_data_rate(cstate,
-									pstate,
-									1);
+		/* y-plane */
+		rate = skl_plane_relative_data_rate(cstate, pstate, 1);
+		cstate->wm.skl.plane_y_data_rate[id] = rate;
+	}
+
+	/* Calculate CRTC's total data rate from cached values */
+	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
+		int id = skl_wm_plane_id(intel_plane);
+
+		/* packed/uv */
+		total_data_rate += cstate->wm.skl.plane_data_rate[id];
+		total_data_rate += cstate->wm.skl.plane_y_data_rate[id];
 	}
 
 	return total_data_rate;
@@ -3056,6 +3066,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 * FIXME: we may not allocate every single block here.
 	 */
 	total_data_rate = skl_get_total_relative_data_rate(cstate);
+	if (total_data_rate == 0)
+		return;
 
 	start = alloc->start;
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
@@ -3070,7 +3082,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			continue;
 
-		data_rate = skl_plane_relative_data_rate(cstate, pstate, 0);
+		data_rate = cstate->wm.skl.plane_data_rate[id];
 
 		/*
 		 * allocation for (packed formats) or (uv-plane part of planar format):
@@ -3089,20 +3101,16 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		/*
 		 * allocation for y_plane part of planar format:
 		 */
-		if (pstate->fb->pixel_format == DRM_FORMAT_NV12) {
-			y_data_rate = skl_plane_relative_data_rate(cstate,
-								   pstate,
-								   1);
-			y_plane_blocks = y_minimum[id];
-			y_plane_blocks += div_u64((uint64_t)alloc_size * y_data_rate,
-						total_data_rate);
+		y_data_rate = cstate->wm.skl.plane_y_data_rate[id];
 
-			ddb->y_plane[pipe][id].start = start;
-			ddb->y_plane[pipe][id].end = start + y_plane_blocks;
+		y_plane_blocks = y_minimum[id];
+		y_plane_blocks += div_u64((uint64_t)alloc_size * y_data_rate,
+					total_data_rate);
 
-			start += y_plane_blocks;
-		}
+		ddb->y_plane[pipe][id].start = start;
+		ddb->y_plane[pipe][id].end = start + y_plane_blocks;
 
+		start += y_plane_blocks;
 	}
 
 }
@@ -3879,10 +3887,28 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
 	struct drm_crtc *crtc;
+	struct intel_crtc *intel_crtc;
 
 	skl_ddb_get_hw_state(dev_priv, ddb);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		skl_pipe_wm_get_hw_state(crtc);
+
+	/* Calculate plane data rates */
+	for_each_intel_crtc(dev, intel_crtc) {
+		struct intel_crtc_state *cstate = intel_crtc->config;
+		struct intel_plane *intel_plane;
+
+		for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
+			const struct drm_plane_state *pstate =
+				intel_plane->base.state;
+			int id = skl_wm_plane_id(intel_plane);
+
+			cstate->wm.skl.plane_data_rate[id] =
+				skl_plane_relative_data_rate(cstate, pstate, 0);
+			cstate->wm.skl.plane_y_data_rate[id] =
+				skl_plane_relative_data_rate(cstate, pstate, 1);
+		}
+	}
 }
 
 static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
