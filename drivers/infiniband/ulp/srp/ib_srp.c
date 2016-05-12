@@ -316,7 +316,7 @@ static struct ib_fmr_pool *srp_alloc_fmr_pool(struct srp_target_port *target)
 	struct ib_fmr_pool_param fmr_param;
 
 	memset(&fmr_param, 0, sizeof(fmr_param));
-	fmr_param.pool_size	    = target->scsi_host->can_queue;
+	fmr_param.pool_size	    = target->mr_pool_size;
 	fmr_param.dirty_watermark   = fmr_param.pool_size / 4;
 	fmr_param.cache		    = 1;
 	fmr_param.max_pages_per_fmr = dev->max_pages_per_mr;
@@ -441,8 +441,7 @@ static struct srp_fr_pool *srp_alloc_fr_pool(struct srp_target_port *target)
 {
 	struct srp_device *dev = target->srp_host->srp_dev;
 
-	return srp_create_fr_pool(dev->dev, dev->pd,
-				  target->scsi_host->can_queue,
+	return srp_create_fr_pool(dev->dev, dev->pd, target->mr_pool_size,
 				  dev->max_pages_per_mr);
 }
 
@@ -1112,7 +1111,7 @@ static struct scsi_cmnd *srp_claim_req(struct srp_rdma_ch *ch,
 }
 
 /**
- * srp_free_req() - Unmap data and add request to the free request list.
+ * srp_free_req() - Unmap data and adjust ch->req_lim.
  * @ch:     SRP RDMA channel.
  * @req:    Request to be freed.
  * @scmnd:  SCSI command associated with @req.
@@ -1316,9 +1315,6 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 
 	WARN_ON_ONCE(!dev->use_fast_reg);
 
-	if (sg_nents == 0)
-		return 0;
-
 	if (sg_nents == 1 && target->global_mr) {
 		srp_map_desc(state, sg_dma_address(state->sg),
 			     sg_dma_len(state->sg),
@@ -1398,7 +1394,7 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	/*
 	 * If the last entry of the MR wasn't a full page, then we need to
 	 * close it out and start a new one -- we can only merge at page
-	 * boundries.
+	 * boundaries.
 	 */
 	ret = 0;
 	if (len != dev->mr_page_size)
@@ -1413,7 +1409,6 @@ static int srp_map_sg_fmr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	struct scatterlist *sg;
 	int i, ret;
 
-	state->desc = req->indirect_desc;
 	state->pages = req->map_page;
 	state->fmr.next = req->fmr_list;
 	state->fmr.end = req->fmr_list + ch->target->cmd_sg_cnt;
@@ -1428,8 +1423,6 @@ static int srp_map_sg_fmr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	if (ret)
 		return ret;
 
-	req->nmdesc = state->nmdesc;
-
 	return 0;
 }
 
@@ -1442,6 +1435,9 @@ static int srp_map_sg_fr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	state->fr.end = req->fr_list + ch->target->cmd_sg_cnt;
 	state->sg = scat;
 
+	if (count == 0)
+		return 0;
+
 	while (count) {
 		int i, n;
 
@@ -1453,8 +1449,6 @@ static int srp_map_sg_fr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 		for (i = 0; i < n; i++)
 			state->sg = sg_next(state->sg);
 	}
-
-	req->nmdesc = state->nmdesc;
 
 	return 0;
 }
@@ -1474,8 +1468,6 @@ static int srp_map_sg_dma(struct srp_map_state *state, struct srp_rdma_ch *ch,
 			     ib_sg_dma_len(dev->dev, sg),
 			     target->global_mr->rkey);
 	}
-
-	req->nmdesc = state->nmdesc;
 
 	return 0;
 }
@@ -1534,6 +1526,15 @@ static int srp_map_idb(struct srp_rdma_ch *ch, struct srp_request *req,
 	return 0;
 }
 
+/**
+ * srp_map_data() - map SCSI data buffer onto an SRP request
+ * @scmnd: SCSI command to map
+ * @ch: SRP RDMA channel
+ * @req: SRP request
+ *
+ * Returns the length in bytes of the SRP_CMD IU or a negative value if
+ * mapping failed.
+ */
 static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 			struct srp_request *req)
 {
@@ -1601,11 +1602,14 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 
 	memset(&state, 0, sizeof(state));
 	if (dev->use_fast_reg)
-		srp_map_sg_fr(&state, ch, req, scat, count);
+		ret = srp_map_sg_fr(&state, ch, req, scat, count);
 	else if (dev->use_fmr)
-		srp_map_sg_fmr(&state, ch, req, scat, count);
+		ret = srp_map_sg_fmr(&state, ch, req, scat, count);
 	else
-		srp_map_sg_dma(&state, ch, req, scat, count);
+		ret = srp_map_sg_dma(&state, ch, req, scat, count);
+	req->nmdesc = state.nmdesc;
+	if (ret < 0)
+		goto unmap;
 
 	/* We've mapped the request, now pull as much of the indirect
 	 * descriptor table as we can into the command buffer. If this
@@ -1628,7 +1632,8 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 						!target->allow_ext_sg)) {
 		shost_printk(KERN_ERR, target->scsi_host,
 			     "Could not fit S/G list into SRP_CMD\n");
-		return -EIO;
+		ret = -EIO;
+		goto unmap;
 	}
 
 	count = min(state.ndesc, target->cmd_sg_cnt);
@@ -1646,7 +1651,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 		ret = srp_map_idb(ch, req, state.gen.next, state.gen.end,
 				  idb_len, &idb_rkey);
 		if (ret < 0)
-			return ret;
+			goto unmap;
 		req->nmdesc++;
 	} else {
 		idb_rkey = cpu_to_be32(target->global_mr->rkey);
@@ -1672,6 +1677,12 @@ map_complete:
 		cmd->buf_fmt = fmt;
 
 	return len;
+
+unmap:
+	srp_unmap_data(scmnd, ch, req);
+	if (ret == -ENOMEM && req->nmdesc >= target->mr_pool_size)
+		ret = -E2BIG;
+	return ret;
 }
 
 /*
@@ -3218,6 +3229,7 @@ static ssize_t srp_create_target(struct device *dev,
 	}
 
 	target_host->sg_tablesize = target->sg_tablesize;
+	target->mr_pool_size = target->scsi_host->can_queue;
 	target->indirect_size = target->sg_tablesize *
 				sizeof (struct srp_direct_buf);
 	target->max_iu_len = sizeof (struct srp_cmd) +
