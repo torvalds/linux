@@ -30,6 +30,8 @@
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
+#include "qed_vf.h"
 
 /* API common to all protocols */
 enum BAR_ID {
@@ -40,10 +42,14 @@ enum BAR_ID {
 static u32 qed_hw_bar_size(struct qed_hwfn	*p_hwfn,
 			   enum BAR_ID		bar_id)
 {
-	u32	bar_reg = (bar_id == BAR_ID_0 ?
-			   PGLUE_B_REG_PF_BAR0_SIZE : PGLUE_B_REG_PF_BAR1_SIZE);
-	u32	val = qed_rd(p_hwfn, p_hwfn->p_main_ptt, bar_reg);
+	u32 bar_reg = (bar_id == BAR_ID_0 ?
+		       PGLUE_B_REG_PF_BAR0_SIZE : PGLUE_B_REG_PF_BAR1_SIZE);
+	u32 val;
 
+	if (IS_VF(p_hwfn->cdev))
+		return 1 << 17;
+
+	val = qed_rd(p_hwfn, p_hwfn->p_main_ptt, bar_reg);
 	if (val)
 		return 1 << (val + 15);
 
@@ -113,6 +119,9 @@ void qed_resc_free(struct qed_dev *cdev)
 {
 	int i;
 
+	if (IS_VF(cdev))
+		return;
+
 	kfree(cdev->fw_data);
 	cdev->fw_data = NULL;
 
@@ -136,20 +145,26 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_eq_free(p_hwfn, p_hwfn->p_eq);
 		qed_consq_free(p_hwfn, p_hwfn->p_consq);
 		qed_int_free(p_hwfn);
+		qed_iov_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
 	}
 }
 
 static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 {
+	u8 num_vports, vf_offset = 0, i, vport_id, num_ports, curr_queue = 0;
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct init_qm_port_params *p_qm_port;
-	u8 num_vports, i, vport_id, num_ports;
 	u16 num_pqs, multi_cos_tcs = 1;
+	u16 num_vfs = 0;
 
+#ifdef CONFIG_QED_SRIOV
+	if (p_hwfn->cdev->p_iov_info)
+		num_vfs = p_hwfn->cdev->p_iov_info->total_vfs;
+#endif
 	memset(qm_info, 0, sizeof(*qm_info));
 
-	num_pqs = multi_cos_tcs + 1; /* The '1' is for pure-LB */
+	num_pqs = multi_cos_tcs + num_vfs + 1;	/* The '1' is for pure-LB */
 	num_vports = (u8)RESC_NUM(p_hwfn, QED_VPORT);
 
 	/* Sanity checking that setup requires legal number of resources */
@@ -185,8 +200,9 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 	vport_id = (u8)RESC_START(p_hwfn, QED_VPORT);
 
 	/* First init per-TC PQs */
-	for (i = 0; i < multi_cos_tcs; i++) {
-		struct init_qm_pq_params *params = &qm_info->qm_pq_params[i];
+	for (i = 0; i < multi_cos_tcs; i++, curr_queue++) {
+		struct init_qm_pq_params *params =
+		    &qm_info->qm_pq_params[curr_queue];
 
 		params->vport_id = vport_id;
 		params->tc_id = p_hwfn->hw_info.non_offload_tc;
@@ -194,13 +210,26 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 	}
 
 	/* Then init pure-LB PQ */
-	qm_info->pure_lb_pq = i;
-	qm_info->qm_pq_params[i].vport_id = (u8)RESC_START(p_hwfn, QED_VPORT);
-	qm_info->qm_pq_params[i].tc_id = PURE_LB_TC;
-	qm_info->qm_pq_params[i].wrr_group = 1;
-	i++;
+	qm_info->pure_lb_pq = curr_queue;
+	qm_info->qm_pq_params[curr_queue].vport_id =
+	    (u8) RESC_START(p_hwfn, QED_VPORT);
+	qm_info->qm_pq_params[curr_queue].tc_id = PURE_LB_TC;
+	qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+	curr_queue++;
 
 	qm_info->offload_pq = 0;
+	/* Then init per-VF PQs */
+	vf_offset = curr_queue;
+	for (i = 0; i < num_vfs; i++) {
+		/* First vport is used by the PF */
+		qm_info->qm_pq_params[curr_queue].vport_id = vport_id + i + 1;
+		qm_info->qm_pq_params[curr_queue].tc_id =
+		    p_hwfn->hw_info.non_offload_tc;
+		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		curr_queue++;
+	}
+
+	qm_info->vf_queues_offset = vf_offset;
 	qm_info->num_pqs = num_pqs;
 	qm_info->num_vports = num_vports;
 
@@ -218,7 +247,8 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 
 	qm_info->start_pq = (u16)RESC_START(p_hwfn, QED_PQ);
 
-	qm_info->start_vport = (u8)RESC_START(p_hwfn, QED_VPORT);
+	qm_info->num_vf_pqs = num_vfs;
+	qm_info->start_vport = (u8) RESC_START(p_hwfn, QED_VPORT);
 
 	for (i = 0; i < qm_info->num_vports; i++)
 		qm_info->qm_vport_params[i].vport_wfq = 1;
@@ -241,6 +271,9 @@ int qed_resc_alloc(struct qed_dev *cdev)
 	struct qed_consq *p_consq;
 	struct qed_eq *p_eq;
 	int i, rc = 0;
+
+	if (IS_VF(cdev))
+		return rc;
 
 	cdev->fw_data = kzalloc(sizeof(*cdev->fw_data), GFP_KERNEL);
 	if (!cdev->fw_data)
@@ -316,6 +349,10 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (rc)
 			goto alloc_err;
 
+		rc = qed_iov_alloc(p_hwfn);
+		if (rc)
+			goto alloc_err;
+
 		/* EQ */
 		p_eq = qed_eq_alloc(p_hwfn, 256);
 		if (!p_eq) {
@@ -358,6 +395,9 @@ void qed_resc_setup(struct qed_dev *cdev)
 {
 	int i;
 
+	if (IS_VF(cdev))
+		return;
+
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
@@ -373,20 +413,24 @@ void qed_resc_setup(struct qed_dev *cdev)
 		       p_hwfn->mcp_info->mfw_mb_length);
 
 		qed_int_setup(p_hwfn, p_hwfn->p_main_ptt);
+
+		qed_iov_setup(p_hwfn, p_hwfn->p_main_ptt);
 	}
 }
 
 #define FINAL_CLEANUP_POLL_CNT          (100)
 #define FINAL_CLEANUP_POLL_TIME         (10)
 int qed_final_cleanup(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      u16 id)
+		      struct qed_ptt *p_ptt, u16 id, bool is_vf)
 {
 	u32 command = 0, addr, count = FINAL_CLEANUP_POLL_CNT;
 	int rc = -EBUSY;
 
 	addr = GTT_BAR0_MAP_REG_USDM_RAM +
 		USTORM_FLR_FINAL_ACK_OFFSET(p_hwfn->rel_pf_id);
+
+	if (is_vf)
+		id += 0x10;
 
 	command |= X_FINAL_CLEANUP_AGG_INT <<
 		SDM_AGG_INT_COMP_PARAMS_AGG_INT_INDEX_SHIFT;
@@ -500,7 +544,9 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct qed_qm_common_rt_init_params params;
 	struct qed_dev *cdev = p_hwfn->cdev;
+	u32 concrete_fid;
 	int rc = 0;
+	u8 vf_id;
 
 	qed_init_cau_rt_data(cdev);
 
@@ -549,6 +595,14 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	/* Disable relaxed ordering in the PCI config space */
 	qed_wr(p_hwfn, p_ptt, 0x20b4,
 	       qed_rd(p_hwfn, p_ptt, 0x20b4) & ~0x10);
+
+	for (vf_id = 0; vf_id < MAX_NUM_VFS_BB; vf_id++) {
+		concrete_fid = qed_vfid_to_concrete(p_hwfn, vf_id);
+		qed_fid_pretend(p_hwfn, p_ptt, (u16) concrete_fid);
+		qed_wr(p_hwfn, p_ptt, CCFC_REG_STRONG_ENABLE_VF, 0x1);
+	}
+	/* pretend to original PF */
+	qed_fid_pretend(p_hwfn, p_ptt, p_hwfn->rel_pf_id);
 
 	return rc;
 }
@@ -612,7 +666,7 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_ROCE_RT_OFFSET, 0);
 
 	/* Cleanup chip from previous driver if such remains exist */
-	rc = qed_final_cleanup(p_hwfn, p_ptt, rel_pf_id);
+	rc = qed_final_cleanup(p_hwfn, p_ptt, rel_pf_id, false);
 	if (rc != 0)
 		return rc;
 
@@ -634,7 +688,8 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 		qed_int_igu_enable(p_hwfn, p_ptt, int_mode);
 
 		/* send function start command */
-		rc = qed_sp_pf_start(p_hwfn, p_tunn, p_hwfn->cdev->mf_mode);
+		rc = qed_sp_pf_start(p_hwfn, p_tunn, p_hwfn->cdev->mf_mode,
+				     allow_npar_tx_switch);
 		if (rc)
 			DP_NOTICE(p_hwfn, "Function start ramrod failed\n");
 	}
@@ -690,12 +745,19 @@ int qed_hw_init(struct qed_dev *cdev,
 	u32 load_code, param;
 	int rc, mfw_rc, i;
 
-	rc = qed_init_fw_data(cdev, bin_fw_data);
-	if (rc != 0)
-		return rc;
+	if (IS_PF(cdev)) {
+		rc = qed_init_fw_data(cdev, bin_fw_data);
+		if (rc != 0)
+			return rc;
+	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		if (IS_VF(cdev)) {
+			p_hwfn->b_int_enabled = 1;
+			continue;
+		}
 
 		/* Enable DMAE in PXP */
 		rc = qed_change_pci_hwfn(p_hwfn, p_hwfn->p_main_ptt, true);
@@ -821,6 +883,11 @@ int qed_hw_stop(struct qed_dev *cdev)
 
 		DP_VERBOSE(p_hwfn, NETIF_MSG_IFDOWN, "Stopping hw/fw\n");
 
+		if (IS_VF(cdev)) {
+			qed_vf_pf_int_cleanup(p_hwfn);
+			continue;
+		}
+
 		/* mark the hw as uninitialized... */
 		p_hwfn->hw_init_done = false;
 
@@ -852,15 +919,16 @@ int qed_hw_stop(struct qed_dev *cdev)
 		usleep_range(1000, 2000);
 	}
 
-	/* Disable DMAE in PXP - in CMT, this should only be done for
-	 * first hw-function, and only after all transactions have
-	 * stopped for all active hw-functions.
-	 */
-	t_rc = qed_change_pci_hwfn(&cdev->hwfns[0],
-				   cdev->hwfns[0].p_main_ptt,
-				   false);
-	if (t_rc != 0)
-		rc = t_rc;
+	if (IS_PF(cdev)) {
+		/* Disable DMAE in PXP - in CMT, this should only be done for
+		 * first hw-function, and only after all transactions have
+		 * stopped for all active hw-functions.
+		 */
+		t_rc = qed_change_pci_hwfn(&cdev->hwfns[0],
+					   cdev->hwfns[0].p_main_ptt, false);
+		if (t_rc != 0)
+			rc = t_rc;
+	}
 
 	return rc;
 }
@@ -871,7 +939,12 @@ void qed_hw_stop_fastpath(struct qed_dev *cdev)
 
 	for_each_hwfn(cdev, j) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
-		struct qed_ptt *p_ptt   = p_hwfn->p_main_ptt;
+		struct qed_ptt *p_ptt = p_hwfn->p_main_ptt;
+
+		if (IS_VF(cdev)) {
+			qed_vf_pf_int_cleanup(p_hwfn);
+			continue;
+		}
 
 		DP_VERBOSE(p_hwfn,
 			   NETIF_MSG_IFDOWN,
@@ -895,6 +968,9 @@ void qed_hw_stop_fastpath(struct qed_dev *cdev)
 
 void qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
 {
+	if (IS_VF(p_hwfn->cdev))
+		return;
+
 	/* Re-open incoming traffic */
 	qed_wr(p_hwfn, p_hwfn->p_main_ptt,
 	       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x0);
@@ -923,6 +999,13 @@ int qed_hw_reset(struct qed_dev *cdev)
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		if (IS_VF(cdev)) {
+			rc = qed_vf_pf_reset(p_hwfn);
+			if (rc)
+				return rc;
+			continue;
+		}
 
 		DP_VERBOSE(p_hwfn, NETIF_MSG_IFDOWN, "Resetting hw/fw\n");
 
@@ -1019,13 +1102,19 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 {
 	u32 *resc_start = p_hwfn->hw_info.resc_start;
+	u8 num_funcs = p_hwfn->num_funcs_on_engine;
 	u32 *resc_num = p_hwfn->hw_info.resc_num;
 	struct qed_sb_cnt_info sb_cnt_info;
-	int num_funcs, i;
-
-	num_funcs = MAX_NUM_PFS_BB;
+	int i, max_vf_vlan_filters;
 
 	memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+
+#ifdef CONFIG_QED_SRIOV
+	max_vf_vlan_filters = QED_ETH_MAX_VF_NUM_VLAN_FILTERS;
+#else
+	max_vf_vlan_filters = 0;
+#endif
+
 	qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
 
 	resc_num[QED_SB] = min_t(u32,
@@ -1230,6 +1319,51 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 	return qed_mcp_fill_shmem_func_info(p_hwfn, p_ptt);
 }
 
+static void qed_get_num_funcs(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 reg_function_hide, tmp, eng_mask;
+	u8 num_funcs;
+
+	num_funcs = MAX_NUM_PFS_BB;
+
+	/* Bit 0 of MISCS_REG_FUNCTION_HIDE indicates whether the bypass values
+	 * in the other bits are selected.
+	 * Bits 1-15 are for functions 1-15, respectively, and their value is
+	 * '0' only for enabled functions (function 0 always exists and
+	 * enabled).
+	 * In case of CMT, only the "even" functions are enabled, and thus the
+	 * number of functions for both hwfns is learnt from the same bits.
+	 */
+	reg_function_hide = qed_rd(p_hwfn, p_ptt, MISCS_REG_FUNCTION_HIDE);
+
+	if (reg_function_hide & 0x1) {
+		if (QED_PATH_ID(p_hwfn) && p_hwfn->cdev->num_hwfns == 1) {
+			num_funcs = 0;
+			eng_mask = 0xaaaa;
+		} else {
+			num_funcs = 1;
+			eng_mask = 0x5554;
+		}
+
+		/* Get the number of the enabled functions on the engine */
+		tmp = (reg_function_hide ^ 0xffffffff) & eng_mask;
+		while (tmp) {
+			if (tmp & 0x1)
+				num_funcs++;
+			tmp >>= 0x1;
+		}
+	}
+
+	p_hwfn->num_funcs_on_engine = num_funcs;
+
+	DP_VERBOSE(p_hwfn,
+		   NETIF_MSG_PROBE,
+		   "PF [rel_id %d, abs_id %d] within the %d enabled functions on the engine\n",
+		   p_hwfn->rel_pf_id,
+		   p_hwfn->abs_pf_id,
+		   p_hwfn->num_funcs_on_engine);
+}
+
 static int
 qed_get_hw_info(struct qed_hwfn *p_hwfn,
 		struct qed_ptt *p_ptt,
@@ -1237,6 +1371,13 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 {
 	u32 port_mode;
 	int rc;
+
+	/* Since all information is common, only first hwfns should do this */
+	if (IS_LEAD_HWFN(p_hwfn)) {
+		rc = qed_iov_hw_info(p_hwfn);
+		if (rc)
+			return rc;
+	}
 
 	/* Read the port mode */
 	port_mode = qed_rd(p_hwfn, p_ptt,
@@ -1280,6 +1421,8 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 		protocol = p_hwfn->mcp_info->func_info.protocol;
 		p_hwfn->hw_info.personality = protocol;
 	}
+
+	qed_get_num_funcs(p_hwfn, p_ptt);
 
 	qed_hw_get_resc(p_hwfn);
 
@@ -1346,6 +1489,9 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 	p_hwfn->regview = p_regview;
 	p_hwfn->doorbells = p_doorbells;
 
+	if (IS_VF(p_hwfn->cdev))
+		return qed_vf_hw_prepare(p_hwfn);
+
 	/* Validate that chip access is feasible */
 	if (REG_RD(p_hwfn, PXP_PF_ME_OPAQUE_ADDR) == 0xffffffff) {
 		DP_ERR(p_hwfn,
@@ -1397,6 +1543,8 @@ static int qed_hw_prepare_single(struct qed_hwfn *p_hwfn,
 
 	return rc;
 err2:
+	if (IS_LEAD_HWFN(p_hwfn))
+		qed_iov_free_hw_info(p_hwfn->cdev);
 	qed_mcp_free(p_hwfn);
 err1:
 	qed_hw_hwfn_free(p_hwfn);
@@ -1411,7 +1559,8 @@ int qed_hw_prepare(struct qed_dev *cdev,
 	int rc;
 
 	/* Store the precompiled init data ptrs */
-	qed_init_iro_array(cdev);
+	if (IS_PF(cdev))
+		qed_init_iro_array(cdev);
 
 	/* Initialize the first hwfn - will learn number of hwfns */
 	rc = qed_hw_prepare_single(p_hwfn,
@@ -1443,9 +1592,11 @@ int qed_hw_prepare(struct qed_dev *cdev,
 		 * initiliazed hwfn 0.
 		 */
 		if (rc) {
-			qed_init_free(p_hwfn);
-			qed_mcp_free(p_hwfn);
-			qed_hw_hwfn_free(p_hwfn);
+			if (IS_PF(cdev)) {
+				qed_init_free(p_hwfn);
+				qed_mcp_free(p_hwfn);
+				qed_hw_hwfn_free(p_hwfn);
+			}
 		}
 	}
 
@@ -1459,10 +1610,17 @@ void qed_hw_remove(struct qed_dev *cdev)
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
+		if (IS_VF(cdev)) {
+			qed_vf_pf_release(p_hwfn);
+			continue;
+		}
+
 		qed_init_free(p_hwfn);
 		qed_hw_hwfn_free(p_hwfn);
 		qed_mcp_free(p_hwfn);
 	}
+
+	qed_iov_free_hw_info(cdev);
 }
 
 int qed_chain_alloc(struct qed_dev *cdev,
@@ -1732,6 +1890,32 @@ static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+static int __qed_configure_vport_wfq(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt, u16 vp_id, u32 rate)
+{
+	struct qed_mcp_link_state *p_link;
+	int rc = 0;
+
+	p_link = &p_hwfn->cdev->hwfns[0].mcp_info->link_output;
+
+	if (!p_link->min_pf_rate) {
+		p_hwfn->qm_info.wfq_data[vp_id].min_speed = rate;
+		p_hwfn->qm_info.wfq_data[vp_id].configured = true;
+		return rc;
+	}
+
+	rc = qed_init_wfq_param(p_hwfn, vp_id, rate, p_link->min_pf_rate);
+
+	if (rc == 0)
+		qed_configure_wfq_for_all_vports(p_hwfn, p_ptt,
+						 p_link->min_pf_rate);
+	else
+		DP_NOTICE(p_hwfn,
+			  "Validation failed while configuring min rate\n");
+
+	return rc;
+}
+
 static int __qed_configure_vp_wfq_on_link_change(struct qed_hwfn *p_hwfn,
 						 struct qed_ptt *p_ptt,
 						 u32 min_pf_rate)
@@ -1762,6 +1946,42 @@ static int __qed_configure_vp_wfq_on_link_change(struct qed_hwfn *p_hwfn,
 		qed_configure_wfq_for_all_vports(p_hwfn, p_ptt, min_pf_rate);
 	else
 		qed_disable_wfq_for_all_vports(p_hwfn, p_ptt, min_pf_rate);
+
+	return rc;
+}
+
+/* Main API for qed clients to configure vport min rate.
+ * vp_id - vport id in PF Range[0 - (total_num_vports_per_pf - 1)]
+ * rate - Speed in Mbps needs to be assigned to a given vport.
+ */
+int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate)
+{
+	int i, rc = -EINVAL;
+
+	/* Currently not supported; Might change in future */
+	if (cdev->num_hwfns > 1) {
+		DP_NOTICE(cdev,
+			  "WFQ configuration is not supported for this device\n");
+		return rc;
+	}
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+		struct qed_ptt *p_ptt;
+
+		p_ptt = qed_ptt_acquire(p_hwfn);
+		if (!p_ptt)
+			return -EBUSY;
+
+		rc = __qed_configure_vport_wfq(p_hwfn, p_ptt, vp_id, rate);
+
+		if (!rc) {
+			qed_ptt_release(p_hwfn, p_ptt);
+			return rc;
+		}
+
+		qed_ptt_release(p_hwfn, p_ptt);
+	}
 
 	return rc;
 }
@@ -1911,4 +2131,18 @@ int qed_configure_pf_min_bandwidth(struct qed_dev *cdev, u8 min_bw)
 	}
 
 	return rc;
+}
+
+void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_link_state *p_link;
+
+	p_link = &p_hwfn->mcp_info->link_output;
+
+	if (p_link->min_pf_rate)
+		qed_disable_wfq_for_all_vports(p_hwfn, p_ptt,
+					       p_link->min_pf_rate);
+
+	memset(p_hwfn->qm_info.wfq_data, 0,
+	       sizeof(*p_hwfn->qm_info.wfq_data) * p_hwfn->qm_info.num_vports);
 }

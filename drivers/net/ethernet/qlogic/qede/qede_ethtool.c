@@ -151,6 +151,8 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 	int i, j, k;
 
 	for (i = 0, j = 0; i < QEDE_NUM_STATS; i++) {
+		if (IS_VF(edev) && qede_stats_arr[i].pf_only)
+			continue;
 		strcpy(buf + j * ETH_GSTRING_LEN,
 		       qede_stats_arr[i].string);
 		j++;
@@ -194,8 +196,11 @@ static void qede_get_ethtool_stats(struct net_device *dev,
 
 	mutex_lock(&edev->qede_lock);
 
-	for (sidx = 0; sidx < QEDE_NUM_STATS; sidx++)
+	for (sidx = 0; sidx < QEDE_NUM_STATS; sidx++) {
+		if (IS_VF(edev) && qede_stats_arr[sidx].pf_only)
+			continue;
 		buf[cnt++] = QEDE_STATS_DATA(edev, sidx);
+	}
 
 	for (sidx = 0; sidx < QEDE_NUM_RQSTATS; sidx++) {
 		buf[cnt] = 0;
@@ -214,6 +219,13 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 
 	switch (stringset) {
 	case ETH_SS_STATS:
+		if (IS_VF(edev)) {
+			int i;
+
+			for (i = 0; i < QEDE_NUM_STATS; i++)
+				if (qede_stats_arr[i].pf_only)
+					num_stats--;
+		}
 		return num_stats + QEDE_NUM_RQSTATS;
 	case ETH_SS_PRIV_FLAGS:
 		return QEDE_PRI_FLAG_LEN;
@@ -1142,7 +1154,34 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.self_test = qede_self_test,
 };
 
+static const struct ethtool_ops qede_vf_ethtool_ops = {
+	.get_settings = qede_get_settings,
+	.get_drvinfo = qede_get_drvinfo,
+	.get_msglevel = qede_get_msglevel,
+	.set_msglevel = qede_set_msglevel,
+	.get_link = qede_get_link,
+	.get_ringparam = qede_get_ringparam,
+	.set_ringparam = qede_set_ringparam,
+	.get_strings = qede_get_strings,
+	.get_ethtool_stats = qede_get_ethtool_stats,
+	.get_priv_flags = qede_get_priv_flags,
+	.get_sset_count = qede_get_sset_count,
+	.get_rxnfc = qede_get_rxnfc,
+	.set_rxnfc = qede_set_rxnfc,
+	.get_rxfh_indir_size = qede_get_rxfh_indir_size,
+	.get_rxfh_key_size = qede_get_rxfh_key_size,
+	.get_rxfh = qede_get_rxfh,
+	.set_rxfh = qede_set_rxfh,
+	.get_channels = qede_get_channels,
+	.set_channels = qede_set_channels,
+};
+
 void qede_set_ethtool_ops(struct net_device *dev)
 {
-	dev->ethtool_ops = &qede_ethtool_ops;
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (IS_VF(edev))
+		dev->ethtool_ops = &qede_vf_ethtool_ops;
+	else
+		dev->ethtool_ops = &qede_ethtool_ops;
 }

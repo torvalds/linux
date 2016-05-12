@@ -98,6 +98,16 @@ config QED
 	---help---
 	  This enables the support for ...
 
+config QED_SRIOV
+	bool "QLogic QED 25/40/100Gb SR-IOV support"
+	depends on QED && PCI_IOV
+	default y
+	---help---
+	  This configuration parameter enables Single Root Input Output
+	  Virtualization support for QED devices.
+	  This allows for virtual function acceleration in virtualized
+	  environments.
+
 config QEDE
 	tristate "QLogic QED 25/40/100Gb Ethernet NIC"
 	depends on QED

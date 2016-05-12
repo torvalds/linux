@@ -63,6 +63,7 @@ static const struct qed_eth_ops *qed_ops;
 #define CHIP_NUM_57980S_100		0x1644
 #define CHIP_NUM_57980S_50		0x1654
 #define CHIP_NUM_57980S_25		0x1656
+#define CHIP_NUM_57980S_IOV		0x1664
 
 #ifndef PCI_DEVICE_ID_NX2_57980E
 #define PCI_DEVICE_ID_57980S_40		CHIP_NUM_57980S_40
@@ -71,15 +72,22 @@ static const struct qed_eth_ops *qed_ops;
 #define PCI_DEVICE_ID_57980S_100	CHIP_NUM_57980S_100
 #define PCI_DEVICE_ID_57980S_50		CHIP_NUM_57980S_50
 #define PCI_DEVICE_ID_57980S_25		CHIP_NUM_57980S_25
+#define PCI_DEVICE_ID_57980S_IOV	CHIP_NUM_57980S_IOV
 #endif
 
+enum qede_pci_private {
+	QEDE_PRIVATE_PF,
+	QEDE_PRIVATE_VF
+};
+
 static const struct pci_device_id qede_pci_tbl[] = {
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_40), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_10), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_MF), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_100), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_50), 0 },
-	{ PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_25), 0 },
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_40), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_10), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_MF), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_100), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_50), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_25), QEDE_PRIVATE_PF},
+	{PCI_VDEVICE(QLOGIC, PCI_DEVICE_ID_57980S_IOV), QEDE_PRIVATE_VF},
 	{ 0 }
 };
 
@@ -94,17 +102,87 @@ static int qede_alloc_rx_buffer(struct qede_dev *edev,
 				struct qede_rx_queue *rxq);
 static void qede_link_update(void *dev, struct qed_link_output *link);
 
+#ifdef CONFIG_QED_SRIOV
+static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+
+	if (vlan > 4095) {
+		DP_NOTICE(edev, "Illegal vlan value %d\n", vlan);
+		return -EINVAL;
+	}
+
+	DP_VERBOSE(edev, QED_MSG_IOV, "Setting Vlan 0x%04x to VF [%d]\n",
+		   vlan, vf);
+
+	return edev->ops->iov->set_vlan(edev->cdev, vlan, vf);
+}
+
+static int qede_set_vf_mac(struct net_device *ndev, int vfidx, u8 *mac)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+
+	DP_VERBOSE(edev, QED_MSG_IOV,
+		   "Setting MAC %02x:%02x:%02x:%02x:%02x:%02x to VF [%d]\n",
+		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], vfidx);
+
+	if (!is_valid_ether_addr(mac)) {
+		DP_VERBOSE(edev, QED_MSG_IOV, "MAC address isn't valid\n");
+		return -EINVAL;
+	}
+
+	return edev->ops->iov->set_mac(edev->cdev, mac, vfidx);
+}
+
+static int qede_sriov_configure(struct pci_dev *pdev, int num_vfs_param)
+{
+	struct qede_dev *edev = netdev_priv(pci_get_drvdata(pdev));
+	struct qed_dev_info *qed_info = &edev->dev_info.common;
+	int rc;
+
+	DP_VERBOSE(edev, QED_MSG_IOV, "Requested %d VFs\n", num_vfs_param);
+
+	rc = edev->ops->iov->configure(edev->cdev, num_vfs_param);
+
+	/* Enable/Disable Tx switching for PF */
+	if ((rc == num_vfs_param) && netif_running(edev->ndev) &&
+	    qed_info->mf_mode != QED_MF_NPAR && qed_info->tx_switching) {
+		struct qed_update_vport_params params;
+
+		memset(&params, 0, sizeof(params));
+		params.vport_id = 0;
+		params.update_tx_switching_flg = 1;
+		params.tx_switching_flg = num_vfs_param ? 1 : 0;
+		edev->ops->vport_update(edev->cdev, &params);
+	}
+
+	return rc;
+}
+#endif
+
 static struct pci_driver qede_pci_driver = {
 	.name = "qede",
 	.id_table = qede_pci_tbl,
 	.probe = qede_probe,
 	.remove = qede_remove,
+#ifdef CONFIG_QED_SRIOV
+	.sriov_configure = qede_sriov_configure,
+#endif
 };
+
+static void qede_force_mac(void *dev, u8 *mac)
+{
+	struct qede_dev *edev = dev;
+
+	ether_addr_copy(edev->ndev->dev_addr, mac);
+	ether_addr_copy(edev->primary_mac, mac);
+}
 
 static struct qed_eth_cb_ops qede_ll_ops = {
 	{
 		.link_update = qede_link_update,
 	},
+	.force_mac = qede_force_mac,
 };
 
 static int qede_netdev_event(struct notifier_block *this, unsigned long event,
@@ -1730,6 +1808,49 @@ static struct rtnl_link_stats64 *qede_get_stats64(
 	return stats;
 }
 
+#ifdef CONFIG_QED_SRIOV
+static int qede_get_vf_config(struct net_device *dev, int vfidx,
+			      struct ifla_vf_info *ivi)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev->ops)
+		return -EINVAL;
+
+	return edev->ops->iov->get_config(edev->cdev, vfidx, ivi);
+}
+
+static int qede_set_vf_rate(struct net_device *dev, int vfidx,
+			    int min_tx_rate, int max_tx_rate)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	return edev->ops->iov->set_rate(edev->cdev, vfidx, max_tx_rate,
+					max_tx_rate);
+}
+
+static int qede_set_vf_spoofchk(struct net_device *dev, int vfidx, bool val)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev->ops)
+		return -EINVAL;
+
+	return edev->ops->iov->set_spoof(edev->cdev, vfidx, val);
+}
+
+static int qede_set_vf_link_state(struct net_device *dev, int vfidx,
+				  int link_state)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev->ops)
+		return -EINVAL;
+
+	return edev->ops->iov->set_link_state(edev->cdev, vfidx, link_state);
+}
+#endif
+
 static void qede_config_accept_any_vlan(struct qede_dev *edev, bool action)
 {
 	struct qed_update_vport_params params;
@@ -2049,9 +2170,19 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_set_mac_address = qede_set_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = qede_change_mtu,
+#ifdef CONFIG_QED_SRIOV
+	.ndo_set_vf_mac = qede_set_vf_mac,
+	.ndo_set_vf_vlan = qede_set_vf_vlan,
+#endif
 	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,
 	.ndo_get_stats64 = qede_get_stats64,
+#ifdef CONFIG_QED_SRIOV
+	.ndo_set_vf_link_state = qede_set_vf_link_state,
+	.ndo_set_vf_spoofchk = qede_set_vf_spoofchk,
+	.ndo_get_vf_config = qede_get_vf_config,
+	.ndo_set_vf_rate = qede_set_vf_rate,
+#endif
 #ifdef CONFIG_QEDE_VXLAN
 	.ndo_add_vxlan_port = qede_add_vxlan_port,
 	.ndo_del_vxlan_port = qede_del_vxlan_port,
@@ -2283,8 +2414,9 @@ enum qede_probe_mode {
 };
 
 static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
-			enum qede_probe_mode mode)
+			bool is_vf, enum qede_probe_mode mode)
 {
+	struct qed_probe_params probe_params;
 	struct qed_slowpath_params params;
 	struct qed_dev_eth_info dev_info;
 	struct qede_dev *edev;
@@ -2294,8 +2426,12 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	if (unlikely(dp_level & QED_LEVEL_INFO))
 		pr_notice("Starting qede probe\n");
 
-	cdev = qed_ops->common->probe(pdev, QED_PROTOCOL_ETH,
-				      dp_module, dp_level);
+	memset(&probe_params, 0, sizeof(probe_params));
+	probe_params.protocol = QED_PROTOCOL_ETH;
+	probe_params.dp_module = dp_module;
+	probe_params.dp_level = dp_level;
+	probe_params.is_vf = is_vf;
+	cdev = qed_ops->common->probe(pdev, &probe_params);
 	if (!cdev) {
 		rc = -ENODEV;
 		goto err0;
@@ -2329,6 +2465,9 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 		goto err2;
 	}
 
+	if (is_vf)
+		edev->flags |= QEDE_FLAG_IS_VF;
+
 	qede_init_ndev(edev);
 
 	rc = register_netdev(edev->ndev);
@@ -2360,12 +2499,24 @@ err0:
 
 static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	bool is_vf = false;
 	u32 dp_module = 0;
 	u8 dp_level = 0;
 
+	switch ((enum qede_pci_private)id->driver_data) {
+	case QEDE_PRIVATE_VF:
+		if (debug & QED_LOG_VERBOSE_MASK)
+			dev_err(&pdev->dev, "Probing a VF\n");
+		is_vf = true;
+		break;
+	default:
+		if (debug & QED_LOG_VERBOSE_MASK)
+			dev_err(&pdev->dev, "Probing a PF\n");
+	}
+
 	qede_config_debug(debug, &dp_module, &dp_level);
 
-	return __qede_probe(pdev, dp_module, dp_level,
+	return __qede_probe(pdev, dp_module, dp_level, is_vf,
 			    QEDE_PROBE_NORMAL);
 }
 
@@ -3062,6 +3213,7 @@ static int qede_start_queues(struct qede_dev *edev)
 	struct qed_dev *cdev = edev->cdev;
 	struct qed_update_vport_params vport_update_params;
 	struct qed_queue_start_common_params q_params;
+	struct qed_dev_info *qed_info = &edev->dev_info.common;
 	struct qed_start_vport_params start = {0};
 	bool reset_rss_indir = false;
 
@@ -3154,6 +3306,12 @@ static int qede_start_queues(struct qede_dev *edev)
 	vport_update_params.vport_id = start.vport_id;
 	vport_update_params.update_vport_active_flg = 1;
 	vport_update_params.vport_active_flg = 1;
+
+	if ((qed_info->mf_mode == QED_MF_NPAR || pci_num_vf(edev->pdev)) &&
+	    qed_info->tx_switching) {
+		vport_update_params.update_tx_switching_flg = 1;
+		vport_update_params.tx_switching_flg = 1;
+	}
 
 	/* Fill struct with RSS params */
 	if (QEDE_RSS_CNT(edev) > 1) {
@@ -3449,6 +3607,11 @@ static int qede_set_mac_addr(struct net_device *ndev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data)) {
 		DP_NOTICE(edev, "The MAC address is not valid\n");
 		return -EFAULT;
+	}
+
+	if (!edev->ops->check_mac(edev->cdev, addr->sa_data)) {
+		DP_NOTICE(edev, "qed prevents setting MAC\n");
+		return -EINVAL;
 	}
 
 	ether_addr_copy(ndev->dev_addr, addr->sa_data);

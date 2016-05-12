@@ -62,6 +62,9 @@ union ramrod_data {
 	struct vport_stop_ramrod_data vport_stop;
 	struct vport_update_ramrod_data vport_update;
 	struct vport_filter_update_ramrod_data vport_filter_update;
+
+	struct vf_start_ramrod_data vf_start;
+	struct vf_stop_ramrod_data vf_stop;
 };
 
 #define EQ_MAX_CREDIT   0xffffffff
@@ -341,13 +344,14 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param p_tunn
  * @param mode
+ * @param allow_npar_tx_switch
  *
  * @return int
  */
 
 int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		    struct qed_tunn_start_params *p_tunn,
-		    enum qed_mf_mode mode);
+		    enum qed_mf_mode mode, bool allow_npar_tx_switch);
 
 /**
  * @brief qed_sp_pf_stop - PF Function Stop Ramrod

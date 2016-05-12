@@ -51,6 +51,9 @@ enum qed_cxt_elem_type {
 	QED_ELEM_TASK
 };
 
+u32 qed_cxt_get_proto_cid_count(struct qed_hwfn *p_hwfn,
+				enum protocol_type type, u32 *vf_cid);
+
 /**
  * @brief qed_cxt_set_pf_params - Set the PF params for cxt init
  *

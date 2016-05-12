@@ -152,6 +152,7 @@ enum QED_RESOURCES {
 
 enum QED_FEATURE {
 	QED_PF_L2_QUE,
+	QED_VF,
 	QED_MAX_FEATURES,
 };
 
@@ -310,6 +311,8 @@ struct qed_hwfn {
 	bool				first_on_engine;
 	bool				hw_init_done;
 
+	u8				num_funcs_on_engine;
+
 	/* BAR access */
 	void __iomem			*regview;
 	void __iomem			*doorbells;
@@ -360,6 +363,8 @@ struct qed_hwfn {
 	/* True if the driver requests for the link */
 	bool				b_drv_link_init;
 
+	struct qed_vf_iov		*vf_iov_info;
+	struct qed_pf_iov		*pf_iov_info;
 	struct qed_mcp_info		*mcp_info;
 
 	struct qed_hw_cid_data		*p_tx_cids;
@@ -375,6 +380,12 @@ struct qed_hwfn {
 	void				*unzip_buf;
 
 	struct qed_simd_fp_handler	simd_proto_handler[64];
+
+#ifdef CONFIG_QED_SRIOV
+	struct workqueue_struct *iov_wq;
+	struct delayed_work iov_task;
+	unsigned long iov_task_flags;
+#endif
 
 	struct z_stream_s		*stream;
 };
@@ -484,7 +495,13 @@ struct qed_dev {
 	u8				num_hwfns;
 	struct qed_hwfn			hwfns[MAX_HWFNS_PER_DEVICE];
 
+	/* SRIOV */
+	struct qed_hw_sriov_info *p_iov_info;
+#define IS_QED_SRIOV(cdev)              (!!(cdev)->p_iov_info)
+
 	unsigned long			tunn_mode;
+
+	bool				b_is_vf;
 	u32				drv_type;
 
 	struct qed_eth_stats		*reset_stats;
@@ -514,6 +531,8 @@ struct qed_dev {
 	const struct firmware		*firmware;
 };
 
+#define NUM_OF_VFS(dev)         MAX_NUM_VFS_BB
+#define NUM_OF_L2_QUEUES(dev)	MAX_NUM_L2_QUEUES_BB
 #define NUM_OF_SBS(dev)         MAX_SB_PER_PATH_BB
 #define NUM_OF_ENG_PFS(dev)     MAX_NUM_PFS_BB
 
@@ -535,8 +554,10 @@ static inline u8 qed_concrete_to_sw_fid(struct qed_dev *cdev,
 
 #define PURE_LB_TC 8
 
+int qed_configure_vport_wfq(struct qed_dev *cdev, u16 vp_id, u32 rate);
 void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate);
 
+void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 
 /* Other Linux specific common definitions */

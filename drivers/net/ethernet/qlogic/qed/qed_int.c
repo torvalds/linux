@@ -26,6 +26,8 @@
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
+#include "qed_vf.h"
 
 struct qed_pi_info {
 	qed_int_comp_cb_t	comp_cb;
@@ -2513,6 +2515,9 @@ void qed_int_cau_conf_pi(struct qed_hwfn *p_hwfn,
 	u32 sb_offset;
 	u32 pi_offset;
 
+	if (IS_VF(p_hwfn->cdev))
+		return;
+
 	sb_offset = igu_sb_id * PIS_PER_SB;
 	memset(&pi_entry, 0, sizeof(struct cau_pi_entry));
 
@@ -2542,8 +2547,9 @@ void qed_int_sb_setup(struct qed_hwfn *p_hwfn,
 	sb_info->sb_ack = 0;
 	memset(sb_info->sb_virt, 0, sizeof(*sb_info->sb_virt));
 
-	qed_int_cau_conf_sb(p_hwfn, p_ptt, sb_info->sb_phys,
-			    sb_info->igu_sb_id, 0, 0);
+	if (IS_PF(p_hwfn->cdev))
+		qed_int_cau_conf_sb(p_hwfn, p_ptt, sb_info->sb_phys,
+				    sb_info->igu_sb_id, 0, 0);
 }
 
 /**
@@ -2563,8 +2569,10 @@ static u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn,
 	/* Assuming continuous set of IGU SBs dedicated for given PF */
 	if (sb_id == QED_SP_SB_ID)
 		igu_sb_id = p_hwfn->hw_info.p_igu_info->igu_dsb_id;
-	else
+	else if (IS_PF(p_hwfn->cdev))
 		igu_sb_id = sb_id + p_hwfn->hw_info.p_igu_info->igu_base_sb;
+	else
+		igu_sb_id = qed_vf_get_igu_sb_id(p_hwfn, sb_id);
 
 	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR, "SB [%s] index is 0x%04x\n",
 		   (sb_id == QED_SP_SB_ID) ? "DSB" : "non-DSB", igu_sb_id);
@@ -2594,9 +2602,16 @@ int qed_int_sb_init(struct qed_hwfn *p_hwfn,
 	/* The igu address will hold the absolute address that needs to be
 	 * written to for a specific status block
 	 */
-	sb_info->igu_addr = (u8 __iomem *)p_hwfn->regview +
-					  GTT_BAR0_MAP_REG_IGU_CMD +
-					  (sb_info->igu_sb_id << 3);
+	if (IS_PF(p_hwfn->cdev)) {
+		sb_info->igu_addr = (u8 __iomem *)p_hwfn->regview +
+						  GTT_BAR0_MAP_REG_IGU_CMD +
+						  (sb_info->igu_sb_id << 3);
+	} else {
+		sb_info->igu_addr = (u8 __iomem *)p_hwfn->regview +
+						  PXP_VF_BAR0_START_IGU +
+						  ((IGU_CMD_INT_ACK_BASE +
+						    sb_info->igu_sb_id) << 3);
+	}
 
 	sb_info->flags |= QED_SB_INFO_INIT;
 
@@ -2783,6 +2798,9 @@ void qed_int_igu_disable_int(struct qed_hwfn *p_hwfn,
 {
 	p_hwfn->b_int_enabled = 0;
 
+	if (IS_VF(p_hwfn->cdev))
+		return;
+
 	qed_wr(p_hwfn, p_ptt, IGU_REG_PF_CONFIGURATION, 0);
 }
 
@@ -2935,9 +2953,9 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt)
 {
 	struct qed_igu_info *p_igu_info;
+	u32 val, min_vf = 0, max_vf = 0;
+	u16 sb_id, last_iov_sb_id = 0;
 	struct qed_igu_block *blk;
-	u32 val;
-	u16 sb_id;
 	u16 prev_sb_id = 0xFF;
 
 	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_KERNEL);
@@ -2947,11 +2965,18 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 
 	p_igu_info = p_hwfn->hw_info.p_igu_info;
 
-	/* Initialize base sb / sb cnt for PFs */
+	/* Initialize base sb / sb cnt for PFs and VFs */
 	p_igu_info->igu_base_sb		= 0xffff;
 	p_igu_info->igu_sb_cnt		= 0;
 	p_igu_info->igu_dsb_id		= 0xffff;
 	p_igu_info->igu_base_sb_iov	= 0xffff;
+
+	if (p_hwfn->cdev->p_iov_info) {
+		struct qed_hw_sriov_info *p_iov = p_hwfn->cdev->p_iov_info;
+
+		min_vf	= p_iov->first_vf_in_pf;
+		max_vf	= p_iov->first_vf_in_pf + p_iov->total_vfs;
+	}
 
 	for (sb_id = 0; sb_id < QED_MAPPING_MEMORY_SIZE(p_hwfn->cdev);
 	     sb_id++) {
@@ -2986,14 +3011,43 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 					(p_igu_info->igu_sb_cnt)++;
 				}
 			}
+		} else {
+			if ((blk->function_id >= min_vf) &&
+			    (blk->function_id < max_vf)) {
+				/* Available for VFs of this PF */
+				if (p_igu_info->igu_base_sb_iov == 0xffff) {
+					p_igu_info->igu_base_sb_iov = sb_id;
+				} else if (last_iov_sb_id != sb_id - 1) {
+					if (!val) {
+						DP_VERBOSE(p_hwfn->cdev,
+							   NETIF_MSG_INTR,
+							   "First uninitialized IGU CAM entry at index 0x%04x\n",
+							   sb_id);
+					} else {
+						DP_NOTICE(p_hwfn->cdev,
+							  "Consecutive igu vectors for HWFN %x vfs is broken [jumps from %04x to %04x]\n",
+							  p_hwfn->rel_pf_id,
+							  last_iov_sb_id,
+							  sb_id); }
+					break;
+				}
+				blk->status |= QED_IGU_STATUS_FREE;
+				p_hwfn->hw_info.p_igu_info->free_blks++;
+				last_iov_sb_id = sb_id;
+			}
 		}
 	}
+	p_igu_info->igu_sb_cnt_iov = p_igu_info->free_blks;
 
-	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
-		   "IGU igu_base_sb=0x%x igu_sb_cnt=%d igu_dsb_id=0x%x\n",
-		   p_igu_info->igu_base_sb,
-		   p_igu_info->igu_sb_cnt,
-		   p_igu_info->igu_dsb_id);
+	DP_VERBOSE(
+		p_hwfn,
+		NETIF_MSG_INTR,
+		"IGU igu_base_sb=0x%x [IOV 0x%x] igu_sb_cnt=%d [IOV 0x%x] igu_dsb_id=0x%x\n",
+		p_igu_info->igu_base_sb,
+		p_igu_info->igu_base_sb_iov,
+		p_igu_info->igu_sb_cnt,
+		p_igu_info->igu_sb_cnt_iov,
+		p_igu_info->igu_dsb_id);
 
 	if (p_igu_info->igu_base_sb == 0xffff ||
 	    p_igu_info->igu_dsb_id == 0xffff ||
@@ -3114,6 +3168,23 @@ void qed_int_get_num_sbs(struct qed_hwfn	*p_hwfn,
 	p_sb_cnt_info->sb_cnt		= info->igu_sb_cnt;
 	p_sb_cnt_info->sb_iov_cnt	= info->igu_sb_cnt_iov;
 	p_sb_cnt_info->sb_free_blk	= info->free_blks;
+}
+
+u16 qed_int_queue_id_from_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id)
+{
+	struct qed_igu_info *p_info = p_hwfn->hw_info.p_igu_info;
+
+	/* Determine origin of SB id */
+	if ((sb_id >= p_info->igu_base_sb) &&
+	    (sb_id < p_info->igu_base_sb + p_info->igu_sb_cnt)) {
+		return sb_id - p_info->igu_base_sb;
+	} else if ((sb_id >= p_info->igu_base_sb_iov) &&
+		   (sb_id < p_info->igu_base_sb_iov + p_info->igu_sb_cnt_iov)) {
+		return sb_id - p_info->igu_base_sb_iov + p_info->igu_sb_cnt;
+	} else {
+		DP_NOTICE(p_hwfn, "SB %d not in range for function\n", sb_id);
+		return 0;
+	}
 }
 
 void qed_int_disable_post_isr_release(struct qed_dev *cdev)
