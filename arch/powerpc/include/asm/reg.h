@@ -643,7 +643,7 @@
 #define   MMCR0_FCWAIT	0x00000002UL /* freeze counter in WAIT state */
 #define   MMCR0_FCHV	0x00000001UL /* freeze conditions in hypervisor mode */
 #define SPRN_MMCR1	798
-#define SPRN_MMCR2	769
+#define SPRN_MMCR2	785
 #define SPRN_MMCRA	0x312
 #define   MMCRA_SDSYNC	0x80000000UL /* SDAR synced with SIAR */
 #define   MMCRA_SDAR_DCACHE_MISS 0x40000000UL
