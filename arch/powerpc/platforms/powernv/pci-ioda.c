@@ -1006,6 +1006,9 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 		return NULL;
 	}
 
+	/* Put PE to the list */
+	list_add_tail(&pe->list, &phb->ioda.pe_list);
+
 	return pe;
 }
 
