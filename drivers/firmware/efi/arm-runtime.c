@@ -107,6 +107,11 @@ static int __init arm_enable_runtime_services(void)
 		return 0;
 	}
 
+	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
+		pr_info("EFI runtime services access via paravirt.\n");
+		return 0;
+	}
+
 	pr_info("Remapping and enabling EFI services.\n");
 
 	mapsize = efi.memmap.map_end - efi.memmap.map;

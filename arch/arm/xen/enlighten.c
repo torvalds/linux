@@ -15,7 +15,9 @@
 #include <asm/paravirt.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
+#include <asm/xen/xen-ops.h>
 #include <asm/system_misc.h>
+#include <asm/efi.h>
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/module.h>
@@ -261,6 +263,19 @@ static int __init fdt_find_hyper_node(unsigned long node, const char *uname,
 	    !strncmp(hyper_node.prefix, s, strlen(hyper_node.prefix)))
 		hyper_node.version = s + strlen(hyper_node.prefix);
 
+	/*
+	 * Check if Xen supports EFI by checking whether there is the
+	 * "/hypervisor/uefi" node in DT. If so, runtime services are available
+	 * through proxy functions (e.g. in case of Xen dom0 EFI implementation
+	 * they call special hypercall which executes relevant EFI functions)
+	 * and that is why they are always enabled.
+	 */
+	if (IS_ENABLED(CONFIG_XEN_EFI)) {
+		if ((of_get_flat_dt_subnode_by_name(node, "uefi") > 0) &&
+		    !efi_runtime_disabled())
+			set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+	}
+
 	return 0;
 }
 
@@ -351,6 +366,13 @@ static int __init xen_guest_init(void)
 		pr_err("Xen event channel interrupt not found\n");
 		return -ENODEV;
 	}
+
+	/*
+	 * The fdt parsing codes have set EFI_RUNTIME_SERVICES if Xen EFI
+	 * parameters are found. Force enable runtime services.
+	 */
+	if (efi_enabled(EFI_RUNTIME_SERVICES))
+		xen_efi_runtime_setup();
 
 	shared_info_page = (struct shared_info *)get_zeroed_page(GFP_KERNEL);
 
