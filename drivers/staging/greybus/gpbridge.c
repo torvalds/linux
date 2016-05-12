@@ -57,33 +57,16 @@ static int gpbdev_uevent(struct device *dev, struct kobj_uevent_env *env)
 }
 
 static const struct gpbridge_device_id *
-gpbdev_match_cport(struct greybus_descriptor_cport *cport_desc,
-		const struct gpbridge_device_id *id)
+gpbdev_match_id(struct gpbridge_device *gpbdev, struct gpbridge_driver *gpbdrv)
 {
+	const struct gpbridge_device_id *id = gpbdrv->id_table;
+
 	if (!id)
 		return NULL;
 
 	for (; id->protocol_id; id++)
-		if (id->protocol_id == cport_desc->protocol_id)
+		if (id->protocol_id == gpbdev->cport_desc->protocol_id)
 			return id;
-
-	return NULL;
-}
-
-static const struct gpbridge_device_id *gpbdev_match_id(struct gb_bundle *bundle,
-		const struct gpbridge_device_id *id_table)
-{
-	const struct gpbridge_device_id *id;
-	int i;
-
-	if (!id_table || !bundle || bundle->num_cports == 0)
-		return NULL;
-
-	for (i = 0; i < bundle->num_cports; i++) {
-		id = gpbdev_match_cport(&bundle->cport_desc[i], id_table);
-		if (id)
-			return id;
-	}
 
 	return NULL;
 }
@@ -94,7 +77,7 @@ static int gpbdev_match(struct device *dev, struct device_driver *drv)
 	struct gpbridge_device *gpbdev = to_gpbridge_dev(dev);
 	const struct gpbridge_device_id *id;
 
-	id = gpbdev_match_id(gpbdev->bundle, gpbdrv->id_table);
+	id = gpbdev_match_id(gpbdev, gpbdrv);
 	if (id)
 		return 1;
 
@@ -107,7 +90,7 @@ static int gpbdev_probe(struct device *dev)
 	struct gpbridge_device *gpbdev = to_gpbridge_dev(dev);
 	const struct gpbridge_device_id *id;
 
-	id = gpbdev_match_id(gpbdev->bundle, gpbdrv->id_table);
+	id = gpbdev_match_id(gpbdev, gpbdrv);
 	if (!id)
 		return -ENODEV;
 
