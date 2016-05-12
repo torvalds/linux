@@ -1079,6 +1079,8 @@ extern void put_callchain_buffers(void);
 
 extern int sysctl_perf_event_max_stack;
 
+#define perf_callchain_store_context(ctx, context) perf_callchain_store(ctx, context)
+
 static inline int perf_callchain_store(struct perf_callchain_entry_ctx *ctx, u64 ip)
 {
 	if (ctx->nr < ctx->max_stack) {

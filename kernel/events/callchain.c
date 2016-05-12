@@ -200,7 +200,7 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 
 	if (kernel && !user_mode(regs)) {
 		if (add_mark)
-			perf_callchain_store(&ctx, PERF_CONTEXT_KERNEL);
+			perf_callchain_store_context(&ctx, PERF_CONTEXT_KERNEL);
 		perf_callchain_kernel(&ctx, regs);
 	}
 
@@ -217,7 +217,7 @@ get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 				goto exit_put;
 
 			if (add_mark)
-				perf_callchain_store(&ctx, PERF_CONTEXT_USER);
+				perf_callchain_store_context(&ctx, PERF_CONTEXT_USER);
 			perf_callchain_user(&ctx, regs);
 		}
 	}

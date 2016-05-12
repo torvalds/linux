@@ -76,7 +76,7 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *re
 			next_ip = regs->nip;
 			lr = regs->link;
 			level = 0;
-			perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
+			perf_callchain_store_context(entry, PERF_CONTEXT_KERNEL);
 
 		} else {
 			if (level == 0)
@@ -274,7 +274,7 @@ static void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
 			    read_user_stack_64(&uregs[PT_R1], &sp))
 				return;
 			level = 0;
-			perf_callchain_store(entry, PERF_CONTEXT_USER);
+			perf_callchain_store_context(entry, PERF_CONTEXT_USER);
 			perf_callchain_store(entry, next_ip);
 			continue;
 		}
@@ -473,7 +473,7 @@ static void perf_callchain_user_32(struct perf_callchain_entry_ctx *entry,
 			    read_user_stack_32(&uregs[PT_R1], &sp))
 				return;
 			level = 0;
-			perf_callchain_store(entry, PERF_CONTEXT_USER);
+			perf_callchain_store_context(entry, PERF_CONTEXT_USER);
 			perf_callchain_store(entry, next_ip);
 			continue;
 		}
