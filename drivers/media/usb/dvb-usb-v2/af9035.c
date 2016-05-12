@@ -348,6 +348,9 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 
 			ret = af9035_rd_regs(d, reg, &msg[1].buf[0],
 					msg[1].len);
+		} else if (state->no_read) {
+			memset(msg[1].buf, 0, msg[1].len);
+			ret = 0;
 		} else {
 			/* I2C write + read */
 			u8 buf[MAX_XFER_SIZE];
@@ -436,6 +439,9 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 		if (msg[0].len > 40) {
 			/* TODO: correct limits > 40 */
 			ret = -EOPNOTSUPP;
+		} else if (state->no_read) {
+			memset(msg[0].buf, 0, msg[0].len);
+			ret = 0;
 		} else {
 			/* I2C read */
 			u8 buf[5];
@@ -976,6 +982,21 @@ skip_eeprom:
 		else
 			state->af9033_config[i].clock = clock_lut_af9035[tmp];
 	}
+
+	state->no_read = false;
+	/* Some MXL5007T devices cannot properly handle tuner I2C read ops. */
+	if (state->af9033_config[0].tuner == AF9033_TUNER_MXL5007T &&
+		le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_AVERMEDIA)
+
+		switch (le16_to_cpu(d->udev->descriptor.idProduct)) {
+		case USB_PID_AVERMEDIA_A867:
+		case USB_PID_AVERMEDIA_TWINSTAR:
+			dev_info(&d->udev->dev,
+				"%s: Device may have issues with I2C read operations. Enabling fix.\n",
+				KBUILD_MODNAME);
+			state->no_read = true;
+			break;
+		}
 
 	return 0;
 
