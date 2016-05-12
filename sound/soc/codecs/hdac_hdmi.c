@@ -1378,9 +1378,17 @@ static int hdmi_codec_probe(struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm =
 		snd_soc_component_get_dapm(&codec->component);
 	struct hdac_hdmi_pin *pin;
+	struct hdac_ext_link *hlink = NULL;
 	int ret;
 
 	edev->scodec = codec;
+
+	/*
+	 * hold the ref while we probe, also no need to drop the ref on
+	 * exit, we call pm_runtime_suspend() so that will do for us
+	 */
+	hlink = snd_hdac_ext_bus_get_link(edev->ebus, dev_name(&edev->hdac.dev));
+	snd_hdac_ext_bus_link_get(edev->ebus, hlink);
 
 	ret = create_fill_widget_route_map(dapm);
 	if (ret < 0)
@@ -1480,8 +1488,13 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 	struct hdac_device *codec = &edev->hdac;
 	struct hdac_hdmi_priv *hdmi_priv;
 	struct snd_soc_dai_driver *hdmi_dais = NULL;
+	struct hdac_ext_link *hlink = NULL;
 	int num_dais = 0;
 	int ret = 0;
+
+	/* hold the ref while we probe */
+	hlink = snd_hdac_ext_bus_get_link(edev->ebus, dev_name(&edev->hdac.dev));
+	snd_hdac_ext_bus_link_get(edev->ebus, hlink);
 
 	hdmi_priv = devm_kzalloc(&codec->dev, sizeof(*hdmi_priv), GFP_KERNEL);
 	if (hdmi_priv == NULL)
@@ -1516,8 +1529,12 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 	}
 
 	/* ASoC specific initialization */
-	return snd_soc_register_codec(&codec->dev, &hdmi_hda_codec,
-			hdmi_dais, num_dais);
+	ret = snd_soc_register_codec(&codec->dev, &hdmi_hda_codec,
+					hdmi_dais, num_dais);
+
+	snd_hdac_ext_bus_link_put(edev->ebus, hlink);
+
+	return ret;
 }
 
 static int hdac_hdmi_dev_remove(struct hdac_ext_device *edev)
@@ -1556,6 +1573,9 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 	struct hdac_ext_device *edev = to_hda_ext_device(dev);
 	struct hdac_device *hdac = &edev->hdac;
 	struct hdac_bus *bus = hdac->bus;
+	unsigned long timeout;
+	struct hdac_ext_bus *ebus = hbus_to_ebus(bus);
+	struct hdac_ext_link *hlink = NULL;
 	int err;
 
 	dev_dbg(dev, "Enter: %s\n", __func__);
@@ -1579,6 +1599,9 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 		return err;
 	}
 
+	hlink = snd_hdac_ext_bus_get_link(ebus, dev_name(dev));
+	snd_hdac_ext_bus_link_put(ebus, hlink);
+
 	return 0;
 }
 
@@ -1587,6 +1610,8 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 	struct hdac_ext_device *edev = to_hda_ext_device(dev);
 	struct hdac_device *hdac = &edev->hdac;
 	struct hdac_bus *bus = hdac->bus;
+	struct hdac_ext_bus *ebus = hbus_to_ebus(bus);
+	struct hdac_ext_link *hlink = NULL;
 	int err;
 
 	dev_dbg(dev, "Enter: %s\n", __func__);
@@ -1594,6 +1619,9 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 	/* controller may not have been initialized for the first time */
 	if (!bus)
 		return 0;
+
+	hlink = snd_hdac_ext_bus_get_link(ebus, dev_name(dev));
+	snd_hdac_ext_bus_link_get(ebus, hlink);
 
 	err = snd_hdac_display_power(bus, true);
 	if (err < 0) {
