@@ -430,6 +430,15 @@ static void find_all_symbols(char *filename)
 	}
 }
 
+/* Return pointer to directive content, or NULL if not a directive. */
+static char *is_directive(char *line)
+{
+	if (line[0] == '!')
+		return line + 1;
+
+	return NULL;
+}
+
 /*
  * Parse file, calling action specific functions for:
  * 1) Lines containing !E
@@ -443,29 +452,30 @@ static void find_all_symbols(char *filename)
 static void parse_file(FILE *infile)
 {
 	char line[MAXLINESZ];
-	char * s;
+	char *p, *s;
 	while (fgets(line, MAXLINESZ, infile)) {
-		if (line[0] != '!') {
+		p = is_directive(line);
+		if (!p) {
 			defaultline(line);
 			continue;
 		}
 
-		s = line + 2;
-		switch (line[1]) {
+		s = p + 1;
+		switch (*p++) {
 		case 'E':
 			while (*s && !isspace(*s)) s++;
 			*s = '\0';
-			externalfunctions(line+2);
+			externalfunctions(p);
 			break;
 		case 'I':
 			while (*s && !isspace(*s)) s++;
 			*s = '\0';
-			internalfunctions(line+2);
+			internalfunctions(p);
 			break;
 		case 'D':
 			while (*s && !isspace(*s)) s++;
 			*s = '\0';
-			symbolsonly(line+2);
+			symbolsonly(p);
 			break;
 		case 'F':
 			/* filename */
@@ -474,7 +484,7 @@ static void parse_file(FILE *infile)
 			/* function names */
 			while (isspace(*s))
 				s++;
-			singlefunctions(line +2, s);
+			singlefunctions(p, s);
 			break;
 		case 'P':
 			/* filename */
@@ -483,13 +493,13 @@ static void parse_file(FILE *infile)
 			/* DOC: section name */
 			while (isspace(*s))
 				s++;
-			docsection(line + 2, s);
+			docsection(p, s);
 			break;
 		case 'C':
 			while (*s && !isspace(*s)) s++;
 			*s = '\0';
 			if (findall)
-				findall(line+2);
+				findall(p);
 			break;
 		default:
 			defaultline(line);
