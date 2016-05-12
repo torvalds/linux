@@ -1262,8 +1262,15 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	pci_set_master(dev->pdev);
 
 	/* overlay on gen2 is broken and can't address above 1G */
-	if (IS_GEN2(dev))
-		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(30));
+	if (IS_GEN2(dev)) {
+		ret = dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(30));
+		if (ret) {
+			DRM_ERROR("failed to set DMA mask\n");
+
+			goto out_ggtt;
+		}
+	}
+
 
 	/* 965GM sometimes incorrectly writes to hardware status page (HWS)
 	 * using 32bit addressing, overwriting memory if HWS is located
@@ -1273,8 +1280,15 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	 * behaviour if any general state is accessed within a page above 4GB,
 	 * which also needs to be handled carefully.
 	 */
-	if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
-		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(32));
+	if (IS_BROADWATER(dev) || IS_CRESTLINE(dev)) {
+		ret = dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(32));
+
+		if (ret) {
+			DRM_ERROR("failed to set DMA mask\n");
+
+			goto out_ggtt;
+		}
+	}
 
 	aperture_size = ggtt->mappable_end;
 
