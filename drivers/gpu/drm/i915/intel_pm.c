@@ -4026,6 +4026,14 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		skl_pipe_wm_get_hw_state(crtc);
 
+	if (dev_priv->active_crtcs) {
+		/* Fully recompute DDB on first atomic commit */
+		dev_priv->wm.distrust_bios_wm = true;
+	} else {
+		/* Easy/common case; just sanitize DDB now if everything off */
+		memset(ddb, 0, sizeof(*ddb));
+	}
+
 	/* Calculate plane data rates */
 	for_each_intel_crtc(dev, intel_crtc) {
 		struct intel_crtc_state *cstate = intel_crtc->config;
