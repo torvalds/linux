@@ -6174,6 +6174,48 @@ static int tonga_print_clock_levels(struct pp_hwmgr *hwmgr,
 	return size;
 }
 
+static int tonga_get_sclk_od(struct pp_hwmgr *hwmgr)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	struct tonga_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct tonga_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	int value;
+
+	value = (sclk_table->dpm_levels[sclk_table->count - 1].value -
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value) *
+			100 /
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return value;
+}
+
+static int tonga_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	struct tonga_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	struct pp_power_state  *ps;
+	struct tonga_power_state  *tonga_ps;
+
+	if (value > 20)
+		value = 20;
+
+	ps = hwmgr->request_ps;
+
+	if (ps == NULL)
+		return -EINVAL;
+
+	tonga_ps = cast_phw_tonga_power_state(&ps->hardware);
+
+	tonga_ps->performance_levels[tonga_ps->performance_level_count - 1].engine_clock =
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value *
+			value / 100 +
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.backend_init = &tonga_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
@@ -6216,6 +6258,8 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.set_pp_table = tonga_set_pp_table,
 	.force_clock_level = tonga_force_clock_level,
 	.print_clock_levels = tonga_print_clock_levels,
+	.get_sclk_od = tonga_get_sclk_od,
+	.set_sclk_od = tonga_set_sclk_od,
 };
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
