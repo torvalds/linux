@@ -643,7 +643,8 @@
 		pinctrl-0 = <&twl6040_pins>;
 
 		interrupts = <GIC_SPI 119 IRQ_TYPE_NONE>; /* IRQ_SYS_2N cascaded to gic */
-		ti,audpwron-gpio = <&gpio5 13 GPIO_ACTIVE_HIGH>;  /* gpio line 141 */
+
+		/* audpwron gpio defined in the board specific dts */
 
 		vio-supply = <&smps7_reg>;
 		v2v1-supply = <&smps9_reg>;
