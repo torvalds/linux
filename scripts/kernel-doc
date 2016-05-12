@@ -275,9 +275,9 @@ my $blankline_text = "";
 my @highlights_rst = (
                        [$type_constant, "``\$1``"],
                        [$type_func, "\\:c\\:func\\:`\$1`"],
-                       [$type_struct_full, "\\:ref\\:`\$1 \$2`"],
-                       [$type_enum_full, "\\:ref\\:`\$1 \$2`"],
-                       [$type_struct, "\\:ref\\:`struct \$1`"],
+                       [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_enum_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_struct, "\\:c\\:type\\:`struct \$1 <\$1>`"],
                        [$type_param, "**\$1**"]
 		      );
 my $blankline_rst = "\n";
@@ -1835,10 +1835,9 @@ sub output_enum_rst(%) {
     my %args = %{$_[0]};
     my ($parameter);
     my $count;
-
     my $name = "enum " . $args{'enum'};
-    print ".. _" . $name . ":\n\n";
-    print "**$name**\n\n";
+
+    print "\n\n.. c:type:: " . $name . "\n\n";
     print "    " . $args{'purpose'} . "\n\n";
 
     print "..\n\n:Constants:\n\n";
@@ -1863,8 +1862,9 @@ sub output_typedef_rst(%) {
     my $count;
     my $name = "typedef " . $args{'typedef'};
 
-    print "**$name**\n\n";
-    print $args{'purpose'} . "\n\n";
+    ### FIXME: should the name below contain "typedef" or not?
+    print "\n\n.. c:type:: " . $name . "\n\n";
+    print "    " . $args{'purpose'} . "\n\n";
 
     output_section_rst(@_);
 }
@@ -1874,8 +1874,7 @@ sub output_struct_rst(%) {
     my ($parameter);
     my $name = $args{'type'} . " " . $args{'struct'};
 
-    print ".. _" . $name . ":\n\n";
-    print "**$name**\n\n";
+    print "\n\n.. c:type:: " . $name . "\n\n";
     print "    " . $args{'purpose'} . "\n\n";
 
     print ":Definition:\n\n";
