@@ -78,9 +78,9 @@ static int cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
 static unsigned int __cpufreq_get(struct cpufreq_policy *policy);
 static int cpufreq_start_governor(struct cpufreq_policy *policy);
 
-static inline int cpufreq_exit_governor(struct cpufreq_policy *policy)
+static inline void cpufreq_exit_governor(struct cpufreq_policy *policy)
 {
-	return cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
+	(void)cpufreq_governor(policy, CPUFREQ_GOV_POLICY_EXIT);
 }
 
 /**
@@ -1387,12 +1387,8 @@ static void cpufreq_offline(unsigned int cpu)
 	if (cpufreq_driver->stop_cpu)
 		cpufreq_driver->stop_cpu(policy);
 
-	/* If cpu is last user of policy, free policy */
-	if (has_target()) {
-		ret = cpufreq_exit_governor(policy);
-		if (ret)
-			pr_err("%s: Failed to exit governor\n", __func__);
-	}
+	if (has_target())
+		cpufreq_exit_governor(policy);
 
 	/*
 	 * Perform the ->exit() even during light-weight tear-down,
@@ -2049,16 +2045,15 @@ static int cpufreq_governor(struct cpufreq_policy *policy, unsigned int event)
 
 	ret = policy->governor->governor(policy, event);
 
-	if (!ret) {
-		if (event == CPUFREQ_GOV_POLICY_INIT)
+	if (event == CPUFREQ_GOV_POLICY_INIT) {
+		if (ret)
+			module_put(policy->governor->owner);
+		else
 			policy->governor->initialized++;
-		else if (event == CPUFREQ_GOV_POLICY_EXIT)
-			policy->governor->initialized--;
-	}
-
-	if (((event == CPUFREQ_GOV_POLICY_INIT) && ret) ||
-			((event == CPUFREQ_GOV_POLICY_EXIT) && !ret))
+	} else if (event == CPUFREQ_GOV_POLICY_EXIT) {
+		policy->governor->initialized--;
 		module_put(policy->governor->owner);
+	}
 
 	return ret;
 }
@@ -2228,13 +2223,7 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 				 __func__, old_gov->name, ret);
 			return ret;
 		}
-
-		ret = cpufreq_exit_governor(policy);
-		if (ret) {
-			pr_err("%s: Failed to Exit Governor: %s (%d)\n",
-			       __func__, old_gov->name, ret);
-			return ret;
-		}
+		cpufreq_exit_governor(policy);
 	}
 
 	/* start new governor */
