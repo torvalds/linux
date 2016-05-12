@@ -203,8 +203,6 @@ skl_update_plane(struct drm_plane *drm_plane,
 	uint32_t y = plane_state->src.y1 >> 16;
 	uint32_t src_w = drm_rect_width(&plane_state->src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->src) >> 16;
-	const struct intel_scaler *scaler =
-		&crtc_state->scaler_state.scalers[plane_state->scaler_id];
 
 	plane_ctl = PLANE_CTL_ENABLE |
 		PLANE_CTL_PIPE_GAMMA_ENABLE |
@@ -260,13 +258,16 @@ skl_update_plane(struct drm_plane *drm_plane,
 
 	/* program plane scaler */
 	if (plane_state->scaler_id >= 0) {
-		uint32_t ps_ctrl = 0;
 		int scaler_id = plane_state->scaler_id;
+		const struct intel_scaler *scaler;
 
 		DRM_DEBUG_KMS("plane = %d PS_PLANE_SEL(plane) = 0x%x\n", plane,
 			PS_PLANE_SEL(plane));
-		ps_ctrl = PS_SCALER_EN | PS_PLANE_SEL(plane) | scaler->mode;
-		I915_WRITE(SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
+
+		scaler = &crtc_state->scaler_state.scalers[scaler_id];
+
+		I915_WRITE(SKL_PS_CTRL(pipe, scaler_id),
+			   PS_SCALER_EN | PS_PLANE_SEL(plane) | scaler->mode);
 		I915_WRITE(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
 		I915_WRITE(SKL_PS_WIN_POS(pipe, scaler_id), (crtc_x << 16) | crtc_y);
 		I915_WRITE(SKL_PS_WIN_SZ(pipe, scaler_id),
