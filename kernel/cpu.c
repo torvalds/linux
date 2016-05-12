@@ -703,21 +703,6 @@ static int takedown_cpu(unsigned int cpu)
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	int err;
 
-	/*
-	 * By now we've cleared cpu_active_mask, wait for all preempt-disabled
-	 * and RCU users of this state to go away such that all new such users
-	 * will observe it.
-	 *
-	 * For CONFIG_PREEMPT we have preemptible RCU and its sync_rcu() might
-	 * not imply sync_sched(), so wait for both.
-	 *
-	 * Do sync before park smpboot threads to take care the rcu boost case.
-	 */
-	if (IS_ENABLED(CONFIG_PREEMPT))
-		synchronize_rcu_mult(call_rcu, call_rcu_sched);
-	else
-		synchronize_rcu();
-
 	/* Park the smpboot threads */
 	kthread_park(per_cpu_ptr(&cpuhp_state, cpu)->thread);
 	smpboot_park_threads(cpu);
@@ -923,8 +908,6 @@ void cpuhp_online_idle(enum cpuhp_state state)
 
 	st->state = CPUHP_AP_ONLINE_IDLE;
 
-	/* The cpu is marked online, set it active now */
-	set_cpu_active(cpu, true);
 	/* Unpark the stopper thread and the hotplug thread of this cpu */
 	stop_machine_unpark(cpu);
 	kthread_unpark(st->thread);
@@ -1236,6 +1219,12 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.name			= "ap:offline",
 		.cant_stop		= true,
 	},
+	/* First state is scheduler control. Interrupts are disabled */
+	[CPUHP_AP_SCHED_STARTING] = {
+		.name			= "sched:starting",
+		.startup		= sched_cpu_starting,
+		.teardown		= sched_cpu_dying,
+	},
 	/*
 	 * Low level startup/teardown notifiers. Run with interrupts
 	 * disabled. Will be removed once the notifiers are converted to
@@ -1273,6 +1262,15 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	/*
 	 * The dynamically registered state space is here
 	 */
+
+#ifdef CONFIG_SMP
+	/* Last state is scheduler control setting the cpu active */
+	[CPUHP_AP_ACTIVE] = {
+		.name			= "sched:active",
+		.startup		= sched_cpu_activate,
+		.teardown		= sched_cpu_deactivate,
+	},
+#endif
 
 	/* CPU is fully up and running. */
 	[CPUHP_ONLINE] = {
