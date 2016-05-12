@@ -1883,9 +1883,8 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 		get_unit_name((dd)->unit), ##__VA_ARGS__)
 
 #define hfi1_dev_porterr(dd, port, fmt, ...) \
-	dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
-			get_unit_name((dd)->unit), (dd)->unit, (port), \
-			##__VA_ARGS__)
+	dev_err(&(dd)->pcidev->dev, "%s: port %u: " fmt, \
+			get_unit_name((dd)->unit), (port), ##__VA_ARGS__)
 
 /*
  * this is used for formatting hw error messages...

@@ -721,8 +721,8 @@ int hfi1_create_port_files(struct ib_device *ibdev, u8 port_num,
 	}
 
 	dd_dev_info(dd,
-		    "IB%u: Congestion Control Agent enabled for port %d\n",
-		    dd->unit, port_num);
+		    "Congestion Control Agent enabled for port %d\n",
+		    port_num);
 
 	return 0;
 

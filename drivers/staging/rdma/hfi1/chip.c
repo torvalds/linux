@@ -14588,7 +14588,7 @@ u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
 		   (reason), (ret))
 
 /*
- * Initialize the Avago Thermal sensor.
+ * Initialize the thermal sensor.
  *
  * After initialization, enable polling of thermal sensor through
  * SBus interface. In order for this to work, the SBus Master
