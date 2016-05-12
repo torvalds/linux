@@ -487,23 +487,32 @@ __rwsem_down_write_failed_common(struct rw_semaphore *sem, int state)
 
 		/* Block until there are no active lockers. */
 		do {
-			if (signal_pending_state(state, current)) {
-				raw_spin_lock_irq(&sem->wait_lock);
-				ret = ERR_PTR(-EINTR);
-				goto out;
-			}
+			if (signal_pending_state(state, current))
+				goto out_nolock;
+
 			schedule();
 			set_current_state(state);
 		} while ((count = sem->count) & RWSEM_ACTIVE_MASK);
 
 		raw_spin_lock_irq(&sem->wait_lock);
 	}
-out:
 	__set_current_state(TASK_RUNNING);
 	list_del(&waiter.list);
 	raw_spin_unlock_irq(&sem->wait_lock);
 
 	return ret;
+
+out_nolock:
+	__set_current_state(TASK_RUNNING);
+	raw_spin_lock_irq(&sem->wait_lock);
+	list_del(&waiter.list);
+	if (list_empty(&sem->wait_list))
+		rwsem_atomic_update(-RWSEM_WAITING_BIAS, sem);
+	else
+		__rwsem_do_wake(sem, RWSEM_WAKE_ANY);
+	raw_spin_unlock_irq(&sem->wait_lock);
+
+	return ERR_PTR(-EINTR);
 }
 
 __visible struct rw_semaphore * __sched
