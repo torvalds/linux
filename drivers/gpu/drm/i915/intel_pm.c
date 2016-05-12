@@ -3812,6 +3812,84 @@ static void skl_clear_wm(struct skl_wm_values *watermarks, enum pipe pipe)
 
 }
 
+static int
+skl_compute_ddb(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct intel_crtc *intel_crtc;
+	unsigned realloc_pipes = dev_priv->active_crtcs;
+	int ret;
+
+	/*
+	 * If this is our first atomic update following hardware readout,
+	 * we can't trust the DDB that the BIOS programmed for us.  Let's
+	 * pretend that all pipes switched active status so that we'll
+	 * ensure a full DDB recompute.
+	 */
+	if (dev_priv->wm.distrust_bios_wm)
+		intel_state->active_pipe_changes = ~0;
+
+	/*
+	 * If the modeset changes which CRTC's are active, we need to
+	 * recompute the DDB allocation for *all* active pipes, even
+	 * those that weren't otherwise being modified in any way by this
+	 * atomic commit.  Due to the shrinking of the per-pipe allocations
+	 * when new active CRTC's are added, it's possible for a pipe that
+	 * we were already using and aren't changing at all here to suddenly
+	 * become invalid if its DDB needs exceeds its new allocation.
+	 *
+	 * Note that if we wind up doing a full DDB recompute, we can't let
+	 * any other display updates race with this transaction, so we need
+	 * to grab the lock on *all* CRTC's.
+	 */
+	if (intel_state->active_pipe_changes)
+		realloc_pipes = ~0;
+
+	for_each_intel_crtc_mask(dev, intel_crtc, realloc_pipes) {
+		struct intel_crtc_state *cstate;
+
+		cstate = intel_atomic_get_crtc_state(state, intel_crtc);
+		if (IS_ERR(cstate))
+			return PTR_ERR(cstate);
+
+		ret = skl_allocate_pipe_ddb(cstate, &intel_state->ddb);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int
+skl_compute_wm(struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *cstate;
+	int ret, i;
+	bool changed = false;
+
+	/*
+	 * If this transaction isn't actually touching any CRTC's, don't
+	 * bother with watermark calculation.  Note that if we pass this
+	 * test, we're guaranteed to hold at least one CRTC state mutex,
+	 * which means we can safely use values like dev_priv->active_crtcs
+	 * since any racing commits that want to update them would need to
+	 * hold _all_ CRTC state mutexes.
+	 */
+	for_each_crtc_in_state(state, crtc, cstate, i)
+		changed = true;
+	if (!changed)
+		return 0;
+
+	ret = skl_compute_ddb(state);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static void skl_update_wm(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -7334,6 +7412,7 @@ void intel_init_pm(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 9) {
 		skl_setup_wm_latency(dev);
 		dev_priv->display.update_wm = skl_update_wm;
+		dev_priv->display.compute_global_watermarks = skl_compute_wm;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		ilk_setup_wm_latency(dev);
 

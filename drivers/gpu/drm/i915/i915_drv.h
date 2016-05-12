@@ -339,6 +339,10 @@ struct i915_hotplug {
 #define for_each_intel_crtc(dev, intel_crtc) \
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
 
+#define for_each_intel_crtc_mask(dev, intel_crtc, crtc_mask) \
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head) \
+		for_each_if ((crtc_mask) & (1 << drm_crtc_index(&intel_crtc->base)))
+
 #define for_each_intel_encoder(dev, intel_encoder)		\
 	list_for_each_entry(intel_encoder,			\
 			    &(dev)->mode_config.encoder_list,	\
@@ -594,6 +598,7 @@ struct drm_i915_display_funcs {
 				       struct intel_crtc_state *newstate);
 	void (*initial_watermarks)(struct intel_crtc_state *cstate);
 	void (*optimize_watermarks)(struct intel_crtc_state *cstate);
+	int (*compute_global_watermarks)(struct drm_atomic_state *state);
 	void (*update_wm)(struct drm_crtc *crtc);
 	int (*modeset_calc_cdclk)(struct drm_atomic_state *state);
 	void (*modeset_commit_cdclk)(struct drm_atomic_state *state);

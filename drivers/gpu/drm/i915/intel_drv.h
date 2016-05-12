@@ -312,6 +312,9 @@ struct intel_atomic_state {
 	 * don't bother calculating intermediate watermarks.
 	 */
 	bool skip_intermediate_wm;
+
+	/* Gen9+ only */
+	struct skl_ddb_allocation ddb;
 };
 
 struct intel_plane_state {

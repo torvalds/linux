@@ -13312,6 +13312,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 static void calc_watermark_data(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *cstate;
@@ -13341,6 +13342,10 @@ static void calc_watermark_data(struct drm_atomic_state *state)
 		    pstate->crtc_h != pstate->src_h >> 16)
 			intel_state->wm_config.sprites_scaled = true;
 	}
+
+	/* Is there platform-specific watermark information to calculate? */
+	if (dev_priv->display.compute_global_watermarks)
+		dev_priv->display.compute_global_watermarks(state);
 }
 
 /**
@@ -13711,6 +13716,19 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 		intel_modeset_verify_crtc(crtc, old_crtc_state, crtc->state);
 	}
+
+	/*
+	 * Temporary sanity check: make sure our pre-computed DDB matches the
+	 * one we actually wind up programming.
+	 *
+	 * Not a great place to put this, but the easiest place we have access
+	 * to both the pre-computed and final DDB's; we'll be removing this
+	 * check in the next patch anyway.
+	 */
+	WARN(IS_GEN9(dev) &&
+	     memcmp(&intel_state->ddb, &dev_priv->wm.skl_results.ddb,
+		    sizeof(intel_state->ddb)),
+	     "Pre-computed DDB does not match final DDB!\n");
 
 	if (intel_state->modeset)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
