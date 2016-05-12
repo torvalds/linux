@@ -1,5 +1,4 @@
-/* vi: ts=8 sw=8
- *
+/*
  * TI 3410/5052 USB Serial Driver
  *
  * Copyright (C) 2004 Texas Instruments
@@ -37,8 +36,6 @@
 
 #include "ti_usb_3410_5052.h"
 
-/* Defines */
-
 #define TI_DRIVER_AUTHOR	"Al Borchers <alborchers@steinerpoint.com>"
 #define TI_DRIVER_DESC		"TI USB 3410/5052 Serial Driver"
 
@@ -57,9 +54,6 @@
 #define TI_READ_URB_STOPPED	2
 
 #define TI_EXTRA_VID_PID_COUNT	5
-
-
-/* Structures */
 
 struct ti_port {
 	int			tp_is_open;
@@ -83,9 +77,6 @@ struct ti_device {
 	bool			td_rs485_only;
 	int			td_urb_error;
 };
-
-
-/* Function Declarations */
 
 static int ti_startup(struct usb_serial *serial);
 static void ti_release(struct usb_serial *serial);
@@ -136,13 +127,8 @@ static int ti_write_byte(struct usb_serial_port *port, struct ti_device *tdev,
 
 static int ti_download_firmware(struct ti_device *tdev);
 
-
-/* Data */
-
-/* module parameters */
 static int closing_wait = TI_DEFAULT_CLOSING_WAIT;
 
-/* supported devices */
 static const struct usb_device_id ti_id_table_3410[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_3410_EZ430_ID) },
@@ -174,7 +160,7 @@ static const struct usb_device_id ti_id_table_5052[] = {
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5152_BOOT_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_EEPROM_PRODUCT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, TI_5052_FIRMWARE_PRODUCT_ID) },
-	{ }	/* terminator */
+	{ }
 };
 
 static const struct usb_device_id ti_id_table_combined[] = {
@@ -275,8 +261,6 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&ti_1port_device, &ti_2port_device, NULL
 };
 
-/* Module */
-
 MODULE_AUTHOR(TI_DRIVER_AUTHOR);
 MODULE_DESCRIPTION(TI_DRIVER_DESC);
 MODULE_LICENSE("GPL");
@@ -302,8 +286,6 @@ MODULE_DEVICE_TABLE(usb, ti_id_table_combined);
 
 module_usb_serial_driver(serial_drivers, ti_id_table_combined);
 
-/* Functions */
-
 static int ti_startup(struct usb_serial *serial)
 {
 	struct ti_device *tdev;
@@ -319,7 +301,6 @@ static int ti_startup(struct usb_serial *serial)
 		dev->descriptor.bNumConfigurations,
 		dev->actconfig->desc.bConfigurationValue);
 
-	/* create device structure */
 	tdev = kzalloc(sizeof(struct ti_device), GFP_KERNEL);
 	if (!tdev)
 		return -ENOMEM;
