@@ -1388,8 +1388,16 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 				hdmi_to_dig_port(intel_hdmi));
 	}
 
-	if (!live_status)
-		DRM_DEBUG_KMS("Live status not up!");
+	if (!live_status) {
+		DRM_DEBUG_KMS("HDMI live status down\n");
+		/*
+		 * Live status register is not reliable on all intel platforms.
+		 * So consider live_status only for certain platforms, for
+		 * others, read EDID to determine presence of sink.
+		 */
+		if (INTEL_INFO(dev_priv)->gen < 7 || IS_IVYBRIDGE(dev_priv))
+			live_status = true;
+	}
 
 	intel_hdmi_unset_edid(connector);
 

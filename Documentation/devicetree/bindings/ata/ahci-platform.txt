@@ -30,6 +30,10 @@ Optional properties:
 - target-supply     : regulator for SATA target power
 - phys              : reference to the SATA PHY node
 - phy-names         : must be "sata-phy"
+- ports-implemented : Mask that indicates which ports that the HBA supports
+		      are available for software to use. Useful if PORTS_IMPL
+		      is not programmed by the BIOS, which is true with
+		      some embedded SOC's.
 
 Required properties when using sub-nodes:
 - #address-cells    : number of cells to encode an address

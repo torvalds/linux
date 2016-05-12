@@ -445,6 +445,7 @@ int intel_lpss_probe(struct device *dev,
 err_remove_ltr:
 	intel_lpss_debugfs_remove(lpss);
 	intel_lpss_ltr_hide(lpss);
+	intel_lpss_unregister_clock(lpss);
 
 err_clk_register:
 	ida_simple_remove(&intel_lpss_devid_ida, lpss->devid);

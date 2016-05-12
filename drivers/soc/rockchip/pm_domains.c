@@ -419,6 +419,7 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 		if (error) {
 			dev_err(dev, "failed to handle node %s: %d\n",
 				node->name, error);
+			of_node_put(node);
 			goto err_out;
 		}
 	}
