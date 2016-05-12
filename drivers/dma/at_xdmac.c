@@ -1400,6 +1400,7 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	u32			cur_nda, check_nda, cur_ubc, mask, value;
 	u8			dwidth = 0;
 	unsigned long		flags;
+	bool			initd;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret == DMA_COMPLETE)
@@ -1435,34 +1436,43 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	}
 
 	/*
-	 * When processing the residue, we need to read two registers but we
-	 * can't do it in an atomic way. AT_XDMAC_CNDA is used to find where
-	 * we stand in the descriptor list and AT_XDMAC_CUBC is used
-	 * to know how many data are remaining for the current descriptor.
-	 * Since the dma channel is not paused to not loose data, between the
-	 * AT_XDMAC_CNDA and AT_XDMAC_CUBC read, we may have change of
-	 * descriptor.
-	 * For that reason, after reading AT_XDMAC_CUBC, we check if we are
-	 * still using the same descriptor by reading a second time
-	 * AT_XDMAC_CNDA. If AT_XDMAC_CNDA has changed, it means we have to
-	 * read again AT_XDMAC_CUBC.
+	 * The easiest way to compute the residue should be to pause the DMA
+	 * but doing this can lead to miss some data as some devices don't
+	 * have FIFO.
+	 * We need to read several registers because:
+	 * - DMA is running therefore a descriptor change is possible while
+	 * reading these registers
+	 * - When the block transfer is done, the value of the CUBC register
+	 * is set to its initial value until the fetch of the next descriptor.
+	 * This value will corrupt the residue calculation so we have to skip
+	 * it.
+	 *
+	 * INITD --------                    ------------
+	 *              |____________________|
+	 *       _______________________  _______________
+	 * NDA       @desc2             \/   @desc3
+	 *       _______________________/\_______________
+	 *       __________  ___________  _______________
+	 * CUBC       0    \/ MAX desc1 \/  MAX desc2
+	 *       __________/\___________/\_______________
+	 *
+	 * Since descriptors are aligned on 64 bits, we can assume that
+	 * the update of NDA and CUBC is atomic.
 	 * Memory barriers are used to ensure the read order of the registers.
-	 * A max number of retries is set because unlikely it can never ends if
-	 * we are transferring a lot of data with small buffers.
+	 * A max number of retries is set because unlikely it could never ends.
 	 */
-	cur_nda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA) & 0xfffffffc;
-	rmb();
-	cur_ubc = at_xdmac_chan_read(atchan, AT_XDMAC_CUBC);
 	for (retry = 0; retry < AT_XDMAC_RESIDUE_MAX_RETRIES; retry++) {
-		rmb();
 		check_nda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA) & 0xfffffffc;
-
-		if (likely(cur_nda == check_nda))
-			break;
-
-		cur_nda = check_nda;
+		rmb();
+		initd = !!(at_xdmac_chan_read(atchan, AT_XDMAC_CC) & AT_XDMAC_CC_INITD);
 		rmb();
 		cur_ubc = at_xdmac_chan_read(atchan, AT_XDMAC_CUBC);
+		rmb();
+		cur_nda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA) & 0xfffffffc;
+		rmb();
+
+		if ((check_nda == cur_nda) && initd)
+			break;
 	}
 
 	if (unlikely(retry >= AT_XDMAC_RESIDUE_MAX_RETRIES)) {
