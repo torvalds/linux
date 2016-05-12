@@ -2091,8 +2091,10 @@ static int visornic_init(void)
 		goto cleanup_debugfs;
 
 	err = visorbus_register_visor_driver(&visornic_driver);
-	if (!err)
-		return 0;
+	if (err)
+		goto cleanup_debugfs;
+
+	return 0;
 
 cleanup_debugfs:
 	debugfs_remove_recursive(visornic_debugfs_dir);
