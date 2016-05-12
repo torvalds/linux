@@ -1000,25 +1000,28 @@ visornic_set_multi(struct net_device *netdev)
 	struct uiscmdrsp *cmdrsp;
 	struct visornic_devdata *devdata = netdev_priv(netdev);
 
-	/* any filtering changes */
-	if (devdata->old_flags != netdev->flags) {
-		if ((netdev->flags & IFF_PROMISC) !=
-		    (devdata->old_flags & IFF_PROMISC)) {
-			cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-			if (!cmdrsp)
-				return;
-			cmdrsp->cmdtype = CMD_NET_TYPE;
-			cmdrsp->net.type = NET_RCV_PROMISC;
-			cmdrsp->net.enbdis.context = netdev;
-			cmdrsp->net.enbdis.enable =
-				netdev->flags & IFF_PROMISC;
-			visorchannel_signalinsert(devdata->dev->visorchannel,
-						  IOCHAN_TO_IOPART,
-						  cmdrsp);
-			kfree(cmdrsp);
-		}
-		devdata->old_flags = netdev->flags;
-	}
+	if (devdata->old_flags == netdev->flags)
+		return;
+
+	if ((netdev->flags & IFF_PROMISC) ==
+	    (devdata->old_flags & IFF_PROMISC))
+		goto out_save_flags;
+
+	cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
+	if (!cmdrsp)
+		return;
+	cmdrsp->cmdtype = CMD_NET_TYPE;
+	cmdrsp->net.type = NET_RCV_PROMISC;
+	cmdrsp->net.enbdis.context = netdev;
+	cmdrsp->net.enbdis.enable =
+		netdev->flags & IFF_PROMISC;
+	visorchannel_signalinsert(devdata->dev->visorchannel,
+				  IOCHAN_TO_IOPART,
+				  cmdrsp);
+	kfree(cmdrsp);
+
+out_save_flags:
+	devdata->old_flags = netdev->flags;
 }
 
 /**
