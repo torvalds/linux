@@ -378,28 +378,6 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
-				struct sg_table *sgt,
-				enum dma_data_direction dir)
-{
-	int nents;
-
-	nents = dma_map_sg(to_dma_dev(drm_dev), sgt->sgl, sgt->nents, dir);
-	if (!nents) {
-		DRM_ERROR("failed to map sgl with dma.\n");
-		return nents;
-	}
-
-	return 0;
-}
-
-void exynos_gem_unmap_sgt_from_dma(struct drm_device *drm_dev,
-				struct sg_table *sgt,
-				enum dma_data_direction dir)
-{
-	dma_unmap_sg(to_dma_dev(drm_dev), sgt->sgl, sgt->nents, dir);
-}
-
 void exynos_drm_gem_free_object(struct drm_gem_object *obj)
 {
 	exynos_drm_gem_destroy(to_exynos_gem(obj));
@@ -503,21 +481,11 @@ out:
 	}
 }
 
-int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+static int exynos_drm_gem_mmap_obj(struct drm_gem_object *obj,
+				   struct vm_area_struct *vma)
 {
-	struct exynos_drm_gem *exynos_gem;
-	struct drm_gem_object *obj;
+	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
 	int ret;
-
-	/* set vm_area_struct. */
-	ret = drm_gem_mmap(filp, vma);
-	if (ret < 0) {
-		DRM_ERROR("failed to mmap.\n");
-		return ret;
-	}
-
-	obj = vma->vm_private_data;
-	exynos_gem = to_exynos_gem(obj);
 
 	DRM_DEBUG_KMS("flags = 0x%x\n", exynos_gem->flags);
 
@@ -541,6 +509,26 @@ err_close_vm:
 	drm_gem_vm_close(vma);
 
 	return ret;
+}
+
+int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct drm_gem_object *obj;
+	int ret;
+
+	/* set vm_area_struct. */
+	ret = drm_gem_mmap(filp, vma);
+	if (ret < 0) {
+		DRM_ERROR("failed to mmap.\n");
+		return ret;
+	}
+
+	obj = vma->vm_private_data;
+
+	if (obj->import_attach)
+		return dma_buf_mmap(obj->dma_buf, vma, 0);
+
+	return exynos_drm_gem_mmap_obj(obj, vma);
 }
 
 /* low-level interface prime helpers */
@@ -616,4 +604,16 @@ void *exynos_drm_gem_prime_vmap(struct drm_gem_object *obj)
 void exynos_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
 	/* Nothing to do */
+}
+
+int exynos_drm_gem_prime_mmap(struct drm_gem_object *obj,
+			      struct vm_area_struct *vma)
+{
+	int ret;
+
+	ret = drm_gem_mmap_obj(obj, obj->size, vma);
+	if (ret < 0)
+		return ret;
+
+	return exynos_drm_gem_mmap_obj(obj, vma);
 }

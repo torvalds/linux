@@ -1632,50 +1632,6 @@ static const struct drm_encoder_funcs exynos_dsi_encoder_funcs = {
 
 MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
 
-/* of_* functions will be removed after merge of of_graph patches */
-static struct device_node *
-of_get_child_by_name_reg(struct device_node *parent, const char *name, u32 reg)
-{
-	struct device_node *np;
-
-	for_each_child_of_node(parent, np) {
-		u32 r;
-
-		if (!np->name || of_node_cmp(np->name, name))
-			continue;
-
-		if (of_property_read_u32(np, "reg", &r) < 0)
-			r = 0;
-
-		if (reg == r)
-			break;
-	}
-
-	return np;
-}
-
-static struct device_node *of_graph_get_port_by_reg(struct device_node *parent,
-						    u32 reg)
-{
-	struct device_node *ports, *port;
-
-	ports = of_get_child_by_name(parent, "ports");
-	if (ports)
-		parent = ports;
-
-	port = of_get_child_by_name_reg(parent, "port", reg);
-
-	of_node_put(ports);
-
-	return port;
-}
-
-static struct device_node *
-of_graph_get_endpoint_by_reg(struct device_node *port, u32 reg)
-{
-	return of_get_child_by_name_reg(port, "endpoint", reg);
-}
-
 static int exynos_dsi_of_read_u32(const struct device_node *np,
 				  const char *propname, u32 *out_value)
 {
@@ -1697,7 +1653,7 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 {
 	struct device *dev = dsi->dev;
 	struct device_node *node = dev->of_node;
-	struct device_node *port, *ep;
+	struct device_node *ep;
 	int ret;
 
 	ret = exynos_dsi_of_read_u32(node, "samsung,pll-clock-frequency",
@@ -1705,16 +1661,9 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 	if (ret < 0)
 		return ret;
 
-	port = of_graph_get_port_by_reg(node, DSI_PORT_OUT);
-	if (!port) {
-		dev_err(dev, "no output port specified\n");
-		return -EINVAL;
-	}
-
-	ep = of_graph_get_endpoint_by_reg(port, 0);
-	of_node_put(port);
+	ep = of_graph_get_endpoint_by_regs(node, DSI_PORT_OUT, 0);
 	if (!ep) {
-		dev_err(dev, "no endpoint specified in output port\n");
+		dev_err(dev, "no output port with endpoint specified\n");
 		return -EINVAL;
 	}
 

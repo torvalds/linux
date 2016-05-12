@@ -147,11 +147,13 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 	val = CMU_CLKGAGE_MODE_SFR_F | CMU_CLKGAGE_MODE_MEM_F;
 	writel(val, ctx->addr + DECON_CMU);
 
+	if (ctx->out_type & (IFTYPE_I80 | I80_HW_TRG))
+		decon_setup_trigger(ctx);
+
 	/* lcd on and use command if */
 	val = VIDOUT_LCD_ON;
 	if (ctx->out_type & IFTYPE_I80) {
 		val |= VIDOUT_COMMAND_IF;
-		decon_setup_trigger(ctx);
 	} else {
 		val |= VIDOUT_RGB_IF;
 	}
@@ -376,9 +378,6 @@ static void decon_swreset(struct decon_context *ctx)
 	writel(VIDCON1_VCLK_RUN_VDEN_DISABLE, ctx->addr + DECON_VIDCON1);
 	writel(CRCCTRL_CRCEN | CRCCTRL_CRCSTART_F | CRCCTRL_CRCCLKEN,
 	       ctx->addr + DECON_CRCCTRL);
-
-	if (ctx->out_type & IFTYPE_I80)
-		decon_setup_trigger(ctx);
 }
 
 static void decon_enable(struct exynos_drm_crtc *crtc)
@@ -434,13 +433,12 @@ static void decon_te_irq_handler(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 
-	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags))
+	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags) ||
+	    (ctx->out_type & I80_HW_TRG))
 		return;
 
 	if (test_and_clear_bit(BIT_WIN_UPDATED, &ctx->flags))
 		decon_set_bits(ctx, DECON_TRIGCON, TRIGCON_SWTRIGCMD, ~0);
-
-	drm_crtc_handle_vblank(&ctx->crtc->base);
 }
 
 static void decon_clear_channels(struct exynos_drm_crtc *crtc)
@@ -573,6 +571,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 
 		/* clear */
 		writel(val, ctx->addr + DECON_VIDINTCON1);
+		drm_crtc_handle_vblank(&ctx->crtc->base);
 	}
 
 out:
@@ -648,9 +647,8 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 
 	if (ctx->out_type & IFTYPE_HDMI) {
 		ctx->first_win = 1;
-		ctx->out_type = IFTYPE_I80;
 	} else if (of_get_child_by_name(dev->of_node, "i80-if-timings")) {
-		ctx->out_type = IFTYPE_I80;
+		ctx->out_type |= IFTYPE_I80;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++) {
