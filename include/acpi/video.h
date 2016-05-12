@@ -71,7 +71,7 @@ static inline bool acpi_video_handles_brightness_key_presses(void)
 {
 	return false;
 }
-static int acpi_video_get_levels(struct acpi_device *device,
+static inline int acpi_video_get_levels(struct acpi_device *device,
 			struct acpi_video_device_brightness **dev_br)
 {
 	return -ENODEV;
