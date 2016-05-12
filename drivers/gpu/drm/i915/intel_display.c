@@ -13313,35 +13313,6 @@ static int calc_watermark_data(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *cstate;
-	struct drm_plane *plane;
-	struct drm_plane_state *pstate;
-
-	/*
-	 * Calculate watermark configuration details now that derived
-	 * plane/crtc state is all properly updated.
-	 */
-	drm_for_each_crtc(crtc, dev) {
-		cstate = drm_atomic_get_existing_crtc_state(state, crtc) ?:
-			crtc->state;
-
-		if (cstate->active)
-			intel_state->wm_config.num_pipes_active++;
-	}
-	drm_for_each_legacy_plane(plane, dev) {
-		pstate = drm_atomic_get_existing_plane_state(state, plane) ?:
-			plane->state;
-
-		if (!to_intel_plane_state(pstate)->visible)
-			continue;
-
-		intel_state->wm_config.sprites_enabled = true;
-		if (pstate->crtc_w != pstate->src_w >> 16 ||
-		    pstate->crtc_h != pstate->src_h >> 16)
-			intel_state->wm_config.sprites_scaled = true;
-	}
 
 	/* Is there platform-specific watermark information to calculate? */
 	if (dev_priv->display.compute_global_watermarks)
@@ -13598,7 +13569,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 	}
 
 	drm_atomic_helper_swap_state(dev, state);
-	dev_priv->wm.config = intel_state->wm_config;
 	dev_priv->wm.distrust_bios_wm = false;
 	dev_priv->wm.skl_results = intel_state->wm_results;
 	intel_shared_dpll_commit(state);
@@ -15367,7 +15337,6 @@ retry:
 	}
 
 	/* Write calculated watermark values back */
-	to_i915(dev)->wm.config = to_intel_atomic_state(state)->wm_config;
 	for_each_crtc_in_state(state, crtc, cstate, i) {
 		struct intel_crtc_state *cs = to_intel_crtc_state(cstate);
 

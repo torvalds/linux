@@ -1975,9 +1975,6 @@ struct drm_i915_private {
 		 */
 		uint16_t skl_latency[8];
 
-		/* Committed wm config */
-		struct intel_wm_config config;
-
 		/*
 		 * The skl_wm_values structure is a bit too big for stack
 		 * allocation, so we keep the staging struct where we store
