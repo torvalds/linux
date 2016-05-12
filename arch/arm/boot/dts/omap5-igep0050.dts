@@ -35,6 +35,22 @@
 	};
 };
 
+/* LDO4 is VPP1 - ball AD9 */
+&ldo4_reg {
+	regulator-min-microvolt = <2000000>;
+	regulator-max-microvolt = <2000000>;
+};
+
+/*
+ * LDO7 is used for HDMI: VDDA_DSIPORTA - ball AA33, VDDA_DSIPORTC - ball AE33,
+ * VDDA_HDMI - ball AN25
+ */
+&ldo7_reg {
+	status = "okay";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
 &omap5_pmx_core {
 	i2c4_pins: pinmux_i2c4_pins {
 		pinctrl-single,pins = <
