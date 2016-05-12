@@ -13,6 +13,7 @@
 #include <linux/fs.h>
 #include <linux/device-mapper.h>
 #include <linux/list.h>
+#include <linux/moduleparam.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/hdreg.h>
@@ -161,16 +162,6 @@ void dm_interface_exit(void);
 /*
  * sysfs interface
  */
-struct dm_kobject_holder {
-	struct kobject kobj;
-	struct completion completion;
-};
-
-static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
-{
-	return &container_of(kobj, struct dm_kobject_holder, kobj)->completion;
-}
-
 int dm_sysfs_init(struct mapped_device *md);
 void dm_sysfs_exit(struct mapped_device *md);
 struct kobject *dm_kobject(struct mapped_device *md);
@@ -212,8 +203,6 @@ int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
 void dm_internal_suspend(struct mapped_device *md);
 void dm_internal_resume(struct mapped_device *md);
 
-bool dm_use_blk_mq(struct mapped_device *md);
-
 int dm_io_init(void);
 void dm_io_exit(void);
 
@@ -228,18 +217,8 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned t
 void dm_free_md_mempools(struct dm_md_mempools *pools);
 
 /*
- * Helpers that are used by DM core
+ * Various helpers
  */
 unsigned dm_get_reserved_bio_based_ios(void);
-unsigned dm_get_reserved_rq_based_ios(void);
-
-static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen)
-{
-	return !maxlen || strlen(result) + 1 >= maxlen;
-}
-
-ssize_t dm_attr_rq_based_seq_io_merge_deadline_show(struct mapped_device *md, char *buf);
-ssize_t dm_attr_rq_based_seq_io_merge_deadline_store(struct mapped_device *md,
-						     const char *buf, size_t count);
 
 #endif

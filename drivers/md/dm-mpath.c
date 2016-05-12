@@ -7,7 +7,7 @@
 
 #include <linux/device-mapper.h>
 
-#include "dm.h"
+#include "dm-rq.h"
 #include "dm-path-selector.h"
 #include "dm-uevent.h"
 
@@ -1328,7 +1328,7 @@ static int do_end_io(struct multipath *m, struct request *clone,
 	 * during end I/O handling, since those clone requests don't have
 	 * bio clones.  If we queue them inside the multipath target,
 	 * we need to make bio clones, that requires memory allocation.
-	 * (See drivers/md/dm.c:end_clone_bio() about why the clone requests
+	 * (See drivers/md/dm-rq.c:end_clone_bio() about why the clone requests
 	 *  don't have bio clones.)
 	 * Instead of queueing the clone request here, we queue the original
 	 * request into dm core, which will remake a clone request and

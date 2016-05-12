@@ -26,7 +26,7 @@
 #include <linux/device-mapper.h>
 #include <linux/dm-kcopyd.h>
 
-#include "dm.h"
+#include "dm-core.h"
 
 #define SUB_JOB_SIZE	128
 #define SPLIT_COUNT	8
