@@ -174,7 +174,7 @@ struct ti_uart_config {
 	char	cXon;
 	char	cXoff;
 	__u8	bUartMode;
-} __attribute__((packed));
+} __packed;
 
 /* Get port status */
 struct ti_port_status {
@@ -183,7 +183,7 @@ struct ti_port_status {
 	__u8	bErrorCode;
 	__u8	bMSR;
 	__u8	bLSR;
-} __attribute__((packed));
+} __packed;
 
 /* Purge modes */
 #define TI_PURGE_OUTPUT			0x00
@@ -211,7 +211,7 @@ struct ti_write_data_bytes {
 	__be16	wBaseAddrHi;
 	__be16	wBaseAddrLo;
 	__u8	bData[0];
-} __attribute__((packed));
+} __packed;
 
 struct ti_read_data_request {
 	__u8	bAddrType;
@@ -219,20 +219,20 @@ struct ti_read_data_request {
 	__u8	bDataCounter;
 	__be16	wBaseAddrHi;
 	__be16	wBaseAddrLo;
-} __attribute__((packed));
+} __packed;
 
 struct ti_read_data_bytes {
 	__u8	bCmdCode;
 	__u8	bModuleId;
 	__u8	bErrorCode;
 	__u8	bData[0];
-} __attribute__((packed));
+} __packed;
 
 /* Interrupt struct */
 struct ti_interrupt {
 	__u8	bICode;
 	__u8	bIInfo;
-} __attribute__((packed));
+} __packed;
 
 /* Interrupt codes */
 #define TI_GET_PORT_FROM_CODE(c)	(((c) >> 4) - 3)
@@ -248,7 +248,7 @@ struct ti_interrupt {
 struct ti_firmware_header {
 	__le16	wLength;
 	__u8	bCheckSum;
-} __attribute__((packed));
+} __packed;
 
 /* UART addresses */
 #define TI_UART1_BASE_ADDR		0xFFA0	/* UART 1 base address */
