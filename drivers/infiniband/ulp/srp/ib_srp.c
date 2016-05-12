@@ -2840,7 +2840,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 		goto out;
 	}
 
-	pr_debug(PFX "%s: SCSI scan succeeded - detected %d LUNs\n",
+	pr_debug("%s: SCSI scan succeeded - detected %d LUNs\n",
 		 dev_name(&target->scsi_host->shost_gendev),
 		 srp_sdev_count(target->scsi_host));
 
