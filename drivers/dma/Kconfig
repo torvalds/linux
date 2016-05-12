@@ -467,6 +467,20 @@ config TEGRA20_APB_DMA
 	  This DMA controller transfers data from memory to peripheral fifo
 	  or vice versa. It does not support memory to memory data transfer.
 
+config TEGRA210_ADMA
+	bool "NVIDIA Tegra210 ADMA support"
+	depends on ARCH_TEGRA_210_SOC
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	select PM_CLK
+	help
+	  Support for the NVIDIA Tegra210 ADMA controller driver. The
+	  DMA controller has multiple DMA channels and is used to service
+	  various audio clients in the Tegra210 audio processing engine
+	  (APE). This DMA controller transfers data from memory to
+	  peripheral and vice versa. It does not support memory to
+	  memory data transfer.
+
 config TIMB_DMA
 	tristate "Timberdale FPGA DMA support"
 	depends on MFD_TIMBERDALE
