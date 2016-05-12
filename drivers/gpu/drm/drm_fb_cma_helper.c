@@ -133,7 +133,7 @@ static struct drm_framebuffer_funcs drm_fb_cma_funcs = {
 static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 	const struct drm_mode_fb_cmd2 *mode_cmd,
 	struct drm_gem_cma_object **obj,
-	unsigned int num_planes, struct drm_framebuffer_funcs *funcs)
+	unsigned int num_planes, const struct drm_framebuffer_funcs *funcs)
 {
 	struct drm_fb_cma *fb_cma;
 	int ret;
@@ -350,7 +350,7 @@ static void drm_fbdev_cma_defio_fini(struct fb_info *fbi)
  */
 int drm_fbdev_cma_create_with_funcs(struct drm_fb_helper *helper,
 	struct drm_fb_helper_surface_size *sizes,
-	struct drm_framebuffer_funcs *funcs)
+	const struct drm_framebuffer_funcs *funcs)
 {
 	struct drm_fbdev_cma *fbdev_cma = to_fbdev_cma(helper);
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };

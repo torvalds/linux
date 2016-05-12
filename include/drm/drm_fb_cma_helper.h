@@ -25,7 +25,7 @@ void drm_fbdev_cma_restore_mode(struct drm_fbdev_cma *fbdev_cma);
 void drm_fbdev_cma_hotplug_event(struct drm_fbdev_cma *fbdev_cma);
 int drm_fbdev_cma_create_with_funcs(struct drm_fb_helper *helper,
 	struct drm_fb_helper_surface_size *sizes,
-	struct drm_framebuffer_funcs *funcs);
+	const struct drm_framebuffer_funcs *funcs);
 
 void drm_fb_cma_destroy(struct drm_framebuffer *fb);
 int drm_fb_cma_create_handle(struct drm_framebuffer *fb,
