@@ -39,41 +39,43 @@ use strict;
 # 25/07/2012 - Added support for HTML5
 # -- Dan Luedtke <mail@danrl.de>
 
-#
-# This will read a 'c' file and scan for embedded comments in the
-# style of gnome comments (+minor extensions - see below).
-#
+sub usage {
+    my $message = <<"EOF";
+Usage: $0 [OPTION ...] FILE ...
 
-# Note: This only supports 'c'.
+Read C language source or header FILEs, extract embedded documentation comments,
+and print formatted documentation to standard output.
 
-# usage:
-# kernel-doc [ -docbook | -html | -html5 | -text | -man | -list ]
-#            [ -no-doc-sections ]
-#            [ -function funcname [ -function funcname ...] ]
-#            c file(s)s > outputfile
-# or
-#            [ -nofunction funcname [ -function funcname ...] ]
-#            c file(s)s > outputfile
-#
-#  Set output format using one of -docbook -html -html5 -text or -man.
-#  Default is man.
-#  The -list format is for internal use by docproc.
-#
-#  -no-doc-sections
-#	Do not output DOC: sections
-#
-#  -function funcname
-#	If set, then only generate documentation for the given function(s) or
-#	DOC: section titles.  All other functions and DOC: sections are ignored.
-#
-#  -nofunction funcname
-#	If set, then only generate documentation for the other function(s)/DOC:
-#	sections. Cannot be used together with -function (yes, that's a bug --
-#	perl hackers can fix it 8))
-#
-#  c files - list of 'c' files to process
-#
-#  All output goes to stdout, with errors to stderr.
+The documentation comments are identified by "/**" opening comment mark. See
+Documentation/kernel-doc-nano-HOWTO.txt for the documentation comment syntax.
+
+Output format selection (mutually exclusive):
+  -docbook		Output DocBook format.
+  -html			Output HTML format.
+  -html5		Output HTML5 format.
+  -list			Output symbol list format. This is for use by docproc.
+  -man			Output troff manual page format. This is the default.
+  -text			Output plain text format.
+
+Output selection (mutually exclusive):
+  -function NAME	Only output documentation for the given function(s)
+			or DOC: section title(s). All other functions and DOC:
+			sections are ignored. May be specified multiple times.
+  -nofunction NAME	Do NOT output documentation for the given function(s);
+			only output documentation for the other functions and
+			DOC: sections. May be specified multiple times.
+
+Output selection modifiers:
+  -no-doc-sections	Do not output DOC: sections.
+
+Other parameters:
+  -v			Verbose output, more warnings and other information.
+  -h			Print this help.
+
+EOF
+    print $message;
+    exit 1;
+}
 
 #
 # format of comments.
@@ -436,17 +438,6 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 }
 
 # continue execution near EOF;
-
-sub usage {
-    print "Usage: $0 [ -docbook | -html | -html5 | -text | -man | -list ]\n";
-    print "         [ -no-doc-sections ]\n";
-    print "         [ -function funcname [ -function funcname ...] ]\n";
-    print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
-    print "         [ -v ]\n";
-    print "         c source file(s) > outputfile\n";
-    print "         -v : verbose output, more warnings & other info listed\n";
-    exit 1;
-}
 
 # get kernel version from env
 sub get_kernel_version() {
