@@ -26,6 +26,22 @@ struct gpbridge_host {
 
 static DEFINE_IDA(gpbridge_id);
 
+static ssize_t protocol_id_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct gpbridge_device *gpbdev = to_gpbridge_dev(dev);
+
+	return sprintf(buf, "0x%02x\n", gpbdev->cport_desc->protocol_id);
+}
+static DEVICE_ATTR_RO(protocol_id);
+
+static struct attribute *gpbdev_attrs[] = {
+	&dev_attr_protocol_id.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(gpbdev);
+
 static void gpbdev_release(struct device *dev)
 {
 	struct gpbridge_device *gpbdev = to_gpbridge_dev(dev);
@@ -190,7 +206,7 @@ static struct gpbridge_device *gb_gpbridge_create_dev(struct gb_bundle *bundle,
 	gpbdev->dev.parent = &bundle->dev;
 	gpbdev->dev.bus = &gpbridge_bus_type;
 	gpbdev->dev.release = gpbdev_release;
-	gpbdev->dev.groups = NULL;
+	gpbdev->dev.groups = gpbdev_groups;
 	gpbdev->dev.dma_mask = bundle->dev.dma_mask;
 	dev_set_name(&gpbdev->dev, "gpb%d", id);
 
