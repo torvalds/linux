@@ -1045,11 +1045,12 @@ struct cfg80211_tid_stats {
  * @rx_beacon: number of beacons received from this peer
  * @rx_beacon_signal_avg: signal strength average (in dBm) for beacons received
  *	from this peer
+ * @rx_duration: aggregate PPDU duration(usecs) for all the frames from a peer
  * @pertid: per-TID statistics, see &struct cfg80211_tid_stats, using the last
  *	(IEEE80211_NUM_TIDS) index for MSDUs not encapsulated in QoS-MPDUs.
  */
 struct station_info {
-	u32 filled;
+	u64 filled;
 	u32 connected_time;
 	u32 inactive_time;
 	u64 rx_bytes;
@@ -1088,6 +1089,7 @@ struct station_info {
 	u32 expected_throughput;
 
 	u64 rx_beacon;
+	u64 rx_duration;
 	u8 rx_beacon_signal_avg;
 	struct cfg80211_tid_stats pertid[IEEE80211_NUM_TIDS + 1];
 };
@@ -3187,6 +3189,9 @@ struct wiphy_vendor_command {
  * @vht_capa_mod_mask:  Specify what VHT capabilities can be over-ridden.
  *	If null, then none can be over-ridden.
  *
+ * @wdev_list: the list of associated (virtual) interfaces; this list must
+ *	not be modified by the driver, but can be read with RTNL/RCU protection.
+ *
  * @max_acl_mac_addrs: Maximum number of MAC addresses that the device
  *	supports for ACL.
  *
@@ -3325,6 +3330,8 @@ struct wiphy {
 
 	const struct ieee80211_ht_cap *ht_capa_mod_mask;
 	const struct ieee80211_vht_cap *vht_capa_mod_mask;
+
+	struct list_head wdev_list;
 
 	/* the network namespace this phy lives in currently */
 	possible_net_t _net;
@@ -3891,7 +3898,7 @@ const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
  * cfg80211_find_vendor_ie - find vendor specific information element in data
  *
  * @oui: vendor OUI
- * @oui_type: vendor-specific OUI type
+ * @oui_type: vendor-specific OUI type (must be < 0xff), negative means any
  * @ies: data consisting of IEs
  * @len: length of data
  *
@@ -3903,7 +3910,7 @@ const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
  * Note: There are no checks on the element length other than having to fit into
  * the given data.
  */
-const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
+const u8 *cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 				  const u8 *ies, int len);
 
 /**
@@ -4650,6 +4657,32 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
 #endif
 
 /**
+ * cfg80211_connect_bss - notify cfg80211 of connection result
+ *
+ * @dev: network device
+ * @bssid: the BSSID of the AP
+ * @bss: entry of bss to which STA got connected to, can be obtained
+ *	through cfg80211_get_bss (may be %NULL)
+ * @req_ie: association request IEs (maybe be %NULL)
+ * @req_ie_len: association request IEs length
+ * @resp_ie: association response IEs (may be %NULL)
+ * @resp_ie_len: assoc response IEs length
+ * @status: status code, 0 for successful connection, use
+ *      %WLAN_STATUS_UNSPECIFIED_FAILURE if your device cannot give you
+ *      the real status code for failures.
+ * @gfp: allocation flags
+ *
+ * It should be called by the underlying driver whenever connect() has
+ * succeeded. This is similar to cfg80211_connect_result(), but with the
+ * option of identifying the exact bss entry for the connection. Only one of
+ * these functions should be called.
+ */
+void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
+			  struct cfg80211_bss *bss, const u8 *req_ie,
+			  size_t req_ie_len, const u8 *resp_ie,
+			  size_t resp_ie_len, u16 status, gfp_t gfp);
+
+/**
  * cfg80211_connect_result - notify cfg80211 of connection result
  *
  * @dev: network device
@@ -4666,10 +4699,15 @@ static inline void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp)
  * It should be called by the underlying driver whenever connect() has
  * succeeded.
  */
-void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
-			     const u8 *req_ie, size_t req_ie_len,
-			     const u8 *resp_ie, size_t resp_ie_len,
-			     u16 status, gfp_t gfp);
+static inline void
+cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
+			const u8 *req_ie, size_t req_ie_len,
+			const u8 *resp_ie, size_t resp_ie_len,
+			u16 status, gfp_t gfp)
+{
+	cfg80211_connect_bss(dev, bssid, NULL, req_ie, req_ie_len, resp_ie,
+			     resp_ie_len, status, gfp);
+}
 
 /**
  * cfg80211_roamed - notify cfg80211 of roaming

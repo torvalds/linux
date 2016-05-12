@@ -223,7 +223,7 @@ void cfg80211_conn_work(struct work_struct *work)
 
 	rtnl_lock();
 
-	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->netdev)
 			continue;
 
@@ -617,7 +617,7 @@ static bool cfg80211_is_all_idle(void)
 	 * count as new regulatory hints.
 	 */
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
-		list_for_each_entry(wdev, &rdev->wdev_list, list) {
+		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 			wdev_lock(wdev);
 			if (wdev->conn || wdev->current_bss)
 				is_all_idle = false;
@@ -753,19 +753,32 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	kfree(country_ie);
 }
 
-void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
-			     const u8 *req_ie, size_t req_ie_len,
-			     const u8 *resp_ie, size_t resp_ie_len,
-			     u16 status, gfp_t gfp)
+/* Consumes bss object one way or another */
+void cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
+			  struct cfg80211_bss *bss, const u8 *req_ie,
+			  size_t req_ie_len, const u8 *resp_ie,
+			  size_t resp_ie_len, u16 status, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_event *ev;
 	unsigned long flags;
 
+	if (bss) {
+		/* Make sure the bss entry provided by the driver is valid. */
+		struct cfg80211_internal_bss *ibss = bss_from_pub(bss);
+
+		if (WARN_ON(list_empty(&ibss->list))) {
+			cfg80211_put_bss(wdev->wiphy, bss);
+			return;
+		}
+	}
+
 	ev = kzalloc(sizeof(*ev) + req_ie_len + resp_ie_len, gfp);
-	if (!ev)
+	if (!ev) {
+		cfg80211_put_bss(wdev->wiphy, bss);
 		return;
+	}
 
 	ev->type = EVENT_CONNECT_RESULT;
 	if (bssid)
@@ -780,6 +793,9 @@ void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 		ev->cr.resp_ie_len = resp_ie_len;
 		memcpy((void *)ev->cr.resp_ie, resp_ie, resp_ie_len);
 	}
+	if (bss)
+		cfg80211_hold_bss(bss_from_pub(bss));
+	ev->cr.bss = bss;
 	ev->cr.status = status;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
@@ -787,7 +803,7 @@ void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	spin_unlock_irqrestore(&wdev->event_lock, flags);
 	queue_work(cfg80211_wq, &rdev->event_work);
 }
-EXPORT_SYMBOL(cfg80211_connect_result);
+EXPORT_SYMBOL(cfg80211_connect_bss);
 
 /* Consumes bss object one way or another */
 void __cfg80211_roamed(struct wireless_dev *wdev,

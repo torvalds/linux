@@ -739,7 +739,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 	 * and thus fail the GO instantiation, consider only the interfaces of
 	 * the current registered device.
 	 */
-	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		struct ieee80211_channel *other_chan = NULL;
 		int r1, r2;
 

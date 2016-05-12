@@ -364,12 +364,15 @@ const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
 }
 EXPORT_SYMBOL(cfg80211_find_ie);
 
-const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
+const u8 *cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 				  const u8 *ies, int len)
 {
 	struct ieee80211_vendor_ie *ie;
 	const u8 *pos = ies, *end = ies + len;
 	int ie_oui;
+
+	if (WARN_ON(oui_type > 0xff))
+		return NULL;
 
 	while (pos < end) {
 		pos = cfg80211_find_ie(WLAN_EID_VENDOR_SPECIFIC, pos,
@@ -386,7 +389,8 @@ const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
 			goto cont;
 
 		ie_oui = ie->oui[0] << 16 | ie->oui[1] << 8 | ie->oui[2];
-		if (ie_oui == oui && ie->oui_type == oui_type)
+		if (ie_oui == oui &&
+		    (oui_type < 0 || ie->oui_type == oui_type))
 			return pos;
 cont:
 		pos += 2 + ie->len;

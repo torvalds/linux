@@ -103,7 +103,7 @@ __cfg80211_wdev_from_attrs(struct net *netns, struct nlattr **attrs)
 		if (have_wdev_id && rdev->wiphy_idx != wiphy_idx)
 			continue;
 
-		list_for_each_entry(wdev, &rdev->wdev_list, list) {
+		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 			if (have_ifidx && wdev->netdev &&
 			    wdev->netdev->ifindex == ifidx) {
 				result = wdev;
@@ -149,7 +149,7 @@ __cfg80211_rdev_from_attrs(struct net *netns, struct nlattr **attrs)
 		tmp = cfg80211_rdev_by_wiphy_idx(wdev_id >> 32);
 		if (tmp) {
 			/* make sure wdev exists */
-			list_for_each_entry(wdev, &tmp->wdev_list, list) {
+			list_for_each_entry(wdev, &tmp->wiphy.wdev_list, list) {
 				if (wdev->identifier != (u32)wdev_id)
 					continue;
 				found = true;
@@ -535,7 +535,7 @@ static int nl80211_prepare_wdev_dump(struct sk_buff *skb,
 		*rdev = wiphy_to_rdev(wiphy);
 		*wdev = NULL;
 
-		list_for_each_entry(tmp, &(*rdev)->wdev_list, list) {
+		list_for_each_entry(tmp, &(*rdev)->wiphy.wdev_list, list) {
 			if (tmp->identifier == cb->args[1]) {
 				*wdev = tmp;
 				break;
@@ -2490,7 +2490,7 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 		}
 		if_idx = 0;
 
-		list_for_each_entry(wdev, &rdev->wdev_list, list) {
+		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 			if (if_idx < if_start) {
 				if_idx++;
 				continue;
@@ -2762,7 +2762,7 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		spin_lock_init(&wdev->mgmt_registrations_lock);
 
 		wdev->identifier = ++rdev->wdev_id;
-		list_add_rcu(&wdev->list, &rdev->wdev_list);
+		list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
 		rdev->devlist_generation++;
 		break;
 	default:
@@ -3298,7 +3298,7 @@ static bool nl80211_get_ap_channel(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev;
 	bool ret = false;
 
-	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (wdev->iftype != NL80211_IFTYPE_AP &&
 		    wdev->iftype != NL80211_IFTYPE_P2P_GO)
 			continue;
@@ -3755,9 +3755,16 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 		goto nla_put_failure;
 
 #define PUT_SINFO(attr, memb, type) do {				\
-	if (sinfo->filled & BIT(NL80211_STA_INFO_ ## attr) &&		\
+	BUILD_BUG_ON(sizeof(type) == sizeof(u64));			\
+	if (sinfo->filled & (1ULL << NL80211_STA_INFO_ ## attr) &&	\
 	    nla_put_ ## type(msg, NL80211_STA_INFO_ ## attr,		\
 			     sinfo->memb))				\
+		goto nla_put_failure;					\
+	} while (0)
+#define PUT_SINFO_U64(attr, memb) do {					\
+	if (sinfo->filled & (1ULL << NL80211_STA_INFO_ ## attr) &&	\
+	    nla_put_u64_64bit(msg, NL80211_STA_INFO_ ## attr,		\
+			      sinfo->memb, NL80211_STA_INFO_PAD))	\
 		goto nla_put_failure;					\
 	} while (0)
 
@@ -3776,11 +3783,12 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 			(u32)sinfo->tx_bytes))
 		goto nla_put_failure;
 
-	PUT_SINFO(RX_BYTES64, rx_bytes, u64);
-	PUT_SINFO(TX_BYTES64, tx_bytes, u64);
+	PUT_SINFO_U64(RX_BYTES64, rx_bytes);
+	PUT_SINFO_U64(TX_BYTES64, tx_bytes);
 	PUT_SINFO(LLID, llid, u16);
 	PUT_SINFO(PLID, plid, u16);
 	PUT_SINFO(PLINK_STATE, plink_state, u8);
+	PUT_SINFO_U64(RX_DURATION, rx_duration);
 
 	switch (rdev->wiphy.signal_type) {
 	case CFG80211_SIGNAL_TYPE_MBM:
@@ -3848,12 +3856,13 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 		    &sinfo->sta_flags))
 		goto nla_put_failure;
 
-	PUT_SINFO(T_OFFSET, t_offset, u64);
-	PUT_SINFO(RX_DROP_MISC, rx_dropped_misc, u64);
-	PUT_SINFO(BEACON_RX, rx_beacon, u64);
+	PUT_SINFO_U64(T_OFFSET, t_offset);
+	PUT_SINFO_U64(RX_DROP_MISC, rx_dropped_misc);
+	PUT_SINFO_U64(BEACON_RX, rx_beacon);
 	PUT_SINFO(BEACON_SIGNAL_AVG, rx_beacon_signal_avg, u8);
 
 #undef PUT_SINFO
+#undef PUT_SINFO_U64
 
 	if (sinfo->filled & BIT(NL80211_STA_INFO_TID_STATS)) {
 		struct nlattr *tidsattr;
@@ -3876,19 +3885,19 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 			if (!tidattr)
 				goto nla_put_failure;
 
-#define PUT_TIDVAL(attr, memb, type) do {				\
+#define PUT_TIDVAL_U64(attr, memb) do {					\
 	if (tidstats->filled & BIT(NL80211_TID_STATS_ ## attr) &&	\
-	    nla_put_ ## type(msg, NL80211_TID_STATS_ ## attr,		\
-			     tidstats->memb))				\
+	    nla_put_u64_64bit(msg, NL80211_TID_STATS_ ## attr,		\
+			      tidstats->memb, NL80211_TID_STATS_PAD))	\
 		goto nla_put_failure;					\
 	} while (0)
 
-			PUT_TIDVAL(RX_MSDU, rx_msdu, u64);
-			PUT_TIDVAL(TX_MSDU, tx_msdu, u64);
-			PUT_TIDVAL(TX_MSDU_RETRIES, tx_msdu_retries, u64);
-			PUT_TIDVAL(TX_MSDU_FAILED, tx_msdu_failed, u64);
+			PUT_TIDVAL_U64(RX_MSDU, rx_msdu);
+			PUT_TIDVAL_U64(TX_MSDU, tx_msdu);
+			PUT_TIDVAL_U64(TX_MSDU_RETRIES, tx_msdu_retries);
+			PUT_TIDVAL_U64(TX_MSDU_FAILED, tx_msdu_failed);
 
-#undef PUT_TIDVAL
+#undef PUT_TIDVAL_U64
 			nla_nest_end(msg, tidattr);
 		}
 
@@ -10383,7 +10392,7 @@ static int nl80211_prepare_vendor_dump(struct sk_buff *skb,
 		*wdev = NULL;
 
 		if (cb->args[1]) {
-			list_for_each_entry(tmp, &(*rdev)->wdev_list, list) {
+			list_for_each_entry(tmp, &wiphy->wdev_list, list) {
 				if (tmp->identifier == cb->args[1] - 1) {
 					*wdev = tmp;
 					break;
@@ -13404,7 +13413,7 @@ static int nl80211_netlink_notify(struct notifier_block * nb,
 		    sched_scan_req->owner_nlportid == notify->portid)
 			schedule_scan_stop = true;
 
-		list_for_each_entry_rcu(wdev, &rdev->wdev_list, list) {
+		list_for_each_entry_rcu(wdev, &rdev->wiphy.wdev_list, list) {
 			cfg80211_mlme_unregister_socket(wdev, notify->portid);
 
 			if (wdev->owner_nlportid == notify->portid)

@@ -950,7 +950,7 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 				ev->cr.resp_ie, ev->cr.resp_ie_len,
 				ev->cr.status,
 				ev->cr.status == WLAN_STATUS_SUCCESS,
-				NULL);
+				ev->cr.bss);
 			break;
 		case EVENT_ROAMED:
 			__cfg80211_roamed(wdev, ev->rm.bss, ev->rm.req_ie,
@@ -986,7 +986,7 @@ void cfg80211_process_rdev_events(struct cfg80211_registered_device *rdev)
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(wdev, &rdev->wdev_list, list)
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list)
 		cfg80211_process_wdev_events(wdev);
 }
 
@@ -1560,7 +1560,7 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 	if (!beacon_int)
 		return -EINVAL;
 
-	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->beacon_interval)
 			continue;
 		if (wdev->beacon_interval != beacon_int) {
