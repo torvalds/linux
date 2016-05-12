@@ -567,6 +567,7 @@ static int vce_v2_0_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs vce_v2_0_ip_funcs = {
+	.name = "vce_v2_0",
 	.early_init = vce_v2_0_early_init,
 	.late_init = NULL,
 	.sw_init = vce_v2_0_sw_init,

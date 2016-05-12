@@ -1118,7 +1118,6 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.get_xclk = &vi_get_xclk,
 	.set_uvd_clocks = &vi_set_uvd_clocks,
 	.set_vce_clocks = &vi_set_vce_clocks,
-	.get_cu_info = &gfx_v8_0_get_cu_info,
 	/* these should be moved to their own ip modules */
 	.get_gpu_clock_counter = &gfx_v8_0_get_gpu_clock_counter,
 	.wait_for_mc_idle = &gmc_v8_0_mc_wait_for_idle,
@@ -1193,7 +1192,8 @@ static int vi_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
 	case CHIP_CARRIZO:
-		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG |
+			AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_RLC_LS |
 			AMD_CG_SUPPORT_GFX_CP_LS |
@@ -1408,6 +1408,7 @@ static int vi_common_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs vi_common_ip_funcs = {
+	.name = "vi_common",
 	.early_init = vi_common_early_init,
 	.late_init = NULL,
 	.sw_init = vi_common_sw_init,

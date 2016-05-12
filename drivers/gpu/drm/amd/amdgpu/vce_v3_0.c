@@ -40,9 +40,9 @@
 
 #define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
 #define GRBM_GFX_INDEX__VCE_INSTANCE_MASK	0x10
-#define mmVCE_LMI_VCPU_CACHE_40BIT_BAR0 	0x8616
-#define mmVCE_LMI_VCPU_CACHE_40BIT_BAR1 	0x8617
-#define mmVCE_LMI_VCPU_CACHE_40BIT_BAR2 	0x8618
+#define mmVCE_LMI_VCPU_CACHE_40BIT_BAR0	0x8616
+#define mmVCE_LMI_VCPU_CACHE_40BIT_BAR1	0x8617
+#define mmVCE_LMI_VCPU_CACHE_40BIT_BAR2	0x8618
 
 #define VCE_V3_0_FW_SIZE	(384 * 1024)
 #define VCE_V3_0_STACK_SIZE	(64 * 1024)
@@ -674,6 +674,7 @@ static int vce_v3_0_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs vce_v3_0_ip_funcs = {
+	.name = "vce_v3_0",
 	.early_init = vce_v3_0_early_init,
 	.late_init = NULL,
 	.sw_init = vce_v3_0_sw_init,

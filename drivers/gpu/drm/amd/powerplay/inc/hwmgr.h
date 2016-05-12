@@ -500,7 +500,7 @@ struct phm_dynamic_state_info {
 	struct phm_ppm_table                          *ppm_parameter_table;
 	struct phm_cac_tdp_table                      *cac_dtp_table;
 	struct phm_clock_voltage_dependency_table	  *vdd_gfx_dependency_on_sclk;
-	struct phm_vq_budgeting_table		  		  *vq_budgeting_table;
+	struct phm_vq_budgeting_table				  *vq_budgeting_table;
 };
 
 struct pp_fan_info {

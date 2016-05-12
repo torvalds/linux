@@ -243,7 +243,7 @@ static void cik_ih_decode_iv(struct amdgpu_device *adev,
 	/* wptr/rptr are in bytes! */
 	u32 ring_index = adev->irq.ih.rptr >> 2;
 	uint32_t dw[4];
-	
+
 	dw[0] = le32_to_cpu(adev->irq.ih.ring[ring_index + 0]);
 	dw[1] = le32_to_cpu(adev->irq.ih.ring[ring_index + 1]);
 	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
@@ -415,6 +415,7 @@ static int cik_ih_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs cik_ih_ip_funcs = {
+	.name = "cik_ih",
 	.early_init = cik_ih_early_init,
 	.late_init = NULL,
 	.sw_init = cik_ih_sw_init,

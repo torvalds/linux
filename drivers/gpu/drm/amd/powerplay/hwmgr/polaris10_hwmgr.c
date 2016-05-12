@@ -1175,11 +1175,11 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	if (phm_cap_enabled(hwmgr->platformDescriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
 		level->DeepSleepDivId = PhwFiji_GetSleepDividerIdFromClock(hwmgr, clock, minClocks.engineClockInSR);
 	*/
-	PP_ASSERT_WITH_CODE((clock >= 2500), "Engine clock can't satisfy stutter requirement!", return 0);
+	PP_ASSERT_WITH_CODE((clock >= POLARIS10_MINIMUM_ENGINE_CLOCK), "Engine clock can't satisfy stutter requirement!", return 0);
 	for (i = POLARIS10_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
-		temp = clock / (1UL << i);
+		temp = clock >> i;
 
-		if (temp >= 2500 || i == 0)
+		if (temp >= POLARIS10_MINIMUM_ENGINE_CLOCK || i == 0)
 			break;
 	}
 
@@ -2900,14 +2900,14 @@ static int polaris10_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 						table_info->vdd_dep_on_mclk;
 
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table != NULL,
-		"VDD dependency on SCLK table is missing. 	\
+		"VDD dependency on SCLK table is missing.	\
 		This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table->count >= 1,
-		"VDD dependency on SCLK table has to have is missing. 	\
+		"VDD dependency on SCLK table has to have is missing.	\
 		This table is mandatory", return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table != NULL,
-		"VDD dependency on MCLK table is missing. 	\
+		"VDD dependency on MCLK table is missing.	\
 		This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table->count >= 1,
 		"VDD dependency on MCLK table has to have is missing.	 \
@@ -4628,7 +4628,7 @@ int polaris10_upload_mc_firmware(struct pp_hwmgr *hwmgr)
 	data->need_long_memory_training = true;
 
 /*
- * 	PPMCME_FirmwareDescriptorEntry *pfd = NULL;
+ *	PPMCME_FirmwareDescriptorEntry *pfd = NULL;
 	pfd = &tonga_mcmeFirmware;
 	if (0 == PHM_READ_FIELD(hwmgr->device, MC_SEQ_SUP_CNTL, RUN))
 		polaris10_load_mc_microcode(hwmgr, pfd->dpmThreshold,

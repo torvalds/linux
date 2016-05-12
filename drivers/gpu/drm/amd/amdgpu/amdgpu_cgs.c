@@ -793,7 +793,6 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 				struct cgs_system_info *sys_info)
 {
 	CGS_FUNC_ADEV;
-	struct amdgpu_cu_info cu_info;
 
 	if (NULL == sys_info)
 		return -ENODEV;
@@ -818,8 +817,7 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 		sys_info->value = adev->pg_flags;
 		break;
 	case CGS_SYSTEM_INFO_GFX_CU_INFO:
-		amdgpu_asic_get_cu_info(adev, &cu_info);
-		sys_info->value = cu_info.number;
+		sys_info->value = adev->gfx.cu_info.number;
 		break;
 	default:
 		return -ENODEV;

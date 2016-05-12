@@ -41,9 +41,9 @@
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #define FIRMWARE_BONAIRE	"radeon/bonaire_vce.bin"
-#define FIRMWARE_KABINI 	"radeon/kabini_vce.bin"
-#define FIRMWARE_KAVERI 	"radeon/kaveri_vce.bin"
-#define FIRMWARE_HAWAII 	"radeon/hawaii_vce.bin"
+#define FIRMWARE_KABINI	"radeon/kabini_vce.bin"
+#define FIRMWARE_KAVERI	"radeon/kaveri_vce.bin"
+#define FIRMWARE_HAWAII	"radeon/hawaii_vce.bin"
 #define FIRMWARE_MULLINS	"radeon/mullins_vce.bin"
 #endif
 #define FIRMWARE_TONGA		"amdgpu/tonga_vce.bin"
@@ -436,7 +436,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
 	job->fence = f;
 	if (r)
 		goto err;
@@ -498,7 +498,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 		ib->ptr[i] = 0x0;
 
 	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
 		job->fence = f;
 		if (r)
 			goto err;
@@ -762,7 +762,8 @@ out:
  * @ib: the IB to execute
  *
  */
-void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
+void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib,
+			     unsigned vm_id, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, VCE_CMD_IB);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));

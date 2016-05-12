@@ -603,7 +603,7 @@ static const u32 stoney_golden_settings_a11[] =
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
 	mmRLC_CGCG_CGLS_CTRL, 0x00000003, 0x0001003c,
 	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
-  	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
+	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
 	mmTCC_EXE_DISABLE, 0x00000002, 0x00000002,
 	mmTCP_ADDR_CONFIG, 0x0000000f, 0x000000f1,
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x10101010,
@@ -636,6 +636,7 @@ static void gfx_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v8_0_set_gds_init(struct amdgpu_device *adev);
 static void gfx_v8_0_set_rlc_funcs(struct amdgpu_device *adev);
 static u32 gfx_v8_0_get_csb_size(struct amdgpu_device *adev);
+static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev);
 
 static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -800,7 +801,7 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
 
-	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, NULL, &f);
 	if (r)
 		goto err2;
 
@@ -1551,7 +1552,7 @@ static int gfx_v8_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	ib.ptr[ib.length_dw++] = EVENT_TYPE(7) | EVENT_INDEX(4);
 
 	/* shedule the ib on the ring */
-	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, NULL, &f);
 	if (r) {
 		DRM_ERROR("amdgpu: ib submit failed (%d).\n", r);
 		goto fail;
@@ -3431,6 +3432,7 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	gfx_v8_0_tiling_mode_table_init(adev);
 
 	gfx_v8_0_setup_rb(adev);
+	gfx_v8_0_get_cu_info(adev);
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
@@ -5644,17 +5646,13 @@ static void gfx_v8_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 }
 
 static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib)
+				      struct amdgpu_ib *ib,
+				      unsigned vm_id, bool ctx_switch)
 {
-	bool need_ctx_switch = ring->current_ctx != ib->ctx;
 	u32 header, control = 0;
 	u32 next_rptr = ring->wptr + 5;
 
-	/* drop the CE preamble IB for the same context */
-	if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && !need_ctx_switch)
-		return;
-
-	if (need_ctx_switch)
+	if (ctx_switch)
 		next_rptr += 2;
 
 	next_rptr += 4;
@@ -5665,7 +5663,7 @@ static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, next_rptr);
 
 	/* insert SWITCH_BUFFER packet before first IB in the ring frame */
-	if (need_ctx_switch) {
+	if (ctx_switch) {
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
 		amdgpu_ring_write(ring, 0);
 	}
@@ -5675,7 +5673,7 @@ static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	else
 		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw | (ib->vm_id << 24);
+	control |= ib->length_dw | (vm_id << 24);
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,
@@ -5688,7 +5686,8 @@ static void gfx_v8_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 }
 
 static void gfx_v8_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib)
+					  struct amdgpu_ib *ib,
+					  unsigned vm_id, bool ctx_switch)
 {
 	u32 header, control = 0;
 	u32 next_rptr = ring->wptr + 5;
@@ -5704,7 +5703,7 @@ static void gfx_v8_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 
 	header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw | (ib->vm_id << 24);
+	control |= ib->length_dw | (vm_id << 24);
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,
@@ -6064,6 +6063,7 @@ static int gfx_v8_0_priv_inst_irq(struct amdgpu_device *adev,
 }
 
 const struct amd_ip_funcs gfx_v8_0_ip_funcs = {
+	.name = "gfx_v8_0",
 	.early_init = gfx_v8_0_early_init,
 	.late_init = gfx_v8_0_late_init,
 	.sw_init = gfx_v8_0_sw_init,
@@ -6212,14 +6212,11 @@ static u32 gfx_v8_0_get_cu_active_bitmap(struct amdgpu_device *adev)
 	return (~data) & mask;
 }
 
-int gfx_v8_0_get_cu_info(struct amdgpu_device *adev,
-			 struct amdgpu_cu_info *cu_info)
+static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev)
 {
 	int i, j, k, counter, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
-
-	if (!adev || !cu_info)
-		return -EINVAL;
+	struct amdgpu_cu_info *cu_info = &adev->gfx.cu_info;
 
 	memset(cu_info, 0, sizeof(*cu_info));
 
@@ -6250,6 +6247,4 @@ int gfx_v8_0_get_cu_info(struct amdgpu_device *adev,
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
-
-	return 0;
 }

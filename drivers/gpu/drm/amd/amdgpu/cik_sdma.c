@@ -210,9 +210,10 @@ static void cik_sdma_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  * Schedule an IB in the DMA ring (CIK).
  */
 static void cik_sdma_ring_emit_ib(struct amdgpu_ring *ring,
-			   struct amdgpu_ib *ib)
+				  struct amdgpu_ib *ib,
+				  unsigned vm_id, bool ctx_switch)
 {
-	u32 extra_bits = ib->vm_id & 0xf;
+	u32 extra_bits = vm_id & 0xf;
 	u32 next_rptr = ring->wptr + 5;
 
 	while ((next_rptr & 7) != 4)
@@ -643,7 +644,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[3] = 1;
 	ib.ptr[4] = 0xDEADBEEF;
 	ib.length_dw = 5;
-	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, NULL, &f);
 	if (r)
 		goto err1;
 
@@ -1223,6 +1224,7 @@ static int cik_sdma_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs cik_sdma_ip_funcs = {
+	.name = "cik_sdma",
 	.early_init = cik_sdma_early_init,
 	.late_init = NULL,
 	.sw_init = cik_sdma_sw_init,

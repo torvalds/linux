@@ -2416,18 +2416,17 @@ int tonga_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static uint8_t tonga_get_sleep_divider_id_from_clock(struct pp_hwmgr *hwmgr,
-		uint32_t engine_clock, uint32_t min_engine_clock_in_sr)
+static uint8_t tonga_get_sleep_divider_id_from_clock(uint32_t engine_clock,
+		uint32_t min_engine_clock_in_sr)
 {
 	uint32_t i, temp;
-	uint32_t min = (min_engine_clock_in_sr > TONGA_MINIMUM_ENGINE_CLOCK) ?
-			min_engine_clock_in_sr : TONGA_MINIMUM_ENGINE_CLOCK;
+	uint32_t min = max(min_engine_clock_in_sr, (uint32_t)TONGA_MINIMUM_ENGINE_CLOCK);
 
 	PP_ASSERT_WITH_CODE((engine_clock >= min),
 			"Engine clock can't satisfy stutter requirement!", return 0);
 
 	for (i = TONGA_MAX_DEEPSLEEP_DIVIDER_ID;; i--) {
-		temp = engine_clock / (1 << i);
+		temp = engine_clock >> i;
 
 		if(temp >= min || i == 0)
 			break;
@@ -2487,7 +2486,7 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr, uint32_t 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep))
 		graphic_level->DeepSleepDivId =
-				tonga_get_sleep_divider_id_from_clock(hwmgr, engine_clock,
+				tonga_get_sleep_divider_id_from_clock(engine_clock,
 						data->display_timing.min_clock_insr);
 
 	/* Default to slow, highest DPM level will be set to PPSMC_DISPLAY_WATERMARK_LOW later.*/
@@ -2683,7 +2682,7 @@ static int tonga_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 struct TONGA_DLL_SPEED_SETTING {
 	uint16_t            Min;                          /* Minimum Data Rate*/
 	uint16_t            Max;                          /* Maximum Data Rate*/
-	uint32_t 			dll_speed;                     /* The desired DLL_SPEED setting*/
+	uint32_t			dll_speed;                     /* The desired DLL_SPEED setting*/
 };
 
 static int tonga_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
@@ -3316,14 +3315,14 @@ static int tonga_set_private_var_based_on_pptale(struct pp_hwmgr *hwmgr)
 		pptable_info->vdd_dep_on_mclk;
 
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table != NULL,
-		"VDD dependency on SCLK table is missing. 	\
+		"VDD dependency on SCLK table is missing.	\
 		This table is mandatory", return -1);
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table->count >= 1,
-		"VDD dependency on SCLK table has to have is missing. 	\
+		"VDD dependency on SCLK table has to have is missing.	\
 		This table is mandatory", return -1);
 
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table != NULL,
-		"VDD dependency on MCLK table is missing. 	\
+		"VDD dependency on MCLK table is missing.	\
 		This table is mandatory", return -1);
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table->count >= 1,
 		"VDD dependency on MCLK table has to have is missing.	 \

@@ -348,7 +348,7 @@ static int amdgpu_doorbell_init(struct amdgpu_device *adev)
 	adev->doorbell.base = pci_resource_start(adev->pdev, 2);
 	adev->doorbell.size = pci_resource_len(adev->pdev, 2);
 
-	adev->doorbell.num_doorbells = min_t(u32, adev->doorbell.size / sizeof(u32), 
+	adev->doorbell.num_doorbells = min_t(u32, adev->doorbell.size / sizeof(u32),
 					     AMDGPU_DOORBELL_MAX_ASSIGNMENT+1);
 	if (adev->doorbell.num_doorbells == 0)
 		return -EINVAL;
@@ -1196,7 +1196,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 				if (r == -ENOENT) {
 					adev->ip_block_status[i].valid = false;
 				} else if (r) {
-					DRM_ERROR("early_init %d failed %d\n", i, r);
+					DRM_ERROR("early_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 					return r;
 				} else {
 					adev->ip_block_status[i].valid = true;
@@ -1219,7 +1219,7 @@ static int amdgpu_init(struct amdgpu_device *adev)
 			continue;
 		r = adev->ip_blocks[i].funcs->sw_init((void *)adev);
 		if (r) {
-			DRM_ERROR("sw_init %d failed %d\n", i, r);
+			DRM_ERROR("sw_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 			return r;
 		}
 		adev->ip_block_status[i].sw = true;
@@ -1252,7 +1252,7 @@ static int amdgpu_init(struct amdgpu_device *adev)
 			continue;
 		r = adev->ip_blocks[i].funcs->hw_init((void *)adev);
 		if (r) {
-			DRM_ERROR("hw_init %d failed %d\n", i, r);
+			DRM_ERROR("hw_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 			return r;
 		}
 		adev->ip_block_status[i].hw = true;
@@ -1272,13 +1272,13 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
 								    AMD_CG_STATE_GATE);
 		if (r) {
-			DRM_ERROR("set_clockgating_state(gate) %d failed %d\n", i, r);
+			DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 			return r;
 		}
 		if (adev->ip_blocks[i].funcs->late_init) {
 			r = adev->ip_blocks[i].funcs->late_init((void *)adev);
 			if (r) {
-				DRM_ERROR("late_init %d failed %d\n", i, r);
+				DRM_ERROR("late_init of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 				return r;
 			}
 		}
@@ -1302,13 +1302,13 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
 								    AMD_CG_STATE_UNGATE);
 		if (r) {
-			DRM_ERROR("set_clockgating_state(ungate) %d failed %d\n", i, r);
+			DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 			return r;
 		}
 		r = adev->ip_blocks[i].funcs->hw_fini((void *)adev);
 		/* XXX handle errors */
 		if (r) {
-			DRM_DEBUG("hw_fini %d failed %d\n", i, r);
+			DRM_DEBUG("hw_fini of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 		}
 		adev->ip_block_status[i].hw = false;
 	}
@@ -1319,7 +1319,7 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 		r = adev->ip_blocks[i].funcs->sw_fini((void *)adev);
 		/* XXX handle errors */
 		if (r) {
-			DRM_DEBUG("sw_fini %d failed %d\n", i, r);
+			DRM_DEBUG("sw_fini of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 		}
 		adev->ip_block_status[i].sw = false;
 		adev->ip_block_status[i].valid = false;
@@ -1347,14 +1347,14 @@ static int amdgpu_suspend(struct amdgpu_device *adev)
 			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
 									    AMD_CG_STATE_UNGATE);
 			if (r) {
-				DRM_ERROR("set_clockgating_state(ungate) %d failed %d\n", i, r);
+				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 			}
 		}
 		/* XXX handle errors */
 		r = adev->ip_blocks[i].funcs->suspend(adev);
 		/* XXX handle errors */
 		if (r) {
-			DRM_ERROR("suspend %d failed %d\n", i, r);
+			DRM_ERROR("suspend of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 		}
 	}
 
@@ -1370,7 +1370,7 @@ static int amdgpu_resume(struct amdgpu_device *adev)
 			continue;
 		r = adev->ip_blocks[i].funcs->resume(adev);
 		if (r) {
-			DRM_ERROR("resume %d failed %d\n", i, r);
+			DRM_ERROR("resume of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
 			return r;
 		}
 	}

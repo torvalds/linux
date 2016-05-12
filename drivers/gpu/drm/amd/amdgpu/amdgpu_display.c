@@ -132,7 +132,7 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 				 vblank->linedur_ns / 1000, stat, vpos, hpos);
 
 	/* Do the flip (mmio) */
-	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
+	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base, work->async);
 
 	/* Set the flip status */
 	amdgpuCrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
@@ -197,6 +197,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	work->event = event;
 	work->adev = adev;
 	work->crtc_id = amdgpu_crtc->crtc_id;
+	work->async = (page_flip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
 
 	/* schedule unpin of the old buffer */
 	old_amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);

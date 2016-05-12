@@ -2549,19 +2549,17 @@ static int ci_get_dependency_volt_by_clk(struct amdgpu_device *adev,
 	return 0;
 }
 
-static u8 ci_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
-					     u32 sclk, u32 min_sclk_in_sr)
+static u8 ci_get_sleep_divider_id_from_clock(u32 sclk, u32 min_sclk_in_sr)
 {
 	u32 i;
 	u32 tmp;
-	u32 min = (min_sclk_in_sr > CISLAND_MINIMUM_ENGINE_CLOCK) ?
-		min_sclk_in_sr : CISLAND_MINIMUM_ENGINE_CLOCK;
+	u32 min = max(min_sclk_in_sr, (u32)CISLAND_MINIMUM_ENGINE_CLOCK);
 
 	if (sclk < min)
 		return 0;
 
 	for (i = CISLAND_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
-		tmp = sclk / (1 << i);
+		tmp = sclk >> i;
 		if (tmp >= min || i == 0)
 			break;
 	}
@@ -3358,8 +3356,7 @@ static int ci_populate_single_graphic_level(struct amdgpu_device *adev,
 	graphic_level->PowerThrottle = 0;
 
 	if (pi->caps_sclk_ds)
-		graphic_level->DeepSleepDivId = ci_get_sleep_divider_id_from_clock(adev,
-										   engine_clock,
+		graphic_level->DeepSleepDivId = ci_get_sleep_divider_id_from_clock(engine_clock,
 										   CISLAND_MINIMUM_ENGINE_CLOCK);
 
 	graphic_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
@@ -6363,7 +6360,7 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 }
 
 static int ci_dpm_process_interrupt(struct amdgpu_device *adev,
-				    struct amdgpu_irq_src *source, 
+				    struct amdgpu_irq_src *source,
 				    struct amdgpu_iv_entry *entry)
 {
 	bool queue_thermal = false;
@@ -6405,6 +6402,7 @@ static int ci_dpm_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs ci_dpm_ip_funcs = {
+	.name = "ci_dpm",
 	.early_init = ci_dpm_early_init,
 	.late_init = ci_dpm_late_init,
 	.sw_init = ci_dpm_sw_init,

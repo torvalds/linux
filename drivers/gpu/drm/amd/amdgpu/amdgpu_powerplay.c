@@ -304,6 +304,7 @@ static int amdgpu_pp_soft_reset(void *handle)
 }
 
 const struct amd_ip_funcs amdgpu_pp_ip_funcs = {
+	.name = "amdgpu_powerplay",
 	.early_init = amdgpu_pp_early_init,
 	.late_init = amdgpu_pp_late_init,
 	.sw_init = amdgpu_pp_sw_init,

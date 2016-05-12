@@ -465,14 +465,14 @@ static int fiji_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 			table_info->vdd_dep_on_mclk;
 
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table != NULL,
-		"VDD dependency on SCLK table is missing. 	\
+		"VDD dependency on SCLK table is missing.	\
 		This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table->count >= 1,
-		"VDD dependency on SCLK table has to have is missing. 	\
+		"VDD dependency on SCLK table has to have is missing.	\
 		This table is mandatory", return -EINVAL);
 
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table != NULL,
-		"VDD dependency on MCLK table is missing. 	\
+		"VDD dependency on MCLK table is missing.	\
 		This table is mandatory", return -EINVAL);
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table->count >= 1,
 		"VDD dependency on MCLK table has to have is missing.	 \
@@ -1898,16 +1898,16 @@ static int fiji_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static uint8_t fiji_get_sleep_divider_id_from_clock(struct pp_hwmgr *hwmgr,
-						uint32_t clock, uint32_t clock_insr)
+static uint8_t fiji_get_sleep_divider_id_from_clock(uint32_t clock,
+		uint32_t clock_insr)
 {
 	uint8_t i;
 	uint32_t temp;
-	uint32_t min = clock_insr > 2500 ? clock_insr : 2500;
+	uint32_t min = max(clock_insr, (uint32_t)FIJI_MINIMUM_ENGINE_CLOCK);
 
 	PP_ASSERT_WITH_CODE((clock >= min), "Engine clock can't satisfy stutter requirement!", return 0);
 	for (i = FIJI_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
-		temp = clock / (1UL << i);
+		temp = clock >> i;
 
 		if (temp >= min || i == 0)
 			break;
@@ -1961,7 +1961,7 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	data->display_timing.min_clock_in_sr = hwmgr->display_config.min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
-		level->DeepSleepDivId = fiji_get_sleep_divider_id_from_clock(hwmgr, clock,
+		level->DeepSleepDivId = fiji_get_sleep_divider_id_from_clock(clock,
 								hwmgr->display_config.min_core_set_clock_in_sr);
 
 

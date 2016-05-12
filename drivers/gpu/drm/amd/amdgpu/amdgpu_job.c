@@ -46,7 +46,7 @@ void amdgpu_job_timeout_func(struct work_struct *work)
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
-		     struct amdgpu_job **job)
+		     struct amdgpu_job **job, struct amdgpu_vm *vm)
 {
 	size_t size = sizeof(struct amdgpu_job);
 
@@ -60,6 +60,7 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		return -ENOMEM;
 
 	(*job)->adev = adev;
+	(*job)->vm = vm;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
 	INIT_WORK(&(*job)->base.work_free_job, amdgpu_job_free_handler);
@@ -74,7 +75,7 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 {
 	int r;
 
-	r = amdgpu_job_alloc(adev, 1, job);
+	r = amdgpu_job_alloc(adev, 1, job, NULL);
 	if (r)
 		return r;
 
@@ -96,7 +97,7 @@ void amdgpu_job_free(struct amdgpu_job *job)
 		amdgpu_sa_bo_free(job->adev, &job->ibs[i].sa_bo, f);
 	fence_put(job->fence);
 
-	amdgpu_bo_unref(&job->uf.bo);
+	amdgpu_bo_unref(&job->uf_bo);
 	amdgpu_sync_free(&job->sync);
 
 	if (!job->base.use_sched)
@@ -121,14 +122,13 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		return -EINVAL;
 
 	r = amd_sched_job_init(&job->base, &ring->sched,
-							entity,
-							amdgpu_job_timeout_func,
-							amdgpu_job_free_func,
-							owner, &fence);
+			       entity, amdgpu_job_timeout_func,
+			       amdgpu_job_free_func, owner, &fence);
 	if (r)
 		return r;
 
 	job->owner = owner;
+	job->ctx = entity->fence_context;
 	*f = fence_get(fence);
 	amd_sched_entity_push_job(&job->base);
 
@@ -138,27 +138,19 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 static struct fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 {
 	struct amdgpu_job *job = to_amdgpu_job(sched_job);
-	struct amdgpu_vm *vm = job->ibs->vm;
+	struct amdgpu_vm *vm = job->vm;
 
 	struct fence *fence = amdgpu_sync_get_fence(&job->sync);
 
-	if (fence == NULL && vm && !job->ibs->vm_id) {
+	if (fence == NULL && vm && !job->vm_id) {
 		struct amdgpu_ring *ring = job->ring;
-		unsigned i, vm_id;
-		uint64_t vm_pd_addr;
 		int r;
 
 		r = amdgpu_vm_grab_id(vm, ring, &job->sync,
 				      &job->base.s_fence->base,
-				      &vm_id, &vm_pd_addr);
+				      &job->vm_id, &job->vm_pd_addr);
 		if (r)
 			DRM_ERROR("Error getting VM ID (%d)\n", r);
-		else {
-			for (i = 0; i < job->num_ibs; ++i) {
-				job->ibs[i].vm_id = vm_id;
-				job->ibs[i].vm_pd_addr = vm_pd_addr;
-			}
-		}
 
 		fence = amdgpu_sync_get_fence(&job->sync);
 	}
@@ -186,7 +178,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 
 	trace_amdgpu_sched_run_job(job);
 	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,
-			       job->sync.last_vm_update, &fence);
+			       job->sync.last_vm_update, job, &fence);
 	if (r) {
 		DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		goto err;

@@ -242,9 +242,10 @@ static void sdma_v2_4_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  * Schedule an IB in the DMA ring (VI).
  */
 static void sdma_v2_4_ring_emit_ib(struct amdgpu_ring *ring,
-				   struct amdgpu_ib *ib)
+				   struct amdgpu_ib *ib,
+				   unsigned vm_id, bool ctx_switch)
 {
-	u32 vmid = ib->vm_id & 0xf;
+	u32 vmid = vm_id & 0xf;
 	u32 next_rptr = ring->wptr + 5;
 
 	while ((next_rptr & 7) != 2)
@@ -701,7 +702,7 @@ static int sdma_v2_4_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[7] = SDMA_PKT_HEADER_OP(SDMA_OP_NOP);
 	ib.length_dw = 8;
 
-	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, NULL, &f);
 	if (r)
 		goto err1;
 
@@ -1230,6 +1231,7 @@ static int sdma_v2_4_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs sdma_v2_4_ip_funcs = {
+	.name = "sdma_v2_4",
 	.early_init = sdma_v2_4_early_init,
 	.late_init = NULL,
 	.sw_init = sdma_v2_4_sw_init,

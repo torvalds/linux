@@ -302,10 +302,17 @@ static void dce_v11_0_pageflip_interrupt_fini(struct amdgpu_device *adev)
  * surface base address.
  */
 static void dce_v11_0_page_flip(struct amdgpu_device *adev,
-			      int crtc_id, u64 crtc_base)
+				int crtc_id, u64 crtc_base, bool async)
 {
 	struct amdgpu_crtc *amdgpu_crtc = adev->mode_info.crtcs[crtc_id];
+	u32 tmp;
 
+	/* flip at hsync for async, default is vsync */
+	/* use UPDATE_IMMEDIATE_EN instead for async? */
+	tmp = RREG32(mmGRPH_FLIP_CONTROL + amdgpu_crtc->crtc_offset);
+	tmp = REG_SET_FIELD(tmp, GRPH_FLIP_CONTROL,
+			    GRPH_SURFACE_UPDATE_H_RETRACE_EN, async ? 1 : 0);
+	WREG32(mmGRPH_FLIP_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 	/* update the scanout addresses */
 	WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
 	       upper_32_bits(crtc_base));
@@ -1595,6 +1602,7 @@ static const u32 pin_offsets[] =
 	AUD4_REGISTER_OFFSET,
 	AUD5_REGISTER_OFFSET,
 	AUD6_REGISTER_OFFSET,
+	AUD7_REGISTER_OFFSET,
 };
 
 static int dce_v11_0_audio_init(struct amdgpu_device *adev)
@@ -2185,6 +2193,14 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 
 	dce_v11_0_vga_enable(crtc, false);
 
+	/* Make sure surface address is updated at vertical blank rather than
+	 * horizontal blank
+	 */
+	tmp = RREG32(mmGRPH_FLIP_CONTROL + amdgpu_crtc->crtc_offset);
+	tmp = REG_SET_FIELD(tmp, GRPH_FLIP_CONTROL,
+			    GRPH_SURFACE_UPDATE_H_RETRACE_EN, 0);
+	WREG32(mmGRPH_FLIP_CONTROL + amdgpu_crtc->crtc_offset, tmp);
+
 	WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
 	       upper_32_bits(fb_location));
 	WREG32(mmGRPH_SECONDARY_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
@@ -2234,13 +2250,6 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 	viewport_h = (crtc->mode.vdisplay + 1) & ~1;
 	WREG32(mmVIEWPORT_SIZE + amdgpu_crtc->crtc_offset,
 	       (viewport_w << 16) | viewport_h);
-
-	/* pageflip setup */
-	/* make sure flip is at vb rather than hb */
-	tmp = RREG32(mmGRPH_FLIP_CONTROL + amdgpu_crtc->crtc_offset);
-	tmp = REG_SET_FIELD(tmp, GRPH_FLIP_CONTROL,
-			    GRPH_SURFACE_UPDATE_H_RETRACE_EN, 0);
-	WREG32(mmGRPH_FLIP_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 
 	/* set pageflip to happen only at start of vblank interval (front porch) */
 	WREG32(mmCRTC_MASTER_UPDATE_MODE + amdgpu_crtc->crtc_offset, 3);
@@ -2419,10 +2428,6 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 
 		if (ENCODER_MODE_IS_DP(amdgpu_atombios_encoder_get_encoder_mode(amdgpu_crtc->encoder)))
 			return ATOM_DP_DTO;
-		/* use the same PPLL for all monitors with the same clock */
-		pll = amdgpu_pll_get_shared_nondp_ppll(crtc);
-		if (pll != ATOM_PPLL_INVALID)
-			return pll;
 
 		switch (amdgpu_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
@@ -3046,6 +3051,8 @@ static int dce_v11_0_sw_init(void *handle)
 
 	adev->ddev->mode_config.funcs = &amdgpu_mode_funcs;
 
+	adev->ddev->mode_config.async_page_flip = true;
+
 	adev->ddev->mode_config.max_width = 16384;
 	adev->ddev->mode_config.max_height = 16384;
 
@@ -3553,6 +3560,7 @@ static int dce_v11_0_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs dce_v11_0_ip_funcs = {
+	.name = "dce_v11_0",
 	.early_init = dce_v11_0_early_init,
 	.late_init = NULL,
 	.sw_init = dce_v11_0_sw_init,

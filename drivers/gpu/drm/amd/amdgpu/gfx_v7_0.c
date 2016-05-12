@@ -53,7 +53,6 @@
 static void gfx_v7_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v7_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v7_0_set_gds_init(struct amdgpu_device *adev);
-int gfx_v7_0_get_cu_info(struct amdgpu_device *, struct amdgpu_cu_info *);
 
 MODULE_FIRMWARE("radeon/bonaire_pfp.bin");
 MODULE_FIRMWARE("radeon/bonaire_me.bin");
@@ -882,6 +881,7 @@ static u32 gfx_v7_0_get_csb_size(struct amdgpu_device *adev);
 static void gfx_v7_0_get_csb_buffer(struct amdgpu_device *adev, volatile u32 *buffer);
 static void gfx_v7_0_init_cp_pg_table(struct amdgpu_device *adev);
 static void gfx_v7_0_init_pg(struct amdgpu_device *adev);
+static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev);
 
 /*
  * Core functions
@@ -1718,6 +1718,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	gfx_v7_0_tiling_mode_table_init(adev);
 
 	gfx_v7_0_setup_rb(adev);
+	gfx_v7_0_get_cu_info(adev);
 
 	/* set HW defaults for 3D engine */
 	WREG32(mmCP_MEQ_THRESHOLDS,
@@ -2029,17 +2030,13 @@ static void gfx_v7_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
  * on the gfx ring for execution by the GPU.
  */
 static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib)
+				      struct amdgpu_ib *ib,
+				      unsigned vm_id, bool ctx_switch)
 {
-	bool need_ctx_switch = ring->current_ctx != ib->ctx;
 	u32 header, control = 0;
 	u32 next_rptr = ring->wptr + 5;
 
-	/* drop the CE preamble IB for the same context */
-	if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && !need_ctx_switch)
-		return;
-
-	if (need_ctx_switch)
+	if (ctx_switch)
 		next_rptr += 2;
 
 	next_rptr += 4;
@@ -2050,7 +2047,7 @@ static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, next_rptr);
 
 	/* insert SWITCH_BUFFER packet before first IB in the ring frame */
-	if (need_ctx_switch) {
+	if (ctx_switch) {
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
 		amdgpu_ring_write(ring, 0);
 	}
@@ -2060,7 +2057,7 @@ static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	else
 		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw | (ib->vm_id << 24);
+	control |= ib->length_dw | (vm_id << 24);
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,
@@ -2073,7 +2070,8 @@ static void gfx_v7_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 }
 
 static void gfx_v7_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib)
+					  struct amdgpu_ib *ib,
+					  unsigned vm_id, bool ctx_switch)
 {
 	u32 header, control = 0;
 	u32 next_rptr = ring->wptr + 5;
@@ -2088,7 +2086,7 @@ static void gfx_v7_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 
 	header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw | (ib->vm_id << 24);
+	control |= ib->length_dw | (vm_id << 24);
 
 	amdgpu_ring_write(ring, header);
 	amdgpu_ring_write(ring,
@@ -2136,7 +2134,7 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 	ib.ptr[2] = 0xDEADBEEF;
 	ib.length_dw = 3;
 
-	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
+	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, NULL, &f);
 	if (r)
 		goto err2;
 
@@ -3053,6 +3051,19 @@ static int gfx_v7_0_cp_resume(struct amdgpu_device *adev)
 static void gfx_v7_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
+	uint32_t seq = ring->fence_drv.sync_seq;
+	uint64_t addr = ring->fence_drv.gpu_addr;
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
+	amdgpu_ring_write(ring, (WAIT_REG_MEM_MEM_SPACE(1) | /* memory */
+				 WAIT_REG_MEM_FUNCTION(3) | /* equal */
+				 WAIT_REG_MEM_ENGINE(usepfp)));   /* pfp or me */
+	amdgpu_ring_write(ring, addr & 0xfffffffc);
+	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+	amdgpu_ring_write(ring, seq);
+	amdgpu_ring_write(ring, 0xffffffff);
+	amdgpu_ring_write(ring, 4); /* poll interval */
+
 	if (usepfp) {
 		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
@@ -3080,18 +3091,6 @@ static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
-	uint32_t seq = ring->fence_drv.sync_seq;
-	uint64_t addr = ring->fence_drv.gpu_addr;
-
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
-	amdgpu_ring_write(ring, (WAIT_REG_MEM_MEM_SPACE(1) | /* memory */
-				 WAIT_REG_MEM_FUNCTION(3) | /* equal */
-				 WAIT_REG_MEM_ENGINE(usepfp)));   /* pfp or me */
-	amdgpu_ring_write(ring, addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
-	amdgpu_ring_write(ring, seq);
-	amdgpu_ring_write(ring, 0xffffffff);
-	amdgpu_ring_write(ring, 4); /* poll interval */
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
@@ -3869,18 +3868,13 @@ static u32 gfx_v7_0_get_cu_active_bitmap(struct amdgpu_device *adev)
 
 static void gfx_v7_0_init_ao_cu_mask(struct amdgpu_device *adev)
 {
-	uint32_t tmp, active_cu_number;
-	struct amdgpu_cu_info cu_info;
+	u32 tmp;
 
-	gfx_v7_0_get_cu_info(adev, &cu_info);
-	tmp = cu_info.ao_cu_mask;
-	active_cu_number = cu_info.number;
-
-	WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, tmp);
+	WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
 
 	tmp = RREG32(mmRLC_MAX_PG_CU);
 	tmp &= ~RLC_MAX_PG_CU__MAX_POWERED_UP_CU_MASK;
-	tmp |= (active_cu_number << RLC_MAX_PG_CU__MAX_POWERED_UP_CU__SHIFT);
+	tmp |= (adev->gfx.cu_info.number << RLC_MAX_PG_CU__MAX_POWERED_UP_CU__SHIFT);
 	WREG32(mmRLC_MAX_PG_CU, tmp);
 }
 
@@ -4898,6 +4892,7 @@ static int gfx_v7_0_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
+	.name = "gfx_v7_0",
 	.early_init = gfx_v7_0_early_init,
 	.late_init = gfx_v7_0_late_init,
 	.sw_init = gfx_v7_0_sw_init,
@@ -5015,14 +5010,11 @@ static void gfx_v7_0_set_gds_init(struct amdgpu_device *adev)
 }
 
 
-int gfx_v7_0_get_cu_info(struct amdgpu_device *adev,
-			 struct amdgpu_cu_info *cu_info)
+static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 {
 	int i, j, k, counter, active_cu_number = 0;
 	u32 mask, bitmap, ao_bitmap, ao_cu_mask = 0;
-
-	if (!adev || !cu_info)
-		return -EINVAL;
+	struct amdgpu_cu_info *cu_info = &adev->gfx.cu_info;
 
 	memset(cu_info, 0, sizeof(*cu_info));
 
@@ -5053,6 +5045,4 @@ int gfx_v7_0_get_cu_info(struct amdgpu_device *adev,
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
-
-	return 0;
 }

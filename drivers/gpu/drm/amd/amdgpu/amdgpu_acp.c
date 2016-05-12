@@ -480,6 +480,7 @@ static int acp_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs acp_ip_funcs = {
+	.name = "acp_ip",
 	.early_init = acp_early_init,
 	.late_init = NULL,
 	.sw_init = acp_sw_init,

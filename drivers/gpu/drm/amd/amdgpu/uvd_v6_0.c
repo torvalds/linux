@@ -631,7 +631,8 @@ static int uvd_v6_0_ring_test_ring(struct amdgpu_ring *ring)
  * Write ring commands to execute the indirect buffer
  */
 static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib)
+				  struct amdgpu_ib *ib,
+				  unsigned vm_id, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, PACKET0(mmUVD_LMI_RBC_IB_64BIT_BAR_LOW, 0));
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
@@ -895,6 +896,7 @@ static int uvd_v6_0_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
+	.name = "uvd_v6_0",
 	.early_init = uvd_v6_0_early_init,
 	.late_init = NULL,
 	.sw_init = uvd_v6_0_sw_init,

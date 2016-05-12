@@ -1261,6 +1261,7 @@ static int gmc_v7_0_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs gmc_v7_0_ip_funcs = {
+	.name = "gmc_v7_0",
 	.early_init = gmc_v7_0_early_init,
 	.late_init = gmc_v7_0_late_init,
 	.sw_init = gmc_v7_0_sw_init,

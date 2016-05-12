@@ -41,13 +41,15 @@
 
 /* 1 second timeout */
 #define UVD_IDLE_TIMEOUT_MS	1000
+/* Polaris10/11 firmware version */
+#define FW_1_66_16 ((1 << 24) | (66 << 16) | (16 << 8))
 
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #define FIRMWARE_BONAIRE	"radeon/bonaire_uvd.bin"
-#define FIRMWARE_KABINI 	"radeon/kabini_uvd.bin"
-#define FIRMWARE_KAVERI 	"radeon/kaveri_uvd.bin"
-#define FIRMWARE_HAWAII 	"radeon/hawaii_uvd.bin"
+#define FIRMWARE_KABINI	"radeon/kabini_uvd.bin"
+#define FIRMWARE_KAVERI	"radeon/kaveri_uvd.bin"
+#define FIRMWARE_HAWAII	"radeon/hawaii_uvd.bin"
 #define FIRMWARE_MULLINS	"radeon/mullins_uvd.bin"
 #endif
 #define FIRMWARE_TONGA		"amdgpu/tonga_uvd.bin"
@@ -183,6 +185,12 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 
 	adev->uvd.fw_version = ((version_major << 24) | (version_minor << 16) |
 				(family_id << 8));
+
+	if ((adev->asic_type == CHIP_POLARIS10 ||
+	     adev->asic_type == CHIP_POLARIS11) &&
+	    (adev->uvd.fw_version < FW_1_66_16))
+		DRM_ERROR("POLARIS10/11 UVD firmware version %hu.%hu is too old.\n",
+			  version_major, version_minor);
 
 	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
 		  +  AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE
@@ -414,7 +422,8 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
  *
  * Peek into the decode message and calculate the necessary buffer sizes.
  */
-static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
+static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
+	unsigned buf_sizes[])
 {
 	unsigned stream_type = msg[4];
 	unsigned width = msg[6];
@@ -436,7 +445,6 @@ static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 
 	switch (stream_type) {
 	case 0: /* H264 */
-	case 7: /* H264 Perf */
 		switch(level) {
 		case 30:
 			num_dpb_buffer = 8100 / fs_in_mb;
@@ -512,6 +520,54 @@ static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 
 		/* IT surface buffer */
 		min_dpb_size += ALIGN(width_in_mb * height_in_mb * 32, 64);
+		break;
+
+	case 7: /* H264 Perf */
+		switch(level) {
+		case 30:
+			num_dpb_buffer = 8100 / fs_in_mb;
+			break;
+		case 31:
+			num_dpb_buffer = 18000 / fs_in_mb;
+			break;
+		case 32:
+			num_dpb_buffer = 20480 / fs_in_mb;
+			break;
+		case 41:
+			num_dpb_buffer = 32768 / fs_in_mb;
+			break;
+		case 42:
+			num_dpb_buffer = 34816 / fs_in_mb;
+			break;
+		case 50:
+			num_dpb_buffer = 110400 / fs_in_mb;
+			break;
+		case 51:
+			num_dpb_buffer = 184320 / fs_in_mb;
+			break;
+		default:
+			num_dpb_buffer = 184320 / fs_in_mb;
+			break;
+		}
+		num_dpb_buffer++;
+		if (num_dpb_buffer > 17)
+			num_dpb_buffer = 17;
+
+		/* reference picture buffer */
+		min_dpb_size = image_size * num_dpb_buffer;
+
+		if (adev->asic_type < CHIP_POLARIS10){
+			/* macroblock context buffer */
+			min_dpb_size +=
+				width_in_mb * height_in_mb * num_dpb_buffer * 192;
+
+			/* IT surface buffer */
+			min_dpb_size += width_in_mb * height_in_mb * 32;
+		} else {
+			/* macroblock context buffer */
+			min_ctx_size =
+				width_in_mb * height_in_mb * num_dpb_buffer * 192;
+		}
 		break;
 
 	case 16: /* H265 */
@@ -609,7 +665,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 	case 1:
 		/* it's a decode msg, calc buffer sizes */
-		r = amdgpu_uvd_cs_msg_decode(msg, ctx->buf_sizes);
+		r = amdgpu_uvd_cs_msg_decode(adev, msg, ctx->buf_sizes);
 		amdgpu_bo_kunmap(bo);
 		if (r)
 			return r;
@@ -910,7 +966,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ib->length_dw = 16;
 
 	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
 		job->fence = f;
 		if (r)
 			goto err_free;
