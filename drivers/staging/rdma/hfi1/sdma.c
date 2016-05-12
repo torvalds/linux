@@ -376,7 +376,7 @@ static inline void complete_tx(struct sdma_engine *sde,
 	sdma_txclean(sde->dd, tx);
 	if (complete)
 		(*complete)(tx, res);
-	if (iowait_sdma_dec(wait) && wait)
+	if (wait && iowait_sdma_dec(wait))
 		iowait_drain_wakeup(wait);
 }
 
