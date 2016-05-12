@@ -46,6 +46,6 @@ int gb_control_timesync_disable(struct gb_control *control);
 int gb_control_timesync_get_last_event(struct gb_control *control,
 				       u64 *frame_time);
 int gb_control_timesync_authoritative(struct gb_control *control,
-				      u64 *frame_time, u8 count);
+				      u64 *frame_time);
 
 #endif /* __CONTROL_H */
