@@ -45,6 +45,7 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 
 /* exitstatus is used to keep track of any failing calls to kernel-doc,
  * but execution continues. */
@@ -616,6 +617,12 @@ int main(int argc, char *argv[])
 	}
 
 	if (strcmp("doc", subcommand) == 0) {
+		if (file_format == FORMAT_RST) {
+			time_t t = time(NULL);
+			printf(".. generated from %s by docproc %s\n",
+			       filename, ctime(&t));
+		}
+
 		/* Need to do this in two passes.
 		 * First pass is used to collect all symbols exported
 		 * in the various files;
