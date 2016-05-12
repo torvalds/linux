@@ -31,6 +31,9 @@ void drm_fb_cma_destroy(struct drm_framebuffer *fb);
 int drm_fb_cma_create_handle(struct drm_framebuffer *fb,
 	struct drm_file *file_priv, unsigned int *handle);
 
+struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
+	const struct drm_framebuffer_funcs *funcs);
 struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
 	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd);
 

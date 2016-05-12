@@ -159,13 +159,17 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 }
 
 /**
- * drm_fb_cma_create() - (struct drm_mode_config_funcs *)->fb_create callback function
+ * drm_fb_cma_create_with_funcs() - helper function for the
+ *                                  &drm_mode_config_funcs ->fb_create
+ *                                  callback function
  *
- * If your hardware has special alignment or pitch requirements these should be
- * checked before calling this function.
+ * This can be used to set &drm_framebuffer_funcs for drivers that need the
+ * dirty() callback. Use drm_fb_cma_create() if you don't need to change
+ * &drm_framebuffer_funcs.
  */
-struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
-	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
+struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
+	const struct drm_framebuffer_funcs *funcs)
 {
 	struct drm_fb_cma *fb_cma;
 	struct drm_gem_cma_object *objs[4];
@@ -202,7 +206,7 @@ struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
 		objs[i] = to_drm_gem_cma_obj(obj);
 	}
 
-	fb_cma = drm_fb_cma_alloc(dev, mode_cmd, objs, i, &drm_fb_cma_funcs);
+	fb_cma = drm_fb_cma_alloc(dev, mode_cmd, objs, i, funcs);
 	if (IS_ERR(fb_cma)) {
 		ret = PTR_ERR(fb_cma);
 		goto err_gem_object_unreference;
@@ -214,6 +218,21 @@ err_gem_object_unreference:
 	for (i--; i >= 0; i--)
 		drm_gem_object_unreference_unlocked(&objs[i]->base);
 	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(drm_fb_cma_create_with_funcs);
+
+/**
+ * drm_fb_cma_create() - &drm_mode_config_funcs ->fb_create callback function
+ *
+ * If your hardware has special alignment or pitch requirements these should be
+ * checked before calling this function. Use drm_fb_cma_create_with_funcs() if
+ * you need to set &drm_framebuffer_funcs ->dirty.
+ */
+struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	return drm_fb_cma_create_with_funcs(dev, file_priv, mode_cmd,
+					    &drm_fb_cma_funcs);
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_create);
 
