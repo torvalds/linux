@@ -3327,9 +3327,9 @@ static void skl_compute_transition_wm(struct intel_crtc_state *cstate,
 	}
 }
 
-static void skl_compute_pipe_wm(struct intel_crtc_state *cstate,
-				struct skl_ddb_allocation *ddb,
-				struct skl_pipe_wm *pipe_wm)
+static void skl_build_pipe_wm(struct intel_crtc_state *cstate,
+			      struct skl_ddb_allocation *ddb,
+			      struct skl_pipe_wm *pipe_wm)
 {
 	struct drm_device *dev = cstate->base.crtc->dev;
 	const struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3596,7 +3596,7 @@ static bool skl_update_pipe_wm(struct drm_crtc *crtc,
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 
 	skl_allocate_pipe_ddb(cstate, ddb);
-	skl_compute_pipe_wm(cstate, ddb, pipe_wm);
+	skl_build_pipe_wm(cstate, ddb, pipe_wm);
 
 	if (!memcmp(&intel_crtc->wm.active.skl, pipe_wm, sizeof(*pipe_wm)))
 		return false;
