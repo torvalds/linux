@@ -35,7 +35,6 @@
 #define MAX_BUF			8192
 #define MAX_PENDING_REQUESTS	(MIN_NUMSIGNALS * 2)
 #define VISORHBA_ERROR_COUNT	30
-#define VISORHBA_OPEN_MAX	1
 
 static int visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 				      void (*visorhba_cmnd_done)
@@ -134,8 +133,6 @@ struct visorhba_devdata {
 struct visorhba_devices_open {
 	struct visorhba_devdata *devdata;
 };
-
-static struct visorhba_devices_open visorhbas_open[VISORHBA_OPEN_MAX];
 
 #define for_each_vdisk_match(iter, list, match)			  \
 	for (iter = &list->head; iter->next; iter = iter->next) \
@@ -1075,7 +1072,7 @@ static int visorhba_probe(struct visor_device *dev)
 	struct Scsi_Host *scsihost;
 	struct vhba_config_max max;
 	struct visorhba_devdata *devdata = NULL;
-	int i, err, channel_offset;
+	int err, channel_offset;
 	u64 features;
 
 	scsihost = scsi_host_alloc(&visorhba_driver_template,
@@ -1104,13 +1101,6 @@ static int visorhba_probe(struct visor_device *dev)
 		goto err_scsi_host_put;
 
 	devdata = (struct visorhba_devdata *)scsihost->hostdata;
-	for (i = 0; i < VISORHBA_OPEN_MAX; i++) {
-		if (!visorhbas_open[i].devdata) {
-			visorhbas_open[i].devdata = devdata;
-			break;
-		}
-	}
-
 	devdata->dev = dev;
 	dev_set_drvdata(&dev->device, devdata);
 
