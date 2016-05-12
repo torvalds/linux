@@ -984,38 +984,19 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 	}
 }
 
-static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
-		int start_new)
+static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param)
 {
 	struct dwc3_gadget_ep_cmd_params params;
 	struct dwc3_request		*req;
 	struct dwc3			*dwc = dep->dwc;
+	int				starting;
 	int				ret;
 	u32				cmd;
 
-	if (start_new && (dep->flags & DWC3_EP_BUSY)) {
-		dwc3_trace(trace_dwc3_gadget, "%s: endpoint busy", dep->name);
-		return -EBUSY;
-	}
+	starting = !(dep->flags & DWC3_EP_BUSY);
 
-	/*
-	 * If we are getting here after a short-out-packet we don't enqueue any
-	 * new requests as we try to set the IOC bit only on the last request.
-	 */
-	if (start_new) {
-		if (list_empty(&dep->started_list))
-			dwc3_prepare_trbs(dep);
-
-		/* req points to the first request which will be sent */
-		req = next_request(&dep->started_list);
-	} else {
-		dwc3_prepare_trbs(dep);
-
-		/*
-		 * req points to the first request where HWO changed from 0 to 1
-		 */
-		req = next_request(&dep->started_list);
-	}
+	dwc3_prepare_trbs(dep);
+	req = next_request(&dep->started_list);
 	if (!req) {
 		dep->flags |= DWC3_EP_PENDING_REQUEST;
 		return 0;
@@ -1023,7 +1004,7 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 
 	memset(&params, 0, sizeof(params));
 
-	if (start_new) {
+	if (starting) {
 		params.param0 = upper_32_bits(req->trb_dma);
 		params.param1 = lower_32_bits(req->trb_dma);
 		cmd = DWC3_DEPCMD_STARTTRANSFER;
@@ -1047,7 +1028,7 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 
 	dep->flags |= DWC3_EP_BUSY;
 
-	if (start_new) {
+	if (starting) {
 		dep->resource_index = dwc3_gadget_ep_get_transfer_index(dwc,
 				dep->number);
 		WARN_ON_ONCE(!dep->resource_index);
@@ -1072,7 +1053,7 @@ static void __dwc3_gadget_start_isoc(struct dwc3 *dwc,
 	/* 4 micro frames in the future */
 	uf = cur_uf + dep->interval * 4;
 
-	__dwc3_gadget_kick_transfer(dep, uf, 1);
+	__dwc3_gadget_kick_transfer(dep, uf);
 }
 
 static void dwc3_gadget_start_isoc(struct dwc3 *dwc,
@@ -1141,7 +1122,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
 			!usb_endpoint_xfer_int(dep->endpoint.desc) &&
 			!(dep->flags & DWC3_EP_BUSY)) {
-		ret = __dwc3_gadget_kick_transfer(dep, 0, true);
+		ret = __dwc3_gadget_kick_transfer(dep, 0);
 		goto out;
 	}
 
@@ -1171,7 +1152,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 			return 0;
 		}
 
-		ret = __dwc3_gadget_kick_transfer(dep, 0, true);
+		ret = __dwc3_gadget_kick_transfer(dep, 0);
 		if (!ret)
 			dep->flags &= ~DWC3_EP_PENDING_REQUEST;
 
@@ -1187,8 +1168,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 			(dep->flags & DWC3_EP_BUSY) &&
 			!(dep->flags & DWC3_EP_MISSED_ISOC)) {
 		WARN_ON_ONCE(!dep->resource_index);
-		ret = __dwc3_gadget_kick_transfer(dep, dep->resource_index,
-				false);
+		ret = __dwc3_gadget_kick_transfer(dep, dep->resource_index);
 		goto out;
 	}
 
@@ -1198,7 +1178,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	 * handled.
 	 */
 	if (dep->stream_capable)
-		ret = __dwc3_gadget_kick_transfer(dep, 0, true);
+		ret = __dwc3_gadget_kick_transfer(dep, 0);
 
 out:
 	if (ret && ret != -EBUSY)
@@ -2087,7 +2067,7 @@ static void dwc3_endpoint_transfer_complete(struct dwc3 *dwc,
 	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 		int ret;
 
-		ret = __dwc3_gadget_kick_transfer(dep, 0, is_xfer_complete);
+		ret = __dwc3_gadget_kick_transfer(dep, 0);
 		if (!ret || ret == -EBUSY)
 			return;
 	}
@@ -2138,7 +2118,7 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 					dep->name, active ? "Transfer Active"
 					: "Transfer Not Active");
 
-			ret = __dwc3_gadget_kick_transfer(dep, 0, !active);
+			ret = __dwc3_gadget_kick_transfer(dep, 0);
 			if (!ret || ret == -EBUSY)
 				return;
 
