@@ -64,7 +64,7 @@ greybus_match_id(struct gb_bundle *bundle, const struct greybus_bundle_id *id)
 	return NULL;
 }
 
-static int greybus_module_match(struct device *dev, struct device_driver *drv)
+static int greybus_match_device(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(drv);
 	struct gb_bundle *bundle;
@@ -151,7 +151,7 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 struct bus_type greybus_bus_type = {
 	.name =		"greybus",
-	.match =	greybus_module_match,
+	.match =	greybus_match_device,
 	.uevent =	greybus_uevent,
 };
 
