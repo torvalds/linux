@@ -430,6 +430,21 @@ static void find_all_symbols(char *filename)
 	}
 }
 
+/*
+ * Terminate s at first space, if any. If there was a space, return pointer to
+ * the character after that. Otherwise, return pointer to the terminating NUL.
+ */
+static char *chomp(char *s)
+{
+	while (*s && !isspace(*s))
+		s++;
+
+	if (*s)
+		*s++ = '\0';
+
+	return s;
+}
+
 /* Return pointer to directive content, or NULL if not a directive. */
 static char *is_directive(char *line)
 {
@@ -460,27 +475,22 @@ static void parse_file(FILE *infile)
 			continue;
 		}
 
-		s = p + 1;
 		switch (*p++) {
 		case 'E':
-			while (*s && !isspace(*s)) s++;
-			*s = '\0';
+			chomp(p);
 			externalfunctions(p);
 			break;
 		case 'I':
-			while (*s && !isspace(*s)) s++;
-			*s = '\0';
+			chomp(p);
 			internalfunctions(p);
 			break;
 		case 'D':
-			while (*s && !isspace(*s)) s++;
-			*s = '\0';
+			chomp(p);
 			symbolsonly(p);
 			break;
 		case 'F':
 			/* filename */
-			while (*s && !isspace(*s)) s++;
-			*s++ = '\0';
+			s = chomp(p);
 			/* function names */
 			while (isspace(*s))
 				s++;
@@ -488,16 +498,14 @@ static void parse_file(FILE *infile)
 			break;
 		case 'P':
 			/* filename */
-			while (*s && !isspace(*s)) s++;
-			*s++ = '\0';
+			s = chomp(p);
 			/* DOC: section name */
 			while (isspace(*s))
 				s++;
 			docsection(p, s);
 			break;
 		case 'C':
-			while (*s && !isspace(*s)) s++;
-			*s = '\0';
+			chomp(p);
 			if (findall)
 				findall(p);
 			break;
