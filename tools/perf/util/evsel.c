@@ -2345,6 +2345,8 @@ out:
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize)
 {
+	int paranoid;
+
 	if ((err == ENOENT || err == ENXIO || err == ENODEV) &&
 	    evsel->attr.type   == PERF_TYPE_HARDWARE &&
 	    evsel->attr.config == PERF_COUNT_HW_CPU_CYCLES) {
@@ -2363,6 +2365,22 @@ bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 		evsel->attr.config = PERF_COUNT_SW_CPU_CLOCK;
 
 		zfree(&evsel->name);
+		return true;
+	} else if (err == EACCES && !evsel->attr.exclude_kernel &&
+		   (paranoid = perf_event_paranoid()) > 1) {
+		const char *name = perf_evsel__name(evsel);
+		char *new_name;
+
+		if (asprintf(&new_name, "%s%su", name, strchr(name, ':') ? "" : ":") < 0)
+			return false;
+
+		if (evsel->name)
+			free(evsel->name);
+		evsel->name = new_name;
+		scnprintf(msg, msgsize,
+"kernel.perf_event_paranoid=%d, trying to fall back to excluding kernel samples", paranoid);
+		evsel->attr.exclude_kernel = 1;
+
 		return true;
 	}
 
