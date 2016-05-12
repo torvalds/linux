@@ -880,16 +880,40 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	trace_dwc3_prepare_trb(dep, trb);
 }
 
+static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
+{
+	struct dwc3_trb		*tmp;
+
+	/*
+	 * If enqueue & dequeue are equal than it is either full or empty.
+	 *
+	 * One way to know for sure is if the TRB right before us has HWO bit
+	 * set or not. If it has, then we're definitely full and can't fit any
+	 * more transfers in our ring.
+	 */
+	if (dep->trb_enqueue == dep->trb_dequeue) {
+		/* If we're full, enqueue/dequeue are > 0 */
+		if (dep->trb_enqueue) {
+			tmp = &dep->trb_pool[dep->trb_enqueue - 1];
+			if (tmp->ctrl & DWC3_TRB_CTRL_HWO)
+				return 0;
+		}
+
+		return DWC3_TRB_NUM - 1;
+	}
+
+	return dep->trb_dequeue - dep->trb_enqueue;
+}
+
 /*
  * dwc3_prepare_trbs - setup TRBs from requests
  * @dep: endpoint for which requests are being prepared
- * @starting: true if the endpoint is idle and no requests are queued.
  *
  * The function goes through the requests list and sets up TRBs for the
  * transfers. The function returns once there are no more TRBs available or
  * it runs out of requests.
  */
-static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
+static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 {
 	struct dwc3_request	*req, *n;
 	u32			trbs_left;
@@ -897,23 +921,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
-	trbs_left = dep->trb_dequeue - dep->trb_enqueue;
-
-	/*
-	 * If enqueue & dequeue are equal than it is either full or empty. If we
-	 * are starting to process requests then we are empty. Otherwise we are
-	 * full and don't do anything
-	 */
-	if (!trbs_left) {
-		if (!starting)
-			return;
-
-		trbs_left = DWC3_TRB_NUM;
-	}
-
-	/* The last TRB is a link TRB, not used for xfer */
-	if (trbs_left <= 1)
-		return;
+	trbs_left = dwc3_calc_trbs_left(dep);
 
 	list_for_each_entry_safe(req, n, &dep->pending_list, list) {
 		unsigned	length;
@@ -996,12 +1004,12 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 	 */
 	if (start_new) {
 		if (list_empty(&dep->started_list))
-			dwc3_prepare_trbs(dep, start_new);
+			dwc3_prepare_trbs(dep);
 
 		/* req points to the first request which will be sent */
 		req = next_request(&dep->started_list);
 	} else {
-		dwc3_prepare_trbs(dep, start_new);
+		dwc3_prepare_trbs(dep);
 
 		/*
 		 * req points to the first request where HWO changed from 0 to 1
