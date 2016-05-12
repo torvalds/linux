@@ -1631,7 +1631,7 @@ static int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask)
 static int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 			    struct kernfs_root *kf_root)
 {
-	int len = 0, ret = 0;
+	int len = 0;
 	char *buf = NULL;
 	struct cgroup_root *kf_cgroot = cgroup_root_from_kf(kf_root);
 	struct cgroup *ns_cgroup;
