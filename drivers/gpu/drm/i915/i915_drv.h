@@ -324,6 +324,12 @@ struct i915_hotplug {
 			    &dev->mode_config.plane_list,	\
 			    base.head)
 
+#define for_each_intel_plane_mask(dev, intel_plane, plane_mask)		\
+	list_for_each_entry(intel_plane, &dev->mode_config.plane_list,	\
+			    base.head)					\
+		for_each_if ((plane_mask) &				\
+			     (1 << drm_plane_index(&intel_plane->base)))
+
 #define for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane)	\
 	list_for_each_entry(intel_plane,				\
 			    &(dev)->mode_config.plane_list,		\
