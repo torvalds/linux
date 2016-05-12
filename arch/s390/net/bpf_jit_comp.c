@@ -45,7 +45,7 @@ struct bpf_jit {
 	int labels[1];		/* Labels for local jumps */
 };
 
-#define BPF_SIZE_MAX	0x7ffff	/* Max size for program (20 bit signed displ) */
+#define BPF_SIZE_MAX	0xffff	/* Max size for program (16 bit branches) */
 
 #define SEEN_SKB	1	/* skb access */
 #define SEEN_MEM	2	/* use mem[] for temporary storage */
