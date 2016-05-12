@@ -1028,8 +1028,11 @@ static int gtp_genl_new_pdp(struct sk_buff *skb, struct genl_info *info)
 
 	/* Check if there's an existing gtpX device to configure */
 	dev = gtp_find_dev(net, nla_get_u32(info->attrs[GTPA_LINK]));
-	if (dev == NULL)
+	if (dev == NULL) {
+		put_net(net);
 		return -ENODEV;
+	}
+	put_net(net);
 
 	return ipv4_pdp_add(dev, info);
 }
@@ -1051,8 +1054,11 @@ static int gtp_genl_del_pdp(struct sk_buff *skb, struct genl_info *info)
 
 	/* Check if there's an existing gtpX device to configure */
 	dev = gtp_find_dev(net, nla_get_u32(info->attrs[GTPA_LINK]));
-	if (dev == NULL)
+	if (dev == NULL) {
+		put_net(net);
 		return -ENODEV;
+	}
+	put_net(net);
 
 	gtp = netdev_priv(dev);
 
@@ -1163,8 +1169,11 @@ static int gtp_genl_get_pdp(struct sk_buff *skb, struct genl_info *info)
 
 	/* Check if there's an existing gtpX device to configure */
 	dev = gtp_find_dev(net, nla_get_u32(info->attrs[GTPA_LINK]));
-	if (dev == NULL)
+	if (dev == NULL) {
+		put_net(net);
 		return -ENODEV;
+	}
+	put_net(net);
 
 	gtp = netdev_priv(dev);
 
