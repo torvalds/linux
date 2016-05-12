@@ -2309,7 +2309,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 	int level, max_level = ilk_wm_max_level(dev), usable_level;
 	struct ilk_wm_maximums max;
 
-	pipe_wm = &cstate->wm.optimal.ilk;
+	pipe_wm = &cstate->wm.ilk.optimal;
 
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		struct intel_plane_state *ps;
@@ -2391,7 +2391,7 @@ static int ilk_compute_intermediate_wm(struct drm_device *dev,
 				       struct intel_crtc *intel_crtc,
 				       struct intel_crtc_state *newstate)
 {
-	struct intel_pipe_wm *a = &newstate->wm.intermediate;
+	struct intel_pipe_wm *a = &newstate->wm.ilk.intermediate;
 	struct intel_pipe_wm *b = &intel_crtc->wm.active.ilk;
 	int level, max_level = ilk_wm_max_level(dev);
 
@@ -2400,7 +2400,7 @@ static int ilk_compute_intermediate_wm(struct drm_device *dev,
 	 * currently active watermarks to get values that are safe both before
 	 * and after the vblank.
 	 */
-	*a = newstate->wm.optimal.ilk;
+	*a = newstate->wm.ilk.optimal;
 	a->pipe_enabled |= b->pipe_enabled;
 	a->sprites_enabled |= b->sprites_enabled;
 	a->sprites_scaled |= b->sprites_scaled;
@@ -2429,7 +2429,7 @@ static int ilk_compute_intermediate_wm(struct drm_device *dev,
 	 * If our intermediate WM are identical to the final WM, then we can
 	 * omit the post-vblank programming; only update if it's different.
 	 */
-	if (memcmp(a, &newstate->wm.optimal.ilk, sizeof(*a)) == 0)
+	if (memcmp(a, &newstate->wm.ilk.optimal, sizeof(*a)) == 0)
 		newstate->wm.need_postvbl_update = false;
 
 	return 0;
@@ -3678,7 +3678,7 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct skl_wm_values *results = &dev_priv->wm.skl_results;
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
-	struct skl_pipe_wm *pipe_wm = &cstate->wm.optimal.skl;
+	struct skl_pipe_wm *pipe_wm = &cstate->wm.skl.optimal;
 
 
 	/* Clear all dirty flags */
@@ -3757,7 +3757,7 @@ static void ilk_initial_watermarks(struct intel_crtc_state *cstate)
 	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->base.crtc);
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
-	intel_crtc->wm.active.ilk = cstate->wm.intermediate;
+	intel_crtc->wm.active.ilk = cstate->wm.ilk.intermediate;
 	ilk_program_watermarks(dev_priv);
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
@@ -3769,7 +3769,7 @@ static void ilk_optimize_watermarks(struct intel_crtc_state *cstate)
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
 	if (cstate->wm.need_postvbl_update) {
-		intel_crtc->wm.active.ilk = cstate->wm.optimal.ilk;
+		intel_crtc->wm.active.ilk = cstate->wm.ilk.optimal;
 		ilk_program_watermarks(dev_priv);
 	}
 	mutex_unlock(&dev_priv->wm.wm_mutex);
@@ -3826,7 +3826,7 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	struct skl_wm_values *hw = &dev_priv->wm.skl_hw;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
-	struct skl_pipe_wm *active = &cstate->wm.optimal.skl;
+	struct skl_pipe_wm *active = &cstate->wm.skl.optimal;
 	enum pipe pipe = intel_crtc->pipe;
 	int level, i, max_level;
 	uint32_t temp;
@@ -3892,7 +3892,7 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	struct ilk_wm_values *hw = &dev_priv->wm.hw;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
-	struct intel_pipe_wm *active = &cstate->wm.optimal.ilk;
+	struct intel_pipe_wm *active = &cstate->wm.ilk.optimal;
 	enum pipe pipe = intel_crtc->pipe;
 	static const i915_reg_t wm0_pipe_reg[] = {
 		[PIPE_A] = WM0_PIPEA_ILK,

@@ -405,6 +405,40 @@ struct skl_pipe_wm {
 	uint32_t linetime;
 };
 
+struct intel_crtc_wm_state {
+	union {
+		struct {
+			/*
+			 * Intermediate watermarks; these can be
+			 * programmed immediately since they satisfy
+			 * both the current configuration we're
+			 * switching away from and the new
+			 * configuration we're switching to.
+			 */
+			struct intel_pipe_wm intermediate;
+
+			/*
+			 * Optimal watermarks, programmed post-vblank
+			 * when this state is committed.
+			 */
+			struct intel_pipe_wm optimal;
+		} ilk;
+
+		struct {
+			/* gen9+ only needs 1-step wm programming */
+			struct skl_pipe_wm optimal;
+		} skl;
+	};
+
+	/*
+	 * Platforms with two-step watermark programming will need to
+	 * update watermark programming post-vblank to switch from the
+	 * safe intermediate watermarks to the optimal final
+	 * watermarks.
+	 */
+	bool need_postvbl_update;
+};
+
 struct intel_crtc_state {
 	struct drm_crtc_state base;
 
@@ -558,32 +592,7 @@ struct intel_crtc_state {
 	/* IVB sprite scaling w/a (WaCxSRDisabledForSpriteScaling:ivb) */
 	bool disable_lp_wm;
 
-	struct {
-		/*
-		 * Optimal watermarks, programmed post-vblank when this state
-		 * is committed.
-		 */
-		union {
-			struct intel_pipe_wm ilk;
-			struct skl_pipe_wm skl;
-		} optimal;
-
-		/*
-		 * Intermediate watermarks; these can be programmed immediately
-		 * since they satisfy both the current configuration we're
-		 * switching away from and the new configuration we're switching
-		 * to.
-		 */
-		struct intel_pipe_wm intermediate;
-
-		/*
-		 * Platforms with two-step watermark programming will need to
-		 * update watermark programming post-vblank to switch from the
-		 * safe intermediate watermarks to the optimal final
-		 * watermarks.
-		 */
-		bool need_postvbl_update;
-	} wm;
+	struct intel_crtc_wm_state wm;
 
 	/* Gamma mode programmed on the pipe */
 	uint32_t gamma_mode;
