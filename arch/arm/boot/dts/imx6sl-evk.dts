@@ -125,6 +125,7 @@
 			"IN3R", "AMIC";
 		mux-int-port = <2>;
 		mux-ext-port = <3>;
+		codec-master;
 		hp-det-gpios = <&gpio4 19 1>;
 	};
 

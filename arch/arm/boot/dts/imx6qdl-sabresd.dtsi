@@ -188,6 +188,7 @@
 			"CPU-Capture", "Capture";
 		mux-int-port = <2>;
 		mux-ext-port = <3>;
+		codec-master;
 		hp-det-gpios = <&gpio7 8 1>;
 		mic-det-gpios = <&gpio1 9 1>;
 	};
