@@ -2069,16 +2069,12 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 
 static bool __is_valid_access(int off, int size, enum bpf_access_type type)
 {
-	/* check bounds */
 	if (off < 0 || off >= sizeof(struct __sk_buff))
 		return false;
-
-	/* disallow misaligned access */
+	/* The verifier guarantees that size > 0. */
 	if (off % size != 0)
 		return false;
-
-	/* all __sk_buff fields are __u32 */
-	if (size != 4)
+	if (size != sizeof(__u32))
 		return false;
 
 	return true;
@@ -2097,7 +2093,7 @@ static bool sk_filter_is_valid_access(int off, int size,
 	if (type == BPF_WRITE) {
 		switch (off) {
 		case offsetof(struct __sk_buff, cb[0]) ...
-			offsetof(struct __sk_buff, cb[4]):
+		     offsetof(struct __sk_buff, cb[4]):
 			break;
 		default:
 			return false;
@@ -2278,30 +2274,30 @@ static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 }
 
 static const struct bpf_verifier_ops sk_filter_ops = {
-	.get_func_proto = sk_filter_func_proto,
-	.is_valid_access = sk_filter_is_valid_access,
-	.convert_ctx_access = bpf_net_convert_ctx_access,
+	.get_func_proto		= sk_filter_func_proto,
+	.is_valid_access	= sk_filter_is_valid_access,
+	.convert_ctx_access	= bpf_net_convert_ctx_access,
 };
 
 static const struct bpf_verifier_ops tc_cls_act_ops = {
-	.get_func_proto = tc_cls_act_func_proto,
-	.is_valid_access = tc_cls_act_is_valid_access,
-	.convert_ctx_access = bpf_net_convert_ctx_access,
+	.get_func_proto		= tc_cls_act_func_proto,
+	.is_valid_access	= tc_cls_act_is_valid_access,
+	.convert_ctx_access	= bpf_net_convert_ctx_access,
 };
 
 static struct bpf_prog_type_list sk_filter_type __read_mostly = {
-	.ops = &sk_filter_ops,
-	.type = BPF_PROG_TYPE_SOCKET_FILTER,
+	.ops	= &sk_filter_ops,
+	.type	= BPF_PROG_TYPE_SOCKET_FILTER,
 };
 
 static struct bpf_prog_type_list sched_cls_type __read_mostly = {
-	.ops = &tc_cls_act_ops,
-	.type = BPF_PROG_TYPE_SCHED_CLS,
+	.ops	= &tc_cls_act_ops,
+	.type	= BPF_PROG_TYPE_SCHED_CLS,
 };
 
 static struct bpf_prog_type_list sched_act_type __read_mostly = {
-	.ops = &tc_cls_act_ops,
-	.type = BPF_PROG_TYPE_SCHED_ACT,
+	.ops	= &tc_cls_act_ops,
+	.type	= BPF_PROG_TYPE_SCHED_ACT,
 };
 
 static int __init register_sk_filter_ops(void)

@@ -129,14 +129,12 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 
 	return fp;
 }
-EXPORT_SYMBOL_GPL(bpf_prog_realloc);
 
 void __bpf_prog_free(struct bpf_prog *fp)
 {
 	kfree(fp->aux);
 	vfree(fp);
 }
-EXPORT_SYMBOL_GPL(__bpf_prog_free);
 
 #ifdef CONFIG_BPF_JIT
 struct bpf_binary_header *
