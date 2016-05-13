@@ -28,12 +28,11 @@ struct mn88472_dev {
 	struct i2c_client *client[3];
 	struct regmap *regmap[3];
 	struct dvb_frontend fe;
-	u16 i2c_wr_max;
-	enum fe_delivery_system delivery_system;
-	bool warm; /* FW running */
-	u32 xtal;
-	int ts_mode;
-	int ts_clock;
+	u16 i2c_write_max;
+	unsigned int clk;
+	unsigned int active:1;
+	unsigned int ts_mode:1;
+	unsigned int ts_clk:1;
 };
 
 #endif
