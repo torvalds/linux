@@ -5460,7 +5460,7 @@ static const struct skl_cdclk_entry {
 	{ .freq = 675000, .vco = 8100 },
 };
 
-static unsigned int skl_cdclk_get_vco(unsigned int freq)
+unsigned int skl_cdclk_get_vco(unsigned int freq)
 {
 	unsigned int i;
 
@@ -5618,17 +5618,21 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	unsigned int vco;
+	unsigned int cdclk;
 
 	/* DPLL0 not enabled (happens on early BIOS versions) */
 	if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE)) {
 		/* enable DPLL0 */
-		vco = skl_cdclk_get_vco(dev_priv->skl_boot_cdclk);
-		skl_dpll0_enable(dev_priv, vco);
+		if (dev_priv->skl_vco_freq != 8640)
+			dev_priv->skl_vco_freq = 8100;
+		skl_dpll0_enable(dev_priv, dev_priv->skl_vco_freq);
+		cdclk = ((dev_priv->skl_vco_freq == 8100) ? 337500 : 308570);
+	} else {
+		cdclk = dev_priv->cdclk_freq;
 	}
 
-	/* set CDCLK to the frequency the BIOS chose */
-	skl_set_cdclk(dev_priv, dev_priv->skl_boot_cdclk);
+	/* set CDCLK to the lowest frequency, Modeset follows */
+	skl_set_cdclk(dev_priv, cdclk);
 
 	/* enable DBUF power */
 	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
@@ -5644,7 +5648,7 @@ int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 {
 	uint32_t lcpll1 = I915_READ(LCPLL1_CTL);
 	uint32_t cdctl = I915_READ(CDCLK_CTL);
-	int freq = dev_priv->skl_boot_cdclk;
+	int freq = dev_priv->cdclk_freq;
 
 	/*
 	 * check if the pre-os intialized the display
@@ -5668,11 +5672,7 @@ int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 		/* All well; nothing to sanitize */
 		return false;
 sanitize:
-	/*
-	 * As of now initialize with max cdclk till
-	 * we get dynamic cdclk support
-	 * */
-	dev_priv->skl_boot_cdclk = dev_priv->max_cdclk_freq;
+
 	skl_init_cdclk(dev_priv);
 
 	/* we did have to sanitize */
@@ -9645,6 +9645,73 @@ static void broadwell_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 	broadwell_set_cdclk(dev, req_cdclk);
 }
 
+static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
+{
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
+	const int max_pixclk = ilk_max_pixel_rate(state);
+	int cdclk;
+
+	/*
+	 * FIXME should also account for plane ratio
+	 * once 64bpp pixel formats are supported.
+	 */
+
+	if (intel_state->cdclk_pll_vco == 8640) {
+		/* vco 8640 */
+		if (max_pixclk > 540000)
+			cdclk = 617140;
+		else if (max_pixclk > 432000)
+			cdclk = 540000;
+		else if (max_pixclk > 308570)
+			cdclk = 432000;
+		else
+			cdclk = 308570;
+	} else {
+		/* VCO 8100 */
+		if (max_pixclk > 540000)
+			cdclk = 675000;
+		else if (max_pixclk > 450000)
+			cdclk = 540000;
+		else if (max_pixclk > 337500)
+			cdclk = 450000;
+		else
+			cdclk = 337500;
+	}
+
+	/*
+	 * FIXME move the cdclk caclulation to
+	 * compute_config() so we can fail gracegully.
+	 */
+	if (cdclk > dev_priv->max_cdclk_freq) {
+		DRM_ERROR("requested cdclk (%d kHz) exceeds max (%d kHz)\n",
+			  cdclk, dev_priv->max_cdclk_freq);
+		cdclk = dev_priv->max_cdclk_freq;
+	}
+
+	intel_state->cdclk = intel_state->dev_cdclk = cdclk;
+	if (!intel_state->active_crtcs)
+		intel_state->dev_cdclk = ((intel_state->cdclk_pll_vco == 8640) ?
+					   308570 : 337500);
+
+
+	return 0;
+}
+
+static void skl_modeset_commit_cdclk(struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = old_state->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned int req_cdclk = to_intel_atomic_state(old_state)->dev_cdclk;
+
+	/*
+	 * FIXME disable/enable PLL should wrap set_cdclk()
+	 */
+	skl_set_cdclk(dev_priv, req_cdclk);
+
+	dev_priv->skl_vco_freq = to_intel_atomic_state(old_state)->cdclk_pll_vco;
+}
+
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 				      struct intel_crtc_state *crtc_state)
 {
@@ -12575,9 +12642,15 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	 * adjusted_mode bits in the crtc directly.
 	 */
 	if (dev_priv->display.modeset_calc_cdclk) {
-		ret = dev_priv->display.modeset_calc_cdclk(state);
+		if (!intel_state->cdclk_pll_vco)
+			intel_state->cdclk_pll_vco = dev_priv->skl_vco_freq;
 
-		if (!ret && intel_state->dev_cdclk != dev_priv->cdclk_freq)
+		ret = dev_priv->display.modeset_calc_cdclk(state);
+		if (ret < 0)
+			return ret;
+
+		if (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
+		    intel_state->cdclk_pll_vco != dev_priv->skl_vco_freq)
 			ret = intel_modeset_all_pipes(state);
 
 		if (ret < 0)
@@ -13063,7 +13136,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 
 		if (dev_priv->display.modeset_commit_cdclk &&
-		    intel_state->dev_cdclk != dev_priv->cdclk_freq)
+		    (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
+		     intel_state->cdclk_pll_vco != dev_priv->skl_vco_freq))
 			dev_priv->display.modeset_commit_cdclk(state);
 
 		intel_modeset_verify_disabled(dev);
@@ -14449,6 +14523,11 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 			broxton_modeset_commit_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
 			broxton_modeset_calc_cdclk;
+	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		dev_priv->display.modeset_commit_cdclk =
+			skl_modeset_commit_cdclk;
+		dev_priv->display.modeset_calc_cdclk =
+			skl_modeset_calc_cdclk;
 	}
 }
 
@@ -15128,7 +15207,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (crtc_state->base.active) {
 			dev_priv->active_crtcs |= 1 << crtc->pipe;
 
-			if (IS_BROXTON(dev_priv) || IS_BROADWELL(dev_priv))
+			if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 				pixclk = ilk_pipe_pixel_rate(crtc_state);
 			else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 				pixclk = crtc_state->base.adjusted_mode.crtc_clock;

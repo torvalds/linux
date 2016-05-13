@@ -1194,6 +1194,7 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	struct intel_shared_dpll *pll;
 	uint32_t ctrl1, cfgcr1, cfgcr2;
 	int clock = crtc_state->port_clock;
+	uint32_t vco = 8100;
 
 	/*
 	 * See comment in intel_dpll_hw_state to understand why we always use 0
@@ -1236,17 +1237,17 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		case 162000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1620, 0);
 			break;
-		/* TBD: For DP link rates 2.16 GHz and 4.32 GHz, VCO is 8640 which
-		results in CDCLK change. Need to handle the change of CDCLK by
-		disabling pipes and re-enabling them */
 		case 108000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080, 0);
+			vco = 8640;
 			break;
 		case 216000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2160, 0);
+			vco = 8640;
 			break;
 		}
 
+		to_intel_atomic_state(crtc_state->base.state)->cdclk_pll_vco = vco;
 		cfgcr1 = cfgcr2 = 0;
 	} else {
 		return NULL;
@@ -1639,7 +1640,7 @@ static void intel_ddi_pll_init(struct drm_device *dev)
 		int cdclk_freq;
 
 		cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-		dev_priv->skl_boot_cdclk = cdclk_freq;
+		dev_priv->skl_vco_freq = skl_cdclk_get_vco(cdclk_freq);
 		if (skl_sanitize_cdclk(dev_priv))
 			DRM_DEBUG_KMS("Sanitized cdclk programmed by pre-os\n");
 		if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE))

@@ -306,6 +306,9 @@ struct intel_atomic_state {
 
 	struct intel_flip_work *work[I915_MAX_PIPES];
 
+	/* SKL/KBL Only */
+	unsigned int cdclk_pll_vco;
+
 	struct intel_shared_dpll_config shared_dpll[I915_NUM_PLLS];
 
 	/*
@@ -1277,6 +1280,7 @@ void gen9_enable_dc5(struct drm_i915_private *dev_priv);
 void skl_init_cdclk(struct drm_i915_private *dev_priv);
 int skl_sanitize_cdclk(struct drm_i915_private *dev_priv);
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
+unsigned int skl_cdclk_get_vco(unsigned int freq);
 void skl_enable_dc6(struct drm_i915_private *dev_priv);
 void skl_disable_dc6(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,

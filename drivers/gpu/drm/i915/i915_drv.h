@@ -1815,7 +1815,7 @@ struct drm_i915_private {
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
-	unsigned int skl_boot_cdclk;
+	unsigned int skl_vco_freq;
 	unsigned int cdclk_freq, max_cdclk_freq, atomic_cdclk_freq;
 	unsigned int max_dotclk_freq;
 	unsigned int rawclk_freq;
