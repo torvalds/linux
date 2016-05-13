@@ -1868,14 +1868,19 @@ unknown:
 				}
 				break;
 			}
-			req->length = value;
-			req->context = cdev;
-			req->zero = value < w_length;
-			value = composite_ep0_queue(cdev, req, GFP_ATOMIC);
-			if (value < 0) {
-				DBG(cdev, "ep_queue --> %d\n", value);
-				req->status = 0;
-				composite_setup_complete(gadget->ep0, req);
+
+			if (value >= 0) {
+				req->length = value;
+				req->context = cdev;
+				req->zero = value < w_length;
+				value = composite_ep0_queue(cdev, req,
+							    GFP_ATOMIC);
+				if (value < 0) {
+					DBG(cdev, "ep_queue --> %d\n", value);
+					req->status = 0;
+					composite_setup_complete(gadget->ep0,
+								 req);
+				}
 			}
 			return value;
 		}
