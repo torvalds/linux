@@ -264,13 +264,13 @@ static void populate_properties(const void *blob,
 		*pprev = NULL;
 }
 
-static unsigned long populate_node(const void *blob,
-				   int offset,
-				   void **mem,
-				   struct device_node *dad,
-				   unsigned long fpsize,
-				   struct device_node **pnp,
-				   bool dryrun)
+static unsigned int populate_node(const void *blob,
+				  int offset,
+				  void **mem,
+				  struct device_node *dad,
+				  unsigned int fpsize,
+				  struct device_node **pnp,
+				  bool dryrun)
 {
 	struct device_node *np;
 	const char *pathp;
@@ -397,7 +397,7 @@ static int unflatten_dt_nodes(const void *blob,
 	struct device_node *root;
 	int offset = 0, depth = 0;
 #define FDT_MAX_DEPTH	64
-	unsigned long fpsizes[FDT_MAX_DEPTH];
+	unsigned int fpsizes[FDT_MAX_DEPTH];
 	struct device_node *nps[FDT_MAX_DEPTH];
 	void *base = mem;
 	bool dryrun = !base;
