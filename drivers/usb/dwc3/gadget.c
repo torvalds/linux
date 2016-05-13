@@ -1441,7 +1441,7 @@ static int __dwc3_gadget_wakeup(struct dwc3 *dwc)
 	speed = reg & DWC3_DSTS_CONNECTSPD;
 	if (speed == DWC3_DSTS_SUPERSPEED) {
 		dwc3_trace(trace_dwc3_gadget, "no wakeup on SuperSpeed\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	link_state = DWC3_DSTS_USBLNKST(reg);
