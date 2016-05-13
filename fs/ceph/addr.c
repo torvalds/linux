@@ -626,7 +626,6 @@ static void writepages_finish(struct ceph_osd_request *req)
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	bool remove_page;
 
-
 	dout("writepages_finish %p rc %d\n", inode, rc);
 	if (rc < 0)
 		mapping_set_error(mapping, rc);
@@ -660,6 +659,9 @@ static void writepages_finish(struct ceph_osd_request *req)
 					fsc->mount_options->congestion_kb))
 				clear_bdi_congested(&fsc->backing_dev_info,
 						    BLK_RW_ASYNC);
+
+			if (rc < 0)
+				SetPageError(page);
 
 			ceph_put_snap_context(page_snap_context(page));
 			page->private = 0;
