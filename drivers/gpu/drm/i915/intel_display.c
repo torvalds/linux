@@ -5204,13 +5204,13 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 		 * if the preferred vco is 8100 instead.
 		 */
 		if (limit == SKL_DFSM_CDCLK_LIMIT_675)
-			max_cdclk = 617140;
+			max_cdclk = 617143;
 		else if (limit == SKL_DFSM_CDCLK_LIMIT_540)
 			max_cdclk = 540000;
 		else if (limit == SKL_DFSM_CDCLK_LIMIT_450)
 			max_cdclk = 432000;
 		else
-			max_cdclk = 308570;
+			max_cdclk = 308571;
 
 		dev_priv->max_cdclk_freq = skl_calc_cdclk(max_cdclk, vco);
 	} else if (IS_BROXTON(dev)) {
@@ -5438,13 +5438,13 @@ static int skl_calc_cdclk(int max_pixclk, int vco)
 {
 	if (vco == 8640) {
 		if (max_pixclk > 540000)
-			return 617140;
+			return 617143;
 		else if (max_pixclk > 432000)
 			return 540000;
-		else if (max_pixclk > 308570)
+		else if (max_pixclk > 308571)
 			return 432000;
 		else
-			return 308570;
+			return 308571;
 	} else {
 		/* VCO 8100 */
 		if (max_pixclk > 540000)
@@ -5616,13 +5616,13 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk, int vco)
 		freq_select = CDCLK_FREQ_540;
 		pcu_ack = 2;
 		break;
-	case 308570:
+	case 308571:
 	case 337500:
 	default:
 		freq_select = CDCLK_FREQ_337_308;
 		pcu_ack = 0;
 		break;
-	case 617140:
+	case 617143:
 	case 675000:
 		freq_select = CDCLK_FREQ_675_617;
 		pcu_ack = 3;
@@ -6582,11 +6582,11 @@ static int skylake_get_display_clock_speed(struct drm_device *dev)
 		case CDCLK_FREQ_450_432:
 			return 432000;
 		case CDCLK_FREQ_337_308:
-			return 308570;
+			return 308571;
 		case CDCLK_FREQ_540:
 			return 540000;
 		case CDCLK_FREQ_675_617:
-			return 617140;
+			return 617143;
 		default:
 			MISSING_CASE(cdctl & CDCLK_FREQ_SEL_MASK);
 		}
