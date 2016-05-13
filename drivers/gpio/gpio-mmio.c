@@ -573,6 +573,7 @@ static void __iomem *bgpio_map(struct platform_device *pdev,
 
 #ifdef CONFIG_OF
 static const struct of_device_id bgpio_of_match[] = {
+	{ .compatible = "wd,mbl-gpio" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bgpio_of_match);
@@ -591,6 +592,9 @@ static struct bgpio_pdata *bgpio_parse_dt(struct platform_device *pdev,
 		return ERR_PTR(-ENOMEM);
 
 	pdata->base = -1;
+
+	if (of_property_read_bool(pdev->dev.of_node, "no-output"))
+		*flags |= BGPIOF_NO_OUTPUT;
 
 	return pdata;
 }
