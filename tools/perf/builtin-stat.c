@@ -1905,6 +1905,9 @@ static int add_default_attributes(void)
 	}
 
 	if (!evsel_list->nr_entries) {
+		if (target__has_cpu(&target))
+			default_attrs0[0].config = PERF_COUNT_SW_CPU_CLOCK;
+
 		if (perf_evlist__add_default_attrs(evsel_list, default_attrs0) < 0)
 			return -1;
 		if (pmu_have_event("cpu", "stalled-cycles-frontend")) {
