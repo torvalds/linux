@@ -271,6 +271,16 @@ static void atmel_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	mutex_unlock(&atmel_pwm->isr_lock);
 	atmel_pwm_writel(atmel_pwm, PWM_DIS, 1 << pwm->hwpwm);
 
+	/*
+	 * Wait for the PWM channel disable operation to be effective before
+	 * stopping the clock.
+	 */
+	timeout = jiffies + 2 * HZ;
+
+	while ((atmel_pwm_readl(atmel_pwm, PWM_SR) & (1 << pwm->hwpwm)) &&
+	       time_before(jiffies, timeout))
+		usleep_range(10, 100);
+
 	clk_disable(atmel_pwm->clk);
 }
 
