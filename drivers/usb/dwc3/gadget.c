@@ -940,10 +940,10 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 				length = sg_dma_len(s);
 				dma = sg_dma_address(s);
 
-				if (i == (request->num_mapped_sgs - 1) ||
-						sg_is_last(s)) {
-					if (list_empty(&dep->pending_list))
+				if (sg_is_last(s)) {
+					if (list_is_last(&req->list, &dep->pending_list))
 						last_one = true;
+
 					chain = false;
 				}
 
@@ -969,11 +969,11 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 			trbs_left--;
 
 			if (!trbs_left)
-				last_one = 1;
+				last_one = true;
 
 			/* Is this the last request? */
 			if (list_is_last(&req->list, &dep->pending_list))
-				last_one = 1;
+				last_one = true;
 
 			dwc3_prepare_one_trb(dep, req, dma, length,
 					last_one, false, 0);
