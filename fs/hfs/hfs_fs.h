@@ -69,6 +69,7 @@ struct hfs_inode_info {
 	struct hfs_cat_key cat_key;
 
 	struct list_head open_dir_list;
+	spinlock_t open_dir_lock;
 	struct inode *rsrc_inode;
 
 	struct mutex extents_lock;
