@@ -260,6 +260,11 @@ struct xenvif {
 	struct dentry *xenvif_dbg_root;
 #endif
 
+	struct xen_netif_ctrl_back_ring ctrl;
+	struct task_struct *ctrl_task;
+	wait_queue_head_t ctrl_wq;
+	unsigned int ctrl_irq;
+
 	/* Miscellaneous private stuff. */
 	struct net_device *dev;
 };
@@ -285,10 +290,15 @@ struct xenvif *xenvif_alloc(struct device *parent,
 int xenvif_init_queue(struct xenvif_queue *queue);
 void xenvif_deinit_queue(struct xenvif_queue *queue);
 
-int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
-		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
-		   unsigned int rx_evtchn);
-void xenvif_disconnect(struct xenvif *vif);
+int xenvif_connect_data(struct xenvif_queue *queue,
+			unsigned long tx_ring_ref,
+			unsigned long rx_ring_ref,
+			unsigned int tx_evtchn,
+			unsigned int rx_evtchn);
+void xenvif_disconnect_data(struct xenvif *vif);
+int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
+			unsigned int evtchn);
+void xenvif_disconnect_ctrl(struct xenvif *vif);
 void xenvif_free(struct xenvif *vif);
 
 int xenvif_xenbus_init(void);
@@ -300,10 +310,10 @@ int xenvif_queue_stopped(struct xenvif_queue *queue);
 void xenvif_wake_queue(struct xenvif_queue *queue);
 
 /* (Un)Map communication rings. */
-void xenvif_unmap_frontend_rings(struct xenvif_queue *queue);
-int xenvif_map_frontend_rings(struct xenvif_queue *queue,
-			      grant_ref_t tx_ring_ref,
-			      grant_ref_t rx_ring_ref);
+void xenvif_unmap_frontend_data_rings(struct xenvif_queue *queue);
+int xenvif_map_frontend_data_rings(struct xenvif_queue *queue,
+				   grant_ref_t tx_ring_ref,
+				   grant_ref_t rx_ring_ref);
 
 /* Check for SKBs from frontend and schedule backend processing */
 void xenvif_napi_schedule_or_enable_events(struct xenvif_queue *queue);
@@ -317,6 +327,8 @@ int xenvif_kthread_guest_rx(void *data);
 void xenvif_kick_thread(struct xenvif_queue *queue);
 
 int xenvif_dealloc_kthread(void *data);
+
+int xenvif_ctrl_kthread(void *data);
 
 void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 

@@ -1926,7 +1926,7 @@ static inline bool tx_dealloc_work_todo(struct xenvif_queue *queue)
 	return queue->dealloc_cons != queue->dealloc_prod;
 }
 
-void xenvif_unmap_frontend_rings(struct xenvif_queue *queue)
+void xenvif_unmap_frontend_data_rings(struct xenvif_queue *queue)
 {
 	if (queue->tx.sring)
 		xenbus_unmap_ring_vfree(xenvif_to_xenbus_device(queue->vif),
@@ -1936,9 +1936,9 @@ void xenvif_unmap_frontend_rings(struct xenvif_queue *queue)
 					queue->rx.sring);
 }
 
-int xenvif_map_frontend_rings(struct xenvif_queue *queue,
-			      grant_ref_t tx_ring_ref,
-			      grant_ref_t rx_ring_ref)
+int xenvif_map_frontend_data_rings(struct xenvif_queue *queue,
+				   grant_ref_t tx_ring_ref,
+				   grant_ref_t rx_ring_ref)
 {
 	void *addr;
 	struct xen_netif_tx_sring *txs;
@@ -1965,7 +1965,7 @@ int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 	return 0;
 
 err:
-	xenvif_unmap_frontend_rings(queue);
+	xenvif_unmap_frontend_data_rings(queue);
 	return err;
 }
 
@@ -2160,6 +2160,95 @@ int xenvif_dealloc_kthread(void *data)
 	/* Unmap anything remaining*/
 	if (tx_dealloc_work_todo(queue))
 		xenvif_tx_dealloc_action(queue);
+
+	return 0;
+}
+
+static void make_ctrl_response(struct xenvif *vif,
+			       const struct xen_netif_ctrl_request *req,
+			       u32 status, u32 data)
+{
+	RING_IDX idx = vif->ctrl.rsp_prod_pvt;
+	struct xen_netif_ctrl_response rsp = {
+		.id = req->id,
+		.type = req->type,
+		.status = status,
+		.data = data,
+	};
+
+	*RING_GET_RESPONSE(&vif->ctrl, idx) = rsp;
+	vif->ctrl.rsp_prod_pvt = ++idx;
+}
+
+static void push_ctrl_response(struct xenvif *vif)
+{
+	int notify;
+
+	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&vif->ctrl, notify);
+	if (notify)
+		notify_remote_via_irq(vif->ctrl_irq);
+}
+
+static void process_ctrl_request(struct xenvif *vif,
+				 const struct xen_netif_ctrl_request *req)
+{
+	make_ctrl_response(vif, req, XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED,
+			   0);
+	push_ctrl_response(vif);
+}
+
+static void xenvif_ctrl_action(struct xenvif *vif)
+{
+	for (;;) {
+		RING_IDX req_prod, req_cons;
+
+		req_prod = vif->ctrl.sring->req_prod;
+		req_cons = vif->ctrl.req_cons;
+
+		/* Make sure we can see requests before we process them. */
+		rmb();
+
+		if (req_cons == req_prod)
+			break;
+
+		while (req_cons != req_prod) {
+			struct xen_netif_ctrl_request req;
+
+			RING_COPY_REQUEST(&vif->ctrl, req_cons, &req);
+			req_cons++;
+
+			process_ctrl_request(vif, &req);
+		}
+
+		vif->ctrl.req_cons = req_cons;
+		vif->ctrl.sring->req_event = req_cons + 1;
+	}
+}
+
+static bool xenvif_ctrl_work_todo(struct xenvif *vif)
+{
+	if (likely(RING_HAS_UNCONSUMED_REQUESTS(&vif->ctrl)))
+		return 1;
+
+	return 0;
+}
+
+int xenvif_ctrl_kthread(void *data)
+{
+	struct xenvif *vif = data;
+
+	for (;;) {
+		wait_event_interruptible(vif->ctrl_wq,
+					 xenvif_ctrl_work_todo(vif) ||
+					 kthread_should_stop());
+		if (kthread_should_stop())
+			break;
+
+		while (xenvif_ctrl_work_todo(vif))
+			xenvif_ctrl_action(vif);
+
+		cond_resched();
+	}
 
 	return 0;
 }
