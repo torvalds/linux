@@ -2456,6 +2456,8 @@ int intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 			return ret;
 
 		intel_ring_update_space(ringbuf);
+		if (unlikely(ringbuf->space < wait_bytes))
+			return -EAGAIN;
 	}
 
 	if (unlikely(need_wrap)) {
