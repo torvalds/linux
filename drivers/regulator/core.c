@@ -1150,17 +1150,6 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
-	if (rdev->constraints->active_discharge && ops->set_active_discharge) {
-		bool ad_state = (rdev->constraints->active_discharge ==
-			      REGULATOR_ACTIVE_DISCHARGE_ENABLE) ? true : false;
-
-		ret = ops->set_active_discharge(rdev, ad_state);
-		if (ret < 0) {
-			rdev_err(rdev, "failed to set active discharge\n");
-			return ret;
-		}
-	}
-
 	print_constraints(rdev);
 	return 0;
 }
@@ -4032,8 +4021,8 @@ void regulator_unregister(struct regulator_dev *rdev)
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
-	mutex_unlock(&regulator_list_mutex);
 	regulator_ena_gpio_free(rdev);
+	mutex_unlock(&regulator_list_mutex);
 	device_unregister(&rdev->dev);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
