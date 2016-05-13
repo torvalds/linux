@@ -5546,6 +5546,8 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 
 	if (wait_for(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK, 5))
 		DRM_ERROR("DPLL0 not locked\n");
+
+	dev_priv->skl_vco_freq = vco;
 }
 
 static void
@@ -5554,6 +5556,8 @@ skl_dpll0_disable(struct drm_i915_private *dev_priv)
 	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) & ~LCPLL_PLL_ENABLE);
 	if (wait_for(!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK), 1))
 		DRM_ERROR("Couldn't disable DPLL0\n");
+
+	dev_priv->skl_vco_freq = 0;
 }
 
 static bool skl_cdclk_pcu_ready(struct drm_i915_private *dev_priv)
@@ -5583,12 +5587,14 @@ static bool skl_cdclk_wait_for_pcu_ready(struct drm_i915_private *dev_priv)
 	return false;
 }
 
-static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
+static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk, int vco)
 {
 	struct drm_device *dev = dev_priv->dev;
 	u32 freq_select, pcu_ack;
 
-	DRM_DEBUG_DRIVER("Changing CDCLK to %dKHz\n", cdclk);
+	WARN_ON((cdclk == 24000) != (vco == 0));
+
+	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz (VCO %d MHz)\n", cdclk, vco);
 
 	if (!skl_cdclk_wait_for_pcu_ready(dev_priv)) {
 		DRM_ERROR("failed to inform PCU about cdclk change\n");
@@ -5619,6 +5625,13 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 		break;
 	}
 
+	if (dev_priv->skl_vco_freq != 0 &&
+	    dev_priv->skl_vco_freq != vco)
+		skl_dpll0_disable(dev_priv);
+
+	if (dev_priv->skl_vco_freq != vco)
+		skl_dpll0_enable(dev_priv, vco);
+
 	I915_WRITE(CDCLK_CTL, freq_select | skl_cdclk_decimal(cdclk));
 	POSTING_READ(CDCLK_CTL);
 
@@ -5641,26 +5654,21 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
 		DRM_ERROR("DBuf power disable timeout\n");
 
-	skl_dpll0_disable(dev_priv);
+	skl_set_cdclk(dev_priv, 24000, 0);
 }
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	unsigned int cdclk;
-
 	/* DPLL0 not enabled (happens on early BIOS versions) */
-	if (!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_ENABLE)) {
-		/* enable DPLL0 */
-		if (dev_priv->skl_vco_freq != 8640)
-			dev_priv->skl_vco_freq = 8100;
-		skl_dpll0_enable(dev_priv, dev_priv->skl_vco_freq);
-		cdclk = skl_calc_cdclk(0, dev_priv->skl_vco_freq);
-	} else {
-		cdclk = dev_priv->cdclk_freq;
-	}
+	if (dev_priv->skl_vco_freq == 0) {
+		int cdclk, vco;
 
-	/* set CDCLK to the lowest frequency, Modeset follows */
-	skl_set_cdclk(dev_priv, cdclk);
+		/* set CDCLK to the lowest frequency, Modeset follows */
+		vco = 8100;
+		cdclk = skl_calc_cdclk(0, vco);
+
+		skl_set_cdclk(dev_priv, cdclk, vco);
+	}
 
 	/* enable DBUF power */
 	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
@@ -9703,16 +9711,12 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 static void skl_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = old_state->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned int req_cdclk = to_intel_atomic_state(old_state)->dev_cdclk;
+	struct drm_i915_private *dev_priv = to_i915(old_state->dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(old_state);
+	unsigned int req_cdclk = intel_state->dev_cdclk;
+	unsigned int req_vco = intel_state->cdclk_pll_vco;
 
-	/*
-	 * FIXME disable/enable PLL should wrap set_cdclk()
-	 */
-	skl_set_cdclk(dev_priv, req_cdclk);
-
-	dev_priv->skl_vco_freq = to_intel_atomic_state(old_state)->cdclk_pll_vco;
+	skl_set_cdclk(dev_priv, req_cdclk, req_vco);
 }
 
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
