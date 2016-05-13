@@ -440,7 +440,6 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.platform_name = "0000:00:1f.3",
 		.init = NULL,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
 		.ops = &skylaye_refcap_ops,
@@ -505,7 +504,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 	{
 		/* SSP0 - Codec */
 		.name = "SSP0-Codec",
-		.be_id = 0,
+		.id = 0,
 		.cpu_dai_name = "SSP0 Pin",
 		.platform_name = "0000:00:1f.3",
 		.no_pcm = 1,
@@ -523,7 +522,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 	{
 		/* SSP1 - Codec */
 		.name = "SSP1-Codec",
-		.be_id = 1,
+		.id = 1,
 		.cpu_dai_name = "SSP1 Pin",
 		.platform_name = "0000:00:1f.3",
 		.no_pcm = 1,
@@ -540,7 +539,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 	},
 	{
 		.name = "dmic01",
-		.be_id = 2,
+		.id = 2,
 		.cpu_dai_name = "DMIC01 Pin",
 		.codec_name = "dmic-codec",
 		.codec_dai_name = "dmic-hifi",
@@ -552,7 +551,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 	},
 	{
 		.name = "iDisp1",
-		.be_id = 3,
+		.id = 3,
 		.cpu_dai_name = "iDisp1 Pin",
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi1",
@@ -563,7 +562,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 	},
 	{
 		.name = "iDisp2",
-		.be_id = 4,
+		.id = 4,
 		.cpu_dai_name = "iDisp2 Pin",
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi2",
@@ -574,7 +573,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 	},
 	{
 		.name = "iDisp3",
-		.be_id = 5,
+		.id = 5,
 		.cpu_dai_name = "iDisp3 Pin",
 		.codec_name = "ehdaudio0D2",
 		.codec_dai_name = "intel-hdmi-hifi3",
