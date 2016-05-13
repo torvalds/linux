@@ -1002,7 +1002,7 @@
 			};
 
 			pxp: pxp@021cc000 {
-				compatible = "fsl,imx7d-pxp-dma";
+				compatible = "fsl,imx6ull-pxp-dma", "fsl,imx7d-pxp-dma";
 				reg = <0x021cc000 0x4000>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
