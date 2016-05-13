@@ -118,14 +118,12 @@ static void iot_io_end(struct io_tracker *iot, sector_t len)
  */
 struct dm_hook_info {
 	bio_end_io_t *bi_end_io;
-	void *bi_private;
 };
 
 static void dm_hook_bio(struct dm_hook_info *h, struct bio *bio,
 			bio_end_io_t *bi_end_io, void *bi_private)
 {
 	h->bi_end_io = bio->bi_end_io;
-	h->bi_private = bio->bi_private;
 
 	bio->bi_end_io = bi_end_io;
 	bio->bi_private = bi_private;
@@ -134,7 +132,6 @@ static void dm_hook_bio(struct dm_hook_info *h, struct bio *bio,
 static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 {
 	bio->bi_end_io = h->bi_end_io;
-	bio->bi_private = h->bi_private;
 }
 
 /*----------------------------------------------------------------*/
@@ -987,8 +984,13 @@ static void notify_mode_switch(struct cache *cache, enum cache_metadata_mode mod
 
 static void set_cache_mode(struct cache *cache, enum cache_metadata_mode new_mode)
 {
-	bool needs_check = dm_cache_metadata_needs_check(cache->cmd);
+	bool needs_check;
 	enum cache_metadata_mode old_mode = get_cache_mode(cache);
+
+	if (dm_cache_metadata_needs_check(cache->cmd, &needs_check)) {
+		DMERR("unable to read needs_check flag, setting failure mode");
+		new_mode = CM_FAIL;
+	}
 
 	if (new_mode == CM_WRITE && needs_check) {
 		DMERR("%s: unable to switch cache to write mode until repaired.",
@@ -3513,6 +3515,7 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 	char buf[BDEVNAME_SIZE];
 	struct cache *cache = ti->private;
 	dm_cblock_t residency;
+	bool needs_check;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
@@ -3586,7 +3589,9 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 		else
 			DMEMIT("rw ");
 
-		if (dm_cache_metadata_needs_check(cache->cmd))
+		r = dm_cache_metadata_needs_check(cache->cmd, &needs_check);
+
+		if (r || needs_check)
 			DMEMIT("needs_check ");
 		else
 			DMEMIT("- ");

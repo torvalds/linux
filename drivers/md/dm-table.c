@@ -365,6 +365,26 @@ static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
 }
 
 /*
+ * Convert the path to a device
+ */
+dev_t dm_get_dev_t(const char *path)
+{
+	dev_t uninitialized_var(dev);
+	struct block_device *bdev;
+
+	bdev = lookup_bdev(path);
+	if (IS_ERR(bdev))
+		dev = name_to_dev_t(path);
+	else {
+		dev = bdev->bd_dev;
+		bdput(bdev);
+	}
+
+	return dev;
+}
+EXPORT_SYMBOL_GPL(dm_get_dev_t);
+
+/*
  * Add a device to the list, or just increment the usage count if
  * it's already present.
  */
@@ -372,23 +392,15 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 		  struct dm_dev **result)
 {
 	int r;
-	dev_t uninitialized_var(dev);
+	dev_t dev;
 	struct dm_dev_internal *dd;
 	struct dm_table *t = ti->table;
-	struct block_device *bdev;
 
 	BUG_ON(!t);
 
-	/* convert the path to a device */
-	bdev = lookup_bdev(path);
-	if (IS_ERR(bdev)) {
-		dev = name_to_dev_t(path);
-		if (!dev)
-			return -ENODEV;
-	} else {
-		dev = bdev->bd_dev;
-		bdput(bdev);
-	}
+	dev = dm_get_dev_t(path);
+	if (!dev)
+		return -ENODEV;
 
 	dd = find_device(&t->devices, dev);
 	if (!dd) {

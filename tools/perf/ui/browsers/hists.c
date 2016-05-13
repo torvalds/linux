@@ -2059,10 +2059,12 @@ skip_annotation:
 			 *
 			 * See hist_browser__show_entry.
 			 */
-			nr_options += add_script_opt(browser,
-						     &actions[nr_options],
-						     &options[nr_options],
-						     NULL, browser->selection->sym);
+			if (sort__has_sym && browser->selection->sym) {
+				nr_options += add_script_opt(browser,
+							     &actions[nr_options],
+							     &options[nr_options],
+							     NULL, browser->selection->sym);
+			}
 		}
 		nr_options += add_script_opt(browser, &actions[nr_options],
 					     &options[nr_options], NULL, NULL);

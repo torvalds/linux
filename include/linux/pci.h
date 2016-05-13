@@ -359,6 +359,7 @@ struct pci_dev {
 	unsigned int	io_window_1k:1;	/* Intel P2P bridge 1K I/O windows */
 	unsigned int	irq_managed:1;
 	unsigned int	has_secondary_link:1;
+	unsigned int	non_compliant_bars:1;	/* broken BARs; ignore them */
 	pci_dev_flags_t dev_flags;
 	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
@@ -986,23 +987,6 @@ static inline int pci_is_enabled(struct pci_dev *pdev)
 static inline int pci_is_managed(struct pci_dev *pdev)
 {
 	return pdev->is_managed;
-}
-
-static inline void pci_set_managed_irq(struct pci_dev *pdev, unsigned int irq)
-{
-	pdev->irq = irq;
-	pdev->irq_managed = 1;
-}
-
-static inline void pci_reset_managed_irq(struct pci_dev *pdev)
-{
-	pdev->irq = 0;
-	pdev->irq_managed = 0;
-}
-
-static inline bool pci_has_managed_irq(struct pci_dev *pdev)
-{
-	return pdev->irq_managed && pdev->irq > 0;
 }
 
 void pci_disable_device(struct pci_dev *dev);

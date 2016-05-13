@@ -995,7 +995,7 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 		int val;
 
 		if (pull)
-			pullidx = data_out ? 1 : 2;
+			pullidx = data_out ? 2 : 1;
 
 		seq_printf(s, " gpio-%-3d (%-20.20s) in  %s %s",
 			   gpio,

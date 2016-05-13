@@ -207,7 +207,6 @@ struct dm_snap_pending_exception {
 	 */
 	struct bio *full_bio;
 	bio_end_io_t *full_bio_end_io;
-	void *full_bio_private;
 };
 
 /*
@@ -1106,6 +1105,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int i;
 	int r = -EINVAL;
 	char *origin_path, *cow_path;
+	dev_t origin_dev, cow_dev;
 	unsigned args_used, num_flush_bios = 1;
 	fmode_t origin_mode = FMODE_READ;
 
@@ -1136,10 +1136,18 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Cannot get origin device";
 		goto bad_origin;
 	}
+	origin_dev = s->origin->bdev->bd_dev;
 
 	cow_path = argv[0];
 	argv++;
 	argc--;
+
+	cow_dev = dm_get_dev_t(cow_path);
+	if (cow_dev && cow_dev == origin_dev) {
+		ti->error = "COW device cannot be the same as origin device";
+		r = -EINVAL;
+		goto bad_cow;
+	}
 
 	r = dm_get_device(ti, cow_path, dm_table_get_mode(ti->table), &s->cow);
 	if (r) {
@@ -1486,10 +1494,8 @@ out:
 	snapshot_bios = bio_list_get(&pe->snapshot_bios);
 	origin_bios = bio_list_get(&pe->origin_bios);
 	full_bio = pe->full_bio;
-	if (full_bio) {
+	if (full_bio)
 		full_bio->bi_end_io = pe->full_bio_end_io;
-		full_bio->bi_private = pe->full_bio_private;
-	}
 	increment_pending_exceptions_done_count();
 
 	up_write(&s->lock);
@@ -1595,7 +1601,6 @@ static void start_full_bio(struct dm_snap_pending_exception *pe,
 
 	pe->full_bio = bio;
 	pe->full_bio_end_io = bio->bi_end_io;
-	pe->full_bio_private = bio->bi_private;
 
 	callback_data = dm_kcopyd_prepare_callback(s->kcopyd_client,
 						   copy_callback, pe);

@@ -458,6 +458,18 @@ config DM_VERITY
 
 	  If unsure, say N.
 
+config DM_VERITY_FEC
+	bool "Verity forward error correction support"
+	depends on DM_VERITY
+	select REED_SOLOMON
+	select REED_SOLOMON_DEC8
+	---help---
+	  Add forward error correction support to dm-verity. This option
+	  makes it possible to use pre-generated error correction data to
+	  recover from corrupted blocks.
+
+	  If unsure, say N.
+
 config DM_SWITCH
 	tristate "Switch target support (EXPERIMENTAL)"
 	depends on BLK_DEV_DM

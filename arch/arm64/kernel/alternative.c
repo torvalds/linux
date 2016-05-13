@@ -158,9 +158,3 @@ void apply_alternatives(void *start, size_t length)
 
 	__apply_alternatives(&region);
 }
-
-void free_alternatives_memory(void)
-{
-	free_reserved_area(__alt_instructions, __alt_instructions_end,
-			   0, "alternatives");
-}

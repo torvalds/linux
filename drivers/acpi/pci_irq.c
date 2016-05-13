@@ -409,7 +409,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		return 0;
 	}
 
-	if (pci_has_managed_irq(dev))
+	if (dev->irq_managed && dev->irq > 0)
 		return 0;
 
 	entry = acpi_pci_irq_lookup(dev, pin);
@@ -454,7 +454,8 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		kfree(entry);
 		return rc;
 	}
-	pci_set_managed_irq(dev, rc);
+	dev->irq = rc;
+	dev->irq_managed = 1;
 
 	if (link)
 		snprintf(link_desc, sizeof(link_desc), " -> Link[%s]", link);
@@ -477,8 +478,16 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	u8 pin;
 
 	pin = dev->pin;
-	if (!pin || !pci_has_managed_irq(dev))
+	if (!pin || !dev->irq_managed || dev->irq <= 0)
 		return;
+
+	/* Keep IOAPIC pin configuration when suspending */
+	if (dev->dev.power.is_prepared)
+		return;
+#ifdef	CONFIG_PM
+	if (dev->dev.power.runtime_status == RPM_SUSPENDING)
+		return;
+#endif
 
 	entry = acpi_pci_irq_lookup(dev, pin);
 	if (!entry)
@@ -499,6 +508,6 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	dev_dbg(&dev->dev, "PCI INT %c disabled\n", pin_name(pin));
 	if (gsi >= 0) {
 		acpi_unregister_gsi(gsi);
-		pci_reset_managed_irq(dev);
+		dev->irq_managed = 0;
 	}
 }

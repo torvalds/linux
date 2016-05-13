@@ -396,6 +396,11 @@ static void mt_feature_mapping(struct hid_device *hdev,
 			td->is_buttonpad = true;
 
 		break;
+	case 0xff0000c5:
+		/* Retrieve the Win8 blob once to enable some devices */
+		if (usage->usage_index == 0)
+			mt_get_feature(hdev, field->report);
+		break;
 	}
 }
 

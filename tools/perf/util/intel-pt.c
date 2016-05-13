@@ -1127,7 +1127,7 @@ static int intel_pt_synth_transaction_sample(struct intel_pt_queue *ptq)
 		pr_err("Intel Processor Trace: failed to deliver transaction event, error %d\n",
 		       ret);
 
-	if (pt->synth_opts.callchain)
+	if (pt->synth_opts.last_branch)
 		intel_pt_reset_last_branch_rb(ptq);
 
 	return ret;

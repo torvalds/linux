@@ -65,7 +65,6 @@
 
 static const struct i2c_device_id rx8025_id[] = {
 	{ "rx8025", 0 },
-	{ "rv8803", 1 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rx8025_id);

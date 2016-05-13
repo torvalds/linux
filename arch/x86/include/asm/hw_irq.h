@@ -136,6 +136,7 @@ struct irq_alloc_info {
 struct irq_cfg {
 	unsigned int		dest_apicid;
 	u8			vector;
+	u8			old_vector;
 };
 
 extern struct irq_cfg *irq_cfg(unsigned int irq);
