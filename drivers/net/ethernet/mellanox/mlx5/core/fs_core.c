@@ -344,6 +344,7 @@ static void del_rule(struct fs_node *node)
 	struct mlx5_flow_group *fg;
 	struct fs_fte *fte;
 	u32	*match_value;
+	int modify_mask;
 	struct mlx5_core_dev *dev = get_dev(node);
 	int match_len = MLX5_ST_SZ_BYTES(fte_match_param);
 	int err;
@@ -367,8 +368,11 @@ static void del_rule(struct fs_node *node)
 	}
 	if ((fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
 	    --fte->dests_size) {
+		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST),
 		err = mlx5_cmd_update_fte(dev, ft,
-					  fg->id, fte);
+					  fg->id,
+					  modify_mask,
+					  fte);
 		if (err)
 			pr_warn("%s can't del rule fg id=%d fte_index=%d\n",
 				__func__, fg->id, fte->index);
@@ -615,6 +619,7 @@ int mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
 	struct fs_fte *fte;
+	int modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
 	int err = 0;
 
 	fs_get_obj(fte, rule->node.parent);
@@ -626,7 +631,9 @@ int mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
 
 	memcpy(&rule->dest_attr, dest, sizeof(*dest));
 	err = mlx5_cmd_update_fte(get_dev(&ft->node),
-				  ft, fg->id, fte);
+				  ft, fg->id,
+				  modify_mask,
+				  fte);
 	unlock_ref_node(&fte->node);
 
 	return err;
@@ -877,6 +884,7 @@ static struct mlx5_flow_rule *add_rule_fte(struct fs_fte *fte,
 {
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_rule *rule;
+	int modify_mask = 0;
 	int err;
 
 	rule = alloc_rule(dest);
@@ -892,14 +900,20 @@ static struct mlx5_flow_rule *add_rule_fte(struct fs_fte *fte,
 		list_add(&rule->node.list, &fte->node.children);
 	else
 		list_add_tail(&rule->node.list, &fte->node.children);
-	if (dest)
+	if (dest) {
 		fte->dests_size++;
+
+		modify_mask |= dest->type == MLX5_FLOW_DESTINATION_TYPE_COUNTER ?
+			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_FLOW_COUNTERS) :
+			BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
+	}
+
 	if (fte->dests_size == 1 || !dest)
 		err = mlx5_cmd_create_fte(get_dev(&ft->node),
 					  ft, fg->id, fte);
 	else
 		err = mlx5_cmd_update_fte(get_dev(&ft->node),
-					  ft, fg->id, fte);
+					  ft, fg->id, modify_mask, fte);
 	if (err)
 		goto free_rule;
 
@@ -1092,10 +1106,40 @@ unlock_fg:
 	return rule;
 }
 
+struct mlx5_fc *mlx5_flow_rule_counter(struct mlx5_flow_rule *rule)
+{
+	struct mlx5_flow_rule *dst;
+	struct fs_fte *fte;
+
+	fs_get_obj(fte, rule->node.parent);
+
+	fs_for_each_dst(dst, fte) {
+		if (dst->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
+			return dst->dest_attr.counter;
+	}
+
+	return NULL;
+}
+
+static bool counter_is_valid(struct mlx5_fc *counter, u32 action)
+{
+	if (!(action & MLX5_FLOW_CONTEXT_ACTION_COUNT))
+		return !counter;
+
+	if (!counter)
+		return false;
+
+	/* Hardware support counter for a drop action only */
+	return action == (MLX5_FLOW_CONTEXT_ACTION_DROP | MLX5_FLOW_CONTEXT_ACTION_COUNT);
+}
+
 static bool dest_is_valid(struct mlx5_flow_destination *dest,
 			  u32 action,
 			  struct mlx5_flow_table *ft)
 {
+	if (dest && (dest->type == MLX5_FLOW_DESTINATION_TYPE_COUNTER))
+		return counter_is_valid(dest->counter, action);
+
 	if (!(action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
 		return true;
 

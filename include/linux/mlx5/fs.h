@@ -73,6 +73,7 @@ struct mlx5_flow_destination {
 		u32			tir_num;
 		struct mlx5_flow_table	*ft;
 		u32			vport_num;
+		struct mlx5_fc		*counter;
 	};
 };
 
@@ -125,4 +126,5 @@ void mlx5_del_flow_rule(struct mlx5_flow_rule *fr);
 int mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
 				 struct mlx5_flow_destination *dest);
 
+struct mlx5_fc *mlx5_flow_rule_counter(struct mlx5_flow_rule *rule);
 #endif

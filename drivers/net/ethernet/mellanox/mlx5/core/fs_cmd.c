@@ -241,16 +241,19 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
 	MLX5_SET(flow_context, in_flow_context, flow_tag, fte->flow_tag);
 	MLX5_SET(flow_context, in_flow_context, action, fte->action);
-	MLX5_SET(flow_context, in_flow_context, destination_list_size,
-		 fte->dests_size);
 	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
 				      match_value);
 	memcpy(in_match_value, &fte->val, MLX5_ST_SZ_BYTES(fte_match_param));
 
+	in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
 	if (fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
-		in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
+		int list_size = 0;
+
 		list_for_each_entry(dst, &fte->node.children, node.list) {
 			unsigned int id;
+
+			if (dst->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
+				continue;
 
 			MLX5_SET(dest_format_struct, in_dests, destination_type,
 				 dst->dest_attr.type);
@@ -262,8 +265,31 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 			}
 			MLX5_SET(dest_format_struct, in_dests, destination_id, id);
 			in_dests += MLX5_ST_SZ_BYTES(dest_format_struct);
+			list_size++;
 		}
+
+		MLX5_SET(flow_context, in_flow_context, destination_list_size,
+			 list_size);
 	}
+
+	if (fte->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		int list_size = 0;
+
+		list_for_each_entry(dst, &fte->node.children, node.list) {
+			if (dst->dest_attr.type !=
+			    MLX5_FLOW_DESTINATION_TYPE_COUNTER)
+				continue;
+
+			MLX5_SET(flow_counter_list, in_dests, flow_counter_id,
+				 dst->dest_attr.counter->id);
+			in_dests += MLX5_ST_SZ_BYTES(dest_format_struct);
+			list_size++;
+		}
+
+		MLX5_SET(flow_context, in_flow_context, flow_counter_list_size,
+			 list_size);
+	}
+
 	memset(out, 0, sizeof(out));
 	err = mlx5_cmd_exec_check_status(dev, in, inlen, out,
 					 sizeof(out));
@@ -283,18 +309,16 @@ int mlx5_cmd_create_fte(struct mlx5_core_dev *dev,
 int mlx5_cmd_update_fte(struct mlx5_core_dev *dev,
 			struct mlx5_flow_table *ft,
 			unsigned group_id,
+			int modify_mask,
 			struct fs_fte *fte)
 {
 	int opmod;
-	int modify_mask;
 	int atomic_mod_cap = MLX5_CAP_FLOWTABLE(dev,
 						flow_table_properties_nic_receive.
 						flow_modify_en);
 	if (!atomic_mod_cap)
 		return -ENOTSUPP;
 	opmod = 1;
-	modify_mask = 1 <<
-		MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST;
 
 	return	mlx5_cmd_set_fte(dev, opmod, modify_mask, ft, group_id, fte);
 }
