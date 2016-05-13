@@ -60,11 +60,9 @@ void netvsc_switch_datapath(struct net_device *ndev, bool vf)
 }
 
 
-static struct netvsc_device *alloc_net_device(struct hv_device *device)
+static struct netvsc_device *alloc_net_device(void)
 {
 	struct netvsc_device *net_device;
-	struct net_device *ndev = hv_get_drvdata(device);
-	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 
 	net_device = kzalloc(sizeof(struct netvsc_device), GFP_KERNEL);
 	if (!net_device)
@@ -85,8 +83,6 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 
 	net_device->vf_netdev = NULL;
 	net_device->vf_inject = false;
-
-	net_device_ctx->nvdev = net_device;
 
 	return net_device;
 }
@@ -1240,19 +1236,18 @@ void netvsc_channel_cb(void *context)
  */
 int netvsc_device_add(struct hv_device *device, void *additional_info)
 {
-	int ret = 0;
+	int i, ret = 0;
 	int ring_size =
 	((struct netvsc_device_info *)additional_info)->ring_size;
 	struct netvsc_device *net_device;
-	struct net_device *ndev;
+	struct net_device *ndev = hv_get_drvdata(device);
+	struct net_device_context *net_device_ctx = netdev_priv(ndev);
 
-	net_device = alloc_net_device(device);
+	net_device = alloc_net_device();
 	if (!net_device)
 		return -ENOMEM;
 
 	net_device->ring_size = ring_size;
-
-	ndev = hv_get_drvdata(device);
 
 	/* Initialize the NetVSC channel extension */
 	init_completion(&net_device->channel_init_wait);
@@ -1272,7 +1267,19 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	/* Channel is opened */
 	pr_info("hv_netvsc channel opened successfully\n");
 
-	net_device->chn_table[0] = device->channel;
+	/* If we're reopening the device we may have multiple queues, fill the
+	 * chn_table with the default channel to use it before subchannels are
+	 * opened.
+	 */
+	for (i = 0; i < VRSS_CHANNEL_MAX; i++)
+		net_device->chn_table[i] = device->channel;
+
+	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
+	 * populated.
+	 */
+	wmb();
+
+	net_device_ctx->nvdev = net_device;
 
 	/* Connect with the NetVsp */
 	ret = netvsc_connect_vsp(device);
