@@ -811,10 +811,11 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 {
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
-	if (IS_BROXTON(dev_priv)) {
-		broxton_cdclk_verify_state(dev_priv);
+	WARN_ON(dev_priv->cdclk_freq !=
+		dev_priv->display.get_display_clock_speed(dev_priv->dev));
+
+	if (IS_BROXTON(dev_priv))
 		broxton_ddi_phy_verify_state(dev_priv);
-	}
 }
 
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
@@ -2288,7 +2289,6 @@ void bxt_display_core_init(struct drm_i915_private *dev_priv,
 
 	broxton_ddi_phy_init(dev_priv);
 
-	broxton_cdclk_verify_state(dev_priv);
 	broxton_ddi_phy_verify_state(dev_priv);
 
 	if (resume && dev_priv->csr.dmc_payload)

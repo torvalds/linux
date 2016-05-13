@@ -1270,7 +1270,6 @@ void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void broxton_init_cdclk(struct drm_i915_private *dev_priv);
 void broxton_uninit_cdclk(struct drm_i915_private *dev_priv);
-bool broxton_cdclk_verify_state(struct drm_i915_private *dev_priv);
 void broxton_ddi_phy_init(struct drm_i915_private *dev_priv);
 void broxton_ddi_phy_uninit(struct drm_i915_private *dev_priv);
 void broxton_ddi_phy_verify_state(struct drm_i915_private *dev_priv);

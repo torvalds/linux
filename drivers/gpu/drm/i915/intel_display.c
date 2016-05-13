@@ -5410,21 +5410,6 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 	intel_update_cdclk(dev_priv->dev);
 }
 
-static bool broxton_cdclk_is_enabled(struct drm_i915_private *dev_priv)
-{
-	if (!(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_PLL_ENABLE))
-		return false;
-
-	/* TODO: Check for a valid CDCLK rate */
-
-	return true;
-}
-
-bool broxton_cdclk_verify_state(struct drm_i915_private *dev_priv)
-{
-	return broxton_cdclk_is_enabled(dev_priv);
-}
-
 void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	intel_update_cdclk(dev_priv->dev);
