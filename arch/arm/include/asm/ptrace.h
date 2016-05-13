@@ -25,6 +25,8 @@ struct svc_pt_regs {
 	u32 unused;
 };
 
+#define to_svc_pt_regs(r) container_of(r, struct svc_pt_regs, regs)
+
 #define user_mode(regs)	\
 	(((regs)->ARM_cpsr & 0xf) == 0)
 

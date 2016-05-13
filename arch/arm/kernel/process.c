@@ -106,7 +106,7 @@ void __show_regs(struct pt_regs *regs)
 	if (user_mode(regs))
 		domain = DACR_UACCESS_ENABLE;
 	else
-		domain = *(unsigned int *)(regs + 1);
+		domain = to_svc_pt_regs(regs)->dacr;
 #else
 	domain = get_domain();
 #endif
