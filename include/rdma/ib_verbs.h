@@ -220,6 +220,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_ON_DEMAND_PAGING		= (1 << 31),
 	IB_DEVICE_SG_GAPS_REG			= (1ULL << 32),
 	IB_DEVICE_VIRTUAL_FUNCTION		= ((u64)1 << 33),
+	IB_DEVICE_RAW_SCATTER_FCS		= ((u64)1 << 34),
 };
 
 enum ib_signature_prot_cap {
@@ -988,6 +989,7 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_NETIF_QP			= 1 << 5,
 	IB_QP_CREATE_SIGNATURE_EN		= 1 << 6,
 	IB_QP_CREATE_USE_GFP_NOIO		= 1 << 7,
+	IB_QP_CREATE_SCATTER_FCS		= 1 << 8,
 	/* reserve bits 26-31 for low level drivers' internal use */
 	IB_QP_CREATE_RESERVED_START		= 1 << 26,
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,

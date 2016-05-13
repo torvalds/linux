@@ -755,6 +755,7 @@ enum c4iw_ep_flags {
 	CLOSE_SENT		= 3,
 	TIMEOUT                 = 4,
 	QP_REFERENCED           = 5,
+	STOP_MPA_TIMER		= 7,
 };
 
 enum c4iw_ep_history {
@@ -779,7 +780,13 @@ enum c4iw_ep_history {
 	EP_DISC_ABORT           = 18,
 	CONN_RPL_UPCALL         = 19,
 	ACT_RETRY_NOMEM         = 20,
-	ACT_RETRY_INUSE         = 21
+	ACT_RETRY_INUSE         = 21,
+	CLOSE_CON_RPL		= 22,
+	EP_DISC_FAIL		= 24,
+	QP_REFED		= 25,
+	QP_DEREFED		= 26,
+	CM_ID_REFED		= 27,
+	CM_ID_DEREFED		= 28,
 };
 
 struct c4iw_ep_common {
