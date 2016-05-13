@@ -2515,6 +2515,7 @@ static void i915_guc_client_info(struct seq_file *m,
 	seq_printf(m, "\tWQ size %d, offset: 0x%x, tail %d\n",
 		client->wq_size, client->wq_offset, client->wq_tail);
 
+	seq_printf(m, "\tWork queue full: %u\n", client->no_wq_space);
 	seq_printf(m, "\tFailed to queue: %u\n", client->q_fail);
 	seq_printf(m, "\tFailed doorbell: %u\n", client->b_fail);
 	seq_printf(m, "\tLast submission result: %d\n", client->retcode);

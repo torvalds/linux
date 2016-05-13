@@ -468,26 +468,22 @@ static void guc_fini_ctx_desc(struct intel_guc *guc,
  */
 int i915_guc_wq_check_space(struct drm_i915_gem_request *request)
 {
-	const size_t size = sizeof(struct guc_wq_item);
+	const size_t wqi_size = sizeof(struct guc_wq_item);
 	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
 	struct guc_process_desc *desc;
-	int ret = -ETIMEDOUT, timeout_counter = 200;
+	u32 freespace;
 
 	GEM_BUG_ON(gc == NULL);
 
 	desc = gc->client_base + gc->proc_desc_offset;
 
-	while (timeout_counter-- > 0) {
-		if (CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size) >= size) {
-			ret = 0;
-			break;
-		}
+	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
+	if (likely(freespace >= wqi_size))
+		return 0;
 
-		if (timeout_counter)
-			usleep_range(1000, 2000);
-	};
+	gc->no_wq_space += 1;
 
-	return ret;
+	return -EAGAIN;
 }
 
 static int guc_add_workqueue_item(struct i915_guc_client *gc,

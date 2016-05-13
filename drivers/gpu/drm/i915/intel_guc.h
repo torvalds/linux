@@ -48,9 +48,18 @@ struct drm_i915_gem_request;
  * queue (a circular array of work items), again described in the process
  * descriptor. Work queue pages are mapped momentarily as required.
  *
- * Finally, we also keep a few statistics here, including the number of
- * submissions to each engine, and a record of the last submission failure
- * (if any).
+ * We also keep a few statistics on failures. Ideally, these should all
+ * be zero!
+ *   no_wq_space: times that the submission pre-check found no space was
+ *                available in the work queue (note, the queue is shared,
+ *                not per-engine). It is OK for this to be nonzero, but
+ *                it should not be huge!
+ *   q_fail: failed to enqueue a work item. This should never happen,
+ *           because we check for space beforehand.
+ *   b_fail: failed to ring the doorbell. This should never happen, unless
+ *           somehow the hardware misbehaves, or maybe if the GuC firmware
+ *           crashes? We probably need to reset the GPU to recover.
+ *   retcode: errno from last guc_submit()
  */
 struct i915_guc_client {
 	struct drm_i915_gem_object *client_obj;
@@ -71,12 +80,13 @@ struct i915_guc_client {
 	uint32_t wq_tail;
 	uint32_t unused;		/* Was 'wq_head'		*/
 
-	/* GuC submission statistics & status */
-	uint64_t submissions[GUC_MAX_ENGINES_NUM];
+	uint32_t no_wq_space;
 	uint32_t q_fail;
 	uint32_t b_fail;
 	int retcode;
-	int spare;			/* pad to 32 DWords		*/
+
+	/* Per-engine counts of GuC submissions */
+	uint64_t submissions[GUC_MAX_ENGINES_NUM];
 };
 
 enum intel_guc_fw_status {
