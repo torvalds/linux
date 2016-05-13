@@ -808,8 +808,6 @@ static int suspend_set_state(struct regulator_dev *rdev,
 /* locks held by caller */
 static int suspend_prepare(struct regulator_dev *rdev, suspend_state_t state)
 {
-	lockdep_assert_held_once(&rdev->mutex);
-
 	if (!rdev->constraints)
 		return -EINVAL;
 
@@ -1539,7 +1537,7 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	}
 
 	/* Cascade always-on state to supply */
-	if (_regulator_is_enabled(rdev) && rdev->supply) {
+	if (_regulator_is_enabled(rdev)) {
 		ret = regulator_enable(rdev->supply);
 		if (ret < 0) {
 			_regulator_put(rdev->supply);
