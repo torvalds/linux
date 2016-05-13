@@ -53,6 +53,7 @@ allowed_warnings = set([
     "inet_connection_sock.c:423", # net/ipv4/inet_connection_sock.c:423:283: warning: passing argument 1 of 'sock_i_uid' discards 'const' qualifier from pointer target type
     "inet_connection_sock.c:460", # net/ipv4/inet_connection_sock.c:460:283: warning: passing argument 1 of 'sock_i_uid' discards 'const' qualifier from pointer target type
     "watchdog.c:122", # kernel/watchdog.c:122:22: warning: 'hardlockup_allcpu_dumped' defined but not used
+    "memcontrol.c:5271", # mm/memcontrol.c:5271:2: warning: initialization from incompatible pointer type
  ])
 
 # Capture the name of the object file, can find it.
