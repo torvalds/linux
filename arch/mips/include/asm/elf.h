@@ -175,16 +175,14 @@
 #define SHF_MIPS_NAMES		0x02000000
 #define SHF_MIPS_NODUPES	0x01000000
 
-#ifndef ELF_ARCH
-/* ELF register definitions */
-#define ELF_NGREG	45
-#define ELF_NFPREG	33
-
-typedef unsigned long elf_greg_t;
-typedef elf_greg_t elf_gregset_t[ELF_NGREG];
-
-typedef double elf_fpreg_t;
-typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
+#define MIPS_ABI_FP_ANY		0	/* FP ABI doesn't matter */
+#define MIPS_ABI_FP_DOUBLE	1	/* -mdouble-float */
+#define MIPS_ABI_FP_SINGLE	2	/* -msingle-float */
+#define MIPS_ABI_FP_SOFT	3	/* -msoft-float */
+#define MIPS_ABI_FP_OLD_64	4	/* -mips32r2 -mfp64 */
+#define MIPS_ABI_FP_XX		5	/* -mfpxx */
+#define MIPS_ABI_FP_64		6	/* -mips32r2 -mfp64 */
+#define MIPS_ABI_FP_64A		7	/* -mips32r2 -mfp64 -mno-odd-spreg */
 
 struct mips_elf_abiflags_v0 {
 	uint16_t version;	/* Version of flags structure */
@@ -201,14 +199,16 @@ struct mips_elf_abiflags_v0 {
 	uint32_t flags2;
 };
 
-#define MIPS_ABI_FP_ANY		0	/* FP ABI doesn't matter */
-#define MIPS_ABI_FP_DOUBLE	1	/* -mdouble-float */
-#define MIPS_ABI_FP_SINGLE	2	/* -msingle-float */
-#define MIPS_ABI_FP_SOFT	3	/* -msoft-float */
-#define MIPS_ABI_FP_OLD_64	4	/* -mips32r2 -mfp64 */
-#define MIPS_ABI_FP_XX		5	/* -mfpxx */
-#define MIPS_ABI_FP_64		6	/* -mips32r2 -mfp64 */
-#define MIPS_ABI_FP_64A		7	/* -mips32r2 -mfp64 -mno-odd-spreg */
+#ifndef ELF_ARCH
+/* ELF register definitions */
+#define ELF_NGREG	45
+#define ELF_NFPREG	33
+
+typedef unsigned long elf_greg_t;
+typedef elf_greg_t elf_gregset_t[ELF_NGREG];
+
+typedef double elf_fpreg_t;
+typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #ifdef CONFIG_32BIT
 
