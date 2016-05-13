@@ -63,6 +63,9 @@
 #define ARIZONA_DVFS_SR1_RQ	0x001
 #define ARIZONA_DVFS_ADSP1_RQ	0x100
 
+/* Notifier events */
+#define ARIZONA_NOTIFY_VOICE_TRIGGER   0x1
+
 struct arizona;
 struct wm_adsp;
 
