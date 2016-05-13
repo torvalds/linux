@@ -5278,6 +5278,31 @@ static int skl_cdclk_decimal(int cdclk)
 	return DIV_ROUND_CLOSEST(cdclk - 1000, 500);
 }
 
+static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(BXT_DE_PLL_ENABLE, 0);
+
+	/* Timeout 200us */
+	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) == 0, 1))
+		DRM_ERROR("timeout waiting for DE PLL unlock\n");
+}
+
+static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, u32 ratio)
+{
+	u32 val;
+
+	val = I915_READ(BXT_DE_PLL_CTL);
+	val &= ~BXT_DE_PLL_RATIO_MASK;
+	val |= ratio;
+	I915_WRITE(BXT_DE_PLL_CTL, val);
+
+	I915_WRITE(BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
+
+	/* Timeout 200us */
+	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) != 0, 1))
+		DRM_ERROR("timeout waiting for DE PLL lock\n");
+}
+
 static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 {
 	uint32_t divider;
@@ -5345,25 +5370,13 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 	 */
 	if (cdclk == 19200 || cdclk == 624000 ||
 	    current_cdclk == 624000) {
-		I915_WRITE(BXT_DE_PLL_ENABLE, ~BXT_DE_PLL_PLL_ENABLE);
-		/* Timeout 200us */
-		if (wait_for(!(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK),
-			     1))
-			DRM_ERROR("timout waiting for DE PLL unlock\n");
+		bxt_de_pll_disable(dev_priv);
 	}
 
 	if (cdclk != 19200) {
 		uint32_t val;
 
-		val = I915_READ(BXT_DE_PLL_CTL);
-		val &= ~BXT_DE_PLL_RATIO_MASK;
-		val |= ratio;
-		I915_WRITE(BXT_DE_PLL_CTL, val);
-
-		I915_WRITE(BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
-		/* Timeout 200us */
-		if (wait_for(I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK, 1))
-			DRM_ERROR("timeout waiting for DE PLL lock\n");
+		bxt_de_pll_enable(dev_priv, ratio);
 
 		val = divider | skl_cdclk_decimal(cdclk);
 		/*
