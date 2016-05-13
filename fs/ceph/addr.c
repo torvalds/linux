@@ -1168,7 +1168,7 @@ retry_locked:
 			snapc = ceph_get_snap_context(snapc);
 			unlock_page(page);
 			ceph_queue_writeback(inode);
-			r = wait_event_interruptible(ci->i_cap_wq,
+			r = wait_event_killable(ci->i_cap_wq,
 			       context_is_writeable_or_written(inode, snapc));
 			ceph_put_snap_context(snapc);
 			if (r == -ERESTARTSYS)
