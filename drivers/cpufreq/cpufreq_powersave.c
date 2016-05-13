@@ -20,10 +20,8 @@ static int cpufreq_governor_powersave(struct cpufreq_policy *policy,
 					unsigned int event)
 {
 	switch (event) {
-	case CPUFREQ_GOV_START:
 	case CPUFREQ_GOV_LIMITS:
-		pr_debug("setting to %u kHz because of event %u\n",
-							policy->min, event);
+		pr_debug("setting to %u kHz\n", policy->min);
 		__cpufreq_driver_target(policy, policy->min,
 						CPUFREQ_RELATION_L);
 		break;
