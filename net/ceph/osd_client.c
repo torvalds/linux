@@ -3454,7 +3454,7 @@ static int wait_request_timeout(struct ceph_osd_request *req,
 	long left;
 
 	dout("%s req %p tid %llu\n", __func__, req, req->r_tid);
-	left = wait_for_completion_interruptible_timeout(&req->r_completion,
+	left = wait_for_completion_killable_timeout(&req->r_completion,
 						ceph_timeout_jiffies(timeout));
 	if (left <= 0) {
 		left = left ?: -ETIMEDOUT;
