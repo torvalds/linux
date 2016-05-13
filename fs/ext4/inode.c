@@ -3295,7 +3295,9 @@ static int ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 }
 
 /*
- * For ext4 extent files, ext4 will do direct-io write to holes,
+ * Handling of direct IO writes.
+ *
+ * For ext4 extent files, ext4 will do direct-io write even to holes,
  * preallocated extents, and those write extend the file, no need to
  * fall back to buffered IO.
  *
@@ -3313,21 +3315,37 @@ static int ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
  * if the machine crashes during the write.
  *
  */
-static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-				  loff_t offset)
+static ssize_t ext4_direct_IO_write(struct kiocb *iocb, struct iov_iter *iter,
+				    loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
+	struct ext4_inode_info *ei = EXT4_I(inode);
 	ssize_t ret;
 	size_t count = iov_iter_count(iter);
 	int overwrite = 0;
 	get_block_t *get_block_func = NULL;
 	int dio_flags = 0;
 	loff_t final_size = offset + count;
+	int orphan = 0;
+	handle_t *handle;
 
-	/* Use the old path for reads and writes beyond i_size. */
-	if (iov_iter_rw(iter) != WRITE || final_size > inode->i_size)
-		return ext4_ind_direct_IO(iocb, iter, offset);
+	if (final_size > inode->i_size) {
+		/* Credits for sb + inode write */
+		handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
+		if (IS_ERR(handle)) {
+			ret = PTR_ERR(handle);
+			goto out;
+		}
+		ret = ext4_orphan_add(handle, inode);
+		if (ret) {
+			ext4_journal_stop(handle);
+			goto out;
+		}
+		orphan = 1;
+		ei->i_disksize = inode->i_size;
+		ext4_journal_stop(handle);
+	}
 
 	BUG_ON(iocb->private == NULL);
 
@@ -3336,8 +3354,7 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	 * conversion. This also disallows race between truncate() and
 	 * overwrite DIO as i_dio_count needs to be incremented under i_mutex.
 	 */
-	if (iov_iter_rw(iter) == WRITE)
-		inode_dio_begin(inode);
+	inode_dio_begin(inode);
 
 	/* If we do a overwrite dio, i_mutex locking can be released */
 	overwrite = *((int *)iocb->private);
@@ -3346,7 +3363,7 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		inode_unlock(inode);
 
 	/*
-	 * We could direct write to holes and fallocate.
+	 * For extent mapped files we could direct write to holes and fallocate.
 	 *
 	 * Allocated blocks to fill the hole are marked as unwritten to prevent
 	 * parallel buffered read to expose the stale data before DIO complete
@@ -3368,7 +3385,11 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	iocb->private = NULL;
 	if (overwrite)
 		get_block_func = ext4_dio_get_block_overwrite;
-	else if (is_sync_kiocb(iocb)) {
+	else if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS) ||
+		 round_down(offset, 1 << inode->i_blkbits) >= inode->i_size) {
+		get_block_func = ext4_dio_get_block;
+		dio_flags = DIO_LOCKING | DIO_SKIP_HOLES;
+	} else if (is_sync_kiocb(iocb)) {
 		get_block_func = ext4_dio_get_block_unwritten_sync;
 		dio_flags = DIO_LOCKING;
 	} else {
@@ -3378,10 +3399,11 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 	BUG_ON(ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode));
 #endif
-	if (IS_DAX(inode))
+	if (IS_DAX(inode)) {
+		dio_flags &= ~DIO_SKIP_HOLES;
 		ret = dax_do_io(iocb, inode, iter, offset, get_block_func,
 				ext4_end_io_dio, dio_flags);
-	else
+	} else
 		ret = __blockdev_direct_IO(iocb, inode,
 					   inode->i_sb->s_bdev, iter, offset,
 					   get_block_func,
@@ -3401,12 +3423,87 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		ext4_clear_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 	}
 
-	if (iov_iter_rw(iter) == WRITE)
-		inode_dio_end(inode);
+	inode_dio_end(inode);
 	/* take i_mutex locking again if we do a ovewrite dio */
 	if (overwrite)
 		inode_lock(inode);
 
+	if (ret < 0 && final_size > inode->i_size)
+		ext4_truncate_failed_write(inode);
+
+	/* Handle extending of i_size after direct IO write */
+	if (orphan) {
+		int err;
+
+		/* Credits for sb + inode write */
+		handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
+		if (IS_ERR(handle)) {
+			/* This is really bad luck. We've written the data
+			 * but cannot extend i_size. Bail out and pretend
+			 * the write failed... */
+			ret = PTR_ERR(handle);
+			if (inode->i_nlink)
+				ext4_orphan_del(NULL, inode);
+
+			goto out;
+		}
+		if (inode->i_nlink)
+			ext4_orphan_del(handle, inode);
+		if (ret > 0) {
+			loff_t end = offset + ret;
+			if (end > inode->i_size) {
+				ei->i_disksize = end;
+				i_size_write(inode, end);
+				/*
+				 * We're going to return a positive `ret'
+				 * here due to non-zero-length I/O, so there's
+				 * no way of reporting error returns from
+				 * ext4_mark_inode_dirty() to userspace.  So
+				 * ignore it.
+				 */
+				ext4_mark_inode_dirty(handle, inode);
+			}
+		}
+		err = ext4_journal_stop(handle);
+		if (ret == 0)
+			ret = err;
+	}
+out:
+	return ret;
+}
+
+static ssize_t ext4_direct_IO_read(struct kiocb *iocb, struct iov_iter *iter,
+				   loff_t offset)
+{
+	int unlocked = 0;
+	struct inode *inode = iocb->ki_filp->f_mapping->host;
+	ssize_t ret;
+
+	if (ext4_should_dioread_nolock(inode)) {
+		/*
+		 * Nolock dioread optimization may be dynamically disabled
+		 * via ext4_inode_block_unlocked_dio(). Check inode's state
+		 * while holding extra i_dio_count ref.
+		 */
+		inode_dio_begin(inode);
+		smp_mb();
+		if (unlikely(ext4_test_inode_state(inode,
+						    EXT4_STATE_DIOREAD_LOCK)))
+			inode_dio_end(inode);
+		else
+			unlocked = 1;
+	}
+	if (IS_DAX(inode)) {
+		ret = dax_do_io(iocb, inode, iter, offset, ext4_dio_get_block,
+				NULL, unlocked ? 0 : DIO_LOCKING);
+	} else {
+		ret = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev,
+					   iter, offset, ext4_dio_get_block,
+					   NULL, NULL,
+					   unlocked ? 0 : DIO_LOCKING);
+	}
+	if (unlocked)
+		inode_dio_end(inode);
 	return ret;
 }
 
@@ -3434,10 +3531,10 @@ static ssize_t ext4_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		return 0;
 
 	trace_ext4_direct_IO_enter(inode, offset, count, iov_iter_rw(iter));
-	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
-		ret = ext4_ext_direct_IO(iocb, iter, offset);
+	if (iov_iter_rw(iter) == READ)
+		ret = ext4_direct_IO_read(iocb, iter, offset);
 	else
-		ret = ext4_ind_direct_IO(iocb, iter, offset);
+		ret = ext4_direct_IO_write(iocb, iter, offset);
 	trace_ext4_direct_IO_exit(inode, offset, count, iov_iter_rw(iter), ret);
 	return ret;
 }
