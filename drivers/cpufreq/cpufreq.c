@@ -2011,23 +2011,24 @@ static int cpufreq_governor(struct cpufreq_policy *policy, unsigned int event)
 	if (!policy->governor)
 		return -EINVAL;
 
-	if (policy->governor->max_transition_latency &&
-	    policy->cpuinfo.transition_latency >
-	    policy->governor->max_transition_latency) {
-		struct cpufreq_governor *gov = cpufreq_fallback_governor();
+	if (event == CPUFREQ_GOV_POLICY_INIT) {
+		if (policy->governor->max_transition_latency &&
+		    policy->cpuinfo.transition_latency >
+		    policy->governor->max_transition_latency) {
+			struct cpufreq_governor *gov = cpufreq_fallback_governor();
 
-		if (gov) {
-			pr_warn("%s governor failed, too long transition latency of HW, fallback to %s governor\n",
-				policy->governor->name, gov->name);
-			policy->governor = gov;
-		} else {
-			return -EINVAL;
+			if (gov) {
+				pr_warn("%s governor failed, too long transition latency of HW, fallback to %s governor\n",
+					policy->governor->name, gov->name);
+				policy->governor = gov;
+			} else {
+				return -EINVAL;
+			}
 		}
-	}
 
-	if (event == CPUFREQ_GOV_POLICY_INIT)
 		if (!try_module_get(policy->governor->owner))
 			return -EINVAL;
+	}
 
 	pr_debug("%s: for CPU %u, event %u\n", __func__, policy->cpu, event);
 
