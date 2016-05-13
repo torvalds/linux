@@ -220,6 +220,35 @@ struct xenvif_mcast_addr {
 
 #define XEN_NETBK_MCAST_MAX 64
 
+#define XEN_NETBK_MAX_HASH_KEY_SIZE 40
+#define XEN_NETBK_MAX_HASH_MAPPING_SIZE 128
+#define XEN_NETBK_HASH_TAG_SIZE 40
+
+struct xenvif_hash_cache_entry {
+	struct list_head link;
+	struct rcu_head rcu;
+	u8 tag[XEN_NETBK_HASH_TAG_SIZE];
+	unsigned int len;
+	u32 val;
+	int seq;
+};
+
+struct xenvif_hash_cache {
+	spinlock_t lock;
+	struct list_head list;
+	unsigned int count;
+	atomic_t seq;
+};
+
+struct xenvif_hash {
+	unsigned int alg;
+	u32 flags;
+	u8 key[XEN_NETBK_MAX_HASH_KEY_SIZE];
+	u32 mapping[XEN_NETBK_MAX_HASH_MAPPING_SIZE];
+	unsigned int size;
+	struct xenvif_hash_cache cache;
+};
+
 struct xenvif {
 	/* Unique identifier for this interface. */
 	domid_t          domid;
@@ -250,6 +279,8 @@ struct xenvif {
 	struct xenvif_queue *queues;
 	unsigned int num_queues; /* active queues, resource allocated */
 	unsigned int stalled_queues;
+
+	struct xenvif_hash hash;
 
 	struct xenbus_watch credit_watch;
 	struct xenbus_watch mcast_ctrl_watch;
@@ -353,6 +384,7 @@ extern bool separate_tx_rx_irq;
 extern unsigned int rx_drain_timeout_msecs;
 extern unsigned int rx_stall_timeout_msecs;
 extern unsigned int xenvif_max_queues;
+extern unsigned int xenvif_hash_cache_size;
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *xen_netback_dbg_root;
@@ -365,5 +397,19 @@ void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue);
 /* Multicast control */
 bool xenvif_mcast_match(struct xenvif *vif, const u8 *addr);
 void xenvif_mcast_addr_list_free(struct xenvif *vif);
+
+/* Hash */
+void xenvif_init_hash(struct xenvif *vif);
+void xenvif_deinit_hash(struct xenvif *vif);
+
+u32 xenvif_set_hash_alg(struct xenvif *vif, u32 alg);
+u32 xenvif_get_hash_flags(struct xenvif *vif, u32 *flags);
+u32 xenvif_set_hash_flags(struct xenvif *vif, u32 flags);
+u32 xenvif_set_hash_key(struct xenvif *vif, u32 gref, u32 len);
+u32 xenvif_set_hash_mapping_size(struct xenvif *vif, u32 size);
+u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
+			    u32 off);
+
+void xenvif_set_skb_hash(struct xenvif *vif, struct sk_buff *skb);
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

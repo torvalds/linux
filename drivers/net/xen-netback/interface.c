@@ -151,6 +151,24 @@ void xenvif_wake_queue(struct xenvif_queue *queue)
 	netif_tx_wake_queue(netdev_get_tx_queue(dev, id));
 }
 
+static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
+			       void *accel_priv,
+			       select_queue_fallback_t fallback)
+{
+	struct xenvif *vif = netdev_priv(dev);
+	unsigned int size = vif->hash.size;
+
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
+		return fallback(dev, skb) % dev->real_num_tx_queues;
+
+	xenvif_set_skb_hash(vif, skb);
+
+	if (size == 0)
+		return skb_get_hash_raw(skb) % dev->real_num_tx_queues;
+
+	return vif->hash.mapping[skb_get_hash_raw(skb) % size];
+}
+
 static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
@@ -395,6 +413,7 @@ static const struct ethtool_ops xenvif_ethtool_ops = {
 };
 
 static const struct net_device_ops xenvif_netdev_ops = {
+	.ndo_select_queue = xenvif_select_queue,
 	.ndo_start_xmit	= xenvif_start_xmit,
 	.ndo_get_stats	= xenvif_get_stats,
 	.ndo_open	= xenvif_open,
@@ -563,6 +582,8 @@ int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
 
 	vif->ctrl_irq = err;
 
+	xenvif_init_hash(vif);
+
 	task = kthread_create(xenvif_ctrl_kthread, (void *)vif,
 			      "%s-control", dev->name);
 	if (IS_ERR(task)) {
@@ -579,6 +600,7 @@ int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
 	return 0;
 
 err_deinit:
+	xenvif_deinit_hash(vif);
 	unbind_from_irqhandler(vif->ctrl_irq, vif);
 	vif->ctrl_irq = 0;
 
@@ -748,6 +770,8 @@ void xenvif_disconnect_ctrl(struct xenvif *vif)
 		put_task_struct(vif->ctrl_task);
 		vif->ctrl_task = NULL;
 	}
+
+	xenvif_deinit_hash(vif);
 
 	if (vif->ctrl_irq) {
 		unbind_from_irqhandler(vif->ctrl_irq, vif);
