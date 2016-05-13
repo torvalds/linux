@@ -1194,7 +1194,6 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	struct intel_shared_dpll *pll;
 	uint32_t ctrl1, cfgcr1, cfgcr2;
 	int clock = crtc_state->port_clock;
-	uint32_t vco = 8100;
 
 	/*
 	 * See comment in intel_dpll_hw_state to understand why we always use 0
@@ -1239,15 +1238,12 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 			break;
 		case 108000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080, 0);
-			vco = 8640;
 			break;
 		case 216000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2160, 0);
-			vco = 8640;
 			break;
 		}
 
-		to_intel_atomic_state(crtc_state->base.state)->cdclk_pll_vco = vco;
 		cfgcr1 = cfgcr2 = 0;
 	} else {
 		return NULL;

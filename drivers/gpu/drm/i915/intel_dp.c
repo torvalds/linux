@@ -1578,6 +1578,27 @@ found:
 				&pipe_config->dp_m2_n2);
 	}
 
+	/*
+	 * DPLL0 VCO may need to be adjusted to get the correct
+	 * clock for eDP. This will affect cdclk as well.
+	 */
+	if (is_edp(intel_dp) &&
+	    (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))) {
+		int vco;
+
+		switch (pipe_config->port_clock / 2) {
+		case 108000:
+		case 216000:
+			vco = 8640;
+			break;
+		default:
+			vco = 8100;
+			break;
+		}
+
+		to_intel_atomic_state(pipe_config->base.state)->cdclk_pll_vco = vco;
+	}
+
 	if (!HAS_DDI(dev))
 		intel_dp_set_clock(encoder, pipe_config);
 
