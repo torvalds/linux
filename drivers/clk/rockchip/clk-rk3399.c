@@ -1466,6 +1466,8 @@ static struct rockchip_clk_branch rk3399_clk_pmu_branches[] __initdata = {
 
 static const char *const rk3399_cru_critical_clocks[] __initconst = {
 	"aclk_cci_pre",
+	"aclk_gic",
+	"aclk_gic_noc",
 	"pclk_perilp0",
 	"pclk_perilp0",
 	"hclk_perilp0",
