@@ -790,9 +790,12 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	}
 
 	/*
-	 * If we finished all bytes in the request we are done now.
+	 * special case: failed zero length commands always need to
+	 * drop down into the retry code. Otherwise, if we finished
+	 * all bytes in the request we are done now.
 	 */
-	if (!blk_end_request(req, error, good_bytes))
+	if (!(blk_rq_bytes(req) == 0 && error) &&
+	    !blk_end_request(req, error, good_bytes))
 		goto next_command;
 
 	/*
