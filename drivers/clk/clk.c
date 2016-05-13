@@ -2404,8 +2404,13 @@ static int __clk_core_init(struct clk_core *core)
 		core->ops->init(core->hw);
 
 	if (core->flags & CLK_IS_CRITICAL) {
+		unsigned long flags;
+
 		clk_core_prepare(core);
+
+		flags = clk_enable_lock();
 		clk_core_enable(core);
+		clk_enable_unlock(flags);
 	}
 
 	kref_init(&core->ref);
