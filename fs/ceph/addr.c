@@ -544,11 +544,21 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 				   truncate_seq, truncate_size,
 				   &inode->i_mtime, &page, 1);
 	if (err < 0) {
-		dout("writepage setting page/mapping error %d %p\n", err, page);
+		struct writeback_control tmp_wbc;
+		if (!wbc)
+			wbc = &tmp_wbc;
+		if (err == -ERESTARTSYS) {
+			/* killed by SIGKILL */
+			dout("writepage interrupted page %p\n", page);
+			redirty_page_for_writepage(wbc, page);
+			end_page_writeback(page);
+			goto out;
+		}
+		dout("writepage setting page/mapping error %d %p\n",
+		     err, page);
 		SetPageError(page);
 		mapping_set_error(&inode->i_data, err);
-		if (wbc)
-			wbc->pages_skipped++;
+		wbc->pages_skipped++;
 	} else {
 		dout("writepage cleaned page %p\n", page);
 		err = 0;  /* vfs expects us to return 0 */
@@ -569,11 +579,15 @@ static int ceph_writepage(struct page *page, struct writeback_control *wbc)
 	BUG_ON(!inode);
 	ihold(inode);
 	err = writepage_nounlock(page, wbc);
+	if (err == -ERESTARTSYS) {
+		/* direct memory reclaimer was killed by SIGKILL. return 0
+		 * to prevent caller from setting mapping/page error */
+		err = 0;
+	}
 	unlock_page(page);
 	iput(inode);
 	return err;
 }
-
 
 /*
  * lame release_pages helper.  release_pages() isn't exported to
