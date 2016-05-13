@@ -443,8 +443,8 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-	pdata->stats.tx_packets++;
-	pdata->stats.tx_bytes += skb->len;
+	tx_ring->tx_packets++;
+	tx_ring->tx_bytes += skb->len;
 
 	pdata->ring_ops->wr_cmd(tx_ring, count);
 	return NETDEV_TX_OK;
@@ -483,12 +483,12 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	skb = buf_pool->rx_skb[skb_index];
 
 	/* checking for error */
-	status = GET_VAL(LERR, le64_to_cpu(raw_desc->m0));
+	status = (GET_VAL(ELERR, le64_to_cpu(raw_desc->m0)) << LERR_LEN) ||
+		  GET_VAL(LERR, le64_to_cpu(raw_desc->m0));
 	if (unlikely(status > 2)) {
 		dev_kfree_skb_any(skb);
 		xgene_enet_parse_error(rx_ring, netdev_priv(rx_ring->ndev),
 				       status);
-		pdata->stats.rx_dropped++;
 		ret = -EIO;
 		goto out;
 	}
@@ -506,8 +506,8 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 		xgene_enet_skip_csum(skb);
 	}
 
-	pdata->stats.rx_packets++;
-	pdata->stats.rx_bytes += datalen;
+	rx_ring->rx_packets++;
+	rx_ring->rx_bytes += datalen;
 	napi_gro_receive(&rx_ring->napi, skb);
 out:
 	if (--rx_ring->nbufpool == 0) {
@@ -1114,12 +1114,31 @@ static struct rtnl_link_stats64 *xgene_enet_get_stats64(
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct rtnl_link_stats64 *stats = &pdata->stats;
+	struct xgene_enet_desc_ring *ring;
+	int i;
 
-	stats->rx_errors += stats->rx_length_errors +
-			    stats->rx_crc_errors +
-			    stats->rx_frame_errors +
-			    stats->rx_fifo_errors;
-	memcpy(storage, &pdata->stats, sizeof(struct rtnl_link_stats64));
+	memset(stats, 0, sizeof(struct rtnl_link_stats64));
+	for (i = 0; i < pdata->txq_cnt; i++) {
+		ring = pdata->tx_ring[i];
+		if (ring) {
+			stats->tx_packets += ring->tx_packets;
+			stats->tx_bytes += ring->tx_bytes;
+		}
+	}
+
+	for (i = 0; i < pdata->rxq_cnt; i++) {
+		ring = pdata->rx_ring[i];
+		if (ring) {
+			stats->rx_packets += ring->rx_packets;
+			stats->rx_bytes += ring->rx_bytes;
+			stats->rx_errors += ring->rx_length_errors +
+				ring->rx_crc_errors +
+				ring->rx_frame_errors +
+				ring->rx_fifo_errors;
+			stats->rx_dropped += ring->rx_dropped;
+		}
+	}
+	memcpy(storage, stats, sizeof(struct rtnl_link_stats64));
 
 	return storage;
 }

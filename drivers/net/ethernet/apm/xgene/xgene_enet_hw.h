@@ -201,6 +201,8 @@ enum xgene_enet_rm {
 #define USERINFO_LEN			32
 #define FPQNUM_POS			32
 #define FPQNUM_LEN			12
+#define ELERR_POS                       46
+#define ELERR_LEN                       2
 #define NV_POS				50
 #define NV_LEN				1
 #define LL_POS				51

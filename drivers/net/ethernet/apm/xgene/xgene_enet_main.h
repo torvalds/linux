@@ -121,6 +121,16 @@ struct xgene_enet_desc_ring {
 		struct xgene_enet_raw_desc16 *raw_desc16;
 	};
 	__le64 *exp_bufs;
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_dropped;
+	u64 rx_errors;
+	u64 rx_length_errors;
+	u64 rx_crc_errors;
+	u64 rx_frame_errors;
+	u64 rx_fifo_errors;
 };
 
 struct xgene_mac_ops {
