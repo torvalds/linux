@@ -1073,7 +1073,7 @@ void bpf_jit_compile(struct bpf_prog *prog)
 {
 }
 
-void bpf_int_jit_compile(struct bpf_prog *prog)
+struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 {
 	struct bpf_binary_header *header = NULL;
 	int proglen, oldproglen = 0;
@@ -1084,11 +1084,11 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 	int i;
 
 	if (!bpf_jit_enable)
-		return;
+		return prog;
 
 	addrs = kmalloc(prog->len * sizeof(*addrs), GFP_KERNEL);
 	if (!addrs)
-		return;
+		return prog;
 
 	/* Before first pass, make a rough estimation of addrs[]
 	 * each bpf instruction is translated to less than 64 bytes
@@ -1140,6 +1140,7 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 out:
 	kfree(addrs);
+	return prog;
 }
 
 void bpf_jit_free(struct bpf_prog *fp)

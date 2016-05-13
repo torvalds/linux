@@ -761,15 +761,22 @@ static int bpf_check_tail_call(const struct bpf_prog *fp)
 /**
  *	bpf_prog_select_runtime - select exec runtime for BPF program
  *	@fp: bpf_prog populated with internal BPF program
+ *	@err: pointer to error variable
  *
  * Try to JIT eBPF program, if JIT is not available, use interpreter.
  * The BPF program will be executed via BPF_PROG_RUN() macro.
  */
-int bpf_prog_select_runtime(struct bpf_prog *fp)
+struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 {
 	fp->bpf_func = (void *) __bpf_prog_run;
 
-	bpf_int_jit_compile(fp);
+	/* eBPF JITs can rewrite the program in case constant
+	 * blinding is active. However, in case of error during
+	 * blinding, bpf_int_jit_compile() must always return a
+	 * valid program, which in this case would simply not
+	 * be JITed, but falls back to the interpreter.
+	 */
+	fp = bpf_int_jit_compile(fp);
 	bpf_prog_lock_ro(fp);
 
 	/* The tail call compatibility check can only be done at
@@ -777,7 +784,9 @@ int bpf_prog_select_runtime(struct bpf_prog *fp)
 	 * with JITed or non JITed program concatenations and not
 	 * all eBPF JITs might immediately support all features.
 	 */
-	return bpf_check_tail_call(fp);
+	*err = bpf_check_tail_call(fp);
+
+	return fp;
 }
 EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
 
@@ -859,8 +868,9 @@ const struct bpf_func_proto bpf_tail_call_proto = {
 };
 
 /* For classic BPF JITs that don't implement bpf_int_jit_compile(). */
-void __weak bpf_int_jit_compile(struct bpf_prog *prog)
+struct bpf_prog * __weak bpf_int_jit_compile(struct bpf_prog *prog)
 {
+	return prog;
 }
 
 bool __weak bpf_helper_changes_skb_data(void *func)
