@@ -154,13 +154,32 @@ static void skl_dump_mconfig(struct skl_sst *ctx,
 	dev_dbg(ctx->dev, "ch_cfg = %d\n", mcfg->out_fmt[0].ch_cfg);
 }
 
+static void skl_tplg_update_chmap(struct skl_module_fmt *fmt, int chs)
+{
+	int slot_map = 0xFFFFFFFF;
+	int start_slot = 0;
+	int i;
+
+	for (i = 0; i < chs; i++) {
+		/*
+		 * For 2 channels with starting slot as 0, slot map will
+		 * look like 0xFFFFFF10.
+		 */
+		slot_map &= (~(0xF << (4 * i)) | (start_slot << (4 * i)));
+		start_slot++;
+	}
+	fmt->ch_map = slot_map;
+}
+
 static void skl_tplg_update_params(struct skl_module_fmt *fmt,
 			struct skl_pipe_params *params, int fixup)
 {
 	if (fixup & SKL_RATE_FIXUP_MASK)
 		fmt->s_freq = params->s_freq;
-	if (fixup & SKL_CH_FIXUP_MASK)
+	if (fixup & SKL_CH_FIXUP_MASK) {
 		fmt->channels = params->ch;
+		skl_tplg_update_chmap(fmt, fmt->channels);
+	}
 	if (fixup & SKL_FMT_FIXUP_MASK) {
 		fmt->valid_bit_depth = skl_get_bit_depth(params->s_fmt);
 
