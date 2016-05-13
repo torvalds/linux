@@ -286,12 +286,12 @@ static int pxa168_eth_stop(struct net_device *dev);
 
 static inline u32 rdl(struct pxa168_eth_private *pep, int offset)
 {
-	return readl(pep->base + offset);
+	return readl_relaxed(pep->base + offset);
 }
 
 static inline void wrl(struct pxa168_eth_private *pep, int offset, u32 data)
 {
-	writel(data, pep->base + offset);
+	writel_relaxed(data, pep->base + offset);
 }
 
 static void abort_dma(struct pxa168_eth_private *pep)
