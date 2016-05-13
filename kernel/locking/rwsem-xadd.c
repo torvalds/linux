@@ -194,17 +194,15 @@ __rwsem_mark_wake(struct rw_semaphore *sem,
 		waiter = list_entry(next, struct rwsem_waiter, list);
 		next = waiter->list.next;
 		tsk = waiter->task;
-		/*
-		 * Make sure we do not wakeup the next reader before
-		 * setting the nil condition to grant the next reader;
-		 * otherwise we could miss the wakeup on the other
-		 * side and end up sleeping again. See the pairing
-		 * in rwsem_down_read_failed().
-		 */
-		smp_mb();
-		waiter->task = NULL;
+
 		wake_q_add(wake_q, tsk);
-		put_task_struct(tsk);
+		/*
+		 * Ensure that the last operation is setting the reader
+		 * waiter to nil such that rwsem_down_read_failed() cannot
+		 * race with do_exit() by always holding a reference count
+		 * to the task to wakeup.
+		 */
+		smp_store_release(&waiter->task, NULL);
 	} while (--loop);
 
 	sem->wait_list.next = next;
@@ -228,7 +226,6 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 	/* set up my own style of waitqueue */
 	waiter.task = tsk;
 	waiter.type = RWSEM_WAITING_FOR_READ;
-	get_task_struct(tsk);
 
 	raw_spin_lock_irq(&sem->wait_lock);
 	if (list_empty(&sem->wait_list))
