@@ -696,9 +696,7 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 		 * going any further, as the i915_add_request() call
 		 * later on mustn't fail ...
 		 */
-		struct intel_guc *guc = &request->i915->guc;
-
-		ret = i915_guc_wq_check_space(guc->execbuf_client);
+		ret = i915_guc_wq_check_space(request);
 		if (ret)
 			return ret;
 	}
@@ -747,7 +745,6 @@ static int
 intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 {
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
-	struct drm_i915_private *dev_priv = request->i915;
 	struct intel_engine_cs *engine = request->engine;
 
 	intel_logical_ring_advance(ringbuf);
@@ -775,8 +772,8 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 	request->previous_context = engine->last_context;
 	engine->last_context = request->ctx;
 
-	if (dev_priv->guc.execbuf_client)
-		i915_guc_submit(dev_priv->guc.execbuf_client, request);
+	if (i915.enable_guc_submission)
+		i915_guc_submit(request);
 	else
 		execlists_context_queue(request);
 

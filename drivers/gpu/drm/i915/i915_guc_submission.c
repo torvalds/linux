@@ -450,14 +450,30 @@ static void guc_fini_ctx_desc(struct intel_guc *guc,
 			     sizeof(desc) * client->ctx_index);
 }
 
-int i915_guc_wq_check_space(struct i915_guc_client *gc)
+/**
+ * i915_guc_wq_check_space() - check that the GuC can accept a request
+ * @request:	request associated with the commands
+ *
+ * Return:	0 if space is available
+ *		-EAGAIN if space is not currently available
+ *
+ * This function must be called (and must return 0) before a request
+ * is submitted to the GuC via i915_guc_submit() below. Once a result
+ * of 0 has been returned, it remains valid until (but only until)
+ * the next call to submit().
+ *
+ * This precheck allows the caller to determine in advance that space
+ * will be available for the next submission before committing resources
+ * to it, and helps avoid late failures with complicated recovery paths.
+ */
+int i915_guc_wq_check_space(struct drm_i915_gem_request *request)
 {
+	const size_t size = sizeof(struct guc_wq_item);
+	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
 	struct guc_process_desc *desc;
-	u32 size = sizeof(struct guc_wq_item);
 	int ret = -ETIMEDOUT, timeout_counter = 200;
 
-	if (!gc)
-		return 0;
+	GEM_BUG_ON(gc == NULL);
 
 	desc = gc->client_base + gc->proc_desc_offset;
 
@@ -531,16 +547,28 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 
 /**
  * i915_guc_submit() - Submit commands through GuC
- * @client:	the guc client where commands will go through
  * @rq:		request associated with the commands
  *
- * Return:	0 if succeed
+ * Return:	0 on success, otherwise an errno.
+ * 		(Note: nonzero really shouldn't happen!)
+ *
+ * The caller must have already called i915_guc_wq_check_space() above
+ * with a result of 0 (success) since the last request submission. This
+ * guarantees that there is space in the work queue for the new request,
+ * so enqueuing the item cannot fail.
+ *
+ * Bad Things Will Happen if the caller violates this protocol e.g. calls
+ * submit() when check() says there's no space, or calls submit() multiple
+ * times with no intervening check().
+ *
+ * The only error here arises if the doorbell hardware isn't functioning
+ * as expected, which really shouln't happen.
  */
-int i915_guc_submit(struct i915_guc_client *client,
-		    struct drm_i915_gem_request *rq)
+int i915_guc_submit(struct drm_i915_gem_request *rq)
 {
-	struct intel_guc *guc = client->guc;
 	unsigned int engine_id = rq->engine->guc_id;
+	struct intel_guc *guc = &rq->i915->guc;
+	struct i915_guc_client *client = guc->execbuf_client;
 	int q_ret, b_ret;
 
 	q_ret = guc_add_workqueue_item(client, rq);
