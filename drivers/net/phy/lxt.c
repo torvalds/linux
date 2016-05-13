@@ -88,11 +88,7 @@ static int lxt970_config_intr(struct phy_device *phydev)
 
 static int lxt970_config_init(struct phy_device *phydev)
 {
-	int err;
-
-	err = phy_write(phydev, MII_LXT970_CONFIG, 0);
-
-	return err;
+	return phy_write(phydev, MII_LXT970_CONFIG, 0);
 }
 
 
