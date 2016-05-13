@@ -185,6 +185,12 @@ ENDPROC(__und_invalid)
 	@
 	stmia	r7, {r2 - r6}
 
+	get_thread_info tsk
+	ldr	r0, [tsk, #TI_ADDR_LIMIT]
+	mov	r1, #TASK_SIZE
+	str	r1, [tsk, #TI_ADDR_LIMIT]
+	str	r0, [sp, #SVC_ADDR_LIMIT]
+
 	uaccess_save r0
 	.if \uaccess
 	uaccess_disable r0
@@ -213,7 +219,6 @@ __irq_svc:
 	irq_handler
 
 #ifdef CONFIG_PREEMPT
-	get_thread_info tsk
 	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
 	ldr	r0, [tsk, #TI_FLAGS]		@ get flags
 	teq	r8, #0				@ if preempt count != 0
