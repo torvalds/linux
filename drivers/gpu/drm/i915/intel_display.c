@@ -5428,13 +5428,10 @@ bool broxton_cdclk_verify_state(struct drm_i915_private *dev_priv)
 
 void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	/* check if cd clock is enabled */
-	if (broxton_cdclk_is_enabled(dev_priv)) {
-		DRM_DEBUG_KMS("CDCLK already enabled, won't reprogram it\n");
-		return;
-	}
+	intel_update_cdclk(dev_priv->dev);
 
-	DRM_DEBUG_KMS("CDCLK not enabled, enabling it\n");
+	if (dev_priv->cdclk_pll.vco != 0)
+		return;
 
 	/*
 	 * FIXME:
