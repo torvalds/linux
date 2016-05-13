@@ -528,6 +528,7 @@ static int __run_perf_stat(int argc, const char **argv)
 		perf_evlist__set_leader(evsel_list);
 
 	evlist__for_each(evsel_list, counter) {
+try_again:
 		if (create_perf_stat_counter(counter) < 0) {
 			/*
 			 * PPC returns ENXIO for HW counters until 2.6.37
@@ -544,7 +545,11 @@ static int __run_perf_stat(int argc, const char **argv)
 				if ((counter->leader != counter) ||
 				    !(counter->leader->nr_members > 1))
 					continue;
-			}
+			} else if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
+                                if (verbose)
+                                        ui__warning("%s\n", msg);
+                                goto try_again;
+                        }
 
 			perf_evsel__open_strerror(counter, &target,
 						  errno, msg, sizeof(msg));

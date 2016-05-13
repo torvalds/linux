@@ -2445,6 +2445,9 @@ static char *prefix_if_not_in(const char *pre, char *str)
 
 static char *setup_overhead(char *keys)
 {
+	if (sort__mode == SORT_MODE__DIFF)
+		return keys;
+
 	keys = prefix_if_not_in("overhead", keys);
 
 	if (symbol_conf.cumulate_callchain)
