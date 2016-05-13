@@ -5185,21 +5185,34 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 		return max_cdclk_freq*90/100;
 }
 
+static int skl_calc_cdclk(int max_pixclk, int vco);
+
 static void intel_update_max_cdclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		u32 limit = I915_READ(SKL_DFSM) & SKL_DFSM_CDCLK_LIMIT_MASK;
+		int max_cdclk, vco;
 
+		vco = dev_priv->skl_preferred_vco_freq;
+		WARN_ON(vco != 8100 && vco != 8640);
+
+		/*
+		 * Use the lower (vco 8640) cdclk values as a
+		 * first guess. skl_calc_cdclk() will correct it
+		 * if the preferred vco is 8100 instead.
+		 */
 		if (limit == SKL_DFSM_CDCLK_LIMIT_675)
-			dev_priv->max_cdclk_freq = 675000;
+			max_cdclk = 617140;
 		else if (limit == SKL_DFSM_CDCLK_LIMIT_540)
-			dev_priv->max_cdclk_freq = 540000;
+			max_cdclk = 540000;
 		else if (limit == SKL_DFSM_CDCLK_LIMIT_450)
-			dev_priv->max_cdclk_freq = 450000;
+			max_cdclk = 432000;
 		else
-			dev_priv->max_cdclk_freq = 337500;
+			max_cdclk = 308570;
+
+		dev_priv->max_cdclk_freq = skl_calc_cdclk(max_cdclk, vco);
 	} else if (IS_BROXTON(dev)) {
 		dev_priv->max_cdclk_freq = 624000;
 	} else if (IS_BROADWELL(dev))  {
@@ -5256,9 +5269,6 @@ static void intel_update_cdclk(struct drm_device *dev)
 	 */
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		I915_WRITE(GMBUSFREQ_VLV, DIV_ROUND_UP(dev_priv->cdclk_freq, 1000));
-
-	if (dev_priv->max_cdclk_freq == 0)
-		intel_update_max_cdclk(dev);
 }
 
 /* convert from kHz to .1 fixpoint MHz with -1MHz offset */
@@ -5507,11 +5517,23 @@ skl_dpll0_update(struct drm_i915_private *dev_priv)
 	}
 }
 
+void skl_set_preferred_cdclk_vco(struct drm_i915_private *dev_priv, int vco)
+{
+	bool changed = dev_priv->skl_preferred_vco_freq != vco;
+
+	dev_priv->skl_preferred_vco_freq = vco;
+
+	if (changed)
+		intel_update_max_cdclk(dev_priv->dev);
+}
+
 static void
 skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 {
 	int min_cdclk = skl_calc_cdclk(0, vco);
 	u32 val;
+
+	WARN_ON(vco != 8100 && vco != 8640);
 
 	/* select the minimum CDCLK before enabling DPLL 0 */
 	val = CDCLK_FREQ_337_308 | skl_cdclk_decimal(min_cdclk);
@@ -5548,6 +5570,9 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 		DRM_ERROR("DPLL0 not locked\n");
 
 	dev_priv->skl_vco_freq = vco;
+
+	/* We'll want to keep using the current vco from now on. */
+	skl_set_preferred_cdclk_vco(dev_priv, vco);
 }
 
 static void
@@ -5664,7 +5689,9 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 		int cdclk, vco;
 
 		/* set CDCLK to the lowest frequency, Modeset follows */
-		vco = 8100;
+		vco = dev_priv->skl_preferred_vco_freq;
+		if (vco == 0)
+			vco = 8100;
 		cdclk = skl_calc_cdclk(0, vco);
 
 		skl_set_cdclk(dev_priv, cdclk, vco);
@@ -12651,6 +12678,8 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	if (dev_priv->display.modeset_calc_cdclk) {
 		if (!intel_state->cdclk_pll_vco)
 			intel_state->cdclk_pll_vco = dev_priv->skl_vco_freq;
+		if (!intel_state->cdclk_pll_vco)
+			intel_state->cdclk_pll_vco = dev_priv->skl_preferred_vco_freq;
 
 		ret = dev_priv->display.modeset_calc_cdclk(state);
 		if (ret < 0)
@@ -14904,6 +14933,9 @@ void intel_modeset_init(struct drm_device *dev)
 	intel_update_cdclk(dev);
 
 	intel_shared_dpll_init(dev);
+
+	if (dev_priv->max_cdclk_freq == 0)
+		intel_update_max_cdclk(dev);
 
 	/* Just disable it once at startup */
 	i915_disable_vga(dev);
