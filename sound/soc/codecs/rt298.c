@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/dmi.h>
 #include <linux/acpi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -1132,6 +1133,17 @@ static const struct acpi_device_id rt298_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, rt298_acpi_match);
 
+static const struct dmi_system_id force_combo_jack_table[] = {
+	{
+		.ident = "Intel Broxton P",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Broxton P")
+		}
+	},
+	{ }
+};
+
 static int rt298_i2c_probe(struct i2c_client *i2c,
 			   const struct i2c_device_id *id)
 {
@@ -1184,9 +1196,14 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 
 	/* enable jack combo mode on supported devices */
 	acpiid = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (acpiid) {
+	if (acpiid && acpiid->driver_data) {
 		rt298->pdata = *(struct rt298_platform_data *)
 				acpiid->driver_data;
+	}
+
+	if (dmi_check_system(force_combo_jack_table)) {
+		rt298->pdata.cbj_en = true;
+		rt298->pdata.gpio2_en = false;
 	}
 
 	/* VREF Charging */
