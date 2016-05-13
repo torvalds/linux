@@ -57,7 +57,31 @@ struct device_type greybus_gpbdev_type = {
 
 static int gpbdev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	/* FIXME add something here, userspace will care about these... */
+	struct gpbridge_device *gpbdev = to_gpbridge_dev(dev);
+	struct greybus_descriptor_cport *cport_desc = gpbdev->cport_desc;
+	struct gb_bundle *bundle = gpbdev->bundle;
+	struct gb_interface *intf = bundle->intf;
+	struct gb_module *module = intf->module;
+	struct gb_host_device *hd = intf->hd;
+
+	if (add_uevent_var(env, "BUS=%u", hd->bus_id))
+		return -ENOMEM;
+	if (add_uevent_var(env, "MODULE=%u", module->module_id))
+		return -ENOMEM;
+	if (add_uevent_var(env, "INTERFACE=%u", intf->interface_id))
+		return -ENOMEM;
+	if (add_uevent_var(env, "GREYBUS_ID=%08x/%08x",
+			   intf->vendor_id, intf->product_id))
+		return -ENOMEM;
+	if (add_uevent_var(env, "BUNDLE=%u", gpbdev->bundle->id))
+		return -ENOMEM;
+	if (add_uevent_var(env, "BUNDLE_CLASS=%02x", bundle->class))
+		return -ENOMEM;
+	if (add_uevent_var(env, "GPBDEV_ID=%u", gpbdev->id))
+		return -ENOMEM;
+	if (add_uevent_var(env, "PROTOCOL_ID=%02x", cport_desc->protocol_id))
+		return -ENOMEM;
+
 	return 0;
 }
 
