@@ -22,6 +22,7 @@ amlogic	Amlogic, Inc.
 ampire	Ampire Co., Ltd.
 ams	AMS AG
 amstaos	AMS-Taos Inc.
+analogix	Analogix Semiconductor, Inc.
 apm	Applied Micro Circuits Corporation (APM)
 aptina	Aptina Imaging
 arasan	Arasan Chip Systems
@@ -172,6 +173,7 @@ nxp	NXP Semiconductors
 okaya	Okaya Electric America, Inc.
 olimex	OLIMEX Ltd.
 onnn	ON Semiconductor Corp.
+ontat	On Tat Industrial Company
 opencores	OpenCores.org
 option	Option NV
 ortustech	Ortus Technology Co., Ltd.
@@ -247,6 +249,7 @@ toradex	Toradex AG
 toshiba	Toshiba Corporation
 toumaz	Toumaz
 tplink	TP-LINK Technologies Co., Ltd.
+tpk	TPK U.S.A. LLC
 tronfy	Tronfy
 tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
