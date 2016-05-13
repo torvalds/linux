@@ -891,7 +891,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	size_t message_size;
 
 	if (!operation_id) {
-		dev_err(&connection->hd->dev,
+		dev_err_ratelimited(&connection->hd->dev,
 				"%s: invalid response id 0 received\n",
 				connection->name);
 		return;
@@ -899,9 +899,9 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 
 	operation = gb_operation_find_outgoing(connection, operation_id);
 	if (!operation) {
-		dev_err(&connection->hd->dev,
-			"%s: unexpected response id 0x%04x received\n",
-			connection->name, operation_id);
+		dev_err_ratelimited(&connection->hd->dev,
+				"%s: unexpected response id 0x%04x received\n",
+				connection->name, operation_id);
 		return;
 	}
 
@@ -909,7 +909,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 	header = message->header;
 	message_size = sizeof(*header) + message->payload_size;
 	if (!errno && size > message_size) {
-		dev_err(&connection->hd->dev,
+		dev_err_ratelimited(&connection->hd->dev,
 				"%s: malformed response 0x%02x received (%zu > %zu)\n",
 				connection->name, header->type,
 				size, message_size);
@@ -918,7 +918,7 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		if (gb_operation_short_response_allowed(operation)) {
 			message->payload_size = size - sizeof(*header);
 		} else {
-			dev_err(&connection->hd->dev,
+			dev_err_ratelimited(&connection->hd->dev,
 					"%s: short response 0x%02x received (%zu < %zu)\n",
 					connection->name, header->type,
 					size, message_size);
@@ -956,13 +956,14 @@ void gb_connection_recv(struct gb_connection *connection,
 	if ((connection->state != GB_CONNECTION_STATE_ENABLED &&
 			connection->state != GB_CONNECTION_STATE_ENABLED_TX) ||
 			gb_connection_is_offloaded(connection)) {
-		dev_warn(dev, "%s: dropping %zu received bytes\n",
+		dev_warn_ratelimited(dev, "%s: dropping %zu received bytes\n",
 				connection->name, size);
 		return;
 	}
 
 	if (size < sizeof(header)) {
-		dev_err(dev, "%s: short message received\n", connection->name);
+		dev_err_ratelimited(dev, "%s: short message received\n",
+				connection->name);
 		return;
 	}
 
@@ -970,10 +971,11 @@ void gb_connection_recv(struct gb_connection *connection,
 	memcpy(&header, data, sizeof(header));
 	msg_size = le16_to_cpu(header.size);
 	if (size < msg_size) {
-		dev_err(dev,
-			"%s: incomplete message 0x%04x of type 0x%02x received (%zu < %zu)\n",
-			connection->name, le16_to_cpu(header.operation_id),
-			header.type, size, msg_size);
+		dev_err_ratelimited(dev,
+				"%s: incomplete message 0x%04x of type 0x%02x received (%zu < %zu)\n",
+				connection->name,
+				le16_to_cpu(header.operation_id),
+				header.type, size, msg_size);
 		return;		/* XXX Should still complete operation */
 	}
 
