@@ -97,6 +97,10 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 		return -ENOMEM;
 	}
 
+	iio_trigger_set_drvdata(sdata->trig, indio_dev);
+	sdata->trig->ops = trigger_ops;
+	sdata->trig->dev.parent = sdata->dev;
+
 	irq = sdata->get_irq_data_ready(indio_dev);
 	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
 	/*
@@ -157,10 +161,6 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 		dev_err(&indio_dev->dev, "failed to request trigger IRQ.\n");
 		goto iio_trigger_free;
 	}
-
-	iio_trigger_set_drvdata(sdata->trig, indio_dev);
-	sdata->trig->ops = trigger_ops;
-	sdata->trig->dev.parent = sdata->dev;
 
 	err = iio_trigger_register(sdata->trig);
 	if (err < 0) {
