@@ -5497,7 +5497,14 @@ skl_dpll0_update(struct drm_i915_private *dev_priv)
 		return;
 	}
 
+	WARN_ON((val & LCPLL_PLL_LOCK) == 0);
+
 	val = I915_READ(DPLL_CTRL1);
+
+	WARN_ON((val & (DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) |
+			DPLL_CTRL1_SSC(SKL_DPLL0) |
+			DPLL_CTRL1_OVERRIDE(SKL_DPLL0))) !=
+		DPLL_CTRL1_OVERRIDE(SKL_DPLL0));
 
 	switch (val & DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0)) {
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810, SKL_DPLL0):
@@ -5668,6 +5675,8 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk, int vco)
 	intel_update_cdclk(dev);
 }
 
+static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv);
+
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
 	/* disable DBUF power */
@@ -5684,10 +5693,19 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
 {
-	/* DPLL0 not enabled (happens on early BIOS versions) */
-	if (dev_priv->skl_vco_freq == 0) {
-		int cdclk, vco;
+	int cdclk, vco;
 
+	skl_sanitize_cdclk(dev_priv);
+
+	if (dev_priv->cdclk_freq != 0 && dev_priv->skl_vco_freq != 0) {
+		/*
+		 * Use the current vco as our initial
+		 * guess as to what the preferred vco is.
+		 */
+		if (dev_priv->skl_preferred_vco_freq == 0)
+			skl_set_preferred_cdclk_vco(dev_priv,
+						    dev_priv->skl_vco_freq);
+	} else {
 		/* set CDCLK to the lowest frequency, Modeset follows */
 		vco = dev_priv->skl_preferred_vco_freq;
 		if (vco == 0)
@@ -5707,7 +5725,7 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 		DRM_ERROR("DBuf power enable timeout\n");
 }
 
-int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
+static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 {
 	uint32_t cdctl, expected;
 
@@ -5730,6 +5748,8 @@ int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	    DPLL_CTRL1_OVERRIDE(SKL_DPLL0))
 		goto sanitize;
 
+	intel_update_cdclk(dev_priv->dev);
+
 	/* DPLL okay; verify the cdclock
 	 *
 	 * Noticed in some instances that the freq selection is correct but
@@ -5741,13 +5761,15 @@ int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 		skl_cdclk_decimal(dev_priv->cdclk_freq);
 	if (cdctl == expected)
 		/* All well; nothing to sanitize */
-		return false;
+		return;
+
 sanitize:
+	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
 
-	skl_init_cdclk(dev_priv);
-
-	/* we did have to sanitize */
-	return true;
+	/* force cdclk programming */
+	dev_priv->cdclk_freq = 0;
+	/* force full PLL disable + enable */
+	dev_priv->skl_vco_freq = -1;
 }
 
 /* Adjust CDclk dividers to allow high res or save power if possible */

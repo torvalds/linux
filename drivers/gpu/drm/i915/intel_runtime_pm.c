@@ -2200,12 +2200,9 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 	mutex_unlock(&power_domains->lock);
 
-	if (!resume)
-		return;
-
 	skl_init_cdclk(dev_priv);
 
-	if (dev_priv->csr.dmc_payload)
+	if (resume && dev_priv->csr.dmc_payload)
 		intel_csr_load_program(dev_priv);
 }
 

@@ -1630,17 +1630,10 @@ static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
 static void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t val = I915_READ(LCPLL_CTL);
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
-		if (skl_sanitize_cdclk(dev_priv))
-			DRM_DEBUG_KMS("Sanitized cdclk programmed by pre-os\n");
+	if (INTEL_GEN(dev_priv) < 9) {
+		uint32_t val = I915_READ(LCPLL_CTL);
 
-		/* We'll want to keep using the current vco from now on */
-		if (dev_priv->skl_vco_freq != 0)
-			skl_set_preferred_cdclk_vco(dev_priv,
-						    dev_priv->skl_vco_freq);
-	} else if (!IS_BROXTON(dev_priv)) {
 		/*
 		 * The LCPLL register should be turned on by the BIOS. For now
 		 * let's just check its state and print errors in case
