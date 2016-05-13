@@ -507,7 +507,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * working irqs for e.g. gmbus and dp aux transfers. */
 	intel_modeset_init(dev);
 
-	intel_guc_ucode_init(dev);
+	intel_guc_init(dev);
 
 	ret = i915_gem_init(dev);
 	if (ret)
@@ -547,7 +547,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 cleanup_gem:
 	i915_gem_fini(dev);
 cleanup_irq:
-	intel_guc_ucode_fini(dev);
+	intel_guc_fini(dev);
 	drm_irq_uninstall(dev);
 	intel_teardown_gmbus(dev);
 cleanup_csr:
@@ -1530,7 +1530,7 @@ int i915_driver_unload(struct drm_device *dev)
 	/* Flush any outstanding unpin_work. */
 	flush_workqueue(dev_priv->wq);
 
-	intel_guc_ucode_fini(dev);
+	intel_guc_fini(dev);
 	i915_gem_fini(dev);
 	intel_fbc_cleanup_cfb(dev_priv);
 

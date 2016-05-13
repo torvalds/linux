@@ -386,18 +386,19 @@ static int i915_reset_guc(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_guc_ucode_load() - load GuC uCode into the device
+ * intel_guc_setup() - finish preparing the GuC for activity
  * @dev:	drm device
  *
  * Called from gem_init_hw() during driver loading and also after a GPU reset.
  *
+ * The main action required here it to load the GuC uCode into the device.
  * The firmware image should have already been fetched into memory by the
- * earlier call to intel_guc_ucode_init(), so here we need only check that
- * is succeeded, and then transfer the image to the h/w.
+ * earlier call to intel_guc_init(), so here we need only check that worked,
+ * and then transfer the image to the h/w.
  *
  * Return:	non-zero code on error
  */
-int intel_guc_ucode_load(struct drm_device *dev)
+int intel_guc_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
@@ -629,15 +630,15 @@ fail:
 }
 
 /**
- * intel_guc_ucode_init() - define parameters and fetch firmware
+ * intel_guc_init() - define parameters and fetch firmware
  * @dev:	drm device
  *
  * Called early during driver load, but after GEM is initialised.
  *
  * The firmware will be transferred to the GuC's memory later,
- * when intel_guc_ucode_load() is called.
+ * when intel_guc_setup() is called.
  */
-void intel_guc_ucode_init(struct drm_device *dev)
+void intel_guc_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
@@ -685,10 +686,10 @@ void intel_guc_ucode_init(struct drm_device *dev)
 }
 
 /**
- * intel_guc_ucode_fini() - clean up all allocated resources
+ * intel_guc_fini() - clean up all allocated resources
  * @dev:	drm device
  */
-void intel_guc_ucode_fini(struct drm_device *dev)
+void intel_guc_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
