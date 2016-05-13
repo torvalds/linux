@@ -1381,6 +1381,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		if (!vxlan_set_mac(vxlan, vs, skb))
 			goto drop;
 	} else {
+		skb_reset_mac_header(skb);
 		skb->dev = vxlan->dev;
 		skb->pkt_type = PACKET_HOST;
 	}
