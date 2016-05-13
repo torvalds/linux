@@ -5709,9 +5709,7 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 
 int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 {
-	uint32_t lcpll1 = I915_READ(LCPLL1_CTL);
-	uint32_t cdctl = I915_READ(CDCLK_CTL);
-	int freq = dev_priv->cdclk_freq;
+	uint32_t cdctl, expected;
 
 	/*
 	 * check if the pre-os intialized the display
@@ -5722,7 +5720,14 @@ int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 		goto sanitize;
 
 	/* Is PLL enabled and locked ? */
-	if (!((lcpll1 & LCPLL_PLL_ENABLE) && (lcpll1 & LCPLL_PLL_LOCK)))
+	if ((I915_READ(LCPLL1_CTL) & (LCPLL_PLL_ENABLE | LCPLL_PLL_LOCK)) !=
+	    (LCPLL_PLL_ENABLE | LCPLL_PLL_LOCK))
+		goto sanitize;
+
+	if ((I915_READ(DPLL_CTRL1) & (DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) |
+				      DPLL_CTRL1_SSC(SKL_DPLL0) |
+				      DPLL_CTRL1_OVERRIDE(SKL_DPLL0))) !=
+	    DPLL_CTRL1_OVERRIDE(SKL_DPLL0))
 		goto sanitize;
 
 	/* DPLL okay; verify the cdclock
@@ -5731,7 +5736,10 @@ int skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	 * decimal part is programmed wrong from BIOS where pre-os does not
 	 * enable display. Verify the same as well.
 	 */
-	if (cdctl == ((cdctl & CDCLK_FREQ_SEL_MASK) | skl_cdclk_decimal(freq)))
+	cdctl = I915_READ(CDCLK_CTL);
+	expected = (cdctl & CDCLK_FREQ_SEL_MASK) |
+		skl_cdclk_decimal(dev_priv->cdclk_freq);
+	if (cdctl == expected)
 		/* All well; nothing to sanitize */
 		return false;
 sanitize:
