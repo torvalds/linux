@@ -1,0 +1,93 @@
+* Rockchip AXI PCIe Root Port Bridge DT description
+
+Required properties:
+- #address-cells: Address representation for root ports, set to <3>
+- #size-cells: Size representation for root ports, set to <2>
+- #interrupt-cells: specifies the number of cells needed to encode an
+		interrupt source. The value must be 1.
+- compatible: Should contain "rockchip,rk3399-pcie"
+- reg: Two register ranges as listed in the reg-names property
+- reg-names: The first entry must be "axi-base" for the core registers
+	The second entry must be "apb-base" for the client pcie registers
+- clocks: Must contain an entry for each entry in clock-names.
+		See ../clocks/clock-bindings.txt for details.
+- clock-names: Must include the following entries:
+	- "aclk_pcie"
+	- "aclk_perf_pcie"
+	- "hclk_pcie"
+	- "clk_pciephy_ref"
+- interrupts: Three interrupt entries must be specified.
+- interrupt-names: Must include the following names
+	- "pcie-sys"
+	- "pcie-legacy"
+	- "pcie-client"
+- resets: Must contain five entries for each entry in reset-names.
+	   See ../reset/reset.txt for details.
+- reset-names: Must include the following names
+	- "phy-rst"
+	- "core-rst"
+	- "mgmt-rst"
+	- "mgmt-sticky-rst"
+	- "pipe-rst"
+- rockchip,grf: phandle to the syscon managing the "general register files"
+- pcie-conf: offset of pcie client block for  configuration
+- pcie-status: offset of pcie client block for status
+- pcie-laneoff: offset of pcie client block for lane
+- msi-parent: Link to the hardware entity that serves as the Message
+- pinctrl-names : The pin control state names
+- pinctrl-0: The "default" pinctrl state
+- interrupt-map-mask and interrupt-map: standard PCI properties
+- interrupt-controller: identifies the node as an interrupt controller
+
+Optional Property:
+- ep-gpios: contain the entry for pre-reset gpio
+- num-lanes: number of lanes to use
+- assigned-clocks, assigned-clock-parents and assigned-clock-rates: standard
+		   clock bindings. See ../clock/clock-bindings.txt
+
+Example:
+
+pci_express: axi-pcie@f8000000 {
+	#address-cells = <3>;
+	#size-cells = <2>;
+	compatible = "rockchip,rk3399-pcie";
+	clocks = <&cru ACLK_PCIE>, <&cru ACLK_PERF_PCIE>,
+		 <&cru PCLK_PCIE>, <&cru SCLK_PCIEPHY_REF>;
+	clock-names = "aclk_pcie", "aclk_perf_pcie",
+		      "hclk_pcie", "clk_pciephy_ref";
+	bus-range = <0x0 0x1>;
+	interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names: "pcie-sys", "pcie-legacy", "pcie-client";
+	assigned-clocks = <&cru SCLK_PCIEPHY_REF>;
+	assigned-clock-parents = <&cru SCLK_PCIEPHY_REF100M>;
+	assigned-clock-rates = <100000000>;
+	ep-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+	ranges = < 0x82000000 0 0xfa000000 0x0 0xfa000000 0 0x600000
+		   0x81000000 0 0xfa600000 0x0 0xfa600000 0 0x100000 >;
+	num-lanes = <4>;
+	reg = < 0x0 0xf8000000 0x0 0x2000000 >, < 0x0 0xfd000000 0x0 0x1000000 >;
+	reg-name = "axi-base", "apb-base";
+	resets = <&cru SRST_PCIEPHY>, <&cru SRST_PCIE_CORE>, <&cru SRST_PCIE_MGMT>,
+		 <&cru SRST_PCIE_MGMT_STICKY>, <&cru SRST_PCIE_PIPE>;
+	reset-names = "phy-rst", "core-rst", "mgmt-rst", "mgmt-sticky-rst", "pipe-rst";
+	rockchip,grf = <&grf>;
+	pcie-conf = <0xe220>;
+	pcie-status = <0xe2a4>;
+	pcie-laneoff = <0xe214>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_clkreq>;
+	msi-parent = <&its>;
+	#interrupt-cells = <1>;
+	interrupt-map-mask = <0 0 0 7>;
+	interrupt-map = <0 0 0 1 &pcie_0 1>,
+			<0 0 0 2 &pcie_0 2>,
+			<0 0 0 3 &pcie_0 3>,
+			<0 0 0 4 &pcie_0 4>;
+	pcie_0: interrupt-controller {
+		interrupt-controller;
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+	};
+
+};
