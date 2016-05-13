@@ -50,6 +50,11 @@ static void gpbdev_release(struct device *dev)
 	kfree(gpbdev);
 }
 
+struct device_type greybus_gpbdev_type = {
+	.name	 =	"gpbridge_device",
+	.release =	gpbdev_release,
+};
+
 static int gpbdev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	/* FIXME add something here, userspace will care about these... */
@@ -188,7 +193,7 @@ static struct gpbridge_device *gb_gpbridge_create_dev(struct gb_bundle *bundle,
 	gpbdev->cport_desc = cport_desc;
 	gpbdev->dev.parent = &bundle->dev;
 	gpbdev->dev.bus = &gpbridge_bus_type;
-	gpbdev->dev.release = gpbdev_release;
+	gpbdev->dev.type = &greybus_gpbdev_type;
 	gpbdev->dev.groups = gpbdev_groups;
 	gpbdev->dev.dma_mask = bundle->dev.dma_mask;
 	dev_set_name(&gpbdev->dev, "gpb%d", id);
