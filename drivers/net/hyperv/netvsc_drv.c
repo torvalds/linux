@@ -759,7 +759,7 @@ static int netvsc_set_channels(struct net_device *net,
 	int ret = 0;
 	bool recovering = false;
 
-	if (!nvdev || nvdev->destroy)
+	if (net_device_ctx->start_remove || !nvdev || nvdev->destroy)
 		return -ENODEV;
 
 	num_chn = nvdev->num_chn;
@@ -907,7 +907,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	u32 num_chn;
 	int ret = 0;
 
-	if (nvdev == NULL || nvdev->destroy)
+	if (ndevctx->start_remove || !nvdev || nvdev->destroy)
 		return -ENODEV;
 
 	if (nvdev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
@@ -1445,7 +1445,12 @@ static int netvsc_remove(struct hv_device *dev)
 	ndev_ctx = netdev_priv(net);
 	net_device = ndev_ctx->nvdev;
 
+	/* Avoid racing with netvsc_change_mtu()/netvsc_set_channels()
+	 * removing the device.
+	 */
+	rtnl_lock();
 	ndev_ctx->start_remove = true;
+	rtnl_unlock();
 
 	cancel_delayed_work_sync(&ndev_ctx->dwork);
 	cancel_work_sync(&ndev_ctx->work);
