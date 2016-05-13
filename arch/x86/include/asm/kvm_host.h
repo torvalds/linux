@@ -803,6 +803,7 @@ struct kvm_vcpu_stat {
 	u32 halt_exits;
 	u32 halt_successful_poll;
 	u32 halt_attempted_poll;
+	u32 halt_poll_invalid;
 	u32 halt_wakeup;
 	u32 request_irq_exits;
 	u32 irq_exits;
@@ -1342,5 +1343,6 @@ void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 
 #endif /* _ASM_X86_KVM_HOST_H */

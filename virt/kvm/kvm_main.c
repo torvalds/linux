@@ -2028,6 +2028,8 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 			 */
 			if (kvm_vcpu_check_block(vcpu) < 0) {
 				++vcpu->stat.halt_successful_poll;
+				if (!vcpu_valid_wakeup(vcpu))
+					++vcpu->stat.halt_poll_invalid;
 				goto out;
 			}
 			cur = ktime_get();
@@ -2057,7 +2059,8 @@ out:
 		if (block_ns <= vcpu->halt_poll_ns)
 			;
 		/* we had a long block, shrink polling */
-		else if (vcpu->halt_poll_ns && block_ns > halt_poll_ns)
+		else if (!vcpu_valid_wakeup(vcpu) ||
+			(vcpu->halt_poll_ns && block_ns > halt_poll_ns))
 			shrink_halt_poll_ns(vcpu);
 		/* we had a short halt and our poll time is too small */
 		else if (vcpu->halt_poll_ns < halt_poll_ns &&
@@ -2066,7 +2069,8 @@ out:
 	} else
 		vcpu->halt_poll_ns = 0;
 
-	trace_kvm_vcpu_wakeup(block_ns, waited);
+	trace_kvm_vcpu_wakeup(block_ns, waited, vcpu_valid_wakeup(vcpu));
+	kvm_arch_vcpu_block_finish(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_block);
 

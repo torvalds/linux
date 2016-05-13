@@ -65,6 +65,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exit_instr_and_program_int", VCPU_STAT(exit_instr_and_program) },
 	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll) },
 	{ "halt_attempted_poll", VCPU_STAT(halt_attempted_poll) },
+	{ "halt_poll_invalid", VCPU_STAT(halt_poll_invalid) },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "instruction_lctlg", VCPU_STAT(instruction_lctlg) },
 	{ "instruction_lctl", VCPU_STAT(instruction_lctl) },
@@ -2990,6 +2991,11 @@ static inline unsigned long nonhyp_mask(int i)
 	unsigned int nonhyp_fai = (sclp.hmfai << i * 2) >> 30;
 
 	return 0x0000ffffffffffffUL >> (nonhyp_fai << 4);
+}
+
+void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu)
+{
+	vcpu->valid_wakeup = false;
 }
 
 static int __init kvm_s390_init(void)

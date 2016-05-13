@@ -977,6 +977,11 @@ no_timer:
 
 void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 {
+	/*
+	 * We cannot move this into the if, as the CPU might be already
+	 * in kvm_vcpu_block without having the waitqueue set (polling)
+	 */
+	vcpu->valid_wakeup = true;
 	if (swait_active(&vcpu->wq)) {
 		/*
 		 * The vcpu gave up the cpu voluntarily, mark it as a good

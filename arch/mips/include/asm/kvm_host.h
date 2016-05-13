@@ -122,6 +122,7 @@ struct kvm_vcpu_stat {
 	u32 flush_dcache_exits;
 	u32 halt_successful_poll;
 	u32 halt_attempted_poll;
+	u32 halt_poll_invalid;
 	u32 halt_wakeup;
 };
 
@@ -812,5 +813,6 @@ static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
 
 #endif /* __MIPS_KVM_HOST_H__ */

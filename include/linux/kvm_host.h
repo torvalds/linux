@@ -229,6 +229,7 @@ struct kvm_vcpu {
 	sigset_t sigset;
 	struct kvm_vcpu_stat stat;
 	unsigned int halt_poll_ns;
+	bool valid_wakeup;
 
 #ifdef CONFIG_HAS_IOMEM
 	int mmio_needed;
@@ -1195,5 +1196,19 @@ void kvm_arch_irq_bypass_start(struct irq_bypass_consumer *);
 int kvm_arch_update_irqfd_routing(struct kvm *kvm, unsigned int host_irq,
 				  uint32_t guest_irq, bool set);
 #endif /* CONFIG_HAVE_KVM_IRQ_BYPASS */
+
+#ifdef CONFIG_HAVE_KVM_INVALID_WAKEUPS
+/* If we wakeup during the poll time, was it a sucessful poll? */
+static inline bool vcpu_valid_wakeup(struct kvm_vcpu *vcpu)
+{
+	return vcpu->valid_wakeup;
+}
+
+#else
+static inline bool vcpu_valid_wakeup(struct kvm_vcpu *vcpu)
+{
+	return true;
+}
+#endif /* CONFIG_HAVE_KVM_INVALID_WAKEUPS */
 
 #endif

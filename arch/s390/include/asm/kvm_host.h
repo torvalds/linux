@@ -247,6 +247,7 @@ struct kvm_vcpu_stat {
 	u32 exit_instruction;
 	u32 halt_successful_poll;
 	u32 halt_attempted_poll;
+	u32 halt_poll_invalid;
 	u32 halt_wakeup;
 	u32 instruction_lctl;
 	u32 instruction_lctlg;
@@ -695,5 +696,7 @@ static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 		struct kvm_memory_slot *slot) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+
+void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu);
 
 #endif
