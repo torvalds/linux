@@ -119,6 +119,7 @@ static int ilk_max_pixel_rate(struct drm_atomic_state *state);
 static void intel_modeset_verify_crtc(struct drm_crtc *crtc,
 				      struct drm_crtc_state *old_state,
 				      struct drm_crtc_state *new_state);
+static int broxton_calc_cdclk(int max_pixclk);
 
 struct intel_limit {
 	struct {
@@ -5421,10 +5422,8 @@ void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 	 * FIXME:
 	 * - The initial CDCLK needs to be read from VBT.
 	 *   Need to make this change after VBT has changes for BXT.
-	 * - check if setting the max (or any) cdclk freq is really necessary
-	 *   here, it belongs to modeset time
 	 */
-	broxton_set_cdclk(dev_priv, 624000);
+	broxton_set_cdclk(dev_priv, broxton_calc_cdclk(0));
 }
 
 void broxton_uninit_cdclk(struct drm_i915_private *dev_priv)
@@ -5864,10 +5863,6 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 
 static int broxton_calc_cdclk(int max_pixclk)
 {
-	/*
-	 * FIXME:
-	 * - set 19.2MHz bypass frequency if there are no active pipes
-	 */
 	if (max_pixclk > 576000)
 		return 624000;
 	else if (max_pixclk > 384000)
