@@ -295,8 +295,11 @@ config BPF_JIT
 	  Berkeley Packet Filter filtering capabilities are normally handled
 	  by an interpreter. This option allows kernel to generate a native
 	  code when filter is loaded in memory. This should speedup
-	  packet sniffing (libpcap/tcpdump). Note : Admin should enable
-	  this feature changing /proc/sys/net/core/bpf_jit_enable
+	  packet sniffing (libpcap/tcpdump).
+
+	  Note, admin should enable this feature changing:
+	  /proc/sys/net/core/bpf_jit_enable
+	  /proc/sys/net/core/bpf_jit_harden (optional)
 
 config NET_FLOW_LIMIT
 	bool
