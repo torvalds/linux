@@ -1510,6 +1510,33 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 			}
 		}
 
+		if (extras[XEN_NETIF_EXTRA_TYPE_HASH - 1].type) {
+			struct xen_netif_extra_info *extra;
+			enum pkt_hash_types type = PKT_HASH_TYPE_NONE;
+
+			extra = &extras[XEN_NETIF_EXTRA_TYPE_HASH - 1];
+
+			switch (extra->u.hash.type) {
+			case _XEN_NETIF_CTRL_HASH_TYPE_IPV4:
+			case _XEN_NETIF_CTRL_HASH_TYPE_IPV6:
+				type = PKT_HASH_TYPE_L3;
+				break;
+
+			case _XEN_NETIF_CTRL_HASH_TYPE_IPV4_TCP:
+			case _XEN_NETIF_CTRL_HASH_TYPE_IPV6_TCP:
+				type = PKT_HASH_TYPE_L4;
+				break;
+
+			default:
+				break;
+			}
+
+			if (type != PKT_HASH_TYPE_NONE)
+				skb_set_hash(skb,
+					     *(u32 *)extra->u.hash.value,
+					     type);
+		}
+
 		XENVIF_TX_CB(skb)->pending_idx = pending_idx;
 
 		__skb_put(skb, data_len);
