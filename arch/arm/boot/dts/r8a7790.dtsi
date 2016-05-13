@@ -92,7 +92,7 @@
 			next-level-cache = <&L2_CA15>;
 		};
 
-		cpu4: cpu@4 {
+		cpu4: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x100>;
@@ -101,7 +101,7 @@
 			next-level-cache = <&L2_CA7>;
 		};
 
-		cpu5: cpu@5 {
+		cpu5: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x101>;
@@ -110,7 +110,7 @@
 			next-level-cache = <&L2_CA7>;
 		};
 
-		cpu6: cpu@6 {
+		cpu6: cpu@102 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x102>;
@@ -119,7 +119,7 @@
 			next-level-cache = <&L2_CA7>;
 		};
 
-		cpu7: cpu@7 {
+		cpu7: cpu@103 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x103>;
