@@ -3069,14 +3069,8 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 		if (req == NULL)
 			continue;
 
-		if (list_empty(&req->list))
-			goto retire;
-
-		if (i915_gem_request_completed(req, true)) {
-			__i915_gem_request_retire__upto(req);
-retire:
+		if (i915_gem_request_completed(req, true))
 			i915_gem_object_retire__read(obj, i);
-		}
 	}
 
 	return 0;
