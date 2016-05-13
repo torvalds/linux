@@ -29,9 +29,11 @@ static LIST_HEAD(mem_segs);
 
 static void __ref *vmem_alloc_pages(unsigned int order)
 {
+	unsigned long size = PAGE_SIZE << order;
+
 	if (slab_is_available())
 		return (void *)__get_free_pages(GFP_KERNEL, order);
-	return alloc_bootmem_pages((1 << order) * PAGE_SIZE);
+	return alloc_bootmem_align(size, size);
 }
 
 static inline pud_t *vmem_pud_alloc(void)
