@@ -6646,31 +6646,36 @@ static void bxt_de_pll_update(struct drm_i915_private *dev_priv)
 static int broxton_get_display_clock_speed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t cdctl = I915_READ(CDCLK_CTL);
-	uint32_t pll_ratio = I915_READ(BXT_DE_PLL_CTL) & BXT_DE_PLL_RATIO_MASK;
-	uint32_t pll_enab = I915_READ(BXT_DE_PLL_ENABLE);
-	int cdclk;
+	u32 divider;
+	int div, vco;
 
 	bxt_de_pll_update(dev_priv);
 
-	if (!(pll_enab & BXT_DE_PLL_PLL_ENABLE))
-		return 19200;
+	vco = dev_priv->cdclk_pll.vco;
+	if (vco == 0)
+		return dev_priv->cdclk_pll.ref;
 
-	cdclk = 19200 * pll_ratio / 2;
+	divider = I915_READ(CDCLK_CTL) & BXT_CDCLK_CD2X_DIV_SEL_MASK;
 
-	switch (cdctl & BXT_CDCLK_CD2X_DIV_SEL_MASK) {
+	switch (divider) {
 	case BXT_CDCLK_CD2X_DIV_SEL_1:
-		return cdclk;  /* 576MHz or 624MHz */
+		div = 2;
+		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_1_5:
-		return cdclk * 2 / 3; /* 384MHz */
+		div = 3;
+		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_2:
-		return cdclk / 2; /* 288MHz */
+		div = 4;
+		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_4:
-		return cdclk / 4; /* 144MHz */
+		div = 8;
+		break;
+	default:
+		MISSING_CASE(divider);
+		return dev_priv->cdclk_pll.ref;
 	}
 
-	/* error case, do as if DE PLL isn't enabled */
-	return 19200;
+	return DIV_ROUND_CLOSEST(vco, div);
 }
 
 static int broadwell_get_display_clock_speed(struct drm_device *dev)
