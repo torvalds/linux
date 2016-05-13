@@ -14,6 +14,7 @@
 #define _WM_ARIZONA_CORE_H
 
 #include <linux/interrupt.h>
+#include <linux/notifier.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/arizona/pdata.h>
@@ -148,7 +149,16 @@ struct arizona {
 	uint16_t dac_comp_coeff;
 	uint8_t dac_comp_enabled;
 	struct mutex dac_comp_lock;
+
+	struct blocking_notifier_head notifier;
 };
+
+static inline int arizona_call_notifiers(struct arizona *arizona,
+					 unsigned long event,
+					 void *data)
+{
+	return blocking_notifier_call_chain(&arizona->notifier, event, data);
+}
 
 int arizona_clk32k_enable(struct arizona *arizona);
 int arizona_clk32k_disable(struct arizona *arizona);

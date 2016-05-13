@@ -306,6 +306,7 @@ extern int arizona_set_fll(struct arizona_fll *fll, int source,
 extern int arizona_init_spk(struct snd_soc_codec *codec);
 extern int arizona_init_gpio(struct snd_soc_codec *codec);
 extern int arizona_init_mono(struct snd_soc_codec *codec);
+extern int arizona_init_notifiers(struct snd_soc_codec *codec);
 
 extern int arizona_free_spk(struct snd_soc_codec *codec);
 
@@ -317,4 +318,13 @@ int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
 extern bool arizona_input_analog(struct snd_soc_codec *codec, int shift);
 
 extern const char *arizona_sample_rate_val_to_name(unsigned int rate_val);
+
+extern int arizona_register_notifier(struct snd_soc_codec *codec,
+				     struct notifier_block *nb,
+				     int (*notify)(struct notifier_block *nb,
+						   unsigned long action,
+						   void *data));
+extern int arizona_unregister_notifier(struct snd_soc_codec *codec,
+				       struct notifier_block *nb);
+
 #endif

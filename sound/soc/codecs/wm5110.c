@@ -2251,6 +2251,7 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
+	arizona_init_notifiers(codec);
 
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
 				  "ADSP2 Compressed IRQ", wm5110_adsp2_irq,
