@@ -1056,7 +1056,7 @@ int i915_gem_context_reset_stats_ioctl(struct drm_device *dev,
 	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
