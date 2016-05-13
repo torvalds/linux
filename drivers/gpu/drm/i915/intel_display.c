@@ -15128,18 +15128,16 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (crtc_state->base.active) {
 			dev_priv->active_crtcs |= 1 << crtc->pipe;
 
-			if (IS_BROADWELL(dev_priv)) {
+			if (IS_BROXTON(dev_priv) || IS_BROADWELL(dev_priv))
 				pixclk = ilk_pipe_pixel_rate(crtc_state);
-
-				/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-				if (crtc_state->ips_enabled)
-					pixclk = DIV_ROUND_UP(pixclk * 100, 95);
-			} else if (IS_VALLEYVIEW(dev_priv) ||
-				   IS_CHERRYVIEW(dev_priv) ||
-				   IS_BROXTON(dev_priv))
+			else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 				pixclk = crtc_state->base.adjusted_mode.crtc_clock;
 			else
 				WARN_ON(dev_priv->display.modeset_calc_cdclk);
+
+			/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
+			if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
+				pixclk = DIV_ROUND_UP(pixclk * 100, 95);
 		}
 
 		dev_priv->min_pixclk[crtc->pipe] = pixclk;
