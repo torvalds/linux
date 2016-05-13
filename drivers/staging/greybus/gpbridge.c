@@ -178,7 +178,7 @@ static struct gpbridge_device *gb_gpbridge_create_dev(struct gb_bundle *bundle,
 	int retval;
 	int id;
 
-	id = ida_simple_get(&gpbridge_id, 0, 0, GFP_KERNEL);
+	id = ida_simple_get(&gpbridge_id, 1, 0, GFP_KERNEL);
 	if (id < 0)
 		return ERR_PTR(id);
 
