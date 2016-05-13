@@ -1460,45 +1460,6 @@ out:
 	return ret;
 }
 
-int i915_get_reset_stats_ioctl(struct drm_device *dev,
-			       void *data, struct drm_file *file)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_reset_stats *args = data;
-	struct i915_ctx_hang_stats *hs;
-	struct intel_context *ctx;
-	int ret;
-
-	if (args->flags || args->pad)
-		return -EINVAL;
-
-	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	ctx = i915_gem_context_get(file->driver_priv, args->ctx_id);
-	if (IS_ERR(ctx)) {
-		mutex_unlock(&dev->struct_mutex);
-		return PTR_ERR(ctx);
-	}
-	hs = &ctx->hang_stats;
-
-	if (capable(CAP_SYS_ADMIN))
-		args->reset_count = i915_reset_count(&dev_priv->gpu_error);
-	else
-		args->reset_count = 0;
-
-	args->batch_active = hs->batch_active;
-	args->batch_pending = hs->batch_pending;
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
 static int i915_reset_complete(struct pci_dev *pdev)
 {
 	u8 gdrst;
