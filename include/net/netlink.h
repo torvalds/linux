@@ -98,7 +98,8 @@
  *   nla_put_u8(skb, type, value)	add u8 attribute to skb
  *   nla_put_u16(skb, type, value)	add u16 attribute to skb
  *   nla_put_u32(skb, type, value)	add u32 attribute to skb
- *   nla_put_u64(skb, type, value)	add u64 attribute to skb
+ *   nla_put_u64_64bits(skb, type,
+ *			value, padattr)	add u64 attribute to skb
  *   nla_put_s8(skb, type, value)	add s8 attribute to skb
  *   nla_put_s16(skb, type, value)	add s16 attribute to skb
  *   nla_put_s32(skb, type, value)	add s32 attribute to skb
@@ -844,17 +845,6 @@ static inline int nla_put_net32(struct sk_buff *skb, int attrtype, __be32 value)
 static inline int nla_put_le32(struct sk_buff *skb, int attrtype, __le32 value)
 {
 	return nla_put(skb, attrtype, sizeof(__le32), &value);
-}
-
-/**
- * nla_put_u64 - Add a u64 netlink attribute to a socket buffer
- * @skb: socket buffer to add attribute to
- * @attrtype: attribute type
- * @value: numeric value
- */
-static inline int nla_put_u64(struct sk_buff *skb, int attrtype, u64 value)
-{
-	return nla_put(skb, attrtype, sizeof(u64), &value);
 }
 
 /**
