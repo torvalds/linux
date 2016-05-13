@@ -496,6 +496,8 @@ void bpf_int_jit_compile(struct bpf_prog *fp);
 bool bpf_helper_changes_skb_data(void *func);
 
 #ifdef CONFIG_BPF_JIT
+extern int bpf_jit_enable;
+
 typedef void (*bpf_jit_fill_hole_t)(void *area, unsigned int size);
 
 struct bpf_binary_header *
