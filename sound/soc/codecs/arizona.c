@@ -810,6 +810,14 @@ const struct soc_enum arizona_output_anc_src[] = {
 };
 EXPORT_SYMBOL_GPL(arizona_output_anc_src);
 
+const struct snd_kcontrol_new arizona_voice_trigger_switch[] = {
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 1, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 2, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 3, 1, 0),
+};
+EXPORT_SYMBOL_GPL(arizona_voice_trigger_switch);
+
 static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);

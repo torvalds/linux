@@ -248,6 +248,8 @@ extern const struct soc_enum arizona_anc_input_src[];
 extern const struct soc_enum arizona_anc_ng_enum;
 extern const struct soc_enum arizona_output_anc_src[];
 
+extern const struct snd_kcontrol_new arizona_voice_trigger_switch[];
+
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
