@@ -1,0 +1,22 @@
+* Allwinner sun8i EMAC ethernet controller
+
+Required properties:
+- compatible: should be "allwinner,sun8i-h3-emac"
+- reg: address and length of the register set for the device.
+- interrupts: interrupt for the device
+- phy: see ethernet.txt file in the same directory.
+- clocks: A phandle to the reference clock for this device
+- resets: TODO
+- reset-names: should be "ahb";
+
+Example:
+
+emac: ethernet@01c0b000 {
+       compatible = "allwinner,sun8i-h3-emac";
+       reg = <0x01c0b000 0x1000>;
+       interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+       resets = <&ahb_rst 17>;
+       reset-names = "ahb";
+       clocks = <&bus_gates 17>;
+       phy = <&phy0>;
+};
