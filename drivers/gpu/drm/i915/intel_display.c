@@ -5278,6 +5278,30 @@ static int skl_cdclk_decimal(int cdclk)
 	return DIV_ROUND_CLOSEST(cdclk - 1000, 500);
 }
 
+static int bxt_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
+{
+	int ratio;
+
+	if (cdclk == dev_priv->cdclk_pll.ref)
+		return 0;
+
+	switch (cdclk) {
+	default:
+		MISSING_CASE(cdclk);
+	case 144000:
+	case 288000:
+	case 384000:
+	case 576000:
+		ratio = 60;
+		break;
+	case 624000:
+		ratio = 65;
+		break;
+	}
+
+	return dev_priv->cdclk_pll.ref * ratio;
+}
+
 static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(BXT_DE_PLL_ENABLE, 0);
@@ -5289,13 +5313,14 @@ static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
 	dev_priv->cdclk_pll.vco = 0;
 }
 
-static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, u32 ratio)
+static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, int vco)
 {
+	int ratio = DIV_ROUND_CLOSEST(vco, dev_priv->cdclk_pll.ref);
 	u32 val;
 
 	val = I915_READ(BXT_DE_PLL_CTL);
 	val &= ~BXT_DE_PLL_RATIO_MASK;
-	val |= ratio;
+	val |= BXT_DE_PLL_RATIO(ratio);
 	I915_WRITE(BXT_DE_PLL_CTL, val);
 
 	I915_WRITE(BXT_DE_PLL_ENABLE, BXT_DE_PLL_PLL_ENABLE);
@@ -5304,54 +5329,42 @@ static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, u32 ratio)
 	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) != 0, 1))
 		DRM_ERROR("timeout waiting for DE PLL lock\n");
 
-	dev_priv->cdclk_pll.vco = ratio * dev_priv->cdclk_pll.ref;
+	dev_priv->cdclk_pll.vco = vco;
 }
 
 static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 {
-	uint32_t divider;
-	uint32_t ratio;
-	uint32_t current_cdclk;
-	int ret;
+	u32 val, divider;
+	int vco, ret;
 
-	/* frequency = 19.2MHz * ratio / 2 / div{1,1.5,2,4} */
-	switch (cdclk) {
-	case 144000:
+	vco = bxt_de_pll_vco(dev_priv, cdclk);
+
+	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz (VCO %d kHz)\n", cdclk, vco);
+
+	/* cdclk = vco / 2 / div{1,1.5,2,4} */
+	switch (DIV_ROUND_CLOSEST(vco, cdclk)) {
+	case 8:
 		divider = BXT_CDCLK_CD2X_DIV_SEL_4;
-		ratio = BXT_DE_PLL_RATIO(60);
 		break;
-	case 288000:
+	case 4:
 		divider = BXT_CDCLK_CD2X_DIV_SEL_2;
-		ratio = BXT_DE_PLL_RATIO(60);
 		break;
-	case 384000:
+	case 3:
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1_5;
-		ratio = BXT_DE_PLL_RATIO(60);
 		break;
-	case 576000:
+	case 2:
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
-		ratio = BXT_DE_PLL_RATIO(60);
-		break;
-	case 624000:
-		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
-		ratio = BXT_DE_PLL_RATIO(65);
-		break;
-	case 19200:
-		/*
-		 * Bypass frequency with DE PLL disabled. Init ratio, divider
-		 * to suppress GCC warning.
-		 */
-		ratio = 0;
-		divider = 0;
 		break;
 	default:
-		DRM_ERROR("unsupported CDCLK freq %d", cdclk);
+		WARN_ON(cdclk != dev_priv->cdclk_pll.ref);
+		WARN_ON(vco != 0);
 
-		return;
+		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
+		break;
 	}
 
-	mutex_lock(&dev_priv->rps.hw_lock);
 	/* Inform power controller of upcoming frequency change */
+	mutex_lock(&dev_priv->rps.hw_lock);
 	ret = sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
 				      0x80000000);
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -5362,40 +5375,26 @@ static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
 		return;
 	}
 
-	current_cdclk = I915_READ(CDCLK_CTL) & CDCLK_FREQ_DECIMAL_MASK;
-	/* convert from .1 fixpoint MHz with -1MHz offset to kHz */
-	current_cdclk = current_cdclk * 500 + 1000;
-
-	/*
-	 * DE PLL has to be disabled when
-	 * - setting to 19.2MHz (bypass, PLL isn't used)
-	 * - before setting to 624MHz (PLL needs toggling)
-	 * - before setting to any frequency from 624MHz (PLL needs toggling)
-	 */
-	if (cdclk == 19200 || cdclk == 624000 ||
-	    current_cdclk == 624000) {
+	if (dev_priv->cdclk_pll.vco != 0 &&
+	    dev_priv->cdclk_pll.vco != vco)
 		bxt_de_pll_disable(dev_priv);
-	}
 
-	if (cdclk != 19200) {
-		uint32_t val;
+	if (dev_priv->cdclk_pll.vco != vco)
+		bxt_de_pll_enable(dev_priv, vco);
 
-		bxt_de_pll_enable(dev_priv, ratio);
-
-		val = divider | skl_cdclk_decimal(cdclk);
-		/*
-		 * FIXME if only the cd2x divider needs changing, it could be done
-		 * without shutting off the pipe (if only one pipe is active).
-		 */
-		val |= BXT_CDCLK_CD2X_PIPE_NONE;
-		/*
-		 * Disable SSA Precharge when CD clock frequency < 500 MHz,
-		 * enable otherwise.
-		 */
-		if (cdclk >= 500000)
-			val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
-		I915_WRITE(CDCLK_CTL, val);
-	}
+	val = divider | skl_cdclk_decimal(cdclk);
+	/*
+	 * FIXME if only the cd2x divider needs changing, it could be done
+	 * without shutting off the pipe (if only one pipe is active).
+	 */
+	val |= BXT_CDCLK_CD2X_PIPE_NONE;
+	/*
+	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
+	 * enable otherwise.
+	 */
+	if (cdclk >= 500000)
+		val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
+	I915_WRITE(CDCLK_CTL, val);
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	ret = sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
@@ -5445,8 +5444,7 @@ void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 
 void broxton_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
-	/* Set minimum (bypass) frequency, in effect turning off the DE PLL */
-	broxton_set_cdclk(dev_priv, 19200);
+	broxton_set_cdclk(dev_priv, dev_priv->cdclk_pll.ref);
 }
 
 static int skl_calc_cdclk(int max_pixclk, int vco)
