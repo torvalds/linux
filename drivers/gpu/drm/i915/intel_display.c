@@ -12006,6 +12006,9 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 			DRM_DEBUG_KMS("No valid intermediate pipe watermarks are possible\n");
 			return ret;
 		}
+	} else if (dev_priv->display.compute_intermediate_wm) {
+		if (HAS_PCH_SPLIT(dev_priv) && INTEL_GEN(dev_priv) < 9)
+			pipe_config->wm.intermediate = pipe_config->wm.optimal.ilk;
 	}
 
 	if (INTEL_INFO(dev)->gen >= 9) {
@@ -15986,6 +15989,9 @@ retry:
 		int i;
 
 		state->acquire_ctx = &ctx;
+
+		/* ignore any reset values/BIOS leftovers in the WM registers */
+		to_intel_atomic_state(state)->skip_intermediate_wm = true;
 
 		for_each_crtc_in_state(state, crtc, crtc_state, i) {
 			/*
