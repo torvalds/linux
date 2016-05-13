@@ -746,8 +746,9 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 		}
 
 		if (cmsg->cmsg_level == SOL_SOCKET) {
-			if (__sock_cmsg_send(sk, msg, cmsg, sockc))
-				return -EINVAL;
+			err = __sock_cmsg_send(sk, msg, cmsg, sockc);
+			if (err)
+				return err;
 			continue;
 		}
 

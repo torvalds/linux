@@ -247,8 +247,9 @@ int ip_cmsg_send(struct sock *sk, struct msghdr *msg, struct ipcm_cookie *ipc,
 		}
 #endif
 		if (cmsg->cmsg_level == SOL_SOCKET) {
-			if (__sock_cmsg_send(sk, msg, cmsg, &ipc->sockc))
-				return -EINVAL;
+			err = __sock_cmsg_send(sk, msg, cmsg, &ipc->sockc);
+			if (err)
+				return err;
 			continue;
 		}
 
