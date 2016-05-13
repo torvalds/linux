@@ -363,6 +363,11 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 	if (err < 0)
 		return err;
 
+	/* Disable DRDY, this might be still be enabled after reboot. */
+	err = st_sensors_set_dataready_irq(indio_dev, false);
+	if (err < 0)
+		return err;
+
 	if (sdata->current_fullscale) {
 		err = st_sensors_set_fullscale(indio_dev,
 						sdata->current_fullscale->num);
