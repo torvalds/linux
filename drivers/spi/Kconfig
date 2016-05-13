@@ -445,6 +445,7 @@ config SPI_PIC32
 config SPI_PIC32_SQI
 	tristate "Microchip PIC32 Quad SPI driver"
 	depends on MACH_PIC32 || COMPILE_TEST
+	depends on HAS_DMA
 	help
 	  SPI driver for PIC32 Quad SPI controller.
 
