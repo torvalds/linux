@@ -358,6 +358,7 @@ struct snd_soc_dapm_context;
 struct regulator;
 struct snd_soc_dapm_widget_list;
 struct snd_soc_dapm_update;
+enum snd_soc_dapm_direction;
 
 int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event);
@@ -451,7 +452,9 @@ void dapm_mark_endpoints_dirty(struct snd_soc_card *card);
 
 /* dapm path query */
 int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
-	struct snd_soc_dapm_widget_list **list);
+	struct snd_soc_dapm_widget_list **list,
+	bool (*custom_stop_condition)(struct snd_soc_dapm_widget *,
+				      enum snd_soc_dapm_direction));
 
 struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_dapm(
 	struct snd_kcontrol *kcontrol);

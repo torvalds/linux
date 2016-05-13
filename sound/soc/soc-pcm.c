@@ -1294,7 +1294,8 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	int paths;
 
 	/* get number of valid DAI paths and their widgets */
-	paths = snd_soc_dapm_dai_get_connected_widgets(cpu_dai, stream, list);
+	paths = snd_soc_dapm_dai_get_connected_widgets(cpu_dai, stream, list,
+			NULL);
 
 	dev_dbg(fe->dev, "ASoC: found %d audio %s paths\n", paths,
 			stream ? "capture" : "playback");
