@@ -2802,8 +2802,14 @@ struct drm_i915_cmd_table {
 
 #define HAS_CSR(dev)	(IS_GEN9(dev))
 
-#define HAS_GUC_UCODE(dev)	(IS_GEN9(dev) && !IS_KABYLAKE(dev))
-#define HAS_GUC_SCHED(dev)	(IS_GEN9(dev) && !IS_KABYLAKE(dev))
+/*
+ * For now, anything with a GuC requires uCode loading, and then supports
+ * command submission once loaded. But these are logically independent
+ * properties, so we have separate macros to test them.
+ */
+#define HAS_GUC(dev)		(IS_GEN9(dev) && !IS_KABYLAKE(dev))
+#define HAS_GUC_UCODE(dev)	(HAS_GUC(dev))
+#define HAS_GUC_SCHED(dev)	(HAS_GUC(dev))
 
 #define HAS_RESOURCE_STREAMER(dev) (IS_HASWELL(dev) || \
 				    INTEL_INFO(dev)->gen >= 8)

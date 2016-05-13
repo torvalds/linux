@@ -5039,7 +5039,7 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 	for_each_engine(engine, dev_priv)
 		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
 
-	if (HAS_GUC_UCODE(dev_priv))
+	if (HAS_GUC(dev_priv))
 		I915_WRITE(GUC_MAX_IDLE_COUNT, 0xA);
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
