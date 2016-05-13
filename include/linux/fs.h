@@ -3134,6 +3134,13 @@ static inline bool dir_relax(struct inode *inode)
 	return !IS_DEADDIR(inode);
 }
 
+static inline bool dir_relax_shared(struct inode *inode)
+{
+	inode_unlock_shared(inode);
+	inode_lock_shared(inode);
+	return !IS_DEADDIR(inode);
+}
+
 extern bool path_noexec(const struct path *path);
 extern void inode_nohighmem(struct inode *inode);
 
