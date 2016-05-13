@@ -16,7 +16,7 @@ if QRTR
 
 config QRTR_SMD
 	tristate "SMD IPC Router channels"
-	depends on QCOM_SMD || COMPILE_TEST
+	depends on QCOM_SMD || (COMPILE_TEST && QCOM_SMD=n)
 	---help---
 	  Say Y here to support SMD based ipcrouter channels.  SMD is the
 	  most common transport for IPC Router.
