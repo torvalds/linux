@@ -197,6 +197,9 @@ config COMMON_CLK_PXA
 	---help---
 	  Support for the Marvell PXA SoC.
 
+config COMMON_CLK_PIC32
+	def_bool COMMON_CLK && MACH_PIC32
+
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
