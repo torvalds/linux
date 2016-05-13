@@ -813,7 +813,9 @@ struct f2fs_sb_info {
 	block_t last_valid_block_count;		/* for recovery */
 	u32 s_next_generation;			/* for NFS support */
 	atomic_t nr_wb_bios;			/* # of writeback bios */
-	atomic_t nr_pages[NR_COUNT_TYPE];	/* # of pages, see count_type */
+
+	/* # of pages, see count_type */
+	struct percpu_counter nr_pages[NR_COUNT_TYPE];
 
 	struct f2fs_mount_info mount_opt;	/* mount options */
 
@@ -1158,7 +1160,7 @@ static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 
 static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
 {
-	atomic_inc(&sbi->nr_pages[count_type]);
+	percpu_counter_inc(&sbi->nr_pages[count_type]);
 	set_sbi_flag(sbi, SBI_IS_DIRTY);
 }
 
@@ -1171,7 +1173,7 @@ static inline void inode_inc_dirty_pages(struct inode *inode)
 
 static inline void dec_page_count(struct f2fs_sb_info *sbi, int count_type)
 {
-	atomic_dec(&sbi->nr_pages[count_type]);
+	percpu_counter_dec(&sbi->nr_pages[count_type]);
 }
 
 static inline void inode_dec_dirty_pages(struct inode *inode)
@@ -1185,9 +1187,9 @@ static inline void inode_dec_dirty_pages(struct inode *inode)
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA);
 }
 
-static inline int get_pages(struct f2fs_sb_info *sbi, int count_type)
+static inline s64 get_pages(struct f2fs_sb_info *sbi, int count_type)
 {
-	return atomic_read(&sbi->nr_pages[count_type]);
+	return percpu_counter_sum_positive(&sbi->nr_pages[count_type]);
 }
 
 static inline int get_dirty_pages(struct inode *inode)
@@ -1198,8 +1200,10 @@ static inline int get_dirty_pages(struct inode *inode)
 static inline int get_blocktype_secs(struct f2fs_sb_info *sbi, int block_type)
 {
 	unsigned int pages_per_sec = sbi->segs_per_sec * sbi->blocks_per_seg;
-	return ((get_pages(sbi, block_type) + pages_per_sec - 1)
-			>> sbi->log_blocks_per_seg) / sbi->segs_per_sec;
+	unsigned int segs = (get_pages(sbi, block_type) + pages_per_sec - 1) >>
+						sbi->log_blocks_per_seg;
+
+	return segs / sbi->segs_per_sec;
 }
 
 static inline block_t valid_user_blocks(struct f2fs_sb_info *sbi)
@@ -2013,11 +2017,11 @@ struct f2fs_stat_info {
 	unsigned long long hit_largest, hit_cached, hit_rbtree;
 	unsigned long long hit_total, total_ext;
 	int ext_tree, zombie_tree, ext_node;
-	int ndirty_node, ndirty_meta;
-	int ndirty_dent, ndirty_dirs, ndirty_data, ndirty_files;
+	s64 ndirty_node, ndirty_dent, ndirty_meta, ndirty_data, inmem_pages;
+	unsigned int ndirty_dirs, ndirty_files;
 	int nats, dirty_nats, sits, dirty_sits, fnids;
 	int total_count, utilization;
-	int bg_gc, inmem_pages, wb_bios;
+	int bg_gc, wb_bios;
 	int inline_xattr, inline_inode, inline_dir, orphans;
 	unsigned int valid_count, valid_node_count, valid_inode_count;
 	unsigned int bimodal, avg_vblocks;

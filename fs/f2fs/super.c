@@ -606,6 +606,14 @@ static void f2fs_destroy_inode(struct inode *inode)
 	call_rcu(&inode->i_rcu, f2fs_i_callback);
 }
 
+static void destroy_percpu_info(struct f2fs_sb_info *sbi)
+{
+	int i;
+
+	for (i = 0; i < NR_COUNT_TYPE; i++)
+		percpu_counter_destroy(&sbi->nr_pages[i]);
+}
+
 static void f2fs_put_super(struct super_block *sb)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
@@ -666,6 +674,8 @@ static void f2fs_put_super(struct super_block *sb)
 	if (sbi->s_chksum_driver)
 		crypto_free_shash(sbi->s_chksum_driver);
 	kfree(sbi->raw_super);
+
+	destroy_percpu_info(sbi);
 	kfree(sbi);
 }
 
@@ -1324,7 +1334,6 @@ int sanity_check_ckpt(struct f2fs_sb_info *sbi)
 static void init_sb_info(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_super_block *raw_super = sbi->raw_super;
-	int i;
 
 	sbi->log_sectors_per_block =
 		le32_to_cpu(raw_super->log_sectors_per_block);
@@ -1344,9 +1353,6 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 	sbi->cur_victim_sec = NULL_SECNO;
 	sbi->max_victim_search = DEF_MAX_VICTIM_SEARCH;
 
-	for (i = 0; i < NR_COUNT_TYPE; i++)
-		atomic_set(&sbi->nr_pages[i], 0);
-
 	sbi->dir_level = DEF_DIR_LEVEL;
 	sbi->interval_time[CP_TIME] = DEF_CP_INTERVAL;
 	sbi->interval_time[REQ_TIME] = DEF_IDLE_INTERVAL;
@@ -1360,6 +1366,18 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 				F2FS_KEY_DESC_PREFIX_SIZE);
 	sbi->key_prefix_size = F2FS_KEY_DESC_PREFIX_SIZE;
 #endif
+}
+
+static int init_percpu_info(struct f2fs_sb_info *sbi)
+{
+	int i, err;
+
+	for (i = 0; i < NR_COUNT_TYPE; i++) {
+		err = percpu_counter_init(&sbi->nr_pages[i], 0, GFP_KERNEL);
+		if (err)
+			return err;
+	}
+	return 0;
 }
 
 /*
@@ -1551,6 +1569,10 @@ try_onemore:
 	init_rwsem(&sbi->cp_rwsem);
 	init_waitqueue_head(&sbi->cp_wait);
 	init_sb_info(sbi);
+
+	err = init_percpu_info(sbi);
+	if (err)
+		goto free_options;
 
 	/* get an inode for meta space */
 	sbi->meta_inode = f2fs_iget(sb, F2FS_META_INO(sbi));
@@ -1754,6 +1776,7 @@ free_meta_inode:
 	make_bad_inode(sbi->meta_inode);
 	iput(sbi->meta_inode);
 free_options:
+	destroy_percpu_info(sbi);
 	kfree(options);
 free_sb_buf:
 	kfree(raw_super);

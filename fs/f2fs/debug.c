@@ -144,6 +144,7 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	si->base_mem = sizeof(struct f2fs_sb_info) + sbi->sb->s_blocksize;
 	si->base_mem += 2 * sizeof(struct f2fs_inode_info);
 	si->base_mem += sizeof(*sbi->ckpt);
+	si->base_mem += sizeof(struct percpu_counter) * NR_COUNT_TYPE;
 
 	/* build sm */
 	si->base_mem += sizeof(struct f2fs_sm_info);
@@ -299,15 +300,15 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
 				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
-		seq_printf(s, "  - inmem: %4d, wb_bios: %4d\n",
+		seq_printf(s, "  - inmem: %4lld, wb_bios: %4d\n",
 			   si->inmem_pages, si->wb_bios);
-		seq_printf(s, "  - nodes: %4d in %4d\n",
+		seq_printf(s, "  - nodes: %4lld in %4d\n",
 			   si->ndirty_node, si->node_pages);
-		seq_printf(s, "  - dents: %4d in dirs:%4d\n",
+		seq_printf(s, "  - dents: %4lld in dirs:%4d\n",
 			   si->ndirty_dent, si->ndirty_dirs);
-		seq_printf(s, "  - datas: %4d in files:%4d\n",
+		seq_printf(s, "  - datas: %4lld in files:%4d\n",
 			   si->ndirty_data, si->ndirty_files);
-		seq_printf(s, "  - meta: %4d in %4d\n",
+		seq_printf(s, "  - meta: %4lld in %4d\n",
 			   si->ndirty_meta, si->meta_pages);
 		seq_printf(s, "  - NATs: %9d/%9d\n  - SITs: %9d/%9d\n",
 			   si->dirty_nats, si->nats, si->dirty_sits, si->sits);

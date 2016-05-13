@@ -1275,14 +1275,14 @@ TRACE_EVENT(f2fs_destroy_extent_tree,
 
 DECLARE_EVENT_CLASS(f2fs_sync_dirty_inodes,
 
-	TP_PROTO(struct super_block *sb, int type, int count),
+	TP_PROTO(struct super_block *sb, int type, s64 count),
 
 	TP_ARGS(sb, type, count),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(int, type)
-		__field(int, count)
+		__field(s64, count)
 	),
 
 	TP_fast_assign(
@@ -1291,7 +1291,7 @@ DECLARE_EVENT_CLASS(f2fs_sync_dirty_inodes,
 		__entry->count	= count;
 	),
 
-	TP_printk("dev = (%d,%d), %s, dirty count = %d",
+	TP_printk("dev = (%d,%d), %s, dirty count = %lld",
 		show_dev(__entry),
 		show_file_type(__entry->type),
 		__entry->count)
@@ -1299,14 +1299,14 @@ DECLARE_EVENT_CLASS(f2fs_sync_dirty_inodes,
 
 DEFINE_EVENT(f2fs_sync_dirty_inodes, f2fs_sync_dirty_inodes_enter,
 
-	TP_PROTO(struct super_block *sb, int type, int count),
+	TP_PROTO(struct super_block *sb, int type, s64 count),
 
 	TP_ARGS(sb, type, count)
 );
 
 DEFINE_EVENT(f2fs_sync_dirty_inodes, f2fs_sync_dirty_inodes_exit,
 
-	TP_PROTO(struct super_block *sb, int type, int count),
+	TP_PROTO(struct super_block *sb, int type, s64 count),
 
 	TP_ARGS(sb, type, count)
 );
