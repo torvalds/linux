@@ -959,6 +959,7 @@ int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 	return 0;
 }
 
+#ifdef HAVE_DWARF_GETLOCATIONS
 /**
  * die_get_var_innermost_scope - Get innermost scope range of given variable DIE
  * @sp_die: a subprogram DIE
@@ -1080,3 +1081,11 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 
 	return ret;
 }
+#else
+int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
+		      Dwarf_Die *vr_die __maybe_unused,
+		      struct strbuf *buf __maybe_unused)
+{
+	return -ENOTSUP;
+}
+#endif
