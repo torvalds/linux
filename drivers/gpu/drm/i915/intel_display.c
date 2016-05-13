@@ -5254,7 +5254,7 @@ static void intel_update_cdclk(struct drm_device *dev)
 
 	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 9)
 		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d kHz, ref: %d kHz\n",
 				 dev_priv->cdclk_freq, dev_priv->cdclk_pll.vco,
 				 dev_priv->cdclk_pll.ref);
@@ -5285,6 +5285,8 @@ static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
 	/* Timeout 200us */
 	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) == 0, 1))
 		DRM_ERROR("timeout waiting for DE PLL unlock\n");
+
+	dev_priv->cdclk_pll.vco = 0;
 }
 
 static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, u32 ratio)
@@ -5301,6 +5303,8 @@ static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, u32 ratio)
 	/* Timeout 200us */
 	if (wait_for((I915_READ(BXT_DE_PLL_ENABLE) & BXT_DE_PLL_LOCK) != 0, 1))
 		DRM_ERROR("timeout waiting for DE PLL lock\n");
+
+	dev_priv->cdclk_pll.vco = ratio * dev_priv->cdclk_pll.ref;
 }
 
 static void broxton_set_cdclk(struct drm_i915_private *dev_priv, int cdclk)
@@ -6623,6 +6627,25 @@ static int skylake_get_display_clock_speed(struct drm_device *dev)
 	return dev_priv->cdclk_pll.ref;
 }
 
+static void bxt_de_pll_update(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	dev_priv->cdclk_pll.ref = 19200;
+
+	val = I915_READ(BXT_DE_PLL_ENABLE);
+	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0) {
+		dev_priv->cdclk_pll.vco = 0;
+		return;
+	}
+
+	WARN_ON((val & BXT_DE_PLL_LOCK) == 0);
+
+	val = I915_READ(BXT_DE_PLL_CTL);
+	dev_priv->cdclk_pll.vco = (val & BXT_DE_PLL_RATIO_MASK) *
+		dev_priv->cdclk_pll.ref;
+}
+
 static int broxton_get_display_clock_speed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -6630,6 +6653,8 @@ static int broxton_get_display_clock_speed(struct drm_device *dev)
 	uint32_t pll_ratio = I915_READ(BXT_DE_PLL_CTL) & BXT_DE_PLL_RATIO_MASK;
 	uint32_t pll_enab = I915_READ(BXT_DE_PLL_ENABLE);
 	int cdclk;
+
+	bxt_de_pll_update(dev_priv);
 
 	if (!(pll_enab & BXT_DE_PLL_PLL_ENABLE))
 		return 19200;
