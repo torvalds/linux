@@ -81,7 +81,7 @@ struct i915_guc_client {
 	uint32_t unused;		/* Was 'wq_head'		*/
 
 	uint32_t no_wq_space;
-	uint32_t q_fail;
+	uint32_t q_fail;		/* No longer used		*/
 	uint32_t b_fail;
 	int retcode;
 
