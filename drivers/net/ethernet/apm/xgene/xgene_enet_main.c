@@ -1234,6 +1234,13 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 	for (i = 0; i < max_irqs; i++) {
 		ret = platform_get_irq(pdev, i);
 		if (ret <= 0) {
+			if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
+				max_irqs = i;
+				pdata->rxq_cnt = max_irqs / 2;
+				pdata->txq_cnt = max_irqs / 2;
+				pdata->cq_cnt = max_irqs / 2;
+				break;
+			}
 			dev_err(dev, "Unable to get ENET IRQ\n");
 			ret = ret ? : -ENXIO;
 			return ret;
@@ -1437,19 +1444,28 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 		pdata->port_ops = &xgene_xgport_ops;
 		pdata->cle_ops = &xgene_cle3in_ops;
 		pdata->rm = RM0;
-		pdata->rxq_cnt = XGENE_NUM_RX_RING;
-		pdata->txq_cnt = XGENE_NUM_TX_RING;
-		pdata->cq_cnt = XGENE_NUM_TXC_RING;
+		if (!pdata->rxq_cnt) {
+			pdata->rxq_cnt = XGENE_NUM_RX_RING;
+			pdata->txq_cnt = XGENE_NUM_TX_RING;
+			pdata->cq_cnt = XGENE_NUM_TXC_RING;
+		}
 		break;
 	}
 
 	if (pdata->enet_id == XGENE_ENET1) {
 		switch (pdata->port_id) {
 		case 0:
-			pdata->cpu_bufnum = START_CPU_BUFNUM_0;
-			pdata->eth_bufnum = START_ETH_BUFNUM_0;
-			pdata->bp_bufnum = START_BP_BUFNUM_0;
-			pdata->ring_num = START_RING_NUM_0;
+			if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
+				pdata->cpu_bufnum = X2_START_CPU_BUFNUM_0;
+				pdata->eth_bufnum = X2_START_ETH_BUFNUM_0;
+				pdata->bp_bufnum = X2_START_BP_BUFNUM_0;
+				pdata->ring_num = START_RING_NUM_0;
+			} else {
+				pdata->cpu_bufnum = START_CPU_BUFNUM_0;
+				pdata->eth_bufnum = START_ETH_BUFNUM_0;
+				pdata->bp_bufnum = START_BP_BUFNUM_0;
+				pdata->ring_num = START_RING_NUM_0;
+			}
 			break;
 		case 1:
 			if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
