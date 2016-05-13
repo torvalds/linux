@@ -1823,7 +1823,7 @@ struct drm_i915_private {
 	unsigned int czclk_freq;
 
 	struct {
-		unsigned int vco;
+		unsigned int vco, ref;
 	} cdclk_pll;
 
 	/**

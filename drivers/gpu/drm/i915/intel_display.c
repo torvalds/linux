@@ -5255,8 +5255,9 @@ static void intel_update_cdclk(struct drm_device *dev)
 	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
 
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d kHz\n",
-				 dev_priv->cdclk_freq, dev_priv->cdclk_pll.vco);
+		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d kHz, ref: %d kHz\n",
+				 dev_priv->cdclk_freq, dev_priv->cdclk_pll.vco,
+				 dev_priv->cdclk_pll.ref);
 	else
 		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
 				 dev_priv->cdclk_freq);
@@ -5462,6 +5463,8 @@ skl_dpll0_update(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
+	dev_priv->cdclk_pll.ref = 24000;
+
 	val = I915_READ(LCPLL1_CTL);
 	if ((val & LCPLL_PLL_ENABLE) == 0) {
 		dev_priv->cdclk_pll.vco = 0;
@@ -5650,7 +5653,7 @@ static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv);
 
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
-	skl_set_cdclk(dev_priv, 24000, 0);
+	skl_set_cdclk(dev_priv, dev_priv->cdclk_pll.ref, 0);
 }
 
 void skl_init_cdclk(struct drm_i915_private *dev_priv)
@@ -6572,7 +6575,7 @@ static int skylake_get_display_clock_speed(struct drm_device *dev)
 	skl_dpll0_update(dev_priv);
 
 	if (dev_priv->cdclk_pll.vco == 0)
-		return 24000; /* 24MHz is the cd freq with NSSC ref */
+		return dev_priv->cdclk_pll.ref;
 
 	cdctl = I915_READ(CDCLK_CTL);
 
@@ -6604,8 +6607,7 @@ static int skylake_get_display_clock_speed(struct drm_device *dev)
 		}
 	}
 
-	/* error case, do as if DPLL0 isn't enabled */
-	return 24000;
+	return dev_priv->cdclk_pll.ref;
 }
 
 static int broxton_get_display_clock_speed(struct drm_device *dev)
