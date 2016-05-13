@@ -158,8 +158,17 @@ static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
 	struct xenvif *vif = netdev_priv(dev);
 	unsigned int size = vif->hash.size;
 
-	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
-		return fallback(dev, skb) % dev->real_num_tx_queues;
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE) {
+		u16 index = fallback(dev, skb) % dev->real_num_tx_queues;
+
+		/* Make sure there is no hash information in the socket
+		 * buffer otherwise it would be incorrectly forwarded
+		 * to the frontend.
+		 */
+		skb_clear_hash(skb);
+
+		return index;
+	}
 
 	xenvif_set_skb_hash(vif, skb);
 
