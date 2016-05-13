@@ -632,11 +632,11 @@ static void tegra_pinctrl_clear_parked_bits(struct tegra_pmx *pmx)
 	u32 val;
 
 	for (i = 0; i < pmx->soc->ngroups; ++i) {
-		g = &pmx->soc->groups[i];
-		if (g->parked_bit >= 0) {
-			val = pmx_readl(pmx, g->mux_bank, g->mux_reg);
+		if (pmx->soc->groups[i].parked_reg >= 0) {
+			g = &pmx->soc->groups[i];
+			val = pmx_readl(pmx, g->parked_bank, g->parked_reg);
 			val &= ~(1 << g->parked_bit);
-			pmx_writel(pmx, val, g->mux_bank, g->mux_reg);
+			pmx_writel(pmx, val, g->parked_bank, g->parked_reg);
 		}
 	}
 }
