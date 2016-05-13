@@ -214,25 +214,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(hdr)						\
-({									\
-	int __res = 1;							\
-	struct elfhdr *__h = (hdr);					\
-									\
-	if (!mips_elf_check_machine(__h))				\
-		__res = 0;						\
-	if (__h->e_ident[EI_CLASS] != ELFCLASS32)			\
-		__res = 0;						\
-	if ((__h->e_flags & EF_MIPS_ABI2) != 0)				\
-		__res = 0;						\
-	if (((__h->e_flags & EF_MIPS_ABI) != 0) &&			\
-	    ((__h->e_flags & EF_MIPS_ABI) != EF_MIPS_ABI_O32))		\
-		__res = 0;						\
-	if (__h->e_flags & __MIPS_O32_FP64_MUST_BE_ZERO)		\
-		__res = 0;						\
-									\
-	__res;								\
-})
+#define elf_check_arch elfo32_check_arch
 
 /*
  * These are used to set parameters in the core dumps.
@@ -245,18 +227,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(hdr)						\
-({									\
-	int __res = 1;							\
-	struct elfhdr *__h = (hdr);					\
-									\
-	if (!mips_elf_check_machine(__h))				\
-		__res = 0;						\
-	if (__h->e_ident[EI_CLASS] != ELFCLASS64)			\
-		__res = 0;						\
-									\
-	__res;								\
-})
+#define elf_check_arch elfn64_check_arch
 
 /*
  * These are used to set parameters in the core dumps.
@@ -293,6 +264,64 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #define vmcore_elf32_check_arch mips_elf_check_machine
 #define vmcore_elf64_check_arch mips_elf_check_machine
+
+/*
+ * Return non-zero if HDR identifies an o32 ELF binary.
+ */
+#define elfo32_check_arch(hdr)						\
+({									\
+	int __res = 1;							\
+	struct elfhdr *__h = (hdr);					\
+									\
+	if (!mips_elf_check_machine(__h))				\
+		__res = 0;						\
+	if (__h->e_ident[EI_CLASS] != ELFCLASS32)			\
+		__res = 0;						\
+	if ((__h->e_flags & EF_MIPS_ABI2) != 0)				\
+		__res = 0;						\
+	if (((__h->e_flags & EF_MIPS_ABI) != 0) &&			\
+	    ((__h->e_flags & EF_MIPS_ABI) != EF_MIPS_ABI_O32))		\
+		__res = 0;						\
+	if (__h->e_flags & __MIPS_O32_FP64_MUST_BE_ZERO)		\
+		__res = 0;						\
+									\
+	__res;								\
+})
+
+/*
+ * Return non-zero if HDR identifies an n64 ELF binary.
+ */
+#define elfn64_check_arch(hdr)						\
+({									\
+	int __res = 1;							\
+	struct elfhdr *__h = (hdr);					\
+									\
+	if (!mips_elf_check_machine(__h))				\
+		__res = 0;						\
+	if (__h->e_ident[EI_CLASS] != ELFCLASS64)			\
+		__res = 0;						\
+									\
+	__res;								\
+})
+
+/*
+ * Return non-zero if HDR identifies an n32 ELF binary.
+ */
+#define elfn32_check_arch(hdr)						\
+({									\
+	int __res = 1;							\
+	struct elfhdr *__h = (hdr);					\
+									\
+	if (!mips_elf_check_machine(__h))				\
+		__res = 0;						\
+	if (__h->e_ident[EI_CLASS] != ELFCLASS32)			\
+		__res = 0;						\
+	if (((__h->e_flags & EF_MIPS_ABI2) == 0) ||			\
+	    ((__h->e_flags & EF_MIPS_ABI) != 0))			\
+		__res = 0;						\
+									\
+	__res;								\
+})
 
 struct mips_abi;
 
