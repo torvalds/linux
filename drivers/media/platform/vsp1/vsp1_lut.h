@@ -13,9 +13,8 @@
 #ifndef __VSP1_LUT_H__
 #define __VSP1_LUT_H__
 
-#include <linux/mutex.h>
-
 #include <media/media-entity.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
 #include "vsp1_entity.h"
@@ -28,7 +27,8 @@ struct vsp1_device;
 struct vsp1_lut {
 	struct vsp1_entity entity;
 
-	struct mutex lock;
+	struct v4l2_ctrl_handler ctrls;
+
 	struct vsp1_dl_body *lut;
 };
 
