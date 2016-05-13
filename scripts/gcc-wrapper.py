@@ -40,19 +40,12 @@ import subprocess
 # force LANG to be set to en_US.UTF-8 to get consistent warnings.
 
 allowed_warnings = set([
-    "core.c:142", # drivers/regulator/core.c:142:6: warning: unused variable 'i'
     "posix-cpu-timers.c:1268", # kernel/time/posix-cpu-timers.c:1268:13: warning: 'now' may be used uninitialized in this function
     "af_unix.c:1036", # net/unix/af_unix.c:1036:20: warning: 'hash' may be used uninitialized in this function
     "sunxi_sram.c:214", # drivers/soc/sunxi/sunxi_sram.c:214:24: warning: 'device' may be used uninitialized in this function
     "ks8851.c:298", # drivers/net/ethernet/micrel/ks8851.c:298:2: warning: 'rxb[0]' may be used uninitialized in this function
     "ks8851.c:421", # drivers/net/ethernet/micrel/ks8851.c:421:20: warning: 'rxb[0]' may be used uninitialized in this function
     "compat_binfmt_elf.c:58", # fs/compat_binfmt_elf.c:58:13: warning: 'cputime_to_compat_timeval' defined but not used
-    "cgroup.c:2132", # kernel/cgroup.c:2132:13: warning: 'root' may be used uninitialized in this function
-    "lowmemorykiller.c:174", # drivers/staging/android/lowmemorykiller.c:174:3: warning: ISO C90 forbids mixed declarations and code
-    "inet6_connection_sock.c:89", # net/ipv6/inet6_connection_sock.c:89:32: warning: passing argument 1 of 'sock_i_uid' discards 'const' qualifier from pointer target type
-    "inet_connection_sock.c:423", # net/ipv4/inet_connection_sock.c:423:283: warning: passing argument 1 of 'sock_i_uid' discards 'const' qualifier from pointer target type
-    "inet_connection_sock.c:460", # net/ipv4/inet_connection_sock.c:460:283: warning: passing argument 1 of 'sock_i_uid' discards 'const' qualifier from pointer target type
-    "watchdog.c:122", # kernel/watchdog.c:122:22: warning: 'hardlockup_allcpu_dumped' defined but not used
     "memcontrol.c:5271", # mm/memcontrol.c:5271:2: warning: initialization from incompatible pointer type
  ])
 
