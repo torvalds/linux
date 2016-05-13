@@ -206,7 +206,8 @@ static void vsp1_destroy_entities(struct vsp1_device *vsp1)
 	}
 
 	v4l2_device_unregister(&vsp1->v4l2_dev);
-	media_device_unregister(&vsp1->media_dev);
+	if (vsp1->info->uapi)
+		media_device_unregister(&vsp1->media_dev);
 	media_device_cleanup(&vsp1->media_dev);
 
 	if (!vsp1->info->uapi)
@@ -381,14 +382,15 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	/* Register subdev nodes if the userspace API is enabled or initialize
 	 * the DRM pipeline otherwise.
 	 */
-	if (vsp1->info->uapi)
+	if (vsp1->info->uapi) {
 		ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
-	else
-		ret = vsp1_drm_init(vsp1);
-	if (ret < 0)
-		goto done;
+		if (ret < 0)
+			goto done;
 
-	ret = media_device_register(mdev);
+		ret = media_device_register(mdev);
+	} else {
+		ret = vsp1_drm_init(vsp1);
+	}
 
 done:
 	if (ret < 0)
