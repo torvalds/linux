@@ -903,6 +903,65 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 	return dep->trb_dequeue - dep->trb_enqueue;
 }
 
+static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
+		struct dwc3_request *req, unsigned int trbs_left)
+{
+	struct usb_request *request = &req->request;
+	struct scatterlist *sg = request->sg;
+	struct scatterlist *s;
+	unsigned int	last = false;
+	unsigned int	length;
+	dma_addr_t	dma;
+	int		i;
+
+	for_each_sg(sg, s, request->num_mapped_sgs, i) {
+		unsigned chain = true;
+
+		length = sg_dma_len(s);
+		dma = sg_dma_address(s);
+
+		if (sg_is_last(s)) {
+			if (list_is_last(&req->list, &dep->pending_list))
+				last = true;
+
+			chain = false;
+		}
+
+		if (!trbs_left)
+			last = true;
+
+		if (last)
+			chain = false;
+
+		dwc3_prepare_one_trb(dep, req, dma, length,
+				last, chain, i);
+
+		if (last)
+			break;
+	}
+}
+
+static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
+		struct dwc3_request *req, unsigned int trbs_left)
+{
+	unsigned int	last = false;
+	unsigned int	length;
+	dma_addr_t	dma;
+
+	dma = req->request.dma;
+	length = req->request.length;
+
+	if (!trbs_left)
+		last = true;
+
+	/* Is this the last request? */
+	if (list_is_last(&req->list, &dep->pending_list))
+		last = true;
+
+	dwc3_prepare_one_trb(dep, req, dma, length,
+			last, false, 0);
+}
+
 /*
  * dwc3_prepare_trbs - setup TRBs from requests
  * @dep: endpoint for which requests are being prepared
@@ -915,70 +974,19 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 {
 	struct dwc3_request	*req, *n;
 	u32			trbs_left;
-	unsigned int		last_one = 0;
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
 	trbs_left = dwc3_calc_trbs_left(dep);
 
 	list_for_each_entry_safe(req, n, &dep->pending_list, list) {
-		unsigned	length;
-		dma_addr_t	dma;
-		last_one = false;
+		if (req->request.num_mapped_sgs > 0)
+			dwc3_prepare_one_trb_sg(dep, req, trbs_left--);
+		else
+			dwc3_prepare_one_trb_linear(dep, req, trbs_left--);
 
-		if (req->request.num_mapped_sgs > 0) {
-			struct usb_request *request = &req->request;
-			struct scatterlist *sg = request->sg;
-			struct scatterlist *s;
-			int		i;
-
-			for_each_sg(sg, s, request->num_mapped_sgs, i) {
-				unsigned chain = true;
-
-				length = sg_dma_len(s);
-				dma = sg_dma_address(s);
-
-				if (sg_is_last(s)) {
-					if (list_is_last(&req->list, &dep->pending_list))
-						last_one = true;
-
-					chain = false;
-				}
-
-				trbs_left--;
-				if (!trbs_left)
-					last_one = true;
-
-				if (last_one)
-					chain = false;
-
-				dwc3_prepare_one_trb(dep, req, dma, length,
-						last_one, chain, i);
-
-				if (last_one)
-					break;
-			}
-
-			if (last_one)
-				break;
-		} else {
-			dma = req->request.dma;
-			length = req->request.length;
-			trbs_left--;
-
-			if (!trbs_left)
-				last_one = true;
-
-			/* Is this the last request? */
-			if (list_is_last(&req->list, &dep->pending_list))
-				last_one = true;
-
-			dwc3_prepare_one_trb(dep, req, dma, length,
-					last_one, false, 0);
-
-			if (last_one)
-				break;
-		}
+		if (!trbs_left)
+			return;
 	}
 }
 
