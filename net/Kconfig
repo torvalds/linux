@@ -289,7 +289,7 @@ config BQL
 
 config BPF_JIT
 	bool "enable BPF Just In Time compiler"
-	depends on HAVE_BPF_JIT
+	depends on HAVE_CBPF_JIT || HAVE_EBPF_JIT
 	depends on MODULES
 	---help---
 	  Berkeley Packet Filter filtering capabilities are normally handled
@@ -419,6 +419,14 @@ config MAY_USE_DEVLINK
 
 endif   # if NET
 
-# Used by archs to tell that they support BPF_JIT
-config HAVE_BPF_JIT
+# Used by archs to tell that they support BPF JIT compiler plus which flavour.
+# Only one of the two can be selected for a specific arch since eBPF JIT supersedes
+# the cBPF JIT.
+
+# Classic BPF JIT (cBPF)
+config HAVE_CBPF_JIT
+	bool
+
+# Extended BPF JIT (eBPF)
+config HAVE_EBPF_JIT
 	bool
