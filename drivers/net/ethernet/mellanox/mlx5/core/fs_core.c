@@ -1771,6 +1771,7 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
 	cleanup_single_prio_root_ns(dev, dev->priv.fdb_root_ns);
 	cleanup_single_prio_root_ns(dev, dev->priv.esw_egress_root_ns);
 	cleanup_single_prio_root_ns(dev, dev->priv.esw_ingress_root_ns);
+	mlx5_cleanup_fc_stats(dev);
 }
 
 static int init_fdb_root_ns(struct mlx5_core_dev *dev)
@@ -1827,10 +1828,14 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 {
 	int err = 0;
 
+	err = mlx5_init_fc_stats(dev);
+	if (err)
+		return err;
+
 	if (MLX5_CAP_GEN(dev, nic_flow_table)) {
 		err = init_root_ns(dev);
 		if (err)
-			return err;
+			goto err;
 	}
 	if (MLX5_CAP_GEN(dev, eswitch_flow_table)) {
 		err = init_fdb_root_ns(dev);
