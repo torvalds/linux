@@ -489,8 +489,6 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 	{ }
 };
 
-#define NET_NF_CONNTRACK_MAX 2089
-
 static struct ctl_table nf_ct_netfilter_table[] = {
 	{
 		.procname	= "nf_conntrack_max",
