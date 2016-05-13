@@ -485,17 +485,6 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 	/* Burst size is only needed in SuperSpeed mode */
 	if (dwc->gadget.speed >= USB_SPEED_SUPER) {
 		u32 burst = dep->endpoint.maxburst;
-		u32 nump;
-		u32 reg;
-
-		/* update NumP */
-		reg = dwc3_readl(dwc->regs, DWC3_DCFG);
-		nump = DWC3_DCFG_NUMP(reg);
-		nump = max(nump, burst);
-		reg &= ~DWC3_DCFG_NUMP_MASK;
-		reg |= nump << DWC3_DCFG_NUMP_SHIFT;
-		dwc3_writel(dwc->regs, DWC3_DCFG, reg);
-
 		params.param0 |= DWC3_DEPCFG_BURST_SIZE(burst - 1);
 	}
 
@@ -1610,6 +1599,47 @@ static void dwc3_gadget_disable_irq(struct dwc3 *dwc)
 static irqreturn_t dwc3_interrupt(int irq, void *_dwc);
 static irqreturn_t dwc3_thread_interrupt(int irq, void *_dwc);
 
+/**
+ * dwc3_gadget_setup_nump - Calculate and initialize NUMP field of DCFG
+ * dwc: pointer to our context structure
+ *
+ * The following looks like complex but it's actually very simple. In order to
+ * calculate the number of packets we can burst at once on OUT transfers, we're
+ * gonna use RxFIFO size.
+ *
+ * To calculate RxFIFO size we need two numbers:
+ * MDWIDTH = size, in bits, of the internal memory bus
+ * RAM2_DEPTH = depth, in MDWIDTH, of internal RAM2 (where RxFIFO sits)
+ *
+ * Given these two numbers, the formula is simple:
+ *
+ * RxFIFO Size = (RAM2_DEPTH * MDWIDTH / 8) - 24 - 16;
+ *
+ * 24 bytes is for 3x SETUP packets
+ * 16 bytes is a clock domain crossing tolerance
+ *
+ * Given RxFIFO Size, NUMP = RxFIFOSize / 1024;
+ */
+static void dwc3_gadget_setup_nump(struct dwc3 *dwc)
+{
+	u32 ram2_depth;
+	u32 mdwidth;
+	u32 nump;
+	u32 reg;
+
+	ram2_depth = DWC3_GHWPARAMS7_RAM2_DEPTH(dwc->hwparams.hwparams7);
+	mdwidth = DWC3_GHWPARAMS0_MDWIDTH(dwc->hwparams.hwparams0);
+
+	nump = ((ram2_depth * mdwidth / 8) - 24 - 16) / 1024;
+	nump = min_t(u32, nump, 16);
+
+	/* update NumP */
+	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
+	reg &= ~DWC3_DCFG_NUMP_MASK;
+	reg |= nump << DWC3_DCFG_NUMP_SHIFT;
+	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
+}
+
 static int __dwc3_gadget_start(struct dwc3 *dwc)
 {
 	struct dwc3_ep		*dep;
@@ -1669,6 +1699,8 @@ static int __dwc3_gadget_start(struct dwc3 *dwc)
 	reg = dwc3_readl(dwc->regs, DWC3_GRXTHRCFG);
 	reg &= ~DWC3_GRXTHRCFG_PKTCNTSEL;
 	dwc3_writel(dwc->regs, DWC3_GRXTHRCFG, reg);
+
+	dwc3_gadget_setup_nump(dwc);
 
 	/* Start with SuperSpeed Default */
 	dwc3_gadget_ep0_desc.wMaxPacketSize = cpu_to_le16(512);
