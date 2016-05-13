@@ -74,7 +74,6 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 	}
 
 	init_waitqueue_head(&net_device->wait_drain);
-	net_device->start_remove = false;
 	net_device->destroy = false;
 	atomic_set(&net_device->open_cnt, 0);
 	atomic_set(&net_device->vf_use_cnt, 0);
@@ -691,7 +690,7 @@ static void netvsc_send_completion(struct netvsc_device *net_device,
 			wake_up(&net_device->wait_drain);
 
 		if (netif_tx_queue_stopped(netdev_get_tx_queue(ndev, q_idx)) &&
-		    !net_device->start_remove &&
+		    !net_device->nd_ctx->start_remove &&
 		    (hv_ringbuf_avail_percent(&channel->outbound) >
 		     RING_AVAIL_PERCENT_HIWATER || queue_sends < 1))
 				netif_tx_wake_queue(netdev_get_tx_queue(
