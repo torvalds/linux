@@ -5400,18 +5400,6 @@ static bool broxton_cdclk_is_enabled(struct drm_i915_private *dev_priv)
 
 	/* TODO: Check for a valid CDCLK rate */
 
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_REQUEST)) {
-		DRM_DEBUG_DRIVER("CDCLK enabled, but DBUF power not requested\n");
-
-		return false;
-	}
-
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE)) {
-		DRM_DEBUG_DRIVER("CDCLK enabled, but DBUF power hasn't settled\n");
-
-		return false;
-	}
-
 	return true;
 }
 
@@ -5438,26 +5426,10 @@ void broxton_init_cdclk(struct drm_i915_private *dev_priv)
 	 *   here, it belongs to modeset time
 	 */
 	broxton_set_cdclk(dev_priv, 624000);
-
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
-
-	udelay(10);
-
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE))
-		DRM_ERROR("DBuf power enable timeout!\n");
 }
 
 void broxton_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
-
-	udelay(10);
-
-	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
-		DRM_ERROR("DBuf power disable timeout!\n");
-
 	/* Set minimum (bypass) frequency, in effect turning off the DE PLL */
 	broxton_set_cdclk(dev_priv, 19200);
 }
@@ -5679,15 +5651,6 @@ static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv);
 
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 {
-	/* disable DBUF power */
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
-
-	udelay(10);
-
-	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
-		DRM_ERROR("DBuf power disable timeout\n");
-
 	skl_set_cdclk(dev_priv, 24000, 0);
 }
 
@@ -5705,24 +5668,15 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 		if (dev_priv->skl_preferred_vco_freq == 0)
 			skl_set_preferred_cdclk_vco(dev_priv,
 						    dev_priv->skl_vco_freq);
-	} else {
-		/* set CDCLK to the lowest frequency, Modeset follows */
-		vco = dev_priv->skl_preferred_vco_freq;
-		if (vco == 0)
-			vco = 8100;
-		cdclk = skl_calc_cdclk(0, vco);
-
-		skl_set_cdclk(dev_priv, cdclk, vco);
+		return;
 	}
 
-	/* enable DBUF power */
-	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
-	POSTING_READ(DBUF_CTL);
+	vco = dev_priv->skl_preferred_vco_freq;
+	if (vco == 0)
+		vco = 8100;
+	cdclk = skl_calc_cdclk(0, vco);
 
-	udelay(10);
-
-	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE))
-		DRM_ERROR("DBuf power enable timeout\n");
+	skl_set_cdclk(dev_priv, cdclk, vco);
 }
 
 static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
