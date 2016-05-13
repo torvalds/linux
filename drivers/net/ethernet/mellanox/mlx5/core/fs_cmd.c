@@ -323,3 +323,69 @@ int mlx5_cmd_delete_fte(struct mlx5_core_dev *dev,
 
 	return err;
 }
+
+int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u16 *id)
+{
+	u32 in[MLX5_ST_SZ_DW(alloc_flow_counter_in)];
+	u32 out[MLX5_ST_SZ_DW(alloc_flow_counter_out)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(alloc_flow_counter_in, in, opcode,
+		 MLX5_CMD_OP_ALLOC_FLOW_COUNTER);
+
+	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out,
+					 sizeof(out));
+	if (err)
+		return err;
+
+	*id = MLX5_GET(alloc_flow_counter_out, out, flow_counter_id);
+
+	return 0;
+}
+
+int mlx5_cmd_fc_free(struct mlx5_core_dev *dev, u16 id)
+{
+	u32 in[MLX5_ST_SZ_DW(dealloc_flow_counter_in)];
+	u32 out[MLX5_ST_SZ_DW(dealloc_flow_counter_out)];
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(dealloc_flow_counter_in, in, opcode,
+		 MLX5_CMD_OP_DEALLOC_FLOW_COUNTER);
+	MLX5_SET(dealloc_flow_counter_in, in, flow_counter_id, id);
+
+	return mlx5_cmd_exec_check_status(dev, in, sizeof(in), out,
+					  sizeof(out));
+}
+
+int mlx5_cmd_fc_query(struct mlx5_core_dev *dev, u16 id,
+		      u64 *packets, u64 *bytes)
+{
+	u32 out[MLX5_ST_SZ_BYTES(query_flow_counter_out) +
+		MLX5_ST_SZ_BYTES(traffic_counter)];
+	u32 in[MLX5_ST_SZ_DW(query_flow_counter_in)];
+	void *stats;
+	int err = 0;
+
+	memset(in, 0, sizeof(in));
+	memset(out, 0, sizeof(out));
+
+	MLX5_SET(query_flow_counter_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_FLOW_COUNTER);
+	MLX5_SET(query_flow_counter_in, in, op_mod, 0);
+	MLX5_SET(query_flow_counter_in, in, flow_counter_id, id);
+
+	err = mlx5_cmd_exec_check_status(dev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	stats = MLX5_ADDR_OF(query_flow_counter_out, out, flow_statistics);
+	*packets = MLX5_GET64(traffic_counter, stats, packets);
+	*bytes = MLX5_GET64(traffic_counter, stats, octets);
+
+	return 0;
+}
