@@ -173,7 +173,6 @@ struct rndis_device {
 
 /* Interface */
 struct rndis_message;
-struct netvsc_device;
 int netvsc_device_add(struct hv_device *device, void *additional_info);
 int netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
@@ -203,7 +202,7 @@ int rndis_filter_receive(struct hv_device *dev,
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
 int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac);
 
-void netvsc_switch_datapath(struct netvsc_device *nv_dev, bool vf);
+void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 
@@ -710,8 +709,6 @@ struct netvsc_device {
 
 	struct nvsp_message revoke_packet;
 	/* unsigned char HwMacAddr[HW_MACADDR_LEN]; */
-
-	struct net_device *ndev;
 
 	struct vmbus_channel *chn_table[VRSS_CHANNEL_MAX];
 	u32 send_table[VRSS_SEND_TAB_SIZE];

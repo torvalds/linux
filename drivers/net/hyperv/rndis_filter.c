@@ -1061,8 +1061,8 @@ int rndis_filter_device_add(struct hv_device *dev,
 	ret = rndis_filter_query_device(rndis_device,
 					RNDIS_OID_GEN_MAXIMUM_FRAME_SIZE,
 					&mtu, &size);
-	if (ret == 0 && size == sizeof(u32) && mtu < net_device->ndev->mtu)
-		net_device->ndev->mtu = mtu;
+	if (ret == 0 && size == sizeof(u32) && mtu < net->mtu)
+		net->mtu = mtu;
 
 	/* Get the mac address */
 	ret = rndis_filter_query_device_mac(rndis_device);

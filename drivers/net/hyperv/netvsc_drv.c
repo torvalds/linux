@@ -67,18 +67,19 @@ static void do_set_multicast(struct work_struct *w)
 {
 	struct net_device_context *ndevctx =
 		container_of(w, struct net_device_context, work);
-	struct netvsc_device *nvdev;
+	struct hv_device *device_obj = ndevctx->device_ctx;
+	struct net_device *ndev = hv_get_drvdata(device_obj);
+	struct netvsc_device *nvdev = ndevctx->nvdev;
 	struct rndis_device *rdev;
 
-	nvdev = ndevctx->nvdev;
-	if (nvdev == NULL || nvdev->ndev == NULL)
+	if (!nvdev)
 		return;
 
 	rdev = nvdev->extension;
 	if (rdev == NULL)
 		return;
 
-	if (nvdev->ndev->flags & IFF_PROMISC)
+	if (ndev->flags & IFF_PROMISC)
 		rndis_filter_set_packet_filter(rdev,
 			NDIS_PACKET_TYPE_PROMISCUOUS);
 	else
@@ -1050,15 +1051,15 @@ static const struct net_device_ops device_ops = {
  */
 static void netvsc_link_change(struct work_struct *w)
 {
-	struct net_device_context *ndev_ctx;
-	struct net_device *net;
+	struct net_device_context *ndev_ctx =
+		container_of(w, struct net_device_context, dwork.work);
+	struct hv_device *device_obj = ndev_ctx->device_ctx;
+	struct net_device *net = hv_get_drvdata(device_obj);
 	struct netvsc_device *net_device;
 	struct rndis_device *rdev;
 	struct netvsc_reconfig *event = NULL;
 	bool notify = false, reschedule = false;
 	unsigned long flags, next_reconfig, delay;
-
-	ndev_ctx = container_of(w, struct net_device_context, dwork.work);
 
 	rtnl_lock();
 	if (ndev_ctx->start_remove)
@@ -1066,7 +1067,6 @@ static void netvsc_link_change(struct work_struct *w)
 
 	net_device = ndev_ctx->nvdev;
 	rdev = net_device->extension;
-	net = net_device->ndev;
 
 	next_reconfig = ndev_ctx->last_reconfig + LINKCHANGE_INT;
 	if (time_is_after_jiffies(next_reconfig)) {
@@ -1167,10 +1167,9 @@ static void netvsc_notify_peers(struct work_struct *wrk)
 	atomic_dec(&gwrk->netvsc_dev->vf_use_cnt);
 }
 
-static struct netvsc_device *get_netvsc_device(char *mac)
+static struct net_device *get_netvsc_net_device(char *mac)
 {
-	struct net_device *dev;
-	struct net_device_context *netvsc_ctx = NULL;
+	struct net_device *dev, *found = NULL;
 	int rtnl_locked;
 
 	rtnl_locked = rtnl_trylock();
@@ -1179,21 +1178,20 @@ static struct netvsc_device *get_netvsc_device(char *mac)
 		if (memcmp(dev->dev_addr, mac, ETH_ALEN) == 0) {
 			if (dev->netdev_ops != &device_ops)
 				continue;
-			netvsc_ctx = netdev_priv(dev);
+			found = dev;
 			break;
 		}
 	}
 	if (rtnl_locked)
 		rtnl_unlock();
 
-	if (netvsc_ctx == NULL)
-		return NULL;
-
-	return netvsc_ctx->nvdev;
+	return found;
 }
 
 static int netvsc_register_vf(struct net_device *vf_netdev)
 {
+	struct net_device *ndev;
+	struct net_device_context *net_device_ctx;
 	struct netvsc_device *netvsc_dev;
 	const struct ethtool_ops *eth_ops = vf_netdev->ethtool_ops;
 
@@ -1205,11 +1203,16 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	 * associate with the VF interface. If we don't find a matching
 	 * synthetic interface, move on.
 	 */
-	netvsc_dev = get_netvsc_device(vf_netdev->dev_addr);
+	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
+	if (!ndev)
+		return NOTIFY_DONE;
+
+	net_device_ctx = netdev_priv(ndev);
+	netvsc_dev = net_device_ctx->nvdev;
 	if (netvsc_dev == NULL)
 		return NOTIFY_DONE;
 
-	netdev_info(netvsc_dev->ndev, "VF registering: %s\n", vf_netdev->name);
+	netdev_info(ndev, "VF registering: %s\n", vf_netdev->name);
 	/*
 	 * Take a reference on the module.
 	 */
@@ -1221,6 +1224,7 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 
 static int netvsc_vf_up(struct net_device *vf_netdev)
 {
+	struct net_device *ndev;
 	struct netvsc_device *netvsc_dev;
 	const struct ethtool_ops *eth_ops = vf_netdev->ethtool_ops;
 	struct net_device_context *net_device_ctx;
@@ -1228,13 +1232,17 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 	if (eth_ops == &ethtool_ops)
 		return NOTIFY_DONE;
 
-	netvsc_dev = get_netvsc_device(vf_netdev->dev_addr);
+	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
+	if (!ndev)
+		return NOTIFY_DONE;
+
+	net_device_ctx = netdev_priv(ndev);
+	netvsc_dev = net_device_ctx->nvdev;
 
 	if ((netvsc_dev == NULL) || (netvsc_dev->vf_netdev == NULL))
 		return NOTIFY_DONE;
 
-	netdev_info(netvsc_dev->ndev, "VF up: %s\n", vf_netdev->name);
-	net_device_ctx = netdev_priv(netvsc_dev->ndev);
+	netdev_info(ndev, "VF up: %s\n", vf_netdev->name);
 	netvsc_dev->vf_inject = true;
 
 	/*
@@ -1245,11 +1253,10 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 	/*
 	 * notify the host to switch the data path.
 	 */
-	netvsc_switch_datapath(netvsc_dev, true);
-	netdev_info(netvsc_dev->ndev, "Data path switched to VF: %s\n",
-		    vf_netdev->name);
+	netvsc_switch_datapath(ndev, true);
+	netdev_info(ndev, "Data path switched to VF: %s\n", vf_netdev->name);
 
-	netif_carrier_off(netvsc_dev->ndev);
+	netif_carrier_off(ndev);
 
 	/*
 	 * Now notify peers. We are scheduling work to
@@ -1267,6 +1274,7 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 
 static int netvsc_vf_down(struct net_device *vf_netdev)
 {
+	struct net_device *ndev;
 	struct netvsc_device *netvsc_dev;
 	struct net_device_context *net_device_ctx;
 	const struct ethtool_ops *eth_ops = vf_netdev->ethtool_ops;
@@ -1274,13 +1282,17 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 	if (eth_ops == &ethtool_ops)
 		return NOTIFY_DONE;
 
-	netvsc_dev = get_netvsc_device(vf_netdev->dev_addr);
+	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
+	if (!ndev)
+		return NOTIFY_DONE;
+
+	net_device_ctx = netdev_priv(ndev);
+	netvsc_dev = net_device_ctx->nvdev;
 
 	if ((netvsc_dev == NULL) || (netvsc_dev->vf_netdev == NULL))
 		return NOTIFY_DONE;
 
-	netdev_info(netvsc_dev->ndev, "VF down: %s\n", vf_netdev->name);
-	net_device_ctx = netdev_priv(netvsc_dev->ndev);
+	netdev_info(ndev, "VF down: %s\n", vf_netdev->name);
 	netvsc_dev->vf_inject = false;
 	/*
 	 * Wait for currently active users to
@@ -1289,16 +1301,15 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 
 	while (atomic_read(&netvsc_dev->vf_use_cnt) != 0)
 		udelay(50);
-	netvsc_switch_datapath(netvsc_dev, false);
-	netdev_info(netvsc_dev->ndev, "Data path switched from VF: %s\n",
-		    vf_netdev->name);
+	netvsc_switch_datapath(ndev, false);
+	netdev_info(ndev, "Data path switched from VF: %s\n", vf_netdev->name);
 	rndis_filter_close(net_device_ctx->device_ctx);
-	netif_carrier_on(netvsc_dev->ndev);
+	netif_carrier_on(ndev);
 	/*
 	 * Notify peers.
 	 */
 	atomic_inc(&netvsc_dev->vf_use_cnt);
-	net_device_ctx->gwrk.netdev = netvsc_dev->ndev;
+	net_device_ctx->gwrk.netdev = ndev;
 	net_device_ctx->gwrk.netvsc_dev = netvsc_dev;
 	schedule_work(&net_device_ctx->gwrk.dwrk);
 
@@ -1308,17 +1319,23 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 
 static int netvsc_unregister_vf(struct net_device *vf_netdev)
 {
+	struct net_device *ndev;
 	struct netvsc_device *netvsc_dev;
 	const struct ethtool_ops *eth_ops = vf_netdev->ethtool_ops;
+	struct net_device_context *net_device_ctx;
 
 	if (eth_ops == &ethtool_ops)
 		return NOTIFY_DONE;
 
-	netvsc_dev = get_netvsc_device(vf_netdev->dev_addr);
+	ndev = get_netvsc_net_device(vf_netdev->dev_addr);
+	if (!ndev)
+		return NOTIFY_DONE;
+
+	net_device_ctx = netdev_priv(ndev);
+	netvsc_dev = net_device_ctx->nvdev;
 	if (netvsc_dev == NULL)
 		return NOTIFY_DONE;
-	netdev_info(netvsc_dev->ndev, "VF unregistering: %s\n",
-		    vf_netdev->name);
+	netdev_info(ndev, "VF unregistering: %s\n", vf_netdev->name);
 
 	netvsc_dev->vf_netdev = NULL;
 	module_put(THIS_MODULE);
