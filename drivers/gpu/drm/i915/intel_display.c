@@ -5196,7 +5196,7 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 		int max_cdclk, vco;
 
 		vco = dev_priv->skl_preferred_vco_freq;
-		WARN_ON(vco != 8100 && vco != 8640);
+		WARN_ON(vco != 8100000 && vco != 8640000);
 
 		/*
 		 * Use the lower (vco 8640) cdclk values as a
@@ -5255,8 +5255,8 @@ static void intel_update_cdclk(struct drm_device *dev)
 	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
 
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d MHz\n",
-				 dev_priv->cdclk_freq, dev_priv->skl_vco_freq);
+		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d kHz\n",
+				 dev_priv->cdclk_freq, dev_priv->cdclk_pll.vco);
 	else
 		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
 				 dev_priv->cdclk_freq);
@@ -5436,7 +5436,7 @@ void broxton_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 static int skl_calc_cdclk(int max_pixclk, int vco)
 {
-	if (vco == 8640) {
+	if (vco == 8640000) {
 		if (max_pixclk > 540000)
 			return 617143;
 		else if (max_pixclk > 432000)
@@ -5446,7 +5446,6 @@ static int skl_calc_cdclk(int max_pixclk, int vco)
 		else
 			return 308571;
 	} else {
-		/* VCO 8100 */
 		if (max_pixclk > 540000)
 			return 675000;
 		else if (max_pixclk > 450000)
@@ -5465,7 +5464,7 @@ skl_dpll0_update(struct drm_i915_private *dev_priv)
 
 	val = I915_READ(LCPLL1_CTL);
 	if ((val & LCPLL_PLL_ENABLE) == 0) {
-		dev_priv->skl_vco_freq = 0;
+		dev_priv->cdclk_pll.vco = 0;
 		return;
 	}
 
@@ -5483,15 +5482,15 @@ skl_dpll0_update(struct drm_i915_private *dev_priv)
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1350, SKL_DPLL0):
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1620, SKL_DPLL0):
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2700, SKL_DPLL0):
-		dev_priv->skl_vco_freq = 8100;
+		dev_priv->cdclk_pll.vco = 8100000;
 		break;
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080, SKL_DPLL0):
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2160, SKL_DPLL0):
-		dev_priv->skl_vco_freq = 8640;
+		dev_priv->cdclk_pll.vco = 8640000;
 		break;
 	default:
 		MISSING_CASE(val & DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0));
-		dev_priv->skl_vco_freq = 0;
+		dev_priv->cdclk_pll.vco = 0;
 		break;
 	}
 }
@@ -5512,7 +5511,7 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 	int min_cdclk = skl_calc_cdclk(0, vco);
 	u32 val;
 
-	WARN_ON(vco != 8100 && vco != 8640);
+	WARN_ON(vco != 8100000 && vco != 8640000);
 
 	/* select the minimum CDCLK before enabling DPLL 0 */
 	val = CDCLK_FREQ_337_308 | skl_cdclk_decimal(min_cdclk);
@@ -5533,7 +5532,7 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 	val &= ~(DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) | DPLL_CTRL1_SSC(SKL_DPLL0) |
 		 DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0));
 	val |= DPLL_CTRL1_OVERRIDE(SKL_DPLL0);
-	if (vco == 8640)
+	if (vco == 8640000)
 		val |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080,
 					    SKL_DPLL0);
 	else
@@ -5548,7 +5547,7 @@ skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 	if (wait_for(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK, 5))
 		DRM_ERROR("DPLL0 not locked\n");
 
-	dev_priv->skl_vco_freq = vco;
+	dev_priv->cdclk_pll.vco = vco;
 
 	/* We'll want to keep using the current vco from now on. */
 	skl_set_preferred_cdclk_vco(dev_priv, vco);
@@ -5561,7 +5560,7 @@ skl_dpll0_disable(struct drm_i915_private *dev_priv)
 	if (wait_for(!(I915_READ(LCPLL1_CTL) & LCPLL_PLL_LOCK), 1))
 		DRM_ERROR("Couldn't disable DPLL0\n");
 
-	dev_priv->skl_vco_freq = 0;
+	dev_priv->cdclk_pll.vco = 0;
 }
 
 static bool skl_cdclk_pcu_ready(struct drm_i915_private *dev_priv)
@@ -5598,7 +5597,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk, int vco)
 
 	WARN_ON((cdclk == 24000) != (vco == 0));
 
-	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz (VCO %d MHz)\n", cdclk, vco);
+	DRM_DEBUG_DRIVER("Changing CDCLK to %d kHz (VCO %d kHz)\n", cdclk, vco);
 
 	if (!skl_cdclk_wait_for_pcu_ready(dev_priv)) {
 		DRM_ERROR("failed to inform PCU about cdclk change\n");
@@ -5629,11 +5628,11 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, int cdclk, int vco)
 		break;
 	}
 
-	if (dev_priv->skl_vco_freq != 0 &&
-	    dev_priv->skl_vco_freq != vco)
+	if (dev_priv->cdclk_pll.vco != 0 &&
+	    dev_priv->cdclk_pll.vco != vco)
 		skl_dpll0_disable(dev_priv);
 
-	if (dev_priv->skl_vco_freq != vco)
+	if (dev_priv->cdclk_pll.vco != vco)
 		skl_dpll0_enable(dev_priv, vco);
 
 	I915_WRITE(CDCLK_CTL, freq_select | skl_cdclk_decimal(cdclk));
@@ -5660,20 +5659,20 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 
 	skl_sanitize_cdclk(dev_priv);
 
-	if (dev_priv->cdclk_freq != 0 && dev_priv->skl_vco_freq != 0) {
+	if (dev_priv->cdclk_freq != 0 && dev_priv->cdclk_pll.vco != 0) {
 		/*
 		 * Use the current vco as our initial
 		 * guess as to what the preferred vco is.
 		 */
 		if (dev_priv->skl_preferred_vco_freq == 0)
 			skl_set_preferred_cdclk_vco(dev_priv,
-						    dev_priv->skl_vco_freq);
+						    dev_priv->cdclk_pll.vco);
 		return;
 	}
 
 	vco = dev_priv->skl_preferred_vco_freq;
 	if (vco == 0)
-		vco = 8100;
+		vco = 8100000;
 	cdclk = skl_calc_cdclk(0, vco);
 
 	skl_set_cdclk(dev_priv, cdclk, vco);
@@ -5723,7 +5722,7 @@ sanitize:
 	/* force cdclk programming */
 	dev_priv->cdclk_freq = 0;
 	/* force full PLL disable + enable */
-	dev_priv->skl_vco_freq = -1;
+	dev_priv->cdclk_pll.vco = -1;
 }
 
 /* Adjust CDclk dividers to allow high res or save power if possible */
@@ -6572,12 +6571,12 @@ static int skylake_get_display_clock_speed(struct drm_device *dev)
 
 	skl_dpll0_update(dev_priv);
 
-	if (dev_priv->skl_vco_freq == 0)
+	if (dev_priv->cdclk_pll.vco == 0)
 		return 24000; /* 24MHz is the cd freq with NSSC ref */
 
 	cdctl = I915_READ(CDCLK_CTL);
 
-	if (dev_priv->skl_vco_freq == 8640) {
+	if (dev_priv->cdclk_pll.vco == 8640000) {
 		switch (cdctl & CDCLK_FREQ_SEL_MASK) {
 		case CDCLK_FREQ_450_432:
 			return 432000;
@@ -12661,7 +12660,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	 */
 	if (dev_priv->display.modeset_calc_cdclk) {
 		if (!intel_state->cdclk_pll_vco)
-			intel_state->cdclk_pll_vco = dev_priv->skl_vco_freq;
+			intel_state->cdclk_pll_vco = dev_priv->cdclk_pll.vco;
 		if (!intel_state->cdclk_pll_vco)
 			intel_state->cdclk_pll_vco = dev_priv->skl_preferred_vco_freq;
 
@@ -12670,7 +12669,7 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 			return ret;
 
 		if (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
-		    intel_state->cdclk_pll_vco != dev_priv->skl_vco_freq)
+		    intel_state->cdclk_pll_vco != dev_priv->cdclk_pll.vco)
 			ret = intel_modeset_all_pipes(state);
 
 		if (ret < 0)
@@ -13157,7 +13156,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 		if (dev_priv->display.modeset_commit_cdclk &&
 		    (intel_state->dev_cdclk != dev_priv->cdclk_freq ||
-		     intel_state->cdclk_pll_vco != dev_priv->skl_vco_freq))
+		     intel_state->cdclk_pll_vco != dev_priv->cdclk_pll.vco))
 			dev_priv->display.modeset_commit_cdclk(state);
 
 		intel_modeset_verify_disabled(dev);
