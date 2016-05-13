@@ -12,7 +12,8 @@ config ARM64_PTDUMP
 	  who are working in architecture specific areas of the kernel.
 	  It is probably not a good idea to enable this feature in a production
 	  kernel.
-	  If in doubt, say "N"
+
+	  If in doubt, say N.
 
 config PID_IN_CONTEXTIDR
 	bool "Write the current PID to the CONTEXTIDR register"
@@ -38,15 +39,15 @@ config ARM64_RANDOMIZE_TEXT_OFFSET
 	  value.
 
 config DEBUG_SET_MODULE_RONX
-        bool "Set loadable kernel module data as NX and text as RO"
-        depends on MODULES
-        help
-          This option helps catch unintended modifications to loadable
-          kernel module's text and read-only data. It also prevents execution
-          of module data. Such protection may interfere with run-time code
-          patching and dynamic kernel tracing - and they might also protect
-          against certain classes of kernel exploits.
-          If in doubt, say "N".
+	bool "Set loadable kernel module data as NX and text as RO"
+	depends on MODULES
+	default y
+	help
+	  Is this is set, kernel module text and rodata will be made read-only.
+	  This is to help catch accidental or malicious attempts to change the
+	  kernel's executable code.
+
+	  If in doubt, say Y.
 
 config DEBUG_RODATA
 	bool "Make kernel text and rodata read-only"
@@ -56,7 +57,7 @@ config DEBUG_RODATA
 	  is to help catch accidental or malicious attempts to change the
 	  kernel's executable code.
 
-	  If in doubt, say Y
+	  If in doubt, say Y.
 
 config DEBUG_ALIGN_RODATA
 	depends on DEBUG_RODATA
@@ -69,7 +70,7 @@ config DEBUG_ALIGN_RODATA
 	  alignment and potentially wasted space. Turn on this option if
 	  performance is more important than memory pressure.
 
-	  If in doubt, say N
+	  If in doubt, say N.
 
 source "drivers/hwtracing/coresight/Kconfig"
 
