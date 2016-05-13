@@ -310,6 +310,10 @@ static bool pku_disabled;
 
 static __always_inline void setup_pku(struct cpuinfo_x86 *c)
 {
+	/* check the boot processor, plus compile options for PKU: */
+	if (!cpu_feature_enabled(X86_FEATURE_PKU))
+		return;
+	/* checks the actual processor's cpuid bits: */
 	if (!cpu_has(c, X86_FEATURE_PKU))
 		return;
 	if (pku_disabled)
