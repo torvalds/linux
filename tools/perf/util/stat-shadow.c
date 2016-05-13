@@ -188,7 +188,7 @@ static void print_stalled_cycles_backend(int cpu,
 
 	color = get_ratio_color(GRC_STALLED_CYCLES_BE, ratio);
 
-	out->print_metric(out->ctx, color, "%6.2f%%", "backend cycles idle", ratio);
+	out->print_metric(out->ctx, color, "%7.2f%%", "backend cycles idle", ratio);
 }
 
 static void print_branch_misses(int cpu,
