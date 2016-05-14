@@ -1123,7 +1123,17 @@ static int i915_pm_freeze(struct device *dev)
 
 static int i915_pm_freeze_late(struct device *dev)
 {
-	return i915_pm_suspend_late(dev);
+	int ret;
+
+	ret = i915_pm_suspend_late(dev);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_freeze_late(dev_to_i915(dev));
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 /* thaw: called after creating the hibernation image, but before turning off. */

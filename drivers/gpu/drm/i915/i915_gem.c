@@ -5054,6 +5054,34 @@ void i915_gem_load_cleanup(struct drm_device *dev)
 	kmem_cache_destroy(dev_priv->objects);
 }
 
+int i915_gem_freeze_late(struct drm_i915_private *dev_priv)
+{
+	struct drm_i915_gem_object *obj;
+
+	/* Called just before we write the hibernation image.
+	 *
+	 * We need to update the domain tracking to reflect that the CPU
+	 * will be accessing all the pages to create and restore from the
+	 * hibernation, and so upon restoration those pages will be in the
+	 * CPU domain.
+	 *
+	 * To make sure the hibernation image contains the latest state,
+	 * we update that state just before writing out the image.
+	 */
+
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
+		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+	}
+
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+	}
+
+	return 0;
+}
+
 void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
