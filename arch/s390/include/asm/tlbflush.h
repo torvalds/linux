@@ -5,6 +5,7 @@
 #include <linux/sched.h>
 #include <asm/processor.h>
 #include <asm/pgalloc.h>
+#include <asm/pgtable.h>
 
 /*
  * Flush all TLB entries on the local CPU.
@@ -44,17 +45,9 @@ void smp_ptlb_all(void);
  */
 static inline void __tlb_flush_global(void)
 {
-	register unsigned long reg2 asm("2");
-	register unsigned long reg3 asm("3");
-	register unsigned long reg4 asm("4");
-	long dummy;
+	unsigned int dummy = 0;
 
-	dummy = 0;
-	reg2 = reg3 = 0;
-	reg4 = ((unsigned long) &dummy) + 1;
-	asm volatile(
-		"	csp	%0,%2"
-		: : "d" (reg2), "d" (reg3), "d" (reg4), "m" (dummy) : "cc" );
+	csp(&dummy, 0, 0);
 }
 
 /*
