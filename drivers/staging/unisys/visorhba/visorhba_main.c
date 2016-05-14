@@ -1087,9 +1087,9 @@ static int visorhba_probe(struct visor_device *dev)
 	if (err < 0)
 		goto err_scsi_host_put;
 
-	scsihost->max_id = (unsigned)max.max_id;
-	scsihost->max_lun = (unsigned)max.max_lun;
-	scsihost->cmd_per_lun = (unsigned)max.cmd_per_lun;
+	scsihost->max_id = (unsigned int)max.max_id;
+	scsihost->max_lun = (unsigned int)max.max_lun;
+	scsihost->cmd_per_lun = (unsigned int)max.cmd_per_lun;
 	scsihost->max_sectors =
 	    (unsigned short)(max.max_io_size >> 9);
 	scsihost->sg_tablesize =
