@@ -1,0 +1,190 @@
+
+Firmware Management
+-------------------
+ Copyright 2016 Google Inc.
+ Copyright 2016 Linaro Ltd.
+
+Interface-Manifest
+------------------
+
+All firmware packages on the Modules or Interfaces are managed by a special
+Firmware Management Protocol. To support Firmware Management by the AP, the
+Interface Manifest shall at least contain the Firmware Management Bundle and a
+Firmware Management Protocol CPort within it.
+
+The bundle may contain additional CPorts based on the extra functionality
+required to manage firmware packages.
+
+For example, this is how the Firmware Management part of the Interface Manifest
+may look like:
+
+	; Firmware Management Bundle (Bundle 1):
+	[bundle-descriptor 1]
+	class = 0x16
+
+	; (Mandatory) Firmware Management Protocol on CPort 1
+	[cport-descriptor 2]
+	bundle = 1
+	protocol = 0x18
+
+	; (Optional) Firmware Download Protocol on CPort 2
+	[cport-descriptor 1]
+	bundle = 1
+	protocol = 0x17
+
+	; (Optional) SPI protocol on CPort 3
+	[cport-descriptor 3]
+	bundle = 1
+	protocol = 0x0b
+
+	; (Optional) Component Authentication Protocol (CAP) on CPort 4
+	[cport-descriptor 4]
+	bundle = 1
+	protocol = 0xXX //TBD
+
+
+
+Sysfs Interfaces - Firmware Management
+--------------------------------------
+
+The Firmware Management Protocol interacts with Userspace using the character
+device interface. The character device will be present in /dev/ directory
+and will be named fw-mgmt-<N>. The number <N> is assigned at runtime.
+
+Identifying the Character Device
+================================
+
+There can be multiple devices present in /dev/ directory with name fw-mgmt-N and
+user first needs to identify the character device used for firmware-management
+for a particular interface.
+
+The Firmware Management core creates a device of class 'gb_fw_mgmt', which shall
+be used by the user to identify the right character device for it. The class
+device is created within the Bundle directory for a particular Interface.
+
+For example this is how the class-device can be present:
+
+/sys/bus/greybus/devices/1-1/1-1.1/1-1.1.1/gb_fw_mgmt/fw-mgmt-0
+
+The last name in this path: fw-mgmt-0 is precisely the name of the char device
+and so the device in this case will be:
+
+/dev/fw-mgmt-0.
+
+Operations on the Char device
+=============================
+
+The Character device (fw-mgmt-0 in example) can be opened by the userspace
+application and it can perform various 'ioctl' operations on the device. The
+device doesn't support any read/write operations.
+
+Following are the IOCTLs and their data structures available to the user:
+
+/* IOCTL support */
+#define GB_FW_LOAD_METHOD_UNIPRO		0x01
+#define GB_FW_LOAD_METHOD_INTERNAL		0x02
+
+#define GB_FW_LOAD_STATUS_FAILED		0x00
+#define GB_FW_LOAD_STATUS_UNVALIDATED		0x01
+#define GB_FW_LOAD_STATUS_VALIDATED		0x02
+#define GB_FW_LOAD_STATUS_VALIDATION_FAILED	0x03
+
+#define GB_FW_BACKEND_FW_STATUS_SUCCESS		0x01
+#define GB_FW_BACKEND_FW_STATUS_FAIL_FIND	0x02
+#define GB_FW_BACKEND_FW_STATUS_FAIL_FETCH	0x03
+#define GB_FW_BACKEND_FW_STATUS_FAIL_WRITE	0x04
+#define GB_FW_BACKEND_FW_STATUS_INT		0x05
+
+struct fw_mgmt_ioc_get_fw {
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+	__u16			major;
+	__u16			minor;
+} __packed;
+
+struct fw_mgmt_ioc_intf_load_and_validate {
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+	__u8			load_method;
+	__u8			status;
+	__u16			major;
+	__u16			minor;
+} __packed;
+
+struct fw_mgmt_ioc_backend_fw_update {
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+	__u8			status;
+} __packed;
+
+#define FW_MGMT_IOCTL_BASE			'S'
+#define FW_MGMT_IOC_GET_INTF_FW			_IOR(FW_MGMT_IOCTL_BASE, 0, struct fw_mgmt_ioc_get_fw)
+#define FW_MGMT_IOC_GET_BACKEND_FW		_IOWR(FW_MGMT_IOCTL_BASE, 1, struct fw_mgmt_ioc_get_fw)
+#define FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE	_IOWR(FW_MGMT_IOCTL_BASE, 2, struct fw_mgmt_ioc_intf_load_and_validate)
+#define FW_MGMT_IOC_INTF_BACKEND_FW_UPDATE	_IOWR(FW_MGMT_IOCTL_BASE, 3, struct fw_mgmt_ioc_backend_fw_update)
+#define FW_MGMT_IOC_SET_TIMEOUT_MS		_IOW(FW_MGMT_IOCTL_BASE, 4, unsigned int)
+#define FW_MGMT_IOC_MODE_SWITCH			_IO(FW_MGMT_IOCTL_BASE, 5)
+
+1. FW_MGMT_IOC_GET_INTF_FW:
+
+   This ioctl shall be used the user to get the version and firmware-tag of the
+   currently running Interface Firmware. All the fields of the 'struct
+   fw_mgmt_ioc_get_fw' are filled by the kernel.
+
+2. FW_MGMT_IOC_GET_BACKEND_FW:
+
+   This ioctl shall be used the user to get the version of a currently running
+   Backend Interface Firmware identified by a firmware-tag. The user is required
+   to fill the 'firmware_tag' field of the 'struct fw_mgmt_ioc_get_fw' in this
+   case. The 'major' and 'minor' fields are set by the kernel in response.
+
+3. FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE:
+
+   This ioctl shall be used the user to load an Interface Firmware package on an
+   Interface. The user needs to fill the 'firmware_tag' and 'load_method' fields
+   of the 'struct fw_mgmt_ioc_intf_load_and_validate'. The 'status', 'major' and
+   'minor' fields are set by the kernel in response.
+
+4. FW_MGMT_IOC_INTF_BACKEND_FW_UPDATE:
+
+   This ioctl shall be used the user to request an Interface to update a Backend
+   Interface Firmware.  The user is required to fill the 'firmware_tag' field of
+   the 'struct fw_mgmt_ioc_get_fw' in this case. The 'status' field is set by
+   the kernel in response.
+
+5. FW_MGMT_IOC_SET_TIMEOUT_MS:
+
+   This ioctl shall be used the user to increase the timeout interval within
+   which the firmware must get loaded by the Module. The default timeout is 1
+   second. The user needs to pass the timeout in milliseconds.
+
+6. FW_MGMT_IOC_MODE_SWITCH:
+
+   This ioctl shall be used the user to mode-switch the module to the previously
+   loaded interface firmware. If the interface firmware isn't loaded previously,
+   or if another unsuccessful FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE operation is
+   started after loading interface firmware, then the firmware core wouldn't
+   allow mode-switch.
+
+
+Sysfs Interfaces - Firmware Download
+------------------------------------
+
+The Firmware Download Protocol uses the existing Linux Kernel's Firmware class
+and the interface provided to userspace are described in:
+Documentation/firmware_class/.
+
+
+Sysfs Interfaces - SPI Flash
+----------------------------
+
+The SPI flash is exposed in userspace as a MTD device and is created
+within the Bundle directory. For example, this is how the path may look like:
+
+$ ls /sys/bus/greybus/devices/1-1/1-1.1/1-1.1.1/spi_master/spi32766/spi32766.0/mtd
+mtd0    mtd0ro
+
+
+Sample Application
+------------------
+
+The current directly also provides a firmware.c test application, which can be
+referenced while developing userspace application to talk to firmware-management
+protocol.
