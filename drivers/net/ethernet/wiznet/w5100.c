@@ -173,11 +173,6 @@ struct w5100_priv {
 	struct work_struct restart_work;
 };
 
-static inline bool is_w5200(struct w5100_priv *priv)
-{
-	return priv->ops->chip_id == W5200;
-}
-
 /************************************************************************
  *
  *  Lowlevel I/O functions
