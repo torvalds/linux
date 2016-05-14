@@ -17,6 +17,13 @@ struct gb_fw_core {
 	struct gb_connection	*mgmt_connection;
 };
 
+struct gb_connection *to_fw_mgmt_connection(struct device *dev)
+{
+	struct gb_fw_core *fw_core = dev_get_drvdata(dev);
+
+	return fw_core->mgmt_connection;
+}
+
 static int gb_fw_core_probe(struct gb_bundle *bundle,
 			    const struct greybus_bundle_id *id)
 {
@@ -48,7 +55,7 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 			}
 
 			connection = gb_connection_create(bundle, cport_id,
-							  NULL);
+						gb_fw_mgmt_request_handler);
 			if (IS_ERR(connection)) {
 				ret = PTR_ERR(connection);
 				dev_err(&bundle->dev,
@@ -102,13 +109,23 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 		fw_core->download_connection = NULL;
 	}
 
+	ret = gb_fw_mgmt_connection_init(fw_core->mgmt_connection);
+	if (ret) {
+		/* We may still be able to work with the Interface */
+		dev_err(&bundle->dev, "failed to initialize firmware management connection, disable it (%d)\n",
+			ret);
+		goto err_exit_connections;
+	}
+
 	greybus_set_drvdata(bundle, fw_core);
 
 	return 0;
 
+err_exit_connections:
+	gb_fw_download_connection_exit(fw_core->download_connection);
 err_destroy_connections:
-	gb_connection_destroy(fw_core->download_connection);
 	gb_connection_destroy(fw_core->mgmt_connection);
+	gb_connection_destroy(fw_core->download_connection);
 err_free_fw_core:
 	kfree(fw_core);
 
@@ -119,9 +136,11 @@ static void gb_fw_core_disconnect(struct gb_bundle *bundle)
 {
 	struct gb_fw_core *fw_core = greybus_get_drvdata(bundle);
 
+	gb_fw_mgmt_connection_exit(fw_core->mgmt_connection);
 	gb_fw_download_connection_exit(fw_core->download_connection);
-	gb_connection_destroy(fw_core->download_connection);
+
 	gb_connection_destroy(fw_core->mgmt_connection);
+	gb_connection_destroy(fw_core->download_connection);
 
 	kfree(fw_core);
 }
@@ -140,13 +159,28 @@ static struct greybus_driver gb_fw_core_driver = {
 
 static int fw_core_init(void)
 {
-	return greybus_register(&gb_fw_core_driver);
+	int ret;
+
+	ret = fw_mgmt_init();
+	if (ret) {
+		pr_err("Failed to initialize fw-mgmt core (%d)\n", ret);
+		return ret;
+	}
+
+	ret = greybus_register(&gb_fw_core_driver);
+	if (ret) {
+		fw_mgmt_exit();
+		return ret;
+	}
+
+	return 0;
 }
 module_init(fw_core_init);
 
 static void __exit fw_core_exit(void)
 {
 	greybus_deregister(&gb_fw_core_driver);
+	fw_mgmt_exit();
 }
 module_exit(fw_core_exit);
 

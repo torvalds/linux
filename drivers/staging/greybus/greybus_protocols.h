@@ -250,6 +250,79 @@ struct gb_fw_download_release_firmware_request {
 /* firmware download release firmware response has no payload */
 
 
+/* Firmware Management Protocol */
+
+/* Request Types */
+#define GB_FW_MGMT_TYPE_INTERFACE_FW_VERSION	0x01
+#define GB_FW_MGMT_TYPE_LOAD_AND_VALIDATE_FW	0x02
+#define GB_FW_MGMT_TYPE_LOADED_FW		0x03
+#define GB_FW_MGMT_TYPE_BACKEND_FW_VERSION	0x04
+#define GB_FW_MGMT_TYPE_BACKEND_FW_UPDATE	0x05
+#define GB_FW_MGMT_TYPE_BACKEND_FW_UPDATED	0x06
+
+#define GB_FW_LOAD_METHOD_UNIPRO		0x01
+#define GB_FW_LOAD_METHOD_INTERNAL		0x02
+
+#define GB_FW_LOAD_STATUS_FAILED		0x00
+#define GB_FW_LOAD_STATUS_UNVALIDATED		0x01
+#define GB_FW_LOAD_STATUS_VALIDATED		0x02
+#define GB_FW_LOAD_STATUS_VALIDATION_FAILED	0x03
+
+#define GB_FW_BACKEND_FW_STATUS_SUCCESS		0x01
+#define GB_FW_BACKEND_FW_STATUS_FAIL_FIND	0x02
+#define GB_FW_BACKEND_FW_STATUS_FAIL_FETCH	0x03
+#define GB_FW_BACKEND_FW_STATUS_FAIL_WRITE	0x04
+#define GB_FW_BACKEND_FW_STATUS_INT		0x05
+
+/* firmware management interface firmware version request has no payload */
+struct gb_fw_mgmt_interface_fw_version_response {
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+	__le16			major;
+	__le16			minor;
+} __packed;
+
+/* firmware management load and validate firmware request/response */
+struct gb_fw_mgmt_load_and_validate_fw_request {
+	__u8			request_id;
+	__u8			load_method;
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+} __packed;
+/* firmware management load and validate firmware response has no payload*/
+
+/* firmware management loaded firmware request */
+struct gb_fw_mgmt_loaded_fw_request {
+	__u8			request_id;
+	__u8			status;
+	__le16			major;
+	__le16			minor;
+} __packed;
+/* firmware management loaded firmware response has no payload */
+
+/* firmware management backend firmware version request/response */
+struct gb_fw_mgmt_backend_fw_version_request {
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+} __packed;
+
+struct gb_fw_mgmt_backend_fw_version_response {
+	__le16			major;
+	__le16			minor;
+} __packed;
+
+/* firmware management backend firmware update request */
+struct gb_fw_mgmt_backend_fw_update_request {
+	__u8			request_id;
+	__u8			firmware_tag[GB_FIRMWARE_TAG_MAX_LEN];
+} __packed;
+/* firmware management backend firmware update response has no payload */
+
+/* firmware management backend firmware updated request */
+struct gb_fw_mgmt_backend_fw_updated_request {
+	__u8			request_id;
+	__u8			status;
+} __packed;
+/* firmware management backend firmware updated response has no payload */
+
+
 /* Bootrom Protocol */
 
 /* Version of the Greybus bootrom protocol we support */
