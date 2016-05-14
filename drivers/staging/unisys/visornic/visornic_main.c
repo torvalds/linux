@@ -1342,13 +1342,11 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
  *
  *	Setup initial values for the visornic based on channel and default
  *	values.
- *	Returns a pointer to the devdata if successful, else NULL
+ *	Returns a pointer to the devdata structure
  */
 static struct visornic_devdata *
 devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 {
-	if (!devdata)
-		return NULL;
 	devdata->dev = dev;
 	devdata->incarnation_id = get_jiffies_64();
 	return devdata;
