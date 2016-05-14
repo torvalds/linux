@@ -718,12 +718,13 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr,
 	return count;
 }
 
-void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr,
+int btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr,
 			      const u64 range_start, const u64 range_len)
 {
 	struct btrfs_root *root;
 	struct list_head splice;
 	int done;
+	int total_done = 0;
 
 	INIT_LIST_HEAD(&splice);
 
@@ -742,6 +743,7 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr,
 		done = btrfs_wait_ordered_extents(root, nr,
 						  range_start, range_len);
 		btrfs_put_fs_root(root);
+		total_done += done;
 
 		spin_lock(&fs_info->ordered_root_lock);
 		if (nr != -1) {
@@ -752,6 +754,8 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr,
 	list_splice_tail(&splice, &fs_info->ordered_roots);
 	spin_unlock(&fs_info->ordered_root_lock);
 	mutex_unlock(&fs_info->ordered_operations_mutex);
+
+	return total_done;
 }
 
 /*
