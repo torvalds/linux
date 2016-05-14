@@ -400,6 +400,7 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 	stat_dec_inline_dir(dir);
 	clear_inode_flag(F2FS_I(dir), FI_INLINE_DENTRY);
 
+	F2FS_I(dir)->i_current_depth = 1;
 	if (i_size_read(dir) < PAGE_SIZE) {
 		i_size_write(dir, PAGE_SIZE);
 		set_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
