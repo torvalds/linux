@@ -50,7 +50,7 @@ static void gpbdev_release(struct device *dev)
 	kfree(gpbdev);
 }
 
-struct device_type greybus_gpbdev_type = {
+static struct device_type greybus_gpbdev_type = {
 	.name	 =	"gpbridge_device",
 	.release =	gpbdev_release,
 };
