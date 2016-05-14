@@ -24,6 +24,9 @@
 struct fw_mgmt {
 	struct device		*parent;
 	struct gb_connection	*connection;
+	struct kref		kref;
+	struct list_head	node;
+
 	/* Common id-map for interface and backend firmware requests */
 	struct ida		id_map;
 	struct mutex		mutex;
@@ -32,6 +35,7 @@ struct fw_mgmt {
 	struct device		*class_device;
 	dev_t			dev_num;
 	unsigned int		timeout_jiffies;
+	bool			disabled; /* connection getting disabled */
 
 	/* Interface Firmware specific fields */
 	bool			mode_switch_started;
@@ -55,6 +59,48 @@ struct fw_mgmt {
 static struct class *fw_mgmt_class;
 static dev_t fw_mgmt_dev_num;
 static DEFINE_IDA(fw_mgmt_minors_map);
+static LIST_HEAD(fw_mgmt_list);
+static DEFINE_MUTEX(list_mutex);
+
+static void fw_mgmt_kref_release(struct kref *kref)
+{
+	struct fw_mgmt *fw_mgmt = container_of(kref, struct fw_mgmt, kref);
+
+	ida_destroy(&fw_mgmt->id_map);
+	kfree(fw_mgmt);
+}
+
+/*
+ * All users of fw_mgmt take a reference (from within list_mutex lock), before
+ * they get a pointer to play with. And the structure will be freed only after
+ * the last user has put the reference to it.
+ */
+static void put_fw_mgmt(struct fw_mgmt *fw_mgmt)
+{
+	kref_put(&fw_mgmt->kref, fw_mgmt_kref_release);
+}
+
+/* Caller must call put_fw_mgmt() after using struct fw_mgmt */
+static struct fw_mgmt *get_fw_mgmt(struct cdev *cdev)
+{
+	struct fw_mgmt *fw_mgmt;
+
+	mutex_lock(&list_mutex);
+
+	list_for_each_entry(fw_mgmt, &fw_mgmt_list, node) {
+		if (&fw_mgmt->cdev == cdev) {
+			kref_get(&fw_mgmt->kref);
+			goto unlock;
+		}
+	}
+
+	fw_mgmt = NULL;
+
+unlock:
+	mutex_unlock(&list_mutex);
+
+	return fw_mgmt;
+}
 
 static int fw_mgmt_interface_fw_version_operation(struct fw_mgmt *fw_mgmt,
 		struct fw_mgmt_ioc_get_fw *fw_info)
@@ -318,10 +364,22 @@ static int fw_mgmt_backend_fw_updated_operation(struct gb_operation *op)
 
 static int fw_mgmt_open(struct inode *inode, struct file *file)
 {
-	struct fw_mgmt *fw_mgmt = container_of(inode->i_cdev, struct fw_mgmt,
-					       cdev);
+	struct fw_mgmt *fw_mgmt = get_fw_mgmt(inode->i_cdev);
 
-	file->private_data = fw_mgmt;
+	/* fw_mgmt structure can't get freed until file descriptor is closed */
+	if (fw_mgmt) {
+		file->private_data = fw_mgmt;
+		return 0;
+	}
+
+	return -ENODEV;
+}
+
+static int fw_mgmt_release(struct inode *inode, struct file *file)
+{
+	struct fw_mgmt *fw_mgmt = file->private_data;
+
+	put_fw_mgmt(fw_mgmt);
 	return 0;
 }
 
@@ -437,18 +495,23 @@ static long fw_mgmt_ioctl_unlocked(struct file *file, unsigned int cmd,
 				   unsigned long arg)
 {
 	struct fw_mgmt *fw_mgmt = file->private_data;
-	int ret;
+	int ret = -ENODEV;
 
 	/*
-	 * Serialize ioctls
+	 * Serialize ioctls.
 	 *
 	 * We don't want the user to do few operations in parallel. For example,
 	 * updating Interface firmware in parallel for the same Interface. There
 	 * is no need to do things in parallel for speed and we can avoid having
-	 * complicated for now.
+	 * complicated code for now.
+	 *
+	 * This is also used to protect ->disabled, which is used to check if
+	 * the connection is getting disconnected, so that we don't start any
+	 * new operations.
 	 */
 	mutex_lock(&fw_mgmt->mutex);
-	ret = fw_mgmt_ioctl(fw_mgmt, cmd, (void __user *)arg);
+	if (!fw_mgmt->disabled)
+		ret = fw_mgmt_ioctl(fw_mgmt, cmd, (void __user *)arg);
 	mutex_unlock(&fw_mgmt->mutex);
 
 	return ret;
@@ -457,6 +520,7 @@ static long fw_mgmt_ioctl_unlocked(struct file *file, unsigned int cmd,
 static const struct file_operations fw_mgmt_fops = {
 	.owner		= THIS_MODULE,
 	.open		= fw_mgmt_open,
+	.release	= fw_mgmt_release,
 	.unlocked_ioctl	= fw_mgmt_ioctl_unlocked,
 };
 
@@ -496,10 +560,15 @@ int gb_fw_mgmt_connection_init(struct gb_connection *connection)
 	init_completion(&fw_mgmt->completion);
 	ida_init(&fw_mgmt->id_map);
 	mutex_init(&fw_mgmt->mutex);
+	kref_init(&fw_mgmt->kref);
+
+	mutex_lock(&list_mutex);
+	list_add(&fw_mgmt->node, &fw_mgmt_list);
+	mutex_unlock(&list_mutex);
 
 	ret = gb_connection_enable(connection);
 	if (ret)
-		goto err_destroy_ida;
+		goto err_list_del;
 
 	minor = ida_simple_get(&fw_mgmt_minors_map, 0, NUM_MINORS, GFP_KERNEL);
 	if (minor < 0) {
@@ -532,9 +601,12 @@ err_remove_ida:
 	ida_simple_remove(&fw_mgmt_minors_map, minor);
 err_connection_disable:
 	gb_connection_disable(connection);
-err_destroy_ida:
-	ida_destroy(&fw_mgmt->id_map);
-	kfree(fw_mgmt);
+err_list_del:
+	mutex_lock(&list_mutex);
+	list_del(&fw_mgmt->node);
+	mutex_unlock(&list_mutex);
+
+	put_fw_mgmt(fw_mgmt);
 
 	return ret;
 }
@@ -547,13 +619,33 @@ void gb_fw_mgmt_connection_exit(struct gb_connection *connection)
 		return;
 
 	fw_mgmt = gb_connection_get_data(connection);
+
 	device_destroy(fw_mgmt_class, fw_mgmt->dev_num);
 	cdev_del(&fw_mgmt->cdev);
 	ida_simple_remove(&fw_mgmt_minors_map, MINOR(fw_mgmt->dev_num));
-	gb_connection_disable(fw_mgmt->connection);
-	ida_destroy(&fw_mgmt->id_map);
 
-	kfree(fw_mgmt);
+	/*
+	 * Disallow any new ioctl operations on the char device and wait for
+	 * existing ones to finish.
+	 */
+	mutex_lock(&fw_mgmt->mutex);
+	fw_mgmt->disabled = true;
+	mutex_unlock(&fw_mgmt->mutex);
+
+	/* All pending greybus operations should have finished by now */
+	gb_connection_disable(fw_mgmt->connection);
+
+	/* Disallow new users to get access to the fw_mgmt structure */
+	mutex_lock(&list_mutex);
+	list_del(&fw_mgmt->node);
+	mutex_unlock(&list_mutex);
+
+	/*
+	 * All current users of fw_mgmt would have taken a reference to it by
+	 * now, we can drop our reference and wait the last user will get
+	 * fw_mgmt freed.
+	 */
+	put_fw_mgmt(fw_mgmt);
 }
 
 int fw_mgmt_init(void)
