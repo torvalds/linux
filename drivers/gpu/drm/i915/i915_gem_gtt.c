@@ -2477,6 +2477,13 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
+static void nop_clear_range(struct i915_address_space *vm,
+			    uint64_t start,
+			    uint64_t length,
+			    bool use_scratch)
+{
+}
+
 static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 				  uint64_t start,
 				  uint64_t length,
@@ -3072,13 +3079,16 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ret = ggtt_probe_common(dev, ggtt->size);
 
-	ggtt->base.clear_range = gen8_ggtt_clear_range;
-	if (IS_CHERRYVIEW(dev_priv))
-		ggtt->base.insert_entries = gen8_ggtt_insert_entries__BKL;
-	else
-		ggtt->base.insert_entries = gen8_ggtt_insert_entries;
 	ggtt->base.bind_vma = ggtt_bind_vma;
 	ggtt->base.unbind_vma = ggtt_unbind_vma;
+
+	ggtt->base.clear_range = nop_clear_range;
+	if (!USES_FULL_PPGTT(dev_priv))
+		ggtt->base.clear_range = gen8_ggtt_clear_range;
+
+	ggtt->base.insert_entries = gen8_ggtt_insert_entries;
+	if (IS_CHERRYVIEW(dev_priv))
+		ggtt->base.insert_entries = gen8_ggtt_insert_entries__BKL;
 
 	return ret;
 }
