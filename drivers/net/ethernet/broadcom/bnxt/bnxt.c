@@ -813,6 +813,46 @@ static inline struct sk_buff *bnxt_copy_skb(struct bnxt_napi *bnapi, u8 *data,
 	return skb;
 }
 
+static int bnxt_discard_rx(struct bnxt *bp, struct bnxt_napi *bnapi,
+			   u32 *raw_cons, void *cmp)
+{
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	struct rx_cmp *rxcmp = cmp;
+	u32 tmp_raw_cons = *raw_cons;
+	u8 cmp_type, agg_bufs = 0;
+
+	cmp_type = RX_CMP_TYPE(rxcmp);
+
+	if (cmp_type == CMP_TYPE_RX_L2_CMP) {
+		agg_bufs = (le32_to_cpu(rxcmp->rx_cmp_misc_v1) &
+			    RX_CMP_AGG_BUFS) >>
+			   RX_CMP_AGG_BUFS_SHIFT;
+	} else if (cmp_type == CMP_TYPE_RX_L2_TPA_END_CMP) {
+		struct rx_tpa_end_cmp *tpa_end = cmp;
+
+		agg_bufs = (le32_to_cpu(tpa_end->rx_tpa_end_cmp_misc_v1) &
+			    RX_TPA_END_CMP_AGG_BUFS) >>
+			   RX_TPA_END_CMP_AGG_BUFS_SHIFT;
+	}
+
+	if (agg_bufs) {
+		if (!bnxt_agg_bufs_valid(bp, cpr, agg_bufs, &tmp_raw_cons))
+			return -EBUSY;
+	}
+	*raw_cons = tmp_raw_cons;
+	return 0;
+}
+
+static void bnxt_sched_reset(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
+{
+	if (!rxr->bnapi->in_reset) {
+		rxr->bnapi->in_reset = true;
+		set_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event);
+		schedule_work(&bp->sp_task);
+	}
+	rxr->rx_next_cons = 0xffff;
+}
+
 static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 			   struct rx_tpa_start_cmp *tpa_start,
 			   struct rx_tpa_start_cmp_ext *tpa_start1)
@@ -829,6 +869,11 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
 	prod_rx_buf = &rxr->rx_buf_ring[prod];
 	tpa_info = &rxr->rx_tpa[agg_id];
+
+	if (unlikely(cons != rxr->rx_next_cons)) {
+		bnxt_sched_reset(bp, rxr);
+		return;
+	}
 
 	prod_rx_buf->data = tpa_info->data;
 
@@ -867,6 +912,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 
 	rxr->rx_prod = NEXT_RX(prod);
 	cons = NEXT_RX(cons);
+	rxr->rx_next_cons = NEXT_RX(cons);
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
 
 	bnxt_reuse_rx_data(rxr, cons, cons_rx_buf->data);
@@ -979,6 +1025,14 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 	struct bnxt_tpa_info *tpa_info;
 	dma_addr_t mapping;
 	struct sk_buff *skb;
+
+	if (unlikely(bnapi->in_reset)) {
+		int rc = bnxt_discard_rx(bp, bnapi, raw_cons, tpa_end);
+
+		if (rc < 0)
+			return ERR_PTR(-EBUSY);
+		return NULL;
+	}
 
 	tpa_info = &rxr->rx_tpa[agg_id];
 	data = tpa_info->data;
@@ -1146,6 +1200,12 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	cons = rxcmp->rx_cmp_opaque;
 	rx_buf = &rxr->rx_buf_ring[cons];
 	data = rx_buf->data;
+	if (unlikely(cons != rxr->rx_next_cons)) {
+		int rc1 = bnxt_discard_rx(bp, bnapi, raw_cons, rxcmp);
+
+		bnxt_sched_reset(bp, rxr);
+		return rc1;
+	}
 	prefetch(data);
 
 	agg_bufs = (le32_to_cpu(rxcmp->rx_cmp_misc_v1) & RX_CMP_AGG_BUFS) >>
@@ -1245,6 +1305,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 
 next_rx:
 	rxr->rx_prod = NEXT_RX(prod);
+	rxr->rx_next_cons = NEXT_RX(cons);
 
 next_rx_no_prod:
 	*raw_cons = tmp_raw_cons;
@@ -2486,6 +2547,7 @@ static void bnxt_clear_ring_indices(struct bnxt *bp)
 			rxr->rx_prod = 0;
 			rxr->rx_agg_prod = 0;
 			rxr->rx_sw_agg_prod = 0;
+			rxr->rx_next_cons = 0;
 		}
 	}
 }
@@ -4462,6 +4524,7 @@ static void bnxt_enable_napi(struct bnxt *bp)
 	int i;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
+		bp->bnapi[i]->in_reset = false;
 		bnxt_enable_poll(bp->bnapi[i]);
 		napi_enable(&bp->bnapi[i]->napi);
 	}
