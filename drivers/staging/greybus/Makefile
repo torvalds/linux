@@ -40,6 +40,7 @@ gb-pwm-y := pwm.o
 gb-gpio-y := gpio.o
 gb-i2c-y := i2c.o
 gb-usb-y := usb.o
+gb-spi-y := spi.o
 
 obj-m += greybus.o
 obj-m += gb-gpbridge.o
@@ -69,6 +70,7 @@ obj-m += gb-pwm.o
 obj-m += gb-gpio.o
 obj-m += gb-i2c.o
 obj-m += gb-usb.o
+obj-m += gb-spi.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
