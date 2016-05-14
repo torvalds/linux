@@ -464,12 +464,15 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
 				struct f2fs_inline_dentry *inline_dentry)
 {
 	struct f2fs_inline_dentry *backup_dentry;
+	struct f2fs_inode_info *fi = F2FS_I(dir);
 	int err;
 
 	backup_dentry = f2fs_kmalloc(sizeof(struct f2fs_inline_dentry),
 							GFP_F2FS_ZERO);
-	if (!backup_dentry)
+	if (!backup_dentry) {
+		f2fs_put_page(ipage, 1);
 		return -ENOMEM;
+	}
 
 	memcpy(backup_dentry, inline_dentry, MAX_INLINE_DATA);
 	truncate_inline_inode(ipage, 0);
@@ -483,13 +486,14 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
 	lock_page(ipage);
 
 	stat_dec_inline_dir(dir);
-	clear_inode_flag(F2FS_I(dir), FI_INLINE_DENTRY);
+	clear_inode_flag(fi, FI_INLINE_DENTRY);
 	update_inode(dir, ipage);
 	kfree(backup_dentry);
 	return 0;
 recover:
 	lock_page(ipage);
 	memcpy(inline_dentry, backup_dentry, MAX_INLINE_DATA);
+	fi->i_current_depth = 0;
 	i_size_write(dir, MAX_INLINE_DATA);
 	update_inode(dir, ipage);
 	f2fs_put_page(ipage, 1);
