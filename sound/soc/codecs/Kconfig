@@ -84,6 +84,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98925 if I2C
 	select SND_SOC_MAX98926 if I2C
 	select SND_SOC_MAX9850 if I2C
+	select SND_SOC_MAX9860 if I2C
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
@@ -546,6 +547,11 @@ config SND_SOC_MAX98926
 
 config SND_SOC_MAX9850
 	tristate
+
+config SND_SOC_MAX9860
+	tristate "Maxim MAX9860 Mono Audio Voice Codec"
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
