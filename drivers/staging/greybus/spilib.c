@@ -1,8 +1,8 @@
 /*
- * SPI bridge driver for the Greybus "generic" SPI module.
+ * Greybus SPI library
  *
- * Copyright 2014-2015 Google Inc.
- * Copyright 2014-2015 Linaro Ltd.
+ * Copyright 2014-2016 Google Inc.
+ * Copyright 2014-2016 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -15,10 +15,11 @@
 
 #include "greybus.h"
 #include "gpbridge.h"
+#include "spilib.h"
 
-struct gb_spi {
+struct gb_spilib {
 	struct gb_connection	*connection;
-	struct gpbridge_device	*gpbdev;
+	struct device		*parent;
 	struct spi_transfer	*first_xfer;
 	struct spi_transfer	*last_xfer;
 	u32			rx_xfer_offset;
@@ -42,7 +43,7 @@ struct gb_spi {
 
 #define XFER_TIMEOUT_TOLERANCE		200
 
-static struct spi_master *get_master_from_spi(struct gb_spi *spi)
+static struct spi_master *get_master_from_spi(struct gb_spilib *spi)
 {
 	return gb_connection_get_data(spi->connection);
 }
@@ -92,7 +93,7 @@ static size_t calc_tx_xfer_size(u32 tx_size, u32 count, size_t len,
 	return len;
 }
 
-static void clean_xfer_state(struct gb_spi *spi)
+static void clean_xfer_state(struct gb_spilib *spi)
 {
 	spi->first_xfer = NULL;
 	spi->last_xfer = NULL;
@@ -102,7 +103,7 @@ static void clean_xfer_state(struct gb_spi *spi)
 	spi->op_timeout = 0;
 }
 
-static int setup_next_xfer(struct gb_spi *spi, struct spi_message *msg)
+static int setup_next_xfer(struct gb_spilib *spi, struct spi_message *msg)
 {
 	struct spi_transfer *last_xfer = spi->last_xfer;
 
@@ -149,9 +150,8 @@ static struct spi_transfer *get_next_xfer(struct spi_transfer *xfer,
 }
 
 /* Routines to transfer data */
-static struct gb_operation *
-gb_spi_operation_create(struct gb_spi *spi, struct gb_connection *connection,
-			struct spi_message *msg)
+static struct gb_operation *gb_spi_operation_create(struct gb_spilib *spi,
+		struct gb_connection *connection, struct spi_message *msg)
 {
 	struct gb_spi_transfer_request *request;
 	struct spi_device *dev = msg->spi;
@@ -175,7 +175,7 @@ gb_spi_operation_create(struct gb_spi *spi, struct gb_connection *connection,
 		spi->last_xfer = xfer;
 
 		if (!xfer->tx_buf && !xfer->rx_buf) {
-			dev_err(&spi->gpbdev->dev,
+			dev_err(spi->parent,
 				"bufferless transfer, length %u\n", xfer->len);
 			msg->state = GB_SPI_STATE_MSG_ERROR;
 			return NULL;
@@ -279,7 +279,8 @@ gb_spi_operation_create(struct gb_spi *spi, struct gb_connection *connection,
 	return operation;
 }
 
-static void gb_spi_decode_response(struct gb_spi *spi, struct spi_message *msg,
+static void gb_spi_decode_response(struct gb_spilib *spi,
+				   struct spi_message *msg,
 				   struct gb_spi_transfer_response *response)
 {
 	struct spi_transfer *xfer = spi->first_xfer;
@@ -311,7 +312,7 @@ static void gb_spi_decode_response(struct gb_spi *spi, struct spi_message *msg,
 static int gb_spi_transfer_one_message(struct spi_master *master,
 				       struct spi_message *msg)
 {
-	struct gb_spi *spi = spi_master_get_devdata(master);
+	struct gb_spilib *spi = spi_master_get_devdata(master);
 	struct gb_connection *connection = spi->connection;
 	struct gb_spi_transfer_response *response;
 	struct gb_operation *operation;
@@ -343,7 +344,7 @@ static int gb_spi_transfer_one_message(struct spi_master *master,
 			if (response)
 				gb_spi_decode_response(spi, msg, response);
 		} else {
-			dev_err(&spi->gpbdev->dev,
+			dev_err(spi->parent,
 				"transfer operation failed: %d\n", ret);
 			msg->state = GB_SPI_STATE_MSG_ERROR;
 		}
@@ -381,7 +382,7 @@ static void gb_spi_cleanup(struct spi_device *spi)
 #define gb_spi_mode_map(mode) mode
 #define gb_spi_flags_map(flags) flags
 
-static int gb_spi_get_master_config(struct gb_spi *spi)
+static int gb_spi_get_master_config(struct gb_spilib *spi)
 {
 	struct gb_spi_master_config_response response;
 	u16 mode, flags;
@@ -407,7 +408,7 @@ static int gb_spi_get_master_config(struct gb_spi *spi)
 	return 0;
 }
 
-static int gb_spi_setup_device(struct gb_spi *spi, u8 cs)
+static int gb_spi_setup_device(struct gb_spilib *spi, u8 cs)
 {
 	struct spi_master *master = get_master_from_spi(spi);
 	struct gb_spi_device_config_request request;
@@ -451,48 +452,29 @@ static int gb_spi_setup_device(struct gb_spi *spi, u8 cs)
 	return 0;
 }
 
-static int gb_spi_probe(struct gpbridge_device *gpbdev,
-			const struct gpbridge_device_id *id)
+int gb_spilib_master_init(struct gb_connection *connection, struct device *dev)
 {
-	struct gb_connection *connection;
-	struct gb_spi *spi;
+	struct gb_spilib *spi;
 	struct spi_master *master;
 	int ret;
 	u8 i;
 
 	/* Allocate master with space for data */
-	master = spi_alloc_master(&gpbdev->dev, sizeof(*spi));
+	master = spi_alloc_master(dev, sizeof(*spi));
 	if (!master) {
-		dev_err(&gpbdev->dev, "cannot alloc SPI master\n");
+		dev_err(dev, "cannot alloc SPI master\n");
 		return -ENOMEM;
-	}
-
-	connection = gb_connection_create(gpbdev->bundle,
-					  le16_to_cpu(gpbdev->cport_desc->id),
-					  NULL);
-	if (IS_ERR(connection)) {
-		ret = PTR_ERR(connection);
-		goto exit_spi_put;
 	}
 
 	spi = spi_master_get_devdata(master);
 	spi->connection = connection;
 	gb_connection_set_data(connection, master);
-	spi->gpbdev = gpbdev;
-	gb_gpbridge_set_data(gpbdev, master);
-
-	ret = gb_connection_enable(connection);
-	if (ret)
-		goto exit_connection_destroy;
-
-	ret = gb_gpbridge_get_version(connection);
-	if (ret)
-		goto exit_connection_disable;
+	spi->parent = dev;
 
 	/* get master configuration */
 	ret = gb_spi_get_master_config(spi);
 	if (ret)
-		goto exit_connection_disable;
+		goto exit_spi_put;
 
 	master->bus_num = -1; /* Allow spi-core to allocate it dynamically */
 	master->num_chipselect = spi->num_chipselect;
@@ -507,43 +489,81 @@ static int gb_spi_probe(struct gpbridge_device *gpbdev,
 
 	ret = spi_register_master(master);
 	if (ret < 0)
-		goto exit_connection_disable;
+		goto exit_spi_put;
 
 	/* now, fetch the devices configuration */
 	for (i = 0; i < spi->num_chipselect; i++) {
 		ret = gb_spi_setup_device(spi, i);
 		if (ret < 0) {
-			dev_err(&gpbdev->dev,
-				"failed to allocate spi device %d: %d\n",
+			dev_err(dev, "failed to allocate spi device %d: %d\n",
 				i, ret);
 			goto exit_spi_unregister;
 		}
 	}
 
-	return ret;
+	return 0;
 
 exit_spi_unregister:
 	spi_unregister_master(master);
+exit_spi_put:
+	spi_master_put(master);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gb_spilib_master_init);
+
+void gb_spilib_master_exit(struct gb_connection *connection)
+{
+	struct spi_master *master = gb_connection_get_data(connection);
+
+	spi_unregister_master(master);
+	spi_master_put(master);
+}
+EXPORT_SYMBOL_GPL(gb_spilib_master_exit);
+
+static int gb_spi_probe(struct gpbridge_device *gpbdev,
+			const struct gpbridge_device_id *id)
+{
+	struct gb_connection *connection;
+	int ret;
+
+	connection = gb_connection_create(gpbdev->bundle,
+					  le16_to_cpu(gpbdev->cport_desc->id),
+					  NULL);
+	if (IS_ERR(connection))
+		return PTR_ERR(connection);
+
+	ret = gb_connection_enable(connection);
+	if (ret)
+		goto exit_connection_destroy;
+
+	ret = gb_gpbridge_get_version(connection);
+	if (ret)
+		goto exit_connection_disable;
+
+	ret = gb_spilib_master_init(connection, &gpbdev->dev);
+	if (ret)
+		goto exit_connection_disable;
+
+	gb_gpbridge_set_data(gpbdev, connection);
+
+	return 0;
+
 exit_connection_disable:
 	gb_connection_disable(connection);
 exit_connection_destroy:
 	gb_connection_destroy(connection);
-exit_spi_put:
-	spi_master_put(master);
 
 	return ret;
 }
 
 static void gb_spi_remove(struct gpbridge_device *gpbdev)
 {
-	struct spi_master *master = gb_gpbridge_get_data(gpbdev);
-	struct gb_spi *spi = spi_master_get_devdata(master);
-	struct gb_connection *connection = spi->connection;
+	struct gb_connection *connection = gb_gpbridge_get_data(gpbdev);
 
-	spi_unregister_master(master);
+	gb_spilib_master_exit(connection);
 	gb_connection_disable(connection);
 	gb_connection_destroy(connection);
-	spi_master_put(master);
 }
 
 static const struct gpbridge_device_id gb_spi_id_table[] = {
