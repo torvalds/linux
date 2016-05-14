@@ -1137,7 +1137,7 @@ repost_return(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
  *
  *	Got a receive packet back from the IO Part, handle it and send
  *	it up the stack.
- *	Returns void
+ *	Returns 1 iff an skb was receieved, otherwise 0
  */
 static int
 visornic_rx(struct uiscmdrsp *cmdrsp)
@@ -1148,7 +1148,6 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	int cc, currsize, off;
 	struct ethhdr *eth;
 	unsigned long flags;
-	int rx_count = 0;
 
 	/* post new rcv buf to the other end using the cmdrsp we have at hand
 	 * post it without holding lock - but we'll use the signal lock to
@@ -1180,7 +1179,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		 */
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return rx_count;
+		return 0;
 	}
 
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
@@ -1199,7 +1198,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return rx_count;
+			return 0;
 		}
 		/* length rcvd is greater than firstfrag in this skb rcv buf  */
 		skb->tail += RCVPOST_BUF_SIZE;	/* amount in skb->data */
@@ -1215,7 +1214,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return rx_count;
+			return 0;
 		}
 		skb->tail += skb->len;
 		skb->data_len = 0;	/* nothing rcvd in frag_list */
@@ -1234,7 +1233,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	if (cmdrsp->net.rcv.rcvbuf[0] != skb) {
 		if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 			dev_err(&devdata->netdev->dev, "repost_return failed");
-		return rx_count;
+		return 0;
 	}
 
 	if (cmdrsp->net.rcv.numrcvbufs > 1) {
@@ -1316,10 +1315,9 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		/* drop packet - don't forward it up to OS */
 		devdata->n_rcv_packets_not_accepted++;
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return rx_count;
+		return 0;
 	} while (0);
 
-	rx_count++;
 	netif_receive_skb(skb);
 	/* netif_rx returns various values, but "in practice most drivers
 	 * ignore the return value
@@ -1332,7 +1330,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	 * new rcv buffer.
 	 */
 	repost_return(cmdrsp, devdata, skb, netdev);
-	return rx_count;
+	return 1;
 }
 
 /**
