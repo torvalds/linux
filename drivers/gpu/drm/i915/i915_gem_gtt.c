@@ -3245,7 +3245,6 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
-	bool flush;
 
 	i915_check_and_clear_faults(dev_priv);
 
@@ -3255,19 +3254,16 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 
 	/* Cache flush objects bound into GGTT and rebind them. */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		flush = false;
 		list_for_each_entry(vma, &obj->vma_list, obj_link) {
 			if (vma->vm != &ggtt->base)
 				continue;
 
 			WARN_ON(i915_vma_bind(vma, obj->cache_level,
 					      PIN_UPDATE));
-
-			flush = true;
 		}
 
-		if (flush)
-			i915_gem_clflush_object(obj, obj->pin_display);
+		if (obj->pin_display)
+			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
 	}
 
 	if (INTEL_INFO(dev)->gen >= 8) {
