@@ -624,6 +624,7 @@ pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
 {
 	return vma_hugecache_offset(hstate_vma(vma), vma, address);
 }
+EXPORT_SYMBOL_GPL(linear_hugepage_index);
 
 /*
  * Return the size of the pages allocated when backing a VMA. In the majority
