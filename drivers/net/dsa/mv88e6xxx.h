@@ -543,7 +543,6 @@ struct mv88e6xxx_vtu_stu_entry {
 
 struct mv88e6xxx_priv_port {
 	struct net_device *bridge_dev;
-	u8 state;
 };
 
 struct mv88e6xxx_priv_state {
@@ -592,10 +591,6 @@ struct mv88e6xxx_priv_state {
 	struct mutex eeprom_mutex;
 
 	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
-
-	DECLARE_BITMAP(port_state_update_mask, DSA_MAX_PORTS);
-
-	struct work_struct bridge_work;
 
 	/* A switch may have a GPIO line tied to its reset pin. Parse
 	 * this from the device tree, and use it before performing

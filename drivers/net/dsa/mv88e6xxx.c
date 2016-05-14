@@ -1373,6 +1373,7 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int stp_state;
+	int err;
 
 	if (!mv88e6xxx_has(ps, MV88E6XXX_FLAG_PORTSTATE))
 		return;
@@ -1394,12 +1395,13 @@ static void mv88e6xxx_port_stp_state_set(struct dsa_switch *ds, int port,
 		break;
 	}
 
-	/* mv88e6xxx_port_stp_state_set may be called with softirqs disabled,
-	 * so we can not update the port state directly but need to schedule it.
-	 */
-	ps->ports[port].state = stp_state;
-	set_bit(port, ps->port_state_update_mask);
-	schedule_work(&ps->bridge_work);
+	mutex_lock(&ps->smi_mutex);
+	err = _mv88e6xxx_port_state(ps, port, stp_state);
+	mutex_unlock(&ps->smi_mutex);
+
+	if (err)
+		netdev_err(ds->ports[port], "failed to update state to %s\n",
+			   mv88e6xxx_port_state_names[stp_state]);
 }
 
 static int _mv88e6xxx_port_pvid(struct mv88e6xxx_priv_state *ps, int port,
@@ -2535,27 +2537,6 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 	mutex_unlock(&ps->smi_mutex);
 }
 
-static void mv88e6xxx_bridge_work(struct work_struct *work)
-{
-	struct mv88e6xxx_priv_state *ps;
-	struct dsa_switch *ds;
-	int port;
-
-	ps = container_of(work, struct mv88e6xxx_priv_state, bridge_work);
-	ds = ps->ds;
-
-	mutex_lock(&ps->smi_mutex);
-
-	for (port = 0; port < ps->info->num_ports; ++port)
-		if (test_and_clear_bit(port, ps->port_state_update_mask) &&
-		    _mv88e6xxx_port_state(ps, port, ps->ports[port].state))
-			netdev_warn(ds->ports[port],
-				    "failed to update state to %s\n",
-				    mv88e6xxx_port_state_names[ps->ports[port].state]);
-
-	mutex_unlock(&ps->smi_mutex);
-}
-
 static int _mv88e6xxx_phy_page_write(struct mv88e6xxx_priv_state *ps,
 				     int port, int page, int reg, int val)
 {
@@ -3144,8 +3125,6 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 	int i;
 
 	ps->ds = ds;
-
-	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
 
 	if (mv88e6xxx_has(ps, MV88E6XXX_FLAG_EEPROM))
 		mutex_init(&ps->eeprom_mutex);
