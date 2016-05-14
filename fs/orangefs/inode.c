@@ -294,7 +294,7 @@ int orangefs_permission(struct inode *inode, int mask)
 }
 
 /* ORANGEDS2 implementation of VFS inode operations for files */
-struct inode_operations orangefs_file_inode_operations = {
+const struct inode_operations orangefs_file_inode_operations = {
 	.get_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
 	.setattr = orangefs_setattr,

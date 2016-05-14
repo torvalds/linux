@@ -570,10 +570,10 @@ extern int hash_table_size;
 
 extern const struct address_space_operations orangefs_address_operations;
 extern struct backing_dev_info orangefs_backing_dev_info;
-extern struct inode_operations orangefs_file_inode_operations;
+extern const struct inode_operations orangefs_file_inode_operations;
 extern const struct file_operations orangefs_file_operations;
-extern struct inode_operations orangefs_symlink_inode_operations;
-extern struct inode_operations orangefs_dir_inode_operations;
+extern const struct inode_operations orangefs_symlink_inode_operations;
+extern const struct inode_operations orangefs_dir_inode_operations;
 extern const struct file_operations orangefs_dir_operations;
 extern const struct dentry_operations orangefs_dentry_operations;
 extern const struct file_operations orangefs_devreq_file_operations;

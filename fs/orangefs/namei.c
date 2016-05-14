@@ -438,7 +438,7 @@ static int orangefs_rename(struct inode *old_dir,
 }
 
 /* ORANGEFS implementation of VFS inode operations for directories */
-struct inode_operations orangefs_dir_inode_operations = {
+const struct inode_operations orangefs_dir_inode_operations = {
 	.lookup = orangefs_lookup,
 	.get_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
