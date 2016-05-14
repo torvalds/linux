@@ -63,8 +63,9 @@ MODULE_LICENSE("GPL");
 #define S0_REGS(priv)		((priv)->s0_regs)
 
 #define W5100_S0_MR(priv)	(S0_REGS(priv) + W5100_Sn_MR)
-#define   S0_MR_MACRAW		  0x04 /* MAC RAW mode (promiscuous) */
-#define   S0_MR_MACRAW_MF	  0x44 /* MAC RAW mode (filtered) */
+#define   S0_MR_MACRAW		  0x04 /* MAC RAW mode */
+#define   S0_MR_MF		  0x40 /* MAC Filter for W5100 and W5200 */
+#define   W5500_S0_MR_MF	  0x80 /* MAC Filter for W5500 */
 #define W5100_S0_CR(priv)	(S0_REGS(priv) + W5100_Sn_CR)
 #define   S0_CR_OPEN		  0x01 /* OPEN command */
 #define   S0_CR_CLOSE		  0x10 /* CLOSE command */
@@ -702,8 +703,16 @@ static int w5100_hw_reset(struct w5100_priv *priv)
 
 static void w5100_hw_start(struct w5100_priv *priv)
 {
-	w5100_write(priv, W5100_S0_MR(priv), priv->promisc ?
-			  S0_MR_MACRAW : S0_MR_MACRAW_MF);
+	u8 mode = S0_MR_MACRAW;
+
+	if (!priv->promisc) {
+		if (priv->ops->chip_id == W5500)
+			mode |= W5500_S0_MR_MF;
+		else
+			mode |= S0_MR_MF;
+	}
+
+	w5100_write(priv, W5100_S0_MR(priv), mode);
 	w5100_command(priv, S0_CR_OPEN);
 	w5100_enable_intr(priv);
 }
