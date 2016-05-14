@@ -184,7 +184,7 @@ static void visor_thread_stop(struct task_struct *task)
  *	Partition so that it can be handled when it completes. If new is
  *	NULL it is assumed the entry refers only to the cmdrsp.
  *	Returns insert_location where entry was added,
- *	SCSI_MLQUEUE_DEVICE_BUSY if it can't
+ *	-EBUSY if it can't
  */
 static int add_scsipending_entry(struct visorhba_devdata *devdata,
 				 char cmdtype, void *new)
@@ -199,7 +199,7 @@ static int add_scsipending_entry(struct visorhba_devdata *devdata,
 		insert_location = (insert_location + 1) % MAX_PENDING_REQUESTS;
 		if (insert_location == (int)devdata->nextinsert) {
 			spin_unlock_irqrestore(&devdata->privlock, flags);
-			return -1;
+			return -EBUSY;
 		}
 	}
 
