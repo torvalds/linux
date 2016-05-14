@@ -40,13 +40,8 @@ struct cxd2841er_config {
 extern struct dvb_frontend *cxd2841er_attach_s(struct cxd2841er_config *cfg,
 					       struct i2c_adapter *i2c);
 
-extern struct dvb_frontend *cxd2841er_attach_t(struct cxd2841er_config *cfg,
+extern struct dvb_frontend *cxd2841er_attach_t_c(struct cxd2841er_config *cfg,
 					       struct i2c_adapter *i2c);
-
-extern struct dvb_frontend *cxd2841er_attach_c(struct cxd2841er_config *cfg,
-					       struct i2c_adapter *i2c);
-extern struct dvb_frontend *cxd2841er_attach_i(struct cxd2841er_config *cfg,
-		struct i2c_adapter *i2c);
 #else
 static inline struct dvb_frontend *cxd2841er_attach_s(
 					struct cxd2841er_config *cfg,
@@ -56,21 +51,7 @@ static inline struct dvb_frontend *cxd2841er_attach_s(
 	return NULL;
 }
 
-static inline struct dvb_frontend *cxd2841er_attach_t(
-		struct cxd2841er_config *cfg, struct i2c_adapter *i2c)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-
-static inline struct dvb_frontend *cxd2841er_attach_c(
-		struct cxd2841er_config *cfg, struct i2c_adapter *i2c)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-
-static inline struct dvb_frontend *cxd2841er_attach_i(
+static inline struct dvb_frontend *cxd2841er_attach_t_c(
 		struct cxd2841er_config *cfg, struct i2c_adapter *i2c)
 {
 	pr_warn("%s: driver disabled by Kconfig\n", __func__);

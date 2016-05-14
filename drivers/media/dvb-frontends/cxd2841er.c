@@ -54,6 +54,7 @@ struct cxd2841er_priv {
 	enum cxd2841er_state		state;
 	u8				system;
 	enum cxd2841er_xtal		xtal;
+	enum fe_caps caps;
 };
 
 static const struct cxd2841er_cnr_data s_cn_data[] = {
@@ -791,6 +792,7 @@ static int cxd2841er_shutdown_to_sleep_s(struct cxd2841er_priv *priv)
 static int cxd2841er_shutdown_to_sleep_tc(struct cxd2841er_priv *priv)
 {
 	u8 data = 0;
+
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	if (priv->state != STATE_SHUTDOWN) {
 		dev_dbg(&priv->i2c->dev, "%s(): invalid demod state %d\n",
@@ -2496,7 +2498,7 @@ static int cxd2841er_sleep_tc_to_active_c_band(struct cxd2841er_priv *priv,
 	u8 b10_b6[3];
 	u32 iffreq;
 
-	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+	dev_dbg(&priv->i2c->dev, "%s() bw=%d\n", __func__, bandwidth);
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
 	switch (bandwidth) {
 	case 8000000:
@@ -2513,7 +2515,7 @@ static int cxd2841er_sleep_tc_to_active_c_band(struct cxd2841er_priv *priv,
 		iffreq = MAKE_IFFREQ_CONFIG(3.7);
 		break;
 	default:
-		dev_dbg(&priv->i2c->dev, "%s(): unsupported bandwidth %d\n",
+		dev_err(&priv->i2c->dev, "%s(): unsupported bandwidth %d\n",
 			__func__, bandwidth);
 		return -EINVAL;
 	}
@@ -2909,7 +2911,7 @@ static int cxd2841er_sleep_tc_to_active_c(struct cxd2841er_priv *priv,
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xce, 0x01, 0x01);
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xcf, 0x01, 0x01);
 
-	cxd2841er_sleep_tc_to_active_c_band(priv, 8000000);
+	cxd2841er_sleep_tc_to_active_c_band(priv, bandwidth);
 	/* Set SLV-T Bank : 0x00 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x00);
 	/* Disable HiZ Setting 1 */
@@ -3029,7 +3031,8 @@ static int cxd2841er_set_frontend_tc(struct dvb_frontend *fe)
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
-	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+	dev_dbg(&priv->i2c->dev, "%s() delivery_system=%d bandwidth_hz=%d\n",
+		 __func__, p->delivery_system, p->bandwidth_hz);
 	if (p->delivery_system == SYS_DVBT) {
 		priv->system = SYS_DVBT;
 		switch (priv->state) {
@@ -3081,6 +3084,15 @@ static int cxd2841er_set_frontend_tc(struct dvb_frontend *fe)
 	} else if (p->delivery_system == SYS_DVBC_ANNEX_A ||
 			p->delivery_system == SYS_DVBC_ANNEX_C) {
 		priv->system = SYS_DVBC_ANNEX_A;
+		/* correct bandwidth */
+		if (p->bandwidth_hz != 6000000 &&
+				p->bandwidth_hz != 7000000 &&
+				p->bandwidth_hz != 8000000) {
+			p->bandwidth_hz = 8000000;
+			dev_dbg(&priv->i2c->dev, "%s(): forcing bandwidth to %d\n",
+					__func__, p->bandwidth_hz);
+		}
+
 		switch (priv->state) {
 		case STATE_SLEEP_TC:
 			ret = cxd2841er_sleep_tc_to_active_c(
@@ -3166,7 +3178,8 @@ static int cxd2841er_tune_tc(struct dvb_frontend *fe,
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
-	dev_dbg(&priv->i2c->dev, "%s(): re_tune %d\n", __func__, re_tune);
+	dev_dbg(&priv->i2c->dev, "%s(): re_tune %d bandwidth=%d\n", __func__,
+			re_tune, p->bandwidth_hz);
 	if (re_tune) {
 		ret = cxd2841er_set_frontend_tc(fe);
 		if (ret)
@@ -3396,8 +3409,10 @@ static int cxd2841er_init_s(struct dvb_frontend *fe)
 static int cxd2841er_init_tc(struct dvb_frontend *fe)
 {
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
-	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
+	dev_dbg(&priv->i2c->dev, "%s() bandwidth_hz=%d\n",
+			__func__, p->bandwidth_hz);
 	cxd2841er_shutdown_to_sleep_tc(priv);
 	/* SONY_DEMOD_CONFIG_IFAGCNEG = 1 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
@@ -3411,9 +3426,7 @@ static int cxd2841er_init_tc(struct dvb_frontend *fe)
 }
 
 static struct dvb_frontend_ops cxd2841er_dvbs_s2_ops;
-static struct dvb_frontend_ops cxd2841er_dvbt_t2_ops;
-static struct dvb_frontend_ops cxd2841er_dvbc_ops;
-static struct dvb_frontend_ops cxd2841er_isdbt_ops;
+static struct dvb_frontend_ops cxd2841er_t_c_ops;
 
 static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 					     struct i2c_adapter *i2c,
@@ -3421,6 +3434,7 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 {
 	u8 chip_id = 0;
 	const char *type;
+	const char *name;
 	struct cxd2841er_priv *priv = NULL;
 
 	/* allocate memory for the internal state */
@@ -3432,52 +3446,48 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 	priv->i2c_addr_slvx = (cfg->i2c_addr + 4) >> 1;
 	priv->i2c_addr_slvt = (cfg->i2c_addr) >> 1;
 	priv->xtal = cfg->xtal;
-	/* create dvb_frontend */
-	switch (system) {
-	case SYS_DVBS:
-		memcpy(&priv->frontend.ops,
-			&cxd2841er_dvbs_s2_ops,
-			sizeof(struct dvb_frontend_ops));
-		type = "S/S2";
-		break;
-	case SYS_DVBT:
-		memcpy(&priv->frontend.ops,
-			&cxd2841er_dvbt_t2_ops,
-			sizeof(struct dvb_frontend_ops));
-		type = "T/T2";
-		break;
-	case SYS_ISDBT:
-		memcpy(&priv->frontend.ops,
-				&cxd2841er_isdbt_ops,
-				sizeof(struct dvb_frontend_ops));
-		type = "ISDBT";
-		break;
-	case SYS_DVBC_ANNEX_A:
-		memcpy(&priv->frontend.ops,
-			&cxd2841er_dvbc_ops,
-			sizeof(struct dvb_frontend_ops));
-		type = "C/C2";
-		break;
-	default:
-		kfree(priv);
-		return NULL;
-	}
 	priv->frontend.demodulator_priv = priv;
-	dev_info(&priv->i2c->dev,
-		"%s(): attaching CXD2841ER DVB-%s frontend\n",
-		__func__, type);
 	dev_info(&priv->i2c->dev,
 		"%s(): I2C adapter %p SLVX addr %x SLVT addr %x\n",
 		__func__, priv->i2c,
 		priv->i2c_addr_slvx, priv->i2c_addr_slvt);
 	chip_id = cxd2841er_chip_id(priv);
-	if (chip_id != CXD2841ER_CHIP_ID && chip_id != CXD2854ER_CHIP_ID) {
+	switch (chip_id) {
+	case CXD2841ER_CHIP_ID:
+		snprintf(cxd2841er_t_c_ops.info.name, 128,
+				"Sony CXD2841ER DVB-T/T2/C demodulator");
+		name = "CXD2841ER";
+		break;
+	case CXD2854ER_CHIP_ID:
+		snprintf(cxd2841er_t_c_ops.info.name, 128,
+				"Sony CXD2854ER DVB-T/T2/C and ISDB-T demodulator");
+		cxd2841er_t_c_ops.delsys[3] = SYS_ISDBT;
+		name = "CXD2854ER";
+		break;
+	default:
 		dev_err(&priv->i2c->dev, "%s(): invalid chip ID 0x%02x\n",
-			__func__, chip_id);
+				__func__, chip_id);
 		priv->frontend.demodulator_priv = NULL;
 		kfree(priv);
 		return NULL;
 	}
+
+	/* create dvb_frontend */
+	if (system == SYS_DVBS) {
+		memcpy(&priv->frontend.ops,
+			&cxd2841er_dvbs_s2_ops,
+			sizeof(struct dvb_frontend_ops));
+		type = "S/S2";
+	} else {
+		memcpy(&priv->frontend.ops,
+			&cxd2841er_t_c_ops,
+			sizeof(struct dvb_frontend_ops));
+		type = "T/T2/C/ISDB-T";
+	}
+
+	dev_info(&priv->i2c->dev,
+		"%s(): attaching %s DVB-%s frontend\n",
+		__func__, name, type);
 	dev_info(&priv->i2c->dev, "%s(): chip ID 0x%02x OK.\n",
 		__func__, chip_id);
 	return &priv->frontend;
@@ -3490,26 +3500,12 @@ struct dvb_frontend *cxd2841er_attach_s(struct cxd2841er_config *cfg,
 }
 EXPORT_SYMBOL(cxd2841er_attach_s);
 
-struct dvb_frontend *cxd2841er_attach_t(struct cxd2841er_config *cfg,
+struct dvb_frontend *cxd2841er_attach_t_c(struct cxd2841er_config *cfg,
 					struct i2c_adapter *i2c)
 {
-	return cxd2841er_attach(cfg, i2c, SYS_DVBT);
+	return cxd2841er_attach(cfg, i2c, 0);
 }
-EXPORT_SYMBOL(cxd2841er_attach_t);
-
-struct dvb_frontend *cxd2841er_attach_i(struct cxd2841er_config *cfg,
-		struct i2c_adapter *i2c)
-{
-	return cxd2841er_attach(cfg, i2c, SYS_ISDBT);
-}
-EXPORT_SYMBOL(cxd2841er_attach_i);
-
-struct dvb_frontend *cxd2841er_attach_c(struct cxd2841er_config *cfg,
-					struct i2c_adapter *i2c)
-{
-	return cxd2841er_attach(cfg, i2c, SYS_DVBC_ANNEX_A);
-}
-EXPORT_SYMBOL(cxd2841er_attach_c);
+EXPORT_SYMBOL(cxd2841er_attach_t_c);
 
 static struct dvb_frontend_ops cxd2841er_dvbs_s2_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
@@ -3539,10 +3535,10 @@ static struct dvb_frontend_ops cxd2841er_dvbs_s2_ops = {
 	.tune = cxd2841er_tune_s
 };
 
-static struct  dvb_frontend_ops cxd2841er_dvbt_t2_ops = {
-	.delsys = { SYS_DVBT, SYS_DVBT2 },
+static struct  dvb_frontend_ops cxd2841er_t_c_ops = {
+	.delsys = { SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A },
 	.info = {
-		.name	= "Sony CXD2841ER DVB-T/T2 demodulator",
+		.name	= "", /* will set in attach function */
 		.caps = FE_CAN_FEC_1_2 |
 			FE_CAN_FEC_2_3 |
 			FE_CAN_FEC_3_4 |
@@ -3573,73 +3569,6 @@ static struct  dvb_frontend_ops cxd2841er_dvbt_t2_ops = {
 	.tune = cxd2841er_tune_tc,
 	.i2c_gate_ctrl = cxd2841er_i2c_gate_ctrl,
 	.get_frontend_algo = cxd2841er_get_algo
-};
-
-static struct  dvb_frontend_ops cxd2841er_isdbt_ops = {
-	.delsys = { SYS_ISDBT },
-	.info = {
-		.name	= "Sony CXD2854ER ISDBT demodulator",
-		.caps = FE_CAN_FEC_1_2 |
-			FE_CAN_FEC_2_3 |
-			FE_CAN_FEC_3_4 |
-			FE_CAN_FEC_5_6 |
-			FE_CAN_FEC_7_8 |
-			FE_CAN_FEC_AUTO |
-			FE_CAN_QPSK |
-			FE_CAN_QAM_16 |
-			FE_CAN_QAM_32 |
-			FE_CAN_QAM_64 |
-			FE_CAN_QAM_128 |
-			FE_CAN_QAM_256 |
-			FE_CAN_QAM_AUTO |
-			FE_CAN_TRANSMISSION_MODE_AUTO |
-			FE_CAN_GUARD_INTERVAL_AUTO |
-			FE_CAN_HIERARCHY_AUTO |
-			FE_CAN_MUTE_TS |
-			FE_CAN_2G_MODULATION,
-		.frequency_min = 42000000,
-		.frequency_max = 1002000000
-	},
-	.init = cxd2841er_init_tc,
-	.sleep = cxd2841er_sleep_tc,
-	.release = cxd2841er_release,
-	.set_frontend = cxd2841er_set_frontend_tc,
-	.get_frontend = cxd2841er_get_frontend,
-	.read_status = cxd2841er_read_status_tc,
-	.tune = cxd2841er_tune_tc,
-	.i2c_gate_ctrl = cxd2841er_i2c_gate_ctrl,
-	.get_frontend_algo = cxd2841er_get_algo
-};
-
-static struct  dvb_frontend_ops cxd2841er_dvbc_ops = {
-	.delsys = { SYS_DVBC_ANNEX_A },
-	.info = {
-		.name	= "Sony CXD2841ER DVB-C demodulator",
-		.caps = FE_CAN_FEC_1_2 |
-			FE_CAN_FEC_2_3 |
-			FE_CAN_FEC_3_4 |
-			FE_CAN_FEC_5_6 |
-			FE_CAN_FEC_7_8 |
-			FE_CAN_FEC_AUTO |
-			FE_CAN_QAM_16 |
-			FE_CAN_QAM_32 |
-			FE_CAN_QAM_64 |
-			FE_CAN_QAM_128 |
-			FE_CAN_QAM_256 |
-			FE_CAN_QAM_AUTO |
-			FE_CAN_INVERSION_AUTO,
-		.frequency_min = 42000000,
-		.frequency_max = 1002000000
-	},
-	.init = cxd2841er_init_tc,
-	.sleep = cxd2841er_sleep_tc,
-	.release = cxd2841er_release,
-	.set_frontend = cxd2841er_set_frontend_tc,
-	.get_frontend = cxd2841er_get_frontend,
-	.read_status = cxd2841er_read_status_tc,
-	.tune = cxd2841er_tune_tc,
-	.i2c_gate_ctrl = cxd2841er_i2c_gate_ctrl,
-	.get_frontend_algo = cxd2841er_get_algo,
 };
 
 MODULE_DESCRIPTION("Sony CXD2841ER/CXD2854ER DVB-C/C2/T/T2/S/S2 demodulator driver");

@@ -385,18 +385,15 @@ static int netup_unidvb_queue_init(struct netup_dma *dma,
 static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 				 int num)
 {
-	int fe_count = 0;
+	int fe_count = 2;
 	int i = 0;
-	struct vb2_dvb_frontend *fes[4];
+	struct vb2_dvb_frontend *fes[2];
 	u8 fe_name[32];
 
-	if (ndev->rev == NETUP_HW_REV_1_3) {
-		fe_count = 3;
+	if (ndev->rev == NETUP_HW_REV_1_3)
 		demod_config.xtal = SONY_XTAL_20500;
-	} else {
-		fe_count = 4;
+	else
 		demod_config.xtal = SONY_XTAL_24000;
-	}
 
 	if (num < 0 || num > 1) {
 		dev_dbg(&ndev->pci_dev->dev,
@@ -469,11 +466,11 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 	}
 
 	/* DVB-T/T2 frontend */
-	fes[1]->dvb.frontend = dvb_attach(cxd2841er_attach_t,
+	fes[1]->dvb.frontend = dvb_attach(cxd2841er_attach_t_c,
 		&demod_config, &ndev->i2c[num].adap);
 	if (fes[1]->dvb.frontend == NULL) {
 		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to attach DVB-T frontend\n", __func__);
+			"%s(): unable to attach Ter frontend\n", __func__);
 		goto frontend_detach;
 	}
 	fes[1]->dvb.frontend->id = 1;
@@ -482,62 +479,13 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 		if (!dvb_attach(ascot2e_attach, fes[1]->dvb.frontend,
 					&ascot2e_conf, &ndev->i2c[num].adap)) {
 			dev_dbg(&ndev->pci_dev->dev,
-					"%s(): unable to attach DVB-T tuner frontend\n",
+					"%s(): unable to attach Ter tuner frontend\n",
 					__func__);
 			goto frontend_detach;
 		}
 	} else {
 		helene_conf.set_tuner_priv = &ndev->dma[num];
 		if (!dvb_attach(helene_attach, fes[1]->dvb.frontend,
-					&helene_conf, &ndev->i2c[num].adap)) {
-			dev_err(&ndev->pci_dev->dev,
-					"%s(): unable to attach HELENE DVB-T/T2 tuner frontend\n",
-					__func__);
-			goto frontend_detach;
-		}
-	}
-
-	/* DVB-C/C2 frontend */
-	fes[2]->dvb.frontend = dvb_attach(cxd2841er_attach_c,
-				&demod_config, &ndev->i2c[num].adap);
-	if (fes[2]->dvb.frontend == NULL) {
-		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to attach DVB-C frontend\n", __func__);
-		goto frontend_detach;
-	}
-	fes[2]->dvb.frontend->id = 2;
-	if (ndev->rev == NETUP_HW_REV_1_3) {
-		if (!dvb_attach(ascot2e_attach, fes[2]->dvb.frontend,
-					&ascot2e_conf, &ndev->i2c[num].adap)) {
-			dev_dbg(&ndev->pci_dev->dev,
-					"%s(): unable to attach DVB-T/C tuner frontend\n",
-					__func__);
-			goto frontend_detach;
-		}
-	} else {
-		helene_conf.set_tuner_priv = &ndev->dma[num];
-		if (!dvb_attach(helene_attach, fes[2]->dvb.frontend,
-					&helene_conf, &ndev->i2c[num].adap)) {
-			dev_err(&ndev->pci_dev->dev,
-					"%s(): unable to attach HELENE Ter tuner frontend\n",
-					__func__);
-			goto frontend_detach;
-		}
-	}
-
-	if (ndev->rev == NETUP_HW_REV_1_4) {
-		/* ISDB-T frontend */
-		fes[3]->dvb.frontend = dvb_attach(cxd2841er_attach_i,
-				&demod_config, &ndev->i2c[num].adap);
-		if (fes[3]->dvb.frontend == NULL) {
-			dev_dbg(&ndev->pci_dev->dev,
-				"%s(): unable to attach ISDB-T frontend\n",
-				__func__);
-			goto frontend_detach;
-		}
-		fes[3]->dvb.frontend->id = 3;
-		helene_conf.set_tuner_priv = &ndev->dma[num];
-		if (!dvb_attach(helene_attach, fes[3]->dvb.frontend,
 					&helene_conf, &ndev->i2c[num].adap)) {
 			dev_err(&ndev->pci_dev->dev,
 					"%s(): unable to attach HELENE Ter tuner frontend\n",
