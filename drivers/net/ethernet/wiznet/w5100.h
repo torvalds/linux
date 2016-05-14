@@ -30,7 +30,8 @@ struct w5100_ops {
 void *w5100_ops_priv(const struct net_device *ndev);
 
 int w5100_probe(struct device *dev, const struct w5100_ops *ops,
-		int sizeof_ops_priv, u8 *mac_addr, int irq, int link_gpio);
+		int sizeof_ops_priv, const void *mac_addr, int irq,
+		int link_gpio);
 int w5100_remove(struct device *dev);
 
 extern const struct dev_pm_ops w5100_pm_ops;

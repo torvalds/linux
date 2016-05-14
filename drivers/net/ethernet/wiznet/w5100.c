@@ -1052,7 +1052,7 @@ static const struct net_device_ops w5100_netdev_ops = {
 static int w5100_mmio_probe(struct platform_device *pdev)
 {
 	struct wiznet_platform_data *data = dev_get_platdata(&pdev->dev);
-	u8 *mac_addr = NULL;
+	const void *mac_addr = NULL;
 	struct resource *mem;
 	const struct w5100_ops *ops;
 	int irq;
@@ -1087,7 +1087,8 @@ void *w5100_ops_priv(const struct net_device *ndev)
 EXPORT_SYMBOL_GPL(w5100_ops_priv);
 
 int w5100_probe(struct device *dev, const struct w5100_ops *ops,
-		int sizeof_ops_priv, u8 *mac_addr, int irq, int link_gpio)
+		int sizeof_ops_priv, const void *mac_addr, int irq,
+		int link_gpio)
 {
 	struct w5100_priv *priv;
 	struct net_device *ndev;
