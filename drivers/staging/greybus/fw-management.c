@@ -34,6 +34,8 @@ struct fw_mgmt {
 	unsigned int		timeout_jiffies;
 
 	/* Interface Firmware specific fields */
+	bool			mode_switch_started;
+	bool			intf_fw_loaded;
 	u8			intf_fw_request_id;
 	u8			intf_fw_status;
 	u16			intf_fw_major;
@@ -123,6 +125,7 @@ static int fw_mgmt_load_and_validate_operation(struct fw_mgmt *fw_mgmt,
 	}
 
 	fw_mgmt->intf_fw_request_id = ret;
+	fw_mgmt->intf_fw_loaded = false;
 	request.request_id = ret;
 
 	ret = gb_operation_sync(fw_mgmt->connection,
@@ -183,6 +186,8 @@ static int fw_mgmt_interface_fw_loaded_operation(struct gb_operation *op)
 		dev_err(fw_mgmt->parent,
 			"failed to validate interface firmware, status:%02x\n",
 			fw_mgmt->intf_fw_status);
+	else
+		fw_mgmt->intf_fw_loaded = true;
 
 	complete(&fw_mgmt->completion);
 
@@ -329,6 +334,10 @@ static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 	unsigned int timeout;
 	int ret;
 
+	/* Reject any operations after mode-switch has started */
+	if (fw_mgmt->mode_switch_started)
+		return -EBUSY;
+
 	switch (cmd) {
 	case FW_MGMT_IOC_GET_INTF_FW:
 		ret = fw_mgmt_interface_fw_version_operation(fw_mgmt, &fw_info);
@@ -407,6 +416,17 @@ static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 
 		fw_mgmt->timeout_jiffies = msecs_to_jiffies(timeout);
 
+		return 0;
+	case FW_MGMT_IOC_MODE_SWITCH:
+		if (!fw_mgmt->intf_fw_loaded) {
+			dev_err(fw_mgmt->parent,
+				"Firmware not loaded for mode-switch\n");
+			return -EPERM;
+		}
+
+		fw_mgmt->mode_switch_started = true;
+
+		/* FIXME: Initiate mode-switch from here */
 		return 0;
 	default:
 		return -ENOTTY;
