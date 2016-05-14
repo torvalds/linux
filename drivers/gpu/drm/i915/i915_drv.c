@@ -1115,6 +1115,39 @@ static int i915_pm_resume(struct device *dev)
 	return i915_drm_resume(drm_dev);
 }
 
+/* freeze: before creating the hibernation_image */
+static int i915_pm_freeze(struct device *dev)
+{
+	return i915_pm_suspend(dev);
+}
+
+static int i915_pm_freeze_late(struct device *dev)
+{
+	return i915_pm_suspend_late(dev);
+}
+
+/* thaw: called after creating the hibernation image, but before turning off. */
+static int i915_pm_thaw_early(struct device *dev)
+{
+	return i915_pm_resume_early(dev);
+}
+
+static int i915_pm_thaw(struct device *dev)
+{
+	return i915_pm_resume(dev);
+}
+
+/* restore: called after loading the hibernation image. */
+static int i915_pm_restore_early(struct device *dev)
+{
+	return i915_pm_resume_early(dev);
+}
+
+static int i915_pm_restore(struct device *dev)
+{
+	return i915_pm_resume(dev);
+}
+
 /*
  * Save all Gunit registers that may be lost after a D3 and a subsequent
  * S0i[R123] transition. The list of registers needing a save/restore is
@@ -1669,14 +1702,14 @@ static const struct dev_pm_ops i915_pm_ops = {
 	 * @restore, @restore_early : called after rebooting and restoring the
 	 *                            hibernation image [PMSG_RESTORE]
 	 */
-	.freeze = i915_pm_suspend,
-	.freeze_late = i915_pm_suspend_late,
-	.thaw_early = i915_pm_resume_early,
-	.thaw = i915_pm_resume,
+	.freeze = i915_pm_freeze,
+	.freeze_late = i915_pm_freeze_late,
+	.thaw_early = i915_pm_thaw_early,
+	.thaw = i915_pm_thaw,
 	.poweroff = i915_pm_suspend,
 	.poweroff_late = i915_pm_poweroff_late,
-	.restore_early = i915_pm_resume_early,
-	.restore = i915_pm_resume,
+	.restore_early = i915_pm_restore_early,
+	.restore = i915_pm_restore,
 
 	/* S0ix (via runtime suspend) event handlers */
 	.runtime_suspend = intel_runtime_suspend,
