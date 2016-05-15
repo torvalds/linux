@@ -96,7 +96,7 @@ static int __tcf_ipt_init(struct tc_action_net *tn, struct nlattr *nla,
 	struct tcf_ipt *ipt;
 	struct xt_entry_target *td, *t;
 	char *tname;
-	int ret = 0, err;
+	int ret = 0, err, exists = 0;
 	u32 hook = 0;
 	u32 index = 0;
 
@@ -107,17 +107,22 @@ static int __tcf_ipt_init(struct tc_action_net *tn, struct nlattr *nla,
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_IPT_HOOK] == NULL)
+	if (tb[TCA_IPT_INDEX] != NULL)
+		index = nla_get_u32(tb[TCA_IPT_INDEX]);
+
+	exists = tcf_hash_check(tn, index, a, bind);
+	if (exists && bind)
+		return 0;
+
+	if (tb[TCA_IPT_HOOK] == NULL || tb[TCA_IPT_TARG] == NULL) {
+		if (exists)
+			tcf_hash_release(a, bind);
 		return -EINVAL;
-	if (tb[TCA_IPT_TARG] == NULL)
-		return -EINVAL;
+	}
 
 	td = (struct xt_entry_target *)nla_data(tb[TCA_IPT_TARG]);
 	if (nla_len(tb[TCA_IPT_TARG]) < td->u.target_size)
 		return -EINVAL;
-
-	if (tb[TCA_IPT_INDEX] != NULL)
-		index = nla_get_u32(tb[TCA_IPT_INDEX]);
 
 	if (!tcf_hash_check(tn, index, a, bind)) {
 		ret = tcf_hash_create(tn, index, est, a, sizeof(*ipt), bind,

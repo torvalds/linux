@@ -711,6 +711,7 @@ static void xenvif_tx_err(struct xenvif_queue *queue,
 		if (cons == end)
 			break;
 		RING_COPY_REQUEST(&queue->tx, cons++, txp);
+		extra_count = 0; /* only the first frag can have extras */
 	} while (1);
 	queue->tx.req_cons = cons;
 }

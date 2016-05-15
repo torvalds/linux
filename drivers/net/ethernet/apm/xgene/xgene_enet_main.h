@@ -49,10 +49,10 @@
 #define XGENE_ENET_MSS	1448
 #define XGENE_MIN_ENET_FRAME_SIZE	60
 
-#define XGENE_MAX_ENET_IRQ	8
-#define XGENE_NUM_RX_RING	4
-#define XGENE_NUM_TX_RING	4
-#define XGENE_NUM_TXC_RING	4
+#define XGENE_MAX_ENET_IRQ	16
+#define XGENE_NUM_RX_RING	8
+#define XGENE_NUM_TX_RING	8
+#define XGENE_NUM_TXC_RING	8
 
 #define START_CPU_BUFNUM_0	0
 #define START_ETH_BUFNUM_0	2
@@ -121,6 +121,16 @@ struct xgene_enet_desc_ring {
 		struct xgene_enet_raw_desc16 *raw_desc16;
 	};
 	__le64 *exp_bufs;
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_dropped;
+	u64 rx_errors;
+	u64 rx_length_errors;
+	u64 rx_crc_errors;
+	u64 rx_frame_errors;
+	u64 rx_fifo_errors;
 };
 
 struct xgene_mac_ops {

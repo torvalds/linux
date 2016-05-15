@@ -77,7 +77,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	int action;
 	__be16 push_vid = 0;
 	__be16 push_proto = 0;
-	int ret = 0;
+	int ret = 0, exists = 0;
 	int err;
 
 	if (!nla)
@@ -90,15 +90,25 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	if (!tb[TCA_VLAN_PARMS])
 		return -EINVAL;
 	parm = nla_data(tb[TCA_VLAN_PARMS]);
+	exists = tcf_hash_check(tn, parm->index, a, bind);
+	if (exists && bind)
+		return 0;
+
 	switch (parm->v_action) {
 	case TCA_VLAN_ACT_POP:
 		break;
 	case TCA_VLAN_ACT_PUSH:
-		if (!tb[TCA_VLAN_PUSH_VLAN_ID])
+		if (!tb[TCA_VLAN_PUSH_VLAN_ID]) {
+			if (exists)
+				tcf_hash_release(a, bind);
 			return -EINVAL;
+		}
 		push_vid = nla_get_u16(tb[TCA_VLAN_PUSH_VLAN_ID]);
-		if (push_vid >= VLAN_VID_MASK)
+		if (push_vid >= VLAN_VID_MASK) {
+			if (exists)
+				tcf_hash_release(a, bind);
 			return -ERANGE;
+		}
 
 		if (tb[TCA_VLAN_PUSH_VLAN_PROTOCOL]) {
 			push_proto = nla_get_be16(tb[TCA_VLAN_PUSH_VLAN_PROTOCOL]);
@@ -114,11 +124,13 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		}
 		break;
 	default:
+		if (exists)
+			tcf_hash_release(a, bind);
 		return -EINVAL;
 	}
 	action = parm->v_action;
 
-	if (!tcf_hash_check(tn, parm->index, a, bind)) {
+	if (!exists) {
 		ret = tcf_hash_create(tn, parm->index, est, a,
 				      sizeof(*v), bind, false);
 		if (ret)
@@ -126,8 +138,6 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 
 		ret = ACT_P_CREATED;
 	} else {
-		if (bind)
-			return 0;
 		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;

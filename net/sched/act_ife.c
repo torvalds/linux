@@ -423,7 +423,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	u16 ife_type = 0;
 	u8 *daddr = NULL;
 	u8 *saddr = NULL;
-	int ret = 0;
+	int ret = 0, exists = 0;
 	int err;
 
 	err = nla_parse_nested(tb, TCA_IFE_MAX, nla, ife_policy);
@@ -435,25 +435,29 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_IFE_PARMS]);
 
+	exists = tcf_hash_check(tn, parm->index, a, bind);
+	if (exists && bind)
+		return 0;
+
 	if (parm->flags & IFE_ENCODE) {
 		/* Until we get issued the ethertype, we cant have
 		 * a default..
 		**/
 		if (!tb[TCA_IFE_TYPE]) {
+			if (exists)
+				tcf_hash_release(a, bind);
 			pr_info("You MUST pass etherype for encoding\n");
 			return -EINVAL;
 		}
 	}
 
-	if (!tcf_hash_check(tn, parm->index, a, bind)) {
+	if (!exists) {
 		ret = tcf_hash_create(tn, parm->index, est, a, sizeof(*ife),
 				      bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
-		if (bind)	/* dont override defaults */
-			return 0;
 		tcf_hash_release(a, bind);
 		if (!ovr)
 			return -EEXIST;
@@ -495,6 +499,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 				       NULL);
 		if (err) {
 metadata_parse_err:
+			if (exists)
+				tcf_hash_release(a, bind);
 			if (ret == ACT_P_CREATED)
 				_tcf_ife_cleanup(a, bind);
 

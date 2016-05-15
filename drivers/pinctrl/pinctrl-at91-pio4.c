@@ -722,9 +722,11 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			conf |= ATMEL_PIO_PUEN_MASK;
+			conf &= (~ATMEL_PIO_PDEN_MASK);
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			conf |= ATMEL_PIO_PDEN_MASK;
+			conf &= (~ATMEL_PIO_PUEN_MASK);
 			break;
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 			if (arg == 0)

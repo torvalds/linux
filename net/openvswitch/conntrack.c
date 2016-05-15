@@ -768,6 +768,19 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			return -EINVAL;
 		}
 
+		/* Userspace may decide to perform a ct lookup without a helper
+		 * specified followed by a (recirculate and) commit with one.
+		 * Therefore, for unconfirmed connections which we will commit,
+		 * we need to attach the helper here.
+		 */
+		if (!nf_ct_is_confirmed(ct) && info->commit &&
+		    info->helper && !nfct_help(ct)) {
+			int err = __nf_ct_try_assign_helper(ct, info->ct,
+							    GFP_ATOMIC);
+			if (err)
+				return err;
+		}
+
 		/* Call the helper only if:
 		 * - nf_conntrack_in() was executed above ("!cached") for a
 		 *   confirmed connection, or

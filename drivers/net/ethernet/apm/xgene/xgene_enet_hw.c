@@ -219,27 +219,30 @@ void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status)
 {
-	struct rtnl_link_stats64 *stats = &pdata->stats;
-
 	switch (status) {
 	case INGRESS_CRC:
-		stats->rx_crc_errors++;
+		ring->rx_crc_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_CHECKSUM:
 	case INGRESS_CHECKSUM_COMPUTE:
-		stats->rx_errors++;
+		ring->rx_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_TRUNC_FRAME:
-		stats->rx_frame_errors++;
+		ring->rx_frame_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_PKT_LEN:
-		stats->rx_length_errors++;
+		ring->rx_length_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_PKT_UNDER:
-		stats->rx_frame_errors++;
+		ring->rx_frame_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_FIFO_OVERRUN:
-		stats->rx_fifo_errors++;
+		ring->rx_fifo_errors++;
 		break;
 	default:
 		break;

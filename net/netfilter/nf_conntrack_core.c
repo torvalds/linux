@@ -75,6 +75,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_hash);
 static __read_mostly struct kmem_cache *nf_conntrack_cachep;
 static __read_mostly spinlock_t nf_conntrack_locks_all_lock;
 static __read_mostly seqcount_t nf_conntrack_generation;
+static __read_mostly DEFINE_SPINLOCK(nf_conntrack_locks_all_lock);
 static __read_mostly bool nf_conntrack_locks_all;
 
 void nf_conntrack_lock(spinlock_t *lock) __acquires(lock)
