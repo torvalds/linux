@@ -55,6 +55,7 @@
 
 #include "hard-interface.h"
 #include "hash.h"
+#include "log.h"
 #include "packet.h"
 #include "translation-table.h"
 #include "tvlv.h"

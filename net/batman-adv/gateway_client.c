@@ -42,6 +42,7 @@
 
 #include "gateway_common.h"
 #include "hard-interface.h"
+#include "log.h"
 #include "originator.h"
 #include "packet.h"
 #include "routing.h"

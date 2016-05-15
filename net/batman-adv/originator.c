@@ -40,6 +40,7 @@
 #include "gateway_client.h"
 #include "hard-interface.h"
 #include "hash.h"
+#include "log.h"
 #include "multicast.h"
 #include "network-coding.h"
 #include "routing.h"

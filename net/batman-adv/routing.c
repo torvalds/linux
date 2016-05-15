@@ -41,6 +41,7 @@
 #include "fragmentation.h"
 #include "hard-interface.h"
 #include "icmp_socket.h"
+#include "log.h"
 #include "network-coding.h"
 #include "originator.h"
 #include "packet.h"

@@ -43,6 +43,7 @@
 #include "bat_algo.h"
 #include "bat_v_ogm.h"
 #include "hard-interface.h"
+#include "log.h"
 #include "originator.h"
 #include "packet.h"
 #include "routing.h"

@@ -28,6 +28,7 @@
 #include <linux/string.h>
 
 #include "gateway_client.h"
+#include "log.h"
 #include "packet.h"
 #include "tvlv.h"
 

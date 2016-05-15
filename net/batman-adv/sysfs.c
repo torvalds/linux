@@ -43,6 +43,7 @@
 #include "gateway_client.h"
 #include "gateway_common.h"
 #include "hard-interface.h"
+#include "log.h"
 #include "network-coding.h"
 #include "packet.h"
 #include "soft-interface.h"

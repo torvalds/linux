@@ -48,6 +48,7 @@
 #include "bridge_loop_avoidance.h"
 #include "hard-interface.h"
 #include "hash.h"
+#include "log.h"
 #include "multicast.h"
 #include "originator.h"
 #include "packet.h"

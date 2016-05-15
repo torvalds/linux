@@ -33,6 +33,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/printk.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/seq_file.h>
@@ -52,6 +53,7 @@
 #include "gateway_common.h"
 #include "hard-interface.h"
 #include "icmp_socket.h"
+#include "log.h"
 #include "multicast.h"
 #include "network-coding.h"
 #include "originator.h"

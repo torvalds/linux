@@ -52,6 +52,7 @@
 #include "bitarray.h"
 #include "hard-interface.h"
 #include "hash.h"
+#include "log.h"
 #include "network-coding.h"
 #include "originator.h"
 #include "packet.h"
