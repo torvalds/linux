@@ -121,6 +121,29 @@ struct cport_to_ep {
 	__u8 endpoint_out;
 };
 
+/**
+ * timesync_enable_request - Enable timesync in an APBridge
+ * @count: number of TimeSync Pulses to expect
+ * @frame_time: the initial FrameTime at the first TimeSync Pulse
+ * @strobe_delay: the expected delay in microseconds between each TimeSync Pulse
+ * @refclk: The AP mandated reference clock to run FrameTime at
+ */
+struct timesync_enable_request {
+	__u8	count;
+	__le64	frame_time;
+	__le32	strobe_delay;
+	__le32	refclk;
+} __packed;
+
+/**
+ * timesync_authoritative_request - Transmit authoritative FrameTime to APBridge
+ * @frame_time: An array of authoritative FrameTimes provided by the SVC
+ *              and relayed to the APBridge by the AP
+ */
+struct timesync_authoritative_request {
+	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
+} __packed;
+
 static inline struct es2_ap_dev *hd_to_es2(struct gb_host_device *hd)
 {
 	return (struct es2_ap_dev *)&hd->hd_priv;
@@ -674,18 +697,126 @@ static int cport_features_disable(struct gb_host_device *hd, u16 cport_id)
 	return retval;
 }
 
+static int timesync_enable(struct gb_host_device *hd, u8 count,
+			   u64 frame_time, u32 strobe_delay, u32 refclk)
+{
+	int retval;
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct usb_device *udev = es2->usb_dev;
+	struct gb_control_timesync_enable_request *request;
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
+
+	request->count = count;
+	request->frame_time = cpu_to_le64(frame_time);
+	request->strobe_delay = cpu_to_le32(strobe_delay);
+	request->refclk = cpu_to_le32(refclk);
+	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				 REQUEST_TIMESYNC_ENABLE,
+				 USB_DIR_OUT | USB_TYPE_VENDOR |
+				 USB_RECIP_INTERFACE, 0, 0, request,
+				 sizeof(*request), ES2_TIMEOUT);
+	if (retval < 0)
+		dev_err(&udev->dev, "Cannot enable timesync %d\n", retval);
+
+	kfree(request);
+	return retval;
+}
+
+static int timesync_disable(struct gb_host_device *hd)
+{
+	int retval;
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct usb_device *udev = es2->usb_dev;
+
+	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				 REQUEST_TIMESYNC_DISABLE,
+				 USB_DIR_OUT | USB_TYPE_VENDOR |
+				 USB_RECIP_INTERFACE, 0, 0, NULL,
+				 0, ES2_TIMEOUT);
+	if (retval < 0)
+		dev_err(&udev->dev, "Cannot disable timesync %d\n", retval);
+
+	return retval;
+}
+
+static int timesync_authoritative(struct gb_host_device *hd, u64 *frame_time)
+{
+	int retval, i;
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct usb_device *udev = es2->usb_dev;
+	struct timesync_authoritative_request *request;
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
+
+	for (i = 0; i < GB_TIMESYNC_MAX_STROBES; i++)
+		request->frame_time[i] = cpu_to_le64(frame_time[i]);
+
+	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				 REQUEST_TIMESYNC_AUTHORITATIVE,
+				 USB_DIR_OUT | USB_TYPE_VENDOR |
+				 USB_RECIP_INTERFACE, 0, 0, request,
+				 sizeof(*request), ES2_TIMEOUT);
+	if (retval < 0)
+		dev_err(&udev->dev, "Cannot timesync authoritative out %d\n", retval);
+
+	kfree(request);
+	return retval;
+}
+
+static int timesync_get_last_event(struct gb_host_device *hd, u64 *frame_time)
+{
+	int retval;
+	struct es2_ap_dev *es2 = hd_to_es2(hd);
+	struct usb_device *udev = es2->usb_dev;
+	u64 *response_frame_time;
+
+	response_frame_time = kzalloc(sizeof(*response_frame_time), GFP_KERNEL);
+	if (!response_frame_time)
+		return -ENOMEM;
+
+	retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+				 REQUEST_TIMESYNC_GET_LAST_EVENT,
+				 USB_DIR_IN | USB_TYPE_VENDOR |
+				 USB_RECIP_INTERFACE, 0, 0, response_frame_time,
+				 sizeof(*response_frame_time), ES2_TIMEOUT);
+
+	if (retval != sizeof(*response_frame_time)) {
+		dev_err(&udev->dev, "Cannot get last TimeSync event: %d\n",
+			retval);
+
+		if (retval >= 0)
+			retval = -EIO;
+
+		goto out;
+	}
+	*frame_time = le64_to_cpu(*response_frame_time);
+	retval = 0;
+out:
+	kfree(response_frame_time);
+	return retval;
+}
+
 static struct gb_hd_driver es2_driver = {
-	.hd_priv_size		= sizeof(struct es2_ap_dev),
-	.message_send		= message_send,
-	.message_cancel		= message_cancel,
-	.cport_allocate		= es2_cport_allocate,
-	.cport_release		= es2_cport_release,
-	.cport_enable		= cport_enable,
-	.latency_tag_enable	= latency_tag_enable,
-	.latency_tag_disable	= latency_tag_disable,
-	.output			= output,
-	.cport_features_enable	= cport_features_enable,
-	.cport_features_disable	= cport_features_disable,
+	.hd_priv_size			= sizeof(struct es2_ap_dev),
+	.message_send			= message_send,
+	.message_cancel			= message_cancel,
+	.cport_allocate			= es2_cport_allocate,
+	.cport_release			= es2_cport_release,
+	.cport_enable			= cport_enable,
+	.latency_tag_enable		= latency_tag_enable,
+	.latency_tag_disable		= latency_tag_disable,
+	.output				= output,
+	.cport_features_enable		= cport_features_enable,
+	.cport_features_disable		= cport_features_disable,
+	.timesync_enable		= timesync_enable,
+	.timesync_disable		= timesync_disable,
+	.timesync_authoritative		= timesync_authoritative,
+	.timesync_get_last_event	= timesync_get_last_event,
 };
 
 /* Common function to report consistent warnings based on URB status */

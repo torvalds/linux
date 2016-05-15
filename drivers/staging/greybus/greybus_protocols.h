@@ -188,30 +188,36 @@ struct gb_control_timesync_get_last_event_response {
 /* APBridge protocol */
 
 /* request APB1 log */
-#define GB_APB_REQUEST_LOG		0x02
+#define GB_APB_REQUEST_LOG			0x02
 
 /* request to map a cport to bulk in and bulk out endpoints */
-#define GB_APB_REQUEST_EP_MAPPING	0x03
+#define GB_APB_REQUEST_EP_MAPPING		0x03
 
 /* request to get the number of cports available */
-#define GB_APB_REQUEST_CPORT_COUNT	0x04
+#define GB_APB_REQUEST_CPORT_COUNT		0x04
 
 /* request to reset a cport state */
-#define GB_APB_REQUEST_RESET_CPORT	0x05
+#define GB_APB_REQUEST_RESET_CPORT		0x05
 
 /* request to time the latency of messages on a given cport */
-#define GB_APB_REQUEST_LATENCY_TAG_EN	0x06
-#define GB_APB_REQUEST_LATENCY_TAG_DIS	0x07
+#define GB_APB_REQUEST_LATENCY_TAG_EN		0x06
+#define GB_APB_REQUEST_LATENCY_TAG_DIS		0x07
 
 /* request to control the CSI transmitter */
-#define GB_APB_REQUEST_CSI_TX_CONTROL	0x08
+#define GB_APB_REQUEST_CSI_TX_CONTROL		0x08
 
 /* request to control the CSI transmitter */
-#define GB_APB_REQUEST_AUDIO_CONTROL	0x09
+#define GB_APB_REQUEST_AUDIO_CONTROL		0x09
 
 /* vendor requests to enable/disable CPort features */
-#define GB_APB_REQUEST_CPORT_FEAT_EN	0x0b
-#define GB_APB_REQUEST_CPORT_FEAT_DIS	0x0c
+#define GB_APB_REQUEST_CPORT_FEAT_EN		0x0b
+#define GB_APB_REQUEST_CPORT_FEAT_DIS		0x0c
+
+/* TimeSync commands */
+#define REQUEST_TIMESYNC_ENABLE			0x0d
+#define REQUEST_TIMESYNC_DISABLE		0x0e
+#define REQUEST_TIMESYNC_AUTHORITATIVE		0x0f
+#define REQUEST_TIMESYNC_GET_LAST_EVENT		0x10
 
 /* Firmware Download Protocol */
 
