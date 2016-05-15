@@ -46,6 +46,8 @@
 #include <net/rtnetlink.h>
 
 #include "bat_algo.h"
+#include "bat_iv_ogm.h"
+#include "bat_v.h"
 #include "bridge_loop_avoidance.h"
 #include "debugfs.h"
 #include "distributed-arp-table.h"

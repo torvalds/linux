@@ -37,7 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
-#include "bat_algo.h"
+#include "bat_v.h"
 #include "bridge_loop_avoidance.h"
 #include "debugfs.h"
 #include "distributed-arp-table.h"

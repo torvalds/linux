@@ -15,21 +15,38 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _NET_BATMAN_ADV_BAT_ALGO_H_
-#define _NET_BATMAN_ADV_BAT_ALGO_H_
+#ifndef _NET_BATMAN_ADV_BAT_V_H_
+#define _NET_BATMAN_ADV_BAT_V_H_
 
 #include "main.h"
 
-#include <linux/types.h>
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
 
-struct seq_file;
+int batadv_v_init(void);
+void batadv_v_hardif_init(struct batadv_hard_iface *hardif);
+int batadv_v_mesh_init(struct batadv_priv *bat_priv);
+void batadv_v_mesh_free(struct batadv_priv *bat_priv);
 
-extern char batadv_routing_algo[];
-extern struct list_head batadv_hardif_list;
+#else
 
-void batadv_algo_init(void);
-int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops);
-int batadv_algo_select(struct batadv_priv *bat_priv, char *name);
-int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
+static inline int batadv_v_init(void)
+{
+	return 0;
+}
 
-#endif /* _NET_BATMAN_ADV_BAT_ALGO_H_ */
+static inline void batadv_v_hardif_init(struct batadv_hard_iface *hardif)
+{
+}
+
+static inline int batadv_v_mesh_init(struct batadv_priv *bat_priv)
+{
+	return 0;
+}
+
+static inline void batadv_v_mesh_free(struct batadv_priv *bat_priv)
+{
+}
+
+#endif /* CONFIG_BATMAN_ADV_BATMAN_V */
+
+#endif /* _NET_BATMAN_ADV_BAT_V_H_ */

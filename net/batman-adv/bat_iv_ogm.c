@@ -15,7 +15,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bat_algo.h"
+#include "bat_iv_ogm.h"
 #include "main.h"
 
 #include <linux/atomic.h>
@@ -49,6 +49,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include "bat_algo.h"
 #include "bitarray.h"
 #include "hard-interface.h"
 #include "hash.h"

@@ -34,7 +34,6 @@
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 
-#include "bat_algo.h"
 #include "bitarray.h"
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
