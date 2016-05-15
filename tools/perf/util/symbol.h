@@ -44,6 +44,9 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
 #endif
 
+#define DSO__NAME_KALLSYMS	"[kernel.kallsyms]"
+#define DSO__NAME_KCORE		"[kernel.kcore]"
+
 /** struct symbol - symtab entry
  *
  * @ignore - resolvable but tools ignore it (e.g. idle routines)

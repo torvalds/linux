@@ -709,7 +709,7 @@ static struct dso *machine__get_kernel(struct machine *machine)
 	if (machine__is_host(machine)) {
 		vmlinux_name = symbol_conf.vmlinux_name;
 		if (!vmlinux_name)
-			vmlinux_name = "[kernel.kallsyms]";
+			vmlinux_name = DSO__NAME_KALLSYMS;
 
 		kernel = machine__findnew_kernel(machine, vmlinux_name,
 						 "[kernel]", DSO_TYPE_KERNEL);
