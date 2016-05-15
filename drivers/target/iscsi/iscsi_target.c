@@ -670,6 +670,7 @@ static enum target_prot_op iscsit_get_sup_prot_ops(struct iscsi_conn *conn)
 static struct iscsit_transport iscsi_target_transport = {
 	.name			= "iSCSI/TCP",
 	.transport_type		= ISCSI_TCP,
+	.rdma_shutdown		= false,
 	.owner			= NULL,
 	.iscsit_setup_np	= iscsit_setup_np,
 	.iscsit_accept_np	= iscsit_accept_np,
@@ -4087,8 +4088,7 @@ int iscsit_close_connection(
 	 * this for iser since isert_rx_opcode() does not wait on logout failure,
 	 * and to avoid iscsi_conn pointer dereference in iser-target code.
 	 */
-	if ((conn->conn_transport->transport_type == ISCSI_TCP) ||
-	    (conn->conn_transport->transport_type == ISCSI_HW_OFFLOAD))
+	if (!conn->conn_transport->rdma_shutdown)
 		complete(&conn->conn_logout_comp);
 
 	if (!strcmp(current->comm, ISCSI_RX_THREAD_NAME)) {
@@ -4399,8 +4399,7 @@ static void iscsit_logout_post_handler_closesession(
 	 * always sleep waiting for RX/TX thread shutdown to complete
 	 * within iscsit_close_connection().
 	 */
-	if ((conn->conn_transport->transport_type == ISCSI_TCP) ||
-	    (conn->conn_transport->transport_type == ISCSI_HW_OFFLOAD))
+	if (!conn->conn_transport->rdma_shutdown)
 		sleep = cmpxchg(&conn->tx_thread_active, true, false);
 
 	atomic_set(&conn->conn_logout_remove, 0);
@@ -4417,8 +4416,7 @@ static void iscsit_logout_post_handler_samecid(
 {
 	int sleep = 1;
 
-	if ((conn->conn_transport->transport_type == ISCSI_TCP) ||
-	    (conn->conn_transport->transport_type == ISCSI_HW_OFFLOAD))
+	if (!conn->conn_transport->rdma_shutdown)
 		sleep = cmpxchg(&conn->tx_thread_active, true, false);
 
 	atomic_set(&conn->conn_logout_remove, 0);

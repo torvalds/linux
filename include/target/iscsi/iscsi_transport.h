@@ -6,6 +6,7 @@ struct iscsit_transport {
 #define ISCSIT_TRANSPORT_NAME	16
 	char name[ISCSIT_TRANSPORT_NAME];
 	int transport_type;
+	bool rdma_shutdown;
 	int priv_size;
 	struct module *owner;
 	struct list_head t_node;

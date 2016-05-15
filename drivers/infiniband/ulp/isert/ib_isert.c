@@ -3285,6 +3285,7 @@ static void isert_get_rx_pdu(struct iscsi_conn *conn)
 static struct iscsit_transport iser_target_transport = {
 	.name			= "IB/iSER",
 	.transport_type		= ISCSI_INFINIBAND,
+	.rdma_shutdown		= true,
 	.priv_size		= sizeof(struct isert_cmd),
 	.owner			= THIS_MODULE,
 	.iscsit_setup_np	= isert_setup_np,
