@@ -43,14 +43,15 @@ static inline struct iscsi_tpg_np *to_iscsi_tpg_np(struct config_item *item)
 	return container_of(to_tpg_np(item), struct iscsi_tpg_np, se_tpg_np);
 }
 
-static ssize_t lio_target_np_sctp_show(struct config_item *item, char *page)
+static ssize_t lio_target_np_driver_show(struct config_item *item, char *page,
+					 enum iscsit_transport_type type)
 {
 	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
-	struct iscsi_tpg_np *tpg_np_sctp;
+	struct iscsi_tpg_np *tpg_np_new;
 	ssize_t rb;
 
-	tpg_np_sctp = iscsit_tpg_locate_child_np(tpg_np, ISCSI_SCTP_TCP);
-	if (tpg_np_sctp)
+	tpg_np_new = iscsit_tpg_locate_child_np(tpg_np, type);
+	if (tpg_np_new)
 		rb = sprintf(page, "1\n");
 	else
 		rb = sprintf(page, "0\n");
@@ -58,19 +59,20 @@ static ssize_t lio_target_np_sctp_show(struct config_item *item, char *page)
 	return rb;
 }
 
-static ssize_t lio_target_np_sctp_store(struct config_item *item,
-		const char *page, size_t count)
+static ssize_t lio_target_np_driver_store(struct config_item *item,
+		const char *page, size_t count, enum iscsit_transport_type type,
+		const char *mod_name)
 {
 	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
 	struct iscsi_np *np;
 	struct iscsi_portal_group *tpg;
-	struct iscsi_tpg_np *tpg_np_sctp = NULL;
+	struct iscsi_tpg_np *tpg_np_new = NULL;
 	u32 op;
-	int ret;
+	int rc;
 
-	ret = kstrtou32(page, 0, &op);
-	if (ret)
-		return ret;
+	rc = kstrtou32(page, 0, &op);
+	if (rc)
+		return rc;
 	if ((op != 1) && (op != 0)) {
 		pr_err("Illegal value for tpg_enable: %u\n", op);
 		return -EINVAL;
@@ -87,89 +89,23 @@ static ssize_t lio_target_np_sctp_store(struct config_item *item,
 		return -EINVAL;
 
 	if (op) {
-		/*
-		 * Use existing np->np_sockaddr for SCTP network portal reference
-		 */
-		tpg_np_sctp = iscsit_tpg_add_network_portal(tpg, &np->np_sockaddr,
-					tpg_np, ISCSI_SCTP_TCP);
-		if (!tpg_np_sctp || IS_ERR(tpg_np_sctp))
-			goto out;
-	} else {
-		tpg_np_sctp = iscsit_tpg_locate_child_np(tpg_np, ISCSI_SCTP_TCP);
-		if (!tpg_np_sctp)
-			goto out;
-
-		ret = iscsit_tpg_del_network_portal(tpg, tpg_np_sctp);
-		if (ret < 0)
-			goto out;
-	}
-
-	iscsit_put_tpg(tpg);
-	return count;
-out:
-	iscsit_put_tpg(tpg);
-	return -EINVAL;
-}
-
-static ssize_t lio_target_np_iser_show(struct config_item *item, char *page)
-{
-	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
-	struct iscsi_tpg_np *tpg_np_iser;
-	ssize_t rb;
-
-	tpg_np_iser = iscsit_tpg_locate_child_np(tpg_np, ISCSI_INFINIBAND);
-	if (tpg_np_iser)
-		rb = sprintf(page, "1\n");
-	else
-		rb = sprintf(page, "0\n");
-
-	return rb;
-}
-
-static ssize_t lio_target_np_iser_store(struct config_item *item,
-		const char *page, size_t count)
-{
-	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
-	struct iscsi_np *np;
-	struct iscsi_portal_group *tpg;
-	struct iscsi_tpg_np *tpg_np_iser = NULL;
-	char *endptr;
-	u32 op;
-	int rc = 0;
-
-	op = simple_strtoul(page, &endptr, 0);
-	if ((op != 1) && (op != 0)) {
-		pr_err("Illegal value for tpg_enable: %u\n", op);
-		return -EINVAL;
-	}
-	np = tpg_np->tpg_np;
-	if (!np) {
-		pr_err("Unable to locate struct iscsi_np from"
-				" struct iscsi_tpg_np\n");
-		return -EINVAL;
-	}
-
-	tpg = tpg_np->tpg;
-	if (iscsit_get_tpg(tpg) < 0)
-		return -EINVAL;
-
-	if (op) {
-		rc = request_module("ib_isert");
-		if (rc != 0) {
-			pr_warn("Unable to request_module for ib_isert\n");
-			rc = 0;
+		if (strlen(mod_name)) {
+			rc = request_module(mod_name);
+			if (rc != 0) {
+				pr_warn("Unable to request_module for %s\n",
+					mod_name);
+				rc = 0;
+			}
 		}
 
-		tpg_np_iser = iscsit_tpg_add_network_portal(tpg, &np->np_sockaddr,
-				tpg_np, ISCSI_INFINIBAND);
-		if (IS_ERR(tpg_np_iser)) {
-			rc = PTR_ERR(tpg_np_iser);
+		tpg_np_new = iscsit_tpg_add_network_portal(tpg,
+					&np->np_sockaddr, tpg_np, type);
+		if (IS_ERR(tpg_np_new))
 			goto out;
-		}
 	} else {
-		tpg_np_iser = iscsit_tpg_locate_child_np(tpg_np, ISCSI_INFINIBAND);
-		if (tpg_np_iser) {
-			rc = iscsit_tpg_del_network_portal(tpg, tpg_np_iser);
+		tpg_np_new = iscsit_tpg_locate_child_np(tpg_np, type);
+		if (tpg_np_new) {
+			rc = iscsit_tpg_del_network_portal(tpg, tpg_np_new);
 			if (rc < 0)
 				goto out;
 		}
@@ -182,86 +118,33 @@ out:
 	return rc;
 }
 
-static ssize_t lio_target_np_hw_offload_show(struct config_item *item,
-					     char *page)
+static ssize_t lio_target_np_iser_show(struct config_item *item, char *page)
 {
-	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
-	struct iscsi_tpg_np *tpg_np_hw_offload;
-	ssize_t rb;
+	return lio_target_np_driver_show(item, page, ISCSI_INFINIBAND);
+}
 
-	tpg_np_hw_offload = iscsit_tpg_locate_child_np(tpg_np,
-						       ISCSI_HW_OFFLOAD);
-	if (tpg_np_hw_offload)
-		rb = sprintf(page, "1\n");
-	else
-		rb = sprintf(page, "0\n");
+static ssize_t lio_target_np_iser_store(struct config_item *item,
+					const char *page, size_t count)
+{
+	return lio_target_np_driver_store(item, page, count,
+					  ISCSI_INFINIBAND, "ib_isert");
+}
+CONFIGFS_ATTR(lio_target_np_, iser);
 
-	return rb;
+static ssize_t lio_target_np_hw_offload_show(struct config_item *item, char *page)
+{
+	return lio_target_np_driver_show(item, page, ISCSI_HW_OFFLOAD);
 }
 
 static ssize_t lio_target_np_hw_offload_store(struct config_item *item,
 					      const char *page, size_t count)
 {
-	struct iscsi_tpg_np *tpg_np = to_iscsi_tpg_np(item);
-	struct iscsi_np *np;
-	struct iscsi_portal_group *tpg;
-	struct iscsi_tpg_np *tpg_np_hw_offload = NULL;
-	u32 op;
-	int rc = 0;
-
-	rc = kstrtou32(page, 0, &op);
-	if (rc)
-		return rc;
-
-	if ((op != 1) && (op != 0)) {
-		pr_err("Illegal value for tpg_enable: %u\n", op);
-		return -EINVAL;
-	}
-
-	np = tpg_np->tpg_np;
-	if (!np) {
-		pr_err("Unable to locate struct iscsi_np from"
-		       " struct iscsi_tpg_np\n");
-		return -EINVAL;
-	}
-
-	tpg = tpg_np->tpg;
-	if (iscsit_get_tpg(tpg) < 0)
-		return -EINVAL;
-
-	if (op) {
-		tpg_np_hw_offload = iscsit_tpg_add_network_portal(tpg,
-				&np->np_sockaddr, tpg_np, ISCSI_HW_OFFLOAD);
-
-		if (IS_ERR(tpg_np_hw_offload)) {
-			rc = PTR_ERR(tpg_np_hw_offload);
-			goto out;
-		}
-	} else {
-		tpg_np_hw_offload = iscsit_tpg_locate_child_np(tpg_np,
-				ISCSI_HW_OFFLOAD);
-
-		if (tpg_np_hw_offload) {
-			rc = iscsit_tpg_del_network_portal(tpg,
-							   tpg_np_hw_offload);
-			if (rc < 0)
-				goto out;
-		}
-	}
-
-	iscsit_put_tpg(tpg);
-	return count;
-out:
-	iscsit_put_tpg(tpg);
-	return rc;
+	return lio_target_np_driver_store(item, page, count,
+					  ISCSI_HW_OFFLOAD, "");
 }
-
-CONFIGFS_ATTR(lio_target_np_, sctp);
-CONFIGFS_ATTR(lio_target_np_, iser);
 CONFIGFS_ATTR(lio_target_np_, hw_offload);
 
 static struct configfs_attribute *lio_target_portal_attrs[] = {
-	&lio_target_np_attr_sctp,
 	&lio_target_np_attr_iser,
 	&lio_target_np_attr_hw_offload,
 	NULL,
