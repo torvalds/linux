@@ -2093,6 +2093,40 @@ struct hwrm_port_phy_qcaps_output {
 	#define PORT_PHY_QCAPS_RESP_VALID_SFT			    24
 };
 
+/* hwrm_port_phy_i2c_read */
+/* Input (40 bytes) */
+struct hwrm_port_phy_i2c_read_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le32 flags;
+	__le32 enables;
+	#define PORT_PHY_I2C_READ_REQ_ENABLES_PAGE_OFFSET	    0x1UL
+	__le16 port_id;
+	u8 i2c_slave_addr;
+	u8 unused_0;
+	__le16 page_number;
+	__le16 page_offset;
+	u8 data_length;
+	u8 unused_1[7];
+};
+
+/* Output (80 bytes) */
+struct hwrm_port_phy_i2c_read_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	__le32 data[16];
+	__le32 unused_0;
+	u8 unused_1;
+	u8 unused_2;
+	u8 unused_3;
+	u8 valid;
+};
+
 /* Input (24 bytes) */
 struct hwrm_queue_qportcfg_input {
 	__le16 req_type;

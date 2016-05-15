@@ -831,6 +831,7 @@ struct bnxt_link_info {
 	u16			lp_auto_link_speeds;
 	u16			force_link_speed;
 	u32			preemphasis;
+	u8			module_status;
 
 	/* copy of requested setting from ethtool cmd */
 	u8			autoneg;
@@ -1122,6 +1123,16 @@ static inline void bnxt_disable_poll(struct bnxt_napi *bnapi)
 }
 
 #endif
+
+#define I2C_DEV_ADDR_A0				0xa0
+#define I2C_DEV_ADDR_A2				0xa2
+#define SFP_EEPROM_SFF_8472_COMP_ADDR		0x5e
+#define SFP_EEPROM_SFF_8472_COMP_SIZE		1
+#define SFF_MODULE_ID_SFP			0x3
+#define SFF_MODULE_ID_QSFP			0xc
+#define SFF_MODULE_ID_QSFP_PLUS			0xd
+#define SFF_MODULE_ID_QSFP28			0x11
+#define BNXT_MAX_PHY_I2C_RESP_SIZE		64
 
 void bnxt_set_ring_params(struct bnxt *);
 void bnxt_hwrm_cmd_hdr_init(struct bnxt *, void *, u16, u16, u16);

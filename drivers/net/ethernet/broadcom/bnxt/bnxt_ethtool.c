@@ -1498,6 +1498,125 @@ static int bnxt_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 	return 0;
 }
 
+static int bnxt_read_sfp_module_eeprom_info(struct bnxt *bp, u16 i2c_addr,
+					    u16 page_number, u16 start_addr,
+					    u16 data_length, u8 *buf)
+{
+	struct hwrm_port_phy_i2c_read_input req = {0};
+	struct hwrm_port_phy_i2c_read_output *output = bp->hwrm_cmd_resp_addr;
+	int rc, byte_offset = 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_I2C_READ, -1, -1);
+	req.i2c_slave_addr = i2c_addr;
+	req.page_number = cpu_to_le16(page_number);
+	req.port_id = cpu_to_le16(bp->pf.port_id);
+	do {
+		u16 xfer_size;
+
+		xfer_size = min_t(u16, data_length, BNXT_MAX_PHY_I2C_RESP_SIZE);
+		data_length -= xfer_size;
+		req.page_offset = cpu_to_le16(start_addr + byte_offset);
+		req.data_length = xfer_size;
+		req.enables = cpu_to_le32(start_addr + byte_offset ?
+				 PORT_PHY_I2C_READ_REQ_ENABLES_PAGE_OFFSET : 0);
+		mutex_lock(&bp->hwrm_cmd_lock);
+		rc = _hwrm_send_message(bp, &req, sizeof(req),
+					HWRM_CMD_TIMEOUT);
+		if (!rc)
+			memcpy(buf + byte_offset, output->data, xfer_size);
+		mutex_unlock(&bp->hwrm_cmd_lock);
+		byte_offset += xfer_size;
+	} while (!rc && data_length > 0);
+
+	return rc;
+}
+
+static int bnxt_get_module_info(struct net_device *dev,
+				struct ethtool_modinfo *modinfo)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct hwrm_port_phy_i2c_read_input req = {0};
+	struct hwrm_port_phy_i2c_read_output *output = bp->hwrm_cmd_resp_addr;
+	int rc;
+
+	/* No point in going further if phy status indicates
+	 * module is not inserted or if it is powered down or
+	 * if it is of type 10GBase-T
+	 */
+	if (bp->link_info.module_status >
+		PORT_PHY_QCFG_RESP_MODULE_STATUS_WARNINGMSG)
+		return -EOPNOTSUPP;
+
+	/* This feature is not supported in older firmware versions */
+	if (bp->hwrm_spec_code < 0x10202)
+		return -EOPNOTSUPP;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_I2C_READ, -1, -1);
+	req.i2c_slave_addr = I2C_DEV_ADDR_A0;
+	req.page_number = 0;
+	req.page_offset = cpu_to_le16(SFP_EEPROM_SFF_8472_COMP_ADDR);
+	req.data_length = SFP_EEPROM_SFF_8472_COMP_SIZE;
+	req.port_id = cpu_to_le16(bp->pf.port_id);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		u32 module_id = le32_to_cpu(output->data[0]);
+
+		switch (module_id) {
+		case SFF_MODULE_ID_SFP:
+			modinfo->type = ETH_MODULE_SFF_8472;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+			break;
+		case SFF_MODULE_ID_QSFP:
+		case SFF_MODULE_ID_QSFP_PLUS:
+			modinfo->type = ETH_MODULE_SFF_8436;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+			break;
+		case SFF_MODULE_ID_QSFP28:
+			modinfo->type = ETH_MODULE_SFF_8636;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+			break;
+		default:
+			rc = -EOPNOTSUPP;
+			break;
+		}
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+static int bnxt_get_module_eeprom(struct net_device *dev,
+				  struct ethtool_eeprom *eeprom,
+				  u8 *data)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	u16  start = eeprom->offset, length = eeprom->len;
+	int rc;
+
+	memset(data, 0, eeprom->len);
+
+	/* Read A0 portion of the EEPROM */
+	if (start < ETH_MODULE_SFF_8436_LEN) {
+		if (start + eeprom->len > ETH_MODULE_SFF_8436_LEN)
+			length = ETH_MODULE_SFF_8436_LEN - start;
+		rc = bnxt_read_sfp_module_eeprom_info(bp, I2C_DEV_ADDR_A0, 0,
+						      start, length, data);
+		if (rc)
+			return rc;
+		start += length;
+		data += length;
+		length = eeprom->len - length;
+	}
+
+	/* Read A2 portion of the EEPROM */
+	if (length) {
+		start -= ETH_MODULE_SFF_8436_LEN;
+		bnxt_read_sfp_module_eeprom_info(bp, I2C_DEV_ADDR_A2, 1, start,
+						 length, data);
+	}
+	return rc;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_settings		= bnxt_get_settings,
 	.set_settings		= bnxt_set_settings,
@@ -1528,4 +1647,6 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_link		= bnxt_get_link,
 	.get_eee		= bnxt_get_eee,
 	.set_eee		= bnxt_set_eee,
+	.get_module_info	= bnxt_get_module_info,
+	.get_module_eeprom	= bnxt_get_module_eeprom,
 };

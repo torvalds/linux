@@ -4734,6 +4734,7 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->transceiver = resp->xcvr_pkg_type;
 	link_info->phy_addr = resp->eee_config_phy_addr &
 			      PORT_PHY_QCFG_RESP_PHY_ADDR_MASK;
+	link_info->module_status = resp->module_status;
 
 	if (bp->flags & BNXT_FLAG_EEE_CAP) {
 		struct ethtool_eee *eee = &bp->eee;
