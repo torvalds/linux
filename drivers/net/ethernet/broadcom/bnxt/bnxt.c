@@ -2836,7 +2836,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		if (i >= tmo_count) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
 				   timeout, le16_to_cpu(req->req_type),
-				   le16_to_cpu(req->seq_id), *resp_len);
+				   le16_to_cpu(req->seq_id), len);
 			return -1;
 		}
 
