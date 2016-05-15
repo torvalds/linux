@@ -158,7 +158,7 @@ static int qed_init_pci(struct qed_dev *cdev,
 	}
 
 	cdev->pci_params.pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
-	if (cdev->pci_params.pm_cap == 0)
+	if (IS_PF(cdev) && !cdev->pci_params.pm_cap)
 		DP_NOTICE(cdev, "Cannot find power management capability\n");
 
 	rc = qed_set_coherency_mask(cdev);
