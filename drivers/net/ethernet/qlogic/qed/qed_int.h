@@ -298,26 +298,8 @@ u16 qed_int_get_sp_sb_id(struct qed_hwfn *p_hwfn);
  * @param p_hwfn
  * @param p_ptt
  * @param sb_id		- igu status block id
- * @param cleanup_set	- set(1) / clear(0)
- * @param opaque_fid    - the function for which to perform
- *			cleanup, for example a PF on behalf of
- *			its VFs.
- */
-void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
-			    struct qed_ptt *p_ptt,
-			    u32 sb_id,
-			    bool cleanup_set,
-			    u16 opaque_fid);
-
-/**
- * @brief Status block cleanup. Should be called for each status
- *        block that will be used -> both PF / VF
- *
- * @param p_hwfn
- * @param p_ptt
- * @param sb_id		- igu status block id
  * @param opaque	- opaque fid of the sb owner.
- * @param cleanup_set	- set(1) / clear(0)
+ * @param b_set		- set(1) / clear(0)
  */
 void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,

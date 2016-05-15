@@ -526,7 +526,6 @@ static void qed_iov_vf_pglue_clear_err(struct qed_hwfn *p_hwfn,
 static void qed_iov_vf_igu_reset(struct qed_hwfn *p_hwfn,
 				 struct qed_ptt *p_ptt, struct qed_vf_info *vf)
 {
-	u16 igu_sb_id;
 	int i;
 
 	/* Set VF masks and configuration - pretend */
@@ -534,23 +533,14 @@ static void qed_iov_vf_igu_reset(struct qed_hwfn *p_hwfn,
 
 	qed_wr(p_hwfn, p_ptt, IGU_REG_STATISTIC_NUM_VF_MSG_SENT, 0);
 
-	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-		   "value in VF_CONFIGURATION of vf %d after write %x\n",
-		   vf->abs_vf_id,
-		   qed_rd(p_hwfn, p_ptt, IGU_REG_VF_CONFIGURATION));
-
 	/* unpretend */
 	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_hwfn->hw_info.concrete_fid);
 
 	/* iterate over all queues, clear sb consumer */
-	for (i = 0; i < vf->num_sbs; i++) {
-		igu_sb_id = vf->igu_sbs[i];
-		/* Set then clear... */
-		qed_int_igu_cleanup_sb(p_hwfn, p_ptt, igu_sb_id, 1,
-				       vf->opaque_fid);
-		qed_int_igu_cleanup_sb(p_hwfn, p_ptt, igu_sb_id, 0,
-				       vf->opaque_fid);
-	}
+	for (i = 0; i < vf->num_sbs; i++)
+		qed_int_igu_init_pure_rt_single(p_hwfn, p_ptt,
+						vf->igu_sbs[i],
+						vf->opaque_fid, true);
 }
 
 static void qed_iov_vf_igu_set_int(struct qed_hwfn *p_hwfn,
@@ -590,6 +580,8 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 		   vf->abs_vf_id, QED_VF_ABS_ID(p_hwfn, vf));
 
 	qed_iov_vf_pglue_clear_err(p_hwfn, p_ptt, QED_VF_ABS_ID(p_hwfn, vf));
+
+	qed_iov_vf_igu_reset(p_hwfn, p_ptt, vf);
 
 	rc = qed_mcp_config_vf_msix(p_hwfn, p_ptt, vf->abs_vf_id, vf->num_sbs);
 	if (rc)
