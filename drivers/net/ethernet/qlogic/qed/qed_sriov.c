@@ -3099,6 +3099,9 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 			goto err;
 		}
 
+		if (IS_MF_DEFAULT(hwfn))
+			limit = MAX_NUM_VFS_BB / hwfn->num_funcs_on_engine;
+
 		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
 		qed_int_get_num_sbs(hwfn, &sb_cnt_info);
 		num_sbs = min_t(int, sb_cnt_info.sb_free_blk, limit);
