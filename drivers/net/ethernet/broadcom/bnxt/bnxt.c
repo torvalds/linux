@@ -2780,7 +2780,7 @@ void bnxt_hwrm_cmd_hdr_init(struct bnxt *bp, void *request, u16 req_type,
 static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 				 int timeout, bool silent)
 {
-	int i, intr_process, rc;
+	int i, intr_process, rc, tmo_count;
 	struct input *req = msg;
 	u32 *data = msg;
 	__le32 *resp_len, *valid;
@@ -2809,11 +2809,12 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		timeout = DFLT_HWRM_CMD_TIMEOUT;
 
 	i = 0;
+	tmo_count = timeout * 40;
 	if (intr_process) {
 		/* Wait until hwrm response cmpl interrupt is processed */
 		while (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID &&
-		       i++ < timeout) {
-			usleep_range(600, 800);
+		       i++ < tmo_count) {
+			usleep_range(25, 40);
 		}
 
 		if (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID) {
@@ -2824,15 +2825,15 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	} else {
 		/* Check if response len is updated */
 		resp_len = bp->hwrm_cmd_resp_addr + HWRM_RESP_LEN_OFFSET;
-		for (i = 0; i < timeout; i++) {
+		for (i = 0; i < tmo_count; i++) {
 			len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
 			      HWRM_RESP_LEN_SFT;
 			if (len)
 				break;
-			usleep_range(600, 800);
+			usleep_range(25, 40);
 		}
 
-		if (i >= timeout) {
+		if (i >= tmo_count) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
 				   timeout, le16_to_cpu(req->req_type),
 				   le16_to_cpu(req->seq_id), *resp_len);
@@ -2841,13 +2842,13 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 
 		/* Last word of resp contains valid bit */
 		valid = bp->hwrm_cmd_resp_addr + len - 4;
-		for (i = 0; i < timeout; i++) {
+		for (i = 0; i < 5; i++) {
 			if (le32_to_cpu(*valid) & HWRM_RESP_VALID_MASK)
 				break;
-			usleep_range(600, 800);
+			udelay(1);
 		}
 
-		if (i >= timeout) {
+		if (i >= 5) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d v:%d\n",
 				   timeout, le16_to_cpu(req->req_type),
 				   le16_to_cpu(req->seq_id), len, *valid);
