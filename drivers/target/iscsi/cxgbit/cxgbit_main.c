@@ -624,7 +624,7 @@ static enum target_prot_op cxgbit_get_sup_prot_ops(struct iscsi_conn *conn)
 
 static struct iscsit_transport cxgbit_transport = {
 	.name			= DRV_NAME,
-	.transport_type		= ISCSI_HW_OFFLOAD,
+	.transport_type		= ISCSI_CXGBIT,
 	.rdma_shutdown		= false,
 	.priv_size		= sizeof(struct cxgbit_cmd),
 	.owner			= THIS_MODULE,

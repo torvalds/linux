@@ -74,7 +74,7 @@ enum iscsit_transport_type {
 	ISCSI_IWARP_TCP				= 3,
 	ISCSI_IWARP_SCTP			= 4,
 	ISCSI_INFINIBAND			= 5,
-	ISCSI_HW_OFFLOAD			= 6,
+	ISCSI_CXGBIT				= 6,
 };
 
 /* RFC-3720 7.1.4  Standard Connection State Diagram for a Target */

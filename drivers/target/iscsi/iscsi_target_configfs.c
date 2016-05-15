@@ -131,22 +131,22 @@ static ssize_t lio_target_np_iser_store(struct config_item *item,
 }
 CONFIGFS_ATTR(lio_target_np_, iser);
 
-static ssize_t lio_target_np_hw_offload_show(struct config_item *item, char *page)
+static ssize_t lio_target_np_cxgbit_show(struct config_item *item, char *page)
 {
-	return lio_target_np_driver_show(item, page, ISCSI_HW_OFFLOAD);
+	return lio_target_np_driver_show(item, page, ISCSI_CXGBIT);
 }
 
-static ssize_t lio_target_np_hw_offload_store(struct config_item *item,
-					      const char *page, size_t count)
+static ssize_t lio_target_np_cxgbit_store(struct config_item *item,
+					  const char *page, size_t count)
 {
 	return lio_target_np_driver_store(item, page, count,
-					  ISCSI_HW_OFFLOAD, "");
+					  ISCSI_CXGBIT, "cxgbit");
 }
-CONFIGFS_ATTR(lio_target_np_, hw_offload);
+CONFIGFS_ATTR(lio_target_np_, cxgbit);
 
 static struct configfs_attribute *lio_target_portal_attrs[] = {
 	&lio_target_np_attr_iser,
-	&lio_target_np_attr_hw_offload,
+	&lio_target_np_attr_cxgbit,
 	NULL,
 };
 
