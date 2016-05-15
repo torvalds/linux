@@ -398,6 +398,9 @@ static bool gb_manifest_parse_interface(struct gb_interface *intf,
 		goto out_free_vendor_string;
 	control->product_string = str;
 
+	/* Assign feature flags communicated via manifest */
+	intf->features = desc_intf->features;
+
 	/* Release the interface descriptor, now that we're done with it */
 	release_manifest_descriptor(interface_desc);
 

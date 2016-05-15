@@ -23,6 +23,7 @@ struct gb_interface {
 	struct list_head manifest_descs;
 	u8 interface_id;	/* Physical location within the Endo */
 	u8 device_id;
+	u8 features;		/* Feature flags set in the manifest */
 
 	u32 ddbl1_manufacturer_id;
 	u32 ddbl1_product_id;

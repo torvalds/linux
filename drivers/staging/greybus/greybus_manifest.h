@@ -81,6 +81,10 @@ enum greybus_class_type {
 	GREYBUS_CLASS_VENDOR		= 0xff,
 };
 
+enum {
+	GREYBUS_INTERFACE_FEATURE_TIMESYNC = BIT(0),
+};
+
 /*
  * The string in a string descriptor is not NUL-terminated.  The
  * size of the descriptor will be rounded up to a multiple of 4
@@ -99,7 +103,8 @@ struct greybus_descriptor_string {
 struct greybus_descriptor_interface {
 	__u8	vendor_stringid;
 	__u8	product_stringid;
-	__u8	pad[2];
+	__u8	features;
+	__u8	pad;
 } __packed;
 
 /*
