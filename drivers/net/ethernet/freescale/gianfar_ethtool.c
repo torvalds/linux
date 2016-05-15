@@ -184,29 +184,6 @@ static void gfar_gdrvinfo(struct net_device *dev,
 	strlcpy(drvinfo->bus_info, "N/A", sizeof(drvinfo->bus_info));
 }
 
-
-static int gfar_set_ksettings(struct net_device *dev,
-			      const struct ethtool_link_ksettings *cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_ksettings_set(phydev, cmd);
-}
-
-static int gfar_get_ksettings(struct net_device *dev,
-			      struct ethtool_link_ksettings *cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_ksettings_get(phydev, cmd);
-}
-
 /* Return the length of the register structure */
 static int gfar_reglen(struct net_device *dev)
 {
@@ -1580,6 +1557,6 @@ const struct ethtool_ops gfar_ethtool_ops = {
 	.set_rxnfc = gfar_set_nfc,
 	.get_rxnfc = gfar_get_nfc,
 	.get_ts_info = gfar_get_ts_info,
-	.get_link_ksettings = gfar_get_ksettings,
-	.set_link_ksettings = gfar_set_ksettings,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
