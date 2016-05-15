@@ -23,9 +23,9 @@
 #include <linux/byteorder/generic.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/if.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
-#include <linux/if.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>

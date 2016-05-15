@@ -19,8 +19,8 @@
 #include "main.h"
 
 #include <linux/atomic.h>
-#include <linux/errno.h>
 #include <linux/byteorder/generic.h>
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/netdevice.h>
