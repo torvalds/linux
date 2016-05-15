@@ -46,6 +46,7 @@
 #include "routing.h"
 #include "send.h"
 #include "translation-table.h"
+#include "tvlv.h"
 
 /**
  * batadv_v_ogm_orig_get - retrieve and possibly create an originator node

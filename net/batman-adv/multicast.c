@@ -57,6 +57,7 @@
 #include "hash.h"
 #include "packet.h"
 #include "translation-table.h"
+#include "tvlv.h"
 
 /**
  * batadv_mcast_get_bridge - get the bridge on top of the softif if it exists

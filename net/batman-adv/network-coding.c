@@ -55,6 +55,7 @@
 #include "packet.h"
 #include "routing.h"
 #include "send.h"
+#include "tvlv.h"
 
 static struct lock_class_key batadv_nc_coding_hash_lock_class_key;
 static struct lock_class_key batadv_nc_decoding_hash_lock_class_key;

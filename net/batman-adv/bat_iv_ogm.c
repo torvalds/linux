@@ -58,6 +58,7 @@
 #include "routing.h"
 #include "send.h"
 #include "translation-table.h"
+#include "tvlv.h"
 
 static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work);
 

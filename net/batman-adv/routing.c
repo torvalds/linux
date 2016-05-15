@@ -46,6 +46,7 @@
 #include "send.h"
 #include "soft-interface.h"
 #include "translation-table.h"
+#include "tvlv.h"
 
 static int batadv_route_unicast_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if);

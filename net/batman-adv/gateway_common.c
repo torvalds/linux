@@ -29,6 +29,7 @@
 
 #include "gateway_client.h"
 #include "packet.h"
+#include "tvlv.h"
 
 /**
  * batadv_parse_throughput - parse supplied string buffer to extract throughput
