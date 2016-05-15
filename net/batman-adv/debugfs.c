@@ -44,6 +44,7 @@
 #include <linux/wait.h>
 #include <stdarg.h>
 
+#include "bat_algo.h"
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
 #include "gateway_client.h"

@@ -39,6 +39,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include "bat_algo.h"
 #include "hard-interface.h"
 #include "hash.h"
 #include "originator.h"

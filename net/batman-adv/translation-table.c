@@ -44,6 +44,7 @@
 #include <linux/string.h>
 #include <linux/workqueue.h>
 
+#include "bat_algo.h"
 #include "bridge_loop_avoidance.h"
 #include "hard-interface.h"
 #include "hash.h"
