@@ -327,7 +327,11 @@ static void bnxt_get_channels(struct net_device *dev,
 	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
 	channel->max_combined = max_rx_rings;
 
-	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false);
+	if (bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false)) {
+		max_rx_rings = 0;
+		max_tx_rings = 0;
+	}
+
 	tcs = netdev_get_num_tc(dev);
 	if (tcs > 1)
 		max_tx_rings /= tcs;
