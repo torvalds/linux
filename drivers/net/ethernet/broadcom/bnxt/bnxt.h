@@ -425,10 +425,17 @@ struct rx_tpa_end_cmp_ext {
 
 #define MAX_TPA		64
 
+#if (BNXT_PAGE_SHIFT == 16)
+#define MAX_RX_PAGES	1
+#define MAX_RX_AGG_PAGES	4
+#define MAX_TX_PAGES	1
+#define MAX_CP_PAGES	8
+#else
 #define MAX_RX_PAGES	8
 #define MAX_RX_AGG_PAGES	32
 #define MAX_TX_PAGES	8
 #define MAX_CP_PAGES	64
+#endif
 
 #define RX_DESC_CNT (BNXT_PAGE_SIZE / sizeof(struct rx_bd))
 #define TX_DESC_CNT (BNXT_PAGE_SIZE / sizeof(struct tx_bd))
