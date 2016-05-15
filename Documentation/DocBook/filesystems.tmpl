@@ -285,7 +285,7 @@ clean and stable fs for a moment.  E.g.
 
 	jbd2_journal_lock_updates() //stop new stuff happening..
 	jbd2_journal_flush()        // checkpoint everything.
-	..do stuff on stable fs
+	//..do stuff on stable fs
 	jbd2_journal_unlock_updates() // carry on with filesystem use.
 </programlisting>
 
