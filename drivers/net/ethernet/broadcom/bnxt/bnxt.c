@@ -6261,6 +6261,22 @@ static int bnxt_set_dflt_rings(struct bnxt *bp)
 	return rc;
 }
 
+static void bnxt_parse_log_pcie_link(struct bnxt *bp)
+{
+	enum pcie_link_width width = PCIE_LNK_WIDTH_UNKNOWN;
+	enum pci_bus_speed speed = PCI_SPEED_UNKNOWN;
+
+	if (pcie_get_minimum_link(bp->pdev, &speed, &width) ||
+	    speed == PCI_SPEED_UNKNOWN || width == PCIE_LNK_WIDTH_UNKNOWN)
+		netdev_info(bp->dev, "Failed to determine PCIe Link Info\n");
+	else
+		netdev_info(bp->dev, "PCIe: Speed %s Width x%d\n",
+			    speed == PCIE_SPEED_2_5GT ? "2.5GT/s" :
+			    speed == PCIE_SPEED_5_0GT ? "5.0GT/s" :
+			    speed == PCIE_SPEED_8_0GT ? "8.0GT/s" :
+			    "Unknown", width);
+}
+
 static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed;
@@ -6380,6 +6396,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev_info(dev, "%s found at mem %lx, node addr %pM\n",
 		    board_info[ent->driver_data].name,
 		    (long)pci_resource_start(pdev, 0), dev->dev_addr);
+
+	bnxt_parse_log_pcie_link(bp);
 
 	return 0;
 
