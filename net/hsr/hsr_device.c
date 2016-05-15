@@ -461,13 +461,9 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	hsr->sequence_nr = HSR_SEQNR_START;
 	hsr->sup_sequence_nr = HSR_SUP_SEQNR_START;
 
-	init_timer(&hsr->announce_timer);
-	hsr->announce_timer.function = hsr_announce;
-	hsr->announce_timer.data = (unsigned long) hsr;
+	setup_timer(&hsr->announce_timer, hsr_announce, (unsigned long)hsr);
 
-	init_timer(&hsr->prune_timer);
-	hsr->prune_timer.function = hsr_prune_nodes;
-	hsr->prune_timer.data = (unsigned long) hsr;
+	setup_timer(&hsr->prune_timer, hsr_prune_nodes, (unsigned long)hsr);
 
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;
@@ -502,8 +498,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	if (res)
 		goto fail;
 
-	hsr->prune_timer.expires = jiffies + msecs_to_jiffies(PRUNE_PERIOD);
-	add_timer(&hsr->prune_timer);
+	mod_timer(&hsr->prune_timer, jiffies + msecs_to_jiffies(PRUNE_PERIOD));
 
 	return 0;
 
