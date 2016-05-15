@@ -239,7 +239,6 @@ static int wm831x_status_probe(struct platform_device *pdev)
 			       GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, drvdata);
 
 	drvdata->wm831x = wm831x;
 	drvdata->reg = res->start;
@@ -284,20 +283,11 @@ static int wm831x_status_probe(struct platform_device *pdev)
 	drvdata->cdev.blink_set = wm831x_status_blink_set;
 	drvdata->cdev.groups = wm831x_status_groups;
 
-	ret = led_classdev_register(wm831x->dev, &drvdata->cdev);
+	ret = devm_led_classdev_register(wm831x->dev, &drvdata->cdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register LED: %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int wm831x_status_remove(struct platform_device *pdev)
-{
-	struct wm831x_status *drvdata = platform_get_drvdata(pdev);
-
-	led_classdev_unregister(&drvdata->cdev);
 
 	return 0;
 }
@@ -307,7 +297,6 @@ static struct platform_driver wm831x_status_driver = {
 		   .name = "wm831x-status",
 		   },
 	.probe = wm831x_status_probe,
-	.remove = wm831x_status_remove,
 };
 
 module_platform_driver(wm831x_status_driver);

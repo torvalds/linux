@@ -79,12 +79,13 @@ static struct sk_buff *codel_qdisc_dequeue(struct Qdisc *sch)
 
 	skb = codel_dequeue(sch, &q->params, &q->vars, &q->stats, dequeue);
 
-	/* We cant call qdisc_tree_decrease_qlen() if our qlen is 0,
+	/* We cant call qdisc_tree_reduce_backlog() if our qlen is 0,
 	 * or HTB crashes. Defer it for next round.
 	 */
 	if (q->stats.drop_count && sch->q.qlen) {
-		qdisc_tree_decrease_qlen(sch, q->stats.drop_count);
+		qdisc_tree_reduce_backlog(sch, q->stats.drop_count, q->stats.drop_len);
 		q->stats.drop_count = 0;
+		q->stats.drop_len = 0;
 	}
 	if (skb)
 		qdisc_bstats_update(sch, skb);
@@ -116,7 +117,7 @@ static int codel_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct codel_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_CODEL_MAX + 1];
-	unsigned int qlen;
+	unsigned int qlen, dropped = 0;
 	int err;
 
 	if (!opt)
@@ -156,10 +157,11 @@ static int codel_change(struct Qdisc *sch, struct nlattr *opt)
 	while (sch->q.qlen > sch->limit) {
 		struct sk_buff *skb = __skb_dequeue(&sch->q);
 
+		dropped += qdisc_pkt_len(skb);
 		qdisc_qstats_backlog_dec(sch, skb);
 		qdisc_drop(skb, sch);
 	}
-	qdisc_tree_decrease_qlen(sch, qlen - sch->q.qlen);
+	qdisc_tree_reduce_backlog(sch, qlen - sch->q.qlen, dropped);
 
 	sch_tree_unlock(sch);
 	return 0;

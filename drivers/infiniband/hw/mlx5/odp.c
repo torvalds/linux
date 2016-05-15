@@ -142,13 +142,13 @@ static struct mlx5_ib_mr *mlx5_ib_odp_find_mr_lkey(struct mlx5_ib_dev *dev,
 						   u32 key)
 {
 	u32 base_key = mlx5_base_mkey(key);
-	struct mlx5_core_mr *mmr = __mlx5_mr_lookup(dev->mdev, base_key);
-	struct mlx5_ib_mr *mr = container_of(mmr, struct mlx5_ib_mr, mmr);
+	struct mlx5_core_mkey *mmkey = __mlx5_mr_lookup(dev->mdev, base_key);
+	struct mlx5_ib_mr *mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 
-	if (!mmr || mmr->key != key || !mr->live)
+	if (!mmkey || mmkey->key != key || !mr->live)
 		return NULL;
 
-	return container_of(mmr, struct mlx5_ib_mr, mmr);
+	return container_of(mmkey, struct mlx5_ib_mr, mmkey);
 }
 
 static void mlx5_ib_page_fault_resume(struct mlx5_ib_qp *qp,
@@ -232,7 +232,7 @@ static int pagefault_single_data_segment(struct mlx5_ib_qp *qp,
 	io_virt += pfault->mpfault.bytes_committed;
 	bcnt -= pfault->mpfault.bytes_committed;
 
-	start_idx = (io_virt - (mr->mmr.iova & PAGE_MASK)) >> PAGE_SHIFT;
+	start_idx = (io_virt - (mr->mmkey.iova & PAGE_MASK)) >> PAGE_SHIFT;
 
 	if (mr->umem->writable)
 		access_mask |= ODP_WRITE_ALLOWED_BIT;

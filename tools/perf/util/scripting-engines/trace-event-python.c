@@ -205,6 +205,9 @@ static void define_event_symbols(struct event_format *event,
 				 const char *ev_name,
 				 struct print_arg *args)
 {
+	if (args == NULL)
+		return;
+
 	switch (args->type) {
 	case PRINT_NULL:
 		break;
@@ -1091,8 +1094,6 @@ static int python_start_script(const char *script, int argc, const char **argv)
 		goto error;
 	}
 
-	free(command_line);
-
 	set_table_handlers(tables);
 
 	if (tables->db_export_mode) {
@@ -1100,6 +1101,8 @@ static int python_start_script(const char *script, int argc, const char **argv)
 		if (err)
 			goto error;
 	}
+
+	free(command_line);
 
 	return err;
 error:

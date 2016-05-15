@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2014 LSI Corporation.
+ * Copyright 2000-2014 Avago Technologies.  All rights reserved.
  *
  *
  *          Name:  mpi2_raid.h
  *         Title:  MPI Integrated RAID messages and structures
  * Creation Date:  April 26, 2007
  *
- *   mpi2_raid.h Version:  02.00.10
+ *   mpi2_raid.h Version:  02.00.11
  *
  * Version History
  * ---------------
@@ -31,6 +31,7 @@
  * 07-26-12  02.00.09  Added ElapsedSeconds field to MPI2_RAID_VOL_INDICATOR.
  *                     Added MPI2_RAID_VOL_FLAGS_ELAPSED_SECONDS_VALID define.
  * 04-17-13  02.00.10  Added MPI25_RAID_ACTION_ADATA_ALLOW_PI.
+ * 11-18-14  02.00.11  Updated copyright information.
  * --------------------------------------------------------------------------
  */
 

@@ -11,8 +11,10 @@ Required properties:
 - compatible        : compatible string, one of:
   - "allwinner,sun4i-a10-ahci"
   - "hisilicon,hisi-ahci"
+  - "cavium,octeon-7130-ahci"
   - "ibm,476gtr-ahci"
   - "marvell,armada-380-ahci"
+  - "marvell,armada-3700-ahci"
   - "snps,dwc-ahci"
   - "snps,exynos5440-ahci"
   - "snps,spear-ahci"
@@ -30,6 +32,10 @@ Optional properties:
 - target-supply     : regulator for SATA target power
 - phys              : reference to the SATA PHY node
 - phy-names         : must be "sata-phy"
+- ports-implemented : Mask that indicates which ports that the HBA supports
+		      are available for software to use. Useful if PORTS_IMPL
+		      is not programmed by the BIOS, which is true with
+		      some embedded SOC's.
 
 Required properties when using sub-nodes:
 - #address-cells    : number of cells to encode an address

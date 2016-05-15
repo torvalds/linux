@@ -163,7 +163,7 @@ static struct snd_soc_ops corgi_ops = {
 static int corgi_get_jack(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = corgi_jack_func;
+	ucontrol->value.enumerated.item[0] = corgi_jack_func;
 	return 0;
 }
 
@@ -172,10 +172,10 @@ static int corgi_set_jack(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
-	if (corgi_jack_func == ucontrol->value.integer.value[0])
+	if (corgi_jack_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	corgi_jack_func = ucontrol->value.integer.value[0];
+	corgi_jack_func = ucontrol->value.enumerated.item[0];
 	corgi_ext_control(&card->dapm);
 	return 1;
 }
@@ -183,7 +183,7 @@ static int corgi_set_jack(struct snd_kcontrol *kcontrol,
 static int corgi_get_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = corgi_spk_func;
+	ucontrol->value.enumerated.item[0] = corgi_spk_func;
 	return 0;
 }
 
@@ -192,10 +192,10 @@ static int corgi_set_spk(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
-	if (corgi_spk_func == ucontrol->value.integer.value[0])
+	if (corgi_spk_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	corgi_spk_func = ucontrol->value.integer.value[0];
+	corgi_spk_func = ucontrol->value.enumerated.item[0];
 	corgi_ext_control(&card->dapm);
 	return 1;
 }

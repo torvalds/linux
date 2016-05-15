@@ -28,12 +28,14 @@ extern void giveup_all(struct task_struct *);
 extern void enable_kernel_fp(void);
 extern void flush_fp_to_thread(struct task_struct *);
 extern void giveup_fpu(struct task_struct *);
-extern void __giveup_fpu(struct task_struct *);
+extern void save_fpu(struct task_struct *);
 static inline void disable_kernel_fp(void)
 {
 	msr_check_and_clear(MSR_FP);
 }
 #else
+static inline void __giveup_fpu(struct task_struct *t) { }
+static inline void save_fpu(struct task_struct *t) { }
 static inline void flush_fp_to_thread(struct task_struct *t) { }
 #endif
 
@@ -41,18 +43,19 @@ static inline void flush_fp_to_thread(struct task_struct *t) { }
 extern void enable_kernel_altivec(void);
 extern void flush_altivec_to_thread(struct task_struct *);
 extern void giveup_altivec(struct task_struct *);
-extern void __giveup_altivec(struct task_struct *);
+extern void save_altivec(struct task_struct *);
 static inline void disable_kernel_altivec(void)
 {
 	msr_check_and_clear(MSR_VEC);
 }
+#else
+static inline void save_altivec(struct task_struct *t) { }
+static inline void __giveup_altivec(struct task_struct *t) { }
 #endif
 
 #ifdef CONFIG_VSX
 extern void enable_kernel_vsx(void);
 extern void flush_vsx_to_thread(struct task_struct *);
-extern void giveup_vsx(struct task_struct *);
-extern void __giveup_vsx(struct task_struct *);
 static inline void disable_kernel_vsx(void)
 {
 	msr_check_and_clear(MSR_FP|MSR_VEC|MSR_VSX);
@@ -68,6 +71,8 @@ static inline void disable_kernel_spe(void)
 {
 	msr_check_and_clear(MSR_SPE);
 }
+#else
+static inline void __giveup_spe(struct task_struct *t) { }
 #endif
 
 static inline void clear_task_ebb(struct task_struct *t)

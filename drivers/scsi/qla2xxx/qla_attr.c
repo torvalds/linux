@@ -272,8 +272,8 @@ qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 
 		iter = (uint32_t *)buf;
 		chksum = 0;
-		for (cnt = 0; cnt < ((count >> 2) - 1); cnt++)
-			chksum += le32_to_cpu(*iter++);
+		for (cnt = 0; cnt < ((count >> 2) - 1); cnt++, iter++)
+			chksum += le32_to_cpu(*iter);
 		chksum = ~chksum + 1;
 		*iter = cpu_to_le32(chksum);
 	} else {
@@ -562,6 +562,7 @@ qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	uint32_t faddr;
 
 	if (unlikely(pci_channel_offline(ha->pdev)))
 		return -EAGAIN;
@@ -569,9 +570,16 @@ qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EINVAL;
 
-	if (IS_NOCACHE_VPD_TYPE(ha))
-		ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_vpd << 2,
+	if (IS_NOCACHE_VPD_TYPE(ha)) {
+		faddr = ha->flt_region_vpd << 2;
+
+		if (IS_QLA27XX(ha) &&
+		    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
+			faddr = ha->flt_region_vpd_sec << 2;
+
+		ha->isp_ops->read_optrom(vha, ha->vpd, faddr,
 		    ha->vpd_size);
+	}
 	return memory_read_from_buffer(buf, count, &off, ha->vpd, ha->vpd_size);
 }
 
@@ -1909,7 +1917,8 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (qla2x00_reset_active(vha))
 		goto done;
 
-	stats = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &stats_dma);
+	stats = dma_alloc_coherent(&ha->pdev->dev,
+	    sizeof(struct link_statistics), &stats_dma, GFP_KERNEL);
 	if (stats == NULL) {
 		ql_log(ql_log_warn, vha, 0x707d,
 		    "Failed to allocate memory for stats.\n");
@@ -1957,7 +1966,8 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	do_div(pfc_host_stat->seconds_since_last_reset, HZ);
 
 done_free:
-        dma_pool_free(ha->s_dma_pool, stats, stats_dma);
+	dma_free_coherent(&ha->pdev->dev, sizeof(struct link_statistics),
+	    stats, stats_dma);
 done:
 	return pfc_host_stat;
 }

@@ -17,13 +17,13 @@
 #include <linux/irq.h>
 #include <linux/sched.h>
 #include <linux/syscore_ops.h>
+#include <linux/gpio.h>
 #include <asm/delay.h>
 #ifdef CONFIG_IPIPE
 #include <linux/ipipe.h>
 #endif
 #include <asm/traps.h>
 #include <asm/blackfin.h>
-#include <asm/gpio.h>
 #include <asm/irq_handler.h>
 #include <asm/dpmc.h>
 #include <asm/traps.h>

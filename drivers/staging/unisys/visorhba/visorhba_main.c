@@ -167,7 +167,7 @@ static int visor_thread_start(struct visor_thread_info *thrinfo,
 {
 	/* used to stop the thread */
 	init_completion(&thrinfo->has_stopped);
-	thrinfo->task = kthread_run(threadfn, thrcontext, name);
+	thrinfo->task = kthread_run(threadfn, thrcontext, "%s", name);
 	if (IS_ERR(thrinfo->task)) {
 		thrinfo->id = 0;
 		return PTR_ERR(thrinfo->task);
@@ -323,9 +323,9 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 		goto err_del_scsipending_ent;
 
 	if (tasktype == TASK_MGMT_ABORT_TASK)
-		scsicmd->result = (DID_ABORT << 16);
+		scsicmd->result = DID_ABORT << 16;
 	else
-		scsicmd->result = (DID_RESET << 16);
+		scsicmd->result = DID_RESET << 16;
 
 	scsicmd->scsi_done(scsicmd);
 
@@ -1062,7 +1062,7 @@ static int visorhba_resume(struct visor_device *dev,
 		return -EINVAL;
 
 	if (devdata->serverdown && !devdata->serverchangingstate)
-		devdata->serverchangingstate = 1;
+		devdata->serverchangingstate = true;
 
 	visor_thread_start(&devdata->threadinfo, process_incoming_rsps,
 			   devdata, "vhba_incming");

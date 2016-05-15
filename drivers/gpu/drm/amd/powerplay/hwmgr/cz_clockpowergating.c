@@ -226,7 +226,7 @@ int cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 		}
 	} else {
 		cz_dpm_update_vce_dpm(hwmgr);
-		cz_enable_disable_vce_dpm(hwmgr, true);
+		cz_enable_disable_vce_dpm(hwmgr, !bgate);
 		return 0;
 	}
 

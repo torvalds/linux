@@ -66,7 +66,7 @@ static inline struct lmv_stripe_md *lmv_get_mea(struct ptlrpc_request *req)
 	struct mdt_body	 *body;
 	struct lmv_stripe_md    *mea;
 
-	LASSERT(req != NULL);
+	LASSERT(req);
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
 
@@ -75,13 +75,11 @@ static inline struct lmv_stripe_md *lmv_get_mea(struct ptlrpc_request *req)
 
 	mea = req_capsule_server_sized_get(&req->rq_pill, &RMF_MDT_MD,
 					   body->eadatasize);
-	LASSERT(mea != NULL);
-
 	if (mea->mea_count == 0)
 		return NULL;
 	if (mea->mea_magic != MEA_MAGIC_LAST_CHAR &&
-		mea->mea_magic != MEA_MAGIC_ALL_CHARS &&
-		mea->mea_magic != MEA_MAGIC_HASH_SEGMENT)
+	    mea->mea_magic != MEA_MAGIC_ALL_CHARS &&
+	    mea->mea_magic != MEA_MAGIC_HASH_SEGMENT)
 		return NULL;
 
 	return mea;
@@ -101,7 +99,7 @@ lmv_get_target(struct lmv_obd *lmv, u32 mds)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		if (lmv->tgts[i] == NULL)
+		if (!lmv->tgts[i])
 			continue;
 
 		if (lmv->tgts[i]->ltd_idx == mds)

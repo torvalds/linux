@@ -56,6 +56,7 @@
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 #include <asm/byteorder.h>
+#include <net/devlink.h>
 
 #include "core.h"
 #include "item.h"
@@ -784,6 +785,38 @@ static void mlxsw_core_debugfs_fini(struct mlxsw_core *mlxsw_core)
 	debugfs_remove_recursive(mlxsw_core->dbg_dir);
 }
 
+static int mlxsw_devlink_port_split(struct devlink *devlink,
+				    unsigned int port_index,
+				    unsigned int count)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+
+	if (port_index >= MLXSW_PORT_MAX_PORTS)
+		return -EINVAL;
+	if (!mlxsw_core->driver->port_split)
+		return -EOPNOTSUPP;
+	return mlxsw_core->driver->port_split(mlxsw_core->driver_priv,
+					      port_index, count);
+}
+
+static int mlxsw_devlink_port_unsplit(struct devlink *devlink,
+				      unsigned int port_index)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+
+	if (port_index >= MLXSW_PORT_MAX_PORTS)
+		return -EINVAL;
+	if (!mlxsw_core->driver->port_unsplit)
+		return -EOPNOTSUPP;
+	return mlxsw_core->driver->port_unsplit(mlxsw_core->driver_priv,
+						port_index);
+}
+
+static const struct devlink_ops mlxsw_devlink_ops = {
+	.port_split	= mlxsw_devlink_port_split,
+	.port_unsplit	= mlxsw_devlink_port_unsplit,
+};
+
 int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 				   const struct mlxsw_bus *mlxsw_bus,
 				   void *bus_priv)
@@ -791,6 +824,7 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	const char *device_kind = mlxsw_bus_info->device_kind;
 	struct mlxsw_core *mlxsw_core;
 	struct mlxsw_driver *mlxsw_driver;
+	struct devlink *devlink;
 	size_t alloc_size;
 	int err;
 
@@ -798,12 +832,13 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (!mlxsw_driver)
 		return -EINVAL;
 	alloc_size = sizeof(*mlxsw_core) + mlxsw_driver->priv_size;
-	mlxsw_core = kzalloc(alloc_size, GFP_KERNEL);
-	if (!mlxsw_core) {
+	devlink = devlink_alloc(&mlxsw_devlink_ops, alloc_size);
+	if (!devlink) {
 		err = -ENOMEM;
-		goto err_core_alloc;
+		goto err_devlink_alloc;
 	}
 
+	mlxsw_core = devlink_priv(devlink);
 	INIT_LIST_HEAD(&mlxsw_core->rx_listener_list);
 	INIT_LIST_HEAD(&mlxsw_core->event_listener_list);
 	mlxsw_core->driver = mlxsw_driver;
@@ -841,6 +876,10 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_hwmon_init;
 
+	err = devlink_register(devlink, mlxsw_bus_info->dev);
+	if (err)
+		goto err_devlink_register;
+
 	err = mlxsw_driver->init(mlxsw_core->driver_priv, mlxsw_core,
 				 mlxsw_bus_info);
 	if (err)
@@ -855,6 +894,8 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 err_debugfs_init:
 	mlxsw_core->driver->fini(mlxsw_core->driver_priv);
 err_driver_init:
+	devlink_unregister(devlink);
+err_devlink_register:
 err_hwmon_init:
 	mlxsw_emad_fini(mlxsw_core);
 err_emad_init:
@@ -864,8 +905,8 @@ err_bus_init:
 err_alloc_lag_mapping:
 	free_percpu(mlxsw_core->pcpu_stats);
 err_alloc_stats:
-	kfree(mlxsw_core);
-err_core_alloc:
+	devlink_free(devlink);
+err_devlink_alloc:
 	mlxsw_core_driver_put(device_kind);
 	return err;
 }
@@ -874,14 +915,16 @@ EXPORT_SYMBOL(mlxsw_core_bus_device_register);
 void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core)
 {
 	const char *device_kind = mlxsw_core->bus_info->device_kind;
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
 
 	mlxsw_core_debugfs_fini(mlxsw_core);
 	mlxsw_core->driver->fini(mlxsw_core->driver_priv);
+	devlink_unregister(devlink);
 	mlxsw_emad_fini(mlxsw_core);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
 	kfree(mlxsw_core->lag.mapping);
 	free_percpu(mlxsw_core->pcpu_stats);
-	kfree(mlxsw_core);
+	devlink_free(devlink);
 	mlxsw_core_driver_put(device_kind);
 }
 EXPORT_SYMBOL(mlxsw_core_bus_device_unregister);

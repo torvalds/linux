@@ -149,7 +149,7 @@ static inline unsigned long __xchg(unsigned long val, volatile void *ptr,
  * Since xchg() doesn't always do that, it would seem that following defintion
  * is incorrect. But here's the rationale:
  *   SMP : Even xchg() takes the atomic_ops_lock, so OK.
- *   LLSC: atomic_ops_lock are not relevent at all (even if SMP, since LLSC
+ *   LLSC: atomic_ops_lock are not relevant at all (even if SMP, since LLSC
  *         is natively "SMP safe", no serialization required).
  *   UP  : other atomics disable IRQ, so no way a difft ctxt atomic_xchg()
  *         could clobber them. atomic_xchg() itself would be 1 insn, so it

@@ -56,7 +56,8 @@ static int nes_dereg_mr(struct ib_mr *ib_mr);
 /**
  * nes_alloc_mw
  */
-static struct ib_mw *nes_alloc_mw(struct ib_pd *ibpd, enum ib_mw_type type)
+static struct ib_mw *nes_alloc_mw(struct ib_pd *ibpd, enum ib_mw_type type,
+				  struct ib_udata *udata)
 {
 	struct nes_pd *nespd = to_nespd(ibpd);
 	struct nes_vnic *nesvnic = to_nesvnic(ibpd->device);
@@ -3768,6 +3769,8 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.iwcm->create_listen = nes_create_listen;
 	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
 	nesibdev->ibdev.get_port_immutable   = nes_port_immutable;
+	memcpy(nesibdev->ibdev.iwcm->ifname, netdev->name,
+	       sizeof(nesibdev->ibdev.iwcm->ifname));
 
 	return nesibdev;
 }

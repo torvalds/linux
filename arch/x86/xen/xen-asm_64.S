@@ -26,6 +26,7 @@ ENTRY(xen_adjust_exception_frame)
 	mov 8+0(%rsp), %rcx
 	mov 8+8(%rsp), %r11
 	ret $16
+ENDPROC(xen_adjust_exception_frame)
 
 hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
 /*

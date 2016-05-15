@@ -151,6 +151,15 @@ config AHCI_MVEBU
 
 	  If unsure, say N.
 
+config AHCI_OCTEON
+	tristate "Cavium Octeon Soc Serial ATA"
+	depends on SATA_AHCI_PLATFORM && CAVIUM_OCTEON_SOC
+	default y
+	help
+	  This option enables support for Cavium Octeon SoC Serial ATA.
+
+	  If unsure, say N.
+
 config AHCI_SUNXI
 	tristate "Allwinner sunxi AHCI SATA support"
 	depends on ARCH_SUNXI
@@ -192,6 +201,14 @@ config SATA_FSL
 	  It can be found on MPC837x and MPC8315.
 
 	  If unsure, say N.
+
+config SATA_AHCI_SEATTLE
+	tristate "AMD Seattle 6.0Gbps AHCI SATA host controller support"
+	depends on ARCH_SEATTLE
+	help
+	 This option enables support for AMD Seattle SATA host controller.
+
+	 If unsure, say N
 
 config SATA_INIC162X
 	tristate "Initio 162x SATA support (Very Experimental)"
@@ -355,7 +372,7 @@ config SATA_PROMISE
 
 config SATA_RCAR
 	tristate "Renesas R-Car SATA support"
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  This option enables support for Renesas R-Car Serial ATA.
 

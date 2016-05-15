@@ -257,7 +257,7 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 
 void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.apic)
+	if (lapic_in_kernel(vcpu))
 		kvm_apic_local_deliver(vcpu->arch.apic, APIC_LVTPC);
 }
 

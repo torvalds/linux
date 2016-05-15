@@ -348,7 +348,7 @@ void acpi_db_display_table_info(char *table_arg)
 		} else {
 			/* If the pointer is null, the table has been unloaded */
 
-			ACPI_INFO((AE_INFO, "%4.4s - Table has been unloaded",
+			ACPI_INFO(("%4.4s - Table has been unloaded",
 				   table_desc->signature.ascii));
 		}
 	}

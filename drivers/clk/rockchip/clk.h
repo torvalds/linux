@@ -254,6 +254,7 @@ enum rockchip_clk_branch_type {
 	branch_gate,
 	branch_mmc,
 	branch_inverter,
+	branch_factor,
 };
 
 struct rockchip_clk_branch {
@@ -506,6 +507,33 @@ struct rockchip_clk_branch {
 		.muxdiv_offset	= io,				\
 		.div_shift	= is,				\
 		.div_flags	= if,				\
+	}
+
+#define FACTOR(_id, cname, pname,  f, fm, fd)			\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_factor,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.div_shift	= fm,				\
+		.div_width	= fd,				\
+	}
+
+#define FACTOR_GATE(_id, cname, pname,  f, fm, fd, go, gb, gf)	\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_factor,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.div_shift	= fm,				\
+		.div_width	= fd,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gb,				\
+		.gate_flags	= gf,				\
 	}
 
 void rockchip_clk_init(struct device_node *np, void __iomem *base,

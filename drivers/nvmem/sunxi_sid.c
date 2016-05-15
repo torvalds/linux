@@ -13,9 +13,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
-
 
 #include <linux/device.h>
 #include <linux/io.h>
@@ -26,7 +24,6 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/random.h>
-
 
 static struct nvmem_config econfig = {
 	.name = "sunxi-sid",
@@ -55,8 +52,8 @@ static u8 sunxi_sid_read_byte(const struct sunxi_sid *sid,
 }
 
 static int sunxi_sid_read(void *context,
-			    const void *reg, size_t reg_size,
-			    void *val, size_t val_size)
+			  const void *reg, size_t reg_size,
+			  void *val, size_t val_size)
 {
 	struct sunxi_sid *sid = context;
 	unsigned int offset = *(u32 *)reg;
@@ -130,7 +127,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);
 
-	randomness = kzalloc(sizeof(u8) * size, GFP_KERNEL);
+	randomness = kzalloc(sizeof(u8) * (size), GFP_KERNEL);
 	if (!randomness) {
 		ret = -EINVAL;
 		goto err_unreg_nvmem;

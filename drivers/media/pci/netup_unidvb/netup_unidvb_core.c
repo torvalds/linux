@@ -462,8 +462,8 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 	}
 
 	if (vb2_dvb_register_bus(&ndev->frontends[num],
-			THIS_MODULE, NULL,
-			&ndev->pci_dev->dev, adapter_nr, 1)) {
+				 THIS_MODULE, NULL,
+				 &ndev->pci_dev->dev, NULL, adapter_nr, 1)) {
 		dev_dbg(&ndev->pci_dev->dev,
 			"%s(): unable to register DVB bus %d\n",
 			__func__, num);
@@ -771,10 +771,9 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 
 	/* allocate device context */
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
-
 	if (!ndev)
 		goto dev_alloc_err;
-	memset(ndev, 0, sizeof(*ndev));
+
 	ndev->old_fw = old_firmware;
 	ndev->wq = create_singlethread_workqueue(NETUP_UNIDVB_NAME);
 	if (!ndev->wq) {

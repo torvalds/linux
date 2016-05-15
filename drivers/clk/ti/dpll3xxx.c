@@ -98,7 +98,7 @@ static u16 _omap3_dpll_compute_freqsel(struct clk_hw_omap *clk, u8 n)
 	unsigned long fint;
 	u16 f = 0;
 
-	fint = clk_get_rate(clk->dpll_data->clk_ref) / n;
+	fint = clk_hw_get_rate(clk->dpll_data->clk_ref) / n;
 
 	pr_debug("clock: fint is %lu\n", fint);
 
@@ -460,12 +460,11 @@ int omap3_noncore_dpll_enable(struct clk_hw *hw)
 
 	parent = clk_hw_get_parent(hw);
 
-	if (clk_hw_get_rate(hw) ==
-	    clk_hw_get_rate(__clk_get_hw(dd->clk_bypass))) {
-		WARN_ON(parent != __clk_get_hw(dd->clk_bypass));
+	if (clk_hw_get_rate(hw) == clk_hw_get_rate(dd->clk_bypass)) {
+		WARN_ON(parent != dd->clk_bypass);
 		r = _omap3_noncore_dpll_bypass(clk);
 	} else {
-		WARN_ON(parent != __clk_get_hw(dd->clk_ref));
+		WARN_ON(parent != dd->clk_ref);
 		r = _omap3_noncore_dpll_lock(clk);
 	}
 
@@ -513,13 +512,13 @@ int omap3_noncore_dpll_determine_rate(struct clk_hw *hw,
 	if (!dd)
 		return -EINVAL;
 
-	if (clk_get_rate(dd->clk_bypass) == req->rate &&
+	if (clk_hw_get_rate(dd->clk_bypass) == req->rate &&
 	    (dd->modes & (1 << DPLL_LOW_POWER_BYPASS))) {
-		req->best_parent_hw = __clk_get_hw(dd->clk_bypass);
+		req->best_parent_hw = dd->clk_bypass;
 	} else {
 		req->rate = omap2_dpll_round_rate(hw, req->rate,
 					  &req->best_parent_rate);
-		req->best_parent_hw = __clk_get_hw(dd->clk_ref);
+		req->best_parent_hw = dd->clk_ref;
 	}
 
 	req->best_parent_rate = req->rate;
@@ -577,7 +576,7 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!dd)
 		return -EINVAL;
 
-	if (clk_hw_get_parent(hw) != __clk_get_hw(dd->clk_ref))
+	if (clk_hw_get_parent(hw) != dd->clk_ref)
 		return -EINVAL;
 
 	if (dd->last_rounded_rate == 0)

@@ -23,6 +23,8 @@
 #include "strbuf.h"
 #include "build-id.h"
 #include "data.h"
+#include <api/fs/fs.h>
+#include "asm/bug.h"
 
 /*
  * magic2 = "PERFILE2"
@@ -868,6 +870,199 @@ static int write_auxtrace(int fd, struct perf_header *h,
 	return err;
 }
 
+static int cpu_cache_level__sort(const void *a, const void *b)
+{
+	struct cpu_cache_level *cache_a = (struct cpu_cache_level *)a;
+	struct cpu_cache_level *cache_b = (struct cpu_cache_level *)b;
+
+	return cache_a->level - cache_b->level;
+}
+
+static bool cpu_cache_level__cmp(struct cpu_cache_level *a, struct cpu_cache_level *b)
+{
+	if (a->level != b->level)
+		return false;
+
+	if (a->line_size != b->line_size)
+		return false;
+
+	if (a->sets != b->sets)
+		return false;
+
+	if (a->ways != b->ways)
+		return false;
+
+	if (strcmp(a->type, b->type))
+		return false;
+
+	if (strcmp(a->size, b->size))
+		return false;
+
+	if (strcmp(a->map, b->map))
+		return false;
+
+	return true;
+}
+
+static int cpu_cache_level__read(struct cpu_cache_level *cache, u32 cpu, u16 level)
+{
+	char path[PATH_MAX], file[PATH_MAX];
+	struct stat st;
+	size_t len;
+
+	scnprintf(path, PATH_MAX, "devices/system/cpu/cpu%d/cache/index%d/", cpu, level);
+	scnprintf(file, PATH_MAX, "%s/%s", sysfs__mountpoint(), path);
+
+	if (stat(file, &st))
+		return 1;
+
+	scnprintf(file, PATH_MAX, "%s/level", path);
+	if (sysfs__read_int(file, (int *) &cache->level))
+		return -1;
+
+	scnprintf(file, PATH_MAX, "%s/coherency_line_size", path);
+	if (sysfs__read_int(file, (int *) &cache->line_size))
+		return -1;
+
+	scnprintf(file, PATH_MAX, "%s/number_of_sets", path);
+	if (sysfs__read_int(file, (int *) &cache->sets))
+		return -1;
+
+	scnprintf(file, PATH_MAX, "%s/ways_of_associativity", path);
+	if (sysfs__read_int(file, (int *) &cache->ways))
+		return -1;
+
+	scnprintf(file, PATH_MAX, "%s/type", path);
+	if (sysfs__read_str(file, &cache->type, &len))
+		return -1;
+
+	cache->type[len] = 0;
+	cache->type = rtrim(cache->type);
+
+	scnprintf(file, PATH_MAX, "%s/size", path);
+	if (sysfs__read_str(file, &cache->size, &len)) {
+		free(cache->type);
+		return -1;
+	}
+
+	cache->size[len] = 0;
+	cache->size = rtrim(cache->size);
+
+	scnprintf(file, PATH_MAX, "%s/shared_cpu_list", path);
+	if (sysfs__read_str(file, &cache->map, &len)) {
+		free(cache->map);
+		free(cache->type);
+		return -1;
+	}
+
+	cache->map[len] = 0;
+	cache->map = rtrim(cache->map);
+	return 0;
+}
+
+static void cpu_cache_level__fprintf(FILE *out, struct cpu_cache_level *c)
+{
+	fprintf(out, "L%d %-15s %8s [%s]\n", c->level, c->type, c->size, c->map);
+}
+
+static int build_caches(struct cpu_cache_level caches[], u32 size, u32 *cntp)
+{
+	u32 i, cnt = 0;
+	long ncpus;
+	u32 nr, cpu;
+	u16 level;
+
+	ncpus = sysconf(_SC_NPROCESSORS_CONF);
+	if (ncpus < 0)
+		return -1;
+
+	nr = (u32)(ncpus & UINT_MAX);
+
+	for (cpu = 0; cpu < nr; cpu++) {
+		for (level = 0; level < 10; level++) {
+			struct cpu_cache_level c;
+			int err;
+
+			err = cpu_cache_level__read(&c, cpu, level);
+			if (err < 0)
+				return err;
+
+			if (err == 1)
+				break;
+
+			for (i = 0; i < cnt; i++) {
+				if (cpu_cache_level__cmp(&c, &caches[i]))
+					break;
+			}
+
+			if (i == cnt)
+				caches[cnt++] = c;
+			else
+				cpu_cache_level__free(&c);
+
+			if (WARN_ONCE(cnt == size, "way too many cpu caches.."))
+				goto out;
+		}
+	}
+ out:
+	*cntp = cnt;
+	return 0;
+}
+
+#define MAX_CACHES 2000
+
+static int write_cache(int fd, struct perf_header *h __maybe_unused,
+			  struct perf_evlist *evlist __maybe_unused)
+{
+	struct cpu_cache_level caches[MAX_CACHES];
+	u32 cnt = 0, i, version = 1;
+	int ret;
+
+	ret = build_caches(caches, MAX_CACHES, &cnt);
+	if (ret)
+		goto out;
+
+	qsort(&caches, cnt, sizeof(struct cpu_cache_level), cpu_cache_level__sort);
+
+	ret = do_write(fd, &version, sizeof(u32));
+	if (ret < 0)
+		goto out;
+
+	ret = do_write(fd, &cnt, sizeof(u32));
+	if (ret < 0)
+		goto out;
+
+	for (i = 0; i < cnt; i++) {
+		struct cpu_cache_level *c = &caches[i];
+
+		#define _W(v)					\
+			ret = do_write(fd, &c->v, sizeof(u32));	\
+			if (ret < 0)				\
+				goto out;
+
+		_W(level)
+		_W(line_size)
+		_W(sets)
+		_W(ways)
+		#undef _W
+
+		#define _W(v)						\
+			ret = do_write_string(fd, (const char *) c->v);	\
+			if (ret < 0)					\
+				goto out;
+
+		_W(type)
+		_W(size)
+		_W(map)
+		#undef _W
+	}
+
+out:
+	for (i = 0; i < cnt; i++)
+		cpu_cache_level__free(&caches[i]);
+	return ret;
+}
+
 static int write_stat(int fd __maybe_unused,
 		      struct perf_header *h __maybe_unused,
 		      struct perf_evlist *evlist __maybe_unused)
@@ -1170,6 +1365,18 @@ static void print_stat(struct perf_header *ph __maybe_unused,
 		       int fd __maybe_unused, FILE *fp)
 {
 	fprintf(fp, "# contains stat data\n");
+}
+
+static void print_cache(struct perf_header *ph __maybe_unused,
+			int fd __maybe_unused, FILE *fp __maybe_unused)
+{
+	int i;
+
+	fprintf(fp, "# CPU cache info:\n");
+	for (i = 0; i < ph->env.caches_cnt; i++) {
+		fprintf(fp, "#  ");
+		cpu_cache_level__fprintf(fp, &ph->env.caches[i]);
+	}
 }
 
 static void print_pmu_mappings(struct perf_header *ph, int fd __maybe_unused,
@@ -1665,11 +1872,6 @@ static int process_cpu_topology(struct perf_file_section *section,
 		if (ph->needs_swap)
 			nr = bswap_32(nr);
 
-		if (nr > (u32)cpu_nr) {
-			pr_debug("core_id number is too big."
-				 "You may need to upgrade the perf tool.\n");
-			goto free_cpu;
-		}
 		ph->env.cpu[i].core_id = nr;
 
 		ret = readn(fd, &nr, sizeof(nr));
@@ -1920,6 +2122,68 @@ static int process_auxtrace(struct perf_file_section *section,
 	return err;
 }
 
+static int process_cache(struct perf_file_section *section __maybe_unused,
+			 struct perf_header *ph __maybe_unused, int fd __maybe_unused,
+			 void *data __maybe_unused)
+{
+	struct cpu_cache_level *caches;
+	u32 cnt, i, version;
+
+	if (readn(fd, &version, sizeof(version)) != sizeof(version))
+		return -1;
+
+	if (ph->needs_swap)
+		version = bswap_32(version);
+
+	if (version != 1)
+		return -1;
+
+	if (readn(fd, &cnt, sizeof(cnt)) != sizeof(cnt))
+		return -1;
+
+	if (ph->needs_swap)
+		cnt = bswap_32(cnt);
+
+	caches = zalloc(sizeof(*caches) * cnt);
+	if (!caches)
+		return -1;
+
+	for (i = 0; i < cnt; i++) {
+		struct cpu_cache_level c;
+
+		#define _R(v)						\
+			if (readn(fd, &c.v, sizeof(u32)) != sizeof(u32))\
+				goto out_free_caches;			\
+			if (ph->needs_swap)				\
+				c.v = bswap_32(c.v);			\
+
+		_R(level)
+		_R(line_size)
+		_R(sets)
+		_R(ways)
+		#undef _R
+
+		#define _R(v)				\
+			c.v = do_read_string(fd, ph);	\
+			if (!c.v)			\
+				goto out_free_caches;
+
+		_R(type)
+		_R(size)
+		_R(map)
+		#undef _R
+
+		caches[i] = c;
+	}
+
+	ph->env.caches = caches;
+	ph->env.caches_cnt = cnt;
+	return 0;
+out_free_caches:
+	free(caches);
+	return -1;
+}
+
 struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
@@ -1962,6 +2226,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPP(HEADER_GROUP_DESC,	group_desc),
 	FEAT_OPP(HEADER_AUXTRACE,	auxtrace),
 	FEAT_OPA(HEADER_STAT,		stat),
+	FEAT_OPF(HEADER_CACHE,		cache),
 };
 
 struct header_print_data {

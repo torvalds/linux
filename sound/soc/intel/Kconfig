@@ -172,6 +172,7 @@ config SND_SOC_INTEL_SKL_RT286_MACH
 	select SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_RT286
 	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
 	help
 	   This adds support for ASoC machine driver for Skylake platforms
 	   with RT286 I2S audio codec.
@@ -186,6 +187,7 @@ config SND_SOC_INTEL_SKL_NAU88L25_SSM4567_MACH
 	select SND_SOC_NAU8825
 	select SND_SOC_SSM4567
 	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
 	help
 	  This adds support for ASoC Onboard Codec I2S machine driver. This will
 	  create an alsa sound card for NAU88L25 + SSM4567.
@@ -200,6 +202,7 @@ config SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH
 	select SND_SOC_NAU8825
 	select SND_SOC_MAX98357A
 	select SND_SOC_DMIC
+	select SND_SOC_HDAC_HDMI
 	help
 	  This adds support for ASoC Onboard Codec I2S machine driver. This will
 	  create an alsa sound card for NAU88L25 + MAX98357A.

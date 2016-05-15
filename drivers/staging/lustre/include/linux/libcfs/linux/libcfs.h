@@ -118,9 +118,6 @@ do {								    \
 #define CDEBUG_STACK() (0L)
 #endif /* __x86_64__ */
 
-/* initial pid  */
-#define LUSTRE_LNET_PID	  12345
-
 #define __current_nesting_level() (0)
 
 /**

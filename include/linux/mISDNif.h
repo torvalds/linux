@@ -596,7 +596,7 @@ static inline struct mISDNdevice *dev_to_mISDN(struct device *dev)
 }
 
 extern void	set_channel_address(struct mISDNchannel *, u_int, u_int);
-extern void	mISDN_clock_update(struct mISDNclock *, int, struct timeval *);
+extern void	mISDN_clock_update(struct mISDNclock *, int, ktime_t *);
 extern unsigned short mISDN_clock_get(void);
 extern const char *mISDNDevName4ch(struct mISDNchannel *);
 

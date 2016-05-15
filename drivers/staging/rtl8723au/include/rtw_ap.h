@@ -36,8 +36,6 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 			     struct ieee80211_mgmt *mgmt, unsigned int len);
 void rtw_ap_restore_network(struct rtw_adapter *padapter);
 void rtw_set_macaddr_acl23a(struct rtw_adapter *padapter, int mode);
-int rtw_acl_add_sta23a(struct rtw_adapter *padapter, u8 *addr);
-int rtw_acl_remove_sta23a(struct rtw_adapter *padapter, u8 *addr);
 
 void associated_clients_update23a(struct rtw_adapter *padapter, u8 updated);
 void bss_cap_update_on_sta_join23a(struct rtw_adapter *padapter, struct sta_info *psta);
@@ -46,7 +44,6 @@ void sta_info_update23a(struct rtw_adapter *padapter, struct sta_info *psta);
 void ap_sta_info_defer_update23a(struct rtw_adapter *padapter, struct sta_info *psta);
 u8 ap_free_sta23a(struct rtw_adapter *padapter, struct sta_info *psta, bool active, u16 reason);
 int rtw_sta_flush23a(struct rtw_adapter *padapter);
-int rtw_ap_inform_ch_switch23a(struct rtw_adapter *padapter, u8 new_ch, u8 ch_offset);
 void start_ap_mode23a(struct rtw_adapter *padapter);
 void stop_ap_mode23a(struct rtw_adapter *padapter);
 #endif /* end of CONFIG_8723AU_AP_MODE */

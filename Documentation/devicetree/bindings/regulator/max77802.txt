@@ -60,7 +60,7 @@ The possible values for "regulator-initial-mode" and "regulator-mode" are:
 	1: Normal regulator voltage output mode.
 	3: Low Power which reduces the quiescent current down to only 1uA
 
-The list of valid modes are defined in the dt-bindings/clock/maxim,max77802.h
+The valid modes list is defined in the dt-bindings/regulator/maxim,max77802.h
 header and can be included by device tree source files.
 
 The standard "regulator-mode" property can only be used for regulators that

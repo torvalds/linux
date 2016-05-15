@@ -155,7 +155,7 @@ struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
 							       suffixes[i]);
 
 		desc = fwnode_get_named_gpiod(child, prop_name);
-		if (!IS_ERR(desc) || (PTR_ERR(desc) == -EPROBE_DEFER))
+		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
 			break;
 	}
 	if (IS_ERR(desc)) {

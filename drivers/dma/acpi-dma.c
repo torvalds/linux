@@ -438,7 +438,7 @@ struct dma_chan *acpi_dma_request_slave_chan_by_name(struct device *dev,
 			return ERR_PTR(-ENODEV);
 	}
 
-	dev_dbg(dev, "found DMA channel \"%s\" at index %d\n", name, index);
+	dev_dbg(dev, "Looking for DMA channel \"%s\" at index %d...\n", name, index);
 	return acpi_dma_request_slave_chan_by_index(dev, index);
 }
 EXPORT_SYMBOL_GPL(acpi_dma_request_slave_chan_by_name);

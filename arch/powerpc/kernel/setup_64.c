@@ -255,9 +255,6 @@ void __init early_setup(unsigned long dt_ptr)
 	setup_paca(&boot_paca);
 	fixup_boot_paca();
 
-	/* Initialize lockdep early or else spinlocks will blow */
-	lockdep_init();
-
 	/* -------- printk is now safe to use ------- */
 
 	/* Enable early debugging if any specified (see udbg.h) */

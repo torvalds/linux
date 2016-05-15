@@ -162,7 +162,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	cq->bar2_va = c4iw_bar2_addrs(rdev, cq->cqid, T4_BAR2_QTYPE_INGRESS,
 				      &cq->bar2_qid,
 				      user ? &cq->bar2_pa : NULL);
-	if (user && !cq->bar2_va) {
+	if (user && !cq->bar2_pa) {
 		pr_warn(MOD "%s: cqid %u not in BAR2 range.\n",
 			pci_name(rdev->lldi.pdev), cq->cqid);
 		ret = -EINVAL;
@@ -815,8 +815,15 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 		}
 	}
 out:
-	if (wq)
+	if (wq) {
+		if (unlikely(qhp->attr.state != C4IW_QP_STATE_RTS)) {
+			if (t4_sq_empty(wq))
+				complete(&qhp->sq_drained);
+			if (t4_rq_empty(wq))
+				complete(&qhp->rq_drained);
+		}
 		spin_unlock(&qhp->lock);
+	}
 	return ret;
 }
 

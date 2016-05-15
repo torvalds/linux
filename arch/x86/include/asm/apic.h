@@ -6,7 +6,6 @@
 
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
-#include <asm/processor.h>
 #include <asm/apicdef.h>
 #include <linux/atomic.h>
 #include <asm/fixmap.h>
@@ -644,8 +643,8 @@ static inline void entering_irq(void)
 
 static inline void entering_ack_irq(void)
 {
-	ack_APIC_irq();
 	entering_irq();
+	ack_APIC_irq();
 }
 
 static inline void ipi_entering_ack_irq(void)

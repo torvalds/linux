@@ -826,9 +826,8 @@ static struct gs_can *gs_make_candev(unsigned int channel, struct usb_interface 
 static void gs_destroy_candev(struct gs_can *dev)
 {
 	unregister_candev(dev->netdev);
-	free_candev(dev->netdev);
 	usb_kill_anchored_urbs(&dev->tx_submitted);
-	kfree(dev);
+	free_candev(dev->netdev);
 }
 
 static int gs_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -913,12 +912,15 @@ static int gs_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	for (i = 0; i < icount; i++) {
 		dev->canch[i] = gs_make_candev(i, intf);
 		if (IS_ERR_OR_NULL(dev->canch[i])) {
+			/* save error code to return later */
+			rc = PTR_ERR(dev->canch[i]);
+
 			/* on failure destroy previously created candevs */
 			icount = i;
-			for (i = 0; i < icount; i++) {
+			for (i = 0; i < icount; i++)
 				gs_destroy_candev(dev->canch[i]);
-				dev->canch[i] = NULL;
-			}
+
+			usb_kill_anchored_urbs(&dev->rx_submitted);
 			kfree(dev);
 			return rc;
 		}
@@ -939,16 +941,12 @@ static void gs_usb_disconnect(struct usb_interface *intf)
 		return;
 	}
 
-	for (i = 0; i < GS_MAX_INTF; i++) {
-		struct gs_can *can = dev->canch[i];
-
-		if (!can)
-			continue;
-
-		gs_destroy_candev(can);
-	}
+	for (i = 0; i < GS_MAX_INTF; i++)
+		if (dev->canch[i])
+			gs_destroy_candev(dev->canch[i]);
 
 	usb_kill_anchored_urbs(&dev->rx_submitted);
+	kfree(dev);
 }
 
 static const struct usb_device_id gs_usb_table[] = {

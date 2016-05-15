@@ -1,0 +1,33 @@
+Generic vcpu interface
+====================================
+
+The virtual cpu "device" also accepts the ioctls KVM_SET_DEVICE_ATTR,
+KVM_GET_DEVICE_ATTR, and KVM_HAS_DEVICE_ATTR. The interface uses the same struct
+kvm_device_attr as other devices, but targets VCPU-wide settings and controls.
+
+The groups and attributes per virtual cpu, if any, are architecture specific.
+
+1. GROUP: KVM_ARM_VCPU_PMU_V3_CTRL
+Architectures: ARM64
+
+1.1. ATTRIBUTE: KVM_ARM_VCPU_PMU_V3_IRQ
+Parameters: in kvm_device_attr.addr the address for PMU overflow interrupt is a
+            pointer to an int
+Returns: -EBUSY: The PMU overflow interrupt is already set
+         -ENXIO: The overflow interrupt not set when attempting to get it
+         -ENODEV: PMUv3 not supported
+         -EINVAL: Invalid PMU overflow interrupt number supplied
+
+A value describing the PMUv3 (Performance Monitor Unit v3) overflow interrupt
+number for this vcpu. This interrupt could be a PPI or SPI, but the interrupt
+type must be same for each vcpu. As a PPI, the interrupt number is the same for
+all vcpus, while as an SPI it must be a separate number per vcpu.
+
+1.2 ATTRIBUTE: KVM_ARM_VCPU_PMU_V3_INIT
+Parameters: no additional parameter in kvm_device_attr.addr
+Returns: -ENODEV: PMUv3 not supported
+         -ENXIO: PMUv3 not properly configured as required prior to calling this
+                 attribute
+         -EBUSY: PMUv3 already initialized
+
+Request the initialization of the PMUv3.

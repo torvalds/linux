@@ -74,7 +74,7 @@ static void rdtsctask(void)
 }
 
 
-int main(int argc, char **argv)
+int main(void)
 {
 	int n_tasks = 100, i;
 

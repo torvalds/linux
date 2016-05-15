@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -227,5 +227,5 @@ void __init gemini_gpio_init(void)
 						 (void *)i);
 	}
 
-	BUG_ON(gpiochip_add(&gemini_gpio_chip));
+	BUG_ON(gpiochip_add_data(&gemini_gpio_chip, NULL));
 }

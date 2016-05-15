@@ -103,7 +103,7 @@ void vnt_disable_power_saving(struct vnt_private *priv)
 
 	/* disable power saving hw function */
 	vnt_control_out(priv, MESSAGE_TYPE_DISABLE_PS, 0,
-	                0, 0, NULL);
+			0, 0, NULL);
 
 	/* clear AutoSleep */
 	vnt_mac_reg_bits_off(priv, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);

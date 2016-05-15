@@ -915,7 +915,7 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 		tmp = "*";
 	else if (tag == DW_TAG_subroutine_type) {
 		/* Function pointer */
-		strbuf_addf(buf, "(function_type)");
+		strbuf_add(buf, "(function_type)", 15);
 		return 0;
 	} else {
 		if (!dwarf_diename(&type))
@@ -932,7 +932,7 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 	}
 	ret = die_get_typename(&type, buf);
 	if (ret == 0)
-		strbuf_addf(buf, "%s", tmp);
+		strbuf_addstr(buf, tmp);
 
 	return ret;
 }
@@ -951,7 +951,7 @@ int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 	ret = die_get_typename(vr_die, buf);
 	if (ret < 0) {
 		pr_debug("Failed to get type, make it unknown.\n");
-		strbuf_addf(buf, "(unknown_type)");
+		strbuf_add(buf, " (unknown_type)", 14);
 	}
 
 	strbuf_addf(buf, "\t%s", dwarf_diename(vr_die));
@@ -959,6 +959,7 @@ int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 	return 0;
 }
 
+#ifdef HAVE_DWARF_GETLOCATIONS
 /**
  * die_get_var_innermost_scope - Get innermost scope range of given variable DIE
  * @sp_die: a subprogram DIE
@@ -1013,7 +1014,7 @@ static int die_get_var_innermost_scope(Dwarf_Die *sp_die, Dwarf_Die *vr_die,
 	}
 
 	if (!first)
-		strbuf_addf(buf, "]>");
+		strbuf_add(buf, "]>", 2);
 
 out:
 	free(scopes);
@@ -1076,7 +1077,15 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 	}
 
 	if (!first)
-		strbuf_addf(buf, "]>");
+		strbuf_add(buf, "]>", 2);
 
 	return ret;
 }
+#else
+int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
+		      Dwarf_Die *vr_die __maybe_unused,
+		      struct strbuf *buf __maybe_unused)
+{
+	return -ENOTSUP;
+}
+#endif

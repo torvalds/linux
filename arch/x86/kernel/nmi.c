@@ -30,6 +30,7 @@
 #include <asm/nmi.h>
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
+#include <asm/cache.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/nmi.h>
@@ -69,7 +70,7 @@ struct nmi_stats {
 
 static DEFINE_PER_CPU(struct nmi_stats, nmi_stats);
 
-static int ignore_nmis;
+static int ignore_nmis __read_mostly;
 
 int unknown_nmi_panic;
 /*

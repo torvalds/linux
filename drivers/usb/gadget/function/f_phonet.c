@@ -541,7 +541,7 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 
 	/* Do not try to bind Phonet twice... */
 	status = usb_assign_descriptors(f, fs_pn_function, hs_pn_function,
-			NULL);
+			NULL, NULL);
 	if (status)
 		goto err;
 

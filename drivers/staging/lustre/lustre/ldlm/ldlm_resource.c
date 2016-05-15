@@ -56,7 +56,8 @@ LIST_HEAD(ldlm_srv_namespace_list);
 struct mutex ldlm_cli_namespace_lock;
 /* Client Namespaces that have active resources in them.
  * Once all resources go away, ldlm_poold moves such namespaces to the
- * inactive list */
+ * inactive list
+ */
 LIST_HEAD(ldlm_cli_active_namespace_list);
 /* Client namespaces that don't have any locks in them */
 static LIST_HEAD(ldlm_cli_inactive_namespace_list);
@@ -66,7 +67,8 @@ static struct dentry *ldlm_ns_debugfs_dir;
 struct dentry *ldlm_svc_debugfs_dir;
 
 /* during debug dump certain amount of granted locks for one resource to avoid
- * DDOS. */
+ * DDOS.
+ */
 static unsigned int ldlm_dump_granted_max = 256;
 
 static ssize_t
@@ -275,7 +277,8 @@ static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
 		ldlm_cancel_lru(ns, 0, LCF_ASYNC, LDLM_CANCEL_PASSED);
 
 		/* Make sure that LRU resize was originally supported before
-		 * turning it on here. */
+		 * turning it on here.
+		 */
 		if (lru_resize &&
 		    (ns->ns_orig_connect_flags & OBD_CONNECT_LRU_RESIZE)) {
 			CDEBUG(D_DLMTRACE,
@@ -380,7 +383,7 @@ static void ldlm_namespace_debugfs_unregister(struct ldlm_namespace *ns)
 	else
 		ldebugfs_remove(&ns->ns_debugfs_entry);
 
-	if (ns->ns_stats != NULL)
+	if (ns->ns_stats)
 		lprocfs_free_stats(&ns->ns_stats);
 }
 
@@ -400,7 +403,7 @@ static int ldlm_namespace_sysfs_register(struct ldlm_namespace *ns)
 				   "%s", ldlm_ns_name(ns));
 
 	ns->ns_stats = lprocfs_alloc_stats(LDLM_NSS_LAST, 0);
-	if (ns->ns_stats == NULL) {
+	if (!ns->ns_stats) {
 		kobject_put(&ns->ns_kobj);
 		return -ENOMEM;
 	}
@@ -420,7 +423,7 @@ static int ldlm_namespace_debugfs_register(struct ldlm_namespace *ns)
 	} else {
 		ns_entry = debugfs_create_dir(ldlm_ns_name(ns),
 					      ldlm_ns_debugfs_dir);
-		if (ns_entry == NULL)
+		if (!ns_entry)
 			return -ENOMEM;
 		ns->ns_debugfs_entry = ns_entry;
 	}
@@ -554,7 +557,7 @@ static struct cfs_hash_ops ldlm_ns_fid_hash_ops = {
 };
 
 struct ldlm_ns_hash_def {
-	ldlm_ns_type_t  nsd_type;
+	enum ldlm_ns_type nsd_type;
 	/** hash bucket bits */
 	unsigned	nsd_bkt_bits;
 	/** hash bits */
@@ -621,8 +624,8 @@ static void ldlm_namespace_register(struct ldlm_namespace *ns,
  */
 struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 					  ldlm_side_t client,
-					  ldlm_appetite_t apt,
-					  ldlm_ns_type_t ns_type)
+					  enum ldlm_appetite apt,
+					  enum ldlm_ns_type ns_type)
 {
 	struct ldlm_namespace *ns = NULL;
 	struct ldlm_ns_bucket *nsb;
@@ -631,7 +634,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 	int		    idx;
 	int		    rc;
 
-	LASSERT(obd != NULL);
+	LASSERT(obd);
 
 	rc = ldlm_get_ref();
 	if (rc) {
@@ -664,7 +667,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 					 CFS_HASH_BIGNAME |
 					 CFS_HASH_SPIN_BKTLOCK |
 					 CFS_HASH_NO_ITEMREF);
-	if (ns->ns_rs_hash == NULL)
+	if (!ns->ns_rs_hash)
 		goto out_ns;
 
 	cfs_hash_for_each_bucket(ns->ns_rs_hash, &bd, idx) {
@@ -749,7 +752,8 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 		struct lustre_handle lockh;
 
 		/* First, we look for non-cleaned-yet lock
-		 * all cleaned locks are marked by CLEANED flag. */
+		 * all cleaned locks are marked by CLEANED flag.
+		 */
 		lock_res(res);
 		list_for_each(tmp, q) {
 			lock = list_entry(tmp, struct ldlm_lock,
@@ -763,13 +767,14 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 			break;
 		}
 
-		if (lock == NULL) {
+		if (!lock) {
 			unlock_res(res);
 			break;
 		}
 
 		/* Set CBPENDING so nothing in the cancellation path
-		 * can match this lock. */
+		 * can match this lock.
+		 */
 		lock->l_flags |= LDLM_FL_CBPENDING;
 		lock->l_flags |= LDLM_FL_FAILED;
 		lock->l_flags |= flags;
@@ -782,7 +787,8 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 			/* This is a little bit gross, but much better than the
 			 * alternative: pretend that we got a blocking AST from
 			 * the server, so that when the lock is decref'd, it
-			 * will go away ... */
+			 * will go away ...
+			 */
 			unlock_res(res);
 			LDLM_DEBUG(lock, "setting FL_LOCAL_ONLY");
 			if (lock->l_completion_ast)
@@ -837,7 +843,7 @@ static int ldlm_resource_complain(struct cfs_hash *hs, struct cfs_hash_bd *bd,
  */
 int ldlm_namespace_cleanup(struct ldlm_namespace *ns, __u64 flags)
 {
-	if (ns == NULL) {
+	if (!ns) {
 		CDEBUG(D_INFO, "NULL ns, skipping cleanup\n");
 		return ELDLM_OK;
 	}
@@ -873,7 +879,8 @@ force_wait:
 				  atomic_read(&ns->ns_bref) == 0, &lwi);
 
 		/* Forced cleanups should be able to reclaim all references,
-		 * so it's safe to wait forever... we can't leak locks... */
+		 * so it's safe to wait forever... we can't leak locks...
+		 */
 		if (force && rc == -ETIMEDOUT) {
 			LCONSOLE_ERROR("Forced cleanup waiting for %s namespace with %d resources in use, (rc=%d)\n",
 				       ldlm_ns_name(ns),
@@ -943,7 +950,8 @@ static void ldlm_namespace_unregister(struct ldlm_namespace *ns,
 	LASSERT(!list_empty(&ns->ns_list_chain));
 	/* Some asserts and possibly other parts of the code are still
 	 * using list_empty(&ns->ns_list_chain). This is why it is
-	 * important to use list_del_init() here. */
+	 * important to use list_del_init() here.
+	 */
 	list_del_init(&ns->ns_list_chain);
 	ldlm_namespace_nr_dec(client);
 	mutex_unlock(ldlm_namespace_lock(client));
@@ -963,7 +971,8 @@ void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 	ldlm_namespace_unregister(ns, ns->ns_client);
 	/* Fini pool _before_ parent proc dir is removed. This is important as
 	 * ldlm_pool_fini() removes own proc dir which is child to @dir.
-	 * Removing it after @dir may cause oops. */
+	 * Removing it after @dir may cause oops.
+	 */
 	ldlm_pool_fini(&ns->ns_pool);
 
 	ldlm_namespace_debugfs_unregister(ns);
@@ -971,7 +980,8 @@ void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 	cfs_hash_putref(ns->ns_rs_hash);
 	/* Namespace \a ns should be not on list at this time, otherwise
 	 * this will cause issues related to using freed \a ns in poold
-	 * thread. */
+	 * thread.
+	 */
 	LASSERT(list_empty(&ns->ns_list_chain));
 	kfree(ns);
 	ldlm_put_ref();
@@ -1031,8 +1041,8 @@ static struct ldlm_resource *ldlm_resource_new(void)
 	struct ldlm_resource *res;
 	int idx;
 
-	res = kmem_cache_alloc(ldlm_resource_slab, GFP_NOFS | __GFP_ZERO);
-	if (res == NULL)
+	res = kmem_cache_zalloc(ldlm_resource_slab, GFP_NOFS);
+	if (!res)
 		return NULL;
 
 	INIT_LIST_HEAD(&res->lr_granted);
@@ -1050,7 +1060,8 @@ static struct ldlm_resource *ldlm_resource_new(void)
 	lu_ref_init(&res->lr_reference);
 
 	/* The creator of the resource must unlock the mutex after LVB
-	 * initialization. */
+	 * initialization.
+	 */
 	mutex_init(&res->lr_lvb_mutex);
 	mutex_lock(&res->lr_lvb_mutex);
 
@@ -1065,7 +1076,8 @@ static struct ldlm_resource *ldlm_resource_new(void)
  */
 struct ldlm_resource *
 ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
-		  const struct ldlm_res_id *name, ldlm_type_t type, int create)
+		  const struct ldlm_res_id *name, enum ldlm_type type,
+		  int create)
 {
 	struct hlist_node     *hnode;
 	struct ldlm_resource *res;
@@ -1073,14 +1085,13 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	__u64		 version;
 	int		      ns_refcount = 0;
 
-	LASSERT(ns != NULL);
-	LASSERT(parent == NULL);
-	LASSERT(ns->ns_rs_hash != NULL);
+	LASSERT(!parent);
+	LASSERT(ns->ns_rs_hash);
 	LASSERT(name->name[0] != 0);
 
 	cfs_hash_bd_get_and_lock(ns->ns_rs_hash, (void *)name, &bd, 0);
 	hnode = cfs_hash_bd_lookup_locked(ns->ns_rs_hash, &bd, (void *)name);
-	if (hnode != NULL) {
+	if (hnode) {
 		cfs_hash_bd_unlock(ns->ns_rs_hash, &bd, 0);
 		res = hlist_entry(hnode, struct ldlm_resource, lr_hash);
 		/* Synchronize with regard to resource creation. */
@@ -1111,13 +1122,12 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	res->lr_ns_bucket  = cfs_hash_bd_extra_get(ns->ns_rs_hash, &bd);
 	res->lr_name       = *name;
 	res->lr_type       = type;
-	res->lr_most_restr = LCK_NL;
 
 	cfs_hash_bd_lock(ns->ns_rs_hash, &bd, 1);
 	hnode = (version == cfs_hash_bd_version_get(&bd)) ?  NULL :
 		cfs_hash_bd_lookup_locked(ns->ns_rs_hash, &bd, (void *)name);
 
-	if (hnode != NULL) {
+	if (hnode) {
 		/* Someone won the race and already added the resource. */
 		cfs_hash_bd_unlock(ns->ns_rs_hash, &bd, 1);
 		/* Clean lu_ref for failed resource. */
@@ -1167,7 +1177,8 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	/* Let's see if we happened to be the very first resource in this
 	 * namespace. If so, and this is a client namespace, we need to move
 	 * the namespace into the active namespaces list to be patrolled by
-	 * the ldlm_poold. */
+	 * the ldlm_poold.
+	 */
 	if (ns_refcount == 1) {
 		mutex_lock(ldlm_namespace_lock(LDLM_NAMESPACE_CLIENT));
 		ldlm_namespace_move_to_active_locked(ns, LDLM_NAMESPACE_CLIENT);

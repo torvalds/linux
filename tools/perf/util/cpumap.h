@@ -57,37 +57,11 @@ static inline bool cpu_map__empty(const struct cpu_map *map)
 	return map ? map->map[0] == -1 : true;
 }
 
-int max_cpu_num;
-int max_node_num;
-int *cpunode_map;
-
 int cpu__setup_cpunode_map(void);
 
-static inline int cpu__max_node(void)
-{
-	if (unlikely(!max_node_num))
-		pr_debug("cpu_map not initialized\n");
-
-	return max_node_num;
-}
-
-static inline int cpu__max_cpu(void)
-{
-	if (unlikely(!max_cpu_num))
-		pr_debug("cpu_map not initialized\n");
-
-	return max_cpu_num;
-}
-
-static inline int cpu__get_node(int cpu)
-{
-	if (unlikely(cpunode_map == NULL)) {
-		pr_debug("cpu_map not initialized\n");
-		return -1;
-	}
-
-	return cpunode_map[cpu];
-}
+int cpu__max_node(void);
+int cpu__max_cpu(void);
+int cpu__get_node(int cpu);
 
 int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
 		       int (*f)(struct cpu_map *map, int cpu, void *data),

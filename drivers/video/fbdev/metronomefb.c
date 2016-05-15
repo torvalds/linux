@@ -354,7 +354,8 @@ static int metronome_powerup_cmd(struct metronomefb_par *par)
 	}
 
 	/* the rest are 0 */
-	memset((u8 *) (par->metromem_cmd->args + i), 0, (32-i)*2);
+	memset(&par->metromem_cmd->args[i], 0,
+	       (ARRAY_SIZE(par->metromem_cmd->args) - i) * 2);
 
 	par->metromem_cmd->csum = cs;
 
@@ -376,7 +377,8 @@ static int metronome_config_cmd(struct metronomefb_par *par)
 	memcpy(par->metromem_cmd->args, epd_frame_table[par->dt].config,
 		sizeof(epd_frame_table[par->dt].config));
 	/* the rest are 0 */
-	memset((u8 *) (par->metromem_cmd->args + 4), 0, (32-4)*2);
+	memset(&par->metromem_cmd->args[4], 0,
+	       (ARRAY_SIZE(par->metromem_cmd->args) - 4) * 2);
 
 	par->metromem_cmd->csum = 0xCC10;
 	par->metromem_cmd->csum += calc_img_cksum(par->metromem_cmd->args, 4);

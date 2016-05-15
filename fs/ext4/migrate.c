@@ -361,7 +361,7 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * blocks.
 	 *
 	 * While converting to extents we need not
-	 * update the orignal inode i_blocks for extent blocks
+	 * update the original inode i_blocks for extent blocks
 	 * via quota APIs. The quota update happened via tmp_inode already.
 	 */
 	spin_lock(&inode->i_lock);

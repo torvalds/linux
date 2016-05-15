@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -717,6 +717,21 @@ void wil_rx_fini(struct wil6210_priv *wil)
 		wil_vring_free(wil, vring, 0);
 }
 
+static inline void wil_tx_data_init(struct vring_tx_data *txdata)
+{
+	spin_lock_bh(&txdata->lock);
+	txdata->dot1x_open = 0;
+	txdata->enabled = 0;
+	txdata->idle = 0;
+	txdata->last_idle = 0;
+	txdata->begin = 0;
+	txdata->agg_wsize = 0;
+	txdata->agg_timeout = 0;
+	txdata->agg_amsdu = 0;
+	txdata->addba_in_progress = false;
+	spin_unlock_bh(&txdata->lock);
+}
+
 int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		      int cid, int tid)
 {
@@ -758,8 +773,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		goto out;
 	}
 
-	memset(txdata, 0, sizeof(*txdata));
-	spin_lock_init(&txdata->lock);
+	wil_tx_data_init(txdata);
 	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
@@ -791,9 +805,14 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 
 	return 0;
  out_free:
+	spin_lock_bh(&txdata->lock);
 	txdata->dot1x_open = false;
 	txdata->enabled = 0;
+	spin_unlock_bh(&txdata->lock);
 	wil_vring_free(wil, vring, 1);
+	wil->vring2cid_tid[id][0] = WIL6210_MAX_CID;
+	wil->vring2cid_tid[id][1] = 0;
+
  out:
 
 	return rc;
@@ -831,8 +850,7 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 		goto out;
 	}
 
-	memset(txdata, 0, sizeof(*txdata));
-	spin_lock_init(&txdata->lock);
+	wil_tx_data_init(txdata);
 	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
@@ -862,8 +880,10 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 
 	return 0;
  out_free:
+	spin_lock_bh(&txdata->lock);
 	txdata->enabled = 0;
 	txdata->dot1x_open = false;
+	spin_unlock_bh(&txdata->lock);
 	wil_vring_free(wil, vring, 1);
  out:
 
@@ -891,7 +911,6 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 		napi_synchronize(&wil->napi_tx);
 
 	wil_vring_free(wil, vring, 1);
-	memset(txdata, 0, sizeof(*txdata));
 }
 
 static struct vring *wil_find_tx_ucast(struct wil6210_priv *wil,
@@ -911,10 +930,11 @@ static struct vring *wil_find_tx_ucast(struct wil6210_priv *wil,
 			continue;
 		if (wil->vring2cid_tid[i][0] == cid) {
 			struct vring *v = &wil->vring_tx[i];
+			struct vring_tx_data *txdata = &wil->vring_tx_data[i];
 
 			wil_dbg_txrx(wil, "%s(%pM) -> [%d]\n",
 				     __func__, eth->h_dest, i);
-			if (v->va) {
+			if (v->va && txdata->enabled) {
 				return v;
 			} else {
 				wil_dbg_txrx(wil, "vring[%d] not valid\n", i);
@@ -935,6 +955,7 @@ static struct vring *wil_find_tx_vring_sta(struct wil6210_priv *wil,
 	struct vring *v;
 	int i;
 	u8 cid;
+	struct vring_tx_data *txdata;
 
 	/* In the STA mode, it is expected to have only 1 VRING
 	 * for the AP we connected to.
@@ -942,7 +963,8 @@ static struct vring *wil_find_tx_vring_sta(struct wil6210_priv *wil,
 	 */
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		v = &wil->vring_tx[i];
-		if (!v->va)
+		txdata = &wil->vring_tx_data[i];
+		if (!v->va || !txdata->enabled)
 			continue;
 
 		cid = wil->vring2cid_tid[i][0];
@@ -978,12 +1000,14 @@ static struct vring *wil_find_tx_bcast_1(struct wil6210_priv *wil,
 					 struct sk_buff *skb)
 {
 	struct vring *v;
+	struct vring_tx_data *txdata;
 	int i = wil->bcast_vring;
 
 	if (i < 0)
 		return NULL;
 	v = &wil->vring_tx[i];
-	if (!v->va)
+	txdata = &wil->vring_tx_data[i];
+	if (!v->va || !txdata->enabled)
 		return NULL;
 	if (!wil->vring_tx_data[i].dot1x_open &&
 	    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
@@ -1010,11 +1034,13 @@ static struct vring *wil_find_tx_bcast_2(struct wil6210_priv *wil,
 	u8 cid;
 	struct ethhdr *eth = (void *)skb->data;
 	char *src = eth->h_source;
+	struct vring_tx_data *txdata;
 
 	/* find 1-st vring eligible for data */
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		v = &wil->vring_tx[i];
-		if (!v->va)
+		txdata = &wil->vring_tx_data[i];
+		if (!v->va || !txdata->enabled)
 			continue;
 
 		cid = wil->vring2cid_tid[i][0];

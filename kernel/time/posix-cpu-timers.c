@@ -333,7 +333,6 @@ static int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
 	return err;
 }
 
-
 /*
  * Validate the clockid_t for a new CPU-clock timer, and initialize the timer.
  * This is called from sys_timer_create() and do_cpu_nanosleep() with the
@@ -517,6 +516,10 @@ static void arm_timer(struct k_itimer *timer)
 				cputime_expires->sched_exp = exp;
 			break;
 		}
+		if (CPUCLOCK_PERTHREAD(timer->it_clock))
+			tick_dep_set_task(p, TICK_DEP_BIT_POSIX_TIMER);
+		else
+			tick_dep_set_signal(p->signal, TICK_DEP_BIT_POSIX_TIMER);
 	}
 }
 
@@ -581,39 +584,6 @@ static int cpu_timer_sample_group(const clockid_t which_clock,
 	}
 	return 0;
 }
-
-#ifdef CONFIG_NO_HZ_FULL
-static void nohz_kick_work_fn(struct work_struct *work)
-{
-	tick_nohz_full_kick_all();
-}
-
-static DECLARE_WORK(nohz_kick_work, nohz_kick_work_fn);
-
-/*
- * We need the IPIs to be sent from sane process context.
- * The posix cpu timers are always set with irqs disabled.
- */
-static void posix_cpu_timer_kick_nohz(void)
-{
-	if (context_tracking_is_enabled())
-		schedule_work(&nohz_kick_work);
-}
-
-bool posix_cpu_timers_can_stop_tick(struct task_struct *tsk)
-{
-	if (!task_cputime_zero(&tsk->cputime_expires))
-		return false;
-
-	/* Check if cputimer is running. This is accessed without locking. */
-	if (READ_ONCE(tsk->signal->cputimer.running))
-		return false;
-
-	return true;
-}
-#else
-static inline void posix_cpu_timer_kick_nohz(void) { }
-#endif
 
 /*
  * Guts of sys_timer_settime for CPU timers.
@@ -761,8 +731,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 		sample_to_timespec(timer->it_clock,
 				   old_incr, &old->it_interval);
 	}
-	if (!ret)
-		posix_cpu_timer_kick_nohz();
+
 	return ret;
 }
 
@@ -911,6 +880,8 @@ static void check_thread_timers(struct task_struct *tsk,
 			__group_send_sig_info(SIGXCPU, SEND_SIG_PRIV, tsk);
 		}
 	}
+	if (task_cputime_zero(tsk_expires))
+		tick_dep_clear_task(tsk, TICK_DEP_BIT_POSIX_TIMER);
 }
 
 static inline void stop_process_timers(struct signal_struct *sig)
@@ -919,6 +890,7 @@ static inline void stop_process_timers(struct signal_struct *sig)
 
 	/* Turn off cputimer->running. This is done without locking. */
 	WRITE_ONCE(cputimer->running, false);
+	tick_dep_clear_signal(sig, TICK_DEP_BIT_POSIX_TIMER);
 }
 
 static u32 onecputick;
@@ -1095,8 +1067,6 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	arm_timer(timer);
 	unlock_task_sighand(p, &flags);
 
-	/* Kick full dynticks CPUs in case they need to tick on the new timer */
-	posix_cpu_timer_kick_nohz();
 out:
 	timer->it_overrun_last = timer->it_overrun;
 	timer->it_overrun = -1;
@@ -1270,7 +1240,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 		}
 
 		if (!*newval)
-			goto out;
+			return;
 		*newval += now;
 	}
 
@@ -1288,8 +1258,8 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 			tsk->signal->cputime_expires.virt_exp = *newval;
 		break;
 	}
-out:
-	posix_cpu_timer_kick_nohz();
+
+	tick_dep_set_signal(tsk->signal, TICK_DEP_BIT_POSIX_TIMER);
 }
 
 static int do_cpu_nanosleep(const clockid_t which_clock, int flags,

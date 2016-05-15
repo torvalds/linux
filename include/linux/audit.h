@@ -109,6 +109,10 @@ extern int audit_classify_compat_syscall(int abi, unsigned syscall);
 /* maximized args number that audit_socketcall can process */
 #define AUDITSC_ARGS		6
 
+/* bit values for ->signal->audit_tty */
+#define AUDIT_TTY_ENABLE	BIT(0)
+#define AUDIT_TTY_LOG_PASSWD	BIT(1)
+
 struct filename;
 
 extern void audit_log_session_info(struct audit_buffer *ab);

@@ -63,13 +63,13 @@ struct mxl111sf_tuner_config {
 #if IS_ENABLED(CONFIG_DVB_USB_MXL111SF)
 extern
 struct dvb_frontend *mxl111sf_tuner_attach(struct dvb_frontend *fe,
-					   struct mxl111sf_state *mxl_state,
-					   struct mxl111sf_tuner_config *cfg);
+				struct mxl111sf_state *mxl_state,
+				const struct mxl111sf_tuner_config *cfg);
 #else
 static inline
 struct dvb_frontend *mxl111sf_tuner_attach(struct dvb_frontend *fe,
-					   struct mxl111sf_state *mxl_state,
-					   struct mxl111sf_tuner_config *cfg)
+				struct mxl111sf_state *mxl_state,
+				const struct mxl111sf_tuner_config *cfg)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

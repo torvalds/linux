@@ -124,17 +124,34 @@ static struct device_type intel_th_source_device_type = {
 	.release	= intel_th_device_release,
 };
 
+static struct intel_th *to_intel_th(struct intel_th_device *thdev)
+{
+	/*
+	 * subdevice tree is flat: if this one is not a switch, its
+	 * parent must be
+	 */
+	if (thdev->type != INTEL_TH_SWITCH)
+		thdev = to_intel_th_hub(thdev);
+
+	if (WARN_ON_ONCE(!thdev || thdev->type != INTEL_TH_SWITCH))
+		return NULL;
+
+	return dev_get_drvdata(thdev->dev.parent);
+}
+
 static char *intel_th_output_devnode(struct device *dev, umode_t *mode,
 				     kuid_t *uid, kgid_t *gid)
 {
 	struct intel_th_device *thdev = to_intel_th_device(dev);
+	struct intel_th *th = to_intel_th(thdev);
 	char *node;
 
 	if (thdev->id >= 0)
-		node = kasprintf(GFP_KERNEL, "intel_th%d/%s%d", 0, thdev->name,
-				 thdev->id);
+		node = kasprintf(GFP_KERNEL, "intel_th%d/%s%d", th->id,
+				 thdev->name, thdev->id);
 	else
-		node = kasprintf(GFP_KERNEL, "intel_th%d/%s", 0, thdev->name);
+		node = kasprintf(GFP_KERNEL, "intel_th%d/%s", th->id,
+				 thdev->name);
 
 	return node;
 }
@@ -319,6 +336,7 @@ static struct intel_th_subdevice {
 	unsigned		nres;
 	unsigned		type;
 	unsigned		otype;
+	unsigned		scrpd;
 	int			id;
 } intel_th_subdevices[TH_SUBDEVICE_MAX] = {
 	{
@@ -352,6 +370,7 @@ static struct intel_th_subdevice {
 		.id	= 0,
 		.type	= INTEL_TH_OUTPUT,
 		.otype	= GTH_MSU,
+		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC0_IS_ENABLED,
 	},
 	{
 		.nres	= 2,
@@ -371,6 +390,7 @@ static struct intel_th_subdevice {
 		.id	= 1,
 		.type	= INTEL_TH_OUTPUT,
 		.otype	= GTH_MSU,
+		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC1_IS_ENABLED,
 	},
 	{
 		.nres	= 2,
@@ -403,6 +423,7 @@ static struct intel_th_subdevice {
 		.name	= "pti",
 		.type	= INTEL_TH_OUTPUT,
 		.otype	= GTH_PTI,
+		.scrpd	= SCRPD_PTI_IS_PRIM_DEST,
 	},
 	{
 		.nres	= 1,
@@ -477,6 +498,7 @@ static int intel_th_populate(struct intel_th *th, struct resource *devres,
 			thdev->dev.devt = MKDEV(th->major, i);
 			thdev->output.type = subdev->otype;
 			thdev->output.port = -1;
+			thdev->output.scratchpad = subdev->scrpd;
 		}
 
 		err = device_add(&thdev->dev);
@@ -578,6 +600,8 @@ intel_th_alloc(struct device *dev, struct resource *devres,
 		goto err_ida;
 	}
 	th->dev = dev;
+
+	dev_set_drvdata(dev, th);
 
 	err = intel_th_populate(th, devres, ndevres, irq);
 	if (err)

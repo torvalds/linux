@@ -70,7 +70,7 @@ serial_card_probe(struct expansion_card *ec, const struct ecard_id *id)
 	uart.port.regshift	= 2;
 	uart.port.dev	= &ec->dev;
 
-	for (i = 0; i < info->num_ports; i ++) {
+	for (i = 0; i < info->num_ports; i++) {
 		uart.port.membase = info->vaddr + type->offset[i];
 		uart.port.mapbase = bus_addr + type->offset[i];
 

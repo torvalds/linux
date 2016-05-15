@@ -256,12 +256,6 @@ struct hv_monitor_page {
 	u8 rsvdz4[1984];
 };
 
-/* Declare the various hypercall operations. */
-enum hv_call_code {
-	HVCALL_POST_MESSAGE	= 0x005c,
-	HVCALL_SIGNAL_EVENT	= 0x005d,
-};
-
 /* Definition of the hv_post_message hypercall input structure. */
 struct hv_input_post_message {
 	union hv_connection_id connectionid;
@@ -449,10 +443,11 @@ struct hv_context {
 	u32 vp_index[NR_CPUS];
 	/*
 	 * Starting with win8, we can take channel interrupts on any CPU;
-	 * we will manage the tasklet that handles events on a per CPU
+	 * we will manage the tasklet that handles events messages on a per CPU
 	 * basis.
 	 */
 	struct tasklet_struct *event_dpc[NR_CPUS];
+	struct tasklet_struct *msg_dpc[NR_CPUS];
 	/*
 	 * To optimize the mapping of relid to channel, maintain
 	 * per-cpu list of the channels based on their CPU affinity.
@@ -501,8 +496,6 @@ extern int hv_post_message(union hv_connection_id connection_id,
 			 enum hv_message_type message_type,
 			 void *payload, size_t payload_size);
 
-extern int hv_signal_event(void *con_id);
-
 extern int hv_synic_alloc(void);
 
 extern void hv_synic_free(void);
@@ -531,7 +524,7 @@ void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
 int hv_ringbuffer_write(struct hv_ring_buffer_info *ring_info,
 		    struct kvec *kv_list,
-		    u32 kv_count, bool *signal);
+		    u32 kv_count, bool *signal, bool lock);
 
 int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
 		       void *buffer, u32 buflen, u32 *buffer_actual_len,
@@ -626,6 +619,30 @@ struct vmbus_channel_message_table_entry {
 extern struct vmbus_channel_message_table_entry
 	channel_message_table[CHANNELMSG_COUNT];
 
+/* Free the message slot and signal end-of-message if required */
+static inline void vmbus_signal_eom(struct hv_message *msg)
+{
+	msg->header.message_type = HVMSG_NONE;
+
+	/*
+	 * Make sure the write to MessageType (ie set to
+	 * HVMSG_NONE) happens before we read the
+	 * MessagePending and EOMing. Otherwise, the EOMing
+	 * will not deliver any more messages since there is
+	 * no empty slot
+	 */
+	mb();
+
+	if (msg->header.message_flags.msg_pending) {
+		/*
+		 * This will cause message queue rescan to
+		 * possibly deliver another msg from the
+		 * hypervisor
+		 */
+		wrmsrl(HV_X64_MSR_EOM, 0);
+	}
+}
+
 /* General vmbus interface */
 
 struct hv_device *vmbus_device_create(const uuid_le *type,
@@ -650,9 +667,10 @@ void vmbus_disconnect(void);
 
 int vmbus_post_msg(void *buffer, size_t buflen);
 
-int vmbus_set_event(struct vmbus_channel *channel);
+void vmbus_set_event(struct vmbus_channel *channel);
 
 void vmbus_on_event(unsigned long data);
+void vmbus_on_msg_dpc(unsigned long data);
 
 int hv_kvp_init(struct hv_util_service *);
 void hv_kvp_deinit(void);
@@ -665,7 +683,7 @@ void hv_vss_onchannelcallback(void *);
 int hv_fcopy_init(struct hv_util_service *);
 void hv_fcopy_deinit(void);
 void hv_fcopy_onchannelcallback(void *);
-void vmbus_initiate_unload(void);
+void vmbus_initiate_unload(bool crash);
 
 static inline void hv_poll_channel(struct vmbus_channel *channel,
 				   void (*cb)(void *))

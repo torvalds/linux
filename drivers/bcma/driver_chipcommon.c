@@ -15,6 +15,8 @@
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
 
+static void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
+
 static inline u32 bcma_cc_write32_masked(struct bcma_drv_cc *cc, u16 offset,
 					 u32 mask, u32 value)
 {
@@ -113,8 +115,37 @@ int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
 	return 0;
 }
 
+static void bcma_core_chipcommon_flash_detect(struct bcma_drv_cc *cc)
+{
+	struct bcma_bus *bus = cc->core->bus;
+
+	switch (cc->capabilities & BCMA_CC_CAP_FLASHT) {
+	case BCMA_CC_FLASHT_STSER:
+	case BCMA_CC_FLASHT_ATSER:
+		bcma_debug(bus, "Found serial flash\n");
+		bcma_sflash_init(cc);
+		break;
+	case BCMA_CC_FLASHT_PARA:
+		bcma_debug(bus, "Found parallel flash\n");
+		bcma_pflash_init(cc);
+		break;
+	default:
+		bcma_err(bus, "Flash type not supported\n");
+	}
+
+	if (cc->core->id.rev == 38 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
+		if (cc->capabilities & BCMA_CC_CAP_NFLASH) {
+			bcma_debug(bus, "Found NAND flash\n");
+			bcma_nflash_init(cc);
+		}
+	}
+}
+
 void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
 {
+	struct bcma_bus *bus = cc->core->bus;
+
 	if (cc->early_setup_done)
 		return;
 
@@ -128,6 +159,12 @@ void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
 
 	if (cc->capabilities & BCMA_CC_CAP_PMU)
 		bcma_pmu_early_init(cc);
+
+	if (IS_BUILTIN(CONFIG_BCM47XX) && bus->hosttype == BCMA_HOSTTYPE_SOC)
+		bcma_chipco_serial_init(cc);
+
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
+		bcma_core_chipcommon_flash_detect(cc);
 
 	cc->early_setup_done = true;
 }
@@ -185,11 +222,12 @@ u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 			ticks = 2;
 		else if (ticks > maxt)
 			ticks = maxt;
-		bcma_cc_write32(cc, BCMA_CC_PMU_WATCHDOG, ticks);
+		bcma_pmu_write32(cc, BCMA_CC_PMU_WATCHDOG, ticks);
 	} else {
 		struct bcma_bus *bus = cc->core->bus;
 
 		if (bus->chipinfo.id != BCMA_CHIP_ID_BCM4707 &&
+		    bus->chipinfo.id != BCMA_CHIP_ID_BCM47094 &&
 		    bus->chipinfo.id != BCMA_CHIP_ID_BCM53018)
 			bcma_core_set_clockmode(cc->core,
 						ticks ? BCMA_CLKMODE_FAST : BCMA_CLKMODE_DYNAMIC);
@@ -314,9 +352,9 @@ u32 bcma_chipco_gpio_pulldown(struct bcma_drv_cc *cc, u32 mask, u32 value)
 	return res;
 }
 
-#ifdef CONFIG_BCMA_DRIVER_MIPS
-void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
+static void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 {
+#if IS_BUILTIN(CONFIG_BCM47XX)
 	unsigned int irq;
 	u32 baud_base;
 	u32 i;
@@ -358,5 +396,5 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 		ports[i].baud_base = baud_base;
 		ports[i].reg_shift = 0;
 	}
+#endif /* CONFIG_BCM47XX */
 }
-#endif /* CONFIG_BCMA_DRIVER_MIPS */

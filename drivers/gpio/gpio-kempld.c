@@ -178,7 +178,7 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ret = gpiochip_add_data(chip, gpio);
+	ret = devm_gpiochip_add_data(dev, chip, gpio);
 	if (ret) {
 		dev_err(dev, "Could not register GPIO chip\n");
 		return ret;
@@ -190,20 +190,11 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int kempld_gpio_remove(struct platform_device *pdev)
-{
-	struct kempld_gpio_data *gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&gpio->chip);
-	return 0;
-}
-
 static struct platform_driver kempld_gpio_driver = {
 	.driver = {
 		.name = "kempld-gpio",
 	},
 	.probe		= kempld_gpio_probe,
-	.remove		= kempld_gpio_remove,
 };
 
 module_platform_driver(kempld_gpio_driver);

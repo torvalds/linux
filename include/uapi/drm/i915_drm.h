@@ -772,10 +772,12 @@ struct drm_i915_gem_execbuffer2 {
 #define I915_EXEC_HANDLE_LUT		(1<<12)
 
 /** Used for switching BSD rings on the platforms with two BSD rings */
-#define I915_EXEC_BSD_MASK		(3<<13)
-#define I915_EXEC_BSD_DEFAULT		(0<<13) /* default ping-pong mode */
-#define I915_EXEC_BSD_RING1		(1<<13)
-#define I915_EXEC_BSD_RING2		(2<<13)
+#define I915_EXEC_BSD_SHIFT	 (13)
+#define I915_EXEC_BSD_MASK	 (3 << I915_EXEC_BSD_SHIFT)
+/* default ping-pong mode */
+#define I915_EXEC_BSD_DEFAULT	 (0 << I915_EXEC_BSD_SHIFT)
+#define I915_EXEC_BSD_RING1	 (1 << I915_EXEC_BSD_SHIFT)
+#define I915_EXEC_BSD_RING2	 (2 << I915_EXEC_BSD_SHIFT)
 
 /** Tell the kernel that the batchbuffer is processed by
  *  the resource streamer.
@@ -812,10 +814,35 @@ struct drm_i915_gem_busy {
 	/** Handle of the buffer to check for busy */
 	__u32 handle;
 
-	/** Return busy status (1 if busy, 0 if idle).
-	 * The high word is used to indicate on which rings the object
-	 * currently resides:
-	 *  16:31 - busy (r or r/w) rings (16 render, 17 bsd, 18 blt, etc)
+	/** Return busy status
+	 *
+	 * A return of 0 implies that the object is idle (after
+	 * having flushed any pending activity), and a non-zero return that
+	 * the object is still in-flight on the GPU. (The GPU has not yet
+	 * signaled completion for all pending requests that reference the
+	 * object.)
+	 *
+	 * The returned dword is split into two fields to indicate both
+	 * the engines on which the object is being read, and the
+	 * engine on which it is currently being written (if any).
+	 *
+	 * The low word (bits 0:15) indicate if the object is being written
+	 * to by any engine (there can only be one, as the GEM implicit
+	 * synchronisation rules force writes to be serialised). Only the
+	 * engine for the last write is reported.
+	 *
+	 * The high word (bits 16:31) are a bitmask of which engines are
+	 * currently reading from the object. Multiple engines may be
+	 * reading from the object simultaneously.
+	 *
+	 * The value of each engine is the same as specified in the
+	 * EXECBUFFER2 ioctl, i.e. I915_EXEC_RENDER, I915_EXEC_BSD etc.
+	 * Note I915_EXEC_DEFAULT is a symbolic value and is mapped to
+	 * the I915_EXEC_RENDER engine for execution, and so it is never
+	 * reported as active itself. Some hardware may have parallel
+	 * execution engines, e.g. multiple media engines, which are
+	 * mapped to the same identifier in the EXECBUFFER2 ioctl and
+	 * so are not separately reported for busyness.
 	 */
 	__u32 busy;
 };

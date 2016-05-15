@@ -19,10 +19,6 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with Portals; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef _SOCKLND_SOCKLND_H_
@@ -69,8 +65,10 @@
 
 #define SOCKNAL_VERSION_DEBUG   0     /* enable protocol version debugging */
 
-/* risk kmap deadlock on multi-frag I/O (backs off to single-frag if disabled).
- * no risk if we're not running on a CONFIG_HIGHMEM platform. */
+/*
+ * risk kmap deadlock on multi-frag I/O (backs off to single-frag if disabled).
+ * no risk if we're not running on a CONFIG_HIGHMEM platform.
+ */
 #ifdef CONFIG_HIGHMEM
 # define SOCKNAL_RISK_KMAP_DEADLOCK  0
 #else
@@ -237,15 +235,16 @@ typedef struct {
 #define SOCKNAL_INIT_DATA    1
 #define SOCKNAL_INIT_ALL     2
 
-/* A packet just assembled for transmission is represented by 1 or more
+/*
+ * A packet just assembled for transmission is represented by 1 or more
  * struct iovec fragments (the first frag contains the portals header),
  * followed by 0 or more lnet_kiov_t fragments.
  *
  * On the receive side, initially 1 struct iovec fragment is posted for
  * receive (the header).  Once the header has been received, the payload is
  * received into either struct iovec or lnet_kiov_t fragments, depending on
- * what the header matched or whether the message needs forwarding. */
-
+ * what the header matched or whether the message needs forwarding.
+ */
 struct ksock_conn;  /* forward ref */
 struct ksock_peer;  /* forward ref */
 struct ksock_route; /* forward ref */
@@ -284,12 +283,14 @@ typedef struct                             /* transmit packet */
 	} tx_frags;
 } ksock_tx_t;
 
-#define KSOCK_NOOP_TX_SIZE ((int)offsetof(ksock_tx_t, tx_frags.paged.kiov[0]))
+#define KSOCK_NOOP_TX_SIZE (offsetof(ksock_tx_t, tx_frags.paged.kiov[0]))
 
 /* network zero copy callback descriptor embedded in ksock_tx_t */
 
-/* space for the rx frag descriptors; we either read a single contiguous
- * header, or up to LNET_MAX_IOV frags of payload of either type. */
+/*
+ * space for the rx frag descriptors; we either read a single contiguous
+ * header, or up to LNET_MAX_IOV frags of payload of either type.
+ */
 typedef union {
 	struct kvec      iov[LNET_MAX_IOV];
 	lnet_kiov_t      kiov[LNET_MAX_IOV];
@@ -463,11 +464,13 @@ typedef struct ksock_proto {
 	/* handle ZC ACK */
 	int        (*pro_handle_zcack)(ksock_conn_t *, __u64, __u64);
 
-	/* msg type matches the connection type:
+	/*
+	 * msg type matches the connection type:
 	 * return value:
 	 *   return MATCH_NO  : no
 	 *   return MATCH_YES : matching type
-	 *   return MATCH_MAY : can be backup */
+	 *   return MATCH_MAY : can be backup
+	 */
 	int        (*pro_match_tx)(ksock_conn_t *, ksock_tx_t *, int);
 } ksock_proto_t;
 

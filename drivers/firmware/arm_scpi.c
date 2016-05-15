@@ -80,7 +80,7 @@
 #define FW_REV_MINOR(x)		(((x) & FW_REV_MINOR_MASK) >> FW_REV_MINOR_BITS)
 #define FW_REV_PATCH(x)		((x) & FW_REV_PATCH_MASK)
 
-#define MAX_RX_TIMEOUT		(msecs_to_jiffies(20))
+#define MAX_RX_TIMEOUT		(msecs_to_jiffies(30))
 
 enum scpi_error_codes {
 	SCPI_SUCCESS = 0, /* Success */
@@ -231,7 +231,8 @@ struct _scpi_sensor_info {
 };
 
 struct sensor_value {
-	__le32 val;
+	__le32 lo_val;
+	__le32 hi_val;
 } __packed;
 
 static struct scpi_drvinfo *scpi_info;
@@ -373,7 +374,7 @@ static int scpi_send_message(u8 cmd, void *tx_buf, unsigned int tx_len,
 		ret = -ETIMEDOUT;
 	else
 		/* first status word */
-		ret = le32_to_cpu(msg->status);
+		ret = msg->status;
 out:
 	if (ret < 0 && rx_buf) /* remove entry from the list if timed-out */
 		scpi_process_cmd(scpi_chan, msg->cmd);
@@ -525,15 +526,17 @@ static int scpi_sensor_get_info(u16 sensor_id, struct scpi_sensor_info *info)
 	return ret;
 }
 
-int scpi_sensor_get_value(u16 sensor, u32 *val)
+int scpi_sensor_get_value(u16 sensor, u64 *val)
 {
+	__le16 id = cpu_to_le16(sensor);
 	struct sensor_value buf;
 	int ret;
 
-	ret = scpi_send_message(SCPI_CMD_SENSOR_VALUE, &sensor, sizeof(sensor),
+	ret = scpi_send_message(SCPI_CMD_SENSOR_VALUE, &id, sizeof(id),
 				&buf, sizeof(buf));
 	if (!ret)
-		*val = le32_to_cpu(buf.val);
+		*val = (u64)le32_to_cpu(buf.hi_val) << 32 |
+			le32_to_cpu(buf.lo_val);
 
 	return ret;
 }
@@ -699,7 +702,7 @@ static int scpi_probe(struct platform_device *pdev)
 		cl->rx_callback = scpi_handle_remote_msg;
 		cl->tx_prepare = scpi_tx_prepare;
 		cl->tx_block = true;
-		cl->tx_tout = 50;
+		cl->tx_tout = 20;
 		cl->knows_txdone = false; /* controller can't ack */
 
 		INIT_LIST_HEAD(&pchan->rx_pending);

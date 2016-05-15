@@ -684,7 +684,7 @@ static int af9035_download_firmware(struct dvb_usb_device *d,
 	if (ret < 0)
 		goto err;
 
-	if (tmp == 1 || tmp == 3) {
+	if (tmp == 1 || tmp == 3 || tmp == 5) {
 		/* configure gpioh1, reset & power slave demod */
 		ret = af9035_wr_reg_mask(d, 0x00d8b0, 0x01, 0x01);
 		if (ret < 0)
@@ -823,7 +823,7 @@ static int af9035_read_config(struct dvb_usb_device *d)
 	if (ret < 0)
 		goto err;
 
-	if (tmp == 1 || tmp == 3)
+	if (tmp == 1 || tmp == 3 || tmp == 5)
 		state->dual_mode = true;
 
 	dev_dbg(&d->udev->dev, "%s: ts mode=%d dual mode=%d\n", __func__,
@@ -2053,6 +2053,8 @@ static const struct usb_device_id af9035_id_table[] = {
 		&af9035_props, "Avermedia A835B(3835)", RC_MAP_IT913X_V2) },
 	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835B_4835,
 		&af9035_props, "Avermedia A835B(4835)",	RC_MAP_IT913X_V2) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_TD110,
+		&af9035_props, "Avermedia AverTV Volar HD 2 (TD110)", RC_MAP_AVERMEDIA_RM_KS) },
 	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_H335,
 		&af9035_props, "Avermedia H335", RC_MAP_IT913X_V2) },
 	{ DVB_USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_UB499_2T_T09,

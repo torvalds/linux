@@ -16,9 +16,4 @@ extern struct rds_transport rds_ib_transport;
 int rds_ib_init(void);
 void rds_ib_exit(void);
 
-/* from iw.c */
-extern struct rds_transport rds_iw_transport;
-int rds_iw_init(void);
-void rds_iw_exit(void);
-
 #endif

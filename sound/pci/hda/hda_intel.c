@@ -857,50 +857,6 @@ static int param_set_xint(const char *val, const struct kernel_param *kp)
 #define azx_del_card_list(chip) /* NOP */
 #endif /* CONFIG_PM */
 
-/* Intel HSW/BDW display HDA controller is in GPU. Both its power and link BCLK
- * depends on GPU. Two Extended Mode registers EM4 (M value) and EM5 (N Value)
- * are used to convert CDClk (Core Display Clock) to 24MHz BCLK:
- * BCLK = CDCLK * M / N
- * The values will be lost when the display power well is disabled and need to
- * be restored to avoid abnormal playback speed.
- */
-static void haswell_set_bclk(struct hda_intel *hda)
-{
-	struct azx *chip = &hda->chip;
-	int cdclk_freq;
-	unsigned int bclk_m, bclk_n;
-
-	if (!hda->need_i915_power)
-		return;
-
-	cdclk_freq = snd_hdac_get_display_clk(azx_bus(chip));
-	switch (cdclk_freq) {
-	case 337500:
-		bclk_m = 16;
-		bclk_n = 225;
-		break;
-
-	case 450000:
-	default: /* default CDCLK 450MHz */
-		bclk_m = 4;
-		bclk_n = 75;
-		break;
-
-	case 540000:
-		bclk_m = 4;
-		bclk_n = 90;
-		break;
-
-	case 675000:
-		bclk_m = 8;
-		bclk_n = 225;
-		break;
-	}
-
-	azx_writew(chip, HSW_EM4, bclk_m);
-	azx_writew(chip, HSW_EM5, bclk_n);
-}
-
 #if defined(CONFIG_PM_SLEEP) || defined(SUPPORT_VGA_SWITCHEROO)
 /*
  * power management
@@ -958,7 +914,7 @@ static int azx_resume(struct device *dev)
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
 		&& hda->need_i915_power) {
 		snd_hdac_display_power(azx_bus(chip), true);
-		haswell_set_bclk(hda);
+		snd_hdac_i915_set_bclk(azx_bus(chip));
 	}
 	if (chip->msi)
 		if (pci_enable_msi(pci) < 0)
@@ -1058,7 +1014,7 @@ static int azx_runtime_resume(struct device *dev)
 		bus = azx_bus(chip);
 		if (hda->need_i915_power) {
 			snd_hdac_display_power(bus, true);
-			haswell_set_bclk(hda);
+			snd_hdac_i915_set_bclk(bus);
 		} else {
 			/* toggle codec wakeup bit for STATESTS read */
 			snd_hdac_set_codec_wakeup(bus, true);
@@ -1796,12 +1752,8 @@ static int azx_first_init(struct azx *chip)
 	/* initialize chip */
 	azx_init_pci(chip);
 
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		struct hda_intel *hda;
-
-		hda = container_of(chip, struct hda_intel, chip);
-		haswell_set_bclk(hda);
-	}
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
+		snd_hdac_i915_set_bclk(bus);
 
 	hda_intel_init_chip(chip, (probe_only[dev] & 2) == 0);
 
@@ -2145,7 +2097,7 @@ static int azx_probe_continue(struct azx *chip)
 	azx_add_card_list(chip);
 	snd_hda_set_power_save(&chip->bus, power_save * 1000);
 	if (azx_has_pm_runtime(chip) || hda->use_vga_switcheroo)
-		pm_runtime_put_noidle(&pci->dev);
+		pm_runtime_put_autosuspend(&pci->dev);
 
 out_free:
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
@@ -2231,6 +2183,9 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_SKYLAKE },
 	/* Broxton-P(Apollolake) */
 	{ PCI_DEVICE(0x8086, 0x5a98),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
+	/* Broxton-T */
+	{ PCI_DEVICE(0x8086, 0x1a98),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_BROXTON },
 	/* Haswell */
 	{ PCI_DEVICE(0x8086, 0x0a0c),
@@ -2360,6 +2315,10 @@ static const struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x1002, 0xaad8),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
 	{ PCI_DEVICE(0x1002, 0xaae8),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
+	{ PCI_DEVICE(0x1002, 0xaae0),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
+	{ PCI_DEVICE(0x1002, 0xaaf0),
 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS },
 	/* VIA VT8251/VT8237A */
 	{ PCI_DEVICE(0x1106, 0x3288), .driver_data = AZX_DRIVER_VIA },

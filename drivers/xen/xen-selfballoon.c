@@ -71,7 +71,6 @@
 #include <linux/swap.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
 #include <xen/balloon.h>

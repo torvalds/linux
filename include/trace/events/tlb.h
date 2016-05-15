@@ -34,12 +34,10 @@ TLB_FLUSH_REASON
 #define EM(a,b)		{ a, b },
 #define EMe(a,b)	{ a, b }
 
-TRACE_EVENT_CONDITION(tlb_flush,
+TRACE_EVENT(tlb_flush,
 
 	TP_PROTO(int reason, unsigned long pages),
 	TP_ARGS(reason, pages),
-
-	TP_CONDITION(cpu_online(smp_processor_id())),
 
 	TP_STRUCT__entry(
 		__field(	  int, reason)

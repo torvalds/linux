@@ -32,10 +32,11 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 {
 	char *s = out;
 	int i = 0;
+	unsigned long flags;
 
 	BUG_ON(!the_controller || !out);
 
-	spin_lock(&the_controller->lock);
+	spin_lock_irqsave(&the_controller->lock, flags);
 
 	/*
 	 * output example:
@@ -70,7 +71,7 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 		spin_unlock(&vdev->ud.lock);
 	}
 
-	spin_unlock(&the_controller->lock);
+	spin_unlock_irqrestore(&the_controller->lock, flags);
 
 	return out - s;
 }
@@ -80,11 +81,12 @@ static DEVICE_ATTR_RO(status);
 static int vhci_port_disconnect(__u32 rhport)
 {
 	struct vhci_device *vdev;
+	unsigned long flags;
 
 	usbip_dbg_vhci_sysfs("enter\n");
 
 	/* lock */
-	spin_lock(&the_controller->lock);
+	spin_lock_irqsave(&the_controller->lock, flags);
 
 	vdev = port_to_vdev(rhport);
 
@@ -94,14 +96,14 @@ static int vhci_port_disconnect(__u32 rhport)
 
 		/* unlock */
 		spin_unlock(&vdev->ud.lock);
-		spin_unlock(&the_controller->lock);
+		spin_unlock_irqrestore(&the_controller->lock, flags);
 
 		return -EINVAL;
 	}
 
 	/* unlock */
 	spin_unlock(&vdev->ud.lock);
-	spin_unlock(&the_controller->lock);
+	spin_unlock_irqrestore(&the_controller->lock, flags);
 
 	usbip_event_add(&vdev->ud, VDEV_EVENT_DOWN);
 
@@ -177,6 +179,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	int sockfd = 0;
 	__u32 rhport = 0, devid = 0, speed = 0;
 	int err;
+	unsigned long flags;
 
 	/*
 	 * @rhport: port number of vhci_hcd
@@ -202,14 +205,14 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	/* now need lock until setting vdev status as used */
 
 	/* begin a lock */
-	spin_lock(&the_controller->lock);
+	spin_lock_irqsave(&the_controller->lock, flags);
 	vdev = port_to_vdev(rhport);
 	spin_lock(&vdev->ud.lock);
 
 	if (vdev->ud.status != VDEV_ST_NULL) {
 		/* end of the lock */
 		spin_unlock(&vdev->ud.lock);
-		spin_unlock(&the_controller->lock);
+		spin_unlock_irqrestore(&the_controller->lock, flags);
 
 		sockfd_put(socket);
 
@@ -227,7 +230,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	vdev->ud.status     = VDEV_ST_NOTASSIGNED;
 
 	spin_unlock(&vdev->ud.lock);
-	spin_unlock(&the_controller->lock);
+	spin_unlock_irqrestore(&the_controller->lock, flags);
 	/* end the lock */
 
 	vdev->ud.tcp_rx = kthread_get_run(vhci_rx_loop, &vdev->ud, "vhci_rx");

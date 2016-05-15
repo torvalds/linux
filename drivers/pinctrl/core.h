@@ -182,6 +182,10 @@ static inline struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev,
 	return radix_tree_lookup(&pctldev->pin_desc_tree, pin);
 }
 
+extern struct pinctrl_gpio_range *
+pinctrl_find_gpio_range_from_pin_nolock(struct pinctrl_dev *pctldev,
+					unsigned int pin);
+
 int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
 			 bool dup);
 void pinctrl_unregister_map(struct pinctrl_map const *map);

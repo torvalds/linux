@@ -1,5 +1,5 @@
 /*
- * Code for replacing ftrace calls with jumps.
+ * Dynamic function tracing support.
  *
  * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
  *
@@ -81,9 +81,9 @@ within(unsigned long addr, unsigned long start, unsigned long end)
 static unsigned long text_ip_addr(unsigned long ip)
 {
 	/*
-	 * On x86_64, kernel text mappings are mapped read-only with
-	 * CONFIG_DEBUG_RODATA. So we use the kernel identity mapping instead
-	 * of the kernel text mapping to modify the kernel text.
+	 * On x86_64, kernel text mappings are mapped read-only, so we use
+	 * the kernel identity mapping instead of the kernel text mapping
+	 * to modify the kernel text.
 	 *
 	 * For 32bit kernels, these mappings are same and we can use
 	 * kernel identity mapping to modify code.
@@ -697,9 +697,8 @@ static inline void tramp_free(void *tramp) { }
 #endif
 
 /* Defined as markers to the end of the ftrace default trampolines */
-extern void ftrace_caller_end(void);
 extern void ftrace_regs_caller_end(void);
-extern void ftrace_return(void);
+extern void ftrace_epilogue(void);
 extern void ftrace_caller_op_ptr(void);
 extern void ftrace_regs_caller_op_ptr(void);
 
@@ -746,7 +745,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 		op_offset = (unsigned long)ftrace_regs_caller_op_ptr;
 	} else {
 		start_offset = (unsigned long)ftrace_caller;
-		end_offset = (unsigned long)ftrace_caller_end;
+		end_offset = (unsigned long)ftrace_epilogue;
 		op_offset = (unsigned long)ftrace_caller_op_ptr;
 	}
 
@@ -754,7 +753,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 
 	/*
 	 * Allocate enough size to store the ftrace_caller code,
-	 * the jmp to ftrace_return, as well as the address of
+	 * the jmp to ftrace_epilogue, as well as the address of
 	 * the ftrace_ops this trampoline is used for.
 	 */
 	trampoline = alloc_tramp(size + MCOUNT_INSN_SIZE + sizeof(void *));
@@ -772,8 +771,8 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 
 	ip = (unsigned long)trampoline + size;
 
-	/* The trampoline ends with a jmp to ftrace_return */
-	jmp = ftrace_jmp_replace(ip, (unsigned long)ftrace_return);
+	/* The trampoline ends with a jmp to ftrace_epilogue */
+	jmp = ftrace_jmp_replace(ip, (unsigned long)ftrace_epilogue);
 	memcpy(trampoline + size, jmp, MCOUNT_INSN_SIZE);
 
 	/*

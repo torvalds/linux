@@ -235,6 +235,7 @@ struct vmbus_channel_offer {
 #define VMBUS_CHANNEL_LOOPBACK_OFFER			0x100
 #define VMBUS_CHANNEL_PARENT_OFFER			0x200
 #define VMBUS_CHANNEL_REQUEST_MONITORED_NOTIFICATION	0x400
+#define VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER		0x2000
 
 struct vmpacket_descriptor {
 	u16 type;
@@ -391,6 +392,10 @@ enum vmbus_channel_message_type {
 	CHANNELMSG_VERSION_RESPONSE		= 15,
 	CHANNELMSG_UNLOAD			= 16,
 	CHANNELMSG_UNLOAD_RESPONSE		= 17,
+	CHANNELMSG_18				= 18,
+	CHANNELMSG_19				= 19,
+	CHANNELMSG_20				= 20,
+	CHANNELMSG_TL_CONNECT_REQUEST		= 21,
 	CHANNELMSG_COUNT
 };
 
@@ -561,6 +566,13 @@ struct vmbus_channel_initiate_contact {
 	u64 monitor_page2;
 } __packed;
 
+/* Hyper-V socket: guest's connect()-ing to host */
+struct vmbus_channel_tl_connect_request {
+	struct vmbus_channel_message_header header;
+	uuid_le guest_endpoint_id;
+	uuid_le host_service_id;
+} __packed;
+
 struct vmbus_channel_version_response {
 	struct vmbus_channel_message_header header;
 	u8 version_supported;
@@ -631,6 +643,32 @@ struct hv_input_signal_event_buffer {
 enum hv_signal_policy {
 	HV_SIGNAL_POLICY_DEFAULT = 0,
 	HV_SIGNAL_POLICY_EXPLICIT,
+};
+
+enum vmbus_device_type {
+	HV_IDE = 0,
+	HV_SCSI,
+	HV_FC,
+	HV_NIC,
+	HV_ND,
+	HV_PCIE,
+	HV_FB,
+	HV_KBD,
+	HV_MOUSE,
+	HV_KVP,
+	HV_TS,
+	HV_HB,
+	HV_SHUTDOWN,
+	HV_FCOPY,
+	HV_BACKUP,
+	HV_DM,
+	HV_UNKOWN,
+};
+
+struct vmbus_device {
+	u16  dev_type;
+	uuid_le guid;
+	bool perf_device;
 };
 
 struct vmbus_channel {
@@ -728,6 +766,12 @@ struct vmbus_channel {
 	void (*sc_creation_callback)(struct vmbus_channel *new_sc);
 
 	/*
+	 * Channel rescind callback. Some channels (the hvsock ones), need to
+	 * register a callback which is invoked in vmbus_onoffer_rescind().
+	 */
+	void (*chn_rescind_callback)(struct vmbus_channel *channel);
+
+	/*
 	 * The spinlock to protect the structure. It is being used to protect
 	 * test-and-set access to various attributes of the structure as well
 	 * as all sc_list operations.
@@ -767,7 +811,29 @@ struct vmbus_channel {
 	 * signaling control.
 	 */
 	enum hv_signal_policy  signal_policy;
+	/*
+	 * On the channel send side, many of the VMBUS
+	 * device drivers explicity serialize access to the
+	 * outgoing ring buffer. Give more control to the
+	 * VMBUS device drivers in terms how to serialize
+	 * accesss to the outgoing ring buffer.
+	 * The default behavior will be to aquire the
+	 * ring lock to preserve the current behavior.
+	 */
+	bool acquire_ring_lock;
+
 };
+
+static inline void set_channel_lock_state(struct vmbus_channel *c, bool state)
+{
+	c->acquire_ring_lock = state;
+}
+
+static inline bool is_hvsock_channel(const struct vmbus_channel *c)
+{
+	return !!(c->offermsg.offer.chn_flags &
+		  VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER);
+}
 
 static inline void set_channel_signal_state(struct vmbus_channel *c,
 					    enum hv_signal_policy policy)
@@ -790,6 +856,12 @@ static inline void *get_per_channel_state(struct vmbus_channel *c)
 	return c->per_channel_state;
 }
 
+static inline void set_channel_pending_send_size(struct vmbus_channel *c,
+						 u32 size)
+{
+	c->outbound.ring_buffer->pending_send_sz = size;
+}
+
 void vmbus_onmessage(void *context);
 
 int vmbus_request_offers(void);
@@ -800,6 +872,9 @@ int vmbus_request_offers(void);
 
 void vmbus_set_sc_create_callback(struct vmbus_channel *primary_channel,
 			void (*sc_cr_cb)(struct vmbus_channel *new_sc));
+
+void vmbus_set_chn_rescind_callback(struct vmbus_channel *channel,
+		void (*chn_rescind_cb)(struct vmbus_channel *));
 
 /*
  * Retrieve the (sub) channel on which to send an outgoing request.
@@ -940,6 +1015,20 @@ extern void vmbus_ontimer(unsigned long data);
 struct hv_driver {
 	const char *name;
 
+	/*
+	 * A hvsock offer, which has a VMBUS_CHANNEL_TLNPI_PROVIDER_OFFER
+	 * channel flag, actually doesn't mean a synthetic device because the
+	 * offer's if_type/if_instance can change for every new hvsock
+	 * connection.
+	 *
+	 * However, to facilitate the notification of new-offer/rescind-offer
+	 * from vmbus driver to hvsock driver, we can handle hvsock offer as
+	 * a special vmbus device, and hence we need the below flag to
+	 * indicate if the driver is the hvsock driver or not: we need to
+	 * specially treat the hvosck offer & driver in vmbus_match().
+	 */
+	bool hvsock;
+
 	/* the device type supported by this driver */
 	uuid_le dev_type;
 	const struct hv_vmbus_device_id *id_table;
@@ -959,6 +1048,8 @@ struct hv_device {
 
 	/* the device instance id of this device */
 	uuid_le dev_instance;
+	u16 vendor_id;
+	u16 device_id;
 
 	struct device device;
 
@@ -993,6 +1084,8 @@ int __must_check __vmbus_driver_register(struct hv_driver *hv_driver,
 					 struct module *owner,
 					 const char *mod_name);
 void vmbus_driver_unregister(struct hv_driver *hv_driver);
+
+void vmbus_hvsock_device_unregister(struct vmbus_channel *channel);
 
 int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 			resource_size_t min, resource_size_t max,
@@ -1158,6 +1251,7 @@ u64 hv_do_hypercall(u64 control, void *input, void *output);
 
 struct hv_util_service {
 	u8 *recv_buffer;
+	void *channel;
 	void (*util_cb)(void *);
 	int (*util_init)(struct hv_util_service *);
 	void (*util_deinit)(void);
@@ -1242,4 +1336,6 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid);
 
 extern __u32 vmbus_proto_version;
 
+int vmbus_send_tl_connect_request(const uuid_le *shv_guest_servie_id,
+				  const uuid_le *shv_host_servie_id);
 #endif /* _HYPERV_H */

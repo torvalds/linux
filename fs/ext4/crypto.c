@@ -18,11 +18,9 @@
  * Special Publication 800-38E and IEEE P1619/D16.
  */
 
-#include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/skcipher.h>
 #include <keys/user-type.h>
 #include <keys/encrypted-type.h>
-#include <linux/crypto.h>
 #include <linux/ecryptfs.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
@@ -34,6 +32,7 @@
 #include <linux/random.h>
 #include <linux/scatterlist.h>
 #include <linux/spinlock_types.h>
+#include <linux/namei.h>
 
 #include "ext4_extents.h"
 #include "xattr.h"
@@ -93,7 +92,8 @@ void ext4_release_crypto_ctx(struct ext4_crypto_ctx *ctx)
  * Return: An allocated and initialized encryption context on success; error
  * value or NULL otherwise.
  */
-struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
+struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode,
+					    gfp_t gfp_flags)
 {
 	struct ext4_crypto_ctx *ctx = NULL;
 	int res = 0;
@@ -120,7 +120,7 @@ struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
 		list_del(&ctx->free_list);
 	spin_unlock_irqrestore(&ext4_crypto_ctx_lock, flags);
 	if (!ctx) {
-		ctx = kmem_cache_zalloc(ext4_crypto_ctx_cachep, GFP_NOFS);
+		ctx = kmem_cache_zalloc(ext4_crypto_ctx_cachep, gfp_flags);
 		if (!ctx) {
 			res = -ENOMEM;
 			goto out;
@@ -257,25 +257,26 @@ static int ext4_page_crypto(struct inode *inode,
 			    ext4_direction_t rw,
 			    pgoff_t index,
 			    struct page *src_page,
-			    struct page *dest_page)
+			    struct page *dest_page,
+			    gfp_t gfp_flags)
 
 {
 	u8 xts_tweak[EXT4_XTS_TWEAK_SIZE];
-	struct ablkcipher_request *req = NULL;
+	struct skcipher_request *req = NULL;
 	DECLARE_EXT4_COMPLETION_RESULT(ecr);
 	struct scatterlist dst, src;
 	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
-	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
+	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 
-	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
+	req = skcipher_request_alloc(tfm, gfp_flags);
 	if (!req) {
 		printk_ratelimited(KERN_ERR
 				   "%s: crypto_request_alloc() failed\n",
 				   __func__);
 		return -ENOMEM;
 	}
-	ablkcipher_request_set_callback(
+	skcipher_request_set_callback(
 		req, CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		ext4_crypt_complete, &ecr);
 
@@ -285,33 +286,34 @@ static int ext4_page_crypto(struct inode *inode,
 	       EXT4_XTS_TWEAK_SIZE - sizeof(index));
 
 	sg_init_table(&dst, 1);
-	sg_set_page(&dst, dest_page, PAGE_CACHE_SIZE, 0);
+	sg_set_page(&dst, dest_page, PAGE_SIZE, 0);
 	sg_init_table(&src, 1);
-	sg_set_page(&src, src_page, PAGE_CACHE_SIZE, 0);
-	ablkcipher_request_set_crypt(req, &src, &dst, PAGE_CACHE_SIZE,
-				     xts_tweak);
+	sg_set_page(&src, src_page, PAGE_SIZE, 0);
+	skcipher_request_set_crypt(req, &src, &dst, PAGE_SIZE,
+				   xts_tweak);
 	if (rw == EXT4_DECRYPT)
-		res = crypto_ablkcipher_decrypt(req);
+		res = crypto_skcipher_decrypt(req);
 	else
-		res = crypto_ablkcipher_encrypt(req);
+		res = crypto_skcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
-	ablkcipher_request_free(req);
+	skcipher_request_free(req);
 	if (res) {
 		printk_ratelimited(
 			KERN_ERR
-			"%s: crypto_ablkcipher_encrypt() returned %d\n",
+			"%s: crypto_skcipher_encrypt() returned %d\n",
 			__func__, res);
 		return res;
 	}
 	return 0;
 }
 
-static struct page *alloc_bounce_page(struct ext4_crypto_ctx *ctx)
+static struct page *alloc_bounce_page(struct ext4_crypto_ctx *ctx,
+				      gfp_t gfp_flags)
 {
-	ctx->w.bounce_page = mempool_alloc(ext4_bounce_page_pool, GFP_NOWAIT);
+	ctx->w.bounce_page = mempool_alloc(ext4_bounce_page_pool, gfp_flags);
 	if (ctx->w.bounce_page == NULL)
 		return ERR_PTR(-ENOMEM);
 	ctx->flags |= EXT4_WRITE_PATH_FL;
@@ -334,7 +336,8 @@ static struct page *alloc_bounce_page(struct ext4_crypto_ctx *ctx)
  * error value or NULL.
  */
 struct page *ext4_encrypt(struct inode *inode,
-			  struct page *plaintext_page)
+			  struct page *plaintext_page,
+			  gfp_t gfp_flags)
 {
 	struct ext4_crypto_ctx *ctx;
 	struct page *ciphertext_page = NULL;
@@ -342,17 +345,17 @@ struct page *ext4_encrypt(struct inode *inode,
 
 	BUG_ON(!PageLocked(plaintext_page));
 
-	ctx = ext4_get_crypto_ctx(inode);
+	ctx = ext4_get_crypto_ctx(inode, gfp_flags);
 	if (IS_ERR(ctx))
 		return (struct page *) ctx;
 
 	/* The encryption operation will require a bounce page. */
-	ciphertext_page = alloc_bounce_page(ctx);
+	ciphertext_page = alloc_bounce_page(ctx, gfp_flags);
 	if (IS_ERR(ciphertext_page))
 		goto errout;
 	ctx->w.control_page = plaintext_page;
 	err = ext4_page_crypto(inode, EXT4_ENCRYPT, plaintext_page->index,
-			       plaintext_page, ciphertext_page);
+			       plaintext_page, ciphertext_page, gfp_flags);
 	if (err) {
 		ciphertext_page = ERR_PTR(err);
 	errout:
@@ -380,8 +383,8 @@ int ext4_decrypt(struct page *page)
 {
 	BUG_ON(!PageLocked(page));
 
-	return ext4_page_crypto(page->mapping->host,
-				EXT4_DECRYPT, page->index, page, page);
+	return ext4_page_crypto(page->mapping->host, EXT4_DECRYPT,
+				page->index, page, page, GFP_NOFS);
 }
 
 int ext4_encrypted_zeroout(struct inode *inode, ext4_lblk_t lblk,
@@ -398,13 +401,13 @@ int ext4_encrypted_zeroout(struct inode *inode, ext4_lblk_t lblk,
 		 (unsigned long) inode->i_ino, lblk, len);
 #endif
 
-	BUG_ON(inode->i_sb->s_blocksize != PAGE_CACHE_SIZE);
+	BUG_ON(inode->i_sb->s_blocksize != PAGE_SIZE);
 
-	ctx = ext4_get_crypto_ctx(inode);
+	ctx = ext4_get_crypto_ctx(inode, GFP_NOFS);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	ciphertext_page = alloc_bounce_page(ctx);
+	ciphertext_page = alloc_bounce_page(ctx, GFP_NOWAIT);
 	if (IS_ERR(ciphertext_page)) {
 		err = PTR_ERR(ciphertext_page);
 		goto errout;
@@ -412,11 +415,12 @@ int ext4_encrypted_zeroout(struct inode *inode, ext4_lblk_t lblk,
 
 	while (len--) {
 		err = ext4_page_crypto(inode, EXT4_ENCRYPT, lblk,
-				       ZERO_PAGE(0), ciphertext_page);
+				       ZERO_PAGE(0), ciphertext_page,
+				       GFP_NOFS);
 		if (err)
 			goto errout;
 
-		bio = bio_alloc(GFP_KERNEL, 1);
+		bio = bio_alloc(GFP_NOWAIT, 1);
 		if (!bio) {
 			err = -ENOMEM;
 			goto errout;
@@ -475,13 +479,19 @@ uint32_t ext4_validate_encryption_key_size(uint32_t mode, uint32_t size)
  */
 static int ext4_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	struct inode *dir = d_inode(dentry->d_parent);
-	struct ext4_crypt_info *ci = EXT4_I(dir)->i_crypt_info;
+	struct dentry *dir;
+	struct ext4_crypt_info *ci;
 	int dir_has_key, cached_with_key;
 
-	if (!ext4_encrypted_inode(dir))
-		return 0;
+	if (flags & LOOKUP_RCU)
+		return -ECHILD;
 
+	dir = dget_parent(dentry);
+	if (!ext4_encrypted_inode(d_inode(dir))) {
+		dput(dir);
+		return 0;
+	}
+	ci = EXT4_I(d_inode(dir))->i_crypt_info;
 	if (ci && ci->ci_keyring_key &&
 	    (ci->ci_keyring_key->flags & ((1 << KEY_FLAG_INVALIDATED) |
 					  (1 << KEY_FLAG_REVOKED) |
@@ -491,6 +501,7 @@ static int ext4_d_revalidate(struct dentry *dentry, unsigned int flags)
 	/* this should eventually be an flag in d_flags */
 	cached_with_key = dentry->d_fsdata != NULL;
 	dir_has_key = (ci != NULL);
+	dput(dir);
 
 	/*
 	 * If the dentry was cached without the key, and it is a

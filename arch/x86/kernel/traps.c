@@ -83,30 +83,16 @@ gate_desc idt_table[NR_VECTORS] __page_aligned_bss;
 DECLARE_BITMAP(used_vectors, NR_VECTORS);
 EXPORT_SYMBOL_GPL(used_vectors);
 
-static inline void conditional_sti(struct pt_regs *regs)
+static inline void cond_local_irq_enable(struct pt_regs *regs)
 {
 	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_enable();
 }
 
-static inline void preempt_conditional_sti(struct pt_regs *regs)
-{
-	preempt_count_inc();
-	if (regs->flags & X86_EFLAGS_IF)
-		local_irq_enable();
-}
-
-static inline void conditional_cli(struct pt_regs *regs)
+static inline void cond_local_irq_disable(struct pt_regs *regs)
 {
 	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_disable();
-}
-
-static inline void preempt_conditional_cli(struct pt_regs *regs)
-{
-	if (regs->flags & X86_EFLAGS_IF)
-		local_irq_disable();
-	preempt_count_dec();
 }
 
 void ist_enter(struct pt_regs *regs)
@@ -199,7 +185,7 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 	}
 
 	if (!user_mode(regs)) {
-		if (!fixup_exception(regs)) {
+		if (!fixup_exception(regs, trapnr)) {
 			tsk->thread.error_code = error_code;
 			tsk->thread.trap_nr = trapnr;
 			die(str, regs, error_code);
@@ -262,7 +248,6 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_nr = trapnr;
 
-#ifdef CONFIG_X86_64
 	if (show_unhandled_signals && unhandled_signal(tsk, signr) &&
 	    printk_ratelimit()) {
 		pr_info("%s[%d] trap %s ip:%lx sp:%lx error:%lx",
@@ -271,7 +256,6 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 		print_vma_addr(" in ", regs->ip);
 		pr_cont("\n");
 	}
-#endif
 
 	force_sig_info(signr, info ?: SEND_SIG_PRIV, tsk);
 }
@@ -286,7 +270,7 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
-		conditional_sti(regs);
+		cond_local_irq_enable(regs);
 		do_trap(trapnr, signr, str, regs, error_code,
 			fill_trap_info(regs, signr, trapnr, &info));
 	}
@@ -368,7 +352,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
 		return;
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 
 	if (!user_mode(regs))
 		die("bounds", regs, error_code);
@@ -443,7 +427,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	struct task_struct *tsk;
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 
 	if (v8086_mode(regs)) {
 		local_irq_enable();
@@ -453,7 +437,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	tsk = current;
 	if (!user_mode(regs)) {
-		if (fixup_exception(regs))
+		if (fixup_exception(regs, X86_TRAP_GP))
 			return;
 
 		tsk->thread.error_code = error_code;
@@ -517,9 +501,11 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	 * as we may switch to the interrupt stack.
 	 */
 	debug_stack_usage_inc();
-	preempt_conditional_sti(regs);
+	preempt_disable();
+	cond_local_irq_enable(regs);
 	do_trap(X86_TRAP_BP, SIGTRAP, "int3", regs, error_code, NULL);
-	preempt_conditional_cli(regs);
+	cond_local_irq_disable(regs);
+	preempt_enable_no_resched();
 	debug_stack_usage_dec();
 exit:
 	ist_exit(regs);
@@ -571,6 +557,29 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 NOKPROBE_SYMBOL(fixup_bad_iret);
 #endif
 
+static bool is_sysenter_singlestep(struct pt_regs *regs)
+{
+	/*
+	 * We don't try for precision here.  If we're anywhere in the region of
+	 * code that can be single-stepped in the SYSENTER entry path, then
+	 * assume that this is a useless single-step trap due to SYSENTER
+	 * being invoked with TF set.  (We don't know in advance exactly
+	 * which instructions will be hit because BTF could plausibly
+	 * be set.)
+	 */
+#ifdef CONFIG_X86_32
+	return (regs->ip - (unsigned long)__begin_SYSENTER_singlestep_region) <
+		(unsigned long)__end_SYSENTER_singlestep_region -
+		(unsigned long)__begin_SYSENTER_singlestep_region;
+#elif defined(CONFIG_IA32_EMULATION)
+	return (regs->ip - (unsigned long)entry_SYSENTER_compat) <
+		(unsigned long)__end_entry_SYSENTER_compat -
+		(unsigned long)entry_SYSENTER_compat;
+#else
+	return false;
+#endif
+}
+
 /*
  * Our handling of the processor debug registers is non-trivial.
  * We do not clear them on entry and exit from the kernel. Therefore
@@ -605,9 +614,40 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	ist_enter(regs);
 
 	get_debugreg(dr6, 6);
+	/*
+	 * The Intel SDM says:
+	 *
+	 *   Certain debug exceptions may clear bits 0-3. The remaining
+	 *   contents of the DR6 register are never cleared by the
+	 *   processor. To avoid confusion in identifying debug
+	 *   exceptions, debug handlers should clear the register before
+	 *   returning to the interrupted task.
+	 *
+	 * Keep it simple: clear DR6 immediately.
+	 */
+	set_debugreg(0, 6);
 
 	/* Filter out all the reserved bits which are preset to 1 */
 	dr6 &= ~DR6_RESERVED;
+
+	/*
+	 * The SDM says "The processor clears the BTF flag when it
+	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
+	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
+	 */
+	clear_tsk_thread_flag(tsk, TIF_BLOCKSTEP);
+
+	if (unlikely(!user_mode(regs) && (dr6 & DR_STEP) &&
+		     is_sysenter_singlestep(regs))) {
+		dr6 &= ~DR_STEP;
+		if (!dr6)
+			goto exit;
+		/*
+		 * else we might have gotten a single-step trap and hit a
+		 * watchpoint at the same time, in which case we should fall
+		 * through and handle the watchpoint.
+		 */
+	}
 
 	/*
 	 * If dr6 has no reason to give us about the origin of this trap,
@@ -617,17 +657,9 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	if (!dr6 && user_mode(regs))
 		user_icebp = 1;
 
-	/* Catch kmemcheck conditions first of all! */
+	/* Catch kmemcheck conditions! */
 	if ((dr6 & DR_STEP) && kmemcheck_trap(regs))
 		goto exit;
-
-	/* DR6 may or may not be cleared by the CPU */
-	set_debugreg(0, 6);
-
-	/*
-	 * The processor cleared BTF, so don't mark that we need it set.
-	 */
-	clear_tsk_thread_flag(tsk, TIF_BLOCKSTEP);
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
@@ -648,24 +680,25 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_inc();
 
 	/* It's safe to allow irq's after DR6 has been saved */
-	preempt_conditional_sti(regs);
+	preempt_disable();
+	cond_local_irq_enable(regs);
 
 	if (v8086_mode(regs)) {
 		handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code,
 					X86_TRAP_DB);
-		preempt_conditional_cli(regs);
+		cond_local_irq_disable(regs);
+		preempt_enable_no_resched();
 		debug_stack_usage_dec();
 		goto exit;
 	}
 
-	/*
-	 * Single-stepping through system calls: ignore any exceptions in
-	 * kernel space, but re-enable TF when returning to user mode.
-	 *
-	 * We already checked v86 mode above, so we can check for kernel mode
-	 * by just checking the CPL of CS.
-	 */
-	if ((dr6 & DR_STEP) && !user_mode(regs)) {
+	if (WARN_ON_ONCE((dr6 & DR_STEP) && !user_mode(regs))) {
+		/*
+		 * Historical junk that used to handle SYSENTER single-stepping.
+		 * This should be unreachable now.  If we survive for a while
+		 * without anyone hitting this warning, we'll turn this into
+		 * an oops.
+		 */
 		tsk->thread.debugreg6 &= ~DR_STEP;
 		set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
 		regs->flags &= ~X86_EFLAGS_TF;
@@ -673,10 +706,19 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	si_code = get_si_code(tsk->thread.debugreg6);
 	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
 		send_sigtrap(tsk, regs, error_code, si_code);
-	preempt_conditional_cli(regs);
+	cond_local_irq_disable(regs);
+	preempt_enable_no_resched();
 	debug_stack_usage_dec();
 
 exit:
+#if defined(CONFIG_X86_32)
+	/*
+	 * This is the most likely code path that involves non-trivial use
+	 * of the SYSENTER stack.  Check that we haven't overrun it.
+	 */
+	WARN(this_cpu_read(cpu_tss.SYSENTER_stack_canary) != STACK_END_MAGIC,
+	     "Overran or corrupted SYSENTER stack\n");
+#endif
 	ist_exit(regs);
 }
 NOKPROBE_SYMBOL(do_debug);
@@ -696,10 +738,10 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, SIGFPE) == NOTIFY_STOP)
 		return;
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 
 	if (!user_mode(regs)) {
-		if (!fixup_exception(regs)) {
+		if (!fixup_exception(regs, trapnr)) {
 			task->thread.error_code = error_code;
 			task->thread.trap_nr = trapnr;
 			die(str, regs, error_code);
@@ -743,20 +785,19 @@ do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 dotraplinkage void
 do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 }
 
 dotraplinkage void
 do_device_not_available(struct pt_regs *regs, long error_code)
 {
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
-	BUG_ON(use_eager_fpu());
 
 #ifdef CONFIG_MATH_EMULATION
-	if (read_cr0() & X86_CR0_EM) {
+	if (!boot_cpu_has(X86_FEATURE_FPU) && (read_cr0() & X86_CR0_EM)) {
 		struct math_emu_info info = { };
 
-		conditional_sti(regs);
+		cond_local_irq_enable(regs);
 
 		info.regs = regs;
 		math_emulate(&info);
@@ -765,7 +806,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 #endif
 	fpu__restore(&current->thread.fpu); /* interrupts still off */
 #ifdef CONFIG_X86_32
-	conditional_sti(regs);
+	cond_local_irq_enable(regs);
 #endif
 }
 NOKPROBE_SYMBOL(do_device_not_available);
@@ -868,7 +909,7 @@ void __init trap_init(void)
 #endif
 
 #ifdef CONFIG_X86_32
-	set_system_trap_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
+	set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
 	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
 #endif
 

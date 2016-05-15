@@ -110,8 +110,6 @@ config IOMMU_HELPER
 
 source "drivers/pcmcia/Kconfig"
 
-source "drivers/pci/hotplug/Kconfig"
-
 endmenu
 
 menu "PA-RISC specific drivers"

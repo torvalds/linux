@@ -862,7 +862,7 @@ static struct scsi_cmnd *dequeue_next_cmd(struct Scsi_Host *instance)
 	struct NCR5380_cmd *ncmd;
 	struct scsi_cmnd *cmd;
 
-	if (list_empty(&hostdata->autosense)) {
+	if (hostdata->sensing || list_empty(&hostdata->autosense)) {
 		list_for_each_entry(ncmd, &hostdata->unissued, list) {
 			cmd = NCR5380_to_scmd(ncmd);
 			dsprintk(NDEBUG_QUEUES, instance, "dequeue: cmd=%p target=%d busy=0x%02x lun=%llu\n",
@@ -901,7 +901,7 @@ static void requeue_cmd(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
 
-	if (hostdata->sensing) {
+	if (hostdata->sensing == cmd) {
 		scsi_eh_restore_cmnd(cmd, &hostdata->ses);
 		list_add(&ncmd->list, &hostdata->autosense);
 		hostdata->sensing = NULL;
@@ -923,7 +923,6 @@ static void NCR5380_main(struct work_struct *work)
 	struct NCR5380_hostdata *hostdata =
 		container_of(work, struct NCR5380_hostdata, main_task);
 	struct Scsi_Host *instance = hostdata->host;
-	struct scsi_cmnd *cmd;
 	int done;
 
 	/*
@@ -936,8 +935,11 @@ static void NCR5380_main(struct work_struct *work)
 		done = 1;
 
 		spin_lock_irq(&hostdata->lock);
-		while (!hostdata->connected &&
-		       (cmd = dequeue_next_cmd(instance))) {
+		while (!hostdata->connected && !hostdata->selecting) {
+			struct scsi_cmnd *cmd = dequeue_next_cmd(instance);
+
+			if (!cmd)
+				break;
 
 			dsprintk(NDEBUG_MAIN, instance, "main: dequeued %p\n", cmd);
 
@@ -960,8 +962,7 @@ static void NCR5380_main(struct work_struct *work)
 #ifdef SUPPORT_TAGS
 			cmd_get_tag(cmd, cmd->cmnd[0] != REQUEST_SENSE);
 #endif
-			cmd = NCR5380_select(instance, cmd);
-			if (!cmd) {
+			if (!NCR5380_select(instance, cmd)) {
 				dsprintk(NDEBUG_MAIN, instance, "main: select complete\n");
 				maybe_release_dma_irq(instance);
 			} else {
@@ -1255,6 +1256,11 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	spin_lock_irq(&hostdata->lock);
 	if (!(NCR5380_read(MODE_REG) & MR_ARBITRATE)) {
 		/* Reselection interrupt */
+		goto out;
+	}
+	if (!hostdata->selecting) {
+		/* Command was aborted */
+		NCR5380_write(MODE_REG, MR_BASE);
 		goto out;
 	}
 	if (err < 0) {
@@ -1838,9 +1844,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 	unsigned char msgout = NOP;
 	int sink = 0;
 	int len;
-#if defined(REAL_DMA)
 	int transfersize;
-#endif
 	unsigned char *data;
 	unsigned char phase, tmp, extended_msg[10], old_phase = 0xff;
 	struct scsi_cmnd *cmd;
@@ -1909,6 +1913,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				do_abort(instance);
 				cmd->result = DID_ERROR << 16;
 				complete_cmd(instance, cmd);
+				hostdata->connected = NULL;
 				return;
 #endif
 			case PHASE_DATAIN:
@@ -1966,7 +1971,6 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						sink = 1;
 						do_abort(instance);
 						cmd->result = DID_ERROR << 16;
-						complete_cmd(instance, cmd);
 						/* XXX - need to source or sink data here, as appropriate */
 					} else {
 #ifdef REAL_DMA
@@ -1983,18 +1987,22 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				} else
 #endif /* defined(REAL_DMA) */
 				{
-					spin_unlock_irq(&hostdata->lock);
-					NCR5380_transfer_pio(instance, &phase,
-					                     (int *)&cmd->SCp.this_residual,
+					/* Break up transfer into 3 ms chunks,
+					 * presuming 6 accesses per handshake.
+					 */
+					transfersize = min((unsigned long)cmd->SCp.this_residual,
+					                   hostdata->accesses_per_ms / 2);
+					len = transfersize;
+					NCR5380_transfer_pio(instance, &phase, &len,
 					                     (unsigned char **)&cmd->SCp.ptr);
-					spin_lock_irq(&hostdata->lock);
+					cmd->SCp.this_residual -= transfersize - len;
 				}
 #if defined(CONFIG_SUN3) && defined(REAL_DMA)
 				/* if we had intended to dma that command clear it */
 				if (sun3_dma_setup_done == cmd)
 					sun3_dma_setup_done = NULL;
 #endif
-				break;
+				return;
 			case PHASE_MSGIN:
 				len = 1;
 				data = &tmp;
@@ -2487,14 +2495,17 @@ static bool list_del_cmd(struct list_head *haystack,
  * [disconnected -> connected ->]...
  * [autosense -> connected ->] done
  *
- * If cmd is unissued then just remove it.
- * If cmd is disconnected, try to select the target.
- * If cmd is connected, try to send an abort message.
- * If cmd is waiting for autosense, give it a chance to complete but check
- * that it isn't left connected.
  * If cmd was not found at all then presumably it has already been completed,
  * in which case return SUCCESS to try to avoid further EH measures.
+ *
  * If the command has not completed yet, we must not fail to find it.
+ * We have no option but to forget the aborted command (even if it still
+ * lacks sense data). The mid-layer may re-issue a command that is in error
+ * recovery (see scsi_send_eh_cmnd), but the logic and data structures in
+ * this driver are such that a command can appear on one queue only.
+ *
+ * The lock protects driver data structures, but EH handlers also use it
+ * to serialize their own execution and prevent their own re-entry.
  */
 
 static int NCR5380_abort(struct scsi_cmnd *cmd)
@@ -2517,6 +2528,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 		         "abort: removed %p from issue queue\n", cmd);
 		cmd->result = DID_ABORT << 16;
 		cmd->scsi_done(cmd); /* No tag or busy flag to worry about */
+		goto out;
 	}
 
 	if (hostdata->selecting == cmd) {
@@ -2531,19 +2543,21 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 	if (list_del_cmd(&hostdata->disconnected, cmd)) {
 		dsprintk(NDEBUG_ABORT, instance,
 		         "abort: removed %p from disconnected list\n", cmd);
-		cmd->result = DID_ERROR << 16;
-		if (!hostdata->connected)
-			NCR5380_select(instance, cmd);
-		if (hostdata->connected != cmd) {
-			complete_cmd(instance, cmd);
-			result = FAILED;
-			goto out;
-		}
+		/* Can't call NCR5380_select() and send ABORT because that
+		 * means releasing the lock. Need a bus reset.
+		 */
+		set_host_byte(cmd, DID_ERROR);
+		complete_cmd(instance, cmd);
+		result = FAILED;
+		goto out;
 	}
 
 	if (hostdata->connected == cmd) {
 		dsprintk(NDEBUG_ABORT, instance, "abort: cmd %p is connected\n", cmd);
 		hostdata->connected = NULL;
+#ifdef REAL_DMA
+		hostdata->dma_len = 0;
+#endif
 		if (do_abort(instance)) {
 			set_host_byte(cmd, DID_ERROR);
 			complete_cmd(instance, cmd);
@@ -2551,48 +2565,14 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 			goto out;
 		}
 		set_host_byte(cmd, DID_ABORT);
-#ifdef REAL_DMA
-		hostdata->dma_len = 0;
-#endif
-		if (cmd->cmnd[0] == REQUEST_SENSE)
-			complete_cmd(instance, cmd);
-		else {
-			struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
-
-			/* Perform autosense for this command */
-			list_add(&ncmd->list, &hostdata->autosense);
-		}
+		complete_cmd(instance, cmd);
+		goto out;
 	}
 
-	if (list_find_cmd(&hostdata->autosense, cmd)) {
+	if (list_del_cmd(&hostdata->autosense, cmd)) {
 		dsprintk(NDEBUG_ABORT, instance,
-		         "abort: found %p on sense queue\n", cmd);
-		spin_unlock_irqrestore(&hostdata->lock, flags);
-		queue_work(hostdata->work_q, &hostdata->main_task);
-		msleep(1000);
-		spin_lock_irqsave(&hostdata->lock, flags);
-		if (list_del_cmd(&hostdata->autosense, cmd)) {
-			dsprintk(NDEBUG_ABORT, instance,
-			         "abort: removed %p from sense queue\n", cmd);
-			set_host_byte(cmd, DID_ABORT);
-			complete_cmd(instance, cmd);
-			goto out;
-		}
-	}
-
-	if (hostdata->connected == cmd) {
-		dsprintk(NDEBUG_ABORT, instance, "abort: cmd %p is connected\n", cmd);
-		hostdata->connected = NULL;
-		if (do_abort(instance)) {
-			set_host_byte(cmd, DID_ERROR);
-			complete_cmd(instance, cmd);
-			result = FAILED;
-			goto out;
-		}
-		set_host_byte(cmd, DID_ABORT);
-#ifdef REAL_DMA
-		hostdata->dma_len = 0;
-#endif
+		         "abort: removed %p from sense queue\n", cmd);
+		set_host_byte(cmd, DID_ERROR);
 		complete_cmd(instance, cmd);
 	}
 
@@ -2646,7 +2626,16 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 	 * commands!
 	 */
 
-	hostdata->selecting = NULL;
+	if (list_del_cmd(&hostdata->unissued, cmd)) {
+		cmd->result = DID_RESET << 16;
+		cmd->scsi_done(cmd);
+	}
+
+	if (hostdata->selecting) {
+		hostdata->selecting->result = DID_RESET << 16;
+		complete_cmd(instance, hostdata->selecting);
+		hostdata->selecting = NULL;
+	}
 
 	list_for_each_entry(ncmd, &hostdata->disconnected, list) {
 		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
@@ -2654,6 +2643,7 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 		set_host_byte(cmd, DID_RESET);
 		cmd->scsi_done(cmd);
 	}
+	INIT_LIST_HEAD(&hostdata->disconnected);
 
 	list_for_each_entry(ncmd, &hostdata->autosense, list) {
 		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
@@ -2661,17 +2651,12 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 		set_host_byte(cmd, DID_RESET);
 		cmd->scsi_done(cmd);
 	}
+	INIT_LIST_HEAD(&hostdata->autosense);
 
 	if (hostdata->connected) {
 		set_host_byte(hostdata->connected, DID_RESET);
 		complete_cmd(instance, hostdata->connected);
 		hostdata->connected = NULL;
-	}
-
-	if (hostdata->sensing) {
-		set_host_byte(hostdata->connected, DID_RESET);
-		complete_cmd(instance, hostdata->sensing);
-		hostdata->sensing = NULL;
 	}
 
 #ifdef SUPPORT_TAGS

@@ -158,7 +158,7 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
 
 int hist_entry__annotate(struct hist_entry *he, size_t privsize);
 
-int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym);
+int symbol__annotate_init(struct map *map, struct symbol *sym);
 int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    struct perf_evsel *evsel, bool full_paths,
 			    int min_pcnt, int max_lines, int context);

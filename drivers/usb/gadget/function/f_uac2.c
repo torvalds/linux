@@ -1100,7 +1100,8 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	hs_epout_desc.bEndpointAddress = fs_epout_desc.bEndpointAddress;
 	hs_epin_desc.bEndpointAddress = fs_epin_desc.bEndpointAddress;
 
-	ret = usb_assign_descriptors(fn, fs_audio_desc, hs_audio_desc, NULL);
+	ret = usb_assign_descriptors(fn, fs_audio_desc, hs_audio_desc, NULL,
+				     NULL);
 	if (ret)
 		goto err;
 

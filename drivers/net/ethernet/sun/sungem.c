@@ -51,7 +51,6 @@
 #endif
 
 #ifdef CONFIG_PPC_PMAC
-#include <asm/pci-bridge.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>

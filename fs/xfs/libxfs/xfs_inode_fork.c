@@ -31,6 +31,7 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_attr_sf.h"
+#include "xfs_da_format.h"
 
 kmem_zone_t *xfs_ifork_zone;
 
@@ -120,7 +121,7 @@ xfs_iformat_fork(
 		return -EFSCORRUPTED;
 	}
 
-	switch (ip->i_d.di_mode & S_IFMT) {
+	switch (VFS_I(ip)->i_mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFCHR:
 	case S_IFBLK:

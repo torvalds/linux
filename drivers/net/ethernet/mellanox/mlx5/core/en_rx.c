@@ -35,6 +35,7 @@
 #include <linux/tcp.h>
 #include <net/busy_poll.h>
 #include "en.h"
+#include "en_tc.h"
 
 static inline bool mlx5e_rx_hw_stamp(struct mlx5e_tstamp *tstamp)
 {
@@ -167,14 +168,15 @@ static inline bool is_first_ethertype_ip(struct sk_buff *skb)
 static inline void mlx5e_handle_csum(struct net_device *netdev,
 				     struct mlx5_cqe64 *cqe,
 				     struct mlx5e_rq *rq,
-				     struct sk_buff *skb)
+				     struct sk_buff *skb,
+				     bool   lro)
 {
 	if (unlikely(!(netdev->features & NETIF_F_RXCSUM)))
 		goto csum_none;
 
-	if (likely(cqe->hds_ip_ext & CQE_L4_OK)) {
+	if (lro) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else if (is_first_ethertype_ip(skb)) {
+	} else if (likely(is_first_ethertype_ip(skb))) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		rq->stats.csum_sw++;
@@ -211,7 +213,7 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
 		mlx5e_fill_hwstamp(tstamp, get_cqe_ts(cqe), skb_hwtstamps(skb));
 
-	mlx5e_handle_csum(netdev, cqe, rq, skb);
+	mlx5e_handle_csum(netdev, cqe, rq, skb, !!lro_num_seg);
 
 	skb->protocol = eth_type_trans(skb, netdev);
 
@@ -223,16 +225,14 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	if (cqe_has_vlan(cqe))
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       be16_to_cpu(cqe->vlan_info));
+
+	skb->mark = be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK;
 }
 
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 {
 	struct mlx5e_rq *rq = container_of(cq, struct mlx5e_rq, cq);
 	int work_done;
-
-	/* avoid accessing cq (dma coherent memory) if not needed */
-	if (!test_and_clear_bit(MLX5E_CQ_HAS_CQES, &cq->flags))
-		return 0;
 
 	for (work_done = 0; work_done < budget; work_done++) {
 		struct mlx5e_rx_wqe *wqe;
@@ -267,6 +267,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 
 		mlx5e_build_rx_skb(cqe, rq, skb);
 		rq->stats.packets++;
+		rq->stats.bytes += be32_to_cpu(cqe->byte_cnt);
 		napi_gro_receive(cq->napi, skb);
 
 wq_ll_pop:
@@ -278,9 +279,6 @@ wq_ll_pop:
 
 	/* ensure cq space is freed before enabling more cqes */
 	wmb();
-
-	if (work_done == budget)
-		set_bit(MLX5E_CQ_HAS_CQES, &cq->flags);
 
 	return work_done;
 }

@@ -15,17 +15,41 @@
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	spin_lock_init(&mm->context.list_lock);
+	INIT_LIST_HEAD(&mm->context.pgtable_list);
+	INIT_LIST_HEAD(&mm->context.gmap_list);
 	cpumask_clear(&mm->context.cpu_attach_mask);
 	atomic_set(&mm->context.attach_count, 0);
 	mm->context.flush_mm = 0;
-	mm->context.asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
-	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
 #ifdef CONFIG_PGSTE
 	mm->context.alloc_pgste = page_table_allocate_pgste;
 	mm->context.has_pgste = 0;
 	mm->context.use_skey = 0;
 #endif
-	mm->context.asce_limit = STACK_TOP_MAX;
+	switch (mm->context.asce_limit) {
+	case 1UL << 42:
+		/*
+		 * forked 3-level task, fall through to set new asce with new
+		 * mm->pgd
+		 */
+	case 0:
+		/* context created by exec, set asce limit to 4TB */
+		mm->context.asce_limit = STACK_TOP_MAX;
+		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
+		break;
+	case 1UL << 53:
+		/* forked 4-level task, set new asce with new mm->pgd */
+		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+				   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
+		break;
+	case 1UL << 31:
+		/* forked 2-level compat task, set new asce with new mm->pgd */
+		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
+		/* pgd_alloc() did not increase mm->nr_pmds */
+		mm_inc_nr_pmds(mm);
+	}
 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
 	return 0;
 }
@@ -34,7 +58,7 @@ static inline int init_new_context(struct task_struct *tsk,
 
 static inline void set_user_asce(struct mm_struct *mm)
 {
-	S390_lowcore.user_asce = mm->context.asce_bits | __pa(mm->pgd);
+	S390_lowcore.user_asce = mm->context.asce;
 	if (current->thread.mm_segment.ar4)
 		__ctl_load(S390_lowcore.user_asce, 7, 7);
 	set_cpu_flag(CIF_ASCE);
@@ -63,7 +87,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	int cpu = smp_processor_id();
 
-	S390_lowcore.user_asce = next->context.asce_bits | __pa(next->pgd);
+	S390_lowcore.user_asce = next->context.asce;
 	if (prev == next)
 		return;
 	if (MACHINE_HAS_TLB_LC)
@@ -111,8 +135,6 @@ static inline void activate_mm(struct mm_struct *prev,
 static inline void arch_dup_mmap(struct mm_struct *oldmm,
 				 struct mm_struct *mm)
 {
-	if (oldmm->context.asce_limit < mm->context.asce_limit)
-		crst_table_downgrade(mm, oldmm->context.asce_limit);
 }
 
 static inline void arch_exit_mmap(struct mm_struct *mm)
@@ -130,4 +152,16 @@ static inline void arch_bprm_mm_init(struct mm_struct *mm,
 {
 }
 
+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
+		bool write, bool execute, bool foreign)
+{
+	/* by default, allow everything */
+	return true;
+}
+
+static inline bool arch_pte_access_permitted(pte_t pte, bool write)
+{
+	/* by default, allow everything */
+	return true;
+}
 #endif /* __S390_MMU_CONTEXT_H */

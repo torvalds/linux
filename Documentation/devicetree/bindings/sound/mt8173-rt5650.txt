@@ -1,0 +1,15 @@
+MT8173 with RT5650 CODECS
+
+Required properties:
+- compatible : "mediatek,mt8173-rt5650"
+- mediatek,audio-codec: the phandles of rt5650 codecs
+- mediatek,platform: the phandle of MT8173 ASoC platform
+
+Example:
+
+	sound {
+		compatible = "mediatek,mt8173-rt5650";
+		mediatek,audio-codec = <&rt5650>;
+		mediatek,platform = <&afe>;
+	};
+

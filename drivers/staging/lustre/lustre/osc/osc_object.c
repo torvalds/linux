@@ -113,7 +113,7 @@ static void osc_object_free(const struct lu_env *env, struct lu_object *obj)
 	LASSERT(list_empty(&osc->oo_write_item));
 	LASSERT(list_empty(&osc->oo_read_item));
 
-	LASSERT(osc->oo_root.rb_node == NULL);
+	LASSERT(!osc->oo_root.rb_node);
 	LASSERT(list_empty(&osc->oo_hp_exts));
 	LASSERT(list_empty(&osc->oo_urgent_exts));
 	LASSERT(list_empty(&osc->oo_rpc_exts));
@@ -255,8 +255,8 @@ struct lu_object *osc_object_alloc(const struct lu_env *env,
 	struct osc_object *osc;
 	struct lu_object *obj;
 
-	osc = kmem_cache_alloc(osc_object_kmem, GFP_NOFS | __GFP_ZERO);
-	if (osc != NULL) {
+	osc = kmem_cache_zalloc(osc_object_kmem, GFP_NOFS);
+	if (osc) {
 		obj = osc2lu(osc);
 		lu_object_init(obj, NULL, dev);
 		osc->oo_cl.co_ops = &osc_ops;

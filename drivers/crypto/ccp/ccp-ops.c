@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
@@ -13,123 +13,11 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/pci_ids.h>
-#include <linux/kthread.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/spinlock.h>
-#include <linux/mutex.h>
-#include <linux/delay.h>
-#include <linux/ccp.h>
-#include <linux/scatterlist.h>
 #include <crypto/scatterwalk.h>
-#include <crypto/sha.h>
+#include <linux/ccp.h>
 
 #include "ccp-dev.h"
-
-enum ccp_memtype {
-	CCP_MEMTYPE_SYSTEM = 0,
-	CCP_MEMTYPE_KSB,
-	CCP_MEMTYPE_LOCAL,
-	CCP_MEMTYPE__LAST,
-};
-
-struct ccp_dma_info {
-	dma_addr_t address;
-	unsigned int offset;
-	unsigned int length;
-	enum dma_data_direction dir;
-};
-
-struct ccp_dm_workarea {
-	struct device *dev;
-	struct dma_pool *dma_pool;
-	unsigned int length;
-
-	u8 *address;
-	struct ccp_dma_info dma;
-};
-
-struct ccp_sg_workarea {
-	struct scatterlist *sg;
-	int nents;
-
-	struct scatterlist *dma_sg;
-	struct device *dma_dev;
-	unsigned int dma_count;
-	enum dma_data_direction dma_dir;
-
-	unsigned int sg_used;
-
-	u64 bytes_left;
-};
-
-struct ccp_data {
-	struct ccp_sg_workarea sg_wa;
-	struct ccp_dm_workarea dm_wa;
-};
-
-struct ccp_mem {
-	enum ccp_memtype type;
-	union {
-		struct ccp_dma_info dma;
-		u32 ksb;
-	} u;
-};
-
-struct ccp_aes_op {
-	enum ccp_aes_type type;
-	enum ccp_aes_mode mode;
-	enum ccp_aes_action action;
-};
-
-struct ccp_xts_aes_op {
-	enum ccp_aes_action action;
-	enum ccp_xts_aes_unit_size unit_size;
-};
-
-struct ccp_sha_op {
-	enum ccp_sha_type type;
-	u64 msg_bits;
-};
-
-struct ccp_rsa_op {
-	u32 mod_size;
-	u32 input_len;
-};
-
-struct ccp_passthru_op {
-	enum ccp_passthru_bitwise bit_mod;
-	enum ccp_passthru_byteswap byte_swap;
-};
-
-struct ccp_ecc_op {
-	enum ccp_ecc_function function;
-};
-
-struct ccp_op {
-	struct ccp_cmd_queue *cmd_q;
-
-	u32 jobid;
-	u32 ioc;
-	u32 soc;
-	u32 ksb_key;
-	u32 ksb_ctx;
-	u32 init;
-	u32 eom;
-
-	struct ccp_mem src;
-	struct ccp_mem dst;
-
-	union {
-		struct ccp_aes_op aes;
-		struct ccp_xts_aes_op xts;
-		struct ccp_sha_op sha;
-		struct ccp_rsa_op rsa;
-		struct ccp_passthru_op passthru;
-		struct ccp_ecc_op ecc;
-	} u;
-};
 
 /* SHA initial context values */
 static const __be32 ccp_sha1_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
@@ -151,253 +39,6 @@ static const __be32 ccp_sha256_init[CCP_SHA_CTXSIZE / sizeof(__be32)] = {
 	cpu_to_be32(SHA256_H4), cpu_to_be32(SHA256_H5),
 	cpu_to_be32(SHA256_H6), cpu_to_be32(SHA256_H7),
 };
-
-static u32 ccp_addr_lo(struct ccp_dma_info *info)
-{
-	return lower_32_bits(info->address + info->offset);
-}
-
-static u32 ccp_addr_hi(struct ccp_dma_info *info)
-{
-	return upper_32_bits(info->address + info->offset) & 0x0000ffff;
-}
-
-static int ccp_do_cmd(struct ccp_op *op, u32 *cr, unsigned int cr_count)
-{
-	struct ccp_cmd_queue *cmd_q = op->cmd_q;
-	struct ccp_device *ccp = cmd_q->ccp;
-	void __iomem *cr_addr;
-	u32 cr0, cmd;
-	unsigned int i;
-	int ret = 0;
-
-	/* We could read a status register to see how many free slots
-	 * are actually available, but reading that register resets it
-	 * and you could lose some error information.
-	 */
-	cmd_q->free_slots--;
-
-	cr0 = (cmd_q->id << REQ0_CMD_Q_SHIFT)
-	      | (op->jobid << REQ0_JOBID_SHIFT)
-	      | REQ0_WAIT_FOR_WRITE;
-
-	if (op->soc)
-		cr0 |= REQ0_STOP_ON_COMPLETE
-		       | REQ0_INT_ON_COMPLETE;
-
-	if (op->ioc || !cmd_q->free_slots)
-		cr0 |= REQ0_INT_ON_COMPLETE;
-
-	/* Start at CMD_REQ1 */
-	cr_addr = ccp->io_regs + CMD_REQ0 + CMD_REQ_INCR;
-
-	mutex_lock(&ccp->req_mutex);
-
-	/* Write CMD_REQ1 through CMD_REQx first */
-	for (i = 0; i < cr_count; i++, cr_addr += CMD_REQ_INCR)
-		iowrite32(*(cr + i), cr_addr);
-
-	/* Tell the CCP to start */
-	wmb();
-	iowrite32(cr0, ccp->io_regs + CMD_REQ0);
-
-	mutex_unlock(&ccp->req_mutex);
-
-	if (cr0 & REQ0_INT_ON_COMPLETE) {
-		/* Wait for the job to complete */
-		ret = wait_event_interruptible(cmd_q->int_queue,
-					       cmd_q->int_rcvd);
-		if (ret || cmd_q->cmd_error) {
-			/* On error delete all related jobs from the queue */
-			cmd = (cmd_q->id << DEL_Q_ID_SHIFT)
-			      | op->jobid;
-
-			iowrite32(cmd, ccp->io_regs + DEL_CMD_Q_JOB);
-
-			if (!ret)
-				ret = -EIO;
-		} else if (op->soc) {
-			/* Delete just head job from the queue on SoC */
-			cmd = DEL_Q_ACTIVE
-			      | (cmd_q->id << DEL_Q_ID_SHIFT)
-			      | op->jobid;
-
-			iowrite32(cmd, ccp->io_regs + DEL_CMD_Q_JOB);
-		}
-
-		cmd_q->free_slots = CMD_Q_DEPTH(cmd_q->q_status);
-
-		cmd_q->int_rcvd = 0;
-	}
-
-	return ret;
-}
-
-static int ccp_perform_aes(struct ccp_op *op)
-{
-	u32 cr[6];
-
-	/* Fill out the register contents for REQ1 through REQ6 */
-	cr[0] = (CCP_ENGINE_AES << REQ1_ENGINE_SHIFT)
-		| (op->u.aes.type << REQ1_AES_TYPE_SHIFT)
-		| (op->u.aes.mode << REQ1_AES_MODE_SHIFT)
-		| (op->u.aes.action << REQ1_AES_ACTION_SHIFT)
-		| (op->ksb_key << REQ1_KEY_KSB_SHIFT);
-	cr[1] = op->src.u.dma.length - 1;
-	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
-		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
-		| ccp_addr_hi(&op->src.u.dma);
-	cr[4] = ccp_addr_lo(&op->dst.u.dma);
-	cr[5] = (CCP_MEMTYPE_SYSTEM << REQ6_MEMTYPE_SHIFT)
-		| ccp_addr_hi(&op->dst.u.dma);
-
-	if (op->u.aes.mode == CCP_AES_MODE_CFB)
-		cr[0] |= ((0x7f) << REQ1_AES_CFB_SIZE_SHIFT);
-
-	if (op->eom)
-		cr[0] |= REQ1_EOM;
-
-	if (op->init)
-		cr[0] |= REQ1_INIT;
-
-	return ccp_do_cmd(op, cr, ARRAY_SIZE(cr));
-}
-
-static int ccp_perform_xts_aes(struct ccp_op *op)
-{
-	u32 cr[6];
-
-	/* Fill out the register contents for REQ1 through REQ6 */
-	cr[0] = (CCP_ENGINE_XTS_AES_128 << REQ1_ENGINE_SHIFT)
-		| (op->u.xts.action << REQ1_AES_ACTION_SHIFT)
-		| (op->u.xts.unit_size << REQ1_XTS_AES_SIZE_SHIFT)
-		| (op->ksb_key << REQ1_KEY_KSB_SHIFT);
-	cr[1] = op->src.u.dma.length - 1;
-	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
-		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
-		| ccp_addr_hi(&op->src.u.dma);
-	cr[4] = ccp_addr_lo(&op->dst.u.dma);
-	cr[5] = (CCP_MEMTYPE_SYSTEM << REQ6_MEMTYPE_SHIFT)
-		| ccp_addr_hi(&op->dst.u.dma);
-
-	if (op->eom)
-		cr[0] |= REQ1_EOM;
-
-	if (op->init)
-		cr[0] |= REQ1_INIT;
-
-	return ccp_do_cmd(op, cr, ARRAY_SIZE(cr));
-}
-
-static int ccp_perform_sha(struct ccp_op *op)
-{
-	u32 cr[6];
-
-	/* Fill out the register contents for REQ1 through REQ6 */
-	cr[0] = (CCP_ENGINE_SHA << REQ1_ENGINE_SHIFT)
-		| (op->u.sha.type << REQ1_SHA_TYPE_SHIFT)
-		| REQ1_INIT;
-	cr[1] = op->src.u.dma.length - 1;
-	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
-		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
-		| ccp_addr_hi(&op->src.u.dma);
-
-	if (op->eom) {
-		cr[0] |= REQ1_EOM;
-		cr[4] = lower_32_bits(op->u.sha.msg_bits);
-		cr[5] = upper_32_bits(op->u.sha.msg_bits);
-	} else {
-		cr[4] = 0;
-		cr[5] = 0;
-	}
-
-	return ccp_do_cmd(op, cr, ARRAY_SIZE(cr));
-}
-
-static int ccp_perform_rsa(struct ccp_op *op)
-{
-	u32 cr[6];
-
-	/* Fill out the register contents for REQ1 through REQ6 */
-	cr[0] = (CCP_ENGINE_RSA << REQ1_ENGINE_SHIFT)
-		| (op->u.rsa.mod_size << REQ1_RSA_MOD_SIZE_SHIFT)
-		| (op->ksb_key << REQ1_KEY_KSB_SHIFT)
-		| REQ1_EOM;
-	cr[1] = op->u.rsa.input_len - 1;
-	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
-		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
-		| ccp_addr_hi(&op->src.u.dma);
-	cr[4] = ccp_addr_lo(&op->dst.u.dma);
-	cr[5] = (CCP_MEMTYPE_SYSTEM << REQ6_MEMTYPE_SHIFT)
-		| ccp_addr_hi(&op->dst.u.dma);
-
-	return ccp_do_cmd(op, cr, ARRAY_SIZE(cr));
-}
-
-static int ccp_perform_passthru(struct ccp_op *op)
-{
-	u32 cr[6];
-
-	/* Fill out the register contents for REQ1 through REQ6 */
-	cr[0] = (CCP_ENGINE_PASSTHRU << REQ1_ENGINE_SHIFT)
-		| (op->u.passthru.bit_mod << REQ1_PT_BW_SHIFT)
-		| (op->u.passthru.byte_swap << REQ1_PT_BS_SHIFT);
-
-	if (op->src.type == CCP_MEMTYPE_SYSTEM)
-		cr[1] = op->src.u.dma.length - 1;
-	else
-		cr[1] = op->dst.u.dma.length - 1;
-
-	if (op->src.type == CCP_MEMTYPE_SYSTEM) {
-		cr[2] = ccp_addr_lo(&op->src.u.dma);
-		cr[3] = (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
-			| ccp_addr_hi(&op->src.u.dma);
-
-		if (op->u.passthru.bit_mod != CCP_PASSTHRU_BITWISE_NOOP)
-			cr[3] |= (op->ksb_key << REQ4_KSB_SHIFT);
-	} else {
-		cr[2] = op->src.u.ksb * CCP_KSB_BYTES;
-		cr[3] = (CCP_MEMTYPE_KSB << REQ4_MEMTYPE_SHIFT);
-	}
-
-	if (op->dst.type == CCP_MEMTYPE_SYSTEM) {
-		cr[4] = ccp_addr_lo(&op->dst.u.dma);
-		cr[5] = (CCP_MEMTYPE_SYSTEM << REQ6_MEMTYPE_SHIFT)
-			| ccp_addr_hi(&op->dst.u.dma);
-	} else {
-		cr[4] = op->dst.u.ksb * CCP_KSB_BYTES;
-		cr[5] = (CCP_MEMTYPE_KSB << REQ6_MEMTYPE_SHIFT);
-	}
-
-	if (op->eom)
-		cr[0] |= REQ1_EOM;
-
-	return ccp_do_cmd(op, cr, ARRAY_SIZE(cr));
-}
-
-static int ccp_perform_ecc(struct ccp_op *op)
-{
-	u32 cr[6];
-
-	/* Fill out the register contents for REQ1 through REQ6 */
-	cr[0] = REQ1_ECC_AFFINE_CONVERT
-		| (CCP_ENGINE_ECC << REQ1_ENGINE_SHIFT)
-		| (op->u.ecc.function << REQ1_ECC_FUNCTION_SHIFT)
-		| REQ1_EOM;
-	cr[1] = op->src.u.dma.length - 1;
-	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
-		| ccp_addr_hi(&op->src.u.dma);
-	cr[4] = ccp_addr_lo(&op->dst.u.dma);
-	cr[5] = (CCP_MEMTYPE_SYSTEM << REQ6_MEMTYPE_SHIFT)
-		| ccp_addr_hi(&op->dst.u.dma);
-
-	return ccp_do_cmd(op, cr, ARRAY_SIZE(cr));
-}
 
 static u32 ccp_alloc_ksb(struct ccp_device *ccp, unsigned int count)
 {
@@ -837,7 +478,7 @@ static int ccp_copy_to_from_ksb(struct ccp_cmd_queue *cmd_q,
 
 	op.u.passthru.byte_swap = byte_swap;
 
-	return ccp_perform_passthru(&op);
+	return cmd_q->ccp->vdata->perform->perform_passthru(&op);
 }
 
 static int ccp_copy_to_ksb(struct ccp_cmd_queue *cmd_q,
@@ -969,7 +610,7 @@ static int ccp_run_aes_cmac_cmd(struct ccp_cmd_queue *cmd_q,
 			}
 		}
 
-		ret = ccp_perform_aes(&op);
+		ret = cmd_q->ccp->vdata->perform->perform_aes(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_src;
@@ -1131,7 +772,7 @@ static int ccp_run_aes_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 				op.soc = 1;
 		}
 
-		ret = ccp_perform_aes(&op);
+		ret = cmd_q->ccp->vdata->perform->perform_aes(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_dst;
@@ -1296,7 +937,7 @@ static int ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q,
 		if (!src.sg_wa.bytes_left)
 			op.eom = 1;
 
-		ret = ccp_perform_xts_aes(&op);
+		ret = cmd_q->ccp->vdata->perform->perform_xts_aes(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_dst;
@@ -1453,7 +1094,7 @@ static int ccp_run_sha_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 		if (sha->final && !src.sg_wa.bytes_left)
 			op.eom = 1;
 
-		ret = ccp_perform_sha(&op);
+		ret = cmd_q->ccp->vdata->perform->perform_sha(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_data;
@@ -1633,7 +1274,7 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	op.u.rsa.mod_size = rsa->key_size;
 	op.u.rsa.input_len = i_len;
 
-	ret = ccp_perform_rsa(&op);
+	ret = cmd_q->ccp->vdata->perform->perform_rsa(&op);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_dst;
@@ -1758,7 +1399,7 @@ static int ccp_run_passthru_cmd(struct ccp_cmd_queue *cmd_q,
 		op.dst.u.dma.offset = dst.sg_wa.sg_used;
 		op.dst.u.dma.length = op.src.u.dma.length;
 
-		ret = ccp_perform_passthru(&op);
+		ret = cmd_q->ccp->vdata->perform->perform_passthru(&op);
 		if (ret) {
 			cmd->engine_error = cmd_q->cmd_error;
 			goto e_dst;
@@ -1870,7 +1511,7 @@ static int ccp_run_ecc_mm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 
 	op.u.ecc.function = cmd->u.ecc.function;
 
-	ret = ccp_perform_ecc(&op);
+	ret = cmd_q->ccp->vdata->perform->perform_ecc(&op);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_dst;
@@ -2034,7 +1675,7 @@ static int ccp_run_ecc_pm_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 
 	op.u.ecc.function = cmd->u.ecc.function;
 
-	ret = ccp_perform_ecc(&op);
+	ret = cmd_q->ccp->vdata->perform->perform_ecc(&op);
 	if (ret) {
 		cmd->engine_error = cmd_q->cmd_error;
 		goto e_dst;

@@ -34,9 +34,7 @@ ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	char trigger_name[TRIG_NAME_MAX];
 	struct led_trigger *trig;
-	size_t len;
 	int ret = count;
 
 	mutex_lock(&led_cdev->led_access);
@@ -46,21 +44,14 @@ ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
 		goto unlock;
 	}
 
-	trigger_name[sizeof(trigger_name) - 1] = '\0';
-	strncpy(trigger_name, buf, sizeof(trigger_name) - 1);
-	len = strlen(trigger_name);
-
-	if (len && trigger_name[len - 1] == '\n')
-		trigger_name[len - 1] = '\0';
-
-	if (!strcmp(trigger_name, "none")) {
+	if (sysfs_streq(buf, "none")) {
 		led_trigger_remove(led_cdev);
 		goto unlock;
 	}
 
 	down_read(&triggers_list_lock);
 	list_for_each_entry(trig, &trigger_list, next_trig) {
-		if (!strcmp(trigger_name, trig->name)) {
+		if (sysfs_streq(buf, trig->name)) {
 			down_write(&led_cdev->trigger_lock);
 			led_trigger_set(led_cdev, trig);
 			up_write(&led_cdev->trigger_lock);

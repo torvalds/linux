@@ -163,7 +163,6 @@ struct fimc_context {
 	u32		clk_frequency;
 	struct regmap	*sysreg;
 	struct fimc_scaler	sc;
-	struct exynos_drm_ipp_pol	pol;
 	int	id;
 	int	irq;
 	bool	suspended;
@@ -256,32 +255,6 @@ static void fimc_set_type_ctrl(struct fimc_context *ctx, enum fimc_wb wb)
 			EXYNOS_CIGCTRL_SELCAM_FIMC_ITU);
 		break;
 	}
-
-	fimc_write(ctx, cfg, EXYNOS_CIGCTRL);
-}
-
-static void fimc_set_polarity(struct fimc_context *ctx,
-		struct exynos_drm_ipp_pol *pol)
-{
-	u32 cfg;
-
-	DRM_DEBUG_KMS("inv_pclk[%d]inv_vsync[%d]\n",
-		pol->inv_pclk, pol->inv_vsync);
-	DRM_DEBUG_KMS("inv_href[%d]inv_hsync[%d]\n",
-		pol->inv_href, pol->inv_hsync);
-
-	cfg = fimc_read(ctx, EXYNOS_CIGCTRL);
-	cfg &= ~(EXYNOS_CIGCTRL_INVPOLPCLK | EXYNOS_CIGCTRL_INVPOLVSYNC |
-		 EXYNOS_CIGCTRL_INVPOLHREF | EXYNOS_CIGCTRL_INVPOLHSYNC);
-
-	if (pol->inv_pclk)
-		cfg |= EXYNOS_CIGCTRL_INVPOLPCLK;
-	if (pol->inv_vsync)
-		cfg |= EXYNOS_CIGCTRL_INVPOLVSYNC;
-	if (pol->inv_href)
-		cfg |= EXYNOS_CIGCTRL_INVPOLHREF;
-	if (pol->inv_hsync)
-		cfg |= EXYNOS_CIGCTRL_INVPOLHSYNC;
 
 	fimc_write(ctx, cfg, EXYNOS_CIGCTRL);
 }
@@ -1467,7 +1440,6 @@ static int fimc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 	/* If set ture, we can save jpeg about screen */
 	fimc_handle_jpeg(ctx, false);
 	fimc_set_scaler(ctx, &ctx->sc);
-	fimc_set_polarity(ctx, &ctx->pol);
 
 	switch (cmd) {
 	case IPP_CMD_M2M:

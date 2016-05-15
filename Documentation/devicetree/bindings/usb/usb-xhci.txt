@@ -1,10 +1,23 @@
 USB xHCI controllers
 
 Required properties:
-  - compatible: should be one of "generic-xhci",
-    "marvell,armada-375-xhci", "marvell,armada-380-xhci",
-    "renesas,xhci-r8a7790", "renesas,xhci-r8a7791", "renesas,xhci-r8a7793",
-    "renesas,xhci-r8a7795" (deprecated: "xhci-platform").
+  - compatible: should be one or more of
+
+    - "generic-xhci" for generic XHCI device
+    - "marvell,armada-375-xhci" for Armada 375 SoCs
+    - "marvell,armada-380-xhci" for Armada 38x SoCs
+    - "renesas,xhci-r8a7790" for r8a7790 SoC
+    - "renesas,xhci-r8a7791" for r8a7791 SoC
+    - "renesas,xhci-r8a7793" for r8a7793 SoC
+    - "renesas,xhci-r8a7795" for r8a7795 SoC
+    - "renesas,rcar-gen2-xhci" for a generic R-Car Gen2 compatible device
+    - "renesas,rcar-gen3-xhci" for a generic R-Car Gen3 compatible device
+    - "xhci-platform" (deprecated)
+
+    When compatible with the generic version, nodes must list the
+    SoC-specific version corresponding to the platform first
+    followed by the generic version.
+
   - reg: should contain address and length of the standard XHCI
     register set for the device.
   - interrupts: one XHCI interrupt should be described here.

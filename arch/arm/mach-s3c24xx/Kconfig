@@ -15,6 +15,7 @@ config PLAT_S3C24XX
 	select NO_IOPORT_MAP
 	select S3C_DEV_NAND
 	select IRQ_DOMAIN
+	select COMMON_CLK
 	help
 	  Base platform code for any Samsung S3C24XX device
 
@@ -405,7 +406,7 @@ config MACH_S3C2416_DT
 
 endif	# CPU_S3C2416
 
-if CPU_S3C2440
+if CPU_S3C2440 || CPU_S3C2442
 
 config S3C2440_XTAL_12000000
 	bool
@@ -432,6 +433,9 @@ config S3C2440_PLL_16934400
 	default y if S3C24XX_PLL
 	help
 	  PLL tables for S3C2440 or S3C2442 CPUs with 16.934MHz crystals.
+endif
+
+if CPU_S3C2440
 
 comment "S3C2440 Boards"
 
@@ -460,7 +464,6 @@ config MACH_AT2440EVB
 
 config MACH_MINI2440
 	bool "MINI2440 development board"
-	select EEPROM_AT24 if I2C
 	select LEDS_CLASS
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_BACKLIGHT

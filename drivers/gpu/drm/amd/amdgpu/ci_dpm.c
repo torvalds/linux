@@ -3017,7 +3017,6 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 						      &memory_level->MinVddcPhases);
 
 	memory_level->EnabledForThrottle = 1;
-	memory_level->EnabledForActivity = 1;
 	memory_level->UpH = 0;
 	memory_level->DownH = 100;
 	memory_level->VoltageDownH = 0;
@@ -3376,7 +3375,6 @@ static int ci_populate_single_graphic_level(struct amdgpu_device *adev,
 	graphic_level->SpllSpreadSpectrum2 = cpu_to_be32(graphic_level->SpllSpreadSpectrum2);
 	graphic_level->CcPwrDynRm = cpu_to_be32(graphic_level->CcPwrDynRm);
 	graphic_level->CcPwrDynRm1 = cpu_to_be32(graphic_level->CcPwrDynRm1);
-	graphic_level->EnabledForActivity = 1;
 
 	return 0;
 }
@@ -3407,6 +3405,7 @@ static int ci_populate_all_graphic_levels(struct amdgpu_device *adev)
 			pi->smc_state_table.GraphicsLevel[i].DisplayWatermark =
 				PPSMC_DISPLAY_WATERMARK_HIGH;
 	}
+	pi->smc_state_table.GraphicsLevel[0].EnabledForActivity = 1;
 
 	pi->smc_state_table.GraphicsDpmLevelCount = (u8)dpm_table->sclk_table.count;
 	pi->dpm_level_enable_mask.sclk_dpm_enable_mask =
@@ -3449,6 +3448,8 @@ static int ci_populate_all_memory_levels(struct amdgpu_device *adev)
 		if (ret)
 			return ret;
 	}
+
+	pi->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
 	if ((dpm_table->mclk_table.count >= 2) &&
 	    ((adev->pdev->device == 0x67B0) || (adev->pdev->device == 0x67B1))) {
@@ -4375,26 +4376,6 @@ static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
 					tmp = (RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX) &
 					TARGET_AND_CURRENT_PROFILE_INDEX__CURR_MCLK_INDEX_MASK) >>
 					TARGET_AND_CURRENT_PROFILE_INDEX__CURR_MCLK_INDEX__SHIFT;
-					if (tmp == levels)
-						break;
-					udelay(1);
-				}
-			}
-		}
-		if ((!pi->pcie_dpm_key_disabled) &&
-		    pi->dpm_level_enable_mask.pcie_dpm_enable_mask) {
-			levels = 0;
-			tmp = pi->dpm_level_enable_mask.pcie_dpm_enable_mask;
-			while (tmp >>= 1)
-				levels++;
-			if (levels) {
-				ret = ci_dpm_force_state_pcie(adev, level);
-				if (ret)
-					return ret;
-				for (i = 0; i < adev->usec_timeout; i++) {
-					tmp = (RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX_1) &
-					TARGET_AND_CURRENT_PROFILE_INDEX_1__CURR_PCIE_INDEX_MASK) >>
-					TARGET_AND_CURRENT_PROFILE_INDEX_1__CURR_PCIE_INDEX__SHIFT;
 					if (tmp == levels)
 						break;
 					udelay(1);
@@ -5394,30 +5375,6 @@ static int ci_dpm_enable(struct amdgpu_device *adev)
 	ci_thermal_start_thermal_controller(adev);
 
 	ci_update_current_ps(adev, boot_ps);
-
-	if (adev->irq.installed &&
-	    amdgpu_is_internal_thermal_sensor(adev->pm.int_thermal_type)) {
-#if 0
-		PPSMC_Result result;
-#endif
-		ret = ci_thermal_set_temperature_range(adev, CISLANDS_TEMP_RANGE_MIN,
-						       CISLANDS_TEMP_RANGE_MAX);
-		if (ret) {
-			DRM_ERROR("ci_thermal_set_temperature_range failed\n");
-			return ret;
-		}
-		amdgpu_irq_get(adev, &adev->pm.dpm.thermal.irq,
-			       AMDGPU_THERMAL_IRQ_LOW_TO_HIGH);
-		amdgpu_irq_get(adev, &adev->pm.dpm.thermal.irq,
-			       AMDGPU_THERMAL_IRQ_HIGH_TO_LOW);
-
-#if 0
-		result = amdgpu_ci_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-#endif
-	}
 
 	return 0;
 }

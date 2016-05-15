@@ -173,6 +173,10 @@ A few EV_ABS codes have special meanings:
     proximity of the device and while the value of the BTN_TOUCH code is 0. If
     the input device may be used freely in three dimensions, consider ABS_Z
     instead.
+  - BTN_TOOL_<name> should be set to 1 when the tool comes into detectable
+    proximity and set to 0 when the tool leaves detectable proximity.
+    BTN_TOOL_<name> signals the type of tool that is currently detected by the
+    hardware and is otherwise independent of ABS_DISTANCE and/or BTN_TOUCH.
 
 * ABS_MT_<name>:
   - Used to describe multitouch input events. Please see

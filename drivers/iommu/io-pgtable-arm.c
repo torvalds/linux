@@ -446,7 +446,6 @@ static int arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 	unsigned long blk_start, blk_end;
 	phys_addr_t blk_paddr;
 	arm_lpae_iopte table = 0;
-	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 
 	blk_start = iova & ~(blk_size - 1);
 	blk_end = blk_start + blk_size;
@@ -472,9 +471,9 @@ static int arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 		}
 	}
 
-	__arm_lpae_set_pte(ptep, table, cfg);
+	__arm_lpae_set_pte(ptep, table, &data->iop.cfg);
 	iova &= ~(blk_size - 1);
-	cfg->tlb->tlb_add_flush(iova, blk_size, blk_size, true, data->iop.cookie);
+	io_pgtable_tlb_add_flush(&data->iop, iova, blk_size, blk_size, true);
 	return size;
 }
 
@@ -483,8 +482,7 @@ static int __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 			    arm_lpae_iopte *ptep)
 {
 	arm_lpae_iopte pte;
-	const struct iommu_gather_ops *tlb = data->iop.cfg.tlb;
-	void *cookie = data->iop.cookie;
+	struct io_pgtable *iop = &data->iop;
 	size_t blk_size = ARM_LPAE_BLOCK_SIZE(lvl, data);
 
 	/* Something went horribly wrong and we ran out of page table */
@@ -498,17 +496,17 @@ static int __arm_lpae_unmap(struct arm_lpae_io_pgtable *data,
 
 	/* If the size matches this level, we're in the right place */
 	if (size == blk_size) {
-		__arm_lpae_set_pte(ptep, 0, &data->iop.cfg);
+		__arm_lpae_set_pte(ptep, 0, &iop->cfg);
 
 		if (!iopte_leaf(pte, lvl)) {
 			/* Also flush any partial walks */
-			tlb->tlb_add_flush(iova, size, ARM_LPAE_GRANULE(data),
-					   false, cookie);
-			tlb->tlb_sync(cookie);
+			io_pgtable_tlb_add_flush(iop, iova, size,
+						ARM_LPAE_GRANULE(data), false);
+			io_pgtable_tlb_sync(iop);
 			ptep = iopte_deref(pte, data);
 			__arm_lpae_free_pgtable(data, lvl + 1, ptep);
 		} else {
-			tlb->tlb_add_flush(iova, size, size, true, cookie);
+			io_pgtable_tlb_add_flush(iop, iova, size, size, true);
 		}
 
 		return size;
@@ -532,13 +530,12 @@ static int arm_lpae_unmap(struct io_pgtable_ops *ops, unsigned long iova,
 {
 	size_t unmapped;
 	struct arm_lpae_io_pgtable *data = io_pgtable_ops_to_data(ops);
-	struct io_pgtable *iop = &data->iop;
 	arm_lpae_iopte *ptep = data->pgd;
 	int lvl = ARM_LPAE_START_LVL(data);
 
 	unmapped = __arm_lpae_unmap(data, iova, size, lvl, ptep);
 	if (unmapped)
-		iop->cfg.tlb->tlb_sync(iop->cookie);
+		io_pgtable_tlb_sync(&data->iop);
 
 	return unmapped;
 }
@@ -662,8 +659,12 @@ static struct io_pgtable *
 arm_64_lpae_alloc_pgtable_s1(struct io_pgtable_cfg *cfg, void *cookie)
 {
 	u64 reg;
-	struct arm_lpae_io_pgtable *data = arm_lpae_alloc_pgtable(cfg);
+	struct arm_lpae_io_pgtable *data;
 
+	if (cfg->quirks & ~IO_PGTABLE_QUIRK_ARM_NS)
+		return NULL;
+
+	data = arm_lpae_alloc_pgtable(cfg);
 	if (!data)
 		return NULL;
 
@@ -746,8 +747,13 @@ static struct io_pgtable *
 arm_64_lpae_alloc_pgtable_s2(struct io_pgtable_cfg *cfg, void *cookie)
 {
 	u64 reg, sl;
-	struct arm_lpae_io_pgtable *data = arm_lpae_alloc_pgtable(cfg);
+	struct arm_lpae_io_pgtable *data;
 
+	/* The NS quirk doesn't apply at stage 2 */
+	if (cfg->quirks)
+		return NULL;
+
+	data = arm_lpae_alloc_pgtable(cfg);
 	if (!data)
 		return NULL;
 

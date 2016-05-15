@@ -314,6 +314,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			mwifiex_dbg(adapter, ERROR,
 				    "Attempt to reconnect on csa closed chan(%d)\n",
 				    bss_desc->channel);
+			ret = -1;
 			goto done;
 		}
 
@@ -502,6 +503,20 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 			if (priv)
 				mwifiex_deauthenticate(priv, NULL);
 		}
+	}
+
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+
+	if (priv && priv->sched_scanning) {
+#ifdef CONFIG_PM
+		if (!priv->wdev.wiphy->wowlan_config->nd_config) {
+#endif
+			mwifiex_dbg(adapter, CMD, "aborting bgscan!\n");
+			mwifiex_stop_bg_scan(priv);
+			cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+#ifdef CONFIG_PM
+		}
+#endif
 	}
 
 	if (adapter->hs_activated) {
@@ -1114,11 +1129,12 @@ int mwifiex_set_encode(struct mwifiex_private *priv, struct key_params *kp,
  * with requisite parameters and calls the IOCTL handler.
  */
 int
-mwifiex_get_ver_ext(struct mwifiex_private *priv)
+mwifiex_get_ver_ext(struct mwifiex_private *priv, u32 version_str_sel)
 {
 	struct mwifiex_ver_ext ver_ext;
 
 	memset(&ver_ext, 0, sizeof(struct host_cmd_ds_version_ext));
+	ver_ext.version_str_sel = version_str_sel;
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_VERSION_EXT,
 			     HostCmd_ACT_GEN_GET, 0, &ver_ext, true))
 		return -1;
@@ -1449,4 +1465,20 @@ mwifiex_set_gen_ie(struct mwifiex_private *priv, const u8 *ie, int ie_len)
 		return -EFAULT;
 
 	return 0;
+}
+
+/* This function get Host Sleep wake up reason.
+ *
+ */
+int mwifiex_get_wakeup_reason(struct mwifiex_private *priv, u16 action,
+			      int cmd_type,
+			      struct mwifiex_ds_wakeup_reason *wakeup_reason)
+{
+	int status = 0;
+
+	status = mwifiex_send_cmd(priv, HostCmd_CMD_HS_WAKEUP_REASON,
+				  HostCmd_ACT_GEN_GET, 0, wakeup_reason,
+				  cmd_type == MWIFIEX_SYNC_CMD);
+
+	return status;
 }

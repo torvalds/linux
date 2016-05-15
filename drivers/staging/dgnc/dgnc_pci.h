@@ -59,7 +59,6 @@
 #define PCI_DEVICE_NEO_EXPRESS_8RJ45_PCI_NAME	"Neo 8 PCI Express RJ45"
 #define PCI_DEVICE_NEO_EXPRESS_4_IBM_PCI_NAME	"Neo 4 PCI Express IBM"
 
-
 /* Size of Memory and I/O for PCI (4 K) */
 #define PCI_RAM_SIZE				0x1000
 

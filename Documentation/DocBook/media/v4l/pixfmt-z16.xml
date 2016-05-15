@@ -1,0 +1,81 @@
+<refentry id="V4L2-PIX-FMT-Z16">
+  <refmeta>
+    <refentrytitle>V4L2_PIX_FMT_Z16 ('Z16 ')</refentrytitle>
+    &manvol;
+  </refmeta>
+  <refnamediv>
+    <refname><constant>V4L2_PIX_FMT_Z16</constant></refname>
+    <refpurpose>Interleaved grey-scale image, e.g. from a stereo-pair</refpurpose>
+  </refnamediv>
+  <refsect1>
+    <title>Description</title>
+
+    <para>This is a 16-bit format, representing depth data. Each pixel is a
+distance to the respective point in the image coordinates. Distance unit can
+vary and has to be negotiated with the device separately. Each pixel is stored
+in a 16-bit word in the little endian byte order.
+</para>
+
+    <example>
+      <title><constant>V4L2_PIX_FMT_Z16</constant> 4 &times; 4
+pixel image</title>
+
+      <formalpara>
+	<title>Byte Order.</title>
+	<para>Each cell is one byte.
+	  <informaltable frame="none">
+	    <tgroup cols="9" align="center">
+	      <colspec align="left" colwidth="2*" />
+	      <tbody valign="top">
+		<row>
+		  <entry>start&nbsp;+&nbsp;0:</entry>
+		  <entry>Z<subscript>00low</subscript></entry>
+		  <entry>Z<subscript>00high</subscript></entry>
+		  <entry>Z<subscript>01low</subscript></entry>
+		  <entry>Z<subscript>01high</subscript></entry>
+		  <entry>Z<subscript>02low</subscript></entry>
+		  <entry>Z<subscript>02high</subscript></entry>
+		  <entry>Z<subscript>03low</subscript></entry>
+		  <entry>Z<subscript>03high</subscript></entry>
+		</row>
+		<row>
+		  <entry>start&nbsp;+&nbsp;8:</entry>
+		  <entry>Z<subscript>10low</subscript></entry>
+		  <entry>Z<subscript>10high</subscript></entry>
+		  <entry>Z<subscript>11low</subscript></entry>
+		  <entry>Z<subscript>11high</subscript></entry>
+		  <entry>Z<subscript>12low</subscript></entry>
+		  <entry>Z<subscript>12high</subscript></entry>
+		  <entry>Z<subscript>13low</subscript></entry>
+		  <entry>Z<subscript>13high</subscript></entry>
+		</row>
+		<row>
+		  <entry>start&nbsp;+&nbsp;16:</entry>
+		  <entry>Z<subscript>20low</subscript></entry>
+		  <entry>Z<subscript>20high</subscript></entry>
+		  <entry>Z<subscript>21low</subscript></entry>
+		  <entry>Z<subscript>21high</subscript></entry>
+		  <entry>Z<subscript>22low</subscript></entry>
+		  <entry>Z<subscript>22high</subscript></entry>
+		  <entry>Z<subscript>23low</subscript></entry>
+		  <entry>Z<subscript>23high</subscript></entry>
+		</row>
+		<row>
+		  <entry>start&nbsp;+&nbsp;24:</entry>
+		  <entry>Z<subscript>30low</subscript></entry>
+		  <entry>Z<subscript>30high</subscript></entry>
+		  <entry>Z<subscript>31low</subscript></entry>
+		  <entry>Z<subscript>31high</subscript></entry>
+		  <entry>Z<subscript>32low</subscript></entry>
+		  <entry>Z<subscript>32high</subscript></entry>
+		  <entry>Z<subscript>33low</subscript></entry>
+		  <entry>Z<subscript>33high</subscript></entry>
+		</row>
+	      </tbody>
+	    </tgroup>
+	  </informaltable>
+	</para>
+      </formalpara>
+    </example>
+  </refsect1>
+</refentry>

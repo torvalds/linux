@@ -116,13 +116,6 @@ extern void copy_to_user_page(struct vm_area_struct *, struct page *,
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 extern void flush_dcache_page(struct page *);
 
-static inline void __local_flush_icache_all(void)
-{
-	asm("ic iallu");
-	dsb(nsh);
-	isb();
-}
-
 static inline void __flush_icache_all(void)
 {
 	asm("ic	ialluis");
@@ -155,9 +148,5 @@ int set_memory_ro(unsigned long addr, int numpages);
 int set_memory_rw(unsigned long addr, int numpages);
 int set_memory_x(unsigned long addr, int numpages);
 int set_memory_nx(unsigned long addr, int numpages);
-
-#ifdef CONFIG_DEBUG_RODATA
-void mark_rodata_ro(void);
-#endif
 
 #endif

@@ -1824,17 +1824,22 @@ struct dcbx_app_priority_entry {
 	u8  pri_bitmap;
 	u8  appBitfield;
 	#define DCBX_APP_ENTRY_VALID         0x01
-	#define DCBX_APP_ENTRY_SF_MASK       0x30
+	#define DCBX_APP_ENTRY_SF_MASK       0xF0
 	#define DCBX_APP_ENTRY_SF_SHIFT      4
 	#define DCBX_APP_SF_ETH_TYPE         0x10
 	#define DCBX_APP_SF_PORT             0x20
+	#define DCBX_APP_SF_UDP              0x40
+	#define DCBX_APP_SF_DEFAULT          0x80
 #elif defined(__LITTLE_ENDIAN)
 	u8 appBitfield;
 	#define DCBX_APP_ENTRY_VALID         0x01
-	#define DCBX_APP_ENTRY_SF_MASK       0x30
+	#define DCBX_APP_ENTRY_SF_MASK       0xF0
 	#define DCBX_APP_ENTRY_SF_SHIFT      4
+	#define DCBX_APP_ENTRY_VALID         0x01
 	#define DCBX_APP_SF_ETH_TYPE         0x10
 	#define DCBX_APP_SF_PORT             0x20
+	#define DCBX_APP_SF_UDP              0x40
+	#define DCBX_APP_SF_DEFAULT          0x80
 	u8  pri_bitmap;
 	u16  app_id;
 #endif
@@ -4896,9 +4901,9 @@ struct c2s_pri_trans_table_entry {
  * cfc delete event data
  */
 struct cfc_del_event_data {
-	u32 cid;
-	u32 reserved0;
-	u32 reserved1;
+	__le32 cid;
+	__le32 reserved0;
+	__le32 reserved1;
 };
 
 
@@ -5114,15 +5119,9 @@ struct vf_pf_channel_zone_trigger {
  * zone that triggers the in-bound interrupt
  */
 struct trigger_vf_zone {
-#if defined(__BIG_ENDIAN)
-	u16 reserved1;
-	u8 reserved0;
-	struct vf_pf_channel_zone_trigger vf_pf_channel;
-#elif defined(__LITTLE_ENDIAN)
 	struct vf_pf_channel_zone_trigger vf_pf_channel;
 	u8 reserved0;
 	u16 reserved1;
-#endif
 	u32 reserved2;
 };
 
@@ -5207,9 +5206,9 @@ struct e2_integ_data {
  * set mac event data
  */
 struct eth_event_data {
-	u32 echo;
-	u32 reserved0;
-	u32 reserved1;
+	__le32 echo;
+	__le32 reserved0;
+	__le32 reserved1;
 };
 
 
@@ -5219,9 +5218,9 @@ struct eth_event_data {
 struct vf_pf_event_data {
 	u8 vf_id;
 	u8 reserved0;
-	u16 reserved1;
-	u32 msg_addr_lo;
-	u32 msg_addr_hi;
+	__le16 reserved1;
+	__le32 msg_addr_lo;
+	__le32 msg_addr_hi;
 };
 
 /*
@@ -5230,9 +5229,9 @@ struct vf_pf_event_data {
 struct vf_flr_event_data {
 	u8 vf_id;
 	u8 reserved0;
-	u16 reserved1;
-	u32 reserved2;
-	u32 reserved3;
+	__le16 reserved1;
+	__le32 reserved2;
+	__le32 reserved3;
 };
 
 /*
@@ -5241,9 +5240,9 @@ struct vf_flr_event_data {
 struct malicious_vf_event_data {
 	u8 vf_id;
 	u8 err_id;
-	u16 reserved1;
-	u32 reserved2;
-	u32 reserved3;
+	__le16 reserved1;
+	__le32 reserved2;
+	__le32 reserved3;
 };
 
 /*

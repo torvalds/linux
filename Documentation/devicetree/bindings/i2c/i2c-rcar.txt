@@ -17,7 +17,7 @@ Required properties:
 
 Optional properties:
 - clock-frequency: desired I2C bus clock frequency in Hz. The absence of this
-  propoerty indicates the default frequency 100 kHz.
+  property indicates the default frequency 100 kHz.
 - clocks: clock specifier.
 
 - i2c-scl-falling-time-ns: see i2c.txt

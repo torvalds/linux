@@ -78,9 +78,10 @@ HFI1
    chip_reset - diagnostic (root only)
    boardversion - board version
    ports/1/
-          CMgtA/
+          CCMgtA/
                cc_settings_bin - CCA tables used by PSM2
                cc_table_bin
+               cc_prescan - enable prescaning for faster BECN response
           sc2v/ - 32 files (0 - 31) used to translate sl->vl
           sl2sc/ - 32 files (0 - 31) used to translate sl->sc
           vl2mtu/ - 16 (0 - 15) files used to determine MTU for vl

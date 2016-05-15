@@ -452,6 +452,7 @@ static const struct pinctrl_pin_desc imx53_pinctrl_pads[] = {
 static struct imx_pinctrl_soc_info imx53_pinctrl_info = {
 	.pins = imx53_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx53_pinctrl_pads),
+	.gpr_compatible = "fsl,imx53-iomuxc-gpr",
 };
 
 static const struct of_device_id imx53_pinctrl_of_match[] = {

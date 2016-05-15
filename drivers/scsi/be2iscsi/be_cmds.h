@@ -58,15 +58,16 @@ struct be_mcc_wrb {
 #define MCC_STATUS_ILLEGAL_FIELD 0x3
 #define MCC_STATUS_INSUFFICIENT_BUFFER 0x4
 
-#define CQE_STATUS_COMPL_MASK 0xFFFF
-#define CQE_STATUS_COMPL_SHIFT 0	/* bits 0 - 15 */
-#define CQE_STATUS_EXTD_MASK 0xFFFF
-#define CQE_STATUS_EXTD_SHIFT 16		/* bits 0 - 15 */
+#define CQE_STATUS_COMPL_MASK	0xFFFF
+#define CQE_STATUS_COMPL_SHIFT	0		/* bits 0 - 15 */
+#define CQE_STATUS_EXTD_MASK	0xFFFF
+#define CQE_STATUS_EXTD_SHIFT	16		/* bits 31 - 16 */
 #define CQE_STATUS_ADDL_MASK	0xFF00
-#define CQE_STATUS_MASK	0xFF
-#define CQE_STATUS_ADDL_SHIFT	0x08
+#define CQE_STATUS_ADDL_SHIFT	8
+#define CQE_STATUS_MASK		0xFF
 #define CQE_STATUS_WRB_MASK	0xFF0000
 #define CQE_STATUS_WRB_SHIFT	16
+
 #define BEISCSI_HOST_MBX_TIMEOUT (110 * 1000)
 #define BEISCSI_FW_MBX_TIMEOUT	100
 
@@ -119,12 +120,21 @@ struct be_mcc_compl {
 #define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
 #define ASYNC_EVENT_CODE_LINK_STATE	0x1
 #define ASYNC_EVENT_CODE_ISCSI		0x4
+#define ASYNC_EVENT_CODE_SLI		0x11
 
 #define ASYNC_TRAILER_EVENT_TYPE_SHIFT	16	/* bits 16 - 23 */
-#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xF
+#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xFF
+
+/* iSCSI events */
 #define ASYNC_EVENT_NEW_ISCSI_TGT_DISC	0x4
 #define ASYNC_EVENT_NEW_ISCSI_CONN	0x5
 #define ASYNC_EVENT_NEW_TCP_CONN	0x7
+
+/* SLI events */
+#define ASYNC_SLI_EVENT_TYPE_MISCONFIGURED	0x9
+#define ASYNC_SLI_LINK_EFFECT_VALID(le)		(le & 0x80)
+#define ASYNC_SLI_LINK_EFFECT_SEV(le)		((le >> 1)  & 0x03)
+#define ASYNC_SLI_LINK_EFFECT_STATE(le)		(le & 0x01)
 
 struct be_async_event_trailer {
 	u32 code;
@@ -133,7 +143,6 @@ struct be_async_event_trailer {
 enum {
 	ASYNC_EVENT_LINK_DOWN = 0x0,
 	ASYNC_EVENT_LINK_UP = 0x1,
-	ASYNC_EVENT_LOGICAL = 0x2
 };
 
 /**
@@ -143,14 +152,37 @@ enum {
 struct be_async_event_link_state {
 	u8 physical_port;
 	u8 port_link_status;
+/**
+ * ASYNC_EVENT_LINK_DOWN		0x0
+ * ASYNC_EVENT_LINK_UP			0x1
+ * ASYNC_EVENT_LINK_LOGICAL_DOWN	0x2
+ * ASYNC_EVENT_LINK_LOGICAL_UP		0x3
+ */
+#define BE_ASYNC_LINK_UP_MASK		0x01
 	u8 port_duplex;
 	u8 port_speed;
-#define BEISCSI_PHY_LINK_FAULT_NONE	0x00
-#define BEISCSI_PHY_LINK_FAULT_LOCAL	0x01
-#define BEISCSI_PHY_LINK_FAULT_REMOTE	0x02
+/* BE2ISCSI_LINK_SPEED_ZERO	0x00 - no link */
+#define BE2ISCSI_LINK_SPEED_10MBPS	0x01
+#define BE2ISCSI_LINK_SPEED_100MBPS	0x02
+#define BE2ISCSI_LINK_SPEED_1GBPS	0x03
+#define BE2ISCSI_LINK_SPEED_10GBPS	0x04
+#define BE2ISCSI_LINK_SPEED_25GBPS	0x06
+#define BE2ISCSI_LINK_SPEED_40GBPS	0x07
 	u8 port_fault;
-	u8 rsvd0[7];
+	u8 event_reason;
+	u16 qos_link_speed;
+	u32 event_tag;
 	struct be_async_event_trailer trailer;
+} __packed;
+
+/**
+ * When async-trailer is SLI event, mcc_compl is interpreted as
+ */
+struct be_async_event_sli {
+	u32 event_data1;
+	u32 event_data2;
+	u32 reserved;
+	u32 trailer;
 } __packed;
 
 struct be_mcc_mailbox {
@@ -172,6 +204,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
 #define OPCODE_COMMON_MCC_CREATE			21
+#define OPCODE_COMMON_MCC_CREATE_EXT			90
 #define OPCODE_COMMON_ADD_TEMPLATE_HEADER_BUFFERS	24
 #define OPCODE_COMMON_REMOVE_TEMPLATE_HEADER_BUFFERS	25
 #define OPCODE_COMMON_GET_CNTL_ATTRIBUTES		32
@@ -183,6 +216,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_EQ_DESTROY			55
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
 #define OPCODE_COMMON_FUNCTION_RESET			61
+#define OPCODE_COMMON_GET_PORT_NAME			77
 
 /**
  * LIST of opcodes that are common between Initiator and Target
@@ -587,10 +621,11 @@ struct amap_mcc_context {
 	u8 rsvd2[32];
 } __packed;
 
-struct be_cmd_req_mcc_create {
+struct be_cmd_req_mcc_create_ext {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
 	u16 rsvd0;
+	u32 async_evt_bitmap;
 	u8 context[sizeof(struct amap_mcc_context) / 8];
 	struct phys_addr pages[8];
 } __packed;
@@ -653,20 +688,6 @@ struct be_cmd_req_modify_eq_delay {
 
 /******************** Get MAC ADDR *******************/
 
-#define ETH_ALEN	6
-
-struct be_cmd_get_nic_conf_req {
-	struct be_cmd_req_hdr hdr;
-	u32 nic_port_count;
-	u32 speed;
-	u32 max_speed;
-	u32 link_state;
-	u32 max_frame_size;
-	u16 size_of_structure;
-	u8 mac_address[ETH_ALEN];
-	u32 rsvd[23];
-};
-
 struct be_cmd_get_nic_conf_resp {
 	struct be_cmd_resp_hdr hdr;
 	u32 nic_port_count;
@@ -675,9 +696,8 @@ struct be_cmd_get_nic_conf_resp {
 	u32 link_state;
 	u32 max_frame_size;
 	u16 size_of_structure;
-	u8 mac_address[6];
-	u32 rsvd[23];
-};
+	u8 mac_address[ETH_ALEN];
+} __packed;
 
 #define BEISCSI_ALIAS_LEN 32
 
@@ -687,29 +707,6 @@ struct be_cmd_hba_name {
 	u16 rsvd0;
 	u8 initiator_name[ISCSI_NAME_LEN];
 	u8 initiator_alias[BEISCSI_ALIAS_LEN];
-} __packed;
-
-struct be_cmd_ntwk_link_status_req {
-	struct be_cmd_req_hdr hdr;
-	u32 rsvd0;
-} __packed;
-
-/*** Port Speed Values ***/
-#define BE2ISCSI_LINK_SPEED_ZERO	0x00
-#define BE2ISCSI_LINK_SPEED_10MBPS	0x01
-#define BE2ISCSI_LINK_SPEED_100MBPS	0x02
-#define BE2ISCSI_LINK_SPEED_1GBPS	0x03
-#define BE2ISCSI_LINK_SPEED_10GBPS	0x04
-struct be_cmd_ntwk_link_status_resp {
-	struct be_cmd_resp_hdr hdr;
-	u8 phys_port;
-	u8 mac_duplex;
-	u8 mac_speed;
-	u8 mac_fault;
-	u8 mgmt_mac_duplex;
-	u8 mgmt_mac_speed;
-	u16 qos_link_speed;
-	u32 logical_link_speed;
 } __packed;
 
 int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
@@ -730,28 +727,28 @@ int be_poll_mcc(struct be_ctrl_info *ctrl);
 int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				      struct beiscsi_hba *phba);
 unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
-unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba);
 
-void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
+void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag);
 
 int be_cmd_modify_eq_delay(struct beiscsi_hba *phba, struct be_set_eqd *,
 			    int num);
-int beiscsi_mccq_compl(struct beiscsi_hba *phba,
-			uint32_t tag, struct be_mcc_wrb **wrb,
-			struct be_dma_mem *mbx_cmd_mem);
+int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
+			    uint32_t tag, struct be_mcc_wrb **wrb,
+			    struct be_dma_mem *mbx_cmd_mem);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);
 
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
-struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba);
-int be_mcc_notify_wait(struct beiscsi_hba *phba);
-void be_mcc_notify(struct beiscsi_hba *phba);
-unsigned int alloc_mcc_tag(struct beiscsi_hba *phba);
-void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
-		struct be_async_event_link_state *evt);
-int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
-				    struct be_mcc_compl *compl);
+int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag);
+void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag);
+struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
+				 unsigned int *ref_tag);
+void beiscsi_process_async_event(struct beiscsi_hba *phba,
+				struct be_mcc_compl *compl);
+int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
+			      struct be_mcc_compl *compl);
+
 
 int be_mbox_notify(struct be_ctrl_info *ctrl);
 
@@ -776,8 +773,6 @@ int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 		       struct be_queue_info *wrbq,
 		       struct hwi_wrb_context *pwrb_context,
 		       uint8_t ulp_num);
-
-bool is_link_state_evt(u32 trailer);
 
 /* Configuration Functions */
 int be_cmd_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
@@ -1137,6 +1132,21 @@ struct be_cmd_get_all_if_id_req {
 	u32 if_hndl_list[1];
 } __packed;
 
+struct be_cmd_get_port_name {
+	union {
+		struct be_cmd_req_hdr req_hdr;
+		struct be_cmd_resp_hdr resp_hdr;
+	} h;
+	union {
+		struct {
+			u32 reserved;
+		} req;
+		struct {
+			u32 port_names;
+		} resp;
+	} p;
+} __packed;
+
 #define ISCSI_OPCODE_SCSI_DATA_OUT		5
 #define OPCODE_COMMON_NTWK_LINK_STATUS_QUERY 5
 #define OPCODE_COMMON_MODIFY_EQ_DELAY		41
@@ -1367,5 +1377,5 @@ void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 void be_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
 			u8 subsystem, u8 opcode, int cmd_len);
 
-void be2iscsi_fail_session(struct iscsi_cls_session *cls_session);
+void beiscsi_fail_session(struct iscsi_cls_session *cls_session);
 #endif /* !BEISCSI_CMDS_H */

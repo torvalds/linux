@@ -162,8 +162,7 @@ MODULE_ALIAS(DRIVER_ALIAS);
 
 static inline struct usb_usbvision *cd_to_usbvision(struct device *cd)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	return video_get_drvdata(vdev);
 }
 
@@ -177,8 +176,7 @@ static DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
 static ssize_t show_model(struct device *cd,
 			  struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       usbvision_device_data[usbvision->dev_model].model_string);
@@ -188,8 +186,7 @@ static DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
 static ssize_t show_hue(struct device *cd,
 			struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_HUE;
@@ -203,8 +200,7 @@ static DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 static ssize_t show_contrast(struct device *cd,
 			     struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_CONTRAST;
@@ -218,8 +214,7 @@ static DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
 static ssize_t show_brightness(struct device *cd,
 			       struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_BRIGHTNESS;
@@ -233,8 +228,7 @@ static DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
 static ssize_t show_saturation(struct device *cd,
 			       struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	struct v4l2_control ctrl;
 	ctrl.id = V4L2_CID_SATURATION;
@@ -248,8 +242,7 @@ static DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
 static ssize_t show_streaming(struct device *cd,
 			      struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->streaming == stream_on ? 1 : 0));
@@ -259,8 +252,7 @@ static DEVICE_ATTR(streaming, S_IRUGO, show_streaming, NULL);
 static ssize_t show_compression(struct device *cd,
 				struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->isoc_mode == ISOC_MODE_COMPRESS));
@@ -270,8 +262,7 @@ static DEVICE_ATTR(compression, S_IRUGO, show_compression, NULL);
 static ssize_t show_device_bridge(struct device *cd,
 				  struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->bridge_type);
 }
@@ -1156,6 +1147,7 @@ static int usbvision_radio_close(struct file *file)
 	usbvision_audio_off(usbvision);
 	usbvision->radio = 0;
 	usbvision->user--;
+	mutex_unlock(&usbvision->v4l2_lock);
 
 	if (usbvision->remove_pending) {
 		printk(KERN_INFO "%s: Final disconnect\n", __func__);
@@ -1164,7 +1156,6 @@ static int usbvision_radio_close(struct file *file)
 		return 0;
 	}
 
-	mutex_unlock(&usbvision->v4l2_lock);
 	PDEBUG(DBG_IO, "success");
 	return v4l2_fh_release(file);
 }
@@ -1460,13 +1451,6 @@ static int usbvision_probe(struct usb_interface *intf,
 	}
 	printk(KERN_INFO "%s: %s found\n", __func__,
 				usbvision_device_data[model].model_string);
-
-	/*
-	 * this is a security check.
-	 * an exploit using an incorrect bInterfaceNumber is known
-	 */
-	if (ifnum >= USB_MAXINTERFACES || !dev->actconfig->interface[ifnum])
-		return -ENODEV;
 
 	if (usbvision_device_data[model].interface >= 0)
 		interface = &dev->actconfig->interface[usbvision_device_data[model].interface]->altsetting[0];

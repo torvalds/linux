@@ -27,7 +27,7 @@ config NET_DSA_MV88E6131
 	  This enables support for the Marvell 88E6085/6095/6095F/6131
 	  ethernet switch chips.
 
-config NET_DSA_MV88E6123_61_65
+config NET_DSA_MV88E6123
 	tristate "Marvell 88E6123/6161/6165 ethernet switch chip support"
 	depends on NET_DSA
 	select NET_DSA_MV88E6XXX

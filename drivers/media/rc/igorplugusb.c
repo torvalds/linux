@@ -152,7 +152,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *ep;
 	struct igorplugusb *ir;
 	struct rc_dev *rc;
-	int ret;
+	int ret = -ENOMEM;
 
 	udev = interface_to_usbdev(intf);
 	idesc = intf->cur_altsetting;
@@ -182,7 +182,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	ir->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ir->urb)
-		return -ENOMEM;
+		goto fail;
 
 	usb_fill_control_urb(ir->urb, udev,
 		usb_rcvctrlpipe(udev, 0), (uint8_t *)&ir->request,
@@ -191,6 +191,9 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	usb_make_path(udev, ir->phys, sizeof(ir->phys));
 
 	rc = rc_allocate_device();
+	if (!rc)
+		goto fail;
+
 	rc->input_name = DRIVER_DESC;
 	rc->input_phys = ir->phys;
 	usb_to_input_id(udev, &rc->input_id);
@@ -214,9 +217,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	ret = rc_register_device(rc);
 	if (ret) {
 		dev_err(&intf->dev, "failed to register rc device: %d", ret);
-		rc_free_device(rc);
-		usb_free_urb(ir->urb);
-		return ret;
+		goto fail;
 	}
 
 	usb_set_intfdata(intf, ir);
@@ -224,6 +225,12 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	igorplugusb_cmd(ir, SET_INFRABUFFER_EMPTY);
 
 	return 0;
+fail:
+	rc_free_device(ir->rc);
+	usb_free_urb(ir->urb);
+	del_timer(&ir->timer);
+
+	return ret;
 }
 
 static void igorplugusb_disconnect(struct usb_interface *intf)

@@ -18,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/ndctl.h>
 #include <linux/types.h>
+#include <linux/nd.h>
 #include "label.h"
 
 enum {
@@ -168,6 +169,7 @@ int nd_integrity_init(struct gendisk *disk, unsigned long meta_size);
 void wait_nvdimm_bus_probe_idle(struct device *dev);
 void nd_device_register(struct device *dev);
 void nd_device_unregister(struct device *dev, enum nd_async_mode mode);
+void nd_device_notify(struct device *dev, enum nvdimm_event event);
 int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
 		size_t len);
 ssize_t nd_sector_size_show(unsigned long current_lbasize,
@@ -184,6 +186,8 @@ int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd);
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
 int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 		void *buf, size_t len);
+long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
+		unsigned int len);
 struct nd_btt *to_nd_btt(struct device *dev);
 
 struct nd_gen_sb {
@@ -262,8 +266,8 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns);
 int nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns);
 const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 		char *name);
-void nvdimm_namespace_add_poison(struct nd_namespace_common *ndns,
-		struct badblocks *bb, resource_size_t offset);
+void nvdimm_badblocks_populate(struct nd_region *nd_region,
+		struct badblocks *bb, const struct resource *res);
 int nd_blk_region_init(struct nd_region *nd_region);
 void __nd_iostat_start(struct bio *bio, unsigned long *start);
 static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)

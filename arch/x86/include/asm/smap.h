@@ -15,7 +15,7 @@
 
 #include <linux/stringify.h>
 #include <asm/nops.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 
 /* "Raw" instruction opcodes */
 #define __ASM_CLAC	.byte 0x0f,0x01,0xca

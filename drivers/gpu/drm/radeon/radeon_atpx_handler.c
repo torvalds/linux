@@ -143,7 +143,10 @@ static int radeon_atpx_validate(struct radeon_atpx *atpx)
 {
 	/* make sure required functions are enabled */
 	/* dGPU power control is required */
-	atpx->functions.power_cntl = true;
+	if (atpx->functions.power_cntl == false) {
+		printk("ATPX dGPU power cntl not present, forcing\n");
+		atpx->functions.power_cntl = true;
+	}
 
 	if (atpx->functions.px_params) {
 		union acpi_object *info;
@@ -551,13 +554,14 @@ static bool radeon_atpx_detect(void)
 void radeon_register_atpx_handler(void)
 {
 	bool r;
+	enum vga_switcheroo_handler_flags_t handler_flags = 0;
 
 	/* detect if we have any ATPX + 2 VGA in the system */
 	r = radeon_atpx_detect();
 	if (!r)
 		return;
 
-	vga_switcheroo_register_handler(&radeon_atpx_handler);
+	vga_switcheroo_register_handler(&radeon_atpx_handler, handler_flags);
 }
 
 /**

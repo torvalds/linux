@@ -209,8 +209,8 @@ static inline int do_int_store(int reg_num, int size, unsigned long *dst_addr,
 	if (size == 16) {
 		size = 8;
 		zero = (((long)(reg_num ?
-		        (unsigned)fetch_reg(reg_num, regs) : 0)) << 32) |
-			(unsigned)fetch_reg(reg_num + 1, regs);
+		        (unsigned int)fetch_reg(reg_num, regs) : 0)) << 32) |
+			(unsigned int)fetch_reg(reg_num + 1, regs);
 	} else if (reg_num) {
 		src_val_p = fetch_reg_addr(reg_num, regs);
 	}

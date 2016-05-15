@@ -130,7 +130,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 	bool first = true;
 
 	/* do nothing if device is disconnected */
-	if (ir->dev->dev_state == DEV_DISCONNECTED)
+	if (test_bit(DEV_DISCONNECTED, &ir->dev->dev_state))
 		return 0;
 
 	/* Check IR int */
@@ -260,7 +260,7 @@ static void au0828_rc_stop(struct rc_dev *rc)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* do nothing if device is disconnected */
-	if (ir->dev->dev_state != DEV_DISCONNECTED) {
+	if (!test_bit(DEV_DISCONNECTED, &ir->dev->dev_state)) {
 		/* Disable IR */
 		au8522_rc_clear(ir, 0xe0, 1 << 4);
 	}

@@ -254,7 +254,7 @@ signature checking is all done within the kernel.
 NON-VALID SIGNATURES AND UNSIGNED MODULES
 =========================================
 
-If CONFIG_MODULE_SIG_FORCE is enabled or enforcemodulesig=1 is supplied on
+If CONFIG_MODULE_SIG_FORCE is enabled or module.sig_enforce=1 is supplied on
 the kernel command line, the kernel will only load validly signed modules
 for which it has a public key.   Otherwise, it will also load modules that are
 unsigned.   Any module for which the kernel has a key, but which proves to have

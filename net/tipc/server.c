@@ -571,13 +571,13 @@ static void tipc_work_stop(struct tipc_server *s)
 
 static int tipc_work_start(struct tipc_server *s)
 {
-	s->rcv_wq = alloc_workqueue("tipc_rcv", WQ_UNBOUND, 1);
+	s->rcv_wq = alloc_ordered_workqueue("tipc_rcv", 0);
 	if (!s->rcv_wq) {
 		pr_err("can't start tipc receive workqueue\n");
 		return -ENOMEM;
 	}
 
-	s->send_wq = alloc_workqueue("tipc_send", WQ_UNBOUND, 1);
+	s->send_wq = alloc_ordered_workqueue("tipc_send", 0);
 	if (!s->send_wq) {
 		pr_err("can't start tipc send workqueue\n");
 		destroy_workqueue(s->rcv_wq);

@@ -1,7 +1,7 @@
 /* DVB USB compliant linux driver for Nebula Electronics uDigiTV DVB-T USB2.0
  * receiver
  *
- * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
  * partly based on the SDK published by Nebula Electronics
  *
@@ -348,7 +348,7 @@ static struct usb_driver digitv_driver = {
 
 module_usb_driver(digitv_driver);
 
-MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for Nebula Electronics uDigiTV DVB-T USB2.0");
 MODULE_VERSION("1.0-alpha");
 MODULE_LICENSE("GPL");

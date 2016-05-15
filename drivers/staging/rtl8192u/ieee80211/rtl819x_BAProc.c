@@ -19,7 +19,7 @@ static void ActivateBAEntry(struct ieee80211_device *ieee, PBA_RECORD pBA, u16 T
 {
 	pBA->bValid = true;
 	if(Time != 0)
-		mod_timer(&pBA->Timer, jiffies + MSECS(Time));
+		mod_timer(&pBA->Timer, jiffies + msecs_to_jiffies(Time));
 }
 
 /********************************************************************************************************************
@@ -254,7 +254,7 @@ static struct sk_buff *ieee80211_DELBA(
 static void ieee80211_send_ADDBAReq(struct ieee80211_device *ieee,
 				    u8 *dst, PBA_RECORD pBA)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	skb = ieee80211_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ); //construct ACT_ADDBAREQ frames so set statuscode zero.
 
 	if (skb)
@@ -282,7 +282,7 @@ static void ieee80211_send_ADDBAReq(struct ieee80211_device *ieee,
 static void ieee80211_send_ADDBARsp(struct ieee80211_device *ieee, u8 *dst,
 				    PBA_RECORD pBA, u16 StatusCode)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	skb = ieee80211_ADDBA(ieee, dst, pBA, StatusCode, ACT_ADDBARSP); //construct ACT_ADDBARSP frames
 	if (skb)
 	{
@@ -311,7 +311,7 @@ static void ieee80211_send_DELBA(struct ieee80211_device *ieee, u8 *dst,
 				 PBA_RECORD pBA, TR_SELECT TxRxSelect,
 				 u16 ReasonCode)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	skb = ieee80211_DELBA(ieee, dst, pBA, TxRxSelect, ReasonCode); //construct ACT_ADDBARSP frames
 	if (skb)
 	{

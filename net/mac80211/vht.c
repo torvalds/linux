@@ -1,6 +1,9 @@
 /*
  * VHT handling
  *
+ * Portions of this file
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -278,6 +281,23 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
+
+	/* If HT IE reported 3839 bytes only, stay with that size. */
+	if (sta->sta.max_amsdu_len == IEEE80211_MAX_MPDU_LEN_HT_3839)
+		return;
+
+	switch (vht_cap->cap & IEEE80211_VHT_CAP_MAX_MPDU_MASK) {
+	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
+		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_11454;
+		break;
+	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991:
+		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_7991;
+		break;
+	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895:
+	default:
+		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_3895;
+		break;
+	}
 }
 
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
@@ -299,7 +319,30 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
 	return IEEE80211_STA_RX_BW_80;
 }
 
-static enum ieee80211_sta_rx_bandwidth
+enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta)
+{
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
+	u32 cap_width;
+
+	if (!vht_cap->vht_supported) {
+		if (!sta->sta.ht_cap.ht_supported)
+			return NL80211_CHAN_WIDTH_20_NOHT;
+
+		return sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
+				NL80211_CHAN_WIDTH_40 : NL80211_CHAN_WIDTH_20;
+	}
+
+	cap_width = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
+
+	if (cap_width == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ)
+		return NL80211_CHAN_WIDTH_160;
+	else if (cap_width == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+		return NL80211_CHAN_WIDTH_80P80;
+
+	return NL80211_CHAN_WIDTH_80;
+}
+
+enum ieee80211_sta_rx_bandwidth
 ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
 {
 	switch (width) {
@@ -327,10 +370,7 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
 
 	bw = ieee80211_sta_cap_rx_bw(sta);
 	bw = min(bw, sta->cur_max_bandwidth);
-
-	/* do not cap the BW of TDLS WIDER_BW peers by the bss */
-	if (!test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW))
-		bw = min(bw, ieee80211_chan_width_to_rx_bw(bss_width));
+	bw = min(bw, ieee80211_chan_width_to_rx_bw(bss_width));
 
 	return bw;
 }
@@ -424,6 +464,43 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 
 	return changed;
 }
+
+void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
+				 struct ieee80211_mgmt *mgmt)
+{
+	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
+
+	if (!sdata->vif.mu_mimo_owner)
+		return;
+
+	if (!memcmp(mgmt->u.action.u.vht_group_notif.position,
+		    bss_conf->mu_group.position, WLAN_USER_POSITION_LEN) &&
+	    !memcmp(mgmt->u.action.u.vht_group_notif.membership,
+		    bss_conf->mu_group.membership, WLAN_MEMBERSHIP_LEN))
+		return;
+
+	memcpy(bss_conf->mu_group.membership,
+	       mgmt->u.action.u.vht_group_notif.membership,
+	       WLAN_MEMBERSHIP_LEN);
+	memcpy(bss_conf->mu_group.position,
+	       mgmt->u.action.u.vht_group_notif.position,
+	       WLAN_USER_POSITION_LEN);
+
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MU_GROUPS);
+}
+
+void ieee80211_update_mu_groups(struct ieee80211_vif *vif,
+				const u8 *membership, const u8 *position)
+{
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+
+	if (WARN_ON_ONCE(!vif->mu_mimo_owner))
+		return;
+
+	memcpy(bss_conf->mu_group.membership, membership, WLAN_MEMBERSHIP_LEN);
+	memcpy(bss_conf->mu_group.position, position, WLAN_USER_POSITION_LEN);
+}
+EXPORT_SYMBOL_GPL(ieee80211_update_mu_groups);
 
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 struct sta_info *sta, u8 opmode,

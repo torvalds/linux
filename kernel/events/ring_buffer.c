@@ -347,6 +347,7 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size,
 			 bool truncated)
 {
 	struct ring_buffer *rb = handle->rb;
+	bool wakeup = truncated;
 	unsigned long aux_head;
 	u64 flags = 0;
 
@@ -375,9 +376,16 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size,
 	aux_head = rb->user_page->aux_head = local_read(&rb->aux_head);
 
 	if (aux_head - local_read(&rb->aux_wakeup) >= rb->aux_watermark) {
-		perf_output_wakeup(handle);
+		wakeup = true;
 		local_add(rb->aux_watermark, &rb->aux_wakeup);
 	}
+
+	if (wakeup) {
+		if (truncated)
+			handle->event->pending_disable = 1;
+		perf_output_wakeup(handle);
+	}
+
 	handle->event = NULL;
 
 	local_set(&rb->aux_nest, 0);
@@ -746,8 +754,10 @@ struct ring_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 
 	rb->user_page = all_buf;
 	rb->data_pages[0] = all_buf + PAGE_SIZE;
-	rb->page_order = ilog2(nr_pages);
-	rb->nr_pages = !!nr_pages;
+	if (nr_pages) {
+		rb->nr_pages = 1;
+		rb->page_order = ilog2(nr_pages);
+	}
 
 	ring_buffer_init(rb, watermark, flags);
 

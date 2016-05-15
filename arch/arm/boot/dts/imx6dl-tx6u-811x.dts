@@ -77,7 +77,7 @@
 		interrupt-parent = <&gpio3>;
 		interrupts = <22 0>;
 		wakeup-gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>;
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 

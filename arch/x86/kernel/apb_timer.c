@@ -221,7 +221,7 @@ static int apbt_cpuhp_notify(struct notifier_block *n,
 	unsigned long cpu = (unsigned long)hcpu;
 	struct apbt_dev *adev = &per_cpu(cpu_apbt_dev, cpu);
 
-	switch (action & 0xf) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DEAD:
 		dw_apb_clockevent_pause(adev->timer);
 		if (system_state == SYSTEM_RUNNING) {

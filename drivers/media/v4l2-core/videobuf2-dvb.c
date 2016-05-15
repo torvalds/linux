@@ -77,6 +77,7 @@ static int vb2_dvb_register_adapter(struct vb2_dvb_frontends *fe,
 			  struct module *module,
 			  void *adapter_priv,
 			  struct device *device,
+			  struct media_device *mdev,
 			  char *adapter_name,
 			  short *adapter_nr,
 			  int mfe_shared)
@@ -94,7 +95,10 @@ static int vb2_dvb_register_adapter(struct vb2_dvb_frontends *fe,
 	}
 	fe->adapter.priv = adapter_priv;
 	fe->adapter.mfe_shared = mfe_shared;
-
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	if (mdev)
+		fe->adapter.mdev = mdev;
+#endif
 	return result;
 }
 
@@ -193,6 +197,7 @@ int vb2_dvb_register_bus(struct vb2_dvb_frontends *f,
 			 struct module *module,
 			 void *adapter_priv,
 			 struct device *device,
+			 struct media_device *mdev,
 			 short *adapter_nr,
 			 int mfe_shared)
 {
@@ -207,7 +212,7 @@ int vb2_dvb_register_bus(struct vb2_dvb_frontends *f,
 	}
 
 	/* Bring up the adapter */
-	res = vb2_dvb_register_adapter(f, module, adapter_priv, device,
+	res = vb2_dvb_register_adapter(f, module, adapter_priv, device, mdev,
 		fe->dvb.name, adapter_nr, mfe_shared);
 	if (res < 0) {
 		pr_warn("vb2_dvb_register_adapter failed (errno = %d)\n", res);
@@ -224,7 +229,11 @@ int vb2_dvb_register_bus(struct vb2_dvb_frontends *f,
 				fe->dvb.name, res);
 			goto err;
 		}
+		res = dvb_create_media_graph(&f->adapter, false);
+		if (res < 0)
+			goto err;
 	}
+
 	mutex_unlock(&f->lock);
 	return 0;
 

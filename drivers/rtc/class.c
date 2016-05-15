@@ -361,17 +361,4 @@ static int __init rtc_init(void)
 	rtc_dev_init();
 	return 0;
 }
-
-static void __exit rtc_exit(void)
-{
-	rtc_dev_exit();
-	class_destroy(rtc_class);
-	ida_destroy(&rtc_ida);
-}
-
 subsys_initcall(rtc_init);
-module_exit(rtc_exit);
-
-MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
-MODULE_DESCRIPTION("RTC class support");
-MODULE_LICENSE("GPL");

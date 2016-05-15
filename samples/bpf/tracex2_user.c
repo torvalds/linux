@@ -37,6 +37,8 @@ struct hist_key {
 static void print_hist_for_pid(int fd, void *task)
 {
 	struct hist_key key = {}, next_key;
+	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	long values[nr_cpus];
 	char starstr[MAX_STARS];
 	long value;
 	long data[MAX_INDEX] = {};
@@ -49,7 +51,10 @@ static void print_hist_for_pid(int fd, void *task)
 			key = next_key;
 			continue;
 		}
-		bpf_lookup_elem(fd, &next_key, &value);
+		bpf_lookup_elem(fd, &next_key, values);
+		value = 0;
+		for (i = 0; i < nr_cpus; i++)
+			value += values[i];
 		ind = next_key.index;
 		data[ind] = value;
 		if (value && ind > max_ind)

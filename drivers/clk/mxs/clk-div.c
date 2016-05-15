@@ -33,7 +33,7 @@ struct clk_div {
 
 static inline struct clk_div *to_clk_div(struct clk_hw *hw)
 {
-	struct clk_divider *divider = container_of(hw, struct clk_divider, hw);
+	struct clk_divider *divider = to_clk_divider(hw);
 
 	return container_of(divider, struct clk_div, divider);
 }

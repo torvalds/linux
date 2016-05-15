@@ -1877,7 +1877,7 @@ err:
 static int is_loopback_dst(struct iw_cm_id *cm_id)
 {
 	struct net_device *dev;
-	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->remote_addr;
+	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;
 
 	dev = ip_dev_find(&init_net, raddr->sin_addr.s_addr);
 	if (!dev)
@@ -1892,10 +1892,10 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct iwch_ep *ep;
 	struct rtable *rt;
 	int err = 0;
-	struct sockaddr_in *laddr = (struct sockaddr_in *)&cm_id->local_addr;
-	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->remote_addr;
+	struct sockaddr_in *laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
+	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;
 
-	if (cm_id->remote_addr.ss_family != PF_INET) {
+	if (cm_id->m_remote_addr.ss_family != PF_INET) {
 		err = -ENOSYS;
 		goto out;
 	}
@@ -1961,9 +1961,9 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	state_set(&ep->com, CONNECTING);
 	ep->tos = IPTOS_LOWDELAY;
-	memcpy(&ep->com.local_addr, &cm_id->local_addr,
+	memcpy(&ep->com.local_addr, &cm_id->m_local_addr,
 	       sizeof(ep->com.local_addr));
-	memcpy(&ep->com.remote_addr, &cm_id->remote_addr,
+	memcpy(&ep->com.remote_addr, &cm_id->m_remote_addr,
 	       sizeof(ep->com.remote_addr));
 
 	/* send connect request to rnic */
@@ -1992,7 +1992,7 @@ int iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
 
 	might_sleep();
 
-	if (cm_id->local_addr.ss_family != PF_INET) {
+	if (cm_id->m_local_addr.ss_family != PF_INET) {
 		err = -ENOSYS;
 		goto fail1;
 	}
@@ -2008,7 +2008,7 @@ int iwch_create_listen(struct iw_cm_id *cm_id, int backlog)
 	cm_id->add_ref(cm_id);
 	ep->com.cm_id = cm_id;
 	ep->backlog = backlog;
-	memcpy(&ep->com.local_addr, &cm_id->local_addr,
+	memcpy(&ep->com.local_addr, &cm_id->m_local_addr,
 	       sizeof(ep->com.local_addr));
 
 	/*

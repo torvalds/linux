@@ -33,12 +33,19 @@ Optional properties:
 	Note that this is not needed in case the clocks are stable
 	throughout the entire runtime of the codec.
 
+ - vd-supply:	Digital power
+ - vl-supply:	Logic power
+ - va-supply:	Analog Power
+
 Examples:
 
 	codec_i2c: cs4271@10 {
 		compatible = "cirrus,cs4271";
 		reg = <0x10>;
 		reset-gpio = <&gpio 23 0>;
+		vd-supply = <&vdd_3v3_reg>;
+		vl-supply = <&vdd_3v3_reg>;
+		va-supply = <&vdd_3v3_reg>;
 	};
 
 	codec_spi: cs4271@0 {

@@ -16,6 +16,7 @@ int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id);
 int filename__sprintf_build_id(const char *pathname, char *sbuild_id);
 
 char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size);
+bool dso__build_id_is_kmod(const struct dso *dso, char *bf, size_t size);
 
 int build_id__mark_dso_hit(struct perf_tool *tool, union perf_event *event,
 			   struct perf_sample *sample, struct perf_evsel *evsel,

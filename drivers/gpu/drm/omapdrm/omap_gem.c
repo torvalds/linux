@@ -31,9 +31,9 @@
  */
 
 /* note: we use upper 8 bits of flags for driver-internal flags: */
-#define OMAP_BO_DMA		0x01000000	/* actually is physically contiguous */
-#define OMAP_BO_EXT_SYNC	0x02000000	/* externally allocated sync object */
-#define OMAP_BO_EXT_MEM		0x04000000	/* externally allocated memory */
+#define OMAP_BO_MEM_DMA_API	0x01000000	/* memory allocated with the dma_alloc_* API */
+#define OMAP_BO_MEM_SHMEM	0x02000000	/* memory allocated through shmem backing */
+#define OMAP_BO_MEM_DMABUF	0x08000000	/* memory imported from a dmabuf */
 
 struct omap_gem_object {
 	struct drm_gem_object base;
@@ -49,17 +49,25 @@ struct omap_gem_object {
 	uint32_t roll;
 
 	/**
-	 * If buffer is allocated physically contiguous, the OMAP_BO_DMA flag
-	 * is set and the paddr is valid.  Also if the buffer is remapped in
-	 * TILER and paddr_cnt > 0, then paddr is valid.  But if you are using
-	 * the physical address and OMAP_BO_DMA is not set, then you should
-	 * be going thru omap_gem_{get,put}_paddr() to ensure the mapping is
-	 * not removed from under your feet.
+	 * paddr contains the buffer DMA address. It is valid for
 	 *
-	 * Note that OMAP_BO_SCANOUT is a hint from userspace that DMA capable
-	 * buffer is requested, but doesn't mean that it is.  Use the
-	 * OMAP_BO_DMA flag to determine if the buffer has a DMA capable
-	 * physical address.
+	 * - buffers allocated through the DMA mapping API (with the
+	 *   OMAP_BO_MEM_DMA_API flag set)
+	 *
+	 * - buffers imported from dmabuf (with the OMAP_BO_MEM_DMABUF flag set)
+	 *   if they are physically contiguous (when sgt->orig_nents == 1)
+	 *
+	 * - buffers mapped through the TILER when paddr_cnt is not zero, in
+	 *   which case the DMA address points to the TILER aperture
+	 *
+	 * Physically contiguous buffers have their DMA address equal to the
+	 * physical address as we don't remap those buffers through the TILER.
+	 *
+	 * Buffers mapped to the TILER have their DMA address pointing to the
+	 * TILER aperture. As TILER mappings are refcounted (through paddr_cnt)
+	 * the DMA address must be accessed through omap_get_get_paddr() to
+	 * ensure that the mapping won't disappear unexpectedly. References must
+	 * be released with omap_gem_put_paddr().
 	 */
 	dma_addr_t paddr;
 
@@ -67,6 +75,12 @@ struct omap_gem_object {
 	 * # of users of paddr
 	 */
 	uint32_t paddr_cnt;
+
+	/**
+	 * If the buffer has been imported from a dmabuf the OMAP_DB_DMABUF flag
+	 * is set and the sgt field is valid.
+	 */
+	struct sg_table *sgt;
 
 	/**
 	 * tiler block used when buffer is remapped in DMM/TILER.
@@ -91,17 +105,7 @@ struct omap_gem_object {
 	 * sync-object allocated on demand (if needed)
 	 *
 	 * Per-buffer sync-object for tracking pending and completed hw/dma
-	 * read and write operations.  The layout in memory is dictated by
-	 * the SGX firmware, which uses this information to stall the command
-	 * stream if a surface is not ready yet.
-	 *
-	 * Note that when buffer is used by SGX, the sync-object needs to be
-	 * allocated from a special heap of sync-objects.  This way many sync
-	 * objects can be packed in a page, and not waste GPU virtual address
-	 * space.  Because of this we have to have a omap_gem_set_sync_object()
-	 * API to allow replacement of the syncobj after it has (potentially)
-	 * already been allocated.  A bit ugly but I haven't thought of a
-	 * better alternative.
+	 * read and write operations.
 	 */
 	struct {
 		uint32_t write_pending;
@@ -166,16 +170,15 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 	return drm_vma_node_offset_addr(&obj->vma_node);
 }
 
-/* GEM objects can either be allocated from contiguous memory (in which
- * case obj->filp==NULL), or w/ shmem backing (obj->filp!=NULL).  But non
- * contiguous buffers can be remapped in TILER/DMM if they need to be
- * contiguous... but we don't do this all the time to reduce pressure
- * on TILER/DMM space when we know at allocation time that the buffer
- * will need to be scanned out.
- */
-static inline bool is_shmem(struct drm_gem_object *obj)
+static bool is_contiguous(struct omap_gem_object *omap_obj)
 {
-	return obj->filp != NULL;
+	if (omap_obj->flags & OMAP_BO_MEM_DMA_API)
+		return true;
+
+	if ((omap_obj->flags & OMAP_BO_MEM_DMABUF) && omap_obj->sgt->nents == 1)
+		return true;
+
+	return false;
 }
 
 /* -----------------------------------------------------------------------------
@@ -264,6 +267,19 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 		for (i = 0; i < npages; i++) {
 			addrs[i] = dma_map_page(dev->dev, pages[i],
 					0, PAGE_SIZE, DMA_BIDIRECTIONAL);
+
+			if (dma_mapping_error(dev->dev, addrs[i])) {
+				dev_warn(dev->dev,
+					"%s: failed to map page\n", __func__);
+
+				for (i = i - 1; i >= 0; --i) {
+					dma_unmap_page(dev->dev, addrs[i],
+						PAGE_SIZE, DMA_BIDIRECTIONAL);
+				}
+
+				ret = -ENOMEM;
+				goto free_addrs;
+			}
 		}
 	} else {
 		addrs = kzalloc(npages * sizeof(*addrs), GFP_KERNEL);
@@ -278,6 +294,8 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 
 	return 0;
 
+free_addrs:
+	kfree(addrs);
 free_pages:
 	drm_gem_put_pages(obj, pages, true, false);
 
@@ -292,7 +310,7 @@ static int get_pages(struct drm_gem_object *obj, struct page ***pages)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = 0;
 
-	if (is_shmem(obj) && !omap_obj->pages) {
+	if ((omap_obj->flags & OMAP_BO_MEM_SHMEM) && !omap_obj->pages) {
 		ret = omap_gem_attach_pages(obj);
 		if (ret) {
 			dev_err(obj->dev->dev, "could not attach pages\n");
@@ -396,7 +414,7 @@ static int fault_1d(struct drm_gem_object *obj,
 		omap_gem_cpu_sync(obj, pgoff);
 		pfn = page_to_pfn(omap_obj->pages[pgoff]);
 	} else {
-		BUG_ON(!(omap_obj->flags & OMAP_BO_DMA));
+		BUG_ON(!is_contiguous(omap_obj));
 		pfn = (omap_obj->paddr >> PAGE_SHIFT) + pgoff;
 	}
 
@@ -560,6 +578,11 @@ fail:
 	case 0:
 	case -ERESTARTSYS:
 	case -EINTR:
+	case -EBUSY:
+		/*
+		 * EBUSY is ok: this just means that another thread
+		 * already did the job.
+		 */
 		return VM_FAULT_NOPAGE;
 	case -ENOMEM:
 		return VM_FAULT_OOM;
@@ -728,7 +751,8 @@ fail:
 static inline bool is_cached_coherent(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	return is_shmem(obj) &&
+
+	return (omap_obj->flags & OMAP_BO_MEM_SHMEM) &&
 		((omap_obj->flags & OMAP_BO_CACHE_MASK) == OMAP_BO_CACHED);
 }
 
@@ -761,9 +785,20 @@ void omap_gem_dma_sync(struct drm_gem_object *obj,
 
 		for (i = 0; i < npages; i++) {
 			if (!omap_obj->addrs[i]) {
-				omap_obj->addrs[i] = dma_map_page(dev->dev, pages[i], 0,
+				dma_addr_t addr;
+
+				addr = dma_map_page(dev->dev, pages[i], 0,
 						PAGE_SIZE, DMA_BIDIRECTIONAL);
+
+				if (dma_mapping_error(dev->dev, addr)) {
+					dev_warn(dev->dev,
+						"%s: failed to map page\n",
+						__func__);
+					break;
+				}
+
 				dirty = true;
+				omap_obj->addrs[i] = addr;
 			}
 		}
 
@@ -787,7 +822,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 
 	mutex_lock(&obj->dev->struct_mutex);
 
-	if (remap && is_shmem(obj) && priv->has_dmm) {
+	if (!is_contiguous(omap_obj) && remap && priv->has_dmm) {
 		if (omap_obj->paddr_cnt == 0) {
 			struct page **pages;
 			uint32_t npages = obj->size >> PAGE_SHIFT;
@@ -834,7 +869,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 		omap_obj->paddr_cnt++;
 
 		*paddr = omap_obj->paddr;
-	} else if (omap_obj->flags & OMAP_BO_DMA) {
+	} else if (is_contiguous(omap_obj)) {
 		*paddr = omap_obj->paddr;
 	} else {
 		ret = -EINVAL;
@@ -1138,20 +1173,6 @@ unlock:
 	return ret;
 }
 
-/* it is a bit lame to handle updates in this sort of polling way, but
- * in case of PVR, the GPU can directly update read/write complete
- * values, and not really tell us which ones it updated.. this also
- * means that sync_lock is not quite sufficient.  So we'll need to
- * do something a bit better when it comes time to add support for
- * separate 2d hw..
- */
-void omap_gem_op_update(void)
-{
-	spin_lock(&sync_lock);
-	sync_op_update();
-	spin_unlock(&sync_lock);
-}
-
 /* mark the start of read and/or write operation */
 int omap_gem_op_start(struct drm_gem_object *obj, enum omap_gem_op op)
 {
@@ -1219,7 +1240,7 @@ int omap_gem_op_sync(struct drm_gem_object *obj, enum omap_gem_op op)
  * is currently blocked..  fxn() can be called from any context
  *
  * (TODO for now fxn is called back from whichever context calls
- * omap_gem_op_update().. but this could be better defined later
+ * omap_gem_op_finish().. but this could be better defined later
  * if needed)
  *
  * TODO more code in common w/ _sync()..
@@ -1261,50 +1282,10 @@ int omap_gem_op_async(struct drm_gem_object *obj, enum omap_gem_op op,
 	return 0;
 }
 
-/* special API so PVR can update the buffer to use a sync-object allocated
- * from it's sync-obj heap.  Only used for a newly allocated (from PVR's
- * perspective) sync-object, so we overwrite the new syncobj w/ values
- * from the already allocated syncobj (if there is one)
- */
-int omap_gem_set_sync_object(struct drm_gem_object *obj, void *syncobj)
-{
-	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	int ret = 0;
-
-	spin_lock(&sync_lock);
-
-	if ((omap_obj->flags & OMAP_BO_EXT_SYNC) && !syncobj) {
-		/* clearing a previously set syncobj */
-		syncobj = kmemdup(omap_obj->sync, sizeof(*omap_obj->sync),
-				  GFP_ATOMIC);
-		if (!syncobj) {
-			ret = -ENOMEM;
-			goto unlock;
-		}
-		omap_obj->flags &= ~OMAP_BO_EXT_SYNC;
-		omap_obj->sync = syncobj;
-	} else if (syncobj && !(omap_obj->flags & OMAP_BO_EXT_SYNC)) {
-		/* replacing an existing syncobj */
-		if (omap_obj->sync) {
-			memcpy(syncobj, omap_obj->sync, sizeof(*omap_obj->sync));
-			kfree(omap_obj->sync);
-		}
-		omap_obj->flags |= OMAP_BO_EXT_SYNC;
-		omap_obj->sync = syncobj;
-	}
-
-unlock:
-	spin_unlock(&sync_lock);
-	return ret;
-}
-
 /* -----------------------------------------------------------------------------
  * Constructor & Destructor
  */
 
-/* don't call directly.. called from GEM core when it is time to actually
- * free the object..
- */
 void omap_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
@@ -1324,22 +1305,23 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	 */
 	WARN_ON(omap_obj->paddr_cnt > 0);
 
-	/* don't free externally allocated backing memory */
-	if (!(omap_obj->flags & OMAP_BO_EXT_MEM)) {
-		if (omap_obj->pages)
+	if (omap_obj->pages) {
+		if (omap_obj->flags & OMAP_BO_MEM_DMABUF)
+			kfree(omap_obj->pages);
+		else
 			omap_gem_detach_pages(obj);
-
-		if (!is_shmem(obj)) {
-			dma_free_writecombine(dev->dev, obj->size,
-					omap_obj->vaddr, omap_obj->paddr);
-		} else if (omap_obj->vaddr) {
-			vunmap(omap_obj->vaddr);
-		}
 	}
 
-	/* don't free externally allocated syncobj */
-	if (!(omap_obj->flags & OMAP_BO_EXT_SYNC))
-		kfree(omap_obj->sync);
+	if (omap_obj->flags & OMAP_BO_MEM_DMA_API) {
+		dma_free_wc(dev->dev, obj->size, omap_obj->vaddr,
+			    omap_obj->paddr);
+	} else if (omap_obj->vaddr) {
+		vunmap(omap_obj->vaddr);
+	} else if (obj->import_attach) {
+		drm_prime_gem_destroy(obj, omap_obj->sgt);
+	}
+
+	kfree(omap_obj->sync);
 
 	drm_gem_object_release(obj);
 
@@ -1357,82 +1339,158 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 	size_t size;
 	int ret;
 
+	/* Validate the flags and compute the memory and cache flags. */
 	if (flags & OMAP_BO_TILED) {
 		if (!priv->usergart) {
 			dev_err(dev->dev, "Tiled buffers require DMM\n");
 			return NULL;
 		}
 
-		/* tiled buffers are always shmem paged backed.. when they are
-		 * scanned out, they are remapped into DMM/TILER
+		/*
+		 * Tiled buffers are always shmem paged backed. When they are
+		 * scanned out, they are remapped into DMM/TILER.
 		 */
 		flags &= ~OMAP_BO_SCANOUT;
+		flags |= OMAP_BO_MEM_SHMEM;
 
-		/* currently don't allow cached buffers.. there is some caching
-		 * stuff that needs to be handled better
+		/*
+		 * Currently don't allow cached buffers. There is some caching
+		 * stuff that needs to be handled better.
 		 */
 		flags &= ~(OMAP_BO_CACHED|OMAP_BO_WC|OMAP_BO_UNCACHED);
 		flags |= tiler_get_cpu_cache_flags();
-
-		/* align dimensions to slot boundaries... */
-		tiler_align(gem2fmt(flags),
-				&gsize.tiled.width, &gsize.tiled.height);
-
-		/* ...and calculate size based on aligned dimensions */
-		size = tiler_size(gem2fmt(flags),
-				gsize.tiled.width, gsize.tiled.height);
-	} else {
-		size = PAGE_ALIGN(gsize.bytes);
+	} else if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
+		/*
+		 * OMAP_BO_SCANOUT hints that the buffer doesn't need to be
+		 * tiled. However, to lower the pressure on memory allocation,
+		 * use contiguous memory only if no TILER is available.
+		 */
+		flags |= OMAP_BO_MEM_DMA_API;
+	} else if (!(flags & OMAP_BO_MEM_DMABUF)) {
+		/*
+		 * All other buffers not backed by dma_buf are shmem-backed.
+		 */
+		flags |= OMAP_BO_MEM_SHMEM;
 	}
 
+	/* Allocate the initialize the OMAP GEM object. */
 	omap_obj = kzalloc(sizeof(*omap_obj), GFP_KERNEL);
 	if (!omap_obj)
 		return NULL;
 
 	obj = &omap_obj->base;
+	omap_obj->flags = flags;
 
-	if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
-		/* attempt to allocate contiguous memory if we don't
-		 * have DMM for remappign discontiguous buffers
+	if (flags & OMAP_BO_TILED) {
+		/*
+		 * For tiled buffers align dimensions to slot boundaries and
+		 * calculate size based on aligned dimensions.
 		 */
-		omap_obj->vaddr =  dma_alloc_writecombine(dev->dev, size,
-				&omap_obj->paddr, GFP_KERNEL);
-		if (!omap_obj->vaddr) {
-			kfree(omap_obj);
+		tiler_align(gem2fmt(flags), &gsize.tiled.width,
+			    &gsize.tiled.height);
 
-			return NULL;
-		}
+		size = tiler_size(gem2fmt(flags), gsize.tiled.width,
+				  gsize.tiled.height);
 
-		flags |= OMAP_BO_DMA;
+		omap_obj->width = gsize.tiled.width;
+		omap_obj->height = gsize.tiled.height;
+	} else {
+		size = PAGE_ALIGN(gsize.bytes);
+	}
+
+	/* Initialize the GEM object. */
+	if (!(flags & OMAP_BO_MEM_SHMEM)) {
+		drm_gem_private_object_init(dev, obj, size);
+	} else {
+		ret = drm_gem_object_init(dev, obj, size);
+		if (ret)
+			goto err_free;
+
+		mapping = file_inode(obj->filp)->i_mapping;
+		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
+	}
+
+	/* Allocate memory if needed. */
+	if (flags & OMAP_BO_MEM_DMA_API) {
+		omap_obj->vaddr = dma_alloc_wc(dev->dev, size,
+					       &omap_obj->paddr,
+					       GFP_KERNEL);
+		if (!omap_obj->vaddr)
+			goto err_release;
 	}
 
 	spin_lock(&priv->list_lock);
 	list_add(&omap_obj->mm_list, &priv->obj_list);
 	spin_unlock(&priv->list_lock);
 
-	omap_obj->flags = flags;
-
-	if (flags & OMAP_BO_TILED) {
-		omap_obj->width = gsize.tiled.width;
-		omap_obj->height = gsize.tiled.height;
-	}
-
-	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM)) {
-		drm_gem_private_object_init(dev, obj, size);
-	} else {
-		ret = drm_gem_object_init(dev, obj, size);
-		if (ret)
-			goto fail;
-
-		mapping = file_inode(obj->filp)->i_mapping;
-		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
-	}
-
 	return obj;
 
-fail:
-	omap_gem_free_object(obj);
+err_release:
+	drm_gem_object_release(obj);
+err_free:
+	kfree(omap_obj);
 	return NULL;
+}
+
+struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
+					   struct sg_table *sgt)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+	struct omap_gem_object *omap_obj;
+	struct drm_gem_object *obj;
+	union omap_gem_size gsize;
+
+	/* Without a DMM only physically contiguous buffers can be supported. */
+	if (sgt->orig_nents != 1 && !priv->has_dmm)
+		return ERR_PTR(-EINVAL);
+
+	mutex_lock(&dev->struct_mutex);
+
+	gsize.bytes = PAGE_ALIGN(size);
+	obj = omap_gem_new(dev, gsize, OMAP_BO_MEM_DMABUF | OMAP_BO_WC);
+	if (!obj) {
+		obj = ERR_PTR(-ENOMEM);
+		goto done;
+	}
+
+	omap_obj = to_omap_bo(obj);
+	omap_obj->sgt = sgt;
+
+	if (sgt->orig_nents == 1) {
+		omap_obj->paddr = sg_dma_address(sgt->sgl);
+	} else {
+		/* Create pages list from sgt */
+		struct sg_page_iter iter;
+		struct page **pages;
+		unsigned int npages;
+		unsigned int i = 0;
+
+		npages = DIV_ROUND_UP(size, PAGE_SIZE);
+		pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
+		if (!pages) {
+			omap_gem_free_object(obj);
+			obj = ERR_PTR(-ENOMEM);
+			goto done;
+		}
+
+		omap_obj->pages = pages;
+
+		for_each_sg_page(sgt->sgl, &iter, sgt->orig_nents, 0) {
+			pages[i++] = sg_page_iter_page(&iter);
+			if (i > npages)
+				break;
+		}
+
+		if (WARN_ON(i != npages)) {
+			omap_gem_free_object(obj);
+			obj = ERR_PTR(-ENOMEM);
+			goto done;
+		}
+	}
+
+done:
+	mutex_unlock(&dev->struct_mutex);
+	return obj;
 }
 
 /* convenience method to construct a GEM buffer object, and userspace handle */

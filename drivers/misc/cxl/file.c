@@ -26,9 +26,7 @@
 #include "trace.h"
 
 #define CXL_NUM_MINORS 256 /* Total to reserve */
-#define CXL_DEV_MINORS 13   /* 1 control + 4 AFUs * 3 (dedicated/master/shared) */
 
-#define CXL_CARD_MINOR(adapter) (adapter->adapter_num * CXL_DEV_MINORS)
 #define CXL_AFU_MINOR_D(afu) (CXL_CARD_MINOR(afu->adapter) + 1 + (3 * afu->slice))
 #define CXL_AFU_MINOR_M(afu) (CXL_AFU_MINOR_D(afu) + 1)
 #define CXL_AFU_MINOR_S(afu) (CXL_AFU_MINOR_D(afu) + 2)
@@ -36,7 +34,6 @@
 #define CXL_AFU_MKDEV_M(afu) MKDEV(MAJOR(cxl_dev), CXL_AFU_MINOR_M(afu))
 #define CXL_AFU_MKDEV_S(afu) MKDEV(MAJOR(cxl_dev), CXL_AFU_MINOR_S(afu))
 
-#define CXL_DEVT_ADAPTER(dev) (MINOR(dev) / CXL_DEV_MINORS)
 #define CXL_DEVT_AFU(dev) ((MINOR(dev) % CXL_DEV_MINORS - 1) / 3)
 
 #define CXL_DEVT_IS_CARD(dev) (MINOR(dev) % CXL_DEV_MINORS == 0)
@@ -79,7 +76,7 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 	if (!afu->current_mode)
 		goto err_put_afu;
 
-	if (!cxl_adapter_link_ok(adapter)) {
+	if (!cxl_ops->link_ok(adapter, afu)) {
 		rc = -EIO;
 		goto err_put_afu;
 	}
@@ -210,8 +207,8 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 
 	trace_cxl_attach(ctx, work.work_element_descriptor, work.num_interrupts, amr);
 
-	if ((rc = cxl_attach_process(ctx, false, work.work_element_descriptor,
-				     amr))) {
+	if ((rc = cxl_ops->attach_process(ctx, false, work.work_element_descriptor,
+							amr))) {
 		afu_release_irqs(ctx, ctx);
 		goto out;
 	}
@@ -222,12 +219,13 @@ out:
 	mutex_unlock(&ctx->status_mutex);
 	return rc;
 }
+
 static long afu_ioctl_process_element(struct cxl_context *ctx,
 				      int __user *upe)
 {
 	pr_devel("%s: pe: %i\n", __func__, ctx->pe);
 
-	if (copy_to_user(upe, &ctx->pe, sizeof(__u32)))
+	if (copy_to_user(upe, &ctx->external_pe, sizeof(__u32)))
 		return -EFAULT;
 
 	return 0;
@@ -259,7 +257,7 @@ long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (ctx->status == CLOSED)
 		return -EIO;
 
-	if (!cxl_adapter_link_ok(ctx->afu->adapter))
+	if (!cxl_ops->link_ok(ctx->afu->adapter, ctx->afu))
 		return -EIO;
 
 	pr_devel("afu_ioctl\n");
@@ -289,7 +287,7 @@ int afu_mmap(struct file *file, struct vm_area_struct *vm)
 	if (ctx->status != STARTED)
 		return -EIO;
 
-	if (!cxl_adapter_link_ok(ctx->afu->adapter))
+	if (!cxl_ops->link_ok(ctx->afu->adapter, ctx->afu))
 		return -EIO;
 
 	return cxl_context_iomap(ctx, vm);
@@ -336,7 +334,7 @@ ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 	int rc;
 	DEFINE_WAIT(wait);
 
-	if (!cxl_adapter_link_ok(ctx->afu->adapter))
+	if (!cxl_ops->link_ok(ctx->afu->adapter, ctx->afu))
 		return -EIO;
 
 	if (count < CXL_READ_MIN_SIZE)
@@ -349,7 +347,7 @@ ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 		if (ctx_event_pending(ctx))
 			break;
 
-		if (!cxl_adapter_link_ok(ctx->afu->adapter)) {
+		if (!cxl_ops->link_ok(ctx->afu->adapter, ctx->afu)) {
 			rc = -EIO;
 			goto out;
 		}
@@ -445,7 +443,8 @@ static const struct file_operations afu_master_fops = {
 
 static char *cxl_devnode(struct device *dev, umode_t *mode)
 {
-	if (CXL_DEVT_IS_CARD(dev->devt)) {
+	if (cpu_has_feature(CPU_FTR_HVMODE) &&
+	    CXL_DEVT_IS_CARD(dev->devt)) {
 		/*
 		 * These minor numbers will eventually be used to program the
 		 * PSL and AFUs once we have dynamic reprogramming support
@@ -544,6 +543,11 @@ int cxl_register_adapter(struct cxl *adapter)
 	 */
 
 	return device_register(&adapter->dev);
+}
+
+dev_t cxl_get_dev(void)
+{
+	return cxl_dev;
 }
 
 int __init cxl_file_init(void)

@@ -78,6 +78,9 @@
 		internal-regs {
 			ethernet@30000 {
 				phy-mode = "sgmii";
+				buffer-manager = <&bm>;
+				bm,pool-long = <2>;
+				bm,pool-short = <1>;
 				status = "okay";
 
 				fixed-link {
@@ -88,6 +91,9 @@
 
 			ethernet@34000 {
 				phy-mode = "sgmii";
+				buffer-manager = <&bm>;
+				bm,pool-long = <3>;
+				bm,pool-short = <1>;
 				status = "okay";
 
 				fixed-link {

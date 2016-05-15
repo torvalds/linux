@@ -387,8 +387,6 @@ config ISA
 
 source "drivers/pcmcia/Kconfig"
 
-source "drivers/pci/hotplug/Kconfig"
-
 endmenu
 
 

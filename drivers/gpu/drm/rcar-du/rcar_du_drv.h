@@ -1,7 +1,7 @@
 /*
  * rcar_du_drv.h  --  R-Car Display Unit DRM driver
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -19,6 +19,7 @@
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_group.h"
+#include "rcar_du_vsp.h"
 
 struct clk;
 struct device;
@@ -29,6 +30,7 @@ struct rcar_du_lvdsenc;
 
 #define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	(1 << 0)	/* Per-CRTC IRQ and clock */
 #define RCAR_DU_FEATURE_EXT_CTRL_REGS	(1 << 1)	/* Has extended control registers */
+#define RCAR_DU_FEATURE_VSP1_SOURCE	(1 << 2)	/* Has inputs from VSP1 */
 
 #define RCAR_DU_QUIRK_ALIGN_128B	(1 << 0)	/* Align pitches to 128 bytes */
 #define RCAR_DU_QUIRK_LVDS_LANES	(1 << 1)	/* LVDS lanes 1 and 3 inverted */
@@ -51,6 +53,7 @@ struct rcar_du_output_routing {
 
 /*
  * struct rcar_du_device_info - DU model-specific information
+ * @gen: device generation (2 or 3)
  * @features: device features (RCAR_DU_FEATURE_*)
  * @quirks: device quirks (RCAR_DU_QUIRK_*)
  * @num_crtcs: total number of CRTCs
@@ -58,6 +61,7 @@ struct rcar_du_output_routing {
  * @num_lvds: number of internal LVDS encoders
  */
 struct rcar_du_device_info {
+	unsigned int gen;
 	unsigned int features;
 	unsigned int quirks;
 	unsigned int num_crtcs;
@@ -65,9 +69,10 @@ struct rcar_du_device_info {
 	unsigned int num_lvds;
 };
 
-#define RCAR_DU_MAX_CRTCS		3
+#define RCAR_DU_MAX_CRTCS		4
 #define RCAR_DU_MAX_GROUPS		DIV_ROUND_UP(RCAR_DU_MAX_CRTCS, 2)
 #define RCAR_DU_MAX_LVDS		2
+#define RCAR_DU_MAX_VSPS		4
 
 struct rcar_du_device {
 	struct device *dev;
@@ -82,6 +87,7 @@ struct rcar_du_device {
 	unsigned int num_crtcs;
 
 	struct rcar_du_group groups[RCAR_DU_MAX_GROUPS];
+	struct rcar_du_vsp vsps[RCAR_DU_MAX_VSPS];
 
 	struct {
 		struct drm_property *alpha;
@@ -90,6 +96,8 @@ struct rcar_du_device {
 	} props;
 
 	unsigned int dpad0_source;
+	unsigned int vspd1_sink;
+
 	struct rcar_du_lvdsenc *lvds[RCAR_DU_MAX_LVDS];
 
 	struct {

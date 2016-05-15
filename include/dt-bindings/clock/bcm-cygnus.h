@@ -65,4 +65,10 @@
 #define BCM_CYGNUS_ASIU_ADC_CLK       1
 #define BCM_CYGNUS_ASIU_PWM_CLK       2
 
+/* AUDIO clock ID */
+#define BCM_CYGNUS_AUDIOPLL           0
+#define BCM_CYGNUS_AUDIOPLL_CH0       1
+#define BCM_CYGNUS_AUDIOPLL_CH1       2
+#define BCM_CYGNUS_AUDIOPLL_CH2       3
+
 #endif /* _CLOCK_BCM_CYGNUS_H */

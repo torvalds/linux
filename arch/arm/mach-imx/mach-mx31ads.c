@@ -160,8 +160,8 @@ static void mx31ads_expio_irq_handler(struct irq_desc *desc)
 	u32 int_valid;
 	u32 expio_irq;
 
-	imr_val = __raw_readw(PBC_INTMASK_SET_REG);
-	int_valid = __raw_readw(PBC_INTSTATUS_REG) & imr_val;
+	imr_val = imx_readw(PBC_INTMASK_SET_REG);
+	int_valid = imx_readw(PBC_INTSTATUS_REG) & imr_val;
 
 	expio_irq = 0;
 	for (; int_valid != 0; int_valid >>= 1, expio_irq++) {
@@ -180,8 +180,8 @@ static void expio_mask_irq(struct irq_data *d)
 {
 	u32 expio = d->hwirq;
 	/* mask the interrupt */
-	__raw_writew(1 << expio, PBC_INTMASK_CLEAR_REG);
-	__raw_readw(PBC_INTMASK_CLEAR_REG);
+	imx_writew(1 << expio, PBC_INTMASK_CLEAR_REG);
+	imx_readw(PBC_INTMASK_CLEAR_REG);
 }
 
 /*
@@ -192,7 +192,7 @@ static void expio_ack_irq(struct irq_data *d)
 {
 	u32 expio = d->hwirq;
 	/* clear the interrupt status */
-	__raw_writew(1 << expio, PBC_INTSTATUS_REG);
+	imx_writew(1 << expio, PBC_INTSTATUS_REG);
 }
 
 /*
@@ -203,7 +203,7 @@ static void expio_unmask_irq(struct irq_data *d)
 {
 	u32 expio = d->hwirq;
 	/* unmask the interrupt */
-	__raw_writew(1 << expio, PBC_INTMASK_SET_REG);
+	imx_writew(1 << expio, PBC_INTMASK_SET_REG);
 }
 
 static struct irq_chip expio_irq_chip = {
@@ -226,8 +226,8 @@ static void __init mx31ads_init_expio(void)
 	mxc_iomux_alloc_pin(IOMUX_MODE(MX31_PIN_GPIO1_4, IOMUX_CONFIG_GPIO), "expio");
 
 	/* disable the interrupt and clear the status */
-	__raw_writew(0xFFFF, PBC_INTMASK_CLEAR_REG);
-	__raw_writew(0xFFFF, PBC_INTSTATUS_REG);
+	imx_writew(0xFFFF, PBC_INTMASK_CLEAR_REG);
+	imx_writew(0xFFFF, PBC_INTSTATUS_REG);
 
 	irq_base = irq_alloc_descs(-1, 0, MXC_MAX_EXP_IO_LINES, numa_node_id());
 	WARN_ON(irq_base < 0);

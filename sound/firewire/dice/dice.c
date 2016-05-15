@@ -13,12 +13,44 @@ MODULE_LICENSE("GPL v2");
 
 #define OUI_WEISS		0x001c6a
 #define OUI_LOUD		0x000ff2
+#define OUI_FOCUSRITE		0x00130e
+#define OUI_TCELECTRONIC	0x001486
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
 #define LOUD_CATEGORY_ID	0x10
 
 #define PROBE_DELAY_MS		(2 * MSEC_PER_SEC)
+
+/*
+ * Some models support several isochronous channels, while these streams are not
+ * always available. In this case, add the model name to this list.
+ */
+static bool force_two_pcm_support(struct fw_unit *unit)
+{
+	const char *const models[] = {
+		/* TC Electronic models. */
+		"StudioKonnekt48",
+		/* Focusrite models. */
+		"SAFFIRE_PRO_40",
+		"LIQUID_SAFFIRE_56",
+		"SAFFIRE_PRO_40_1",
+	};
+	char model[32];
+	unsigned int i;
+	int err;
+
+	err = fw_csr_string(unit->directory, CSR_MODEL, model, sizeof(model));
+	if (err < 0)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(models); i++) {
+		if (strcmp(models[i], model) == 0)
+			break;
+	}
+
+	return i < ARRAY_SIZE(models);
+}
 
 static int check_dice_category(struct fw_unit *unit)
 {
@@ -44,6 +76,12 @@ static int check_dice_category(struct fw_unit *unit)
 			break;
 		}
 	}
+
+	if (vendor == OUI_FOCUSRITE || vendor == OUI_TCELECTRONIC) {
+		if (force_two_pcm_support(unit))
+			return 0;
+	}
+
 	if (vendor == OUI_WEISS)
 		category = WEISS_CATEGORY_ID;
 	else if (vendor == OUI_LOUD)
@@ -57,65 +95,10 @@ static int check_dice_category(struct fw_unit *unit)
 	return 0;
 }
 
-static int highest_supported_mode_rate(struct snd_dice *dice,
-				       unsigned int mode, unsigned int *rate)
-{
-	unsigned int i, m;
-
-	for (i = ARRAY_SIZE(snd_dice_rates); i > 0; i--) {
-		*rate = snd_dice_rates[i - 1];
-		if (snd_dice_stream_get_rate_mode(dice, *rate, &m) < 0)
-			continue;
-		if (mode == m)
-			break;
-	}
-	if (i == 0)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int dice_read_mode_params(struct snd_dice *dice, unsigned int mode)
-{
-	__be32 values[2];
-	unsigned int rate;
-	int err;
-
-	if (highest_supported_mode_rate(dice, mode, &rate) < 0) {
-		dice->tx_channels[mode] = 0;
-		dice->tx_midi_ports[mode] = 0;
-		dice->rx_channels[mode] = 0;
-		dice->rx_midi_ports[mode] = 0;
-		return 0;
-	}
-
-	err = snd_dice_transaction_set_rate(dice, rate);
-	if (err < 0)
-		return err;
-
-	err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
-					   values, sizeof(values));
-	if (err < 0)
-		return err;
-
-	dice->tx_channels[mode]   = be32_to_cpu(values[0]);
-	dice->tx_midi_ports[mode] = be32_to_cpu(values[1]);
-
-	err = snd_dice_transaction_read_rx(dice, RX_NUMBER_AUDIO,
-					   values, sizeof(values));
-	if (err < 0)
-		return err;
-
-	dice->rx_channels[mode]   = be32_to_cpu(values[0]);
-	dice->rx_midi_ports[mode] = be32_to_cpu(values[1]);
-
-	return 0;
-}
-
-static int dice_read_params(struct snd_dice *dice)
+static int check_clock_caps(struct snd_dice *dice)
 {
 	__be32 value;
-	int mode, err;
+	int err;
 
 	/* some very old firmwares don't tell about their clock support */
 	if (dice->clock_caps > 0) {
@@ -131,12 +114,6 @@ static int dice_read_params(struct snd_dice *dice)
 				   CLOCK_CAP_RATE_48000 |
 				   CLOCK_CAP_SOURCE_ARX1 |
 				   CLOCK_CAP_SOURCE_INTERNAL;
-	}
-
-	for (mode = 2; mode >= 0; --mode) {
-		err = dice_read_mode_params(dice, mode);
-		if (err < 0)
-			return err;
 	}
 
 	return 0;
@@ -211,11 +188,14 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		return;
 
+	if (force_two_pcm_support(dice->unit))
+		dice->force_two_pcms = true;
+
 	err = snd_dice_transaction_init(dice);
 	if (err < 0)
 		goto error;
 
-	err = dice_read_params(dice);
+	err = check_clock_caps(dice);
 	if (err < 0)
 		goto error;
 

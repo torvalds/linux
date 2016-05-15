@@ -719,16 +719,16 @@ static int get_sgflags(struct tty_struct *tty)
 {
 	int flags = 0;
 
-	if (!(tty->termios.c_lflag & ICANON)) {
-		if (tty->termios.c_lflag & ISIG)
+	if (!L_ICANON(tty)) {
+		if (L_ISIG(tty))
 			flags |= 0x02;		/* cbreak */
 		else
 			flags |= 0x20;		/* raw */
 	}
-	if (tty->termios.c_lflag & ECHO)
+	if (L_ECHO(tty))
 		flags |= 0x08;			/* echo */
-	if (tty->termios.c_oflag & OPOST)
-		if (tty->termios.c_oflag & ONLCR)
+	if (O_OPOST(tty))
+		if (O_ONLCR(tty))
 			flags |= 0x10;		/* crmod */
 	return flags;
 }
@@ -908,7 +908,7 @@ static int tty_change_softcar(struct tty_struct *tty, int arg)
 	tty->termios.c_cflag |= bit;
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old);
-	if ((tty->termios.c_cflag & CLOCAL) != bit)
+	if (C_CLOCAL(tty) != bit)
 		ret = -EINVAL;
 	up_write(&tty->termios_rwsem);
 	return ret;

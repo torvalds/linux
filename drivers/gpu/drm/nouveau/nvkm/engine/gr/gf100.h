@@ -82,7 +82,7 @@ struct gf100_gr {
 
 	/*
 	 * Used if the register packs are loaded from NVIDIA fw instead of
-	 * using hardcoded arrays.
+	 * using hardcoded arrays. To be allocated with vzalloc().
 	 */
 	struct gf100_gr_pack *fuc_sw_nonctx;
 	struct gf100_gr_pack *fuc_sw_ctx;
@@ -138,12 +138,9 @@ int gf100_gr_init(struct gf100_gr *);
 
 int gk104_gr_init(struct gf100_gr *);
 
-int gk20a_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
-		  int, struct nvkm_gr **);
-void gk20a_gr_dtor(struct gf100_gr *);
 int gk20a_gr_init(struct gf100_gr *);
 
-int gm204_gr_init(struct gf100_gr *);
+int gm200_gr_init(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 
@@ -203,6 +200,17 @@ void gf100_gr_mmio(struct gf100_gr *, const struct gf100_gr_pack *);
 void gf100_gr_icmd(struct gf100_gr *, const struct gf100_gr_pack *);
 void gf100_gr_mthd(struct gf100_gr *, const struct gf100_gr_pack *);
 int  gf100_gr_init_ctxctl(struct gf100_gr *);
+
+/* external bundles loading functions */
+int gk20a_gr_av_to_init(struct gf100_gr *, const char *,
+			struct gf100_gr_pack **);
+int gk20a_gr_aiv_to_init(struct gf100_gr *, const char *,
+			 struct gf100_gr_pack **);
+int gk20a_gr_av_to_method(struct gf100_gr *, const char *,
+			  struct gf100_gr_pack **);
+
+int gm200_gr_new_(const struct gf100_gr_func *, struct nvkm_device *, int,
+		  struct nvkm_gr **);
 
 /* register init value lists */
 
@@ -279,6 +287,4 @@ extern const struct gf100_gr_init gm107_gr_init_l1c_0[];
 extern const struct gf100_gr_init gm107_gr_init_wwdx_0[];
 extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
 void gm107_gr_init_bios(struct gf100_gr *);
-
-extern const struct gf100_gr_pack gm204_gr_pack_mmio[];
 #endif

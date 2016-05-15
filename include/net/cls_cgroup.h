@@ -17,6 +17,7 @@
 #include <linux/hardirq.h>
 #include <linux/rcupdate.h>
 #include <net/sock.h>
+#include <net/inet_sock.h>
 
 #ifdef CONFIG_CGROUP_NET_CLASSID
 struct cgroup_cls_state {
@@ -63,11 +64,13 @@ static inline u32 task_get_classid(const struct sk_buff *skb)
 	 * softirqs always disables bh.
 	 */
 	if (in_serving_softirq()) {
+		struct sock *sk = skb_to_full_sk(skb);
+
 		/* If there is an sock_cgroup_classid we'll use that. */
-		if (!skb->sk)
+		if (!sk || !sk_fullsock(sk))
 			return 0;
 
-		classid = sock_cgroup_classid(&skb->sk->sk_cgrp_data);
+		classid = sock_cgroup_classid(&sk->sk_cgrp_data);
 	}
 
 	return classid;

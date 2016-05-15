@@ -204,31 +204,45 @@ static u32 xgene_enet_ring_len(struct xgene_enet_desc_ring *ring)
 	return num_msgs;
 }
 
+static void xgene_enet_setup_coalescing(struct xgene_enet_desc_ring *ring)
+{
+	u32 data = 0x7777;
+
+	xgene_enet_ring_wr32(ring, CSR_PBM_COAL, 0x8e);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK1, data);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK2, data << 16);
+	xgene_enet_ring_wr32(ring, CSR_THRESHOLD0_SET1, 0x40);
+	xgene_enet_ring_wr32(ring, CSR_THRESHOLD1_SET1, 0x80);
+}
+
 void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status)
 {
-	struct rtnl_link_stats64 *stats = &pdata->stats;
-
 	switch (status) {
 	case INGRESS_CRC:
-		stats->rx_crc_errors++;
+		ring->rx_crc_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_CHECKSUM:
 	case INGRESS_CHECKSUM_COMPUTE:
-		stats->rx_errors++;
+		ring->rx_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_TRUNC_FRAME:
-		stats->rx_frame_errors++;
+		ring->rx_frame_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_PKT_LEN:
-		stats->rx_length_errors++;
+		ring->rx_length_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_PKT_UNDER:
-		stats->rx_frame_errors++;
+		ring->rx_frame_errors++;
+		ring->rx_dropped++;
 		break;
 	case INGRESS_FIFO_OVERRUN:
-		stats->rx_fifo_errors++;
+		ring->rx_fifo_errors++;
 		break;
 	default:
 		break;
@@ -892,4 +906,5 @@ struct xgene_ring_ops xgene_ring1_ops = {
 	.clear = xgene_enet_clear_ring,
 	.wr_cmd = xgene_enet_wr_cmd,
 	.len = xgene_enet_ring_len,
+	.coalesce = xgene_enet_setup_coalescing,
 };

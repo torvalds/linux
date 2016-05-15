@@ -259,7 +259,7 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 	init_dma_attrs(&g2d->cmdlist_dma_attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &g2d->cmdlist_dma_attrs);
 
-	g2d->cmdlist_pool_virt = dma_alloc_attrs(subdrv->drm_dev->dev,
+	g2d->cmdlist_pool_virt = dma_alloc_attrs(to_dma_dev(subdrv->drm_dev),
 						G2D_CMDLIST_POOL_SIZE,
 						&g2d->cmdlist_pool, GFP_KERNEL,
 						&g2d->cmdlist_dma_attrs);
@@ -293,7 +293,7 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 	return 0;
 
 err:
-	dma_free_attrs(subdrv->drm_dev->dev, G2D_CMDLIST_POOL_SIZE,
+	dma_free_attrs(to_dma_dev(subdrv->drm_dev), G2D_CMDLIST_POOL_SIZE,
 			g2d->cmdlist_pool_virt,
 			g2d->cmdlist_pool, &g2d->cmdlist_dma_attrs);
 	return ret;
@@ -306,7 +306,8 @@ static void g2d_fini_cmdlist(struct g2d_data *g2d)
 	kfree(g2d->cmdlist_node);
 
 	if (g2d->cmdlist_pool_virt && g2d->cmdlist_pool) {
-		dma_free_attrs(subdrv->drm_dev->dev, G2D_CMDLIST_POOL_SIZE,
+		dma_free_attrs(to_dma_dev(subdrv->drm_dev),
+				G2D_CMDLIST_POOL_SIZE,
 				g2d->cmdlist_pool_virt,
 				g2d->cmdlist_pool, &g2d->cmdlist_dma_attrs);
 	}
@@ -880,7 +881,6 @@ static void g2d_finish_event(struct g2d_data *g2d, u32 cmdlist_no)
 	struct g2d_runqueue_node *runqueue_node = g2d->runqueue_node;
 	struct drm_exynos_pending_g2d_event *e;
 	struct timeval now;
-	unsigned long flags;
 
 	if (list_empty(&runqueue_node->event_list))
 		return;
@@ -893,10 +893,7 @@ static void g2d_finish_event(struct g2d_data *g2d, u32 cmdlist_no)
 	e->event.tv_usec = now.tv_usec;
 	e->event.cmdlist_no = cmdlist_no;
 
-	spin_lock_irqsave(&drm_dev->event_lock, flags);
-	list_move_tail(&e->base.link, &e->base.file_priv->event_list);
-	wake_up_interruptible(&e->base.file_priv->event_wait);
-	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
+	drm_send_event(drm_dev, &e->base);
 }
 
 static irqreturn_t g2d_irq_handler(int irq, void *dev_id)
@@ -1072,7 +1069,6 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	struct drm_exynos_pending_g2d_event *e;
 	struct g2d_cmdlist_node *node;
 	struct g2d_cmdlist *cmdlist;
-	unsigned long flags;
 	int size;
 	int ret;
 
@@ -1094,21 +1090,8 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	node->event = NULL;
 
 	if (req->event_type != G2D_EVENT_NOT) {
-		spin_lock_irqsave(&drm_dev->event_lock, flags);
-		if (file->event_space < sizeof(e->event)) {
-			spin_unlock_irqrestore(&drm_dev->event_lock, flags);
-			ret = -ENOMEM;
-			goto err;
-		}
-		file->event_space -= sizeof(e->event);
-		spin_unlock_irqrestore(&drm_dev->event_lock, flags);
-
 		e = kzalloc(sizeof(*node->event), GFP_KERNEL);
 		if (!e) {
-			spin_lock_irqsave(&drm_dev->event_lock, flags);
-			file->event_space += sizeof(e->event);
-			spin_unlock_irqrestore(&drm_dev->event_lock, flags);
-
 			ret = -ENOMEM;
 			goto err;
 		}
@@ -1116,9 +1099,12 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 		e->event.base.type = DRM_EXYNOS_G2D_EVENT;
 		e->event.base.length = sizeof(e->event);
 		e->event.user_data = req->user_data;
-		e->base.event = &e->event.base;
-		e->base.file_priv = file;
-		e->base.destroy = (void (*) (struct drm_pending_event *)) kfree;
+
+		ret = drm_event_reserve_init(drm_dev, file, &e->base, &e->event.base);
+		if (ret) {
+			kfree(e);
+			goto err;
+		}
 
 		node->event = e;
 	}
@@ -1220,12 +1206,8 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 err_unmap:
 	g2d_unmap_cmdlist_gem(g2d, node, file);
 err_free_event:
-	if (node->event) {
-		spin_lock_irqsave(&drm_dev->event_lock, flags);
-		file->event_space += sizeof(e->event);
-		spin_unlock_irqrestore(&drm_dev->event_lock, flags);
-		kfree(node->event);
-	}
+	if (node->event)
+		drm_event_cancel_free(drm_dev, &node->event->base);
 err:
 	g2d_put_cmdlist(g2d, node);
 	return ret;

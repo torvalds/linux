@@ -7,8 +7,8 @@ This is a proof-of-concept backend which acts like an EEPROM on the connected
 I2C bus. The memory contents can be modified from userspace via this file
 located in sysfs:
 
-	/sys/bus/i2c/devices/<device-direcory>/slave-eeprom
+	/sys/bus/i2c/devices/<device-directory>/slave-eeprom
 
 As of 2015, Linux doesn't support poll on binary sysfs files, so there is no
-notfication when another master changed the content.
+notification when another master changed the content.
 

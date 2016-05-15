@@ -20,6 +20,7 @@
 #include <asm/page.h>
 #include <asm/hpet.h>
 #include <asm/desc.h>
+#include <asm/cpufeature.h>
 
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;
@@ -27,13 +28,7 @@ unsigned int __read_mostly vdso64_enabled = 1;
 
 void __init init_vdso_image(const struct vdso_image *image)
 {
-	int i;
-	int npages = (image->size) / PAGE_SIZE;
-
 	BUG_ON(image->size % PAGE_SIZE != 0);
-	for (i = 0; i < npages; i++)
-		image->text_mapping.pages[i] =
-			virt_to_page(image->data + i*PAGE_SIZE);
 
 	apply_alternatives((struct alt_instr *)(image->data + image->alt),
 			   (struct alt_instr *)(image->data + image->alt +
@@ -90,18 +85,87 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
 #endif
 }
 
+static int vdso_fault(const struct vm_special_mapping *sm,
+		      struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	const struct vdso_image *image = vma->vm_mm->context.vdso_image;
+
+	if (!image || (vmf->pgoff << PAGE_SHIFT) >= image->size)
+		return VM_FAULT_SIGBUS;
+
+	vmf->page = virt_to_page(image->data + (vmf->pgoff << PAGE_SHIFT));
+	get_page(vmf->page);
+	return 0;
+}
+
+static const struct vm_special_mapping text_mapping = {
+	.name = "[vdso]",
+	.fault = vdso_fault,
+};
+
+static int vvar_fault(const struct vm_special_mapping *sm,
+		      struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	const struct vdso_image *image = vma->vm_mm->context.vdso_image;
+	long sym_offset;
+	int ret = -EFAULT;
+
+	if (!image)
+		return VM_FAULT_SIGBUS;
+
+	sym_offset = (long)(vmf->pgoff << PAGE_SHIFT) +
+		image->sym_vvar_start;
+
+	/*
+	 * Sanity check: a symbol offset of zero means that the page
+	 * does not exist for this vdso image, not that the page is at
+	 * offset zero relative to the text mapping.  This should be
+	 * impossible here, because sym_offset should only be zero for
+	 * the page past the end of the vvar mapping.
+	 */
+	if (sym_offset == 0)
+		return VM_FAULT_SIGBUS;
+
+	if (sym_offset == image->sym_vvar_page) {
+		ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address,
+				    __pa_symbol(&__vvar_page) >> PAGE_SHIFT);
+	} else if (sym_offset == image->sym_hpet_page) {
+#ifdef CONFIG_HPET_TIMER
+		if (hpet_address && vclock_was_used(VCLOCK_HPET)) {
+			ret = vm_insert_pfn_prot(
+				vma,
+				(unsigned long)vmf->virtual_address,
+				hpet_address >> PAGE_SHIFT,
+				pgprot_noncached(PAGE_READONLY));
+		}
+#endif
+	} else if (sym_offset == image->sym_pvclock_page) {
+		struct pvclock_vsyscall_time_info *pvti =
+			pvclock_pvti_cpu0_va();
+		if (pvti && vclock_was_used(VCLOCK_PVCLOCK)) {
+			ret = vm_insert_pfn(
+				vma,
+				(unsigned long)vmf->virtual_address,
+				__pa(pvti) >> PAGE_SHIFT);
+		}
+	}
+
+	if (ret == 0 || ret == -EBUSY)
+		return VM_FAULT_NOPAGE;
+
+	return VM_FAULT_SIGBUS;
+}
+
 static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long addr, text_start;
 	int ret = 0;
-	static struct page *no_pages[] = {NULL};
-	static struct vm_special_mapping vvar_mapping = {
+	static const struct vm_special_mapping vvar_mapping = {
 		.name = "[vvar]",
-		.pages = no_pages,
+		.fault = vvar_fault,
 	};
-	struct pvclock_vsyscall_time_info *pvti;
 
 	if (calculate_addr) {
 		addr = vdso_addr(current->mm->start_stack,
@@ -121,6 +185,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 
 	text_start = addr - image->sym_vvar_start;
 	current->mm->context.vdso = (void __user *)text_start;
+	current->mm->context.vdso_image = image;
 
 	/*
 	 * MAYWRITE to allow gdb to COW and set breakpoints
@@ -130,7 +195,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 				       image->size,
 				       VM_READ|VM_EXEC|
 				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				       &image->text_mapping);
+				       &text_mapping);
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
@@ -140,47 +205,13 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 	vma = _install_special_mapping(mm,
 				       addr,
 				       -image->sym_vvar_start,
-				       VM_READ|VM_MAYREAD,
+				       VM_READ|VM_MAYREAD|VM_IO|VM_DONTDUMP|
+				       VM_PFNMAP,
 				       &vvar_mapping);
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto up_fail;
-	}
-
-	if (image->sym_vvar_page)
-		ret = remap_pfn_range(vma,
-				      text_start + image->sym_vvar_page,
-				      __pa_symbol(&__vvar_page) >> PAGE_SHIFT,
-				      PAGE_SIZE,
-				      PAGE_READONLY);
-
-	if (ret)
-		goto up_fail;
-
-#ifdef CONFIG_HPET_TIMER
-	if (hpet_address && image->sym_hpet_page) {
-		ret = io_remap_pfn_range(vma,
-			text_start + image->sym_hpet_page,
-			hpet_address >> PAGE_SHIFT,
-			PAGE_SIZE,
-			pgprot_noncached(PAGE_READONLY));
-
-		if (ret)
-			goto up_fail;
-	}
-#endif
-
-	pvti = pvclock_pvti_cpu0_va();
-	if (pvti && image->sym_pvclock_page) {
-		ret = remap_pfn_range(vma,
-				      text_start + image->sym_pvclock_page,
-				      __pa(pvti) >> PAGE_SHIFT,
-				      PAGE_SIZE,
-				      PAGE_READONLY);
-
-		if (ret)
-			goto up_fail;
 	}
 
 up_fail:
@@ -254,7 +285,7 @@ static void vgetcpu_cpu_init(void *arg)
 #ifdef CONFIG_NUMA
 	node = cpu_to_node(cpu);
 #endif
-	if (cpu_has(&cpu_data(cpu), X86_FEATURE_RDTSCP))
+	if (static_cpu_has(X86_FEATURE_RDTSCP))
 		write_rdtscp_aux((node << 12) | cpu);
 
 	/*

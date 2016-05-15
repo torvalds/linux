@@ -2090,13 +2090,13 @@ static int cxd2841er_sleep_tc_to_active_c(struct cxd2841er_priv *priv,
 	return 0;
 }
 
-static int cxd2841er_get_frontend(struct dvb_frontend *fe)
+static int cxd2841er_get_frontend(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *p)
 {
 	enum fe_status status = 0;
 	u16 strength = 0, snr = 0;
 	u32 errors = 0, ber = 0;
 	struct cxd2841er_priv *priv = fe->demodulator_priv;
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	if (priv->state == STATE_ACTIVE_S)

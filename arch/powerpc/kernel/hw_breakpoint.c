@@ -109,8 +109,9 @@ void arch_unregister_hw_breakpoint(struct perf_event *bp)
 	 * If the breakpoint is unregistered between a hw_breakpoint_handler()
 	 * and the single_step_dabr_instruction(), then cleanup the breakpoint
 	 * restoration variables to prevent dangling pointers.
+	 * FIXME, this should not be using bp->ctx at all! Sayeth peterz.
 	 */
-	if (bp->ctx && bp->ctx->task)
+	if (bp->ctx && bp->ctx->task && bp->ctx->task != ((void *)-1L))
 		bp->ctx->task->thread.last_hit_ubp = NULL;
 }
 

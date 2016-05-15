@@ -51,6 +51,15 @@ where 'ns_exec -cm /bin/bash' calls clone() with CLONE_NEWNS flag and execs
 /bin/bash in the child process.  A pty created by the sshd is not visible in
 the original mount of /dev/pts.
 
+Total count of pty pairs in all instances is limited by sysctls:
+kernel.pty.max = 4096		- global limit
+kernel.pty.reserve = 1024	- reserve for initial instance
+kernel.pty.nr			- current count of ptys
+
+Per-instance limit could be set by adding mount option "max=<count>".
+This feature was added in kernel 3.4 together with sysctl kernel.pty.reserve.
+In kernels older than 3.4 sysctl kernel.pty.max works as per-instance limit.
+
 User-space changes
 ------------------
 

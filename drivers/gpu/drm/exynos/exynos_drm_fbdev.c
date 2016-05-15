@@ -50,7 +50,7 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	if (vm_size > exynos_gem->size)
 		return -EINVAL;
 
-	ret = dma_mmap_attrs(helper->dev->dev, vma, exynos_gem->cookie,
+	ret = dma_mmap_attrs(to_dma_dev(helper->dev), vma, exynos_gem->cookie,
 			     exynos_gem->dma_addr, exynos_gem->size,
 			     &exynos_gem->dma_attrs);
 	if (ret < 0) {
@@ -316,4 +316,15 @@ void exynos_drm_fbdev_restore_mode(struct drm_device *dev)
 		return;
 
 	drm_fb_helper_restore_fbdev_mode_unlocked(private->fb_helper);
+}
+
+void exynos_drm_output_poll_changed(struct drm_device *dev)
+{
+	struct exynos_drm_private *private = dev->dev_private;
+	struct drm_fb_helper *fb_helper = private->fb_helper;
+
+	if (fb_helper)
+		drm_fb_helper_hotplug_event(fb_helper);
+	else
+		exynos_drm_fbdev_init(dev);
 }

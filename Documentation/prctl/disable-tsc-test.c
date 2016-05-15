@@ -57,7 +57,7 @@ static void sigsegv_cb(int sig)
 	printf("rdtsc() == ");
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
 	int tsc_val = 0;
 

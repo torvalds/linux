@@ -78,7 +78,7 @@ enum i40e_debug_mask {
 	I40E_DEBUG_DCB			= 0x00000400,
 	I40E_DEBUG_DIAG			= 0x00000800,
 	I40E_DEBUG_FD			= 0x00001000,
-
+	I40E_DEBUG_IWARP		= 0x00F00000,
 	I40E_DEBUG_AQ_MESSAGE		= 0x01000000,
 	I40E_DEBUG_AQ_DESCRIPTOR	= 0x02000000,
 	I40E_DEBUG_AQ_DESC_BUFFER	= 0x04000000,
@@ -89,6 +89,22 @@ enum i40e_debug_mask {
 
 	I40E_DEBUG_ALL			= 0xFFFFFFFF
 };
+
+#define I40E_MDIO_STCODE                0
+#define I40E_MDIO_OPCODE_ADDRESS        0
+#define I40E_MDIO_OPCODE_WRITE          I40E_MASK(1, \
+						  I40E_GLGEN_MSCA_OPCODE_SHIFT)
+#define I40E_MDIO_OPCODE_READ_INC_ADDR  I40E_MASK(2, \
+						  I40E_GLGEN_MSCA_OPCODE_SHIFT)
+#define I40E_MDIO_OPCODE_READ           I40E_MASK(3, \
+						  I40E_GLGEN_MSCA_OPCODE_SHIFT)
+
+#define I40E_PHY_COM_REG_PAGE                   0x1E
+#define I40E_PHY_LED_LINK_MODE_MASK             0xF0
+#define I40E_PHY_LED_MANUAL_ON                  0x100
+#define I40E_PHY_LED_PROV_REG_1                 0xC430
+#define I40E_PHY_LED_MODE_MASK                  0xFFFF
+#define I40E_PHY_LED_MODE_ORIG                  0x80000000
 
 /* These are structs for managing the hardware information and the operations.
  * The structures of function pointers are filled out at init time when we
@@ -144,6 +160,7 @@ enum i40e_vsi_type {
 	I40E_VSI_MIRROR	= 5,
 	I40E_VSI_SRIOV	= 6,
 	I40E_VSI_FDIR	= 7,
+	I40E_VSI_IWARP	= 8,
 	I40E_VSI_TYPE_UNKNOWN
 };
 
@@ -1093,6 +1110,10 @@ enum i40e_filter_program_desc_pcmd {
 						 I40E_TXD_FLTR_QW1_CMD_SHIFT)
 #define I40E_TXD_FLTR_QW1_FD_STATUS_MASK (0x3ULL << \
 					  I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT)
+
+#define I40E_TXD_FLTR_QW1_ATR_SHIFT	(0xEULL + \
+					 I40E_TXD_FLTR_QW1_CMD_SHIFT)
+#define I40E_TXD_FLTR_QW1_ATR_MASK	BIT_ULL(I40E_TXD_FLTR_QW1_ATR_SHIFT)
 
 #define I40E_TXD_FLTR_QW1_ATR_SHIFT	(0xEULL + \
 					 I40E_TXD_FLTR_QW1_CMD_SHIFT)

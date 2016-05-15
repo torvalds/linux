@@ -135,7 +135,7 @@ static void usage(void)
 		"\nValid debug options (FZPUT may be combined)\n"
 		"a / A          Switch on all debug options (=FZUP)\n"
 		"-              Switch off all debug options\n"
-		"f / F          Sanity Checks (SLAB_DEBUG_FREE)\n"
+		"f / F          Sanity Checks (SLAB_CONSISTENCY_CHECKS)\n"
 		"z / Z          Redzoning\n"
 		"p / P          Poisoning\n"
 		"u / U          Tracking\n"

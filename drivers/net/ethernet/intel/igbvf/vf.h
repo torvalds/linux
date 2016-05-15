@@ -126,6 +126,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_ADVTXD_MACLEN_SHIFT	9  /* Adv ctxt desc mac len shift */
 #define E1000_ADVTXD_TUCMD_IPV4		0x00000400 /* IP Packet Type: 1=IPv4 */
 #define E1000_ADVTXD_TUCMD_L4T_TCP	0x00000800 /* L4 Packet TYPE of TCP */
+#define E1000_ADVTXD_TUCMD_L4T_SCTP	0x00001000 /* L4 packet TYPE of SCTP */
 #define E1000_ADVTXD_L4LEN_SHIFT	8  /* Adv ctxt L4LEN shift */
 #define E1000_ADVTXD_MSS_SHIFT		16 /* Adv ctxt MSS shift */
 

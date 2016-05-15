@@ -88,7 +88,7 @@
  */
 acpi_status acpi_ns_initialize_objects(void);
 
-acpi_status acpi_ns_initialize_devices(void);
+acpi_status acpi_ns_initialize_devices(u32 flags);
 
 /*
  * nsload -  Namespace loading

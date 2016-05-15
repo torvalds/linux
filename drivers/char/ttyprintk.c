@@ -171,7 +171,7 @@ static const struct tty_operations ttyprintk_ops = {
 	.ioctl = tpk_ioctl,
 };
 
-static struct tty_port_operations null_ops = { };
+static const struct tty_port_operations null_ops = { };
 
 static struct tty_driver *ttyprintk_driver;
 
