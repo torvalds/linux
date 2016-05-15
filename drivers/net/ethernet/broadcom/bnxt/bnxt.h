@@ -850,7 +850,6 @@ struct bnxt_link_info {
 	u32			advertising;
 	bool			force_link_chng;
 
-	u8			last_port_module_event;
 	/* a copy of phy_qcfg output used to report link
 	 * info to VF
 	 */

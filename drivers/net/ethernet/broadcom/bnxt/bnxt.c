@@ -1324,15 +1324,6 @@ next_rx_no_prod:
 	((data) &				\
 	 HWRM_ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_EVENT_DATA1_PORT_ID_MASK)
 
-#define BNXT_EVENT_POLICY_MASK	\
-	HWRM_ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_EVENT_DATA1_ENFORCEMENT_POLICY_MASK
-
-#define BNXT_EVENT_POLICY_SFT	\
-	HWRM_ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_EVENT_DATA1_ENFORCEMENT_POLICY_SFT
-
-#define BNXT_GET_EVENT_POLICY(data)	\
-	(((data) & BNXT_EVENT_POLICY_MASK) >> BNXT_EVENT_POLICY_SFT)
-
 static int bnxt_async_event_process(struct bnxt *bp,
 				    struct hwrm_async_event_cmpl *cmpl)
 {
@@ -1370,9 +1361,6 @@ static int bnxt_async_event_process(struct bnxt *bp,
 
 		if (bp->pf.port_id != port_id)
 			break;
-
-		bp->link_info.last_port_module_event =
-			BNXT_GET_EVENT_POLICY(data1);
 
 		set_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event);
 		break;
@@ -4788,6 +4776,33 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	return 0;
 }
 
+static void bnxt_get_port_module_status(struct bnxt *bp)
+{
+	struct bnxt_link_info *link_info = &bp->link_info;
+	struct hwrm_port_phy_qcfg_output *resp = &link_info->phy_qcfg_resp;
+	u8 module_status;
+
+	if (bnxt_update_link(bp, true))
+		return;
+
+	module_status = link_info->module_status;
+	switch (module_status) {
+	case PORT_PHY_QCFG_RESP_MODULE_STATUS_DISABLETX:
+	case PORT_PHY_QCFG_RESP_MODULE_STATUS_PWRDOWN:
+	case PORT_PHY_QCFG_RESP_MODULE_STATUS_WARNINGMSG:
+		netdev_warn(bp->dev, "Unqualified SFP+ module detected on port %d\n",
+			    bp->pf.port_id);
+		if (bp->hwrm_spec_code >= 0x10201) {
+			netdev_warn(bp->dev, "Module part number %s\n",
+				    resp->phy_vendor_partnumber);
+		}
+		if (module_status == PORT_PHY_QCFG_RESP_MODULE_STATUS_DISABLETX)
+			netdev_warn(bp->dev, "TX is disabled\n");
+		if (module_status == PORT_PHY_QCFG_RESP_MODULE_STATUS_PWRDOWN)
+			netdev_warn(bp->dev, "SFP+ module is shutdown\n");
+	}
+}
+
 static void
 bnxt_hwrm_set_pause_common(struct bnxt *bp, struct hwrm_port_phy_cfg_input *req)
 {
@@ -5080,7 +5095,8 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	/* Enable TX queues */
 	bnxt_tx_enable(bp);
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
-	bnxt_update_link(bp, true);
+	/* Poll link status and check for SFP+ module status */
+	bnxt_get_port_module_status(bp);
 
 	return 0;
 
@@ -5615,28 +5631,6 @@ bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
 
-static void bnxt_port_module_event(struct bnxt *bp)
-{
-	struct bnxt_link_info *link_info = &bp->link_info;
-	struct hwrm_port_phy_qcfg_output *resp = &link_info->phy_qcfg_resp;
-
-	if (bnxt_update_link(bp, true))
-		return;
-
-	if (link_info->last_port_module_event != 0) {
-		netdev_warn(bp->dev, "Unqualified SFP+ module detected on port %d\n",
-			    bp->pf.port_id);
-		if (bp->hwrm_spec_code >= 0x10201) {
-			netdev_warn(bp->dev, "Module part number %s\n",
-				    resp->phy_vendor_partnumber);
-		}
-	}
-	if (link_info->last_port_module_event == 1)
-		netdev_warn(bp->dev, "TX is disabled\n");
-	if (link_info->last_port_module_event == 3)
-		netdev_warn(bp->dev, "Shutdown SFP+ module\n");
-}
-
 static void bnxt_cfg_ntp_filters(struct bnxt *);
 
 static void bnxt_sp_task(struct work_struct *work)
@@ -5685,7 +5679,7 @@ static void bnxt_sp_task(struct work_struct *work)
 	}
 
 	if (test_and_clear_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event))
-		bnxt_port_module_event(bp);
+		bnxt_get_port_module_status(bp);
 
 	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event))
 		bnxt_hwrm_port_qstats(bp);
