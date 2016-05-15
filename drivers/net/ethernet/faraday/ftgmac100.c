@@ -937,23 +937,11 @@ static void ftgmac100_get_drvinfo(struct net_device *netdev,
 	strlcpy(info->bus_info, dev_name(&netdev->dev), sizeof(info->bus_info));
 }
 
-static int ftgmac100_get_settings(struct net_device *netdev,
-				  struct ethtool_cmd *cmd)
-{
-	return phy_ethtool_gset(netdev->phydev, cmd);
-}
-
-static int ftgmac100_set_settings(struct net_device *netdev,
-				  struct ethtool_cmd *cmd)
-{
-	return phy_ethtool_sset(netdev->phydev, cmd);
-}
-
 static const struct ethtool_ops ftgmac100_ethtool_ops = {
-	.set_settings		= ftgmac100_set_settings,
-	.get_settings		= ftgmac100_get_settings,
 	.get_drvinfo		= ftgmac100_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
 /******************************************************************************
