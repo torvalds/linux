@@ -773,7 +773,7 @@ static int timesync_get_last_event(struct gb_host_device *hd, u64 *frame_time)
 	int retval;
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct usb_device *udev = es2->usb_dev;
-	u64 *response_frame_time;
+	__le64 *response_frame_time;
 
 	response_frame_time = kzalloc(sizeof(*response_frame_time), GFP_KERNEL);
 	if (!response_frame_time)
