@@ -934,6 +934,13 @@ bottom_of_search_loop:
 		 adapter->flags & I40EVF_FLAG_PROMISC_ON)
 		adapter->aq_required |= I40EVF_FLAG_AQ_RELEASE_PROMISC;
 
+	if (netdev->flags & IFF_ALLMULTI &&
+	    !(adapter->flags & I40EVF_FLAG_ALLMULTI_ON))
+		adapter->aq_required |= I40EVF_FLAG_AQ_REQUEST_ALLMULTI;
+	else if (!(netdev->flags & IFF_ALLMULTI) &&
+		 adapter->flags & I40EVF_FLAG_ALLMULTI_ON)
+		adapter->aq_required |= I40EVF_FLAG_AQ_RELEASE_ALLMULTI;
+
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 }
 
@@ -1612,7 +1619,13 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		goto watchdog_done;
 	}
 
-	if (adapter->aq_required & I40EVF_FLAG_AQ_RELEASE_PROMISC) {
+	if (adapter->aq_required & I40EVF_FLAG_AQ_REQUEST_ALLMULTI) {
+		i40evf_set_promiscuous(adapter, I40E_FLAG_VF_MULTICAST_PROMISC);
+		goto watchdog_done;
+	}
+
+	if ((adapter->aq_required & I40EVF_FLAG_AQ_RELEASE_PROMISC) &&
+	    (adapter->aq_required & I40EVF_FLAG_AQ_RELEASE_ALLMULTI)) {
 		i40evf_set_promiscuous(adapter, 0);
 		goto watchdog_done;
 	}

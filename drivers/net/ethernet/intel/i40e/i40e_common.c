@@ -696,7 +696,7 @@ struct i40e_rx_ptype_decoded i40e_ptype_lookup[] = {
 	/* Non Tunneled IPv6 */
 	I40E_PTT(88, IP, IPV6, FRG, NONE, NONE, NOF, NONE, PAY3),
 	I40E_PTT(89, IP, IPV6, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY3),
+	I40E_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(91),
 	I40E_PTT(92, IP, IPV6, NOF, NONE, NONE, NOF, TCP,  PAY4),
 	I40E_PTT(93, IP, IPV6, NOF, NONE, NONE, NOF, SCTP, PAY4),
@@ -1972,10 +1972,12 @@ aq_add_vsi_exit:
  * @seid: vsi number
  * @set: set unicast promiscuous enable/disable
  * @cmd_details: pointer to command details structure or NULL
+ * @rx_only_promisc: flag to decide if egress traffic gets mirrored in promisc
  **/
 i40e_status i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 				u16 seid, bool set,
-				struct i40e_asq_cmd_details *cmd_details)
+				struct i40e_asq_cmd_details *cmd_details,
+				bool rx_only_promisc)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_set_vsi_promiscuous_modes *cmd =
@@ -1988,8 +1990,9 @@ i40e_status i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 
 	if (set) {
 		flags |= I40E_AQC_SET_VSI_PROMISC_UNICAST;
-		if (((hw->aq.api_maj_ver == 1) && (hw->aq.api_min_ver >= 5)) ||
-		    (hw->aq.api_maj_ver > 1))
+		if (rx_only_promisc &&
+		    (((hw->aq.api_maj_ver == 1) && (hw->aq.api_min_ver >= 5)) ||
+		     (hw->aq.api_maj_ver > 1)))
 			flags |= I40E_AQC_SET_VSI_PROMISC_TX;
 	}
 
@@ -2278,6 +2281,35 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
 
 	status = i40e_asq_send_command(hw, &desc, buf, buf_size, cmd_details);
 	*start_seid = le16_to_cpu(scfg->seid);
+
+	return status;
+}
+
+/**
+ * i40e_aq_set_switch_config
+ * @hw: pointer to the hardware structure
+ * @flags: bit flag values to set
+ * @valid_flags: which bit flags to set
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Set switch configuration bits
+ **/
+enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
+						u16 flags,
+						u16 valid_flags,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_set_switch_config *scfg =
+		(struct i40e_aqc_set_switch_config *)&desc.params.raw;
+	enum i40e_status_code status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_switch_config);
+	scfg->flags = cpu_to_le16(flags);
+	scfg->valid_flags = cpu_to_le16(valid_flags);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	return status;
 }

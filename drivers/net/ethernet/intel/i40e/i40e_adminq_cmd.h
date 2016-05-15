@@ -1833,7 +1833,10 @@ struct i40e_aqc_set_phy_debug {
 #define I40E_AQ_PHY_DEBUG_RESET_EXTERNAL_NONE	0x00
 #define I40E_AQ_PHY_DEBUG_RESET_EXTERNAL_HARD	0x01
 #define I40E_AQ_PHY_DEBUG_RESET_EXTERNAL_SOFT	0x02
+/* Disable link manageability on a single port */
 #define I40E_AQ_PHY_DEBUG_DISABLE_LINK_FW	0x10
+/* Disable link manageability on all ports */
+#define I40E_AQ_PHY_DEBUG_DISABLE_ALL_LINK_FW	0x20
 	u8	reserved[15];
 };
 

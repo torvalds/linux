@@ -289,9 +289,7 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 		rd32(hw, I40E_PRTTSYN_RXTIME_H(3));
 		pf->last_rx_ptp_check = jiffies;
 		pf->rx_hwtstamp_cleared++;
-		dev_warn(&vsi->back->pdev->dev,
-			 "%s: clearing Rx timestamp hang\n",
-			 __func__);
+		WARN_ONCE(1, "Detected Rx timestamp register hang\n");
 	}
 }
 

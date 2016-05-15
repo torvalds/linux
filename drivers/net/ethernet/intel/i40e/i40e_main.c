@@ -46,7 +46,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 5
-#define DRV_VERSION_BUILD 10
+#define DRV_VERSION_BUILD 16
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -2128,7 +2128,8 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			aq_ret = i40e_aq_set_vsi_unicast_promiscuous(
 							  &vsi->back->hw,
 							  vsi->seid,
-							  cur_promisc, NULL);
+							  cur_promisc, NULL,
+							  true);
 			if (aq_ret) {
 				retval =
 				i40e_aq_rc_to_posix(aq_ret,
@@ -9361,7 +9362,8 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 			ctxt.info.valid_sections |=
 				cpu_to_le16(I40E_AQ_VSI_PROP_QUEUE_OPT_VALID);
 			ctxt.info.queueing_opt_flags |=
-						I40E_AQ_VSI_QUE_OPT_TCP_ENA;
+				(I40E_AQ_VSI_QUE_OPT_TCP_ENA |
+				 I40E_AQ_VSI_QUE_OPT_RSS_LUT_VSI);
 		}
 
 		ctxt.info.valid_sections |= cpu_to_le16(I40E_AQ_VSI_PROP_VLAN_VALID);
@@ -10407,6 +10409,7 @@ int i40e_fetch_switch_configuration(struct i40e_pf *pf, bool printconfig)
  **/
 static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 {
+	u16 flags = 0;
 	int ret;
 
 	/* find out what's out there already */
@@ -10419,6 +10422,32 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 		return ret;
 	}
 	i40e_pf_reset_stats(pf);
+
+	/* set the switch config bit for the whole device to
+	 * support limited promisc or true promisc
+	 * when user requests promisc. The default is limited
+	 * promisc.
+	*/
+
+	if ((pf->hw.pf_id == 0) &&
+	    !(pf->flags & I40E_FLAG_TRUE_PROMISC_SUPPORT))
+		flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
+
+	if (pf->hw.pf_id == 0) {
+		u16 valid_flags;
+
+		valid_flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
+		ret = i40e_aq_set_switch_config(&pf->hw, flags, valid_flags,
+						NULL);
+		if (ret && pf->hw.aq.asq_last_status != I40E_AQ_RC_ESRCH) {
+			dev_info(&pf->pdev->dev,
+				 "couldn't set switch config bits, err %s aq_err %s\n",
+				 i40e_stat_str(&pf->hw, ret),
+				 i40e_aq_str(&pf->hw,
+					     pf->hw.aq.asq_last_status));
+			/* not a fatal problem, just keep going */
+		}
+	}
 
 	/* first time setup */
 	if (pf->lan_vsi == I40E_NO_VSI || reinit) {

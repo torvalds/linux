@@ -97,11 +97,12 @@
 #define I40E_INT_NAME_STR_LEN        (IFNAMSIZ + 16)
 
 /* Ethtool Private Flags */
-#define I40E_PRIV_FLAGS_NPAR_FLAG	BIT(0)
-#define I40E_PRIV_FLAGS_LINKPOLL_FLAG	BIT(1)
-#define I40E_PRIV_FLAGS_FD_ATR		BIT(2)
-#define I40E_PRIV_FLAGS_VEB_STATS	BIT(3)
-#define I40E_PRIV_FLAGS_HW_ATR_EVICT	BIT(5)
+#define	I40E_PRIV_FLAGS_MFP_FLAG		BIT(0)
+#define	I40E_PRIV_FLAGS_LINKPOLL_FLAG		BIT(1)
+#define I40E_PRIV_FLAGS_FD_ATR			BIT(2)
+#define I40E_PRIV_FLAGS_VEB_STATS		BIT(3)
+#define I40E_PRIV_FLAGS_HW_ATR_EVICT		BIT(4)
+#define I40E_PRIV_FLAGS_TRUE_PROMISC_SUPPORT	BIT(5)
 
 #define I40E_NVM_VERSION_LO_SHIFT  0
 #define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
@@ -111,7 +112,9 @@
 #define I40E_OEM_VER_PATCH_MASK    0xff
 #define I40E_OEM_VER_BUILD_SHIFT   8
 #define I40E_OEM_VER_SHIFT         24
-#define I40E_PHY_DEBUG_PORT        BIT(4)
+#define I40E_PHY_DEBUG_ALL \
+	(I40E_AQ_PHY_DEBUG_DISABLE_LINK_FW | \
+	I40E_AQ_PHY_DEBUG_DISABLE_ALL_LINK_FW)
 
 /* The values in here are decimal coded as hex as is the case in the NVM map*/
 #define I40E_CURRENT_NVM_VERSION_HI 0x2
@@ -356,6 +359,7 @@ struct i40e_pf {
 #define I40E_FLAG_STOP_FW_LLDP			BIT_ULL(47)
 #define I40E_FLAG_HAVE_10GBASET_PHY		BIT_ULL(48)
 #define I40E_FLAG_PF_MAC			BIT_ULL(50)
+#define I40E_FLAG_TRUE_PROMISC_SUPPORT		BIT_ULL(51)
 
 	/* tracks features that get auto disabled by errors */
 	u64 auto_disable_flags;
