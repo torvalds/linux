@@ -806,9 +806,51 @@ static int qed_iov_init_hw_for_vf(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+static void qed_iov_set_link(struct qed_hwfn *p_hwfn,
+			     u16 vfid,
+			     struct qed_mcp_link_params *params,
+			     struct qed_mcp_link_state *link,
+			     struct qed_mcp_link_capabilities *p_caps)
+{
+	struct qed_vf_info *p_vf = qed_iov_get_vf_info(p_hwfn,
+						       vfid,
+						       false);
+	struct qed_bulletin_content *p_bulletin;
+
+	if (!p_vf)
+		return;
+
+	p_bulletin = p_vf->bulletin.p_virt;
+	p_bulletin->req_autoneg = params->speed.autoneg;
+	p_bulletin->req_adv_speed = params->speed.advertised_speeds;
+	p_bulletin->req_forced_speed = params->speed.forced_speed;
+	p_bulletin->req_autoneg_pause = params->pause.autoneg;
+	p_bulletin->req_forced_rx = params->pause.forced_rx;
+	p_bulletin->req_forced_tx = params->pause.forced_tx;
+	p_bulletin->req_loopback = params->loopback_mode;
+
+	p_bulletin->link_up = link->link_up;
+	p_bulletin->speed = link->speed;
+	p_bulletin->full_duplex = link->full_duplex;
+	p_bulletin->autoneg = link->an;
+	p_bulletin->autoneg_complete = link->an_complete;
+	p_bulletin->parallel_detection = link->parallel_detection;
+	p_bulletin->pfc_enabled = link->pfc_enabled;
+	p_bulletin->partner_adv_speed = link->partner_adv_speed;
+	p_bulletin->partner_tx_flow_ctrl_en = link->partner_tx_flow_ctrl_en;
+	p_bulletin->partner_rx_flow_ctrl_en = link->partner_rx_flow_ctrl_en;
+	p_bulletin->partner_adv_pause = link->partner_adv_pause;
+	p_bulletin->sfp_tx_fault = link->sfp_tx_fault;
+
+	p_bulletin->capability_speed = p_caps->speed_capabilities;
+}
+
 static int qed_iov_release_hw_for_vf(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt, u16 rel_vf_id)
 {
+	struct qed_mcp_link_capabilities caps;
+	struct qed_mcp_link_params params;
+	struct qed_mcp_link_state link;
 	struct qed_vf_info *vf = NULL;
 	int rc = 0;
 
@@ -822,6 +864,15 @@ static int qed_iov_release_hw_for_vf(struct qed_hwfn *p_hwfn,
 		memset(vf->bulletin.p_virt, 0, sizeof(*vf->bulletin.p_virt));
 
 	memset(&vf->p_vf_info, 0, sizeof(vf->p_vf_info));
+
+	/* Get the link configuration back in bulletin so
+	 * that when VFs are re-enabled they get the actual
+	 * link configuration.
+	 */
+	memcpy(&params, qed_mcp_get_link_params(p_hwfn), sizeof(params));
+	memcpy(&link, qed_mcp_get_link_state(p_hwfn), sizeof(link));
+	memcpy(&caps, qed_mcp_get_link_capabilities(p_hwfn), sizeof(caps));
+	qed_iov_set_link(p_hwfn, rel_vf_id, &params, &link, &caps);
 
 	if (vf->state != VF_STOPPED) {
 		/* Stopping the VF */
@@ -2540,45 +2591,6 @@ int qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
 	}
 
 	return found;
-}
-
-void qed_iov_set_link(struct qed_hwfn *p_hwfn,
-		      u16 vfid,
-		      struct qed_mcp_link_params *params,
-		      struct qed_mcp_link_state *link,
-		      struct qed_mcp_link_capabilities *p_caps)
-{
-	struct qed_vf_info *p_vf = qed_iov_get_vf_info(p_hwfn,
-						       vfid,
-						       false);
-	struct qed_bulletin_content *p_bulletin;
-
-	if (!p_vf)
-		return;
-
-	p_bulletin = p_vf->bulletin.p_virt;
-	p_bulletin->req_autoneg = params->speed.autoneg;
-	p_bulletin->req_adv_speed = params->speed.advertised_speeds;
-	p_bulletin->req_forced_speed = params->speed.forced_speed;
-	p_bulletin->req_autoneg_pause = params->pause.autoneg;
-	p_bulletin->req_forced_rx = params->pause.forced_rx;
-	p_bulletin->req_forced_tx = params->pause.forced_tx;
-	p_bulletin->req_loopback = params->loopback_mode;
-
-	p_bulletin->link_up = link->link_up;
-	p_bulletin->speed = link->speed;
-	p_bulletin->full_duplex = link->full_duplex;
-	p_bulletin->autoneg = link->an;
-	p_bulletin->autoneg_complete = link->an_complete;
-	p_bulletin->parallel_detection = link->parallel_detection;
-	p_bulletin->pfc_enabled = link->pfc_enabled;
-	p_bulletin->partner_adv_speed = link->partner_adv_speed;
-	p_bulletin->partner_tx_flow_ctrl_en = link->partner_tx_flow_ctrl_en;
-	p_bulletin->partner_rx_flow_ctrl_en = link->partner_rx_flow_ctrl_en;
-	p_bulletin->partner_adv_pause = link->partner_adv_pause;
-	p_bulletin->sfp_tx_fault = link->sfp_tx_fault;
-
-	p_bulletin->capability_speed = p_caps->speed_capabilities;
 }
 
 static void qed_iov_get_link(struct qed_hwfn *p_hwfn,
