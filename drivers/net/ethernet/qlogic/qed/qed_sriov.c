@@ -476,12 +476,12 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 static bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
 {
 	/* Check PF supports sriov */
-	if (!IS_QED_SRIOV(p_hwfn->cdev) || !IS_PF_SRIOV_ALLOC(p_hwfn))
+	if (IS_VF(p_hwfn->cdev) || !IS_QED_SRIOV(p_hwfn->cdev) ||
+	    !IS_PF_SRIOV_ALLOC(p_hwfn))
 		return false;
 
 	/* Check VF validity */
-	if (IS_VF(p_hwfn->cdev) || !IS_QED_SRIOV(p_hwfn->cdev) ||
-	    !IS_PF_SRIOV_ALLOC(p_hwfn))
+	if (!qed_iov_is_valid_vfid(p_hwfn, vfid, true))
 		return false;
 
 	return true;
