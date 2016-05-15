@@ -188,10 +188,9 @@ static void gfar_gdrvinfo(struct net_device *dev,
 static int gfar_set_ksettings(struct net_device *dev,
 			      const struct ethtool_link_ksettings *cmd)
 {
-	struct gfar_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 
-	if (NULL == phydev)
+	if (!phydev)
 		return -ENODEV;
 
 	return phy_ethtool_ksettings_set(phydev, cmd);
@@ -200,10 +199,9 @@ static int gfar_set_ksettings(struct net_device *dev,
 static int gfar_get_ksettings(struct net_device *dev,
 			      struct ethtool_link_ksettings *cmd)
 {
-	struct gfar_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 
-	if (NULL == phydev)
+	if (!phydev)
 		return -ENODEV;
 
 	return phy_ethtool_ksettings_get(phydev, cmd);
@@ -233,10 +231,12 @@ static void gfar_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 static unsigned int gfar_usecs2ticks(struct gfar_private *priv,
 				     unsigned int usecs)
 {
+	struct net_device *ndev = priv->ndev;
+	struct phy_device *phydev = ndev->phydev;
 	unsigned int count;
 
 	/* The timer is different, depending on the interface speed */
-	switch (priv->phydev->speed) {
+	switch (phydev->speed) {
 	case SPEED_1000:
 		count = GFAR_GBIT_TIME;
 		break;
@@ -258,10 +258,12 @@ static unsigned int gfar_usecs2ticks(struct gfar_private *priv,
 static unsigned int gfar_ticks2usecs(struct gfar_private *priv,
 				     unsigned int ticks)
 {
+	struct net_device *ndev = priv->ndev;
+	struct phy_device *phydev = ndev->phydev;
 	unsigned int count;
 
 	/* The timer is different, depending on the interface speed */
-	switch (priv->phydev->speed) {
+	switch (phydev->speed) {
 	case SPEED_1000:
 		count = GFAR_GBIT_TIME;
 		break;
@@ -295,7 +297,7 @@ static int gfar_gcoalesce(struct net_device *dev,
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
-	if (NULL == priv->phydev)
+	if (!dev->phydev)
 		return -ENODEV;
 
 	rx_queue = priv->rx_queue[0];
@@ -356,7 +358,7 @@ static int gfar_scoalesce(struct net_device *dev,
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
-	if (NULL == priv->phydev)
+	if (!dev->phydev)
 		return -ENODEV;
 
 	/* Check the bounds of the values */
@@ -520,7 +522,7 @@ static int gfar_spauseparam(struct net_device *dev,
 			    struct ethtool_pauseparam *epause)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 oldadv, newadv;
 
