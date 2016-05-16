@@ -938,10 +938,12 @@ static struct cs_etm_queue *cs_etm__cpu_to_etmq(struct cs_etm_auxtrace *etm,
 {
         unsigned q,j;
 
-        if (/*(cpu < 0) ||*/ (0 == etm->queues.nr_queues))
+        if (etm->queues.nr_queues == 0)
                 return NULL;
 
-        if ((unsigned) cpu >= etm->queues.nr_queues)
+	if (cpu < 0)
+		q = 0;
+        else if ((unsigned) cpu >= etm->queues.nr_queues)
                 q = etm->queues.nr_queues - 1;
         else 
                 q = cpu;
