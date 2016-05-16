@@ -145,7 +145,7 @@ static const u32 polaris10_golden_settings_a11[] =
 {
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
 	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
-	mmFBC_MISC, 0x9f313fff, 0x14300008,
+	mmFBC_MISC, 0x9f313fff, 0x14302008,
 	mmHDMI_CONTROL, 0x313f031f, 0x00000011,
 };
 

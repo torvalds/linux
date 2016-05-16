@@ -296,6 +296,7 @@ static const u32 polaris11_golden_common_all[] =
 static const u32 golden_settings_polaris10_a11[] =
 {
 	mmATC_MISC_CG, 0x000c0fc0, 0x000c0200,
+	mmCB_HW_CONTROL, 0xfffdf3cf, 0x00006208,
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
 	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
