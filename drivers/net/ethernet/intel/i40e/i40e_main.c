@@ -1579,14 +1579,8 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	vsi->tc_config.numtc = numtc;
 	vsi->tc_config.enabled_tc = enabled_tc ? enabled_tc : 1;
 	/* Number of queues per enabled TC */
-	/* In MFP case we can have a much lower count of MSIx
-	 * vectors available and so we need to lower the used
-	 * q count.
-	 */
-	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
-		qcount = min_t(int, vsi->alloc_queue_pairs, pf->num_lan_msix);
-	else
-		qcount = vsi->alloc_queue_pairs;
+	qcount = vsi->alloc_queue_pairs;
+
 	num_tc_qps = qcount / numtc;
 	num_tc_qps = min_t(int, num_tc_qps, i40e_pf_get_max_q_per_tc(pf));
 
