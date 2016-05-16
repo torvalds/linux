@@ -15,7 +15,11 @@
 #define UNCORE_PMC_IDX_FIXED		UNCORE_PMC_IDX_MAX_GENERIC
 #define UNCORE_PMC_IDX_MAX		(UNCORE_PMC_IDX_FIXED + 1)
 
+#define UNCORE_PCI_DEV_FULL_DATA(dev, func, type, idx)	\
+		((dev << 24) | (func << 16) | (type << 8) | idx)
 #define UNCORE_PCI_DEV_DATA(type, idx)	((type << 8) | idx)
+#define UNCORE_PCI_DEV_DEV(data)	((data >> 24) & 0xff)
+#define UNCORE_PCI_DEV_FUNC(data)	((data >> 16) & 0xff)
 #define UNCORE_PCI_DEV_TYPE(data)	((data >> 8) & 0xff)
 #define UNCORE_PCI_DEV_IDX(data)	(data & 0xff)
 #define UNCORE_EXTRA_PCI_DEV		0xff

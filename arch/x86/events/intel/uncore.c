@@ -882,7 +882,7 @@ uncore_types_init(struct intel_uncore_type **types, bool setid)
 static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct intel_uncore_type *type;
-	struct intel_uncore_pmu *pmu;
+	struct intel_uncore_pmu *pmu = NULL;
 	struct intel_uncore_box *box;
 	int phys_id, pkg, ret;
 
@@ -903,20 +903,37 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	}
 
 	type = uncore_pci_uncores[UNCORE_PCI_DEV_TYPE(id->driver_data)];
+
 	/*
-	 * for performance monitoring unit with multiple boxes,
-	 * each box has a different function id.
+	 * Some platforms, e.g.  Knights Landing, use a common PCI device ID
+	 * for multiple instances of an uncore PMU device type. We should check
+	 * PCI slot and func to indicate the uncore box.
 	 */
-	pmu = &type->pmus[UNCORE_PCI_DEV_IDX(id->driver_data)];
-	/* Knights Landing uses a common PCI device ID for multiple instances of
-	 * an uncore PMU device type. There is only one entry per device type in
-	 * the knl_uncore_pci_ids table inspite of multiple devices present for
-	 * some device types. Hence PCI device idx would be 0 for all devices.
-	 * So increment pmu pointer to point to an unused array element.
-	 */
-	if (boot_cpu_data.x86_model == 87) {
-		while (pmu->func_id >= 0)
-			pmu++;
+	if (id->driver_data & ~0xffff) {
+		struct pci_driver *pci_drv = pdev->driver;
+		const struct pci_device_id *ids = pci_drv->id_table;
+		unsigned int devfn;
+
+		while (ids && ids->vendor) {
+			if ((ids->vendor == pdev->vendor) &&
+			    (ids->device == pdev->device)) {
+				devfn = PCI_DEVFN(UNCORE_PCI_DEV_DEV(ids->driver_data),
+						  UNCORE_PCI_DEV_FUNC(ids->driver_data));
+				if (devfn == pdev->devfn) {
+					pmu = &type->pmus[UNCORE_PCI_DEV_IDX(ids->driver_data)];
+					break;
+				}
+			}
+			ids++;
+		}
+		if (pmu == NULL)
+			return -ENODEV;
+	} else {
+		/*
+		 * for performance monitoring unit with multiple boxes,
+		 * each box has a different function id.
+		 */
+		pmu = &type->pmus[UNCORE_PCI_DEV_IDX(id->driver_data)];
 	}
 
 	if (WARN_ON_ONCE(pmu->boxes[pkg] != NULL))
