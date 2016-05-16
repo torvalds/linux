@@ -653,7 +653,7 @@ MODULE_DEVICE_TABLE(of, mac_match);
 
 static int mac_probe(struct platform_device *_of_dev)
 {
-	int			 err, i, lenp, nph;
+	int			 err, i, nph;
 	struct device		*dev;
 	struct device_node	*mac_node, *dev_node;
 	struct mac_device	*mac_dev;
@@ -661,7 +661,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	struct resource		 res;
 	struct mac_priv_s	*priv;
 	const u8		*mac_addr;
-	const u32		*u32_prop;
+	u32			 val;
 	u8			fman_id;
 
 	dev = &_of_dev->dev;
@@ -723,16 +723,15 @@ static int mac_probe(struct platform_device *_of_dev)
 	}
 
 	/* Get the FMan cell-index */
-	u32_prop = of_get_property(dev_node, "cell-index", &lenp);
-	if (!u32_prop) {
-		dev_err(dev, "of_get_property(%s, cell-index) failed\n",
+	err = of_property_read_u32(dev_node, "cell-index", &val);
+	if (err) {
+		dev_err(dev, "failed to read cell-index for %s\n",
 			dev_node->full_name);
 		err = -EINVAL;
 		goto _return_of_node_put;
 	}
-	WARN_ON(lenp != sizeof(u32));
 	/* cell-index 0 => FMan id 1 */
-	fman_id = (u8)(fdt32_to_cpu(u32_prop[0]) + 1);
+	fman_id = (u8)(val + 1);
 
 	priv->fman = fman_bind(&of_dev->dev);
 	if (!priv->fman) {
@@ -779,15 +778,14 @@ static int mac_probe(struct platform_device *_of_dev)
 	}
 
 	/* Get the cell-index */
-	u32_prop = of_get_property(mac_node, "cell-index", &lenp);
-	if (!u32_prop) {
-		dev_err(dev, "of_get_property(%s, cell-index) failed\n",
+	err = of_property_read_u32(mac_node, "cell-index", &val);
+	if (err) {
+		dev_err(dev, "failed to read cell-index for %s\n",
 			mac_node->full_name);
 		err = -EINVAL;
 		goto _return_dev_set_drvdata;
 	}
-	WARN_ON(lenp != sizeof(u32));
-	priv->cell_index = (u8)fdt32_to_cpu(u32_prop[0]);
+	priv->cell_index = (u8)val;
 
 	/* Get the MAC address */
 	mac_addr = of_get_mac_address(mac_node);
@@ -847,7 +845,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	priv->phy_if = of_get_phy_mode(mac_node);
 	if (priv->phy_if < 0) {
 		dev_warn(dev,
-			 "of_get_property(%s, phy-connection-type) failed. Defaulting to MII\n",
+			 "of_get_phy_mode() for %s failed. Defaulting to MII\n",
 			 mac_node->full_name);
 		priv->phy_if = PHY_INTERFACE_MODE_MII;
 	}

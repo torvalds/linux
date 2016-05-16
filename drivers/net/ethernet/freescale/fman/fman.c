@@ -2737,8 +2737,8 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	struct fman *fman;
 	struct device_node *fm_node, *muram_node;
 	struct resource *res;
-	const u32 *u32_prop;
-	int lenp, err, irq;
+	u32 val, range[2];
+	int err, irq;
 	struct clk *clk;
 	u32 clk_rate;
 	phys_addr_t phys_base_addr;
@@ -2750,16 +2750,13 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 
 	fm_node = of_node_get(of_dev->dev.of_node);
 
-	u32_prop = (const u32 *)of_get_property(fm_node, "cell-index", &lenp);
-	if (!u32_prop) {
-		dev_err(&of_dev->dev, "%s: of_get_property(%s, cell-index) failed\n",
+	err = of_property_read_u32(fm_node, "cell-index", &val);
+	if (err) {
+		dev_err(&of_dev->dev, "%s: failed to read cell-index for %s\n",
 			__func__, fm_node->full_name);
 		goto fman_node_put;
 	}
-	if (WARN_ON(lenp != sizeof(u32)))
-		goto fman_node_put;
-
-	fman->dts_params.id = (u8)fdt32_to_cpu(u32_prop[0]);
+	fman->dts_params.id = (u8)val;
 
 	/* Get the FM interrupt */
 	res = platform_get_resource(of_dev, IORESOURCE_IRQ, 0);
@@ -2806,18 +2803,15 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	/* Rounding to MHz */
 	fman->dts_params.clk_freq = DIV_ROUND_UP(clk_rate, 1000000);
 
-	u32_prop = (const u32 *)of_get_property(fm_node,
-						"fsl,qman-channel-range",
-						&lenp);
-	if (!u32_prop) {
-		dev_err(&of_dev->dev, "%s: of_get_property(%s, fsl,qman-channel-range) failed\n",
+	err = of_property_read_u32_array(fm_node, "fsl,qman-channel-range",
+					 &range[0], 2);
+	if (err) {
+		dev_err(&of_dev->dev, "%s: failed to read fsl,qman-channel-range for %s\n",
 			__func__, fm_node->full_name);
 		goto fman_node_put;
 	}
-	if (WARN_ON(lenp != sizeof(u32) * 2))
-		goto fman_node_put;
-	fman->dts_params.qman_channel_base = fdt32_to_cpu(u32_prop[0]);
-	fman->dts_params.num_of_qman_channels = fdt32_to_cpu(u32_prop[1]);
+	fman->dts_params.qman_channel_base = range[0];
+	fman->dts_params.num_of_qman_channels = range[1];
 
 	/* Get the MURAM base address and size */
 	muram_node = of_find_matching_node(fm_node, fman_muram_match);

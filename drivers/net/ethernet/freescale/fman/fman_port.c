@@ -1625,7 +1625,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 	struct device_node *fm_node, *port_node;
 	struct resource res;
 	struct resource *dev_res;
-	const u32 *u32_prop;
+	u32 val;
 	int err = 0, lenp;
 	enum fman_port_type port_type;
 	u16 port_speed;
@@ -1654,28 +1654,20 @@ static int fman_port_probe(struct platform_device *of_dev)
 		goto return_err;
 	}
 
-	u32_prop = (const u32 *)of_get_property(port_node, "cell-index", &lenp);
-	if (!u32_prop) {
-		dev_err(port->dev, "%s: of_get_property(%s, cell-index) failed\n",
+	err = of_property_read_u32(port_node, "cell-index", &val);
+	if (err) {
+		dev_err(port->dev, "%s: reading cell-index for %s failed\n",
 			__func__, port_node->full_name);
 		err = -EINVAL;
 		goto return_err;
 	}
-	if (WARN_ON(lenp != sizeof(u32))) {
-		err = -EINVAL;
-		goto return_err;
-	}
-	port_id = (u8)fdt32_to_cpu(u32_prop[0]);
-
+	port_id = (u8)val;
 	port->dts_params.id = port_id;
 
 	if (of_device_is_compatible(port_node, "fsl,fman-v3-port-tx")) {
 		port_type = FMAN_PORT_TYPE_TX;
 		port_speed = 1000;
-		u32_prop = (const u32 *)of_get_property(port_node,
-							"fsl,fman-10g-port",
-							&lenp);
-		if (u32_prop)
+		if (of_find_property(port_node, "fsl,fman-10g-port", &lenp))
 			port_speed = 10000;
 
 	} else if (of_device_is_compatible(port_node, "fsl,fman-v2-port-tx")) {
@@ -1688,9 +1680,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 	} else if (of_device_is_compatible(port_node, "fsl,fman-v3-port-rx")) {
 		port_type = FMAN_PORT_TYPE_RX;
 		port_speed = 1000;
-		u32_prop = (const u32 *)of_get_property(port_node,
-						  "fsl,fman-10g-port", &lenp);
-		if (u32_prop)
+		if (of_find_property(port_node, "fsl,fman-10g-port", &lenp))
 			port_speed = 10000;
 
 	} else if (of_device_is_compatible(port_node, "fsl,fman-v2-port-rx")) {
