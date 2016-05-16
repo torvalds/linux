@@ -77,8 +77,11 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 			u32 value);
 int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
 			       u8 tx_mode, u8 tx_gear, u8 tx_nlanes,
+			       u8 tx_amplitude, u8 tx_hs_equalizer,
 			       u8 rx_mode, u8 rx_gear, u8 rx_nlanes,
-			       u8 flags, u32 quirks);
+			       u8 flags, u32 quirks,
+			       struct gb_svc_l2_timer_cfg *local,
+			       struct gb_svc_l2_timer_cfg *remote);
 int gb_svc_ping(struct gb_svc *svc);
 int gb_svc_watchdog_create(struct gb_svc *svc);
 void gb_svc_watchdog_destroy(struct gb_svc *svc);
