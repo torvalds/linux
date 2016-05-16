@@ -1,8 +1,8 @@
 /*
  * Greybus Firmware Management User Header
  *
- * This file is provided under the GPLv2 license.  When using or
- * redistributing this file, you may do so under that license.
+ * This file is provided under a dual BSD/GPLv2 license.  When using or
+ * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
  *
@@ -17,6 +17,26 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License version 2 for more details.
+ *
+ * BSD LICENSE
+ *
+ * Copyright(c) 2016 Google Inc. All rights reserved.
+ * Copyright(c) 2016 Linaro Ltd. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *  * Neither the name of Google Inc. or Linaro Ltd. nor the names of
+ *    its contributors may be used to endorse or promote products
+ *    derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
