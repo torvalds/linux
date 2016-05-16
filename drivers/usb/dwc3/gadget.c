@@ -2695,6 +2695,17 @@ static void dwc3_gadget_linksts_change_interrupt(struct dwc3 *dwc,
 	dwc->link_state = next;
 }
 
+static void dwc3_gadget_suspend_interrupt(struct dwc3 *dwc,
+					  unsigned int evtinfo)
+{
+	enum dwc3_link_state next = evtinfo & DWC3_LINK_STATE_MASK;
+
+	if (dwc->link_state != next && next == DWC3_LINK_STATE_U3)
+		dwc3_suspend_gadget(dwc);
+
+	dwc->link_state = next;
+}
+
 static void dwc3_gadget_hibernation_interrupt(struct dwc3 *dwc,
 		unsigned int evtinfo)
 {
@@ -2746,7 +2757,20 @@ static void dwc3_gadget_interrupt(struct dwc3 *dwc,
 		dwc3_gadget_linksts_change_interrupt(dwc, event->event_info);
 		break;
 	case DWC3_DEVICE_EVENT_EOPF:
-		dwc3_trace(trace_dwc3_gadget, "End of Periodic Frame");
+		/* It changed to be suspend event for version 2.30a and above */
+		if (dwc->revision < DWC3_REVISION_230A) {
+			dwc3_trace(trace_dwc3_gadget, "End of Periodic Frame");
+		} else {
+			dwc3_trace(trace_dwc3_gadget, "U3/L1-L2 Suspend Event");
+
+			/*
+			 * Ignore suspend event until the gadget enters into
+			 * USB_STATE_CONFIGURED state.
+			 */
+			if (dwc->gadget.state >= USB_STATE_CONFIGURED)
+				dwc3_gadget_suspend_interrupt(dwc,
+						event->event_info);
+		}
 		break;
 	case DWC3_DEVICE_EVENT_SOF:
 		dwc3_trace(trace_dwc3_gadget, "Start of Periodic Frame");
