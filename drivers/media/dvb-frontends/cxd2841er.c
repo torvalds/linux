@@ -2,8 +2,8 @@
  * cxd2841er.c
  *
  * Sony digital demodulator driver for
- *	CXD2441ER - DVB-S/S2/T/T2/C/C2
- *	CXD2454ER - DVB-S/S2/T/T2/C/C2, ISDB-T/S
+ *	CXD2841ER - DVB-S/S2/T/T2/C/C2
+ *	CXD2854ER - DVB-S/S2/T/T2/C/C2, ISDB-T/S
  *
  * Copyright 2012 Sony Corporation
  * Copyright (C) 2014 NetUP Inc.
