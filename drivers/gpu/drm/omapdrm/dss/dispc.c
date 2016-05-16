@@ -2590,6 +2590,10 @@ static int dispc_ovl_setup_common(struct dispc_device *dispc,
 	unsigned long pclk = dispc_plane_pclk_rate(dispc, plane);
 	unsigned long lclk = dispc_plane_lclk_rate(dispc, plane);
 
+	/* when setting up WB, dispc_plane_pclk_rate() returns 0 */
+	if (plane == OMAP_DSS_WB)
+		pclk = vm->pixelclock;
+
 	if (paddr == 0 && rotation_type != OMAP_DSS_ROT_TILER)
 		return -EINVAL;
 
