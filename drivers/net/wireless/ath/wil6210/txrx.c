@@ -1594,7 +1594,7 @@ mem_error:
 	while (descs_used > 0) {
 		struct wil_ctx *ctx;
 
-		i = (swhead + descs_used) % vring->size;
+		i = (swhead + descs_used - 1) % vring->size;
 		d = (struct vring_tx_desc *)&vring->va[i].tx;
 		_desc = &vring->va[i].tx;
 		*d = *_desc;
