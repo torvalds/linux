@@ -202,7 +202,8 @@ char *			rpcauth_stringify_acceptor(struct rpc_cred *);
 static inline
 struct rpc_cred *	get_rpccred(struct rpc_cred *cred)
 {
-	atomic_inc(&cred->cr_count);
+	if (cred != NULL)
+		atomic_inc(&cred->cr_count);
 	return cred;
 }
 
