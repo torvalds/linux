@@ -1551,6 +1551,13 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 			     vring_index, used, used + descs_used);
 	}
 
+	/* Make sure to advance the head only after descriptor update is done.
+	 * This will prevent a race condition where the completion thread
+	 * will see the DU bit set from previous run and will handle the
+	 * skb before it was completed.
+	 */
+	wmb();
+
 	/* advance swhead */
 	wil_vring_advance_head(vring, descs_used);
 	wil_dbg_txrx(wil, "TSO: Tx swhead %d -> %d\n", swhead, vring->swhead);
@@ -1690,6 +1697,13 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
 			     vring_index, used, used + nr_frags + 1);
 	}
+
+	/* Make sure to advance the head only after descriptor update is done.
+	 * This will prevent a race condition where the completion thread
+	 * will see the DU bit set from previous run and will handle the
+	 * skb before it was completed.
+	 */
+	wmb();
 
 	/* advance swhead */
 	wil_vring_advance_head(vring, nr_frags + 1);
@@ -1914,6 +1928,12 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 				wil_consume_skb(skb, d->dma.error == 0);
 			}
 			memset(ctx, 0, sizeof(*ctx));
+			/* Make sure the ctx is zeroed before updating the tail
+			 * to prevent a case where wil_tx_vring will see
+			 * this descriptor as used and handle it before ctx zero
+			 * is completed.
+			 */
+			wmb();
 			/* There is no need to touch HW descriptor:
 			 * - ststus bit TX_DMA_STATUS_DU is set by design,
 			 *   so hardware will not try to process this desc.,
