@@ -1921,54 +1921,38 @@ config RELOCATABLE
 	  (CONFIG_PHYSICAL_START) is used as the minimum location.
 
 config RANDOMIZE_BASE
-	bool "Randomize the address of the kernel image"
+	bool "Randomize the address of the kernel image (KASLR)"
 	depends on RELOCATABLE
 	default n
 	---help---
-	   Randomizes the physical and virtual address at which the
-	   kernel image is decompressed, as a security feature that
-	   deters exploit attempts relying on knowledge of the location
-	   of kernel internals.
+	  In support of Kernel Address Space Layout Randomization (KASLR),
+	  this randomizes the physical address at which the kernel image
+	  is decompressed and the virtual address where the kernel
+	  image is mapped, as a security feature that deters exploit
+	  attempts relying on knowledge of the location of kernel
+	  code internals.
 
-	   Entropy is generated using the RDRAND instruction if it is
-	   supported. If RDTSC is supported, it is used as well. If
-	   neither RDRAND nor RDTSC are supported, then randomness is
-	   read from the i8254 timer.
+	  The kernel physical and virtual address can be randomized
+	  from 16MB up to 1GB on 64-bit and 512MB on 32-bit. (Note that
+	  using RANDOMIZE_BASE reduces the memory space available to
+	  kernel modules from 1.5GB to 1GB.)
 
-	   The kernel will be offset by up to RANDOMIZE_BASE_MAX_OFFSET,
-	   and aligned according to PHYSICAL_ALIGN. Since the kernel is
-	   built using 2GiB addressing, and PHYSICAL_ALGIN must be at a
-	   minimum of 2MiB, only 10 bits of entropy is theoretically
-	   possible. At best, due to page table layouts, 64-bit can use
-	   9 bits of entropy and 32-bit uses 8 bits.
+	  Entropy is generated using the RDRAND instruction if it is
+	  supported. If RDTSC is supported, its value is mixed into
+	  the entropy pool as well. If neither RDRAND nor RDTSC are
+	  supported, then entropy is read from the i8254 timer.
 
-	   If unsure, say N.
+	  Since the kernel is built using 2GB addressing, and
+	  PHYSICAL_ALIGN must be at a minimum of 2MB, only 10 bits of
+	  entropy is theoretically possible. Currently, with the
+	  default value for PHYSICAL_ALIGN and due to page table
+	  layouts, 64-bit uses 9 bits of entropy and 32-bit uses 8 bits.
 
-config RANDOMIZE_BASE_MAX_OFFSET
-	hex "Maximum kASLR offset allowed" if EXPERT
-	depends on RANDOMIZE_BASE
-	range 0x0 0x20000000 if X86_32
-	default "0x20000000" if X86_32
-	range 0x0 0x40000000 if X86_64
-	default "0x40000000" if X86_64
-	---help---
-	  The lesser of RANDOMIZE_BASE_MAX_OFFSET and available physical
-	  memory is used to determine the maximal offset in bytes that will
-	  be applied to the kernel when kernel Address Space Layout
-	  Randomization (kASLR) is active. This must be a multiple of
-	  PHYSICAL_ALIGN.
+	  If CONFIG_HIBERNATE is also enabled, KASLR is disabled at boot
+	  time. To enable it, boot with "kaslr" on the kernel command
+	  line (which will also disable hibernation).
 
-	  On 32-bit this is limited to 512MiB by page table layouts. The
-	  default is 512MiB.
-
-	  On 64-bit this is limited by how the kernel fixmap page table is
-	  positioned, so this cannot be larger than 1GiB currently. Without
-	  RANDOMIZE_BASE, there is a 512MiB to 1.5GiB split between kernel
-	  and modules. When RANDOMIZE_BASE_MAX_OFFSET is above 512MiB, the
-	  modules area will shrink to compensate, up to the current maximum
-	  1GiB to 1GiB split. The default is 1GiB.
-
-	  If unsure, leave at the default value.
+	  If unsure, say N.
 
 # Relocation on x86 needs some additional build support
 config X86_NEED_RELOCS
