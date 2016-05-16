@@ -151,6 +151,10 @@ enum {
 
 #define TCA_POLICE_MAX (__TCA_POLICE_MAX - 1)
 
+/* tca flags definitions */
+#define TCA_CLS_FLAGS_SKIP_HW	(1 << 0)
+#define TCA_CLS_FLAGS_SKIP_SW	(1 << 1)
+
 /* U32 filters */
 
 #define TC_U32_HTID(h) ((h)&0xFFF00000)

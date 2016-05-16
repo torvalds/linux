@@ -392,9 +392,6 @@ struct tc_cls_u32_offload {
 	};
 };
 
-/* tca flags definitions */
-#define TCA_CLS_FLAGS_SKIP_HW 1
-
 static inline bool tc_should_offload(struct net_device *dev, u32 flags)
 {
 	if (!(dev->features & NETIF_F_HW_TC))
@@ -404,6 +401,23 @@ static inline bool tc_should_offload(struct net_device *dev, u32 flags)
 		return false;
 
 	if (!dev->netdev_ops->ndo_setup_tc)
+		return false;
+
+	return true;
+}
+
+static inline bool tc_skip_sw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_SKIP_SW) ? true : false;
+}
+
+/* SKIP_HW and SKIP_SW are mutually exclusive flags. */
+static inline bool tc_flags_valid(u32 flags)
+{
+	if (flags & ~(TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW))
+		return false;
+
+	if (!(flags ^ (TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW)))
 		return false;
 
 	return true;
