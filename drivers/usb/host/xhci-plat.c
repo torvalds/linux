@@ -38,12 +38,22 @@ static const struct xhci_driver_overrides xhci_plat_overrides __initconst = {
 
 static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
+	struct usb_xhci_pdata *pdata = dev_get_platdata(dev);
+
 	/*
 	 * As of now platform drivers don't provide MSI support so we ensure
 	 * here that the generic code does not try to make a pci_dev from our
 	 * dev struct in order to setup MSI
 	 */
 	xhci->quirks |= XHCI_PLAT;
+
+	/*
+	 * On some xHCI controllers (e.g. Rockchip SoCs), it need an
+	 * extraordinary delay to wait for xHCI enter the Halted state
+	 * after the Run/Stop (R/S) bit is cleared to '0'.
+	 */
+	if (pdata && pdata->xhci_slow_suspend)
+		xhci->quirks |= XHCI_SLOW_SUSPEND;
 }
 
 /* called during probe() after chip reset completes */
