@@ -55,22 +55,22 @@
 
 /* IOCTL support */
 struct fw_mgmt_ioc_get_fw {
-	__u8			firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
-	__u16			major;
-	__u16			minor;
+	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
+	__u16 major;
+	__u16 minor;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_intf_load_and_validate {
-	__u8			firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
-	__u8			load_method;
-	__u8			status;
-	__u16			major;
-	__u16			minor;
+	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
+	__u8 load_method;
+	__u8 status;
+	__u16 major;
+	__u16 minor;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_backend_fw_update {
-	__u8			firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
-	__u8			status;
+	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_LEN];
+	__u8 status;
 } __attribute__ ((__packed__));
 
 #define FW_MGMT_IOCTL_BASE			'F'
