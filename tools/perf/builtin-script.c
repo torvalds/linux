@@ -339,7 +339,7 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
  */
 static int perf_session__check_output_opt(struct perf_session *session)
 {
-	int j;
+	unsigned int j;
 	struct perf_evsel *evsel;
 
 	for (j = 0; j < PERF_TYPE_MAX; ++j) {
@@ -388,17 +388,20 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		struct perf_event_attr *attr;
 
 		j = PERF_TYPE_TRACEPOINT;
-		evsel = perf_session__find_first_evtype(session, j);
-		if (evsel == NULL)
-			goto out;
 
-		attr = &evsel->attr;
+		evlist__for_each(session->evlist, evsel) {
+			if (evsel->attr.type != j)
+				continue;
 
-		if (attr->sample_type & PERF_SAMPLE_CALLCHAIN) {
-			output[j].fields |= PERF_OUTPUT_IP;
-			output[j].fields |= PERF_OUTPUT_SYM;
-			output[j].fields |= PERF_OUTPUT_DSO;
-			set_print_ip_opts(attr);
+			attr = &evsel->attr;
+
+			if (attr->sample_type & PERF_SAMPLE_CALLCHAIN) {
+				output[j].fields |= PERF_OUTPUT_IP;
+				output[j].fields |= PERF_OUTPUT_SYM;
+				output[j].fields |= PERF_OUTPUT_DSO;
+				set_print_ip_opts(attr);
+				goto out;
+			}
 		}
 	}
 
