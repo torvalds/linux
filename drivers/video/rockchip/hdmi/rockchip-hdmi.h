@@ -7,6 +7,7 @@
 #ifdef CONFIG_SWITCH
 #include <linux/switch.h>
 #endif
+#include <sound/pcm_params.h>
 
 #define HDMI_VIDEO_NORMAL				0
 #define HDMI_VIDEO_DMT					BIT(9)
@@ -526,4 +527,5 @@ const struct fb_videomode *hdmi_vic_to_videomode(int vic);
 const struct hdmi_video_timing *hdmi_vic2timing(int vic);
 int hdmi_config_audio(struct hdmi_audio *audio);
 int hdmi_get_hotplug(void);
+int snd_config_hdmi_audio(struct snd_pcm_hw_params *params);
 #endif
