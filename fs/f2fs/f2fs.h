@@ -808,7 +808,6 @@ struct f2fs_sb_info {
 
 	block_t user_block_count;		/* # of user blocks */
 	block_t total_valid_block_count;	/* # of valid blocks */
-	block_t alloc_valid_block_count;	/* # of allocated blocks */
 	block_t discard_blks;			/* discard command candidats */
 	block_t last_valid_block_count;		/* for recovery */
 	u32 s_next_generation;			/* for NFS support */
@@ -816,6 +815,8 @@ struct f2fs_sb_info {
 
 	/* # of pages, see count_type */
 	struct percpu_counter nr_pages[NR_COUNT_TYPE];
+	/* # of allocated blocks */
+	struct percpu_counter alloc_valid_block_count;
 
 	struct f2fs_mount_info mount_opt;	/* mount options */
 
@@ -1141,8 +1142,9 @@ static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 	inode->i_blocks += *count;
 	sbi->total_valid_block_count =
 		sbi->total_valid_block_count + (block_t)(*count);
-	sbi->alloc_valid_block_count += (block_t)(*count);
 	spin_unlock(&sbi->stat_lock);
+
+	percpu_counter_add(&sbi->alloc_valid_block_count, (*count));
 	return true;
 }
 
@@ -1292,11 +1294,11 @@ static inline bool inc_valid_node_count(struct f2fs_sb_info *sbi,
 	if (inode)
 		inode->i_blocks++;
 
-	sbi->alloc_valid_block_count++;
 	sbi->total_valid_node_count++;
 	sbi->total_valid_block_count++;
 	spin_unlock(&sbi->stat_lock);
 
+	percpu_counter_inc(&sbi->alloc_valid_block_count);
 	return true;
 }
 
