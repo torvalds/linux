@@ -357,52 +357,6 @@ struct map_lookup {
 #define map_lookup_size(n) (sizeof(struct map_lookup) + \
 			    (sizeof(struct btrfs_bio_stripe) * (n)))
 
-/*
- * Restriper's general type filter
- */
-#define BTRFS_BALANCE_DATA		(1ULL << 0)
-#define BTRFS_BALANCE_SYSTEM		(1ULL << 1)
-#define BTRFS_BALANCE_METADATA		(1ULL << 2)
-
-#define BTRFS_BALANCE_TYPE_MASK		(BTRFS_BALANCE_DATA |	    \
-					 BTRFS_BALANCE_SYSTEM |	    \
-					 BTRFS_BALANCE_METADATA)
-
-#define BTRFS_BALANCE_FORCE		(1ULL << 3)
-#define BTRFS_BALANCE_RESUME		(1ULL << 4)
-
-/*
- * Balance filters
- */
-#define BTRFS_BALANCE_ARGS_PROFILES	(1ULL << 0)
-#define BTRFS_BALANCE_ARGS_USAGE	(1ULL << 1)
-#define BTRFS_BALANCE_ARGS_DEVID	(1ULL << 2)
-#define BTRFS_BALANCE_ARGS_DRANGE	(1ULL << 3)
-#define BTRFS_BALANCE_ARGS_VRANGE	(1ULL << 4)
-#define BTRFS_BALANCE_ARGS_LIMIT	(1ULL << 5)
-#define BTRFS_BALANCE_ARGS_LIMIT_RANGE	(1ULL << 6)
-#define BTRFS_BALANCE_ARGS_STRIPES_RANGE (1ULL << 7)
-#define BTRFS_BALANCE_ARGS_USAGE_RANGE	(1ULL << 10)
-
-#define BTRFS_BALANCE_ARGS_MASK			\
-	(BTRFS_BALANCE_ARGS_PROFILES |		\
-	 BTRFS_BALANCE_ARGS_USAGE |		\
-	 BTRFS_BALANCE_ARGS_DEVID | 		\
-	 BTRFS_BALANCE_ARGS_DRANGE |		\
-	 BTRFS_BALANCE_ARGS_VRANGE |		\
-	 BTRFS_BALANCE_ARGS_LIMIT |		\
-	 BTRFS_BALANCE_ARGS_LIMIT_RANGE |	\
-	 BTRFS_BALANCE_ARGS_STRIPES_RANGE |	\
-	 BTRFS_BALANCE_ARGS_USAGE_RANGE)
-
-/*
- * Profile changing flags.  When SOFT is set we won't relocate chunk if
- * it already has the target profile (even though it may be
- * half-filled).
- */
-#define BTRFS_BALANCE_ARGS_CONVERT	(1ULL << 8)
-#define BTRFS_BALANCE_ARGS_SOFT		(1ULL << 9)
-
 struct btrfs_balance_args;
 struct btrfs_balance_progress;
 struct btrfs_balance_control {
