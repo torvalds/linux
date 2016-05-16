@@ -516,10 +516,12 @@ static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return err;
 	}
 
-	err = nlmsg_parse(nlh, crypto_msg_min[type], attrs, CRYPTOCFGA_MAX,
-			  crypto_policy);
-	if (err < 0)
-		return err;
+	if (type != (CRYPTO_MSG_GETALG - CRYPTO_MSG_BASE)) {
+		err = nlmsg_parse(nlh, crypto_msg_min[type], attrs,
+				  CRYPTOCFGA_MAX, crypto_policy);
+		if (err < 0)
+			return err;
+	}
 
 	if (link->doit == NULL)
 		return -EINVAL;
