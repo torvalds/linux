@@ -426,6 +426,7 @@ static inline bool tc_flags_valid(u32 flags)
 enum tc_fl_command {
 	TC_CLSFLOWER_REPLACE,
 	TC_CLSFLOWER_DESTROY,
+	TC_CLSFLOWER_STATS,
 };
 
 struct tc_cls_flower_offload {

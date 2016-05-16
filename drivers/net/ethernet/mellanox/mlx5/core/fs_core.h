@@ -96,6 +96,28 @@ struct mlx5_flow_table {
 	struct list_head		fwd_rules;
 };
 
+struct mlx5_fc_cache {
+	u64 packets;
+	u64 bytes;
+	u64 lastuse;
+};
+
+struct mlx5_fc {
+	struct list_head list;
+
+	/* last{packets,bytes} members are used when calculating the delta since
+	 * last reading
+	 */
+	u64 lastpackets;
+	u64 lastbytes;
+
+	u16 id;
+	bool deleted;
+	bool aging;
+
+	struct mlx5_fc_cache cache ____cacheline_aligned_in_smp;
+};
+
 /* Type of children is mlx5_flow_rule */
 struct fs_fte {
 	struct fs_node			node;
@@ -105,6 +127,7 @@ struct fs_fte {
 	u32				index;
 	u32				action;
 	enum fs_fte_status		status;
+	struct mlx5_fc			*counter;
 };
 
 /* Type of children is mlx5_flow_table/namespace */
@@ -145,6 +168,9 @@ struct mlx5_flow_root_namespace {
 	/* Should be held when chaining flow tables */
 	struct mutex			chain_lock;
 };
+
+int mlx5_init_fc_stats(struct mlx5_core_dev *dev);
+void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev);
 
 int mlx5_init_fs(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
