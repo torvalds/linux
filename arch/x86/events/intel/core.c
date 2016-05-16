@@ -186,10 +186,8 @@ static struct event_constraint intel_skl_event_constraints[] = {
 };
 
 static struct extra_reg intel_knl_extra_regs[] __read_mostly = {
-	INTEL_UEVENT_EXTRA_REG(0x01b7,
-			       MSR_OFFCORE_RSP_0, 0x7f9ffbffffull, RSP_0),
-	INTEL_UEVENT_EXTRA_REG(0x02b7,
-			       MSR_OFFCORE_RSP_1, 0x3f9ffbffffull, RSP_1),
+	INTEL_UEVENT_EXTRA_REG(0x01b7, MSR_OFFCORE_RSP_0, 0x799ffbb6e7ull, RSP_0),
+	INTEL_UEVENT_EXTRA_REG(0x02b7, MSR_OFFCORE_RSP_1, 0x399ffbffe7ull, RSP_1),
 	EVENT_EXTRA_END
 };
 
