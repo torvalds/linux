@@ -1113,33 +1113,19 @@ static int dwc3_remove(struct platform_device *pdev)
 static int dwc3_suspend(struct device *dev)
 {
 	struct dwc3	*dwc = dev_get_drvdata(dev);
-	unsigned long	flags;
-
-	spin_lock_irqsave(&dwc->lock, flags);
 
 	switch (dwc->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
 	case USB_DR_MODE_OTG:
 		dwc3_gadget_suspend(dwc);
-		/* FALLTHROUGH */
+		break;
 	case USB_DR_MODE_HOST:
 	default:
-		dwc3_event_buffers_cleanup(dwc);
+		/* do nothing */
 		break;
 	}
 
-	dwc->gctl = dwc3_readl(dwc->regs, DWC3_GCTL);
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
-	usb_phy_shutdown(dwc->usb3_phy);
-	usb_phy_shutdown(dwc->usb2_phy);
-	phy_exit(dwc->usb2_generic_phy);
-	phy_exit(dwc->usb3_generic_phy);
-
-	usb_phy_set_suspend(dwc->usb2_phy, 1);
-	usb_phy_set_suspend(dwc->usb3_phy, 1);
-	WARN_ON(phy_power_off(dwc->usb2_generic_phy) < 0);
-	WARN_ON(phy_power_off(dwc->usb3_generic_phy) < 0);
+	dwc3_core_exit(dwc);
 
 	pinctrl_pm_select_sleep_state(dev);
 
@@ -1149,35 +1135,13 @@ static int dwc3_suspend(struct device *dev)
 static int dwc3_resume(struct device *dev)
 {
 	struct dwc3	*dwc = dev_get_drvdata(dev);
-	unsigned long	flags;
 	int		ret;
 
 	pinctrl_pm_select_default_state(dev);
 
-	usb_phy_set_suspend(dwc->usb2_phy, 0);
-	usb_phy_set_suspend(dwc->usb3_phy, 0);
-	ret = phy_power_on(dwc->usb2_generic_phy);
-	if (ret < 0)
+	ret = dwc3_core_init(dwc);
+	if (ret)
 		return ret;
-
-	ret = phy_power_on(dwc->usb3_generic_phy);
-	if (ret < 0)
-		goto err_usb2phy_power;
-
-	usb_phy_init(dwc->usb3_phy);
-	usb_phy_init(dwc->usb2_phy);
-	ret = phy_init(dwc->usb2_generic_phy);
-	if (ret < 0)
-		goto err_usb3phy_power;
-
-	ret = phy_init(dwc->usb3_generic_phy);
-	if (ret < 0)
-		goto err_usb2phy_init;
-
-	spin_lock_irqsave(&dwc->lock, flags);
-
-	dwc3_event_buffers_setup(dwc);
-	dwc3_writel(dwc->regs, DWC3_GCTL, dwc->gctl);
 
 	switch (dwc->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -1190,24 +1154,11 @@ static int dwc3_resume(struct device *dev)
 		break;
 	}
 
-	spin_unlock_irqrestore(&dwc->lock, flags);
-
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
 	return 0;
-
-err_usb2phy_init:
-	phy_exit(dwc->usb2_generic_phy);
-
-err_usb3phy_power:
-	phy_power_off(dwc->usb3_generic_phy);
-
-err_usb2phy_power:
-	phy_power_off(dwc->usb2_generic_phy);
-
-	return ret;
 }
 #endif /* CONFIG_PM_SLEEP */
 
