@@ -149,9 +149,8 @@ static int dwc3_soft_reset(struct dwc3 *dwc)
 /*
  * dwc3_frame_length_adjustment - Adjusts frame length if required
  * @dwc3: Pointer to our controller context structure
- * @fladj: Value of GFLADJ_30MHZ to adjust frame length
  */
-static void dwc3_frame_length_adjustment(struct dwc3 *dwc, u32 fladj)
+static void dwc3_frame_length_adjustment(struct dwc3 *dwc)
 {
 	u32 reg;
 	u32 dft;
@@ -159,15 +158,15 @@ static void dwc3_frame_length_adjustment(struct dwc3 *dwc, u32 fladj)
 	if (dwc->revision < DWC3_REVISION_250A)
 		return;
 
-	if (fladj == 0)
+	if (dwc->fladj == 0)
 		return;
 
 	reg = dwc3_readl(dwc->regs, DWC3_GFLADJ);
 	dft = reg & DWC3_GFLADJ_30MHZ_MASK;
-	if (!dev_WARN_ONCE(dwc->dev, dft == fladj,
+	if (!dev_WARN_ONCE(dwc->dev, dft == dwc->fladj,
 	    "request value same as default, ignoring\n")) {
 		reg &= ~DWC3_GFLADJ_30MHZ_MASK;
-		reg |= DWC3_GFLADJ_30MHZ_SDBND_SEL | fladj;
+		reg |= DWC3_GFLADJ_30MHZ_SDBND_SEL | dwc->fladj;
 		dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
 	}
 }
@@ -799,7 +798,6 @@ static int dwc3_probe(struct platform_device *pdev)
 	u8			lpm_nyet_threshold;
 	u8			tx_de_emphasis;
 	u8			hird_threshold;
-	u32			fladj = 0;
 
 	int			ret;
 
@@ -909,7 +907,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	device_property_read_string(dev, "snps,hsphy_interface",
 				    &dwc->hsphy_interface);
 	device_property_read_u32(dev, "snps,quirk-frame-length-adjustment",
-				 &fladj);
+				 &dwc->fladj);
 
 	if (pdata) {
 		dwc->maximum_speed = pdata->maximum_speed;
@@ -941,7 +939,7 @@ static int dwc3_probe(struct platform_device *pdev)
 			tx_de_emphasis = pdata->tx_de_emphasis;
 
 		dwc->hsphy_interface = pdata->hsphy_interface;
-		fladj = pdata->fladj_value;
+		dwc->fladj = pdata->fladj_value;
 	}
 
 	dwc->lpm_nyet_threshold = lpm_nyet_threshold;
@@ -1022,7 +1020,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	}
 
 	/* Adjust Frame Length */
-	dwc3_frame_length_adjustment(dwc, fladj);
+	dwc3_frame_length_adjustment(dwc);
 
 	usb_phy_set_suspend(dwc->usb2_phy, 0);
 	usb_phy_set_suspend(dwc->usb3_phy, 0);
