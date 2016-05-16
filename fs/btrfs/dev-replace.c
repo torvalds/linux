@@ -44,9 +44,6 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 						struct btrfs_fs_info *fs_info,
 						struct btrfs_device *srcdev,
 						struct btrfs_device *tgtdev);
-static int btrfs_dev_replace_find_srcdev(struct btrfs_root *root, u64 srcdevid,
-					 char *srcdev_name,
-					 struct btrfs_device **device);
 static u64 __btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info);
 static int btrfs_dev_replace_kthread(void *data);
 static int btrfs_dev_replace_continue_on_mount(struct btrfs_fs_info *fs_info);
@@ -305,8 +302,8 @@ void btrfs_after_dev_replace_commit(struct btrfs_fs_info *fs_info)
 		dev_replace->cursor_left_last_write_of_item;
 }
 
-int btrfs_dev_replace_start(struct btrfs_root *root,
-			    struct btrfs_ioctl_dev_replace_args *args)
+int btrfs_dev_replace_start(struct btrfs_root *root, char *tgtdev_name,
+				u64 srcdevid, char *srcdev_name, int read_src)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -315,29 +312,16 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	struct btrfs_device *tgt_device = NULL;
 	struct btrfs_device *src_device = NULL;
 
-	switch (args->start.cont_reading_from_srcdev_mode) {
-	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_ALWAYS:
-	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_AVOID:
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if ((args->start.srcdevid == 0 && args->start.srcdev_name[0] == '\0') ||
-	    args->start.tgtdev_name[0] == '\0')
-		return -EINVAL;
-
 	/* the disk copy procedure reuses the scrub code */
 	mutex_lock(&fs_info->volume_mutex);
-	ret = btrfs_dev_replace_find_srcdev(root, args->start.srcdevid,
-					    args->start.srcdev_name,
-					    &src_device);
+	ret = btrfs_find_device_by_devspec(root, srcdevid,
+					    srcdev_name, &src_device);
 	if (ret) {
 		mutex_unlock(&fs_info->volume_mutex);
 		return ret;
 	}
 
-	ret = btrfs_init_dev_replace_tgtdev(root, args->start.tgtdev_name,
+	ret = btrfs_init_dev_replace_tgtdev(root, tgtdev_name,
 					    src_device, &tgt_device);
 	mutex_unlock(&fs_info->volume_mutex);
 	if (ret)
@@ -364,18 +348,17 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 		break;
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED:
 	case BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED:
-		args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_ALREADY_STARTED;
+		ret = BTRFS_IOCTL_DEV_REPLACE_RESULT_ALREADY_STARTED;
 		goto leave;
 	}
 
-	dev_replace->cont_reading_from_srcdev_mode =
-		args->start.cont_reading_from_srcdev_mode;
+	dev_replace->cont_reading_from_srcdev_mode = read_src;
 	WARN_ON(!src_device);
 	dev_replace->srcdev = src_device;
 	WARN_ON(!tgt_device);
 	dev_replace->tgtdev = tgt_device;
 
-	btrfs_info_in_rcu(root->fs_info,
+	btrfs_info_in_rcu(fs_info,
 		      "dev_replace from %s (devid %llu) to %s started",
 		      src_device->missing ? "<missing disk>" :
 		        rcu_str_deref(src_device->name),
@@ -396,14 +379,13 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	dev_replace->item_needs_writeback = 1;
 	atomic64_set(&dev_replace->num_write_errors, 0);
 	atomic64_set(&dev_replace->num_uncorrectable_read_errors, 0);
-	args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
 	btrfs_dev_replace_unlock(dev_replace, 1);
 
 	ret = btrfs_sysfs_add_device_link(tgt_device->fs_devices, tgt_device);
 	if (ret)
-		btrfs_err(root->fs_info, "kobj add dev failed %d\n", ret);
+		btrfs_err(fs_info, "kobj add dev failed %d\n", ret);
 
-	btrfs_wait_ordered_roots(root->fs_info, -1);
+	btrfs_wait_ordered_roots(fs_info, -1);
 
 	/* force writing the updated state information to disk */
 	trans = btrfs_start_transaction(root, 0);
@@ -421,11 +403,9 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 			      btrfs_device_get_total_bytes(src_device),
 			      &dev_replace->scrub_progress, 0, 1);
 
-	ret = btrfs_dev_replace_finishing(root->fs_info, ret);
-	/* don't warn if EINPROGRESS, someone else might be running scrub */
+	ret = btrfs_dev_replace_finishing(fs_info, ret);
 	if (ret == -EINPROGRESS) {
-		args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS;
-		ret = 0;
+		ret = BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS;
 	} else {
 		WARN_ON(ret);
 	}
@@ -437,6 +417,35 @@ leave:
 	dev_replace->tgtdev = NULL;
 	btrfs_dev_replace_unlock(dev_replace, 1);
 	btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
+	return ret;
+}
+
+int btrfs_dev_replace_by_ioctl(struct btrfs_root *root,
+			    struct btrfs_ioctl_dev_replace_args *args)
+{
+	int ret;
+
+	switch (args->start.cont_reading_from_srcdev_mode) {
+	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_ALWAYS:
+	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_AVOID:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if ((args->start.srcdevid == 0 && args->start.srcdev_name[0] == '\0') ||
+	    args->start.tgtdev_name[0] == '\0')
+		return -EINVAL;
+
+	ret = btrfs_dev_replace_start(root, args->start.tgtdev_name,
+					args->start.srcdevid,
+					args->start.srcdev_name,
+					args->start.cont_reading_from_srcdev_mode);
+	args->result = ret;
+	/* don't warn if EINPROGRESS, someone else might be running scrub */
+	if (ret == BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS)
+		ret = 0;
+
 	return ret;
 }
 
@@ -560,10 +569,9 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	ASSERT(list_empty(&src_device->resized_list));
 	tgt_device->commit_total_bytes = src_device->commit_total_bytes;
 	tgt_device->commit_bytes_used = src_device->bytes_used;
-	if (fs_info->sb->s_bdev == src_device->bdev)
-		fs_info->sb->s_bdev = tgt_device->bdev;
-	if (fs_info->fs_devices->latest_bdev == src_device->bdev)
-		fs_info->fs_devices->latest_bdev = tgt_device->bdev;
+
+	btrfs_assign_next_active_device(fs_info, src_device, tgt_device);
+
 	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
 	fs_info->fs_devices->rw_devices++;
 
@@ -624,25 +632,6 @@ static void btrfs_dev_replace_update_device_in_mapping_tree(
 		free_extent_map(em);
 	} while (start);
 	write_unlock(&em_tree->lock);
-}
-
-static int btrfs_dev_replace_find_srcdev(struct btrfs_root *root, u64 srcdevid,
-					 char *srcdev_name,
-					 struct btrfs_device **device)
-{
-	int ret;
-
-	if (srcdevid) {
-		ret = 0;
-		*device = btrfs_find_device(root->fs_info, srcdevid, NULL,
-					    NULL);
-		if (!*device)
-			ret = -ENOENT;
-	} else {
-		ret = btrfs_find_device_missing_or_by_path(root, srcdev_name,
-							   device);
-	}
-	return ret;
 }
 
 void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,

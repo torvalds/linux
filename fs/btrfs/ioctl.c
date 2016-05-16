@@ -2676,6 +2676,60 @@ out:
 	return ret;
 }
 
+static long btrfs_ioctl_rm_dev_v2(struct file *file, void __user *arg)
+{
+	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
+	struct btrfs_ioctl_vol_args_v2 *vol_args;
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	ret = mnt_want_write_file(file);
+	if (ret)
+		return ret;
+
+	vol_args = memdup_user(arg, sizeof(*vol_args));
+	if (IS_ERR(vol_args)) {
+		ret = PTR_ERR(vol_args);
+		goto err_drop;
+	}
+
+	/* Check for compatibility reject unknown flags */
+	if (vol_args->flags & ~BTRFS_VOL_ARG_V2_FLAGS_SUPPORTED)
+		return -EOPNOTSUPP;
+
+	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
+			1)) {
+		ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
+		goto out;
+	}
+
+	mutex_lock(&root->fs_info->volume_mutex);
+	if (vol_args->flags & BTRFS_DEVICE_SPEC_BY_ID) {
+		ret = btrfs_rm_device(root, NULL, vol_args->devid);
+	} else {
+		vol_args->name[BTRFS_SUBVOL_NAME_MAX] = '\0';
+		ret = btrfs_rm_device(root, vol_args->name, 0);
+	}
+	mutex_unlock(&root->fs_info->volume_mutex);
+	atomic_set(&root->fs_info->mutually_exclusive_operation_running, 0);
+
+	if (!ret) {
+		if (vol_args->flags & BTRFS_DEVICE_SPEC_BY_ID)
+			btrfs_info(root->fs_info, "device deleted: id %llu",
+					vol_args->devid);
+		else
+			btrfs_info(root->fs_info, "device deleted: %s",
+					vol_args->name);
+	}
+out:
+	kfree(vol_args);
+err_drop:
+	mnt_drop_write_file(file);
+	return ret;
+}
+
 static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 {
 	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
@@ -2703,7 +2757,7 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 	mutex_lock(&root->fs_info->volume_mutex);
-	ret = btrfs_rm_device(root, vol_args->name);
+	ret = btrfs_rm_device(root, vol_args->name, 0);
 	mutex_unlock(&root->fs_info->volume_mutex);
 
 	if (!ret)
@@ -4387,7 +4441,7 @@ static long btrfs_ioctl_dev_replace(struct btrfs_root *root, void __user *arg)
 			1)) {
 			ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 		} else {
-			ret = btrfs_dev_replace_start(root, p);
+			ret = btrfs_dev_replace_by_ioctl(root, p);
 			atomic_set(
 			 &root->fs_info->mutually_exclusive_operation_running,
 			 0);
@@ -5480,6 +5534,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_add_dev(root, argp);
 	case BTRFS_IOC_RM_DEV:
 		return btrfs_ioctl_rm_dev(file, argp);
+	case BTRFS_IOC_RM_DEV_V2:
+		return btrfs_ioctl_rm_dev_v2(file, argp);
 	case BTRFS_IOC_FS_INFO:
 		return btrfs_ioctl_fs_info(root, argp);
 	case BTRFS_IOC_DEV_INFO:

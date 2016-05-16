@@ -36,6 +36,14 @@ struct btrfs_ioctl_vol_args {
 #define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
 #define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
 #define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
+#define BTRFS_DEVICE_SPEC_BY_ID		(1ULL << 3)
+
+#define BTRFS_VOL_ARG_V2_FLAGS_SUPPORTED		\
+			(BTRFS_SUBVOL_CREATE_ASYNC |	\
+			BTRFS_SUBVOL_RDONLY |		\
+			BTRFS_SUBVOL_QGROUP_INHERIT |	\
+			BTRFS_DEVICE_SPEC_BY_ID)
+
 #define BTRFS_FSID_SIZE 16
 #define BTRFS_UUID_SIZE 16
 #define BTRFS_UUID_UNPARSED_SIZE	37
@@ -76,7 +84,10 @@ struct btrfs_ioctl_vol_args_v2 {
 		};
 		__u64 unused[4];
 	};
-	char name[BTRFS_SUBVOL_NAME_MAX + 1];
+	union {
+		char name[BTRFS_SUBVOL_NAME_MAX + 1];
+		u64 devid;
+	};
 };
 
 /*
@@ -659,5 +670,7 @@ static inline char *btrfs_err_str(enum btrfs_err_code err_code)
 				   struct btrfs_ioctl_feature_flags[2])
 #define BTRFS_IOC_GET_SUPPORTED_FEATURES _IOR(BTRFS_IOCTL_MAGIC, 57, \
 				   struct btrfs_ioctl_feature_flags[3])
+#define BTRFS_IOC_RM_DEV_V2 _IOW(BTRFS_IOCTL_MAGIC, 58, \
+				   struct btrfs_ioctl_vol_args_v2)
 
 #endif /* _UAPI_LINUX_BTRFS_H */
