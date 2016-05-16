@@ -2407,7 +2407,7 @@ pnfs_report_layoutstat(struct inode *inode, gfp_t gfp_flags)
 	spin_lock(&inode->i_lock);
 	if (!NFS_I(inode)->layout) {
 		spin_unlock(&inode->i_lock);
-		goto out;
+		goto out_clear_layoutstats;
 	}
 	hdr = NFS_I(inode)->layout;
 	pnfs_get_layout_hdr(hdr);
@@ -2436,6 +2436,7 @@ out_free:
 	kfree(data);
 out_put:
 	pnfs_put_layout_hdr(hdr);
+out_clear_layoutstats:
 	smp_mb__before_atomic();
 	clear_bit(NFS_INO_LAYOUTSTATS, &nfsi->flags);
 	smp_mb__after_atomic();
