@@ -21,13 +21,6 @@ const char	*sort_order;
 const char	*field_order;
 regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
-int		sort__need_collapse = 0;
-int		sort__has_parent = 0;
-int		sort__has_sym = 0;
-int		sort__has_dso = 0;
-int		sort__has_socket = 0;
-int		sort__has_thread = 0;
-int		sort__has_comm = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 
 /*
@@ -244,7 +237,7 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 	 * comparing symbol address alone is not enough since it's a
 	 * relative address within a dso.
 	 */
-	if (!sort__has_dso) {
+	if (!hists__has(left->hists, dso) || hists__has(right->hists, dso)) {
 		ret = sort__dso_cmp(left, right);
 		if (ret != 0)
 			return ret;
@@ -2163,7 +2156,7 @@ static int __sort_dimension__add(struct sort_dimension *sd,
 		return -1;
 
 	if (sd->entry->se_collapse)
-		sort__need_collapse = 1;
+		list->need_collapse = 1;
 
 	sd->taken = 1;
 
@@ -2245,9 +2238,9 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				pr_err("Invalid regex: %s\n%s", parent_pattern, err);
 				return -EINVAL;
 			}
-			sort__has_parent = 1;
+			list->parent = 1;
 		} else if (sd->entry == &sort_sym) {
-			sort__has_sym = 1;
+			list->sym = 1;
 			/*
 			 * perf diff displays the performance difference amongst
 			 * two or more perf.data files. Those files could come
@@ -2258,13 +2251,13 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				sd->entry->se_collapse = sort__sym_sort;
 
 		} else if (sd->entry == &sort_dso) {
-			sort__has_dso = 1;
+			list->dso = 1;
 		} else if (sd->entry == &sort_socket) {
-			sort__has_socket = 1;
+			list->socket = 1;
 		} else if (sd->entry == &sort_thread) {
-			sort__has_thread = 1;
+			list->thread = 1;
 		} else if (sd->entry == &sort_comm) {
-			sort__has_comm = 1;
+			list->comm = 1;
 		}
 
 		return __sort_dimension__add(sd, list, level);
@@ -2289,7 +2282,7 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			return -EINVAL;
 
 		if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to)
-			sort__has_sym = 1;
+			list->sym = 1;
 
 		__sort_dimension__add(sd, list, level);
 		return 0;
@@ -2305,7 +2298,7 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			return -EINVAL;
 
 		if (sd->entry == &sort_mem_daddr_sym)
-			sort__has_sym = 1;
+			list->sym = 1;
 
 		__sort_dimension__add(sd, list, level);
 		return 0;
@@ -2749,10 +2742,10 @@ int setup_sorting(struct perf_evlist *evlist)
 
 void reset_output_field(void)
 {
-	sort__need_collapse = 0;
-	sort__has_parent = 0;
-	sort__has_sym = 0;
-	sort__has_dso = 0;
+	perf_hpp_list.need_collapse = 0;
+	perf_hpp_list.parent = 0;
+	perf_hpp_list.sym = 0;
+	perf_hpp_list.dso = 0;
 
 	field_order = NULL;
 	sort_order = NULL;

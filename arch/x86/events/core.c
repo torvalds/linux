@@ -360,6 +360,9 @@ int x86_add_exclusive(unsigned int what)
 {
 	int i;
 
+	if (x86_pmu.lbr_pt_coexist)
+		return 0;
+
 	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
 		mutex_lock(&pmc_reserve_mutex);
 		for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
@@ -380,6 +383,9 @@ fail_unlock:
 
 void x86_del_exclusive(unsigned int what)
 {
+	if (x86_pmu.lbr_pt_coexist)
+		return;
+
 	atomic_dec(&x86_pmu.lbr_exclusive[what]);
 	atomic_dec(&active_events);
 }
@@ -2277,7 +2283,7 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 
 	fp = compat_ptr(ss_base + regs->bp);
 	pagefault_disable();
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < sysctl_perf_event_max_stack) {
 		unsigned long bytes;
 		frame.next_frame     = 0;
 		frame.return_address = 0;
@@ -2337,7 +2343,7 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		return;
 
 	pagefault_disable();
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < sysctl_perf_event_max_stack) {
 		unsigned long bytes;
 		frame.next_frame	     = NULL;
 		frame.return_address = 0;

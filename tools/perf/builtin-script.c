@@ -22,6 +22,7 @@
 #include "util/thread_map.h"
 #include "util/stat.h"
 #include <linux/bitmap.h>
+#include <linux/stringify.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"
 
@@ -317,19 +318,19 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
 
 	output[type].print_ip_opts = 0;
 	if (PRINT_FIELD(IP))
-		output[type].print_ip_opts |= PRINT_IP_OPT_IP;
+		output[type].print_ip_opts |= EVSEL__PRINT_IP;
 
 	if (PRINT_FIELD(SYM))
-		output[type].print_ip_opts |= PRINT_IP_OPT_SYM;
+		output[type].print_ip_opts |= EVSEL__PRINT_SYM;
 
 	if (PRINT_FIELD(DSO))
-		output[type].print_ip_opts |= PRINT_IP_OPT_DSO;
+		output[type].print_ip_opts |= EVSEL__PRINT_DSO;
 
 	if (PRINT_FIELD(SYMOFFSET))
-		output[type].print_ip_opts |= PRINT_IP_OPT_SYMOFFSET;
+		output[type].print_ip_opts |= EVSEL__PRINT_SYMOFFSET;
 
 	if (PRINT_FIELD(SRCLINE))
-		output[type].print_ip_opts |= PRINT_IP_OPT_SRCLINE;
+		output[type].print_ip_opts |= EVSEL__PRINT_SRCLINE;
 }
 
 /*
@@ -569,18 +570,23 @@ static void print_sample_bts(struct perf_sample *sample,
 	/* print branch_from information */
 	if (PRINT_FIELD(IP)) {
 		unsigned int print_opts = output[attr->type].print_ip_opts;
+		struct callchain_cursor *cursor = NULL;
 
-		if (symbol_conf.use_callchain && sample->callchain) {
-			printf("\n");
-		} else {
-			printf(" ");
-			if (print_opts & PRINT_IP_OPT_SRCLINE) {
+		if (symbol_conf.use_callchain && sample->callchain &&
+		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
+					      sample, NULL, NULL, scripting_max_stack) == 0)
+			cursor = &callchain_cursor;
+
+		if (cursor == NULL) {
+			putchar(' ');
+			if (print_opts & EVSEL__PRINT_SRCLINE) {
 				print_srcline_last = true;
-				print_opts &= ~PRINT_IP_OPT_SRCLINE;
+				print_opts &= ~EVSEL__PRINT_SRCLINE;
 			}
-		}
-		perf_evsel__print_ip(evsel, sample, al, print_opts,
-				     scripting_max_stack);
+		} else
+			putchar('\n');
+
+		sample__fprintf_sym(sample, al, 0, print_opts, cursor, stdout);
 	}
 
 	/* print branch_to information */
@@ -783,14 +789,15 @@ static void process_event(struct perf_script *script,
 		printf("%16" PRIu64, sample->weight);
 
 	if (PRINT_FIELD(IP)) {
-		if (!symbol_conf.use_callchain)
-			printf(" ");
-		else
-			printf("\n");
+		struct callchain_cursor *cursor = NULL;
 
-		perf_evsel__print_ip(evsel, sample, al,
-				     output[attr->type].print_ip_opts,
-				     scripting_max_stack);
+		if (symbol_conf.use_callchain && sample->callchain &&
+		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
+					      sample, NULL, NULL, scripting_max_stack) == 0)
+			cursor = &callchain_cursor;
+
+		putchar(cursor ? '\n' : ' ');
+		sample__fprintf_sym(sample, al, 0, output[attr->type].print_ip_opts, cursor, stdout);
 	}
 
 	if (PRINT_FIELD(IREGS))
@@ -1959,6 +1966,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.exit		 = perf_event__process_exit,
 			.fork		 = perf_event__process_fork,
 			.attr		 = process_attr,
+			.event_update   = perf_event__process_event_update,
 			.tracing_data	 = perf_event__process_tracing_data,
 			.build_id	 = perf_event__process_build_id,
 			.id_index	 = perf_event__process_id_index,
@@ -2020,6 +2028,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "only consider symbols in these pids"),
 	OPT_STRING(0, "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
 		   "only consider symbols in these tids"),
+	OPT_UINTEGER(0, "max-stack", &scripting_max_stack,
+		     "Set the maximum stack depth when parsing the callchain, "
+		     "anything beyond the specified depth will be ignored. "
+		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_BOOLEAN('\0', "show-kernel-path", &symbol_conf.show_kernel_path,
@@ -2054,6 +2066,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf script [<options>] <top-script> [script-args]",
 		NULL
 	};
+
+	scripting_max_stack = sysctl_perf_event_max_stack;
 
 	setup_scripting();
 

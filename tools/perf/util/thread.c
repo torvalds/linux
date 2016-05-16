@@ -10,6 +10,8 @@
 #include "comm.h"
 #include "unwind.h"
 
+#include <api/fs/fs.h>
+
 int thread__init_map_groups(struct thread *thread, struct machine *machine)
 {
 	struct thread *leader;
@@ -153,6 +155,23 @@ int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
 	return 0;
 }
 
+int thread__set_comm_from_proc(struct thread *thread)
+{
+	char path[64];
+	char *comm = NULL;
+	size_t sz;
+	int err = -1;
+
+	if (!(snprintf(path, sizeof(path), "%d/task/%d/comm",
+		       thread->pid_, thread->tid) >= (int)sizeof(path)) &&
+	    procfs__read_str(path, &comm, &sz) == 0) {
+		comm[sz - 1] = '\0';
+		err = thread__set_comm(thread, comm, 0);
+	}
+
+	return err;
+}
+
 const char *thread__comm_str(const struct thread *thread)
 {
 	const struct comm *comm = thread__comm(thread);
@@ -233,7 +252,7 @@ void thread__find_cpumode_addr_location(struct thread *thread,
 					struct addr_location *al)
 {
 	size_t i;
-	const u8 const cpumodes[] = {
+	const u8 cpumodes[] = {
 		PERF_RECORD_MISC_USER,
 		PERF_RECORD_MISC_KERNEL,
 		PERF_RECORD_MISC_GUEST_USER,
