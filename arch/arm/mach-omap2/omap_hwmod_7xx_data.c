@@ -3410,21 +3410,11 @@ static struct omap_hwmod_ocp_if dra7xx_l4_cfg__pciess2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space dra7xx_qspi_addrs[] = {
-	{
-		.pa_start	= 0x4b300000,
-		.pa_end		= 0x4b30007f,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l3_main_1 -> qspi */
 static struct omap_hwmod_ocp_if dra7xx_l3_main_1__qspi = {
 	.master		= &dra7xx_l3_main_1_hwmod,
 	.slave		= &dra7xx_qspi_hwmod,
 	.clk		= "l3_iclk_div",
-	.addr		= dra7xx_qspi_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
