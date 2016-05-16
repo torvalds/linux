@@ -63,8 +63,9 @@ MODULE_LICENSE("GPL");
 #define S0_REGS(priv)		((priv)->s0_regs)
 
 #define W5100_S0_MR(priv)	(S0_REGS(priv) + W5100_Sn_MR)
-#define   S0_MR_MACRAW		  0x04 /* MAC RAW mode (promiscuous) */
-#define   S0_MR_MACRAW_MF	  0x44 /* MAC RAW mode (filtered) */
+#define   S0_MR_MACRAW		  0x04 /* MAC RAW mode */
+#define   S0_MR_MF		  0x40 /* MAC Filter for W5100 and W5200 */
+#define   W5500_S0_MR_MF	  0x80 /* MAC Filter for W5500 */
 #define W5100_S0_CR(priv)	(S0_REGS(priv) + W5100_Sn_CR)
 #define   S0_CR_OPEN		  0x01 /* OPEN command */
 #define   S0_CR_CLOSE		  0x10 /* CLOSE command */
@@ -172,11 +173,6 @@ struct w5100_priv {
 	struct work_struct setrx_work;
 	struct work_struct restart_work;
 };
-
-static inline bool is_w5200(struct w5100_priv *priv)
-{
-	return priv->ops->chip_id == W5200;
-}
 
 /************************************************************************
  *
@@ -707,8 +703,16 @@ static int w5100_hw_reset(struct w5100_priv *priv)
 
 static void w5100_hw_start(struct w5100_priv *priv)
 {
-	w5100_write(priv, W5100_S0_MR(priv), priv->promisc ?
-			  S0_MR_MACRAW : S0_MR_MACRAW_MF);
+	u8 mode = S0_MR_MACRAW;
+
+	if (!priv->promisc) {
+		if (priv->ops->chip_id == W5500)
+			mode |= W5500_S0_MR_MF;
+		else
+			mode |= S0_MR_MF;
+	}
+
+	w5100_write(priv, W5100_S0_MR(priv), mode);
 	w5100_command(priv, S0_CR_OPEN);
 	w5100_enable_intr(priv);
 }
@@ -1048,7 +1052,7 @@ static const struct net_device_ops w5100_netdev_ops = {
 static int w5100_mmio_probe(struct platform_device *pdev)
 {
 	struct wiznet_platform_data *data = dev_get_platdata(&pdev->dev);
-	u8 *mac_addr = NULL;
+	const void *mac_addr = NULL;
 	struct resource *mem;
 	const struct w5100_ops *ops;
 	int irq;
@@ -1083,7 +1087,8 @@ void *w5100_ops_priv(const struct net_device *ndev)
 EXPORT_SYMBOL_GPL(w5100_ops_priv);
 
 int w5100_probe(struct device *dev, const struct w5100_ops *ops,
-		int sizeof_ops_priv, u8 *mac_addr, int irq, int link_gpio)
+		int sizeof_ops_priv, const void *mac_addr, int irq,
+		int link_gpio)
 {
 	struct w5100_priv *priv;
 	struct net_device *ndev;
@@ -1138,7 +1143,6 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 
 	ndev->netdev_ops = &w5100_netdev_ops;
 	ndev->ethtool_ops = &w5100_ethtool_ops;
-	ndev->watchdog_timeo = HZ;
 	netif_napi_add(ndev, &priv->napi, w5100_napi_poll, 16);
 
 	/* This chip doesn't support VLAN packets with normal MTU,

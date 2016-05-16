@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/of_net.h>
 #include <linux/spi/spi.h>
 
 #include "w5100.h"
@@ -414,6 +415,7 @@ static int w5100_spi_probe(struct spi_device *spi)
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	const struct w5100_ops *ops;
 	int priv_size;
+	const void *mac = of_get_mac_address(spi->dev.of_node);
 
 	switch (id->driver_data) {
 	case W5100:
@@ -432,7 +434,7 @@ static int w5100_spi_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	return w5100_probe(&spi->dev, ops, priv_size, NULL, spi->irq, -EINVAL);
+	return w5100_probe(&spi->dev, ops, priv_size, mac, spi->irq, -EINVAL);
 }
 
 static int w5100_spi_remove(struct spi_device *spi)
