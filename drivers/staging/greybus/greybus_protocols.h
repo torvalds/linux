@@ -879,6 +879,7 @@ struct gb_spi_transfer {
 	__u8		xfer_flags;
 #define GB_SPI_XFER_READ	0x01
 #define GB_SPI_XFER_WRITE	0x02
+#define GB_SPI_XFER_INPROGRESS	0x04
 } __packed;
 
 struct gb_spi_transfer_request {

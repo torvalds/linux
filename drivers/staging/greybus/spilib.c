@@ -102,6 +102,17 @@ static void clean_xfer_state(struct gb_spilib *spi)
 	spi->op_timeout = 0;
 }
 
+static bool is_last_xfer_done(struct gb_spilib *spi)
+{
+	struct spi_transfer *last_xfer = spi->last_xfer;
+
+	if ((spi->tx_xfer_offset + spi->last_xfer_size == last_xfer->len) ||
+	    (spi->rx_xfer_offset + spi->last_xfer_size == last_xfer->len))
+		return true;
+
+	return false;
+}
+
 static int setup_next_xfer(struct gb_spilib *spi, struct spi_message *msg)
 {
 	struct spi_transfer *last_xfer = spi->last_xfer;
@@ -113,8 +124,7 @@ static int setup_next_xfer(struct gb_spilib *spi, struct spi_message *msg)
 	 * if we transferred all content of the last transfer, reset values and
 	 * check if this was the last transfer in the message
 	 */
-	if ((spi->tx_xfer_offset + spi->last_xfer_size == last_xfer->len) ||
-	    (spi->rx_xfer_offset + spi->last_xfer_size == last_xfer->len)) {
+	if (is_last_xfer_done(spi)) {
 		spi->tx_xfer_offset = 0;
 		spi->rx_xfer_offset = 0;
 		spi->op_timeout = 0;
@@ -265,6 +275,8 @@ static struct gb_operation *gb_spi_operation_create(struct gb_spilib *spi,
 			gb_xfer->xfer_flags |= GB_SPI_XFER_READ;
 
 		if (xfer == spi->last_xfer) {
+			if (!is_last_xfer_done(spi))
+				gb_xfer->xfer_flags |= GB_SPI_XFER_INPROGRESS;
 			msg->state = GB_SPI_STATE_OP_DONE;
 			continue;
 		}
