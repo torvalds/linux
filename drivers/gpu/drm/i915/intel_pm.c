@@ -4046,7 +4046,6 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
 	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
 
 	skl_ddb_get_hw_state(dev_priv, ddb);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
@@ -4058,23 +4057,6 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 	} else {
 		/* Easy/common case; just sanitize DDB now if everything off */
 		memset(ddb, 0, sizeof(*ddb));
-	}
-
-	/* Calculate plane data rates */
-	for_each_intel_crtc(dev, intel_crtc) {
-		struct intel_crtc_state *cstate = intel_crtc->config;
-		struct intel_plane *intel_plane;
-
-		for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
-			const struct drm_plane_state *pstate =
-				intel_plane->base.state;
-			int id = skl_wm_plane_id(intel_plane);
-
-			cstate->wm.skl.plane_data_rate[id] =
-				skl_plane_relative_data_rate(cstate, pstate, 0);
-			cstate->wm.skl.plane_y_data_rate[id] =
-				skl_plane_relative_data_rate(cstate, pstate, 1);
-		}
 	}
 }
 
