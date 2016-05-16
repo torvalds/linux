@@ -228,7 +228,8 @@ ff_ds_error_match(const struct nfs4_ff_layout_ds_err *e1,
 		return e1->opnum < e2->opnum ? -1 : 1;
 	if (e1->status != e2->status)
 		return e1->status < e2->status ? -1 : 1;
-	ret = memcmp(&e1->stateid, &e2->stateid, sizeof(e1->stateid));
+	ret = memcmp(e1->stateid.data, e2->stateid.data,
+			sizeof(e1->stateid.data));
 	if (ret != 0)
 		return ret;
 	ret = memcmp(&e1->deviceid, &e2->deviceid, sizeof(e1->deviceid));

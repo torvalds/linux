@@ -4270,6 +4270,24 @@ static int decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
 	return decode_opaque_fixed(xdr, stateid, NFS4_STATEID_SIZE);
 }
 
+static int decode_open_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+{
+	stateid->type = NFS4_OPEN_STATEID_TYPE;
+	return decode_stateid(xdr, stateid);
+}
+
+static int decode_lock_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+{
+	stateid->type = NFS4_LOCK_STATEID_TYPE;
+	return decode_stateid(xdr, stateid);
+}
+
+static int decode_delegation_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+{
+	stateid->type = NFS4_DELEGATION_STATEID_TYPE;
+	return decode_stateid(xdr, stateid);
+}
+
 static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)
 {
 	int status;
@@ -4278,7 +4296,7 @@ static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)
 	if (status != -EIO)
 		nfs_increment_open_seqid(status, res->seqid);
 	if (!status)
-		status = decode_stateid(xdr, &res->stateid);
+		status = decode_open_stateid(xdr, &res->stateid);
 	return status;
 }
 
@@ -4937,7 +4955,7 @@ static int decode_lock(struct xdr_stream *xdr, struct nfs_lock_res *res)
 	if (status == -EIO)
 		goto out;
 	if (status == 0) {
-		status = decode_stateid(xdr, &res->stateid);
+		status = decode_lock_stateid(xdr, &res->stateid);
 		if (unlikely(status))
 			goto out;
 	} else if (status == -NFS4ERR_DENIED)
@@ -4966,7 +4984,7 @@ static int decode_locku(struct xdr_stream *xdr, struct nfs_locku_res *res)
 	if (status != -EIO)
 		nfs_increment_lock_seqid(status, res->seqid);
 	if (status == 0)
-		status = decode_stateid(xdr, &res->stateid);
+		status = decode_lock_stateid(xdr, &res->stateid);
 	return status;
 }
 
@@ -5016,7 +5034,7 @@ static int decode_rw_delegation(struct xdr_stream *xdr,
 	__be32 *p;
 	int status;
 
-	status = decode_stateid(xdr, &res->delegation);
+	status = decode_delegation_stateid(xdr, &res->delegation);
 	if (unlikely(status))
 		return status;
 	p = xdr_inline_decode(xdr, 4);
@@ -5096,7 +5114,7 @@ static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
 	nfs_increment_open_seqid(status, res->seqid);
 	if (status)
 		return status;
-	status = decode_stateid(xdr, &res->stateid);
+	status = decode_open_stateid(xdr, &res->stateid);
 	if (unlikely(status))
 		return status;
 
@@ -5136,7 +5154,7 @@ static int decode_open_confirm(struct xdr_stream *xdr, struct nfs_open_confirmre
 	if (status != -EIO)
 		nfs_increment_open_seqid(status, res->seqid);
 	if (!status)
-		status = decode_stateid(xdr, &res->stateid);
+		status = decode_open_stateid(xdr, &res->stateid);
 	return status;
 }
 
@@ -5148,7 +5166,7 @@ static int decode_open_downgrade(struct xdr_stream *xdr, struct nfs_closeres *re
 	if (status != -EIO)
 		nfs_increment_open_seqid(status, res->seqid);
 	if (!status)
-		status = decode_stateid(xdr, &res->stateid);
+		status = decode_open_stateid(xdr, &res->stateid);
 	return status;
 }
 
@@ -5838,6 +5856,12 @@ out_overflow:
 }
 
 #if defined(CONFIG_NFS_V4_1)
+static int decode_layout_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+{
+	stateid->type = NFS4_LAYOUT_STATEID_TYPE;
+	return decode_stateid(xdr, stateid);
+}
+
 static int decode_getdeviceinfo(struct xdr_stream *xdr,
 				struct nfs4_getdeviceinfo_res *res)
 {
@@ -5919,7 +5943,7 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 	if (unlikely(!p))
 		goto out_overflow;
 	res->return_on_close = be32_to_cpup(p);
-	decode_stateid(xdr, &res->stateid);
+	decode_layout_stateid(xdr, &res->stateid);
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		goto out_overflow;
@@ -5985,7 +6009,7 @@ static int decode_layoutreturn(struct xdr_stream *xdr,
 		goto out_overflow;
 	res->lrs_present = be32_to_cpup(p);
 	if (res->lrs_present)
-		status = decode_stateid(xdr, &res->stateid);
+		status = decode_layout_stateid(xdr, &res->stateid);
 	return status;
 out_overflow:
 	print_overflow_msg(__func__, xdr);

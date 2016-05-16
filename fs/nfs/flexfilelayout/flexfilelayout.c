@@ -55,14 +55,15 @@ ff_layout_free_layout_hdr(struct pnfs_layout_hdr *lo)
 	kfree(FF_LAYOUT_FROM_HDR(lo));
 }
 
-static int decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+static int decode_pnfs_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
 {
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, NFS4_STATEID_SIZE);
 	if (unlikely(p == NULL))
 		return -ENOBUFS;
-	memcpy(stateid, p, NFS4_STATEID_SIZE);
+	stateid->type = NFS4_PNFS_DS_STATEID_TYPE;
+	memcpy(stateid->data, p, NFS4_STATEID_SIZE);
 	dprintk("%s: stateid id= [%x%x%x%x]\n", __func__,
 		p[0], p[1], p[2], p[3]);
 	return 0;
@@ -465,7 +466,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		fls->mirror_array[i]->efficiency = be32_to_cpup(p);
 
 		/* stateid */
-		rc = decode_stateid(&stream, &fls->mirror_array[i]->stateid);
+		rc = decode_pnfs_stateid(&stream, &fls->mirror_array[i]->stateid);
 		if (rc)
 			goto out_err_free;
 

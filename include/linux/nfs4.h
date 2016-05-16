@@ -50,12 +50,27 @@ struct nfs4_label {
 
 typedef struct { char data[NFS4_VERIFIER_SIZE]; } nfs4_verifier;
 
-struct nfs_stateid4 {
-	__be32 seqid;
-	char other[NFS4_STATEID_OTHER_SIZE];
-} __attribute__ ((packed));
+struct nfs4_stateid_struct {
+	union {
+		char data[NFS4_STATEID_SIZE];
+		struct {
+			__be32 seqid;
+			char other[NFS4_STATEID_OTHER_SIZE];
+		} __attribute__ ((packed));
+	};
 
-typedef struct nfs_stateid4 nfs4_stateid;
+	enum {
+		NFS4_INVALID_STATEID_TYPE = 0,
+		NFS4_SPECIAL_STATEID_TYPE,
+		NFS4_OPEN_STATEID_TYPE,
+		NFS4_LOCK_STATEID_TYPE,
+		NFS4_DELEGATION_STATEID_TYPE,
+		NFS4_LAYOUT_STATEID_TYPE,
+		NFS4_PNFS_DS_STATEID_TYPE,
+	} type;
+};
+
+typedef struct nfs4_stateid_struct nfs4_stateid;
 
 enum nfs_opnum4 {
 	OP_ACCESS = 3,
