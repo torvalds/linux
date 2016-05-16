@@ -825,7 +825,7 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 
 		ether_addr_copy(f->macaddr, macaddr);
 
-		list_add(&f->list, &adapter->mac_filter_list);
+		list_add_tail(&f->list, &adapter->mac_filter_list);
 		f->add = true;
 		adapter->aq_required |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
 	}
