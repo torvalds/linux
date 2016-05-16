@@ -2587,26 +2587,6 @@ static void convert_pseudo_ld_imm64(struct verifier_env *env)
 			insn->src_reg = 0;
 }
 
-static void adjust_branches(struct bpf_prog *prog, int pos, int delta)
-{
-	struct bpf_insn *insn = prog->insnsi;
-	int insn_cnt = prog->len;
-	int i;
-
-	for (i = 0; i < insn_cnt; i++, insn++) {
-		if (BPF_CLASS(insn->code) != BPF_JMP ||
-		    BPF_OP(insn->code) == BPF_CALL ||
-		    BPF_OP(insn->code) == BPF_EXIT)
-			continue;
-
-		/* adjust offset of jmps if necessary */
-		if (i < pos && i + insn->off + 1 > pos)
-			insn->off += delta;
-		else if (i > pos + delta && i + insn->off + 1 <= pos + delta)
-			insn->off -= delta;
-	}
-}
-
 /* convert load instructions that access fields of 'struct __sk_buff'
  * into sequence of instructions that access fields of 'struct sk_buff'
  */
@@ -2616,14 +2596,15 @@ static int convert_ctx_accesses(struct verifier_env *env)
 	int insn_cnt = env->prog->len;
 	struct bpf_insn insn_buf[16];
 	struct bpf_prog *new_prog;
-	u32 cnt;
-	int i;
 	enum bpf_access_type type;
+	int i;
 
 	if (!env->prog->aux->ops->convert_ctx_access)
 		return 0;
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
+		u32 insn_delta, cnt;
+
 		if (insn->code == (BPF_LDX | BPF_MEM | BPF_W))
 			type = BPF_READ;
 		else if (insn->code == (BPF_STX | BPF_MEM | BPF_W))
@@ -2645,34 +2626,18 @@ static int convert_ctx_accesses(struct verifier_env *env)
 			return -EINVAL;
 		}
 
-		if (cnt == 1) {
-			memcpy(insn, insn_buf, sizeof(*insn));
-			continue;
-		}
-
-		/* several new insns need to be inserted. Make room for them */
-		insn_cnt += cnt - 1;
-		new_prog = bpf_prog_realloc(env->prog,
-					    bpf_prog_size(insn_cnt),
-					    GFP_USER);
+		new_prog = bpf_patch_insn_single(env->prog, i, insn_buf, cnt);
 		if (!new_prog)
 			return -ENOMEM;
 
-		new_prog->len = insn_cnt;
-
-		memmove(new_prog->insnsi + i + cnt, new_prog->insns + i + 1,
-			sizeof(*insn) * (insn_cnt - i - cnt));
-
-		/* copy substitute insns in place of load instruction */
-		memcpy(new_prog->insnsi + i, insn_buf, sizeof(*insn) * cnt);
-
-		/* adjust branches in the whole program */
-		adjust_branches(new_prog, i, cnt - 1);
+		insn_delta = cnt - 1;
 
 		/* keep walking new program and skip insns we just inserted */
 		env->prog = new_prog;
-		insn = new_prog->insnsi + i + cnt - 1;
-		i += cnt - 1;
+		insn      = new_prog->insnsi + i + insn_delta;
+
+		insn_cnt += insn_delta;
+		i        += insn_delta;
 	}
 
 	return 0;
