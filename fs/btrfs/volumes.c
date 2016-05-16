@@ -1972,11 +1972,8 @@ void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
 	if (srcdev->missing)
 		fs_devices->missing_devices--;
 
-	if (srcdev->writeable) {
+	if (srcdev->writeable)
 		fs_devices->rw_devices--;
-		/* zero out the old super if it is writable */
-		btrfs_scratch_superblocks(srcdev->bdev, srcdev->name->str);
-	}
 
 	if (srcdev->bdev)
 		fs_devices->open_devices--;
@@ -1987,6 +1984,10 @@ void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_fs_devices *fs_devices = srcdev->fs_devices;
 
+	if (srcdev->writeable) {
+		/* zero out the old super if it is writable */
+		btrfs_scratch_superblocks(srcdev->bdev, srcdev->name->str);
+	}
 	call_rcu(&srcdev->rcu, free_device);
 
 	/*
@@ -2024,10 +2025,9 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, tgtdev);
 
-	if (tgtdev->bdev) {
-		btrfs_scratch_superblocks(tgtdev->bdev, tgtdev->name->str);
+	if (tgtdev->bdev)
 		fs_info->fs_devices->open_devices--;
-	}
+
 	fs_info->fs_devices->num_devices--;
 
 	next_device = list_entry(fs_info->fs_devices->devices.next,
@@ -2038,10 +2038,18 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 		fs_info->fs_devices->latest_bdev = next_device->bdev;
 	list_del_rcu(&tgtdev->dev_list);
 
-	call_rcu(&tgtdev->rcu, free_device);
-
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 	mutex_unlock(&uuid_mutex);
+
+	/*
+	 * The update_dev_time() with in btrfs_scratch_superblocks()
+	 * may lead to a call to btrfs_show_devname() which will try
+	 * to hold device_list_mutex. And here this device
+	 * is already out of device list, so we don't have to hold
+	 * the device_list_mutex lock.
+	 */
+	btrfs_scratch_superblocks(tgtdev->bdev, tgtdev->name->str);
+	call_rcu(&tgtdev->rcu, free_device);
 }
 
 static int btrfs_find_device_by_path(struct btrfs_root *root, char *device_path,
@@ -3402,6 +3410,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	u32 count_meta = 0;
 	u32 count_sys = 0;
 	int chunk_reserved = 0;
+	u64 bytes_used = 0;
 
 	/* step one make some room on all the devices */
 	devices = &fs_info->fs_devices->devices;
@@ -3540,7 +3549,13 @@ again:
 			goto loop;
 		}
 
-		if ((chunk_type & BTRFS_BLOCK_GROUP_DATA) && !chunk_reserved) {
+		ASSERT(fs_info->data_sinfo);
+		spin_lock(&fs_info->data_sinfo->lock);
+		bytes_used = fs_info->data_sinfo->bytes_used;
+		spin_unlock(&fs_info->data_sinfo->lock);
+
+		if ((chunk_type & BTRFS_BLOCK_GROUP_DATA) &&
+		    !chunk_reserved && !bytes_used) {
 			trans = btrfs_start_transaction(chunk_root, 0);
 			if (IS_ERR(trans)) {
 				mutex_unlock(&fs_info->delete_unused_bgs_mutex);
@@ -3693,10 +3708,8 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		num_devices--;
 	}
 	btrfs_dev_replace_unlock(&fs_info->dev_replace, 0);
-	allowed = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-	if (num_devices == 1)
-		allowed |= BTRFS_BLOCK_GROUP_DUP;
-	else if (num_devices > 1)
+	allowed = BTRFS_AVAIL_ALLOC_BIT_SINGLE | BTRFS_BLOCK_GROUP_DUP;
+	if (num_devices > 1)
 		allowed |= (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1);
 	if (num_devices > 2)
 		allowed |= BTRFS_BLOCK_GROUP_RAID5;
@@ -5278,7 +5291,15 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 	stripe_nr = div64_u64(stripe_nr, stripe_len);
 
 	stripe_offset = stripe_nr * stripe_len;
-	BUG_ON(offset < stripe_offset);
+	if (offset < stripe_offset) {
+		btrfs_crit(fs_info, "stripe math has gone wrong, "
+			   "stripe_offset=%llu, offset=%llu, start=%llu, "
+			   "logical=%llu, stripe_len=%llu",
+			   stripe_offset, offset, em->start, logical,
+			   stripe_len);
+		free_extent_map(em);
+		return -EINVAL;
+	}
 
 	/* stripe_offset is the offset of this block in its stripe*/
 	stripe_offset = offset - stripe_offset;
@@ -5519,7 +5540,13 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 				&stripe_index);
 		mirror_num = stripe_index + 1;
 	}
-	BUG_ON(stripe_index >= map->num_stripes);
+	if (stripe_index >= map->num_stripes) {
+		btrfs_crit(fs_info, "stripe index math went horribly wrong, "
+			   "got stripe_index=%u, num_stripes=%u",
+			   stripe_index, map->num_stripes);
+		ret = -EINVAL;
+		goto out;
+	}
 
 	num_alloc_stripes = num_stripes;
 	if (dev_replace_is_ongoing) {
@@ -6242,7 +6269,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 			"invalid chunk length %llu", length);
 		return -EIO;
 	}
-	if (!is_power_of_2(stripe_len)) {
+	if (!is_power_of_2(stripe_len) || stripe_len != BTRFS_STRIPE_LEN) {
 		btrfs_err(root->fs_info, "invalid chunk stripe length: %llu",
 			  stripe_len);
 		return -EIO;
