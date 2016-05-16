@@ -785,9 +785,11 @@ void update_dirty_page(struct inode *inode, struct page *page)
 			!S_ISLNK(inode->i_mode))
 		return;
 
-	spin_lock(&sbi->inode_lock[type]);
-	__add_dirty_inode(inode, type);
-	spin_unlock(&sbi->inode_lock[type]);
+	if (type != FILE_INODE || test_opt(sbi, DATA_FLUSH)) {
+		spin_lock(&sbi->inode_lock[type]);
+		__add_dirty_inode(inode, type);
+		spin_unlock(&sbi->inode_lock[type]);
+	}
 
 	inode_inc_dirty_pages(inode);
 	SetPagePrivate(page);
@@ -801,6 +803,9 @@ void remove_dirty_inode(struct inode *inode)
 
 	if (!S_ISDIR(inode->i_mode) && !S_ISREG(inode->i_mode) &&
 			!S_ISLNK(inode->i_mode))
+		return;
+
+	if (type == FILE_INODE && !test_opt(sbi, DATA_FLUSH))
 		return;
 
 	spin_lock(&sbi->inode_lock[type]);
