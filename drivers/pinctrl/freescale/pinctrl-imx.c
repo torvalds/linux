@@ -1,7 +1,7 @@
 /*
  * Core driver for the imx pin controller
  *
- * Copyright (C) 2012-2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc.
  * Copyright (C) 2012 Linaro Ltd.
  *
  * Author: Dong Aisheng <dong.aisheng@linaro.org>
@@ -485,13 +485,6 @@ static const struct pinconf_ops imx_pinconf_ops = {
 	.pin_config_group_dbg_show = imx_pinconf_group_dbg_show,
 };
 
-static struct pinctrl_desc imx_pinctrl_desc = {
-	.pctlops = &imx_pctrl_ops,
-	.pmxops = &imx_pmx_ops,
-	.confops = &imx_pinconf_ops,
-	.owner = THIS_MODULE,
-};
-
 /*
  * Each pin represented in fsl,pins consists of 5 u32 PIN_FUNC_ID and
  * 1 u32 CONFIG, so 24 types in total for each pin.
@@ -659,6 +652,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	struct device_node *np;
 	struct imx_pinctrl *ipctl;
 	struct resource *res;
+	struct pinctrl_desc *imx_pinctrl_desc;
 	int ret, i;
 
 	if (!info || !info->pins || !info->npins) {
@@ -666,6 +660,11 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 		return -EINVAL;
 	}
 	info->dev = &pdev->dev;
+
+	imx_pinctrl_desc = devm_kzalloc(&pdev->dev, sizeof(*imx_pinctrl_desc),
+					GFP_KERNEL);
+	if (!imx_pinctrl_desc)
+		return -ENOMEM;
 
 	/* Create state holders etc for this driver */
 	ipctl = devm_kzalloc(&pdev->dev, sizeof(*ipctl), GFP_KERNEL);
@@ -704,9 +703,13 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 		of_node_put(np);
 	}
 
-	imx_pinctrl_desc.name = dev_name(&pdev->dev);
-	imx_pinctrl_desc.pins = info->pins;
-	imx_pinctrl_desc.npins = info->npins;
+	imx_pinctrl_desc->name = dev_name(&pdev->dev);
+	imx_pinctrl_desc->pins = info->pins;
+	imx_pinctrl_desc->npins = info->npins;
+	imx_pinctrl_desc->pctlops = &imx_pctrl_ops;
+	imx_pinctrl_desc->pmxops = &imx_pmx_ops;
+	imx_pinctrl_desc->confops = &imx_pinconf_ops;
+	imx_pinctrl_desc->owner = THIS_MODULE;
 
 	ret = imx_pinctrl_probe_dt(pdev, info);
 	if (ret) {
@@ -717,7 +720,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	ipctl->info = info;
 	ipctl->dev = info->dev;
 	platform_set_drvdata(pdev, ipctl);
-	ipctl->pctl = pinctrl_register(&imx_pinctrl_desc, &pdev->dev, ipctl);
+	ipctl->pctl = pinctrl_register(imx_pinctrl_desc, &pdev->dev, ipctl);
 	if (!ipctl->pctl) {
 		dev_err(&pdev->dev, "could not register IMX pinctrl driver\n");
 		return -EINVAL;
