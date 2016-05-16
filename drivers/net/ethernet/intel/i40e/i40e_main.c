@@ -3950,6 +3950,7 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 			/* clear the affinity_mask in the IRQ descriptor */
 			irq_set_affinity_hint(pf->msix_entries[vector].vector,
 					      NULL);
+			synchronize_irq(pf->msix_entries[vector].vector);
 			free_irq(pf->msix_entries[vector].vector,
 				 vsi->q_vectors[i]);
 
@@ -11450,6 +11451,8 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	wr32(hw, I40E_PFPM_APM, (pf->wol_en ? I40E_PFPM_APM_APME_MASK : 0));
 	wr32(hw, I40E_PFPM_WUFC, (pf->wol_en ? I40E_PFPM_WUFC_MAG_MASK : 0));
+
+	i40e_stop_misc_vector(pf);
 
 	pci_wake_from_d3(pdev, pf->wol_en);
 	pci_set_power_state(pdev, PCI_D3hot);
