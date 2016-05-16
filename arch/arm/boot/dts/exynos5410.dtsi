@@ -116,6 +116,9 @@
 		pmu_system_controller: system-controller@10040000 {
 			compatible = "samsung,exynos5410-pmu", "syscon";
 			reg = <0x10040000 0x5000>;
+			clock-names = "clkout16";
+			clocks = <&fin_pll>;
+			#clock-cells = <1>;
 		};
 
 		mct: mct@101C0000 {
