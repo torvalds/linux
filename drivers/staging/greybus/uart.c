@@ -375,7 +375,7 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 
 	if (C_BAUD(tty) == B0) {
 		newline.rate = gb_tty->line_coding.rate;
-		newctrl &= GB_UART_CTRL_DTR;
+		newctrl &= ~GB_UART_CTRL_DTR;
 	} else if (termios_old && (termios_old->c_cflag & CBAUD) == B0) {
 		newctrl |= GB_UART_CTRL_DTR;
 	}
