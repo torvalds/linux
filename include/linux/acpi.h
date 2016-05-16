@@ -190,14 +190,6 @@ static inline int acpi_debugger_notify_command_complete(void)
 }
 #endif
 
-#ifdef CONFIG_ACPI_INITRD_TABLE_OVERRIDE
-void acpi_initrd_override(void *data, size_t size);
-#else
-static inline void acpi_initrd_override(void *data, size_t size)
-{
-}
-#endif
-
 #define BAD_MADT_ENTRY(entry, end) (					    \
 		(!entry) || (unsigned long)entry + sizeof(*entry) > end ||  \
 		((struct acpi_subtable_header *)entry)->length < sizeof(*entry))
@@ -216,6 +208,7 @@ void acpi_boot_table_init (void);
 int acpi_mps_check (void);
 int acpi_numa_init (void);
 
+void early_acpi_table_init(void *data, size_t size);
 int acpi_table_init (void);
 int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
 int __init acpi_parse_entries(char *id, unsigned long table_size,
@@ -360,7 +353,6 @@ extern bool wmi_has_guid(const char *guid);
 extern char acpi_video_backlight_string[];
 extern long acpi_is_video_device(acpi_handle handle);
 extern int acpi_blacklisted(void);
-extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
 extern void acpi_osi_setup(char *str);
 extern bool acpi_osi_is_win8(void);
 
@@ -597,6 +589,7 @@ static inline const char *acpi_dev_name(struct acpi_device *adev)
 	return NULL;
 }
 
+static inline void early_acpi_table_init(void *data, size_t size) { }
 static inline void acpi_early_init(void) { }
 static inline void acpi_subsystem_init(void) { }
 

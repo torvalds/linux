@@ -311,12 +311,12 @@ config ACPI_CUSTOM_DSDT
 	bool
 	default ACPI_CUSTOM_DSDT_FILE != ""
 
-config ACPI_INITRD_TABLE_OVERRIDE
-	bool "ACPI tables override via initrd"
+config ACPI_TABLE_UPGRADE
+	bool "Allow upgrading ACPI tables via initrd"
 	depends on BLK_DEV_INITRD && X86
-	default n
+	default y
 	help
-	  This option provides functionality to override arbitrary ACPI tables
+	  This option provides functionality to upgrade arbitrary ACPI tables
 	  via initrd. No functional change if no ACPI tables are passed via
 	  initrd, therefore it's safe to say Y.
 	  See Documentation/acpi/initrd_table_override.txt for details
