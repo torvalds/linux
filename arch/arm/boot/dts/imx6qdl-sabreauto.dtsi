@@ -1048,6 +1048,9 @@
 	status = "okay";
 };
 
+&snvs_poweroff {
+	status = "okay";
+};
 
 &ssi2 {
 	assigned-clocks = <&clks IMX6QDL_CLK_SSI2_SEL>;
