@@ -2692,6 +2692,7 @@ static int _nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 		.rpc_resp	= &res,
 		.rpc_cred	= cred,
         };
+	struct rpc_cred *delegation_cred = NULL;
 	unsigned long timestamp = jiffies;
 	fmode_t fmode;
 	bool truncate;
@@ -2707,7 +2708,7 @@ static int _nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 	truncate = (sattr->ia_valid & ATTR_SIZE) ? true : false;
 	fmode = truncate ? FMODE_WRITE : FMODE_READ;
 
-	if (nfs4_copy_delegation_stateid(&arg.stateid, inode, fmode)) {
+	if (nfs4_copy_delegation_stateid(inode, fmode, &arg.stateid, &delegation_cred)) {
 		/* Use that stateid */
 	} else if (truncate && state != NULL) {
 		struct nfs_lockowner lockowner = {
@@ -2716,13 +2717,17 @@ static int _nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 		};
 		if (!nfs4_valid_open_stateid(state))
 			return -EBADF;
-		if (nfs4_select_rw_stateid(&arg.stateid, state, FMODE_WRITE,
-				&lockowner) == -EIO)
+		if (nfs4_select_rw_stateid(state, FMODE_WRITE, &lockowner,
+				&arg.stateid, &delegation_cred) == -EIO)
 			return -EBADF;
 	} else
 		nfs4_stateid_copy(&arg.stateid, &zero_stateid);
+	if (delegation_cred)
+		msg.rpc_cred = delegation_cred;
 
 	status = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
+
+	put_rpccred(delegation_cred);
 	if (status == 0 && state != NULL)
 		renew_lease(server, timestamp);
 	trace_nfs4_setattr(inode, &arg.stateid, status);
@@ -4301,7 +4306,7 @@ int nfs4_set_rw_stateid(nfs4_stateid *stateid,
 
 	if (l_ctx != NULL)
 		lockowner = &l_ctx->lockowner;
-	return nfs4_select_rw_stateid(stateid, ctx->state, fmode, lockowner);
+	return nfs4_select_rw_stateid(ctx->state, fmode, lockowner, stateid, NULL);
 }
 EXPORT_SYMBOL_GPL(nfs4_set_rw_stateid);
 
