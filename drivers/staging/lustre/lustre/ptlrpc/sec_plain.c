@@ -574,8 +574,12 @@ int plain_alloc_reqbuf(struct ptlrpc_sec *sec,
 	lustre_init_msg_v2(req->rq_reqbuf, PLAIN_PACK_SEGMENTS, buflens, NULL);
 	req->rq_reqmsg = lustre_msg_buf(req->rq_reqbuf, PLAIN_PACK_MSG_OFF, 0);
 
-	if (req->rq_pack_udesc)
-		sptlrpc_pack_user_desc(req->rq_reqbuf, PLAIN_PACK_USER_OFF);
+	if (req->rq_pack_udesc) {
+		int rc = sptlrpc_pack_user_desc(req->rq_reqbuf,
+					      PLAIN_PACK_USER_OFF);
+		if (rc < 0)
+			return rc;
+	}
 
 	return 0;
 }

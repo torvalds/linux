@@ -2196,6 +2196,9 @@ int sptlrpc_pack_user_desc(struct lustre_msg *msg, int offset)
 
 	pud = lustre_msg_buf(msg, offset, 0);
 
+	if (!pud)
+		return -EINVAL;
+
 	pud->pud_uid = from_kuid(&init_user_ns, current_uid());
 	pud->pud_gid = from_kgid(&init_user_ns, current_gid());
 	pud->pud_fsuid = from_kuid(&init_user_ns, current_fsuid());
