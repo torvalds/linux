@@ -1595,6 +1595,7 @@ struct task_struct {
 
 	unsigned long sas_ss_sp;
 	size_t sas_ss_size;
+	unsigned sas_ss_flags;
 
 	struct callback_head *task_works;
 
@@ -2574,6 +2575,18 @@ static inline int kill_cad_pid(int sig, int priv)
  */
 static inline int on_sig_stack(unsigned long sp)
 {
+	/*
+	 * If the signal stack is SS_AUTODISARM then, by construction, we
+	 * can't be on the signal stack unless user code deliberately set
+	 * SS_AUTODISARM when we were already on it.
+	 *
+	 * This improves reliability: if user state gets corrupted such that
+	 * the stack pointer points very close to the end of the signal stack,
+	 * then this check will enable the signal to be handled anyway.
+	 */
+	if (current->sas_ss_flags & SS_AUTODISARM)
+		return 0;
+
 #ifdef CONFIG_STACK_GROWSUP
 	return sp >= current->sas_ss_sp &&
 		sp - current->sas_ss_sp < current->sas_ss_size;
@@ -2589,6 +2602,13 @@ static inline int sas_ss_flags(unsigned long sp)
 		return SS_DISABLE;
 
 	return on_sig_stack(sp) ? SS_ONSTACK : 0;
+}
+
+static inline void sas_ss_reset(struct task_struct *p)
+{
+	p->sas_ss_sp = 0;
+	p->sas_ss_size = 0;
+	p->sas_ss_flags = SS_DISABLE;
 }
 
 static inline unsigned long sigsp(unsigned long sp, struct ksignal *ksig)
