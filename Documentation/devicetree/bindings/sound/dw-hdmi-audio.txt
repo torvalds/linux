@@ -1,0 +1,5 @@
+dw hdmi audio interface
+
+Required properties:
+
+- compatible : Should be "dw-hdmi-audio".

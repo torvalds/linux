@@ -449,6 +449,10 @@ config SND_SOC_DA732X
 config SND_SOC_DA9055
 	tristate
 
+config SND_SOC_DW_HDMI_AUDIO
+	tristate "dw hdmi audio"
+	depends on RK_HDMI
+
 config SND_SOC_BT_SCO
 	tristate
 
