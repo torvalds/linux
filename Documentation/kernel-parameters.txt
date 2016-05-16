@@ -3284,6 +3284,44 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Lazy RCU callbacks are those which RCU can
 			prove do nothing more than free memory.
 
+	rcuperf.gp_exp= [KNL]
+			Measure performance of expedited synchronous
+			grace-period primitives.
+
+	rcuperf.holdoff= [KNL]
+			Set test-start holdoff period.  The purpose of
+			this parameter is to delay the start of the
+			test until boot completes in order to avoid
+			interference.
+
+	rcuperf.nreaders= [KNL]
+			Set number of RCU readers.  The value -1 selects
+			N, where N is the number of CPUs.  A value
+			"n" less than -1 selects N-n+1, where N is again
+			the number of CPUs.  For example, -2 selects N
+			(the number of CPUs), -3 selects N+1, and so on.
+			A value of "n" less than or equal to -N selects
+			a single reader.
+
+	rcuperf.nwriters= [KNL]
+			Set number of RCU writers.  The values operate
+			the same as for rcuperf.nreaders.
+			N, where N is the number of CPUs
+
+	rcuperf.perf_runnable= [BOOT]
+			Start rcuperf running at boot time.
+
+	rcuperf.shutdown= [KNL]
+			Shut the system down after performance tests
+			complete.  This is useful for hands-off automated
+			testing.
+
+	rcuperf.perf_type= [KNL]
+			Specify the RCU implementation to test.
+
+	rcuperf.verbose= [KNL]
+			Enable additional printk() statements.
+
 	rcutorture.cbflood_inter_holdoff= [KNL]
 			Set holdoff time (jiffies) between successive
 			callback-flood tests.

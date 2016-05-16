@@ -1794,30 +1794,49 @@ static inline unsigned int fold_hash(unsigned long hash)
 	return hash_64(hash, 32);
 }
 
+/*
+ * This is George Marsaglia's XORSHIFT generator.
+ * It implements a maximum-period LFSR in only a few
+ * instructions.  It also has the property (required
+ * by hash_name()) that mix_hash(0) = 0.
+ */
+static inline unsigned long mix_hash(unsigned long hash)
+{
+	hash ^= hash << 13;
+	hash ^= hash >> 7;
+	hash ^= hash << 17;
+	return hash;
+}
+
 #else	/* 32-bit case */
 
 #define fold_hash(x) (x)
+
+static inline unsigned long mix_hash(unsigned long hash)
+{
+	hash ^= hash << 13;
+	hash ^= hash >> 17;
+	hash ^= hash << 5;
+	return hash;
+}
 
 #endif
 
 unsigned int full_name_hash(const unsigned char *name, unsigned int len)
 {
-	unsigned long a, mask;
-	unsigned long hash = 0;
+	unsigned long a, hash = 0;
 
 	for (;;) {
 		a = load_unaligned_zeropad(name);
 		if (len < sizeof(unsigned long))
 			break;
-		hash += a;
-		hash *= 9;
+		hash = mix_hash(hash + a);
 		name += sizeof(unsigned long);
 		len -= sizeof(unsigned long);
 		if (!len)
 			goto done;
 	}
-	mask = bytemask_from_count(len);
-	hash += mask & a;
+	hash += a & bytemask_from_count(len);
 done:
 	return fold_hash(hash);
 }
@@ -1835,7 +1854,7 @@ static inline u64 hash_name(const char *name)
 	hash = a = 0;
 	len = -sizeof(unsigned long);
 	do {
-		hash = (hash + a) * 9;
+		hash = mix_hash(hash + a);
 		len += sizeof(unsigned long);
 		a = load_unaligned_zeropad(name+len);
 		b = a ^ REPEAT_BYTE('/');

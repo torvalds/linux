@@ -16,9 +16,69 @@
 
 #include <linux/bug.h>
 #include <linux/efi.h>
+#include <linux/irqflags.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/stringify.h>
 #include <asm/efi.h>
+
+static void efi_call_virt_check_flags(unsigned long flags, const char *call)
+{
+	unsigned long cur_flags, mismatch;
+
+	local_save_flags(cur_flags);
+
+	mismatch = flags ^ cur_flags;
+	if (!WARN_ON_ONCE(mismatch & ARCH_EFI_IRQ_FLAGS_MASK))
+		return;
+
+	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_NOW_UNRELIABLE);
+	pr_err_ratelimited(FW_BUG "IRQ flags corrupted (0x%08lx=>0x%08lx) by EFI %s\n",
+			   flags, cur_flags, call);
+	local_irq_restore(flags);
+}
+
+/*
+ * Arch code can implement the following three template macros, avoiding
+ * reptition for the void/non-void return cases of {__,}efi_call_virt:
+ *
+ *  * arch_efi_call_virt_setup
+ *
+ *    Sets up the environment for the call (e.g. switching page tables,
+ *    allowing kernel-mode use of floating point, if required).
+ *
+ *  * arch_efi_call_virt
+ *
+ *    Performs the call. The last expression in the macro must be the call
+ *    itself, allowing the logic to be shared by the void and non-void
+ *    cases.
+ *
+ *  * arch_efi_call_virt_teardown
+ *
+ *    Restores the usual kernel environment once the call has returned.
+ */
+
+#define efi_call_virt(f, args...)					\
+({									\
+	efi_status_t __s;						\
+	unsigned long flags;						\
+	arch_efi_call_virt_setup();					\
+	local_save_flags(flags);					\
+	__s = arch_efi_call_virt(f, args);				\
+	efi_call_virt_check_flags(flags, __stringify(f));		\
+	arch_efi_call_virt_teardown();					\
+	__s;								\
+})
+
+#define __efi_call_virt(f, args...)					\
+({									\
+	unsigned long flags;						\
+	arch_efi_call_virt_setup();					\
+	local_save_flags(flags);					\
+	arch_efi_call_virt(f, args);					\
+	efi_call_virt_check_flags(flags, __stringify(f));		\
+	arch_efi_call_virt_teardown();					\
+})
 
 /*
  * According to section 7.1 of the UEFI spec, Runtime Services are not fully
