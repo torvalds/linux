@@ -216,14 +216,14 @@ opcodes as defined in linux/filter.h stand for:
 
   jmp              6                    Jump to label
   ja               6                    Jump to label
-  jeq              7, 8                 Jump on k == A
-  jneq             8                    Jump on k != A
-  jne              8                    Jump on k != A
-  jlt              8                    Jump on k < A
-  jle              8                    Jump on k <= A
-  jgt              7, 8                 Jump on k > A
-  jge              7, 8                 Jump on k >= A
-  jset             7, 8                 Jump on k & A
+  jeq              7, 8                 Jump on A == k
+  jneq             8                    Jump on A != k
+  jne              8                    Jump on A != k
+  jlt              8                    Jump on A <  k
+  jle              8                    Jump on A <= k
+  jgt              7, 8                 Jump on A >  k
+  jge              7, 8                 Jump on A >= k
+  jset             7, 8                 Jump on A &  k
 
   add              0, 4                 A + <x>
   sub              0, 4                 A - <x>
