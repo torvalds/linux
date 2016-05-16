@@ -434,8 +434,8 @@ static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 		}
 
 		intf_load.status = fw_mgmt->intf_fw_status;
-		intf_load.major = cpu_to_le16(fw_mgmt->intf_fw_major);
-		intf_load.minor = cpu_to_le16(fw_mgmt->intf_fw_minor);
+		intf_load.major = fw_mgmt->intf_fw_major;
+		intf_load.minor = fw_mgmt->intf_fw_minor;
 
 		if (copy_to_user(buf, &intf_load, sizeof(intf_load)))
 			return -EFAULT;
