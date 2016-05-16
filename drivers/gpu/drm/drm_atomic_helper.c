@@ -384,8 +384,6 @@ mode_fixup(struct drm_atomic_state *state)
 		 */
 		encoder = conn_state->best_encoder;
 		funcs = encoder->helper_private;
-		if (!funcs)
-			continue;
 
 		ret = drm_bridge_mode_fixup(encoder->bridge, &crtc_state->mode,
 				&crtc_state->adjusted_mode);
@@ -394,7 +392,7 @@ mode_fixup(struct drm_atomic_state *state)
 			return -EINVAL;
 		}
 
-		if (funcs->atomic_check) {
+		if (funcs && funcs->atomic_check) {
 			ret = funcs->atomic_check(encoder, crtc_state,
 						  conn_state);
 			if (ret) {
@@ -402,7 +400,7 @@ mode_fixup(struct drm_atomic_state *state)
 						 encoder->base.id, encoder->name);
 				return ret;
 			}
-		} else if (funcs->mode_fixup) {
+		} else if (funcs && funcs->mode_fixup) {
 			ret = funcs->mode_fixup(encoder, &crtc_state->mode,
 						&crtc_state->adjusted_mode);
 			if (!ret) {
@@ -707,12 +705,14 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		drm_bridge_disable(encoder->bridge);
 
 		/* Right function depends upon target state. */
-		if (connector->state->crtc && funcs->prepare)
-			funcs->prepare(encoder);
-		else if (funcs->disable)
-			funcs->disable(encoder);
-		else
-			funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
+		if (funcs) {
+			if (connector->state->crtc && funcs->prepare)
+				funcs->prepare(encoder);
+			else if (funcs->disable)
+				funcs->disable(encoder);
+			else if (funcs->dpms)
+				funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
+		}
 
 		drm_bridge_post_disable(encoder->bridge);
 	}
@@ -873,7 +873,7 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call mode_set hooks twice.
 		 */
-		if (funcs->mode_set)
+		if (funcs && funcs->mode_set)
 			funcs->mode_set(encoder, mode, adjusted_mode);
 
 		drm_bridge_mode_set(encoder->bridge, mode, adjusted_mode);
@@ -974,10 +974,12 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		 */
 		drm_bridge_pre_enable(encoder->bridge);
 
-		if (funcs->enable)
-			funcs->enable(encoder);
-		else
-			funcs->commit(encoder);
+		if (funcs) {
+			if (funcs->enable)
+				funcs->enable(encoder);
+			else if (funcs->commit)
+				funcs->commit(encoder);
+		}
 
 		drm_bridge_enable(encoder->bridge);
 	}
@@ -2479,6 +2481,23 @@ backoff:
 	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_dpms);
+
+/**
+ * drm_atomic_helper_best_encoder - Helper for &drm_connector_helper_funcs
+ *                                  ->best_encoder callback
+ * @connector: Connector control structure
+ *
+ * This is a &drm_connector_helper_funcs ->best_encoder callback helper for
+ * connectors that support exactly 1 encoder, statically determined at driver
+ * init time.
+ */
+struct drm_encoder *
+drm_atomic_helper_best_encoder(struct drm_connector *connector)
+{
+	WARN_ON(connector->encoder_ids[1]);
+	return drm_encoder_find(connector->dev, connector->encoder_ids[0]);
+}
+EXPORT_SYMBOL(drm_atomic_helper_best_encoder);
 
 /**
  * DOC: atomic state reset and initialization

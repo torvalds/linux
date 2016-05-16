@@ -110,6 +110,8 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 				uint32_t flags);
 int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 				     int mode);
+struct drm_encoder *
+drm_atomic_helper_best_encoder(struct drm_connector *connector);
 
 /* default implementations for state handling */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc);

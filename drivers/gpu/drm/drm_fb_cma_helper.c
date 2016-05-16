@@ -43,14 +43,12 @@ struct drm_fbdev_cma {
  * Provides helper functions for creating a cma (contiguous memory allocator)
  * backed framebuffer.
  *
- * drm_fb_cma_create() is used in the
- * (struct drm_mode_config_funcs *)->fb_create callback function to create the
- * cma backed framebuffer.
+ * drm_fb_cma_create() is used in the &drm_mode_config_funcs ->fb_create
+ * callback function to create a cma backed framebuffer.
  *
  * An fbdev framebuffer backed by cma is also available by calling
  * drm_fbdev_cma_init(). drm_fbdev_cma_fini() tears it down.
- * If CONFIG_FB_DEFERRED_IO is enabled and the callback
- * (struct drm_framebuffer_funcs)->dirty is set, fb_deferred_io
+ * If the &drm_framebuffer_funcs ->dirty callback is set, fb_deferred_io
  * will be set up automatically. dirty() is called by
  * drm_fb_helper_deferred_io() in process context (struct delayed_work).
  *
