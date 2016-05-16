@@ -618,6 +618,7 @@ static void destroy_percpu_info(struct f2fs_sb_info *sbi)
 	for (i = 0; i < NR_COUNT_TYPE; i++)
 		percpu_counter_destroy(&sbi->nr_pages[i]);
 	percpu_counter_destroy(&sbi->alloc_valid_block_count);
+	percpu_counter_destroy(&sbi->total_valid_inode_count);
 }
 
 static void f2fs_put_super(struct super_block *sb)
@@ -1384,7 +1385,11 @@ static int init_percpu_info(struct f2fs_sb_info *sbi)
 			return err;
 	}
 
-	return percpu_counter_init(&sbi->alloc_valid_block_count, 0,
+	err = percpu_counter_init(&sbi->alloc_valid_block_count, 0, GFP_KERNEL);
+	if (err)
+		return err;
+
+	return percpu_counter_init(&sbi->total_valid_inode_count, 0,
 								GFP_KERNEL);
 }
 
@@ -1598,8 +1603,8 @@ try_onemore:
 
 	sbi->total_valid_node_count =
 				le32_to_cpu(sbi->ckpt->valid_node_count);
-	sbi->total_valid_inode_count =
-				le32_to_cpu(sbi->ckpt->valid_inode_count);
+	percpu_counter_set(&sbi->total_valid_inode_count,
+				le32_to_cpu(sbi->ckpt->valid_inode_count));
 	sbi->user_block_count = le64_to_cpu(sbi->ckpt->user_block_count);
 	sbi->total_valid_block_count =
 				le64_to_cpu(sbi->ckpt->valid_block_count);
