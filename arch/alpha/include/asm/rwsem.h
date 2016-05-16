@@ -63,7 +63,7 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 	return res >= 0 ? 1 : 0;
 }
 
-static inline void __down_write(struct rw_semaphore *sem)
+static inline long ___down_write(struct rw_semaphore *sem)
 {
 	long oldcount;
 #ifndef	CONFIG_SMP
@@ -83,8 +83,22 @@ static inline void __down_write(struct rw_semaphore *sem)
 	:"=&r" (oldcount), "=m" (sem->count), "=&r" (temp)
 	:"Ir" (RWSEM_ACTIVE_WRITE_BIAS), "m" (sem->count) : "memory");
 #endif
-	if (unlikely(oldcount))
+	return oldcount;
+}
+
+static inline void __down_write(struct rw_semaphore *sem)
+{
+	if (unlikely(___down_write(sem)))
 		rwsem_down_write_failed(sem);
+}
+
+static inline int __down_write_killable(struct rw_semaphore *sem)
+{
+	if (unlikely(___down_write(sem)))
+		if (IS_ERR(rwsem_down_write_failed_killable(sem)))
+			return -EINTR;
+
+	return 0;
 }
 
 /*
