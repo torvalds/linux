@@ -11441,6 +11441,7 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
 	struct i40e_hw *hw = &pf->hw;
+	int retval = 0;
 
 	set_bit(__I40E_SUSPENDED, &pf->state);
 	set_bit(__I40E_DOWN, &pf->state);
@@ -11454,10 +11455,14 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	i40e_stop_misc_vector(pf);
 
+	retval = pci_save_state(pdev);
+	if (retval)
+		return retval;
+
 	pci_wake_from_d3(pdev, pf->wol_en);
 	pci_set_power_state(pdev, PCI_D3hot);
 
-	return 0;
+	return retval;
 }
 
 /**
