@@ -28,7 +28,7 @@
 		core_clk: core_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
-			clock-frequency = <90000000>;
+			clock-frequency = <100000000>;
 		};
 
 		core_intc: archs-intc@cpu {

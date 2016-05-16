@@ -410,8 +410,6 @@ static void __init axs103_early_init(void)
 	unsigned int num_cores = (read_aux_reg(ARC_REG_MCIP_BCR) >> 16) & 0x3F;
 	if (num_cores > 2)
 		freq = 50;
-	else if (num_cores == 2)
-		freq = 75;
 #endif
 
 	switch (freq) {
