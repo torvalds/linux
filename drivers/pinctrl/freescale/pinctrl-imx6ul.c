@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -148,6 +148,21 @@ enum imx6ul_pads {
 	MX6UL_PAD_CSI_DATA07 = 128,
 };
 
+enum imx6ull_lpsr_pads {
+	MX6ULL_PAD_BOOT_MODE0 = 0,
+	MX6ULL_PAD_BOOT_MODE1 = 1,
+	MX6ULL_PAD_SNVS_TAMPER0 = 2,
+	MX6ULL_PAD_SNVS_TAMPER1 = 3,
+	MX6ULL_PAD_SNVS_TAMPER2 = 4,
+	MX6ULL_PAD_SNVS_TAMPER3 = 5,
+	MX6ULL_PAD_SNVS_TAMPER4 = 6,
+	MX6ULL_PAD_SNVS_TAMPER5 = 7,
+	MX6ULL_PAD_SNVS_TAMPER6 = 8,
+	MX6ULL_PAD_SNVS_TAMPER7 = 9,
+	MX6ULL_PAD_SNVS_TAMPER8 = 10,
+	MX6ULL_PAD_SNVS_TAMPER9 = 11,
+};
+
 /* Pad names for the pinmux subsystem */
 static const struct pinctrl_pin_desc imx6ul_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX6UL_PAD_RESERVE0),
@@ -281,19 +296,52 @@ static const struct pinctrl_pin_desc imx6ul_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(MX6UL_PAD_CSI_DATA07),
 };
 
+/* pad for i.MX6ULL lpsr pinmux */
+static struct pinctrl_pin_desc imx6ull_snvs_pinctrl_pads[] = {
+	IMX_PINCTRL_PIN(MX6ULL_PAD_BOOT_MODE0),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_BOOT_MODE1),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER0),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER1),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER2),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER3),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER4),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER5),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER6),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER7),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER8),
+	IMX_PINCTRL_PIN(MX6ULL_PAD_SNVS_TAMPER9),
+};
+
 static struct imx_pinctrl_soc_info imx6ul_pinctrl_info = {
 	.pins = imx6ul_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx6ul_pinctrl_pads),
 };
 
+static struct imx_pinctrl_soc_info imx6ull_snvs_pinctrl_info = {
+	.pins = imx6ull_snvs_pinctrl_pads,
+	.npins = ARRAY_SIZE(imx6ull_snvs_pinctrl_pads),
+	.flags = ZERO_OFFSET_VALID,
+};
+
 static struct of_device_id imx6ul_pinctrl_of_match[] = {
-	{ .compatible = "fsl,imx6ul-iomuxc", },
+	{ .compatible = "fsl,imx6ul-iomuxc", .data = &imx6ul_pinctrl_info, },
+	{ .compatible = "fsl,imx6ull-iomuxc-snvs", .data = &imx6ull_snvs_pinctrl_info, },
 	{ /* sentinel */ }
 };
 
 static int imx6ul_pinctrl_probe(struct platform_device *pdev)
 {
-	return imx_pinctrl_probe(pdev, &imx6ul_pinctrl_info);
+	const struct of_device_id *match;
+	struct imx_pinctrl_soc_info *pinctrl_info;
+
+	match = of_match_device(imx6ul_pinctrl_of_match, &pdev->dev);
+
+	if (!match)
+		return -ENODEV;
+
+	pinctrl_info = (struct imx_pinctrl_soc_info *) match->data;
+
+	return imx_pinctrl_probe(pdev, pinctrl_info);
 }
 
 static struct platform_driver imx6ul_pinctrl_driver = {
