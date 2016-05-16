@@ -1562,12 +1562,12 @@ Doing the same with chrt -r 5 and function-trace set.
   <idle>-0       3dN.1   12us : menu_hrtimer_cancel <-tick_nohz_idle_exit
   <idle>-0       3dN.1   12us : ktime_get <-tick_nohz_idle_exit
   <idle>-0       3dN.1   12us : tick_do_update_jiffies64 <-tick_nohz_idle_exit
-  <idle>-0       3dN.1   13us : update_cpu_load_nohz <-tick_nohz_idle_exit
-  <idle>-0       3dN.1   13us : _raw_spin_lock <-update_cpu_load_nohz
+  <idle>-0       3dN.1   13us : cpu_load_update_nohz <-tick_nohz_idle_exit
+  <idle>-0       3dN.1   13us : _raw_spin_lock <-cpu_load_update_nohz
   <idle>-0       3dN.1   13us : add_preempt_count <-_raw_spin_lock
-  <idle>-0       3dN.2   13us : __update_cpu_load <-update_cpu_load_nohz
-  <idle>-0       3dN.2   14us : sched_avg_update <-__update_cpu_load
-  <idle>-0       3dN.2   14us : _raw_spin_unlock <-update_cpu_load_nohz
+  <idle>-0       3dN.2   13us : __cpu_load_update <-cpu_load_update_nohz
+  <idle>-0       3dN.2   14us : sched_avg_update <-__cpu_load_update
+  <idle>-0       3dN.2   14us : _raw_spin_unlock <-cpu_load_update_nohz
   <idle>-0       3dN.2   14us : sub_preempt_count <-_raw_spin_unlock
   <idle>-0       3dN.1   15us : calc_load_exit_idle <-tick_nohz_idle_exit
   <idle>-0       3dN.1   15us : touch_softlockup_watchdog <-tick_nohz_idle_exit
