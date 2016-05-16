@@ -652,13 +652,13 @@ static void fs_timeout(struct net_device *dev)
 	spin_lock_irqsave(&fep->lock, flags);
 
 	if (dev->flags & IFF_UP) {
-		phy_stop(fep->phydev);
+		phy_stop(dev->phydev);
 		(*fep->ops->stop)(dev);
 		(*fep->ops->restart)(dev);
-		phy_start(fep->phydev);
+		phy_start(dev->phydev);
 	}
 
-	phy_start(fep->phydev);
+	phy_start(dev->phydev);
 	wake = fep->tx_free && !(CBDR_SC(fep->cur_tx) & BD_ENET_TX_READY);
 	spin_unlock_irqrestore(&fep->lock, flags);
 
@@ -672,7 +672,7 @@ static void fs_timeout(struct net_device *dev)
 static void generic_adjust_link(struct  net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	struct phy_device *phydev = fep->phydev;
+	struct phy_device *phydev = dev->phydev;
 	int new_state = 0;
 
 	if (phydev->link) {
@@ -741,8 +741,6 @@ static int fs_init_phy(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	fep->phydev = phydev;
-
 	return 0;
 }
 
@@ -776,7 +774,7 @@ static int fs_enet_open(struct net_device *dev)
 		napi_disable(&fep->napi_tx);
 		return err;
 	}
-	phy_start(fep->phydev);
+	phy_start(dev->phydev);
 
 	netif_start_queue(dev);
 
@@ -792,7 +790,7 @@ static int fs_enet_close(struct net_device *dev)
 	netif_carrier_off(dev);
 	napi_disable(&fep->napi);
 	napi_disable(&fep->napi_tx);
-	phy_stop(fep->phydev);
+	phy_stop(dev->phydev);
 
 	spin_lock_irqsave(&fep->lock, flags);
 	spin_lock(&fep->tx_lock);
@@ -801,8 +799,7 @@ static int fs_enet_close(struct net_device *dev)
 	spin_unlock_irqrestore(&fep->lock, flags);
 
 	/* release any irqs */
-	phy_disconnect(fep->phydev);
-	fep->phydev = NULL;
+	phy_disconnect(dev->phydev);
 	free_irq(fep->interrupt, dev);
 
 	return 0;
@@ -850,10 +847,9 @@ static void fs_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 static int fs_get_ksettings(struct net_device *dev,
 			    struct ethtool_link_ksettings *cmd)
 {
-	struct fs_enet_private *fep = netdev_priv(dev);
-	struct phy_device *phydev = fep->phydev;
+	struct phy_device *phydev = dev->phydev;
 
-	if (!fep->phydev)
+	if (!phydev)
 		return -ENODEV;
 
 	return phy_ethtool_ksettings_get(phydev, cmd);
@@ -862,10 +858,9 @@ static int fs_get_ksettings(struct net_device *dev,
 static int fs_set_ksettings(struct net_device *dev,
 			    const struct ethtool_link_ksettings *cmd)
 {
-	struct fs_enet_private *fep = netdev_priv(dev);
-	struct phy_device *phydev = fep->phydev;
+	struct phy_device *phydev = dev->phydev;
 
-	if (!fep->phydev)
+	if (!phydev)
 		return -ENODEV;
 
 	return phy_ethtool_ksettings_set(phydev, cmd);
@@ -903,12 +898,10 @@ static const struct ethtool_ops fs_ethtool_ops = {
 
 static int fs_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct fs_enet_private *fep = netdev_priv(dev);
-
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	return phy_mii_ioctl(fep->phydev, rq, cmd);
+	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
 
 extern int fs_mii_connect(struct net_device *dev);
