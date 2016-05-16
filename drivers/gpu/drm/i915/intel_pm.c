@@ -26,6 +26,7 @@
  */
 
 #include <linux/cpufreq.h>
+#include <drm/drm_plane_helper.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "../../../platform/x86/intel_ips.h"
@@ -2949,6 +2950,46 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 	}
 }
 
+/*
+ * Determines the downscale amount of a plane for the purposes of watermark calculations.
+ * The bspec defines downscale amount as:
+ *
+ * """
+ * Horizontal down scale amount = maximum[1, Horizontal source size /
+ *                                           Horizontal destination size]
+ * Vertical down scale amount = maximum[1, Vertical source size /
+ *                                         Vertical destination size]
+ * Total down scale amount = Horizontal down scale amount *
+ *                           Vertical down scale amount
+ * """
+ *
+ * Return value is provided in 16.16 fixed point form to retain fractional part.
+ * Caller should take care of dividing & rounding off the value.
+ */
+static uint32_t
+skl_plane_downscale_amount(const struct intel_plane_state *pstate)
+{
+	uint32_t downscale_h, downscale_w;
+	uint32_t src_w, src_h, dst_w, dst_h;
+
+	if (WARN_ON(!pstate->visible))
+		return DRM_PLANE_HELPER_NO_SCALING;
+
+	/* n.b., src is 16.16 fixed point, dst is whole integer */
+	src_w = drm_rect_width(&pstate->src);
+	src_h = drm_rect_height(&pstate->src);
+	dst_w = drm_rect_width(&pstate->dst);
+	dst_h = drm_rect_height(&pstate->dst);
+	if (intel_rotation_90_or_270(pstate->base.rotation))
+		swap(dst_w, dst_h);
+
+	downscale_h = max(src_h / dst_h, (uint32_t)DRM_PLANE_HELPER_NO_SCALING);
+	downscale_w = max(src_w / dst_w, (uint32_t)DRM_PLANE_HELPER_NO_SCALING);
+
+	/* Provide result in 16.16 fixed point */
+	return (uint64_t)downscale_w * downscale_h >> 16;
+}
+
 static unsigned int
 skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 			     const struct drm_plane_state *pstate,
@@ -3285,6 +3326,30 @@ static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 	return ret;
 }
 
+static uint32_t skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cstate,
+					      struct intel_plane_state *pstate)
+{
+	uint64_t adjusted_pixel_rate;
+	uint64_t downscale_amount;
+	uint64_t pixel_rate;
+
+	/* Shouldn't reach here on disabled planes... */
+	if (WARN_ON(!pstate->visible))
+		return 0;
+
+	/*
+	 * Adjusted plane pixel rate is just the pipe's adjusted pixel rate
+	 * with additional adjustments for plane-specific scaling.
+	 */
+	adjusted_pixel_rate = skl_pipe_pixel_rate(cstate);
+	downscale_amount = skl_plane_downscale_amount(pstate);
+
+	pixel_rate = adjusted_pixel_rate * downscale_amount >> 16;
+	WARN_ON(pixel_rate != clamp_t(uint32_t, pixel_rate, 0, ~0));
+
+	return pixel_rate;
+}
+
 static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				struct intel_crtc_state *cstate,
 				struct intel_plane_state *intel_pstate,
@@ -3303,6 +3368,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	uint32_t selected_result;
 	uint8_t cpp;
 	uint32_t width = 0, height = 0;
+	uint32_t plane_pixel_rate;
 
 	if (latency == 0 || !cstate->base.active || !intel_pstate->visible) {
 		*enabled = false;
@@ -3316,9 +3382,10 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		swap(width, height);
 
 	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
-	method1 = skl_wm_method1(skl_pipe_pixel_rate(cstate),
-				 cpp, latency);
-	method2 = skl_wm_method2(skl_pipe_pixel_rate(cstate),
+	plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate, intel_pstate);
+
+	method1 = skl_wm_method1(plane_pixel_rate, cpp, latency);
+	method2 = skl_wm_method2(plane_pixel_rate,
 				 cstate->base.adjusted_mode.crtc_htotal,
 				 width,
 				 cpp,
