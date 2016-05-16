@@ -876,7 +876,7 @@ struct gb_spi_transfer {
 	__le16		delay_usecs;
 	__u8		cs_change;
 	__u8		bits_per_word;
-	__u8		rdwr;
+	__u8		xfer_flags;
 #define GB_SPI_XFER_READ	0x01
 #define GB_SPI_XFER_WRITE	0x02
 } __packed;

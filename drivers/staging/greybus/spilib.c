@@ -255,14 +255,14 @@ static struct gb_operation *gb_spi_operation_create(struct gb_spilib *spi,
 
 		/* Copy tx data */
 		if (xfer->tx_buf) {
-			gb_xfer->rdwr |= GB_SPI_XFER_WRITE;
+			gb_xfer->xfer_flags |= GB_SPI_XFER_WRITE;
 			memcpy(tx_data, xfer->tx_buf + spi->tx_xfer_offset,
 			       xfer_len);
 			tx_data += xfer_len;
 		}
 
 		if (xfer->rx_buf)
-			gb_xfer->rdwr |= GB_SPI_XFER_READ;
+			gb_xfer->xfer_flags |= GB_SPI_XFER_READ;
 
 		if (xfer == spi->last_xfer) {
 			msg->state = GB_SPI_STATE_OP_DONE;
