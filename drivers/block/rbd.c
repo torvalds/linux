@@ -2973,17 +2973,20 @@ static int rbd_img_request_submit(struct rbd_img_request *img_request)
 {
 	struct rbd_obj_request *obj_request;
 	struct rbd_obj_request *next_obj_request;
+	int ret = 0;
 
 	dout("%s: img %p\n", __func__, img_request);
-	for_each_obj_request_safe(img_request, obj_request, next_obj_request) {
-		int ret;
 
+	rbd_img_request_get(img_request);
+	for_each_obj_request_safe(img_request, obj_request, next_obj_request) {
 		ret = rbd_img_obj_request_submit(obj_request);
 		if (ret)
-			return ret;
+			goto out_put_ireq;
 	}
 
-	return 0;
+out_put_ireq:
+	rbd_img_request_put(img_request);
+	return ret;
 }
 
 static void rbd_img_parent_read_callback(struct rbd_img_request *img_request)
