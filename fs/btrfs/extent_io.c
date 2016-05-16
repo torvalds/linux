@@ -3364,6 +3364,8 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 	while (cur <= end) {
 		u64 em_end;
+		unsigned long max_nr;
+
 		if (cur >= i_size) {
 			if (tree->ops && tree->ops->writepage_end_io_hook)
 				tree->ops->writepage_end_io_hook(page, cur,
@@ -3419,32 +3421,23 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 			continue;
 		}
 
-		if (tree->ops && tree->ops->writepage_io_hook) {
-			ret = tree->ops->writepage_io_hook(page, cur,
-						cur + iosize - 1);
-		} else {
-			ret = 0;
+		max_nr = (i_size >> PAGE_SHIFT) + 1;
+
+		set_range_writeback(tree, cur, cur + iosize - 1);
+		if (!PageWriteback(page)) {
+			btrfs_err(BTRFS_I(inode)->root->fs_info,
+				   "page %lu not writeback, cur %llu end %llu",
+			       page->index, cur, end);
 		}
-		if (ret) {
+
+		ret = submit_extent_page(write_flags, tree, wbc, page,
+					 sector, iosize, pg_offset,
+					 bdev, &epd->bio, max_nr,
+					 end_bio_extent_writepage,
+					 0, 0, 0, false);
+		if (ret)
 			SetPageError(page);
-		} else {
-			unsigned long max_nr = (i_size >> PAGE_SHIFT) + 1;
 
-			set_range_writeback(tree, cur, cur + iosize - 1);
-			if (!PageWriteback(page)) {
-				btrfs_err(BTRFS_I(inode)->root->fs_info,
-					   "page %lu not writeback, cur %llu end %llu",
-				       page->index, cur, end);
-			}
-
-			ret = submit_extent_page(write_flags, tree, wbc, page,
-						 sector, iosize, pg_offset,
-						 bdev, &epd->bio, max_nr,
-						 end_bio_extent_writepage,
-						 0, 0, 0, false);
-			if (ret)
-				SetPageError(page);
-		}
 		cur = cur + iosize;
 		pg_offset += iosize;
 		nr++;
@@ -4839,7 +4832,7 @@ struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 		return NULL;
 	eb->fs_info = fs_info;
 again:
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	ret = radix_tree_preload(GFP_NOFS);
 	if (ret)
 		goto free_eb;
 	spin_lock(&fs_info->buffer_lock);
@@ -4940,7 +4933,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	if (uptodate)
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 again:
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	ret = radix_tree_preload(GFP_NOFS);
 	if (ret)
 		goto free_eb;
 
