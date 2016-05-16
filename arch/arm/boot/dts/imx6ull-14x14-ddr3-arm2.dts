@@ -402,13 +402,6 @@
 			>;
 		};
 
-		pinctrl_bt: btgrp {
-			fsl,pins = <
-				MX6UL_PAD_SNVS_TAMPER6__GPIO5_IO06	0x80000000
-				MX6UL_PAD_SNVS_TAMPER9__GPIO5_IO09	0x80000000
-				MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05	0x80000000
-			>;
-		};
 
 		pinctrl_csi1: csi1grp {
 			fsl,pins = <
@@ -656,7 +649,6 @@
 				MX6UL_PAD_SD1_DATA2__SAI2_RX_DATA     0x110b0
 				MX6UL_PAD_SD1_DATA3__SAI2_TX_DATA     0x1f0b8
 				MX6UL_PAD_SD1_CLK__SAI2_MCLK          0x1b0b0
-				MX6UL_PAD_SNVS_TAMPER0__GPIO5_IO00   0x17059
 			>;
 		};
 
@@ -849,6 +841,24 @@
 			>;
 		};
 
+	};
+};
+
+&iomuxc_snvs {
+	imx6ul-ddr3-arm2 {
+		pinctrl_bt: btgrp {
+			fsl,pins = <
+				MX6ULL_PAD_SNVS_TAMPER6__GPIO5_IO06	0x80000000
+				MX6ULL_PAD_SNVS_TAMPER9__GPIO5_IO09	0x80000000
+				MX6ULL_PAD_SNVS_TAMPER5__GPIO5_IO05	0x80000000
+			>;
+		};
+
+		pinctrl_sai2_hp_det_b: sai2_hp_det_grp {
+			fsl,pins = <
+				MX6ULL_PAD_SNVS_TAMPER0__GPIO5_IO00   0x17059
+			>;
+		};
 	};
 };
 

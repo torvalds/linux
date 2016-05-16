@@ -10,6 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "imx6ull-pinfunc.h"
+#include "imx6ull-pinfunc-snvs.h"
 #include "skeleton.dtsi"
 
 / {
@@ -1145,7 +1146,16 @@
 				/* epdc-ram = <&gpr 0x4 30>; */
 				status = "disabled";
 			};
-			/* SNVS_GPR and IOMUXC_SNVS not added */
+
+			iomuxc_snvs: iomuxc-snvs@02290000 {
+				compatible = "fsl,imx6ull-iomuxc-snvs";
+				reg = <0x02290000 0x10000>;
+			};
+
+			snvs_gpr: snvs-gpr@0x02294000 {
+				compatible = "fsl, imx6ull-snvs-gpr";
+				reg = <0x02294000 0x10000>;
+			};
 		};
 	};
 };

@@ -135,7 +135,7 @@
 
 &sai2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sai2>;
+	pinctrl-0 = <&pinctrl_sai2 &pinctrl_sai2_hp_det_b>;
 	assigned-clocks = <&clks IMX6UL_CLK_SAI2_SEL>,
 			<&clks IMX6UL_CLK_SAI2>;
 	assigned-clock-parents = <&clks IMX6UL_CLK_PLL4_AUDIO_DIV>;
