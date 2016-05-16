@@ -55,6 +55,15 @@
 	#size-cells = <2>;
 
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+		i2c7 = &i2c7;
+		i2c8 = &i2c8;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -284,6 +293,96 @@
 			msi-controller;
 			reg = <0x0 0xfee20000 0x0 0x20000>;
 		};
+	};
+
+	i2c1: i2c@ff110000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff110000 0x0 0x1000>;
+		assigned-clocks = <&cru SCLK_I2C1>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&cru SCLK_I2C1>, <&cru PCLK_I2C1>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c2: i2c@ff120000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff120000 0x0 0x1000>;
+		assigned-clocks = <&cru SCLK_I2C2>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&cru SCLK_I2C2>, <&cru PCLK_I2C2>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c3: i2c@ff130000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff130000 0x0 0x1000>;
+		assigned-clocks = <&cru SCLK_I2C3>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&cru SCLK_I2C3>, <&cru PCLK_I2C3>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c3_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c5: i2c@ff140000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff140000 0x0 0x1000>;
+		assigned-clocks = <&cru SCLK_I2C5>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&cru SCLK_I2C5>, <&cru PCLK_I2C5>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c5_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c6: i2c@ff150000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff150000 0x0 0x1000>;
+		assigned-clocks = <&cru SCLK_I2C6>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&cru SCLK_I2C6>, <&cru PCLK_I2C6>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c6_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c7: i2c@ff160000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff160000 0x0 0x1000>;
+		assigned-clocks = <&cru SCLK_I2C7>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&cru SCLK_I2C7>, <&cru PCLK_I2C7>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c7_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
 	};
 
 	uart0: serial@ff180000 {
@@ -527,6 +626,51 @@
 		reg-io-width = <4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart4_xfer>;
+		status = "disabled";
+	};
+
+	i2c0: i2c@ff3c0000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff3c0000 0x0 0x1000>;
+		assigned-clocks = <&pmucru SCLK_I2C0_PMU>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&pmucru SCLK_I2C0_PMU>, <&pmucru PCLK_I2C0_PMU>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c4: i2c@ff3d0000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff3d0000 0x0 0x1000>;
+		assigned-clocks = <&pmucru SCLK_I2C4_PMU>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&pmucru SCLK_I2C4_PMU>, <&pmucru PCLK_I2C4_PMU>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c4_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c8: i2c@ff3e0000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff3e0000 0x0 0x1000>;
+		assigned-clocks = <&pmucru SCLK_I2C8_PMU>;
+		assigned-clock-rates = <200000000>;
+		clocks = <&pmucru SCLK_I2C8_PMU>, <&pmucru PCLK_I2C8_PMU>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c8_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 	};
 
