@@ -762,28 +762,6 @@ static void mpc52xx_fec_reset(struct net_device *dev)
 
 /* ethtool interface */
 
-static int mpc52xx_fec_get_ksettings(struct net_device *dev,
-				     struct ethtool_link_ksettings *cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_ksettings_get(phydev, cmd);
-}
-
-static int mpc52xx_fec_set_ksettings(struct net_device *dev,
-				     const struct ethtool_link_ksettings *cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_ksettings_set(phydev, cmd);
-}
-
 static u32 mpc52xx_fec_get_msglevel(struct net_device *dev)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
@@ -801,8 +779,8 @@ static const struct ethtool_ops mpc52xx_fec_ethtool_ops = {
 	.get_msglevel = mpc52xx_fec_get_msglevel,
 	.set_msglevel = mpc52xx_fec_set_msglevel,
 	.get_ts_info = ethtool_op_get_ts_info,
-	.get_link_ksettings = mpc52xx_fec_get_ksettings,
-	.set_link_ksettings = mpc52xx_fec_set_ksettings,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 
