@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
+#include <linux/delay.h>
 #include <asm/synch.h>
 #include <misc/cxl-base.h>
 
@@ -797,6 +798,35 @@ static irqreturn_t native_irq_multiplexed(int irq, void *data)
 	return fail_psl_irq(afu, &irq_info);
 }
 
+void native_irq_wait(struct cxl_context *ctx)
+{
+	u64 dsisr;
+	int timeout = 1000;
+	int ph;
+
+	/*
+	 * Wait until no further interrupts are presented by the PSL
+	 * for this context.
+	 */
+	while (timeout--) {
+		ph = cxl_p2n_read(ctx->afu, CXL_PSL_PEHandle_An) & 0xffff;
+		if (ph != ctx->pe)
+			return;
+		dsisr = cxl_p2n_read(ctx->afu, CXL_PSL_DSISR_An);
+		if ((dsisr & CXL_PSL_DSISR_PENDING) == 0)
+			return;
+		/*
+		 * We are waiting for the workqueue to process our
+		 * irq, so need to let that run here.
+		 */
+		msleep(1);
+	}
+
+	dev_warn(&ctx->afu->dev, "WARNING: waiting on DSI for PE %i"
+		 " DSISR %016llx!\n", ph, dsisr);
+	return;
+}
+
 static irqreturn_t native_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
@@ -1076,6 +1106,7 @@ const struct cxl_backend_ops cxl_native_ops = {
 	.handle_psl_slice_error = native_handle_psl_slice_error,
 	.psl_interrupt = NULL,
 	.ack_irq = native_ack_irq,
+	.irq_wait = native_irq_wait,
 	.attach_process = native_attach_process,
 	.detach_process = native_detach_process,
 	.support_attributes = native_support_attributes,

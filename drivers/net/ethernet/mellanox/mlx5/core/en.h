@@ -567,6 +567,7 @@ struct mlx5e_priv {
 	struct mlx5e_vxlan_db      vxlan;
 
 	struct mlx5e_params        params;
+	struct workqueue_struct    *wq;
 	struct work_struct         update_carrier_work;
 	struct work_struct         set_rx_mode_work;
 	struct delayed_work        update_stats_work;
@@ -609,7 +610,7 @@ enum mlx5e_link_mode {
 	MLX5E_100GBASE_KR4	 = 22,
 	MLX5E_100GBASE_LR4	 = 23,
 	MLX5E_100BASE_TX	 = 24,
-	MLX5E_100BASE_T		 = 25,
+	MLX5E_1000BASE_T	 = 25,
 	MLX5E_10GBASE_T		 = 26,
 	MLX5E_25GBASE_CR	 = 27,
 	MLX5E_25GBASE_KR	 = 28,

@@ -1,8 +1,8 @@
 VERSION = 4
 PATCHLEVEL = 6
 SUBLEVEL = 0
-EXTRAVERSION = -rc5
-NAME = Blurry Fish Butt
+EXTRAVERSION = -rc7
+NAME = Charred Weasel
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

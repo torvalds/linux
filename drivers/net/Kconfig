@@ -62,9 +62,8 @@ config DUMMY
 	  this device is consigned into oblivion) with a configurable IP
 	  address. It is most commonly used in order to make your currently
 	  inactive SLIP address seem like a real address for local programs.
-	  If you use SLIP or PPP, you might want to say Y here. Since this
-	  thing often comes in handy, the default is Y. It won't enlarge your
-	  kernel either. What a deal. Read about it in the Network
+	  If you use SLIP or PPP, you might want to say Y here. It won't
+	  enlarge your kernel. What a deal. Read about it in the Network
 	  Administrator's Guide, available from
 	  <http://www.tldp.org/docs.html#guide>.
 
