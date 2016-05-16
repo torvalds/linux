@@ -280,7 +280,7 @@
 			status = "disabled";
 
 			nfc@c0000000 {
-				compatible = "atmel,sama5d4-nfc";
+				compatible = "atmel,sama5d3-nfc";
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = < /* NFC Command Registers */

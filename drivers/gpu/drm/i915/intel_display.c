@@ -7988,9 +7988,6 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 
 	pipe_config->gmch_pfit.control = tmp;
 	pipe_config->gmch_pfit.pgm_ratios = I915_READ(PFIT_PGM_RATIOS);
-	if (INTEL_INFO(dev)->gen < 5)
-		pipe_config->gmch_pfit.lvds_border_bits =
-			I915_READ(LVDS) & LVDS_BORDER_ENABLE;
 }
 
 static void vlv_crtc_clock_get(struct intel_crtc *crtc,
@@ -9751,6 +9748,8 @@ static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
 	mutex_lock(&dev_priv->rps.hw_lock);
 	sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ, data);
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	I915_WRITE(CDCLK_FREQ, DIV_ROUND_CLOSEST(cdclk, 1000) - 1);
 
 	intel_update_cdclk(dev);
 
