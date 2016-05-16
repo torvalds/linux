@@ -329,6 +329,29 @@
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI1>, <&cru SCLK_MIPIDPHY_CFG>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
 	};
+
+	hdmi-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "rockchip,hdmi";
+		simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dw_hdmi_audio>;
+		};
+	};
+
+	dw_hdmi_audio: dw-hdmi-audio {
+		compatible = "rockchip,dw-hdmi-audio";
+		#sound-dai-cells = <0>;
+	};
+};
+
+&i2s2 {
+	status = "okay";
+	#sound-dai-cells = <0>;
 };
 
 &usbdrd_dwc3_0 {
