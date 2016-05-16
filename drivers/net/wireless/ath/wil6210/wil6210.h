@@ -662,6 +662,11 @@ struct wil6210_priv {
 	/* High Access Latency Policy voting */
 	struct wil_halp halp;
 
+#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
+	struct notifier_block pm_notify;
+#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM */
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
