@@ -763,6 +763,7 @@ struct dwc3_scratchpad_array {
  * @lpm_nyet_threshold: LPM NYET response threshold
  * @hird_threshold: HIRD threshold
  * @hsphy_interface: "utmi" or "ulpi"
+ * @connected: true when we're connected to a host, false otherwise
  * @delayed_status: true when gadget driver asks for delayed status
  * @ep0_bounced: true when we used bounce buffer
  * @ep0_expect_in: true when we expect a DATA IN transfer
@@ -773,6 +774,7 @@ struct dwc3_scratchpad_array {
  * 	0	- utmi_sleep_n
  * 	1	- utmi_l1_suspend_n
  * @is_fpga: true when we are using the FPGA board
+ * @pending_events: true when we have pending IRQs to be handled
  * @pullups_connected: true when Run/Stop bit is set
  * @setup_packet_pending: true when there's a Setup Packet in FIFO. Workaround
  * @start_config_issued: true when StartConfig command has been issued
@@ -907,6 +909,7 @@ struct dwc3 {
 
 	const char		*hsphy_interface;
 
+	unsigned		connected:1;
 	unsigned		delayed_status:1;
 	unsigned		ep0_bounced:1;
 	unsigned		ep0_expect_in:1;
@@ -914,6 +917,7 @@ struct dwc3 {
 	unsigned		has_lpm_erratum:1;
 	unsigned		is_utmi_l1_suspend:1;
 	unsigned		is_fpga:1;
+	unsigned		pending_events:1;
 	unsigned		pullups_connected:1;
 	unsigned		setup_packet_pending:1;
 	unsigned		three_stage_setup:1;
@@ -1139,6 +1143,7 @@ static inline int dwc3_send_gadget_generic_command(struct dwc3 *dwc,
 #if !IS_ENABLED(CONFIG_USB_DWC3_HOST)
 int dwc3_gadget_suspend(struct dwc3 *dwc);
 int dwc3_gadget_resume(struct dwc3 *dwc);
+void dwc3_gadget_process_pending_events(struct dwc3 *dwc);
 #else
 static inline int dwc3_gadget_suspend(struct dwc3 *dwc)
 {
@@ -1148,6 +1153,10 @@ static inline int dwc3_gadget_suspend(struct dwc3 *dwc)
 static inline int dwc3_gadget_resume(struct dwc3 *dwc)
 {
 	return 0;
+}
+
+static inline void dwc3_gadget_process_pending_events(struct dwc3 *dwc)
+{
 }
 #endif /* !IS_ENABLED(CONFIG_USB_DWC3_HOST) */
 

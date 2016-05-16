@@ -48,7 +48,7 @@
 
 #include "debug.h"
 
-/* -------------------------------------------------------------------------- */
+#define DWC3_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
 
 void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
 {
@@ -996,6 +996,9 @@ static int dwc3_probe(struct platform_device *pdev)
 		dma_set_coherent_mask(dev, dev->parent->coherent_dma_mask);
 	}
 
+	pm_runtime_set_active(dev);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, DWC3_DEFAULT_AUTOSUSPEND_DELAY);
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	pm_runtime_forbid(dev);
@@ -1057,7 +1060,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err3;
 
 	dwc3_debugfs_init(dwc);
-	pm_runtime_allow(dev);
+	pm_runtime_put(dev);
 
 	return 0;
 
@@ -1087,6 +1090,7 @@ static int dwc3_remove(struct platform_device *pdev)
 	struct dwc3	*dwc = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
+	pm_runtime_get_sync(&pdev->dev);
 	/*
 	 * restore res->start back to its original value so that, in case the
 	 * probe is deferred, we don't end up getting error in request the
@@ -1100,24 +1104,27 @@ static int dwc3_remove(struct platform_device *pdev)
 	dwc3_core_exit(dwc);
 	dwc3_ulpi_exit(dwc);
 
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_allow(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
 	dwc3_free_event_buffers(dwc);
 	dwc3_free_scratch_buffers(dwc);
-
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int dwc3_suspend(struct device *dev)
+#ifdef CONFIG_PM
+static int dwc3_suspend_common(struct dwc3 *dwc)
 {
-	struct dwc3	*dwc = dev_get_drvdata(dev);
+	unsigned long	flags;
 
 	switch (dwc->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
 	case USB_DR_MODE_OTG:
+		spin_lock_irqsave(&dwc->lock, flags);
 		dwc3_gadget_suspend(dwc);
+		spin_unlock_irqrestore(&dwc->lock, flags);
 		break;
 	case USB_DR_MODE_HOST:
 	default:
@@ -1126,6 +1133,128 @@ static int dwc3_suspend(struct device *dev)
 	}
 
 	dwc3_core_exit(dwc);
+
+	return 0;
+}
+
+static int dwc3_resume_common(struct dwc3 *dwc)
+{
+	unsigned long	flags;
+	int		ret;
+
+	ret = dwc3_core_init(dwc);
+	if (ret)
+		return ret;
+
+	switch (dwc->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+	case USB_DR_MODE_OTG:
+		spin_lock_irqsave(&dwc->lock, flags);
+		dwc3_gadget_resume(dwc);
+		spin_unlock_irqrestore(&dwc->lock, flags);
+		/* FALLTHROUGH */
+	case USB_DR_MODE_HOST:
+	default:
+		/* do nothing */
+		break;
+	}
+
+	return 0;
+}
+
+static int dwc3_runtime_checks(struct dwc3 *dwc)
+{
+	switch (dwc->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+	case USB_DR_MODE_OTG:
+		if (dwc->connected)
+			return -EBUSY;
+		break;
+	case USB_DR_MODE_HOST:
+	default:
+		/* do nothing */
+		break;
+	}
+
+	return 0;
+}
+
+static int dwc3_runtime_suspend(struct device *dev)
+{
+	struct dwc3     *dwc = dev_get_drvdata(dev);
+	int		ret;
+
+	if (dwc3_runtime_checks(dwc))
+		return -EBUSY;
+
+	ret = dwc3_suspend_common(dwc);
+	if (ret)
+		return ret;
+
+	device_init_wakeup(dev, true);
+
+	return 0;
+}
+
+static int dwc3_runtime_resume(struct device *dev)
+{
+	struct dwc3     *dwc = dev_get_drvdata(dev);
+	int		ret;
+
+	device_init_wakeup(dev, false);
+
+	ret = dwc3_resume_common(dwc);
+	if (ret)
+		return ret;
+
+	switch (dwc->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+	case USB_DR_MODE_OTG:
+		dwc3_gadget_process_pending_events(dwc);
+		break;
+	case USB_DR_MODE_HOST:
+	default:
+		/* do nothing */
+		break;
+	}
+
+	pm_runtime_mark_last_busy(dev);
+
+	return 0;
+}
+
+static int dwc3_runtime_idle(struct device *dev)
+{
+	struct dwc3     *dwc = dev_get_drvdata(dev);
+
+	switch (dwc->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+	case USB_DR_MODE_OTG:
+		if (dwc3_runtime_checks(dwc))
+			return -EBUSY;
+		break;
+	case USB_DR_MODE_HOST:
+	default:
+		/* do nothing */
+		break;
+	}
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_autosuspend(dev);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
+#ifdef CONFIG_PM_SLEEP
+static int dwc3_suspend(struct device *dev)
+{
+	struct dwc3	*dwc = dev_get_drvdata(dev);
+	int		ret;
+
+	ret = dwc3_suspend_common(dwc);
+	if (ret)
+		return ret;
 
 	pinctrl_pm_select_sleep_state(dev);
 
@@ -1139,20 +1268,9 @@ static int dwc3_resume(struct device *dev)
 
 	pinctrl_pm_select_default_state(dev);
 
-	ret = dwc3_core_init(dwc);
+	ret = dwc3_resume_common(dwc);
 	if (ret)
 		return ret;
-
-	switch (dwc->dr_mode) {
-	case USB_DR_MODE_PERIPHERAL:
-	case USB_DR_MODE_OTG:
-		dwc3_gadget_resume(dwc);
-		/* FALLTHROUGH */
-	case USB_DR_MODE_HOST:
-	default:
-		/* do nothing */
-		break;
-	}
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
@@ -1164,6 +1282,8 @@ static int dwc3_resume(struct device *dev)
 
 static const struct dev_pm_ops dwc3_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_suspend, dwc3_resume)
+	SET_RUNTIME_PM_OPS(dwc3_runtime_suspend, dwc3_runtime_resume,
+			dwc3_runtime_idle)
 };
 
 #ifdef CONFIG_OF
