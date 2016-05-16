@@ -806,6 +806,15 @@ static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 	return (I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5_DC6_MASK) == 0;
 }
 
+static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
+{
+	u32 tmp = I915_READ(DBUF_CTL);
+
+	WARN((tmp & (DBUF_POWER_STATE | DBUF_POWER_REQUEST)) !=
+	     (DBUF_POWER_STATE | DBUF_POWER_REQUEST),
+	     "Unexpected DBuf power power state (0x%08x)\n", tmp);
+}
+
 static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
@@ -813,6 +822,8 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 
 	WARN_ON(dev_priv->cdclk_freq !=
 		dev_priv->display.get_display_clock_speed(dev_priv->dev));
+
+	gen9_assert_dbuf_enabled(dev_priv);
 
 	if (IS_BROXTON(dev_priv))
 		broxton_ddi_phy_verify_state(dev_priv);
