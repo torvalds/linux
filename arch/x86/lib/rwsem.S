@@ -29,8 +29,10 @@
  * there is contention on the semaphore.
  *
  * %eax contains the semaphore pointer on entry. Save the C-clobbered
- * registers (%eax, %edx and %ecx) except %eax whish is either a return
- * value or just clobbered..
+ * registers (%eax, %edx and %ecx) except %eax which is either a return
+ * value or just gets clobbered. Same is true for %edx so make sure GCC
+ * reloads it after the slow path, by making it hold a temporary, for
+ * example see ____down_write().
  */
 
 #define save_common_regs \
