@@ -1065,33 +1065,6 @@ unlock_fg:
 	return rule;
 }
 
-static struct mlx5_flow_rule *add_rule_to_auto_fg(struct mlx5_flow_table *ft,
-						  u8 match_criteria_enable,
-						  u32 *match_criteria,
-						  u32 *match_value,
-						  u8 action,
-						  u32 flow_tag,
-						  struct mlx5_flow_destination *dest)
-{
-	struct mlx5_flow_rule *rule;
-	struct mlx5_flow_group *g;
-
-	g = create_autogroup(ft, match_criteria_enable, match_criteria);
-	if (IS_ERR(g))
-		return (void *)g;
-
-	rule = add_rule_fg(g, match_value,
-			   action, flow_tag, dest);
-	if (IS_ERR(rule)) {
-		/* Remove assumes refcount > 0 and autogroup creates a group
-		 * with a refcount = 0.
-		 */
-		tree_get_node(&g->node);
-		tree_remove_node(&g->node);
-	}
-	return rule;
-}
-
 static struct mlx5_flow_rule *
 _mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		    u8 match_criteria_enable,
@@ -1119,8 +1092,23 @@ _mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 				goto unlock;
 		}
 
-	rule = add_rule_to_auto_fg(ft, match_criteria_enable, match_criteria,
-				   match_value, action, flow_tag, dest);
+	g = create_autogroup(ft, match_criteria_enable, match_criteria);
+	if (IS_ERR(g)) {
+		rule = (void *)g;
+		goto unlock;
+	}
+
+	rule = add_rule_fg(g, match_value,
+			   action, flow_tag, dest);
+	if (IS_ERR(rule)) {
+		/* Remove assumes refcount > 0 and autogroup creates a group
+		 * with a refcount = 0.
+		 */
+		unlock_ref_node(&ft->node);
+		tree_get_node(&g->node);
+		tree_remove_node(&g->node);
+		return rule;
+	}
 unlock:
 	unlock_ref_node(&ft->node);
 	return rule;
@@ -1288,7 +1276,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 {
 	struct mlx5_flow_root_namespace *root_ns = dev->priv.root_ns;
 	int prio;
-	static struct fs_prio *fs_prio;
+	struct fs_prio *fs_prio;
 	struct mlx5_flow_namespace *ns;
 
 	if (!root_ns)

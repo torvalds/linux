@@ -880,12 +880,12 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 	macsec_skb_cb(skb)->valid = false;
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	req = aead_request_alloc(rx_sa->key.tfm, GFP_ATOMIC);
 	if (!req) {
 		kfree_skb(skb);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	hdr = (struct macsec_eth_header *)skb->data;
@@ -905,7 +905,7 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 		skb = skb_unshare(skb, GFP_ATOMIC);
 		if (!skb) {
 			aead_request_free(req);
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		}
 	} else {
 		/* integrity only: all headers + data authenticated */
@@ -921,14 +921,14 @@ static struct sk_buff *macsec_decrypt(struct sk_buff *skb,
 	dev_hold(dev);
 	ret = crypto_aead_decrypt(req);
 	if (ret == -EINPROGRESS) {
-		return NULL;
+		return ERR_PTR(ret);
 	} else if (ret != 0) {
 		/* decryption/authentication failed
 		 * 10.6 if validateFrames is disabled, deliver anyway
 		 */
 		if (ret != -EBADMSG) {
 			kfree_skb(skb);
-			skb = NULL;
+			skb = ERR_PTR(ret);
 		}
 	} else {
 		macsec_skb_cb(skb)->valid = true;
@@ -1146,8 +1146,10 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 	    secy->validate_frames != MACSEC_VALIDATE_DISABLED)
 		skb = macsec_decrypt(skb, dev, rx_sa, sci, secy);
 
-	if (!skb) {
-		macsec_rxsa_put(rx_sa);
+	if (IS_ERR(skb)) {
+		/* the decrypt callback needs the reference */
+		if (PTR_ERR(skb) != -EINPROGRESS)
+			macsec_rxsa_put(rx_sa);
 		rcu_read_unlock();
 		*pskb = NULL;
 		return RX_HANDLER_CONSUMED;
@@ -1161,7 +1163,8 @@ deliver:
 			    macsec_extra_len(macsec_skb_cb(skb)->has_sci));
 	macsec_reset_skb(skb, secy->netdev);
 
-	macsec_rxsa_put(rx_sa);
+	if (rx_sa)
+		macsec_rxsa_put(rx_sa);
 	count_rx(dev, skb->len);
 
 	rcu_read_unlock();
@@ -1622,8 +1625,9 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rx_sa = kmalloc(sizeof(*rx_sa), GFP_KERNEL);
-	if (init_rx_sa(rx_sa, nla_data(tb_sa[MACSEC_SA_ATTR_KEY]), secy->key_len,
-		       secy->icv_len)) {
+	if (!rx_sa || init_rx_sa(rx_sa, nla_data(tb_sa[MACSEC_SA_ATTR_KEY]),
+				 secy->key_len, secy->icv_len)) {
+		kfree(rx_sa);
 		rtnl_unlock();
 		return -ENOMEM;
 	}
@@ -1768,6 +1772,7 @@ static int macsec_add_txsa(struct sk_buff *skb, struct genl_info *info)
 	tx_sa = kmalloc(sizeof(*tx_sa), GFP_KERNEL);
 	if (!tx_sa || init_tx_sa(tx_sa, nla_data(tb_sa[MACSEC_SA_ATTR_KEY]),
 				 secy->key_len, secy->icv_len)) {
+		kfree(tx_sa);
 		rtnl_unlock();
 		return -ENOMEM;
 	}
@@ -2227,7 +2232,8 @@ static int nla_put_secy(struct macsec_secy *secy, struct sk_buff *skb)
 		return 1;
 
 	if (nla_put_sci(skb, MACSEC_SECY_ATTR_SCI, secy->sci) ||
-	    nla_put_u64(skb, MACSEC_SECY_ATTR_CIPHER_SUITE, DEFAULT_CIPHER_ID) ||
+	    nla_put_u64(skb, MACSEC_SECY_ATTR_CIPHER_SUITE,
+			MACSEC_DEFAULT_CIPHER_ID) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_ICV_LEN, secy->icv_len) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_OPER, secy->operational) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_PROTECT, secy->protect_frames) ||
@@ -2268,7 +2274,7 @@ static int dump_secy(struct macsec_secy *secy, struct net_device *dev,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	rtnl_lock();
+	genl_dump_check_consistent(cb, hdr, &macsec_fam);
 
 	if (nla_put_u32(skb, MACSEC_ATTR_IFINDEX, dev->ifindex))
 		goto nla_put_failure;
@@ -2429,17 +2435,16 @@ static int dump_secy(struct macsec_secy *secy, struct net_device *dev,
 
 	nla_nest_end(skb, rxsc_list);
 
-	rtnl_unlock();
-
 	genlmsg_end(skb, hdr);
 
 	return 0;
 
 nla_put_failure:
-	rtnl_unlock();
 	genlmsg_cancel(skb, hdr);
 	return -EMSGSIZE;
 }
+
+static int macsec_generation = 1; /* protected by RTNL */
 
 static int macsec_dump_txsc(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -2450,6 +2455,10 @@ static int macsec_dump_txsc(struct sk_buff *skb, struct netlink_callback *cb)
 	dev_idx = cb->args[0];
 
 	d = 0;
+	rtnl_lock();
+
+	cb->seq = macsec_generation;
+
 	for_each_netdev(net, dev) {
 		struct macsec_secy *secy;
 
@@ -2467,6 +2476,7 @@ next:
 	}
 
 done:
+	rtnl_unlock();
 	cb->args[0] = d;
 	return skb->len;
 }
@@ -2920,10 +2930,14 @@ static void macsec_dellink(struct net_device *dev, struct list_head *head)
 	struct net_device *real_dev = macsec->real_dev;
 	struct macsec_rxh_data *rxd = macsec_data_rtnl(real_dev);
 
+	macsec_generation++;
+
 	unregister_netdevice_queue(dev, head);
 	list_del_rcu(&macsec->secys);
-	if (list_empty(&rxd->secys))
+	if (list_empty(&rxd->secys)) {
 		netdev_rx_handler_unregister(real_dev);
+		kfree(rxd);
+	}
 
 	macsec_del_dev(macsec);
 }
@@ -2945,8 +2959,10 @@ static int register_macsec_dev(struct net_device *real_dev,
 
 		err = netdev_rx_handler_register(real_dev, macsec_handle_frame,
 						 rxd);
-		if (err < 0)
+		if (err < 0) {
+			kfree(rxd);
 			return err;
+		}
 	}
 
 	list_add_tail_rcu(&macsec->secys, &rxd->secys);
@@ -3066,6 +3082,8 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	if (err < 0)
 		goto del_dev;
 
+	macsec_generation++;
+
 	dev_hold(real_dev);
 
 	return 0;
@@ -3079,7 +3097,7 @@ unregister:
 
 static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[])
 {
-	u64 csid = DEFAULT_CIPHER_ID;
+	u64 csid = MACSEC_DEFAULT_CIPHER_ID;
 	u8 icv_len = DEFAULT_ICV_LEN;
 	int flag;
 	bool es, scb, sci;
@@ -3094,8 +3112,8 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[])
 		icv_len = nla_get_u8(data[IFLA_MACSEC_ICV_LEN]);
 
 	switch (csid) {
-	case DEFAULT_CIPHER_ID:
-	case DEFAULT_CIPHER_ALT:
+	case MACSEC_DEFAULT_CIPHER_ID:
+	case MACSEC_DEFAULT_CIPHER_ALT:
 		if (icv_len < MACSEC_MIN_ICV_LEN ||
 		    icv_len > MACSEC_MAX_ICV_LEN)
 			return -EINVAL;
@@ -3129,8 +3147,8 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[])
 	    nla_get_u8(data[IFLA_MACSEC_VALIDATION]) > MACSEC_VALIDATE_MAX)
 		return -EINVAL;
 
-	if ((data[IFLA_MACSEC_PROTECT] &&
-	     nla_get_u8(data[IFLA_MACSEC_PROTECT])) &&
+	if ((data[IFLA_MACSEC_REPLAY_PROTECT] &&
+	     nla_get_u8(data[IFLA_MACSEC_REPLAY_PROTECT])) &&
 	    !data[IFLA_MACSEC_WINDOW])
 		return -EINVAL;
 
@@ -3168,7 +3186,8 @@ static int macsec_fill_info(struct sk_buff *skb,
 
 	if (nla_put_sci(skb, IFLA_MACSEC_SCI, secy->sci) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ICV_LEN, secy->icv_len) ||
-	    nla_put_u64(skb, IFLA_MACSEC_CIPHER_SUITE, DEFAULT_CIPHER_ID) ||
+	    nla_put_u64(skb, IFLA_MACSEC_CIPHER_SUITE,
+			MACSEC_DEFAULT_CIPHER_ID) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ENCODING_SA, tx_sc->encoding_sa) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ENCRYPT, tx_sc->encrypt) ||
 	    nla_put_u8(skb, IFLA_MACSEC_PROTECT, secy->protect_frames) ||

@@ -27,11 +27,11 @@ int devpts_new_index(struct pts_fs_info *);
 void devpts_kill_index(struct pts_fs_info *, int);
 
 /* mknod in devpts */
-struct inode *devpts_pty_new(struct pts_fs_info *, dev_t, int, void *);
+struct dentry *devpts_pty_new(struct pts_fs_info *, int, void *);
 /* get private structure */
-void *devpts_get_priv(struct inode *pts_inode);
+void *devpts_get_priv(struct dentry *);
 /* unlink */
-void devpts_pty_kill(struct inode *inode);
+void devpts_pty_kill(struct dentry *);
 
 #endif
 

@@ -192,7 +192,6 @@ nodes to be present and contain the properties described below.
 			  can be one of:
 			    "allwinner,sun6i-a31"
 			    "allwinner,sun8i-a23"
-			    "arm,psci"
 			    "arm,realview-smp"
 			    "brcm,bcm-nsp-smp"
 			    "brcm,brahma-b15"

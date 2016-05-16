@@ -105,6 +105,9 @@ int snd_hdac_ext_bus_init(struct hdac_ext_bus *ebus, struct device *dev,
 	INIT_LIST_HEAD(&ebus->hlink_list);
 	ebus->idx = idx++;
 
+	mutex_init(&ebus->lock);
+	ebus->cmd_dma_state = true;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_init);

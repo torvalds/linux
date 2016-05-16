@@ -49,7 +49,6 @@ struct socfpga_dwmac {
 	u32	reg_shift;
 	struct	device *dev;
 	struct regmap *sys_mgr_base_addr;
-	struct reset_control *stmmac_rst;
 	void __iomem *splitter_base;
 	bool f2h_ptp_ref_clk;
 };
@@ -91,15 +90,6 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 	int ret;
 	struct device_node *np_splitter;
 	struct resource res_splitter;
-
-	dwmac->stmmac_rst = devm_reset_control_get(dev,
-						  STMMAC_RESOURCE_NAME);
-	if (IS_ERR(dwmac->stmmac_rst)) {
-		dev_info(dev, "Could not get reset control!\n");
-		if (PTR_ERR(dwmac->stmmac_rst) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		dwmac->stmmac_rst = NULL;
-	}
 
 	dwmac->interface = of_get_phy_mode(np);
 
@@ -194,30 +184,23 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 	return 0;
 }
 
-static void socfpga_dwmac_exit(struct platform_device *pdev, void *priv)
-{
-	struct socfpga_dwmac	*dwmac = priv;
-
-	/* On socfpga platform exit, assert and hold reset to the
-	 * enet controller - the default state after a hard reset.
-	 */
-	if (dwmac->stmmac_rst)
-		reset_control_assert(dwmac->stmmac_rst);
-}
-
 static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 {
-	struct socfpga_dwmac	*dwmac = priv;
+	struct socfpga_dwmac *dwmac = priv;
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *stpriv = NULL;
 	int ret = 0;
 
-	if (ndev)
-		stpriv = netdev_priv(ndev);
+	if (!ndev)
+		return -EINVAL;
+
+	stpriv = netdev_priv(ndev);
+	if (!stpriv)
+		return -EINVAL;
 
 	/* Assert reset to the enet controller before changing the phy mode */
-	if (dwmac->stmmac_rst)
-		reset_control_assert(dwmac->stmmac_rst);
+	if (stpriv->stmmac_rst)
+		reset_control_assert(stpriv->stmmac_rst);
 
 	/* Setup the phy mode in the system manager registers according to
 	 * devicetree configuration
@@ -227,8 +210,8 @@ static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 	/* Deassert reset for the phy configuration to be sampled by
 	 * the enet controller, and operation to start in requested mode
 	 */
-	if (dwmac->stmmac_rst)
-		reset_control_deassert(dwmac->stmmac_rst);
+	if (stpriv->stmmac_rst)
+		reset_control_deassert(stpriv->stmmac_rst);
 
 	/* Before the enet controller is suspended, the phy is suspended.
 	 * This causes the phy clock to be gated. The enet controller is
@@ -245,7 +228,7 @@ static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 	 * control register 0, and can be modified by the phy driver
 	 * framework.
 	 */
-	if (stpriv && stpriv->phydev)
+	if (stpriv->phydev)
 		phy_resume(stpriv->phydev);
 
 	return ret;
@@ -285,14 +268,13 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 
 	plat_dat->bsp_priv = dwmac;
 	plat_dat->init = socfpga_dwmac_init;
-	plat_dat->exit = socfpga_dwmac_exit;
 	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
 
-	ret = socfpga_dwmac_init(pdev, plat_dat->bsp_priv);
-	if (ret)
-		return ret;
+	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	if (!ret)
+		ret = socfpga_dwmac_init(pdev, dwmac);
 
-	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	return ret;
 }
 
 static const struct of_device_id socfpga_dwmac_match[] = {

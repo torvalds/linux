@@ -1446,22 +1446,13 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, fmd);
 
-	/* Protect the media graph while we're registering entities */
-	mutex_lock(&fmd->media_dev.graph_mutex);
-
 	ret = fimc_md_register_platform_entities(fmd, dev->of_node);
-	if (ret) {
-		mutex_unlock(&fmd->media_dev.graph_mutex);
+	if (ret)
 		goto err_clk;
-	}
 
 	ret = fimc_md_register_sensor_entities(fmd);
-	if (ret) {
-		mutex_unlock(&fmd->media_dev.graph_mutex);
+	if (ret)
 		goto err_m_ent;
-	}
-
-	mutex_unlock(&fmd->media_dev.graph_mutex);
 
 	ret = device_create_file(&pdev->dev, &dev_attr_subdev_conf_mode);
 	if (ret)
