@@ -275,7 +275,7 @@
 			encoder-slave = <&adv7511>;
 			clocks = <&pguclk>;
 			clock-names = "pxlclk";
-
+			memory-region = <&frame_buffer>;
 			port {
 				pgu_output: endpoint {
 					remote-endpoint = <&adv7511_input>;
