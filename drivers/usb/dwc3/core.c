@@ -1024,6 +1024,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				"snps,dis_u2_freeclk_exists_quirk");
 	dwc->dis_del_phy_power_chg_quirk = device_property_read_bool(dev,
 				"snps,dis_del_phy_power_chg_quirk");
+	dwc->xhci_slow_suspend_quirk = device_property_read_bool(dev,
+				"snps,xhci_slow_suspend_quirk");
 	dwc->phyif_utmi_16_bits = device_property_read_bool(dev,
 				"snps,phyif_utmi_16_bits");
 
@@ -1064,6 +1066,8 @@ static int dwc3_probe(struct platform_device *pdev)
 					pdata->dis_u2_freeclk_exists_quirk;
 		dwc->dis_del_phy_power_chg_quirk =
 					pdata->dis_del_phy_power_chg_quirk;
+		dwc->xhci_slow_suspend_quirk =
+					pdata->xhci_slow_suspend_quirk;
 		dwc->phyif_utmi_16_bits = pdata->phyif_utmi_16_bits;
 
 		dwc->tx_de_emphasis_quirk = pdata->tx_de_emphasis_quirk;
