@@ -184,6 +184,13 @@ static void wil_vring_free(struct wil6210_priv *wil, struct vring *vring,
 					&vring->va[vring->swtail].tx;
 
 			ctx = &vring->ctx[vring->swtail];
+			if (!ctx) {
+				wil_dbg_txrx(wil,
+					     "ctx(%d) was already completed\n",
+					     vring->swtail);
+				vring->swtail = wil_vring_next_tail(vring);
+				continue;
+			}
 			*d = *_d;
 			wil_txdesc_unmap(dev, d, ctx);
 			if (ctx->skb)
@@ -975,6 +982,13 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 	txdata->dot1x_open = false;
 	txdata->enabled = 0; /* no Tx can be in progress or start anew */
 	spin_unlock_bh(&txdata->lock);
+	/* napi_synchronize waits for completion of the current NAPI but will
+	 * not prevent the next NAPI run.
+	 * Add a memory barrier to guarantee that txdata->enabled is zeroed
+	 * before napi_synchronize so that the next scheduled NAPI will not
+	 * handle this vring
+	 */
+	wmb();
 	/* make sure NAPI won't touch this vring */
 	if (test_bit(wil_status_napi_en, wil->status))
 		napi_synchronize(&wil->napi_tx);
