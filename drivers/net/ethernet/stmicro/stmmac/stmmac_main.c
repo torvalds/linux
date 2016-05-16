@@ -3131,7 +3131,12 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		priv->plat->enh_desc = priv->dma_cap.enh_desc;
 		priv->plat->pmt = priv->dma_cap.pmt_remote_wake_up;
 
-		priv->plat->tx_coe = priv->dma_cap.tx_coe;
+		/* TXCOE doesn't work in thresh DMA mode */
+		if (priv->plat->force_thresh_dma_mode)
+			priv->plat->tx_coe = 0;
+		else
+			priv->plat->tx_coe = priv->dma_cap.tx_coe;
+
 		/* In case of GMAC4 rx_coe is from HW cap register. */
 		priv->plat->rx_coe = priv->dma_cap.rx_coe;
 
