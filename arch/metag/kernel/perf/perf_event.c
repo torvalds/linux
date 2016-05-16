@@ -618,6 +618,8 @@ static void metag_pmu_enable_counter(struct hw_perf_event *event, int idx)
 
 	/* Check for a core internal or performance channel event. */
 	if (tmp) {
+		/* PERF_ICORE/PERF_CHAN only exist since Meta2 */
+#ifdef METAC_2_1
 		void *perf_addr;
 
 		/*
@@ -640,6 +642,7 @@ static void metag_pmu_enable_counter(struct hw_perf_event *event, int idx)
 
 		if (perf_addr)
 			metag_out32((config & 0x0f), perf_addr);
+#endif
 
 		/*
 		 * Now we use the high nibble as the performance event to
