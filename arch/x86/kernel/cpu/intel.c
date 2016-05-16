@@ -152,9 +152,9 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	 *  the TLB when any changes are made to any of the page table entries.
 	 *  The operating system must reload CR3 to cause the TLB to be flushed"
 	 *
-	 * As a result cpu_has_pge() in arch/x86/include/asm/tlbflush.h should
-	 * be false so that __flush_tlb_all() causes CR3 insted of CR4.PGE
-	 * to be modified
+	 * As a result, boot_cpu_has(X86_FEATURE_PGE) in arch/x86/include/asm/tlbflush.h
+	 * should be false so that __flush_tlb_all() causes CR3 insted of CR4.PGE
+	 * to be modified.
 	 */
 	if (c->x86 == 5 && c->x86_model == 9) {
 		pr_info("Disabling PGE capability bit\n");
@@ -281,7 +281,7 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 	 * integrated APIC (see 11AP erratum in "Pentium Processor
 	 * Specification Update").
 	 */
-	if (cpu_has_apic && (c->x86<<8 | c->x86_model<<4) == 0x520 &&
+	if (boot_cpu_has(X86_FEATURE_APIC) && (c->x86<<8 | c->x86_model<<4) == 0x520 &&
 	    (c->x86_mask < 0x6 || c->x86_mask == 0xb))
 		set_cpu_bug(c, X86_BUG_11AP);
 
@@ -456,7 +456,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_ARCH_PERFMON);
 	}
 
-	if (cpu_has_xmm2)
+	if (cpu_has(c, X86_FEATURE_XMM2))
 		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 
 	if (boot_cpu_has(X86_FEATURE_DS)) {
@@ -468,7 +468,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_PEBS);
 	}
 
-	if (c->x86 == 6 && cpu_has_clflush &&
+	if (c->x86 == 6 && boot_cpu_has(X86_FEATURE_CLFLUSH) &&
 	    (c->x86_model == 29 || c->x86_model == 46 || c->x86_model == 47))
 		set_cpu_bug(c, X86_BUG_CLFLUSH_MONITOR);
 
