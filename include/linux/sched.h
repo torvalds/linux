@@ -40,7 +40,6 @@ struct sched_param {
 #include <linux/pid.h>
 #include <linux/percpu.h>
 #include <linux/topology.h>
-#include <linux/proportions.h>
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
 #include <linux/rculist.h>
