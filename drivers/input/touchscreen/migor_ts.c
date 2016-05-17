@@ -230,7 +230,7 @@ static const struct i2c_device_id migor_ts_id[] = {
 	{ "migor_ts", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, migor_ts);
+MODULE_DEVICE_TABLE(i2c, migor_ts_id);
 
 static struct i2c_driver migor_ts_driver = {
 	.driver = {
