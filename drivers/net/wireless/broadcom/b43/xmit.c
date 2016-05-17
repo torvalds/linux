@@ -205,7 +205,7 @@ static u16 b43_generate_tx_phy_ctl1(struct b43_wldev *dev, u8 bitrate)
 	return control;
 }
 
-static u8 b43_calc_fallback_rate(u8 bitrate)
+static u8 b43_calc_fallback_rate(u8 bitrate, int gmode)
 {
 	switch (bitrate) {
 	case B43_CCK_RATE_1MB:
@@ -216,8 +216,15 @@ static u8 b43_calc_fallback_rate(u8 bitrate)
 		return B43_CCK_RATE_2MB;
 	case B43_CCK_RATE_11MB:
 		return B43_CCK_RATE_5MB;
+	/*
+	 * Don't just fallback to CCK; it may be in 5GHz operation
+	 * and falling back to CCK won't work out very well.
+	 */
 	case B43_OFDM_RATE_6MB:
-		return B43_CCK_RATE_5MB;
+		if (gmode)
+			return B43_CCK_RATE_5MB;
+		else
+			return B43_OFDM_RATE_6MB;
 	case B43_OFDM_RATE_9MB:
 		return B43_OFDM_RATE_6MB;
 	case B43_OFDM_RATE_12MB:
@@ -438,7 +445,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 		rts_rate = rts_cts_rate ? rts_cts_rate->hw_value : B43_CCK_RATE_1MB;
 		rts_rate_ofdm = b43_is_ofdm_rate(rts_rate);
-		rts_rate_fb = b43_calc_fallback_rate(rts_rate);
+		rts_rate_fb = b43_calc_fallback_rate(rts_rate, phy->gmode);
 		rts_rate_fb_ofdm = b43_is_ofdm_rate(rts_rate_fb);
 
 		if (rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
