@@ -352,12 +352,11 @@ static inline int check_io_access(struct pt_regs *regs)
 		 * For the debug message, we look at the preceding
 		 * load or store.
 		 */
-		if (*nip == 0x60000000)		/* nop */
+		if (*nip == PPC_INST_NOP)
 			nip -= 2;
-		else if (*nip == 0x4c00012c)	/* isync */
+		else if (*nip == PPC_INST_ISYNC)
 			--nip;
-		if (*nip == 0x7c0004ac || (*nip >> 26) == 3) {
-			/* sync or twi */
+		if (*nip == PPC_INST_SYNC || (*nip >> 26) == OP_TRAP) {
 			unsigned int rb;
 
 			--nip;
