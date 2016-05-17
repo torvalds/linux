@@ -3110,14 +3110,11 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 static void intel_complete_page_flips(struct drm_i915_private *dev_priv)
 {
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
 
-	for_each_crtc(dev_priv->dev, crtc) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		enum plane plane = intel_crtc->plane;
-
-		intel_prepare_page_flip(dev_priv, plane);
-		intel_finish_page_flip_plane(dev_priv, plane);
+	for_each_intel_crtc(dev_priv->dev, crtc) {
+		intel_prepare_page_flip(dev_priv, crtc->plane);
+		intel_finish_page_flip(dev_priv, crtc->pipe);
 	}
 }
 
@@ -10901,13 +10898,6 @@ static void do_intel_finish_page_flip(struct drm_i915_private *dev_priv,
 void intel_finish_page_flip(struct drm_i915_private *dev_priv, int pipe)
 {
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-
-	do_intel_finish_page_flip(dev_priv, crtc);
-}
-
-void intel_finish_page_flip_plane(struct drm_i915_private *dev_priv, int plane)
-{
-	struct drm_crtc *crtc = dev_priv->plane_to_crtc_mapping[plane];
 
 	do_intel_finish_page_flip(dev_priv, crtc);
 }

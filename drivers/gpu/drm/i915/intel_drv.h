@@ -1201,7 +1201,6 @@ __intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_i915_gem_object *obj);
 void intel_prepare_page_flip(struct drm_i915_private *dev_priv, int plane);
 void intel_finish_page_flip(struct drm_i915_private *dev_priv, int pipe);
-void intel_finish_page_flip_plane(struct drm_i915_private *dev_priv, int plane);
 void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe);
 int intel_prepare_plane_fb(struct drm_plane *plane,
 			   const struct drm_plane_state *new_state);
