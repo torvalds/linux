@@ -809,8 +809,7 @@ TRACE_EVENT(kvm_write_tsc_offset,
 
 #define host_clocks					\
 	{VCLOCK_NONE, "none"},				\
-	{VCLOCK_TSC,  "tsc"},				\
-	{VCLOCK_HPET, "hpet"}				\
+	{VCLOCK_TSC,  "tsc"}				\
 
 TRACE_EVENT(kvm_update_master_clock,
 	TP_PROTO(bool use_master_clock, unsigned int host_clock, bool offset_matched),

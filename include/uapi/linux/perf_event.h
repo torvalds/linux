@@ -340,7 +340,8 @@ struct perf_event_attr {
 				comm_exec      :  1, /* flag comm events that are due to an exec */
 				use_clockid    :  1, /* use @clockid for time fields */
 				context_switch :  1, /* context switch data */
-				__reserved_1   : 37;
+				write_backward :  1, /* Write ring buffer from end to beginning */
+				__reserved_1   : 36;
 
 	union {
 		__u32		wakeup_events;	  /* wakeup every n events */
@@ -401,6 +402,7 @@ struct perf_event_attr {
 #define PERF_EVENT_IOC_SET_FILTER	_IOW('$', 6, char *)
 #define PERF_EVENT_IOC_ID		_IOR('$', 7, __u64 *)
 #define PERF_EVENT_IOC_SET_BPF		_IOW('$', 8, __u32)
+#define PERF_EVENT_IOC_PAUSE_OUTPUT	_IOW('$', 9, __u32)
 
 enum perf_event_ioc_flags {
 	PERF_IOC_FLAG_GROUP		= 1U << 0,

@@ -66,7 +66,7 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
 	    value_size < 8 || value_size % 8 ||
-	    value_size / 8 > PERF_MAX_STACK_DEPTH)
+	    value_size / 8 > sysctl_perf_event_max_stack)
 		return ERR_PTR(-EINVAL);
 
 	/* hash table size must be power of 2 */
@@ -124,8 +124,8 @@ static u64 bpf_get_stackid(u64 r1, u64 r2, u64 flags, u64 r4, u64 r5)
 	struct perf_callchain_entry *trace;
 	struct stack_map_bucket *bucket, *new_bucket, *old_bucket;
 	u32 max_depth = map->value_size / 8;
-	/* stack_map_alloc() checks that max_depth <= PERF_MAX_STACK_DEPTH */
-	u32 init_nr = PERF_MAX_STACK_DEPTH - max_depth;
+	/* stack_map_alloc() checks that max_depth <= sysctl_perf_event_max_stack */
+	u32 init_nr = sysctl_perf_event_max_stack - max_depth;
 	u32 skip = flags & BPF_F_SKIP_FIELD_MASK;
 	u32 hash, id, trace_nr, trace_len;
 	bool user = flags & BPF_F_USER_STACK;
@@ -143,7 +143,7 @@ static u64 bpf_get_stackid(u64 r1, u64 r2, u64 flags, u64 r4, u64 r5)
 		return -EFAULT;
 
 	/* get_perf_callchain() guarantees that trace->nr >= init_nr
-	 * and trace-nr <= PERF_MAX_STACK_DEPTH, so trace_nr <= max_depth
+	 * and trace-nr <= sysctl_perf_event_max_stack, so trace_nr <= max_depth
 	 */
 	trace_nr = trace->nr - init_nr;
 

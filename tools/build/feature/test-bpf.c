@@ -27,10 +27,9 @@ int main(void)
 	attr.log_level = 0;
 	attr.kern_version = 0;
 
-	attr = attr;
 	/*
 	 * Test existence of __NR_bpf and BPF_PROG_LOAD.
 	 * This call should fail if we run the testcase.
 	 */
-	return syscall(__NR_bpf, BPF_PROG_LOAD, attr, sizeof(attr));
+	return syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 }

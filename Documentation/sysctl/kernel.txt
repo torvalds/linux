@@ -60,6 +60,7 @@ show up in /proc/sys/kernel:
 - panic_on_warn
 - perf_cpu_time_max_percent
 - perf_event_paranoid
+- perf_event_max_stack
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
@@ -651,6 +652,19 @@ users (without CAP_SYS_ADMIN).  The default value is 2.
 >=0: Disallow raw tracepoint access by users without CAP_IOC_LOCK
 >=1: Disallow CPU event access by users without CAP_SYS_ADMIN
 >=2: Disallow kernel profiling by users without CAP_SYS_ADMIN
+
+==============================================================
+
+perf_event_max_stack:
+
+Controls maximum number of stack frames to copy for (attr.sample_type &
+PERF_SAMPLE_CALLCHAIN) configured events, for instance, when using
+'perf record -g' or 'perf trace --call-graph fp'.
+
+This can only be done when no events are in use that have callchains
+enabled, otherwise writing to this file will return -EBUSY.
+
+The default value is 127.
 
 ==============================================================
 

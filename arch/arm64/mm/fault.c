@@ -81,6 +81,56 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 	printk("\n");
 }
 
+#ifdef CONFIG_ARM64_HW_AFDBM
+/*
+ * This function sets the access flags (dirty, accessed), as well as write
+ * permission, and only to a more permissive setting.
+ *
+ * It needs to cope with hardware update of the accessed/dirty state by other
+ * agents in the system and can safely skip the __sync_icache_dcache() call as,
+ * like set_pte_at(), the PTE is never changed from no-exec to exec here.
+ *
+ * Returns whether or not the PTE actually changed.
+ */
+int ptep_set_access_flags(struct vm_area_struct *vma,
+			  unsigned long address, pte_t *ptep,
+			  pte_t entry, int dirty)
+{
+	pteval_t old_pteval;
+	unsigned int tmp;
+
+	if (pte_same(*ptep, entry))
+		return 0;
+
+	/* only preserve the access flags and write permission */
+	pte_val(entry) &= PTE_AF | PTE_WRITE | PTE_DIRTY;
+
+	/*
+	 * PTE_RDONLY is cleared by default in the asm below, so set it in
+	 * back if necessary (read-only or clean PTE).
+	 */
+	if (!pte_write(entry) || !dirty)
+		pte_val(entry) |= PTE_RDONLY;
+
+	/*
+	 * Setting the flags must be done atomically to avoid racing with the
+	 * hardware update of the access/dirty state.
+	 */
+	asm volatile("//	ptep_set_access_flags\n"
+	"	prfm	pstl1strm, %2\n"
+	"1:	ldxr	%0, %2\n"
+	"	and	%0, %0, %3		// clear PTE_RDONLY\n"
+	"	orr	%0, %0, %4		// set flags\n"
+	"	stxr	%w1, %0, %2\n"
+	"	cbnz	%w1, 1b\n"
+	: "=&r" (old_pteval), "=&r" (tmp), "+Q" (pte_val(*ptep))
+	: "L" (~PTE_RDONLY), "r" (pte_val(entry)));
+
+	flush_tlb_fix_spurious_fault(vma, address);
+	return 1;
+}
+#endif
+
 /*
  * The kernel tried to access some page that wasn't present.
  */
@@ -211,10 +261,6 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 
 	tsk = current;
 	mm  = tsk->mm;
-
-	/* Enable interrupts if they were enabled in the parent context. */
-	if (interrupts_enabled(regs))
-		local_irq_enable();
 
 	/*
 	 * If we're in an interrupt or have no user context, we must not take
@@ -555,20 +601,33 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 {
 	const struct fault_info *inf = debug_fault_info + DBG_ESR_EVT(esr);
 	struct siginfo info;
+	int rv;
 
-	if (!inf->fn(addr, esr, regs))
-		return 1;
+	/*
+	 * Tell lockdep we disabled irqs in entry.S. Do nothing if they were
+	 * already disabled to preserve the last enabled/disabled addresses.
+	 */
+	if (interrupts_enabled(regs))
+		trace_hardirqs_off();
 
-	pr_alert("Unhandled debug exception: %s (0x%08x) at 0x%016lx\n",
-		 inf->name, esr, addr);
+	if (!inf->fn(addr, esr, regs)) {
+		rv = 1;
+	} else {
+		pr_alert("Unhandled debug exception: %s (0x%08x) at 0x%016lx\n",
+			 inf->name, esr, addr);
 
-	info.si_signo = inf->sig;
-	info.si_errno = 0;
-	info.si_code  = inf->code;
-	info.si_addr  = (void __user *)addr;
-	arm64_notify_die("", regs, &info, 0);
+		info.si_signo = inf->sig;
+		info.si_errno = 0;
+		info.si_code  = inf->code;
+		info.si_addr  = (void __user *)addr;
+		arm64_notify_die("", regs, &info, 0);
+		rv = 0;
+	}
 
-	return 0;
+	if (interrupts_enabled(regs))
+		trace_hardirqs_on();
+
+	return rv;
 }
 
 #ifdef CONFIG_ARM64_PAN

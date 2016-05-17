@@ -177,9 +177,11 @@ extern void get_iowait_load(unsigned long *nr_waiters, unsigned long *load);
 extern void calc_global_load(unsigned long ticks);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
-extern void update_cpu_load_nohz(int active);
+extern void cpu_load_update_nohz_start(void);
+extern void cpu_load_update_nohz_stop(void);
 #else
-static inline void update_cpu_load_nohz(int active) { }
+static inline void cpu_load_update_nohz_start(void) { }
+static inline void cpu_load_update_nohz_stop(void) { }
 #endif
 
 extern void dump_cpu_task(int cpu);
@@ -371,6 +373,15 @@ extern void cpu_init (void);
 extern void trap_init(void);
 extern void update_process_times(int user);
 extern void scheduler_tick(void);
+extern int sched_cpu_starting(unsigned int cpu);
+extern int sched_cpu_activate(unsigned int cpu);
+extern int sched_cpu_deactivate(unsigned int cpu);
+
+#ifdef CONFIG_HOTPLUG_CPU
+extern int sched_cpu_dying(unsigned int cpu);
+#else
+# define sched_cpu_dying	NULL
+#endif
 
 extern void sched_show_task(struct task_struct *p);
 
@@ -934,9 +945,19 @@ enum cpu_idle_type {
 };
 
 /*
+ * Integer metrics need fixed point arithmetic, e.g., sched/fair
+ * has a few: load, load_avg, util_avg, freq, and capacity.
+ *
+ * We define a basic fixed point arithmetic range, and then formalize
+ * all these metrics based on that basic range.
+ */
+# define SCHED_FIXEDPOINT_SHIFT	10
+# define SCHED_FIXEDPOINT_SCALE	(1L << SCHED_FIXEDPOINT_SHIFT)
+
+/*
  * Increase resolution of cpu_capacity calculations
  */
-#define SCHED_CAPACITY_SHIFT	10
+#define SCHED_CAPACITY_SHIFT	SCHED_FIXEDPOINT_SHIFT
 #define SCHED_CAPACITY_SCALE	(1L << SCHED_CAPACITY_SHIFT)
 
 /*
@@ -1198,18 +1219,56 @@ struct load_weight {
 };
 
 /*
- * The load_avg/util_avg accumulates an infinite geometric series.
- * 1) load_avg factors frequency scaling into the amount of time that a
- * sched_entity is runnable on a rq into its weight. For cfs_rq, it is the
- * aggregated such weights of all runnable and blocked sched_entities.
- * 2) util_avg factors frequency and cpu scaling into the amount of time
- * that a sched_entity is running on a CPU, in the range [0..SCHED_LOAD_SCALE].
- * For cfs_rq, it is the aggregated such times of all runnable and
+ * The load_avg/util_avg accumulates an infinite geometric series
+ * (see __update_load_avg() in kernel/sched/fair.c).
+ *
+ * [load_avg definition]
+ *
+ *   load_avg = runnable% * scale_load_down(load)
+ *
+ * where runnable% is the time ratio that a sched_entity is runnable.
+ * For cfs_rq, it is the aggregated load_avg of all runnable and
  * blocked sched_entities.
- * The 64 bit load_sum can:
- * 1) for cfs_rq, afford 4353082796 (=2^64/47742/88761) entities with
- * the highest weight (=88761) always runnable, we should not overflow
- * 2) for entity, support any load.weight always runnable
+ *
+ * load_avg may also take frequency scaling into account:
+ *
+ *   load_avg = runnable% * scale_load_down(load) * freq%
+ *
+ * where freq% is the CPU frequency normalized to the highest frequency.
+ *
+ * [util_avg definition]
+ *
+ *   util_avg = running% * SCHED_CAPACITY_SCALE
+ *
+ * where running% is the time ratio that a sched_entity is running on
+ * a CPU. For cfs_rq, it is the aggregated util_avg of all runnable
+ * and blocked sched_entities.
+ *
+ * util_avg may also factor frequency scaling and CPU capacity scaling:
+ *
+ *   util_avg = running% * SCHED_CAPACITY_SCALE * freq% * capacity%
+ *
+ * where freq% is the same as above, and capacity% is the CPU capacity
+ * normalized to the greatest capacity (due to uarch differences, etc).
+ *
+ * N.B., the above ratios (runnable%, running%, freq%, and capacity%)
+ * themselves are in the range of [0, 1]. To do fixed point arithmetics,
+ * we therefore scale them to as large a range as necessary. This is for
+ * example reflected by util_avg's SCHED_CAPACITY_SCALE.
+ *
+ * [Overflow issue]
+ *
+ * The 64-bit load_sum can have 4353082796 (=2^64/47742/88761) entities
+ * with the highest load (=88761), always runnable on a single cfs_rq,
+ * and should not overflow as the number already hits PID_MAX_LIMIT.
+ *
+ * For all other cases (including 32-bit kernels), struct load_weight's
+ * weight will overflow first before we do, because:
+ *
+ *    Max(load_avg) <= Max(load.weight)
+ *
+ * Then it is the load_weight's responsibility to consider overflow
+ * issues.
  */
 struct sched_avg {
 	u64 last_update_time, load_sum;
@@ -1871,6 +1930,11 @@ extern int arch_task_struct_size __read_mostly;
 /* Future-safe accessor for struct task_struct's cpus_allowed. */
 #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
 
+static inline int tsk_nr_cpus_allowed(struct task_struct *p)
+{
+	return p->nr_cpus_allowed;
+}
+
 #define TNF_MIGRATED	0x01
 #define TNF_NO_GROUP	0x02
 #define TNF_SHARED	0x04
@@ -2303,8 +2367,6 @@ extern unsigned long long notrace sched_clock(void);
 /*
  * See the comment in kernel/sched/clock.c
  */
-extern u64 cpu_clock(int cpu);
-extern u64 local_clock(void);
 extern u64 running_clock(void);
 extern u64 sched_clock_cpu(int cpu);
 
@@ -2323,6 +2385,16 @@ static inline void sched_clock_idle_sleep_event(void)
 static inline void sched_clock_idle_wakeup_event(u64 delta_ns)
 {
 }
+
+static inline u64 cpu_clock(int cpu)
+{
+	return sched_clock();
+}
+
+static inline u64 local_clock(void)
+{
+	return sched_clock();
+}
 #else
 /*
  * Architectures can set this to 1 if they have specified
@@ -2337,6 +2409,26 @@ extern void clear_sched_clock_stable(void);
 extern void sched_clock_tick(void);
 extern void sched_clock_idle_sleep_event(void);
 extern void sched_clock_idle_wakeup_event(u64 delta_ns);
+
+/*
+ * As outlined in clock.c, provides a fast, high resolution, nanosecond
+ * time source that is monotonic per cpu argument and has bounded drift
+ * between cpus.
+ *
+ * ######################### BIG FAT WARNING ##########################
+ * # when comparing cpu_clock(i) to cpu_clock(j) for i != j, time can #
+ * # go backwards !!                                                  #
+ * ####################################################################
+ */
+static inline u64 cpu_clock(int cpu)
+{
+	return sched_clock_cpu(cpu);
+}
+
+static inline u64 local_clock(void)
+{
+	return sched_clock_cpu(raw_smp_processor_id());
+}
 #endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
