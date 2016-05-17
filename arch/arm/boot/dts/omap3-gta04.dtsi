@@ -262,6 +262,12 @@
 			OMAP3_CORE1_IOPAD(0x20b8, PIN_INPUT_PULLUP | MUX_MODE4) /* gpio56 */
 		>;
 	};
+
+	hmc5843_pins: pinmux_hmc5843_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2134, PIN_INPUT_PULLUP | MUX_MODE4) /* gpio112 */
+		>;
+	};
 };
 
 &omap3_pmx_core2 {
@@ -389,6 +395,10 @@
 	hmc5843@1e {
 		compatible = "honeywell,hmc5883l";
 		reg = <0x1e>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hmc5843_pins>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;	/* gpio112 */
 	};
 
 	/* touchscreen */
