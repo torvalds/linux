@@ -1660,7 +1660,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		iwl_mvm_tx_info_from_ba_notif(&ba_info, ba_notif, tid_data);
 
 		IWL_DEBUG_TX_REPLY(mvm, "No reclaim. Update rs directly\n");
-		iwl_mvm_rs_tx_status(mvm, sta, tid, &ba_info);
+		iwl_mvm_rs_tx_status(mvm, sta, tid, &ba_info, false);
 	}
 
 out:

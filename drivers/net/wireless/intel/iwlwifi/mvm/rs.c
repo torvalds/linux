@@ -399,7 +399,7 @@ static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 				  struct ieee80211_sta *sta,
 				  struct iwl_lq_sta *lq_sta,
-				  int tid);
+				  int tid, bool ndp);
 static void rs_fill_lq_cmd(struct iwl_mvm *mvm,
 			   struct ieee80211_sta *sta,
 			   struct iwl_lq_sta *lq_sta,
@@ -1161,7 +1161,7 @@ static u8 rs_get_tid(struct ieee80211_hdr *hdr)
 }
 
 void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  int tid, struct ieee80211_tx_info *info)
+			  int tid, struct ieee80211_tx_info *info, bool ndp)
 {
 	int legacy_success;
 	int retries;
@@ -1384,7 +1384,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 done:
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta->supp_rates[info->band])
-		rs_rate_scale_perform(mvm, sta, lq_sta, tid);
+		rs_rate_scale_perform(mvm, sta, lq_sta, tid, ndp);
 }
 
 /*
@@ -1407,7 +1407,8 @@ static void rs_mac80211_tx_status(void *mvm_r,
 	    info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return;
 
-	iwl_mvm_rs_tx_status(mvm, sta, rs_get_tid(hdr), info);
+	iwl_mvm_rs_tx_status(mvm, sta, rs_get_tid(hdr), info,
+			     ieee80211_is_qos_nullfunc(hdr->frame_control));
 }
 
 /*
@@ -2213,7 +2214,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 				  struct ieee80211_sta *sta,
 				  struct iwl_lq_sta *lq_sta,
-				  int tid)
+				  int tid, bool ndp)
 {
 	int low = IWL_RATE_INVALID;
 	int high = IWL_RATE_INVALID;
@@ -2512,7 +2513,7 @@ lq_update:
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
 			    (tid != IWL_MAX_TID_COUNT)) {
 				tid_data = &sta_priv->tid_data[tid];
-				if (tid_data->state == IWL_AGG_OFF) {
+				if (tid_data->state == IWL_AGG_OFF && !ndp) {
 					IWL_DEBUG_RATE(mvm,
 						       "try to aggregate tid %d\n",
 						       tid);
