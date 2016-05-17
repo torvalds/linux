@@ -254,7 +254,6 @@ static void cleanup_service_irqs(struct pci_dev *dev)
 static int get_port_device_capability(struct pci_dev *dev)
 {
 	int services = 0;
-	u32 reg32;
 	int cap_mask = 0;
 
 	if (pcie_ports_disabled)
@@ -269,19 +268,14 @@ static int get_port_device_capability(struct pci_dev *dev)
 		pcie_port_platform_notify(dev, &cap_mask);
 
 	/* Hot-Plug Capable */
-	if ((cap_mask & PCIE_PORT_SERVICE_HP) &&
-	    pcie_caps_reg(dev) & PCI_EXP_FLAGS_SLOT) {
-		pcie_capability_read_dword(dev, PCI_EXP_SLTCAP, &reg32);
-		if (reg32 & PCI_EXP_SLTCAP_HPC) {
-			services |= PCIE_PORT_SERVICE_HP;
-			/*
-			 * Disable hot-plug interrupts in case they have been
-			 * enabled by the BIOS and the hot-plug service driver
-			 * is not loaded.
-			 */
-			pcie_capability_clear_word(dev, PCI_EXP_SLTCTL,
-				PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
-		}
+	if ((cap_mask & PCIE_PORT_SERVICE_HP) && dev->is_hotplug_bridge) {
+		services |= PCIE_PORT_SERVICE_HP;
+		/*
+		 * Disable hot-plug interrupts in case they have been enabled
+		 * by the BIOS and the hot-plug service driver is not loaded.
+		 */
+		pcie_capability_clear_word(dev, PCI_EXP_SLTCTL,
+			  PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
 	}
 	/* AER capable */
 	if ((cap_mask & PCIE_PORT_SERVICE_AER)
