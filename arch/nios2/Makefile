@@ -20,7 +20,7 @@ UTS_SYSNAME = Linux
 
 export MMU
 
-LIBGCC		:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
+LIBGCC         := $(shell $(CC) $(KBUILD_CFLAGS) $(KCFLAGS) -print-libgcc-file-name)
 
 KBUILD_CFLAGS += -pipe -D__linux__ -D__ELF__
 KBUILD_CFLAGS += $(if $(CONFIG_NIOS2_HW_MUL_SUPPORT),-mhw-mul,-mno-hw-mul)
