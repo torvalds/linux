@@ -32,11 +32,11 @@
 
 
 static int
-xfs_xattr_get(const struct xattr_handler *handler, struct dentry *dentry,
-		const char *name, void *value, size_t size)
+xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
+		struct inode *inode, const char *name, void *value, size_t size)
 {
 	int xflags = handler->flags;
-	struct xfs_inode *ip = XFS_I(d_inode(dentry));
+	struct xfs_inode *ip = XFS_I(inode);
 	int error, asize = size;
 
 	/* Convert Linux syscall to XFS internal ATTR flags */

@@ -1119,7 +1119,7 @@ const struct file_operations gfs2_file_fops = {
 };
 
 const struct file_operations gfs2_dir_fops = {
-	.iterate	= gfs2_readdir,
+	.iterate_shared	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,
 	.release	= gfs2_release,
@@ -1147,7 +1147,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 };
 
 const struct file_operations gfs2_dir_fops_nolock = {
-	.iterate	= gfs2_readdir,
+	.iterate_shared	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,
 	.release	= gfs2_release,

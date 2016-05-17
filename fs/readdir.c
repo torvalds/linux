@@ -24,27 +24,40 @@
 int iterate_dir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
+	bool shared = false;
 	int res = -ENOTDIR;
-	if (!file->f_op->iterate)
+	if (file->f_op->iterate_shared)
+		shared = true;
+	else if (!file->f_op->iterate)
 		goto out;
 
 	res = security_file_permission(file, MAY_READ);
 	if (res)
 		goto out;
 
-	res = mutex_lock_killable(&inode->i_mutex);
-	if (res)
-		goto out;
+	if (shared)
+		inode_lock_shared(inode);
+	else
+		inode_lock(inode);
+	// res = mutex_lock_killable(&inode->i_mutex);
+	// if (res)
+	//	goto out;
 
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
 		ctx->pos = file->f_pos;
-		res = file->f_op->iterate(file, ctx);
+		if (shared)
+			res = file->f_op->iterate_shared(file, ctx);
+		else
+			res = file->f_op->iterate(file, ctx);
 		file->f_pos = ctx->pos;
 		fsnotify_access(file);
 		file_accessed(file);
 	}
-	inode_unlock(inode);
+	if (shared)
+		inode_unlock_shared(inode);
+	else
+		inode_unlock(inode);
 out:
 	return res;
 }
@@ -111,7 +124,7 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
 		struct old_linux_dirent __user *, dirent, unsigned int, count)
 {
 	int error;
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	struct readdir_callback buf = {
 		.ctx.actor = fillonedir,
 		.dirent = dirent
@@ -124,7 +137,7 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
 	if (buf.result)
 		error = buf.result;
 
-	fdput(f);
+	fdput_pos(f);
 	return error;
 }
 
@@ -208,7 +221,7 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	if (!access_ok(VERIFY_WRITE, dirent, count))
 		return -EFAULT;
 
-	f = fdget(fd);
+	f = fdget_pos(fd);
 	if (!f.file)
 		return -EBADF;
 
@@ -222,7 +235,7 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 		else
 			error = count - buf.count;
 	}
-	fdput(f);
+	fdput_pos(f);
 	return error;
 }
 
@@ -289,7 +302,7 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 	if (!access_ok(VERIFY_WRITE, dirent, count))
 		return -EFAULT;
 
-	f = fdget(fd);
+	f = fdget_pos(fd);
 	if (!f.file)
 		return -EBADF;
 
@@ -304,6 +317,6 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 		else
 			error = count - buf.count;
 	}
-	fdput(f);
+	fdput_pos(f);
 	return error;
 }
