@@ -77,8 +77,8 @@ static void hsu_dma_chan_start(struct hsu_dma_chan *hsuc)
 	hsu_chan_writel(hsuc, HSU_CH_MTSR, mtsr);
 
 	/* Set descriptors */
-	count = (desc->nents - desc->active) % HSU_DMA_CHAN_NR_DESC;
-	for (i = 0; i < count; i++) {
+	count = desc->nents - desc->active;
+	for (i = 0; i < count && i < HSU_DMA_CHAN_NR_DESC; i++) {
 		hsu_chan_writel(hsuc, HSU_CH_DxSAR(i), desc->sg[i].addr);
 		hsu_chan_writel(hsuc, HSU_CH_DxTSR(i), desc->sg[i].len);
 
@@ -160,7 +160,7 @@ irqreturn_t hsu_dma_irq(struct hsu_dma_chip *chip, unsigned short nr)
 		return IRQ_NONE;
 
 	/* Timeout IRQ, need wait some time, see Errata 2 */
-	if (hsuc->direction == DMA_DEV_TO_MEM && (sr & HSU_CH_SR_DESCTO_ANY))
+	if (sr & HSU_CH_SR_DESCTO_ANY)
 		udelay(2);
 
 	sr &= ~HSU_CH_SR_DESCTO_ANY;
@@ -416,6 +416,8 @@ int hsu_dma_probe(struct hsu_dma_chip *chip)
 	hsu->dma.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
 	hsu->dma.dev = chip->dev;
+
+	dma_set_max_seg_size(hsu->dma.dev, HSU_CH_DxTSR_MASK);
 
 	ret = dma_async_device_register(&hsu->dma);
 	if (ret)
