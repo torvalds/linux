@@ -304,6 +304,8 @@ struct intel_atomic_state {
 	unsigned int active_crtcs;
 	unsigned int min_pixclk[I915_MAX_PIPES];
 
+	struct intel_flip_work *work[I915_MAX_PIPES];
+
 	struct intel_shared_dpll_config shared_dpll[I915_NUM_PLLS];
 
 	/*
@@ -979,7 +981,7 @@ struct intel_flip_work {
 	unsigned put_power_domains;
 	unsigned num_planes;
 
-	bool can_async_unpin;
+	bool can_async_unpin, free_new_crtc_state;
 	unsigned fb_bits;
 
 	unsigned num_old_connectors, num_new_connectors;
@@ -1147,6 +1149,7 @@ unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info
 bool intel_has_pending_fb_unpin(struct drm_device *dev);
 void intel_mark_busy(struct drm_i915_private *dev_priv);
 void intel_mark_idle(struct drm_i915_private *dev_priv);
+void intel_free_flip_work(struct intel_flip_work *work);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 int intel_display_suspend(struct drm_device *dev);
 void intel_encoder_destroy(struct drm_encoder *encoder);
