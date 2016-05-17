@@ -46,7 +46,6 @@ struct i915_params {
 	int invert_brightness;
 	int enable_cmd_parser;
 	int guc_log_level;
-	int use_mmio_flip;
 	int mmio_debug;
 	int edp_vswing;
 	unsigned int inject_load_failure;
