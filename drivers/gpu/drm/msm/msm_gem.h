@@ -29,6 +29,11 @@ struct msm_gem_object {
 
 	uint32_t flags;
 
+	/**
+	 * Advice: are the backing pages purgeable?
+	 */
+	uint8_t madv;
+
 	/* And object is either:
 	 *  inactive - on priv->inactive_list
 	 *  active   - on one one of the gpu's active_list..  well, at

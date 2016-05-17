@@ -413,6 +413,21 @@ void *msm_gem_vaddr(struct drm_gem_object *obj)
 	return ret;
 }
 
+/* Update madvise status, returns true if not purged, else
+ * false or -errno.
+ */
+int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
+
+	if (msm_obj->madv != __MSM_MADV_PURGED)
+		msm_obj->madv = madv;
+
+	return (msm_obj->madv != __MSM_MADV_PURGED);
+}
+
 /* must be called before _move_to_active().. */
 int msm_gem_sync_object(struct drm_gem_object *obj,
 		struct msm_fence_context *fctx, bool exclusive)
@@ -464,6 +479,7 @@ void msm_gem_move_to_active(struct drm_gem_object *obj,
 		struct msm_gpu *gpu, bool exclusive, struct fence *fence)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED);
 	msm_obj->gpu = gpu;
 	if (exclusive)
 		reservation_object_add_excl_fence(msm_obj->resv, fence);
@@ -532,13 +548,27 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	struct reservation_object_list *fobj;
 	struct fence *fence;
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
+	const char *madv;
 
 	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
 
-	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p %zu\n",
+	switch (msm_obj->madv) {
+	case __MSM_MADV_PURGED:
+		madv = " purged";
+		break;
+	case MSM_MADV_DONTNEED:
+		madv = " purgeable";
+		break;
+	case MSM_MADV_WILLNEED:
+	default:
+		madv = "";
+		break;
+	}
+
+	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p %zu%s\n",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
 			obj->name, obj->refcount.refcount.counter,
-			off, msm_obj->vaddr, obj->size);
+			off, msm_obj->vaddr, obj->size, madv);
 
 	rcu_read_lock();
 	fobj = rcu_dereference(robj->fence);
@@ -688,6 +718,7 @@ static int msm_gem_new_impl(struct drm_device *dev,
 		msm_obj->vram_node = (void *)&msm_obj[1];
 
 	msm_obj->flags = flags;
+	msm_obj->madv = MSM_MADV_WILLNEED;
 
 	if (resv) {
 		msm_obj->resv = resv;
