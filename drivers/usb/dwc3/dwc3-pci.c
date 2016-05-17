@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/acpi.h>
@@ -180,7 +181,11 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 		goto err;
 	}
 
+	device_init_wakeup(dev, true);
+	device_set_run_wake(dev, true);
 	pci_set_drvdata(pci, dwc3);
+	pm_runtime_put(dev);
+
 	return 0;
 err:
 	platform_device_put(dwc3);
@@ -189,6 +194,8 @@ err:
 
 static void dwc3_pci_remove(struct pci_dev *pci)
 {
+	device_init_wakeup(&pci->dev, false);
+	pm_runtime_get(&pci->dev);
 	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&pci->dev));
 	platform_device_unregister(pci_get_drvdata(pci));
 }
@@ -219,11 +226,43 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, dwc3_pci_id_table);
 
+#ifdef CONFIG_PM
+static int dwc3_pci_runtime_suspend(struct device *dev)
+{
+	if (device_run_wake(dev))
+		return 0;
+
+	return -EBUSY;
+}
+
+static int dwc3_pci_pm_dummy(struct device *dev)
+{
+	/*
+	 * There's nothing to do here. No, seriously. Everything is either taken
+	 * care either by PCI subsystem or dwc3/core.c, so we have nothing
+	 * missing here.
+	 *
+	 * So you'd think we didn't need this at all, but PCI subsystem will
+	 * bail out if we don't have a valid callback :-s
+	 */
+	return 0;
+}
+#endif /* CONFIG_PM */
+
+static struct dev_pm_ops dwc3_pci_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_pm_dummy, dwc3_pci_pm_dummy)
+	SET_RUNTIME_PM_OPS(dwc3_pci_runtime_suspend, dwc3_pci_pm_dummy,
+		NULL)
+};
+
 static struct pci_driver dwc3_pci_driver = {
 	.name		= "dwc3-pci",
 	.id_table	= dwc3_pci_id_table,
 	.probe		= dwc3_pci_probe,
 	.remove		= dwc3_pci_remove,
+	.driver		= {
+		.pm	= &dwc3_pci_dev_pm_ops,
+	}
 };
 
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
