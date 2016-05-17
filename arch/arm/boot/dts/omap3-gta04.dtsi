@@ -256,6 +256,12 @@
 			OMAP3_CORE1_IOPAD(0x213a, PIN_INPUT_PULLUP | MUX_MODE4) /* gpio115 */
 		>;
 	};
+
+	itg3200_pins: pinmux_itg3200_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20b8, PIN_INPUT_PULLUP | MUX_MODE4) /* gpio56 */
+		>;
+	};
 };
 
 &omap3_pmx_core2 {
@@ -336,8 +342,10 @@
 	itg3200@68 {
 		compatible = "invensense,itg3200";
 		reg = <0x68>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&itg3200_pins>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <24 0>; /* GPIO_56 */
+		interrupts = <24 IRQ_TYPE_EDGE_FALLING>; /* GPIO_56 */
 	};
 
 	/* leds */
