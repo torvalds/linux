@@ -195,6 +195,7 @@ struct pnfs_layout_hdr {
 	unsigned long		plh_flags;
 	nfs4_stateid		plh_stateid;
 	u32			plh_barrier; /* ignore lower seqids */
+	u32			plh_return_seq;
 	enum pnfs_iomode	plh_return_iomode;
 	loff_t			plh_lwb; /* last write byte for layoutcommit */
 	struct rpc_cred		*plh_lc_cred; /* layoutcommit cred */

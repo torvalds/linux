@@ -899,6 +899,7 @@ pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo)
 	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
 		return false;
 	lo->plh_return_iomode = 0;
+	lo->plh_return_seq = 0;
 	pnfs_get_layout_hdr(lo);
 	clear_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
 	return true;
@@ -969,6 +970,7 @@ static void pnfs_layoutreturn_before_put_layout_hdr(struct pnfs_layout_hdr *lo)
 		bool send;
 
 		nfs4_stateid_copy(&stateid, &lo->plh_stateid);
+		stateid.seqid = cpu_to_be32(lo->plh_return_seq);
 		iomode = lo->plh_return_iomode;
 		send = pnfs_prepare_layoutreturn(lo);
 		spin_unlock(&inode->i_lock);
@@ -1747,7 +1749,8 @@ out_forget_reply:
 }
 
 static void
-pnfs_set_plh_return_iomode(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode)
+pnfs_set_plh_return_info(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode,
+			 u32 seq)
 {
 	if (lo->plh_return_iomode == iomode)
 		return;
@@ -1755,6 +1758,8 @@ pnfs_set_plh_return_iomode(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode)
 		iomode = IOMODE_ANY;
 	lo->plh_return_iomode = iomode;
 	set_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
+	if (!lo->plh_return_seq || pnfs_seqid_is_newer(seq, lo->plh_return_seq))
+		lo->plh_return_seq = seq;
 }
 
 /**
@@ -1793,7 +1798,7 @@ pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				continue;
 			remaining++;
 			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
-			pnfs_set_plh_return_iomode(lo, return_range->iomode);
+			pnfs_set_plh_return_info(lo, return_range->iomode, lseg->pls_seq);
 		}
 	return remaining;
 }
@@ -1811,7 +1816,7 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 	bool return_now = false;
 
 	spin_lock(&inode->i_lock);
-	pnfs_set_plh_return_iomode(lo, range.iomode);
+	pnfs_set_plh_return_info(lo, range.iomode, lseg->pls_seq);
 	/*
 	 * mark all matching lsegs so that we are sure to have no live
 	 * segments at hand when sending layoutreturn. See pnfs_put_lseg()
