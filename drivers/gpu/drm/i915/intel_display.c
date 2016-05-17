@@ -3179,14 +3179,6 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 
 static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned reset_counter;
-
-	reset_counter = i915_reset_counter(&to_i915(dev)->gpu_error);
-	if (intel_crtc->reset_counter != reset_counter)
-		return false;
-
 	return !list_empty_careful(&to_intel_crtc(crtc)->flip_work);
 }
 
@@ -11179,7 +11171,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	intel_fbc_pre_update(intel_crtc);
 
-	intel_crtc->reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 	schedule_work(&work->mmio_work);
 
 	mutex_unlock(&dev->struct_mutex);

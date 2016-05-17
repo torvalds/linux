@@ -659,9 +659,6 @@ struct intel_crtc {
 
 	struct intel_crtc_state *config;
 
-	/* reset counter value when the last flip was submitted */
-	unsigned int reset_counter;
-
 	/* Access to these should be protected by dev_priv->irq_lock. */
 	bool cpu_fifo_underrun_disabled;
 	bool pch_fifo_underrun_disabled;
