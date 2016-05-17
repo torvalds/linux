@@ -26,7 +26,7 @@
  * Nests outside led_cdev->trigger_lock
  */
 static DECLARE_RWSEM(triggers_list_lock);
-static LIST_HEAD(trigger_list);
+LIST_HEAD(trigger_list);
 
  /* Used by LED Class */
 
