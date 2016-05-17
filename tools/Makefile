@@ -137,7 +137,8 @@ libsubcmd_clean:
 	$(call descend,lib/subcmd,clean)
 
 perf_clean:
-	$(call descend,$(@:_clean=),clean)
+	$(Q)mkdir -p $(PERF_O) .
+	$(Q)$(MAKE) --no-print-directory -C perf O=$(PERF_O) subdir= clean
 
 selftests_clean:
 	$(call descend,testing/$(@:_clean=),clean)

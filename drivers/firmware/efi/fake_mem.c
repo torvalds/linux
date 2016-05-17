@@ -57,7 +57,7 @@ static int __init cmp_fake_mem(const void *x1, const void *x2)
 void __init efi_fake_memmap(void)
 {
 	u64 start, end, m_start, m_end, m_attr;
-	int new_nr_map = memmap.nr_map;
+	int new_nr_map = efi.memmap.nr_map;
 	efi_memory_desc_t *md;
 	phys_addr_t new_memmap_phy;
 	void *new_memmap;
@@ -68,8 +68,7 @@ void __init efi_fake_memmap(void)
 		return;
 
 	/* count up the number of EFI memory descriptor */
-	for (old = memmap.map; old < memmap.map_end; old += memmap.desc_size) {
-		md = old;
+	for_each_efi_memory_desc(md) {
 		start = md->phys_addr;
 		end = start + (md->num_pages << EFI_PAGE_SHIFT) - 1;
 
@@ -95,25 +94,25 @@ void __init efi_fake_memmap(void)
 	}
 
 	/* allocate memory for new EFI memmap */
-	new_memmap_phy = memblock_alloc(memmap.desc_size * new_nr_map,
+	new_memmap_phy = memblock_alloc(efi.memmap.desc_size * new_nr_map,
 					PAGE_SIZE);
 	if (!new_memmap_phy)
 		return;
 
 	/* create new EFI memmap */
 	new_memmap = early_memremap(new_memmap_phy,
-				    memmap.desc_size * new_nr_map);
+				    efi.memmap.desc_size * new_nr_map);
 	if (!new_memmap) {
-		memblock_free(new_memmap_phy, memmap.desc_size * new_nr_map);
+		memblock_free(new_memmap_phy, efi.memmap.desc_size * new_nr_map);
 		return;
 	}
 
-	for (old = memmap.map, new = new_memmap;
-	     old < memmap.map_end;
-	     old += memmap.desc_size, new += memmap.desc_size) {
+	for (old = efi.memmap.map, new = new_memmap;
+	     old < efi.memmap.map_end;
+	     old += efi.memmap.desc_size, new += efi.memmap.desc_size) {
 
 		/* copy original EFI memory descriptor */
-		memcpy(new, old, memmap.desc_size);
+		memcpy(new, old, efi.memmap.desc_size);
 		md = new;
 		start = md->phys_addr;
 		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT) - 1;
@@ -134,8 +133,8 @@ void __init efi_fake_memmap(void)
 				md->num_pages = (m_end - md->phys_addr + 1) >>
 					EFI_PAGE_SHIFT;
 				/* latter part */
-				new += memmap.desc_size;
-				memcpy(new, old, memmap.desc_size);
+				new += efi.memmap.desc_size;
+				memcpy(new, old, efi.memmap.desc_size);
 				md = new;
 				md->phys_addr = m_end + 1;
 				md->num_pages = (end - md->phys_addr + 1) >>
@@ -147,16 +146,16 @@ void __init efi_fake_memmap(void)
 				md->num_pages = (m_start - md->phys_addr) >>
 					EFI_PAGE_SHIFT;
 				/* middle part */
-				new += memmap.desc_size;
-				memcpy(new, old, memmap.desc_size);
+				new += efi.memmap.desc_size;
+				memcpy(new, old, efi.memmap.desc_size);
 				md = new;
 				md->attribute |= m_attr;
 				md->phys_addr = m_start;
 				md->num_pages = (m_end - m_start + 1) >>
 					EFI_PAGE_SHIFT;
 				/* last part */
-				new += memmap.desc_size;
-				memcpy(new, old, memmap.desc_size);
+				new += efi.memmap.desc_size;
+				memcpy(new, old, efi.memmap.desc_size);
 				md = new;
 				md->phys_addr = m_end + 1;
 				md->num_pages = (end - m_end) >>
@@ -169,8 +168,8 @@ void __init efi_fake_memmap(void)
 				md->num_pages = (m_start - md->phys_addr) >>
 					EFI_PAGE_SHIFT;
 				/* latter part */
-				new += memmap.desc_size;
-				memcpy(new, old, memmap.desc_size);
+				new += efi.memmap.desc_size;
+				memcpy(new, old, efi.memmap.desc_size);
 				md = new;
 				md->phys_addr = m_start;
 				md->num_pages = (end - md->phys_addr + 1) >>
@@ -182,10 +181,10 @@ void __init efi_fake_memmap(void)
 
 	/* swap into new EFI memmap */
 	efi_unmap_memmap();
-	memmap.map = new_memmap;
-	memmap.phys_map = new_memmap_phy;
-	memmap.nr_map = new_nr_map;
-	memmap.map_end = memmap.map + memmap.nr_map * memmap.desc_size;
+	efi.memmap.map = new_memmap;
+	efi.memmap.phys_map = new_memmap_phy;
+	efi.memmap.nr_map = new_nr_map;
+	efi.memmap.map_end = efi.memmap.map + efi.memmap.nr_map * efi.memmap.desc_size;
 	set_bit(EFI_MEMMAP, &efi.flags);
 
 	/* print new EFI memmap */

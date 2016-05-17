@@ -30,7 +30,7 @@ static int process_event_scale(struct perf_tool *tool __maybe_unused,
 
 	TEST_ASSERT_VAL("wrong id", ev->id == 123);
 	TEST_ASSERT_VAL("wrong id", ev->type == PERF_EVENT_UPDATE__SCALE);
-	TEST_ASSERT_VAL("wrong scale", ev_data->scale = 0.123);
+	TEST_ASSERT_VAL("wrong scale", ev_data->scale == 0.123);
 	return 0;
 }
 

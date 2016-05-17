@@ -409,6 +409,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->stat = process_stat_stub;
 	if (tool->stat_round == NULL)
 		tool->stat_round = process_stat_round_stub;
+	if (tool->time_conv == NULL)
+		tool->time_conv = process_event_op2_stub;
 }
 
 static void swap_sample_id_all(union perf_event *event, void *data)
@@ -794,6 +796,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_STAT]		  = perf_event__stat_swap,
 	[PERF_RECORD_STAT_ROUND]	  = perf_event__stat_round_swap,
 	[PERF_RECORD_EVENT_UPDATE]	  = perf_event__event_update_swap,
+	[PERF_RECORD_TIME_CONV]		  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
@@ -904,7 +907,7 @@ static void callchain__printf(struct perf_evsel *evsel,
 	unsigned int i;
 	struct ip_callchain *callchain = sample->callchain;
 
-	if (has_branch_callstack(evsel))
+	if (perf_evsel__has_branch_callstack(evsel))
 		callchain__lbr_callstack_printf(sample);
 
 	printf("... FP chain: nr:%" PRIu64 "\n", callchain->nr);
@@ -1078,7 +1081,7 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 	if (sample_type & PERF_SAMPLE_CALLCHAIN)
 		callchain__printf(evsel, sample);
 
-	if ((sample_type & PERF_SAMPLE_BRANCH_STACK) && !has_branch_callstack(evsel))
+	if ((sample_type & PERF_SAMPLE_BRANCH_STACK) && !perf_evsel__has_branch_callstack(evsel))
 		branch_stack__printf(sample);
 
 	if (sample_type & PERF_SAMPLE_REGS_USER)
@@ -1341,6 +1344,9 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		return tool->stat(tool, event, session);
 	case PERF_RECORD_STAT_ROUND:
 		return tool->stat_round(tool, event, session);
+	case PERF_RECORD_TIME_CONV:
+		session->time_conv = event->time_conv;
+		return tool->time_conv(tool, event, session);
 	default:
 		return -EINVAL;
 	}
@@ -1830,7 +1836,11 @@ out:
 out_err:
 	ui_progress__finish();
 	perf_session__warn_about_errors(session);
-	ordered_events__free(&session->ordered_events);
+	/*
+	 * We may switching perf.data output, make ordered_events
+	 * reusable.
+	 */
+	ordered_events__reinit(&session->ordered_events);
 	auxtrace__free_events(session);
 	session->one_mmap = false;
 	return err;
@@ -1945,105 +1955,6 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 			return pos;
 	}
 	return NULL;
-}
-
-void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
-			  struct addr_location *al,
-			  unsigned int print_opts, unsigned int stack_depth)
-{
-	struct callchain_cursor_node *node;
-	int print_ip = print_opts & PRINT_IP_OPT_IP;
-	int print_sym = print_opts & PRINT_IP_OPT_SYM;
-	int print_dso = print_opts & PRINT_IP_OPT_DSO;
-	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
-	int print_oneline = print_opts & PRINT_IP_OPT_ONELINE;
-	int print_srcline = print_opts & PRINT_IP_OPT_SRCLINE;
-	char s = print_oneline ? ' ' : '\t';
-
-	if (symbol_conf.use_callchain && sample->callchain) {
-		struct addr_location node_al;
-
-		if (thread__resolve_callchain(al->thread, evsel,
-					      sample, NULL, NULL,
-					      stack_depth) != 0) {
-			if (verbose)
-				error("Failed to resolve callchain. Skipping\n");
-			return;
-		}
-		callchain_cursor_commit(&callchain_cursor);
-
-		if (print_symoffset)
-			node_al = *al;
-
-		while (stack_depth) {
-			u64 addr = 0;
-
-			node = callchain_cursor_current(&callchain_cursor);
-			if (!node)
-				break;
-
-			if (node->sym && node->sym->ignore)
-				goto next;
-
-			if (print_ip)
-				printf("%c%16" PRIx64, s, node->ip);
-
-			if (node->map)
-				addr = node->map->map_ip(node->map, node->ip);
-
-			if (print_sym) {
-				printf(" ");
-				if (print_symoffset) {
-					node_al.addr = addr;
-					node_al.map  = node->map;
-					symbol__fprintf_symname_offs(node->sym, &node_al, stdout);
-				} else
-					symbol__fprintf_symname(node->sym, stdout);
-			}
-
-			if (print_dso) {
-				printf(" (");
-				map__fprintf_dsoname(node->map, stdout);
-				printf(")");
-			}
-
-			if (print_srcline)
-				map__fprintf_srcline(node->map, addr, "\n  ",
-						     stdout);
-
-			if (!print_oneline)
-				printf("\n");
-
-			stack_depth--;
-next:
-			callchain_cursor_advance(&callchain_cursor);
-		}
-
-	} else {
-		if (al->sym && al->sym->ignore)
-			return;
-
-		if (print_ip)
-			printf("%16" PRIx64, sample->ip);
-
-		if (print_sym) {
-			printf(" ");
-			if (print_symoffset)
-				symbol__fprintf_symname_offs(al->sym, al,
-							     stdout);
-			else
-				symbol__fprintf_symname(al->sym, stdout);
-		}
-
-		if (print_dso) {
-			printf(" (");
-			map__fprintf_dsoname(al->map, stdout);
-			printf(")");
-		}
-
-		if (print_srcline)
-			map__fprintf_srcline(al->map, al->addr, "\n  ", stdout);
-	}
 }
 
 int perf_session__cpu_bitmap(struct perf_session *session,

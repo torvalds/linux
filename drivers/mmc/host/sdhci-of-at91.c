@@ -15,8 +15,10 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/module.h>
@@ -31,14 +33,60 @@
 #define		SDMMC_CACR_CAPWREN	BIT(0)
 #define		SDMMC_CACR_KEY		(0x46 << 8)
 
+#define SDHCI_AT91_PRESET_COMMON_CONF	0x400 /* drv type B, programmable clock mode */
+
 struct sdhci_at91_priv {
 	struct clk *hclock;
 	struct clk *gck;
 	struct clk *mainck;
 };
 
+static void sdhci_at91_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	u16 clk;
+	unsigned long timeout;
+
+	host->mmc->actual_clock = 0;
+
+	/*
+	 * There is no requirement to disable the internal clock before
+	 * changing the SD clock configuration. Moreover, disabling the
+	 * internal clock, changing the configuration and re-enabling the
+	 * internal clock causes some bugs. It can prevent to get the internal
+	 * clock stable flag ready and an unexpected switch to the base clock
+	 * when using presets.
+	 */
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	clk &= SDHCI_CLOCK_INT_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+	if (clock == 0)
+		return;
+
+	clk = sdhci_calc_clk(host, clock, &host->mmc->actual_clock);
+
+	clk |= SDHCI_CLOCK_INT_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+	/* Wait max 20 ms */
+	timeout = 20;
+	while (!((clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL))
+		& SDHCI_CLOCK_INT_STABLE)) {
+		if (timeout == 0) {
+			pr_err("%s: Internal clock never stabilised.\n",
+			       mmc_hostname(host->mmc));
+			return;
+		}
+		timeout--;
+		mdelay(1);
+	}
+
+	clk |= SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+}
+
 static const struct sdhci_ops sdhci_at91_sama5d2_ops = {
-	.set_clock		= sdhci_set_clock,
+	.set_clock		= sdhci_at91_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_reset,
 	.set_uhs_signaling	= sdhci_set_uhs_signaling,
@@ -46,7 +94,6 @@ static const struct sdhci_ops sdhci_at91_sama5d2_ops = {
 
 static const struct sdhci_pltfm_data soc_data_sama5d2 = {
 	.ops = &sdhci_at91_sama5d2_ops,
-	.quirks2 = SDHCI_QUIRK2_NEED_DELAY_AFTER_INT_CLK_RST,
 };
 
 static const struct of_device_id sdhci_at91_dt_match[] = {
@@ -119,6 +166,7 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 	unsigned int			clk_base, clk_mul;
 	unsigned int			gck_rate, real_gck_rate;
 	int				ret;
+	unsigned int			preset_div;
 
 	match = of_match_device(sdhci_at91_dt_match, &pdev->dev);
 	if (!match)
@@ -185,6 +233,28 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "update clk mul to %u as gck rate is %u Hz\n",
 			 clk_mul, real_gck_rate);
 	}
+
+	/*
+	 * We have to set preset values because it depends on the clk_mul
+	 * value. Moreover, SDR104 is supported in a degraded mode since the
+	 * maximum sd clock value is 120 MHz instead of 208 MHz. For that
+	 * reason, we need to use presets to support SDR104.
+	 */
+	preset_div = DIV_ROUND_UP(real_gck_rate, 24000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_SDR12);
+	preset_div = DIV_ROUND_UP(real_gck_rate, 50000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_SDR25);
+	preset_div = DIV_ROUND_UP(real_gck_rate, 100000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_SDR50);
+	preset_div = DIV_ROUND_UP(real_gck_rate, 120000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_SDR104);
+	preset_div = DIV_ROUND_UP(real_gck_rate, 50000000) - 1;
+	writew(SDHCI_AT91_PRESET_COMMON_CONF | preset_div,
+	       host->ioaddr + SDHCI_PRESET_FOR_DDR50);
 
 	clk_prepare_enable(priv->mainck);
 	clk_prepare_enable(priv->gck);

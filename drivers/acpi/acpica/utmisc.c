@@ -361,7 +361,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 void
 acpi_ut_display_init_pathname(u8 type,
 			      struct acpi_namespace_node *obj_handle,
-			      char *path)
+			      const char *path)
 {
 	acpi_status status;
 	struct acpi_buffer buffer;

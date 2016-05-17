@@ -1236,7 +1236,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * If we couldn't find a local APIC, then get out of here now!
 	 */
 	if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid]) &&
-	    !cpu_has_apic) {
+	    !boot_cpu_has(X86_FEATURE_APIC)) {
 		if (!disable_apic) {
 			pr_err("BIOS bug, local APIC #%d not detected!...\n",
 				boot_cpu_physical_apicid);
