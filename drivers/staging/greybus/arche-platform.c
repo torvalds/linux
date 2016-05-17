@@ -207,9 +207,6 @@ static int apb_poweroff(struct device *dev, void *data)
 
 static void assert_wakedetect(struct arche_platform_drvdata *arche_pdata)
 {
-	/* Assert wake/detect = Detect event from AP */
-	gpio_direction_output(arche_pdata->wake_detect_gpio, 1);
-
 	/* Enable interrupt here, to read event back from SVC */
 	gpio_direction_input(arche_pdata->wake_detect_gpio);
 	enable_irq(arche_pdata->wake_detect_irq);
@@ -371,9 +368,7 @@ static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pda
 	/* If in fw_flashing mode, then no need to repeate things again */
 	if (arche_pdata->state != ARCHE_PLATFORM_STATE_FW_FLASHING) {
 		disable_irq(arche_pdata->wake_detect_irq);
-		/* Send disconnect/detach event to SVC */
-		gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
-		usleep_range(100, 200);
+
 		spin_lock_irqsave(&arche_pdata->wake_lock, flags);
 		arche_platform_set_wake_detect_state(arche_pdata,
 						     WD_STATE_IDLE);
@@ -411,9 +406,9 @@ static ssize_t state_store(struct device *dev,
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_ACTIVE)
 			goto exit;
 
+		assert_wakedetect(arche_pdata);
 		ret = arche_platform_coldboot_seq(arche_pdata);
 
-		assert_wakedetect(arche_pdata);
 	} else if (sysfs_streq(buf, "standby")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_STANDBY)
 			goto exit;
@@ -484,8 +479,8 @@ static int arche_platform_pm_notifier(struct notifier_block *notifier,
 		arche_platform_poweroff_seq(arche_pdata);
 		break;
 	case PM_POST_SUSPEND:
-		arche_platform_coldboot_seq(arche_pdata);
 		assert_wakedetect(arche_pdata);
+		arche_platform_coldboot_seq(arche_pdata);
 		break;
 	default:
 		break;
@@ -588,8 +583,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 				arche_pdata->wake_detect_gpio);
 		return ret;
 	}
-	/* deassert wake detect */
-	gpio_direction_output(arche_pdata->wake_detect_gpio, 0);
+
 	arche_platform_set_wake_detect_state(arche_pdata, WD_STATE_IDLE);
 
 	arche_pdata->dev = &pdev->dev;
@@ -608,8 +602,8 @@ static int arche_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request wake detect IRQ %d\n", ret);
 		return ret;
 	}
-	/* Enable it only after  sending wake/detect event */
-	disable_irq(arche_pdata->wake_detect_irq);
+
+	assert_wakedetect(arche_pdata);
 
 	ret = device_create_file(dev, &dev_attr_state);
 	if (ret) {
@@ -629,8 +623,6 @@ static int arche_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to populate child nodes %d\n", ret);
 		goto err_populate;
 	}
-
-	assert_wakedetect(arche_pdata);
 
 	arche_pdata->pm_notifier.notifier_call = arche_platform_pm_notifier;
 	ret = register_pm_notifier(&arche_pdata->pm_notifier);
