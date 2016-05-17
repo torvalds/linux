@@ -2055,12 +2055,13 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 out:
 	block_ns = ktime_to_ns(cur) - ktime_to_ns(start);
 
-	if (halt_poll_ns) {
+	if (!vcpu_valid_wakeup(vcpu))
+		shrink_halt_poll_ns(vcpu);
+	else if (halt_poll_ns) {
 		if (block_ns <= vcpu->halt_poll_ns)
 			;
 		/* we had a long block, shrink polling */
-		else if (!vcpu_valid_wakeup(vcpu) ||
-			(vcpu->halt_poll_ns && block_ns > halt_poll_ns))
+		else if (vcpu->halt_poll_ns && block_ns > halt_poll_ns)
 			shrink_halt_poll_ns(vcpu);
 		/* we had a short halt and our poll time is too small */
 		else if (vcpu->halt_poll_ns < halt_poll_ns &&
