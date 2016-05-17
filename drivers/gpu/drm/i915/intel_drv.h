@@ -641,7 +641,7 @@ struct intel_crtc {
 	unsigned long enabled_power_domains;
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
-	struct intel_flip_work *flip_work;
+	struct list_head flip_work;
 
 	atomic_t unpin_work_count;
 
@@ -970,6 +970,8 @@ intel_get_crtc_for_plane(struct drm_device *dev, int plane)
 }
 
 struct intel_flip_work {
+	struct list_head head;
+
 	struct work_struct unpin_work;
 	struct work_struct mmio_work;
 

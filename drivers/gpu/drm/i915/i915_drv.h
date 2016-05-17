@@ -622,7 +622,7 @@ struct drm_i915_display_funcs {
 			  struct drm_framebuffer *fb,
 			  struct drm_i915_gem_object *obj,
 			  struct drm_i915_gem_request *req,
-			  uint32_t flags);
+			  uint64_t gtt_offset);
 	void (*hpd_irq_setup)(struct drm_i915_private *dev_priv);
 	/* clock updates for mode set */
 	/* cursor updates */

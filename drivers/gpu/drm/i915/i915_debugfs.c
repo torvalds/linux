@@ -592,6 +592,53 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static void i915_dump_pageflip(struct seq_file *m,
+			       struct drm_i915_private *dev_priv,
+			       struct intel_crtc *crtc,
+			       struct intel_flip_work *work)
+{
+	const char pipe = pipe_name(crtc->pipe);
+	const char plane = plane_name(crtc->plane);
+	u32 pending;
+	u32 addr;
+
+	pending = atomic_read(&work->pending);
+	if (pending) {
+		seq_printf(m, "Flip ioctl preparing on pipe %c (plane %c)\n",
+			   pipe, plane);
+	} else {
+		seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
+			   pipe, plane);
+	}
+	if (work->flip_queued_req) {
+		struct intel_engine_cs *engine = i915_gem_request_get_engine(work->flip_queued_req);
+
+		seq_printf(m, "Flip queued on %s at seqno %x, next seqno %x [current breadcrumb %x], completed? %d\n",
+			   engine->name,
+			   i915_gem_request_get_seqno(work->flip_queued_req),
+			   dev_priv->next_seqno,
+			   engine->get_seqno(engine),
+			   i915_gem_request_completed(work->flip_queued_req, true));
+	} else
+		seq_printf(m, "Flip not associated with any ring\n");
+	seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",
+		   work->flip_queued_vblank,
+		   work->flip_ready_vblank,
+		   intel_crtc_get_vblank_counter(crtc));
+	seq_printf(m, "%d prepares\n", atomic_read(&work->pending));
+
+	if (INTEL_INFO(dev_priv)->gen >= 4)
+		addr = I915_HI_DISPBASE(I915_READ(DSPSURF(crtc->plane)));
+	else
+		addr = I915_READ(DSPADDR(crtc->plane));
+	seq_printf(m, "Current scanout address 0x%08x\n", addr);
+
+	if (work->pending_flip_obj) {
+		seq_printf(m, "New framebuffer address 0x%08lx\n", (long)work->gtt_offset);
+		seq_printf(m, "MMIO update completed? %d\n",  addr == work->gtt_offset);
+	}
+}
+
 static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -610,48 +657,13 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 		struct intel_flip_work *work;
 
 		spin_lock_irq(&dev->event_lock);
-		work = crtc->flip_work;
-		if (work == NULL) {
+		if (list_empty(&crtc->flip_work)) {
 			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
 				   pipe, plane);
 		} else {
-			u32 pending;
-			u32 addr;
-
-			pending = atomic_read(&work->pending);
-			if (pending) {
-				seq_printf(m, "Flip ioctl preparing on pipe %c (plane %c)\n",
-					   pipe, plane);
-			} else {
-				seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
-					   pipe, plane);
-			}
-			if (work->flip_queued_req) {
-				struct intel_engine_cs *engine = i915_gem_request_get_engine(work->flip_queued_req);
-
-				seq_printf(m, "Flip queued on %s at seqno %x, next seqno %x [current breadcrumb %x], completed? %d\n",
-					   engine->name,
-					   i915_gem_request_get_seqno(work->flip_queued_req),
-					   dev_priv->next_seqno,
-					   engine->get_seqno(engine),
-					   i915_gem_request_completed(work->flip_queued_req, true));
-			} else
-				seq_printf(m, "Flip not associated with any ring\n");
-			seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",
-				   work->flip_queued_vblank,
-				   work->flip_ready_vblank,
-				   intel_crtc_get_vblank_counter(crtc));
-			seq_printf(m, "%d prepares\n", atomic_read(&work->pending));
-
-			if (INTEL_INFO(dev)->gen >= 4)
-				addr = I915_HI_DISPBASE(I915_READ(DSPSURF(crtc->plane)));
-			else
-				addr = I915_READ(DSPADDR(crtc->plane));
-			seq_printf(m, "Current scanout address 0x%08x\n", addr);
-
-			if (work->pending_flip_obj) {
-				seq_printf(m, "New framebuffer address 0x%08lx\n", (long)work->gtt_offset);
-				seq_printf(m, "MMIO update completed? %d\n",  addr == work->gtt_offset);
+			list_for_each_entry(work, &crtc->flip_work, head) {
+				i915_dump_pageflip(m, dev_priv, crtc, work);
+				seq_puts(m, "\n");
 			}
 		}
 		spin_unlock_irq(&dev->event_lock);
