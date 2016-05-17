@@ -33,8 +33,17 @@
  *
  */
 
+static void hdlcd_crtc_cleanup(struct drm_crtc *crtc)
+{
+	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
+
+	/* stop the controller on cleanup */
+	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 0);
+	drm_crtc_cleanup(crtc);
+}
+
 static const struct drm_crtc_funcs hdlcd_crtc_funcs = {
-	.destroy = drm_crtc_cleanup,
+	.destroy = hdlcd_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.reset = drm_atomic_helper_crtc_reset,
@@ -155,8 +164,8 @@ static void hdlcd_crtc_disable(struct drm_crtc *crtc)
 	if (!crtc->primary->fb)
 		return;
 
-	clk_disable_unprepare(hdlcd->clk);
 	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 0);
+	clk_disable_unprepare(hdlcd->clk);
 	drm_crtc_vblank_off(crtc);
 }
 
@@ -292,16 +301,6 @@ static struct drm_plane *hdlcd_plane_init(struct drm_device *drm)
 	hdlcd->plane = plane;
 
 	return plane;
-}
-
-void hdlcd_crtc_suspend(struct drm_crtc *crtc)
-{
-	hdlcd_crtc_disable(crtc);
-}
-
-void hdlcd_crtc_resume(struct drm_crtc *crtc)
-{
-	hdlcd_crtc_enable(crtc);
 }
 
 int hdlcd_setup_crtc(struct drm_device *drm)
