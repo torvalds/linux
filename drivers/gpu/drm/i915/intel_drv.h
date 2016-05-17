@@ -627,14 +627,6 @@ struct vlv_wm_state {
 	bool cxsr;
 };
 
-struct intel_mmio_flip {
-	struct work_struct work;
-	struct drm_i915_private *i915;
-	struct drm_i915_gem_request *req;
-	struct intel_crtc *crtc;
-	unsigned int rotation;
-};
-
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -649,7 +641,7 @@ struct intel_crtc {
 	unsigned long enabled_power_domains;
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
-	struct intel_unpin_work *unpin_work;
+	struct intel_flip_work *flip_work;
 
 	atomic_t unpin_work_count;
 
@@ -977,8 +969,10 @@ intel_get_crtc_for_plane(struct drm_device *dev, int plane)
 	return dev_priv->plane_to_crtc_mapping[plane];
 }
 
-struct intel_unpin_work {
-	struct work_struct work;
+struct intel_flip_work {
+	struct work_struct unpin_work;
+	struct work_struct mmio_work;
+
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *old_fb;
 	struct drm_i915_gem_object *pending_flip_obj;
@@ -989,6 +983,7 @@ struct intel_unpin_work {
 	struct drm_i915_gem_request *flip_queued_req;
 	u32 flip_queued_vblank;
 	u32 flip_ready_vblank;
+	unsigned int rotation;
 };
 
 struct intel_load_detect_pipe {
@@ -1199,7 +1194,8 @@ struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj);
-void intel_finish_page_flip(struct drm_i915_private *dev_priv, int pipe);
+void intel_finish_page_flip_cs(struct drm_i915_private *dev_priv, int pipe);
+void intel_finish_page_flip_mmio(struct drm_i915_private *dev_priv, int pipe);
 void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe);
 int intel_prepare_plane_fb(struct drm_plane *plane,
 			   const struct drm_plane_state *new_state);
@@ -1677,7 +1673,7 @@ int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 void intel_pipe_update_start(struct intel_crtc *crtc);
-void intel_pipe_update_end(struct intel_crtc *crtc);
+void intel_pipe_update_end(struct intel_crtc *crtc, struct intel_flip_work *work);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);
