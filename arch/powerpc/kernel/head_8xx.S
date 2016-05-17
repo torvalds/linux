@@ -797,6 +797,14 @@ start_here:
  * these mappings is mapped by page tables.
  */
 initial_mmu:
+	li	r8, 0
+	mtspr	SPRN_MI_CTR, r8		/* remove PINNED ITLB entries */
+	lis	r10, MD_RESETVAL@h
+#ifndef CONFIG_8xx_COPYBACK
+	oris	r10, r10, MD_WTDEF@h
+#endif
+	mtspr	SPRN_MD_CTR, r10	/* remove PINNED DTLB entries */
+
 	tlbia			/* Invalidate all TLB entries */
 /* Always pin the first 8 MB ITLB to prevent ITLB
    misses while mucking around with SRR0/SRR1 in asm
@@ -807,16 +815,10 @@ initial_mmu:
 	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
 
 #ifdef CONFIG_PIN_TLB
-	lis	r10, (MD_RSV4I | MD_RESETVAL)@h
+	oris	r10, r10, MD_RSV4I@h
 	ori	r10, r10, 0x1c00
-	mr	r8, r10
-#else
-	lis	r10, MD_RESETVAL@h
-#endif
-#ifndef CONFIG_8xx_COPYBACK
-	oris	r10, r10, MD_WTDEF@h
-#endif
 	mtspr	SPRN_MD_CTR, r10	/* Set data TLB control */
+#endif
 
 	/* Now map the lower 8 Meg into the TLBs.  For this quick hack,
 	 * we can load the instruction and data TLB registers with the
