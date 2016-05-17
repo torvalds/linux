@@ -261,17 +261,28 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 }
 EXPORT_SYMBOL(rwsem_down_read_failed);
 
+/*
+ * This function must be called with the sem->wait_lock held to prevent
+ * race conditions between checking the rwsem wait list and setting the
+ * sem->count accordingly.
+ */
 static inline bool rwsem_try_write_lock(long count, struct rw_semaphore *sem)
 {
 	/*
-	 * Try acquiring the write lock. Check count first in order
-	 * to reduce unnecessary expensive cmpxchg() operations.
+	 * Avoid trying to acquire write lock if count isn't RWSEM_WAITING_BIAS.
 	 */
-	if (count == RWSEM_WAITING_BIAS &&
-	    cmpxchg_acquire(&sem->count, RWSEM_WAITING_BIAS,
-		    RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_WAITING_BIAS) {
-		if (!list_is_singular(&sem->wait_list))
-			rwsem_atomic_update(RWSEM_WAITING_BIAS, sem);
+	if (count != RWSEM_WAITING_BIAS)
+		return false;
+
+	/*
+	 * Acquire the lock by trying to set it to ACTIVE_WRITE_BIAS. If there
+	 * are other tasks on the wait list, we need to add on WAITING_BIAS.
+	 */
+	count = list_is_singular(&sem->wait_list) ?
+			RWSEM_ACTIVE_WRITE_BIAS :
+			RWSEM_ACTIVE_WRITE_BIAS + RWSEM_WAITING_BIAS;
+
+	if (cmpxchg_acquire(&sem->count, RWSEM_WAITING_BIAS, count) == RWSEM_WAITING_BIAS) {
 		rwsem_set_owner(sem);
 		return true;
 	}
