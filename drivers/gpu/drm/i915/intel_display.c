@@ -3813,8 +3813,6 @@ static void page_flip_completed(struct intel_crtc *intel_crtc)
 	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	struct intel_unpin_work *work = intel_crtc->unpin_work;
 
-	/* ensure that the unpin work is consistent wrt ->pending. */
-	smp_rmb();
 	intel_crtc->unpin_work = NULL;
 
 	if (work->event)
@@ -10890,15 +10888,12 @@ static void do_intel_finish_page_flip(struct drm_i915_private *dev_priv,
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
 
-	/* Ensure we don't miss a work->pending update ... */
-	smp_rmb();
+	if (work && atomic_read(&work->pending) >= INTEL_FLIP_COMPLETE) {
+		/* ensure that the unpin work is consistent wrt ->pending. */
+		smp_rmb();
 
-	if (work == NULL || atomic_read(&work->pending) < INTEL_FLIP_COMPLETE) {
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		return;
+		page_flip_completed(intel_crtc);
 	}
-
-	page_flip_completed(intel_crtc);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -10995,10 +10990,8 @@ void intel_prepare_page_flip(struct drm_i915_private *dev_priv, int plane)
 static inline void intel_mark_page_flip_active(struct intel_unpin_work *work)
 {
 	/* Ensure that the work item is consistent when activating it ... */
-	smp_wmb();
+	smp_mb__before_atomic();
 	atomic_set(&work->pending, INTEL_FLIP_PENDING);
-	/* and that it is marked active as soon as the irq could fire. */
-	smp_wmb();
 }
 
 static int intel_gen2_queue_flip(struct drm_device *dev,
@@ -11032,7 +11025,6 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	intel_ring_emit(engine, intel_crtc->unpin_work->gtt_offset);
 	intel_ring_emit(engine, 0); /* aux display base address, unused */
 
-	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -11064,7 +11056,6 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	intel_ring_emit(engine, intel_crtc->unpin_work->gtt_offset);
 	intel_ring_emit(engine, MI_NOOP);
 
-	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -11103,7 +11094,6 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
 	intel_ring_emit(engine, pf | pipesrc);
 
-	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -11139,7 +11129,6 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
 	intel_ring_emit(engine, pf | pipesrc);
 
-	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -11234,7 +11223,6 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	intel_ring_emit(engine, intel_crtc->unpin_work->gtt_offset);
 	intel_ring_emit(engine, (MI_NOOP));
 
-	intel_mark_page_flip_active(intel_crtc->unpin_work);
 	return 0;
 }
 
@@ -11361,8 +11349,6 @@ static void intel_do_mmio_flip(struct intel_mmio_flip *mmio_flip)
 	if (work == NULL)
 		return;
 
-	intel_mark_page_flip_active(work);
-
 	intel_pipe_update_start(crtc);
 
 	if (INTEL_INFO(mmio_flip->i915)->gen >= 9)
@@ -11372,6 +11358,8 @@ static void intel_do_mmio_flip(struct intel_mmio_flip *mmio_flip)
 		ilk_do_mmio_flip(crtc, work);
 
 	intel_pipe_update_end(crtc);
+
+	intel_mark_page_flip_active(work);
 }
 
 static void intel_mmio_flip_work_func(struct work_struct *work)
@@ -11437,15 +11425,14 @@ static bool __intel_pageflip_stall_check(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work = intel_crtc->unpin_work;
 	u32 addr;
+	u32 pending;
 
-	if (atomic_read(&work->pending) >= INTEL_FLIP_COMPLETE)
-		return true;
+	pending = atomic_read(&work->pending);
+	/* ensure that the unpin work is consistent wrt ->pending. */
+	smp_rmb();
 
-	if (atomic_read(&work->pending) < INTEL_FLIP_PENDING)
-		return false;
-
-	if (!work->enable_stall_check)
-		return false;
+	if (pending != INTEL_FLIP_PENDING)
+		return pending == INTEL_FLIP_COMPLETE;
 
 	if (work->flip_ready_vblank == 0) {
 		if (work->flip_queued_req &&
@@ -11626,6 +11613,11 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	 */
 	if (!mmio_flip) {
 		ret = i915_gem_object_sync(obj, engine, &request);
+		if (!ret && !request) {
+			request = i915_gem_request_alloc(engine, NULL);
+			ret = PTR_ERR_OR_ZERO(request);
+		}
+
 		if (ret)
 			goto cleanup_pending;
 	}
@@ -11639,36 +11631,29 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->gtt_offset += intel_crtc->dspaddr_offset;
 
 	if (mmio_flip) {
-		ret = intel_queue_mmio_flip(dev, crtc, obj);
-		if (ret)
-			goto cleanup_unpin;
+		work->flip_queued_vblank = drm_crtc_vblank_count(crtc);
 
 		i915_gem_request_assign(&work->flip_queued_req,
 					obj->last_write_req);
-	} else {
-		if (!request) {
-			request = i915_gem_request_alloc(engine, NULL);
-			if (IS_ERR(request)) {
-				ret = PTR_ERR(request);
-				goto cleanup_unpin;
-			}
-		}
 
+		ret = intel_queue_mmio_flip(dev, crtc, obj);
+		if (ret)
+			goto cleanup_unpin;
+	} else {
 		ret = dev_priv->display.queue_flip(dev, crtc, fb, obj, request,
 						   page_flip_flags);
 		if (ret)
 			goto cleanup_unpin;
 
 		i915_gem_request_assign(&work->flip_queued_req, request);
+
+		work->flip_queued_vblank = drm_crtc_vblank_count(crtc);
+		intel_mark_page_flip_active(work);
+
+		i915_add_request_no_flush(request);
 	}
 
-	if (request)
-		i915_add_request_no_flush(request);
-
-	work->flip_queued_vblank = drm_crtc_vblank_count(crtc);
-	work->enable_stall_check = true;
-
-	i915_gem_track_fb(intel_fb_obj(work->old_fb), obj,
+	i915_gem_track_fb(intel_fb_obj(old_fb), obj,
 			  to_intel_plane(primary)->frontbuffer_bit);
 	mutex_unlock(&dev->struct_mutex);
 

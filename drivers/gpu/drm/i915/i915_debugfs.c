@@ -615,9 +615,14 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
 				   pipe, plane);
 		} else {
+			u32 pending;
 			u32 addr;
 
-			if (atomic_read(&work->pending) < INTEL_FLIP_COMPLETE) {
+			pending = atomic_read(&work->pending);
+			if (pending == INTEL_FLIP_INACTIVE) {
+				seq_printf(m, "Flip ioctl preparing on pipe %c (plane %c)\n",
+					   pipe, plane);
+			} else if (pending >= INTEL_FLIP_COMPLETE) {
 				seq_printf(m, "Flip queued on pipe %c (plane %c)\n",
 					   pipe, plane);
 			} else {
@@ -639,10 +644,6 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 				   work->flip_queued_vblank,
 				   work->flip_ready_vblank,
 				   drm_crtc_vblank_count(&crtc->base));
-			if (work->enable_stall_check)
-				seq_puts(m, "Stall check enabled, ");
-			else
-				seq_puts(m, "Stall check waiting for page flip ioctl, ");
 			seq_printf(m, "%d prepares\n", atomic_read(&work->pending));
 
 			if (INTEL_INFO(dev)->gen >= 4)

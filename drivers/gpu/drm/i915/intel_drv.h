@@ -992,7 +992,6 @@ struct intel_unpin_work {
 	struct drm_i915_gem_request *flip_queued_req;
 	u32 flip_queued_vblank;
 	u32 flip_ready_vblank;
-	bool enable_stall_check;
 };
 
 struct intel_load_detect_pipe {
