@@ -36,7 +36,13 @@
 #ifndef _DRM_H_
 #define _DRM_H_
 
-#if defined(__KERNEL__) || defined(__linux__)
+#if defined(__KERNEL__)
+
+#include <linux/types.h>
+#include <asm/ioctl.h>
+typedef unsigned int drm_handle_t;
+
+#elif defined(__linux__)
 
 #include <linux/types.h>
 #include <asm/ioctl.h>
@@ -181,7 +187,7 @@ enum drm_map_type {
 	_DRM_SHM = 2,		  /**< shared, cached */
 	_DRM_AGP = 3,		  /**< AGP/GART */
 	_DRM_SCATTER_GATHER = 4,  /**< Scatter/gather memory for PCI DMA */
-	_DRM_CONSISTENT = 5,	  /**< Consistent memory for PCI DMA */
+	_DRM_CONSISTENT = 5	  /**< Consistent memory for PCI DMA */
 };
 
 /**
@@ -373,7 +379,11 @@ struct drm_buf_pub {
  */
 struct drm_buf_map {
 	int count;		/**< Length of the buffer list */
+#ifdef __cplusplus
+	void __user *virt;
+#else
 	void __user *virtual;		/**< Mmap'd area in user-virtual */
+#endif
 	struct drm_buf_pub __user *list;	/**< Buffer information */
 };
 
@@ -431,7 +441,7 @@ struct drm_draw {
  * DRM_IOCTL_UPDATE_DRAW ioctl argument type.
  */
 typedef enum {
-	DRM_DRAWABLE_CLIPRECTS,
+	DRM_DRAWABLE_CLIPRECTS
 } drm_drawable_info_type_t;
 
 struct drm_update_draw {
@@ -681,7 +691,7 @@ struct drm_prime_handle {
 	__s32 fd;
 };
 
-#include <drm/drm_mode.h>
+#include "drm_mode.h"
 
 #define DRM_IOCTL_BASE			'd'
 #define DRM_IO(nr)			_IO(DRM_IOCTL_BASE,nr)

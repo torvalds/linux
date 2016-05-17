@@ -847,6 +847,12 @@ S:	Maintained
 F:	drivers/net/arcnet/
 F:	include/uapi/linux/if_arcnet.h
 
+ARC PGU DRM DRIVER
+M:	Alexey Brodkin <abrodkin@synopsys.com>
+S:	Supported
+F:	drivers/gpu/drm/arc/
+F:	Documentation/devicetree/bindings/display/snps,arcpgu.txt
+
 ARM HDLCD DRM DRIVER
 M:	Liviu Dudau <liviu.dudau@arm.com>
 S:	Supported
@@ -872,9 +878,9 @@ F:	drivers/perf/arm_pmu.c
 F:	include/linux/perf/arm_pmu.h
 
 ARM PORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/
 
@@ -886,35 +892,35 @@ F:	arch/arm/plat-*/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arm/arm-soc.git
 
 ARM PRIMECELL AACI PL041 DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	sound/arm/aaci.*
 
 ARM PRIMECELL CLCD PL110 DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/video/fbdev/amba-clcd.*
 
 ARM PRIMECELL KMI PL050 DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/input/serio/ambakmi.*
 F:	include/linux/amba/kmi.h
 
 ARM PRIMECELL MMCI PL180/1 DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/mmc/host/mmci.*
 F:	include/linux/amba/mmci.h
 
 ARM PRIMECELL UART PL010 AND PL011 DRIVERS
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/tty/serial/amba-pl01*.c
 F:	include/linux/amba/serial.h
 
 ARM PRIMECELL BUS SUPPORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/amba/
 F:	include/linux/amba/bus.h
@@ -1036,7 +1042,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
 ARM/CLKDEV SUPPORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/include/asm/clkdev.h
@@ -1093,9 +1099,9 @@ F:	arch/arm/boot/dts/cx92755*
 N:	digicolor
 
 ARM/EBSA110 MACHINE SUPPORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/mach-ebsa110/
 F:	drivers/net/ethernet/amd/am79c961a.*
@@ -1124,9 +1130,9 @@ T:	git git://git.berlios.de/gemini-board
 F:	arch/arm/mm/*-fa*
 
 ARM/FOOTBRIDGE ARCHITECTURE
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/include/asm/hardware/dec21285.h
 F:	arch/arm/mach-footbridge/
@@ -1457,7 +1463,7 @@ S:	Maintained
 ARM/PT DIGITAL BOARD PORT
 M:	Stefan Eletzhofer <stefan.eletzhofer@eletztrick.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 
 ARM/QUALCOMM SUPPORT
@@ -1493,9 +1499,9 @@ S:	Supported
 F:	arch/arm64/boot/dts/renesas/
 
 ARM/RISCPC ARCHITECTURE
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/include/asm/hardware/entry-macro-iomd.S
 F:	arch/arm/include/asm/hardware/ioc.h
@@ -1773,9 +1779,9 @@ F:	drivers/clk/versatile/clk-vexpress-osc.c
 F:	drivers/clocksource/versatile.c
 
 ARM/VFP SUPPORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/vfp/
 
@@ -2921,7 +2927,7 @@ F:	mm/cleancache.c
 F:	include/linux/cleancache.h
 
 CLK API
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-clk@vger.kernel.org
 S:	Maintained
 F:	include/linux/clk.h
@@ -3354,9 +3360,9 @@ S:	Supported
 F:	drivers/net/ethernet/stmicro/stmmac/
 
 CYBERPRO FB DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	drivers/video/fbdev/cyber2000fb.*
 
@@ -3759,8 +3765,24 @@ T:	git git://people.freedesktop.org/~airlied/linux
 S:	Maintained
 F:	drivers/gpu/drm/
 F:	drivers/gpu/vga/
+F:	Documentation/DocBook/gpu.*
 F:	include/drm/
 F:	include/uapi/drm/
+
+DRM DRIVER FOR AST SERVER GRAPHICS CHIPS
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/ast/
+
+DRM DRIVER FOR BOCHS VIRTUAL GPU
+M:	Gerd Hoffmann <kraxel@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/bochs/
+
+DRM DRIVER FOR QEMU'S CIRRUS DEVICE
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/cirrus/
 
 RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
@@ -3769,9 +3791,9 @@ L:	dri-devel@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~agd5f/linux
 S:	Supported
 F:	drivers/gpu/drm/radeon/
-F:	include/uapi/drm/radeon*
+F:	include/uapi/drm/radeon_drm.h
 F:	drivers/gpu/drm/amd/
-F:	include/uapi/drm/amdgpu*
+F:	include/uapi/drm/amdgpu_drm.h
 
 DRM PANEL DRIVERS
 M:	Thierry Reding <thierry.reding@gmail.com>
@@ -3794,7 +3816,7 @@ T:	git git://anongit.freedesktop.org/drm-intel
 S:	Supported
 F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
-F:	include/uapi/drm/i915*
+F:	include/uapi/drm/i915_drm.h
 
 DRM DRIVERS FOR ATMEL HLCDC
 M:	Boris Brezillon <boris.brezillon@free-electrons.com>
@@ -3802,6 +3824,13 @@ L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/atmel-hlcdc/
 F:	Documentation/devicetree/bindings/drm/atmel/
+
+DRM DRIVERS FOR ALLWINNER A10
+M:	Maxime Ripard  <maxime.ripard@free-electrons.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/sun4i/
+F:	Documentation/devicetree/bindings/display/sunxi/sun4i-drm.txt
 
 DRM DRIVERS FOR EXYNOS
 M:	Inki Dae <inki.dae@samsung.com>
@@ -3812,8 +3841,8 @@ L:	dri-devel@lists.freedesktop.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/daeinki/drm-exynos.git
 S:	Supported
 F:	drivers/gpu/drm/exynos/
-F:	include/drm/exynos*
-F:	include/uapi/drm/exynos*
+F:	include/uapi/drm/exynos_drm.h
+F:	Documentation/devicetree/bindings/display/exynos/
 
 DRM DRIVERS FOR FREESCALE DCU
 M:	Stefan Agner <stefan@agner.ch>
@@ -3822,6 +3851,7 @@ L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/fsl-dcu/
 F:	Documentation/devicetree/bindings/display/fsl,dcu.txt
+F:	Documentation/devicetree/bindings/display/fsl,tcon.txt
 F:	Documentation/devicetree/bindings/display/panel/nec,nl4827hc19_05b.txt
 
 DRM DRIVERS FOR FREESCALE IMX
@@ -3837,12 +3867,45 @@ M:	Patrik Jakobsson <patrik.r.jakobsson@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://github.com/patjak/drm-gma500
 S:	Maintained
-F:	drivers/gpu/drm/gma500
-F:	include/drm/gma500*
+F:	drivers/gpu/drm/gma500/
+
+DRM DRIVERS FOR HISILICON
+M:	Xinliang Liu <z.liuxinliang@hisilicon.com>
+R:	Xinwei Kong <kong.kongxinwei@hisilicon.com>
+R:	Chen Feng <puck.chen@hisilicon.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://github.com/xin3liang/linux.git
+S:	Maintained
+F:	drivers/gpu/drm/hisilicon/
+F:	Documentation/devicetree/bindings/display/hisilicon/
+
+DRM DRIVER FOR INTEL I810 VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/i810/
+F:	include/uapi/drm/i810_drm.h
+
+DRM DRIVER FOR MSM ADRENO GPU
+M:	Rob Clark <robdclark@gmail.com>
+L:	linux-arm-msm@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+L:	freedreno@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~robclark/linux
+S:	Maintained
+F:	drivers/gpu/drm/msm/
+F:	include/uapi/drm/msm_drm.h
+F:	Documentation/devicetree/bindings/display/msm/
+
+DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
+M:	Ben Skeggs <bskeggs@redhat.com>
+L:	dri-devel@lists.freedesktop.org
+L:	nouveau@lists.freedesktop.org
+T:	git git://github.com/skeggsb/linux
+S:	Supported
+F:	drivers/gpu/drm/nouveau/
+F:	include/uapi/drm/nouveau_drm.h
 
 DRM DRIVERS FOR NVIDIA TEGRA
 M:	Thierry Reding <thierry.reding@gmail.com>
-M:	Terje Bergström <tbergstrom@nvidia.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-tegra@vger.kernel.org
 T:	git git://anongit.freedesktop.org/tegra/linux.git
@@ -3853,22 +3916,54 @@ F:	include/linux/host1x.h
 F:	include/uapi/drm/tegra_drm.h
 F:	Documentation/devicetree/bindings/display/tegra/nvidia,tegra20-host1x.txt
 
+DRM DRIVER FOR MATROX G200/G400 GRAPHICS CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/mga/
+F:	include/uapi/drm/mga_drm.h
+
+DRM DRIVER FOR MGA G200 SERVER GRAPHICS CHIPS
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/mgag200/
+
+DRM DRIVER FOR RAGE 128 VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/r128/
+F:	include/uapi/drm/r128_drm.h
+
 DRM DRIVERS FOR RENESAS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-renesas-soc@vger.kernel.org
-T:	git git://people.freedesktop.org/~airlied/linux
+T:	git git://linuxtv.org/pinchartl/fbdev
 S:	Supported
 F:	drivers/gpu/drm/rcar-du/
 F:	drivers/gpu/drm/shmobile/
 F:	include/linux/platform_data/shmob_drm.h
+F:	Documentation/devicetree/bindings/display/renesas,du.txt
+
+DRM DRIVER FOR QXL VIRTUAL GPU
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/qxl/
+F:	include/uapi/drm/qxl_drm.h
 
 DRM DRIVERS FOR ROCKCHIP
 M:	Mark Yao <mark.yao@rock-chips.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/rockchip/
-F:	Documentation/devicetree/bindings/display/rockchip*
+F:	Documentation/devicetree/bindings/display/rockchip/
+
+DRM DRIVER FOR SAVAGE VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/savage/
+F:	include/uapi/drm/savage_drm.h
+
+DRM DRIVER FOR SIS VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/sis/
+F:	include/uapi/drm/sis_drm.h
 
 DRM DRIVERS FOR STI
 M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
@@ -3879,14 +3974,43 @@ S:	Maintained
 F:	drivers/gpu/drm/sti
 F:	Documentation/devicetree/bindings/display/st,stih4xx.txt
 
+DRM DRIVER FOR TDFX VIDEO CARDS
+S:	Orphan / Obsolete
+F:	drivers/gpu/drm/tdfx/
+
+DRM DRIVER FOR USB DISPLAYLINK VIDEO ADAPTERS
+M:	Dave Airlie <airlied@redhat.com>
+S:	Odd Fixes
+F:	drivers/gpu/drm/udl/
+
 DRM DRIVERS FOR VIVANTE GPU IP
 M:	Lucas Stach <l.stach@pengutronix.de>
-R:	Russell King <linux+etnaviv@arm.linux.org.uk>
+R:	Russell King <linux+etnaviv@armlinux.org.uk>
 R:	Christian Gmeiner <christian.gmeiner@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
-F:	drivers/gpu/drm/etnaviv
-F:	Documentation/devicetree/bindings/display/etnaviv
+F:	drivers/gpu/drm/etnaviv/
+F:	include/uapi/drm/etnaviv_drm.h
+F:	Documentation/devicetree/bindings/display/etnaviv/
+
+DRM DRIVER FOR VMWARE VIRTUAL GPU
+M:	"VMware Graphics" <linux-graphics-maintainer@vmware.com>
+M:	Sinclair Yeh <syeh@vmware.com>
+M:	Thomas Hellstrom <thellstrom@vmware.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://people.freedesktop.org/~syeh/repos_linux
+T:	git git://people.freedesktop.org/~thomash/linux
+S:	Supported
+F:	drivers/gpu/drm/vmwgfx/
+F:	include/uapi/drm/vmwgfx_drm.h
+
+DRM DRIVERS FOR VC4
+M:	Eric Anholt <eric@anholt.net>
+T:	git git://github.com/anholt/linux
+S:	Supported
+F:	drivers/gpu/drm/vc4/
+F:	include/uapi/drm/vc4_drm.h
+F:	Documentation/devicetree/bindings/display/brcm,bcm-vc4.txt
 
 DSBR100 USB FM RADIO DRIVER
 M:	Alexey Klimov <klimov.linux@gmail.com>
@@ -4223,8 +4347,8 @@ F:	Documentation/efi-stub.txt
 F:	arch/ia64/kernel/efi.c
 F:	arch/x86/boot/compressed/eboot.[ch]
 F:	arch/x86/include/asm/efi.h
-F:	arch/x86/platform/efi/*
-F:	drivers/firmware/efi/*
+F:	arch/x86/platform/efi/
+F:	drivers/firmware/efi/
 F:	include/linux/efi*.h
 
 EFI VARIABLE FILESYSTEM
@@ -4744,7 +4868,7 @@ F:	drivers/platform/x86/fujitsu-tablet.c
 
 FUSE: FILESYSTEM IN USERSPACE
 M:	Miklos Szeredi <miklos@szeredi.hu>
-L:	fuse-devel@lists.sourceforge.net
+L:	linux-fsdevel@vger.kernel.org
 W:	http://fuse.sourceforge.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/fuse.git
 S:	Maintained
@@ -4903,7 +5027,7 @@ F:	net/ipv4/gre_offload.c
 F:	include/net/gre.h
 
 GRETH 10/100/1G Ethernet MAC device driver
-M:	Kristoffer Glembo <kristoffer@gaisler.com>
+M:	Andreas Larsson <andreas@gaisler.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/aeroflex/
@@ -6027,7 +6151,7 @@ F:	include/scsi/*iscsi*
 
 ISCSI EXTENSIONS FOR RDMA (ISER) INITIATOR
 M:	Or Gerlitz <ogerlitz@mellanox.com>
-M:	Sagi Grimberg <sagig@mellanox.com>
+M:	Sagi Grimberg <sagi@grimberg.me>
 M:	Roi Dayan <roid@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
@@ -6037,7 +6161,7 @@ Q:	http://patchwork.kernel.org/project/linux-rdma/list/
 F:	drivers/infiniband/ulp/iser/
 
 ISCSI EXTENSIONS FOR RDMA (ISER) TARGET
-M:	Sagi Grimberg <sagig@mellanox.com>
+M:	Sagi Grimberg <sagi@grimberg.me>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/target-pending.git master
 L:	linux-rdma@vger.kernel.org
 L:	target-devel@vger.kernel.org
@@ -6252,8 +6376,8 @@ S:	Maintained
 F:	tools/testing/selftests
 
 KERNEL VIRTUAL MACHINE (KVM)
-M:	Gleb Natapov <gleb@kernel.org>
 M:	Paolo Bonzini <pbonzini@redhat.com>
+M:	Radim Krčmář <rkrcmar@redhat.com>
 L:	kvm@vger.kernel.org
 W:	http://www.linux-kvm.org
 T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
@@ -6400,7 +6524,7 @@ F:	mm/kmemleak.c
 F:	mm/kmemleak-test.c
 
 KPROBES
-M:	Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+M:	Ananth N Mavinakayanahalli <ananth@linux.vnet.ibm.com>
 M:	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Masami Hiramatsu <mhiramat@kernel.org>
@@ -6905,9 +7029,11 @@ L:	linux-man@vger.kernel.org
 S:	Maintained
 
 MARVELL ARMADA DRM SUPPORT
-M:	Russell King <rmk+kernel@arm.linux.org.uk>
+M:	Russell King <rmk+kernel@armlinux.org.uk>
 S:	Maintained
 F:	drivers/gpu/drm/armada/
+F:	include/uapi/drm/armada_drm.h
+F:	Documentation/devicetree/bindings/display/armada/
 
 MARVELL 88E6352 DSA support
 M:	Guenter Roeck <linux@roeck-us.net>
@@ -7905,7 +8031,7 @@ S:	Supported
 F:	drivers/nfc/nxp-nci
 
 NXP TDA998X DRM DRIVER
-M:	Russell King <rmk+kernel@arm.linux.org.uk>
+M:	Russell King <rmk+kernel@armlinux.org.uk>
 S:	Supported
 F:	drivers/gpu/drm/i2c/tda998x_drv.c
 F:	include/drm/i2c/tda998x.h
@@ -7978,7 +8104,7 @@ F:	arch/arm/*omap*/*pm*
 F:	drivers/cpufreq/omap-cpufreq.c
 
 OMAP POWERDOMAIN SOC ADAPTATION LAYER SUPPORT
-M:	Rajendra Nayak <rnayak@ti.com>
+M:	Rajendra Nayak <rnayak@codeaurora.org>
 M:	Paul Walmsley <paul@pwsan.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
@@ -10014,7 +10140,8 @@ F:	drivers/infiniband/hw/ocrdma/
 
 SFC NETWORK DRIVER
 M:	Solarflare linux maintainers <linux-net-drivers@solarflare.com>
-M:	Shradha Shah <sshah@solarflare.com>
+M:	Edward Cree <ecree@solarflare.com>
+M:	Bert Kenward <bkenward@solarflare.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/sfc/
@@ -11070,6 +11197,15 @@ L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/clk/ti/
 F:	include/linux/clk/ti.h
+
+TI ETHERNET SWITCH DRIVER (CPSW)
+M:	Mugunthan V N <mugunthanvnm@ti.com>
+R:	Grygorii Strashko <grygorii.strashko@ti.com>
+L:	linux-omap@vger.kernel.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/ti/cpsw*
+F:	drivers/net/ethernet/ti/davinci*
 
 TI FLASH MEDIA INTERFACE DRIVER
 M:	Alex Dubov <oakad@yahoo.com>

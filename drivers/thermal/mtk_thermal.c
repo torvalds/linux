@@ -27,7 +27,6 @@
 #include <linux/thermal.h>
 #include <linux/reset.h>
 #include <linux/types.h>
-#include <linux/nvmem-consumer.h>
 
 /* AUXADC Registers */
 #define AUXADC_CON0_V		0x000
@@ -619,7 +618,7 @@ static struct platform_driver mtk_thermal_driver = {
 
 module_platform_driver(mtk_thermal_driver);
 
-MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de");
+MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_AUTHOR("Hanyi Wu <hanyi.wu@mediatek.com>");
 MODULE_DESCRIPTION("Mediatek thermal driver");
 MODULE_LICENSE("GPL v2");

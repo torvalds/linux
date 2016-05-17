@@ -54,6 +54,8 @@ struct switchdev_attr {
 	struct net_device *orig_dev;
 	enum switchdev_attr_id id;
 	u32 flags;
+	void *complete_priv;
+	void (*complete)(struct net_device *dev, int err, void *priv);
 	union {
 		struct netdev_phys_item_id ppid;	/* PORT_PARENT_ID */
 		u8 stp_state;				/* PORT_STP_STATE */
@@ -75,6 +77,8 @@ struct switchdev_obj {
 	struct net_device *orig_dev;
 	enum switchdev_obj_id id;
 	u32 flags;
+	void *complete_priv;
+	void (*complete)(struct net_device *dev, int err, void *priv);
 };
 
 /* SWITCHDEV_OBJ_ID_PORT_VLAN */

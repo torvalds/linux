@@ -49,6 +49,10 @@ struct vc4_crtc {
 	/* Which HVS channel we're using for our CRTC. */
 	int channel;
 
+	u8 lut_r[256];
+	u8 lut_g[256];
+	u8 lut_b[256];
+
 	struct drm_pending_vblank_event *event;
 };
 
@@ -145,6 +149,46 @@ int vc4_crtc_debugfs_regs(struct seq_file *m, void *unused)
 static void vc4_crtc_destroy(struct drm_crtc *crtc)
 {
 	drm_crtc_cleanup(crtc);
+}
+
+static void
+vc4_crtc_lut_load(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	u32 i;
+
+	/* The LUT memory is laid out with each HVS channel in order,
+	 * each of which takes 256 writes for R, 256 for G, then 256
+	 * for B.
+	 */
+	HVS_WRITE(SCALER_GAMADDR,
+		  SCALER_GAMADDR_AUTOINC |
+		  (vc4_crtc->channel * 3 * crtc->gamma_size));
+
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_r[i]);
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_g[i]);
+	for (i = 0; i < crtc->gamma_size; i++)
+		HVS_WRITE(SCALER_GAMDATA, vc4_crtc->lut_b[i]);
+}
+
+static void
+vc4_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
+		   uint32_t start, uint32_t size)
+{
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	u32 i;
+
+	for (i = start; i < start + size; i++) {
+		vc4_crtc->lut_r[i] = r[i] >> 8;
+		vc4_crtc->lut_g[i] = g[i] >> 8;
+		vc4_crtc->lut_b[i] = b[i] >> 8;
+	}
+
+	vc4_crtc_lut_load(crtc);
 }
 
 static u32 vc4_get_fifo_full_level(u32 format)
@@ -260,7 +304,13 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
 		  SCALER_DISPBKGND_AUTOHS |
+		  SCALER_DISPBKGND_GAMMA |
 		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
+
+	/* Reload the LUT, since the SRAMs would have been disabled if
+	 * all CRTCs had SCALER_DISPBKGND_GAMMA unset at once.
+	 */
+	vc4_crtc_lut_load(crtc);
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d regs after:\n", drm_crtc_index(crtc));
@@ -613,6 +663,7 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = vc4_crtc_duplicate_state,
 	.atomic_destroy_state = vc4_crtc_destroy_state,
+	.gamma_set = vc4_crtc_gamma_set,
 };
 
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
@@ -711,6 +762,7 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	primary_plane->crtc = crtc;
 	vc4->crtc[drm_crtc_index(crtc)] = vc4_crtc;
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
+	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 
 	/* Set up some arbitrary number of planes.  We're not limited
 	 * by a set number of physical registers, just the space in
@@ -750,6 +802,12 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 		goto err_destroy_planes;
 
 	vc4_set_crtc_possible_masks(drm, crtc);
+
+	for (i = 0; i < crtc->gamma_size; i++) {
+		vc4_crtc->lut_r[i] = i;
+		vc4_crtc->lut_g[i] = i;
+		vc4_crtc->lut_b[i] = i;
+	}
 
 	platform_set_drvdata(pdev, vc4_crtc);
 

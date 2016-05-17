@@ -498,7 +498,7 @@ static int amdgpu_irqdomain_map(struct irq_domain *d,
 	return 0;
 }
 
-static struct irq_domain_ops amdgpu_hw_irqdomain_ops = {
+static const struct irq_domain_ops amdgpu_hw_irqdomain_ops = {
 	.map = amdgpu_irqdomain_map,
 };
 

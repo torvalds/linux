@@ -41,19 +41,23 @@
 
 /* 1 second timeout */
 #define UVD_IDLE_TIMEOUT_MS	1000
+/* Polaris10/11 firmware version */
+#define FW_1_66_16 ((1 << 24) | (66 << 16) | (16 << 8))
 
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #define FIRMWARE_BONAIRE	"radeon/bonaire_uvd.bin"
-#define FIRMWARE_KABINI 	"radeon/kabini_uvd.bin"
-#define FIRMWARE_KAVERI 	"radeon/kaveri_uvd.bin"
-#define FIRMWARE_HAWAII 	"radeon/hawaii_uvd.bin"
+#define FIRMWARE_KABINI	"radeon/kabini_uvd.bin"
+#define FIRMWARE_KAVERI	"radeon/kaveri_uvd.bin"
+#define FIRMWARE_HAWAII	"radeon/hawaii_uvd.bin"
 #define FIRMWARE_MULLINS	"radeon/mullins_uvd.bin"
 #endif
 #define FIRMWARE_TONGA		"amdgpu/tonga_uvd.bin"
 #define FIRMWARE_CARRIZO	"amdgpu/carrizo_uvd.bin"
 #define FIRMWARE_FIJI		"amdgpu/fiji_uvd.bin"
 #define FIRMWARE_STONEY		"amdgpu/stoney_uvd.bin"
+#define FIRMWARE_POLARIS10	"amdgpu/polaris10_uvd.bin"
+#define FIRMWARE_POLARIS11	"amdgpu/polaris11_uvd.bin"
 
 /**
  * amdgpu_uvd_cs_ctx - Command submission parser context
@@ -85,6 +89,8 @@ MODULE_FIRMWARE(FIRMWARE_TONGA);
 MODULE_FIRMWARE(FIRMWARE_CARRIZO);
 MODULE_FIRMWARE(FIRMWARE_FIJI);
 MODULE_FIRMWARE(FIRMWARE_STONEY);
+MODULE_FIRMWARE(FIRMWARE_POLARIS10);
+MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 
 static void amdgpu_uvd_note_usage(struct amdgpu_device *adev);
 static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
@@ -131,6 +137,12 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	case CHIP_STONEY:
 		fw_name = FIRMWARE_STONEY;
 		break;
+	case CHIP_POLARIS10:
+		fw_name = FIRMWARE_POLARIS10;
+		break;
+	case CHIP_POLARIS11:
+		fw_name = FIRMWARE_POLARIS11;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -151,6 +163,9 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	/* Set the default UVD handles that the firmware can handle */
+	adev->uvd.max_handles = AMDGPU_DEFAULT_UVD_HANDLES;
+
 	hdr = (const struct common_firmware_header *)adev->uvd.fw->data;
 	family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
 	version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
@@ -158,8 +173,28 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	DRM_INFO("Found UVD firmware Version: %hu.%hu Family ID: %hu\n",
 		version_major, version_minor, family_id);
 
+	/*
+	 * Limit the number of UVD handles depending on microcode major
+	 * and minor versions. The firmware version which has 40 UVD
+	 * instances support is 1.80. So all subsequent versions should
+	 * also have the same support.
+	 */
+	if ((version_major > 0x01) ||
+	    ((version_major == 0x01) && (version_minor >= 0x50)))
+		adev->uvd.max_handles = AMDGPU_MAX_UVD_HANDLES;
+
+	adev->uvd.fw_version = ((version_major << 24) | (version_minor << 16) |
+				(family_id << 8));
+
+	if ((adev->asic_type == CHIP_POLARIS10 ||
+	     adev->asic_type == CHIP_POLARIS11) &&
+	    (adev->uvd.fw_version < FW_1_66_16))
+		DRM_ERROR("POLARIS10/11 UVD firmware version %hu.%hu is too old.\n",
+			  version_major, version_minor);
+
 	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
-		 +  AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE;
+		  +  AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE
+		  +  AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles;
 	r = amdgpu_bo_create(adev, bo_size, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
@@ -202,7 +237,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+	for (i = 0; i < adev->uvd.max_handles; ++i) {
 		atomic_set(&adev->uvd.handles[i], 0);
 		adev->uvd.filp[i] = NULL;
 	}
@@ -248,12 +283,14 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 	if (adev->uvd.vcpu_bo == NULL)
 		return 0;
 
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i)
+	for (i = 0; i < adev->uvd.max_handles; ++i)
 		if (atomic_read(&adev->uvd.handles[i]))
 			break;
 
 	if (i == AMDGPU_MAX_UVD_HANDLES)
 		return 0;
+
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
 	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
 	ptr = adev->uvd.cpu_addr;
@@ -303,7 +340,7 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 	struct amdgpu_ring *ring = &adev->uvd.ring;
 	int i, r;
 
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+	for (i = 0; i < adev->uvd.max_handles; ++i) {
 		uint32_t handle = atomic_read(&adev->uvd.handles[i]);
 		if (handle != 0 && adev->uvd.filp[i] == filp) {
 			struct fence *fence;
@@ -385,7 +422,8 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
  *
  * Peek into the decode message and calculate the necessary buffer sizes.
  */
-static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
+static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
+	unsigned buf_sizes[])
 {
 	unsigned stream_type = msg[4];
 	unsigned width = msg[6];
@@ -407,7 +445,6 @@ static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 
 	switch (stream_type) {
 	case 0: /* H264 */
-	case 7: /* H264 Perf */
 		switch(level) {
 		case 30:
 			num_dpb_buffer = 8100 / fs_in_mb;
@@ -483,6 +520,54 @@ static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 
 		/* IT surface buffer */
 		min_dpb_size += ALIGN(width_in_mb * height_in_mb * 32, 64);
+		break;
+
+	case 7: /* H264 Perf */
+		switch(level) {
+		case 30:
+			num_dpb_buffer = 8100 / fs_in_mb;
+			break;
+		case 31:
+			num_dpb_buffer = 18000 / fs_in_mb;
+			break;
+		case 32:
+			num_dpb_buffer = 20480 / fs_in_mb;
+			break;
+		case 41:
+			num_dpb_buffer = 32768 / fs_in_mb;
+			break;
+		case 42:
+			num_dpb_buffer = 34816 / fs_in_mb;
+			break;
+		case 50:
+			num_dpb_buffer = 110400 / fs_in_mb;
+			break;
+		case 51:
+			num_dpb_buffer = 184320 / fs_in_mb;
+			break;
+		default:
+			num_dpb_buffer = 184320 / fs_in_mb;
+			break;
+		}
+		num_dpb_buffer++;
+		if (num_dpb_buffer > 17)
+			num_dpb_buffer = 17;
+
+		/* reference picture buffer */
+		min_dpb_size = image_size * num_dpb_buffer;
+
+		if (adev->asic_type < CHIP_POLARIS10){
+			/* macroblock context buffer */
+			min_dpb_size +=
+				width_in_mb * height_in_mb * num_dpb_buffer * 192;
+
+			/* IT surface buffer */
+			min_dpb_size += width_in_mb * height_in_mb * 32;
+		} else {
+			/* macroblock context buffer */
+			min_ctx_size =
+				width_in_mb * height_in_mb * num_dpb_buffer * 192;
+		}
 		break;
 
 	case 16: /* H265 */
@@ -563,7 +648,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 		amdgpu_bo_kunmap(bo);
 
 		/* try to alloc a new handle */
-		for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+		for (i = 0; i < adev->uvd.max_handles; ++i) {
 			if (atomic_read(&adev->uvd.handles[i]) == handle) {
 				DRM_ERROR("Handle 0x%x already in use!\n", handle);
 				return -EINVAL;
@@ -580,13 +665,13 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 	case 1:
 		/* it's a decode msg, calc buffer sizes */
-		r = amdgpu_uvd_cs_msg_decode(msg, ctx->buf_sizes);
+		r = amdgpu_uvd_cs_msg_decode(adev, msg, ctx->buf_sizes);
 		amdgpu_bo_kunmap(bo);
 		if (r)
 			return r;
 
 		/* validate the handle */
-		for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i) {
+		for (i = 0; i < adev->uvd.max_handles; ++i) {
 			if (atomic_read(&adev->uvd.handles[i]) == handle) {
 				if (adev->uvd.filp[i] != ctx->parser->filp) {
 					DRM_ERROR("UVD handle collision detected!\n");
@@ -601,7 +686,7 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 
 	case 2:
 		/* it's a destroy msg, free the handle */
-		for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i)
+		for (i = 0; i < adev->uvd.max_handles; ++i)
 			atomic_cmpxchg(&adev->uvd.handles[i], handle, 0);
 		amdgpu_bo_kunmap(bo);
 		return 0;
@@ -881,7 +966,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ib->length_dw = 16;
 
 	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
 		job->fence = f;
 		if (r)
 			goto err_free;
@@ -1013,7 +1098,7 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work)
 
 	fences = amdgpu_fence_count_emitted(&adev->uvd.ring);
 
-	for (i = 0; i < AMDGPU_MAX_UVD_HANDLES; ++i)
+	for (i = 0; i < adev->uvd.max_handles; ++i)
 		if (atomic_read(&adev->uvd.handles[i]))
 			++handles;
 

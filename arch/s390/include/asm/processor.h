@@ -175,7 +175,7 @@ extern __vector128 init_task_fpu_regs[__NUM_VXRS];
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
 	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
-	crst_table_downgrade(current->mm, 1UL << 31);			\
+	crst_table_downgrade(current->mm);				\
 	execve_tail();							\
 } while (0)
 

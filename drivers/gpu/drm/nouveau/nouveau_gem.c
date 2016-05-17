@@ -71,7 +71,7 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	if (!cli->vm)
 		return 0;
 
-	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -126,7 +126,7 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nvkm_vma *vma)
 	list_del(&vma->head);
 
 	if (fobj && fobj->shared_count > 1)
-		ttm_bo_wait(&nvbo->bo, true, false, false);
+		ttm_bo_wait(&nvbo->bo, false, false);
 	else if (fobj && fobj->shared_count == 1)
 		fence = rcu_dereference_protected(fobj->shared[0],
 						reservation_object_held(resv));
@@ -156,7 +156,7 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	if (!cli->vm)
 		return;
 
-	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, NULL);
+	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
 	if (ret)
 		return;
 
@@ -409,7 +409,7 @@ retry:
 			break;
 		}
 
-		ret = ttm_bo_reserve(&nvbo->bo, true, false, true, &op->ticket);
+		ret = ttm_bo_reserve(&nvbo->bo, true, false, &op->ticket);
 		if (ret) {
 			list_splice_tail_init(&vram_list, &op->list);
 			list_splice_tail_init(&gart_list, &op->list);
@@ -651,7 +651,7 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 				data |= r->vor;
 		}
 
-		ret = ttm_bo_wait(&nvbo->bo, true, false, false);
+		ret = ttm_bo_wait(&nvbo->bo, false, false);
 		if (ret) {
 			NV_PRINTK(err, cli, "reloc wait_idle failed: %d\n", ret);
 			break;

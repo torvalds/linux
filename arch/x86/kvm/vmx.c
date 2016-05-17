@@ -3103,6 +3103,8 @@ static __init int vmx_disabled_by_bios(void)
 
 static void kvm_cpu_vmxon(u64 addr)
 {
+	intel_pt_handle_vmx(1);
+
 	asm volatile (ASM_VMX_VMXON_RAX
 			: : "a"(&addr), "m"(addr)
 			: "memory", "cc");
@@ -3172,6 +3174,8 @@ static void vmclear_local_loaded_vmcss(void)
 static void kvm_cpu_vmxoff(void)
 {
 	asm volatile (__ex(ASM_VMX_VMXOFF) : : : "cc");
+
+	intel_pt_handle_vmx(0);
 }
 
 static void hardware_disable(void)

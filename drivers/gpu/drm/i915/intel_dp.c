@@ -2797,47 +2797,14 @@ static void chv_dp_post_pll_disable(struct intel_encoder *encoder)
 }
 
 /*
- * Native read with retry for link status and receiver capability reads for
- * cases where the sink may still be asleep.
- *
- * Sinks are *supposed* to come up within 1ms from an off state, but we're also
- * supposed to retry 3 times per the spec.
- */
-static ssize_t
-intel_dp_dpcd_read_wake(struct drm_dp_aux *aux, unsigned int offset,
-			void *buffer, size_t size)
-{
-	ssize_t ret;
-	int i;
-
-	/*
-	 * Sometime we just get the same incorrect byte repeated
-	 * over the entire buffer. Doing just one throw away read
-	 * initially seems to "solve" it.
-	 */
-	drm_dp_dpcd_read(aux, DP_DPCD_REV, buffer, 1);
-
-	for (i = 0; i < 3; i++) {
-		ret = drm_dp_dpcd_read(aux, offset, buffer, size);
-		if (ret == size)
-			return ret;
-		msleep(1);
-	}
-
-	return ret;
-}
-
-/*
  * Fetch AUX CH registers 0x202 - 0x207 which contain
  * link status information
  */
 bool
 intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_STATUS_SIZE])
 {
-	return intel_dp_dpcd_read_wake(&intel_dp->aux,
-				       DP_LANE0_1_STATUS,
-				       link_status,
-				       DP_LINK_STATUS_SIZE) == DP_LINK_STATUS_SIZE;
+	return drm_dp_dpcd_read(&intel_dp->aux, DP_LANE0_1_STATUS, link_status,
+				DP_LINK_STATUS_SIZE) == DP_LINK_STATUS_SIZE;
 }
 
 /* These are source-specific values. */
@@ -3366,8 +3333,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (intel_dp_dpcd_read_wake(&intel_dp->aux, 0x000, intel_dp->dpcd,
-				    sizeof(intel_dp->dpcd)) < 0)
+	if (drm_dp_dpcd_read(&intel_dp->aux, 0x000, intel_dp->dpcd,
+			     sizeof(intel_dp->dpcd)) < 0)
 		return false; /* aux transfer failed */
 
 	DRM_DEBUG_KMS("DPCD: %*ph\n", (int) sizeof(intel_dp->dpcd), intel_dp->dpcd);
@@ -3375,8 +3342,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] == 0)
 		return false; /* DPCD not present */
 
-	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_SINK_COUNT,
-				    &intel_dp->sink_count, 1) < 0)
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_COUNT,
+			     &intel_dp->sink_count, 1) < 0)
 		return false;
 
 	/*
@@ -3399,9 +3366,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	/* Check if the panel supports PSR */
 	memset(intel_dp->psr_dpcd, 0, sizeof(intel_dp->psr_dpcd));
 	if (is_edp(intel_dp)) {
-		intel_dp_dpcd_read_wake(&intel_dp->aux, DP_PSR_SUPPORT,
-					intel_dp->psr_dpcd,
-					sizeof(intel_dp->psr_dpcd));
+		drm_dp_dpcd_read(&intel_dp->aux, DP_PSR_SUPPORT,
+				 intel_dp->psr_dpcd,
+				 sizeof(intel_dp->psr_dpcd));
 		if (intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED) {
 			dev_priv->psr.sink_support = true;
 			DRM_DEBUG_KMS("Detected EDP PSR Panel.\n");
@@ -3412,9 +3379,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 			uint8_t frame_sync_cap;
 
 			dev_priv->psr.sink_support = true;
-			intel_dp_dpcd_read_wake(&intel_dp->aux,
-					DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP,
-					&frame_sync_cap, 1);
+			drm_dp_dpcd_read(&intel_dp->aux,
+					 DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP,
+					 &frame_sync_cap, 1);
 			dev_priv->psr.aux_frame_sync = frame_sync_cap ? true : false;
 			/* PSR2 needs frame sync as well */
 			dev_priv->psr.psr2_support = dev_priv->psr.aux_frame_sync;
@@ -3425,7 +3392,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		/* Read the eDP Display control capabilities registers */
 		memset(intel_dp->edp_dpcd, 0, sizeof(intel_dp->edp_dpcd));
 		if ((intel_dp->dpcd[DP_EDP_CONFIGURATION_CAP] & DP_DPCD_DISPLAY_CONTROL_CAPABLE) &&
-				(intel_dp_dpcd_read_wake(&intel_dp->aux, DP_EDP_DPCD_REV,
+				(drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_DPCD_REV,
 						intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd)) ==
 								sizeof(intel_dp->edp_dpcd)))
 			DRM_DEBUG_KMS("EDP DPCD : %*ph\n", (int) sizeof(intel_dp->edp_dpcd),
@@ -3441,10 +3408,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		__le16 sink_rates[DP_MAX_SUPPORTED_RATES];
 		int i;
 
-		intel_dp_dpcd_read_wake(&intel_dp->aux,
-				DP_SUPPORTED_LINK_RATES,
-				sink_rates,
-				sizeof(sink_rates));
+		drm_dp_dpcd_read(&intel_dp->aux, DP_SUPPORTED_LINK_RATES,
+				sink_rates, sizeof(sink_rates));
 
 		for (i = 0; i < ARRAY_SIZE(sink_rates); i++) {
 			int val = le16_to_cpu(sink_rates[i]);
@@ -3467,9 +3432,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] == 0x10)
 		return true; /* no per-port downstream info */
 
-	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_DOWNSTREAM_PORT_0,
-				    intel_dp->downstream_ports,
-				    DP_MAX_DOWNSTREAM_PORTS) < 0)
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_DOWNSTREAM_PORT_0,
+			     intel_dp->downstream_ports,
+			     DP_MAX_DOWNSTREAM_PORTS) < 0)
 		return false; /* downstream port status fetch failed */
 
 	return true;
@@ -3483,11 +3448,11 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 	if (!(intel_dp->dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
 		return;
 
-	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_SINK_OUI, buf, 3) == 3)
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_OUI, buf, 3) == 3)
 		DRM_DEBUG_KMS("Sink OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
 
-	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_BRANCH_OUI, buf, 3) == 3)
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_BRANCH_OUI, buf, 3) == 3)
 		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
 }
@@ -3506,7 +3471,7 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] < 0x12)
 		return false;
 
-	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_MSTM_CAP, buf, 1)) {
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_MSTM_CAP, buf, 1)) {
 		if (buf[0] & DP_MST_CAP) {
 			DRM_DEBUG_KMS("Sink is MST capable\n");
 			intel_dp->is_mst = true;
@@ -3643,7 +3608,7 @@ stop:
 static bool
 intel_dp_get_sink_irq(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
-	return intel_dp_dpcd_read_wake(&intel_dp->aux,
+	return drm_dp_dpcd_read(&intel_dp->aux,
 				       DP_DEVICE_SERVICE_IRQ_VECTOR,
 				       sink_irq_vector, 1) == 1;
 }
@@ -3653,7 +3618,7 @@ intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 {
 	int ret;
 
-	ret = intel_dp_dpcd_read_wake(&intel_dp->aux,
+	ret = drm_dp_dpcd_read(&intel_dp->aux,
 					     DP_SINK_COUNT_ESI,
 					     sink_irq_vector, 14);
 	if (ret != 14)

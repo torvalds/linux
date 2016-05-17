@@ -375,10 +375,15 @@ static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
 
 	qxl_bo_kunmap(user_bo);
 
+	qcrtc->cur_x += qcrtc->hot_spot_x - hot_x;
+	qcrtc->cur_y += qcrtc->hot_spot_y - hot_y;
+	qcrtc->hot_spot_x = hot_x;
+	qcrtc->hot_spot_y = hot_y;
+
 	cmd = (struct qxl_cursor_cmd *)qxl_release_map(qdev, release);
 	cmd->type = QXL_CURSOR_SET;
-	cmd->u.set.position.x = qcrtc->cur_x;
-	cmd->u.set.position.y = qcrtc->cur_y;
+	cmd->u.set.position.x = qcrtc->cur_x + qcrtc->hot_spot_x;
+	cmd->u.set.position.y = qcrtc->cur_y + qcrtc->hot_spot_y;
 
 	cmd->u.set.shape = qxl_bo_physical_address(qdev, cursor_bo, 0);
 
@@ -441,8 +446,8 @@ static int qxl_crtc_cursor_move(struct drm_crtc *crtc,
 
 	cmd = (struct qxl_cursor_cmd *)qxl_release_map(qdev, release);
 	cmd->type = QXL_CURSOR_MOVE;
-	cmd->u.position.x = qcrtc->cur_x;
-	cmd->u.position.y = qcrtc->cur_y;
+	cmd->u.position.x = qcrtc->cur_x + qcrtc->hot_spot_x;
+	cmd->u.position.y = qcrtc->cur_y + qcrtc->hot_spot_y;
 	qxl_release_unmap(qdev, release, &cmd->release_info);
 
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
@@ -460,7 +465,7 @@ static const struct drm_crtc_funcs qxl_crtc_funcs = {
 	.page_flip = qxl_crtc_page_flip,
 };
 
-static void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
+void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct qxl_framebuffer *qxl_fb = to_qxl_framebuffer(fb);
 
@@ -522,12 +527,13 @@ int
 qxl_framebuffer_init(struct drm_device *dev,
 		     struct qxl_framebuffer *qfb,
 		     const struct drm_mode_fb_cmd2 *mode_cmd,
-		     struct drm_gem_object *obj)
+		     struct drm_gem_object *obj,
+		     const struct drm_framebuffer_funcs *funcs)
 {
 	int ret;
 
 	qfb->obj = obj;
-	ret = drm_framebuffer_init(dev, &qfb->base, &qxl_fb_funcs);
+	ret = drm_framebuffer_init(dev, &qfb->base, funcs);
 	if (ret) {
 		qfb->obj = NULL;
 		return ret;
@@ -994,7 +1000,7 @@ qxl_user_framebuffer_create(struct drm_device *dev,
 	if (qxl_fb == NULL)
 		return NULL;
 
-	ret = qxl_framebuffer_init(dev, qxl_fb, mode_cmd, obj);
+	ret = qxl_framebuffer_init(dev, qxl_fb, mode_cmd, obj, &qxl_fb_funcs);
 	if (ret) {
 		kfree(qxl_fb);
 		drm_gem_object_unreference_unlocked(obj);

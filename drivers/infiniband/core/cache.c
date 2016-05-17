@@ -691,7 +691,8 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 			      NULL);
 
 		/* Coudn't find default GID location */
-		WARN_ON(ix < 0);
+		if (WARN_ON(ix < 0))
+			goto release;
 
 		zattr_type.gid_type = gid_type;
 

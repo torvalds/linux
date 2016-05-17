@@ -1317,6 +1317,19 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 			}
 
 			gen_context->mtu = cpu_to_be16(master->max_mtu[port]);
+			/* Slave cannot change Global Pause configuration */
+			if (slave != mlx4_master_func_num(dev) &&
+			    ((gen_context->pptx != master->pptx) ||
+			     (gen_context->pprx != master->pprx))) {
+				gen_context->pptx = master->pptx;
+				gen_context->pprx = master->pprx;
+				mlx4_warn(dev,
+					  "denying Global Pause change for slave:%d\n",
+					  slave);
+			} else {
+				master->pptx = gen_context->pptx;
+				master->pprx = gen_context->pprx;
+			}
 			break;
 		case MLX4_SET_PORT_GID_TABLE:
 			/* change to MULTIPLE entries: number of guest's gids

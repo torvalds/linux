@@ -918,7 +918,7 @@ struct intel_dp_mst_encoder {
 	struct intel_encoder base;
 	enum pipe pipe;
 	struct intel_digital_port *primary;
-	void *port; /* store this opaque as its illegal to dereference it */
+	struct intel_connector *connector;
 };
 
 static inline enum dpio_channel

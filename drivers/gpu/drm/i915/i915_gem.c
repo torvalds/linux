@@ -2027,9 +2027,6 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	int ret;
 
-	if (drm_vma_node_has_offset(&obj->base.vma_node))
-		return 0;
-
 	dev_priv->mm.shrinker_no_lock_stealing = true;
 
 	ret = drm_gem_create_mmap_offset(&obj->base);

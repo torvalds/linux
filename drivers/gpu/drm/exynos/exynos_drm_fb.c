@@ -97,20 +97,9 @@ static int exynos_drm_fb_create_handle(struct drm_framebuffer *fb,
 				     &exynos_fb->exynos_gem[0]->base, handle);
 }
 
-static int exynos_drm_fb_dirty(struct drm_framebuffer *fb,
-				struct drm_file *file_priv, unsigned flags,
-				unsigned color, struct drm_clip_rect *clips,
-				unsigned num_clips)
-{
-	/* TODO */
-
-	return 0;
-}
-
 static const struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
 	.destroy	= exynos_drm_fb_destroy,
 	.create_handle	= exynos_drm_fb_create_handle,
-	.dirty		= exynos_drm_fb_dirty,
 };
 
 struct drm_framebuffer *
@@ -197,17 +186,6 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 		return DMA_ERROR_CODE;
 
 	return exynos_fb->dma_addr[index];
-}
-
-static void exynos_drm_output_poll_changed(struct drm_device *dev)
-{
-	struct exynos_drm_private *private = dev->dev_private;
-	struct drm_fb_helper *fb_helper = private->fb_helper;
-
-	if (fb_helper)
-		drm_fb_helper_hotplug_event(fb_helper);
-	else
-		exynos_drm_fbdev_init(dev);
 }
 
 static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {

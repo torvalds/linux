@@ -326,7 +326,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_reserve(&vbo->base, false, true, false, NULL);
+	ret = ttm_bo_reserve(&vbo->base, false, true, NULL);
 	BUG_ON(ret != 0);
 	vmw_bo_pin_reserved(vbo, true);
 
@@ -1530,10 +1530,8 @@ static int __init vmwgfx_init(void)
 {
 	int ret;
 
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force())
 		return -EINVAL;
-#endif
 
 	ret = drm_pci_init(&driver, &vmw_pci_driver);
 	if (ret)

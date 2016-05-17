@@ -200,47 +200,29 @@ drm_gem_object_reference(struct drm_gem_object *obj)
 }
 
 /**
- * drm_gem_object_unreference - release a GEM BO reference
+ * __drm_gem_object_unreference - raw function to release a GEM BO reference
  * @obj: GEM buffer object
  *
- * This releases a reference to @obj. Callers must hold the dev->struct_mutex
- * lock when calling this function, even when the driver doesn't use
- * dev->struct_mutex for anything.
+ * This function is meant to be used by drivers which are not encumbered with
+ * dev->struct_mutex legacy locking and which are using the
+ * gem_free_object_unlocked callback. It avoids all the locking checks and
+ * locking overhead of drm_gem_object_unreference() and
+ * drm_gem_object_unreference_unlocked().
  *
- * For drivers not encumbered with legacy locking use
- * drm_gem_object_unreference_unlocked() instead.
+ * Drivers should never call this directly in their code. Instead they should
+ * wrap it up into a driver_gem_object_unreference(struct driver_gem_object
+ * *obj) wrapper function, and use that. Shared code should never call this, to
+ * avoid breaking drivers by accident which still depend upon dev->struct_mutex
+ * locking.
  */
 static inline void
-drm_gem_object_unreference(struct drm_gem_object *obj)
+__drm_gem_object_unreference(struct drm_gem_object *obj)
 {
-	if (obj != NULL) {
-		WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
-
-		kref_put(&obj->refcount, drm_gem_object_free);
-	}
+	kref_put(&obj->refcount, drm_gem_object_free);
 }
 
-/**
- * drm_gem_object_unreference_unlocked - release a GEM BO reference
- * @obj: GEM buffer object
- *
- * This releases a reference to @obj. Callers must not hold the
- * dev->struct_mutex lock when calling this function.
- */
-static inline void
-drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
-{
-	struct drm_device *dev;
-
-	if (!obj)
-		return;
-
-	dev = obj->dev;
-	if (kref_put_mutex(&obj->refcount, drm_gem_object_free, &dev->struct_mutex))
-		mutex_unlock(&dev->struct_mutex);
-	else
-		might_lock(&dev->struct_mutex);
-}
+void drm_gem_object_unreference_unlocked(struct drm_gem_object *obj);
+void drm_gem_object_unreference(struct drm_gem_object *obj);
 
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,

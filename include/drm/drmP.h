@@ -90,7 +90,7 @@ struct reservation_object;
 struct dma_buf_attachment;
 
 /*
- * 4 debug categories are defined:
+ * The following categories are defined:
  *
  * CORE: Used in the generic drm code: drm_ioctl.c, drm_mm.c, drm_memory.c, ...
  *	 This is the category used by the DRM_DEBUG() macro.
@@ -580,12 +580,21 @@ struct drm_driver {
 	void (*debugfs_cleanup)(struct drm_minor *minor);
 
 	/**
-	 * Driver-specific constructor for drm_gem_objects, to set up
-	 * obj->driver_private.
+	 * @gem_free_object: deconstructor for drm_gem_objects
 	 *
-	 * Returns 0 on success.
+	 * This is deprecated and should not be used by new drivers. Use
+	 * @gem_free_object_unlocked instead.
 	 */
 	void (*gem_free_object) (struct drm_gem_object *obj);
+
+	/**
+	 * @gem_free_object_unlocked: deconstructor for drm_gem_objects
+	 *
+	 * This is for drivers which are not encumbered with dev->struct_mutex
+	 * legacy locking schemes. Use this hook instead of @gem_free_object.
+	 */
+	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
+
 	int (*gem_open_object) (struct drm_gem_object *, struct drm_file *);
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
 
@@ -769,6 +778,7 @@ struct drm_device {
 	atomic_t buf_alloc;		/**< Buffer allocation in progress */
 	/*@} */
 
+	struct mutex filelist_mutex;
 	struct list_head filelist;
 
 	/** \name Memory management */

@@ -528,6 +528,10 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 
 	seq_putc(m, '\n');
 	print_batch_pool_stats(m, dev_priv);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	mutex_lock(&dev->filelist_mutex);
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
 		struct task_struct *task;
@@ -548,8 +552,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		print_file_stats(m, task ? task->comm : "<unknown>", stats);
 		rcu_read_unlock();
 	}
-
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->filelist_mutex);
 
 	return 0;
 }
@@ -1946,7 +1949,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
                          fbdev_fb->base.depth,
                          fbdev_fb->base.bits_per_pixel,
                          fbdev_fb->base.modifier[0],
-                         atomic_read(&fbdev_fb->base.refcount.refcount));
+                         drm_framebuffer_read_refcount(&fbdev_fb->base));
                describe_obj(m, fbdev_fb->obj);
                seq_putc(m, '\n');
        }
@@ -1964,7 +1967,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 			   fb->base.depth,
 			   fb->base.bits_per_pixel,
 			   fb->base.modifier[0],
-			   atomic_read(&fb->base.refcount.refcount));
+			   drm_framebuffer_read_refcount(&fb->base));
 		describe_obj(m, fb->obj);
 		seq_putc(m, '\n');
 	}
@@ -2351,6 +2354,7 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	else if (INTEL_INFO(dev)->gen >= 6)
 		gen6_ppgtt_info(m, dev);
 
+	mutex_lock(&dev->filelist_mutex);
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
 		struct task_struct *task;
@@ -2365,6 +2369,7 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 		idr_for_each(&file_priv->context_idr, per_file_ctx,
 			     (void *)(unsigned long)m);
 	}
+	mutex_unlock(&dev->filelist_mutex);
 
 out_put:
 	intel_runtime_pm_put(dev_priv);
@@ -2400,6 +2405,8 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit),
 		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit),
 		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+
+	mutex_lock(&dev->filelist_mutex);
 	spin_lock(&dev_priv->rps.client_lock);
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
@@ -2422,6 +2429,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		   list_empty(&dev_priv->rps.mmioflips.link) ? "" : ", active");
 	seq_printf(m, "Kernel boosts: %d\n", dev_priv->rps.boosts);
 	spin_unlock(&dev_priv->rps.client_lock);
+	mutex_unlock(&dev->filelist_mutex);
 
 	return 0;
 }
@@ -3457,7 +3465,8 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 		intel_dig_port = enc_to_dig_port(encoder);
 		if (!intel_dig_port->dp.can_mst)
 			continue;
-
+		seq_printf(m, "MST Source Port %c\n",
+			   port_name(intel_dig_port->port));
 		drm_dp_mst_dump_topology(m, &intel_dig_port->dp.mst_mgr);
 	}
 	drm_modeset_unlock_all(dev);

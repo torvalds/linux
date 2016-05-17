@@ -1807,10 +1807,8 @@ static int __init i915_init(void)
 	if (i915.modeset == 0)
 		driver.driver_features &= ~DRIVER_MODESET;
 
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && i915.modeset == -1)
 		driver.driver_features &= ~DRIVER_MODESET;
-#endif
 
 	if (!(driver.driver_features & DRIVER_MODESET)) {
 		/* Silently fail loading to not upset userspace. */

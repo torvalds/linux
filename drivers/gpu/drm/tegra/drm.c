@@ -74,7 +74,7 @@ static void tegra_atomic_work(struct work_struct *work)
 }
 
 static int tegra_atomic_commit(struct drm_device *drm,
-			       struct drm_atomic_state *state, bool async)
+			       struct drm_atomic_state *state, bool nonblock)
 {
 	struct tegra_drm *tegra = drm->dev_private;
 	int err;
@@ -83,7 +83,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 	if (err)
 		return err;
 
-	/* serialize outstanding asynchronous commits */
+	/* serialize outstanding nonblocking commits */
 	mutex_lock(&tegra->commit.lock);
 	flush_work(&tegra->commit.work);
 
@@ -95,7 +95,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 
 	drm_atomic_helper_swap_state(drm, state);
 
-	if (async)
+	if (nonblock)
 		tegra_atomic_schedule(tegra, state);
 	else
 		tegra_atomic_complete(tegra, state);
@@ -878,7 +878,7 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 		seq_printf(s, "%3d: user size: %d x %d, depth %d, %d bpp, refcount %d\n",
 			   fb->base.id, fb->width, fb->height, fb->depth,
 			   fb->bits_per_pixel,
-			   atomic_read(&fb->refcount.refcount));
+			   drm_framebuffer_read_refcount(fb));
 	}
 
 	mutex_unlock(&drm->mode_config.fb_lock);
@@ -932,7 +932,7 @@ static struct drm_driver tegra_drm_driver = {
 	.debugfs_cleanup = tegra_debugfs_cleanup,
 #endif
 
-	.gem_free_object = tegra_bo_free_object,
+	.gem_free_object_unlocked = tegra_bo_free_object,
 	.gem_vm_ops = &tegra_bo_vm_ops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,

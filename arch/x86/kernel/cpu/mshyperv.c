@@ -152,6 +152,11 @@ static struct clocksource hyperv_cs = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+static unsigned char hv_get_nmi_reason(void)
+{
+	return 0;
+}
+
 static void __init ms_hyperv_init_platform(void)
 {
 	/*
@@ -191,6 +196,13 @@ static void __init ms_hyperv_init_platform(void)
 	machine_ops.crash_shutdown = hv_machine_crash_shutdown;
 #endif
 	mark_tsc_unstable("running on Hyper-V");
+
+	/*
+	 * Generation 2 instances don't support reading the NMI status from
+	 * 0x61 port.
+	 */
+	if (efi_enabled(EFI_BOOT))
+		x86_platform.get_nmi_reason = hv_get_nmi_reason;
 }
 
 const __refconst struct hypervisor_x86 x86_hyper_ms_hyperv = {

@@ -1617,6 +1617,11 @@ void intel_crt_init(struct drm_device *dev)
 !Iinclude/drm/drm_fb_helper.h
     </sect2>
     <sect2>
+      <title>Framebuffer CMA Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_fb_cma_helper.c framebuffer cma helper functions
+!Edrivers/gpu/drm/drm_fb_cma_helper.c
+    </sect2>
+    <sect2>
       <title>Display Port Helper Functions Reference</title>
 !Pdrivers/gpu/drm/drm_dp_helper.c dp helpers
 !Iinclude/drm/drm_dp_helper.h
@@ -1677,16 +1682,22 @@ void intel_crt_init(struct drm_device *dev)
 !Pdrivers/gpu/drm/drm_crtc.c Tile group
     </sect2>
     <sect2>
-	<title>Bridges</title>
+      <title>Bridges</title>
       <sect3>
-	 <title>Overview</title>
+        <title>Overview</title>
 !Pdrivers/gpu/drm/drm_bridge.c overview
       </sect3>
       <sect3>
-	 <title>Default bridge callback sequence</title>
+        <title>Default bridge callback sequence</title>
 !Pdrivers/gpu/drm/drm_bridge.c bridge callbacks
       </sect3>
 !Edrivers/gpu/drm/drm_bridge.c
+    </sect2>
+    <sect2>
+      <title>Panel Helper Reference</title>
+!Iinclude/drm/drm_panel.h
+!Edrivers/gpu/drm/drm_panel.c
+!Pdrivers/gpu/drm/drm_panel.c drm panel
     </sect2>
   </sect1>
 
@@ -1823,7 +1834,7 @@ void intel_crt_init(struct drm_device *dev)
 	</tr>
 	<tr>
 	<td rowspan="42" valign="top" >DRM</td>
-	<td valign="top" >Generic</td>
+	<td rowspan="2" valign="top" >Generic</td>
 	<td valign="top" >“rotation”</td>
 	<td valign="top" >BITMASK</td>
 	<td valign="top" >{ 0, "rotate-0" },
@@ -1836,6 +1847,13 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >rotate-(degrees) rotates the image by the specified amount in degrees
 	in counter clockwise direction. reflect-x and reflect-y reflects the
 	image along the specified axis prior to rotation</td>
+	</tr>
+	<tr>
+	<td valign="top" >“scaling mode”</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "None", "Full", "Center", "Full aspect" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >Supported by: amdgpu, gma500, i915, nouveau and radeon.</td>
 	</tr>
 	<tr>
 	<td rowspan="5" valign="top" >Connector</td>
@@ -2074,21 +2092,12 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >property to suggest an Y offset for a connector</td>
 	</tr>
 	<tr>
-	<td rowspan="8" valign="top" >Optional</td>
-	<td valign="top" >“scaling mode”</td>
-	<td valign="top" >ENUM</td>
-	<td valign="top" >{ "None", "Full", "Center", "Full aspect" }</td>
-	<td valign="top" >Connector</td>
-	<td valign="top" >TBD</td>
-	</tr>
-	<tr>
+	<td rowspan="7" valign="top" >Optional</td>
 	<td valign="top" >"aspect ratio"</td>
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "None", "4:3", "16:9" }</td>
 	<td valign="top" >Connector</td>
-	<td valign="top" >DRM property to set aspect ratio from user space app.
-		This enum is made generic to allow addition of custom aspect
-		ratios.</td>
+	<td valign="top" >TDB</td>
 	</tr>
 	<tr>
 	<td valign="top" >“dirty”</td>

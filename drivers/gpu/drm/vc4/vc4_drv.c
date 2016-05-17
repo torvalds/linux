@@ -81,6 +81,7 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_ATOMIC |
 			    DRIVER_GEM |
 			    DRIVER_HAVE_IRQ |
+			    DRIVER_RENDER |
 			    DRIVER_PRIME),
 	.lastclose = vc4_lastclose,
 	.irq_handler = vc4_irq,
@@ -237,6 +238,7 @@ static const struct component_master_ops vc4_drm_ops = {
 
 static struct platform_driver *const component_drivers[] = {
 	&vc4_hdmi_driver,
+	&vc4_dpi_driver,
 	&vc4_crtc_driver,
 	&vc4_hvs_driver,
 	&vc4_v3d_driver,

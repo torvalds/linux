@@ -71,8 +71,9 @@ config DRM_EXYNOS_DSI
 	  This enables support for Exynos MIPI-DSI device.
 
 config DRM_EXYNOS_DP
-	bool "Display Port"
+	bool "EXYNOS specific extensions for Analogix DP driver"
 	depends on DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON
+	select DRM_ANALOGIX_DP
 	default DRM_EXYNOS
 	select DRM_PANEL
 	help
@@ -94,7 +95,7 @@ comment "Sub-drivers"
 
 config DRM_EXYNOS_G2D
 	bool "G2D"
-	depends on !VIDEO_SAMSUNG_S5P_G2D
+	depends on VIDEO_SAMSUNG_S5P_G2D=n
 	select FRAME_VECTOR
 	help
 	  Choose this option if you want to use Exynos G2D for DRM.

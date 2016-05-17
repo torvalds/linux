@@ -348,8 +348,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 						palmas_vbus_irq_handler,
 						IRQF_TRIGGER_FALLING |
 						IRQF_TRIGGER_RISING |
-						IRQF_ONESHOT |
-						IRQF_EARLY_RESUME,
+						IRQF_ONESHOT,
 						"palmas_usb_vbus",
 						palmas_usb);
 		if (status < 0) {

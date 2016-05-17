@@ -16,6 +16,8 @@
  */
 
 #include "msm_drv.h"
+#include "msm_debugfs.h"
+#include "msm_fence.h"
 #include "msm_gpu.h"
 #include "msm_kms.h"
 
@@ -173,13 +175,11 @@ static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
 	return 0;
 }
 
-/*
- * DRM operations:
- */
-
-static int msm_unload(struct drm_device *dev)
+static int msm_drm_uninit(struct device *dev)
 {
-	struct msm_drm_private *priv = dev->dev_private;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *ddev = platform_get_drvdata(pdev);
+	struct msm_drm_private *priv = ddev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	struct msm_gpu *gpu = priv->gpu;
 	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
@@ -195,31 +195,37 @@ static int msm_unload(struct drm_device *dev)
 		kfree(vbl_ev);
 	}
 
-	drm_kms_helper_poll_fini(dev);
+	drm_kms_helper_poll_fini(ddev);
+
+	drm_connector_unregister_all(ddev);
+
+	drm_dev_unregister(ddev);
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (fbdev && priv->fbdev)
-		msm_fbdev_free(dev);
+		msm_fbdev_free(ddev);
 #endif
-	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
+	drm_mode_config_cleanup(ddev);
 
-	pm_runtime_get_sync(dev->dev);
-	drm_irq_uninstall(dev);
-	pm_runtime_put_sync(dev->dev);
+	pm_runtime_get_sync(dev);
+	drm_irq_uninstall(ddev);
+	pm_runtime_put_sync(dev);
 
 	flush_workqueue(priv->wq);
 	destroy_workqueue(priv->wq);
 
+	flush_workqueue(priv->atomic_wq);
+	destroy_workqueue(priv->atomic_wq);
+
 	if (kms) {
-		pm_runtime_disable(dev->dev);
+		pm_runtime_disable(dev);
 		kms->funcs->destroy(kms);
 	}
 
 	if (gpu) {
-		mutex_lock(&dev->struct_mutex);
+		mutex_lock(&ddev->struct_mutex);
 		gpu->funcs->pm_suspend(gpu);
-		mutex_unlock(&dev->struct_mutex);
+		mutex_unlock(&ddev->struct_mutex);
 		gpu->funcs->destroy(gpu);
 	}
 
@@ -227,13 +233,14 @@ static int msm_unload(struct drm_device *dev)
 		DEFINE_DMA_ATTRS(attrs);
 		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
 		drm_mm_takedown(&priv->vram.mm);
-		dma_free_attrs(dev->dev, priv->vram.size, NULL,
-				priv->vram.paddr, &attrs);
+		dma_free_attrs(dev, priv->vram.size, NULL,
+			       priv->vram.paddr, &attrs);
 	}
 
-	component_unbind_all(dev->dev, dev);
+	component_unbind_all(dev, ddev);
 
-	dev->dev_private = NULL;
+	ddev->dev_private = NULL;
+	drm_dev_unref(ddev);
 
 	kfree(priv);
 
@@ -321,50 +328,60 @@ static int msm_init_vram(struct drm_device *dev)
 	return ret;
 }
 
-static int msm_load(struct drm_device *dev, unsigned long flags)
+static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 {
-	struct platform_device *pdev = dev->platformdev;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *ddev;
 	struct msm_drm_private *priv;
 	struct msm_kms *kms;
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev->dev, "failed to allocate private data\n");
+	ddev = drm_dev_alloc(drv, dev);
+	if (!ddev) {
+		dev_err(dev, "failed to allocate drm_device\n");
 		return -ENOMEM;
 	}
 
-	dev->dev_private = priv;
+	platform_set_drvdata(pdev, ddev);
+	ddev->platformdev = pdev;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		drm_dev_unref(ddev);
+		return -ENOMEM;
+	}
+
+	ddev->dev_private = priv;
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
-	init_waitqueue_head(&priv->fence_event);
+	priv->atomic_wq = alloc_ordered_workqueue("msm:atomic", 0);
 	init_waitqueue_head(&priv->pending_crtcs_event);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
-	INIT_LIST_HEAD(&priv->fence_cbs);
 	INIT_LIST_HEAD(&priv->vblank_ctrl.event_list);
 	INIT_WORK(&priv->vblank_ctrl.work, vblank_ctrl_worker);
 	spin_lock_init(&priv->vblank_ctrl.lock);
 
-	drm_mode_config_init(dev);
-
-	platform_set_drvdata(pdev, dev);
+	drm_mode_config_init(ddev);
 
 	/* Bind all our sub-components: */
-	ret = component_bind_all(dev->dev, dev);
-	if (ret)
+	ret = component_bind_all(dev, ddev);
+	if (ret) {
+		kfree(priv);
+		drm_dev_unref(ddev);
 		return ret;
+	}
 
-	ret = msm_init_vram(dev);
+	ret = msm_init_vram(ddev);
 	if (ret)
 		goto fail;
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:
-		kms = mdp4_kms_init(dev);
+		kms = mdp4_kms_init(ddev);
 		break;
 	case 5:
-		kms = mdp5_kms_init(dev);
+		kms = mdp5_kms_init(ddev);
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);
@@ -378,7 +395,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		 * and (for example) use dmabuf/prime to share buffers with
 		 * imx drm driver on iMX5
 		 */
-		dev_err(dev->dev, "failed to load kms\n");
+		dev_err(dev, "failed to load kms\n");
 		ret = PTR_ERR(kms);
 		goto fail;
 	}
@@ -386,49 +403,63 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	priv->kms = kms;
 
 	if (kms) {
-		pm_runtime_enable(dev->dev);
+		pm_runtime_enable(dev);
 		ret = kms->funcs->hw_init(kms);
 		if (ret) {
-			dev_err(dev->dev, "kms hw init failed: %d\n", ret);
+			dev_err(dev, "kms hw init failed: %d\n", ret);
 			goto fail;
 		}
 	}
 
-	dev->mode_config.funcs = &mode_config_funcs;
+	ddev->mode_config.funcs = &mode_config_funcs;
 
-	ret = drm_vblank_init(dev, priv->num_crtcs);
+	ret = drm_vblank_init(ddev, priv->num_crtcs);
 	if (ret < 0) {
-		dev_err(dev->dev, "failed to initialize vblank\n");
+		dev_err(dev, "failed to initialize vblank\n");
 		goto fail;
 	}
 
-	pm_runtime_get_sync(dev->dev);
-	ret = drm_irq_install(dev, platform_get_irq(dev->platformdev, 0));
-	pm_runtime_put_sync(dev->dev);
+	pm_runtime_get_sync(dev);
+	ret = drm_irq_install(ddev, platform_get_irq(pdev, 0));
+	pm_runtime_put_sync(dev);
 	if (ret < 0) {
-		dev_err(dev->dev, "failed to install IRQ handler\n");
+		dev_err(dev, "failed to install IRQ handler\n");
 		goto fail;
 	}
 
-	drm_mode_config_reset(dev);
-
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	if (fbdev)
-		priv->fbdev = msm_fbdev_init(dev);
-#endif
-
-	ret = msm_debugfs_late_init(dev);
+	ret = drm_dev_register(ddev, 0);
 	if (ret)
 		goto fail;
 
-	drm_kms_helper_poll_init(dev);
+	ret = drm_connector_register_all(ddev);
+	if (ret) {
+		dev_err(dev, "failed to register connectors\n");
+		goto fail;
+	}
+
+	drm_mode_config_reset(ddev);
+
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+	if (fbdev)
+		priv->fbdev = msm_fbdev_init(ddev);
+#endif
+
+	ret = msm_debugfs_late_init(ddev);
+	if (ret)
+		goto fail;
+
+	drm_kms_helper_poll_init(ddev);
 
 	return 0;
 
 fail:
-	msm_unload(dev);
+	msm_drm_uninit(dev);
 	return ret;
 }
+
+/*
+ * DRM operations:
+ */
 
 static void load_gpu(struct drm_device *dev)
 {
@@ -465,7 +496,6 @@ static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_file_private *ctx = file->driver_priv;
-	struct msm_kms *kms = priv->kms;
 
 	mutex_lock(&dev->struct_mutex);
 	if (ctx == priv->lastctx)
@@ -533,265 +563,6 @@ static void msm_disable_vblank(struct drm_device *dev, unsigned int pipe)
 		return;
 	DBG("dev=%p, crtc=%u", dev, pipe);
 	vblank_ctrl_queue_work(priv, pipe, false);
-}
-
-/*
- * DRM debugfs:
- */
-
-#ifdef CONFIG_DEBUG_FS
-static int msm_gpu_show(struct drm_device *dev, struct seq_file *m)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_gpu *gpu = priv->gpu;
-
-	if (gpu) {
-		seq_printf(m, "%s Status:\n", gpu->name);
-		gpu->funcs->show(gpu, m);
-	}
-
-	return 0;
-}
-
-static int msm_gem_show(struct drm_device *dev, struct seq_file *m)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_gpu *gpu = priv->gpu;
-
-	if (gpu) {
-		seq_printf(m, "Active Objects (%s):\n", gpu->name);
-		msm_gem_describe_objects(&gpu->active_list, m);
-	}
-
-	seq_printf(m, "Inactive Objects:\n");
-	msm_gem_describe_objects(&priv->inactive_list, m);
-
-	return 0;
-}
-
-static int msm_mm_show(struct drm_device *dev, struct seq_file *m)
-{
-	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
-}
-
-static int msm_fb_show(struct drm_device *dev, struct seq_file *m)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	struct drm_framebuffer *fb, *fbdev_fb = NULL;
-
-	if (priv->fbdev) {
-		seq_printf(m, "fbcon ");
-		fbdev_fb = priv->fbdev->fb;
-		msm_framebuffer_describe(fbdev_fb, m);
-	}
-
-	mutex_lock(&dev->mode_config.fb_lock);
-	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
-		if (fb == fbdev_fb)
-			continue;
-
-		seq_printf(m, "user ");
-		msm_framebuffer_describe(fb, m);
-	}
-	mutex_unlock(&dev->mode_config.fb_lock);
-
-	return 0;
-}
-
-static int show_locked(struct seq_file *m, void *arg)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	int (*show)(struct drm_device *dev, struct seq_file *m) =
-			node->info_ent->data;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	ret = show(dev, m);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
-}
-
-static struct drm_info_list msm_debugfs_list[] = {
-		{"gpu", show_locked, 0, msm_gpu_show},
-		{"gem", show_locked, 0, msm_gem_show},
-		{ "mm", show_locked, 0, msm_mm_show },
-		{ "fb", show_locked, 0, msm_fb_show },
-};
-
-static int late_init_minor(struct drm_minor *minor)
-{
-	int ret;
-
-	if (!minor)
-		return 0;
-
-	ret = msm_rd_debugfs_init(minor);
-	if (ret) {
-		dev_err(minor->dev->dev, "could not install rd debugfs\n");
-		return ret;
-	}
-
-	ret = msm_perf_debugfs_init(minor);
-	if (ret) {
-		dev_err(minor->dev->dev, "could not install perf debugfs\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-int msm_debugfs_late_init(struct drm_device *dev)
-{
-	int ret;
-	ret = late_init_minor(dev->primary);
-	if (ret)
-		return ret;
-	ret = late_init_minor(dev->render);
-	if (ret)
-		return ret;
-	ret = late_init_minor(dev->control);
-	return ret;
-}
-
-static int msm_debugfs_init(struct drm_minor *minor)
-{
-	struct drm_device *dev = minor->dev;
-	int ret;
-
-	ret = drm_debugfs_create_files(msm_debugfs_list,
-			ARRAY_SIZE(msm_debugfs_list),
-			minor->debugfs_root, minor);
-
-	if (ret) {
-		dev_err(dev->dev, "could not install msm_debugfs_list\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static void msm_debugfs_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(msm_debugfs_list,
-			ARRAY_SIZE(msm_debugfs_list), minor);
-	if (!minor->dev->dev_private)
-		return;
-	msm_rd_debugfs_cleanup(minor);
-	msm_perf_debugfs_cleanup(minor);
-}
-#endif
-
-/*
- * Fences:
- */
-
-int msm_wait_fence(struct drm_device *dev, uint32_t fence,
-		ktime_t *timeout , bool interruptible)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	int ret;
-
-	if (!priv->gpu)
-		return 0;
-
-	if (fence > priv->gpu->submitted_fence) {
-		DRM_ERROR("waiting on invalid fence: %u (of %u)\n",
-				fence, priv->gpu->submitted_fence);
-		return -EINVAL;
-	}
-
-	if (!timeout) {
-		/* no-wait: */
-		ret = fence_completed(dev, fence) ? 0 : -EBUSY;
-	} else {
-		ktime_t now = ktime_get();
-		unsigned long remaining_jiffies;
-
-		if (ktime_compare(*timeout, now) < 0) {
-			remaining_jiffies = 0;
-		} else {
-			ktime_t rem = ktime_sub(*timeout, now);
-			struct timespec ts = ktime_to_timespec(rem);
-			remaining_jiffies = timespec_to_jiffies(&ts);
-		}
-
-		if (interruptible)
-			ret = wait_event_interruptible_timeout(priv->fence_event,
-				fence_completed(dev, fence),
-				remaining_jiffies);
-		else
-			ret = wait_event_timeout(priv->fence_event,
-				fence_completed(dev, fence),
-				remaining_jiffies);
-
-		if (ret == 0) {
-			DBG("timeout waiting for fence: %u (completed: %u)",
-					fence, priv->completed_fence);
-			ret = -ETIMEDOUT;
-		} else if (ret != -ERESTARTSYS) {
-			ret = 0;
-		}
-	}
-
-	return ret;
-}
-
-int msm_queue_fence_cb(struct drm_device *dev,
-		struct msm_fence_cb *cb, uint32_t fence)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	int ret = 0;
-
-	mutex_lock(&dev->struct_mutex);
-	if (!list_empty(&cb->work.entry)) {
-		ret = -EINVAL;
-	} else if (fence > priv->completed_fence) {
-		cb->fence = fence;
-		list_add_tail(&cb->work.entry, &priv->fence_cbs);
-	} else {
-		queue_work(priv->wq, &cb->work);
-	}
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
-}
-
-/* called from workqueue */
-void msm_update_fence(struct drm_device *dev, uint32_t fence)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-
-	mutex_lock(&dev->struct_mutex);
-	priv->completed_fence = max(fence, priv->completed_fence);
-
-	while (!list_empty(&priv->fence_cbs)) {
-		struct msm_fence_cb *cb;
-
-		cb = list_first_entry(&priv->fence_cbs,
-				struct msm_fence_cb, work.entry);
-
-		if (cb->fence > priv->completed_fence)
-			break;
-
-		list_del_init(&cb->work.entry);
-		queue_work(priv->wq, &cb->work);
-	}
-
-	mutex_unlock(&dev->struct_mutex);
-
-	wake_up_all(&priv->fence_event);
-}
-
-void __msm_fence_worker(struct work_struct *work)
-{
-	struct msm_fence_cb *cb = container_of(work, struct msm_fence_cb, work);
-	cb->func(cb);
 }
 
 /*
@@ -904,6 +675,7 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
+	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_msm_wait_fence *args = data;
 	ktime_t timeout = to_ktime(args->timeout);
 
@@ -912,7 +684,10 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	return msm_wait_fence(dev, args->fence, &timeout, true);
+	if (!priv->gpu)
+		return 0;
+
+	return msm_wait_fence(priv->gpu->fctx, args->fence, &timeout, true);
 }
 
 static const struct drm_ioctl_desc msm_ioctls[] = {
@@ -952,8 +727,6 @@ static struct drm_driver msm_driver = {
 				DRIVER_RENDER |
 				DRIVER_ATOMIC |
 				DRIVER_MODESET,
-	.load               = msm_load,
-	.unload             = msm_unload,
 	.open               = msm_open,
 	.preclose           = msm_preclose,
 	.lastclose          = msm_lastclose,
@@ -1053,12 +826,12 @@ static int add_components(struct device *dev, struct component_match **matchptr,
 
 static int msm_drm_bind(struct device *dev)
 {
-	return drm_platform_init(&msm_driver, to_platform_device(dev));
+	return msm_drm_init(dev, &msm_driver);
 }
 
 static void msm_drm_unbind(struct device *dev)
 {
-	drm_put_dev(platform_get_drvdata(to_platform_device(dev)));
+	msm_drm_uninit(dev);
 }
 
 static const struct component_master_ops msm_drm_ops = {

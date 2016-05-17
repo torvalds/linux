@@ -40,8 +40,10 @@ int drm_atomic_helper_check(struct drm_device *dev,
 			    struct drm_atomic_state *state);
 int drm_atomic_helper_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
-			     bool async);
+			     bool nonblock);
 
+void drm_atomic_helper_wait_for_fences(struct drm_device *dev,
+					struct drm_atomic_state *state);
 bool drm_atomic_helper_framebuffer_changed(struct drm_device *dev,
 					   struct drm_atomic_state *old_state,
 					   struct drm_crtc *crtc);
@@ -108,6 +110,8 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 				uint32_t flags);
 int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 				     int mode);
+struct drm_encoder *
+drm_atomic_helper_best_encoder(struct drm_connector *connector);
 
 /* default implementations for state handling */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc);

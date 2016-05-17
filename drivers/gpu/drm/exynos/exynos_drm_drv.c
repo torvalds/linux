@@ -270,7 +270,7 @@ static int commit_is_pending(struct exynos_drm_private *priv, u32 crtcs)
 }
 
 int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
-			 bool async)
+			 bool nonblock)
 {
 	struct exynos_drm_private *priv = dev->dev_private;
 	struct exynos_atomic_commit *commit;
@@ -308,7 +308,7 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 
 	drm_atomic_helper_swap_state(dev, state);
 
-	if (async)
+	if (nonblock)
 		schedule_work(&commit->work);
 	else
 		exynos_atomic_commit_complete(commit);
@@ -418,7 +418,7 @@ static struct drm_driver exynos_drm_driver = {
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
-	.gem_free_object	= exynos_drm_gem_free_object,
+	.gem_free_object_unlocked = exynos_drm_gem_free_object,
 	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
 	.dumb_create		= exynos_drm_gem_dumb_create,
 	.dumb_map_offset	= exynos_drm_gem_dumb_map_offset,
@@ -431,6 +431,7 @@ static struct drm_driver exynos_drm_driver = {
 	.gem_prime_import_sg_table	= exynos_drm_gem_prime_import_sg_table,
 	.gem_prime_vmap		= exynos_drm_gem_prime_vmap,
 	.gem_prime_vunmap	= exynos_drm_gem_prime_vunmap,
+	.gem_prime_mmap		= exynos_drm_gem_prime_mmap,
 	.ioctls			= exynos_ioctls,
 	.num_ioctls		= ARRAY_SIZE(exynos_ioctls),
 	.fops			= &exynos_drm_driver_fops,

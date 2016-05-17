@@ -1295,7 +1295,7 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
 
 	*nbytesp = nbytes;
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static inline int fuse_iter_npages(const struct iov_iter *ii_p)
