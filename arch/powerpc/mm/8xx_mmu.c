@@ -13,10 +13,43 @@
  */
 
 #include <linux/memblock.h>
+#include <asm/fixmap.h>
+#include <asm/code-patching.h>
 
 #include "mmu_decl.h"
 
+#define IMMR_SIZE (FIX_IMMR_SIZE << PAGE_SHIFT)
+
 extern int __map_without_ltlbs;
+
+/*
+ * Return PA for this VA if it is in IMMR area, or 0
+ */
+phys_addr_t v_block_mapped(unsigned long va)
+{
+	unsigned long p = PHYS_IMMR_BASE;
+
+	if (__map_without_ltlbs)
+		return 0;
+	if (va >= VIRT_IMMR_BASE && va < VIRT_IMMR_BASE + IMMR_SIZE)
+		return p + va - VIRT_IMMR_BASE;
+	return 0;
+}
+
+/*
+ * Return VA for a given PA or 0 if not mapped
+ */
+unsigned long p_block_mapped(phys_addr_t pa)
+{
+	unsigned long p = PHYS_IMMR_BASE;
+
+	if (__map_without_ltlbs)
+		return 0;
+	if (pa >= p && pa < p + IMMR_SIZE)
+		return VIRT_IMMR_BASE + pa - p;
+	return 0;
+}
+
 /*
  * MMU_init_hw does the chip-specific initialization of the MMU hardware.
  */
@@ -29,6 +62,22 @@ void __init MMU_init_hw(void)
 #define LARGE_PAGE_SIZE_8M	(1<<23)
 #define LARGE_PAGE_SIZE_64M	(1<<26)
 
+static void mmu_mapin_immr(void)
+{
+	unsigned long p = PHYS_IMMR_BASE;
+	unsigned long v = VIRT_IMMR_BASE;
+	unsigned long f = pgprot_val(PAGE_KERNEL_NCG);
+	int offset;
+
+	for (offset = 0; offset < IMMR_SIZE; offset += PAGE_SIZE)
+		map_page(v + offset, p + offset, f);
+}
+
+/* Address of instructions to patch */
+#ifndef CONFIG_PIN_TLB
+extern unsigned int DTLBMiss_jmp;
+#endif
+
 unsigned long __init mmu_mapin_ram(unsigned long top)
 {
 	unsigned long v, s, mapped;
@@ -38,8 +87,13 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	p = 0;
 	s = top;
 
-	if (__map_without_ltlbs)
+	if (__map_without_ltlbs) {
+		mmu_mapin_immr();
+#ifndef CONFIG_PIN_TLB
+		patch_instruction(&DTLBMiss_jmp, PPC_INST_NOP);
+#endif
 		return 0;
+	}
 
 #ifdef CONFIG_PPC_4K_PAGES
 	while (s >= LARGE_PAGE_SIZE_8M) {

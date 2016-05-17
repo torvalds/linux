@@ -384,6 +384,27 @@ InstructionTLBMiss:
 	EXCEPTION_EPILOG_0
 	rfi
 
+/*
+ * Bottom part of DataStoreTLBMiss handler for IMMR area
+ * not enough space in the DataStoreTLBMiss area
+ */
+DTLBMissIMMR:
+	mtcr	r3
+	/* Set 512k byte guarded page and mark it valid */
+	li	r10, MD_PS512K | MD_GUARDED | MD_SVALID
+	MTSPR_CPU6(SPRN_MD_TWC, r10, r3)
+	mfspr	r10, SPRN_IMMR			/* Get current IMMR */
+	rlwinm	r10, r10, 0, 0xfff80000		/* Get 512 kbytes boundary */
+	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY	| \
+			  _PAGE_PRESENT | _PAGE_NO_CACHE
+	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
+
+	li	r11, RPN_PATTERN
+	mfspr	r3, SPRN_SPRG_SCRATCH2
+	mtspr	SPRN_DAR, r11	/* Tag DAR */
+	EXCEPTION_EPILOG_0
+	rfi
+
 	. = 0x1200
 DataStoreTLBMiss:
 	mtspr	SPRN_SPRG_SCRATCH2, r3
@@ -397,6 +418,14 @@ DataStoreTLBMiss:
 	IS_KERNEL(r11, r10)
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
 	BRANCH_UNLESS_KERNEL(3f)
+
+	rlwinm	r11, r10, 16, 0xfff8
+#ifndef CONFIG_PIN_TLB
+	cmpli	cr0, r11, VIRT_IMMR_BASE@h
+_ENTRY(DTLBMiss_jmp)
+	beq-	DTLBMissIMMR
+#endif
+
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 3:
 
