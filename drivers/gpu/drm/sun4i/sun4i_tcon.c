@@ -490,7 +490,11 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		return 0;
 	}
 
-	return sun4i_rgb_init(drm);
+	ret = sun4i_rgb_init(drm);
+	if (ret < 0)
+		goto err_free_clocks;
+
+	return 0;
 
 err_free_clocks:
 	sun4i_tcon_free_clocks(tcon);
