@@ -245,9 +245,10 @@ static int v9fs_launder_page(struct page *page)
  *
  */
 static ssize_t
-v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
+v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
+	loff_t pos = iocb->ki_pos;
 	ssize_t n;
 	int err = 0;
 	if (iov_iter_rw(iter) == WRITE) {

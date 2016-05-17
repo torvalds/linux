@@ -244,7 +244,6 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
  * @iocb: The control block for this I/O
  * @inode: The file which the I/O is directed at
  * @iter: The addresses to do I/O from or to
- * @pos: The file offset where the I/O starts
  * @get_block: The filesystem method used to translate file offsets to blocks
  * @end_io: A filesystem callback for I/O completion
  * @flags: See below
@@ -257,11 +256,12 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
  * is in progress.
  */
 ssize_t dax_do_io(struct kiocb *iocb, struct inode *inode,
-		  struct iov_iter *iter, loff_t pos, get_block_t get_block,
+		  struct iov_iter *iter, get_block_t get_block,
 		  dio_iodone_t end_io, int flags)
 {
 	struct buffer_head bh;
 	ssize_t retval = -EINVAL;
+	loff_t pos = iocb->ki_pos;
 	loff_t end = pos + iov_iter_count(iter);
 
 	memset(&bh, 0, sizeof(bh));

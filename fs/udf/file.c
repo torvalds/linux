@@ -99,8 +99,7 @@ static int udf_adinicb_write_begin(struct file *file,
 	return 0;
 }
 
-static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-				     loff_t offset)
+static ssize_t udf_adinicb_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	/* Fallback to buffered I/O. */
 	return 0;
@@ -153,9 +152,7 @@ out:
 
 	if (retval > 0) {
 		mark_inode_dirty(inode);
-		err = generic_write_sync(file, iocb->ki_pos - retval, retval);
-		if (err < 0)
-			retval = err;
+		retval = generic_write_sync(iocb, retval);
 	}
 
 	return retval;
