@@ -148,9 +148,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
-	pte_t  pte;
 
-	pte_val(pte) = _PAGE_INVALID;
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
@@ -178,7 +176,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 			continue;
 		}
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		*pt_dir = pte;
+		pte_clear(&init_mm, address, pt_dir);
 		address += PAGE_SIZE;
 	}
 	flush_tlb_kernel_range(start, end);
