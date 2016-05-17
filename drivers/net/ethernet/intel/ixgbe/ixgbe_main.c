@@ -8315,8 +8315,11 @@ static int ixgbe_delete_clsu32(struct ixgbe_adapter *adapter,
 	/* Clear this filter in the link data it is associated with */
 	if (uhtid != 0x800) {
 		jump = adapter->jump_tables[uhtid];
-		if (jump)
-			clear_bit(loc - 1, jump->child_loc_map);
+		if (!jump)
+			return -EINVAL;
+		if (!test_bit(loc - 1, jump->child_loc_map))
+			return -EINVAL;
+		clear_bit(loc - 1, jump->child_loc_map);
 	}
 
 	/* Check if the filter being deleted is a link */
@@ -8606,7 +8609,7 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 			mask = kzalloc(sizeof(*mask), GFP_KERNEL);
 			if (!mask) {
 				err = -ENOMEM;
-				goto err_out;
+				goto free_input;
 			}
 			jump->input = input;
 			jump->mask = mask;
@@ -8629,7 +8632,7 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 	mask = kzalloc(sizeof(*mask), GFP_KERNEL);
 	if (!mask) {
 		err = -ENOMEM;
-		goto err_out;
+		goto free_input;
 	}
 
 	if ((uhtid != 0x800) && (adapter->jump_tables[uhtid])) {
@@ -8639,6 +8642,20 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 		if ((adapter->jump_tables[uhtid])->mask)
 			memcpy(mask, (adapter->jump_tables[uhtid])->mask,
 			       sizeof(*mask));
+
+		/* Lookup in all child hash tables if this location is already
+		 * filled with a filter
+		 */
+		for (i = 1; i < IXGBE_MAX_LINK_HANDLE; i++) {
+			struct ixgbe_jump_table *link = adapter->jump_tables[i];
+
+			if (link && (test_bit(loc - 1, link->child_loc_map))) {
+				e_err(drv, "Filter exists in location: %x\n",
+				      loc);
+				err = -EINVAL;
+				goto err_out;
+			}
+		}
 	}
 	err = ixgbe_clsu32_build_input(input, mask, cls, field_ptr, NULL);
 	if (err)
@@ -8670,25 +8687,17 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 		ixgbe_update_ethtool_fdir_entry(adapter, input, input->sw_idx);
 	spin_unlock(&adapter->fdir_perfect_lock);
 
-	if ((uhtid != 0x800) && (adapter->jump_tables[uhtid])) {
-		struct ixgbe_jump_table *link = adapter->jump_tables[uhtid];
+	if ((uhtid != 0x800) && (adapter->jump_tables[uhtid]))
+		set_bit(loc - 1, (adapter->jump_tables[uhtid])->child_loc_map);
 
-		if (test_bit(loc - 1, link->child_loc_map)) {
-			e_err(drv, "Filter: %x exists in hash table: %x\n",
-			      loc, uhtid);
-			err = -EINVAL;
-			goto free_mask;
-		}
-		set_bit(loc - 1, link->child_loc_map);
-	}
 	kfree(mask);
 	return err;
 err_out_w_lock:
 	spin_unlock(&adapter->fdir_perfect_lock);
 err_out:
-	kfree(input);
-free_mask:
 	kfree(mask);
+free_input:
+	kfree(input);
 free_jump:
 	kfree(jump);
 	return err;
