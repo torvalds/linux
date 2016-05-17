@@ -65,7 +65,6 @@ struct dp83867_private {
 	int rx_id_delay;
 	int tx_id_delay;
 	int fifo_depth;
-	int values_are_sane;
 };
 
 static int dp83867_ack_interrupt(struct phy_device *phydev)
@@ -114,30 +113,15 @@ static int dp83867_of_init(struct phy_device *phydev)
 	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
 				   &dp83867->rx_id_delay);
 	if (ret)
-		goto invalid_dt;
+		return ret;
 
 	ret = of_property_read_u32(of_node, "ti,tx-internal-delay",
 				   &dp83867->tx_id_delay);
 	if (ret)
-		goto invalid_dt;
+		return ret;
 
-	ret = of_property_read_u32(of_node, "ti,fifo-depth",
+	return of_property_read_u32(of_node, "ti,fifo-depth",
 				   &dp83867->fifo_depth);
-	if (ret)
-		goto invalid_dt;
-
-	dp83867->values_are_sane = 1;
-
-	return 0;
-
-invalid_dt:
-	phydev_err(phydev, "missing properties in device tree");
-
-	/*
-	 * We can still run with a broken dt by not using any of the optional
-	 * parameters, so just don't set dp83867->values_are_sane.
-	 */
-	return 0;
 }
 #else
 static int dp83867_of_init(struct phy_device *phydev)
@@ -165,15 +149,6 @@ static int dp83867_config_init(struct phy_device *phydev)
 	} else {
 		dp83867 = (struct dp83867_private *)phydev->priv;
 	}
-
-	/*
-	 * With no or broken device tree, we don't have the values that we would
-	 * want to configure the phy with. In that case, cross our fingers and
-	 * assume that firmware did everything correctly for us or that we don't
-	 * need them.
-	 */
-	if (!dp83867->values_are_sane)
-		return 0;
 
 	if (phy_interface_is_rgmii(phydev)) {
 		ret = phy_write(phydev, MII_DP83867_PHYCTRL,
