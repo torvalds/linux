@@ -147,12 +147,12 @@ of_pwm_xlate_with_flags(struct pwm_chip *pc, const struct of_phandle_args *args)
 	if (IS_ERR(pwm))
 		return pwm;
 
-	pwm_set_period(pwm, args->args[1]);
+	pwm->args.period = args->args[1];
 
 	if (args->args[2] & PWM_POLARITY_INVERTED)
-		pwm_set_polarity(pwm, PWM_POLARITY_INVERSED);
+		pwm->args.polarity = PWM_POLARITY_INVERSED;
 	else
-		pwm_set_polarity(pwm, PWM_POLARITY_NORMAL);
+		pwm->args.polarity = PWM_POLARITY_NORMAL;
 
 	return pwm;
 }
@@ -173,7 +173,7 @@ of_pwm_simple_xlate(struct pwm_chip *pc, const struct of_phandle_args *args)
 	if (IS_ERR(pwm))
 		return pwm;
 
-	pwm_set_period(pwm, args->args[1]);
+	pwm->args.period = args->args[1];
 
 	return pwm;
 }
@@ -621,6 +621,13 @@ struct pwm_device *of_pwm_get(struct device_node *np, const char *con_id)
 
 	pwm->label = con_id;
 
+	/*
+	 * FIXME: This should be removed once all PWM users properly make use
+	 * of struct pwm_args to initialize the PWM device. As long as this is
+	 * here, the PWM state and hardware state can get out of sync.
+	 */
+	pwm_apply_args(pwm);
+
 put:
 	of_node_put(args.np);
 
@@ -752,8 +759,15 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	if (IS_ERR(pwm))
 		goto out;
 
-	pwm_set_period(pwm, chosen->period);
-	pwm_set_polarity(pwm, chosen->polarity);
+	pwm->args.period = chosen->period;
+	pwm->args.polarity = chosen->polarity;
+
+	/*
+	 * FIXME: This should be removed once all PWM users properly make use
+	 * of struct pwm_args to initialize the PWM device. As long as this is
+	 * here, the PWM state and hardware state can get out of sync.
+	 */
+	pwm_apply_args(pwm);
 
 out:
 	mutex_unlock(&pwm_lookup_lock);
