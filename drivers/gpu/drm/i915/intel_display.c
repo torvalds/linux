@@ -13371,10 +13371,19 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
+	struct drm_crtc *crtc = new_state->crtc ?: plane->state->crtc;
 	int ret = 0;
 
 	if (!obj && !old_obj)
 		return 0;
+
+	if (WARN_ON(!new_state->state) || WARN_ON(!crtc) ||
+	    WARN_ON(!to_intel_atomic_state(new_state->state)->work[to_intel_crtc(crtc)->pipe])) {
+		if (WARN_ON(old_obj != obj))
+			return -EINVAL;
+
+		return 0;
+	}
 
 	if (old_obj) {
 		struct drm_crtc_state *crtc_state =
