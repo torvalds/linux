@@ -1552,7 +1552,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->is_exit) {
 		if (!(trace->duration_filter || trace->summary_only || trace->min_stack)) {
 			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
-			fprintf(trace->output, "%-70s\n", ttrace->entry_str);
+			fprintf(trace->output, "%-70s)\n", ttrace->entry_str);
 		}
 	} else {
 		ttrace->entry_pending = true;
