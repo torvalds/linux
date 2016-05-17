@@ -105,11 +105,11 @@ static struct {
 } dss;
 
 static const char * const dss_generic_clk_source_names[] = {
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DSI_PLL_HSDIV_DISPC",
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "DSI_PLL_HSDIV_DSI",
-	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_FCK",
-	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC]	= "DSI_PLL2_HSDIV_DISPC",
-	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI]	= "DSI_PLL2_HSDIV_DSI",
+	[DSS_CLK_SRC_FCK]	= "FCK",
+	[DSS_CLK_SRC_PLL1_1]	= "PLL1:1",
+	[DSS_CLK_SRC_PLL1_2]	= "PLL1:2",
+	[DSS_CLK_SRC_PLL2_1]	= "PLL2:1",
+	[DSS_CLK_SRC_PLL2_2]	= "PLL2:2",
 };
 
 static bool dss_initialized;
@@ -368,7 +368,7 @@ void dss_dump_clocks(struct seq_file *s)
 
 	seq_printf(s, "- DSS -\n");
 
-	fclk_name = dss_get_clk_source_name(OMAP_DSS_CLK_SRC_FCK);
+	fclk_name = dss_get_clk_source_name(DSS_CLK_SRC_FCK);
 	fclk_rate = clk_get_rate(dss.dss_clk);
 
 	seq_printf(s, "%s = %lu\n",
@@ -407,13 +407,13 @@ static void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 	u8 start, end;
 
 	switch (clk_src) {
-	case OMAP_DSS_CLK_SRC_FCK:
+	case DSS_CLK_SRC_FCK:
 		b = 0;
 		break;
-	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
+	case DSS_CLK_SRC_PLL1_1:
 		b = 1;
 		break;
-	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
+	case DSS_CLK_SRC_PLL2_1:
 		b = 2;
 		break;
 	default:
@@ -434,14 +434,14 @@ void dss_select_dsi_clk_source(int dsi_module,
 	int b, pos;
 
 	switch (clk_src) {
-	case OMAP_DSS_CLK_SRC_FCK:
+	case DSS_CLK_SRC_FCK:
 		b = 0;
 		break;
-	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI:
+	case DSS_CLK_SRC_PLL1_2:
 		BUG_ON(dsi_module != 0);
 		b = 1;
 		break;
-	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI:
+	case DSS_CLK_SRC_PLL2_2:
 		BUG_ON(dsi_module != 1);
 		b = 1;
 		break;
@@ -467,14 +467,14 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 	}
 
 	switch (clk_src) {
-	case OMAP_DSS_CLK_SRC_FCK:
+	case DSS_CLK_SRC_FCK:
 		b = 0;
 		break;
-	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
+	case DSS_CLK_SRC_PLL1_1:
 		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD);
 		b = 1;
 		break;
-	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
+	case DSS_CLK_SRC_PLL2_1:
 		BUG_ON(channel != OMAP_DSS_CHANNEL_LCD2 &&
 		       channel != OMAP_DSS_CHANNEL_LCD3);
 		b = 1;
@@ -1141,18 +1141,18 @@ static int dss_bind(struct device *dev)
 	/* Select DPLL */
 	REG_FLD_MOD(DSS_CONTROL, 0, 0, 0);
 
-	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
+	dss_select_dispc_clk_source(DSS_CLK_SRC_FCK);
 
 #ifdef CONFIG_OMAP2_DSS_VENC
 	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
 	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
 	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
 #endif
-	dss.dsi_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
-	dss.dsi_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
-	dss.dispc_clk_source = OMAP_DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
-	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
+	dss.dsi_clk_source[0] = DSS_CLK_SRC_FCK;
+	dss.dsi_clk_source[1] = DSS_CLK_SRC_FCK;
+	dss.dispc_clk_source = DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[0] = DSS_CLK_SRC_FCK;
+	dss.lcd_clk_source[1] = DSS_CLK_SRC_FCK;
 
 	rev = dss_read_reg(DSS_REVISION);
 	printk(KERN_INFO "OMAP DSS rev %d.%d\n",

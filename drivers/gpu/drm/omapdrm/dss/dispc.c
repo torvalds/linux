@@ -3303,17 +3303,17 @@ static unsigned long dispc_fclk_rate(void)
 	unsigned long r = 0;
 
 	switch (dss_get_dispc_clk_source()) {
-	case OMAP_DSS_CLK_SRC_FCK:
+	case DSS_CLK_SRC_FCK:
 		r = dss_get_dispc_clk_rate();
 		break;
-	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
+	case DSS_CLK_SRC_PLL1_1:
 		pll = dss_pll_find("dsi0");
 		if (!pll)
 			pll = dss_pll_find("video0");
 
 		r = pll->cinfo.clkout[0];
 		break;
-	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
+	case DSS_CLK_SRC_PLL2_1:
 		pll = dss_pll_find("dsi1");
 		if (!pll)
 			pll = dss_pll_find("video1");
@@ -3341,17 +3341,17 @@ static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 		lcd = FLD_GET(l, 23, 16);
 
 		switch (dss_get_lcd_clk_source(channel)) {
-		case OMAP_DSS_CLK_SRC_FCK:
+		case DSS_CLK_SRC_FCK:
 			r = dss_get_dispc_clk_rate();
 			break;
-		case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
+		case DSS_CLK_SRC_PLL1_1:
 			pll = dss_pll_find("dsi0");
 			if (!pll)
 				pll = dss_pll_find("video0");
 
 			r = pll->cinfo.clkout[0];
 			break;
-		case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
+		case DSS_CLK_SRC_PLL2_1:
 			pll = dss_pll_find("dsi1");
 			if (!pll)
 				pll = dss_pll_find("video1");
