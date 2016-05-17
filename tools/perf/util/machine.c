@@ -1135,10 +1135,10 @@ int machine__create_kernel_maps(struct machine *machine)
 {
 	struct dso *kernel = machine__get_kernel(machine);
 	const char *name;
-	u64 addr = machine__get_running_kernel_start(machine, &name);
+	u64 addr;
 	int ret;
 
-	if (!addr || kernel == NULL)
+	if (kernel == NULL)
 		return -1;
 
 	ret = __machine__create_kernel_maps(machine, kernel);
@@ -1160,8 +1160,9 @@ int machine__create_kernel_maps(struct machine *machine)
 	 */
 	map_groups__fixup_end(&machine->kmaps);
 
-	if (maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name,
-					     addr)) {
+	addr = machine__get_running_kernel_start(machine, &name);
+	if (!addr) {
+	} else if (maps__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps, name, addr)) {
 		machine__destroy_kernel_maps(machine);
 		return -1;
 	}
