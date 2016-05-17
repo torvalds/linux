@@ -13356,6 +13356,15 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 			struct intel_plane_state *intel_plane_state =
 				to_intel_plane_state(plane_state);
 
+			if (plane_state->fence) {
+				long lret = fence_wait(plane_state->fence, true);
+
+				if (lret < 0) {
+					ret = lret;
+					break;
+				}
+			}
+
 			if (!intel_plane_state->wait_req)
 				continue;
 
@@ -13681,6 +13690,33 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.atomic_destroy_state = intel_crtc_destroy_state,
 };
 
+static struct fence *intel_get_excl_fence(struct drm_i915_gem_object *obj)
+{
+	struct reservation_object *resv;
+
+
+	if (!obj->base.dma_buf)
+		return NULL;
+
+	resv = obj->base.dma_buf->resv;
+
+	/* For framebuffer backed by dmabuf, wait for fence */
+	while (1) {
+		struct fence *fence_excl, *ret = NULL;
+
+		rcu_read_lock();
+
+		fence_excl = rcu_dereference(resv->fence_excl);
+		if (fence_excl)
+			ret = fence_get_rcu(fence_excl);
+
+		rcu_read_unlock();
+
+		if (ret == fence_excl)
+			return ret;
+	}
+}
+
 /**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
  * @plane: drm plane to prepare for
@@ -13733,19 +13769,6 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		}
 	}
 
-	/* For framebuffer backed by dmabuf, wait for fence */
-	if (obj && obj->base.dma_buf) {
-		long lret;
-
-		lret = reservation_object_wait_timeout_rcu(obj->base.dma_buf->resv,
-							   false, true,
-							   MAX_SCHEDULE_TIMEOUT);
-		if (lret == -ERESTARTSYS)
-			return lret;
-
-		WARN(lret < 0, "waiting returns %li\n", lret);
-	}
-
 	if (!obj) {
 		ret = 0;
 	} else if (plane->type == DRM_PLANE_TYPE_CURSOR &&
@@ -13765,6 +13788,8 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 
 			i915_gem_request_assign(&plane_state->wait_req,
 						obj->last_write_req);
+
+			plane_state->base.fence = intel_get_excl_fence(obj);
 		}
 
 		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
@@ -13807,6 +13832,9 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
 
 	i915_gem_request_assign(&old_intel_state->wait_req, NULL);
+
+	fence_put(old_intel_state->base.fence);
+	old_intel_state->base.fence = NULL;
 }
 
 int
