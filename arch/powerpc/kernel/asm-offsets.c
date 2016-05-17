@@ -68,6 +68,10 @@
 #include "../mm/mmu_decl.h"
 #endif
 
+#ifdef CONFIG_PPC_8xx
+#include <asm/fixmap.h>
+#endif
+
 int main(void)
 {
 	DEFINE(THREAD, offsetof(struct task_struct, thread));
@@ -748,6 +752,10 @@ int main(void)
 #endif
 
 	DEFINE(PPC_DBELL_SERVER, PPC_DBELL_SERVER);
+
+#ifdef CONFIG_PPC_8xx
+	DEFINE(VIRT_IMMR_BASE, __fix_to_virt(FIX_IMMR_BASE));
+#endif
 
 	return 0;
 }

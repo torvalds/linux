@@ -30,6 +30,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
+#include <asm/fixmap.h>
 
 /* Macro to make the code more readable. */
 #ifdef CONFIG_8xx_CPU6
@@ -763,7 +764,7 @@ start_here:
  * virtual to physical.  Also, set the cache mode since that is defined
  * by TLB entries and perform any additional mapping (like of the IMMR).
  * If configured to pin some TLBs, we pin the first 8 Mbytes of kernel,
- * 24 Mbytes of data, and the 8M IMMR space.  Anything not covered by
+ * 24 Mbytes of data, and the 512k IMMR space.  Anything not covered by
  * these mappings is mapped by page tables.
  */
 initial_mmu:
@@ -812,7 +813,7 @@ initial_mmu:
 	ori	r8, r8, MD_APG_INIT@l
 	mtspr	SPRN_MD_AP, r8
 
-	/* Map another 8 MByte at the IMMR to get the processor
+	/* Map a 512k page for the IMMR to get the processor
 	 * internal registers (among other things).
 	 */
 #ifdef CONFIG_PIN_TLB
@@ -820,12 +821,12 @@ initial_mmu:
 	mtspr	SPRN_MD_CTR, r10
 #endif
 	mfspr	r9, 638			/* Get current IMMR */
-	andis.	r9, r9, 0xff80		/* Get 8Mbyte boundary */
+	andis.	r9, r9, 0xfff8		/* Get 512 kbytes boundary */
 
-	mr	r8, r9			/* Create vaddr for TLB */
+	lis	r8, VIRT_IMMR_BASE@h	/* Create vaddr for TLB */
 	ori	r8, r8, MD_EVALID	/* Mark it valid */
 	mtspr	SPRN_MD_EPN, r8
-	li	r8, MD_PS8MEG		/* Set 8M byte page */
+	li	r8, MD_PS512K | MD_GUARDED	/* Set 512k byte page */
 	ori	r8, r8, MD_SVALID	/* Make it valid */
 	mtspr	SPRN_MD_TWC, r8
 	mr	r8, r9			/* Create paddr for TLB */
