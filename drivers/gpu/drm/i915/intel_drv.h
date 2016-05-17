@@ -975,9 +975,6 @@ struct intel_flip_work {
 	struct work_struct unpin_work;
 	struct work_struct mmio_work;
 
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *old_fb;
-	struct drm_i915_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
 	atomic_t pending;
 	u32 flip_count;
@@ -985,6 +982,16 @@ struct intel_flip_work {
 	struct drm_i915_gem_request *flip_queued_req;
 	u32 flip_queued_vblank;
 	u32 flip_ready_vblank;
+
+	unsigned put_power_domains;
+	unsigned num_planes;
+
+	bool can_async_unpin, flip_prepared;
+	unsigned fb_bits;
+
+	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
+	struct intel_plane_state *old_plane_state[I915_MAX_PLANES + 1];
+	struct intel_plane_state *new_plane_state[I915_MAX_PLANES + 1];
 };
 
 struct intel_load_detect_pipe {

@@ -598,29 +598,43 @@ static void i915_dump_pageflip(struct seq_file *m,
 			       struct intel_flip_work *work)
 {
 	const char pipe = pipe_name(crtc->pipe);
-	const char plane = plane_name(crtc->plane);
 	u32 pending;
 	u32 addr;
+	int i;
 
 	pending = atomic_read(&work->pending);
 	if (pending) {
 		seq_printf(m, "Flip ioctl preparing on pipe %c (plane %c)\n",
-			   pipe, plane);
+			   pipe, plane_name(crtc->plane));
 	} else {
 		seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
-			   pipe, plane);
+			   pipe, plane_name(crtc->plane));
 	}
-	if (work->flip_queued_req) {
-		struct intel_engine_cs *engine = i915_gem_request_get_engine(work->flip_queued_req);
 
-		seq_printf(m, "Flip queued on %s at seqno %x, next seqno %x [current breadcrumb %x], completed? %d\n",
+
+	for (i = 0; i < work->num_planes; i++) {
+		struct intel_plane_state *old_plane_state = work->old_plane_state[i];
+		struct drm_plane *plane = old_plane_state->base.plane;
+		struct drm_i915_gem_request *req = old_plane_state->wait_req;
+		struct intel_engine_cs *engine;
+
+		seq_printf(m, "[PLANE:%i] part of flip.\n", plane->base.id);
+
+		if (!req) {
+			seq_printf(m, "Plane not associated with any engine\n");
+			continue;
+		}
+
+		engine = i915_gem_request_get_engine(req);
+
+		seq_printf(m, "Plane blocked on %s at seqno %x, next seqno %x [current breadcrumb %x], completed? %d\n",
 			   engine->name,
-			   i915_gem_request_get_seqno(work->flip_queued_req),
+			   i915_gem_request_get_seqno(req),
 			   dev_priv->next_seqno,
 			   engine->get_seqno(engine),
-			   i915_gem_request_completed(work->flip_queued_req, true));
-	} else
-		seq_printf(m, "Flip not associated with any ring\n");
+			   i915_gem_request_completed(req, true));
+	}
+
 	seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",
 		   work->flip_queued_vblank,
 		   work->flip_ready_vblank,
@@ -633,7 +647,7 @@ static void i915_dump_pageflip(struct seq_file *m,
 		addr = I915_READ(DSPADDR(crtc->plane));
 	seq_printf(m, "Current scanout address 0x%08x\n", addr);
 
-	if (work->pending_flip_obj) {
+	if (work->flip_queued_req) {
 		seq_printf(m, "New framebuffer address 0x%08lx\n", (long)work->gtt_offset);
 		seq_printf(m, "MMIO update completed? %d\n",  addr == work->gtt_offset);
 	}
