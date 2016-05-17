@@ -33,6 +33,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <linux/stringify.h>
+#include <asm/accounting.h>
 
 /*
  * low level task data.
@@ -45,6 +46,9 @@ struct thread_info {
 	unsigned long	local_flags;		/* private flags for thread */
 #ifdef CONFIG_LIVEPATCH
 	unsigned long *livepatch_sp;
+#endif
+#if defined(CONFIG_VIRT_CPU_ACCOUNTING_NATIVE) && defined(CONFIG_PPC32)
+	struct cpu_accounting_data accounting;
 #endif
 	/* low level flags - has atomic operations done on it */
 	unsigned long	flags ____cacheline_aligned_in_smp;

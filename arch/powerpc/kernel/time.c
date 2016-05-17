@@ -167,7 +167,15 @@ DEFINE_PER_CPU(unsigned long, cputime_scaled_last_delta);
 
 cputime_t cputime_one_jiffy;
 
+#ifdef CONFIG_PPC_SPLPAR
 void (*dtl_consumer)(struct dtl_entry *, u64);
+#endif
+
+#ifdef CONFIG_PPC64
+#define get_accounting(tsk)	(&get_paca()->accounting)
+#else
+#define get_accounting(tsk)	(&task_thread_info(tsk)->accounting)
+#endif
 
 static void calc_cputime_factors(void)
 {
@@ -187,7 +195,7 @@ static void calc_cputime_factors(void)
  * Read the SPURR on systems that have it, otherwise the PURR,
  * or if that doesn't exist return the timebase value passed in.
  */
-static u64 read_spurr(u64 tb)
+static unsigned long read_spurr(unsigned long tb)
 {
 	if (cpu_has_feature(CPU_FTR_SPURR))
 		return mfspr(SPRN_SPURR);
@@ -250,8 +258,8 @@ static u64 scan_dispatch_log(u64 stop_tb)
 void accumulate_stolen_time(void)
 {
 	u64 sst, ust;
-
 	u8 save_soft_enabled = local_paca->soft_enabled;
+	struct cpu_accounting_data *acct = &local_paca->accounting;
 
 	/* We are called early in the exception entry, before
 	 * soft/hard_enabled are sync'ed to the expected state
@@ -261,10 +269,10 @@ void accumulate_stolen_time(void)
 	 */
 	local_paca->soft_enabled = 0;
 
-	sst = scan_dispatch_log(local_paca->starttime_user);
-	ust = scan_dispatch_log(local_paca->starttime);
-	local_paca->system_time -= sst;
-	local_paca->user_time -= ust;
+	sst = scan_dispatch_log(acct->starttime_user);
+	ust = scan_dispatch_log(acct->starttime);
+	acct->system_time -= sst;
+	acct->user_time -= ust;
 	local_paca->stolen_time += ust + sst;
 
 	local_paca->soft_enabled = save_soft_enabled;
@@ -276,7 +284,7 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
 
 	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx)) {
 		stolen = scan_dispatch_log(stop_tb);
-		get_paca()->system_time -= stolen;
+		get_paca()->accounting.system_time -= stolen;
 	}
 
 	stolen += get_paca()->stolen_time;
@@ -296,27 +304,29 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
  * Account time for a transition between system, hard irq
  * or soft irq state.
  */
-static u64 vtime_delta(struct task_struct *tsk,
-			u64 *sys_scaled, u64 *stolen)
+static unsigned long vtime_delta(struct task_struct *tsk,
+				 unsigned long *sys_scaled,
+				 unsigned long *stolen)
 {
-	u64 now, nowscaled, deltascaled;
-	u64 udelta, delta, user_scaled;
+	unsigned long now, nowscaled, deltascaled;
+	unsigned long udelta, delta, user_scaled;
+	struct cpu_accounting_data *acct = get_accounting(tsk);
 
 	WARN_ON_ONCE(!irqs_disabled());
 
 	now = mftb();
 	nowscaled = read_spurr(now);
-	get_paca()->system_time += now - get_paca()->starttime;
-	get_paca()->starttime = now;
-	deltascaled = nowscaled - get_paca()->startspurr;
-	get_paca()->startspurr = nowscaled;
+	acct->system_time += now - acct->starttime;
+	acct->starttime = now;
+	deltascaled = nowscaled - acct->startspurr;
+	acct->startspurr = nowscaled;
 
 	*stolen = calculate_stolen_time(now);
 
-	delta = get_paca()->system_time;
-	get_paca()->system_time = 0;
-	udelta = get_paca()->user_time - get_paca()->utime_sspurr;
-	get_paca()->utime_sspurr = get_paca()->user_time;
+	delta = acct->system_time;
+	acct->system_time = 0;
+	udelta = acct->user_time - acct->utime_sspurr;
+	acct->utime_sspurr = acct->user_time;
 
 	/*
 	 * Because we don't read the SPURR on every kernel entry/exit,
@@ -338,14 +348,14 @@ static u64 vtime_delta(struct task_struct *tsk,
 			*sys_scaled = deltascaled;
 		}
 	}
-	get_paca()->user_time_scaled += user_scaled;
+	acct->user_time_scaled += user_scaled;
 
 	return delta;
 }
 
 void vtime_account_system(struct task_struct *tsk)
 {
-	u64 delta, sys_scaled, stolen;
+	unsigned long delta, sys_scaled, stolen;
 
 	delta = vtime_delta(tsk, &sys_scaled, &stolen);
 	account_system_time(tsk, 0, delta, sys_scaled);
@@ -356,7 +366,7 @@ EXPORT_SYMBOL_GPL(vtime_account_system);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
-	u64 delta, sys_scaled, stolen;
+	unsigned long delta, sys_scaled, stolen;
 
 	delta = vtime_delta(tsk, &sys_scaled, &stolen);
 	account_idle_time(delta + stolen);
@@ -374,14 +384,31 @@ void vtime_account_idle(struct task_struct *tsk)
 void vtime_account_user(struct task_struct *tsk)
 {
 	cputime_t utime, utimescaled;
+	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	utime = get_paca()->user_time;
-	utimescaled = get_paca()->user_time_scaled;
-	get_paca()->user_time = 0;
-	get_paca()->user_time_scaled = 0;
-	get_paca()->utime_sspurr = 0;
+	utime = acct->user_time;
+	utimescaled = acct->user_time_scaled;
+	acct->user_time = 0;
+	acct->user_time_scaled = 0;
+	acct->utime_sspurr = 0;
 	account_user_time(tsk, utime, utimescaled);
 }
+
+#ifdef CONFIG_PPC32
+/*
+ * Called from the context switch with interrupts disabled, to charge all
+ * accumulated times to the current process, and to prepare accounting on
+ * the next process.
+ */
+void arch_vtime_task_switch(struct task_struct *prev)
+{
+	struct cpu_accounting_data *acct = get_accounting(current);
+
+	acct->starttime = get_accounting(prev)->starttime;
+	acct->system_time = 0;
+	acct->user_time = 0;
+}
+#endif /* CONFIG_PPC32 */
 
 #else /* ! CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 #define calc_cputime_factors()
