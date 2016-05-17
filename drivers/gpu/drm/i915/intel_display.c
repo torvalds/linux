@@ -12928,12 +12928,14 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 		struct intel_flip_work *work;
 
-		ret = intel_crtc_wait_for_pending_flips(crtc);
-		if (ret)
-			return ret;
+		if (!state->legacy_cursor_update) {
+			ret = intel_crtc_wait_for_pending_flips(crtc);
+			if (ret)
+				return ret;
 
-		if (atomic_read(&intel_crtc->unpin_work_count) >= 2)
-			flush_workqueue(dev_priv->wq);
+			if (atomic_read(&intel_crtc->unpin_work_count) >= 2)
+				flush_workqueue(dev_priv->wq);
+		}
 
 		/* test if we need to update something */
 		if (!needs_work(crtc_state))
