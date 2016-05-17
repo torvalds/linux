@@ -312,7 +312,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &client->dev);
 	if (ret) {
-		dev_err(&client->dev, "firmare file '%s' not found\n",
+		dev_err(&client->dev, "firmware file '%s' not found\n",
 				fw_file);
 		goto err;
 	}
