@@ -3432,9 +3432,8 @@ static void dispc_dump_clocks_channel(struct seq_file *s, enum omap_channel chan
 
 	lcd_clk_src = dss_get_lcd_clk_source(channel);
 
-	seq_printf(s, "%s clk source = %s (%s)\n", mgr_desc[channel].name,
-		dss_get_generic_clk_source_name(lcd_clk_src),
-		dss_feat_get_clk_source_name(lcd_clk_src));
+	seq_printf(s, "%s clk source = %s\n", mgr_desc[channel].name,
+		dss_get_generic_clk_source_name(lcd_clk_src));
 
 	dispc_mgr_get_lcd_divisor(channel, &lcd, &pcd);
 
@@ -3455,9 +3454,8 @@ void dispc_dump_clocks(struct seq_file *s)
 
 	seq_printf(s, "- DISPC -\n");
 
-	seq_printf(s, "dispc fclk source = %s (%s)\n",
-			dss_get_generic_clk_source_name(dispc_clk_src),
-			dss_feat_get_clk_source_name(dispc_clk_src));
+	seq_printf(s, "dispc fclk source = %s\n",
+			dss_get_generic_clk_source_name(dispc_clk_src));
 
 	seq_printf(s, "fck\t\t%-16lu\n", dispc_fclk_rate());
 

@@ -360,7 +360,7 @@ const char *dss_get_generic_clk_source_name(enum dss_clk_source clk_src)
 
 void dss_dump_clocks(struct seq_file *s)
 {
-	const char *fclk_name, *fclk_real_name;
+	const char *fclk_name;
 	unsigned long fclk_rate;
 
 	if (dss_runtime_get())
@@ -369,11 +369,10 @@ void dss_dump_clocks(struct seq_file *s)
 	seq_printf(s, "- DSS -\n");
 
 	fclk_name = dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_FCK);
-	fclk_real_name = dss_feat_get_clk_source_name(OMAP_DSS_CLK_SRC_FCK);
 	fclk_rate = clk_get_rate(dss.dss_clk);
 
-	seq_printf(s, "%s (%s) = %lu\n",
-			fclk_name, fclk_real_name,
+	seq_printf(s, "%s = %lu\n",
+			fclk_name,
 			fclk_rate);
 
 	dss_runtime_put();
