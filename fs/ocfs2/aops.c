@@ -2423,13 +2423,11 @@ static int ocfs2_dio_end_io(struct kiocb *iocb,
 	return 0;
 }
 
-static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			       loff_t offset)
+static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file)->i_mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	loff_t end = offset + iter->count;
 	get_block_t *get_block;
 
 	/*
@@ -2440,7 +2438,8 @@ static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		return 0;
 
 	/* Fallback to buffered I/O if we do not support append dio. */
-	if (end > i_size_read(inode) && !ocfs2_supports_append_dio(osb))
+	if (iocb->ki_pos + iter->count > i_size_read(inode) &&
+	    !ocfs2_supports_append_dio(osb))
 		return 0;
 
 	if (iov_iter_rw(iter) == READ)
@@ -2449,7 +2448,7 @@ static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		get_block = ocfs2_dio_get_block;
 
 	return __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev,
-				    iter, offset, get_block,
+				    iter, get_block,
 				    ocfs2_dio_end_io, NULL, 0);
 }
 

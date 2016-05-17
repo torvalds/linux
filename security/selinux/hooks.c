@@ -2761,7 +2761,7 @@ static int selinux_sb_statfs(struct dentry *dentry)
 }
 
 static int selinux_mount(const char *dev_name,
-			 struct path *path,
+			 const struct path *path,
 			 const char *type,
 			 unsigned long flags,
 			 void *data)

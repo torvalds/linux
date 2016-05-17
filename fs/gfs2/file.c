@@ -895,7 +895,10 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 		mark_inode_dirty(inode);
 	}
 
-	return generic_write_sync(file, pos, count);
+	if ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))
+		return vfs_fsync_range(file, pos, pos + count - 1,
+			       (file->f_flags & __O_SYNC) ? 0 : 1);
+	return 0;
 
 out_trans_fail:
 	gfs2_inplace_release(ip);

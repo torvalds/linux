@@ -2687,11 +2687,8 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 out:
 	inode_unlock(inode);
 
-	if (rc > 0) {
-		ssize_t err = generic_write_sync(file, iocb->ki_pos - rc, rc);
-		if (err < 0)
-			rc = err;
-	}
+	if (rc > 0)
+		rc = generic_write_sync(iocb, rc);
 	up_read(&cinode->lock_sem);
 	return rc;
 }
@@ -3854,7 +3851,7 @@ void cifs_oplock_break(struct work_struct *work)
  * Direct IO is not yet supported in the cached mode. 
  */
 static ssize_t
-cifs_direct_io(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
+cifs_direct_io(struct kiocb *iocb, struct iov_iter *iter)
 {
         /*
          * FIXME
