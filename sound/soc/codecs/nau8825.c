@@ -1493,6 +1493,7 @@ static const struct i2c_device_id nau8825_i2c_ids[] = {
 	{ "nau8825", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, nau8825_i2c_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id nau8825_of_ids[] = {
