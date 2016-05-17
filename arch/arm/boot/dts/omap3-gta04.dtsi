@@ -155,6 +155,11 @@
 			};
 		};
 	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&tca6507 0 GPIO_ACTIVE_LOW>;	/* W2CBW003 reset through tca6507 */
+	};
 };
 
 &omap3_pmx_core {
@@ -354,8 +359,8 @@
 		interrupts = <24 IRQ_TYPE_EDGE_FALLING>; /* GPIO_56 */
 	};
 
-	/* leds */
-	tca6507@45 {
+	/* leds + gpios */
+	tca6507: tca6507@45 {
 		compatible = "ti,tca6507";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -446,6 +451,7 @@
 	bus-width = <4>;
 	ti,non-removable;
 	cap-power-off-card;
+	mmc-pwrseq = <&wifi_pwrseq>;
 };
 
 &mmc3 {
