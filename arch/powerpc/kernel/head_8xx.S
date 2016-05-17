@@ -491,7 +491,7 @@ _ENTRY(DTLBMiss_jmp)
 
 4:
 _ENTRY(DTLBMiss_cmp)
-	cmpli	cr0, r11, PAGE_OFFSET@h
+	cmpli	cr0, r11, (PAGE_OFFSET + 0x1800000)@h
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 	bge-	3b
 
@@ -586,7 +586,7 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	BRANCH_UNLESS_KERNEL(3f)
 	rlwinm	r11, r10, 16, 0xfff8
 _ENTRY(FixupDAR_cmp)
-	cmpli	cr7, r11, PAGE_OFFSET@h
+	cmpli	cr7, r11, (PAGE_OFFSET + 0x1800000)@h
 	blt-	cr7, 200f
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 	/* Insert level 1 index */
@@ -823,23 +823,16 @@ initial_mmu:
 	mtspr	SPRN_MD_CTR, r10	/* Set data TLB control */
 #endif
 
-	/* Now map the lower 8 Meg into the TLBs.  For this quick hack,
-	 * we can load the instruction and data TLB registers with the
-	 * same values.
-	 */
+	/* Now map the lower 8 Meg into the ITLB. */
 	lis	r8, KERNELBASE@h	/* Create vaddr for TLB */
 	ori	r8, r8, MI_EVALID	/* Mark it valid */
 	mtspr	SPRN_MI_EPN, r8
-	mtspr	SPRN_MD_EPN, r8
 	li	r8, MI_PS8MEG | (2 << 5)	/* Set 8M byte page, APG 2 */
 	ori	r8, r8, MI_SVALID	/* Make it valid */
 	mtspr	SPRN_MI_TWC, r8
-	li	r8, MI_PS8MEG		/* Set 8M byte page, APG 0 */
-	ori	r8, r8, MI_SVALID	/* Make it valid */
-	mtspr	SPRN_MD_TWC, r8
 	li	r8, MI_BOOTINIT		/* Create RPN for address 0 */
 	mtspr	SPRN_MI_RPN, r8		/* Store TLB entry */
-	mtspr	SPRN_MD_RPN, r8
+
 	lis	r8, MI_APG_INIT@h	/* Set protection modes */
 	ori	r8, r8, MI_APG_INIT@l
 	mtspr	SPRN_MI_AP, r8
@@ -851,9 +844,6 @@ initial_mmu:
 	 * internal registers (among other things).
 	 */
 #ifdef CONFIG_PIN_TLB
-	addi	r10, r10, 0x0100
-	mtspr	SPRN_MD_CTR, r10
-#endif
 	mfspr	r9, 638			/* Get current IMMR */
 	andis.	r9, r9, 0xfff8		/* Get 512 kbytes boundary */
 
@@ -866,32 +856,6 @@ initial_mmu:
 	mr	r8, r9			/* Create paddr for TLB */
 	ori	r8, r8, MI_BOOTINIT|0x2 /* Inhibit cache -- Cort */
 	mtspr	SPRN_MD_RPN, r8
-
-#ifdef CONFIG_PIN_TLB
-	/* Map two more 8M kernel data pages.
-	*/
-	addi	r10, r10, 0x0100
-	mtspr	SPRN_MD_CTR, r10
-
-	lis	r8, KERNELBASE@h	/* Create vaddr for TLB */
-	addis	r8, r8, 0x0080		/* Add 8M */
-	ori	r8, r8, MI_EVALID	/* Mark it valid */
-	mtspr	SPRN_MD_EPN, r8
-	li	r9, MI_PS8MEG		/* Set 8M byte page */
-	ori	r9, r9, MI_SVALID	/* Make it valid */
-	mtspr	SPRN_MD_TWC, r9
-	li	r11, MI_BOOTINIT	/* Create RPN for address 0 */
-	addis	r11, r11, 0x0080	/* Add 8M */
-	mtspr	SPRN_MD_RPN, r11
-
-	addi	r10, r10, 0x0100
-	mtspr	SPRN_MD_CTR, r10
-
-	addis	r8, r8, 0x0080		/* Add 8M */
-	mtspr	SPRN_MD_EPN, r8
-	mtspr	SPRN_MD_TWC, r9
-	addis	r11, r11, 0x0080	/* Add 8M */
-	mtspr	SPRN_MD_RPN, r11
 #endif
 
 	/* Since the cache is enabled according to the information we
