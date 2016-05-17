@@ -267,10 +267,13 @@ static const u32 tonga_mgcg_cgcg_init[] =
 
 static const u32 golden_settings_polaris11_a11[] =
 {
+	mmCB_HW_CONTROL, 0xfffdf3cf, 0x00006208,
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
 	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
+	mmPA_SC_RASTER_CONFIG, 0x3f3fffff, 0x16000012,
+	mmPA_SC_RASTER_CONFIG_1, 0x0000003f, 0x00000000,
 	mmRLC_CGCG_CGLS_CTRL, 0x00000003, 0x0001003c,
 	mmRLC_CGCG_CGLS_CTRL_3D, 0xffffffff, 0x0001003c,
 	mmSQ_CONFIG, 0x07f80000, 0x07180000,
@@ -284,8 +287,6 @@ static const u32 golden_settings_polaris11_a11[] =
 static const u32 polaris11_golden_common_all[] =
 {
 	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
-	mmPA_SC_RASTER_CONFIG, 0xffffffff, 0x16000012,
-	mmPA_SC_RASTER_CONFIG_1, 0xffffffff, 0x00000000,
 	mmGB_ADDR_CONFIG, 0xffffffff, 0x22011002,
 	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
