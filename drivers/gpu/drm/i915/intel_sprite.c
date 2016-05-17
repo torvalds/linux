@@ -80,9 +80,7 @@ static int usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
  */
 void intel_pipe_update_start(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->base.dev;
 	const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
-	enum pipe pipe = crtc->pipe;
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline, min, max, vblank_start;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
@@ -139,8 +137,7 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
 
 	crtc->debug.scanline_start = scanline;
 	crtc->debug.start_vbl_time = ktime_get();
-	crtc->debug.start_vbl_count =
-		dev->driver->get_vblank_counter(dev, pipe);
+	crtc->debug.start_vbl_count = intel_crtc_get_vblank_counter(crtc);
 
 	trace_i915_pipe_update_vblank_evaded(crtc);
 }
@@ -156,10 +153,9 @@ void intel_pipe_update_start(struct intel_crtc *crtc)
  */
 void intel_pipe_update_end(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->base.dev;
 	enum pipe pipe = crtc->pipe;
 	int scanline_end = intel_get_crtc_scanline(crtc);
-	u32 end_vbl_count = dev->driver->get_vblank_counter(dev, pipe);
+	u32 end_vbl_count = intel_crtc_get_vblank_counter(crtc);
 	ktime_t end_vbl_time = ktime_get();
 
 	trace_i915_pipe_update_end(crtc, end_vbl_count, scanline_end);

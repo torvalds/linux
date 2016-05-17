@@ -13413,6 +13413,16 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	return ret;
 }
 
+u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+
+	if (!dev->max_vblank_count)
+		return drm_accurate_vblank_count(&crtc->base);
+
+	return dev->driver->get_vblank_counter(dev, crtc->pipe);
+}
+
 static void intel_atomic_wait_for_vblanks(struct drm_device *dev,
 					  struct drm_i915_private *dev_priv,
 					  unsigned crtc_mask)
