@@ -839,7 +839,6 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	struct inode *ino = lo->plh_inode;
 	struct nfs_server *server = NFS_SERVER(ino);
 	struct nfs4_layoutget *lgp;
-	struct pnfs_layout_segment *lseg;
 	loff_t i_size;
 
 	dprintk("--> %s\n", __func__);
@@ -849,45 +848,30 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	 * store in lseg. If we race with a concurrent seqid morphing
 	 * op, then re-send the LAYOUTGET.
 	 */
-	do {
-		lgp = kzalloc(sizeof(*lgp), gfp_flags);
-		if (lgp == NULL)
-			return NULL;
+	lgp = kzalloc(sizeof(*lgp), gfp_flags);
+	if (lgp == NULL)
+		return ERR_PTR(-ENOMEM);
 
-		i_size = i_size_read(ino);
+	i_size = i_size_read(ino);
 
-		lgp->args.minlength = PAGE_SIZE;
-		if (lgp->args.minlength > range->length)
-			lgp->args.minlength = range->length;
-		if (range->iomode == IOMODE_READ) {
-			if (range->offset >= i_size)
-				lgp->args.minlength = 0;
-			else if (i_size - range->offset < lgp->args.minlength)
-				lgp->args.minlength = i_size - range->offset;
-		}
-		lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
-		pnfs_copy_range(&lgp->args.range, range);
-		lgp->args.type = server->pnfs_curr_ld->id;
-		lgp->args.inode = ino;
-		lgp->args.ctx = get_nfs_open_context(ctx);
-		lgp->gfp_flags = gfp_flags;
-		lgp->cred = lo->plh_lc_cred;
-
-		lseg = nfs4_proc_layoutget(lgp, gfp_flags);
-	} while (lseg == ERR_PTR(-EAGAIN));
-
-	if (IS_ERR(lseg)) {
-		if (!nfs_error_is_fatal(PTR_ERR(lseg))) {
-			pnfs_layout_clear_fail_bit(lo,
-					pnfs_iomode_to_fail_bit(range->iomode));
-			lseg = NULL;
-		}
-	} else {
-		pnfs_layout_clear_fail_bit(lo,
-				pnfs_iomode_to_fail_bit(range->iomode));
+	lgp->args.minlength = PAGE_SIZE;
+	if (lgp->args.minlength > range->length)
+		lgp->args.minlength = range->length;
+	if (range->iomode == IOMODE_READ) {
+		if (range->offset >= i_size)
+			lgp->args.minlength = 0;
+		else if (i_size - range->offset < lgp->args.minlength)
+			lgp->args.minlength = i_size - range->offset;
 	}
+	lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
+	pnfs_copy_range(&lgp->args.range, range);
+	lgp->args.type = server->pnfs_curr_ld->id;
+	lgp->args.inode = ino;
+	lgp->args.ctx = get_nfs_open_context(ctx);
+	lgp->gfp_flags = gfp_flags;
+	lgp->cred = lo->plh_lc_cred;
 
-	return lseg;
+	return nfs4_proc_layoutget(lgp, gfp_flags);
 }
 
 static void pnfs_clear_layoutcommit(struct inode *inode,
@@ -1649,6 +1633,22 @@ lookup_again:
 		arg.length = PAGE_ALIGN(arg.length);
 
 	lseg = send_layoutget(lo, ctx, &arg, gfp_flags);
+	if (IS_ERR(lseg)) {
+		if (lseg == ERR_PTR(-EAGAIN)) {
+			if (first)
+				pnfs_clear_first_layoutget(lo);
+			pnfs_put_layout_hdr(lo);
+			goto lookup_again;
+		}
+
+		if (!nfs_error_is_fatal(PTR_ERR(lseg))) {
+			pnfs_layout_clear_fail_bit(lo, pnfs_iomode_to_fail_bit(iomode));
+			lseg = NULL;
+		}
+	} else {
+		pnfs_layout_clear_fail_bit(lo, pnfs_iomode_to_fail_bit(iomode));
+	}
+
 	atomic_dec(&lo->plh_outstanding);
 	trace_pnfs_update_layout(ino, pos, count, iomode, lo,
 				 PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET);
