@@ -168,16 +168,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	acpi=		[HW,ACPI,X86,ARM64]
 			Advanced Configuration and Power Interface
-			Format: { force | off | strict | noirq | rsdt |
+			Format: { force | on | off | strict | noirq | rsdt |
 				  copy_dsdt }
 			force -- enable ACPI if default was off
+			on -- enable ACPI but allow fallback to DT [arm64]
 			off -- disable ACPI if default was on
 			noirq -- do not use ACPI for IRQ routing
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT
 			copy_dsdt -- copy DSDT to memory
-			For ARM64, ONLY "acpi=off" or "acpi=force" are available
+			For ARM64, ONLY "acpi=off", "acpi=on" or "acpi=force"
+			are available
 
 			See also Documentation/power/runtime_pm.txt, pci=noacpi
 

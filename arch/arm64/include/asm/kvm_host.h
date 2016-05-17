@@ -46,6 +46,8 @@
 int __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
 int kvm_arch_dev_ioctl_check_extension(long ext);
+unsigned long kvm_hyp_reset_entry(void);
+void __extended_idmap_trampoline(phys_addr_t boot_pgd, phys_addr_t idmap_start);
 
 struct kvm_arch {
 	/* The VMID generation used for the virt. memory system */
@@ -352,7 +354,17 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 		       hyp_stack_ptr, vector_ptr);
 }
 
-static inline void kvm_arch_hardware_disable(void) {}
+static inline void __cpu_reset_hyp_mode(phys_addr_t boot_pgd_ptr,
+					phys_addr_t phys_idmap_start)
+{
+	/*
+	 * Call reset code, and switch back to stub hyp vectors.
+	 * Uses __kvm_call_hyp() to avoid kaslr's kvm_ksym_ref() translation.
+	 */
+	__kvm_call_hyp((void *)kvm_hyp_reset_entry(),
+		       boot_pgd_ptr, phys_idmap_start);
+}
+
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
