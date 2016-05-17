@@ -660,6 +660,9 @@ void gb_connection_destroy(struct gb_connection *connection)
 	if (!connection)
 		return;
 
+	if (WARN_ON(connection->state != GB_CONNECTION_STATE_DISABLED))
+		gb_connection_disable(connection);
+
 	mutex_lock(&gb_connection_mutex);
 
 	spin_lock_irq(&gb_connections_lock);
