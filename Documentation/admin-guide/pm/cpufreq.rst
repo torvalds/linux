@@ -587,6 +587,64 @@ This governor exposes the following tunables:
 	It effectively causes the frequency to go down ``sampling_down_factor``
 	times slower than it ramps up.
 
+``interactive``
+----------------
+
+The CPUfreq governor `interactive` is designed for latency-sensitive,
+interactive workloads. This governor sets the CPU speed depending on
+usage, similar to `ondemand` and `conservative` governors, but with a
+different set of configurable behaviors.
+
+The tunable values for this governor are:
+
+``above_hispeed_delay``
+        When speed is at or above hispeed_freq, wait for
+        this long before raising speed in response to continued high load.
+        The format is a single delay value, optionally followed by pairs of
+        CPU speeds and the delay to use at or above those speeds.  Colons can
+        be used between the speeds and associated delays for readability.  For
+        example:
+
+           80000 1300000:200000 1500000:40000
+
+        uses delay 80000 uS until CPU speed 1.3 GHz, at which speed delay
+        200000 uS is used until speed 1.5 GHz, at which speed (and above)
+        delay 40000 uS is used.  If speeds are specified these must appear in
+        ascending order.  Default is 20000 uS.
+
+``boost``
+        If non-zero, immediately boost speed of all CPUs to at least
+        hispeed_freq until zero is written to this attribute.  If zero, allow
+        CPU speeds to drop below hispeed_freq according to load as usual.
+        Default is zero.
+
+``boostpulse``
+        On each write, immediately boost speed of all CPUs to
+        hispeed_freq for at least the period of time specified by
+        boostpulse_duration, after which speeds are allowed to drop below
+        hispeed_freq according to load as usual. Its a write-only file.
+
+``boostpulse_duration``
+        Length of time to hold CPU speed at hispeed_freq
+        on a write to boostpulse, before allowing speed to drop according to
+        load as usual.  Default is 80000 uS.
+
+``go_hispeed_load``
+        The CPU load at which to ramp to hispeed_freq.
+        Default is 99%.
+
+``hispeed_freq``
+        An intermediate "high speed" at which to initially ramp
+        when CPU load hits the value specified in go_hispeed_load.  If load
+        stays high for the amount of time specified in above_hispeed_delay,
+        then speed may be bumped higher.  Default is the maximum speed allowed
+        by the policy at governor initialization time.
+
+``io_is_busy``
+        If set, the governor accounts IO time as CPU busy time.
+
+``min_sample_time``
+        The minimum amount of time to spend at the current
 
 Frequency Boost Support
 =======================
