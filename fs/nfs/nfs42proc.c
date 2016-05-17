@@ -337,7 +337,7 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 			 * with the current stateid.
 			 */
 			set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
-			pnfs_mark_matching_lsegs_invalid(lo, &head, NULL);
+			pnfs_mark_matching_lsegs_invalid(lo, &head, NULL, 0);
 			spin_unlock(&inode->i_lock);
 			pnfs_free_lseg_list(&head);
 		} else

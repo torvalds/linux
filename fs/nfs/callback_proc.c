@@ -217,7 +217,8 @@ static u32 initiate_file_draining(struct nfs_client *clp,
 	}
 
 	if (pnfs_mark_matching_lsegs_return(lo, &free_me_list,
-					&args->cbl_range)) {
+				&args->cbl_range,
+				be32_to_cpu(args->cbl_stateid.seqid))) {
 		rv = NFS4_OK;
 		goto unlock;
 	}
