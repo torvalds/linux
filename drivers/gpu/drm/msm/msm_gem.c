@@ -448,6 +448,38 @@ int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv)
 	return (msm_obj->madv != __MSM_MADV_PURGED);
 }
 
+void msm_gem_purge(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!is_purgeable(msm_obj));
+	WARN_ON(obj->import_attach);
+
+	put_iova(obj);
+
+	vunmap(msm_obj->vaddr);
+	msm_obj->vaddr = NULL;
+
+	put_pages(obj);
+
+	msm_obj->madv = __MSM_MADV_PURGED;
+
+	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_gem_free_mmap_offset(obj);
+
+	/* Our goal here is to return as much of the memory as
+	 * is possible back to the system as we are called from OOM.
+	 * To do this we must instruct the shmfs to drop all of its
+	 * backing pages, *now*.
+	 */
+	shmem_truncate_range(file_inode(obj->filp), 0, (loff_t)-1);
+
+	invalidate_mapping_pages(file_inode(obj->filp)->i_mapping,
+			0, (loff_t)-1);
+}
+
 /* must be called before _move_to_active().. */
 int msm_gem_sync_object(struct drm_gem_object *obj,
 		struct msm_fence_context *fctx, bool exclusive)

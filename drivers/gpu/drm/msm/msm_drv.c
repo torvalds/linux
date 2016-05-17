@@ -195,6 +195,8 @@ static int msm_drm_uninit(struct device *dev)
 		kfree(vbl_ev);
 	}
 
+	msm_gem_shrinker_cleanup(ddev);
+
 	drm_kms_helper_poll_fini(ddev);
 
 	drm_dev_unregister(ddev);
@@ -350,6 +352,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	}
 
 	ddev->dev_private = priv;
+	priv->dev = ddev;
 
 	ret = msm_mdss_init(ddev);
 	if (ret) {
@@ -381,6 +384,8 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	ret = msm_init_vram(ddev);
 	if (ret)
 		goto fail;
+
+	msm_gem_shrinker_init(ddev);
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:

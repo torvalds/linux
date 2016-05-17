@@ -46,6 +46,7 @@ msm-y := \
 	msm_fence.o \
 	msm_gem.o \
 	msm_gem_prime.o \
+	msm_gem_shrinker.o \
 	msm_gem_submit.o \
 	msm_gpu.o \
 	msm_iommu.o \

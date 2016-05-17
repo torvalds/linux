@@ -78,6 +78,8 @@ struct msm_vblank_ctrl {
 
 struct msm_drm_private {
 
+	struct drm_device *dev;
+
 	struct msm_kms *kms;
 
 	/* subordinate devices, if present: */
@@ -151,6 +153,8 @@ struct msm_drm_private {
 		struct drm_mm mm;
 	} vram;
 
+	struct shrinker shrinker;
+
 	struct msm_vblank_ctrl vblank_ctrl;
 };
 
@@ -168,6 +172,9 @@ int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 void msm_gem_submit_free(struct msm_gem_submit *submit);
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file);
+
+void msm_gem_shrinker_init(struct drm_device *dev);
+void msm_gem_shrinker_cleanup(struct drm_device *dev);
 
 int msm_gem_mmap_obj(struct drm_gem_object *obj,
 			struct vm_area_struct *vma);
@@ -196,6 +203,7 @@ void msm_gem_prime_unpin(struct drm_gem_object *obj);
 void *msm_gem_vaddr_locked(struct drm_gem_object *obj);
 void *msm_gem_vaddr(struct drm_gem_object *obj);
 int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv);
+void msm_gem_purge(struct drm_gem_object *obj);
 int msm_gem_sync_object(struct drm_gem_object *obj,
 		struct msm_fence_context *fctx, bool exclusive);
 void msm_gem_move_to_active(struct drm_gem_object *obj,
