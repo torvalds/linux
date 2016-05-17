@@ -102,7 +102,7 @@ static int hdmi_pll_enable(struct dss_pll *dsspll)
 {
 	struct hdmi_pll_data *pll = container_of(dsspll, struct hdmi_pll_data, pll);
 	struct hdmi_wp_data *wp = pll->wp;
-	u16 r = 0;
+	int r;
 
 	dss_ctrl_pll_enable(DSS_PLL_HDMI, true);
 
