@@ -191,4 +191,5 @@ nfs4_ff_find_or_create_ds_client(struct pnfs_layout_segment *lseg,
 struct rpc_cred *ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg,
 				       u32 ds_idx, struct rpc_cred *mdscred);
 bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg);
+bool ff_layout_avoid_mds_available_ds(struct pnfs_layout_segment *lseg);
 #endif /* FS_NFS_NFS4FLEXFILELAYOUT_H */
