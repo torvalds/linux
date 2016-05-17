@@ -205,7 +205,7 @@ static int apb_poweroff(struct device *dev, void *data)
 	return 0;
 }
 
-static void assert_wakedetect(struct arche_platform_drvdata *arche_pdata)
+static void arche_platform_wd_irq_en(struct arche_platform_drvdata *arche_pdata)
 {
 	/* Enable interrupt here, to read event back from SVC */
 	gpio_direction_input(arche_pdata->wake_detect_gpio);
@@ -406,7 +406,7 @@ static ssize_t state_store(struct device *dev,
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_ACTIVE)
 			goto exit;
 
-		assert_wakedetect(arche_pdata);
+		arche_platform_wd_irq_en(arche_pdata);
 		ret = arche_platform_coldboot_seq(arche_pdata);
 
 	} else if (sysfs_streq(buf, "standby")) {
@@ -479,7 +479,7 @@ static int arche_platform_pm_notifier(struct notifier_block *notifier,
 		arche_platform_poweroff_seq(arche_pdata);
 		break;
 	case PM_POST_SUSPEND:
-		assert_wakedetect(arche_pdata);
+		arche_platform_wd_irq_en(arche_pdata);
 		arche_platform_coldboot_seq(arche_pdata);
 		break;
 	default:
@@ -603,7 +603,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	assert_wakedetect(arche_pdata);
+	arche_platform_wd_irq_en(arche_pdata);
 
 	ret = device_create_file(dev, &dev_attr_state);
 	if (ret) {
