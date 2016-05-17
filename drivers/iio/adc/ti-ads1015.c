@@ -110,6 +110,7 @@ static const struct {
 		.shift = 4,					\
 		.endianness = IIO_CPU,				\
 	},							\
+	.datasheet_name = "AIN"#_chan,				\
 }
 
 #define ADS1015_V_DIFF_CHAN(_chan, _chan2, _addr) {		\
@@ -130,6 +131,7 @@ static const struct {
 		.shift = 4,					\
 		.endianness = IIO_CPU,				\
 	},							\
+	.datasheet_name = "AIN"#_chan"-AIN"#_chan2,		\
 }
 
 #define ADS1115_V_CHAN(_chan, _addr) {				\
@@ -147,6 +149,7 @@ static const struct {
 		.storagebits = 16,				\
 		.endianness = IIO_CPU,				\
 	},							\
+	.datasheet_name = "AIN"#_chan,				\
 }
 
 #define ADS1115_V_DIFF_CHAN(_chan, _chan2, _addr) {		\
@@ -166,6 +169,7 @@ static const struct {
 		.storagebits = 16,				\
 		.endianness = IIO_CPU,				\
 	},							\
+	.datasheet_name = "AIN"#_chan"-AIN"#_chan2,		\
 }
 
 struct ads1015_data {
