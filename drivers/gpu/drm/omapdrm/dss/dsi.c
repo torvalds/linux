@@ -1484,7 +1484,7 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct dss_pll_clock_info *cinfo = &dsi->pll.cinfo;
-	enum omap_dss_clk_source dispc_clk_src, dsi_clk_src;
+	enum dss_clk_source dispc_clk_src, dsi_clk_src;
 	int dsi_module = dsi->module_id;
 	struct dss_pll *pll = &dsi->pll;
 

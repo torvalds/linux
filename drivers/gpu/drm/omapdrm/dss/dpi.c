@@ -123,7 +123,7 @@ static struct dss_pll *dpi_get_pll(enum omap_channel channel)
 	}
 }
 
-static enum omap_dss_clk_source dpi_get_alt_clk_src(enum omap_channel channel)
+static enum dss_clk_source dpi_get_alt_clk_src(enum omap_channel channel)
 {
 	switch (channel) {
 	case OMAP_DSS_CHANNEL_LCD:

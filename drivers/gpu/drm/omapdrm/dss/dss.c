@@ -91,9 +91,9 @@ static struct {
 	unsigned long	cache_prate;
 	struct dispc_clock_info cache_dispc_cinfo;
 
-	enum omap_dss_clk_source dsi_clk_source[MAX_NUM_DSI];
-	enum omap_dss_clk_source dispc_clk_source;
-	enum omap_dss_clk_source lcd_clk_source[MAX_DSS_LCD_MANAGERS];
+	enum dss_clk_source dsi_clk_source[MAX_NUM_DSI];
+	enum dss_clk_source dispc_clk_source;
+	enum dss_clk_source lcd_clk_source[MAX_DSS_LCD_MANAGERS];
 
 	bool		ctx_valid;
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
@@ -353,7 +353,7 @@ void dss_sdi_disable(void)
 	REG_FLD_MOD(DSS_PLL_CONTROL, 0, 18, 18); /* SDI_PLL_SYSRESET */
 }
 
-const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src)
+const char *dss_get_generic_clk_source_name(enum dss_clk_source clk_src)
 {
 	return dss_generic_clk_source_names[clk_src];
 }
@@ -402,7 +402,7 @@ static void dss_dump_regs(struct seq_file *s)
 #undef DUMPREG
 }
 
-static void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
+static void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 {
 	int b;
 	u8 start, end;
@@ -430,7 +430,7 @@ static void dss_select_dispc_clk_source(enum omap_dss_clk_source clk_src)
 }
 
 void dss_select_dsi_clk_source(int dsi_module,
-		enum omap_dss_clk_source clk_src)
+		enum dss_clk_source clk_src)
 {
 	int b, pos;
 
@@ -458,7 +458,7 @@ void dss_select_dsi_clk_source(int dsi_module,
 }
 
 void dss_select_lcd_clk_source(enum omap_channel channel,
-		enum omap_dss_clk_source clk_src)
+		enum dss_clk_source clk_src)
 {
 	int b, ix, pos;
 
@@ -494,17 +494,17 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 	dss.lcd_clk_source[ix] = clk_src;
 }
 
-enum omap_dss_clk_source dss_get_dispc_clk_source(void)
+enum dss_clk_source dss_get_dispc_clk_source(void)
 {
 	return dss.dispc_clk_source;
 }
 
-enum omap_dss_clk_source dss_get_dsi_clk_source(int dsi_module)
+enum dss_clk_source dss_get_dsi_clk_source(int dsi_module)
 {
 	return dss.dsi_clk_source[dsi_module];
 }
 
-enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
+enum dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel)
 {
 	if (dss_has_feature(FEAT_LCD_CLK_SRC)) {
 		int ix = channel == OMAP_DSS_CHANNEL_LCD ? 0 :

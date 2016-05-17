@@ -3426,7 +3426,7 @@ static unsigned long dispc_plane_lclk_rate(enum omap_plane plane)
 static void dispc_dump_clocks_channel(struct seq_file *s, enum omap_channel channel)
 {
 	int lcd, pcd;
-	enum omap_dss_clk_source lcd_clk_src;
+	enum dss_clk_source lcd_clk_src;
 
 	seq_printf(s, "- %s -\n", mgr_desc[channel].name);
 
@@ -3448,7 +3448,7 @@ void dispc_dump_clocks(struct seq_file *s)
 {
 	int lcd;
 	u32 l;
-	enum omap_dss_clk_source dispc_clk_src = dss_get_dispc_clk_source();
+	enum dss_clk_source dispc_clk_src = dss_get_dispc_clk_source();
 
 	if (dispc_runtime_get())
 		return;

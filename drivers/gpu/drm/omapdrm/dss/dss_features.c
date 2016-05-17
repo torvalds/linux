@@ -859,7 +859,7 @@ bool dss_feat_color_mode_supported(enum omap_plane plane,
 			color_mode;
 }
 
-const char *dss_feat_get_clk_source_name(enum omap_dss_clk_source id)
+const char *dss_feat_get_clk_source_name(enum dss_clk_source id)
 {
 	return omap_current_dss_features->clksrc_names[id];
 }
