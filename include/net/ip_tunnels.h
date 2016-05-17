@@ -7,12 +7,15 @@
 #include <linux/socket.h>
 #include <linux/types.h>
 #include <linux/u64_stats_sync.h>
+#include <linux/bitops.h>
+
 #include <net/dsfield.h>
 #include <net/gro_cells.h>
 #include <net/inet_ecn.h>
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/lwtunnel.h>
+#include <net/dst_cache.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
@@ -47,6 +50,7 @@ struct ip_tunnel_key {
 	__be16			tun_flags;
 	u8			tos;		/* TOS for IPv4, TC for IPv6 */
 	u8			ttl;		/* TTL for IPv4, HL for IPv6 */
+	__be32			label;		/* Flow Label for IPv6 */
 	__be16			tp_src;
 	__be16			tp_dst;
 };
@@ -55,8 +59,16 @@ struct ip_tunnel_key {
 #define IP_TUNNEL_INFO_TX	0x01	/* represents tx tunnel parameters */
 #define IP_TUNNEL_INFO_IPV6	0x02	/* key contains IPv6 addresses */
 
+/* Maximum tunnel options length. */
+#define IP_TUNNEL_OPTS_MAX					\
+	GENMASK((FIELD_SIZEOF(struct ip_tunnel_info,		\
+			      options_len) * BITS_PER_BYTE) - 1, 0)
+
 struct ip_tunnel_info {
 	struct ip_tunnel_key	key;
+#ifdef CONFIG_DST_CACHE
+	struct dst_cache	dst_cache;
+#endif
 	u8			options_len;
 	u8			mode;
 };
@@ -85,11 +97,6 @@ struct ip_tunnel_prl_entry {
 	struct rcu_head			rcu_head;
 };
 
-struct ip_tunnel_dst {
-	struct dst_entry __rcu 		*dst;
-	__be32				 saddr;
-};
-
 struct metadata_dst;
 
 struct ip_tunnel {
@@ -108,7 +115,7 @@ struct ip_tunnel {
 	int		tun_hlen;	/* Precalculated header length */
 	int		mlink;
 
-	struct ip_tunnel_dst __percpu *dst_cache;
+	struct dst_cache dst_cache;
 
 	struct ip_tunnel_parm parms;
 
@@ -141,6 +148,7 @@ struct ip_tunnel {
 #define TUNNEL_CRIT_OPT		__cpu_to_be16(0x0400)
 #define TUNNEL_GENEVE_OPT	__cpu_to_be16(0x0800)
 #define TUNNEL_VXLAN_OPT	__cpu_to_be16(0x1000)
+#define TUNNEL_NOCACHE		__cpu_to_be16(0x2000)
 
 #define TUNNEL_OPTIONS_PRESENT	(TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT)
 
@@ -181,7 +189,7 @@ int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
 
 static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 				      __be32 saddr, __be32 daddr,
-				      u8 tos, u8 ttl,
+				      u8 tos, u8 ttl, __be32 label,
 				      __be16 tp_src, __be16 tp_dst,
 				      __be64 tun_id, __be16 tun_flags)
 {
@@ -192,6 +200,7 @@ static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 	       0, IP_TUNNEL_KEY_IPV4_PAD_LEN);
 	key->tos = tos;
 	key->ttl = ttl;
+	key->label = label;
 	key->tun_flags = tun_flags;
 
 	/* For the tunnel types on the top of IPsec, the tp_src and tp_dst of
@@ -205,6 +214,20 @@ static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 	if (sizeof(*key) != IP_TUNNEL_KEY_SIZE)
 		memset((unsigned char *)key + IP_TUNNEL_KEY_SIZE,
 		       0, sizeof(*key) - IP_TUNNEL_KEY_SIZE);
+}
+
+static inline bool
+ip_tunnel_dst_cache_usable(const struct sk_buff *skb,
+			   const struct ip_tunnel_info *info)
+{
+	if (skb->mark)
+		return false;
+	if (!info)
+		return true;
+	if (info->key.tun_flags & TUNNEL_NOCACHE)
+		return false;
+
+	return true;
 }
 
 static inline unsigned short ip_tunnel_info_af(const struct ip_tunnel_info
@@ -248,7 +271,6 @@ int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		      struct ip_tunnel_parm *p);
 void ip_tunnel_setup(struct net_device *dev, int net_id);
-void ip_tunnel_dst_reset_all(struct ip_tunnel *t);
 int ip_tunnel_encap_setup(struct ip_tunnel *t,
 			  struct ip_tunnel_encap *ipencap);
 
@@ -273,15 +295,31 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 	return INET_ECN_encapsulate(tos, inner);
 }
 
-int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
+int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto,
+			 bool xnet);
 void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, u8 proto,
 		   u8 tos, u8 ttl, __be16 df, bool xnet);
 struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 					     gfp_t flags);
 
-struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
-					 int gso_type_mask);
+struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, int gso_type_mask);
+
+static inline int iptunnel_pull_offloads(struct sk_buff *skb)
+{
+	if (skb_is_gso(skb)) {
+		int err;
+
+		err = skb_unclone(skb, GFP_ATOMIC);
+		if (unlikely(err))
+			return err;
+		skb_shinfo(skb)->gso_type &= ~(NETIF_F_GSO_ENCAP_ALL >>
+					       NETIF_F_GSO_SHIFT);
+	}
+
+	skb->encapsulation = 0;
+	return 0;
+}
 
 static inline void iptunnel_xmit_stats(struct net_device *dev, int pkt_len)
 {
@@ -354,6 +392,17 @@ static inline void ip_tunnel_need_metadata(void)
 
 static inline void ip_tunnel_unneed_metadata(void)
 {
+}
+
+static inline void ip_tunnel_info_opts_get(void *to,
+					   const struct ip_tunnel_info *info)
+{
+}
+
+static inline void ip_tunnel_info_opts_set(struct ip_tunnel_info *info,
+					   const void *from, int len)
+{
+	info->options_len = 0;
 }
 
 #endif /* CONFIG_INET */

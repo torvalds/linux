@@ -45,9 +45,6 @@ struct reset_control {
 static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
 			  const struct of_phandle_args *reset_spec)
 {
-	if (WARN_ON(reset_spec->args_count != rcdev->of_reset_n_cells))
-		return -EINVAL;
-
 	if (reset_spec->args[0] >= rcdev->nr_resets)
 		return -EINVAL;
 
@@ -152,7 +149,7 @@ EXPORT_SYMBOL_GPL(reset_control_status);
 struct reset_control *of_reset_control_get_by_index(struct device_node *node,
 					   int index)
 {
-	struct reset_control *rstc = ERR_PTR(-EPROBE_DEFER);
+	struct reset_control *rstc;
 	struct reset_controller_dev *r, *rcdev;
 	struct of_phandle_args args;
 	int rstc_id;
@@ -176,6 +173,11 @@ struct reset_control *of_reset_control_get_by_index(struct device_node *node,
 	if (!rcdev) {
 		mutex_unlock(&reset_controller_list_mutex);
 		return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	if (WARN_ON(args.args_count != rcdev->of_reset_n_cells)) {
+		mutex_unlock(&reset_controller_list_mutex);
+		return ERR_PTR(-EINVAL);
 	}
 
 	rstc_id = rcdev->of_xlate(rcdev, &args);

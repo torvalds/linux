@@ -16,10 +16,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include <linux/kernel.h>
@@ -1192,7 +1188,8 @@ static void do_handle_latin(struct vc_data *vc, u_char value, char up_flag)
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (up_flag) {
-		spk_lastkey = spk_keydown = 0;
+		spk_lastkey = 0;
+		spk_keydown = 0;
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		return;
 	}
@@ -1666,7 +1663,8 @@ static void cursor_done(u_long data)
 	if (win_enabled) {
 		if (vc->vc_x >= win_left && vc->vc_x <= win_right &&
 		    vc->vc_y >= win_top && vc->vc_y <= win_bottom) {
-			spk_keydown = is_cursor = 0;
+			spk_keydown = 0;
+			is_cursor = 0;
 			goto out;
 		}
 	}
@@ -1676,7 +1674,8 @@ static void cursor_done(u_long data)
 	}
 	if (cursor_track == CT_Highlight) {
 		if (speak_highlight(vc)) {
-			spk_keydown = is_cursor = 0;
+			spk_keydown = 0;
+			is_cursor = 0;
 			goto out;
 		}
 	}
@@ -1686,7 +1685,8 @@ static void cursor_done(u_long data)
 		say_line_from_to(vc, 0, vc->vc_cols, 0);
 	else
 		say_char(vc);
-	spk_keydown = is_cursor = 0;
+	spk_keydown = 0;
+	is_cursor = 0;
 out:
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
@@ -1866,8 +1866,10 @@ static void speakup_win_set(struct vc_data *vc)
 
 static void speakup_win_clear(struct vc_data *vc)
 {
-	win_top = win_bottom = 0;
-	win_left = win_right = 0;
+	win_top = 0;
+	win_bottom = 0;
+	win_left = 0;
+	win_right = 0;
 	win_start = 0;
 	synth_printf("%s\n", spk_msg_get(MSG_WINDOW_CLEARED));
 }
@@ -2002,10 +2004,13 @@ static u_char key_speakup, spk_key_locked;
 
 static void speakup_lock(struct vc_data *vc)
 {
-	if (!spk_key_locked)
-		spk_key_locked = key_speakup = 16;
-	else
-		spk_key_locked = key_speakup = 0;
+	if (!spk_key_locked) {
+		spk_key_locked = 16;
+		key_speakup = 16;
+	} else {
+		spk_key_locked = 0;
+		key_speakup = 0;
+	}
 }
 
 typedef void (*spkup_hand) (struct vc_data *);
@@ -2269,7 +2274,7 @@ static void __exit speakup_exit(void)
 	unregister_vt_notifier(&vt_notifier_block);
 	speakup_unregister_devsynth();
 	speakup_cancel_paste();
-	del_timer(&cursor_timer);
+	del_timer_sync(&cursor_timer);
 	kthread_stop(speakup_task);
 	speakup_task = NULL;
 	mutex_lock(&spk_mutex);

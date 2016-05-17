@@ -443,15 +443,13 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 	brd->PrintDriver.termios = NULL;
 }
 
-/*=======================================================================
- *
+/*
  *	dgnc_wmove - Write data to transmit queue.
  *
  *		ch	- Pointer to channel structure.
  *		buf	- Pointer to characters to be moved.
  *		n	- Number of characters to move.
- *
- *=======================================================================*/
+ */
 static void dgnc_wmove(struct channel_t *ch, char *buf, uint n)
 {
 	int	remain;
@@ -489,13 +487,11 @@ static void dgnc_wmove(struct channel_t *ch, char *buf, uint n)
 	ch->ch_w_head = head;
 }
 
-/*=======================================================================
- *
+/*
  *      dgnc_input - Process received data.
  *
  *	      ch      - Pointer to channel structure.
- *
- *=======================================================================*/
+ */
 void dgnc_input(struct channel_t *ch)
 {
 	struct dgnc_board *bd;
@@ -796,7 +792,7 @@ static void dgnc_set_custom_speed(struct channel_t *ch, uint newrate)
 	 *  And of course, rates above the dividend won't fly.
 	 */
 	if (newrate && newrate < ((ch->ch_bd->bd_dividend / 0xFFFF) + 1))
-		newrate = ((ch->ch_bd->bd_dividend / 0xFFFF) + 1);
+		newrate = (ch->ch_bd->bd_dividend / 0xFFFF) + 1;
 
 	if (newrate && newrate > ch->ch_bd->bd_dividend)
 		newrate = ch->ch_bd->bd_dividend;
@@ -1786,8 +1782,8 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	}
 
 	/* Update printer buffer empty time. */
-	if ((un->un_type == DGNC_PRINT) && (ch->ch_digi.digi_maxcps > 0)
-	    && (ch->ch_digi.digi_bufsize > 0)) {
+	if ((un->un_type == DGNC_PRINT) && (ch->ch_digi.digi_maxcps > 0) &&
+	    (ch->ch_digi.digi_bufsize > 0)) {
 		ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
 	}
 
@@ -1834,7 +1830,7 @@ static int dgnc_tty_tiocmget(struct tty_struct *tty)
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
-	mstat = (ch->ch_mostat | ch->ch_mistat);
+	mstat = ch->ch_mostat | ch->ch_mistat;
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
@@ -2034,7 +2030,7 @@ static inline int dgnc_get_mstat(struct channel_t *ch)
 
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
-	mstat = (ch->ch_mostat | ch->ch_mistat);
+	mstat = ch->ch_mostat | ch->ch_mistat;
 
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
@@ -2506,12 +2502,12 @@ static void dgnc_tty_flush_buffer(struct tty_struct *tty)
 	/* Flush UARTs transmit FIFO */
 	ch->ch_bd->bd_ops->flush_uart_write(ch);
 
-	if (ch->ch_tun.un_flags & (UN_LOW|UN_EMPTY)) {
-		ch->ch_tun.un_flags &= ~(UN_LOW|UN_EMPTY);
+	if (ch->ch_tun.un_flags & (UN_LOW | UN_EMPTY)) {
+		ch->ch_tun.un_flags &= ~(UN_LOW | UN_EMPTY);
 		wake_up_interruptible(&ch->ch_tun.un_flags_wait);
 	}
-	if (ch->ch_pun.un_flags & (UN_LOW|UN_EMPTY)) {
-		ch->ch_pun.un_flags &= ~(UN_LOW|UN_EMPTY);
+	if (ch->ch_pun.un_flags & (UN_LOW | UN_EMPTY)) {
+		ch->ch_pun.un_flags &= ~(UN_LOW | UN_EMPTY);
 		wake_up_interruptible(&ch->ch_pun.un_flags_wait);
 	}
 
@@ -2705,13 +2701,13 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 				if (ch->ch_tun.un_flags & (UN_LOW|UN_EMPTY)) {
 					ch->ch_tun.un_flags &=
-						~(UN_LOW|UN_EMPTY);
+						~(UN_LOW | UN_EMPTY);
 					wake_up_interruptible(&ch->ch_tun.un_flags_wait);
 				}
 
 				if (ch->ch_pun.un_flags & (UN_LOW|UN_EMPTY)) {
 					ch->ch_pun.un_flags &=
-						~(UN_LOW|UN_EMPTY);
+						~(UN_LOW | UN_EMPTY);
 					wake_up_interruptible(&ch->ch_pun.un_flags_wait);
 				}
 			}

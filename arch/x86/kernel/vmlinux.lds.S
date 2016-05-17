@@ -81,11 +81,11 @@ PHDRS {
 SECTIONS
 {
 #ifdef CONFIG_X86_32
-        . = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
-        phys_startup_32 = startup_32 - LOAD_OFFSET;
+	. = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
+	phys_startup_32 = ABSOLUTE(startup_32 - LOAD_OFFSET);
 #else
-        . = __START_KERNEL;
-        phys_startup_64 = startup_64 - LOAD_OFFSET;
+	. = __START_KERNEL;
+	phys_startup_64 = ABSOLUTE(startup_64 - LOAD_OFFSET);
 #endif
 
 	/* Text and read-only data */
@@ -101,6 +101,7 @@ SECTIONS
 		KPROBES_TEXT
 		ENTRY_TEXT
 		IRQENTRY_TEXT
+		SOFTIRQENTRY_TEXT
 		*(.fixup)
 		*(.gnu.warning)
 		/* End of text section */
@@ -333,6 +334,7 @@ SECTIONS
 		__brk_limit = .;
 	}
 
+	. = ALIGN(PAGE_SIZE);
 	_end = .;
 
         STABS_DEBUG
@@ -340,7 +342,10 @@ SECTIONS
 
 	/* Sections to be discarded */
 	DISCARDS
-	/DISCARD/ : { *(.eh_frame) }
+	/DISCARD/ : {
+		*(.eh_frame)
+		*(__func_stack_frame_non_standard)
+	}
 }
 
 

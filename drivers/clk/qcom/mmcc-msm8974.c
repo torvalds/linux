@@ -2400,6 +2400,7 @@ static struct gdsc oxilicx_gdsc = {
 	.pd = {
 		.name = "oxilicx",
 	},
+	.parent = &oxili_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
@@ -2615,7 +2616,6 @@ MODULE_DEVICE_TABLE(of, mmcc_msm8974_match_table);
 static int mmcc_msm8974_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
-	int ret;
 
 	regmap = qcom_cc_map(pdev, &mmcc_msm8974_desc);
 	if (IS_ERR(regmap))
@@ -2624,22 +2624,11 @@ static int mmcc_msm8974_probe(struct platform_device *pdev)
 	clk_pll_configure_sr_hpm_lp(&mmpll1, regmap, &mmpll1_config, true);
 	clk_pll_configure_sr_hpm_lp(&mmpll3, regmap, &mmpll3_config, false);
 
-	ret = qcom_cc_really_probe(pdev, &mmcc_msm8974_desc, regmap);
-	if (ret)
-		return ret;
-
-	return pm_genpd_add_subdomain(&oxili_gdsc.pd, &oxilicx_gdsc.pd);
-}
-
-static int mmcc_msm8974_remove(struct platform_device *pdev)
-{
-	pm_genpd_remove_subdomain(&oxili_gdsc.pd, &oxilicx_gdsc.pd);
-	return 0;
+	return qcom_cc_really_probe(pdev, &mmcc_msm8974_desc, regmap);
 }
 
 static struct platform_driver mmcc_msm8974_driver = {
 	.probe		= mmcc_msm8974_probe,
-	.remove		= mmcc_msm8974_remove,
 	.driver		= {
 		.name	= "mmcc-msm8974",
 		.of_match_table = mmcc_msm8974_match_table,

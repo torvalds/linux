@@ -637,12 +637,12 @@ static unsigned int pci230_divide_ns(uint64_t ns, unsigned int timebase,
 	switch (flags & CMDF_ROUND_MASK) {
 	default:
 	case CMDF_ROUND_NEAREST:
-		div += (rem + (timebase / 2)) / timebase;
+		div += DIV_ROUND_CLOSEST(rem, timebase);
 		break;
 	case CMDF_ROUND_DOWN:
 		break;
 	case CMDF_ROUND_UP:
-		div += (rem + timebase - 1) / timebase;
+		div += DIV_ROUND_UP(rem, timebase);
 		break;
 	}
 	return div > UINT_MAX ? UINT_MAX : (unsigned int)div;

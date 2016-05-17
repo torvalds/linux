@@ -191,6 +191,25 @@ static int wm5110_sysclk_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int wm5110_adsp_power_ev(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	unsigned int v;
+	int ret;
+
+	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &v);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to read SYSCLK state: %d\n", ret);
+		return ret;
+	}
+
+	v = (v & ARIZONA_SYSCLK_FREQ_MASK) >> ARIZONA_SYSCLK_FREQ_SHIFT;
+
+	return wm_adsp2_early_event(w, kcontrol, event, v);
+}
+
 static const struct reg_sequence wm5110_no_dre_left_enable[] = {
 	{ 0x3024, 0xE410 },
 	{ 0x3025, 0x0056 },
@@ -1179,10 +1198,10 @@ SND_SOC_DAPM_PGA("ASRC2L", ARIZONA_ASRC_ENABLE, ARIZONA_ASRC2L_ENA_SHIFT, 0,
 SND_SOC_DAPM_PGA("ASRC2R", ARIZONA_ASRC_ENABLE, ARIZONA_ASRC2R_ENA_SHIFT, 0,
 		 NULL, 0),
 
-WM_ADSP2("DSP1", 0),
-WM_ADSP2("DSP2", 1),
-WM_ADSP2("DSP3", 2),
-WM_ADSP2("DSP4", 3),
+WM_ADSP2("DSP1", 0, wm5110_adsp_power_ev),
+WM_ADSP2("DSP2", 1, wm5110_adsp_power_ev),
+WM_ADSP2("DSP3", 2, wm5110_adsp_power_ev),
+WM_ADSP2("DSP4", 3, wm5110_adsp_power_ev),
 
 SND_SOC_DAPM_PGA("ISRC1INT1", ARIZONA_ISRC_1_CTRL_3,
 		 ARIZONA_ISRC1_INT0_ENA_SHIFT, 0, NULL, 0),
@@ -1809,6 +1828,9 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "Voice Control DSP", NULL, "DSP3" },
 	{ "Voice Control DSP", NULL, "SYSCLK" },
 
+	{ "Audio Trace DSP", NULL, "DSP1" },
+	{ "Audio Trace DSP", NULL, "SYSCLK" },
+
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
 
@@ -2002,7 +2024,7 @@ static int wm5110_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	}
 }
 
-#define WM5110_RATES SNDRV_PCM_RATE_8000_192000
+#define WM5110_RATES SNDRV_PCM_RATE_KNOT
 
 #define WM5110_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
@@ -2152,6 +2174,27 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 			.formats = WM5110_FORMATS,
 		},
 	},
+	{
+		.name = "wm5110-cpu-trace",
+		.capture = {
+			.stream_name = "Audio Trace CPU",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = WM5110_RATES,
+			.formats = WM5110_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "wm5110-dsp-trace",
+		.capture = {
+			.stream_name = "Audio Trace DSP",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = WM5110_RATES,
+			.formats = WM5110_FORMATS,
+		},
+	},
 };
 
 static int wm5110_open(struct snd_compr_stream *stream)
@@ -2163,6 +2206,8 @@ static int wm5110_open(struct snd_compr_stream *stream)
 
 	if (strcmp(rtd->codec_dai->name, "wm5110-dsp-voicectrl") == 0) {
 		n_adsp = 2;
+	} else if (strcmp(rtd->codec_dai->name, "wm5110-dsp-trace") == 0) {
+		n_adsp = 0;
 	} else {
 		dev_err(arizona->dev,
 			"No suitable compressed stream for DAI '%s'\n",
@@ -2175,12 +2220,21 @@ static int wm5110_open(struct snd_compr_stream *stream)
 
 static irqreturn_t wm5110_adsp2_irq(int irq, void *data)
 {
-	struct wm5110_priv *florida = data;
-	int ret;
+	struct wm5110_priv *priv = data;
+	struct arizona *arizona = priv->core.arizona;
+	int serviced = 0;
+	int i, ret;
 
-	ret = wm_adsp_compr_handle_irq(&florida->core.adsp[2]);
-	if (ret == -ENODEV)
+	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
+		ret = wm_adsp_compr_handle_irq(&priv->core.adsp[i]);
+		if (ret != -ENODEV)
+			serviced++;
+	}
+
+	if (!serviced) {
+		dev_err(arizona->dev, "Spurious compressed data IRQ\n");
 		return IRQ_NONE;
+	}
 
 	return IRQ_HANDLED;
 }
@@ -2366,7 +2420,7 @@ static int wm5110_probe(struct platform_device *pdev)
 	ret = snd_soc_register_platform(&pdev->dev, &wm5110_compr_platform);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
-		goto error;
+		return ret;
 	}
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm5110,
@@ -2376,7 +2430,6 @@ static int wm5110_probe(struct platform_device *pdev)
 		snd_soc_unregister_platform(&pdev->dev);
 	}
 
-error:
 	return ret;
 }
 

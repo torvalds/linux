@@ -234,13 +234,19 @@ static s32 e1000_check_for_rst_vf(struct e1000_hw *hw)
 static s32 e1000_obtain_mbx_lock_vf(struct e1000_hw *hw)
 {
 	s32 ret_val = -E1000_ERR_MBX;
+	int count = 10;
 
-	/* Take ownership of the buffer */
-	ew32(V2PMAILBOX(0), E1000_V2PMAILBOX_VFU);
+	do {
+		/* Take ownership of the buffer */
+		ew32(V2PMAILBOX(0), E1000_V2PMAILBOX_VFU);
 
-	/* reserve mailbox for VF use */
-	if (e1000_read_v2p_mailbox(hw) & E1000_V2PMAILBOX_VFU)
-		ret_val = E1000_SUCCESS;
+		/* reserve mailbox for VF use */
+		if (e1000_read_v2p_mailbox(hw) & E1000_V2PMAILBOX_VFU) {
+			ret_val = 0;
+			break;
+		}
+		udelay(1000);
+	} while (count-- > 0);
 
 	return ret_val;
 }

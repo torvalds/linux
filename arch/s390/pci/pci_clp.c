@@ -176,8 +176,7 @@ static int clp_query_pci_fn(struct zpci_dev *zdev, u32 fh)
 		rc = clp_store_query_pci_fn(zdev, &rrb->response);
 		if (rc)
 			goto out;
-		if (rrb->response.pfgid)
-			rc = clp_query_pci_fngrp(zdev, rrb->response.pfgid);
+		rc = clp_query_pci_fngrp(zdev, rrb->response.pfgid);
 	} else {
 		zpci_err("Q PCI FN:\n");
 		zpci_err_clp(rrb->response.hdr.rsp, rc);

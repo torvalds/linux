@@ -1602,8 +1602,7 @@ __init struct attribute **merge_attr(struct attribute **a, struct attribute **b)
 	return new;
 }
 
-ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
-			  char *page)
+ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr, char *page)
 {
 	struct perf_pmu_events_attr *pmu_attr = \
 		container_of(attr, struct perf_pmu_events_attr, attr);
@@ -1615,6 +1614,7 @@ ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 
 	return x86_pmu.events_sysfs_show(page, config);
 }
+EXPORT_SYMBOL_GPL(events_sysfs_show);
 
 EVENT_ATTR(cpu-cycles,			CPU_CYCLES		);
 EVENT_ATTR(instructions,		INSTRUCTIONS		);
@@ -2194,11 +2194,11 @@ static int backtrace_stack(void *data, char *name)
 	return 0;
 }
 
-static void backtrace_address(void *data, unsigned long addr, int reliable)
+static int backtrace_address(void *data, unsigned long addr, int reliable)
 {
 	struct perf_callchain_entry *entry = data;
 
-	perf_callchain_store(entry, addr);
+	return perf_callchain_store(entry, addr);
 }
 
 static const struct stacktrace_ops backtrace_ops = {

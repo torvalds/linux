@@ -29,7 +29,6 @@
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-data.h>
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
@@ -365,31 +364,6 @@ static struct omap_dss_driver td028ttec1_ops = {
 	.check_timings	= td028ttec1_panel_check_timings,
 };
 
-static int td028ttec1_panel_probe_pdata(struct spi_device *spi)
-{
-	const struct panel_tpo_td028ttec1_platform_data *pdata;
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
-	struct omap_dss_device *dssdev, *in;
-
-	pdata = dev_get_platdata(&spi->dev);
-
-	in = omap_dss_find_output(pdata->source);
-	if (in == NULL) {
-		dev_err(&spi->dev, "failed to find video source '%s'\n",
-				pdata->source);
-		return -EPROBE_DEFER;
-	}
-
-	ddata->in = in;
-
-	ddata->data_lines = pdata->data_lines;
-
-	dssdev = &ddata->dssdev;
-	dssdev->name = pdata->name;
-
-	return 0;
-}
-
 static int td028ttec1_probe_of(struct spi_device *spi)
 {
 	struct device_node *node = spi->dev.of_node;
@@ -432,17 +406,12 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 
 	ddata->spi_dev = spi;
 
-	if (dev_get_platdata(&spi->dev)) {
-		r = td028ttec1_panel_probe_pdata(spi);
-		if (r)
-			return r;
-	} else if (spi->dev.of_node) {
-		r = td028ttec1_probe_of(spi);
-		if (r)
-			return r;
-	} else {
+	if (!spi->dev.of_node)
 		return -ENODEV;
-	}
+
+	r = td028ttec1_probe_of(spi);
+	if (r)
+		return r;
 
 	ddata->videomode = td028ttec1_panel_timings;
 

@@ -43,7 +43,7 @@ enum bh_state_bits {
 			 */
 };
 
-#define MAX_BUF_PER_PAGE (PAGE_CACHE_SIZE / 512)
+#define MAX_BUF_PER_PAGE (PAGE_SIZE / 512)
 
 struct page;
 struct buffer_head;
@@ -82,15 +82,15 @@ struct buffer_head {
  * and buffer_foo() functions.
  */
 #define BUFFER_FNS(bit, name)						\
-static inline void set_buffer_##name(struct buffer_head *bh)		\
+static __always_inline void set_buffer_##name(struct buffer_head *bh)	\
 {									\
 	set_bit(BH_##bit, &(bh)->b_state);				\
 }									\
-static inline void clear_buffer_##name(struct buffer_head *bh)		\
+static __always_inline void clear_buffer_##name(struct buffer_head *bh)	\
 {									\
 	clear_bit(BH_##bit, &(bh)->b_state);				\
 }									\
-static inline int buffer_##name(const struct buffer_head *bh)		\
+static __always_inline int buffer_##name(const struct buffer_head *bh)	\
 {									\
 	return test_bit(BH_##bit, &(bh)->b_state);			\
 }
@@ -99,11 +99,11 @@ static inline int buffer_##name(const struct buffer_head *bh)		\
  * test_set_buffer_foo() and test_clear_buffer_foo()
  */
 #define TAS_BUFFER_FNS(bit, name)					\
-static inline int test_set_buffer_##name(struct buffer_head *bh)	\
+static __always_inline int test_set_buffer_##name(struct buffer_head *bh) \
 {									\
 	return test_and_set_bit(BH_##bit, &(bh)->b_state);		\
 }									\
-static inline int test_clear_buffer_##name(struct buffer_head *bh)	\
+static __always_inline int test_clear_buffer_##name(struct buffer_head *bh) \
 {									\
 	return test_and_clear_bit(BH_##bit, &(bh)->b_state);		\
 }									\
@@ -263,7 +263,7 @@ void buffer_init(void);
 static inline void attach_page_buffers(struct page *page,
 		struct buffer_head *head)
 {
-	page_cache_get(page);
+	get_page(page);
 	SetPagePrivate(page);
 	set_page_private(page, (unsigned long)head);
 }

@@ -1,0 +1,3 @@
+* The icn, pcbit and act2000 drivers are dead, remove them in 2017
+  after another longterm kernel has been released, just in the
+  unlikely case someone still has this hardware.

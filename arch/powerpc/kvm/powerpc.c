@@ -96,6 +96,9 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 		 * so we don't miss a request because the requester sees
 		 * OUTSIDE_GUEST_MODE and assumes we'll be checking requests
 		 * before next entering the guest (and thus doesn't IPI).
+		 * This also orders the write to mode from any reads
+		 * to the page tables done while the VCPU is running.
+		 * Please see the comment in kvm_flush_remote_tlbs.
 		 */
 		smp_mb();
 

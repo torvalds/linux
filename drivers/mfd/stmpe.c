@@ -334,6 +334,31 @@ static const struct mfd_cell stmpe_keypad_cell = {
 };
 
 /*
+ * PWM (1601, 2401, 2403)
+ */
+static struct resource stmpe_pwm_resources[] = {
+	{
+		.name	= "PWM0",
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "PWM1",
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "PWM2",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static const struct mfd_cell stmpe_pwm_cell = {
+	.name		= "stmpe-pwm",
+	.of_compatible  = "st,stmpe-pwm",
+	.resources	= stmpe_pwm_resources,
+	.num_resources	= ARRAY_SIZE(stmpe_pwm_resources),
+};
+
+/*
  * STMPE801
  */
 static const u8 stmpe801_regs[] = {
@@ -536,6 +561,11 @@ static struct stmpe_variant_block stmpe1601_blocks[] = {
 		.cell	= &stmpe_keypad_cell,
 		.irq	= STMPE1601_IRQ_KEYPAD,
 		.block	= STMPE_BLOCK_KEYPAD,
+	},
+	{
+		.cell	= &stmpe_pwm_cell,
+		.irq	= STMPE1601_IRQ_PWM0,
+		.block	= STMPE_BLOCK_PWM,
 	},
 };
 
@@ -770,6 +800,11 @@ static struct stmpe_variant_block stmpe24xx_blocks[] = {
 		.cell	= &stmpe_keypad_cell,
 		.irq	= STMPE24XX_IRQ_KEYPAD,
 		.block	= STMPE_BLOCK_KEYPAD,
+	},
+	{
+		.cell	= &stmpe_pwm_cell,
+		.irq	= STMPE24XX_IRQ_PWM0,
+		.block	= STMPE_BLOCK_PWM,
 	},
 };
 

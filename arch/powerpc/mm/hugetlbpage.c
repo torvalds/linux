@@ -107,8 +107,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 		kmem_cache_free(cachep, new);
 	else {
 #ifdef CONFIG_PPC_BOOK3S_64
-		hpdp->pd = (unsigned long)new |
-			    (shift_to_mmu_psize(pshift) << 2);
+		hpdp->pd = __pa(new) | (shift_to_mmu_psize(pshift) << 2);
 #else
 		hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
 #endif
@@ -414,13 +413,13 @@ static void hugepd_free(struct mmu_gather *tlb, void *hugepte)
 {
 	struct hugepd_freelist **batchp;
 
-	batchp = this_cpu_ptr(&hugepd_freelist_cur);
+	batchp = &get_cpu_var(hugepd_freelist_cur);
 
 	if (atomic_read(&tlb->mm->mm_users) < 2 ||
 	    cpumask_equal(mm_cpumask(tlb->mm),
 			  cpumask_of(smp_processor_id()))) {
 		kmem_cache_free(hugepte_cache, hugepte);
-        put_cpu_var(hugepd_freelist_cur);
+		put_cpu_var(hugepd_freelist_cur);
 		return;
 	}
 

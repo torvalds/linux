@@ -651,7 +651,7 @@ static void pmao_restore_workaround(bool ebb)
 
 	/*
 	 * We are already soft-disabled in power_pmu_enable(). We need to hard
-	 * enable to actually prevent the PMU exception from firing.
+	 * disable to actually prevent the PMU exception from firing.
 	 */
 	hard_irq_disable();
 

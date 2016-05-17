@@ -1681,11 +1681,18 @@ static const struct mlxsw_bus mlxsw_pci_bus = {
 
 static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci)
 {
+	unsigned long end;
+
 	mlxsw_pci_write32(mlxsw_pci, SW_RESET, MLXSW_PCI_SW_RESET_RST_BIT);
-	/* Current firware does not let us know when the reset is done.
-	 * So we just wait here for constant time and hope for the best.
-	 */
-	msleep(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
+	wmb(); /* reset needs to be written before we read control register */
+	end = jiffies + msecs_to_jiffies(MLXSW_PCI_SW_RESET_TIMEOUT_MSECS);
+	do {
+		u32 val = mlxsw_pci_read32(mlxsw_pci, FW_READY);
+
+		if ((val & MLXSW_PCI_FW_READY_MASK) == MLXSW_PCI_FW_READY_MAGIC)
+			break;
+		cond_resched();
+	} while (time_before(jiffies, end));
 	return 0;
 }
 

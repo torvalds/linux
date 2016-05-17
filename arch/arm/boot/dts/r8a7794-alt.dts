@@ -103,6 +103,9 @@
 };
 
 &pfc {
+	pinctrl-0 = <&scif_clk_pins>;
+	pinctrl-names = "default";
+
 	du_pins: du {
 		renesas,groups = "du1_rgb666", "du1_sync", "du1_disp", "du1_dotclkout0";
 		renesas,function = "du";
@@ -111,6 +114,11 @@
 	scif2_pins: serial2 {
 		renesas,groups = "scif2_data";
 		renesas,function = "scif2";
+	};
+
+	scif_clk_pins: scif_clk {
+		renesas,groups = "scif_clk";
+		renesas,function = "scif_clk";
 	};
 
 	ether_pins: ether {
@@ -136,6 +144,13 @@
 
 &cmt0 {
 	status = "okay";
+};
+
+&pfc {
+	qspi_pins: spi0 {
+		renesas,groups = "qspi_ctrl", "qspi_data4";
+		renesas,function = "qspi";
+	};
 };
 
 &ether {
@@ -196,4 +211,48 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+};
+
+&scif_clk {
+	clock-frequency = <14745600>;
+	status = "okay";
+};
+
+&qspi {
+	pinctrl-0 = <&qspi_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	flash@0 {
+		compatible = "spansion,s25fl512s", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <30000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-cpol;
+		spi-cpha;
+		m25p,fast-read;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "loader";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+			partition@40000 {
+				label = "system";
+				reg = <0x00040000 0x00040000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "user";
+				reg = <0x00080000 0x03f80000>;
+			};
+		};
+	};
 };

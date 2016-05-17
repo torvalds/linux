@@ -43,6 +43,11 @@
 
 #define RING_SIZE_MIN 64
 #define LINKCHANGE_INT (2 * HZ)
+#define NETVSC_HW_FEATURES	(NETIF_F_RXCSUM | \
+				 NETIF_F_SG | \
+				 NETIF_F_TSO | \
+				 NETIF_F_TSO6 | \
+				 NETIF_F_HW_CSUM)
 static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
@@ -545,6 +550,8 @@ do_send:
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
 					       skb, packet, &pb);
 
+	/* timestamp packet in software */
+	skb_tx_timestamp(skb);
 	ret = netvsc_send(net_device_ctx->device_ctx, packet,
 			  rndis_msg, &pb, skb);
 
@@ -792,6 +799,58 @@ static int netvsc_set_channels(struct net_device *net,
 	goto do_set;
 }
 
+static bool netvsc_validate_ethtool_ss_cmd(const struct ethtool_cmd *cmd)
+{
+	struct ethtool_cmd diff1 = *cmd;
+	struct ethtool_cmd diff2 = {};
+
+	ethtool_cmd_speed_set(&diff1, 0);
+	diff1.duplex = 0;
+	/* advertising and cmd are usually set */
+	diff1.advertising = 0;
+	diff1.cmd = 0;
+	/* We set port to PORT_OTHER */
+	diff2.port = PORT_OTHER;
+
+	return !memcmp(&diff1, &diff2, sizeof(diff1));
+}
+
+static void netvsc_init_settings(struct net_device *dev)
+{
+	struct net_device_context *ndc = netdev_priv(dev);
+
+	ndc->speed = SPEED_UNKNOWN;
+	ndc->duplex = DUPLEX_UNKNOWN;
+}
+
+static int netvsc_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct net_device_context *ndc = netdev_priv(dev);
+
+	ethtool_cmd_speed_set(cmd, ndc->speed);
+	cmd->duplex = ndc->duplex;
+	cmd->port = PORT_OTHER;
+
+	return 0;
+}
+
+static int netvsc_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct net_device_context *ndc = netdev_priv(dev);
+	u32 speed;
+
+	speed = ethtool_cmd_speed(cmd);
+	if (!ethtool_validate_speed(speed) ||
+	    !ethtool_validate_duplex(cmd->duplex) ||
+	    !netvsc_validate_ethtool_ss_cmd(cmd))
+		return -EINVAL;
+
+	ndc->speed = speed;
+	ndc->duplex = cmd->duplex;
+
+	return 0;
+}
+
 static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 {
 	struct net_device_context *ndevctx = netdev_priv(ndev);
@@ -799,6 +858,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	struct netvsc_device *nvdev = hv_get_drvdata(hdev);
 	struct netvsc_device_info device_info;
 	int limit = ETH_DATA_LEN;
+	u32 num_chn;
 	int ret = 0;
 
 	if (nvdev == NULL || nvdev->destroy)
@@ -814,6 +874,8 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	if (ret)
 		goto out;
 
+	num_chn = nvdev->num_chn;
+
 	nvdev->start_remove = true;
 	rndis_filter_device_remove(hdev);
 
@@ -824,7 +886,7 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
-	device_info.num_chn = nvdev->num_chn;
+	device_info.num_chn = num_chn;
 	device_info.max_num_vrss_chns = max_num_vrss_chns;
 	rndis_filter_device_add(hdev, &device_info);
 
@@ -915,6 +977,9 @@ static const struct ethtool_ops ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
 	.get_channels   = netvsc_get_channels,
 	.set_channels   = netvsc_set_channels,
+	.get_ts_info	= ethtool_op_get_ts_info,
+	.get_settings	= netvsc_get_settings,
+	.set_settings	= netvsc_set_settings,
 };
 
 static const struct net_device_ops device_ops = {
@@ -1081,10 +1146,8 @@ static int netvsc_probe(struct hv_device *dev,
 
 	net->netdev_ops = &device_ops;
 
-	net->hw_features = NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_IP_CSUM |
-				NETIF_F_TSO;
-	net->features = NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_SG | NETIF_F_RXCSUM |
-			NETIF_F_IP_CSUM | NETIF_F_TSO;
+	net->hw_features = NETVSC_HW_FEATURES;
+	net->features = NETVSC_HW_FEATURES | NETIF_F_HW_VLAN_CTAG_TX;
 
 	net->ethtool_ops = &ethtool_ops;
 	SET_NETDEV_DEV(net, &dev->device);
@@ -1108,6 +1171,8 @@ static int netvsc_probe(struct hv_device *dev,
 	nvdev = hv_get_drvdata(dev);
 	netif_set_real_num_tx_queues(net, nvdev->num_chn);
 	netif_set_real_num_rx_queues(net, nvdev->num_chn);
+
+	netvsc_init_settings(net);
 
 	ret = register_netdev(net);
 	if (ret != 0) {

@@ -547,7 +547,7 @@ static int __init dma_debug_do_init(void)
 }
 fs_initcall(dma_debug_do_init);
 
-struct dma_map_ops s390_dma_ops = {
+struct dma_map_ops s390_pci_dma_ops = {
 	.alloc		= s390_dma_alloc,
 	.free		= s390_dma_free,
 	.map_sg		= s390_dma_map_sg,
@@ -558,7 +558,7 @@ struct dma_map_ops s390_dma_ops = {
 	.is_phys	= 0,
 	/* dma_supported is unconditionally true without a callback */
 };
-EXPORT_SYMBOL_GPL(s390_dma_ops);
+EXPORT_SYMBOL_GPL(s390_pci_dma_ops);
 
 static int __init s390_iommu_setup(char *str)
 {

@@ -44,28 +44,122 @@ static int kernfs_name_locked(struct kernfs_node *kn, char *buf, size_t buflen)
 	return strlcpy(buf, kn->parent ? kn->name : "/", buflen);
 }
 
-static char * __must_check kernfs_path_locked(struct kernfs_node *kn, char *buf,
-					      size_t buflen)
+/* kernfs_node_depth - compute depth from @from to @to */
+static size_t kernfs_depth(struct kernfs_node *from, struct kernfs_node *to)
 {
-	char *p = buf + buflen;
-	int len;
+	size_t depth = 0;
 
-	*--p = '\0';
+	while (to->parent && to != from) {
+		depth++;
+		to = to->parent;
+	}
+	return depth;
+}
 
-	do {
-		len = strlen(kn->name);
-		if (p - buf < len + 1) {
-			buf[0] = '\0';
-			p = NULL;
-			break;
-		}
-		p -= len;
-		memcpy(p, kn->name, len);
-		*--p = '/';
-		kn = kn->parent;
-	} while (kn && kn->parent);
+static struct kernfs_node *kernfs_common_ancestor(struct kernfs_node *a,
+						  struct kernfs_node *b)
+{
+	size_t da, db;
+	struct kernfs_root *ra = kernfs_root(a), *rb = kernfs_root(b);
 
-	return p;
+	if (ra != rb)
+		return NULL;
+
+	da = kernfs_depth(ra->kn, a);
+	db = kernfs_depth(rb->kn, b);
+
+	while (da > db) {
+		a = a->parent;
+		da--;
+	}
+	while (db > da) {
+		b = b->parent;
+		db--;
+	}
+
+	/* worst case b and a will be the same at root */
+	while (b != a) {
+		b = b->parent;
+		a = a->parent;
+	}
+
+	return a;
+}
+
+/**
+ * kernfs_path_from_node_locked - find a pseudo-absolute path to @kn_to,
+ * where kn_from is treated as root of the path.
+ * @kn_from: kernfs node which should be treated as root for the path
+ * @kn_to: kernfs node to which path is needed
+ * @buf: buffer to copy the path into
+ * @buflen: size of @buf
+ *
+ * We need to handle couple of scenarios here:
+ * [1] when @kn_from is an ancestor of @kn_to at some level
+ * kn_from: /n1/n2/n3
+ * kn_to:   /n1/n2/n3/n4/n5
+ * result:  /n4/n5
+ *
+ * [2] when @kn_from is on a different hierarchy and we need to find common
+ * ancestor between @kn_from and @kn_to.
+ * kn_from: /n1/n2/n3/n4
+ * kn_to:   /n1/n2/n5
+ * result:  /../../n5
+ * OR
+ * kn_from: /n1/n2/n3/n4/n5   [depth=5]
+ * kn_to:   /n1/n2/n3         [depth=3]
+ * result:  /../..
+ *
+ * return value: length of the string.  If greater than buflen,
+ * then contents of buf are undefined.  On error, -1 is returned.
+ */
+static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
+					struct kernfs_node *kn_from,
+					char *buf, size_t buflen)
+{
+	struct kernfs_node *kn, *common;
+	const char parent_str[] = "/..";
+	size_t depth_from, depth_to, len = 0, nlen = 0;
+	char *p;
+	int i;
+
+	if (!kn_from)
+		kn_from = kernfs_root(kn_to)->kn;
+
+	if (kn_from == kn_to)
+		return strlcpy(buf, "/", buflen);
+
+	common = kernfs_common_ancestor(kn_from, kn_to);
+	if (WARN_ON(!common))
+		return -1;
+
+	depth_to = kernfs_depth(common, kn_to);
+	depth_from = kernfs_depth(common, kn_from);
+
+	if (buf)
+		buf[0] = '\0';
+
+	for (i = 0; i < depth_from; i++)
+		len += strlcpy(buf + len, parent_str,
+			       len < buflen ? buflen - len : 0);
+
+	/* Calculate how many bytes we need for the rest */
+	for (kn = kn_to; kn != common; kn = kn->parent)
+		nlen += strlen(kn->name) + 1;
+
+	if (len + nlen >= buflen)
+		return len + nlen;
+
+	p = buf + len + nlen;
+	*p = '\0';
+	for (kn = kn_to; kn != common; kn = kn->parent) {
+		nlen = strlen(kn->name);
+		p -= nlen;
+		memcpy(p, kn->name, nlen);
+		*(--p) = '/';
+	}
+
+	return len + nlen;
 }
 
 /**
@@ -115,6 +209,34 @@ size_t kernfs_path_len(struct kernfs_node *kn)
 }
 
 /**
+ * kernfs_path_from_node - build path of node @to relative to @from.
+ * @from: parent kernfs_node relative to which we need to build the path
+ * @to: kernfs_node of interest
+ * @buf: buffer to copy @to's path into
+ * @buflen: size of @buf
+ *
+ * Builds @to's path relative to @from in @buf. @from and @to must
+ * be on the same kernfs-root. If @from is not parent of @to, then a relative
+ * path (which includes '..'s) as needed to reach from @from to @to is
+ * returned.
+ *
+ * If @buf isn't long enough, the return value will be greater than @buflen
+ * and @buf contents are undefined.
+ */
+int kernfs_path_from_node(struct kernfs_node *to, struct kernfs_node *from,
+			  char *buf, size_t buflen)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&kernfs_rename_lock, flags);
+	ret = kernfs_path_from_node_locked(to, from, buf, buflen);
+	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(kernfs_path_from_node);
+
+/**
  * kernfs_path - build full path of a given node
  * @kn: kernfs_node of interest
  * @buf: buffer to copy @kn's name into
@@ -127,13 +249,12 @@ size_t kernfs_path_len(struct kernfs_node *kn)
  */
 char *kernfs_path(struct kernfs_node *kn, char *buf, size_t buflen)
 {
-	unsigned long flags;
-	char *p;
+	int ret;
 
-	spin_lock_irqsave(&kernfs_rename_lock, flags);
-	p = kernfs_path_locked(kn, buf, buflen);
-	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
-	return p;
+	ret = kernfs_path_from_node(kn, NULL, buf, buflen);
+	if (ret < 0 || ret >= buflen)
+		return NULL;
+	return buf;
 }
 EXPORT_SYMBOL_GPL(kernfs_path);
 
@@ -164,17 +285,25 @@ void pr_cont_kernfs_name(struct kernfs_node *kn)
 void pr_cont_kernfs_path(struct kernfs_node *kn)
 {
 	unsigned long flags;
-	char *p;
+	int sz;
 
 	spin_lock_irqsave(&kernfs_rename_lock, flags);
 
-	p = kernfs_path_locked(kn, kernfs_pr_cont_buf,
-			       sizeof(kernfs_pr_cont_buf));
-	if (p)
-		pr_cont("%s", p);
-	else
-		pr_cont("<name too long>");
+	sz = kernfs_path_from_node_locked(kn, NULL, kernfs_pr_cont_buf,
+					  sizeof(kernfs_pr_cont_buf));
+	if (sz < 0) {
+		pr_cont("(error)");
+		goto out;
+	}
 
+	if (sz >= sizeof(kernfs_pr_cont_buf)) {
+		pr_cont("(name too long)");
+		goto out;
+	}
+
+	pr_cont("%s", kernfs_pr_cont_buf);
+
+out:
 	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
 }
 

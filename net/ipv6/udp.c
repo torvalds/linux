@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 
+#include <net/addrconf.h>
 #include <net/ndisc.h>
 #include <net/protocol.h>
 #include <net/transp_v6.h>
@@ -75,49 +76,6 @@ static u32 udp6_ehashfn(const struct net *net,
 
 	return __inet6_ehashfn(lhash, lport, fhash, fport,
 			       udp_ipv6_hash_secret + net_hash_mix(net));
-}
-
-/* match_wildcard == true:  IPV6_ADDR_ANY equals to any IPv6 addresses if IPv6
- *                          only, and any IPv4 addresses if not IPv6 only
- * match_wildcard == false: addresses must be exactly the same, i.e.
- *                          IPV6_ADDR_ANY only equals to IPV6_ADDR_ANY,
- *                          and 0.0.0.0 equals to 0.0.0.0 only
- */
-int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
-			 bool match_wildcard)
-{
-	const struct in6_addr *sk2_rcv_saddr6 = inet6_rcv_saddr(sk2);
-	int sk2_ipv6only = inet_v6_ipv6only(sk2);
-	int addr_type = ipv6_addr_type(&sk->sk_v6_rcv_saddr);
-	int addr_type2 = sk2_rcv_saddr6 ? ipv6_addr_type(sk2_rcv_saddr6) : IPV6_ADDR_MAPPED;
-
-	/* if both are mapped, treat as IPv4 */
-	if (addr_type == IPV6_ADDR_MAPPED && addr_type2 == IPV6_ADDR_MAPPED) {
-		if (!sk2_ipv6only) {
-			if (sk->sk_rcv_saddr == sk2->sk_rcv_saddr)
-				return 1;
-			if (!sk->sk_rcv_saddr || !sk2->sk_rcv_saddr)
-				return match_wildcard;
-		}
-		return 0;
-	}
-
-	if (addr_type == IPV6_ADDR_ANY && addr_type2 == IPV6_ADDR_ANY)
-		return 1;
-
-	if (addr_type2 == IPV6_ADDR_ANY && match_wildcard &&
-	    !(sk2_ipv6only && addr_type == IPV6_ADDR_MAPPED))
-		return 1;
-
-	if (addr_type == IPV6_ADDR_ANY && match_wildcard &&
-	    !(ipv6_only_sock(sk) && addr_type2 == IPV6_ADDR_MAPPED))
-		return 1;
-
-	if (sk2_rcv_saddr6 &&
-	    ipv6_addr_equal(&sk->sk_v6_rcv_saddr, sk2_rcv_saddr6))
-		return 1;
-
-	return 0;
 }
 
 static u32 udp6_portaddr_hash(const struct net *net,
@@ -590,6 +548,7 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	const struct in6_addr *daddr = &hdr->daddr;
 	struct udphdr *uh = (struct udphdr *)(skb->data+offset);
 	struct sock *sk;
+	int harderr;
 	int err;
 	struct net *net = dev_net(skb->dev);
 
@@ -601,26 +560,27 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return;
 	}
 
+	harderr = icmpv6_err_convert(type, code, &err);
+	np = inet6_sk(sk);
+
 	if (type == ICMPV6_PKT_TOOBIG) {
 		if (!ip6_sk_accept_pmtu(sk))
 			goto out;
 		ip6_sk_update_pmtu(skb, sk, info);
+		if (np->pmtudisc != IPV6_PMTUDISC_DONT)
+			harderr = 1;
 	}
 	if (type == NDISC_REDIRECT) {
 		ip6_sk_redirect(skb, sk);
 		goto out;
 	}
 
-	np = inet6_sk(sk);
-
-	if (!icmpv6_err_convert(type, code, &err) && !np->recverr)
-		goto out;
-
-	if (sk->sk_state != TCP_ESTABLISHED && !np->recverr)
-		goto out;
-
-	if (np->recverr)
+	if (!np->recverr) {
+		if (!harderr || sk->sk_state != TCP_ESTABLISHED)
+			goto out;
+	} else {
 		ipv6_icmp_error(sk, skb, err, uh->dest, ntohl(info), (u8 *)(uh+1));
+	}
 
 	sk->sk_err = err;
 	sk->sk_error_report(sk);
@@ -883,8 +843,8 @@ start_lookup:
 		flush_stack(stack, count, skb, count - 1);
 	} else {
 		if (!inner_flushed)
-			UDP_INC_STATS_BH(net, UDP_MIB_IGNOREDMULTI,
-					 proto == IPPROTO_UDPLITE);
+			UDP6_INC_STATS_BH(net, UDP_MIB_IGNOREDMULTI,
+					  proto == IPPROTO_UDPLITE);
 		consume_skb(skb);
 	}
 	return 0;

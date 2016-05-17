@@ -607,6 +607,7 @@ static inline struct mlx4_cqe *mlx4_en_get_cqe(void *buf, int idx, int cqe_sz)
 
 #define MLX4_EN_WOL_DO_MODIFY (1ULL << 63)
 
+void mlx4_en_init_ptys2ethtool_map(void);
 void mlx4_en_update_loopback_state(struct net_device *dev,
 				   netdev_features_t features);
 

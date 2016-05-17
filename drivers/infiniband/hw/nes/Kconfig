@@ -2,7 +2,6 @@ config INFINIBAND_NES
 	tristate "NetEffect RNIC Driver"
 	depends on PCI && INET && INFINIBAND
 	select LIBCRC32C
-	select INET_LRO
 	---help---
 	  This is the RDMA Network Interface Card (RNIC) driver for
 	  NetEffect Ethernet Cluster Server Adapters.

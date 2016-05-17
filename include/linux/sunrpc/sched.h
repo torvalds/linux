@@ -42,40 +42,43 @@ struct rpc_wait {
  */
 struct rpc_task {
 	atomic_t		tk_count;	/* Reference count */
+	int			tk_status;	/* result of last operation */
 	struct list_head	tk_task;	/* global list of tasks */
-	struct rpc_clnt *	tk_client;	/* RPC client */
-	struct rpc_rqst *	tk_rqstp;	/* RPC request */
-
-	/*
-	 * RPC call state
-	 */
-	struct rpc_message	tk_msg;		/* RPC call info */
 
 	/*
 	 * callback	to be executed after waking up
 	 * action	next procedure for async tasks
-	 * tk_ops	caller callbacks
 	 */
 	void			(*tk_callback)(struct rpc_task *);
 	void			(*tk_action)(struct rpc_task *);
-	const struct rpc_call_ops *tk_ops;
-	void *			tk_calldata;
 
 	unsigned long		tk_timeout;	/* timeout for rpc_sleep() */
 	unsigned long		tk_runstate;	/* Task run status */
-	struct workqueue_struct	*tk_workqueue;	/* Normally rpciod, but could
-						 * be any workqueue
-						 */
+
 	struct rpc_wait_queue 	*tk_waitqueue;	/* RPC wait queue we're on */
 	union {
 		struct work_struct	tk_work;	/* Async task work queue */
 		struct rpc_wait		tk_wait;	/* RPC wait */
 	} u;
 
+	/*
+	 * RPC call state
+	 */
+	struct rpc_message	tk_msg;		/* RPC call info */
+	void *			tk_calldata;	/* Caller private data */
+	const struct rpc_call_ops *tk_ops;	/* Caller callbacks */
+
+	struct rpc_clnt *	tk_client;	/* RPC client */
+	struct rpc_xprt *	tk_xprt;	/* Transport */
+
+	struct rpc_rqst *	tk_rqstp;	/* RPC request */
+
+	struct workqueue_struct	*tk_workqueue;	/* Normally rpciod, but could
+						 * be any workqueue
+						 */
 	ktime_t			tk_start;	/* RPC task init timestamp */
 
 	pid_t			tk_owner;	/* Process id for batching tasks */
-	int			tk_status;	/* result of last operation */
 	unsigned short		tk_flags;	/* misc flags */
 	unsigned short		tk_timeouts;	/* maj timeouts */
 
@@ -100,6 +103,7 @@ struct rpc_call_ops {
 struct rpc_task_setup {
 	struct rpc_task *task;
 	struct rpc_clnt *rpc_client;
+	struct rpc_xprt *rpc_xprt;
 	const struct rpc_message *rpc_message;
 	const struct rpc_call_ops *callback_ops;
 	void *callback_data;

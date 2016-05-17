@@ -367,8 +367,7 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (!tcb_desc->bHwSec)
 		return ret;
-	else
-		return 0;
+	return 0;
 
 
 }

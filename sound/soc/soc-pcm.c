@@ -1867,18 +1867,6 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
 			continue;
 
-		/* only allow hw_params() if no connected FEs are running */
-		if (!snd_soc_dpcm_can_be_params(fe, be, stream))
-			continue;
-
-		if ((be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN) &&
-		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_PARAMS) &&
-		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_FREE))
-			continue;
-
-		dev_dbg(be->dev, "ASoC: hw_params BE %s\n",
-			dpcm->fe->dai_link->name);
-
 		/* copy params for each dpcm */
 		memcpy(&dpcm->hw_params, &fe->dpcm[stream].hw_params,
 				sizeof(struct snd_pcm_hw_params));
@@ -1894,6 +1882,18 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 				goto unwind;
 			}
 		}
+
+		/* only allow hw_params() if no connected FEs are running */
+		if (!snd_soc_dpcm_can_be_params(fe, be, stream))
+			continue;
+
+		if ((be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN) &&
+		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_PARAMS) &&
+		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_FREE))
+			continue;
+
+		dev_dbg(be->dev, "ASoC: hw_params BE %s\n",
+			dpcm->fe->dai_link->name);
 
 		ret = soc_pcm_hw_params(be_substream, &dpcm->hw_params);
 		if (ret < 0) {

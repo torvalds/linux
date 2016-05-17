@@ -2640,8 +2640,12 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		if (*fmt == '*') {
 			if (!*str)
 				break;
-			while (!isspace(*fmt) && *fmt != '%' && *fmt)
+			while (!isspace(*fmt) && *fmt != '%' && *fmt) {
+				/* '%*[' not yet supported, invalid format */
+				if (*fmt == '[')
+					return num;
 				fmt++;
+			}
 			while (!isspace(*str) && *str)
 				str++;
 			continue;
@@ -2712,6 +2716,59 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 				*s++ = *str++;
 			*s = '\0';
 			num++;
+		}
+		continue;
+		/*
+		 * Warning: This implementation of the '[' conversion specifier
+		 * deviates from its glibc counterpart in the following ways:
+		 * (1) It does NOT support ranges i.e. '-' is NOT a special
+		 *     character
+		 * (2) It cannot match the closing bracket ']' itself
+		 * (3) A field width is required
+		 * (4) '%*[' (discard matching input) is currently not supported
+		 *
+		 * Example usage:
+		 * ret = sscanf("00:0a:95","%2[^:]:%2[^:]:%2[^:]",
+		 *		buf1, buf2, buf3);
+		 * if (ret < 3)
+		 *    // etc..
+		 */
+		case '[':
+		{
+			char *s = (char *)va_arg(args, char *);
+			DECLARE_BITMAP(set, 256) = {0};
+			unsigned int len = 0;
+			bool negate = (*fmt == '^');
+
+			/* field width is required */
+			if (field_width == -1)
+				return num;
+
+			if (negate)
+				++fmt;
+
+			for ( ; *fmt && *fmt != ']'; ++fmt, ++len)
+				set_bit((u8)*fmt, set);
+
+			/* no ']' or no character set found */
+			if (!*fmt || !len)
+				return num;
+			++fmt;
+
+			if (negate) {
+				bitmap_complement(set, set, 256);
+				/* exclude null '\0' byte */
+				clear_bit(0, set);
+			}
+
+			/* match must be non-empty */
+			if (!test_bit((u8)*str, set))
+				return num;
+
+			while (test_bit((u8)*str, set) && field_width--)
+				*s++ = *str++;
+			*s = '\0';
+			++num;
 		}
 		continue;
 		case 'o':

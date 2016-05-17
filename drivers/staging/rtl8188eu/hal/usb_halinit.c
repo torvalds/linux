@@ -108,7 +108,6 @@ static u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
 		return _SUCCESS;
 
 	if (!rtl88eu_pwrseqcmdparsing(adapt, PWR_CUT_ALL_MSK,
-				      PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK,
 				      Rtl8188E_NIC_PWR_ON_FLOW)) {
 		DBG_88E(KERN_ERR "%s: run power on flow fail\n", __func__);
 		return _FAIL;
@@ -926,7 +925,6 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 
 	/*  Run LPS WL RFOFF flow */
 	rtl88eu_pwrseqcmdparsing(Adapter, PWR_CUT_ALL_MSK,
-				 PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK,
 				 Rtl8188E_NIC_LPS_ENTER_FLOW);
 
 	/*  2. 0x1F[7:0] = 0		turn off RF */
@@ -949,7 +947,6 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 
 	/*  Card disable power action flow */
 	rtl88eu_pwrseqcmdparsing(Adapter, PWR_CUT_ALL_MSK,
-				 PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK,
 				 Rtl8188E_NIC_DISABLE_FLOW);
 
 	/*  Reset MCU IO Wrapper */

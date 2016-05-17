@@ -142,12 +142,17 @@ void kvm_slot_page_track_remove_page(struct kvm *kvm,
 bool kvm_page_track_is_active(struct kvm_vcpu *vcpu, gfn_t gfn,
 			      enum kvm_page_track_mode mode)
 {
-	struct kvm_memory_slot *slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
-	int index = gfn_to_index(gfn, slot->base_gfn, PT_PAGE_TABLE_LEVEL);
+	struct kvm_memory_slot *slot;
+	int index;
 
 	if (WARN_ON(!page_track_mode_is_valid(mode)))
 		return false;
 
+	slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn);
+	if (!slot)
+		return false;
+
+	index = gfn_to_index(gfn, slot->base_gfn, PT_PAGE_TABLE_LEVEL);
 	return !!ACCESS_ONCE(slot->arch.gfn_track[mode][index]);
 }
 

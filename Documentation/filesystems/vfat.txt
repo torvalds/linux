@@ -56,9 +56,10 @@ iocharset=<name> -- Character set to use for converting between the
 		 you should consider the following option instead.
 
 utf8=<bool>   -- UTF-8 is the filesystem safe version of Unicode that
-		 is used by the console.  It can be enabled for the
-		 filesystem with this option. If 'uni_xlate' gets set,
-		 UTF-8 gets disabled.
+		 is used by the console. It can be enabled or disabled
+		 for the filesystem with this option.
+		 If 'uni_xlate' gets set, UTF-8 gets disabled.
+		 By default, FAT_DEFAULT_UTF8 setting is used.
 
 uni_xlate=<bool> -- Translate unhandled Unicode characters to special
 		 escaped sequences.  This would let you backup and

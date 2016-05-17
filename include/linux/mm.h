@@ -22,6 +22,7 @@
 #include <linux/resource.h>
 #include <linux/page_ext.h>
 #include <linux/err.h>
+#include <linux/page_ref.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -82,6 +83,27 @@ extern int mmap_rnd_compat_bits __read_mostly;
 #define mm_forbids_zeropage(X)	(0)
 #endif
 
+/*
+ * Default maximum number of active map areas, this limits the number of vmas
+ * per mm struct. Users can overwrite this number by sysctl but there is a
+ * problem.
+ *
+ * When a program's coredump is generated as ELF format, a section is created
+ * per a vma. In ELF, the number of sections is represented in unsigned short.
+ * This means the number of sections should be smaller than 65535 at coredump.
+ * Because the kernel adds some informative sections to a image of program at
+ * generating coredump, we need some margin. The number of extra sections is
+ * 1-3 now and depends on arch. We use "5" as safe margin, here.
+ *
+ * ELF extended numbering allows more than 65535 sections, so 16-bit bound is
+ * not a hard limit any more. Although some userspace tools can be surprised by
+ * that.
+ */
+#define MAPCOUNT_ELF_CORE_MARGIN	(5)
+#define DEFAULT_MAX_MAP_COUNT	(USHRT_MAX - MAPCOUNT_ELF_CORE_MARGIN)
+
+extern int sysctl_max_map_count;
+
 extern unsigned long sysctl_user_reserve_kbytes;
 extern unsigned long sysctl_admin_reserve_kbytes;
 
@@ -122,6 +144,7 @@ extern unsigned int kobjsize(const void *objp);
 
 /*
  * vm_flags in vm_area_struct, see mm_types.h.
+ * When changing, update also include/trace/events/mmflags.h
  */
 #define VM_NONE		0x00000000
 
@@ -170,8 +193,26 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
 #define VM_MERGEABLE	0x80000000	/* KSM may merge identical pages */
 
+#ifdef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
+#define VM_HIGH_ARCH_BIT_0	32	/* bit only usable on 64-bit architectures */
+#define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
+#define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
+#define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
+#define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
+#define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
+#define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
+#define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
+#endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
+
 #if defined(CONFIG_X86)
 # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+#if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
+# define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
+# define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value */
+# define VM_PKEY_BIT1	VM_HIGH_ARCH_1
+# define VM_PKEY_BIT2	VM_HIGH_ARCH_2
+# define VM_PKEY_BIT3	VM_HIGH_ARCH_3
+#endif
 #elif defined(CONFIG_PPC)
 # define VM_SAO		VM_ARCH_1	/* Strong Access Ordering (powerpc) */
 #elif defined(CONFIG_PARISC)
@@ -233,6 +274,8 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_KILLABLE	0x10	/* The fault task is in SIGKILL killable region */
 #define FAULT_FLAG_TRIED	0x20	/* Second try */
 #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
+#define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
+#define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
 
 /*
  * vm_fault is filled by the the pagefault handler and passed to the vma's
@@ -364,8 +407,8 @@ static inline int pmd_devmap(pmd_t pmd)
  */
 static inline int put_page_testzero(struct page *page)
 {
-	VM_BUG_ON_PAGE(atomic_read(&page->_count) == 0, page);
-	return atomic_dec_and_test(&page->_count);
+	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
+	return page_ref_dec_and_test(page);
 }
 
 /*
@@ -376,7 +419,7 @@ static inline int put_page_testzero(struct page *page)
  */
 static inline int get_page_unless_zero(struct page *page)
 {
-	return atomic_inc_not_zero(&page->_count);
+	return page_ref_add_unless(page, 1, 0);
 }
 
 extern int page_is_ram(unsigned long pfn);
@@ -464,25 +507,11 @@ static inline int total_mapcount(struct page *page)
 }
 #endif
 
-static inline int page_count(struct page *page)
-{
-	return atomic_read(&compound_head(page)->_count);
-}
-
 static inline struct page *virt_to_head_page(const void *x)
 {
 	struct page *page = virt_to_page(x);
 
 	return compound_head(page);
-}
-
-/*
- * Setup the page count before being freed into the page allocator for
- * the first time (boot or memory hotplug)
- */
-static inline void init_page_count(struct page *page)
-{
-	atomic_set(&page->_count, 1);
 }
 
 void __put_page(struct page *page);
@@ -594,7 +623,7 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
  *
  * A page may belong to an inode's memory mapping. In this case, page->mapping
  * is the pointer to the inode, and page->index is the file offset of the page,
- * in units of PAGE_CACHE_SIZE.
+ * in units of PAGE_SIZE.
  *
  * If pagecache pages are not associated with an inode, they are said to be
  * anonymous pages. These may become associated with the swapcache, and in that
@@ -694,8 +723,8 @@ static inline void get_page(struct page *page)
 	 * Getting a normal page or the head of a compound page
 	 * requires to already have an elevated page->_count.
 	 */
-	VM_BUG_ON_PAGE(atomic_read(&page->_count) <= 0, page);
-	atomic_inc(&page->_count);
+	VM_BUG_ON_PAGE(page_ref_count(page) <= 0, page);
+	page_ref_inc(page);
 
 	if (unlikely(is_zone_device_page(page)))
 		get_zone_device_page(page);
@@ -1043,8 +1072,6 @@ static inline void clear_page_pfmemalloc(struct page *page)
  * just gets major/minor fault counters bumped up.
  */
 
-#define VM_FAULT_MINOR	0 /* For backwards compat. Remove me quickly. */
-
 #define VM_FAULT_OOM	0x0001
 #define VM_FAULT_SIGBUS	0x0002
 #define VM_FAULT_MAJOR	0x0004
@@ -1105,6 +1132,8 @@ struct zap_details {
 	struct address_space *check_mapping;	/* Check page->mapping if set */
 	pgoff_t	first_index;			/* Lowest page->index to unmap */
 	pgoff_t last_index;			/* Highest page->index to unmap */
+	bool ignore_dirty;			/* Ignore dirty pages */
+	bool check_swap_entries;		/* Check also swap entries */
 };
 
 struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
@@ -1217,23 +1246,81 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		      unsigned long start, unsigned long nr_pages,
 		      unsigned int foll_flags, struct page **pages,
 		      struct vm_area_struct **vmas, int *nonblocking);
-long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		    unsigned long start, unsigned long nr_pages,
-		    int write, int force, struct page **pages,
-		    struct vm_area_struct **vmas);
-long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
-		    unsigned long start, unsigned long nr_pages,
-		    int write, int force, struct page **pages,
-		    int *locked);
+long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
+			    unsigned long start, unsigned long nr_pages,
+			    int write, int force, struct page **pages,
+			    struct vm_area_struct **vmas);
+long get_user_pages6(unsigned long start, unsigned long nr_pages,
+			    int write, int force, struct page **pages,
+			    struct vm_area_struct **vmas);
+long get_user_pages_locked6(unsigned long start, unsigned long nr_pages,
+		    int write, int force, struct page **pages, int *locked);
 long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
 			       unsigned long start, unsigned long nr_pages,
 			       int write, int force, struct page **pages,
 			       unsigned int gup_flags);
-long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-		    unsigned long start, unsigned long nr_pages,
+long get_user_pages_unlocked5(unsigned long start, unsigned long nr_pages,
 		    int write, int force, struct page **pages);
 int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages);
+
+/* suppress warnings from use in EXPORT_SYMBOL() */
+#ifndef __DISABLE_GUP_DEPRECATED
+#define __gup_deprecated __deprecated
+#else
+#define __gup_deprecated
+#endif
+/*
+ * These macros provide backward-compatibility with the old
+ * get_user_pages() variants which took tsk/mm.  These
+ * functions/macros provide both compile-time __deprecated so we
+ * can catch old-style use and not break the build.  The actual
+ * functions also have WARN_ON()s to let us know at runtime if
+ * the get_user_pages() should have been the "remote" variant.
+ *
+ * These are hideous, but temporary.
+ *
+ * If you run into one of these __deprecated warnings, look
+ * at how you are calling get_user_pages().  If you are calling
+ * it with current/current->mm as the first two arguments,
+ * simply remove those arguments.  The behavior will be the same
+ * as it is now.  If you are calling it on another task, use
+ * get_user_pages_remote() instead.
+ *
+ * Any questions?  Ask Dave Hansen <dave@sr71.net>
+ */
+long
+__gup_deprecated
+get_user_pages8(struct task_struct *tsk, struct mm_struct *mm,
+		unsigned long start, unsigned long nr_pages,
+		int write, int force, struct page **pages,
+		struct vm_area_struct **vmas);
+#define GUP_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, get_user_pages, ...)	\
+	get_user_pages
+#define get_user_pages(...) GUP_MACRO(__VA_ARGS__,	\
+		get_user_pages8, x,			\
+		get_user_pages6, x, x, x, x, x)(__VA_ARGS__)
+
+__gup_deprecated
+long get_user_pages_locked8(struct task_struct *tsk, struct mm_struct *mm,
+		unsigned long start, unsigned long nr_pages,
+		int write, int force, struct page **pages,
+		int *locked);
+#define GUPL_MACRO(_1, _2, _3, _4, _5, _6, _7, _8, get_user_pages_locked, ...)	\
+	get_user_pages_locked
+#define get_user_pages_locked(...) GUPL_MACRO(__VA_ARGS__,	\
+		get_user_pages_locked8,	x,			\
+		get_user_pages_locked6, x, x, x, x)(__VA_ARGS__)
+
+__gup_deprecated
+long get_user_pages_unlocked7(struct task_struct *tsk, struct mm_struct *mm,
+		unsigned long start, unsigned long nr_pages,
+		int write, int force, struct page **pages);
+#define GUPU_MACRO(_1, _2, _3, _4, _5, _6, _7, get_user_pages_unlocked, ...)	\
+	get_user_pages_unlocked
+#define get_user_pages_unlocked(...) GUPU_MACRO(__VA_ARGS__,	\
+		get_user_pages_unlocked7, x,			\
+		get_user_pages_unlocked5, x, x, x, x)(__VA_ARGS__)
 
 /* Container for pinned pfns / pages */
 struct frame_vector {
@@ -1523,8 +1610,7 @@ static inline void mm_dec_nr_pmds(struct mm_struct *mm)
 }
 #endif
 
-int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
-		pmd_t *pmd, unsigned long address);
+int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
 int __pte_alloc_kernel(pmd_t *pmd, unsigned long address);
 
 /*
@@ -1650,15 +1736,15 @@ static inline void pgtable_page_dtor(struct page *page)
 	pte_unmap(pte);					\
 } while (0)
 
-#define pte_alloc_map(mm, vma, pmd, address)				\
-	((unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, vma,	\
-							pmd, address))?	\
-	 NULL: pte_offset_map(pmd, address))
+#define pte_alloc(mm, pmd, address)			\
+	(unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, pmd, address))
+
+#define pte_alloc_map(mm, pmd, address)			\
+	(pte_alloc(mm, pmd, address) ? NULL : pte_offset_map(pmd, address))
 
 #define pte_alloc_map_lock(mm, pmd, address, ptlp)	\
-	((unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, NULL,	\
-							pmd, address))?	\
-		NULL: pte_offset_map_lock(mm, pmd, address, ptlp))
+	(pte_alloc(mm, pmd, address) ?			\
+		 NULL : pte_offset_map_lock(mm, pmd, address, ptlp))
 
 #define pte_alloc_kernel(pmd, address)			\
 	((unlikely(pmd_none(*(pmd))) && __pte_alloc_kernel(pmd, address))? \
@@ -1853,6 +1939,7 @@ extern int __meminit init_per_zone_wmark_min(void);
 extern void mem_init(void);
 extern void __init mmap_init(void);
 extern void show_mem(unsigned int flags);
+extern long si_mem_available(void);
 extern void si_meminfo(struct sysinfo * val);
 extern void si_meminfo_node(struct sysinfo *val, int nid);
 
@@ -1867,6 +1954,7 @@ extern void zone_pcp_reset(struct zone *zone);
 
 /* page_alloc.c */
 extern int min_free_kbytes;
+extern int watermark_scale_factor;
 
 /* nommu.c */
 extern atomic_long_t mmap_pages_allocated;
@@ -2161,6 +2249,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
 #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
 #define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
 #define FOLL_MLOCK	0x1000	/* lock present pages */
+#define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
 
 typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
 			void *data);

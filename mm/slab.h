@@ -246,12 +246,33 @@ static __always_inline int memcg_charge_slab(struct page *page,
 					     gfp_t gfp, int order,
 					     struct kmem_cache *s)
 {
+	int ret;
+
 	if (!memcg_kmem_enabled())
 		return 0;
 	if (is_root_cache(s))
 		return 0;
-	return __memcg_kmem_charge_memcg(page, gfp, order,
-					 s->memcg_params.memcg);
+
+	ret = __memcg_kmem_charge_memcg(page, gfp, order,
+					s->memcg_params.memcg);
+	if (ret)
+		return ret;
+
+	memcg_kmem_update_page_stat(page,
+			(s->flags & SLAB_RECLAIM_ACCOUNT) ?
+			MEMCG_SLAB_RECLAIMABLE : MEMCG_SLAB_UNRECLAIMABLE,
+			1 << order);
+	return 0;
+}
+
+static __always_inline void memcg_uncharge_slab(struct page *page, int order,
+						struct kmem_cache *s)
+{
+	memcg_kmem_update_page_stat(page,
+			(s->flags & SLAB_RECLAIM_ACCOUNT) ?
+			MEMCG_SLAB_RECLAIMABLE : MEMCG_SLAB_UNRECLAIMABLE,
+			-(1 << order));
+	memcg_kmem_uncharge(page, order);
 }
 
 extern void slab_init_memcg_params(struct kmem_cache *);
@@ -292,6 +313,11 @@ static inline int memcg_charge_slab(struct page *page, gfp_t gfp, int order,
 				    struct kmem_cache *s)
 {
 	return 0;
+}
+
+static inline void memcg_uncharge_slab(struct page *page, int order,
+				       struct kmem_cache *s)
+{
 }
 
 static inline void slab_init_memcg_params(struct kmem_cache *s)
@@ -379,7 +405,7 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
 		kmemcheck_slab_alloc(s, flags, object, slab_ksize(s));
 		kmemleak_alloc_recursive(object, s->object_size, 1,
 					 s->flags, flags);
-		kasan_slab_alloc(s, object);
+		kasan_slab_alloc(s, object, flags);
 	}
 	memcg_kmem_put_cache(s);
 }

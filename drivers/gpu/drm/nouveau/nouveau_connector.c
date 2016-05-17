@@ -27,6 +27,7 @@
 #include <acpi/button.h>
 
 #include <linux/pm_runtime.h>
+#include <linux/vga_switcheroo.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
@@ -153,6 +154,17 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 			if (ret == 0)
 				break;
 		} else
+		if ((vga_switcheroo_handler_flags() &
+		     VGA_SWITCHEROO_CAN_SWITCH_DDC) &&
+		    nv_encoder->dcb->type == DCB_OUTPUT_LVDS &&
+		    nv_encoder->i2c) {
+			int ret;
+			vga_switcheroo_lock_ddc(dev->pdev);
+			ret = nvkm_probe_i2c(nv_encoder->i2c, 0x50);
+			vga_switcheroo_unlock_ddc(dev->pdev);
+			if (ret)
+				break;
+		} else
 		if (nv_encoder->i2c) {
 			if (nvkm_probe_i2c(nv_encoder->i2c, 0x50))
 				break;
@@ -265,7 +277,14 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 
 	nv_encoder = nouveau_connector_ddc_detect(connector);
 	if (nv_encoder && (i2c = nv_encoder->i2c) != NULL) {
-		nv_connector->edid = drm_get_edid(connector, i2c);
+		if ((vga_switcheroo_handler_flags() &
+		     VGA_SWITCHEROO_CAN_SWITCH_DDC) &&
+		    nv_connector->type == DCB_CONNECTOR_LVDS)
+			nv_connector->edid = drm_get_edid_switcheroo(connector,
+								     i2c);
+		else
+			nv_connector->edid = drm_get_edid(connector, i2c);
+
 		drm_mode_connector_update_edid_property(connector,
 							nv_connector->edid);
 		if (!nv_connector->edid) {

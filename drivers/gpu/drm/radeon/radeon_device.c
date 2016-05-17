@@ -103,6 +103,12 @@ static const char radeon_family_name[][16] = {
 	"LAST",
 };
 
+#if defined(CONFIG_VGA_SWITCHEROO)
+bool radeon_has_atpx_dgpu_power_cntl(void);
+#else
+static inline bool radeon_has_atpx_dgpu_power_cntl(void) { return false; }
+#endif
+
 #define RADEON_PX_QUIRK_DISABLE_PX  (1 << 0)
 #define RADEON_PX_QUIRK_LONG_WAKEUP (1 << 1)
 
@@ -1155,9 +1161,9 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 		radeon_vm_size = 4;
 	}
 
-       /*
-        * Max GPUVM size for Cayman, SI and CI are 40 bits.
-        */
+	/*
+	 * Max GPUVM size for Cayman, SI and CI are 40 bits.
+	 */
 	if (radeon_vm_size > 1024) {
 		dev_warn(rdev->dev, "VM size (%d) too large, max is 1TB\n",
 			 radeon_vm_size);
@@ -1433,7 +1439,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	 * ignore it */
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
 
-	if (rdev->flags & RADEON_IS_PX)
+	if ((rdev->flags & RADEON_IS_PX) && radeon_has_atpx_dgpu_power_cntl())
 		runtime = true;
 	vga_switcheroo_register_client(rdev->pdev, &radeon_switcheroo_ops, runtime);
 	if (runtime)
@@ -1895,7 +1901,7 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 	if (i > RADEON_DEBUGFS_MAX_COMPONENTS) {
 		DRM_ERROR("Reached maximum number of debugfs components.\n");
 		DRM_ERROR("Report so we increase "
-		          "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
+			  "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
 		return -EINVAL;
 	}
 	rdev->debugfs[rdev->debugfs_count].files = files;

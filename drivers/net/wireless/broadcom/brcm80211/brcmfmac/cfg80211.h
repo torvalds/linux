@@ -28,8 +28,11 @@
 #define WL_ROAM_TRIGGER_LEVEL		-75
 #define WL_ROAM_DELTA			20
 
-#define WL_ESCAN_BUF_SIZE		(1024 * 64)
-#define WL_ESCAN_TIMER_INTERVAL_MS	10000 /* E-Scan timeout */
+/* Keep BRCMF_ESCAN_BUF_SIZE below 64K (65536). Allocing over 64K can be
+ * problematic on some systems and should be avoided.
+ */
+#define BRCMF_ESCAN_BUF_SIZE		65000
+#define BRCMF_ESCAN_TIMER_INTERVAL_MS	10000	/* E-Scan timeout */
 
 #define WL_ESCAN_ACTION_START		1
 #define WL_ESCAN_ACTION_CONTINUE	2
@@ -69,7 +72,7 @@
 
 #define BRCMF_VNDR_IE_P2PAF_SHIFT	12
 
-#define BRCMF_MAX_DEFAULT_KEYS		4
+#define BRCMF_MAX_DEFAULT_KEYS		6
 
 /* beacon loss timeout defaults */
 #define BRCMF_DEFAULT_BCN_TIMEOUT_ROAM_ON	2
@@ -104,7 +107,6 @@ struct brcmf_cfg80211_security {
 	u32 auth_type;
 	u32 cipher_pairwise;
 	u32 cipher_group;
-	u32 wpa_auth;
 };
 
 /**
@@ -205,7 +207,7 @@ enum wl_escan_state {
 
 struct escan_info {
 	u32 escan_state;
-	u8 escan_buf[WL_ESCAN_BUF_SIZE];
+	u8 *escan_buf;
 	struct wiphy *wiphy;
 	struct brcmf_if *ifp;
 	s32 (*run)(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
@@ -253,6 +255,7 @@ struct brcmf_cfg80211_wowl {
  * struct brcmf_cfg80211_info - dongle private data of cfg80211 interface
  *
  * @wiphy: wiphy object for cfg80211 interface.
+ * @ops: pointer to copy of ops as registered with wiphy object.
  * @conf: dongle configuration.
  * @p2p: peer-to-peer specific information.
  * @btcoex: Bluetooth coexistence information.
@@ -278,7 +281,6 @@ struct brcmf_cfg80211_wowl {
  * @escan_info: escan information.
  * @escan_timeout: Timer for catch scan timeout.
  * @escan_timeout_work: scan timeout worker.
- * @escan_ioctl_buf: dongle command buffer for escan commands.
  * @vif_list: linked list of vif instances.
  * @vif_cnt: number of vif instances.
  * @vif_event: vif event signalling.
@@ -286,6 +288,7 @@ struct brcmf_cfg80211_wowl {
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
+	struct cfg80211_ops *ops;
 	struct brcmf_cfg80211_conf *conf;
 	struct brcmf_p2p_info p2p;
 	struct brcmf_btcoex_info *btcoex;
@@ -309,7 +312,6 @@ struct brcmf_cfg80211_info {
 	struct escan_info escan_info;
 	struct timer_list escan_timeout;
 	struct work_struct escan_timeout_work;
-	u8 *escan_ioctl_buf;
 	struct list_head vif_list;
 	struct brcmf_cfg80211_vif_event vif_event;
 	struct completion vif_disabled;
@@ -402,8 +404,8 @@ bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg,
 void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
 				  struct brcmf_cfg80211_vif *vif);
 bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
-int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
-					  u8 action, ulong timeout);
+int brcmf_cfg80211_wait_vif_event(struct brcmf_cfg80211_info *cfg,
+				  u8 action, ulong timeout);
 s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 				struct brcmf_if *ifp, bool aborted,
 				bool fw_abort);

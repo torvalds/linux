@@ -272,7 +272,7 @@ struct cpu_hw_events {
  * events to select for counter rescheduling.
  *
  * Care must be taken as the rescheduling algorithm is O(n!) which
- * will increase scheduling cycles for an over-commited system
+ * will increase scheduling cycles for an over-committed system
  * dramatically.  The number of such EVENT_CONSTRAINT_OVERLAP() macros
  * and its counter masks must be kept at a minimum.
  */
@@ -608,6 +608,11 @@ struct x86_pmu {
 	atomic_t	lbr_exclusive[x86_lbr_exclusive_max];
 
 	/*
+	 * AMD bits
+	 */
+	unsigned int	amd_nb_constraints : 1;
+
+	/*
 	 * Extra registers for events
 	 */
 	struct extra_reg *extra_regs;
@@ -795,6 +800,9 @@ ssize_t intel_event_sysfs_show(char *page, u64 config);
 
 struct attribute **merge_attr(struct attribute **a, struct attribute **b);
 
+ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
+			  char *page);
+
 #ifdef CONFIG_CPU_SUP_AMD
 
 int amd_pmu_init(void);
@@ -924,9 +932,6 @@ int p4_pmu_init(void);
 int p6_pmu_init(void);
 
 int knc_pmu_init(void);
-
-ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
-			  char *page);
 
 static inline int is_ht_workaround_enabled(void)
 {

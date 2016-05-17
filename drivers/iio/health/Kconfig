@@ -3,7 +3,35 @@
 #
 # When adding new entries keep the list in alphabetical order
 
-menu "Health sensors"
+menu "Health Sensors"
+
+menu "Heart Rate Monitors"
+
+config AFE4403
+	tristate "TI AFE4403 Heart Rate Monitor"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes to choose the Texas Instruments AFE4403
+	  heart rate monitor and low-cost pulse oximeter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called afe4403.
+
+config AFE4404
+	tristate "TI AFE4404 heart rate and pulse oximeter sensor"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes to choose the Texas Instruments AFE4404
+	  heart rate monitor and low-cost pulse oximeter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called afe4404.
 
 config MAX30100
 	tristate "MAX30100 heart rate and pulse oximeter sensor"
@@ -17,5 +45,7 @@ config MAX30100
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called max30100.
+
+endmenu
 
 endmenu

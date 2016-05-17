@@ -12,18 +12,38 @@
 #include <linux/efi.h>
 #include <asm/efi.h>
 #include <asm/sections.h>
+#include <asm/sysreg.h>
 
 #include "efistub.h"
 
 extern bool __nokaslr;
 
-efi_status_t __init handle_kernel_image(efi_system_table_t *sys_table_arg,
-					unsigned long *image_addr,
-					unsigned long *image_size,
-					unsigned long *reserve_addr,
-					unsigned long *reserve_size,
-					unsigned long dram_base,
-					efi_loaded_image_t *image)
+efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
+{
+	u64 tg;
+
+	/* UEFI mandates support for 4 KB granularity, no need to check */
+	if (IS_ENABLED(CONFIG_ARM64_4K_PAGES))
+		return EFI_SUCCESS;
+
+	tg = (read_cpuid(ID_AA64MMFR0_EL1) >> ID_AA64MMFR0_TGRAN_SHIFT) & 0xf;
+	if (tg != ID_AA64MMFR0_TGRAN_SUPPORTED) {
+		if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
+			pr_efi_err(sys_table_arg, "This 64 KB granular kernel is not supported by your CPU\n");
+		else
+			pr_efi_err(sys_table_arg, "This 16 KB granular kernel is not supported by your CPU\n");
+		return EFI_UNSUPPORTED;
+	}
+	return EFI_SUCCESS;
+}
+
+efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
+				 unsigned long *image_addr,
+				 unsigned long *image_size,
+				 unsigned long *reserve_addr,
+				 unsigned long *reserve_size,
+				 unsigned long dram_base,
+				 efi_loaded_image_t *image)
 {
 	efi_status_t status;
 	unsigned long kernel_size, kernel_memsize = 0;

@@ -837,7 +837,7 @@ add_tail_frag:
 	/* Even if we own the page, we are not allowed to use atomic_set()
 	 * This would break get_page_unless_zero() users.
 	 */
-	atomic_inc(&page->_count);
+	page_ref_inc(page);
 
 	return true;
 }
@@ -3122,7 +3122,7 @@ static void ixgbevf_free_all_rx_resources(struct ixgbevf_adapter *adapter)
  * handler is registered with the OS, the watchdog timer is started,
  * and the stack is notified that the interface is ready.
  **/
-static int ixgbevf_open(struct net_device *netdev)
+int ixgbevf_open(struct net_device *netdev)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -3205,7 +3205,7 @@ err_setup_reset:
  * needs to be disabled.  A global MAC reset is issued to stop the
  * hardware, and all transmit and receive resources are freed.
  **/
-static int ixgbevf_close(struct net_device *netdev)
+int ixgbevf_close(struct net_device *netdev)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 
@@ -3692,18 +3692,22 @@ static int ixgbevf_set_mac(struct net_device *netdev, void *p)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct sockaddr *addr = p;
+	int err;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ether_addr_copy(netdev->dev_addr, addr->sa_data);
-	ether_addr_copy(hw->mac.addr, addr->sa_data);
-
 	spin_lock_bh(&adapter->mbx_lock);
 
-	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0);
+	err = hw->mac.ops.set_rar(hw, 0, addr->sa_data, 0);
 
 	spin_unlock_bh(&adapter->mbx_lock);
+
+	if (err)
+		return -EPERM;
+
+	ether_addr_copy(hw->mac.addr, addr->sa_data);
+	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 
 	return 0;
 }

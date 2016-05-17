@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,71 +46,82 @@
  */
 
 #include "hfi.h"
-#include "sdma.h"
+#include "verbs_txreq.h"
 #include "qp.h"
 
 /* cut down ridiculously long IB macro names */
 #define OP(x) IB_OPCODE_UC_##x
 
+/* only opcode mask for adaptive pio */
+const u32 uc_only_opcode =
+	BIT(OP(SEND_ONLY) & 0x1f) |
+	BIT(OP(SEND_ONLY_WITH_IMMEDIATE & 0x1f)) |
+	BIT(OP(RDMA_WRITE_ONLY & 0x1f)) |
+	BIT(OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE & 0x1f));
+
 /**
  * hfi1_make_uc_req - construct a request packet (SEND, RDMA write)
  * @qp: a pointer to the QP
  *
+ * Assume s_lock is held.
+ *
  * Return 1 if constructed; otherwise, return 0.
  */
-int hfi1_make_uc_req(struct hfi1_qp *qp)
+int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
+	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_other_headers *ohdr;
-	struct hfi1_swqe *wqe;
-	unsigned long flags;
+	struct rvt_swqe *wqe;
 	u32 hwords = 5;
 	u32 bth0 = 0;
 	u32 len;
 	u32 pmtu = qp->pmtu;
-	int ret = 0;
 	int middle = 0;
 
-	spin_lock_irqsave(&qp->s_lock, flags);
+	ps->s_txreq = get_txreq(ps->dev, qp);
+	if (IS_ERR(ps->s_txreq))
+		goto bail_no_tx;
 
-	if (!(ib_hfi1_state_ops[qp->state] & HFI1_PROCESS_SEND_OK)) {
-		if (!(ib_hfi1_state_ops[qp->state] & HFI1_FLUSH_SEND))
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
+		if (!(ib_rvt_state_ops[qp->state] & RVT_FLUSH_SEND))
 			goto bail;
 		/* We are in the error state, flush the work request. */
-		if (qp->s_last == qp->s_head)
+		smp_read_barrier_depends(); /* see post_one_send() */
+		if (qp->s_last == ACCESS_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
-		if (atomic_read(&qp->s_iowait.sdma_busy)) {
-			qp->s_flags |= HFI1_S_WAIT_DMA;
+		if (iowait_sdma_pending(&priv->s_iowait)) {
+			qp->s_flags |= RVT_S_WAIT_DMA;
 			goto bail;
 		}
 		clear_ahg(qp);
-		wqe = get_swqe_ptr(qp, qp->s_last);
+		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 		hfi1_send_complete(qp, wqe, IB_WC_WR_FLUSH_ERR);
-		goto done;
+		goto done_free_tx;
 	}
 
-	ohdr = &qp->s_hdr->ibh.u.oth;
+	ohdr = &ps->s_txreq->phdr.hdr.u.oth;
 	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
-		ohdr = &qp->s_hdr->ibh.u.l.oth;
+		ohdr = &ps->s_txreq->phdr.hdr.u.l.oth;
 
 	/* Get the next send request. */
-	wqe = get_swqe_ptr(qp, qp->s_cur);
+	wqe = rvt_get_swqe_ptr(qp, qp->s_cur);
 	qp->s_wqe = NULL;
 	switch (qp->s_state) {
 	default:
-		if (!(ib_hfi1_state_ops[qp->state] &
-		    HFI1_PROCESS_NEXT_SEND_OK))
+		if (!(ib_rvt_state_ops[qp->state] &
+		    RVT_PROCESS_NEXT_SEND_OK))
 			goto bail;
 		/* Check if send work queue is empty. */
-		if (qp->s_cur == qp->s_head) {
+		smp_read_barrier_depends(); /* see post_one_send() */
+		if (qp->s_cur == ACCESS_ONCE(qp->s_head)) {
 			clear_ahg(qp);
 			goto bail;
 		}
 		/*
 		 * Start a new request.
 		 */
-		wqe->psn = qp->s_next_psn;
-		qp->s_psn = qp->s_next_psn;
+		qp->s_psn = wqe->psn;
 		qp->s_sge.sge = wqe->sg_list[0];
 		qp->s_sge.sg_list = wqe->sg_list + 1;
 		qp->s_sge.num_sge = wqe->wr.num_sge;
@@ -128,9 +136,9 @@ int hfi1_make_uc_req(struct hfi1_qp *qp)
 				len = pmtu;
 				break;
 			}
-			if (wqe->wr.opcode == IB_WR_SEND)
+			if (wqe->wr.opcode == IB_WR_SEND) {
 				qp->s_state = OP(SEND_ONLY);
-			else {
+			} else {
 				qp->s_state =
 					OP(SEND_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after the BTH */
@@ -157,9 +165,9 @@ int hfi1_make_uc_req(struct hfi1_qp *qp)
 				len = pmtu;
 				break;
 			}
-			if (wqe->wr.opcode == IB_WR_RDMA_WRITE)
+			if (wqe->wr.opcode == IB_WR_RDMA_WRITE) {
 				qp->s_state = OP(RDMA_WRITE_ONLY);
-			else {
+			} else {
 				qp->s_state =
 					OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE);
 				/* Immediate data comes after the RETH */
@@ -188,9 +196,9 @@ int hfi1_make_uc_req(struct hfi1_qp *qp)
 			middle = HFI1_CAP_IS_KSET(SDMA_AHG);
 			break;
 		}
-		if (wqe->wr.opcode == IB_WR_SEND)
+		if (wqe->wr.opcode == IB_WR_SEND) {
 			qp->s_state = OP(SEND_LAST);
-		else {
+		} else {
 			qp->s_state = OP(SEND_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
 			ohdr->u.imm_data = wqe->wr.ex.imm_data;
@@ -213,9 +221,9 @@ int hfi1_make_uc_req(struct hfi1_qp *qp)
 			middle = HFI1_CAP_IS_KSET(SDMA_AHG);
 			break;
 		}
-		if (wqe->wr.opcode == IB_WR_RDMA_WRITE)
+		if (wqe->wr.opcode == IB_WR_RDMA_WRITE) {
 			qp->s_state = OP(RDMA_WRITE_LAST);
-		else {
+		} else {
 			qp->s_state =
 				OP(RDMA_WRITE_LAST_WITH_IMMEDIATE);
 			/* Immediate data comes after the BTH */
@@ -231,19 +239,28 @@ int hfi1_make_uc_req(struct hfi1_qp *qp)
 	}
 	qp->s_len -= len;
 	qp->s_hdrwords = hwords;
+	ps->s_txreq->sde = priv->s_sde;
 	qp->s_cur_sge = &qp->s_sge;
 	qp->s_cur_size = len;
 	hfi1_make_ruc_header(qp, ohdr, bth0 | (qp->s_state << 24),
-			     mask_psn(qp->s_next_psn++), middle);
-done:
-	ret = 1;
-	goto unlock;
+			     mask_psn(qp->s_psn++), middle, ps);
+	/* pbc */
+	ps->s_txreq->hdr_dwords = qp->s_hdrwords + 2;
+	return 1;
+
+done_free_tx:
+	hfi1_put_txreq(ps->s_txreq);
+	ps->s_txreq = NULL;
+	return 1;
 
 bail:
-	qp->s_flags &= ~HFI1_S_BUSY;
-unlock:
-	spin_unlock_irqrestore(&qp->s_lock, flags);
-	return ret;
+	hfi1_put_txreq(ps->s_txreq);
+
+bail_no_tx:
+	ps->s_txreq = NULL;
+	qp->s_flags &= ~RVT_S_BUSY;
+	qp->s_hdrwords = 0;
+	return 0;
 }
 
 /**
@@ -266,7 +283,7 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 	u32 rcv_flags = packet->rcv_flags;
 	void *data = packet->ebuf;
 	u32 tlen = packet->tlen;
-	struct hfi1_qp *qp = packet->qp;
+	struct rvt_qp *qp = packet->qp;
 	struct hfi1_other_headers *ohdr = packet->ohdr;
 	u32 bth0, opcode;
 	u32 hdrsize = packet->hlen;
@@ -291,14 +308,14 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 			u16 rlid = be16_to_cpu(hdr->lrh[3]);
 			u8 sl, sc5;
 
-			lqpn = bth1 & HFI1_QPN_MASK;
+			lqpn = bth1 & RVT_QPN_MASK;
 			rqpn = qp->remote_qpn;
 
 			sc5 = ibp->sl_to_sc[qp->remote_ah_attr.sl];
 			sl = ibp->sc_to_sl[sc5];
 
 			process_becn(ppd, sl, rlid, lqpn, rqpn,
-					IB_CC_SVCTYPE_UC);
+				     IB_CC_SVCTYPE_UC);
 		}
 
 		if (bth1 & HFI1_FECN_SMASK) {
@@ -331,10 +348,11 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 inv:
 		if (qp->r_state == OP(SEND_FIRST) ||
 		    qp->r_state == OP(SEND_MIDDLE)) {
-			set_bit(HFI1_R_REWIND_SGE, &qp->r_aflags);
+			set_bit(RVT_R_REWIND_SGE, &qp->r_aflags);
 			qp->r_sge.num_sge = 0;
-		} else
-			hfi1_put_ss(&qp->r_sge);
+		} else {
+			rvt_put_ss(&qp->r_sge);
+		}
 		qp->r_state = OP(SEND_LAST);
 		switch (opcode) {
 		case OP(SEND_FIRST):
@@ -381,7 +399,7 @@ inv:
 		goto inv;
 	}
 
-	if (qp->state == IB_QPS_RTR && !(qp->r_flags & HFI1_R_COMM_EST))
+	if (qp->state == IB_QPS_RTR && !(qp->r_flags & RVT_R_COMM_EST))
 		qp_comm_est(qp);
 
 	/* OK, process the packet. */
@@ -390,10 +408,10 @@ inv:
 	case OP(SEND_ONLY):
 	case OP(SEND_ONLY_WITH_IMMEDIATE):
 send_first:
-		if (test_and_clear_bit(HFI1_R_REWIND_SGE, &qp->r_aflags))
+		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags)) {
 			qp->r_sge = qp->s_rdma_read_sge;
-		else {
-			ret = hfi1_get_rwqe(qp, 0);
+		} else {
+			ret = hfi1_rvt_get_rwqe(qp, 0);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)
@@ -417,7 +435,7 @@ send_first:
 		qp->r_rcv_len += pmtu;
 		if (unlikely(qp->r_rcv_len > qp->r_len))
 			goto rewind;
-		hfi1_copy_sge(&qp->r_sge, data, pmtu, 0);
+		hfi1_copy_sge(&qp->r_sge, data, pmtu, 0, 0);
 		break;
 
 	case OP(SEND_LAST_WITH_IMMEDIATE):
@@ -442,8 +460,8 @@ send_last:
 		if (unlikely(wc.byte_len > qp->r_len))
 			goto rewind;
 		wc.opcode = IB_WC_RECV;
-		hfi1_copy_sge(&qp->r_sge, data, tlen, 0);
-		hfi1_put_ss(&qp->s_rdma_read_sge);
+		hfi1_copy_sge(&qp->r_sge, data, tlen, 0, 0);
+		rvt_put_ss(&qp->s_rdma_read_sge);
 last_imm:
 		wc.wr_id = qp->r_wr_id;
 		wc.status = IB_WC_SUCCESS;
@@ -468,9 +486,9 @@ last_imm:
 		wc.dlid_path_bits = 0;
 		wc.port_num = 0;
 		/* Signal completion event if the solicited bit is set. */
-		hfi1_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
-			      (ohdr->bth[0] &
-				cpu_to_be32(IB_BTH_SOLICITED)) != 0);
+		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
+			     (ohdr->bth[0] &
+			      cpu_to_be32(IB_BTH_SOLICITED)) != 0);
 		break;
 
 	case OP(RDMA_WRITE_FIRST):
@@ -491,8 +509,8 @@ rdma_first:
 			int ok;
 
 			/* Check rkey */
-			ok = hfi1_rkey_ok(qp, &qp->r_sge.sge, qp->r_len,
-					  vaddr, rkey, IB_ACCESS_REMOTE_WRITE);
+			ok = rvt_rkey_ok(qp, &qp->r_sge.sge, qp->r_len,
+					 vaddr, rkey, IB_ACCESS_REMOTE_WRITE);
 			if (unlikely(!ok))
 				goto drop;
 			qp->r_sge.num_sge = 1;
@@ -503,9 +521,9 @@ rdma_first:
 			qp->r_sge.sge.length = 0;
 			qp->r_sge.sge.sge_length = 0;
 		}
-		if (opcode == OP(RDMA_WRITE_ONLY))
+		if (opcode == OP(RDMA_WRITE_ONLY)) {
 			goto rdma_last;
-		else if (opcode == OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE)) {
+		} else if (opcode == OP(RDMA_WRITE_ONLY_WITH_IMMEDIATE)) {
 			wc.ex.imm_data = ohdr->u.rc.imm_data;
 			goto rdma_last_imm;
 		}
@@ -517,7 +535,7 @@ rdma_first:
 		qp->r_rcv_len += pmtu;
 		if (unlikely(qp->r_rcv_len > qp->r_len))
 			goto drop;
-		hfi1_copy_sge(&qp->r_sge, data, pmtu, 1);
+		hfi1_copy_sge(&qp->r_sge, data, pmtu, 1, 0);
 		break;
 
 	case OP(RDMA_WRITE_LAST_WITH_IMMEDIATE):
@@ -535,10 +553,10 @@ rdma_last_imm:
 		tlen -= (hdrsize + pad + 4);
 		if (unlikely(tlen + qp->r_rcv_len != qp->r_len))
 			goto drop;
-		if (test_and_clear_bit(HFI1_R_REWIND_SGE, &qp->r_aflags))
-			hfi1_put_ss(&qp->s_rdma_read_sge);
-		else {
-			ret = hfi1_get_rwqe(qp, 1);
+		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags)) {
+			rvt_put_ss(&qp->s_rdma_read_sge);
+		} else {
+			ret = hfi1_rvt_get_rwqe(qp, 1);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)
@@ -546,8 +564,8 @@ rdma_last_imm:
 		}
 		wc.byte_len = qp->r_len;
 		wc.opcode = IB_WC_RECV_RDMA_WITH_IMM;
-		hfi1_copy_sge(&qp->r_sge, data, tlen, 1);
-		hfi1_put_ss(&qp->r_sge);
+		hfi1_copy_sge(&qp->r_sge, data, tlen, 1, 0);
+		rvt_put_ss(&qp->r_sge);
 		goto last_imm;
 
 	case OP(RDMA_WRITE_LAST):
@@ -562,8 +580,8 @@ rdma_last:
 		tlen -= (hdrsize + pad + 4);
 		if (unlikely(tlen + qp->r_rcv_len != qp->r_len))
 			goto drop;
-		hfi1_copy_sge(&qp->r_sge, data, tlen, 1);
-		hfi1_put_ss(&qp->r_sge);
+		hfi1_copy_sge(&qp->r_sge, data, tlen, 1, 0);
+		rvt_put_ss(&qp->r_sge);
 		break;
 
 	default:
@@ -575,14 +593,12 @@ rdma_last:
 	return;
 
 rewind:
-	set_bit(HFI1_R_REWIND_SGE, &qp->r_aflags);
+	set_bit(RVT_R_REWIND_SGE, &qp->r_aflags);
 	qp->r_sge.num_sge = 0;
 drop:
-	ibp->n_pkt_drops++;
+	ibp->rvp.n_pkt_drops++;
 	return;
 
 op_err:
 	hfi1_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
-	return;
-
 }

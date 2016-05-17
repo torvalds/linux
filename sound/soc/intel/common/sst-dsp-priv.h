@@ -317,6 +317,7 @@ struct sst_dsp {
 	struct skl_cl_dev cl_dev;
 	u32 intr_status;
 	const struct firmware *fw;
+	struct snd_dma_buffer dmab;
 };
 
 /* Size optimised DRAM/IRAM memcpy */

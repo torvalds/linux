@@ -263,13 +263,23 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	/* hack to allow channel engine type specification on kepler */
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		if (init->fb_ctxdma_handle != ~0)
-			init->fb_ctxdma_handle = KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR;
-		else
-			init->fb_ctxdma_handle = init->tt_ctxdma_handle;
+			init->fb_ctxdma_handle = NVA06F_V0_ENGINE_GR;
+		else {
+			init->fb_ctxdma_handle = 0;
+#define _(A,B) if (init->tt_ctxdma_handle & (A)) init->fb_ctxdma_handle |= (B)
+			_(0x01, NVA06F_V0_ENGINE_GR);
+			_(0x02, NVA06F_V0_ENGINE_MSPDEC);
+			_(0x04, NVA06F_V0_ENGINE_MSPPP);
+			_(0x08, NVA06F_V0_ENGINE_MSVLD);
+			_(0x10, NVA06F_V0_ENGINE_CE0);
+			_(0x20, NVA06F_V0_ENGINE_CE1);
+			_(0x40, NVA06F_V0_ENGINE_MSENC);
+#undef _
+		}
 
 		/* allow flips to be executed if this is a graphics channel */
 		init->tt_ctxdma_handle = 0;
-		if (init->fb_ctxdma_handle == KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR)
+		if (init->fb_ctxdma_handle == NVA06F_V0_ENGINE_GR)
 			init->tt_ctxdma_handle = 1;
 	}
 

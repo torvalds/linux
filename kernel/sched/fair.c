@@ -3181,17 +3181,25 @@ static inline void check_schedstat_required(void)
 static void
 enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
-	/*
-	 * Update the normalized vruntime before updating min_vruntime
-	 * through calling update_curr().
-	 */
-	if (!(flags & ENQUEUE_WAKEUP) || (flags & ENQUEUE_WAKING))
-		se->vruntime += cfs_rq->min_vruntime;
+	bool renorm = !(flags & ENQUEUE_WAKEUP) || (flags & ENQUEUE_WAKING);
+	bool curr = cfs_rq->curr == se;
 
 	/*
-	 * Update run-time statistics of the 'current'.
+	 * If we're the current task, we must renormalise before calling
+	 * update_curr().
 	 */
+	if (renorm && curr)
+		se->vruntime += cfs_rq->min_vruntime;
+
 	update_curr(cfs_rq);
+
+	/*
+	 * Otherwise, renormalise after, such that we're placed at the current
+	 * moment in time, instead of some random moment in the past.
+	 */
+	if (renorm && !curr)
+		se->vruntime += cfs_rq->min_vruntime;
+
 	enqueue_entity_load_avg(cfs_rq, se);
 	account_entity_enqueue(cfs_rq, se);
 	update_cfs_shares(cfs_rq);
@@ -3207,7 +3215,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 		update_stats_enqueue(cfs_rq, se);
 		check_spread(cfs_rq, se);
 	}
-	if (se != cfs_rq->curr)
+	if (!curr)
 		__enqueue_entity(cfs_rq, se);
 	se->on_rq = 1;
 
@@ -5071,7 +5079,19 @@ static int select_idle_sibling(struct task_struct *p, int target)
 		return i;
 
 	/*
-	 * Otherwise, iterate the domains and find an elegible idle cpu.
+	 * Otherwise, iterate the domains and find an eligible idle cpu.
+	 *
+	 * A completely idle sched group at higher domains is more
+	 * desirable than an idle group at a lower level, because lower
+	 * domains have smaller groups and usually share hardware
+	 * resources which causes tasks to contend on them, e.g. x86
+	 * hyperthread siblings in the lowest domain (SMT) can contend
+	 * on the shared cpu pipeline.
+	 *
+	 * However, while we prefer idle groups at higher domains
+	 * finding an idle cpu at the lowest domain is still better than
+	 * returning 'target', which we've already established, isn't
+	 * idle.
 	 */
 	sd = rcu_dereference(per_cpu(sd_llc, target));
 	for_each_lower_domain(sd) {
@@ -5081,11 +5101,16 @@ static int select_idle_sibling(struct task_struct *p, int target)
 						tsk_cpus_allowed(p)))
 				goto next;
 
+			/* Ensure the entire group is idle */
 			for_each_cpu(i, sched_group_cpus(sg)) {
 				if (i == target || !idle_cpu(i))
 					goto next;
 			}
 
+			/*
+			 * It doesn't matter which cpu we pick, the
+			 * whole group is idle.
+			 */
 			target = cpumask_first_and(sched_group_cpus(sg),
 					tsk_cpus_allowed(p));
 			goto done;

@@ -27,9 +27,6 @@
 #include <net/inet_common.h>
 #include <net/xfrm.h>
 
-int sysctl_tcp_syncookies __read_mostly = 1;
-EXPORT_SYMBOL(sysctl_tcp_syncookies);
-
 int sysctl_tcp_abort_on_overflow __read_mostly;
 
 struct inet_timewait_death_row tcp_death_row = {
@@ -815,7 +812,7 @@ int tcp_child_process(struct sock *parent, struct sock *child,
 	int ret = 0;
 	int state = child->sk_state;
 
-	tcp_sk(child)->segs_in += max_t(u16, 1, skb_shinfo(skb)->gso_segs);
+	tcp_segs_in(tcp_sk(child), skb);
 	if (!sock_owned_by_user(child)) {
 		ret = tcp_rcv_state_process(child, skb);
 		/* Wakeup parent, send SIGIO */

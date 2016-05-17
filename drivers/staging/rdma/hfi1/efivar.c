@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -83,8 +80,7 @@ static int read_efi_var(const char *name, unsigned long *size,
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
 		return -EOPNOTSUPP;
 
-	uni_name = kzalloc(sizeof(efi_char16_t) * (strlen(name) + 1),
-			   GFP_KERNEL);
+	uni_name = kcalloc(strlen(name) + 1, sizeof(efi_char16_t), GFP_KERNEL);
 	temp_buffer = kzalloc(EFI_DATA_SIZE, GFP_KERNEL);
 
 	if (!uni_name || !temp_buffer) {
@@ -128,13 +124,12 @@ static int read_efi_var(const char *name, unsigned long *size,
 	 * temporary buffer.  Now allocate a correctly sized
 	 * buffer.
 	 */
-	data = kmalloc(temp_size, GFP_KERNEL);
+	data = kmemdup(temp_buffer, temp_size, GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto fail;
 	}
 
-	memcpy(data, temp_buffer, temp_size);
 	*size = temp_size;
 	*return_data = data;
 

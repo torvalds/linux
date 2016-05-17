@@ -62,7 +62,7 @@ static int nvdimm_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct nd_device_driver *nd_drv = to_nd_device_driver(drv);
 
-	return test_bit(to_nd_device_type(dev), &nd_drv->type);
+	return !!test_bit(to_nd_device_type(dev), &nd_drv->type);
 }
 
 static struct module *to_bus_provider(struct device *dev)
@@ -407,7 +407,7 @@ static const struct nd_cmd_desc __nd_cmd_dimm_descs[] = {
 	[ND_CMD_IMPLEMENTED] = { },
 	[ND_CMD_SMART] = {
 		.out_num = 2,
-		.out_sizes = { 4, 8, },
+		.out_sizes = { 4, 128, },
 	},
 	[ND_CMD_SMART_THRESHOLD] = {
 		.out_num = 2,

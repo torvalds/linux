@@ -28,6 +28,14 @@ config APQ_MMCC_8084
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config IPQ_GCC_4019
+	tristate "IPQ4019 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on ipq4019 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, SD/eMMC, etc.
+
 config IPQ_GCC_806X
 	tristate "IPQ806x Global Clock Controller"
 	depends on COMMON_CLK_QCOM

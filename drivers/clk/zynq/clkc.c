@@ -265,8 +265,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 		pr_warn("ps_clk frequency not specified, using 33 MHz.\n");
 		tmp = 33333333;
 	}
-	ps_clk = clk_register_fixed_rate(NULL, "ps_clk", NULL, CLK_IS_ROOT,
-			tmp);
+	ps_clk = clk_register_fixed_rate(NULL, "ps_clk", NULL, 0, tmp);
 
 	/* PLLs */
 	clk = clk_register_zynq_pll("armpll_int", "ps_clk", SLCR_ARMPLL_CTRL,

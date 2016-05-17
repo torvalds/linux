@@ -332,7 +332,7 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 {
 	int rel_port = -1, group_id;
 	struct alua_port_group *pg, *old_pg = NULL;
-	bool pg_updated;
+	bool pg_updated = false;
 	unsigned long flags;
 
 	group_id = scsi_vpd_tpg_id(sdev, &rel_port);
@@ -1112,9 +1112,9 @@ static void alua_bus_detach(struct scsi_device *sdev)
 	h->sdev = NULL;
 	spin_unlock(&h->pg_lock);
 	if (pg) {
-		spin_lock(&pg->lock);
+		spin_lock_irq(&pg->lock);
 		list_del_rcu(&h->node);
-		spin_unlock(&pg->lock);
+		spin_unlock_irq(&pg->lock);
 		kref_put(&pg->kref, release_port_group);
 	}
 	sdev->handler_data = NULL;

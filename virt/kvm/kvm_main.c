@@ -170,8 +170,8 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 		kvm_make_request(req, vcpu);
 		cpu = vcpu->cpu;
 
-		/* Set ->requests bit before we read ->mode */
-		smp_mb();
+		/* Set ->requests bit before we read ->mode. */
+		smp_mb__after_atomic();
 
 		if (cpus != NULL && cpu != -1 && cpu != me &&
 		      kvm_vcpu_exiting_guest_mode(vcpu) != OUTSIDE_GUEST_MODE)
@@ -191,9 +191,23 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 #ifndef CONFIG_HAVE_KVM_ARCH_TLB_FLUSH_ALL
 void kvm_flush_remote_tlbs(struct kvm *kvm)
 {
-	long dirty_count = kvm->tlbs_dirty;
+	/*
+	 * Read tlbs_dirty before setting KVM_REQ_TLB_FLUSH in
+	 * kvm_make_all_cpus_request.
+	 */
+	long dirty_count = smp_load_acquire(&kvm->tlbs_dirty);
 
-	smp_mb();
+	/*
+	 * We want to publish modifications to the page tables before reading
+	 * mode. Pairs with a memory barrier in arch-specific code.
+	 * - x86: smp_mb__after_srcu_read_unlock in vcpu_enter_guest
+	 * and smp_mb in walk_shadow_page_lockless_begin/end.
+	 * - powerpc: smp_mb in kvmppc_prepare_to_enter.
+	 *
+	 * There is already an smp_mb__after_atomic() before
+	 * kvm_make_all_cpus_request() reads vcpu->mode. We reuse that
+	 * barrier here.
+	 */
 	if (kvm_make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH))
 		++kvm->stat.remote_tlb_flush;
 	cmpxchg(&kvm->tlbs_dirty, dirty_count, 0);
@@ -536,6 +550,16 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
 
+	spin_lock_init(&kvm->mmu_lock);
+	atomic_inc(&current->mm->mm_count);
+	kvm->mm = current->mm;
+	kvm_eventfd_init(kvm);
+	mutex_init(&kvm->lock);
+	mutex_init(&kvm->irq_lock);
+	mutex_init(&kvm->slots_lock);
+	atomic_set(&kvm->users_count, 1);
+	INIT_LIST_HEAD(&kvm->devices);
+
 	r = kvm_arch_init_vm(kvm, type);
 	if (r)
 		goto out_err_no_disable;
@@ -568,16 +592,6 @@ static struct kvm *kvm_create_vm(unsigned long type)
 			goto out_err;
 	}
 
-	spin_lock_init(&kvm->mmu_lock);
-	kvm->mm = current->mm;
-	atomic_inc(&kvm->mm->mm_count);
-	kvm_eventfd_init(kvm);
-	mutex_init(&kvm->lock);
-	mutex_init(&kvm->irq_lock);
-	mutex_init(&kvm->slots_lock);
-	atomic_set(&kvm->users_count, 1);
-	INIT_LIST_HEAD(&kvm->devices);
-
 	r = kvm_init_mmu_notifier(kvm);
 	if (r)
 		goto out_err;
@@ -602,6 +616,7 @@ out_err_no_disable:
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
 		kvm_free_memslots(kvm, kvm->memslots[i]);
 	kvm_arch_free_vm(kvm);
+	mmdrop(current->mm);
 	return ERR_PTR(r);
 }
 
@@ -1260,15 +1275,16 @@ unsigned long kvm_vcpu_gfn_to_hva_prot(struct kvm_vcpu *vcpu, gfn_t gfn, bool *w
 	return gfn_to_hva_memslot_prot(slot, gfn, writable);
 }
 
-static int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
-	unsigned long start, int write, struct page **page)
+static int get_user_page_nowait(unsigned long start, int write,
+		struct page **page)
 {
 	int flags = FOLL_TOUCH | FOLL_NOWAIT | FOLL_HWPOISON | FOLL_GET;
 
 	if (write)
 		flags |= FOLL_WRITE;
 
-	return __get_user_pages(tsk, mm, start, 1, flags, page, NULL, NULL);
+	return __get_user_pages(current, current->mm, start, 1, flags, page,
+			NULL, NULL);
 }
 
 static inline int check_user_page_hwpoison(unsigned long addr)
@@ -1330,8 +1346,7 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 
 	if (async) {
 		down_read(&current->mm->mmap_sem);
-		npages = get_user_page_nowait(current, current->mm,
-					      addr, write_fault, page);
+		npages = get_user_page_nowait(addr, write_fault, page);
 		up_read(&current->mm->mmap_sem);
 	} else
 		npages = __get_user_pages_unlocked(current, current->mm, addr, 1,

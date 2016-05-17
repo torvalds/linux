@@ -52,44 +52,14 @@
 			 _PAGE_F_SECOND | _PAGE_F_GIX)
 
 /* shift to put page number into pte */
-#define PTE_RPN_SHIFT	(18)
+#define PTE_RPN_SHIFT	(12)
+#define PTE_RPN_SIZE	(45)	/* gives 57-bit real addresses */
 
 #define _PAGE_4K_PFN		0
 #ifndef __ASSEMBLY__
 /*
- * 4-level page tables related bits
+ * On all 4K setups, remap_4k_pfn() equates to remap_pfn_range()
  */
-
-#define pgd_none(pgd)		(!pgd_val(pgd))
-#define pgd_bad(pgd)		(pgd_val(pgd) == 0)
-#define pgd_present(pgd)	(pgd_val(pgd) != 0)
-#define pgd_page_vaddr(pgd)	(pgd_val(pgd) & ~PGD_MASKED_BITS)
-
-static inline void pgd_clear(pgd_t *pgdp)
-{
-	*pgdp = __pgd(0);
-}
-
-static inline pte_t pgd_pte(pgd_t pgd)
-{
-	return __pte(pgd_val(pgd));
-}
-
-static inline pgd_t pte_pgd(pte_t pte)
-{
-	return __pgd(pte_val(pte));
-}
-extern struct page *pgd_page(pgd_t pgd);
-
-#define pud_offset(pgdp, addr)	\
-  (((pud_t *) pgd_page_vaddr(*(pgdp))) + \
-    (((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1)))
-
-#define pud_ERROR(e) \
-	pr_err("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))
-
-/*
- * On all 4K setups, remap_4k_pfn() equates to remap_pfn_range() */
 #define remap_4k_pfn(vma, addr, pfn, prot)	\
 	remap_pfn_range((vma), (addr), (pfn), PAGE_SIZE, (prot))
 

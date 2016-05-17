@@ -589,6 +589,14 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	struct mmc_card *card;
 	int err = 0, ioc_err = 0;
 
+	/*
+	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
+	 * whole block device, not on a partition.  This prevents overspray
+	 * between sibling partitions.
+	 */
+	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
+		return -EPERM;
+
 	idata = mmc_blk_ioctl_copy_from_user(ic_ptr);
 	if (IS_ERR(idata))
 		return PTR_ERR(idata);
@@ -630,6 +638,14 @@ static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
 	struct mmc_blk_data *md;
 	int i, err = 0, ioc_err = 0;
 	__u64 num_of_cmds;
+
+	/*
+	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
+	 * whole block device, not on a partition.  This prevents overspray
+	 * between sibling partitions.
+	 */
+	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
+		return -EPERM;
 
 	if (copy_from_user(&num_of_cmds, &user->num_of_cmds,
 			   sizeof(num_of_cmds)))
@@ -688,14 +704,6 @@ cmd_err:
 static int mmc_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
-	/*
-	 * The caller must have CAP_SYS_RAWIO, and must be calling this on the
-	 * whole block device, not on a partition.  This prevents overspray
-	 * between sibling partitions.
-	 */
-	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
-		return -EPERM;
-
 	switch (cmd) {
 	case MMC_IOC_CMD:
 		return mmc_blk_ioctl_cmd(bdev,
@@ -1362,8 +1370,8 @@ static int mmc_blk_err_check(struct mmc_card *card,
 
 	if (brq->data.error) {
 		if (need_retune && !brq->retune_retry_done) {
-			pr_info("%s: retrying because a re-tune was needed\n",
-				req->rq_disk->disk_name);
+			pr_debug("%s: retrying because a re-tune was needed\n",
+				 req->rq_disk->disk_name);
 			brq->retune_retry_done = 1;
 			return MMC_BLK_RETRY;
 		}
@@ -1524,13 +1532,13 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 	}
 	if (rq_data_dir(req) == READ) {
 		brq->cmd.opcode = readcmd;
-		brq->data.flags |= MMC_DATA_READ;
+		brq->data.flags = MMC_DATA_READ;
 		if (brq->mrq.stop)
 			brq->stop.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 |
 					MMC_CMD_AC;
 	} else {
 		brq->cmd.opcode = writecmd;
-		brq->data.flags |= MMC_DATA_WRITE;
+		brq->data.flags = MMC_DATA_WRITE;
 		if (brq->mrq.stop)
 			brq->stop.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B |
 					MMC_CMD_AC;
@@ -1799,7 +1807,7 @@ static void mmc_blk_packed_hdr_wrq_prep(struct mmc_queue_req *mqrq,
 
 	brq->data.blksz = 512;
 	brq->data.blocks = packed->blocks + hdr_blocks;
-	brq->data.flags |= MMC_DATA_WRITE;
+	brq->data.flags = MMC_DATA_WRITE;
 
 	brq->stop.opcode = MMC_STOP_TRANSMISSION;
 	brq->stop.arg = 0;

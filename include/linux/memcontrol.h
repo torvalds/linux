@@ -52,7 +52,10 @@ enum mem_cgroup_stat_index {
 	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
 	MEM_CGROUP_STAT_NSTATS,
 	/* default hierarchy stats */
-	MEMCG_SOCK = MEM_CGROUP_STAT_NSTATS,
+	MEMCG_KERNEL_STACK = MEM_CGROUP_STAT_NSTATS,
+	MEMCG_SLAB_RECLAIMABLE,
+	MEMCG_SLAB_UNRECLAIMABLE,
+	MEMCG_SOCK,
 	MEMCG_NR_STAT,
 };
 
@@ -400,6 +403,9 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
 void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 		int nr_pages);
 
+unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+					   int nid, unsigned int lru_mask);
+
 static inline
 unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
 {
@@ -658,6 +664,13 @@ mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 {
 }
 
+static inline unsigned long
+mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+			     int nid, unsigned int lru_mask)
+{
+	return 0;
+}
+
 static inline void
 mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 {
@@ -792,11 +805,6 @@ static inline bool memcg_kmem_enabled(void)
 	return static_branch_unlikely(&memcg_kmem_enabled_key);
 }
 
-static inline bool memcg_kmem_online(struct mem_cgroup *memcg)
-{
-	return memcg->kmem_state == KMEM_ONLINE;
-}
-
 /*
  * In general, we'll do everything in our power to not incur in any overhead
  * for non-memcg users for the kmem functions. Not even a function call, if we
@@ -883,16 +891,25 @@ static __always_inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
 	if (memcg_kmem_enabled())
 		__memcg_kmem_put_cache(cachep);
 }
+
+/**
+ * memcg_kmem_update_page_stat - update kmem page state statistics
+ * @page: the page
+ * @idx: page state item to account
+ * @val: number of pages (positive or negative)
+ */
+static inline void memcg_kmem_update_page_stat(struct page *page,
+				enum mem_cgroup_stat_index idx, int val)
+{
+	if (memcg_kmem_enabled() && page->mem_cgroup)
+		this_cpu_add(page->mem_cgroup->stat->count[idx], val);
+}
+
 #else
 #define for_each_memcg_cache_index(_idx)	\
 	for (; NULL; )
 
 static inline bool memcg_kmem_enabled(void)
-{
-	return false;
-}
-
-static inline bool memcg_kmem_online(struct mem_cgroup *memcg)
 {
 	return false;
 }
@@ -926,6 +943,11 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
 }
 
 static inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
+{
+}
+
+static inline void memcg_kmem_update_page_stat(struct page *page,
+				enum mem_cgroup_stat_index idx, int val)
 {
 }
 #endif /* CONFIG_MEMCG && !CONFIG_SLOB */

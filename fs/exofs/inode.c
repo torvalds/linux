@@ -317,7 +317,7 @@ static int read_exec(struct page_collect *pcol)
 
 	if (!pcol->ios) {
 		int ret = ore_get_rw_state(&pcol->sbi->layout, &oi->oc, true,
-					     pcol->pg_first << PAGE_CACHE_SHIFT,
+					     pcol->pg_first << PAGE_SHIFT,
 					     pcol->length, &pcol->ios);
 
 		if (ret)
@@ -383,7 +383,7 @@ static int readpage_strip(void *data, struct page *page)
 	struct inode *inode = pcol->inode;
 	struct exofs_i_info *oi = exofs_i(inode);
 	loff_t i_size = i_size_read(inode);
-	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+	pgoff_t end_index = i_size >> PAGE_SHIFT;
 	size_t len;
 	int ret;
 
@@ -397,9 +397,9 @@ static int readpage_strip(void *data, struct page *page)
 	pcol->that_locked_page = page;
 
 	if (page->index < end_index)
-		len = PAGE_CACHE_SIZE;
+		len = PAGE_SIZE;
 	else if (page->index == end_index)
-		len = i_size & ~PAGE_CACHE_MASK;
+		len = i_size & ~PAGE_MASK;
 	else
 		len = 0;
 
@@ -442,8 +442,8 @@ try_again:
 			goto fail;
 	}
 
-	if (len != PAGE_CACHE_SIZE)
-		zero_user(page, len, PAGE_CACHE_SIZE - len);
+	if (len != PAGE_SIZE)
+		zero_user(page, len, PAGE_SIZE - len);
 
 	EXOFS_DBGMSG2("    readpage_strip(0x%lx, 0x%lx) len=0x%zx\n",
 		     inode->i_ino, page->index, len);
@@ -609,7 +609,7 @@ static void __r4w_put_page(void *priv, struct page *page)
 
 	if ((pcol->that_locked_page != page) && (ZERO_PAGE(0) != page)) {
 		EXOFS_DBGMSG2("index=0x%lx\n", page->index);
-		page_cache_release(page);
+		put_page(page);
 		return;
 	}
 	EXOFS_DBGMSG2("that_locked_page index=0x%lx\n",
@@ -633,7 +633,7 @@ static int write_exec(struct page_collect *pcol)
 
 	BUG_ON(pcol->ios);
 	ret = ore_get_rw_state(&pcol->sbi->layout, &oi->oc, false,
-				 pcol->pg_first << PAGE_CACHE_SHIFT,
+				 pcol->pg_first << PAGE_SHIFT,
 				 pcol->length, &pcol->ios);
 	if (unlikely(ret))
 		goto err;
@@ -696,7 +696,7 @@ static int writepage_strip(struct page *page,
 	struct inode *inode = pcol->inode;
 	struct exofs_i_info *oi = exofs_i(inode);
 	loff_t i_size = i_size_read(inode);
-	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+	pgoff_t end_index = i_size >> PAGE_SHIFT;
 	size_t len;
 	int ret;
 
@@ -708,9 +708,9 @@ static int writepage_strip(struct page *page,
 
 	if (page->index < end_index)
 		/* in this case, the page is within the limits of the file */
-		len = PAGE_CACHE_SIZE;
+		len = PAGE_SIZE;
 	else {
-		len = i_size & ~PAGE_CACHE_MASK;
+		len = i_size & ~PAGE_MASK;
 
 		if (page->index > end_index || !len) {
 			/* in this case, the page is outside the limits
@@ -790,10 +790,10 @@ static int exofs_writepages(struct address_space *mapping,
 	long start, end, expected_pages;
 	int ret;
 
-	start = wbc->range_start >> PAGE_CACHE_SHIFT;
+	start = wbc->range_start >> PAGE_SHIFT;
 	end = (wbc->range_end == LLONG_MAX) ?
 			start + mapping->nrpages :
-			wbc->range_end >> PAGE_CACHE_SHIFT;
+			wbc->range_end >> PAGE_SHIFT;
 
 	if (start || end)
 		expected_pages = end - start + 1;
@@ -881,15 +881,15 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 	}
 
 	 /* read modify write */
-	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
+	if (!PageUptodate(page) && (len != PAGE_SIZE)) {
 		loff_t i_size = i_size_read(mapping->host);
-		pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+		pgoff_t end_index = i_size >> PAGE_SHIFT;
 		size_t rlen;
 
 		if (page->index < end_index)
-			rlen = PAGE_CACHE_SIZE;
+			rlen = PAGE_SIZE;
 		else if (page->index == end_index)
-			rlen = i_size & ~PAGE_CACHE_MASK;
+			rlen = i_size & ~PAGE_MASK;
 		else
 			rlen = 0;
 

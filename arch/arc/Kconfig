@@ -391,7 +391,7 @@ config ARC_HAS_LLSC
 
 config ARC_STAR_9000923308
 	bool "Workaround for llock/scond livelock"
-	default y
+	default n
 	depends on ISA_ARCV2 && SMP && ARC_HAS_LLSC
 
 config ARC_HAS_SWAPE
@@ -462,7 +462,6 @@ config ARC_HAS_PAE40
 	bool "Support for the 40-bit Physical Address Extension"
 	default n
 	depends on ISA_ARCV2
-	select HIGHMEM
 	help
 	  Enable access to physical memory beyond 4G, only supported on
 	  ARC cores with 40 bit Physical Addressing support
@@ -471,6 +470,9 @@ config ARCH_PHYS_ADDR_T_64BIT
 	def_bool ARC_HAS_PAE40
 
 config ARCH_DMA_ADDR_T_64BIT
+	bool
+
+config ARC_PLAT_NEEDS_PHYS_TO_DMA
 	bool
 
 config ARC_CURR_IN_REG
@@ -591,7 +593,6 @@ config PCI_SYSCALL
 	def_bool PCI
 
 source "drivers/pci/Kconfig"
-source "drivers/pci/pcie/Kconfig"
 
 endmenu
 

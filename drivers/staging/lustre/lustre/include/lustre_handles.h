@@ -65,7 +65,8 @@ struct portals_handle_ops {
  *
  * Now you're able to assign the results of cookie2handle directly to an
  * ldlm_lock.  If it's not at the top, you'll want to use container_of()
- * to compute the start of the structure based on the handle field. */
+ * to compute the start of the structure based on the handle field.
+ */
 struct portals_handle {
 	struct list_head			h_link;
 	__u64				h_cookie;

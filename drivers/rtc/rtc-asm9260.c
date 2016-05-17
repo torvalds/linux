@@ -255,7 +255,7 @@ static const struct rtc_class_ops asm9260_rtc_ops = {
 	.alarm_irq_enable	= asm9260_alarm_irq_enable,
 };
 
-static int __init asm9260_rtc_probe(struct platform_device *pdev)
+static int asm9260_rtc_probe(struct platform_device *pdev)
 {
 	struct asm9260_rtc_priv *priv;
 	struct device *dev = &pdev->dev;
@@ -323,7 +323,7 @@ err_return:
 	return ret;
 }
 
-static int __exit asm9260_rtc_remove(struct platform_device *pdev)
+static int asm9260_rtc_remove(struct platform_device *pdev)
 {
 	struct asm9260_rtc_priv *priv = platform_get_drvdata(pdev);
 

@@ -341,7 +341,7 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 
 	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
 		if (sector & ((PAGE_SIZE >> SECTOR_SHIFT) - 1) ||
-		    bio->bi_iter.bi_size & PAGE_MASK)
+		    bio->bi_iter.bi_size & ~PAGE_MASK)
 			goto io_error;
 		discard_from_brd(brd, sector, bio->bi_iter.bi_size);
 		goto out;
@@ -374,7 +374,7 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
 		       struct page *page, int rw)
 {
 	struct brd_device *brd = bdev->bd_disk->private_data;
-	int err = brd_do_bvec(brd, page, PAGE_CACHE_SIZE, 0, rw, sector);
+	int err = brd_do_bvec(brd, page, PAGE_SIZE, 0, rw, sector);
 	page_endio(page, rw & WRITE, err);
 	return err;
 }

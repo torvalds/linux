@@ -15,8 +15,8 @@
 #define MAX_SOURCES 400
 
 / {
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	compatible = "ti,dra7xx";
 	interrupt-parent = <&crossbar_mpu>;
@@ -57,10 +57,10 @@
 		compatible = "arm,cortex-a15-gic";
 		interrupt-controller;
 		#interrupt-cells = <3>;
-		reg = <0x48211000 0x1000>,
-		      <0x48212000 0x1000>,
-		      <0x48214000 0x2000>,
-		      <0x48216000 0x2000>;
+		reg = <0x0 0x48211000 0x0 0x1000>,
+		      <0x0 0x48212000 0x0 0x1000>,
+		      <0x0 0x48214000 0x0 0x2000>,
+		      <0x0 0x48216000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
 		interrupt-parent = <&gic>;
 	};
@@ -69,7 +69,7 @@
 		compatible = "ti,omap5-wugen-mpu", "ti,omap4-wugen-mpu";
 		interrupt-controller;
 		#interrupt-cells = <3>;
-		reg = <0x48281000 0x1000>;
+		reg = <0x0 0x48281000 0x0 0x1000>;
 		interrupt-parent = <&gic>;
 	};
 
@@ -96,10 +96,10 @@
 		compatible = "ti,dra7-l3-noc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges;
+		ranges = <0x0 0x0 0x0 0xc0000000>;
 		ti,hwmods = "l3_main_1", "l3_main_2";
-		reg = <0x44000000 0x1000000>,
-		      <0x45000000 0x1000>;
+		reg = <0x0 0x44000000 0x0 0x1000000>,
+		      <0x0 0x45000000 0x0 0x1000>;
 		interrupts-extended = <&crossbar_mpu GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
 				      <&wakeupgen GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -155,6 +155,11 @@
 				scm_conf1: scm_conf@1c04 {
 					compatible = "syscon";
 					reg = <0x1c04 0x0020>;
+				};
+
+				scm_conf_pcie: scm_conf@1c24 {
+					compatible = "syscon";
+					reg = <0x1c24 0x0024>;
 				};
 			};
 
@@ -1168,14 +1173,6 @@
 			status = "disabled";
 		};
 
-		omap_control_sata: control-phy@4a002374 {
-			compatible = "ti,control-phy-pipe3";
-			reg = <0x4a002374 0x4>;
-			reg-names = "power";
-			clocks = <&sys_clkin1>;
-			clock-names = "sysclk";
-		};
-
 		/* OCP2SCP3 */
 		ocp2scp@4a090000 {
 			compatible = "ti,omap-ocp2scp";
@@ -1190,7 +1187,7 @@
 				      <0x4A096400 0x64>, /* phy_tx */
 				      <0x4A096800 0x40>; /* pll_ctrl */
 				reg-names = "phy_rx", "phy_tx", "pll_ctrl";
-				ctrl-module = <&omap_control_sata>;
+				syscon-phy-power = <&scm_conf 0x374>;
 				clocks = <&sys_clkin1>, <&sata_ref_clk>;
 				clock-names = "sysclk", "refclk";
 				syscon-pllreset = <&scm_conf 0x3fc>;
@@ -1202,16 +1199,18 @@
 				reg = <0x4a094000 0x80>, /* phy_rx */
 				      <0x4a094400 0x64>; /* phy_tx */
 				reg-names = "phy_rx", "phy_tx";
-				ctrl-module = <&omap_control_pcie1phy>;
+				syscon-phy-power = <&scm_conf_pcie 0x1c>;
+				syscon-pcs = <&scm_conf_pcie 0x10>;
 				clocks = <&dpll_pcie_ref_ck>,
 					 <&dpll_pcie_ref_m2ldo_ck>,
 					 <&optfclk_pciephy1_32khz>,
 					 <&optfclk_pciephy1_clk>,
 					 <&optfclk_pciephy1_div_clk>,
-					 <&optfclk_pciephy_div>;
+					 <&optfclk_pciephy_div>,
+					 <&sys_clkin1>;
 				clock-names = "dpll_ref", "dpll_ref_m2",
 					      "wkupclk", "refclk",
-					      "div-clk", "phy-div";
+					      "div-clk", "phy-div", "sysclk";
 				#phy-cells = <0>;
 			};
 
@@ -1220,16 +1219,18 @@
 				reg = <0x4a095000 0x80>, /* phy_rx */
 				      <0x4a095400 0x64>; /* phy_tx */
 				reg-names = "phy_rx", "phy_tx";
-				ctrl-module = <&omap_control_pcie2phy>;
+				syscon-phy-power = <&scm_conf_pcie 0x20>;
+				syscon-pcs = <&scm_conf_pcie 0x10>;
 				clocks = <&dpll_pcie_ref_ck>,
 					 <&dpll_pcie_ref_m2ldo_ck>,
 					 <&optfclk_pciephy2_32khz>,
 					 <&optfclk_pciephy2_clk>,
 					 <&optfclk_pciephy2_div_clk>,
-					 <&optfclk_pciephy_div>;
+					 <&optfclk_pciephy_div>,
+					 <&sys_clkin1>;
 				clock-names = "dpll_ref", "dpll_ref_m2",
 					      "wkupclk", "refclk",
-					      "div-clk", "phy-div";
+					      "div-clk", "phy-div", "sysclk";
 				#phy-cells = <0>;
 				status = "disabled";
 			};
@@ -1245,23 +1246,6 @@
 			ti,hwmods = "sata";
 		};
 
-		omap_control_pcie1phy: control-phy@0x4a003c40 {
-			compatible = "ti,control-phy-pcie";
-			reg = <0x4a003c40 0x4>, <0x4a003c14 0x4>, <0x4a003c34 0x4>;
-			reg-names = "power", "control_sma", "pcie_pcs";
-			clocks = <&sys_clkin1>;
-			clock-names = "sysclk";
-		};
-
-		omap_control_pcie2phy: control-pcie@0x4a003c44 {
-			compatible = "ti,control-phy-pcie";
-			reg = <0x4a003c44 0x4>, <0x4a003c14 0x4>, <0x4a003c34 0x4>;
-			reg-names = "power", "control_sma", "pcie_pcs";
-			clocks = <&sys_clkin1>;
-			clock-names = "sysclk";
-			status = "disabled";
-		};
-
 		rtc: rtc@48838000 {
 			compatible = "ti,am3352-rtc";
 			reg = <0x48838000 0x100>;
@@ -1269,24 +1253,6 @@
 				     <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "rtcss";
 			clocks = <&sys_32k_ck>;
-		};
-
-		omap_control_usb2phy1: control-phy@4a002300 {
-			compatible = "ti,control-phy-usb2";
-			reg = <0x4a002300 0x4>;
-			reg-names = "power";
-		};
-
-		omap_control_usb3phy1: control-phy@4a002370 {
-			compatible = "ti,control-phy-pipe3";
-			reg = <0x4a002370 0x4>;
-			reg-names = "power";
-		};
-
-		omap_control_usb2phy2: control-phy@0x4a002e74 {
-			compatible = "ti,control-phy-usb2-dra7";
-			reg = <0x4a002e74 0x4>;
-			reg-names = "power";
 		};
 
 		/* OCP2SCP1 */
@@ -1301,7 +1267,7 @@
 			usb2_phy1: phy@4a084000 {
 				compatible = "ti,omap-usb2";
 				reg = <0x4a084000 0x400>;
-				ctrl-module = <&omap_control_usb2phy1>;
+				syscon-phy-power = <&scm_conf 0x300>;
 				clocks = <&usb_phy1_always_on_clk32k>,
 					 <&usb_otg_ss1_refclk960m>;
 				clock-names =	"wkupclk",
@@ -1310,9 +1276,10 @@
 			};
 
 			usb2_phy2: phy@4a085000 {
-				compatible = "ti,omap-usb2";
+				compatible = "ti,dra7x-usb2-phy2",
+					     "ti,omap-usb2";
 				reg = <0x4a085000 0x400>;
-				ctrl-module = <&omap_control_usb2phy2>;
+				syscon-phy-power = <&scm_conf 0xe74>;
 				clocks = <&usb_phy2_always_on_clk32k>,
 					 <&usb_otg_ss2_refclk960m>;
 				clock-names =	"wkupclk",
@@ -1326,7 +1293,7 @@
 				      <0x4a084800 0x64>,
 				      <0x4a084c00 0x40>;
 				reg-names = "phy_rx", "phy_tx", "pll_ctrl";
-				ctrl-module = <&omap_control_usb3phy1>;
+				syscon-phy-power = <&scm_conf 0x370>;
 				clocks = <&usb_phy3_always_on_clk32k>,
 					 <&sys_clkin1>,
 					 <&usb_otg_ss1_refclk960m>;
@@ -1357,7 +1324,6 @@
 						  "otg";
 				phys = <&usb2_phy1>, <&usb3_phy1>;
 				phy-names = "usb2-phy", "usb3-phy";
-				tx-fifo-resize;
 				maximum-speed = "super-speed";
 				dr_mode = "otg";
 				snps,dis_u3_susphy_quirk;
@@ -1385,7 +1351,6 @@
 						  "otg";
 				phys = <&usb2_phy2>;
 				phy-names = "usb2-phy";
-				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
 				snps,dis_u3_susphy_quirk;
@@ -1413,7 +1378,6 @@
 				interrupt-names = "peripheral",
 						  "host",
 						  "otg";
-				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
 				snps,dis_u3_susphy_quirk;
@@ -1438,6 +1402,8 @@
 			gpmc,num-waitpins = <2>;
 			#address-cells = <2>;
 			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			status = "disabled";
 		};
 
@@ -1613,6 +1579,8 @@
 		#include "omap4-cpu-thermal.dtsi"
 		#include "omap5-gpu-thermal.dtsi"
 		#include "omap5-core-thermal.dtsi"
+		#include "dra7-dspeve-thermal.dtsi"
+		#include "dra7-iva-thermal.dtsi"
 	};
 
 };

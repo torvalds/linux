@@ -272,8 +272,9 @@ config CROSS_MEMORY_ATTACH
 	  See the man page for more details.
 
 config FHANDLE
-	bool "open by fhandle syscalls"
+	bool "open by fhandle syscalls" if EXPERT
 	select EXPORTFS
+	default y
 	help
 	  If you say Y here, a user level program will be able to map
 	  file names to handle and then later use the handle for
@@ -1047,10 +1048,10 @@ config CGROUP_PIDS
 	  is fairly trivial to reach PID exhaustion before you reach even a
 	  conservative kmemcg limit. As a result, it is possible to grind a
 	  system to halt without being limited by other cgroup policies. The
-	  PIDs cgroup subsystem is designed to stop this from happening.
+	  PIDs controller is designed to stop this from happening.
 
 	  It should be noted that organisational operations (such as attaching
-	  to a cgroup hierarchy will *not* be blocked by the PIDs subsystem),
+	  to a cgroup hierarchy will *not* be blocked by the PIDs controller),
 	  since the PIDs limit only affects a process's ability to fork, not to
 	  attach to a cgroup.
 

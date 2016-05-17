@@ -1379,6 +1379,7 @@
 #define mmDC_GPIO_PAD_STRENGTH_1                                                0x1978
 #define mmDC_GPIO_PAD_STRENGTH_2                                                0x1979
 #define mmPHY_AUX_CNTL                                                          0x197f
+#define mmDC_GPIO_I2CPAD_MASK                                                   0x1974
 #define mmDC_GPIO_I2CPAD_A                                                      0x1975
 #define mmDC_GPIO_I2CPAD_EN                                                     0x1976
 #define mmDC_GPIO_I2CPAD_Y                                                      0x1977

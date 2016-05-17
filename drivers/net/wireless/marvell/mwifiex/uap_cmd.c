@@ -192,7 +192,7 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 		}
 		priv->ap_11n_enabled = 1;
 	} else {
-		memset(&bss_cfg->ht_cap , 0, sizeof(struct ieee80211_ht_cap));
+		memset(&bss_cfg->ht_cap, 0, sizeof(struct ieee80211_ht_cap));
 		bss_cfg->ht_cap.cap_info = cpu_to_le16(MWIFIEX_DEF_HT_CAP);
 		bss_cfg->ht_cap.ampdu_params_info = MWIFIEX_DEF_AMPDU;
 	}

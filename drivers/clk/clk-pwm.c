@@ -95,7 +95,7 @@ static int clk_pwm_probe(struct platform_device *pdev)
 
 	init.name = clk_name;
 	init.ops = &clk_pwm_ops;
-	init.flags = CLK_IS_BASIC | CLK_IS_ROOT;
+	init.flags = CLK_IS_BASIC;
 	init.num_parents = 0;
 
 	clk_pwm->pwm = pwm;

@@ -75,6 +75,8 @@
 #define LOWPAN_IPHC_MAX_HC_BUF_LEN	(sizeof(struct ipv6hdr) +	\
 					 LOWPAN_IPHC_MAX_HEADER_LEN +	\
 					 LOWPAN_NHC_MAX_HDR_LEN)
+/* SCI/DCI is 4 bit width, so we have maximum 16 entries */
+#define LOWPAN_IPHC_CTX_TABLE_SIZE	(1 << 4)
 
 #define LOWPAN_DISPATCH_IPV6		0x41 /* 01000001 = 65 */
 #define LOWPAN_DISPATCH_IPHC		0x60 /* 011xxxxx = ... */
@@ -98,9 +100,39 @@ enum lowpan_lltypes {
 	LOWPAN_LLTYPE_IEEE802154,
 };
 
+enum lowpan_iphc_ctx_flags {
+	LOWPAN_IPHC_CTX_FLAG_ACTIVE,
+	LOWPAN_IPHC_CTX_FLAG_COMPRESSION,
+};
+
+struct lowpan_iphc_ctx {
+	u8 id;
+	struct in6_addr pfx;
+	u8 plen;
+	unsigned long flags;
+};
+
+struct lowpan_iphc_ctx_table {
+	spinlock_t lock;
+	const struct lowpan_iphc_ctx_ops *ops;
+	struct lowpan_iphc_ctx table[LOWPAN_IPHC_CTX_TABLE_SIZE];
+};
+
+static inline bool lowpan_iphc_ctx_is_active(const struct lowpan_iphc_ctx *ctx)
+{
+	return test_bit(LOWPAN_IPHC_CTX_FLAG_ACTIVE, &ctx->flags);
+}
+
+static inline bool
+lowpan_iphc_ctx_is_compression(const struct lowpan_iphc_ctx *ctx)
+{
+	return test_bit(LOWPAN_IPHC_CTX_FLAG_COMPRESSION, &ctx->flags);
+}
+
 struct lowpan_priv {
 	enum lowpan_lltypes lltype;
 	struct dentry *iface_debugfs;
+	struct lowpan_iphc_ctx_table ctx;
 
 	/* must be last */
 	u8 priv[0] __aligned(sizeof(void *));

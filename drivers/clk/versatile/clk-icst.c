@@ -170,7 +170,7 @@ static struct clk *icst_clk_setup(struct device *dev,
 
 	init.name = name;
 	init.ops = &icst_ops;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 	init.parent_names = (parent_name ? &parent_name : NULL);
 	init.num_parents = (parent_name ? 1 : 0);
 	icst->map = map;

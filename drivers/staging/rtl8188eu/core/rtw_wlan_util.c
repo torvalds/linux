@@ -1374,7 +1374,7 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 				epigram_vendor_flag = 1;
 				if (ralink_vendor_flag) {
 					DBG_88E("link to Tenda W311R AP\n");
-					 return HT_IOT_PEER_TENDA;
+					return HT_IOT_PEER_TENDA;
 				} else {
 					DBG_88E("Capture EPIGRAM_OUI\n");
 				}
@@ -1579,7 +1579,8 @@ void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr)
 		tid = (param>>2)&0x0f;
 		preorder_ctrl = &psta->recvreorder_ctrl[tid];
 		preorder_ctrl->indicate_seq = 0xffff;
-		preorder_ctrl->enable = (pmlmeinfo->bAcceptAddbaReq) ? true : false;
+		preorder_ctrl->enable = (pmlmeinfo->accept_addba_req) ? true
+								      : false;
 	}
 }
 

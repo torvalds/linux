@@ -32,42 +32,65 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 					     netdev_features_t features),
 	__be16 new_protocol, bool is_ipv6)
 {
-	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	u16 mac_offset = skb->mac_header;
-	int mac_len = skb->mac_len;
 	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
+	bool remcsum, need_csum, offload_csum, ufo;
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct udphdr *uh = udp_hdr(skb);
+	u16 mac_offset = skb->mac_header;
 	__be16 protocol = skb->protocol;
-	netdev_features_t enc_features;
+	u16 mac_len = skb->mac_len;
 	int udp_offset, outer_hlen;
-	unsigned int oldlen;
-	bool need_csum = !!(skb_shinfo(skb)->gso_type &
-			    SKB_GSO_UDP_TUNNEL_CSUM);
-	bool remcsum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_TUNNEL_REMCSUM);
-	bool offload_csum = false, dont_encap = (need_csum || remcsum);
-
-	oldlen = (u16)~skb->len;
+	__wsum partial;
 
 	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
 		goto out;
 
+	/* Adjust partial header checksum to negate old length.
+	 * We cannot rely on the value contained in uh->len as it is
+	 * possible that the actual value exceeds the boundaries of the
+	 * 16 bit length field due to the header being added outside of an
+	 * IP or IPv6 frame that was already limited to 64K - 1.
+	 */
+	partial = csum_sub(csum_unfold(uh->check),
+			   (__force __wsum)htonl(skb->len));
+
+	/* setup inner skb. */
 	skb->encapsulation = 0;
+	SKB_GSO_CB(skb)->encap_level = 0;
 	__skb_pull(skb, tnl_hlen);
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
 	skb->mac_len = skb_inner_network_offset(skb);
 	skb->protocol = new_protocol;
+
+	need_csum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM);
 	skb->encap_hdr_csum = need_csum;
+
+	remcsum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_TUNNEL_REMCSUM);
 	skb->remcsum_offload = remcsum;
+
+	ufo = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
 
 	/* Try to offload checksum if possible */
 	offload_csum = !!(need_csum &&
-			  ((skb->dev->features & NETIF_F_HW_CSUM) ||
-			   (skb->dev->features & (is_ipv6 ?
-			    NETIF_F_IPV6_CSUM : NETIF_F_IP_CSUM))));
+			  (skb->dev->features &
+			   (is_ipv6 ? (NETIF_F_HW_CSUM | NETIF_F_IPV6_CSUM) :
+				      (NETIF_F_HW_CSUM | NETIF_F_IP_CSUM))));
+
+	features &= skb->dev->hw_enc_features;
+
+	/* The only checksum offload we care about from here on out is the
+	 * outer one so strip the existing checksum feature flags and
+	 * instead set the flag based on our outer checksum offload value.
+	 */
+	if (remcsum || ufo) {
+		features &= ~NETIF_F_CSUM_MASK;
+		if (!need_csum || offload_csum)
+			features |= NETIF_F_HW_CSUM;
+	}
 
 	/* segment inner packet. */
-	enc_features = skb->dev->hw_enc_features & features;
-	segs = gso_inner_segment(skb, enc_features);
+	segs = gso_inner_segment(skb, features);
 	if (IS_ERR_OR_NULL(segs)) {
 		skb_gso_error_unwind(skb, protocol, tnl_hlen, mac_offset,
 				     mac_len);
@@ -78,17 +101,13 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	udp_offset = outer_hlen - tnl_hlen;
 	skb = segs;
 	do {
-		struct udphdr *uh;
-		int len;
-		__be32 delta;
+		__be16 len;
 
-		if (dont_encap) {
-			skb->encapsulation = 0;
+		if (remcsum)
 			skb->ip_summed = CHECKSUM_NONE;
-		} else {
-			/* Only set up inner headers if we might be offloading
-			 * inner checksum.
-			 */
+
+		/* Set up inner headers if we are offloading inner checksum */
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			skb_reset_inner_headers(skb);
 			skb->encapsulation = 1;
 		}
@@ -96,43 +115,27 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 		skb->mac_len = mac_len;
 		skb->protocol = protocol;
 
-		skb_push(skb, outer_hlen);
+		__skb_push(skb, outer_hlen);
 		skb_reset_mac_header(skb);
 		skb_set_network_header(skb, mac_len);
 		skb_set_transport_header(skb, udp_offset);
-		len = skb->len - udp_offset;
+		len = htons(skb->len - udp_offset);
 		uh = udp_hdr(skb);
-		uh->len = htons(len);
+		uh->len = len;
 
 		if (!need_csum)
 			continue;
 
-		delta = htonl(oldlen + len);
+		uh->check = ~csum_fold(csum_add(partial, (__force __wsum)len));
 
-		uh->check = ~csum_fold((__force __wsum)
-				       ((__force u32)uh->check +
-					(__force u32)delta));
-		if (offload_csum) {
-			skb->ip_summed = CHECKSUM_PARTIAL;
-			skb->csum_start = skb_transport_header(skb) - skb->head;
-			skb->csum_offset = offsetof(struct udphdr, check);
-		} else if (remcsum) {
-			/* Need to calculate checksum from scratch,
-			 * inner checksums are never when doing
-			 * remote_checksum_offload.
-			 */
-
-			skb->csum = skb_checksum(skb, udp_offset,
-						 skb->len - udp_offset,
-						 0);
-			uh->check = csum_fold(skb->csum);
+		if (skb->encapsulation || !offload_csum) {
+			uh->check = gso_make_checksum(skb, ~uh->check);
 			if (uh->check == 0)
 				uh->check = CSUM_MANGLED_0;
 		} else {
-			uh->check = gso_make_checksum(skb, ~uh->check);
-
-			if (uh->check == 0)
-				uh->check = CSUM_MANGLED_0;
+			skb->ip_summed = CHECKSUM_PARTIAL;
+			skb->csum_start = skb_transport_header(skb) - skb->head;
+			skb->csum_offset = offsetof(struct udphdr, check);
 		}
 	} while ((skb = skb->next));
 out:
@@ -235,6 +238,13 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 
 	skb->ip_summed = CHECKSUM_NONE;
 
+	/* If there is no outer header we can fake a checksum offload
+	 * due to the fact that we have already done the checksum in
+	 * software prior to segmenting the frame.
+	 */
+	if (!skb->encap_hdr_csum)
+		features |= NETIF_F_HW_CSUM;
+
 	/* Fragment the skb. IP headers of the fragments are updated in
 	 * inet_gso_segment()
 	 */
@@ -302,14 +312,14 @@ struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
 	unsigned int off = skb_gro_offset(skb);
 	int flush = 1;
 
-	if (NAPI_GRO_CB(skb)->udp_mark ||
+	if (NAPI_GRO_CB(skb)->encap_mark ||
 	    (skb->ip_summed != CHECKSUM_PARTIAL &&
 	     NAPI_GRO_CB(skb)->csum_cnt == 0 &&
 	     !NAPI_GRO_CB(skb)->csum_valid))
 		goto out;
 
-	/* mark that this skb passed once through the udp gro layer */
-	NAPI_GRO_CB(skb)->udp_mark = 1;
+	/* mark that this skb passed once through the tunnel gro layer */
+	NAPI_GRO_CB(skb)->encap_mark = 1;
 
 	rcu_read_lock();
 	uo_priv = rcu_dereference(udp_offload_base);

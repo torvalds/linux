@@ -1,11 +1,10 @@
 /*
+ * Copyright(c) 2015, 2016 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
  * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,8 +16,6 @@
  * General Public License for more details.
  *
  * BSD LICENSE
- *
- * Copyright(c) 2015 Intel Corporation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -99,17 +96,17 @@
 
 /* sleep length while waiting for controller */
 #define WAIT_SLEEP_US 100	/* must be larger than 5 (see usage) */
-#define COUNT_DELAY_SEC(n) ((n) * (1000000/WAIT_SLEEP_US))
+#define COUNT_DELAY_SEC(n) ((n) * (1000000 / WAIT_SLEEP_US))
 
 /* GPIO pins */
-#define EPROM_WP_N (1ull << 14)	/* EPROM write line */
+#define EPROM_WP_N BIT_ULL(14)	/* EPROM write line */
 
 /*
- * Use the EP mutex to guard against other callers from within the driver.
- * Also covers usage of eprom_available.
+ * How long to wait for the EPROM to become available, in ms.
+ * The spec 32 Mb EPROM takes around 40s to erase then write.
+ * Double it for safety.
  */
-static DEFINE_MUTEX(eprom_mutex);
-static int eprom_available;	/* default: not available */
+#define EPROM_TIMEOUT 80000 /* ms */
 
 /*
  * Turn on external enable line that allows writing on the flash.
@@ -117,11 +114,9 @@ static int eprom_available;	/* default: not available */
 static void write_enable(struct hfi1_devdata *dd)
 {
 	/* raise signal */
-	write_csr(dd, ASIC_GPIO_OUT,
-		read_csr(dd, ASIC_GPIO_OUT) | EPROM_WP_N);
+	write_csr(dd, ASIC_GPIO_OUT, read_csr(dd, ASIC_GPIO_OUT) | EPROM_WP_N);
 	/* raise enable */
-	write_csr(dd, ASIC_GPIO_OE,
-		read_csr(dd, ASIC_GPIO_OE) | EPROM_WP_N);
+	write_csr(dd, ASIC_GPIO_OE, read_csr(dd, ASIC_GPIO_OE) | EPROM_WP_N);
 }
 
 /*
@@ -130,11 +125,9 @@ static void write_enable(struct hfi1_devdata *dd)
 static void write_disable(struct hfi1_devdata *dd)
 {
 	/* lower signal */
-	write_csr(dd, ASIC_GPIO_OUT,
-		read_csr(dd, ASIC_GPIO_OUT) & ~EPROM_WP_N);
+	write_csr(dd, ASIC_GPIO_OUT, read_csr(dd, ASIC_GPIO_OUT) & ~EPROM_WP_N);
 	/* lower enable */
-	write_csr(dd, ASIC_GPIO_OE,
-		read_csr(dd, ASIC_GPIO_OE) & ~EPROM_WP_N);
+	write_csr(dd, ASIC_GPIO_OE, read_csr(dd, ASIC_GPIO_OE) & ~EPROM_WP_N);
 }
 
 /*
@@ -212,8 +205,8 @@ static int erase_range(struct hfi1_devdata *dd, u32 start, u32 len)
 	/* check the end points for the minimum erase */
 	if ((start & MASK_4KB) || (end & MASK_4KB)) {
 		dd_dev_err(dd,
-			"%s: non-aligned range (0x%x,0x%x) for a 4KB erase\n",
-			__func__, start, end);
+			   "%s: non-aligned range (0x%x,0x%x) for a 4KB erase\n",
+			   __func__, start, end);
 		return -EINVAL;
 	}
 
@@ -256,7 +249,7 @@ static void read_page(struct hfi1_devdata *dd, u32 offset, u32 *result)
 	int i;
 
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_READ_DATA(offset));
-	for (i = 0; i < EP_PAGE_SIZE/sizeof(u32); i++)
+	for (i = 0; i < EP_PAGE_SIZE / sizeof(u32); i++)
 		result[i] = (u32)read_csr(dd, ASIC_EEP_DATA);
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_NOP); /* close open page */
 }
@@ -267,7 +260,7 @@ static void read_page(struct hfi1_devdata *dd, u32 offset, u32 *result)
 static int read_length(struct hfi1_devdata *dd, u32 start, u32 len, u64 addr)
 {
 	u32 offset;
-	u32 buffer[EP_PAGE_SIZE/sizeof(u32)];
+	u32 buffer[EP_PAGE_SIZE / sizeof(u32)];
 	int ret = 0;
 
 	/* reject anything not on an EPROM page boundary */
@@ -277,7 +270,7 @@ static int read_length(struct hfi1_devdata *dd, u32 start, u32 len, u64 addr)
 	for (offset = 0; offset < len; offset += EP_PAGE_SIZE) {
 		read_page(dd, start + offset, buffer);
 		if (copy_to_user((void __user *)(addr + offset),
-						buffer, EP_PAGE_SIZE)) {
+				 buffer, EP_PAGE_SIZE)) {
 			ret = -EFAULT;
 			goto done;
 		}
@@ -298,7 +291,7 @@ static int write_page(struct hfi1_devdata *dd, u32 offset, u32 *data)
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_WRITE_ENABLE);
 	write_csr(dd, ASIC_EEP_DATA, data[0]);
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_PAGE_PROGRAM(offset));
-	for (i = 1; i < EP_PAGE_SIZE/sizeof(u32); i++)
+	for (i = 1; i < EP_PAGE_SIZE / sizeof(u32); i++)
 		write_csr(dd, ASIC_EEP_DATA, data[i]);
 	/* will close the open page */
 	return wait_for_not_busy(dd);
@@ -310,7 +303,7 @@ static int write_page(struct hfi1_devdata *dd, u32 offset, u32 *data)
 static int write_length(struct hfi1_devdata *dd, u32 start, u32 len, u64 addr)
 {
 	u32 offset;
-	u32 buffer[EP_PAGE_SIZE/sizeof(u32)];
+	u32 buffer[EP_PAGE_SIZE / sizeof(u32)];
 	int ret = 0;
 
 	/* reject anything not on an EPROM page boundary */
@@ -321,7 +314,7 @@ static int write_length(struct hfi1_devdata *dd, u32 start, u32 len, u64 addr)
 
 	for (offset = 0; offset < len; offset += EP_PAGE_SIZE) {
 		if (copy_from_user(buffer, (void __user *)(addr + offset),
-						EP_PAGE_SIZE)) {
+				   EP_PAGE_SIZE)) {
 			ret = -EFAULT;
 			goto done;
 		}
@@ -353,44 +346,42 @@ static inline u32 extract_rstart(u32 composite)
  *
  * Return 0 on success, -ERRNO on error
  */
-int handle_eprom_command(const struct hfi1_cmd *cmd)
+int handle_eprom_command(struct file *fp, const struct hfi1_cmd *cmd)
 {
 	struct hfi1_devdata *dd;
 	u32 dev_id;
 	u32 rlen;	/* range length */
 	u32 rstart;	/* range start */
+	int i_minor;
 	int ret = 0;
 
 	/*
-	 * The EPROM is per-device, so use unit 0 as that will always
-	 * exist.
+	 * Map the device file to device data using the relative minor.
+	 * The device file minor number is the unit number + 1.  0 is
+	 * the generic device file - reject it.
 	 */
-	dd = hfi1_lookup(0);
+	i_minor = iminor(file_inode(fp)) - HFI1_USER_MINOR_BASE;
+	if (i_minor <= 0)
+		return -EINVAL;
+	dd = hfi1_lookup(i_minor - 1);
 	if (!dd) {
-		pr_err("%s: cannot find unit 0!\n", __func__);
+		pr_err("%s: cannot find unit %d!\n", __func__, i_minor);
 		return -EINVAL;
 	}
 
-	/* lock against other callers touching the ASIC block */
-	mutex_lock(&eprom_mutex);
+	/* some devices do not have an EPROM */
+	if (!dd->eprom_available)
+		return -EOPNOTSUPP;
 
-	/* some platforms do not have an EPROM */
-	if (!eprom_available) {
-		ret = -ENOSYS;
-		goto done_asic;
-	}
-
-	/* lock against the other HFI on another OS */
-	ret = acquire_hw_mutex(dd);
+	ret = acquire_chip_resource(dd, CR_EPROM, EPROM_TIMEOUT);
 	if (ret) {
-		dd_dev_err(dd,
-			"%s: unable to acquire hw mutex, no EPROM support\n",
-			__func__);
+		dd_dev_err(dd, "%s: unable to acquire EPROM resource\n",
+			   __func__);
 		goto done_asic;
 	}
 
 	dd_dev_info(dd, "%s: cmd: type %d, len 0x%x, addr 0x%016llx\n",
-		__func__, cmd->type, cmd->len, cmd->addr);
+		    __func__, cmd->type, cmd->len, cmd->addr);
 
 	switch (cmd->type) {
 	case HFI1_CMD_EP_INFO:
@@ -401,7 +392,7 @@ int handle_eprom_command(const struct hfi1_cmd *cmd)
 		dev_id = read_device_id(dd);
 		/* addr points to a u32 user buffer */
 		if (copy_to_user((void __user *)cmd->addr, &dev_id,
-								sizeof(u32)))
+				 sizeof(u32)))
 			ret = -EFAULT;
 		break;
 
@@ -429,14 +420,13 @@ int handle_eprom_command(const struct hfi1_cmd *cmd)
 
 	default:
 		dd_dev_err(dd, "%s: unexpected command %d\n",
-			__func__, cmd->type);
+			   __func__, cmd->type);
 		ret = -EINVAL;
 		break;
 	}
 
-	release_hw_mutex(dd);
+	release_chip_resource(dd, CR_EPROM);
 done_asic:
-	mutex_unlock(&eprom_mutex);
 	return ret;
 }
 
@@ -447,44 +437,35 @@ int eprom_init(struct hfi1_devdata *dd)
 {
 	int ret = 0;
 
-	/* only the discrete chip has an EPROM, nothing to do */
+	/* only the discrete chip has an EPROM */
 	if (dd->pcidev->device != PCI_DEVICE_ID_INTEL0)
 		return 0;
 
-	/* lock against other callers */
-	mutex_lock(&eprom_mutex);
-	if (eprom_available)	/* already initialized */
-		goto done_asic;
-
 	/*
-	 * Lock against the other HFI on another OS - the mutex above
-	 * would have caught anything in this driver.  It is OK if
-	 * both OSes reset the EPROM - as long as they don't do it at
-	 * the same time.
+	 * It is OK if both HFIs reset the EPROM as long as they don't
+	 * do it at the same time.
 	 */
-	ret = acquire_hw_mutex(dd);
+	ret = acquire_chip_resource(dd, CR_EPROM, EPROM_TIMEOUT);
 	if (ret) {
 		dd_dev_err(dd,
-			"%s: unable to acquire hw mutex, no EPROM support\n",
-			__func__);
+			   "%s: unable to acquire EPROM resource, no EPROM support\n",
+			   __func__);
 		goto done_asic;
 	}
 
 	/* reset EPROM to be sure it is in a good state */
 
 	/* set reset */
-	write_csr(dd, ASIC_EEP_CTL_STAT,
-					ASIC_EEP_CTL_STAT_EP_RESET_SMASK);
+	write_csr(dd, ASIC_EEP_CTL_STAT, ASIC_EEP_CTL_STAT_EP_RESET_SMASK);
 	/* clear reset, set speed */
 	write_csr(dd, ASIC_EEP_CTL_STAT,
-			EP_SPEED_FULL << ASIC_EEP_CTL_STAT_RATE_SPI_SHIFT);
+		  EP_SPEED_FULL << ASIC_EEP_CTL_STAT_RATE_SPI_SHIFT);
 
 	/* wake the device with command "release powerdown NoID" */
 	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_RELEASE_POWERDOWN_NOID);
 
-	eprom_available = 1;
-	release_hw_mutex(dd);
+	dd->eprom_available = true;
+	release_chip_resource(dd, CR_EPROM);
 done_asic:
-	mutex_unlock(&eprom_mutex);
 	return ret;
 }

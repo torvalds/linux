@@ -18,6 +18,8 @@
  *                                                                   USA
  */
 
+#include <sys/stat.h>
+
 #include "dtc.h"
 #include "srcpos.h"
 
@@ -104,11 +106,56 @@ static const char * const usage_opts_help[] = {
 	NULL,
 };
 
+static const char *guess_type_by_name(const char *fname, const char *fallback)
+{
+	const char *s;
+
+	s = strrchr(fname, '.');
+	if (s == NULL)
+		return fallback;
+	if (!strcasecmp(s, ".dts"))
+		return "dts";
+	if (!strcasecmp(s, ".dtb"))
+		return "dtb";
+	return fallback;
+}
+
+static const char *guess_input_format(const char *fname, const char *fallback)
+{
+	struct stat statbuf;
+	uint32_t magic;
+	FILE *f;
+
+	if (stat(fname, &statbuf) != 0)
+		return fallback;
+
+	if (S_ISDIR(statbuf.st_mode))
+		return "fs";
+
+	if (!S_ISREG(statbuf.st_mode))
+		return fallback;
+
+	f = fopen(fname, "r");
+	if (f == NULL)
+		return fallback;
+	if (fread(&magic, 4, 1, f) != 1) {
+		fclose(f);
+		return fallback;
+	}
+	fclose(f);
+
+	magic = fdt32_to_cpu(magic);
+	if (magic == FDT_MAGIC)
+		return "dtb";
+
+	return guess_type_by_name(fname, fallback);
+}
+
 int main(int argc, char *argv[])
 {
 	struct boot_info *bi;
-	const char *inform = "dts";
-	const char *outform = "dts";
+	const char *inform = NULL;
+	const char *outform = NULL;
 	const char *outname = "-";
 	const char *depname = NULL;
 	bool force = false, sort = false;
@@ -213,6 +260,17 @@ int main(int argc, char *argv[])
 		fprintf(depfile, "%s:", outname);
 	}
 
+	if (inform == NULL)
+		inform = guess_input_format(arg, "dts");
+	if (outform == NULL) {
+		outform = guess_type_by_name(outname, NULL);
+		if (outform == NULL) {
+			if (streq(inform, "dts"))
+				outform = "dtb";
+			else
+				outform = "dts";
+		}
+	}
 	if (streq(inform, "dts"))
 		bi = dt_from_source(arg);
 	else if (streq(inform, "fs"))

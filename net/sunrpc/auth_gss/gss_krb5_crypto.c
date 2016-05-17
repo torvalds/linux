@@ -465,7 +465,7 @@ encryptor(struct scatterlist *sg, void *data)
 	page_pos = desc->pos - outbuf->head[0].iov_len;
 	if (page_pos >= 0 && page_pos < outbuf->page_len) {
 		/* pages are not in place: */
-		int i = (page_pos + outbuf->page_base) >> PAGE_CACHE_SHIFT;
+		int i = (page_pos + outbuf->page_base) >> PAGE_SHIFT;
 		in_page = desc->pages[i];
 	} else {
 		in_page = sg_page(sg);

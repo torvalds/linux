@@ -168,11 +168,11 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags)
 		rflags |= HPTE_R_N;
 	/*
 	 * PP bits:
-	 * Linux use slb key 0 for kernel and 1 for user.
-	 * kernel areas are mapped by PP bits 00
-	 * and and there is no kernel RO (_PAGE_KERNEL_RO).
-	 * User area mapped by 0x2 and read only use by
-	 * 0x3.
+	 * Linux uses slb key 0 for kernel and 1 for user.
+	 * kernel areas are mapped with PP=00
+	 * and there is no kernel RO (_PAGE_KERNEL_RO).
+	 * User area is mapped with PP=0x2 for read/write
+	 * or PP=0x3 for read-only (including writeable but clean pages).
 	 */
 	if (pteflags & _PAGE_USER) {
 		rflags |= 0x2;
@@ -255,36 +255,42 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 
 		if (ret < 0)
 			break;
+
 #ifdef CONFIG_DEBUG_PAGEALLOC
-		if ((paddr >> PAGE_SHIFT) < linear_map_hash_count)
+		if (debug_pagealloc_enabled() &&
+			(paddr >> PAGE_SHIFT) < linear_map_hash_count)
 			linear_map_hash_slots[paddr >> PAGE_SHIFT] = ret | 0x80;
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 	}
 	return ret < 0 ? ret : 0;
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG
 int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 		      int psize, int ssize)
 {
 	unsigned long vaddr;
 	unsigned int step, shift;
+	int rc;
+	int ret = 0;
 
 	shift = mmu_psize_defs[psize].shift;
 	step = 1 << shift;
 
-	if (!ppc_md.hpte_removebolted) {
-		printk(KERN_WARNING "Platform doesn't implement "
-				"hpte_removebolted\n");
-		return -EINVAL;
+	if (!ppc_md.hpte_removebolted)
+		return -ENODEV;
+
+	for (vaddr = vstart; vaddr < vend; vaddr += step) {
+		rc = ppc_md.hpte_removebolted(vaddr, psize, ssize);
+		if (rc == -ENOENT) {
+			ret = -ENOENT;
+			continue;
+		}
+		if (rc < 0)
+			return rc;
 	}
 
-	for (vaddr = vstart; vaddr < vend; vaddr += step)
-		ppc_md.hpte_removebolted(vaddr, psize, ssize);
-
-	return 0;
+	return ret;
 }
-#endif /* CONFIG_MEMORY_HOTPLUG */
 
 static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 const char *uname, int depth,
@@ -512,17 +518,17 @@ static void __init htab_init_page_sizes(void)
 	if (mmu_has_feature(MMU_FTR_16M_PAGE))
 		memcpy(mmu_psize_defs, mmu_psize_defaults_gp,
 		       sizeof(mmu_psize_defaults_gp));
- found:
-#ifndef CONFIG_DEBUG_PAGEALLOC
-	/*
-	 * Pick a size for the linear mapping. Currently, we only support
-	 * 16M, 1M and 4K which is the default
-	 */
-	if (mmu_psize_defs[MMU_PAGE_16M].shift)
-		mmu_linear_psize = MMU_PAGE_16M;
-	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
-		mmu_linear_psize = MMU_PAGE_1M;
-#endif /* CONFIG_DEBUG_PAGEALLOC */
+found:
+	if (!debug_pagealloc_enabled()) {
+		/*
+		 * Pick a size for the linear mapping. Currently, we only
+		 * support 16M, 1M and 4K which is the default
+		 */
+		if (mmu_psize_defs[MMU_PAGE_16M].shift)
+			mmu_linear_psize = MMU_PAGE_16M;
+		else if (mmu_psize_defs[MMU_PAGE_1M].shift)
+			mmu_linear_psize = MMU_PAGE_1M;
+	}
 
 #ifdef CONFIG_PPC_64K_PAGES
 	/*
@@ -605,10 +611,28 @@ static int __init htab_dt_scan_pftsize(unsigned long node,
 	return 0;
 }
 
+unsigned htab_shift_for_mem_size(unsigned long mem_size)
+{
+	unsigned memshift = __ilog2(mem_size);
+	unsigned pshift = mmu_psize_defs[mmu_virtual_psize].shift;
+	unsigned pteg_shift;
+
+	/* round mem_size up to next power of 2 */
+	if ((1UL << memshift) < mem_size)
+		memshift += 1;
+
+	/* aim for 2 pages / pteg */
+	pteg_shift = memshift - (pshift + 1);
+
+	/*
+	 * 2^11 PTEGS of 128 bytes each, ie. 2^18 bytes is the minimum htab
+	 * size permitted by the architecture.
+	 */
+	return max(pteg_shift + 7, 18U);
+}
+
 static unsigned long __init htab_get_table_size(void)
 {
-	unsigned long mem_size, rnd_mem_size, pteg_count, psize;
-
 	/* If hash size isn't already provided by the platform, we try to
 	 * retrieve it from the device-tree. If it's not there neither, we
 	 * calculate it now based on the total RAM size
@@ -618,31 +642,30 @@ static unsigned long __init htab_get_table_size(void)
 	if (ppc64_pft_size)
 		return 1UL << ppc64_pft_size;
 
-	/* round mem_size up to next power of 2 */
-	mem_size = memblock_phys_mem_size();
-	rnd_mem_size = 1UL << __ilog2(mem_size);
-	if (rnd_mem_size < mem_size)
-		rnd_mem_size <<= 1;
-
-	/* # pages / 2 */
-	psize = mmu_psize_defs[mmu_virtual_psize].shift;
-	pteg_count = max(rnd_mem_size >> (psize + 1), 1UL << 11);
-
-	return pteg_count << 7;
+	return 1UL << htab_shift_for_mem_size(memblock_phys_mem_size());
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 int create_section_mapping(unsigned long start, unsigned long end)
 {
-	return htab_bolt_mapping(start, end, __pa(start),
-				 pgprot_val(PAGE_KERNEL), mmu_linear_psize,
-				 mmu_kernel_ssize);
+	int rc = htab_bolt_mapping(start, end, __pa(start),
+				   pgprot_val(PAGE_KERNEL), mmu_linear_psize,
+				   mmu_kernel_ssize);
+
+	if (rc < 0) {
+		int rc2 = htab_remove_mapping(start, end, mmu_linear_psize,
+					      mmu_kernel_ssize);
+		BUG_ON(rc2 && (rc2 != -ENOENT));
+	}
+	return rc;
 }
 
 int remove_section_mapping(unsigned long start, unsigned long end)
 {
-	return htab_remove_mapping(start, end, mmu_linear_psize,
-			mmu_kernel_ssize);
+	int rc = htab_remove_mapping(start, end, mmu_linear_psize,
+				     mmu_kernel_ssize);
+	WARN_ON(rc < 0);
+	return rc;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
@@ -721,10 +744,12 @@ static void __init htab_initialize(void)
 	prot = pgprot_val(PAGE_KERNEL);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
-	linear_map_hash_slots = __va(memblock_alloc_base(linear_map_hash_count,
-						    1, ppc64_rma_size));
-	memset(linear_map_hash_slots, 0, linear_map_hash_count);
+	if (debug_pagealloc_enabled()) {
+		linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
+		linear_map_hash_slots = __va(memblock_alloc_base(
+				linear_map_hash_count, 1, ppc64_rma_size));
+		memset(linear_map_hash_slots, 0, linear_map_hash_count);
+	}
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
 	/* On U3 based machines, we need to reserve the DART area and

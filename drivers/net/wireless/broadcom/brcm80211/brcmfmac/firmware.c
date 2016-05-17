@@ -93,7 +93,7 @@ static enum nvram_parser_state brcmf_nvram_handle_idle(struct nvram_parser *nvp)
 	c = nvp->data[nvp->pos];
 	if (c == '\n')
 		return COMMENT;
-	if (is_whitespace(c))
+	if (is_whitespace(c) || c == '\0')
 		goto proceed;
 	if (c == '#')
 		return COMMENT;

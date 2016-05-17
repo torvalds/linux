@@ -59,7 +59,7 @@
 
 &keypad {
 	linux,input-no-autorepeat;
-	linux,input-wakeup;
+	wakeup-source;
 	samsung,keypad-num-rows = <8>;
 	samsung,keypad-num-columns = <8>;
 	pinctrl-names = "default";

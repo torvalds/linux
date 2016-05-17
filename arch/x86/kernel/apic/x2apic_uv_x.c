@@ -792,7 +792,8 @@ static int uv_scir_cpu_notify(struct notifier_block *self, unsigned long action,
 {
 	long cpu = (long)hcpu;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_FAILED:
 	case CPU_ONLINE:
 		uv_heartbeat_enable(cpu);
 		break;
@@ -860,7 +861,7 @@ int uv_set_vga_state(struct pci_dev *pdev, bool decode,
  */
 void uv_cpu_init(void)
 {
-	/* CPU 0 initilization will be done via uv_system_init. */
+	/* CPU 0 initialization will be done via uv_system_init. */
 	if (!uv_blade_info)
 		return;
 

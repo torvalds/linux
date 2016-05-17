@@ -239,8 +239,11 @@ static struct irq_domain_ops mbigen_domain_ops = {
 static int mbigen_device_probe(struct platform_device *pdev)
 {
 	struct mbigen_device *mgn_chip;
-	struct resource *res;
+	struct platform_device *child;
 	struct irq_domain *domain;
+	struct device_node *np;
+	struct device *parent;
+	struct resource *res;
 	u32 num_pins;
 
 	mgn_chip = devm_kzalloc(&pdev->dev, sizeof(*mgn_chip), GFP_KERNEL);
@@ -254,23 +257,30 @@ static int mbigen_device_probe(struct platform_device *pdev)
 	if (IS_ERR(mgn_chip->base))
 		return PTR_ERR(mgn_chip->base);
 
-	if (of_property_read_u32(pdev->dev.of_node, "num-pins", &num_pins) < 0) {
-		dev_err(&pdev->dev, "No num-pins property\n");
-		return -EINVAL;
+	for_each_child_of_node(pdev->dev.of_node, np) {
+		if (!of_property_read_bool(np, "interrupt-controller"))
+			continue;
+
+		parent = platform_bus_type.dev_root;
+		child = of_platform_device_create(np, NULL, parent);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		if (of_property_read_u32(child->dev.of_node, "num-pins",
+					 &num_pins) < 0) {
+			dev_err(&pdev->dev, "No num-pins property\n");
+			return -EINVAL;
+		}
+
+		domain = platform_msi_create_device_domain(&child->dev, num_pins,
+							   mbigen_write_msg,
+							   &mbigen_domain_ops,
+							   mgn_chip);
+		if (!domain)
+			return -ENOMEM;
 	}
 
-	domain = platform_msi_create_device_domain(&pdev->dev, num_pins,
-							mbigen_write_msg,
-							&mbigen_domain_ops,
-							mgn_chip);
-
-	if (!domain)
-		return -ENOMEM;
-
 	platform_set_drvdata(pdev, mgn_chip);
-
-	dev_info(&pdev->dev, "Allocated %d MSIs\n", num_pins);
-
 	return 0;
 }
 

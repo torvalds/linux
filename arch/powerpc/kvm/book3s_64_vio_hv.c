@@ -30,7 +30,7 @@
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
-#include <asm/mmu-hash64.h>
+#include <asm/book3s/64/mmu-hash.h>
 #include <asm/mmu_context.h>
 #include <asm/hvcall.h>
 #include <asm/synch.h>
@@ -180,8 +180,8 @@ long kvmppc_gpa_to_ua(struct kvm *kvm, unsigned long gpa,
 EXPORT_SYMBOL_GPL(kvmppc_gpa_to_ua);
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
-		      unsigned long ioba, unsigned long tce)
+long kvmppc_rm_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
+		unsigned long ioba, unsigned long tce)
 {
 	struct kvmppc_spapr_tce_table *stt = kvmppc_find_table(vcpu, liobn);
 	long ret;
@@ -204,7 +204,6 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 
 	return H_SUCCESS;
 }
-EXPORT_SYMBOL_GPL(kvmppc_h_put_tce);
 
 static long kvmppc_rm_ua_to_hpa(struct kvm_vcpu *vcpu,
 		unsigned long ua, unsigned long *phpa)
@@ -296,7 +295,7 @@ unlock_exit:
 	return ret;
 }
 
-long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
+long kvmppc_rm_h_stuff_tce(struct kvm_vcpu *vcpu,
 		unsigned long liobn, unsigned long ioba,
 		unsigned long tce_value, unsigned long npages)
 {
@@ -320,7 +319,6 @@ long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
 
 	return H_SUCCESS;
 }
-EXPORT_SYMBOL_GPL(kvmppc_h_stuff_tce);
 
 long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		      unsigned long ioba)

@@ -117,9 +117,8 @@ static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
 	u64 size = 0;
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (i915_is_ggtt(vma->vm) &&
-		    drm_mm_node_allocated(&vma->node))
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (vma->is_ggtt && drm_mm_node_allocated(&vma->node))
 			size += vma->node.size;
 	}
 
@@ -155,7 +154,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
 		seq_printf(m, " (name: %d)", obj->base.name);
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (vma->pin_count > 0)
 			pin_count++;
 	}
@@ -164,14 +163,13 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (display)");
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx",
-			   i915_is_ggtt(vma->vm) ? "g" : "pp",
+			   vma->is_ggtt ? "g" : "pp",
 			   vma->node.start, vma->node.size);
-		if (i915_is_ggtt(vma->vm))
-			seq_printf(m, ", type: %u)", vma->ggtt_view.type);
-		else
-			seq_puts(m, ")");
+		if (vma->is_ggtt)
+			seq_printf(m, ", type: %u", vma->ggtt_view.type);
+		seq_puts(m, ")");
 	}
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
@@ -230,7 +228,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	}
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(vma, head, mm_list) {
+	list_for_each_entry(vma, head, vm_link) {
 		seq_printf(m, "   ");
 		describe_obj(m, vma->obj);
 		seq_printf(m, "\n");
@@ -342,13 +340,13 @@ static int per_file_stats(int id, void *ptr, void *data)
 		stats->shared += obj->base.size;
 
 	if (USES_FULL_PPGTT(obj->base.dev)) {
-		list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		list_for_each_entry(vma, &obj->vma_list, obj_link) {
 			struct i915_hw_ppgtt *ppgtt;
 
 			if (!drm_mm_node_allocated(&vma->node))
 				continue;
 
-			if (i915_is_ggtt(vma->vm)) {
+			if (vma->is_ggtt) {
 				stats->global += obj->base.size;
 				continue;
 			}
@@ -454,12 +452,12 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&vm->active_list, mm_list);
+	count_vmas(&vm->active_list, vm_link);
 	seq_printf(m, "  %u [%u] active objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&vm->inactive_list, mm_list);
+	count_vmas(&vm->inactive_list, vm_link);
 	seq_printf(m, "  %u [%u] inactive objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -1336,7 +1334,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	struct intel_engine_cs *ring;
 	u64 acthd[I915_NUM_RINGS];
 	u32 seqno[I915_NUM_RINGS];
-	int i;
+	u32 instdone[I915_NUM_INSTDONE_REG];
+	int i, j;
 
 	if (!i915.enable_hangcheck) {
 		seq_printf(m, "Hangcheck disabled\n");
@@ -1349,6 +1348,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seqno[i] = ring->get_seqno(ring, false);
 		acthd[i] = intel_ring_get_active_head(ring);
 	}
+
+	i915_get_extra_instdone(dev, instdone);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -1370,6 +1371,21 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			   (long long)ring->hangcheck.max_acthd);
 		seq_printf(m, "\tscore = %d\n", ring->hangcheck.score);
 		seq_printf(m, "\taction = %d\n", ring->hangcheck.action);
+
+		if (ring->id == RCS) {
+			seq_puts(m, "\tinstdone read =");
+
+			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
+				seq_printf(m, " 0x%08x", instdone[j]);
+
+			seq_puts(m, "\n\tinstdone accu =");
+
+			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
+				seq_printf(m, " 0x%08x",
+					   ring->hangcheck.instdone[j]);
+
+			seq_puts(m, "\n");
+		}
 	}
 
 	return 0;
@@ -1947,11 +1963,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 		seq_puts(m, "HW context ");
 		describe_ctx(m, ctx);
-		for_each_ring(ring, dev_priv, i) {
-			if (ring->default_context == ctx)
-				seq_printf(m, "(default context %s) ",
-					   ring->name);
-		}
+		if (ctx == dev_priv->kernel_context)
+			seq_printf(m, "(kernel context) ");
 
 		if (i915.enable_execlists) {
 			seq_putc(m, '\n');
@@ -1981,12 +1994,13 @@ static int i915_context_status(struct seq_file *m, void *unused)
 }
 
 static void i915_dump_lrc_obj(struct seq_file *m,
-			      struct intel_engine_cs *ring,
-			      struct drm_i915_gem_object *ctx_obj)
+			      struct intel_context *ctx,
+			      struct intel_engine_cs *ring)
 {
 	struct page *page;
 	uint32_t *reg_state;
 	int j;
+	struct drm_i915_gem_object *ctx_obj = ctx->engine[ring->id].state;
 	unsigned long ggtt_offset = 0;
 
 	if (ctx_obj == NULL) {
@@ -1996,7 +2010,7 @@ static void i915_dump_lrc_obj(struct seq_file *m,
 	}
 
 	seq_printf(m, "CONTEXT: %s %u\n", ring->name,
-		   intel_execlists_ctx_id(ctx_obj));
+		   intel_execlists_ctx_id(ctx, ring));
 
 	if (!i915_gem_obj_ggtt_bound(ctx_obj))
 		seq_puts(m, "\tNot bound in GGTT\n");
@@ -2042,13 +2056,10 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(ctx, &dev_priv->context_list, link) {
-		for_each_ring(ring, dev_priv, i) {
-			if (ring->default_context != ctx)
-				i915_dump_lrc_obj(m, ring,
-						  ctx->engine[i].state);
-		}
-	}
+	list_for_each_entry(ctx, &dev_priv->context_list, link)
+		if (ctx != dev_priv->kernel_context)
+			for_each_ring(ring, dev_priv, i)
+				i915_dump_lrc_obj(m, ctx, ring);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -2097,13 +2108,13 @@ static int i915_execlists(struct seq_file *m, void *data)
 		seq_printf(m, "\tStatus pointer: 0x%08X\n", status_pointer);
 
 		read_pointer = ring->next_context_status_buffer;
-		write_pointer = status_pointer & 0x07;
+		write_pointer = GEN8_CSB_WRITE_PTR(status_pointer);
 		if (read_pointer > write_pointer)
-			write_pointer += 6;
+			write_pointer += GEN8_CSB_ENTRIES;
 		seq_printf(m, "\tRead pointer: 0x%08X, write pointer 0x%08X\n",
 			   read_pointer, write_pointer);
 
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < GEN8_CSB_ENTRIES; i++) {
 			status = I915_READ(RING_CONTEXT_STATUS_BUF_LO(ring, i));
 			ctx_id = I915_READ(RING_CONTEXT_STATUS_BUF_HI(ring, i));
 
@@ -2120,11 +2131,8 @@ static int i915_execlists(struct seq_file *m, void *data)
 
 		seq_printf(m, "\t%d requests in queue\n", count);
 		if (head_req) {
-			struct drm_i915_gem_object *ctx_obj;
-
-			ctx_obj = head_req->ctx->engine[ring_id].state;
 			seq_printf(m, "\tHead request id: %u\n",
-				   intel_execlists_ctx_id(ctx_obj));
+				   intel_execlists_ctx_id(head_req->ctx, ring));
 			seq_printf(m, "\tHead request tail: %u\n",
 				   head_req->tail);
 		}
@@ -2458,9 +2466,9 @@ static void i915_guc_client_info(struct seq_file *m,
 
 	for_each_ring(ring, dev_priv, i) {
 		seq_printf(m, "\tSubmissions: %llu %s\n",
-				client->submissions[i],
+				client->submissions[ring->guc_id],
 				ring->name);
-		tot += client->submissions[i];
+		tot += client->submissions[ring->guc_id];
 	}
 	seq_printf(m, "\tTotal: %llu\n", tot);
 }
@@ -2497,10 +2505,10 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "\nGuC submissions:\n");
 	for_each_ring(ring, dev_priv, i) {
-		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x %9d\n",
-			ring->name, guc.submissions[i],
-			guc.last_seqno[i], guc.last_seqno[i]);
-		total += guc.submissions[i];
+		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x\n",
+			ring->name, guc.submissions[ring->guc_id],
+			guc.last_seqno[ring->guc_id]);
+		total += guc.submissions[ring->guc_id];
 	}
 	seq_printf(m, "\t%s: %llu\n", "Total", total);
 
@@ -2578,6 +2586,10 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 				enabled = true;
 		}
 	}
+
+	seq_printf(m, "Main link in standby mode: %s\n",
+		   yesno(dev_priv->psr.link_standby));
+
 	seq_printf(m, "HW Enabled & Active bit: %s", yesno(enabled));
 
 	if (!HAS_DDI(dev))
@@ -3216,9 +3228,11 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 {
 	int i;
 	int ret;
+	struct intel_engine_cs *ring;
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_workarounds *workarounds = &dev_priv->workarounds;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -3226,15 +3240,18 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
-	seq_printf(m, "Workarounds applied: %d\n", dev_priv->workarounds.count);
-	for (i = 0; i < dev_priv->workarounds.count; ++i) {
+	seq_printf(m, "Workarounds applied: %d\n", workarounds->count);
+	for_each_ring(ring, dev_priv, i)
+		seq_printf(m, "HW whitelist count for %s: %d\n",
+			   ring->name, workarounds->hw_whitelist_count[i]);
+	for (i = 0; i < workarounds->count; ++i) {
 		i915_reg_t addr;
 		u32 mask, value, read;
 		bool ok;
 
-		addr = dev_priv->workarounds.reg[i].addr;
-		mask = dev_priv->workarounds.reg[i].mask;
-		value = dev_priv->workarounds.reg[i].value;
+		addr = workarounds->reg[i].addr;
+		mask = workarounds->reg[i].mask;
+		value = workarounds->reg[i].value;
 		read = I915_READ(addr);
 		ok = (value & mask) == (read & mask);
 		seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X, read: 0x%08x, status: %s\n",

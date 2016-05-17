@@ -167,9 +167,7 @@ static void cvm_oct_spi_poll(struct net_device *dev)
 	int interface;
 
 	for (interface = 0; interface < 2; interface++) {
-
 		if ((priv->port == interface * 16) && need_retrain[interface]) {
-
 			if (cvmx_spi_restart_interface
 			    (interface, CVMX_SPI_MODE_DUPLEX, 10) == 0) {
 				need_retrain[interface] = 0;

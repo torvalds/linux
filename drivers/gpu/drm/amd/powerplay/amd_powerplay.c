@@ -29,6 +29,7 @@
 #include "pp_instance.h"
 #include "power_state.h"
 #include "eventmanager.h"
+#include "pp_debug.h"
 
 #define PP_CHECK(handle)						\
 	do {								\
@@ -436,7 +437,10 @@ enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 	case PP_StateUILabel_Performance:
 		return POWER_STATE_TYPE_PERFORMANCE;
 	default:
-		return POWER_STATE_TYPE_DEFAULT;
+		if (state->classification.flags & PP_StateClassificationFlag_Boot)
+			return  POWER_STATE_TYPE_INTERNAL_BOOT;
+		else
+			return POWER_STATE_TYPE_DEFAULT;
 	}
 }
 
@@ -538,6 +542,112 @@ static int pp_dpm_get_temperature(void *handle)
 	return hwmgr->hwmgr_func->get_temperature(hwmgr);
 }
 
+static int pp_dpm_get_pp_num_states(void *handle,
+		struct pp_states_info *data)
+{
+	struct pp_hwmgr *hwmgr;
+	int i;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->ps == NULL)
+		return -EINVAL;
+
+	data->nums = hwmgr->num_ps;
+
+	for (i = 0; i < hwmgr->num_ps; i++) {
+		struct pp_power_state *state = (struct pp_power_state *)
+				((unsigned long)hwmgr->ps + i * hwmgr->ps_size);
+		switch (state->classification.ui_label) {
+		case PP_StateUILabel_Battery:
+			data->states[i] = POWER_STATE_TYPE_BATTERY;
+			break;
+		case PP_StateUILabel_Balanced:
+			data->states[i] = POWER_STATE_TYPE_BALANCED;
+			break;
+		case PP_StateUILabel_Performance:
+			data->states[i] = POWER_STATE_TYPE_PERFORMANCE;
+			break;
+		default:
+			if (state->classification.flags & PP_StateClassificationFlag_Boot)
+				data->states[i] = POWER_STATE_TYPE_INTERNAL_BOOT;
+			else
+				data->states[i] = POWER_STATE_TYPE_DEFAULT;
+		}
+	}
+
+	return 0;
+}
+
+static int pp_dpm_get_pp_table(void *handle, char **table)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+		hwmgr->hwmgr_func->get_pp_table == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_pp_table(hwmgr, table);
+}
+
+static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+		hwmgr->hwmgr_func->set_pp_table == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_pp_table(hwmgr, buf, size);
+}
+
+static int pp_dpm_force_clock_level(void *handle,
+		enum pp_clock_type type, int level)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+			hwmgr->hwmgr_func->force_clock_level == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->force_clock_level(hwmgr, type, level);
+}
+
+static int pp_dpm_print_clock_levels(void *handle,
+		enum pp_clock_type type, char *buf)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (!handle)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (hwmgr == NULL || hwmgr->hwmgr_func == NULL ||
+			hwmgr->hwmgr_func->print_clock_levels == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
+}
+
 const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
@@ -555,6 +665,11 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
 	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
+	.get_pp_num_states = pp_dpm_get_pp_num_states,
+	.get_pp_table = pp_dpm_get_pp_table,
+	.set_pp_table = pp_dpm_set_pp_table,
+	.force_clock_level = pp_dpm_force_clock_level,
+	.print_clock_levels = pp_dpm_print_clock_levels,
 };
 
 static int amd_pp_instance_init(struct amd_pp_init *pp_init,
@@ -638,10 +753,10 @@ int amd_powerplay_fini(void *handle)
 
 /* export this function to DAL */
 
-int amd_powerplay_display_configuration_change(void *handle, const void *input)
+int amd_powerplay_display_configuration_change(void *handle,
+	const struct amd_pp_display_configuration *display_config)
 {
 	struct pp_hwmgr  *hwmgr;
-	const struct amd_pp_display_configuration *display_config = input;
 
 	PP_CHECK((struct pp_instance *)handle);
 
@@ -653,7 +768,7 @@ int amd_powerplay_display_configuration_change(void *handle, const void *input)
 }
 
 int amd_powerplay_get_display_power_level(void *handle,
-		struct amd_pp_dal_clock_info *output)
+		struct amd_pp_simple_clock_info *output)
 {
 	struct pp_hwmgr  *hwmgr;
 
@@ -666,3 +781,86 @@ int amd_powerplay_get_display_power_level(void *handle,
 
 	return phm_get_dal_power_level(hwmgr, output);
 }
+
+int amd_powerplay_get_current_clocks(void *handle,
+		struct amd_pp_clock_info *clocks)
+{
+	struct pp_hwmgr  *hwmgr;
+	struct amd_pp_simple_clock_info simple_clocks;
+	struct pp_clock_info hw_clocks;
+
+	PP_CHECK((struct pp_instance *)handle);
+
+	if (clocks == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	phm_get_dal_power_level(hwmgr, &simple_clocks);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PowerContainment)) {
+		if (0 != phm_get_clock_info(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks, PHM_PerformanceLevelDesignation_PowerContainment))
+			PP_ASSERT_WITH_CODE(0, "Error in PHM_GetPowerContainmentClockInfo", return -1);
+	} else {
+		if (0 != phm_get_clock_info(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks, PHM_PerformanceLevelDesignation_Activity))
+			PP_ASSERT_WITH_CODE(0, "Error in PHM_GetClockInfo", return -1);
+	}
+
+	clocks->min_engine_clock = hw_clocks.min_eng_clk;
+	clocks->max_engine_clock = hw_clocks.max_eng_clk;
+	clocks->min_memory_clock = hw_clocks.min_mem_clk;
+	clocks->max_memory_clock = hw_clocks.max_mem_clk;
+	clocks->min_bus_bandwidth = hw_clocks.min_bus_bandwidth;
+	clocks->max_bus_bandwidth = hw_clocks.max_bus_bandwidth;
+
+	clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
+	clocks->min_engine_clock_in_sr = hw_clocks.min_eng_clk;
+
+	clocks->max_clocks_state = simple_clocks.level;
+
+	if (0 == phm_get_current_shallow_sleep_clocks(hwmgr, &hwmgr->current_ps->hardware, &hw_clocks)) {
+		clocks->max_engine_clock_in_sr = hw_clocks.max_eng_clk;
+		clocks->min_engine_clock_in_sr = hw_clocks.min_eng_clk;
+	}
+
+	return 0;
+
+}
+
+int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks)
+{
+	int result = -1;
+
+	struct pp_hwmgr *hwmgr;
+
+	PP_CHECK((struct pp_instance *)handle);
+
+	if (clocks == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	result = phm_get_clock_by_type(hwmgr, type, clocks);
+
+	return result;
+}
+
+int amd_powerplay_get_display_mode_validation_clocks(void *handle,
+		struct amd_pp_simple_clock_info *clocks)
+{
+	int result = -1;
+	struct pp_hwmgr  *hwmgr;
+
+	PP_CHECK((struct pp_instance *)handle);
+
+	if (clocks == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DynamicPatchPowerState))
+		result = phm_get_max_high_clocks(hwmgr, clocks);
+
+	return result;
+}
+

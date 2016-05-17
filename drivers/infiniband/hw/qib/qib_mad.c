@@ -70,7 +70,7 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 	unsigned long flags;
 	unsigned long timeout;
 
-	agent = ibp->send_agent;
+	agent = ibp->rvp.send_agent;
 	if (!agent)
 		return;
 
@@ -79,7 +79,8 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 		return;
 
 	/* o14-2 */
-	if (ibp->trap_timeout && time_before(jiffies, ibp->trap_timeout))
+	if (ibp->rvp.trap_timeout &&
+	    time_before(jiffies, ibp->rvp.trap_timeout))
 		return;
 
 	send_buf = ib_create_send_mad(agent, 0, 0, 0, IB_MGMT_MAD_HDR,
@@ -93,42 +94,42 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 	smp->mgmt_class = IB_MGMT_CLASS_SUBN_LID_ROUTED;
 	smp->class_version = 1;
 	smp->method = IB_MGMT_METHOD_TRAP;
-	ibp->tid++;
-	smp->tid = cpu_to_be64(ibp->tid);
+	ibp->rvp.tid++;
+	smp->tid = cpu_to_be64(ibp->rvp.tid);
 	smp->attr_id = IB_SMP_ATTR_NOTICE;
 	/* o14-1: smp->mkey = 0; */
 	memcpy(smp->data, data, len);
 
-	spin_lock_irqsave(&ibp->lock, flags);
-	if (!ibp->sm_ah) {
-		if (ibp->sm_lid != be16_to_cpu(IB_LID_PERMISSIVE)) {
+	spin_lock_irqsave(&ibp->rvp.lock, flags);
+	if (!ibp->rvp.sm_ah) {
+		if (ibp->rvp.sm_lid != be16_to_cpu(IB_LID_PERMISSIVE)) {
 			struct ib_ah *ah;
 
-			ah = qib_create_qp0_ah(ibp, ibp->sm_lid);
+			ah = qib_create_qp0_ah(ibp, ibp->rvp.sm_lid);
 			if (IS_ERR(ah))
 				ret = PTR_ERR(ah);
 			else {
 				send_buf->ah = ah;
-				ibp->sm_ah = to_iah(ah);
+				ibp->rvp.sm_ah = ibah_to_rvtah(ah);
 				ret = 0;
 			}
 		} else
 			ret = -EINVAL;
 	} else {
-		send_buf->ah = &ibp->sm_ah->ibah;
+		send_buf->ah = &ibp->rvp.sm_ah->ibah;
 		ret = 0;
 	}
-	spin_unlock_irqrestore(&ibp->lock, flags);
+	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
 	if (!ret)
 		ret = ib_post_send_mad(send_buf, NULL);
 	if (!ret) {
 		/* 4.096 usec. */
-		timeout = (4096 * (1UL << ibp->subnet_timeout)) / 1000;
-		ibp->trap_timeout = jiffies + usecs_to_jiffies(timeout);
+		timeout = (4096 * (1UL << ibp->rvp.subnet_timeout)) / 1000;
+		ibp->rvp.trap_timeout = jiffies + usecs_to_jiffies(timeout);
 	} else {
 		ib_free_send_mad(send_buf);
-		ibp->trap_timeout = 0;
+		ibp->rvp.trap_timeout = 0;
 	}
 }
 
@@ -141,10 +142,10 @@ void qib_bad_pqkey(struct qib_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
 	struct ib_mad_notice_attr data;
 
 	if (trap_num == IB_NOTICE_TRAP_BAD_PKEY)
-		ibp->pkey_violations++;
+		ibp->rvp.pkey_violations++;
 	else
-		ibp->qkey_violations++;
-	ibp->n_pkt_drops++;
+		ibp->rvp.qkey_violations++;
+	ibp->rvp.n_pkt_drops++;
 
 	/* Send violation trap */
 	data.generic_type = IB_NOTICE_TYPE_SECURITY;
@@ -205,8 +206,11 @@ static void qib_bad_mkey(struct qib_ibport *ibp, struct ib_smp *smp)
 /*
  * Send a Port Capability Mask Changed trap (ch. 14.3.11).
  */
-void qib_cap_mask_chg(struct qib_ibport *ibp)
+void qib_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
 {
+	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
+	struct qib_devdata *dd = dd_from_dev(ibdev);
+	struct qib_ibport *ibp = &dd->pport[port_num - 1].ibport_data;
 	struct ib_mad_notice_attr data;
 
 	data.generic_type = IB_NOTICE_TYPE_INFO;
@@ -217,8 +221,8 @@ void qib_cap_mask_chg(struct qib_ibport *ibp)
 	data.toggle_count = 0;
 	memset(&data.details, 0, sizeof(data.details));
 	data.details.ntc_144.lid = data.issuer_lid;
-	data.details.ntc_144.new_cap_mask = cpu_to_be32(ibp->port_cap_flags);
-
+	data.details.ntc_144.new_cap_mask =
+					cpu_to_be32(ibp->rvp.port_cap_flags);
 	qib_send_trap(ibp, &data, sizeof(data));
 }
 
@@ -409,37 +413,38 @@ static int check_mkey(struct qib_ibport *ibp, struct ib_smp *smp, int mad_flags)
 	int ret = 0;
 
 	/* Is the mkey in the process of expiring? */
-	if (ibp->mkey_lease_timeout &&
-	    time_after_eq(jiffies, ibp->mkey_lease_timeout)) {
+	if (ibp->rvp.mkey_lease_timeout &&
+	    time_after_eq(jiffies, ibp->rvp.mkey_lease_timeout)) {
 		/* Clear timeout and mkey protection field. */
-		ibp->mkey_lease_timeout = 0;
-		ibp->mkeyprot = 0;
+		ibp->rvp.mkey_lease_timeout = 0;
+		ibp->rvp.mkeyprot = 0;
 	}
 
-	if ((mad_flags & IB_MAD_IGNORE_MKEY) ||  ibp->mkey == 0 ||
-	    ibp->mkey == smp->mkey)
+	if ((mad_flags & IB_MAD_IGNORE_MKEY) ||  ibp->rvp.mkey == 0 ||
+	    ibp->rvp.mkey == smp->mkey)
 		valid_mkey = 1;
 
 	/* Unset lease timeout on any valid Get/Set/TrapRepress */
-	if (valid_mkey && ibp->mkey_lease_timeout &&
+	if (valid_mkey && ibp->rvp.mkey_lease_timeout &&
 	    (smp->method == IB_MGMT_METHOD_GET ||
 	     smp->method == IB_MGMT_METHOD_SET ||
 	     smp->method == IB_MGMT_METHOD_TRAP_REPRESS))
-		ibp->mkey_lease_timeout = 0;
+		ibp->rvp.mkey_lease_timeout = 0;
 
 	if (!valid_mkey) {
 		switch (smp->method) {
 		case IB_MGMT_METHOD_GET:
 			/* Bad mkey not a violation below level 2 */
-			if (ibp->mkeyprot < 2)
+			if (ibp->rvp.mkeyprot < 2)
 				break;
 		case IB_MGMT_METHOD_SET:
 		case IB_MGMT_METHOD_TRAP_REPRESS:
-			if (ibp->mkey_violations != 0xFFFF)
-				++ibp->mkey_violations;
-			if (!ibp->mkey_lease_timeout && ibp->mkey_lease_period)
-				ibp->mkey_lease_timeout = jiffies +
-					ibp->mkey_lease_period * HZ;
+			if (ibp->rvp.mkey_violations != 0xFFFF)
+				++ibp->rvp.mkey_violations;
+			if (!ibp->rvp.mkey_lease_timeout &&
+			    ibp->rvp.mkey_lease_period)
+				ibp->rvp.mkey_lease_timeout = jiffies +
+					ibp->rvp.mkey_lease_period * HZ;
 			/* Generate a trap notice. */
 			qib_bad_mkey(ibp, smp);
 			ret = 1;
@@ -489,15 +494,15 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 
 	/* Only return the mkey if the protection field allows it. */
 	if (!(smp->method == IB_MGMT_METHOD_GET &&
-	      ibp->mkey != smp->mkey &&
-	      ibp->mkeyprot == 1))
-		pip->mkey = ibp->mkey;
-	pip->gid_prefix = ibp->gid_prefix;
+	      ibp->rvp.mkey != smp->mkey &&
+	      ibp->rvp.mkeyprot == 1))
+		pip->mkey = ibp->rvp.mkey;
+	pip->gid_prefix = ibp->rvp.gid_prefix;
 	pip->lid = cpu_to_be16(ppd->lid);
-	pip->sm_lid = cpu_to_be16(ibp->sm_lid);
-	pip->cap_mask = cpu_to_be32(ibp->port_cap_flags);
+	pip->sm_lid = cpu_to_be16(ibp->rvp.sm_lid);
+	pip->cap_mask = cpu_to_be32(ibp->rvp.port_cap_flags);
 	/* pip->diag_code; */
-	pip->mkey_lease_period = cpu_to_be16(ibp->mkey_lease_period);
+	pip->mkey_lease_period = cpu_to_be16(ibp->rvp.mkey_lease_period);
 	pip->local_port_num = port;
 	pip->link_width_enabled = ppd->link_width_enabled;
 	pip->link_width_supported = ppd->link_width_supported;
@@ -508,7 +513,7 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	pip->portphysstate_linkdown =
 		(dd->f_ibphys_portstate(ppd->lastibcstat) << 4) |
 		(get_linkdowndefaultstate(ppd) ? 1 : 2);
-	pip->mkeyprot_resv_lmc = (ibp->mkeyprot << 6) | ppd->lmc;
+	pip->mkeyprot_resv_lmc = (ibp->rvp.mkeyprot << 6) | ppd->lmc;
 	pip->linkspeedactive_enabled = (ppd->link_speed_active << 4) |
 		ppd->link_speed_enabled;
 	switch (ppd->ibmtu) {
@@ -529,9 +534,9 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		mtu = IB_MTU_256;
 		break;
 	}
-	pip->neighbormtu_mastersmsl = (mtu << 4) | ibp->sm_sl;
+	pip->neighbormtu_mastersmsl = (mtu << 4) | ibp->rvp.sm_sl;
 	pip->vlcap_inittype = ppd->vls_supported << 4;  /* InitType = 0 */
-	pip->vl_high_limit = ibp->vl_high_limit;
+	pip->vl_high_limit = ibp->rvp.vl_high_limit;
 	pip->vl_arb_high_cap =
 		dd->f_get_ib_cfg(ppd, QIB_IB_CFG_VL_HIGH_CAP);
 	pip->vl_arb_low_cap =
@@ -542,20 +547,20 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	/* pip->vlstallcnt_hoqlife; */
 	pip->operationalvl_pei_peo_fpi_fpo =
 		dd->f_get_ib_cfg(ppd, QIB_IB_CFG_OP_VLS) << 4;
-	pip->mkey_violations = cpu_to_be16(ibp->mkey_violations);
+	pip->mkey_violations = cpu_to_be16(ibp->rvp.mkey_violations);
 	/* P_KeyViolations are counted by hardware. */
-	pip->pkey_violations = cpu_to_be16(ibp->pkey_violations);
-	pip->qkey_violations = cpu_to_be16(ibp->qkey_violations);
+	pip->pkey_violations = cpu_to_be16(ibp->rvp.pkey_violations);
+	pip->qkey_violations = cpu_to_be16(ibp->rvp.qkey_violations);
 	/* Only the hardware GUID is supported for now */
 	pip->guid_cap = QIB_GUIDS_PER_PORT;
-	pip->clientrereg_resv_subnetto = ibp->subnet_timeout;
+	pip->clientrereg_resv_subnetto = ibp->rvp.subnet_timeout;
 	/* 32.768 usec. response time (guessing) */
 	pip->resv_resptimevalue = 3;
 	pip->localphyerrors_overrunerrors =
 		(get_phyerrthreshold(ppd) << 4) |
 		get_overrunthreshold(ppd);
 	/* pip->max_credit_hint; */
-	if (ibp->port_cap_flags & IB_PORT_LINK_LATENCY_SUP) {
+	if (ibp->rvp.port_cap_flags & IB_PORT_LINK_LATENCY_SUP) {
 		u32 v;
 
 		v = dd->f_get_ib_cfg(ppd, QIB_IB_CFG_LINKLATENCY);
@@ -685,13 +690,13 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	event.device = ibdev;
 	event.element.port_num = port;
 
-	ibp->mkey = pip->mkey;
-	ibp->gid_prefix = pip->gid_prefix;
-	ibp->mkey_lease_period = be16_to_cpu(pip->mkey_lease_period);
+	ibp->rvp.mkey = pip->mkey;
+	ibp->rvp.gid_prefix = pip->gid_prefix;
+	ibp->rvp.mkey_lease_period = be16_to_cpu(pip->mkey_lease_period);
 
 	lid = be16_to_cpu(pip->lid);
 	/* Must be a valid unicast LID address. */
-	if (lid == 0 || lid >= QIB_MULTICAST_LID_BASE)
+	if (lid == 0 || lid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
 		smp->status |= IB_SMP_INVALID_FIELD;
 	else if (ppd->lid != lid || ppd->lmc != (pip->mkeyprot_resv_lmc & 7)) {
 		if (ppd->lid != lid)
@@ -706,21 +711,21 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	smlid = be16_to_cpu(pip->sm_lid);
 	msl = pip->neighbormtu_mastersmsl & 0xF;
 	/* Must be a valid unicast LID address. */
-	if (smlid == 0 || smlid >= QIB_MULTICAST_LID_BASE)
+	if (smlid == 0 || smlid >= be16_to_cpu(IB_MULTICAST_LID_BASE))
 		smp->status |= IB_SMP_INVALID_FIELD;
-	else if (smlid != ibp->sm_lid || msl != ibp->sm_sl) {
-		spin_lock_irqsave(&ibp->lock, flags);
-		if (ibp->sm_ah) {
-			if (smlid != ibp->sm_lid)
-				ibp->sm_ah->attr.dlid = smlid;
-			if (msl != ibp->sm_sl)
-				ibp->sm_ah->attr.sl = msl;
+	else if (smlid != ibp->rvp.sm_lid || msl != ibp->rvp.sm_sl) {
+		spin_lock_irqsave(&ibp->rvp.lock, flags);
+		if (ibp->rvp.sm_ah) {
+			if (smlid != ibp->rvp.sm_lid)
+				ibp->rvp.sm_ah->attr.dlid = smlid;
+			if (msl != ibp->rvp.sm_sl)
+				ibp->rvp.sm_ah->attr.sl = msl;
 		}
-		spin_unlock_irqrestore(&ibp->lock, flags);
-		if (smlid != ibp->sm_lid)
-			ibp->sm_lid = smlid;
-		if (msl != ibp->sm_sl)
-			ibp->sm_sl = msl;
+		spin_unlock_irqrestore(&ibp->rvp.lock, flags);
+		if (smlid != ibp->rvp.sm_lid)
+			ibp->rvp.sm_lid = smlid;
+		if (msl != ibp->rvp.sm_sl)
+			ibp->rvp.sm_sl = msl;
 		event.event = IB_EVENT_SM_CHANGE;
 		ib_dispatch_event(&event);
 	}
@@ -768,10 +773,10 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		smp->status |= IB_SMP_INVALID_FIELD;
 	}
 
-	ibp->mkeyprot = pip->mkeyprot_resv_lmc >> 6;
-	ibp->vl_high_limit = pip->vl_high_limit;
+	ibp->rvp.mkeyprot = pip->mkeyprot_resv_lmc >> 6;
+	ibp->rvp.vl_high_limit = pip->vl_high_limit;
 	(void) dd->f_set_ib_cfg(ppd, QIB_IB_CFG_VL_HIGH_LIMIT,
-				    ibp->vl_high_limit);
+				    ibp->rvp.vl_high_limit);
 
 	mtu = ib_mtu_enum_to_int((pip->neighbormtu_mastersmsl >> 4) & 0xF);
 	if (mtu == -1)
@@ -789,13 +794,13 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	}
 
 	if (pip->mkey_violations == 0)
-		ibp->mkey_violations = 0;
+		ibp->rvp.mkey_violations = 0;
 
 	if (pip->pkey_violations == 0)
-		ibp->pkey_violations = 0;
+		ibp->rvp.pkey_violations = 0;
 
 	if (pip->qkey_violations == 0)
-		ibp->qkey_violations = 0;
+		ibp->rvp.qkey_violations = 0;
 
 	ore = pip->localphyerrors_overrunerrors;
 	if (set_phyerrthreshold(ppd, (ore >> 4) & 0xF))
@@ -804,7 +809,7 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	if (set_overrunthreshold(ppd, (ore & 0xF)))
 		smp->status |= IB_SMP_INVALID_FIELD;
 
-	ibp->subnet_timeout = pip->clientrereg_resv_subnetto & 0x1F;
+	ibp->rvp.subnet_timeout = pip->clientrereg_resv_subnetto & 0x1F;
 
 	/*
 	 * Do the port state change now that the other link parameters
@@ -1028,7 +1033,7 @@ static int set_pkeys(struct qib_devdata *dd, u8 port, u16 *pkeys)
 		(void) dd->f_set_ib_cfg(ppd, QIB_IB_CFG_PKEYS, 0);
 
 		event.event = IB_EVENT_PKEY_CHANGE;
-		event.device = &dd->verbs_dev.ibdev;
+		event.device = &dd->verbs_dev.rdi.ibdev;
 		event.element.port_num = port;
 		ib_dispatch_event(&event);
 	}
@@ -1062,7 +1067,7 @@ static int subn_get_sl_to_vl(struct ib_smp *smp, struct ib_device *ibdev,
 
 	memset(smp->data, 0, sizeof(smp->data));
 
-	if (!(ibp->port_cap_flags & IB_PORT_SL_MAP_SUP))
+	if (!(ibp->rvp.port_cap_flags & IB_PORT_SL_MAP_SUP))
 		smp->status |= IB_SMP_UNSUP_METHOD;
 	else
 		for (i = 0; i < ARRAY_SIZE(ibp->sl_to_vl); i += 2)
@@ -1078,7 +1083,7 @@ static int subn_set_sl_to_vl(struct ib_smp *smp, struct ib_device *ibdev,
 	u8 *p = (u8 *) smp->data;
 	unsigned i;
 
-	if (!(ibp->port_cap_flags & IB_PORT_SL_MAP_SUP)) {
+	if (!(ibp->rvp.port_cap_flags & IB_PORT_SL_MAP_SUP)) {
 		smp->status |= IB_SMP_UNSUP_METHOD;
 		return reply(smp);
 	}
@@ -1195,20 +1200,20 @@ static int pma_get_portsamplescontrol(struct ib_pma_mad *pmp,
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
 		goto bail;
 	}
-	spin_lock_irqsave(&ibp->lock, flags);
+	spin_lock_irqsave(&ibp->rvp.lock, flags);
 	p->tick = dd->f_get_ib_cfg(ppd, QIB_IB_CFG_PMA_TICKS);
 	p->sample_status = dd->f_portcntr(ppd, QIBPORTCNTR_PSSTAT);
 	p->counter_width = 4;   /* 32 bit counters */
 	p->counter_mask0_9 = COUNTER_MASK0_9;
-	p->sample_start = cpu_to_be32(ibp->pma_sample_start);
-	p->sample_interval = cpu_to_be32(ibp->pma_sample_interval);
-	p->tag = cpu_to_be16(ibp->pma_tag);
-	p->counter_select[0] = ibp->pma_counter_select[0];
-	p->counter_select[1] = ibp->pma_counter_select[1];
-	p->counter_select[2] = ibp->pma_counter_select[2];
-	p->counter_select[3] = ibp->pma_counter_select[3];
-	p->counter_select[4] = ibp->pma_counter_select[4];
-	spin_unlock_irqrestore(&ibp->lock, flags);
+	p->sample_start = cpu_to_be32(ibp->rvp.pma_sample_start);
+	p->sample_interval = cpu_to_be32(ibp->rvp.pma_sample_interval);
+	p->tag = cpu_to_be16(ibp->rvp.pma_tag);
+	p->counter_select[0] = ibp->rvp.pma_counter_select[0];
+	p->counter_select[1] = ibp->rvp.pma_counter_select[1];
+	p->counter_select[2] = ibp->rvp.pma_counter_select[2];
+	p->counter_select[3] = ibp->rvp.pma_counter_select[3];
+	p->counter_select[4] = ibp->rvp.pma_counter_select[4];
+	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
 bail:
 	return reply((struct ib_smp *) pmp);
@@ -1233,7 +1238,7 @@ static int pma_set_portsamplescontrol(struct ib_pma_mad *pmp,
 		goto bail;
 	}
 
-	spin_lock_irqsave(&ibp->lock, flags);
+	spin_lock_irqsave(&ibp->rvp.lock, flags);
 
 	/* Port Sampling code owns the PS* HW counters */
 	xmit_flags = ppd->cong_stats.flags;
@@ -1242,18 +1247,18 @@ static int pma_set_portsamplescontrol(struct ib_pma_mad *pmp,
 	if (status == IB_PMA_SAMPLE_STATUS_DONE ||
 	    (status == IB_PMA_SAMPLE_STATUS_RUNNING &&
 	     xmit_flags == IB_PMA_CONG_HW_CONTROL_TIMER)) {
-		ibp->pma_sample_start = be32_to_cpu(p->sample_start);
-		ibp->pma_sample_interval = be32_to_cpu(p->sample_interval);
-		ibp->pma_tag = be16_to_cpu(p->tag);
-		ibp->pma_counter_select[0] = p->counter_select[0];
-		ibp->pma_counter_select[1] = p->counter_select[1];
-		ibp->pma_counter_select[2] = p->counter_select[2];
-		ibp->pma_counter_select[3] = p->counter_select[3];
-		ibp->pma_counter_select[4] = p->counter_select[4];
-		dd->f_set_cntr_sample(ppd, ibp->pma_sample_interval,
-				      ibp->pma_sample_start);
+		ibp->rvp.pma_sample_start = be32_to_cpu(p->sample_start);
+		ibp->rvp.pma_sample_interval = be32_to_cpu(p->sample_interval);
+		ibp->rvp.pma_tag = be16_to_cpu(p->tag);
+		ibp->rvp.pma_counter_select[0] = p->counter_select[0];
+		ibp->rvp.pma_counter_select[1] = p->counter_select[1];
+		ibp->rvp.pma_counter_select[2] = p->counter_select[2];
+		ibp->rvp.pma_counter_select[3] = p->counter_select[3];
+		ibp->rvp.pma_counter_select[4] = p->counter_select[4];
+		dd->f_set_cntr_sample(ppd, ibp->rvp.pma_sample_interval,
+				      ibp->rvp.pma_sample_start);
 	}
-	spin_unlock_irqrestore(&ibp->lock, flags);
+	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
 	ret = pma_get_portsamplescontrol(pmp, ibdev, port);
 
@@ -1357,8 +1362,8 @@ static int pma_get_portsamplesresult(struct ib_pma_mad *pmp,
 	int i;
 
 	memset(pmp->data, 0, sizeof(pmp->data));
-	spin_lock_irqsave(&ibp->lock, flags);
-	p->tag = cpu_to_be16(ibp->pma_tag);
+	spin_lock_irqsave(&ibp->rvp.lock, flags);
+	p->tag = cpu_to_be16(ibp->rvp.pma_tag);
 	if (ppd->cong_stats.flags == IB_PMA_CONG_HW_CONTROL_TIMER)
 		p->sample_status = IB_PMA_SAMPLE_STATUS_DONE;
 	else {
@@ -1373,11 +1378,11 @@ static int pma_get_portsamplesresult(struct ib_pma_mad *pmp,
 			ppd->cong_stats.flags = IB_PMA_CONG_HW_CONTROL_TIMER;
 		}
 	}
-	for (i = 0; i < ARRAY_SIZE(ibp->pma_counter_select); i++)
+	for (i = 0; i < ARRAY_SIZE(ibp->rvp.pma_counter_select); i++)
 		p->counter[i] = cpu_to_be32(
 			get_cache_hw_sample_counters(
-				ppd, ibp->pma_counter_select[i]));
-	spin_unlock_irqrestore(&ibp->lock, flags);
+				ppd, ibp->rvp.pma_counter_select[i]));
+	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
 	return reply((struct ib_smp *) pmp);
 }
@@ -1397,8 +1402,8 @@ static int pma_get_portsamplesresult_ext(struct ib_pma_mad *pmp,
 
 	/* Port Sampling code owns the PS* HW counters */
 	memset(pmp->data, 0, sizeof(pmp->data));
-	spin_lock_irqsave(&ibp->lock, flags);
-	p->tag = cpu_to_be16(ibp->pma_tag);
+	spin_lock_irqsave(&ibp->rvp.lock, flags);
+	p->tag = cpu_to_be16(ibp->rvp.pma_tag);
 	if (ppd->cong_stats.flags == IB_PMA_CONG_HW_CONTROL_TIMER)
 		p->sample_status = IB_PMA_SAMPLE_STATUS_DONE;
 	else {
@@ -1415,11 +1420,11 @@ static int pma_get_portsamplesresult_ext(struct ib_pma_mad *pmp,
 			ppd->cong_stats.flags = IB_PMA_CONG_HW_CONTROL_TIMER;
 		}
 	}
-	for (i = 0; i < ARRAY_SIZE(ibp->pma_counter_select); i++)
+	for (i = 0; i < ARRAY_SIZE(ibp->rvp.pma_counter_select); i++)
 		p->counter[i] = cpu_to_be64(
 			get_cache_hw_sample_counters(
-				ppd, ibp->pma_counter_select[i]));
-	spin_unlock_irqrestore(&ibp->lock, flags);
+				ppd, ibp->rvp.pma_counter_select[i]));
+	spin_unlock_irqrestore(&ibp->rvp.lock, flags);
 
 	return reply((struct ib_smp *) pmp);
 }
@@ -1453,7 +1458,7 @@ static int pma_get_portcounters(struct ib_pma_mad *pmp,
 	cntrs.excessive_buffer_overrun_errors -=
 		ibp->z_excessive_buffer_overrun_errors;
 	cntrs.vl15_dropped -= ibp->z_vl15_dropped;
-	cntrs.vl15_dropped += ibp->n_vl15_dropped;
+	cntrs.vl15_dropped += ibp->rvp.n_vl15_dropped;
 
 	memset(pmp->data, 0, sizeof(pmp->data));
 
@@ -1546,9 +1551,9 @@ static int pma_get_portcounters_cong(struct ib_pma_mad *pmp,
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
 
 	qib_get_counters(ppd, &cntrs);
-	spin_lock_irqsave(&ppd->ibport_data.lock, flags);
+	spin_lock_irqsave(&ppd->ibport_data.rvp.lock, flags);
 	xmit_wait_counter = xmit_wait_get_value_delta(ppd);
-	spin_unlock_irqrestore(&ppd->ibport_data.lock, flags);
+	spin_unlock_irqrestore(&ppd->ibport_data.rvp.lock, flags);
 
 	/* Adjust counters for any resets done. */
 	cntrs.symbol_error_counter -= ibp->z_symbol_error_counter;
@@ -1564,7 +1569,7 @@ static int pma_get_portcounters_cong(struct ib_pma_mad *pmp,
 	cntrs.excessive_buffer_overrun_errors -=
 		ibp->z_excessive_buffer_overrun_errors;
 	cntrs.vl15_dropped -= ibp->z_vl15_dropped;
-	cntrs.vl15_dropped += ibp->n_vl15_dropped;
+	cntrs.vl15_dropped += ibp->rvp.n_vl15_dropped;
 	cntrs.port_xmit_data -= ibp->z_port_xmit_data;
 	cntrs.port_rcv_data -= ibp->z_port_rcv_data;
 	cntrs.port_xmit_packets -= ibp->z_port_xmit_packets;
@@ -1743,7 +1748,7 @@ static int pma_set_portcounters(struct ib_pma_mad *pmp,
 			cntrs.excessive_buffer_overrun_errors;
 
 	if (p->counter_select & IB_PMA_SEL_PORT_VL15_DROPPED) {
-		ibp->n_vl15_dropped = 0;
+		ibp->rvp.n_vl15_dropped = 0;
 		ibp->z_vl15_dropped = cntrs.vl15_dropped;
 	}
 
@@ -1778,11 +1783,11 @@ static int pma_set_portcounters_cong(struct ib_pma_mad *pmp,
 	ret = pma_get_portcounters_cong(pmp, ibdev, port);
 
 	if (counter_select & IB_PMA_SEL_CONG_XMIT) {
-		spin_lock_irqsave(&ppd->ibport_data.lock, flags);
+		spin_lock_irqsave(&ppd->ibport_data.rvp.lock, flags);
 		ppd->cong_stats.counter = 0;
 		dd->f_set_cntr_sample(ppd, QIB_CONG_TIMER_PSINTERVAL,
 				      0x0);
-		spin_unlock_irqrestore(&ppd->ibport_data.lock, flags);
+		spin_unlock_irqrestore(&ppd->ibport_data.rvp.lock, flags);
 	}
 	if (counter_select & IB_PMA_SEL_CONG_PORT_DATA) {
 		ibp->z_port_xmit_data = cntrs.port_xmit_data;
@@ -1806,7 +1811,7 @@ static int pma_set_portcounters_cong(struct ib_pma_mad *pmp,
 			cntrs.local_link_integrity_errors;
 		ibp->z_excessive_buffer_overrun_errors =
 			cntrs.excessive_buffer_overrun_errors;
-		ibp->n_vl15_dropped = 0;
+		ibp->rvp.n_vl15_dropped = 0;
 		ibp->z_vl15_dropped = cntrs.vl15_dropped;
 	}
 
@@ -1916,12 +1921,12 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 			ret = subn_get_vl_arb(smp, ibdev, port);
 			goto bail;
 		case IB_SMP_ATTR_SM_INFO:
-			if (ibp->port_cap_flags & IB_PORT_SM_DISABLED) {
+			if (ibp->rvp.port_cap_flags & IB_PORT_SM_DISABLED) {
 				ret = IB_MAD_RESULT_SUCCESS |
 					IB_MAD_RESULT_CONSUMED;
 				goto bail;
 			}
-			if (ibp->port_cap_flags & IB_PORT_SM) {
+			if (ibp->rvp.port_cap_flags & IB_PORT_SM) {
 				ret = IB_MAD_RESULT_SUCCESS;
 				goto bail;
 			}
@@ -1950,12 +1955,12 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 			ret = subn_set_vl_arb(smp, ibdev, port);
 			goto bail;
 		case IB_SMP_ATTR_SM_INFO:
-			if (ibp->port_cap_flags & IB_PORT_SM_DISABLED) {
+			if (ibp->rvp.port_cap_flags & IB_PORT_SM_DISABLED) {
 				ret = IB_MAD_RESULT_SUCCESS |
 					IB_MAD_RESULT_CONSUMED;
 				goto bail;
 			}
-			if (ibp->port_cap_flags & IB_PORT_SM) {
+			if (ibp->rvp.port_cap_flags & IB_PORT_SM) {
 				ret = IB_MAD_RESULT_SUCCESS;
 				goto bail;
 			}
@@ -2443,12 +2448,6 @@ bail:
 	return ret;
 }
 
-static void send_handler(struct ib_mad_agent *agent,
-			 struct ib_mad_send_wc *mad_send_wc)
-{
-	ib_free_send_mad(mad_send_wc->send_buf);
-}
-
 static void xmit_wait_timer_func(unsigned long opaque)
 {
 	struct qib_pportdata *ppd = (struct qib_pportdata *)opaque;
@@ -2456,7 +2455,7 @@ static void xmit_wait_timer_func(unsigned long opaque)
 	unsigned long flags;
 	u8 status;
 
-	spin_lock_irqsave(&ppd->ibport_data.lock, flags);
+	spin_lock_irqsave(&ppd->ibport_data.rvp.lock, flags);
 	if (ppd->cong_stats.flags == IB_PMA_CONG_HW_CONTROL_SAMPLE) {
 		status = dd->f_portcntr(ppd, QIBPORTCNTR_PSSTAT);
 		if (status == IB_PMA_SAMPLE_STATUS_DONE) {
@@ -2469,74 +2468,35 @@ static void xmit_wait_timer_func(unsigned long opaque)
 	ppd->cong_stats.counter = xmit_wait_get_value_delta(ppd);
 	dd->f_set_cntr_sample(ppd, QIB_CONG_TIMER_PSINTERVAL, 0x0);
 done:
-	spin_unlock_irqrestore(&ppd->ibport_data.lock, flags);
+	spin_unlock_irqrestore(&ppd->ibport_data.rvp.lock, flags);
 	mod_timer(&ppd->cong_stats.timer, jiffies + HZ);
 }
 
-int qib_create_agents(struct qib_ibdev *dev)
+void qib_notify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 {
-	struct qib_devdata *dd = dd_from_dev(dev);
-	struct ib_mad_agent *agent;
-	struct qib_ibport *ibp;
-	int p;
-	int ret;
+	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
+	struct qib_devdata *dd = container_of(ibdev,
+					      struct qib_devdata, verbs_dev);
 
-	for (p = 0; p < dd->num_pports; p++) {
-		ibp = &dd->pport[p].ibport_data;
-		agent = ib_register_mad_agent(&dev->ibdev, p + 1, IB_QPT_SMI,
-					      NULL, 0, send_handler,
-					      NULL, NULL, 0);
-		if (IS_ERR(agent)) {
-			ret = PTR_ERR(agent);
-			goto err;
-		}
-
-		/* Initialize xmit_wait structure */
-		dd->pport[p].cong_stats.counter = 0;
-		init_timer(&dd->pport[p].cong_stats.timer);
-		dd->pport[p].cong_stats.timer.function = xmit_wait_timer_func;
-		dd->pport[p].cong_stats.timer.data =
-			(unsigned long)(&dd->pport[p]);
-		dd->pport[p].cong_stats.timer.expires = 0;
-		add_timer(&dd->pport[p].cong_stats.timer);
-
-		ibp->send_agent = agent;
-	}
-
-	return 0;
-
-err:
-	for (p = 0; p < dd->num_pports; p++) {
-		ibp = &dd->pport[p].ibport_data;
-		if (ibp->send_agent) {
-			agent = ibp->send_agent;
-			ibp->send_agent = NULL;
-			ib_unregister_mad_agent(agent);
-		}
-	}
-
-	return ret;
+	/* Initialize xmit_wait structure */
+	dd->pport[port_idx].cong_stats.counter = 0;
+	init_timer(&dd->pport[port_idx].cong_stats.timer);
+	dd->pport[port_idx].cong_stats.timer.function = xmit_wait_timer_func;
+	dd->pport[port_idx].cong_stats.timer.data =
+		(unsigned long)(&dd->pport[port_idx]);
+	dd->pport[port_idx].cong_stats.timer.expires = 0;
+	add_timer(&dd->pport[port_idx].cong_stats.timer);
 }
 
-void qib_free_agents(struct qib_ibdev *dev)
+void qib_notify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 {
-	struct qib_devdata *dd = dd_from_dev(dev);
-	struct ib_mad_agent *agent;
-	struct qib_ibport *ibp;
-	int p;
+	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
+	struct qib_devdata *dd = container_of(ibdev,
+					      struct qib_devdata, verbs_dev);
 
-	for (p = 0; p < dd->num_pports; p++) {
-		ibp = &dd->pport[p].ibport_data;
-		if (ibp->send_agent) {
-			agent = ibp->send_agent;
-			ibp->send_agent = NULL;
-			ib_unregister_mad_agent(agent);
-		}
-		if (ibp->sm_ah) {
-			ib_destroy_ah(&ibp->sm_ah->ibah);
-			ibp->sm_ah = NULL;
-		}
-		if (dd->pport[p].cong_stats.timer.data)
-			del_timer_sync(&dd->pport[p].cong_stats.timer);
-	}
+	if (dd->pport[port_idx].cong_stats.timer.data)
+		del_timer_sync(&dd->pport[port_idx].cong_stats.timer);
+
+	if (dd->pport[port_idx].ibport_data.smi_ah)
+		ib_destroy_ah(&dd->pport[port_idx].ibport_data.smi_ah->ibah);
 }

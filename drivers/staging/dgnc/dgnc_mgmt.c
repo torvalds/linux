@@ -192,7 +192,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		spin_lock_irqsave(&ch->ch_lock, flags);
 
-		mstat = (ch->ch_mostat | ch->ch_mistat);
+		mstat = ch->ch_mostat | ch->ch_mistat;
 
 		if (mstat & UART_MCR_DTR) {
 			ni.mstat |= TIOCM_DTR;

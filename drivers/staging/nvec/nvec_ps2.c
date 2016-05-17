@@ -78,7 +78,7 @@ static int nvec_ps2_notifier(struct notifier_block *nb,
 			     unsigned long event_type, void *data)
 {
 	int i;
-	unsigned char *msg = (unsigned char *)data;
+	unsigned char *msg = data;
 
 	switch (event_type) {
 	case NVEC_PS2_EVT:

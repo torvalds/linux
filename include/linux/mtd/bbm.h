@@ -166,7 +166,6 @@ struct bbm_info {
 };
 
 /* OneNAND BBT interface */
-extern int onenand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd);
 extern int onenand_default_bbt(struct mtd_info *mtd);
 
 #endif	/* __LINUX_MTD_BBM_H */

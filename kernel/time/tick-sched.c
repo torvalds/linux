@@ -157,52 +157,50 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 cpumask_var_t tick_nohz_full_mask;
 cpumask_var_t housekeeping_mask;
 bool tick_nohz_full_running;
-static unsigned long tick_dep_mask;
+static atomic_t tick_dep_mask;
 
-static void trace_tick_dependency(unsigned long dep)
+static bool check_tick_dependency(atomic_t *dep)
 {
-	if (dep & TICK_DEP_MASK_POSIX_TIMER) {
+	int val = atomic_read(dep);
+
+	if (val & TICK_DEP_MASK_POSIX_TIMER) {
 		trace_tick_stop(0, TICK_DEP_MASK_POSIX_TIMER);
-		return;
+		return true;
 	}
 
-	if (dep & TICK_DEP_MASK_PERF_EVENTS) {
+	if (val & TICK_DEP_MASK_PERF_EVENTS) {
 		trace_tick_stop(0, TICK_DEP_MASK_PERF_EVENTS);
-		return;
+		return true;
 	}
 
-	if (dep & TICK_DEP_MASK_SCHED) {
+	if (val & TICK_DEP_MASK_SCHED) {
 		trace_tick_stop(0, TICK_DEP_MASK_SCHED);
-		return;
+		return true;
 	}
 
-	if (dep & TICK_DEP_MASK_CLOCK_UNSTABLE)
+	if (val & TICK_DEP_MASK_CLOCK_UNSTABLE) {
 		trace_tick_stop(0, TICK_DEP_MASK_CLOCK_UNSTABLE);
+		return true;
+	}
+
+	return false;
 }
 
 static bool can_stop_full_tick(struct tick_sched *ts)
 {
 	WARN_ON_ONCE(!irqs_disabled());
 
-	if (tick_dep_mask) {
-		trace_tick_dependency(tick_dep_mask);
+	if (check_tick_dependency(&tick_dep_mask))
 		return false;
-	}
 
-	if (ts->tick_dep_mask) {
-		trace_tick_dependency(ts->tick_dep_mask);
+	if (check_tick_dependency(&ts->tick_dep_mask))
 		return false;
-	}
 
-	if (current->tick_dep_mask) {
-		trace_tick_dependency(current->tick_dep_mask);
+	if (check_tick_dependency(&current->tick_dep_mask))
 		return false;
-	}
 
-	if (current->signal->tick_dep_mask) {
-		trace_tick_dependency(current->signal->tick_dep_mask);
+	if (check_tick_dependency(&current->signal->tick_dep_mask))
 		return false;
-	}
 
 	return true;
 }
@@ -259,12 +257,12 @@ static void tick_nohz_full_kick_all(void)
 	preempt_enable();
 }
 
-static void tick_nohz_dep_set_all(unsigned long *dep,
+static void tick_nohz_dep_set_all(atomic_t *dep,
 				  enum tick_dep_bits bit)
 {
-	unsigned long prev;
+	int prev;
 
-	prev = fetch_or(dep, BIT_MASK(bit));
+	prev = atomic_fetch_or(dep, BIT(bit));
 	if (!prev)
 		tick_nohz_full_kick_all();
 }
@@ -280,7 +278,7 @@ void tick_nohz_dep_set(enum tick_dep_bits bit)
 
 void tick_nohz_dep_clear(enum tick_dep_bits bit)
 {
-	clear_bit(bit, &tick_dep_mask);
+	atomic_andnot(BIT(bit), &tick_dep_mask);
 }
 
 /*
@@ -289,12 +287,12 @@ void tick_nohz_dep_clear(enum tick_dep_bits bit)
  */
 void tick_nohz_dep_set_cpu(int cpu, enum tick_dep_bits bit)
 {
-	unsigned long prev;
+	int prev;
 	struct tick_sched *ts;
 
 	ts = per_cpu_ptr(&tick_cpu_sched, cpu);
 
-	prev = fetch_or(&ts->tick_dep_mask, BIT_MASK(bit));
+	prev = atomic_fetch_or(&ts->tick_dep_mask, BIT(bit));
 	if (!prev) {
 		preempt_disable();
 		/* Perf needs local kick that is NMI safe */
@@ -313,7 +311,7 @@ void tick_nohz_dep_clear_cpu(int cpu, enum tick_dep_bits bit)
 {
 	struct tick_sched *ts = per_cpu_ptr(&tick_cpu_sched, cpu);
 
-	clear_bit(bit, &ts->tick_dep_mask);
+	atomic_andnot(BIT(bit), &ts->tick_dep_mask);
 }
 
 /*
@@ -331,7 +329,7 @@ void tick_nohz_dep_set_task(struct task_struct *tsk, enum tick_dep_bits bit)
 
 void tick_nohz_dep_clear_task(struct task_struct *tsk, enum tick_dep_bits bit)
 {
-	clear_bit(bit, &tsk->tick_dep_mask);
+	atomic_andnot(BIT(bit), &tsk->tick_dep_mask);
 }
 
 /*
@@ -345,7 +343,7 @@ void tick_nohz_dep_set_signal(struct signal_struct *sig, enum tick_dep_bits bit)
 
 void tick_nohz_dep_clear_signal(struct signal_struct *sig, enum tick_dep_bits bit)
 {
-	clear_bit(bit, &sig->tick_dep_mask);
+	atomic_andnot(BIT(bit), &sig->tick_dep_mask);
 }
 
 /*
@@ -366,7 +364,8 @@ void __tick_nohz_task_switch(void)
 	ts = this_cpu_ptr(&tick_cpu_sched);
 
 	if (ts->tick_stopped) {
-		if (current->tick_dep_mask || current->signal->tick_dep_mask)
+		if (atomic_read(&current->tick_dep_mask) ||
+		    atomic_read(&current->signal->tick_dep_mask))
 			tick_nohz_full_kick();
 	}
 out:
@@ -378,7 +377,7 @@ static int __init tick_nohz_full_setup(char *str)
 {
 	alloc_bootmem_cpumask_var(&tick_nohz_full_mask);
 	if (cpulist_parse(str, tick_nohz_full_mask) < 0) {
-		pr_warning("NOHZ: Incorrect nohz_full cpumask\n");
+		pr_warn("NO_HZ: Incorrect nohz_full cpumask\n");
 		free_bootmem_cpumask_var(tick_nohz_full_mask);
 		return 1;
 	}
@@ -446,8 +445,7 @@ void __init tick_nohz_init(void)
 	 * interrupts to avoid circular dependency on the tick
 	 */
 	if (!arch_irq_work_has_interrupt()) {
-		pr_warning("NO_HZ: Can't run full dynticks because arch doesn't "
-			   "support irq work self-IPIs\n");
+		pr_warn("NO_HZ: Can't run full dynticks because arch doesn't support irq work self-IPIs\n");
 		cpumask_clear(tick_nohz_full_mask);
 		cpumask_copy(housekeeping_mask, cpu_possible_mask);
 		tick_nohz_full_running = false;
@@ -457,7 +455,8 @@ void __init tick_nohz_init(void)
 	cpu = smp_processor_id();
 
 	if (cpumask_test_cpu(cpu, tick_nohz_full_mask)) {
-		pr_warning("NO_HZ: Clearing %d from nohz_full range for timekeeping\n", cpu);
+		pr_warn("NO_HZ: Clearing %d from nohz_full range for timekeeping\n",
+			cpu);
 		cpumask_clear_cpu(cpu, tick_nohz_full_mask);
 	}
 
@@ -486,20 +485,14 @@ void __init tick_nohz_init(void)
 /*
  * NO HZ enabled ?
  */
-int tick_nohz_enabled __read_mostly = 1;
+bool tick_nohz_enabled __read_mostly  = true;
 unsigned long tick_nohz_active  __read_mostly;
 /*
  * Enable / Disable tickless mode
  */
 static int __init setup_tick_nohz(char *str)
 {
-	if (!strcmp(str, "off"))
-		tick_nohz_enabled = 0;
-	else if (!strcmp(str, "on"))
-		tick_nohz_enabled = 1;
-	else
-		return 0;
-	return 1;
+	return (kstrtobool(str, &tick_nohz_enabled) == 0);
 }
 
 __setup("nohz=", setup_tick_nohz);

@@ -58,6 +58,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/goldfish.h>
+#include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/acpi.h>
 
@@ -216,17 +217,16 @@ static int valid_batchbuffer_addr(struct goldfish_pipe_dev *dev,
 static int setup_access_params_addr(struct platform_device *pdev,
 					struct goldfish_pipe_dev *dev)
 {
-	u64 paddr;
+	dma_addr_t dma_handle;
 	struct access_params *aps;
 
-	aps = devm_kzalloc(&pdev->dev, sizeof(struct access_params), GFP_KERNEL);
+	aps = dmam_alloc_coherent(&pdev->dev, sizeof(struct access_params),
+				  &dma_handle, GFP_KERNEL);
 	if (!aps)
-		return -1;
+		return -ENOMEM;
 
-	/* FIXME */
-	paddr = __pa(aps);
-	writel((u32)(paddr >> 32), dev->base + PIPE_REG_PARAMS_ADDR_HIGH);
-	writel((u32)paddr, dev->base + PIPE_REG_PARAMS_ADDR_LOW);
+	writel(upper_32_bits(dma_handle), dev->base + PIPE_REG_PARAMS_ADDR_HIGH);
+	writel(lower_32_bits(dma_handle), dev->base + PIPE_REG_PARAMS_ADDR_LOW);
 
 	if (valid_batchbuffer_addr(dev, aps)) {
 		dev->aps = aps;
@@ -309,8 +309,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		 * much memory to the process.
 		 */
 		down_read(&current->mm->mmap_sem);
-		ret = get_user_pages(current, current->mm, address, 1,
-				     !is_write, 0, &page, NULL);
+		ret = get_user_pages(address, 1, !is_write, 0, &page, NULL);
 		up_read(&current->mm->mmap_sem);
 		if (ret < 0)
 			break;

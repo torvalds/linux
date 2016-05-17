@@ -521,7 +521,7 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 #endif	/* CONFIG_SPI_BFIN5XX */
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_AD7879)
-#include <linux/spi/ad7879.h>
+#include <linux/platform_data/ad7879.h>
 static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 	.model			= 7879,	/* Model = AD7879 */
 	.x_plate_ohms		= 620,	/* 620 Ohm from the touch datasheet */

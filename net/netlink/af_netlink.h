@@ -44,12 +44,6 @@ struct netlink_sock {
 	int			(*netlink_bind)(struct net *net, int group);
 	void			(*netlink_unbind)(struct net *net, int group);
 	struct module		*module;
-#ifdef CONFIG_NETLINK_MMAP
-	struct mutex		pg_vec_lock;
-	struct netlink_ring	rx_ring;
-	struct netlink_ring	tx_ring;
-	atomic_t		mapped;
-#endif /* CONFIG_NETLINK_MMAP */
 
 	struct rhash_head	node;
 	struct rcu_head		rcu;
@@ -58,15 +52,6 @@ struct netlink_sock {
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
 {
 	return container_of(sk, struct netlink_sock, sk);
-}
-
-static inline bool netlink_skb_is_mmaped(const struct sk_buff *skb)
-{
-#ifdef CONFIG_NETLINK_MMAP
-	return NETLINK_CB(skb).flags & NETLINK_SKB_MMAPED;
-#else
-	return false;
-#endif /* CONFIG_NETLINK_MMAP */
 }
 
 struct netlink_table {

@@ -131,7 +131,7 @@ static void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
 		printk_deferred("         timekeeping: Your kernel is sick, but tries to cope by capping time updates\n");
 	} else {
 		if (offset > (max_cycles >> 1)) {
-			printk_deferred("INFO: timekeeping: Cycle offset (%lld) is larger than the the '%s' clock's 50%% safety margin (%lld)\n",
+			printk_deferred("INFO: timekeeping: Cycle offset (%lld) is larger than the '%s' clock's 50%% safety margin (%lld)\n",
 					offset, name, max_cycles >> 1);
 			printk_deferred("      timekeeping: Your kernel is still fine, but is feeling a bit nervous\n");
 		}

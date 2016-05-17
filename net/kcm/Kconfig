@@ -1,0 +1,10 @@
+
+config AF_KCM
+	tristate "KCM sockets"
+	depends on INET
+	select BPF_SYSCALL
+	---help---
+	  KCM (Kernel Connection Multiplexor) sockets provide a method
+	  for multiplexing messages of a message based application
+	  protocol over kernel connectons (e.g. TCP connections).
+

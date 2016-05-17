@@ -9,7 +9,7 @@
 /*
  * ISO C memset - set a memory block to a byte value. This function uses fast
  * string to get better performance than the original function. The code is
- * simpler and shorter than the orignal function as well.
+ * simpler and shorter than the original function as well.
  *
  * rdi   destination
  * rsi   value (char)

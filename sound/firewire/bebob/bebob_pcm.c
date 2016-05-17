@@ -218,8 +218,11 @@ pcm_capture_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		atomic_inc(&bebob->substreams_counter);
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&bebob->mutex);
+		bebob->substreams_counter++;
+		mutex_unlock(&bebob->mutex);
+	}
 
 	amdtp_am824_set_pcm_format(&bebob->tx_stream, params_format(hw_params));
 
@@ -237,8 +240,11 @@ pcm_playback_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		atomic_inc(&bebob->substreams_counter);
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&bebob->mutex);
+		bebob->substreams_counter++;
+		mutex_unlock(&bebob->mutex);
+	}
 
 	amdtp_am824_set_pcm_format(&bebob->rx_stream, params_format(hw_params));
 
@@ -250,8 +256,11 @@ pcm_capture_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		atomic_dec(&bebob->substreams_counter);
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&bebob->mutex);
+		bebob->substreams_counter--;
+		mutex_unlock(&bebob->mutex);
+	}
 
 	snd_bebob_stream_stop_duplex(bebob);
 
@@ -262,8 +271,11 @@ pcm_playback_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		atomic_dec(&bebob->substreams_counter);
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&bebob->mutex);
+		bebob->substreams_counter--;
+		mutex_unlock(&bebob->mutex);
+	}
 
 	snd_bebob_stream_stop_duplex(bebob);
 

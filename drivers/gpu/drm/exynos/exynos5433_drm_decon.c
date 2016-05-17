@@ -429,7 +429,7 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	set_bit(BIT_SUSPENDED, &ctx->flags);
 }
 
-void decon_te_irq_handler(struct exynos_drm_crtc *crtc)
+static void decon_te_irq_handler(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 

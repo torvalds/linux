@@ -256,12 +256,8 @@ static void usb_read_interrupt_complete(struct urb *purb)
 				c2w = kmalloc(sizeof(struct evt_work),
 						GFP_ATOMIC);
 
-				if (!c2w) {
-					printk(KERN_WARNING "%s: unable to "
-					       "allocate work buffer\n",
-					       __func__);
+				if (!c2w)
 					goto urb_submit;
-				}
 
 				c2w->adapter = padapter;
 				INIT_WORK(&c2w->work, rtw_evt_work);

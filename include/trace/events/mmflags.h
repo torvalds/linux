@@ -111,15 +111,21 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
 	) : "none"
 
 #if defined(CONFIG_X86)
-#define __VM_ARCH_SPECIFIC {VM_PAT,     "pat"           }
+#define __VM_ARCH_SPECIFIC_1 {VM_PAT,     "pat"           }
 #elif defined(CONFIG_PPC)
-#define __VM_ARCH_SPECIFIC {VM_SAO,     "sao"           }
+#define __VM_ARCH_SPECIFIC_1 {VM_SAO,     "sao"           }
 #elif defined(CONFIG_PARISC) || defined(CONFIG_METAG) || defined(CONFIG_IA64)
-#define __VM_ARCH_SPECIFIC {VM_GROWSUP,	"growsup"	}
+#define __VM_ARCH_SPECIFIC_1 {VM_GROWSUP,	"growsup"	}
 #elif !defined(CONFIG_MMU)
-#define __VM_ARCH_SPECIFIC {VM_MAPPED_COPY,"mappedcopy"	}
+#define __VM_ARCH_SPECIFIC_1 {VM_MAPPED_COPY,"mappedcopy"	}
 #else
-#define __VM_ARCH_SPECIFIC {VM_ARCH_1,	"arch_1"	}
+#define __VM_ARCH_SPECIFIC_1 {VM_ARCH_1,	"arch_1"	}
+#endif
+
+#if defined(CONFIG_X86)
+#define __VM_ARCH_SPECIFIC_2 {VM_MPX,		"mpx"		}
+#else
+#define __VM_ARCH_SPECIFIC_2 {VM_ARCH_2,	"arch_2"	}
 #endif
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
@@ -138,19 +144,22 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
 	{VM_MAYEXEC,			"mayexec"	},		\
 	{VM_MAYSHARE,			"mayshare"	},		\
 	{VM_GROWSDOWN,			"growsdown"	},		\
+	{VM_UFFD_MISSING,		"uffd_missing"	},		\
 	{VM_PFNMAP,			"pfnmap"	},		\
 	{VM_DENYWRITE,			"denywrite"	},		\
-	{VM_LOCKONFAULT,		"lockonfault"	},		\
+	{VM_UFFD_WP,			"uffd_wp"	},		\
 	{VM_LOCKED,			"locked"	},		\
 	{VM_IO,				"io"		},		\
 	{VM_SEQ_READ,			"seqread"	},		\
 	{VM_RAND_READ,			"randread"	},		\
 	{VM_DONTCOPY,			"dontcopy"	},		\
 	{VM_DONTEXPAND,			"dontexpand"	},		\
+	{VM_LOCKONFAULT,		"lockonfault"	},		\
 	{VM_ACCOUNT,			"account"	},		\
 	{VM_NORESERVE,			"noreserve"	},		\
 	{VM_HUGETLB,			"hugetlb"	},		\
-	__VM_ARCH_SPECIFIC				,		\
+	__VM_ARCH_SPECIFIC_1				,		\
+	__VM_ARCH_SPECIFIC_2				,		\
 	{VM_DONTDUMP,			"dontdump"	},		\
 IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 	{VM_MIXEDMAP,			"mixedmap"	},		\

@@ -487,6 +487,21 @@ struct drm_mode_crtc_lut {
 	__u64 blue;
 };
 
+struct drm_color_ctm {
+	/* Conversion matrix in S31.32 format. */
+	__s64 matrix[9];
+};
+
+struct drm_color_lut {
+	/*
+	 * Data is U0.16 fixed point format.
+	 */
+	__u16 red;
+	__u16 green;
+	__u16 blue;
+	__u16 reserved;
+};
+
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01
 #define DRM_MODE_PAGE_FLIP_ASYNC 0x02
 #define DRM_MODE_PAGE_FLIP_FLAGS (DRM_MODE_PAGE_FLIP_EVENT|DRM_MODE_PAGE_FLIP_ASYNC)

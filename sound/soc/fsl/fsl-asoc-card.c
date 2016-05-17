@@ -28,6 +28,8 @@
 #include "../codecs/wm8962.h"
 #include "../codecs/wm8960.h"
 
+#define CS427x_SYSCLK_MCLK 0
+
 #define RX 0
 #define TX 1
 
@@ -99,19 +101,26 @@ struct fsl_asoc_card_priv {
 /**
  * This dapm route map exsits for DPCM link only.
  * The other routes shall go through Device Tree.
+ *
+ * Note: keep all ASRC routes in the second half
+ *	 to drop them easily for non-ASRC cases.
  */
 static const struct snd_soc_dapm_route audio_map[] = {
-	{"CPU-Playback",  NULL, "ASRC-Playback"},
+	/* 1st half -- Normal DAPM routes */
 	{"Playback",  NULL, "CPU-Playback"},
-	{"ASRC-Capture",  NULL, "CPU-Capture"},
 	{"CPU-Capture",  NULL, "Capture"},
+	/* 2nd half -- ASRC DAPM routes */
+	{"CPU-Playback",  NULL, "ASRC-Playback"},
+	{"ASRC-Capture",  NULL, "CPU-Capture"},
 };
 
 static const struct snd_soc_dapm_route audio_map_ac97[] = {
-	{"AC97 Playback",  NULL, "ASRC-Playback"},
+	/* 1st half -- Normal DAPM routes */
 	{"Playback",  NULL, "AC97 Playback"},
-	{"ASRC-Capture",  NULL, "AC97 Capture"},
 	{"AC97 Capture",  NULL, "Capture"},
+	/* 2nd half -- ASRC DAPM routes */
+	{"AC97 Playback",  NULL, "ASRC-Playback"},
+	{"ASRC-Capture",  NULL, "AC97 Capture"},
 };
 
 /* Add all possible widgets into here without being redundant */
@@ -528,6 +537,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->cpu_priv.sysclk_dir[RX] = SND_SOC_CLOCK_OUT;
 		priv->cpu_priv.slot_width = 32;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
+	} else if (of_device_is_compatible(np, "fsl,imx-audio-cs427x")) {
+		codec_dai_name = "cs4271-hifi";
+		priv->codec_priv.mclk_id = CS427x_SYSCLK_MCLK;
+		priv->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-sgtl5000")) {
 		codec_dai_name = "sgtl5000";
 		priv->codec_priv.mclk_id = SGTL5000_SYSCLK;
@@ -592,6 +605,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	priv->card.num_dapm_routes = ARRAY_SIZE(audio_map);
 	priv->card.dapm_widgets = fsl_asoc_card_dapm_widgets;
 	priv->card.num_dapm_widgets = ARRAY_SIZE(fsl_asoc_card_dapm_widgets);
+
+	/* Drop the second half of DAPM routes -- ASRC */
+	if (!asrc_pdev)
+		priv->card.num_dapm_routes /= 2;
 
 	memcpy(priv->dai_link, fsl_asoc_card_dai,
 	       sizeof(struct snd_soc_dai_link) * ARRAY_SIZE(priv->dai_link));
@@ -681,6 +698,7 @@ fail:
 static const struct of_device_id fsl_asoc_card_dt_ids[] = {
 	{ .compatible = "fsl,imx-audio-ac97", },
 	{ .compatible = "fsl,imx-audio-cs42888", },
+	{ .compatible = "fsl,imx-audio-cs427x", },
 	{ .compatible = "fsl,imx-audio-sgtl5000", },
 	{ .compatible = "fsl,imx-audio-wm8962", },
 	{ .compatible = "fsl,imx-audio-wm8960", },

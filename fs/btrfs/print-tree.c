@@ -295,8 +295,27 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 			       btrfs_dev_extent_chunk_offset(l, dev_extent),
 			       btrfs_dev_extent_length(l, dev_extent));
 			break;
-		case BTRFS_DEV_STATS_KEY:
-			printk(KERN_INFO "\t\tdevice stats\n");
+		case BTRFS_PERSISTENT_ITEM_KEY:
+			printk(KERN_INFO "\t\tpersistent item objectid %llu offset %llu\n",
+					key.objectid, key.offset);
+			switch (key.objectid) {
+			case BTRFS_DEV_STATS_OBJECTID:
+				printk(KERN_INFO "\t\tdevice stats\n");
+				break;
+			default:
+				printk(KERN_INFO "\t\tunknown persistent item\n");
+			}
+			break;
+		case BTRFS_TEMPORARY_ITEM_KEY:
+			printk(KERN_INFO "\t\ttemporary item objectid %llu offset %llu\n",
+					key.objectid, key.offset);
+			switch (key.objectid) {
+			case BTRFS_BALANCE_OBJECTID:
+				printk(KERN_INFO "\t\tbalance status\n");
+				break;
+			default:
+				printk(KERN_INFO "\t\tunknown temporary item\n");
+			}
 			break;
 		case BTRFS_DEV_REPLACE_KEY:
 			printk(KERN_INFO "\t\tdev replace\n");

@@ -253,6 +253,14 @@
 				marvell,crypto-sram-size = <0x800>;
 			};
 
+			bm: bm@c0000 {
+				compatible = "marvell,armada-380-neta-bm";
+				reg = <0xc0000 0xac>;
+				clocks = <&gateclk 13>;
+				internal-mem = <&bm_bppi>;
+				status = "disabled";
+			};
+
 			xor@f0900 {
 				compatible = "marvell,orion-xor";
 				reg = <0xF0900 0x100
@@ -290,6 +298,17 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0 MBUS_ID(0x09, 0x05) 0 0x800>;
+		};
+
+		bm_bppi: bm-bppi {
+			compatible = "mmio-sram";
+			reg = <MBUS_ID(0x0c, 0x04) 0 0x100000>;
+			ranges = <0 MBUS_ID(0x0c, 0x04) 0 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&gateclk 13>;
+			no-memory-wc;
+			status = "disabled";
 		};
 	};
 

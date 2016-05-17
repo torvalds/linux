@@ -69,22 +69,16 @@ exit:
 	return _SUCCESS;
 }
 
-struct	cmd_obj	*rtw_dequeue_cmd(struct __queue *queue)
+struct cmd_obj *rtw_dequeue_cmd(struct __queue *queue)
 {
 	unsigned long irqL;
 	struct cmd_obj *obj;
 
-
 	spin_lock_irqsave(&queue->lock, irqL);
-	if (list_empty(&(queue->queue))) {
-		obj = NULL;
-	} else {
-		obj = container_of((&queue->queue)->next, struct cmd_obj, list);
+	obj = list_first_entry_or_null(&queue->queue, struct cmd_obj, list);
+	if (obj)
 		list_del_init(&obj->list);
-	}
-
 	spin_unlock_irqrestore(&queue->lock, irqL);
-
 
 	return obj;
 }
@@ -400,9 +394,8 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_, ("+Join cmd: SSid =[%s]\n", pmlmepriv->assoc_ssid.Ssid));
 
 	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
-	if (pcmd == NULL) {
+	if (!pcmd) {
 		res = _FAIL;
-		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_, ("rtw_joinbss_cmd: memory allocate for cmd_obj fail!!!\n"));
 		goto exit;
 	}
 	/* for IEs is fix buf size */

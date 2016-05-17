@@ -24,6 +24,7 @@
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
 #include <linux/elf.h>
+#include <linux/hw_breakpoint.h>
 #include <linux/init.h>
 #include <linux/prctl.h>
 #include <linux/init_task.h>
@@ -43,6 +44,7 @@
 #include <linux/atomic.h>
 #include <asm/asm-offsets.h>
 #include <asm/regs.h>
+#include <asm/hw_breakpoint.h>
 
 extern void ret_from_fork(void);
 extern void ret_from_kernel_thread(void);
@@ -131,6 +133,7 @@ void flush_thread(void)
 	coprocessor_flush_all(ti);
 	coprocessor_release_all(ti);
 #endif
+	flush_ptrace_hw_breakpoint(current);
 }
 
 /*
@@ -272,6 +275,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp_thread_fn,
 	ti = task_thread_info(p);
 	ti->cpenable = 0;
 #endif
+
+	clear_ptrace_hw_breakpoint(p);
 
 	return 0;
 }

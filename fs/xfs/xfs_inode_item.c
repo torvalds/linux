@@ -135,7 +135,7 @@ xfs_inode_item_size(
 
 	*nvecs += 2;
 	*nbytes += sizeof(struct xfs_inode_log_format) +
-		   xfs_icdinode_size(ip->i_d.di_version);
+		   xfs_log_dinode_size(ip->i_d.di_version);
 
 	xfs_inode_item_data_fork_size(iip, nvecs, nbytes);
 	if (XFS_IFORK_Q(ip))
@@ -322,6 +322,81 @@ xfs_inode_item_format_attr_fork(
 	}
 }
 
+static void
+xfs_inode_to_log_dinode(
+	struct xfs_inode	*ip,
+	struct xfs_log_dinode	*to,
+	xfs_lsn_t		lsn)
+{
+	struct xfs_icdinode	*from = &ip->i_d;
+	struct inode		*inode = VFS_I(ip);
+
+	to->di_magic = XFS_DINODE_MAGIC;
+
+	to->di_version = from->di_version;
+	to->di_format = from->di_format;
+	to->di_uid = from->di_uid;
+	to->di_gid = from->di_gid;
+	to->di_projid_lo = from->di_projid_lo;
+	to->di_projid_hi = from->di_projid_hi;
+
+	memset(to->di_pad, 0, sizeof(to->di_pad));
+	memset(to->di_pad3, 0, sizeof(to->di_pad3));
+	to->di_atime.t_sec = inode->i_atime.tv_sec;
+	to->di_atime.t_nsec = inode->i_atime.tv_nsec;
+	to->di_mtime.t_sec = inode->i_mtime.tv_sec;
+	to->di_mtime.t_nsec = inode->i_mtime.tv_nsec;
+	to->di_ctime.t_sec = inode->i_ctime.tv_sec;
+	to->di_ctime.t_nsec = inode->i_ctime.tv_nsec;
+	to->di_nlink = inode->i_nlink;
+	to->di_gen = inode->i_generation;
+	to->di_mode = inode->i_mode;
+
+	to->di_size = from->di_size;
+	to->di_nblocks = from->di_nblocks;
+	to->di_extsize = from->di_extsize;
+	to->di_nextents = from->di_nextents;
+	to->di_anextents = from->di_anextents;
+	to->di_forkoff = from->di_forkoff;
+	to->di_aformat = from->di_aformat;
+	to->di_dmevmask = from->di_dmevmask;
+	to->di_dmstate = from->di_dmstate;
+	to->di_flags = from->di_flags;
+
+	if (from->di_version == 3) {
+		to->di_changecount = inode->i_version;
+		to->di_crtime.t_sec = from->di_crtime.t_sec;
+		to->di_crtime.t_nsec = from->di_crtime.t_nsec;
+		to->di_flags2 = from->di_flags2;
+
+		to->di_ino = ip->i_ino;
+		to->di_lsn = lsn;
+		memset(to->di_pad2, 0, sizeof(to->di_pad2));
+		uuid_copy(&to->di_uuid, &ip->i_mount->m_sb.sb_meta_uuid);
+		to->di_flushiter = 0;
+	} else {
+		to->di_flushiter = from->di_flushiter;
+	}
+}
+
+/*
+ * Format the inode core. Current timestamp data is only in the VFS inode
+ * fields, so we need to grab them from there. Hence rather than just copying
+ * the XFS inode core structure, format the fields directly into the iovec.
+ */
+static void
+xfs_inode_item_format_core(
+	struct xfs_inode	*ip,
+	struct xfs_log_vec	*lv,
+	struct xfs_log_iovec	**vecp)
+{
+	struct xfs_log_dinode	*dic;
+
+	dic = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_ICORE);
+	xfs_inode_to_log_dinode(ip, dic, ip->i_itemp->ili_item.li_lsn);
+	xlog_finish_iovec(lv, *vecp, xfs_log_dinode_size(ip->i_d.di_version));
+}
+
 /*
  * This is called to fill in the vector of log iovecs for the given inode
  * log item.  It fills the first item with an inode log format structure,
@@ -351,10 +426,7 @@ xfs_inode_item_format(
 	ilf->ilf_size = 2; /* format + core */
 	xlog_finish_iovec(lv, vecp, sizeof(struct xfs_inode_log_format));
 
-	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_ICORE,
-			&ip->i_d,
-			xfs_icdinode_size(ip->i_d.di_version));
-
+	xfs_inode_item_format_core(ip, lv, &vecp);
 	xfs_inode_item_format_data_fork(iip, ilf, lv, &vecp);
 	if (XFS_IFORK_Q(ip)) {
 		xfs_inode_item_format_attr_fork(iip, ilf, lv, &vecp);

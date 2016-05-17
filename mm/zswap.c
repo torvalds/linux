@@ -869,7 +869,7 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
 
 	case ZSWAP_SWAPCACHE_EXIST:
 		/* page is already in the swap cache, ignore for now */
-		page_cache_release(page);
+		put_page(page);
 		ret = -EEXIST;
 		goto fail;
 
@@ -897,7 +897,7 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
 
 	/* start writeback */
 	__swap_writepage(page, &wbc, end_swap_bio_write);
-	page_cache_release(page);
+	put_page(page);
 	zswap_written_back_pages++;
 
 	spin_lock(&tree->lock);

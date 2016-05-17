@@ -34,7 +34,7 @@ void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state)
 	mutex_unlock(&ctx->mutex);
 }
 
-static int skl_dsp_core_set_reset_state(struct sst_dsp  *ctx)
+static int skl_dsp_core_set_reset_state(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -60,7 +60,7 @@ static int skl_dsp_core_set_reset_state(struct sst_dsp  *ctx)
 	return ret;
 }
 
-static int skl_dsp_core_unset_reset_state(struct sst_dsp  *ctx)
+static int skl_dsp_core_unset_reset_state(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -87,7 +87,7 @@ static int skl_dsp_core_unset_reset_state(struct sst_dsp  *ctx)
 	return ret;
 }
 
-static bool is_skl_dsp_core_enable(struct sst_dsp  *ctx)
+static bool is_skl_dsp_core_enable(struct sst_dsp *ctx)
 {
 	int val;
 	bool is_enable;
@@ -140,7 +140,7 @@ static int skl_dsp_start_core(struct sst_dsp *ctx)
 	return ret;
 }
 
-static int skl_dsp_core_power_up(struct sst_dsp  *ctx)
+static int skl_dsp_core_power_up(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -166,7 +166,7 @@ static int skl_dsp_core_power_up(struct sst_dsp  *ctx)
 	return ret;
 }
 
-static int skl_dsp_core_power_down(struct sst_dsp  *ctx)
+static int skl_dsp_core_power_down(struct sst_dsp *ctx)
 {
 	/* update bits */
 	sst_dsp_shim_update_bits_unlocked(ctx, SKL_ADSP_REG_ADSPCS,
@@ -181,7 +181,7 @@ static int skl_dsp_core_power_down(struct sst_dsp  *ctx)
 			"Power down");
 }
 
-static int skl_dsp_enable_core(struct sst_dsp  *ctx)
+int skl_dsp_enable_core(struct sst_dsp *ctx)
 {
 	int ret;
 
@@ -195,7 +195,7 @@ static int skl_dsp_enable_core(struct sst_dsp  *ctx)
 	return skl_dsp_start_core(ctx);
 }
 
-int skl_dsp_disable_core(struct sst_dsp  *ctx)
+int skl_dsp_disable_core(struct sst_dsp *ctx)
 {
 	int ret;
 

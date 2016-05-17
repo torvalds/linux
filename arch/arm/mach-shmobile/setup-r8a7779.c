@@ -14,7 +14,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/clk/shmobile.h>
+#include <linux/clk/renesas.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/irq.h>

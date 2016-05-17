@@ -711,6 +711,7 @@ static int __init rapl_pmu_init(void)
 		rapl_pmu_events_group.attrs = rapl_events_cln_attr;
 		break;
 	case 63: /* Haswell-Server */
+	case 79: /* Broadwell-Server */
 		apply_quirk = true;
 		rapl_cntr_mask = RAPL_IDX_SRV;
 		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
@@ -718,6 +719,7 @@ static int __init rapl_pmu_init(void)
 	case 60: /* Haswell */
 	case 69: /* Haswell-Celeron */
 	case 61: /* Broadwell */
+	case 71: /* Broadwell-H */
 		rapl_cntr_mask = RAPL_IDX_HSW;
 		rapl_pmu_events_group.attrs = rapl_events_hsw_attr;
 		break;

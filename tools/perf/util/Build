@@ -1,4 +1,3 @@
-libperf-y += abspath.o
 libperf-y += alias.o
 libperf-y += annotate.o
 libperf-y += build-id.o
