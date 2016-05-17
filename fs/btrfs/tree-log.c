@@ -4988,7 +4988,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 			goto out;
 
 	if (!S_ISDIR(inode->i_mode)) {
-		if (!parent || d_really_is_negative(parent) || sb != d_inode(parent)->i_sb)
+		if (!parent || d_really_is_negative(parent) || sb != parent->d_sb)
 			goto out;
 		inode = d_inode(parent);
 	}
@@ -5009,7 +5009,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 			break;
 		}
 
-		if (!parent || d_really_is_negative(parent) || sb != d_inode(parent)->i_sb)
+		if (!parent || d_really_is_negative(parent) || sb != parent->d_sb)
 			break;
 
 		if (IS_ROOT(parent))
@@ -5422,7 +5422,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	}
 
 	while (1) {
-		if (!parent || d_really_is_negative(parent) || sb != d_inode(parent)->i_sb)
+		if (!parent || d_really_is_negative(parent) || sb != parent->d_sb)
 			break;
 
 		inode = d_inode(parent);

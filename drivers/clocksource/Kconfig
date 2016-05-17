@@ -186,6 +186,12 @@ config CLKSRC_STM32
 	depends on OF && ARM && (ARCH_STM32 || COMPILE_TEST)
 	select CLKSRC_MMIO
 
+config CLKSRC_MPS2
+	bool "Clocksource for MPS2 SoCs" if COMPILE_TEST
+	depends on GENERIC_SCHED_CLOCK
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF

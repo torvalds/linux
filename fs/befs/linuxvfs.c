@@ -66,7 +66,7 @@ static struct kmem_cache *befs_inode_cachep;
 
 static const struct file_operations befs_dir_operations = {
 	.read		= generic_read_dir,
-	.iterate	= befs_readdir,
+	.iterate_shared	= befs_readdir,
 	.llseek		= generic_file_llseek,
 };
 
@@ -157,7 +157,7 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct inode *inode = NULL;
 	struct super_block *sb = dir->i_sb;
-	befs_data_stream *ds = &BEFS_I(dir)->i_data.ds;
+	const befs_data_stream *ds = &BEFS_I(dir)->i_data.ds;
 	befs_off_t offset;
 	int ret;
 	int utfnamelen;
@@ -207,7 +207,7 @@ befs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
-	befs_data_stream *ds = &BEFS_I(inode)->i_data.ds;
+	const befs_data_stream *ds = &BEFS_I(inode)->i_data.ds;
 	befs_off_t value;
 	int result;
 	size_t keysize;

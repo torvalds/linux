@@ -67,7 +67,7 @@
 #define ADF_STATUS_AE_INITIALISED 4
 #define ADF_STATUS_AE_UCODE_LOADED 5
 #define ADF_STATUS_AE_STARTED 6
-#define ADF_STATUS_ORPHAN_TH_RUNNING 7
+#define ADF_STATUS_PF_RUNNING 7
 #define ADF_STATUS_IRQ_ALLOCATED 8
 
 enum adf_dev_reset_mode {
@@ -103,7 +103,7 @@ int adf_service_unregister(struct service_hndl *service);
 
 int adf_dev_init(struct adf_accel_dev *accel_dev);
 int adf_dev_start(struct adf_accel_dev *accel_dev);
-int adf_dev_stop(struct adf_accel_dev *accel_dev);
+void adf_dev_stop(struct adf_accel_dev *accel_dev);
 void adf_dev_shutdown(struct adf_accel_dev *accel_dev);
 
 int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr);
@@ -236,8 +236,13 @@ void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 				 uint32_t vf_mask);
 void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
 void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
+
+int adf_vf2pf_init(struct adf_accel_dev *accel_dev);
+void adf_vf2pf_shutdown(struct adf_accel_dev *accel_dev);
 int adf_init_pf_wq(void);
 void adf_exit_pf_wq(void);
+int adf_init_vf_wq(void);
+void adf_exit_vf_wq(void);
 #else
 static inline int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 {
@@ -256,6 +261,15 @@ static inline void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 {
 }
 
+static inline int adf_vf2pf_init(struct adf_accel_dev *accel_dev)
+{
+	return 0;
+}
+
+static inline void adf_vf2pf_shutdown(struct adf_accel_dev *accel_dev)
+{
+}
+
 static inline int adf_init_pf_wq(void)
 {
 	return 0;
@@ -264,5 +278,15 @@ static inline int adf_init_pf_wq(void)
 static inline void adf_exit_pf_wq(void)
 {
 }
+
+static inline int adf_init_vf_wq(void)
+{
+	return 0;
+}
+
+static inline void adf_exit_vf_wq(void)
+{
+}
+
 #endif
 #endif

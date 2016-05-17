@@ -69,6 +69,7 @@ struct hfs_inode_info {
 	struct hfs_cat_key cat_key;
 
 	struct list_head open_dir_list;
+	spinlock_t open_dir_lock;
 	struct inode *rsrc_inode;
 
 	struct mutex extents_lock;
@@ -213,8 +214,8 @@ extern void hfs_delete_inode(struct inode *);
 /* attr.c */
 extern int hfs_setxattr(struct dentry *dentry, const char *name,
 			const void *value, size_t size, int flags);
-extern ssize_t hfs_getxattr(struct dentry *dentry, const char *name,
-			    void *value, size_t size);
+extern ssize_t hfs_getxattr(struct dentry *dentry, struct inode *inode,
+			    const char *name, void *value, size_t size);
 extern ssize_t hfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
 /* mdb.c */

@@ -246,8 +246,8 @@ static bool ovl_need_xattr_filter(struct dentry *dentry,
 		return false;
 }
 
-ssize_t ovl_getxattr(struct dentry *dentry, const char *name,
-		     void *value, size_t size)
+ssize_t ovl_getxattr(struct dentry *dentry, struct inode *inode,
+		     const char *name, void *value, size_t size)
 {
 	struct path realpath;
 	enum ovl_path_type type = ovl_path_real(dentry, &realpath);

@@ -27,6 +27,7 @@ config ARM_GIC_V3
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
 	select IRQ_DOMAIN_HIERARCHY
+	select PARTITION_PERCPU
 
 config ARM_GIC_V3_ITS
 	bool
@@ -244,3 +245,11 @@ config IRQ_MXS
 config MVEBU_ODMI
 	bool
 	select GENERIC_MSI_IRQ_DOMAIN
+
+config LS_SCFG_MSI
+	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
+	depends on PCI && PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
+
+config PARTITION_PERCPU
+	bool
