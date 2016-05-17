@@ -124,6 +124,10 @@ static const struct dss_pll_hw dss_dra7_video_pll_hw = {
 	.mX_lsb[0] = 21,
 	.mX_msb[1] = 30,
 	.mX_lsb[1] = 26,
+	.mX_msb[2] = 4,
+	.mX_lsb[2] = 0,
+	.mX_msb[3] = 9,
+	.mX_lsb[3] = 5,
 
 	.has_refsel = true,
 };
