@@ -1002,6 +1002,7 @@ extern void drm_crtc_vblank_off(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_reset(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
 extern void drm_vblank_cleanup(struct drm_device *dev);
+extern u32 drm_accurate_vblank_count(struct drm_crtc *crtc);
 extern u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe);
 
 extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
