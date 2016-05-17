@@ -1850,6 +1850,16 @@ pci_wch_ch353_setup(struct serial_private *priv,
 }
 
 static int
+pci_wch_ch355_setup(struct serial_private *priv,
+                    const struct pciserial_board *board,
+                    struct uart_8250_port *port, int idx)
+{
+        port->port.flags |= UPF_FIXED_TYPE;
+        port->port.type = PORT_16550A;
+        return pci_default_setup(priv, board, port, idx);
+}
+
+static int
 pci_wch_ch38x_setup(struct serial_private *priv,
 		    const struct pciserial_board *board,
 		    struct uart_8250_port *port, int idx)
@@ -1900,6 +1910,7 @@ pci_wch_ch38x_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_WCH_CH353_2S1PF	0x5046
 #define PCI_DEVICE_ID_WCH_CH353_1S1P	0x5053
 #define PCI_DEVICE_ID_WCH_CH353_2S1P	0x7053
+#define PCI_DEVICE_ID_WCH_CH355_4S      0x7173
 #define PCI_VENDOR_ID_AGESTAR		0x5372
 #define PCI_DEVICE_ID_AGESTAR_9375	0x6872
 #define PCI_VENDOR_ID_ASIX		0x9710
@@ -2603,6 +2614,14 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.setup		= pci_wch_ch353_setup,
 	},
+	/* WCH CH355 4S card (16550 clone) */
+        {
+                .vendor         = PCI_VENDOR_ID_WCH,
+                .device         = PCI_DEVICE_ID_WCH_CH355_4S,
+                .subvendor      = PCI_ANY_ID,
+                .subdevice      = PCI_ANY_ID,
+                .setup          = pci_wch_ch355_setup,
+        },
 	/* WCH CH382 2S card (16850 clone) */
 	{
 		.vendor         = PCIE_VENDOR_ID_WCH,
@@ -3797,6 +3816,7 @@ static const struct pci_device_id blacklist[] = {
 	/* multi-io cards handled by parport_serial */
 	{ PCI_DEVICE(0x4348, 0x7053), }, /* WCH CH353 2S1P */
 	{ PCI_DEVICE(0x4348, 0x5053), }, /* WCH CH353 1S1P */
+        { PCI_DEVICE(0x4348, 0x7173), }, /* WCH CH355 4S */
 	{ PCI_DEVICE(0x1c00, 0x3250), }, /* WCH CH382 2S1P */
 	{ PCI_DEVICE(0x1c00, 0x3470), }, /* WCH CH384 4S */
 
@@ -5551,6 +5571,10 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_WCH, PCI_DEVICE_ID_WCH_CH353_2S1PF,
 		PCI_ANY_ID, PCI_ANY_ID,
 		0, 0, pbn_b0_bt_2_115200 },
+
+	{       PCI_VENDOR_ID_WCH, PCI_DEVICE_ID_WCH_CH355_4S,
+                PCI_ANY_ID, PCI_ANY_ID,
+                0, 0, pbn_b0_bt_4_115200 },
 
 	{	PCIE_VENDOR_ID_WCH, PCIE_DEVICE_ID_WCH_CH382_2S,
 		PCI_ANY_ID, PCI_ANY_ID,
