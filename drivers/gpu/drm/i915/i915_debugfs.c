@@ -599,7 +599,6 @@ static void i915_dump_pageflip(struct seq_file *m,
 {
 	const char pipe = pipe_name(crtc->pipe);
 	u32 pending;
-	u32 addr;
 	int i;
 
 	pending = atomic_read(&work->pending);
@@ -610,7 +609,6 @@ static void i915_dump_pageflip(struct seq_file *m,
 		seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
 			   pipe, plane_name(crtc->plane));
 	}
-
 
 	for (i = 0; i < work->num_planes; i++) {
 		struct intel_plane_state *old_plane_state = work->old_plane_state[i];
@@ -635,22 +633,9 @@ static void i915_dump_pageflip(struct seq_file *m,
 			   i915_gem_request_completed(req, true));
 	}
 
-	seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",
-		   work->flip_queued_vblank,
-		   work->flip_ready_vblank,
+	seq_printf(m, "Flip queued on frame %d, now %d\n",
+		   pending ? work->flip_queued_vblank : -1,
 		   intel_crtc_get_vblank_counter(crtc));
-	seq_printf(m, "%d prepares\n", atomic_read(&work->pending));
-
-	if (INTEL_INFO(dev_priv)->gen >= 4)
-		addr = I915_HI_DISPBASE(I915_READ(DSPSURF(crtc->plane)));
-	else
-		addr = I915_READ(DSPADDR(crtc->plane));
-	seq_printf(m, "Current scanout address 0x%08x\n", addr);
-
-	if (work->flip_queued_req) {
-		seq_printf(m, "New framebuffer address 0x%08lx\n", (long)work->gtt_offset);
-		seq_printf(m, "MMIO update completed? %d\n",  addr == work->gtt_offset);
-	}
 }
 
 static int i915_gem_pageflip_info(struct seq_file *m, void *data)

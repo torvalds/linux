@@ -977,16 +977,12 @@ struct intel_flip_work {
 
 	struct drm_pending_vblank_event *event;
 	atomic_t pending;
-	u32 flip_count;
-	u32 gtt_offset;
-	struct drm_i915_gem_request *flip_queued_req;
 	u32 flip_queued_vblank;
-	u32 flip_ready_vblank;
 
 	unsigned put_power_domains;
 	unsigned num_planes;
 
-	bool can_async_unpin, flip_prepared;
+	bool can_async_unpin;
 	unsigned fb_bits;
 
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
@@ -1202,9 +1198,8 @@ struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj);
-void intel_finish_page_flip_cs(struct drm_i915_private *dev_priv, int pipe);
 void intel_finish_page_flip_mmio(struct drm_i915_private *dev_priv, int pipe);
-void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe);
+
 int intel_prepare_plane_fb(struct drm_plane *plane,
 			   const struct drm_plane_state *new_state);
 void intel_cleanup_plane_fb(struct drm_plane *plane,
