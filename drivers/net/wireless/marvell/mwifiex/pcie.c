@@ -2804,7 +2804,7 @@ static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
 }
 
 /*
- * This function get firmare name for downloading by revision id
+ * This function gets the firmware name for downloading by revision id
  *
  * Read revision id register to get revision id
  */
