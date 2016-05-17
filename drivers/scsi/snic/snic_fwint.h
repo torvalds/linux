@@ -92,7 +92,7 @@ enum snic_io_status {
 }; /* end of enum snic_io_status */
 
 /*
- * snic_io_hdr : host <--> firmare
+ * snic_io_hdr : host <--> firmware
  *
  * for any other message that will be queued to firmware should
  *  have the following request header
