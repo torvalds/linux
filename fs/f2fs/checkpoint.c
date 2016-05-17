@@ -914,7 +914,7 @@ static void wait_on_all_pages_writeback(struct f2fs_sb_info *sbi)
 	for (;;) {
 		prepare_to_wait(&sbi->cp_wait, &wait, TASK_UNINTERRUPTIBLE);
 
-		if (!get_pages(sbi, F2FS_WRITEBACK))
+		if (!atomic_read(&sbi->nr_wb_bios))
 			break;
 
 		io_schedule_timeout(5*HZ);

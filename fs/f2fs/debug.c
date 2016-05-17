@@ -48,7 +48,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->ndirty_dirs = sbi->ndirty_inode[DIR_INODE];
 	si->ndirty_files = sbi->ndirty_inode[FILE_INODE];
 	si->inmem_pages = get_pages(sbi, F2FS_INMEM_PAGES);
-	si->wb_pages = get_pages(sbi, F2FS_WRITEBACK);
+	si->wb_bios = atomic_read(&sbi->nr_wb_bios);
 	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
 	si->rsvd_segs = reserved_segments(sbi);
 	si->overp_segs = overprovision_segments(sbi);
@@ -299,8 +299,8 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
 				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
-		seq_printf(s, "  - inmem: %4d, wb: %4d\n",
-			   si->inmem_pages, si->wb_pages);
+		seq_printf(s, "  - inmem: %4d, wb_bios: %4d\n",
+			   si->inmem_pages, si->wb_bios);
 		seq_printf(s, "  - nodes: %4d in %4d\n",
 			   si->ndirty_node, si->node_pages);
 		seq_printf(s, "  - dents: %4d in dirs:%4d\n",

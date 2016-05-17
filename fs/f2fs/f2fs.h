@@ -650,7 +650,6 @@ struct f2fs_sm_info {
  * dirty dentry blocks, dirty node blocks, and dirty meta blocks.
  */
 enum count_type {
-	F2FS_WRITEBACK,
 	F2FS_DIRTY_DENTS,
 	F2FS_DIRTY_DATA,
 	F2FS_DIRTY_NODES,
@@ -813,6 +812,7 @@ struct f2fs_sb_info {
 	block_t discard_blks;			/* discard command candidats */
 	block_t last_valid_block_count;		/* for recovery */
 	u32 s_next_generation;			/* for NFS support */
+	atomic_t nr_wb_bios;			/* # of writeback bios */
 	atomic_t nr_pages[NR_COUNT_TYPE];	/* # of pages, see count_type */
 
 	struct f2fs_mount_info mount_opt;	/* mount options */
@@ -2017,7 +2017,7 @@ struct f2fs_stat_info {
 	int ndirty_dent, ndirty_dirs, ndirty_data, ndirty_files;
 	int nats, dirty_nats, sits, dirty_sits, fnids;
 	int total_count, utilization;
-	int bg_gc, inmem_pages, wb_pages;
+	int bg_gc, inmem_pages, wb_bios;
 	int inline_xattr, inline_inode, inline_dir, orphans;
 	unsigned int valid_count, valid_node_count, valid_inode_count;
 	unsigned int bimodal, avg_vblocks;
