@@ -22,6 +22,7 @@
 #include <linux/qed/qed_if.h>
 #include "qed.h"
 #include "qed_cxt.h"
+#include "qed_dcbx.h"
 #include "qed_dev_api.h"
 #include "qed_hsi.h"
 #include "qed_hw.h"
@@ -32,6 +33,9 @@
 #include "qed_sp.h"
 #include "qed_sriov.h"
 #include "qed_vf.h"
+
+static spinlock_t qm_lock;
+static bool qm_lock_init = false;
 
 /* API common to all protocols */
 enum BAR_ID {
@@ -147,6 +151,7 @@ void qed_resc_free(struct qed_dev *cdev)
 		qed_int_free(p_hwfn);
 		qed_iov_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
+		qed_dcbx_info_free(p_hwfn, p_hwfn->p_dcbx_info);
 	}
 }
 
@@ -200,13 +205,19 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 	vport_id = (u8)RESC_START(p_hwfn, QED_VPORT);
 
 	/* First init per-TC PQs */
-	for (i = 0; i < multi_cos_tcs; i++, curr_queue++) {
+	for (i = 0; i < multi_cos_tcs; i++) {
 		struct init_qm_pq_params *params =
-		    &qm_info->qm_pq_params[curr_queue];
+		    &qm_info->qm_pq_params[curr_queue++];
 
-		params->vport_id = vport_id;
-		params->tc_id = p_hwfn->hw_info.non_offload_tc;
-		params->wrr_group = 1;
+		if (p_hwfn->hw_info.personality == QED_PCI_ETH) {
+			params->vport_id = vport_id;
+			params->tc_id = p_hwfn->hw_info.non_offload_tc;
+			params->wrr_group = 1;
+		} else {
+			params->vport_id = vport_id;
+			params->tc_id = p_hwfn->hw_info.offload_tc;
+			params->wrr_group = 1;
+		}
 	}
 
 	/* Then init pure-LB PQ */
@@ -264,6 +275,63 @@ alloc_err:
 	DP_NOTICE(p_hwfn, "Failed to allocate memory for QM params\n");
 	qed_qm_info_free(p_hwfn);
 	return -ENOMEM;
+}
+
+/* This function reconfigures the QM pf on the fly.
+ * For this purpose we:
+ * 1. reconfigure the QM database
+ * 2. set new values to runtime arrat
+ * 3. send an sdm_qm_cmd through the rbc interface to stop the QM
+ * 4. activate init tool in QM_PF stage
+ * 5. send an sdm_qm_cmd through rbc interface to release the QM
+ */
+int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+	bool b_rc;
+	int rc;
+
+	/* qm_info is allocated in qed_init_qm_info() which is already called
+	 * from qed_resc_alloc() or previous call of qed_qm_reconf().
+	 * The allocated size may change each init, so we free it before next
+	 * allocation.
+	 */
+	qed_qm_info_free(p_hwfn);
+
+	/* initialize qed's qm data structure */
+	rc = qed_init_qm_info(p_hwfn);
+	if (rc)
+		return rc;
+
+	/* stop PF's qm queues */
+	spin_lock_bh(&qm_lock);
+	b_rc = qed_send_qm_stop_cmd(p_hwfn, p_ptt, false, true,
+				    qm_info->start_pq, qm_info->num_pqs);
+	spin_unlock_bh(&qm_lock);
+	if (!b_rc)
+		return -EINVAL;
+
+	/* clear the QM_PF runtime phase leftovers from previous init */
+	qed_init_clear_rt_data(p_hwfn);
+
+	/* prepare QM portion of runtime array */
+	qed_qm_init_pf(p_hwfn);
+
+	/* activate init tool on runtime array */
+	rc = qed_init_run(p_hwfn, p_ptt, PHASE_QM_PF, p_hwfn->rel_pf_id,
+			  p_hwfn->hw_info.hw_mode);
+	if (rc)
+		return rc;
+
+	/* start PF's qm queues */
+	spin_lock_bh(&qm_lock);
+	b_rc = qed_send_qm_stop_cmd(p_hwfn, p_ptt, true, true,
+				    qm_info->start_pq, qm_info->num_pqs);
+	spin_unlock_bh(&qm_lock);
+	if (!b_rc)
+		return -EINVAL;
+
+	return 0;
 }
 
 int qed_resc_alloc(struct qed_dev *cdev)
@@ -373,6 +441,14 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (rc) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to allocate memory for dmae_info structure\n");
+			goto alloc_err;
+		}
+
+		/* DCBX initialization */
+		rc = qed_dcbx_info_alloc(p_hwfn);
+		if (rc) {
+			DP_NOTICE(p_hwfn,
+				  "Failed to allocate memory for dcbx structure\n");
 			goto alloc_err;
 		}
 	}
@@ -780,6 +856,11 @@ int qed_hw_init(struct qed_dev *cdev,
 		p_hwfn->first_on_engine = (load_code ==
 					   FW_MSG_CODE_DRV_LOAD_ENGINE);
 
+		if (!qm_lock_init) {
+			spin_lock_init(&qm_lock);
+			qm_lock_init = true;
+		}
+
 		switch (load_code) {
 		case FW_MSG_CODE_DRV_LOAD_ENGINE:
 			rc = qed_hw_init_common(p_hwfn, p_hwfn->p_main_ptt,
@@ -818,6 +899,20 @@ int qed_hw_init(struct qed_dev *cdev,
 			return rc;
 		if (mfw_rc) {
 			DP_NOTICE(p_hwfn, "Failed sending LOAD_DONE command\n");
+			return mfw_rc;
+		}
+
+		/* send DCBX attention request command */
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_DCB,
+			   "sending phony dcbx set command to trigger DCBx attention handling\n");
+		mfw_rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
+				     DRV_MSG_CODE_SET_DCBX,
+				     1 << DRV_MB_PARAM_DCBX_NOTIFY_SHIFT,
+				     &load_code, &param);
+		if (mfw_rc) {
+			DP_NOTICE(p_hwfn,
+				  "Failed to send DCBX attention request\n");
 			return mfw_rc;
 		}
 

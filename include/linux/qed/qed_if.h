@@ -25,6 +25,15 @@
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
 
+enum dcbx_protocol_type {
+	DCBX_PROTOCOL_ISCSI,
+	DCBX_PROTOCOL_FCOE,
+	DCBX_PROTOCOL_ROCE,
+	DCBX_PROTOCOL_ROCE_V2,
+	DCBX_PROTOCOL_ETH,
+	DCBX_MAX_PROTOCOL_TYPE
+};
+
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
 	QED_LED_MODE_ON,

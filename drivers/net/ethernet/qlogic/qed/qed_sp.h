@@ -354,6 +354,19 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		    enum qed_mf_mode mode, bool allow_npar_tx_switch);
 
 /**
+ * @brief qed_sp_pf_update - PF Function Update Ramrod
+ *
+ * This ramrod updates function-related parameters. Every parameter can be
+ * updated independently, according to configuration flags.
+ *
+ * @param p_hwfn
+ *
+ * @return int
+ */
+
+int qed_sp_pf_update(struct qed_hwfn *p_hwfn);
+
+/**
  * @brief qed_sp_pf_stop - PF Function Stop Ramrod
  *
  * This ramrod is sent to close a Physical Function (PF). It is the last ramrod

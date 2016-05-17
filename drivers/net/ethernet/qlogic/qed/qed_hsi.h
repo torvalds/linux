@@ -634,6 +634,14 @@ struct pf_start_ramrod_data {
 	u8				reserved0[4];
 };
 
+/* Data for port update ramrod */
+struct protocol_dcb_data {
+	u8 dcb_enable_flag;
+	u8 dcb_priority;
+	u8 dcb_tc;
+	u8 reserved;
+};
+
 /* tunnel configuration */
 struct pf_update_tunnel_config {
 	u8	update_rx_pf_clss;
@@ -656,8 +664,17 @@ struct pf_update_tunnel_config {
 };
 
 struct pf_update_ramrod_data {
-	u32				reserved[2];
-	u32				reserved_1[6];
+	u8 pf_id;
+	u8 update_eth_dcb_data_flag;
+	u8 update_fcoe_dcb_data_flag;
+	u8 update_iscsi_dcb_data_flag;
+	u8 update_roce_dcb_data_flag;
+	u8 update_mf_vlan_flag;
+	__le16 mf_vlan;
+	struct protocol_dcb_data eth_dcb_data;
+	struct protocol_dcb_data fcoe_dcb_data;
+	struct protocol_dcb_data iscsi_dcb_data;
+	struct protocol_dcb_data roce_dcb_data;
 	struct pf_update_tunnel_config	tunnel_config;
 };
 

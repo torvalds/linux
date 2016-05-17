@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include "qed.h"
+#include "qed_dcbx.h"
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_mcp.h"
@@ -824,6 +825,18 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_VF_DISABLED:
 			qed_mcp_handle_vf_flr(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_LLDP_DATA_UPDATED:
+			qed_dcbx_mib_update_event(p_hwfn, p_ptt,
+						  QED_DCBX_REMOTE_LLDP_MIB);
+			break;
+		case MFW_DRV_MSG_DCBX_REMOTE_MIB_UPDATED:
+			qed_dcbx_mib_update_event(p_hwfn, p_ptt,
+						  QED_DCBX_REMOTE_MIB);
+			break;
+		case MFW_DRV_MSG_DCBX_OPERATIONAL_MIB_UPDATED:
+			qed_dcbx_mib_update_event(p_hwfn, p_ptt,
+						  QED_DCBX_OPERATIONAL_MIB);
 			break;
 		case MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE:
 			qed_mcp_handle_transceiver_change(p_hwfn, p_ptt);

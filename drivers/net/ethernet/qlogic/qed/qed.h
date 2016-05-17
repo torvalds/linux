@@ -367,6 +367,8 @@ struct qed_hwfn {
 	struct qed_pf_iov		*pf_iov_info;
 	struct qed_mcp_info		*mcp_info;
 
+	struct qed_dcbx_info		*p_dcbx_info;
+
 	struct qed_hw_cid_data		*p_tx_cids;
 	struct qed_hw_cid_data		*p_rx_cids;
 

@@ -131,6 +131,16 @@ void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn);
 void qed_qm_init_pf(struct qed_hwfn *p_hwfn);
 
 /**
+ * @brief Reconfigures QM pf on the fly
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return int
+ */
+int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
  * @brief qed_cxt_release - Release a cid
  *
  * @param p_hwfn
