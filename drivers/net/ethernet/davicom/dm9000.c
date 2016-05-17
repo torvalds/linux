@@ -1432,6 +1432,7 @@ dm9000_probe(struct platform_device *pdev)
 	int reset_gpios;
 	enum of_gpio_flags flags;
 	struct regulator *power;
+	bool inv_mac_addr = false;
 
 	power = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(power)) {
@@ -1686,9 +1687,7 @@ dm9000_probe(struct platform_device *pdev)
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		dev_warn(db->dev, "%s: Invalid ethernet MAC address. Please "
-			 "set using ifconfig\n", ndev->name);
-
+		inv_mac_addr = true;
 		eth_hw_addr_random(ndev);
 		mac_src = "random";
 	}
@@ -1697,11 +1696,15 @@ dm9000_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	ret = register_netdev(ndev);
 
-	if (ret == 0)
+	if (ret == 0) {
+		if (inv_mac_addr)
+			dev_warn(db->dev, "%s: Invalid ethernet MAC address. Please set using ip\n",
+				 ndev->name);
 		printk(KERN_INFO "%s: dm9000%c at %p,%p IRQ %d MAC: %pM (%s)\n",
 		       ndev->name, dm9000_type_to_char(db->type),
 		       db->io_addr, db->io_data, ndev->irq,
 		       ndev->dev_addr, mac_src);
+	}
 	return 0;
 
 out:
