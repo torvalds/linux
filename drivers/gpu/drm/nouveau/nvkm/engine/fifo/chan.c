@@ -371,9 +371,9 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 
 	/* allocate push buffer ctxdma instance */
 	if (push) {
-		dmaobj = nvkm_dma_search(device->dma, oclass->client, push);
-		if (!dmaobj)
-			return -ENOENT;
+		dmaobj = nvkm_dmaobj_search(client, push);
+		if (IS_ERR(dmaobj))
+			return PTR_ERR(dmaobj);
 
 		ret = nvkm_object_bind(&dmaobj->object, chan->inst, -16,
 				       &chan->push);

@@ -255,6 +255,5 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 	client->device = device;
 	client->debug = nvkm_dbgopt(dbg, "CLIENT");
 	client->objroot = RB_ROOT;
-	client->dmaroot = RB_ROOT;
 	return 0;
 }
