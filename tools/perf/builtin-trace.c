@@ -1160,6 +1160,24 @@ static int trace__tool_process(struct perf_tool *tool,
 	return trace__process_event(trace, machine, event, sample);
 }
 
+static char *trace__machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp)
+{
+	struct machine *machine = vmachine;
+
+	if (machine->kptr_restrict_warned)
+		return NULL;
+
+	if (symbol_conf.kptr_restrict) {
+		pr_warning("Kernel address maps (/proc/{kallsyms,modules}) are restricted.\n\n"
+			   "Check /proc/sys/kernel/kptr_restrict.\n\n"
+			   "Kernel samples will not be resolved.\n");
+		machine->kptr_restrict_warned = true;
+		return NULL;
+	}
+
+	return machine__resolve_kernel_addr(vmachine, addrp, modp);
+}
+
 static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 {
 	int err = symbol__init(NULL);
@@ -1171,7 +1189,7 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	if (trace->host == NULL)
 		return -ENOMEM;
 
-	if (trace_event__register_resolver(trace->host, machine__resolve_kernel_addr) < 0)
+	if (trace_event__register_resolver(trace->host, trace__machine__resolve_kernel_addr) < 0)
 		return -errno;
 
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
