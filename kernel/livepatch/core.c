@@ -28,6 +28,8 @@
 #include <linux/list.h>
 #include <linux/kallsyms.h>
 #include <linux/livepatch.h>
+#include <linux/elf.h>
+#include <linux/moduleloader.h>
 #include <asm/cacheflush.h>
 
 /**
@@ -204,75 +206,109 @@ static int klp_find_object_symbol(const char *objname, const char *name,
 	return -EINVAL;
 }
 
-/*
- * external symbols are located outside the parent object (where the parent
- * object is either vmlinux or the kmod being patched).
- */
-static int klp_find_external_symbol(struct module *pmod, const char *name,
-				    unsigned long *addr)
+static int klp_resolve_symbols(Elf_Shdr *relasec, struct module *pmod)
 {
-	const struct kernel_symbol *sym;
-
-	/* first, check if it's an exported symbol */
-	preempt_disable();
-	sym = find_symbol(name, NULL, NULL, true, true);
-	if (sym) {
-		*addr = sym->value;
-		preempt_enable();
-		return 0;
-	}
-	preempt_enable();
+	int i, cnt, vmlinux, ret;
+	char objname[MODULE_NAME_LEN];
+	char symname[KSYM_NAME_LEN];
+	char *strtab = pmod->core_kallsyms.strtab;
+	Elf_Rela *relas;
+	Elf_Sym *sym;
+	unsigned long sympos, addr;
 
 	/*
-	 * Check if it's in another .o within the patch module. This also
-	 * checks that the external symbol is unique.
+	 * Since the field widths for objname and symname in the sscanf()
+	 * call are hard-coded and correspond to MODULE_NAME_LEN and
+	 * KSYM_NAME_LEN respectively, we must make sure that MODULE_NAME_LEN
+	 * and KSYM_NAME_LEN have the values we expect them to have.
+	 *
+	 * Because the value of MODULE_NAME_LEN can differ among architectures,
+	 * we use the smallest/strictest upper bound possible (56, based on
+	 * the current definition of MODULE_NAME_LEN) to prevent overflows.
 	 */
-	return klp_find_object_symbol(pmod->name, name, 0, addr);
+	BUILD_BUG_ON(MODULE_NAME_LEN < 56 || KSYM_NAME_LEN != 128);
+
+	relas = (Elf_Rela *) relasec->sh_addr;
+	/* For each rela in this klp relocation section */
+	for (i = 0; i < relasec->sh_size / sizeof(Elf_Rela); i++) {
+		sym = pmod->core_kallsyms.symtab + ELF_R_SYM(relas[i].r_info);
+		if (sym->st_shndx != SHN_LIVEPATCH) {
+			pr_err("symbol %s is not marked as a livepatch symbol",
+			       strtab + sym->st_name);
+			return -EINVAL;
+		}
+
+		/* Format: .klp.sym.objname.symname,sympos */
+		cnt = sscanf(strtab + sym->st_name,
+			     ".klp.sym.%55[^.].%127[^,],%lu",
+			     objname, symname, &sympos);
+		if (cnt != 3) {
+			pr_err("symbol %s has an incorrectly formatted name",
+			       strtab + sym->st_name);
+			return -EINVAL;
+		}
+
+		/* klp_find_object_symbol() treats a NULL objname as vmlinux */
+		vmlinux = !strcmp(objname, "vmlinux");
+		ret = klp_find_object_symbol(vmlinux ? NULL : objname,
+					     symname, sympos, &addr);
+		if (ret)
+			return ret;
+
+		sym->st_value = addr;
+	}
+
+	return 0;
 }
 
 static int klp_write_object_relocations(struct module *pmod,
 					struct klp_object *obj)
 {
-	int ret = 0;
-	unsigned long val;
-	struct klp_reloc *reloc;
+	int i, cnt, ret = 0;
+	const char *objname, *secname;
+	char sec_objname[MODULE_NAME_LEN];
+	Elf_Shdr *sec;
 
 	if (WARN_ON(!klp_is_object_loaded(obj)))
 		return -EINVAL;
 
-	if (WARN_ON(!obj->relocs))
-		return -EINVAL;
+	objname = klp_is_module(obj) ? obj->name : "vmlinux";
 
 	module_disable_ro(pmod);
+	/* For each klp relocation section */
+	for (i = 1; i < pmod->klp_info->hdr.e_shnum; i++) {
+		sec = pmod->klp_info->sechdrs + i;
+		secname = pmod->klp_info->secstrings + sec->sh_name;
+		if (!(sec->sh_flags & SHF_RELA_LIVEPATCH))
+			continue;
 
-	for (reloc = obj->relocs; reloc->name; reloc++) {
-		/* discover the address of the referenced symbol */
-		if (reloc->external) {
-			if (reloc->sympos > 0) {
-				pr_err("non-zero sympos for external reloc symbol '%s' is not supported\n",
-				       reloc->name);
-				ret = -EINVAL;
-				goto out;
-			}
-			ret = klp_find_external_symbol(pmod, reloc->name, &val);
-		} else
-			ret = klp_find_object_symbol(obj->name,
-						     reloc->name,
-						     reloc->sympos,
-						     &val);
-		if (ret)
-			goto out;
-
-		ret = klp_write_module_reloc(pmod, reloc->type, reloc->loc,
-					     val + reloc->addend);
-		if (ret) {
-			pr_err("relocation failed for symbol '%s' at 0x%016lx (%d)\n",
-			       reloc->name, val, ret);
-			goto out;
+		/*
+		 * Format: .klp.rela.sec_objname.section_name
+		 * See comment in klp_resolve_symbols() for an explanation
+		 * of the selected field width value.
+		 */
+		cnt = sscanf(secname, ".klp.rela.%55[^.]", sec_objname);
+		if (cnt != 1) {
+			pr_err("section %s has an incorrectly formatted name",
+			       secname);
+			ret = -EINVAL;
+			break;
 		}
+
+		if (strcmp(objname, sec_objname))
+			continue;
+
+		ret = klp_resolve_symbols(sec, pmod);
+		if (ret)
+			break;
+
+		ret = apply_relocate_add(pmod->klp_info->sechdrs,
+					 pmod->core_kallsyms.strtab,
+					 pmod->klp_info->symndx, i, pmod);
+		if (ret)
+			break;
 	}
 
-out:
 	module_enable_ro(pmod);
 	return ret;
 }
@@ -298,6 +334,19 @@ unlock:
 	rcu_read_unlock();
 }
 
+/*
+ * Convert a function address into the appropriate ftrace location.
+ *
+ * Usually this is just the address of the function, but on some architectures
+ * it's more complicated so allow them to provide a custom behaviour.
+ */
+#ifndef klp_get_ftrace_location
+static unsigned long klp_get_ftrace_location(unsigned long faddr)
+{
+	return faddr;
+}
+#endif
+
 static void klp_disable_func(struct klp_func *func)
 {
 	struct klp_ops *ops;
@@ -312,8 +361,14 @@ static void klp_disable_func(struct klp_func *func)
 		return;
 
 	if (list_is_singular(&ops->func_stack)) {
+		unsigned long ftrace_loc;
+
+		ftrace_loc = klp_get_ftrace_location(func->old_addr);
+		if (WARN_ON(!ftrace_loc))
+			return;
+
 		WARN_ON(unregister_ftrace_function(&ops->fops));
-		WARN_ON(ftrace_set_filter_ip(&ops->fops, func->old_addr, 1, 0));
+		WARN_ON(ftrace_set_filter_ip(&ops->fops, ftrace_loc, 1, 0));
 
 		list_del_rcu(&func->stack_node);
 		list_del(&ops->node);
@@ -338,6 +393,15 @@ static int klp_enable_func(struct klp_func *func)
 
 	ops = klp_find_ops(func->old_addr);
 	if (!ops) {
+		unsigned long ftrace_loc;
+
+		ftrace_loc = klp_get_ftrace_location(func->old_addr);
+		if (!ftrace_loc) {
+			pr_err("failed to find location for function '%s'\n",
+				func->old_name);
+			return -EINVAL;
+		}
+
 		ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 		if (!ops)
 			return -ENOMEM;
@@ -352,7 +416,7 @@ static int klp_enable_func(struct klp_func *func)
 		INIT_LIST_HEAD(&ops->func_stack);
 		list_add_rcu(&func->stack_node, &ops->func_stack);
 
-		ret = ftrace_set_filter_ip(&ops->fops, func->old_addr, 0, 0);
+		ret = ftrace_set_filter_ip(&ops->fops, ftrace_loc, 0, 0);
 		if (ret) {
 			pr_err("failed to set ftrace filter for function '%s' (%d)\n",
 			       func->old_name, ret);
@@ -363,7 +427,7 @@ static int klp_enable_func(struct klp_func *func)
 		if (ret) {
 			pr_err("failed to register ftrace handler for function '%s' (%d)\n",
 			       func->old_name, ret);
-			ftrace_set_filter_ip(&ops->fops, func->old_addr, 1, 0);
+			ftrace_set_filter_ip(&ops->fops, ftrace_loc, 1, 0);
 			goto err;
 		}
 
@@ -706,11 +770,9 @@ static int klp_init_object_loaded(struct klp_patch *patch,
 	struct klp_func *func;
 	int ret;
 
-	if (obj->relocs) {
-		ret = klp_write_object_relocations(patch->mod, obj);
-		if (ret)
-			return ret;
-	}
+	ret = klp_write_object_relocations(patch->mod, obj);
+	if (ret)
+		return ret;
 
 	klp_for_each_func(obj, func) {
 		ret = klp_find_object_symbol(obj->name, func->old_name,
@@ -845,11 +907,17 @@ int klp_register_patch(struct klp_patch *patch)
 {
 	int ret;
 
-	if (!klp_initialized())
-		return -ENODEV;
-
 	if (!patch || !patch->mod)
 		return -EINVAL;
+
+	if (!is_livepatch_module(patch->mod)) {
+		pr_err("module %s is not marked as a livepatch module",
+		       patch->mod->name);
+		return -EINVAL;
+	}
+
+	if (!klp_initialized())
+		return -ENODEV;
 
 	/*
 	 * A reference is taken on the patch module to prevent it from being
