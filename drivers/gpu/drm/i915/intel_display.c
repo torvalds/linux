@@ -6249,9 +6249,10 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 
 /* Cross check the actual hw state with our own modeset state tracking (and it's
  * internal consistency). */
-static void intel_connector_verify_state(struct intel_connector *connector)
+static void intel_connector_verify_state(struct intel_connector *connector,
+					 struct drm_connector_state *conn_state)
 {
-	struct drm_crtc *crtc = connector->base.state->crtc;
+	struct drm_crtc *crtc = conn_state->crtc;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.base.id,
@@ -6259,7 +6260,6 @@ static void intel_connector_verify_state(struct intel_connector *connector)
 
 	if (connector->get_hw_state(connector)) {
 		struct intel_encoder *encoder = connector->encoder;
-		struct drm_connector_state *conn_state = connector->base.state;
 
 		I915_STATE_WARN(!crtc,
 			 "connector enabled without attached crtc\n");
@@ -6281,7 +6281,7 @@ static void intel_connector_verify_state(struct intel_connector *connector)
 	} else {
 		I915_STATE_WARN(crtc && crtc->state->active,
 			"attached crtc is active, but connector isn't\n");
-		I915_STATE_WARN(!crtc && connector->base.state->best_encoder,
+		I915_STATE_WARN(!crtc && conn_state->best_encoder,
 			"best encoder set without crtc!\n");
 	}
 }
@@ -10776,6 +10776,14 @@ void intel_mark_idle(struct drm_i915_private *dev_priv)
 	intel_runtime_pm_put(dev_priv);
 }
 
+static void
+intel_free_flip_work(struct intel_flip_work *work)
+{
+	kfree(work->old_connector_state);
+	kfree(work->new_connector_state);
+	kfree(work);
+}
+
 static void intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -10791,7 +10799,7 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 
 		cancel_work_sync(&work->mmio_work);
 		cancel_work_sync(&work->unpin_work);
-		kfree(work);
+		intel_free_flip_work(work);
 
 		spin_lock_irq(&dev->event_lock);
 	}
@@ -10856,10 +10864,31 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	/* Make sure mmio work is completely finished before freeing all state here. */
 	flush_work(&work->mmio_work);
 
-	if (!work->can_async_unpin)
+	if (!work->can_async_unpin &&
+	    (work->new_crtc_state->update_pipe ||
+	     needs_modeset(&work->new_crtc_state->base))) {
 		/* This must be called before work is unpinned for serialization. */
 		intel_modeset_verify_crtc(crtc, &work->old_crtc_state->base,
 					  &work->new_crtc_state->base);
+
+		for (i = 0; i < work->num_new_connectors; i++) {
+			struct drm_connector_state *conn_state =
+				work->new_connector_state[i];
+			struct drm_connector *con = conn_state->connector;
+
+			intel_connector_verify_state(to_intel_connector(con),
+						     conn_state);
+		}
+	}
+
+	for (i = 0; i < work->num_old_connectors; i++) {
+		struct drm_connector_state *old_con_state =
+			work->old_connector_state[i];
+		struct drm_connector *con =
+			old_con_state->connector;
+
+		con->funcs->atomic_destroy_state(con, old_con_state);
+	}
 
 	if (!work->can_async_unpin || !list_empty(&work->head)) {
 		spin_lock_irq(&dev->event_lock);
@@ -10906,7 +10935,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	if (!WARN_ON(atomic_read(&intel_crtc->unpin_work_count) == 0))
 		atomic_dec(&intel_crtc->unpin_work_count);
 
-	kfree(work);
+	intel_free_flip_work(work);
 }
 
 
@@ -11197,7 +11226,7 @@ cleanup:
 	if (new_crtc_state)
 		intel_crtc_destroy_state(crtc, new_crtc_state);
 
-	kfree(work);
+	intel_free_flip_work(work);
 	return ret;
 }
 
@@ -12319,7 +12348,8 @@ verify_connector_state(struct drm_device *dev, struct drm_crtc *crtc)
 		if (state->crtc != crtc)
 			continue;
 
-		intel_connector_verify_state(to_intel_connector(connector));
+		intel_connector_verify_state(to_intel_connector(connector),
+					     connector->state);
 
 		I915_STATE_WARN(state->best_encoder != encoder,
 		     "connector's atomic encoder doesn't match legacy encoder\n");
@@ -12521,12 +12551,7 @@ intel_modeset_verify_crtc(struct drm_crtc *crtc,
 			 struct drm_crtc_state *old_state,
 			 struct drm_crtc_state *new_state)
 {
-	if (!needs_modeset(new_state) &&
-	    !to_intel_crtc_state(new_state)->update_pipe)
-		return;
-
 	verify_wm_state(crtc, new_state);
-	verify_connector_state(crtc->dev, crtc);
 	verify_crtc_state(crtc, old_state, new_state);
 	verify_shared_dpll_state(crtc->dev, crtc, old_state, new_state);
 }

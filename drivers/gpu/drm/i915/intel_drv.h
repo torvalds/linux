@@ -982,6 +982,10 @@ struct intel_flip_work {
 	bool can_async_unpin;
 	unsigned fb_bits;
 
+	unsigned num_old_connectors, num_new_connectors;
+	struct drm_connector_state **old_connector_state;
+	struct drm_connector_state **new_connector_state;
+
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	struct intel_plane_state *old_plane_state[I915_MAX_PLANES + 1];
 	struct intel_plane_state *new_plane_state[I915_MAX_PLANES + 1];
