@@ -606,10 +606,6 @@ static void dpi_init_pll(struct dpi_data *dpi)
 	if (!pll)
 		return;
 
-	/* On DRA7 we need to set a mux to use the PLL */
-	if (omapdss_get_version() == OMAPDSS_VER_DRA7xx)
-		dss_ctrl_pll_set_control_mux(pll->id, dpi->output.dispc_channel);
-
 	if (dpi_verify_dsi_pll(pll)) {
 		DSSWARN("DSI PLL not operational\n");
 		return;
