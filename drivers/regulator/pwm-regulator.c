@@ -59,16 +59,16 @@ static int pwm_regulator_set_voltage_sel(struct regulator_dev *rdev,
 					 unsigned selector)
 {
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
-	unsigned int pwm_reg_period;
+	struct pwm_args pargs;
 	int dutycycle;
 	int ret;
 
-	pwm_reg_period = pwm_get_period(drvdata->pwm);
+	pwm_get_args(drvdata->pwm, &pargs);
 
-	dutycycle = (pwm_reg_period *
+	dutycycle = (pargs.period *
 		    drvdata->duty_cycle_table[selector].dutycycle) / 100;
 
-	ret = pwm_config(drvdata->pwm, dutycycle, pwm_reg_period);
+	ret = pwm_config(drvdata->pwm, dutycycle, pargs.period);
 	if (ret) {
 		dev_err(&rdev->dev, "Failed to configure PWM\n");
 		return ret;
@@ -138,13 +138,15 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 {
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
 	unsigned int ramp_delay = rdev->constraints->ramp_delay;
-	unsigned int period = pwm_get_period(drvdata->pwm);
+	struct pwm_args pargs;
 	int duty_cycle;
 	int ret;
 
+	pwm_get_args(drvdata->pwm, &pargs);
 	duty_cycle = pwm_voltage_to_duty_cycle_percentage(rdev, min_uV);
 
-	ret = pwm_config(drvdata->pwm, (period / 100) * duty_cycle, period);
+	ret = pwm_config(drvdata->pwm, (pargs.period / 100) * duty_cycle,
+			 pargs.period);
 	if (ret) {
 		dev_err(&rdev->dev, "Failed to configure PWM\n");
 		return ret;
@@ -280,6 +282,12 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get PWM\n");
 		return PTR_ERR(drvdata->pwm);
 	}
+
+	/*
+	 * FIXME: pwm_apply_args() should be removed when switching to the
+	 * atomic PWM API.
+	 */
+	pwm_apply_args(drvdata->pwm);
 
 	regulator = devm_regulator_register(&pdev->dev,
 					    &drvdata->desc, &config);
