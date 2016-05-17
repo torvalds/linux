@@ -21,13 +21,14 @@
 struct qrtr_smd_dev {
 	struct qrtr_endpoint ep;
 	struct qcom_smd_channel *channel;
+	struct device *dev;
 };
 
 /* from smd to qrtr */
-static int qcom_smd_qrtr_callback(struct qcom_smd_device *sdev,
+static int qcom_smd_qrtr_callback(struct qcom_smd_channel *channel,
 				  const void *data, size_t len)
 {
-	struct qrtr_smd_dev *qdev = dev_get_drvdata(&sdev->dev);
+	struct qrtr_smd_dev *qdev = qcom_smd_get_drvdata(channel);
 	int rc;
 
 	if (!qdev)
@@ -35,7 +36,7 @@ static int qcom_smd_qrtr_callback(struct qcom_smd_device *sdev,
 
 	rc = qrtr_endpoint_post(&qdev->ep, data, len);
 	if (rc == -EINVAL) {
-		dev_err(&sdev->dev, "invalid ipcrouter packet\n");
+		dev_err(qdev->dev, "invalid ipcrouter packet\n");
 		/* return 0 to let smd drop the packet */
 		rc = 0;
 	}
@@ -73,12 +74,14 @@ static int qcom_smd_qrtr_probe(struct qcom_smd_device *sdev)
 		return -ENOMEM;
 
 	qdev->channel = sdev->channel;
+	qdev->dev = &sdev->dev;
 	qdev->ep.xmit = qcom_smd_qrtr_send;
 
 	rc = qrtr_endpoint_register(&qdev->ep, QRTR_EP_NID_AUTO);
 	if (rc)
 		return rc;
 
+	qcom_smd_set_drvdata(sdev->channel, qdev);
 	dev_set_drvdata(&sdev->dev, qdev);
 
 	dev_dbg(&sdev->dev, "Qualcomm SMD QRTR driver probed\n");
