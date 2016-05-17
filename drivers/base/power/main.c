@@ -35,8 +35,6 @@
 #include <linux/timer.h>
 #include <linux/wakeup_reason.h>
 
-#include <asm/current.h>
-
 #include "../base.h"
 #include "power.h"
 
