@@ -582,9 +582,11 @@ static struct omap_hwmod_ocp_if dm81xx_alwon_l3_slow__gpmc = {
 	.user		= OCP_USER_MPU,
 };
 
+/* USB needs udelay 1 after reset at least on hp t410, use 2 for margin */
 static struct omap_hwmod_class_sysconfig dm81xx_usbhsotg_sysc = {
 	.rev_offs	= 0x0,
 	.sysc_offs	= 0x10,
+	.srst_udelay	= 2,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE |
 				SYSC_HAS_SOFTRESET,
 	.idlemodes	= SIDLE_SMART | MSTANDBY_FORCE | MSTANDBY_SMART,

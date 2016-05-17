@@ -274,6 +274,10 @@ static inline void omap5_irq_save_context(void)
  */
 static void irq_save_context(void)
 {
+	/* DRA7 has no SAR to save */
+	if (soc_is_dra7xx())
+		return;
+
 	if (!sar_base)
 		sar_base = omap4_get_sar_ram_base();
 
@@ -290,6 +294,9 @@ static void irq_sar_clear(void)
 {
 	u32 val;
 	u32 offset = SAR_BACKUP_STATUS_OFFSET;
+	/* DRA7 has no SAR to save */
+	if (soc_is_dra7xx())
+		return;
 
 	if (soc_is_omap54xx())
 		offset = OMAP5_SAR_BACKUP_STATUS_OFFSET;

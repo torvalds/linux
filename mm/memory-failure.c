@@ -888,7 +888,15 @@ int get_hwpoison_page(struct page *page)
 		}
 	}
 
-	return get_page_unless_zero(head);
+	if (get_page_unless_zero(head)) {
+		if (head == compound_head(page))
+			return 1;
+
+		pr_info("MCE: %#lx cannot catch tail\n", page_to_pfn(page));
+		put_page(head);
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(get_hwpoison_page);
 

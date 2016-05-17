@@ -462,6 +462,8 @@ static int ak8975_setup_irq(struct ak8975_data *data)
 	int rc;
 	int irq;
 
+	init_waitqueue_head(&data->data_ready_queue);
+	clear_bit(0, &data->flags);
 	if (client->irq)
 		irq = client->irq;
 	else
@@ -477,8 +479,6 @@ static int ak8975_setup_irq(struct ak8975_data *data)
 		return rc;
 	}
 
-	init_waitqueue_head(&data->data_ready_queue);
-	clear_bit(0, &data->flags);
 	data->eoc_irq = irq;
 
 	return rc;
@@ -732,7 +732,7 @@ static int ak8975_probe(struct i2c_client *client,
 	int eoc_gpio;
 	int err;
 	const char *name = NULL;
-	enum asahi_compass_chipset chipset;
+	enum asahi_compass_chipset chipset = AK_MAX_TYPE;
 
 	/* Grab and set up the supplied GPIO. */
 	if (client->dev.platform_data)

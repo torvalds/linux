@@ -103,15 +103,29 @@ static bool hv_need_to_signal(u32 old_write, struct hv_ring_buffer_info *rbi)
  *    there is room for the producer to send the pending packet.
  */
 
-static bool hv_need_to_signal_on_read(u32 prev_write_sz,
-				      struct hv_ring_buffer_info *rbi)
+static bool hv_need_to_signal_on_read(struct hv_ring_buffer_info *rbi)
 {
 	u32 cur_write_sz;
 	u32 r_size;
-	u32 write_loc = rbi->ring_buffer->write_index;
+	u32 write_loc;
 	u32 read_loc = rbi->ring_buffer->read_index;
-	u32 pending_sz = rbi->ring_buffer->pending_send_sz;
+	u32 pending_sz;
 
+	/*
+	 * Issue a full memory barrier before making the signaling decision.
+	 * Here is the reason for having this barrier:
+	 * If the reading of the pend_sz (in this function)
+	 * were to be reordered and read before we commit the new read
+	 * index (in the calling function)  we could
+	 * have a problem. If the host were to set the pending_sz after we
+	 * have sampled pending_sz and go to sleep before we commit the
+	 * read index, we could miss sending the interrupt. Issue a full
+	 * memory barrier to address this.
+	 */
+	mb();
+
+	pending_sz = rbi->ring_buffer->pending_send_sz;
+	write_loc = rbi->ring_buffer->write_index;
 	/* If the other end is not blocked on write don't bother. */
 	if (pending_sz == 0)
 		return false;
@@ -120,7 +134,7 @@ static bool hv_need_to_signal_on_read(u32 prev_write_sz,
 	cur_write_sz = write_loc >= read_loc ? r_size - (write_loc - read_loc) :
 			read_loc - write_loc;
 
-	if ((prev_write_sz < pending_sz) && (cur_write_sz >= pending_sz))
+	if (cur_write_sz >= pending_sz)
 		return true;
 
 	return false;
@@ -455,7 +469,7 @@ int hv_ringbuffer_read(struct hv_ring_buffer_info *inring_info,
 	/* Update the read index */
 	hv_set_next_read_location(inring_info, next_read_location);
 
-	*signal = hv_need_to_signal_on_read(bytes_avail_towrite, inring_info);
+	*signal = hv_need_to_signal_on_read(inring_info);
 
 	return ret;
 }

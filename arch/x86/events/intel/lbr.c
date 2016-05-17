@@ -63,7 +63,7 @@ static enum {
 
 #define LBR_PLM (LBR_KERNEL | LBR_USER)
 
-#define LBR_SEL_MASK	0x1ff	/* valid bits in LBR_SELECT */
+#define LBR_SEL_MASK	0x3ff	/* valid bits in LBR_SELECT */
 #define LBR_NOT_SUPP	-1	/* LBR filter not supported */
 #define LBR_IGN		0	/* ignored */
 
@@ -610,8 +610,10 @@ static int intel_pmu_setup_hw_lbr_filter(struct perf_event *event)
 	 * The first 9 bits (LBR_SEL_MASK) in LBR_SELECT operate
 	 * in suppress mode. So LBR_SELECT should be set to
 	 * (~mask & LBR_SEL_MASK) | (mask & ~LBR_SEL_MASK)
+	 * But the 10th bit LBR_CALL_STACK does not operate
+	 * in suppress mode.
 	 */
-	reg->config = mask ^ x86_pmu.lbr_sel_mask;
+	reg->config = mask ^ (x86_pmu.lbr_sel_mask & ~LBR_CALL_STACK);
 
 	if ((br_type & PERF_SAMPLE_BRANCH_NO_CYCLES) &&
 	    (br_type & PERF_SAMPLE_BRANCH_NO_FLAGS) &&

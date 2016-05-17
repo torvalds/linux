@@ -386,9 +386,7 @@ void ceph_put_mds_session(struct ceph_mds_session *s)
 	     atomic_read(&s->s_ref), atomic_read(&s->s_ref)-1);
 	if (atomic_dec_and_test(&s->s_ref)) {
 		if (s->s_auth.authorizer)
-			ceph_auth_destroy_authorizer(
-				s->s_mdsc->fsc->client->monc.auth,
-				s->s_auth.authorizer);
+			ceph_auth_destroy_authorizer(s->s_auth.authorizer);
 		kfree(s);
 	}
 }
@@ -3900,7 +3898,7 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 	struct ceph_auth_handshake *auth = &s->s_auth;
 
 	if (force_new && auth->authorizer) {
-		ceph_auth_destroy_authorizer(ac, auth->authorizer);
+		ceph_auth_destroy_authorizer(auth->authorizer);
 		auth->authorizer = NULL;
 	}
 	if (!auth->authorizer) {

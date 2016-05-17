@@ -440,13 +440,14 @@ static int clcdfb_register(struct clcd_fb *fb)
 		fb->off_ienb = CLCD_PL111_IENB;
 		fb->off_cntl = CLCD_PL111_CNTL;
 	} else {
-#ifdef CONFIG_ARCH_VERSATILE
-		fb->off_ienb = CLCD_PL111_IENB;
-		fb->off_cntl = CLCD_PL111_CNTL;
-#else
-		fb->off_ienb = CLCD_PL110_IENB;
-		fb->off_cntl = CLCD_PL110_CNTL;
-#endif
+		if (of_machine_is_compatible("arm,versatile-ab") ||
+		    of_machine_is_compatible("arm,versatile-pb")) {
+			fb->off_ienb = CLCD_PL111_IENB;
+			fb->off_cntl = CLCD_PL111_CNTL;
+		} else {
+			fb->off_ienb = CLCD_PL110_IENB;
+			fb->off_cntl = CLCD_PL110_CNTL;
+		}
 	}
 
 	fb->clk = clk_get(&fb->dev->dev, NULL);
