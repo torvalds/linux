@@ -353,7 +353,7 @@ void dss_sdi_disable(void)
 	REG_FLD_MOD(DSS_PLL_CONTROL, 0, 18, 18); /* SDI_PLL_SYSRESET */
 }
 
-const char *dss_get_generic_clk_source_name(enum dss_clk_source clk_src)
+const char *dss_get_clk_source_name(enum dss_clk_source clk_src)
 {
 	return dss_generic_clk_source_names[clk_src];
 }
@@ -368,7 +368,7 @@ void dss_dump_clocks(struct seq_file *s)
 
 	seq_printf(s, "- DSS -\n");
 
-	fclk_name = dss_get_generic_clk_source_name(OMAP_DSS_CLK_SRC_FCK);
+	fclk_name = dss_get_clk_source_name(OMAP_DSS_CLK_SRC_FCK);
 	fclk_rate = clk_get_rate(dss.dss_clk);
 
 	seq_printf(s, "%s = %lu\n",
