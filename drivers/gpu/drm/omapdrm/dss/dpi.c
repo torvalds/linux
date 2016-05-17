@@ -45,6 +45,7 @@ struct dpi_data {
 	struct platform_device *pdev;
 
 	struct regulator *vdds_dsi_reg;
+	enum dss_clk_source clk_src;
 	struct dss_pll *pll;
 
 	struct mutex lock;
@@ -69,7 +70,7 @@ static struct dpi_data *dpi_get_data_from_pdev(struct platform_device *pdev)
 	return dev_get_drvdata(&pdev->dev);
 }
 
-static struct dss_pll *dpi_get_pll(enum omap_channel channel)
+static enum dss_clk_source dpi_get_clk_src(enum omap_channel channel)
 {
 	/*
 	 * XXX we can't currently use DSI PLL for DPI with OMAP3, as the DSI PLL
@@ -83,58 +84,44 @@ static struct dss_pll *dpi_get_pll(enum omap_channel channel)
 	case OMAPDSS_VER_OMAP3630:
 	case OMAPDSS_VER_AM35xx:
 	case OMAPDSS_VER_AM43xx:
-		return NULL;
+		return DSS_CLK_SRC_FCK;
 
 	case OMAPDSS_VER_OMAP4430_ES1:
 	case OMAPDSS_VER_OMAP4430_ES2:
 	case OMAPDSS_VER_OMAP4:
 		switch (channel) {
 		case OMAP_DSS_CHANNEL_LCD:
-			return dss_pll_find("dsi0");
+			return DSS_CLK_SRC_PLL1_1;
 		case OMAP_DSS_CHANNEL_LCD2:
-			return dss_pll_find("dsi1");
+			return DSS_CLK_SRC_PLL2_1;
 		default:
-			return NULL;
+			return DSS_CLK_SRC_FCK;
 		}
 
 	case OMAPDSS_VER_OMAP5:
 		switch (channel) {
 		case OMAP_DSS_CHANNEL_LCD:
-			return dss_pll_find("dsi0");
+			return DSS_CLK_SRC_PLL1_1;
 		case OMAP_DSS_CHANNEL_LCD3:
-			return dss_pll_find("dsi1");
+			return DSS_CLK_SRC_PLL2_1;
+		case OMAP_DSS_CHANNEL_LCD2:
 		default:
-			return NULL;
+			return DSS_CLK_SRC_FCK;
 		}
 
 	case OMAPDSS_VER_DRA7xx:
 		switch (channel) {
 		case OMAP_DSS_CHANNEL_LCD:
+			return DSS_CLK_SRC_PLL1_1;
 		case OMAP_DSS_CHANNEL_LCD2:
-			return dss_pll_find("video0");
+			return DSS_CLK_SRC_PLL1_3;
 		case OMAP_DSS_CHANNEL_LCD3:
-			return dss_pll_find("video1");
+			return DSS_CLK_SRC_PLL2_1;
 		default:
-			return NULL;
+			return DSS_CLK_SRC_FCK;
 		}
 
 	default:
-		return NULL;
-	}
-}
-
-static enum dss_clk_source dpi_get_alt_clk_src(enum omap_channel channel)
-{
-	switch (channel) {
-	case OMAP_DSS_CHANNEL_LCD:
-		return DSS_CLK_SRC_PLL1_1;
-	case OMAP_DSS_CHANNEL_LCD2:
-		return DSS_CLK_SRC_PLL2_1;
-	case OMAP_DSS_CHANNEL_LCD3:
-		return DSS_CLK_SRC_PLL2_1;
-	default:
-		/* this shouldn't happen */
-		WARN_ON(1);
 		return DSS_CLK_SRC_FCK;
 	}
 }
@@ -295,8 +282,7 @@ static int dpi_set_dsi_clk(struct dpi_data *dpi, enum omap_channel channel,
 	if (r)
 		return r;
 
-	dss_select_lcd_clk_source(channel,
-			dpi_get_alt_clk_src(channel));
+	dss_select_lcd_clk_source(channel, dpi->clk_src);
 
 	dpi->mgr_config.clock_info = ctx.dispc_cinfo;
 
@@ -602,7 +588,9 @@ static void dpi_init_pll(struct dpi_data *dpi)
 	if (dpi->pll)
 		return;
 
-	pll = dpi_get_pll(dpi->output.dispc_channel);
+	dpi->clk_src = dpi_get_clk_src(dpi->output.dispc_channel);
+
+	pll = dss_pll_find_by_src(dpi->clk_src);
 	if (!pll)
 		return;
 
