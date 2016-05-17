@@ -242,7 +242,6 @@ struct ecryptfs_crypt_stat {
 	struct list_head keysig_list;
 	struct mutex keysig_list_mutex;
 	struct mutex cs_tfm_mutex;
-	struct mutex cs_hash_tfm_mutex;
 	struct mutex cs_mutex;
 };
 
@@ -577,7 +576,7 @@ int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
 			int sg_size);
 int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_rotate_iv(unsigned char *iv);
-void ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
+int ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_destroy_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_destroy_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat);

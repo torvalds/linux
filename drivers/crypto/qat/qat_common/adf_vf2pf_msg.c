@@ -3,7 +3,7 @@
   redistributing this file, you may do so under either license.
 
   GPL LICENSE SUMMARY
-  Copyright(c) 2014 Intel Corporation.
+  Copyright(c) 2015 Intel Corporation.
   This program is free software; you can redistribute it and/or modify
   it under the terms of version 2 of the GNU General Public License as
   published by the Free Software Foundation.
@@ -17,7 +17,7 @@
   qat-linux@intel.com
 
   BSD LICENSE
-  Copyright(c) 2014 Intel Corporation.
+  Copyright(c) 2015 Intel Corporation.
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
   are met:
@@ -44,38 +44,49 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#ifndef ADF_CFG_STRINGS_H_
-#define ADF_CFG_STRINGS_H_
+#include "adf_accel_devices.h"
+#include "adf_common_drv.h"
+#include "adf_pf2vf_msg.h"
 
-#define ADF_GENERAL_SEC "GENERAL"
-#define ADF_KERNEL_SEC "KERNEL"
-#define ADF_ACCEL_SEC "Accelerator"
-#define ADF_NUM_CY "NumberCyInstances"
-#define ADF_NUM_DC "NumberDcInstances"
-#define ADF_RING_SYM_SIZE "NumConcurrentSymRequests"
-#define ADF_RING_ASYM_SIZE "NumConcurrentAsymRequests"
-#define ADF_RING_DC_SIZE "NumConcurrentRequests"
-#define ADF_RING_ASYM_TX "RingAsymTx"
-#define ADF_RING_SYM_TX "RingSymTx"
-#define ADF_RING_ASYM_RX "RingAsymRx"
-#define ADF_RING_SYM_RX "RingSymRx"
-#define ADF_RING_DC_TX "RingTx"
-#define ADF_RING_DC_RX "RingRx"
-#define ADF_ETRMGR_BANK "Bank"
-#define ADF_RING_BANK_NUM "BankNumber"
-#define ADF_CY "Cy"
-#define ADF_DC "Dc"
-#define ADF_ETRMGR_COALESCING_ENABLED "InterruptCoalescingEnabled"
-#define ADF_ETRMGR_COALESCING_ENABLED_FORMAT \
-	ADF_ETRMGR_BANK "%d" ADF_ETRMGR_COALESCING_ENABLED
-#define ADF_ETRMGR_COALESCE_TIMER "InterruptCoalescingTimerNs"
-#define ADF_ETRMGR_COALESCE_TIMER_FORMAT \
-	ADF_ETRMGR_BANK "%d" ADF_ETRMGR_COALESCE_TIMER
-#define ADF_ETRMGR_COALESCING_MSG_ENABLED "InterruptCoalescingNumResponses"
-#define ADF_ETRMGR_COALESCING_MSG_ENABLED_FORMAT \
-	ADF_ETRMGR_BANK "%d" ADF_ETRMGR_COALESCING_MSG_ENABLED
-#define ADF_ETRMGR_CORE_AFFINITY "CoreAffinity"
-#define ADF_ETRMGR_CORE_AFFINITY_FORMAT \
-	ADF_ETRMGR_BANK "%d" ADF_ETRMGR_CORE_AFFINITY
-#define ADF_ACCEL_STR "Accelerator%d"
-#endif
+/**
+ * adf_vf2pf_init() - send init msg to PF
+ * @accel_dev:  Pointer to acceleration VF device.
+ *
+ * Function sends an init messge from the VF to a PF
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int adf_vf2pf_init(struct adf_accel_dev *accel_dev)
+{
+	u32 msg = (ADF_VF2PF_MSGORIGIN_SYSTEM |
+		(ADF_VF2PF_MSGTYPE_INIT << ADF_VF2PF_MSGTYPE_SHIFT));
+
+	if (adf_iov_putmsg(accel_dev, msg, 0)) {
+		dev_err(&GET_DEV(accel_dev),
+			"Failed to send Init event to PF\n");
+		return -EFAULT;
+	}
+	set_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_vf2pf_init);
+
+/**
+ * adf_vf2pf_shutdown() - send shutdown msg to PF
+ * @accel_dev:  Pointer to acceleration VF device.
+ *
+ * Function sends a shutdown messge from the VF to a PF
+ *
+ * Return: void
+ */
+void adf_vf2pf_shutdown(struct adf_accel_dev *accel_dev)
+{
+	u32 msg = (ADF_VF2PF_MSGORIGIN_SYSTEM |
+	    (ADF_VF2PF_MSGTYPE_SHUTDOWN << ADF_VF2PF_MSGTYPE_SHIFT));
+
+	if (test_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status))
+		if (adf_iov_putmsg(accel_dev, msg, 0))
+			dev_err(&GET_DEV(accel_dev),
+				"Failed to send Shutdown event to PF\n");
+}
+EXPORT_SYMBOL_GPL(adf_vf2pf_shutdown);

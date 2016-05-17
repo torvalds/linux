@@ -838,6 +838,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
 
+	cryptomgr.notests
+                        [KNL] Disable crypto self-tests
+
 	cs89x0_dma=	[HW,NET]
 			Format: <dma>
 

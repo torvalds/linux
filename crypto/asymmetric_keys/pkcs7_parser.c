@@ -237,6 +237,7 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 		break;
 	case OID_sha224:
 		ctx->sinfo->sig.hash_algo = "sha224";
+		break;
 	default:
 		printk("Unsupported digest algo: %u\n", ctx->last_oid);
 		return -ENOPKG;
