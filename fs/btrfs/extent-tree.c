@@ -111,6 +111,16 @@ static int block_rsv_use_bytes(struct btrfs_block_rsv *block_rsv,
 			       u64 num_bytes);
 int btrfs_pin_extent(struct btrfs_root *root,
 		     u64 bytenr, u64 num_bytes, int reserved);
+static int __reserve_metadata_bytes(struct btrfs_root *root,
+				    struct btrfs_space_info *space_info,
+				    u64 orig_bytes,
+				    enum btrfs_reserve_flush_enum flush);
+static void space_info_add_new_bytes(struct btrfs_fs_info *fs_info,
+				     struct btrfs_space_info *space_info,
+				     u64 num_bytes);
+static void space_info_add_old_bytes(struct btrfs_fs_info *fs_info,
+				     struct btrfs_space_info *space_info,
+				     u64 num_bytes);
 
 static noinline int
 block_group_cache_done(struct btrfs_block_group_cache *cache)
@@ -3937,6 +3947,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 		found->bytes_readonly += bytes_readonly;
 		if (total_bytes > 0)
 			found->full = 0;
+		space_info_add_new_bytes(info, found, total_bytes -
+					 bytes_used - bytes_readonly);
 		spin_unlock(&found->lock);
 		*space_info = found;
 		return 0;
@@ -3971,6 +3983,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->flush = 0;
 	init_waitqueue_head(&found->wait);
 	INIT_LIST_HEAD(&found->ro_bgs);
+	INIT_LIST_HEAD(&found->tickets);
+	INIT_LIST_HEAD(&found->priority_tickets);
 
 	ret = kobject_init_and_add(&found->kobj, &space_info_ktype,
 				    info->space_info_kobj, "%s",
@@ -4584,12 +4598,19 @@ static int can_overcommit(struct btrfs_root *root,
 			  struct btrfs_space_info *space_info, u64 bytes,
 			  enum btrfs_reserve_flush_enum flush)
 {
-	struct btrfs_block_rsv *global_rsv = &root->fs_info->global_block_rsv;
-	u64 profile = btrfs_get_alloc_profile(root, 0);
+	struct btrfs_block_rsv *global_rsv;
+	u64 profile;
 	u64 space_size;
 	u64 avail;
 	u64 used;
 
+	/* Don't overcommit when in mixed mode. */
+	if (space_info->flags & BTRFS_BLOCK_GROUP_DATA)
+		return 0;
+
+	BUG_ON(root->fs_info == NULL);
+	global_rsv = &root->fs_info->global_block_rsv;
+	profile = btrfs_get_alloc_profile(root, 0);
 	used = space_info->bytes_used + space_info->bytes_reserved +
 		space_info->bytes_pinned + space_info->bytes_readonly;
 
@@ -4741,6 +4762,11 @@ skip_async:
 			spin_unlock(&space_info->lock);
 			break;
 		}
+		if (list_empty(&space_info->tickets) &&
+		    list_empty(&space_info->priority_tickets)) {
+			spin_unlock(&space_info->lock);
+			break;
+		}
 		spin_unlock(&space_info->lock);
 
 		loops++;
@@ -4818,6 +4844,13 @@ enum flush_state {
 	COMMIT_TRANS		=	6,
 };
 
+struct reserve_ticket {
+	u64 bytes;
+	int error;
+	struct list_head list;
+	wait_queue_head_t wait;
+};
+
 static int flush_space(struct btrfs_root *root,
 		       struct btrfs_space_info *space_info, u64 num_bytes,
 		       u64 orig_bytes, int state)
@@ -4875,17 +4908,22 @@ static inline u64
 btrfs_calc_reclaim_metadata_size(struct btrfs_root *root,
 				 struct btrfs_space_info *space_info)
 {
+	struct reserve_ticket *ticket;
 	u64 used;
 	u64 expected;
-	u64 to_reclaim;
+	u64 to_reclaim = 0;
 
 	to_reclaim = min_t(u64, num_online_cpus() * SZ_1M, SZ_16M);
-	spin_lock(&space_info->lock);
 	if (can_overcommit(root, space_info, to_reclaim,
-			   BTRFS_RESERVE_FLUSH_ALL)) {
-		to_reclaim = 0;
-		goto out;
-	}
+			   BTRFS_RESERVE_FLUSH_ALL))
+		return 0;
+
+	list_for_each_entry(ticket, &space_info->tickets, list)
+		to_reclaim += ticket->bytes;
+	list_for_each_entry(ticket, &space_info->priority_tickets, list)
+		to_reclaim += ticket->bytes;
+	if (to_reclaim)
+		return to_reclaim;
 
 	used = space_info->bytes_used + space_info->bytes_reserved +
 	       space_info->bytes_pinned + space_info->bytes_readonly +
@@ -4901,9 +4939,6 @@ btrfs_calc_reclaim_metadata_size(struct btrfs_root *root,
 		to_reclaim = 0;
 	to_reclaim = min(to_reclaim, space_info->bytes_may_use +
 				     space_info->bytes_reserved);
-out:
-	spin_unlock(&space_info->lock);
-
 	return to_reclaim;
 }
 
@@ -4920,58 +4955,84 @@ static inline int need_do_async_reclaim(struct btrfs_space_info *space_info,
 		!test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state));
 }
 
-static int btrfs_need_do_async_reclaim(struct btrfs_space_info *space_info,
-				       struct btrfs_fs_info *fs_info,
-				       int flush_state)
+static void wake_all_tickets(struct list_head *head)
 {
-	u64 used;
+	struct reserve_ticket *ticket;
 
-	spin_lock(&space_info->lock);
-	/*
-	 * We run out of space and have not got any free space via flush_space,
-	 * so don't bother doing async reclaim.
-	 */
-	if (flush_state > COMMIT_TRANS && space_info->full) {
-		spin_unlock(&space_info->lock);
-		return 0;
+	while (!list_empty(head)) {
+		ticket = list_first_entry(head, struct reserve_ticket, list);
+		list_del_init(&ticket->list);
+		ticket->error = -ENOSPC;
+		wake_up(&ticket->wait);
 	}
-
-	used = space_info->bytes_used + space_info->bytes_reserved +
-	       space_info->bytes_pinned + space_info->bytes_readonly +
-	       space_info->bytes_may_use;
-	if (need_do_async_reclaim(space_info, fs_info, used)) {
-		spin_unlock(&space_info->lock);
-		return 1;
-	}
-	spin_unlock(&space_info->lock);
-
-	return 0;
 }
 
+/*
+ * This is for normal flushers, we can wait all goddamned day if we want to.  We
+ * will loop and continuously try to flush as long as we are making progress.
+ * We count progress as clearing off tickets each time we have to loop.
+ */
 static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 {
+	struct reserve_ticket *last_ticket = NULL;
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_space_info *space_info;
 	u64 to_reclaim;
 	int flush_state;
+	int commit_cycles = 0;
 
 	fs_info = container_of(work, struct btrfs_fs_info, async_reclaim_work);
 	space_info = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA);
 
+	spin_lock(&space_info->lock);
 	to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info->fs_root,
 						      space_info);
-	if (!to_reclaim)
+	if (!to_reclaim) {
+		space_info->flush = 0;
+		spin_unlock(&space_info->lock);
 		return;
+	}
+	last_ticket = list_first_entry(&space_info->tickets,
+				       struct reserve_ticket, list);
+	spin_unlock(&space_info->lock);
 
 	flush_state = FLUSH_DELAYED_ITEMS_NR;
 	do {
-		flush_space(fs_info->fs_root, space_info, to_reclaim,
+		struct reserve_ticket *ticket;
+		int ret;
+
+		ret = flush_space(fs_info->fs_root, space_info, to_reclaim,
 			    to_reclaim, flush_state);
-		flush_state++;
-		if (!btrfs_need_do_async_reclaim(space_info, fs_info,
-						 flush_state))
+		spin_lock(&space_info->lock);
+		if (list_empty(&space_info->tickets)) {
+			space_info->flush = 0;
+			spin_unlock(&space_info->lock);
 			return;
-	} while (flush_state < COMMIT_TRANS);
+		}
+		to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info->fs_root,
+							      space_info);
+		ticket = list_first_entry(&space_info->tickets,
+					  struct reserve_ticket, list);
+		if (last_ticket == ticket) {
+			flush_state++;
+		} else {
+			last_ticket = ticket;
+			flush_state = FLUSH_DELAYED_ITEMS_NR;
+			if (commit_cycles)
+				commit_cycles--;
+		}
+
+		if (flush_state > COMMIT_TRANS) {
+			commit_cycles++;
+			if (commit_cycles > 2) {
+				wake_all_tickets(&space_info->tickets);
+				space_info->flush = 0;
+			} else {
+				flush_state = FLUSH_DELAYED_ITEMS_NR;
+			}
+		}
+		spin_unlock(&space_info->lock);
+	} while (flush_state <= COMMIT_TRANS);
 }
 
 void btrfs_init_async_reclaim_work(struct work_struct *work)
@@ -4979,10 +5040,84 @@ void btrfs_init_async_reclaim_work(struct work_struct *work)
 	INIT_WORK(work, btrfs_async_reclaim_metadata_space);
 }
 
+static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
+					    struct btrfs_space_info *space_info,
+					    struct reserve_ticket *ticket)
+{
+	u64 to_reclaim;
+	int flush_state = FLUSH_DELAYED_ITEMS_NR;
+
+	spin_lock(&space_info->lock);
+	to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info->fs_root,
+						      space_info);
+	if (!to_reclaim) {
+		spin_unlock(&space_info->lock);
+		return;
+	}
+	spin_unlock(&space_info->lock);
+
+	do {
+		flush_space(fs_info->fs_root, space_info, to_reclaim,
+			    to_reclaim, flush_state);
+		flush_state++;
+		spin_lock(&space_info->lock);
+		if (ticket->bytes == 0) {
+			spin_unlock(&space_info->lock);
+			return;
+		}
+		spin_unlock(&space_info->lock);
+
+		/*
+		 * Priority flushers can't wait on delalloc without
+		 * deadlocking.
+		 */
+		if (flush_state == FLUSH_DELALLOC ||
+		    flush_state == FLUSH_DELALLOC_WAIT)
+			flush_state = ALLOC_CHUNK;
+	} while (flush_state < COMMIT_TRANS);
+}
+
+static int wait_reserve_ticket(struct btrfs_fs_info *fs_info,
+			       struct btrfs_space_info *space_info,
+			       struct reserve_ticket *ticket, u64 orig_bytes)
+
+{
+	DEFINE_WAIT(wait);
+	int ret = 0;
+
+	spin_lock(&space_info->lock);
+	while (ticket->bytes > 0 && ticket->error == 0) {
+		ret = prepare_to_wait_event(&ticket->wait, &wait, TASK_KILLABLE);
+		if (ret) {
+			ret = -EINTR;
+			break;
+		}
+		spin_unlock(&space_info->lock);
+
+		schedule();
+
+		finish_wait(&ticket->wait, &wait);
+		spin_lock(&space_info->lock);
+	}
+	if (!ret)
+		ret = ticket->error;
+	if (!list_empty(&ticket->list))
+		list_del_init(&ticket->list);
+	if (ticket->bytes && ticket->bytes < orig_bytes) {
+		u64 num_bytes = orig_bytes - ticket->bytes;
+		space_info->bytes_may_use -= num_bytes;
+		trace_btrfs_space_reservation(fs_info, "space_info",
+					      space_info->flags, num_bytes, 0);
+	}
+	spin_unlock(&space_info->lock);
+
+	return ret;
+}
+
 /**
  * reserve_metadata_bytes - try to reserve bytes from the block_rsv's space
  * @root - the root we're allocating for
- * @block_rsv - the block_rsv we're allocating for
+ * @space_info - the space info we want to allocate from
  * @orig_bytes - the number of bytes we want
  * @flush - whether or not we can flush to make our reservation
  *
@@ -4993,81 +5128,34 @@ void btrfs_init_async_reclaim_work(struct work_struct *work)
  * regain reservations will be made and this will fail if there is not enough
  * space already.
  */
-static int reserve_metadata_bytes(struct btrfs_root *root,
-				  struct btrfs_block_rsv *block_rsv,
-				  u64 orig_bytes,
-				  enum btrfs_reserve_flush_enum flush)
+static int __reserve_metadata_bytes(struct btrfs_root *root,
+				    struct btrfs_space_info *space_info,
+				    u64 orig_bytes,
+				    enum btrfs_reserve_flush_enum flush)
 {
-	struct btrfs_space_info *space_info = block_rsv->space_info;
+	struct reserve_ticket ticket;
 	u64 used;
-	u64 num_bytes = orig_bytes;
-	int flush_state = FLUSH_DELAYED_ITEMS_NR;
 	int ret = 0;
-	bool flushing = false;
 
-again:
-	ret = 0;
+	ASSERT(orig_bytes);
 	spin_lock(&space_info->lock);
-	/*
-	 * We only want to wait if somebody other than us is flushing and we
-	 * are actually allowed to flush all things.
-	 */
-	while (flush == BTRFS_RESERVE_FLUSH_ALL && !flushing &&
-	       space_info->flush) {
-		spin_unlock(&space_info->lock);
-		/*
-		 * If we have a trans handle we can't wait because the flusher
-		 * may have to commit the transaction, which would mean we would
-		 * deadlock since we are waiting for the flusher to finish, but
-		 * hold the current transaction open.
-		 */
-		if (current->journal_info)
-			return -EAGAIN;
-		ret = wait_event_killable(space_info->wait, !space_info->flush);
-		/* Must have been killed, return */
-		if (ret)
-			return -EINTR;
-
-		spin_lock(&space_info->lock);
-	}
-
 	ret = -ENOSPC;
 	used = space_info->bytes_used + space_info->bytes_reserved +
 		space_info->bytes_pinned + space_info->bytes_readonly +
 		space_info->bytes_may_use;
 
 	/*
-	 * The idea here is that we've not already over-reserved the block group
-	 * then we can go ahead and save our reservation first and then start
-	 * flushing if we need to.  Otherwise if we've already overcommitted
-	 * lets start flushing stuff first and then come back and try to make
-	 * our reservation.
+	 * If we have enough space then hooray, make our reservation and carry
+	 * on.  If not see if we can overcommit, and if we can, hooray carry on.
+	 * If not things get more complicated.
 	 */
-	if (used <= space_info->total_bytes) {
-		if (used + orig_bytes <= space_info->total_bytes) {
-			space_info->bytes_may_use += orig_bytes;
-			trace_btrfs_space_reservation(root->fs_info,
-				"space_info", space_info->flags, orig_bytes, 1);
-			ret = 0;
-		} else {
-			/*
-			 * Ok set num_bytes to orig_bytes since we aren't
-			 * overocmmitted, this way we only try and reclaim what
-			 * we need.
-			 */
-			num_bytes = orig_bytes;
-		}
-	} else {
-		/*
-		 * Ok we're over committed, set num_bytes to the overcommitted
-		 * amount plus the amount of bytes that we need for this
-		 * reservation.
-		 */
-		num_bytes = used - space_info->total_bytes +
-			(orig_bytes * 2);
-	}
-
-	if (ret && can_overcommit(root, space_info, orig_bytes, flush)) {
+	if (used + orig_bytes <= space_info->total_bytes) {
+		space_info->bytes_may_use += orig_bytes;
+		trace_btrfs_space_reservation(root->fs_info, "space_info",
+					      space_info->flags, orig_bytes,
+					      1);
+		ret = 0;
+	} else if (can_overcommit(root, space_info, orig_bytes, flush)) {
 		space_info->bytes_may_use += orig_bytes;
 		trace_btrfs_space_reservation(root->fs_info, "space_info",
 					      space_info->flags, orig_bytes,
@@ -5076,16 +5164,27 @@ again:
 	}
 
 	/*
-	 * Couldn't make our reservation, save our place so while we're trying
-	 * to reclaim space we can actually use it instead of somebody else
-	 * stealing it from us.
+	 * If we couldn't make a reservation then setup our reservation ticket
+	 * and kick the async worker if it's not already running.
 	 *
-	 * We make the other tasks wait for the flush only when we can flush
-	 * all things.
+	 * If we are a priority flusher then we just need to add our ticket to
+	 * the list and we will do our own flushing further down.
 	 */
 	if (ret && flush != BTRFS_RESERVE_NO_FLUSH) {
-		flushing = true;
-		space_info->flush = 1;
+		ticket.bytes = orig_bytes;
+		ticket.error = 0;
+		init_waitqueue_head(&ticket.wait);
+		if (flush == BTRFS_RESERVE_FLUSH_ALL) {
+			list_add_tail(&ticket.list, &space_info->tickets);
+			if (!space_info->flush) {
+				space_info->flush = 1;
+				queue_work(system_unbound_wq,
+					   &root->fs_info->async_reclaim_work);
+			}
+		} else {
+			list_add_tail(&ticket.list,
+				      &space_info->priority_tickets);
+		}
 	} else if (!ret && space_info->flags & BTRFS_BLOCK_GROUP_METADATA) {
 		used += orig_bytes;
 		/*
@@ -5100,33 +5199,56 @@ again:
 				   &root->fs_info->async_reclaim_work);
 	}
 	spin_unlock(&space_info->lock);
-
 	if (!ret || flush == BTRFS_RESERVE_NO_FLUSH)
-		goto out;
+		return ret;
 
-	ret = flush_space(root, space_info, num_bytes, orig_bytes,
-			  flush_state);
-	flush_state++;
+	if (flush == BTRFS_RESERVE_FLUSH_ALL)
+		return wait_reserve_ticket(root->fs_info, space_info, &ticket,
+					   orig_bytes);
 
-	/*
-	 * If we are FLUSH_LIMIT, we can not flush delalloc, or the deadlock
-	 * would happen. So skip delalloc flush.
-	 */
-	if (flush == BTRFS_RESERVE_FLUSH_LIMIT &&
-	    (flush_state == FLUSH_DELALLOC ||
-	     flush_state == FLUSH_DELALLOC_WAIT))
-		flush_state = ALLOC_CHUNK;
+	ret = 0;
+	priority_reclaim_metadata_space(root->fs_info, space_info, &ticket);
+	spin_lock(&space_info->lock);
+	if (ticket.bytes) {
+		if (ticket.bytes < orig_bytes) {
+			u64 num_bytes = orig_bytes - ticket.bytes;
+			space_info->bytes_may_use -= num_bytes;
+			trace_btrfs_space_reservation(root->fs_info,
+					"space_info", space_info->flags,
+					num_bytes, 0);
 
-	if (!ret)
-		goto again;
-	else if (flush == BTRFS_RESERVE_FLUSH_LIMIT &&
-		 flush_state < COMMIT_TRANS)
-		goto again;
-	else if (flush == BTRFS_RESERVE_FLUSH_ALL &&
-		 flush_state <= COMMIT_TRANS)
-		goto again;
+		}
+		list_del_init(&ticket.list);
+		ret = -ENOSPC;
+	}
+	spin_unlock(&space_info->lock);
+	ASSERT(list_empty(&ticket.list));
+	return ret;
+}
 
-out:
+/**
+ * reserve_metadata_bytes - try to reserve bytes from the block_rsv's space
+ * @root - the root we're allocating for
+ * @block_rsv - the block_rsv we're allocating for
+ * @orig_bytes - the number of bytes we want
+ * @flush - whether or not we can flush to make our reservation
+ *
+ * This will reserve orgi_bytes number of bytes from the space info associated
+ * with the block_rsv.  If there is not enough space it will make an attempt to
+ * flush out space to make room.  It will do this by flushing delalloc if
+ * possible or committing the transaction.  If flush is 0 then no attempts to
+ * regain reservations will be made and this will fail if there is not enough
+ * space already.
+ */
+static int reserve_metadata_bytes(struct btrfs_root *root,
+				  struct btrfs_block_rsv *block_rsv,
+				  u64 orig_bytes,
+				  enum btrfs_reserve_flush_enum flush)
+{
+	int ret;
+
+	ret = __reserve_metadata_bytes(root, block_rsv->space_info, orig_bytes,
+				       flush);
 	if (ret == -ENOSPC &&
 	    unlikely(root->orphan_cleanup_state == ORPHAN_CLEANUP_STARTED)) {
 		struct btrfs_block_rsv *global_rsv =
@@ -5139,13 +5261,8 @@ out:
 	if (ret == -ENOSPC)
 		trace_btrfs_space_reservation(root->fs_info,
 					      "space_info:enospc",
-					      space_info->flags, orig_bytes, 1);
-	if (flushing) {
-		spin_lock(&space_info->lock);
-		space_info->flush = 0;
-		wake_up_all(&space_info->wait);
-		spin_unlock(&space_info->lock);
-	}
+					      block_rsv->space_info->flags,
+					      orig_bytes, 1);
 	return ret;
 }
 
@@ -5221,6 +5338,108 @@ int btrfs_cond_migrate_bytes(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+/*
+ * This is for space we already have accounted in space_info->bytes_may_use, so
+ * basically when we're returning space from block_rsv's.
+ */
+static void space_info_add_old_bytes(struct btrfs_fs_info *fs_info,
+				     struct btrfs_space_info *space_info,
+				     u64 num_bytes)
+{
+	struct reserve_ticket *ticket;
+	struct list_head *head;
+	u64 used;
+	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_NO_FLUSH;
+	bool check_overcommit = false;
+
+	spin_lock(&space_info->lock);
+	head = &space_info->priority_tickets;
+
+	/*
+	 * If we are over our limit then we need to check and see if we can
+	 * overcommit, and if we can't then we just need to free up our space
+	 * and not satisfy any requests.
+	 */
+	used = space_info->bytes_used + space_info->bytes_reserved +
+		space_info->bytes_pinned + space_info->bytes_readonly +
+		space_info->bytes_may_use;
+	if (used - num_bytes >= space_info->total_bytes)
+		check_overcommit = true;
+again:
+	while (!list_empty(head) && num_bytes) {
+		ticket = list_first_entry(head, struct reserve_ticket,
+					  list);
+		/*
+		 * We use 0 bytes because this space is already reserved, so
+		 * adding the ticket space would be a double count.
+		 */
+		if (check_overcommit &&
+		    !can_overcommit(fs_info->extent_root, space_info, 0,
+				    flush))
+			break;
+		if (num_bytes >= ticket->bytes) {
+			list_del_init(&ticket->list);
+			num_bytes -= ticket->bytes;
+			ticket->bytes = 0;
+			wake_up(&ticket->wait);
+		} else {
+			ticket->bytes -= num_bytes;
+			num_bytes = 0;
+		}
+	}
+
+	if (num_bytes && head == &space_info->priority_tickets) {
+		head = &space_info->tickets;
+		flush = BTRFS_RESERVE_FLUSH_ALL;
+		goto again;
+	}
+	space_info->bytes_may_use -= num_bytes;
+	trace_btrfs_space_reservation(fs_info, "space_info",
+				      space_info->flags, num_bytes, 0);
+	spin_unlock(&space_info->lock);
+}
+
+/*
+ * This is for newly allocated space that isn't accounted in
+ * space_info->bytes_may_use yet.  So if we allocate a chunk or unpin an extent
+ * we use this helper.
+ */
+static void space_info_add_new_bytes(struct btrfs_fs_info *fs_info,
+				     struct btrfs_space_info *space_info,
+				     u64 num_bytes)
+{
+	struct reserve_ticket *ticket;
+	struct list_head *head = &space_info->priority_tickets;
+
+again:
+	while (!list_empty(head) && num_bytes) {
+		ticket = list_first_entry(head, struct reserve_ticket,
+					  list);
+		if (num_bytes >= ticket->bytes) {
+			trace_btrfs_space_reservation(fs_info, "space_info",
+						      space_info->flags,
+						      ticket->bytes, 1);
+			list_del_init(&ticket->list);
+			num_bytes -= ticket->bytes;
+			space_info->bytes_may_use += ticket->bytes;
+			ticket->bytes = 0;
+			wake_up(&ticket->wait);
+		} else {
+			trace_btrfs_space_reservation(fs_info, "space_info",
+						      space_info->flags,
+						      num_bytes, 1);
+			space_info->bytes_may_use += num_bytes;
+			ticket->bytes -= num_bytes;
+			num_bytes = 0;
+		}
+	}
+
+	if (num_bytes && head == &space_info->priority_tickets) {
+		head = &space_info->tickets;
+		goto again;
+	}
+}
+
 static void block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 				    struct btrfs_block_rsv *block_rsv,
 				    struct btrfs_block_rsv *dest, u64 num_bytes)
@@ -5255,13 +5474,9 @@ static void block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 			}
 			spin_unlock(&dest->lock);
 		}
-		if (num_bytes) {
-			spin_lock(&space_info->lock);
-			space_info->bytes_may_use -= num_bytes;
-			trace_btrfs_space_reservation(fs_info, "space_info",
-					space_info->flags, num_bytes, 0);
-			spin_unlock(&space_info->lock);
-		}
+		if (num_bytes)
+			space_info_add_old_bytes(fs_info, space_info,
+						 num_bytes);
 	}
 }
 
@@ -6470,17 +6685,29 @@ static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end,
 			readonly = true;
 		}
 		spin_unlock(&cache->lock);
-		if (!readonly && global_rsv->space_info == space_info) {
+		if (!readonly && return_free_space &&
+		    global_rsv->space_info == space_info) {
+			u64 to_add = len;
+			WARN_ON(!return_free_space);
 			spin_lock(&global_rsv->lock);
 			if (!global_rsv->full) {
-				len = min(len, global_rsv->size -
-					  global_rsv->reserved);
-				global_rsv->reserved += len;
-				space_info->bytes_may_use += len;
+				to_add = min(len, global_rsv->size -
+					     global_rsv->reserved);
+				global_rsv->reserved += to_add;
+				space_info->bytes_may_use += to_add;
 				if (global_rsv->reserved >= global_rsv->size)
 					global_rsv->full = 1;
+				trace_btrfs_space_reservation(fs_info,
+							      "space_info",
+							      space_info->flags,
+							      to_add, 1);
+				len -= to_add;
 			}
 			spin_unlock(&global_rsv->lock);
+			/* Add to any tickets we may have */
+			if (len)
+				space_info_add_new_bytes(fs_info, space_info,
+							 len);
 		}
 		spin_unlock(&space_info->lock);
 	}

@@ -439,6 +439,8 @@ struct btrfs_space_info {
 	struct list_head list;
 	/* Protected by the spinlock 'lock'. */
 	struct list_head ro_bgs;
+	struct list_head priority_tickets;
+	struct list_head tickets;
 
 	struct rw_semaphore groups_sem;
 	/* for block groups in our same type */
