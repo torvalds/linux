@@ -482,7 +482,8 @@ int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
 	device = chan->device;
 
 	/* check if the channel supports slave transactions */
-	if (!test_bit(DMA_SLAVE, device->cap_mask.bits))
+	if (!(test_bit(DMA_SLAVE, device->cap_mask.bits) ||
+	      test_bit(DMA_CYCLIC, device->cap_mask.bits)))
 		return -ENXIO;
 
 	/*
@@ -865,12 +866,12 @@ static bool device_has_all_tx_types(struct dma_device *device)
 		return false;
 	#endif
 
-	#if defined(CONFIG_ASYNC_MEMCPY) || defined(CONFIG_ASYNC_MEMCPY_MODULE)
+	#if IS_ENABLED(CONFIG_ASYNC_MEMCPY)
 	if (!dma_has_cap(DMA_MEMCPY, device->cap_mask))
 		return false;
 	#endif
 
-	#if defined(CONFIG_ASYNC_XOR) || defined(CONFIG_ASYNC_XOR_MODULE)
+	#if IS_ENABLED(CONFIG_ASYNC_XOR)
 	if (!dma_has_cap(DMA_XOR, device->cap_mask))
 		return false;
 
@@ -880,7 +881,7 @@ static bool device_has_all_tx_types(struct dma_device *device)
 	#endif
 	#endif
 
-	#if defined(CONFIG_ASYNC_PQ) || defined(CONFIG_ASYNC_PQ_MODULE)
+	#if IS_ENABLED(CONFIG_ASYNC_PQ)
 	if (!dma_has_cap(DMA_PQ, device->cap_mask))
 		return false;
 
