@@ -108,8 +108,6 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
-static void intel_begin_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
-static void intel_finish_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
 	struct intel_crtc_state *crtc_state);
 static void skylake_pfit_enable(struct intel_crtc *crtc);
@@ -10981,7 +10979,7 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_request *req;
-	int i;
+	int i, ret;
 
 	if (!needs_modeset(&crtc_state->base) && crtc_state->update_pipe) {
 		work->put_power_domains =
@@ -11003,7 +11001,14 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 					    &dev_priv->rps.mmioflips));
 	}
 
-	intel_frontbuffer_flip_prepare(dev, crtc_state->fb_bits);
+	ret = drm_crtc_vblank_get(crtc);
+	I915_STATE_WARN(ret < 0, "enabling vblank failed with %i\n", ret);
+
+	if (work->num_planes &&
+	    work->old_plane_state[0]->base.plane == crtc->primary)
+		intel_fbc_enable(intel_crtc, work->new_crtc_state, work->new_plane_state[0]);
+
+	intel_frontbuffer_flip_prepare(dev, work->fb_bits);
 
 	intel_pipe_update_start(intel_crtc);
 	if (!needs_modeset(&crtc_state->base)) {
@@ -11022,205 +11027,14 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 		struct intel_plane_state *new_plane_state = work->new_plane_state[i];
 		struct intel_plane *plane = to_intel_plane(new_plane_state->base.plane);
 
-		plane->update_plane(&plane->base, crtc_state, new_plane_state);
+		if (new_plane_state->visible)
+			plane->update_plane(&plane->base, crtc_state, new_plane_state);
+		else
+			plane->disable_plane(&plane->base, crtc);
 	}
 
 	intel_pipe_update_end(intel_crtc, work);
 }
-
-static struct fence *intel_get_excl_fence(struct drm_i915_gem_object *obj)
-{
-	struct reservation_object *resv;
-
-
-	if (!obj->base.dma_buf)
-		return NULL;
-
-	resv = obj->base.dma_buf->resv;
-
-	/* For framebuffer backed by dmabuf, wait for fence */
-	while (1) {
-		struct fence *fence_excl, *ret = NULL;
-
-		rcu_read_lock();
-
-		fence_excl = rcu_dereference(resv->fence_excl);
-		if (fence_excl)
-			ret = fence_get_rcu(fence_excl);
-
-		rcu_read_unlock();
-
-		if (ret == fence_excl)
-			return ret;
-	}
-}
-
-static int intel_crtc_page_flip(struct drm_crtc *crtc,
-				struct drm_framebuffer *fb,
-				struct drm_pending_vblank_event *event,
-				uint32_t page_flip_flags)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_plane_state *old_state, *new_state = NULL;
-	struct drm_crtc_state *new_crtc_state = NULL;
-	struct drm_framebuffer *old_fb = crtc->primary->state->fb;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_plane *primary = crtc->primary;
-	struct intel_flip_work *work;
-	int ret;
-
-	old_state = crtc->primary->state;
-
-	if (!crtc->state->active)
-		return -EINVAL;
-
-	/*
-	 * drm_mode_page_flip_ioctl() should already catch this, but double
-	 * check to be safe.  In the future we may enable pageflipping from
-	 * a disabled primary plane.
-	 */
-	if (WARN_ON(intel_fb_obj(old_fb) == NULL))
-		return -EBUSY;
-
-	/* Can't change pixel format via MI display flips. */
-	if (fb->pixel_format != old_fb->pixel_format)
-		return -EINVAL;
-
-	/*
-	 * TILEOFF/LINOFF registers can't be changed via MI display flips.
-	 * Note that pitch changes could also affect these register.
-	 */
-	if (INTEL_INFO(dev)->gen > 3 &&
-	    (fb->offsets[0] != old_fb->offsets[0] ||
-	     fb->pitches[0] != old_fb->pitches[0]))
-		return -EINVAL;
-
-	work = kzalloc(sizeof(*work), GFP_KERNEL);
-	new_crtc_state = intel_crtc_duplicate_state(crtc);
-	new_state = intel_plane_duplicate_state(primary);
-
-	if (!work || !new_crtc_state || !new_state) {
-		ret = -ENOMEM;
-		goto cleanup;
-	}
-
-	drm_framebuffer_unreference(new_state->fb);
-	drm_framebuffer_reference(fb);
-	new_state->fb = fb;
-
-	work->event = event;
-	INIT_WORK(&work->unpin_work, intel_unpin_work_fn);
-	INIT_WORK(&work->mmio_work, intel_mmio_flip_work_func);
-
-	work->new_crtc_state = to_intel_crtc_state(new_crtc_state);
-	work->old_crtc_state = intel_crtc->config;
-
-	work->fb_bits = to_intel_plane(primary)->frontbuffer_bit;
-	work->new_crtc_state->fb_bits = work->fb_bits;
-
-	work->can_async_unpin = true;
-	work->num_planes = 1;
-	work->old_plane_state[0] = to_intel_plane_state(old_state);
-	work->new_plane_state[0] = to_intel_plane_state(new_state);
-
-	/* Step 1: vblank waiting and workqueue throttling,
-	 * similar to intel_atomic_prepare_commit
-	 */
-	ret = drm_crtc_vblank_get(crtc);
-	if (ret)
-		goto cleanup;
-
-	/* We borrow the event spin lock for protecting flip_work */
-	spin_lock_irq(&dev->event_lock);
-	if (!list_empty(&intel_crtc->flip_work)) {
-		struct intel_flip_work *old_work;
-
-		old_work = list_last_entry(&intel_crtc->flip_work,
-					   struct intel_flip_work, head);
-
-		/* Before declaring the flip queue wedged, check if
-		 * the hardware completed the operation behind our backs.
-		 */
-		if (pageflip_finished(intel_crtc, old_work)) {
-			DRM_DEBUG_DRIVER("flip queue: previous flip completed, continuing\n");
-			page_flip_completed(intel_crtc, old_work);
-		} else {
-			DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
-			spin_unlock_irq(&dev->event_lock);
-
-			ret = -EBUSY;
-			goto cleanup_vblank;
-		}
-	}
-	list_add_tail(&work->head, &intel_crtc->flip_work);
-	spin_unlock_irq(&dev->event_lock);
-
-	if (atomic_read(&intel_crtc->unpin_work_count) >= 2)
-		flush_workqueue(dev_priv->wq);
-
-	/* step 2, similar to intel_prepare_plane_fb */
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		goto cleanup_work;
-
-	ret = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
-	if (ret)
-		goto cleanup_unlock;
-
-	i915_gem_track_fb(intel_fb_obj(old_fb), obj,
-			  to_intel_plane(primary)->frontbuffer_bit);
-
-	/* point of no return, swap state */
-	primary->state = new_state;
-	crtc->state = new_crtc_state;
-	intel_crtc->config = to_intel_crtc_state(new_crtc_state);
-	primary->fb = fb;
-
-	/* scheduling flip work */
-	atomic_inc(&intel_crtc->unpin_work_count);
-
-	if (obj->last_write_req &&
-	    !i915_gem_request_completed(obj->last_write_req, true))
-		i915_gem_request_assign(&work->old_plane_state[0]->wait_req,
-					obj->last_write_req);
-
-	if (obj->base.dma_buf)
-		work->old_plane_state[0]->base.fence = intel_get_excl_fence(obj);
-
-	intel_fbc_pre_update(intel_crtc,
-			     to_intel_crtc_state(new_crtc_state),
-			     to_intel_plane_state(new_state));
-
-	schedule_work(&work->mmio_work);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	trace_i915_flip_request(intel_crtc->plane, obj);
-
-	return 0;
-
-cleanup_unlock:
-	mutex_unlock(&dev->struct_mutex);
-cleanup_work:
-	spin_lock_irq(&dev->event_lock);
-	list_del(&work->head);
-	spin_unlock_irq(&dev->event_lock);
-
-cleanup_vblank:
-	drm_crtc_vblank_put(crtc);
-cleanup:
-	if (new_state)
-		intel_plane_destroy_state(primary, new_state);
-
-	if (new_crtc_state)
-		intel_crtc_destroy_state(crtc, new_crtc_state);
-
-	intel_free_flip_work(work);
-	return ret;
-}
-
 
 /**
  * intel_wm_need_update - Check whether watermarks need updating
@@ -11498,8 +11312,6 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
-	.atomic_begin = intel_begin_crtc_commit,
-	.atomic_flush = intel_finish_crtc_commit,
 	.atomic_check = intel_crtc_atomic_check,
 };
 
@@ -12919,11 +12731,6 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i, ret;
 
-	if (nonblock) {
-		DRM_DEBUG_KMS("i915 does not yet support nonblocking commit\n");
-		return -EINVAL;
-	}
-
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 		struct intel_flip_work *work;
@@ -12963,6 +12770,11 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 			if (!work->old_connector_state || !work->new_connector_state)
 				return -ENOMEM;
 		}
+	}
+
+	if (intel_state->modeset && nonblock) {
+		DRM_DEBUG_ATOMIC("Nonblock modesets are not yet supported!\n");
+		return -EINVAL;
 	}
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -13118,13 +12930,41 @@ static void intel_schedule_unpin(struct drm_crtc *crtc,
 	queue_work(dev_priv->wq, &work->unpin_work);
 }
 
+static void intel_schedule_flip(struct drm_crtc *crtc,
+				struct intel_atomic_state *state,
+				struct intel_flip_work *work,
+				bool nonblock)
+{
+	struct intel_crtc_state *crtc_state = work->new_crtc_state;
+
+	if (crtc_state->base.planes_changed ||
+	    needs_modeset(&crtc_state->base) ||
+	    crtc_state->update_pipe) {
+		if (nonblock)
+			schedule_work(&work->mmio_work);
+		else
+			intel_mmio_flip_work_func(&work->mmio_work);
+	} else {
+		int ret;
+
+		ret = drm_crtc_vblank_get(crtc);
+		I915_STATE_WARN(ret < 0, "enabling vblank failed with %i\n", ret);
+
+		work->flip_queued_vblank = intel_crtc_get_vblank_counter(to_intel_crtc(crtc));
+		smp_mb__before_atomic();
+		atomic_set(&work->pending, 1);
+	}
+}
+
 static void intel_schedule_update(struct drm_crtc *crtc,
 				  struct intel_atomic_state *state,
-				  struct intel_flip_work *work)
+				  struct intel_flip_work *work,
+				  bool nonblock)
 {
 	struct drm_device *dev = crtc->dev;
+	struct intel_crtc_state *pipe_config = work->new_crtc_state;
 
-	if (work->can_async_unpin) {
+	if (!pipe_config->base.active && work->can_async_unpin) {
 		INIT_LIST_HEAD(&work->head);
 		intel_schedule_unpin(crtc, state, work);
 		return;
@@ -13134,7 +12974,10 @@ static void intel_schedule_update(struct drm_crtc *crtc,
 	list_add_tail(&work->head, &to_intel_crtc(crtc)->flip_work);
 	spin_unlock_irq(&dev->event_lock);
 
-	intel_schedule_unpin(crtc, state, work);
+	if (!pipe_config->base.active)
+		intel_schedule_unpin(crtc, state, work);
+	else
+		intel_schedule_flip(crtc, state, work, nonblock);
 }
 
 /**
@@ -13228,11 +13071,9 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+		struct intel_flip_work *work = intel_state->work[i];
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 		bool modeset = needs_modeset(crtc->state);
-		struct intel_crtc_state *pipe_config =
-			to_intel_crtc_state(crtc->state);
-		bool update_pipe = !modeset && pipe_config->update_pipe;
 
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
@@ -13241,22 +13082,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 		if (!modeset)
 			intel_pre_plane_update(to_intel_crtc_state(old_crtc_state));
-
-		if (crtc->state->active &&
-		    drm_atomic_get_existing_plane_state(state, crtc->primary))
-			intel_fbc_enable(intel_crtc, pipe_config, to_intel_plane_state(crtc->primary->state));
-
-		if (crtc->state->active &&
-		    (crtc->state->planes_changed || update_pipe))
-			drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
-	}
-
-	/* FIXME: add subpixel order */
-
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		struct intel_flip_work *work =
-			intel_state->work[i];
 
 		if (!work) {
 			if (!list_empty_careful(&intel_crtc->flip_work)) {
@@ -13277,8 +13102,10 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 		intel_state->work[i] = NULL;
 		intel_prepare_work(crtc, work, state, old_crtc_state);
-		intel_schedule_update(crtc, intel_state, work);
+		intel_schedule_update(crtc, intel_state, work, nonblock);
 	}
+
+	/* FIXME: add subpixel order */
 
 	drm_atomic_state_free(state);
 
@@ -13343,10 +13170,37 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = intel_crtc_destroy,
-	.page_flip = intel_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = intel_crtc_duplicate_state,
 	.atomic_destroy_state = intel_crtc_destroy_state,
 };
+
+static struct fence *intel_get_excl_fence(struct drm_i915_gem_object *obj)
+{
+	struct reservation_object *resv;
+
+
+	if (!obj->base.dma_buf)
+		return NULL;
+
+	resv = obj->base.dma_buf->resv;
+
+	/* For framebuffer backed by dmabuf, wait for fence */
+	while (1) {
+		struct fence *fence_excl, *ret = NULL;
+
+		rcu_read_lock();
+
+		fence_excl = rcu_dereference(resv->fence_excl);
+		if (fence_excl)
+			ret = fence_get_rcu(fence_excl);
+
+		rcu_read_unlock();
+
+		if (ret == fence_excl)
+			return ret;
+	}
+}
 
 /**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
@@ -13532,42 +13386,6 @@ intel_check_primary_plane(struct drm_plane *plane,
 					     min_scale, max_scale,
 					     can_position, true,
 					     &state->visible);
-}
-
-static void intel_begin_crtc_commit(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *old_intel_state =
-		to_intel_crtc_state(old_crtc_state);
-	bool modeset = needs_modeset(crtc->state);
-
-	intel_frontbuffer_flip_prepare(dev, to_intel_crtc_state(crtc->state)->fb_bits);
-
-	/* Perform vblank evasion around commit operation */
-	intel_pipe_update_start(intel_crtc);
-
-	if (modeset)
-		return;
-
-	if (crtc->state->color_mgmt_changed || to_intel_crtc_state(crtc->state)->update_pipe) {
-		intel_color_set_csc(crtc->state);
-		intel_color_load_luts(crtc->state);
-	}
-
-	if (to_intel_crtc_state(crtc->state)->update_pipe)
-		intel_update_pipe_config(intel_crtc, old_intel_state);
-	else if (INTEL_INFO(dev)->gen >= 9)
-		skl_detach_scalers(intel_crtc);
-}
-
-static void intel_finish_crtc_commit(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_crtc_state)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	intel_pipe_update_end(intel_crtc, NULL);
 }
 
 /**
