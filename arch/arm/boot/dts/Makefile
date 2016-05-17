@@ -383,6 +383,7 @@ dtb-$(CONFIG_SOC_IMX6ULL) += \
 	imx6ull-14x14-ddr3-arm2-flexcan2.dtb \
 	imx6ull-14x14-ddr3-arm2-gpmi-weim.dtb \
 	imx6ull-14x14-ddr3-arm2-lcdif.dtb \
+	imx6ull-14x14-ddr3-arm2-ldo.dtb \
 	imx6ull-14x14-ddr3-arm2-qspi.dtb \
 	imx6ull-14x14-ddr3-arm2-uart2.dtb \
 	imx6ull-14x14-ddr3-arm2-usb.dtb \
