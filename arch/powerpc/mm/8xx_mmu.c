@@ -58,9 +58,7 @@ void __init MMU_init_hw(void)
 	/* Nothing to do for the time being but keep it similar to other PPC */
 }
 
-#define LARGE_PAGE_SIZE_4M	(1<<22)
 #define LARGE_PAGE_SIZE_8M	(1<<23)
-#define LARGE_PAGE_SIZE_64M	(1<<26)
 
 static void mmu_mapin_immr(void)
 {
@@ -77,52 +75,33 @@ static void mmu_mapin_immr(void)
 #ifndef CONFIG_PIN_TLB
 extern unsigned int DTLBMiss_jmp;
 #endif
+extern unsigned int DTLBMiss_cmp, FixupDAR_cmp;
+
+void mmu_patch_cmp_limit(unsigned int *addr, unsigned long mapped)
+{
+	unsigned int instr = *addr;
+
+	instr &= 0xffff0000;
+	instr |= (unsigned long)__va(mapped) >> 16;
+	patch_instruction(addr, instr);
+}
 
 unsigned long __init mmu_mapin_ram(unsigned long top)
 {
-	unsigned long v, s, mapped;
-	phys_addr_t p;
-
-	v = KERNELBASE;
-	p = 0;
-	s = top;
+	unsigned long mapped;
 
 	if (__map_without_ltlbs) {
+		mapped = 0;
 		mmu_mapin_immr();
 #ifndef CONFIG_PIN_TLB
 		patch_instruction(&DTLBMiss_jmp, PPC_INST_NOP);
 #endif
-		return 0;
+	} else {
+		mapped = top & ~(LARGE_PAGE_SIZE_8M - 1);
 	}
 
-#ifdef CONFIG_PPC_4K_PAGES
-	while (s >= LARGE_PAGE_SIZE_8M) {
-		pmd_t *pmdp;
-		unsigned long val = p | MD_PS8MEG;
-
-		pmdp = pmd_offset(pud_offset(pgd_offset_k(v), v), v);
-		*pmdp++ = __pmd(val);
-		*pmdp++ = __pmd(val + LARGE_PAGE_SIZE_4M);
-
-		v += LARGE_PAGE_SIZE_8M;
-		p += LARGE_PAGE_SIZE_8M;
-		s -= LARGE_PAGE_SIZE_8M;
-	}
-#else /* CONFIG_PPC_16K_PAGES */
-	while (s >= LARGE_PAGE_SIZE_64M) {
-		pmd_t *pmdp;
-		unsigned long val = p | MD_PS8MEG;
-
-		pmdp = pmd_offset(pud_offset(pgd_offset_k(v), v), v);
-		*pmdp++ = __pmd(val);
-
-		v += LARGE_PAGE_SIZE_64M;
-		p += LARGE_PAGE_SIZE_64M;
-		s -= LARGE_PAGE_SIZE_64M;
-	}
-#endif
-
-	mapped = top - s;
+	mmu_patch_cmp_limit(&DTLBMiss_cmp, mapped);
+	mmu_patch_cmp_limit(&FixupDAR_cmp, mapped);
 
 	/* If the size of RAM is not an exact power of two, we may not
 	 * have covered RAM in its entirety with 8 MiB
@@ -131,7 +110,8 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	 * coverage with normal-sized pages (or other reasons) do not
 	 * attempt to allocate outside the allowed range.
 	 */
-	memblock_set_current_limit(mapped);
+	if (mapped)
+		memblock_set_current_limit(mapped);
 
 	return mapped;
 }
