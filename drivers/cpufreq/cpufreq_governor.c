@@ -193,12 +193,8 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 		wall_time = cur_wall_time - j_cdbs->prev_cpu_wall;
 		j_cdbs->prev_cpu_wall = cur_wall_time;
 
-		if (cur_idle_time <= j_cdbs->prev_cpu_idle) {
-			idle_time = 0;
-		} else {
-			idle_time = cur_idle_time - j_cdbs->prev_cpu_idle;
-			j_cdbs->prev_cpu_idle = cur_idle_time;
-		}
+		idle_time = cur_idle_time - j_cdbs->prev_cpu_idle;
+		j_cdbs->prev_cpu_idle = cur_idle_time;
 
 		if (ignore_nice) {
 			u64 cur_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];

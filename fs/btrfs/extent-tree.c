@@ -3824,6 +3824,59 @@ int btrfs_extent_readonly(struct btrfs_root *root, u64 bytenr)
 	return readonly;
 }
 
+bool btrfs_inc_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr)
+{
+	struct btrfs_block_group_cache *bg;
+	bool ret = true;
+
+	bg = btrfs_lookup_block_group(fs_info, bytenr);
+	if (!bg)
+		return false;
+
+	spin_lock(&bg->lock);
+	if (bg->ro)
+		ret = false;
+	else
+		atomic_inc(&bg->nocow_writers);
+	spin_unlock(&bg->lock);
+
+	/* no put on block group, done by btrfs_dec_nocow_writers */
+	if (!ret)
+		btrfs_put_block_group(bg);
+
+	return ret;
+
+}
+
+void btrfs_dec_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr)
+{
+	struct btrfs_block_group_cache *bg;
+
+	bg = btrfs_lookup_block_group(fs_info, bytenr);
+	ASSERT(bg);
+	if (atomic_dec_and_test(&bg->nocow_writers))
+		wake_up_atomic_t(&bg->nocow_writers);
+	/*
+	 * Once for our lookup and once for the lookup done by a previous call
+	 * to btrfs_inc_nocow_writers()
+	 */
+	btrfs_put_block_group(bg);
+	btrfs_put_block_group(bg);
+}
+
+static int btrfs_wait_nocow_writers_atomic_t(atomic_t *a)
+{
+	schedule();
+	return 0;
+}
+
+void btrfs_wait_nocow_writers(struct btrfs_block_group_cache *bg)
+{
+	wait_on_atomic_t(&bg->nocow_writers,
+			 btrfs_wait_nocow_writers_atomic_t,
+			 TASK_UNINTERRUPTIBLE);
+}
+
 static const char *alloc_name(u64 flags)
 {
 	switch (flags) {
@@ -4141,7 +4194,7 @@ commit_trans:
 
 			if (need_commit > 0) {
 				btrfs_start_delalloc_roots(fs_info, 0, -1);
-				btrfs_wait_ordered_roots(fs_info, -1);
+				btrfs_wait_ordered_roots(fs_info, -1, 0, (u64)-1);
 			}
 
 			trans = btrfs_join_transaction(root);
@@ -4583,7 +4636,8 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_root *root,
 		 */
 		btrfs_start_delalloc_roots(root->fs_info, 0, nr_items);
 		if (!current->journal_info)
-			btrfs_wait_ordered_roots(root->fs_info, nr_items);
+			btrfs_wait_ordered_roots(root->fs_info, nr_items,
+						 0, (u64)-1);
 	}
 }
 
@@ -4632,7 +4686,8 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 		if (trans)
 			return;
 		if (wait_ordered)
-			btrfs_wait_ordered_roots(root->fs_info, items);
+			btrfs_wait_ordered_roots(root->fs_info, items,
+						 0, (u64)-1);
 		return;
 	}
 
@@ -4671,7 +4726,8 @@ skip_async:
 
 		loops++;
 		if (wait_ordered && !trans) {
-			btrfs_wait_ordered_roots(root->fs_info, items);
+			btrfs_wait_ordered_roots(root->fs_info, items,
+						 0, (u64)-1);
 		} else {
 			time_left = schedule_timeout_killable(1);
 			if (time_left)
@@ -6172,6 +6228,57 @@ int btrfs_exclude_logged_extents(struct btrfs_root *log,
 	return 0;
 }
 
+static void
+btrfs_inc_block_group_reservations(struct btrfs_block_group_cache *bg)
+{
+	atomic_inc(&bg->reservations);
+}
+
+void btrfs_dec_block_group_reservations(struct btrfs_fs_info *fs_info,
+					const u64 start)
+{
+	struct btrfs_block_group_cache *bg;
+
+	bg = btrfs_lookup_block_group(fs_info, start);
+	ASSERT(bg);
+	if (atomic_dec_and_test(&bg->reservations))
+		wake_up_atomic_t(&bg->reservations);
+	btrfs_put_block_group(bg);
+}
+
+static int btrfs_wait_bg_reservations_atomic_t(atomic_t *a)
+{
+	schedule();
+	return 0;
+}
+
+void btrfs_wait_block_group_reservations(struct btrfs_block_group_cache *bg)
+{
+	struct btrfs_space_info *space_info = bg->space_info;
+
+	ASSERT(bg->ro);
+
+	if (!(bg->flags & BTRFS_BLOCK_GROUP_DATA))
+		return;
+
+	/*
+	 * Our block group is read only but before we set it to read only,
+	 * some task might have had allocated an extent from it already, but it
+	 * has not yet created a respective ordered extent (and added it to a
+	 * root's list of ordered extents).
+	 * Therefore wait for any task currently allocating extents, since the
+	 * block group's reservations counter is incremented while a read lock
+	 * on the groups' semaphore is held and decremented after releasing
+	 * the read access on that semaphore and creating the ordered extent.
+	 */
+	down_write(&space_info->groups_sem);
+	up_write(&space_info->groups_sem);
+
+	wait_on_atomic_t(&bg->reservations,
+			 btrfs_wait_bg_reservations_atomic_t,
+			 TASK_UNINTERRUPTIBLE);
+}
+
 /**
  * btrfs_update_reserved_bytes - update the block_group and space info counters
  * @cache:	The cache we are manipulating
@@ -7430,6 +7537,7 @@ checks:
 			btrfs_add_free_space(block_group, offset, num_bytes);
 			goto loop;
 		}
+		btrfs_inc_block_group_reservations(block_group);
 
 		/* we are all good, lets return */
 		ins->objectid = search_start;
@@ -7611,8 +7719,10 @@ again:
 	WARN_ON(num_bytes < root->sectorsize);
 	ret = find_free_extent(root, num_bytes, empty_size, hint_byte, ins,
 			       flags, delalloc);
-
-	if (ret == -ENOSPC) {
+	if (!ret && !is_data) {
+		btrfs_dec_block_group_reservations(root->fs_info,
+						   ins->objectid);
+	} else if (ret == -ENOSPC) {
 		if (!final_tried && ins->offset) {
 			num_bytes = min(num_bytes >> 1, ins->offset);
 			num_bytes = round_down(num_bytes, root->sectorsize);

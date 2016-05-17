@@ -20,6 +20,7 @@
 #include <sound/core.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_i915.h>
+#include <sound/hda_register.h>
 
 static struct i915_audio_component *hdac_acomp;
 
@@ -97,26 +98,65 @@ int snd_hdac_display_power(struct hdac_bus *bus, bool enable)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_display_power);
 
+#define CONTROLLER_IN_GPU(pci) (((pci)->device == 0x0a0c) || \
+				((pci)->device == 0x0c0c) || \
+				((pci)->device == 0x0d0c) || \
+				((pci)->device == 0x160c))
+
 /**
- * snd_hdac_get_display_clk - Get CDCLK in kHz
+ * snd_hdac_i915_set_bclk - Reprogram BCLK for HSW/BDW
  * @bus: HDA core bus
  *
- * This function is supposed to be used only by a HD-audio controller
- * driver that needs the interaction with i915 graphics.
+ * Intel HSW/BDW display HDA controller is in GPU. Both its power and link BCLK
+ * depends on GPU. Two Extended Mode registers EM4 (M value) and EM5 (N Value)
+ * are used to convert CDClk (Core Display Clock) to 24MHz BCLK:
+ * BCLK = CDCLK * M / N
+ * The values will be lost when the display power well is disabled and need to
+ * be restored to avoid abnormal playback speed.
  *
- * This function queries CDCLK value in kHz from the graphics driver and
- * returns the value.  A negative code is returned in error.
+ * Call this function at initializing and changing power well, as well as
+ * at ELD notifier for the hotplug.
  */
-int snd_hdac_get_display_clk(struct hdac_bus *bus)
+void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 {
 	struct i915_audio_component *acomp = bus->audio_component;
+	struct pci_dev *pci = to_pci_dev(bus->dev);
+	int cdclk_freq;
+	unsigned int bclk_m, bclk_n;
 
-	if (!acomp || !acomp->ops)
-		return -ENODEV;
+	if (!acomp || !acomp->ops || !acomp->ops->get_cdclk_freq)
+		return; /* only for i915 binding */
+	if (!CONTROLLER_IN_GPU(pci))
+		return; /* only HSW/BDW */
 
-	return acomp->ops->get_cdclk_freq(acomp->dev);
+	cdclk_freq = acomp->ops->get_cdclk_freq(acomp->dev);
+	switch (cdclk_freq) {
+	case 337500:
+		bclk_m = 16;
+		bclk_n = 225;
+		break;
+
+	case 450000:
+	default: /* default CDCLK 450MHz */
+		bclk_m = 4;
+		bclk_n = 75;
+		break;
+
+	case 540000:
+		bclk_m = 4;
+		bclk_n = 90;
+		break;
+
+	case 675000:
+		bclk_m = 8;
+		bclk_n = 225;
+		break;
+	}
+
+	snd_hdac_chip_writew(bus, HSW_EM4, bclk_m);
+	snd_hdac_chip_writew(bus, HSW_EM5, bclk_n);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_get_display_clk);
+EXPORT_SYMBOL_GPL(snd_hdac_i915_set_bclk);
 
 /* There is a fixed mapping between audio pin node and display port
  * on current Intel platforms:

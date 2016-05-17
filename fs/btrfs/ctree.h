@@ -618,6 +618,27 @@ struct btrfs_block_group_cache {
 
 	struct btrfs_io_ctl io_ctl;
 
+	/*
+	 * Incremented when doing extent allocations and holding a read lock
+	 * on the space_info's groups_sem semaphore.
+	 * Decremented when an ordered extent that represents an IO against this
+	 * block group's range is created (after it's added to its inode's
+	 * root's list of ordered extents) or immediately after the allocation
+	 * if it's a metadata extent or fallocate extent (for these cases we
+	 * don't create ordered extents).
+	 */
+	atomic_t reservations;
+
+	/*
+	 * Incremented while holding the spinlock *lock* by a task checking if
+	 * it can perform a nocow write (incremented if the value for the *ro*
+	 * field is 0). Decremented by such tasks once they create an ordered
+	 * extent or before that if some error happens before reaching that step.
+	 * This is to prevent races between block group relocation and nocow
+	 * writes through direct IO.
+	 */
+	atomic_t nocow_writers;
+
 	/* Lock for free space tree operations. */
 	struct mutex free_space_lock;
 
@@ -2487,6 +2508,12 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root);
 int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root);
+void btrfs_dec_block_group_reservations(struct btrfs_fs_info *fs_info,
+					 const u64 start);
+void btrfs_wait_block_group_reservations(struct btrfs_block_group_cache *bg);
+bool btrfs_inc_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
+void btrfs_dec_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
+void btrfs_wait_nocow_writers(struct btrfs_block_group_cache *bg);
 void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);

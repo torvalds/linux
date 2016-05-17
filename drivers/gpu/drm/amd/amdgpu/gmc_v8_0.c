@@ -870,7 +870,10 @@ static int gmc_v8_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
+	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
+		return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
+	else
+		return 0;
 }
 
 #define mmMC_SEQ_MISC0_FIJI 0xA71

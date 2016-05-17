@@ -196,44 +196,6 @@ static int gpio_rcar_irq_set_wake(struct irq_data *d, unsigned int on)
 	return 0;
 }
 
-static void gpio_rcar_irq_bus_lock(struct irq_data *d)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct gpio_rcar_priv *p = gpiochip_get_data(gc);
-
-	pm_runtime_get_sync(&p->pdev->dev);
-}
-
-static void gpio_rcar_irq_bus_sync_unlock(struct irq_data *d)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct gpio_rcar_priv *p = gpiochip_get_data(gc);
-
-	pm_runtime_put(&p->pdev->dev);
-}
-
-
-static int gpio_rcar_irq_request_resources(struct irq_data *d)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct gpio_rcar_priv *p = gpiochip_get_data(gc);
-	int error;
-
-	error = pm_runtime_get_sync(&p->pdev->dev);
-	if (error < 0)
-		return error;
-
-	return 0;
-}
-
-static void gpio_rcar_irq_release_resources(struct irq_data *d)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct gpio_rcar_priv *p = gpiochip_get_data(gc);
-
-	pm_runtime_put(&p->pdev->dev);
-}
-
 static irqreturn_t gpio_rcar_irq_handler(int irq, void *dev_id)
 {
 	struct gpio_rcar_priv *p = dev_id;
@@ -280,32 +242,18 @@ static void gpio_rcar_config_general_input_output_mode(struct gpio_chip *chip,
 
 static int gpio_rcar_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
-	int error;
-
-	error = pm_runtime_get_sync(&p->pdev->dev);
-	if (error < 0)
-		return error;
-
-	error = pinctrl_request_gpio(chip->base + offset);
-	if (error)
-		pm_runtime_put(&p->pdev->dev);
-
-	return error;
+	return pinctrl_request_gpio(chip->base + offset);
 }
 
 static void gpio_rcar_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
-
 	pinctrl_free_gpio(chip->base + offset);
 
-	/* Set the GPIO as an input to ensure that the next GPIO request won't
+	/*
+	 * Set the GPIO as an input to ensure that the next GPIO request won't
 	 * drive the GPIO pin as an output.
 	 */
 	gpio_rcar_config_general_input_output_mode(chip, offset, false);
-
-	pm_runtime_put(&p->pdev->dev);
 }
 
 static int gpio_rcar_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -452,6 +400,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -488,10 +437,6 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	irq_chip->irq_unmask = gpio_rcar_irq_enable;
 	irq_chip->irq_set_type = gpio_rcar_irq_set_type;
 	irq_chip->irq_set_wake = gpio_rcar_irq_set_wake;
-	irq_chip->irq_bus_lock = gpio_rcar_irq_bus_lock;
-	irq_chip->irq_bus_sync_unlock = gpio_rcar_irq_bus_sync_unlock;
-	irq_chip->irq_request_resources = gpio_rcar_irq_request_resources;
-	irq_chip->irq_release_resources = gpio_rcar_irq_release_resources;
 	irq_chip->flags	= IRQCHIP_SET_TYPE_MASKED | IRQCHIP_MASK_ON_SUSPEND;
 
 	ret = gpiochip_add_data(gpio_chip, p);
@@ -522,6 +467,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 err1:
 	gpiochip_remove(gpio_chip);
 err0:
+	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 	return ret;
 }
@@ -532,6 +478,7 @@ static int gpio_rcar_remove(struct platform_device *pdev)
 
 	gpiochip_remove(&p->gpio_chip);
 
+	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }

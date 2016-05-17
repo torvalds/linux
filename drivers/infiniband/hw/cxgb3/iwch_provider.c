@@ -1390,6 +1390,8 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.iwcm->add_ref = iwch_qp_add_ref;
 	dev->ibdev.iwcm->rem_ref = iwch_qp_rem_ref;
 	dev->ibdev.iwcm->get_qp = iwch_get_qp;
+	memcpy(dev->ibdev.iwcm->ifname, dev->rdev.t3cdev_p->lldev->name,
+	       sizeof(dev->ibdev.iwcm->ifname));
 
 	ret = ib_register_device(&dev->ibdev, NULL);
 	if (ret)

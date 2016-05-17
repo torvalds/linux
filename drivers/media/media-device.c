@@ -846,11 +846,11 @@ struct media_device *media_device_find_devres(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(media_device_find_devres);
 
+#if IS_ENABLED(CONFIG_PCI)
 void media_device_pci_init(struct media_device *mdev,
 			   struct pci_dev *pci_dev,
 			   const char *name)
 {
-#ifdef CONFIG_PCI
 	mdev->dev = &pci_dev->dev;
 
 	if (name)
@@ -866,16 +866,16 @@ void media_device_pci_init(struct media_device *mdev,
 	mdev->driver_version = LINUX_VERSION_CODE;
 
 	media_device_init(mdev);
-#endif
 }
 EXPORT_SYMBOL_GPL(media_device_pci_init);
+#endif
 
+#if IS_ENABLED(CONFIG_USB)
 void __media_device_usb_init(struct media_device *mdev,
 			     struct usb_device *udev,
 			     const char *board_name,
 			     const char *driver_name)
 {
-#ifdef CONFIG_USB
 	mdev->dev = &udev->dev;
 
 	if (driver_name)
@@ -895,9 +895,9 @@ void __media_device_usb_init(struct media_device *mdev,
 	mdev->driver_version = LINUX_VERSION_CODE;
 
 	media_device_init(mdev);
-#endif
 }
 EXPORT_SYMBOL_GPL(__media_device_usb_init);
+#endif
 
 
 #endif /* CONFIG_MEDIA_CONTROLLER */

@@ -872,9 +872,9 @@ F:	drivers/perf/arm_pmu.c
 F:	include/linux/perf/arm_pmu.h
 
 ARM PORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/
 
@@ -886,35 +886,35 @@ F:	arch/arm/plat-*/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arm/arm-soc.git
 
 ARM PRIMECELL AACI PL041 DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	sound/arm/aaci.*
 
 ARM PRIMECELL CLCD PL110 DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/video/fbdev/amba-clcd.*
 
 ARM PRIMECELL KMI PL050 DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/input/serio/ambakmi.*
 F:	include/linux/amba/kmi.h
 
 ARM PRIMECELL MMCI PL180/1 DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/mmc/host/mmci.*
 F:	include/linux/amba/mmci.h
 
 ARM PRIMECELL UART PL010 AND PL011 DRIVERS
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/tty/serial/amba-pl01*.c
 F:	include/linux/amba/serial.h
 
 ARM PRIMECELL BUS SUPPORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
 F:	drivers/amba/
 F:	include/linux/amba/bus.h
@@ -1036,7 +1036,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
 ARM/CLKDEV SUPPORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/include/asm/clkdev.h
@@ -1093,9 +1093,9 @@ F:	arch/arm/boot/dts/cx92755*
 N:	digicolor
 
 ARM/EBSA110 MACHINE SUPPORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/mach-ebsa110/
 F:	drivers/net/ethernet/amd/am79c961a.*
@@ -1124,9 +1124,9 @@ T:	git git://git.berlios.de/gemini-board
 F:	arch/arm/mm/*-fa*
 
 ARM/FOOTBRIDGE ARCHITECTURE
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/include/asm/hardware/dec21285.h
 F:	arch/arm/mach-footbridge/
@@ -1457,7 +1457,7 @@ S:	Maintained
 ARM/PT DIGITAL BOARD PORT
 M:	Stefan Eletzhofer <stefan.eletzhofer@eletztrick.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 
 ARM/QUALCOMM SUPPORT
@@ -1493,9 +1493,9 @@ S:	Supported
 F:	arch/arm64/boot/dts/renesas/
 
 ARM/RISCPC ARCHITECTURE
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/include/asm/hardware/entry-macro-iomd.S
 F:	arch/arm/include/asm/hardware/ioc.h
@@ -1773,9 +1773,9 @@ F:	drivers/clk/versatile/clk-vexpress-osc.c
 F:	drivers/clocksource/versatile.c
 
 ARM/VFP SUPPORT
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	arch/arm/vfp/
 
@@ -2921,7 +2921,7 @@ F:	mm/cleancache.c
 F:	include/linux/cleancache.h
 
 CLK API
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-clk@vger.kernel.org
 S:	Maintained
 F:	include/linux/clk.h
@@ -3354,9 +3354,9 @@ S:	Supported
 F:	drivers/net/ethernet/stmicro/stmmac/
 
 CYBERPRO FB DRIVER
-M:	Russell King <linux@arm.linux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-W:	http://www.arm.linux.org.uk/
+W:	http://www.armlinux.org.uk/
 S:	Maintained
 F:	drivers/video/fbdev/cyber2000fb.*
 
@@ -3881,7 +3881,7 @@ F:	Documentation/devicetree/bindings/display/st,stih4xx.txt
 
 DRM DRIVERS FOR VIVANTE GPU IP
 M:	Lucas Stach <l.stach@pengutronix.de>
-R:	Russell King <linux+etnaviv@arm.linux.org.uk>
+R:	Russell King <linux+etnaviv@armlinux.org.uk>
 R:	Christian Gmeiner <christian.gmeiner@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
@@ -4223,8 +4223,8 @@ F:	Documentation/efi-stub.txt
 F:	arch/ia64/kernel/efi.c
 F:	arch/x86/boot/compressed/eboot.[ch]
 F:	arch/x86/include/asm/efi.h
-F:	arch/x86/platform/efi/*
-F:	drivers/firmware/efi/*
+F:	arch/x86/platform/efi/
+F:	drivers/firmware/efi/
 F:	include/linux/efi*.h
 
 EFI VARIABLE FILESYSTEM
@@ -4744,7 +4744,7 @@ F:	drivers/platform/x86/fujitsu-tablet.c
 
 FUSE: FILESYSTEM IN USERSPACE
 M:	Miklos Szeredi <miklos@szeredi.hu>
-L:	fuse-devel@lists.sourceforge.net
+L:	linux-fsdevel@vger.kernel.org
 W:	http://fuse.sourceforge.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/fuse.git
 S:	Maintained
@@ -4903,7 +4903,7 @@ F:	net/ipv4/gre_offload.c
 F:	include/net/gre.h
 
 GRETH 10/100/1G Ethernet MAC device driver
-M:	Kristoffer Glembo <kristoffer@gaisler.com>
+M:	Andreas Larsson <andreas@gaisler.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/aeroflex/
@@ -6027,7 +6027,7 @@ F:	include/scsi/*iscsi*
 
 ISCSI EXTENSIONS FOR RDMA (ISER) INITIATOR
 M:	Or Gerlitz <ogerlitz@mellanox.com>
-M:	Sagi Grimberg <sagig@mellanox.com>
+M:	Sagi Grimberg <sagi@grimberg.me>
 M:	Roi Dayan <roid@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
@@ -6037,7 +6037,7 @@ Q:	http://patchwork.kernel.org/project/linux-rdma/list/
 F:	drivers/infiniband/ulp/iser/
 
 ISCSI EXTENSIONS FOR RDMA (ISER) TARGET
-M:	Sagi Grimberg <sagig@mellanox.com>
+M:	Sagi Grimberg <sagi@grimberg.me>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/target-pending.git master
 L:	linux-rdma@vger.kernel.org
 L:	target-devel@vger.kernel.org
@@ -6400,7 +6400,7 @@ F:	mm/kmemleak.c
 F:	mm/kmemleak-test.c
 
 KPROBES
-M:	Ananth N Mavinakayanahalli <ananth@in.ibm.com>
+M:	Ananth N Mavinakayanahalli <ananth@linux.vnet.ibm.com>
 M:	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Masami Hiramatsu <mhiramat@kernel.org>
@@ -6905,7 +6905,7 @@ L:	linux-man@vger.kernel.org
 S:	Maintained
 
 MARVELL ARMADA DRM SUPPORT
-M:	Russell King <rmk+kernel@arm.linux.org.uk>
+M:	Russell King <rmk+kernel@armlinux.org.uk>
 S:	Maintained
 F:	drivers/gpu/drm/armada/
 
@@ -7905,7 +7905,7 @@ S:	Supported
 F:	drivers/nfc/nxp-nci
 
 NXP TDA998X DRM DRIVER
-M:	Russell King <rmk+kernel@arm.linux.org.uk>
+M:	Russell King <rmk+kernel@armlinux.org.uk>
 S:	Supported
 F:	drivers/gpu/drm/i2c/tda998x_drv.c
 F:	include/drm/i2c/tda998x.h
@@ -7978,7 +7978,7 @@ F:	arch/arm/*omap*/*pm*
 F:	drivers/cpufreq/omap-cpufreq.c
 
 OMAP POWERDOMAIN SOC ADAPTATION LAYER SUPPORT
-M:	Rajendra Nayak <rnayak@ti.com>
+M:	Rajendra Nayak <rnayak@codeaurora.org>
 M:	Paul Walmsley <paul@pwsan.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
@@ -10014,7 +10014,8 @@ F:	drivers/infiniband/hw/ocrdma/
 
 SFC NETWORK DRIVER
 M:	Solarflare linux maintainers <linux-net-drivers@solarflare.com>
-M:	Shradha Shah <sshah@solarflare.com>
+M:	Edward Cree <ecree@solarflare.com>
+M:	Bert Kenward <bkenward@solarflare.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/sfc/
@@ -11070,6 +11071,15 @@ L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/clk/ti/
 F:	include/linux/clk/ti.h
+
+TI ETHERNET SWITCH DRIVER (CPSW)
+M:	Mugunthan V N <mugunthanvnm@ti.com>
+R:	Grygorii Strashko <grygorii.strashko@ti.com>
+L:	linux-omap@vger.kernel.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/ti/cpsw*
+F:	drivers/net/ethernet/ti/davinci*
 
 TI FLASH MEDIA INTERFACE DRIVER
 M:	Alex Dubov <oakad@yahoo.com>

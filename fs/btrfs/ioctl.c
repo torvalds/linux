@@ -690,7 +690,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	if (ret)
 		goto dec_and_free;
 
-	btrfs_wait_ordered_extents(root, -1);
+	btrfs_wait_ordered_extents(root, -1, 0, (u64)-1);
 
 	btrfs_init_block_rsv(&pending_snapshot->block_rsv,
 			     BTRFS_BLOCK_RSV_TEMP);
