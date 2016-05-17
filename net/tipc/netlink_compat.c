@@ -802,7 +802,7 @@ static int tipc_nl_compat_name_table_dump(struct tipc_nl_compat_msg *msg,
 		goto out;
 
 	tipc_tlv_sprintf(msg->rep, "%-10u %s",
-			 nla_get_u32(publ[TIPC_NLA_PUBL_REF]),
+			 nla_get_u32(publ[TIPC_NLA_PUBL_KEY]),
 			 scope_str[nla_get_u32(publ[TIPC_NLA_PUBL_SCOPE])]);
 out:
 	tipc_tlv_sprintf(msg->rep, "\n");
