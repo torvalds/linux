@@ -1811,9 +1811,9 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 {
 	struct branch_stack *branch = sample->branch_stack;
 	struct ip_callchain *chain = sample->callchain;
-	int chain_nr = min(max_stack, (int)chain->nr);
+	int chain_nr = chain->nr;
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	int i, j, err;
+	int i, j, err, nr_entries, nr_contexts;
 	int skip_idx = -1;
 	int first_call = 0;
 
@@ -1828,7 +1828,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	 * Based on DWARF debug information, some architectures skip
 	 * a callchain entry saved by the kernel.
 	 */
-	if (chain->nr < sysctl_perf_event_max_stack)
+	if (chain_nr < sysctl_perf_event_max_stack)
 		skip_idx = arch_skip_callchain_idx(thread, chain);
 
 	/*
@@ -1889,12 +1889,8 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	}
 
 check_calls:
-	if (chain->nr > sysctl_perf_event_max_stack && (int)chain->nr > max_stack) {
-		pr_warning("corrupted callchain. skipping...\n");
-		return 0;
-	}
-
-	for (i = first_call; i < chain_nr; i++) {
+	for (i = first_call, nr_entries = 0, nr_contexts = 0;
+	     i < chain_nr && nr_entries < max_stack; i++) {
 		u64 ip;
 
 		if (callchain_param.order == ORDER_CALLEE)
@@ -1908,12 +1904,24 @@ check_calls:
 #endif
 		ip = chain->ips[j];
 
+		if (ip >= PERF_CONTEXT_MAX) {
+			if (++nr_contexts > sysctl_perf_event_max_contexts_per_stack)
+				goto out_corrupted_callchain;
+		} else {
+			if (++nr_entries > sysctl_perf_event_max_stack)
+				goto out_corrupted_callchain;
+		}
+
 		err = add_callchain_ip(thread, cursor, parent, root_al, &cpumode, ip);
 
 		if (err)
 			return (err < 0) ? err : 0;
 	}
 
+	return 0;
+
+out_corrupted_callchain:
+	pr_warning("corrupted callchain. skipping...\n");
 	return 0;
 }
 
