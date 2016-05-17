@@ -1295,7 +1295,7 @@ ff_layout_set_layoutcommit(struct nfs_pgio_header *hdr)
 }
 
 static bool
-ff_layout_reset_to_mds(struct pnfs_layout_segment *lseg, int idx)
+ff_layout_device_unavailable(struct pnfs_layout_segment *lseg, int idx)
 {
 	/* No mirroring for now */
 	struct nfs4_deviceid_node *node = FF_LAYOUT_DEVID_NODE(lseg, idx);
@@ -1332,16 +1332,10 @@ static int ff_layout_read_prepare_common(struct rpc_task *task,
 		rpc_exit(task, -EIO);
 		return -EIO;
 	}
-	if (ff_layout_reset_to_mds(hdr->lseg, hdr->pgio_mirror_idx)) {
-		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
-		if (ff_layout_has_available_ds(hdr->lseg))
-			pnfs_read_resend_pnfs(hdr);
-		else
-			ff_layout_reset_read(hdr);
-		rpc_exit(task, 0);
+	if (ff_layout_device_unavailable(hdr->lseg, hdr->pgio_mirror_idx)) {
+		rpc_exit(task, -EHOSTDOWN);
 		return -EAGAIN;
 	}
-	hdr->pgio_done_cb = ff_layout_read_done_cb;
 
 	ff_layout_read_record_layoutstats_start(task, hdr);
 	return 0;
@@ -1531,14 +1525,8 @@ static int ff_layout_write_prepare_common(struct rpc_task *task,
 		return -EIO;
 	}
 
-	if (ff_layout_reset_to_mds(hdr->lseg, hdr->pgio_mirror_idx)) {
-		bool retry_pnfs;
-
-		retry_pnfs = ff_layout_has_available_ds(hdr->lseg);
-		dprintk("%s task %u reset io to %s\n", __func__,
-			task->tk_pid, retry_pnfs ? "pNFS" : "MDS");
-		ff_layout_reset_write(hdr, retry_pnfs);
-		rpc_exit(task, 0);
+	if (ff_layout_device_unavailable(hdr->lseg, hdr->pgio_mirror_idx)) {
+		rpc_exit(task, -EHOSTDOWN);
 		return -EAGAIN;
 	}
 
@@ -1755,6 +1743,7 @@ ff_layout_read_pagelist(struct nfs_pgio_header *hdr)
 	dprintk("%s USE DS: %s cl_count %d vers %d\n", __func__,
 		ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count), vers);
 
+	hdr->pgio_done_cb = ff_layout_read_done_cb;
 	atomic_inc(&ds->ds_clp->cl_count);
 	hdr->ds_clp = ds->ds_clp;
 	fh = nfs4_ff_layout_select_ds_fh(lseg, idx);
