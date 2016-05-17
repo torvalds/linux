@@ -382,14 +382,10 @@ enum {
 
 	/* generate software time stamp when entering packet scheduling */
 	SKBTX_SCHED_TSTAMP = 1 << 6,
-
-	/* generate software timestamp on peer data acknowledgment */
-	SKBTX_ACK_TSTAMP = 1 << 7,
 };
 
 #define SKBTX_ANY_SW_TSTAMP	(SKBTX_SW_TSTAMP    | \
-				 SKBTX_SCHED_TSTAMP | \
-				 SKBTX_ACK_TSTAMP)
+				 SKBTX_SCHED_TSTAMP)
 #define SKBTX_ANY_TSTAMP	(SKBTX_HW_TSTAMP | SKBTX_ANY_SW_TSTAMP)
 
 /*
@@ -465,23 +461,27 @@ enum {
 	/* This indicates the tcp segment has CWR set. */
 	SKB_GSO_TCP_ECN = 1 << 3,
 
-	SKB_GSO_TCPV6 = 1 << 4,
+	SKB_GSO_TCP_FIXEDID = 1 << 4,
 
-	SKB_GSO_FCOE = 1 << 5,
+	SKB_GSO_TCPV6 = 1 << 5,
 
-	SKB_GSO_GRE = 1 << 6,
+	SKB_GSO_FCOE = 1 << 6,
 
-	SKB_GSO_GRE_CSUM = 1 << 7,
+	SKB_GSO_GRE = 1 << 7,
 
-	SKB_GSO_IPIP = 1 << 8,
+	SKB_GSO_GRE_CSUM = 1 << 8,
 
-	SKB_GSO_SIT = 1 << 9,
+	SKB_GSO_IPIP = 1 << 9,
 
-	SKB_GSO_UDP_TUNNEL = 1 << 10,
+	SKB_GSO_SIT = 1 << 10,
 
-	SKB_GSO_UDP_TUNNEL_CSUM = 1 << 11,
+	SKB_GSO_UDP_TUNNEL = 1 << 11,
 
-	SKB_GSO_TUNNEL_REMCSUM = 1 << 12,
+	SKB_GSO_UDP_TUNNEL_CSUM = 1 << 12,
+
+	SKB_GSO_PARTIAL = 1 << 13,
+
+	SKB_GSO_TUNNEL_REMCSUM = 1 << 14,
 };
 
 #if BITS_PER_LONG > 32
@@ -1323,6 +1323,16 @@ static inline int skb_header_cloned(const struct sk_buff *skb)
 	dataref = atomic_read(&skb_shinfo(skb)->dataref);
 	dataref = (dataref & SKB_DATAREF_MASK) - (dataref >> SKB_DATAREF_SHIFT);
 	return dataref != 1;
+}
+
+static inline int skb_header_unclone(struct sk_buff *skb, gfp_t pri)
+{
+	might_sleep_if(gfpflags_allow_blocking(pri));
+
+	if (skb_header_cloned(skb))
+		return pskb_expand_head(skb, 0, 0, pri);
+
+	return 0;
 }
 
 /**
@@ -2949,7 +2959,12 @@ int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
 				 struct iov_iter *from, int len);
 int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *frm);
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb);
-void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb);
+void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len);
+static inline void skb_free_datagram_locked(struct sock *sk,
+					    struct sk_buff *skb)
+{
+	__skb_free_datagram_locked(sk, skb, 0);
+}
 int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags);
 int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len);
 int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len);
@@ -2977,6 +2992,8 @@ struct sk_buff *skb_vlan_untag(struct sk_buff *skb);
 int skb_ensure_writable(struct sk_buff *skb, int write_len);
 int skb_vlan_pop(struct sk_buff *skb);
 int skb_vlan_push(struct sk_buff *skb, __be16 vlan_proto, u16 vlan_tci);
+struct sk_buff *pskb_extract(struct sk_buff *skb, int off, int to_copy,
+			     gfp_t gfp);
 
 static inline int memcpy_from_msg(void *data, struct msghdr *msg, int len)
 {
@@ -3584,7 +3601,10 @@ static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
  * Keeps track of level of encapsulation of network headers.
  */
 struct skb_gso_cb {
-	int	mac_offset;
+	union {
+		int	mac_offset;
+		int	data_offset;
+	};
 	int	encap_level;
 	__wsum	csum;
 	__u16	csum_start;

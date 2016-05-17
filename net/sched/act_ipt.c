@@ -280,7 +280,7 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int 
 	tm.install = jiffies_to_clock_t(jiffies - ipt->tcf_tm.install);
 	tm.lastuse = jiffies_to_clock_t(jiffies - ipt->tcf_tm.lastuse);
 	tm.expires = jiffies_to_clock_t(ipt->tcf_tm.expires);
-	if (nla_put(skb, TCA_IPT_TM, sizeof (tm), &tm))
+	if (nla_put_64bit(skb, TCA_IPT_TM, sizeof(tm), &tm, TCA_IPT_PAD))
 		goto nla_put_failure;
 	kfree(t);
 	return skb->len;

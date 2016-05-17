@@ -208,7 +208,7 @@ enum iwl_power_scheme {
 };
 
 #define IWL_CONN_MAX_LISTEN_INTERVAL	10
-#define IWL_UAPSD_MAX_SP		IEEE80211_WMM_IE_STA_QOSINFO_SP_2
+#define IWL_UAPSD_MAX_SP		IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 enum iwl_dbgfs_pm_mask {
@@ -453,6 +453,12 @@ struct iwl_mvm_vif {
 
 	/* TCP Checksum Offload */
 	netdev_features_t features;
+
+	/*
+	 * link quality measurement - used to check whether this interface
+	 * is in the middle of a link quality measurement
+	 */
+	bool lqm_active;
 };
 
 static inline struct iwl_mvm_vif *
@@ -602,6 +608,9 @@ struct iwl_mvm_shared_mem_cfg {
 	u32 rxfifo_size[RX_FIFO_MAX_NUM];
 	u32 page_buff_addr;
 	u32 page_buff_size;
+	u32 rxfifo_addr;
+	u32 internal_txfifo_addr;
+	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };
 
 struct iwl_mvm {
@@ -656,10 +665,17 @@ struct iwl_mvm {
 		/* Map to HW queue */
 		u32 hw_queue_to_mac80211;
 		u8 hw_queue_refcount;
+		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
+		/*
+		 * This is to mark that queue is reserved for a STA but not yet
+		 * allocated. This is needed to make sure we have at least one
+		 * available queue to use when adding a new STA
+		 */
 		bool setup_reserved;
 		u16 tid_bitmap; /* Bitmap of the TIDs mapped to this queue */
 	} queue_info[IWL_MAX_HW_QUEUES];
 	spinlock_t queue_info_lock; /* For syncing queue mgmt operations */
+	struct work_struct add_stream_wk; /* To add streams to queues */
 	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
 
 	const char *nvm_file_name;
@@ -679,11 +695,11 @@ struct iwl_mvm {
 	struct iwl_rx_phy_info last_phy_info;
 	struct ieee80211_sta __rcu *fw_id_to_mac_id[IWL_MVM_STATION_COUNT];
 	struct work_struct sta_drained_wk;
+	unsigned long sta_deferred_frames[BITS_TO_LONGS(IWL_MVM_STATION_COUNT)];
 	unsigned long sta_drained[BITS_TO_LONGS(IWL_MVM_STATION_COUNT)];
 	atomic_t pending_frames[IWL_MVM_STATION_COUNT];
 	u32 tfd_drained[IWL_MVM_STATION_COUNT];
 	u8 rx_ba_sessions;
-	u32 secret_key[IWL_RSS_HASH_KEY_CNT];
 
 	/* configured by mac80211 */
 	u32 rts_threshold;
@@ -694,6 +710,7 @@ struct iwl_mvm {
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 	enum iwl_mvm_scan_type scan_type;
 	enum iwl_mvm_sched_scan_pass_all_states sched_scan_pass_all;
+	struct timer_list scan_timer;
 
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
@@ -1063,7 +1080,8 @@ bool iwl_mvm_is_p2p_standalone_uapsd_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_P2P_STANDALONE_UAPSD) &&
-		IWL_MVM_P2P_UAPSD_STANDALONE;
+		!(iwlwifi_mod_params.uapsd_disable &
+		  IWL_DISABLE_UAPSD_P2P_CLIENT);
 }
 
 static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
@@ -1115,9 +1133,9 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm);
 
 /* Utils */
 int iwl_mvm_legacy_rate_to_mac80211_idx(u32 rate_n_flags,
-					enum ieee80211_band band);
+					enum nl80211_band band);
 void iwl_mvm_hwrate_to_tx_rate(u32 rate_n_flags,
-			       enum ieee80211_band band,
+			       enum nl80211_band band,
 			       struct ieee80211_tx_rate *r);
 u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx);
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm);
@@ -1297,6 +1315,7 @@ int iwl_mvm_scan_size(struct iwl_mvm *mvm);
 int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify);
 int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm);
 void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm);
+void iwl_mvm_scan_timeout(unsigned long data);
 
 /* Scheduled scan */
 void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
@@ -1449,25 +1468,9 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 bool iwl_mvm_bt_coex_is_ant_avail(struct iwl_mvm *mvm, u8 ant);
 bool iwl_mvm_bt_coex_is_shared_ant_avail(struct iwl_mvm *mvm);
 bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
-				    enum ieee80211_band band);
+				    enum nl80211_band band);
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac);
-
-bool iwl_mvm_bt_coex_is_shared_ant_avail_old(struct iwl_mvm *mvm);
-void iwl_mvm_bt_coex_vif_change_old(struct iwl_mvm *mvm);
-int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm);
-void iwl_mvm_rx_bt_coex_notif_old(struct iwl_mvm *mvm,
-				  struct iwl_rx_cmd_buffer *rxb);
-void iwl_mvm_bt_rssi_event_old(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       enum ieee80211_rssi_event_data);
-u16 iwl_mvm_coex_agg_time_limit_old(struct iwl_mvm *mvm,
-				    struct ieee80211_sta *sta);
-bool iwl_mvm_bt_coex_is_mimo_allowed_old(struct iwl_mvm *mvm,
-					 struct ieee80211_sta *sta);
-bool iwl_mvm_bt_coex_is_tpc_allowed_old(struct iwl_mvm *mvm,
-					enum ieee80211_band band);
-void iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
-				       struct iwl_rx_cmd_buffer *rxb);
 
 /* beacon filtering */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1633,5 +1636,11 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    bool tdls, bool cmd_q);
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     const char *errmsg);
+
+/* Link Quality Measurement */
+int iwl_mvm_send_lqm_cmd(struct ieee80211_vif *vif,
+			 enum iwl_lqm_cmd_operatrions operation,
+			 u32 duration, u32 timeout);
+bool iwl_mvm_lqm_active(struct iwl_mvm *mvm);
 
 #endif /* __IWL_MVM_H__ */

@@ -7100,7 +7100,7 @@ int perf_swevent_get_recursion_context(void)
 }
 EXPORT_SYMBOL_GPL(perf_swevent_get_recursion_context);
 
-inline void perf_swevent_put_recursion_context(int rctx)
+void perf_swevent_put_recursion_context(int rctx)
 {
 	struct swevent_htable *swhash = this_cpu_ptr(&swevent_htable);
 
@@ -7362,7 +7362,26 @@ static int perf_tp_event_match(struct perf_event *event,
 	return 1;
 }
 
-void perf_tp_event(u64 addr, u64 count, void *record, int entry_size,
+void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
+			       struct trace_event_call *call, u64 count,
+			       struct pt_regs *regs, struct hlist_head *head,
+			       struct task_struct *task)
+{
+	struct bpf_prog *prog = call->prog;
+
+	if (prog) {
+		*(struct pt_regs **)raw_data = regs;
+		if (!trace_call_bpf(prog, raw_data) || hlist_empty(head)) {
+			perf_swevent_put_recursion_context(rctx);
+			return;
+		}
+	}
+	perf_tp_event(call->event.type, count, raw_data, size, regs, head,
+		      rctx, task);
+}
+EXPORT_SYMBOL_GPL(perf_trace_run_bpf_submit);
+
+void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 		   struct pt_regs *regs, struct hlist_head *head, int rctx,
 		   struct task_struct *task)
 {
@@ -7374,8 +7393,10 @@ void perf_tp_event(u64 addr, u64 count, void *record, int entry_size,
 		.data = record,
 	};
 
-	perf_sample_data_init(&data, addr, 0);
+	perf_sample_data_init(&data, 0, 0);
 	data.raw = &raw;
+
+	perf_trace_buf_update(record, event_type);
 
 	hlist_for_each_entry_rcu(event, head, hlist_entry) {
 		if (perf_tp_event_match(event, &data, regs))
@@ -7461,6 +7482,7 @@ static void perf_event_free_filter(struct perf_event *event)
 
 static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 {
+	bool is_kprobe, is_tracepoint;
 	struct bpf_prog *prog;
 
 	if (event->attr.type != PERF_TYPE_TRACEPOINT)
@@ -7469,20 +7491,31 @@ static int perf_event_set_bpf_prog(struct perf_event *event, u32 prog_fd)
 	if (event->tp_event->prog)
 		return -EEXIST;
 
-	if (!(event->tp_event->flags & TRACE_EVENT_FL_UKPROBE))
-		/* bpf programs can only be attached to u/kprobes */
+	is_kprobe = event->tp_event->flags & TRACE_EVENT_FL_UKPROBE;
+	is_tracepoint = event->tp_event->flags & TRACE_EVENT_FL_TRACEPOINT;
+	if (!is_kprobe && !is_tracepoint)
+		/* bpf programs can only be attached to u/kprobe or tracepoint */
 		return -EINVAL;
 
 	prog = bpf_prog_get(prog_fd);
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
 
-	if (prog->type != BPF_PROG_TYPE_KPROBE) {
+	if ((is_kprobe && prog->type != BPF_PROG_TYPE_KPROBE) ||
+	    (is_tracepoint && prog->type != BPF_PROG_TYPE_TRACEPOINT)) {
 		/* valid fd, but invalid bpf program type */
 		bpf_prog_put(prog);
 		return -EINVAL;
 	}
 
+	if (is_tracepoint) {
+		int off = trace_event_get_offsets(event->tp_event);
+
+		if (prog->aux->max_ctx_offset > off) {
+			bpf_prog_put(prog);
+			return -EACCES;
+		}
+	}
 	event->tp_event->prog = prog;
 
 	return 0;

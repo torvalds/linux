@@ -36,12 +36,6 @@
 #define IWL105_UCODE_API_MAX 6
 #define IWL135_UCODE_API_MAX 6
 
-/* Oldest version we won't warn about */
-#define IWL2030_UCODE_API_OK 6
-#define IWL2000_UCODE_API_OK 6
-#define IWL105_UCODE_API_OK 6
-#define IWL135_UCODE_API_OK 6
-
 /* Lowest firmware API version supported */
 #define IWL2030_UCODE_API_MIN 5
 #define IWL2000_UCODE_API_MIN 5
@@ -95,7 +89,7 @@ static const struct iwl_base_params iwl2030_base_params = {
 static const struct iwl_ht_params iwl2000_ht_params = {
 	.ht_greenfield_support = true,
 	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.ht40_bands = BIT(IEEE80211_BAND_2GHZ),
+	.ht40_bands = BIT(NL80211_BAND_2GHZ),
 };
 
 static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
@@ -114,7 +108,6 @@ static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 #define IWL_DEVICE_2000						\
 	.fw_name_pre = IWL2000_FW_PRE,				\
 	.ucode_api_max = IWL2000_UCODE_API_MAX,			\
-	.ucode_api_ok = IWL2000_UCODE_API_OK,			\
 	.ucode_api_min = IWL2000_UCODE_API_MIN,			\
 	.device_family = IWL_DEVICE_FAMILY_2000,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
@@ -142,7 +135,6 @@ const struct iwl_cfg iwl2000_2bgn_d_cfg = {
 #define IWL_DEVICE_2030						\
 	.fw_name_pre = IWL2030_FW_PRE,				\
 	.ucode_api_max = IWL2030_UCODE_API_MAX,			\
-	.ucode_api_ok = IWL2030_UCODE_API_OK,			\
 	.ucode_api_min = IWL2030_UCODE_API_MIN,			\
 	.device_family = IWL_DEVICE_FAMILY_2030,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
@@ -163,7 +155,6 @@ const struct iwl_cfg iwl2030_2bgn_cfg = {
 #define IWL_DEVICE_105						\
 	.fw_name_pre = IWL105_FW_PRE,				\
 	.ucode_api_max = IWL105_UCODE_API_MAX,			\
-	.ucode_api_ok = IWL105_UCODE_API_OK,			\
 	.ucode_api_min = IWL105_UCODE_API_MIN,			\
 	.device_family = IWL_DEVICE_FAMILY_105,			\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
@@ -191,7 +182,6 @@ const struct iwl_cfg iwl105_bgn_d_cfg = {
 #define IWL_DEVICE_135						\
 	.fw_name_pre = IWL135_FW_PRE,				\
 	.ucode_api_max = IWL135_UCODE_API_MAX,			\
-	.ucode_api_ok = IWL135_UCODE_API_OK,			\
 	.ucode_api_min = IWL135_UCODE_API_MIN,			\
 	.device_family = IWL_DEVICE_FAMILY_135,			\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
@@ -210,7 +200,7 @@ const struct iwl_cfg iwl135_bgn_cfg = {
 	.ht_params = &iwl2000_ht_params,
 };
 
-MODULE_FIRMWARE(IWL2000_MODULE_FIRMWARE(IWL2000_UCODE_API_OK));
-MODULE_FIRMWARE(IWL2030_MODULE_FIRMWARE(IWL2030_UCODE_API_OK));
-MODULE_FIRMWARE(IWL105_MODULE_FIRMWARE(IWL105_UCODE_API_OK));
-MODULE_FIRMWARE(IWL135_MODULE_FIRMWARE(IWL135_UCODE_API_OK));
+MODULE_FIRMWARE(IWL2000_MODULE_FIRMWARE(IWL2000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL2030_MODULE_FIRMWARE(IWL2030_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL105_MODULE_FIRMWARE(IWL105_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL135_MODULE_FIRMWARE(IWL135_UCODE_API_MAX));

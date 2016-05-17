@@ -361,7 +361,7 @@ static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 	if (size > 15)
 		size = 15;
 
-	nvm->word_size = 1 << size;
+	nvm->word_size = BIT(size);
 	nvm->opcode_bits = 8;
 	nvm->delay_usec = 1;
 
@@ -380,7 +380,7 @@ static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 				    16 : 8;
 		break;
 	}
-	if (nvm->word_size == (1 << 15))
+	if (nvm->word_size == BIT(15))
 		nvm->page_size = 128;
 
 	nvm->type = e1000_nvm_eeprom_spi;
@@ -391,7 +391,7 @@ static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 	nvm->ops.write = igb_write_nvm_spi;
 	nvm->ops.validate = igb_validate_nvm_checksum;
 	nvm->ops.update = igb_update_nvm_checksum;
-	if (nvm->word_size < (1 << 15))
+	if (nvm->word_size < BIT(15))
 		nvm->ops.read = igb_read_nvm_eerd;
 	else
 		nvm->ops.read = igb_read_nvm_spi;
@@ -2107,7 +2107,7 @@ void igb_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf)
 		/* The PF can spoof - it has to in order to
 		 * support emulation mode NICs
 		 */
-		reg_val ^= (1 << pf | 1 << (pf + MAX_NUM_VFS));
+		reg_val ^= (BIT(pf) | BIT(pf + MAX_NUM_VFS));
 	} else {
 		reg_val &= ~(E1000_DTXSWC_MAC_SPOOF_MASK |
 			     E1000_DTXSWC_VLAN_SPOOF_MASK);

@@ -23,11 +23,11 @@
 
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems,
-				 enum ieee80211_band current_band,
+				 enum nl80211_band current_band,
 				 u32 sta_flags, u8 *bssid,
 				 struct ieee80211_csa_ie *csa_ie)
 {
-	enum ieee80211_band new_band;
+	enum nl80211_band new_band;
 	int new_freq;
 	u8 new_chan_no;
 	struct ieee80211_channel *new_chan;

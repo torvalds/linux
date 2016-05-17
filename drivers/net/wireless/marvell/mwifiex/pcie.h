@@ -31,12 +31,25 @@
 
 #define PCIE8766_DEFAULT_FW_NAME "mrvl/pcie8766_uapsta.bin"
 #define PCIE8897_DEFAULT_FW_NAME "mrvl/pcie8897_uapsta.bin"
-#define PCIE8997_DEFAULT_FW_NAME "mrvl/pcie8997_uapsta.bin"
+#define PCIE8897_A0_FW_NAME "mrvl/pcie8897_uapsta_a0.bin"
+#define PCIE8897_B0_FW_NAME "mrvl/pcie8897_uapsta.bin"
+#define PCIE8997_DEFAULT_FW_NAME "mrvl/pcieuart8997_combo_v2.bin"
+#define PCIEUART8997_FW_NAME_Z "mrvl/pcieuart8997_combo.bin"
+#define PCIEUART8997_FW_NAME_V2 "mrvl/pcieuart8997_combo_v2.bin"
+#define PCIEUSB8997_FW_NAME_Z "mrvl/pcieusb8997_combo.bin"
+#define PCIEUSB8997_FW_NAME_V2 "mrvl/pcieusb8997_combo_v2.bin"
 
 #define PCIE_VENDOR_ID_MARVELL              (0x11ab)
+#define PCIE_VENDOR_ID_V2_MARVELL           (0x1b4b)
 #define PCIE_DEVICE_ID_MARVELL_88W8766P		(0x2b30)
 #define PCIE_DEVICE_ID_MARVELL_88W8897		(0x2b38)
 #define PCIE_DEVICE_ID_MARVELL_88W8997		(0x2b42)
+
+#define PCIE8897_A0	0x1100
+#define PCIE8897_B0	0x1200
+#define PCIE8997_Z	0x0
+#define PCIE8997_V2	0x471
+#define CHIP_VER_PCIEUSB	0x2
 
 /* Constants for Buffer Descriptor (BD) rings */
 #define MWIFIEX_MAX_TXRX_BD			0x20
@@ -65,6 +78,8 @@
 #define PCIE_SCRATCH_10_REG				0xCE8
 #define PCIE_SCRATCH_11_REG				0xCEC
 #define PCIE_SCRATCH_12_REG				0xCF0
+#define PCIE_SCRATCH_13_REG				0xCF8
+#define PCIE_SCRATCH_14_REG				0xCFC
 #define PCIE_RD_DATA_PTR_Q0_Q1                          0xC08C
 #define PCIE_WR_DATA_PTR_Q0_Q1                          0xC05C
 
@@ -263,7 +278,6 @@ static struct memory_type_mapping mem_type_mapping_tbl_w8997[] = {
 };
 
 struct mwifiex_pcie_device {
-	const char *firmware;
 	const struct mwifiex_pcie_card_reg *reg;
 	u16 blksz_fw_dl;
 	u16 tx_buf_size;
@@ -274,7 +288,6 @@ struct mwifiex_pcie_device {
 };
 
 static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
-	.firmware       = PCIE8766_DEFAULT_FW_NAME,
 	.reg            = &mwifiex_reg_8766,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
@@ -283,7 +296,6 @@ static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
 };
 
 static const struct mwifiex_pcie_device mwifiex_pcie8897 = {
-	.firmware       = PCIE8897_DEFAULT_FW_NAME,
 	.reg            = &mwifiex_reg_8897,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
@@ -294,7 +306,6 @@ static const struct mwifiex_pcie_device mwifiex_pcie8897 = {
 };
 
 static const struct mwifiex_pcie_device mwifiex_pcie8997 = {
-	.firmware       = PCIE8997_DEFAULT_FW_NAME,
 	.reg            = &mwifiex_reg_8997,
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,

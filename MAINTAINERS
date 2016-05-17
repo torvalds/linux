@@ -1472,7 +1472,10 @@ F:	arch/arm/boot/dts/qcom-*.dts
 F:	arch/arm/boot/dts/qcom-*.dtsi
 F:	arch/arm/mach-qcom/
 F:	arch/arm64/boot/dts/qcom/*
+F:	drivers/i2c/busses/i2c-qup.c
+F:	drivers/clk/qcom/
 F:	drivers/soc/qcom/
+F:	drivers/spi/spi-qup.c
 F:	drivers/tty/serial/msm_serial.h
 F:	drivers/tty/serial/msm_serial.c
 F:	drivers/*/pm8???-*
@@ -2205,10 +2208,13 @@ BATMAN ADVANCED
 M:	Marek Lindner <mareklindner@neomailbox.ch>
 M:	Simon Wunderlich <sw@simonwunderlich.de>
 M:	Antonio Quartulli <a@unstable.cc>
-L:	b.a.t.m.a.n@lists.open-mesh.org
+L:	b.a.t.m.a.n@lists.open-mesh.org (moderated for non-subscribers)
 W:	https://www.open-mesh.org/
 Q:	https://patchwork.open-mesh.org/project/batman/list/
 S:	Maintained
+F:	Documentation/ABI/testing/sysfs-class-net-batman-adv
+F:	Documentation/ABI/testing/sysfs-class-net-mesh
+F:	Documentation/networking/batman-adv.txt
 F:	net/batman-adv/
 
 BAYCOM/HDLCDRV DRIVERS FOR AX.25
@@ -3350,6 +3356,7 @@ F:	Documentation/powerpc/cxlflash.txt
 
 STMMAC ETHERNET DRIVER
 M:	Giuseppe Cavallaro <peppe.cavallaro@st.com>
+M:	Alexandre Torgue <alexandre.torgue@st.com>
 L:	netdev@vger.kernel.org
 W:	http://www.stlinux.com
 S:	Supported
@@ -5755,13 +5762,6 @@ F:	drivers/char/hw_random/ixp4xx-rng.c
 
 INTEL ETHERNET DRIVERS
 M:	Jeff Kirsher <jeffrey.t.kirsher@intel.com>
-R:	Jesse Brandeburg <jesse.brandeburg@intel.com>
-R:	Shannon Nelson <shannon.nelson@intel.com>
-R:	Carolyn Wyborny <carolyn.wyborny@intel.com>
-R:	Don Skidmore <donald.c.skidmore@intel.com>
-R:	Bruce Allan <bruce.w.allan@intel.com>
-R:	John Ronciak <john.ronciak@intel.com>
-R:	Mitch Williams <mitch.a.williams@intel.com>
 L:	intel-wired-lan@lists.osuosl.org (moderated for non-subscribers)
 W:	http://www.intel.com/support/feedback.htm
 W:	http://e1000.sourceforge.net/
@@ -9500,7 +9500,7 @@ F:	drivers/net/wireless/realtek/rtlwifi/rtl8192ce/
 RTL8XXXU WIRELESS DRIVER (rtl8xxxu)
 M:	Jes Sorensen <Jes.Sorensen@redhat.com>
 L:	linux-wireless@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jes/linux.git rtl8723au-mac80211
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jes/linux.git rtl8xxxu-devel
 S:	Maintained
 F:	drivers/net/wireless/realtek/rtl8xxxu/
 

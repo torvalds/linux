@@ -150,7 +150,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 			rate = DIV_ROUND_UP(r->bitrate, 1 << shift);
 
 		switch (sband->band) {
-		case IEEE80211_BAND_2GHZ: {
+		case NL80211_BAND_2GHZ: {
 			u32 flag;
 			if (tx->sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
 				flag = IEEE80211_RATE_MANDATORY_G;
@@ -160,13 +160,13 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 				mrate = r->bitrate;
 			break;
 		}
-		case IEEE80211_BAND_5GHZ:
+		case NL80211_BAND_5GHZ:
 			if (r->flags & IEEE80211_RATE_MANDATORY_A)
 				mrate = r->bitrate;
 			break;
-		case IEEE80211_BAND_60GHZ:
+		case NL80211_BAND_60GHZ:
 			/* TODO, for now fall through */
-		case IEEE80211_NUM_BANDS:
+		case NUM_NL80211_BANDS:
 			WARN_ON(1);
 			break;
 		}
@@ -1329,6 +1329,10 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 out:
 	spin_unlock_bh(&txqi->queue.lock);
 
+	if (skb && skb_has_frag_list(skb) &&
+	    !ieee80211_hw_check(&local->hw, TX_FRAG_LIST))
+		skb_linearize(skb);
+
 	return skb;
 }
 EXPORT_SYMBOL(ieee80211_tx_dequeue);
@@ -1696,7 +1700,9 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 	bool rate_found = false;
 	u8 rate_retries = 0;
 	u16 rate_flags = 0;
-	u8 mcs_known, mcs_flags;
+	u8 mcs_known, mcs_flags, mcs_bw;
+	u16 vht_known;
+	u8 vht_mcs = 0, vht_nss = 0;
 	int i;
 
 	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT |
@@ -1772,9 +1778,36 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 			    mcs_flags & IEEE80211_RADIOTAP_MCS_SGI)
 				rate_flags |= IEEE80211_TX_RC_SHORT_GI;
 
+			mcs_bw = mcs_flags & IEEE80211_RADIOTAP_MCS_BW_MASK;
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_BW &&
-			    mcs_flags & IEEE80211_RADIOTAP_MCS_BW_40)
+			    mcs_bw == IEEE80211_RADIOTAP_MCS_BW_40)
 				rate_flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+			break;
+
+		case IEEE80211_RADIOTAP_VHT:
+			vht_known = get_unaligned_le16(iterator.this_arg);
+			rate_found = true;
+
+			rate_flags = IEEE80211_TX_RC_VHT_MCS;
+			if ((vht_known & IEEE80211_RADIOTAP_VHT_KNOWN_GI) &&
+			    (iterator.this_arg[2] &
+			     IEEE80211_RADIOTAP_VHT_FLAG_SGI))
+				rate_flags |= IEEE80211_TX_RC_SHORT_GI;
+			if (vht_known &
+			    IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH) {
+				if (iterator.this_arg[3] == 1)
+					rate_flags |=
+						IEEE80211_TX_RC_40_MHZ_WIDTH;
+				else if (iterator.this_arg[3] == 4)
+					rate_flags |=
+						IEEE80211_TX_RC_80_MHZ_WIDTH;
+				else if (iterator.this_arg[3] == 11)
+					rate_flags |=
+						IEEE80211_TX_RC_160_MHZ_WIDTH;
+			}
+
+			vht_mcs = iterator.this_arg[4] >> 4;
+			vht_nss = iterator.this_arg[4] & 0xF;
 			break;
 
 		/*
@@ -1802,6 +1835,9 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 
 		if (rate_flags & IEEE80211_TX_RC_MCS) {
 			info->control.rates[0].idx = rate;
+		} else if (rate_flags & IEEE80211_TX_RC_VHT_MCS) {
+			ieee80211_rate_set_vht(info->control.rates, vht_mcs,
+					       vht_nss);
 		} else {
 			for (i = 0; i < sband->n_bitrates; i++) {
 				if (rate * 5 != sband->bitrates[i].bitrate)
@@ -1811,6 +1847,9 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 				break;
 			}
 		}
+
+		if (info->control.rates[0].idx < 0)
+			info->control.flags &= ~IEEE80211_TX_CTRL_RATE_INJECT;
 
 		info->control.rates[0].flags = rate_flags;
 		info->control.rates[0].count = min_t(u8, rate_retries + 1,
@@ -2099,7 +2138,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	u16 info_id = 0;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_sub_if_data *ap_sdata;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	int ret;
 
 	if (IS_ERR(sta))
@@ -2186,7 +2225,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 			}
 
 			if (mppath && mpath)
-				mesh_path_del(mpath->sdata, mpath->dst);
+				mesh_path_del(sdata, mpath->dst);
 		}
 
 		/*
@@ -2772,6 +2811,154 @@ void ieee80211_clear_fast_xmit(struct sta_info *sta)
 		kfree_rcu(fast_tx, rcu_head);
 }
 
+static bool ieee80211_amsdu_realloc_pad(struct ieee80211_local *local,
+					struct sk_buff *skb, int headroom,
+					int *subframe_len)
+{
+	int amsdu_len = *subframe_len + sizeof(struct ethhdr);
+	int padding = (4 - amsdu_len) & 3;
+
+	if (skb_headroom(skb) < headroom || skb_tailroom(skb) < padding) {
+		I802_DEBUG_INC(local->tx_expand_skb_head);
+
+		if (pskb_expand_head(skb, headroom, padding, GFP_ATOMIC)) {
+			wiphy_debug(local->hw.wiphy,
+				    "failed to reallocate TX buffer\n");
+			return false;
+		}
+	}
+
+	if (padding) {
+		*subframe_len += padding;
+		memset(skb_put(skb, padding), 0, padding);
+	}
+
+	return true;
+}
+
+static bool ieee80211_amsdu_prepare_head(struct ieee80211_sub_if_data *sdata,
+					 struct ieee80211_fast_tx *fast_tx,
+					 struct sk_buff *skb)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr;
+	struct ethhdr amsdu_hdr;
+	int hdr_len = fast_tx->hdr_len - sizeof(rfc1042_header);
+	int subframe_len = skb->len - hdr_len;
+	void *data;
+	u8 *qc;
+
+	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
+		return false;
+
+	if (info->control.flags & IEEE80211_TX_CTRL_AMSDU)
+		return true;
+
+	if (!ieee80211_amsdu_realloc_pad(local, skb, sizeof(amsdu_hdr),
+					 &subframe_len))
+		return false;
+
+	amsdu_hdr.h_proto = cpu_to_be16(subframe_len);
+	memcpy(amsdu_hdr.h_source, skb->data + fast_tx->sa_offs, ETH_ALEN);
+	memcpy(amsdu_hdr.h_dest, skb->data + fast_tx->da_offs, ETH_ALEN);
+
+	data = skb_push(skb, sizeof(amsdu_hdr));
+	memmove(data, data + sizeof(amsdu_hdr), hdr_len);
+	memcpy(data + hdr_len, &amsdu_hdr, sizeof(amsdu_hdr));
+
+	hdr = data;
+	qc = ieee80211_get_qos_ctl(hdr);
+	*qc |= IEEE80211_QOS_CTL_A_MSDU_PRESENT;
+
+	info->control.flags |= IEEE80211_TX_CTRL_AMSDU;
+
+	return true;
+}
+
+static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
+				      struct sta_info *sta,
+				      struct ieee80211_fast_tx *fast_tx,
+				      struct sk_buff *skb)
+{
+	struct ieee80211_local *local = sdata->local;
+	u8 tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+	struct ieee80211_txq *txq = sta->sta.txq[tid];
+	struct txq_info *txqi;
+	struct sk_buff **frag_tail, *head;
+	int subframe_len = skb->len - ETH_ALEN;
+	u8 max_subframes = sta->sta.max_amsdu_subframes;
+	int max_frags = local->hw.max_tx_fragments;
+	int max_amsdu_len = sta->sta.max_amsdu_len;
+	__be16 len;
+	void *data;
+	bool ret = false;
+	int n = 1, nfrags;
+
+	if (!ieee80211_hw_check(&local->hw, TX_AMSDU))
+		return false;
+
+	if (!txq)
+		return false;
+
+	txqi = to_txq_info(txq);
+	if (test_bit(IEEE80211_TXQ_NO_AMSDU, &txqi->flags))
+		return false;
+
+	if (sta->sta.max_rc_amsdu_len)
+		max_amsdu_len = min_t(int, max_amsdu_len,
+				      sta->sta.max_rc_amsdu_len);
+
+	spin_lock_bh(&txqi->queue.lock);
+
+	head = skb_peek_tail(&txqi->queue);
+	if (!head)
+		goto out;
+
+	if (skb->len + head->len > max_amsdu_len)
+		goto out;
+
+	if (!ieee80211_amsdu_prepare_head(sdata, fast_tx, head))
+		goto out;
+
+	nfrags = 1 + skb_shinfo(skb)->nr_frags;
+	nfrags += 1 + skb_shinfo(head)->nr_frags;
+	frag_tail = &skb_shinfo(head)->frag_list;
+	while (*frag_tail) {
+		nfrags += 1 + skb_shinfo(*frag_tail)->nr_frags;
+		frag_tail = &(*frag_tail)->next;
+		n++;
+	}
+
+	if (max_subframes && n > max_subframes)
+		goto out;
+
+	if (max_frags && nfrags > max_frags)
+		goto out;
+
+	if (!ieee80211_amsdu_realloc_pad(local, skb, sizeof(rfc1042_header) + 2,
+					 &subframe_len))
+		goto out;
+
+	ret = true;
+	data = skb_push(skb, ETH_ALEN + 2);
+	memmove(data, data + ETH_ALEN + 2, 2 * ETH_ALEN);
+
+	data += 2 * ETH_ALEN;
+	len = cpu_to_be16(subframe_len);
+	memcpy(data, &len, 2);
+	memcpy(data + 2, rfc1042_header, sizeof(rfc1042_header));
+
+	head->len += skb->len;
+	head->data_len += skb->len;
+	*frag_tail = skb;
+
+out:
+	spin_unlock_bh(&txqi->queue.lock);
+
+	return ret;
+}
+
 static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 				struct net_device *dev, struct sta_info *sta,
 				struct ieee80211_fast_tx *fast_tx,
@@ -2825,6 +3012,10 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_tx_stats(dev, skb->len + extra_head);
+
+	if ((hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) &&
+	    ieee80211_amsdu_aggregate(sdata, sta, fast_tx, skb))
+		return true;
 
 	/* will not be crypto-handled beyond what we do here, so use false
 	 * as the may-encrypt argument for the resize to not account for
@@ -3406,7 +3597,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 	struct sk_buff *skb = NULL;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sub_if_data *sdata = NULL;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_tx_rate_control txrc;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	int csa_off_base = 0;
@@ -3974,7 +4165,7 @@ EXPORT_SYMBOL(ieee80211_unreserve_tid);
 
 void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb, int tid,
-				 enum ieee80211_band band)
+				 enum nl80211_band band)
 {
 	int ac = ieee802_1d_to_ac[tid & 7];
 
