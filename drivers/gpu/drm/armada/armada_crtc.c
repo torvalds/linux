@@ -18,6 +18,7 @@
 #include "armada_fb.h"
 #include "armada_gem.h"
 #include "armada_hw.h"
+#include "armada_trace.h"
 
 struct armada_frame_work {
 	struct armada_plane_work work;
@@ -463,6 +464,8 @@ static irqreturn_t armada_drm_irq(int irq, void *arg)
 	 * have to set the actual status register value.  This is racy.
 	 */
 	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
+
+	trace_armada_drm_irq(&dcrtc->crtc, stat);
 
 	/* Mask out those interrupts we haven't enabled */
 	v = stat & dcrtc->irq_ena;

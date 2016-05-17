@@ -15,6 +15,7 @@
 #include "armada_hw.h"
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
+#include "armada_trace.h"
 
 struct armada_ovl_plane_properties {
 	uint32_t colorkey_yr;
@@ -87,6 +88,8 @@ static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
 {
 	struct armada_ovl_plane *dplane = container_of(plane, struct armada_ovl_plane, base);
 
+	trace_armada_ovl_plane_work(&dcrtc->crtc, &plane->base);
+
 	armada_drm_crtc_update_regs(dcrtc, dplane->vbl.regs);
 	armada_ovl_retire_fb(dplane, NULL);
 }
@@ -119,6 +122,10 @@ armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	unsigned idx = 0;
 	bool visible;
 	int ret;
+
+	trace_armada_ovl_plane_update(plane, crtc, fb,
+				 crtc_x, crtc_y, crtc_w, crtc_h,
+				 src_x, src_y, src_w, src_h);
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb, &src, &dest, &clip,
 					    BIT(DRM_ROTATE_0),
