@@ -3112,10 +3112,8 @@ static void intel_complete_page_flips(struct drm_i915_private *dev_priv)
 {
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(dev_priv->dev, crtc) {
-		intel_prepare_page_flip(dev_priv, crtc->plane);
+	for_each_intel_crtc(dev_priv->dev, crtc)
 		intel_finish_page_flip(dev_priv, crtc->pipe);
-	}
 }
 
 static void intel_update_primary_planes(struct drm_device *dev)
@@ -10866,42 +10864,6 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	kfree(work);
 }
 
-static void do_intel_finish_page_flip(struct drm_i915_private *dev_priv,
-				      struct drm_crtc *crtc)
-{
-	struct drm_device *dev = dev_priv->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_unpin_work *work;
-	unsigned long flags;
-
-	/* Ignore early vblank irqs */
-	if (intel_crtc == NULL)
-		return;
-
-	/*
-	 * This is called both by irq handlers and the reset code (to complete
-	 * lost pageflips) so needs the full irqsave spinlocks.
-	 */
-	spin_lock_irqsave(&dev->event_lock, flags);
-	work = intel_crtc->unpin_work;
-
-	if (work && atomic_read(&work->pending) >= INTEL_FLIP_COMPLETE) {
-		/* ensure that the unpin work is consistent wrt ->pending. */
-		smp_rmb();
-
-		page_flip_completed(intel_crtc);
-	}
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
-void intel_finish_page_flip(struct drm_i915_private *dev_priv, int pipe)
-{
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-
-	do_intel_finish_page_flip(dev_priv, crtc);
-}
-
 /* Is 'a' after or equal to 'b'? */
 static bool g4x_flip_count_after_eq(u32 a, u32 b)
 {
@@ -10913,6 +10875,9 @@ static bool page_flip_finished(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned reset_counter;
+
+	/* ensure that the unpin work is consistent wrt ->pending. */
+	smp_rmb();
 
 	reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 	if (crtc->reset_counter != reset_counter)
@@ -10955,25 +10920,30 @@ static bool page_flip_finished(struct intel_crtc *crtc)
 				    crtc->unpin_work->flip_count);
 }
 
-void intel_prepare_page_flip(struct drm_i915_private *dev_priv, int plane)
+void intel_finish_page_flip(struct drm_i915_private *dev_priv, int pipe)
 {
 	struct drm_device *dev = dev_priv->dev;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(dev_priv->plane_to_crtc_mapping[plane]);
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_unpin_work *work;
 	unsigned long flags;
 
+	/* Ignore early vblank irqs */
+	if (!crtc)
+		return;
 
 	/*
 	 * This is called both by irq handlers and the reset code (to complete
 	 * lost pageflips) so needs the full irqsave spinlocks.
-	 *
-	 * NB: An MMIO update of the plane base pointer will also
-	 * generate a page-flip completion irq, i.e. every modeset
-	 * is also accompanied by a spurious intel_prepare_page_flip().
 	 */
 	spin_lock_irqsave(&dev->event_lock, flags);
-	if (intel_crtc->unpin_work && page_flip_finished(intel_crtc))
-		atomic_inc_not_zero(&intel_crtc->unpin_work->pending);
+	work = intel_crtc->unpin_work;
+
+	if (work != NULL &&
+	    atomic_read(&work->pending) &&
+	    page_flip_finished(intel_crtc))
+		page_flip_completed(intel_crtc);
+
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
@@ -10981,7 +10951,7 @@ static inline void intel_mark_page_flip_active(struct intel_unpin_work *work)
 {
 	/* Ensure that the work item is consistent when activating it ... */
 	smp_mb__before_atomic();
-	atomic_set(&work->pending, INTEL_FLIP_PENDING);
+	atomic_set(&work->pending, 1);
 }
 
 static int intel_gen2_queue_flip(struct drm_device *dev,
@@ -11421,8 +11391,8 @@ static bool __intel_pageflip_stall_check(struct drm_device *dev,
 	/* ensure that the unpin work is consistent wrt ->pending. */
 	smp_rmb();
 
-	if (pending != INTEL_FLIP_PENDING)
-		return pending == INTEL_FLIP_COMPLETE;
+	if (!pending)
+		return false;
 
 	if (work->flip_ready_vblank == 0) {
 		if (work->flip_queued_req &&
