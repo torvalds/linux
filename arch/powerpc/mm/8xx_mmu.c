@@ -61,11 +61,15 @@ void __init MMU_init_hw(void)
 #ifdef CONFIG_PIN_TLB
 	unsigned long ctr = mfspr(SPRN_MD_CTR) & 0xfe000000;
 	unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY;
-	int i;
+#ifdef CONFIG_PIN_TLB_IMMR
+	int i = 29;
+#else
+	int i = 28;
+#endif
 	unsigned long addr = 0;
 	unsigned long mem = total_lowmem;
 
-	for (i = 29; i < 32 && mem >= LARGE_PAGE_SIZE_8M; i++) {
+	for (; i < 32 && mem >= LARGE_PAGE_SIZE_8M; i++) {
 		mtspr(SPRN_MD_CTR, ctr | (i << 8));
 		mtspr(SPRN_MD_EPN, (unsigned long)__va(addr) | MD_EVALID);
 		mtspr(SPRN_MD_TWC, MD_PS8MEG | MD_SVALID);
@@ -88,7 +92,7 @@ static void mmu_mapin_immr(void)
 }
 
 /* Address of instructions to patch */
-#ifndef CONFIG_PIN_TLB
+#ifndef CONFIG_PIN_TLB_IMMR
 extern unsigned int DTLBMiss_jmp;
 #endif
 extern unsigned int DTLBMiss_cmp, FixupDAR_cmp;
@@ -109,7 +113,7 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	if (__map_without_ltlbs) {
 		mapped = 0;
 		mmu_mapin_immr();
-#ifndef CONFIG_PIN_TLB
+#ifndef CONFIG_PIN_TLB_IMMR
 		patch_instruction(&DTLBMiss_jmp, PPC_INST_NOP);
 #endif
 	} else {

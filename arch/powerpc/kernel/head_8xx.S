@@ -414,11 +414,11 @@ DataStoreTLBMiss:
 	 */
 	mfspr	r11, SPRN_MD_EPN
 	rlwinm	r11, r11, 16, 0xfff8
-#ifndef CONFIG_PIN_TLB
+#ifndef CONFIG_PIN_TLB_IMMR
 	cmpli	cr0, r11, VIRT_IMMR_BASE@h
 #endif
 	cmpli	cr7, r11, PAGE_OFFSET@h
-#ifndef CONFIG_PIN_TLB
+#ifndef CONFIG_PIN_TLB_IMMR
 _ENTRY(DTLBMiss_jmp)
 	beq-	DTLBMissIMMR
 #endif
@@ -819,7 +819,6 @@ initial_mmu:
 
 #ifdef CONFIG_PIN_TLB
 	oris	r10, r10, MD_RSV4I@h
-	ori	r10, r10, 0x1c00
 	mtspr	SPRN_MD_CTR, r10	/* Set data TLB control */
 #endif
 
@@ -843,7 +842,10 @@ initial_mmu:
 	/* Map a 512k page for the IMMR to get the processor
 	 * internal registers (among other things).
 	 */
-#ifdef CONFIG_PIN_TLB
+#ifdef CONFIG_PIN_TLB_IMMR
+	ori	r10, r10, 0x1c00
+	mtspr	SPRN_MD_CTR, r10
+
 	mfspr	r9, 638			/* Get current IMMR */
 	andis.	r9, r9, 0xfff8		/* Get 512 kbytes boundary */
 
