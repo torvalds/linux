@@ -107,9 +107,13 @@ enum dss_clk_source {
 
 	DSS_CLK_SRC_PLL1_1,
 	DSS_CLK_SRC_PLL1_2,
+	DSS_CLK_SRC_PLL1_3,
 
 	DSS_CLK_SRC_PLL2_1,
 	DSS_CLK_SRC_PLL2_2,
+	DSS_CLK_SRC_PLL2_3,
+
+	DSS_CLK_SRC_HDMI_PLL,
 };
 
 enum dss_pll_id {

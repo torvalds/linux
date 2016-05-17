@@ -108,8 +108,11 @@ static const char * const dss_generic_clk_source_names[] = {
 	[DSS_CLK_SRC_FCK]	= "FCK",
 	[DSS_CLK_SRC_PLL1_1]	= "PLL1:1",
 	[DSS_CLK_SRC_PLL1_2]	= "PLL1:2",
+	[DSS_CLK_SRC_PLL1_3]	= "PLL1:3",
 	[DSS_CLK_SRC_PLL2_1]	= "PLL2:1",
 	[DSS_CLK_SRC_PLL2_2]	= "PLL2:2",
+	[DSS_CLK_SRC_PLL2_3]	= "PLL2:3",
+	[DSS_CLK_SRC_HDMI_PLL]	= "HDMI PLL",
 };
 
 static bool dss_initialized;
