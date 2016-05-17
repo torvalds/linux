@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 
 #include <video/omapdss.h>
 
@@ -104,6 +105,9 @@ static int hdmi_pll_enable(struct dss_pll *dsspll)
 	struct hdmi_wp_data *wp = pll->wp;
 	int r;
 
+	r = pm_runtime_get_sync(&pll->pdev->dev);
+	WARN_ON(r < 0);
+
 	dss_ctrl_pll_enable(DSS_PLL_HDMI, true);
 
 	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
@@ -117,10 +121,14 @@ static void hdmi_pll_disable(struct dss_pll *dsspll)
 {
 	struct hdmi_pll_data *pll = container_of(dsspll, struct hdmi_pll_data, pll);
 	struct hdmi_wp_data *wp = pll->wp;
+	int r;
 
 	hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
 
 	dss_ctrl_pll_enable(DSS_PLL_HDMI, false);
+
+	r = pm_runtime_put_sync(&pll->pdev->dev);
+	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
 static const struct dss_pll_ops dsi_pll_ops = {
@@ -228,6 +236,7 @@ int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
 	int r;
 	struct resource *res;
 
+	pll->pdev = pdev;
 	pll->wp = wp;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll");

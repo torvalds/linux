@@ -240,6 +240,7 @@ struct hdmi_pll_data {
 
 	void __iomem *base;
 
+	struct platform_device *pdev;
 	struct hdmi_wp_data *wp;
 };
 
