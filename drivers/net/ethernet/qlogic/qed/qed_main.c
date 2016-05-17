@@ -177,7 +177,7 @@ static int qed_init_pci(struct qed_dev *cdev,
 	}
 
 	if (IS_PF(cdev)) {
-			cdev->db_phys_addr = pci_resource_start(cdev->pdev, 2);
+		cdev->db_phys_addr = pci_resource_start(cdev->pdev, 2);
 		cdev->db_size = pci_resource_len(cdev->pdev, 2);
 		cdev->doorbells = ioremap_wc(cdev->db_phys_addr, cdev->db_size);
 		if (!cdev->doorbells) {
