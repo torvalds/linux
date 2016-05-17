@@ -64,19 +64,19 @@ nvkm_mem_node_cleanup(struct nvkm_mem *node)
 
 static void
 nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
-			 struct ttm_mem_reg *mem)
+			 struct ttm_mem_reg *reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
 	struct nvkm_ram *ram = nvxx_fb(&drm->client.device)->ram;
-	nvkm_mem_node_cleanup(mem->mm_node);
-	ram->func->put(ram, (struct nvkm_mem **)&mem->mm_node);
+	nvkm_mem_node_cleanup(reg->mm_node);
+	ram->func->put(ram, (struct nvkm_mem **)&reg->mm_node);
 }
 
 static int
 nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_mem_reg *mem)
+			 struct ttm_mem_reg *reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
 	struct nvkm_ram *ram = nvxx_fb(&drm->client.device)->ram;
@@ -91,18 +91,18 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
 		size_nc = 1 << nvbo->page_shift;
 
-	ret = ram->func->get(ram, mem->num_pages << PAGE_SHIFT,
-			     mem->page_alignment << PAGE_SHIFT, size_nc,
+	ret = ram->func->get(ram, reg->num_pages << PAGE_SHIFT,
+			     reg->page_alignment << PAGE_SHIFT, size_nc,
 			     (nvbo->tile_flags >> 8) & 0x3ff, &node);
 	if (ret) {
-		mem->mm_node = NULL;
+		reg->mm_node = NULL;
 		return (ret == -ENOSPC) ? 0 : ret;
 	}
 
 	node->page_shift = nvbo->page_shift;
 
-	mem->mm_node = node;
-	mem->start   = node->offset >> PAGE_SHIFT;
+	reg->mm_node = node;
+	reg->start   = node->offset >> PAGE_SHIFT;
 	return 0;
 }
 
@@ -127,18 +127,18 @@ nouveau_gart_manager_fini(struct ttm_mem_type_manager *man)
 
 static void
 nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
-			 struct ttm_mem_reg *mem)
+			 struct ttm_mem_reg *reg)
 {
-	nvkm_mem_node_cleanup(mem->mm_node);
-	kfree(mem->mm_node);
-	mem->mm_node = NULL;
+	nvkm_mem_node_cleanup(reg->mm_node);
+	kfree(reg->mm_node);
+	reg->mm_node = NULL;
 }
 
 static int
 nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
 			 const struct ttm_place *place,
-			 struct ttm_mem_reg *mem)
+			 struct ttm_mem_reg *reg)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
@@ -173,8 +173,8 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 		break;
 	}
 
-	mem->mm_node = node;
-	mem->start   = 0;
+	reg->mm_node = node;
+	reg->start   = 0;
 	return 0;
 }
 
@@ -215,20 +215,20 @@ nv04_gart_manager_fini(struct ttm_mem_type_manager *man)
 }
 
 static void
-nv04_gart_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *mem)
+nv04_gart_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *reg)
 {
-	struct nvkm_mem *node = mem->mm_node;
+	struct nvkm_mem *node = reg->mm_node;
 	if (node->vma[0].node)
 		nvkm_vm_put(&node->vma[0]);
-	kfree(mem->mm_node);
-	mem->mm_node = NULL;
+	kfree(reg->mm_node);
+	reg->mm_node = NULL;
 }
 
 static int
 nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		      struct ttm_buffer_object *bo,
 		      const struct ttm_place *place,
-		      struct ttm_mem_reg *mem)
+		      struct ttm_mem_reg *reg)
 {
 	struct nvkm_mem *node;
 	int ret;
@@ -239,15 +239,15 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 
 	node->page_shift = 12;
 
-	ret = nvkm_vm_get(man->priv, mem->num_pages << 12, node->page_shift,
+	ret = nvkm_vm_get(man->priv, reg->num_pages << 12, node->page_shift,
 			  NV_MEM_ACCESS_RW, &node->vma[0]);
 	if (ret) {
 		kfree(node);
 		return ret;
 	}
 
-	mem->mm_node = node;
-	mem->start   = node->vma[0].offset >> PAGE_SHIFT;
+	reg->mm_node = node;
+	reg->start   = node->vma[0].offset >> PAGE_SHIFT;
 	return 0;
 }
 
