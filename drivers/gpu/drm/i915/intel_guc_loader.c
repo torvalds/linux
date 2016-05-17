@@ -284,6 +284,17 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static u32 guc_wopcm_size(struct drm_i915_private *dev_priv)
+{
+	u32 wopcm_size = GUC_WOPCM_TOP;
+
+	/* On BXT, the top of WOPCM is reserved for RC6 context */
+	if (IS_BROXTON(dev_priv))
+		wopcm_size -= BXT_GUC_WOPCM_RC6_RESERVED;
+
+	return wopcm_size;
+}
+
 /*
  * Load the GuC firmware blob into the MinuteIA.
  */
@@ -311,7 +322,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	/* init WOPCM */
-	I915_WRITE(GUC_WOPCM_SIZE, GUC_WOPCM_SIZE_VALUE);
+	I915_WRITE(GUC_WOPCM_SIZE, guc_wopcm_size(dev_priv));
 	I915_WRITE(DMA_GUC_WOPCM_OFFSET, GUC_WOPCM_OFFSET_VALUE);
 
 	/* Enable MIA caching. GuC clock gating is disabled. */
@@ -555,9 +566,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 
 	/* Header and uCode will be loaded to WOPCM. Size of the two. */
 	size = guc_fw->header_size + guc_fw->ucode_size;
-
-	/* Top 32k of WOPCM is reserved (8K stack + 24k RC6 context). */
-	if (size > GUC_WOPCM_SIZE_VALUE - 0x8000) {
+	if (size > guc_wopcm_size(dev->dev_private)) {
 		DRM_ERROR("Firmware is too large to fit in WOPCM\n");
 		goto fail;
 	}
