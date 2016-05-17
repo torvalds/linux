@@ -210,10 +210,6 @@ enum omap_dss_clk_source {
 	OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI,	/* OMAP4: PLL2_CLK2 */
 };
 
-enum omap_hdmi_flags {
-	OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP = 1 << 0,
-};
-
 enum omap_dss_output_id {
 	OMAP_DSS_OUTPUT_DPI	= 1 << 0,
 	OMAP_DSS_OUTPUT_DBI	= 1 << 1,
