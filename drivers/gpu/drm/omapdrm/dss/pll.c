@@ -182,7 +182,7 @@ int dss_pll_set_config(struct dss_pll *pll, const struct dss_pll_clock_info *cin
 	return 0;
 }
 
-bool dss_pll_hsdiv_calc(const struct dss_pll *pll, unsigned long clkdco,
+bool dss_pll_hsdiv_calc_a(const struct dss_pll *pll, unsigned long clkdco,
 		unsigned long out_min, unsigned long out_max,
 		dss_hsdiv_calc_func func, void *data)
 {
@@ -207,7 +207,7 @@ bool dss_pll_hsdiv_calc(const struct dss_pll *pll, unsigned long clkdco,
 	return false;
 }
 
-bool dss_pll_calc(const struct dss_pll *pll, unsigned long clkin,
+bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 		unsigned long pll_min, unsigned long pll_max,
 		dss_pll_calc_func func, void *data)
 {

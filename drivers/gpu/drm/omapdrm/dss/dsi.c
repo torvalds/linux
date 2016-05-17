@@ -4461,7 +4461,7 @@ static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.fint = fint;
 	ctx->dsi_cinfo.clkdco = clkdco;
 
-	return dss_pll_hsdiv_calc(ctx->pll, clkdco, ctx->req_pck_min,
+	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
 			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
 			dsi_cm_calc_hsdiv_cb, ctx);
 }
@@ -4500,7 +4500,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	pll_min = max(cfg->hs_clk_min * 4, txbyteclk * 4 * 4);
 	pll_max = cfg->hs_clk_max * 4;
 
-	return dss_pll_calc(ctx->pll, clkin,
+	return dss_pll_calc_a(ctx->pll, clkin,
 			pll_min, pll_max,
 			dsi_cm_calc_pll_cb, ctx);
 }
@@ -4759,7 +4759,7 @@ static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.fint = fint;
 	ctx->dsi_cinfo.clkdco = clkdco;
 
-	return dss_pll_hsdiv_calc(ctx->pll, clkdco, ctx->req_pck_min,
+	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
 			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
 			dsi_vm_calc_hsdiv_cb, ctx);
 }
@@ -4801,7 +4801,7 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 		pll_max = byteclk_max * 4 * 4;
 	}
 
-	return dss_pll_calc(ctx->pll, clkin,
+	return dss_pll_calc_a(ctx->pll, clkin,
 			pll_min, pll_max,
 			dsi_vm_calc_pll_cb, ctx);
 }

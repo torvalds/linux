@@ -435,10 +435,10 @@ void dss_pll_disable(struct dss_pll *pll);
 int dss_pll_set_config(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo);
 
-bool dss_pll_hsdiv_calc(const struct dss_pll *pll, unsigned long clkdco,
+bool dss_pll_hsdiv_calc_a(const struct dss_pll *pll, unsigned long clkdco,
 		unsigned long out_min, unsigned long out_max,
 		dss_hsdiv_calc_func func, void *data);
-bool dss_pll_calc(const struct dss_pll *pll, unsigned long clkin,
+bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 		unsigned long pll_min, unsigned long pll_max,
 		dss_pll_calc_func func, void *data);
 int dss_pll_write_config_type_a(struct dss_pll *pll,

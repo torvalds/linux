@@ -198,7 +198,7 @@ static bool dpi_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.fint = fint;
 	ctx->dsi_cinfo.clkdco = clkdco;
 
-	return dss_pll_hsdiv_calc(ctx->pll, clkdco,
+	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco,
 		ctx->pck_min, dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
 		dpi_calc_hsdiv_cb, ctx);
 }
@@ -230,7 +230,7 @@ static bool dpi_dsi_clk_calc(struct dpi_data *dpi, unsigned long pck,
 
 	clkin = clk_get_rate(ctx->pll->clkin);
 
-	return dss_pll_calc(ctx->pll, clkin,
+	return dss_pll_calc_a(ctx->pll, clkin,
 			pll_min, pll_max,
 			dpi_calc_pll_cb, ctx);
 }
