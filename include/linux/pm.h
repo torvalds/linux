@@ -563,7 +563,6 @@ struct dev_pm_info {
 	bool			is_suspended:1;	/* Ditto */
 	bool			is_noirq_suspended:1;
 	bool			is_late_suspended:1;
-	bool			ignore_children:1;
 	bool			early_init:1;	/* Owned by the PM core */
 	bool			direct_complete:1;	/* Owned by the PM core */
 	spinlock_t		lock;
@@ -591,6 +590,7 @@ struct dev_pm_info {
 	unsigned int		deferred_resume:1;
 	unsigned int		run_wake:1;
 	unsigned int		runtime_auto:1;
+	bool			ignore_children:1;
 	unsigned int		no_callbacks:1;
 	unsigned int		irq_safe:1;
 	unsigned int		use_autosuspend:1;

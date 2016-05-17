@@ -1115,6 +1115,8 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	RAPL_CPU(0X5C, rapl_defaults_core),/* Broxton */
 	RAPL_CPU(0x5E, rapl_defaults_core),/* Skylake-H/S */
 	RAPL_CPU(0x57, rapl_defaults_hsw_server),/* Knights Landing */
+	RAPL_CPU(0x8E, rapl_defaults_core),/* Kabylake */
+	RAPL_CPU(0x9E, rapl_defaults_core),/* Kabylake */
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_ids);
