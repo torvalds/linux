@@ -20,34 +20,22 @@
 #include <linux/of_pci.h>
 #include <linux/platform_device.h>
 
-#include "pci-host-common.h"
+#include "../ecam.h"
 
 #define PEM_CFG_WR 0x28
 #define PEM_CFG_RD 0x30
 
 struct thunder_pem_pci {
-	struct gen_pci	gen_pci;
 	u32		ea_entry[3];
 	void __iomem	*pem_reg_base;
 };
-
-static void __iomem *thunder_pem_map_bus(struct pci_bus *bus,
-					 unsigned int devfn, int where)
-{
-	struct gen_pci *pci = bus->sysdata;
-	resource_size_t idx = bus->number - pci->cfg.bus_range->start;
-
-	return pci->cfg.win[idx] + ((devfn << 16) | where);
-}
 
 static int thunder_pem_bridge_read(struct pci_bus *bus, unsigned int devfn,
 				   int where, int size, u32 *val)
 {
 	u64 read_val;
-	struct thunder_pem_pci *pem_pci;
-	struct gen_pci *pci = bus->sysdata;
-
-	pem_pci = container_of(pci, struct thunder_pem_pci, gen_pci);
+	struct pci_config_window *cfg = bus->sysdata;
+	struct thunder_pem_pci *pem_pci = (struct thunder_pem_pci *)cfg->priv;
 
 	if (devfn != 0 || where >= 2048) {
 		*val = ~0;
@@ -132,17 +120,17 @@ static int thunder_pem_bridge_read(struct pci_bus *bus, unsigned int devfn,
 static int thunder_pem_config_read(struct pci_bus *bus, unsigned int devfn,
 				   int where, int size, u32 *val)
 {
-	struct gen_pci *pci = bus->sysdata;
+	struct pci_config_window *cfg = bus->sysdata;
 
-	if (bus->number < pci->cfg.bus_range->start ||
-	    bus->number > pci->cfg.bus_range->end)
+	if (bus->number < cfg->busr.start ||
+	    bus->number > cfg->busr.end)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	/*
 	 * The first device on the bus is the PEM PCIe bridge.
 	 * Special case its config access.
 	 */
-	if (bus->number == pci->cfg.bus_range->start)
+	if (bus->number == cfg->busr.start)
 		return thunder_pem_bridge_read(bus, devfn, where, size, val);
 
 	return pci_generic_config_read(bus, devfn, where, size, val);
@@ -208,13 +196,12 @@ static u32 thunder_pem_bridge_w1_bits(u64 where_aligned)
 static int thunder_pem_bridge_write(struct pci_bus *bus, unsigned int devfn,
 				    int where, int size, u32 val)
 {
-	struct gen_pci *pci = bus->sysdata;
-	struct thunder_pem_pci *pem_pci;
+	struct pci_config_window *cfg = bus->sysdata;
+	struct thunder_pem_pci *pem_pci = (struct thunder_pem_pci *)cfg->priv;
 	u64 write_val, read_val;
 	u64 where_aligned = where & ~3ull;
 	u32 mask = 0;
 
-	pem_pci = container_of(pci, struct thunder_pem_pci, gen_pci);
 
 	if (devfn != 0 || where >= 2048)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -282,53 +269,38 @@ static int thunder_pem_bridge_write(struct pci_bus *bus, unsigned int devfn,
 static int thunder_pem_config_write(struct pci_bus *bus, unsigned int devfn,
 				    int where, int size, u32 val)
 {
-	struct gen_pci *pci = bus->sysdata;
+	struct pci_config_window *cfg = bus->sysdata;
 
-	if (bus->number < pci->cfg.bus_range->start ||
-	    bus->number > pci->cfg.bus_range->end)
+	if (bus->number < cfg->busr.start ||
+	    bus->number > cfg->busr.end)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	/*
 	 * The first device on the bus is the PEM PCIe bridge.
 	 * Special case its config access.
 	 */
-	if (bus->number == pci->cfg.bus_range->start)
+	if (bus->number == cfg->busr.start)
 		return thunder_pem_bridge_write(bus, devfn, where, size, val);
 
 
 	return pci_generic_config_write(bus, devfn, where, size, val);
 }
 
-static struct gen_pci_cfg_bus_ops thunder_pem_bus_ops = {
-	.bus_shift	= 24,
-	.ops		= {
-		.map_bus	= thunder_pem_map_bus,
-		.read		= thunder_pem_config_read,
-		.write		= thunder_pem_config_write,
-	}
-};
-
-static const struct of_device_id thunder_pem_of_match[] = {
-	{ .compatible = "cavium,pci-host-thunder-pem",
-	  .data = &thunder_pem_bus_ops },
-
-	{ },
-};
-MODULE_DEVICE_TABLE(of, thunder_pem_of_match);
-
-static int thunder_pem_probe(struct platform_device *pdev)
+static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg)
 {
-	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	resource_size_t bar4_start;
 	struct resource *res_pem;
 	struct thunder_pem_pci *pem_pci;
+	struct platform_device *pdev;
+
+	/* Only OF support for now */
+	if (!dev->of_node)
+		return -EINVAL;
 
 	pem_pci = devm_kzalloc(dev, sizeof(*pem_pci), GFP_KERNEL);
 	if (!pem_pci)
 		return -ENOMEM;
 
-	of_id = of_match_node(thunder_pem_of_match, dev->of_node);
-	pem_pci->gen_pci.cfg.ops = (struct gen_pci_cfg_bus_ops *)of_id->data;
+	pdev = to_platform_device(dev);
 
 	/*
 	 * The second register range is the PEM bridge to the PCIe
@@ -356,7 +328,29 @@ static int thunder_pem_probe(struct platform_device *pdev)
 	pem_pci->ea_entry[1] = (u32)(res_pem->end - bar4_start) & ~3u;
 	pem_pci->ea_entry[2] = (u32)(bar4_start >> 32);
 
-	return pci_host_common_probe(pdev, &pem_pci->gen_pci);
+	cfg->priv = pem_pci;
+	return 0;
+}
+
+static struct pci_ecam_ops pci_thunder_pem_ops = {
+	.bus_shift	= 24,
+	.init		= thunder_pem_init,
+	.pci_ops	= {
+		.map_bus	= pci_ecam_map_bus,
+		.read		= thunder_pem_config_read,
+		.write		= thunder_pem_config_write,
+	}
+};
+
+static const struct of_device_id thunder_pem_of_match[] = {
+	{ .compatible = "cavium,pci-host-thunder-pem" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, thunder_pem_of_match);
+
+static int thunder_pem_probe(struct platform_device *pdev)
+{
+	return pci_host_common_probe(pdev, &pci_thunder_pem_ops);
 }
 
 static struct platform_driver thunder_pem_driver = {

@@ -79,6 +79,7 @@ config PCI_RCAR_GEN2_PCIE
 
 config PCI_HOST_COMMON
 	bool
+	select PCI_ECAM
 
 config PCI_HOST_GENERIC
 	bool "Generic PCI host controller"
