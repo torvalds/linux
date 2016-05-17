@@ -876,11 +876,16 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 		lseg = nfs4_proc_layoutget(lgp, gfp_flags);
 	} while (lseg == ERR_PTR(-EAGAIN));
 
-	if (IS_ERR(lseg) && !nfs_error_is_fatal(PTR_ERR(lseg)))
-		lseg = NULL;
-	else
+	if (IS_ERR(lseg)) {
+		if (!nfs_error_is_fatal(PTR_ERR(lseg))) {
+			pnfs_layout_clear_fail_bit(lo,
+					pnfs_iomode_to_fail_bit(range->iomode));
+			lseg = NULL;
+		}
+	} else {
 		pnfs_layout_clear_fail_bit(lo,
 				pnfs_iomode_to_fail_bit(range->iomode));
+	}
 
 	return lseg;
 }
