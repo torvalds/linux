@@ -250,6 +250,12 @@
 			OMAP3_CORE1_IOPAD(0x21c6, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c3_sda.hdq */
 		>;
 	};
+
+	bma180_pins: pinmux_bma180_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x213a, PIN_INPUT_PULLUP | MUX_MODE4) /* gpio115 */
+		>;
+	};
 };
 
 &omap3_pmx_core2 {
@@ -320,6 +326,8 @@
 	bma180@41 {
 		compatible = "bosch,bma180";
 		reg = <0x41>;
+		pinctrl-names = "default";
+		pintcrl-0 = <&bma180_pins>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <19 IRQ_TYPE_LEVEL_HIGH>; /* GPIO_115 */
 	};
