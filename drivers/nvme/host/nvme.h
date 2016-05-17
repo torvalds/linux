@@ -67,7 +67,16 @@ enum nvme_quirks {
 	NVME_QUIRK_DISCARD_ZEROES		= (1 << 2),
 };
 
+enum nvme_ctrl_state {
+	NVME_CTRL_NEW,
+	NVME_CTRL_LIVE,
+	NVME_CTRL_RESETTING,
+	NVME_CTRL_DELETING,
+};
+
 struct nvme_ctrl {
+	enum nvme_ctrl_state state;
+	spinlock_t lock;
 	const struct nvme_ctrl_ops *ops;
 	struct request_queue *admin_q;
 	struct device *dev;
@@ -84,7 +93,7 @@ struct nvme_ctrl {
 	char serial[20];
 	char model[40];
 	char firmware_rev[8];
-	int cntlid;
+	u16 cntlid;
 
 	u32 ctrl_config;
 
@@ -99,6 +108,8 @@ struct nvme_ctrl {
 	u32 vs;
 	bool subsystem;
 	unsigned long quirks;
+	struct work_struct scan_work;
+	struct work_struct async_event_work;
 };
 
 /*
@@ -136,9 +147,10 @@ struct nvme_ctrl_ops {
 	int (*reg_read32)(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 	int (*reg_write32)(struct nvme_ctrl *ctrl, u32 off, u32 val);
 	int (*reg_read64)(struct nvme_ctrl *ctrl, u32 off, u64 *val);
-	bool (*io_incapable)(struct nvme_ctrl *ctrl);
 	int (*reset_ctrl)(struct nvme_ctrl *ctrl);
 	void (*free_ctrl)(struct nvme_ctrl *ctrl);
+	void (*post_scan)(struct nvme_ctrl *ctrl);
+	void (*submit_async_event)(struct nvme_ctrl *ctrl, int aer_idx);
 };
 
 static inline bool nvme_ctrl_ready(struct nvme_ctrl *ctrl)
@@ -148,17 +160,6 @@ static inline bool nvme_ctrl_ready(struct nvme_ctrl *ctrl)
 	if (ctrl->ops->reg_read32(ctrl, NVME_REG_CSTS, &val))
 		return false;
 	return val & NVME_CSTS_RDY;
-}
-
-static inline bool nvme_io_incapable(struct nvme_ctrl *ctrl)
-{
-	u32 val = 0;
-
-	if (ctrl->ops->io_incapable(ctrl))
-		return true;
-	if (ctrl->ops->reg_read32(ctrl, NVME_REG_CSTS, &val))
-		return true;
-	return val & NVME_CSTS_CFS;
 }
 
 static inline int nvme_reset_subsystem(struct nvme_ctrl *ctrl)
@@ -173,56 +174,19 @@ static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
 	return (sector >> (ns->lba_shift - 9));
 }
 
-static inline void nvme_setup_flush(struct nvme_ns *ns,
-		struct nvme_command *cmnd)
+static inline unsigned nvme_map_len(struct request *rq)
 {
-	memset(cmnd, 0, sizeof(*cmnd));
-	cmnd->common.opcode = nvme_cmd_flush;
-	cmnd->common.nsid = cpu_to_le32(ns->ns_id);
+	if (rq->cmd_flags & REQ_DISCARD)
+		return sizeof(struct nvme_dsm_range);
+	else
+		return blk_rq_bytes(rq);
 }
 
-static inline void nvme_setup_rw(struct nvme_ns *ns, struct request *req,
-		struct nvme_command *cmnd)
+static inline void nvme_cleanup_cmd(struct request *req)
 {
-	u16 control = 0;
-	u32 dsmgmt = 0;
-
-	if (req->cmd_flags & REQ_FUA)
-		control |= NVME_RW_FUA;
-	if (req->cmd_flags & (REQ_FAILFAST_DEV | REQ_RAHEAD))
-		control |= NVME_RW_LR;
-
-	if (req->cmd_flags & REQ_RAHEAD)
-		dsmgmt |= NVME_RW_DSM_FREQ_PREFETCH;
-
-	memset(cmnd, 0, sizeof(*cmnd));
-	cmnd->rw.opcode = (rq_data_dir(req) ? nvme_cmd_write : nvme_cmd_read);
-	cmnd->rw.command_id = req->tag;
-	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
-	cmnd->rw.slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
-	cmnd->rw.length = cpu_to_le16((blk_rq_bytes(req) >> ns->lba_shift) - 1);
-
-	if (ns->ms) {
-		switch (ns->pi_type) {
-		case NVME_NS_DPS_PI_TYPE3:
-			control |= NVME_RW_PRINFO_PRCHK_GUARD;
-			break;
-		case NVME_NS_DPS_PI_TYPE1:
-		case NVME_NS_DPS_PI_TYPE2:
-			control |= NVME_RW_PRINFO_PRCHK_GUARD |
-					NVME_RW_PRINFO_PRCHK_REF;
-			cmnd->rw.reftag = cpu_to_le32(
-					nvme_block_nr(ns, blk_rq_pos(req)));
-			break;
-		}
-		if (!blk_integrity_rq(req))
-			control |= NVME_RW_PRINFO_PRACT;
-	}
-
-	cmnd->rw.control = cpu_to_le16(control);
-	cmnd->rw.dsmgmt = cpu_to_le32(dsmgmt);
+	if (req->cmd_flags & REQ_DISCARD)
+		kfree(req->completion_data);
 }
-
 
 static inline int nvme_error_status(u16 status)
 {
@@ -242,6 +206,8 @@ static inline bool nvme_req_needs_retry(struct request *req, u16 status)
 		(jiffies - req->start_time) < req->timeout;
 }
 
+bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
+		enum nvme_ctrl_state new_state);
 int nvme_disable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
 int nvme_enable_ctrl(struct nvme_ctrl *ctrl, u64 cap);
 int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl);
@@ -251,8 +217,13 @@ void nvme_uninit_ctrl(struct nvme_ctrl *ctrl);
 void nvme_put_ctrl(struct nvme_ctrl *ctrl);
 int nvme_init_identify(struct nvme_ctrl *ctrl);
 
-void nvme_scan_namespaces(struct nvme_ctrl *ctrl);
+void nvme_queue_scan(struct nvme_ctrl *ctrl);
 void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
+
+#define NVME_NR_AERS	1
+void nvme_complete_async_event(struct nvme_ctrl *ctrl,
+		struct nvme_completion *cqe);
+void nvme_queue_async_events(struct nvme_ctrl *ctrl);
 
 void nvme_stop_queues(struct nvme_ctrl *ctrl);
 void nvme_start_queues(struct nvme_ctrl *ctrl);
@@ -261,6 +232,8 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl);
 struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, unsigned int flags);
 void nvme_requeue_req(struct request *req);
+int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
+		struct nvme_command *cmd);
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void *buf, unsigned bufflen);
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
