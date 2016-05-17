@@ -19,7 +19,3 @@
 &usdhc2{
 	status ="disabled";
 };
-
-&iomuxc {
-	pinctrl-0 = <&pinctrl_hog &pinctrl_hog_sd &pinctrl_hog_sd2>;
-};

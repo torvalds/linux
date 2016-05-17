@@ -394,37 +394,7 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog &pinctrl_hog1 &pinctrl_hog_sd &pinctrl_hog_sd2>;
-
 	imx6ul-ddr3-arm2 {
-		pinctrl_hog: hoggrp {
-			fsl,pins = <
-				MX6UL_PAD_UART1_RTS_B__GPIO1_IO19	0x17059	/* SD1 CD */
-				MX6UL_PAD_UART1_CTS_B__GPIO1_IO18	0x17059	/* SD1 WP */
-			>;
-		};
-
-		pinctrl_hog1: hoggrp1 {
-			fsl,pins = <
-				MX6UL_PAD_NAND_ALE__GPIO4_IO10          0x17059 /* SD2 RESECT */
-			>;
-		};
-
-		pinctrl_hog_sd: hoggrp_sd {
-			fsl,pins = <
-				MX6UL_PAD_GPIO1_IO09__GPIO1_IO09        0x17059 /* SD1 RESET */
-				MX6UL_PAD_GPIO1_IO08__USDHC2_VSELECT    0x17059 /* SD2 VSELECT */
-			>;
-		};
-
-		pinctrl_hog_sd2: hoggrp_sd2 {
-			fsl,pins = <
-				MX6UL_PAD_CSI_MCLK__GPIO4_IO17		0x17059	/* SD2 CD */
-				MX6UL_PAD_CSI_PIXCLK__GPIO4_IO18	0x17059	/* SD2 WP */
-			>;
-		};
-
 		pinctrl_adc1: adc1grp {
 			fsl,pins = <
 				MX6UL_PAD_GPIO1_IO00__GPIO1_IO00        0xb0
@@ -821,6 +791,19 @@
 			>;
 		};
 
+		pinctrl_usdhc1_cd_wp: usdhc1_cd_wp_grp {
+			fsl,pins = <
+				MX6UL_PAD_UART1_RTS_B__GPIO1_IO19	0x17059	/* SD1 CD */
+				MX6UL_PAD_UART1_CTS_B__GPIO1_IO18	0x17059	/* SD1 WP */
+			>;
+		};
+
+		pinctrl_usdhc1_rst: usdhc1_rst_grp {
+			fsl,pins = <
+				MX6UL_PAD_GPIO1_IO09__GPIO1_IO09        0x17059 /* SD1 RESET */
+			>;
+		};
+
 		pinctrl_usdhc1_vselect: usdhc1_vselect_grp {
 			fsl,pins = <
 				MX6UL_PAD_GPIO1_IO05__USDHC1_VSELECT	0x17059	/* SD1 VSELECT */
@@ -859,6 +842,13 @@
 				MX6UL_PAD_NAND_DATA03__USDHC2_DATA3	0x170f9
 			>;
 		};
+
+		pinctrl_usdhc2_rst: usdhc2_rst_grp {
+			fsl,pins = <
+				MX6UL_PAD_NAND_ALE__GPIO4_IO10          0x17059 /* SD2 RESET */
+			>;
+		};
+
 	};
 };
 
@@ -982,9 +972,9 @@
 
 &usdhc1 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc1>, <&pinctrl_usdhc1_vselect>;
-	pinctrl-1 = <&pinctrl_usdhc1_100mhz>, <&pinctrl_usdhc1_vselect>;
-	pinctrl-2 = <&pinctrl_usdhc1_200mhz>, <&pinctrl_usdhc1_vselect>;
+	pinctrl-0 = <&pinctrl_usdhc1>, <&pinctrl_usdhc1_cd_wp>, <&pinctrl_usdhc1_rst>, <&pinctrl_usdhc1_vselect>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>, <&pinctrl_usdhc1_cd_wp>, <&pinctrl_usdhc1_rst>, <&pinctrl_usdhc1_vselect>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>, <&pinctrl_usdhc1_cd_wp>, <&pinctrl_usdhc1_rst>, <&pinctrl_usdhc1_vselect>;
 	cd-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 	keep-power-in-suspend;
@@ -995,9 +985,9 @@
 
 &usdhc2 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
-	pinctrl-0 = <&pinctrl_usdhc2>;
-	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
-	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
+	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_rst>;
+	pinctrl-1 = <&pinctrl_usdhc2_100mhz>, <&pinctrl_usdhc2_rst>;
+	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_rst>;
 	non-removable;
 	no-1-8-v;	/* VSELECT not connected by default */
 	keep-power-in-suspend;

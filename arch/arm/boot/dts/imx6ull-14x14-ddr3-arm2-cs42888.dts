@@ -129,11 +129,6 @@
 	};
 };
 
-&iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog &pinctrl_hog1 &pinctrl_hog_sd>;
-};
-
 &ov5640 {
 	status = "disabled";
 };

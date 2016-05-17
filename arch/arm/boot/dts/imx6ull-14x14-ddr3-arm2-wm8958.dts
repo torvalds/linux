@@ -100,10 +100,6 @@
 	};
 };
 
-&iomuxc {
-	pinctrl-0 = <&pinctrl_hog &pinctrl_hog1>;
-};
-
 &sai2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sai2>;

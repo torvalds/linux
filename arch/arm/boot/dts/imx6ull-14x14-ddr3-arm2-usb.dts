@@ -54,7 +54,7 @@
 &usdhc1 {
 	no-1-8-v;
 	vmmc-supply = <>;
-	pinctrl-0 = <&pinctrl_usdhc1>;
-	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
-	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+	pinctrl-0 = <&pinctrl_usdhc1>, <&pinctrl_usdhc1_cd_wp>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>, <&pinctrl_usdhc1_cd_wp>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>, <&pinctrl_usdhc1_cd_wp>;
 };
