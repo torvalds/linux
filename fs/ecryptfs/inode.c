@@ -1036,29 +1036,30 @@ out:
 }
 
 ssize_t
-ecryptfs_getxattr_lower(struct dentry *lower_dentry, const char *name,
-			void *value, size_t size)
+ecryptfs_getxattr_lower(struct dentry *lower_dentry, struct inode *lower_inode,
+			const char *name, void *value, size_t size)
 {
 	int rc = 0;
 
-	if (!d_inode(lower_dentry)->i_op->getxattr) {
+	if (!lower_inode->i_op->getxattr) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
-	inode_lock(d_inode(lower_dentry));
-	rc = d_inode(lower_dentry)->i_op->getxattr(lower_dentry, name, value,
-						   size);
-	inode_unlock(d_inode(lower_dentry));
+	inode_lock(lower_inode);
+	rc = lower_inode->i_op->getxattr(lower_dentry, lower_inode,
+					 name, value, size);
+	inode_unlock(lower_inode);
 out:
 	return rc;
 }
 
 static ssize_t
-ecryptfs_getxattr(struct dentry *dentry, const char *name, void *value,
-		  size_t size)
+ecryptfs_getxattr(struct dentry *dentry, struct inode *inode,
+		  const char *name, void *value, size_t size)
 {
-	return ecryptfs_getxattr_lower(ecryptfs_dentry_to_lower(dentry), name,
-				       value, size);
+	return ecryptfs_getxattr_lower(ecryptfs_dentry_to_lower(dentry),
+				       ecryptfs_inode_to_lower(inode),
+				       name, value, size);
 }
 
 static ssize_t

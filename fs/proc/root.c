@@ -226,8 +226,8 @@ static int proc_root_readdir(struct file *file, struct dir_context *ctx)
  */
 static const struct file_operations proc_root_operations = {
 	.read		 = generic_read_dir,
-	.iterate	 = proc_root_readdir,
-	.llseek		= default_llseek,
+	.iterate_shared	 = proc_root_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 /*

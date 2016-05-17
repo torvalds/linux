@@ -577,6 +577,18 @@ static inline void mapping_allow_writable(struct address_space *mapping)
 struct posix_acl;
 #define ACL_NOT_CACHED ((void *)(-1))
 
+static inline struct posix_acl *
+uncached_acl_sentinel(struct task_struct *task)
+{
+	return (void *)task + 1;
+}
+
+static inline bool
+is_uncached_acl(struct posix_acl *acl)
+{
+	return (long)acl & 1;
+}
+
 #define IOP_FASTPERM	0x0001
 #define IOP_LOOKUP	0x0002
 #define IOP_NOFOLLOW	0x0004
@@ -635,7 +647,7 @@ struct inode {
 
 	/* Misc */
 	unsigned long		i_state;
-	struct mutex		i_mutex;
+	struct rw_semaphore	i_rwsem;
 
 	unsigned long		dirtied_when;	/* jiffies of first dirtying */
 	unsigned long		dirtied_time_when;
@@ -672,6 +684,7 @@ struct inode {
 		struct block_device	*i_bdev;
 		struct cdev		*i_cdev;
 		char			*i_link;
+		unsigned		i_dir_seq;
 	};
 
 	__u32			i_generation;
@@ -721,27 +734,42 @@ enum inode_i_mutex_lock_class
 
 static inline void inode_lock(struct inode *inode)
 {
-	mutex_lock(&inode->i_mutex);
+	down_write(&inode->i_rwsem);
 }
 
 static inline void inode_unlock(struct inode *inode)
 {
-	mutex_unlock(&inode->i_mutex);
+	up_write(&inode->i_rwsem);
+}
+
+static inline void inode_lock_shared(struct inode *inode)
+{
+	down_read(&inode->i_rwsem);
+}
+
+static inline void inode_unlock_shared(struct inode *inode)
+{
+	up_read(&inode->i_rwsem);
 }
 
 static inline int inode_trylock(struct inode *inode)
 {
-	return mutex_trylock(&inode->i_mutex);
+	return down_write_trylock(&inode->i_rwsem);
+}
+
+static inline int inode_trylock_shared(struct inode *inode)
+{
+	return down_read_trylock(&inode->i_rwsem);
 }
 
 static inline int inode_is_locked(struct inode *inode)
 {
-	return mutex_is_locked(&inode->i_mutex);
+	return rwsem_is_locked(&inode->i_rwsem);
 }
 
 static inline void inode_lock_nested(struct inode *inode, unsigned subclass)
 {
-	mutex_lock_nested(&inode->i_mutex, subclass);
+	down_write_nested(&inode->i_rwsem, subclass);
 }
 
 void lock_two_nondirectories(struct inode *, struct inode*);
@@ -1646,6 +1674,7 @@ struct file_operations {
 	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
+	int (*iterate_shared) (struct file *, struct dir_context *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
@@ -1700,7 +1729,8 @@ struct inode_operations {
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
-	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
+	ssize_t (*getxattr) (struct dentry *, struct inode *,
+			     const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*removexattr) (struct dentry *, const char *);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
@@ -3101,6 +3131,13 @@ static inline bool dir_relax(struct inode *inode)
 {
 	inode_unlock(inode);
 	inode_lock(inode);
+	return !IS_DEADDIR(inode);
+}
+
+static inline bool dir_relax_shared(struct inode *inode)
+{
+	inode_unlock_shared(inode);
+	inode_lock_shared(inode);
 	return !IS_DEADDIR(inode);
 }
 
