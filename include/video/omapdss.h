@@ -195,10 +195,6 @@ enum omap_overlay_caps {
 	OMAP_DSS_OVL_CAP_REPLICATION = 1 << 5,
 };
 
-enum omap_overlay_manager_caps {
-	OMAP_DSS_DUMMY_VALUE, /* add a dummy value to prevent compiler error */
-};
-
 enum omap_dss_clk_source {
 	OMAP_DSS_CLK_SRC_FCK = 0,		/* OMAP2/3: DSS1_ALWON_FCLK
 						 * OMAP4: DSS_FCLK */
@@ -459,7 +455,6 @@ struct omap_overlay_manager {
 	/* static fields */
 	const char *name;
 	enum omap_channel id;
-	enum omap_overlay_manager_caps caps;
 	struct list_head overlays;
 	enum omap_display_type supported_displays;
 	enum omap_dss_output_id supported_outputs;
