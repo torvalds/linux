@@ -191,47 +191,5 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 		rwsem_downgrade_wake(sem);
 }
 
-static inline void rwsem_atomic_add(long val, struct rw_semaphore *sem)
-{
-#ifndef	CONFIG_SMP
-	sem->count += val;
-#else
-	long temp;
-	__asm__ __volatile__(
-	"1:	ldq_l	%0,%1\n"
-	"	addq	%0,%2,%0\n"
-	"	stq_c	%0,%1\n"
-	"	beq	%0,2f\n"
-	".subsection 2\n"
-	"2:	br	1b\n"
-	".previous"
-	:"=&r" (temp), "=m" (sem->count)
-	:"Ir" (val), "m" (sem->count));
-#endif
-}
-
-static inline long rwsem_atomic_update(long val, struct rw_semaphore *sem)
-{
-#ifndef	CONFIG_SMP
-	sem->count += val;
-	return sem->count;
-#else
-	long ret, temp;
-	__asm__ __volatile__(
-	"1:	ldq_l	%0,%1\n"
-	"	addq 	%0,%3,%2\n"
-	"	addq	%0,%3,%0\n"
-	"	stq_c	%2,%1\n"
-	"	beq	%2,2f\n"
-	".subsection 2\n"
-	"2:	br	1b\n"
-	".previous"
-	:"=&r" (ret), "=m" (sem->count), "=&r" (temp)
-	:"Ir" (val), "m" (sem->count));
-
-	return ret;
-#endif
-}
-
 #endif /* __KERNEL__ */
 #endif /* _ALPHA_RWSEM_H */

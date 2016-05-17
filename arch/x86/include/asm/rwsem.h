@@ -213,23 +213,5 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 		     : "memory", "cc");
 }
 
-/*
- * implement atomic add functionality
- */
-static inline void rwsem_atomic_add(long delta, struct rw_semaphore *sem)
-{
-	asm volatile(LOCK_PREFIX _ASM_ADD "%1,%0"
-		     : "+m" (sem->count)
-		     : "er" (delta));
-}
-
-/*
- * implement exchange and add functionality
- */
-static inline long rwsem_atomic_update(long delta, struct rw_semaphore *sem)
-{
-	return delta + xadd(&sem->count, delta);
-}
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_RWSEM_H */

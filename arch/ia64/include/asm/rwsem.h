@@ -151,11 +151,4 @@ __downgrade_write (struct rw_semaphore *sem)
 		rwsem_downgrade_wake(sem);
 }
 
-/*
- * Implement atomic add functionality.  These used to be "inline" functions, but GCC v3.1
- * doesn't quite optimize this stuff right and ends up with bad calls to fetchandadd.
- */
-#define rwsem_atomic_add(delta, sem)	atomic64_add(delta, (atomic64_t *)(&(sem)->count))
-#define rwsem_atomic_update(delta, sem)	atomic64_add_return(delta, (atomic64_t *)(&(sem)->count))
-
 #endif /* _ASM_IA64_RWSEM_H */
