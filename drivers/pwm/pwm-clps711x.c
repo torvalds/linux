@@ -60,7 +60,7 @@ static int clps711x_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		return -EINVAL;
 
 	/* Store constant period value */
-	pwm_set_period(pwm, DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq));
+	pwm->args.period = DIV_ROUND_CLOSEST(NSEC_PER_SEC, freq);
 
 	return 0;
 }

@@ -7020,9 +7020,9 @@ M:	Chanwoo Choi <cw00.choi@samsung.com>
 M:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
-F:	drivers/*/max14577.c
+F:	drivers/*/max14577*.c
 F:	drivers/*/max77686*.c
-F:	drivers/*/max77693.c
+F:	drivers/*/max77693*.c
 F:	drivers/extcon/extcon-max14577.c
 F:	drivers/extcon/extcon-max77693.c
 F:	drivers/rtc/rtc-max77686.c
@@ -12011,7 +12011,9 @@ L:	linux-kernel@vger.kernel.org
 W:	http://www.slimlogic.co.uk/?p=48
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/regulator.git
 S:	Supported
+F:	Documentation/devicetree/bindings/regulator/
 F:	drivers/regulator/
+F:	include/dt-bindings/regulator/
 F:	include/linux/regulator/
 
 VRF
