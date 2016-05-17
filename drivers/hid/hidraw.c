@@ -582,13 +582,12 @@ int __init hidraw_init(void)
 
 	result = alloc_chrdev_region(&dev_id, HIDRAW_FIRST_MINOR,
 			HIDRAW_MAX_DEVICES, "hidraw");
-
-	hidraw_major = MAJOR(dev_id);
-
 	if (result < 0) {
 		pr_warn("can't get major number\n");
 		goto out;
 	}
+
+	hidraw_major = MAJOR(dev_id);
 
 	hidraw_class = class_create(THIS_MODULE, "hidraw");
 	if (IS_ERR(hidraw_class)) {
