@@ -820,29 +820,14 @@ void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
 }
 EXPORT_SYMBOL(blk_queue_update_dma_alignment);
 
-/**
- * blk_queue_flush - configure queue's cache flush capability
- * @q:		the request queue for the device
- * @flush:	0, REQ_FLUSH or REQ_FLUSH | REQ_FUA
- *
- * Tell block layer cache flush capability of @q.  If it supports
- * flushing, REQ_FLUSH should be set.  If it supports bypassing
- * write cache for individual writes, REQ_FUA should be set.
- */
-void blk_queue_flush(struct request_queue *q, unsigned int flush)
-{
-	WARN_ON_ONCE(flush & ~(REQ_FLUSH | REQ_FUA));
-
-	if (WARN_ON_ONCE(!(flush & REQ_FLUSH) && (flush & REQ_FUA)))
-		flush &= ~REQ_FUA;
-
-	q->flush_flags = flush & (REQ_FLUSH | REQ_FUA);
-}
-EXPORT_SYMBOL_GPL(blk_queue_flush);
-
 void blk_queue_flush_queueable(struct request_queue *q, bool queueable)
 {
-	q->flush_not_queueable = !queueable;
+	spin_lock_irq(q->queue_lock);
+	if (queueable)
+		clear_bit(QUEUE_FLAG_FLUSH_NQ, &q->queue_flags);
+	else
+		set_bit(QUEUE_FLAG_FLUSH_NQ, &q->queue_flags);
+	spin_unlock_irq(q->queue_lock);
 }
 EXPORT_SYMBOL_GPL(blk_queue_flush_queueable);
 
@@ -857,16 +842,13 @@ EXPORT_SYMBOL_GPL(blk_queue_flush_queueable);
 void blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
 {
 	spin_lock_irq(q->queue_lock);
-	if (wc) {
+	if (wc)
 		queue_flag_set(QUEUE_FLAG_WC, q);
-		q->flush_flags = REQ_FLUSH;
-	} else
+	else
 		queue_flag_clear(QUEUE_FLAG_WC, q);
-	if (fua) {
-		if (wc)
-			q->flush_flags |= REQ_FUA;
+	if (fua)
 		queue_flag_set(QUEUE_FLAG_FUA, q);
-	} else
+	else
 		queue_flag_clear(QUEUE_FLAG_FUA, q);
 	spin_unlock_irq(q->queue_lock);
 }

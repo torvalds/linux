@@ -133,7 +133,6 @@ MODULE_VERSION(DRV_VERSION "-" DRV_BUILD_ID);
 #define SKD_TIMER_MINUTES(minutes) ((minutes) * (60))
 
 #define INQ_STD_NBYTES 36
-#define SKD_DISCARD_CDB_LENGTH	24
 
 enum skd_drvr_state {
 	SKD_DRVR_STATE_LOAD,
@@ -212,7 +211,6 @@ struct skd_request_context {
 
 	struct request *req;
 	u8 flush_cmd;
-	u8 discard_page;
 
 	u32 timeout_stamp;
 	u8 sg_data_dir;
@@ -230,7 +228,6 @@ struct skd_request_context {
 };
 #define SKD_DATA_DIR_HOST_TO_CARD       1
 #define SKD_DATA_DIR_CARD_TO_HOST       2
-#define SKD_DATA_DIR_NONE		3	/* especially for DISCARD requests. */
 
 struct skd_special_context {
 	struct skd_request_context req;
@@ -540,31 +537,6 @@ skd_prep_zerosize_flush_cdb(struct skd_scsi_request *scsi_req,
 	scsi_req->cdb[9] = 0;
 }
 
-static void
-skd_prep_discard_cdb(struct skd_scsi_request *scsi_req,
-		     struct skd_request_context *skreq,
-		     struct page *page,
-		     u32 lba, u32 count)
-{
-	char *buf;
-	unsigned long len;
-	struct request *req;
-
-	buf = page_address(page);
-	len = SKD_DISCARD_CDB_LENGTH;
-
-	scsi_req->cdb[0] = UNMAP;
-	scsi_req->cdb[8] = len;
-
-	put_unaligned_be16(6 + 16, &buf[0]);
-	put_unaligned_be16(16, &buf[2]);
-	put_unaligned_be64(lba, &buf[8]);
-	put_unaligned_be32(count, &buf[16]);
-
-	req = skreq->req;
-	blk_add_request_payload(req, page, 0, len);
-}
-
 static void skd_request_fn_not_online(struct request_queue *q);
 
 static void skd_request_fn(struct request_queue *q)
@@ -575,7 +547,6 @@ static void skd_request_fn(struct request_queue *q)
 	struct skd_request_context *skreq;
 	struct request *req = NULL;
 	struct skd_scsi_request *scsi_req;
-	struct page *page;
 	unsigned long io_flags;
 	int error;
 	u32 lba;
@@ -669,7 +640,6 @@ static void skd_request_fn(struct request_queue *q)
 		skreq->flush_cmd = 0;
 		skreq->n_sg = 0;
 		skreq->sg_byte_count = 0;
-		skreq->discard_page = 0;
 
 		/*
 		 * OK to now dequeue request from q.
@@ -735,18 +705,7 @@ static void skd_request_fn(struct request_queue *q)
 		else
 			skreq->sg_data_dir = SKD_DATA_DIR_HOST_TO_CARD;
 
-		if (io_flags & REQ_DISCARD) {
-			page = alloc_page(GFP_ATOMIC | __GFP_ZERO);
-			if (!page) {
-				pr_err("request_fn:Page allocation failed.\n");
-				skd_end_request(skdev, skreq, -ENOMEM);
-				break;
-			}
-			skreq->discard_page = 1;
-			req->completion_data = page;
-			skd_prep_discard_cdb(scsi_req, skreq, page, lba, count);
-
-		} else if (flush == SKD_FLUSH_ZERO_SIZE_FIRST) {
+		if (flush == SKD_FLUSH_ZERO_SIZE_FIRST) {
 			skd_prep_zerosize_flush_cdb(scsi_req, skreq);
 			SKD_ASSERT(skreq->flush_cmd == 1);
 
@@ -851,16 +810,6 @@ skip_sg:
 static void skd_end_request(struct skd_device *skdev,
 			    struct skd_request_context *skreq, int error)
 {
-	struct request *req = skreq->req;
-	unsigned int io_flags = req->cmd_flags;
-
-	if ((io_flags & REQ_DISCARD) &&
-		(skreq->discard_page == 1)) {
-		pr_debug("%s:%s:%d, free the page!",
-			 skdev->name, __func__, __LINE__);
-		__free_page(req->completion_data);
-	}
-
 	if (unlikely(error)) {
 		struct request *req = skreq->req;
 		char *cmd = (rq_data_dir(req) == READ) ? "read" : "write";
@@ -4412,19 +4361,13 @@ static int skd_cons_disk(struct skd_device *skdev)
 	disk->queue = q;
 	q->queuedata = skdev;
 
-	blk_queue_flush(q, REQ_FLUSH | REQ_FUA);
+	blk_queue_write_cache(q, true, true);
 	blk_queue_max_segments(q, skdev->sgs_per_request);
 	blk_queue_max_hw_sectors(q, SKD_N_MAX_SECTORS);
 
 	/* set sysfs ptimal_io_size to 8K */
 	blk_queue_io_opt(q, 8192);
 
-	/* DISCARD Flag initialization. */
-	q->limits.discard_granularity = 8192;
-	q->limits.discard_alignment = 0;
-	blk_queue_max_discard_sectors(q, UINT_MAX >> 9);
-	q->limits.discard_zeroes_data = 1;
-	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
 
