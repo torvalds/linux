@@ -276,8 +276,10 @@ static void finish_read(struct ceph_osd_request *req)
 	for (i = 0; i < num_pages; i++) {
 		struct page *page = osd_data->pages[i];
 
-		if (rc < 0 && rc != -ENOENT)
+		if (rc < 0 && rc != -ENOENT) {
+			ceph_fscache_readpage_cancel(inode, page);
 			goto unlock;
+		}
 		if (bytes < (int)PAGE_SIZE) {
 			/* zero (remainder of) page */
 			int s = bytes < 0 ? 0 : bytes;
