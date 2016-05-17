@@ -45,7 +45,7 @@ static void report_load(const char *origin, struct file *file, char *operation)
 	kfree(pathname);
 }
 
-static int enabled = 1;
+static int enabled = IS_ENABLED(CONFIG_SECURITY_LOADPIN_ENABLED);
 static struct super_block *pinned_root;
 static DEFINE_SPINLOCK(pinned_root_spinlock);
 
