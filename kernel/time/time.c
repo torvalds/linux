@@ -160,15 +160,15 @@ static inline void warp_clock(void)
  * various programs will get confused when the clock gets warped.
  */
 
-int do_sys_settimeofday(const struct timespec *tv, const struct timezone *tz)
+int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz)
 {
 	static int firsttime = 1;
 	int error = 0;
 
-	if (tv && !timespec_valid(tv))
+	if (tv && !timespec64_valid(tv))
 		return -EINVAL;
 
-	error = security_settime(tv, tz);
+	error = security_settime64(tv, tz);
 	if (error)
 		return error;
 
@@ -186,7 +186,7 @@ int do_sys_settimeofday(const struct timespec *tv, const struct timezone *tz)
 		}
 	}
 	if (tv)
-		return do_settimeofday(tv);
+		return do_settimeofday64(tv);
 	return 0;
 }
 

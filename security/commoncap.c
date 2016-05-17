@@ -111,7 +111,7 @@ int cap_capable(const struct cred *cred, struct user_namespace *targ_ns,
  * Determine whether the current process may set the system clock and timezone
  * information, returning 0 if permission granted, -ve if denied.
  */
-int cap_settime(const struct timespec *ts, const struct timezone *tz)
+int cap_settime(const struct timespec64 *ts, const struct timezone *tz)
 {
 	if (!capable(CAP_SYS_TIME))
 		return -EPERM;
