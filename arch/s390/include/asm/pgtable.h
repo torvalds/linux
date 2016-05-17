@@ -34,6 +34,8 @@
 extern pgd_t swapper_pg_dir[] __attribute__ ((aligned (4096)));
 extern void paging_init(void);
 extern void vmem_map_init(void);
+pmd_t *vmem_pmd_alloc(void);
+pte_t *vmem_pte_alloc(void);
 
 /*
  * The S390 doesn't have any external MMU info: the kernel page
@@ -475,6 +477,40 @@ static inline void csp(unsigned int *ptr, unsigned int old, unsigned int new)
 		: "+d" (reg2), "+m" (*ptr)
 		: "d" (reg3), "d" (address)
 		: "cc");
+}
+
+static inline void cspg(unsigned long *ptr, unsigned long old, unsigned long new)
+{
+	register unsigned long reg2 asm("2") = old;
+	register unsigned long reg3 asm("3") = new;
+	unsigned long address = (unsigned long)ptr | 1;
+
+	asm volatile(
+		"	.insn	rre,0xb98a0000,%0,%3"
+		: "+d" (reg2), "+m" (*ptr)
+		: "d" (reg3), "d" (address)
+		: "cc");
+}
+
+#define CRDTE_DTT_PAGE		0x00UL
+#define CRDTE_DTT_SEGMENT	0x10UL
+#define CRDTE_DTT_REGION3	0x14UL
+#define CRDTE_DTT_REGION2	0x18UL
+#define CRDTE_DTT_REGION1	0x1cUL
+
+static inline void crdte(unsigned long old, unsigned long new,
+			 unsigned long table, unsigned long dtt,
+			 unsigned long address, unsigned long asce)
+{
+	register unsigned long reg2 asm("2") = old;
+	register unsigned long reg3 asm("3") = new;
+	register unsigned long reg4 asm("4") = table | dtt;
+	register unsigned long reg5 asm("5") = address;
+
+	asm volatile(".insn rrf,0xb98f0000,%0,%2,%4,0"
+		     : "+d" (reg2)
+		     : "d" (reg3), "d" (reg4), "d" (reg5), "a" (asce)
+		     : "memory", "cc");
 }
 
 /*

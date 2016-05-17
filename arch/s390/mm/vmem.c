@@ -47,7 +47,7 @@ static inline pud_t *vmem_pud_alloc(void)
 	return pud;
 }
 
-static inline pmd_t *vmem_pmd_alloc(void)
+pmd_t *vmem_pmd_alloc(void)
 {
 	pmd_t *pmd = NULL;
 
@@ -58,7 +58,7 @@ static inline pmd_t *vmem_pmd_alloc(void)
 	return pmd;
 }
 
-static pte_t __ref *vmem_pte_alloc(void)
+pte_t __ref *vmem_pte_alloc(void)
 {
 	pte_t *pte;
 
