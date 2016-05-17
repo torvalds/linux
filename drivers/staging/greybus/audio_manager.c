@@ -76,7 +76,7 @@ int gb_audio_manager_remove(int id)
 	list_del(&module->list);
 	kobject_put(&module->kobj);
 	up_write(&modules_rwsem);
-	ida_simple_remove(&module_id, module->id);
+	ida_simple_remove(&module_id, id);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gb_audio_manager_remove);
