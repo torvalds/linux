@@ -696,6 +696,11 @@
 	status = "okay";
 };
 
+&mfc {
+	samsung,mfc-r = <0x43000000 0x800000>;
+	samsung,mfc-l = <0x51000000 0x800000>;
+};
+
 &mmc_0 {
 	status = "okay";
 	num-slots = <1>;
