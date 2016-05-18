@@ -465,6 +465,62 @@ static u32 hisi_sas_phy_read32(struct hisi_hba *hisi_hba,
 	return readl(regs);
 }
 
+/* This function needs to be protected from pre-emption. */
+static int
+slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba, int *slot_idx,
+		       struct domain_device *device)
+{
+	unsigned int index = 0;
+	void *bitmap = hisi_hba->slot_index_tags;
+	int sata_dev = dev_is_sata(device);
+
+	while (1) {
+		index = find_next_zero_bit(bitmap, hisi_hba->slot_index_count,
+					   index);
+		if (index >= hisi_hba->slot_index_count)
+			return -SAS_QUEUE_FULL;
+		/*
+		 * SAS IPTT bit0 should be 1
+		 */
+		if (sata_dev || (index & 1))
+			break;
+		index++;
+	}
+
+	set_bit(index, bitmap);
+	*slot_idx = index;
+	return 0;
+}
+
+static struct
+hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
+{
+	struct hisi_hba *hisi_hba = device->port->ha->lldd_ha;
+	struct hisi_sas_device *sas_dev = NULL;
+	int i, sata_dev = dev_is_sata(device);
+
+	spin_lock(&hisi_hba->lock);
+	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
+		/*
+		 * SATA device id bit0 should be 0
+		 */
+		if (sata_dev && (i & 1))
+			continue;
+		if (hisi_hba->devices[i].dev_type == SAS_PHY_UNUSED) {
+			hisi_hba->devices[i].device_id = i;
+			sas_dev = &hisi_hba->devices[i];
+			sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
+			sas_dev->dev_type = device->dev_type;
+			sas_dev->hisi_hba = hisi_hba;
+			sas_dev->sas_device = device;
+			break;
+		}
+	}
+	spin_unlock(&hisi_hba->lock);
+
+	return sas_dev;
+}
+
 static void config_phy_opt_mode_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	u32 cfg = hisi_sas_phy_read32(hisi_hba, phy_no, PHY_CFG);
@@ -544,7 +600,7 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 	}
 
 	qw0 |= ((1 << ITCT_HDR_VALID_OFF) |
-		(device->max_linkrate << ITCT_HDR_MCR_OFF) |
+		(device->linkrate << ITCT_HDR_MCR_OFF) |
 		(1 << ITCT_HDR_VLN_OFF) |
 		(port->id << ITCT_HDR_PORT_ID_OFF));
 	itct->qw0 = cpu_to_le64(qw0);
@@ -554,10 +610,11 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 	itct->sas_addr = __swab64(itct->sas_addr);
 
 	/* qw2 */
-	itct->qw2 = cpu_to_le64((500ULL << ITCT_HDR_INLT_OFF) |
-				(0xff00ULL << ITCT_HDR_BITLT_OFF) |
-				(0xff00ULL << ITCT_HDR_MCTLT_OFF) |
-				(0xff00ULL << ITCT_HDR_RTOLT_OFF));
+	if (!dev_is_sata(device))
+		itct->qw2 = cpu_to_le64((500ULL << ITCT_HDR_INLT_OFF) |
+					(0x1ULL << ITCT_HDR_BITLT_OFF) |
+					(0x32ULL << ITCT_HDR_MCTLT_OFF) |
+					(0x1ULL << ITCT_HDR_RTOLT_OFF));
 }
 
 static void free_device_v2_hw(struct hisi_hba *hisi_hba,
@@ -715,7 +772,7 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, HGC_SAS_TX_OPEN_FAIL_RETRY_CTRL, 0x7FF);
 	hisi_sas_write32(hisi_hba, OPENA_WT_CONTI_TIME, 0x1);
 	hisi_sas_write32(hisi_hba, I_T_NEXUS_LOSS_TIME, 0x1F4);
-	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME, 0x4E20);
+	hisi_sas_write32(hisi_hba, MAX_CON_TIME_LIMIT_TIME, 0x32);
 	hisi_sas_write32(hisi_hba, BUS_INACTIVE_LIMIT_TIME, 0x1);
 	hisi_sas_write32(hisi_hba, CFG_AGING_TIME, 0x1);
 	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN, 0x1);
@@ -1993,22 +2050,23 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	u32 ent_tmp, ent_msk, ent_int, port_id, link_rate, hard_phy_linkrate;
 	irqreturn_t res = IRQ_HANDLED;
 	u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
-	int phy_no;
+	int phy_no, offset;
 
 	phy_no = sas_phy->id;
 	initial_fis = &hisi_hba->initial_fis[phy_no];
 	fis = &initial_fis->fis;
 
-	ent_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK1);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, ent_msk | 1 << phy_no);
+	offset = 4 * (phy_no / 4);
+	ent_msk = hisi_sas_read32(hisi_hba, ENT_INT_SRC_MSK1 + offset);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1 + offset,
+			 ent_msk | 1 << ((phy_no % 4) * 8));
 
-	ent_int = hisi_sas_read32(hisi_hba, ENT_INT_SRC1);
-	ent_tmp = ent_int;
+	ent_int = hisi_sas_read32(hisi_hba, ENT_INT_SRC1 + offset);
+	ent_tmp = ent_int & (1 << (ENT_INT_SRC1_D2H_FIS_CH1_OFF *
+			     (phy_no % 4)));
 	ent_int >>= ENT_INT_SRC1_D2H_FIS_CH1_OFF * (phy_no % 4);
 	if ((ent_int & ENT_INT_SRC1_D2H_FIS_CH0_MSK) == 0) {
 		dev_warn(dev, "sata int: phy%d did not receive FIS\n", phy_no);
-		hisi_sas_write32(hisi_hba, ENT_INT_SRC1, ent_tmp);
-		hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, ent_msk);
 		res = IRQ_NONE;
 		goto end;
 	}
@@ -2056,8 +2114,8 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	queue_work(hisi_hba->wq, &phy->phyup_ws);
 
 end:
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC1, ent_tmp);
-	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, ent_msk);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC1 + offset, ent_tmp);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1 + offset, ent_msk);
 
 	return res;
 }
@@ -2165,6 +2223,8 @@ static int hisi_sas_v2_init(struct hisi_hba *hisi_hba)
 static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.hw_init = hisi_sas_v2_init,
 	.setup_itct = setup_itct_v2_hw,
+	.slot_index_alloc = slot_index_alloc_quirk_v2_hw,
+	.alloc_dev = alloc_dev_quirk_v2_hw,
 	.sl_notify = sl_notify_v2_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v2_hw,
 	.free_device = free_device_v2_hw,
