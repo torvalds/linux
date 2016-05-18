@@ -3207,6 +3207,7 @@ xfs_iflush_cluster(
 		 */
 		spin_lock(&iq->i_flags_lock);
 		if (!iq->i_ino ||
+		    __xfs_iflags_test(iq, XFS_ISTALE) ||
 		    (XFS_INO_TO_AGINO(mp, iq->i_ino) & mask) != first_index) {
 			spin_unlock(&iq->i_flags_lock);
 			continue;
