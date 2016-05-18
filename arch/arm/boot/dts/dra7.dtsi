@@ -82,11 +82,9 @@
 			compatible = "arm,cortex-a15";
 			reg = <0>;
 
-			operating-points = <
-				/* kHz    uV */
-				1000000	1060000
-				1176000	1160000
-				>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			ti,syscon-efuse = <&scm_wkup 0x20c 0xf80000 19>;
+			ti,syscon-rev = <&scm_wkup 0x204>;
 
 			clocks = <&dpll_mpu_ck>;
 			clock-names = "cpu";
@@ -97,6 +95,24 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <2>;
 			#cooling-cells = <2>; /* min followed by max */
+		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp_nom@1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1060000 850000 1150000>;
+			opp-supported-hw = <0xFF 0x01>;
+			opp-suspend;
+		};
+
+		opp_od@1176000000 {
+			opp-hz = /bits/ 64 <1176000000>;
+			opp-microvolt = <1160000 885000 1160000>;
+			opp-supported-hw = <0xFF 0x02>;
 		};
 	};
 
