@@ -128,6 +128,7 @@ idt	Integrated Device Technologies, Inc.
 ifi	Ingenieurburo Fur Ic-Technologie (I/F/I)
 iom	Iomega Corporation
 img	Imagination Technologies Ltd.
+infineon Infineon Technologies
 inforce	Inforce Computing
 ingenic	Ingenic Semiconductor
 innolux	Innolux Corporation
