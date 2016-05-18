@@ -350,9 +350,16 @@ done:
 	return ret;
 }
 
-static noinline
-bool rwsem_spin_on_owner(struct rw_semaphore *sem, struct task_struct *owner)
+/*
+ * Return true only if we can still spin on the owner field of the rwsem.
+ */
+static noinline bool rwsem_spin_on_owner(struct rw_semaphore *sem)
 {
+	struct task_struct *owner = READ_ONCE(sem->owner);
+
+	if (!rwsem_owner_is_writer(owner))
+		goto out;
+
 	rcu_read_lock();
 	while (sem->owner == owner) {
 		/*
@@ -372,7 +379,7 @@ bool rwsem_spin_on_owner(struct rw_semaphore *sem, struct task_struct *owner)
 		cpu_relax_lowlatency();
 	}
 	rcu_read_unlock();
-
+out:
 	/*
 	 * If there is a new owner or the owner is not set, we continue
 	 * spinning.
@@ -382,7 +389,6 @@ bool rwsem_spin_on_owner(struct rw_semaphore *sem, struct task_struct *owner)
 
 static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 {
-	struct task_struct *owner;
 	bool taken = false;
 
 	preempt_disable();
@@ -394,21 +400,17 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 	if (!osq_lock(&sem->osq))
 		goto done;
 
-	while (true) {
-		owner = READ_ONCE(sem->owner);
+	/*
+	 * Optimistically spin on the owner field and attempt to acquire the
+	 * lock whenever the owner changes. Spinning will be stopped when:
+	 *  1) the owning writer isn't running; or
+	 *  2) readers own the lock as we can't determine if they are
+	 *     actively running or not.
+	 */
+	while (rwsem_spin_on_owner(sem)) {
 		/*
-		 * Don't spin if
-		 * 1) the owner is a reader as we we can't determine if the
-		 *    reader is actively running or not.
-		 * 2) The rwsem_spin_on_owner() returns false which means
-		 *    the owner isn't running.
+		 * Try to acquire the lock
 		 */
-		if (rwsem_owner_is_reader(owner) ||
-		   (rwsem_owner_is_writer(owner) &&
-		   !rwsem_spin_on_owner(sem, owner)))
-			break;
-
-		/* wait_lock will be acquired if write_lock is obtained */
 		if (rwsem_try_write_lock_unqueued(sem)) {
 			taken = true;
 			break;
@@ -420,7 +422,7 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 		 * we're an RT task that will live-lock because we won't let
 		 * the owner complete.
 		 */
-		if (!owner && (need_resched() || rt_task(current)))
+		if (!sem->owner && (need_resched() || rt_task(current)))
 			break;
 
 		/*
