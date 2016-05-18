@@ -44,7 +44,46 @@
 			clocks = <&dpll_mpu_ck>;
 			clock-names = "cpu";
 
+			operating-points-v2 = <&cpu0_opp_table>;
+			ti,syscon-efuse = <&scm_conf 0x610 0x3f 0>;
+			ti,syscon-rev = <&scm_conf 0x600>;
+
 			clock-latency = <300000>; /* From omap-cpufreq driver */
+		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+
+		opp50@300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <950000 931000 969000>;
+			opp-supported-hw = <0xFF 0x01>;
+			opp-suspend;
+		};
+
+		opp100@600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1100000 1078000 1122000>;
+			opp-supported-hw = <0xFF 0x04>;
+		};
+
+		opp120@720000000 {
+			opp-hz = /bits/ 64 <720000000>;
+			opp-microvolt = <1200000 1176000 1224000>;
+			opp-supported-hw = <0xFF 0x08>;
+		};
+
+		oppturbo@800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1260000 1234800 1285200>;
+			opp-supported-hw = <0xFF 0x10>;
+		};
+
+		oppnitro@1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1325000 1298500 1351500>;
+			opp-supported-hw = <0xFF 0x20>;
 		};
 	};
 
