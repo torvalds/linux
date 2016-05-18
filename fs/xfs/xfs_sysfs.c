@@ -395,11 +395,67 @@ struct kobj_type xfs_error_ktype = {
 	.release = xfs_sysfs_release,
 };
 
+/*
+ * Error initialization tables. These need to be ordered in the same
+ * order as the enums used to index the array. All class init tables need to
+ * define a "default" behaviour as the first entry, all other entries can be
+ * empty.
+ */
+struct xfs_error_init {
+	char		*name;
+	int		max_retries;
+};
+
+static const struct xfs_error_init xfs_error_meta_init[XFS_ERR_ERRNO_MAX] = {
+	{ .name = "default",
+	  .max_retries = -1,
+	},
+};
+
+static int
+xfs_error_sysfs_init_class(
+	struct xfs_mount	*mp,
+	int			class,
+	const char		*parent_name,
+	struct xfs_kobj		*parent_kobj,
+	const struct xfs_error_init init[])
+{
+	struct xfs_error_cfg	*cfg;
+	int			error;
+	int			i;
+
+	ASSERT(class < XFS_ERR_CLASS_MAX);
+
+	error = xfs_sysfs_init(parent_kobj, &xfs_error_ktype,
+				&mp->m_error_kobj, parent_name);
+	if (error)
+		return error;
+
+	for (i = 0; i < XFS_ERR_ERRNO_MAX; i++) {
+		cfg = &mp->m_error_cfg[class][i];
+		error = xfs_sysfs_init(&cfg->kobj, &xfs_error_cfg_ktype,
+					parent_kobj, init[i].name);
+		if (error)
+			goto out_error;
+
+		cfg->max_retries = init[i].max_retries;
+	}
+	return 0;
+
+out_error:
+	/* unwind the entries that succeeded */
+	for (i--; i >= 0; i--) {
+		cfg = &mp->m_error_cfg[class][i];
+		xfs_sysfs_del(&cfg->kobj);
+	}
+	xfs_sysfs_del(parent_kobj);
+	return error;
+}
+
 int
 xfs_error_sysfs_init(
 	struct xfs_mount	*mp)
 {
-	struct xfs_error_cfg	*cfg;
 	int			error;
 
 	/* .../xfs/<dev>/error/ */
@@ -409,22 +465,14 @@ xfs_error_sysfs_init(
 		return error;
 
 	/* .../xfs/<dev>/error/metadata/ */
-	error = xfs_sysfs_init(&mp->m_error_meta_kobj, &xfs_error_ktype,
-				&mp->m_error_kobj, "metadata");
+	error = xfs_error_sysfs_init_class(mp, XFS_ERR_METADATA,
+				"metadata", &mp->m_error_meta_kobj,
+				xfs_error_meta_init);
 	if (error)
 		goto out_error;
 
-	cfg = &mp->m_error_cfg[XFS_ERR_METADATA][XFS_ERR_DEFAULT];
-	error = xfs_sysfs_init(&cfg->kobj, &xfs_error_cfg_ktype,
-				&mp->m_error_meta_kobj, "default");
-	if (error)
-		goto out_error_meta;
-	cfg->max_retries = -1;
-
 	return 0;
 
-out_error_meta:
-	xfs_sysfs_del(&mp->m_error_meta_kobj);
 out_error:
 	xfs_sysfs_del(&mp->m_error_kobj);
 	return error;
