@@ -33,10 +33,6 @@
 #include "nd.h"
 
 struct pmem_device {
-	struct request_queue	*pmem_queue;
-	struct gendisk		*pmem_disk;
-	struct nd_namespace_common *ndns;
-
 	/* One contiguous memory region per device */
 	phys_addr_t		phys_addr;
 	/* when non-zero this device is hosting a 'pfn' instance */
@@ -50,23 +46,10 @@ struct pmem_device {
 	struct badblocks	bb;
 };
 
-static bool is_bad_pmem(struct badblocks *bb, sector_t sector, unsigned int len)
-{
-	if (bb->count) {
-		sector_t first_bad;
-		int num_bad;
-
-		return !!badblocks_check(bb, sector, len / 512, &first_bad,
-				&num_bad);
-	}
-
-	return false;
-}
-
 static void pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 		unsigned int len)
 {
-	struct device *dev = disk_to_dev(pmem->pmem_disk);
+	struct device *dev = pmem->bb.dev;
 	sector_t sector;
 	long cleared;
 
@@ -136,8 +119,7 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 	unsigned long start;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
-	struct block_device *bdev = bio->bi_bdev;
-	struct pmem_device *pmem = bdev->bd_disk->private_data;
+	struct pmem_device *pmem = q->queuedata;
 
 	do_acct = nd_iostat_start(bio, &start);
 	bio_for_each_segment(bvec, bio, iter) {
@@ -162,7 +144,7 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 		       struct page *page, int rw)
 {
-	struct pmem_device *pmem = bdev->bd_disk->private_data;
+	struct pmem_device *pmem = bdev->bd_queue->queuedata;
 	int rc;
 
 	rc = pmem_do_bvec(pmem, page, PAGE_SIZE, 0, rw, sector);
@@ -184,7 +166,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 static long pmem_direct_access(struct block_device *bdev, sector_t sector,
 		      void __pmem **kaddr, pfn_t *pfn)
 {
-	struct pmem_device *pmem = bdev->bd_disk->private_data;
+	struct pmem_device *pmem = bdev->bd_queue->queuedata;
 	resource_size_t offset = sector * 512 + pmem->data_offset;
 
 	*kaddr = pmem->virt_addr + offset;
@@ -200,104 +182,119 @@ static const struct block_device_operations pmem_fops = {
 	.revalidate_disk =	nvdimm_revalidate_disk,
 };
 
-static struct pmem_device *pmem_alloc(struct device *dev,
-		struct resource *res, int id)
+static void pmem_release_queue(void *q)
 {
+	blk_cleanup_queue(q);
+}
+
+void pmem_release_disk(void *disk)
+{
+	del_gendisk(disk);
+	put_disk(disk);
+}
+
+static int pmem_attach_disk(struct device *dev,
+		struct nd_namespace_common *ndns)
+{
+	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+	struct vmem_altmap __altmap, *altmap = NULL;
+	struct resource *res = &nsio->res;
+	struct nd_pfn *nd_pfn = NULL;
+	int nid = dev_to_node(dev);
+	struct nd_pfn_sb *pfn_sb;
 	struct pmem_device *pmem;
+	struct resource pfn_res;
 	struct request_queue *q;
+	struct gendisk *disk;
+	void *addr;
+
+	/* while nsio_rw_bytes is active, parse a pfn info block if present */
+	if (is_nd_pfn(dev)) {
+		nd_pfn = to_nd_pfn(dev);
+		altmap = nvdimm_setup_pfn(nd_pfn, &pfn_res, &__altmap);
+		if (IS_ERR(altmap))
+			return PTR_ERR(altmap);
+	}
+
+	/* we're attaching a block device, disable raw namespace access */
+	devm_nsio_disable(dev, nsio);
 
 	pmem = devm_kzalloc(dev, sizeof(*pmem), GFP_KERNEL);
 	if (!pmem)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
+	dev_set_drvdata(dev, pmem);
 	pmem->phys_addr = res->start;
 	pmem->size = resource_size(res);
 	if (!arch_has_wmb_pmem())
 		dev_warn(dev, "unable to guarantee persistence of writes\n");
 
-	if (!devm_request_mem_region(dev, pmem->phys_addr, pmem->size,
-			dev_name(dev))) {
-		dev_warn(dev, "could not reserve region [0x%pa:0x%zx]\n",
-				&pmem->phys_addr, pmem->size);
-		return ERR_PTR(-EBUSY);
+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+				dev_name(dev))) {
+		dev_warn(dev, "could not reserve region %pR\n", res);
+		return -EBUSY;
 	}
 
 	q = blk_alloc_queue_node(GFP_KERNEL, dev_to_node(dev));
 	if (!q)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	pmem->pfn_flags = PFN_DEV;
-	if (pmem_should_map_pages(dev)) {
-		pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, res,
+	if (is_nd_pfn(dev)) {
+		addr = devm_memremap_pages(dev, &pfn_res, &q->q_usage_counter,
+				altmap);
+		pfn_sb = nd_pfn->pfn_sb;
+		pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
+		pmem->pfn_pad = resource_size(res) - resource_size(&pfn_res);
+		pmem->pfn_flags |= PFN_MAP;
+		res = &pfn_res; /* for badblocks populate */
+		res->start += pmem->data_offset;
+	} else if (pmem_should_map_pages(dev)) {
+		addr = devm_memremap_pages(dev, &nsio->res,
 				&q->q_usage_counter, NULL);
 		pmem->pfn_flags |= PFN_MAP;
 	} else
-		pmem->virt_addr = (void __pmem *) devm_memremap(dev,
-				pmem->phys_addr, pmem->size,
-				ARCH_MEMREMAP_PMEM);
+		addr = devm_memremap(dev, pmem->phys_addr,
+				pmem->size, ARCH_MEMREMAP_PMEM);
 
-	if (IS_ERR(pmem->virt_addr)) {
+	/*
+	 * At release time the queue must be dead before
+	 * devm_memremap_pages is unwound
+	 */
+	if (devm_add_action(dev, pmem_release_queue, q)) {
 		blk_cleanup_queue(q);
-		return (void __force *) pmem->virt_addr;
+		return -ENOMEM;
 	}
 
-	pmem->pmem_queue = q;
-	return pmem;
-}
+	if (IS_ERR(addr))
+		return PTR_ERR(addr);
+	pmem->virt_addr = (void __pmem *) addr;
 
-static void pmem_detach_disk(struct pmem_device *pmem)
-{
-	if (!pmem->pmem_disk)
-		return;
-
-	del_gendisk(pmem->pmem_disk);
-	put_disk(pmem->pmem_disk);
-	blk_cleanup_queue(pmem->pmem_queue);
-}
-
-static int pmem_attach_disk(struct device *dev,
-		struct nd_namespace_common *ndns, struct pmem_device *pmem)
-{
-	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
-	int nid = dev_to_node(dev);
-	struct resource bb_res;
-	struct gendisk *disk;
-
-	blk_queue_make_request(pmem->pmem_queue, pmem_make_request);
-	blk_queue_physical_block_size(pmem->pmem_queue, PAGE_SIZE);
-	blk_queue_max_hw_sectors(pmem->pmem_queue, UINT_MAX);
-	blk_queue_bounce_limit(pmem->pmem_queue, BLK_BOUNCE_ANY);
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, pmem->pmem_queue);
+	blk_queue_make_request(q, pmem_make_request);
+	blk_queue_physical_block_size(q, PAGE_SIZE);
+	blk_queue_max_hw_sectors(q, UINT_MAX);
+	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	q->queuedata = pmem;
 
 	disk = alloc_disk_node(0, nid);
-	if (!disk) {
-		blk_cleanup_queue(pmem->pmem_queue);
+	if (!disk)
+		return -ENOMEM;
+	if (devm_add_action(dev, pmem_release_disk, disk)) {
+		put_disk(disk);
 		return -ENOMEM;
 	}
 
 	disk->fops		= &pmem_fops;
-	disk->private_data	= pmem;
-	disk->queue		= pmem->pmem_queue;
+	disk->queue		= q;
 	disk->flags		= GENHD_FL_EXT_DEVT;
 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
 	disk->driverfs_dev = dev;
 	set_capacity(disk, (pmem->size - pmem->pfn_pad - pmem->data_offset)
 			/ 512);
-	pmem->pmem_disk = disk;
-	devm_exit_badblocks(dev, &pmem->bb);
 	if (devm_init_badblocks(dev, &pmem->bb))
 		return -ENOMEM;
-	bb_res.start = nsio->res.start + pmem->data_offset;
-	bb_res.end = nsio->res.end;
-	if (is_nd_pfn(dev)) {
-		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
-		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
-
-		bb_res.start += __le32_to_cpu(pfn_sb->start_pad);
-		bb_res.end -= __le32_to_cpu(pfn_sb->end_trunc);
-	}
-	nvdimm_badblocks_populate(to_nd_region(dev->parent), &pmem->bb,
-			&bb_res);
+	nvdimm_badblocks_populate(to_nd_region(dev->parent), &pmem->bb, res);
 	disk->bb = &pmem->bb;
 	add_disk(disk);
 	revalidate_disk(disk);
@@ -305,346 +302,67 @@ static int pmem_attach_disk(struct device *dev,
 	return 0;
 }
 
-static int pmem_rw_bytes(struct nd_namespace_common *ndns,
-		resource_size_t offset, void *buf, size_t size, int rw)
-{
-	struct pmem_device *pmem = dev_get_drvdata(ndns->claim);
-
-	if (unlikely(offset + size > pmem->size)) {
-		dev_WARN_ONCE(&ndns->dev, 1, "request out of range\n");
-		return -EFAULT;
-	}
-
-	if (rw == READ) {
-		unsigned int sz_align = ALIGN(size + (offset & (512 - 1)), 512);
-
-		if (unlikely(is_bad_pmem(&pmem->bb, offset / 512, sz_align)))
-			return -EIO;
-		return memcpy_from_pmem(buf, pmem->virt_addr + offset, size);
-	} else {
-		memcpy_to_pmem(pmem->virt_addr + offset, buf, size);
-		wmb_pmem();
-	}
-
-	return 0;
-}
-
-static int nd_pfn_init(struct nd_pfn *nd_pfn)
-{
-	struct nd_pfn_sb *pfn_sb = kzalloc(sizeof(*pfn_sb), GFP_KERNEL);
-	struct pmem_device *pmem = dev_get_drvdata(&nd_pfn->dev);
-	struct nd_namespace_common *ndns = nd_pfn->ndns;
-	u32 start_pad = 0, end_trunc = 0;
-	resource_size_t start, size;
-	struct nd_namespace_io *nsio;
-	struct nd_region *nd_region;
-	unsigned long npfns;
-	phys_addr_t offset;
-	u64 checksum;
-	int rc;
-
-	if (!pfn_sb)
-		return -ENOMEM;
-
-	nd_pfn->pfn_sb = pfn_sb;
-	rc = nd_pfn_validate(nd_pfn);
-	if (rc == -ENODEV)
-		/* no info block, do init */;
-	else
-		return rc;
-
-	nd_region = to_nd_region(nd_pfn->dev.parent);
-	if (nd_region->ro) {
-		dev_info(&nd_pfn->dev,
-				"%s is read-only, unable to init metadata\n",
-				dev_name(&nd_region->dev));
-		goto err;
-	}
-
-	memset(pfn_sb, 0, sizeof(*pfn_sb));
-
-	/*
-	 * Check if pmem collides with 'System RAM' when section aligned and
-	 * trim it accordingly
-	 */
-	nsio = to_nd_namespace_io(&ndns->dev);
-	start = PHYS_SECTION_ALIGN_DOWN(nsio->res.start);
-	size = resource_size(&nsio->res);
-	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
-				IORES_DESC_NONE) == REGION_MIXED) {
-
-		start = nsio->res.start;
-		start_pad = PHYS_SECTION_ALIGN_UP(start) - start;
-	}
-
-	start = nsio->res.start;
-	size = PHYS_SECTION_ALIGN_UP(start + size) - start;
-	if (region_intersects(start, size, IORESOURCE_SYSTEM_RAM,
-				IORES_DESC_NONE) == REGION_MIXED) {
-		size = resource_size(&nsio->res);
-		end_trunc = start + size - PHYS_SECTION_ALIGN_DOWN(start + size);
-	}
-
-	if (start_pad + end_trunc)
-		dev_info(&nd_pfn->dev, "%s section collision, truncate %d bytes\n",
-				dev_name(&ndns->dev), start_pad + end_trunc);
-
-	/*
-	 * Note, we use 64 here for the standard size of struct page,
-	 * debugging options may cause it to be larger in which case the
-	 * implementation will limit the pfns advertised through
-	 * ->direct_access() to those that are included in the memmap.
-	 */
-	start += start_pad;
-	npfns = (pmem->size - start_pad - end_trunc - SZ_8K) / SZ_4K;
-	if (nd_pfn->mode == PFN_MODE_PMEM) {
-		unsigned long memmap_size;
-
-		/*
-		 * vmemmap_populate_hugepages() allocates the memmap array in
-		 * PMD_SIZE chunks.
-		 */
-		memmap_size = ALIGN(64 * npfns, PMD_SIZE);
-		offset = ALIGN(start + SZ_8K + memmap_size, nd_pfn->align)
-			- start;
-	} else if (nd_pfn->mode == PFN_MODE_RAM)
-		offset = ALIGN(start + SZ_8K, nd_pfn->align) - start;
-	else
-		goto err;
-
-	if (offset + start_pad + end_trunc >= pmem->size) {
-		dev_err(&nd_pfn->dev, "%s unable to satisfy requested alignment\n",
-				dev_name(&ndns->dev));
-		goto err;
-	}
-
-	npfns = (pmem->size - offset - start_pad - end_trunc) / SZ_4K;
-	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
-	pfn_sb->dataoff = cpu_to_le64(offset);
-	pfn_sb->npfns = cpu_to_le64(npfns);
-	memcpy(pfn_sb->signature, PFN_SIG, PFN_SIG_LEN);
-	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
-	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
-	pfn_sb->version_major = cpu_to_le16(1);
-	pfn_sb->version_minor = cpu_to_le16(1);
-	pfn_sb->start_pad = cpu_to_le32(start_pad);
-	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
-	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
-	pfn_sb->checksum = cpu_to_le64(checksum);
-
-	rc = nvdimm_write_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb));
-	if (rc)
-		goto err;
-
-	return 0;
- err:
-	nd_pfn->pfn_sb = NULL;
-	kfree(pfn_sb);
-	return -ENXIO;
-}
-
-static int nvdimm_namespace_detach_pfn(struct nd_namespace_common *ndns)
-{
-	struct nd_pfn *nd_pfn = to_nd_pfn(ndns->claim);
-	struct pmem_device *pmem;
-
-	/* free pmem disk */
-	pmem = dev_get_drvdata(&nd_pfn->dev);
-	pmem_detach_disk(pmem);
-
-	/* release nd_pfn resources */
-	kfree(nd_pfn->pfn_sb);
-	nd_pfn->pfn_sb = NULL;
-
-	return 0;
-}
-
-/*
- * We hotplug memory at section granularity, pad the reserved area from
- * the previous section base to the namespace base address.
- */
-static unsigned long init_altmap_base(resource_size_t base)
-{
-	unsigned long base_pfn = PHYS_PFN(base);
-
-	return PFN_SECTION_ALIGN_DOWN(base_pfn);
-}
-
-static unsigned long init_altmap_reserve(resource_size_t base)
-{
-	unsigned long reserve = PHYS_PFN(SZ_8K);
-	unsigned long base_pfn = PHYS_PFN(base);
-
-	reserve += base_pfn - PFN_SECTION_ALIGN_DOWN(base_pfn);
-	return reserve;
-}
-
-static int __nvdimm_namespace_attach_pfn(struct nd_pfn *nd_pfn)
-{
-	int rc;
-	struct resource res;
-	struct request_queue *q;
-	struct pmem_device *pmem;
-	struct vmem_altmap *altmap;
-	struct device *dev = &nd_pfn->dev;
-	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
-	struct nd_namespace_common *ndns = nd_pfn->ndns;
-	u32 start_pad = __le32_to_cpu(pfn_sb->start_pad);
-	u32 end_trunc = __le32_to_cpu(pfn_sb->end_trunc);
-	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
-	resource_size_t base = nsio->res.start + start_pad;
-	struct vmem_altmap __altmap = {
-		.base_pfn = init_altmap_base(base),
-		.reserve = init_altmap_reserve(base),
-	};
-
-	pmem = dev_get_drvdata(dev);
-	pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
-	pmem->pfn_pad = start_pad + end_trunc;
-	nd_pfn->mode = le32_to_cpu(nd_pfn->pfn_sb->mode);
-	if (nd_pfn->mode == PFN_MODE_RAM) {
-		if (pmem->data_offset < SZ_8K)
-			return -EINVAL;
-		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
-		altmap = NULL;
-	} else if (nd_pfn->mode == PFN_MODE_PMEM) {
-		nd_pfn->npfns = (pmem->size - pmem->pfn_pad - pmem->data_offset)
-			/ PAGE_SIZE;
-		if (le64_to_cpu(nd_pfn->pfn_sb->npfns) > nd_pfn->npfns)
-			dev_info(&nd_pfn->dev,
-					"number of pfns truncated from %lld to %ld\n",
-					le64_to_cpu(nd_pfn->pfn_sb->npfns),
-					nd_pfn->npfns);
-		altmap = & __altmap;
-		altmap->free = PHYS_PFN(pmem->data_offset - SZ_8K);
-		altmap->alloc = 0;
-	} else {
-		rc = -ENXIO;
-		goto err;
-	}
-
-	/* establish pfn range for lookup, and switch to direct map */
-	q = pmem->pmem_queue;
-	memcpy(&res, &nsio->res, sizeof(res));
-	res.start += start_pad;
-	res.end -= end_trunc;
-	devm_memunmap(dev, (void __force *) pmem->virt_addr);
-	pmem->virt_addr = (void __pmem *) devm_memremap_pages(dev, &res,
-			&q->q_usage_counter, altmap);
-	pmem->pfn_flags |= PFN_MAP;
-	if (IS_ERR(pmem->virt_addr)) {
-		rc = PTR_ERR(pmem->virt_addr);
-		goto err;
-	}
-
-	/* attach pmem disk in "pfn-mode" */
-	rc = pmem_attach_disk(dev, ndns, pmem);
-	if (rc)
-		goto err;
-
-	return rc;
- err:
-	nvdimm_namespace_detach_pfn(ndns);
-	return rc;
-
-}
-
-static int nvdimm_namespace_attach_pfn(struct nd_namespace_common *ndns)
-{
-	struct nd_pfn *nd_pfn = to_nd_pfn(ndns->claim);
-	int rc;
-
-	if (!nd_pfn->uuid || !nd_pfn->ndns)
-		return -ENODEV;
-
-	rc = nd_pfn_init(nd_pfn);
-	if (rc)
-		return rc;
-	/* we need a valid pfn_sb before we can init a vmem_altmap */
-	return __nvdimm_namespace_attach_pfn(nd_pfn);
-}
-
 static int nd_pmem_probe(struct device *dev)
 {
-	struct nd_region *nd_region = to_nd_region(dev->parent);
 	struct nd_namespace_common *ndns;
-	struct nd_namespace_io *nsio;
-	struct pmem_device *pmem;
 
 	ndns = nvdimm_namespace_common_probe(dev);
 	if (IS_ERR(ndns))
 		return PTR_ERR(ndns);
 
-	nsio = to_nd_namespace_io(&ndns->dev);
-	pmem = pmem_alloc(dev, &nsio->res, nd_region->id);
-	if (IS_ERR(pmem))
-		return PTR_ERR(pmem);
+	if (devm_nsio_enable(dev, to_nd_namespace_io(&ndns->dev)))
+		return -ENXIO;
 
-	pmem->ndns = ndns;
-	dev_set_drvdata(dev, pmem);
-	ndns->rw_bytes = pmem_rw_bytes;
-	if (devm_init_badblocks(dev, &pmem->bb))
-		return -ENOMEM;
-	nvdimm_badblocks_populate(nd_region, &pmem->bb, &nsio->res);
-
-	if (is_nd_btt(dev)) {
-		/* btt allocates its own request_queue */
-		blk_cleanup_queue(pmem->pmem_queue);
-		pmem->pmem_queue = NULL;
+	if (is_nd_btt(dev))
 		return nvdimm_namespace_attach_btt(ndns);
-	}
 
 	if (is_nd_pfn(dev))
-		return nvdimm_namespace_attach_pfn(ndns);
+		return pmem_attach_disk(dev, ndns);
 
-	if (nd_btt_probe(ndns, pmem) == 0 || nd_pfn_probe(ndns, pmem) == 0) {
-		/*
-		 * We'll come back as either btt-pmem, or pfn-pmem, so
-		 * drop the queue allocation for now.
-		 */
-		blk_cleanup_queue(pmem->pmem_queue);
+	/* if we find a valid info-block we'll come back as that personality */
+	if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0)
 		return -ENXIO;
-	}
 
-	return pmem_attach_disk(dev, ndns, pmem);
+	/* ...otherwise we're just a raw pmem device */
+	return pmem_attach_disk(dev, ndns);
 }
 
 static int nd_pmem_remove(struct device *dev)
 {
-	struct pmem_device *pmem = dev_get_drvdata(dev);
-
 	if (is_nd_btt(dev))
-		nvdimm_namespace_detach_btt(pmem->ndns);
-	else if (is_nd_pfn(dev))
-		nvdimm_namespace_detach_pfn(pmem->ndns);
-	else
-		pmem_detach_disk(pmem);
-
+		nvdimm_namespace_detach_btt(to_nd_btt(dev));
 	return 0;
 }
 
 static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 {
-	struct pmem_device *pmem = dev_get_drvdata(dev);
-	struct nd_namespace_common *ndns = pmem->ndns;
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
-	struct resource res = {
-		.start = nsio->res.start + pmem->data_offset,
-		.end = nsio->res.end,
-	};
+	struct pmem_device *pmem = dev_get_drvdata(dev);
+	resource_size_t offset = 0, end_trunc = 0;
+	struct nd_namespace_common *ndns;
+	struct nd_namespace_io *nsio;
+	struct resource res;
 
 	if (event != NVDIMM_REVALIDATE_POISON)
 		return;
 
-	if (is_nd_pfn(dev)) {
+	if (is_nd_btt(dev)) {
+		struct nd_btt *nd_btt = to_nd_btt(dev);
+
+		ndns = nd_btt->ndns;
+	} else if (is_nd_pfn(dev)) {
 		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
 		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
 
-		res.start += __le32_to_cpu(pfn_sb->start_pad);
-		res.end -= __le32_to_cpu(pfn_sb->end_trunc);
-	}
+		ndns = nd_pfn->ndns;
+		offset = pmem->data_offset + __le32_to_cpu(pfn_sb->start_pad);
+		end_trunc = __le32_to_cpu(pfn_sb->end_trunc);
+	} else
+		ndns = to_ndns(dev);
 
+	nsio = to_nd_namespace_io(&ndns->dev);
+	res.start = nsio->res.start + offset;
+	res.end = nsio->res.end - end_trunc;
 	nvdimm_badblocks_populate(nd_region, &pmem->bb, &res);
 }
 

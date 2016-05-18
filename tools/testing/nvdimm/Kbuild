@@ -7,6 +7,7 @@ ldflags-y += --wrap=ioremap_nocache
 ldflags-y += --wrap=iounmap
 ldflags-y += --wrap=memunmap
 ldflags-y += --wrap=__devm_request_region
+ldflags-y += --wrap=__devm_release_region
 ldflags-y += --wrap=__request_region
 ldflags-y += --wrap=__release_region
 ldflags-y += --wrap=devm_memremap_pages
@@ -49,6 +50,7 @@ libnvdimm-y += $(NVDIMM_SRC)/label.o
 libnvdimm-$(CONFIG_ND_CLAIM) += $(NVDIMM_SRC)/claim.o
 libnvdimm-$(CONFIG_BTT) += $(NVDIMM_SRC)/btt_devs.o
 libnvdimm-$(CONFIG_NVDIMM_PFN) += $(NVDIMM_SRC)/pfn_devs.o
+libnvdimm-$(CONFIG_NVDIMM_DAX) += $(NVDIMM_SRC)/dax_devs.o
 libnvdimm-y += config_check.o
 
 obj-m += test/

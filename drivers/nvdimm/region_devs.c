@@ -306,6 +306,23 @@ static ssize_t pfn_seed_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(pfn_seed);
 
+static ssize_t dax_seed_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+	ssize_t rc;
+
+	nvdimm_bus_lock(dev);
+	if (nd_region->dax_seed)
+		rc = sprintf(buf, "%s\n", dev_name(nd_region->dax_seed));
+	else
+		rc = sprintf(buf, "\n");
+	nvdimm_bus_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(dax_seed);
+
 static ssize_t read_only_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -335,6 +352,7 @@ static struct attribute *nd_region_attributes[] = {
 	&dev_attr_mappings.attr,
 	&dev_attr_btt_seed.attr,
 	&dev_attr_pfn_seed.attr,
+	&dev_attr_dax_seed.attr,
 	&dev_attr_read_only.attr,
 	&dev_attr_set_cookie.attr,
 	&dev_attr_available_size.attr,
@@ -351,6 +369,9 @@ static umode_t region_visible(struct kobject *kobj, struct attribute *a, int n)
 	int type = nd_region_to_nstype(nd_region);
 
 	if (!is_nd_pmem(dev) && a == &dev_attr_pfn_seed.attr)
+		return 0;
+
+	if (!is_nd_pmem(dev) && a == &dev_attr_dax_seed.attr)
 		return 0;
 
 	if (a != &dev_attr_set_cookie.attr
@@ -439,6 +460,13 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		nvdimm_bus_lock(dev);
 		if (nd_region->pfn_seed == dev)
 			nd_region_create_pfn_seed(nd_region);
+		nvdimm_bus_unlock(dev);
+	}
+	if (is_nd_dax(dev) && probe) {
+		nd_region = to_nd_region(dev->parent);
+		nvdimm_bus_lock(dev);
+		if (nd_region->dax_seed == dev)
+			nd_region_create_dax_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 }
@@ -718,6 +746,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	ida_init(&nd_region->ns_ida);
 	ida_init(&nd_region->btt_ida);
 	ida_init(&nd_region->pfn_ida);
+	ida_init(&nd_region->dax_ida);
 	dev = &nd_region->dev;
 	dev_set_name(dev, "region%d", nd_region->id);
 	dev->parent = &nvdimm_bus->dev;
