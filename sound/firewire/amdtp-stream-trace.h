@@ -26,7 +26,7 @@ TRACE_EVENT(in_packet,
 		__field(u32, cip_header1)
 		__field(unsigned int, payload_quadlets)
 		__field(unsigned int, packet_index)
-		__field(bool, irq)
+		__field(unsigned int, irq)
 		__field(unsigned int, index)
 	),
 	TP_fast_assign(
@@ -39,7 +39,7 @@ TRACE_EVENT(in_packet,
 		__entry->cip_header1 = cip_header[1];
 		__entry->payload_quadlets = payload_quadlets;
 		__entry->packet_index = s->packet_index;
-		__entry->irq = in_interrupt();
+		__entry->irq = !!in_interrupt();
 		__entry->index = index;
 	),
 	TP_printk(
@@ -70,7 +70,7 @@ TRACE_EVENT(out_packet,
 		__field(u32, cip_header1)
 		__field(unsigned int, payload_quadlets)
 		__field(unsigned int, packet_index)
-		__field(bool, irq)
+		__field(unsigned int, irq)
 		__field(unsigned int, index)
 	),
 	TP_fast_assign(
@@ -83,7 +83,7 @@ TRACE_EVENT(out_packet,
 		__entry->cip_header1 = be32_to_cpu(cip_header[1]);
 		__entry->payload_quadlets = payload_length / 4;
 		__entry->packet_index = s->packet_index;
-		__entry->irq = in_interrupt();
+		__entry->irq = !!in_interrupt();
 		__entry->index = index;
 	),
 	TP_printk(
