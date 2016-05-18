@@ -3239,6 +3239,19 @@ xfs_iflush_cluster(
 			continue;
 		}
 
+
+		/*
+		 * Check the inode number again, just to be certain we are not
+		 * racing with freeing in xfs_reclaim_inode(). See the comments
+		 * in that function for more information as to why the initial
+		 * check is not sufficient.
+		 */
+		if (!iq->i_ino) {
+			xfs_ifunlock(iq);
+			xfs_iunlock(iq, XFS_ILOCK_SHARED);
+			continue;
+		}
+
 		/*
 		 * arriving here means that this inode can be flushed.  First
 		 * re-check that it's dirty before flushing.
