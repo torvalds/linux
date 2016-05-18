@@ -80,6 +80,9 @@ int rds_tcp_accept_one(struct socket *sock)
 	int conn_state;
 	struct sock *nsk;
 
+	if (!sock) /* module unload or netns delete in progress */
+		return -ENETUNREACH;
+
 	ret = sock_create_kern(sock_net(sock->sk), sock->sk->sk_family,
 			       sock->sk->sk_type, sock->sk->sk_protocol,
 			       &new_sock);
