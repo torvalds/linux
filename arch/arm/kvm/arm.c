@@ -459,7 +459,7 @@ static void update_vttbr(struct kvm *kvm)
 static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
-	int ret;
+	int ret = 0;
 
 	if (likely(vcpu->arch.has_run_once))
 		return 0;
@@ -482,9 +482,9 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 	 * interrupts from the virtual timer with a userspace gic.
 	 */
 	if (irqchip_in_kernel(kvm) && vgic_initialized(kvm))
-		kvm_timer_enable(kvm);
+		ret = kvm_timer_enable(vcpu);
 
-	return 0;
+	return ret;
 }
 
 bool kvm_arch_intc_initialized(struct kvm *kvm)

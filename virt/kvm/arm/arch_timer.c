@@ -197,7 +197,7 @@ static int kvm_timer_update_state(struct kvm_vcpu *vcpu)
 	 * because the guest would never see the interrupt.  Instead wait
 	 * until we call this function from kvm_timer_flush_hwstate.
 	 */
-	if (!vgic_initialized(vcpu->kvm))
+	if (!vgic_initialized(vcpu->kvm) || !timer->enabled)
 		return -ENODEV;
 
 	if (kvm_timer_should_fire(vcpu) != timer->irq.level)
@@ -333,9 +333,6 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
 			 const struct kvm_irq_level *irq)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
-	struct irq_desc *desc;
-	struct irq_data *data;
-	int phys_irq;
 
 	/*
 	 * The vcpu timer irq number cannot be determined in
@@ -354,26 +351,7 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
 	timer->cntv_ctl = 0;
 	kvm_timer_update_state(vcpu);
 
-	/*
-	 * Find the physical IRQ number corresponding to the host_vtimer_irq
-	 */
-	desc = irq_to_desc(host_vtimer_irq);
-	if (!desc) {
-		kvm_err("%s: no interrupt descriptor\n", __func__);
-		return -EINVAL;
-	}
-
-	data = irq_desc_get_irq_data(desc);
-	while (data->parent_data)
-		data = data->parent_data;
-
-	phys_irq = data->hwirq;
-
-	/*
-	 * Tell the VGIC that the virtual interrupt is tied to a
-	 * physical interrupt. We do that once per VCPU.
-	 */
-	return kvm_vgic_map_phys_irq(vcpu, irq->irq, phys_irq);
+	return 0;
 }
 
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
@@ -501,10 +479,40 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 	kvm_vgic_unmap_phys_irq(vcpu, timer->irq.irq);
 }
 
-void kvm_timer_enable(struct kvm *kvm)
+int kvm_timer_enable(struct kvm_vcpu *vcpu)
 {
-	if (kvm->arch.timer.enabled)
-		return;
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct irq_desc *desc;
+	struct irq_data *data;
+	int phys_irq;
+	int ret;
+
+	if (timer->enabled)
+		return 0;
+
+	/*
+	 * Find the physical IRQ number corresponding to the host_vtimer_irq
+	 */
+	desc = irq_to_desc(host_vtimer_irq);
+	if (!desc) {
+		kvm_err("%s: no interrupt descriptor\n", __func__);
+		return -EINVAL;
+	}
+
+	data = irq_desc_get_irq_data(desc);
+	while (data->parent_data)
+		data = data->parent_data;
+
+	phys_irq = data->hwirq;
+
+	/*
+	 * Tell the VGIC that the virtual interrupt is tied to a
+	 * physical interrupt. We do that once per VCPU.
+	 */
+	ret = kvm_vgic_map_phys_irq(vcpu, timer->irq.irq, phys_irq);
+	if (ret)
+		return ret;
+
 
 	/*
 	 * There is a potential race here between VCPUs starting for the first
@@ -515,7 +523,9 @@ void kvm_timer_enable(struct kvm *kvm)
 	 * the arch timers are enabled.
 	 */
 	if (timecounter && wqueue)
-		kvm->arch.timer.enabled = 1;
+		timer->enabled = 1;
+
+	return 0;
 }
 
 void kvm_timer_init(struct kvm *kvm)
