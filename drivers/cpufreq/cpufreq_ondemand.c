@@ -368,10 +368,8 @@ static int od_init(struct dbs_data *dbs_data, bool notify)
 	int cpu;
 
 	tuners = kzalloc(sizeof(*tuners), GFP_KERNEL);
-	if (!tuners) {
-		pr_err("%s: kzalloc failed\n", __func__);
+	if (!tuners)
 		return -ENOMEM;
-	}
 
 	cpu = get_cpu();
 	idle_time = get_cpu_idle_time_us(cpu, NULL);

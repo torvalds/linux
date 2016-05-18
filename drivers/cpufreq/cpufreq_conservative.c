@@ -273,10 +273,8 @@ static int cs_init(struct dbs_data *dbs_data, bool notify)
 	struct cs_dbs_tuners *tuners;
 
 	tuners = kzalloc(sizeof(*tuners), GFP_KERNEL);
-	if (!tuners) {
-		pr_err("%s: kzalloc failed\n", __func__);
+	if (!tuners)
 		return -ENOMEM;
-	}
 
 	tuners->down_threshold = DEF_FREQUENCY_DOWN_THRESHOLD;
 	tuners->freq_step = DEF_FREQUENCY_STEP;
