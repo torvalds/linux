@@ -110,8 +110,6 @@ static inline struct amd_sched_fence *to_amd_sched_fence(struct fence *f)
 struct amd_sched_backend_ops {
 	struct fence *(*dependency)(struct amd_sched_job *sched_job);
 	struct fence *(*run_job)(struct amd_sched_job *sched_job);
-	void (*begin_job)(struct amd_sched_job *sched_job);
-	void (*finish_job)(struct amd_sched_job *sched_job);
 };
 
 enum amd_sched_priority {
@@ -160,10 +158,6 @@ int amd_sched_job_init(struct amd_sched_job *job,
 		       void (*timeout_cb)(struct work_struct *work),
 		       void (*free_cb)(struct kref* refcount),
 		       void *owner, struct fence **fence);
-void amd_sched_job_pre_schedule(struct amd_gpu_scheduler *sched ,
-				struct amd_sched_job *s_job);
-void amd_sched_job_finish(struct amd_sched_job *s_job);
-void amd_sched_job_begin(struct amd_sched_job *s_job);
 static inline void amd_sched_job_get(struct amd_sched_job *job)
 {
 	if (job)

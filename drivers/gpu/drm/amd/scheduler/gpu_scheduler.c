@@ -329,7 +329,7 @@ static void amd_sched_free_job(struct fence *f, struct fence_cb *cb) {
 /* job_finish is called after hw fence signaled, and
  * the job had already been deleted from ring_mirror_list
  */
-void amd_sched_job_finish(struct amd_sched_job *s_job)
+static void amd_sched_job_finish(struct amd_sched_job *s_job)
 {
 	struct amd_sched_job *next;
 	struct amd_gpu_scheduler *sched = s_job->sched;
@@ -351,7 +351,7 @@ void amd_sched_job_finish(struct amd_sched_job *s_job)
 	}
 }
 
-void amd_sched_job_begin(struct amd_sched_job *s_job)
+static void amd_sched_job_begin(struct amd_sched_job *s_job)
 {
 	struct amd_gpu_scheduler *sched = s_job->sched;
 
@@ -461,7 +461,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	/* remove job from ring_mirror_list */
 	spin_lock_irqsave(&sched->job_list_lock, flags);
 	list_del_init(&s_fence->s_job->node);
-	sched->ops->finish_job(s_fence->s_job);
+	amd_sched_job_finish(s_fence->s_job);
 	spin_unlock_irqrestore(&sched->job_list_lock, flags);
 
 	amd_sched_fence_signal(s_fence);
@@ -475,6 +475,7 @@ static int amd_sched_main(void *param)
 {
 	struct sched_param sparam = {.sched_priority = 1};
 	struct amd_gpu_scheduler *sched = (struct amd_gpu_scheduler *)param;
+	unsigned long flags;
 	int r, count;
 
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
@@ -499,7 +500,11 @@ static int amd_sched_main(void *param)
 		s_fence = sched_job->s_fence;
 
 		atomic_inc(&sched->hw_rq_count);
-		amd_sched_job_pre_schedule(sched, sched_job);
+		spin_lock_irqsave(&sched->job_list_lock, flags);
+		list_add_tail(&sched_job->node, &sched->ring_mirror_list);
+		amd_sched_job_begin(sched_job);
+		spin_unlock_irqrestore(&sched->job_list_lock, flags);
+
 		fence = sched->ops->run_job(sched_job);
 		amd_sched_fence_scheduled(s_fence);
 		if (fence) {
