@@ -690,9 +690,14 @@ xfs_mountfs(
 	if (error)
 		goto out_remove_sysfs;
 
-	error = xfs_uuid_mount(mp);
+	error = xfs_error_sysfs_init(mp);
 	if (error)
 		goto out_del_stats;
+
+
+	error = xfs_uuid_mount(mp);
+	if (error)
+		goto out_remove_error_sysfs;
 
 	/*
 	 * Set the minimum read and write sizes
@@ -968,6 +973,8 @@ xfs_mountfs(
 	xfs_da_unmount(mp);
  out_remove_uuid:
 	xfs_uuid_unmount(mp);
+ out_remove_error_sysfs:
+	xfs_error_sysfs_del(mp);
  out_del_stats:
 	xfs_sysfs_del(&mp->m_stats.xs_kobj);
  out_remove_sysfs:
@@ -1056,6 +1063,7 @@ xfs_unmountfs(
 #endif
 	xfs_free_perag(mp);
 
+	xfs_error_sysfs_del(mp);
 	xfs_sysfs_del(&mp->m_stats.xs_kobj);
 	xfs_sysfs_del(&mp->m_kobj);
 }

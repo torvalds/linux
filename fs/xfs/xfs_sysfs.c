@@ -17,10 +17,11 @@
  */
 
 #include "xfs.h"
-#include "xfs_sysfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
+#include "xfs_sysfs.h"
 #include "xfs_log.h"
 #include "xfs_log_priv.h"
 #include "xfs_stats.h"
@@ -362,3 +363,53 @@ struct kobj_type xfs_log_ktype = {
 	.sysfs_ops = &xfs_sysfs_ops,
 	.default_attrs = xfs_log_attrs,
 };
+
+/*
+ * Metadata IO error configuration
+ *
+ * The sysfs structure here is:
+ *	...xfs/<dev>/error/<class>/<errno>/<error_attrs>
+ *
+ * where <class> allows us to discriminate between data IO and metadata IO,
+ * and any other future type of IO (e.g. special inode or directory error
+ * handling) we care to support.
+ */
+static struct attribute *xfs_error_attrs[] = {
+	NULL,
+};
+
+static inline struct xfs_error_cfg *
+to_error_cfg(struct kobject *kobject)
+{
+	struct xfs_kobj *kobj = to_kobj(kobject);
+	return container_of(kobj, struct xfs_error_cfg, kobj);
+}
+
+struct kobj_type xfs_error_cfg_ktype = {
+	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_sysfs_ops,
+	.default_attrs = xfs_error_attrs,
+};
+
+struct kobj_type xfs_error_ktype = {
+	.release = xfs_sysfs_release,
+};
+
+int
+xfs_error_sysfs_init(
+	struct xfs_mount	*mp)
+{
+	int			error;
+
+	/* .../xfs/<dev>/error/ */
+	error = xfs_sysfs_init(&mp->m_error_kobj, &xfs_error_ktype,
+				&mp->m_kobj, "error");
+	return error;
+}
+
+void
+xfs_error_sysfs_del(
+	struct xfs_mount	*mp)
+{
+	xfs_sysfs_del(&mp->m_error_kobj);
+}
