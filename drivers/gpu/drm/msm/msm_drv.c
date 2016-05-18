@@ -417,12 +417,14 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		goto fail;
 	}
 
-	pm_runtime_get_sync(dev);
-	ret = drm_irq_install(ddev, platform_get_irq(pdev, 0));
-	pm_runtime_put_sync(dev);
-	if (ret < 0) {
-		dev_err(dev, "failed to install IRQ handler\n");
-		goto fail;
+	if (kms) {
+		pm_runtime_get_sync(dev);
+		ret = drm_irq_install(ddev, kms->irq);
+		pm_runtime_put_sync(dev);
+		if (ret < 0) {
+			dev_err(dev, "failed to install IRQ handler\n");
+			goto fail;
+		}
 	}
 
 	ret = drm_dev_register(ddev, 0);

@@ -580,7 +580,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
 	uint32_t major, minor;
-	int i, ret;
+	int irq, i, ret;
 
 	mdp5_kms = kzalloc(sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms) {
@@ -609,6 +609,15 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		ret = PTR_ERR(mdp5_kms->vbif);
 		goto fail;
 	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(dev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
+
+	kms->irq = irq;
 
 	mdp5_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
 	if (IS_ERR(mdp5_kms->vdd)) {

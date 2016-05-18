@@ -60,6 +60,9 @@ struct msm_kms_funcs {
 
 struct msm_kms {
 	const struct msm_kms_funcs *funcs;
+
+	/* irq number to be passed on to drm_irq_install */
+	int irq;
 };
 
 static inline void msm_kms_init(struct msm_kms *kms,
