@@ -692,12 +692,12 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 			       considered free. Any failures need to undo
 			       the gfs2 structures. */
 	if (default_acl) {
-		error = gfs2_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		error = __gfs2_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
 	}
 	if (acl) {
 		if (!error)
-			error = gfs2_set_acl(inode, acl, ACL_TYPE_ACCESS);
+			error = __gfs2_set_acl(inode, acl, ACL_TYPE_ACCESS);
 		posix_acl_release(acl);
 	}
 
@@ -1948,66 +1948,6 @@ static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	return 0;
 }
 
-static int gfs2_setxattr(struct dentry *dentry, const char *name,
-			 const void *data, size_t size, int flags)
-{
-	struct inode *inode = d_inode(dentry);
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_holder gh;
-	int ret;
-
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
-	ret = gfs2_glock_nq(&gh);
-	if (ret == 0) {
-		ret = gfs2_rsqa_alloc(ip);
-		if (ret == 0)
-			ret = generic_setxattr(dentry, name, data, size, flags);
-		gfs2_glock_dq(&gh);
-	}
-	gfs2_holder_uninit(&gh);
-	return ret;
-}
-
-static ssize_t gfs2_getxattr(struct dentry *dentry, struct inode *inode,
-			     const char *name, void *data, size_t size)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_holder gh;
-	int ret;
-
-	/* For selinux during lookup */
-	if (gfs2_glock_is_locked_by_me(ip->i_gl))
-		return generic_getxattr(dentry, inode, name, data, size);
-
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
-	ret = gfs2_glock_nq(&gh);
-	if (ret == 0) {
-		ret = generic_getxattr(dentry, inode, name, data, size);
-		gfs2_glock_dq(&gh);
-	}
-	gfs2_holder_uninit(&gh);
-	return ret;
-}
-
-static int gfs2_removexattr(struct dentry *dentry, const char *name)
-{
-	struct inode *inode = d_inode(dentry);
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_holder gh;
-	int ret;
-
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
-	ret = gfs2_glock_nq(&gh);
-	if (ret == 0) {
-		ret = gfs2_rsqa_alloc(ip);
-		if (ret == 0)
-			ret = generic_removexattr(dentry, name);
-		gfs2_glock_dq(&gh);
-	}
-	gfs2_holder_uninit(&gh);
-	return ret;
-}
-
 static int gfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		       u64 start, u64 len)
 {
@@ -2054,10 +1994,10 @@ const struct inode_operations gfs2_file_iops = {
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,
-	.setxattr = gfs2_setxattr,
-	.getxattr = gfs2_getxattr,
+	.setxattr = generic_setxattr,
+	.getxattr = generic_getxattr,
 	.listxattr = gfs2_listxattr,
-	.removexattr = gfs2_removexattr,
+	.removexattr = generic_removexattr,
 	.fiemap = gfs2_fiemap,
 	.get_acl = gfs2_get_acl,
 	.set_acl = gfs2_set_acl,
@@ -2076,10 +2016,10 @@ const struct inode_operations gfs2_dir_iops = {
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,
-	.setxattr = gfs2_setxattr,
-	.getxattr = gfs2_getxattr,
+	.setxattr = generic_setxattr,
+	.getxattr = generic_getxattr,
 	.listxattr = gfs2_listxattr,
-	.removexattr = gfs2_removexattr,
+	.removexattr = generic_removexattr,
 	.fiemap = gfs2_fiemap,
 	.get_acl = gfs2_get_acl,
 	.set_acl = gfs2_set_acl,
@@ -2092,10 +2032,10 @@ const struct inode_operations gfs2_symlink_iops = {
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,
-	.setxattr = gfs2_setxattr,
-	.getxattr = gfs2_getxattr,
+	.setxattr = generic_setxattr,
+	.getxattr = generic_getxattr,
 	.listxattr = gfs2_listxattr,
-	.removexattr = gfs2_removexattr,
+	.removexattr = generic_removexattr,
 	.fiemap = gfs2_fiemap,
 };
 
