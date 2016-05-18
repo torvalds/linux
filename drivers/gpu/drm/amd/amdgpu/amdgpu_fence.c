@@ -443,7 +443,7 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		amd_sched_fini(&ring->sched);
 		del_timer_sync(&ring->fence_drv.fallback_timer);
 		for (j = 0; j <= ring->fence_drv.num_fences_mask; ++j)
-			fence_put(ring->fence_drv.fences[i]);
+			fence_put(ring->fence_drv.fences[j]);
 		kfree(ring->fence_drv.fences);
 		ring->fence_drv.initialized = false;
 	}
