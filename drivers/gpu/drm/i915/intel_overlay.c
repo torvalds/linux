@@ -1127,7 +1127,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 	}
 	crtc = to_intel_crtc(drmmode_crtc);
 
-	new_bo = to_intel_bo(drm_gem_object_lookup(dev, file_priv,
+	new_bo = to_intel_bo(drm_gem_object_lookup(file_priv,
 						   put_image_rec->bo_handle));
 	if (&new_bo->base == NULL) {
 		ret = -ENOENT;

@@ -430,7 +430,7 @@ static void atmel_hlcdc_crtc_destroy_state(struct drm_crtc *crtc,
 	struct atmel_hlcdc_crtc_state *state;
 
 	state = drm_crtc_state_to_atmel_hlcdc_crtc_state(s);
-	__drm_atomic_helper_crtc_destroy_state(crtc, s);
+	__drm_atomic_helper_crtc_destroy_state(s);
 	kfree(state);
 }
 

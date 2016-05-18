@@ -368,12 +368,12 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 	uint64_t conn_configured = 0, mask;
 	int pass = 0;
 
-	save_enabled = kcalloc(dev->mode_config.num_connector, sizeof(bool),
+	save_enabled = kcalloc(fb_helper->connector_count, sizeof(bool),
 			       GFP_KERNEL);
 	if (!save_enabled)
 		return false;
 
-	memcpy(save_enabled, enabled, dev->mode_config.num_connector);
+	memcpy(save_enabled, enabled, fb_helper->connector_count);
 	mask = (1 << fb_helper->connector_count) - 1;
 retry:
 	for (i = 0; i < fb_helper->connector_count; i++) {
@@ -520,7 +520,7 @@ retry:
 	if (fallback) {
 bail:
 		DRM_DEBUG_KMS("Not using firmware configuration\n");
-		memcpy(enabled, save_enabled, dev->mode_config.num_connector);
+		memcpy(enabled, save_enabled, fb_helper->connector_count);
 		kfree(save_enabled);
 		return false;
 	}

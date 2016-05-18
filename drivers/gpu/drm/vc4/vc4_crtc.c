@@ -650,7 +650,7 @@ static void vc4_crtc_destroy_state(struct drm_crtc *crtc,
 
 	}
 
-	__drm_atomic_helper_crtc_destroy_state(crtc, state);
+	__drm_atomic_helper_crtc_destroy_state(state);
 }
 
 static const struct drm_crtc_funcs vc4_crtc_funcs = {

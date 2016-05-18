@@ -500,7 +500,7 @@ udl_fb_user_fb_create(struct drm_device *dev,
 	int ret;
 	uint32_t size;
 
-	obj = drm_gem_object_lookup(dev, file, mode_cmd->handles[0]);
+	obj = drm_gem_object_lookup(file, mode_cmd->handles[0]);
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 

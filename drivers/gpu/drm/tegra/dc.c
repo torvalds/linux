@@ -434,7 +434,7 @@ static void tegra_plane_reset(struct drm_plane *plane)
 	struct tegra_plane_state *state;
 
 	if (plane->state)
-		__drm_atomic_helper_plane_destroy_state(plane, plane->state);
+		__drm_atomic_helper_plane_destroy_state(plane->state);
 
 	kfree(plane->state);
 	plane->state = NULL;
@@ -466,7 +466,7 @@ static struct drm_plane_state *tegra_plane_atomic_duplicate_state(struct drm_pla
 static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
 					     struct drm_plane_state *state)
 {
-	__drm_atomic_helper_plane_destroy_state(plane, state);
+	__drm_atomic_helper_plane_destroy_state(state);
 	kfree(state);
 }
 
@@ -998,7 +998,7 @@ static void tegra_crtc_reset(struct drm_crtc *crtc)
 	struct tegra_dc_state *state;
 
 	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc, crtc->state);
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
 
 	kfree(crtc->state);
 	crtc->state = NULL;
@@ -1034,7 +1034,7 @@ tegra_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 					    struct drm_crtc_state *state)
 {
-	__drm_atomic_helper_crtc_destroy_state(crtc, state);
+	__drm_atomic_helper_crtc_destroy_state(state);
 	kfree(state);
 }
 

@@ -368,7 +368,6 @@ validate_init(struct nouveau_channel *chan, struct drm_file *file_priv,
 	      int nr_buffers, struct validate_op *op)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct drm_device *dev = chan->drm->dev;
 	int trycnt = 0;
 	int ret, i;
 	struct nouveau_bo *res_bo = NULL;
@@ -388,7 +387,7 @@ retry:
 		struct drm_gem_object *gem;
 		struct nouveau_bo *nvbo;
 
-		gem = drm_gem_object_lookup(dev, file_priv, b->handle);
+		gem = drm_gem_object_lookup(file_priv, b->handle);
 		if (!gem) {
 			NV_PRINTK(err, cli, "Unknown handle 0x%08x\n", b->handle);
 			ret = -ENOENT;
@@ -864,7 +863,7 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	bool write = !!(req->flags & NOUVEAU_GEM_CPU_PREP_WRITE);
 	int ret;
 
-	gem = drm_gem_object_lookup(dev, file_priv, req->handle);
+	gem = drm_gem_object_lookup(file_priv, req->handle);
 	if (!gem)
 		return -ENOENT;
 	nvbo = nouveau_gem_object(gem);
@@ -896,7 +895,7 @@ nouveau_gem_ioctl_cpu_fini(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem;
 	struct nouveau_bo *nvbo;
 
-	gem = drm_gem_object_lookup(dev, file_priv, req->handle);
+	gem = drm_gem_object_lookup(file_priv, req->handle);
 	if (!gem)
 		return -ENOENT;
 	nvbo = nouveau_gem_object(gem);
@@ -914,7 +913,7 @@ nouveau_gem_ioctl_info(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem;
 	int ret;
 
-	gem = drm_gem_object_lookup(dev, file_priv, req->handle);
+	gem = drm_gem_object_lookup(file_priv, req->handle);
 	if (!gem)
 		return -ENOENT;
 
