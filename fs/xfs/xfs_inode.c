@@ -2604,13 +2604,13 @@ xfs_iflush_cluster(
 		 * We need to check under the i_flags_lock for a valid inode
 		 * here. Skip it if it is not valid or the wrong inode.
 		 */
-		spin_lock(&ip->i_flags_lock);
-		if (!ip->i_ino ||
+		spin_lock(&iq->i_flags_lock);
+		if (!iq->i_ino ||
 		    (XFS_INO_TO_AGINO(mp, iq->i_ino) & mask) != first_index) {
-			spin_unlock(&ip->i_flags_lock);
+			spin_unlock(&iq->i_flags_lock);
 			continue;
 		}
-		spin_unlock(&ip->i_flags_lock);
+		spin_unlock(&iq->i_flags_lock);
 
 		/*
 		 * Do an un-protected check to see if the inode is dirty and
