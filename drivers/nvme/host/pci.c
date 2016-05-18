@@ -1478,8 +1478,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	if (result > 0) {
 		dev_err(dev->ctrl.device,
 			"Could not set queue count (%d)\n", result);
-		nr_io_queues = 0;
-		result = 0;
+		return 0;
 	}
 
 	if (dev->cmb && NVME_CMB_SQS(dev->cmbsz)) {
@@ -1513,7 +1512,9 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	 * If we enable msix early due to not intx, disable it again before
 	 * setting up the full range we need.
 	 */
-	if (!pdev->irq)
+	if (pdev->msi_enabled)
+		pci_disable_msi(pdev);
+	else if (pdev->msix_enabled)
 		pci_disable_msix(pdev);
 
 	for (i = 0; i < nr_io_queues; i++)
@@ -1696,7 +1697,6 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 	if (pci_enable_device_mem(pdev))
 		return result;
 
-	dev->entry[0].vector = pdev->irq;
 	pci_set_master(pdev);
 
 	if (dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(64)) &&
@@ -1709,13 +1709,18 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 	}
 
 	/*
-	 * Some devices don't advertse INTx interrupts, pre-enable a single
-	 * MSIX vec for setup. We'll adjust this later.
+	 * Some devices and/or platforms don't advertise or work with INTx
+	 * interrupts. Pre-enable a single MSIX or MSI vec for setup. We'll
+	 * adjust this later.
 	 */
-	if (!pdev->irq) {
-		result = pci_enable_msix(pdev, dev->entry, 1);
-		if (result < 0)
-			goto disable;
+	if (pci_enable_msix(pdev, dev->entry, 1)) {
+		pci_enable_msi(pdev);
+		dev->entry[0].vector = pdev->irq;
+	}
+
+	if (!dev->entry[0].vector) {
+		result = -ENODEV;
+		goto disable;
 	}
 
 	cap = lo_hi_readq(dev->bar + NVME_REG_CAP);
@@ -1858,6 +1863,9 @@ static void nvme_reset_work(struct work_struct *work)
 	 */
 	if (dev->ctrl.ctrl_config & NVME_CC_ENABLE)
 		nvme_dev_disable(dev, false);
+
+	if (test_bit(NVME_CTRL_REMOVING, &dev->flags))
+		goto out;
 
 	set_bit(NVME_CTRL_RESETTING, &dev->flags);
 
@@ -2078,11 +2086,10 @@ static void nvme_remove(struct pci_dev *pdev)
 {
 	struct nvme_dev *dev = pci_get_drvdata(pdev);
 
-	del_timer_sync(&dev->watchdog_timer);
-
 	set_bit(NVME_CTRL_REMOVING, &dev->flags);
 	pci_set_drvdata(pdev, NULL);
 	flush_work(&dev->async_work);
+	flush_work(&dev->reset_work);
 	flush_work(&dev->scan_work);
 	nvme_remove_namespaces(&dev->ctrl);
 	nvme_uninit_ctrl(&dev->ctrl);

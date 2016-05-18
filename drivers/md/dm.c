@@ -1662,8 +1662,10 @@ static int __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti,
 		tio = alloc_tio(ci, ti, target_bio_nr);
 		tio->len_ptr = len;
 		r = clone_bio(tio, bio, sector, *len);
-		if (r < 0)
+		if (r < 0) {
+			free_tio(ci->md, tio);
 			break;
+		}
 		__map_bio(tio);
 	}
 

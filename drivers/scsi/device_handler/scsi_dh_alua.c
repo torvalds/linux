@@ -541,6 +541,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 		return SCSI_DH_DEV_TEMP_BUSY;
 
  retry:
+	err = 0;
 	retval = submit_rtpg(sdev, buff, bufflen, &sense_hdr, pg->flags);
 
 	if (retval) {

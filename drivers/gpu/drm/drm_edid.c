@@ -205,7 +205,7 @@ static const struct drm_display_mode drm_dmt_modes[] = {
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
 	/* 0x0f - 1024x768@43Hz, interlace */
 	{ DRM_MODE("1024x768i", DRM_MODE_TYPE_DRIVER, 44900, 1024, 1032,
-		   1208, 1264, 0, 768, 768, 772, 817, 0,
+		   1208, 1264, 0, 768, 768, 776, 817, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
 		   DRM_MODE_FLAG_INTERLACE) },
 	/* 0x10 - 1024x768@60Hz */
@@ -522,12 +522,12 @@ static const struct drm_display_mode edid_est_modes[] = {
 		   720, 840, 0, 480, 481, 484, 500, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@75Hz */
 	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 31500, 640, 664,
-		   704,  832, 0, 480, 489, 491, 520, 0,
+		   704,  832, 0, 480, 489, 492, 520, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@72Hz */
 	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 30240, 640, 704,
 		   768,  864, 0, 480, 483, 486, 525, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@67Hz */
-	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25200, 640, 656,
+	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25175, 640, 656,
 		   752, 800, 0, 480, 490, 492, 525, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) }, /* 640x480@60Hz */
 	{ DRM_MODE("720x400", DRM_MODE_TYPE_DRIVER, 35500, 720, 738,
@@ -539,7 +539,7 @@ static const struct drm_display_mode edid_est_modes[] = {
 	{ DRM_MODE("1280x1024", DRM_MODE_TYPE_DRIVER, 135000, 1280, 1296,
 		   1440, 1688, 0, 1024, 1025, 1028, 1066, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1280x1024@75Hz */
-	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 78800, 1024, 1040,
+	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 78750, 1024, 1040,
 		   1136, 1312, 0,  768, 769, 772, 800, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1024x768@75Hz */
 	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 75000, 1024, 1048,
@@ -2241,7 +2241,7 @@ drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
 {
 	int i, j, m, modes = 0;
 	struct drm_display_mode *mode;
-	u8 *est = ((u8 *)timing) + 5;
+	u8 *est = ((u8 *)timing) + 6;
 
 	for (i = 0; i < 6; i++) {
 		for (j = 7; j >= 0; j--) {

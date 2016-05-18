@@ -488,6 +488,12 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 	bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
 	iov_iter_bvec(&iter, ITER_BVEC | rw, bvec,
 		      bio_segments(bio), blk_rq_bytes(cmd->rq));
+	/*
+	 * This bio may be started from the middle of the 'bvec'
+	 * because of bio splitting, so offset from the bvec must
+	 * be passed to iov iterator
+	 */
+	iter.iov_offset = bio->bi_iter.bi_bvec_done;
 
 	cmd->iocb.ki_pos = pos;
 	cmd->iocb.ki_filp = file;

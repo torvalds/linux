@@ -231,13 +231,15 @@ lpfc_mem_free(struct lpfc_hba *phba)
 	if (phba->lpfc_hbq_pool)
 		pci_pool_destroy(phba->lpfc_hbq_pool);
 	phba->lpfc_hbq_pool = NULL;
-	mempool_destroy(phba->rrq_pool);
+
+	if (phba->rrq_pool)
+		mempool_destroy(phba->rrq_pool);
 	phba->rrq_pool = NULL;
 
 	/* Free NLP memory pool */
 	mempool_destroy(phba->nlp_mem_pool);
 	phba->nlp_mem_pool = NULL;
-	if (phba->sli_rev == LPFC_SLI_REV4) {
+	if (phba->sli_rev == LPFC_SLI_REV4 && phba->active_rrq_pool) {
 		mempool_destroy(phba->active_rrq_pool);
 		phba->active_rrq_pool = NULL;
 	}
