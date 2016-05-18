@@ -796,9 +796,9 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 	    debug.state[0] == debug.state[1]) {
 		seq_puts(m, "seems to be stuck\n");
 	} else if (debug.address[0] == debug.address[1]) {
-		seq_puts(m, "adress is constant\n");
+		seq_puts(m, "address is constant\n");
 	} else {
-		seq_puts(m, "is runing\n");
+		seq_puts(m, "is running\n");
 	}
 
 	seq_printf(m, "\t address 0: 0x%08x\n", debug.address[0]);

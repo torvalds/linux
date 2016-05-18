@@ -1109,7 +1109,7 @@ static void ata_scsi_sdev_config(struct scsi_device *sdev)
  *	@rq: request to be checked
  *
  *	ATAPI commands which transfer variable length data to host
- *	might overflow due to application error or hardare bug.  This
+ *	might overflow due to application error or hardware bug.  This
  *	function checks whether overflow should be drained and ignored
  *	for @request.
  *
@@ -3439,14 +3439,11 @@ static inline void ata_scsi_dump_cdb(struct ata_port *ap,
 {
 #ifdef ATA_DEBUG
 	struct scsi_device *scsidev = cmd->device;
-	u8 *scsicmd = cmd->cmnd;
 
-	DPRINTK("CDB (%u:%d,%d,%d) %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+	DPRINTK("CDB (%u:%d,%d,%d) %9ph\n",
 		ap->print_id,
 		scsidev->channel, scsidev->id, scsidev->lun,
-		scsicmd[0], scsicmd[1], scsicmd[2], scsicmd[3],
-		scsicmd[4], scsicmd[5], scsicmd[6], scsicmd[7],
-		scsicmd[8]);
+		cmd->cmnd);
 #endif
 }
 

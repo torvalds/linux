@@ -150,6 +150,13 @@ extern int
 __ethtool_get_link_ksettings(struct net_device *dev,
 			     struct ethtool_link_ksettings *link_ksettings);
 
+void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
+					     u32 legacy_u32);
+
+/* return false if src had higher bits set. lower bits always updated. */
+bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
+				     const unsigned long *src);
+
 /**
  * struct ethtool_ops - optional netdev operations
  * @get_settings: DEPRECATED, use %get_link_ksettings/%set_link_ksettings

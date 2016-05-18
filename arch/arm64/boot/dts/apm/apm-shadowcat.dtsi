@@ -653,6 +653,7 @@
 				     <0 113 4>,
 				     <0 114 4>,
 				     <0 115 4>;
+			channel = <12>;
 			port-id = <1>;
 			dma-coherent;
 			clocks = <&xge1clk 0>;

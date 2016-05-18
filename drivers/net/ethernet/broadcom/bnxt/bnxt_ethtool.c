@@ -1,6 +1,6 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
- * Copyright (c) 2014-2015 Broadcom Corporation
+ * Copyright (c) 2014-2016 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -327,7 +327,11 @@ static void bnxt_get_channels(struct net_device *dev,
 	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
 	channel->max_combined = max_rx_rings;
 
-	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false);
+	if (bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false)) {
+		max_rx_rings = 0;
+		max_tx_rings = 0;
+	}
+
 	tcs = netdev_get_num_tc(dev);
 	if (tcs > 1)
 		max_tx_rings /= tcs;
@@ -597,7 +601,7 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 	kfree(pkglog);
 }
 
-static u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
+u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 {
 	u32 speed_mask = 0;
 
@@ -698,10 +702,23 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
 			cmd->lp_advertising =
 				bnxt_fw_to_ethtool_lp_adv(link_info);
+		ethtool_speed = bnxt_fw_to_ethtool_speed(link_info->link_speed);
+		if (!netif_carrier_ok(dev))
+			cmd->duplex = DUPLEX_UNKNOWN;
+		else if (link_info->duplex & BNXT_LINK_DUPLEX_FULL)
+			cmd->duplex = DUPLEX_FULL;
+		else
+			cmd->duplex = DUPLEX_HALF;
 	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->advertising = 0;
+		ethtool_speed =
+			bnxt_fw_to_ethtool_speed(link_info->req_link_speed);
+		cmd->duplex = DUPLEX_HALF;
+		if (link_info->req_duplex == BNXT_LINK_DUPLEX_FULL)
+			cmd->duplex = DUPLEX_FULL;
 	}
+	ethtool_cmd_speed_set(cmd, ethtool_speed);
 
 	cmd->port = PORT_NONE;
 	if (link_info->media_type == PORT_PHY_QCFG_RESP_MEDIA_TYPE_TP) {
@@ -719,16 +736,8 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			cmd->port = PORT_FIBRE;
 	}
 
-	if (link_info->phy_link_status == BNXT_LINK_LINK) {
-		if (link_info->duplex & BNXT_LINK_DUPLEX_FULL)
-			cmd->duplex = DUPLEX_FULL;
-	} else {
-		cmd->duplex = DUPLEX_UNKNOWN;
-	}
-	ethtool_speed = bnxt_fw_to_ethtool_speed(link_info->link_speed);
-	ethtool_cmd_speed_set(cmd, ethtool_speed);
 	if (link_info->transceiver ==
-		PORT_PHY_QCFG_RESP_TRANSCEIVER_TYPE_XCVR_INTERNAL)
+	    PORT_PHY_QCFG_RESP_XCVR_PKG_TYPE_XCVR_INTERNAL)
 		cmd->transceiver = XCVR_INTERNAL;
 	else
 		cmd->transceiver = XCVR_EXTERNAL;
@@ -739,31 +748,52 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static u32 bnxt_get_fw_speed(struct net_device *dev, u16 ethtool_speed)
 {
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_link_info *link_info = &bp->link_info;
+	u16 support_spds = link_info->support_speeds;
+	u32 fw_speed = 0;
+
 	switch (ethtool_speed) {
 	case SPEED_100:
-		return PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_100MB;
+		if (support_spds & BNXT_LINK_SPEED_MSK_100MB)
+			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_100MB;
+		break;
 	case SPEED_1000:
-		return PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_1GB;
+		if (support_spds & BNXT_LINK_SPEED_MSK_1GB)
+			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_1GB;
+		break;
 	case SPEED_2500:
-		return PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_2_5GB;
+		if (support_spds & BNXT_LINK_SPEED_MSK_2_5GB)
+			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_2_5GB;
+		break;
 	case SPEED_10000:
-		return PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_10GB;
+		if (support_spds & BNXT_LINK_SPEED_MSK_10GB)
+			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_10GB;
+		break;
 	case SPEED_20000:
-		return PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_20GB;
+		if (support_spds & BNXT_LINK_SPEED_MSK_20GB)
+			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_20GB;
+		break;
 	case SPEED_25000:
-		return PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_25GB;
+		if (support_spds & BNXT_LINK_SPEED_MSK_25GB)
+			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_25GB;
+		break;
 	case SPEED_40000:
-		return PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_40GB;
+		if (support_spds & BNXT_LINK_SPEED_MSK_40GB)
+			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_40GB;
+		break;
 	case SPEED_50000:
-		return PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_50GB;
+		if (support_spds & BNXT_LINK_SPEED_MSK_50GB)
+			fw_speed = PORT_PHY_CFG_REQ_AUTO_LINK_SPEED_50GB;
+		break;
 	default:
 		netdev_err(dev, "unsupported speed!\n");
 		break;
 	}
-	return 0;
+	return fw_speed;
 }
 
-static u16 bnxt_get_fw_auto_link_speeds(u32 advertising)
+u16 bnxt_get_fw_auto_link_speeds(u32 advertising)
 {
 	u16 fw_speed_mask = 0;
 
@@ -823,6 +853,16 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 */
 		set_pause = true;
 	} else {
+		u16 fw_speed;
+		u8 phy_type = link_info->phy_type;
+
+		if (phy_type == PORT_PHY_QCFG_RESP_PHY_TYPE_BASET  ||
+		    phy_type == PORT_PHY_QCFG_RESP_PHY_TYPE_BASETE ||
+		    link_info->media_type == PORT_PHY_QCFG_RESP_MEDIA_TYPE_TP) {
+			netdev_err(dev, "10GBase-T devices must autoneg\n");
+			rc = -EINVAL;
+			goto set_setting_exit;
+		}
 		/* TODO: currently don't support half duplex */
 		if (cmd->duplex == DUPLEX_HALF) {
 			netdev_err(dev, "HALF DUPLEX is not supported!\n");
@@ -833,14 +873,19 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		if (cmd->duplex == DUPLEX_UNKNOWN)
 			cmd->duplex = DUPLEX_FULL;
 		speed = ethtool_cmd_speed(cmd);
-		link_info->req_link_speed = bnxt_get_fw_speed(dev, speed);
+		fw_speed = bnxt_get_fw_speed(dev, speed);
+		if (!fw_speed) {
+			rc = -EINVAL;
+			goto set_setting_exit;
+		}
+		link_info->req_link_speed = fw_speed;
 		link_info->req_duplex = BNXT_LINK_DUPLEX_FULL;
 		link_info->autoneg = 0;
 		link_info->advertising = 0;
 	}
 
 	if (netif_running(dev))
-		rc = bnxt_hwrm_set_link_setting(bp, set_pause);
+		rc = bnxt_hwrm_set_link_setting(bp, set_pause, false);
 
 set_setting_exit:
 	return rc;
@@ -874,7 +919,9 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 			return -EINVAL;
 
 		link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
-		link_info->req_flow_ctrl |= BNXT_LINK_PAUSE_BOTH;
+		if (bp->hwrm_spec_code >= 0x10201)
+			link_info->req_flow_ctrl =
+				PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE;
 	} else {
 		/* when transition from auto pause to force pause,
 		 * force a link change
@@ -882,17 +929,13 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 		if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
 			link_info->force_link_chng = true;
 		link_info->autoneg &= ~BNXT_AUTONEG_FLOW_CTRL;
-		link_info->req_flow_ctrl &= ~BNXT_LINK_PAUSE_BOTH;
+		link_info->req_flow_ctrl = 0;
 	}
 	if (epause->rx_pause)
 		link_info->req_flow_ctrl |= BNXT_LINK_PAUSE_RX;
-	else
-		link_info->req_flow_ctrl &= ~BNXT_LINK_PAUSE_RX;
 
 	if (epause->tx_pause)
 		link_info->req_flow_ctrl |= BNXT_LINK_PAUSE_TX;
-	else
-		link_info->req_flow_ctrl &= ~BNXT_LINK_PAUSE_TX;
 
 	if (netif_running(dev))
 		rc = bnxt_hwrm_set_pause(bp);
@@ -1381,6 +1424,199 @@ static int bnxt_set_eeprom(struct net_device *dev,
 				eeprom->len);
 }
 
+static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct ethtool_eee *eee = &bp->eee;
+	struct bnxt_link_info *link_info = &bp->link_info;
+	u32 advertising =
+		 _bnxt_fw_to_ethtool_adv_spds(link_info->advertising, 0);
+	int rc = 0;
+
+	if (BNXT_VF(bp))
+		return 0;
+
+	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
+		return -EOPNOTSUPP;
+
+	if (!edata->eee_enabled)
+		goto eee_ok;
+
+	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED)) {
+		netdev_warn(dev, "EEE requires autoneg\n");
+		return -EINVAL;
+	}
+	if (edata->tx_lpi_enabled) {
+		if (bp->lpi_tmr_hi && (edata->tx_lpi_timer > bp->lpi_tmr_hi ||
+				       edata->tx_lpi_timer < bp->lpi_tmr_lo)) {
+			netdev_warn(dev, "Valid LPI timer range is %d and %d microsecs\n",
+				    bp->lpi_tmr_lo, bp->lpi_tmr_hi);
+			return -EINVAL;
+		} else if (!bp->lpi_tmr_hi) {
+			edata->tx_lpi_timer = eee->tx_lpi_timer;
+		}
+	}
+	if (!edata->advertised) {
+		edata->advertised = advertising & eee->supported;
+	} else if (edata->advertised & ~advertising) {
+		netdev_warn(dev, "EEE advertised %x must be a subset of autoneg advertised speeds %x\n",
+			    edata->advertised, advertising);
+		return -EINVAL;
+	}
+
+	eee->advertised = edata->advertised;
+	eee->tx_lpi_enabled = edata->tx_lpi_enabled;
+	eee->tx_lpi_timer = edata->tx_lpi_timer;
+eee_ok:
+	eee->eee_enabled = edata->eee_enabled;
+
+	if (netif_running(dev))
+		rc = bnxt_hwrm_set_link_setting(bp, false, true);
+
+	return rc;
+}
+
+static int bnxt_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
+		return -EOPNOTSUPP;
+
+	*edata = bp->eee;
+	if (!bp->eee.eee_enabled) {
+		/* Preserve tx_lpi_timer so that the last value will be used
+		 * by default when it is re-enabled.
+		 */
+		edata->advertised = 0;
+		edata->tx_lpi_enabled = 0;
+	}
+
+	if (!bp->eee.eee_active)
+		edata->lp_advertised = 0;
+
+	return 0;
+}
+
+static int bnxt_read_sfp_module_eeprom_info(struct bnxt *bp, u16 i2c_addr,
+					    u16 page_number, u16 start_addr,
+					    u16 data_length, u8 *buf)
+{
+	struct hwrm_port_phy_i2c_read_input req = {0};
+	struct hwrm_port_phy_i2c_read_output *output = bp->hwrm_cmd_resp_addr;
+	int rc, byte_offset = 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_I2C_READ, -1, -1);
+	req.i2c_slave_addr = i2c_addr;
+	req.page_number = cpu_to_le16(page_number);
+	req.port_id = cpu_to_le16(bp->pf.port_id);
+	do {
+		u16 xfer_size;
+
+		xfer_size = min_t(u16, data_length, BNXT_MAX_PHY_I2C_RESP_SIZE);
+		data_length -= xfer_size;
+		req.page_offset = cpu_to_le16(start_addr + byte_offset);
+		req.data_length = xfer_size;
+		req.enables = cpu_to_le32(start_addr + byte_offset ?
+				 PORT_PHY_I2C_READ_REQ_ENABLES_PAGE_OFFSET : 0);
+		mutex_lock(&bp->hwrm_cmd_lock);
+		rc = _hwrm_send_message(bp, &req, sizeof(req),
+					HWRM_CMD_TIMEOUT);
+		if (!rc)
+			memcpy(buf + byte_offset, output->data, xfer_size);
+		mutex_unlock(&bp->hwrm_cmd_lock);
+		byte_offset += xfer_size;
+	} while (!rc && data_length > 0);
+
+	return rc;
+}
+
+static int bnxt_get_module_info(struct net_device *dev,
+				struct ethtool_modinfo *modinfo)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct hwrm_port_phy_i2c_read_input req = {0};
+	struct hwrm_port_phy_i2c_read_output *output = bp->hwrm_cmd_resp_addr;
+	int rc;
+
+	/* No point in going further if phy status indicates
+	 * module is not inserted or if it is powered down or
+	 * if it is of type 10GBase-T
+	 */
+	if (bp->link_info.module_status >
+		PORT_PHY_QCFG_RESP_MODULE_STATUS_WARNINGMSG)
+		return -EOPNOTSUPP;
+
+	/* This feature is not supported in older firmware versions */
+	if (bp->hwrm_spec_code < 0x10202)
+		return -EOPNOTSUPP;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_I2C_READ, -1, -1);
+	req.i2c_slave_addr = I2C_DEV_ADDR_A0;
+	req.page_number = 0;
+	req.page_offset = cpu_to_le16(SFP_EEPROM_SFF_8472_COMP_ADDR);
+	req.data_length = SFP_EEPROM_SFF_8472_COMP_SIZE;
+	req.port_id = cpu_to_le16(bp->pf.port_id);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		u32 module_id = le32_to_cpu(output->data[0]);
+
+		switch (module_id) {
+		case SFF_MODULE_ID_SFP:
+			modinfo->type = ETH_MODULE_SFF_8472;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+			break;
+		case SFF_MODULE_ID_QSFP:
+		case SFF_MODULE_ID_QSFP_PLUS:
+			modinfo->type = ETH_MODULE_SFF_8436;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+			break;
+		case SFF_MODULE_ID_QSFP28:
+			modinfo->type = ETH_MODULE_SFF_8636;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+			break;
+		default:
+			rc = -EOPNOTSUPP;
+			break;
+		}
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+static int bnxt_get_module_eeprom(struct net_device *dev,
+				  struct ethtool_eeprom *eeprom,
+				  u8 *data)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	u16  start = eeprom->offset, length = eeprom->len;
+	int rc;
+
+	memset(data, 0, eeprom->len);
+
+	/* Read A0 portion of the EEPROM */
+	if (start < ETH_MODULE_SFF_8436_LEN) {
+		if (start + eeprom->len > ETH_MODULE_SFF_8436_LEN)
+			length = ETH_MODULE_SFF_8436_LEN - start;
+		rc = bnxt_read_sfp_module_eeprom_info(bp, I2C_DEV_ADDR_A0, 0,
+						      start, length, data);
+		if (rc)
+			return rc;
+		start += length;
+		data += length;
+		length = eeprom->len - length;
+	}
+
+	/* Read A2 portion of the EEPROM */
+	if (length) {
+		start -= ETH_MODULE_SFF_8436_LEN;
+		bnxt_read_sfp_module_eeprom_info(bp, I2C_DEV_ADDR_A2, 1, start,
+						 length, data);
+	}
+	return rc;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_settings		= bnxt_get_settings,
 	.set_settings		= bnxt_set_settings,
@@ -1409,4 +1645,8 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_eeprom             = bnxt_get_eeprom,
 	.set_eeprom		= bnxt_set_eeprom,
 	.get_link		= bnxt_get_link,
+	.get_eee		= bnxt_get_eee,
+	.set_eee		= bnxt_set_eee,
+	.get_module_info	= bnxt_get_module_info,
+	.get_module_eeprom	= bnxt_get_module_eeprom,
 };

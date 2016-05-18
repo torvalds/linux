@@ -1129,48 +1129,45 @@ EXPORT_SYMBOL_GPL(hid_field_extract);
 static void __implement(u8 *report, unsigned offset, int n, u32 value)
 {
 	unsigned int idx = offset / 8;
-	unsigned int size = offset + n;
 	unsigned int bit_shift = offset % 8;
 	int bits_to_set = 8 - bit_shift;
-	u8 bit_mask = 0xff << bit_shift;
 
 	while (n - bits_to_set >= 0) {
-		report[idx] &= ~bit_mask;
+		report[idx] &= ~(0xff << bit_shift);
 		report[idx] |= value << bit_shift;
 		value >>= bits_to_set;
 		n -= bits_to_set;
 		bits_to_set = 8;
-		bit_mask = 0xff;
 		bit_shift = 0;
 		idx++;
 	}
 
 	/* last nibble */
 	if (n) {
-		if (size % 8)
-			bit_mask &= (1U << (size % 8)) - 1;
-		report[idx] &= ~bit_mask;
-		report[idx] |= (value << bit_shift) & bit_mask;
+		u8 bit_mask = ((1U << n) - 1);
+		report[idx] &= ~(bit_mask << bit_shift);
+		report[idx] |= value << bit_shift;
 	}
 }
 
 static void implement(const struct hid_device *hid, u8 *report,
 		      unsigned offset, unsigned n, u32 value)
 {
-	u64 m;
-
-	if (n > 32) {
+	if (unlikely(n > 32)) {
 		hid_warn(hid, "%s() called with n (%d) > 32! (%s)\n",
 			 __func__, n, current->comm);
 		n = 32;
-	}
+	} else if (n < 32) {
+		u32 m = (1U << n) - 1;
 
-	m = (1ULL << n) - 1;
-	if (value > m)
-		hid_warn(hid, "%s() called with too large value %d! (%s)\n",
-			 __func__, value, current->comm);
-	WARN_ON(value > m);
-	value &= m;
+		if (unlikely(value > m)) {
+			hid_warn(hid,
+				 "%s() called with too large value %d (n: %d)! (%s)\n",
+				 __func__, value, n, current->comm);
+			WARN_ON(1);
+			value &= m;
+		}
+	}
 
 	__implement(report, offset, n, value);
 }
@@ -1856,6 +1853,7 @@ static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_2011_JIS) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY) },
+	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK, USB_DEVICE_ID_ASUSTEK_NOTEBOOK_KEYBOARD) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_AUREAL, USB_DEVICE_ID_AUREAL_W01RN) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_BELKIN, USB_DEVICE_ID_FLIP_KVM) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_BETOP_2185BFM, 0x2208) },

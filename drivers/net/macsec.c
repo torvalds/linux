@@ -1408,9 +1408,10 @@ static sci_t nla_get_sci(const struct nlattr *nla)
 	return (__force sci_t)nla_get_u64(nla);
 }
 
-static int nla_put_sci(struct sk_buff *skb, int attrtype, sci_t value)
+static int nla_put_sci(struct sk_buff *skb, int attrtype, sci_t value,
+		       int padattr)
 {
-	return nla_put_u64(skb, attrtype, (__force u64)value);
+	return nla_put_u64_64bit(skb, attrtype, (__force u64)value, padattr);
 }
 
 static struct macsec_tx_sa *get_txsa_from_nl(struct net *net,
@@ -2143,16 +2144,36 @@ static int copy_rx_sc_stats(struct sk_buff *skb,
 		sum.InPktsUnusedSA    += tmp.InPktsUnusedSA;
 	}
 
-	if (nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_OCTETS_VALIDATED, sum.InOctetsValidated) ||
-	    nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_OCTETS_DECRYPTED, sum.InOctetsDecrypted) ||
-	    nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_UNCHECKED, sum.InPktsUnchecked) ||
-	    nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_DELAYED, sum.InPktsDelayed) ||
-	    nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_OK, sum.InPktsOK) ||
-	    nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_INVALID, sum.InPktsInvalid) ||
-	    nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_LATE, sum.InPktsLate) ||
-	    nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_NOT_VALID, sum.InPktsNotValid) ||
-	    nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_NOT_USING_SA, sum.InPktsNotUsingSA) ||
-	    nla_put_u64(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_UNUSED_SA, sum.InPktsUnusedSA))
+	if (nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_OCTETS_VALIDATED,
+			      sum.InOctetsValidated,
+			      MACSEC_RXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_OCTETS_DECRYPTED,
+			      sum.InOctetsDecrypted,
+			      MACSEC_RXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_UNCHECKED,
+			      sum.InPktsUnchecked,
+			      MACSEC_RXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_DELAYED,
+			      sum.InPktsDelayed,
+			      MACSEC_RXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_OK,
+			      sum.InPktsOK,
+			      MACSEC_RXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_INVALID,
+			      sum.InPktsInvalid,
+			      MACSEC_RXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_LATE,
+			      sum.InPktsLate,
+			      MACSEC_RXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_NOT_VALID,
+			      sum.InPktsNotValid,
+			      MACSEC_RXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_NOT_USING_SA,
+			      sum.InPktsNotUsingSA,
+			      MACSEC_RXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_RXSC_STATS_ATTR_IN_PKTS_UNUSED_SA,
+			      sum.InPktsUnusedSA,
+			      MACSEC_RXSC_STATS_ATTR_PAD))
 		return -EMSGSIZE;
 
 	return 0;
@@ -2181,10 +2202,18 @@ static int copy_tx_sc_stats(struct sk_buff *skb,
 		sum.OutOctetsEncrypted += tmp.OutOctetsEncrypted;
 	}
 
-	if (nla_put_u64(skb, MACSEC_TXSC_STATS_ATTR_OUT_PKTS_PROTECTED, sum.OutPktsProtected) ||
-	    nla_put_u64(skb, MACSEC_TXSC_STATS_ATTR_OUT_PKTS_ENCRYPTED, sum.OutPktsEncrypted) ||
-	    nla_put_u64(skb, MACSEC_TXSC_STATS_ATTR_OUT_OCTETS_PROTECTED, sum.OutOctetsProtected) ||
-	    nla_put_u64(skb, MACSEC_TXSC_STATS_ATTR_OUT_OCTETS_ENCRYPTED, sum.OutOctetsEncrypted))
+	if (nla_put_u64_64bit(skb, MACSEC_TXSC_STATS_ATTR_OUT_PKTS_PROTECTED,
+			      sum.OutPktsProtected,
+			      MACSEC_TXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_TXSC_STATS_ATTR_OUT_PKTS_ENCRYPTED,
+			      sum.OutPktsEncrypted,
+			      MACSEC_TXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_TXSC_STATS_ATTR_OUT_OCTETS_PROTECTED,
+			      sum.OutOctetsProtected,
+			      MACSEC_TXSC_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_TXSC_STATS_ATTR_OUT_OCTETS_ENCRYPTED,
+			      sum.OutOctetsEncrypted,
+			      MACSEC_TXSC_STATS_ATTR_PAD))
 		return -EMSGSIZE;
 
 	return 0;
@@ -2217,14 +2246,30 @@ static int copy_secy_stats(struct sk_buff *skb,
 		sum.InPktsOverrun    += tmp.InPktsOverrun;
 	}
 
-	if (nla_put_u64(skb, MACSEC_SECY_STATS_ATTR_OUT_PKTS_UNTAGGED, sum.OutPktsUntagged) ||
-	    nla_put_u64(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_UNTAGGED, sum.InPktsUntagged) ||
-	    nla_put_u64(skb, MACSEC_SECY_STATS_ATTR_OUT_PKTS_TOO_LONG, sum.OutPktsTooLong) ||
-	    nla_put_u64(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_NO_TAG, sum.InPktsNoTag) ||
-	    nla_put_u64(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_BAD_TAG, sum.InPktsBadTag) ||
-	    nla_put_u64(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_UNKNOWN_SCI, sum.InPktsUnknownSCI) ||
-	    nla_put_u64(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_NO_SCI, sum.InPktsNoSCI) ||
-	    nla_put_u64(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_OVERRUN, sum.InPktsOverrun))
+	if (nla_put_u64_64bit(skb, MACSEC_SECY_STATS_ATTR_OUT_PKTS_UNTAGGED,
+			      sum.OutPktsUntagged,
+			      MACSEC_SECY_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_UNTAGGED,
+			      sum.InPktsUntagged,
+			      MACSEC_SECY_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_SECY_STATS_ATTR_OUT_PKTS_TOO_LONG,
+			      sum.OutPktsTooLong,
+			      MACSEC_SECY_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_NO_TAG,
+			      sum.InPktsNoTag,
+			      MACSEC_SECY_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_BAD_TAG,
+			      sum.InPktsBadTag,
+			      MACSEC_SECY_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_UNKNOWN_SCI,
+			      sum.InPktsUnknownSCI,
+			      MACSEC_SECY_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_NO_SCI,
+			      sum.InPktsNoSCI,
+			      MACSEC_SECY_STATS_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_SECY_STATS_ATTR_IN_PKTS_OVERRUN,
+			      sum.InPktsOverrun,
+			      MACSEC_SECY_STATS_ATTR_PAD))
 		return -EMSGSIZE;
 
 	return 0;
@@ -2238,9 +2283,11 @@ static int nla_put_secy(struct macsec_secy *secy, struct sk_buff *skb)
 	if (!secy_nest)
 		return 1;
 
-	if (nla_put_sci(skb, MACSEC_SECY_ATTR_SCI, secy->sci) ||
-	    nla_put_u64(skb, MACSEC_SECY_ATTR_CIPHER_SUITE,
-			MACSEC_DEFAULT_CIPHER_ID) ||
+	if (nla_put_sci(skb, MACSEC_SECY_ATTR_SCI, secy->sci,
+			MACSEC_SECY_ATTR_PAD) ||
+	    nla_put_u64_64bit(skb, MACSEC_SECY_ATTR_CIPHER_SUITE,
+			      MACSEC_DEFAULT_CIPHER_ID,
+			      MACSEC_SECY_ATTR_PAD) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_ICV_LEN, secy->icv_len) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_OPER, secy->operational) ||
 	    nla_put_u8(skb, MACSEC_SECY_ATTR_PROTECT, secy->protect_frames) ||
@@ -2366,7 +2413,8 @@ static int dump_secy(struct macsec_secy *secy, struct net_device *dev,
 		}
 
 		if (nla_put_u8(skb, MACSEC_RXSC_ATTR_ACTIVE, rx_sc->active) ||
-		    nla_put_sci(skb, MACSEC_RXSC_ATTR_SCI, rx_sc->sci)) {
+		    nla_put_sci(skb, MACSEC_RXSC_ATTR_SCI, rx_sc->sci,
+				MACSEC_RXSC_ATTR_PAD)) {
 			nla_nest_cancel(skb, rxsc_nest);
 			nla_nest_cancel(skb, rxsc_list);
 			goto nla_put_failure;
@@ -2843,7 +2891,7 @@ static void macsec_free_netdev(struct net_device *dev)
 static void macsec_setup(struct net_device *dev)
 {
 	ether_setup(dev);
-	dev->tx_queue_len = 0;
+	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->netdev_ops = &macsec_netdev_ops;
 	dev->destructor = macsec_free_netdev;
 
@@ -3170,9 +3218,9 @@ static struct net *macsec_get_link_net(const struct net_device *dev)
 static size_t macsec_get_size(const struct net_device *dev)
 {
 	return 0 +
-		nla_total_size(8) + /* SCI */
+		nla_total_size_64bit(8) + /* SCI */
 		nla_total_size(1) + /* ICV_LEN */
-		nla_total_size(8) + /* CIPHER_SUITE */
+		nla_total_size_64bit(8) + /* CIPHER_SUITE */
 		nla_total_size(4) + /* WINDOW */
 		nla_total_size(1) + /* ENCODING_SA */
 		nla_total_size(1) + /* ENCRYPT */
@@ -3191,10 +3239,11 @@ static int macsec_fill_info(struct sk_buff *skb,
 	struct macsec_secy *secy = &macsec_priv(dev)->secy;
 	struct macsec_tx_sc *tx_sc = &secy->tx_sc;
 
-	if (nla_put_sci(skb, IFLA_MACSEC_SCI, secy->sci) ||
+	if (nla_put_sci(skb, IFLA_MACSEC_SCI, secy->sci,
+			IFLA_MACSEC_PAD) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ICV_LEN, secy->icv_len) ||
-	    nla_put_u64(skb, IFLA_MACSEC_CIPHER_SUITE,
-			MACSEC_DEFAULT_CIPHER_ID) ||
+	    nla_put_u64_64bit(skb, IFLA_MACSEC_CIPHER_SUITE,
+			      MACSEC_DEFAULT_CIPHER_ID, IFLA_MACSEC_PAD) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ENCODING_SA, tx_sc->encoding_sa) ||
 	    nla_put_u8(skb, IFLA_MACSEC_ENCRYPT, tx_sc->encrypt) ||
 	    nla_put_u8(skb, IFLA_MACSEC_PROTECT, secy->protect_frames) ||

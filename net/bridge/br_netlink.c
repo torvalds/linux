@@ -135,9 +135,9 @@ static inline size_t br_port_info_size(void)
 		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_NO */
 		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_TOPOLOGY_CHANGE_ACK */
 		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_CONFIG_PENDING */
-		+ nla_total_size(sizeof(u64))	/* IFLA_BRPORT_MESSAGE_AGE_TIMER */
-		+ nla_total_size(sizeof(u64))	/* IFLA_BRPORT_FORWARD_DELAY_TIMER */
-		+ nla_total_size(sizeof(u64))	/* IFLA_BRPORT_HOLD_TIMER */
+		+ nla_total_size_64bit(sizeof(u64)) /* IFLA_BRPORT_MESSAGE_AGE_TIMER */
+		+ nla_total_size_64bit(sizeof(u64)) /* IFLA_BRPORT_FORWARD_DELAY_TIMER */
+		+ nla_total_size_64bit(sizeof(u64)) /* IFLA_BRPORT_HOLD_TIMER */
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 		+ nla_total_size(sizeof(u8))	/* IFLA_BRPORT_MULTICAST_ROUTER */
 #endif
@@ -190,13 +190,16 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	timerval = br_timer_value(&p->message_age_timer);
-	if (nla_put_u64(skb, IFLA_BRPORT_MESSAGE_AGE_TIMER, timerval))
+	if (nla_put_u64_64bit(skb, IFLA_BRPORT_MESSAGE_AGE_TIMER, timerval,
+			      IFLA_BRPORT_PAD))
 		return -EMSGSIZE;
 	timerval = br_timer_value(&p->forward_delay_timer);
-	if (nla_put_u64(skb, IFLA_BRPORT_FORWARD_DELAY_TIMER, timerval))
+	if (nla_put_u64_64bit(skb, IFLA_BRPORT_FORWARD_DELAY_TIMER, timerval,
+			      IFLA_BRPORT_PAD))
 		return -EMSGSIZE;
 	timerval = br_timer_value(&p->hold_timer);
-	if (nla_put_u64(skb, IFLA_BRPORT_HOLD_TIMER, timerval))
+	if (nla_put_u64_64bit(skb, IFLA_BRPORT_HOLD_TIMER, timerval,
+			      IFLA_BRPORT_PAD))
 		return -EMSGSIZE;
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
@@ -847,6 +850,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_NF_CALL_IP6TABLES] = { .type = NLA_U8 },
 	[IFLA_BR_NF_CALL_ARPTABLES] = { .type = NLA_U8 },
 	[IFLA_BR_VLAN_DEFAULT_PVID] = { .type = NLA_U16 },
+	[IFLA_BR_VLAN_STATS_ENABLED] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -915,6 +919,14 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		__u16 defpvid = nla_get_u16(data[IFLA_BR_VLAN_DEFAULT_PVID]);
 
 		err = __br_vlan_set_default_pvid(br, defpvid);
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_BR_VLAN_STATS_ENABLED]) {
+		__u8 vlan_stats = nla_get_u8(data[IFLA_BR_VLAN_STATS_ENABLED]);
+
+		err = br_vlan_set_stats(br, vlan_stats);
 		if (err)
 			return err;
 	}
@@ -1079,6 +1091,7 @@ static size_t br_get_size(const struct net_device *brdev)
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	       nla_total_size(sizeof(__be16)) +	/* IFLA_BR_VLAN_PROTOCOL */
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_VLAN_DEFAULT_PVID */
+	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_VLAN_STATS_ENABLED */
 #endif
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_GROUP_FWD_MASK */
 	       nla_total_size(sizeof(struct ifla_bridge_id)) +   /* IFLA_BR_ROOT_ID */
@@ -1087,10 +1100,10 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_ROOT_PATH_COST */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_TOPOLOGY_CHANGE */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_TOPOLOGY_CHANGE_DETECTED */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_HELLO_TIMER */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_TCN_TIMER */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_TOPOLOGY_CHANGE_TIMER */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_GC_TIMER */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_HELLO_TIMER */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_TCN_TIMER */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_TOPOLOGY_CHANGE_TIMER */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_GC_TIMER */
 	       nla_total_size(ETH_ALEN) +       /* IFLA_BR_GROUP_ADDR */
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_MCAST_ROUTER */
@@ -1101,12 +1114,12 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_HASH_MAX */
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_LAST_MEMBER_CNT */
 	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_MCAST_STARTUP_QUERY_CNT */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_LAST_MEMBER_INTVL */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_MEMBERSHIP_INTVL */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_QUERIER_INTVL */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_QUERY_INTVL */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_QUERY_RESPONSE_INTVL */
-	       nla_total_size(sizeof(u64)) +    /* IFLA_BR_MCAST_STARTUP_QUERY_INTVL */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_MCAST_LAST_MEMBER_INTVL */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_MCAST_MEMBERSHIP_INTVL */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_MCAST_QUERIER_INTVL */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_MCAST_QUERY_INTVL */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_MCAST_QUERY_RESPONSE_INTVL */
+	       nla_total_size_64bit(sizeof(u64)) + /* IFLA_BR_MCAST_STARTUP_QUERY_INTVL */
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_NF_CALL_IPTABLES */
@@ -1129,16 +1142,17 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	u64 clockval;
 
 	clockval = br_timer_value(&br->hello_timer);
-	if (nla_put_u64(skb, IFLA_BR_HELLO_TIMER, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_HELLO_TIMER, clockval, IFLA_BR_PAD))
 		return -EMSGSIZE;
 	clockval = br_timer_value(&br->tcn_timer);
-	if (nla_put_u64(skb, IFLA_BR_TCN_TIMER, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_TCN_TIMER, clockval, IFLA_BR_PAD))
 		return -EMSGSIZE;
 	clockval = br_timer_value(&br->topology_change_timer);
-	if (nla_put_u64(skb, IFLA_BR_TOPOLOGY_CHANGE_TIMER, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_TOPOLOGY_CHANGE_TIMER, clockval,
+			      IFLA_BR_PAD))
 		return -EMSGSIZE;
 	clockval = br_timer_value(&br->gc_timer);
-	if (nla_put_u64(skb, IFLA_BR_GC_TIMER, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_GC_TIMER, clockval, IFLA_BR_PAD))
 		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
@@ -1163,7 +1177,8 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto) ||
-	    nla_put_u16(skb, IFLA_BR_VLAN_DEFAULT_PVID, br->default_pvid))
+	    nla_put_u16(skb, IFLA_BR_VLAN_DEFAULT_PVID, br->default_pvid) ||
+	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_ENABLED, br->vlan_stats_enabled))
 		return -EMSGSIZE;
 #endif
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
@@ -1182,22 +1197,28 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 		return -EMSGSIZE;
 
 	clockval = jiffies_to_clock_t(br->multicast_last_member_interval);
-	if (nla_put_u64(skb, IFLA_BR_MCAST_LAST_MEMBER_INTVL, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_LAST_MEMBER_INTVL, clockval,
+			      IFLA_BR_PAD))
 		return -EMSGSIZE;
 	clockval = jiffies_to_clock_t(br->multicast_membership_interval);
-	if (nla_put_u64(skb, IFLA_BR_MCAST_MEMBERSHIP_INTVL, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_MEMBERSHIP_INTVL, clockval,
+			      IFLA_BR_PAD))
 		return -EMSGSIZE;
 	clockval = jiffies_to_clock_t(br->multicast_querier_interval);
-	if (nla_put_u64(skb, IFLA_BR_MCAST_QUERIER_INTVL, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_QUERIER_INTVL, clockval,
+			      IFLA_BR_PAD))
 		return -EMSGSIZE;
 	clockval = jiffies_to_clock_t(br->multicast_query_interval);
-	if (nla_put_u64(skb, IFLA_BR_MCAST_QUERY_INTVL, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_QUERY_INTVL, clockval,
+			      IFLA_BR_PAD))
 		return -EMSGSIZE;
 	clockval = jiffies_to_clock_t(br->multicast_query_response_interval);
-	if (nla_put_u64(skb, IFLA_BR_MCAST_QUERY_RESPONSE_INTVL, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_QUERY_RESPONSE_INTVL, clockval,
+			      IFLA_BR_PAD))
 		return -EMSGSIZE;
 	clockval = jiffies_to_clock_t(br->multicast_startup_query_interval);
-	if (nla_put_u64(skb, IFLA_BR_MCAST_STARTUP_QUERY_INTVL, clockval))
+	if (nla_put_u64_64bit(skb, IFLA_BR_MCAST_STARTUP_QUERY_INTVL, clockval,
+			      IFLA_BR_PAD))
 		return -EMSGSIZE;
 #endif
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
@@ -1213,6 +1234,69 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	return 0;
 }
 
+static size_t br_get_linkxstats_size(const struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	int numvls = 0;
+
+	vg = br_vlan_group(br);
+	if (!vg)
+		return 0;
+
+	/* we need to count all, even placeholder entries */
+	list_for_each_entry(v, &vg->vlan_list, vlist)
+		numvls++;
+
+	/* account for the vlans and the link xstats type nest attribute */
+	return numvls * nla_total_size(sizeof(struct bridge_vlan_xstats)) +
+	       nla_total_size(0);
+}
+
+static int br_fill_linkxstats(struct sk_buff *skb, const struct net_device *dev,
+			      int *prividx)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	struct nlattr *nest;
+	int vl_idx = 0;
+
+	vg = br_vlan_group(br);
+	if (!vg)
+		goto out;
+	nest = nla_nest_start(skb, LINK_XSTATS_TYPE_BRIDGE);
+	if (!nest)
+		return -EMSGSIZE;
+	list_for_each_entry(v, &vg->vlan_list, vlist) {
+		struct bridge_vlan_xstats vxi;
+		struct br_vlan_stats stats;
+
+		if (vl_idx++ < *prividx)
+			continue;
+		memset(&vxi, 0, sizeof(vxi));
+		vxi.vid = v->vid;
+		br_vlan_get_stats(v, &stats);
+		vxi.rx_bytes = stats.rx_bytes;
+		vxi.rx_packets = stats.rx_packets;
+		vxi.tx_bytes = stats.tx_bytes;
+		vxi.tx_packets = stats.tx_packets;
+
+		if (nla_put(skb, BRIDGE_XSTATS_VLAN, sizeof(vxi), &vxi))
+			goto nla_put_failure;
+	}
+	nla_nest_end(skb, nest);
+	*prividx = 0;
+out:
+	return 0;
+
+nla_put_failure:
+	nla_nest_end(skb, nest);
+	*prividx = vl_idx;
+
+	return -EMSGSIZE;
+}
 
 static struct rtnl_af_ops br_af_ops __read_mostly = {
 	.family			= AF_BRIDGE,
@@ -1231,6 +1315,8 @@ struct rtnl_link_ops br_link_ops __read_mostly = {
 	.dellink		= br_dev_delete,
 	.get_size		= br_get_size,
 	.fill_info		= br_fill_info,
+	.fill_linkxstats	= br_fill_linkxstats,
+	.get_linkxstats_size	= br_get_linkxstats_size,
 
 	.slave_maxtype		= IFLA_BRPORT_MAX,
 	.slave_policy		= br_port_policy,

@@ -470,12 +470,38 @@ static struct mii_phy_def m88e1112_phy_def = {
 	.ops		= &m88e1112_phy_ops,
 };
 
+static int ar8035_init(struct mii_phy *phy)
+{
+	phy_write(phy, 0x1d, 0x5); /* Address debug register 5 */
+	phy_write(phy, 0x1e, 0x2d47); /* Value copied from u-boot */
+	phy_write(phy, 0x1d, 0xb);    /* Address hib ctrl */
+	phy_write(phy, 0x1e, 0xbc20); /* Value copied from u-boot */
+
+	return 0;
+}
+
+static struct mii_phy_ops ar8035_phy_ops = {
+	.init		= ar8035_init,
+	.setup_aneg	= genmii_setup_aneg,
+	.setup_forced	= genmii_setup_forced,
+	.poll_link	= genmii_poll_link,
+	.read_link	= genmii_read_link,
+};
+
+static struct mii_phy_def ar8035_phy_def = {
+	.phy_id		= 0x004dd070,
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "Atheros 8035 Gigabit Ethernet",
+	.ops		= &ar8035_phy_ops,
+};
+
 static struct mii_phy_def *mii_phy_table[] = {
 	&et1011c_phy_def,
 	&cis8201_phy_def,
 	&bcm5248_phy_def,
 	&m88e1111_phy_def,
 	&m88e1112_phy_def,
+	&ar8035_phy_def,
 	&genmii_phy_def,
 	NULL
 };

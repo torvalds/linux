@@ -210,7 +210,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 	if (iwl_mvm_check_pn(mvm, skb, queue, sta))
 		kfree_skb(skb);
 	else
-		ieee80211_rx_napi(mvm->hw, skb, napi);
+		ieee80211_rx_napi(mvm->hw, NULL, skb, napi);
 }
 
 static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
@@ -294,10 +294,15 @@ static void iwl_mvm_rx_csum(struct ieee80211_sta *sta,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+	u16 flags = le16_to_cpu(desc->l3l4_flags);
+	u8 l3_prot = (u8)((flags & IWL_RX_L3L4_L3_PROTO_MASK) >>
+			  IWL_RX_L3_PROTO_POS);
 
 	if (mvmvif->features & NETIF_F_RXCSUM &&
-	    desc->l3l4_flags & cpu_to_le16(IWL_RX_L3L4_IP_HDR_CSUM_OK) &&
-	    desc->l3l4_flags & cpu_to_le16(IWL_RX_L3L4_TCP_UDP_CSUM_OK))
+	    flags & IWL_RX_L3L4_TCP_UDP_CSUM_OK &&
+	    (flags & IWL_RX_L3L4_IP_HDR_CSUM_OK ||
+	     l3_prot == IWL_RX_L3_TYPE_IPV6 ||
+	     l3_prot == IWL_RX_L3_TYPE_IPV6_FRAG))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
@@ -451,8 +456,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	rx_status->mactime = le64_to_cpu(desc->tsf_on_air_rise);
 	rx_status->device_timestamp = le32_to_cpu(desc->gp2_on_air_rise);
-	rx_status->band = desc->channel > 14 ? IEEE80211_BAND_5GHZ :
-					       IEEE80211_BAND_2GHZ;
+	rx_status->band = desc->channel > 14 ? NL80211_BAND_5GHZ :
+					       NL80211_BAND_2GHZ;
 	rx_status->freq = ieee80211_channel_to_frequency(desc->channel,
 							 rx_status->band);
 	iwl_mvm_get_signal_strength(mvm, desc, rx_status);

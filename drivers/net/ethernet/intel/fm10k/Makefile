@@ -1,7 +1,7 @@
 ################################################################################
 #
-# Intel Ethernet Switch Host Interface Driver
-# Copyright(c) 2013 - 2015 Intel Corporation.
+# Intel(R) Ethernet Switch Host Interface Driver
+# Copyright(c) 2013 - 2016 Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms and conditions of the GNU General Public License,
@@ -22,7 +22,7 @@
 ################################################################################
 
 #
-# Makefile for the Intel(R) FM10000 Ethernet Switch Host Interface driver
+# Makefile for the Intel(R) Ethernet Switch Host Interface Driver
 #
 
 obj-$(CONFIG_FM10K) += fm10k.o
@@ -30,7 +30,6 @@ obj-$(CONFIG_FM10K) += fm10k.o
 fm10k-y := fm10k_main.o \
 	   fm10k_common.o \
 	   fm10k_pci.o \
-	   fm10k_ptp.o \
 	   fm10k_netdev.o \
 	   fm10k_ethtool.o \
 	   fm10k_pf.o \

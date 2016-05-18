@@ -147,6 +147,9 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
+
+	mwifiex_send_cmd(priv, HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG,
+			 HostCmd_ACT_GEN_REMOVE, 0, NULL, false);
 }
 
 static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,

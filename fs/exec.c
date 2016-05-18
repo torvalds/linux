@@ -1387,7 +1387,12 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 	kuid_t uid;
 	kgid_t gid;
 
-	/* clear any previous set[ug]id data from a previous binary */
+	/*
+	 * Since this can be called multiple times (via prepare_binprm),
+	 * we must clear any previous work done when setting set[ug]id
+	 * bits from any earlier bprm->file uses (for example when run
+	 * first for a setuid script then again for its interpreter).
+	 */
 	bprm->cred->euid = current_euid();
 	bprm->cred->egid = current_egid();
 

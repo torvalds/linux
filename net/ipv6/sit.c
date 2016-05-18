@@ -913,10 +913,9 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		goto tx_error;
 	}
 
-	skb = iptunnel_handle_offloads(skb, SKB_GSO_SIT);
-	if (IS_ERR(skb)) {
+	if (iptunnel_handle_offloads(skb, SKB_GSO_SIT)) {
 		ip_rt_put(rt);
-		goto out;
+		goto tx_error;
 	}
 
 	if (df) {
@@ -992,7 +991,6 @@ tx_error_icmp:
 	dst_link_failure(skb);
 tx_error:
 	kfree_skb(skb);
-out:
 	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }
@@ -1002,15 +1000,15 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr  *tiph = &tunnel->parms.iph;
 
-	skb = iptunnel_handle_offloads(skb, SKB_GSO_IPIP);
-	if (IS_ERR(skb))
-		goto out;
+	if (iptunnel_handle_offloads(skb, SKB_GSO_IPIP))
+		goto tx_error;
 
 	skb_set_inner_ipproto(skb, IPPROTO_IPIP);
 
 	ip_tunnel_xmit(skb, dev, tiph, IPPROTO_IPIP);
 	return NETDEV_TX_OK;
-out:
+tx_error:
+	kfree_skb(skb);
 	dev->stats.tx_errors++;
 	return NETDEV_TX_OK;
 }

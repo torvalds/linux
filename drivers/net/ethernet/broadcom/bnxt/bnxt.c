@@ -1,6 +1,6 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
- * Copyright (c) 2014-2015 Broadcom Corporation
+ * Copyright (c) 2014-2016 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -78,6 +78,7 @@ enum board_idx {
 	BCM57402,
 	BCM57404,
 	BCM57406,
+	BCM57314,
 	BCM57304_VF,
 	BCM57404_VF,
 };
@@ -92,6 +93,7 @@ static const struct {
 	{ "Broadcom BCM57402 NetXtreme-E Dual-port 10Gb Ethernet" },
 	{ "Broadcom BCM57404 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
 	{ "Broadcom BCM57406 NetXtreme-E Dual-port 10GBase-T Ethernet" },
+	{ "Broadcom BCM57314 NetXtreme-C Dual-port 10Gb/25Gb/40Gb/50Gb Ethernet" },
 	{ "Broadcom BCM57304 NetXtreme-C Ethernet Virtual Function" },
 	{ "Broadcom BCM57404 NetXtreme-E Ethernet Virtual Function" },
 };
@@ -103,6 +105,7 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16d0), .driver_data = BCM57402 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d1), .driver_data = BCM57404 },
 	{ PCI_VDEVICE(BROADCOM, 0x16d2), .driver_data = BCM57406 },
+	{ PCI_VDEVICE(BROADCOM, 0x16df), .driver_data = BCM57314 },
 #ifdef CONFIG_BNXT_SRIOV
 	{ PCI_VDEVICE(BROADCOM, 0x16cb), .driver_data = BCM57304_VF },
 	{ PCI_VDEVICE(BROADCOM, 0x16d3), .driver_data = BCM57404_VF },
@@ -116,6 +119,13 @@ static const u16 bnxt_vf_req_snif[] = {
 	HWRM_FUNC_CFG,
 	HWRM_PORT_PHY_QCFG,
 	HWRM_CFA_L2_FILTER_ALLOC,
+};
+
+static const u16 bnxt_async_events_arr[] = {
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED,
+	HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE,
 };
 
 static bool bnxt_vf_pciid(enum board_idx idx)
@@ -1313,6 +1323,10 @@ next_rx_no_prod:
 	return rc;
 }
 
+#define BNXT_GET_EVENT_PORT(data)	\
+	((data) &				\
+	 HWRM_ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_EVENT_DATA1_PORT_ID_MASK)
+
 static int bnxt_async_event_process(struct bnxt *bp,
 				    struct hwrm_async_event_cmpl *cmpl)
 {
@@ -1320,12 +1334,40 @@ static int bnxt_async_event_process(struct bnxt *bp,
 
 	/* TODO CHIMP_FW: Define event id's for link change, error etc */
 	switch (event_id) {
+	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE: {
+		u32 data1 = le32_to_cpu(cmpl->event_data1);
+		struct bnxt_link_info *link_info = &bp->link_info;
+
+		if (BNXT_VF(bp))
+			goto async_event_process_exit;
+		if (data1 & 0x20000) {
+			u16 fw_speed = link_info->force_link_speed;
+			u32 speed = bnxt_fw_to_ethtool_speed(fw_speed);
+
+			netdev_warn(bp->dev, "Link speed %d no longer supported\n",
+				    speed);
+		}
+		/* fall thru */
+	}
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 		set_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event);
 		break;
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD:
 		set_bit(BNXT_HWRM_PF_UNLOAD_SP_EVENT, &bp->sp_event);
 		break;
+	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PORT_CONN_NOT_ALLOWED: {
+		u32 data1 = le32_to_cpu(cmpl->event_data1);
+		u16 port_id = BNXT_GET_EVENT_PORT(data1);
+
+		if (BNXT_VF(bp))
+			break;
+
+		if (bp->pf.port_id != port_id)
+			break;
+
+		set_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event);
+		break;
+	}
 	default:
 		netdev_err(bp->dev, "unhandled ASYNC event (id 0x%x)\n",
 			   event_id);
@@ -1452,7 +1494,7 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 		/* The valid test of the entry must be done first before
 		 * reading any further.
 		 */
-		rmb();
+		dma_rmb();
 		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_TX_L2_CMP) {
 			tx_pkts++;
 			/* return full budget so NAPI will complete. */
@@ -2729,7 +2771,7 @@ void bnxt_hwrm_cmd_hdr_init(struct bnxt *bp, void *request, u16 req_type,
 static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 				 int timeout, bool silent)
 {
-	int i, intr_process, rc;
+	int i, intr_process, rc, tmo_count;
 	struct input *req = msg;
 	u32 *data = msg;
 	__le32 *resp_len, *valid;
@@ -2758,11 +2800,12 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 		timeout = DFLT_HWRM_CMD_TIMEOUT;
 
 	i = 0;
+	tmo_count = timeout * 40;
 	if (intr_process) {
 		/* Wait until hwrm response cmpl interrupt is processed */
 		while (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID &&
-		       i++ < timeout) {
-			usleep_range(600, 800);
+		       i++ < tmo_count) {
+			usleep_range(25, 40);
 		}
 
 		if (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID) {
@@ -2773,30 +2816,30 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	} else {
 		/* Check if response len is updated */
 		resp_len = bp->hwrm_cmd_resp_addr + HWRM_RESP_LEN_OFFSET;
-		for (i = 0; i < timeout; i++) {
+		for (i = 0; i < tmo_count; i++) {
 			len = (le32_to_cpu(*resp_len) & HWRM_RESP_LEN_MASK) >>
 			      HWRM_RESP_LEN_SFT;
 			if (len)
 				break;
-			usleep_range(600, 800);
+			usleep_range(25, 40);
 		}
 
-		if (i >= timeout) {
+		if (i >= tmo_count) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
 				   timeout, le16_to_cpu(req->req_type),
-				   le16_to_cpu(req->seq_id), *resp_len);
+				   le16_to_cpu(req->seq_id), len);
 			return -1;
 		}
 
 		/* Last word of resp contains valid bit */
 		valid = bp->hwrm_cmd_resp_addr + len - 4;
-		for (i = 0; i < timeout; i++) {
+		for (i = 0; i < 5; i++) {
 			if (le32_to_cpu(*valid) & HWRM_RESP_VALID_MASK)
 				break;
-			usleep_range(600, 800);
+			udelay(1);
 		}
 
-		if (i >= timeout) {
+		if (i >= 5) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d v:%d\n",
 				   timeout, le16_to_cpu(req->req_type),
 				   le16_to_cpu(req->seq_id), len, *valid);
@@ -2842,6 +2885,8 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 {
 	struct hwrm_func_drv_rgtr_input req = {0};
 	int i;
+	DECLARE_BITMAP(async_events_bmap, 256);
+	u32 *events = (u32 *)async_events_bmap;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_DRV_RGTR, -1, -1);
 
@@ -2850,11 +2895,14 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 			    FUNC_DRV_RGTR_REQ_ENABLES_VER |
 			    FUNC_DRV_RGTR_REQ_ENABLES_ASYNC_EVENT_FWD);
 
-	/* TODO: current async event fwd bits are not defined and the firmware
-	 * only checks if it is non-zero to enable async event forwarding
-	 */
-	req.async_event_fwd[0] |= cpu_to_le32(1);
-	req.os_type = cpu_to_le16(1);
+	memset(async_events_bmap, 0, sizeof(async_events_bmap));
+	for (i = 0; i < ARRAY_SIZE(bnxt_async_events_arr); i++)
+		__set_bit(bnxt_async_events_arr[i], async_events_bmap);
+
+	for (i = 0; i < 8; i++)
+		req.async_event_fwd[i] |= cpu_to_le32(events[i]);
+
+	req.os_type = cpu_to_le16(FUNC_DRV_RGTR_REQ_OS_TYPE_LINUX);
 	req.ver_maj = DRV_VER_MAJ;
 	req.ver_min = DRV_VER_MIN;
 	req.ver_upd = DRV_VER_UPD;
@@ -3817,7 +3865,7 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 
 		pf->fw_fid = le16_to_cpu(resp->fid);
 		pf->port_id = le16_to_cpu(resp->port_id);
-		memcpy(pf->mac_addr, resp->perm_mac_address, ETH_ALEN);
+		memcpy(pf->mac_addr, resp->mac_address, ETH_ALEN);
 		memcpy(bp->dev->dev_addr, pf->mac_addr, ETH_ALEN);
 		pf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
 		pf->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
@@ -3842,7 +3890,7 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		struct bnxt_vf_info *vf = &bp->vf;
 
 		vf->fw_fid = le16_to_cpu(resp->fid);
-		memcpy(vf->mac_addr, resp->perm_mac_address, ETH_ALEN);
+		memcpy(vf->mac_addr, resp->mac_address, ETH_ALEN);
 		if (is_valid_ether_addr(vf->mac_addr))
 			/* overwrite netdev dev_adr with admin VF MAC */
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
@@ -3933,6 +3981,8 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 
 	memcpy(&bp->ver_resp, resp, sizeof(struct hwrm_ver_get_output));
 
+	bp->hwrm_spec_code = resp->hwrm_intf_maj << 16 |
+			     resp->hwrm_intf_min << 8 | resp->hwrm_intf_upd;
 	if (resp->hwrm_intf_maj < 1) {
 		netdev_warn(bp->dev, "HWRM interface %d.%d.%d is older than 1.0.0.\n",
 			    resp->hwrm_intf_maj, resp->hwrm_intf_min,
@@ -4589,10 +4639,47 @@ static void bnxt_report_link(struct bnxt *bp)
 		speed = bnxt_fw_to_ethtool_speed(bp->link_info.link_speed);
 		netdev_info(bp->dev, "NIC Link is Up, %d Mbps %s duplex, Flow control: %s\n",
 			    speed, duplex, flow_ctrl);
+		if (bp->flags & BNXT_FLAG_EEE_CAP)
+			netdev_info(bp->dev, "EEE is %s\n",
+				    bp->eee.eee_active ? "active" :
+							 "not active");
 	} else {
 		netif_carrier_off(bp->dev);
 		netdev_err(bp->dev, "NIC Link is Down\n");
 	}
+}
+
+static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
+{
+	int rc = 0;
+	struct hwrm_port_phy_qcaps_input req = {0};
+	struct hwrm_port_phy_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+
+	if (bp->hwrm_spec_code < 0x10201)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_QCAPS, -1, -1);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		goto hwrm_phy_qcaps_exit;
+
+	if (resp->eee_supported & PORT_PHY_QCAPS_RESP_EEE_SUPPORTED) {
+		struct ethtool_eee *eee = &bp->eee;
+		u16 fw_speeds = le16_to_cpu(resp->supported_speeds_eee_mode);
+
+		bp->flags |= BNXT_FLAG_EEE_CAP;
+		eee->supported = _bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
+		bp->lpi_tmr_lo = le32_to_cpu(resp->tx_lpi_timer_low) &
+				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_LOW_MASK;
+		bp->lpi_tmr_hi = le32_to_cpu(resp->valid_tx_lpi_timer_high) &
+				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_HIGH_MASK;
+	}
+
+hwrm_phy_qcaps_exit:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
 }
 
 static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
@@ -4626,7 +4713,6 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	else
 		link_info->link_speed = 0;
 	link_info->force_link_speed = le16_to_cpu(resp->force_link_speed);
-	link_info->auto_link_speed = le16_to_cpu(resp->auto_link_speed);
 	link_info->support_speeds = le16_to_cpu(resp->support_speeds);
 	link_info->auto_link_speeds = le16_to_cpu(resp->auto_link_speed_mask);
 	link_info->lp_auto_link_speeds =
@@ -4636,9 +4722,47 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->phy_ver[1] = resp->phy_min;
 	link_info->phy_ver[2] = resp->phy_bld;
 	link_info->media_type = resp->media_type;
-	link_info->transceiver = resp->transceiver_type;
-	link_info->phy_addr = resp->phy_addr;
+	link_info->phy_type = resp->phy_type;
+	link_info->transceiver = resp->xcvr_pkg_type;
+	link_info->phy_addr = resp->eee_config_phy_addr &
+			      PORT_PHY_QCFG_RESP_PHY_ADDR_MASK;
+	link_info->module_status = resp->module_status;
 
+	if (bp->flags & BNXT_FLAG_EEE_CAP) {
+		struct ethtool_eee *eee = &bp->eee;
+		u16 fw_speeds;
+
+		eee->eee_active = 0;
+		if (resp->eee_config_phy_addr &
+		    PORT_PHY_QCFG_RESP_EEE_CONFIG_EEE_ACTIVE) {
+			eee->eee_active = 1;
+			fw_speeds = le16_to_cpu(
+				resp->link_partner_adv_eee_link_speed_mask);
+			eee->lp_advertised =
+				_bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
+		}
+
+		/* Pull initial EEE config */
+		if (!chng_link_state) {
+			if (resp->eee_config_phy_addr &
+			    PORT_PHY_QCFG_RESP_EEE_CONFIG_EEE_ENABLED)
+				eee->eee_enabled = 1;
+
+			fw_speeds = le16_to_cpu(resp->adv_eee_link_speed_mask);
+			eee->advertised =
+				_bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
+
+			if (resp->eee_config_phy_addr &
+			    PORT_PHY_QCFG_RESP_EEE_CONFIG_EEE_TX_LPI) {
+				__le32 tmr;
+
+				eee->tx_lpi_enabled = 1;
+				tmr = resp->xcvr_identifier_type_tx_lpi_timer;
+				eee->tx_lpi_timer = le32_to_cpu(tmr) &
+					PORT_PHY_QCFG_RESP_TX_LPI_TIMER_MASK;
+			}
+		}
+	}
 	/* TODO: need to add more logic to report VF link */
 	if (chng_link_state) {
 		if (link_info->phy_link_status == BNXT_LINK_LINK)
@@ -4655,10 +4779,40 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	return 0;
 }
 
+static void bnxt_get_port_module_status(struct bnxt *bp)
+{
+	struct bnxt_link_info *link_info = &bp->link_info;
+	struct hwrm_port_phy_qcfg_output *resp = &link_info->phy_qcfg_resp;
+	u8 module_status;
+
+	if (bnxt_update_link(bp, true))
+		return;
+
+	module_status = link_info->module_status;
+	switch (module_status) {
+	case PORT_PHY_QCFG_RESP_MODULE_STATUS_DISABLETX:
+	case PORT_PHY_QCFG_RESP_MODULE_STATUS_PWRDOWN:
+	case PORT_PHY_QCFG_RESP_MODULE_STATUS_WARNINGMSG:
+		netdev_warn(bp->dev, "Unqualified SFP+ module detected on port %d\n",
+			    bp->pf.port_id);
+		if (bp->hwrm_spec_code >= 0x10201) {
+			netdev_warn(bp->dev, "Module part number %s\n",
+				    resp->phy_vendor_partnumber);
+		}
+		if (module_status == PORT_PHY_QCFG_RESP_MODULE_STATUS_DISABLETX)
+			netdev_warn(bp->dev, "TX is disabled\n");
+		if (module_status == PORT_PHY_QCFG_RESP_MODULE_STATUS_PWRDOWN)
+			netdev_warn(bp->dev, "SFP+ module is shutdown\n");
+	}
+}
+
 static void
 bnxt_hwrm_set_pause_common(struct bnxt *bp, struct hwrm_port_phy_cfg_input *req)
 {
 	if (bp->link_info.autoneg & BNXT_AUTONEG_FLOW_CTRL) {
+		if (bp->hwrm_spec_code >= 0x10201)
+			req->auto_pause =
+				PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE;
 		if (bp->link_info.req_flow_ctrl & BNXT_LINK_PAUSE_RX)
 			req->auto_pause |= PORT_PHY_CFG_REQ_AUTO_PAUSE_RX;
 		if (bp->link_info.req_flow_ctrl & BNXT_LINK_PAUSE_TX)
@@ -4672,6 +4826,11 @@ bnxt_hwrm_set_pause_common(struct bnxt *bp, struct hwrm_port_phy_cfg_input *req)
 			req->force_pause |= PORT_PHY_CFG_REQ_FORCE_PAUSE_TX;
 		req->enables |=
 			cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_FORCE_PAUSE);
+		if (bp->hwrm_spec_code >= 0x10201) {
+			req->auto_pause = req->force_pause;
+			req->enables |= cpu_to_le32(
+				PORT_PHY_CFG_REQ_ENABLES_AUTO_PAUSE);
+		}
 	}
 }
 
@@ -4684,7 +4843,7 @@ static void bnxt_hwrm_set_link_common(struct bnxt *bp,
 
 	if (autoneg & BNXT_AUTONEG_SPEED) {
 		req->auto_mode |=
-			PORT_PHY_CFG_REQ_AUTO_MODE_MASK;
+			PORT_PHY_CFG_REQ_AUTO_MODE_SPEED_MASK;
 
 		req->enables |= cpu_to_le32(
 			PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEED_MASK);
@@ -4698,9 +4857,6 @@ static void bnxt_hwrm_set_link_common(struct bnxt *bp,
 		req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE);
 	}
 
-	/* currently don't support half duplex */
-	req->auto_duplex = PORT_PHY_CFG_REQ_AUTO_DUPLEX_FULL;
-	req->enables |= cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_AUTO_DUPLEX);
 	/* tell chimp that the setting takes effect immediately */
 	req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_RESET_PHY);
 }
@@ -4735,7 +4891,30 @@ int bnxt_hwrm_set_pause(struct bnxt *bp)
 	return rc;
 }
 
-int bnxt_hwrm_set_link_setting(struct bnxt *bp, bool set_pause)
+static void bnxt_hwrm_set_eee(struct bnxt *bp,
+			      struct hwrm_port_phy_cfg_input *req)
+{
+	struct ethtool_eee *eee = &bp->eee;
+
+	if (eee->eee_enabled) {
+		u16 eee_speeds;
+		u32 flags = PORT_PHY_CFG_REQ_FLAGS_EEE_ENABLE;
+
+		if (eee->tx_lpi_enabled)
+			flags |= PORT_PHY_CFG_REQ_FLAGS_EEE_TX_LPI_ENABLE;
+		else
+			flags |= PORT_PHY_CFG_REQ_FLAGS_EEE_TX_LPI_DISABLE;
+
+		req->flags |= cpu_to_le32(flags);
+		eee_speeds = bnxt_get_fw_auto_link_speeds(eee->advertised);
+		req->eee_link_speed_mask = cpu_to_le16(eee_speeds);
+		req->tx_lpi_timer = cpu_to_le32(eee->tx_lpi_timer);
+	} else {
+		req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_EEE_DISABLE);
+	}
+}
+
+int bnxt_hwrm_set_link_setting(struct bnxt *bp, bool set_pause, bool set_eee)
 {
 	struct hwrm_port_phy_cfg_input req = {0};
 
@@ -4744,7 +4923,49 @@ int bnxt_hwrm_set_link_setting(struct bnxt *bp, bool set_pause)
 		bnxt_hwrm_set_pause_common(bp, &req);
 
 	bnxt_hwrm_set_link_common(bp, &req);
+
+	if (set_eee)
+		bnxt_hwrm_set_eee(bp, &req);
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
+{
+	struct hwrm_port_phy_cfg_input req = {0};
+
+	if (BNXT_VF(bp))
+		return 0;
+
+	if (pci_num_vf(bp->pdev))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_CFG, -1, -1);
+	req.flags = cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE_LINK_DOWN);
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static bool bnxt_eee_config_ok(struct bnxt *bp)
+{
+	struct ethtool_eee *eee = &bp->eee;
+	struct bnxt_link_info *link_info = &bp->link_info;
+
+	if (!(bp->flags & BNXT_FLAG_EEE_CAP))
+		return true;
+
+	if (eee->eee_enabled) {
+		u32 advertising =
+			_bnxt_fw_to_ethtool_adv_spds(link_info->advertising, 0);
+
+		if (!(link_info->autoneg & BNXT_AUTONEG_SPEED)) {
+			eee->eee_enabled = 0;
+			return false;
+		}
+		if (eee->advertised & ~advertising) {
+			eee->advertised = advertising & eee->supported;
+			return false;
+		}
+	}
+	return true;
 }
 
 static int bnxt_update_phy_setting(struct bnxt *bp)
@@ -4752,6 +4973,7 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	int rc;
 	bool update_link = false;
 	bool update_pause = false;
+	bool update_eee = false;
 	struct bnxt_link_info *link_info = &bp->link_info;
 
 	rc = bnxt_update_link(bp, true);
@@ -4761,7 +4983,8 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 		return rc;
 	}
 	if ((link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) &&
-	    link_info->auto_pause_setting != link_info->req_flow_ctrl)
+	    (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) !=
+	    link_info->req_flow_ctrl)
 		update_pause = true;
 	if (!(link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) &&
 	    link_info->force_pause_setting != link_info->req_flow_ctrl)
@@ -4780,8 +5003,11 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 			update_link = true;
 	}
 
+	if (!bnxt_eee_config_ok(bp))
+		update_eee = true;
+
 	if (update_link)
-		rc = bnxt_hwrm_set_link_setting(bp, update_pause);
+		rc = bnxt_hwrm_set_link_setting(bp, update_pause, update_eee);
 	else if (update_pause)
 		rc = bnxt_hwrm_set_pause(bp);
 	if (rc) {
@@ -4872,7 +5098,8 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	/* Enable TX queues */
 	bnxt_tx_enable(bp);
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
-	bnxt_update_link(bp, true);
+	/* Poll link status and check for SFP+ module status */
+	bnxt_get_port_module_status(bp);
 
 	return 0;
 
@@ -4972,6 +5199,7 @@ static int bnxt_close(struct net_device *dev)
 	struct bnxt *bp = netdev_priv(dev);
 
 	bnxt_close_nic(bp, true, true);
+	bnxt_hwrm_shutdown_link(bp);
 	return 0;
 }
 
@@ -5453,6 +5681,9 @@ static void bnxt_sp_task(struct work_struct *work)
 		rtnl_unlock();
 	}
 
+	if (test_and_clear_bit(BNXT_HWRM_PORT_MODULE_SP_EVENT, &bp->sp_event))
+		bnxt_get_port_module_status(bp);
+
 	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event))
 		bnxt_hwrm_port_qstats(bp);
 
@@ -5583,10 +5814,9 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-#ifdef CONFIG_BNXT_SRIOV
-	if (BNXT_VF(bp) && is_valid_ether_addr(bp->vf.mac_addr))
-		return -EADDRNOTAVAIL;
-#endif
+	rc = bnxt_approve_mac(bp, addr->sa_data);
+	if (rc)
+		return rc;
 
 	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
 		return 0;
@@ -5921,6 +6151,13 @@ static int bnxt_probe_phy(struct bnxt *bp)
 	int rc = 0;
 	struct bnxt_link_info *link_info = &bp->link_info;
 
+	rc = bnxt_hwrm_phy_qcaps(bp);
+	if (rc) {
+		netdev_err(bp->dev, "Probe phy can't get phy capabilities (rc: %x)\n",
+			   rc);
+		return rc;
+	}
+
 	rc = bnxt_update_link(bp, false);
 	if (rc) {
 		netdev_err(bp->dev, "Probe phy can't update link (rc: %x)\n",
@@ -5930,15 +6167,24 @@ static int bnxt_probe_phy(struct bnxt *bp)
 
 	/*initialize the ethool setting copy with NVM settings */
 	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
-		link_info->autoneg = BNXT_AUTONEG_SPEED |
-				     BNXT_AUTONEG_FLOW_CTRL;
+		link_info->autoneg = BNXT_AUTONEG_SPEED;
+		if (bp->hwrm_spec_code >= 0x10201) {
+			if (link_info->auto_pause_setting &
+			    PORT_PHY_CFG_REQ_AUTO_PAUSE_AUTONEG_PAUSE)
+				link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+		} else {
+			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+		}
 		link_info->advertising = link_info->auto_link_speeds;
-		link_info->req_flow_ctrl = link_info->auto_pause_setting;
 	} else {
 		link_info->req_link_speed = link_info->force_link_speed;
 		link_info->req_duplex = link_info->duplex_setting;
-		link_info->req_flow_ctrl = link_info->force_pause_setting;
 	}
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		link_info->req_flow_ctrl =
+			link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH;
+	else
+		link_info->req_flow_ctrl = link_info->force_pause_setting;
 	return rc;
 }
 
@@ -6013,6 +6259,22 @@ static int bnxt_set_dflt_rings(struct bnxt *bp)
 	return rc;
 }
 
+static void bnxt_parse_log_pcie_link(struct bnxt *bp)
+{
+	enum pcie_link_width width = PCIE_LNK_WIDTH_UNKNOWN;
+	enum pci_bus_speed speed = PCI_SPEED_UNKNOWN;
+
+	if (pcie_get_minimum_link(bp->pdev, &speed, &width) ||
+	    speed == PCI_SPEED_UNKNOWN || width == PCIE_LNK_WIDTH_UNKNOWN)
+		netdev_info(bp->dev, "Failed to determine PCIe Link Info\n");
+	else
+		netdev_info(bp->dev, "PCIe: Speed %s Width x%d\n",
+			    speed == PCIE_SPEED_2_5GT ? "2.5GT/s" :
+			    speed == PCIE_SPEED_5_0GT ? "5.0GT/s" :
+			    speed == PCIE_SPEED_8_0GT ? "8.0GT/s" :
+			    "Unknown", width);
+}
+
 static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed;
@@ -6050,14 +6312,19 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   NETIF_F_TSO | NETIF_F_TSO6 |
 			   NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
 			   NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT |
-			   NETIF_F_RXHASH |
+			   NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM |
+			   NETIF_F_GSO_PARTIAL | NETIF_F_RXHASH |
 			   NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO;
 
 	dev->hw_enc_features =
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			NETIF_F_TSO | NETIF_F_TSO6 |
 			NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
-			NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT;
+			NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM |
+			NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT |
+			NETIF_F_GSO_PARTIAL;
+	dev->gso_partial_features = NETIF_F_GSO_UDP_TUNNEL_CSUM |
+				    NETIF_F_GSO_GRE_CSUM;
 	dev->vlan_features = dev->hw_features | NETIF_F_HIGHDMA;
 	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX |
 			    NETIF_F_HW_VLAN_STAG_RX | NETIF_F_HW_VLAN_STAG_TX;
@@ -6127,6 +6394,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev_info(dev, "%s found at mem %lx, node addr %pM\n",
 		    board_info[ent->driver_data].name,
 		    (long)pci_resource_start(pdev, 0), dev->dev_addr);
+
+	bnxt_parse_log_pcie_link(bp);
 
 	return 0;
 

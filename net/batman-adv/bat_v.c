@@ -162,8 +162,8 @@ static void batadv_v_neigh_print(struct batadv_priv *bat_priv,
 	struct batadv_hard_iface *hard_iface;
 	int batman_count = 0;
 
-	seq_printf(seq, "  %-15s %s (%11s) [%10s]\n", "Neighbor",
-		   "last-seen", "throughput", "IF");
+	seq_puts(seq,
+		 "  Neighbor        last-seen ( throughput) [        IF]\n");
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -202,9 +202,8 @@ static void batadv_v_orig_print(struct batadv_priv *bat_priv,
 	int batman_count = 0;
 	u32 i;
 
-	seq_printf(seq, "  %-15s %s (%11s) %17s [%10s]: %20s ...\n",
-		   "Originator", "last-seen", "throughput", "Nexthop",
-		   "outgoingIF", "Potential nexthops");
+	seq_puts(seq,
+		 "  Originator      last-seen ( throughput)           Nexthop [outgoingIF]:   Potential nexthops ...\n");
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];

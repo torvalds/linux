@@ -140,6 +140,7 @@ struct tipc_link {
 	char if_name[TIPC_MAX_IF_NAME];
 	u32 priority;
 	char net_plane;
+	u16 rst_cnt;
 
 	/* Failover/synch */
 	u16 drop_point;
@@ -701,40 +702,34 @@ static void link_profile_stats(struct tipc_link *l)
 
 /* tipc_link_timeout - perform periodic task as instructed from node timeout
  */
-/* tipc_link_timeout - perform periodic task as instructed from node timeout
- */
 int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
-	int rc = 0;
-	int mtyp = STATE_MSG;
-	bool xmit = false;
-	bool prb = false;
+	int mtyp, rc = 0;
+	bool state = false;
+	bool probe = false;
+	bool setup = false;
 	u16 bc_snt = l->bc_sndlink->snd_nxt - 1;
 	u16 bc_acked = l->bc_rcvlink->acked;
-	bool bc_up = link_is_up(l->bc_rcvlink);
 
 	link_profile_stats(l);
 
 	switch (l->state) {
 	case LINK_ESTABLISHED:
 	case LINK_SYNCHING:
-		if (!l->silent_intv_cnt) {
-			if (bc_up && (bc_acked != bc_snt))
-				xmit = true;
-		} else if (l->silent_intv_cnt <= l->abort_limit) {
-			xmit = true;
-			prb = true;
-		} else {
-			rc |= tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
-		}
+		if (l->silent_intv_cnt > l->abort_limit)
+			return tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
+		mtyp = STATE_MSG;
+		state = bc_acked != bc_snt;
+		probe = l->silent_intv_cnt;
 		l->silent_intv_cnt++;
 		break;
 	case LINK_RESET:
-		xmit = true;
+		setup = l->rst_cnt++ <= 4;
+		setup |= !(l->rst_cnt % 16);
 		mtyp = RESET_MSG;
 		break;
 	case LINK_ESTABLISHING:
-		xmit = true;
+		setup = true;
 		mtyp = ACTIVATE_MSG;
 		break;
 	case LINK_PEER_RESET:
@@ -745,8 +740,8 @@ int tipc_link_timeout(struct tipc_link *l, struct sk_buff_head *xmitq)
 		break;
 	}
 
-	if (xmit)
-		tipc_link_build_proto_msg(l, mtyp, prb, 0, 0, 0, xmitq);
+	if (state || probe || setup)
+		tipc_link_build_proto_msg(l, mtyp, probe, 0, 0, 0, xmitq);
 
 	return rc;
 }
@@ -833,6 +828,7 @@ void tipc_link_reset(struct tipc_link *l)
 	l->rcv_nxt = 1;
 	l->acked = 0;
 	l->silent_intv_cnt = 0;
+	l->rst_cnt = 0;
 	l->stats.recv_info = 0;
 	l->stale_count = 0;
 	l->bc_peer_is_up = false;
@@ -1110,12 +1106,12 @@ static bool tipc_link_release_pkts(struct tipc_link *l, u16 acked)
 	return released;
 }
 
-/* tipc_link_build_ack_msg: prepare link acknowledge message for transmission
+/* tipc_link_build_state_msg: prepare link state message for transmission
  *
  * Note that sending of broadcast ack is coordinated among nodes, to reduce
  * risk of ack storms towards the sender
  */
-int tipc_link_build_ack_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
+int tipc_link_build_state_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
 	if (!l)
 		return 0;
@@ -1140,11 +1136,17 @@ int tipc_link_build_ack_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
 void tipc_link_build_reset_msg(struct tipc_link *l, struct sk_buff_head *xmitq)
 {
 	int mtyp = RESET_MSG;
+	struct sk_buff *skb;
 
 	if (l->state == LINK_ESTABLISHING)
 		mtyp = ACTIVATE_MSG;
 
 	tipc_link_build_proto_msg(l, mtyp, 0, 0, 0, 0, xmitq);
+
+	/* Inform peer that this endpoint is going down if applicable */
+	skb = skb_peek_tail(xmitq);
+	if (skb && (l->state == LINK_RESET))
+		msg_set_peer_stopping(buf_msg(skb), 1);
 }
 
 /* tipc_link_build_nack_msg: prepare link nack message for transmission
@@ -1219,7 +1221,7 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 		if (!tipc_data_input(l, skb, l->inputq))
 			rc |= tipc_link_input(l, skb, l->inputq);
 		if (unlikely(++l->rcv_unacked >= TIPC_MIN_LINK_WIN))
-			rc |= tipc_link_build_ack_msg(l, xmitq);
+			rc |= tipc_link_build_state_msg(l, xmitq);
 		if (unlikely(rc & ~TIPC_LINK_SND_BC_ACK))
 			break;
 	} while ((skb = __skb_dequeue(defq)));
@@ -1411,7 +1413,9 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			l->priority = peers_prio;
 
 		/* ACTIVATE_MSG serves as PEER_RESET if link is already down */
-		if ((mtyp == RESET_MSG) || !link_is_up(l))
+		if (msg_peer_stopping(hdr))
+			rc = tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
+		else if ((mtyp == RESET_MSG) || !link_is_up(l))
 			rc = tipc_link_fsm_evt(l, LINK_PEER_RESET_EVT);
 
 		/* ACTIVATE_MSG takes up link if it was already locally reset */

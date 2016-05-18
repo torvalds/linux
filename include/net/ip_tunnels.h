@@ -105,24 +105,23 @@ struct ip_tunnel {
 	struct net_device	*dev;
 	struct net		*net;	/* netns for packet i/o */
 
-	int		err_count;	/* Number of arrived ICMP errors */
 	unsigned long	err_time;	/* Time when the last ICMP error
 					 * arrived */
+	int		err_count;	/* Number of arrived ICMP errors */
 
 	/* These four fields used only by GRE */
 	u32		i_seqno;	/* The last seen seqno	*/
 	u32		o_seqno;	/* The last output seqno */
 	int		tun_hlen;	/* Precalculated header length */
-	int		mlink;
 
 	struct dst_cache dst_cache;
 
 	struct ip_tunnel_parm parms;
 
+	int		mlink;
 	int		encap_hlen;	/* Encap header length (FOU,GUE) */
-	struct ip_tunnel_encap encap;
-
 	int		hlen;		/* tun_hlen + encap_hlen */
+	struct ip_tunnel_encap encap;
 
 	/* for SIT */
 #ifdef CONFIG_IPV6_SIT_6RD
@@ -161,6 +160,7 @@ struct tnl_ptk_info {
 
 #define PACKET_RCVD	0
 #define PACKET_REJECT	1
+#define PACKET_NEXT	2
 
 #define IP_TNL_HASH_BITS   7
 #define IP_TNL_HASH_SIZE   (1 << IP_TNL_HASH_BITS)
@@ -295,15 +295,22 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 	return INET_ECN_encapsulate(tos, inner);
 }
 
-int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto,
-			 bool xnet);
+int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
+			   __be16 inner_proto, bool raw_proto, bool xnet);
+
+static inline int iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
+				       __be16 inner_proto, bool xnet)
+{
+	return __iptunnel_pull_header(skb, hdr_len, inner_proto, false, xnet);
+}
+
 void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, u8 proto,
 		   u8 tos, u8 ttl, __be16 df, bool xnet);
 struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 					     gfp_t flags);
 
-struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, int gso_type_mask);
+int iptunnel_handle_offloads(struct sk_buff *skb, int gso_type_mask);
 
 static inline int iptunnel_pull_offloads(struct sk_buff *skb)
 {

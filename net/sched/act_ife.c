@@ -556,7 +556,7 @@ static int tcf_ife_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	t.install = jiffies_to_clock_t(jiffies - ife->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - ife->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(ife->tcf_tm.expires);
-	if (nla_put(skb, TCA_IFE_TM, sizeof(t), &t))
+	if (nla_put_64bit(skb, TCA_IFE_TM, sizeof(t), &t, TCA_IFE_PAD))
 		goto nla_put_failure;
 
 	if (!is_zero_ether_addr(ife->eth_dst)) {
