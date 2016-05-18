@@ -5773,20 +5773,17 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 			}
 		}
 		if (found) {
-			if (physical_of_found + map->stripe_len <=
-			    dev_replace->cursor_left) {
-				struct btrfs_bio_stripe *tgtdev_stripe =
-					bbio->stripes + num_stripes;
+			struct btrfs_bio_stripe *tgtdev_stripe =
+				bbio->stripes + num_stripes;
 
-				tgtdev_stripe->physical = physical_of_found;
-				tgtdev_stripe->length =
-					bbio->stripes[index_srcdev].length;
-				tgtdev_stripe->dev = dev_replace->tgtdev;
-				bbio->tgtdev_map[index_srcdev] = num_stripes;
+			tgtdev_stripe->physical = physical_of_found;
+			tgtdev_stripe->length =
+				bbio->stripes[index_srcdev].length;
+			tgtdev_stripe->dev = dev_replace->tgtdev;
+			bbio->tgtdev_map[index_srcdev] = num_stripes;
 
-				tgtdev_indexes++;
-				num_stripes++;
-			}
+			tgtdev_indexes++;
+			num_stripes++;
 		}
 	}
 
