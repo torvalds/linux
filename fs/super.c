@@ -206,6 +206,9 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	init_waitqueue_head(&s->s_writers.wait_unfrozen);
 	s->s_bdi = &noop_backing_dev_info;
 	s->s_flags = flags;
+	if ((s->s_user_ns != &init_user_ns) &&
+	    !(type->fs_flags & FS_USERNS_DEV_MOUNT))
+		s->s_iflags |= SB_I_NODEV;
 	INIT_HLIST_NODE(&s->s_instances);
 	INIT_HLIST_BL_HEAD(&s->s_anon);
 	mutex_init(&s->s_sync_lock);
