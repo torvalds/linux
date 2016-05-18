@@ -456,14 +456,6 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	WARN_ON_ONCE(dlist_next - dlist_start != vc4_state->mm.size);
 
-	HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
-		  vc4_state->mm.start);
-
-	if (debug_dump_regs) {
-		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
-		vc4_hvs_dump_state(dev);
-	}
-
 	if (crtc->state->event) {
 		unsigned long flags;
 
@@ -473,8 +465,20 @@ static void vc4_crtc_atomic_flush(struct drm_crtc *crtc,
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 		vc4_crtc->event = crtc->state->event;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
 		crtc->state->event = NULL;
+
+		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+			  vc4_state->mm.start);
+
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	} else {
+		HVS_WRITE(SCALER_DISPLISTX(vc4_crtc->channel),
+			  vc4_state->mm.start);
+	}
+
+	if (debug_dump_regs) {
+		DRM_INFO("CRTC %d HVS after:\n", drm_crtc_index(crtc));
+		vc4_hvs_dump_state(dev);
 	}
 }
 
@@ -500,10 +504,14 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 {
 	struct drm_crtc *crtc = &vc4_crtc->base;
 	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc->state);
+	u32 chan = vc4_crtc->channel;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-	if (vc4_crtc->event) {
+	if (vc4_crtc->event &&
+	    (vc4_state->mm.start == HVS_READ(SCALER_DISPLACTX(chan)))) {
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
 		drm_crtc_vblank_put(crtc);
