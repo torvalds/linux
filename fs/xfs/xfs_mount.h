@@ -44,9 +44,11 @@ enum {
  * Error numbers define the errors that are configurable.
  */
 enum {
+	XFS_ERR_METADATA,
 	XFS_ERR_CLASS_MAX,
 };
 enum {
+	XFS_ERR_DEFAULT,
 	XFS_ERR_ERRNO_MAX,
 };
 
@@ -146,6 +148,7 @@ typedef struct xfs_mount {
 						/* low free space thresholds */
 	struct xfs_kobj		m_kobj;
 	struct xfs_kobj		m_error_kobj;
+	struct xfs_kobj		m_error_meta_kobj;
 	struct xfs_error_cfg	m_error_cfg[XFS_ERR_CLASS_MAX][XFS_ERR_ERRNO_MAX];
 	struct xstats		m_stats;	/* per-fs stats */
 

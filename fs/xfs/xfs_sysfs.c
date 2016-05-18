@@ -399,11 +399,34 @@ int
 xfs_error_sysfs_init(
 	struct xfs_mount	*mp)
 {
+	struct xfs_error_cfg	*cfg;
 	int			error;
 
 	/* .../xfs/<dev>/error/ */
 	error = xfs_sysfs_init(&mp->m_error_kobj, &xfs_error_ktype,
 				&mp->m_kobj, "error");
+	if (error)
+		return error;
+
+	/* .../xfs/<dev>/error/metadata/ */
+	error = xfs_sysfs_init(&mp->m_error_meta_kobj, &xfs_error_ktype,
+				&mp->m_error_kobj, "metadata");
+	if (error)
+		goto out_error;
+
+	cfg = &mp->m_error_cfg[XFS_ERR_METADATA][XFS_ERR_DEFAULT];
+	error = xfs_sysfs_init(&cfg->kobj, &xfs_error_cfg_ktype,
+				&mp->m_error_meta_kobj, "default");
+	if (error)
+		goto out_error_meta;
+	cfg->max_retries = -1;
+
+	return 0;
+
+out_error_meta:
+	xfs_sysfs_del(&mp->m_error_meta_kobj);
+out_error:
+	xfs_sysfs_del(&mp->m_error_kobj);
 	return error;
 }
 
@@ -411,5 +434,16 @@ void
 xfs_error_sysfs_del(
 	struct xfs_mount	*mp)
 {
+	struct xfs_error_cfg	*cfg;
+	int			i, j;
+
+	for (i = 0; i < XFS_ERR_CLASS_MAX; i++) {
+		for (j = 0; j < XFS_ERR_ERRNO_MAX; j++) {
+			cfg = &mp->m_error_cfg[i][j];
+
+			xfs_sysfs_del(&cfg->kobj);
+		}
+	}
+	xfs_sysfs_del(&mp->m_error_meta_kobj);
 	xfs_sysfs_del(&mp->m_error_kobj);
 }
