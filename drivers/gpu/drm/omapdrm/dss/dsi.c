@@ -5147,6 +5147,8 @@ static const struct dss_pll_ops dsi_pll_ops = {
 };
 
 static const struct dss_pll_hw dss_omap3_dsi_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 7) - 1,
 	.m_max = (1 << 11) - 1,
 	.mX_max = (1 << 4) - 1,
@@ -5172,6 +5174,8 @@ static const struct dss_pll_hw dss_omap3_dsi_pll_hw = {
 };
 
 static const struct dss_pll_hw dss_omap4_dsi_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 8) - 1,
 	.m_max = (1 << 12) - 1,
 	.mX_max = (1 << 5) - 1,
@@ -5197,6 +5201,8 @@ static const struct dss_pll_hw dss_omap4_dsi_pll_hw = {
 };
 
 static const struct dss_pll_hw dss_omap5_dsi_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 8) - 1,
 	.m_max = (1 << 12) - 1,
 	.mX_max = (1 << 5) - 1,

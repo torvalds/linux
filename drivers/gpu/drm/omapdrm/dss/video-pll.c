@@ -108,6 +108,8 @@ static const struct dss_pll_ops dss_pll_ops = {
 };
 
 static const struct dss_pll_hw dss_dra7_video_pll_hw = {
+	.type = DSS_PLL_TYPE_A,
+
 	.n_max = (1 << 8) - 1,
 	.m_max = (1 << 12) - 1,
 	.mX_max = (1 << 5) - 1,

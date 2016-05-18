@@ -130,6 +130,8 @@ static const struct dss_pll_ops dsi_pll_ops = {
 };
 
 static const struct dss_pll_hw dss_omap4_hdmi_pll_hw = {
+	.type = DSS_PLL_TYPE_B,
+
 	.n_max = 255,
 	.m_min = 20,
 	.m_max = 4095,
@@ -153,6 +155,8 @@ static const struct dss_pll_hw dss_omap4_hdmi_pll_hw = {
 };
 
 static const struct dss_pll_hw dss_omap5_hdmi_pll_hw = {
+	.type = DSS_PLL_TYPE_B,
+
 	.n_max = 255,
 	.m_min = 20,
 	.m_max = 2045,

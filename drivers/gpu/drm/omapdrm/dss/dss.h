@@ -128,6 +128,11 @@ struct dss_pll;
 
 #define DSS_PLL_MAX_HSDIVS 4
 
+enum dss_pll_type {
+	DSS_PLL_TYPE_A,
+	DSS_PLL_TYPE_B,
+};
+
 /*
  * Type-A PLLs: clkout[]/mX[] refer to hsdiv outputs m4, m5, m6, m7.
  * Type-B PLLs: clkout[0] refers to m2.
@@ -154,6 +159,8 @@ struct dss_pll_ops {
 };
 
 struct dss_pll_hw {
+	enum dss_pll_type type;
+
 	unsigned n_max;
 	unsigned m_min;
 	unsigned m_max;
