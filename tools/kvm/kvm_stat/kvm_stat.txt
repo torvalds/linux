@@ -23,8 +23,6 @@ The set of KVM kernel module trace events may be specific to the kernel version
 or architecture.  It is best to check the KVM kernel module source code for the
 meaning of events.
 
-Note that trace events are counted globally across all running guests.
-
 OPTIONS
 -------
 -1::
@@ -43,6 +41,10 @@ OPTIONS
 -d::
 --debugfs::
 	retrieve statistics from debugfs
+
+-p<pid>::
+--pid=<pid>::
+	limit statistics to one virtual machine (pid)
 
 -f<fields>::
 --fields=<fields>::

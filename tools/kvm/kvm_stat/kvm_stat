@@ -367,12 +367,16 @@ class Group(object):
                                       os.read(self.events[0].fd, length))))
 
 class Event(object):
-    def __init__(self, name, group, trace_cpu, trace_point, trace_filter,
-                 trace_set='kvm'):
+    def __init__(self, name, group, trace_cpu, trace_pid, trace_point,
+                 trace_filter, trace_set='kvm'):
         self.name = name
         self.fd = None
-        self.setup_event(group, trace_cpu, trace_point, trace_filter,
-                         trace_set)
+        self.setup_event(group, trace_cpu, trace_pid, trace_point,
+                         trace_filter, trace_set)
+
+    def __del__(self):
+        if self.fd:
+            os.close(self.fd)
 
     def setup_event_attribute(self, trace_set, trace_point):
         id_path = os.path.join(PATH_DEBUGFS_TRACING, 'events', trace_set,
@@ -382,16 +386,16 @@ class Event(object):
         event_attr.config = int(open(id_path).read())
         return event_attr
 
-    def setup_event(self, group, trace_cpu, trace_point, trace_filter,
-                    trace_set):
+    def setup_event(self, group, trace_cpu, trace_pid, trace_point,
+                    trace_filter, trace_set):
         event_attr = self.setup_event_attribute(trace_set, trace_point)
 
         group_leader = -1
         if group.events:
             group_leader = group.events[0].fd
 
-        fd = perf_event_open(event_attr, -1, trace_cpu,
-                             group_leader, 0)
+        fd = perf_event_open(event_attr, trace_pid,
+                             trace_cpu, group_leader, 0)
         if fd == -1:
             err = ctypes.get_errno()
             raise OSError(err, os.strerror(err),
@@ -417,8 +421,7 @@ class TracepointProvider(object):
         self.group_leaders = []
         self.filters = get_filters()
         self._fields = self.get_available_fields()
-        self.setup_traces()
-        self.fields = self._fields
+        self._pid = 0
 
     def get_available_fields(self):
         path = os.path.join(PATH_DEBUGFS_TRACING, 'events', 'kvm')
@@ -433,11 +436,17 @@ class TracepointProvider(object):
         return fields
 
     def setup_traces(self):
-        cpus = get_online_cpus()
+        if self._pid > 0:
+            # Fetch list of all threads of the monitored pid, as qemu
+            # starts a thread for each vcpu.
+            path = os.path.join('/proc', str(self._pid), 'task')
+            groupids = walkdir(path)[1]
+        else:
+            groupids = get_online_cpus()
 
         # The constant is needed as a buffer for python libs, std
         # streams and other files that the script opens.
-        newlim = len(cpus) * len(self._fields) + 50
+        newlim = len(groupids) * len(self._fields) + 50
         try:
             softlim_, hardlim = resource.getrlimit(resource.RLIMIT_NOFILE)
 
@@ -451,7 +460,7 @@ class TracepointProvider(object):
         except ValueError:
             sys.exit("NOFILE rlimit could not be raised to {0}".format(newlim))
 
-        for cpu in cpus:
+        for groupid in groupids:
             group = Group()
             for name in self._fields:
                 tracepoint = name
@@ -463,11 +472,22 @@ class TracepointProvider(object):
                                    (self.filters[tracepoint][0],
                                     self.filters[tracepoint][1][sub]))
 
+                # From perf_event_open(2):
+                # pid > 0 and cpu == -1
+                # This measures the specified process/thread on any CPU.
+                #
+                # pid == -1 and cpu >= 0
+                # This measures all processes/threads on the specified CPU.
+                trace_cpu = groupid if self._pid == 0 else -1
+                trace_pid = int(groupid) if self._pid != 0 else -1
+
                 group.add_event(Event(name=name,
                                       group=group,
-                                      trace_cpu=cpu,
+                                      trace_cpu=trace_cpu,
+                                      trace_pid=trace_pid,
                                       trace_point=tracepoint,
                                       trace_filter=tracefilter))
+
             self.group_leaders.append(group)
 
     def available_fields(self):
@@ -491,6 +511,17 @@ class TracepointProvider(object):
                     if index != 0:
                         event.disable()
 
+    @property
+    def pid(self):
+        return self._pid
+
+    @pid.setter
+    def pid(self, pid):
+        self._pid = pid
+        self.group_leaders = []
+        self.setup_traces()
+        self.fields = self._fields
+
     def read(self):
         ret = defaultdict(int)
         for group in self.group_leaders:
@@ -502,6 +533,8 @@ class TracepointProvider(object):
 class DebugfsProvider(object):
     def __init__(self):
         self._fields = self.get_available_fields()
+        self._pid = 0
+        self.do_read = True
 
     def get_available_fields(self):
         return walkdir(PATH_DEBUGFS_KVM)[2]
@@ -514,16 +547,57 @@ class DebugfsProvider(object):
     def fields(self, fields):
         self._fields = fields
 
+    @property
+    def pid(self):
+        return self._pid
+
+    @pid.setter
+    def pid(self, pid):
+        if pid != 0:
+            self._pid = pid
+
+            vms = walkdir(PATH_DEBUGFS_KVM)[1]
+            if len(vms) == 0:
+                self.do_read = False
+
+            self.paths = filter(lambda x: "{}-".format(pid) in x, vms)
+
+        else:
+            self.paths = ['']
+            self.do_read = True
+
     def read(self):
-        def val(key):
-            return int(file(PATH_DEBUGFS_KVM + '/' + key).read())
-        return dict([(key, val(key)) for key in self._fields])
+        """Returns a dict with format:'file name / field -> current value'."""
+        results = {}
+
+        # If no debugfs filtering support is available, then don't read.
+        if not self.do_read:
+            return results
+
+        for path in self.paths:
+            for field in self._fields:
+                results[field] = results.get(field, 0) \
+                                 + self.read_field(field, path)
+
+        return results
+
+    def read_field(self, field, path):
+        """Returns the value of a single field from a specific VM."""
+        try:
+            return int(open(os.path.join(PATH_DEBUGFS_KVM,
+                                         path,
+                                         field))
+                       .read())
+        except IOError:
+            return 0
 
 class Stats(object):
-    def __init__(self, providers, fields=None):
+    def __init__(self, providers, pid, fields=None):
         self.providers = providers
+        self._pid_filter = pid
         self._fields_filter = fields
         self.values = {}
+        self.update_provider_pid()
         self.update_provider_filters()
 
     def update_provider_filters(self):
@@ -540,6 +614,10 @@ class Stats(object):
                                if wanted(key)]
             provider.fields = provider_fields
 
+    def update_provider_pid(self):
+        for provider in self.providers:
+            provider.pid = self._pid_filter
+
     @property
     def fields_filter(self):
         return self._fields_filter
@@ -548,6 +626,16 @@ class Stats(object):
     def fields_filter(self, fields_filter):
         self._fields_filter = fields_filter
         self.update_provider_filters()
+
+    @property
+    def pid_filter(self):
+        return self._pid_filter
+
+    @pid_filter.setter
+    def pid_filter(self, pid):
+        self._pid_filter = pid
+        self.values = {}
+        self.update_provider_pid()
 
     def get(self):
         for provider in self.providers:
@@ -605,9 +693,17 @@ class Tui(object):
         elif self.stats.fields_filter == r'^[^\(]*$':
             self.stats.fields_filter = None
 
+    def update_pid(self, pid):
+        self.stats.pid_filter = pid
+
     def refresh(self, sleeptime):
         self.screen.erase()
-        self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
+        if self.stats.pid_filter > 0:
+            self.screen.addstr(0, 0, 'kvm statistics - pid {0}'
+                               .format(self.stats.pid_filter),
+                               curses.A_BOLD)
+        else:
+            self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
         self.screen.addstr(2, 1, 'Event')
         self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH -
                            len('Total'), 'Total')
@@ -659,6 +755,37 @@ class Tui(object):
             except re.error:
                 continue
 
+    def show_vm_selection(self):
+        while True:
+            self.screen.erase()
+            self.screen.addstr(0, 0,
+                               'Show statistics for specific pid.',
+                               curses.A_BOLD)
+            self.screen.addstr(1, 0,
+                               'This might limit the shown data to the trace '
+                               'statistics.')
+
+            curses.echo()
+            self.screen.addstr(3, 0, "Pid [0 or pid]: ")
+            pid = self.screen.getstr()
+            curses.noecho()
+
+            try:
+                pid = int(pid)
+
+                if pid == 0:
+                    self.update_pid(pid)
+                    break
+                else:
+                    if not os.path.isdir(os.path.join('/proc/', str(pid))):
+                        continue
+                    else:
+                        self.update_pid(pid)
+                        break
+
+            except ValueError:
+                continue
+
     def show_stats(self):
         sleeptime = 0.25
         while True:
@@ -674,6 +801,8 @@ class Tui(object):
                     break
                 if char == 'f':
                     self.show_filter_selection()
+                if char == 'p':
+                    self.show_vm_selection()
             except KeyboardInterrupt:
                 break
             except curses.error:
@@ -766,6 +895,13 @@ Requirements:
                          dest='fields',
                          help='fields to display (regex)',
                          )
+    optparser.add_option('-p', '--pid',
+                        action='store',
+                        default=0,
+                        type=int,
+                        dest='pid',
+                        help='restrict statistics to pid',
+                        )
     (options, _) = optparser.parse_args(sys.argv)
     return options
 
@@ -812,8 +948,15 @@ def check_access(options):
 def main():
     options = get_options()
     options = check_access(options)
+
+    if (options.pid > 0 and
+        not os.path.isdir(os.path.join('/proc/',
+                                       str(options.pid)))):
+        sys.stderr.write('Did you use a (unsupported) tid instead of a pid?\n')
+        sys.exit('Specified pid does not exist.')
+
     providers = get_providers(options)
-    stats = Stats(providers, fields=options.fields)
+    stats = Stats(providers, options.pid, fields=options.fields)
 
     if options.log:
         log(stats)
