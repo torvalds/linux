@@ -777,6 +777,8 @@ source "arch/arm/mach-meson/Kconfig"
 
 source "arch/arm/mach-moxart/Kconfig"
 
+source "arch/arm/mach-aspeed/Kconfig"
+
 source "arch/arm/mach-mv78xx0/Kconfig"
 
 source "arch/arm/mach-imx/Kconfig"
@@ -805,6 +807,8 @@ source "arch/arm/mach-pxa/Kconfig"
 source "arch/arm/plat-pxa/Kconfig"
 
 source "arch/arm/mach-mmp/Kconfig"
+
+source "arch/arm/mach-oxnas/Kconfig"
 
 source "arch/arm/mach-qcom/Kconfig"
 
@@ -893,6 +897,18 @@ config MACH_STM32F429
 	bool "STMicrolectronics STM32F429"
 	depends on ARCH_STM32
 	default y
+
+config ARCH_MPS2
+	bool "ARM MPS2 paltform"
+	depends on ARM_SINGLE_ARMV7M
+	select ARM_AMBA
+	select CLKSRC_MPS2
+	help
+	  Support for Cortex-M Prototyping System (or V2M-MPS2) which comes
+	  with a range of available cores like Cortex-M3/M4/M7.
+
+	  Please, note that depends which Application Note is used memory map
+	  for the platform may vary, so adjustment of RAM base might be needed.
 
 # Definitions to make life easier
 config ARCH_ACORN

@@ -44,7 +44,7 @@
 		abb_mpu_iva: regulator-abb-mpu {
 			compatible = "ti,abb-v1";
 			regulator-name = "abb_mpu_iva";
-			#address-cell = <0>;
+			#address-cells = <0>;
 			#size-cells = <0>;
 			reg = <0x483072f0 0x8>, <0x48306818 0x4>;
 			reg-names = "base-address", "int-address";
@@ -87,7 +87,7 @@
 			};
 		};
 
-		bandgap {
+		bandgap@48002524 {
 			reg = <0x48002524 0x4>;
 			compatible = "ti,omap36xx-bandgap";
 			#thermal-sensor-cells = <0>;

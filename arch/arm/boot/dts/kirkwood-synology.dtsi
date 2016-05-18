@@ -10,20 +10,6 @@
  */
 
 / {
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-
-			pcie2: pcie@2,0 {
-				status = "disabled";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		pinctrl: pin-controller@10000 {
 			pmx_alarmled_12: pmx-alarmled-12 {
@@ -860,4 +846,12 @@
 	ethernet1-port@0 {
 		phy-handle = <&ethphy1>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

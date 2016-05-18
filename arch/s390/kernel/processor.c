@@ -6,6 +6,7 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/cpufeature.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
@@ -84,7 +85,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_puts(m, "\n");
 		show_cacheinfo(m);
 	}
-	get_online_cpus();
 	if (cpu_online(n)) {
 		struct cpuid *id = &per_cpu(cpu_id, n);
 		seq_printf(m, "processor %li: "
@@ -93,23 +93,31 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			   "machine = %04X\n",
 			   n, id->version, id->ident, id->machine);
 	}
-	put_online_cpus();
 	return 0;
+}
+
+static inline void *c_update(loff_t *pos)
+{
+	if (*pos)
+		*pos = cpumask_next(*pos - 1, cpu_online_mask);
+	return *pos < nr_cpu_ids ? (void *)*pos + 1 : NULL;
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	return *pos < nr_cpu_ids ? (void *)((unsigned long) *pos + 1) : NULL;
+	get_online_cpus();
+	return c_update(pos);
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	++*pos;
-	return c_start(m, pos);
+	return c_update(pos);
 }
 
 static void c_stop(struct seq_file *m, void *v)
 {
+	put_online_cpus();
 }
 
 const struct seq_operations cpuinfo_op = {
