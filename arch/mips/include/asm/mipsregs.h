@@ -1773,7 +1773,7 @@ do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
-		"move\t$1, %0\n\t"					\
+		"move\t$1, %z0\n\t"					\
 		"# mtgc0\t$1, $%1, %2\n\t"				\
 		".word\t(0x40610200 | %1 << 11 | %2)\n\t"		\
 		".set\tpop"						\
@@ -1786,7 +1786,7 @@ do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
-		"move\t$1, %0\n\t"					\
+		"move\t$1, %z0\n\t"					\
 		"# dmtgc0\t$1, $%1, %2\n\t"				\
 		".word\t(0x40610300 | %1 << 11 | %2)\n\t"		\
 		".set\tpop"						\
