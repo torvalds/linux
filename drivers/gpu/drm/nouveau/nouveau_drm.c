@@ -111,35 +111,37 @@ nouveau_name(struct drm_device *dev)
 		return nouveau_platform_name(dev->platformdev);
 }
 
-static int
-nouveau_cli_create(struct drm_device *dev, const char *sname,
-		   int size, void **pcli)
-{
-	struct nouveau_cli *cli = *pcli = kzalloc(size, GFP_KERNEL);
-	int ret;
-	if (cli) {
-		snprintf(cli->name, sizeof(cli->name), "%s", sname);
-		cli->dev = dev;
-
-		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
-				       cli->name, nouveau_name(dev),
-				       &cli->base);
-		if (ret == 0) {
-			mutex_init(&cli->mutex);
-			usif_client_init(cli);
-		}
-		return ret;
-	}
-	return -ENOMEM;
-}
-
 static void
-nouveau_cli_destroy(struct nouveau_cli *cli)
+nouveau_cli_fini(struct nouveau_cli *cli)
 {
 	nvkm_vm_ref(NULL, &nvxx_client(&cli->base)->vm, NULL);
-	nvif_client_fini(&cli->base);
 	usif_client_fini(cli);
-	kfree(cli);
+	nvif_client_fini(&cli->base);
+}
+
+static int
+nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
+		 struct nouveau_cli *cli)
+{
+	u64 device = nouveau_name(drm->dev);
+	int ret;
+
+	snprintf(cli->name, sizeof(cli->name), "%s", sname);
+	cli->dev = drm->dev;
+	mutex_init(&cli->mutex);
+	usif_client_init(cli);
+
+	ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
+			       cli->name, device, &cli->base);
+	if (ret) {
+		NV_ERROR(drm, "Client allocation failed: %d\n", ret);
+		goto done;
+	}
+
+done:
+	if (ret)
+		nouveau_cli_fini(cli);
+	return ret;
 }
 
 static void
@@ -409,12 +411,15 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	struct nouveau_drm *drm;
 	int ret;
 
-	ret = nouveau_cli_create(dev, "DRM", sizeof(*drm), (void **)&drm);
+	if (!(drm = kzalloc(sizeof(*drm), GFP_KERNEL)))
+		return -ENOMEM;
+	dev->dev_private = drm;
+	drm->dev = dev;
+
+	ret = nouveau_cli_init(drm, "DRM", &drm->client);
 	if (ret)
 		return ret;
 
-	dev->dev_private = drm;
-	drm->dev = dev;
 	nvxx_client(&drm->client.base)->debug =
 		nvkm_dbgopt(nouveau_debug, "DRM");
 
@@ -500,7 +505,8 @@ fail_ttm:
 	nouveau_vga_fini(drm);
 fail_device:
 	nvif_device_fini(&drm->device);
-	nouveau_cli_destroy(&drm->client);
+	nouveau_cli_fini(&drm->client);
+	kfree(drm);
 	return ret;
 }
 
@@ -532,7 +538,8 @@ nouveau_drm_unload(struct drm_device *dev)
 	nvif_device_fini(&drm->device);
 	if (drm->hdmi_device)
 		pci_dev_put(drm->hdmi_device);
-	nouveau_cli_destroy(&drm->client);
+	nouveau_cli_fini(&drm->client);
+	kfree(drm);
 }
 
 void
@@ -843,20 +850,20 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	get_task_comm(tmpname, current);
 	snprintf(name, sizeof(name), "%s[%d]", tmpname, pid_nr(fpriv->pid));
 
-	ret = nouveau_cli_create(dev, name, sizeof(*cli), (void **)&cli);
+	if (!(cli = kzalloc(sizeof(*cli), GFP_KERNEL)))
+		return ret;
 
+	ret = nouveau_cli_init(drm, name, cli);
 	if (ret)
-		goto out_suspend;
+		goto done;
 
 	cli->base.super = false;
 
 	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		ret = nvkm_vm_new(nvxx_device(&drm->device), 0, (1ULL << 40),
 				  0x1000, NULL, &cli->vm);
-		if (ret) {
-			nouveau_cli_destroy(cli);
-			goto out_suspend;
-		}
+		if (ret)
+			goto done;
 
 		nvxx_client(&cli->base)->vm = cli->vm;
 	}
@@ -867,10 +874,14 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	list_add(&cli->head, &drm->clients);
 	mutex_unlock(&drm->client.mutex);
 
-out_suspend:
+done:
+	if (ret && cli) {
+		nouveau_cli_fini(cli);
+		kfree(cli);
+	}
+
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
-
 	return ret;
 }
 
@@ -897,7 +908,8 @@ static void
 nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct nouveau_cli *cli = nouveau_cli(fpriv);
-	nouveau_cli_destroy(cli);
+	nouveau_cli_fini(cli);
+	kfree(cli);
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 }
