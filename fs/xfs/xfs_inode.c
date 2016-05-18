@@ -3207,10 +3207,19 @@ xfs_iflush_cluster(
 		 */
 		spin_lock(&iq->i_flags_lock);
 		if (!iq->i_ino ||
-		    __xfs_iflags_test(iq, XFS_ISTALE) ||
-		    (XFS_INO_TO_AGINO(mp, iq->i_ino) & mask) != first_index) {
+		    __xfs_iflags_test(iq, XFS_ISTALE)) {
 			spin_unlock(&iq->i_flags_lock);
 			continue;
+		}
+
+		/*
+		 * Once we fall off the end of the cluster, no point checking
+		 * any more inodes in the list because they will also all be
+		 * outside the cluster.
+		 */
+		if ((XFS_INO_TO_AGINO(mp, iq->i_ino) & mask) != first_index) {
+			spin_unlock(&iq->i_flags_lock);
+			break;
 		}
 		spin_unlock(&iq->i_flags_lock);
 
