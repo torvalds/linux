@@ -306,19 +306,25 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		int hsize;
 		int zipped_len = -1;
 		size_t len;
-		bool compressed;
+		bool compressed = false;
 		size_t total_len;
 
 		if (big_oops_buf && is_locked) {
 			dst = big_oops_buf;
-			hsize = sprintf(dst, "%s#%d Part%u\n", why,
-							oopscount, part);
-			size = big_oops_buf_sz - hsize;
+			size = big_oops_buf_sz;
+		} else {
+			dst = psinfo->buf;
+			size = psinfo->bufsize;
+		}
 
-			if (!kmsg_dump_get_buffer(dumper, true, dst + hsize,
-								size, &len))
-				break;
+		hsize = sprintf(dst, "%s#%d Part%u\n", why, oopscount, part);
+		size -= hsize;
 
+		if (!kmsg_dump_get_buffer(dumper, true, dst + hsize,
+					  size, &len))
+			break;
+
+		if (big_oops_buf && is_locked) {
 			zipped_len = pstore_compress(dst, psinfo->buf,
 						hsize + len, psinfo->bufsize);
 
@@ -326,21 +332,9 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 				compressed = true;
 				total_len = zipped_len;
 			} else {
-				compressed = false;
 				total_len = copy_kmsg_to_buffer(hsize, len);
 			}
 		} else {
-			dst = psinfo->buf;
-			hsize = sprintf(dst, "%s#%d Part%u\n", why, oopscount,
-									part);
-			size = psinfo->bufsize - hsize;
-			dst += hsize;
-
-			if (!kmsg_dump_get_buffer(dumper, true, dst,
-								size, &len))
-				break;
-
-			compressed = false;
 			total_len = hsize + len;
 		}
 
