@@ -9083,8 +9083,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 				   NETIF_F_TSO6			|
 				   NETIF_F_GSO_GRE		|
 				   NETIF_F_GSO_GRE_CSUM		|
-				   NETIF_F_GSO_IPIP		|
-				   NETIF_F_GSO_SIT		|
+				   NETIF_F_GSO_IPXIP4		|
 				   NETIF_F_GSO_UDP_TUNNEL	|
 				   NETIF_F_GSO_UDP_TUNNEL_CSUM	|
 				   NETIF_F_GSO_PARTIAL		|

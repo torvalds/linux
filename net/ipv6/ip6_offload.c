@@ -86,7 +86,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	proto = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
 
 	if (skb->encapsulation &&
-	    skb_shinfo(skb)->gso_type & (SKB_GSO_SIT|SKB_GSO_IPIP))
+	    skb_shinfo(skb)->gso_type & (SKB_GSO_IPXIP4 | SKB_GSO_IPXIP6))
 		udpfrag = proto == IPPROTO_UDP && encap;
 	else
 		udpfrag = proto == IPPROTO_UDP && !skb->encapsulation;
@@ -294,7 +294,7 @@ out_unlock:
 static int sit_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	skb->encapsulation = 1;
-	skb_shinfo(skb)->gso_type |= SKB_GSO_SIT;
+	skb_shinfo(skb)->gso_type |= SKB_GSO_IPXIP4;
 	return ipv6_gro_complete(skb, nhoff);
 }
 
