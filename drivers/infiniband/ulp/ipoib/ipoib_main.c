@@ -99,6 +99,7 @@ static struct net_device *ipoib_get_net_dev_by_params(
 		struct ib_device *dev, u8 port, u16 pkey,
 		const union ib_gid *gid, const struct sockaddr *addr,
 		void *client_data);
+static int ipoib_set_mac(struct net_device *dev, void *addr);
 
 static struct ib_client ipoib_client = {
 	.name   = "ipoib",
@@ -1722,6 +1723,7 @@ static const struct net_device_ops ipoib_netdev_ops_pf = {
 	.ndo_get_vf_config	 = ipoib_get_vf_config,
 	.ndo_get_vf_stats	 = ipoib_get_vf_stats,
 	.ndo_set_vf_guid	 = ipoib_set_vf_guid,
+	.ndo_set_mac_address	 = ipoib_set_mac,
 };
 
 static const struct net_device_ops ipoib_netdev_ops_vf = {
@@ -1842,6 +1844,70 @@ static DEVICE_ATTR(umcast, S_IWUSR | S_IRUGO, show_umcast, set_umcast);
 int ipoib_add_umcast_attr(struct net_device *dev)
 {
 	return device_create_file(&dev->dev, &dev_attr_umcast);
+}
+
+static void set_base_guid(struct ipoib_dev_priv *priv, union ib_gid *gid)
+{
+	struct ipoib_dev_priv *child_priv;
+	struct net_device *netdev = priv->dev;
+
+	netif_addr_lock(netdev);
+
+	memcpy(&priv->local_gid.global.interface_id,
+	       &gid->global.interface_id,
+	       sizeof(gid->global.interface_id));
+	memcpy(netdev->dev_addr + 4, &priv->local_gid, sizeof(priv->local_gid));
+	clear_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
+
+	netif_addr_unlock(netdev);
+
+	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
+		down_read(&priv->vlan_rwsem);
+		list_for_each_entry(child_priv, &priv->child_intfs, list)
+			set_base_guid(child_priv, gid);
+		up_read(&priv->vlan_rwsem);
+	}
+}
+
+static int ipoib_check_lladdr(struct net_device *dev,
+			      struct sockaddr_storage *ss)
+{
+	union ib_gid *gid = (union ib_gid *)(ss->__data + 4);
+	int ret = 0;
+
+	netif_addr_lock(dev);
+
+	/* Make sure the QPN, reserved and subnet prefix match the current
+	 * lladdr, it also makes sure the lladdr is unicast.
+	 */
+	if (memcmp(dev->dev_addr, ss->__data,
+		   4 + sizeof(gid->global.subnet_prefix)) ||
+	    gid->global.interface_id == 0)
+		ret = -EINVAL;
+
+	netif_addr_unlock(dev);
+
+	return ret;
+}
+
+static int ipoib_set_mac(struct net_device *dev, void *addr)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct sockaddr_storage *ss = addr;
+	int ret;
+
+	if (!(dev->priv_flags & IFF_LIVE_ADDR_CHANGE) && netif_running(dev))
+		return -EBUSY;
+
+	ret = ipoib_check_lladdr(dev, ss);
+	if (ret)
+		return ret;
+
+	set_base_guid(priv, (union ib_gid *)(ss->__data + 4));
+
+	queue_work(ipoib_workqueue, &priv->flush_light);
+
+	return 0;
 }
 
 static ssize_t create_child(struct device *dev,
@@ -1967,6 +2033,7 @@ static struct net_device *ipoib_add_port(const char *format,
 		goto device_init_failed;
 	} else
 		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
+	set_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
 
 	result = ipoib_dev_init(priv->dev, hca, port);
 	if (result < 0) {
