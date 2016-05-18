@@ -16,14 +16,21 @@
 #define RWSEM_READER_OWNED	((struct task_struct *)1UL)
 
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
+/*
+ * All writes to owner are protected by WRITE_ONCE() to make sure that
+ * store tearing can't happen as optimistic spinners may read and use
+ * the owner value concurrently without lock. Read from owner, however,
+ * may not need READ_ONCE() as long as the pointer value is only used
+ * for comparison and isn't being dereferenced.
+ */
 static inline void rwsem_set_owner(struct rw_semaphore *sem)
 {
-	sem->owner = current;
+	WRITE_ONCE(sem->owner, current);
 }
 
 static inline void rwsem_clear_owner(struct rw_semaphore *sem)
 {
-	sem->owner = NULL;
+	WRITE_ONCE(sem->owner, NULL);
 }
 
 static inline void rwsem_set_reader_owned(struct rw_semaphore *sem)
@@ -34,7 +41,7 @@ static inline void rwsem_set_reader_owned(struct rw_semaphore *sem)
 	 * to minimize cacheline contention.
 	 */
 	if (sem->owner != RWSEM_READER_OWNED)
-		sem->owner = RWSEM_READER_OWNED;
+		WRITE_ONCE(sem->owner, RWSEM_READER_OWNED);
 }
 
 static inline bool rwsem_owner_is_writer(struct task_struct *owner)
