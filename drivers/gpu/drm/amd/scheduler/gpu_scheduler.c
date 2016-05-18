@@ -362,6 +362,14 @@ static void amd_sched_job_begin(struct amd_sched_job *s_job)
 	}
 }
 
+static void amd_sched_job_timedout(struct work_struct *work)
+{
+	struct amd_sched_job *job = container_of(work, struct amd_sched_job,
+						 work_tdr.work);
+
+	job->sched->ops->timedout_job(job);
+}
+
 /**
  * Submit a job to the job queue
  *
@@ -384,7 +392,6 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 int amd_sched_job_init(struct amd_sched_job *job,
 		       struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *entity,
-		       void (*timeout_cb)(struct work_struct *work),
 		       void (*free_cb)(struct kref *refcount),
 		       void *owner, struct fence **fence)
 {
@@ -397,7 +404,7 @@ int amd_sched_job_init(struct amd_sched_job *job,
 		return -ENOMEM;
 
 	job->s_fence->s_job = job;
-	INIT_DELAYED_WORK(&job->work_tdr, timeout_cb);
+	INIT_DELAYED_WORK(&job->work_tdr, amd_sched_job_timedout);
 	job->free_callback = free_cb;
 
 	if (fence)

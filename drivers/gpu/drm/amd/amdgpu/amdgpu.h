@@ -759,7 +759,6 @@ void amdgpu_job_free_func(struct kref *refcount);
 int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		      struct amd_sched_entity *entity, void *owner,
 		      struct fence **f);
-void amdgpu_job_timeout_func(struct work_struct *work);
 
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;
