@@ -138,8 +138,8 @@ struct dbs_governor {
 	unsigned int (*gov_dbs_timer)(struct cpufreq_policy *policy);
 	struct policy_dbs_info *(*alloc)(void);
 	void (*free)(struct policy_dbs_info *policy_dbs);
-	int (*init)(struct dbs_data *dbs_data, bool notify);
-	void (*exit)(struct dbs_data *dbs_data, bool notify);
+	int (*init)(struct dbs_data *dbs_data);
+	void (*exit)(struct dbs_data *dbs_data);
 	void (*start)(struct cpufreq_policy *policy);
 };
 

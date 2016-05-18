@@ -361,7 +361,7 @@ static void od_free(struct policy_dbs_info *policy_dbs)
 	kfree(to_dbs_info(policy_dbs));
 }
 
-static int od_init(struct dbs_data *dbs_data, bool notify)
+static int od_init(struct dbs_data *dbs_data)
 {
 	struct od_dbs_tuners *tuners;
 	u64 idle_time;
@@ -400,7 +400,7 @@ static int od_init(struct dbs_data *dbs_data, bool notify)
 	return 0;
 }
 
-static void od_exit(struct dbs_data *dbs_data, bool notify)
+static void od_exit(struct dbs_data *dbs_data)
 {
 	kfree(dbs_data->tuners);
 }

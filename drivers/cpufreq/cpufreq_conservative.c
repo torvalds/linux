@@ -127,7 +127,6 @@ static struct notifier_block cs_cpufreq_notifier_block = {
 };
 
 /************************** sysfs interface ************************/
-static struct dbs_governor cs_dbs_gov;
 
 static ssize_t store_sampling_down_factor(struct gov_attr_set *attr_set,
 					  const char *buf, size_t count)
@@ -255,6 +254,13 @@ static struct attribute *cs_attributes[] = {
 
 /************************** sysfs end ************************/
 
+struct cs_governor {
+	struct dbs_governor dbs_gov;
+	unsigned int usage_count;
+};
+
+static struct cs_governor cs_gov;
+
 static struct policy_dbs_info *cs_alloc(void)
 {
 	struct cs_policy_dbs_info *dbs_info;
@@ -268,7 +274,7 @@ static void cs_free(struct policy_dbs_info *policy_dbs)
 	kfree(to_dbs_info(policy_dbs));
 }
 
-static int cs_init(struct dbs_data *dbs_data, bool notify)
+static int cs_init(struct dbs_data *dbs_data)
 {
 	struct cs_dbs_tuners *tuners;
 
@@ -286,16 +292,22 @@ static int cs_init(struct dbs_data *dbs_data, bool notify)
 	dbs_data->min_sampling_rate = MIN_SAMPLING_RATE_RATIO *
 		jiffies_to_usecs(10);
 
-	if (notify)
+	/*
+	 * This function and cs_exit() are only called under gov_dbs_data_mutex
+	 * which is global, so the cs_gov.usage_count accesses are guaranteed
+	 * to be serialized.
+	 */
+	if (!cs_gov.usage_count++)
 		cpufreq_register_notifier(&cs_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);
 
 	return 0;
 }
 
-static void cs_exit(struct dbs_data *dbs_data, bool notify)
+static void cs_exit(struct dbs_data *dbs_data)
 {
-	if (notify)
+	/* Protected by gov_dbs_data_mutex - see the comment in cs_init(). */
+	if (!--cs_gov.usage_count)
 		cpufreq_unregister_notifier(&cs_cpufreq_notifier_block,
 					    CPUFREQ_TRANSITION_NOTIFIER);
 
@@ -310,18 +322,20 @@ static void cs_start(struct cpufreq_policy *policy)
 	dbs_info->requested_freq = policy->cur;
 }
 
-static struct dbs_governor cs_dbs_gov = {
-	.gov = CPUFREQ_DBS_GOVERNOR_INITIALIZER("conservative"),
-	.kobj_type = { .default_attrs = cs_attributes },
-	.gov_dbs_timer = cs_dbs_timer,
-	.alloc = cs_alloc,
-	.free = cs_free,
-	.init = cs_init,
-	.exit = cs_exit,
-	.start = cs_start,
+static struct cs_governor cs_gov = {
+	.dbs_gov = {
+		.gov = CPUFREQ_DBS_GOVERNOR_INITIALIZER("conservative"),
+		.kobj_type = { .default_attrs = cs_attributes },
+		.gov_dbs_timer = cs_dbs_timer,
+		.alloc = cs_alloc,
+		.free = cs_free,
+		.init = cs_init,
+		.exit = cs_exit,
+		.start = cs_start,
+	},
 };
 
-#define CPU_FREQ_GOV_CONSERVATIVE	(&cs_dbs_gov.gov)
+#define CPU_FREQ_GOV_CONSERVATIVE	(&cs_gov.dbs_gov.gov)
 
 static int dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 				void *data)

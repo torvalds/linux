@@ -429,7 +429,7 @@ int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 
 	gov_attr_set_init(&dbs_data->attr_set, &policy_dbs->list);
 
-	ret = gov->init(dbs_data, !policy->governor->initialized);
+	ret = gov->init(dbs_data);
 	if (ret)
 		goto free_policy_dbs_info;
 
@@ -464,7 +464,7 @@ int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 
 	if (!have_governor_per_policy())
 		gov->gdbs_data = NULL;
-	gov->exit(dbs_data, !policy->governor->initialized);
+	gov->exit(dbs_data);
 	kfree(dbs_data);
 
 free_policy_dbs_info:
@@ -494,7 +494,7 @@ void cpufreq_dbs_governor_exit(struct cpufreq_policy *policy)
 		if (!have_governor_per_policy())
 			gov->gdbs_data = NULL;
 
-		gov->exit(dbs_data, policy->governor->initialized == 1);
+		gov->exit(dbs_data);
 		kfree(dbs_data);
 	}
 

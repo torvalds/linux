@@ -457,7 +457,6 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
 
 struct cpufreq_governor {
 	char	name[CPUFREQ_NAME_LEN];
-	int	initialized;
 	int	(*init)(struct cpufreq_policy *policy);
 	void	(*exit)(struct cpufreq_policy *policy);
 	int	(*start)(struct cpufreq_policy *policy);
