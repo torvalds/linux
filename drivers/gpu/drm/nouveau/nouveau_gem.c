@@ -368,7 +368,6 @@ validate_init(struct nouveau_channel *chan, struct drm_file *file_priv,
 	      int nr_buffers, struct validate_op *op)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct drm_device *dev = chan->drm->dev;
 	int trycnt = 0;
 	int ret, i;
 	struct nouveau_bo *res_bo = NULL;

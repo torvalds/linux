@@ -1305,7 +1305,6 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		     uint32_t handle, uint32_t width, uint32_t height)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
 	struct drm_gem_object *gem = NULL;
 	struct nouveau_bo *nvbo = NULL;
 	int ret = 0;
