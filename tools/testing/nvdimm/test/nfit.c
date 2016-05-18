@@ -372,6 +372,7 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 {
 	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 	struct nfit_test *t = container_of(acpi_desc, typeof(*t), acpi_desc);
+	unsigned int func = cmd;
 	int i, rc = 0, __cmd_rc;
 
 	if (!cmd_rc)
@@ -380,8 +381,23 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 
 	if (nvdimm) {
 		struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+		unsigned long cmd_mask = nvdimm_cmd_mask(nvdimm);
 
-		if (!nfit_mem || !test_bit(cmd, &nfit_mem->dsm_mask))
+		if (!nfit_mem)
+			return -ENOTTY;
+
+		if (cmd == ND_CMD_CALL) {
+			struct nd_cmd_pkg *call_pkg = buf;
+
+			buf_len = call_pkg->nd_size_in + call_pkg->nd_size_out;
+			buf = (void *) call_pkg->nd_payload;
+			func = call_pkg->nd_command;
+			if (call_pkg->nd_family != nfit_mem->family)
+				return -ENOTTY;
+		}
+
+		if (!test_bit(cmd, &cmd_mask)
+				|| !test_bit(func, &nfit_mem->dsm_mask))
 			return -ENOTTY;
 
 		/* lookup label space for the given dimm */
@@ -392,7 +408,7 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		if (i >= ARRAY_SIZE(handle))
 			return -ENXIO;
 
-		switch (cmd) {
+		switch (func) {
 		case ND_CMD_GET_CONFIG_SIZE:
 			rc = nfit_test_cmd_get_config_size(buf, buf_len);
 			break;
@@ -416,10 +432,10 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	} else {
 		struct ars_state *ars_state = &t->ars_state;
 
-		if (!nd_desc || !test_bit(cmd, &nd_desc->dsm_mask))
+		if (!nd_desc || !test_bit(cmd, &nd_desc->cmd_mask))
 			return -ENOTTY;
 
-		switch (cmd) {
+		switch (func) {
 		case ND_CMD_ARS_CAP:
 			rc = nfit_test_cmd_ars_cap(buf, buf_len);
 			break;
@@ -1293,15 +1309,15 @@ static void nfit_test0_setup(struct nfit_test *t)
 	post_ars_status(&t->ars_state, t->spa_set_dma[0], SPA0_SIZE);
 
 	acpi_desc = &t->acpi_desc;
-	set_bit(ND_CMD_GET_CONFIG_SIZE, &acpi_desc->dimm_dsm_force_en);
-	set_bit(ND_CMD_GET_CONFIG_DATA, &acpi_desc->dimm_dsm_force_en);
-	set_bit(ND_CMD_SET_CONFIG_DATA, &acpi_desc->dimm_dsm_force_en);
-	set_bit(ND_CMD_SMART, &acpi_desc->dimm_dsm_force_en);
-	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_dsm_force_en);
-	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_dsm_force_en);
-	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_dsm_force_en);
-	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_dsm_force_en);
-	set_bit(ND_CMD_SMART_THRESHOLD, &acpi_desc->dimm_dsm_force_en);
+	set_bit(ND_CMD_GET_CONFIG_SIZE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_GET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_SET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_SMART, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_CMD_SMART_THRESHOLD, &acpi_desc->dimm_cmd_force_en);
 }
 
 static void nfit_test1_setup(struct nfit_test *t)
@@ -1359,10 +1375,10 @@ static void nfit_test1_setup(struct nfit_test *t)
 	post_ars_status(&t->ars_state, t->spa_set_dma[0], SPA2_SIZE);
 
 	acpi_desc = &t->acpi_desc;
-	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_dsm_force_en);
-	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_dsm_force_en);
-	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_dsm_force_en);
-	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_dsm_force_en);
+	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_cmd_force_en);
 }
 
 static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,

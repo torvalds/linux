@@ -21,13 +21,25 @@
 #include <linux/acpi.h>
 #include <acpi/acuuid.h>
 
+/* ACPI 6.1 */
 #define UUID_NFIT_BUS "2f10e7a4-9e91-11e4-89d3-123b93f75cba"
+
+/* http://pmem.io/documents/NVDIMM_DSM_Interface_Example.pdf */
 #define UUID_NFIT_DIMM "4309ac30-0d11-11e4-9191-0800200c9a66"
+
+/* https://github.com/HewlettPackard/hpe-nvm/blob/master/Documentation/ */
+#define UUID_NFIT_DIMM_N_HPE1 "9002c334-acf3-4c0e-9642-a235f0d53bc6"
+#define UUID_NFIT_DIMM_N_HPE2 "5008664b-b758-41a0-a03c-27c2f2d04f7e"
+
 #define ACPI_NFIT_MEM_FAILED_MASK (ACPI_NFIT_MEM_SAVE_FAILED \
 		| ACPI_NFIT_MEM_RESTORE_FAILED | ACPI_NFIT_MEM_FLUSH_FAILED \
 		| ACPI_NFIT_MEM_NOT_ARMED)
 
 enum nfit_uuids {
+	/* for simplicity alias the uuid index with the family id */
+	NFIT_DEV_DIMM = NVDIMM_FAMILY_INTEL,
+	NFIT_DEV_DIMM_N_HPE1 = NVDIMM_FAMILY_HPE1,
+	NFIT_DEV_DIMM_N_HPE2 = NVDIMM_FAMILY_HPE2,
 	NFIT_SPA_VOLATILE,
 	NFIT_SPA_PM,
 	NFIT_SPA_DCR,
@@ -37,7 +49,6 @@ enum nfit_uuids {
 	NFIT_SPA_PDISK,
 	NFIT_SPA_PCD,
 	NFIT_DEV_BUS,
-	NFIT_DEV_DIMM,
 	NFIT_UUID_MAX,
 };
 
@@ -111,6 +122,7 @@ struct nfit_mem {
 	struct acpi_device *adev;
 	struct acpi_nfit_desc *acpi_desc;
 	unsigned long dsm_mask;
+	int family;
 };
 
 struct acpi_nfit_desc {
@@ -133,8 +145,8 @@ struct acpi_nfit_desc {
 	size_t ars_status_size;
 	struct work_struct work;
 	unsigned int cancel:1;
-	unsigned long dimm_dsm_force_en;
-	unsigned long bus_dsm_force_en;
+	unsigned long dimm_cmd_force_en;
+	unsigned long bus_cmd_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 };
