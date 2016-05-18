@@ -1355,11 +1355,15 @@ static int ip6gre_newlink(struct net *src_net, struct net_device *dev,
 	dev->hw_features	|= GRE6_FEATURES;
 
 	if (!(nt->parms.o_flags & TUNNEL_SEQ)) {
-		/* TCP segmentation offload is not supported when we
-		 * generate output sequences.
+		/* TCP offload with GRE SEQ is not supported, nor
+		 * can we support 2 levels of outer headers requiring
+		 * an update.
 		 */
-		dev->features    |= NETIF_F_GSO_SOFTWARE;
-		dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+		if (!(nt->parms.o_flags & TUNNEL_CSUM) ||
+		    (nt->encap.type == TUNNEL_ENCAP_NONE)) {
+			dev->features    |= NETIF_F_GSO_SOFTWARE;
+			dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+		}
 
 		/* Can use a lockless transmit, unless we generate
 		 * output sequences
