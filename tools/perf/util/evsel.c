@@ -827,7 +827,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 		perf_evsel__set_sample_bit(evsel, PERIOD);
 
 	/*
-	 * When the user explicitely disabled time don't force it here.
+	 * When the user explicitly disabled time don't force it here.
 	 */
 	if (opts->sample_time &&
 	    (!perf_missing_features.sample_id_all &&

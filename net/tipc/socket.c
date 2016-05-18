@@ -389,7 +389,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	sock->state = state;
 	sock_init_data(sock, sk);
 	if (tipc_sk_insert(tsk)) {
-		pr_warn("Socket create failed; port numbrer exhausted\n");
+		pr_warn("Socket create failed; port number exhausted\n");
 		return -EINVAL;
 	}
 	msg_set_origport(msg, tsk->portid);
