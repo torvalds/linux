@@ -163,6 +163,12 @@ __rwsem_mark_wake(struct rw_semaphore *sem,
 			/* Last active locker left. Retry waking readers. */
 			goto try_reader_grant;
 		}
+		/*
+		 * It is not really necessary to set it to reader-owned here,
+		 * but it gives the spinners an early indication that the
+		 * readers now have the lock.
+		 */
+		rwsem_set_reader_owned(sem);
 	}
 
 	/* Grant an infinite number of read locks to the readers at the front
@@ -325,16 +331,11 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 
 	rcu_read_lock();
 	owner = READ_ONCE(sem->owner);
-	if (!owner) {
-		long count = atomic_long_read(&sem->count);
+	if (!rwsem_owner_is_writer(owner)) {
 		/*
-		 * If sem->owner is not set, yet we have just recently entered the
-		 * slowpath with the lock being active, then there is a possibility
-		 * reader(s) may have the lock. To be safe, bail spinning in these
-		 * situations.
+		 * Don't spin if the rwsem is readers owned.
 		 */
-		if (count & RWSEM_ACTIVE_MASK)
-			ret = false;
+		ret = !rwsem_owner_is_reader(owner);
 		goto done;
 	}
 
@@ -347,8 +348,6 @@ done:
 static noinline
 bool rwsem_spin_on_owner(struct rw_semaphore *sem, struct task_struct *owner)
 {
-	long count;
-
 	rcu_read_lock();
 	while (sem->owner == owner) {
 		/*
@@ -369,16 +368,11 @@ bool rwsem_spin_on_owner(struct rw_semaphore *sem, struct task_struct *owner)
 	}
 	rcu_read_unlock();
 
-	if (READ_ONCE(sem->owner))
-		return true; /* new owner, continue spinning */
-
 	/*
-	 * When the owner is not set, the lock could be free or
-	 * held by readers. Check the counter to verify the
-	 * state.
+	 * If there is a new owner or the owner is not set, we continue
+	 * spinning.
 	 */
-	count = atomic_long_read(&sem->count);
-	return (count == 0 || count == RWSEM_WAITING_BIAS);
+	return !rwsem_owner_is_reader(READ_ONCE(sem->owner));
 }
 
 static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
@@ -397,7 +391,16 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 
 	while (true) {
 		owner = READ_ONCE(sem->owner);
-		if (owner && !rwsem_spin_on_owner(sem, owner))
+		/*
+		 * Don't spin if
+		 * 1) the owner is a reader as we we can't determine if the
+		 *    reader is actively running or not.
+		 * 2) The rwsem_spin_on_owner() returns false which means
+		 *    the owner isn't running.
+		 */
+		if (rwsem_owner_is_reader(owner) ||
+		   (rwsem_owner_is_writer(owner) &&
+		   !rwsem_spin_on_owner(sem, owner)))
 			break;
 
 		/* wait_lock will be acquired if write_lock is obtained */
