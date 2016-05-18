@@ -381,6 +381,13 @@ to_error_cfg(struct kobject *kobject)
 	return container_of(kobj, struct xfs_error_cfg, kobj);
 }
 
+static inline struct xfs_mount *
+err_to_mp(struct kobject *kobject)
+{
+	struct xfs_kobj *kobj = to_kobj(kobject);
+	return container_of(kobj, struct xfs_mount, m_error_kobj);
+}
+
 static ssize_t
 max_retries_show(
 	struct kobject	*kobject,
@@ -447,6 +454,38 @@ retry_timeout_seconds_store(
 }
 XFS_SYSFS_ATTR_RW(retry_timeout_seconds);
 
+static ssize_t
+fail_at_unmount_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	struct xfs_mount	*mp = err_to_mp(kobject);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", mp->m_fail_unmount);
+}
+
+static ssize_t
+fail_at_unmount_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	struct xfs_mount	*mp = err_to_mp(kobject);
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val < 0 || val > 1)
+		return -EINVAL;
+
+	mp->m_fail_unmount = val;
+	return count;
+}
+XFS_SYSFS_ATTR_RW(fail_at_unmount);
+
 static struct attribute *xfs_error_attrs[] = {
 	ATTR_LIST(max_retries),
 	ATTR_LIST(retry_timeout_seconds),
@@ -462,6 +501,7 @@ struct kobj_type xfs_error_cfg_ktype = {
 
 struct kobj_type xfs_error_ktype = {
 	.release = xfs_sysfs_release,
+	.sysfs_ops = &xfs_sysfs_ops,
 };
 
 /*
@@ -547,6 +587,12 @@ xfs_error_sysfs_init(
 				&mp->m_kobj, "error");
 	if (error)
 		return error;
+
+	error = sysfs_create_file(&mp->m_error_kobj.kobject,
+				  ATTR_LIST(fail_at_unmount));
+
+	if (error)
+		goto out_error;
 
 	/* .../xfs/<dev>/error/metadata/ */
 	error = xfs_error_sysfs_init_class(mp, XFS_ERR_METADATA,

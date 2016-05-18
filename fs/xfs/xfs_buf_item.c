@@ -1106,6 +1106,10 @@ xfs_buf_iodone_callback_error(
 	    time_after(jiffies, cfg->retry_timeout + bp->b_first_retry_time))
 			goto permanent_error;
 
+	/* At unmount we may treat errors differently */
+	if ((mp->m_flags & XFS_MOUNT_UNMOUNTING) && mp->m_fail_unmount)
+		goto permanent_error;
+
 	/* still a transient error, higher layers will retry */
 	xfs_buf_ioerror(bp, 0);
 	xfs_buf_relse(bp);
