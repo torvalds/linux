@@ -10181,7 +10181,7 @@ static const struct inode_operations btrfs_dir_ro_inode_operations = {
 static const struct file_operations btrfs_dir_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate_shared	= btrfs_real_readdir,
+	.iterate	= btrfs_real_readdir,
 	.unlocked_ioctl	= btrfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= btrfs_ioctl,
