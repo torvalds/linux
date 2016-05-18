@@ -158,9 +158,6 @@ static void __init rk_timer_init(struct device_node *np)
 	ce->cpumask = cpumask_of(0);
 	ce->rating = 250;
 
-	rk_timer_interrupt_clear(ce);
-	rk_timer_disable(ce);
-
 	ret = request_irq(irq, rk_timer_interrupt, IRQF_TIMER, TIMER_NAME, ce);
 	if (ret) {
 		pr_err("Failed to initialize '%s': %d\n", TIMER_NAME, ret);
