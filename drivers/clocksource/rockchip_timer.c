@@ -19,8 +19,9 @@
 
 #define TIMER_LOAD_COUNT0	0x00
 #define TIMER_LOAD_COUNT1	0x04
-#define TIMER_CONTROL_REG	0x10
+#define TIMER_V1_CONTROL_REG	0x10
 #define TIMER_INT_STATUS	0x18
+#define TIMER_V2_CONTROL_REG	0x1c
 
 #define TIMER_DISABLE		0x0
 #define TIMER_ENABLE		0x1
@@ -46,15 +47,26 @@ static inline void __iomem *rk_base(struct clock_event_device *ce)
 	return rk_timer(ce)->base;
 }
 
-static inline void rk_timer_disable(struct clock_event_device *ce)
+static inline void rk_timer_v1_disable(struct clock_event_device *ce)
 {
-	writel_relaxed(TIMER_DISABLE, rk_base(ce) + TIMER_CONTROL_REG);
+	writel_relaxed(TIMER_DISABLE, rk_base(ce) + TIMER_V1_CONTROL_REG);
 }
 
-static inline void rk_timer_enable(struct clock_event_device *ce, u32 flags)
+static inline void rk_timer_v1_enable(struct clock_event_device *ce, u32 flags)
 {
 	writel_relaxed(TIMER_ENABLE | TIMER_INT_UNMASK | flags,
-		       rk_base(ce) + TIMER_CONTROL_REG);
+		       rk_base(ce) + TIMER_V1_CONTROL_REG);
+}
+
+static inline void rk_timer_v2_disable(struct clock_event_device *ce)
+{
+	writel_relaxed(TIMER_DISABLE, rk_base(ce) + TIMER_V2_CONTROL_REG);
+}
+
+static inline void rk_timer_v2_enable(struct clock_event_device *ce, u32 flags)
+{
+	writel_relaxed(TIMER_ENABLE | TIMER_INT_UNMASK | flags,
+		       rk_base(ce) + TIMER_V2_CONTROL_REG);
 }
 
 static void rk_timer_update_counter(unsigned long cycles,
@@ -69,44 +81,82 @@ static void rk_timer_interrupt_clear(struct clock_event_device *ce)
 	writel_relaxed(1, rk_base(ce) + TIMER_INT_STATUS);
 }
 
-static inline int rk_timer_set_next_event(unsigned long cycles,
-					  struct clock_event_device *ce)
+static int rk_timer_v1_set_next_event(unsigned long cycles,
+				      struct clock_event_device *ce)
 {
-	rk_timer_disable(ce);
+	rk_timer_v1_disable(ce);
 	rk_timer_update_counter(cycles, ce);
-	rk_timer_enable(ce, TIMER_MODE_USER_DEFINED_COUNT);
+	rk_timer_v1_enable(ce, TIMER_MODE_USER_DEFINED_COUNT);
 	return 0;
 }
 
-static int rk_timer_shutdown(struct clock_event_device *ce)
+static int rk_timer_v1_shutdown(struct clock_event_device *ce)
 {
-	rk_timer_disable(ce);
+	rk_timer_v1_disable(ce);
 	return 0;
 }
 
-static int rk_timer_set_periodic(struct clock_event_device *ce)
+static int rk_timer_v1_set_periodic(struct clock_event_device *ce)
 {
-	rk_timer_disable(ce);
+	rk_timer_v1_disable(ce);
 	rk_timer_update_counter(rk_timer(ce)->freq / HZ - 1, ce);
-	rk_timer_enable(ce, TIMER_MODE_FREE_RUNNING);
+	rk_timer_v1_enable(ce, TIMER_MODE_FREE_RUNNING);
 	return 0;
 }
 
-static irqreturn_t rk_timer_interrupt(int irq, void *dev_id)
+static irqreturn_t rk_timer_v1_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *ce = dev_id;
 
 	rk_timer_interrupt_clear(ce);
 
 	if (clockevent_state_oneshot(ce))
-		rk_timer_disable(ce);
+		rk_timer_v1_disable(ce);
 
 	ce->event_handler(ce);
 
 	return IRQ_HANDLED;
 }
 
-static void __init rk_timer_init(struct device_node *np)
+static int rk_timer_v2_set_next_event(unsigned long cycles,
+				      struct clock_event_device *ce)
+{
+	rk_timer_v2_disable(ce);
+	rk_timer_update_counter(cycles, ce);
+	rk_timer_v2_enable(ce, TIMER_MODE_USER_DEFINED_COUNT);
+	return 0;
+}
+
+static int rk_timer_v2_shutdown(struct clock_event_device *ce)
+{
+	rk_timer_v2_disable(ce);
+	return 0;
+}
+
+static int rk_timer_v2_set_periodic(struct clock_event_device *ce)
+{
+	rk_timer_v2_disable(ce);
+	rk_timer_update_counter(rk_timer(ce)->freq / HZ - 1, ce);
+	rk_timer_v2_enable(ce, TIMER_MODE_FREE_RUNNING);
+	return 0;
+}
+
+static irqreturn_t rk_timer_v2_interrupt(int irq, void *dev_id)
+{
+	struct clock_event_device *ce = dev_id;
+
+	rk_timer_interrupt_clear(ce);
+
+	if (clockevent_state_oneshot(ce))
+		rk_timer_v2_disable(ce);
+
+	ce->event_handler(ce);
+
+	return IRQ_HANDLED;
+}
+
+static void __init rk_timer_init(struct device_node *np,
+				 irq_handler_t rk_timer_interrupt)
 {
 	struct clock_event_device *ce = &bc_timer.ce;
 	struct clk *timer_clk;
@@ -152,9 +202,6 @@ static void __init rk_timer_init(struct device_node *np)
 	ce->name = TIMER_NAME;
 	ce->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT |
 		       CLOCK_EVT_FEAT_DYNIRQ;
-	ce->set_next_event = rk_timer_set_next_event;
-	ce->set_state_shutdown = rk_timer_shutdown;
-	ce->set_state_periodic = rk_timer_set_periodic;
 	ce->irq = irq;
 	ce->cpumask = cpu_all_mask;
 	ce->rating = 250;
@@ -177,4 +224,27 @@ out_unmap:
 	iounmap(bc_timer.base);
 }
 
-CLOCKSOURCE_OF_DECLARE(rk_timer, "rockchip,rk3288-timer", rk_timer_init);
+static void __init rk_timer_v1_init(struct device_node *np)
+{
+	struct clock_event_device *ce = &bc_timer.ce;
+
+	ce->set_next_event = rk_timer_v1_set_next_event;
+	ce->set_state_shutdown = rk_timer_v1_shutdown;
+	ce->set_state_periodic = rk_timer_v1_set_periodic;
+
+	rk_timer_init(np, rk_timer_v1_interrupt);
+}
+
+static void __init rk_timer_v2_init(struct device_node *np)
+{
+	struct clock_event_device *ce = &bc_timer.ce;
+
+	ce->set_next_event = rk_timer_v2_set_next_event;
+	ce->set_state_shutdown = rk_timer_v2_shutdown;
+	ce->set_state_periodic = rk_timer_v2_set_periodic;
+
+	rk_timer_init(np, rk_timer_v2_interrupt);
+}
+
+CLOCKSOURCE_OF_DECLARE(rk3288_timer, "rockchip,rk3288-timer", rk_timer_v1_init);
+CLOCKSOURCE_OF_DECLARE(rk3399_timer, "rockchip,rk3399-timer", rk_timer_v2_init);
