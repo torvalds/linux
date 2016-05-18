@@ -1100,6 +1100,7 @@ void irq_domain_free_irqs_common(struct irq_domain *domain, unsigned int virq,
 	}
 	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
 }
+EXPORT_SYMBOL_GPL(irq_domain_free_irqs_common);
 
 /**
  * irq_domain_free_irqs_top - Clear handler and handler data, clear irqdata and free parent
