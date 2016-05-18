@@ -31,6 +31,7 @@
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/topology.h>
+#include <linux/profile.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
