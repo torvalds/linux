@@ -8,19 +8,22 @@
 	compatible = "nvidia,norrin", "nvidia,tegra132", "nvidia,tegra124";
 
 	aliases {
-		rtc0 = "/i2c@0,7000d000/as3722@40";
-		rtc1 = "/rtc@0,7000e000";
+		rtc0 = "/i2c@7000d000/as3722@40";
+		rtc1 = "/rtc@7000e000";
+		serial0 = &uarta;
 	};
 
-	chosen { };
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
-	host1x@0,50000000 {
-		hdmi@0,54280000 {
+	host1x@50000000 {
+		hdmi@54280000 {
 			status = "disabled";
 
 			vdd-supply = <&vdd_3v3_hdmi>;
@@ -32,26 +35,26 @@
 				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
 		};
 
-		sor@0,54540000 {
+		sor@54540000 {
 			status = "okay";
 
 			nvidia,dpaux = <&dpaux>;
 			nvidia,panel = <&panel>;
 		};
 
-		dpaux: dpaux@0,545c0000 {
+		dpaux: dpaux@545c0000 {
 			vdd-supply = <&vdd_3v3_panel>;
 			status = "okay";
 		};
 	};
 
-	gpu@0,57000000 {
+	gpu@57000000 {
 		status = "okay";
 
 		vdd-supply = <&vdd_gpu>;
 	};
 
-	pinmux@0,70000868 {
+	pinmux@70000868 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinmux_default>;
 
@@ -523,21 +526,21 @@
 		};
 	};
 
-	serial@0,70006000 {
+	serial@70006000 {
 		status = "okay";
 	};
 
-	pwm: pwm@0,7000a000 {
+	pwm: pwm@7000a000 {
 		status = "okay";
 	};
 
 	/* HDMI DDC */
-	hdmi_ddc: i2c@0,7000c700 {
+	hdmi_ddc: i2c@7000c700 {
 		status = "okay";
 		clock-frequency = <100000>;
 	};
 
-	i2c@0,7000d000 {
+	i2c@7000d000 {
 		status = "okay";
 		clock-frequency = <400000>;
 
@@ -744,7 +747,7 @@
 		};
 	};
 
-	spi@0,7000d400 {
+	spi@7000d400 {
 		status = "okay";
 
 		ec: cros-ec@0 {
@@ -876,7 +879,7 @@
 		};
 	};
 
-	pmc@0,7000e400 {
+	pmc@7000e400 {
 		nvidia,invert-interrupt;
 		nvidia,suspend-mode = <0>;
 		#wake-cells = <3>;
@@ -890,12 +893,12 @@
 	};
 
 	/* WIFI/BT module */
-	sdhci@0,700b0000 {
+	sdhci@700b0000 {
 		status = "disabled";
 	};
 
 	/* external SD/MMC */
-	sdhci@0,700b0400 {
+	sdhci@700b0400 {
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
 		wp-gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_HIGH>;
@@ -905,35 +908,35 @@
 	};
 
 	/* EMMC 4.51 */
-	sdhci@0,700b0600 {
+	sdhci@700b0600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
 	};
 
-	usb@0,7d000000 {
+	usb@7d000000 {
 		status = "okay";
 	};
 
-	usb-phy@0,7d000000 {
+	usb-phy@7d000000 {
 		status = "okay";
 		vbus-supply = <&vdd_usb1_vbus>;
 	};
 
-	usb@0,7d004000 {
+	usb@7d004000 {
 		status = "okay";
 	};
 
-	usb-phy@0,7d004000 {
+	usb-phy@7d004000 {
 		status = "okay";
 		vbus-supply = <&vdd_run_cam>;
 	};
 
-	usb@0,7d008000 {
+	usb@7d008000 {
 		status = "okay";
 	};
 
-	usb-phy@0,7d008000 {
+	usb-phy@7d008000 {
 		status = "okay";
 		vbus-supply = <&vdd_usb3_vbus>;
 	};
@@ -973,7 +976,7 @@
 			linux,input-type = <5>;
 			linux,code = <0>;
 			debounce-interval = <1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		power {
@@ -981,7 +984,7 @@
 			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

@@ -443,11 +443,10 @@
 		ranges;
 
 		/* External input clock */
-		extal_clk: extal_clk {
+		extal_clk: extal {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <0>;
-			clock-output-names = "extal";
 		};
 
 		/* External SCIF clock */
@@ -456,7 +455,6 @@
 			#clock-cells = <0>;
 			/* This value must be overridden by the board. */
 			clock-frequency = <0>;
-			status = "disabled";
 		};
 
 		/* Special CPG clocks */
@@ -474,59 +472,51 @@
 		audio_clk_a: audio_clk_a {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-output-names = "audio_clk_a";
 		};
 		audio_clk_b: audio_clk_b {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-output-names = "audio_clk_b";
 		};
 		audio_clk_c: audio_clk_c {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-output-names = "audio_clk_c";
 		};
 
 		/* Fixed ratio clocks */
-		g_clk: g_clk {
+		g_clk: g {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <12>;
 			clock-mult = <1>;
-			clock-output-names = "g";
 		};
-		i_clk: i_clk {
+		i_clk: i {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <1>;
 			clock-mult = <1>;
-			clock-output-names = "i";
 		};
-		s3_clk: s3_clk {
+		s3_clk: s3 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <4>;
 			clock-mult = <1>;
-			clock-output-names = "s3";
 		};
-		s4_clk: s4_clk {
+		s4_clk: s4 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <8>;
 			clock-mult = <1>;
-			clock-output-names = "s4";
 		};
-		z_clk: z_clk {
+		z_clk: z {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7778_CLK_PLLB>;
 			#clock-cells = <0>;
 			clock-div = <1>;
 			clock-mult = <1>;
-			clock-output-names = "z";
 		};
 
 		/* Gate clocks */

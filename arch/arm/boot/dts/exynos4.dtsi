@@ -77,12 +77,12 @@
 		reg = <0x10000000 0x100>;
 	};
 
-	sromc@12570000 {
-		compatible = "samsung,exynos-srom";
+	memory-controller@12570000 {
+		compatible = "samsung,exynos4210-srom";
 		reg = <0x12570000 0x14>;
 	};
 
-	mipi_phy: video-phy@10020710 {
+	mipi_phy: video-phy {
 		compatible = "samsung,s5pv210-mipi-video-phy";
 		#phy-cells = <1>;
 		syscon = <&pmu_system_controller>;
@@ -743,6 +743,18 @@
 		status = "disabled";
 	};
 
+	hdmicec: cec@100B0000 {
+		compatible = "samsung,s5p-cec";
+		reg = <0x100B0000 0x200>;
+		interrupts = <0 114 0>;
+		clocks = <&clock CLK_HDMI_CEC>;
+		clock-names = "hdmicec";
+		samsung,syscon-phandle = <&pmu_system_controller>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmi_cec>;
+		status = "disabled";
+	};
+
 	mixer: mixer@12C10000 {
 		compatible = "samsung,exynos4210-mixer";
 		interrupts = <0 91 0>;
@@ -969,11 +981,18 @@
 		#iommu-cells = <0>;
 	};
 
+	sss: sss@10830000 {
+		compatible = "samsung,exynos4210-secss";
+		reg = <0x10830000 0x300>;
+		interrupts = <0 112 0>;
+		clocks = <&clock CLK_SSS>;
+		clock-names = "secss";
+	};
+
 	prng: rng@10830400 {
 		compatible = "samsung,exynos4-rng";
 		reg = <0x10830400 0x200>;
 		clocks = <&clock CLK_SSS>;
 		clock-names = "secss";
-		status = "disabled";
 	};
 };

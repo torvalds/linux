@@ -873,7 +873,7 @@ static const struct of_device_id tegra_xusb_padctl_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_xusb_padctl_of_match);
 
-static int tegra_xusb_padctl_probe(struct platform_device *pdev)
+int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 {
 	struct tegra_xusb_padctl *padctl;
 	const struct of_device_id *match;
@@ -955,8 +955,9 @@ reset:
 	reset_control_assert(padctl->rst);
 	return err;
 }
+EXPORT_SYMBOL_GPL(tegra_xusb_padctl_legacy_probe);
 
-static int tegra_xusb_padctl_remove(struct platform_device *pdev)
+int tegra_xusb_padctl_legacy_remove(struct platform_device *pdev)
 {
 	struct tegra_xusb_padctl *padctl = platform_get_drvdata(pdev);
 	int err;
@@ -969,17 +970,4 @@ static int tegra_xusb_padctl_remove(struct platform_device *pdev)
 
 	return err;
 }
-
-static struct platform_driver tegra_xusb_padctl_driver = {
-	.driver = {
-		.name = "tegra-xusb-padctl",
-		.of_match_table = tegra_xusb_padctl_of_match,
-	},
-	.probe = tegra_xusb_padctl_probe,
-	.remove = tegra_xusb_padctl_remove,
-};
-module_platform_driver(tegra_xusb_padctl_driver);
-
-MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
-MODULE_DESCRIPTION("Tegra 124 XUSB Pad Control driver");
-MODULE_LICENSE("GPL v2");
+EXPORT_SYMBOL_GPL(tegra_xusb_padctl_legacy_remove);

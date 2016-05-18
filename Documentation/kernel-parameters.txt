@@ -2558,6 +2558,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nohugeiomap	[KNL,x86] Disable kernel huge I/O mappings.
 
+	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
+			Equivalent to smt=1.
+
 	noxsave		[BUGS=X86] Disables x86 extended register state save
 			and restore using xsave. The kernel will fallback to
 			enabling legacy floating-point and sse state.
@@ -3752,6 +3755,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				0: Toshiba Satellite 1800 (GP data pin select)
 				1: Fast pin select (default)
 				2: ATC IRMode
+
+	smt		[KNL,S390] Set the maximum number of threads (logical
+			CPUs) to use per physical CPU on systems capable of
+			symmetric multithreading (SMT). Will be capped to the
+			actual hardware limit.
+			Format: <integer>
+			Default: -1 (no limit)
 
 	softlockup_panic=
 			[KNL] Should the soft-lockup detector generate panics.
