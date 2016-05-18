@@ -172,13 +172,17 @@ void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 			bru->inputs[i].rpf = NULL;
 	}
 
-	for (i = 0; i < pipe->num_inputs; ++i) {
-		pipe->inputs[i]->pipe = NULL;
-		pipe->inputs[i] = NULL;
+	for (i = 0; i < ARRAY_SIZE(pipe->inputs); ++i) {
+		if (pipe->inputs[i]) {
+			pipe->inputs[i]->pipe = NULL;
+			pipe->inputs[i] = NULL;
+		}
 	}
 
-	pipe->output->pipe = NULL;
-	pipe->output = NULL;
+	if (pipe->output) {
+		pipe->output->pipe = NULL;
+		pipe->output = NULL;
+	}
 
 	INIT_LIST_HEAD(&pipe->entities);
 	pipe->state = VSP1_PIPELINE_STOPPED;
