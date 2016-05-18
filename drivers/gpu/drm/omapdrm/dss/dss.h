@@ -428,6 +428,8 @@ typedef bool (*dss_hsdiv_calc_func)(int m_dispc, unsigned long dispc,
 int dss_pll_register(struct dss_pll *pll);
 void dss_pll_unregister(struct dss_pll *pll);
 struct dss_pll *dss_pll_find(const char *name);
+struct dss_pll *dss_pll_find_by_src(enum dss_clk_source src);
+unsigned dss_pll_get_clkout_idx_for_src(enum dss_clk_source src);
 int dss_pll_enable(struct dss_pll *pll);
 void dss_pll_disable(struct dss_pll *pll);
 int dss_pll_set_config(struct dss_pll *pll,

@@ -76,6 +76,59 @@ struct dss_pll *dss_pll_find(const char *name)
 	return NULL;
 }
 
+struct dss_pll *dss_pll_find_by_src(enum dss_clk_source src)
+{
+	struct dss_pll *pll;
+
+	switch (src) {
+	default:
+	case DSS_CLK_SRC_FCK:
+		return NULL;
+
+	case DSS_CLK_SRC_HDMI_PLL:
+		return dss_pll_find("hdmi");
+
+	case DSS_CLK_SRC_PLL1_1:
+	case DSS_CLK_SRC_PLL1_2:
+	case DSS_CLK_SRC_PLL1_3:
+		pll = dss_pll_find("dsi0");
+		if (!pll)
+			pll = dss_pll_find("video0");
+		return pll;
+
+	case DSS_CLK_SRC_PLL2_1:
+	case DSS_CLK_SRC_PLL2_2:
+	case DSS_CLK_SRC_PLL2_3:
+		pll = dss_pll_find("dsi1");
+		if (!pll)
+			pll = dss_pll_find("video1");
+		return pll;
+	}
+}
+
+unsigned dss_pll_get_clkout_idx_for_src(enum dss_clk_source src)
+{
+	switch (src) {
+	case DSS_CLK_SRC_HDMI_PLL:
+		return 0;
+
+	case DSS_CLK_SRC_PLL1_1:
+	case DSS_CLK_SRC_PLL2_1:
+		return 0;
+
+	case DSS_CLK_SRC_PLL1_2:
+	case DSS_CLK_SRC_PLL2_2:
+		return 1;
+
+	case DSS_CLK_SRC_PLL1_3:
+	case DSS_CLK_SRC_PLL2_3:
+		return 2;
+
+	default:
+		return 0;
+	}
+}
+
 int dss_pll_enable(struct dss_pll *pll)
 {
 	int r;
