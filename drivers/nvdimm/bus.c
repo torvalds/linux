@@ -124,9 +124,10 @@ static int nvdimm_bus_remove(struct device *dev)
 	struct nd_device_driver *nd_drv = to_nd_device_driver(dev->driver);
 	struct module *provider = to_bus_provider(dev);
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
-	int rc;
+	int rc = 0;
 
-	rc = nd_drv->remove(dev);
+	if (nd_drv->remove)
+		rc = nd_drv->remove(dev);
 	nd_region_disable(nvdimm_bus, dev);
 
 	dev_dbg(&nvdimm_bus->dev, "%s.remove(%s) = %d\n", dev->driver->name,
@@ -296,8 +297,8 @@ int __nd_driver_register(struct nd_device_driver *nd_drv, struct module *owner,
 		return -EINVAL;
 	}
 
-	if (!nd_drv->probe || !nd_drv->remove) {
-		pr_debug("->probe() and ->remove() must be specified\n");
+	if (!nd_drv->probe) {
+		pr_debug("%s ->probe() must be specified\n", mod_name);
 		return -EINVAL;
 	}
 
