@@ -52,9 +52,12 @@ enum {
 	XFS_ERR_ERRNO_MAX,
 };
 
+#define XFS_ERR_RETRY_FOREVER	-1
+
 struct xfs_error_cfg {
 	struct xfs_kobj	kobj;
 	int		max_retries;
+	unsigned long	retry_timeout;	/* in jiffies, 0 = no timeout */
 };
 
 typedef struct xfs_mount {

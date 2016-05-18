@@ -374,16 +374,85 @@ struct kobj_type xfs_log_ktype = {
  * and any other future type of IO (e.g. special inode or directory error
  * handling) we care to support.
  */
-static struct attribute *xfs_error_attrs[] = {
-	NULL,
-};
-
 static inline struct xfs_error_cfg *
 to_error_cfg(struct kobject *kobject)
 {
 	struct xfs_kobj *kobj = to_kobj(kobject);
 	return container_of(kobj, struct xfs_error_cfg, kobj);
 }
+
+static ssize_t
+max_retries_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	struct xfs_error_cfg *cfg = to_error_cfg(kobject);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", cfg->max_retries);
+}
+
+static ssize_t
+max_retries_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	struct xfs_error_cfg *cfg = to_error_cfg(kobject);
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val < -1)
+		return -EINVAL;
+
+	cfg->max_retries = val;
+	return count;
+}
+XFS_SYSFS_ATTR_RW(max_retries);
+
+static ssize_t
+retry_timeout_seconds_show(
+	struct kobject	*kobject,
+	char		*buf)
+{
+	struct xfs_error_cfg *cfg = to_error_cfg(kobject);
+
+	return snprintf(buf, PAGE_SIZE, "%ld\n",
+			jiffies_to_msecs(cfg->retry_timeout) / MSEC_PER_SEC);
+}
+
+static ssize_t
+retry_timeout_seconds_store(
+	struct kobject	*kobject,
+	const char	*buf,
+	size_t		count)
+{
+	struct xfs_error_cfg *cfg = to_error_cfg(kobject);
+	int		ret;
+	int		val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	/* 1 day timeout maximum */
+	if (val < 0 || val > 86400)
+		return -EINVAL;
+
+	cfg->retry_timeout = msecs_to_jiffies(val * MSEC_PER_SEC);
+	return count;
+}
+XFS_SYSFS_ATTR_RW(retry_timeout_seconds);
+
+static struct attribute *xfs_error_attrs[] = {
+	ATTR_LIST(max_retries),
+	ATTR_LIST(retry_timeout_seconds),
+	NULL,
+};
+
 
 struct kobj_type xfs_error_cfg_ktype = {
 	.release = xfs_sysfs_release,
@@ -404,11 +473,13 @@ struct kobj_type xfs_error_ktype = {
 struct xfs_error_init {
 	char		*name;
 	int		max_retries;
+	int		retry_timeout;	/* in seconds */
 };
 
 static const struct xfs_error_init xfs_error_meta_init[XFS_ERR_ERRNO_MAX] = {
 	{ .name = "default",
 	  .max_retries = -1,
+	  .retry_timeout = 0,
 	},
 };
 
@@ -439,6 +510,8 @@ xfs_error_sysfs_init_class(
 			goto out_error;
 
 		cfg->max_retries = init[i].max_retries;
+		cfg->retry_timeout = msecs_to_jiffies(
+					init[i].retry_timeout * MSEC_PER_SEC);
 	}
 	return 0;
 
