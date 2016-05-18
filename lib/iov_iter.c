@@ -99,40 +99,44 @@
 }
 
 #define iterate_and_advance(i, n, v, I, B, K) {			\
-	size_t skip = i->iov_offset;				\
-	if (unlikely(i->type & ITER_BVEC)) {			\
-		const struct bio_vec *bvec;			\
-		struct bio_vec v;				\
-		iterate_bvec(i, n, v, bvec, skip, (B))		\
-		if (skip == bvec->bv_len) {			\
-			bvec++;					\
-			skip = 0;				\
+	if (unlikely(i->count < n))				\
+		n = i->count;					\
+	if (n) {						\
+		size_t skip = i->iov_offset;			\
+		if (unlikely(i->type & ITER_BVEC)) {		\
+			const struct bio_vec *bvec;		\
+			struct bio_vec v;			\
+			iterate_bvec(i, n, v, bvec, skip, (B))	\
+			if (skip == bvec->bv_len) {		\
+				bvec++;				\
+				skip = 0;			\
+			}					\
+			i->nr_segs -= bvec - i->bvec;		\
+			i->bvec = bvec;				\
+		} else if (unlikely(i->type & ITER_KVEC)) {	\
+			const struct kvec *kvec;		\
+			struct kvec v;				\
+			iterate_kvec(i, n, v, kvec, skip, (K))	\
+			if (skip == kvec->iov_len) {		\
+				kvec++;				\
+				skip = 0;			\
+			}					\
+			i->nr_segs -= kvec - i->kvec;		\
+			i->kvec = kvec;				\
+		} else {					\
+			const struct iovec *iov;		\
+			struct iovec v;				\
+			iterate_iovec(i, n, v, iov, skip, (I))	\
+			if (skip == iov->iov_len) {		\
+				iov++;				\
+				skip = 0;			\
+			}					\
+			i->nr_segs -= iov - i->iov;		\
+			i->iov = iov;				\
 		}						\
-		i->nr_segs -= bvec - i->bvec;			\
-		i->bvec = bvec;					\
-	} else if (unlikely(i->type & ITER_KVEC)) {		\
-		const struct kvec *kvec;			\
-		struct kvec v;					\
-		iterate_kvec(i, n, v, kvec, skip, (K))		\
-		if (skip == kvec->iov_len) {			\
-			kvec++;					\
-			skip = 0;				\
-		}						\
-		i->nr_segs -= kvec - i->kvec;			\
-		i->kvec = kvec;					\
-	} else {						\
-		const struct iovec *iov;			\
-		struct iovec v;					\
-		iterate_iovec(i, n, v, iov, skip, (I))		\
-		if (skip == iov->iov_len) {			\
-			iov++;					\
-			skip = 0;				\
-		}						\
-		i->nr_segs -= iov - i->iov;			\
-		i->iov = iov;					\
+		i->count -= n;					\
+		i->iov_offset = skip;				\
 	}							\
-	i->count -= n;						\
-	i->iov_offset = skip;					\
 }
 
 static size_t copy_page_to_iter_iovec(struct page *page, size_t offset, size_t bytes,
@@ -386,12 +390,6 @@ static void memzero_page(struct page *page, size_t offset, size_t len)
 size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
 	const char *from = addr;
-	if (unlikely(bytes > i->count))
-		bytes = i->count;
-
-	if (unlikely(!bytes))
-		return 0;
-
 	iterate_and_advance(i, bytes, v,
 		__copy_to_user(v.iov_base, (from += v.iov_len) - v.iov_len,
 			       v.iov_len),
@@ -407,12 +405,6 @@ EXPORT_SYMBOL(copy_to_iter);
 size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
-	if (unlikely(bytes > i->count))
-		bytes = i->count;
-
-	if (unlikely(!bytes))
-		return 0;
-
 	iterate_and_advance(i, bytes, v,
 		__copy_from_user((to += v.iov_len) - v.iov_len, v.iov_base,
 				 v.iov_len),
@@ -428,12 +420,6 @@ EXPORT_SYMBOL(copy_from_iter);
 size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
 	char *to = addr;
-	if (unlikely(bytes > i->count))
-		bytes = i->count;
-
-	if (unlikely(!bytes))
-		return 0;
-
 	iterate_and_advance(i, bytes, v,
 		__copy_from_user_nocache((to += v.iov_len) - v.iov_len,
 					 v.iov_base, v.iov_len),
@@ -474,12 +460,6 @@ EXPORT_SYMBOL(copy_page_from_iter);
 
 size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(bytes > i->count))
-		bytes = i->count;
-
-	if (unlikely(!bytes))
-		return 0;
-
 	iterate_and_advance(i, bytes, v,
 		__clear_user(v.iov_base, v.iov_len),
 		memzero_page(v.bv_page, v.bv_offset, v.bv_len),
@@ -685,12 +665,6 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 	char *to = addr;
 	__wsum sum, next;
 	size_t off = 0;
-	if (unlikely(bytes > i->count))
-		bytes = i->count;
-
-	if (unlikely(!bytes))
-		return 0;
-
 	sum = *csum;
 	iterate_and_advance(i, bytes, v, ({
 		int err = 0;
@@ -729,12 +703,6 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, __wsum *csum,
 	const char *from = addr;
 	__wsum sum, next;
 	size_t off = 0;
-	if (unlikely(bytes > i->count))
-		bytes = i->count;
-
-	if (unlikely(!bytes))
-		return 0;
-
 	sum = *csum;
 	iterate_and_advance(i, bytes, v, ({
 		int err = 0;

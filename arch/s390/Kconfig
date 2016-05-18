@@ -107,6 +107,7 @@ config S390
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
+	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANTS_PROT_NUMA_PROT_NONE
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
@@ -210,7 +211,7 @@ config HAVE_MARCH_Z13_FEATURES
 
 choice
 	prompt "Processor type"
-	default MARCH_Z900
+	default MARCH_Z196
 
 config MARCH_Z900
 	bool "IBM zSeries model z800 and z900"

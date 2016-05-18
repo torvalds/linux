@@ -7,6 +7,7 @@
  *		 Denis Joseph Barrow,
  */
 
+#include <linux/elf-randomize.h>
 #include <linux/compiler.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
@@ -36,9 +37,6 @@
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
-
-/* FPU save area for the init task */
-__vector128 init_task_fpu_regs[__NUM_VXRS] __init_task_data;
 
 /*
  * Return saved PC of a blocked thread. used in kernel/sched.
@@ -85,35 +83,19 @@ void release_thread(struct task_struct *dead_task)
 
 void arch_release_task_struct(struct task_struct *tsk)
 {
-	/* Free either the floating-point or the vector register save area */
-	kfree(tsk->thread.fpu.regs);
 }
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	size_t fpu_regs_size;
-
-	*dst = *src;
-
-	/*
-	 * If the vector extension is available, it is enabled for all tasks,
-	 * and, thus, the FPU register save area must be allocated accordingly.
-	 */
-	fpu_regs_size = MACHINE_HAS_VX ? sizeof(__vector128) * __NUM_VXRS
-				       : sizeof(freg_t) * __NUM_FPRS;
-	dst->thread.fpu.regs = kzalloc(fpu_regs_size, GFP_KERNEL|__GFP_REPEAT);
-	if (!dst->thread.fpu.regs)
-		return -ENOMEM;
-
 	/*
 	 * Save the floating-point or vector register state of the current
 	 * task and set the CIF_FPU flag to lazy restore the FPU register
 	 * state when returning to user space.
 	 */
 	save_fpu_regs();
-	dst->thread.fpu.fpc = current->thread.fpu.fpc;
-	memcpy(dst->thread.fpu.regs, current->thread.fpu.regs, fpu_regs_size);
 
+	memcpy(dst, src, arch_task_struct_size);
+	dst->thread.fpu.regs = dst->thread.fpu.fprs;
 	return 0;
 }
 
