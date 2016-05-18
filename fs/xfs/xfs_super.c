@@ -928,7 +928,7 @@ xfs_fs_alloc_inode(
 
 /*
  * Now that the generic code is guaranteed not to be accessing
- * the linux inode, we can reclaim the inode.
+ * the linux inode, we can inactivate and reclaim the inode.
  */
 STATIC void
 xfs_fs_destroy_inode(
@@ -938,9 +938,14 @@ xfs_fs_destroy_inode(
 
 	trace_xfs_destroy_inode(ip);
 
-	XFS_STATS_INC(ip->i_mount, vn_reclaim);
+	ASSERT(!rwsem_is_locked(&ip->i_iolock.mr_lock));
+	XFS_STATS_INC(ip->i_mount, vn_rele);
+	XFS_STATS_INC(ip->i_mount, vn_remove);
+
+	xfs_inactive(ip);
 
 	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || ip->i_delayed_blks == 0);
+	XFS_STATS_INC(ip->i_mount, vn_reclaim);
 
 	/*
 	 * We should never get here with one of the reclaim flags already set.
@@ -985,24 +990,6 @@ xfs_fs_inode_init_once(
 		     "xfsino", ip->i_ino);
 	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
 		     "xfsino", ip->i_ino);
-}
-
-STATIC void
-xfs_fs_evict_inode(
-	struct inode		*inode)
-{
-	xfs_inode_t		*ip = XFS_I(inode);
-
-	ASSERT(!rwsem_is_locked(&ip->i_iolock.mr_lock));
-
-	trace_xfs_evict_inode(ip);
-
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
-	XFS_STATS_INC(ip->i_mount, vn_rele);
-	XFS_STATS_INC(ip->i_mount, vn_remove);
-
-	xfs_inactive(ip);
 }
 
 /*
@@ -1663,7 +1650,6 @@ xfs_fs_free_cached_objects(
 static const struct super_operations xfs_super_operations = {
 	.alloc_inode		= xfs_fs_alloc_inode,
 	.destroy_inode		= xfs_fs_destroy_inode,
-	.evict_inode		= xfs_fs_evict_inode,
 	.drop_inode		= xfs_fs_drop_inode,
 	.put_super		= xfs_fs_put_super,
 	.sync_fs		= xfs_fs_sync_fs,
