@@ -402,9 +402,9 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 
 		/*
 		 * vmemmap_populate_hugepages() allocates the memmap array in
-		 * HPAGE_SIZE chunks.
+		 * PMD_SIZE chunks.
 		 */
-		memmap_size = ALIGN(64 * npfns, HPAGE_SIZE);
+		memmap_size = ALIGN(64 * npfns, PMD_SIZE);
 		offset = ALIGN(start + SZ_8K + memmap_size, nd_pfn->align)
 			- start;
 	} else if (nd_pfn->mode == PFN_MODE_RAM)
