@@ -233,6 +233,11 @@
 				prm_clockdomains: clockdomains {
 				};
 			};
+
+			scm_wkup: scm_conf@c000 {
+				compatible = "syscon";
+				reg = <0xc000 0x1000>;
+			};
 		};
 
 		axi@0 {
