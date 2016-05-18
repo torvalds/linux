@@ -320,7 +320,9 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 }
 
 static void amd_sched_free_job(struct fence *f, struct fence_cb *cb) {
-	struct amd_sched_job *job = container_of(cb, struct amd_sched_job, cb_free_job);
+	struct amd_sched_job *job = container_of(cb, struct amd_sched_job,
+						 cb_free_job);
+
 	schedule_work(&job->work_free_job);
 }
 
@@ -341,7 +343,8 @@ void amd_sched_job_finish(struct amd_sched_job *s_job)
 						struct amd_sched_job, node);
 
 		if (next) {
-			INIT_DELAYED_WORK(&next->work_tdr, s_job->timeout_callback);
+			INIT_DELAYED_WORK(&next->work_tdr,
+					  s_job->timeout_callback);
 			amd_sched_job_get(next);
 			schedule_delayed_work(&next->work_tdr, sched->timeout);
 		}
@@ -353,7 +356,8 @@ void amd_sched_job_begin(struct amd_sched_job *s_job)
 	struct amd_gpu_scheduler *sched = s_job->sched;
 
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT &&
-		list_first_entry_or_null(&sched->ring_mirror_list, struct amd_sched_job, node) == s_job)
+	    list_first_entry_or_null(&sched->ring_mirror_list,
+				     struct amd_sched_job, node) == s_job)
 	{
 		INIT_DELAYED_WORK(&s_job->work_tdr, s_job->timeout_callback);
 		amd_sched_job_get(s_job);
@@ -374,7 +378,7 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 
 	sched_job->use_sched = 1;
 	fence_add_callback(&sched_job->s_fence->base,
-					&sched_job->cb_free_job, amd_sched_free_job);
+			   &sched_job->cb_free_job, amd_sched_free_job);
 	trace_amd_sched_job(sched_job);
 	wait_event(entity->sched->job_scheduled,
 		   amd_sched_entity_in(sched_job));
@@ -382,11 +386,11 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 
 /* init a sched_job with basic field */
 int amd_sched_job_init(struct amd_sched_job *job,
-						struct amd_gpu_scheduler *sched,
-						struct amd_sched_entity *entity,
-						void (*timeout_cb)(struct work_struct *work),
-						void (*free_cb)(struct kref *refcount),
-						void *owner, struct fence **fence)
+		       struct amd_gpu_scheduler *sched,
+		       struct amd_sched_entity *entity,
+		       void (*timeout_cb)(struct work_struct *work),
+		       void (*free_cb)(struct kref *refcount),
+		       void *owner, struct fence **fence)
 {
 	INIT_LIST_HEAD(&job->node);
 	kref_init(&job->refcount);
@@ -504,7 +508,8 @@ static int amd_sched_main(void *param)
 			if (r == -ENOENT)
 				amd_sched_process_job(fence, &s_fence->cb);
 			else if (r)
-				DRM_ERROR("fence add callback failed (%d)\n", r);
+				DRM_ERROR("fence add callback failed (%d)\n",
+					  r);
 			fence_put(fence);
 		} else {
 			DRM_ERROR("Failed to run job!\n");
