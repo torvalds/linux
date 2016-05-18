@@ -983,9 +983,9 @@ static void twl6040_mute_path(struct snd_soc_codec *codec, enum twl6040_dai_id i
 		if (mute) {
 			/* Power down drivers and DACs */
 			hflctl &= ~(TWL6040_HFDACENA | TWL6040_HFPGAENA |
-				    TWL6040_HFDRVENA);
+				    TWL6040_HFDRVENA | TWL6040_HFSWENA);
 			hfrctl &= ~(TWL6040_HFDACENA | TWL6040_HFPGAENA |
-				    TWL6040_HFDRVENA);
+				    TWL6040_HFDRVENA | TWL6040_HFSWENA);
 		}
 
 		twl6040_reg_write(twl6040, TWL6040_REG_HFLCTL, hflctl);
