@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
@@ -152,14 +151,3 @@ static int __init rc5t583_gpio_init(void)
 	return platform_driver_register(&rc5t583_gpio_driver);
 }
 subsys_initcall(rc5t583_gpio_init);
-
-static void __exit rc5t583_gpio_exit(void)
-{
-	platform_driver_unregister(&rc5t583_gpio_driver);
-}
-module_exit(rc5t583_gpio_exit);
-
-MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_DESCRIPTION("GPIO interface for RC5T583");
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:rc5t583-gpio");
