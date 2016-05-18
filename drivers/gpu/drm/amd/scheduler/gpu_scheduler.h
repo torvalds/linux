@@ -82,7 +82,6 @@ struct amd_sched_job {
 	struct amd_gpu_scheduler        *sched;
 	struct amd_sched_entity         *s_entity;
 	struct amd_sched_fence          *s_fence;
-	bool	use_sched;	/* true if the job goes to scheduler */
 	struct fence_cb                cb_free_job;
 	struct work_struct             work_free_job;
 	struct list_head			   node;

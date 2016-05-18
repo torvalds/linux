@@ -373,7 +373,6 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 {
 	struct amd_sched_entity *entity = sched_job->s_entity;
 
-	sched_job->use_sched = 1;
 	fence_add_callback(&sched_job->s_fence->base,
 			   &sched_job->cb_free_job, amd_sched_free_job);
 	trace_amd_sched_job(sched_job);

@@ -86,7 +86,7 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 	return r;
 }
 
-void amdgpu_job_free(struct amdgpu_job *job)
+static void amdgpu_job_free_resources(struct amdgpu_job *job)
 {
 	struct fence *f;
 	unsigned i;
@@ -100,14 +100,17 @@ void amdgpu_job_free(struct amdgpu_job *job)
 
 	amdgpu_bo_unref(&job->uf_bo);
 	amdgpu_sync_free(&job->sync);
-
-	if (!job->base.use_sched)
-		kfree(job);
 }
 
 void amdgpu_job_free_func(struct kref *refcount)
 {
 	struct amdgpu_job *job = container_of(refcount, struct amdgpu_job, base.refcount);
+	kfree(job);
+}
+
+void amdgpu_job_free(struct amdgpu_job *job)
+{
+	amdgpu_job_free_resources(job);
 	kfree(job);
 }
 
@@ -187,7 +190,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 
 err:
 	job->fence = fence;
-	amdgpu_job_free(job);
+	amdgpu_job_free_resources(job);
 	return fence;
 }
 
