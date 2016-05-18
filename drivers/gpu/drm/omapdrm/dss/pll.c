@@ -207,6 +207,10 @@ bool dss_pll_hsdiv_calc_a(const struct dss_pll *pll, unsigned long clkdco,
 	return false;
 }
 
+/*
+ * clkdco = clkin / n * m * 2
+ * clkoutX = clkdco / mX
+ */
 bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 		unsigned long pll_min, unsigned long pll_max,
 		dss_pll_calc_func func, void *data)
@@ -252,6 +256,9 @@ bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
  * This calculates a PLL config that will provide the target_clkout rate
  * for clkout. Additionally clkdco rate will be the same as clkout rate
  * when clkout rate is >= min_clkdco.
+ *
+ * clkdco = clkin / n * m + clkin / n * mf / 262144
+ * clkout = clkdco / m2
  */
 bool dss_pll_calc_b(const struct dss_pll *pll, unsigned long clkin,
 	unsigned long target_clkout, struct dss_pll_clock_info *cinfo)
