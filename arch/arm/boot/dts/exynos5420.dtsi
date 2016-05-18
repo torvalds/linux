@@ -551,13 +551,13 @@
 		clock-names = "timers";
 	};
 
-	dp_phy: video-phy@10040728 {
+	dp_phy: dp-video-phy {
 		compatible = "samsung,exynos5420-dp-video-phy";
 		samsung,pmu-syscon = <&pmu_system_controller>;
 		#phy-cells = <0>;
 	};
 
-	mipi_phy: video-phy@10040714 {
+	mipi_phy: mipi-video-phy {
 		compatible = "samsung,s5pv210-mipi-video-phy";
 		syscon = <&pmu_system_controller>;
 		#phy-cells = <1>;
@@ -913,7 +913,7 @@
 		clock-names = "secss";
 	};
 
-	usbdrd3_0: usb@12000000 {
+	usbdrd3_0: usb3-0 {
 		compatible = "samsung,exynos5250-dwusb3";
 		clocks = <&clock CLK_USBD300>;
 		clock-names = "usbdrd30";
@@ -921,7 +921,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		usbdrd_dwc3_0: dwc3 {
+		usbdrd_dwc3_0: dwc3@12000000 {
 			compatible = "snps,dwc3";
 			reg = <0x12000000 0x10000>;
 			interrupts = <0 72 0>;
@@ -939,7 +939,7 @@
 		#phy-cells = <1>;
 	};
 
-	usbdrd3_1: usb@12400000 {
+	usbdrd3_1: usb3-1 {
 		compatible = "samsung,exynos5250-dwusb3";
 		clocks = <&clock CLK_USBD301>;
 		clock-names = "usbdrd30";
@@ -947,7 +947,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		usbdrd_dwc3_1: dwc3 {
+		usbdrd_dwc3_1: dwc3@12400000 {
 			compatible = "snps,dwc3";
 			reg = <0x12400000 0x10000>;
 			interrupts = <0 73 0>;
@@ -1199,6 +1199,7 @@
 };
 
 &fimd {
+	compatible = "samsung,exynos5420-fimd";
 	clocks = <&clock CLK_SCLK_FIMD1>, <&clock CLK_FIMD1>;
 	clock-names = "sclk_fimd", "fimd";
 	power-domains = <&disp_pd>;

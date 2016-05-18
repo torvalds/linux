@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  */
 &cm_clocks {
-	ssi_ssr_gate_fck_3430es2: ssi_ssr_gate_fck_3430es2 {
+	ssi_ssr_gate_fck_3430es2: ssi_ssr_gate_fck_3430es2@a00 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-no-wait-gate-clock";
 		clocks = <&corex2_fck>;
@@ -16,7 +16,7 @@
 		reg = <0x0a00>;
 	};
 
-	ssi_ssr_div_fck_3430es2: ssi_ssr_div_fck_3430es2 {
+	ssi_ssr_div_fck_3430es2: ssi_ssr_div_fck_3430es2@a40 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-divider-clock";
 		clocks = <&corex2_fck>;
@@ -39,7 +39,7 @@
 		clock-div = <2>;
 	};
 
-	hsotgusb_ick_3430es2: hsotgusb_ick_3430es2 {
+	hsotgusb_ick_3430es2: hsotgusb_ick_3430es2@a10 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-hsotgusb-interface-clock";
 		clocks = <&core_l3_ick>;
@@ -55,7 +55,7 @@
 		clock-div = <1>;
 	};
 
-	ssi_ick: ssi_ick_3430es2 {
+	ssi_ick: ssi_ick_3430es2@a10 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-ssi-interface-clock";
 		clocks = <&ssi_l4_ick>;
@@ -63,7 +63,7 @@
 		ti,bit-shift = <0>;
 	};
 
-	usim_gate_fck: usim_gate_fck {
+	usim_gate_fck: usim_gate_fck@c00 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-gate-clock";
 		clocks = <&omap_96m_fck>;
@@ -143,7 +143,7 @@
 		clock-div = <20>;
 	};
 
-	usim_mux_fck: usim_mux_fck {
+	usim_mux_fck: usim_mux_fck@c40 {
 		#clock-cells = <0>;
 		compatible = "ti,composite-mux-clock";
 		clocks = <&sys_ck>, <&sys_d2_ck>, <&omap_96m_d2_fck>, <&omap_96m_d4_fck>, <&omap_96m_d8_fck>, <&omap_96m_d10_fck>, <&dpll5_m2_d4_ck>, <&dpll5_m2_d8_ck>, <&dpll5_m2_d16_ck>, <&dpll5_m2_d20_ck>;
@@ -158,7 +158,7 @@
 		clocks = <&usim_gate_fck>, <&usim_mux_fck>;
 	};
 
-	usim_ick: usim_ick {
+	usim_ick: usim_ick@c10 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-interface-clock";
 		clocks = <&wkup_l4_ick>;

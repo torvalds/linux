@@ -72,6 +72,51 @@
 	status = "ok";
 };
 
+&ssp0 {
+	status = "ok";
+
+	slic@0 {
+		compatible = "silabs,si3226x";
+		reg = <0>;
+		spi-max-frequency = <5000000>;
+		spi-cpha = <1>;
+		spi-cpol = <1>;
+		pl022,hierarchy = <0>;
+		pl022,interface = <0>;
+		pl022,slave-tx-disable = <0>;
+		pl022,com-mode = <0>;
+		pl022,rx-level-trig = <1>;
+		pl022,tx-level-trig = <1>;
+		pl022,ctrl-len = <11>;
+		pl022,wait-state = <0>;
+		pl022,duplex = <0>;
+	};
+};
+
+&ssp1 {
+	status = "ok";
+
+	at25@0 {
+		compatible = "atmel,at25";
+		reg = <0>;
+		spi-max-frequency = <5000000>;
+		at25,byte-len = <0x8000>;
+		at25,addr-mode = <2>;
+		at25,page-size = <64>;
+		spi-cpha = <1>;
+		spi-cpol = <1>;
+		pl022,hierarchy = <0>;
+		pl022,interface = <0>;
+		pl022,slave-tx-disable = <0>;
+		pl022,com-mode = <0>;
+		pl022,rx-level-trig = <1>;
+		pl022,tx-level-trig = <1>;
+		pl022,ctrl-len = <11>;
+		pl022,wait-state = <0>;
+		pl022,duplex = <0>;
+	};
+};
+
 &sdio0 {
 	status = "ok";
 };

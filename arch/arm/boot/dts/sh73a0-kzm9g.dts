@@ -149,6 +149,13 @@
 			label = "SW1";
 			wakeup-source;
 		};
+
+		wakeup-key {
+			gpios = <&pfc 159 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WAKEUP>;
+			label = "NMI";
+			wakeup-source;
+		};
 	};
 
 	sound {
@@ -329,41 +336,41 @@
 
 &pfc {
 	i2c3_pins: i2c3 {
-		renesas,groups = "i2c3_1";
-		renesas,function = "i2c3";
+		groups = "i2c3_1";
+		function = "i2c3";
 	};
 
 	mmcif_pins: mmc {
 		mux {
-			renesas,groups = "mmc0_data8_0", "mmc0_ctrl_0";
-			renesas,function = "mmc0";
+			groups = "mmc0_data8_0", "mmc0_ctrl_0";
+			function = "mmc0";
 		};
 		cfg {
-			renesas,groups = "mmc0_data8_0";
-			renesas,pins = "PORT279";
+			groups = "mmc0_data8_0";
+			pins = "PORT279";
 			bias-pull-up;
 		};
 	};
 
 	scifa4_pins: serial4 {
-		renesas,groups = "scifa4_data", "scifa4_ctrl";
-		renesas,function = "scifa4";
+		groups = "scifa4_data", "scifa4_ctrl";
+		function = "scifa4";
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd", "sdhi0_wp";
-		renesas,function = "sdhi0";
+		groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd", "sdhi0_wp";
+		function = "sdhi0";
 	};
 
 	sdhi2_pins: sd2 {
-		renesas,groups = "sdhi2_data4", "sdhi2_ctrl";
-		renesas,function = "sdhi2";
+		groups = "sdhi2_data4", "sdhi2_ctrl";
+		function = "sdhi2";
 	};
 
 	fsia_pins: sounda {
-		renesas,groups = "fsia_mclk_in", "fsia_sclk_in",
-				 "fsia_data_in", "fsia_data_out";
-		renesas,function = "fsia";
+		groups = "fsia_mclk_in", "fsia_sclk_in",
+			 "fsia_data_in", "fsia_data_out";
+		function = "fsia";
 	};
 };
 

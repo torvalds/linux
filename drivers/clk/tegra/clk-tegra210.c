@@ -175,6 +175,19 @@
 #define UTMIP_PLL_CFG1_FORCE_PLL_ENABLE_POWERDOWN BIT(14)
 #define UTMIP_PLL_CFG1_FORCE_PLL_ACTIVE_POWERDOWN BIT(12)
 
+#define SATA_PLL_CFG0				0x490
+#define SATA_PLL_CFG0_PADPLL_RESET_SWCTL	BIT(0)
+#define SATA_PLL_CFG0_PADPLL_USE_LOCKDET	BIT(2)
+#define SATA_PLL_CFG0_PADPLL_SLEEP_IDDQ		BIT(13)
+#define SATA_PLL_CFG0_SEQ_ENABLE		BIT(24)
+
+#define XUSBIO_PLL_CFG0				0x51c
+#define XUSBIO_PLL_CFG0_PADPLL_RESET_SWCTL	BIT(0)
+#define XUSBIO_PLL_CFG0_CLK_ENABLE_SWCTL	BIT(2)
+#define XUSBIO_PLL_CFG0_PADPLL_USE_LOCKDET	BIT(6)
+#define XUSBIO_PLL_CFG0_PADPLL_SLEEP_IDDQ	BIT(13)
+#define XUSBIO_PLL_CFG0_SEQ_ENABLE		BIT(24)
+
 #define UTMIPLL_HW_PWRDN_CFG0			0x52c
 #define UTMIPLL_HW_PWRDN_CFG0_UTMIPLL_LOCK	BIT(31)
 #define UTMIPLL_HW_PWRDN_CFG0_SEQ_START_STATE	BIT(25)
@@ -415,6 +428,51 @@ static const char *mux_pllmcp_clkm[] = {
 
 #define PLLU_MISC0_WRITE_MASK		0xbfffffff
 #define PLLU_MISC1_WRITE_MASK		0x00000007
+
+void tegra210_xusb_pll_hw_control_enable(void)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + XUSBIO_PLL_CFG0);
+	val &= ~(XUSBIO_PLL_CFG0_CLK_ENABLE_SWCTL |
+		 XUSBIO_PLL_CFG0_PADPLL_RESET_SWCTL);
+	val |= XUSBIO_PLL_CFG0_PADPLL_USE_LOCKDET |
+	       XUSBIO_PLL_CFG0_PADPLL_SLEEP_IDDQ;
+	writel_relaxed(val, clk_base + XUSBIO_PLL_CFG0);
+}
+EXPORT_SYMBOL_GPL(tegra210_xusb_pll_hw_control_enable);
+
+void tegra210_xusb_pll_hw_sequence_start(void)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + XUSBIO_PLL_CFG0);
+	val |= XUSBIO_PLL_CFG0_SEQ_ENABLE;
+	writel_relaxed(val, clk_base + XUSBIO_PLL_CFG0);
+}
+EXPORT_SYMBOL_GPL(tegra210_xusb_pll_hw_sequence_start);
+
+void tegra210_sata_pll_hw_control_enable(void)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + SATA_PLL_CFG0);
+	val &= ~SATA_PLL_CFG0_PADPLL_RESET_SWCTL;
+	val |= SATA_PLL_CFG0_PADPLL_USE_LOCKDET |
+	       SATA_PLL_CFG0_PADPLL_SLEEP_IDDQ;
+	writel_relaxed(val, clk_base + SATA_PLL_CFG0);
+}
+EXPORT_SYMBOL_GPL(tegra210_sata_pll_hw_control_enable);
+
+void tegra210_sata_pll_hw_sequence_start(void)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + SATA_PLL_CFG0);
+	val |= SATA_PLL_CFG0_SEQ_ENABLE;
+	writel_relaxed(val, clk_base + SATA_PLL_CFG0);
+}
+EXPORT_SYMBOL_GPL(tegra210_sata_pll_hw_sequence_start);
 
 static inline void _pll_misc_chk_default(void __iomem *base,
 					struct tegra_clk_pll_params *params,

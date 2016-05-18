@@ -40,6 +40,11 @@
  */
 
 / {
+	aliases {
+		ethernet0 = &fec1;
+		ethernet1 = &fec0;
+	};
+
 	bl: backlight {
 		compatible = "pwm-backlight";
 		pinctrl-names = "default";
@@ -125,8 +130,6 @@
 };
 
 &nfc {
-	assigned-clocks = <&clks VF610_CLK_NFC>;
-	assigned-clock-rates = <33000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_nfc>;
 	status = "okay";

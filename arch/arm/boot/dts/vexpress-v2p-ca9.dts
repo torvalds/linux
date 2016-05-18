@@ -190,7 +190,7 @@
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-		osc@0 {
+		oscclk0: extsaxiclk {
 			/* ACLK clock to the AXI master port on the test chip */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 0>;
@@ -199,7 +199,7 @@
 			clock-output-names = "extsaxiclk";
 		};
 
-		oscclk1: osc@1 {
+		oscclk1: clcdclk {
 			/* Reference clock for the CLCD */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 1>;
@@ -208,7 +208,7 @@
 			clock-output-names = "clcdclk";
 		};
 
-		smbclk: oscclk2: osc@2 {
+		smbclk: oscclk2: tcrefclk {
 			/* Reference clock for the test chip internal PLLs */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 2>;
@@ -217,7 +217,7 @@
 			clock-output-names = "tcrefclk";
 		};
 
-		volt@0 {
+		volt-vd10 {
 			/* Test Chip internal logic voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 0>;
@@ -226,7 +226,7 @@
 			label = "VD10";
 		};
 
-		volt@1 {
+		volt-vd10-s2 {
 			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 1>;
@@ -235,7 +235,7 @@
 			label = "VD10_S2";
 		};
 
-		volt@2 {
+		volt-vd10-s3 {
 			/* Cortex-A9 system supply, Cores, MPEs, SCU and PL310 logic */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 2>;
@@ -244,7 +244,7 @@
 			label = "VD10_S3";
 		};
 
-		volt@3 {
+		volt-vcc1v8 {
 			/* DDR2 SDRAM and Test Chip DDR2 I/O supply */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 3>;
@@ -253,7 +253,7 @@
 			label = "VCC1V8";
 		};
 
-		volt@4 {
+		volt-ddr2vtt {
 			/* DDR2 SDRAM VTT termination voltage */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 4>;
@@ -262,7 +262,7 @@
 			label = "DDR2VTT";
 		};
 
-		volt@5 {
+		volt-vcc3v3 {
 			/* Local board supply for miscellaneous logic external to the Test Chip */
 			arm,vexpress-sysreg,func = <2 5>;
 			compatible = "arm,vexpress-volt";
@@ -271,28 +271,28 @@
 			label = "VCC3V3";
 		};
 
-		amp@0 {
+		amp-vd10-s2 {
 			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 0>;
 			label = "VD10_S2";
 		};
 
-		amp@1 {
+		amp-vd10-s3 {
 			/* Cortex-A9 system supply, Cores, MPEs, SCU and PL310 logic */
 			compatible = "arm,vexpress-amp";
 			arm,vexpress-sysreg,func = <3 1>;
 			label = "VD10_S3";
 		};
 
-		power@0 {
+		power-vd10-s2 {
 			/* PL310, L2 cache, RAM cell supply (not PL310 logic) */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 0>;
 			label = "PVD10_S2";
 		};
 
-		power@1 {
+		power-vd10-s3 {
 			/* Cortex-A9 system supply, Cores, MPEs, SCU and PL310 logic */
 			compatible = "arm,vexpress-power";
 			arm,vexpress-sysreg,func = <12 1>;
@@ -300,7 +300,7 @@
 		};
 	};
 
-	smb {
+	smb@04000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;
@@ -358,5 +358,18 @@
 				<0 0 42 &gic 0 42 4>;
 
 		/include/ "vexpress-v2m.dtsi"
+	};
+
+	site2: hsb@e0000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xe0000000 0x20000000>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 3>;
+		interrupt-map = <0 0 &gic 0 36 4>,
+				<0 1 &gic 0 37 4>,
+				<0 2 &gic 0 38 4>,
+				<0 3 &gic 0 39 4>;
 	};
 };
