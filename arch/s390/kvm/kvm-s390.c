@@ -36,6 +36,8 @@
 #include <asm/switch_to.h>
 #include <asm/isc.h>
 #include <asm/sclp.h>
+#include <asm/cpacf.h>
+#include <asm/etr.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -135,6 +137,8 @@ unsigned long kvm_s390_fac_list_mask_size(void)
 
 /* available cpu features supported by kvm */
 static DECLARE_BITMAP(kvm_s390_available_cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
+/* available subfunctions indicated via query / "test bit" */
+static struct kvm_s390_vm_cpu_subfunc kvm_s390_available_subfunc;
 
 static struct gmap_notifier gmap_notifier;
 debug_info_t *kvm_s390_dbf;
@@ -198,8 +202,52 @@ static void allow_cpu_feat(unsigned long nr)
 	set_bit_inv(nr, kvm_s390_available_cpu_feat);
 }
 
+static inline int plo_test_bit(unsigned char nr)
+{
+	register unsigned long r0 asm("0") = (unsigned long) nr | 0x100;
+	int cc = 3; /* subfunction not available */
+
+	asm volatile(
+		/* Parameter registers are ignored for "test bit" */
+		"	plo	0,0,0,0(0)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		: "=d" (cc)
+		: "d" (r0)
+		: "cc");
+	return cc == 0;
+}
+
 static void kvm_s390_cpu_feat_init(void)
 {
+	int i;
+
+	for (i = 0; i < 256; ++i) {
+		if (plo_test_bit(i))
+			kvm_s390_available_subfunc.plo[i >> 3] |= 0x80 >> (i & 7);
+	}
+
+	if (test_facility(28)) /* TOD-clock steering */
+		etr_ptff(kvm_s390_available_subfunc.ptff, ETR_PTFF_QAF);
+
+	if (test_facility(17)) { /* MSA */
+		__cpacf_query(CPACF_KMAC, kvm_s390_available_subfunc.kmac);
+		__cpacf_query(CPACF_KMC, kvm_s390_available_subfunc.kmc);
+		__cpacf_query(CPACF_KM, kvm_s390_available_subfunc.km);
+		__cpacf_query(CPACF_KIMD, kvm_s390_available_subfunc.kimd);
+		__cpacf_query(CPACF_KLMD, kvm_s390_available_subfunc.klmd);
+	}
+	if (test_facility(76)) /* MSA3 */
+		__cpacf_query(CPACF_PCKMO, kvm_s390_available_subfunc.pckmo);
+	if (test_facility(77)) { /* MSA4 */
+		__cpacf_query(CPACF_KMCTR, kvm_s390_available_subfunc.kmctr);
+		__cpacf_query(CPACF_KMF, kvm_s390_available_subfunc.kmf);
+		__cpacf_query(CPACF_KMO, kvm_s390_available_subfunc.kmo);
+		__cpacf_query(CPACF_PCC, kvm_s390_available_subfunc.pcc);
+	}
+	if (test_facility(57)) /* MSA5 */
+		__cpacf_query(CPACF_PPNO, kvm_s390_available_subfunc.ppno);
+
 	if (MACHINE_HAS_ESOP)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);
 }
@@ -717,6 +765,16 @@ static int kvm_s390_set_processor_feat(struct kvm *kvm,
 	return ret;
 }
 
+static int kvm_s390_set_processor_subfunc(struct kvm *kvm,
+					  struct kvm_device_attr *attr)
+{
+	/*
+	 * Once supported by kernel + hw, we have to store the subfunctions
+	 * in kvm->arch and remember that user space configured them.
+	 */
+	return -ENXIO;
+}
+
 static int kvm_s390_set_cpu_model(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	int ret = -ENXIO;
@@ -727,6 +785,9 @@ static int kvm_s390_set_cpu_model(struct kvm *kvm, struct kvm_device_attr *attr)
 		break;
 	case KVM_S390_VM_CPU_PROCESSOR_FEAT:
 		ret = kvm_s390_set_processor_feat(kvm, attr);
+		break;
+	case KVM_S390_VM_CPU_PROCESSOR_SUBFUNC:
+		ret = kvm_s390_set_processor_subfunc(kvm, attr);
 		break;
 	}
 	return ret;
@@ -801,6 +862,25 @@ static int kvm_s390_get_machine_feat(struct kvm *kvm,
 	return 0;
 }
 
+static int kvm_s390_get_processor_subfunc(struct kvm *kvm,
+					  struct kvm_device_attr *attr)
+{
+	/*
+	 * Once we can actually configure subfunctions (kernel + hw support),
+	 * we have to check if they were already set by user space, if so copy
+	 * them from kvm->arch.
+	 */
+	return -ENXIO;
+}
+
+static int kvm_s390_get_machine_subfunc(struct kvm *kvm,
+					struct kvm_device_attr *attr)
+{
+	if (copy_to_user((void __user *)attr->addr, &kvm_s390_available_subfunc,
+	    sizeof(struct kvm_s390_vm_cpu_subfunc)))
+		return -EFAULT;
+	return 0;
+}
 static int kvm_s390_get_cpu_model(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	int ret = -ENXIO;
@@ -817,6 +897,12 @@ static int kvm_s390_get_cpu_model(struct kvm *kvm, struct kvm_device_attr *attr)
 		break;
 	case KVM_S390_VM_CPU_MACHINE_FEAT:
 		ret = kvm_s390_get_machine_feat(kvm, attr);
+		break;
+	case KVM_S390_VM_CPU_PROCESSOR_SUBFUNC:
+		ret = kvm_s390_get_processor_subfunc(kvm, attr);
+		break;
+	case KVM_S390_VM_CPU_MACHINE_SUBFUNC:
+		ret = kvm_s390_get_machine_subfunc(kvm, attr);
 		break;
 	}
 	return ret;
@@ -903,8 +989,11 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		case KVM_S390_VM_CPU_MACHINE:
 		case KVM_S390_VM_CPU_PROCESSOR_FEAT:
 		case KVM_S390_VM_CPU_MACHINE_FEAT:
+		case KVM_S390_VM_CPU_MACHINE_SUBFUNC:
 			ret = 0;
 			break;
+		/* configuring subfunctions is not supported yet */
+		case KVM_S390_VM_CPU_PROCESSOR_SUBFUNC:
 		default:
 			ret = -ENXIO;
 			break;

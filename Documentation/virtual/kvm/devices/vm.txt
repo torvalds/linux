@@ -112,6 +112,63 @@ Returns:    -EFAULT if the given address is not accessible from kernel space.
 	    -EBUSY if at least one VCPU has already been defined.
 	    0 in case of success.
 
+2.5. ATTRIBUTE: KVM_S390_VM_CPU_MACHINE_SUBFUNC (r/o)
+
+Allows user space to retrieve available cpu subfunctions without any filtering
+done by a set IBC. These subfunctions are indicated to the guest VCPU via
+query or "test bit" subfunctions and used e.g. by cpacf functions, plo and ptff.
+
+A subfunction block is only valid if KVM_S390_VM_CPU_MACHINE contains the
+STFL(E) bit introducing the affected instruction. If the affected instruction
+indicates subfunctions via a "query subfunction", the response block is
+contained in the returned struct. If the affected instruction
+indicates subfunctions via a "test bit" mechanism, the subfunction codes are
+contained in the returned struct in MSB 0 bit numbering.
+
+struct kvm_s390_vm_cpu_subfunc {
+       u8 plo[32];           # always valid (ESA/390 feature)
+       u8 ptff[16];          # valid with TOD-clock steering
+       u8 kmac[16];          # valid with Message-Security-Assist
+       u8 kmc[16];           # valid with Message-Security-Assist
+       u8 km[16];            # valid with Message-Security-Assist
+       u8 kimd[16];          # valid with Message-Security-Assist
+       u8 klmd[16];          # valid with Message-Security-Assist
+       u8 pckmo[16];         # valid with Message-Security-Assist-Extension 3
+       u8 kmctr[16];         # valid with Message-Security-Assist-Extension 4
+       u8 kmf[16];           # valid with Message-Security-Assist-Extension 4
+       u8 kmo[16];           # valid with Message-Security-Assist-Extension 4
+       u8 pcc[16];           # valid with Message-Security-Assist-Extension 4
+       u8 ppno[16];          # valid with Message-Security-Assist-Extension 5
+       u8 reserved[1824];    # reserved for future instructions
+};
+
+Parameters: address of a buffer to load the subfunction blocks from.
+Returns:    -EFAULT if the given address is not accessible from kernel space.
+	    0 in case of success.
+
+2.6. ATTRIBUTE: KVM_S390_VM_CPU_PROCESSOR_SUBFUNC (r/w)
+
+Allows user space to retrieve or change cpu subfunctions to be indicated for
+all VCPUs of a VM. This attribute will only be available if kernel and
+hardware support are in place.
+
+The kernel uses the configured subfunction blocks for indication to
+the guest. A subfunction block will only be used if the associated STFL(E) bit
+has not been disabled by user space (so the instruction to be queried is
+actually available for the guest).
+
+As long as no data has been written, a read will fail. The IBC will be used
+to determine available subfunctions in this case, this will guarantee backward
+compatibility.
+
+See 2.5. for a description of the parameter struct.
+
+Parameters: address of a buffer to store/load the subfunction blocks from.
+Returns:    -EFAULT if the given address is not accessible from kernel space.
+	    -EINVAL when reading, if there was no write yet.
+	    -EBUSY if at least one VCPU has already been defined.
+	    0 in case of success.
+
 3. GROUP: KVM_S390_VM_TOD
 Architectures: s390
 
