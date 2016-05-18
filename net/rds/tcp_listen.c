@@ -132,11 +132,13 @@ int rds_tcp_accept_one(struct socket *sock)
 		 * so we must quiesce any send threads before resetting
 		 * c_transport_data.
 		 */
-		wait_event(conn->c_waitq,
-			   !test_bit(RDS_IN_XMIT, &conn->c_flags));
-		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr)) {
+		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr) ||
+		    !conn->c_outgoing) {
 			goto rst_nsk;
-		} else if (rs_tcp->t_sock) {
+		} else {
+			atomic_set(&conn->c_state, RDS_CONN_CONNECTING);
+			wait_event(conn->c_waitq,
+				   !test_bit(RDS_IN_XMIT, &conn->c_flags));
 			rds_tcp_restore_callbacks(rs_tcp->t_sock, rs_tcp);
 			conn->c_outgoing = 0;
 		}
