@@ -326,6 +326,8 @@ uint32_t udf_get_pblock_meta25(struct super_block *sb, uint32_t block,
 		if (!(mdata->s_flags & MF_MIRROR_FE_LOADED)) {
 			mdata->s_mirror_fe = udf_find_metadata_inode_efe(sb,
 				mdata->s_mirror_file_loc, map->s_partition_num);
+			if (IS_ERR(mdata->s_mirror_fe))
+				mdata->s_mirror_fe = NULL;
 			mdata->s_flags |= MF_MIRROR_FE_LOADED;
 		}
 
