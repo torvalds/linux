@@ -52,11 +52,13 @@ enum nfit_uuids {
 	NFIT_UUID_MAX,
 };
 
-enum nfit_fic {
-	NFIT_FIC_BYTE = 0x101, /* byte-addressable energy backed */
-	NFIT_FIC_BLK = 0x201, /* block-addressable non-energy backed */
-	NFIT_FIC_BYTEN = 0x301, /* byte-addressable non-energy backed */
-};
+/*
+ * Region format interface codes are stored as an array of bytes in the
+ * NFIT DIMM Control Region structure
+ */
+#define NFIT_FIC_BYTE cpu_to_be16(0x101) /* byte-addressable energy backed */
+#define NFIT_FIC_BLK cpu_to_be16(0x201) /* block-addressable non-energy backed */
+#define NFIT_FIC_BYTEN cpu_to_be16(0x301) /* byte-addressable non-energy backed */
 
 enum {
 	NFIT_BLK_READ_FLUSH = 1,

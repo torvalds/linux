@@ -175,7 +175,14 @@ void acpi_ut_strlwr(char *src_string);
 
 int acpi_ut_stricmp(char *string1, char *string2);
 
-acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
+acpi_status
+acpi_ut_strtoul64(char *string,
+		  u32 base, u32 max_integer_byte_width, u64 *ret_integer);
+
+/* Values for max_integer_byte_width above */
+
+#define ACPI_MAX32_BYTE_WIDTH       4
+#define ACPI_MAX64_BYTE_WIDTH       8
 
 /*
  * utglobal - Global data structures and procedures
@@ -266,7 +273,8 @@ acpi_ut_trace(u32 line_number,
 void
 acpi_ut_trace_ptr(u32 line_number,
 		  const char *function_name,
-		  const char *module_name, u32 component_id, void *pointer);
+		  const char *module_name,
+		  u32 component_id, const void *pointer);
 
 void
 acpi_ut_trace_u32(u32 line_number,
@@ -276,7 +284,8 @@ acpi_ut_trace_u32(u32 line_number,
 void
 acpi_ut_trace_str(u32 line_number,
 		  const char *function_name,
-		  const char *module_name, u32 component_id, char *string);
+		  const char *module_name,
+		  u32 component_id, const char *string);
 
 void
 acpi_ut_exit(u32 line_number,
@@ -335,12 +344,12 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list);
  */
 acpi_status
 acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
-			char *path,
+			const char *path,
 			u32 expected_return_btypes,
 			union acpi_operand_object **return_desc);
 
 acpi_status
-acpi_ut_evaluate_numeric_object(char *object_name,
+acpi_ut_evaluate_numeric_object(const char *object_name,
 				struct acpi_namespace_node *device_node,
 				u64 *value);
 
@@ -526,7 +535,7 @@ void acpi_ut_set_integer_width(u8 revision);
 void
 acpi_ut_display_init_pathname(u8 type,
 			      struct acpi_namespace_node *obj_handle,
-			      char *path);
+			      const char *path);
 #endif
 
 /*
@@ -628,7 +637,7 @@ void acpi_ut_dump_allocation_info(void);
 void acpi_ut_dump_allocations(u32 component, const char *module);
 
 acpi_status
-acpi_ut_create_list(char *list_name,
+acpi_ut_create_list(const char *list_name,
 		    u16 object_size, struct acpi_memory_list **return_cache);
 
 #endif				/* ACPI_DBG_TRACK_ALLOCATIONS */

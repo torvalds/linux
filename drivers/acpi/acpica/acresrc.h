@@ -124,7 +124,7 @@ typedef enum {
 typedef const struct acpi_rsdump_info {
 	u8 opcode;
 	u8 offset;
-	char *name;
+	const char *name;
 	const char **pointer;
 
 } acpi_rsdump_info;
@@ -209,7 +209,7 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 
 acpi_status
 acpi_rs_get_method_data(acpi_handle handle,
-			char *path, struct acpi_buffer *ret_buffer);
+			const char *path, struct acpi_buffer *ret_buffer);
 
 acpi_status
 acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,

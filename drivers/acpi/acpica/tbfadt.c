@@ -53,7 +53,7 @@ static void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 			     u8 space_id,
 			     u8 byte_width,
-			     u64 address, char *register_name, u8 flags);
+			     u64 address, const char *register_name, u8 flags);
 
 static void acpi_tb_convert_fadt(void);
 
@@ -65,7 +65,7 @@ acpi_tb_select_address(char *register_name, u32 address32, u64 address64);
 /* Table for conversion of FADT to common internal format and FADT validation */
 
 typedef struct acpi_fadt_info {
-	char *name;
+	const char *name;
 	u16 address64;
 	u16 address32;
 	u16 length;
@@ -192,7 +192,7 @@ static void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 			     u8 space_id,
 			     u8 byte_width,
-			     u64 address, char *register_name, u8 flags)
+			     u64 address, const char *register_name, u8 flags)
 {
 	u8 bit_width;
 
@@ -385,14 +385,15 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 {
 	/*
 	 * Check if the FADT is larger than the largest table that we expect
-	 * (the ACPI 5.0 version). If so, truncate the table, and issue
-	 * a warning.
+	 * (typically the current ACPI specification version). If so, truncate
+	 * the table, and issue a warning.
 	 */
 	if (length > sizeof(struct acpi_table_fadt)) {
 		ACPI_BIOS_WARNING((AE_INFO,
-				   "FADT (revision %u) is longer than ACPI 5.0 version, "
+				   "FADT (revision %u) is longer than %s length, "
 				   "truncating length %u to %u",
-				   table->revision, length,
+				   table->revision, ACPI_FADT_CONFORMANCE,
+				   length,
 				   (u32)sizeof(struct acpi_table_fadt)));
 	}
 
@@ -467,7 +468,7 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 
 static void acpi_tb_convert_fadt(void)
 {
-	char *name;
+	const char *name;
 	struct acpi_generic_address *address64;
 	u32 address32;
 	u8 length;
@@ -646,9 +647,12 @@ static void acpi_tb_convert_fadt(void)
 			if ((address64->address && !length) ||
 			    (!address64->address && length)) {
 				ACPI_BIOS_WARNING((AE_INFO,
-						   "Optional FADT field %s has zero address or length: "
-						   "0x%8.8X%8.8X/0x%X",
-						   name,
+						   "Optional FADT field %s has valid %s but zero %s: "
+						   "0x%8.8X%8.8X/0x%X", name,
+						   (length ? "Length" :
+						    "Address"),
+						   (length ? "Address" :
+						    "Length"),
 						   ACPI_FORMAT_UINT64
 						   (address64->address),
 						   length));

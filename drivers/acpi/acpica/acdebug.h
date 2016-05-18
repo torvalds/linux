@@ -53,7 +53,7 @@
 #define ACPI_DEBUG_BUFFER_SIZE  0x4000	/* 16K buffer for return objects */
 
 struct acpi_db_command_info {
-	char *name;		/* Command Name */
+	const char *name;	/* Command Name */
 	u8 min_args;		/* Minimum arguments required */
 };
 
@@ -64,7 +64,7 @@ struct acpi_db_command_help {
 };
 
 struct acpi_db_argument_info {
-	char *name;		/* Argument Name */
+	const char *name;	/* Argument Name */
 };
 
 struct acpi_db_execute_walk {

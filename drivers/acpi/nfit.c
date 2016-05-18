@@ -861,7 +861,7 @@ static ssize_t vendor_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "%#x\n", dcr->vendor_id);
+	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->vendor_id));
 }
 static DEVICE_ATTR_RO(vendor);
 
@@ -870,7 +870,7 @@ static ssize_t rev_id_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "%#x\n", dcr->revision_id);
+	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->revision_id));
 }
 static DEVICE_ATTR_RO(rev_id);
 
@@ -879,9 +879,37 @@ static ssize_t device_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "%#x\n", dcr->device_id);
+	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->device_id));
 }
 static DEVICE_ATTR_RO(device);
+
+static ssize_t subsystem_vendor_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->subsystem_vendor_id));
+}
+static DEVICE_ATTR_RO(subsystem_vendor);
+
+static ssize_t subsystem_rev_id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	return sprintf(buf, "0x%04x\n",
+			be16_to_cpu(dcr->subsystem_revision_id));
+}
+static DEVICE_ATTR_RO(subsystem_rev_id);
+
+static ssize_t subsystem_device_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->subsystem_device_id));
+}
+static DEVICE_ATTR_RO(subsystem_device);
 
 static int num_nvdimm_formats(struct nvdimm *nvdimm)
 {
@@ -900,7 +928,7 @@ static ssize_t format_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "%#x\n", dcr->code);
+	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->code));
 }
 static DEVICE_ATTR_RO(format);
 
@@ -933,7 +961,8 @@ static ssize_t format1_show(struct device *dev,
 				continue;
 			if (nfit_dcr->dcr->code == dcr->code)
 				continue;
-			rc = sprintf(buf, "%#x\n", nfit_dcr->dcr->code);
+			rc = sprintf(buf, "%#x\n",
+					be16_to_cpu(nfit_dcr->dcr->code));
 			break;
 		}
 		if (rc != ENXIO)
@@ -958,7 +987,7 @@ static ssize_t serial_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "%#x\n", dcr->serial_number);
+	return sprintf(buf, "0x%08x\n", be32_to_cpu(dcr->serial_number));
 }
 static DEVICE_ATTR_RO(serial);
 
@@ -1000,17 +1029,39 @@ static ssize_t flags_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(flags);
 
+static ssize_t id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	if (dcr->valid_fields & ACPI_NFIT_CONTROL_MFG_INFO_VALID)
+		return sprintf(buf, "%04x-%02x-%04x-%08x\n",
+				be16_to_cpu(dcr->vendor_id),
+				dcr->manufacturing_location,
+				be16_to_cpu(dcr->manufacturing_date),
+				be32_to_cpu(dcr->serial_number));
+	else
+		return sprintf(buf, "%04x-%08x\n",
+				be16_to_cpu(dcr->vendor_id),
+				be32_to_cpu(dcr->serial_number));
+}
+static DEVICE_ATTR_RO(id);
+
 static struct attribute *acpi_nfit_dimm_attributes[] = {
 	&dev_attr_handle.attr,
 	&dev_attr_phys_id.attr,
 	&dev_attr_vendor.attr,
 	&dev_attr_device.attr,
+	&dev_attr_rev_id.attr,
+	&dev_attr_subsystem_vendor.attr,
+	&dev_attr_subsystem_device.attr,
+	&dev_attr_subsystem_rev_id.attr,
 	&dev_attr_format.attr,
 	&dev_attr_formats.attr,
 	&dev_attr_format1.attr,
 	&dev_attr_serial.attr,
-	&dev_attr_rev_id.attr,
 	&dev_attr_flags.attr,
+	&dev_attr_id.attr,
 	&dev_attr_family.attr,
 	&dev_attr_dsm_mask.attr,
 	NULL,

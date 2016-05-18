@@ -630,7 +630,8 @@ typedef u64 acpi_integer;
 #define ACPI_NOTIFY_SHUTDOWN_REQUEST    (u8) 0x0C
 #define ACPI_NOTIFY_AFFINITY_UPDATE     (u8) 0x0D
 
-#define ACPI_NOTIFY_MAX                 0x0D
+#define ACPI_GENERIC_NOTIFY_MAX         0x0D
+#define ACPI_SPECIFIC_NOTIFY_MAX        0x84
 
 /*
  * Types associated with ACPI names and objects. The first group of
@@ -994,7 +995,7 @@ struct acpi_buffer {
  * Predefined Namespace items
  */
 struct acpi_predefined_names {
-	char *name;
+	const char *name;
 	u8 type;
 	char *val;
 };
@@ -1227,7 +1228,7 @@ struct acpi_mem_space_context {
  * struct acpi_memory_list is used only if the ACPICA local cache is enabled
  */
 struct acpi_memory_list {
-	char *list_name;
+	const char *list_name;
 	void *list_head;
 	u16 object_size;
 	u16 max_depth;
