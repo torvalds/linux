@@ -1926,17 +1926,17 @@ static void __exit exit_f2fs_fs(void)
 {
 	remove_proc_entry("fs/f2fs", NULL);
 	f2fs_destroy_root_stats();
-	unregister_shrinker(&f2fs_shrinker_info);
 	unregister_filesystem(&f2fs_fs_type);
+	unregister_shrinker(&f2fs_shrinker_info);
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	kobject_put(&f2fs_fault_inject);
+#endif
+	kset_unregister(f2fs_kset);
 	destroy_extent_cache();
 	destroy_checkpoint_caches();
 	destroy_segment_manager_caches();
 	destroy_node_manager_caches();
 	destroy_inodecache();
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	kobject_put(&f2fs_fault_inject);
-#endif
-	kset_unregister(f2fs_kset);
 	f2fs_destroy_trace_ios();
 }
 
