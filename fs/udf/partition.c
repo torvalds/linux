@@ -317,8 +317,9 @@ uint32_t udf_get_pblock_meta25(struct super_block *sb, uint32_t block,
 	mdata = &map->s_type_specific.s_metadata;
 	inode = mdata->s_metadata_fe ? : mdata->s_mirror_fe;
 
-	/* We shouldn't mount such media... */
-	BUG_ON(!inode);
+	if (!inode)
+		return 0xFFFFFFFF;
+
 	retblk = udf_try_read_meta(inode, block, partition, offset);
 	if (retblk == 0xFFFFFFFF && mdata->s_metadata_fe) {
 		udf_warn(sb, "error reading from METADATA, trying to read from MIRROR\n");
