@@ -949,12 +949,15 @@ F:	drivers/clk/sunxi/
 
 ARM/Amlogic Meson SoC support
 M:	Carlo Caione <carlo@caione.org>
+M:	Kevin Hilman <khilman@baylibre.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-L:	linux-meson@googlegroups.com
+L:	linux-amlogic@lists.infradead.org
 W:	http://linux-meson.com/
 S:	Maintained
 F:	arch/arm/mach-meson/
 F:	arch/arm/boot/dts/meson*
+F:	arch/arm64/boot/dts/amlogic/
+F: 	drivers/pinctrl/meson/
 N:	meson
 
 ARM/Annapurna Labs ALPINE ARCHITECTURE
@@ -975,6 +978,13 @@ L:	linux-arm-kernel@axis.com
 F:	arch/arm/mach-artpec
 F:	arch/arm/boot/dts/artpec6*
 F:	drivers/clk/clk-artpec6.c
+
+ARM/ASPEED MACHINE SUPPORT
+M:	Joel Stanley <joel@jms.id.au>
+S:	Maintained
+F:	arch/arm/mach-aspeed/
+F:	arch/arm/boot/dts/aspeed-*
+F:	drivers/*/*aspeed*
 
 ARM/ATMEL AT91RM9200, AT91SAM9 AND SAMA5 SOC SUPPORT
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
@@ -1307,6 +1317,20 @@ F:	drivers/mtd/spi-nor/nxp-spifi.c
 F:	drivers/rtc/rtc-lpc24xx.c
 N:	lpc18xx
 
+ARM/LPC32XX SOC SUPPORT
+M:	Vladimir Zapolskiy <vz@mleia.com>
+M:	Sylvain Lemieux <slemieux.tyco@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+T:	git git://github.com/vzapolskiy/linux-lpc32xx.git
+S:	Maintained
+F:	arch/arm/boot/dts/lpc32*
+F:	arch/arm/mach-lpc32xx/
+F:	drivers/i2c/busses/i2c-pnx.c
+F:	drivers/net/ethernet/nxp/lpc_eth.c
+F:	drivers/usb/host/ohci-nxp.c
+F:	drivers/watchdog/pnx4008_wdt.c
+N:	lpc32xx
+
 ARM/MAGICIAN MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
@@ -1356,6 +1380,15 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.digriz.org.uk/ts78xx/kernel
 S:	Maintained
 F:	arch/arm/mach-orion5x/ts78xx-*
+
+ARM/OXNAS platform support
+M:	Neil Armstrong <narmstrong@baylibre.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-oxnas/
+F:	arch/arm/boot/dts/oxnas*
+F:	arch/arm/boot/dts/wd-mbwe.dts
+N:	oxnas
 
 ARM/Mediatek RTC DRIVER
 M:	Eddie Huang <eddie.huang@mediatek.com>
@@ -1643,6 +1676,7 @@ F:	arch/arm/boot/dts/sti*
 F:	drivers/char/hw_random/st-rng.c
 F:	drivers/clocksource/arm_global_timer.c
 F:	drivers/clocksource/clksrc_st_lpc.c
+F:	drivers/cpufreq/sti-cpufreq.c
 F:	drivers/i2c/busses/i2c-st.c
 F:	drivers/media/rc/st_rc.c
 F:	drivers/media/platform/sti/c8sectpfe/
@@ -1652,6 +1686,7 @@ F:	drivers/phy/phy-miphy365x.c
 F:	drivers/phy/phy-stih407-usb.c
 F:	drivers/phy/phy-stih41x-usb.c
 F:	drivers/pinctrl/pinctrl-st.c
+F:	drivers/remoteproc/st_remoteproc.c
 F:	drivers/reset/sti/
 F:	drivers/rtc/rtc-st-lpc.c
 F:	drivers/tty/serial/st-asc.c
@@ -1776,6 +1811,7 @@ F:	*/*/vexpress*
 F:	*/*/*/vexpress*
 F:	drivers/clk/versatile/clk-vexpress-osc.c
 F:	drivers/clocksource/versatile.c
+N:	mps2
 
 ARM/VFP SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
@@ -6789,12 +6825,6 @@ W:	logfs.org
 S:	Maintained
 F:	fs/logfs/
 
-LPC32XX MACHINE SUPPORT
-M:	Roland Stigge <stigge@antcom.de>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-lpc32xx/
-
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
 M:	Sathya Prakash <sathya.prakash@broadcom.com>
 M:	Chaitra P B <chaitra.basappa@broadcom.com>
@@ -10174,8 +10204,8 @@ F:	arch/arm/mach-s3c24xx/bast-irq.c
 TI DAVINCI MACHINE SUPPORT
 M:	Sekhar Nori <nsekhar@ti.com>
 M:	Kevin Hilman <khilman@kernel.org>
-T:	git git://gitorious.org/linux-davinci/linux-davinci.git
-Q:	http://patchwork.kernel.org/project/linux-davinci/list/
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nsekhar/linux-davinci.git
 S:	Supported
 F:	arch/arm/mach-davinci/
 F:	drivers/i2c/busses/i2c-davinci.c
