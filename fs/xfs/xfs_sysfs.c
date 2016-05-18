@@ -447,3 +447,20 @@ xfs_error_sysfs_del(
 	xfs_sysfs_del(&mp->m_error_meta_kobj);
 	xfs_sysfs_del(&mp->m_error_kobj);
 }
+
+struct xfs_error_cfg *
+xfs_error_get_cfg(
+	struct xfs_mount	*mp,
+	int			error_class,
+	int			error)
+{
+	struct xfs_error_cfg	*cfg;
+
+	switch (error) {
+	default:
+		cfg = &mp->m_error_cfg[error_class][XFS_ERR_DEFAULT];
+		break;
+	}
+
+	return cfg;
+}
