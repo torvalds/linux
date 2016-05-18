@@ -295,7 +295,8 @@ static uint32_t udf_try_read_meta(struct inode *inode, uint32_t block,
 		map = &UDF_SB(sb)->s_partmaps[partition];
 		/* map to sparable/physical partition desc */
 		phyblock = udf_get_pblock(sb, eloc.logicalBlockNum,
-			map->s_partition_num, ext_offset + offset);
+			map->s_type_specific.s_metadata.s_phys_partition_ref,
+			ext_offset + offset);
 	}
 
 	brelse(epos.bh);
@@ -325,7 +326,8 @@ uint32_t udf_get_pblock_meta25(struct super_block *sb, uint32_t block,
 		udf_warn(sb, "error reading from METADATA, trying to read from MIRROR\n");
 		if (!(mdata->s_flags & MF_MIRROR_FE_LOADED)) {
 			mdata->s_mirror_fe = udf_find_metadata_inode_efe(sb,
-				mdata->s_mirror_file_loc, map->s_partition_num);
+				mdata->s_mirror_file_loc,
+				mdata->s_phys_partition_ref);
 			if (IS_ERR(mdata->s_mirror_fe))
 				mdata->s_mirror_fe = NULL;
 			mdata->s_flags |= MF_MIRROR_FE_LOADED;
