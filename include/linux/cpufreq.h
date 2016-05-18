@@ -489,6 +489,14 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor);
 struct cpufreq_governor *cpufreq_default_governor(void);
 struct cpufreq_governor *cpufreq_fallback_governor(void);
 
+static inline void cpufreq_policy_apply_limits(struct cpufreq_policy *policy)
+{
+	if (policy->max < policy->cur)
+		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
+	else if (policy->min > policy->cur)
+		__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
+}
+
 /* Governor attribute set */
 struct gov_attr_set {
 	struct kobject kobj;

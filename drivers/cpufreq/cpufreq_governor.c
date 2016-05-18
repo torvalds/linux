@@ -553,12 +553,7 @@ void cpufreq_dbs_governor_limits(struct cpufreq_policy *policy)
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 
 	mutex_lock(&policy_dbs->timer_mutex);
-
-	if (policy->max < policy->cur)
-		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
-	else if (policy->min > policy->cur)
-		__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
-
+	cpufreq_policy_apply_limits(policy);
 	gov_update_sample_delay(policy_dbs, 0);
 
 	mutex_unlock(&policy_dbs->timer_mutex);
