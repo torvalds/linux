@@ -326,7 +326,6 @@ static int cs_etm__get_trace(struct cs_etm_buffer *buff, struct cs_etm_queue *et
         buff->len = sizeof(cstrace);
         buff->buf = cstrace;
         */
-        etmq->stop = true;
 
         buff->ref_timestamp = aux_buffer->reference;
 
@@ -339,10 +338,7 @@ static int cs_etm__get_trace(struct cs_etm_buffer *buff, struct cs_etm_queue *et
         if (etmq->step_through_buffers)
                 etmq->stop = true;
 
-        if (buff->len == 0) 
-                return cs_etm__get_trace(buff,etmq);
-
-        return 0;
+        return buff->len;
 }
 
 static struct cs_etm_queue *cs_etm__alloc_queue(struct cs_etm_auxtrace *etm,
@@ -819,12 +815,16 @@ static int cs_etm__sample(struct cs_etm_queue *etmq)
 
 static int cs_etm__run_decoder(struct cs_etm_queue *etmq, u64 *timestamp)
 {
-        struct cs_etm_buffer buffer = {.buf = 0,};
-        size_t buffer_used = 0;
+        struct cs_etm_buffer buffer;
+        size_t buffer_used;
         int err = 0;
 
+	/* Go through each buffer in the queue and decode them one by one */
+more:
+        buffer_used = 0;
+        memset(&buffer, 0, sizeof(buffer));
         err = cs_etm__get_trace(&buffer,etmq);
-        if (err)
+        if (err <= 0)
                 return err;
 
         do {
@@ -842,6 +842,7 @@ static int cs_etm__run_decoder(struct cs_etm_queue *etmq, u64 *timestamp)
                 cs_etm__sample(etmq);
             }
         } while (!etmq->eot && (buffer.len > buffer_used));
+goto more;
 
         (void) timestamp;
 
