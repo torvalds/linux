@@ -16,6 +16,7 @@ obj-y += cdc/
 obj-y += frequency/
 obj-y += gyro/
 obj-y += impedance-analyzer/
+obj-y += imu/inv_mpu/
 obj-y += light/
 obj-y += magnetometer/
 obj-y += meter/

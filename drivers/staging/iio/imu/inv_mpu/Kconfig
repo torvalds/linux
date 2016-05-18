@@ -1,0 +1,31 @@
+#
+# inv-mpu-iio driver for Invensense MPU devices and combos
+#
+
+config INV_MPU_IIO
+	tristate "Invensense MPU devices"
+	depends on I2C && SYSFS && IIO && IIO_KFIFO_BUF && IIO_TRIGGER && !INV_MPU
+	default n
+	help
+	  This driver supports the Invensense MPU devices.
+	  This includes MPU6050/MPU3050/MPU9150/ITG3500/MPU6500/MPU9250.
+	  This driver can be built as a module. The module will be called
+	  inv-mpu-iio.
+
+config INV_IIO_MPU3050_ACCEL_SLAVE_BMA250
+	bool  "Invensense MPU3050 slave accelerometer device for bma250"
+	depends on INV_MPU_IIO
+	default n
+	help
+	  This is slave device enable MPU3050 accelerometer slave device.
+	  Right now, it is only bma250. For other acceleromter device,
+	  it can be added to this menu if the proper interface is filled.
+	  There are some interface function to be defined.
+
+config INV_TESTING
+	bool "Invensense IIO testing hooks"
+	depends on INV_MPU_IIO || INV_AMI306_IIO || INV_YAS530 || INV_HUB_IIO
+	default n
+	help
+	  This flag enables display of additional testing information from the
+	  Invensense IIO drivers

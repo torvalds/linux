@@ -1,0 +1,603 @@
+Kernel driver inv-mpu-iio
+Author: Invensense <http://invensense.com>
+
+Table of Contents:
+==================
+- Description
+- Integrating the Driver in the Linux Kernel
+- Board and Platform Data
+    > Interrupt Pin
+    > Platform Data
+- Board File Modifications for Secondary I2C Configuration
+    > MPU-6050 + AKM8963 on the secondary I2C interface
+    > MPU-6500 + AKM8963 on the secondary I2C interface
+    > MPU-9150
+    > MPU-9250
+    > MPU-3050 + BMA250 on the secondary I2C interface
+- Board File Modifications for Invensense Devices
+    > MPU-3050
+    > ITG-3500
+    > MPU-6050
+    > MPU-6500
+    > MPU-6XXX
+    > MPU-9150
+    > MPU-9250
+- IIO Subsystem
+    > Communicating with the Driver in Userspace
+    > ITG-3500
+    > MPU-6050 and MPU-6500
+    > MPU-9150
+    > MPU-9250
+    > MPU-3050 + BMA250 on the secondary I2C interface
+- Suspend and Resume
+- DMP Event
+- Motion Event
+- Streaming Data to an Userspace Application
+- Recommended Sysfs Entry Setup Sequence
+    > With DMP Firmware
+    > Without DMP Firmware
+- Test Applications
+    > Running Test Applications with MPU-9150/MPU-6050/MPU-6500/MPU-9250
+    > Running Test Applications with MPU-3050/ITG-3500
+
+
+Description
+===========
+This document describes how to install the Invensense device driver into a
+Linux kernel. The Invensense driver currently supports the following sensors:
+- ITG-3500
+- MPU-6050
+- MPU-9150
+- MPU-6500
+- MPU-9250
+- MPU-3050
+- MPU-6XXX(either MPU6050 or MPU6500, driver to do auto detection)
+
+The slave address of each device is either 0x68 or 0x69, depending on the AD0
+pin value of the device. Please refer to the appropriate product specification
+document for further information regarding the AD0 pin. The driver supports both
+addresses.
+
+The following files are included in this package:
+- Kconfig
+- Makefile
+- inv_mpu_core.c
+- inv_mpu_misc.c
+- inv_mpu_trigger.c
+- inv_mpu3050_iio.c
+- inv_mpu_iio.h
+- inv_mpu_ring.c
+- inv_slave_bma250.c
+- dmpDefaultMPU6050.c
+- dmpkey.h
+- dmpmap.h
+- mpu.h
+
+
+Integrating the Driver in the Linux Kernel
+==========================================
+Please add the files as follows:
+- Add mpu.h to "kernel/include/linux".
+- Add all other files to drivers/staging/iio/imu/inv_mpu
+(another directory is acceptable, but this is the recommended destination)
+
+In order to see the driver in menuconfig when building the kernel, please
+make modifications as shown below:
+
+    modify "drivers/staging/iio/imu/Kconfig" with:
+    >> source "drivers/staging/iio/imu/inv_mpu/Kconfig"
+
+    modify "drivers/staging/iio/imu/Makefile" with:
+    >> obj-y += inv_mpu/
+
+
+Board and Platform Data
+=======================
+In order to recognize the Invensense device on the I2C bus, the board file must
+be modified.
+The i2c_board_info instance must be defined as shown below.
+
+Interrupt Pin
+-------------
+The hardcoded value of 140 corresponds to the GPIO input pin connected to the
+Invensense device's interrupt pin.
+This pin will most likely be different for your platform, and the value should
+be changed accordingly.
+
+Platform Data
+-------------
+The platform data (orientation matrix and secondary bus configurations) must be
+modified as show below, according to your particular platform configuration.
+
+Please note that the MPU-9150 it is treated as a MPU-6050 with AKM8975 on the
+device's secondary I2C interface. Thus the secondary I2C address must be
+provided.
+
+Please note that the MPU-9250 it is treated as a MPU-6500 with AKM8963 on the
+device's secondary I2C interface. Thus the secondary I2C address must be
+provided.
+
+Board File Modifications for Secondary I2C Configuration
+========================================================
+For the Panda Board, the board file can be found at
+arch/arm/mach-omap2/board-omap4panda.c.
+Please modify the pertinent baord file in your system according to the examples
+shown below:
+
+MPU-6050 + AKM8963 on the secondary I2C interface
+-------------------------------------------------
+static struct mpu_platform_data gyro_platform_data = {
+	.int_config  = 0x00,
+	.level_shifter = 0,
+	.orientation = {  -1,  0,  0,
+			   0,  1,  0,
+			   0,  0, -1 },
+	.sec_slave_type = SECONDARY_SLAVE_TYPE_COMPASS,
+	.sec_slave_id   = COMPASS_ID_AK8963,
+	.secondary_i2c_addr = 0x0E,
+        .secondary_orientation = { 0,  1, 0,
+                                   1,  0,  0,
+                                   0,  0, -1 },
+};
+
+MPU-6500 + AKM8963 on the secondary I2C interface
+-------------------------------------------------
+static struct mpu_platform_data gyro_platform_data = {
+        .int_config  = 0x00,
+        .level_shifter = 0,
+        .orientation = {  -1,  0,  0,
+                           0,  1,  0,
+                           0,  0, -1 },
+        .sec_slave_type = SECONDARY_SLAVE_TYPE_COMPASS,
+        .sec_slave_id   = COMPASS_ID_AK8963,
+        .secondary_i2c_addr = 0x0E,
+        .secondary_orientation = { 0,  1, 0,
+                                   1,  0,  0,
+                                   0,  0, -1 },
+};
+
+MPU-9150
+--------
+For MPU-9150, please provide the following secondary I2C bus information.
+
+static struct mpu_platform_data gyro_platform_data = {
+	.int_config  = 0x10,
+	.level_shifter = 0,
+	.orientation = {   1,  0,  0,
+			   0,  1,  0,
+			   0,  0,  1 },
+	.sec_slave_type = SECONDARY_SLAVE_TYPE_COMPASS,
+	.sec_slave_id   = COMPASS_ID_AK8975,
+	.secondary_i2c_addr = 0x0C,
+        .secondary_orientation = { 0,  1, 0,
+                                   1,  0,  0,
+                                   0,  0, -1 },
+};
+
+MPU-9250
+--------
+For MPU-9250, please provide the following secondary I2C bus information.
+
+static struct mpu_platform_data gyro_platform_data = {
+        .int_config  = 0x00,
+        .level_shifter = 0,
+        .orientation = {   1,  0,  0,
+                           0,  1,  0,
+                           0,  0, 1 },
+        .sec_slave_type = SECONDARY_SLAVE_TYPE_COMPASS,
+        .sec_slave_id   = COMPASS_ID_AK8963,
+        .secondary_i2c_addr = 0x0C,
+        .secondary_orientation = { 0,  1, 0,
+                                   -1, 0,  0,
+                                   0,  0,  1 },
+};
+
+MPU-3050 + BMA250 on the secondary I2C interface
+------------------------------------------------
+For BMA250 on the secondary I2C bus, please provide the following information.
+
+static struct mpu_platform_data gyro_platform_data = {
+	.int_config  = 0x10,
+	.level_shifter = 0,
+	.orientation = {  -1,  0,  0,
+			   0,  1,  0,
+			   0,  0, -1 },
+	.sec_slave_type = SECONDARY_SLAVE_TYPE_ACCEL,
+	.sec_slave_id   = ACCEL_ID_BMA250,
+	.secondary_i2c_addr = 0x18,
+	.secondary_orientation = {   -1,  0,   0,
+								 0,  -1,   0,
+								 0,  0,   1 },
+};
+
+
+Board File Modifications for Invensense Devices
+===============================================
+For Invensense devices, please provide the i2c init data as shown in the
+examples below.
+
+In the _i2c_init function, the device is registered in the following manner:
+
+    // arch/arm/mach-omap2/board-omap4panda.c
+    // in static int __init omap4_panda_i2c_init(void)
+    omap_register_i2c_bus(4, 400,
+                          single_chip_board_info,
+                          ARRAY_SIZE(single_chip_board_info));
+
+MPU-3050
+--------
+static struct i2c_board_info __initdata single_chip_board_info[] = {
+	{
+		I2C_BOARD_INFO("mpu3050", 0x68),
+		.irq = (IH_GPIO_BASE + MPUIRQ_GPIO),
+		.platform_data = &gyro_platform_data,
+	},
+};
+
+ITG-3050
+--------
+static struct i2c_board_info __initdata single_chip_board_info[] = {
+	{
+		I2C_BOARD_INFO("itg3500", 0x68),
+		.irq = (IH_GPIO_BASE + MPUIRQ_GPIO),
+                .platform_data = &gyro_platform_data,
+	},
+};
+
+MPU6050
+-------
+static struct i2c_board_info __initdata single_chip_board_info[] = {
+	{
+		I2C_BOARD_INFO("mpu6050", 0x68),
+		.irq = (IH_GPIO_BASE + MPUIRQ_GPIO),
+		.platform_data = &gyro_platform_data,
+	},
+};
+
+MPU6500
+-------
+static struct i2c_board_info __initdata single_chip_board_info[] = {
+        {
+                I2C_BOARD_INFO("mpu6500", 0x68),
+                .irq = (IH_GPIO_BASE + MPUIRQ_GPIO),
+                .platform_data = &gyro_platform_data,
+        },
+};
+
+MPU6XXX
+-------
+static struct i2c_board_info __initdata single_chip_board_info[] = {
+        {
+                I2C_BOARD_INFO("mpu6xxx", 0x68),
+                .irq = (IH_GPIO_BASE + MPUIRQ_GPIO),
+                .platform_data = &gyro_platform_data,
+        },
+};
+
+MPU9150
+-------
+arch/arm/mach-omap2/board-omap4panda.c
+static struct i2c_board_info __initdata single_chip_board_info[] = {
+	{
+		I2C_BOARD_INFO("mpu9150", 0x68),
+		.irq = (IH_GPIO_BASE + MPUIRQ_GPIO),
+		.platform_data = &gyro_platform_data,
+	},
+};
+
+MPU9250
+-------
+arch/arm/mach-omap2/board-omap4panda.c
+static struct i2c_board_info __initdata single_chip_board_info[] = {
+        {
+                I2C_BOARD_INFO("mpu9250", 0x68),
+                .irq = (IH_GPIO_BASE + MPUIRQ_GPIO),
+                .platform_data = &gyro_platform_data,
+        },
+};
+
+IIO subsystem
+=============
+A successful installation will create the following two new directories under
+/sys/bus/iio/devices:
+    - iio:device0
+    - trigger0
+
+Also, a new file, "iio:device0", will be created in the /dev/ diretory.
+(if you have more than one IIO device, the file will be named "iio:deviceX",
+where X is a number)
+
+
+Communicating with the Driver in Userspace
+------------------------------------------
+The driver generates several files in sysfs upon installation.
+These files are used to communicate with the driver. The files can be found
+at /sys/bus/iio/devices/iio:device0 (or ../iio:deviceX as shown above).
+
+A brief description of the pertinent files for each Invensense device is shown
+below:
+
+ITG-3500
+--------
+temperature (Read-only)
+--Read temperature data directly from the temperature register.
+
+sampling_frequency (Read/write)
+--Configure the ADC sampling rate and FIFO output rate.
+
+sampling_frequency_available(read-only)
+--show commonly used frequency
+
+clock_source (Read-only)
+--Check which clock-source is used by the chip.
+
+power_state (Read/write)
+--turn on/off the power supply
+
+self_test (read-only)
+--read this entry trigger self test. The return value is D.
+D is the success/fail.
+For different chip, the result is different for success/fail.
+1 means success 0 means fail. The LSB of D is for gyro; the bit
+next to LSB of D is for accel. The bit 2 of D is for compass result.
+
+key (read-only)
+--show the key value of this driver. Used by MPL.
+
+gyro_matrix (read-only)
+--show the orientation matrix obtained from the board file.
+
+MPU-6050 and MPU-6500
+---------------------
+MPU-6050 and MPU-6500 have all sysfs files belonging to ITG-3500 (shown above).
+In addition, it has the files below:
+
+gyro_enable (read/write)
+--enable/disable gyro functionality. Affects raw_gyro. Turning this off this
+  will shut down gyro and save power.
+
+accl_enable (read/write)
+--enable/disable accelerometer functionality. Affects raw_accl.
+Turning this off this will shut down accel and save power.
+
+firmware_loaded (read/write)
+--Flag indicating the whether firmware is loaded or not in the DMP engine.
+0 means no firmware loaded. 1 means firmware is already loaded . This
+flag can only be written as 0. It internally updates to 1.
+
+dmp_on(read/write)
+--This entry controls whether to run DMP or not.
+Write 1 to enable DMP and write 0 to disable dmp.
+Please note that firmware_loaded must be 1 in order to enable DMP.
+
+dmp_int_on(read/write)
+--This entry controls whether dmp interrupt is on/off.
+Please note that firmware_loaded must be 1.
+Also, we'd like to remind you that it is sometimes advantageous to
+turn interrupts off while the DMP is running.
+
+dmp_output_rate
+--control dmp output rate when dmp is on.
+
+dmp_event_int_on(read/write)
+--This entry controls whether dmp event interrupt is on/off.
+Please note that turning this on will turn off the data interrupt.
+Interrupts will be generated only when events occur.
+This is useful for saving power when the system is waiting for a special event
+to wake up.
+
+dmp_firmware (write only binary file)
+--DMP firmware code is loaded into this entry.
+If loading is successful, the firmware_loaded flag will be updated to 1.
+In order to load new firmware, the firmware_loaded flag must be first set to 0.
+
+accel_matrix
+--orientation matrix for accelerometer.
+
+quaternion_on
+--Turn on/off quaterniion data output. DMP is required for this feature.
+
+pedometer_time
+pedometer_steps,
+--Pedometer related entries
+
+event_tap
+event_display_orientation
+event_accel_motion
+event_smd
+--Event related entries.
+Please poll these entries to read their values. Direct reads will yield
+meaningless results.
+Further details are provided in the DMP Events section of this README.
+
+tap_on
+--Controls tap function of DMP
+
+tap_time
+tap_min_count
+tap_threshold
+--Tap related entries. Controls various parameters of tap function.
+
+display_orientation_on
+--Turn on/off display orientation function of DMP.
+
+smd_enable
+enable SMD(Significant Motion Detection) detection.
+
+smd_threshold
+This set the threshold of the motion when SMD start to be triggered. The
+value is in acclerometer counts.
+
+smd_delay_threshold
+This sets the threshold of time after which SMD can be triggered.
+The value is in seconds.
+
+smd_delay_threshold2
+This sets the threshold of time during which SMD can be triggered (after the
+smd_delay_threshold timer has expired).
+The value is in seconds.
+
+quaternion_on
+--Turn on/off quaterniion data output. DMP is required for this feature.
+
+Low power accel motion interrupt related settings.
+if motion_lpa_on is set, this will disable all engines except accel. Accel will
+enter low power mode and the whole chip will be turned on/off at specific frequency.
+-----------------------------------------------------------------------------
+motion_lpa_duration
+--set motion duration. in ms. This means filtered out all the motino interrupts
+  during this period.
+
+motion_lpa_threshold
+--set motion threshold. in mg. The maximum is 1020mg and resolution is 32mg.
+
+motion_lpa_on
+--turn on/off motion function.
+
+motion_lpa_freq
+--motion lpa frequency. which determines power on/off frequency.
+------------------------------------------------------------------------------
+MPU-9150
+--------
+MPU-9150 has all of MPU-6050's entries. It also has two additional entries,
+described below.
+
+compass_enable (read/write)
+--Enables compass function.
+
+compass_matrix (read-only)
+--Compass orientation matrix
+
+MPU-3050 with BMA250 on secondary I2C interface
+-----------------------------------------------
+MPU-3050 with BMA250 on the secondary I2C interface has ever ITG-3500 entry.
+It also has two additional entries, shown below:
+
+accl_matrix
+
+accl_enable
+
+Suspend and Resume
+===================================================
+The suspend and resume functions are call backs registered to the system
+and executed when the system goes in suspend and resumes.
+It is enabled when CONFIG_PM is defined.
+The current behavior is simple:
+- suspend will turn off the chip
+- resume will turn on the chip
+
+However, it is possible for the driver to do more complex things;
+for example, leaving pedometers running when system is off. This can save whole
+system power while letting pedometer working. Other behaviors are possible
+too.
+
+DMP Event
+=========
+A DMP Event is an event that is output by the DMP unit within the Invensense
+device (MPU).
+Only the MPU-6050, MPU-6500, MPU-9250, MPU-9150, MPU-9250 feature the DMP.
+
+There are four sysfs entries for DMP events:
+- event_tap
+- event_display_orientation
+- event_accel_motion
+- event_smd
+
+These events must be polled before reading.
+
+The proper method to poll sysfs is as follows:
+1. open file.
+2. dummy read.
+3. poll.
+4. once the poll passed, use fopen and fread to read the sysfs entry.
+5. interpret the data.
+
+Streaming Data to an Userspace Application
+==========================================
+When streaming data to an userspace application, we recommend that you access
+gyro/accel/compass data via /dev/iio:device0.
+
+Please follow the steps below to read data at a constant rate from the driver:
+
+1. Write a 1 to power_state to turn on the chip. This is the default setting
+   after installing the driver.
+2. Write the desired output rate to fifo_rate.
+3. Write 1 to enable to turn on the event.
+4. Read /dev/iio:device0 to get a string of gyro/accel/compass data.
+5. Parse this string to obtain each gyro/accel/compass element.
+6. If dmp firmware code is loaded, use "dmp_on" to enable/disable dmp.
+7. If compass is enabled, the output will contain compass data.
+
+
+Recommended Sysfs Entry Setup Senquence
+=======================================
+
+Without DMP Firmware
+--------------------
+1. Set "power_state" to 1,
+2. Set the scale and fifo rate values according to your needs.
+3. Set gyro_enable, accel_enable, and compass_enable according to your needs.
+   For example:
+    - If you only want gyro data, set accel_enable to 0 (and compass_enable to
+      0, if applicable).
+    - If you only want accel data, set gyro_enable to 0 (and compass_enable to
+      0, if applicable).
+    - If you only want compass data, set gyro_enable to 0 and accel_enable to 0.
+4. Set "enable" to 1.
+5. You will now get the output that you want.
+
+With DMP Firmware
+-----------------
+1. Set "power_state" to 1.
+2. Write "0" to firmware_loaded if it is not zero already.
+3. Load firmware into "dmp_firmware" as a whole. Don't split the DMP firmware
+   image.
+4. Make sure firmware_loaded is 1 after loading the DMP image.
+5. Make appropriate configurations as shown above in the "without DMP firmware"
+   case.
+6. Set dmp_on to 1.
+7. Set "enable" to 1.
+
+Please note that the enable function uses the enable entry under
+"/sys/bus/iio/devices/iio:device0/buffer"
+
+Test Applications
+=================
+A test application is located under software/simple_apps/mpu_iio.
+This application is stand-alone in that it cannot be run concurrently with other
+entities trying to access the device node(s) or sysfs entries; in particular,
+the
+
+Running Test Applications with MPU-9150/MPU-6050/MPU-6500/MPU-9250
+---------------------------------------------------------
+To run test applications with MPU-9150, MPU-9250, MPU-6050, or MPU-6500 devices,
+please use the following commands:
+
+1. For tap/display orientation events:
+   mpu_iio -c 10 -l 3 -p
+
+2. In addition, to test the motion interrupt (and no_motion on MPU6050) use:
+   mpu_iio -c 10 -l 3 -p -m
+
+3. For printing data normally:
+   mpu_iio -c 10 -l 3 -r
+
+Running Test Applications with MPU-3050/ITG-3500
+------------------------------------------------
+To run test applications with MPU-3050 or ITG-3500 devices,
+please use the following command:
+
+1. For printing data normally:
+   mpu_iio -c 10 -l 3 -r
+
+Please use mpu_iio.c and iio_utils.h as example code for your development
+purposes.
+
+Stress test application
+=================================
+A stress test application is located under software/simple_apps/stress_iio.
+This application simulates HAL's usage calls to the driver. It creates three
+threads. One for data read; one for event read; one for sysfs control.
+It can run without any parameters or run with some control parameters. Please
+see README in the same directories for details.
+
