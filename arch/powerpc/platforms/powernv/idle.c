@@ -29,7 +29,7 @@
 
 static u32 supported_cpuidle_states;
 
-int pnv_save_sprs_for_winkle(void)
+static int pnv_save_sprs_for_winkle(void)
 {
 	int cpu;
 	int rc;
