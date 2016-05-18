@@ -180,7 +180,6 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 	/* syncpoints are used for full 32-bit hardware VBLANK counters */
 	drm->max_vblank_count = 0xffffffff;
-	drm->vblank_disable_allowed = true;
 
 	err = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (err < 0)

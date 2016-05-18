@@ -815,14 +815,6 @@ struct drm_device {
 	int irq;
 
 	/*
-	 * At load time, disabling the vblank interrupt won't be allowed since
-	 * old clients may not call the modeset ioctl and therefore misbehave.
-	 * Once the modeset ioctl *has* been called though, we can safely
-	 * disable them when unused.
-	 */
-	bool vblank_disable_allowed;
-
-	/*
 	 * If true, vblank interrupt will be disabled immediately when the
 	 * refcount drops to zero, as opposed to via the vblank disable
 	 * timer.

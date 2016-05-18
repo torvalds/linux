@@ -80,7 +80,6 @@ static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 		dev_err(dev->dev, "failed to initialize vblank\n");
 		goto done;
 	}
-	dev->vblank_disable_allowed = true;
 
 	ret = fsl_dcu_drm_irq_init(dev);
 	if (ret < 0)

@@ -252,13 +252,6 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	if (ret)
 		goto err_kms;
 
-	/*
-	 * with vblank_disable_allowed = true, vblank interrupt will be
-	 * disabled by drm timer once a current process gives up ownership
-	 * of vblank event. (after drm_vblank_put function is called)
-	 */
-	drm->vblank_disable_allowed = true;
-
 	platform_set_drvdata(drm->platformdev, drm);
 
 	/* Now try and bind all our sub-components */

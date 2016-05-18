@@ -476,9 +476,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_modeset_gem_init(dev);
 
-	/* Always safe in the mode setting case. */
-	/* FIXME: do pre/post-mode set stuff in core KMS code */
-	dev->vblank_disable_allowed = true;
 	if (INTEL_INFO(dev)->num_pipes == 0)
 		return 0;
 
