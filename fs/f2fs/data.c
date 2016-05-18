@@ -68,7 +68,7 @@ static void f2fs_write_end_io(struct bio *bio)
 
 		if (unlikely(bio->bi_error)) {
 			set_bit(AS_EIO, &page->mapping->flags);
-			f2fs_stop_checkpoint(sbi);
+			f2fs_stop_checkpoint(sbi, true);
 		}
 		end_page_writeback(page);
 	}

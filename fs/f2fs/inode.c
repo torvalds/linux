@@ -283,7 +283,7 @@ retry:
 			cond_resched();
 			goto retry;
 		} else if (err != -ENOENT) {
-			f2fs_stop_checkpoint(sbi);
+			f2fs_stop_checkpoint(sbi, false);
 		}
 		return 0;
 	}
