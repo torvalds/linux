@@ -443,7 +443,7 @@ bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 		dss_pll_calc_func func, void *data);
 
 bool dss_pll_calc_b(const struct dss_pll *pll, unsigned long clkin,
-	unsigned long target_tmds, struct dss_pll_clock_info *cinfo);
+	unsigned long target_clkout, struct dss_pll_clock_info *cinfo);
 
 int dss_pll_write_config_type_a(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo);

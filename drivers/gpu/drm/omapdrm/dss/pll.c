@@ -248,18 +248,21 @@ bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 	return false;
 }
 
+/*
+ * This calculates a PLL config that will provide the target_clkout rate
+ * for clkout. Additionally clkdco rate will be the same as clkout rate
+ * when clkout rate is >= min_clkdco.
+ */
 bool dss_pll_calc_b(const struct dss_pll *pll, unsigned long clkin,
-	unsigned long target_tmds, struct dss_pll_clock_info *cinfo)
+	unsigned long target_clkout, struct dss_pll_clock_info *cinfo)
 {
 	unsigned long fint, clkdco, clkout;
-	unsigned long target_bitclk, target_clkdco;
+	unsigned long target_clkdco;
 	unsigned long min_dco;
 	unsigned n, m, mf, m2, sd;
 	const struct dss_pll_hw *hw = pll->hw;
 
-	DSSDBG("clkin %lu, target tmds %lu\n", clkin, target_tmds);
-
-	target_bitclk = target_tmds * 10;
+	DSSDBG("clkin %lu, target clkout %lu\n", clkin, target_clkout);
 
 	/* Fint */
 	n = DIV_ROUND_UP(clkin, hw->fint_max);
@@ -267,11 +270,11 @@ bool dss_pll_calc_b(const struct dss_pll *pll, unsigned long clkin,
 
 	/* adjust m2 so that the clkdco will be high enough */
 	min_dco = roundup(hw->clkdco_min, fint);
-	m2 = DIV_ROUND_UP(min_dco, target_bitclk);
+	m2 = DIV_ROUND_UP(min_dco, target_clkout);
 	if (m2 == 0)
 		m2 = 1;
 
-	target_clkdco = target_bitclk * m2;
+	target_clkdco = target_clkout * m2;
 	m = target_clkdco / fint;
 
 	clkdco = fint * m;
