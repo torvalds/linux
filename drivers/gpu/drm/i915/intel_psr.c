@@ -176,7 +176,6 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t aux_clock_divider;
 	i915_reg_t aux_ctl_reg;
-	int precharge = 0x3;
 	static const uint8_t aux_msg[] = {
 		[0] = DP_AUX_NATIVE_WRITE << 4,
 		[1] = DP_SET_POWER >> 8,
@@ -185,6 +184,7 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		[4] = DP_SET_POWER_D0,
 	};
 	enum port port = dig_port->port;
+	u32 aux_ctl;
 	int i;
 
 	BUILD_BUG_ON(sizeof(aux_msg) > 20);
@@ -211,26 +211,9 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		I915_WRITE(psr_aux_data_reg(dev_priv, port, i >> 2),
 			   intel_dp_pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
 
-	if (INTEL_INFO(dev)->gen >= 9) {
-		uint32_t val;
-
-		val = I915_READ(aux_ctl_reg);
-		val &= ~DP_AUX_CH_CTL_TIME_OUT_MASK;
-		val |= DP_AUX_CH_CTL_TIME_OUT_1600us;
-		val &= ~DP_AUX_CH_CTL_MESSAGE_SIZE_MASK;
-		val |= (sizeof(aux_msg) << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT);
-		/* Use hardcoded data values for PSR, frame sync and GTC */
-		val &= ~DP_AUX_CH_CTL_PSR_DATA_AUX_REG_SKL;
-		val &= ~DP_AUX_CH_CTL_FS_DATA_AUX_REG_SKL;
-		val &= ~DP_AUX_CH_CTL_GTC_DATA_AUX_REG_SKL;
-		I915_WRITE(aux_ctl_reg, val);
-	} else {
-		I915_WRITE(aux_ctl_reg,
-		   DP_AUX_CH_CTL_TIME_OUT_400us |
-		   (sizeof(aux_msg) << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-		   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
-		   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT));
-	}
+	aux_ctl = intel_dp->get_aux_send_ctl(intel_dp, 0, sizeof(aux_msg),
+					     aux_clock_divider);
+	I915_WRITE(aux_ctl_reg, aux_ctl);
 }
 
 static void vlv_psr_enable_source(struct intel_dp *intel_dp)
