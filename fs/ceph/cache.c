@@ -69,15 +69,8 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
 	fsc->fscache = fscache_acquire_cookie(ceph_cache_netfs.primary_index,
 					      &ceph_fscache_fsid_object_def,
 					      fsc, true);
-
-	if (fsc->fscache == NULL) {
+	if (!fsc->fscache)
 		pr_err("Unable to resgister fsid: %p fscache cookie", fsc);
-		return 0;
-	}
-
-	fsc->revalidate_wq = alloc_workqueue("ceph-revalidate", 0, 1);
-	if (fsc->revalidate_wq == NULL)
-		return -ENOMEM;
 
 	return 0;
 }
@@ -260,8 +253,7 @@ static void ceph_vfs_readpage_complete_unlock(struct page *page, void *data, int
 
 static inline bool cache_valid(struct ceph_inode_info *ci)
 {
-	return ((ceph_caps_issued(ci) & CEPH_CAP_FILE_CACHE) &&
-		(ci->i_fscache_gen == ci->i_rdcache_gen));
+	return ci->i_fscache_gen == ci->i_rdcache_gen;
 }
 
 
@@ -354,69 +346,27 @@ void ceph_invalidate_fscache_page(struct inode* inode, struct page *page)
 
 void ceph_fscache_unregister_fs(struct ceph_fs_client* fsc)
 {
-	if (fsc->revalidate_wq)
-		destroy_workqueue(fsc->revalidate_wq);
-
 	fscache_relinquish_cookie(fsc->fscache, 0);
 	fsc->fscache = NULL;
 }
 
-static void ceph_revalidate_work(struct work_struct *work)
+/*
+ * caller should hold CEPH_CAP_FILE_{RD,CACHE}
+ */
+void ceph_fscache_revalidate_cookie(struct ceph_inode_info *ci)
 {
-	int issued;
-	u32 orig_gen;
-	struct ceph_inode_info *ci = container_of(work, struct ceph_inode_info,
-						  i_revalidate_work);
-	struct inode *inode = &ci->vfs_inode;
-
-	spin_lock(&ci->i_ceph_lock);
-	issued = __ceph_caps_issued(ci, NULL);
-	orig_gen = ci->i_rdcache_gen;
-	spin_unlock(&ci->i_ceph_lock);
-
-	if (!(issued & CEPH_CAP_FILE_CACHE)) {
-		dout("revalidate_work lost cache before validation %p\n",
-		     inode);
-		goto out;
-	}
-
-	if (!fscache_check_consistency(ci->fscache))
-		fscache_invalidate(ci->fscache);
-
-	spin_lock(&ci->i_ceph_lock);
-	/* Update the new valid generation (backwards sanity check too) */
-	if (orig_gen > ci->i_fscache_gen) {
-		ci->i_fscache_gen = orig_gen;
-	}
-	spin_unlock(&ci->i_ceph_lock);
-
-out:
-	iput(&ci->vfs_inode);
-}
-
-void ceph_queue_revalidate(struct inode *inode)
-{
-	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-
-	if (fsc->revalidate_wq == NULL || ci->fscache == NULL)
+	if (cache_valid(ci))
 		return;
 
-	ihold(inode);
-
-	if (queue_work(ceph_sb_to_client(inode->i_sb)->revalidate_wq,
-		       &ci->i_revalidate_work)) {
-		dout("ceph_queue_revalidate %p\n", inode);
-	} else {
-		dout("ceph_queue_revalidate %p failed\n)", inode);
-		iput(inode);
+	/* resue i_truncate_mutex. There should be no pending
+	 * truncate while the caller holds CEPH_CAP_FILE_RD */
+	mutex_lock(&ci->i_truncate_mutex);
+	if (!cache_valid(ci)) {
+		if (fscache_check_consistency(ci->fscache))
+			fscache_invalidate(ci->fscache);
+		spin_lock(&ci->i_ceph_lock);
+		ci->i_fscache_gen = ci->i_rdcache_gen;
+		spin_unlock(&ci->i_ceph_lock);
 	}
-}
-
-void ceph_fscache_inode_init(struct ceph_inode_info *ci)
-{
-	ci->fscache = NULL;
-	/* The first load is verifed cookie open time */
-	ci->i_fscache_gen = 1;
-	INIT_WORK(&ci->i_revalidate_work, ceph_revalidate_work);
+	mutex_unlock(&ci->i_truncate_mutex);
 }
