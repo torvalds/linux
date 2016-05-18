@@ -1383,11 +1383,15 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 	struct btt *btt;
 	size_t rawsize;
 
-	if (!nd_btt->uuid || !nd_btt->ndns || !nd_btt->lbasize)
+	if (!nd_btt->uuid || !nd_btt->ndns || !nd_btt->lbasize) {
+		dev_dbg(&nd_btt->dev, "incomplete btt configuration\n");
 		return -ENODEV;
+	}
 
 	rawsize = nvdimm_namespace_capacity(ndns) - SZ_4K;
 	if (rawsize < ARENA_MIN_SIZE) {
+		dev_dbg(&nd_btt->dev, "%s must be at least %ld bytes\n",
+				dev_name(&ndns->dev), ARENA_MIN_SIZE + SZ_4K);
 		return -ENXIO;
 	}
 	nd_region = to_nd_region(nd_btt->dev.parent);

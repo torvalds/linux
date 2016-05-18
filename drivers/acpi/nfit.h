@@ -109,6 +109,7 @@ struct nfit_mem {
 	struct nfit_flush *nfit_flush;
 	struct list_head list;
 	struct acpi_device *adev;
+	struct acpi_nfit_desc *acpi_desc;
 	unsigned long dsm_mask;
 };
 
