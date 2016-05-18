@@ -419,7 +419,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_gpio *gpio = nvxx_gpio(&drm->device);
+	struct nvkm_gpio *gpio = nvxx_gpio(&drm->client.device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int i, panel = -ENODEV;
@@ -521,7 +521,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		return;
 	nv_connector->detected_encoder = nv_encoder;
 
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		connector->interlace_allowed = true;
 		connector->doublescan_allowed = true;
 	} else
@@ -531,8 +531,8 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 		connector->interlace_allowed = false;
 	} else {
 		connector->doublescan_allowed = true;
-		if (drm->device.info.family == NV_DEVICE_INFO_V0_KELVIN ||
-		    (drm->device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
+		if (drm->client.device.info.family == NV_DEVICE_INFO_V0_KELVIN ||
+		    (drm->client.device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
 		     (dev->pdev->device & 0x0ff0) != 0x0100 &&
 		     (dev->pdev->device & 0x0ff0) != 0x0150))
 			/* HW is broken */
@@ -984,17 +984,17 @@ get_tmds_link_bandwidth(struct drm_connector *connector, bool hdmi)
 		/* Note: these limits are conservative, some Fermi's
 		 * can do 297 MHz. Unclear how this can be determined.
 		 */
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_KEPLER)
+		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_KEPLER)
 			return 297000;
-		if (drm->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
+		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)
 			return 225000;
 	}
 	if (dcb->location != DCB_LOC_ON_CHIP ||
-	    drm->device.info.chipset >= 0x46)
+	    drm->client.device.info.chipset >= 0x46)
 		return 165000;
-	else if (drm->device.info.chipset >= 0x40)
+	else if (drm->client.device.info.chipset >= 0x40)
 		return 155000;
-	else if (drm->device.info.chipset >= 0x18)
+	else if (drm->client.device.info.chipset >= 0x18)
 		return 135000;
 	else
 		return 112000;

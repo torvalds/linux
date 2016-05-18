@@ -36,7 +36,7 @@ static int
 nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_fb *fb = nvxx_fb(&drm->device);
+	struct nvkm_fb *fb = nvxx_fb(&drm->client.device);
 	man->priv = fb;
 	return 0;
 }
@@ -67,7 +67,7 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_ram *ram = nvxx_fb(&drm->device)->ram;
+	struct nvkm_ram *ram = nvxx_fb(&drm->client.device)->ram;
 	nvkm_mem_node_cleanup(mem->mm_node);
 	ram->func->put(ram, (struct nvkm_mem **)&mem->mm_node);
 }
@@ -79,13 +79,13 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_ram *ram = nvxx_fb(&drm->device)->ram;
+	struct nvkm_ram *ram = nvxx_fb(&drm->client.device)->ram;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nvkm_mem *node;
 	u32 size_nc = 0;
 	int ret;
 
-	if (drm->device.info.ram_size == 0)
+	if (drm->client.device.info.ram_size == 0)
 		return -ENOMEM;
 
 	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
@@ -150,7 +150,7 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 
 	node->page_shift = 12;
 
-	switch (drm->device.info.family) {
+	switch (drm->client.device.info.family) {
 	case NV_DEVICE_INFO_V0_TNT:
 	case NV_DEVICE_INFO_V0_CELSIUS:
 	case NV_DEVICE_INFO_V0_KELVIN:
@@ -158,7 +158,7 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	case NV_DEVICE_INFO_V0_CURIE:
 		break;
 	case NV_DEVICE_INFO_V0_TESLA:
-		if (drm->device.info.chipset != 0x50)
+		if (drm->client.device.info.chipset != 0x50)
 			node->memtype = (nvbo->tile_flags & 0x7f00) >> 8;
 		break;
 	case NV_DEVICE_INFO_V0_FERMI:
@@ -169,7 +169,7 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 		break;
 	default:
 		NV_WARN(drm, "%s: unhandled family type %x\n", __func__,
-			drm->device.info.family);
+			drm->client.device.info.family);
 		break;
 	}
 
@@ -197,7 +197,7 @@ static int
 nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nvkm_mmu *mmu = nvxx_mmu(&drm->device);
+	struct nvkm_mmu *mmu = nvxx_mmu(&drm->client.device);
 	struct nv04_mmu *priv = (void *)mmu;
 	struct nvkm_vm *vm = NULL;
 	nvkm_vm_ref(priv->vm, &vm, NULL);
@@ -339,7 +339,7 @@ nouveau_ttm_global_release(struct nouveau_drm *drm)
 int
 nouveau_ttm_init(struct nouveau_drm *drm)
 {
-	struct nvkm_device *device = nvxx_device(&drm->device);
+	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nvkm_pci *pci = device->pci;
 	struct drm_device *dev = drm->dev;
 	u8 bits;
@@ -352,8 +352,8 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		drm->agp.cma = pci->agp.cma;
 	}
 
-	bits = nvxx_mmu(&drm->device)->dma_bits;
-	if (nvxx_device(&drm->device)->func->pci) {
+	bits = nvxx_mmu(&drm->client.device)->dma_bits;
+	if (nvxx_device(&drm->client.device)->func->pci) {
 		if (drm->agp.bridge)
 			bits = 32;
 	} else if (device->func->tegra) {
@@ -396,7 +396,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	}
 
 	/* VRAM init */
-	drm->gem.vram_available = drm->device.info.ram_user;
+	drm->gem.vram_available = drm->client.device.info.ram_user;
 
 	arch_io_reserve_memtype_wc(device->func->resource_addr(device, 1),
 				   device->func->resource_size(device, 1));
@@ -413,7 +413,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 
 	/* GART init */
 	if (!drm->agp.bridge) {
-		drm->gem.gart_available = nvxx_mmu(&drm->device)->limit;
+		drm->gem.gart_available = nvxx_mmu(&drm->client.device)->limit;
 	} else {
 		drm->gem.gart_available = drm->agp.size;
 	}
@@ -433,7 +433,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 void
 nouveau_ttm_fini(struct nouveau_drm *drm)
 {
-	struct nvkm_device *device = nvxx_device(&drm->device);
+	struct nvkm_device *device = nvxx_device(&drm->client.device);
 
 	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&drm->ttm.bdev, TTM_PL_TT);

@@ -193,7 +193,7 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 int
 nv84_fence_create(struct nouveau_drm *drm)
 {
-	struct nvkm_fifo *fifo = nvxx_fifo(&drm->device);
+	struct nvkm_fifo *fifo = nvxx_fifo(&drm->client.device);
 	struct nv84_fence_priv *priv;
 	u32 domain;
 	int ret;
@@ -213,7 +213,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.uevent = true;
 
 	/* Use VRAM if there is any ; otherwise fallback to system memory */
-	domain = drm->device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :
+	domain = drm->client.device.info.ram_size != 0 ? TTM_PL_FLAG_VRAM :
 			 /*
 			  * fences created in sysmem must be non-cached or we
 			  * will lose CPU/GPU coherency!

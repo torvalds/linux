@@ -116,6 +116,7 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 {
 	nvkm_vm_ref(NULL, &nvxx_client(&cli->base)->vm, NULL);
 	usif_client_fini(cli);
+	nvif_device_fini(&cli->device);
 	nvif_client_fini(&cli->base);
 }
 
@@ -140,6 +141,16 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	}
 	if (ret) {
 		NV_ERROR(drm, "Client allocation failed: %d\n", ret);
+		goto done;
+	}
+
+	ret = nvif_device_init(&cli->base.object, 0, NV_DEVICE,
+			       &(struct nv_device_v0) {
+					.device = ~0,
+			       }, sizeof(struct nv_device_v0),
+			       &cli->device);
+	if (ret) {
+		NV_ERROR(drm, "Device allocation failed: %d\n", ret);
 		goto done;
 	}
 
@@ -170,7 +181,7 @@ nouveau_accel_fini(struct nouveau_drm *drm)
 static void
 nouveau_accel_init(struct nouveau_drm *drm)
 {
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	struct nvif_sclass *sclass;
 	u32 arg0, arg1;
 	int ret, i, n;
@@ -224,7 +235,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
-		ret = nouveau_channel_new(drm, &drm->device,
+		ret = nouveau_channel_new(drm, &drm->client.device,
 					  NVA06F_V0_ENGINE_CE0 |
 					  NVA06F_V0_ENGINE_CE1,
 					  0, &drm->cechan);
@@ -237,7 +248,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	if (device->info.chipset >= 0xa3 &&
 	    device->info.chipset != 0xaa &&
 	    device->info.chipset != 0xac) {
-		ret = nouveau_channel_new(drm, &drm->device,
+		ret = nouveau_channel_new(drm, &drm->client.device,
 					  NvDmaFB, NvDmaTT, &drm->cechan);
 		if (ret)
 			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
@@ -249,7 +260,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		arg1 = NvDmaTT;
 	}
 
-	ret = nouveau_channel_new(drm, &drm->device, arg0, arg1, &drm->channel);
+	ret = nouveau_channel_new(drm, &drm->client.device,
+				  arg0, arg1, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
 		nouveau_accel_fini(drm);
@@ -289,8 +301,8 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
-		ret = nvkm_gpuobj_new(nvxx_device(&drm->device), 32, 0, false,
-				      NULL, &drm->notify);
+		ret = nvkm_gpuobj_new(nvxx_device(&drm->client.device), 32, 0,
+				      false, NULL, &drm->notify);
 		if (ret) {
 			NV_ERROR(drm, "failed to allocate notifier, %d\n", ret);
 			nouveau_accel_fini(drm);
@@ -425,6 +437,8 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		return ret;
 
+	dev->irq_enabled = true;
+
 	nvxx_client(&drm->client.base)->debug =
 		nvkm_dbgopt(nouveau_debug, "DRM");
 
@@ -433,33 +447,24 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	nouveau_get_hdmi_dev(drm);
 
-	ret = nvif_device_init(&drm->client.base.object, 0, NV_DEVICE,
-			       &(struct nv_device_v0) {
-					.device = ~0,
-			       }, sizeof(struct nv_device_v0),
-			       &drm->device);
-	if (ret)
-		goto fail_device;
-
-	dev->irq_enabled = true;
-
 	/* workaround an odd issue on nvc1 by disabling the device's
 	 * nosnoop capability.  hopefully won't cause issues until a
 	 * better fix is found - assuming there is one...
 	 */
-	if (drm->device.info.chipset == 0xc1)
-		nvif_mask(&drm->device.object, 0x00088080, 0x00000800, 0x00000000);
+	if (drm->client.device.info.chipset == 0xc1)
+		nvif_mask(&drm->client.device.object, 0x00088080, 0x00000800, 0x00000000);
 
 	nouveau_vga_init(drm);
 
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		if (!nvxx_device(&drm->device)->mmu) {
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		if (!nvxx_device(&drm->client.device)->mmu) {
 			ret = -ENOSYS;
 			goto fail_device;
 		}
 
-		ret = nvkm_vm_new(nvxx_device(&drm->device), 0, (1ULL << 40),
-				  0x1000, NULL, &drm->client.vm);
+		ret = nvkm_vm_new(nvxx_device(&drm->client.device),
+				  0, (1ULL << 40), 0x1000, NULL,
+				  &drm->client.vm);
 		if (ret)
 			goto fail_device;
 
@@ -509,7 +514,6 @@ fail_bios:
 fail_ttm:
 	nouveau_vga_fini(drm);
 fail_device:
-	nvif_device_fini(&drm->device);
 	nouveau_cli_fini(&drm->client);
 	kfree(drm);
 	return ret;
@@ -540,7 +544,6 @@ nouveau_drm_unload(struct drm_device *dev)
 	nouveau_ttm_fini(drm);
 	nouveau_vga_fini(drm);
 
-	nvif_device_fini(&drm->device);
 	if (drm->hdmi_device)
 		pci_dev_put(drm->hdmi_device);
 	nouveau_cli_fini(&drm->client);
@@ -756,7 +759,7 @@ nouveau_pmops_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct nvif_device *device = &nouveau_drm(drm_dev)->device;
+	struct nvif_device *device = &nouveau_drm(drm_dev)->client.device;
 	int ret;
 
 	if (nouveau_runtime_pm == 0)
@@ -848,9 +851,9 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 
 	cli->base.super = false;
 
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nvkm_vm_new(nvxx_device(&drm->device), 0, (1ULL << 40),
-				  0x1000, NULL, &cli->vm);
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		ret = nvkm_vm_new(nvxx_device(&drm->client.device), 0,
+				  (1ULL << 40), 0x1000, NULL, &cli->vm);
 		if (ret)
 			goto done;
 

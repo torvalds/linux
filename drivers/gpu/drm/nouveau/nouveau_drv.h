@@ -89,6 +89,8 @@ struct nouveau_cli {
 	struct drm_device *dev;
 	struct mutex mutex;
 
+	struct nvif_device device;
+
 	struct nvkm_vm *vm; /*XXX*/
 	struct list_head head;
 	void *abi16;
@@ -112,7 +114,6 @@ struct nouveau_drm {
 	struct nouveau_cli client;
 	struct drm_device *dev;
 
-	struct nvif_device device;
 	struct list_head clients;
 
 	struct {

@@ -100,7 +100,7 @@ nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
 	if (!nvbe)
 		return NULL;
 
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA)
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA)
 		nvbe->ttm.ttm.func = &nv04_sgdma_backend;
 	else
 		nvbe->ttm.ttm.func = &nv50_sgdma_backend;

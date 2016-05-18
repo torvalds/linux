@@ -87,7 +87,7 @@ nouveau_abi16_put(struct nouveau_abi16 *abi16, int ret)
 s32
 nouveau_abi16_swclass(struct nouveau_drm *drm)
 {
-	switch (drm->device.info.family) {
+	switch (drm->client.device.info.family) {
 	case NV_DEVICE_INFO_V0_TNT:
 		return NVIF_CLASS_SW_NV04;
 	case NV_DEVICE_INFO_V0_CELSIUS:
@@ -175,7 +175,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_device *device = &drm->device;
+	struct nvif_device *device = &drm->client.device;
 	struct nvkm_gr *gr = nvxx_gr(device);
 	struct drm_nouveau_getparam *getparam = data;
 
