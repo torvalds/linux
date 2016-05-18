@@ -94,13 +94,6 @@ xfs_inode_free_callback(
 	struct inode		*inode = container_of(head, struct inode, i_rcu);
 	struct xfs_inode	*ip = XFS_I(inode);
 
-	kmem_zone_free(xfs_inode_zone, ip);
-}
-
-void
-xfs_inode_free(
-	struct xfs_inode	*ip)
-{
 	switch (VFS_I(ip)->i_mode & S_IFMT) {
 	case S_IFREG:
 	case S_IFDIR:
@@ -118,6 +111,13 @@ xfs_inode_free(
 		ip->i_itemp = NULL;
 	}
 
+	kmem_zone_free(xfs_inode_zone, ip);
+}
+
+void
+xfs_inode_free(
+	struct xfs_inode	*ip)
+{
 	/*
 	 * Because we use RCU freeing we need to ensure the inode always
 	 * appears to be reclaimed with an invalid inode number when in the
