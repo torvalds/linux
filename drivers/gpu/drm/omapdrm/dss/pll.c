@@ -248,6 +248,65 @@ bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 	return false;
 }
 
+bool dss_pll_calc_b(const struct dss_pll *pll, unsigned long clkin,
+	unsigned long target_tmds, struct dss_pll_clock_info *cinfo)
+{
+	unsigned long fint, clkdco, clkout;
+	unsigned long target_bitclk, target_clkdco;
+	unsigned long min_dco;
+	unsigned n, m, mf, m2, sd;
+	const struct dss_pll_hw *hw = pll->hw;
+
+	DSSDBG("clkin %lu, target tmds %lu\n", clkin, target_tmds);
+
+	target_bitclk = target_tmds * 10;
+
+	/* Fint */
+	n = DIV_ROUND_UP(clkin, hw->fint_max);
+	fint = clkin / n;
+
+	/* adjust m2 so that the clkdco will be high enough */
+	min_dco = roundup(hw->clkdco_min, fint);
+	m2 = DIV_ROUND_UP(min_dco, target_bitclk);
+	if (m2 == 0)
+		m2 = 1;
+
+	target_clkdco = target_bitclk * m2;
+	m = target_clkdco / fint;
+
+	clkdco = fint * m;
+
+	/* adjust clkdco with fractional mf */
+	if (WARN_ON(target_clkdco - clkdco > fint))
+		mf = 0;
+	else
+		mf = (u32)div_u64(262144ull * (target_clkdco - clkdco), fint);
+
+	if (mf > 0)
+		clkdco += (u32)div_u64((u64)mf * fint, 262144);
+
+	clkout = clkdco / m2;
+
+	/* sigma-delta */
+	sd = DIV_ROUND_UP(fint * m, 250000000);
+
+	DSSDBG("N = %u, M = %u, M.f = %u, M2 = %u, SD = %u\n",
+		n, m, mf, m2, sd);
+	DSSDBG("Fint %lu, clkdco %lu, clkout %lu\n", fint, clkdco, clkout);
+
+	cinfo->n = n;
+	cinfo->m = m;
+	cinfo->mf = mf;
+	cinfo->mX[0] = m2;
+	cinfo->sd = sd;
+
+	cinfo->fint = fint;
+	cinfo->clkdco = clkdco;
+	cinfo->clkout[0] = clkout;
+
+	return true;
+}
+
 static int wait_for_bit_change(void __iomem *reg, int bitnum, int value)
 {
 	unsigned long timeout;

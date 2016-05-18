@@ -307,8 +307,6 @@ phys_addr_t hdmi_wp_get_audio_dma_addr(struct hdmi_wp_data *wp);
 
 /* HDMI PLL funcs */
 void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s);
-void hdmi_pll_compute(struct hdmi_pll_data *pll,
-	unsigned long target_tmds, struct dss_pll_clock_info *pi);
 int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
 	struct hdmi_wp_data *wp);
 void hdmi_pll_uninit(struct hdmi_pll_data *hpll);
