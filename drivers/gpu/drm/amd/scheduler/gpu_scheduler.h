@@ -87,7 +87,6 @@ struct amd_sched_job {
 	struct work_struct             work_free_job;
 	struct list_head			   node;
 	struct delayed_work work_tdr;
-	void (*timeout_callback) (struct work_struct *work);
 	void (*free_callback)(struct kref *refcount);
 };
 

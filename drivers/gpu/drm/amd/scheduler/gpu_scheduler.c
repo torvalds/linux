@@ -343,8 +343,6 @@ static void amd_sched_job_finish(struct amd_sched_job *s_job)
 						struct amd_sched_job, node);
 
 		if (next) {
-			INIT_DELAYED_WORK(&next->work_tdr,
-					  s_job->timeout_callback);
 			amd_sched_job_get(next);
 			schedule_delayed_work(&next->work_tdr, sched->timeout);
 		}
@@ -359,7 +357,6 @@ static void amd_sched_job_begin(struct amd_sched_job *s_job)
 	    list_first_entry_or_null(&sched->ring_mirror_list,
 				     struct amd_sched_job, node) == s_job)
 	{
-		INIT_DELAYED_WORK(&s_job->work_tdr, s_job->timeout_callback);
 		amd_sched_job_get(s_job);
 		schedule_delayed_work(&s_job->work_tdr, sched->timeout);
 	}
@@ -401,7 +398,7 @@ int amd_sched_job_init(struct amd_sched_job *job,
 		return -ENOMEM;
 
 	job->s_fence->s_job = job;
-	job->timeout_callback = timeout_cb;
+	INIT_DELAYED_WORK(&job->work_tdr, timeout_cb);
 	job->free_callback = free_cb;
 
 	if (fence)
