@@ -41,6 +41,18 @@ config TCG_TIS
 	  within Linux. To compile this driver as a module, choose  M here;
 	  the module will be called tpm_tis.
 
+config TCG_TIS_SPI
+	tristate "TPM Interface Specification 1.3 Interface / TPM 2.0 FIFO Interface - (SPI)"
+	depends on SPI
+	select TCG_TIS_CORE
+	---help---
+	  If you have a TPM security chip which is connected to a regular,
+	  non-tcg SPI master (i.e. most embedded platforms) that is compliant with the
+	  TCG TIS 1.3 TPM specification (TPM1.2) or the TCG PTP FIFO
+	  specification (TPM2.0) say Yes and it will be accessible from
+	  within Linux. To compile this driver as a module, choose  M here;
+	  the module will be called tpm_tis_spi.
+
 config TCG_TIS_I2C_ATMEL
 	tristate "TPM Interface Specification 1.2 Interface (I2C - Atmel)"
 	depends on I2C
