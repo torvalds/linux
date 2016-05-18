@@ -228,9 +228,7 @@ static int emulate_dcbz(struct pt_regs *regs, unsigned char __user *addr)
 #else
 #define REG_BYTE(rp, i)		*((u8 *)(rp) + (i))
 #endif
-#endif
-
-#ifdef __LITTLE_ENDIAN__
+#else
 #define REG_BYTE(rp, i)		(*(((u8 *)((rp) + ((i)>>2)) + ((i)&3))))
 #endif
 
