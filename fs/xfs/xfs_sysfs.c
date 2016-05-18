@@ -478,8 +478,19 @@ struct xfs_error_init {
 
 static const struct xfs_error_init xfs_error_meta_init[XFS_ERR_ERRNO_MAX] = {
 	{ .name = "default",
-	  .max_retries = -1,
+	  .max_retries = XFS_ERR_RETRY_FOREVER,
 	  .retry_timeout = 0,
+	},
+	{ .name = "EIO",
+	  .max_retries = XFS_ERR_RETRY_FOREVER,
+	  .retry_timeout = 0,
+	},
+	{ .name = "ENOSPC",
+	  .max_retries = XFS_ERR_RETRY_FOREVER,
+	  .retry_timeout = 0,
+	},
+	{ .name = "ENODEV",
+	  .max_retries = 0,
 	},
 };
 
@@ -578,6 +589,15 @@ xfs_error_get_cfg(
 	struct xfs_error_cfg	*cfg;
 
 	switch (error) {
+	case EIO:
+		cfg = &mp->m_error_cfg[error_class][XFS_ERR_EIO];
+		break;
+	case ENOSPC:
+		cfg = &mp->m_error_cfg[error_class][XFS_ERR_ENOSPC];
+		break;
+	case ENODEV:
+		cfg = &mp->m_error_cfg[error_class][XFS_ERR_ENODEV];
+		break;
 	default:
 		cfg = &mp->m_error_cfg[error_class][XFS_ERR_DEFAULT];
 		break;
