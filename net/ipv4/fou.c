@@ -448,31 +448,13 @@ static void fou_release(struct fou *fou)
 	kfree_rcu(fou, rcu);
 }
 
-static int fou_encap_init(struct sock *sk, struct fou *fou, struct fou_cfg *cfg)
-{
-	udp_sk(sk)->encap_rcv = fou_udp_recv;
-	udp_sk(sk)->gro_receive = fou_gro_receive;
-	udp_sk(sk)->gro_complete = fou_gro_complete;
-	fou_from_sock(sk)->protocol = cfg->protocol;
-
-	return 0;
-}
-
-static int gue_encap_init(struct sock *sk, struct fou *fou, struct fou_cfg *cfg)
-{
-	udp_sk(sk)->encap_rcv = gue_udp_recv;
-	udp_sk(sk)->gro_receive = gue_gro_receive;
-	udp_sk(sk)->gro_complete = gue_gro_complete;
-
-	return 0;
-}
-
 static int fou_create(struct net *net, struct fou_cfg *cfg,
 		      struct socket **sockp)
 {
 	struct socket *sock = NULL;
 	struct fou *fou = NULL;
 	struct sock *sk;
+	struct udp_tunnel_sock_cfg tunnel_cfg;
 	int err;
 
 	/* Open UDP socket */
@@ -491,33 +473,33 @@ static int fou_create(struct net *net, struct fou_cfg *cfg,
 
 	fou->flags = cfg->flags;
 	fou->port = cfg->udp_config.local_udp_port;
+	fou->type = cfg->type;
+	fou->sock = sock;
+
+	memset(&tunnel_cfg, 0, sizeof(tunnel_cfg));
+	tunnel_cfg.encap_type = 1;
+	tunnel_cfg.sk_user_data = fou;
+	tunnel_cfg.encap_destroy = NULL;
 
 	/* Initial for fou type */
 	switch (cfg->type) {
 	case FOU_ENCAP_DIRECT:
-		err = fou_encap_init(sk, fou, cfg);
-		if (err)
-			goto error;
+		tunnel_cfg.encap_rcv = fou_udp_recv;
+		tunnel_cfg.gro_receive = fou_gro_receive;
+		tunnel_cfg.gro_complete = fou_gro_complete;
+		fou->protocol = cfg->protocol;
 		break;
 	case FOU_ENCAP_GUE:
-		err = gue_encap_init(sk, fou, cfg);
-		if (err)
-			goto error;
+		tunnel_cfg.encap_rcv = gue_udp_recv;
+		tunnel_cfg.gro_receive = gue_gro_receive;
+		tunnel_cfg.gro_complete = gue_gro_complete;
 		break;
 	default:
 		err = -EINVAL;
 		goto error;
 	}
 
-	fou->type = cfg->type;
-
-	udp_sk(sk)->encap_type = 1;
-	udp_encap_enable();
-
-	sk->sk_user_data = fou;
-	fou->sock = sock;
-
-	inet_inc_convert_csum(sk);
+	setup_udp_tunnel_sock(net, sock, &tunnel_cfg);
 
 	sk->sk_allocation = GFP_ATOMIC;
 
