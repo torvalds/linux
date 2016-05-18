@@ -1,0 +1,72 @@
+/*
+ * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * include/dt-bindings/display/screen-timing/lcd-LP097QX2.dtsi
+ * author: xbl@rock-chips.com
+ * create date: 2016-05-16
+ * screen type: edp
+ * lcd model: lp097qx2
+ * resolution: 1536 * 2048
+ */
+
+disp_timings: display-timings {
+	native-mode = <&timing0>;
+	timing0: timing0 {
+		screen-type = <SCREEN_EDP>;
+		out-face    = <OUT_P888>;
+		clock-frequency = <200000000>;
+		hactive = <1536>;
+		vactive = <2048>;
+		hback-porch = <52>;
+		hfront-porch = <16>;
+		vback-porch = <3>;
+		vfront-porch = <7>;
+		hsync-len = <15>;
+		vsync-len = <1>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <1>;
+		swap-rb = <0>;
+		swap-rg = <0>;
+		swap-gb = <0>;
+	};
+};
