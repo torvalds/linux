@@ -35,9 +35,9 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc);
 void ceph_fscache_unregister_fs(struct ceph_fs_client* fsc);
 
 void ceph_fscache_inode_init(struct ceph_inode_info *ci);
-void ceph_fscache_register_inode_cookie(struct ceph_fs_client* fsc,
-					struct ceph_inode_info* ci);
+void ceph_fscache_register_inode_cookie(struct inode *inode);
 void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci);
+void ceph_fscache_file_set_cookie(struct inode *inode, struct file *filp);
 
 int ceph_readpage_from_fscache(struct inode *inode, struct page *page);
 int ceph_readpages_from_fscache(struct inode *inode,
@@ -47,12 +47,6 @@ int ceph_readpages_from_fscache(struct inode *inode,
 void ceph_readpage_to_fscache(struct inode *inode, struct page *page);
 void ceph_invalidate_fscache_page(struct inode* inode, struct page *page);
 void ceph_queue_revalidate(struct inode *inode);
-
-static inline void ceph_fscache_update_objectsize(struct inode *inode)
-{
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	fscache_attr_changed(ci->fscache);
-}
 
 static inline void ceph_fscache_invalidate(struct inode *inode)
 {
@@ -112,8 +106,16 @@ static inline void ceph_fscache_inode_init(struct ceph_inode_info *ci)
 {
 }
 
-static inline void ceph_fscache_register_inode_cookie(struct ceph_fs_client* parent_fsc,
-						      struct ceph_inode_info* ci)
+static inline void ceph_fscache_register_inode_cookie(struct inode *inode)
+{
+}
+
+static inline void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci)
+{
+}
+
+static inline void ceph_fscache_file_set_cookie(struct inode *inode,
+						struct file *filp)
 {
 }
 
@@ -141,20 +143,12 @@ static inline void ceph_readpage_to_fscache(struct inode *inode,
 {
 }
 
-static inline void ceph_fscache_update_objectsize(struct inode *inode)
-{
-}
-
 static inline void ceph_fscache_invalidate(struct inode *inode)
 {
 }
 
 static inline void ceph_invalidate_fscache_page(struct inode *inode,
 						struct page *page)
-{
-}
-
-static inline void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci)
 {
 }
 

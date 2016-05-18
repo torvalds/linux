@@ -181,32 +181,26 @@ static const struct fscache_cookie_def ceph_fscache_inode_object_def = {
 	.now_uncached	= ceph_fscache_inode_now_uncached,
 };
 
-void ceph_fscache_register_inode_cookie(struct ceph_fs_client* fsc,
-					struct ceph_inode_info* ci)
+void ceph_fscache_register_inode_cookie(struct inode *inode)
 {
-	struct inode* inode = &ci->vfs_inode;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 
 	/* No caching for filesystem */
 	if (fsc->fscache == NULL)
 		return;
 
 	/* Only cache for regular files that are read only */
-	if ((ci->vfs_inode.i_mode & S_IFREG) == 0)
+	if (!S_ISREG(inode->i_mode))
 		return;
 
-	/* Avoid multiple racing open requests */
-	inode_lock(inode);
-
-	if (ci->fscache)
-		goto done;
-
-	ci->fscache = fscache_acquire_cookie(fsc->fscache,
-					     &ceph_fscache_inode_object_def,
-					     ci, true);
-	fscache_check_consistency(ci->fscache);
-done:
+	inode_lock_nested(inode, I_MUTEX_CHILD);
+	if (!ci->fscache) {
+		ci->fscache = fscache_acquire_cookie(fsc->fscache,
+					&ceph_fscache_inode_object_def,
+					ci, false);
+	}
 	inode_unlock(inode);
-
 }
 
 void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci)
@@ -220,6 +214,34 @@ void ceph_fscache_unregister_inode_cookie(struct ceph_inode_info* ci)
 
 	fscache_uncache_all_inode_pages(cookie, &ci->vfs_inode);
 	fscache_relinquish_cookie(cookie, 0);
+}
+
+static bool ceph_fscache_can_enable(void *data)
+{
+	struct inode *inode = data;
+	return !inode_is_open_for_write(inode);
+}
+
+void ceph_fscache_file_set_cookie(struct inode *inode, struct file *filp)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	if (!fscache_cookie_valid(ci->fscache))
+		return;
+
+	if (inode_is_open_for_write(inode)) {
+		dout("fscache_file_set_cookie %p %p disabling cache\n",
+		     inode, filp);
+		fscache_disable_cookie(ci->fscache, false);
+		fscache_uncache_all_inode_pages(ci->fscache, inode);
+	} else {
+		fscache_enable_cookie(ci->fscache, ceph_fscache_can_enable,
+				inode);
+		if (fscache_cookie_enabled(ci->fscache)) {
+			dout("fscache_file_set_cookie %p %p enabing cache\n",
+			     inode, filp);
+		}
+	}
 }
 
 static void ceph_vfs_readpage_complete(struct page *page, void *data, int error)
