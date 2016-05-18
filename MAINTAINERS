@@ -1271,7 +1271,7 @@ M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-keystone/
-F:	arch/arm/boot/dts/k2*
+F:	arch/arm/boot/dts/keystone-*
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
 
 ARM/TEXAS INSTRUMENT KEYSTONE CLOCK FRAMEWORK

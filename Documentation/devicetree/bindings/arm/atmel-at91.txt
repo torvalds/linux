@@ -159,7 +159,7 @@ elsewhere.
 
 required properties:
 - compatible: Should be "atmel,<chip>-sfr", "syscon".
-  <chip> can be "sama5d3" or "sama5d4".
+  <chip> can be "sama5d3", "sama5d4" or "sama5d2".
 - reg: Should contain registers location and length
 
 	sfr@f0038000 {

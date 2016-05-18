@@ -132,7 +132,7 @@
 		clock-names = "spi", "spi_busclk0";
 	};
 
-	pin_ctrl: pinctrl {
+	pin_ctrl: pinctrl@E0000 {
 		compatible = "samsung,exynos5440-pinctrl";
 		reg = <0xE0000 0x1000>;
 		interrupts = <0 37 0>, <0 38 0>, <0 39 0>, <0 40 0>,
@@ -205,7 +205,7 @@
 		ranges;
 	};
 
-	rtc {
+	rtc@130000 {
 		compatible = "samsung,s3c6410-rtc";
 		reg = <0x130000 0x1000>;
 		interrupts = <0 17 0>, <0 16 0>;

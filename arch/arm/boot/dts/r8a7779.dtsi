@@ -67,7 +67,7 @@
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0xf0000600 0x20>;
 		interrupts = <GIC_PPI 13
-			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&cpg_clocks R8A7779_CLK_ZS>;
 	};
 
@@ -445,12 +445,11 @@
 		ranges;
 
 		/* External root clock */
-		extal_clk: extal_clk {
+		extal_clk: extal {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			/* This value must be overriden by the board. */
 			clock-frequency = <0>;
-			clock-output-names = "extal";
 		};
 
 		/* External SCIF clock */
@@ -459,7 +458,6 @@
 			#clock-cells = <0>;
 			/* This value must be overridden by the board. */
 			clock-frequency = <0>;
-			status = "disabled";
 		};
 
 		/* Special CPG clocks */
@@ -474,37 +472,33 @@
 		};
 
 		/* Fixed factor clocks */
-		i_clk: i_clk {
+		i_clk: i {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7779_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <2>;
 			clock-mult = <1>;
-			clock-output-names = "i";
 		};
-		s3_clk: s3_clk {
+		s3_clk: s3 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7779_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <8>;
 			clock-mult = <1>;
-			clock-output-names = "s3";
 		};
-		s4_clk: s4_clk {
+		s4_clk: s4 {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7779_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <16>;
 			clock-mult = <1>;
-			clock-output-names = "s4";
 		};
-		g_clk: g_clk {
+		g_clk: g {
 			compatible = "fixed-factor-clock";
 			clocks = <&cpg_clocks R8A7779_CLK_PLLA>;
 			#clock-cells = <0>;
 			clock-div = <24>;
 			clock-mult = <1>;
-			clock-output-names = "g";
 		};
 
 		/* Gate clocks */

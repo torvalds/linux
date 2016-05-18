@@ -394,6 +394,46 @@
 			reg = <0x10200000 0x4000>;
 			bank-width = <1>;
 		};
+
+		clcd@10112000 {
+			compatible = "arm,pl111", "arm,primecell";
+			reg = <0x10112000 0x1000>;
+			interrupt-parent = <&intc_dc1176>;
+			interrupt-names = "combined";
+			interrupts = <0 47 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&oscclk0>, <&pclk>;
+			clock-names = "clcdclk", "apb_pclk";
+
+			port {
+				clcd_pads: endpoint {
+					remote-endpoint = <&clcd_panel>;
+					arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+				};
+			};
+
+			panel {
+				compatible = "panel-dpi";
+
+				port {
+					clcd_panel: endpoint {
+						remote-endpoint = <&clcd_pads>;
+					};
+				};
+
+				/* Standard 640x480 VGA timings */
+				panel-timing {
+					clock-frequency = <25175000>;
+					hactive = <640>;
+					hback-porch = <48>;
+					hfront-porch = <16>;
+					hsync-len = <96>;
+					vactive = <480>;
+					vback-porch = <33>;
+					vfront-porch = <10>;
+					vsync-len = <2>;
+				};
+			};
+		};
 	};
 
 	/* These peripherals are inside the FPGA rather than the DevChip */

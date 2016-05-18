@@ -1,7 +1,5 @@
 /*
- * Device Tree Source for RK3288 SoC thermal
- *
- * Copyright (c) 2014, Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (C) 2016 Hans de Goede <hdegoede@redhat.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,77 +40,106 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <dt-bindings/thermal/thermal.h>
+/dts-v1/;
+#include "sun8i-h3.dtsi"
+#include "sunxi-common-regulators.dtsi"
 
-reserve_thermal: reserve_thermal {
-	polling-delay-passive = <1000>; /* milliseconds */
-	polling-delay = <5000>; /* milliseconds */
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
-	thermal-sensors = <&tsadc 0>;
+/ {
+	model = "Xunlong Orange Pi One";
+	compatible = "xunlong,orangepi-one", "allwinner,sun8i-h3";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&leds_opc>, <&leds_r_opc>;
+
+		pwr_led {
+			label = "orangepi:green:pwr";
+			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+
+		status_led {
+			label = "orangepi:red:status";
+			gpios = <&pio 0 15 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	r_gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&sw_r_opc>;
+
+		sw4 {
+			label = "sw4";
+			linux,code = <BTN_0>;
+			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
+		};
+	};
 };
 
-cpu_thermal: cpu_thermal {
-	polling-delay-passive = <100>; /* milliseconds */
-	polling-delay = <5000>; /* milliseconds */
+&ehci1 {
+	status = "okay";
+};
 
-	thermal-sensors = <&tsadc 1>;
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <4>;
+	cd-gpios = <&pio 5 6 GPIO_ACTIVE_HIGH>; /* PF6 */
+	cd-inverted;
+	status = "okay";
+};
 
-	trips {
-		cpu_alert0: cpu_alert0 {
-			temperature = <70000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "passive";
-		};
-		cpu_alert1: cpu_alert1 {
-			temperature = <75000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "passive";
-		};
-		cpu_crit: cpu_crit {
-			temperature = <90000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "critical";
-		};
-	};
+&ohci1 {
+	status = "okay";
+};
 
-	cooling-maps {
-		map0 {
-			trip = <&cpu_alert0>;
-			cooling-device =
-				<&cpu0 THERMAL_NO_LIMIT 6>;
-		};
-		map1 {
-			trip = <&cpu_alert1>;
-			cooling-device =
-				<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-		};
+&pio {
+	leds_opc: led_pins@0 {
+		allwinner,pins = "PA15";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
-gpu_thermal: gpu_thermal {
-	polling-delay-passive = <100>; /* milliseconds */
-	polling-delay = <5000>; /* milliseconds */
-
-	thermal-sensors = <&tsadc 2>;
-
-	trips {
-		gpu_alert0: gpu_alert0 {
-			temperature = <70000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "passive";
-		};
-		gpu_crit: gpu_crit {
-			temperature = <90000>; /* millicelsius */
-			hysteresis = <2000>; /* millicelsius */
-			type = "critical";
-		};
+&r_pio {
+	leds_r_opc: led_pins@0 {
+		allwinner,pins = "PL10";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 
-	cooling-maps {
-		map0 {
-			trip = <&gpu_alert0>;
-			cooling-device =
-				<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-		};
+	sw_r_opc: key_pins@0 {
+		allwinner,pins = "PL3";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
+&usbphy {
+	/* USB VBUS is always on */
+	status = "okay";
 };

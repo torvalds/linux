@@ -179,7 +179,7 @@
 			ranges;
 			status = "disabled";
 
-			pmu {
+			pmu@10020000 {
 				reg = <0x10020000 0x3000>;
 			};
 
