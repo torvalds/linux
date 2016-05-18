@@ -253,9 +253,11 @@ out:
 	return pp;
 }
 
-static struct sk_buff **sit_gro_receive(struct sk_buff **head,
-					struct sk_buff *skb)
+static struct sk_buff **sit_ip6ip6_gro_receive(struct sk_buff **head,
+					       struct sk_buff *skb)
 {
+	/* Common GRO receive for SIT and IP6IP6 */
+
 	if (NAPI_GRO_CB(skb)->encap_mark) {
 		NAPI_GRO_CB(skb)->flush = 1;
 		return NULL;
@@ -298,6 +300,13 @@ static int sit_gro_complete(struct sk_buff *skb, int nhoff)
 	return ipv6_gro_complete(skb, nhoff);
 }
 
+static int ip6ip6_gro_complete(struct sk_buff *skb, int nhoff)
+{
+	skb->encapsulation = 1;
+	skb_shinfo(skb)->gso_type |= SKB_GSO_IPXIP6;
+	return ipv6_gro_complete(skb, nhoff);
+}
+
 static struct packet_offload ipv6_packet_offload __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),
 	.callbacks = {
@@ -310,8 +319,16 @@ static struct packet_offload ipv6_packet_offload __read_mostly = {
 static const struct net_offload sit_offload = {
 	.callbacks = {
 		.gso_segment	= ipv6_gso_segment,
-		.gro_receive    = sit_gro_receive,
+		.gro_receive    = sit_ip6ip6_gro_receive,
 		.gro_complete   = sit_gro_complete,
+	},
+};
+
+static const struct net_offload ip6ip6_offload = {
+	.callbacks = {
+		.gso_segment	= ipv6_gso_segment,
+		.gro_receive    = sit_ip6ip6_gro_receive,
+		.gro_complete   = ip6ip6_gro_complete,
 	},
 };
 
@@ -326,6 +343,7 @@ static int __init ipv6_offload_init(void)
 	dev_add_offload(&ipv6_packet_offload);
 
 	inet_add_offload(&sit_offload, IPPROTO_IPV6);
+	inet6_add_offload(&ip6ip6_offload, IPPROTO_IPV6);
 
 	return 0;
 }
