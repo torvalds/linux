@@ -18,18 +18,6 @@
 #include "cp_intc.h"
 #include <mach/da8xx.h>
 
-#define DA8XX_NUM_UARTS	3
-
-static const struct of_device_id const da8xx_irq_match[] __initconst = {
-	{ .compatible = "ti,cp-intc", .data = cp_intc_of_init, },
-	{ }
-};
-
-static void __init da8xx_init_irq(void)
-{
-	of_irq_init(da8xx_irq_match);
-}
-
 static struct of_dev_auxdata da850_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("ti,davinci-i2c", 0x01c22000, "i2c_davinci.1", NULL),
 	OF_DEV_AUXDATA("ti,davinci-wdt", 0x01c21000, "davinci-wdt", NULL),
@@ -54,9 +42,7 @@ static struct of_dev_auxdata da850_auxdata_lookup[] __initdata = {
 
 static void __init da850_init_machine(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     da850_auxdata_lookup, NULL);
-
+	of_platform_default_populate(NULL, da850_auxdata_lookup, NULL);
 }
 
 static const char *const da850_boards_compat[] __initconst = {
@@ -68,7 +54,6 @@ static const char *const da850_boards_compat[] __initconst = {
 
 DT_MACHINE_START(DA850_DT, "Generic DA850/OMAP-L138/AM18x")
 	.map_io		= da850_init,
-	.init_irq	= da8xx_init_irq,
 	.init_time	= davinci_timer_init,
 	.init_machine	= da850_init_machine,
 	.dt_compat	= da850_boards_compat,
