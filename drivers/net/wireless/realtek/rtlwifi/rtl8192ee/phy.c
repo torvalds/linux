@@ -2414,19 +2414,10 @@ static void _rtl92ee_phy_reload_mac_registers(struct ieee80211_hw *hw,
 static void _rtl92ee_phy_path_adda_on(struct ieee80211_hw *hw, u32 *addareg,
 				      bool is_patha_on, bool is2t)
 {
-	u32 pathon;
 	u32 i;
 
-	pathon = is_patha_on ? 0x0fc01616 : 0x0fc01616;
-	if (!is2t) {
-		pathon = 0x0fc01616;
-		rtl_set_bbreg(hw, addareg[0], MASKDWORD, 0x0fc01616);
-	} else {
-		rtl_set_bbreg(hw, addareg[0], MASKDWORD, pathon);
-	}
-
-	for (i = 1; i < IQK_ADDA_REG_NUM; i++)
-		rtl_set_bbreg(hw, addareg[i], MASKDWORD, pathon);
+	for (i = 0; i < IQK_ADDA_REG_NUM; i++)
+		rtl_set_bbreg(hw, addareg[i], MASKDWORD, 0x0fc01616);
 }
 
 static void _rtl92ee_phy_mac_setting_calibration(struct ieee80211_hw *hw,
