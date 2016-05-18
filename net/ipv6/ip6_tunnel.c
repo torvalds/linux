@@ -1640,6 +1640,11 @@ static const struct net_device_ops ip6_tnl_netdev_ops = {
 	.ndo_get_iflink = ip6_tnl_get_iflink,
 };
 
+#define IPXIPX_FEATURES (NETIF_F_SG |		\
+			 NETIF_F_FRAGLIST |	\
+			 NETIF_F_HIGHDMA |	\
+			 NETIF_F_GSO_SOFTWARE |	\
+			 NETIF_F_HW_CSUM)
 
 /**
  * ip6_tnl_dev_setup - setup virtual tunnel device
@@ -1659,6 +1664,10 @@ static void ip6_tnl_dev_setup(struct net_device *dev)
 	dev->addr_len = sizeof(struct in6_addr);
 	dev->features |= NETIF_F_LLTX;
 	netif_keep_dst(dev);
+
+	dev->features		|= IPXIPX_FEATURES;
+	dev->hw_features	|= IPXIPX_FEATURES;
+
 	/* This perm addr will be used as interface identifier by IPv6 */
 	dev->addr_assign_type = NET_ADDR_RANDOM;
 	eth_random_addr(dev->perm_addr);
