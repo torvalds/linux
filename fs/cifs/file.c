@@ -2852,39 +2852,31 @@ cifs_uncached_read_into_pages(struct TCP_Server_Info *server,
 	int result = 0;
 	unsigned int i;
 	unsigned int nr_pages = rdata->nr_pages;
-	struct kvec iov;
 
 	rdata->got_bytes = 0;
 	rdata->tailsz = PAGE_SIZE;
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page = rdata->pages[i];
+		size_t n;
 
-		if (len >= PAGE_SIZE) {
-			/* enough data to fill the page */
-			iov.iov_base = kmap(page);
-			iov.iov_len = PAGE_SIZE;
-			cifs_dbg(FYI, "%u: iov_base=%p iov_len=%zu\n",
-				 i, iov.iov_base, iov.iov_len);
-			len -= PAGE_SIZE;
-		} else if (len > 0) {
-			/* enough for partial page, fill and zero the rest */
-			iov.iov_base = kmap(page);
-			iov.iov_len = len;
-			cifs_dbg(FYI, "%u: iov_base=%p iov_len=%zu\n",
-				 i, iov.iov_base, iov.iov_len);
-			memset(iov.iov_base + len, '\0', PAGE_SIZE - len);
-			rdata->tailsz = len;
-			len = 0;
-		} else {
+		if (len <= 0) {
 			/* no need to hold page hostage */
 			rdata->pages[i] = NULL;
 			rdata->nr_pages--;
 			put_page(page);
 			continue;
 		}
-
-		result = cifs_readv_from_socket(server, &iov, 1, iov.iov_len);
-		kunmap(page);
+		n = len;
+		if (len >= PAGE_SIZE) {
+			/* enough data to fill the page */
+			n = PAGE_SIZE;
+			len -= n;
+		} else {
+			zero_user(page, len, PAGE_SIZE - len);
+			rdata->tailsz = len;
+			len = 0;
+		}
+		result = cifs_read_page_from_socket(server, page, n);
 		if (result < 0)
 			break;
 
@@ -3300,7 +3292,6 @@ cifs_readpages_read_into_pages(struct TCP_Server_Info *server,
 	u64 eof;
 	pgoff_t eof_index;
 	unsigned int nr_pages = rdata->nr_pages;
-	struct kvec iov;
 
 	/* determine the eof that the server (probably) has */
 	eof = CIFS_I(rdata->mapping->host)->server_eof;
@@ -3311,23 +3302,14 @@ cifs_readpages_read_into_pages(struct TCP_Server_Info *server,
 	rdata->tailsz = PAGE_SIZE;
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page = rdata->pages[i];
+		size_t n = PAGE_SIZE;
 
 		if (len >= PAGE_SIZE) {
-			/* enough data to fill the page */
-			iov.iov_base = kmap(page);
-			iov.iov_len = PAGE_SIZE;
-			cifs_dbg(FYI, "%u: idx=%lu iov_base=%p iov_len=%zu\n",
-				 i, page->index, iov.iov_base, iov.iov_len);
 			len -= PAGE_SIZE;
 		} else if (len > 0) {
 			/* enough for partial page, fill and zero the rest */
-			iov.iov_base = kmap(page);
-			iov.iov_len = len;
-			cifs_dbg(FYI, "%u: idx=%lu iov_base=%p iov_len=%zu\n",
-				 i, page->index, iov.iov_base, iov.iov_len);
-			memset(iov.iov_base + len,
-				'\0', PAGE_SIZE - len);
-			rdata->tailsz = len;
+			zero_user(page, len, PAGE_SIZE - len);
+			n = rdata->tailsz = len;
 			len = 0;
 		} else if (page->index > eof_index) {
 			/*
@@ -3357,8 +3339,7 @@ cifs_readpages_read_into_pages(struct TCP_Server_Info *server,
 			continue;
 		}
 
-		result = cifs_readv_from_socket(server, &iov, 1, iov.iov_len);
-		kunmap(page);
+		result = cifs_read_page_from_socket(server, page, n);
 		if (result < 0)
 			break;
 
