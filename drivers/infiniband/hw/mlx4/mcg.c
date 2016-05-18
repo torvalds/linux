@@ -96,7 +96,7 @@ struct ib_sa_mcmember_data {
 	u8		scope_join_state;
 	u8		proxy_join;
 	u8		reserved[2];
-};
+} __packed __aligned(4);
 
 struct mcast_group {
 	struct ib_sa_mcmember_data rec;
