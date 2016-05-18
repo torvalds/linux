@@ -24,9 +24,16 @@ menuconfig TCG_TPM
 
 if TCG_TPM
 
+config TCG_TIS_CORE
+	tristate
+	---help---
+	TCG TIS TPM core driver. It implements the TPM TCG TIS logic and hooks
+	into the TPM kernel APIs. Physical layers will register against it.
+
 config TCG_TIS
 	tristate "TPM Interface Specification 1.2 Interface / TPM 2.0 FIFO Interface"
 	depends on X86
+	select TCG_TIS_CORE
 	---help---
 	  If you have a TPM security chip that is compliant with the
 	  TCG TIS 1.2 TPM specification (TPM1.2) or the TCG PTP FIFO

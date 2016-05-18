@@ -12,6 +12,7 @@ ifdef CONFIG_TCG_IBMVTPM
 	tpm-y += tpm_eventlog.o tpm_of.o
 endif
 endif
+obj-$(CONFIG_TCG_TIS_CORE) += tpm_tis_core.o
 obj-$(CONFIG_TCG_TIS) += tpm_tis.o
 obj-$(CONFIG_TCG_TIS_I2C_ATMEL) += tpm_i2c_atmel.o
 obj-$(CONFIG_TCG_TIS_I2C_INFINEON) += tpm_i2c_infineon.o
