@@ -1656,7 +1656,7 @@ retry_locked:
 	 */
 	if ((!is_delayed || mdsc->stopping) &&
 	    !S_ISDIR(inode->i_mode) &&		/* ignore readdir cache */
-	    ci->i_wrbuffer_ref == 0 &&		/* no dirty pages... */
+	    !(ci->i_wb_ref || ci->i_wrbuffer_ref) &&   /* no dirty pages... */
 	    inode->i_data.nrpages &&		/* have cached pages */
 	    (revoking & (CEPH_CAP_FILE_CACHE|
 			 CEPH_CAP_FILE_LAZYIO)) && /*  or revoking cache */
@@ -1698,8 +1698,8 @@ retry_locked:
 
 		revoking = cap->implemented & ~cap->issued;
 		dout(" mds%d cap %p used %s issued %s implemented %s revoking %s\n",
-		     cap->mds, cap, ceph_cap_string(cap->issued),
-		     ceph_cap_string(cap_used),
+		     cap->mds, cap, ceph_cap_string(cap_used),
+		     ceph_cap_string(cap->issued),
 		     ceph_cap_string(cap->implemented),
 		     ceph_cap_string(revoking));
 
@@ -2828,7 +2828,7 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 	if (!S_ISDIR(inode->i_mode) && /* don't invalidate readdir cache */
 	    ((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
 	    (newcaps & CEPH_CAP_FILE_LAZYIO) == 0 &&
-	    !ci->i_wrbuffer_ref) {
+	    !(ci->i_wrbuffer_ref || ci->i_wb_ref)) {
 		if (try_nonblocking_invalidate(inode)) {
 			/* there were locked pages.. invalidate later
 			   in a separate thread. */

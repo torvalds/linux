@@ -1728,7 +1728,9 @@ static void ceph_invalidate_work(struct work_struct *work)
 	orig_gen = ci->i_rdcache_gen;
 	spin_unlock(&ci->i_ceph_lock);
 
-	truncate_pagecache(inode, 0);
+	if (invalidate_inode_pages2(inode->i_mapping) < 0) {
+		pr_err("invalidate_pages %p fails\n", inode);
+	}
 
 	spin_lock(&ci->i_ceph_lock);
 	if (orig_gen == ci->i_rdcache_gen &&
