@@ -256,6 +256,7 @@ synology	Synology, Inc.
 SUNW	Sun Microsystems, Inc
 tbs	TBS Technologies
 tcl	Toby Churchill Ltd.
+tcg	Trusted Computing Group
 technologic	Technologic Systems
 thine	THine Electronics, Inc.
 ti	Texas Instruments
