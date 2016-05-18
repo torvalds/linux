@@ -53,6 +53,7 @@
 #include <asm/vdso.h>
 #include <asm/debug.h>
 #include <asm/kexec.h>
+#include <asm/asm-prototypes.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
