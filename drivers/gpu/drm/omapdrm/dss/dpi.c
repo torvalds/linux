@@ -134,7 +134,7 @@ struct dpi_clk_calc_ctx {
 
 	/* outputs */
 
-	struct dss_pll_clock_info dsi_cinfo;
+	struct dss_pll_clock_info pll_cinfo;
 	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
 };
@@ -179,8 +179,8 @@ static bool dpi_calc_hsdiv_cb(int m_dispc, unsigned long dispc,
 	if (m_dispc > 1 && m_dispc % 2 != 0 && ctx->pck_min >= 100000000)
 		return false;
 
-	ctx->dsi_cinfo.mX[ctx->clkout_idx] = m_dispc;
-	ctx->dsi_cinfo.clkout[ctx->clkout_idx] = dispc;
+	ctx->pll_cinfo.mX[ctx->clkout_idx] = m_dispc;
+	ctx->pll_cinfo.clkout[ctx->clkout_idx] = dispc;
 
 	return dispc_div_calc(dispc, ctx->pck_min, ctx->pck_max,
 			dpi_calc_dispc_cb, ctx);
@@ -193,10 +193,10 @@ static bool dpi_calc_pll_cb(int n, int m, unsigned long fint,
 {
 	struct dpi_clk_calc_ctx *ctx = data;
 
-	ctx->dsi_cinfo.n = n;
-	ctx->dsi_cinfo.m = m;
-	ctx->dsi_cinfo.fint = fint;
-	ctx->dsi_cinfo.clkdco = clkdco;
+	ctx->pll_cinfo.n = n;
+	ctx->pll_cinfo.m = m;
+	ctx->pll_cinfo.fint = fint;
+	ctx->pll_cinfo.clkdco = clkdco;
 
 	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco,
 		ctx->pck_min, dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
@@ -213,7 +213,7 @@ static bool dpi_calc_dss_cb(unsigned long fck, void *data)
 			dpi_calc_dispc_cb, ctx);
 }
 
-static bool dpi_dsi_clk_calc(struct dpi_data *dpi, unsigned long pck,
+static bool dpi_pll_clk_calc(struct dpi_data *dpi, unsigned long pck,
 		struct dpi_clk_calc_ctx *ctx)
 {
 	unsigned long clkin;
@@ -237,11 +237,11 @@ static bool dpi_dsi_clk_calc(struct dpi_data *dpi, unsigned long pck,
 				pll_min, pll_max,
 				dpi_calc_pll_cb, ctx);
 	} else { /* DSS_PLL_TYPE_B */
-		dss_pll_calc_b(dpi->pll, clkin, pck, &ctx->dsi_cinfo);
+		dss_pll_calc_b(dpi->pll, clkin, pck, &ctx->pll_cinfo);
 
 		ctx->dispc_cinfo.lck_div = 1;
 		ctx->dispc_cinfo.pck_div = 1;
-		ctx->dispc_cinfo.lck = ctx->dsi_cinfo.clkout[0];
+		ctx->dispc_cinfo.lck = ctx->pll_cinfo.clkout[0];
 		ctx->dispc_cinfo.pck = ctx->dispc_cinfo.lck;
 
 		return true;
@@ -279,7 +279,7 @@ static bool dpi_dss_clk_calc(unsigned long pck, struct dpi_clk_calc_ctx *ctx)
 
 
 
-static int dpi_set_dsi_clk(struct dpi_data *dpi, enum omap_channel channel,
+static int dpi_set_pll_clk(struct dpi_data *dpi, enum omap_channel channel,
 		unsigned long pck_req, unsigned long *fck, int *lck_div,
 		int *pck_div)
 {
@@ -287,11 +287,11 @@ static int dpi_set_dsi_clk(struct dpi_data *dpi, enum omap_channel channel,
 	int r;
 	bool ok;
 
-	ok = dpi_dsi_clk_calc(dpi, pck_req, &ctx);
+	ok = dpi_pll_clk_calc(dpi, pck_req, &ctx);
 	if (!ok)
 		return -EINVAL;
 
-	r = dss_pll_set_config(dpi->pll, &ctx.dsi_cinfo);
+	r = dss_pll_set_config(dpi->pll, &ctx.pll_cinfo);
 	if (r)
 		return r;
 
@@ -299,7 +299,7 @@ static int dpi_set_dsi_clk(struct dpi_data *dpi, enum omap_channel channel,
 
 	dpi->mgr_config.clock_info = ctx.dispc_cinfo;
 
-	*fck = ctx.dsi_cinfo.clkout[ctx.clkout_idx];
+	*fck = ctx.pll_cinfo.clkout[ctx.clkout_idx];
 	*lck_div = ctx.dispc_cinfo.lck_div;
 	*pck_div = ctx.dispc_cinfo.pck_div;
 
@@ -341,7 +341,7 @@ static int dpi_set_mode(struct dpi_data *dpi)
 	int r = 0;
 
 	if (dpi->pll)
-		r = dpi_set_dsi_clk(dpi, channel, t->pixelclock, &fck,
+		r = dpi_set_pll_clk(dpi, channel, t->pixelclock, &fck,
 				&lck_div, &pck_div);
 	else
 		r = dpi_set_dispc_clk(dpi, t->pixelclock, &fck,
@@ -418,7 +418,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 	if (dpi->pll) {
 		r = dss_pll_enable(dpi->pll);
 		if (r)
-			goto err_dsi_pll_init;
+			goto err_pll_init;
 	}
 
 	r = dpi_set_mode(dpi);
@@ -441,7 +441,7 @@ err_mgr_enable:
 err_set_mode:
 	if (dpi->pll)
 		dss_pll_disable(dpi->pll);
-err_dsi_pll_init:
+err_pll_init:
 err_src_sel:
 	dispc_runtime_put();
 err_get_dispc:
@@ -523,11 +523,11 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 		return -EINVAL;
 
 	if (dpi->pll) {
-		ok = dpi_dsi_clk_calc(dpi, timings->pixelclock, &ctx);
+		ok = dpi_pll_clk_calc(dpi, timings->pixelclock, &ctx);
 		if (!ok)
 			return -EINVAL;
 
-		fck = ctx.dsi_cinfo.clkout[ctx.clkout_idx];
+		fck = ctx.pll_cinfo.clkout[ctx.clkout_idx];
 	} else {
 		ok = dpi_dss_clk_calc(timings->pixelclock, &ctx);
 		if (!ok)
@@ -557,7 +557,7 @@ static void dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
 	mutex_unlock(&dpi->lock);
 }
 
-static int dpi_verify_dsi_pll(struct dss_pll *pll)
+static int dpi_verify_pll(struct dss_pll *pll)
 {
 	int r;
 
@@ -607,8 +607,8 @@ static void dpi_init_pll(struct dpi_data *dpi)
 	if (!pll)
 		return;
 
-	if (dpi_verify_dsi_pll(pll)) {
-		DSSWARN("DSI PLL not operational\n");
+	if (dpi_verify_pll(pll)) {
+		DSSWARN("PLL not operational\n");
 		return;
 	}
 
