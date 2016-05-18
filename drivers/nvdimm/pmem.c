@@ -320,7 +320,8 @@ static int nd_pmem_probe(struct device *dev)
 		return pmem_attach_disk(dev, ndns);
 
 	/* if we find a valid info-block we'll come back as that personality */
-	if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0)
+	if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0
+			|| nd_dax_probe(dev, ndns) == 0)
 		return -ENXIO;
 
 	/* ...otherwise we're just a raw pmem device */
