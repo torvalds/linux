@@ -131,7 +131,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 				fraglen, rxb->truesize);
 	}
 
-	ieee80211_rx_napi(mvm->hw, skb, napi);
+	ieee80211_rx_napi(mvm->hw, NULL, skb, napi);
 }
 
 /*
@@ -319,7 +319,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rx_status->device_timestamp = le32_to_cpu(phy_info->system_timestamp);
 	rx_status->band =
 		(phy_info->phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_BAND_24)) ?
-				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+				NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 	rx_status->freq =
 		ieee80211_channel_to_frequency(le16_to_cpu(phy_info->channel),
 					       rx_status->band);

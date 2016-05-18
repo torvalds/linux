@@ -295,6 +295,59 @@ static u32 nfqnl_get_sk_secctx(struct sk_buff *skb, char **secdata)
 	return seclen;
 }
 
+static u32 nfqnl_get_bridge_size(struct nf_queue_entry *entry)
+{
+	struct sk_buff *entskb = entry->skb;
+	u32 nlalen = 0;
+
+	if (entry->state.pf != PF_BRIDGE || !skb_mac_header_was_set(entskb))
+		return 0;
+
+	if (skb_vlan_tag_present(entskb))
+		nlalen += nla_total_size(nla_total_size(sizeof(__be16)) +
+					 nla_total_size(sizeof(__be16)));
+
+	if (entskb->network_header > entskb->mac_header)
+		nlalen += nla_total_size((entskb->network_header -
+					  entskb->mac_header));
+
+	return nlalen;
+}
+
+static int nfqnl_put_bridge(struct nf_queue_entry *entry, struct sk_buff *skb)
+{
+	struct sk_buff *entskb = entry->skb;
+
+	if (entry->state.pf != PF_BRIDGE || !skb_mac_header_was_set(entskb))
+		return 0;
+
+	if (skb_vlan_tag_present(entskb)) {
+		struct nlattr *nest;
+
+		nest = nla_nest_start(skb, NFQA_VLAN | NLA_F_NESTED);
+		if (!nest)
+			goto nla_put_failure;
+
+		if (nla_put_be16(skb, NFQA_VLAN_TCI, htons(entskb->vlan_tci)) ||
+		    nla_put_be16(skb, NFQA_VLAN_PROTO, entskb->vlan_proto))
+			goto nla_put_failure;
+
+		nla_nest_end(skb, nest);
+	}
+
+	if (entskb->mac_header < entskb->network_header) {
+		int len = (int)(entskb->network_header - entskb->mac_header);
+
+		if (nla_put(skb, NFQA_L2HDR, len, skb_mac_header(entskb)))
+			goto nla_put_failure;
+	}
+
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+
 static struct sk_buff *
 nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 			   struct nf_queue_entry *entry,
@@ -333,6 +386,8 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	if (entskb->tstamp.tv64)
 		size += nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp));
+
+	size += nfqnl_get_bridge_size(entry);
 
 	if (entry->state.hook <= NF_INET_FORWARD ||
 	   (entry->state.hook == NF_INET_POST_ROUTING && entskb->sk == NULL))
@@ -496,6 +551,9 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 				goto nla_put_failure;
 		}
 	}
+
+	if (nfqnl_put_bridge(entry, skb) < 0)
+		goto nla_put_failure;
 
 	if (entskb->tstamp.tv64) {
 		struct nfqnl_msg_packet_timestamp ts;
@@ -911,12 +969,18 @@ static struct notifier_block nfqnl_rtnl_notifier = {
 	.notifier_call	= nfqnl_rcv_nl_event,
 };
 
+static const struct nla_policy nfqa_vlan_policy[NFQA_VLAN_MAX + 1] = {
+	[NFQA_VLAN_TCI]		= { .type = NLA_U16},
+	[NFQA_VLAN_PROTO]	= { .type = NLA_U16},
+};
+
 static const struct nla_policy nfqa_verdict_policy[NFQA_MAX+1] = {
 	[NFQA_VERDICT_HDR]	= { .len = sizeof(struct nfqnl_msg_verdict_hdr) },
 	[NFQA_MARK]		= { .type = NLA_U32 },
 	[NFQA_PAYLOAD]		= { .type = NLA_UNSPEC },
 	[NFQA_CT]		= { .type = NLA_UNSPEC },
 	[NFQA_EXP]		= { .type = NLA_UNSPEC },
+	[NFQA_VLAN]		= { .type = NLA_NESTED },
 };
 
 static const struct nla_policy nfqa_verdict_batch_policy[NFQA_MAX+1] = {
@@ -1030,6 +1094,40 @@ static struct nf_conn *nfqnl_ct_parse(struct nfnl_ct_hook *nfnl_ct,
 	return ct;
 }
 
+static int nfqa_parse_bridge(struct nf_queue_entry *entry,
+			     const struct nlattr * const nfqa[])
+{
+	if (nfqa[NFQA_VLAN]) {
+		struct nlattr *tb[NFQA_VLAN_MAX + 1];
+		int err;
+
+		err = nla_parse_nested(tb, NFQA_VLAN_MAX, nfqa[NFQA_VLAN],
+				       nfqa_vlan_policy);
+		if (err < 0)
+			return err;
+
+		if (!tb[NFQA_VLAN_TCI] || !tb[NFQA_VLAN_PROTO])
+			return -EINVAL;
+
+		entry->skb->vlan_tci = ntohs(nla_get_be16(tb[NFQA_VLAN_TCI]));
+		entry->skb->vlan_proto = nla_get_be16(tb[NFQA_VLAN_PROTO]);
+	}
+
+	if (nfqa[NFQA_L2HDR]) {
+		int mac_header_len = entry->skb->network_header -
+			entry->skb->mac_header;
+
+		if (mac_header_len != nla_len(nfqa[NFQA_L2HDR]))
+			return -EINVAL;
+		else if (mac_header_len > 0)
+			memcpy(skb_mac_header(entry->skb),
+			       nla_data(nfqa[NFQA_L2HDR]),
+			       mac_header_len);
+	}
+
+	return 0;
+}
+
 static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 			      struct sk_buff *skb,
 			      const struct nlmsghdr *nlh,
@@ -1045,6 +1143,7 @@ static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 	struct nfnl_ct_hook *nfnl_ct;
 	struct nf_conn *ct = NULL;
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
+	int err;
 
 	queue = instance_lookup(q, queue_num);
 	if (!queue)
@@ -1069,6 +1168,12 @@ static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 	if (nfqa[NFQA_CT]) {
 		if (nfnl_ct != NULL)
 			ct = nfqnl_ct_parse(nfnl_ct, nlh, nfqa, entry, &ctinfo);
+	}
+
+	if (entry->state.pf == PF_BRIDGE) {
+		err = nfqa_parse_bridge(entry, nfqa);
+		if (err < 0)
+			return err;
 	}
 
 	if (nfqa[NFQA_PAYLOAD]) {

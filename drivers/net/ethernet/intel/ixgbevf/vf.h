@@ -51,6 +51,7 @@ struct ixgbe_mac_operations {
 	s32 (*get_mac_addr)(struct ixgbe_hw *, u8 *);
 	s32 (*stop_adapter)(struct ixgbe_hw *);
 	s32 (*get_bus_info)(struct ixgbe_hw *);
+	s32 (*negotiate_api_version)(struct ixgbe_hw *hw, int api);
 
 	/* Link */
 	s32 (*setup_link)(struct ixgbe_hw *, ixgbe_link_speed, bool, bool);
@@ -63,11 +64,12 @@ struct ixgbe_mac_operations {
 	s32 (*set_uc_addr)(struct ixgbe_hw *, u32, u8 *);
 	s32 (*init_rx_addrs)(struct ixgbe_hw *);
 	s32 (*update_mc_addr_list)(struct ixgbe_hw *, struct net_device *);
-	s32 (*update_xcast_mode)(struct ixgbe_hw *, struct net_device *, int);
+	s32 (*update_xcast_mode)(struct ixgbe_hw *, int);
 	s32 (*enable_mc)(struct ixgbe_hw *);
 	s32 (*disable_mc)(struct ixgbe_hw *);
 	s32 (*clear_vfta)(struct ixgbe_hw *);
 	s32 (*set_vfta)(struct ixgbe_hw *, u32, u32, bool);
+	void (*set_rlpml)(struct ixgbe_hw *, u16);
 };
 
 enum ixgbe_mac_type {
@@ -207,8 +209,6 @@ static inline u32 ixgbe_read_reg_array(struct ixgbe_hw *hw, u32 reg,
 
 #define IXGBE_READ_REG_ARRAY(h, r, o) ixgbe_read_reg_array(h, r, o)
 
-void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size);
-int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api);
 int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 		       unsigned int *default_tc);
 int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues);

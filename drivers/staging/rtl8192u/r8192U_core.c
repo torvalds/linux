@@ -1108,7 +1108,7 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 
 	if (tcb_desc->queue_index != TXCMD_QUEUE) {
 		if (tx_urb->status == 0) {
-			dev->trans_start = jiffies;
+			netif_trans_update(dev);
 			priv->stats.txoktotal++;
 			priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
 			priv->stats.txbytesunicast +=
@@ -1715,7 +1715,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 				return -1;
 			}
 		}
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		atomic_inc(&priv->tx_pending[tcb_desc->queue_index]);
 		return 0;
 	}

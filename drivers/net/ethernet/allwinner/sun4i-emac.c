@@ -428,7 +428,7 @@ static void emac_timeout(struct net_device *dev)
 	emac_reset(db);
 	emac_init_device(dev);
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	netif_wake_queue(dev);
 
 	/* Restore previous register address */
@@ -468,7 +468,7 @@ static int emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		       db->membase + EMAC_TX_CTL0_REG);
 
 		/* save the time stamp */
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 	} else if (channel == 1) {
 		/* set TX len */
 		writel(skb->len, db->membase + EMAC_TX_PL1_REG);
@@ -477,7 +477,7 @@ static int emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		       db->membase + EMAC_TX_CTL1_REG);
 
 		/* save the time stamp */
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 	}
 
 	if ((db->tx_fifo_stat & 3) == 3) {

@@ -76,16 +76,10 @@
 #define IWL7265D_UCODE_API_MAX	21
 #define IWL3168_UCODE_API_MAX	21
 
-/* Oldest version we won't warn about */
-#define IWL7260_UCODE_API_OK	13
-#define IWL7265_UCODE_API_OK	13
-#define IWL7265D_UCODE_API_OK	13
-#define IWL3168_UCODE_API_OK	20
-
 /* Lowest firmware API version supported */
-#define IWL7260_UCODE_API_MIN	13
-#define IWL7265_UCODE_API_MIN	13
-#define IWL7265D_UCODE_API_MIN	13
+#define IWL7260_UCODE_API_MIN	16
+#define IWL7265_UCODE_API_MIN	16
+#define IWL7265D_UCODE_API_MIN	16
 #define IWL3168_UCODE_API_MIN	20
 
 /* NVM versions */
@@ -162,7 +156,7 @@ static const struct iwl_tt_params iwl7000_high_temp_tt_params = {
 
 static const struct iwl_ht_params iwl7000_ht_params = {
 	.stbc = true,
-	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
+	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
 };
 
 #define IWL_DEVICE_7000_COMMON					\
@@ -179,25 +173,21 @@ static const struct iwl_ht_params iwl7000_ht_params = {
 #define IWL_DEVICE_7000						\
 	IWL_DEVICE_7000_COMMON,					\
 	.ucode_api_max = IWL7260_UCODE_API_MAX,			\
-	.ucode_api_ok = IWL7260_UCODE_API_OK,			\
 	.ucode_api_min = IWL7260_UCODE_API_MIN
 
 #define IWL_DEVICE_7005						\
 	IWL_DEVICE_7000_COMMON,					\
 	.ucode_api_max = IWL7265_UCODE_API_MAX,			\
-	.ucode_api_ok = IWL7265_UCODE_API_OK,			\
 	.ucode_api_min = IWL7265_UCODE_API_MIN
 
 #define IWL_DEVICE_3008						\
 	IWL_DEVICE_7000_COMMON,					\
 	.ucode_api_max = IWL3168_UCODE_API_MAX,			\
-	.ucode_api_ok = IWL3168_UCODE_API_OK,			\
 	.ucode_api_min = IWL3168_UCODE_API_MIN
 
 #define IWL_DEVICE_7005D					\
 	IWL_DEVICE_7000_COMMON,					\
 	.ucode_api_max = IWL7265D_UCODE_API_MAX,		\
-	.ucode_api_ok = IWL7265D_UCODE_API_OK,			\
 	.ucode_api_min = IWL7265D_UCODE_API_MIN
 
 const struct iwl_cfg iwl7260_2ac_cfg = {
@@ -297,7 +287,7 @@ static const struct iwl_pwr_tx_backoff iwl7265_pwr_tx_backoffs[] = {
 static const struct iwl_ht_params iwl7265_ht_params = {
 	.stbc = true,
 	.ldpc = true,
-	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
+	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
 };
 
 const struct iwl_cfg iwl3165_2ac_cfg = {
@@ -388,8 +378,8 @@ const struct iwl_cfg iwl7265d_n_cfg = {
 	.dccm_len = IWL7265_DCCM_LEN,
 };
 
-MODULE_FIRMWARE(IWL7260_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
-MODULE_FIRMWARE(IWL3160_MODULE_FIRMWARE(IWL7260_UCODE_API_OK));
-MODULE_FIRMWARE(IWL3168_MODULE_FIRMWARE(IWL3168_UCODE_API_OK));
-MODULE_FIRMWARE(IWL7265_MODULE_FIRMWARE(IWL7265_UCODE_API_OK));
-MODULE_FIRMWARE(IWL7265D_MODULE_FIRMWARE(IWL7265D_UCODE_API_OK));
+MODULE_FIRMWARE(IWL7260_MODULE_FIRMWARE(IWL7260_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL3160_MODULE_FIRMWARE(IWL7260_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL3168_MODULE_FIRMWARE(IWL3168_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL7265_MODULE_FIRMWARE(IWL7265_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL7265D_MODULE_FIRMWARE(IWL7265D_UCODE_API_MAX));

@@ -252,9 +252,13 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 		.exclude_vif = exclude_vif,
 		.used_hw_queues =
 			BIT(IWL_MVM_OFFCHANNEL_QUEUE) |
-			BIT(mvm->aux_queue) |
-			BIT(IWL_MVM_CMD_QUEUE),
+			BIT(mvm->aux_queue),
 	};
+
+	if (iwl_mvm_is_dqa_supported(mvm))
+		data.used_hw_queues |= BIT(IWL_MVM_DQA_CMD_QUEUE);
+	else
+		data.used_hw_queues |= BIT(IWL_MVM_CMD_QUEUE);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -425,12 +429,17 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		return 0;
 	}
 
-	/* Find available queues, and allocate them to the ACs */
+	/*
+	 * Find available queues, and allocate them to the ACs. When in
+	 * DQA-mode they aren't really used, and this is done only so the
+	 * mac80211 ieee80211_check_queues() function won't fail
+	 */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		u8 queue = find_first_zero_bit(&used_hw_queues,
 					       mvm->first_agg_queue);
 
-		if (queue >= mvm->first_agg_queue) {
+		if (!iwl_mvm_is_dqa_supported(mvm) &&
+		    queue >= mvm->first_agg_queue) {
 			IWL_ERR(mvm, "Failed to allocate queue\n");
 			ret = -EIO;
 			goto exit_fail;
@@ -442,13 +451,19 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 
 	/* Allocate the CAB queue for softAP and GO interfaces */
 	if (vif->type == NL80211_IFTYPE_AP) {
-		u8 queue = find_first_zero_bit(&used_hw_queues,
-					       mvm->first_agg_queue);
+		u8 queue;
 
-		if (queue >= mvm->first_agg_queue) {
-			IWL_ERR(mvm, "Failed to allocate cab queue\n");
-			ret = -EIO;
-			goto exit_fail;
+		if (!iwl_mvm_is_dqa_supported(mvm)) {
+			queue = find_first_zero_bit(&used_hw_queues,
+						    mvm->first_agg_queue);
+
+			if (queue >= mvm->first_agg_queue) {
+				IWL_ERR(mvm, "Failed to allocate cab queue\n");
+				ret = -EIO;
+				goto exit_fail;
+			}
+		} else {
+			queue = IWL_MVM_DQA_GCAST_QUEUE;
 		}
 
 		vif->cab_queue = queue;
@@ -495,6 +510,10 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 				      IWL_MVM_TX_FIFO_MCAST, 0, wdg_timeout);
 		/* fall through */
 	default:
+		/* If DQA is supported - queues will be enabled when needed */
+		if (iwl_mvm_is_dqa_supported(mvm))
+			break;
+
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_enable_ac_txq(mvm, vif->hw_queue[ac],
 					      vif->hw_queue[ac],
@@ -523,6 +542,14 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 				    IWL_MAX_TID_COUNT, 0);
 		/* fall through */
 	default:
+		/*
+		 * If DQA is supported - queues were already disabled, since in
+		 * DQA-mode the queues are a property of the STA and not of the
+		 * vif, and at this point the STA was already deleted
+		 */
+		if (iwl_mvm_is_dqa_supported(mvm))
+			break;
+
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac],
 					    vif->hw_queue[ac],
@@ -532,7 +559,7 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 static void iwl_mvm_ack_rates(struct iwl_mvm *mvm,
 			      struct ieee80211_vif *vif,
-			      enum ieee80211_band band,
+			      enum nl80211_band band,
 			      u8 *cck_rates, u8 *ofdm_rates)
 {
 	struct ieee80211_supported_band *sband;
@@ -703,7 +730,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	rcu_read_lock();
 	chanctx = rcu_dereference(vif->chanctx_conf);
 	iwl_mvm_ack_rates(mvm, vif, chanctx ? chanctx->def.chan->band
-					    : IEEE80211_BAND_2GHZ,
+					    : NL80211_BAND_2GHZ,
 			  &cck_ack_rates, &ofdm_ack_rates);
 	rcu_read_unlock();
 
@@ -1038,7 +1065,7 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 		cpu_to_le32(BIT(mvm->mgmt_last_antenna_idx) <<
 			    RATE_MCS_ANT_POS);
 
-	if (info->band == IEEE80211_BAND_5GHZ || vif->p2p) {
+	if (info->band == NL80211_BAND_5GHZ || vif->p2p) {
 		rate = IWL_FIRST_OFDM_RATE;
 	} else {
 		rate = IWL_FIRST_CCK_RATE;
@@ -1489,7 +1516,7 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 	rx_status.device_timestamp = le32_to_cpu(sb->system_time);
 	rx_status.band =
 		(sb->phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_BAND_24)) ?
-				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
+				NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 	rx_status.freq =
 		ieee80211_channel_to_frequency(le16_to_cpu(sb->channel),
 					       rx_status.band);
@@ -1499,5 +1526,5 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
 	/* pass it as regular rx to mac80211 */
-	ieee80211_rx_napi(mvm->hw, skb, NULL);
+	ieee80211_rx_napi(mvm->hw, NULL, skb, NULL);
 }

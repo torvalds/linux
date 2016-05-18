@@ -444,7 +444,7 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 	}
 
 	if (chandef) {
-		cmd.ci.band = (chandef->chan->band == IEEE80211_BAND_2GHZ ?
+		cmd.ci.band = (chandef->chan->band == NL80211_BAND_2GHZ ?
 			       PHY_BAND_24 : PHY_BAND_5);
 		cmd.ci.channel = chandef->chan->hw_value;
 		cmd.ci.width = iwl_mvm_get_channel_width(chandef);

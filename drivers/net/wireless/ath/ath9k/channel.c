@@ -107,9 +107,9 @@ void ath_chanctx_init(struct ath_softc *sc)
 	struct ieee80211_channel *chan;
 	int i, j;
 
-	sband = &common->sbands[IEEE80211_BAND_2GHZ];
+	sband = &common->sbands[NL80211_BAND_2GHZ];
 	if (!sband->n_channels)
-		sband = &common->sbands[IEEE80211_BAND_5GHZ];
+		sband = &common->sbands[NL80211_BAND_5GHZ];
 
 	chan = &sband->channels[0];
 	for (i = 0; i < ATH9K_NUM_CHANCTX; i++) {
@@ -1333,9 +1333,9 @@ void ath9k_offchannel_init(struct ath_softc *sc)
 	struct ieee80211_channel *chan;
 	int i;
 
-	sband = &common->sbands[IEEE80211_BAND_2GHZ];
+	sband = &common->sbands[NL80211_BAND_2GHZ];
 	if (!sband->n_channels)
-		sband = &common->sbands[IEEE80211_BAND_5GHZ];
+		sband = &common->sbands[NL80211_BAND_5GHZ];
 
 	chan = &sband->channels[0];
 

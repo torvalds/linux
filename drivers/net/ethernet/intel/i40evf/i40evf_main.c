@@ -37,8 +37,8 @@ static const char i40evf_driver_string[] =
 #define DRV_KERN "-k"
 
 #define DRV_VERSION_MAJOR 1
-#define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 15
+#define DRV_VERSION_MINOR 5
+#define DRV_VERSION_BUILD 10
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD) \
@@ -641,28 +641,11 @@ static void i40evf_configure_tx(struct i40evf_adapter *adapter)
 static void i40evf_configure_rx(struct i40evf_adapter *adapter)
 {
 	struct i40e_hw *hw = &adapter->hw;
-	struct net_device *netdev = adapter->netdev;
-	int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	int i;
-	int rx_buf_len;
-
-
-	/* Set the RX buffer length according to the mode */
-	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED ||
-	    netdev->mtu <= ETH_DATA_LEN)
-		rx_buf_len = I40EVF_RXBUFFER_2048;
-	else
-		rx_buf_len = ALIGN(max_frame, 1024);
 
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		adapter->rx_rings[i].tail = hw->hw_addr + I40E_QRX_TAIL1(i);
-		adapter->rx_rings[i].rx_buf_len = rx_buf_len;
-		if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
-			set_ring_ps_enabled(&adapter->rx_rings[i]);
-			adapter->rx_rings[i].rx_hdr_len = I40E_RX_HDR_SIZE;
-		} else {
-			clear_ring_ps_enabled(&adapter->rx_rings[i]);
-		}
+		adapter->rx_rings[i].rx_buf_len = I40EVF_RXBUFFER_2048;
 	}
 }
 
@@ -943,6 +926,21 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 bottom_of_search_loop:
 		continue;
 	}
+
+	if (netdev->flags & IFF_PROMISC &&
+	    !(adapter->flags & I40EVF_FLAG_PROMISC_ON))
+		adapter->aq_required |= I40EVF_FLAG_AQ_REQUEST_PROMISC;
+	else if (!(netdev->flags & IFF_PROMISC) &&
+		 adapter->flags & I40EVF_FLAG_PROMISC_ON)
+		adapter->aq_required |= I40EVF_FLAG_AQ_RELEASE_PROMISC;
+
+	if (netdev->flags & IFF_ALLMULTI &&
+	    !(adapter->flags & I40EVF_FLAG_ALLMULTI_ON))
+		adapter->aq_required |= I40EVF_FLAG_AQ_REQUEST_ALLMULTI;
+	else if (!(netdev->flags & IFF_ALLMULTI) &&
+		 adapter->flags & I40EVF_FLAG_ALLMULTI_ON)
+		adapter->aq_required |= I40EVF_FLAG_AQ_RELEASE_ALLMULTI;
+
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 }
 
@@ -999,14 +997,7 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		struct i40e_ring *ring = &adapter->rx_rings[i];
 
-	if (adapter->flags & I40EVF_FLAG_RX_PS_ENABLED) {
-		i40evf_alloc_rx_headers(ring);
-		i40evf_alloc_rx_buffers_ps(ring, ring->count);
-	} else {
-		i40evf_alloc_rx_buffers_1buf(ring, ring->count);
-	}
-		ring->next_to_use = ring->count - 1;
-		writel(ring->next_to_use, ring->tail);
+		i40evf_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
 	}
 }
 
@@ -1224,23 +1215,17 @@ out:
 }
 
 /**
- * i40e_config_rss_aq - Prepare for RSS using AQ commands
- * @vsi: vsi structure
- * @seed: RSS hash seed
- * @lut: Lookup table
- * @lut_size: Lookup table size
+ * i40e_config_rss_aq - Configure RSS keys and lut by using AQ commands
+ * @adapter: board private structure
  *
  * Return 0 on success, negative on failure
  **/
-static int i40evf_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
-				u8 *lut, u16 lut_size)
+static int i40evf_config_rss_aq(struct i40evf_adapter *adapter)
 {
-	struct i40evf_adapter *adapter = vsi->back;
+	struct i40e_aqc_get_set_rss_key_data *rss_key =
+		(struct i40e_aqc_get_set_rss_key_data *)adapter->rss_key;
 	struct i40e_hw *hw = &adapter->hw;
 	int ret = 0;
-
-	if (!vsi->id)
-		return -EINVAL;
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
@@ -1249,198 +1234,82 @@ static int i40evf_config_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
 		return -EBUSY;
 	}
 
-	if (seed) {
-		struct i40e_aqc_get_set_rss_key_data *rss_key =
-			(struct i40e_aqc_get_set_rss_key_data *)seed;
-		ret = i40evf_aq_set_rss_key(hw, vsi->id, rss_key);
-		if (ret) {
-			dev_err(&adapter->pdev->dev, "Cannot set RSS key, err %s aq_err %s\n",
-				i40evf_stat_str(hw, ret),
-				i40evf_aq_str(hw, hw->aq.asq_last_status));
-			return ret;
-		}
+	ret = i40evf_aq_set_rss_key(hw, adapter->vsi.id, rss_key);
+	if (ret) {
+		dev_err(&adapter->pdev->dev, "Cannot set RSS key, err %s aq_err %s\n",
+			i40evf_stat_str(hw, ret),
+			i40evf_aq_str(hw, hw->aq.asq_last_status));
+		return ret;
+
 	}
 
-	if (lut) {
-		ret = i40evf_aq_set_rss_lut(hw, vsi->id, false, lut, lut_size);
-		if (ret) {
-			dev_err(&adapter->pdev->dev,
-				"Cannot set RSS lut, err %s aq_err %s\n",
-				i40evf_stat_str(hw, ret),
-				i40evf_aq_str(hw, hw->aq.asq_last_status));
-			return ret;
-		}
+	ret = i40evf_aq_set_rss_lut(hw, adapter->vsi.id, false,
+				    adapter->rss_lut, adapter->rss_lut_size);
+	if (ret) {
+		dev_err(&adapter->pdev->dev, "Cannot set RSS lut, err %s aq_err %s\n",
+			i40evf_stat_str(hw, ret),
+			i40evf_aq_str(hw, hw->aq.asq_last_status));
 	}
 
 	return ret;
+
 }
 
 /**
  * i40evf_config_rss_reg - Configure RSS keys and lut by writing registers
- * @vsi: Pointer to vsi structure
- * @seed: RSS hash seed
- * @lut: Lookup table
- * @lut_size: Lookup table size
+ * @adapter: board private structure
  *
  * Returns 0 on success, negative on failure
  **/
-static int i40evf_config_rss_reg(struct i40e_vsi *vsi, const u8 *seed,
-				 const u8 *lut, u16 lut_size)
+static int i40evf_config_rss_reg(struct i40evf_adapter *adapter)
 {
-	struct i40evf_adapter *adapter = vsi->back;
 	struct i40e_hw *hw = &adapter->hw;
+	u32 *dw;
 	u16 i;
 
-	if (seed) {
-		u32 *seed_dw = (u32 *)seed;
+	dw = (u32 *)adapter->rss_key;
+	for (i = 0; i <= adapter->rss_key_size / 4; i++)
+		wr32(hw, I40E_VFQF_HKEY(i), dw[i]);
 
-		for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
-			wr32(hw, I40E_VFQF_HKEY(i), seed_dw[i]);
-	}
+	dw = (u32 *)adapter->rss_lut;
+	for (i = 0; i <= adapter->rss_lut_size / 4; i++)
+		wr32(hw, I40E_VFQF_HLUT(i), dw[i]);
 
-	if (lut) {
-		u32 *lut_dw = (u32 *)lut;
-
-		if (lut_size != I40EVF_HLUT_ARRAY_SIZE)
-			return -EINVAL;
-
-		for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++)
-			wr32(hw, I40E_VFQF_HLUT(i), lut_dw[i]);
-	}
 	i40e_flush(hw);
 
 	return 0;
 }
 
 /**
- *  * i40evf_get_rss_aq - Get RSS keys and lut by using AQ commands
- *  @vsi: Pointer to vsi structure
- *  @seed: RSS hash seed
- *  @lut: Lookup table
- *  @lut_size: Lookup table size
- *
- *  Return 0 on success, negative on failure
- **/
-static int i40evf_get_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
-			     u8 *lut, u16 lut_size)
-{
-	struct i40evf_adapter *adapter = vsi->back;
-	struct i40e_hw *hw = &adapter->hw;
-	int ret = 0;
-
-	if (seed) {
-		ret = i40evf_aq_get_rss_key(hw, vsi->id,
-			(struct i40e_aqc_get_set_rss_key_data *)seed);
-		if (ret) {
-			dev_err(&adapter->pdev->dev,
-				"Cannot get RSS key, err %s aq_err %s\n",
-				i40evf_stat_str(hw, ret),
-				i40evf_aq_str(hw, hw->aq.asq_last_status));
-			return ret;
-		}
-	}
-
-	if (lut) {
-		ret = i40evf_aq_get_rss_lut(hw, vsi->id, seed, lut, lut_size);
-		if (ret) {
-			dev_err(&adapter->pdev->dev,
-				"Cannot get RSS lut, err %s aq_err %s\n",
-				i40evf_stat_str(hw, ret),
-				i40evf_aq_str(hw, hw->aq.asq_last_status));
-			return ret;
-		}
-	}
-
-	return ret;
-}
-
-/**
- *  * i40evf_get_rss_reg - Get RSS keys and lut by reading registers
- *  @vsi: Pointer to vsi structure
- *  @seed: RSS hash seed
- *  @lut: Lookup table
- *  @lut_size: Lookup table size
- *
- *  Returns 0 on success, negative on failure
- **/
-static int i40evf_get_rss_reg(struct i40e_vsi *vsi, const u8 *seed,
-			      const u8 *lut, u16 lut_size)
-{
-	struct i40evf_adapter *adapter = vsi->back;
-	struct i40e_hw *hw = &adapter->hw;
-	u16 i;
-
-	if (seed) {
-		u32 *seed_dw = (u32 *)seed;
-
-		for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
-			seed_dw[i] = rd32(hw, I40E_VFQF_HKEY(i));
-	}
-
-	if (lut) {
-		u32 *lut_dw = (u32 *)lut;
-
-		if (lut_size != I40EVF_HLUT_ARRAY_SIZE)
-			return -EINVAL;
-
-		for (i = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++)
-			lut_dw[i] = rd32(hw, I40E_VFQF_HLUT(i));
-	}
-
-	return 0;
-}
-
-/**
  * i40evf_config_rss - Configure RSS keys and lut
- * @vsi: Pointer to vsi structure
- * @seed: RSS hash seed
- * @lut: Lookup table
- * @lut_size: Lookup table size
+ * @adapter: board private structure
  *
  * Returns 0 on success, negative on failure
  **/
-int i40evf_config_rss(struct i40e_vsi *vsi, const u8 *seed,
-		      u8 *lut, u16 lut_size)
+int i40evf_config_rss(struct i40evf_adapter *adapter)
 {
-	struct i40evf_adapter *adapter = vsi->back;
 
-	if (RSS_AQ(adapter))
-		return i40evf_config_rss_aq(vsi, seed, lut, lut_size);
-	else
-		return i40evf_config_rss_reg(vsi, seed, lut, lut_size);
-}
-
-/**
- * i40evf_get_rss - Get RSS keys and lut
- * @vsi: Pointer to vsi structure
- * @seed: RSS hash seed
- * @lut: Lookup table
- * @lut_size: Lookup table size
- *
- * Returns 0 on success, negative on failure
- **/
-int i40evf_get_rss(struct i40e_vsi *vsi, const u8 *seed, u8 *lut, u16 lut_size)
-{
-	struct i40evf_adapter *adapter = vsi->back;
-
-	if (RSS_AQ(adapter))
-		return i40evf_get_rss_aq(vsi, seed, lut, lut_size);
-	else
-		return i40evf_get_rss_reg(vsi, seed, lut, lut_size);
+	if (RSS_PF(adapter)) {
+		adapter->aq_required |= I40EVF_FLAG_AQ_SET_RSS_LUT |
+					I40EVF_FLAG_AQ_SET_RSS_KEY;
+		return 0;
+	} else if (RSS_AQ(adapter)) {
+		return i40evf_config_rss_aq(adapter);
+	} else {
+		return i40evf_config_rss_reg(adapter);
+	}
 }
 
 /**
  * i40evf_fill_rss_lut - Fill the lut with default values
- * @lut: Lookup table to be filled with
- * @rss_table_size: Lookup table size
- * @rss_size: Range of queue number for hashing
+ * @adapter: board private structure
  **/
-static void i40evf_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size)
+static void i40evf_fill_rss_lut(struct i40evf_adapter *adapter)
 {
 	u16 i;
 
-	for (i = 0; i < rss_table_size; i++)
-		lut[i] = i % rss_size;
+	for (i = 0; i < adapter->rss_lut_size; i++)
+		adapter->rss_lut[i] = i % adapter->num_active_queues;
 }
 
 /**
@@ -1451,42 +1320,25 @@ static void i40evf_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size)
  **/
 static int i40evf_init_rss(struct i40evf_adapter *adapter)
 {
-	struct i40e_vsi *vsi = &adapter->vsi;
 	struct i40e_hw *hw = &adapter->hw;
-	u8 seed[I40EVF_HKEY_ARRAY_SIZE];
-	u64 hena;
-	u8 *lut;
 	int ret;
 
-	/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
-	if (adapter->vf_res->vf_offload_flags &
-					I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
-		hena = I40E_DEFAULT_RSS_HENA_EXPANDED;
-	else
-		hena = I40E_DEFAULT_RSS_HENA;
-	wr32(hw, I40E_VFQF_HENA(0), (u32)hena);
-	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
+	if (!RSS_PF(adapter)) {
+		/* Enable PCTYPES for RSS, TCP/UDP with IPv4/IPv6 */
+		if (adapter->vf_res->vf_offload_flags &
+		    I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
+			adapter->hena = I40E_DEFAULT_RSS_HENA_EXPANDED;
+		else
+			adapter->hena = I40E_DEFAULT_RSS_HENA;
 
-	lut = kzalloc(I40EVF_HLUT_ARRAY_SIZE, GFP_KERNEL);
-	if (!lut)
-		return -ENOMEM;
+		wr32(hw, I40E_VFQF_HENA(0), (u32)adapter->hena);
+		wr32(hw, I40E_VFQF_HENA(1), (u32)(adapter->hena >> 32));
+	}
 
-	/* Use user configured lut if there is one, otherwise use default */
-	if (vsi->rss_lut_user)
-		memcpy(lut, vsi->rss_lut_user, I40EVF_HLUT_ARRAY_SIZE);
-	else
-		i40evf_fill_rss_lut(lut, I40EVF_HLUT_ARRAY_SIZE,
-				    adapter->num_active_queues);
+	i40evf_fill_rss_lut(adapter);
 
-	/* Use user configured hash key if there is one, otherwise
-	 * user default.
-	 */
-	if (vsi->rss_hkey_user)
-		memcpy(seed, vsi->rss_hkey_user, I40EVF_HKEY_ARRAY_SIZE);
-	else
-		netdev_rss_key_fill((void *)seed, I40EVF_HKEY_ARRAY_SIZE);
-	ret = i40evf_config_rss(vsi, seed, lut, I40EVF_HLUT_ARRAY_SIZE);
-	kfree(lut);
+	netdev_rss_key_fill((void *)adapter->rss_key, adapter->rss_key_size);
+	ret = i40evf_config_rss(adapter);
 
 	return ret;
 }
@@ -1507,7 +1359,7 @@ static int i40evf_alloc_q_vectors(struct i40evf_adapter *adapter)
 	adapter->q_vectors = kcalloc(num_q_vectors, sizeof(*q_vector),
 				     GFP_KERNEL);
 	if (!adapter->q_vectors)
-		goto err_out;
+		return -ENOMEM;
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
 		q_vector = &adapter->q_vectors[q_idx];
@@ -1519,15 +1371,6 @@ static int i40evf_alloc_q_vectors(struct i40evf_adapter *adapter)
 	}
 
 	return 0;
-
-err_out:
-	while (q_idx) {
-		q_idx--;
-		q_vector = &adapter->q_vectors[q_idx];
-		netif_napi_del(&q_vector->napi);
-	}
-	kfree(adapter->q_vectors);
-	return -ENOMEM;
 }
 
 /**
@@ -1610,19 +1453,16 @@ err_set_interrupt:
 }
 
 /**
- * i40evf_clear_rss_config_user - Clear user configurations of RSS
- * @vsi: Pointer to VSI structure
+ * i40evf_free_rss - Free memory used by RSS structs
+ * @adapter: board private structure
  **/
-static void i40evf_clear_rss_config_user(struct i40e_vsi *vsi)
+static void i40evf_free_rss(struct i40evf_adapter *adapter)
 {
-	if (!vsi)
-		return;
+	kfree(adapter->rss_key);
+	adapter->rss_key = NULL;
 
-	kfree(vsi->rss_hkey_user);
-	vsi->rss_hkey_user = NULL;
-
-	kfree(vsi->rss_lut_user);
-	vsi->rss_lut_user = NULL;
+	kfree(adapter->rss_lut);
+	adapter->rss_lut = NULL;
 }
 
 /**
@@ -1754,6 +1594,39 @@ static void i40evf_watchdog_task(struct work_struct *work)
 		 */
 		i40evf_init_rss(adapter);
 		adapter->aq_required &= ~I40EVF_FLAG_AQ_CONFIGURE_RSS;
+		goto watchdog_done;
+	}
+	if (adapter->aq_required & I40EVF_FLAG_AQ_GET_HENA) {
+		i40evf_get_hena(adapter);
+		goto watchdog_done;
+	}
+	if (adapter->aq_required & I40EVF_FLAG_AQ_SET_HENA) {
+		i40evf_set_hena(adapter);
+		goto watchdog_done;
+	}
+	if (adapter->aq_required & I40EVF_FLAG_AQ_SET_RSS_KEY) {
+		i40evf_set_rss_key(adapter);
+		goto watchdog_done;
+	}
+	if (adapter->aq_required & I40EVF_FLAG_AQ_SET_RSS_LUT) {
+		i40evf_set_rss_lut(adapter);
+		goto watchdog_done;
+	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_REQUEST_PROMISC) {
+		i40evf_set_promiscuous(adapter, I40E_FLAG_VF_UNICAST_PROMISC |
+				       I40E_FLAG_VF_MULTICAST_PROMISC);
+		goto watchdog_done;
+	}
+
+	if (adapter->aq_required & I40EVF_FLAG_AQ_REQUEST_ALLMULTI) {
+		i40evf_set_promiscuous(adapter, I40E_FLAG_VF_MULTICAST_PROMISC);
+		goto watchdog_done;
+	}
+
+	if ((adapter->aq_required & I40EVF_FLAG_AQ_RELEASE_PROMISC) &&
+	    (adapter->aq_required & I40EVF_FLAG_AQ_RELEASE_ALLMULTI)) {
+		i40evf_set_promiscuous(adapter, 0);
 		goto watchdog_done;
 	}
 
@@ -2003,6 +1876,8 @@ static void i40evf_adminq_task(struct work_struct *work)
 
 	/* check for error indications */
 	val = rd32(hw, hw->aq.arq.len);
+	if (val == 0xdeadbeef) /* indicates device in reset */
+		goto freedom;
 	oldval = val;
 	if (val & I40E_VF_ARQLEN1_ARQVFE_MASK) {
 		dev_info(&adapter->pdev->dev, "ARQ VF Error detected\n");
@@ -2259,6 +2134,28 @@ static int i40evf_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
+#define I40EVF_VLAN_FEATURES (NETIF_F_HW_VLAN_CTAG_TX |\
+			      NETIF_F_HW_VLAN_CTAG_RX |\
+			      NETIF_F_HW_VLAN_CTAG_FILTER)
+
+/**
+ * i40evf_fix_features - fix up the netdev feature bits
+ * @netdev: our net device
+ * @features: desired feature bits
+ *
+ * Returns fixed-up features bits
+ **/
+static netdev_features_t i40evf_fix_features(struct net_device *netdev,
+					     netdev_features_t features)
+{
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
+
+	features &= ~I40EVF_VLAN_FEATURES;
+	if (adapter->vf_res->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_VLAN)
+		features |= I40EVF_VLAN_FEATURES;
+	return features;
+}
+
 static const struct net_device_ops i40evf_netdev_ops = {
 	.ndo_open		= i40evf_open,
 	.ndo_stop		= i40evf_close,
@@ -2271,6 +2168,7 @@ static const struct net_device_ops i40evf_netdev_ops = {
 	.ndo_tx_timeout		= i40evf_tx_timeout,
 	.ndo_vlan_rx_add_vid	= i40evf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= i40evf_vlan_rx_kill_vid,
+	.ndo_fix_features	= i40evf_fix_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= i40evf_netpoll,
 #endif
@@ -2307,57 +2205,61 @@ static int i40evf_check_reset_complete(struct i40e_hw *hw)
  **/
 int i40evf_process_config(struct i40evf_adapter *adapter)
 {
+	struct i40e_virtchnl_vf_resource *vfres = adapter->vf_res;
 	struct net_device *netdev = adapter->netdev;
+	struct i40e_vsi *vsi = &adapter->vsi;
 	int i;
 
 	/* got VF config message back from PF, now we can parse it */
-	for (i = 0; i < adapter->vf_res->num_vsis; i++) {
-		if (adapter->vf_res->vsi_res[i].vsi_type == I40E_VSI_SRIOV)
-			adapter->vsi_res = &adapter->vf_res->vsi_res[i];
+	for (i = 0; i < vfres->num_vsis; i++) {
+		if (vfres->vsi_res[i].vsi_type == I40E_VSI_SRIOV)
+			adapter->vsi_res = &vfres->vsi_res[i];
 	}
 	if (!adapter->vsi_res) {
 		dev_err(&adapter->pdev->dev, "No LAN VSI found\n");
 		return -ENODEV;
 	}
 
-	if (adapter->vf_res->vf_offload_flags
-	    & I40E_VIRTCHNL_VF_OFFLOAD_VLAN) {
-		netdev->vlan_features = netdev->features &
-					~(NETIF_F_HW_VLAN_CTAG_TX |
-					  NETIF_F_HW_VLAN_CTAG_RX |
-					  NETIF_F_HW_VLAN_CTAG_FILTER);
-		netdev->features |= NETIF_F_HW_VLAN_CTAG_TX |
-				    NETIF_F_HW_VLAN_CTAG_RX |
-				    NETIF_F_HW_VLAN_CTAG_FILTER;
-	}
-	netdev->features |= NETIF_F_HIGHDMA |
-			    NETIF_F_SG |
-			    NETIF_F_IP_CSUM |
-			    NETIF_F_SCTP_CRC |
-			    NETIF_F_IPV6_CSUM |
-			    NETIF_F_TSO |
-			    NETIF_F_TSO6 |
-			    NETIF_F_TSO_ECN |
-			    NETIF_F_GSO_GRE	       |
-			    NETIF_F_GSO_UDP_TUNNEL |
-			    NETIF_F_RXCSUM |
-			    NETIF_F_GRO;
+	netdev->hw_enc_features |= NETIF_F_SG			|
+				   NETIF_F_IP_CSUM		|
+				   NETIF_F_IPV6_CSUM		|
+				   NETIF_F_HIGHDMA		|
+				   NETIF_F_SOFT_FEATURES	|
+				   NETIF_F_TSO			|
+				   NETIF_F_TSO_ECN		|
+				   NETIF_F_TSO6			|
+				   NETIF_F_GSO_GRE		|
+				   NETIF_F_GSO_GRE_CSUM		|
+				   NETIF_F_GSO_IPIP		|
+				   NETIF_F_GSO_SIT		|
+				   NETIF_F_GSO_UDP_TUNNEL	|
+				   NETIF_F_GSO_UDP_TUNNEL_CSUM	|
+				   NETIF_F_GSO_PARTIAL		|
+				   NETIF_F_SCTP_CRC		|
+				   NETIF_F_RXHASH		|
+				   NETIF_F_RXCSUM		|
+				   0;
 
-	netdev->hw_enc_features |= NETIF_F_IP_CSUM	       |
-				   NETIF_F_IPV6_CSUM	       |
-				   NETIF_F_TSO		       |
-				   NETIF_F_TSO6		       |
-				   NETIF_F_TSO_ECN	       |
-				   NETIF_F_GSO_GRE	       |
-				   NETIF_F_GSO_UDP_TUNNEL      |
-				   NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	if (!(adapter->flags & I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE))
+		netdev->gso_partial_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
-	if (adapter->flags & I40EVF_FLAG_OUTER_UDP_CSUM_CAPABLE)
-		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	netdev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
 
-	/* copy netdev features into list of user selectable features */
-	netdev->hw_features |= netdev->features;
-	netdev->hw_features &= ~NETIF_F_RXCSUM;
+	/* record features VLANs can make use of */
+	netdev->vlan_features |= netdev->hw_enc_features |
+				 NETIF_F_TSO_MANGLEID;
+
+	/* Write features and hw_features separately to avoid polluting
+	 * with, or dropping, features that are set when we registgered.
+	 */
+	netdev->hw_features |= netdev->hw_enc_features;
+
+	netdev->features |= netdev->hw_enc_features | I40EVF_VLAN_FEATURES;
+	netdev->hw_enc_features |= NETIF_F_TSO_MANGLEID;
+
+	/* disable VLAN features if not supported */
+	if (!(vfres->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_VLAN))
+		netdev->features ^= I40EVF_VLAN_FEATURES;
 
 	adapter->vsi.id = adapter->vsi_res->vsi_id;
 
@@ -2368,8 +2270,16 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 				       ITR_REG_TO_USEC(I40E_ITR_RX_DEF));
 	adapter->vsi.tx_itr_setting = (I40E_ITR_DYNAMIC |
 				       ITR_REG_TO_USEC(I40E_ITR_TX_DEF));
-	adapter->vsi.netdev = adapter->netdev;
-	adapter->vsi.qs_handle = adapter->vsi_res->qset_handle;
+	vsi->netdev = adapter->netdev;
+	vsi->qs_handle = adapter->vsi_res->qset_handle;
+	if (vfres->vf_offload_flags & I40E_VIRTCHNL_VF_OFFLOAD_RSS_PF) {
+		adapter->rss_key_size = vfres->rss_key_size;
+		adapter->rss_lut_size = vfres->rss_lut_size;
+	} else {
+		adapter->rss_key_size = I40EVF_HKEY_ARRAY_SIZE;
+		adapter->rss_lut_size = I40EVF_HLUT_ARRAY_SIZE;
+	}
+
 	return 0;
 }
 
@@ -2502,11 +2412,6 @@ static void i40evf_init_task(struct work_struct *work)
 	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 
 	adapter->flags |= I40EVF_FLAG_RX_CSUM_ENABLED;
-	adapter->flags |= I40EVF_FLAG_RX_1BUF_CAPABLE;
-	adapter->flags |= I40EVF_FLAG_RX_PS_CAPABLE;
-
-	/* Default to single buffer rx, can be changed through ethtool. */
-	adapter->flags &= ~I40EVF_FLAG_RX_PS_ENABLED;
 
 	netdev->netdev_ops = &i40evf_netdev_ops;
 	i40evf_set_ethtool_ops(netdev);
@@ -2565,6 +2470,11 @@ static void i40evf_init_task(struct work_struct *work)
 	set_bit(__I40E_DOWN, &adapter->vsi.state);
 	i40evf_misc_irq_enable(adapter);
 
+	adapter->rss_key = kzalloc(adapter->rss_key_size, GFP_KERNEL);
+	adapter->rss_lut = kzalloc(adapter->rss_lut_size, GFP_KERNEL);
+	if (!adapter->rss_key || !adapter->rss_lut)
+		goto err_mem;
+
 	if (RSS_AQ(adapter)) {
 		adapter->aq_required |= I40EVF_FLAG_AQ_CONFIGURE_RSS;
 		mod_timer_pending(&adapter->watchdog_timer, jiffies + 1);
@@ -2575,7 +2485,8 @@ static void i40evf_init_task(struct work_struct *work)
 restart:
 	schedule_delayed_work(&adapter->init_task, msecs_to_jiffies(30));
 	return;
-
+err_mem:
+	i40evf_free_rss(adapter);
 err_register:
 	i40evf_free_misc_irq(adapter);
 err_sw_init:
@@ -2838,11 +2749,11 @@ static void i40evf_remove(struct pci_dev *pdev)
 	adapter->state = __I40EVF_REMOVE;
 	adapter->aq_required = 0;
 	i40evf_request_reset(adapter);
-	msleep(20);
+	msleep(50);
 	/* If the FW isn't responding, kick it once, but only once. */
 	if (!i40evf_asq_done(hw)) {
 		i40evf_request_reset(adapter);
-		msleep(20);
+		msleep(50);
 	}
 
 	if (adapter->msix_entries) {
@@ -2857,8 +2768,7 @@ static void i40evf_remove(struct pci_dev *pdev)
 
 	flush_scheduled_work();
 
-	/* Clear user configurations for RSS */
-	i40evf_clear_rss_config_user(&adapter->vsi);
+	i40evf_free_rss(adapter);
 
 	if (hw->aq.asq.count)
 		i40evf_shutdown_adminq(hw);
@@ -2869,7 +2779,6 @@ static void i40evf_remove(struct pci_dev *pdev)
 
 	iounmap(hw->hw_addr);
 	pci_release_regions(pdev);
-
 	i40evf_free_all_tx_resources(adapter);
 	i40evf_free_all_rx_resources(adapter);
 	i40evf_free_queues(adapter);

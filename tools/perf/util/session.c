@@ -557,7 +557,7 @@ static u8 revbyte(u8 b)
 
 /*
  * XXX this is hack in attempt to carry flags bitfield
- * throught endian village. ABI says:
+ * through endian village. ABI says:
  *
  * Bit-fields are allocated from right to left (least to most significant)
  * on little-endian implementations and from left to right (most to least
