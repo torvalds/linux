@@ -126,6 +126,7 @@ static void sdcardfs_evict_inode(struct inode *inode)
 	 */
 	lower_inode = sdcardfs_lower_inode(inode);
 	sdcardfs_set_lower_inode(inode, NULL);
+	set_top(SDCARDFS_I(inode), inode);
 	iput(lower_inode);
 }
 
