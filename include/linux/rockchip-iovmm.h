@@ -14,6 +14,8 @@
 #define IEP_IOMMU_COMPATIBLE_NAME "rockchip,iep_mmu"
 #define VIP_IOMMU_COMPATIBLE_NAME "rockchip,vip_mmu"
 #define ISP_IOMMU_COMPATIBLE_NAME "rockchip,isp_mmu"
+#define ISP0_IOMMU_COMPATIBLE_NAME "rockchip,isp0_mmu"
+#define ISP1_IOMMU_COMPATIBLE_NAME "rockchip,isp1_mmu"
 #define VOPB_IOMMU_COMPATIBLE_NAME "rockchip,vopb_mmu"
 #define VOPL_IOMMU_COMPATIBLE_NAME "rockchip,vopl_mmu"
 #define VOP_IOMMU_COMPATIBLE_NAME	"rockchip,vop_mmu"

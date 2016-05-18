@@ -1,6 +1,6 @@
 config CAMSYS_DRV
 	tristate "camsys driver "
-	default y
+	default n
 	
 menu "RockChip camera system driver"
 	depends on CAMSYS_DRV
@@ -9,7 +9,7 @@ source "drivers/media/video/rk_camsys/ext_flashled_drv/Kconfig"
 	
 config CAMSYS_MRV
 	tristate "camsys driver for marvin isp "
-	default y
+	default n
 	---help---
 
 config CAMSYS_CIF

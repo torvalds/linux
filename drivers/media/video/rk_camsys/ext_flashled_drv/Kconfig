@@ -1,6 +1,6 @@
 config FLASHLIGHT
 	bool "Flashlight Support"
-	default y
+	default n
 	help
 	  This option enables the led sysfs class in /sys/class/flashlight.
 

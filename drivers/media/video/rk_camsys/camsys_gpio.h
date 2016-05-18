@@ -9,8 +9,8 @@
 
 static inline unsigned int camsys_gpio_group_pin(unsigned char *io_name)
 {
-	unsigned char *pin_char;
-	unsigned char pin;
+	char *pin_char = NULL;
+	int pin = -1;
 
 	if (strstr(io_name, "PA")) {
 		pin_char = strstr(io_name, "PA");
@@ -37,7 +37,7 @@ static inline unsigned int camsys_gpio_group_pin(unsigned char *io_name)
 
 static inline unsigned int camsys_gpio_group(unsigned char *io_name)
 {
-	unsigned int group;
+	unsigned int group = 0;
 
 	if (strstr(io_name, "PIN0"))
 		group = 0;
@@ -62,29 +62,22 @@ static inline unsigned int camsys_gpio_group(unsigned char *io_name)
 
 static inline unsigned int camsys_gpio_get(unsigned char *io_name)
 {
-	unsigned int gpio;
-	unsigned int group;
-	unsigned int group_pin;
+	unsigned int gpio = 0;
+	unsigned int group = 0;
+	int group_pin = 0;
 #if (defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188) ||\
 		defined(CONFIG_ARCH_RK319X) || defined(CONFIG_ARCH_ROCKCHIP))
 	if (strstr(io_name, "RK30_")) {
 		gpio = RK30_PIN0_PA0;
 		group = camsys_gpio_group(io_name);
 		group_pin = camsys_gpio_group_pin(io_name);
-		if (group >= GPIO_BANKS) {
+		if (group_pin == -1)
 			gpio = 0xffffffff;
-		} else {
-			if (cpu_is_rk3288()) {
-				/* bank 0 only has 24 pins ,not 32 pins */
-				if (group > 0) {
-					gpio += 24 + (group - 1) * NUM_GROUP
-							+ group_pin;
-				} else {
-					gpio += group_pin;
-				}
-			} else {
+		else {
+			if (group >= GPIO_BANKS)
+				gpio = 0xffffffff;
+			else
 				gpio += group * NUM_GROUP + group_pin;
-			}
 		}
 	}
 #endif
