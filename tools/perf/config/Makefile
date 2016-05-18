@@ -27,7 +27,7 @@ NO_PERF_REGS := 1
 ifeq ($(ARCH),x86)
   $(call detected,CONFIG_X86)
   ifeq (${IS_64_BIT}, 1)
-    CFLAGS += -DHAVE_ARCH_X86_64_SUPPORT
+    CFLAGS += -DHAVE_ARCH_X86_64_SUPPORT -DHAVE_SYSCALL_TABLE -I$(OUTPUT)arch/x86/include/generated
     ARCH_INCLUDE = ../../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memset_64.S
     LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
     $(call detected,CONFIG_X86_64)
@@ -268,6 +268,12 @@ else
     ifneq ($(feature-dwarf), 1)
       msg := $(warning No libdw.h found or old libdw.h found or elfutils is older than 0.138, disables dwarf support. Please install new elfutils-devel/libdw-dev);
       NO_DWARF := 1
+    else
+      ifneq ($(feature-dwarf_getlocations), 1)
+        msg := $(warning Old libdw.h, finding variables at given 'perf probe' point will not work, install elfutils-devel/libdw-dev >= 0.157);
+      else
+        CFLAGS += -DHAVE_DWARF_GETLOCATIONS
+      endif # dwarf_getlocations
     endif # Dwarf support
   endif # libelf support
 endif # NO_LIBELF
@@ -288,9 +294,6 @@ ifndef NO_LIBELF
   ifeq ($(feature-libelf-getphdrnum), 1)
     CFLAGS += -DHAVE_ELF_GETPHDRNUM_SUPPORT
   endif
-
-  # include ARCH specific config
-  -include $(src-perf)/arch/$(ARCH)/Makefile
 
   ifndef NO_DWARF
     ifeq ($(origin PERF_HAVE_DWARF_REGS), undefined)

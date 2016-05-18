@@ -248,7 +248,7 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 		int enabled = 0;
 
 		for (j = 0; j < MAX_USER_PRIORITY; j++) {
-			if ((prio_tc[j] == i) && (pfc_en & (1 << j))) {
+			if ((prio_tc[j] == i) && (pfc_en & BIT(j))) {
 				enabled = 1;
 				break;
 			}

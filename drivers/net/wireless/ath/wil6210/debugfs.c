@@ -37,6 +37,7 @@ enum dbg_off_type {
 	doff_x32 = 1,
 	doff_ulong = 2,
 	doff_io32 = 3,
+	doff_u8 = 4
 };
 
 /* offset to "wil" */
@@ -345,6 +346,10 @@ static void wil6210_debugfs_init_offset(struct wil6210_priv *wil,
 			f = wil_debugfs_create_iomem_x32(tbl[i].name,
 							 tbl[i].mode, dbg,
 							 base + tbl[i].off);
+			break;
+		case doff_u8:
+			f = debugfs_create_u8(tbl[i].name, tbl[i].mode, dbg,
+					      base + tbl[i].off);
 			break;
 		default:
 			f = ERR_PTR(-EINVAL);
@@ -821,13 +826,13 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 				  size_t len, loff_t *ppos)
 {
 	struct wil6210_priv *wil = file->private_data;
-	struct wil6210_mbox_hdr_wmi *wmi;
+	struct wmi_cmd_hdr *wmi;
 	void *cmd;
-	int cmdlen = len - sizeof(struct wil6210_mbox_hdr_wmi);
+	int cmdlen = len - sizeof(struct wmi_cmd_hdr);
 	u16 cmdid;
 	int rc, rc1;
 
-	if (cmdlen <= 0)
+	if (cmdlen < 0)
 		return -EINVAL;
 
 	wmi = kmalloc(len, GFP_KERNEL);
@@ -840,8 +845,8 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 		return rc;
 	}
 
-	cmd = &wmi[1];
-	cmdid = le16_to_cpu(wmi->id);
+	cmd = (cmdlen > 0) ? &wmi[1] : NULL;
+	cmdid = le16_to_cpu(wmi->command_id);
 
 	rc1 = wmi_send(wil, cmdid, cmd, cmdlen);
 	kfree(wmi);
@@ -985,7 +990,7 @@ static int wil_bf_debugfs_show(struct seq_file *s, void *data)
 		.interval_usec = 0,
 	};
 	struct {
-		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_cmd_hdr wmi;
 		struct wmi_notify_req_done_event evt;
 	} __packed reply;
 
@@ -1333,6 +1338,34 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 		   r->ssn_last_drop);
 }
 
+static void wil_print_rxtid_crypto(struct seq_file *s, int tid,
+				   struct wil_tid_crypto_rx *c)
+{
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		struct wil_tid_crypto_rx_single *cc = &c->key_id[i];
+
+		if (cc->key_set)
+			goto has_keys;
+	}
+	return;
+
+has_keys:
+	if (tid < WIL_STA_TID_NUM)
+		seq_printf(s, "  [%2d] PN", tid);
+	else
+		seq_puts(s, "  [GR] PN");
+
+	for (i = 0; i < 4; i++) {
+		struct wil_tid_crypto_rx_single *cc = &c->key_id[i];
+
+		seq_printf(s, " [%i%s]%6phN", i, cc->key_set ? "+" : "-",
+			   cc->pn);
+	}
+	seq_puts(s, "\n");
+}
+
 static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 {
@@ -1360,18 +1393,25 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			spin_lock_bh(&p->tid_rx_lock);
 			for (tid = 0; tid < WIL_STA_TID_NUM; tid++) {
 				struct wil_tid_ampdu_rx *r = p->tid_rx[tid];
+				struct wil_tid_crypto_rx *c =
+						&p->tid_crypto_rx[tid];
 
 				if (r) {
-					seq_printf(s, "[%2d] ", tid);
+					seq_printf(s, "  [%2d] ", tid);
 					wil_print_rxtid(s, r);
 				}
+
+				wil_print_rxtid_crypto(s, tid, c);
 			}
+			wil_print_rxtid_crypto(s, WIL_STA_TID_NUM,
+					       &p->group_crypto_rx);
 			spin_unlock_bh(&p->tid_rx_lock);
 			seq_printf(s,
-				   "Rx invalid frame: non-data %lu, short %lu, large %lu\n",
+				   "Rx invalid frame: non-data %lu, short %lu, large %lu, replay %lu\n",
 				   p->stats.rx_non_data_frame,
 				   p->stats.rx_short_frame,
-				   p->stats.rx_large_frame);
+				   p->stats.rx_large_frame,
+				   p->stats.rx_replay);
 
 			seq_puts(s, "Rx/MCS:");
 			for (mcs = 0; mcs < ARRAY_SIZE(p->stats.rx_per_mcs);
@@ -1487,6 +1527,7 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(hw_version,	S_IRUGO,		doff_x32),
 	WIL_FIELD(recovery_count, S_IRUGO,		doff_u32),
 	WIL_FIELD(ap_isolate,	S_IRUGO,		doff_u32),
+	WIL_FIELD(discovery_mode, S_IRUGO | S_IWUSR,	doff_u8),
 	{},
 };
 

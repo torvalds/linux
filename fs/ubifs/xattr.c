@@ -372,10 +372,10 @@ int ubifs_setxattr(struct dentry *dentry, const char *name,
 	return setxattr(d_inode(dentry), name, value, size, flags);
 }
 
-ssize_t ubifs_getxattr(struct dentry *dentry, const char *name, void *buf,
-		       size_t size)
+ssize_t ubifs_getxattr(struct dentry *dentry, struct inode *host,
+		       const char *name, void *buf, size_t size)
 {
-	struct inode *inode, *host = d_inode(dentry);
+	struct inode *inode;
 	struct ubifs_info *c = host->i_sb->s_fs_info;
 	struct qstr nm = QSTR_INIT(name, strlen(name));
 	struct ubifs_inode *ui;

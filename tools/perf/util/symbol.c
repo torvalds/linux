@@ -255,40 +255,6 @@ void symbol__delete(struct symbol *sym)
 	free(((void *)sym) - symbol_conf.priv_size);
 }
 
-size_t symbol__fprintf(struct symbol *sym, FILE *fp)
-{
-	return fprintf(fp, " %" PRIx64 "-%" PRIx64 " %c %s\n",
-		       sym->start, sym->end,
-		       sym->binding == STB_GLOBAL ? 'g' :
-		       sym->binding == STB_LOCAL  ? 'l' : 'w',
-		       sym->name);
-}
-
-size_t symbol__fprintf_symname_offs(const struct symbol *sym,
-				    const struct addr_location *al, FILE *fp)
-{
-	unsigned long offset;
-	size_t length;
-
-	if (sym && sym->name) {
-		length = fprintf(fp, "%s", sym->name);
-		if (al) {
-			if (al->addr < sym->end)
-				offset = al->addr - sym->start;
-			else
-				offset = al->addr - al->map->start - sym->start;
-			length += fprintf(fp, "+0x%lx", offset);
-		}
-		return length;
-	} else
-		return fprintf(fp, "[unknown]");
-}
-
-size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp)
-{
-	return symbol__fprintf_symname_offs(sym, NULL, fp);
-}
-
 void symbols__delete(struct rb_root *symbols)
 {
 	struct symbol *pos;
@@ -335,7 +301,7 @@ static struct symbol *symbols__find(struct rb_root *symbols, u64 ip)
 
 		if (ip < s->start)
 			n = n->rb_left;
-		else if (ip >= s->end)
+		else if (ip > s->end || (ip == s->end && ip != s->start))
 			n = n->rb_right;
 		else
 			return s;
@@ -363,11 +329,6 @@ static struct symbol *symbols__next(struct symbol *sym)
 
 	return NULL;
 }
-
-struct symbol_name_rb_node {
-	struct rb_node	rb_node;
-	struct symbol	sym;
-};
 
 static void symbols__insert_by_name(struct rb_root *symbols, struct symbol *sym)
 {
@@ -452,6 +413,18 @@ void dso__reset_find_symbol_cache(struct dso *dso)
 	}
 }
 
+void dso__insert_symbol(struct dso *dso, enum map_type type, struct symbol *sym)
+{
+	symbols__insert(&dso->symbols[type], sym);
+
+	/* update the symbol cache if necessary */
+	if (dso->last_find_result[type].addr >= sym->start &&
+	    (dso->last_find_result[type].addr < sym->end ||
+	    sym->start == sym->end)) {
+		dso->last_find_result[type].symbol = sym;
+	}
+}
+
 struct symbol *dso__find_symbol(struct dso *dso,
 				enum map_type type, u64 addr)
 {
@@ -495,21 +468,6 @@ void dso__sort_by_name(struct dso *dso, enum map_type type)
 	dso__set_sorted_by_name(dso, type);
 	return symbols__sort_by_name(&dso->symbol_names[type],
 				     &dso->symbols[type]);
-}
-
-size_t dso__fprintf_symbols_by_name(struct dso *dso,
-				    enum map_type type, FILE *fp)
-{
-	size_t ret = 0;
-	struct rb_node *nd;
-	struct symbol_name_rb_node *pos;
-
-	for (nd = rb_first(&dso->symbol_names[type]); nd; nd = rb_next(nd)) {
-		pos = rb_entry(nd, struct symbol_name_rb_node, rb_node);
-		fprintf(fp, "%s\n", pos->sym.name);
-	}
-
-	return ret;
 }
 
 int modules__parse(const char *filename, void *arg,
@@ -1262,8 +1220,8 @@ static int kallsyms__delta(struct map *map, const char *filename, u64 *delta)
 	return 0;
 }
 
-int dso__load_kallsyms(struct dso *dso, const char *filename,
-		       struct map *map, symbol_filter_t filter)
+int __dso__load_kallsyms(struct dso *dso, const char *filename,
+			 struct map *map, bool no_kcore, symbol_filter_t filter)
 {
 	u64 delta = 0;
 
@@ -1284,10 +1242,16 @@ int dso__load_kallsyms(struct dso *dso, const char *filename,
 	else
 		dso->symtab_type = DSO_BINARY_TYPE__KALLSYMS;
 
-	if (!dso__load_kcore(dso, map, filename))
+	if (!no_kcore && !dso__load_kcore(dso, map, filename))
 		return dso__split_kallsyms_for_kcore(dso, map, filter);
 	else
 		return dso__split_kallsyms(dso, map, delta, filter);
+}
+
+int dso__load_kallsyms(struct dso *dso, const char *filename,
+		       struct map *map, symbol_filter_t filter)
+{
+	return __dso__load_kallsyms(dso, filename, map, false, filter);
 }
 
 static int dso__load_perf_map(struct dso *dso, struct map *map,
@@ -1644,25 +1608,27 @@ out:
 	return err;
 }
 
+static bool visible_dir_filter(const char *name, struct dirent *d)
+{
+	if (d->d_type != DT_DIR)
+		return false;
+	return lsdir_no_dot_filter(name, d);
+}
+
 static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 {
 	char kallsyms_filename[PATH_MAX];
-	struct dirent *dent;
 	int ret = -1;
-	DIR *d;
+	struct strlist *dirs;
+	struct str_node *nd;
 
-	d = opendir(dir);
-	if (!d)
+	dirs = lsdir(dir, visible_dir_filter);
+	if (!dirs)
 		return -1;
 
-	while (1) {
-		dent = readdir(d);
-		if (!dent)
-			break;
-		if (dent->d_type != DT_DIR)
-			continue;
+	strlist__for_each(nd, dirs) {
 		scnprintf(kallsyms_filename, sizeof(kallsyms_filename),
-			  "%s/%s/kallsyms", dir, dent->d_name);
+			  "%s/%s/kallsyms", dir, nd->s);
 		if (!validate_kcore_addresses(kallsyms_filename, map)) {
 			strlcpy(dir, kallsyms_filename, dir_sz);
 			ret = 0;
@@ -1670,7 +1636,7 @@ static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 		}
 	}
 
-	closedir(d);
+	strlist__delete(dirs);
 
 	return ret;
 }
@@ -1678,7 +1644,7 @@ static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 {
 	u8 host_build_id[BUILD_ID_SIZE];
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 	bool is_host = false;
 	char path[PATH_MAX];
 

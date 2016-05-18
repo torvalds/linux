@@ -555,62 +555,53 @@ early_idt_handler_common:
 	 */
 	cld
 
-	cmpl $2,(%esp)		# X86_TRAP_NMI
-	je .Lis_nmi		# Ignore NMI
-
-	cmpl $2,%ss:early_recursion_flag
-	je hlt_loop
 	incl %ss:early_recursion_flag
 
-	push %eax		# 16(%esp)
-	push %ecx		# 12(%esp)
-	push %edx		#  8(%esp)
-	push %ds		#  4(%esp)
-	push %es		#  0(%esp)
-	movl $(__KERNEL_DS),%eax
-	movl %eax,%ds
-	movl %eax,%es
+	/* The vector number is in pt_regs->gs */
 
-	cmpl $(__KERNEL_CS),32(%esp)
-	jne 10f
+	cld
+	pushl	%fs		/* pt_regs->fs */
+	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
+	pushl	%es		/* pt_regs->es */
+	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
+	pushl	%ds		/* pt_regs->ds */
+	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
+	pushl	%eax		/* pt_regs->ax */
+	pushl	%ebp		/* pt_regs->bp */
+	pushl	%edi		/* pt_regs->di */
+	pushl	%esi		/* pt_regs->si */
+	pushl	%edx		/* pt_regs->dx */
+	pushl	%ecx		/* pt_regs->cx */
+	pushl	%ebx		/* pt_regs->bx */
 
-	leal 28(%esp),%eax	# Pointer to %eip
-	call early_fixup_exception
-	andl %eax,%eax
-	jnz ex_entry		/* found an exception entry */
+	/* Fix up DS and ES */
+	movl	$(__KERNEL_DS), %ecx
+	movl	%ecx, %ds
+	movl	%ecx, %es
 
-10:
-#ifdef CONFIG_PRINTK
-	xorl %eax,%eax
-	movw %ax,2(%esp)	/* clean up the segment values on some cpus */
-	movw %ax,6(%esp)
-	movw %ax,34(%esp)
-	leal  40(%esp),%eax
-	pushl %eax		/* %esp before the exception */
-	pushl %ebx
-	pushl %ebp
-	pushl %esi
-	pushl %edi
-	movl %cr2,%eax
-	pushl %eax
-	pushl (20+6*4)(%esp)	/* trapno */
-	pushl $fault_msg
-	call printk
-#endif
-	call dump_stack
-hlt_loop:
-	hlt
-	jmp hlt_loop
+	/* Load the vector number into EDX */
+	movl	PT_GS(%esp), %edx
 
-ex_entry:
-	pop %es
-	pop %ds
-	pop %edx
-	pop %ecx
-	pop %eax
-	decl %ss:early_recursion_flag
-.Lis_nmi:
-	addl $8,%esp		/* drop vector number and error code */
+	/* Load GS into pt_regs->gs and clear high bits */
+	movw	%gs, PT_GS(%esp)
+	movw	$0, PT_GS+2(%esp)
+
+	movl	%esp, %eax	/* args are pt_regs (EAX), trapnr (EDX) */
+	call	early_fixup_exception
+
+	popl	%ebx		/* pt_regs->bx */
+	popl	%ecx		/* pt_regs->cx */
+	popl	%edx		/* pt_regs->dx */
+	popl	%esi		/* pt_regs->si */
+	popl	%edi		/* pt_regs->di */
+	popl	%ebp		/* pt_regs->bp */
+	popl	%eax		/* pt_regs->ax */
+	popl	%ds		/* pt_regs->ds */
+	popl	%es		/* pt_regs->es */
+	popl	%fs		/* pt_regs->fs */
+	popl	%gs		/* pt_regs->gs */
+	decl	%ss:early_recursion_flag
+	addl	$4, %esp	/* pop pt_regs->orig_ax */
 	iret
 ENDPROC(early_idt_handler_common)
 
@@ -647,10 +638,14 @@ ignore_int:
 	popl %eax
 #endif
 	iret
+
+hlt_loop:
+	hlt
+	jmp hlt_loop
 ENDPROC(ignore_int)
 __INITDATA
 	.align 4
-early_recursion_flag:
+GLOBAL(early_recursion_flag)
 	.long 0
 
 __REFDATA
@@ -714,19 +709,6 @@ ENTRY(stack_start)
 __INITRODATA
 int_msg:
 	.asciz "Unknown interrupt or fault at: %p %p %p\n"
-
-fault_msg:
-/* fault info: */
-	.ascii "BUG: Int %d: CR2 %p\n"
-/* regs pushed in early_idt_handler: */
-	.ascii "     EDI %p  ESI %p  EBP %p  EBX %p\n"
-	.ascii "     ESP %p   ES %p   DS %p\n"
-	.ascii "     EDX %p  ECX %p  EAX %p\n"
-/* fault frame: */
-	.ascii "     vec %p  err %p  EIP %p   CS %p  flg %p\n"
-	.ascii "Stack: %p %p %p %p %p %p %p %p\n"
-	.ascii "       %p %p %p %p %p %p %p %p\n"
-	.asciz "       %p %p %p %p %p %p %p %p\n"
 
 #include "../../x86/xen/xen-head.S"
 

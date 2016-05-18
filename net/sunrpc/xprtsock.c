@@ -995,15 +995,14 @@ static void xs_udp_data_read_skb(struct rpc_xprt *xprt,
 	u32 _xid;
 	__be32 *xp;
 
-	repsize = skb->len - sizeof(struct udphdr);
+	repsize = skb->len;
 	if (repsize < 4) {
 		dprintk("RPC:       impossible RPC reply size %d!\n", repsize);
 		return;
 	}
 
 	/* Copy the XID from the skb... */
-	xp = skb_header_pointer(skb, sizeof(struct udphdr),
-				sizeof(_xid), &_xid);
+	xp = skb_header_pointer(skb, 0, sizeof(_xid), &_xid);
 	if (xp == NULL)
 		return;
 
@@ -1019,11 +1018,11 @@ static void xs_udp_data_read_skb(struct rpc_xprt *xprt,
 
 	/* Suck it into the iovec, verify checksum if not done by hw. */
 	if (csum_partial_copy_to_xdr(&rovr->rq_private_buf, skb)) {
-		UDPX_INC_STATS_BH(sk, UDP_MIB_INERRORS);
+		__UDPX_INC_STATS(sk, UDP_MIB_INERRORS);
 		goto out_unlock;
 	}
 
-	UDPX_INC_STATS_BH(sk, UDP_MIB_INDATAGRAMS);
+	__UDPX_INC_STATS(sk, UDP_MIB_INDATAGRAMS);
 
 	xprt_adjust_cwnd(xprt, task, copied);
 	xprt_complete_rqst(task, copied);
@@ -1881,8 +1880,7 @@ static inline void xs_reclassify_socket6(struct socket *sock)
 
 static inline void xs_reclassify_socket(int family, struct socket *sock)
 {
-	WARN_ON_ONCE(sock_owned_by_user(sock->sk));
-	if (sock_owned_by_user(sock->sk))
+	if (WARN_ON_ONCE(!sock_allow_reclassification(sock->sk)))
 		return;
 
 	switch (family) {
@@ -1952,6 +1950,7 @@ static int xs_local_finish_connecting(struct rpc_xprt *xprt,
 		sk->sk_user_data = xprt;
 		sk->sk_data_ready = xs_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
+		sock_set_flag(sk, SOCK_FASYNC);
 		sk->sk_error_report = xs_error_report;
 		sk->sk_allocation = GFP_NOIO;
 
@@ -2138,6 +2137,7 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		sk->sk_user_data = xprt;
 		sk->sk_data_ready = xs_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
+		sock_set_flag(sk, SOCK_FASYNC);
 		sk->sk_allocation = GFP_NOIO;
 
 		xprt_set_connected(xprt);
@@ -2239,6 +2239,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		sk->sk_data_ready = xs_tcp_data_ready;
 		sk->sk_state_change = xs_tcp_state_change;
 		sk->sk_write_space = xs_tcp_write_space;
+		sock_set_flag(sk, SOCK_FASYNC);
 		sk->sk_error_report = xs_error_report;
 		sk->sk_allocation = GFP_NOIO;
 

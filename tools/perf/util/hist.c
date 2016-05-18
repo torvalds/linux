@@ -295,7 +295,7 @@ static void hists__delete_entry(struct hists *hists, struct hist_entry *he)
 		root_in  = &he->parent_he->hroot_in;
 		root_out = &he->parent_he->hroot_out;
 	} else {
-		if (sort__need_collapse)
+		if (hists__has(hists, need_collapse))
 			root_in = &hists->entries_collapsed;
 		else
 			root_in = hists->entries_in;
@@ -953,7 +953,7 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 {
 	int err, err2;
 
-	err = sample__resolve_callchain(iter->sample, &iter->parent,
+	err = sample__resolve_callchain(iter->sample, &callchain_cursor, &iter->parent,
 					iter->evsel, al, max_stack_depth);
 	if (err)
 		return err;
@@ -1295,8 +1295,9 @@ static int hists__hierarchy_insert_entry(struct hists *hists,
 	return ret;
 }
 
-int hists__collapse_insert_entry(struct hists *hists, struct rb_root *root,
-				 struct hist_entry *he)
+static int hists__collapse_insert_entry(struct hists *hists,
+					struct rb_root *root,
+					struct hist_entry *he)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -1372,7 +1373,7 @@ int hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 	struct hist_entry *n;
 	int ret;
 
-	if (!sort__need_collapse)
+	if (!hists__has(hists, need_collapse))
 		return 0;
 
 	hists->nr_entries = 0;
@@ -1631,7 +1632,7 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 		return;
 	}
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -2035,7 +2036,7 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 	struct hist_entry *he;
 	int64_t cmp;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -2061,6 +2062,8 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 	if (he) {
 		memset(&he->stat, 0, sizeof(he->stat));
 		he->hists = hists;
+		if (symbol_conf.cumulate_callchain)
+			memset(he->stat_acc, 0, sizeof(he->stat));
 		rb_link_node(&he->rb_node_in, parent, p);
 		rb_insert_color(&he->rb_node_in, root);
 		hists__inc_stats(hists, he);
@@ -2075,7 +2078,7 @@ static struct hist_entry *hists__find_entry(struct hists *hists,
 {
 	struct rb_node *n;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		n = hists->entries_collapsed.rb_node;
 	else
 		n = hists->entries_in->rb_node;
@@ -2104,7 +2107,7 @@ void hists__match(struct hists *leader, struct hists *other)
 	struct rb_node *nd;
 	struct hist_entry *pos, *pair;
 
-	if (sort__need_collapse)
+	if (hists__has(leader, need_collapse))
 		root = &leader->entries_collapsed;
 	else
 		root = leader->entries_in;
@@ -2129,7 +2132,7 @@ int hists__link(struct hists *leader, struct hists *other)
 	struct rb_node *nd;
 	struct hist_entry *pos, *pair;
 
-	if (sort__need_collapse)
+	if (hists__has(other, need_collapse))
 		root = &other->entries_collapsed;
 	else
 		root = other->entries_in;

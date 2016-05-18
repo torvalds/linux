@@ -1225,8 +1225,8 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		rc = dtSearch(new_dir, &new_dname, &ino, &btstack,
 			      JFS_CREATE);
 		if (rc) {
-			jfs_err("jfs_rename didn't expect dtSearch to fail "
-				"w/rc = %d", rc);
+			jfs_err("jfs_rename didn't expect dtSearch to fail w/rc = %d",
+				rc);
 			goto out_tx;
 		}
 
@@ -1524,7 +1524,7 @@ struct dentry *jfs_get_parent(struct dentry *dentry)
 	parent_ino =
 		le32_to_cpu(JFS_IP(d_inode(dentry))->i_dtroot.header.idotdot);
 
-	return d_obtain_alias(jfs_iget(d_inode(dentry)->i_sb, parent_ino));
+	return d_obtain_alias(jfs_iget(dentry->d_sb, parent_ino));
 }
 
 const struct inode_operations jfs_dir_inode_operations = {

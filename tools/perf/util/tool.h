@@ -57,6 +57,7 @@ struct perf_tool {
 			id_index,
 			auxtrace_info,
 			auxtrace_error,
+			time_conv,
 			thread_map,
 			cpu_map,
 			stat_config,

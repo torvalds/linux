@@ -34,6 +34,7 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/of.h>
+#include <linux/gpio/consumer.h>
 
 #include <asm/irq.h>
 
@@ -529,7 +530,7 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 
 	/* If the phy_id is mostly Fs, there is no device there */
 	if ((phy_id & 0x1fffffff) == 0x1fffffff)
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	return phy_device_create(bus, addr, phy_id, is_c45, &c45_ids);
 }
@@ -1123,8 +1124,9 @@ static int genphy_config_advert(struct phy_device *phydev)
  */
 int genphy_setup_forced(struct phy_device *phydev)
 {
-	int ctl = 0;
+	int ctl = phy_read(phydev, MII_BMCR);
 
+	ctl &= BMCR_LOOPBACK | BMCR_ISOLATE | BMCR_PDOWN;
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
@@ -1569,8 +1571,15 @@ static int phy_probe(struct device *dev)
 	struct device_driver *drv = phydev->mdio.dev.driver;
 	struct phy_driver *phydrv = to_phy_driver(drv);
 	int err = 0;
+	struct gpio_descs *reset_gpios;
 
 	phydev->drv = phydrv;
+
+	/* take phy out of reset */
+	reset_gpios = devm_gpiod_get_array_optional(dev, "reset",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(reset_gpios))
+		return PTR_ERR(reset_gpios);
 
 	/* Disable the interrupt if the PHY doesn't support it
 	 * but the interrupt is still a valid one

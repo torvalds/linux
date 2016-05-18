@@ -259,8 +259,22 @@ include::itrace.txt[]
 --full-source-path::
 	Show the full path for source files for srcline output.
 
+--max-stack::
+        Set the stack depth limit when parsing the callchain, anything
+        beyond the specified depth will be ignored. This is a trade-off
+        between information loss and faster processing especially for
+        workloads that can have a very long callchain stack.
+        Note that when using the --itrace option the synthesized callchain size
+        will override this value if the synthesized callchain size is bigger.
+
+        Default: /proc/sys/kernel/perf_event_max_stack when present, 127 otherwise.
+
 --ns::
 	Use 9 decimal places when displaying time (i.e. show the nanoseconds)
+
+-f::
+--force::
+	Don't do ownership validation.
 
 SEE ALSO
 --------

@@ -219,8 +219,7 @@ static int intel_quark_gpio_setup(struct pci_dev *pdev, struct mfd_cell *cell)
 		return -ENOMEM;
 
 	/* Set the properties for portA */
-	pdata->properties->node		= NULL;
-	pdata->properties->name		= "intel-quark-x1000-gpio-portA";
+	pdata->properties->fwnode	= NULL;
 	pdata->properties->idx		= 0;
 	pdata->properties->ngpio	= INTEL_QUARK_MFD_NGPIO;
 	pdata->properties->gpio_base	= INTEL_QUARK_MFD_GPIO_BASE;

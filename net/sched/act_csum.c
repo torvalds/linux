@@ -549,7 +549,7 @@ static int tcf_csum_dump(struct sk_buff *skb,
 	t.install = jiffies_to_clock_t(jiffies - p->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(p->tcf_tm.expires);
-	if (nla_put(skb, TCA_CSUM_TM, sizeof(t), &t))
+	if (nla_put_64bit(skb, TCA_CSUM_TM, sizeof(t), &t, TCA_CSUM_PAD))
 		goto nla_put_failure;
 
 	return skb->len;

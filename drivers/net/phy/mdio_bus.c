@@ -333,7 +333,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 			struct phy_device *phydev;
 
 			phydev = mdiobus_scan(bus, i);
-			if (IS_ERR(phydev)) {
+			if (IS_ERR(phydev) && (PTR_ERR(phydev) != -ENODEV)) {
 				err = PTR_ERR(phydev);
 				goto error;
 			}
@@ -419,7 +419,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 	int err;
 
 	phydev = get_phy_device(bus, addr, false);
-	if (IS_ERR(phydev) || phydev == NULL)
+	if (IS_ERR(phydev))
 		return phydev;
 
 	/*
@@ -431,7 +431,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 	err = phy_device_register(phydev);
 	if (err) {
 		phy_device_free(phydev);
-		return NULL;
+		return ERR_PTR(-ENODEV);
 	}
 
 	return phydev;
@@ -457,7 +457,7 @@ int mdiobus_read_nested(struct mii_bus *bus, int addr, u32 regnum)
 
 	BUG_ON(in_interrupt());
 
-	mutex_lock_nested(&bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
 	retval = bus->read(bus, addr, regnum);
 	mutex_unlock(&bus->mdio_lock);
 
@@ -509,7 +509,7 @@ int mdiobus_write_nested(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 
 	BUG_ON(in_interrupt());
 
-	mutex_lock_nested(&bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&bus->mdio_lock, MDIO_MUTEX_NESTED);
 	err = bus->write(bus, addr, regnum, val);
 	mutex_unlock(&bus->mdio_lock);
 

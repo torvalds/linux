@@ -153,9 +153,9 @@ static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
 	p = buf + len + nlen;
 	*p = '\0';
 	for (kn = kn_to; kn != common; kn = kn->parent) {
-		nlen = strlen(kn->name);
-		p -= nlen;
-		memcpy(p, kn->name, nlen);
+		size_t tmp = strlen(kn->name);
+		p -= tmp;
+		memcpy(p, kn->name, tmp);
 		*(--p) = '/';
 	}
 
@@ -1643,22 +1643,9 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-static loff_t kernfs_dir_fop_llseek(struct file *file, loff_t offset,
-				    int whence)
-{
-	struct inode *inode = file_inode(file);
-	loff_t ret;
-
-	inode_lock(inode);
-	ret = generic_file_llseek(file, offset, whence);
-	inode_unlock(inode);
-
-	return ret;
-}
-
 const struct file_operations kernfs_dir_fops = {
 	.read		= generic_read_dir,
-	.iterate	= kernfs_fop_readdir,
+	.iterate_shared	= kernfs_fop_readdir,
 	.release	= kernfs_dir_fop_release,
-	.llseek		= kernfs_dir_fop_llseek,
+	.llseek		= generic_file_llseek,
 };

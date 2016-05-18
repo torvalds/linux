@@ -902,7 +902,7 @@ static int f2fs_dir_open(struct inode *inode, struct file *filp)
 const struct file_operations f2fs_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= f2fs_readdir,
+	.iterate_shared	= f2fs_readdir,
 	.fsync		= f2fs_sync_file,
 	.open		= f2fs_dir_open,
 	.unlocked_ioctl	= f2fs_ioctl,

@@ -302,18 +302,6 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int whence)
 }
 EXPORT_SYMBOL(vfs_llseek);
 
-static inline struct fd fdget_pos(int fd)
-{
-	return __to_fd(__fdget_pos(fd));
-}
-
-static inline void fdput_pos(struct fd f)
-{
-	if (f.flags & FDPUT_POS_UNLOCK)
-		mutex_unlock(&f.file->f_pos_lock);
-	fdput(f);
-}
-
 SYSCALL_DEFINE3(lseek, unsigned int, fd, off_t, offset, unsigned int, whence)
 {
 	off_t retval;
@@ -698,12 +686,16 @@ static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
 	struct kiocb kiocb;
 	ssize_t ret;
 
-	if (flags & ~RWF_HIPRI)
+	if (flags & ~(RWF_HIPRI | RWF_DSYNC | RWF_SYNC))
 		return -EOPNOTSUPP;
 
 	init_sync_kiocb(&kiocb, filp);
 	if (flags & RWF_HIPRI)
 		kiocb.ki_flags |= IOCB_HIPRI;
+	if (flags & RWF_DSYNC)
+		kiocb.ki_flags |= IOCB_DSYNC;
+	if (flags & RWF_SYNC)
+		kiocb.ki_flags |= (IOCB_DSYNC | IOCB_SYNC);
 	kiocb.ki_pos = *ppos;
 
 	ret = fn(&kiocb, iter);

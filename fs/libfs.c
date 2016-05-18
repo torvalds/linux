@@ -89,7 +89,6 @@ EXPORT_SYMBOL(dcache_dir_close);
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	inode_lock(d_inode(dentry));
 	switch (whence) {
 		case 1:
 			offset += file->f_pos;
@@ -97,7 +96,6 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 			if (offset >= 0)
 				break;
 		default:
-			inode_unlock(d_inode(dentry));
 			return -EINVAL;
 	}
 	if (offset != file->f_pos) {
@@ -124,7 +122,6 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 			spin_unlock(&dentry->d_lock);
 		}
 	}
-	inode_unlock(d_inode(dentry));
 	return offset;
 }
 EXPORT_SYMBOL(dcache_dir_lseek);
@@ -190,7 +187,7 @@ const struct file_operations simple_dir_operations = {
 	.release	= dcache_dir_close,
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
-	.iterate	= dcache_readdir,
+	.iterate_shared	= dcache_readdir,
 	.fsync		= noop_fsync,
 };
 EXPORT_SYMBOL(simple_dir_operations);
@@ -1127,8 +1124,8 @@ static int empty_dir_setxattr(struct dentry *dentry, const char *name,
 	return -EOPNOTSUPP;
 }
 
-static ssize_t empty_dir_getxattr(struct dentry *dentry, const char *name,
-				  void *value, size_t size)
+static ssize_t empty_dir_getxattr(struct dentry *dentry, struct inode *inode,
+				  const char *name, void *value, size_t size)
 {
 	return -EOPNOTSUPP;
 }
@@ -1169,7 +1166,7 @@ static int empty_dir_readdir(struct file *file, struct dir_context *ctx)
 static const struct file_operations empty_dir_operations = {
 	.llseek		= empty_dir_llseek,
 	.read		= generic_read_dir,
-	.iterate	= empty_dir_readdir,
+	.iterate_shared	= empty_dir_readdir,
 	.fsync		= noop_fsync,
 };
 

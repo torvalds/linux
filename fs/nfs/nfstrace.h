@@ -702,7 +702,7 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 		),
 
 		TP_fast_assign(
-			struct inode *dir = data->dir;
+			struct inode *dir = d_inode(data->dentry->d_parent);
 			size_t len = data->args.name.len;
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);

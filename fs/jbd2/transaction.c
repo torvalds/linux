@@ -543,7 +543,7 @@ EXPORT_SYMBOL(jbd2_journal_start_reserved);
  *
  * Some transactions, such as large extends and truncates, can be done
  * atomically all at once or in several stages.  The operation requests
- * a credit for a number of buffer modications in advance, but can
+ * a credit for a number of buffer modifications in advance, but can
  * extend its credit if it needs more.
  *
  * jbd2_journal_extend tries to give the running handle more buffer credits.
@@ -627,7 +627,7 @@ error_out:
  * If the jbd2_journal_extend() call above fails to grant new buffer credits
  * to a running handle, a call to jbd2_journal_restart will commit the
  * handle's transaction so far and reattach the handle to a new
- * transaction capabable of guaranteeing the requested number of
+ * transaction capable of guaranteeing the requested number of
  * credits. We preserve reserved handle if there's any attached to the
  * passed in handle.
  */
@@ -1586,7 +1586,7 @@ drop:
 
 /**
  * int jbd2_journal_stop() - complete a transaction
- * @handle: tranaction to complete.
+ * @handle: transaction to complete.
  *
  * All done for a particular handle.
  *

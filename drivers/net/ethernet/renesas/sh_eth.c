@@ -482,7 +482,7 @@ static void sh_eth_chip_reset(struct net_device *ndev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
 	/* reset device */
-	sh_eth_tsu_write(mdp, ARSTR_ARSTR, ARSTR);
+	sh_eth_tsu_write(mdp, ARSTR_ARST, ARSTR);
 	mdelay(1);
 }
 
@@ -537,11 +537,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 
 static void sh_eth_chip_reset_r8a7740(struct net_device *ndev)
 {
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	/* reset device */
-	sh_eth_tsu_write(mdp, ARSTR_ARSTR, ARSTR);
-	mdelay(1);
+	sh_eth_chip_reset(ndev);
 
 	sh_eth_select_mii(ndev);
 }
@@ -725,8 +721,8 @@ static struct sh_eth_cpu_data sh7757_data = {
 #define GIGA_MAHR(port)		(SH_GIGA_ETH_BASE + 0x800 * (port) + 0x05c0)
 static void sh_eth_chip_reset_giga(struct net_device *ndev)
 {
-	int i;
 	u32 mahr[2], malr[2];
+	int i;
 
 	/* save MAHR and MALR */
 	for (i = 0; i < 2; i++) {
@@ -734,9 +730,7 @@ static void sh_eth_chip_reset_giga(struct net_device *ndev)
 		mahr[i] = ioread32((void *)GIGA_MAHR(i));
 	}
 
-	/* reset device */
-	iowrite32(ARSTR_ARSTR, (void *)(SH_GIGA_ETH_BASE + 0x1800));
-	mdelay(1);
+	sh_eth_chip_reset(ndev);
 
 	/* restore MAHR and MALR */
 	for (i = 0; i < 2; i++) {
@@ -899,7 +893,7 @@ static int sh_eth_check_reset(struct net_device *ndev)
 	int cnt = 100;
 
 	while (cnt > 0) {
-		if (!(sh_eth_read(ndev, EDMR) & 0x3))
+		if (!(sh_eth_read(ndev, EDMR) & EDMR_SRST_GETHER))
 			break;
 		mdelay(1);
 		cnt--;
@@ -1229,7 +1223,7 @@ ring_free:
 	return -ENOMEM;
 }
 
-static int sh_eth_dev_init(struct net_device *ndev, bool start)
+static int sh_eth_dev_init(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int ret;
@@ -1279,10 +1273,8 @@ static int sh_eth_dev_init(struct net_device *ndev, bool start)
 		     RFLR);
 
 	sh_eth_modify(ndev, EESR, 0, 0);
-	if (start) {
-		mdp->irq_enabled = true;
-		sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
-	}
+	mdp->irq_enabled = true;
+	sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
 
 	/* PAUSE Prohibition */
 	sh_eth_write(ndev, ECMR_ZPF | (mdp->duplex ? ECMR_DM : 0) |
@@ -1295,8 +1287,7 @@ static int sh_eth_dev_init(struct net_device *ndev, bool start)
 	sh_eth_write(ndev, mdp->cd->ecsr_value, ECSR);
 
 	/* E-MAC Interrupt Enable register */
-	if (start)
-		sh_eth_write(ndev, mdp->cd->ecsipr_value, ECSIPR);
+	sh_eth_write(ndev, mdp->cd->ecsipr_value, ECSIPR);
 
 	/* Set MAC address */
 	update_mac_address(ndev);
@@ -1309,10 +1300,8 @@ static int sh_eth_dev_init(struct net_device *ndev, bool start)
 	if (mdp->cd->tpauser)
 		sh_eth_write(ndev, TPAUSER_UNLIMITED, TPAUSER);
 
-	if (start) {
-		/* Setting the Rx mode will start the Rx process. */
-		sh_eth_write(ndev, EDRRR_R, EDRRR);
-	}
+	/* Setting the Rx mode will start the Rx process. */
+	sh_eth_write(ndev, EDRRR_R, EDRRR);
 
 	return ret;
 }
@@ -2194,7 +2183,7 @@ static int sh_eth_set_ringparam(struct net_device *ndev,
 				   __func__);
 			return ret;
 		}
-		ret = sh_eth_dev_init(ndev, true);
+		ret = sh_eth_dev_init(ndev);
 		if (ret < 0) {
 			netdev_err(ndev, "%s: sh_eth_dev_init failed.\n",
 				   __func__);
@@ -2246,7 +2235,7 @@ static int sh_eth_open(struct net_device *ndev)
 		goto out_free_irq;
 
 	/* device init */
-	ret = sh_eth_dev_init(ndev, true);
+	ret = sh_eth_dev_init(ndev);
 	if (ret)
 		goto out_free_irq;
 
@@ -2299,7 +2288,7 @@ static void sh_eth_tx_timeout(struct net_device *ndev)
 	}
 
 	/* device init */
-	sh_eth_dev_init(ndev, true);
+	sh_eth_dev_init(ndev);
 
 	netif_start_queue(ndev);
 }

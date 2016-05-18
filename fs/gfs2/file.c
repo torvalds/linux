@@ -895,7 +895,10 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 		mark_inode_dirty(inode);
 	}
 
-	return generic_write_sync(file, pos, count);
+	if ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))
+		return vfs_fsync_range(file, pos, pos + count - 1,
+			       (file->f_flags & __O_SYNC) ? 0 : 1);
+	return 0;
 
 out_trans_fail:
 	gfs2_inplace_release(ip);
@@ -1119,7 +1122,7 @@ const struct file_operations gfs2_file_fops = {
 };
 
 const struct file_operations gfs2_dir_fops = {
-	.iterate	= gfs2_readdir,
+	.iterate_shared	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,
 	.release	= gfs2_release,
@@ -1147,7 +1150,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 };
 
 const struct file_operations gfs2_dir_fops_nolock = {
-	.iterate	= gfs2_readdir,
+	.iterate_shared	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,
 	.release	= gfs2_release,

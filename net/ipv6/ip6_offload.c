@@ -63,6 +63,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	int proto;
 	struct frag_hdr *fptr;
 	unsigned int unfrag_ip6hlen;
+	unsigned int payload_len;
 	u8 *prevhdr;
 	int offset = 0;
 	bool encap, udpfrag;
@@ -73,6 +74,8 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_UDP |
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
+		       SKB_GSO_TCP_FIXEDID |
+		       SKB_GSO_TCPV6 |
 		       SKB_GSO_GRE |
 		       SKB_GSO_GRE_CSUM |
 		       SKB_GSO_IPIP |
@@ -80,7 +83,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_UDP_TUNNEL |
 		       SKB_GSO_UDP_TUNNEL_CSUM |
 		       SKB_GSO_TUNNEL_REMCSUM |
-		       SKB_GSO_TCPV6 |
+		       SKB_GSO_PARTIAL |
 		       0)))
 		goto out;
 
@@ -117,7 +120,13 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 
 	for (skb = segs; skb; skb = skb->next) {
 		ipv6h = (struct ipv6hdr *)(skb_mac_header(skb) + nhoff);
-		ipv6h->payload_len = htons(skb->len - nhoff - sizeof(*ipv6h));
+		if (skb_is_gso(skb))
+			payload_len = skb_shinfo(skb)->gso_size +
+				      SKB_GSO_CB(skb)->data_offset +
+				      skb->head - (unsigned char *)(ipv6h + 1);
+		else
+			payload_len = skb->len - nhoff - sizeof(*ipv6h);
+		ipv6h->payload_len = htons(payload_len);
 		skb->network_header = (u8 *)ipv6h - skb->head;
 
 		if (udpfrag) {
@@ -239,10 +248,14 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 		NAPI_GRO_CB(p)->flush |= !!(first_word & htonl(0x0FF00000));
 		NAPI_GRO_CB(p)->flush |= flush;
 
-		/* Clear flush_id, there's really no concept of ID in IPv6. */
-		NAPI_GRO_CB(p)->flush_id = 0;
+		/* If the previous IP ID value was based on an atomic
+		 * datagram we can overwrite the value and ignore it.
+		 */
+		if (NAPI_GRO_CB(skb)->is_atomic)
+			NAPI_GRO_CB(p)->flush_id = 0;
 	}
 
+	NAPI_GRO_CB(skb)->is_atomic = true;
 	NAPI_GRO_CB(skb)->flush |= flush;
 
 	skb_gro_postpull_rcsum(skb, iph, nlen);
@@ -325,8 +338,6 @@ static int __init ipv6_offload_init(void)
 
 	if (tcpv6_offload_init() < 0)
 		pr_crit("%s: Cannot add TCP protocol offload\n", __func__);
-	if (udp_offload_init() < 0)
-		pr_crit("%s: Cannot add UDP protocol offload\n", __func__);
 	if (ipv6_exthdrs_offload_init() < 0)
 		pr_crit("%s: Cannot add EXTHDRS protocol offload\n", __func__);
 

@@ -477,7 +477,7 @@ static int asd_init_chip(struct asd_ha_struct *asd_ha)
 
 	err = asd_start_seqs(asd_ha);
 	if (err) {
-		asd_printk("coudln't start seqs for %s\n",
+		asd_printk("couldn't start seqs for %s\n",
 			   pci_name(asd_ha->pcidev));
 		goto out;
 	}

@@ -8541,13 +8541,13 @@ out:
 	return retval;
 }
 
-static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			       loff_t offset)
+static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_dio_data dio_data = { 0 };
+	loff_t offset = iocb->ki_pos;
 	size_t count = 0;
 	int flags = 0;
 	bool wakeup = true;
@@ -8607,7 +8607,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 
 	ret = __blockdev_direct_IO(iocb, inode,
 				   BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev,
-				   iter, offset, btrfs_get_blocks_direct, NULL,
+				   iter, btrfs_get_blocks_direct, NULL,
 				   btrfs_submit_direct, flags);
 	if (iov_iter_rw(iter) == WRITE) {
 		current->journal_info = NULL;
@@ -10181,7 +10181,7 @@ static const struct inode_operations btrfs_dir_ro_inode_operations = {
 static const struct file_operations btrfs_dir_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= btrfs_real_readdir,
+	.iterate_shared	= btrfs_real_readdir,
 	.unlocked_ioctl	= btrfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= btrfs_ioctl,

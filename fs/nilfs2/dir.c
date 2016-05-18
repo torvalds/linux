@@ -102,7 +102,7 @@ static void nilfs_commit_chunk(struct page *page,
 	unlock_page(page);
 }
 
-static void nilfs_check_page(struct page *page)
+static bool nilfs_check_page(struct page *page)
 {
 	struct inode *dir = page->mapping->host;
 	struct super_block *sb = dir->i_sb;
@@ -137,7 +137,7 @@ static void nilfs_check_page(struct page *page)
 		goto Eend;
 out:
 	SetPageChecked(page);
-	return;
+	return true;
 
 	/* Too bad, we had an error */
 
@@ -173,8 +173,8 @@ Eend:
 		    dir->i_ino, (page->index<<PAGE_SHIFT)+offs,
 		    (unsigned long) le64_to_cpu(p->inode));
 fail:
-	SetPageChecked(page);
 	SetPageError(page);
+	return false;
 }
 
 static struct page *nilfs_get_page(struct inode *dir, unsigned long n)
@@ -184,10 +184,10 @@ static struct page *nilfs_get_page(struct inode *dir, unsigned long n)
 
 	if (!IS_ERR(page)) {
 		kmap(page);
-		if (!PageChecked(page))
-			nilfs_check_page(page);
-		if (PageError(page))
-			goto fail;
+		if (unlikely(!PageChecked(page))) {
+			if (PageError(page) || !nilfs_check_page(page))
+				goto fail;
+		}
 	}
 	return page;
 
@@ -661,7 +661,7 @@ not_empty:
 const struct file_operations nilfs_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= nilfs_readdir,
+	.iterate_shared	= nilfs_readdir,
 	.unlocked_ioctl	= nilfs_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= nilfs_compat_ioctl,
