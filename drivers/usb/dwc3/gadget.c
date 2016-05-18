@@ -2041,6 +2041,14 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 			break;
 	} while (1);
 
+	/*
+	 * Our endpoint might get disabled by another thread during
+	 * dwc3_gadget_giveback(). If that happens, we're just gonna return 1
+	 * early on so DWC3_EP_BUSY flag gets cleared
+	 */
+	if (!dep->endpoint.desc)
+		return 1;
+
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
 			list_empty(&dep->started_list)) {
 		if (list_empty(&dep->pending_list)) {
@@ -2078,7 +2086,7 @@ static void dwc3_endpoint_transfer_complete(struct dwc3 *dwc,
 		status = -ECONNRESET;
 
 	clean_busy = dwc3_cleanup_done_reqs(dwc, dep, event, status);
-	if (clean_busy && (is_xfer_complete ||
+	if (clean_busy && (!dep->endpoint.desc || is_xfer_complete ||
 				usb_endpoint_xfer_isoc(dep->endpoint.desc)))
 		dep->flags &= ~DWC3_EP_BUSY;
 
@@ -2106,6 +2114,14 @@ static void dwc3_endpoint_transfer_complete(struct dwc3 *dwc,
 
 		dwc->u1u2 = 0;
 	}
+
+	/*
+	 * Our endpoint might get disabled by another thread during
+	 * dwc3_gadget_giveback(). If that happens, we're just gonna return 1
+	 * early on so DWC3_EP_BUSY flag gets cleared
+	 */
+	if (!dep->endpoint.desc)
+		return;
 
 	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 		int ret;
