@@ -372,8 +372,8 @@ static struct ins instructions[] = {
 	{ .name = "bgt",   .ops  = &jump_ops, },
 	{ .name = "bhi",   .ops  = &jump_ops, },
 	{ .name = "bl",    .ops  = &call_ops, },
-	{ .name = "blt",   .ops  = &jump_ops, },
 	{ .name = "bls",   .ops  = &jump_ops, },
+	{ .name = "blt",   .ops  = &jump_ops, },
 	{ .name = "blx",   .ops  = &call_ops, },
 	{ .name = "bne",   .ops  = &jump_ops, },
 #endif
