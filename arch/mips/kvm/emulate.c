@@ -1068,15 +1068,15 @@ enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 					kvm_read_c0_guest_ebase(cop0));
 			} else if (rd == MIPS_CP0_TLB_HI && sel == 0) {
 				uint32_t nasid =
-					vcpu->arch.gprs[rt] & ASID_MASK;
+					vcpu->arch.gprs[rt] & KVM_ENTRYHI_ASID;
 				if ((KSEGX(vcpu->arch.gprs[rt]) != CKSEG0) &&
 				    ((kvm_read_c0_guest_entryhi(cop0) &
-				      ASID_MASK) != nasid)) {
+				      KVM_ENTRYHI_ASID) != nasid)) {
 					kvm_debug("MTCz, change ASID from %#lx to %#lx\n",
 						kvm_read_c0_guest_entryhi(cop0)
-						& ASID_MASK,
+						& KVM_ENTRYHI_ASID,
 						vcpu->arch.gprs[rt]
-						& ASID_MASK);
+						& KVM_ENTRYHI_ASID);
 
 					/* Blow away the shadow host TLBs */
 					kvm_mips_flush_host_tlb(1);
@@ -1620,7 +1620,7 @@ enum emulation_result kvm_mips_emulate_cache(uint32_t inst, uint32_t *opc,
 		 */
 		index = kvm_mips_guest_tlb_lookup(vcpu, (va & VPN2_MASK) |
 						  (kvm_read_c0_guest_entryhi
-						   (cop0) & ASID_MASK));
+						   (cop0) & KVM_ENTRYHI_ASID));
 
 		if (index < 0) {
 			vcpu->arch.host_cp0_entryhi = (va & VPN2_MASK);
@@ -1786,7 +1786,7 @@ enum emulation_result kvm_mips_emulate_tlbmiss_ld(unsigned long cause,
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	unsigned long entryhi = (vcpu->arch.  host_cp0_badvaddr & VPN2_MASK) |
-				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1833,7 +1833,7 @@ enum emulation_result kvm_mips_emulate_tlbinv_ld(unsigned long cause,
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	unsigned long entryhi =
 		(vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-		(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+		(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1878,7 +1878,7 @@ enum emulation_result kvm_mips_emulate_tlbmiss_st(unsigned long cause,
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1922,7 +1922,7 @@ enum emulation_result kvm_mips_emulate_tlbinv_st(unsigned long cause,
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-		(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+		(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1967,7 +1967,7 @@ enum emulation_result kvm_mips_handle_tlbmod(unsigned long cause, uint32_t *opc,
 #ifdef DEBUG
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 	int index;
 
 	/* If address not in the guest TLB, then we are in trouble */
@@ -1994,7 +1994,7 @@ enum emulation_result kvm_mips_emulate_tlbmod(unsigned long cause,
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
+			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
@@ -2569,7 +2569,8 @@ enum emulation_result kvm_mips_handle_tlbmiss(unsigned long cause,
 	 */
 	index = kvm_mips_guest_tlb_lookup(vcpu,
 		      (va & VPN2_MASK) |
-		      (kvm_read_c0_guest_entryhi(vcpu->arch.cop0) & ASID_MASK));
+		      (kvm_read_c0_guest_entryhi(vcpu->arch.cop0) &
+		       KVM_ENTRYHI_ASID));
 	if (index < 0) {
 		if (exccode == EXCCODE_TLBL) {
 			er = kvm_mips_emulate_tlbmiss_ld(cause, opc, run, vcpu);

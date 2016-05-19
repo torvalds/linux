@@ -18,6 +18,7 @@
 #include <linux/prctl.h>
 #include <linux/ratelimit.h>
 #include <linux/workqueue.h>
+#include <linux/string_helpers.h>
 
 #define YAMA_SCOPE_DISABLED	0
 #define YAMA_SCOPE_RELATIONAL	1
@@ -40,6 +41,22 @@ static DEFINE_SPINLOCK(ptracer_relations_lock);
 
 static void yama_relation_cleanup(struct work_struct *work);
 static DECLARE_WORK(yama_relation_work, yama_relation_cleanup);
+
+static void report_access(const char *access, struct task_struct *target,
+			  struct task_struct *agent)
+{
+	char *target_cmd, *agent_cmd;
+
+	target_cmd = kstrdup_quotable_cmdline(target, GFP_ATOMIC);
+	agent_cmd = kstrdup_quotable_cmdline(agent, GFP_ATOMIC);
+
+	pr_notice_ratelimited(
+		"ptrace %s of \"%s\"[%d] was attempted by \"%s\"[%d]\n",
+		access, target_cmd, target->pid, agent_cmd, agent->pid);
+
+	kfree(agent_cmd);
+	kfree(target_cmd);
+}
 
 /**
  * yama_relation_cleanup - remove invalid entries from the relation list
@@ -307,11 +324,8 @@ static int yama_ptrace_access_check(struct task_struct *child,
 		}
 	}
 
-	if (rc && (mode & PTRACE_MODE_NOAUDIT) == 0) {
-		printk_ratelimited(KERN_NOTICE
-			"ptrace of pid %d was attempted by: %s (pid %d)\n",
-			child->pid, current->comm, current->pid);
-	}
+	if (rc && (mode & PTRACE_MODE_NOAUDIT) == 0)
+		report_access("attach", child, current);
 
 	return rc;
 }
@@ -337,11 +351,8 @@ int yama_ptrace_traceme(struct task_struct *parent)
 		break;
 	}
 
-	if (rc) {
-		printk_ratelimited(KERN_NOTICE
-			"ptraceme of pid %d was attempted by: %s (pid %d)\n",
-			current->pid, parent->comm, parent->pid);
-	}
+	if (rc)
+		report_access("traceme", current, parent);
 
 	return rc;
 }

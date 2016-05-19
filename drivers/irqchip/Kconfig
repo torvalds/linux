@@ -253,3 +253,9 @@ config LS_SCFG_MSI
 
 config PARTITION_PERCPU
 	bool
+
+config EZNPS_GIC
+	bool "NPS400 Global Interrupt Manager (GIM)"
+	select IRQ_DOMAIN
+	help
+	  Support the EZchip NPS400 global interrupt controller

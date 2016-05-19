@@ -4444,6 +4444,12 @@ S:	Maintained
 F:	drivers/video/fbdev/exynos/exynos_mipi*
 F:	include/video/exynos_mipi*
 
+EZchip NPS platform support
+M:	Noam Camus <noamc@ezchip.com>
+S:	Supported
+F:	arch/arc/plat-eznps
+F:	arch/arc/boot/dts/eznps.dts
+
 F71805F HARDWARE MONITORING DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
@@ -6485,7 +6491,7 @@ F:	net/l3mdev
 F:	include/net/l3mdev.h
 
 LANTIQ MIPS ARCHITECTURE
-M:	John Crispin <blogic@openwrt.org>
+M:	John Crispin <john@phrozen.org>
 L:	linux-mips@linux-mips.org
 S:	Maintained
 F:	arch/mips/lantiq
@@ -7325,6 +7331,15 @@ Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
 S:	Supported
 F:	Documentation/mips/
 F:	arch/mips/
+
+MIPS/LOONGSON1 ARCHITECTURE
+M:	Keguang Zhang <keguang.zhang@gmail.com>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/loongson32/
+F:	arch/mips/include/asm/mach-loongson32/
+F:	drivers/*/*loongson1*
+F:	drivers/*/*/*loongson1*
 
 MIROSOUND PCM20 FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
@@ -9245,7 +9260,7 @@ S:	Maintained
 F:	drivers/video/fbdev/aty/aty128fb.c
 
 RALINK MIPS ARCHITECTURE
-M:	John Crispin <blogic@openwrt.org>
+M:	John Crispin <john@phrozen.org>
 L:	linux-mips@linux-mips.org
 S:	Maintained
 F:	arch/mips/ralink
@@ -10024,6 +10039,12 @@ W:	apparmor.wiki.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jj/apparmor-dev.git
 S:	Supported
 F:	security/apparmor/
+
+LOADPIN SECURITY MODULE
+M:	Kees Cook <keescook@chromium.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git lsm/loadpin
+S:	Supported
+F:	security/loadpin/
 
 YAMA SECURITY MODULE
 M:	Kees Cook <keescook@chromium.org>

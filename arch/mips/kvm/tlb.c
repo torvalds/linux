@@ -49,12 +49,18 @@ EXPORT_SYMBOL_GPL(kvm_mips_is_error_pfn);
 
 uint32_t kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.guest_kernel_asid[smp_processor_id()] & ASID_MASK;
+	int cpu = smp_processor_id();
+
+	return vcpu->arch.guest_kernel_asid[cpu] &
+			cpu_asid_mask(&cpu_data[cpu]);
 }
 
 uint32_t kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.guest_user_asid[smp_processor_id()] & ASID_MASK;
+	int cpu = smp_processor_id();
+
+	return vcpu->arch.guest_user_asid[cpu] &
+			cpu_asid_mask(&cpu_data[cpu]);
 }
 
 inline uint32_t kvm_mips_get_commpage_asid(struct kvm_vcpu *vcpu)
@@ -78,7 +84,8 @@ void kvm_mips_dump_host_tlbs(void)
 	old_pagemask = read_c0_pagemask();
 
 	kvm_info("HOST TLBs:\n");
-	kvm_info("ASID: %#lx\n", read_c0_entryhi() & ASID_MASK);
+	kvm_info("ASID: %#lx\n", read_c0_entryhi() &
+		 cpu_asid_mask(&current_cpu_data));
 
 	for (i = 0; i < current_cpu_data.tlbsize; i++) {
 		write_c0_index(i);
@@ -564,15 +571,15 @@ void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
 {
 	unsigned long asid = asid_cache(cpu);
 
-	asid += ASID_INC;
-	if (!(asid & ASID_MASK)) {
+	asid += cpu_asid_inc();
+	if (!(asid & cpu_asid_mask(&cpu_data[cpu]))) {
 		if (cpu_has_vtag_icache)
 			flush_icache_all();
 
 		kvm_local_flush_tlb_all();      /* start new asid cycle */
 
 		if (!asid)      /* fix version if needed */
-			asid = ASID_FIRST_VERSION;
+			asid = asid_first_version(cpu);
 	}
 
 	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
@@ -627,6 +634,7 @@ static void kvm_mips_migrate_count(struct kvm_vcpu *vcpu)
 /* Restore ASID once we are scheduled back after preemption */
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	unsigned long asid_mask = cpu_asid_mask(&cpu_data[cpu]);
 	unsigned long flags;
 	int newasid = 0;
 
@@ -637,7 +645,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	local_irq_save(flags);
 
 	if ((vcpu->arch.guest_kernel_asid[cpu] ^ asid_cache(cpu)) &
-							ASID_VERSION_MASK) {
+						asid_version_mask(cpu)) {
 		kvm_get_new_mmu_context(&vcpu->arch.guest_kernel_mm, cpu, vcpu);
 		vcpu->arch.guest_kernel_asid[cpu] =
 		    vcpu->arch.guest_kernel_mm.context.asid[cpu];
@@ -672,7 +680,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		 */
 		if (current->flags & PF_VCPU) {
 			write_c0_entryhi(vcpu->arch.
-					 preempt_entryhi & ASID_MASK);
+					 preempt_entryhi & asid_mask);
 			ehb();
 		}
 	} else {
@@ -687,11 +695,11 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			if (KVM_GUEST_KERNEL_MODE(vcpu))
 				write_c0_entryhi(vcpu->arch.
 						 guest_kernel_asid[cpu] &
-						 ASID_MASK);
+						 asid_mask);
 			else
 				write_c0_entryhi(vcpu->arch.
 						 guest_user_asid[cpu] &
-						 ASID_MASK);
+						 asid_mask);
 			ehb();
 		}
 	}
@@ -721,7 +729,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	kvm_mips_callbacks->vcpu_get_regs(vcpu);
 
 	if (((cpu_context(cpu, current->mm) ^ asid_cache(cpu)) &
-	     ASID_VERSION_MASK)) {
+	     asid_version_mask(cpu))) {
 		kvm_debug("%s: Dropping MMU Context:  %#lx\n", __func__,
 			  cpu_context(cpu, current->mm));
 		drop_mmu_context(current->mm, cpu);
@@ -748,7 +756,8 @@ uint32_t kvm_get_inst(uint32_t *opc, struct kvm_vcpu *vcpu)
 			inst = *(opc);
 		} else {
 			vpn2 = (unsigned long) opc & VPN2_MASK;
-			asid = kvm_read_c0_guest_entryhi(cop0) & ASID_MASK;
+			asid = kvm_read_c0_guest_entryhi(cop0) &
+						KVM_ENTRYHI_ASID;
 			index = kvm_mips_guest_tlb_lookup(vcpu, vpn2 | asid);
 			if (index < 0) {
 				kvm_err("%s: get_user_failed for %p, vcpu: %p, ASID: %#lx\n",
