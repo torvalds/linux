@@ -585,6 +585,16 @@ static inline u32 ioread32(const volatile void __iomem *addr)
 }
 #endif
 
+#ifdef CONFIG_64BIT
+#ifndef ioread64
+#define ioread64 ioread64
+static inline u64 ioread64(const volatile void __iomem *addr)
+{
+	return readq(addr);
+}
+#endif
+#endif /* CONFIG_64BIT */
+
 #ifndef iowrite8
 #define iowrite8 iowrite8
 static inline void iowrite8(u8 value, volatile void __iomem *addr)
@@ -609,6 +619,16 @@ static inline void iowrite32(u32 value, volatile void __iomem *addr)
 }
 #endif
 
+#ifdef CONFIG_64BIT
+#ifndef iowrite64
+#define iowrite64 iowrite64
+static inline void iowrite64(u64 value, volatile void __iomem *addr)
+{
+	writeq(value, addr);
+}
+#endif
+#endif /* CONFIG_64BIT */
+
 #ifndef ioread16be
 #define ioread16be ioread16be
 static inline u16 ioread16be(const volatile void __iomem *addr)
@@ -625,6 +645,16 @@ static inline u32 ioread32be(const volatile void __iomem *addr)
 }
 #endif
 
+#ifdef CONFIG_64BIT
+#ifndef ioread64be
+#define ioread64be ioread64be
+static inline u64 ioread64be(const volatile void __iomem *addr)
+{
+	return swab64(readq(addr));
+}
+#endif
+#endif /* CONFIG_64BIT */
+
 #ifndef iowrite16be
 #define iowrite16be iowrite16be
 static inline void iowrite16be(u16 value, void volatile __iomem *addr)
@@ -640,6 +670,16 @@ static inline void iowrite32be(u32 value, volatile void __iomem *addr)
 	writel(swab32(value), addr);
 }
 #endif
+
+#ifdef CONFIG_64BIT
+#ifndef iowrite64be
+#define iowrite64be iowrite64be
+static inline void iowrite64be(u64 value, volatile void __iomem *addr)
+{
+	writeq(swab64(value), addr);
+}
+#endif
+#endif /* CONFIG_64BIT */
 
 #ifndef ioread8_rep
 #define ioread8_rep ioread8_rep
@@ -667,6 +707,17 @@ static inline void ioread32_rep(const volatile void __iomem *addr,
 	readsl(addr, buffer, count);
 }
 #endif
+
+#ifdef CONFIG_64BIT
+#ifndef ioread64_rep
+#define ioread64_rep ioread64_rep
+static inline void ioread64_rep(const volatile void __iomem *addr,
+				void *buffer, unsigned int count)
+{
+	readsq(addr, buffer, count);
+}
+#endif
+#endif /* CONFIG_64BIT */
 
 #ifndef iowrite8_rep
 #define iowrite8_rep iowrite8_rep
@@ -697,6 +748,18 @@ static inline void iowrite32_rep(volatile void __iomem *addr,
 	writesl(addr, buffer, count);
 }
 #endif
+
+#ifdef CONFIG_64BIT
+#ifndef iowrite64_rep
+#define iowrite64_rep iowrite64_rep
+static inline void iowrite64_rep(volatile void __iomem *addr,
+				 const void *buffer,
+				 unsigned int count)
+{
+	writesq(addr, buffer, count);
+}
+#endif
+#endif /* CONFIG_64BIT */
 #endif /* CONFIG_GENERIC_IOMAP */
 
 #ifdef __KERNEL__
