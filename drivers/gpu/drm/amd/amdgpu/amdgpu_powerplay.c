@@ -183,13 +183,6 @@ static int amdgpu_pp_sw_fini(void *handle)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
-	if (adev->pp_enabled) {
-		amdgpu_pm_sysfs_fini(adev);
-		amd_powerplay_fini(adev->powerplay.pp_handle);
-	}
-#endif
-
 	return ret;
 }
 

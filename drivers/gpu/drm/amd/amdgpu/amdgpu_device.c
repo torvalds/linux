@@ -1325,6 +1325,11 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 		adev->ip_block_status[i].valid = false;
 	}
 
+	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
+		if (adev->ip_blocks[i].funcs->late_fini)
+			adev->ip_blocks[i].funcs->late_fini((void *)adev);
+	}
+
 	return 0;
 }
 
