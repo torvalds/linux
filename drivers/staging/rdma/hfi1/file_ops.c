@@ -86,8 +86,7 @@ static int get_ctxt_info(struct file *, void __user *, __u32);
 static int get_base_info(struct file *, void __user *, __u32);
 static int setup_ctxt(struct file *);
 static int setup_subctxt(struct hfi1_ctxtdata *);
-static int get_user_context(struct file *, struct hfi1_user_info *,
-			    int, unsigned);
+static int get_user_context(struct file *, struct hfi1_user_info *, int);
 static int find_shared_ctxt(struct file *, const struct hfi1_user_info *);
 static int allocate_ctxt(struct file *, struct hfi1_devdata *,
 			 struct hfi1_user_info *);
@@ -836,7 +835,7 @@ static u64 kvirt_to_phys(void *addr)
 static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 {
 	int i_minor, ret = 0;
-	unsigned swmajor, swminor, alg = HFI1_ALG_ACROSS;
+	unsigned int swmajor, swminor;
 
 	swmajor = uinfo->userversion >> 16;
 	if (swmajor != HFI1_USER_SWMAJOR) {
@@ -845,9 +844,6 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 	}
 
 	swminor = uinfo->userversion & 0xffff;
-
-	if (uinfo->hfi1_alg < HFI1_ALG_COUNT)
-		alg = uinfo->hfi1_alg;
 
 	mutex_lock(&hfi1_mutex);
 	/* First, lets check if we need to setup a shared context? */
@@ -868,7 +864,7 @@ static int assign_ctxt(struct file *fp, struct hfi1_user_info *uinfo)
 	 */
 	if (!ret) {
 		i_minor = iminor(file_inode(fp)) - HFI1_USER_MINOR_BASE;
-		ret = get_user_context(fp, uinfo, i_minor - 1, alg);
+		ret = get_user_context(fp, uinfo, i_minor);
 	}
 done_unlock:
 	mutex_unlock(&hfi1_mutex);
@@ -876,71 +872,26 @@ done:
 	return ret;
 }
 
-/* return true if the device available for general use */
-static int usable_device(struct hfi1_devdata *dd)
-{
-	struct hfi1_pportdata *ppd = dd->pport;
-
-	return driver_lstate(ppd) == IB_PORT_ACTIVE;
-}
-
 static int get_user_context(struct file *fp, struct hfi1_user_info *uinfo,
-			    int devno, unsigned alg)
+			    int devno)
 {
 	struct hfi1_devdata *dd = NULL;
-	int ret = 0, devmax, npresent, nup, dev;
+	int devmax, npresent, nup;
 
 	devmax = hfi1_count_units(&npresent, &nup);
-	if (!npresent) {
-		ret = -ENXIO;
-		goto done;
-	}
-	if (!nup) {
-		ret = -ENETDOWN;
-		goto done;
-	}
-	if (devno >= 0) {
-		dd = hfi1_lookup(devno);
-		if (!dd)
-			ret = -ENODEV;
-		else if (!dd->freectxts)
-			ret = -EBUSY;
-	} else {
-		struct hfi1_devdata *pdd;
+	if (!npresent)
+		return -ENXIO;
 
-		if (alg == HFI1_ALG_ACROSS) {
-			unsigned free = 0U;
+	if (!nup)
+		return -ENETDOWN;
 
-			for (dev = 0; dev < devmax; dev++) {
-				pdd = hfi1_lookup(dev);
-				if (!pdd)
-					continue;
-				if (!usable_device(pdd))
-					continue;
-				if (pdd->freectxts &&
-				    pdd->freectxts > free) {
-					dd = pdd;
-					free = pdd->freectxts;
-				}
-			}
-		} else {
-			for (dev = 0; dev < devmax; dev++) {
-				pdd = hfi1_lookup(dev);
-				if (!pdd)
-					continue;
-				if (!usable_device(pdd))
-					continue;
-				if (pdd->freectxts) {
-					dd = pdd;
-					break;
-				}
-			}
-		}
-		if (!dd)
-			ret = -EBUSY;
-	}
-done:
-	return ret ? ret : allocate_ctxt(fp, dd, uinfo);
+	dd = hfi1_lookup(devno);
+	if (!dd)
+		return -ENODEV;
+	else if (!dd->freectxts)
+		return -EBUSY;
+
+	return allocate_ctxt(fp, dd, uinfo);
 }
 
 static int find_shared_ctxt(struct file *fp,
@@ -1698,15 +1649,8 @@ static const struct file_operations ui_file_ops = {
 #define UI_OFFSET 192	/* device minor offset for UI devices */
 static int create_ui = 1;
 
-static struct cdev wildcard_cdev;
-static struct device *wildcard_device;
-
-static atomic_t user_count = ATOMIC_INIT(0);
-
 static void user_remove(struct hfi1_devdata *dd)
 {
-	if (atomic_dec_return(&user_count) == 0)
-		hfi1_cdev_cleanup(&wildcard_cdev, &wildcard_device);
 
 	hfi1_cdev_cleanup(&dd->user_cdev, &dd->user_device);
 	hfi1_cdev_cleanup(&dd->ui_cdev, &dd->ui_device);
@@ -1717,16 +1661,8 @@ static int user_add(struct hfi1_devdata *dd)
 	char name[10];
 	int ret;
 
-	if (atomic_inc_return(&user_count) == 1) {
-		ret = hfi1_cdev_init(0, class_name(), &hfi1_file_ops,
-				     &wildcard_cdev, &wildcard_device,
-				     true);
-		if (ret)
-			goto done;
-	}
-
 	snprintf(name, sizeof(name), "%s_%d", class_name(), dd->unit);
-	ret = hfi1_cdev_init(dd->unit + 1, name, &hfi1_file_ops,
+	ret = hfi1_cdev_init(dd->unit, name, &hfi1_file_ops,
 			     &dd->user_cdev, &dd->user_device,
 			     true);
 	if (ret)

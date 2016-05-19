@@ -75,7 +75,7 @@
  * may not be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
-#define HFI1_USER_SWMINOR 0
+#define HFI1_USER_SWMINOR 1
 
 /*
  * Set of HW and driver capability/feature bits.
@@ -106,19 +106,6 @@
 #define HFI1_RCVHDR_ENTSIZE_2    (1UL << 0)
 #define HFI1_RCVHDR_ENTSIZE_16   (1UL << 1)
 #define HFI1_RCVDHR_ENTSIZE_32   (1UL << 2)
-
-/*
- * If the unit is specified via open, HFI choice is fixed.  If port is
- * specified, it's also fixed.  Otherwise we try to spread contexts
- * across ports and HFIs, using different algorithms.  WITHIN is
- * the old default, prior to this mechanism.
- */
-#define HFI1_ALG_ACROSS 0 /* round robin contexts across HFIs, then
-			  * ports; this is the default */
-#define HFI1_ALG_WITHIN 1 /* use all contexts on an HFI (round robin
-			  * active ports within), then next HFI */
-#define HFI1_ALG_COUNT  2 /* number of algorithm choices */
-
 
 /* User commands. */
 #define HFI1_CMD_ASSIGN_CTXT     1	/* allocate HFI and context */
@@ -199,9 +186,7 @@ struct hfi1_user_info {
 	 * Should be set to HFI1_USER_SWVERSION.
 	 */
 	__u32 userversion;
-	__u16 pad;
-	/* HFI selection algorithm, if unit has not selected */
-	__u16 hfi1_alg;
+	__u32 pad;
 	/*
 	 * If two or more processes wish to share a context, each process
 	 * must set the subcontext_cnt and subcontext_id to the same
