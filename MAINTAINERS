@@ -11338,6 +11338,14 @@ W:	https://linuxtv.org
 S:	Odd Fixes
 F:	drivers/media/pci/tw68/
 
+TW686X VIDEO4LINUX DRIVER
+M:	Ezequiel Garcia <ezequiel@vanguardiasur.com.ar>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+W:	http://linuxtv.org
+S:	Maintained
+F:	drivers/media/pci/tw686x/
+
 TPM DEVICE DRIVER
 M:	Peter Huewe <peterhuewe@gmx.de>
 M:	Marcel Selhorst <tpmdd@selhorst.net>

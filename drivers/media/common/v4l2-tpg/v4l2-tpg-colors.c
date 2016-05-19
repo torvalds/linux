@@ -1,5 +1,5 @@
 /*
- * vivid-color.c - A table that converts colors to various colorspaces
+ * v4l2-tpg-colors.c - A table that converts colors to various colorspaces
  *
  * The test pattern generator uses the tpg_colors for its test patterns.
  * For testing colorspaces the first 8 colors of that table need to be
@@ -12,7 +12,7 @@
  * This source also contains the code used to generate the tpg_csc_colors
  * table. Run the following command to compile it:
  *
- *	gcc vivid-tpg-colors.c -DCOMPILE_APP -o gen-colors -lm
+ *	gcc v4l2-tpg-colors.c -DCOMPILE_APP -o gen-colors -lm
  *
  * and run the utility.
  *
@@ -36,8 +36,7 @@
  */
 
 #include <linux/videodev2.h>
-
-#include "vivid-tpg-colors.h"
+#include <media/v4l2-tpg-colors.h>
 
 /* sRGB colors with range [0-255] */
 const struct color tpg_colors[TPG_COLOR_MAX] = {
