@@ -491,6 +491,8 @@ static ssize_t amdgpu_get_pp_sclk_od(struct device *dev,
 
 	if (adev->pp_enabled)
 		value = amdgpu_dpm_get_sclk_od(adev);
+	else if (adev->pm.funcs->get_sclk_od)
+		value = adev->pm.funcs->get_sclk_od(adev);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
 }
@@ -512,10 +514,14 @@ static ssize_t amdgpu_set_pp_sclk_od(struct device *dev,
 		goto fail;
 	}
 
-	if (adev->pp_enabled)
+	if (adev->pp_enabled) {
 		amdgpu_dpm_set_sclk_od(adev, (uint32_t)value);
-
-	amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_READJUST_POWER_STATE, NULL, NULL);
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_READJUST_POWER_STATE, NULL, NULL);
+	} else if (adev->pm.funcs->set_sclk_od) {
+		adev->pm.funcs->set_sclk_od(adev, (uint32_t)value);
+		adev->pm.dpm.current_ps = adev->pm.dpm.boot_ps;
+		amdgpu_pm_compute_clocks(adev);
+	}
 
 fail:
 	return count;
@@ -1163,11 +1169,6 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			DRM_ERROR("failed to create device file pp_table\n");
 			return ret;
 		}
-		ret = device_create_file(adev->dev, &dev_attr_pp_sclk_od);
-		if (ret) {
-			DRM_ERROR("failed to create device file pp_sclk_od\n");
-			return ret;
-		}
 	}
 
 	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_sclk);
@@ -1183,6 +1184,11 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_pcie);
 	if (ret) {
 		DRM_ERROR("failed to create device file pp_dpm_pcie\n");
+		return ret;
+	}
+	ret = device_create_file(adev->dev, &dev_attr_pp_sclk_od);
+	if (ret) {
+		DRM_ERROR("failed to create device file pp_sclk_od\n");
 		return ret;
 	}
 
@@ -1208,11 +1214,11 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 		device_remove_file(adev->dev, &dev_attr_pp_cur_state);
 		device_remove_file(adev->dev, &dev_attr_pp_force_state);
 		device_remove_file(adev->dev, &dev_attr_pp_table);
-		device_remove_file(adev->dev, &dev_attr_pp_sclk_od);
 	}
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_sclk);
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_mclk);
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
+	device_remove_file(adev->dev, &dev_attr_pp_sclk_od);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
