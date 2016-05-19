@@ -1,5 +1,5 @@
 /*
- * vivid-tpg.c - Test Pattern Generator
+ * v4l2-tpg-core.c - Test Pattern Generator
  *
  * Note: gen_twopix and tpg_gen_text are based on code from vivi.c. See the
  * vivi.c source for the copyright information of those functions.
@@ -20,7 +20,8 @@
  * SOFTWARE.
  */
 
-#include "vivid-tpg.h"
+#include <linux/module.h>
+#include <media/v4l2-tpg.h>
 
 /* Must remain in sync with enum tpg_pattern */
 const char * const tpg_pattern_strings[] = {
@@ -48,6 +49,7 @@ const char * const tpg_pattern_strings[] = {
 	"Noise",
 	NULL
 };
+EXPORT_SYMBOL_GPL(tpg_pattern_strings);
 
 /* Must remain in sync with enum tpg_aspect */
 const char * const tpg_aspect_strings[] = {
@@ -58,6 +60,7 @@ const char * const tpg_aspect_strings[] = {
 	"16x9 Anamorphic",
 	NULL
 };
+EXPORT_SYMBOL_GPL(tpg_aspect_strings);
 
 /*
  * Sine table: sin[0] = 127 * sin(-180 degrees)
@@ -93,6 +96,7 @@ void tpg_set_font(const u8 *f)
 {
 	font8x16 = f;
 }
+EXPORT_SYMBOL_GPL(tpg_set_font);
 
 void tpg_init(struct tpg_data *tpg, unsigned w, unsigned h)
 {
@@ -114,6 +118,7 @@ void tpg_init(struct tpg_data *tpg, unsigned w, unsigned h)
 	tpg->colorspace = V4L2_COLORSPACE_SRGB;
 	tpg->perc_fill = 100;
 }
+EXPORT_SYMBOL_GPL(tpg_init);
 
 int tpg_alloc(struct tpg_data *tpg, unsigned max_w)
 {
@@ -150,6 +155,7 @@ int tpg_alloc(struct tpg_data *tpg, unsigned max_w)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tpg_alloc);
 
 void tpg_free(struct tpg_data *tpg)
 {
@@ -174,6 +180,7 @@ void tpg_free(struct tpg_data *tpg)
 		tpg->random_line[plane] = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(tpg_free);
 
 bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 {
@@ -403,6 +410,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	}
 	return true;
 }
+EXPORT_SYMBOL_GPL(tpg_s_fourcc);
 
 void tpg_s_crop_compose(struct tpg_data *tpg, const struct v4l2_rect *crop,
 		const struct v4l2_rect *compose)
@@ -418,6 +426,7 @@ void tpg_s_crop_compose(struct tpg_data *tpg, const struct v4l2_rect *crop,
 		tpg->scaled_width = 2;
 	tpg->recalc_lines = true;
 }
+EXPORT_SYMBOL_GPL(tpg_s_crop_compose);
 
 void tpg_reset_source(struct tpg_data *tpg, unsigned width, unsigned height,
 		       u32 field)
@@ -442,6 +451,7 @@ void tpg_reset_source(struct tpg_data *tpg, unsigned width, unsigned height,
 				       (2 * tpg->hdownsampling[p]);
 	tpg->recalc_square_border = true;
 }
+EXPORT_SYMBOL_GPL(tpg_reset_source);
 
 static enum tpg_color tpg_get_textbg_color(struct tpg_data *tpg)
 {
@@ -1250,6 +1260,7 @@ unsigned tpg_g_interleaved_plane(const struct tpg_data *tpg, unsigned buf_line)
 		return 0;
 	}
 }
+EXPORT_SYMBOL_GPL(tpg_g_interleaved_plane);
 
 /* Return how many pattern lines are used by the current pattern. */
 static unsigned tpg_get_pat_lines(const struct tpg_data *tpg)
@@ -1725,6 +1736,7 @@ void tpg_gen_text(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(tpg_gen_text);
 
 void tpg_update_mv_step(struct tpg_data *tpg)
 {
@@ -1773,6 +1785,7 @@ void tpg_update_mv_step(struct tpg_data *tpg)
 	if (factor < 0)
 		tpg->mv_vert_step = tpg->src_height - tpg->mv_vert_step;
 }
+EXPORT_SYMBOL_GPL(tpg_update_mv_step);
 
 /* Map the line number relative to the crop rectangle to a frame line number */
 static unsigned tpg_calc_frameline(const struct tpg_data *tpg, unsigned src_y,
@@ -1862,6 +1875,7 @@ void tpg_calc_text_basep(struct tpg_data *tpg,
 	if (p == 0 && tpg->interleaved)
 		tpg_calc_text_basep(tpg, basep, 1, vbuf);
 }
+EXPORT_SYMBOL_GPL(tpg_calc_text_basep);
 
 static int tpg_pattern_avg(const struct tpg_data *tpg,
 			   unsigned pat1, unsigned pat2)
@@ -1891,6 +1905,7 @@ void tpg_log_status(struct tpg_data *tpg)
 	pr_info("tpg quantization: %d/%d\n", tpg->quantization, tpg->real_quantization);
 	pr_info("tpg RGB range: %d/%d\n", tpg->rgb_range, tpg->real_rgb_range);
 }
+EXPORT_SYMBOL_GPL(tpg_log_status);
 
 /*
  * This struct contains common parameters used by both the drawing of the
@@ -2296,6 +2311,7 @@ void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std,
 				vbuf + buf_line * params.stride);
 	}
 }
+EXPORT_SYMBOL_GPL(tpg_fill_plane_buffer);
 
 void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
 {
@@ -2312,3 +2328,8 @@ void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
 		offset += tpg_calc_plane_size(tpg, i);
 	}
 }
+EXPORT_SYMBOL_GPL(tpg_fillbuffer);
+
+MODULE_DESCRIPTION("V4L2 Test Pattern Generator");
+MODULE_AUTHOR("Hans Verkuil");
+MODULE_LICENSE("GPL");
