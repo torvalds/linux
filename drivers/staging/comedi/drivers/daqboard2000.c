@@ -244,8 +244,9 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_TRIG_CONTROL_DISABLE			0x0000
 
 /* Reference Dac Selection */
-#define DAQBOARD2000_PosRefDacSelect             0x0100
-#define DAQBOARD2000_NegRefDacSelect             0x0000
+#define DB2K_REF_DACS_SET				0x0080
+#define DB2K_REF_DACS_SELECT_POS_REF			0x0100
+#define DB2K_REF_DACS_SELECT_NEG_REF			0x0000
 
 struct daq200_boardtype {
 	const char *name;
@@ -569,7 +570,7 @@ static void daqboard2000_activateReferenceDacs(struct comedi_device *dev)
 	int timeout;
 
 	/*  Set the + reference dac value in the FPGA */
-	writew(0x80 | DAQBOARD2000_PosRefDacSelect,
+	writew(DB2K_REF_DACS_SET | DB2K_REF_DACS_SELECT_POS_REF,
 	       dev->mmio + DB2K_REG_REF_DACS);
 	for (timeout = 0; timeout < 20; timeout++) {
 		val = readw(dev->mmio + DB2K_REG_DAC_STATUS);
@@ -579,7 +580,7 @@ static void daqboard2000_activateReferenceDacs(struct comedi_device *dev)
 	}
 
 	/*  Set the - reference dac value in the FPGA */
-	writew(0x80 | DAQBOARD2000_NegRefDacSelect,
+	writew(DB2K_REF_DACS_SET | DB2K_REF_DACS_SELECT_NEG_REF,
 	       dev->mmio + DB2K_REG_REF_DACS);
 	for (timeout = 0; timeout < 20; timeout++) {
 		val = readw(dev->mmio + DB2K_REG_DAC_STATUS);
