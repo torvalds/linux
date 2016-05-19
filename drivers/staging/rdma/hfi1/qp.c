@@ -160,9 +160,6 @@ static inline int opa_mtu_enum_to_int(int mtu)
  * This function is what we would push to the core layer if we wanted to be a
  * "first class citizen".  Instead we hide this here and rely on Verbs ULPs
  * to blindly pass the MTU enum value from the PathRecord to us.
- *
- * The actual flag used to determine "8k MTU" will change and is currently
- * unknown.
  */
 static inline int verbs_mtu_enum_to_int(struct ib_device *dev, enum ib_mtu mtu)
 {
