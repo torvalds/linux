@@ -96,6 +96,8 @@ static int user_event_ack(struct hfi1_ctxtdata *, int, unsigned long);
 static int set_ctxt_pkey(struct hfi1_ctxtdata *, unsigned, u16);
 static int manage_rcvq(struct hfi1_ctxtdata *, unsigned, int);
 static int vma_fault(struct vm_area_struct *, struct vm_fault *);
+static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
+			    unsigned long arg);
 
 static const struct file_operations hfi1_file_ops = {
 	.owner = THIS_MODULE,
@@ -103,6 +105,7 @@ static const struct file_operations hfi1_file_ops = {
 	.write_iter = hfi1_write_iter,
 	.open = hfi1_file_open,
 	.release = hfi1_file_close,
+	.unlocked_ioctl = hfi1_file_ioctl,
 	.poll = hfi1_poll,
 	.mmap = hfi1_file_mmap,
 	.llseek = noop_llseek,
@@ -173,6 +176,207 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 	if (fp->private_data) /* no cpu affinity by default */
 		((struct hfi1_filedata *)fp->private_data)->rec_cpu_num = -1;
 	return fp->private_data ? 0 : -ENOMEM;
+}
+
+static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
+			    unsigned long arg)
+{
+	struct hfi1_filedata *fd = fp->private_data;
+	struct hfi1_ctxtdata *uctxt = fd->uctxt;
+	struct hfi1_user_info uinfo;
+	struct hfi1_tid_info tinfo;
+	int ret = 0;
+	unsigned long addr;
+	int uval = 0;
+	unsigned long ul_uval = 0;
+	u16 uval16 = 0;
+
+	if (cmd != HFI1_IOCTL_ASSIGN_CTXT &&
+	    cmd != HFI1_IOCTL_GET_VERS &&
+	    !uctxt)
+		return -EINVAL;
+
+	switch (cmd) {
+	case HFI1_IOCTL_ASSIGN_CTXT:
+		if (copy_from_user(&uinfo,
+				   (struct hfi1_user_info __user *)arg,
+				   sizeof(uinfo)))
+			return -EFAULT;
+
+		ret = assign_ctxt(fp, &uinfo);
+		if (ret < 0)
+			return ret;
+		setup_ctxt(fp);
+		if (ret)
+			return ret;
+		ret = user_init(fp);
+		break;
+	case HFI1_IOCTL_CTXT_INFO:
+		ret = get_ctxt_info(fp, (void __user *)(unsigned long)arg,
+				    sizeof(struct hfi1_ctxt_info));
+		break;
+	case HFI1_IOCTL_USER_INFO:
+		ret = get_base_info(fp, (void __user *)(unsigned long)arg,
+				    sizeof(struct hfi1_base_info));
+		break;
+	case HFI1_IOCTL_CREDIT_UPD:
+		if (uctxt && uctxt->sc)
+			sc_return_credits(uctxt->sc);
+		break;
+
+	case HFI1_IOCTL_TID_UPDATE:
+		if (copy_from_user(&tinfo,
+				   (struct hfi11_tid_info __user *)arg,
+				   sizeof(tinfo)))
+			return -EFAULT;
+
+		ret = hfi1_user_exp_rcv_setup(fp, &tinfo);
+		if (!ret) {
+			/*
+			 * Copy the number of tidlist entries we used
+			 * and the length of the buffer we registered.
+			 * These fields are adjacent in the structure so
+			 * we can copy them at the same time.
+			 */
+			addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
+			if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
+					 sizeof(tinfo.tidcnt) +
+					 sizeof(tinfo.length)))
+				ret = -EFAULT;
+		}
+		break;
+
+	case HFI1_IOCTL_TID_FREE:
+		if (copy_from_user(&tinfo,
+				   (struct hfi11_tid_info __user *)arg,
+				   sizeof(tinfo)))
+			return -EFAULT;
+
+		ret = hfi1_user_exp_rcv_clear(fp, &tinfo);
+		if (ret)
+			break;
+		addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
+		if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
+				 sizeof(tinfo.tidcnt)))
+			ret = -EFAULT;
+		break;
+
+	case HFI1_IOCTL_TID_INVAL_READ:
+		if (copy_from_user(&tinfo,
+				   (struct hfi11_tid_info __user *)arg,
+				   sizeof(tinfo)))
+			return -EFAULT;
+
+		ret = hfi1_user_exp_rcv_invalid(fp, &tinfo);
+		if (ret)
+			break;
+		addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
+		if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
+				 sizeof(tinfo.tidcnt)))
+			ret = -EFAULT;
+		break;
+
+	case HFI1_IOCTL_RECV_CTRL:
+		ret = get_user(uval, (int __user *)arg);
+		if (ret != 0)
+			return -EFAULT;
+		ret = manage_rcvq(uctxt, fd->subctxt, uval);
+		break;
+
+	case HFI1_IOCTL_POLL_TYPE:
+		ret = get_user(uval, (int __user *)arg);
+		if (ret != 0)
+			return -EFAULT;
+		uctxt->poll_type = (typeof(uctxt->poll_type))uval;
+		break;
+
+	case HFI1_IOCTL_ACK_EVENT:
+		ret = get_user(ul_uval, (unsigned long __user *)arg);
+		if (ret != 0)
+			return -EFAULT;
+		ret = user_event_ack(uctxt, fd->subctxt, ul_uval);
+		break;
+
+	case HFI1_IOCTL_SET_PKEY:
+		ret = get_user(uval16, (u16 __user *)arg);
+		if (ret != 0)
+			return -EFAULT;
+		if (HFI1_CAP_IS_USET(PKEY_CHECK))
+			ret = set_ctxt_pkey(uctxt, fd->subctxt, uval16);
+		else
+			return -EPERM;
+		break;
+
+	case HFI1_IOCTL_CTXT_RESET: {
+		struct send_context *sc;
+		struct hfi1_devdata *dd;
+
+		if (!uctxt || !uctxt->dd || !uctxt->sc)
+			return -EINVAL;
+
+		/*
+		 * There is no protection here. User level has to
+		 * guarantee that no one will be writing to the send
+		 * context while it is being re-initialized.
+		 * If user level breaks that guarantee, it will break
+		 * it's own context and no one else's.
+		 */
+		dd = uctxt->dd;
+		sc = uctxt->sc;
+		/*
+		 * Wait until the interrupt handler has marked the
+		 * context as halted or frozen. Report error if we time
+		 * out.
+		 */
+		wait_event_interruptible_timeout(
+			sc->halt_wait, (sc->flags & SCF_HALTED),
+			msecs_to_jiffies(SEND_CTXT_HALT_TIMEOUT));
+		if (!(sc->flags & SCF_HALTED))
+			return -ENOLCK;
+
+		/*
+		 * If the send context was halted due to a Freeze,
+		 * wait until the device has been "unfrozen" before
+		 * resetting the context.
+		 */
+		if (sc->flags & SCF_FROZEN) {
+			wait_event_interruptible_timeout(
+				dd->event_queue,
+				!(ACCESS_ONCE(dd->flags) & HFI1_FROZEN),
+				msecs_to_jiffies(SEND_CTXT_HALT_TIMEOUT));
+			if (dd->flags & HFI1_FROZEN)
+				return -ENOLCK;
+
+			if (dd->flags & HFI1_FORCED_FREEZE)
+				/*
+				 * Don't allow context reset if we are into
+				 * forced freeze
+				 */
+				return -ENODEV;
+
+			sc_disable(sc);
+			ret = sc_enable(sc);
+			hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_ENB,
+				     uctxt->ctxt);
+		} else {
+			ret = sc_restart(sc);
+		}
+		if (!ret)
+			sc_return_credits(sc);
+		break;
+	}
+
+	case HFI1_IOCTL_GET_VERS:
+		uval = HFI1_USER_SWVERSION;
+		if (put_user(uval, (int __user *)arg))
+			return -EFAULT;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
 }
 
 static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
