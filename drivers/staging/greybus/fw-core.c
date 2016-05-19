@@ -139,7 +139,7 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 			dev_err(&bundle->dev, "invalid protocol id (0x%02x)\n",
 				protocol_id);
 			ret = -EINVAL;
-			goto err_free_fw_core;
+			goto err_destroy_connections;
 		}
 	}
 
@@ -187,7 +187,6 @@ err_destroy_connections:
 	gb_connection_destroy(fw_core->mgmt_connection);
 	gb_connection_destroy(fw_core->spi_connection);
 	gb_connection_destroy(fw_core->download_connection);
-err_free_fw_core:
 	kfree(fw_core);
 
 	return ret;
