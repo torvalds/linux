@@ -86,3 +86,16 @@ config PINCTRL_NSP_GPIO
 	  The ChipcommonA GPIO controller support basic PINCONF functions such
 	  as bias pull up, pull down, and drive strength configurations, when
 	  these pins are muxed to GPIO.
+
+config PINCTRL_NS2_MUX
+	bool "Broadcom Northstar2 pinmux driver"
+	depends on OF
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	select PINMUX
+	select GENERIC_PINCONF
+	default ARM64 && ARCH_BCM_IPROC
+	help
+	  Say yes here to enable the Broadcom NS2 MUX driver.
+
+	  The Broadcom Northstar2 IOMUX driver supports group based IOMUX
+	  configuration.
