@@ -66,7 +66,7 @@
  * The major version changes when data structures change in an incompatible
  * way. The driver must be the same for initialization to succeed.
  */
-#define HFI1_USER_SWMAJOR 5
+#define HFI1_USER_SWMAJOR 6
 
 /*
  * Minor version differences are always compatible
@@ -263,12 +263,6 @@ struct hfi1_tid_info {
 	__u32 tidcnt;
 	/* length of transfer buffer programmed by this request */
 	__u32 length;
-};
-
-struct hfi1_cmd {
-	__u32 type;        /* command type */
-	__u32 len;         /* length of struct pointed to by add */
-	__u64 addr;        /* pointer to user structure */
 };
 
 enum hfi1_sdma_comp_state {
