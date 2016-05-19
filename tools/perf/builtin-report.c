@@ -691,7 +691,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
-		.max_stack		 = sysctl_perf_event_max_stack,
+		.max_stack		 = PERF_MAX_STACK_DEPTH,
 		.pretty_printing_style	 = "normal",
 		.socket_filter		 = -1,
 	};

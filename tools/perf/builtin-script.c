@@ -2067,8 +2067,6 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 
-	scripting_max_stack = sysctl_perf_event_max_stack;
-
 	setup_scripting();
 
 	argc = parse_options_subcommand(argc, argv, options, script_subcommands, script_usage,
