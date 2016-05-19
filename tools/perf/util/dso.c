@@ -63,9 +63,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 		}
 		break;
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
-		/* skip the locally configured cache if a symfs is given */
-		if (symbol_conf.symfs[0] ||
-		    (dso__build_id_filename(dso, filename, size) == NULL))
+		if (dso__build_id_filename(dso, filename, size) == NULL)
 			ret = -1;
 		break;
 

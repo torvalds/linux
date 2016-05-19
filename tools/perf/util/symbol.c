@@ -2033,3 +2033,26 @@ void symbol__exit(void)
 	symbol_conf.sym_list = symbol_conf.dso_list = symbol_conf.comm_list = NULL;
 	symbol_conf.initialized = false;
 }
+
+int symbol__config_symfs(const struct option *opt __maybe_unused,
+			 const char *dir, int unset __maybe_unused)
+{
+	char *bf = NULL;
+	int ret;
+
+	symbol_conf.symfs = strdup(dir);
+	if (symbol_conf.symfs == NULL)
+		return -ENOMEM;
+
+	/* skip the locally configured cache if a symfs is given, and
+	 * config buildid dir to symfs/.debug
+	 */
+	ret = asprintf(&bf, "%s/%s", dir, ".debug");
+	if (ret < 0)
+		return -ENOMEM;
+
+	set_buildid_dir(bf);
+
+	free(bf);
+	return 0;
+}
