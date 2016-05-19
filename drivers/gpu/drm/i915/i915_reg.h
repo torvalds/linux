@@ -6033,6 +6033,7 @@ enum skl_disp_power_wells {
 #define CHICKEN_PAR1_1		_MMIO(0x42080)
 #define  DPA_MASK_VBLANK_SRD	(1 << 15)
 #define  FORCE_ARB_IDLE_PLANES	(1 << 14)
+#define  SKL_EDP_PSR_FIX_RDWRAP	(1 << 3)
 
 #define _CHICKEN_PIPESL_1_A	0x420b0
 #define _CHICKEN_PIPESL_1_B	0x420b4
