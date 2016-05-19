@@ -116,10 +116,6 @@ config CRYPTO_DEV_FSL_CAAM_IMX
 	def_bool SOC_IMX6 || SOC_IMX7D
 	depends on CRYPTO_DEV_FSL_CAAM
 
-config CRYPTO_DEV_FSL_CAAM_LE
-	def_bool CRYPTO_DEV_FSL_CAAM_IMX || SOC_LS1021A
-	depends on CRYPTO_DEV_FSL_CAAM
-
 config CRYPTO_DEV_FSL_CAAM_DEBUG
 	bool "Enable debug output in CAAM driver"
 	depends on CRYPTO_DEV_FSL_CAAM
