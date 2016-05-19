@@ -116,12 +116,12 @@
 #define DAQBOARD2000_SUBSYSTEM_IDS4	0x0004	/* Daqboard/2000 - 4 Dacs */
 
 /* Initialization bits for the Serial EEPROM Control Register */
-#define DAQBOARD2000_SECRProgPinHi      0x8001767e
-#define DAQBOARD2000_SECRProgPinLo      0x8000767e
-#define DAQBOARD2000_SECRLocalBusHi     0xc000767e
-#define DAQBOARD2000_SECRLocalBusLo     0x8000767e
-#define DAQBOARD2000_SECRReloadHi       0xa000767e
-#define DAQBOARD2000_SECRReloadLo       0x8000767e
+#define DB2K_SECR_PROG_PIN_HI		0x8001767e
+#define DB2K_SECR_PROG_PIN_LO		0x8000767e
+#define DB2K_SECR_LOCAL_BUS_HI		0xc000767e
+#define DB2K_SECR_LOCAL_BUS_LO		0x8000767e
+#define DB2K_SECR_RELOAD_HI		0xa000767e
+#define DB2K_SECR_RELOAD_LO		0x8000767e
 
 /* SECR status bits */
 #define DAQBOARD2000_EEPROM_PRESENT     0x10000000
@@ -438,9 +438,9 @@ static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 
-	writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
+	writel(DB2K_SECR_LOCAL_BUS_HI, devpriv->plx + 0x6c);
 	mdelay(10);
-	writel(DAQBOARD2000_SECRLocalBusLo, devpriv->plx + 0x6c);
+	writel(DB2K_SECR_LOCAL_BUS_LO, devpriv->plx + 0x6c);
 	mdelay(10);
 }
 
@@ -448,11 +448,11 @@ static void daqboard2000_reloadPLX(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 
-	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
+	writel(DB2K_SECR_RELOAD_LO, devpriv->plx + 0x6c);
 	mdelay(10);
-	writel(DAQBOARD2000_SECRReloadHi, devpriv->plx + 0x6c);
+	writel(DB2K_SECR_RELOAD_HI, devpriv->plx + 0x6c);
 	mdelay(10);
-	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
+	writel(DB2K_SECR_RELOAD_LO, devpriv->plx + 0x6c);
 	mdelay(10);
 }
 
@@ -460,9 +460,9 @@ static void daqboard2000_pulseProgPin(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 
-	writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
+	writel(DB2K_SECR_PROG_PIN_HI, devpriv->plx + 0x6c);
 	mdelay(10);
-	writel(DAQBOARD2000_SECRProgPinLo, devpriv->plx + 0x6c);
+	writel(DB2K_SECR_PROG_PIN_LO, devpriv->plx + 0x6c);
 	mdelay(10);	/* Not in the original code, but I like symmetry... */
 }
 
