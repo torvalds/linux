@@ -823,10 +823,64 @@ static int add_components(struct device *dev, struct component_match **matchptr,
 	return 0;
 }
 
+/*
+ * Identify what components need to be added by parsing what remote-endpoints
+ * our MDP output ports are connected to. In the case of LVDS on MDP4, there
+ * is no external component that we need to add since LVDS is within MDP4
+ * itself.
+ */
+static int add_components_mdp(struct device *mdp_dev,
+			      struct component_match **matchptr)
+{
+	struct device_node *np = mdp_dev->of_node;
+	struct device_node *ep_node;
+
+	for_each_endpoint_of_node(np, ep_node) {
+		struct device_node *intf;
+		struct of_endpoint ep;
+		int ret;
+
+		ret = of_graph_parse_endpoint(ep_node, &ep);
+		if (ret) {
+			dev_err(mdp_dev, "unable to parse port endpoint\n");
+			of_node_put(ep_node);
+			return ret;
+		}
+
+		/*
+		 * The LCDC/LVDS port on MDP4 is a speacial case where the
+		 * remote-endpoint isn't a component that we need to add
+		 */
+		if (of_device_is_compatible(np, "qcom,mdp4") &&
+		    ep.port == 0) {
+			of_node_put(ep_node);
+			continue;
+		}
+
+		/*
+		 * It's okay if some of the ports don't have a remote endpoint
+		 * specified. It just means that the port isn't connected to
+		 * any external interface.
+		 */
+		intf = of_graph_get_remote_port_parent(ep_node);
+		if (!intf) {
+			of_node_put(ep_node);
+			continue;
+		}
+
+		component_match_add(mdp_dev, matchptr, compare_of, intf);
+
+		of_node_put(intf);
+		of_node_put(ep_node);
+	}
+
+	return 0;
+}
+
 static int add_display_components(struct device *dev,
 				  struct component_match **matchptr)
 {
-	return add_components(dev, matchptr, "connectors");
+	return add_components_mdp(dev, matchptr);
 }
 
 static int add_gpu_components(struct device *dev,
