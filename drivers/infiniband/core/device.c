@@ -962,6 +962,9 @@ static struct ibnl_client_cbs ibnl_ls_cb_table[] = {
 	[RDMA_NL_LS_OP_SET_TIMEOUT] = {
 		.dump = ib_nl_handle_set_timeout,
 		.module = THIS_MODULE },
+	[RDMA_NL_LS_OP_IP_RESOLVE] = {
+		.dump = ib_nl_handle_ip_res_resp,
+		.module = THIS_MODULE },
 };
 
 static int ib_add_ibnl_clients(void)

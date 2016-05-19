@@ -150,5 +150,7 @@ int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 			      struct netlink_callback *cb);
 int ib_nl_handle_set_timeout(struct sk_buff *skb,
 			     struct netlink_callback *cb);
+int ib_nl_handle_ip_res_resp(struct sk_buff *skb,
+			     struct netlink_callback *cb);
 
 #endif /* _CORE_PRIV_H */
