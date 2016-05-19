@@ -1254,7 +1254,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	/* Need Vxlan and inner Ethernet header to be present */
 	if (!pskb_may_pull(skb, VXLAN_HLEN))
-		goto error;
+		goto drop;
 
 	vxh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
 	flags = ntohl(vxh->vx_flags);
@@ -1344,13 +1344,7 @@ drop:
 bad_flags:
 	netdev_dbg(skb->dev, "invalid vxlan flags=%#x vni=%#x\n",
 		   ntohl(vxh->vx_flags), ntohl(vxh->vx_vni));
-
-error:
-	if (tun_dst)
-		dst_release((struct dst_entry *)tun_dst);
-
-	/* Return non vxlan pkt */
-	return 1;
+	goto drop;
 }
 
 static int arp_reduce(struct net_device *dev, struct sk_buff *skb)
