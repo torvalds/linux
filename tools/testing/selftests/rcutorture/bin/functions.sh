@@ -174,7 +174,7 @@ identify_qemu_args () {
 		echo -soundhw pcspk
 		;;
 	qemu-system-ppc64)
-		echo -enable-kvm -M pseries -cpu POWER7 -nodefaults
+		echo -enable-kvm -M pseries -nodefaults
 		echo -device spapr-vscsi
 		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$TORTURE_QEMU_MAC"
 		then
