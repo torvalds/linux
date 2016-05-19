@@ -202,7 +202,7 @@ int gb_svc_pwrmon_intf_sample_get(struct gb_svc *svc, u8 intf_id,
 		case GB_SVC_PWRMON_GET_SAMPLE_INVAL:
 			return -EINVAL;
 		case GB_SVC_PWRMON_GET_SAMPLE_NOSUPP:
-			return -ENOSYS;
+			return -ENOMSG;
 		default:
 			return -EIO;
 		}
