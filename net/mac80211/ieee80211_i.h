@@ -30,6 +30,7 @@
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
+#include <net/fq.h>
 #include "key.h"
 #include "sta_info.h"
 #include "debug.h"
@@ -805,10 +806,17 @@ enum txq_info_flags {
 	IEEE80211_TXQ_NO_AMSDU,
 };
 
+/**
+ * struct txq_info - per tid queue
+ *
+ * @tin: contains packets split into multiple flows
+ * @def_flow: used as a fallback flow when a packet destined to @tin hashes to
+ *	a fq_flow which is already owned by a different tin
+ */
 struct txq_info {
-	struct sk_buff_head queue;
+	struct fq_tin tin;
+	struct fq_flow def_flow;
 	unsigned long flags;
-	unsigned long byte_cnt;
 
 	/* keep last! */
 	struct ieee80211_txq txq;
@@ -1098,6 +1106,8 @@ struct ieee80211_local {
 	 * don't cast (use the static inlines below), but we keep
 	 * it first anyway so they become a no-op */
 	struct ieee80211_hw hw;
+
+	struct fq fq;
 
 	const struct ieee80211_ops *ops;
 
@@ -1931,9 +1941,13 @@ static inline bool ieee80211_can_run_worker(struct ieee80211_local *local)
 	return true;
 }
 
-void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
-			     struct sta_info *sta,
-			     struct txq_info *txq, int tid);
+int ieee80211_txq_setup_flows(struct ieee80211_local *local);
+void ieee80211_txq_teardown_flows(struct ieee80211_local *local);
+void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
+			struct sta_info *sta,
+			struct txq_info *txq, int tid);
+void ieee80211_txq_purge(struct ieee80211_local *local,
+			 struct txq_info *txqi);
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
 			 const u8 *extra, size_t extra_len, const u8 *bssid,

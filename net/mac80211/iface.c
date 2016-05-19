@@ -779,6 +779,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 			      bool going_down)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct fq *fq = &local->fq;
 	unsigned long flags;
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
@@ -976,13 +977,10 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 
 	if (sdata->vif.txq) {
 		struct txq_info *txqi = to_txq_info(sdata->vif.txq);
-		int n = skb_queue_len(&txqi->queue);
 
-		spin_lock_bh(&txqi->queue.lock);
-		ieee80211_purge_tx_queue(&local->hw, &txqi->queue);
-		atomic_sub(n, &sdata->num_tx_queued);
-		txqi->byte_cnt = 0;
-		spin_unlock_bh(&txqi->queue.lock);
+		spin_lock_bh(&fq->lock);
+		ieee80211_txq_purge(local, txqi);
+		spin_unlock_bh(&fq->lock);
 	}
 
 	if (local->open_count == 0)
@@ -1792,7 +1790,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		if (txq_size) {
 			txqi = netdev_priv(ndev) + size;
-			ieee80211_init_tx_queue(sdata, NULL, txqi, 0);
+			ieee80211_txq_init(sdata, NULL, txqi, 0);
 		}
 
 		sdata->dev = ndev;

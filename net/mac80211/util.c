@@ -3389,25 +3389,6 @@ u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo)
 	return buf;
 }
 
-void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
-			     struct sta_info *sta,
-			     struct txq_info *txqi, int tid)
-{
-	skb_queue_head_init(&txqi->queue);
-	txqi->txq.vif = &sdata->vif;
-
-	if (sta) {
-		txqi->txq.sta = &sta->sta;
-		sta->sta.txq[tid] = &txqi->txq;
-		txqi->txq.tid = tid;
-		txqi->txq.ac = ieee802_1d_to_ac[tid & 7];
-	} else {
-		sdata->vif.txq = &txqi->txq;
-		txqi->txq.tid = 0;
-		txqi->txq.ac = IEEE80211_AC_BE;
-	}
-}
-
 void ieee80211_txq_get_depth(struct ieee80211_txq *txq,
 			     unsigned long *frame_cnt,
 			     unsigned long *byte_cnt)
@@ -3415,9 +3396,9 @@ void ieee80211_txq_get_depth(struct ieee80211_txq *txq,
 	struct txq_info *txqi = to_txq_info(txq);
 
 	if (frame_cnt)
-		*frame_cnt = txqi->queue.qlen;
+		*frame_cnt = txqi->tin.backlog_packets;
 
 	if (byte_cnt)
-		*byte_cnt = txqi->byte_cnt;
+		*byte_cnt = txqi->tin.backlog_bytes;
 }
 EXPORT_SYMBOL(ieee80211_txq_get_depth);
