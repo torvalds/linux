@@ -812,10 +812,12 @@ enum txq_info_flags {
  * @tin: contains packets split into multiple flows
  * @def_flow: used as a fallback flow when a packet destined to @tin hashes to
  *	a fq_flow which is already owned by a different tin
+ * @def_cvars: codel vars for @def_flow
  */
 struct txq_info {
 	struct fq_tin tin;
 	struct fq_flow def_flow;
+	struct codel_vars def_cvars;
 	unsigned long flags;
 
 	/* keep last! */
@@ -1108,6 +1110,9 @@ struct ieee80211_local {
 	struct ieee80211_hw hw;
 
 	struct fq fq;
+	struct codel_vars *cvars;
+	struct codel_params cparams;
+	struct codel_stats cstats;
 
 	const struct ieee80211_ops *ops;
 

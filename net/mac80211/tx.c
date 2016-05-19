@@ -24,6 +24,8 @@
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
+#include <net/codel.h>
+#include <net/codel_impl.h>
 #include <asm/unaligned.h>
 #include <net/fq_impl.h>
 
@@ -1267,11 +1269,92 @@ static struct txq_info *ieee80211_get_txq(struct ieee80211_local *local,
 	return to_txq_info(txq);
 }
 
+static void ieee80211_set_skb_enqueue_time(struct sk_buff *skb)
+{
+	IEEE80211_SKB_CB(skb)->control.enqueue_time = codel_get_time();
+}
+
+static void ieee80211_set_skb_vif(struct sk_buff *skb, struct txq_info *txqi)
+{
+	IEEE80211_SKB_CB(skb)->control.vif = txqi->txq.vif;
+}
+
+static u32 codel_skb_len_func(const struct sk_buff *skb)
+{
+	return skb->len;
+}
+
+static codel_time_t codel_skb_time_func(const struct sk_buff *skb)
+{
+	const struct ieee80211_tx_info *info;
+
+	info = (const struct ieee80211_tx_info *)skb->cb;
+	return info->control.enqueue_time;
+}
+
+static struct sk_buff *codel_dequeue_func(struct codel_vars *cvars,
+					  void *ctx)
+{
+	struct ieee80211_local *local;
+	struct txq_info *txqi;
+	struct fq *fq;
+	struct fq_flow *flow;
+
+	txqi = ctx;
+	local = vif_to_sdata(txqi->txq.vif)->local;
+	fq = &local->fq;
+
+	if (cvars == &txqi->def_cvars)
+		flow = &txqi->def_flow;
+	else
+		flow = &fq->flows[cvars - local->cvars];
+
+	return fq_flow_dequeue(fq, flow);
+}
+
+static void codel_drop_func(struct sk_buff *skb,
+			    void *ctx)
+{
+	struct ieee80211_local *local;
+	struct ieee80211_hw *hw;
+	struct txq_info *txqi;
+
+	txqi = ctx;
+	local = vif_to_sdata(txqi->txq.vif)->local;
+	hw = &local->hw;
+
+	ieee80211_free_txskb(hw, skb);
+}
+
 static struct sk_buff *fq_tin_dequeue_func(struct fq *fq,
 					   struct fq_tin *tin,
 					   struct fq_flow *flow)
 {
-	return fq_flow_dequeue(fq, flow);
+	struct ieee80211_local *local;
+	struct txq_info *txqi;
+	struct codel_vars *cvars;
+	struct codel_params *cparams;
+	struct codel_stats *cstats;
+
+	local = container_of(fq, struct ieee80211_local, fq);
+	txqi = container_of(tin, struct txq_info, tin);
+	cparams = &local->cparams;
+	cstats = &local->cstats;
+
+	if (flow == &txqi->def_flow)
+		cvars = &txqi->def_cvars;
+	else
+		cvars = &local->cvars[flow - fq->flows];
+
+	return codel_dequeue(txqi,
+			     &flow->backlog,
+			     cparams,
+			     cvars,
+			     cstats,
+			     codel_skb_len_func,
+			     codel_skb_time_func,
+			     codel_drop_func,
+			     codel_dequeue_func);
 }
 
 static void fq_skb_free_func(struct fq *fq,
@@ -1303,6 +1386,7 @@ static void ieee80211_txq_enqueue(struct ieee80211_local *local,
 	struct fq *fq = &local->fq;
 	struct fq_tin *tin = &txqi->tin;
 
+	ieee80211_set_skb_enqueue_time(skb);
 	fq_tin_enqueue(fq, tin, skb,
 		       fq_skb_free_func,
 		       fq_flow_get_default_func);
@@ -1314,6 +1398,7 @@ void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
 {
 	fq_tin_init(&txqi->tin);
 	fq_flow_init(&txqi->def_flow);
+	codel_vars_init(&txqi->def_cvars);
 
 	txqi->txq.vif = &sdata->vif;
 
@@ -1342,6 +1427,7 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 {
 	struct fq *fq = &local->fq;
 	int ret;
+	int i;
 
 	if (!local->ops->wake_tx_queue)
 		return 0;
@@ -1349,6 +1435,22 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	ret = fq_init(fq, 4096);
 	if (ret)
 		return ret;
+
+	codel_params_init(&local->cparams);
+	codel_stats_init(&local->cstats);
+	local->cparams.interval = MS2TIME(100);
+	local->cparams.target = MS2TIME(20);
+	local->cparams.ecn = true;
+
+	local->cvars = kcalloc(fq->flows_cnt, sizeof(local->cvars[0]),
+			       GFP_KERNEL);
+	if (!local->cvars) {
+		fq_reset(fq, fq_skb_free_func);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < fq->flows_cnt; i++)
+		codel_vars_init(&local->cvars[i]);
 
 	return 0;
 }
@@ -1359,6 +1461,9 @@ void ieee80211_txq_teardown_flows(struct ieee80211_local *local)
 
 	if (!local->ops->wake_tx_queue)
 		return;
+
+	kfree(local->cvars);
+	local->cvars = NULL;
 
 	fq_reset(fq, fq_skb_free_func);
 }
@@ -1381,6 +1486,8 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 	skb = fq_tin_dequeue(fq, tin, fq_tin_dequeue_func);
 	if (!skb)
 		goto out;
+
+	ieee80211_set_skb_vif(skb, txqi);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	if (txq->sta && ieee80211_is_data_qos(hdr->frame_control)) {
