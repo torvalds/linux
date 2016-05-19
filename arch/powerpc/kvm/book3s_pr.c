@@ -1049,7 +1049,17 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		int emul;
 
 program_interrupt:
-		flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
+		/*
+		 * shadow_srr1 only contains valid flags if we came here via
+		 * a program exception. The other exceptions (emulation assist,
+		 * FP unavailable, etc.) do not provide flags in SRR1, so use
+		 * an illegal-instruction exception when injecting a program
+		 * interrupt into the guest.
+		 */
+		if (exit_nr == BOOK3S_INTERRUPT_PROGRAM)
+			flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
+		else
+			flags = SRR1_PROGILL;
 
 		emul = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
 		if (emul != EMULATE_DONE) {
