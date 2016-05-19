@@ -32,7 +32,7 @@
 #define TOSHIBA_DMID			0x0126
 #define TOSHIBA_ES2_BRIDGE_DPID		0x1000
 #define TOSHIBA_ES3_APBRIDGE_DPID	0x1001
-#define TOSHIBA_ES3_GPBRIDGE_DPID	0x1002
+#define TOSHIBA_ES3_GBPHY_DPID	0x1002
 
 
 static int gb_interface_dme_attr_get(struct gb_interface *intf,

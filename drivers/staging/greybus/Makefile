@@ -14,7 +14,7 @@ greybus-y :=	core.o		\
 		operation.o	\
 		legacy.o
 
-gb-gpbridge-y := gpbridge.o
+gb-gbphy-y := gbphy.o
 
 # Prefix all modules with gb-
 gb-vibrator-y := vibrator.o
@@ -43,7 +43,7 @@ gb-usb-y := usb.o
 gb-spi-y := spi.o
 
 obj-m += greybus.o
-obj-m += gb-gpbridge.o
+obj-m += gb-gbphy.o
 obj-m += gb-vibrator.o
 obj-m += gb-power-supply.o
 obj-m += gb-loopback.o

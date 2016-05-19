@@ -13,7 +13,7 @@
 #include <linux/pwm.h>
 
 #include "greybus.h"
-#include "gpbridge.h"
+#include "gbphy.h"
 
 struct gb_pwm_chip {
 	struct gb_connection	*connection;
@@ -178,8 +178,8 @@ static const struct pwm_ops gb_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int gb_pwm_probe(struct gpbridge_device *gpbdev,
-			const struct gpbridge_device_id *id)
+static int gb_pwm_probe(struct gbphy_device *gbphy_dev,
+			const struct gbphy_device_id *id)
 {
 	struct gb_connection *connection;
 	struct gb_pwm_chip *pwmc;
@@ -190,8 +190,8 @@ static int gb_pwm_probe(struct gpbridge_device *gpbdev,
 	if (!pwmc)
 		return -ENOMEM;
 
-	connection = gb_connection_create(gpbdev->bundle,
-					  le16_to_cpu(gpbdev->cport_desc->id),
+	connection = gb_connection_create(gbphy_dev->bundle,
+					  le16_to_cpu(gbphy_dev->cport_desc->id),
 					  NULL);
 	if (IS_ERR(connection)) {
 		ret = PTR_ERR(connection);
@@ -200,13 +200,13 @@ static int gb_pwm_probe(struct gpbridge_device *gpbdev,
 
 	pwmc->connection = connection;
 	gb_connection_set_data(connection, pwmc);
-	gb_gpbridge_set_data(gpbdev, pwmc);
+	gb_gbphy_set_data(gbphy_dev, pwmc);
 
 	ret = gb_connection_enable(connection);
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_gpbridge_get_version(connection);
+	ret = gb_gbphy_get_version(connection);
 	if (ret)
 		goto exit_connection_disable;
 
@@ -217,7 +217,7 @@ static int gb_pwm_probe(struct gpbridge_device *gpbdev,
 
 	pwm = &pwmc->chip;
 
-	pwm->dev = &gpbdev->dev;
+	pwm->dev = &gbphy_dev->dev;
 	pwm->ops = &gb_pwm_ops;
 	pwm->base = -1;			/* Allocate base dynamically */
 	pwm->npwm = pwmc->pwm_max + 1;
@@ -225,7 +225,7 @@ static int gb_pwm_probe(struct gpbridge_device *gpbdev,
 
 	ret = pwmchip_add(pwm);
 	if (ret) {
-		dev_err(&gpbdev->dev,
+		dev_err(&gbphy_dev->dev,
 			"failed to register PWM: %d\n", ret);
 		goto exit_connection_disable;
 	}
@@ -241,9 +241,9 @@ exit_pwmc_free:
 	return ret;
 }
 
-static void gb_pwm_remove(struct gpbridge_device *gpbdev)
+static void gb_pwm_remove(struct gbphy_device *gbphy_dev)
 {
-	struct gb_pwm_chip *pwmc = gb_gpbridge_get_data(gpbdev);
+	struct gb_pwm_chip *pwmc = gb_gbphy_get_data(gbphy_dev);
 	struct gb_connection *connection = pwmc->connection;
 
 	pwmchip_remove(&pwmc->chip);
@@ -252,18 +252,18 @@ static void gb_pwm_remove(struct gpbridge_device *gpbdev)
 	kfree(pwmc);
 }
 
-static const struct gpbridge_device_id gb_pwm_id_table[] = {
-	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_PWM) },
+static const struct gbphy_device_id gb_pwm_id_table[] = {
+	{ GBPHY_PROTOCOL(GREYBUS_PROTOCOL_PWM) },
 	{ },
 };
-MODULE_DEVICE_TABLE(gpbridge, gb_pwm_id_table);
+MODULE_DEVICE_TABLE(gbphy, gb_pwm_id_table);
 
-static struct gpbridge_driver pwm_driver = {
+static struct gbphy_driver pwm_driver = {
 	.name		= "pwm",
 	.probe		= gb_pwm_probe,
 	.remove		= gb_pwm_remove,
 	.id_table	= gb_pwm_id_table,
 };
 
-module_gpbridge_driver(pwm_driver);
+module_gbphy_driver(pwm_driver);
 MODULE_LICENSE("GPL v2");

@@ -10,17 +10,17 @@
 #include <linux/module.h>
 
 #include "greybus.h"
-#include "gpbridge.h"
+#include "gbphy.h"
 #include "spilib.h"
 
-static int gb_spi_probe(struct gpbridge_device *gpbdev,
-			const struct gpbridge_device_id *id)
+static int gb_spi_probe(struct gbphy_device *gbphy_dev,
+			const struct gbphy_device_id *id)
 {
 	struct gb_connection *connection;
 	int ret;
 
-	connection = gb_connection_create(gpbdev->bundle,
-					  le16_to_cpu(gpbdev->cport_desc->id),
+	connection = gb_connection_create(gbphy_dev->bundle,
+					  le16_to_cpu(gbphy_dev->cport_desc->id),
 					  NULL);
 	if (IS_ERR(connection))
 		return PTR_ERR(connection);
@@ -29,15 +29,15 @@ static int gb_spi_probe(struct gpbridge_device *gpbdev,
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_gpbridge_get_version(connection);
+	ret = gb_gbphy_get_version(connection);
 	if (ret)
 		goto exit_connection_disable;
 
-	ret = gb_spilib_master_init(connection, &gpbdev->dev);
+	ret = gb_spilib_master_init(connection, &gbphy_dev->dev);
 	if (ret)
 		goto exit_connection_disable;
 
-	gb_gpbridge_set_data(gpbdev, connection);
+	gb_gbphy_set_data(gbphy_dev, connection);
 
 	return 0;
 
@@ -49,27 +49,27 @@ exit_connection_destroy:
 	return ret;
 }
 
-static void gb_spi_remove(struct gpbridge_device *gpbdev)
+static void gb_spi_remove(struct gbphy_device *gbphy_dev)
 {
-	struct gb_connection *connection = gb_gpbridge_get_data(gpbdev);
+	struct gb_connection *connection = gb_gbphy_get_data(gbphy_dev);
 
 	gb_spilib_master_exit(connection);
 	gb_connection_disable(connection);
 	gb_connection_destroy(connection);
 }
 
-static const struct gpbridge_device_id gb_spi_id_table[] = {
-	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_SPI) },
+static const struct gbphy_device_id gb_spi_id_table[] = {
+	{ GBPHY_PROTOCOL(GREYBUS_PROTOCOL_SPI) },
 	{ },
 };
-MODULE_DEVICE_TABLE(gpbridge, gb_spi_id_table);
+MODULE_DEVICE_TABLE(gbphy, gb_spi_id_table);
 
-static struct gpbridge_driver spi_driver = {
+static struct gbphy_driver spi_driver = {
 	.name		= "spi",
 	.probe		= gb_spi_probe,
 	.remove		= gb_spi_remove,
 	.id_table	= gb_spi_id_table,
 };
 
-module_gpbridge_driver(spi_driver);
+module_gbphy_driver(spi_driver);
 MODULE_LICENSE("GPL v2");

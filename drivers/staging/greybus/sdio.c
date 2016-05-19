@@ -15,11 +15,11 @@
 #include <linux/workqueue.h>
 
 #include "greybus.h"
-#include "gpbridge.h"
+#include "gbphy.h"
 
 struct gb_sdio_host {
 	struct gb_connection	*connection;
-	struct gpbridge_device	*gpbdev;
+	struct gbphy_device	*gbphy_dev;
 	struct mmc_host		*mmc;
 	struct mmc_request	*mrq;
 	struct mutex		lock;	/* lock for this host */
@@ -708,8 +708,8 @@ static const struct mmc_host_ops gb_sdio_ops = {
 	.get_cd		= gb_mmc_get_cd,
 };
 
-static int gb_sdio_probe(struct gpbridge_device *gpbdev,
-			 const struct gpbridge_device_id *id)
+static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
+			 const struct gbphy_device_id *id)
 {
 	struct gb_connection *connection;
 	struct mmc_host *mmc;
@@ -717,12 +717,12 @@ static int gb_sdio_probe(struct gpbridge_device *gpbdev,
 	size_t max_buffer;
 	int ret = 0;
 
-	mmc = mmc_alloc_host(sizeof(*host), &gpbdev->dev);
+	mmc = mmc_alloc_host(sizeof(*host), &gbphy_dev->dev);
 	if (!mmc)
 		return -ENOMEM;
 
-	connection = gb_connection_create(gpbdev->bundle,
-					  le16_to_cpu(gpbdev->cport_desc->id),
+	connection = gb_connection_create(gbphy_dev->bundle,
+					  le16_to_cpu(gbphy_dev->cport_desc->id),
 					  gb_sdio_request_handler);
 	if (IS_ERR(connection)) {
 		ret = PTR_ERR(connection);
@@ -735,14 +735,14 @@ static int gb_sdio_probe(struct gpbridge_device *gpbdev,
 
 	host->connection = connection;
 	gb_connection_set_data(connection, host);
-	host->gpbdev = gpbdev;
-	gb_gpbridge_set_data(gpbdev, host);
+	host->gbphy_dev = gbphy_dev;
+	gb_gbphy_set_data(gbphy_dev, host);
 
 	ret = gb_connection_enable_tx(connection);
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_gpbridge_get_version(connection);
+	ret = gb_gbphy_get_version(connection);
 	if (ret)
 		goto exit_connection_disable;
 
@@ -767,7 +767,7 @@ static int gb_sdio_probe(struct gpbridge_device *gpbdev,
 	mutex_init(&host->lock);
 	spin_lock_init(&host->xfer);
 	host->mrq_workqueue = alloc_workqueue("mmc-%s", 0, 1,
-					      dev_name(&gpbdev->dev));
+					      dev_name(&gbphy_dev->dev));
 	if (!host->mrq_workqueue) {
 		ret = -ENOMEM;
 		goto exit_buf_free;
@@ -801,9 +801,9 @@ exit_mmc_free:
 	return ret;
 }
 
-static void gb_sdio_remove(struct gpbridge_device *gpbdev)
+static void gb_sdio_remove(struct gbphy_device *gbphy_dev)
 {
-	struct gb_sdio_host *host = gb_gpbridge_get_data(gpbdev);
+	struct gb_sdio_host *host = gb_gbphy_get_data(gbphy_dev);
 	struct gb_connection *connection = host->connection;
 	struct mmc_host *mmc;
 
@@ -823,18 +823,18 @@ static void gb_sdio_remove(struct gpbridge_device *gpbdev)
 	mmc_free_host(mmc);
 }
 
-static const struct gpbridge_device_id gb_sdio_id_table[] = {
-	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_SDIO) },
+static const struct gbphy_device_id gb_sdio_id_table[] = {
+	{ GBPHY_PROTOCOL(GREYBUS_PROTOCOL_SDIO) },
 	{ },
 };
-MODULE_DEVICE_TABLE(gpbridge, gb_sdio_id_table);
+MODULE_DEVICE_TABLE(gbphy, gb_sdio_id_table);
 
-static struct gpbridge_driver sdio_driver = {
+static struct gbphy_driver sdio_driver = {
 	.name		= "sdio",
 	.probe		= gb_sdio_probe,
 	.remove		= gb_sdio_remove,
 	.id_table	= gb_sdio_id_table,
 };
 
-module_gpbridge_driver(sdio_driver);
+module_gbphy_driver(sdio_driver);
 MODULE_LICENSE("GPL v2");

@@ -13,11 +13,11 @@
 #include <linux/i2c.h>
 
 #include "greybus.h"
-#include "gpbridge.h"
+#include "gbphy.h"
 
 struct gb_i2c_device {
 	struct gb_connection	*connection;
-	struct gpbridge_device	*gpbdev;
+	struct gbphy_device	*gbphy_dev;
 
 	u32			functionality;
 
@@ -85,7 +85,7 @@ gb_i2c_operation_create(struct gb_connection *connection,
 	u32 i;
 
 	if (msg_count > (u32)U16_MAX) {
-		dev_err(&gb_i2c_dev->gpbdev->dev, "msg_count (%u) too big\n",
+		dev_err(&gb_i2c_dev->gbphy_dev->dev, "msg_count (%u) too big\n",
 			msg_count);
 		return NULL;
 	}
@@ -168,7 +168,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 					struct i2c_msg *msgs, u32 msg_count)
 {
 	struct gb_connection *connection = gb_i2c_dev->connection;
-	struct device *dev = &gb_i2c_dev->gpbdev->dev;
+	struct device *dev = &gb_i2c_dev->gbphy_dev->dev;
 	struct gb_operation *operation;
 	int ret;
 
@@ -242,8 +242,8 @@ static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 	return gb_i2c_functionality_operation(gb_i2c_dev);
 }
 
-static int gb_i2c_probe(struct gpbridge_device *gpbdev,
-			 const struct gpbridge_device_id *id)
+static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
+			 const struct gbphy_device_id *id)
 {
 	struct gb_connection *connection;
 	struct gb_i2c_device *gb_i2c_dev;
@@ -254,8 +254,8 @@ static int gb_i2c_probe(struct gpbridge_device *gpbdev,
 	if (!gb_i2c_dev)
 		return -ENOMEM;
 
-	connection = gb_connection_create(gpbdev->bundle,
-					  le16_to_cpu(gpbdev->cport_desc->id),
+	connection = gb_connection_create(gbphy_dev->bundle,
+					  le16_to_cpu(gbphy_dev->cport_desc->id),
 					  NULL);
 	if (IS_ERR(connection)) {
 		ret = PTR_ERR(connection);
@@ -264,14 +264,14 @@ static int gb_i2c_probe(struct gpbridge_device *gpbdev,
 
 	gb_i2c_dev->connection = connection;
 	gb_connection_set_data(connection, gb_i2c_dev);
-	gb_i2c_dev->gpbdev = gpbdev;
-	gb_gpbridge_set_data(gpbdev, gb_i2c_dev);
+	gb_i2c_dev->gbphy_dev = gbphy_dev;
+	gb_gbphy_set_data(gbphy_dev, gb_i2c_dev);
 
 	ret = gb_connection_enable(connection);
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_gpbridge_get_version(connection);
+	ret = gb_gbphy_get_version(connection);
 	if (ret)
 		goto exit_connection_disable;
 
@@ -286,7 +286,7 @@ static int gb_i2c_probe(struct gpbridge_device *gpbdev,
 	adapter->algo = &gb_i2c_algorithm;
 	/* adapter->algo_data = what? */
 
-	adapter->dev.parent = &gpbdev->dev;
+	adapter->dev.parent = &gbphy_dev->dev;
 	snprintf(adapter->name, sizeof(adapter->name), "Greybus i2c adapter");
 	i2c_set_adapdata(adapter, gb_i2c_dev);
 
@@ -306,9 +306,9 @@ exit_i2cdev_free:
 	return ret;
 }
 
-static void gb_i2c_remove(struct gpbridge_device *gpbdev)
+static void gb_i2c_remove(struct gbphy_device *gbphy_dev)
 {
-	struct gb_i2c_device *gb_i2c_dev = gb_gpbridge_get_data(gpbdev);
+	struct gb_i2c_device *gb_i2c_dev = gb_gbphy_get_data(gbphy_dev);
 	struct gb_connection *connection = gb_i2c_dev->connection;
 
 	i2c_del_adapter(&gb_i2c_dev->adapter);
@@ -317,18 +317,18 @@ static void gb_i2c_remove(struct gpbridge_device *gpbdev)
 	kfree(gb_i2c_dev);
 }
 
-static const struct gpbridge_device_id gb_i2c_id_table[] = {
-	{ GPBRIDGE_PROTOCOL(GREYBUS_PROTOCOL_I2C) },
+static const struct gbphy_device_id gb_i2c_id_table[] = {
+	{ GBPHY_PROTOCOL(GREYBUS_PROTOCOL_I2C) },
 	{ },
 };
-MODULE_DEVICE_TABLE(gpbridge, gb_i2c_id_table);
+MODULE_DEVICE_TABLE(gbphy, gb_i2c_id_table);
 
-static struct gpbridge_driver i2c_driver = {
+static struct gbphy_driver i2c_driver = {
 	.name		= "i2c",
 	.probe		= gb_i2c_probe,
 	.remove		= gb_i2c_remove,
 	.id_table	= gb_i2c_id_table,
 };
 
-module_gpbridge_driver(i2c_driver);
+module_gbphy_driver(i2c_driver);
 MODULE_LICENSE("GPL v2");
