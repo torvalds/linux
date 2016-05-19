@@ -68,6 +68,9 @@
 #include <asm/div64.h>
 #include "internal.h"
 
+unsigned long lt = 0;
+unsigned long st = 0;
+
 /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
 static DEFINE_MUTEX(pcp_batch_high_lock);
 #define MIN_PERCPU_PAGELIST_FRACTION	(8)
@@ -2068,17 +2071,51 @@ out:
 	local_irq_restore(flags);
 }
 
+void update(unsigned long sum, unsigned long count)
+{
+	unsigned long avg;
+
+	if (sum == 0 || count == 0) {
+		return;
+	}
+
+	avg = sum / count;
+	st = avg;
+}
+
 /*
  * Free a list of 0-order pages
  */
 void free_hot_cold_page_list(struct list_head *list, bool cold)
 {
 	struct page *page, *next;
+	struct address_space *mapping;
+	struct inode *inode1;
+	struct timespec t1, now;
+	unsigned long sum = 0, count = 0;
 
 	list_for_each_entry_safe(page, next, list, lru) {
+		printk("Freeing pages\n");
+		mapping = page->mapping;
+		if (!mapping) {
+			printk("No mapping\n");
+			goto out;
+		}
+		inode1 = mapping->host;
+		if (!inode1) {
+			printk("No inode associated\n");
+			goto out;
+		}
+		t1 = inode1->i_atime;
+		getnstimeofday(&now);
+		sum += now.tv_sec - t1.tv_sec;
+		count++;
+
+out:
 		trace_mm_page_free_batched(page, cold);
 		free_hot_cold_page(page, cold);
 	}
+	update(sum, count);
 }
 
 /*

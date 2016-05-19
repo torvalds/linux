@@ -473,6 +473,7 @@ extern char nfs4_client_id_uniquifier[NFS4_CLIENT_ID_UNIQ_LEN];
 /* nfs4sysctl.c */
 #ifdef CONFIG_SYSCTL
 int nfs4_register_sysctl(void);
+int prefetch_register_sysctl(void);
 void nfs4_unregister_sysctl(void);
 #else
 static inline int nfs4_register_sysctl(void)
