@@ -96,7 +96,8 @@ if test "$base_resdir" != "$resdir" -a -f $base_resdir/bzImage -a -f $base_resdi
 then
 	# Rerunning previous test, so use that test's kernel.
 	QEMU="`identify_qemu $base_resdir/vmlinux`"
-	KERNEL=$base_resdir/bzImage
+	BOOT_IMAGE="`identify_boot_image $QEMU`"
+	KERNEL=$base_resdir/${BOOT_IMAGE##*/} # use the last component of ${BOOT_IMAGE}
 	ln -s $base_resdir/Make*.out $resdir  # for kvm-recheck.sh
 	ln -s $base_resdir/.config $resdir  # for kvm-recheck.sh
 elif kvm-build.sh $config_template $builddir $T
@@ -110,7 +111,7 @@ then
 	if test -n "$BOOT_IMAGE"
 	then
 		cp $builddir/$BOOT_IMAGE $resdir
-		KERNEL=$resdir/bzImage
+		KERNEL=$resdir/${BOOT_IMAGE##*/}
 	else
 		echo No identifiable boot image, not running KVM, see $resdir.
 		echo Do the torture scripts know about your architecture?
