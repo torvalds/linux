@@ -122,13 +122,6 @@
 #define HFI1_CMD_SET_PKEY        11     /* set context's pkey */
 #define HFI1_CMD_CTXT_RESET      12     /* reset context's HW send context */
 #define HFI1_CMD_TID_INVAL_READ  13     /* read TID cache invalidations */
-/* separate EPROM commands from normal PSM commands */
-#define HFI1_CMD_EP_INFO         64      /* read EPROM device ID */
-#define HFI1_CMD_EP_ERASE_CHIP   65      /* erase whole EPROM */
-/* range 66-74 no longer used */
-#define HFI1_CMD_EP_ERASE_RANGE  75      /* erase EPROM range */
-#define HFI1_CMD_EP_READ_RANGE   76      /* read EPROM range */
-#define HFI1_CMD_EP_WRITE_RANGE  77      /* write EPROM range */
 
 #define _HFI1_EVENT_FROZEN_BIT         0
 #define _HFI1_EVENT_LINKDOWN_BIT       1

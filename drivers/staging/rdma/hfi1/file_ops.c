@@ -189,7 +189,6 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 	void *dest = NULL;
 	__u64 user_val = 0;
 	int uctxt_required = 1;
-	int must_be_root = 0;
 
 	/* FIXME: This interface cannot continue out of staging */
 	if (WARN_ON_ONCE(!ib_safe_file_access(fp)))
@@ -234,15 +233,6 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 		copy = 0;
 		user_val = cmd.addr;
 		break;
-	case HFI1_CMD_EP_INFO:
-	case HFI1_CMD_EP_ERASE_CHIP:
-	case HFI1_CMD_EP_ERASE_RANGE:
-	case HFI1_CMD_EP_READ_RANGE:
-	case HFI1_CMD_EP_WRITE_RANGE:
-		uctxt_required = 0;	/* assigned user context not required */
-		must_be_root = 1;	/* validate user */
-		copy = 0;
-		break;
 	default:
 		ret = -EINVAL;
 		goto bail;
@@ -262,12 +252,6 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 	 */
 	if (uctxt_required && !uctxt) {
 		ret = -EINVAL;
-		goto bail;
-	}
-
-	/* only root can do these operations */
-	if (must_be_root && !capable(CAP_SYS_ADMIN)) {
-		ret = -EPERM;
 		goto bail;
 	}
 
@@ -409,13 +393,6 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 			sc_return_credits(sc);
 		break;
 	}
-	case HFI1_CMD_EP_INFO:
-	case HFI1_CMD_EP_ERASE_CHIP:
-	case HFI1_CMD_EP_ERASE_RANGE:
-	case HFI1_CMD_EP_READ_RANGE:
-	case HFI1_CMD_EP_WRITE_RANGE:
-		ret = handle_eprom_command(fp, &cmd);
-		break;
 	}
 
 	if (ret >= 0)
