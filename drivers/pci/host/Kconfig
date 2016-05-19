@@ -72,11 +72,14 @@ config PCI_RCAR_GEN2
 config PCIE_RCAR
 	bool "Renesas R-Car PCIe controller"
 	depends on ARCH_RENESAS || (ARM && COMPILE_TEST)
+	select PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
 	help
 	  Say Y here if you want PCIe controller support on R-Car SoCs.
 
 config PCI_HOST_COMMON
 	bool
+	select PCI_ECAM
 
 config PCI_HOST_GENERIC
 	bool "Generic PCI host controller"
@@ -230,5 +233,16 @@ config PCI_HOST_THUNDER_ECAM
 	select PCI_HOST_COMMON
 	help
 	  Say Y here if you want ECAM support for CN88XX-Pass-1.x Cavium Thunder SoCs.
+
+config PCIE_ARMADA_8K
+	bool "Marvell Armada-8K PCIe controller"
+	depends on ARCH_MVEBU
+	select PCIE_DW
+	select PCIEPORTBUS
+	help
+	  Say Y here if you want to enable PCIe controller support on
+	  Armada-8K SoCs. The PCIe controller on Armada-8K is based on
+	  Designware hardware and therefore the driver re-uses the
+	  Designware core functions to implement the driver.
 
 endmenu
