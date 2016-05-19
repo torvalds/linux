@@ -225,20 +225,13 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DAQBOARD2000_Dac3Busy                    0x0080
 
 /* DAC control */
-#define DAQBOARD2000_Dac0Enable                  0x0021
-#define DAQBOARD2000_Dac1Enable                  0x0031
-#define DAQBOARD2000_Dac2Enable                  0x0041
-#define DAQBOARD2000_Dac3Enable                  0x0051
-#define DAQBOARD2000_DacEnableBit                0x0001
-#define DAQBOARD2000_Dac0Disable                 0x0020
-#define DAQBOARD2000_Dac1Disable                 0x0030
-#define DAQBOARD2000_Dac2Disable                 0x0040
-#define DAQBOARD2000_Dac3Disable                 0x0050
-#define DAQBOARD2000_DacResetFifo                0x0004
-#define DAQBOARD2000_DacPatternDisable           0x0060
-#define DAQBOARD2000_DacPatternEnable            0x0061
-#define DAQBOARD2000_DacSelectSignedData         0x0002
-#define DAQBOARD2000_DacSelectUnsignedData       0x0000
+#define DB2K_DAC_CONTROL_ENABLE_BIT			0x0001
+#define DB2K_DAC_CONTROL_DATA_IS_SIGNED			0x0002
+#define DB2K_DAC_CONTROL_RESET_FIFO			0x0004
+#define DB2K_DAC_CONTROL_DAC_DISABLE(x)			(0x0020 + ((x) << 4))
+#define DB2K_DAC_CONTROL_DAC_ENABLE(x)			(0x0021 + ((x) << 4))
+#define DB2K_DAC_CONTROL_PATTERN_DISABLE		0x0060
+#define DB2K_DAC_CONTROL_PATTERN_ENABLE			0x0061
 
 /* Trigger Control */
 #define DAQBOARD2000_TrigAnalog                  0x0000
