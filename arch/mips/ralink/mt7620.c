@@ -196,10 +196,10 @@ static struct rt2880_pmx_func wled_kn_grp_mt7628[] = {
 };
 
 static struct rt2880_pmx_func wled_an_grp_mt7628[] = {
-	FUNC("rsvd", 3, 35, 1),
-	FUNC("rsvd", 2, 35, 1),
-	FUNC("gpio", 1, 35, 1),
-	FUNC("wled_an", 0, 35, 1),
+	FUNC("rsvd", 3, 44, 1),
+	FUNC("rsvd", 2, 44, 1),
+	FUNC("gpio", 1, 44, 1),
+	FUNC("wled_an", 0, 44, 1),
 };
 
 #define MT7628_GPIO_MODE_MASK		0x3
