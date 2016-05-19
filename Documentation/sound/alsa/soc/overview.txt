@@ -63,7 +63,7 @@ multiple re-usable component drivers :-
     and any audio DSP drivers for that platform.
 
   * Machine class driver: The machine driver class acts as the glue that
-    decribes and binds the other component drivers together to form an ALSA
+    describes and binds the other component drivers together to form an ALSA
     "sound card device". It handles any machine specific controls and
     machine level audio events (e.g. turning on an amp at start of playback).
 

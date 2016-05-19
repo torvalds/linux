@@ -4732,6 +4732,7 @@ FREESCALE SOC SOUND DRIVERS
 M:	Timur Tabi <timur@tabi.org>
 M:	Nicolin Chen <nicoleotsuka@gmail.com>
 M:	Xiubo Li <Xiubo.Lee@gmail.com>
+R:	Fabio Estevam <fabio.estevam@nxp.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
@@ -11017,10 +11018,11 @@ M:	Prashant Gaikwad <pgaikwad@nvidia.com>
 S:	Supported
 F:	drivers/clk/tegra/
 
-TEGRA DMA DRIVER
+TEGRA DMA DRIVERS
 M:	Laxman Dewangan <ldewangan@nvidia.com>
+M:	Jon Hunter <jonathanh@nvidia.com>
 S:	Supported
-F:	drivers/dma/tegra20-apb-dma.c
+F:	drivers/dma/tegra*
 
 TEGRA I2C DRIVER
 M:	Laxman Dewangan <ldewangan@nvidia.com>

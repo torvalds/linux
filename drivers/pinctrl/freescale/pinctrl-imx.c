@@ -789,22 +789,13 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	ipctl->info = info;
 	ipctl->dev = info->dev;
 	platform_set_drvdata(pdev, ipctl);
-	ipctl->pctl = pinctrl_register(&imx_pinctrl_desc, &pdev->dev, ipctl);
+	ipctl->pctl = devm_pinctrl_register(&pdev->dev, &imx_pinctrl_desc, ipctl);
 	if (IS_ERR(ipctl->pctl)) {
 		dev_err(&pdev->dev, "could not register IMX pinctrl driver\n");
 		return PTR_ERR(ipctl->pctl);
 	}
 
 	dev_info(&pdev->dev, "initialized IMX pinctrl driver\n");
-
-	return 0;
-}
-
-int imx_pinctrl_remove(struct platform_device *pdev)
-{
-	struct imx_pinctrl *ipctl = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(ipctl->pctl);
 
 	return 0;
 }

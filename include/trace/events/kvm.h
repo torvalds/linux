@@ -38,22 +38,25 @@ TRACE_EVENT(kvm_userspace_exit,
 );
 
 TRACE_EVENT(kvm_vcpu_wakeup,
-	    TP_PROTO(__u64 ns, bool waited),
-	    TP_ARGS(ns, waited),
+	    TP_PROTO(__u64 ns, bool waited, bool valid),
+	    TP_ARGS(ns, waited, valid),
 
 	TP_STRUCT__entry(
 		__field(	__u64,		ns		)
 		__field(	bool,		waited		)
+		__field(	bool,		valid		)
 	),
 
 	TP_fast_assign(
 		__entry->ns		= ns;
 		__entry->waited		= waited;
+		__entry->valid		= valid;
 	),
 
-	TP_printk("%s time %lld ns",
+	TP_printk("%s time %lld ns, polling %s",
 		  __entry->waited ? "wait" : "poll",
-		  __entry->ns)
+		  __entry->ns,
+		  __entry->valid ? "valid" : "invalid")
 );
 
 #if defined(CONFIG_HAVE_KVM_IRQFD)
