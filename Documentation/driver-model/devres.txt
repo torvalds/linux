@@ -328,6 +328,8 @@ PHY
 PINCTRL
   devm_pinctrl_get()
   devm_pinctrl_put()
+  devm_pinctrl_register()
+  devm_pinctrl_unregister()
 
 PWM
   devm_pwm_get()
