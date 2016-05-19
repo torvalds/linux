@@ -182,13 +182,13 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_REG_DIO_P2_EXP_IO_16_BIT(x)	(0xc0 + (x) * 2) /* s16 */
 
 /* Scan Sequencer programming */
-#define DAQBOARD2000_SeqStartScanList            0x0011
-#define DAQBOARD2000_SeqStopScanList             0x0010
+#define DB2K_ACQ_CONTROL_SEQ_START_SCAN_LIST		0x0011
+#define DB2K_ACQ_CONTROL_SEQ_STOP_SCAN_LIST		0x0010
 
 /* Prepare for acquisition */
-#define DAQBOARD2000_AcqResetScanListFifo        0x0004
-#define DAQBOARD2000_AcqResetResultsFifo         0x0002
-#define DAQBOARD2000_AcqResetConfigPipe          0x0001
+#define DB2K_ACQ_CONTROL_RESET_SCAN_LIST_FIFO		0x0004
+#define DB2K_ACQ_CONTROL_RESET_RESULTS_FIFO		0x0002
+#define DB2K_ACQ_CONTROL_RESET_CONFIG_PIPE		0x0001
 
 /* Acqusition status bits */
 #define DAQBOARD2000_AcqResultsFIFOMore1Sample   0x0001
@@ -203,20 +203,16 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DAQBOARD2000_DacPacerOverrun             0x0200
 #define DAQBOARD2000_AcqHardwareError            0x01c0
 
-/* Scan Sequencer programming */
-#define DAQBOARD2000_SeqStartScanList            0x0011
-#define DAQBOARD2000_SeqStopScanList             0x0010
-
 /* Pacer Clock Control */
-#define DAQBOARD2000_AdcPacerInternal            0x0030
-#define DAQBOARD2000_AdcPacerExternal            0x0032
-#define DAQBOARD2000_AdcPacerEnable              0x0031
-#define DAQBOARD2000_AdcPacerEnableDacPacer      0x0034
-#define DAQBOARD2000_AdcPacerDisable             0x0030
-#define DAQBOARD2000_AdcPacerNormalMode          0x0060
-#define DAQBOARD2000_AdcPacerCompatibilityMode   0x0061
-#define DAQBOARD2000_AdcPacerInternalOutEnable   0x0008
-#define DAQBOARD2000_AdcPacerExternalRising      0x0100
+#define DB2K_ACQ_CONTROL_ADC_PACER_INTERNAL		0x0030
+#define DB2K_ACQ_CONTROL_ADC_PACER_EXTERNAL		0x0032
+#define DB2K_ACQ_CONTROL_ADC_PACER_ENABLE		0x0031
+#define DB2K_ACQ_CONTROL_ADC_PACER_ENABLE_DAC_PACER	0x0034
+#define DB2K_ACQ_CONTROL_ADC_PACER_DISABLE		0x0030
+#define DB2K_ACQ_CONTROL_ADC_PACER_NORMAL_MODE		0x0060
+#define DB2K_ACQ_CONTROL_ADC_PACER_COMPATIBILITY_MODE	0x0061
+#define DB2K_ACQ_CONTROL_ADC_PACER_INTERNAL_OUT_ENABLE	0x0008
+#define DB2K_ACQ_CONTROL_ADC_PACER_EXTERNAL_RISING	0x0100
 
 /* DAC status */
 #define DAQBOARD2000_DacFull                     0x0001
@@ -346,9 +342,9 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	writew(DAQBOARD2000_AcqResetScanListFifo |
-	       DAQBOARD2000_AcqResetResultsFifo |
-	       DAQBOARD2000_AcqResetConfigPipe,
+	writew(DB2K_ACQ_CONTROL_RESET_SCAN_LIST_FIFO |
+	       DB2K_ACQ_CONTROL_RESET_RESULTS_FIFO |
+	       DB2K_ACQ_CONTROL_RESET_CONFIG_PIPE,
 	       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 	/*
@@ -371,7 +367,7 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		setup_sampling(dev, chan, gain);
 		/* Enable reading from the scanlist FIFO */
-		writew(DAQBOARD2000_SeqStartScanList,
+		writew(DB2K_ACQ_CONTROL_SEQ_START_SCAN_LIST,
 		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
@@ -379,7 +375,7 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		writew(DAQBOARD2000_AdcPacerEnable,
+		writew(DB2K_ACQ_CONTROL_ADC_PACER_ENABLE,
 		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
@@ -393,9 +389,9 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 			return ret;
 
 		data[i] = readw(dev->mmio + DB2K_REG_ACQ_RESULTS_FIFO);
-		writew(DAQBOARD2000_AdcPacerDisable,
+		writew(DB2K_ACQ_CONTROL_ADC_PACER_DISABLE,
 		       dev->mmio + DB2K_REG_ACQ_CONTROL);
-		writew(DAQBOARD2000_SeqStopScanList,
+		writew(DB2K_ACQ_CONTROL_SEQ_STOP_SCAN_LIST,
 		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 	}
 
@@ -563,12 +559,12 @@ static void daqboard2000_adcDisarm(struct comedi_device *dev)
 
 	/* Stop the scan list FIFO from loading the configuration pipe */
 	udelay(2);
-	writew(DAQBOARD2000_SeqStopScanList,
+	writew(DB2K_ACQ_CONTROL_SEQ_STOP_SCAN_LIST,
 	       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 	/* Stop the pacer clock */
 	udelay(2);
-	writew(DAQBOARD2000_AdcPacerDisable,
+	writew(DB2K_ACQ_CONTROL_ADC_PACER_DISABLE,
 	       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 	/* Stop the input dma (abort channel 1) */
