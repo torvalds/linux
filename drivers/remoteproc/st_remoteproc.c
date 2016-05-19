@@ -189,9 +189,9 @@ static int st_rproc_parse_dt(struct platform_device *pdev)
 	}
 
 	ddata->boot_base = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
-	if (!ddata->boot_base) {
+	if (IS_ERR(ddata->boot_base)) {
 		dev_err(dev, "Boot base not found\n");
-		return -EINVAL;
+		return PTR_ERR(ddata->boot_base);
 	}
 
 	err = of_property_read_u32_index(np, "st,syscfg", 1,

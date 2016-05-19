@@ -4449,9 +4449,9 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 	struct page *page;
 	char *addr;
 	struct btrfs_key key;
-	pgoff_t index = offset >> PAGE_CACHE_SHIFT;
+	pgoff_t index = offset >> PAGE_SHIFT;
 	pgoff_t last_index;
-	unsigned pg_offset = offset & ~PAGE_CACHE_MASK;
+	unsigned pg_offset = offset & ~PAGE_MASK;
 	ssize_t ret = 0;
 
 	key.objectid = sctx->cur_ino;
@@ -4471,7 +4471,7 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 	if (len == 0)
 		goto out;
 
-	last_index = (offset + len - 1) >> PAGE_CACHE_SHIFT;
+	last_index = (offset + len - 1) >> PAGE_SHIFT;
 
 	/* initial readahead */
 	memset(&sctx->ra, 0, sizeof(struct file_ra_state));
@@ -4481,7 +4481,7 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 
 	while (index <= last_index) {
 		unsigned cur_len = min_t(unsigned, len,
-					 PAGE_CACHE_SIZE - pg_offset);
+					 PAGE_SIZE - pg_offset);
 		page = find_or_create_page(inode->i_mapping, index, GFP_KERNEL);
 		if (!page) {
 			ret = -ENOMEM;
@@ -4493,7 +4493,7 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 			lock_page(page);
 			if (!PageUptodate(page)) {
 				unlock_page(page);
-				page_cache_release(page);
+				put_page(page);
 				ret = -EIO;
 				break;
 			}
@@ -4503,7 +4503,7 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 		memcpy(sctx->read_buf + ret, addr + pg_offset, cur_len);
 		kunmap(page);
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		index++;
 		pg_offset = 0;
 		len -= cur_len;
@@ -4804,7 +4804,7 @@ static int clone_range(struct send_ctx *sctx,
 		type = btrfs_file_extent_type(leaf, ei);
 		if (type == BTRFS_FILE_EXTENT_INLINE) {
 			ext_len = btrfs_file_extent_inline_len(leaf, slot, ei);
-			ext_len = PAGE_CACHE_ALIGN(ext_len);
+			ext_len = PAGE_ALIGN(ext_len);
 		} else {
 			ext_len = btrfs_file_extent_num_bytes(leaf, ei);
 		}
@@ -4886,7 +4886,7 @@ static int send_write_or_clone(struct send_ctx *sctx,
 		 * but there may be items after this page.  Make
 		 * sure to send the whole thing
 		 */
-		len = PAGE_CACHE_ALIGN(len);
+		len = PAGE_ALIGN(len);
 	} else {
 		len = btrfs_file_extent_num_bytes(path->nodes[0], ei);
 	}

@@ -3,8 +3,6 @@
 
 #include <sound/info.h>
 
-struct media_mixer_ctl;
-
 struct usb_mixer_interface {
 	struct snd_usb_audio *chip;
 	struct usb_host_interface *hostif;
@@ -24,7 +22,6 @@ struct usb_mixer_interface {
 	struct urb *rc_urb;
 	struct usb_ctrlrequest *rc_setup_packet;
 	u8 rc_buffer[6];
-	struct media_mixer_ctl *media_mixer_ctl;
 };
 
 #define MAX_CHANNELS	16	/* max logical channels */

@@ -124,7 +124,9 @@
 #define VTCR_EL2_SL0_LVL1	(1 << 6)
 #define VTCR_EL2_T0SZ_MASK	0x3f
 #define VTCR_EL2_T0SZ_40B	24
-#define VTCR_EL2_VS		19
+#define VTCR_EL2_VS_SHIFT	19
+#define VTCR_EL2_VS_8BIT	(0 << VTCR_EL2_VS_SHIFT)
+#define VTCR_EL2_VS_16BIT	(1 << VTCR_EL2_VS_SHIFT)
 
 /*
  * We configure the Stage-2 page tables to always restrict the IPA space to be

@@ -1954,8 +1954,8 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 		return -ENODEV;
 
 	/* superblock */
-	sb->s_blocksize = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	sb->s_blocksize = PAGE_SIZE;
+	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = GADGETFS_MAGIC;
 	sb->s_op = &gadget_fs_operations;
 	sb->s_time_gran = 1;

@@ -556,10 +556,10 @@ xfs_max_file_offset(
 	/* Figure out maximum filesize, on Linux this can depend on
 	 * the filesystem blocksize (on 32 bit platforms).
 	 * __block_write_begin does this in an [unsigned] long...
-	 *      page->index << (PAGE_CACHE_SHIFT - bbits)
+	 *      page->index << (PAGE_SHIFT - bbits)
 	 * So, for page sized blocks (4K on 32 bit platforms),
 	 * this wraps at around 8Tb (hence MAX_LFS_FILESIZE which is
-	 *      (((u64)PAGE_CACHE_SIZE << (BITS_PER_LONG-1))-1)
+	 *      (((u64)PAGE_SIZE << (BITS_PER_LONG-1))-1)
 	 * but for smaller blocksizes it is less (bbits = log2 bsize).
 	 * Note1: get_block_t takes a long (implicit cast from above)
 	 * Note2: The Large Block Device (LBD and HAVE_SECTOR_T) patch
@@ -570,10 +570,10 @@ xfs_max_file_offset(
 #if BITS_PER_LONG == 32
 # if defined(CONFIG_LBDAF)
 	ASSERT(sizeof(sector_t) == 8);
-	pagefactor = PAGE_CACHE_SIZE;
+	pagefactor = PAGE_SIZE;
 	bitshift = BITS_PER_LONG;
 # else
-	pagefactor = PAGE_CACHE_SIZE >> (PAGE_CACHE_SHIFT - blockshift);
+	pagefactor = PAGE_SIZE >> (PAGE_SHIFT - blockshift);
 # endif
 #endif
 

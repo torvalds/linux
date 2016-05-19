@@ -220,7 +220,7 @@ check_attr_tree_state_again:
 
 	index = 0;
 	written = 0;
-	for (; written < node_size; index++, written += PAGE_CACHE_SIZE) {
+	for (; written < node_size; index++, written += PAGE_SIZE) {
 		void *kaddr;
 
 		page = read_mapping_page(mapping, index, NULL);
@@ -231,11 +231,11 @@ check_attr_tree_state_again:
 
 		kaddr = kmap_atomic(page);
 		memcpy(kaddr, buf + written,
-			min_t(size_t, PAGE_CACHE_SIZE, node_size - written));
+			min_t(size_t, PAGE_SIZE, node_size - written));
 		kunmap_atomic(kaddr);
 
 		set_page_dirty(page);
-		page_cache_release(page);
+		put_page(page);
 	}
 
 	hfsplus_mark_inode_dirty(attr_file, HFSPLUS_I_ATTR_DIRTY);

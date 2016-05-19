@@ -735,7 +735,7 @@ out:
 
 out_unmap:
 	for (i = 0; i < nr_pages; i++)
-		page_cache_release(pages[i]);
+		put_page(pages[i]);
 
 	kfree(pages);
 

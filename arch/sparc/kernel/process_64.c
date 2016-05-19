@@ -103,7 +103,7 @@ static void show_regwindow32(struct pt_regs *regs)
 	mm_segment_t old_fs;
 	
 	__asm__ __volatile__ ("flushw");
-	rw = compat_ptr((unsigned)regs->u_regs[14]);
+	rw = compat_ptr((unsigned int)regs->u_regs[14]);
 	old_fs = get_fs();
 	set_fs (USER_DS);
 	if (copy_from_user (&r_w, rw, sizeof(r_w))) {

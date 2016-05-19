@@ -1294,7 +1294,7 @@ static inline void f2fs_put_page(struct page *page, int unlock)
 		f2fs_bug_on(F2FS_P_SB(page), !PageLocked(page));
 		unlock_page(page);
 	}
-	page_cache_release(page);
+	put_page(page);
 }
 
 static inline void f2fs_put_dnode(struct dnode_of_data *dn)

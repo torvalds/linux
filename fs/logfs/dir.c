@@ -183,7 +183,7 @@ static struct page *logfs_get_dd_page(struct inode *dir, struct dentry *dentry)
 		if (name->len != be16_to_cpu(dd->namelen) ||
 				memcmp(name->name, dd->name, name->len)) {
 			kunmap_atomic(dd);
-			page_cache_release(page);
+			put_page(page);
 			continue;
 		}
 
@@ -238,7 +238,7 @@ static int logfs_unlink(struct inode *dir, struct dentry *dentry)
 		return PTR_ERR(page);
 	}
 	index = page->index;
-	page_cache_release(page);
+	put_page(page);
 
 	mutex_lock(&super->s_dirop_mutex);
 	logfs_add_transaction(dir, ta);
@@ -316,7 +316,7 @@ static int logfs_readdir(struct file *file, struct dir_context *ctx)
 				be16_to_cpu(dd->namelen),
 				be64_to_cpu(dd->ino), dd->type);
 		kunmap(page);
-		page_cache_release(page);
+		put_page(page);
 		if (full)
 			break;
 	}
@@ -349,7 +349,7 @@ static struct dentry *logfs_lookup(struct inode *dir, struct dentry *dentry,
 	dd = kmap_atomic(page);
 	ino = be64_to_cpu(dd->ino);
 	kunmap_atomic(dd);
-	page_cache_release(page);
+	put_page(page);
 
 	inode = logfs_iget(dir->i_sb, ino);
 	if (IS_ERR(inode))
@@ -392,7 +392,7 @@ static int logfs_write_dir(struct inode *dir, struct dentry *dentry,
 
 		err = logfs_write_buf(dir, page, WF_LOCK);
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		if (!err)
 			grow_dir(dir, index);
 		return err;
@@ -561,7 +561,7 @@ static int logfs_get_dd(struct inode *dir, struct dentry *dentry,
 	map = kmap_atomic(page);
 	memcpy(dd, map, sizeof(*dd));
 	kunmap_atomic(map);
-	page_cache_release(page);
+	put_page(page);
 	return 0;
 }
 

@@ -1147,8 +1147,8 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 	ffs->sb              = sb;
 	data->ffs_data       = NULL;
 	sb->s_fs_info        = ffs;
-	sb->s_blocksize      = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
+	sb->s_blocksize      = PAGE_SIZE;
+	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic          = FUNCTIONFS_MAGIC;
 	sb->s_op             = &ffs_sb_operations;
 	sb->s_time_gran      = 1;

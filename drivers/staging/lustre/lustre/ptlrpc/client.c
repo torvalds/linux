@@ -174,12 +174,12 @@ void __ptlrpc_prep_bulk_page(struct ptlrpc_bulk_desc *desc,
 	LASSERT(page);
 	LASSERT(pageoffset >= 0);
 	LASSERT(len > 0);
-	LASSERT(pageoffset + len <= PAGE_CACHE_SIZE);
+	LASSERT(pageoffset + len <= PAGE_SIZE);
 
 	desc->bd_nob += len;
 
 	if (pin)
-		page_cache_get(page);
+		get_page(page);
 
 	ptlrpc_add_bulk_page(desc, page, pageoffset, len);
 }
@@ -206,7 +206,7 @@ void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
 
 	if (unpin) {
 		for (i = 0; i < desc->bd_iov_count; i++)
-			page_cache_release(desc->bd_iov[i].kiov_page);
+			put_page(desc->bd_iov[i].kiov_page);
 	}
 
 	kfree(desc);

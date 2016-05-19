@@ -158,10 +158,14 @@ static void usbhsg_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);
 	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
+	unsigned long flags;
 
 	ureq->req.actual = pkt->actual;
 
-	usbhsg_queue_pop(uep, ureq, 0);
+	usbhs_lock(priv, flags);
+	if (uep)
+		__usbhsg_queue_pop(uep, ureq, 0);
+	usbhs_unlock(priv, flags);
 }
 
 static void usbhsg_queue_push(struct usbhsg_uep *uep,

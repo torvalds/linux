@@ -50,7 +50,7 @@ __nilfs_get_page_block(struct page *page, unsigned long block, pgoff_t index,
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, 1 << blkbits, b_state);
 
-	first_block = (unsigned long)index << (PAGE_CACHE_SHIFT - blkbits);
+	first_block = (unsigned long)index << (PAGE_SHIFT - blkbits);
 	bh = nilfs_page_get_nth_block(page, block - first_block);
 
 	touch_buffer(bh);
@@ -64,7 +64,7 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 				      unsigned long b_state)
 {
 	int blkbits = inode->i_blkbits;
-	pgoff_t index = blkoff >> (PAGE_CACHE_SHIFT - blkbits);
+	pgoff_t index = blkoff >> (PAGE_SHIFT - blkbits);
 	struct page *page;
 	struct buffer_head *bh;
 
@@ -75,7 +75,7 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 	bh = __nilfs_get_page_block(page, blkoff, index, blkbits, b_state);
 	if (unlikely(!bh)) {
 		unlock_page(page);
-		page_cache_release(page);
+		put_page(page);
 		return NULL;
 	}
 	return bh;
@@ -288,7 +288,7 @@ repeat:
 		__set_page_dirty_nobuffers(dpage);
 
 		unlock_page(dpage);
-		page_cache_release(dpage);
+		put_page(dpage);
 		unlock_page(page);
 	}
 	pagevec_release(&pvec);
@@ -333,7 +333,7 @@ repeat:
 			WARN_ON(PageDirty(dpage));
 			nilfs_copy_page(dpage, page, 0);
 			unlock_page(dpage);
-			page_cache_release(dpage);
+			put_page(dpage);
 		} else {
 			struct page *page2;
 
@@ -350,7 +350,7 @@ repeat:
 			if (unlikely(err < 0)) {
 				WARN_ON(err == -EEXIST);
 				page->mapping = NULL;
-				page_cache_release(page); /* for cache */
+				put_page(page); /* for cache */
 			} else {
 				page->mapping = dmap;
 				dmap->nrpages++;
@@ -523,8 +523,8 @@ unsigned long nilfs_find_uncommitted_extent(struct inode *inode,
 	if (inode->i_mapping->nrpages == 0)
 		return 0;
 
-	index = start_blk >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
-	nblocks_in_page = 1U << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	index = start_blk >> (PAGE_SHIFT - inode->i_blkbits);
+	nblocks_in_page = 1U << (PAGE_SHIFT - inode->i_blkbits);
 
 	pagevec_init(&pvec, 0);
 
@@ -537,7 +537,7 @@ repeat:
 	if (length > 0 && pvec.pages[0]->index > index)
 		goto out;
 
-	b = pvec.pages[0]->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	b = pvec.pages[0]->index << (PAGE_SHIFT - inode->i_blkbits);
 	i = 0;
 	do {
 		page = pvec.pages[i];

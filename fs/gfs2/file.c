@@ -354,8 +354,8 @@ static int gfs2_allocate_page_backing(struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	struct buffer_head bh;
-	unsigned long size = PAGE_CACHE_SIZE;
-	u64 lblock = page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	unsigned long size = PAGE_SIZE;
+	u64 lblock = page->index << (PAGE_SHIFT - inode->i_blkbits);
 
 	do {
 		bh.b_state = 0;
@@ -386,7 +386,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_alloc_parms ap = { .aflags = 0, };
 	unsigned long last_index;
-	u64 pos = page->index << PAGE_CACHE_SHIFT;
+	u64 pos = page->index << PAGE_SHIFT;
 	unsigned int data_blocks, ind_blocks, rblocks;
 	struct gfs2_holder gh;
 	loff_t size;
@@ -401,7 +401,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (ret)
 		goto out;
 
-	gfs2_size_hint(vma->vm_file, pos, PAGE_CACHE_SIZE);
+	gfs2_size_hint(vma->vm_file, pos, PAGE_SIZE);
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	ret = gfs2_glock_nq(&gh);
@@ -411,7 +411,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 	set_bit(GIF_SW_PAGED, &ip->i_flags);
 
-	if (!gfs2_write_alloc_required(ip, pos, PAGE_CACHE_SIZE)) {
+	if (!gfs2_write_alloc_required(ip, pos, PAGE_SIZE)) {
 		lock_page(page);
 		if (!PageUptodate(page) || page->mapping != inode->i_mapping) {
 			ret = -EAGAIN;
@@ -424,7 +424,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (ret)
 		goto out_unlock;
 
-	gfs2_write_calc_reserv(ip, PAGE_CACHE_SIZE, &data_blocks, &ind_blocks);
+	gfs2_write_calc_reserv(ip, PAGE_SIZE, &data_blocks, &ind_blocks);
 	ap.target = data_blocks + ind_blocks;
 	ret = gfs2_quota_lock_check(ip, &ap);
 	if (ret)
@@ -447,7 +447,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	lock_page(page);
 	ret = -EINVAL;
 	size = i_size_read(inode);
-	last_index = (size - 1) >> PAGE_CACHE_SHIFT;
+	last_index = (size - 1) >> PAGE_SHIFT;
 	/* Check page index against inode size */
 	if (size == 0 || (page->index > last_index))
 		goto out_trans_end;
@@ -873,7 +873,7 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 			rblocks += data_blocks ? data_blocks : 1;
 
 		error = gfs2_trans_begin(sdp, rblocks,
-					 PAGE_CACHE_SIZE/sdp->sd_sb.sb_bsize);
+					 PAGE_SIZE/sdp->sd_sb.sb_bsize);
 		if (error)
 			goto out_trans_fail;
 

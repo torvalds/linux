@@ -57,7 +57,7 @@ static bool amdgpu_flip_handle_fence(struct amdgpu_flip_work *work,
 	if (!fence_add_callback(fence, &work->cb, amdgpu_flip_callback))
 		return true;
 
-	fence_put(*f);
+	fence_put(fence);
 	return false;
 }
 

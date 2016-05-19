@@ -2921,11 +2921,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				for broken drivers that don't call it.
 		skip_isa_align	[X86] do not align io start addr, so can
 				handle more pci cards
-		firmware	[ARM] Do not re-enumerate the bus but instead
-				just use the configuration from the
-				bootloader. This is currently used on
-				IXP2000 systems where the bus has to be
-				configured a certain way for adjunct CPUs.
 		noearly		[X86] Don't do any early type 1 scanning.
 				This might help on some broken boards which
 				machine check when some devices' config space

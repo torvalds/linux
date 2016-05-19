@@ -605,8 +605,8 @@ static unsigned long long ocfs2_max_file_offset(unsigned int bbits,
 	/*
 	 * We might be limited by page cache size.
 	 */
-	if (bytes > PAGE_CACHE_SIZE) {
-		bytes = PAGE_CACHE_SIZE;
+	if (bytes > PAGE_SIZE) {
+		bytes = PAGE_SIZE;
 		trim = 1;
 		/*
 		 * Shift by 31 here so that we don't get larger than
