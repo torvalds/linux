@@ -653,9 +653,9 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		if (gfp == GFP_NOIO)
 			swq = __vmalloc(
 				(init_attr->cap.max_send_wr + 1) * sz,
-				gfp, PAGE_KERNEL);
+				gfp | __GFP_ZERO, PAGE_KERNEL);
 		else
-			swq = vmalloc_node(
+			swq = vzalloc_node(
 				(init_attr->cap.max_send_wr + 1) * sz,
 				rdi->dparms.node);
 		if (!swq)
@@ -704,9 +704,9 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				qp->r_rq.wq = __vmalloc(
 						sizeof(struct rvt_rwq) +
 						qp->r_rq.size * sz,
-						gfp, PAGE_KERNEL);
+						gfp | __GFP_ZERO, PAGE_KERNEL);
 			else
-				qp->r_rq.wq = vmalloc_node(
+				qp->r_rq.wq = vzalloc_node(
 						sizeof(struct rvt_rwq) +
 						qp->r_rq.size * sz,
 						rdi->dparms.node);
