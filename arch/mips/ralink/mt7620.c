@@ -223,9 +223,9 @@ static struct rt2880_pmx_func wled_an_grp_mt7628[] = {
 #define MT7628_GPIO_MODE_GPIO		0
 
 static struct rt2880_pmx_group mt7628an_pinmux_data[] = {
-	GRP_G("pmw1", pwm1_grp_mt7628, MT7628_GPIO_MODE_MASK,
+	GRP_G("pwm1", pwm1_grp_mt7628, MT7628_GPIO_MODE_MASK,
 				1, MT7628_GPIO_MODE_PWM1),
-	GRP_G("pmw0", pwm0_grp_mt7628, MT7628_GPIO_MODE_MASK,
+	GRP_G("pwm0", pwm0_grp_mt7628, MT7628_GPIO_MODE_MASK,
 				1, MT7628_GPIO_MODE_PWM0),
 	GRP_G("uart2", uart2_grp_mt7628, MT7628_GPIO_MODE_MASK,
 				1, MT7628_GPIO_MODE_UART2),
