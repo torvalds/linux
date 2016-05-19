@@ -1020,6 +1020,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	pm_runtime_get_noresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
+	device_enable_async_suspend(&client->dev);
 
 	ret = i2c_hid_fetch_hid_descriptor(ihid);
 	if (ret < 0)
