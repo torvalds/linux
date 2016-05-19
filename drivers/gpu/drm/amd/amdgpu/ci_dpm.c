@@ -6414,6 +6414,118 @@ static int ci_dpm_set_powergating_state(void *handle,
 	return 0;
 }
 
+static int ci_dpm_print_clock_levels(struct amdgpu_device *adev,
+		enum pp_clock_type type, char *buf)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_single_dpm_table *sclk_table = &pi->dpm_table.sclk_table;
+	struct ci_single_dpm_table *mclk_table = &pi->dpm_table.mclk_table;
+	struct ci_single_dpm_table *pcie_table = &pi->dpm_table.pcie_speed_table;
+
+	int i, now, size = 0;
+	uint32_t clock, pcie_speed;
+
+	switch (type) {
+	case PP_SCLK:
+		amdgpu_ci_send_msg_to_smc(adev, PPSMC_MSG_API_GetSclkFrequency);
+		clock = RREG32(mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < sclk_table->count; i++) {
+			if (clock > sclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < sclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, sclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_MCLK:
+		amdgpu_ci_send_msg_to_smc(adev, PPSMC_MSG_API_GetMclkFrequency);
+		clock = RREG32(mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < mclk_table->count; i++) {
+			if (clock > mclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < mclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, mclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_PCIE:
+		pcie_speed = ci_get_current_pcie_speed(adev);
+		for (i = 0; i < pcie_table->count; i++) {
+			if (pcie_speed != pcie_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < pcie_table->count; i++)
+			size += sprintf(buf + size, "%d: %s %s\n", i,
+					(pcie_table->dpm_levels[i].value == 0) ? "2.5GB, x1" :
+					(pcie_table->dpm_levels[i].value == 1) ? "5.0GB, x16" :
+					(pcie_table->dpm_levels[i].value == 2) ? "8.0GB, x16" : "",
+					(i == now) ? "*" : "");
+		break;
+	default:
+		break;
+	}
+
+	return size;
+}
+
+static int ci_dpm_force_clock_level(struct amdgpu_device *adev,
+		enum pp_clock_type type, uint32_t mask)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+
+	if (adev->pm.dpm.forced_level
+			!= AMDGPU_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
+
+	switch (type) {
+	case PP_SCLK:
+		if (!pi->sclk_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(adev,
+					PPSMC_MSG_SCLKDPM_SetEnabledMask,
+					pi->dpm_level_enable_mask.sclk_dpm_enable_mask & mask);
+		break;
+
+	case PP_MCLK:
+		if (!pi->mclk_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(adev,
+					PPSMC_MSG_MCLKDPM_SetEnabledMask,
+					pi->dpm_level_enable_mask.mclk_dpm_enable_mask & mask);
+		break;
+
+	case PP_PCIE:
+	{
+		uint32_t tmp = mask & pi->dpm_level_enable_mask.pcie_dpm_enable_mask;
+		uint32_t level = 0;
+
+		while (tmp >>= 1)
+			level++;
+
+		if (!pi->pcie_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(adev,
+					PPSMC_MSG_PCIeDPM_ForceLevel,
+					level);
+		break;
+	}
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.name = "ci_dpm",
 	.early_init = ci_dpm_early_init,
@@ -6448,6 +6560,8 @@ static const struct amdgpu_dpm_funcs ci_dpm_funcs = {
 	.get_fan_control_mode = &ci_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = &ci_dpm_set_fan_speed_percent,
 	.get_fan_speed_percent = &ci_dpm_get_fan_speed_percent,
+	.print_clock_levels = ci_dpm_print_clock_levels,
+	.force_clock_level = ci_dpm_force_clock_level,
 };
 
 static void ci_dpm_set_dpm_funcs(struct amdgpu_device *adev)
