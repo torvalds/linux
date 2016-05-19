@@ -78,7 +78,7 @@ int gb_audio_apbridgea_get_tx_delay(struct gb_connection *connection,
 				    __u16 i2s_port, __u32 *delay)
 {
 	/* TODO: implement */
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_get_tx_delay);
 
@@ -152,7 +152,7 @@ int gb_audio_apbridgea_get_rx_delay(struct gb_connection *connection,
 				    __u16 i2s_port, __u32 *delay)
 {
 	/* TODO: implement */
-	return -ENOSYS;
+	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_get_rx_delay);
 
