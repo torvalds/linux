@@ -10025,6 +10025,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jj/apparmor-dev.git
 S:	Supported
 F:	security/apparmor/
 
+LOADPIN SECURITY MODULE
+M:	Kees Cook <keescook@chromium.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git lsm/loadpin
+S:	Supported
+F:	security/loadpin/
+
 YAMA SECURITY MODULE
 M:	Kees Cook <keescook@chromium.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git yama/tip
