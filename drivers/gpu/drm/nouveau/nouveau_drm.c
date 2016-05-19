@@ -44,7 +44,7 @@
 #include <nvif/cla06f.h>
 #include <nvif/if0004.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"

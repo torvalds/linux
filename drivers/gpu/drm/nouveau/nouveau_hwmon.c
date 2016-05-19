@@ -31,7 +31,7 @@
 
 #include <drm/drmP.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_hwmon.h"
 
 #include <nvkm/subdev/iccsense.h>
