@@ -447,7 +447,8 @@ static int gb_interface_activate_operation(struct gb_interface *intf)
 		return -ENODEV;
 	case GB_SVC_INTF_TYPE_UNIPRO:
 		dev_err(&intf->dev, "interface type UniPro not supported\n");
-		return -ENODEV;
+		/* FIXME: check if this is a Toshiba bridge before retrying? */
+		return -EAGAIN;
 	case GB_SVC_INTF_TYPE_GREYBUS:
 		break;
 	default:
