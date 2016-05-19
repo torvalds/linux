@@ -20,7 +20,7 @@
 #define SEC4_SG_BPID_MASK	0x000000ff
 #define SEC4_SG_BPID_SHIFT	16
 #define SEC4_SG_LEN_MASK	0x3fffffff	/* Excludes EXT and FINAL */
-#define SEC4_SG_OFFS_MASK	0x00001fff
+#define SEC4_SG_OFFSET_MASK	0x00001fff
 
 struct sec4_sg_entry {
 #ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
