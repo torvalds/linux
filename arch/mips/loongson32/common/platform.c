@@ -17,6 +17,7 @@
 #include <linux/stmmac.h>
 #include <linux/usb/ehci_pdriver.h>
 
+#include <platform.h>
 #include <loongson1.h>
 #include <cpufreq.h>
 #include <dma.h>
@@ -132,6 +133,7 @@ int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
 
 	val = __raw_readl(LS1X_MUX_CTRL1);
 
+#if defined(CONFIG_LOONGSON1_LS1B)
 	plat_dat = dev_get_platdata(&pdev->dev);
 	if (plat_dat->bus_id) {
 		__raw_writel(__raw_readl(LS1X_MUX_CTRL0) | GMAC1_USE_UART1 |
@@ -165,6 +167,17 @@ int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
 		val &= ~GMAC0_SHUT;
 	}
 	__raw_writel(val, LS1X_MUX_CTRL1);
+#elif defined(CONFIG_LOONGSON1_LS1C)
+	plat_dat = dev_get_platdata(&pdev->dev);
+
+	val &= ~PHY_INTF_SELI;
+	if (plat_dat->interface == PHY_INTERFACE_MODE_RMII)
+		val |= 0x4 << PHY_INTF_SELI_SHIFT;
+	__raw_writel(val, LS1X_MUX_CTRL1);
+
+	val = __raw_readl(LS1X_MUX_CTRL0);
+	__raw_writel(val & (~GMAC_SHUT), LS1X_MUX_CTRL0);
+#endif
 
 	return 0;
 }
@@ -172,7 +185,11 @@ int ls1x_eth_mux_init(struct platform_device *pdev, void *priv)
 static struct plat_stmmacenet_data ls1x_eth0_pdata = {
 	.bus_id		= 0,
 	.phy_addr	= -1,
+#if defined(CONFIG_LOONGSON1_LS1B)
 	.interface	= PHY_INTERFACE_MODE_MII,
+#elif defined(CONFIG_LOONGSON1_LS1C)
+	.interface	= PHY_INTERFACE_MODE_RMII,
+#endif
 	.mdio_bus_data	= &ls1x_mdio_bus_data,
 	.dma_cfg	= &ls1x_eth_dma_cfg,
 	.has_gmac	= 1,
@@ -203,6 +220,7 @@ struct platform_device ls1x_eth0_pdev = {
 	},
 };
 
+#ifdef CONFIG_LOONGSON1_LS1B
 static struct plat_stmmacenet_data ls1x_eth1_pdata = {
 	.bus_id		= 1,
 	.phy_addr	= -1,
@@ -236,6 +254,7 @@ struct platform_device ls1x_eth1_pdev = {
 		.platform_data = &ls1x_eth1_pdata,
 	},
 };
+#endif	/* CONFIG_LOONGSON1_LS1B */
 
 /* GPIO */
 static struct resource ls1x_gpio0_resources[] = {

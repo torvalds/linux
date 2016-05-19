@@ -1402,6 +1402,16 @@ config CPU_LOONGSON1B
 	  The Loongson 1B is a 32-bit SoC, which implements the MIPS32
 	  release 2 instruction set.
 
+config CPU_LOONGSON1C
+	bool "Loongson 1C"
+	depends on SYS_HAS_CPU_LOONGSON1C
+	select CPU_LOONGSON1
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select LEDS_GPIO_REGISTER
+	help
+	  The Loongson 1C is a 32-bit SoC, which implements the MIPS32
+	  release 2 instruction set.
+
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
 	depends on SYS_HAS_CPU_MIPS32_R1
@@ -1849,6 +1859,9 @@ config SYS_HAS_CPU_LOONGSON2F
 	select CPU_SUPPORTS_UNCACHED_ACCELERATED
 
 config SYS_HAS_CPU_LOONGSON1B
+	bool
+
+config SYS_HAS_CPU_LOONGSON1C
 	bool
 
 config SYS_HAS_CPU_MIPS32_R1
