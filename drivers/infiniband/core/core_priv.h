@@ -143,4 +143,7 @@ void addr_cleanup(void);
 int ib_mad_init(void);
 void ib_mad_cleanup(void);
 
+int ib_sa_init(void);
+void ib_sa_cleanup(void);
+
 #endif /* _CORE_PRIV_H */

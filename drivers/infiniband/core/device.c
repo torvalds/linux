@@ -995,10 +995,18 @@ static int __init ib_core_init(void)
 		goto err_addr;
 	}
 
+	ret = ib_sa_init();
+	if (ret) {
+		pr_warn("Couldn't init SA\n");
+		goto err_mad;
+	}
+
 	ib_cache_setup();
 
 	return 0;
 
+err_mad:
+	ib_mad_cleanup();
 err_addr:
 	addr_cleanup();
 err_ibnl:
@@ -1015,6 +1023,7 @@ err:
 static void __exit ib_core_cleanup(void)
 {
 	ib_cache_cleanup();
+	ib_sa_cleanup();
 	ib_mad_cleanup();
 	addr_cleanup();
 	ibnl_cleanup();
