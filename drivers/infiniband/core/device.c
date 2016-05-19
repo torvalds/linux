@@ -989,10 +989,18 @@ static int __init ib_core_init(void)
 		goto err_ibnl;
 	}
 
+	ret = ib_mad_init();
+	if (ret) {
+		pr_warn("Couldn't init IB MAD\n");
+		goto err_addr;
+	}
+
 	ib_cache_setup();
 
 	return 0;
 
+err_addr:
+	addr_cleanup();
 err_ibnl:
 	ibnl_cleanup();
 err_sysfs:
@@ -1007,6 +1015,7 @@ err:
 static void __exit ib_core_cleanup(void)
 {
 	ib_cache_cleanup();
+	ib_mad_cleanup();
 	addr_cleanup();
 	ibnl_cleanup();
 	class_unregister(&ib_class);

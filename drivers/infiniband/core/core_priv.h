@@ -140,4 +140,7 @@ static inline bool rdma_is_upper_dev_rcu(struct net_device *dev,
 int addr_init(void);
 void addr_cleanup(void);
 
+int ib_mad_init(void);
+void ib_mad_cleanup(void);
+
 #endif /* _CORE_PRIV_H */
