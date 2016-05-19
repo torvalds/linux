@@ -2467,7 +2467,7 @@ static inline struct page *__dev_alloc_pages(gfp_t gfp_mask,
 
 static inline struct page *dev_alloc_pages(unsigned int order)
 {
-	return __dev_alloc_pages(GFP_ATOMIC, order);
+	return __dev_alloc_pages(GFP_ATOMIC | __GFP_NOWARN, order);
 }
 
 /**
@@ -2485,7 +2485,7 @@ static inline struct page *__dev_alloc_page(gfp_t gfp_mask)
 
 static inline struct page *dev_alloc_page(void)
 {
-	return __dev_alloc_page(GFP_ATOMIC);
+	return dev_alloc_pages(0);
 }
 
 /**
