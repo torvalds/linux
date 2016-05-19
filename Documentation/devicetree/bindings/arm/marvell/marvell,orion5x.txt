@@ -9,6 +9,7 @@ compatible: must contain "marvell,orion5x"
 In addition, the above compatible shall be extended with the specific
 SoC. Currently known SoC compatibles are:
 
+"marvell,orion5x-88f5181"
 "marvell,orion5x-88f5182"
 
 And in addition, the compatible shall be extended with the specific
