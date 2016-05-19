@@ -497,9 +497,11 @@ EXPORT_SYMBOL_GPL(pstore_register);
 
 void pstore_unregister(struct pstore_info *psi)
 {
-	pstore_unregister_pmsg();
-	pstore_unregister_ftrace();
-	pstore_unregister_console();
+	if ((psi->flags & PSTORE_FLAGS_FRAGILE) == 0) {
+		pstore_unregister_pmsg();
+		pstore_unregister_ftrace();
+		pstore_unregister_console();
+	}
 	pstore_unregister_kmsg();
 
 	free_buf_for_compression();
