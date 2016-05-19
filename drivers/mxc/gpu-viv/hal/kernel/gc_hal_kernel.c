@@ -2050,6 +2050,26 @@ gckKERNEL_Dispatch(
             Kernel, processID,
             (gctUINT32)Interface->u.ReleaseVideoMemory.node
             ));
+
+#if gcdENABLE_VG
+        if (Kernel->vg != gcvNULL)
+        {
+            gckVIDMEM_NODE nodeObject;
+
+            /* Remove record from process db. */
+            gcmkERR_BREAK(
+                gckKERNEL_RemoveProcessDB(Kernel, processID,
+                gcvDB_VIDEO_MEMORY_LOCKED,
+                (gctPOINTER)Interface->u.ReleaseVideoMemory.node));
+
+            gcmkERR_BREAK(
+                gckVIDMEM_HANDLE_Lookup(Kernel, processID,
+                (gctUINT32)Interface->u.ReleaseVideoMemory.node, &nodeObject));
+
+            gckVIDMEM_HANDLE_Dereference(Kernel, processID,(gctUINT32)Interface->u.ReleaseVideoMemory.node);
+            gckVIDMEM_NODE_Dereference(Kernel, nodeObject);
+        }
+#endif
         break;
 
     case gcvHAL_LOCK_VIDEO_MEMORY:
