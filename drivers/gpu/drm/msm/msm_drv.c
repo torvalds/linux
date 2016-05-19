@@ -823,6 +823,18 @@ static int add_components(struct device *dev, struct component_match **matchptr,
 	return 0;
 }
 
+static int add_display_components(struct device *dev,
+				  struct component_match **matchptr)
+{
+	return add_components(dev, matchptr, "connectors");
+}
+
+static int add_gpu_components(struct device *dev,
+			      struct component_match **matchptr)
+{
+	return add_components(dev, matchptr, "gpus");
+}
+
 static int msm_drm_bind(struct device *dev)
 {
 	return msm_drm_init(dev, &msm_driver);
@@ -845,9 +857,15 @@ static const struct component_master_ops msm_drm_ops = {
 static int msm_pdev_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
+	int ret;
 
-	add_components(&pdev->dev, &match, "connectors");
-	add_components(&pdev->dev, &match, "gpus");
+	ret = add_display_components(&pdev->dev, &match);
+	if (ret)
+		return ret;
+
+	ret = add_gpu_components(&pdev->dev, &match);
+	if (ret)
+		return ret;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	return component_master_add_with_match(&pdev->dev, &msm_drm_ops, match);
