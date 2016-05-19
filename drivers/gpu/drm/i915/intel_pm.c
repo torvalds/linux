@@ -2997,6 +2997,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 {
 	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
 	struct drm_framebuffer *fb = pstate->fb;
+	uint32_t down_scale_amount, data_rate;
 	uint32_t width = 0, height = 0;
 	unsigned format = fb ? fb->pixel_format : DRM_FORMAT_XRGB8888;
 
@@ -3016,15 +3017,19 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 	/* for planar format */
 	if (format == DRM_FORMAT_NV12) {
 		if (y)  /* y-plane data rate */
-			return width * height *
+			data_rate = width * height *
 				drm_format_plane_cpp(format, 0);
 		else    /* uv-plane data rate */
-			return (width / 2) * (height / 2) *
+			data_rate = (width / 2) * (height / 2) *
 				drm_format_plane_cpp(format, 1);
+	} else {
+		/* for packed formats */
+		data_rate = width * height * drm_format_plane_cpp(format, 0);
 	}
 
-	/* for packed formats */
-	return width * height * drm_format_plane_cpp(format, 0);
+	down_scale_amount = skl_plane_downscale_amount(intel_pstate);
+
+	return (uint64_t)data_rate * down_scale_amount >> 16;
 }
 
 /*
