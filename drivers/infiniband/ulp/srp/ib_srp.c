@@ -81,7 +81,7 @@ MODULE_PARM_DESC(cmd_sg_entries,
 
 module_param(indirect_sg_entries, uint, 0444);
 MODULE_PARM_DESC(indirect_sg_entries,
-		 "Default max number of gather/scatter entries (default is 12, max is " __stringify(SCSI_MAX_SG_CHAIN_SEGMENTS) ")");
+		 "Default max number of gather/scatter entries (default is 12, max is " __stringify(SG_MAX_SEGMENTS) ")");
 
 module_param(allow_ext_sg, bool, 0444);
 MODULE_PARM_DESC(allow_ext_sg,
@@ -2819,7 +2819,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	spin_unlock(&host->target_lock);
 
 	scsi_scan_target(&target->scsi_host->shost_gendev,
-			 0, target->scsi_id, SCAN_WILD_CARD, 0);
+			 0, target->scsi_id, SCAN_WILD_CARD, SCSI_SCAN_INITIAL);
 
 	if (srp_connected_ch(target) < target->ch_count ||
 	    target->qp_in_error) {
@@ -3097,7 +3097,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 
 		case SRP_OPT_SG_TABLESIZE:
 			if (match_int(args, &token) || token < 1 ||
-					token > SCSI_MAX_SG_CHAIN_SEGMENTS) {
+					token > SG_MAX_SEGMENTS) {
 				pr_warn("bad max sg_tablesize parameter '%s'\n",
 					p);
 				goto out;

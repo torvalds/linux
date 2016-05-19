@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -690,16 +690,17 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
 	if (fabric_param_changed) {
 		/* Reset FDMI attribute masks based on config parameter */
-		if (phba->cfg_fdmi_on == LPFC_FDMI_NO_SUPPORT) {
-			vport->fdmi_hba_mask = 0;
-			vport->fdmi_port_mask = 0;
-		} else {
+		if (phba->cfg_enable_SmartSAN ||
+		    (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) {
 			/* Setup appropriate attribute masks */
 			vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
-			if (phba->cfg_fdmi_on == LPFC_FDMI_SMART_SAN)
+			if (phba->cfg_enable_SmartSAN)
 				vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
 			else
 				vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
+		} else {
+			vport->fdmi_hba_mask = 0;
+			vport->fdmi_port_mask = 0;
 		}
 
 	}
@@ -1069,7 +1070,10 @@ stop_rr_fcf_flogi:
 					lpfc_sli4_unreg_all_rpis(vport);
 				}
 			}
-			lpfc_issue_reg_vfi(vport);
+
+			/* Do not register VFI if the driver aborted FLOGI */
+			if (!lpfc_error_lost_link(irsp))
+				lpfc_issue_reg_vfi(vport);
 			lpfc_nlp_put(ndlp);
 			goto out;
 		}
@@ -4705,6 +4709,144 @@ lpfc_rdp_res_link_error(struct fc_rdp_link_error_status_desc *desc,
 	desc->length = cpu_to_be32(sizeof(desc->info));
 }
 
+void
+lpfc_rdp_res_bbc_desc(struct fc_rdp_bbc_desc *desc, READ_LNK_VAR *stat,
+		      struct lpfc_vport *vport)
+{
+	desc->tag = cpu_to_be32(RDP_BBC_DESC_TAG);
+
+	desc->bbc_info.port_bbc = cpu_to_be32(
+				vport->fc_sparam.cmn.bbCreditMsb |
+				vport->fc_sparam.cmn.bbCreditlsb << 8);
+	if (vport->phba->fc_topology != LPFC_TOPOLOGY_LOOP)
+		desc->bbc_info.attached_port_bbc = cpu_to_be32(
+				vport->phba->fc_fabparam.cmn.bbCreditMsb |
+				vport->phba->fc_fabparam.cmn.bbCreditlsb << 8);
+	else
+		desc->bbc_info.attached_port_bbc = 0;
+
+	desc->bbc_info.rtt = 0;
+	desc->length = cpu_to_be32(sizeof(desc->bbc_info));
+}
+
+void
+lpfc_rdp_res_oed_temp_desc(struct fc_rdp_oed_sfp_desc *desc, uint8_t *page_a2)
+{
+	uint32_t flags;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm =
+			cpu_to_be16(page_a2[SSF_TEMP_HIGH_ALARM]);
+	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_TEMP_LOW_ALARM]);
+	desc->oed_info.hi_warning =
+			cpu_to_be16(page_a2[SSF_TEMP_HIGH_WARNING]);
+	desc->oed_info.lo_warning =
+			cpu_to_be16(page_a2[SSF_TEMP_LOW_WARNING]);
+	flags = 0xf; /* All four are valid */
+	flags |= ((0xf & RDP_OED_TEMPERATURE) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+}
+
+void
+lpfc_rdp_res_oed_voltage_desc(struct fc_rdp_oed_sfp_desc *desc,
+			      uint8_t *page_a2)
+{
+	uint32_t flags;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm =
+			cpu_to_be16(page_a2[SSF_VOLTAGE_HIGH_ALARM]);
+	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_VOLTAGE_LOW_ALARM]);
+	desc->oed_info.hi_warning =
+			cpu_to_be16(page_a2[SSF_VOLTAGE_HIGH_WARNING]);
+	desc->oed_info.lo_warning =
+			cpu_to_be16(page_a2[SSF_VOLTAGE_LOW_WARNING]);
+	flags = 0xf; /* All four are valid */
+	flags |= ((0xf & RDP_OED_VOLTAGE) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+}
+
+void
+lpfc_rdp_res_oed_txbias_desc(struct fc_rdp_oed_sfp_desc *desc,
+			     uint8_t *page_a2)
+{
+	uint32_t flags;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm =
+			cpu_to_be16(page_a2[SSF_BIAS_HIGH_ALARM]);
+	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_BIAS_LOW_ALARM]);
+	desc->oed_info.hi_warning =
+			cpu_to_be16(page_a2[SSF_BIAS_HIGH_WARNING]);
+	desc->oed_info.lo_warning =
+			cpu_to_be16(page_a2[SSF_BIAS_LOW_WARNING]);
+	flags = 0xf; /* All four are valid */
+	flags |= ((0xf & RDP_OED_TXBIAS) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+}
+
+void
+lpfc_rdp_res_oed_txpower_desc(struct fc_rdp_oed_sfp_desc *desc,
+			      uint8_t *page_a2)
+{
+	uint32_t flags;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm =
+			cpu_to_be16(page_a2[SSF_TXPOWER_HIGH_ALARM]);
+	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_TXPOWER_LOW_ALARM]);
+	desc->oed_info.hi_warning =
+			cpu_to_be16(page_a2[SSF_TXPOWER_HIGH_WARNING]);
+	desc->oed_info.lo_warning =
+			cpu_to_be16(page_a2[SSF_TXPOWER_LOW_WARNING]);
+	flags = 0xf; /* All four are valid */
+	flags |= ((0xf & RDP_OED_TXPOWER) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+}
+
+
+void
+lpfc_rdp_res_oed_rxpower_desc(struct fc_rdp_oed_sfp_desc *desc,
+			      uint8_t *page_a2)
+{
+	uint32_t flags;
+
+	desc->tag = cpu_to_be32(RDP_OED_DESC_TAG);
+
+	desc->oed_info.hi_alarm =
+			cpu_to_be16(page_a2[SSF_RXPOWER_HIGH_ALARM]);
+	desc->oed_info.lo_alarm = cpu_to_be16(page_a2[SSF_RXPOWER_LOW_ALARM]);
+	desc->oed_info.hi_warning =
+			cpu_to_be16(page_a2[SSF_RXPOWER_HIGH_WARNING]);
+	desc->oed_info.lo_warning =
+			cpu_to_be16(page_a2[SSF_RXPOWER_LOW_WARNING]);
+	flags = 0xf; /* All four are valid */
+	flags |= ((0xf & RDP_OED_RXPOWER) << RDP_OED_TYPE_SHIFT);
+	desc->oed_info.function_flags = cpu_to_be32(flags);
+	desc->length = cpu_to_be32(sizeof(desc->oed_info));
+}
+
+void
+lpfc_rdp_res_opd_desc(struct fc_rdp_opd_sfp_desc *desc,
+		      uint8_t *page_a0, struct lpfc_vport *vport)
+{
+	desc->tag = cpu_to_be32(RDP_OPD_DESC_TAG);
+	memcpy(desc->opd_info.vendor_name, &page_a0[SSF_VENDOR_NAME], 16);
+	memcpy(desc->opd_info.model_number, &page_a0[SSF_VENDOR_PN], 16);
+	memcpy(desc->opd_info.serial_number, &page_a0[SSF_VENDOR_SN], 16);
+	memcpy(desc->opd_info.revision, &page_a0[SSF_VENDOR_REV], 2);
+	memcpy(desc->opd_info.date, &page_a0[SSF_DATE_CODE], 8);
+	desc->length = cpu_to_be32(sizeof(desc->opd_info));
+}
+
 int
 lpfc_rdp_res_fec_desc(struct fc_fec_rdp_desc *desc, READ_LNK_VAR *stat)
 {
@@ -4776,6 +4918,8 @@ lpfc_rdp_res_speed(struct fc_rdp_port_speed_desc *desc, struct lpfc_hba *phba)
 
 	if (rdp_cap == 0)
 		rdp_cap = RDP_CAP_UNKNOWN;
+	if (phba->cfg_link_speed != LPFC_USER_LINK_SPEED_AUTO)
+		rdp_cap |= RDP_CAP_USER_CONFIGURED;
 
 	desc->info.port_speed.capabilities = cpu_to_be16(rdp_cap);
 	desc->length = cpu_to_be32(sizeof(desc->info));
@@ -4875,6 +5019,19 @@ lpfc_els_rdp_cmpl(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context,
 	lpfc_rdp_res_diag_port_names(&rdp_res->diag_port_names_desc, phba);
 	lpfc_rdp_res_attach_port_names(&rdp_res->attached_port_names_desc,
 			vport, ndlp);
+	lpfc_rdp_res_bbc_desc(&rdp_res->bbc_desc, &rdp_context->link_stat,
+			      vport);
+	lpfc_rdp_res_oed_temp_desc(&rdp_res->oed_temp_desc,
+				   rdp_context->page_a2);
+	lpfc_rdp_res_oed_voltage_desc(&rdp_res->oed_voltage_desc,
+				      rdp_context->page_a2);
+	lpfc_rdp_res_oed_txbias_desc(&rdp_res->oed_txbias_desc,
+				     rdp_context->page_a2);
+	lpfc_rdp_res_oed_txpower_desc(&rdp_res->oed_txpower_desc,
+				      rdp_context->page_a2);
+	lpfc_rdp_res_oed_rxpower_desc(&rdp_res->oed_rxpower_desc,
+				      rdp_context->page_a2);
+	lpfc_rdp_res_opd_desc(&rdp_res->opd_desc, rdp_context->page_a0, vport);
 	fec_size = lpfc_rdp_res_fec_desc(&rdp_res->fec_desc,
 			&rdp_context->link_stat);
 	rdp_res->length = cpu_to_be32(fec_size + RDP_DESC_PAYLOAD_SIZE);
@@ -7849,8 +8006,9 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		return;
 	}
 
-	if ((phba->cfg_fdmi_on > LPFC_FDMI_NO_SUPPORT) &&
-	    (vport->load_flag & FC_ALLOW_FDMI))
+	if ((phba->cfg_enable_SmartSAN ||
+	     (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) &&
+	     (vport->load_flag & FC_ALLOW_FDMI))
 		lpfc_start_fdmi(vport);
 }
 
