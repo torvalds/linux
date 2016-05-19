@@ -169,17 +169,17 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define dioP3hsioData			0x32		/* s16 */
 #define dioP3Control			0x34		/* u16 */
 #define calEepromControl		0x36		/* u16 */
-#define dacSetting(x)			(0x38 + (x)*2)	/* s16 */
+#define dacSetting(x)			(0x38 + (x) * 2) /* s16 */
 #define dioP2ExpansionIO8Bit		0x40		/* s16 */
 #define ctrTmrControl			0x80		/* u16 */
-#define ctrInput(x)			(0x88 + (x)*2)	/* s16 */
-#define timerDivisor(x)			(0xa0 + (x)*2)	/* u16 */
+#define ctrInput(x)			(0x88 + (x) * 2) /* s16 */
+#define timerDivisor(x)			(0xa0 + (x) * 2) /* u16 */
 #define dmaControl			0xb0		/* u16 */
 #define trigControl			0xb2		/* u16 */
 #define calEeprom			0xb8		/* u16 */
 #define acqDigitalMark			0xba		/* u16 */
 #define trigDacs			0xbc		/* u16 */
-#define dioP2ExpansionIO16Bit(x)	(0xc0 + (x)*2)	/* s16 */
+#define dioP2ExpansionIO16Bit(x)	(0xc0 + (x) * 2) /* s16 */
 
 /* Scan Sequencer programming */
 #define DAQBOARD2000_SeqStartScanList            0x0011
