@@ -319,19 +319,13 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 	return added;
 }
 
-static void amd_sched_free_job(struct fence *f, struct fence_cb *cb) {
-	struct amd_sched_job *job = container_of(cb, struct amd_sched_job,
-						 cb_free_job);
-
-	schedule_work(&job->work_free_job);
-}
-
 /* job_finish is called after hw fence signaled, and
  * the job had already been deleted from ring_mirror_list
  */
-static void amd_sched_job_finish(struct amd_sched_job *s_job)
+static void amd_sched_job_finish(struct work_struct *work)
 {
-	struct amd_sched_job *next;
+	struct amd_sched_job *s_job = container_of(work, struct amd_sched_job,
+						   finish_work);
 	struct amd_gpu_scheduler *sched = s_job->sched;
 	unsigned long flags;
 
@@ -339,19 +333,26 @@ static void amd_sched_job_finish(struct amd_sched_job *s_job)
 	spin_lock_irqsave(&sched->job_list_lock, flags);
 	list_del_init(&s_job->node);
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT) {
-		if (cancel_delayed_work(&s_job->work_tdr))
-			amd_sched_job_put(s_job);
+		struct amd_sched_job *next;
+
+		cancel_delayed_work_sync(&s_job->work_tdr);
 
 		/* queue TDR for next job */
 		next = list_first_entry_or_null(&sched->ring_mirror_list,
 						struct amd_sched_job, node);
 
-		if (next) {
-			amd_sched_job_get(next);
+		if (next)
 			schedule_delayed_work(&next->work_tdr, sched->timeout);
-		}
 	}
 	spin_unlock_irqrestore(&sched->job_list_lock, flags);
+	sched->ops->free_job(s_job);
+}
+
+static void amd_sched_job_finish_cb(struct fence *f, struct fence_cb *cb)
+{
+	struct amd_sched_job *job = container_of(cb, struct amd_sched_job,
+						 finish_cb);
+	schedule_work(&job->finish_work);
 }
 
 static void amd_sched_job_begin(struct amd_sched_job *s_job)
@@ -364,10 +365,7 @@ static void amd_sched_job_begin(struct amd_sched_job *s_job)
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT &&
 	    list_first_entry_or_null(&sched->ring_mirror_list,
 				     struct amd_sched_job, node) == s_job)
-	{
-		amd_sched_job_get(s_job);
 		schedule_delayed_work(&s_job->work_tdr, sched->timeout);
-	}
 	spin_unlock_irqrestore(&sched->job_list_lock, flags);
 }
 
@@ -390,9 +388,9 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 {
 	struct amd_sched_entity *entity = sched_job->s_entity;
 
-	fence_add_callback(&sched_job->s_fence->base,
-			   &sched_job->cb_free_job, amd_sched_free_job);
 	trace_amd_sched_job(sched_job);
+	fence_add_callback(&sched_job->s_fence->base, &sched_job->finish_cb,
+			   amd_sched_job_finish_cb);
 	wait_event(entity->sched->job_scheduled,
 		   amd_sched_entity_in(sched_job));
 }
@@ -401,20 +399,17 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 int amd_sched_job_init(struct amd_sched_job *job,
 		       struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *entity,
-		       void (*free_cb)(struct kref *refcount),
 		       void *owner, struct fence **fence)
 {
-	INIT_LIST_HEAD(&job->node);
-	kref_init(&job->refcount);
 	job->sched = sched;
 	job->s_entity = entity;
 	job->s_fence = amd_sched_fence_create(entity, owner);
 	if (!job->s_fence)
 		return -ENOMEM;
 
-	job->s_fence->s_job = job;
+	INIT_WORK(&job->finish_work, amd_sched_job_finish);
+	INIT_LIST_HEAD(&job->node);
 	INIT_DELAYED_WORK(&job->work_tdr, amd_sched_job_timedout);
-	job->free_callback = free_cb;
 
 	if (fence)
 		*fence = &job->s_fence->base;
@@ -468,9 +463,6 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	struct amd_gpu_scheduler *sched = s_fence->sched;
 
 	atomic_dec(&sched->hw_rq_count);
-
-	amd_sched_job_finish(s_fence->s_job);
-
 	amd_sched_fence_signal(s_fence);
 
 	trace_amd_sched_process_job(s_fence);

@@ -74,19 +74,16 @@ struct amd_sched_fence {
 	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
-	struct amd_sched_job	*s_job;
 };
 
 struct amd_sched_job {
-	struct kref refcount;
 	struct amd_gpu_scheduler        *sched;
 	struct amd_sched_entity         *s_entity;
 	struct amd_sched_fence          *s_fence;
-	struct fence_cb                cb_free_job;
-	struct work_struct             work_free_job;
-	struct list_head			   node;
-	struct delayed_work work_tdr;
-	void (*free_callback)(struct kref *refcount);
+	struct fence_cb			finish_cb;
+	struct work_struct		finish_work;
+	struct list_head		node;
+	struct delayed_work		work_tdr;
 };
 
 extern const struct fence_ops amd_sched_fence_ops;
@@ -109,6 +106,7 @@ struct amd_sched_backend_ops {
 	struct fence *(*dependency)(struct amd_sched_job *sched_job);
 	struct fence *(*run_job)(struct amd_sched_job *sched_job);
 	void (*timedout_job)(struct amd_sched_job *sched_job);
+	void (*free_job)(struct amd_sched_job *sched_job);
 };
 
 enum amd_sched_priority {
@@ -154,18 +152,5 @@ void amd_sched_fence_signal(struct amd_sched_fence *fence);
 int amd_sched_job_init(struct amd_sched_job *job,
 		       struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *entity,
-		       void (*free_cb)(struct kref* refcount),
 		       void *owner, struct fence **fence);
-static inline void amd_sched_job_get(struct amd_sched_job *job)
-{
-	if (job)
-		kref_get(&job->refcount);
-}
-
-static inline void amd_sched_job_put(struct amd_sched_job *job)
-{
-	if (job)
-		kref_put(&job->refcount, job->free_callback);
-}
-
 #endif

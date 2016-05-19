@@ -755,7 +755,6 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 			     struct amdgpu_job **job);
 
 void amdgpu_job_free(struct amdgpu_job *job);
-void amdgpu_job_free_func(struct kref *refcount);
 int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		      struct amd_sched_entity *entity, void *owner,
 		      struct fence **f);

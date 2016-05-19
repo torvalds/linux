@@ -28,12 +28,6 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
-static void amdgpu_job_free_handler(struct work_struct *ws)
-{
-	struct amdgpu_job *job = container_of(ws, struct amdgpu_job, base.work_free_job);
-	amd_sched_job_put(&job->base);
-}
-
 static void amdgpu_job_timedout(struct amd_sched_job *s_job)
 {
 	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
@@ -42,8 +36,6 @@ static void amdgpu_job_timedout(struct amd_sched_job *s_job)
 		  job->base.sched->name,
 		  atomic_read(&job->ring->fence_drv.last_seq),
 		  job->ring->fence_drv.sync_seq);
-
-	amd_sched_job_put(&job->base);
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
@@ -64,7 +56,6 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->vm = vm;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
-	INIT_WORK(&(*job)->base.work_free_job, amdgpu_job_free_handler);
 
 	amdgpu_sync_create(&(*job)->sync);
 
@@ -103,9 +94,10 @@ static void amdgpu_job_free_resources(struct amdgpu_job *job)
 	amdgpu_sync_free(&job->sync);
 }
 
-void amdgpu_job_free_func(struct kref *refcount)
+void amdgpu_job_free_cb(struct amd_sched_job *s_job)
 {
-	struct amdgpu_job *job = container_of(refcount, struct amdgpu_job, base.refcount);
+	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
+
 	kfree(job);
 }
 
@@ -126,8 +118,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 	if (!f)
 		return -EINVAL;
 
-	r = amd_sched_job_init(&job->base, &ring->sched,
-			       entity, amdgpu_job_free_func, owner, &fence);
+	r = amd_sched_job_init(&job->base, &ring->sched, entity, owner, &fence);
 	if (r)
 		return r;
 
@@ -198,4 +189,5 @@ const struct amd_sched_backend_ops amdgpu_sched_ops = {
 	.dependency = amdgpu_job_dependency,
 	.run_job = amdgpu_job_run,
 	.timedout_job = amdgpu_job_timedout,
+	.free_job = amdgpu_job_free_cb
 };
