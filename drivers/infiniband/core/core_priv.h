@@ -137,4 +137,7 @@ static inline bool rdma_is_upper_dev_rcu(struct net_device *dev,
 	return _upper == upper;
 }
 
+int addr_init(void);
+void addr_cleanup(void);
+
 #endif /* _CORE_PRIV_H */

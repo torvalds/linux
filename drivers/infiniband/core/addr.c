@@ -47,10 +47,6 @@
 #include <rdma/ib_addr.h>
 #include <rdma/ib.h>
 
-MODULE_AUTHOR("Sean Hefty");
-MODULE_DESCRIPTION("IB Address Translation");
-MODULE_LICENSE("Dual BSD/GPL");
-
 struct addr_req {
 	struct list_head list;
 	struct sockaddr_storage src_addr;
@@ -634,7 +630,7 @@ static struct notifier_block nb = {
 	.notifier_call = netevent_callback
 };
 
-static int __init addr_init(void)
+int addr_init(void)
 {
 	addr_wq = create_singlethread_workqueue("ib_addr");
 	if (!addr_wq)
@@ -645,12 +641,9 @@ static int __init addr_init(void)
 	return 0;
 }
 
-static void __exit addr_cleanup(void)
+void addr_cleanup(void)
 {
 	rdma_addr_unregister_client(&self);
 	unregister_netevent_notifier(&nb);
 	destroy_workqueue(addr_wq);
 }
-
-module_init(addr_init);
-module_exit(addr_cleanup);
