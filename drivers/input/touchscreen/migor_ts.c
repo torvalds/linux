@@ -202,7 +202,7 @@ static int migor_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int migor_ts_suspend(struct device *dev)
+static int __maybe_unused migor_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct migor_ts_priv *priv = i2c_get_clientdata(client);
@@ -213,7 +213,7 @@ static int migor_ts_suspend(struct device *dev)
 	return 0;
 }
 
-static int migor_ts_resume(struct device *dev)
+static int __maybe_unused migor_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct migor_ts_priv *priv = i2c_get_clientdata(client);
