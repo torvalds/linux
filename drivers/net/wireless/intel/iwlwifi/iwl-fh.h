@@ -344,6 +344,32 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 #define RFH_RBDBUF_RBD0_LSB 0xA08300
 #define RFH_RBDBUF_RBD_LSB(q) (RFH_RBDBUF_RBD0_LSB + (q) * 8)
 
+/**
+ * RFH Status Register
+ *
+ * Bit fields:
+ *
+ * Bit 29: RBD_FETCH_IDLE
+ * This status flag is set by the RFH when there is no active RBD fetch from
+ * DRAM.
+ * Once the RFH RBD controller starts fetching (or when there is a pending
+ * RBD read response from DRAM), this flag is immediately turned off.
+ *
+ * Bit 30: SRAM_DMA_IDLE
+ * This status flag is set by the RFH when there is no active transaction from
+ * SRAM to DRAM.
+ * Once the SRAM to DRAM DMA is active, this flag is immediately turned off.
+ *
+ * Bit 31: RXF_DMA_IDLE
+ * This status flag is set by the RFH when there is no active transaction from
+ * RXF to DRAM.
+ * Once the RXF-to-DRAM DMA is active, this flag is immediately turned off.
+ */
+#define RFH_GEN_STATUS 0xA09808
+#define RBD_FETCH_IDLE	BIT(29)
+#define SRAM_DMA_IDLE	BIT(30)
+#define RXF_DMA_IDLE	BIT(31)
+
 /* DMA configuration */
 #define RFH_RXF_DMA_CFG 0xA09820
 /* RB size */

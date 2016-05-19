@@ -173,9 +173,16 @@ static void iwl_pcie_write_prph_64_no_grab(struct iwl_trans *trans, u64 ofs,
  */
 int iwl_pcie_rx_stop(struct iwl_trans *trans)
 {
-	iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	return iwl_poll_direct_bit(trans, FH_MEM_RSSR_RX_STATUS_REG,
-				   FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
+	if (trans->cfg->mq_rx_supported) {
+		iwl_write_prph(trans, RFH_RXF_DMA_CFG, 0);
+		return iwl_poll_prph_bit(trans, RFH_GEN_STATUS,
+					   RXF_DMA_IDLE, RXF_DMA_IDLE, 1000);
+	} else {
+		iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+		return iwl_poll_direct_bit(trans, FH_MEM_RSSR_RX_STATUS_REG,
+					   FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+					   1000);
+	}
 }
 
 /*
