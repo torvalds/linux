@@ -151,35 +151,35 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 /*
  * Register Memory Map
  */
-#define acqControl			0x00		/* u16 */
-#define acqScanListFIFO			0x02		/* u16 */
-#define acqPacerClockDivLow		0x04		/* u32 */
-#define acqScanCounter			0x08		/* u16 */
-#define acqPacerClockDivHigh		0x0a		/* u16 */
-#define acqTriggerCount			0x0c		/* u16 */
-#define acqResultsFIFO			0x10		/* u16 */
-#define acqResultsShadow		0x14		/* u16 */
-#define acqAdcResult			0x18		/* u16 */
-#define dacScanCounter			0x1c		/* u16 */
-#define dacControl			0x20		/* u16 */
-#define dacFIFO				0x24		/* s16 */
-#define dacPacerClockDiv		0x2a		/* u16 */
-#define refDacs				0x2c		/* u16 */
-#define dioControl			0x30		/* u16 */
-#define dioP3hsioData			0x32		/* s16 */
-#define dioP3Control			0x34		/* u16 */
-#define calEepromControl		0x36		/* u16 */
-#define dacSetting(x)			(0x38 + (x) * 2) /* s16 */
-#define dioP2ExpansionIO8Bit		0x40		/* s16 */
-#define ctrTmrControl			0x80		/* u16 */
-#define ctrInput(x)			(0x88 + (x) * 2) /* s16 */
-#define timerDivisor(x)			(0xa0 + (x) * 2) /* u16 */
-#define dmaControl			0xb0		/* u16 */
-#define trigControl			0xb2		/* u16 */
-#define calEeprom			0xb8		/* u16 */
-#define acqDigitalMark			0xba		/* u16 */
-#define trigDacs			0xbc		/* u16 */
-#define dioP2ExpansionIO16Bit(x)	(0xc0 + (x) * 2) /* s16 */
+#define DB2K_REG_ACQ_CONTROL			0x00		/* u16 */
+#define DB2K_REG_ACQ_SCAN_LIST_FIFO		0x02		/* u16 */
+#define DB2K_REG_ACQ_PACER_CLOCK_DIV_LOW	0x04		/* u32 */
+#define DB2K_REG_ACQ_SCAN_COUNTER		0x08		/* u16 */
+#define DB2K_REG_ACQ_PACER_CLOCK_DIV_HIGH	0x0a		/* u16 */
+#define DB2K_REG_ACQ_TRIGGER_COUNT		0x0c		/* u16 */
+#define DB2K_REG_ACQ_RESULTS_FIFO		0x10		/* u16 */
+#define DB2K_REG_ACQ_RESULTS_SHADOW		0x14		/* u16 */
+#define DB2K_REG_ACQ_ADC_RESULT			0x18		/* u16 */
+#define DB2K_REG_DAC_SCAN_COUNTER		0x1c		/* u16 */
+#define DB2K_REG_DAC_CONTROL			0x20		/* u16 */
+#define DB2K_REG_DAC_FIFO			0x24		/* s16 */
+#define DB2K_REG_DAC_PACER_CLOCK_DIV		0x2a		/* u16 */
+#define DB2K_REG_REF_DACS			0x2c		/* u16 */
+#define DB2K_REG_DIO_CONTROL			0x30		/* u16 */
+#define DB2K_REG_P3_HSIO_DATA			0x32		/* s16 */
+#define DB2K_REG_P3_CONTROL			0x34		/* u16 */
+#define DB2K_REG_CAL_EEPROM_CONTROL		0x36		/* u16 */
+#define DB2K_REG_DAC_SETTING(x)			(0x38 + (x) * 2) /* s16 */
+#define DB2K_REG_DIO_P2_EXP_IO_8_BIT		0x40		/* s16 */
+#define DB2K_REG_COUNTER_TIMER_CONTROL		0x80		/* u16 */
+#define DB2K_REG_COUNTER_INPUT(x)		(0x88 + (x) * 2) /* s16 */
+#define DB2K_REG_TIMER_DIV(x)			(0xa0 + (x) * 2) /* u16 */
+#define DB2K_REG_DMA_CONTROL			0xb0		/* u16 */
+#define DB2K_REG_TRIG_CONTROL			0xb2		/* u16 */
+#define DB2K_REG_CAL_EEPROM			0xb8		/* u16 */
+#define DB2K_REG_ACQ_DIGITAL_MARK		0xba		/* u16 */
+#define DB2K_REG_TRIG_DACS			0xbc		/* u16 */
+#define DB2K_REG_DIO_P2_EXP_IO_16_BIT(x)	(0xc0 + (x) * 2) /* s16 */
 
 /* Scan Sequencer programming */
 #define DAQBOARD2000_SeqStartScanList            0x0011
@@ -279,8 +279,9 @@ struct daqboard2000_private {
 
 static void writeAcqScanListEntry(struct comedi_device *dev, u16 entry)
 {
-	writew(entry & 0x00ff, dev->mmio + acqScanListFIFO);
-	writew((entry >> 8) & 0x00ff, dev->mmio + acqScanListFIFO);
+	writew(entry & 0x00ff, dev->mmio + DB2K_REG_ACQ_SCAN_LIST_FIFO);
+	writew((entry >> 8) & 0x00ff,
+	       dev->mmio + DB2K_REG_ACQ_SCAN_LIST_FIFO);
 }
 
 static void setup_sampling(struct comedi_device *dev, int chan, int gain)
@@ -330,7 +331,7 @@ static int daqboard2000_ai_status(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = readw(dev->mmio + acqControl);
+	status = readw(dev->mmio + DB2K_REG_ACQ_CONTROL);
 	if (status & context)
 		return 0;
 	return -EBUSY;
@@ -347,15 +348,16 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 
 	writew(DAQBOARD2000_AcqResetScanListFifo |
 	       DAQBOARD2000_AcqResetResultsFifo |
-	       DAQBOARD2000_AcqResetConfigPipe, dev->mmio + acqControl);
+	       DAQBOARD2000_AcqResetConfigPipe,
+	       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 	/*
 	 * If pacer clock is not set to some high value (> 10 us), we
 	 * risk multiple samples to be put into the result FIFO.
 	 */
 	/* 1 second, should be long enough */
-	writel(1000000, dev->mmio + acqPacerClockDivLow);
-	writew(0, dev->mmio + acqPacerClockDivHigh);
+	writel(1000000, dev->mmio + DB2K_REG_ACQ_PACER_CLOCK_DIV_LOW);
+	writew(0, dev->mmio + DB2K_REG_ACQ_PACER_CLOCK_DIV_HIGH);
 
 	gain = CR_RANGE(insn->chanspec);
 	chan = CR_CHAN(insn->chanspec);
@@ -369,14 +371,16 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		setup_sampling(dev, chan, gain);
 		/* Enable reading from the scanlist FIFO */
-		writew(DAQBOARD2000_SeqStartScanList, dev->mmio + acqControl);
+		writew(DAQBOARD2000_SeqStartScanList,
+		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
 				     DAQBOARD2000_AcqConfigPipeFull);
 		if (ret)
 			return ret;
 
-		writew(DAQBOARD2000_AdcPacerEnable, dev->mmio + acqControl);
+		writew(DAQBOARD2000_AdcPacerEnable,
+		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
 				     DAQBOARD2000_AcqLogicScanning);
@@ -388,9 +392,11 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		data[i] = readw(dev->mmio + acqResultsFIFO);
-		writew(DAQBOARD2000_AdcPacerDisable, dev->mmio + acqControl);
-		writew(DAQBOARD2000_SeqStopScanList, dev->mmio + acqControl);
+		data[i] = readw(dev->mmio + DB2K_REG_ACQ_RESULTS_FIFO);
+		writew(DAQBOARD2000_AdcPacerDisable,
+		       dev->mmio + DB2K_REG_ACQ_CONTROL);
+		writew(DAQBOARD2000_SeqStopScanList,
+		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 	}
 
 	return i;
@@ -404,7 +410,7 @@ static int daqboard2000_ao_eoc(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int status;
 
-	status = readw(dev->mmio + dacControl);
+	status = readw(dev->mmio + DB2K_REG_DAC_CONTROL);
 	if ((status & ((chan + 1) * 0x0010)) == 0)
 		return 0;
 	return -EBUSY;
@@ -422,7 +428,7 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 		unsigned int val = data[i];
 		int ret;
 
-		writew(val, dev->mmio + dacSetting(chan));
+		writew(val, dev->mmio + DB2K_REG_DAC_SETTING(chan));
 
 		ret = comedi_timeout(dev, s, insn, daqboard2000_ao_eoc, 0);
 		if (ret)
@@ -550,18 +556,20 @@ static void daqboard2000_adcDisarm(struct comedi_device *dev)
 	/* Disable hardware triggers */
 	udelay(2);
 	writew(DAQBOARD2000_TrigAnalog | DAQBOARD2000_TrigDisable,
-	       dev->mmio + trigControl);
+	       dev->mmio + DB2K_REG_TRIG_CONTROL);
 	udelay(2);
 	writew(DAQBOARD2000_TrigTTL | DAQBOARD2000_TrigDisable,
-	       dev->mmio + trigControl);
+	       dev->mmio + DB2K_REG_TRIG_CONTROL);
 
 	/* Stop the scan list FIFO from loading the configuration pipe */
 	udelay(2);
-	writew(DAQBOARD2000_SeqStopScanList, dev->mmio + acqControl);
+	writew(DAQBOARD2000_SeqStopScanList,
+	       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 	/* Stop the pacer clock */
 	udelay(2);
-	writew(DAQBOARD2000_AdcPacerDisable, dev->mmio + acqControl);
+	writew(DAQBOARD2000_AdcPacerDisable,
+	       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 	/* Stop the input dma (abort channel 1) */
 	daqboard2000_adcStopDmaTransfer(dev);
@@ -573,18 +581,20 @@ static void daqboard2000_activateReferenceDacs(struct comedi_device *dev)
 	int timeout;
 
 	/*  Set the + reference dac value in the FPGA */
-	writew(0x80 | DAQBOARD2000_PosRefDacSelect, dev->mmio + refDacs);
+	writew(0x80 | DAQBOARD2000_PosRefDacSelect,
+	       dev->mmio + DB2K_REG_REF_DACS);
 	for (timeout = 0; timeout < 20; timeout++) {
-		val = readw(dev->mmio + dacControl);
+		val = readw(dev->mmio + DB2K_REG_DAC_CONTROL);
 		if ((val & DAQBOARD2000_RefBusy) == 0)
 			break;
 		udelay(2);
 	}
 
 	/*  Set the - reference dac value in the FPGA */
-	writew(0x80 | DAQBOARD2000_NegRefDacSelect, dev->mmio + refDacs);
+	writew(0x80 | DAQBOARD2000_NegRefDacSelect,
+	       dev->mmio + DB2K_REG_REF_DACS);
 	for (timeout = 0; timeout < 20; timeout++) {
-		val = readw(dev->mmio + dacControl);
+		val = readw(dev->mmio + DB2K_REG_DAC_CONTROL);
 		if ((val & DAQBOARD2000_RefBusy) == 0)
 			break;
 		udelay(2);
@@ -711,7 +721,7 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	return subdev_8255_init(dev, s, daqboard2000_8255_cb,
-				dioP2ExpansionIO8Bit);
+				DB2K_REG_DIO_P2_EXP_IO_8_BIT);
 }
 
 static void daqboard2000_detach(struct comedi_device *dev)
