@@ -470,6 +470,10 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 
 			if (src == NULL_ADDR) {
 				err = reserve_new_block(&dn);
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+				while (err)
+					err = reserve_new_block(&dn);
+#endif
 				/* We should not get -ENOSPC */
 				f2fs_bug_on(sbi, err);
 			}
