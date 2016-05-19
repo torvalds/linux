@@ -804,25 +804,6 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
-static int add_components(struct device *dev, struct component_match **matchptr,
-		const char *name)
-{
-	struct device_node *np = dev->of_node;
-	unsigned i;
-
-	for (i = 0; ; i++) {
-		struct device_node *node;
-
-		node = of_parse_phandle(np, name, i);
-		if (!node)
-			break;
-
-		component_match_add(dev, matchptr, compare_of, node);
-	}
-
-	return 0;
-}
-
 /*
  * Identify what components need to be added by parsing what remote-endpoints
  * our MDP output ports are connected to. In the case of LVDS on MDP4, there
@@ -939,10 +920,31 @@ static int add_display_components(struct device *dev,
 	return ret;
 }
 
+/*
+ * We don't know what's the best binding to link the gpu with the drm device.
+ * Fow now, we just hunt for all the possible gpus that we support, and add them
+ * as components.
+ */
+static const struct of_device_id msm_gpu_match[] = {
+	{ .compatible = "qcom,adreno-3xx" },
+	{ .compatible = "qcom,kgsl-3d0" },
+	{ },
+};
+
 static int add_gpu_components(struct device *dev,
 			      struct component_match **matchptr)
 {
-	return add_components(dev, matchptr, "gpus");
+	struct device_node *np;
+
+	np = of_find_matching_node(NULL, msm_gpu_match);
+	if (!np)
+		return 0;
+
+	component_match_add(dev, matchptr, compare_of, np);
+
+	of_node_put(np);
+
+	return 0;
 }
 
 static int msm_drm_bind(struct device *dev)
