@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  * Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
- * Copyright (C) 2013 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2013 John Crispin <john@phrozen.org>
  */
 
 #include <linux/kernel.h>
@@ -581,11 +581,14 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		(rev & CHIP_REV_ECO_MASK));
 
 	cfg0 = __raw_readl(sysc + SYSC_REG_SYSTEM_CONFIG0);
-	if (is_mt76x8())
+	if (is_mt76x8()) {
 		dram_type = cfg0 & DRAM_TYPE_MT7628_MASK;
-	else
+	} else {
 		dram_type = (cfg0 >> SYSCFG0_DRAM_TYPE_SHIFT) &
 			    SYSCFG0_DRAM_TYPE_MASK;
+		if (dram_type == SYSCFG0_DRAM_TYPE_UNKNOWN)
+			dram_type = SYSCFG0_DRAM_TYPE_SDRAM;
+	}
 
 	soc_info->mem_base = MT7620_DRAM_BASE;
 	if (is_mt76x8())

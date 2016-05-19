@@ -77,10 +77,6 @@ void exit_thread(void)
 {
 }
 
-void flush_thread(void)
-{
-}
-
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 	/*
@@ -455,7 +451,7 @@ unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
 		    *sp + sizeof(*regs) <= stack_page + THREAD_SIZE - 32) {
 			regs = (struct pt_regs *)*sp;
 			pc = regs->cp0_epc;
-			if (__kernel_text_address(pc)) {
+			if (!user_mode(regs) && __kernel_text_address(pc)) {
 				*sp = regs->regs[29];
 				*ra = regs->regs[31];
 				return pc;
@@ -580,11 +576,19 @@ int mips_get_process_fp_mode(struct task_struct *task)
 	return value;
 }
 
+static void prepare_for_fp_mode_switch(void *info)
+{
+	struct mm_struct *mm = info;
+
+	if (current->mm == mm)
+		lose_fpu(1);
+}
+
 int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 {
 	const unsigned int known_bits = PR_FP_MODE_FR | PR_FP_MODE_FRE;
-	unsigned long switch_count;
 	struct task_struct *t;
+	int max_users;
 
 	/* Check the value is valid */
 	if (value & ~known_bits)
@@ -601,6 +605,9 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	if (!(value & PR_FP_MODE_FR) && cpu_has_fpu && cpu_has_mips_r6)
 		return -EOPNOTSUPP;
 
+	/* Proceed with the mode switch */
+	preempt_disable();
+
 	/* Save FP & vector context, then disable FPU & MSA */
 	if (task->signal == current->signal)
 		lose_fpu(1);
@@ -610,31 +617,17 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	smp_mb__after_atomic();
 
 	/*
-	 * If there are multiple online CPUs then wait until all threads whose
-	 * FP mode is about to change have been context switched. This approach
-	 * allows us to only worry about whether an FP mode switch is in
-	 * progress when FP is first used in a tasks time slice. Pretty much all
-	 * of the mode switch overhead can thus be confined to cases where mode
-	 * switches are actually occurring. That is, to here. However for the
-	 * thread performing the mode switch it may take a while...
+	 * If there are multiple online CPUs then force any which are running
+	 * threads in this process to lose their FPU context, which they can't
+	 * regain until fp_mode_switching is cleared later.
 	 */
 	if (num_online_cpus() > 1) {
-		spin_lock_irq(&task->sighand->siglock);
+		/* No need to send an IPI for the local CPU */
+		max_users = (task->mm == current->mm) ? 1 : 0;
 
-		for_each_thread(task, t) {
-			if (t == current)
-				continue;
-
-			switch_count = t->nvcsw + t->nivcsw;
-
-			do {
-				spin_unlock_irq(&task->sighand->siglock);
-				cond_resched();
-				spin_lock_irq(&task->sighand->siglock);
-			} while ((t->nvcsw + t->nivcsw) == switch_count);
-		}
-
-		spin_unlock_irq(&task->sighand->siglock);
+		if (atomic_read(&current->mm->mm_users) > max_users)
+			smp_call_function(prepare_for_fp_mode_switch,
+					  (void *)current->mm, 1);
 	}
 
 	/*
@@ -659,6 +652,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 
 	/* Allow threads to use FP again */
 	atomic_set(&task->mm->context.fp_mode_switching, 0);
+	preempt_enable();
 
 	return 0;
 }

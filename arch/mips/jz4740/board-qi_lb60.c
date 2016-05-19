@@ -39,8 +39,6 @@
 
 #include "clock.h"
 
-static bool is_avt2;
-
 /* GPIOs */
 #define QI_LB60_GPIO_SD_CD		JZ_GPIO_PORTD(0)
 #define QI_LB60_GPIO_SD_VCC_EN_N	JZ_GPIO_PORTD(2)
@@ -367,43 +365,12 @@ static struct jz4740_mmc_platform_data qi_lb60_mmc_pdata = {
 	.power_active_low	= 1,
 };
 
-/* OHCI */
-static struct regulator_consumer_supply avt2_usb_regulator_consumer =
-	REGULATOR_SUPPLY("vbus", "jz4740-ohci");
-
-static struct regulator_init_data avt2_usb_regulator_init_data = {
-	.num_consumer_supplies = 1,
-	.consumer_supplies = &avt2_usb_regulator_consumer,
-	.constraints = {
-		.name = "USB power",
-		.min_uV = 5000000,
-		.max_uV = 5000000,
-		.valid_modes_mask = REGULATOR_MODE_NORMAL,
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-	},
-};
-
-static struct fixed_voltage_config avt2_usb_regulator_data = {
-	.supply_name = "USB power",
-	.microvolts = 5000000,
-	.gpio = JZ_GPIO_PORTB(17),
-	.init_data = &avt2_usb_regulator_init_data,
-};
-
-static struct platform_device avt2_usb_regulator_device = {
-	.name = "reg-fixed-voltage",
-	.id = -1,
-	.dev = {
-		.platform_data = &avt2_usb_regulator_data,
-	}
-};
-
+/* beeper */
 static struct pwm_lookup qi_lb60_pwm_lookup[] = {
 	PWM_LOOKUP("jz4740-pwm", 4, "pwm-beeper", NULL, 0,
 		   PWM_POLARITY_NORMAL),
 };
 
-/* beeper */
 static struct platform_device qi_lb60_pwm_beeper = {
 	.name = "pwm-beeper",
 	.id = -1,
@@ -487,11 +454,6 @@ static int __init qi_lb60_init_platform_devices(void)
 	spi_register_board_info(qi_lb60_spi_board_info,
 				ARRAY_SIZE(qi_lb60_spi_board_info));
 
-	if (is_avt2) {
-		platform_device_register(&avt2_usb_regulator_device);
-		platform_device_register(&jz4740_usb_ohci_device);
-	}
-
 	pwm_add_table(qi_lb60_pwm_lookup, ARRAY_SIZE(qi_lb60_pwm_lookup));
 
 	return platform_add_devices(jz_platform_devices,
@@ -499,19 +461,9 @@ static int __init qi_lb60_init_platform_devices(void)
 
 }
 
-static __init int board_avt2(char *str)
-{
-	qi_lb60_mmc_pdata.card_detect_active_low = 1;
-	is_avt2 = true;
-
-	return 1;
-}
-__setup("avt2", board_avt2);
-
 static int __init qi_lb60_board_setup(void)
 {
-	printk(KERN_INFO "Qi Hardware JZ4740 QI %s setup\n",
-		is_avt2 ? "AVT2" : "LB60");
+	printk(KERN_INFO "Qi Hardware JZ4740 QI LB60 setup\n");
 
 	board_gpio_setup();
 

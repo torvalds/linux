@@ -6491,7 +6491,7 @@ F:	net/l3mdev
 F:	include/net/l3mdev.h
 
 LANTIQ MIPS ARCHITECTURE
-M:	John Crispin <blogic@openwrt.org>
+M:	John Crispin <john@phrozen.org>
 L:	linux-mips@linux-mips.org
 S:	Maintained
 F:	arch/mips/lantiq
@@ -7331,6 +7331,15 @@ Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
 S:	Supported
 F:	Documentation/mips/
 F:	arch/mips/
+
+MIPS/LOONGSON1 ARCHITECTURE
+M:	Keguang Zhang <keguang.zhang@gmail.com>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/loongson32/
+F:	arch/mips/include/asm/mach-loongson32/
+F:	drivers/*/*loongson1*
+F:	drivers/*/*/*loongson1*
 
 MIROSOUND PCM20 FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
@@ -9251,7 +9260,7 @@ S:	Maintained
 F:	drivers/video/fbdev/aty/aty128fb.c
 
 RALINK MIPS ARCHITECTURE
-M:	John Crispin <blogic@openwrt.org>
+M:	John Crispin <john@phrozen.org>
 L:	linux-mips@linux-mips.org
 S:	Maintained
 F:	arch/mips/ralink

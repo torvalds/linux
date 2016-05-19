@@ -72,6 +72,8 @@ digilent	Diglent, Inc.
 dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
+dptechnics	DPTechnics
+dragino	Dragino Technology Co., Limited
 ea	Embedded Artists AB
 ebv	EBV Elektronik
 edt	Emerging Display Technologies
@@ -176,6 +178,7 @@ nvidia	NVIDIA
 nxp	NXP Semiconductors
 okaya	Okaya Electric America, Inc.
 olimex	OLIMEX Ltd.
+onion	Onion Corporation
 onnn	ON Semiconductor Corp.
 opencores	OpenCores.org
 option	Option NV

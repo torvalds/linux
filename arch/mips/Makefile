@@ -12,6 +12,9 @@
 # for "archclean" cleaning up for this architecture.
 #
 
+archscripts: scripts_basic
+	$(Q)$(MAKE) $(build)=arch/mips/boot/tools relocs
+
 KBUILD_DEFCONFIG := ip22_defconfig
 
 #
@@ -92,6 +95,10 @@ cflags-y			+= -msoft-float
 LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
+
+ifeq ($(CONFIG_RELOCATABLE),y)
+LDFLAGS_vmlinux			+= --emit-relocs
+endif
 
 #
 # pass -msoft-float to GAS if it supports it.  However on newer binutils
@@ -193,6 +200,8 @@ ifeq ($(CONFIG_CPU_HAS_MSA),y)
 toolchain-msa				:= $(call cc-option-yn,$(mips-cflags) -mhard-float -mfp64 -Wa$(comma)-mmsa)
 cflags-$(toolchain-msa)			+= -DTOOLCHAIN_SUPPORTS_MSA
 endif
+toolchain-virt				:= $(call cc-option-yn,$(mips-cflags) -mvirt)
+cflags-$(toolchain-virt)		+= -DTOOLCHAIN_SUPPORTS_VIRT
 
 cflags-$(CONFIG_MIPS_COMPACT_BRANCHES_NEVER)	+= -mcompact-branches=never
 cflags-$(CONFIG_MIPS_COMPACT_BRANCHES_OPTIMAL)	+= -mcompact-branches=optimal
@@ -310,6 +319,10 @@ rom.bin rom.sw: vmlinux
 		$(bootvars-y) $@
 endif
 
+CMD_RELOCS = arch/mips/boot/tools/relocs
+quiet_cmd_relocs = RELOCS  $<
+      cmd_relocs = $(CMD_RELOCS) $<
+
 #
 # Some machines like the Indy need 32-bit ELF binaries for booting purposes.
 # Other need ECOFF, so we build a 32-bit ELF binary for them which we then
@@ -318,6 +331,11 @@ endif
 quiet_cmd_32 = OBJCOPY $@
 	cmd_32 = $(OBJCOPY) -O $(32bit-bfd) $(OBJCOPYFLAGS) $< $@
 vmlinux.32: vmlinux
+ifeq ($(CONFIG_RELOCATABLE)$(CONFIG_64BIT),yy)
+# Currently, objcopy fails to handle the relocations in the elf64
+# So the relocs tool must be run here to remove them first
+	$(call cmd,relocs)
+endif
 	$(call cmd,32)
 
 #
@@ -333,6 +351,9 @@ all:	$(all-y)
 
 # boot
 $(boot-y): $(vmlinux-32) FORCE
+ifeq ($(CONFIG_RELOCATABLE)$(CONFIG_32BIT),yy)
+	$(call cmd,relocs)
+endif
 	$(Q)$(MAKE) $(build)=arch/mips/boot VMLINUX=$(vmlinux-32) \
 		$(bootvars-y) arch/mips/boot/$@
 
@@ -385,6 +406,7 @@ endif
 archclean:
 	$(Q)$(MAKE) $(clean)=arch/mips/boot
 	$(Q)$(MAKE) $(clean)=arch/mips/boot/compressed
+	$(Q)$(MAKE) $(clean)=arch/mips/boot/tools
 	$(Q)$(MAKE) $(clean)=arch/mips/lasat
 
 define archhelp
