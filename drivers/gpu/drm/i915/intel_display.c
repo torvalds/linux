@@ -4648,7 +4648,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 			intel_pre_disable_primary(&crtc->base);
 	}
 
-	if (pipe_config->disable_cxsr) {
+	if (pipe_config->disable_cxsr && HAS_GMCH_DISPLAY(dev)) {
 		crtc->wm.cxsr_allowed = false;
 
 		/*
