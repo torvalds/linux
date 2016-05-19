@@ -1803,7 +1803,8 @@ sub output_function_rst(%) {
 	} else {
 	    print "      ``$parameter``\n";
 	}
-	if ($args{'parameterdescs'}{$parameter_name} ne $undescribed) {
+	if (defined($args{'parameterdescs'}{$parameter_name}) &&
+	    $args{'parameterdescs'}{$parameter_name} ne $undescribed) {
 	    my $oldprefix = $lineprefix;
 	    $lineprefix = "        ";
 	    output_highlight_rst($args{'parameterdescs'}{$parameter_name});
