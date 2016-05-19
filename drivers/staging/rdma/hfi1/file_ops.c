@@ -168,6 +168,13 @@ static inline int is_valid_mmap(u64 token)
 
 static int hfi1_file_open(struct inode *inode, struct file *fp)
 {
+	struct hfi1_devdata *dd = container_of(inode->i_cdev,
+					       struct hfi1_devdata,
+					       user_cdev);
+
+	/* Just take a ref now. Not all opens result in a context assign */
+	kobject_get(&dd->kobj);
+
 	/* The real work is performed later in assign_ctxt() */
 	fp->private_data = kzalloc(sizeof(struct hfi1_filedata), GFP_KERNEL);
 	if (fp->private_data) /* no cpu affinity by default */
@@ -690,7 +697,9 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 {
 	struct hfi1_filedata *fdata = fp->private_data;
 	struct hfi1_ctxtdata *uctxt = fdata->uctxt;
-	struct hfi1_devdata *dd;
+	struct hfi1_devdata *dd = container_of(inode->i_cdev,
+					       struct hfi1_devdata,
+					       user_cdev);
 	unsigned long flags, *ev;
 
 	fp->private_data = NULL;
@@ -699,7 +708,6 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 		goto done;
 
 	hfi1_cdbg(PROC, "freeing ctxt %u:%u", uctxt->ctxt, fdata->subctxt);
-	dd = uctxt->dd;
 	mutex_lock(&hfi1_mutex);
 
 	flush_wc();
@@ -765,6 +773,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	mutex_unlock(&hfi1_mutex);
 	hfi1_free_ctxtdata(dd, uctxt);
 done:
+	kobject_put(&dd->kobj);
 	kfree(fdata);
 	return 0;
 }
@@ -1464,7 +1473,7 @@ static int user_add(struct hfi1_devdata *dd)
 	snprintf(name, sizeof(name), "%s_%d", class_name(), dd->unit);
 	ret = hfi1_cdev_init(dd->unit, name, &hfi1_file_ops,
 			     &dd->user_cdev, &dd->user_device,
-			     true);
+			     true, &dd->kobj);
 	if (ret)
 		user_remove(dd);
 

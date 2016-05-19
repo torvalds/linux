@@ -989,8 +989,10 @@ static void release_asic_data(struct hfi1_devdata *dd)
 	dd->asic_data = NULL;
 }
 
-void hfi1_free_devdata(struct hfi1_devdata *dd)
+static void __hfi1_free_devdata(struct kobject *kobj)
 {
+	struct hfi1_devdata *dd =
+		container_of(kobj, struct hfi1_devdata, kobj);
 	unsigned long flags;
 
 	spin_lock_irqsave(&hfi1_devs_lock, flags);
@@ -1005,6 +1007,15 @@ void hfi1_free_devdata(struct hfi1_devdata *dd)
 	hfi1_dev_affinity_free(dd);
 	free_percpu(dd->send_schedule);
 	rvt_dealloc_device(&dd->verbs_dev.rdi);
+}
+
+static struct kobj_type hfi1_devdata_type = {
+	.release = __hfi1_free_devdata,
+};
+
+void hfi1_free_devdata(struct hfi1_devdata *dd)
+{
+	kobject_put(&dd->kobj);
 }
 
 /*
@@ -1102,6 +1113,7 @@ struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra)
 			&pdev->dev,
 			"Could not alloc cpulist info, cpu affinity might be wrong\n");
 	}
+	kobject_init(&dd->kobj, &hfi1_devdata_type);
 	return dd;
 
 bail:

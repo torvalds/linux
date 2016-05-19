@@ -1169,6 +1169,7 @@ struct hfi1_devdata {
 	atomic_t aspm_disabled_cnt;
 
 	struct hfi1_affinity *affinity;
+	struct kobject kobj;
 };
 
 /* 8051 firmware version helper */
