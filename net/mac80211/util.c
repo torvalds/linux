@@ -244,6 +244,9 @@ void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 	struct ieee80211_sub_if_data *sdata;
 	int n_acs = IEEE80211_NUM_ACS;
 
+	if (local->ops->wake_tx_queue)
+		return;
+
 	if (local->hw.queues < IEEE80211_NUM_ACS)
 		n_acs = 1;
 
@@ -259,11 +262,6 @@ void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 
 		for (ac = 0; ac < n_acs; ac++) {
 			int ac_queue = sdata->vif.hw_queue[ac];
-
-			if (local->ops->wake_tx_queue &&
-			    (atomic_read(&sdata->txqs_len[ac]) >
-			     local->hw.txq_ac_max_pending))
-				continue;
 
 			if (ac_queue == queue ||
 			    (sdata->vif.cab_queue == queue &&
@@ -350,6 +348,9 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 		local->q_stop_reasons[queue][reason]++;
 
 	if (__test_and_set_bit(reason, &local->queue_stop_reasons[queue]))
+		return;
+
+	if (local->ops->wake_tx_queue)
 		return;
 
 	if (local->hw.queues < IEEE80211_NUM_ACS)

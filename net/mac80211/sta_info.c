@@ -116,7 +116,7 @@ static void __cleanup_single_sta(struct sta_info *sta)
 			int n = skb_queue_len(&txqi->queue);
 
 			ieee80211_purge_tx_queue(&local->hw, &txqi->queue);
-			atomic_sub(n, &sdata->txqs_len[txqi->txq.ac]);
+			atomic_sub(n, &sdata->num_tx_queued);
 			txqi->byte_cnt = 0;
 		}
 	}
