@@ -162,7 +162,8 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_REG_ACQ_RESULTS_SHADOW		0x14		/* u16 */
 #define DB2K_REG_ACQ_ADC_RESULT			0x18		/* u16 */
 #define DB2K_REG_DAC_SCAN_COUNTER		0x1c		/* u16 */
-#define DB2K_REG_DAC_CONTROL			0x20		/* u16 */
+#define DB2K_REG_DAC_CONTROL			0x20		/* u16 (w) */
+#define DB2K_REG_DAC_STATUS			0x20		/* u16 (r) */
 #define DB2K_REG_DAC_FIFO			0x24		/* s16 */
 #define DB2K_REG_DAC_PACER_CLOCK_DIV		0x2a		/* u16 */
 #define DB2K_REG_REF_DACS			0x2c		/* u16 */
@@ -215,14 +216,11 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_ACQ_STATUS_DAC_PACER_OVERRUN		0x0200
 
 /* DAC status */
-#define DAQBOARD2000_DacFull                     0x0001
-#define DAQBOARD2000_RefBusy                     0x0002
-#define DAQBOARD2000_TrgBusy                     0x0004
-#define DAQBOARD2000_CalBusy                     0x0008
-#define DAQBOARD2000_Dac0Busy                    0x0010
-#define DAQBOARD2000_Dac1Busy                    0x0020
-#define DAQBOARD2000_Dac2Busy                    0x0040
-#define DAQBOARD2000_Dac3Busy                    0x0080
+#define DB2K_DAC_STATUS_DAC_FULL			0x0001
+#define DB2K_DAC_STATUS_REF_BUSY			0x0002
+#define DB2K_DAC_STATUS_TRIG_BUSY			0x0004
+#define DB2K_DAC_STATUS_CAL_BUSY			0x0008
+#define DB2K_DAC_STATUS_DAC_BUSY(x)			(0x0010 << (x))
 
 /* DAC control */
 #define DB2K_DAC_CONTROL_ENABLE_BIT			0x0001
@@ -400,8 +398,8 @@ static int daqboard2000_ao_eoc(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int status;
 
-	status = readw(dev->mmio + DB2K_REG_DAC_CONTROL);
-	if ((status & ((chan + 1) * 0x0010)) == 0)
+	status = readw(dev->mmio + DB2K_REG_DAC_STATUS);
+	if ((status & DB2K_DAC_STATUS_DAC_BUSY(chan)) == 0)
 		return 0;
 	return -EBUSY;
 }
@@ -574,8 +572,8 @@ static void daqboard2000_activateReferenceDacs(struct comedi_device *dev)
 	writew(0x80 | DAQBOARD2000_PosRefDacSelect,
 	       dev->mmio + DB2K_REG_REF_DACS);
 	for (timeout = 0; timeout < 20; timeout++) {
-		val = readw(dev->mmio + DB2K_REG_DAC_CONTROL);
-		if ((val & DAQBOARD2000_RefBusy) == 0)
+		val = readw(dev->mmio + DB2K_REG_DAC_STATUS);
+		if ((val & DB2K_DAC_STATUS_REF_BUSY) == 0)
 			break;
 		udelay(2);
 	}
@@ -584,8 +582,8 @@ static void daqboard2000_activateReferenceDacs(struct comedi_device *dev)
 	writew(0x80 | DAQBOARD2000_NegRefDacSelect,
 	       dev->mmio + DB2K_REG_REF_DACS);
 	for (timeout = 0; timeout < 20; timeout++) {
-		val = readw(dev->mmio + DB2K_REG_DAC_CONTROL);
-		if ((val & DAQBOARD2000_RefBusy) == 0)
+		val = readw(dev->mmio + DB2K_REG_DAC_STATUS);
+		if ((val & DB2K_DAC_STATUS_REF_BUSY) == 0)
 			break;
 		udelay(2);
 	}
