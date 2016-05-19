@@ -275,6 +275,7 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	int even;
 	struct kvm *kvm = vcpu->kvm;
 	const int flush_dcache_mask = 0;
+	int ret;
 
 	if (KVM_GUEST_KSEGX(badvaddr) != KVM_GUEST_KSEG0) {
 		kvm_err("%s: Invalid BadVaddr: %#lx\n", __func__, badvaddr);
@@ -306,14 +307,18 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 		pfn1 = kvm->arch.guest_pmap[gfn];
 	}
 
-	entryhi = (vaddr | kvm_mips_get_kernel_asid(vcpu));
 	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) | (0x3 << 3) |
 		   (1 << 2) | (0x1 << 1);
 	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) | (0x3 << 3) |
 		   (1 << 2) | (0x1 << 1);
 
-	return kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
-				       flush_dcache_mask);
+	preempt_disable();
+	entryhi = (vaddr | kvm_mips_get_kernel_asid(vcpu));
+	ret = kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
+				      flush_dcache_mask);
+	preempt_enable();
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(kvm_mips_handle_kseg0_tlb_fault);
 
@@ -368,6 +373,7 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	unsigned long entryhi = 0, entrylo0 = 0, entrylo1 = 0;
 	struct kvm *kvm = vcpu->kvm;
 	kvm_pfn_t pfn0, pfn1;
+	int ret;
 
 	if ((tlb->tlb_hi & VPN2_MASK) == 0) {
 		pfn0 = 0;
@@ -394,9 +400,6 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 		*hpa1 = pfn1 << PAGE_SHIFT;
 
 	/* Get attributes from the Guest TLB */
-	entryhi = (tlb->tlb_hi & VPN2_MASK) | (KVM_GUEST_KERNEL_MODE(vcpu) ?
-					       kvm_mips_get_kernel_asid(vcpu) :
-					       kvm_mips_get_user_asid(vcpu));
 	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) | (0x3 << 3) |
 		   (tlb->tlb_lo0 & MIPS3_PG_D) | (tlb->tlb_lo0 & MIPS3_PG_V);
 	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) | (0x3 << 3) |
@@ -405,8 +408,15 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	kvm_debug("@ %#lx tlb_lo0: 0x%08lx tlb_lo1: 0x%08lx\n", vcpu->arch.pc,
 		  tlb->tlb_lo0, tlb->tlb_lo1);
 
-	return kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
-				       tlb->tlb_mask);
+	preempt_disable();
+	entryhi = (tlb->tlb_hi & VPN2_MASK) | (KVM_GUEST_KERNEL_MODE(vcpu) ?
+					       kvm_mips_get_kernel_asid(vcpu) :
+					       kvm_mips_get_user_asid(vcpu));
+	ret = kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
+				      tlb->tlb_mask);
+	preempt_enable();
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(kvm_mips_handle_mapped_seg_tlb_fault);
 
