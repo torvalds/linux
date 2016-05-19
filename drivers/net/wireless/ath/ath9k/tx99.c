@@ -132,7 +132,6 @@ static int ath9k_tx99_init(struct ath_softc *sc)
 	ath9k_ps_wakeup(sc);
 
 	ath9k_hw_disable_interrupts(ah);
-	atomic_set(&ah->intr_ref_cnt, -1);
 	ath_drain_all_txq(sc);
 	ath_stoprecv(sc);
 
