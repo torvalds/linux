@@ -166,6 +166,8 @@ static unsigned initial_pkt_count = 8;
 
 #define SDMA_IOWAIT_TIMEOUT 1000 /* in milliseconds */
 
+struct sdma_mmu_node;
+
 struct user_sdma_iovec {
 	struct list_head list;
 	struct iovec iov;
@@ -178,6 +180,7 @@ struct user_sdma_iovec {
 	 * which we last left off.
 	 */
 	u64 offset;
+	struct sdma_mmu_node *node;
 };
 
 #define SDMA_CACHE_NODE_EVICT BIT(0)
@@ -1153,6 +1156,7 @@ retry:
 	}
 	iovec->pages = node->pages;
 	iovec->npages = npages;
+	iovec->node = node;
 
 	ret = hfi1_mmu_rb_insert(&req->pq->sdma_rb_root, &node->rb);
 	if (ret) {
@@ -1519,18 +1523,13 @@ static void user_sdma_free_request(struct user_sdma_request *req, bool unpin)
 	}
 	if (req->data_iovs) {
 		struct sdma_mmu_node *node;
-		struct mmu_rb_node *mnode;
 		int i;
 
 		for (i = 0; i < req->data_iovs; i++) {
-			mnode = hfi1_mmu_rb_search(
-				&req->pq->sdma_rb_root,
-				(unsigned long)req->iovs[i].iov.iov_base,
-				req->iovs[i].iov.iov_len);
-			if (!mnode || IS_ERR(mnode))
+			node = req->iovs[i].node;
+			if (!node)
 				continue;
 
-			node = container_of(mnode, struct sdma_mmu_node, rb);
 			if (unpin)
 				hfi1_mmu_rb_remove(&req->pq->sdma_rb_root,
 						   &node->rb);
