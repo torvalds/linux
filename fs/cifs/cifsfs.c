@@ -890,7 +890,6 @@ const struct inode_operations cifs_dir_inode_ops = {
 	.rmdir = cifs_rmdir,
 	.rename2 = cifs_rename2,
 	.permission = cifs_permission,
-/*	revalidate:cifs_revalidate,   */
 	.setattr = cifs_setattr,
 	.symlink = cifs_symlink,
 	.mknod   = cifs_mknod,
@@ -901,9 +900,8 @@ const struct inode_operations cifs_dir_inode_ops = {
 };
 
 const struct inode_operations cifs_file_inode_ops = {
-/*	revalidate:cifs_revalidate, */
 	.setattr = cifs_setattr,
-	.getattr = cifs_getattr, /* do we need this anymore? */
+	.getattr = cifs_getattr,
 	.permission = cifs_permission,
 	.setxattr = generic_setxattr,
 	.getxattr = generic_getxattr,
@@ -915,9 +913,6 @@ const struct inode_operations cifs_symlink_inode_ops = {
 	.readlink = generic_readlink,
 	.get_link = cifs_get_link,
 	.permission = cifs_permission,
-	/* BB add the following two eventually */
-	/* revalidate: cifs_revalidate,
-	   setattr:    cifs_notify_change, *//* BB do we need notify change */
 	.setxattr = generic_setxattr,
 	.getxattr = generic_getxattr,
 	.listxattr = cifs_listxattr,
