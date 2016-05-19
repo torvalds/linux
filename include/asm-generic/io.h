@@ -613,7 +613,7 @@ static inline void iowrite32(u32 value, volatile void __iomem *addr)
 #define ioread16be ioread16be
 static inline u16 ioread16be(const volatile void __iomem *addr)
 {
-	return __be16_to_cpu(__raw_readw(addr));
+	return swab16(readw(addr));
 }
 #endif
 
@@ -621,7 +621,7 @@ static inline u16 ioread16be(const volatile void __iomem *addr)
 #define ioread32be ioread32be
 static inline u32 ioread32be(const volatile void __iomem *addr)
 {
-	return __be32_to_cpu(__raw_readl(addr));
+	return swab32(readl(addr));
 }
 #endif
 
@@ -629,7 +629,7 @@ static inline u32 ioread32be(const volatile void __iomem *addr)
 #define iowrite16be iowrite16be
 static inline void iowrite16be(u16 value, void volatile __iomem *addr)
 {
-	__raw_writew(__cpu_to_be16(value), addr);
+	writew(swab16(value), addr);
 }
 #endif
 
@@ -637,7 +637,7 @@ static inline void iowrite16be(u16 value, void volatile __iomem *addr)
 #define iowrite32be iowrite32be
 static inline void iowrite32be(u32 value, volatile void __iomem *addr)
 {
-	__raw_writel(__cpu_to_be32(value), addr);
+	writel(swab32(value), addr);
 }
 #endif
 
