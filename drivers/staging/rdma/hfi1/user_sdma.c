@@ -510,6 +510,7 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	struct sdma_req_info info;
 	struct user_sdma_request *req;
 	u8 opcode, sc, vl;
+	int req_queued = 0;
 
 	if (iovec[idx].iov_len < sizeof(info) + sizeof(req->hdr)) {
 		hfi1_cdbg(
@@ -706,6 +707,7 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 
 	set_comp_state(pq, cq, info.comp_idx, QUEUED, 0);
 	atomic_inc(&pq->n_reqs);
+	req_queued = 1;
 	/* Send the first N packets in the request to buy us some time */
 	ret = user_sdma_send_pkts(req, pcount);
 	if (unlikely(ret < 0 && ret != -EBUSY)) {
@@ -750,7 +752,8 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	return 0;
 free_req:
 	user_sdma_free_request(req, true);
-	pq_update(pq);
+	if (req_queued)
+		pq_update(pq);
 	set_comp_state(pq, cq, info.comp_idx, ERROR, req->status);
 	return ret;
 }
