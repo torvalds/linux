@@ -30,8 +30,9 @@ static void *ion_page_pool_alloc_pages(struct ion_page_pool *pool)
 
 	if (!page)
 		return NULL;
-	ion_pages_sync_for_device(NULL, page, PAGE_SIZE << pool->order,
-						DMA_BIDIRECTIONAL);
+	if (!pool->cached)
+		ion_pages_sync_for_device(NULL, page, PAGE_SIZE << pool->order,
+					  DMA_BIDIRECTIONAL);
 	return page;
 }
 
@@ -147,7 +148,8 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 	return freed;
 }
 
-struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
+struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order,
+					   bool cached)
 {
 	struct ion_page_pool *pool = kmalloc(sizeof(*pool), GFP_KERNEL);
 
@@ -161,6 +163,8 @@ struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
 	pool->order = order;
 	mutex_init(&pool->mutex);
 	plist_node_init(&pool->list, order);
+	if (cached)
+		pool->cached = true;
 
 	return pool;
 }
