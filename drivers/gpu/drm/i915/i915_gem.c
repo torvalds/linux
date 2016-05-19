@@ -4913,10 +4913,7 @@ int i915_gem_init(struct drm_device *dev)
 	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	ret = i915_gem_init_userptr(dev);
-	if (ret)
-		goto out_unlock;
-
+	i915_gem_init_userptr(dev_priv);
 	i915_gem_init_ggtt(dev);
 
 	ret = i915_gem_context_init(dev);
