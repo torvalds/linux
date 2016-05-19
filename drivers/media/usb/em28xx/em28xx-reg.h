@@ -193,6 +193,19 @@
 /* em2874 registers */
 #define EM2874_R50_IR_CONFIG    0x50
 #define EM2874_R51_IR           0x51
+#define EM2874_R5D_TS1_PKT_SIZE 0x5d
+#define EM2874_R5E_TS2_PKT_SIZE 0x5e
+	/*
+	 * For both TS1 and TS2, In isochronous mode:
+	 *  0x01  188 bytes
+	 *  0x02  376 bytes
+	 *  0x03  564 bytes
+	 *  0x04  752 bytes
+	 *  0x05  940 bytes
+	 * In bulk mode:
+	 *  0x01..0xff  total packet count in 188-byte
+	 */
+
 #define EM2874_R5F_TS_ENABLE    0x5f
 
 /* em2874/174/84, em25xx, em276x/7x/8x GPIO registers */

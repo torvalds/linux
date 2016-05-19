@@ -49,12 +49,6 @@
   <refsect1>
     <title>Description</title>
 
-    <note>
-      <title>Experimental</title>
-      <para>This is an <link linkend="experimental">experimental</link>
-      interface and may change in the future.</para>
-    </note>
-
     <para>This ioctl allows applications to enumerate all frame sizes
     supported by a sub-device on the given pad for the given media bus format.
     Supported formats can be retrieved with the &VIDIOC-SUBDEV-ENUM-MBUS-CODE;

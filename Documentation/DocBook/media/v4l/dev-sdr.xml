@@ -1,11 +1,5 @@
   <title>Software Defined Radio Interface (SDR)</title>
 
-  <note>
-    <title>Experimental</title>
-    <para>This is an <link linkend="experimental"> experimental </link>
-    interface and may change in the future.</para>
-  </note>
-
   <para>
 SDR is an abbreviation of Software Defined Radio, the radio device
 which uses application software for modulation or demodulation. This interface
