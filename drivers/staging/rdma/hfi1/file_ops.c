@@ -213,7 +213,6 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 		copy = sizeof(uinfo);
 		dest = &uinfo;
 		break;
-	case HFI1_CMD_SDMA_STATUS_UPD:
 	case HFI1_CMD_CREDIT_UPD:
 		copy = 0;
 		break;
@@ -272,8 +271,6 @@ static ssize_t hfi1_file_write(struct file *fp, const char __user *data,
 	case HFI1_CMD_USER_INFO:
 		ret = get_base_info(fp, (void __user *)(unsigned long)
 				    user_val, cmd.len);
-		break;
-	case HFI1_CMD_SDMA_STATUS_UPD:
 		break;
 	case HFI1_CMD_CREDIT_UPD:
 		if (uctxt && uctxt->sc)

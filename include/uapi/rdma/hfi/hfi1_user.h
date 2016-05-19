@@ -114,7 +114,6 @@
 #define HFI1_CMD_TID_UPDATE      4	/* update expected TID entries */
 #define HFI1_CMD_TID_FREE        5	/* free expected TID entries */
 #define HFI1_CMD_CREDIT_UPD      6	/* force an update of PIO credit */
-#define HFI1_CMD_SDMA_STATUS_UPD 7      /* force update of SDMA status ring */
 
 #define HFI1_CMD_RECV_CTRL       8	/* control receipt of packets */
 #define HFI1_CMD_POLL_TYPE       9	/* set the kind of polling we want */
