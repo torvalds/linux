@@ -4726,11 +4726,11 @@ static int polaris10_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if (!data->soft_pp_table) {
-		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		data->soft_pp_table = kmemdup(hwmgr->soft_pp_table,
+					      hwmgr->soft_pp_table_size,
+					      GFP_KERNEL);
 		if (!data->soft_pp_table)
 			return -ENOMEM;
-		memcpy(data->soft_pp_table, hwmgr->soft_pp_table,
-				hwmgr->soft_pp_table_size);
 	}
 
 	*table = (char *)&data->soft_pp_table;
