@@ -166,7 +166,7 @@ static int gb_svc_pwrmon_sample_get(struct gb_svc *svc, u8 rail_id,
 		case GB_SVC_PWRMON_GET_SAMPLE_NOSUPP:
 			return -ENOMSG;
 		default:
-			return -EIO;
+			return -EREMOTEIO;
 		}
 	}
 
@@ -204,7 +204,7 @@ int gb_svc_pwrmon_intf_sample_get(struct gb_svc *svc, u8 intf_id,
 		case GB_SVC_PWRMON_GET_SAMPLE_NOSUPP:
 			return -ENOMSG;
 		default:
-			return -EIO;
+			return -EREMOTEIO;
 		}
 	}
 
@@ -376,7 +376,7 @@ int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 	if (result) {
 		dev_err(&svc->dev, "UniPro error while getting DME attribute (%u 0x%04x %u): %u\n",
 				intf_id, attr, selector, result);
-		return -EIO;
+		return -EREMOTEIO;
 	}
 
 	if (value)
@@ -412,7 +412,7 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 	if (result) {
 		dev_err(&svc->dev, "UniPro error while setting DME attribute (%u 0x%04x %u %u): %u\n",
 				intf_id, attr, selector, value, result);
-		return -EIO;
+		return -EREMOTEIO;
 	}
 
 	return 0;
