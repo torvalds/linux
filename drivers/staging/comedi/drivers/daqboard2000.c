@@ -264,6 +264,7 @@ struct daq200_boardtype {
 	const char *name;
 	int id;
 };
+
 static const struct daq200_boardtype boardtypes[] = {
 	{"ids2", DAQBOARD2000_SUBSYSTEM_IDS2},
 	{"ids4", DAQBOARD2000_SUBSYSTEM_IDS4},
