@@ -378,7 +378,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	acpi_handle handle = ACPI_HANDLE(dev);
-	struct acpi_device *device;
+	struct acpi_device *device, *child;
 	struct sdhci_acpi_host *c;
 	struct sdhci_host *host;
 	struct resource *iomem;
@@ -389,6 +389,11 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	if (acpi_bus_get_device(handle, &device))
 		return -ENODEV;
+
+	/* Power on the SDHCI controller and its children */
+	acpi_device_fix_up_power(device);
+	list_for_each_entry(child, &device->children, node)
+		acpi_device_fix_up_power(child);
 
 	if (acpi_bus_get_status(device) || !device->status.present)
 		return -ENODEV;
