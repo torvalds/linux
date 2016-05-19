@@ -1085,6 +1085,19 @@ config TOUCHSCREEN_SUR40
 	  To compile this driver as a module, choose M here: the
 	  module will be called sur40.
 
+config TOUCHSCREEN_SURFACE3_SPI
+	tristate "Ntrig/Microsoft Surface 3 SPI touchscreen"
+	depends on SPI
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say Y here if you have the Ntrig/Microsoft SPI touchscreen
+	  controller chip as found on the Surface 3 in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called surface3_spi.
+
 config TOUCHSCREEN_SX8654
 	tristate "Semtech SX8654 touchscreen"
 	depends on I2C
