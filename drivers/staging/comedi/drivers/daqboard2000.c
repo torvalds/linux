@@ -476,7 +476,7 @@ static int daqboard2000_poll_cpld(struct comedi_device *dev, int mask)
 			result = 1;
 			break;
 		}
-		udelay(100);
+		usleep_range(100, 1000);
 	}
 	udelay(5);
 	return result;
@@ -486,7 +486,7 @@ static int daqboard2000_write_cpld(struct comedi_device *dev, int data)
 {
 	int result = 0;
 
-	udelay(10);
+	usleep_range(10, 20);
 	writew(data, dev->mmio + 0x1000);
 	if ((readw(dev->mmio + 0x1000) & DAQBOARD2000_CPLD_INIT) ==
 	    DAQBOARD2000_CPLD_INIT) {
