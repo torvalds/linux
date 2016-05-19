@@ -2910,7 +2910,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-	if ((trace.min_stack || max_stack_user_set) && !callchain_param.enabled)
+	if ((trace.min_stack || max_stack_user_set) && !callchain_param.enabled && trace.trace_syscalls)
 		record_opts__parse_callchain(&trace.opts, &callchain_param, "dwarf", false);
 #endif
 
