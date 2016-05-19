@@ -188,6 +188,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 	unsigned long ul_uval = 0;
 	u16 uval16 = 0;
 
+	hfi1_cdbg(IOCTL, "IOCTL recv: 0x%x", cmd);
 	if (cmd != HFI1_IOCTL_ASSIGN_CTXT &&
 	    cmd != HFI1_IOCTL_GET_VERS &&
 	    !uctxt)

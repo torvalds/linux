@@ -1341,6 +1341,7 @@ __hfi1_trace_def(FIRMWARE);
 __hfi1_trace_def(RCVCTRL);
 __hfi1_trace_def(TID);
 __hfi1_trace_def(MMU);
+__hfi1_trace_def(IOCTL);
 
 #define hfi1_cdbg(which, fmt, ...) \
 	__hfi1_trace_##which(__func__, fmt, ##__VA_ARGS__)
