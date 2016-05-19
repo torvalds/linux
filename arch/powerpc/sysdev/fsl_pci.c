@@ -37,6 +37,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/machdep.h>
+#include <asm/mpc85xx.h>
 #include <asm/disassemble.h>
 #include <asm/ppc-opcode.h>
 #include <sysdev/fsl_soc.h>
@@ -527,6 +528,8 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	u8 hdr_type, progif;
 	struct device_node *dev;
 	struct ccsr_pci __iomem *pci;
+	u16 temp;
+	u32 svr = mfspr(SPRN_SVR);
 
 	dev = pdev->dev.of_node;
 
@@ -596,6 +599,27 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 			PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
 		if (fsl_pcie_check_link(hose))
 			hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
+	} else {
+		/*
+		 * Set PBFR(PCI Bus Function Register)[10] = 1 to
+		 * disable the combining of crossing cacheline
+		 * boundary requests into one burst transaction.
+		 * PCI-X operation is not affected.
+		 * Fix erratum PCI 5 on MPC8548
+		 */
+#define PCI_BUS_FUNCTION 0x44
+#define PCI_BUS_FUNCTION_MDS 0x400	/* Master disable streaming */
+		if (((SVR_SOC_VER(svr) == SVR_8543) ||
+		     (SVR_SOC_VER(svr) == SVR_8545) ||
+		     (SVR_SOC_VER(svr) == SVR_8547) ||
+		     (SVR_SOC_VER(svr) == SVR_8548)) &&
+		    !early_find_capability(hose, 0, 0, PCI_CAP_ID_PCIX)) {
+			early_read_config_word(hose, 0, 0,
+					PCI_BUS_FUNCTION, &temp);
+			temp |= PCI_BUS_FUNCTION_MDS;
+			early_write_config_word(hose, 0, 0,
+					PCI_BUS_FUNCTION, temp);
+		}
 	}
 
 	printk(KERN_INFO "Found FSL PCI host bridge at 0x%016llx. "
