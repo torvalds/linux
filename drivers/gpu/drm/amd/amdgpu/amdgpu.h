@@ -1560,6 +1560,8 @@ struct amdgpu_dpm_funcs {
 	u32 (*get_fan_control_mode)(struct amdgpu_device *adev);
 	int (*set_fan_speed_percent)(struct amdgpu_device *adev, u32 speed);
 	int (*get_fan_speed_percent)(struct amdgpu_device *adev, u32 *speed);
+	int (*force_clock_level)(struct amdgpu_device *adev, enum pp_clock_type type, uint32_t mask);
+	int (*print_clock_levels)(struct amdgpu_device *adev, enum pp_clock_type type, char *buf);
 };
 
 struct amdgpu_dpm {

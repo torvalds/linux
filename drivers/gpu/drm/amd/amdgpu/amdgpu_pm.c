@@ -347,6 +347,8 @@ static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
 
 	if (adev->pp_enabled)
 		size = amdgpu_dpm_print_clock_levels(adev, PP_SCLK, buf);
+	else if (adev->pm.funcs->print_clock_levels)
+		size = adev->pm.funcs->print_clock_levels(adev, PP_SCLK, buf);
 
 	return size;
 }
@@ -377,6 +379,8 @@ static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 
 	if (adev->pp_enabled)
 		amdgpu_dpm_force_clock_level(adev, PP_SCLK, mask);
+	else if (adev->pm.funcs->force_clock_level)
+		adev->pm.funcs->force_clock_level(adev, PP_SCLK, mask);
 fail:
 	return count;
 }
@@ -391,6 +395,8 @@ static ssize_t amdgpu_get_pp_dpm_mclk(struct device *dev,
 
 	if (adev->pp_enabled)
 		size = amdgpu_dpm_print_clock_levels(adev, PP_MCLK, buf);
+	else if (adev->pm.funcs->print_clock_levels)
+		size = adev->pm.funcs->print_clock_levels(adev, PP_MCLK, buf);
 
 	return size;
 }
@@ -421,6 +427,8 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 
 	if (adev->pp_enabled)
 		amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
+	else if (adev->pm.funcs->force_clock_level)
+		adev->pm.funcs->force_clock_level(adev, PP_MCLK, mask);
 fail:
 	return count;
 }
@@ -435,6 +443,8 @@ static ssize_t amdgpu_get_pp_dpm_pcie(struct device *dev,
 
 	if (adev->pp_enabled)
 		size = amdgpu_dpm_print_clock_levels(adev, PP_PCIE, buf);
+	else if (adev->pm.funcs->print_clock_levels)
+		size = adev->pm.funcs->print_clock_levels(adev, PP_PCIE, buf);
 
 	return size;
 }
@@ -465,6 +475,8 @@ static ssize_t amdgpu_set_pp_dpm_pcie(struct device *dev,
 
 	if (adev->pp_enabled)
 		amdgpu_dpm_force_clock_level(adev, PP_PCIE, mask);
+	else if (adev->pm.funcs->force_clock_level)
+		adev->pm.funcs->force_clock_level(adev, PP_PCIE, mask);
 fail:
 	return count;
 }
@@ -1151,27 +1163,29 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			DRM_ERROR("failed to create device file pp_table\n");
 			return ret;
 		}
-		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_sclk);
-		if (ret) {
-			DRM_ERROR("failed to create device file pp_dpm_sclk\n");
-			return ret;
-		}
-		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_mclk);
-		if (ret) {
-			DRM_ERROR("failed to create device file pp_dpm_mclk\n");
-			return ret;
-		}
-		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_pcie);
-		if (ret) {
-			DRM_ERROR("failed to create device file pp_dpm_pcie\n");
-			return ret;
-		}
 		ret = device_create_file(adev->dev, &dev_attr_pp_sclk_od);
 		if (ret) {
 			DRM_ERROR("failed to create device file pp_sclk_od\n");
 			return ret;
 		}
 	}
+
+	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_sclk);
+	if (ret) {
+		DRM_ERROR("failed to create device file pp_dpm_sclk\n");
+		return ret;
+	}
+	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_mclk);
+	if (ret) {
+		DRM_ERROR("failed to create device file pp_dpm_mclk\n");
+		return ret;
+	}
+	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_pcie);
+	if (ret) {
+		DRM_ERROR("failed to create device file pp_dpm_pcie\n");
+		return ret;
+	}
+
 	ret = amdgpu_debugfs_pm_init(adev);
 	if (ret) {
 		DRM_ERROR("Failed to register debugfs file for dpm!\n");
@@ -1194,11 +1208,11 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 		device_remove_file(adev->dev, &dev_attr_pp_cur_state);
 		device_remove_file(adev->dev, &dev_attr_pp_force_state);
 		device_remove_file(adev->dev, &dev_attr_pp_table);
-		device_remove_file(adev->dev, &dev_attr_pp_dpm_sclk);
-		device_remove_file(adev->dev, &dev_attr_pp_dpm_mclk);
-		device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
 		device_remove_file(adev->dev, &dev_attr_pp_sclk_od);
 	}
+	device_remove_file(adev->dev, &dev_attr_pp_dpm_sclk);
+	device_remove_file(adev->dev, &dev_attr_pp_dpm_mclk);
+	device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
