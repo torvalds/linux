@@ -146,4 +146,9 @@ void ib_mad_cleanup(void);
 int ib_sa_init(void);
 void ib_sa_cleanup(void);
 
+int ib_nl_handle_resolve_resp(struct sk_buff *skb,
+			      struct netlink_callback *cb);
+int ib_nl_handle_set_timeout(struct sk_buff *skb,
+			     struct netlink_callback *cb);
+
 #endif /* _CORE_PRIV_H */

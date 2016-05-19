@@ -701,8 +701,8 @@ static void ib_nl_request_timeout(struct work_struct *work)
 	spin_unlock_irqrestore(&ib_nl_request_lock, flags);
 }
 
-static int ib_nl_handle_set_timeout(struct sk_buff *skb,
-				    struct netlink_callback *cb)
+int ib_nl_handle_set_timeout(struct sk_buff *skb,
+			     struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
 	int timeout, delta, abs_delta;
@@ -778,8 +778,8 @@ static inline int ib_nl_is_good_resolve_resp(const struct nlmsghdr *nlh)
 	return 1;
 }
 
-static int ib_nl_handle_resolve_resp(struct sk_buff *skb,
-				     struct netlink_callback *cb)
+int ib_nl_handle_resolve_resp(struct sk_buff *skb,
+			      struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
 	unsigned long flags;
@@ -833,15 +833,6 @@ static int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 resp_out:
 	return skb->len;
 }
-
-static struct ibnl_client_cbs ib_sa_cb_table[] = {
-	[RDMA_NL_LS_OP_RESOLVE] = {
-		.dump = ib_nl_handle_resolve_resp,
-		.module = THIS_MODULE },
-	[RDMA_NL_LS_OP_SET_TIMEOUT] = {
-		.dump = ib_nl_handle_set_timeout,
-		.module = THIS_MODULE },
-};
 
 static void free_sm_ah(struct kref *kref)
 {
@@ -1816,17 +1807,10 @@ int ib_sa_init(void)
 		goto err3;
 	}
 
-	if (ibnl_add_client(RDMA_NL_LS, ARRAY_SIZE(ib_sa_cb_table),
-			    ib_sa_cb_table)) {
-		pr_err("Failed to add netlink callback\n");
-		ret = -EINVAL;
-		goto err4;
-	}
 	INIT_DELAYED_WORK(&ib_nl_timed_work, ib_nl_request_timeout);
 
 	return 0;
-err4:
-	destroy_workqueue(ib_nl_wq);
+
 err3:
 	mcast_cleanup();
 err2:
@@ -1837,7 +1821,6 @@ err1:
 
 void ib_sa_cleanup(void)
 {
-	ibnl_remove_client(RDMA_NL_LS);
 	cancel_delayed_work(&ib_nl_timed_work);
 	flush_workqueue(ib_nl_wq);
 	destroy_workqueue(ib_nl_wq);
