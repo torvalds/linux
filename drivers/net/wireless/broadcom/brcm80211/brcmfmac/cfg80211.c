@@ -6714,11 +6714,10 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		return NULL;
 	}
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kmemdup(&brcmf_cfg80211_ops, sizeof(*ops), GFP_KERNEL);
 	if (!ops)
 		return NULL;
 
-	memcpy(ops, &brcmf_cfg80211_ops, sizeof(*ops));
 	ifp = netdev_priv(ndev);
 #ifdef CONFIG_PM
 	if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_WOWL_GTK))
