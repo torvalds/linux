@@ -1,0 +1,61 @@
+# -*- makefile -*-
+# Makefile for Sphinx documentation
+#
+
+# You can set these variables from the command line.
+SPHINXBUILD   = sphinx-build
+SPHINXOPTS    =
+PAPER         =
+BUILDDIR      = $(obj)/output
+
+# User-friendly check for sphinx-build
+HAVE_SPHINX := $(shell if which $(SPHINXBUILD) >/dev/null 2>&1; then echo 1; else echo 0; fi)
+
+ifeq ($(HAVE_SPHINX),0)
+
+.DEFAULT:
+	$(warning The '$(SPHINXBUILD)' command was not found. Make sure you have Sphinx installed and in PATH, or set the SPHINXBUILD make variable to point to the full path of the '$(SPHINXBUILD)' executable.)
+	@echo "  SKIP    Sphinx $@ target."
+
+else # HAVE_SPHINX
+
+# User-friendly check for rst2pdf
+HAVE_RST2PDF := $(shell if python -c "import rst2pdf" >/dev/null 2>&1; then echo 1; else echo 0; fi)
+
+# Internal variables.
+PAPEROPT_a4     = -D latex_paper_size=a4
+PAPEROPT_letter = -D latex_paper_size=letter
+ALLSPHINXOPTS   = -d $(BUILDDIR)/.doctrees $(PAPEROPT_$(PAPER)) -c $(srctree)/$(src) $(SPHINXOPTS) $(srctree)/$(src)
+# the i18n builder cannot share the environment and doctrees with the others
+I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
+
+quiet_cmd_sphinx = SPHINX  $@
+      cmd_sphinx = $(SPHINXBUILD) -b $2 $(ALLSPHINXOPTS) $(BUILDDIR)/$2
+
+htmldocs:
+	$(call cmd,sphinx,html)
+
+pdfdocs:
+ifeq ($(HAVE_RST2PDF),0)
+	$(warning The Python 'rst2pdf' module was not found. Make sure you have the module installed to produce PDF output.)
+	@echo "  SKIP    Sphinx $@ target."
+else # HAVE_RST2PDF
+	$(call cmd,sphinx,pdf)
+endif # HAVE_RST2PDF
+
+epubdocs:
+	$(call cmd,sphinx,epub)
+
+xmldocs:
+	$(call cmd,sphinx,xml)
+
+# no-ops for the Sphinx toolchain
+sgmldocs:
+psdocs:
+mandocs:
+installmandocs:
+
+cleandocs:
+	$(Q)rm -rf $(BUILDDIR)
+
+endif # HAVE_SPHINX
