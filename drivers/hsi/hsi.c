@@ -90,19 +90,19 @@ struct hsi_client *hsi_new_client(struct hsi_port *port,
 	cl->tx_cfg = info->tx_cfg;
 	if (cl->tx_cfg.channels) {
 		size = cl->tx_cfg.num_channels * sizeof(*cl->tx_cfg.channels);
-		cl->tx_cfg.channels = kzalloc(size , GFP_KERNEL);
+		cl->tx_cfg.channels = kmemdup(info->tx_cfg.channels, size,
+					      GFP_KERNEL);
 		if (!cl->tx_cfg.channels)
 			goto err_tx;
-		memcpy(cl->tx_cfg.channels, info->tx_cfg.channels, size);
 	}
 
 	cl->rx_cfg = info->rx_cfg;
 	if (cl->rx_cfg.channels) {
 		size = cl->rx_cfg.num_channels * sizeof(*cl->rx_cfg.channels);
-		cl->rx_cfg.channels = kzalloc(size , GFP_KERNEL);
+		cl->rx_cfg.channels = kmemdup(info->rx_cfg.channels, size,
+					      GFP_KERNEL);
 		if (!cl->rx_cfg.channels)
 			goto err_rx;
-		memcpy(cl->rx_cfg.channels, info->rx_cfg.channels, size);
 	}
 
 	cl->device.bus = &hsi_bus_type;
