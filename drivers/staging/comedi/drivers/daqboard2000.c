@@ -151,7 +151,8 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 /*
  * Register Memory Map
  */
-#define DB2K_REG_ACQ_CONTROL			0x00		/* u16 */
+#define DB2K_REG_ACQ_CONTROL			0x00		/* u16 (w) */
+#define DB2K_REG_ACQ_STATUS			0x00		/* u16 (r) */
 #define DB2K_REG_ACQ_SCAN_LIST_FIFO		0x02		/* u16 */
 #define DB2K_REG_ACQ_PACER_CLOCK_DIV_LOW	0x04		/* u32 */
 #define DB2K_REG_ACQ_SCAN_COUNTER		0x08		/* u16 */
@@ -190,19 +191,6 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_ACQ_CONTROL_RESET_RESULTS_FIFO		0x0002
 #define DB2K_ACQ_CONTROL_RESET_CONFIG_PIPE		0x0001
 
-/* Acqusition status bits */
-#define DAQBOARD2000_AcqResultsFIFOMore1Sample   0x0001
-#define DAQBOARD2000_AcqResultsFIFOHasValidData  0x0002
-#define DAQBOARD2000_AcqResultsFIFOOverrun       0x0004
-#define DAQBOARD2000_AcqLogicScanning            0x0008
-#define DAQBOARD2000_AcqConfigPipeFull           0x0010
-#define DAQBOARD2000_AcqScanListFIFOEmpty        0x0020
-#define DAQBOARD2000_AcqAdcNotReady              0x0040
-#define DAQBOARD2000_ArbitrationFailure          0x0080
-#define DAQBOARD2000_AcqPacerOverrun             0x0100
-#define DAQBOARD2000_DacPacerOverrun             0x0200
-#define DAQBOARD2000_AcqHardwareError            0x01c0
-
 /* Pacer Clock Control */
 #define DB2K_ACQ_CONTROL_ADC_PACER_INTERNAL		0x0030
 #define DB2K_ACQ_CONTROL_ADC_PACER_EXTERNAL		0x0032
@@ -213,6 +201,18 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_ACQ_CONTROL_ADC_PACER_COMPATIBILITY_MODE	0x0061
 #define DB2K_ACQ_CONTROL_ADC_PACER_INTERNAL_OUT_ENABLE	0x0008
 #define DB2K_ACQ_CONTROL_ADC_PACER_EXTERNAL_RISING	0x0100
+
+/* Acquisition status bits */
+#define DB2K_ACQ_STATUS_RESULTS_FIFO_MORE_1_SAMPLE	0x0001
+#define DB2K_ACQ_STATUS_RESULTS_FIFO_HAS_DATA		0x0002
+#define DB2K_ACQ_STATUS_RESULTS_FIFO_OVERRUN		0x0004
+#define DB2K_ACQ_STATUS_LOGIC_SCANNING			0x0008
+#define DB2K_ACQ_STATUS_CONFIG_PIPE_FULL		0x0010
+#define DB2K_ACQ_STATUS_SCAN_LIST_FIFO_EMPTY		0x0020
+#define DB2K_ACQ_STATUS_ADC_NOT_READY			0x0040
+#define DB2K_ACQ_STATUS_ARBITRATION_FAILURE		0x0080
+#define DB2K_ACQ_STATUS_ADC_PACER_OVERRUN		0x0100
+#define DB2K_ACQ_STATUS_DAC_PACER_OVERRUN		0x0200
 
 /* DAC status */
 #define DAQBOARD2000_DacFull                     0x0001
@@ -327,7 +327,7 @@ static int daqboard2000_ai_status(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = readw(dev->mmio + DB2K_REG_ACQ_CONTROL);
+	status = readw(dev->mmio + DB2K_REG_ACQ_STATUS);
 	if (status & context)
 		return 0;
 	return -EBUSY;
@@ -371,7 +371,7 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
-				     DAQBOARD2000_AcqConfigPipeFull);
+				     DB2K_ACQ_STATUS_CONFIG_PIPE_FULL);
 		if (ret)
 			return ret;
 
@@ -379,12 +379,13 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 		       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
-				     DAQBOARD2000_AcqLogicScanning);
+				     DB2K_ACQ_STATUS_LOGIC_SCANNING);
 		if (ret)
 			return ret;
 
-		ret = comedi_timeout(dev, s, insn, daqboard2000_ai_status,
-				     DAQBOARD2000_AcqResultsFIFOHasValidData);
+		ret =
+		comedi_timeout(dev, s, insn, daqboard2000_ai_status,
+			       DB2K_ACQ_STATUS_RESULTS_FIFO_HAS_DATA);
 		if (ret)
 			return ret;
 
