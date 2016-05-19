@@ -352,7 +352,7 @@ static int fw_mgmt_backend_fw_updated_operation(struct gb_operation *op)
 
 	if (fw_mgmt->backend_fw_status != GB_FW_BACKEND_FW_STATUS_SUCCESS)
 		dev_err(fw_mgmt->parent,
-			"failed to backend load firmware, status:%02x\n",
+			"failed to load backend firmware: %02x\n",
 			fw_mgmt->backend_fw_status);
 
 	complete(&fw_mgmt->completion);
