@@ -900,6 +900,27 @@ config SERIAL_SGI_L1_CONSOLE
 		controller serial port as your console (you want this!),
 		say Y.  Otherwise, say N.
 
+config SERIAL_PIC32
+	tristate "Microchip PIC32 serial support"
+	depends on MACH_PIC32
+	select SERIAL_CORE
+	help
+	  If you have a PIC32, this driver supports the serial ports.
+
+	  Say Y or M to use PIC32 serial ports, otherwise say N. Note that
+	  to use a serial port as a console, this must be included in kernel and
+	  not as a module.
+
+config SERIAL_PIC32_CONSOLE
+	bool "PIC32 serial console support"
+	depends on SERIAL_PIC32
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have a PIC32, this driver supports the putting a console on one
+	  of the serial ports.
+
+	  Say Y to use the PIC32 console, otherwise say N.
+
 config SERIAL_MPC52xx
 	tristate "Freescale MPC52xx/MPC512x family PSC serial support"
 	depends on PPC_MPC52xx || PPC_MPC512x

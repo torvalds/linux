@@ -65,4 +65,18 @@
 		clocks = <&ext>, <&cgu JZ4740_CLK_UART1>;
 		clock-names = "baud", "module";
 	};
+
+	uhc: uhc@13030000 {
+		compatible = "ingenic,jz4740-ohci", "generic-ohci";
+		reg = <0x13030000 0x1000>;
+
+		clocks = <&cgu JZ4740_CLK_UHC>;
+		assigned-clocks = <&cgu JZ4740_CLK_UHC>;
+		assigned-clock-rates = <48000000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <3>;
+
+		status = "disabled";
+	};
 };

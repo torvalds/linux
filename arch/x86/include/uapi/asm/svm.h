@@ -73,6 +73,8 @@
 #define SVM_EXIT_MWAIT_COND    0x08c
 #define SVM_EXIT_XSETBV        0x08d
 #define SVM_EXIT_NPF           0x400
+#define SVM_EXIT_AVIC_INCOMPLETE_IPI		0x401
+#define SVM_EXIT_AVIC_UNACCELERATED_ACCESS	0x402
 
 #define SVM_EXIT_ERR           -1
 
@@ -107,8 +109,10 @@
 	{ SVM_EXIT_SMI,         "smi" }, \
 	{ SVM_EXIT_INIT,        "init" }, \
 	{ SVM_EXIT_VINTR,       "vintr" }, \
+	{ SVM_EXIT_CR0_SEL_WRITE, "cr0_sel_write" }, \
 	{ SVM_EXIT_CPUID,       "cpuid" }, \
 	{ SVM_EXIT_INVD,        "invd" }, \
+	{ SVM_EXIT_PAUSE,       "pause" }, \
 	{ SVM_EXIT_HLT,         "hlt" }, \
 	{ SVM_EXIT_INVLPG,      "invlpg" }, \
 	{ SVM_EXIT_INVLPGA,     "invlpga" }, \
@@ -127,7 +131,10 @@
 	{ SVM_EXIT_MONITOR,     "monitor" }, \
 	{ SVM_EXIT_MWAIT,       "mwait" }, \
 	{ SVM_EXIT_XSETBV,      "xsetbv" }, \
-	{ SVM_EXIT_NPF,         "npf" }
+	{ SVM_EXIT_NPF,         "npf" }, \
+	{ SVM_EXIT_RSM,         "rsm" }, \
+	{ SVM_EXIT_AVIC_INCOMPLETE_IPI,		"avic_incomplete_ipi" }, \
+	{ SVM_EXIT_AVIC_UNACCELERATED_ACCESS,   "avic_unaccelerated_access" }
 
 
 #endif /* _UAPI__SVM_H */

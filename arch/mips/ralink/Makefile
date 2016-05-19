@@ -4,7 +4,7 @@
 # Makefile for the Ralink common stuff
 #
 # Copyright (C) 2009-2011 Gabor Juhos <juhosg@openwrt.org>
-# Copyright (C) 2013 John Crispin <blogic@openwrt.org>
+# Copyright (C) 2013 John Crispin <john@phrozen.org>
 
 obj-y := prom.o of.o reset.o
 

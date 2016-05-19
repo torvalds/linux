@@ -300,6 +300,8 @@ static inline int pmd_protnone(pmd_t pmd)
 #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
 #define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_SECT_VALID))
 
+#define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
+
 #define __HAVE_ARCH_PMD_WRITE
 #define pmd_write(pmd)		pte_write(pmd_pte(pmd))
 
@@ -554,14 +556,12 @@ static inline int pmdp_set_access_flags(struct vm_area_struct *vma,
  * Atomic pte/pmd modifications.
  */
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
-					    unsigned long address,
-					    pte_t *ptep)
+static inline int __ptep_test_and_clear_young(pte_t *ptep)
 {
 	pteval_t pteval;
 	unsigned int tmp, res;
 
-	asm volatile("//	ptep_test_and_clear_young\n"
+	asm volatile("//	__ptep_test_and_clear_young\n"
 	"	prfm	pstl1strm, %2\n"
 	"1:	ldxr	%0, %2\n"
 	"	ubfx	%w3, %w0, %5, #1	// extract PTE_AF (young)\n"
@@ -572,6 +572,13 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 	: "L" (~PTE_AF), "I" (ilog2(PTE_AF)));
 
 	return res;
+}
+
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
+					    unsigned long address,
+					    pte_t *ptep)
+{
+	return __ptep_test_and_clear_young(ptep);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

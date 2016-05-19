@@ -167,6 +167,7 @@ enum cop1_sdw_func {
 	fceill_op    =	0x0a, ffloorl_op   =  0x0b,
 	fround_op    =	0x0c, ftrunc_op	   =  0x0d,
 	fceil_op     =	0x0e, ffloor_op	   =  0x0f,
+	fsel_op      =  0x10,
 	fmovc_op     =	0x11, fmovz_op	   =  0x12,
 	fmovn_op     =	0x13, fseleqz_op   =  0x14,
 	frecip_op    =  0x15, frsqrt_op    =  0x16,
@@ -201,6 +202,16 @@ enum cop1x_func {
 enum mad_func {
 	madd_fp_op	= 0x08, msub_fp_op	= 0x0a,
 	nmadd_fp_op	= 0x0c, nmsub_fp_op	= 0x0e
+};
+
+/*
+ * func field for page table walker (Loongson-3).
+ */
+enum ptw_func {
+	lwdir_op = 0x00,
+	lwpte_op = 0x01,
+	lddir_op = 0x02,
+	ldpte_op = 0x03,
 };
 
 /*
