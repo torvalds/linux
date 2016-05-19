@@ -82,13 +82,13 @@ int hfi1_cdev_init(int minor, const char *name,
 	else
 		device = device_create(class, NULL, dev, NULL, "%s", name);
 
-	if (!IS_ERR(device))
-		goto done;
-	ret = PTR_ERR(device);
-	device = NULL;
-	pr_err("Could not create device for minor %d, %s (err %d)\n",
-	       minor, name, -ret);
-	cdev_del(cdev);
+	if (IS_ERR(device)) {
+		ret = PTR_ERR(device);
+		device = NULL;
+		pr_err("Could not create device for minor %d, %s (err %d)\n",
+			minor, name, -ret);
+		cdev_del(cdev);
+	}
 done:
 	*devp = device;
 	return ret;
