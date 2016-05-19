@@ -138,7 +138,7 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 		nr = min(numpages - i, nr);
 		if (enable) {
 			for (j = 0; j < nr; j++) {
-				pte_val(*pte) = __pa(address);
+				pte_val(*pte) = address | pgprot_val(PAGE_KERNEL);
 				address += PAGE_SIZE;
 				pte++;
 			}
