@@ -359,10 +359,12 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 	gain = CR_RANGE(insn->chanspec);
 	chan = CR_CHAN(insn->chanspec);
 
-	/* This doesn't look efficient.  I decided to take the conservative
+	/*
+	 * This doesn't look efficient.  I decided to take the conservative
 	 * approach when I did the insn conversion.  Perhaps it would be
 	 * better to have broken it completely, then someone would have been
-	 * forced to fix it.  --ds */
+	 * forced to fix it.  --ds
+	 */
 	for (i = 0; i < insn->n; i++) {
 		setup_sampling(dev, chan, gain);
 		/* Enable reading from the scanlist FIFO */
