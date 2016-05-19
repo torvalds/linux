@@ -17,6 +17,7 @@ dtb-$(CONFIG_SOC_SAM_V4_V5) += \
 	evk-pro3.dtb \
 	tny_a9260.dtb \
 	usb_a9260.dtb \
+	at91sam9260ek.dtb \
 	at91sam9261ek.dtb \
 	at91sam9263ek.dtb \
 	at91-sam9_l9260.dtb \
