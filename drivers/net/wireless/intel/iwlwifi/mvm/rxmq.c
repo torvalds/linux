@@ -917,9 +917,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			u8 *qc = ieee80211_get_qos_ctl(hdr);
 
 			*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
-			if (!(desc->amsdu_info &
-			      IWL_RX_MPDU_AMSDU_LAST_SUBFRAME))
-				rx_status->flag |= RX_FLAG_AMSDU_MORE;
 		}
 		if (baid != IWL_RX_REORDER_DATA_INVALID_BAID)
 			iwl_mvm_agg_rx_received(mvm, baid);
