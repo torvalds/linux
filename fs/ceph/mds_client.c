@@ -1258,13 +1258,13 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	wake_up_all(&ci->i_cap_wq);
 	if (arg) {
 		spin_lock(&ci->i_ceph_lock);
 		ci->i_wanted_max_size = 0;
 		ci->i_requested_max_size = 0;
 		spin_unlock(&ci->i_ceph_lock);
 	}
+	wake_up_all(&ci->i_cap_wq);
 	return 0;
 }
 
