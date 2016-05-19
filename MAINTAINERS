@@ -4444,6 +4444,12 @@ S:	Maintained
 F:	drivers/video/fbdev/exynos/exynos_mipi*
 F:	include/video/exynos_mipi*
 
+EZchip NPS platform support
+M:	Noam Camus <noamc@ezchip.com>
+S:	Supported
+F:	arch/arc/plat-eznps
+F:	arch/arc/boot/dts/eznps.dts
+
 F71805F HARDWARE MONITORING DRIVER
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-hwmon@vger.kernel.org
