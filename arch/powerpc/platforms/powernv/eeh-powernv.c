@@ -36,6 +36,7 @@
 #include <asm/msi_bitmap.h>
 #include <asm/opal.h>
 #include <asm/ppc-pci.h>
+#include <asm/pnv-pci.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -815,7 +816,7 @@ out:
 	return 0;
 }
 
-static int pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
+static int __pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 {
 	struct pci_dn *pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
@@ -864,6 +865,44 @@ static int pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 	}
 
 	return 0;
+}
+
+static int pnv_eeh_bridge_reset(struct pci_dev *pdev, int option)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	struct device_node *dn = pci_device_to_OF_node(pdev);
+	uint64_t id = PCI_SLOT_ID(phb->opal_id,
+				  (pdev->bus->number << 8) | pdev->devfn);
+	uint8_t scope;
+	int64_t rc;
+
+	/* Hot reset to the bus if firmware cannot handle */
+	if (!dn || !of_get_property(dn, "ibm,reset-by-firmware", NULL))
+		return __pnv_eeh_bridge_reset(pdev, option);
+
+	switch (option) {
+	case EEH_RESET_FUNDAMENTAL:
+		scope = OPAL_RESET_PCI_FUNDAMENTAL;
+		break;
+	case EEH_RESET_HOT:
+		scope = OPAL_RESET_PCI_HOT;
+		break;
+	case EEH_RESET_DEACTIVATE:
+		return 0;
+	default:
+		dev_dbg(&pdev->dev, "%s: Unsupported reset %d\n",
+			__func__, option);
+		return -EINVAL;
+	}
+
+	rc = opal_pci_reset(id, scope, OPAL_ASSERT_RESET);
+	if (rc <= OPAL_SUCCESS)
+		goto out;
+
+	rc = pnv_eeh_poll(id);
+out:
+	return (rc == OPAL_SUCCESS) ? 0 : -EIO;
 }
 
 void pnv_pci_reset_secondary_bus(struct pci_dev *dev)
