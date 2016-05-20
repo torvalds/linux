@@ -1049,6 +1049,33 @@ static inline int mm_insn_16bit(u16 insn)
 }
 
 /*
+ * Helper macros for generating raw instruction encodings in inline asm.
+ */
+#ifdef CONFIG_CPU_MICROMIPS
+#define _ASM_INSN16_IF_MM(_enc)			\
+	".insn\n\t"				\
+	".hword (" #_enc ")\n\t"
+#define _ASM_INSN32_IF_MM(_enc)			\
+	".insn\n\t"				\
+	".hword ((" #_enc ") >> 16)\n\t"	\
+	".hword ((" #_enc ") & 0xffff)\n\t"
+#else
+#define _ASM_INSN_IF_MIPS(_enc)			\
+	".insn\n\t"				\
+	".word (" #_enc ")\n\t"
+#endif
+
+#ifndef _ASM_INSN16_IF_MM
+#define _ASM_INSN16_IF_MM(_enc)
+#endif
+#ifndef _ASM_INSN32_IF_MM
+#define _ASM_INSN32_IF_MM(_enc)
+#endif
+#ifndef _ASM_INSN_IF_MIPS
+#define _ASM_INSN_IF_MIPS(_enc)
+#endif
+
+/*
  * TLB Invalidate Flush
  */
 static inline void tlbinvf(void)
