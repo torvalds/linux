@@ -1773,7 +1773,8 @@ do {									\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
 		"# mfgc0\t$1, $%1, %2\n\t"				\
-		".word\t(0x40610000 | %1 << 11 | %2)\n\t"		\
+		_ASM_INSN_IF_MIPS(0x40610000 | %1 << 11 | %2)		\
+		_ASM_INSN32_IF_MM(0x002004fc | %1 << 16 | %2 << 11)	\
 		"move\t%0, $1\n\t"					\
 		".set\tpop"						\
 		: "=r" (__res)						\
@@ -1787,7 +1788,8 @@ do {									\
 		".set\tpush\n\t"					\
 		".set\tnoat\n\t"					\
 		"# dmfgc0\t$1, $%1, %2\n\t"				\
-		".word\t(0x40610100 | %1 << 11 | %2)\n\t"		\
+		_ASM_INSN_IF_MIPS(0x40610100 | %1 << 11 | %2)		\
+		_ASM_INSN32_IF_MM(0x582004fc | %1 << 16 | %2 << 11)	\
 		"move\t%0, $1\n\t"					\
 		".set\tpop"						\
 		: "=r" (__res)						\
@@ -1802,7 +1804,8 @@ do {									\
 		".set\tnoat\n\t"					\
 		"move\t$1, %z0\n\t"					\
 		"# mtgc0\t$1, $%1, %2\n\t"				\
-		".word\t(0x40610200 | %1 << 11 | %2)\n\t"		\
+		_ASM_INSN_IF_MIPS(0x40610200 | %1 << 11 | %2)		\
+		_ASM_INSN32_IF_MM(0x002006fc | %1 << 16 | %2 << 11)	\
 		".set\tpop"						\
 		: : "Jr" ((unsigned int)(value)),			\
 		    "i" (register), "i" (sel));				\
@@ -1815,7 +1818,8 @@ do {									\
 		".set\tnoat\n\t"					\
 		"move\t$1, %z0\n\t"					\
 		"# dmtgc0\t$1, $%1, %2\n\t"				\
-		".word\t(0x40610300 | %1 << 11 | %2)\n\t"		\
+		_ASM_INSN_IF_MIPS(0x40610300 | %1 << 11 | %2)		\
+		_ASM_INSN32_IF_MM(0x582006fc | %1 << 16 | %2 << 11)	\
 		".set\tpop"						\
 		: : "Jr" (value),					\
 		    "i" (register), "i" (sel));				\
@@ -2586,28 +2590,32 @@ static inline void guest_tlb_probe(void)
 {
 	__asm__ __volatile__(
 		"# tlbgp\n\t"
-		".word 0x42000010");
+		_ASM_INSN_IF_MIPS(0x42000010)
+		_ASM_INSN32_IF_MM(0x0000017c));
 }
 
 static inline void guest_tlb_read(void)
 {
 	__asm__ __volatile__(
 		"# tlbgr\n\t"
-		".word 0x42000009");
+		_ASM_INSN_IF_MIPS(0x42000009)
+		_ASM_INSN32_IF_MM(0x0000117c));
 }
 
 static inline void guest_tlb_write_indexed(void)
 {
 	__asm__ __volatile__(
 		"# tlbgwi\n\t"
-		".word 0x4200000a");
+		_ASM_INSN_IF_MIPS(0x4200000a)
+		_ASM_INSN32_IF_MM(0x0000217c));
 }
 
 static inline void guest_tlb_write_random(void)
 {
 	__asm__ __volatile__(
 		"# tlbgwr\n\t"
-		".word 0x4200000e");
+		_ASM_INSN_IF_MIPS(0x4200000e)
+		_ASM_INSN32_IF_MM(0x0000317c));
 }
 
 /*
@@ -2617,7 +2625,8 @@ static inline void guest_tlbinvf(void)
 {
 	__asm__ __volatile__(
 		"# tlbginvf\n\t"
-		".word 0x4200000c");
+		_ASM_INSN_IF_MIPS(0x4200000c)
+		_ASM_INSN32_IF_MM(0x0000517c));
 }
 
 #endif	/* !TOOLCHAIN_SUPPORTS_VIRT */
