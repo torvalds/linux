@@ -540,11 +540,6 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&fi->inmem_pages);
 	mutex_init(&fi->inmem_lock);
 
-	set_inode_flag(fi, FI_NEW_INODE);
-
-	if (test_opt(F2FS_SB(sb), INLINE_XATTR))
-		set_inode_flag(fi, FI_INLINE_XATTR);
-
 	/* Will be used by directory only */
 	fi->i_dir_level = F2FS_SB(sb)->dir_level;
 	return &fi->vfs_inode;
@@ -596,7 +591,7 @@ static int f2fs_drop_inode(struct inode *inode)
  */
 static void f2fs_dirty_inode(struct inode *inode, int flags)
 {
-	set_inode_flag(F2FS_I(inode), FI_DIRTY_INODE);
+	set_inode_flag(inode, FI_DIRTY_INODE);
 }
 
 static void f2fs_i_callback(struct rcu_head *head)

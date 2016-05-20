@@ -321,7 +321,7 @@ int reserve_new_blocks(struct dnode_of_data *dn, blkcnt_t count)
 	if (!count)
 		return 0;
 
-	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
+	if (unlikely(is_inode_flag_set(dn->inode, FI_NO_ALLOC)))
 		return -EPERM;
 	if (unlikely(!inc_valid_block_count(sbi, dn->inode, &count)))
 		return -ENOSPC;
@@ -566,7 +566,7 @@ got_it:
 				((loff_t)(index + 1) << PAGE_SHIFT)) {
 		i_size_write(inode, ((loff_t)(index + 1) << PAGE_SHIFT));
 		/* Only the directory inode sets new_i_size */
-		set_inode_flag(F2FS_I(inode), FI_UPDATE_DIR);
+		set_inode_flag(inode, FI_UPDATE_DIR);
 	}
 	return page;
 }
@@ -580,7 +580,7 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	pgoff_t fofs;
 	blkcnt_t count = 1;
 
-	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
+	if (unlikely(is_inode_flag_set(dn->inode, FI_NO_ALLOC)))
 		return -EPERM;
 
 	dn->data_blkaddr = datablock_addr(dn->node_page, dn->ofs_in_node);
@@ -717,8 +717,7 @@ next_block:
 			} else {
 				err = __allocate_data_block(&dn);
 				if (!err) {
-					set_inode_flag(F2FS_I(inode),
-							FI_APPEND_WRITE);
+					set_inode_flag(inode, FI_APPEND_WRITE);
 					allocated = true;
 				}
 			}
@@ -1193,14 +1192,14 @@ retry_encrypt:
 			!IS_ATOMIC_WRITTEN_PAGE(page) &&
 			need_inplace_update(inode))) {
 		rewrite_data_page(fio);
-		set_inode_flag(F2FS_I(inode), FI_UPDATE_WRITE);
+		set_inode_flag(inode, FI_UPDATE_WRITE);
 		trace_f2fs_do_write_data_page(page, IPU);
 	} else {
 		write_data_page(&dn, fio);
 		trace_f2fs_do_write_data_page(page, OPU);
-		set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
+		set_inode_flag(inode, FI_APPEND_WRITE);
 		if (page->index == 0)
-			set_inode_flag(F2FS_I(inode), FI_FIRST_BLOCK_WRITTEN);
+			set_inode_flag(inode, FI_FIRST_BLOCK_WRITTEN);
 	}
 out_writepage:
 	f2fs_put_dnode(&dn);
@@ -1469,7 +1468,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 		goto skip_write;
 
 	/* skip writing during file defragment */
-	if (is_inode_flag_set(F2FS_I(inode), FI_DO_DEFRAG))
+	if (is_inode_flag_set(inode, FI_DO_DEFRAG))
 		goto skip_write;
 
 	/* during POR, we don't need to trigger writepage at all. */
@@ -1549,7 +1548,7 @@ restart:
 	if (f2fs_has_inline_data(inode)) {
 		if (pos + len <= MAX_INLINE_DATA) {
 			read_inline_data(page, ipage);
-			set_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
+			set_inode_flag(inode, FI_DATA_EXIST);
 			if (inode->i_nlink)
 				set_inline_node(ipage);
 		} else {
@@ -1756,7 +1755,7 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	err = blockdev_direct_IO(iocb, inode, iter, get_data_block_dio);
 	if (iov_iter_rw(iter) == WRITE) {
 		if (err > 0)
-			set_inode_flag(F2FS_I(inode), FI_UPDATE_WRITE);
+			set_inode_flag(inode, FI_UPDATE_WRITE);
 		else if (err < 0)
 			f2fs_write_failed(mapping, offset + count);
 	}

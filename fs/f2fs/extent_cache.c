@@ -431,7 +431,7 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 
 	write_lock(&et->lock);
 
-	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT)) {
+	if (is_inode_flag_set(inode, FI_NO_EXTENT)) {
 		write_unlock(&et->lock);
 		return false;
 	}
@@ -523,11 +523,11 @@ static unsigned int f2fs_update_extent_tree_range(struct inode *inode,
 				prev.len < F2FS_MIN_EXTENT_LEN &&
 				et->largest.len < F2FS_MIN_EXTENT_LEN) {
 			et->largest.len = 0;
-			set_inode_flag(F2FS_I(inode), FI_NO_EXTENT);
+			set_inode_flag(inode, FI_NO_EXTENT);
 		}
 	}
 
-	if (is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
+	if (is_inode_flag_set(inode, FI_NO_EXTENT))
 		__free_extent_tree(sbi, et);
 
 	write_unlock(&et->lock);

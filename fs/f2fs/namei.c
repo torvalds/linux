@@ -60,10 +60,14 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	if (f2fs_encrypted_inode(dir) && f2fs_may_encrypt(inode))
 		f2fs_set_encrypted_inode(inode);
 
+	set_inode_flag(inode, FI_NEW_INODE);
+
+	if (test_opt(sbi, INLINE_XATTR))
+		set_inode_flag(inode, FI_INLINE_XATTR);
 	if (test_opt(sbi, INLINE_DATA) && f2fs_may_inline_data(inode))
-		set_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
+		set_inode_flag(inode, FI_INLINE_DATA);
 	if (f2fs_may_inline_dentry(inode))
-		set_inode_flag(F2FS_I(inode), FI_INLINE_DENTRY);
+		set_inode_flag(inode, FI_INLINE_DENTRY);
 
 	f2fs_init_extent_tree(inode, NULL);
 
@@ -79,7 +83,7 @@ fail:
 	trace_f2fs_new_inode(inode, err);
 	make_bad_inode(inode);
 	if (nid_free)
-		set_inode_flag(F2FS_I(inode), FI_FREE_NID);
+		set_inode_flag(inode, FI_FREE_NID);
 	iput(inode);
 	return ERR_PTR(err);
 }
@@ -177,7 +181,7 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 	inode->i_ctime = CURRENT_TIME;
 	ihold(inode);
 
-	set_inode_flag(F2FS_I(inode), FI_INC_LINK);
+	set_inode_flag(inode, FI_INC_LINK);
 	f2fs_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
 	if (err)
@@ -190,7 +194,7 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 		f2fs_sync_fs(sbi->sb, 1);
 	return 0;
 out:
-	clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
+	clear_inode_flag(inode, FI_INC_LINK);
 	iput(inode);
 	f2fs_unlock_op(sbi);
 	return err;
@@ -244,7 +248,7 @@ static int __recover_dot_dentries(struct inode *dir, nid_t pino)
 	}
 out:
 	if (!err) {
-		clear_inode_flag(F2FS_I(dir), FI_INLINE_DOTS);
+		clear_inode_flag(dir, FI_INLINE_DOTS);
 		mark_inode_dirty(dir);
 	}
 
@@ -492,7 +496,7 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	f2fs_balance_fs(sbi, true);
 
-	set_inode_flag(F2FS_I(inode), FI_INC_LINK);
+	set_inode_flag(inode, FI_INC_LINK);
 	f2fs_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
 	if (err)
@@ -509,7 +513,7 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return 0;
 
 out_fail:
-	clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
+	clear_inode_flag(inode, FI_INC_LINK);
 	handle_failed_inode(inode);
 	return err;
 }
@@ -763,7 +767,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (whiteout) {
 		whiteout->i_state |= I_LINKABLE;
-		set_inode_flag(F2FS_I(whiteout), FI_INC_LINK);
+		set_inode_flag(whiteout, FI_INC_LINK);
 		err = f2fs_add_link(old_dentry, whiteout);
 		if (err)
 			goto put_out_dir;

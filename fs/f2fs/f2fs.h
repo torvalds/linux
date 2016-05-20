@@ -1533,64 +1533,62 @@ enum {
 	FI_DIRTY_FILE,		/* indicate regular/symlink has dirty pages */
 };
 
-static inline void set_inode_flag(struct f2fs_inode_info *fi, int flag)
+static inline void set_inode_flag(struct inode *inode, int flag)
 {
-	if (!test_bit(flag, &fi->flags))
-		set_bit(flag, &fi->flags);
+	if (!test_bit(flag, &F2FS_I(inode)->flags))
+		set_bit(flag, &F2FS_I(inode)->flags);
 }
 
-static inline int is_inode_flag_set(struct f2fs_inode_info *fi, int flag)
+static inline int is_inode_flag_set(struct inode *inode, int flag)
 {
-	return test_bit(flag, &fi->flags);
+	return test_bit(flag, &F2FS_I(inode)->flags);
 }
 
-static inline void clear_inode_flag(struct f2fs_inode_info *fi, int flag)
+static inline void clear_inode_flag(struct inode *inode, int flag)
 {
-	if (test_bit(flag, &fi->flags))
-		clear_bit(flag, &fi->flags);
+	if (test_bit(flag, &F2FS_I(inode)->flags))
+		clear_bit(flag, &F2FS_I(inode)->flags);
 }
 
-static inline void set_acl_inode(struct f2fs_inode_info *fi, umode_t mode)
+static inline void set_acl_inode(struct inode *inode, umode_t mode)
 {
-	fi->i_acl_mode = mode;
-	set_inode_flag(fi, FI_ACL_MODE);
+	F2FS_I(inode)->i_acl_mode = mode;
+	set_inode_flag(inode, FI_ACL_MODE);
 }
 
-static inline void get_inline_info(struct f2fs_inode_info *fi,
-					struct f2fs_inode *ri)
+static inline void get_inline_info(struct inode *inode, struct f2fs_inode *ri)
 {
 	if (ri->i_inline & F2FS_INLINE_XATTR)
-		set_inode_flag(fi, FI_INLINE_XATTR);
+		set_inode_flag(inode, FI_INLINE_XATTR);
 	if (ri->i_inline & F2FS_INLINE_DATA)
-		set_inode_flag(fi, FI_INLINE_DATA);
+		set_inode_flag(inode, FI_INLINE_DATA);
 	if (ri->i_inline & F2FS_INLINE_DENTRY)
-		set_inode_flag(fi, FI_INLINE_DENTRY);
+		set_inode_flag(inode, FI_INLINE_DENTRY);
 	if (ri->i_inline & F2FS_DATA_EXIST)
-		set_inode_flag(fi, FI_DATA_EXIST);
+		set_inode_flag(inode, FI_DATA_EXIST);
 	if (ri->i_inline & F2FS_INLINE_DOTS)
-		set_inode_flag(fi, FI_INLINE_DOTS);
+		set_inode_flag(inode, FI_INLINE_DOTS);
 }
 
-static inline void set_raw_inline(struct f2fs_inode_info *fi,
-					struct f2fs_inode *ri)
+static inline void set_raw_inline(struct inode *inode, struct f2fs_inode *ri)
 {
 	ri->i_inline = 0;
 
-	if (is_inode_flag_set(fi, FI_INLINE_XATTR))
+	if (is_inode_flag_set(inode, FI_INLINE_XATTR))
 		ri->i_inline |= F2FS_INLINE_XATTR;
-	if (is_inode_flag_set(fi, FI_INLINE_DATA))
+	if (is_inode_flag_set(inode, FI_INLINE_DATA))
 		ri->i_inline |= F2FS_INLINE_DATA;
-	if (is_inode_flag_set(fi, FI_INLINE_DENTRY))
+	if (is_inode_flag_set(inode, FI_INLINE_DENTRY))
 		ri->i_inline |= F2FS_INLINE_DENTRY;
-	if (is_inode_flag_set(fi, FI_DATA_EXIST))
+	if (is_inode_flag_set(inode, FI_DATA_EXIST))
 		ri->i_inline |= F2FS_DATA_EXIST;
-	if (is_inode_flag_set(fi, FI_INLINE_DOTS))
+	if (is_inode_flag_set(inode, FI_INLINE_DOTS))
 		ri->i_inline |= F2FS_INLINE_DOTS;
 }
 
 static inline int f2fs_has_inline_xattr(struct inode *inode)
 {
-	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_XATTR);
+	return is_inode_flag_set(inode, FI_INLINE_XATTR);
 }
 
 static inline unsigned int addrs_per_inode(struct inode *inode)
@@ -1617,43 +1615,43 @@ static inline int inline_xattr_size(struct inode *inode)
 
 static inline int f2fs_has_inline_data(struct inode *inode)
 {
-	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_DATA);
+	return is_inode_flag_set(inode, FI_INLINE_DATA);
 }
 
 static inline void f2fs_clear_inline_inode(struct inode *inode)
 {
-	clear_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
-	clear_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
+	clear_inode_flag(inode, FI_INLINE_DATA);
+	clear_inode_flag(inode, FI_DATA_EXIST);
 }
 
 static inline int f2fs_exist_data(struct inode *inode)
 {
-	return is_inode_flag_set(F2FS_I(inode), FI_DATA_EXIST);
+	return is_inode_flag_set(inode, FI_DATA_EXIST);
 }
 
 static inline int f2fs_has_inline_dots(struct inode *inode)
 {
-	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_DOTS);
+	return is_inode_flag_set(inode, FI_INLINE_DOTS);
 }
 
 static inline bool f2fs_is_atomic_file(struct inode *inode)
 {
-	return is_inode_flag_set(F2FS_I(inode), FI_ATOMIC_FILE);
+	return is_inode_flag_set(inode, FI_ATOMIC_FILE);
 }
 
 static inline bool f2fs_is_volatile_file(struct inode *inode)
 {
-	return is_inode_flag_set(F2FS_I(inode), FI_VOLATILE_FILE);
+	return is_inode_flag_set(inode, FI_VOLATILE_FILE);
 }
 
 static inline bool f2fs_is_first_block_written(struct inode *inode)
 {
-	return is_inode_flag_set(F2FS_I(inode), FI_FIRST_BLOCK_WRITTEN);
+	return is_inode_flag_set(inode, FI_FIRST_BLOCK_WRITTEN);
 }
 
 static inline bool f2fs_is_drop_cache(struct inode *inode)
 {
-	return is_inode_flag_set(F2FS_I(inode), FI_DROP_CACHE);
+	return is_inode_flag_set(inode, FI_DROP_CACHE);
 }
 
 static inline void *inline_data_addr(struct page *page)
@@ -1664,7 +1662,7 @@ static inline void *inline_data_addr(struct page *page)
 
 static inline int f2fs_has_inline_dentry(struct inode *inode)
 {
-	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_DENTRY);
+	return is_inode_flag_set(inode, FI_INLINE_DENTRY);
 }
 
 static inline void f2fs_dentry_kunmap(struct inode *dir, struct page *page)
@@ -1712,7 +1710,7 @@ static inline bool is_dot_dotdot(const struct qstr *str)
 static inline bool f2fs_may_extent_tree(struct inode *inode)
 {
 	if (!test_opt(F2FS_I_SB(inode), EXTENT_CACHE) ||
-			is_inode_flag_set(F2FS_I(inode), FI_NO_EXTENT))
+			is_inode_flag_set(inode, FI_NO_EXTENT))
 		return false;
 
 	return S_ISREG(inode->i_mode);
@@ -1748,7 +1746,7 @@ static inline void *f2fs_kvzalloc(size_t size, gfp_t flags)
 }
 
 #define get_inode_mode(i) \
-	((is_inode_flag_set(F2FS_I(i), FI_ACL_MODE)) ? \
+	((is_inode_flag_set(i, FI_ACL_MODE)) ? \
 	 (F2FS_I(i)->i_acl_mode) : ((i)->i_mode))
 
 /* get offset of first page in next direct node */

@@ -1019,7 +1019,7 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	struct page *page;
 	int err;
 
-	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
+	if (unlikely(is_inode_flag_set(dn->inode, FI_NO_ALLOC)))
 		return ERR_PTR(-EPERM);
 
 	page = f2fs_grab_cache_page(NODE_MAPPING(sbi), dn->nid, false);
@@ -1955,7 +1955,7 @@ void recover_inline_xattr(struct inode *inode, struct page *page)
 
 	ri = F2FS_INODE(page);
 	if (!(ri->i_inline & F2FS_INLINE_XATTR)) {
-		clear_inode_flag(F2FS_I(inode), FI_INLINE_XATTR);
+		clear_inode_flag(inode, FI_INLINE_XATTR);
 		goto update_inode;
 	}
 

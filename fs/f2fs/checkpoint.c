@@ -759,28 +759,25 @@ fail_no_cp:
 static void __add_dirty_inode(struct inode *inode, enum inode_type type)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct f2fs_inode_info *fi = F2FS_I(inode);
 	int flag = (type == DIR_INODE) ? FI_DIRTY_DIR : FI_DIRTY_FILE;
 
-	if (is_inode_flag_set(fi, flag))
+	if (is_inode_flag_set(inode, flag))
 		return;
 
-	set_inode_flag(fi, flag);
-	list_add_tail(&fi->dirty_list, &sbi->inode_list[type]);
+	set_inode_flag(inode, flag);
+	list_add_tail(&F2FS_I(inode)->dirty_list, &sbi->inode_list[type]);
 	stat_inc_dirty_inode(sbi, type);
 }
 
 static void __remove_dirty_inode(struct inode *inode, enum inode_type type)
 {
-	struct f2fs_inode_info *fi = F2FS_I(inode);
 	int flag = (type == DIR_INODE) ? FI_DIRTY_DIR : FI_DIRTY_FILE;
 
-	if (get_dirty_pages(inode) ||
-			!is_inode_flag_set(F2FS_I(inode), flag))
+	if (get_dirty_pages(inode) || !is_inode_flag_set(inode, flag))
 		return;
 
-	list_del_init(&fi->dirty_list);
-	clear_inode_flag(fi, flag);
+	list_del_init(&F2FS_I(inode)->dirty_list);
+	clear_inode_flag(inode, flag);
 	stat_dec_dirty_inode(F2FS_I_SB(inode), type);
 }
 

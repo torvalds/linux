@@ -385,7 +385,7 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 	struct page *page;
 	int err;
 
-	if (is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
+	if (is_inode_flag_set(inode, FI_NEW_INODE)) {
 		page = new_inode_page(inode);
 		if (IS_ERR(page))
 			return page;
@@ -429,7 +429,7 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 	 * This file should be checkpointed during fsync.
 	 * We lost i_pino from now on.
 	 */
-	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK)) {
+	if (is_inode_flag_set(inode, FI_INC_LINK)) {
 		file_lost_pino(inode);
 		/*
 		 * If link the tmpfile to alias through linkat path,
@@ -454,23 +454,23 @@ put_error:
 void update_parent_metadata(struct inode *dir, struct inode *inode,
 						unsigned int current_depth)
 {
-	if (inode && is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
+	if (inode && is_inode_flag_set(inode, FI_NEW_INODE)) {
 		if (S_ISDIR(inode->i_mode)) {
 			inc_nlink(dir);
-			set_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
+			set_inode_flag(dir, FI_UPDATE_DIR);
 		}
-		clear_inode_flag(F2FS_I(inode), FI_NEW_INODE);
+		clear_inode_flag(inode, FI_NEW_INODE);
 	}
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(dir);
 
 	if (F2FS_I(dir)->i_current_depth != current_depth) {
 		F2FS_I(dir)->i_current_depth = current_depth;
-		set_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
+		set_inode_flag(dir, FI_UPDATE_DIR);
 	}
 
-	if (inode && is_inode_flag_set(F2FS_I(inode), FI_INC_LINK))
-		clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
+	if (inode && is_inode_flag_set(inode, FI_INC_LINK))
+		clear_inode_flag(inode, FI_INC_LINK);
 }
 
 int room_for_filename(const void *bitmap, int slots, int max_slots)
@@ -607,9 +607,9 @@ fail:
 	if (inode)
 		up_write(&F2FS_I(inode)->i_sem);
 
-	if (is_inode_flag_set(F2FS_I(dir), FI_UPDATE_DIR)) {
+	if (is_inode_flag_set(dir, FI_UPDATE_DIR)) {
 		update_inode_page(dir);
-		clear_inode_flag(F2FS_I(dir), FI_UPDATE_DIR);
+		clear_inode_flag(dir, FI_UPDATE_DIR);
 	}
 	kunmap(dentry_page);
 	f2fs_put_page(dentry_page, 1);
@@ -661,7 +661,7 @@ int f2fs_do_tmpfile(struct inode *inode, struct inode *dir)
 	update_inode(inode, page);
 	f2fs_put_page(page, 1);
 
-	clear_inode_flag(F2FS_I(inode), FI_NEW_INODE);
+	clear_inode_flag(inode, FI_NEW_INODE);
 fail:
 	up_write(&F2FS_I(inode)->i_sem);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
