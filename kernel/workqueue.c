@@ -4457,6 +4457,17 @@ static void rebind_workers(struct worker_pool *pool)
 						  pool->attrs->cpumask) < 0);
 
 	spin_lock_irq(&pool->lock);
+
+	/*
+	 * XXX: CPU hotplug notifiers are weird and can call DOWN_FAILED
+	 * w/o preceding DOWN_PREPARE.  Work around it.  CPU hotplug is
+	 * being reworked and this can go away in time.
+	 */
+	if (!(pool->flags & POOL_DISASSOCIATED)) {
+		spin_unlock_irq(&pool->lock);
+		return;
+	}
+
 	pool->flags &= ~POOL_DISASSOCIATED;
 
 	for_each_pool_worker(worker, pool) {
