@@ -316,8 +316,8 @@
 	</itemizedlist>
       </para>
       <para>
-	The function returns 1 when the fixup was successful,
-	otherwise 0. The return value is used to update the
+	The function returns true when the fixup was successful,
+	otherwise false. The return value is used to update the
 	statistics.
       </para>
       <para>
@@ -341,8 +341,8 @@
 	</itemizedlist>
       </para>
       <para>
-	The function returns 1 when the fixup was successful,
-	otherwise 0. The return value is used to update the
+	The function returns true when the fixup was successful,
+	otherwise false. The return value is used to update the
 	statistics.
       </para>
       <para>
@@ -359,7 +359,8 @@
 	statically initialized object or not. In case it is it calls
 	debug_object_init() and debug_object_activate() to make the
 	object known to the tracker and marked active. In this case
-	the function should return 0 because this is not a real fixup.
+	the function should return false because this is not a real
+	fixup.
       </para>
     </sect1>
 
@@ -376,8 +377,8 @@
 	</itemizedlist>
       </para>
       <para>
-	The function returns 1 when the fixup was successful,
-	otherwise 0. The return value is used to update the
+	The function returns true when the fixup was successful,
+	otherwise false. The return value is used to update the
 	statistics.
       </para>
     </sect1>
@@ -397,8 +398,8 @@
 	</itemizedlist>
       </para>
       <para>
-	The function returns 1 when the fixup was successful,
-	otherwise 0. The return value is used to update the
+	The function returns true when the fixup was successful,
+	otherwise false. The return value is used to update the
 	statistics.
       </para>
     </sect1>
@@ -414,8 +415,8 @@
 	debug bucket.
       </para>
       <para>
-	The function returns 1 when the fixup was successful,
-	otherwise 0. The return value is used to update the
+	The function returns true when the fixup was successful,
+	otherwise false. The return value is used to update the
 	statistics.
       </para>
       <para>
@@ -427,7 +428,8 @@
 	case. The fixup function should check if this is a legitimate
 	case of a statically initialized object or not. In this case only
 	debug_object_init() should be called to make the object known to
-	the tracker. Then the function should return 0 because this is not
+	the tracker. Then the function should return false because this
+	is not
 	a real fixup.
       </para>
     </sect1>
