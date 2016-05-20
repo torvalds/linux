@@ -60,7 +60,7 @@ struct plx_dma_desc {
 /*  bits that specify range for memory io */
 #define  LRNG_MEM_MASK     0xfffffff0
 /*  bits that specify range for normal io */
-#define  LRNG_IO_MASK     0xfffffffa
+#define  LRNG_IO_MASK     0xfffffffc
 /* L, Local Addr Space 0 Remap Register */
 #define PLX_LAS0MAP_REG         0x0004
 /* L, Local Addr Space 1 Remap Register */
@@ -69,7 +69,7 @@ struct plx_dma_desc {
 /*  bits that specify decode for memory io */
 #define  LMAP_MEM_MASK     0xfffffff0
 /*  bits that specify decode bits for normal io */
-#define  LMAP_IO_MASK     0xfffffffa
+#define  LMAP_IO_MASK     0xfffffffc
 
 /*
  * Mode/Arbitration Register.
