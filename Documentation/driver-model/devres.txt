@@ -320,6 +320,9 @@ MEM
   devm_kvasprintf()
   devm_kzalloc()
 
+MFD
+ devm_mfd_add_devices()
+
 PCI
   pcim_enable_device()	: after success, all PCI ops become managed
   pcim_pin_device()	: keep PCI device enabled after release

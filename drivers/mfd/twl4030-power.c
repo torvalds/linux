@@ -1,5 +1,4 @@
 /*
- * linux/drivers/i2c/chips/twl4030-power.c
  *
  * Handle TWL4030 Power initialization
  *
