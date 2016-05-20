@@ -21,7 +21,15 @@ enum compact_result {
 	 * pages
 	 */
 	COMPACT_PARTIAL,
-	/* The full zone was compacted */
+	/*
+	 * direct compaction has scanned part of the zone but wasn't successfull
+	 * to compact suitable pages.
+	 */
+	COMPACT_PARTIAL_SKIPPED,
+	/*
+	 * The full zone was compacted scanned but wasn't successfull to compact
+	 * suitable pages.
+	 */
 	COMPACT_COMPLETE,
 	/* For more detailed tracepoint output */
 	COMPACT_NO_SUITABLE_PAGE,
