@@ -2574,20 +2574,7 @@ static int cache_grow(struct kmem_cache *cachep,
 	}
 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
 
-	/* Take the node list lock to change the colour_next on this node */
 	check_irq_off();
-	n = get_node(cachep, nodeid);
-	spin_lock(&n->list_lock);
-
-	/* Get colour for the slab, and cal the next value. */
-	offset = n->colour_next;
-	n->colour_next++;
-	if (n->colour_next >= cachep->colour)
-		n->colour_next = 0;
-	spin_unlock(&n->list_lock);
-
-	offset *= cachep->colour_off;
-
 	if (gfpflags_allow_blocking(local_flags))
 		local_irq_enable();
 
@@ -2607,6 +2594,19 @@ static int cache_grow(struct kmem_cache *cachep,
 		page = kmem_getpages(cachep, local_flags, nodeid);
 	if (!page)
 		goto failed;
+
+	n = get_node(cachep, nodeid);
+
+	/* Get colour for the slab, and cal the next value. */
+	n->colour_next++;
+	if (n->colour_next >= cachep->colour)
+		n->colour_next = 0;
+
+	offset = n->colour_next;
+	if (offset >= cachep->colour)
+		offset = 0;
+
+	offset *= cachep->colour_off;
 
 	/* Get slab management. */
 	freelist = alloc_slabmgmt(cachep, page, offset,
