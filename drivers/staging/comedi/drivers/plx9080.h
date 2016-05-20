@@ -19,16 +19,27 @@
 #ifndef __COMEDI_PLX9080_H
 #define __COMEDI_PLX9080_H
 
-/* descriptor block used for chained dma transfers */
+/**
+ * struct plx_dma_desc - DMA descriptor format for PLX PCI 9080
+ * @pci_start_addr:	PCI Bus address for transfer (DMAPADR).
+ * @local_start_addr:	Local Bus address for transfer (DMALADR).
+ * @transfer_size:	Transfer size in bytes (max 8 MiB) (DMASIZ).
+ * @next:		Address of next descriptor + flags (DMADPR).
+ *
+ * Describes the format of a scatter-gather DMA descriptor for the PLX
+ * PCI 9080.  All members are raw, little-endian register values that
+ * will be transferred by the DMA engine from local or PCI memory into
+ * corresponding registers for the DMA channel.
+ *
+ * The DMA descriptors must be aligned on a 16-byte boundary.  Bits 3:0
+ * of @next contain flags describing the address space of the next
+ * descriptor (local or PCI), an "end of chain" marker, an "interrupt on
+ * terminal count" bit, and a data transfer direction.
+ */
 struct plx_dma_desc {
 	__le32 pci_start_addr;
 	__le32 local_start_addr;
-	/* transfer_size is in bytes, only first 23 bits of register are used */
 	__le32 transfer_size;
-	/*
-	 * address of next descriptor (quad word aligned), plus some
-	 * additional bits (see PLX_REG_DMADPR)
-	 */
 	__le32 next;
 };
 
@@ -594,6 +605,18 @@ struct plx_dma_desc {
 
 #define PLX_PREFETCH   32
 
+/**
+ * plx9080_abort_dma - Abort a PLX PCI 9080 DMA transfer
+ * @iobase:	Remapped base address of configuration registers.
+ * @channel:	DMA channel number (0 or 1).
+ *
+ * Aborts the DMA transfer on the channel, which must have been enabled
+ * and started beforehand.
+ *
+ * Return:
+ *	%0 on success.
+ *	-%ETIMEDOUT if timed out waiting for abort to complete.
+ */
 static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 {
 	void __iomem *dma_cs_addr;
