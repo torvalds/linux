@@ -228,6 +228,12 @@ static inline void mpol_free_shared_policy(struct shared_policy *p)
 {
 }
 
+static inline struct mempolicy *
+mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
+{
+	return NULL;
+}
+
 #define vma_policy(vma) NULL
 
 static inline int
