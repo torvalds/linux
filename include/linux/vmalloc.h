@@ -4,6 +4,7 @@
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <asm/page.h>		/* pgprot_t */
 #include <linux/rbtree.h>
 
@@ -44,7 +45,7 @@ struct vmap_area {
 	unsigned long flags;
 	struct rb_node rb_node;         /* address sorted rbtree */
 	struct list_head list;          /* address sorted list */
-	struct list_head purge_list;    /* "lazy purge" list */
+	struct llist_node purge_list;    /* "lazy purge" list */
 	struct vm_struct *vm;
 	struct rcu_head rcu_head;
 };
