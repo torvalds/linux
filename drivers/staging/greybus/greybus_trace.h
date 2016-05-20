@@ -52,65 +52,47 @@ DECLARE_EVENT_CLASS(gb_message,
 		  __entry->hd_cport_id, __entry->payload_size)
 );
 
+#define DEFINE_MESSAGE_EVENT(name)					\
+		DEFINE_EVENT(gb_message, name,				\
+				TP_PROTO(struct gb_message *message),	\
+				TP_ARGS(message))
+
 /*
  * tracepoint name	greybus:gb_message_send
  * description		send a greybus message
  * location		operation.c:gb_message_send
  */
-DEFINE_EVENT(gb_message, gb_message_send,
-
-	TP_PROTO(struct gb_message *message),
-
-	TP_ARGS(message)
-);
+DEFINE_MESSAGE_EVENT(gb_message_send);
 
 /*
  * tracepoint name	greybus:gb_message_recv_request
  * description		receive a greybus request
  * location		operation.c:gb_connection_recv_request
  */
-DEFINE_EVENT(gb_message, gb_message_recv_request,
-
-	TP_PROTO(struct gb_message *message),
-
-	TP_ARGS(message)
-);
+DEFINE_MESSAGE_EVENT(gb_message_recv_request);
 
 /*
  * tracepoint name	greybus:gb_message_recv_response
  * description		receive a greybus response
  * location		operation.c:gb_connection_recv_response
  */
-DEFINE_EVENT(gb_message, gb_message_recv_response,
-
-	TP_PROTO(struct gb_message *message),
-
-	TP_ARGS(message)
-);
+DEFINE_MESSAGE_EVENT(gb_message_recv_response);
 
 /*
  * tracepoint name	greybus:gb_message_cancel_outgoing
  * description		cancel outgoing greybus request
  * location		operation.c:gb_message_cancel
  */
-DEFINE_EVENT(gb_message, gb_message_cancel_outgoing,
-
-	TP_PROTO(struct gb_message *message),
-
-	TP_ARGS(message)
-);
+DEFINE_MESSAGE_EVENT(gb_message_cancel_outgoing);
 
 /*
  * tracepoint name	greybus:gb_message_cancel_incoming
  * description		cancel incoming greybus request
  * location		operation.c:gb_message_cancel_incoming
  */
-DEFINE_EVENT(gb_message, gb_message_cancel_incoming,
+DEFINE_MESSAGE_EVENT(gb_message_cancel_incoming);
 
-	TP_PROTO(struct gb_message *message),
-
-	TP_ARGS(message)
-);
+#undef DEFINE_MESSAGE_EVENT
 
 DECLARE_EVENT_CLASS(gb_operation,
 
@@ -203,31 +185,28 @@ DECLARE_EVENT_CLASS(gb_host_device,
 		  __entry->intf_cport_id, __entry->payload_size)
 );
 
+#define DEFINE_HD_EVENT(name)						\
+		DEFINE_EVENT(gb_host_device, name,			\
+				TP_PROTO(struct gb_host_device *hd,	\
+					u16 intf_cport_id,		\
+					size_t payload_size),		\
+				TP_ARGS(hd, intf_cport_id, payload_size))
+
 /*
  * tracepoint name	greybus:gb_host_device_send
  * description		tracepoint representing the point data are transmitted
  * location		es2.c:message_send
  */
-DEFINE_EVENT(gb_host_device, gb_host_device_send,
-
-	TP_PROTO(struct gb_host_device *hd, u16 intf_cport_id,
-		 size_t payload_size),
-
-	TP_ARGS(hd, intf_cport_id, payload_size)
-);
+DEFINE_HD_EVENT(gb_host_device_send);
 
 /*
  * tracepoint name	greybus:gb_host_device_recv
  * description		tracepoint representing the point data are received
  * location		es2.c:cport_in_callback
  */
-DEFINE_EVENT(gb_host_device, gb_host_device_recv,
+DEFINE_HD_EVENT(gb_host_device_recv);
 
-	TP_PROTO(struct gb_host_device *hd, u16 intf_cport_id,
-		 size_t payload_size),
-
-	TP_ARGS(hd, intf_cport_id, payload_size)
-);
+#undef DEFINE_HD_EVENT
 
 #endif /* _TRACE_GREYBUS_H */
 
