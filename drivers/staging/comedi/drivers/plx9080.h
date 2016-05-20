@@ -70,11 +70,11 @@ struct plx_dma_desc {
 /* Local Address Space 1 Local Base Address (Remap) Register */
 #define PLX_REG_LAS1BA		0x00f4
 
-#define  LMAP_EN           0x00000001	/* Enable slave decode */
-/*  bits that specify decode for memory io */
-#define  LMAP_MEM_MASK     0xfffffff0
-/*  bits that specify decode bits for normal io */
-#define  LMAP_IO_MASK     0xfffffffc
+#define PLX_LASBA_EN		BIT(0)		/* Enable slave decode */
+/* bits that specify local base address for memory space */
+#define PLX_LASBA_MEM_MASK	GENMASK(31, 4)
+/* bits that specify local base address for i/o space */
+#define PLX_LASBA_IO_MASK	GENMASK(31, 2)
 
 /* Mode/Arbitration Register */
 #define PLX_REG_MARBR		0x0008
