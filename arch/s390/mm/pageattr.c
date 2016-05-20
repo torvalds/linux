@@ -40,6 +40,20 @@ void __storage_key_init_range(unsigned long start, unsigned long end)
 }
 #endif
 
+#ifdef CONFIG_PROC_FS
+atomic_long_t direct_pages_count[PG_DIRECT_MAP_MAX];
+
+void arch_report_meminfo(struct seq_file *m)
+{
+	seq_printf(m, "DirectMap4k:    %8lu kB\n",
+		   atomic_long_read(&direct_pages_count[PG_DIRECT_MAP_4K]) << 2);
+	seq_printf(m, "DirectMap1M:    %8lu kB\n",
+		   atomic_long_read(&direct_pages_count[PG_DIRECT_MAP_1M]) << 10);
+	seq_printf(m, "DirectMap2G:    %8lu kB\n",
+		   atomic_long_read(&direct_pages_count[PG_DIRECT_MAP_2G]) << 21);
+}
+#endif /* CONFIG_PROC_FS */
+
 static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 		    unsigned long dtt)
 {
@@ -114,6 +128,8 @@ static int split_pmd_page(pmd_t *pmdp, unsigned long addr)
 	}
 	pmd_val(new) = __pa(pt_dir) | _SEGMENT_ENTRY;
 	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
+	update_page_count(PG_DIRECT_MAP_4K, PTRS_PER_PTE);
+	update_page_count(PG_DIRECT_MAP_1M, -1);
 	return 0;
 }
 
@@ -181,6 +197,8 @@ static int split_pud_page(pud_t *pudp, unsigned long addr)
 	}
 	pud_val(new) = __pa(pm_dir) | _REGION3_ENTRY;
 	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
+	update_page_count(PG_DIRECT_MAP_1M, PTRS_PER_PMD);
+	update_page_count(PG_DIRECT_MAP_2G, -1);
 	return 0;
 }
 

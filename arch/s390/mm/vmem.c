@@ -80,6 +80,7 @@ pte_t __ref *vmem_pte_alloc(void)
  */
 static int vmem_add_mem(unsigned long start, unsigned long size)
 {
+	unsigned long pages4k, pages1m, pages2g;
 	unsigned long end = start + size;
 	unsigned long address = start;
 	pgd_t *pg_dir;
@@ -88,6 +89,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 	pte_t *pt_dir;
 	int ret = -ENOMEM;
 
+	pages4k = pages1m = pages2g = 0;
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
@@ -102,6 +104,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 		     !debug_pagealloc_enabled()) {
 			pud_val(*pu_dir) = address | pgprot_val(REGION3_KERNEL);
 			address += PUD_SIZE;
+			pages2g++;
 			continue;
 		}
 		if (pud_none(*pu_dir)) {
@@ -116,6 +119,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 		    !debug_pagealloc_enabled()) {
 			pmd_val(*pm_dir) = address | pgprot_val(SEGMENT_KERNEL);
 			address += PMD_SIZE;
+			pages1m++;
 			continue;
 		}
 		if (pmd_none(*pm_dir)) {
@@ -128,9 +132,13 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 		pt_dir = pte_offset_kernel(pm_dir, address);
 		pte_val(*pt_dir) = address |  pgprot_val(PAGE_KERNEL);
 		address += PAGE_SIZE;
+		pages4k++;
 	}
 	ret = 0;
 out:
+	update_page_count(PG_DIRECT_MAP_4K, pages4k);
+	update_page_count(PG_DIRECT_MAP_1M, pages1m);
+	update_page_count(PG_DIRECT_MAP_2G, pages2g);
 	return ret;
 }
 
@@ -140,6 +148,7 @@ out:
  */
 static void vmem_remove_range(unsigned long start, unsigned long size)
 {
+	unsigned long pages4k, pages1m, pages2g;
 	unsigned long end = start + size;
 	unsigned long address = start;
 	pgd_t *pg_dir;
@@ -147,6 +156,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
 
+	pages4k = pages1m = pages2g = 0;
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
@@ -161,6 +171,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 		if (pud_large(*pu_dir)) {
 			pud_clear(pu_dir);
 			address += PUD_SIZE;
+			pages2g++;
 			continue;
 		}
 		pm_dir = pmd_offset(pu_dir, address);
@@ -171,13 +182,18 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 		if (pmd_large(*pm_dir)) {
 			pmd_clear(pm_dir);
 			address += PMD_SIZE;
+			pages1m++;
 			continue;
 		}
 		pt_dir = pte_offset_kernel(pm_dir, address);
 		pte_clear(&init_mm, address, pt_dir);
 		address += PAGE_SIZE;
+		pages4k++;
 	}
 	flush_tlb_kernel_range(start, end);
+	update_page_count(PG_DIRECT_MAP_4K, -pages4k);
+	update_page_count(PG_DIRECT_MAP_1M, -pages1m);
+	update_page_count(PG_DIRECT_MAP_2G, -pages2g);
 }
 
 /*

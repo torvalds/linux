@@ -28,6 +28,7 @@
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
 #include <linux/radix-tree.h>
+#include <linux/atomic.h>
 #include <asm/bug.h>
 #include <asm/page.h>
 
@@ -36,6 +37,24 @@ extern void paging_init(void);
 extern void vmem_map_init(void);
 pmd_t *vmem_pmd_alloc(void);
 pte_t *vmem_pte_alloc(void);
+
+enum {
+	PG_DIRECT_MAP_4K = 0,
+	PG_DIRECT_MAP_1M,
+	PG_DIRECT_MAP_2G,
+	PG_DIRECT_MAP_MAX
+};
+
+extern atomic_long_t direct_pages_count[PG_DIRECT_MAP_MAX];
+
+static inline void update_page_count(int level, long count)
+{
+	if (IS_ENABLED(CONFIG_PROC_FS))
+		atomic_long_add(count, &direct_pages_count[level]);
+}
+
+struct seq_file;
+void arch_report_meminfo(struct seq_file *m);
 
 /*
  * The S390 doesn't have any external MMU info: the kernel page
