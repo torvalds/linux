@@ -5895,6 +5895,7 @@ F:	drivers/net/wireless/intel/iwlegacy/
 INTEL WIRELESS WIFI LINK (iwlwifi)
 M:	Johannes Berg <johannes.berg@intel.com>
 M:	Emmanuel Grumbach <emmanuel.grumbach@intel.com>
+M:	Luca Coelho <luciano.coelho@intel.com>
 M:	Intel Linux Wireless <linuxwifi@intel.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://intellinuxwireless.org
