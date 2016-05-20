@@ -2761,6 +2761,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 	u64 dev_extent_len = 0;
 	u64 chunk_objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
 	int i, ret = 0;
+	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
 
 	/* Just in case */
 	root = root->fs_info->chunk_root;
@@ -2787,12 +2788,19 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 	check_system_chunk(trans, extent_root, map->type);
 	unlock_chunks(root->fs_info->chunk_root);
 
+	/*
+	 * Take the device list mutex to prevent races with the final phase of
+	 * a device replace operation that replaces the device object associated
+	 * with map stripes (dev-replace.c:btrfs_dev_replace_finishing()).
+	 */
+	mutex_lock(&fs_devices->device_list_mutex);
 	for (i = 0; i < map->num_stripes; i++) {
 		struct btrfs_device *device = map->stripes[i].dev;
 		ret = btrfs_free_dev_extent(trans, device,
 					    map->stripes[i].physical,
 					    &dev_extent_len);
 		if (ret) {
+			mutex_unlock(&fs_devices->device_list_mutex);
 			btrfs_abort_transaction(trans, root, ret);
 			goto out;
 		}
@@ -2811,11 +2819,14 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 		if (map->stripes[i].dev) {
 			ret = btrfs_update_device(trans, map->stripes[i].dev);
 			if (ret) {
+				mutex_unlock(&fs_devices->device_list_mutex);
 				btrfs_abort_transaction(trans, root, ret);
 				goto out;
 			}
 		}
 	}
+	mutex_unlock(&fs_devices->device_list_mutex);
+
 	ret = btrfs_free_chunk(trans, root, chunk_objectid, chunk_offset);
 	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
