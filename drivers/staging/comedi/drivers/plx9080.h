@@ -228,20 +228,40 @@ struct plx_dma_desc {
 /* PCI Base Address (Remap) Register for Direct Master to PCI Memory */
 #define PLX_REG_DMPBAM		0x0028
 
-#define  DMM_MAE           0x00000001	/* Direct Mstr Memory Acc Enable */
-#define  DMM_IAE           0x00000002	/* Direct Mstr I/O Acc Enable */
-#define  DMM_LCK           0x00000004	/* LOCK Input Enable */
-#define  DMM_PF4           0x00000008	/* Prefetch 4 Mode Enable */
-#define  DMM_THROT         0x00000010	/* Assert IRDY when read FIFO full */
-#define  DMM_PAF0          0x00000000	/* Programmable Almost fill level */
-#define  DMM_PAF1          0x00000020	/* Programmable Almost fill level */
-#define  DMM_PAF2          0x00000040	/* Programmable Almost fill level */
-#define  DMM_PAF3          0x00000060	/* Programmable Almost fill level */
-#define  DMM_PAF4          0x00000080	/* Programmable Almost fill level */
-#define  DMM_PAF5          0x000000A0	/* Programmable Almost fill level */
-#define  DMM_PAF6          0x000000C0	/* Programmable Almost fill level */
-#define  DMM_PAF7          0x000000D0	/* Programmable Almost fill level */
-#define  DMM_MAP           0xFFFF0000	/* Remap Address Bits */
+/* Direct Master Memory Access Enable */
+#define PLX_DMPBAM_MEMACCEN	BIT(0)
+/* Direct Master I/O Access Enable */
+#define PLX_DMPBAM_IOACCEN	BIT(1)
+/* LLOCK# Input Enable */
+#define PLX_DMPBAM_LLOCKIEN	BIT(2)
+/* Direct Master Read Prefetch Size Control (bits 12, 3) */
+#define PLX_DMPBAM_RPSIZECONT	((BIT(12) * 0) | (BIT(3) * 0))
+#define PLX_DMPBAM_RPSIZE4	((BIT(12) * 0) | (BIT(3) * 1))
+#define PLX_DMPBAM_RPSIZE8	((BIT(12) * 1) | (BIT(3) * 0))
+#define PLX_DMPBAM_RPSIZE16	((BIT(12) * 1) | (BIT(3) * 1))
+#define PLX_DMPBAM_RPSIZE_MASK	(BIT(12) | BIT(3))
+/* Direct Master PCI Read Mode - deassert IRDY when FIFO full */
+#define PLX_DMPBAM_RMIRDY	BIT(4)
+/* Programmable Almost Full Level (bits 10, 8:5) */
+#define PLX_DMPBAM_PAFL(x)	((BIT(10) * !!((x) & 0x10)) | \
+				 (BIT(5) * ((x) & 0xf)))
+#define PLX_DMPBAM_TO_PAFL(v)	((((BIT(10) & (v)) >> 1) | \
+				  (GENMASK(8, 5) & (v))) >> 5)
+#define PLX_DMPBAM_PAFL_MASK	(BIT(10) | GENMASK(8, 5))
+/* Write And Invalidate Mode */
+#define PLX_DMPBAM_WIM		BIT(9)
+/* Direct Master Prefetch Limit */
+#define PLX_DBPBAM_PFLIMIT	BIT(11)
+/* I/O Remap Select */
+#define PLX_DMPBAM_IOREMAPSEL	BIT(13)
+/* Direct Master Write Delay */
+#define PLX_DMPBAM_WDELAYNONE	(BIT(14) * 0)
+#define PLX_DMPBAM_WDELAY4	(BIT(14) * 1)
+#define PLX_DMPBAM_WDELAY8	(BIT(14) * 2)
+#define PLX_DMPBAM_WDELAY16	(BIT(14) * 3)
+#define PLX_DMPBAM_WDELAY_MASK	GENMASK(15, 14)
+/* Remap of Local-to-PCI Space Into PCI Address Space */
+#define PLX_DMPBAM_REMAP_MASK	GENMASK(31, 16)
 
 /* PCI Configuration Address Register for Direct Master to PCI IO/CFG */
 #define PLX_REG_DMCFGA		0x002c
