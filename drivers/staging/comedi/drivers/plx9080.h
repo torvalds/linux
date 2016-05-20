@@ -321,32 +321,71 @@ struct plx_dma_desc {
 /* Interrupt Control/Status Register */
 #define PLX_REG_INTCSR		0x0068
 
-#define  ICS_AERR          0x00000001	/* Assert LSERR on ABORT */
-#define  ICS_PERR          0x00000002	/* Assert LSERR on Parity Error */
-#define  ICS_SERR          0x00000004	/* Generate PCI SERR# */
-#define  ICS_MBIE          0x00000008	/*  mailbox interrupt enable */
-#define  ICS_PIE           0x00000100	/* PCI Interrupt Enable */
-#define  ICS_PDIE          0x00000200	/* PCI Doorbell Interrupt Enable */
-#define  ICS_PAIE          0x00000400	/* PCI Abort Interrupt Enable */
-#define  ICS_PLIE          0x00000800	/* PCI Local Int Enable */
-#define  ICS_RAE           0x00001000	/* Retry Abort Enable */
-#define  ICS_PDIA          0x00002000	/* PCI Doorbell Interrupt Active */
-#define  ICS_PAIA          0x00004000	/* PCI Abort Interrupt Active */
-#define  ICS_LIA           0x00008000	/* Local Interrupt Active */
-#define  ICS_LIE           0x00010000	/* Local Interrupt Enable */
-#define  ICS_LDIE          0x00020000	/* Local Doorbell Int Enable */
-#define  ICS_DMA0_E        0x00040000	/* DMA #0 Interrupt Enable */
-#define  ICS_DMA1_E        0x00080000	/* DMA #1 Interrupt Enable */
-#define  ICS_LDIA          0x00100000	/* Local Doorbell Int Active */
-#define  ICS_DMA0_A        0x00200000	/* DMA #0 Interrupt Active */
-#define  ICS_DMA1_A        0x00400000	/* DMA #1 Interrupt Active */
-#define  ICS_BIA           0x00800000	/* BIST Interrupt Active */
-#define  ICS_TA_DM         0x01000000	/* Target Abort - Direct Master */
-#define  ICS_TA_DMA0       0x02000000	/* Target Abort - DMA #0 */
-#define  ICS_TA_DMA1       0x04000000	/* Target Abort - DMA #1 */
-#define  ICS_TA_RA         0x08000000	/* Target Abort - Retry Timeout */
-/*  mailbox x is active */
-#define  ICS_MBIA(x)       (0x10000000 << ((x) & 0x3))
+/* Enable Local Bus LSERR# when PCI Bus Target Abort or Master Abort occurs */
+#define PLX_INTCSR_LSEABORTEN	BIT(0)
+/* Enable Local Bus LSERR# when PCI parity error occurs */
+#define PLX_INTCSR_LSEPARITYEN	BIT(1)
+/* Generate PCI Bus SERR# when set to 1 */
+#define PLX_INTCSR_GENSERR	BIT(2)
+/* Mailbox Interrupt Enable (local bus interrupts on PCI write to MBOX0-3) */
+#define PLX_INTCSR_MBIEN	BIT(3)
+/* PCI Interrupt Enable */
+#define PLX_INTCSR_PIEN		BIT(8)
+/* PCI Doorbell Interrupt Enable */
+#define PLX_INTCSR_PDBIEN	BIT(9)
+/* PCI Abort Interrupt Enable */
+#define PLX_INTCSR_PABORTIEN	BIT(10)
+/* PCI Local Interrupt Enable */
+#define PLX_INTCSR_PLIEN	BIT(11)
+/* Retry Abort Enable (for diagnostic purposes only) */
+#define PLX_INTCSR_RAEN		BIT(12)
+/* PCI Doorbell Interrupt Active (read-only) */
+#define PLX_INTCSR_PDBIA	BIT(13)
+/* PCI Abort Interrupt Active (read-only) */
+#define PLX_INTCSR_PABORTIA	BIT(14)
+/* Local Interrupt (LINTi#) Active (read-only) */
+#define PLX_INTCSR_PLIA		BIT(15)
+/* Local Interrupt Output (LINTo#) Enable */
+#define PLX_INTCSR_LIOEN	BIT(16)
+/* Local Doorbell Interrupt Enable */
+#define PLX_INTCSR_LDBIEN	BIT(17)
+/* DMA Channel 0 Interrupt Enable */
+#define PLX_INTCSR_DMA0IEN	BIT(18)
+/* DMA Channel 1 Interrupt Enable */
+#define PLX_INTCSR_DMA1IEN	BIT(19)
+/* DMA Channel N Interrupt Enable (N <= 1) */
+#define PLX_INTCSR_DMAIEN(n)	((n) ? PLX_INTCSR_DMA1IEN : PLX_INTCSR_DMA0IEN)
+/* Local Doorbell Interrupt Active (read-only) */
+#define PLX_INTCSR_LDBIA	BIT(20)
+/* DMA Channel 0 Interrupt Active (read-only) */
+#define PLX_INTCSR_DMA0IA	BIT(21)
+/* DMA Channel 1 Interrupt Active (read-only) */
+#define PLX_INTCSR_DMA1IA	BIT(22)
+/* DMA Channel N Interrupt Active (N <= 1) (read-only) */
+#define PLX_INTCSR_DMAIA(n)	((n) ? PLX_INTCSR_DMA1IA : PLX_INTCSR_DMA0IA)
+/* BIST Interrupt Active (read-only) */
+#define PLX_INTCSR_BISTIA	BIT(23)
+/* Direct Master Not Bus Master During Master Or Target Abort (read-only) */
+#define PLX_INTCSR_ABNOTDM	BIT(24)
+/* DMA Channel 0 Not Bus Master During Master Or Target Abort (read-only) */
+#define PLX_INTCSR_ABNOTDMA0	BIT(25)
+/* DMA Channel 1 Not Bus Master During Master Or Target Abort (read-only) */
+#define PLX_INTCSR_ABNOTDMA1	BIT(26)
+/* DMA Channel N Not Bus Master During Master Or Target Abort (read-only) */
+#define PLX_INTCSR_ABNOTDMA(n)	((n) ? PLX_INTCSR_ABNOTDMA1 \
+				     : PLX_INTCSR_ABNOTDMA0)
+/* Target Abort Not Generated After 256 Master Retries (read-only) */
+#define PLX_INTCSR_ABNOTRETRY	BIT(27)
+/* PCI Wrote Mailbox 0 (enabled if bit 3 set) (read-only) */
+#define PLX_INTCSR_MB0IA	BIT(28)
+/* PCI Wrote Mailbox 1 (enabled if bit 3 set) (read-only) */
+#define PLX_INTCSR_MB1IA	BIT(29)
+/* PCI Wrote Mailbox 2 (enabled if bit 3 set) (read-only) */
+#define PLX_INTCSR_MB2IA	BIT(30)
+/* PCI Wrote Mailbox 3 (enabled if bit 3 set) (read-only) */
+#define PLX_INTCSR_MB3IA	BIT(31)
+/* PCI Wrote Mailbox N (N <= 3) (enabled if bit 3 set) (read-only) */
+#define PLX_INTCSR_MBIA(n)	BIT(28 + (n))
 
 /*
  * Serial EEPROM Control, PCI Command Codes, User I/O Control,

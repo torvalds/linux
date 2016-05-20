@@ -1316,7 +1316,8 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	devpriv->fifosz = ret;
 
 	if (dev->irq)
-		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + PLX_REG_INTCSR);
+		writel(PLX_INTCSR_PIEN | PLX_INTCSR_PLIEN,
+		       devpriv->lcfg + PLX_REG_INTCSR);
 
 	return 0;
 }

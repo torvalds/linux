@@ -1336,8 +1336,9 @@ static void init_plx9080(struct comedi_device *dev)
 
 	/*  enable interrupts on plx 9080 */
 	devpriv->plx_intcsr_bits |=
-	    ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
-	    ICS_DMA0_E | ICS_DMA1_E;
+	    PLX_INTCSR_LSEABORTEN | PLX_INTCSR_LSEPARITYEN | PLX_INTCSR_PIEN |
+	    PLX_INTCSR_PLIEN | PLX_INTCSR_PABORTIEN | PLX_INTCSR_LIOEN |
+	    PLX_INTCSR_DMA0IEN | PLX_INTCSR_DMA1IEN;
 	writel(devpriv->plx_intcsr_bits,
 	       devpriv->plx9080_iobase + PLX_REG_INTCSR);
 }
@@ -2836,7 +2837,7 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR1);
-	if (plx_status & ICS_DMA1_A) {	/*  dma chan 1 interrupt */
+	if (plx_status & PLX_INTCSR_DMA1IA) {	/*  dma chan 1 interrupt */
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
 		       devpriv->plx9080_iobase + PLX_REG_DMACSR1);
 
@@ -3014,7 +3015,7 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR0);
-	if (plx_status & ICS_DMA0_A) {	/*  dma chan 0 interrupt */
+	if (plx_status & PLX_INTCSR_DMA0IA) {	/*  dma chan 0 interrupt */
 		if ((dma0_status & PLX_DMA_EN_BIT) &&
 		    !(dma0_status & PLX_DMA_DONE_BIT)) {
 			writeb(PLX_DMA_EN_BIT | PLX_CLEAR_DMA_INTR_BIT,
@@ -3067,8 +3068,9 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	handle_ai_interrupt(dev, status, plx_status);
 	handle_ao_interrupt(dev, status, plx_status);
 
-	/*  clear possible plx9080 interrupt sources */
-	if (plx_status & ICS_LDIA) {	/*  clear local doorbell interrupt */
+	/* clear possible plx9080 interrupt sources */
+	if (plx_status & PLX_INTCSR_LDBIA) {
+		/* clear local doorbell interrupt */
 		plx_bits = readl(devpriv->plx9080_iobase + PLX_REG_L2PDBELL);
 		writel(plx_bits, devpriv->plx9080_iobase + PLX_REG_L2PDBELL);
 	}

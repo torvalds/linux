@@ -199,7 +199,8 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 		return IRQ_NONE;
 
 	plx_status = readl(devpriv->plx9080_mmio + PLX_REG_INTCSR);
-	if ((plx_status & (ICS_DMA0_A | ICS_DMA1_A | ICS_LIA)) == 0)
+	if ((plx_status &
+	     (PLX_INTCSR_DMA0IA | PLX_INTCSR_DMA1IA | PLX_INTCSR_PLIA)) == 0)
 		return IRQ_NONE;
 
 	hpdi_intr_status = readl(dev->mmio + INTERRUPT_STATUS_REG);
@@ -211,7 +212,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	/* spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR0);
-	if (plx_status & ICS_DMA0_A) {
+	if (plx_status & PLX_INTCSR_DMA0IA) {
 		/* dma chan 0 interrupt */
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
 		       devpriv->plx9080_mmio + PLX_REG_DMACSR0);
@@ -224,7 +225,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	/* spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR1);
-	if (plx_status & ICS_DMA1_A) {
+	if (plx_status & PLX_INTCSR_DMA1IA) {
 		/* XXX */ /* dma chan 1 interrupt */
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
 		       devpriv->plx9080_mmio + PLX_REG_DMACSR1);
@@ -232,7 +233,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* clear possible plx9080 interrupt sources */
-	if (plx_status & ICS_LDIA) {
+	if (plx_status & PLX_INTCSR_LDBIA) {
 		/* clear local doorbell interrupt */
 		plx_bits = readl(devpriv->plx9080_mmio + PLX_REG_L2PDBELL);
 		writel(plx_bits, devpriv->plx9080_mmio + PLX_REG_L2PDBELL);
@@ -533,8 +534,9 @@ static int gsc_hpdi_init(struct comedi_device *dev)
 
 	/* enable interrupts */
 	plx_intcsr_bits =
-	    ICS_AERR | ICS_PERR | ICS_PIE | ICS_PLIE | ICS_PAIE | ICS_LIE |
-	    ICS_DMA0_E;
+	    PLX_INTCSR_LSEABORTEN | PLX_INTCSR_LSEPARITYEN | PLX_INTCSR_PIEN |
+	    PLX_INTCSR_PLIEN | PLX_INTCSR_PABORTIEN | PLX_INTCSR_LIOEN |
+	    PLX_INTCSR_DMA0IEN;
 	writel(plx_intcsr_bits, devpriv->plx9080_mmio + PLX_REG_INTCSR);
 
 	return 0;
