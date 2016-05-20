@@ -85,7 +85,7 @@ struct btrfs_qgroup {
 
 	/*
 	 * temp variables for accounting operations
-	 * Refer to qgroup_shared_accouting() for details.
+	 * Refer to qgroup_shared_accounting() for details.
 	 */
 	u64 old_refcnt;
 	u64 new_refcnt;
@@ -499,7 +499,7 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info)
 	}
 	/*
 	 * we call btrfs_free_qgroup_config() when umounting
-	 * filesystem and disabling quota, so we set qgroup_ulit
+	 * filesystem and disabling quota, so we set qgroup_ulist
 	 * to be null here to avoid double free.
 	 */
 	ulist_free(fs_info->qgroup_ulist);
@@ -1036,7 +1036,7 @@ static void qgroup_dirty(struct btrfs_fs_info *fs_info,
 
 /*
  * The easy accounting, if we are adding/removing the only ref for an extent
- * then this qgroup and all of the parent qgroups get their refrence and
+ * then this qgroup and all of the parent qgroups get their reference and
  * exclusive counts adjusted.
  *
  * Caller should hold fs_info->qgroup_lock.
@@ -1436,7 +1436,7 @@ int btrfs_qgroup_prepare_account_extents(struct btrfs_trans_handle *trans,
 
 	/*
 	 * No need to do lock, since this function will only be called in
-	 * btrfs_commmit_transaction().
+	 * btrfs_commit_transaction().
 	 */
 	node = rb_first(&delayed_refs->dirty_extent_root);
 	while (node) {
@@ -1557,7 +1557,7 @@ static int qgroup_update_refcnt(struct btrfs_fs_info *fs_info,
  * A:	cur_old_roots < nr_old_roots	(not exclusive before)
  * !A:	cur_old_roots == nr_old_roots	(possible exclusive before)
  * B:	cur_new_roots < nr_new_roots	(not exclusive now)
- * !B:	cur_new_roots == nr_new_roots	(possible exclsuive now)
+ * !B:	cur_new_roots == nr_new_roots	(possible exclusive now)
  *
  * Results:
  * +: Possible sharing -> exclusive	-: Possible exclusive -> sharing
@@ -1851,7 +1851,7 @@ out:
 }
 
 /*
- * Copy the acounting information between qgroups. This is necessary
+ * Copy the accounting information between qgroups. This is necessary
  * when a snapshot or a subvolume is created. Throwing an error will
  * cause a transaction abort so we take extra care here to only error
  * when a readonly fs is a reasonable outcome.
@@ -2340,7 +2340,7 @@ out:
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
 
 	/*
-	 * only update status, since the previous part has alreay updated the
+	 * only update status, since the previous part has already updated the
 	 * qgroup info.
 	 */
 	trans = btrfs_start_transaction(fs_info->quota_root, 1);
@@ -2670,7 +2670,7 @@ void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
 }
 
 /*
- * Check qgroup reserved space leaking, normally at destory inode
+ * Check qgroup reserved space leaking, normally at destroy inode
  * time
  */
 void btrfs_qgroup_check_reserved_leak(struct inode *inode)

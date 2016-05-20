@@ -1044,7 +1044,7 @@ nodatasum_case:
 
 		/*
 		 * !is_metadata and !have_csum, this means that the data
-		 * might not be COW'ed, that it might be modified
+		 * might not be COWed, that it might be modified
 		 * concurrently. The general strategy to work on the
 		 * commit root does not help in the case when COW is not
 		 * used.
@@ -1125,7 +1125,7 @@ nodatasum_case:
 	 * the 2nd page of mirror #1 faces I/O errors, and the 2nd page
 	 * of mirror #2 is readable but the final checksum test fails,
 	 * then the 2nd page of mirror #3 could be tried, whether now
-	 * the final checksum succeedes. But this would be a rare
+	 * the final checksum succeeds. But this would be a rare
 	 * exception and is therefore not implemented. At least it is
 	 * avoided that the good copy is overwritten.
 	 * A more useful improvement would be to pick the sectors

@@ -186,7 +186,7 @@ static const int btrfs_csum_sizes[] = { 4 };
 /* four bytes for CRC32 */
 #define BTRFS_EMPTY_DIR_SIZE 0
 
-/* spefic to btrfs_map_block(), therefore not in include/linux/blk_types.h */
+/* specific to btrfs_map_block(), therefore not in include/linux/blk_types.h */
 #define REQ_GET_READ_MIRRORS	(1 << 30)
 
 #define BTRFS_FT_UNKNOWN	0
@@ -1221,7 +1221,7 @@ struct btrfs_space_info {
 	 * bytes_pinned does not reflect the bytes that will be pinned once the
 	 * delayed refs are flushed, so this counter is inc'ed every time we
 	 * call btrfs_free_extent so it is a realtime count of what will be
-	 * freed once the transaction is committed.  It will be zero'ed every
+	 * freed once the transaction is committed.  It will be zeroed every
 	 * time the transaction commits.
 	 */
 	struct percpu_counter total_bytes_pinned;
@@ -2392,7 +2392,7 @@ static inline void btrfs_init_map_token (struct btrfs_map_token *token)
 	token->kaddr = NULL;
 }
 
-/* some macros to generate set/get funcs for the struct fields.  This
+/* some macros to generate set/get functions for the struct fields.  This
  * assumes there is a lefoo_to_cpu for every type, so lets make a simple
  * one for u8:
  */

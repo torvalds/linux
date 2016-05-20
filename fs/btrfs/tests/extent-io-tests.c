@@ -176,7 +176,7 @@ static int test_find_delalloc(void)
 	locked_page = find_lock_page(inode->i_mapping, test_start >>
 				     PAGE_SHIFT);
 	if (!locked_page) {
-		test_msg("Could'nt find the locked page\n");
+		test_msg("Couldn't find the locked page\n");
 		goto out_bits;
 	}
 	start = test_start;

@@ -4591,7 +4591,7 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb)
 		if (mapped)
 			spin_unlock(&page->mapping->private_lock);
 
-		/* One for when we alloced the page */
+		/* One for when we allocated the page */
 		put_page(page);
 	} while (index != 0);
 }
@@ -5751,7 +5751,7 @@ int try_release_extent_buffer(struct page *page)
 	struct extent_buffer *eb;
 
 	/*
-	 * We need to make sure noboody is attaching this page to an eb right
+	 * We need to make sure nobody is attaching this page to an eb right
 	 * now.
 	 */
 	spin_lock(&page->mapping->private_lock);

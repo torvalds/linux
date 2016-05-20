@@ -2330,7 +2330,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 				break;
 
 			/* for regular files, make sure corresponding
-			 * orhpan item exist. extents past the new EOF
+			 * orphan item exist. extents past the new EOF
 			 * will be truncated later by orphan cleanup.
 			 */
 			if (S_ISREG(mode)) {
@@ -4937,7 +4937,7 @@ out_unlock:
  * the actual unlink operation, so if we do this check before a concurrent task
  * sets last_unlink_trans it means we've logged a consistent version/state of
  * all the inode items, otherwise we are not sure and must do a transaction
- * commit (the concurrent task migth have only updated last_unlink_trans before
+ * commit (the concurrent task might have only updated last_unlink_trans before
  * we logged the inode or it might have also done the unlink).
  */
 static bool btrfs_must_commit_transaction(struct btrfs_trans_handle *trans,
@@ -4996,7 +4996,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 	while (1) {
 		/*
 		 * If we are logging a directory then we start with our inode,
-		 * not our parents inode, so we need to skipp setting the
+		 * not our parent's inode, so we need to skip setting the
 		 * logged_trans so that further down in the log code we don't
 		 * think this inode has already been logged.
 		 */
@@ -5375,7 +5375,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		log_dentries = true;
 
 	/*
-	 * On unlink we must make sure all our current and old parent directores
+	 * On unlink we must make sure all our current and old parent directory
 	 * inodes are fully logged. This is to prevent leaving dangling
 	 * directory index entries in directories that were our parents but are
 	 * not anymore. Not doing this results in old parent directory being
