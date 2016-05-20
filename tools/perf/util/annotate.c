@@ -1122,7 +1122,7 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 	} else if (dso__is_kcore(dso)) {
 		goto fallback;
 	} else if (readlink(symfs_filename, command, sizeof(command)) < 0 ||
-		   strstr(command, "[kernel.kallsyms]") ||
+		   strstr(command, DSO__NAME_KALLSYMS) ||
 		   access(symfs_filename, R_OK)) {
 		free(filename);
 fallback:

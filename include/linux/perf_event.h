@@ -61,6 +61,14 @@ struct perf_callchain_entry {
 	__u64				ip[0]; /* /proc/sys/kernel/perf_event_max_stack */
 };
 
+struct perf_callchain_entry_ctx {
+	struct perf_callchain_entry *entry;
+	u32			    max_stack;
+	u32			    nr;
+	short			    contexts;
+	bool			    contexts_maxed;
+};
+
 struct perf_raw_record {
 	u32				size;
 	void				*data;
@@ -1063,20 +1071,36 @@ extern void perf_event_fork(struct task_struct *tsk);
 /* Callchains */
 DECLARE_PER_CPU(struct perf_callchain_entry, perf_callchain_entry);
 
-extern void perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs);
-extern void perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs);
+extern void perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs);
+extern void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs);
 extern struct perf_callchain_entry *
 get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
-		   bool crosstask, bool add_mark);
+		   u32 max_stack, bool crosstask, bool add_mark);
 extern int get_callchain_buffers(void);
 extern void put_callchain_buffers(void);
 
 extern int sysctl_perf_event_max_stack;
+extern int sysctl_perf_event_max_contexts_per_stack;
 
-static inline int perf_callchain_store(struct perf_callchain_entry *entry, u64 ip)
+static inline int perf_callchain_store_context(struct perf_callchain_entry_ctx *ctx, u64 ip)
 {
-	if (entry->nr < sysctl_perf_event_max_stack) {
+	if (ctx->contexts < sysctl_perf_event_max_contexts_per_stack) {
+		struct perf_callchain_entry *entry = ctx->entry;
 		entry->ip[entry->nr++] = ip;
+		++ctx->contexts;
+		return 0;
+	} else {
+		ctx->contexts_maxed = true;
+		return -1; /* no more room, stop walking the stack */
+	}
+}
+
+static inline int perf_callchain_store(struct perf_callchain_entry_ctx *ctx, u64 ip)
+{
+	if (ctx->nr < ctx->max_stack && !ctx->contexts_maxed) {
+		struct perf_callchain_entry *entry = ctx->entry;
+		entry->ip[entry->nr++] = ip;
+		++ctx->nr;
 		return 0;
 	} else {
 		return -1; /* no more room, stop walking the stack */
