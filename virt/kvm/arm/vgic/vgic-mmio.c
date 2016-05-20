@@ -173,6 +173,66 @@ unsigned long vgic_mmio_read_active(struct kvm_vcpu *vcpu,
 	return value;
 }
 
+static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
+				    bool new_active_state)
+{
+	spin_lock(&irq->irq_lock);
+	/*
+	 * If this virtual IRQ was written into a list register, we
+	 * have to make sure the CPU that runs the VCPU thread has
+	 * synced back LR state to the struct vgic_irq.  We can only
+	 * know this for sure, when either this irq is not assigned to
+	 * anyone's AP list anymore, or the VCPU thread is not
+	 * running on any CPUs.
+	 *
+	 * In the opposite case, we know the VCPU thread may be on its
+	 * way back from the guest and still has to sync back this
+	 * IRQ, so we release and re-acquire the spin_lock to let the
+	 * other thread sync back the IRQ.
+	 */
+	while (irq->vcpu && /* IRQ may have state in an LR somewhere */
+	       irq->vcpu->cpu != -1) { /* VCPU thread is running */
+		BUG_ON(irq->intid < VGIC_NR_PRIVATE_IRQS);
+		cond_resched_lock(&irq->irq_lock);
+	}
+
+	irq->active = new_active_state;
+	if (new_active_state)
+		vgic_queue_irq_unlock(vcpu->kvm, irq);
+	else
+		spin_unlock(&irq->irq_lock);
+}
+
+/*
+ * If we are fiddling with an IRQ's active state, we have to make sure the IRQ
+ * is not queued on some running VCPU's LRs, because then the change to the
+ * active state can be overwritten when the VCPU's state is synced coming back
+ * from the guest.
+ *
+ * For shared interrupts, we have to stop all the VCPUs because interrupts can
+ * be migrated while we don't hold the IRQ locks and we don't want to be
+ * chasing moving targets.
+ *
+ * For private interrupts, we only have to make sure the single and only VCPU
+ * that can potentially queue the IRQ is stopped.
+ */
+static void vgic_change_active_prepare(struct kvm_vcpu *vcpu, u32 intid)
+{
+	if (intid < VGIC_NR_PRIVATE_IRQS)
+		kvm_arm_halt_vcpu(vcpu);
+	else
+		kvm_arm_halt_guest(vcpu->kvm);
+}
+
+/* See vgic_change_active_prepare */
+static void vgic_change_active_finish(struct kvm_vcpu *vcpu, u32 intid)
+{
+	if (intid < VGIC_NR_PRIVATE_IRQS)
+		kvm_arm_resume_vcpu(vcpu);
+	else
+		kvm_arm_resume_guest(vcpu->kvm);
+}
+
 void vgic_mmio_write_cactive(struct kvm_vcpu *vcpu,
 			     gpa_t addr, unsigned int len,
 			     unsigned long val)
@@ -180,32 +240,12 @@ void vgic_mmio_write_cactive(struct kvm_vcpu *vcpu,
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	int i;
 
-	kvm_arm_halt_guest(vcpu->kvm);
+	vgic_change_active_prepare(vcpu, intid);
 	for_each_set_bit(i, &val, len * 8) {
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
-
-		spin_lock(&irq->irq_lock);
-		/*
-		 * If this virtual IRQ was written into a list register, we
-		 * have to make sure the CPU that runs the VCPU thread has
-		 * synced back LR state to the struct vgic_irq.  We can only
-		 * know this for sure, when either this irq is not assigned to
-		 * anyone's AP list anymore, or the VCPU thread is not
-		 * running on any CPUs.
-		 *
-		 * In the opposite case, we know the VCPU thread may be on its
-		 * way back from the guest and still has to sync back this
-		 * IRQ, so we release and re-acquire the spin_lock to let the
-		 * other thread sync back the IRQ.
-		 */
-		while (irq->vcpu && /* IRQ may have state in an LR somewhere */
-		       irq->vcpu->cpu != -1) /* VCPU thread is running */
-			cond_resched_lock(&irq->irq_lock);
-
-		irq->active = false;
-		spin_unlock(&irq->irq_lock);
+		vgic_mmio_change_active(vcpu, irq, false);
 	}
-	kvm_arm_resume_guest(vcpu->kvm);
+	vgic_change_active_finish(vcpu, intid);
 }
 
 void vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
@@ -215,25 +255,12 @@ void vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	int i;
 
+	vgic_change_active_prepare(vcpu, intid);
 	for_each_set_bit(i, &val, len * 8) {
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
-
-		spin_lock(&irq->irq_lock);
-
-		/*
-		 * If the IRQ was already active or there is no target VCPU
-		 * assigned at the moment, then just proceed.
-		 */
-		if (irq->active || !irq->target_vcpu) {
-			irq->active = true;
-
-			spin_unlock(&irq->irq_lock);
-			continue;
-		}
-
-		irq->active = true;
-		vgic_queue_irq_unlock(vcpu->kvm, irq);
+		vgic_mmio_change_active(vcpu, irq, true);
 	}
+	vgic_change_active_finish(vcpu, intid);
 }
 
 unsigned long vgic_mmio_read_priority(struct kvm_vcpu *vcpu,
