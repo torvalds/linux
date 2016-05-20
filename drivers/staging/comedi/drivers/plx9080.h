@@ -529,11 +529,16 @@ struct plx_dma_desc {
 #define PLX_REG_DMACSR0		0x00a8
 #define PLX_REG_DMACSR1		0x00a9
 
-#define  PLX_DMA_EN_BIT	0x1	/*  enable dma channel */
-#define  PLX_DMA_START_BIT	0x2	/*  start dma transfer */
-#define  PLX_DMA_ABORT_BIT	0x4	/*  abort dma transfer */
-#define  PLX_CLEAR_DMA_INTR_BIT	0x8	/*  clear dma interrupt */
-#define  PLX_DMA_DONE_BIT	0x10	/*  transfer done status bit */
+/* Channel Enable */
+#define PLX_DMACSR_ENABLE	BIT(0)
+/* Channel Start - write 1 to start transfer (write-only) */
+#define PLX_DMACSR_START	BIT(1)
+/* Channel Abort - write 1 to abort transfer (write-only) */
+#define PLX_DMACSR_ABORT	BIT(2)
+/* Clear Interrupt - write 1 to clear DMA Channel Interrupt (write-only) */
+#define PLX_DMACSR_CLEARINTR	BIT(3)
+/* Channel Done - transfer complete/inactive (read-only) */
+#define PLX_DMACSR_DONE		BIT(4)
 
 /* DMA Threshold Register */
 #define PLX_REG_DMATHR		0x00b0
@@ -571,11 +576,11 @@ static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 
 	/*  abort dma transfer if necessary */
 	dma_status = readb(dma_cs_addr);
-	if ((dma_status & PLX_DMA_EN_BIT) == 0)
+	if ((dma_status & PLX_DMACSR_ENABLE) == 0)
 		return 0;
 
 	/*  wait to make sure done bit is zero */
-	for (i = 0; (dma_status & PLX_DMA_DONE_BIT) && i < timeout; i++) {
+	for (i = 0; (dma_status & PLX_DMACSR_DONE) && i < timeout; i++) {
 		udelay(1);
 		dma_status = readb(dma_cs_addr);
 	}
@@ -583,10 +588,10 @@ static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 		return -ETIMEDOUT;
 
 	/*  disable and abort channel */
-	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
+	writeb(PLX_DMACSR_ABORT, dma_cs_addr);
 	/*  wait for dma done bit */
 	dma_status = readb(dma_cs_addr);
-	for (i = 0; (dma_status & PLX_DMA_DONE_BIT) == 0 && i < timeout; i++) {
+	for (i = 0; (dma_status & PLX_DMACSR_DONE) == 0 && i < timeout; i++) {
 		udelay(1);
 		dma_status = readb(dma_cs_addr);
 	}

@@ -214,10 +214,10 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	dma0_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR0);
 	if (plx_status & PLX_INTCSR_DMA0IA) {
 		/* dma chan 0 interrupt */
-		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
+		writeb((dma0_status & PLX_DMACSR_ENABLE) | PLX_DMACSR_CLEARINTR,
 		       devpriv->plx9080_mmio + PLX_REG_DMACSR0);
 
-		if (dma0_status & PLX_DMA_EN_BIT)
+		if (dma0_status & PLX_DMACSR_ENABLE)
 			gsc_hpdi_drain_dma(dev, 0);
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -227,7 +227,7 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 	dma1_status = readb(devpriv->plx9080_mmio + PLX_REG_DMACSR1);
 	if (plx_status & PLX_INTCSR_DMA1IA) {
 		/* XXX */ /* dma chan 1 interrupt */
-		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
+		writeb((dma1_status & PLX_DMACSR_ENABLE) | PLX_DMACSR_CLEARINTR,
 		       devpriv->plx9080_mmio + PLX_REG_DMACSR1);
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -316,7 +316,7 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 
 	/* enable dma transfer */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT,
+	writeb(PLX_DMACSR_ENABLE | PLX_DMACSR_START | PLX_DMACSR_CLEARINTR,
 	       devpriv->plx9080_mmio + PLX_REG_DMACSR0);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 

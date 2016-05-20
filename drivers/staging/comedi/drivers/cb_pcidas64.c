@@ -2368,7 +2368,7 @@ static inline void dma_start_sync(struct comedi_device *dev,
 
 	/*  spinlock for plx dma control/status reg */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT,
+	writeb(PLX_DMACSR_ENABLE | PLX_DMACSR_START | PLX_DMACSR_CLEARINTR,
 	       devpriv->plx9080_iobase + PLX_REG_DMACSR(channel));
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
@@ -2838,10 +2838,10 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR1);
 	if (plx_status & PLX_INTCSR_DMA1IA) {	/*  dma chan 1 interrupt */
-		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
+		writeb((dma1_status & PLX_DMACSR_ENABLE) | PLX_DMACSR_CLEARINTR,
 		       devpriv->plx9080_iobase + PLX_REG_DMACSR1);
 
-		if (dma1_status & PLX_DMA_EN_BIT)
+		if (dma1_status & PLX_DMACSR_ENABLE)
 			drain_dma_buffers(dev, 1);
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -2889,7 +2889,7 @@ static int last_ao_dma_load_completed(struct comedi_device *dev)
 
 	buffer_index = prev_ao_dma_index(dev);
 	dma_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR0);
-	if ((dma_status & PLX_DMA_DONE_BIT) == 0)
+	if ((dma_status & PLX_DMACSR_DONE) == 0)
 		return 0;
 
 	transfer_address =
@@ -2903,8 +2903,8 @@ static int last_ao_dma_load_completed(struct comedi_device *dev)
 static inline int ao_dma_needs_restart(struct comedi_device *dev,
 				       unsigned short dma_status)
 {
-	if ((dma_status & PLX_DMA_DONE_BIT) == 0 ||
-	    (dma_status & PLX_DMA_EN_BIT) == 0)
+	if ((dma_status & PLX_DMACSR_DONE) == 0 ||
+	    (dma_status & PLX_DMACSR_ENABLE) == 0)
 		return 0;
 	if (last_ao_dma_load_completed(dev))
 		return 0;
@@ -3016,16 +3016,16 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(devpriv->plx9080_iobase + PLX_REG_DMACSR0);
 	if (plx_status & PLX_INTCSR_DMA0IA) {	/*  dma chan 0 interrupt */
-		if ((dma0_status & PLX_DMA_EN_BIT) &&
-		    !(dma0_status & PLX_DMA_DONE_BIT)) {
-			writeb(PLX_DMA_EN_BIT | PLX_CLEAR_DMA_INTR_BIT,
+		if ((dma0_status & PLX_DMACSR_ENABLE) &&
+		    !(dma0_status & PLX_DMACSR_DONE)) {
+			writeb(PLX_DMACSR_ENABLE | PLX_DMACSR_CLEARINTR,
 			       devpriv->plx9080_iobase + PLX_REG_DMACSR0);
 		} else {
-			writeb(PLX_CLEAR_DMA_INTR_BIT,
+			writeb(PLX_DMACSR_CLEARINTR,
 			       devpriv->plx9080_iobase + PLX_REG_DMACSR0);
 		}
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-		if (dma0_status & PLX_DMA_EN_BIT) {
+		if (dma0_status & PLX_DMACSR_ENABLE) {
 			load_ao_dma(dev, cmd);
 			/* try to recover from dma end-of-chain event */
 			if (ao_dma_needs_restart(dev, dma0_status))
