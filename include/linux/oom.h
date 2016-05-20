@@ -72,6 +72,14 @@ static inline bool oom_task_origin(const struct task_struct *p)
 
 extern void mark_oom_victim(struct task_struct *tsk);
 
+#ifdef CONFIG_MMU
+extern void try_oom_reaper(struct task_struct *tsk);
+#else
+static inline void try_oom_reaper(struct task_struct *tsk)
+{
+}
+#endif
+
 extern unsigned long oom_badness(struct task_struct *p,
 		struct mem_cgroup *memcg, const nodemask_t *nodemask,
 		unsigned long totalpages);

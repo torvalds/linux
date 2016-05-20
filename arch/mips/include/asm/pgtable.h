@@ -533,6 +533,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
+#define has_transparent_hugepage has_transparent_hugepage
 extern int has_transparent_hugepage(void);
 
 static inline int pmd_trans_huge(pmd_t pmd)

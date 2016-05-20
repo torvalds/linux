@@ -274,7 +274,8 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 		/* Ignore Linux defined bits when checking event below */
 		base_event = event & ~EVENT_LINUX_MASK;
 
-		if (pmc >= 5 && base_event != 0x500fa && base_event != 0x600f4)
+		if (pmc >= 5 && base_event != PM_RUN_INST_CMPL &&
+				base_event != PM_RUN_CYC)
 			return -1;
 
 		mask  |= CNST_PMC_MASK(pmc);
@@ -488,17 +489,17 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int event_alternatives[][MAX_ALT] = {
-	{ 0x10134, 0x301e2 },		/* PM_MRK_ST_CMPL */
-	{ 0x10138, 0x40138 },		/* PM_BR_MRK_2PATH */
-	{ 0x18082, 0x3e05e },		/* PM_L3_CO_MEPF */
-	{ 0x1d14e, 0x401e8 },		/* PM_MRK_DATA_FROM_L2MISS */
-	{ 0x1e054, 0x4000a },		/* PM_CMPLU_STALL */
-	{ 0x20036, 0x40036 },		/* PM_BR_2PATH */
-	{ 0x200f2, 0x300f2 },		/* PM_INST_DISP */
-	{ 0x200f4, 0x600f4 },		/* PM_RUN_CYC */
-	{ 0x2013c, 0x3012e },		/* PM_MRK_FILT_MATCH */
-	{ 0x3e054, 0x400f0 },		/* PM_LD_MISS_L1 */
-	{ 0x400fa, 0x500fa },		/* PM_RUN_INST_CMPL */
+	{ PM_MRK_ST_CMPL,		PM_MRK_ST_CMPL_ALT },
+	{ PM_BR_MRK_2PATH,		PM_BR_MRK_2PATH_ALT },
+	{ PM_L3_CO_MEPF,		PM_L3_CO_MEPF_ALT },
+	{ PM_MRK_DATA_FROM_L2MISS,	PM_MRK_DATA_FROM_L2MISS_ALT },
+	{ PM_CMPLU_STALL_ALT,		PM_CMPLU_STALL },
+	{ PM_BR_2PATH,			PM_BR_2PATH_ALT },
+	{ PM_INST_DISP,			PM_INST_DISP_ALT },
+	{ PM_RUN_CYC_ALT,		PM_RUN_CYC },
+	{ PM_MRK_FILT_MATCH,		PM_MRK_FILT_MATCH_ALT },
+	{ PM_LD_MISS_L1,		PM_LD_MISS_L1_ALT },
+	{ PM_RUN_INST_CMPL_ALT,		PM_RUN_INST_CMPL },
 };
 
 /*
@@ -546,17 +547,17 @@ static int power8_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 		j = num_alt;
 		for (i = 0; i < num_alt; ++i) {
 			switch (alt[i]) {
-			case 0x1e:	/* PM_CYC */
-				alt[j++] = 0x600f4;	/* PM_RUN_CYC */
+			case PM_CYC:
+				alt[j++] = PM_RUN_CYC;
 				break;
-			case 0x600f4:	/* PM_RUN_CYC */
-				alt[j++] = 0x1e;
+			case PM_RUN_CYC:
+				alt[j++] = PM_CYC;
 				break;
-			case 0x2:	/* PM_PPC_CMPL */
-				alt[j++] = 0x500fa;	/* PM_RUN_INST_CMPL */
+			case PM_INST_CMPL:
+				alt[j++] = PM_RUN_INST_CMPL;
 				break;
-			case 0x500fa:	/* PM_RUN_INST_CMPL */
-				alt[j++] = 0x2;	/* PM_PPC_CMPL */
+			case PM_RUN_INST_CMPL:
+				alt[j++] = PM_INST_CMPL;
 				break;
 			}
 		}

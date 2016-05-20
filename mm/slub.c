@@ -329,8 +329,8 @@ static inline void set_page_slub_counters(struct page *page, unsigned long count
 	tmp.counters = counters_new;
 	/*
 	 * page->counters can cover frozen/inuse/objects as well
-	 * as page->_count.  If we assign to ->counters directly
-	 * we run the risk of losing updates to page->_count, so
+	 * as page->_refcount.  If we assign to ->counters directly
+	 * we run the risk of losing updates to page->_refcount, so
 	 * be careful and only assign to the fields we need.
 	 */
 	page->frozen  = tmp.frozen;
@@ -1735,11 +1735,11 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
 	 * may return off node objects because partial slabs are obtained
 	 * from other nodes and filled up.
 	 *
-	 * If /sys/kernel/slab/xx/defrag_ratio is set to 100 (which makes
-	 * defrag_ratio = 1000) then every (well almost) allocation will
-	 * first attempt to defrag slab caches on other nodes. This means
-	 * scanning over all nodes to look for partial slabs which may be
-	 * expensive if we do it every time we are trying to find a slab
+	 * If /sys/kernel/slab/xx/remote_node_defrag_ratio is set to 100
+	 * (which makes defrag_ratio = 1000) then every (well almost)
+	 * allocation will first attempt to defrag slab caches on other nodes.
+	 * This means scanning over all nodes to look for partial slabs which
+	 * may be expensive if we do it every time we are trying to find a slab
 	 * with available objects.
 	 */
 	if (!s->remote_node_defrag_ratio ||
@@ -3697,7 +3697,7 @@ int __kmem_cache_shrink(struct kmem_cache *s, bool deactivate)
 		 * s->cpu_partial is checked locklessly (see put_cpu_partial),
 		 * so we have to make sure the change is visible.
 		 */
-		kick_all_cpus_sync();
+		synchronize_sched();
 	}
 
 	flush_all(s);

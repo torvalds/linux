@@ -1713,7 +1713,11 @@ static void kvmppc_core_destroy_vm_pr(struct kvm *kvm)
 
 static int kvmppc_core_check_processor_compat_pr(void)
 {
-	/* we are always compatible */
+	/*
+	 * Disable KVM for Power9 untill the required bits merged.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		return -EIO;
 	return 0;
 }
 
