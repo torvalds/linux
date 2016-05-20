@@ -667,7 +667,7 @@ static int android_verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto free_metadata;
 	}
 
-	if (!verity_enabled) {
+	if (verity_enabled) {
 		err = verify_verity_signature(key_id, metadata);
 
 		if (err) {
