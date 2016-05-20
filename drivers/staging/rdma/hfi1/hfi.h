@@ -455,9 +455,9 @@ struct rvt_sge_state;
 #define HLS_UP (HLS_UP_INIT | HLS_UP_ARMED | HLS_UP_ACTIVE)
 
 /* use this MTU size if none other is given */
-#define HFI1_DEFAULT_ACTIVE_MTU 8192
+#define HFI1_DEFAULT_ACTIVE_MTU 10240
 /* use this MTU size as the default maximum */
-#define HFI1_DEFAULT_MAX_MTU 8192
+#define HFI1_DEFAULT_MAX_MTU 10240
 /* default partition key */
 #define DEFAULT_PKEY 0xffff
 
@@ -606,7 +606,6 @@ struct hfi1_pportdata {
 	struct work_struct link_vc_work;
 	struct work_struct link_up_work;
 	struct work_struct link_down_work;
-	struct work_struct dc_host_req_work;
 	struct work_struct sma_message_work;
 	struct work_struct freeze_work;
 	struct work_struct link_downgrade_work;
@@ -1258,7 +1257,7 @@ void receive_interrupt_work(struct work_struct *work);
 static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
 {
 	return ((be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf) |
-	       ((!!(rhf & RHF_DC_INFO_MASK)) << 4);
+	       ((!!(rhf & RHF_DC_INFO_SMASK)) << 4);
 }
 
 static inline u16 generate_jkey(kuid_t uid)
@@ -1333,6 +1332,9 @@ void process_becn(struct hfi1_pportdata *ppd, u8 sl,  u16 rlid, u32 lqpn,
 void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 		u32 pkey, u32 slid, u32 dlid, u8 sc5,
 		const struct ib_grh *old_grh);
+#define PKEY_CHECK_INVALID -1
+int egress_pkey_check(struct hfi1_pportdata *ppd, __be16 *lrh, __be32 *bth,
+		      u8 sc5, int8_t s_pkey_index);
 
 #define PACKET_EGRESS_TIMEOUT 350
 static inline void pause_for_credit_return(struct hfi1_devdata *dd)
@@ -1776,6 +1778,7 @@ extern struct mutex hfi1_mutex;
 
 #define HFI1_PKT_USER_SC_INTEGRITY					    \
 	(SEND_CTXT_CHECK_ENABLE_DISALLOW_NON_KDETH_PACKETS_SMASK	    \
+	| SEND_CTXT_CHECK_ENABLE_DISALLOW_KDETH_PACKETS_SMASK		\
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_BYPASS_SMASK		    \
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_GRH_SMASK)
 

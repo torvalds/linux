@@ -536,7 +536,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	data = ibnl_put_msg(skb, &nlh, query->seq, 0, RDMA_NL_LS,
 			    RDMA_NL_LS_OP_RESOLVE, NLM_F_REQUEST);
 	if (!data) {
-		kfree_skb(skb);
+		nlmsg_free(skb);
 		return -EMSGSIZE;
 	}
 
@@ -1820,7 +1820,7 @@ static int __init ib_sa_init(void)
 		goto err3;
 	}
 
-	if (ibnl_add_client(RDMA_NL_LS, RDMA_NL_LS_NUM_OPS,
+	if (ibnl_add_client(RDMA_NL_LS, ARRAY_SIZE(ib_sa_cb_table),
 			    ib_sa_cb_table)) {
 		pr_err("Failed to add netlink callback\n");
 		ret = -EINVAL;

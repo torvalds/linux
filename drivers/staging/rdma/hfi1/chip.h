@@ -389,6 +389,7 @@
 #define LAST_REMOTE_STATE_COMPLETE   0x13
 #define LINK_QUALITY_INFO            0x14
 #define REMOTE_DEVICE_ID	     0x15
+#define LINK_DOWN_REASON	     0x16
 
 /* 8051 lane specific register field IDs */
 #define TX_EQ_SETTINGS		0x00
@@ -496,6 +497,11 @@
 /* verify capability PHY power management bits */
 #define PWRM_BER_CONTROL	0x1
 #define PWRM_BANDWIDTH_CONTROL	0x2
+
+/* 8051 link down reasons */
+#define LDR_LINK_TRANSFER_ACTIVE_LOW   0xa
+#define LDR_RECEIVED_LINKDOWN_IDLE_MSG 0xb
+#define LDR_RECEIVED_HOST_OFFLINE_REQ  0xc
 
 /* verify capability fabric CRC size bits */
 enum {
@@ -691,7 +697,6 @@ void handle_verify_cap(struct work_struct *work);
 void handle_freeze(struct work_struct *work);
 void handle_link_up(struct work_struct *work);
 void handle_link_down(struct work_struct *work);
-void handle_8051_request(struct work_struct *work);
 void handle_link_downgrade(struct work_struct *work);
 void handle_link_bounce(struct work_struct *work);
 void handle_sma_message(struct work_struct *work);
