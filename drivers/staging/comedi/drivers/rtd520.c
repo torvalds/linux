@@ -1175,7 +1175,7 @@ static void rtd_reset(struct comedi_device *dev)
 
 	writel(0, dev->mmio + LAS0_BOARD_RESET);
 	usleep_range(100, 1000);	/* needed? */
-	writel(0, devpriv->lcfg + PLX_INTRCS_REG);
+	writel(0, devpriv->lcfg + PLX_REG_INTCSR);
 	writew(0, dev->mmio + LAS0_IT);
 	writew(~0, dev->mmio + LAS0_CLEAR);
 	readw(dev->mmio + LAS0_CLEAR);
@@ -1316,7 +1316,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	devpriv->fifosz = ret;
 
 	if (dev->irq)
-		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + PLX_INTRCS_REG);
+		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + PLX_REG_INTCSR);
 
 	return 0;
 }

@@ -36,7 +36,7 @@ struct plx_dma_desc {
 	__le32 transfer_size;
 	/*
 	 * address of next descriptor (quad word aligned), plus some
-	 * additional bits (see PLX_DMA0_DESCRIPTOR_REG)
+	 * additional bits (see PLX_REG_DMADPR)
 	 */
 	__le32 next;
 };
@@ -49,10 +49,11 @@ struct plx_dma_desc {
 **
 **********************************************************************/
 
-/* L, Local Addr Space 0 Range Register */
-#define PLX_LAS0RNG_REG         0x0000
-/* L, Local Addr Space 1 Range Register */
-#define PLX_LAS1RNG_REG         0x00f0
+/* Local Address Space 0 Range Register */
+#define PLX_REG_LAS0RR		0x0000
+/* Local Address Space 1 Range Register */
+#define PLX_REG_LAS1RR		0x00f0
+
 #define  LRNG_IO           0x00000001	/* Map to: 1=I/O, 0=Mem */
 #define  LRNG_ANY32        0x00000000	/* Locate anywhere in 32 bit */
 #define  LRNG_LT1MB        0x00000002	/* Locate in 1st meg */
@@ -61,21 +62,23 @@ struct plx_dma_desc {
 #define  LRNG_MEM_MASK     0xfffffff0
 /*  bits that specify range for normal io */
 #define  LRNG_IO_MASK     0xfffffffc
-/* L, Local Addr Space 0 Remap Register */
-#define PLX_LAS0MAP_REG         0x0004
-/* L, Local Addr Space 1 Remap Register */
-#define PLX_LAS1MAP_REG         0x00f4
+
+/* Local Address Space 0 Local Base Address (Remap) Register */
+#define PLX_REG_LAS0BA		0x0004
+/* Local Address Space 1 Local Base Address (Remap) Register */
+#define PLX_REG_LAS1BA		0x00f4
+
 #define  LMAP_EN           0x00000001	/* Enable slave decode */
 /*  bits that specify decode for memory io */
 #define  LMAP_MEM_MASK     0xfffffff0
 /*  bits that specify decode bits for normal io */
 #define  LMAP_IO_MASK     0xfffffffc
 
-/*
- * Mode/Arbitration Register.
- */
-#define PLX_MARB_REG         0x8	/* L, Local Arbitration Register */
-#define PLX_DMAARB_REG      0xac
+/* Mode/Arbitration Register */
+#define PLX_REG_MARBR		0x0008
+/* DMA Arbitration Register (alias of MARBR). */
+#define PLX_REG_DMAARB		0x00ac
+
 enum marb_bits {
 	MARB_LLT_MASK = 0x000000ff,	/* Local Bus Latency Timer */
 	MARB_LPT_MASK = 0x0000ff00,	/* Local Bus Pause Timer */
@@ -97,7 +100,9 @@ enum marb_bits {
 	MARB_USE_SUBSYSTEM_IDS = 0x20000000,
 };
 
-#define PLX_BIGEND_REG 0xc
+/* Big/Little Endian Descriptor Register */
+#define PLX_REG_BIGEND		0x000c
+
 enum bigend_bits {
 	/* use big endian ordering for configuration register accesses */
 	BIGEND_CONFIG = 0x1,
@@ -119,11 +124,16 @@ enum bigend_bits {
 **       This expansion ROM code is executed by the host CPU at boot time.
 **       For this reason no bit definitions are provided here.
  */
-#define PLX_ROMRNG_REG         0x0010	/* L, Expn ROM Space Range Register */
-/* L, Local Addr Space Range Register */
-#define PLX_ROMMAP_REG         0x0014
+/* Expansion ROM Range Register */
+#define PLX_REG_EROMRR		0x0010
+/* Expansion ROM Local Base Address (Remap) Register */
+#define PLX_REG_EROMBA		0x0014
 
-#define PLX_REGION0_REG         0x0018	/* L, Local Bus Region 0 Descriptor */
+/* Local Address Space 0/Expansion ROM Bus Region Descriptor Register */
+#define PLX_REG_LBRD0		0x0018
+/* Local Address Space 1 Bus Region Descriptor Register */
+#define PLX_REG_LBRD1		0x00f8
+
 #define  RGN_WIDTH         0x00000002	/* Local bus width bits */
 #define  RGN_8BITS         0x00000000	/* 08 bit Local Bus */
 #define  RGN_16BITS        0x00000001	/* 16 bit Local Bus */
@@ -149,15 +159,18 @@ enum bigend_bits {
 #define  RGN_THROT         0x08000000	/* De-assert TRDY when FIFO full */
 #define  RGN_TRD           0xF0000000	/* Target Ready Delay /8 */
 
-#define PLX_REGION1_REG         0x00f8	/* L, Local Bus Region 1 Descriptor */
+/* Local Range Register for Direct Master to PCI */
+#define PLX_REG_DMRR		0x001c
 
-#define PLX_DMRNG_REG          0x001C	/* L, Direct Master Range Register */
+/* Local Bus Base Address Register for Direct Master to PCI Memory */
+#define PLX_REG_DMLBAM		0x0020
 
-#define PLX_LBAPMEM_REG        0x0020	/* L, Lcl Base Addr for PCI mem space */
+/* Local Base Address Register for Direct Master to PCI IO/CFG */
+#define PLX_REG_DMLBAI		0x0024
 
-#define PLX_LBAPIO_REG         0x0024	/* L, Lcl Base Addr for PCI I/O space */
+/* PCI Base Address (Remap) Register for Direct Master to PCI Memory */
+#define PLX_REG_DMPBAM		0x0028
 
-#define PLX_DMMAP_REG          0x0028	/* L, Direct Master Remap Register */
 #define  DMM_MAE           0x00000001	/* Direct Mstr Memory Acc Enable */
 #define  DMM_IAE           0x00000002	/* Direct Mstr I/O Acc Enable */
 #define  DMM_LCK           0x00000004	/* LOCK Input Enable */
@@ -173,7 +186,9 @@ enum bigend_bits {
 #define  DMM_PAF7          0x000000D0	/* Programmable Almost fill level */
 #define  DMM_MAP           0xFFFF0000	/* Remap Address Bits */
 
-#define PLX_CAR_REG            0x002C	/* L, Configuration Address Register */
+/* PCI Configuration Address Register for Direct Master to PCI IO/CFG */
+#define PLX_REG_DMCFGA		0x002c
+
 #define  CAR_CT0           0x00000000	/* Config Type 0 */
 #define  CAR_CT1           0x00000001	/* Config Type 1 */
 #define  CAR_REG           0x000000FC	/* Register Number Bits */
@@ -182,11 +197,38 @@ enum bigend_bits {
 #define  CAR_BUS           0x00FF0000	/* Bus Number Bits */
 #define  CAR_CFG           0x80000000	/* Config Spc Access Enable */
 
-#define PLX_DBR_IN_REG         0x0060	/* L, PCI to Local Doorbell Register */
+/*
+ * Mailbox Register N (N <= 7)
+ *
+ * Note that if the I2O feature is enabled (QSR[0] is set), Mailbox Register 0
+ * is replaced by the Inbound Queue Port, and Mailbox Register 1 is replaced
+ * by the Outbound Queue Port.  However, Mailbox Register 0 and 1 are always
+ * accessible at alternative offsets if the I2O feature is enabled.
+ */
+#define PLX_REG_MBOX(n)		(0x0040 + (n) * 4)
+#define PLX_REG_MBOX0		PLX_REG_MBOX(0)
+#define PLX_REG_MBOX1		PLX_REG_MBOX(1)
+#define PLX_REG_MBOX2		PLX_REG_MBOX(2)
+#define PLX_REG_MBOX3		PLX_REG_MBOX(3)
+#define PLX_REG_MBOX4		PLX_REG_MBOX(4)
+#define PLX_REG_MBOX5		PLX_REG_MBOX(5)
+#define PLX_REG_MBOX6		PLX_REG_MBOX(6)
+#define PLX_REG_MBOX7		PLX_REG_MBOX(7)
 
-#define PLX_DBR_OUT_REG        0x0064	/* L, Local to PCI Doorbell Register */
+/* Alternative offsets for Mailbox Registers 0 and 1 (in case I2O is enabled) */
+#define PLX_REG_ALT_MBOX(n)	((n) < 2 ? 0x0078 + (n) * 4 : PLX_REG_MBOX(n))
+#define PLX_REG_ALT_MBOX0	PLX_REG_ALT_MBOX(0)
+#define PLX_REG_ALT_MBOX1	PLX_REG_ALT_MBOX(1)
 
-#define PLX_INTRCS_REG         0x0068	/* L, Interrupt Control/Status Reg */
+/* PCI-to-Local Doorbell Register */
+#define PLX_REG_P2LDBELL	0x0060
+
+/* Local-to-PCI Doorbell Register */
+#define PLX_REG_L2PDBELL	0x0064
+
+/* Interrupt Control/Status Register */
+#define PLX_REG_INTCSR		0x0068
+
 #define  ICS_AERR          0x00000001	/* Assert LSERR on ABORT */
 #define  ICS_PERR          0x00000002	/* Assert LSERR on Parity Error */
 #define  ICS_SERR          0x00000004	/* Generate PCI SERR# */
@@ -214,7 +256,12 @@ enum bigend_bits {
 /*  mailbox x is active */
 #define  ICS_MBIA(x)       (0x10000000 << ((x) & 0x3))
 
-#define PLX_CONTROL_REG        0x006C	/* L, EEPROM Cntl & PCI Cmd Codes */
+/*
+ * Serial EEPROM Control, PCI Command Codes, User I/O Control,
+ * Init Control Register
+ */
+#define PLX_REG_CNTRL		0x006c
+
 #define  CTL_RDMA          0x0000000E	/* DMA Read Command */
 #define  CTL_WDMA          0x00000070	/* DMA Write Command */
 #define  CTL_RMEM          0x00000600	/* Memory Read Command */
@@ -230,12 +277,17 @@ enum bigend_bits {
 #define  CTL_RESET         0x40000000	/* !! Adapter Reset !! */
 #define  CTL_READY         0x80000000	/* Local Init Done */
 
-#define PLX_ID_REG	0x70	/*  hard-coded plx vendor and device ids */
+/* PCI Permanent Configuration ID Register (hard-coded PLX vendor and device) */
+#define PLX_REG_PCIHIDR		0x0070
 
-#define PLX_REVISION_REG	0x74	/*  silicon revision */
+/* PCI Permanent Revision ID Register (hard-coded silicon revision) (8-bit). */
+#define PLX_REG_PCIHREV		0x0074
 
-#define PLX_DMA0_MODE_REG	0x80	/*  dma channel 0 mode register */
-#define PLX_DMA1_MODE_REG	0x94	/*  dma channel 0 mode register */
+/* DMA Channel N Mode Register (N <= 1) */
+#define PLX_REG_DMAMODE(n)	((n) ? PLX_REG_DMAMODE1 : PLX_REG_DMAMODE0)
+#define PLX_REG_DMAMODE0	0x0080
+#define PLX_REG_DMAMODE1	0x0094
+
 #define  PLX_LOCAL_BUS_16_WIDE_BITS	0x1
 #define  PLX_LOCAL_BUS_32_WIDE_BITS	0x3
 #define  PLX_LOCAL_BUS_WIDTH_MASK	0x3
@@ -254,20 +306,26 @@ enum bigend_bits {
 /*  routes dma interrupt to pci bus (instead of local bus) */
 #define  PLX_DMA_INTR_PCI_BIT	0x20000
 
-/*  pci address that dma transfers start at */
-#define PLX_DMA0_PCI_ADDRESS_REG	0x84
-#define PLX_DMA1_PCI_ADDRESS_REG	0x98
+/* DMA Channel N PCI Address Register (N <= 1) */
+#define PLX_REG_DMAPADR(n)	((n) ? PLX_REG_DMAPADR1 : PLX_REG_DMAPADR0)
+#define PLX_REG_DMAPADR0	0x0084
+#define PLX_REG_DMAPADR1	0x0098
 
-/*  local address that dma transfers start at */
-#define PLX_DMA0_LOCAL_ADDRESS_REG	0x88
-#define PLX_DMA1_LOCAL_ADDRESS_REG	0x9c
+/* DMA Channel N Local Address Register (N <= 1) */
+#define PLX_REG_DMALADR(n)	((n) ? PLX_REG_DMALADR1 : PLX_REG_DMALADR0)
+#define PLX_REG_DMALADR0	0x0088
+#define PLX_REG_DMALADR1	0x009c
 
-/*  number of bytes to transfer (first 23 bits) */
-#define PLX_DMA0_TRANSFER_SIZE_REG	0x8c
-#define PLX_DMA1_TRANSFER_SIZE_REG	0xa0
+/* DMA Channel N Transfer Size (Bytes) Register (N <= 1) (first 23 bits) */
+#define PLX_REG_DMASIZ(n)	((n) ? PLX_REG_DMASIZ1 : PLX_REG_DMASIZ0)
+#define PLX_REG_DMASIZ0		0x008c
+#define PLX_REG_DMASIZ1		0x00a0
 
-#define PLX_DMA0_DESCRIPTOR_REG	0x90	/*  descriptor pointer register */
-#define PLX_DMA1_DESCRIPTOR_REG	0xa4
+/* DMA Channel N Descriptor Pointer Register (N <= 1) */
+#define PLX_REG_DMADPR(n)	((n) ? PLX_REG_DMADPR1 : PLX_REG_DMADPR0)
+#define PLX_REG_DMADPR0		0x0090
+#define PLX_REG_DMADPR1		0x00a4
+
 /*  descriptor is located in pci space (not local space) */
 #define  PLX_DESC_IN_PCI_BIT	0x1
 #define  PLX_END_OF_CHAIN_BIT	0x2	/*  end of chain bit */
@@ -276,15 +334,33 @@ enum bigend_bits {
 /*  transfer from local to pci bus (not pci to local) */
 #define  PLX_XFER_LOCAL_TO_PCI 0x8
 
-#define PLX_DMA0_CS_REG	0xa8	/*  command status register */
-#define PLX_DMA1_CS_REG	0xa9
+/* DMA Channel N Command/Status Register (N <= 1) (8-bit) */
+#define PLX_REG_DMACSR(n)	((n) ? PLX_REG_DMACSR1 : PLX_REG_DMACSR0)
+#define PLX_REG_DMACSR0		0x00a8
+#define PLX_REG_DMACSR1		0x00a9
+
 #define  PLX_DMA_EN_BIT	0x1	/*  enable dma channel */
 #define  PLX_DMA_START_BIT	0x2	/*  start dma transfer */
 #define  PLX_DMA_ABORT_BIT	0x4	/*  abort dma transfer */
 #define  PLX_CLEAR_DMA_INTR_BIT	0x8	/*  clear dma interrupt */
 #define  PLX_DMA_DONE_BIT	0x10	/*  transfer done status bit */
 
-#define PLX_DMA0_THRESHOLD_REG	0xb0	/*  command status register */
+/* DMA Threshold Register */
+#define PLX_REG_DMATHR		0x00b0
+
+/*
+ * Messaging Queue Registers OPLFIS, OPLFIM, IQP, OQP, MQCR, QBAR, IFHPR,
+ * IFTPR, IPHPR, IPTPR, OFHPR, OFTPR, OPHPR, OPTPR, and QSR have been omitted.
+ * They are used by the I2O feature.  (IQP and OQP occupy the usual offsets of
+ * the MBOX0 and MBOX1 registers if the I2O feature is enabled, but MBOX0 and
+ * MBOX1 are accessible via alternative offsets.
+ */
+
+/* Queue Status/Control Register */
+#define PLX_REG_QSR		0x00e8
+
+/* Value of QSR after reset - disables I2O feature completely. */
+#define PLX_QSR_VALUE_AFTER_RESET	0x00000050
 
 /*
  * Accesses near the end of memory can cause the PLX chip
@@ -301,10 +377,7 @@ static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 	const int timeout = 10000;
 	unsigned int i;
 
-	if (channel)
-		dma_cs_addr = iobase + PLX_DMA1_CS_REG;
-	else
-		dma_cs_addr = iobase + PLX_DMA0_CS_REG;
+	dma_cs_addr = iobase + PLX_REG_DMACSR(channel);
 
 	/*  abort dma transfer if necessary */
 	dma_status = readb(dma_cs_addr);
