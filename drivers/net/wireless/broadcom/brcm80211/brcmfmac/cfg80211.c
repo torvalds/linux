@@ -2749,7 +2749,7 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 	if (!bi->ctl_ch) {
 		ch.chspec = le16_to_cpu(bi->chanspec);
 		cfg->d11inf.decchspec(&ch);
-		bi->ctl_ch = ch.chnum;
+		bi->ctl_ch = ch.control_ch_num;
 	}
 	channel = bi->ctl_ch;
 
@@ -2867,7 +2867,7 @@ static s32 brcmf_inform_ibss(struct brcmf_cfg80211_info *cfg,
 	else
 		band = wiphy->bands[NL80211_BAND_5GHZ];
 
-	freq = ieee80211_channel_to_frequency(ch.chnum, band->band);
+	freq = ieee80211_channel_to_frequency(ch.control_ch_num, band->band);
 	cfg->channel = freq;
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
@@ -2877,7 +2877,7 @@ static s32 brcmf_inform_ibss(struct brcmf_cfg80211_info *cfg,
 	notify_ielen = le32_to_cpu(bi->ie_length);
 	notify_signal = (s16)le16_to_cpu(bi->RSSI) * 100;
 
-	brcmf_dbg(CONN, "channel: %d(%d)\n", ch.chnum, freq);
+	brcmf_dbg(CONN, "channel: %d(%d)\n", ch.control_ch_num, freq);
 	brcmf_dbg(CONN, "capability: %X\n", notify_capability);
 	brcmf_dbg(CONN, "beacon interval: %d\n", notify_interval);
 	brcmf_dbg(CONN, "signal: %d\n", notify_signal);
@@ -5295,7 +5295,7 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 	else
 		band = wiphy->bands[NL80211_BAND_5GHZ];
 
-	freq = ieee80211_channel_to_frequency(ch.chnum, band->band);
+	freq = ieee80211_channel_to_frequency(ch.control_ch_num, band->band);
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
 done:
@@ -5817,14 +5817,15 @@ static int brcmf_construct_chaninfo(struct brcmf_cfg80211_info *cfg,
 		channel = band->channels;
 		index = band->n_channels;
 		for (j = 0; j < band->n_channels; j++) {
-			if (channel[j].hw_value == ch.chnum) {
+			if (channel[j].hw_value == ch.control_ch_num) {
 				index = j;
 				break;
 			}
 		}
 		channel[index].center_freq =
-			ieee80211_channel_to_frequency(ch.chnum, band->band);
-		channel[index].hw_value = ch.chnum;
+			ieee80211_channel_to_frequency(ch.control_ch_num,
+						       band->band);
+		channel[index].hw_value = ch.control_ch_num;
 
 		/* assuming the chanspecs order is HT20,
 		 * HT40 upper, HT40 lower, and VHT80.
@@ -5926,7 +5927,7 @@ static int brcmf_enable_bw40_2g(struct brcmf_cfg80211_info *cfg)
 			if (WARN_ON(ch.bw != BRCMU_CHAN_BW_40))
 				continue;
 			for (j = 0; j < band->n_channels; j++) {
-				if (band->channels[j].hw_value == ch.chnum)
+				if (band->channels[j].hw_value == ch.control_ch_num)
 					break;
 			}
 			if (WARN_ON(j == band->n_channels))
