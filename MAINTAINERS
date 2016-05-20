@@ -6857,6 +6857,7 @@ F:	drivers/crypto/nx/
 F:	drivers/crypto/vmx/
 F:	drivers/net/ethernet/ibm/ibmveth.*
 F:	drivers/net/ethernet/ibm/ibmvnic.*
+F:	drivers/pci/hotplug/pnv_php.c
 F:	drivers/pci/hotplug/rpa*
 F:	drivers/scsi/ibmvscsi/
 N:	opal
