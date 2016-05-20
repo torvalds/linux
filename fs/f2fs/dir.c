@@ -437,7 +437,7 @@ struct page *init_inode_metadata(struct inode *inode, struct inode *dir,
 		 */
 		if (inode->i_nlink == 0)
 			remove_orphan_inode(F2FS_I_SB(dir), inode->i_ino);
-		inc_nlink(inode);
+		f2fs_i_links_write(inode, true);
 	}
 	return page;
 
@@ -456,7 +456,7 @@ void update_parent_metadata(struct inode *dir, struct inode *inode,
 {
 	if (inode && is_inode_flag_set(inode, FI_NEW_INODE)) {
 		if (S_ISDIR(inode->i_mode)) {
-			inc_nlink(dir);
+			f2fs_i_links_write(dir, true);
 			set_inode_flag(dir, FI_UPDATE_DIR);
 		}
 		clear_inode_flag(inode, FI_NEW_INODE);
@@ -675,7 +675,7 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode, struct page *page)
 	down_write(&F2FS_I(inode)->i_sem);
 
 	if (S_ISDIR(inode->i_mode)) {
-		drop_nlink(dir);
+		f2fs_i_links_write(dir, false);
 		if (page)
 			update_inode(dir, page);
 		else
@@ -683,9 +683,9 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode, struct page *page)
 	}
 	inode->i_ctime = CURRENT_TIME;
 
-	drop_nlink(inode);
+	f2fs_i_links_write(inode, false);
 	if (S_ISDIR(inode->i_mode)) {
-		drop_nlink(inode);
+		f2fs_i_links_write(inode, false);
 		f2fs_i_size_write(inode, 0);
 	}
 	up_write(&F2FS_I(inode)->i_sem);

@@ -535,6 +535,7 @@ static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 	}
 
 	clear_nlink(inode);
+	mark_inode_dirty_sync(inode);
 
 	/* truncate all the data during iput */
 	iput(inode);

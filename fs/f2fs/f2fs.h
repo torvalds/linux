@@ -1557,6 +1557,15 @@ static inline void set_acl_inode(struct inode *inode, umode_t mode)
 	set_inode_flag(inode, FI_ACL_MODE);
 }
 
+static inline void f2fs_i_links_write(struct inode *inode, bool inc)
+{
+	if (inc)
+		inc_nlink(inode);
+	else
+		drop_nlink(inode);
+	mark_inode_dirty_sync(inode);
+}
+
 static inline void f2fs_i_blocks_write(struct inode *inode,
 					blkcnt_t diff, bool add)
 {
