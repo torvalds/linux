@@ -286,16 +286,9 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 static int inode_go_demote_ok(const struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_holder *gh;
 
 	if (sdp->sd_jindex == gl->gl_object || sdp->sd_rindex == gl->gl_object)
 		return 0;
-
-	if (!list_empty(&gl->gl_holders)) {
-		gh = list_entry(gl->gl_holders.next, struct gfs2_holder, gh_list);
-		if (gh->gh_list.next != &gl->gl_holders)
-			return 0;
-	}
 
 	return 1;
 }
