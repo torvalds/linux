@@ -170,7 +170,7 @@
 		};
 	};
 
-	vcc_sdhi0: regulator@0 {
+	vcc_sdhi0: regulator-vcc-sdhi0 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "SDHI0 Vcc";
@@ -181,7 +181,7 @@
 		enable-active-high;
 	};
 
-	vccq_sdhi0: regulator@1 {
+	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 
 		regulator-name = "SDHI0 VccQ";
@@ -194,7 +194,7 @@
 			  1800000 0>;
 	};
 
-	vcc_sdhi1: regulator@2 {
+	vcc_sdhi1: regulator-vcc-sdhi1 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "SDHI1 Vcc";
@@ -205,7 +205,7 @@
 		enable-active-high;
 	};
 
-	vccq_sdhi1: regulator@3 {
+	vccq_sdhi1: regulator-vccq-sdhi1 {
 		compatible = "regulator-gpio";
 
 		regulator-name = "SDHI1 VccQ";
@@ -218,7 +218,7 @@
 			  1800000 0>;
 	};
 
-	vcc_sdhi2: regulator@4 {
+	vcc_sdhi2: regulator-vcc-sdhi2 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "SDHI2 Vcc";
@@ -229,7 +229,7 @@
 		enable-active-high;
 	};
 
-	vccq_sdhi2: regulator@5 {
+	vccq_sdhi2: regulator-vccq-sdhi2 {
 		compatible = "regulator-gpio";
 
 		regulator-name = "SDHI2 VccQ";
