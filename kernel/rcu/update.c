@@ -380,29 +380,9 @@ void destroy_rcu_head(struct rcu_head *head)
 	debug_object_free(head, &rcuhead_debug_descr);
 }
 
-/*
- * fixup_activate is called when:
- * - an active object is activated
- * - an unknown object is activated (might be a statically initialized object)
- * Activation is performed internally by call_rcu().
- */
-static bool rcuhead_fixup_activate(void *addr, enum debug_obj_state state)
+static bool rcuhead_is_static_object(void *addr)
 {
-	struct rcu_head *head = addr;
-
-	switch (state) {
-
-	case ODEBUG_STATE_NOTAVAILABLE:
-		/*
-		 * This is not really a fixup. We just make sure that it is
-		 * tracked in the object tracker.
-		 */
-		debug_object_init(head, &rcuhead_debug_descr);
-		debug_object_activate(head, &rcuhead_debug_descr);
-		return false;
-	default:
-		return true;
-	}
+	return true;
 }
 
 /**
@@ -440,7 +420,7 @@ EXPORT_SYMBOL_GPL(destroy_rcu_head_on_stack);
 
 struct debug_obj_descr rcuhead_debug_descr = {
 	.name = "rcu_head",
-	.fixup_activate = rcuhead_fixup_activate,
+	.is_static_object = rcuhead_is_static_object,
 };
 EXPORT_SYMBOL_GPL(rcuhead_debug_descr);
 #endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */

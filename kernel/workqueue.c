@@ -433,6 +433,13 @@ static void *work_debug_hint(void *addr)
 	return ((struct work_struct *) addr)->func;
 }
 
+static bool work_is_static_object(void *addr)
+{
+	struct work_struct *work = addr;
+
+	return test_bit(WORK_STRUCT_STATIC_BIT, work_data_bits(work));
+}
+
 /*
  * fixup_init is called when:
  * - an active object is initialized
@@ -446,39 +453,6 @@ static bool work_fixup_init(void *addr, enum debug_obj_state state)
 		cancel_work_sync(work);
 		debug_object_init(work, &work_debug_descr);
 		return true;
-	default:
-		return false;
-	}
-}
-
-/*
- * fixup_activate is called when:
- * - an active object is activated
- * - an unknown object is activated (might be a statically initialized object)
- */
-static bool work_fixup_activate(void *addr, enum debug_obj_state state)
-{
-	struct work_struct *work = addr;
-
-	switch (state) {
-
-	case ODEBUG_STATE_NOTAVAILABLE:
-		/*
-		 * This is not really a fixup. The work struct was
-		 * statically initialized. We just make sure that it
-		 * is tracked in the object tracker.
-		 */
-		if (test_bit(WORK_STRUCT_STATIC_BIT, work_data_bits(work))) {
-			debug_object_init(work, &work_debug_descr);
-			debug_object_activate(work, &work_debug_descr);
-			return false;
-		}
-		WARN_ON_ONCE(1);
-		return false;
-
-	case ODEBUG_STATE_ACTIVE:
-		WARN_ON(1);
-
 	default:
 		return false;
 	}
@@ -505,8 +479,8 @@ static bool work_fixup_free(void *addr, enum debug_obj_state state)
 static struct debug_obj_descr work_debug_descr = {
 	.name		= "work_struct",
 	.debug_hint	= work_debug_hint,
+	.is_static_object = work_is_static_object,
 	.fixup_init	= work_fixup_init,
-	.fixup_activate	= work_fixup_activate,
 	.fixup_free	= work_fixup_free,
 };
 

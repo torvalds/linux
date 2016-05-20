@@ -351,16 +351,11 @@ static bool hrtimer_fixup_init(void *addr, enum debug_obj_state state)
 /*
  * fixup_activate is called when:
  * - an active object is activated
- * - an unknown object is activated (might be a statically initialized object)
+ * - an unknown non-static object is activated
  */
 static bool hrtimer_fixup_activate(void *addr, enum debug_obj_state state)
 {
 	switch (state) {
-
-	case ODEBUG_STATE_NOTAVAILABLE:
-		WARN_ON_ONCE(1);
-		return false;
-
 	case ODEBUG_STATE_ACTIVE:
 		WARN_ON(1);
 
