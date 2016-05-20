@@ -1076,8 +1076,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	local_irq_restore(flags);
 }
 
-static void __init __free_pages_boot_core(struct page *page,
-					unsigned long pfn, unsigned int order)
+static void __init __free_pages_boot_core(struct page *page, unsigned int order)
 {
 	unsigned int nr_pages = 1 << order;
 	struct page *p = page;
@@ -1154,7 +1153,7 @@ void __init __free_pages_bootmem(struct page *page, unsigned long pfn,
 {
 	if (early_page_uninitialised(pfn))
 		return;
-	return __free_pages_boot_core(page, pfn, order);
+	return __free_pages_boot_core(page, order);
 }
 
 /*
@@ -1239,12 +1238,12 @@ static void __init deferred_free_range(struct page *page,
 	if (nr_pages == MAX_ORDER_NR_PAGES &&
 	    (pfn & (MAX_ORDER_NR_PAGES-1)) == 0) {
 		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-		__free_pages_boot_core(page, pfn, MAX_ORDER-1);
+		__free_pages_boot_core(page, MAX_ORDER-1);
 		return;
 	}
 
-	for (i = 0; i < nr_pages; i++, page++, pfn++)
-		__free_pages_boot_core(page, pfn, 0);
+	for (i = 0; i < nr_pages; i++, page++)
+		__free_pages_boot_core(page, 0);
 }
 
 /* Completion tracking for deferred_init_memmap() threads */
