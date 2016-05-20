@@ -670,6 +670,7 @@ static void truncate_node(struct dnode_of_data *dn)
 	if (dn->nid == dn->inode->i_ino) {
 		remove_orphan_inode(sbi, dn->nid);
 		dec_valid_inode_count(sbi);
+		f2fs_inode_synced(dn->inode);
 	} else {
 		sync_inode_page(dn);
 	}

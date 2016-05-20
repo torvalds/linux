@@ -442,7 +442,8 @@ struct f2fs_inode_info {
 	nid_t i_xattr_nid;		/* node id that contains xattrs */
 	unsigned long long xattr_ver;	/* cp version of xattr modification */
 
-	struct list_head dirty_list;	/* linked in global dirty list */
+	struct list_head dirty_list;	/* dirty list for dirs and files */
+	struct list_head gdirty_list;	/* linked in global dirty list */
 	struct list_head inmem_pages;	/* inmemory pages managed by f2fs */
 	struct mutex inmem_lock;	/* lock for inmemory pages */
 	struct extent_tree *extent_tree;	/* cached extent_tree entry */
@@ -657,6 +658,7 @@ enum count_type {
 	F2FS_DIRTY_NODES,
 	F2FS_DIRTY_META,
 	F2FS_INMEM_PAGES,
+	F2FS_DIRTY_IMETA,
 	NR_COUNT_TYPE,
 };
 
@@ -707,6 +709,7 @@ struct f2fs_bio_info {
 enum inode_type {
 	DIR_INODE,			/* for dirty dir inode */
 	FILE_INODE,			/* for dirty regular/symlink inode */
+	DIRTY_META,			/* for all dirtied inode metadata */
 	NR_INODE_TYPE,
 };
 
@@ -1899,6 +1902,7 @@ static inline int f2fs_add_link(struct dentry *dentry, struct inode *inode)
 /*
  * super.c
  */
+void f2fs_inode_synced(struct inode *);
 int f2fs_commit_super(struct f2fs_sb_info *, bool);
 int f2fs_sync_fs(struct super_block *, int);
 extern __printf(3, 4)
@@ -2010,6 +2014,7 @@ void add_ino_entry(struct f2fs_sb_info *, nid_t, int type);
 void remove_ino_entry(struct f2fs_sb_info *, nid_t, int type);
 void release_ino_entry(struct f2fs_sb_info *, bool);
 bool exist_written_data(struct f2fs_sb_info *, nid_t, int);
+int f2fs_sync_inode_meta(struct f2fs_sb_info *);
 int acquire_orphan_inode(struct f2fs_sb_info *);
 void release_orphan_inode(struct f2fs_sb_info *);
 void add_orphan_inode(struct f2fs_sb_info *, nid_t);
@@ -2078,7 +2083,7 @@ struct f2fs_stat_info {
 	unsigned long long hit_total, total_ext;
 	int ext_tree, zombie_tree, ext_node;
 	s64 ndirty_node, ndirty_dent, ndirty_meta, ndirty_data, inmem_pages;
-	unsigned int ndirty_dirs, ndirty_files;
+	unsigned int ndirty_dirs, ndirty_files, ndirty_all;
 	int nats, dirty_nats, sits, dirty_sits, fnids;
 	int total_count, utilization;
 	int bg_gc, wb_bios;

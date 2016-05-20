@@ -537,6 +537,7 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 	fi->i_advise = 0;
 	init_rwsem(&fi->i_sem);
 	INIT_LIST_HEAD(&fi->dirty_list);
+	INIT_LIST_HEAD(&fi->gdirty_list);
 	INIT_LIST_HEAD(&fi->inmem_pages);
 	mutex_init(&fi->inmem_lock);
 
@@ -547,6 +548,8 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 
 static int f2fs_drop_inode(struct inode *inode)
 {
+	int ret;
+
 	/*
 	 * This is to avoid a deadlock condition like below.
 	 * writeback_single_inode(inode)
@@ -554,7 +557,7 @@ static int f2fs_drop_inode(struct inode *inode)
 	 *    - f2fs_gc -> iput -> evict
 	 *       - inode_wait_for_writeback(inode)
 	 */
-	if (!inode_unhashed(inode) && inode->i_state & I_SYNC) {
+	if ((!inode_unhashed(inode) && inode->i_state & I_SYNC)) {
 		if (!inode->i_nlink && !is_bad_inode(inode)) {
 			/* to avoid evict_inode call simultaneously */
 			atomic_inc(&inode->i_count);
@@ -581,7 +584,20 @@ static int f2fs_drop_inode(struct inode *inode)
 		}
 		return 0;
 	}
-	return generic_drop_inode(inode);
+
+	ret = generic_drop_inode(inode);
+	if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
+		if (ret)
+			inode->i_state |= I_WILL_FREE;
+		spin_unlock(&inode->i_lock);
+
+		update_inode_page(inode);
+
+		spin_lock(&inode->i_lock);
+		if (ret)
+			inode->i_state &= ~I_WILL_FREE;
+	}
+	return ret;
 }
 
 /*
@@ -591,7 +607,40 @@ static int f2fs_drop_inode(struct inode *inode)
  */
 static void f2fs_dirty_inode(struct inode *inode, int flags)
 {
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+
+	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
+			inode->i_ino == F2FS_META_INO(sbi))
+		return;
+
+	spin_lock(&sbi->inode_lock[DIRTY_META]);
+	if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
+		spin_unlock(&sbi->inode_lock[DIRTY_META]);
+		return;
+	}
+
 	set_inode_flag(inode, FI_DIRTY_INODE);
+	list_add_tail(&F2FS_I(inode)->gdirty_list,
+				&sbi->inode_list[DIRTY_META]);
+	inc_page_count(sbi, F2FS_DIRTY_IMETA);
+	spin_unlock(&sbi->inode_lock[DIRTY_META]);
+	stat_inc_dirty_inode(sbi, DIRTY_META);
+}
+
+void f2fs_inode_synced(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+
+	spin_lock(&sbi->inode_lock[DIRTY_META]);
+	if (!is_inode_flag_set(inode, FI_DIRTY_INODE)) {
+		spin_unlock(&sbi->inode_lock[DIRTY_META]);
+		return;
+	}
+	list_del_init(&F2FS_I(inode)->gdirty_list);
+	clear_inode_flag(inode, FI_DIRTY_INODE);
+	dec_page_count(sbi, F2FS_DIRTY_IMETA);
+	spin_unlock(&sbi->inode_lock[DIRTY_META]);
+	stat_dec_dirty_inode(F2FS_I_SB(inode), DIRTY_META);
 }
 
 static void f2fs_i_callback(struct rcu_head *head)
@@ -1757,6 +1806,7 @@ try_onemore:
 	return 0;
 
 free_kobj:
+	f2fs_sync_inode_meta(sbi);
 	kobject_del(&sbi->s_kobj);
 	kobject_put(&sbi->s_kobj);
 	wait_for_completion(&sbi->s_kobj_unregister);
