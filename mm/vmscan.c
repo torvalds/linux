@@ -633,7 +633,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
 	 *
 	 * Reversing the order of the tests ensures such a situation cannot
 	 * escape unnoticed. The smp_rmb is needed to ensure the page->flags
-	 * load is not satisfied before that of page->_count.
+	 * load is not satisfied before that of page->_refcount.
 	 *
 	 * Note that if SetPageDirty is always performed via set_page_dirty,
 	 * and thus under tree_lock, then this ordering is not required.
@@ -1720,7 +1720,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
  * It is safe to rely on PG_active against the non-LRU pages in here because
  * nobody will play with that bit on a non-LRU page.
  *
- * The downside is that we have to touch page->_count against each page.
+ * The downside is that we have to touch page->_refcount against each page.
  * But we had to alter page->flags anyway.
  */
 
