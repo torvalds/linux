@@ -691,7 +691,7 @@ error0:
  * end of the chunk, skip ahead to first id in next allocated chunk
  * using the SEEK_DATA interface.
  */
-int
+static int
 xfs_dq_get_next_id(
 	xfs_mount_t		*mp,
 	uint			type,

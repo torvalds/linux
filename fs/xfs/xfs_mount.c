@@ -89,7 +89,6 @@ xfs_uuid_mount(
 	if (hole < 0) {
 		xfs_uuid_table = kmem_realloc(xfs_uuid_table,
 			(xfs_uuid_table_size + 1) * sizeof(*xfs_uuid_table),
-			xfs_uuid_table_size  * sizeof(*xfs_uuid_table),
 			KM_SLEEP);
 		hole = xfs_uuid_table_size++;
 	}

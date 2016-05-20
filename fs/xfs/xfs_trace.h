@@ -1050,19 +1050,21 @@ DECLARE_EVENT_CLASS(xfs_log_item_class,
 )
 
 TRACE_EVENT(xfs_log_force,
-	TP_PROTO(struct xfs_mount *mp, xfs_lsn_t lsn),
-	TP_ARGS(mp, lsn),
+	TP_PROTO(struct xfs_mount *mp, xfs_lsn_t lsn, unsigned long caller_ip),
+	TP_ARGS(mp, lsn, caller_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_lsn_t, lsn)
+		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
 		__entry->lsn = lsn;
+		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d lsn 0x%llx",
+	TP_printk("dev %d:%d lsn 0x%llx caller %ps",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->lsn)
+		  __entry->lsn, (void *)__entry->caller_ip)
 )
 
 #define DEFINE_LOG_ITEM_EVENT(name) \
