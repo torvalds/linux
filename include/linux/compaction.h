@@ -4,6 +4,8 @@
 /* Return values for compact_zone() and try_to_compact_pages() */
 /* When adding new states, please adjust include/trace/events/compaction.h */
 enum compact_result {
+	/* For more detailed tracepoint output - internal to compaction */
+	COMPACT_NOT_SUITABLE_ZONE,
 	/*
 	 * compaction didn't start as it was not possible or direct reclaim
 	 * was more suitable
@@ -11,30 +13,34 @@ enum compact_result {
 	COMPACT_SKIPPED,
 	/* compaction didn't start as it was deferred due to past failures */
 	COMPACT_DEFERRED,
+
 	/* compaction not active last round */
 	COMPACT_INACTIVE = COMPACT_DEFERRED,
 
+	/* For more detailed tracepoint output - internal to compaction */
+	COMPACT_NO_SUITABLE_PAGE,
 	/* compaction should continue to another pageblock */
 	COMPACT_CONTINUE,
-	/*
-	 * direct compaction partially compacted a zone and there are suitable
-	 * pages
-	 */
-	COMPACT_PARTIAL,
-	/*
-	 * direct compaction has scanned part of the zone but wasn't successfull
-	 * to compact suitable pages.
-	 */
-	COMPACT_PARTIAL_SKIPPED,
+
 	/*
 	 * The full zone was compacted scanned but wasn't successfull to compact
 	 * suitable pages.
 	 */
 	COMPACT_COMPLETE,
-	/* For more detailed tracepoint output */
-	COMPACT_NO_SUITABLE_PAGE,
-	COMPACT_NOT_SUITABLE_ZONE,
+	/*
+	 * direct compaction has scanned part of the zone but wasn't successfull
+	 * to compact suitable pages.
+	 */
+	COMPACT_PARTIAL_SKIPPED,
+
+	/* compaction terminated prematurely due to lock contentions */
 	COMPACT_CONTENDED,
+
+	/*
+	 * direct compaction partially compacted a zone and there might be
+	 * suitable pages
+	 */
+	COMPACT_PARTIAL,
 };
 
 /* Used to signal whether compaction detected need_sched() or lock contention */
