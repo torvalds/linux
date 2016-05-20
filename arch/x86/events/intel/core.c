@@ -3989,16 +3989,14 @@ __init int intel_pmu_init(void)
  */
 static __init int fixup_ht_bug(void)
 {
-	int cpu = smp_processor_id();
-	int w, c;
+	int c;
 	/*
 	 * problem not present on this CPU model, nothing to do
 	 */
 	if (!(x86_pmu.flags & PMU_FL_EXCL_ENABLED))
 		return 0;
 
-	w = cpumask_weight(topology_sibling_cpumask(cpu));
-	if (w > 1) {
+	if (topology_max_smt_threads() > 1) {
 		pr_info("PMU erratum BJ122, BV98, HSD29 worked around, HT is on\n");
 		return 0;
 	}
