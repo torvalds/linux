@@ -1735,11 +1735,11 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
 	 * may return off node objects because partial slabs are obtained
 	 * from other nodes and filled up.
 	 *
-	 * If /sys/kernel/slab/xx/defrag_ratio is set to 100 (which makes
-	 * defrag_ratio = 1000) then every (well almost) allocation will
-	 * first attempt to defrag slab caches on other nodes. This means
-	 * scanning over all nodes to look for partial slabs which may be
-	 * expensive if we do it every time we are trying to find a slab
+	 * If /sys/kernel/slab/xx/remote_node_defrag_ratio is set to 100
+	 * (which makes defrag_ratio = 1000) then every (well almost)
+	 * allocation will first attempt to defrag slab caches on other nodes.
+	 * This means scanning over all nodes to look for partial slabs which
+	 * may be expensive if we do it every time we are trying to find a slab
 	 * with available objects.
 	 */
 	if (!s->remote_node_defrag_ratio ||
