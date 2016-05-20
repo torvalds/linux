@@ -245,8 +245,7 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 		if (status == count)
 			return count;
 
-		/* REVISIT: at HZ=100, this is sloooow */
-		msleep(1);
+		usleep_range(1000, 1500);
 	} while (time_before(read_time, timeout));
 
 	return -ETIMEDOUT;
@@ -365,8 +364,7 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 		if (status == count)
 			return count;
 
-		/* REVISIT: at HZ=100, this is sloooow */
-		msleep(1);
+		usleep_range(1000, 1500);
 	} while (time_before(write_time, timeout));
 
 	return -ETIMEDOUT;
@@ -544,10 +542,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		} else {
 			return -EPFNOSUPPORT;
 		}
-	}
 
-	/* Use I2C operations unless we're stuck with SMBus extensions. */
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		if (i2c_check_functionality(client->adapter,
 				I2C_FUNC_SMBUS_WRITE_I2C_BLOCK)) {
 			use_smbus_write = I2C_SMBUS_I2C_BLOCK_DATA;
