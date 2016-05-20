@@ -3,15 +3,6 @@
  *
  * Copyright (C) 2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
  *
- * I modified this file from the plx9060.h header for the
- * wanXL device driver in the linux kernel,
- * for the register offsets and bit definitions.  Made minor modifications,
- * added plx9080 registers and
- * stripped out stuff that was specifically for the wanXL driver.
- * Note: I've only made sure the definitions are correct as far
- * as I make use of them.  There are still various plx9060-isms
- * left in this header file.
- *
  ********************************************************************
  *
  * Copyright (C) 1999 RG Studio s.c.
@@ -28,7 +19,7 @@
 #ifndef __COMEDI_PLX9080_H
 #define __COMEDI_PLX9080_H
 
-/*  descriptor block used for chained dma transfers */
+/* descriptor block used for chained dma transfers */
 struct plx_dma_desc {
 	__le32 pci_start_addr;
 	__le32 local_start_addr;
@@ -41,13 +32,9 @@ struct plx_dma_desc {
 	__le32 next;
 };
 
-/**********************************************************************
-**            Register Offsets and Bit Definitions
-**
-** Note: All offsets zero relative.  IE. Some standard base address
-** must be added to the Register Number to properly access the register.
-**
-**********************************************************************/
+/*
+ * Register Offsets and Bit Definitions
+ */
 
 /* Local Address Space 0 Range Register */
 #define PLX_REG_LAS0RR		0x0000
@@ -145,10 +132,11 @@ struct plx_dma_desc {
 #define PLX_BIGEND_DMA(n)	((n) ? PLX_BIGEND_DMA1 : PLX_BIGEND_DMA0)
 
 /*
-** Note: The Expansion ROM  stuff is only relevant to the PC environment.
-**       This expansion ROM code is executed by the host CPU at boot time.
-**       For this reason no bit definitions are provided here.
+ * Note: The Expansion ROM  stuff is only relevant to the PC environment.
+ *       This expansion ROM code is executed by the host CPU at boot time.
+ *       For this reason no bit definitions are provided here.
  */
+
 /* Expansion ROM Range Register */
 #define PLX_REG_EROMRR		0x0010
 /* Expansion ROM Local Base Address (Remap) Register */
@@ -615,12 +603,12 @@ static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 
 	dma_cs_addr = iobase + PLX_REG_DMACSR(channel);
 
-	/*  abort dma transfer if necessary */
+	/* abort dma transfer if necessary */
 	dma_status = readb(dma_cs_addr);
 	if ((dma_status & PLX_DMACSR_ENABLE) == 0)
 		return 0;
 
-	/*  wait to make sure done bit is zero */
+	/* wait to make sure done bit is zero */
 	for (i = 0; (dma_status & PLX_DMACSR_DONE) && i < timeout; i++) {
 		udelay(1);
 		dma_status = readb(dma_cs_addr);
@@ -628,9 +616,9 @@ static inline int plx9080_abort_dma(void __iomem *iobase, unsigned int channel)
 	if (i == timeout)
 		return -ETIMEDOUT;
 
-	/*  disable and abort channel */
+	/* disable and abort channel */
 	writeb(PLX_DMACSR_ABORT, dma_cs_addr);
-	/*  wait for dma done bit */
+	/* wait for dma done bit */
 	dma_status = readb(dma_cs_addr);
 	for (i = 0; (dma_status & PLX_DMACSR_DONE) == 0 && i < timeout; i++) {
 		udelay(1);
