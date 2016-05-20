@@ -86,17 +86,39 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
 #define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
 					  RADIX_TREE_MAP_SHIFT))
 
+/* log2(RADIX_TREE_INDEX_BITS) will not above 10. */
+#if sizeof(unsigned long) == 16
+#define RADIX_TREE_INDEX_BITS_LOG2 (4 + 3)
+#elif sizeof(unsigned long) == 32
+#define RADIX_TREE_INDEX_BITS_LOG2 (5 + 3)
+#elif sizeof(unsigned long) == 64
+#define RADIX_TREE_INDEX_BITS_LOG2 (6 + 3)
+#elif sizeof(unsigned long) == 128
+#define RADIX_TREE_INDEX_BITS_LOG2 (7 + 3)
+#endif
+/* log2(RADIX_TREE_MAX_PATH) will not above 9. */
+#if RADIX_TREE_MAP_SHIFT == 6
+#define RADIX_TREE_MAX_PATH_LOG2 (RADIX_TREE_INDEX_BITS_LOG2 - 2)
+#else
+#define RADIX_TREE_MAX_PATH_LOG2 (RADIX_TREE_INDEX_BITS_LOG2 - 1)
+#endif
+
 /* Height component in node->path */
-#define RADIX_TREE_HEIGHT_SHIFT	(RADIX_TREE_MAX_PATH + 1)
+#define RADIX_TREE_HEIGHT_SHIFT	(RADIX_TREE_MAX_PATH_LOG2 + 1)
 #define RADIX_TREE_HEIGHT_MASK	((1UL << RADIX_TREE_HEIGHT_SHIFT) - 1)
 
 /* Internally used bits of node->count */
 #define RADIX_TREE_COUNT_SHIFT	(RADIX_TREE_MAP_SHIFT + 1)
 #define RADIX_TREE_COUNT_MASK	((1UL << RADIX_TREE_COUNT_SHIFT) - 1)
 
+/*
+ * The number of bits of height and offset will not above 12, which is only
+ * achieved in case of sizeof(unsigned long) == 16 and RADIX_TREE_MAP_SHIFT == 6.
+ * So unsigned short is enough to store them two, which has 18 bits at least.
+ */
 struct radix_tree_node {
-	unsigned int	path;	/* Offset in parent & height from the bottom */
 	unsigned int	count;
+	unsigned short	path;	/* Offset in parent & height from the bottom */
 	union {
 		struct {
 			/* Used when ascending tree */
