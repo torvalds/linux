@@ -11,8 +11,6 @@
 #include <linux/interrupt.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
-#include <linux/kernel_stat.h>
-#include <linux/math64.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/pvclock_gtod.h>
@@ -31,44 +29,6 @@
 
 /* Xen may fire a timer up to this many ns early */
 #define TIMER_SLOP	100000
-#define NS_PER_TICK	(1000000000LL / HZ)
-
-/* snapshots of runstate info */
-static DEFINE_PER_CPU(struct vcpu_runstate_info, xen_runstate_snapshot);
-
-/* unused ns of stolen time */
-static DEFINE_PER_CPU(u64, xen_residual_stolen);
-
-static void do_stolen_accounting(void)
-{
-	struct vcpu_runstate_info state;
-	struct vcpu_runstate_info *snap;
-	s64 runnable, offline, stolen;
-	cputime_t ticks;
-
-	xen_get_runstate_snapshot(&state);
-
-	WARN_ON(state.state != RUNSTATE_running);
-
-	snap = this_cpu_ptr(&xen_runstate_snapshot);
-
-	/* work out how much time the VCPU has not been runn*ing*  */
-	runnable = state.time[RUNSTATE_runnable] - snap->time[RUNSTATE_runnable];
-	offline = state.time[RUNSTATE_offline] - snap->time[RUNSTATE_offline];
-
-	*snap = state;
-
-	/* Add the appropriate number of ticks of stolen time,
-	   including any left-overs from last time. */
-	stolen = runnable + offline + __this_cpu_read(xen_residual_stolen);
-
-	if (stolen < 0)
-		stolen = 0;
-
-	ticks = iter_div_u64_rem(stolen, NS_PER_TICK, &stolen);
-	__this_cpu_write(xen_residual_stolen, stolen);
-	account_steal_ticks(ticks);
-}
 
 /* Get the TSC speed from Xen */
 static unsigned long xen_tsc_khz(void)
@@ -335,8 +295,6 @@ static irqreturn_t xen_timer_interrupt(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 	}
 
-	do_stolen_accounting();
-
 	return ret;
 }
 
@@ -430,6 +388,8 @@ static void __init xen_time_init(void)
 	xen_setup_runstate_info(cpu);
 	xen_setup_timer(cpu);
 	xen_setup_cpu_clockevents();
+
+	xen_time_setup_guest();
 
 	if (xen_initial_domain())
 		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);

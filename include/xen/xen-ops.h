@@ -21,6 +21,7 @@ void xen_resume_notifier_unregister(struct notifier_block *nb);
 
 bool xen_vcpu_stolen(int vcpu);
 void xen_setup_runstate_info(int cpu);
+void xen_time_setup_guest(void);
 void xen_get_runstate_snapshot(struct vcpu_runstate_info *res);
 
 int xen_setup_shutdown_event(void);
