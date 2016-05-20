@@ -2677,7 +2677,6 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order, int alloc_flags,
 						const struct alloc_context *ac)
 {
 	struct zoneref *z;
-	struct page *page = NULL;
 	struct zone *zone;
 	bool fair_skipped;
 	bool zonelist_rescan;
@@ -2691,6 +2690,7 @@ zonelist_scan:
 	 */
 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
 								ac->nodemask) {
+		struct page *page;
 		unsigned long mark;
 
 		if (cpusets_enabled() &&
