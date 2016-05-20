@@ -310,8 +310,8 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 	writel(0, devpriv->plx9080_mmio + PLX_REG_DMALADR0);
 
 	/* give location of first dma descriptor */
-	bits = devpriv->dma_desc_phys_addr | PLX_DESC_IN_PCI_BIT |
-	       PLX_INTR_TERM_COUNT | PLX_XFER_LOCAL_TO_PCI;
+	bits = devpriv->dma_desc_phys_addr | PLX_DMADPR_DESCPCI |
+	       PLX_DMADPR_TCINTR | PLX_DMADPR_XFERL2P;
 	writel(bits, devpriv->plx9080_mmio + PLX_REG_DMADPR0);
 
 	/* enable dma transfer */
@@ -422,8 +422,8 @@ static int gsc_hpdi_setup_dma_descriptors(struct comedi_device *dev,
 {
 	struct hpdi_private *devpriv = dev->private;
 	dma_addr_t phys_addr = devpriv->dma_desc_phys_addr;
-	u32 next_bits = PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
-			PLX_XFER_LOCAL_TO_PCI;
+	u32 next_bits = PLX_DMADPR_DESCPCI | PLX_DMADPR_TCINTR |
+			PLX_DMADPR_XFERL2P;
 	unsigned int offset = 0;
 	unsigned int idx = 0;
 	unsigned int i;

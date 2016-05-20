@@ -1534,8 +1534,8 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 			cpu_to_le32((devpriv->ai_dma_desc_bus_addr +
 				     ((i + 1) % ai_dma_ring_count(board)) *
 				     sizeof(devpriv->ai_dma_desc[0])) |
-				    PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT |
-				    PLX_XFER_LOCAL_TO_PCI);
+				    PLX_DMADPR_DESCPCI | PLX_DMADPR_TCINTR |
+				    PLX_DMADPR_XFERL2P);
 	}
 	if (ao_cmd_is_supported(board)) {
 		for (i = 0; i < AO_DMA_RING_COUNT; i++) {
@@ -1549,8 +1549,8 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 				cpu_to_le32((devpriv->ao_dma_desc_bus_addr +
 					     ((i + 1) % (AO_DMA_RING_COUNT)) *
 					     sizeof(devpriv->ao_dma_desc[0])) |
-					    PLX_DESC_IN_PCI_BIT |
-					    PLX_INTR_TERM_COUNT);
+					    PLX_DMADPR_DESCPCI |
+					    PLX_DMADPR_TCINTR);
 		}
 	}
 	return 0;
@@ -2634,9 +2634,9 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*  give location of first dma descriptor */
 		load_first_dma_descriptor(dev, 1,
 					  devpriv->ai_dma_desc_bus_addr |
-					  PLX_DESC_IN_PCI_BIT |
-					  PLX_INTR_TERM_COUNT |
-					  PLX_XFER_LOCAL_TO_PCI);
+					  PLX_DMADPR_DESCPCI |
+					  PLX_DMADPR_TCINTR |
+					  PLX_DMADPR_XFERL2P);
 
 		dma_start_sync(dev, 1);
 	}
@@ -2918,7 +2918,7 @@ static void restart_ao_dma(struct comedi_device *dev)
 	unsigned int dma_desc_bits;
 
 	dma_desc_bits = readl(devpriv->plx9080_iobase + PLX_REG_DMADPR0);
-	dma_desc_bits &= ~PLX_END_OF_CHAIN_BIT;
+	dma_desc_bits &= ~PLX_DMADPR_CHAINEND;
 	load_first_dma_descriptor(dev, 0, dma_desc_bits);
 
 	dma_start_sync(dev, 0);
@@ -2959,14 +2959,14 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	devpriv->ao_dma_desc[buffer_index].transfer_size = cpu_to_le32(nbytes);
 	/* set end of chain bit so we catch underruns */
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[buffer_index].next);
-	next_bits |= PLX_END_OF_CHAIN_BIT;
+	next_bits |= PLX_DMADPR_CHAINEND;
 	devpriv->ao_dma_desc[buffer_index].next = cpu_to_le32(next_bits);
 	/*
 	 * clear end of chain bit on previous buffer now that we have set it
 	 * for the last buffer
 	 */
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[prev_buffer_index].next);
-	next_bits &= ~PLX_END_OF_CHAIN_BIT;
+	next_bits &= ~PLX_DMADPR_CHAINEND;
 	devpriv->ao_dma_desc[prev_buffer_index].next = cpu_to_le32(next_bits);
 
 	devpriv->ao_dma_index = (buffer_index + 1) % AO_DMA_RING_COUNT;
@@ -3310,7 +3310,7 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	set_dac_select_reg(dev, cmd);
 	set_dac_interval_regs(dev, cmd);
 	load_first_dma_descriptor(dev, 0, devpriv->ao_dma_desc_bus_addr |
-				  PLX_DESC_IN_PCI_BIT | PLX_INTR_TERM_COUNT);
+				  PLX_DMADPR_DESCPCI | PLX_DMADPR_TCINTR);
 
 	set_dac_control1_reg(dev, cmd);
 	s->async->inttrig = ao_inttrig;

@@ -513,13 +513,16 @@ struct plx_dma_desc {
 #define PLX_REG_DMADPR0		0x0090
 #define PLX_REG_DMADPR1		0x00a4
 
-/*  descriptor is located in pci space (not local space) */
-#define  PLX_DESC_IN_PCI_BIT	0x1
-#define  PLX_END_OF_CHAIN_BIT	0x2	/*  end of chain bit */
-/*  interrupt when this descriptor's transfer is finished */
-#define  PLX_INTR_TERM_COUNT	0x4
-/*  transfer from local to pci bus (not pci to local) */
-#define  PLX_XFER_LOCAL_TO_PCI 0x8
+/* Descriptor Located In PCI Address Space (not local address space) */
+#define PLX_DMADPR_DESCPCI	BIT(0)
+/* End Of Chain */
+#define PLX_DMADPR_CHAINEND	BIT(1)
+/* Interrupt After Terminal Count */
+#define PLX_DMADPR_TCINTR	BIT(2)
+/* Direction Of Transfer Local Bus To PCI (not PCI to local) */
+#define PLX_DMADPR_XFERL2P	BIT(3)
+/* Next Descriptor Address Bits 31:4 (16 byte boundary) */
+#define PLX_DMADPR_NEXT_MASK	GENMASK(31, 4)
 
 /* DMA Channel N Command/Status Register (N <= 1) (8-bit) */
 #define PLX_REG_DMACSR(n)	((n) ? PLX_REG_DMACSR1 : PLX_REG_DMACSR0)
