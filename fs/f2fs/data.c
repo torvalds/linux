@@ -564,7 +564,7 @@ struct page *get_new_data_page(struct inode *inode,
 got_it:
 	if (new_i_size && i_size_read(inode) <
 				((loff_t)(index + 1) << PAGE_SHIFT)) {
-		i_size_write(inode, ((loff_t)(index + 1) << PAGE_SHIFT));
+		f2fs_i_size_write(inode, ((loff_t)(index + 1) << PAGE_SHIFT));
 		/* Only the directory inode sets new_i_size */
 		set_inode_flag(inode, FI_UPDATE_DIR);
 	}
@@ -605,7 +605,7 @@ alloc:
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), dn->inode) +
 							dn->ofs_in_node;
 	if (i_size_read(dn->inode) < ((loff_t)(fofs + 1) << PAGE_SHIFT))
-		i_size_write(dn->inode,
+		f2fs_i_size_write(dn->inode,
 				((loff_t)(fofs + 1) << PAGE_SHIFT));
 	return 0;
 }
@@ -1711,10 +1711,8 @@ static int f2fs_write_end(struct file *file,
 
 	set_page_dirty(page);
 
-	if (pos + copied > i_size_read(inode)) {
-		i_size_write(inode, pos + copied);
-		mark_inode_dirty(inode);
-	}
+	if (pos + copied > i_size_read(inode))
+		f2fs_i_size_write(inode, pos + copied);
 
 	f2fs_put_page(page, 1);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);

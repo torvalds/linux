@@ -175,7 +175,7 @@ static void recover_inode(struct inode *inode, struct page *page)
 	char *name;
 
 	inode->i_mode = le16_to_cpu(raw->i_mode);
-	i_size_write(inode, le64_to_cpu(raw->i_size));
+	f2fs_i_size_write(inode, le64_to_cpu(raw->i_size));
 	inode->i_atime.tv_sec = le64_to_cpu(raw->i_mtime);
 	inode->i_ctime.tv_sec = le64_to_cpu(raw->i_ctime);
 	inode->i_mtime.tv_sec = le64_to_cpu(raw->i_mtime);

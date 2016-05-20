@@ -686,7 +686,7 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode, struct page *page)
 	drop_nlink(inode);
 	if (S_ISDIR(inode->i_mode)) {
 		drop_nlink(inode);
-		i_size_write(inode, 0);
+		f2fs_i_size_write(inode, 0);
 	}
 	up_write(&F2FS_I(inode)->i_sem);
 	update_inode_page(inode);

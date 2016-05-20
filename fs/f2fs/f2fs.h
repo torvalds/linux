@@ -1556,6 +1556,15 @@ static inline void set_acl_inode(struct inode *inode, umode_t mode)
 	set_inode_flag(inode, FI_ACL_MODE);
 }
 
+static inline void f2fs_i_size_write(struct inode *inode, loff_t i_size)
+{
+	if (i_size_read(inode) == i_size)
+		return;
+
+	i_size_write(inode, i_size);
+	mark_inode_dirty_sync(inode);
+}
+
 static inline void get_inline_info(struct inode *inode, struct f2fs_inode *ri)
 {
 	if (ri->i_inline & F2FS_INLINE_XATTR)
