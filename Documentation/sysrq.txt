@@ -212,7 +212,7 @@ it is currently registered in that slot. This is in case the slot has been
 overwritten since you registered it.
 
 The Magic SysRQ system works by registering key operations against a key op
-lookup table, which is defined in 'drivers/char/sysrq.c'. This key table has
+lookup table, which is defined in 'drivers/tty/sysrq.c'. This key table has
 a number of operations registered into it at compile time, but is mutable,
 and 2 functions are exported for interface to it:
 	register_sysrq_key and unregister_sysrq_key.
