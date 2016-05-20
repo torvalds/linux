@@ -493,7 +493,7 @@ static void *timer_debug_hint(void *addr)
  * fixup_init is called when:
  * - an active object is initialized
  */
-static int timer_fixup_init(void *addr, enum debug_obj_state state)
+static bool timer_fixup_init(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
 
@@ -501,9 +501,9 @@ static int timer_fixup_init(void *addr, enum debug_obj_state state)
 	case ODEBUG_STATE_ACTIVE:
 		del_timer_sync(timer);
 		debug_object_init(timer, &timer_debug_descr);
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -518,7 +518,7 @@ static void stub_timer(unsigned long data)
  * - an active object is activated
  * - an unknown object is activated (might be a statically initialized object)
  */
-static int timer_fixup_activate(void *addr, enum debug_obj_state state)
+static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
 
@@ -534,18 +534,18 @@ static int timer_fixup_activate(void *addr, enum debug_obj_state state)
 		    timer->entry.next == TIMER_ENTRY_STATIC) {
 			debug_object_init(timer, &timer_debug_descr);
 			debug_object_activate(timer, &timer_debug_descr);
-			return 0;
+			return false;
 		} else {
 			setup_timer(timer, stub_timer, 0);
-			return 1;
+			return true;
 		}
-		return 0;
+		return false;
 
 	case ODEBUG_STATE_ACTIVE:
 		WARN_ON(1);
 
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -553,7 +553,7 @@ static int timer_fixup_activate(void *addr, enum debug_obj_state state)
  * fixup_free is called when:
  * - an active object is freed
  */
-static int timer_fixup_free(void *addr, enum debug_obj_state state)
+static bool timer_fixup_free(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
 
@@ -561,9 +561,9 @@ static int timer_fixup_free(void *addr, enum debug_obj_state state)
 	case ODEBUG_STATE_ACTIVE:
 		del_timer_sync(timer);
 		debug_object_free(timer, &timer_debug_descr);
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -571,7 +571,7 @@ static int timer_fixup_free(void *addr, enum debug_obj_state state)
  * fixup_assert_init is called when:
  * - an untracked/uninit-ed object is found
  */
-static int timer_fixup_assert_init(void *addr, enum debug_obj_state state)
+static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
 
@@ -584,13 +584,13 @@ static int timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 			 * is tracked in the object tracker.
 			 */
 			debug_object_init(timer, &timer_debug_descr);
-			return 0;
+			return false;
 		} else {
 			setup_timer(timer, stub_timer, 0);
-			return 1;
+			return true;
 		}
 	default:
-		return 0;
+		return false;
 	}
 }
 
