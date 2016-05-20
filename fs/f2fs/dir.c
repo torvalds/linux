@@ -243,8 +243,7 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 				"Corrupted max_depth of %lu: %u",
 				dir->i_ino, max_depth);
 		max_depth = MAX_DIR_HASH_DEPTH;
-		F2FS_I(dir)->i_current_depth = max_depth;
-		mark_inode_dirty(dir);
+		f2fs_i_depth_write(dir, max_depth);
 	}
 
 	for (level = 0; level < max_depth; level++) {
@@ -303,9 +302,9 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 	set_de_type(de, inode->i_mode);
 	f2fs_dentry_kunmap(dir, page);
 	set_page_dirty(page);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
-	mark_inode_dirty(dir);
 
+	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
+	mark_inode_dirty_sync(dir);
 	f2fs_put_page(page, 1);
 }
 
@@ -462,10 +461,10 @@ void update_parent_metadata(struct inode *dir, struct inode *inode,
 		clear_inode_flag(inode, FI_NEW_INODE);
 	}
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
-	mark_inode_dirty(dir);
+	mark_inode_dirty_sync(dir);
 
 	if (F2FS_I(dir)->i_current_depth != current_depth) {
-		F2FS_I(dir)->i_current_depth = current_depth;
+		f2fs_i_depth_write(dir, current_depth);
 		set_inode_flag(dir, FI_UPDATE_DIR);
 	}
 
@@ -597,7 +596,7 @@ add_dentry:
 
 	if (inode) {
 		/* we don't need to mark_inode_dirty now */
-		F2FS_I(inode)->i_pino = dir->i_ino;
+		f2fs_i_pino_write(inode, dir->i_ino);
 		update_inode(inode, page);
 		f2fs_put_page(page, 1);
 	}
@@ -730,6 +729,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	set_page_dirty(page);
 
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	mark_inode_dirty_sync(dir);
 
 	if (inode)
 		f2fs_drop_nlink(dir, inode, NULL);

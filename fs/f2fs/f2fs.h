@@ -498,11 +498,13 @@ static inline bool __is_front_mergeable(struct extent_info *cur,
 	return __is_extent_mergeable(cur, front);
 }
 
-static inline void __try_update_largest_extent(struct extent_tree *et,
-						struct extent_node *en)
+static inline void __try_update_largest_extent(struct inode *inode,
+			struct extent_tree *et, struct extent_node *en)
 {
-	if (en->ei.len > et->largest.len)
+	if (en->ei.len > et->largest.len) {
 		et->largest = en->ei;
+		mark_inode_dirty_sync(inode);
+	}
 }
 
 struct f2fs_nm_info {
@@ -1534,10 +1536,26 @@ enum {
 	FI_DIRTY_FILE,		/* indicate regular/symlink has dirty pages */
 };
 
+static inline void __mark_inode_dirty_flag(struct inode *inode,
+						int flag, bool set)
+{
+	switch (flag) {
+	case FI_INLINE_XATTR:
+	case FI_INLINE_DATA:
+	case FI_INLINE_DENTRY:
+		if (set)
+			return;
+	case FI_DATA_EXIST:
+	case FI_INLINE_DOTS:
+		mark_inode_dirty_sync(inode);
+	}
+}
+
 static inline void set_inode_flag(struct inode *inode, int flag)
 {
 	if (!test_bit(flag, &F2FS_I(inode)->flags))
 		set_bit(flag, &F2FS_I(inode)->flags);
+	__mark_inode_dirty_flag(inode, flag, true);
 }
 
 static inline int is_inode_flag_set(struct inode *inode, int flag)
@@ -1549,12 +1567,14 @@ static inline void clear_inode_flag(struct inode *inode, int flag)
 {
 	if (test_bit(flag, &F2FS_I(inode)->flags))
 		clear_bit(flag, &F2FS_I(inode)->flags);
+	__mark_inode_dirty_flag(inode, flag, false);
 }
 
 static inline void set_acl_inode(struct inode *inode, umode_t mode)
 {
 	F2FS_I(inode)->i_acl_mode = mode;
 	set_inode_flag(inode, FI_ACL_MODE);
+	mark_inode_dirty_sync(inode);
 }
 
 static inline void f2fs_i_links_write(struct inode *inode, bool inc)
@@ -1583,18 +1603,38 @@ static inline void f2fs_i_size_write(struct inode *inode, loff_t i_size)
 	mark_inode_dirty_sync(inode);
 }
 
+static inline void f2fs_i_depth_write(struct inode *inode, unsigned int depth)
+{
+	F2FS_I(inode)->i_current_depth = depth;
+	mark_inode_dirty_sync(inode);
+}
+
+static inline void f2fs_i_xnid_write(struct inode *inode, nid_t xnid)
+{
+	F2FS_I(inode)->i_xattr_nid = xnid;
+	mark_inode_dirty_sync(inode);
+}
+
+static inline void f2fs_i_pino_write(struct inode *inode, nid_t pino)
+{
+	F2FS_I(inode)->i_pino = pino;
+	mark_inode_dirty_sync(inode);
+}
+
 static inline void get_inline_info(struct inode *inode, struct f2fs_inode *ri)
 {
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+
 	if (ri->i_inline & F2FS_INLINE_XATTR)
-		set_inode_flag(inode, FI_INLINE_XATTR);
+		set_bit(FI_INLINE_XATTR, &fi->flags);
 	if (ri->i_inline & F2FS_INLINE_DATA)
-		set_inode_flag(inode, FI_INLINE_DATA);
+		set_bit(FI_INLINE_DATA, &fi->flags);
 	if (ri->i_inline & F2FS_INLINE_DENTRY)
-		set_inode_flag(inode, FI_INLINE_DENTRY);
+		set_bit(FI_INLINE_DENTRY, &fi->flags);
 	if (ri->i_inline & F2FS_DATA_EXIST)
-		set_inode_flag(inode, FI_DATA_EXIST);
+		set_bit(FI_DATA_EXIST, &fi->flags);
 	if (ri->i_inline & F2FS_INLINE_DOTS)
-		set_inode_flag(inode, FI_INLINE_DOTS);
+		set_bit(FI_INLINE_DOTS, &fi->flags);
 }
 
 static inline void set_raw_inline(struct inode *inode, struct f2fs_inode *ri)
@@ -1706,11 +1746,13 @@ static inline int is_file(struct inode *inode, int type)
 static inline void set_file(struct inode *inode, int type)
 {
 	F2FS_I(inode)->i_advise |= type;
+	mark_inode_dirty_sync(inode);
 }
 
 static inline void clear_file(struct inode *inode, int type)
 {
 	F2FS_I(inode)->i_advise &= ~type;
+	mark_inode_dirty_sync(inode);
 }
 
 static inline int f2fs_readonly(struct super_block *sb)

@@ -953,7 +953,7 @@ int truncate_xattr_node(struct inode *inode, struct page *page)
 	if (IS_ERR(npage))
 		return PTR_ERR(npage);
 
-	F2FS_I(inode)->i_xattr_nid = 0;
+	f2fs_i_xnid_write(inode, 0);
 
 	/* need to do checkpoint during fsync */
 	F2FS_I(inode)->xattr_ver = cur_cp_version(F2FS_CKPT(sbi));
@@ -1047,7 +1047,7 @@ struct page *new_node_page(struct dnode_of_data *dn,
 		dn->node_changed = true;
 
 	if (f2fs_has_xattr_block(ofs))
-		F2FS_I(dn->inode)->i_xattr_nid = dn->nid;
+		f2fs_i_xnid_write(dn->inode, dn->nid);
 
 	dn->node_page = page;
 	if (ipage)
@@ -1997,7 +1997,7 @@ recover_xnid:
 	get_node_info(sbi, new_xnid, &ni);
 	ni.ino = inode->i_ino;
 	set_node_addr(sbi, &ni, NEW_ADDR, false);
-	F2FS_I(inode)->i_xattr_nid = new_xnid;
+	f2fs_i_xnid_write(inode, new_xnid);
 
 	/* 3: update xattr blkaddr */
 	refresh_sit_entry(sbi, NEW_ADDR, blkaddr);

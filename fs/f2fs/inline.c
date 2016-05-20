@@ -400,7 +400,7 @@ static int f2fs_move_inline_dirents(struct inode *dir, struct page *ipage,
 	stat_dec_inline_dir(dir);
 	clear_inode_flag(dir, FI_INLINE_DENTRY);
 
-	F2FS_I(dir)->i_current_depth = 1;
+	f2fs_i_depth_write(dir, 1);
 	if (i_size_read(dir) < PAGE_SIZE) {
 		f2fs_i_size_write(dir, PAGE_SIZE);
 		set_inode_flag(dir, FI_UPDATE_DIR);
@@ -492,7 +492,7 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
 recover:
 	lock_page(ipage);
 	memcpy(inline_dentry, backup_dentry, MAX_INLINE_DATA);
-	F2FS_I(dir)->i_current_depth = 0;
+	f2fs_i_depth_write(dir, 0);
 	f2fs_i_size_write(dir, MAX_INLINE_DATA);
 	update_inode(dir, ipage);
 	f2fs_put_page(ipage, 1);
@@ -558,7 +558,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *name,
 
 	/* we don't need to mark_inode_dirty now */
 	if (inode) {
-		F2FS_I(inode)->i_pino = dir->i_ino;
+		f2fs_i_pino_write(inode, dir->i_ino);
 		update_inode(inode, page);
 		f2fs_put_page(page, 1);
 	}
@@ -597,6 +597,7 @@ void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	set_page_dirty(page);
 
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	mark_inode_dirty_sync(dir);
 
 	if (inode)
 		f2fs_drop_nlink(dir, inode, page);

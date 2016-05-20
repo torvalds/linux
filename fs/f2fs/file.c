@@ -171,11 +171,10 @@ static void try_to_fix_pino(struct inode *inode)
 	fi->xattr_ver = 0;
 	if (file_wrong_pino(inode) && inode->i_nlink == 1 &&
 			get_parent_ino(inode, &pino)) {
-		fi->i_pino = pino;
+		f2fs_i_pino_write(inode, pino);
 		file_got_pino(inode);
 		up_write(&fi->i_sem);
 
-		mark_inode_dirty_sync(inode);
 		f2fs_write_inode(inode, NULL);
 	} else {
 		up_write(&fi->i_sem);
@@ -636,7 +635,7 @@ int f2fs_truncate(struct inode *inode, bool lock)
 		return err;
 
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	mark_inode_dirty(inode);
+	mark_inode_dirty_sync(inode);
 	return 0;
 }
 
@@ -726,7 +725,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
-	mark_inode_dirty(inode);
+	mark_inode_dirty_sync(inode);
 	return err;
 }
 
@@ -1279,7 +1278,7 @@ static long f2fs_fallocate(struct file *file, int mode,
 
 	if (!ret) {
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		mark_inode_dirty(inode);
+		mark_inode_dirty_sync(inode);
 		f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	}
 
@@ -1370,9 +1369,8 @@ static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 	fi->i_flags = flags;
 	inode_unlock(inode);
 
-	f2fs_set_inode_flags(inode);
 	inode->i_ctime = CURRENT_TIME;
-	mark_inode_dirty(inode);
+	f2fs_set_inode_flags(inode);
 out:
 	mnt_drop_write_file(filp);
 	return ret;

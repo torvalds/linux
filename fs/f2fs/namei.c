@@ -76,7 +76,6 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	stat_inc_inline_dir(inode);
 
 	trace_f2fs_new_inode(inode, 0);
-	mark_inode_dirty(inode);
 	return inode;
 
 fail:
@@ -247,10 +246,8 @@ static int __recover_dot_dentries(struct inode *dir, nid_t pino)
 		err = __f2fs_add_link(dir, &dotdot, NULL, pino, S_IFDIR);
 	}
 out:
-	if (!err) {
+	if (!err)
 		clear_inode_flag(dir, FI_INLINE_DOTS);
-		mark_inode_dirty(dir);
-	}
 
 	f2fs_unlock_op(sbi);
 	return err;
@@ -756,7 +753,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	up_write(&F2FS_I(old_inode)->i_sem);
 
 	old_inode->i_ctime = CURRENT_TIME;
-	mark_inode_dirty(old_inode);
+	mark_inode_dirty_sync(old_inode);
 
 	f2fs_delete_entry(old_entry, old_page, old_dir, NULL);
 
@@ -910,7 +907,7 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 		f2fs_i_links_write(old_dir, old_nlink > 0);
 		up_write(&F2FS_I(old_dir)->i_sem);
 	}
-	mark_inode_dirty(old_dir);
+	mark_inode_dirty_sync(old_dir);
 	update_inode_page(old_dir);
 
 	/* update directory entry info of new dir inode */
@@ -928,7 +925,7 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 		f2fs_i_links_write(new_dir, new_nlink > 0);
 		up_write(&F2FS_I(new_dir)->i_sem);
 	}
-	mark_inode_dirty(new_dir);
+	mark_inode_dirty_sync(new_dir);
 	update_inode_page(new_dir);
 
 	f2fs_unlock_op(sbi);
