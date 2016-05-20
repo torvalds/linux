@@ -453,9 +453,10 @@ struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 	struct rpc_xprt_switch *xps;
 
 	xps = xprt_switch_alloc(xprt, GFP_KERNEL);
-	if (xps == NULL)
+	if (xps == NULL) {
+		xprt_put(xprt);
 		return ERR_PTR(-ENOMEM);
-
+	}
 	clnt = rpc_new_client(args, xps, xprt, NULL);
 	if (IS_ERR(clnt))
 		return clnt;
