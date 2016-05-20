@@ -2702,8 +2702,6 @@ static void pnv_ioda_setup_dma(struct pnv_phb *phb)
 	pr_info("PCI: Domain %04x has %d available 32-bit DMA segments\n",
 		hose->global_number, phb->ioda.dma32_count);
 
-	pnv_pci_ioda_setup_opal_tce_kill(phb);
-
 	/* Walk our PE list and configure their DMA segments */
 	list_for_each_entry(pe, &phb->ioda.pe_list, list) {
 		weight = pnv_pci_ioda_pe_dma_weight(pe);
@@ -3481,6 +3479,9 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	phb->regs = of_iomap(np, 0);
 	if (phb->regs == NULL)
 		pr_err("  Failed to map registers !\n");
+
+	/* Initialize TCE kill register */
+	pnv_pci_ioda_setup_opal_tce_kill(phb);
 
 	/* Initialize more IODA stuff */
 	phb->ioda.total_pe_num = 1;
