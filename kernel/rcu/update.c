@@ -386,7 +386,7 @@ void destroy_rcu_head(struct rcu_head *head)
  * - an unknown object is activated (might be a statically initialized object)
  * Activation is performed internally by call_rcu().
  */
-static int rcuhead_fixup_activate(void *addr, enum debug_obj_state state)
+static bool rcuhead_fixup_activate(void *addr, enum debug_obj_state state)
 {
 	struct rcu_head *head = addr;
 
@@ -399,9 +399,9 @@ static int rcuhead_fixup_activate(void *addr, enum debug_obj_state state)
 		 */
 		debug_object_init(head, &rcuhead_debug_descr);
 		debug_object_activate(head, &rcuhead_debug_descr);
-		return 0;
+		return false;
 	default:
-		return 1;
+		return true;
 	}
 }
 
