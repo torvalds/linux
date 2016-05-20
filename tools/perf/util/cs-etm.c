@@ -83,7 +83,6 @@ struct cs_etm_queue {
         u64                     time;
         u64                     timestamp;
         bool                    stop;
-        bool                    have_sample;
         struct cs_etm_decoder  *decoder;
         u64                     offset;
         bool                    eot;
@@ -797,11 +796,6 @@ static int cs_etm__sample(struct cs_etm_queue *etmq)
         //struct cs_etm_auxtrace *etm = etmq->etm;
         int err;
 
-        if (!etmq->have_sample)
-                return 0;
-
-        etmq->have_sample = false;
-
         err = cs_etm_decoder__get_packet(etmq->decoder,&packet);
         // if there is no sample, it returns err = -1, no real error
 
@@ -837,10 +831,8 @@ more:
             err = etmq->state->err;
             etmq->offset += processed;
             buffer_used += processed;
-            if (!err) {
-                etmq->have_sample = true;
+            if (!err)
                 cs_etm__sample(etmq);
-            }
         } while (!etmq->eot && (buffer.len > buffer_used));
 goto more;
 
