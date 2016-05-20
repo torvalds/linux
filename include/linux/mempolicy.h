@@ -172,14 +172,14 @@ extern int mpol_parse_str(char *str, struct mempolicy **mpol);
 extern void mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
 
 /* Check if a vma is migratable */
-static inline int vma_migratable(struct vm_area_struct *vma)
+static inline bool vma_migratable(struct vm_area_struct *vma)
 {
 	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
-		return 0;
+		return false;
 
 #ifndef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
 	if (vma->vm_flags & VM_HUGETLB)
-		return 0;
+		return false;
 #endif
 
 	/*
@@ -190,8 +190,8 @@ static inline int vma_migratable(struct vm_area_struct *vma)
 	if (vma->vm_file &&
 		gfp_zone(mapping_gfp_mask(vma->vm_file->f_mapping))
 								< policy_zone)
-			return 0;
-	return 1;
+			return false;
+	return true;
 }
 
 extern int mpol_misplaced(struct page *, struct vm_area_struct *, unsigned long);
