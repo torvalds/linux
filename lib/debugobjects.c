@@ -415,7 +415,7 @@ int debug_object_activate(void *addr, struct debug_obj_descr *descr)
 			state = obj->state;
 			raw_spin_unlock_irqrestore(&db->lock, flags);
 			ret = debug_object_fixup(descr->fixup_activate, addr, state);
-			return ret ? -EINVAL : 0;
+			return ret ? 0 : -EINVAL;
 
 		case ODEBUG_STATE_DESTROYED:
 			debug_print_object(obj, "activate");
