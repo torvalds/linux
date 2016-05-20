@@ -254,14 +254,8 @@ static struct rk3288_vpu_control controls[] = {
 		.default_value = 0,
 	},
 	{
-		.id = V4L2_CID_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE,
-		.type = V4L2_CTRL_TYPE_MENU,
-		.name = "Force frame type",
-		.minimum = V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_DISABLED,
-		.maximum = V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_NOT_CODED,
-		.default_value =
-			V4L2_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE_DISABLED,
-		.menu_skip_mask = 0,
+		.id = V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME,
+		.type = V4L2_CTRL_TYPE_BUTTON,
 	},
 	/*
 	 * This hardware does not support features provided by controls
@@ -328,18 +322,10 @@ static const char *const *rk3288_vpu_enc_get_menu(u32 id)
 		"VBV/CPB Limit",
 		NULL,
 	};
-	static const char *const vpu_video_force_frame[] = {
-		"Disabled",
-		"I Frame",
-		"Not Coded",
-		NULL,
-	};
 
 	switch (id) {
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE:
 		return vpu_video_frame_skip;
-	case V4L2_CID_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE:
-		return vpu_video_force_frame;
 	}
 
 	return NULL;
@@ -882,7 +868,7 @@ static int rk3288_vpu_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_MFC51_VIDEO_RC_FIXED_TARGET_BIT:
 	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
 	case V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP:
-	case V4L2_CID_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE:
+	case V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME:
 		/* Ignore these controls for now. (FIXME?) */
 		break;
 
