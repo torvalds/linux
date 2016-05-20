@@ -1794,30 +1794,49 @@ static inline unsigned int fold_hash(unsigned long hash)
 	return hash_64(hash, 32);
 }
 
+/*
+ * This is George Marsaglia's XORSHIFT generator.
+ * It implements a maximum-period LFSR in only a few
+ * instructions.  It also has the property (required
+ * by hash_name()) that mix_hash(0) = 0.
+ */
+static inline unsigned long mix_hash(unsigned long hash)
+{
+	hash ^= hash << 13;
+	hash ^= hash >> 7;
+	hash ^= hash << 17;
+	return hash;
+}
+
 #else	/* 32-bit case */
 
 #define fold_hash(x) (x)
+
+static inline unsigned long mix_hash(unsigned long hash)
+{
+	hash ^= hash << 13;
+	hash ^= hash >> 17;
+	hash ^= hash << 5;
+	return hash;
+}
 
 #endif
 
 unsigned int full_name_hash(const unsigned char *name, unsigned int len)
 {
-	unsigned long a, mask;
-	unsigned long hash = 0;
+	unsigned long a, hash = 0;
 
 	for (;;) {
 		a = load_unaligned_zeropad(name);
 		if (len < sizeof(unsigned long))
 			break;
-		hash += a;
-		hash *= 9;
+		hash = mix_hash(hash + a);
 		name += sizeof(unsigned long);
 		len -= sizeof(unsigned long);
 		if (!len)
 			goto done;
 	}
-	mask = bytemask_from_count(len);
-	hash += mask & a;
+	hash += a & bytemask_from_count(len);
 done:
 	return fold_hash(hash);
 }
@@ -1835,7 +1854,7 @@ static inline u64 hash_name(const char *name)
 	hash = a = 0;
 	len = -sizeof(unsigned long);
 	do {
-		hash = (hash + a) * 9;
+		hash = mix_hash(hash + a);
 		len += sizeof(unsigned long);
 		a = load_unaligned_zeropad(name+len);
 		b = a ^ REPEAT_BYTE('/');
@@ -2267,6 +2286,33 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 EXPORT_SYMBOL(vfs_path_lookup);
 
 /**
+ * lookup_hash - lookup single pathname component on already hashed name
+ * @name:	name and hash to lookup
+ * @base:	base directory to lookup from
+ *
+ * The name must have been verified and hashed (see lookup_one_len()).  Using
+ * this after just full_name_hash() is unsafe.
+ *
+ * This function also doesn't check for search permission on base directory.
+ *
+ * Use lookup_one_len_unlocked() instead, unless you really know what you are
+ * doing.
+ *
+ * Do not hold i_mutex; this helper takes i_mutex if necessary.
+ */
+struct dentry *lookup_hash(const struct qstr *name, struct dentry *base)
+{
+	struct dentry *ret;
+
+	ret = lookup_dcache(name, base, 0);
+	if (!ret)
+		ret = lookup_slow(name, base, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL(lookup_hash);
+
+/**
  * lookup_one_len - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
  * @base:	base directory to lookup from
@@ -2337,7 +2383,6 @@ struct dentry *lookup_one_len_unlocked(const char *name,
 	struct qstr this;
 	unsigned int c;
 	int err;
-	struct dentry *ret;
 
 	this.name = name;
 	this.len = len;
@@ -2369,10 +2414,7 @@ struct dentry *lookup_one_len_unlocked(const char *name,
 	if (err)
 		return ERR_PTR(err);
 
-	ret = lookup_dcache(&this, base, 0);
-	if (!ret)
-		ret = lookup_slow(&this, base, 0);
-	return ret;
+	return lookup_hash(&this, base);
 }
 EXPORT_SYMBOL(lookup_one_len_unlocked);
 
@@ -2942,22 +2984,10 @@ no_open:
 		dentry = lookup_real(dir, dentry, nd->flags);
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
-
-		if (create_error) {
-			int open_flag = op->open_flag;
-
-			error = create_error;
-			if ((open_flag & O_EXCL)) {
-				if (!dentry->d_inode)
-					goto out;
-			} else if (!dentry->d_inode) {
-				goto out;
-			} else if ((open_flag & O_TRUNC) &&
-				   d_is_reg(dentry)) {
-				goto out;
-			}
-			/* will fail later, go on to get the right error */
-		}
+	}
+	if (create_error && !dentry->d_inode) {
+		error = create_error;
+		goto out;
 	}
 looked_up:
 	path->dentry = dentry;
@@ -4213,7 +4243,11 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	bool new_is_dir = false;
 	unsigned max_links = new_dir->i_sb->s_max_links;
 
-	if (source == target)
+	/*
+	 * Check source == target.
+	 * On overlayfs need to look at underlying inodes.
+	 */
+	if (vfs_select_inode(old_dentry, 0) == vfs_select_inode(new_dentry, 0))
 		return 0;
 
 	error = may_delete(old_dir, old_dentry, is_dir);

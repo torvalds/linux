@@ -33,6 +33,8 @@ struct callchain_param	callchain_param = {
 unsigned int page_size;
 int cacheline_size;
 
+unsigned int sysctl_perf_event_max_stack = PERF_MAX_STACK_DEPTH;
+
 bool test_attr__enabled;
 
 bool perf_host  = true;
@@ -115,6 +117,40 @@ int rm_rf(char *path)
 		return ret;
 
 	return rmdir(path);
+}
+
+/* A filter which removes dot files */
+bool lsdir_no_dot_filter(const char *name __maybe_unused, struct dirent *d)
+{
+	return d->d_name[0] != '.';
+}
+
+/* lsdir reads a directory and store it in strlist */
+struct strlist *lsdir(const char *name,
+		      bool (*filter)(const char *, struct dirent *))
+{
+	struct strlist *list = NULL;
+	DIR *dir;
+	struct dirent *d;
+
+	dir = opendir(name);
+	if (!dir)
+		return NULL;
+
+	list = strlist__new(NULL, NULL);
+	if (!list) {
+		errno = ENOMEM;
+		goto out;
+	}
+
+	while ((d = readdir(dir)) != NULL) {
+		if (!filter || filter(name, d))
+			strlist__add(list, d->d_name);
+	}
+
+out:
+	closedir(dir);
+	return list;
 }
 
 static int slow_copyfile(const char *from, const char *to)
@@ -471,7 +507,6 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 				       "needed for --call-graph fp\n");
 			break;
 
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
 		/* Dwarf style */
 		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
 			const unsigned long default_stack_dump_size = 8192;
@@ -487,7 +522,6 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 				ret = get_stack_size(tok, &size);
 				param->dump_size = size;
 			}
-#endif /* HAVE_DWARF_UNWIND_SUPPORT */
 		} else if (!strncmp(name, "lbr", sizeof("lbr"))) {
 			if (!strtok_r(NULL, ",", &saveptr)) {
 				param->record_mode = CALLCHAIN_LBR;

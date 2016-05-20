@@ -316,7 +316,6 @@ static const struct efi efi_xen __initconst = {
 	.get_next_high_mono_count = xen_efi_get_next_high_mono_count,
 	.reset_system             = NULL, /* Functionality provided by Xen. */
 	.set_virtual_address_map  = NULL, /* Not used under Xen. */
-	.memmap                   = NULL, /* Not used under Xen. */
 	.flags			  = 0     /* Initialized later. */
 };
 

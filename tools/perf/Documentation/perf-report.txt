@@ -248,7 +248,7 @@ OPTIONS
 	Note that when using the --itrace option the synthesized callchain size
 	will override this value if the synthesized callchain size is bigger.
 
-	Default: 127
+	Default: /proc/sys/kernel/perf_event_max_stack when present, 127 otherwise.
 
 -G::
 --inverted::
@@ -285,7 +285,7 @@ OPTIONS
 
 -f::
 --force::
-        Don't complain, do it.
+        Don't do ownership validation.
 
 --symfs=<directory>::
         Look for files with symbols relative to this directory.

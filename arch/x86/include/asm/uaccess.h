@@ -118,7 +118,7 @@ struct exception_table_entry {
 
 extern int fixup_exception(struct pt_regs *regs, int trapnr);
 extern bool ex_has_fault_handler(unsigned long ip);
-extern int early_fixup_exception(unsigned long *ip);
+extern void early_fixup_exception(struct pt_regs *regs, int trapnr);
 
 /*
  * These are the main single-value transfer routines.  They automatically

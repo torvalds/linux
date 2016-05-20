@@ -360,6 +360,9 @@ int x86_add_exclusive(unsigned int what)
 {
 	int i;
 
+	if (x86_pmu.lbr_pt_coexist)
+		return 0;
+
 	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
 		mutex_lock(&pmc_reserve_mutex);
 		for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++) {
@@ -380,6 +383,9 @@ fail_unlock:
 
 void x86_del_exclusive(unsigned int what)
 {
+	if (x86_pmu.lbr_pt_coexist)
+		return;
+
 	atomic_dec(&x86_pmu.lbr_exclusive[what]);
 	atomic_dec(&active_events);
 }
@@ -1518,7 +1524,7 @@ x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 
 static void __init pmu_check_apic(void)
 {
-	if (cpu_has_apic)
+	if (boot_cpu_has(X86_FEATURE_APIC))
 		return;
 
 	x86_pmu.apic = 0;
@@ -2177,7 +2183,7 @@ void arch_perf_update_userpage(struct perf_event *event,
 	 * cap_user_time_zero doesn't make sense when we're using a different
 	 * time base for the records.
 	 */
-	if (event->clock == &local_clock) {
+	if (!event->attr.use_clockid) {
 		userpg->cap_user_time_zero = 1;
 		userpg->time_zero = data->cyc2ns_offset;
 	}
@@ -2277,7 +2283,7 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 
 	fp = compat_ptr(ss_base + regs->bp);
 	pagefault_disable();
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < sysctl_perf_event_max_stack) {
 		unsigned long bytes;
 		frame.next_frame     = 0;
 		frame.return_address = 0;
@@ -2337,7 +2343,7 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		return;
 
 	pagefault_disable();
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < sysctl_perf_event_max_stack) {
 		unsigned long bytes;
 		frame.next_frame	     = NULL;
 		frame.return_address = 0;

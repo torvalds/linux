@@ -122,7 +122,7 @@ void perf_callchain_user(struct perf_callchain_entry *entry,
 
 		tail = (struct frame_tail __user *)regs->regs[29];
 
-		while (entry->nr < PERF_MAX_STACK_DEPTH &&
+		while (entry->nr < sysctl_perf_event_max_stack &&
 		       tail && !((unsigned long)tail & 0xf))
 			tail = user_backtrace(tail, entry);
 	} else {
@@ -132,7 +132,7 @@ void perf_callchain_user(struct perf_callchain_entry *entry,
 
 		tail = (struct compat_frame_tail __user *)regs->compat_fp - 1;
 
-		while ((entry->nr < PERF_MAX_STACK_DEPTH) &&
+		while ((entry->nr < sysctl_perf_event_max_stack) &&
 			tail && !((unsigned long)tail & 0x3))
 			tail = compat_user_backtrace(tail, entry);
 #endif
