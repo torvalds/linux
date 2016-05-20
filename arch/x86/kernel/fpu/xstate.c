@@ -44,6 +44,13 @@ static unsigned int xstate_sizes[XFEATURE_MAX]   = { [ 0 ... XFEATURE_MAX - 1] =
 static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
 
 /*
+ * The XSAVE area of kernel can be in standard or compacted format;
+ * it is always in standard format for user mode. This is the user
+ * mode standard format size used for signal and ptrace frames.
+ */
+unsigned int fpu_user_xstate_size;
+
+/*
  * Clear all of the X86_FEATURE_* bits that are unavailable
  * when the CPU has no XSAVE support.
  */
@@ -171,7 +178,7 @@ void fpstate_sanitize_xstate(struct fpu *fpu)
 	 */
 	while (xfeatures) {
 		if (xfeatures & 0x1) {
-			int offset = xstate_offsets[feature_bit];
+			int offset = xstate_comp_offsets[feature_bit];
 			int size = xstate_sizes[feature_bit];
 
 			memcpy((void *)fx + offset,
@@ -533,8 +540,9 @@ static void do_extra_xstate_size_checks(void)
 	XSTATE_WARN_ON(paranoid_xstate_size != xstate_size);
 }
 
+
 /*
- * Calculate total size of enabled xstates in XCR0/xfeatures_mask.
+ * Get total size of enabled xstates in XCR0/xfeatures_mask.
  *
  * Note the SDM's wording here.  "sub-function 0" only enumerates
  * the size of the *user* states.  If we use it to size a buffer
@@ -544,34 +552,33 @@ static void do_extra_xstate_size_checks(void)
  * Note that we do not currently set any bits on IA32_XSS so
  * 'XCR0 | IA32_XSS == XCR0' for now.
  */
-static unsigned int __init calculate_xstate_size(void)
+static unsigned int __init get_xsaves_size(void)
 {
 	unsigned int eax, ebx, ecx, edx;
-	unsigned int calculated_xstate_size;
+	/*
+	 * - CPUID function 0DH, sub-function 1:
+	 *    EBX enumerates the size (in bytes) required by
+	 *    the XSAVES instruction for an XSAVE area
+	 *    containing all the state components
+	 *    corresponding to bits currently set in
+	 *    XCR0 | IA32_XSS.
+	 */
+	cpuid_count(XSTATE_CPUID, 1, &eax, &ebx, &ecx, &edx);
+	return ebx;
+}
 
-	if (!boot_cpu_has(X86_FEATURE_XSAVES)) {
-		/*
-		 * - CPUID function 0DH, sub-function 0:
-		 *    EBX enumerates the size (in bytes) required by
-		 *    the XSAVE instruction for an XSAVE area
-		 *    containing all the *user* state components
-		 *    corresponding to bits currently set in XCR0.
-		 */
-		cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
-		calculated_xstate_size = ebx;
-	} else {
-		/*
-		 * - CPUID function 0DH, sub-function 1:
-		 *    EBX enumerates the size (in bytes) required by
-		 *    the XSAVES instruction for an XSAVE area
-		 *    containing all the state components
-		 *    corresponding to bits currently set in
-		 *    XCR0 | IA32_XSS.
-		 */
-		cpuid_count(XSTATE_CPUID, 1, &eax, &ebx, &ecx, &edx);
-		calculated_xstate_size = ebx;
-	}
-	return calculated_xstate_size;
+static unsigned int __init get_xsave_size(void)
+{
+	unsigned int eax, ebx, ecx, edx;
+	/*
+	 * - CPUID function 0DH, sub-function 0:
+	 *    EBX enumerates the size (in bytes) required by
+	 *    the XSAVE instruction for an XSAVE area
+	 *    containing all the *user* state components
+	 *    corresponding to bits currently set in XCR0.
+	 */
+	cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
+	return ebx;
 }
 
 /*
@@ -591,7 +598,15 @@ static bool is_supported_xstate_size(unsigned int test_xstate_size)
 static int init_xstate_size(void)
 {
 	/* Recompute the context size for enabled features: */
-	unsigned int possible_xstate_size = calculate_xstate_size();
+	unsigned int possible_xstate_size;
+	unsigned int xsave_size;
+
+	xsave_size = get_xsave_size();
+
+	if (boot_cpu_has(X86_FEATURE_XSAVES))
+		possible_xstate_size = get_xsaves_size();
+	else
+		possible_xstate_size = xsave_size;
 
 	/* Ensure we have the space to store all enabled: */
 	if (!is_supported_xstate_size(possible_xstate_size))
@@ -603,6 +618,11 @@ static int init_xstate_size(void)
 	 */
 	xstate_size = possible_xstate_size;
 	do_extra_xstate_size_checks();
+
+	/*
+	 * User space is always in standard format.
+	 */
+	fpu_user_xstate_size = xsave_size;
 	return 0;
 }
 

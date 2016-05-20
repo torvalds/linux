@@ -32,7 +32,7 @@ static inline int check_for_xstate(struct fxregs_state __user *buf,
 	/* Check for the first magic field and other error scenarios. */
 	if (fx_sw->magic1 != FP_XSTATE_MAGIC1 ||
 	    fx_sw->xstate_size < min_xstate_size ||
-	    fx_sw->xstate_size > xstate_size ||
+	    fx_sw->xstate_size > fpu_user_xstate_size ||
 	    fx_sw->xstate_size > fx_sw->extended_size)
 		return -1;
 
@@ -89,7 +89,8 @@ static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
 	if (!use_xsave())
 		return err;
 
-	err |= __put_user(FP_XSTATE_MAGIC2, (__u32 *)(buf + xstate_size));
+	err |= __put_user(FP_XSTATE_MAGIC2,
+			  (__u32 *)(buf + fpu_user_xstate_size));
 
 	/*
 	 * Read the xfeatures which we copied (directly from the cpu or
@@ -126,7 +127,7 @@ static inline int copy_fpregs_to_sigframe(struct xregs_state __user *buf)
 	else
 		err = copy_fregs_to_user((struct fregs_state __user *) buf);
 
-	if (unlikely(err) && __clear_user(buf, xstate_size))
+	if (unlikely(err) && __clear_user(buf, fpu_user_xstate_size))
 		err = -EFAULT;
 	return err;
 }
@@ -176,8 +177,19 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 		if (ia32_fxstate)
 			copy_fxregs_to_kernel(&tsk->thread.fpu);
 	} else {
+		/*
+		 * It is a *bug* if kernel uses compacted-format for xsave
+		 * area and we copy it out directly to a signal frame. It
+		 * should have been handled above by saving the registers
+		 * directly.
+		 */
+		if (boot_cpu_has(X86_FEATURE_XSAVES)) {
+			WARN_ONCE(1, "x86/fpu: saving compacted-format xsave area to a signal frame!\n");
+			return -1;
+		}
+
 		fpstate_sanitize_xstate(&tsk->thread.fpu);
-		if (__copy_to_user(buf_fx, xsave, xstate_size))
+		if (__copy_to_user(buf_fx, xsave, fpu_user_xstate_size))
 			return -1;
 	}
 
@@ -344,7 +356,8 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 
 static inline int xstate_sigframe_size(void)
 {
-	return use_xsave() ? xstate_size + FP_XSTATE_MAGIC2_SIZE : xstate_size;
+	return use_xsave() ? fpu_user_xstate_size + FP_XSTATE_MAGIC2_SIZE :
+			fpu_user_xstate_size;
 }
 
 /*
@@ -388,12 +401,12 @@ fpu__alloc_mathframe(unsigned long sp, int ia32_frame,
  */
 void fpu__init_prepare_fx_sw_frame(void)
 {
-	int size = xstate_size + FP_XSTATE_MAGIC2_SIZE;
+	int size = fpu_user_xstate_size + FP_XSTATE_MAGIC2_SIZE;
 
 	fx_sw_reserved.magic1 = FP_XSTATE_MAGIC1;
 	fx_sw_reserved.extended_size = size;
 	fx_sw_reserved.xfeatures = xfeatures_mask;
-	fx_sw_reserved.xstate_size = xstate_size;
+	fx_sw_reserved.xstate_size = fpu_user_xstate_size;
 
 	if (config_enabled(CONFIG_IA32_EMULATION) ||
 	    config_enabled(CONFIG_X86_32)) {

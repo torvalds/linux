@@ -195,7 +195,7 @@ static void __init fpu__init_task_struct_size(void)
 }
 
 /*
- * Set up the xstate_size based on the legacy FPU context size.
+ * Set up the user and kernel xstate_size based on the legacy FPU context size.
  *
  * We set this up first, and later it will be overwritten by
  * fpu__init_system_xstate() if the CPU knows about xstates.
@@ -226,6 +226,9 @@ static void __init fpu__init_system_xstate_size_legacy(void)
 		else
 			xstate_size = sizeof(struct fregs_state);
 	}
+
+	fpu_user_xstate_size = xstate_size;
+
 	/*
 	 * Quirk: we don't yet handle the XSAVES* instructions
 	 * correctly, as we don't correctly convert between
