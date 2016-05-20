@@ -408,15 +408,17 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	 */
 	fdput(f);
 #ifdef CONFIG_HAVE_KVM_IRQ_BYPASS
-	irqfd->consumer.token = (void *)irqfd->eventfd;
-	irqfd->consumer.add_producer = kvm_arch_irq_bypass_add_producer;
-	irqfd->consumer.del_producer = kvm_arch_irq_bypass_del_producer;
-	irqfd->consumer.stop = kvm_arch_irq_bypass_stop;
-	irqfd->consumer.start = kvm_arch_irq_bypass_start;
-	ret = irq_bypass_register_consumer(&irqfd->consumer);
-	if (ret)
-		pr_info("irq bypass consumer (token %p) registration fails: %d\n",
+	if (kvm_arch_has_irq_bypass()) {
+		irqfd->consumer.token = (void *)irqfd->eventfd;
+		irqfd->consumer.add_producer = kvm_arch_irq_bypass_add_producer;
+		irqfd->consumer.del_producer = kvm_arch_irq_bypass_del_producer;
+		irqfd->consumer.stop = kvm_arch_irq_bypass_stop;
+		irqfd->consumer.start = kvm_arch_irq_bypass_start;
+		ret = irq_bypass_register_consumer(&irqfd->consumer);
+		if (ret)
+			pr_info("irq bypass consumer (token %p) registration fails: %d\n",
 				irqfd->consumer.token, ret);
+	}
 #endif
 
 	return 0;

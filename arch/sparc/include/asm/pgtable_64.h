@@ -681,8 +681,6 @@ static inline unsigned long pmd_trans_huge(pmd_t pmd)
 	return pte_val(pte) & _PAGE_PMD_HUGE;
 }
 
-#define has_transparent_hugepage() 1
-
 static inline pmd_t pmd_mkold(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));

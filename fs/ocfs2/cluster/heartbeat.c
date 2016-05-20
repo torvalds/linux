@@ -1456,7 +1456,6 @@ static void o2hb_region_release(struct config_item *item)
 
 static int o2hb_read_block_input(struct o2hb_region *reg,
 				 const char *page,
-				 size_t count,
 				 unsigned long *ret_bytes,
 				 unsigned int *ret_bits)
 {
@@ -1499,8 +1498,8 @@ static ssize_t o2hb_region_block_bytes_store(struct config_item *item,
 	if (reg->hr_bdev)
 		return -EINVAL;
 
-	status = o2hb_read_block_input(reg, page, count,
-				       &block_bytes, &block_bits);
+	status = o2hb_read_block_input(reg, page, &block_bytes,
+				       &block_bits);
 	if (status)
 		return status;
 

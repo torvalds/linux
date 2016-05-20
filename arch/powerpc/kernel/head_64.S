@@ -973,13 +973,16 @@ start_here_common:
  * This stuff goes at the beginning of the bss, which is page-aligned.
  */
 	.section ".bss"
-
-	.align	PAGE_SHIFT
-
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	PAGE_SIZE
+/*
+ * pgd dir should be aligned to PGD_TABLE_SIZE which is 64K.
+ * We will need to find a better way to fix this
+ */
+	.align	16
 
 	.globl	swapper_pg_dir
 swapper_pg_dir:
 	.space	PGD_TABLE_SIZE
+
+	.globl	empty_zero_page
+empty_zero_page:
+	.space	PAGE_SIZE

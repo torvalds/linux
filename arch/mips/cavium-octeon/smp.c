@@ -30,25 +30,55 @@ uint64_t octeon_bootloader_entry_addr;
 EXPORT_SYMBOL(octeon_bootloader_entry_addr);
 #endif
 
+static void octeon_icache_flush(void)
+{
+	asm volatile ("synci 0($0)\n");
+}
+
+static void (*octeon_message_functions[8])(void) = {
+	scheduler_ipi,
+	generic_smp_call_function_interrupt,
+	octeon_icache_flush,
+};
+
 static irqreturn_t mailbox_interrupt(int irq, void *dev_id)
 {
-	const int coreid = cvmx_get_core_num();
-	uint64_t action;
+	u64 mbox_clrx = CVMX_CIU_MBOX_CLRX(cvmx_get_core_num());
+	u64 action;
+	int i;
 
-	/* Load the mailbox register to figure out what we're supposed to do */
-	action = cvmx_read_csr(CVMX_CIU_MBOX_CLRX(coreid)) & 0xffff;
+	/*
+	 * Make sure the function array initialization remains
+	 * correct.
+	 */
+	BUILD_BUG_ON(SMP_RESCHEDULE_YOURSELF != (1 << 0));
+	BUILD_BUG_ON(SMP_CALL_FUNCTION       != (1 << 1));
+	BUILD_BUG_ON(SMP_ICACHE_FLUSH        != (1 << 2));
+
+	/*
+	 * Load the mailbox register to figure out what we're supposed
+	 * to do.
+	 */
+	action = cvmx_read_csr(mbox_clrx);
+
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+		action &= 0xff;
+	else
+		action &= 0xffff;
 
 	/* Clear the mailbox to clear the interrupt */
-	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(coreid), action);
+	cvmx_write_csr(mbox_clrx, action);
 
-	if (action & SMP_CALL_FUNCTION)
-		generic_smp_call_function_interrupt();
-	if (action & SMP_RESCHEDULE_YOURSELF)
-		scheduler_ipi();
+	for (i = 0; i < ARRAY_SIZE(octeon_message_functions) && action;) {
+		if (action & 1) {
+			void (*fn)(void) = octeon_message_functions[i];
 
-	/* Check if we've been told to flush the icache */
-	if (action & SMP_ICACHE_FLUSH)
-		asm volatile ("synci 0($0)\n");
+			if (fn)
+				fn();
+		}
+		action >>= 1;
+		i++;
+	}
 	return IRQ_HANDLED;
 }
 
@@ -97,13 +127,15 @@ static void octeon_smp_hotplug_setup(void)
 #endif
 }
 
-static void octeon_smp_setup(void)
+static void __init octeon_smp_setup(void)
 {
 	const int coreid = cvmx_get_core_num();
 	int cpus;
 	int id;
-	int core_mask = octeon_get_boot_coremask();
+	struct cvmx_sysinfo *sysinfo = cvmx_sysinfo_get();
+
 #ifdef CONFIG_HOTPLUG_CPU
+	int core_mask = octeon_get_boot_coremask();
 	unsigned int num_cores = cvmx_octeon_num_cores();
 #endif
 
@@ -119,7 +151,7 @@ static void octeon_smp_setup(void)
 	/* The present CPUs get the lowest CPU numbers. */
 	cpus = 1;
 	for (id = 0; id < NR_CPUS; id++) {
-		if ((id != coreid) && (core_mask & (1 << id))) {
+		if ((id != coreid) && cvmx_coremask_is_core_set(&sysinfo->core_mask, id)) {
 			set_cpu_possible(cpus, true);
 			set_cpu_present(cpus, true);
 			__cpu_number_map[id] = cpus;
@@ -196,7 +228,7 @@ static void octeon_init_secondary(void)
  * Callout to firmware before smp_init
  *
  */
-void octeon_prepare_cpus(unsigned int max_cpus)
+static void __init octeon_prepare_cpus(unsigned int max_cpus)
 {
 	/*
 	 * Only the low order mailbox bits are used for IPIs, leave
@@ -242,7 +274,7 @@ static int octeon_cpu_disable(void)
 	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	octeon_fixup_irqs();
 
-	flush_cache_all();
+	__flush_cache_all();
 	local_flush_tlb_all();
 
 	return 0;
@@ -388,3 +420,92 @@ struct plat_smp_ops octeon_smp_ops = {
 	.cpu_die		= octeon_cpu_die,
 #endif
 };
+
+static irqreturn_t octeon_78xx_reched_interrupt(int irq, void *dev_id)
+{
+	scheduler_ipi();
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t octeon_78xx_call_function_interrupt(int irq, void *dev_id)
+{
+	generic_smp_call_function_interrupt();
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t octeon_78xx_icache_flush_interrupt(int irq, void *dev_id)
+{
+	octeon_icache_flush();
+	return IRQ_HANDLED;
+}
+
+/*
+ * Callout to firmware before smp_init
+ */
+static void octeon_78xx_prepare_cpus(unsigned int max_cpus)
+{
+	if (request_irq(OCTEON_IRQ_MBOX0 + 0,
+			octeon_78xx_reched_interrupt,
+			IRQF_PERCPU | IRQF_NO_THREAD, "Scheduler",
+			octeon_78xx_reched_interrupt)) {
+		panic("Cannot request_irq for SchedulerIPI");
+	}
+	if (request_irq(OCTEON_IRQ_MBOX0 + 1,
+			octeon_78xx_call_function_interrupt,
+			IRQF_PERCPU | IRQF_NO_THREAD, "SMP-Call",
+			octeon_78xx_call_function_interrupt)) {
+		panic("Cannot request_irq for SMP-Call");
+	}
+	if (request_irq(OCTEON_IRQ_MBOX0 + 2,
+			octeon_78xx_icache_flush_interrupt,
+			IRQF_PERCPU | IRQF_NO_THREAD, "ICache-Flush",
+			octeon_78xx_icache_flush_interrupt)) {
+		panic("Cannot request_irq for ICache-Flush");
+	}
+}
+
+static void octeon_78xx_send_ipi_single(int cpu, unsigned int action)
+{
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		if (action & 1)
+			octeon_ciu3_mbox_send(cpu, i);
+		action >>= 1;
+	}
+}
+
+static void octeon_78xx_send_ipi_mask(const struct cpumask *mask,
+				      unsigned int action)
+{
+	unsigned int cpu;
+
+	for_each_cpu(cpu, mask)
+		octeon_78xx_send_ipi_single(cpu, action);
+}
+
+static struct plat_smp_ops octeon_78xx_smp_ops = {
+	.send_ipi_single	= octeon_78xx_send_ipi_single,
+	.send_ipi_mask		= octeon_78xx_send_ipi_mask,
+	.init_secondary		= octeon_init_secondary,
+	.smp_finish		= octeon_smp_finish,
+	.boot_secondary		= octeon_boot_secondary,
+	.smp_setup		= octeon_smp_setup,
+	.prepare_cpus		= octeon_78xx_prepare_cpus,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_disable		= octeon_cpu_disable,
+	.cpu_die		= octeon_cpu_die,
+#endif
+};
+
+void __init octeon_setup_smp(void)
+{
+	struct plat_smp_ops *ops;
+
+	if (octeon_has_feature(OCTEON_FEATURE_CIU3))
+		ops = &octeon_78xx_smp_ops;
+	else
+		ops = &octeon_smp_ops;
+
+	register_smp_ops(ops);
+}

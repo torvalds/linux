@@ -268,6 +268,9 @@ IIO
   devm_iio_trigger_alloc()
   devm_iio_trigger_free()
 
+INPUT
+  devm_input_allocate_device()
+
 IO region
   devm_release_mem_region()
   devm_release_region()
@@ -317,6 +320,9 @@ MEM
   devm_kvasprintf()
   devm_kzalloc()
 
+MFD
+ devm_mfd_add_devices()
+
 PCI
   pcim_enable_device()	: after success, all PCI ops become managed
   pcim_pin_device()	: keep PCI device enabled after release
@@ -328,6 +334,8 @@ PHY
 PINCTRL
   devm_pinctrl_get()
   devm_pinctrl_put()
+  devm_pinctrl_register()
+  devm_pinctrl_unregister()
 
 PWM
   devm_pwm_get()

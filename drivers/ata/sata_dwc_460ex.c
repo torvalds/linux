@@ -201,8 +201,8 @@ static struct sata_dwc_host_priv host_pvt;
 static struct dw_dma_slave sata_dwc_dma_dws = {
 	.src_id = 0,
 	.dst_id = 0,
-	.src_master = 0,
-	.dst_master = 1,
+	.m_master = 1,
+	.p_master = 0,
 };
 
 /*
@@ -1248,7 +1248,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	hsdev->dma->dev = &ofdev->dev;
 
 	/* Initialize AHB DMAC */
-	err = dw_dma_probe(hsdev->dma, NULL);
+	err = dw_dma_probe(hsdev->dma);
 	if (err)
 		goto error_dma_iomap;
 

@@ -14,7 +14,7 @@
 	clock-frequency = <80000000>;	/* 80 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
-	interrupt-parent = <&intc>;
+	interrupt-parent = <&core_intc>;
 
 	chosen {
 		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8";
@@ -32,7 +32,13 @@
 		/* child and parent address space 1:1 mapped */
 		ranges;
 
-		intc: interrupt-controller {
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <80000000>;
+		};
+
+		core_intc: interrupt-controller {
 			compatible = "snps,arc700-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;

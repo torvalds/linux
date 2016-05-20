@@ -154,8 +154,8 @@ static void rackmeter_do_pause(struct rackmeter *rm, int pause)
 		DBDMA_DO_STOP(rm->dma_regs);
 		return;
 	}
-	memset(rdma->buf1, 0, SAMPLE_COUNT & sizeof(u32));
-	memset(rdma->buf2, 0, SAMPLE_COUNT & sizeof(u32));
+	memset(rdma->buf1, 0, ARRAY_SIZE(rdma->buf1));
+	memset(rdma->buf2, 0, ARRAY_SIZE(rdma->buf2));
 
 	rm->dma_buf_v->mark = 0;
 
@@ -227,6 +227,7 @@ static void rackmeter_do_timer(struct work_struct *work)
 
 	total_idle_ticks = get_cpu_idle_time(cpu);
 	idle_ticks = (unsigned int) (total_idle_ticks - rcpu->prev_idle);
+	idle_ticks = min(idle_ticks, total_ticks);
 	rcpu->prev_idle = total_idle_ticks;
 
 	/* We do a very dumb calculation to update the LEDs for now,

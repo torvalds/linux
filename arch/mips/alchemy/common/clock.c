@@ -1043,8 +1043,7 @@ static int __init alchemy_clk_init(void)
 
 	/* Root of the Alchemy clock tree: external 12MHz crystal osc */
 	c = clk_register_fixed_rate(NULL, ALCHEMY_ROOT_CLK, NULL,
-					   CLK_IS_ROOT,
-					   ALCHEMY_ROOTCLK_RATE);
+					   0, ALCHEMY_ROOTCLK_RATE);
 	ERRCK(c)
 
 	/* CPU core clock */

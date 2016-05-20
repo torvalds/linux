@@ -1188,7 +1188,8 @@ static int tce_iommu_attach_group(void *iommu_data,
 			goto unlock_exit;
 		}
 		table_group_tmp = iommu_group_get_iommudata(tcegrp->grp);
-		if (table_group_tmp->ops != table_group->ops) {
+		if (table_group_tmp->ops->create_table !=
+				table_group->ops->create_table) {
 			pr_warn("tce_vfio: Group %d is incompatible with group %d\n",
 					iommu_group_id(iommu_group),
 					iommu_group_id(tcegrp->grp));

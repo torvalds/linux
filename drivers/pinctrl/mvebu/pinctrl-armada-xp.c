@@ -502,18 +502,12 @@ static int armada_xp_pinctrl_probe(struct platform_device *pdev)
 	return mvebu_pinctrl_probe(pdev);
 }
 
-static int armada_xp_pinctrl_remove(struct platform_device *pdev)
-{
-	return mvebu_pinctrl_remove(pdev);
-}
-
 static struct platform_driver armada_xp_pinctrl_driver = {
 	.driver = {
 		.name = "armada-xp-pinctrl",
 		.of_match_table = armada_xp_pinctrl_of_match,
 	},
 	.probe = armada_xp_pinctrl_probe,
-	.remove = armada_xp_pinctrl_remove,
 	.suspend = armada_xp_pinctrl_suspend,
 	.resume = armada_xp_pinctrl_resume,
 };

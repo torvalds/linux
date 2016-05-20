@@ -122,6 +122,7 @@ source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig
 source security/apparmor/Kconfig
+source security/loadpin/Kconfig
 source security/yama/Kconfig
 
 source security/integrity/Kconfig

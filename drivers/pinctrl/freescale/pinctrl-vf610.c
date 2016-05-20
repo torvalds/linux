@@ -318,7 +318,6 @@ static struct platform_driver vf610_pinctrl_driver = {
 		.of_match_table = vf610_pinctrl_of_match,
 	},
 	.probe = vf610_pinctrl_probe,
-	.remove = imx_pinctrl_remove,
 };
 
 static int __init vf610_pinctrl_init(void)

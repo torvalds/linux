@@ -54,6 +54,7 @@
 #define TEGRA_APBDMA_CSR_ONCE			BIT(27)
 #define TEGRA_APBDMA_CSR_FLOW			BIT(21)
 #define TEGRA_APBDMA_CSR_REQ_SEL_SHIFT		16
+#define TEGRA_APBDMA_CSR_REQ_SEL_MASK		0x1F
 #define TEGRA_APBDMA_CSR_WCOUNT_MASK		0xFFFC
 
 /* STATUS register */
@@ -113,6 +114,8 @@
 
 /* Channel base address offset from APBDMA base address */
 #define TEGRA_APBDMA_CHANNEL_BASE_ADD_OFFSET	0x1000
+
+#define TEGRA_APBDMA_SLAVE_ID_INVALID	(TEGRA_APBDMA_CSR_REQ_SEL_MASK + 1)
 
 struct tegra_dma;
 
@@ -353,8 +356,11 @@ static int tegra_dma_slave_config(struct dma_chan *dc,
 	}
 
 	memcpy(&tdc->dma_sconfig, sconfig, sizeof(*sconfig));
-	if (!tdc->slave_id)
+	if (tdc->slave_id == TEGRA_APBDMA_SLAVE_ID_INVALID) {
+		if (sconfig->slave_id > TEGRA_APBDMA_CSR_REQ_SEL_MASK)
+			return -EINVAL;
 		tdc->slave_id = sconfig->slave_id;
+	}
 	tdc->config_init = true;
 	return 0;
 }
@@ -1236,7 +1242,7 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 	}
 	pm_runtime_put(tdma->dev);
 
-	tdc->slave_id = 0;
+	tdc->slave_id = TEGRA_APBDMA_SLAVE_ID_INVALID;
 }
 
 static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
@@ -1245,6 +1251,11 @@ static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
 	struct tegra_dma *tdma = ofdma->of_dma_data;
 	struct dma_chan *chan;
 	struct tegra_dma_channel *tdc;
+
+	if (dma_spec->args[0] > TEGRA_APBDMA_CSR_REQ_SEL_MASK) {
+		dev_err(tdma->dev, "Invalid slave id: %d\n", dma_spec->args[0]);
+		return NULL;
+	}
 
 	chan = dma_get_any_slave_channel(&tdma->dma_dev);
 	if (!chan)
@@ -1389,6 +1400,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 				&tdma->dma_dev.channels);
 		tdc->tdma = tdma;
 		tdc->id = i;
+		tdc->slave_id = TEGRA_APBDMA_SLAVE_ID_INVALID;
 
 		tasklet_init(&tdc->tasklet, tegra_dma_tasklet,
 				(unsigned long)tdc);
