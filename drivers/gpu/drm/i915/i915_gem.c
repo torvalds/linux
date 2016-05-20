@@ -2404,7 +2404,8 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj)
 	unsigned long n_pages = obj->base.size >> PAGE_SHIFT;
 	struct sg_table *sgt = obj->pages;
 	struct sg_page_iter sg_iter;
-	struct page **pages;
+	struct page *stack_pages[32];
+	struct page **pages = stack_pages;
 	unsigned long i = 0;
 	void *addr;
 
@@ -2412,9 +2413,12 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj)
 	if (n_pages == 1)
 		return kmap(sg_page(sgt->sgl));
 
-	pages = drm_malloc_gfp(n_pages, sizeof(*pages), GFP_TEMPORARY);
-	if (!pages)
-		return NULL;
+	if (n_pages > ARRAY_SIZE(stack_pages)) {
+		/* Too big for stack -- allocate temporary array instead */
+		pages = drm_malloc_gfp(n_pages, sizeof(*pages), GFP_TEMPORARY);
+		if (!pages)
+			return NULL;
+	}
 
 	for_each_sg_page(sgt->sgl, &sg_iter, sgt->nents, 0)
 		pages[i++] = sg_page_iter_page(&sg_iter);
@@ -2424,7 +2428,8 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj)
 
 	addr = vmap(pages, n_pages, 0, PAGE_KERNEL);
 
-	drm_free_large(pages);
+	if (pages != stack_pages)
+		drm_free_large(pages);
 
 	return addr;
 }
