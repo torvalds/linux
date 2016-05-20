@@ -223,6 +223,9 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 	u32 val;
 	int ret;
 
+	if (!np)
+		return 0;
+
 	/*
 	 * Get node via "sound-dai = <&phandle port>"
 	 * it will be used as xxx_of_node on soc_bind_dai_link()
@@ -238,9 +241,14 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 		*args_count = args.args_count;
 
 	/* Get dai->name */
-	ret = snd_soc_of_get_dai_name(np, name);
-	if (ret < 0)
-		return ret;
+	if (name) {
+		ret = snd_soc_of_get_dai_name(np, name);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (!dai)
+		return 0;
 
 	/* Parse TDM slot */
 	ret = snd_soc_of_parse_tdm_slot(np, &dai->tx_slot_mask,
@@ -374,21 +382,20 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	if (ret < 0)
 		goto dai_link_of_err;
 
+	ret = asoc_simple_card_sub_parse_of(plat, NULL,
+					    &dai_link->platform_of_node,
+					    NULL, NULL);
+	if (ret < 0)
+		goto dai_link_of_err;
+
 	if (!dai_link->cpu_dai_name || !dai_link->codec_dai_name) {
 		ret = -EINVAL;
 		goto dai_link_of_err;
 	}
 
-	if (plat) {
-		struct of_phandle_args args;
-
-		ret = of_parse_phandle_with_args(plat, "sound-dai",
-						 "#sound-dai-cells", 0, &args);
-		dai_link->platform_of_node = args.np;
-	} else {
-		/* Assumes platform == cpu */
+	/* Assumes platform == cpu */
+	if (!dai_link->platform_of_node)
 		dai_link->platform_of_node = dai_link->cpu_of_node;
-	}
 
 	/* DAI link name is created from CPU/CODEC dai name */
 	name = devm_kzalloc(dev,
