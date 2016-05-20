@@ -266,13 +266,28 @@ struct plx_dma_desc {
 /* PCI Configuration Address Register for Direct Master to PCI IO/CFG */
 #define PLX_REG_DMCFGA		0x002c
 
-#define  CAR_CT0           0x00000000	/* Config Type 0 */
-#define  CAR_CT1           0x00000001	/* Config Type 1 */
-#define  CAR_REG           0x000000FC	/* Register Number Bits */
-#define  CAR_FUN           0x00000700	/* Function Number Bits */
-#define  CAR_DEV           0x0000F800	/* Device Number Bits */
-#define  CAR_BUS           0x00FF0000	/* Bus Number Bits */
-#define  CAR_CFG           0x80000000	/* Config Spc Access Enable */
+/* Congiguration Type */
+#define PLX_DMCFGA_TYPE0	(BIT(0) * 0)
+#define PLX_DMCFGA_TYPE1	(BIT(0) * 1)
+#define PLX_DMCFGA_TYPE_MASK	GENMASK(1, 0)
+/* Register Number */
+#define PLX_DMCFGA_REGNUM(x)	(BIT(2) * ((x) & 0x3f))
+#define PLX_DMCFGA_REGNUM_MASK	GENMASK(7, 2)
+#define PLX_DMCFGA_REGNUM_SHIFT	2
+/* Function Number */
+#define PLX_DMCFGA_FUNCNUM(x)	(BIT(8) * ((x) & 0x7))
+#define PLX_DMCFGA_FUNCNUM_MASK	GENMASK(10, 8)
+#define PLX_DMCFGA_FUNCNUM_SHIFT 8
+/* Device Number */
+#define PLX_DMCFGA_DEVNUM(x)	(BIT(11) * ((x) & 0x1f))
+#define PLX_DMCFGA_DEVNUM_MASK	GENMASK(15, 11)
+#define PLX_DMCFGA_DEVNUM_SHIFT	11
+/* Bus Number */
+#define PLX_DMCFGA_BUSNUM(x)	(BIT(16) * ((x) & 0xff))
+#define PLX_DMCFGA_BUSNUM_MASK	GENMASK(23, 16)
+#define PLX_DMCFGA_BUSNUM_SHIFT	16
+/* Configuration Enable */
+#define PLX_DMCFGA_CONFIGEN	BIT(31)
 
 /*
  * Mailbox Register N (N <= 7)
