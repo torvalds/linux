@@ -228,9 +228,46 @@ static struct attribute *nhm_events_attrs[] = {
 	NULL,
 };
 
+/*
+ * topdown events for Intel Core CPUs.
+ *
+ * The events are all in slots, which is a free slot in a 4 wide
+ * pipeline. Some events are already reported in slots, for cycle
+ * events we multiply by the pipeline width (4).
+ *
+ * With Hyper Threading on, topdown metrics are either summed or averaged
+ * between the threads of a core: (count_t0 + count_t1).
+ *
+ * For the average case the metric is always scaled to pipeline width,
+ * so we use factor 2 ((count_t0 + count_t1) / 2 * 4)
+ */
+
+EVENT_ATTR_STR_HT(topdown-total-slots, td_total_slots,
+	"event=0x3c,umask=0x0",			/* cpu_clk_unhalted.thread */
+	"event=0x3c,umask=0x0,any=1");		/* cpu_clk_unhalted.thread_any */
+EVENT_ATTR_STR_HT(topdown-total-slots.scale, td_total_slots_scale, "4", "2");
+EVENT_ATTR_STR(topdown-slots-issued, td_slots_issued,
+	"event=0xe,umask=0x1");			/* uops_issued.any */
+EVENT_ATTR_STR(topdown-slots-retired, td_slots_retired,
+	"event=0xc2,umask=0x2");		/* uops_retired.retire_slots */
+EVENT_ATTR_STR(topdown-fetch-bubbles, td_fetch_bubbles,
+	"event=0x9c,umask=0x1");		/* idq_uops_not_delivered_core */
+EVENT_ATTR_STR_HT(topdown-recovery-bubbles, td_recovery_bubbles,
+	"event=0xd,umask=0x3,cmask=1",		/* int_misc.recovery_cycles */
+	"event=0xd,umask=0x3,cmask=1,any=1");	/* int_misc.recovery_cycles_any */
+EVENT_ATTR_STR_HT(topdown-recovery-bubbles.scale, td_recovery_bubbles_scale,
+	"4", "2");
+
 static struct attribute *snb_events_attrs[] = {
 	EVENT_PTR(mem_ld_snb),
 	EVENT_PTR(mem_st_snb),
+	EVENT_PTR(td_slots_issued),
+	EVENT_PTR(td_slots_retired),
+	EVENT_PTR(td_fetch_bubbles),
+	EVENT_PTR(td_total_slots),
+	EVENT_PTR(td_total_slots_scale),
+	EVENT_PTR(td_recovery_bubbles),
+	EVENT_PTR(td_recovery_bubbles_scale),
 	NULL,
 };
 
@@ -3435,6 +3472,13 @@ static struct attribute *hsw_events_attrs[] = {
 	EVENT_PTR(cycles_ct),
 	EVENT_PTR(mem_ld_hsw),
 	EVENT_PTR(mem_st_hsw),
+	EVENT_PTR(td_slots_issued),
+	EVENT_PTR(td_slots_retired),
+	EVENT_PTR(td_fetch_bubbles),
+	EVENT_PTR(td_total_slots),
+	EVENT_PTR(td_total_slots_scale),
+	EVENT_PTR(td_recovery_bubbles),
+	EVENT_PTR(td_recovery_bubbles_scale),
 	NULL
 };
 
@@ -3802,6 +3846,12 @@ __init int intel_pmu_init(void)
 		memcpy(hw_cache_event_ids, skl_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, skl_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
 		intel_pmu_lbr_init_skl();
+
+		/* INT_MISC.RECOVERY_CYCLES has umask 1 in Skylake */
+		event_attr_td_recovery_bubbles.event_str_noht =
+			"event=0xd,umask=0x1,cmask=1";
+		event_attr_td_recovery_bubbles.event_str_ht =
+			"event=0xd,umask=0x1,cmask=1,any=1";
 
 		x86_pmu.event_constraints = intel_skl_event_constraints;
 		x86_pmu.pebs_constraints = intel_skl_pebs_event_constraints;
