@@ -235,7 +235,9 @@ static void ssi_gdd_complete(struct hsi_controller *ssi, unsigned int lch)
 		spin_lock(&omap_port->lock);
 		list_del(&msg->link); /* Dequeue msg */
 		spin_unlock(&omap_port->lock);
-		msg->complete(msg);
+
+		list_add_tail(&msg->link, &omap_port->errqueue);
+		schedule_delayed_work(&omap_port->errqueue_work, 0);
 		return;
 	}
 	spin_lock(&omap_port->lock);

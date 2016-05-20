@@ -73,6 +73,8 @@ struct omap_ssm_ctx {
  * @txqueue: TX message queues
  * @rxqueue: RX message queues
  * @brkqueue: Queue of incoming HWBREAK requests (FRAME mode)
+ * @errqueue: Queue for failed messages
+ * @errqueue_work: Delayed Work for failed messages
  * @irq: IRQ number
  * @wake_irq: IRQ number for incoming wake line (-1 if none)
  * @wake_gpio: GPIO number for incoming wake line (-1 if none)
@@ -96,6 +98,8 @@ struct omap_ssi_port {
 	struct list_head	txqueue[SSI_MAX_CHANNELS];
 	struct list_head	rxqueue[SSI_MAX_CHANNELS];
 	struct list_head	brkqueue;
+	struct list_head	errqueue;
+	struct delayed_work	errqueue_work;
 	unsigned int		irq;
 	int			wake_irq;
 	struct gpio_desc	*wake_gpio;

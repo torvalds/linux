@@ -193,6 +193,21 @@ static int ssi_debug_add_port(struct omap_ssi_port *omap_port,
 }
 #endif
 
+static void ssi_process_errqueue(struct work_struct *work)
+{
+	struct omap_ssi_port *omap_port;
+	struct list_head *head, *tmp;
+	struct hsi_msg *msg;
+
+	omap_port = container_of(work, struct omap_ssi_port, errqueue_work.work);
+
+	list_for_each_safe(head, tmp, &omap_port->errqueue) {
+		msg = list_entry(head, struct hsi_msg, link);
+		msg->complete(msg);
+		list_del(head);
+	}
+}
+
 static int ssi_claim_lch(struct hsi_msg *msg)
 {
 
@@ -1170,6 +1185,7 @@ static int ssi_port_probe(struct platform_device *pd)
 	omap_port->pdev = &pd->dev;
 	omap_port->port_id = port_id;
 
+	INIT_DEFERRABLE_WORK(&omap_port->errqueue_work, ssi_process_errqueue);
 	INIT_WORK(&omap_port->work, start_tx_work);
 
 	/* initialize HSI port */
@@ -1236,6 +1252,8 @@ static int ssi_port_remove(struct platform_device *pd)
 #ifdef CONFIG_DEBUG_FS
 	ssi_debug_remove_port(port);
 #endif
+
+	cancel_delayed_work_sync(&omap_port->errqueue_work);
 
 	hsi_port_unregister_clients(port);
 
