@@ -9,12 +9,12 @@
 #define __stringify_1(x)        #x
 #define __stringify(x)          __stringify_1(x)
 
-#define mfspr(rn)       ({unsigned long rval; \
-                         asm volatile("mfspr %0," __stringify(rn) \
-                                 : "=r" (rval)); rval; })
-#define mtspr(rn, v)    asm volatile("mtspr " __stringify(rn) ",%0" : \
-                                    : "r" ((unsigned long)(v)) \
-                                    : "memory")
+#define mfspr(rn)	({unsigned long rval; \
+			 asm volatile("mfspr %0," _str(rn) \
+				    : "=r" (rval)); rval; })
+#define mtspr(rn, v)	asm volatile("mtspr " _str(rn) ",%0" : \
+				    : "r" ((unsigned long)(v)) \
+				    : "memory")
 
 #define mb()		asm volatile("sync" : : : "memory");
 
@@ -45,5 +45,11 @@
 #define SPRN_SIAR      780
 #define SPRN_SDAR      781
 #define SPRN_SIER      768
+
+#define SPRN_TEXASR     0x82
+#define SPRN_TFIAR      0x81    /* Transaction Failure Inst Addr    */
+#define SPRN_TFHAR      0x80    /* Transaction Failure Handler Addr */
+#define TEXASR_FS       0x08000000
+#define SPRN_TAR        0x32f
 
 #endif /* _SELFTESTS_POWERPC_REG_H */

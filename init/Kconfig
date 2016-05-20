@@ -1742,6 +1742,15 @@ config SLOB
 
 endchoice
 
+config SLAB_FREELIST_RANDOM
+	default n
+	depends on SLAB
+	bool "SLAB freelist randomization"
+	help
+	  Randomizes the freelist order used on creating new SLABs. This
+	  security feature reduces the predictability of the kernel slab
+	  allocator against heap overflows.
+
 config SLUB_CPU_PARTIAL
 	default y
 	depends on SLUB && SMP

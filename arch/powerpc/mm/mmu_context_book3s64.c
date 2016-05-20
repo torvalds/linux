@@ -58,6 +58,17 @@ again:
 	return index;
 }
 EXPORT_SYMBOL_GPL(__init_new_context);
+static int radix__init_new_context(struct mm_struct *mm, int index)
+{
+	unsigned long rts_field;
+
+	/*
+	 * set the process table entry,
+	 */
+	rts_field = 3ull << PPC_BITLSHIFT(2);
+	process_tb[index].prtb0 = cpu_to_be64(rts_field | __pa(mm->pgd) | RADIX_PGD_INDEX_SIZE);
+	return 0;
+}
 
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
@@ -67,13 +78,27 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	if (index < 0)
 		return index;
 
-	/* The old code would re-promote on fork, we don't do that
-	 * when using slices as it could cause problem promoting slices
-	 * that have been forced down to 4K
-	 */
-	if (slice_mm_new_context(mm))
-		slice_set_user_psize(mm, mmu_virtual_psize);
-	subpage_prot_init_new_context(mm);
+	if (radix_enabled()) {
+		radix__init_new_context(mm, index);
+	} else {
+
+		/* The old code would re-promote on fork, we don't do that
+		 * when using slices as it could cause problem promoting slices
+		 * that have been forced down to 4K
+		 *
+		 * For book3s we have MMU_NO_CONTEXT set to be ~0. Hence check
+		 * explicitly against context.id == 0. This ensures that we
+		 * properly initialize context slice details for newly allocated
+		 * mm's (which will have id == 0) and don't alter context slice
+		 * inherited via fork (which will have id != 0).
+		 *
+		 * We should not be calling init_new_context() on init_mm. Hence a
+		 * check against 0 is ok.
+		 */
+		if (mm->context.id == 0)
+			slice_set_user_psize(mm, mmu_virtual_psize);
+		subpage_prot_init_new_context(mm);
+	}
 	mm->context.id = index;
 #ifdef CONFIG_PPC_ICSWX
 	mm->context.cop_lockp = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
@@ -144,8 +169,19 @@ void destroy_context(struct mm_struct *mm)
 	mm->context.cop_lockp = NULL;
 #endif /* CONFIG_PPC_ICSWX */
 
+	if (radix_enabled())
+		process_tb[mm->context.id].prtb1 = 0;
+	else
+		subpage_prot_free(mm);
 	destroy_pagetable_page(mm);
 	__destroy_context(mm->context.id);
-	subpage_prot_free(mm);
 	mm->context.id = MMU_NO_CONTEXT;
 }
+
+#ifdef CONFIG_PPC_RADIX_MMU
+void radix__switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
+{
+	mtspr(SPRN_PID, next->context.id);
+	asm volatile("isync": : :"memory");
+}
+#endif
