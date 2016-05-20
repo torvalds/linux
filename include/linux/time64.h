@@ -136,12 +136,10 @@ extern void set_normalized_timespec64(struct timespec64 *ts, time64_t sec, s64 n
 
 /*
  * timespec64_add_safe assumes both values are positive and checks for
- * overflow. It will return TIME_T_MAX if the returned value would be
- * smaller then either of the arguments.
+ * overflow. It will return TIME64_MAX in case of overflow.
  */
 extern struct timespec64 timespec64_add_safe(const struct timespec64 lhs,
 					 const struct timespec64 rhs);
-
 
 static inline struct timespec64 timespec64_add(struct timespec64 lhs,
 						struct timespec64 rhs)
