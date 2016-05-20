@@ -55,13 +55,14 @@
 			power-domains = <&sysc R8A7794_PD_CA7_CPU1>;
 			next-level-cache = <&L2_CA7>;
 		};
-	};
 
-	L2_CA7: cache-controller@1 {
-		compatible = "cache";
-		power-domains = <&sysc R8A7794_PD_CA7_SCU>;
-		cache-unified;
-		cache-level = <2>;
+		L2_CA7: cache-controller@0 {
+			compatible = "cache";
+			reg = <0>;
+			power-domains = <&sysc R8A7794_PD_CA7_SCU>;
+			cache-unified;
+			cache-level = <2>;
+		};
 	};
 
 	gic: interrupt-controller@f1001000 {
