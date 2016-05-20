@@ -483,7 +483,7 @@ static void rtas_event_scan(struct work_struct *w)
 }
 
 #ifdef CONFIG_PPC64
-static void retreive_nvram_error_log(void)
+static void retrieve_nvram_error_log(void)
 {
 	unsigned int err_type ;
 	int rc ;
@@ -501,7 +501,7 @@ static void retreive_nvram_error_log(void)
 	}
 }
 #else /* CONFIG_PPC64 */
-static void retreive_nvram_error_log(void)
+static void retrieve_nvram_error_log(void)
 {
 }
 #endif /* CONFIG_PPC64 */
@@ -513,7 +513,7 @@ static void start_event_scan(void)
 		 (30000 / rtas_event_scan_rate));
 
 	/* Retrieve errors from nvram if any */
-	retreive_nvram_error_log();
+	retrieve_nvram_error_log();
 
 	schedule_delayed_work_on(cpumask_first(cpu_online_mask),
 				 &event_scan_work, event_scan_delay);
