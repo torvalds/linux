@@ -2168,6 +2168,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[KNL,SH] Allow user to override the default size for
 			per-device physically contiguous DMA buffers.
 
+        memhp_default_state=online/offline
+			[KNL] Set the initial state for the memory hotplug
+			onlining policy. If not specified, the default value is
+			set according to the
+			CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE kernel config
+			option.
+			See Documentation/memory-hotplug.txt.
+
 	memmap=exactmap	[KNL,X86] Enable setting of an exact
 			E820 memory map, as specified by the user.
 			Such memmap=exactmap lines can be constructed based on
