@@ -420,7 +420,7 @@ static int xfeature_size(int xfeature_nr)
  * that it is obvious which aspect of 'XSAVES' is being handled
  * by the calling code.
  */
-static int using_compacted_format(void)
+int using_compacted_format(void)
 {
 	return boot_cpu_has(X86_FEATURE_XSAVES);
 }
