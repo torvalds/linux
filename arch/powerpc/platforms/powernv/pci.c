@@ -26,6 +26,7 @@
 #include <asm/machdep.h>
 #include <asm/msi_bitmap.h>
 #include <asm/ppc-pci.h>
+#include <asm/pnv-pci.h>
 #include <asm/opal.h>
 #include <asm/iommu.h>
 #include <asm/tce.h>
@@ -35,6 +36,43 @@
 
 #include "powernv.h"
 #include "pci.h"
+
+int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
+{
+	struct device_node *parent = np;
+	u32 bdfn;
+	u64 phbid;
+	int ret;
+
+	ret = of_property_read_u32(np, "reg", &bdfn);
+	if (ret)
+		return -ENXIO;
+
+	bdfn = ((bdfn & 0x00ffff00) >> 8);
+	while ((parent = of_get_parent(parent))) {
+		if (!PCI_DN(parent)) {
+			of_node_put(parent);
+			break;
+		}
+
+		if (!of_device_is_compatible(parent, "ibm,ioda2-phb")) {
+			of_node_put(parent);
+			continue;
+		}
+
+		ret = of_property_read_u64(parent, "ibm,opal-phbid", &phbid);
+		if (ret) {
+			of_node_put(parent);
+			return -ENXIO;
+		}
+
+		*id = PCI_SLOT_ID(phbid, bdfn);
+		return 0;
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_get_slot_id);
 
 #ifdef CONFIG_PCI_MSI
 int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
