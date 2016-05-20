@@ -83,19 +83,6 @@
 		reset-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
 	};
 
-	io_domains: io-domains {
-		compatible = "rockchip,rk3288-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		bb-supply = <&vcc33_io>;
-		dvp-supply = <&vcc_18>;
-		flash0-supply = <&vcc18_flashio>;
-		gpio1830-supply = <&vcc33_io>;
-		gpio30-supply = <&vcc33_io>;
-		lcdc-supply = <&vcc33_lcd>;
-		wifi-supply = <&vcc18_wl>;
-	};
-
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk808 RK808_CLKOUT1>;
@@ -353,6 +340,18 @@
 	clock-frequency = <100000>;
 	i2c-scl-falling-time-ns = <300>;
 	i2c-scl-rising-time-ns = <1000>;
+};
+
+&io_domains {
+	status = "okay";
+
+	bb-supply = <&vcc33_io>;
+	dvp-supply = <&vcc_18>;
+	flash0-supply = <&vcc18_flashio>;
+	gpio1830-supply = <&vcc33_io>;
+	gpio30-supply = <&vcc33_io>;
+	lcdc-supply = <&vcc33_lcd>;
+	wifi-supply = <&vcc18_wl>;
 };
 
 &pwm1 {
