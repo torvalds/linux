@@ -58,32 +58,31 @@ DECLARE_EVENT_CLASS(gb_message,
 				TP_ARGS(message))
 
 /*
- * tracepoint name	greybus:gb_message_send
- * description		send a greybus message
+ * Occurs immediately before calling a host device's message_send()
+ * method.
  */
 DEFINE_MESSAGE_EVENT(gb_message_send);
 
 /*
- * tracepoint name	greybus:gb_message_recv_request
- * description		receive a greybus request
+ * Occurs after an incoming request message has been received
  */
 DEFINE_MESSAGE_EVENT(gb_message_recv_request);
 
 /*
- * tracepoint name	greybus:gb_message_recv_response
- * description		receive a greybus response
+ * Occurs after an incoming response message has been received,
+ * after its matching request has been found.
  */
 DEFINE_MESSAGE_EVENT(gb_message_recv_response);
 
 /*
- * tracepoint name	greybus:gb_message_cancel_outgoing
- * description		cancel outgoing greybus request
+ * Occurs after an operation has been canceled, possibly before the
+ * cancellation is complete.
  */
 DEFINE_MESSAGE_EVENT(gb_message_cancel_outgoing);
 
 /*
- * tracepoint name	greybus:gb_message_cancel_incoming
- * description		cancel incoming greybus request
+ * Occurs when an incoming request is cancelled; if the response has
+ * been queued for sending, this occurs after it is sent.
  */
 DEFINE_MESSAGE_EVENT(gb_message_cancel_incoming);
 
@@ -188,14 +187,14 @@ DECLARE_EVENT_CLASS(gb_host_device,
 				TP_ARGS(hd, intf_cport_id, payload_size))
 
 /*
- * tracepoint name	greybus:gb_host_device_send
- * description		tracepoint representing the point data are transmitted
+ * Occurs immediately before calling usb_submit_urb() to send a
+ * message to the UniPro bridge.
  */
 DEFINE_HD_EVENT(gb_host_device_send);
 
 /*
- * tracepoint name	greybus:gb_host_device_recv
- * description		tracepoint representing the point data are received
+ * Occurs after receiving a UniPro message via the USB subsystem,
+ * just prior to handing it to the Greybus core for handling.
  */
 DEFINE_HD_EVENT(gb_host_device_recv);
 
