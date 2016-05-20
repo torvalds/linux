@@ -1041,7 +1041,7 @@ static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 		block_end_pfn = min(block_end_pfn, end_pfn);
 
 		page = pfn_to_page(pfn);
-		pageblock_mt = get_pfnblock_migratetype(page, pfn);
+		pageblock_mt = get_pageblock_migratetype(page);
 
 		for (; pfn < block_end_pfn; pfn++) {
 			if (!pfn_valid_within(pfn))

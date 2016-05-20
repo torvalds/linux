@@ -85,13 +85,6 @@ extern int page_group_by_mobility_disabled;
 	get_pfnblock_flags_mask(page, page_to_pfn(page),		\
 			PB_migrate_end, MIGRATETYPE_MASK)
 
-static inline int get_pfnblock_migratetype(struct page *page, unsigned long pfn)
-{
-	BUILD_BUG_ON(PB_migrate_end - PB_migrate != 2);
-	return get_pfnblock_flags_mask(page, pfn, PB_migrate_end,
-					MIGRATETYPE_MASK);
-}
-
 struct free_area {
 	struct list_head	free_list[MIGRATE_TYPES];
 	unsigned long		nr_free;

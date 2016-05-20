@@ -352,6 +352,106 @@ static inline bool update_defer_init(pg_data_t *pgdat,
 }
 #endif
 
+/* Return a pointer to the bitmap storing bits affecting a block of pages */
+static inline unsigned long *get_pageblock_bitmap(struct page *page,
+							unsigned long pfn)
+{
+#ifdef CONFIG_SPARSEMEM
+	return __pfn_to_section(pfn)->pageblock_flags;
+#else
+	return page_zone(page)->pageblock_flags;
+#endif /* CONFIG_SPARSEMEM */
+}
+
+static inline int pfn_to_bitidx(struct page *page, unsigned long pfn)
+{
+#ifdef CONFIG_SPARSEMEM
+	pfn &= (PAGES_PER_SECTION-1);
+	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+#else
+	pfn = pfn - round_down(page_zone(page)->zone_start_pfn, pageblock_nr_pages);
+	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+#endif /* CONFIG_SPARSEMEM */
+}
+
+/**
+ * get_pfnblock_flags_mask - Return the requested group of flags for the pageblock_nr_pages block of pages
+ * @page: The page within the block of interest
+ * @pfn: The target page frame number
+ * @end_bitidx: The last bit of interest to retrieve
+ * @mask: mask of bits that the caller is interested in
+ *
+ * Return: pageblock_bits flags
+ */
+static __always_inline unsigned long __get_pfnblock_flags_mask(struct page *page,
+					unsigned long pfn,
+					unsigned long end_bitidx,
+					unsigned long mask)
+{
+	unsigned long *bitmap;
+	unsigned long bitidx, word_bitidx;
+	unsigned long word;
+
+	bitmap = get_pageblock_bitmap(page, pfn);
+	bitidx = pfn_to_bitidx(page, pfn);
+	word_bitidx = bitidx / BITS_PER_LONG;
+	bitidx &= (BITS_PER_LONG-1);
+
+	word = bitmap[word_bitidx];
+	bitidx += end_bitidx;
+	return (word >> (BITS_PER_LONG - bitidx - 1)) & mask;
+}
+
+unsigned long get_pfnblock_flags_mask(struct page *page, unsigned long pfn,
+					unsigned long end_bitidx,
+					unsigned long mask)
+{
+	return __get_pfnblock_flags_mask(page, pfn, end_bitidx, mask);
+}
+
+static __always_inline int get_pfnblock_migratetype(struct page *page, unsigned long pfn)
+{
+	return __get_pfnblock_flags_mask(page, pfn, PB_migrate_end, MIGRATETYPE_MASK);
+}
+
+/**
+ * set_pfnblock_flags_mask - Set the requested group of flags for a pageblock_nr_pages block of pages
+ * @page: The page within the block of interest
+ * @flags: The flags to set
+ * @pfn: The target page frame number
+ * @end_bitidx: The last bit of interest
+ * @mask: mask of bits that the caller is interested in
+ */
+void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
+					unsigned long pfn,
+					unsigned long end_bitidx,
+					unsigned long mask)
+{
+	unsigned long *bitmap;
+	unsigned long bitidx, word_bitidx;
+	unsigned long old_word, word;
+
+	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
+
+	bitmap = get_pageblock_bitmap(page, pfn);
+	bitidx = pfn_to_bitidx(page, pfn);
+	word_bitidx = bitidx / BITS_PER_LONG;
+	bitidx &= (BITS_PER_LONG-1);
+
+	VM_BUG_ON_PAGE(!zone_spans_pfn(page_zone(page), pfn), page);
+
+	bitidx += end_bitidx;
+	mask <<= (BITS_PER_LONG - bitidx - 1);
+	flags <<= (BITS_PER_LONG - bitidx - 1);
+
+	word = READ_ONCE(bitmap[word_bitidx]);
+	for (;;) {
+		old_word = cmpxchg(&bitmap[word_bitidx], word, (word & ~mask) | flags);
+		if (word == old_word)
+			break;
+		word = old_word;
+	}
+}
 
 void set_pageblock_migratetype(struct page *page, int migratetype)
 {
@@ -6829,94 +6929,6 @@ void *__init alloc_large_system_hash(const char *tablename,
 		*_hash_mask = (1 << log2qty) - 1;
 
 	return table;
-}
-
-/* Return a pointer to the bitmap storing bits affecting a block of pages */
-static inline unsigned long *get_pageblock_bitmap(struct page *page,
-							unsigned long pfn)
-{
-#ifdef CONFIG_SPARSEMEM
-	return __pfn_to_section(pfn)->pageblock_flags;
-#else
-	return page_zone(page)->pageblock_flags;
-#endif /* CONFIG_SPARSEMEM */
-}
-
-static inline int pfn_to_bitidx(struct page *page, unsigned long pfn)
-{
-#ifdef CONFIG_SPARSEMEM
-	pfn &= (PAGES_PER_SECTION-1);
-	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
-#else
-	pfn = pfn - round_down(page_zone(page)->zone_start_pfn, pageblock_nr_pages);
-	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
-#endif /* CONFIG_SPARSEMEM */
-}
-
-/**
- * get_pfnblock_flags_mask - Return the requested group of flags for the pageblock_nr_pages block of pages
- * @page: The page within the block of interest
- * @pfn: The target page frame number
- * @end_bitidx: The last bit of interest to retrieve
- * @mask: mask of bits that the caller is interested in
- *
- * Return: pageblock_bits flags
- */
-unsigned long get_pfnblock_flags_mask(struct page *page, unsigned long pfn,
-					unsigned long end_bitidx,
-					unsigned long mask)
-{
-	unsigned long *bitmap;
-	unsigned long bitidx, word_bitidx;
-	unsigned long word;
-
-	bitmap = get_pageblock_bitmap(page, pfn);
-	bitidx = pfn_to_bitidx(page, pfn);
-	word_bitidx = bitidx / BITS_PER_LONG;
-	bitidx &= (BITS_PER_LONG-1);
-
-	word = bitmap[word_bitidx];
-	bitidx += end_bitidx;
-	return (word >> (BITS_PER_LONG - bitidx - 1)) & mask;
-}
-
-/**
- * set_pfnblock_flags_mask - Set the requested group of flags for a pageblock_nr_pages block of pages
- * @page: The page within the block of interest
- * @flags: The flags to set
- * @pfn: The target page frame number
- * @end_bitidx: The last bit of interest
- * @mask: mask of bits that the caller is interested in
- */
-void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
-					unsigned long pfn,
-					unsigned long end_bitidx,
-					unsigned long mask)
-{
-	unsigned long *bitmap;
-	unsigned long bitidx, word_bitidx;
-	unsigned long old_word, word;
-
-	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
-
-	bitmap = get_pageblock_bitmap(page, pfn);
-	bitidx = pfn_to_bitidx(page, pfn);
-	word_bitidx = bitidx / BITS_PER_LONG;
-	bitidx &= (BITS_PER_LONG-1);
-
-	VM_BUG_ON_PAGE(!zone_spans_pfn(page_zone(page), pfn), page);
-
-	bitidx += end_bitidx;
-	mask <<= (BITS_PER_LONG - bitidx - 1);
-	flags <<= (BITS_PER_LONG - bitidx - 1);
-
-	word = READ_ONCE(bitmap[word_bitidx]);
-	for (;;) {
-		old_word = cmpxchg(&bitmap[word_bitidx], word, (word & ~mask) | flags);
-		if (word == old_word)
-			break;
-		word = old_word;
-	}
 }
 
 /*

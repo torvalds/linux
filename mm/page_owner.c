@@ -143,7 +143,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
 		goto err;
 
 	/* Print information relevant to grouping pages by mobility */
-	pageblock_mt = get_pfnblock_migratetype(page, pfn);
+	pageblock_mt = get_pageblock_migratetype(page);
 	page_mt  = gfpflags_to_migratetype(page_ext->gfp_mask);
 	ret += snprintf(kbuf + ret, count - ret,
 			"PFN %lu type %s Block %lu type %s Flags %#lx(%pGp)\n",
