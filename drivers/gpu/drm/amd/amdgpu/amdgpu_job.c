@@ -166,11 +166,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	}
 	job = to_amdgpu_job(sched_job);
 
-	r = amdgpu_sync_wait(&job->sync);
-	if (r) {
-		DRM_ERROR("failed to sync wait (%d)\n", r);
-		return NULL;
-	}
+	BUG_ON(!amdgpu_sync_is_idle(&job->sync));
 
 	trace_amdgpu_sched_run_job(job);
 	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,

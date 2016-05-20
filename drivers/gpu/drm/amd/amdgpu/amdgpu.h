@@ -601,7 +601,6 @@ bool amdgpu_sync_is_idle(struct amdgpu_sync *sync);
 int amdgpu_sync_cycle_fences(struct amdgpu_sync *dst, struct amdgpu_sync *src,
 			     struct fence *fence);
 struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
-int amdgpu_sync_wait(struct amdgpu_sync *sync);
 void amdgpu_sync_free(struct amdgpu_sync *sync);
 int amdgpu_sync_init(void);
 void amdgpu_sync_fini(void);
