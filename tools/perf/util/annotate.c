@@ -354,9 +354,6 @@ static struct ins_ops nop_ops = {
 	.scnprintf = nop__scnprintf,
 };
 
-/*
- * Must be sorted by name!
- */
 static struct ins instructions[] = {
 	{ .name = "add",   .ops  = &mov_ops, },
 	{ .name = "addl",  .ops  = &mov_ops, },
@@ -372,8 +369,8 @@ static struct ins instructions[] = {
 	{ .name = "bgt",   .ops  = &jump_ops, },
 	{ .name = "bhi",   .ops  = &jump_ops, },
 	{ .name = "bl",    .ops  = &call_ops, },
-	{ .name = "blt",   .ops  = &jump_ops, },
 	{ .name = "bls",   .ops  = &jump_ops, },
+	{ .name = "blt",   .ops  = &jump_ops, },
 	{ .name = "blx",   .ops  = &call_ops, },
 	{ .name = "bne",   .ops  = &jump_ops, },
 #endif
@@ -449,18 +446,39 @@ static struct ins instructions[] = {
 	{ .name = "xbeginq", .ops  = &jump_ops, },
 };
 
-static int ins__cmp(const void *name, const void *insp)
+static int ins__key_cmp(const void *name, const void *insp)
 {
 	const struct ins *ins = insp;
 
 	return strcmp(name, ins->name);
 }
 
-static struct ins *ins__find(const char *name)
+static int ins__cmp(const void *a, const void *b)
+{
+	const struct ins *ia = a;
+	const struct ins *ib = b;
+
+	return strcmp(ia->name, ib->name);
+}
+
+static void ins__sort(void)
 {
 	const int nmemb = ARRAY_SIZE(instructions);
 
-	return bsearch(name, instructions, nmemb, sizeof(struct ins), ins__cmp);
+	qsort(instructions, nmemb, sizeof(struct ins), ins__cmp);
+}
+
+static struct ins *ins__find(const char *name)
+{
+	const int nmemb = ARRAY_SIZE(instructions);
+	static bool sorted;
+
+	if (!sorted) {
+		ins__sort();
+		sorted = true;
+	}
+
+	return bsearch(name, instructions, nmemb, sizeof(struct ins), ins__key_cmp);
 }
 
 int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym)

@@ -1160,6 +1160,24 @@ static int trace__tool_process(struct perf_tool *tool,
 	return trace__process_event(trace, machine, event, sample);
 }
 
+static char *trace__machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, char **modp)
+{
+	struct machine *machine = vmachine;
+
+	if (machine->kptr_restrict_warned)
+		return NULL;
+
+	if (symbol_conf.kptr_restrict) {
+		pr_warning("Kernel address maps (/proc/{kallsyms,modules}) are restricted.\n\n"
+			   "Check /proc/sys/kernel/kptr_restrict.\n\n"
+			   "Kernel samples will not be resolved.\n");
+		machine->kptr_restrict_warned = true;
+		return NULL;
+	}
+
+	return machine__resolve_kernel_addr(vmachine, addrp, modp);
+}
+
 static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 {
 	int err = symbol__init(NULL);
@@ -1171,7 +1189,7 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	if (trace->host == NULL)
 		return -ENOMEM;
 
-	if (trace_event__register_resolver(trace->host, machine__resolve_kernel_addr) < 0)
+	if (trace_event__register_resolver(trace->host, trace__machine__resolve_kernel_addr) < 0)
 		return -errno;
 
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
@@ -1534,7 +1552,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->is_exit) {
 		if (!(trace->duration_filter || trace->summary_only || trace->min_stack)) {
 			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
-			fprintf(trace->output, "%-70s\n", ttrace->entry_str);
+			fprintf(trace->output, "%-70s)\n", ttrace->entry_str);
 		}
 	} else {
 		ttrace->entry_pending = true;
@@ -2887,12 +2905,12 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		mmap_pages_user_set = false;
 
 	if (trace.max_stack == UINT_MAX) {
-		trace.max_stack = sysctl_perf_event_max_stack;
+		trace.max_stack = input_name ? PERF_MAX_STACK_DEPTH : sysctl_perf_event_max_stack;
 		max_stack_user_set = false;
 	}
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-	if ((trace.min_stack || max_stack_user_set) && !callchain_param.enabled)
+	if ((trace.min_stack || max_stack_user_set) && !callchain_param.enabled && trace.trace_syscalls)
 		record_opts__parse_callchain(&trace.opts, &callchain_param, "dwarf", false);
 #endif
 

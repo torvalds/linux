@@ -248,7 +248,7 @@ OPTIONS
 	Note that when using the --itrace option the synthesized callchain size
 	will override this value if the synthesized callchain size is bigger.
 
-	Default: /proc/sys/kernel/perf_event_max_stack when present, 127 otherwise.
+	Default: 127
 
 -G::
 --inverted::
