@@ -969,7 +969,7 @@ int intel_guc_suspend(struct drm_device *dev)
 	struct intel_context *ctx;
 	u32 data[3];
 
-	if (!i915.enable_guc_submission)
+	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
 		return 0;
 
 	ctx = dev_priv->kernel_context;
@@ -995,7 +995,7 @@ int intel_guc_resume(struct drm_device *dev)
 	struct intel_context *ctx;
 	u32 data[3];
 
-	if (!i915.enable_guc_submission)
+	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
 		return 0;
 
 	ctx = dev_priv->kernel_context;

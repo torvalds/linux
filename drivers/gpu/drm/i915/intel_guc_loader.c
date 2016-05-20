@@ -402,49 +402,41 @@ int intel_guc_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
-	int retries, err = 0;
+	const char *fw_path = guc_fw->guc_fw_path;
+	int retries, ret, err;
 
-	if (!i915.enable_guc_submission)
-		return 0;
+	DRM_DEBUG_DRIVER("GuC fw status: path %s, fetch %s, load %s\n",
+		fw_path,
+		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status),
+		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
+
+	/* Loading forbidden, or no firmware to load? */
+	if (!i915.enable_guc_loading) {
+		err = 0;
+		goto fail;
+	} else if (fw_path == NULL || *fw_path == '\0') {
+		if (*fw_path == '\0')
+			DRM_INFO("No GuC firmware known for this platform\n");
+		err = -ENODEV;
+		goto fail;
+	}
+
+	/* Fetch failed, or already fetched but failed to load? */
+	if (guc_fw->guc_fw_fetch_status != GUC_FIRMWARE_SUCCESS) {
+		err = -EIO;
+		goto fail;
+	} else if (guc_fw->guc_fw_load_status == GUC_FIRMWARE_FAIL) {
+		err = -ENOEXEC;
+		goto fail;
+	}
+
+	direct_interrupts_to_host(dev_priv);
+
+	guc_fw->guc_fw_load_status = GUC_FIRMWARE_PENDING;
 
 	DRM_DEBUG_DRIVER("GuC fw status: fetch %s, load %s\n",
 		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status),
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
-
-	direct_interrupts_to_host(dev_priv);
-
-	if (guc_fw->guc_fw_fetch_status == GUC_FIRMWARE_NONE)
-		return 0;
-
-	if (guc_fw->guc_fw_fetch_status == GUC_FIRMWARE_SUCCESS &&
-	    guc_fw->guc_fw_load_status == GUC_FIRMWARE_FAIL)
-		return -ENOEXEC;
-
-	guc_fw->guc_fw_load_status = GUC_FIRMWARE_PENDING;
-
-	DRM_DEBUG_DRIVER("GuC fw fetch status %s\n",
-		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status));
-
-	switch (guc_fw->guc_fw_fetch_status) {
-	case GUC_FIRMWARE_FAIL:
-		/* something went wrong :( */
-		err = -EIO;
-		goto fail;
-
-	case GUC_FIRMWARE_NONE:
-	case GUC_FIRMWARE_PENDING:
-	default:
-		/* "can't happen" */
-		WARN_ONCE(1, "GuC fw %s invalid guc_fw_fetch_status %s [%d]\n",
-			guc_fw->guc_fw_path,
-			intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status),
-			guc_fw->guc_fw_fetch_status);
-		err = -ENXIO;
-		goto fail;
-
-	case GUC_FIRMWARE_SUCCESS:
-		break;
-	}
 
 	err = i915_guc_submission_init(dev);
 	if (err)
@@ -463,7 +455,7 @@ int intel_guc_setup(struct drm_device *dev)
 		 */
 		err = i915_reset_guc(dev_priv);
 		if (err) {
-			DRM_ERROR("GuC reset failed, err %d\n", err);
+			DRM_ERROR("GuC reset failed: %d\n", err);
 			goto fail;
 		}
 
@@ -474,8 +466,8 @@ int intel_guc_setup(struct drm_device *dev)
 		if (--retries == 0)
 			goto fail;
 
-		DRM_INFO("GuC fw load failed, err %d; will reset and "
-			"retry %d more time(s)\n", err, retries);
+		DRM_INFO("GuC fw load failed: %d; will reset and "
+			 "retry %d more time(s)\n", err, retries);
 	}
 
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_SUCCESS;
@@ -497,7 +489,6 @@ int intel_guc_setup(struct drm_device *dev)
 	return 0;
 
 fail:
-	DRM_ERROR("GuC firmware load failed, err %d\n", err);
 	if (guc_fw->guc_fw_load_status == GUC_FIRMWARE_PENDING)
 		guc_fw->guc_fw_load_status = GUC_FIRMWARE_FAIL;
 
@@ -505,7 +496,41 @@ fail:
 	i915_guc_submission_disable(dev);
 	i915_guc_submission_fini(dev);
 
-	return err;
+	/*
+	 * We've failed to load the firmware :(
+	 *
+	 * Decide whether to disable GuC submission and fall back to
+	 * execlist mode, and whether to hide the error by returning
+	 * zero or to return -EIO, which the caller will treat as a
+	 * nonfatal error (i.e. it doesn't prevent driver load, but
+	 * marks the GPU as wedged until reset).
+	 */
+	if (i915.enable_guc_loading > 1) {
+		ret = -EIO;
+	} else if (i915.enable_guc_submission > 1) {
+		ret = -EIO;
+	} else {
+		ret = 0;
+	}
+
+	if (err == 0)
+		DRM_INFO("GuC firmware load skipped\n");
+	else if (ret == -EIO)
+		DRM_ERROR("GuC firmware load failed: %d\n", err);
+	else
+		DRM_INFO("GuC firmware load failed: %d\n", err);
+
+	if (i915.enable_guc_submission) {
+		if (fw_path == NULL)
+			DRM_INFO("GuC submission without firmware not supported\n");
+		if (ret == 0)
+			DRM_INFO("Falling back to execlist mode\n");
+		else
+			DRM_ERROR("GuC init failed: %d\n", ret);
+	}
+	i915.enable_guc_submission = 0;
+
+	return ret;
 }
 
 static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
@@ -644,8 +669,11 @@ void intel_guc_init(struct drm_device *dev)
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path;
 
-	if (!HAS_GUC_SCHED(dev))
-		i915.enable_guc_submission = false;
+	/* A negative value means "use platform default" */
+	if (i915.enable_guc_loading < 0)
+		i915.enable_guc_loading = HAS_GUC_UCODE(dev);
+	if (i915.enable_guc_submission < 0)
+		i915.enable_guc_submission = HAS_GUC_SCHED(dev);
 
 	if (!HAS_GUC_UCODE(dev)) {
 		fw_path = NULL;
@@ -658,26 +686,21 @@ void intel_guc_init(struct drm_device *dev)
 		guc_fw->guc_fw_major_wanted = 8;
 		guc_fw->guc_fw_minor_wanted = 7;
 	} else {
-		i915.enable_guc_submission = false;
 		fw_path = "";	/* unknown device */
 	}
-
-	if (!i915.enable_guc_submission)
-		return;
 
 	guc_fw->guc_dev = dev;
 	guc_fw->guc_fw_path = fw_path;
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_NONE;
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_NONE;
 
+	/* Early (and silent) return if GuC loading is disabled */
+	if (!i915.enable_guc_loading)
+		return;
 	if (fw_path == NULL)
 		return;
-
-	if (*fw_path == '\0') {
-		DRM_ERROR("No GuC firmware known for this platform\n");
-		guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_FAIL;
+	if (*fw_path == '\0')
 		return;
-	}
 
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_PENDING;
 	DRM_DEBUG_DRIVER("GuC firmware pending, path %s\n", fw_path);

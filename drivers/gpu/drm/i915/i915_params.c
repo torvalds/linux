@@ -53,7 +53,8 @@ struct i915_params i915 __read_mostly = {
 	.verbose_state_checks = 1,
 	.nuclear_pageflip = 0,
 	.edp_vswing = 0,
-	.enable_guc_submission = false,
+	.enable_guc_loading = -1,
+	.enable_guc_submission = 0,
 	.guc_log_level = -1,
 	.enable_dp_mst = true,
 	.inject_load_failure = 0,
@@ -193,8 +194,15 @@ MODULE_PARM_DESC(edp_vswing,
 		 "(0=use value from vbt [default], 1=low power swing(200mV),"
 		 "2=default swing(400mV))");
 
-module_param_named_unsafe(enable_guc_submission, i915.enable_guc_submission, bool, 0400);
-MODULE_PARM_DESC(enable_guc_submission, "Enable GuC submission (default:false)");
+module_param_named_unsafe(enable_guc_loading, i915.enable_guc_loading, int, 0400);
+MODULE_PARM_DESC(enable_guc_loading,
+		"Enable GuC firmware loading "
+		"(-1=auto [default], 0=never, 1=if available, 2=required)");
+
+module_param_named_unsafe(enable_guc_submission, i915.enable_guc_submission, int, 0400);
+MODULE_PARM_DESC(enable_guc_submission,
+		"Enable GuC submission "
+		"(-1=auto, 0=never [default], 1=if available, 2=required)");
 
 module_param_named(guc_log_level, i915.guc_log_level, int, 0400);
 MODULE_PARM_DESC(guc_log_level,

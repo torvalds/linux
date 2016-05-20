@@ -4885,11 +4885,8 @@ i915_gem_init_hw(struct drm_device *dev)
 	/* We can't enable contexts until all firmware is loaded */
 	if (HAS_GUC(dev)) {
 		ret = intel_guc_setup(dev);
-		if (ret) {
-			DRM_ERROR("Failed to initialize GuC, error %d\n", ret);
-			ret = -EIO;
+		if (ret)
 			goto out;
-		}
 	}
 
 	/*
