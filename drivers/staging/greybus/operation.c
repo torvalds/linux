@@ -57,6 +57,8 @@ static int gb_operation_get_active(struct gb_operation *operation)
 	if (operation->active++ == 0)
 		list_add_tail(&operation->links, &connection->operations);
 
+	trace_gb_operation_get_active(operation);
+
 	spin_unlock_irqrestore(&connection->lock, flags);
 
 	return 0;
@@ -69,6 +71,9 @@ static void gb_operation_put_active(struct gb_operation *operation)
 	unsigned long flags;
 
 	spin_lock_irqsave(&connection->lock, flags);
+
+	trace_gb_operation_get_active(operation);
+
 	if (--operation->active == 0) {
 		list_del(&operation->links);
 		if (atomic_read(&operation->waiters))
@@ -536,6 +541,8 @@ gb_operation_create_flags(struct gb_connection *connection,
 				size_t response_size, unsigned long flags,
 				gfp_t gfp)
 {
+	struct gb_operation *operation;
+
 	if (WARN_ON_ONCE(type == GB_REQUEST_TYPE_INVALID))
 		return NULL;
 	if (WARN_ON_ONCE(type & GB_MESSAGE_TYPE_RESPONSE))
@@ -544,9 +551,14 @@ gb_operation_create_flags(struct gb_connection *connection,
 	if (WARN_ON_ONCE(flags & ~GB_OPERATION_FLAG_USER_MASK))
 		flags &= GB_OPERATION_FLAG_USER_MASK;
 
-	return gb_operation_create_common(connection, type,
+	operation = gb_operation_create_common(connection, type,
 						request_size, response_size,
 						flags, gfp);
+	if (operation)
+		trace_gb_operation_create(operation);
+
+	return operation;
+
 }
 EXPORT_SYMBOL_GPL(gb_operation_create_flags);
 
@@ -581,6 +593,7 @@ gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 
 	operation->id = id;
 	memcpy(operation->request->header, data, size);
+	trace_gb_operation_create_incoming(operation);
 
 	return operation;
 }
@@ -602,6 +615,8 @@ static void _gb_operation_destroy(struct kref *kref)
 	struct gb_operation *operation;
 
 	operation = container_of(kref, struct gb_operation, kref);
+
+	trace_gb_operation_destroy(operation);
 
 	if (operation->response)
 		gb_operation_message_free(operation->response);

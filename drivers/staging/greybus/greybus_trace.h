@@ -15,6 +15,7 @@
 #include <linux/tracepoint.h>
 
 struct gb_message;
+struct gb_operation;
 struct gb_host_device;
 
 #define gb_bundle_name(message)						\
@@ -110,6 +111,74 @@ DEFINE_EVENT(gb_message, gb_message_cancel_incoming,
 
 	TP_ARGS(message)
 );
+
+DECLARE_EVENT_CLASS(gb_operation,
+
+	TP_PROTO(struct gb_operation *operation),
+
+	TP_ARGS(operation),
+
+	TP_STRUCT__entry(
+		__field(u16, cport_id)	/* CPort of HD side of connection */
+		__field(u16, id)	/* Operation ID */
+		__field(u8, type)
+		__field(unsigned long, flags)
+		__field(int, active)
+		__field(int, waiters)
+		__field(int, errno)
+	),
+
+	TP_fast_assign(
+		__entry->cport_id = operation->connection->hd_cport_id;
+		__entry->id = operation->id;
+		__entry->type = operation->type;
+		__entry->flags = operation->flags;
+		__entry->active = operation->active;
+		__entry->waiters = atomic_read(&operation->waiters);
+		__entry->errno = operation->errno;
+	),
+
+	TP_printk("id=%04x type=0x%02x cport_id=%04x flags=0x%lx active=%d waiters=%d errno=%d",
+		  __entry->id, __entry->cport_id, __entry->type, __entry->flags,
+		  __entry->active, __entry->waiters, __entry->errno)
+);
+
+#define DEFINE_OPERATION_EVENT(name)					\
+		DEFINE_EVENT(gb_operation, name,			\
+				TP_PROTO(struct gb_operation *operation), \
+				TP_ARGS(operation))
+
+/*
+ * Occurs after a new operation is created for an outgoing request
+ * has been successfully created.
+ */
+DEFINE_OPERATION_EVENT(gb_operation_create);
+
+/*
+ * Occurs after a new operation has been created for an incoming
+ * request has been successfully created and initialized.
+ */
+DEFINE_OPERATION_EVENT(gb_operation_create_incoming);
+
+/*
+ * Occurs when the last reference to an operation has been dropped,
+ * prior to freeing resources.
+ */
+DEFINE_OPERATION_EVENT(gb_operation_destroy);
+
+/*
+ * Occurs when an operation has been marked active, after updating
+ * its active count.
+ */
+DEFINE_OPERATION_EVENT(gb_operation_get_active);
+
+/*
+ * Occurs when an operation has been marked active, before updating
+ * its active count.
+ */
+DEFINE_OPERATION_EVENT(gb_operation_put_active);
+
+#undef DEFINE_OPERATION_EVENT
 
 DECLARE_EVENT_CLASS(gb_host_device,
 
