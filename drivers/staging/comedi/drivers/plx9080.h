@@ -81,26 +81,46 @@ struct plx_dma_desc {
 /* DMA Arbitration Register (alias of MARBR). */
 #define PLX_REG_DMAARB		0x00ac
 
-enum marb_bits {
-	MARB_LLT_MASK = 0x000000ff,	/* Local Bus Latency Timer */
-	MARB_LPT_MASK = 0x0000ff00,	/* Local Bus Pause Timer */
-	MARB_LTEN = 0x00010000,	/* Latency Timer Enable */
-	MARB_LPEN = 0x00020000,	/* Pause Timer Enable */
-	MARB_BREQ = 0x00040000,	/* Local Bus BREQ Enable */
-	MARB_DMA_PRIORITY_MASK = 0x00180000,
-	/* local bus direct slave give up bus mode */
-	MARB_LBDS_GIVE_UP_BUS_MODE = 0x00200000,
-	/* direct slave LLOCKo# enable */
-	MARB_DS_LLOCK_ENABLE = 0x00400000,
-	MARB_PCI_REQUEST_MODE = 0x00800000,
-	MARB_PCIV21_MODE = 0x01000000,	/* pci specification v2.1 mode */
-	MARB_PCI_READ_NO_WRITE_MODE = 0x02000000,
-	MARB_PCI_READ_WITH_WRITE_FLUSH_MODE = 0x04000000,
-	/* gate local bus latency timer with BREQ */
-	MARB_GATE_TIMER_WITH_BREQ = 0x08000000,
-	MARB_PCI_READ_NO_FLUSH_MODE = 0x10000000,
-	MARB_USE_SUBSYSTEM_IDS = 0x20000000,
-};
+/* Local Bus Latency Timer */
+#define PLX_MARBR_LT(x)		(BIT(0) * ((x) & 0xff))
+#define PLX_MARBR_LT_MASK	GENMASK(7, 0)
+#define PLX_MARBR_LT_SHIFT	0
+/* Local Bus Pause Timer */
+#define PLX_MARBR_PT(x)		(BIT(8) * ((x) & 0xff))
+#define PLX_MARBR_PT_MASK	GENMASK(15, 8)
+#define PLX_MARBR_PT_SHIFT	8
+/* Local Bus Latency Timer Enable */
+#define PLX_MARBR_LTEN		BIT(16)
+/* Local Bus Pause Timer Enable */
+#define PLX_MARBR_PTEN		BIT(17)
+/* Local Bus BREQ Enable */
+#define PLX_MARBR_BREQEN	BIT(18)
+/* DMA Channel Priority */
+#define PLX_MARBR_PRIO_ROT	(BIT(19) * 0)	/* Rotational priority */
+#define PLX_MARBR_PRIO_DMA0	(BIT(19) * 1)	/* DMA channel 0 has priority */
+#define PLX_MARBR_PRIO_DMA1	(BIT(19) * 2)	/* DMA channel 1 has priority */
+#define PLX_MARBR_PRIO_MASK	GENMASK(20, 19)
+/* Local Bus Direct Slave Give Up Bus Mode */
+#define PLX_MARBR_DSGUBM	BIT(21)
+/* Direct Slace LLOCKo# Enable */
+#define PLX_MARBR_DSLLOCKOEN	BIT(22)
+/* PCI Request Mode */
+#define PLX_MARBR_PCIREQM	BIT(23)
+/* PCI Specification v2.1 Mode */
+#define PLX_MARBR_PCIV21M	BIT(24)
+/* PCI Read No Write Mode */
+#define PLX_MARBR_PCIRNWM	BIT(25)
+/* PCI Read with Write Flush Mode */
+#define PLX_MARBR_PCIRWFM	BIT(26)
+/* Gate Local Bus Latency Timer with BREQ */
+#define PLX_MARBR_GLTBREQ	BIT(27)
+/* PCI Read No Flush Mode */
+#define PLX_MARBR_PCIRNFM	BIT(28)
+/*
+ * Make reads from PCI Configuration register 0 return Subsystem ID and
+ * Subsystem Vendor ID instead of Device ID and Vendor ID
+ */
+#define PLX_MARBR_SUBSYSIDS	BIT(29)
 
 /* Big/Little Endian Descriptor Register */
 #define PLX_REG_BIGEND		0x000c
