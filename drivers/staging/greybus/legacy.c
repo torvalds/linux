@@ -236,7 +236,6 @@ static void legacy_disconnect(struct gb_bundle *bundle)
 }
 
 static const struct greybus_bundle_id legacy_id_table[] = {
-	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_CAMERA) },
 	{ }
 };
 MODULE_DEVICE_TABLE(greybus, legacy_id_table);

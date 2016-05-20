@@ -36,11 +36,11 @@ struct gb_camera_debugfs_buffer {
 /**
  * struct gb_camera - A Greybus Camera Device
  * @connection: the greybus connection for camera control
- * @data_connected: whether the data connection has been established
  * @debugfs: debugfs entries for camera protocol operations testing
  * @module: Greybus camera module registered to HOST processor.
  */
 struct gb_camera {
+	struct gb_bundle *bundle;
 	struct gb_connection *connection;
 	struct gb_connection *data_connection;
 
@@ -103,12 +103,9 @@ static const struct gb_camera_fmt_map mbus_to_gbus_format[] = {
 
 #define GB_CAMERA_MAX_SETTINGS_SIZE	8192
 
-#define gcam_dbg(gcam, format...) \
-	dev_dbg(&gcam->connection->bundle->dev, format)
-#define gcam_info(gcam, format...) \
-	dev_info(&gcam->connection->bundle->dev, format)
-#define gcam_err(gcam, format...) \
-	dev_err(&gcam->connection->bundle->dev, format)
+#define gcam_dbg(gcam, format...)	dev_dbg(&gcam->bundle->dev, format)
+#define gcam_info(gcam, format...)	dev_info(&gcam->bundle->dev, format)
+#define gcam_err(gcam, format...)	dev_err(&gcam->bundle->dev, format)
 
 /* -----------------------------------------------------------------------------
  * Camera Protocol Operations
@@ -383,14 +380,14 @@ static int gb_camera_flush(struct gb_camera *gcam, u32 *request_id)
 	return 0;
 }
 
-static int gb_camera_event_recv(u8 type, struct gb_operation *op)
+static int gb_camera_request_handler(struct gb_operation *op)
 {
 	struct gb_camera *gcam = gb_connection_get_data(op->connection);
 	struct gb_camera_metadata_request *payload;
 	struct gb_message *request;
 
-	if (type != GB_CAMERA_TYPE_METADATA) {
-		gcam_err(gcam, "Unsupported unsolicited event: %u\n", type);
+	if (op->type != GB_CAMERA_TYPE_METADATA) {
+		gcam_err(gcam, "Unsupported unsolicited event: %u\n", op->type);
 		return -EINVAL;
 	}
 
@@ -849,7 +846,7 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 	 * Create root debugfs entry and a file entry for each camera operation.
 	 */
 	snprintf(dirname, 27, "camera-%u.%u", connection->intf->interface_id,
-		 connection->bundle->id);
+		 gcam->bundle->id);
 
 	gcam->debugfs.root = debugfs_create_dir(dirname, gb_debugfs_get());
 	if (IS_ERR(gcam->debugfs.root)) {
@@ -905,39 +902,84 @@ static void gb_camera_cleanup(struct gb_camera *gcam)
 		gb_connection_destroy(gcam->data_connection);
 	}
 
+	if (gcam->connection) {
+		gb_connection_disable(gcam->connection);
+		gb_connection_destroy(gcam->connection);
+	}
+
 	kfree(gcam);
 }
 
-static int gb_camera_connection_init(struct gb_connection *connection)
+static int gb_camera_probe(struct gb_bundle *bundle,
+			   const struct greybus_bundle_id *id)
 {
-	struct gb_connection *data;
+	struct gb_connection *conn;
 	struct gb_camera *gcam;
-	unsigned long data_flags;
+	u16 mgmt_cport_id = 0;
+	u16 data_cport_id = 0;
+	unsigned int i;
 	int ret;
+
+	/*
+	 * The camera bundle must contain exactly two CPorts, one for the
+	 * camera management protocol and one for the camera data protocol.
+	 */
+	if (bundle->num_cports != 2)
+		return -ENODEV;
+
+	for (i = 0; i < bundle->num_cports; ++i) {
+		struct greybus_descriptor_cport *desc = &bundle->cport_desc[i];
+
+		switch (desc->protocol_id) {
+		case GREYBUS_PROTOCOL_CAMERA_MGMT:
+			mgmt_cport_id = le16_to_cpu(desc->id);
+			break;
+		case GREYBUS_PROTOCOL_CAMERA_DATA:
+			data_cport_id = le16_to_cpu(desc->id);
+			break;
+		default:
+			return -ENODEV;
+		}
+	}
+
+	if (!mgmt_cport_id || !data_cport_id)
+		return -ENODEV;
 
 	gcam = kzalloc(sizeof(*gcam), GFP_KERNEL);
 	if (!gcam)
 		return -ENOMEM;
 
-	gcam->connection = connection;
-	gb_connection_set_data(connection, gcam);
+	gcam->bundle = bundle;
 
-	/*
-	 * Create the data connection between camera module CDSI0 and APB CDS1.
-	 * The CPort IDs are hardcoded by the ES2 bridges.
-	 */
-	data_flags = GB_CONNECTION_FLAG_NO_FLOWCTRL | GB_CONNECTION_FLAG_CDSI1;
-
-	data = gb_connection_create_offloaded(connection->bundle,
-					      ES2_APB_CDSI0_CPORT,
-					      data_flags);
-	if (IS_ERR(data)) {
-		ret = PTR_ERR(data);
+	conn = gb_connection_create(bundle, mgmt_cport_id,
+				    gb_camera_request_handler);
+	if (IS_ERR(conn)) {
+		ret = PTR_ERR(conn);
 		goto error;
 	}
-	gcam->data_connection = data;
 
-	ret = gb_connection_enable(data);
+	gcam->connection = conn;
+	gb_connection_set_data(conn, gcam);
+
+	ret = gb_connection_enable(conn);
+	if (ret)
+		goto error;
+
+	/*
+	 * Create the data connection between the camera module data CPort and
+	 * APB CDSI1. The CDSI1 CPort ID is hardcoded by the ES2 bridge.
+	 */
+	conn = gb_connection_create_offloaded(bundle, data_cport_id,
+					      GB_CONNECTION_FLAG_NO_FLOWCTRL |
+					      GB_CONNECTION_FLAG_CDSI1);
+	if (IS_ERR(conn)) {
+		ret = PTR_ERR(conn);
+		goto error;
+	}
+	gcam->data_connection = conn;
+	gb_connection_set_data(conn, gcam);
+
+	ret = gb_connection_enable(conn);
 	if (ret)
 		goto error;
 
@@ -949,6 +991,8 @@ static int gb_camera_connection_init(struct gb_connection *connection)
 	if (ret < 0)
 		goto error;
 
+	greybus_set_drvdata(bundle, gcam);
+
 	return 0;
 
 error:
@@ -956,25 +1000,26 @@ error:
 	return ret;
 }
 
-static void gb_camera_connection_exit(struct gb_connection *connection)
+static void gb_camera_disconnect(struct gb_bundle *bundle)
 {
-	struct gb_camera *gcam = gb_connection_get_data(connection);
+	struct gb_camera *gcam = greybus_get_drvdata(bundle);
 
 	gb_camera_unregister_intf_ops(gcam);
-
 	gb_camera_cleanup(gcam);
 }
 
-static struct gb_protocol camera_protocol = {
-	.name			= "camera",
-	.id			= GREYBUS_PROTOCOL_CAMERA_MGMT,
-	.major			= GB_CAMERA_VERSION_MAJOR,
-	.minor			= GB_CAMERA_VERSION_MINOR,
-	.connection_init	= gb_camera_connection_init,
-	.connection_exit	= gb_camera_connection_exit,
-	.request_recv		= gb_camera_event_recv,
+static const struct greybus_bundle_id gb_camera_id_table[] = {
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_CAMERA) },
+	{ },
 };
 
-gb_protocol_driver(&camera_protocol);
+static struct greybus_driver gb_camera_driver = {
+	.name		= "camera",
+	.probe		= gb_camera_probe,
+	.disconnect	= gb_camera_disconnect,
+	.id_table	= gb_camera_id_table,
+};
+
+module_greybus_driver(gb_camera_driver);
 
 MODULE_LICENSE("GPL v2");
