@@ -32,7 +32,6 @@
 #include "interface.h"
 #include "bundle.h"
 #include "connection.h"
-#include "protocol.h"
 #include "operation.h"
 
 

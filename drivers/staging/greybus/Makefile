@@ -11,8 +11,7 @@ greybus-y :=	core.o		\
 		svc.o		\
 		svc_watchdog.o	\
 		bootrom.o	\
-		operation.o	\
-		legacy.o
+		operation.o
 
 gb-gbphy-y := gbphy.o
 

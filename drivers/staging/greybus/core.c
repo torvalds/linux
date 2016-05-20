@@ -13,7 +13,6 @@
 #include "bootrom.h"
 #include "greybus.h"
 #include "greybus_trace.h"
-#include "legacy.h"
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(gb_host_device_send);
 EXPORT_TRACEPOINT_SYMBOL_GPL(gb_host_device_recv);
@@ -266,16 +265,8 @@ static int __init gb_init(void)
 		goto error_bootrom;
 	}
 
-	retval = gb_legacy_init();
-	if (retval) {
-		pr_err("gb_legacy_init failed\n");
-		goto error_legacy;
-	}
-
 	return 0;	/* Success */
 
-error_legacy:
-	gb_bootrom_exit();
 error_bootrom:
 	gb_operation_exit();
 error_operation:
@@ -291,7 +282,6 @@ module_init(gb_init);
 
 static void __exit gb_exit(void)
 {
-	gb_legacy_exit();
 	gb_bootrom_exit();
 	gb_operation_exit();
 	gb_hd_exit();

@@ -43,7 +43,6 @@ struct gb_connection {
 	gb_request_handler_t		handler;
 	unsigned long			flags;
 
-	struct gb_protocol		*protocol;
 	u8				module_major;
 	u8				module_minor;
 
