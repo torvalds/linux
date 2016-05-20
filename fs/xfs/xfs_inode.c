@@ -1161,11 +1161,9 @@ xfs_create(
 		rdev = 0;
 		resblks = XFS_MKDIR_SPACE_RES(mp, name->len);
 		tres = &M_RES(mp)->tr_mkdir;
-		tp = xfs_trans_alloc(mp, XFS_TRANS_MKDIR);
 	} else {
 		resblks = XFS_CREATE_SPACE_RES(mp, name->len);
 		tres = &M_RES(mp)->tr_create;
-		tp = xfs_trans_alloc(mp, XFS_TRANS_CREATE);
 	}
 
 	/*
@@ -1174,20 +1172,19 @@ xfs_create(
 	 * the case we'll drop the one we have and get a more
 	 * appropriate transaction later.
 	 */
-	error = xfs_trans_reserve(tp, tres, resblks, 0);
+	error = xfs_trans_alloc(mp, tres, resblks, 0, 0, &tp);
 	if (error == -ENOSPC) {
 		/* flush outstanding delalloc blocks and retry */
 		xfs_flush_inodes(mp);
-		error = xfs_trans_reserve(tp, tres, resblks, 0);
+		error = xfs_trans_alloc(mp, tres, resblks, 0, 0, &tp);
 	}
 	if (error == -ENOSPC) {
 		/* No space at all so try a "no-allocation" reservation */
 		resblks = 0;
-		error = xfs_trans_reserve(tp, tres, 0, 0);
+		error = xfs_trans_alloc(mp, tres, 0, 0, 0, &tp);
 	}
 	if (error)
-		goto out_trans_cancel;
-
+		goto out_release_inode;
 
 	xfs_ilock(dp, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL |
 		      XFS_IOLOCK_PARENT | XFS_ILOCK_PARENT);
@@ -1337,17 +1334,16 @@ xfs_create_tmpfile(
 		return error;
 
 	resblks = XFS_IALLOC_SPACE_RES(mp);
-	tp = xfs_trans_alloc(mp, XFS_TRANS_CREATE_TMPFILE);
-
 	tres = &M_RES(mp)->tr_create_tmpfile;
-	error = xfs_trans_reserve(tp, tres, resblks, 0);
+
+	error = xfs_trans_alloc(mp, tres, resblks, 0, 0, &tp);
 	if (error == -ENOSPC) {
 		/* No space at all so try a "no-allocation" reservation */
 		resblks = 0;
-		error = xfs_trans_reserve(tp, tres, 0, 0);
+		error = xfs_trans_alloc(mp, tres, 0, 0, 0, &tp);
 	}
 	if (error)
-		goto out_trans_cancel;
+		goto out_release_inode;
 
 	error = xfs_trans_reserve_quota(tp, mp, udqp, gdqp,
 						pdqp, resblks, 1, 0);
@@ -1432,15 +1428,14 @@ xfs_link(
 	if (error)
 		goto std_return;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_LINK);
 	resblks = XFS_LINK_SPACE_RES(mp, target_name->len);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_link, resblks, 0);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_link, resblks, 0, 0, &tp);
 	if (error == -ENOSPC) {
 		resblks = 0;
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_link, 0, 0);
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_link, 0, 0, 0, &tp);
 	}
 	if (error)
-		goto error_return;
+		goto std_return;
 
 	xfs_ilock(tdp, XFS_IOLOCK_EXCL | XFS_IOLOCK_PARENT);
 	xfs_lock_two_inodes(sip, tdp, XFS_ILOCK_EXCL);
@@ -1710,11 +1705,9 @@ xfs_inactive_truncate(
 	struct xfs_trans	*tp;
 	int			error;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
 	if (error) {
 		ASSERT(XFS_FORCED_SHUTDOWN(mp));
-		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -1764,8 +1757,6 @@ xfs_inactive_ifree(
 	struct xfs_trans	*tp;
 	int			error;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-
 	/*
 	 * The ifree transaction might need to allocate blocks for record
 	 * insertion to the finobt. We don't want to fail here at ENOSPC, so
@@ -1781,9 +1772,8 @@ xfs_inactive_ifree(
 	 * now remains allocated and sits on the unlinked list until the fs is
 	 * repaired.
 	 */
-	tp->t_flags |= XFS_TRANS_RESERVE;
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ifree,
-				  XFS_IFREE_SPACE_RES(mp), 0);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ifree,
+			XFS_IFREE_SPACE_RES(mp), 0, XFS_TRANS_RESERVE, &tp);
 	if (error) {
 		if (error == -ENOSPC) {
 			xfs_warn_ratelimited(mp,
@@ -1792,7 +1782,6 @@ xfs_inactive_ifree(
 		} else {
 			ASSERT(XFS_FORCED_SHUTDOWN(mp));
 		}
-		xfs_trans_cancel(tp);
 		return error;
 	}
 
@@ -2525,11 +2514,6 @@ xfs_remove(
 	if (error)
 		goto std_return;
 
-	if (is_dir)
-		tp = xfs_trans_alloc(mp, XFS_TRANS_RMDIR);
-	else
-		tp = xfs_trans_alloc(mp, XFS_TRANS_REMOVE);
-
 	/*
 	 * We try to get the real space reservation first,
 	 * allowing for directory btree deletion(s) implying
@@ -2540,14 +2524,15 @@ xfs_remove(
 	 * block from the directory.
 	 */
 	resblks = XFS_REMOVE_SPACE_RES(mp);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_remove, resblks, 0);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_remove, resblks, 0, 0, &tp);
 	if (error == -ENOSPC) {
 		resblks = 0;
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_remove, 0, 0);
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_remove, 0, 0, 0,
+				&tp);
 	}
 	if (error) {
 		ASSERT(error != -ENOSPC);
-		goto out_trans_cancel;
+		goto std_return;
 	}
 
 	xfs_ilock(dp, XFS_IOLOCK_EXCL | XFS_IOLOCK_PARENT);
@@ -2910,15 +2895,15 @@ xfs_rename(
 	xfs_sort_for_rename(src_dp, target_dp, src_ip, target_ip, wip,
 				inodes, &num_inodes);
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_RENAME);
 	spaceres = XFS_RENAME_SPACE_RES(mp, target_name->len);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_rename, spaceres, 0);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_rename, spaceres, 0, 0, &tp);
 	if (error == -ENOSPC) {
 		spaceres = 0;
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_rename, 0, 0);
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_rename, 0, 0, 0,
+				&tp);
 	}
 	if (error)
-		goto out_trans_cancel;
+		goto out_release_wip;
 
 	/*
 	 * Attach the dquots to the inodes
@@ -3155,6 +3140,7 @@ out_bmap_cancel:
 	xfs_bmap_cancel(&free_list);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
+out_release_wip:
 	if (wip)
 		IRELE(wip);
 	return error;

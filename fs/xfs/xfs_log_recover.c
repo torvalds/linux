@@ -4205,10 +4205,9 @@ xlog_recover_process_efi(
 		}
 	}
 
-	tp = xfs_trans_alloc(mp, 0);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
 	if (error)
-		goto abort_error;
+		return error;
 	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
 
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
@@ -4355,10 +4354,9 @@ xlog_recover_clear_agi_bucket(
 	int		offset;
 	int		error;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_CLEAR_AGI_BUCKET);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_clearagi, 0, 0);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_clearagi, 0, 0, 0, &tp);
 	if (error)
-		goto out_abort;
+		goto out_error;
 
 	error = xfs_read_agi(mp, tp, agno, &agibp);
 	if (error)
