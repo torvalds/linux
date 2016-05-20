@@ -1083,7 +1083,9 @@ static inline void tlbinvf(void)
 	__asm__ __volatile__(
 		".set push\n\t"
 		".set noreorder\n\t"
-		".word 0x42000004\n\t" /* tlbinvf */
+		"# tlbinvf\n\t"
+		_ASM_INSN_IF_MIPS(0x42000004)
+		_ASM_INSN32_IF_MM(0x0000537c)
 		".set pop");
 }
 
@@ -1304,9 +1306,9 @@ do {									\
 	"	.set	push					\n"	\
 	"	.set	noat					\n"	\
 	"	.set	mips32r2				\n"	\
-	"	.insn						\n"	\
 	"	# mfhc0 $1, %1					\n"	\
-	"	.word	(0x40410000 | ((%1 & 0x1f) << 11))	\n"	\
+	_ASM_INSN_IF_MIPS(0x40410000 | ((%1 & 0x1f) << 11))		\
+	_ASM_INSN32_IF_MM(0x002000f4 | ((%1 & 0x1f) << 16))		\
 	"	move	%0, $1					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res)							\
@@ -1322,8 +1324,8 @@ do {									\
 	"	.set	mips32r2				\n"	\
 	"	move	$1, %0					\n"	\
 	"	# mthc0 $1, %1					\n"	\
-	"	.insn						\n"	\
-	"	.word	(0x40c10000 | ((%1 & 0x1f) << 11))	\n"	\
+	_ASM_INSN_IF_MIPS(0x40c10000 | ((%1 & 0x1f) << 11))		\
+	_ASM_INSN32_IF_MM(0x002002f4 | ((%1 & 0x1f) << 16))		\
 	"	.set	pop					\n"	\
 	:								\
 	: "r" (value), "i" (register));					\
