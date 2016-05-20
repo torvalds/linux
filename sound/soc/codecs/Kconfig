@@ -88,12 +88,14 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MC13783 if MFD_MC13XXX
 	select SND_SOC_ML26124 if I2C
 	select SND_SOC_NAU8825 if I2C
+	select SND_SOC_HDMI_CODEC
 	select SND_SOC_PCM1681 if I2C
 	select SND_SOC_PCM179X_I2C if I2C
 	select SND_SOC_PCM179X_SPI if SPI_MASTER
 	select SND_SOC_PCM3008
 	select SND_SOC_PCM3168A_I2C if I2C
 	select SND_SOC_PCM3168A_SPI if SPI_MASTER
+	select SND_SOC_PCM5102A
 	select SND_SOC_PCM512x_I2C if I2C
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
 	select SND_SOC_RT286 if I2C
@@ -477,6 +479,11 @@ config SND_SOC_BT_SCO
 config SND_SOC_DMIC
 	tristate
 
+config SND_SOC_HDMI_CODEC
+       tristate
+       select SND_PCM_ELD
+       select SND_PCM_IEC958
+
 config SND_SOC_ES8328
 	tristate "Everest Semi ES8328 CODEC"
 
@@ -574,6 +581,9 @@ config SND_SOC_PCM3168A_SPI
 	depends on SPI_MASTER
 	select SND_SOC_PCM3168A
 	select REGMAP_SPI
+
+config SND_SOC_PCM5102A
+	tristate
 
 config SND_SOC_PCM512x
 	tristate
