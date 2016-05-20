@@ -140,7 +140,7 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 		return r;
 
 	atomic_set(&entity->fence_seq, 0);
-	entity->fence_context = fence_context_alloc(1);
+	entity->fence_context = fence_context_alloc(2);
 
 	return 0;
 }
@@ -251,17 +251,21 @@ static bool amd_sched_entity_add_dependency_cb(struct amd_sched_entity *entity)
 
 	s_fence = to_amd_sched_fence(fence);
 	if (s_fence && s_fence->sched == sched) {
-		/* Fence is from the same scheduler */
-		if (test_bit(AMD_SCHED_FENCE_SCHEDULED_BIT, &fence->flags)) {
-			/* Ignore it when it is already scheduled */
-			fence_put(entity->dependency);
-			return false;
-		}
 
-		/* Wait for fence to be scheduled */
-		entity->cb.func = amd_sched_entity_clear_dep;
-		list_add_tail(&entity->cb.node, &s_fence->scheduled_cb);
-		return true;
+		/*
+		 * Fence is from the same scheduler, only need to wait for
+		 * it to be scheduled
+		 */
+		fence = fence_get(&s_fence->scheduled);
+		fence_put(entity->dependency);
+		entity->dependency = fence;
+		if (!fence_add_callback(fence, &entity->cb,
+					amd_sched_entity_clear_dep))
+			return true;
+
+		/* Ignore it when it is already scheduled */
+		fence_put(fence);
+		return false;
 	}
 
 	if (!fence_add_callback(entity->dependency, &entity->cb,
@@ -389,7 +393,7 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 	struct amd_sched_entity *entity = sched_job->s_entity;
 
 	trace_amd_sched_job(sched_job);
-	fence_add_callback(&sched_job->s_fence->base, &sched_job->finish_cb,
+	fence_add_callback(&sched_job->s_fence->finished, &sched_job->finish_cb,
 			   amd_sched_job_finish_cb);
 	wait_event(entity->sched->job_scheduled,
 		   amd_sched_entity_in(sched_job));
@@ -412,7 +416,7 @@ int amd_sched_job_init(struct amd_sched_job *job,
 	INIT_DELAYED_WORK(&job->work_tdr, amd_sched_job_timedout);
 
 	if (fence)
-		*fence = &job->s_fence->base;
+		*fence = &job->s_fence->finished;
 	return 0;
 }
 
@@ -463,10 +467,10 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	struct amd_gpu_scheduler *sched = s_fence->sched;
 
 	atomic_dec(&sched->hw_rq_count);
-	amd_sched_fence_signal(s_fence);
+	amd_sched_fence_finished(s_fence);
 
 	trace_amd_sched_process_job(s_fence);
-	fence_put(&s_fence->base);
+	fence_put(&s_fence->finished);
 	wake_up_interruptible(&sched->wake_up_worker);
 }
 

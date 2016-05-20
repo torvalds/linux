@@ -85,7 +85,7 @@ static void amdgpu_job_free_resources(struct amdgpu_job *job)
 	unsigned i;
 
 	/* use sched fence if available */
-	f = job->base.s_fence ? &job->base.s_fence->base : job->fence;
+	f = job->base.s_fence ? &job->base.s_fence->finished : job->fence;
 
 	for (i = 0; i < job->num_ibs; ++i)
 		amdgpu_ib_free(job->adev, &job->ibs[i], f);
@@ -143,7 +143,7 @@ static struct fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 		int r;
 
 		r = amdgpu_vm_grab_id(vm, ring, &job->sync,
-				      &job->base.s_fence->base,
+				      &job->base.s_fence->finished,
 				      &job->vm_id, &job->vm_pd_addr);
 		if (r)
 			DRM_ERROR("Error getting VM ID (%d)\n", r);

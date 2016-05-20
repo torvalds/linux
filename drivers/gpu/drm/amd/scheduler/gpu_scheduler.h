@@ -27,8 +27,6 @@
 #include <linux/kfifo.h>
 #include <linux/fence.h>
 
-#define AMD_SCHED_FENCE_SCHEDULED_BIT	FENCE_FLAG_USER_BITS
-
 struct amd_gpu_scheduler;
 struct amd_sched_rq;
 
@@ -68,9 +66,9 @@ struct amd_sched_rq {
 };
 
 struct amd_sched_fence {
-	struct fence                    base;
+	struct fence                    scheduled;
+	struct fence                    finished;
 	struct fence_cb                 cb;
-	struct list_head		scheduled_cb;
 	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
@@ -86,14 +84,15 @@ struct amd_sched_job {
 	struct delayed_work		work_tdr;
 };
 
-extern const struct fence_ops amd_sched_fence_ops;
+extern const struct fence_ops amd_sched_fence_ops_scheduled;
+extern const struct fence_ops amd_sched_fence_ops_finished;
 static inline struct amd_sched_fence *to_amd_sched_fence(struct fence *f)
 {
-	struct amd_sched_fence *__f = container_of(f, struct amd_sched_fence,
-						   base);
+	if (f->ops == &amd_sched_fence_ops_scheduled)
+		return container_of(f, struct amd_sched_fence, scheduled);
 
-	if (__f->base.ops == &amd_sched_fence_ops)
-		return __f;
+	if (f->ops == &amd_sched_fence_ops_finished)
+		return container_of(f, struct amd_sched_fence, finished);
 
 	return NULL;
 }
@@ -148,7 +147,7 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
 struct amd_sched_fence *amd_sched_fence_create(
 	struct amd_sched_entity *s_entity, void *owner);
 void amd_sched_fence_scheduled(struct amd_sched_fence *fence);
-void amd_sched_fence_signal(struct amd_sched_fence *fence);
+void amd_sched_fence_finished(struct amd_sched_fence *fence);
 int amd_sched_job_init(struct amd_sched_job *job,
 		       struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *entity,

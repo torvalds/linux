@@ -102,7 +102,7 @@ TRACE_EVENT(amdgpu_cs_ioctl,
 			   __entry->adev = job->adev;
 			   __entry->sched_job = &job->base;
 			   __entry->ib = job->ibs;
-			   __entry->fence = &job->base.s_fence->base;
+			   __entry->fence = &job->base.s_fence->finished;
 			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
@@ -127,7 +127,7 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			   __entry->adev = job->adev;
 			   __entry->sched_job = &job->base;
 			   __entry->ib = job->ibs;
-			   __entry->fence = &job->base.s_fence->base;
+			   __entry->fence = &job->base.s_fence->finished;
 			   __entry->ring_name = job->ring->name;
 			   __entry->num_ibs = job->num_ibs;
 			   ),
