@@ -1318,7 +1318,8 @@ static enum compact_result compact_finished(struct zone *zone,
  */
 static enum compact_result __compaction_suitable(struct zone *zone, int order,
 					unsigned int alloc_flags,
-					int classzone_idx)
+					int classzone_idx,
+					unsigned long wmark_target)
 {
 	int fragindex;
 	unsigned long watermark;
@@ -1341,7 +1342,8 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
 	 * allocated and for a short time, the footprint is higher
 	 */
 	watermark += (2UL << order);
-	if (!zone_watermark_ok(zone, 0, watermark, classzone_idx, alloc_flags))
+	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
+				 alloc_flags, wmark_target))
 		return COMPACT_SKIPPED;
 
 	/*
@@ -1368,12 +1370,46 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
 {
 	enum compact_result ret;
 
-	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx);
+	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
+				    zone_page_state(zone, NR_FREE_PAGES));
 	trace_mm_compaction_suitable(zone, order, ret);
 	if (ret == COMPACT_NOT_SUITABLE_ZONE)
 		ret = COMPACT_SKIPPED;
 
 	return ret;
+}
+
+bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+		int alloc_flags)
+{
+	struct zone *zone;
+	struct zoneref *z;
+
+	/*
+	 * Make sure at least one zone would pass __compaction_suitable if we continue
+	 * retrying the reclaim.
+	 */
+	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
+					ac->nodemask) {
+		unsigned long available;
+		enum compact_result compact_result;
+
+		/*
+		 * Do not consider all the reclaimable memory because we do not
+		 * want to trash just for a single high order allocation which
+		 * is even not guaranteed to appear even if __compaction_suitable
+		 * is happy about the watermark check.
+		 */
+		available = zone_reclaimable_pages(zone) / order;
+		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
+		compact_result = __compaction_suitable(zone, order, alloc_flags,
+				ac_classzone_idx(ac), available);
+		if (compact_result != COMPACT_SKIPPED &&
+				compact_result != COMPACT_NOT_SUITABLE_ZONE)
+			return true;
+	}
+
+	return false;
 }
 
 static enum compact_result compact_zone(struct zone *zone, struct compact_control *cc)
