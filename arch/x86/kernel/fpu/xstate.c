@@ -329,13 +329,11 @@ static void __init setup_init_fpu_buf(void)
 	setup_xstate_features();
 	print_xstate_features();
 
-	if (boot_cpu_has(X86_FEATURE_XSAVES)) {
+	if (boot_cpu_has(X86_FEATURE_XSAVES))
 		init_fpstate.xsave.header.xcomp_bv = (u64)1 << 63 | xfeatures_mask;
-		init_fpstate.xsave.header.xfeatures = xfeatures_mask;
-	}
 
 	/*
-	 * Init all the features state with header_bv being 0x0
+	 * Init all the features state with header.xfeatures being 0x0
 	 */
 	copy_kernel_to_xregs_booting(&init_fpstate.xsave);
 
