@@ -39,7 +39,7 @@
 #include <nvif/cl507d.h>
 #include <nvif/cl507e.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_gem.h"
 #include "nouveau_connector.h"
