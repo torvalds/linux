@@ -1602,7 +1602,7 @@ unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 
 		status = compact_zone_order(zone, order, gfp_mask, mode,
 				&zone_contended, alloc_flags,
-				ac->classzone_idx);
+				ac_classzone_idx(ac));
 		rc = max(status, rc);
 		/*
 		 * It takes at least one zone that wasn't lock contended
@@ -1612,7 +1612,7 @@ unsigned long try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 
 		/* If a normal allocation would succeed, stop compacting */
 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone),
-					ac->classzone_idx, alloc_flags)) {
+					ac_classzone_idx(ac), alloc_flags)) {
 			/*
 			 * We think the allocation will succeed in this zone,
 			 * but it is not certain, hence the false. The caller

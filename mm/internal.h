@@ -103,11 +103,12 @@ struct alloc_context {
 	struct zonelist *zonelist;
 	nodemask_t *nodemask;
 	struct zoneref *preferred_zoneref;
-	int classzone_idx;
 	int migratetype;
 	enum zone_type high_zoneidx;
 	bool spread_dirty_pages;
 };
+
+#define ac_classzone_idx(ac) zonelist_zone_idx(ac->preferred_zoneref)
 
 /*
  * Locate the struct page for both the matching buddy in our
