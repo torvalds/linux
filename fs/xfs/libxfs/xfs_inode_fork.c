@@ -231,6 +231,48 @@ xfs_iformat_fork(
 	return error;
 }
 
+void
+xfs_init_local_fork(
+	struct xfs_inode	*ip,
+	int			whichfork,
+	const void		*data,
+	int			size)
+{
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	int			mem_size = size, real_size = 0;
+	bool			zero_terminate;
+
+	/*
+	 * If we are using the local fork to store a symlink body we need to
+	 * zero-terminate it so that we can pass it back to the VFS directly.
+	 * Overallocate the in-memory fork by one for that and add a zero
+	 * to terminate it below.
+	 */
+	zero_terminate = S_ISLNK(VFS_I(ip)->i_mode);
+	if (zero_terminate)
+		mem_size++;
+
+	if (size == 0)
+		ifp->if_u1.if_data = NULL;
+	else if (mem_size <= sizeof(ifp->if_u2.if_inline_data))
+		ifp->if_u1.if_data = ifp->if_u2.if_inline_data;
+	else {
+		real_size = roundup(mem_size, 4);
+		ifp->if_u1.if_data = kmem_alloc(real_size, KM_SLEEP | KM_NOFS);
+	}
+
+	if (size) {
+		memcpy(ifp->if_u1.if_data, data, size);
+		if (zero_terminate)
+			ifp->if_u1.if_data[size] = '\0';
+	}
+
+	ifp->if_bytes = size;
+	ifp->if_real_bytes = real_size;
+	ifp->if_flags &= ~(XFS_IFEXTENTS | XFS_IFBROOT);
+	ifp->if_flags |= XFS_IFINLINE;
+}
+
 /*
  * The file is in-lined in the on-disk inode.
  * If it fits into if_inline_data, then copy
@@ -248,8 +290,6 @@ xfs_iformat_local(
 	int		whichfork,
 	int		size)
 {
-	xfs_ifork_t	*ifp;
-	int		real_size;
 
 	/*
 	 * If the size is unreasonable, then something
@@ -265,22 +305,8 @@ xfs_iformat_local(
 				     ip->i_mount, dip);
 		return -EFSCORRUPTED;
 	}
-	ifp = XFS_IFORK_PTR(ip, whichfork);
-	real_size = 0;
-	if (size == 0)
-		ifp->if_u1.if_data = NULL;
-	else if (size <= sizeof(ifp->if_u2.if_inline_data))
-		ifp->if_u1.if_data = ifp->if_u2.if_inline_data;
-	else {
-		real_size = roundup(size, 4);
-		ifp->if_u1.if_data = kmem_alloc(real_size, KM_SLEEP | KM_NOFS);
-	}
-	ifp->if_bytes = size;
-	ifp->if_real_bytes = real_size;
-	if (size)
-		memcpy(ifp->if_u1.if_data, XFS_DFORK_PTR(dip, whichfork), size);
-	ifp->if_flags &= ~XFS_IFEXTENTS;
-	ifp->if_flags |= XFS_IFINLINE;
+
+	xfs_init_local_fork(ip, whichfork, XFS_DFORK_PTR(dip, whichfork), size);
 	return 0;
 }
 

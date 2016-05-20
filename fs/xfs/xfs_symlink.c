@@ -131,6 +131,8 @@ xfs_readlink(
 
 	trace_xfs_readlink(ip);
 
+	ASSERT(!(ip->i_df.if_flags & XFS_IFINLINE));
+
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
@@ -150,12 +152,7 @@ xfs_readlink(
 	}
 
 
-	if (ip->i_df.if_flags & XFS_IFINLINE) {
-		memcpy(link, ip->i_df.if_u1.if_data, pathlen);
-		link[pathlen] = '\0';
-	} else {
-		error = xfs_readlink_bmap(ip, link);
-	}
+	error = xfs_readlink_bmap(ip, link);
 
  out:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -303,19 +300,11 @@ xfs_symlink(
 	 * If the symlink will fit into the inode, write it inline.
 	 */
 	if (pathlen <= XFS_IFORK_DSIZE(ip)) {
-		xfs_idata_realloc(ip, pathlen, XFS_DATA_FORK);
-		memcpy(ip->i_df.if_u1.if_data, target_path, pathlen);
+		xfs_init_local_fork(ip, XFS_DATA_FORK, target_path, pathlen);
+
 		ip->i_d.di_size = pathlen;
-
-		/*
-		 * The inode was initially created in extent format.
-		 */
-		ip->i_df.if_flags &= ~(XFS_IFEXTENTS | XFS_IFBROOT);
-		ip->i_df.if_flags |= XFS_IFINLINE;
-
 		ip->i_d.di_format = XFS_DINODE_FMT_LOCAL;
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_DDATA | XFS_ILOG_CORE);
-
 	} else {
 		int	offset;
 

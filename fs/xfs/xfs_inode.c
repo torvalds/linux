@@ -2840,6 +2840,7 @@ xfs_rename_alloc_whiteout(
 	 * and flag it as linkable.
 	 */
 	drop_nlink(VFS_I(tmpfile));
+	xfs_setup_iops(tmpfile);
 	xfs_finish_inode_setup(tmpfile);
 	VFS_I(tmpfile)->i_state |= I_LINKABLE;
 

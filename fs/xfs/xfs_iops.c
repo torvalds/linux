@@ -181,6 +181,8 @@ xfs_generic_create(
 	}
 #endif
 
+	xfs_setup_iops(ip);
+
 	if (tmpfile)
 		d_tmpfile(dentry, inode);
 	else
@@ -368,6 +370,8 @@ xfs_vn_symlink(
 	if (unlikely(error))
 		goto out_cleanup_inode;
 
+	xfs_setup_iops(cip);
+
 	d_instantiate(dentry, inode);
 	xfs_finish_inode_setup(cip);
 	return 0;
@@ -440,6 +444,16 @@ xfs_vn_get_link(
 	kfree(link);
  out_err:
 	return ERR_PTR(error);
+}
+
+STATIC const char *
+xfs_vn_get_link_inline(
+	struct dentry		*dentry,
+	struct inode		*inode,
+	struct delayed_call	*done)
+{
+	ASSERT(XFS_I(inode)->i_df.if_flags & XFS_IFINLINE);
+	return XFS_I(inode)->i_df.if_u1.if_data;
 }
 
 STATIC int
@@ -1160,6 +1174,18 @@ static const struct inode_operations xfs_symlink_inode_operations = {
 	.update_time		= xfs_vn_update_time,
 };
 
+static const struct inode_operations xfs_inline_symlink_inode_operations = {
+	.readlink		= generic_readlink,
+	.get_link		= xfs_vn_get_link_inline,
+	.getattr		= xfs_vn_getattr,
+	.setattr		= xfs_vn_setattr,
+	.setxattr		= generic_setxattr,
+	.getxattr		= generic_getxattr,
+	.removexattr		= generic_removexattr,
+	.listxattr		= xfs_vn_listxattr,
+	.update_time		= xfs_vn_update_time,
+};
+
 STATIC void
 xfs_diflags_to_iflags(
 	struct inode		*inode,
@@ -1186,7 +1212,7 @@ xfs_diflags_to_iflags(
 }
 
 /*
- * Initialize the Linux inode and set up the operation vectors.
+ * Initialize the Linux inode.
  *
  * When reading existing inodes from disk this is called directly from xfs_iget,
  * when creating a new inode it is called from xfs_ialloc after setting up the
@@ -1225,32 +1251,12 @@ xfs_setup_inode(
 	i_size_write(inode, ip->i_d.di_size);
 	xfs_diflags_to_iflags(inode, ip);
 
-	ip->d_ops = ip->i_mount->m_nondir_inode_ops;
-	lockdep_set_class(&ip->i_lock.mr_lock, &xfs_nondir_ilock_class);
-	switch (inode->i_mode & S_IFMT) {
-	case S_IFREG:
-		inode->i_op = &xfs_inode_operations;
-		inode->i_fop = &xfs_file_operations;
-		inode->i_mapping->a_ops = &xfs_address_space_operations;
-		break;
-	case S_IFDIR:
+	if (S_ISDIR(inode->i_mode)) {
 		lockdep_set_class(&ip->i_lock.mr_lock, &xfs_dir_ilock_class);
-		if (xfs_sb_version_hasasciici(&XFS_M(inode->i_sb)->m_sb))
-			inode->i_op = &xfs_dir_ci_inode_operations;
-		else
-			inode->i_op = &xfs_dir_inode_operations;
-		inode->i_fop = &xfs_dir_file_operations;
 		ip->d_ops = ip->i_mount->m_dir_inode_ops;
-		break;
-	case S_IFLNK:
-		inode->i_op = &xfs_symlink_inode_operations;
-		if (!(ip->i_df.if_flags & XFS_IFINLINE))
-			inode->i_mapping->a_ops = &xfs_address_space_operations;
-		break;
-	default:
-		inode->i_op = &xfs_inode_operations;
-		init_special_inode(inode, inode->i_mode, inode->i_rdev);
-		break;
+	} else {
+		ip->d_ops = ip->i_mount->m_nondir_inode_ops;
+		lockdep_set_class(&ip->i_lock.mr_lock, &xfs_nondir_ilock_class);
 	}
 
 	/*
@@ -1268,5 +1274,37 @@ xfs_setup_inode(
 	if (!XFS_IFORK_Q(ip)) {
 		inode_has_no_xattr(inode);
 		cache_no_acl(inode);
+	}
+}
+
+void
+xfs_setup_iops(
+	struct xfs_inode	*ip)
+{
+	struct inode		*inode = &ip->i_vnode;
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFREG:
+		inode->i_op = &xfs_inode_operations;
+		inode->i_fop = &xfs_file_operations;
+		inode->i_mapping->a_ops = &xfs_address_space_operations;
+		break;
+	case S_IFDIR:
+		if (xfs_sb_version_hasasciici(&XFS_M(inode->i_sb)->m_sb))
+			inode->i_op = &xfs_dir_ci_inode_operations;
+		else
+			inode->i_op = &xfs_dir_inode_operations;
+		inode->i_fop = &xfs_dir_file_operations;
+		break;
+	case S_IFLNK:
+		if (ip->i_df.if_flags & XFS_IFINLINE)
+			inode->i_op = &xfs_inline_symlink_inode_operations;
+		else
+			inode->i_op = &xfs_symlink_inode_operations;
+		break;
+	default:
+		inode->i_op = &xfs_inode_operations;
+		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		break;
 	}
 }
