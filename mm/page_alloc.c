@@ -613,14 +613,7 @@ static int __init early_debug_pagealloc(char *buf)
 {
 	if (!buf)
 		return -EINVAL;
-
-	if (strcmp(buf, "on") == 0)
-		_debug_pagealloc_enabled = true;
-
-	if (strcmp(buf, "off") == 0)
-		_debug_pagealloc_enabled = false;
-
-	return 0;
+	return kstrtobool(buf, &_debug_pagealloc_enabled);
 }
 early_param("debug_pagealloc", early_debug_pagealloc);
 
