@@ -39,8 +39,5 @@
 #define _PMD_PRESENT_MASK (PAGE_MASK)
 #define _PMD_BAD	(~PAGE_MASK)
 
-/* Hash table based platforms need atomic updates of the linux PTE */
-#define PTE_ATOMIC_UPDATES	1
-
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_BOOK3S_32_HASH_H */
