@@ -942,6 +942,8 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
 	trbs_left = dwc3_calc_trbs_left(dep);
+	if (!trbs_left)
+		return;
 
 	list_for_each_entry_safe(req, n, &dep->pending_list, list) {
 		if (req->request.num_mapped_sgs > 0)
