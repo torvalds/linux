@@ -193,6 +193,10 @@ void quiet_vmstat(void);
 void cpu_vm_stats_fold(int cpu);
 void refresh_zone_stat_thresholds(void);
 
+struct ctl_table;
+int vmstat_refresh(struct ctl_table *, int write,
+		   void __user *buffer, size_t *lenp, loff_t *ppos);
+
 void drain_zonestat(struct zone *zone, struct per_cpu_pageset *);
 
 int calculate_pressure_threshold(struct zone *zone);
