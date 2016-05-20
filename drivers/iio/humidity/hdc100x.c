@@ -55,7 +55,7 @@ static const struct {
 	},
 	{ /* IIO_HUMIDITYRELATIVE channel */
 		.shift = 8,
-		.mask = 2,
+		.mask = 3,
 	},
 };
 
