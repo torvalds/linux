@@ -223,6 +223,7 @@ static int ip6_input_finish(struct net *net, struct sock *sk, struct sk_buff *sk
 	unsigned int nhoff;
 	int nexthdr;
 	bool raw;
+	bool have_final = false;
 
 	/*
 	 *	Parse extension headers
@@ -236,13 +237,26 @@ resubmit:
 	nhoff = IP6CB(skb)->nhoff;
 	nexthdr = skb_network_header(skb)[nhoff];
 
+resubmit_final:
 	raw = raw6_local_deliver(skb, nexthdr);
 	ipprot = rcu_dereference(inet6_protos[nexthdr]);
 	if (ipprot) {
 		int ret;
 
-		if (ipprot->flags & INET6_PROTO_FINAL) {
+		if (have_final) {
+			if (!(ipprot->flags & INET6_PROTO_FINAL)) {
+				/* Once we've seen a final protocol don't
+				 * allow encapsulation on any non-final
+				 * ones. This allows foo in UDP encapsulation
+				 * to work.
+				 */
+				goto discard;
+			}
+		} else if (ipprot->flags & INET6_PROTO_FINAL) {
 			const struct ipv6hdr *hdr;
+
+			/* Only do this once for first final protocol */
+			have_final = true;
 
 			/* Free reference early: we don't need it any more,
 			   and it may hold ip_conntrack module loaded
@@ -263,10 +277,21 @@ resubmit:
 			goto discard;
 
 		ret = ipprot->handler(skb);
-		if (ret > 0)
-			goto resubmit;
-		else if (ret == 0)
+		if (ret > 0) {
+			if (ipprot->flags & INET6_PROTO_FINAL) {
+				/* Not an extension header, most likely UDP
+				 * encapsulation. Use return value as nexthdr
+				 * protocol not nhoff (which presumably is
+				 * not set by handler).
+				 */
+				nexthdr = ret;
+				goto resubmit_final;
+			} else {
+				goto resubmit;
+			}
+		} else if (ret == 0) {
 			__IP6_INC_STATS(net, idev, IPSTATS_MIB_INDELIVERS);
+		}
 	} else {
 		if (!raw) {
 			if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {

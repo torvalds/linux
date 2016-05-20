@@ -471,9 +471,9 @@ enum {
 
 	SKB_GSO_GRE_CSUM = 1 << 8,
 
-	SKB_GSO_IPIP = 1 << 9,
+	SKB_GSO_IPXIP4 = 1 << 9,
 
-	SKB_GSO_SIT = 1 << 10,
+	SKB_GSO_IPXIP6 = 1 << 10,
 
 	SKB_GSO_UDP_TUNNEL = 1 << 11,
 

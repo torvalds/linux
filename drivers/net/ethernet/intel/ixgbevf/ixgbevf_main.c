@@ -4062,8 +4062,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #define IXGBEVF_GSO_PARTIAL_FEATURES (NETIF_F_GSO_GRE | \
 				      NETIF_F_GSO_GRE_CSUM | \
-				      NETIF_F_GSO_IPIP | \
-				      NETIF_F_GSO_SIT | \
+				      NETIF_F_GSO_IPXIP4 | \
 				      NETIF_F_GSO_UDP_TUNNEL | \
 				      NETIF_F_GSO_UDP_TUNNEL_CSUM)
 
