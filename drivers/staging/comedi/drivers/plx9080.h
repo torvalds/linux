@@ -446,6 +446,9 @@ struct plx_dma_desc {
 /* PCI Permanent Configuration ID Register (hard-coded PLX vendor and device) */
 #define PLX_REG_PCIHIDR		0x0070
 
+/* Hard-coded ID for PLX PCI 9080 */
+#define PLX_PCIHIDR_9080	0x908010b5
+
 /* PCI Permanent Revision ID Register (hard-coded silicon revision) (8-bit). */
 #define PLX_REG_PCIHREV		0x0074
 
