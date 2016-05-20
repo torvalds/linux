@@ -195,11 +195,8 @@ static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long act
 	case OF_RECONFIG_ATTACH_NODE:
 		parent = of_get_parent(np);
 		pdn = parent ? PCI_DN(parent) : NULL;
-		if (pdn) {
-			/* Create pdn and EEH device */
+		if (pdn)
 			pci_add_device_node_info(pdn->phb, np);
-			eeh_dev_init(PCI_DN(np), pdn->phb);
-		}
 
 		of_node_put(parent);
 		break;
@@ -422,7 +419,6 @@ static void __init find_and_init_phbs(void)
 	}
 
 	of_node_put(root);
-	pci_devs_phb_init();
 
 	/*
 	 * PCI_PROBE_ONLY and PCI_REASSIGN_ALL_BUS can be set via properties
