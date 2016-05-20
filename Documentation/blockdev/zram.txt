@@ -59,26 +59,15 @@ num_devices parameter is optional and tells zram how many devices should be
 pre-created. Default: 1.
 
 2) Set max number of compression streams
-	Compression backend may use up to max_comp_streams compression streams,
-	thus allowing up to max_comp_streams concurrent compression operations.
-	By default, compression backend uses single compression stream.
+	Regardless the value passed to this attribute, ZRAM will always
+	allocate multiple compression streams - one per online CPUs - thus
+	allowing several concurrent compression operations. The number of
+	allocated compression streams goes down when some of the CPUs
+	become offline. There is no single-compression-stream mode anymore,
+	unless you are running a UP system or has only 1 CPU online.
 
-	Examples:
-	#show max compression streams number
+	To find out how many streams are currently available:
 	cat /sys/block/zram0/max_comp_streams
-
-	#set max compression streams number to 3
-	echo 3 > /sys/block/zram0/max_comp_streams
-
-Note:
-In order to enable compression backend's multi stream support max_comp_streams
-must be initially set to desired concurrency level before ZRAM device
-initialisation. Once the device initialised as a single stream compression
-backend (max_comp_streams equals to 1), you will see error if you try to change
-the value of max_comp_streams because single stream compression backend
-implemented as a special case by lock overhead issue and does not support
-dynamic max_comp_streams. Only multi stream backend supports dynamic
-max_comp_streams adjustment.
 
 3) Select compression algorithm
 	Using comp_algorithm device attribute one can see available and
