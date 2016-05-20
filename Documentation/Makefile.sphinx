@@ -25,7 +25,9 @@ HAVE_RST2PDF := $(shell if python -c "import rst2pdf" >/dev/null 2>&1; then echo
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
-ALLSPHINXOPTS   = -d $(BUILDDIR)/.doctrees $(PAPEROPT_$(PAPER)) -c $(srctree)/$(src) $(SPHINXOPTS) $(srctree)/$(src)
+KERNELDOC       = $(srctree)/scripts/kernel-doc
+KERNELDOC_CONF  = -D kerneldoc_srctree=$(srctree) -D kerneldoc_bin=$(KERNELDOC)
+ALLSPHINXOPTS   = -d $(BUILDDIR)/.doctrees $(KERNELDOC_CONF) $(PAPEROPT_$(PAPER)) -c $(srctree)/$(src) $(SPHINXOPTS) $(srctree)/$(src)
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 

@@ -18,7 +18,7 @@ import os
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('sphinx'))
 
 # -- General configuration ------------------------------------------------
 
@@ -28,7 +28,7 @@ import os
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = []
+extensions = ['kernel-doc']
 
 # Gracefully handle missing rst2pdf.
 try:
@@ -385,3 +385,9 @@ epub_exclude_files = ['search.html']
 pdf_documents = [
     ('index', u'Kernel', u'Kernel', u'J. Random Bozo'),
 ]
+
+# kernel-doc extension configuration for running Sphinx directly (e.g. by Read
+# the Docs). In a normal build, these are supplied from the Makefile via command
+# line arguments.
+kerneldoc_bin = '../scripts/kernel-doc'
+kerneldoc_srctree = '..'
