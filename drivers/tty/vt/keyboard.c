@@ -1745,16 +1745,10 @@ int vt_do_diacrit(unsigned int cmd, void __user *udp, int perm)
 			return -EINVAL;
 
 		if (ct) {
-			buf = kmalloc(ct * sizeof(struct kbdiacruc),
-								GFP_KERNEL);
-			if (buf == NULL)
-				return -ENOMEM;
-
-			if (copy_from_user(buf, a->kbdiacruc,
-					ct * sizeof(struct kbdiacruc))) {
-				kfree(buf);
-				return -EFAULT;
-			}
+			buf = memdup_user(a->kbdiacruc,
+					  ct * sizeof(struct kbdiacruc));
+			if (IS_ERR(buf))
+				return PTR_ERR(buf);
 		} 
 		spin_lock_irqsave(&kbd_event_lock, flags);
 		if (ct)
