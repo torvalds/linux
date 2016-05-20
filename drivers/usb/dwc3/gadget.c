@@ -842,6 +842,25 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	trace_dwc3_prepare_trb(dep, trb);
 }
 
+/**
+ * dwc3_ep_prev_trb() - Returns the previous TRB in the ring
+ * @dep: The endpoint with the TRB ring
+ * @index: The index of the current TRB in the ring
+ *
+ * Returns the TRB prior to the one pointed to by the index. If the
+ * index is 0, we will wrap backwards, skip the link TRB, and return
+ * the one just before that.
+ */
+static struct dwc3_trb *dwc3_ep_prev_trb(struct dwc3_ep *dep, u8 index)
+{
+	if (!index)
+		index = DWC3_TRB_NUM - 2;
+	else
+		index = dep->trb_enqueue - 1;
+
+	return &dep->trb_pool[index];
+}
+
 static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 {
 	struct dwc3_trb		*tmp;
@@ -855,12 +874,9 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 	 * more transfers in our ring.
 	 */
 	if (dep->trb_enqueue == dep->trb_dequeue) {
-		/* If we're full, enqueue/dequeue are > 0 */
-		if (dep->trb_enqueue) {
-			tmp = &dep->trb_pool[dep->trb_enqueue - 1];
-			if (tmp->ctrl & DWC3_TRB_CTRL_HWO)
-				return 0;
-		}
+		tmp = dwc3_ep_prev_trb(dep, dep->trb_enqueue);
+		if (tmp->ctrl & DWC3_TRB_CTRL_HWO)
+			return 0;
 
 		return DWC3_TRB_NUM - 1;
 	}
