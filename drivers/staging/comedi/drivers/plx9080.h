@@ -19,6 +19,13 @@
 #ifndef __COMEDI_PLX9080_H
 #define __COMEDI_PLX9080_H
 
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <linux/bitops.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/io.h>
+
 /**
  * struct plx_dma_desc - DMA descriptor format for PLX PCI 9080
  * @pci_start_addr:	PCI Bus address for transfer (DMAPADR).
