@@ -186,6 +186,8 @@ struct branch_info {
 	struct addr_map_symbol from;
 	struct addr_map_symbol to;
 	struct branch_flags flags;
+	char			*srcline_from;
+	char			*srcline_to;
 };
 
 struct mem_info {
