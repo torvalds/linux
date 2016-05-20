@@ -2180,6 +2180,11 @@ static void check_irq_on(void)
 	BUG_ON(irqs_disabled());
 }
 
+static void check_mutex_acquired(void)
+{
+	BUG_ON(!mutex_is_locked(&slab_mutex));
+}
+
 static void check_spinlock_acquired(struct kmem_cache *cachep)
 {
 #ifdef CONFIG_SMP
@@ -2199,13 +2204,27 @@ static void check_spinlock_acquired_node(struct kmem_cache *cachep, int node)
 #else
 #define check_irq_off()	do { } while(0)
 #define check_irq_on()	do { } while(0)
+#define check_mutex_acquired()	do { } while(0)
 #define check_spinlock_acquired(x) do { } while(0)
 #define check_spinlock_acquired_node(x, y) do { } while(0)
 #endif
 
-static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
-			struct array_cache *ac,
-			int force, int node);
+static void drain_array_locked(struct kmem_cache *cachep, struct array_cache *ac,
+				int node, bool free_all, struct list_head *list)
+{
+	int tofree;
+
+	if (!ac || !ac->avail)
+		return;
+
+	tofree = free_all ? ac->avail : (ac->limit + 4) / 5;
+	if (tofree > ac->avail)
+		tofree = (ac->avail + 1) / 2;
+
+	free_block(cachep, ac->entry, tofree, node, list);
+	ac->avail -= tofree;
+	memmove(ac->entry, &(ac->entry[tofree]), sizeof(void *) * ac->avail);
+}
 
 static void do_drain(void *arg)
 {
@@ -2229,6 +2248,7 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 {
 	struct kmem_cache_node *n;
 	int node;
+	LIST_HEAD(list);
 
 	on_each_cpu(do_drain, cachep, 1);
 	check_irq_on();
@@ -2236,8 +2256,13 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 		if (n->alien)
 			drain_alien_cache(cachep, n->alien);
 
-	for_each_kmem_cache_node(cachep, node, n)
-		drain_array(cachep, n, n->shared, 1, node);
+	for_each_kmem_cache_node(cachep, node, n) {
+		spin_lock_irq(&n->list_lock);
+		drain_array_locked(cachep, n->shared, node, true, &list);
+		spin_unlock_irq(&n->list_lock);
+
+		slabs_destroy(cachep, &list);
+	}
 }
 
 /*
@@ -3869,29 +3894,26 @@ skip_setup:
  * if drain_array() is used on the shared array.
  */
 static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
-			 struct array_cache *ac, int force, int node)
+			 struct array_cache *ac, int node)
 {
 	LIST_HEAD(list);
-	int tofree;
+
+	/* ac from n->shared can be freed if we don't hold the slab_mutex. */
+	check_mutex_acquired();
 
 	if (!ac || !ac->avail)
 		return;
-	if (ac->touched && !force) {
+
+	if (ac->touched) {
 		ac->touched = 0;
-	} else {
-		spin_lock_irq(&n->list_lock);
-		if (ac->avail) {
-			tofree = force ? ac->avail : (ac->limit + 4) / 5;
-			if (tofree > ac->avail)
-				tofree = (ac->avail + 1) / 2;
-			free_block(cachep, ac->entry, tofree, node, &list);
-			ac->avail -= tofree;
-			memmove(ac->entry, &(ac->entry[tofree]),
-				sizeof(void *) * ac->avail);
-		}
-		spin_unlock_irq(&n->list_lock);
-		slabs_destroy(cachep, &list);
+		return;
 	}
+
+	spin_lock_irq(&n->list_lock);
+	drain_array_locked(cachep, ac, node, false, &list);
+	spin_unlock_irq(&n->list_lock);
+
+	slabs_destroy(cachep, &list);
 }
 
 /**
@@ -3929,7 +3951,7 @@ static void cache_reap(struct work_struct *w)
 
 		reap_alien(searchp, n);
 
-		drain_array(searchp, n, cpu_cache_get(searchp), 0, node);
+		drain_array(searchp, n, cpu_cache_get(searchp), node);
 
 		/*
 		 * These are racy checks but it does not matter
@@ -3940,7 +3962,7 @@ static void cache_reap(struct work_struct *w)
 
 		n->next_reap = jiffies + REAPTIMEOUT_NODE;
 
-		drain_array(searchp, n, n->shared, 0, node);
+		drain_array(searchp, n, n->shared, node);
 
 		if (n->free_touched)
 			n->free_touched = 0;
