@@ -3547,9 +3547,17 @@ free_done:
 static inline void __cache_free(struct kmem_cache *cachep, void *objp,
 				unsigned long caller)
 {
-	struct array_cache *ac = cpu_cache_get(cachep);
+	/* Put the object into the quarantine, don't touch it for now. */
+	if (kasan_slab_free(cachep, objp))
+		return;
 
-	kasan_slab_free(cachep, objp);
+	___cache_free(cachep, objp, caller);
+}
+
+void ___cache_free(struct kmem_cache *cachep, void *objp,
+		unsigned long caller)
+{
+	struct array_cache *ac = cpu_cache_get(cachep);
 
 	check_irq_off();
 	kmemleak_free_recursive(objp, cachep->flags);
