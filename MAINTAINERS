@@ -2048,6 +2048,11 @@ M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/tty/serial/atmel_serial.c
 
+ATMEL AT91 SAMA5D2-Compatible Shutdown Controller
+M:	Nicolas Ferre <nicolas.ferre@atmel.com>
+S:	Supported
+F:	drivers/power/reset/at91-sama5d2_shdwc.c
+
 ATMEL SAMA5D2 ADC DRIVER
 M:	Ludovic Desroches <ludovic.desroches@atmel.com>
 L:	linux-iio@vger.kernel.org

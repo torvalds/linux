@@ -831,7 +831,6 @@ void hfi1_do_send(struct rvt_qp *qp)
 	struct hfi1_pkt_state ps;
 	struct hfi1_qp_priv *priv = qp->priv;
 	int (*make_req)(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
-	unsigned long flags;
 	unsigned long timeout;
 	unsigned long timeout_int;
 	int cpu;
@@ -866,11 +865,11 @@ void hfi1_do_send(struct rvt_qp *qp)
 		timeout_int = SEND_RESCHED_TIMEOUT;
 	}
 
-	spin_lock_irqsave(&qp->s_lock, flags);
+	spin_lock_irqsave(&qp->s_lock, ps.flags);
 
 	/* Return if we are already busy processing a work request. */
 	if (!hfi1_send_ok(qp)) {
-		spin_unlock_irqrestore(&qp->s_lock, flags);
+		spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 		return;
 	}
 
@@ -884,7 +883,7 @@ void hfi1_do_send(struct rvt_qp *qp)
 	do {
 		/* Check for a constructed packet to be sent. */
 		if (qp->s_hdrwords != 0) {
-			spin_unlock_irqrestore(&qp->s_lock, flags);
+			spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 			/*
 			 * If the packet cannot be sent now, return and
 			 * the send tasklet will be woken up later.
@@ -897,11 +896,14 @@ void hfi1_do_send(struct rvt_qp *qp)
 			if (unlikely(time_after(jiffies, timeout))) {
 				if (workqueue_congested(cpu,
 							ps.ppd->hfi1_wq)) {
-					spin_lock_irqsave(&qp->s_lock, flags);
+					spin_lock_irqsave(
+						&qp->s_lock,
+						ps.flags);
 					qp->s_flags &= ~RVT_S_BUSY;
 					hfi1_schedule_send(qp);
-					spin_unlock_irqrestore(&qp->s_lock,
-							       flags);
+					spin_unlock_irqrestore(
+						&qp->s_lock,
+						ps.flags);
 					this_cpu_inc(
 						*ps.ppd->dd->send_schedule);
 					return;
@@ -913,11 +915,11 @@ void hfi1_do_send(struct rvt_qp *qp)
 				}
 				timeout = jiffies + (timeout_int) / 8;
 			}
-			spin_lock_irqsave(&qp->s_lock, flags);
+			spin_lock_irqsave(&qp->s_lock, ps.flags);
 		}
 	} while (make_req(qp, &ps));
 
-	spin_unlock_irqrestore(&qp->s_lock, flags);
+	spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 }
 
 /*

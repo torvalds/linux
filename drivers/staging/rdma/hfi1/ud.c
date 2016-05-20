@@ -322,7 +322,7 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 			     (lid == ppd->lid ||
 			      (lid == be16_to_cpu(IB_LID_PERMISSIVE) &&
 			      qp->ibqp.qp_type == IB_QPT_GSI)))) {
-			unsigned long flags;
+			unsigned long tflags = ps->flags;
 			/*
 			 * If DMAs are in progress, we can't generate
 			 * a completion for the loopback packet since
@@ -335,10 +335,10 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 				goto bail;
 			}
 			qp->s_cur = next_cur;
-			local_irq_save(flags);
-			spin_unlock_irqrestore(&qp->s_lock, flags);
+			spin_unlock_irqrestore(&qp->s_lock, tflags);
 			ud_loopback(qp, wqe);
-			spin_lock_irqsave(&qp->s_lock, flags);
+			spin_lock_irqsave(&qp->s_lock, tflags);
+			ps->flags = tflags;
 			hfi1_send_complete(qp, wqe, IB_WC_SUCCESS);
 			goto done_free_tx;
 		}

@@ -85,7 +85,7 @@ Example:
 SoC file extract:
 -----------------
 
-	padctl@0,7009f000 {
+	padctl@7009f000 {
 		compatible = "nvidia,tegra124-xusb-padctl";
 		reg = <0x0 0x7009f000 0x0 0x1000>;
 		resets = <&tegra_car 142>;
@@ -97,7 +97,7 @@ SoC file extract:
 Board file extract:
 -------------------
 
-	pcie-controller@0,01003000 {
+	pcie-controller@01003000 {
 		...
 
 		phys = <&padctl 0>;
@@ -108,7 +108,7 @@ Board file extract:
 
 	...
 
-	padctl: padctl@0,7009f000 {
+	padctl: padctl@7009f000 {
 		pinctrl-0 = <&padctl_default>;
 		pinctrl-names = "default";
 
