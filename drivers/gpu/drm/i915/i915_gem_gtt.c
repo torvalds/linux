@@ -1839,20 +1839,19 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 				      enum i915_cache_level cache_level, u32 flags)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	gen6_pte_t *pt_vaddr;
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned act_pt = first_entry / GEN6_PTES;
 	unsigned act_pte = first_entry % GEN6_PTES;
-	struct sg_page_iter sg_iter;
+	gen6_pte_t *pt_vaddr = NULL;
+	struct sgt_iter sgt_iter;
+	dma_addr_t addr;
 
-	pt_vaddr = NULL;
-	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
+	for_each_sgt_dma(addr, sgt_iter, pages) {
 		if (pt_vaddr == NULL)
 			pt_vaddr = kmap_px(ppgtt->pd.page_table[act_pt]);
 
 		pt_vaddr[act_pte] =
-			vm->pte_encode(sg_page_iter_dma_address(&sg_iter),
-				       cache_level, true, flags);
+			vm->pte_encode(addr, cache_level, true, flags);
 
 		if (++act_pte == GEN6_PTES) {
 			kunmap_px(ppgtt, pt_vaddr);
@@ -1861,6 +1860,7 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 			act_pte = 0;
 		}
 	}
+
 	if (pt_vaddr)
 		kunmap_px(ppgtt, pt_vaddr);
 }
@@ -2362,22 +2362,20 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 {
 	struct drm_i915_private *dev_priv = to_i915(vm->dev);
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
-	unsigned first_entry = start >> PAGE_SHIFT;
-	gen8_pte_t __iomem *gtt_entries =
-		(gen8_pte_t __iomem *)ggtt->gsm + first_entry;
-	int i = 0;
-	struct sg_page_iter sg_iter;
-	dma_addr_t addr = 0; /* shut up gcc */
+	struct sgt_iter sgt_iter;
+	gen8_pte_t __iomem *gtt_entries;
+	gen8_pte_t gtt_entry;
+	dma_addr_t addr;
 	int rpm_atomic_seq;
+	int i = 0;
 
 	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
-	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
-		addr = sg_dma_address(sg_iter.sg) +
-			(sg_iter.sg_pgoffset << PAGE_SHIFT);
-		gen8_set_pte(&gtt_entries[i],
-			     gen8_pte_encode(addr, level, true));
-		i++;
+	gtt_entries = (gen8_pte_t __iomem *)ggtt->gsm + (start >> PAGE_SHIFT);
+
+	for_each_sgt_dma(addr, sgt_iter, st) {
+		gtt_entry = gen8_pte_encode(addr, level, true);
+		gen8_set_pte(&gtt_entries[i++], gtt_entry);
 	}
 
 	/*
@@ -2388,8 +2386,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	 * hardware should work, we must keep this posting read for paranoia.
 	 */
 	if (i != 0)
-		WARN_ON(readq(&gtt_entries[i-1])
-			!= gen8_pte_encode(addr, level, true));
+		WARN_ON(readq(&gtt_entries[i-1]) != gtt_entry);
 
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
@@ -2440,20 +2437,20 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 {
 	struct drm_i915_private *dev_priv = to_i915(vm->dev);
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
-	unsigned first_entry = start >> PAGE_SHIFT;
-	gen6_pte_t __iomem *gtt_entries =
-		(gen6_pte_t __iomem *)ggtt->gsm + first_entry;
-	int i = 0;
-	struct sg_page_iter sg_iter;
-	dma_addr_t addr = 0;
+	struct sgt_iter sgt_iter;
+	gen6_pte_t __iomem *gtt_entries;
+	gen6_pte_t gtt_entry;
+	dma_addr_t addr;
 	int rpm_atomic_seq;
+	int i = 0;
 
 	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
-	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
-		addr = sg_page_iter_dma_address(&sg_iter);
-		iowrite32(vm->pte_encode(addr, level, true, flags), &gtt_entries[i]);
-		i++;
+	gtt_entries = (gen6_pte_t __iomem *)ggtt->gsm + (start >> PAGE_SHIFT);
+
+	for_each_sgt_dma(addr, sgt_iter, st) {
+		gtt_entry = vm->pte_encode(addr, level, true, flags);
+		iowrite32(gtt_entry, &gtt_entries[i++]);
 	}
 
 	/* XXX: This serves as a posting read to make sure that the PTE has
@@ -2462,10 +2459,8 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	 * of NUMA access patterns. Therefore, even with the way we assume
 	 * hardware should work, we must keep this posting read for paranoia.
 	 */
-	if (i != 0) {
-		unsigned long gtt = readl(&gtt_entries[i-1]);
-		WARN_ON(gtt != vm->pte_encode(addr, level, true, flags));
-	}
+	if (i != 0)
+		WARN_ON(readl(&gtt_entries[i-1]) != gtt_entry);
 
 	/* This next bit makes the above posting read even more important. We
 	 * want to flush the TLBs only after we're certain all the PTE updates
@@ -3399,9 +3394,11 @@ static struct sg_table *
 intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 			  struct drm_i915_gem_object *obj)
 {
+	const size_t n_pages = obj->base.size / PAGE_SIZE;
 	unsigned int size_pages = rot_info->plane[0].width * rot_info->plane[0].height;
 	unsigned int size_pages_uv;
-	struct sg_page_iter sg_iter;
+	struct sgt_iter sgt_iter;
+	dma_addr_t dma_addr;
 	unsigned long i;
 	dma_addr_t *page_addr_list;
 	struct sg_table *st;
@@ -3410,7 +3407,7 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 	int ret = -ENOMEM;
 
 	/* Allocate a temporary list of source pages for random access. */
-	page_addr_list = drm_malloc_gfp(obj->base.size / PAGE_SIZE,
+	page_addr_list = drm_malloc_gfp(n_pages,
 					sizeof(dma_addr_t),
 					GFP_TEMPORARY);
 	if (!page_addr_list)
@@ -3433,11 +3430,10 @@ intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 
 	/* Populate source page list from the object. */
 	i = 0;
-	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
-		page_addr_list[i] = sg_page_iter_dma_address(&sg_iter);
-		i++;
-	}
+	for_each_sgt_dma(dma_addr, sgt_iter, obj->pages)
+		page_addr_list[i++] = dma_addr;
 
+	GEM_BUG_ON(i != n_pages);
 	st->nents = 0;
 	sg = st->sgl;
 

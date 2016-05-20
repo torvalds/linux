@@ -2251,9 +2251,56 @@ struct drm_i915_gem_object {
 };
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
-void i915_gem_track_fb(struct drm_i915_gem_object *old,
-		       struct drm_i915_gem_object *new,
-		       unsigned frontbuffer_bits);
+/*
+ * Optimised SGL iterator for GEM objects
+ */
+static __always_inline struct sgt_iter {
+	struct scatterlist *sgp;
+	union {
+		unsigned long pfn;
+		dma_addr_t dma;
+	};
+	unsigned int curr;
+	unsigned int max;
+} __sgt_iter(struct scatterlist *sgl, bool dma) {
+	struct sgt_iter s = { .sgp = sgl };
+
+	if (s.sgp) {
+		s.max = s.curr = s.sgp->offset;
+		s.max += s.sgp->length;
+		if (dma)
+			s.dma = sg_dma_address(s.sgp);
+		else
+			s.pfn = page_to_pfn(sg_page(s.sgp));
+	}
+
+	return s;
+}
+
+/**
+ * for_each_sgt_dma - iterate over the DMA addresses of the given sg_table
+ * @__dmap:	DMA address (output)
+ * @__iter:	'struct sgt_iter' (iterator state, internal)
+ * @__sgt:	sg_table to iterate over (input)
+ */
+#define for_each_sgt_dma(__dmap, __iter, __sgt)				\
+	for ((__iter) = __sgt_iter((__sgt)->sgl, true);			\
+	     ((__dmap) = (__iter).dma + (__iter).curr);			\
+	     (((__iter).curr += PAGE_SIZE) < (__iter).max) ||		\
+	     ((__iter) = __sgt_iter(sg_next((__iter).sgp), true), 0))
+
+/**
+ * for_each_sgt_page - iterate over the pages of the given sg_table
+ * @__pp:	page pointer (output)
+ * @__iter:	'struct sgt_iter' (iterator state, internal)
+ * @__sgt:	sg_table to iterate over (input)
+ */
+#define for_each_sgt_page(__pp, __iter, __sgt)				\
+	for ((__iter) = __sgt_iter((__sgt)->sgl, false);		\
+	     ((__pp) = (__iter).pfn == 0 ? NULL :			\
+	      pfn_to_page((__iter).pfn + ((__iter).curr >> PAGE_SHIFT))); \
+	     (((__iter).curr += PAGE_SIZE) < (__iter).max) ||		\
+	     ((__iter) = __sgt_iter(sg_next((__iter).sgp), false), 0))
 
 /**
  * Request queue structure.
@@ -3108,6 +3155,11 @@ int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_mode_create_dumb *args);
 int i915_gem_mmap_gtt(struct drm_file *file_priv, struct drm_device *dev,
 		      uint32_t handle, uint64_t *offset);
+
+void i915_gem_track_fb(struct drm_i915_gem_object *old,
+		       struct drm_i915_gem_object *new,
+		       unsigned frontbuffer_bits);
+
 /**
  * Returns true if seq1 is later than seq2.
  */
