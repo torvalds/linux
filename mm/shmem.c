@@ -1085,8 +1085,8 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 	flush_dcache_page(newpage);
 
 	__SetPageLocked(newpage);
+	__SetPageSwapBacked(newpage);
 	SetPageUptodate(newpage);
-	SetPageSwapBacked(newpage);
 	set_page_private(newpage, swap_index);
 	SetPageSwapCache(newpage);
 
@@ -1276,8 +1276,8 @@ repeat:
 			goto decused;
 		}
 
-		__SetPageSwapBacked(page);
 		__SetPageLocked(page);
+		__SetPageSwapBacked(page);
 		if (sgp == SGP_WRITE)
 			__SetPageReferenced(page);
 
