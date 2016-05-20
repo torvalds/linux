@@ -145,21 +145,29 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 	return -ETIMEDOUT;
 }
 
+/**
+ * dwc3_ep_inc_trb() - Increment a TRB index.
+ * @index - Pointer to the TRB index to increment.
+ *
+ * The index should never point to the link TRB. After incrementing,
+ * if it is point to the link TRB, wrap around to the beginning. The
+ * link TRB is always at the last TRB entry.
+ */
+static void dwc3_ep_inc_trb(u8 *index)
+{
+	(*index)++;
+	if (*index == (DWC3_TRB_NUM - 1))
+		*index = 0;
+}
+
 static void dwc3_ep_inc_enq(struct dwc3_ep *dep)
 {
-	dep->trb_enqueue++;
-	dep->trb_enqueue %= DWC3_TRB_NUM;
+	dwc3_ep_inc_trb(&dep->trb_enqueue);
 }
 
 static void dwc3_ep_inc_deq(struct dwc3_ep *dep)
 {
-	dep->trb_dequeue++;
-	dep->trb_dequeue %= DWC3_TRB_NUM;
-}
-
-static int dwc3_ep_is_last_trb(unsigned int index)
-{
-	return index == DWC3_TRB_NUM - 1;
+	dwc3_ep_inc_trb(&dep->trb_dequeue);
 }
 
 void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
@@ -172,13 +180,6 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 		i = 0;
 		do {
 			dwc3_ep_inc_deq(dep);
-			/*
-			 * Skip LINK TRB. We can't use req->trb and check for
-			 * DWC3_TRBCTL_LINK_TRB because it points the TRB we
-			 * just completed (not the LINK TRB).
-			 */
-			if (dwc3_ep_is_last_trb(dep->trb_dequeue))
-				dwc3_ep_inc_deq(dep);
 		} while(++i < req->request.num_mapped_sgs);
 		req->started = false;
 	}
@@ -785,9 +786,6 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 	}
 
 	dwc3_ep_inc_enq(dep);
-	/* Skip the LINK-TRB */
-	if (dwc3_ep_is_last_trb(dep->trb_enqueue))
-		dwc3_ep_inc_enq(dep);
 
 	trb->size = DWC3_TRB_SIZE_LENGTH(length);
 	trb->bpl = lower_32_bits(dma);
