@@ -1367,6 +1367,29 @@ static __initconst const u64 atom_hw_cache_event_ids
  },
 };
 
+EVENT_ATTR_STR(topdown-total-slots, td_total_slots_slm, "event=0x3c");
+EVENT_ATTR_STR(topdown-total-slots.scale, td_total_slots_scale_slm, "2");
+/* no_alloc_cycles.not_delivered */
+EVENT_ATTR_STR(topdown-fetch-bubbles, td_fetch_bubbles_slm,
+	       "event=0xca,umask=0x50");
+EVENT_ATTR_STR(topdown-fetch-bubbles.scale, td_fetch_bubbles_scale_slm, "2");
+/* uops_retired.all */
+EVENT_ATTR_STR(topdown-slots-issued, td_slots_issued_slm,
+	       "event=0xc2,umask=0x10");
+/* uops_retired.all */
+EVENT_ATTR_STR(topdown-slots-retired, td_slots_retired_slm,
+	       "event=0xc2,umask=0x10");
+
+static struct attribute *slm_events_attrs[] = {
+	EVENT_PTR(td_total_slots_slm),
+	EVENT_PTR(td_total_slots_scale_slm),
+	EVENT_PTR(td_fetch_bubbles_slm),
+	EVENT_PTR(td_fetch_bubbles_scale_slm),
+	EVENT_PTR(td_slots_issued_slm),
+	EVENT_PTR(td_slots_retired_slm),
+	NULL
+};
+
 static struct extra_reg intel_slm_extra_regs[] __read_mostly =
 {
 	/* must define OFFCORE_RSP_X first, see intel_fixup_er() */
@@ -3629,6 +3652,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.pebs_constraints = intel_slm_pebs_event_constraints;
 		x86_pmu.extra_regs = intel_slm_extra_regs;
 		x86_pmu.flags |= PMU_FL_HAS_RSP_1;
+		x86_pmu.cpu_events = slm_events_attrs;
 		pr_cont("Silvermont events, ");
 		break;
 
