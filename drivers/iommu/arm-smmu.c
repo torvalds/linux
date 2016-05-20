@@ -50,7 +50,7 @@
 #include "io-pgtable.h"
 
 /* Maximum number of stream IDs assigned to a single device */
-#define MAX_MASTER_STREAMIDS		MAX_PHANDLE_ARGS
+#define MAX_MASTER_STREAMIDS		128
 
 /* Maximum number of context banks per SMMU */
 #define ARM_SMMU_MAX_CBS		128
@@ -397,6 +397,12 @@ struct arm_smmu_domain {
 	struct iommu_domain		domain;
 };
 
+struct arm_smmu_phandle_args {
+	struct device_node *np;
+	int args_count;
+	uint32_t args[MAX_MASTER_STREAMIDS];
+};
+
 static DEFINE_SPINLOCK(arm_smmu_devices_lock);
 static LIST_HEAD(arm_smmu_devices);
 
@@ -506,7 +512,7 @@ static int insert_smmu_master(struct arm_smmu_device *smmu,
 
 static int register_smmu_master(struct arm_smmu_device *smmu,
 				struct device *dev,
-				struct of_phandle_args *masterspec)
+				struct arm_smmu_phandle_args *masterspec)
 {
 	int i;
 	struct arm_smmu_master *master;
@@ -1875,7 +1881,8 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	struct rb_node *node;
-	struct of_phandle_args masterspec;
+	struct of_phandle_iterator it;
+	struct arm_smmu_phandle_args *masterspec;
 	int num_irqs, i, err;
 
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
@@ -1938,19 +1945,34 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 
 	i = 0;
 	smmu->masters = RB_ROOT;
-	while (!of_parse_phandle_with_args(dev->of_node, "mmu-masters",
-					   "#stream-id-cells", i,
-					   &masterspec)) {
-		err = register_smmu_master(smmu, dev, &masterspec);
+
+	err = -ENOMEM;
+	/* No need to zero the memory for masterspec */
+	masterspec = kmalloc(sizeof(*masterspec), GFP_KERNEL);
+	if (!masterspec)
+		goto out_put_masters;
+
+	of_for_each_phandle(&it, err, dev->of_node,
+			    "mmu-masters", "#stream-id-cells", 0) {
+		int count = of_phandle_iterator_args(&it, masterspec->args,
+						     MAX_MASTER_STREAMIDS);
+		masterspec->np		= of_node_get(it.node);
+		masterspec->args_count	= count;
+
+		err = register_smmu_master(smmu, dev, masterspec);
 		if (err) {
 			dev_err(dev, "failed to add master %s\n",
-				masterspec.np->name);
+				masterspec->np->name);
+			kfree(masterspec);
 			goto out_put_masters;
 		}
 
 		i++;
 	}
+
 	dev_notice(dev, "registered %d master devices\n", i);
+
+	kfree(masterspec);
 
 	parse_driver_options(smmu);
 
