@@ -1308,28 +1308,28 @@ static void init_plx9080(struct comedi_device *dev)
 	/*  configure dma0 mode */
 	bits = 0;
 	/*  enable ready input, not sure if this is necessary */
-	bits |= PLX_DMA_EN_READYIN_BIT;
+	bits |= PLX_DMAMODE_READYIEN;
 	/*  enable bterm, not sure if this is necessary */
-	bits |= PLX_EN_BTERM_BIT;
+	bits |= PLX_DMAMODE_BTERMIEN;
 	/*  enable dma chaining */
-	bits |= PLX_EN_CHAIN_BIT;
+	bits |= PLX_DMAMODE_CHAINEN;
 	/*  enable interrupt on dma done
 	 *  (probably don't need this, since chain never finishes) */
-	bits |= PLX_EN_DMA_DONE_INTR_BIT;
+	bits |= PLX_DMAMODE_DONEIEN;
 	/*  don't increment local address during transfers
 	 *  (we are transferring from a fixed fifo register) */
-	bits |= PLX_LOCAL_ADDR_CONST_BIT;
+	bits |= PLX_DMAMODE_LACONST;
 	/*  route dma interrupt to pci bus */
-	bits |= PLX_DMA_INTR_PCI_BIT;
+	bits |= PLX_DMAMODE_INTRPCI;
 	/*  enable demand mode */
-	bits |= PLX_DEMAND_MODE_BIT;
+	bits |= PLX_DMAMODE_DEMAND;
 	/*  enable local burst mode */
-	bits |= PLX_DMA_LOCAL_BURST_EN_BIT;
+	bits |= PLX_DMAMODE_BURSTEN;
 	/*  4020 uses 32 bit dma */
 	if (board->layout == LAYOUT_4020)
-		bits |= PLX_LOCAL_BUS_32_WIDE_BITS;
+		bits |= PLX_DMAMODE_WIDTH32;
 	else		/*  localspace0 bus is 16 bits wide */
-		bits |= PLX_LOCAL_BUS_16_WIDE_BITS;
+		bits |= PLX_DMAMODE_WIDTH16;
 	writel(bits, plx_iobase + PLX_REG_DMAMODE1);
 	if (ao_cmd_is_supported(board))
 		writel(bits, plx_iobase + PLX_REG_DMAMODE0);

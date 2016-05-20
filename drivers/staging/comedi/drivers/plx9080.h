@@ -457,23 +457,41 @@ struct plx_dma_desc {
 #define PLX_REG_DMAMODE0	0x0080
 #define PLX_REG_DMAMODE1	0x0094
 
-#define  PLX_LOCAL_BUS_16_WIDE_BITS	0x1
-#define  PLX_LOCAL_BUS_32_WIDE_BITS	0x3
-#define  PLX_LOCAL_BUS_WIDTH_MASK	0x3
-#define  PLX_DMA_EN_READYIN_BIT	0x40	/*  enable ready in input */
-#define  PLX_EN_BTERM_BIT	0x80	/*  enable BTERM# input */
-#define  PLX_DMA_LOCAL_BURST_EN_BIT	0x100	/*  enable local burst mode */
-#define  PLX_EN_CHAIN_BIT	0x200	/*  enables chaining */
-/*  enables interrupt on dma done */
-#define  PLX_EN_DMA_DONE_INTR_BIT	0x400
-/*  hold local address constant (don't increment) */
-#define  PLX_LOCAL_ADDR_CONST_BIT	0x800
-/*  enables demand-mode for dma transfer */
-#define  PLX_DEMAND_MODE_BIT	0x1000
-#define  PLX_EOT_ENABLE_BIT	0x4000
-#define  PLX_STOP_MODE_BIT 0x8000
-/*  routes dma interrupt to pci bus (instead of local bus) */
-#define  PLX_DMA_INTR_PCI_BIT	0x20000
+/* Local Bus Width */
+#define PLX_DMAMODE_WIDTH8	(BIT(0) * 0)	/* 8 bits wide */
+#define PLX_DMAMODE_WIDTH16	(BIT(0) * 1)	/* 16 bits wide */
+#define PLX_DMAMODE_WIDTH32	(BIT(0) * 2)	/* 32 bits wide */
+#define PLX_DMAMODE_WIDTH32A	(BIT(0) * 3)	/* 32 bits wide */
+#define PLX_DMAMODE_WIDTH_MASK	GENMASK(1, 0)
+#define PLX_DMAMODE_WIDTH_SHIFT	0
+/* Internal Wait States */
+#define PLX_DMAMODE_IWS(x)	(BIT(2) * ((x) & 0xf))
+#define PLX_DMAMODE_IWS_MASK	GENMASK(5, 2)
+#define PLX_DMAMODE_SHIFT	2
+/* Ready Input Enable */
+#define PLX_DMAMODE_READYIEN	BIT(6)
+/* BTERM# Input Enable */
+#define PLX_DMAMODE_BTERMIEN	BIT(7)
+/* Local Burst Enable */
+#define PLX_DMAMODE_BURSTEN	BIT(8)
+/* Chaining Enable */
+#define PLX_DMAMODE_CHAINEN	BIT(9)
+/* Done Interrupt Enable */
+#define PLX_DMAMODE_DONEIEN	BIT(10)
+/* Hold Local Address Constant */
+#define PLX_DMAMODE_LACONST	BIT(11)
+/* Demand Mode */
+#define PLX_DMAMODE_DEMAND	BIT(12)
+/* Write And Invalidate Mode */
+#define PLX_DMAMODE_WINVALIDATE	BIT(13)
+/* DMA EOT Enable - enables EOT0# or EOT1# input pin */
+#define PLX_DMAMODE_EOTEN	BIT(14)
+/* DMA Stop Data Transfer Mode - 0:BLAST; 1:EOT asserted or DREQ deasserted */
+#define PLX_DMAMODE_STOP	BIT(15)
+/* DMA Clear Count Mode - count in descriptor cleared on completion */
+#define PLX_DMAMODE_CLRCOUNT	BIT(16)
+/* DMA Channel Interrupt Select - 0:local bus interrupt; 1:PCI interrupt */
+#define PLX_DMAMODE_INTRPCI	BIT(17)
 
 /* DMA Channel N PCI Address Register (N <= 1) */
 #define PLX_REG_DMAPADR(n)	((n) ? PLX_REG_DMAPADR1 : PLX_REG_DMAPADR0)
