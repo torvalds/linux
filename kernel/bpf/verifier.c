@@ -683,15 +683,11 @@ static int check_packet_access(struct verifier_env *env, u32 regno, int off,
 {
 	struct reg_state *regs = env->cur_state.regs;
 	struct reg_state *reg = &regs[regno];
-	int linear_size = (int) reg->range - (int) reg->off;
 
-	if (linear_size < 0 || linear_size >= MAX_PACKET_OFF) {
-		verbose("verifier bug\n");
-		return -EFAULT;
-	}
-	if (off < 0 || off + size > linear_size) {
-		verbose("invalid access to packet, off=%d size=%d, allowed=%d\n",
-			off, size, linear_size);
+	off += reg->off;
+	if (off < 0 || off + size > reg->range) {
+		verbose("invalid access to packet, off=%d size=%d, R%d(id=%d,off=%d,r=%d)\n",
+			off, size, regno, reg->id, reg->off, reg->range);
 		return -EACCES;
 	}
 	return 0;
