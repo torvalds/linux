@@ -343,8 +343,6 @@ int reserve_new_blocks(struct dnode_of_data *dn, blkcnt_t count)
 
 	if (set_page_dirty(dn->node_page))
 		dn->node_changed = true;
-
-	sync_inode_page(dn);
 	return 0;
 }
 
@@ -562,11 +560,8 @@ struct page *get_new_data_page(struct inode *inode,
 	}
 got_it:
 	if (new_i_size && i_size_read(inode) <
-				((loff_t)(index + 1) << PAGE_SHIFT)) {
+				((loff_t)(index + 1) << PAGE_SHIFT))
 		f2fs_i_size_write(inode, ((loff_t)(index + 1) << PAGE_SHIFT));
-		/* Only the directory inode sets new_i_size */
-		set_inode_flag(inode, FI_UPDATE_DIR);
-	}
 	return page;
 }
 
@@ -787,8 +782,6 @@ skip:
 	else if (dn.ofs_in_node < end_offset)
 		goto next_block;
 
-	if (allocated)
-		sync_inode_page(&dn);
 	f2fs_put_dnode(&dn);
 
 	if (create) {
@@ -799,8 +792,6 @@ skip:
 	goto next_dnode;
 
 sync_out:
-	if (allocated)
-		sync_inode_page(&dn);
 	f2fs_put_dnode(&dn);
 unlock_out:
 	if (create) {

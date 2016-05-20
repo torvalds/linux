@@ -454,19 +454,15 @@ void update_parent_metadata(struct inode *dir, struct inode *inode,
 						unsigned int current_depth)
 {
 	if (inode && is_inode_flag_set(inode, FI_NEW_INODE)) {
-		if (S_ISDIR(inode->i_mode)) {
+		if (S_ISDIR(inode->i_mode))
 			f2fs_i_links_write(dir, true);
-			set_inode_flag(dir, FI_UPDATE_DIR);
-		}
 		clear_inode_flag(inode, FI_NEW_INODE);
 	}
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	mark_inode_dirty_sync(dir);
 
-	if (F2FS_I(dir)->i_current_depth != current_depth) {
+	if (F2FS_I(dir)->i_current_depth != current_depth)
 		f2fs_i_depth_write(dir, current_depth);
-		set_inode_flag(dir, FI_UPDATE_DIR);
-	}
 
 	if (inode && is_inode_flag_set(inode, FI_INC_LINK))
 		clear_inode_flag(inode, FI_INC_LINK);
@@ -595,9 +591,7 @@ add_dentry:
 	set_page_dirty(dentry_page);
 
 	if (inode) {
-		/* we don't need to mark_inode_dirty now */
 		f2fs_i_pino_write(inode, dir->i_ino);
-		update_inode(inode, page);
 		f2fs_put_page(page, 1);
 	}
 
@@ -606,10 +600,6 @@ fail:
 	if (inode)
 		up_write(&F2FS_I(inode)->i_sem);
 
-	if (is_inode_flag_set(dir, FI_UPDATE_DIR)) {
-		update_inode_page(dir);
-		clear_inode_flag(dir, FI_UPDATE_DIR);
-	}
 	kunmap(dentry_page);
 	f2fs_put_page(dentry_page, 1);
 
@@ -656,8 +646,6 @@ int f2fs_do_tmpfile(struct inode *inode, struct inode *dir)
 		err = PTR_ERR(page);
 		goto fail;
 	}
-	/* we don't need to mark_inode_dirty now */
-	update_inode(inode, page);
 	f2fs_put_page(page, 1);
 
 	clear_inode_flag(inode, FI_NEW_INODE);
@@ -673,13 +661,8 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode, struct page *page)
 
 	down_write(&F2FS_I(inode)->i_sem);
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(inode->i_mode))
 		f2fs_i_links_write(dir, false);
-		if (page)
-			update_inode(dir, page);
-		else
-			update_inode_page(dir);
-	}
 	inode->i_ctime = CURRENT_TIME;
 
 	f2fs_i_links_write(inode, false);
@@ -688,7 +671,6 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode, struct page *page)
 		f2fs_i_size_write(inode, 0);
 	}
 	up_write(&F2FS_I(inode)->i_sem);
-	update_inode_page(inode);
 
 	if (inode->i_nlink == 0)
 		add_orphan_inode(sbi, inode->i_ino);

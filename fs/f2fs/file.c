@@ -173,12 +173,8 @@ static void try_to_fix_pino(struct inode *inode)
 			get_parent_ino(inode, &pino)) {
 		f2fs_i_pino_write(inode, pino);
 		file_got_pino(inode);
-		up_write(&fi->i_sem);
-
-		f2fs_write_inode(inode, NULL);
-	} else {
-		up_write(&fi->i_sem);
 	}
+	up_write(&fi->i_sem);
 }
 
 static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
@@ -499,7 +495,6 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 							dn->inode) + ofs;
 		f2fs_update_extent_cache_range(dn, fofs, 0, len);
 		dec_valid_block_count(sbi, dn->inode, nr_free);
-		sync_inode_page(dn);
 	}
 	dn->ofs_in_node = ofs;
 
@@ -1123,10 +1118,8 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 	}
 
 out:
-	if (!(mode & FALLOC_FL_KEEP_SIZE) && i_size_read(inode) < new_size) {
+	if (!(mode & FALLOC_FL_KEEP_SIZE) && i_size_read(inode) < new_size)
 		f2fs_i_size_write(inode, new_size);
-		update_inode_page(inode);
-	}
 
 	return ret;
 }
@@ -1232,10 +1225,8 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 		new_size = ((loff_t)pg_end << PAGE_SHIFT) + off_end;
 	}
 
-	if (!(mode & FALLOC_FL_KEEP_SIZE) && i_size_read(inode) < new_size) {
+	if (!(mode & FALLOC_FL_KEEP_SIZE) && i_size_read(inode) < new_size)
 		f2fs_i_size_write(inode, new_size);
-		update_inode_page(inode);
-	}
 
 	return ret;
 }

@@ -706,9 +706,6 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			add_orphan_inode(sbi, new_inode->i_ino);
 		else
 			release_orphan_inode(sbi);
-
-		update_inode_page(old_inode);
-		update_inode_page(new_inode);
 	} else {
 		f2fs_balance_fs(sbi, true);
 
@@ -720,10 +717,8 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out_whiteout;
 		}
 
-		if (old_dir_entry) {
+		if (old_dir_entry)
 			f2fs_i_links_write(new_dir, true);
-			update_inode_page(new_dir);
-		}
 
 		/*
 		 * old entry and new entry can locate in the same inline
@@ -771,13 +766,11 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (old_dir != new_dir && !whiteout) {
 			f2fs_set_link(old_inode, old_dir_entry,
 						old_dir_page, new_dir);
-			update_inode_page(old_inode);
 		} else {
 			f2fs_dentry_kunmap(old_inode, old_dir_page);
 			f2fs_put_page(old_dir_page, 0);
 		}
 		f2fs_i_links_write(old_dir, false);
-		update_inode_page(old_dir);
 	}
 
 	f2fs_unlock_op(sbi);
@@ -899,8 +892,6 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	file_lost_pino(old_inode);
 	up_write(&F2FS_I(old_inode)->i_sem);
 
-	update_inode_page(old_inode);
-
 	old_dir->i_ctime = CURRENT_TIME;
 	if (old_nlink) {
 		down_write(&F2FS_I(old_dir)->i_sem);
@@ -908,7 +899,6 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 		up_write(&F2FS_I(old_dir)->i_sem);
 	}
 	mark_inode_dirty_sync(old_dir);
-	update_inode_page(old_dir);
 
 	/* update directory entry info of new dir inode */
 	f2fs_set_link(new_dir, new_entry, new_page, old_inode);
@@ -917,8 +907,6 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	file_lost_pino(new_inode);
 	up_write(&F2FS_I(new_inode)->i_sem);
 
-	update_inode_page(new_inode);
-
 	new_dir->i_ctime = CURRENT_TIME;
 	if (new_nlink) {
 		down_write(&F2FS_I(new_dir)->i_sem);
@@ -926,7 +914,6 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 		up_write(&F2FS_I(new_dir)->i_sem);
 	}
 	mark_inode_dirty_sync(new_dir);
-	update_inode_page(new_dir);
 
 	f2fs_unlock_op(sbi);
 

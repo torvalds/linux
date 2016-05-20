@@ -671,8 +671,6 @@ static void truncate_node(struct dnode_of_data *dn)
 		remove_orphan_inode(sbi, dn->nid);
 		dec_valid_inode_count(sbi);
 		f2fs_inode_synced(dn->inode);
-	} else {
-		sync_inode_page(dn);
 	}
 invalidate:
 	clear_node_page_dirty(dn->node_page);
@@ -1050,14 +1048,8 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	if (f2fs_has_xattr_block(ofs))
 		f2fs_i_xnid_write(dn->inode, dn->nid);
 
-	dn->node_page = page;
-	if (ipage)
-		update_inode(dn->inode, ipage);
-	else
-		sync_inode_page(dn);
 	if (ofs == 0)
 		inc_valid_inode_count(sbi);
-
 	return page;
 
 fail:
@@ -1174,24 +1166,6 @@ struct page *get_node_page_ra(struct page *parent, int start)
 	nid_t nid = get_nid(parent, start, false);
 
 	return __get_node_page(sbi, nid, parent, start);
-}
-
-void sync_inode_page(struct dnode_of_data *dn)
-{
-	int ret = 0;
-
-	if (IS_INODE(dn->node_page) || dn->inode_page == dn->node_page) {
-		ret = update_inode(dn->inode, dn->node_page);
-	} else if (dn->inode_page) {
-		if (!dn->inode_page_locked)
-			lock_page(dn->inode_page);
-		ret = update_inode(dn->inode, dn->inode_page);
-		if (!dn->inode_page_locked)
-			unlock_page(dn->inode_page);
-	} else {
-		ret = update_inode_page(dn->inode);
-	}
-	dn->node_changed = ret ? true: false;
 }
 
 static void flush_inline_data(struct f2fs_sb_info *sbi, nid_t ino)
@@ -2003,8 +1977,6 @@ recover_xnid:
 	/* 3: update xattr blkaddr */
 	refresh_sit_entry(sbi, NEW_ADDR, blkaddr);
 	set_node_addr(sbi, &ni, blkaddr, false);
-
-	update_inode_page(inode);
 }
 
 int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
