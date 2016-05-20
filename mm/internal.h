@@ -102,7 +102,7 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
 struct alloc_context {
 	struct zonelist *zonelist;
 	nodemask_t *nodemask;
-	struct zone *preferred_zone;
+	struct zoneref *preferred_zoneref;
 	int classzone_idx;
 	int migratetype;
 	enum zone_type high_zoneidx;
