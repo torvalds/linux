@@ -2236,7 +2236,7 @@ done:
 	cachep->freelist_size = cachep->num * sizeof(freelist_idx_t);
 	cachep->flags = flags;
 	cachep->allocflags = __GFP_COMP;
-	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
+	if (flags & SLAB_CACHE_DMA)
 		cachep->allocflags |= GFP_DMA;
 	cachep->size = size;
 	cachep->reciprocal_buffer_size = reciprocal_value(size);
@@ -2664,16 +2664,6 @@ static void cache_init_objs(struct kmem_cache *cachep,
 	}
 }
 
-static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
-{
-	if (CONFIG_ZONE_DMA_FLAG) {
-		if (flags & GFP_DMA)
-			BUG_ON(!(cachep->allocflags & GFP_DMA));
-		else
-			BUG_ON(cachep->allocflags & GFP_DMA);
-	}
-}
-
 static void *slab_get_obj(struct kmem_cache *cachep, struct page *page)
 {
 	void *objp;
@@ -2751,14 +2741,6 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
 	check_irq_off();
 	if (gfpflags_allow_blocking(local_flags))
 		local_irq_enable();
-
-	/*
-	 * The test for missing atomic flag is performed here, rather than
-	 * the more obvious place, simply to reduce the critical path length
-	 * in kmem_cache_alloc(). If a caller is seriously mis-behaving they
-	 * will eventually be caught here (where it matters).
-	 */
-	kmem_flagcheck(cachep, flags);
 
 	/*
 	 * Get mem for the objs.  Attempt to allocate a physical page from
@@ -3145,9 +3127,6 @@ static inline void cache_alloc_debugcheck_before(struct kmem_cache *cachep,
 						gfp_t flags)
 {
 	might_sleep_if(gfpflags_allow_blocking(flags));
-#if DEBUG
-	kmem_flagcheck(cachep, flags);
-#endif
 }
 
 #if DEBUG
