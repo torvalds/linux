@@ -263,7 +263,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	int ia32_fxstate = (buf != buf_fx);
 	struct task_struct *tsk = current;
 	struct fpu *fpu = &tsk->thread.fpu;
-	int state_size = xstate_size;
+	int state_size = fpu_kernel_xstate_size;
 	u64 xfeatures = 0;
 	int fx_only = 0;
 

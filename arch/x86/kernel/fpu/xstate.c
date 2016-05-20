@@ -537,7 +537,7 @@ static void do_extra_xstate_size_checks(void)
 		 */
 		paranoid_xstate_size += xfeature_size(i);
 	}
-	XSTATE_WARN_ON(paranoid_xstate_size != xstate_size);
+	XSTATE_WARN_ON(paranoid_xstate_size != fpu_kernel_xstate_size);
 }
 
 
@@ -616,7 +616,7 @@ static int init_xstate_size(void)
 	 * The size is OK, we are definitely going to use xsave,
 	 * make it known to the world that we need more space.
 	 */
-	xstate_size = possible_xstate_size;
+	fpu_kernel_xstate_size = possible_xstate_size;
 	do_extra_xstate_size_checks();
 
 	/*
@@ -679,14 +679,14 @@ void __init fpu__init_system_xstate(void)
 		return;
 	}
 
-	update_regset_xstate_info(xstate_size, xfeatures_mask);
+	update_regset_xstate_info(fpu_kernel_xstate_size, xfeatures_mask);
 	fpu__init_prepare_fx_sw_frame();
 	setup_init_fpu_buf();
 	setup_xstate_comp();
 
 	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is %d bytes, using '%s' format.\n",
 		xfeatures_mask,
-		xstate_size,
+		fpu_kernel_xstate_size,
 		boot_cpu_has(X86_FEATURE_XSAVES) ? "compacted" : "standard");
 }
 

@@ -227,7 +227,7 @@ void fpstate_init(union fpregs_state *state)
 		return;
 	}
 
-	memset(state, 0, xstate_size);
+	memset(state, 0, fpu_kernel_xstate_size);
 
 	if (static_cpu_has(X86_FEATURE_FXSR))
 		fpstate_init_fxstate(&state->fxsave);
@@ -252,7 +252,7 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	 * leak into the child task:
 	 */
 	if (use_eager_fpu())
-		memset(&dst_fpu->state.xsave, 0, xstate_size);
+		memset(&dst_fpu->state.xsave, 0, fpu_kernel_xstate_size);
 
 	/*
 	 * Save current FPU registers directly into the child
@@ -271,7 +271,8 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	 */
 	preempt_disable();
 	if (!copy_fpregs_to_fpstate(dst_fpu)) {
-		memcpy(&src_fpu->state, &dst_fpu->state, xstate_size);
+		memcpy(&src_fpu->state, &dst_fpu->state,
+		       fpu_kernel_xstate_size);
 
 		if (use_eager_fpu())
 			copy_kernel_to_fpregs(&src_fpu->state);
