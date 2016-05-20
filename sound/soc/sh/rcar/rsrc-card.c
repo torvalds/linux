@@ -64,7 +64,6 @@ struct rsrc_card_priv {
 	struct snd_soc_codec_conf codec_conf;
 	struct rsrc_card_dai *dai_props;
 	struct snd_soc_dai_link *dai_link;
-	int dai_num;
 	u32 convert_rate;
 	u32 convert_channels;
 };
@@ -418,7 +417,6 @@ static int rsrc_card_parse_of(struct device_node *node,
 
 	priv->dai_props	= props;
 	priv->dai_link	= links;
-	priv->dai_num	= num;
 
 	/* Init snd_soc_card */
 	priv->snd_card.owner			= THIS_MODULE;
