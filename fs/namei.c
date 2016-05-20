@@ -1822,25 +1822,49 @@ static inline unsigned long mix_hash(unsigned long hash)
 
 #endif
 
-unsigned int full_name_hash(const unsigned char *name, unsigned int len)
+/* Return the hash of a string of known length */
+unsigned int full_name_hash(const char *name, unsigned int len)
 {
 	unsigned long a, hash = 0;
 
 	for (;;) {
+		if (!len)
+			goto done;
 		a = load_unaligned_zeropad(name);
 		if (len < sizeof(unsigned long))
 			break;
 		hash = mix_hash(hash + a);
 		name += sizeof(unsigned long);
 		len -= sizeof(unsigned long);
-		if (!len)
-			goto done;
 	}
 	hash += a & bytemask_from_count(len);
 done:
 	return fold_hash(hash);
 }
 EXPORT_SYMBOL(full_name_hash);
+
+/* Return the "hash_len" (hash and length) of a null-terminated string */
+u64 hashlen_string(const char *name)
+{
+	unsigned long a, adata, mask, hash, len;
+	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
+
+	hash = a = 0;
+	len = -sizeof(unsigned long);
+	do {
+		hash = mix_hash(hash + a);
+		len += sizeof(unsigned long);
+		a = load_unaligned_zeropad(name+len);
+	} while (!has_zero(a, &adata, &constants));
+
+	adata = prep_zero_mask(a, adata, &constants);
+	mask = create_zero_mask(adata);
+	hash += a & zero_bytemask(mask);
+	len += find_zero(mask);
+
+	return hashlen_create(fold_hash(hash), len);
+}
+EXPORT_SYMBOL(hashlen_string);
 
 /*
  * Calculate the length and hash of the path component, and
@@ -1872,14 +1896,31 @@ static inline u64 hash_name(const char *name)
 
 #else
 
-unsigned int full_name_hash(const unsigned char *name, unsigned int len)
+/* Return the hash of a string of known length */
+unsigned int full_name_hash(const char *name, unsigned int len)
 {
 	unsigned long hash = init_name_hash();
 	while (len--)
-		hash = partial_name_hash(*name++, hash);
+		hash = partial_name_hash((unsigned char)*name++, hash);
 	return end_name_hash(hash);
 }
 EXPORT_SYMBOL(full_name_hash);
+
+/* Return the "hash_len" (hash and length) of a null-terminated string */
+u64 hash_string(const char *name)
+{
+	unsigned long hash = init_name_hash();
+	unsigned long len = 0, c;
+
+	c = (unsigned char)*name;
+	do {
+		len++;
+		hash = partial_name_hash(c, hash);
+		c = (unsigned char)name[len];
+	} while (c);
+	return hashlen_create(end_name_hash(hash), len);
+}
+EXPORT_SYMBOL(hash_string);
 
 /*
  * We know there's a real path component here of at least

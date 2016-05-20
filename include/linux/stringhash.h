@@ -1,7 +1,8 @@
 #ifndef __LINUX_STRINGHASH_H
 #define __LINUX_STRINGHASH_H
 
-#include <linux/types.h>
+#include <linux/compiler.h>	/* For __pure */
+#include <linux/types.h>	/* For u32, u64 */
 
 /*
  * Routines for hashing strings of bytes to a 32-bit hash value.
@@ -59,7 +60,7 @@ static inline unsigned long end_name_hash(unsigned long hash)
  *
  * If not set, this falls back to a wrapper around the preceding.
  */
-extern unsigned int full_name_hash(const unsigned char *, unsigned int);
+extern unsigned int __pure full_name_hash(const char *, unsigned int);
 
 /*
  * A hash_len is a u64 with the hash of a string in the low
@@ -68,5 +69,8 @@ extern unsigned int full_name_hash(const unsigned char *, unsigned int);
 #define hashlen_hash(hashlen) ((u32)(hashlen))
 #define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
 #define hashlen_create(hash, len) ((u64)(len)<<32 | (u32)(hash))
+
+/* Return the "hash_len" (hash and length) of a null-terminated string */
+extern u64 __pure hashlen_string(const char *name);
 
 #endif	/* __LINUX_STRINGHASH_H */
