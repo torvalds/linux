@@ -316,3 +316,9 @@ The algorithm is:
  nodes are using the raid which is achieved by lock all bitmap
  locks within the cluster, and also those locks are unlocked
  accordingly.
+
+7. Unsupported features
+
+There are somethings which are not supported by cluster MD yet.
+
+- update size and change array_sectors.
