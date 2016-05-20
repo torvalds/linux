@@ -152,6 +152,7 @@ static void object_err(struct kmem_cache *cache, struct page *page,
 		print_track(&alloc_info->track);
 		break;
 	case KASAN_STATE_FREE:
+	case KASAN_STATE_QUARANTINE:
 		pr_err("Object freed, allocated with size %u bytes\n",
 		       alloc_info->alloc_size);
 		free_info = get_free_info(cache, object);
