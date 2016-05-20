@@ -1519,6 +1519,24 @@ xfs_iext_indirect_to_direct(
 }
 
 /*
+ * Remove all records from the indirection array.
+ */
+STATIC void
+xfs_iext_irec_remove_all(
+	struct xfs_ifork *ifp)
+{
+	int		nlists;
+	int		i;
+
+	ASSERT(ifp->if_flags & XFS_IFEXTIREC);
+	nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
+	for (i = 0; i < nlists; i++)
+		kmem_free(ifp->if_u1.if_ext_irec[i].er_extbuf);
+	kmem_free(ifp->if_u1.if_ext_irec);
+	ifp->if_flags &= ~XFS_IFEXTIREC;
+}
+
+/*
  * Free incore file extents.
  */
 void
@@ -1526,14 +1544,7 @@ xfs_iext_destroy(
 	xfs_ifork_t	*ifp)		/* inode fork pointer */
 {
 	if (ifp->if_flags & XFS_IFEXTIREC) {
-		int	erp_idx;
-		int	nlists;
-
-		nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
-		for (erp_idx = nlists - 1; erp_idx >= 0 ; erp_idx--) {
-			xfs_iext_irec_remove(ifp, erp_idx);
-		}
-		ifp->if_flags &= ~XFS_IFEXTIREC;
+		xfs_iext_irec_remove_all(ifp);
 	} else if (ifp->if_real_bytes) {
 		kmem_free(ifp->if_u1.if_extents);
 	} else if (ifp->if_bytes) {
