@@ -1031,8 +1031,8 @@ static int __alloc_gigantic_page(unsigned long start_pfn,
 	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
 }
 
-static bool pfn_range_valid_gigantic(unsigned long start_pfn,
-				unsigned long nr_pages)
+static bool pfn_range_valid_gigantic(struct zone *z,
+			unsigned long start_pfn, unsigned long nr_pages)
 {
 	unsigned long i, end_pfn = start_pfn + nr_pages;
 	struct page *page;
@@ -1042,6 +1042,9 @@ static bool pfn_range_valid_gigantic(unsigned long start_pfn,
 			return false;
 
 		page = pfn_to_page(i);
+
+		if (page_zone(page) != z)
+			return false;
 
 		if (PageReserved(page))
 			return false;
@@ -1075,7 +1078,7 @@ static struct page *alloc_gigantic_page(int nid, unsigned int order)
 
 		pfn = ALIGN(z->zone_start_pfn, nr_pages);
 		while (zone_spans_last_pfn(z, pfn, nr_pages)) {
-			if (pfn_range_valid_gigantic(pfn, nr_pages)) {
+			if (pfn_range_valid_gigantic(z, pfn, nr_pages)) {
 				/*
 				 * We release the zone lock here because
 				 * alloc_contig_range() will also lock the zone
