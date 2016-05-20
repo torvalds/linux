@@ -301,6 +301,9 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 
 			page = pfn_to_page(pfn);
 
+			if (page_zone(page) != zone)
+				continue;
+
 			/*
 			 * We are safe to check buddy flag and order, because
 			 * this is init stage and only single thread runs.
