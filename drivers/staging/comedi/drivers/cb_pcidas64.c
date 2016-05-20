@@ -4004,13 +4004,13 @@ static int auto_attach(struct comedi_device *dev,
 
 	/*  figure out what local addresses are */
 	local_range = readl(devpriv->plx9080_iobase + PLX_REG_LAS0RR) &
-		      LRNG_MEM_MASK;
+		      PLX_LASRR_MEM_MASK;
 	local_decode = readl(devpriv->plx9080_iobase + PLX_REG_LAS0BA) &
 		       local_range & LMAP_MEM_MASK;
 	devpriv->local0_iobase = ((uint32_t)devpriv->main_phys_iobase &
 				  ~local_range) | local_decode;
 	local_range = readl(devpriv->plx9080_iobase + PLX_REG_LAS1RR) &
-		      LRNG_MEM_MASK;
+		      PLX_LASRR_MEM_MASK;
 	local_decode = readl(devpriv->plx9080_iobase + PLX_REG_LAS1BA) &
 		       local_range & LMAP_MEM_MASK;
 	devpriv->local1_iobase = ((uint32_t)devpriv->dio_counter_phys_iobase &

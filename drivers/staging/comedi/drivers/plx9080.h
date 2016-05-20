@@ -54,14 +54,16 @@ struct plx_dma_desc {
 /* Local Address Space 1 Range Register */
 #define PLX_REG_LAS1RR		0x00f0
 
-#define  LRNG_IO           0x00000001	/* Map to: 1=I/O, 0=Mem */
-#define  LRNG_ANY32        0x00000000	/* Locate anywhere in 32 bit */
-#define  LRNG_LT1MB        0x00000002	/* Locate in 1st meg */
-#define  LRNG_ANY64        0x00000004	/* Locate anywhere in 64 bit */
-/*  bits that specify range for memory io */
-#define  LRNG_MEM_MASK     0xfffffff0
-/*  bits that specify range for normal io */
-#define  LRNG_IO_MASK     0xfffffffc
+#define PLX_LASRR_IO		BIT(0)		/* Map to: 1=I/O, 0=Mem */
+#define PLX_LASRR_ANY32		(BIT(1) * 0)	/* Locate anywhere in 32 bit */
+#define PLX_LASRR_LT1MB		(BIT(1) * 1)	/* Locate in 1st meg */
+#define PLX_LASRR_ANY64		(BIT(1) * 2)	/* Locate anywhere in 64 bit */
+#define PLX_LASRR_MLOC_MASK	GENMASK(2, 1)	/* Memory location bits */
+#define PLX_LASRR_PREFETCH	BIT(3)		/* Memory is prefetchable */
+/* bits that specify range for memory space decode bits */
+#define PLX_LASRR_MEM_MASK	GENMASK(31, 4)
+/* bits that specify range for i/o space decode bits */
+#define PLX_LASRR_IO_MASK	GENMASK(31, 2)
 
 /* Local Address Space 0 Local Base Address (Remap) Register */
 #define PLX_REG_LAS0BA		0x0004
