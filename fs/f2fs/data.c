@@ -344,7 +344,6 @@ int reserve_new_blocks(struct dnode_of_data *dn, blkcnt_t count)
 	if (set_page_dirty(dn->node_page))
 		dn->node_changed = true;
 
-	mark_inode_dirty(dn->inode);
 	sync_inode_page(dn);
 	return 0;
 }
