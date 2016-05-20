@@ -510,14 +510,10 @@ static bool __oom_reap_task(struct task_struct *tsk)
 	up_read(&mm->mmap_sem);
 
 	/*
-	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
-	 * reasonably reclaimable memory anymore. OOM killer can continue
-	 * by selecting other victim if unmapping hasn't led to any
-	 * improvements. This also means that selecting this task doesn't
-	 * make any sense.
+	 * This task can be safely ignored because we cannot do much more
+	 * to release its memory.
 	 */
 	tsk->signal->oom_score_adj = OOM_SCORE_ADJ_MIN;
-	exit_oom_victim(tsk);
 out:
 	mmput(mm);
 	return ret;
@@ -537,6 +533,15 @@ static void oom_reap_task(struct task_struct *tsk)
 				task_pid_nr(tsk), tsk->comm);
 		debug_show_all_locks();
 	}
+
+	/*
+	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
+	 * reasonably reclaimable memory anymore or it is not a good candidate
+	 * for the oom victim right now because it cannot release its memory
+	 * itself nor by the oom reaper.
+	 */
+	tsk->oom_reaper_list = NULL;
+	exit_oom_victim(tsk);
 
 	/* Drop a reference taken by wake_oom_reaper */
 	put_task_struct(tsk);
