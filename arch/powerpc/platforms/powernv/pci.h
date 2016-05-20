@@ -30,6 +30,7 @@ struct pnv_phb;
 struct pnv_ioda_pe {
 	unsigned long		flags;
 	struct pnv_phb		*phb;
+	int			device_count;
 
 	/* A PE can be associated with a single device or an
 	 * entire bus (& children). In the former case, pdev

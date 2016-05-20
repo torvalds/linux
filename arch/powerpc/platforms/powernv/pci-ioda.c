@@ -1033,6 +1033,7 @@ static void pnv_ioda_setup_same_PE(struct pci_bus *bus, struct pnv_ioda_pe *pe)
 		if (pdn->pe_number != IODA_INVALID_PE)
 			continue;
 
+		pe->device_count++;
 		pdn->pcidev = dev;
 		pdn->pe_number = pe->pe_number;
 		if ((pe->flags & PNV_IODA_PE_BUS_ALL) && dev->subordinate)
@@ -3394,6 +3395,178 @@ static bool pnv_pci_enable_device_hook(struct pci_dev *dev)
 	return true;
 }
 
+static long pnv_pci_ioda1_unset_window(struct iommu_table_group *table_group,
+				       int num)
+{
+	struct pnv_ioda_pe *pe = container_of(table_group,
+					      struct pnv_ioda_pe, table_group);
+	struct pnv_phb *phb = pe->phb;
+	unsigned int idx;
+	long rc;
+
+	pe_info(pe, "Removing DMA window #%d\n", num);
+	for (idx = 0; idx < phb->ioda.dma32_count; idx++) {
+		if (phb->ioda.dma32_segmap[idx] != pe->pe_number)
+			continue;
+
+		rc = opal_pci_map_pe_dma_window(phb->opal_id, pe->pe_number,
+						idx, 0, 0ul, 0ul, 0ul);
+		if (rc != OPAL_SUCCESS) {
+			pe_warn(pe, "Failure %ld unmapping DMA32 segment#%d\n",
+				rc, idx);
+			return rc;
+		}
+
+		phb->ioda.dma32_segmap[idx] = IODA_INVALID_PE;
+	}
+
+	pnv_pci_unlink_table_and_group(table_group->tables[num], table_group);
+	return OPAL_SUCCESS;
+}
+
+static void pnv_pci_ioda1_release_pe_dma(struct pnv_ioda_pe *pe)
+{
+	unsigned int weight = pnv_pci_ioda_pe_dma_weight(pe);
+	struct iommu_table *tbl = pe->table_group.tables[0];
+	int64_t rc;
+
+	if (!weight)
+		return;
+
+	rc = pnv_pci_ioda1_unset_window(&pe->table_group, 0);
+	if (rc != OPAL_SUCCESS)
+		return;
+
+	pnv_pci_ioda1_tce_invalidate(tbl, tbl->it_offset, tbl->it_size, false);
+	if (pe->table_group.group) {
+		iommu_group_put(pe->table_group.group);
+		WARN_ON(pe->table_group.group);
+	}
+
+	free_pages(tbl->it_base, get_order(tbl->it_size << 3));
+	iommu_free_table(tbl, "pnv");
+}
+
+static void pnv_pci_ioda2_release_pe_dma(struct pnv_ioda_pe *pe)
+{
+	struct iommu_table *tbl = pe->table_group.tables[0];
+	unsigned int weight = pnv_pci_ioda_pe_dma_weight(pe);
+#ifdef CONFIG_IOMMU_API
+	int64_t rc;
+#endif
+
+	if (!weight)
+		return;
+
+#ifdef CONFIG_IOMMU_API
+	rc = pnv_pci_ioda2_unset_window(&pe->table_group, 0);
+	if (rc)
+		pe_warn(pe, "OPAL error %ld release DMA window\n", rc);
+#endif
+
+	pnv_pci_ioda2_set_bypass(pe, false);
+	if (pe->table_group.group) {
+		iommu_group_put(pe->table_group.group);
+		WARN_ON(pe->table_group.group);
+	}
+
+	pnv_pci_ioda2_table_free_pages(tbl);
+	iommu_free_table(tbl, "pnv");
+}
+
+static void pnv_ioda_free_pe_seg(struct pnv_ioda_pe *pe,
+				 unsigned short win,
+				 unsigned int *map)
+{
+	struct pnv_phb *phb = pe->phb;
+	int idx;
+	int64_t rc;
+
+	for (idx = 0; idx < phb->ioda.total_pe_num; idx++) {
+		if (map[idx] != pe->pe_number)
+			continue;
+
+		if (win == OPAL_M64_WINDOW_TYPE)
+			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
+					phb->ioda.reserved_pe_idx, win,
+					idx / PNV_IODA1_M64_SEGS,
+					idx % PNV_IODA1_M64_SEGS);
+		else
+			rc = opal_pci_map_pe_mmio_window(phb->opal_id,
+					phb->ioda.reserved_pe_idx, win, 0, idx);
+
+		if (rc != OPAL_SUCCESS)
+			pe_warn(pe, "Error %ld unmapping (%d) segment#%d\n",
+				rc, win, idx);
+
+		map[idx] = IODA_INVALID_PE;
+	}
+}
+
+static void pnv_ioda_release_pe_seg(struct pnv_ioda_pe *pe)
+{
+	struct pnv_phb *phb = pe->phb;
+
+	if (phb->type == PNV_PHB_IODA1) {
+		pnv_ioda_free_pe_seg(pe, OPAL_IO_WINDOW_TYPE,
+				     phb->ioda.io_segmap);
+		pnv_ioda_free_pe_seg(pe, OPAL_M32_WINDOW_TYPE,
+				     phb->ioda.m32_segmap);
+		pnv_ioda_free_pe_seg(pe, OPAL_M64_WINDOW_TYPE,
+				     phb->ioda.m64_segmap);
+	} else if (phb->type == PNV_PHB_IODA2) {
+		pnv_ioda_free_pe_seg(pe, OPAL_M32_WINDOW_TYPE,
+				     phb->ioda.m32_segmap);
+	}
+}
+
+static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
+{
+	struct pnv_phb *phb = pe->phb;
+	struct pnv_ioda_pe *slave, *tmp;
+
+	/* Release slave PEs in compound PE */
+	if (pe->flags & PNV_IODA_PE_MASTER) {
+		list_for_each_entry_safe(slave, tmp, &pe->slaves, list)
+			pnv_ioda_release_pe(slave);
+	}
+
+	list_del(&pe->list);
+	switch (phb->type) {
+	case PNV_PHB_IODA1:
+		pnv_pci_ioda1_release_pe_dma(pe);
+		break;
+	case PNV_PHB_IODA2:
+		pnv_pci_ioda2_release_pe_dma(pe);
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+	pnv_ioda_release_pe_seg(pe);
+	pnv_ioda_deconfigure_pe(pe->phb, pe);
+	pnv_ioda_free_pe(pe);
+}
+
+static void pnv_pci_release_device(struct pci_dev *pdev)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	struct pci_dn *pdn = pci_get_pdn(pdev);
+	struct pnv_ioda_pe *pe;
+
+	if (pdev->is_virtfn)
+		return;
+
+	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
+		return;
+
+	pe = &phb->ioda.pe_array[pdn->pe_number];
+	WARN_ON(--pe->device_count < 0);
+	if (pe->device_count == 0)
+		pnv_ioda_release_pe(pe);
+}
+
 static void pnv_pci_ioda_shutdown(struct pci_controller *hose)
 {
 	struct pnv_phb *phb = hose->private_data;
@@ -3410,6 +3583,7 @@ static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
 	.teardown_msi_irqs	= pnv_teardown_msi_irqs,
 #endif
 	.enable_device_hook	= pnv_pci_enable_device_hook,
+	.release_device		= pnv_pci_release_device,
 	.window_alignment	= pnv_pci_window_alignment,
 	.setup_bridge		= pnv_pci_setup_bridge,
 	.reset_secondary_bus	= pnv_pci_reset_secondary_bus,
