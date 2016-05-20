@@ -1614,7 +1614,7 @@ static const int i2c_low_udelay = 10;
 static void i2c_set_sda(struct comedi_device *dev, int state)
 {
 	struct pcidas64_private *devpriv = dev->private;
-	static const int data_bit = CTL_EE_W;
+	static const int data_bit = PLX_CNTRL_EEWB;
 	void __iomem *plx_control_addr = devpriv->plx9080_iobase +
 					 PLX_REG_CNTRL;
 
@@ -1635,7 +1635,7 @@ static void i2c_set_sda(struct comedi_device *dev, int state)
 static void i2c_set_scl(struct comedi_device *dev, int state)
 {
 	struct pcidas64_private *devpriv = dev->private;
-	static const int clock_bit = CTL_USERO;
+	static const int clock_bit = PLX_CNTRL_USERO;
 	void __iomem *plx_control_addr = devpriv->plx9080_iobase +
 					 PLX_REG_CNTRL;
 
@@ -1708,7 +1708,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	 */
 
 	/*  make sure we dont send anything to eeprom */
-	devpriv->plx_control_bits &= ~CTL_EE_CS;
+	devpriv->plx_control_bits &= ~PLX_CNTRL_EECS;
 
 	i2c_stop(dev);
 	i2c_start(dev);
@@ -3717,13 +3717,13 @@ static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
 	static const int eeprom_udelay = 1;
 
 	udelay(eeprom_udelay);
-	devpriv->plx_control_bits &= ~CTL_EE_CLK & ~CTL_EE_CS;
+	devpriv->plx_control_bits &= ~PLX_CNTRL_EESK & ~PLX_CNTRL_EECS;
 	/*  make sure we don't send anything to the i2c bus on 4020 */
-	devpriv->plx_control_bits |= CTL_USERO;
+	devpriv->plx_control_bits |= PLX_CNTRL_USERO;
 	writel(devpriv->plx_control_bits, plx_control_addr);
 	/*  activate serial eeprom */
 	udelay(eeprom_udelay);
-	devpriv->plx_control_bits |= CTL_EE_CS;
+	devpriv->plx_control_bits |= PLX_CNTRL_EECS;
 	writel(devpriv->plx_control_bits, plx_control_addr);
 
 	/*  write read command and desired memory address */
@@ -3731,16 +3731,16 @@ static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
 		/*  set bit to be written */
 		udelay(eeprom_udelay);
 		if (bitstream & bit)
-			devpriv->plx_control_bits |= CTL_EE_W;
+			devpriv->plx_control_bits |= PLX_CNTRL_EEWB;
 		else
-			devpriv->plx_control_bits &= ~CTL_EE_W;
+			devpriv->plx_control_bits &= ~PLX_CNTRL_EEWB;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 		/*  clock in bit */
 		udelay(eeprom_udelay);
-		devpriv->plx_control_bits |= CTL_EE_CLK;
+		devpriv->plx_control_bits |= PLX_CNTRL_EESK;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 		udelay(eeprom_udelay);
-		devpriv->plx_control_bits &= ~CTL_EE_CLK;
+		devpriv->plx_control_bits &= ~PLX_CNTRL_EESK;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 	}
 	/*  read back value from eeprom memory location */
@@ -3748,19 +3748,19 @@ static uint16_t read_eeprom(struct comedi_device *dev, uint8_t address)
 	for (bit = 1 << (value_length - 1); bit; bit >>= 1) {
 		/*  clock out bit */
 		udelay(eeprom_udelay);
-		devpriv->plx_control_bits |= CTL_EE_CLK;
+		devpriv->plx_control_bits |= PLX_CNTRL_EESK;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 		udelay(eeprom_udelay);
-		devpriv->plx_control_bits &= ~CTL_EE_CLK;
+		devpriv->plx_control_bits &= ~PLX_CNTRL_EESK;
 		writel(devpriv->plx_control_bits, plx_control_addr);
 		udelay(eeprom_udelay);
-		if (readl(plx_control_addr) & CTL_EE_R)
+		if (readl(plx_control_addr) & PLX_CNTRL_EERB)
 			value |= bit;
 	}
 
 	/*  deactivate eeprom serial input */
 	udelay(eeprom_udelay);
-	devpriv->plx_control_bits &= ~CTL_EE_CS;
+	devpriv->plx_control_bits &= ~PLX_CNTRL_EECS;
 	writel(devpriv->plx_control_bits, plx_control_addr);
 
 	return value;
@@ -3948,7 +3948,8 @@ static int setup_subdevices(struct comedi_device *dev)
 
 	/* serial EEPROM, if present */
 	s = &dev->subdevices[8];
-	if (readl(devpriv->plx9080_iobase + PLX_REG_CNTRL) & CTL_EECHK) {
+	if (readl(devpriv->plx9080_iobase + PLX_REG_CNTRL) &
+	    PLX_CNTRL_EEPRESENT) {
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
 		s->n_chan = 128;

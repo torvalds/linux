@@ -393,20 +393,55 @@ struct plx_dma_desc {
  */
 #define PLX_REG_CNTRL		0x006c
 
-#define  CTL_RDMA          0x0000000E	/* DMA Read Command */
-#define  CTL_WDMA          0x00000070	/* DMA Write Command */
-#define  CTL_RMEM          0x00000600	/* Memory Read Command */
-#define  CTL_WMEM          0x00007000	/* Memory Write Command */
-#define  CTL_USERO         0x00010000	/* USERO output pin control bit */
-#define  CTL_USERI         0x00020000	/* USERI input pin bit */
-#define  CTL_EE_CLK        0x01000000	/* EEPROM Clock line */
-#define  CTL_EE_CS         0x02000000	/* EEPROM Chip Select */
-#define  CTL_EE_W          0x04000000	/* EEPROM Write bit */
-#define  CTL_EE_R          0x08000000	/* EEPROM Read bit */
-#define  CTL_EECHK         0x10000000	/* EEPROM Present bit */
-#define  CTL_EERLD         0x20000000	/* EEPROM Reload Register */
-#define  CTL_RESET         0x40000000	/* !! Adapter Reset !! */
-#define  CTL_READY         0x80000000	/* Local Init Done */
+/* PCI Read Command Code For DMA */
+#define PLX_CNTRL_CCRDMA(x)	(BIT(0) * ((x) & 0xf))
+#define PLX_CNTRL_CCRDMA_MASK	GENMASK(3, 0)
+#define PLX_CNTRL_CCRDMA_SHIFT	0
+#define PLX_CNTRL_CCRDMA_NORMAL	PLX_CNTRL_CCRDMA(14)	/* value after reset */
+/* PCI Write Command Code For DMA 0 */
+#define PLX_CNTRL_CCWDMA(x)	(BIT(4) * ((x) & 0xf))
+#define PLX_CNTRL_CCWDMA_MASK	GENMASK(7, 4)
+#define PLX_CNTRL_CCWDMA_SHIFT	4
+#define PLX_CNTRL_CCWDMA_NORMAL	PLX_CNTRL_CCWDMA(7)	/* value after reset */
+/* PCI Memory Read Command Code For Direct Master */
+#define PLX_CNTRL_CCRDM(x)	(BIT(8) * ((x) & 0xf))
+#define PLX_CNTRL_CCRDM_MASK	GENMASK(11, 8)
+#define PLX_CNTRL_CCRDM_SHIFT	8
+#define PLX_CNTRL_CCRDM_NORMAL	PLX_CNTRL_CCRDM(6)	/* value after reset */
+/* PCI Memory Write Command Code For Direct Master */
+#define PLX_CNTRL_CCWDM(x)	(BIT(12) * ((x) & 0xf))
+#define PLX_CNTRL_CCWDM_MASK	GENMASK(15, 12)
+#define PLX_CNTRL_CCWDM_SHIFT	12
+#define PLX_CNTRL_CCWDM_NORMAL	PLX_CNTRL_CCWDM(7)	/* value after reset */
+/* General Purpose Output (USERO) */
+#define PLX_CNTRL_USERO		BIT(16)
+/* General Purpose Input (USERI) (read-only) */
+#define PLX_CNTRL_USERI		BIT(17)
+/* Serial EEPROM Clock Output (EESK) */
+#define PLX_CNTRL_EESK		BIT(24)
+/* Serial EEPROM Chip Select Output (EECS) */
+#define PLX_CNTRL_EECS		BIT(25)
+/* Serial EEPROM Data Write Bit (EEDI (sic)) */
+#define PLX_CNTRL_EEWB		BIT(26)
+/* Serial EEPROM Data Read Bit (EEDO (sic)) (read-only) */
+#define PLX_CNTRL_EERB		BIT(27)
+/* Serial EEPROM Present (read-only) */
+#define PLX_CNTRL_EEPRESENT	BIT(28)
+/* Reload Configuration Registers from EEPROM */
+#define PLX_CNTRL_EERELOAD	BIT(29)
+/* PCI Adapter Software Reset (asserts LRESETo#) */
+#define PLX_CNTRL_RESET		BIT(30)
+/* Local Init Status (read-only) */
+#define PLX_CNTRL_INITDONE	BIT(31)
+/*
+ * Combined command code stuff for convenience.
+ */
+#define PLX_CNTRL_CC_MASK	\
+	(PLX_CNTRL_CCRDMA_MASK | PLX_CNTRL_CCWDMA_MASK | \
+	 PLX_CNTRL_CCRDM_MASK | PLX_CNTRL_CCWDM_MASK)
+#define PLX_CNTRL_CC_NORMAL	\
+	(PLX_CNTRL_CCRDMA_NORMAL | PLX_CNTRL_CCWDMA_NORMAL | \
+	 PLX_CNTRL_CCRDM_NORMAL | PLX_CNTRL_CCWDM_NORMAL) /* val after reset */
 
 /* PCI Permanent Configuration ID Register (hard-coded PLX vendor and device) */
 #define PLX_REG_PCIHIDR		0x0070
