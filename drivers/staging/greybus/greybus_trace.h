@@ -60,35 +60,30 @@ DECLARE_EVENT_CLASS(gb_message,
 /*
  * tracepoint name	greybus:gb_message_send
  * description		send a greybus message
- * location		operation.c:gb_message_send
  */
 DEFINE_MESSAGE_EVENT(gb_message_send);
 
 /*
  * tracepoint name	greybus:gb_message_recv_request
  * description		receive a greybus request
- * location		operation.c:gb_connection_recv_request
  */
 DEFINE_MESSAGE_EVENT(gb_message_recv_request);
 
 /*
  * tracepoint name	greybus:gb_message_recv_response
  * description		receive a greybus response
- * location		operation.c:gb_connection_recv_response
  */
 DEFINE_MESSAGE_EVENT(gb_message_recv_response);
 
 /*
  * tracepoint name	greybus:gb_message_cancel_outgoing
  * description		cancel outgoing greybus request
- * location		operation.c:gb_message_cancel
  */
 DEFINE_MESSAGE_EVENT(gb_message_cancel_outgoing);
 
 /*
  * tracepoint name	greybus:gb_message_cancel_incoming
  * description		cancel incoming greybus request
- * location		operation.c:gb_message_cancel_incoming
  */
 DEFINE_MESSAGE_EVENT(gb_message_cancel_incoming);
 
@@ -195,14 +190,12 @@ DECLARE_EVENT_CLASS(gb_host_device,
 /*
  * tracepoint name	greybus:gb_host_device_send
  * description		tracepoint representing the point data are transmitted
- * location		es2.c:message_send
  */
 DEFINE_HD_EVENT(gb_host_device_send);
 
 /*
  * tracepoint name	greybus:gb_host_device_recv
  * description		tracepoint representing the point data are received
- * location		es2.c:cport_in_callback
  */
 DEFINE_HD_EVENT(gb_host_device_recv);
 
