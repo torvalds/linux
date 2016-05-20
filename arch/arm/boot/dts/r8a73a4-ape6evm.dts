@@ -36,7 +36,7 @@
 		reg = <2 0x00000000 0 0x40000000>;
 	};
 
-	vcc_mmc0: regulator@0 {
+	vcc_mmc0: regulator-mmc0 {
 		compatible = "regulator-fixed";
 		regulator-name = "MMC0 Vcc";
 		regulator-min-microvolt = <2800000>;
@@ -44,7 +44,7 @@
 		regulator-always-on;
 	};
 
-	vcc_sdhi0: regulator@1 {
+	vcc_sdhi0: regulator-sdhi0 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "SDHI0 Vcc";
@@ -56,7 +56,7 @@
 	};
 
 	/* Common 1.8V and 3.3V rails, used by several devices on APE6EVM */
-	ape6evm_fixed_1v8: regulator@2 {
+	ape6evm_fixed_1v8: regulator-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "1V8";
 		regulator-min-microvolt = <1800000>;
@@ -64,7 +64,7 @@
 		regulator-always-on;
 	};
 
-	ape6evm_fixed_3v3: regulator@3 {
+	ape6evm_fixed_3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "3V3";
 		regulator-min-microvolt = <3300000>;
