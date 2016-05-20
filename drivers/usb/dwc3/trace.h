@@ -237,9 +237,45 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 		__entry->size = trb->size;
 		__entry->ctrl = trb->ctrl;
 	),
-	TP_printk("%s: trb %p bph %08x bpl %08x size %08x ctrl %08x",
+	TP_printk("%s: trb %p buf %08x%08x size %d ctrl %08x (%c%c%c%c:%c%c:%s)",
 		__get_str(name), __entry->trb, __entry->bph, __entry->bpl,
-		__entry->size, __entry->ctrl
+		__entry->size, __entry->ctrl,
+		__entry->ctrl & DWC3_TRB_CTRL_HWO ? 'H' : 'h',
+		__entry->ctrl & DWC3_TRB_CTRL_LST ? 'L' : 'l',
+		__entry->ctrl & DWC3_TRB_CTRL_CHN ? 'C' : 'c',
+		__entry->ctrl & DWC3_TRB_CTRL_CSP ? 'S' : 's',
+		__entry->ctrl & DWC3_TRB_CTRL_ISP_IMI ? 'S' : 's',
+		__entry->ctrl & DWC3_TRB_CTRL_IOC ? 'C' : 'c',
+		({char *s;
+		switch (__entry->ctrl & 0x3f0) {
+		case DWC3_TRBCTL_NORMAL:
+			s = "normal";
+			break;
+		case DWC3_TRBCTL_CONTROL_SETUP:
+			s = "setup";
+			break;
+		case DWC3_TRBCTL_CONTROL_STATUS2:
+			s = "status2";
+			break;
+		case DWC3_TRBCTL_CONTROL_STATUS3:
+			s = "status3";
+			break;
+		case DWC3_TRBCTL_CONTROL_DATA:
+			s = "data";
+			break;
+		case DWC3_TRBCTL_ISOCHRONOUS_FIRST:
+			s = "isoc-first";
+			break;
+		case DWC3_TRBCTL_ISOCHRONOUS:
+			s = "isoc";
+			break;
+		case DWC3_TRBCTL_LINK_TRB:
+			s = "link";
+			break;
+		default:
+			s = "UNKNOWN";
+			break;
+		} s; })
 	)
 );
 
