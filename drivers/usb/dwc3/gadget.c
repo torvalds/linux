@@ -845,6 +845,7 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 {
 	struct dwc3_trb		*tmp;
+	u8			trbs_left;
 
 	/*
 	 * If enqueue & dequeue are equal than it is either full or empty.
@@ -864,7 +865,10 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 		return DWC3_TRB_NUM - 1;
 	}
 
-	return dep->trb_dequeue - dep->trb_enqueue;
+	trbs_left = dep->trb_dequeue - dep->trb_enqueue;
+	trbs_left %= DWC3_TRB_NUM;
+
+	return trbs_left;
 }
 
 static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
