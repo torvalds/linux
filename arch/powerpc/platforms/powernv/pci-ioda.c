@@ -761,7 +761,7 @@ static int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 
 	/* Clear the reverse map */
 	for (rid = pe->rid; rid < rid_end; rid++)
-		phb->ioda.pe_rmap[rid] = 0;
+		phb->ioda.pe_rmap[rid] = IODA_INVALID_PE;
 
 	/* Release from all parents PELT-V */
 	while (parent) {
@@ -3491,6 +3491,10 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	prop32 = of_get_property(np, "ibm,opal-reserved-pe", NULL);
 	if (prop32)
 		phb->ioda.reserved_pe_idx = be32_to_cpup(prop32);
+
+	/* Invalidate RID to PE# mapping */
+	for (segno = 0; segno < ARRAY_SIZE(phb->ioda.pe_rmap); segno++)
+		phb->ioda.pe_rmap[segno] = IODA_INVALID_PE;
 
 	/* Parse 64-bit MMIO range */
 	pnv_ioda_parse_m64_window(phb);
