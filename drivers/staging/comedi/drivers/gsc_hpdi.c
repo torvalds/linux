@@ -547,7 +547,7 @@ static void gsc_hpdi_init_plx9080(struct comedi_device *dev)
 	void __iomem *plx_iobase = devpriv->plx9080_mmio;
 
 #ifdef __BIG_ENDIAN
-	bits = BIGEND_DMA0 | BIGEND_DMA1;
+	bits = PLX_BIGEND_DMA0 | PLX_BIGEND_DMA1;
 #else
 	bits = 0;
 #endif

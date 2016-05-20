@@ -125,21 +125,24 @@ struct plx_dma_desc {
 /* Big/Little Endian Descriptor Register */
 #define PLX_REG_BIGEND		0x000c
 
-enum bigend_bits {
-	/* use big endian ordering for configuration register accesses */
-	BIGEND_CONFIG = 0x1,
-	BIGEND_DIRECT_MASTER = 0x2,
-	BIGEND_DIRECT_SLAVE_LOCAL0 = 0x4,
-	BIGEND_ROM = 0x8,
-	/*
-	 * use byte lane consisting of most significant bits instead of
-	 * least significant
-	 */
-	BIGEND_BYTE_LANE = 0x10,
-	BIGEND_DIRECT_SLAVE_LOCAL1 = 0x20,
-	BIGEND_DMA1 = 0x40,
-	BIGEND_DMA0 = 0x80,
-};
+/* Configuration Register Big Endian Mode */
+#define PLX_BIGEND_CONFIG	BIT(0)
+/* Direct Master Big Endian Mode */
+#define PLX_BIGEND_DM		BIT(1)
+/* Direct Slave Address Space 0 Big Endian Mode */
+#define PLX_BIGEND_DSAS0	BIT(2)
+/* Direct Slave Expansion ROM Big Endian Mode */
+#define PLX_BIGEND_EROM		BIT(3)
+/* Big Endian Byte Lane Mode - use most significant byte lanes */
+#define PLX_BIGEND_BEBLM	BIT(4)
+/* Direct Slave Address Space 1 Big Endian Mode */
+#define PLX_BIGEND_DSAS1	BIT(5)
+/* DMA Channel 1 Big Endian Mode */
+#define PLX_BIGEND_DMA1		BIT(6)
+/* DMA Channel 0 Big Endian Mode */
+#define PLX_BIGEND_DMA0		BIT(7)
+/* DMA Channel N Big Endian Mode (N <= 1) */
+#define PLX_BIGEND_DMA(n)	((n) ? PLX_BIGEND_DMA1 : PLX_BIGEND_DMA0)
 
 /*
 ** Note: The Expansion ROM  stuff is only relevant to the PC environment.
