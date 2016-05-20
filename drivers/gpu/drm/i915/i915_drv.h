@@ -2278,6 +2278,25 @@ static __always_inline struct sgt_iter {
 }
 
 /**
+ * __sg_next - return the next scatterlist entry in a list
+ * @sg:		The current sg entry
+ *
+ * Description:
+ *   If the entry is the last, return NULL; otherwise, step to the next
+ *   element in the array (@sg@+1). If that's a chain pointer, follow it;
+ *   otherwise just return the pointer to the current element.
+ **/
+static inline struct scatterlist *__sg_next(struct scatterlist *sg)
+{
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(sg->sg_magic != SG_MAGIC);
+#endif
+	return sg_is_last(sg) ? NULL :
+		likely(!sg_is_chain(++sg)) ? sg :
+		sg_chain_ptr(sg);
+}
+
+/**
  * for_each_sgt_dma - iterate over the DMA addresses of the given sg_table
  * @__dmap:	DMA address (output)
  * @__iter:	'struct sgt_iter' (iterator state, internal)
@@ -2287,7 +2306,7 @@ static __always_inline struct sgt_iter {
 	for ((__iter) = __sgt_iter((__sgt)->sgl, true);			\
 	     ((__dmap) = (__iter).dma + (__iter).curr);			\
 	     (((__iter).curr += PAGE_SIZE) < (__iter).max) ||		\
-	     ((__iter) = __sgt_iter(sg_next((__iter).sgp), true), 0))
+	     ((__iter) = __sgt_iter(__sg_next((__iter).sgp), true), 0))
 
 /**
  * for_each_sgt_page - iterate over the pages of the given sg_table
@@ -2300,7 +2319,7 @@ static __always_inline struct sgt_iter {
 	     ((__pp) = (__iter).pfn == 0 ? NULL :			\
 	      pfn_to_page((__iter).pfn + ((__iter).curr >> PAGE_SHIFT))); \
 	     (((__iter).curr += PAGE_SIZE) < (__iter).max) ||		\
-	     ((__iter) = __sgt_iter(sg_next((__iter).sgp), false), 0))
+	     ((__iter) = __sgt_iter(__sg_next((__iter).sgp), false), 0))
 
 /**
  * Request queue structure.
