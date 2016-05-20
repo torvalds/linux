@@ -544,6 +544,47 @@ struct plx_dma_desc {
 #define PLX_REG_DMATHR		0x00b0
 
 /*
+ * DMA Threshold constraints:
+ * (C0PLAF + 1) + (C0PLAE + 1) <= 32
+ * (C0LPAF + 1) + (C0LPAE + 1) <= 32
+ * (C1PLAF + 1) + (C1PLAE + 1) <= 16
+ * (C1LPAF + 1) + (C1LPAE + 1) <= 16
+ */
+
+/* DMA Channel 0 PCI-to-Local Almost Full (divided by 2, minus 1) */
+#define PLX_DMATHR_C0PLAF(x)	(BIT(0) * ((x) & 0xf))
+#define PLX_DMATHR_C0PLAF_MASK	GENMASK(3, 0)
+#define PLX_DMATHR_C0PLAF_SHIFT	0
+/* DMA Channel 0 Local-to-PCI Almost Empty (divided by 2, minus 1) */
+#define PLX_DMATHR_C0LPAE(x)	(BIT(4) * ((x) & 0xf))
+#define PLX_DMATHR_C0LPAE_MASK	GENMASK(7, 4)
+#define PLX_DMATHR_C0LPAE_SHIFT	4
+/* DMA Channel 0 Local-to-PCI Almost Full (divided by 2, minus 1) */
+#define PLX_DMATHR_C0LPAF(x)	(BIT(8) * ((x) & 0xf))
+#define PLX_DMATHR_C0LPAF_MASK	GENMASK(11, 8)
+#define PLX_DMATHR_C0LPAF_SHIFT	8
+/* DMA Channel 0 PCI-to-Local Almost Empty (divided by 2, minus 1) */
+#define PLX_DMATHR_C0PLAE(x)	(BIT(12) * ((x) & 0xf))
+#define PLX_DMATHR_C0PLAE_MASK	GENMASK(15, 12)
+#define PLX_DMATHR_C0PLAE_SHIFT	12
+/* DMA Channel 1 PCI-to-Local Almost Full (divided by 2, minus 1) */
+#define PLX_DMATHR_C1PLAF(x)	(BIT(16) * ((x) & 0xf))
+#define PLX_DMATHR_C1PLAF_MASK	GENMASK(19, 16)
+#define PLX_DMATHR_C1PLAF_SHIFT	16
+/* DMA Channel 1 Local-to-PCI Almost Empty (divided by 2, minus 1) */
+#define PLX_DMATHR_C1LPAE(x)	(BIT(20) * ((x) & 0xf))
+#define PLX_DMATHR_C1LPAE_MASK	GENMASK(23, 20)
+#define PLX_DMATHR_C1LPAE_SHIFT	20
+/* DMA Channel 1 Local-to-PCI Almost Full (divided by 2, minus 1) */
+#define PLX_DMATHR_C1LPAF(x)	(BIT(24) * ((x) & 0xf))
+#define PLX_DMATHR_C1LPAF_MASK	GENMASK(27, 24)
+#define PLX_DMATHR_C1LPAF_SHIFT	24
+/* DMA Channel 1 PCI-to-Local Almost Empty (divided by 2, minus 1) */
+#define PLX_DMATHR_C1PLAE(x)	(BIT(28) * ((x) & 0xf))
+#define PLX_DMATHR_C1PLAE_MASK	GENMASK(31, 28)
+#define PLX_DMATHR_C1PLAE_SHIFT	28
+
+/*
  * Messaging Queue Registers OPLFIS, OPLFIM, IQP, OQP, MQCR, QBAR, IFHPR,
  * IFTPR, IPHPR, IPTPR, OFHPR, OFTPR, OPHPR, OPTPR, and QSR have been omitted.
  * They are used by the I2O feature.  (IQP and OQP occupy the usual offsets of
