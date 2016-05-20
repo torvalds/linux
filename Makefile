@@ -786,6 +786,11 @@ KBUILD_ARFLAGS := $(call ar-option,D)
 ifeq ($(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC)), y)
 	KBUILD_CFLAGS += -DCC_HAVE_ASM_GOTO
 	KBUILD_AFLAGS += -DCC_HAVE_ASM_GOTO
+else ifneq ($(findstring aarch64-linux-android, $(CROSS_COMPILE)),)
+# It seems than android gcc can't pass gcc-goto.sh check, but asm goto work.
+# So let's active it.
+	KBUILD_CFLAGS += -DCC_HAVE_ASM_GOTO
+	KBUILD_AFLAGS += -DCC_HAVE_ASM_GOTO
 endif
 
 include scripts/Makefile.kasan
