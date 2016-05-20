@@ -1035,6 +1035,8 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 	long size;
 	bool empty;
 
+	__update_lru_size(lruvec, lru, nr_pages);
+
 	if (mem_cgroup_disabled())
 		return;
 
