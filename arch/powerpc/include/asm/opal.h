@@ -209,6 +209,12 @@ int64_t opal_flash_write(uint64_t id, uint64_t offset, uint64_t buf,
 		uint64_t size, uint64_t token);
 int64_t opal_flash_erase(uint64_t id, uint64_t offset, uint64_t size,
 		uint64_t token);
+int64_t opal_get_device_tree(uint32_t phandle, uint64_t buf, uint64_t len);
+int64_t opal_pci_get_presence_state(uint64_t id, uint64_t data);
+int64_t opal_pci_get_power_state(uint64_t id, uint64_t data);
+int64_t opal_pci_set_power_state(uint64_t async_token, uint64_t id,
+				 uint64_t data);
+int64_t opal_pci_poll2(uint64_t id, uint64_t data);
 
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,

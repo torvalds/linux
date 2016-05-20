@@ -74,6 +74,88 @@ int pnv_pci_get_slot_id(struct device_node *np, uint64_t *id)
 }
 EXPORT_SYMBOL_GPL(pnv_pci_get_slot_id);
 
+int pnv_pci_get_device_tree(uint32_t phandle, void *buf, uint64_t len)
+{
+	int64_t rc;
+
+	if (!opal_check_token(OPAL_GET_DEVICE_TREE))
+		return -ENXIO;
+
+	rc = opal_get_device_tree(phandle, (uint64_t)buf, len);
+	if (rc < OPAL_SUCCESS)
+		return -EIO;
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_get_device_tree);
+
+int pnv_pci_get_presence_state(uint64_t id, uint8_t *state)
+{
+	int64_t rc;
+
+	if (!opal_check_token(OPAL_PCI_GET_PRESENCE_STATE))
+		return -ENXIO;
+
+	rc = opal_pci_get_presence_state(id, (uint64_t)state);
+	if (rc != OPAL_SUCCESS)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_get_presence_state);
+
+int pnv_pci_get_power_state(uint64_t id, uint8_t *state)
+{
+	int64_t rc;
+
+	if (!opal_check_token(OPAL_PCI_GET_POWER_STATE))
+		return -ENXIO;
+
+	rc = opal_pci_get_power_state(id, (uint64_t)state);
+	if (rc != OPAL_SUCCESS)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_get_power_state);
+
+int pnv_pci_set_power_state(uint64_t id, uint8_t state, struct opal_msg *msg)
+{
+	struct opal_msg m;
+	int token, ret;
+	int64_t rc;
+
+	if (!opal_check_token(OPAL_PCI_SET_POWER_STATE))
+		return -ENXIO;
+
+	token = opal_async_get_token_interruptible();
+	if (unlikely(token < 0))
+		return token;
+
+	rc = opal_pci_set_power_state(token, id, (uint64_t)&state);
+	if (rc == OPAL_SUCCESS) {
+		ret = 0;
+		goto exit;
+	} else if (rc != OPAL_ASYNC_COMPLETION) {
+		ret = -EIO;
+		goto exit;
+	}
+
+	ret = opal_async_wait_response(token, &m);
+	if (ret < 0)
+		goto exit;
+
+	if (msg) {
+		ret = 1;
+		memcpy(msg, &m, sizeof(m));
+	}
+
+exit:
+	opal_async_release_token(token);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pnv_pci_set_power_state);
+
 #ifdef CONFIG_PCI_MSI
 int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
