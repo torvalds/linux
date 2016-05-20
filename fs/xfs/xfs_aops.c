@@ -94,15 +94,14 @@ xfs_finish_page_writeback(
 	struct bio_vec		*bvec,
 	int			error)
 {
-	unsigned int		blockmask = (1 << inode->i_blkbits) - 1;
 	unsigned int		end = bvec->bv_offset + bvec->bv_len - 1;
 	struct buffer_head	*head, *bh;
 	unsigned int		off = 0;
 
 	ASSERT(bvec->bv_offset < PAGE_SIZE);
-	ASSERT((bvec->bv_offset & blockmask) == 0);
+	ASSERT((bvec->bv_offset & ((1 << inode->i_blkbits) - 1)) == 0);
 	ASSERT(end < PAGE_SIZE);
-	ASSERT((bvec->bv_len & blockmask) == 0);
+	ASSERT((bvec->bv_len & ((1 << inode->i_blkbits) - 1)) == 0);
 
 	bh = head = page_buffers(bvec->bv_page);
 
