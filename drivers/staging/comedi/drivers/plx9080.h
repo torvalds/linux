@@ -159,30 +159,62 @@ struct plx_dma_desc {
 /* Local Address Space 1 Bus Region Descriptor Register */
 #define PLX_REG_LBRD1		0x00f8
 
-#define  RGN_WIDTH         0x00000002	/* Local bus width bits */
-#define  RGN_8BITS         0x00000000	/* 08 bit Local Bus */
-#define  RGN_16BITS        0x00000001	/* 16 bit Local Bus */
-#define  RGN_32BITS        0x00000002	/* 32 bit Local Bus */
-#define  RGN_MWS           0x0000003C	/* Memory Access Wait States */
-#define  RGN_0MWS          0x00000000
-#define  RGN_1MWS          0x00000004
-#define  RGN_2MWS          0x00000008
-#define  RGN_3MWS          0x0000000C
-#define  RGN_4MWS          0x00000010
-#define  RGN_6MWS          0x00000018
-#define  RGN_8MWS          0x00000020
-#define  RGN_MRE           0x00000040	/* Memory Space Ready Input Enable */
-#define  RGN_MBE           0x00000080	/* Memory Space Bterm Input Enable */
-#define  RGN_READ_PREFETCH_DISABLE 0x00000100
-#define  RGN_ROM_PREFETCH_DISABLE 0x00000200
-#define  RGN_READ_PREFETCH_COUNT_ENABLE 0x00000400
-#define  RGN_RWS           0x003C0000	/* Expn ROM Wait States */
-#define  RGN_RRE           0x00400000	/* ROM Space Ready Input Enable */
-#define  RGN_RBE           0x00800000	/* ROM Space Bterm Input Enable */
-#define  RGN_MBEN          0x01000000	/* Memory Space Burst Enable */
-#define  RGN_RBEN          0x04000000	/* ROM Space Burst Enable */
-#define  RGN_THROT         0x08000000	/* De-assert TRDY when FIFO full */
-#define  RGN_TRD           0xF0000000	/* Target Ready Delay /8 */
+/* Memory Space Local Bus Width */
+#define PLX_LBRD_MSWIDTH8	(BIT(0) * 0)	/* 8 bits wide */
+#define PLX_LBRD_MSWIDTH16	(BIT(0) * 1)	/* 16 bits wide */
+#define PLX_LBRD_MSWIDTH32	(BIT(0) * 2)	/* 32 bits wide */
+#define PLX_LBRD_MSWIDTH32A	(BIT(0) * 3)	/* 32 bits wide */
+#define PLX_LBRD_MSWIDTH_MASK	GENMASK(1, 0)
+#define PLX_LBRD_MSWIDTH_SHIFT	0
+/* Memory Space Internal Wait States */
+#define PLX_LBRD_MSIWS(x)	(BIT(2) * ((x) & 0xf))
+#define PLX_LBRD_MSIWS_MASK	GENMASK(5, 2)
+#define PLX_LBRD_MSIWS_SHIFT	2
+/* Memory Space Ready Input Enable */
+#define PLX_LBRD_MSREADYIEN	BIT(6)
+/* Memory Space BTERM# Input Enable */
+#define PLX_LBRD_MSBTERMIEN	BIT(7)
+/* Memory Space 0 Prefetch Disable (LBRD0 only) */
+#define PLX_LBRD0_MSPREDIS	BIT(8)
+/* Memory Space 1 Burst Enable (LBRD1 only) */
+#define PLX_LBRD1_MSBURSTEN	BIT(8)
+/* Expansion ROM Space Prefetch Disable (LBRD0 only) */
+#define PLX_LBRD0_EROMPREDIS	BIT(9)
+/* Memory Space 1 Prefetch Disable (LBRD1 only) */
+#define PLX_LBRD1_MSPREDIS	BIT(9)
+/* Read Prefetch Count Enable */
+#define PLX_LBRD_RPFCOUNTEN	BIT(10)
+/* Prefetch Counter */
+#define PLX_LBRD_PFCOUNT(x)	(BIT(11) * ((x) & 0xf))
+#define PLX_LBRD_PFCOUNT_MASK	GENMASK(14, 11)
+#define PLX_LBRD_PFCOUNT_SHIFT	11
+/* Expansion ROM Space Local Bus Width (LBRD0 only) */
+#define PLX_LBRD0_EROMWIDTH8	(BIT(16) * 0)	/* 8 bits wide */
+#define PLX_LBRD0_EROMWIDTH16	(BIT(16) * 1)	/* 16 bits wide */
+#define PLX_LBRD0_EROMWIDTH32	(BIT(16) * 2)	/* 32 bits wide */
+#define PLX_LBRD0_EROMWIDTH32A	(BIT(16) * 3)	/* 32 bits wide */
+#define PLX_LBRD0_EROMWIDTH_MASK	GENMASK(17, 16)
+#define PLX_LBRD0_EROMWIDTH_SHIFT	16
+/* Expansion ROM Space Internal Wait States (LBRD0 only) */
+#define PLX_LBRD0_EROMIWS(x)	(BIT(18) * ((x) & 0xf))
+#define PLX_LBRD0_EROMIWS_MASK	GENMASK(21, 18)
+#define PLX_LBRD0_EROMIWS_SHIFT	18
+/* Expansion ROM Space Ready Input Enable (LBDR0 only) */
+#define PLX_LBRD0_EROMREADYIEN	BIT(22)
+/* Expansion ROM Space BTERM# Input Enable (LBRD0 only) */
+#define PLX_LBRD0_EROMBTERMIEN	BIT(23)
+/* Memory Space 0 Burst Enable (LBRD0 only) */
+#define PLX_LBRD0_MSBURSTEN	BIT(24)
+/* Extra Long Load From Serial EEPROM  (LBRD0 only) */
+#define PLX_LBRD0_EELONGLOAD	BIT(25)
+/* Expansion ROM Space Burst Enable (LBRD0 only) */
+#define PLX_LBRD0_EROMBURSTEN	BIT(26)
+/* Direct Slave PCI Write Mode - assert TRDY# when FIFO full (LBRD0 only) */
+#define PLX_LBRD0_DSWMTRDY	BIT(27)
+/* PCI Target Retry Delay Clocks / 8 (LBRD0 only) */
+#define PLX_LBRD0_TRDELAY(x)	(BIT(28) * ((x) & 0xF))
+#define PLX_LBRD0_TRDELAY_MASK	GENMASK(31, 28)
+#define PLX_LBRD0_TRDELAY_SHIFT	28
 
 /* Local Range Register for Direct Master to PCI */
 #define PLX_REG_DMRR		0x001c
