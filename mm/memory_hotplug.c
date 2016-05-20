@@ -78,7 +78,11 @@ static struct {
 #define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
 #define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
 
+#ifndef CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
 bool memhp_auto_online;
+#else
+bool memhp_auto_online = true;
+#endif
 EXPORT_SYMBOL_GPL(memhp_auto_online);
 
 void get_online_mems(void)
