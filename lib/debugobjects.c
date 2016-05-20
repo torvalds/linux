@@ -269,16 +269,15 @@ static void debug_print_object(struct debug_obj *obj, char *msg)
  * Try to repair the damage, so we have a better chance to get useful
  * debug output.
  */
-static int
-debug_object_fixup(int (*fixup)(void *addr, enum debug_obj_state state),
+static bool
+debug_object_fixup(bool (*fixup)(void *addr, enum debug_obj_state state),
 		   void * addr, enum debug_obj_state state)
 {
-	int fixed = 0;
-
-	if (fixup)
-		fixed = fixup(addr, state);
-	debug_objects_fixups += fixed;
-	return fixed;
+	if (fixup && fixup(addr, state)) {
+		debug_objects_fixups++;
+		return true;
+	}
+	return false;
 }
 
 static void debug_object_is_on_stack(void *addr, int onstack)
@@ -797,7 +796,7 @@ static __initdata struct debug_obj_descr descr_type_test;
  * fixup_init is called when:
  * - an active object is initialized
  */
-static int __init fixup_init(void *addr, enum debug_obj_state state)
+static bool __init fixup_init(void *addr, enum debug_obj_state state)
 {
 	struct self_test *obj = addr;
 
@@ -805,9 +804,9 @@ static int __init fixup_init(void *addr, enum debug_obj_state state)
 	case ODEBUG_STATE_ACTIVE:
 		debug_object_deactivate(obj, &descr_type_test);
 		debug_object_init(obj, &descr_type_test);
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -816,7 +815,7 @@ static int __init fixup_init(void *addr, enum debug_obj_state state)
  * - an active object is activated
  * - an unknown object is activated (might be a statically initialized object)
  */
-static int __init fixup_activate(void *addr, enum debug_obj_state state)
+static bool __init fixup_activate(void *addr, enum debug_obj_state state)
 {
 	struct self_test *obj = addr;
 
@@ -825,17 +824,17 @@ static int __init fixup_activate(void *addr, enum debug_obj_state state)
 		if (obj->static_init == 1) {
 			debug_object_init(obj, &descr_type_test);
 			debug_object_activate(obj, &descr_type_test);
-			return 0;
+			return false;
 		}
-		return 1;
+		return true;
 
 	case ODEBUG_STATE_ACTIVE:
 		debug_object_deactivate(obj, &descr_type_test);
 		debug_object_activate(obj, &descr_type_test);
-		return 1;
+		return true;
 
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -843,7 +842,7 @@ static int __init fixup_activate(void *addr, enum debug_obj_state state)
  * fixup_destroy is called when:
  * - an active object is destroyed
  */
-static int __init fixup_destroy(void *addr, enum debug_obj_state state)
+static bool __init fixup_destroy(void *addr, enum debug_obj_state state)
 {
 	struct self_test *obj = addr;
 
@@ -851,9 +850,9 @@ static int __init fixup_destroy(void *addr, enum debug_obj_state state)
 	case ODEBUG_STATE_ACTIVE:
 		debug_object_deactivate(obj, &descr_type_test);
 		debug_object_destroy(obj, &descr_type_test);
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -861,7 +860,7 @@ static int __init fixup_destroy(void *addr, enum debug_obj_state state)
  * fixup_free is called when:
  * - an active object is freed
  */
-static int __init fixup_free(void *addr, enum debug_obj_state state)
+static bool __init fixup_free(void *addr, enum debug_obj_state state)
 {
 	struct self_test *obj = addr;
 
@@ -869,9 +868,9 @@ static int __init fixup_free(void *addr, enum debug_obj_state state)
 	case ODEBUG_STATE_ACTIVE:
 		debug_object_deactivate(obj, &descr_type_test);
 		debug_object_free(obj, &descr_type_test);
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 

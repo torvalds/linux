@@ -39,7 +39,8 @@ struct debug_obj {
  * @debug_hint:		function returning address, which have associated
  *			kernel symbol, to allow identify the object
  * @fixup_init:		fixup function, which is called when the init check
- *			fails
+ *			fails. All fixup functions must return true if fixup
+ *			was successful, otherwise return false
  * @fixup_activate:	fixup function, which is called when the activate check
  *			fails
  * @fixup_destroy:	fixup function, which is called when the destroy check
@@ -51,12 +52,12 @@ struct debug_obj {
  */
 struct debug_obj_descr {
 	const char		*name;
-	void *(*debug_hint)	(void *addr);
-	int (*fixup_init)	(void *addr, enum debug_obj_state state);
-	int (*fixup_activate)	(void *addr, enum debug_obj_state state);
-	int (*fixup_destroy)	(void *addr, enum debug_obj_state state);
-	int (*fixup_free)	(void *addr, enum debug_obj_state state);
-	int (*fixup_assert_init)(void *addr, enum debug_obj_state state);
+	void *(*debug_hint)(void *addr);
+	bool (*fixup_init)(void *addr, enum debug_obj_state state);
+	bool (*fixup_activate)(void *addr, enum debug_obj_state state);
+	bool (*fixup_destroy)(void *addr, enum debug_obj_state state);
+	bool (*fixup_free)(void *addr, enum debug_obj_state state);
+	bool (*fixup_assert_init)(void *addr, enum debug_obj_state state);
 };
 
 #ifdef CONFIG_DEBUG_OBJECTS
