@@ -20,7 +20,7 @@
 #include <linux/uaccess.h>
 #include <linux/mount.h>
 #include <linux/pagevec.h>
-#include <linux/random.h>
+#include <linux/uuid.h>
 
 #include "f2fs.h"
 #include "node.h"
