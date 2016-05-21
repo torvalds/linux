@@ -105,7 +105,7 @@ void show_regs(struct pt_regs *regs)
  */
 void exit_thread(void)
 {
-	exit_fpu();
+	exit_fpu(current);
 }
 
 void flush_thread(void)
