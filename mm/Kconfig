@@ -404,6 +404,7 @@ config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"
 	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select COMPACTION
+	select RADIX_TREE_MULTIORDER
 	help
 	  Transparent Hugepages allows the kernel to use huge pages and
 	  huge tlb transparently to the applications whenever possible.
@@ -567,7 +568,7 @@ config ZPOOL
 	  zsmalloc.
 
 config ZBUD
-	tristate "Low density storage for compressed pages"
+	tristate "Low (Up to 2x) density storage for compressed pages"
 	default n
 	help
 	  A special purpose allocator for storing compressed pages.
@@ -575,6 +576,16 @@ config ZBUD
 	  page.  While this design limits storage density, it has simple and
 	  deterministic reclaim properties that make it preferable to a higher
 	  density approach when reclaim will be used.
+
+config Z3FOLD
+	tristate "Up to 3x density storage for compressed pages"
+	depends on ZPOOL
+	default n
+	help
+	  A special purpose allocator for storing compressed pages.
+	  It is designed to store up to three compressed pages per physical
+	  page. It is a ZBUD derivative so the simplicity and determinism are
+	  still there.
 
 config ZSMALLOC
 	tristate "Memory allocator for compressed pages"

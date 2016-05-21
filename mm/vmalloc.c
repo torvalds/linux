@@ -274,13 +274,12 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
 
 /*** Global kva allocator ***/
 
-#define VM_LAZY_FREE	0x01
-#define VM_LAZY_FREEING	0x02
 #define VM_VM_AREA	0x04
 
 static DEFINE_SPINLOCK(vmap_area_lock);
 /* Export for kexec only */
 LIST_HEAD(vmap_area_list);
+static LLIST_HEAD(vmap_purge_list);
 static struct rb_root vmap_area_root = RB_ROOT;
 
 /* The vmap cache globals are protected by vmap_area_lock */
@@ -601,7 +600,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 					int sync, int force_flush)
 {
 	static DEFINE_SPINLOCK(purge_lock);
-	LIST_HEAD(valist);
+	struct llist_node *valist;
 	struct vmap_area *va;
 	struct vmap_area *n_va;
 	int nr = 0;
@@ -620,20 +619,14 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 	if (sync)
 		purge_fragmented_blocks_allcpus();
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(va, &vmap_area_list, list) {
-		if (va->flags & VM_LAZY_FREE) {
-			if (va->va_start < *start)
-				*start = va->va_start;
-			if (va->va_end > *end)
-				*end = va->va_end;
-			nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
-			list_add_tail(&va->purge_list, &valist);
-			va->flags |= VM_LAZY_FREEING;
-			va->flags &= ~VM_LAZY_FREE;
-		}
+	valist = llist_del_all(&vmap_purge_list);
+	llist_for_each_entry(va, valist, purge_list) {
+		if (va->va_start < *start)
+			*start = va->va_start;
+		if (va->va_end > *end)
+			*end = va->va_end;
+		nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
 	}
-	rcu_read_unlock();
 
 	if (nr)
 		atomic_sub(nr, &vmap_lazy_nr);
@@ -643,7 +636,7 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 
 	if (nr) {
 		spin_lock(&vmap_area_lock);
-		list_for_each_entry_safe(va, n_va, &valist, purge_list)
+		llist_for_each_entry_safe(va, n_va, valist, purge_list)
 			__free_vmap_area(va);
 		spin_unlock(&vmap_area_lock);
 	}
@@ -678,9 +671,15 @@ static void purge_vmap_area_lazy(void)
  */
 static void free_vmap_area_noflush(struct vmap_area *va)
 {
-	va->flags |= VM_LAZY_FREE;
-	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
-	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
+	int nr_lazy;
+
+	nr_lazy = atomic_add_return((va->va_end - va->va_start) >> PAGE_SHIFT,
+				    &vmap_lazy_nr);
+
+	/* After this point, we may free va at any time */
+	llist_add(&va->purge_list, &vmap_purge_list);
+
+	if (unlikely(nr_lazy > lazy_max_pages()))
 		try_purge_vmap_area_lazy();
 }
 

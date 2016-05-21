@@ -32,6 +32,7 @@ config PARISC
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_SECCOMP_FILTER
 	select ARCH_NO_COHERENT_DMA_MMAP
+	select CPU_NO_EFFICIENT_FFS
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
