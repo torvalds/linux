@@ -172,6 +172,7 @@ mem_limit         RW    the maximum amount of memory ZRAM can use to store
 pages_compacted   RO    the number of pages freed during compaction
                         (available only via zram<id>/mm_stat node)
 compact           WO    trigger memory compaction
+debug_stat        RO    this file is used for zram debugging purposes
 
 WARNING
 =======
