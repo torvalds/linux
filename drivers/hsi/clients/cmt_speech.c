@@ -1275,7 +1275,7 @@ static int cs_char_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_end < vma->vm_start)
 		return -EINVAL;
 
-	if (((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) != 1)
+	if (vma_pages(vma) != 1)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_DONTDUMP | VM_DONTEXPAND;
