@@ -57,31 +57,20 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	s64 timestamp;
 
-	/* If we have a status register, check if this IRQ came from us */
-	if (sdata->sensor_settings->drdy_irq.addr_stat_drdy) {
-		u8 status;
-
-		len = sdata->tf->read_byte(&sdata->tb, sdata->dev,
-			   sdata->sensor_settings->drdy_irq.addr_stat_drdy,
-			   &status);
-		if (len < 0)
-			dev_err(sdata->dev, "could not read channel status\n");
-
-		/*
-		 * If this was not caused by any channels on this sensor,
-		 * return IRQ_NONE
-		 */
-		if (!(status & (u8)indio_dev->active_scan_mask[0]))
-			return IRQ_NONE;
-	}
+	/* If we do timetamping here, do it before reading the values */
+	if (sdata->hw_irq_trigger)
+		timestamp = sdata->hw_timestamp;
+	else
+		timestamp = iio_get_time_ns();
 
 	len = st_sensors_get_buffer_element(indio_dev, sdata->buffer_data);
 	if (len < 0)
 		goto st_sensors_get_buffer_element_error;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, sdata->buffer_data,
-		pf->timestamp);
+					   timestamp);
 
 st_sensors_get_buffer_element_error:
 	iio_trigger_notify_done(indio_dev->trig);

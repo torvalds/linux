@@ -424,6 +424,9 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 	else
 		drdy_mask = sdata->sensor_settings->drdy_irq.mask_int2;
 
+	/* Flag to the poll function that the hardware trigger is in use */
+	sdata->hw_irq_trigger = enable;
+
 	/* Enable/Disable the interrupt generator for data ready. */
 	err = st_sensors_write_data_with_mask(indio_dev,
 					sdata->sensor_settings->drdy_irq.addr,
