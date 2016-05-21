@@ -14,9 +14,13 @@
 #include <linux/module.h>
 #include <linux/kprobes.h>
 
+#define MAX_SYMBOL_LEN	64
+static char symbol[MAX_SYMBOL_LEN] = "_do_fork";
+module_param_string(symbol, symbol, sizeof(symbol), 0644);
+
 /* For each probe you need to allocate a kprobe structure */
 static struct kprobe kp = {
-	.symbol_name	= "_do_fork",
+	.symbol_name	= symbol,
 };
 
 /* kprobe pre_handler: called just before the probed instruction is executed */
