@@ -465,7 +465,7 @@ static void filter_guest_per_event(struct kvm_vcpu *vcpu)
 		guest_perc &= ~PER_EVENT_IFETCH;
 
 	/* All other PER events will be given to the guest */
-	/* TODO: Check alterated address/address space */
+	/* TODO: Check altered address/address space */
 
 	vcpu->arch.sie_block->perc = guest_perc >> 24;
 
