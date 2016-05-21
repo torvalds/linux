@@ -1558,7 +1558,7 @@ void *radix_tree_delete_item(struct radix_tree_root *root,
 		return entry;
 	}
 
-	offset = index & RADIX_TREE_MAP_MASK;
+	offset = get_slot_offset(node, slot);
 
 	/*
 	 * Clear all tags associated with the item to be deleted.
