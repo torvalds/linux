@@ -229,7 +229,11 @@ void iwl_mvm_unref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 
 	IWL_DEBUG_RPM(mvm, "Leave mvm reference - type %d\n", ref_type);
 	spin_lock_bh(&mvm->refs_lock);
-	WARN_ON(!mvm->refs[ref_type]--);
+	if (WARN_ON(!mvm->refs[ref_type])) {
+		spin_unlock_bh(&mvm->refs_lock);
+		return;
+	}
+	mvm->refs[ref_type]--;
 	spin_unlock_bh(&mvm->refs_lock);
 	iwl_trans_unref(mvm->trans);
 }
@@ -439,11 +443,19 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ieee80211_hw_set(hw, SUPPORTS_CLONED_SKBS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
 	ieee80211_hw_set(hw, NEEDS_UNIQUE_STA_ADDR);
+	if (iwl_mvm_has_new_rx_api(mvm))
+		ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
+
+	if (mvm->trans->num_rx_queues > 1)
+		ieee80211_hw_set(hw, USES_RSS);
 
 	if (mvm->trans->max_skb_frags)
 		hw->netdev_features = NETIF_F_HIGHDMA | NETIF_F_SG;
 
-	hw->queues = mvm->first_agg_queue;
+	if (!iwl_mvm_is_dqa_supported(mvm))
+		hw->queues = mvm->first_agg_queue;
+	else
+		hw->queues = IEEE80211_MAX_QUEUES;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
 	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FEC |
 				    IEEE80211_RADIOTAP_MCS_HAVE_STBC;
@@ -848,6 +860,7 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 	u16 *ssn = &params->ssn;
 	u8 buf_size = params->buf_size;
 	bool amsdu = params->amsdu;
+	u16 timeout = params->timeout;
 
 	IWL_DEBUG_HT(mvm, "A-MPDU action on addr %pM tid %d: action %d\n",
 		     sta->addr, tid, action);
@@ -888,10 +901,12 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 			ret = -EINVAL;
 			break;
 		}
-		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, *ssn, true, buf_size);
+		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, *ssn, true, buf_size,
+					 timeout);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, 0, false, buf_size);
+		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, 0, false, buf_size,
+					 timeout);
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		if (!iwl_enable_tx_ampdu(mvm->cfg)) {
@@ -4037,6 +4052,55 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 	}
 }
 
+void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
+				     struct iwl_mvm_internal_rxq_notif *notif,
+				     u32 size)
+{
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(notif_waitq);
+	u32 qmask = BIT(mvm->trans->num_rx_queues) - 1;
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!iwl_mvm_has_new_rx_api(mvm))
+		return;
+
+	notif->cookie = mvm->queue_sync_cookie;
+
+	if (notif->sync)
+		atomic_set(&mvm->queue_sync_counter,
+			   mvm->trans->num_rx_queues);
+
+	ret = iwl_mvm_notify_rx_queue(mvm, qmask, (u8 *)notif, size);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to trigger RX queues sync (%d)\n", ret);
+		goto out;
+	}
+
+	if (notif->sync)
+		ret = wait_event_timeout(notif_waitq,
+					 atomic_read(&mvm->queue_sync_counter) == 0,
+					 HZ);
+	WARN_ON_ONCE(!ret);
+
+out:
+	atomic_set(&mvm->queue_sync_counter, 0);
+	mvm->queue_sync_cookie++;
+}
+
+static void iwl_mvm_sync_rx_queues(struct ieee80211_hw *hw)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_internal_rxq_notif data = {
+		.type = IWL_MVM_RXQ_EMPTY,
+		.sync = 1,
+	};
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_sync_rx_queues_internal(mvm, &data, sizeof(data));
+	mutex_unlock(&mvm->mutex);
+}
+
 const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
@@ -4092,6 +4156,8 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tdls_recv_channel_switch = iwl_mvm_tdls_recv_channel_switch,
 
 	.event_callback = iwl_mvm_mac_event_callback,
+
+	.sync_rx_queues = iwl_mvm_sync_rx_queues,
 
 	CFG80211_TESTMODE_CMD(iwl_mvm_mac_testmode_cmd)
 

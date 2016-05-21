@@ -1076,8 +1076,7 @@ static void qede_tpa_start(struct qede_dev *edev,
 	 * start until its over and we don't want to risk allocation failing
 	 * here, so re-allocate when aggregation will be over.
 	 */
-	dma_unmap_addr_set(sw_rx_data_prod, mapping,
-			   dma_unmap_addr(replace_buf, mapping));
+	sw_rx_data_prod->mapping = replace_buf->mapping;
 
 	sw_rx_data_prod->data = replace_buf->data;
 	rx_bd_prod->addr.hi = cpu_to_le32(upper_32_bits(mapping));
@@ -2655,7 +2654,7 @@ static void qede_free_sge_mem(struct qede_dev *edev,
 
 		if (replace_buf->data) {
 			dma_unmap_page(&edev->pdev->dev,
-				       dma_unmap_addr(replace_buf, mapping),
+				       replace_buf->mapping,
 				       PAGE_SIZE, DMA_FROM_DEVICE);
 			__free_page(replace_buf->data);
 		}
@@ -2755,7 +2754,7 @@ static int qede_alloc_sge_mem(struct qede_dev *edev,
 			goto err;
 		}
 
-		dma_unmap_addr_set(replace_buf, mapping, mapping);
+		replace_buf->mapping = mapping;
 		tpa_info->replace_buf.page_offset = 0;
 
 		tpa_info->replace_buf_mapping = mapping;

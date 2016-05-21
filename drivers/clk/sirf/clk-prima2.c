@@ -129,10 +129,9 @@ static void __init prima2_clk_init(struct device_node *np)
 		panic("unable to map clkc registers\n");
 
 	/* These are always available (RTC and 26MHz OSC)*/
-	prima2_clks[rtc] = clk_register_fixed_rate(NULL, "rtc", NULL,
-		CLK_IS_ROOT, 32768);
-	prima2_clks[osc] = clk_register_fixed_rate(NULL, "osc", NULL,
-		CLK_IS_ROOT, 26000000);
+	prima2_clks[rtc] = clk_register_fixed_rate(NULL, "rtc", NULL, 0, 32768);
+	prima2_clks[osc] = clk_register_fixed_rate(NULL, "osc", NULL, 0,
+						   26000000);
 
 	for (i = pll1; i < maxclk; i++) {
 		prima2_clks[i] = clk_register(NULL, prima2_clk_hw_array[i]);

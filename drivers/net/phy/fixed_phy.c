@@ -255,7 +255,8 @@ int fixed_phy_add(unsigned int irq, int phy_addr,
 
 	memset(fp->regs, 0xFF,  sizeof(fp->regs[0]) * MII_REGS_NUM);
 
-	fmb->mii_bus->irq[phy_addr] = irq;
+	if (irq != PHY_POLL)
+		fmb->mii_bus->irq[phy_addr] = irq;
 
 	fp->addr = phy_addr;
 	fp->status = *status;
@@ -313,6 +314,9 @@ struct phy_device *fixed_phy_register(unsigned int irq,
 	struct phy_device *phy;
 	int phy_addr;
 	int ret;
+
+	if (!fmb->mii_bus || fmb->mii_bus->state != MDIOBUS_REGISTERED)
+		return ERR_PTR(-EPROBE_DEFER);
 
 	/* Get the next available PHY address, up to PHY_MAX_ADDR */
 	spin_lock(&phy_fixed_addr_lock);
