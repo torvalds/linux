@@ -8,10 +8,7 @@
 #include <limits.h>
 
 #include "../../include/linux/compiler.h"
-
-#define CONFIG_RADIX_TREE_MULTIORDER
-#define CONFIG_SHMEM
-#define CONFIG_SWAP
+#include "../../../include/linux/kconfig.h"
 
 #define RADIX_TREE_MAP_SHIFT	3
 

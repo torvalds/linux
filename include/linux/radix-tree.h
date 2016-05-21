@@ -330,8 +330,9 @@ static inline void radix_tree_preload_end(void)
  * struct radix_tree_iter - radix tree iterator state
  *
  * @index:	index of current slot
- * @next_index:	next-to-last index for this chunk
+ * @next_index:	one beyond the last index for this chunk
  * @tags:	bit-mask for tag-iterating
+ * @shift:	shift for the node that holds our slots
  *
  * This radix tree iterator works in terms of "chunks" of slots.  A chunk is a
  * subinterval of slots contained within one radix tree leaf node.  It is
@@ -344,7 +345,19 @@ struct radix_tree_iter {
 	unsigned long	index;
 	unsigned long	next_index;
 	unsigned long	tags;
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+	unsigned int	shift;
+#endif
 };
+
+static inline unsigned int iter_shift(struct radix_tree_iter *iter)
+{
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+	return iter->shift;
+#else
+	return 0;
+#endif
+}
 
 #define RADIX_TREE_ITER_TAG_MASK	0x00FF	/* tag index in lower byte */
 #define RADIX_TREE_ITER_TAGGED		0x0100	/* lookup tagged slots */
@@ -405,6 +418,12 @@ void **radix_tree_iter_retry(struct radix_tree_iter *iter)
 	return NULL;
 }
 
+static inline unsigned long
+__radix_tree_iter_add(struct radix_tree_iter *iter, unsigned long slots)
+{
+	return iter->index + (slots << iter_shift(iter));
+}
+
 /**
  * radix_tree_iter_next - resume iterating when the chunk may be invalid
  * @iter:	iterator state
@@ -416,7 +435,7 @@ void **radix_tree_iter_retry(struct radix_tree_iter *iter)
 static inline __must_check
 void **radix_tree_iter_next(struct radix_tree_iter *iter)
 {
-	iter->next_index = iter->index + 1;
+	iter->next_index = __radix_tree_iter_add(iter, 1);
 	iter->tags = 0;
 	return NULL;
 }
@@ -430,7 +449,12 @@ void **radix_tree_iter_next(struct radix_tree_iter *iter)
 static __always_inline long
 radix_tree_chunk_size(struct radix_tree_iter *iter)
 {
-	return iter->next_index - iter->index;
+	return (iter->next_index - iter->index) >> iter_shift(iter);
+}
+
+static inline void *indirect_to_ptr(void *ptr)
+{
+	return (void *)((unsigned long)ptr & ~RADIX_TREE_INDIRECT_PTR);
 }
 
 /**
@@ -448,24 +472,51 @@ static __always_inline void **
 radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 {
 	if (flags & RADIX_TREE_ITER_TAGGED) {
+		void *canon = slot;
+
 		iter->tags >>= 1;
+		if (unlikely(!iter->tags))
+			return NULL;
+		while (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
+					radix_tree_is_indirect_ptr(slot[1])) {
+			if (indirect_to_ptr(slot[1]) == canon) {
+				iter->tags >>= 1;
+				iter->index = __radix_tree_iter_add(iter, 1);
+				slot++;
+				continue;
+			}
+			iter->next_index = __radix_tree_iter_add(iter, 1);
+			return NULL;
+		}
 		if (likely(iter->tags & 1ul)) {
-			iter->index++;
+			iter->index = __radix_tree_iter_add(iter, 1);
 			return slot + 1;
 		}
-		if (!(flags & RADIX_TREE_ITER_CONTIG) && likely(iter->tags)) {
+		if (!(flags & RADIX_TREE_ITER_CONTIG)) {
 			unsigned offset = __ffs(iter->tags);
 
 			iter->tags >>= offset;
-			iter->index += offset + 1;
+			iter->index = __radix_tree_iter_add(iter, offset + 1);
 			return slot + offset + 1;
 		}
 	} else {
-		long size = radix_tree_chunk_size(iter);
+		long count = radix_tree_chunk_size(iter);
+		void *canon = slot;
 
-		while (--size > 0) {
+		while (--count > 0) {
 			slot++;
-			iter->index++;
+			iter->index = __radix_tree_iter_add(iter, 1);
+
+			if (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
+			    radix_tree_is_indirect_ptr(*slot)) {
+				if (indirect_to_ptr(*slot) == canon)
+					continue;
+				else {
+					iter->next_index = iter->index;
+					break;
+				}
+			}
+
 			if (likely(*slot))
 				return slot;
 			if (flags & RADIX_TREE_ITER_CONTIG) {
