@@ -2771,9 +2771,9 @@ static inline int copy_thread_tls(
 extern void flush_thread(void);
 
 #ifdef CONFIG_HAVE_EXIT_THREAD
-extern void exit_thread(void);
+extern void exit_thread(struct task_struct *tsk);
 #else
-static inline void exit_thread(void)
+static inline void exit_thread(struct task_struct *tsk)
 {
 }
 #endif
