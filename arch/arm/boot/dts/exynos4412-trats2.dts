@@ -146,13 +146,13 @@
 			reg = <0x66>;
 
 			regulators {
-				esafeout1_reg: ESAFEOUT1@1 {
+				esafeout1_reg: ESAFEOUT1 {
 					regulator-name = "ESAFEOUT1";
 				};
-				esafeout2_reg: ESAFEOUT2@2 {
+				esafeout2_reg: ESAFEOUT2 {
 					regulator-name = "ESAFEOUT2";
 				};
-				charger_reg: CHARGER@0 {
+				charger_reg: CHARGER {
 					regulator-name = "CHARGER";
 					regulator-min-microamp = <60000>;
 					regulator-max-microamp = <2580000>;
@@ -251,7 +251,7 @@
 			"SPK", "SPKOUTRP";
 	};
 
-	thermistor-ap@0 {
+	thermistor-ap {
 		compatible = "ntc,ncp15wb473";
 		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
 		pullup-ohm = <100000>;	 /* 100K */
@@ -259,7 +259,7 @@
 		io-channels = <&adc 1>;  /* AP temperature */
 	};
 
-	thermistor-battery@1 {
+	thermistor-battery {
 		compatible = "ntc,ncp15wb473";
 		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
 		pullup-ohm = <100000>;	 /* 100K */
@@ -1234,10 +1234,6 @@
 	status = "okay";
 };
 
-&prng {
-	status = "okay";
-};
-
 &rtc {
 	status = "okay";
 	clocks = <&clock CLK_RTC>, <&max77686 MAX77686_CLK_AP>;
@@ -1276,7 +1272,7 @@
 	cs-gpios = <&gpb 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	s5c73m3_spi: s5c73m3 {
+	s5c73m3_spi: s5c73m3@0 {
 		compatible = "samsung,s5c73m3";
 		spi-max-frequency = <50000000>;
 		reg = <0>;

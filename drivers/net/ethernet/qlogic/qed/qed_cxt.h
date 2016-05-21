@@ -51,6 +51,9 @@ enum qed_cxt_elem_type {
 	QED_ELEM_TASK
 };
 
+u32 qed_cxt_get_proto_cid_count(struct qed_hwfn *p_hwfn,
+				enum protocol_type type, u32 *vf_cid);
+
 /**
  * @brief qed_cxt_set_pf_params - Set the PF params for cxt init
  *
@@ -126,6 +129,16 @@ void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn);
  */
 
 void qed_qm_init_pf(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief Reconfigures QM pf on the fly
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return int
+ */
+int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /**
  * @brief qed_cxt_release - Release a cid

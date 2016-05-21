@@ -32,9 +32,9 @@
 #ifndef _FSL_DPMCP_CMD_H
 #define _FSL_DPMCP_CMD_H
 
-/* DPMCP Version */
-#define DPMCP_VER_MAJOR				2
-#define DPMCP_VER_MINOR				1
+/* Minimal supported DPMCP Version */
+#define DPMCP_MIN_VER_MAJOR				3
+#define DPMCP_MIN_VER_MINOR				0
 
 /* Command IDs */
 #define DPMCP_CMDID_CLOSE				0x800
@@ -52,6 +52,5 @@
 #define DPMCP_CMDID_SET_IRQ_MASK			0x014
 #define DPMCP_CMDID_GET_IRQ_MASK			0x015
 #define DPMCP_CMDID_GET_IRQ_STATUS			0x016
-#define DPMCP_CMDID_CLEAR_IRQ_STATUS			0x017
 
 #endif /* _FSL_DPMCP_CMD_H */

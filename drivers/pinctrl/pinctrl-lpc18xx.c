@@ -1252,7 +1252,7 @@ static const struct pinctrl_ops lpc18xx_pctl_ops = {
 	.get_group_name		= lpc18xx_pctl_get_group_name,
 	.get_group_pins		= lpc18xx_pctl_get_group_pins,
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 };
 
 static struct pinctrl_desc lpc18xx_scu_desc = {
@@ -1355,7 +1355,7 @@ static int lpc18xx_scu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, scu);
 
-	scu->pctl = pinctrl_register(&lpc18xx_scu_desc, &pdev->dev, scu);
+	scu->pctl = devm_pinctrl_register(&pdev->dev, &lpc18xx_scu_desc, scu);
 	if (IS_ERR(scu->pctl)) {
 		dev_err(&pdev->dev, "Could not register pinctrl driver\n");
 		clk_disable_unprepare(scu->clk);
@@ -1369,7 +1369,6 @@ static int lpc18xx_scu_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_scu_data *scu = platform_get_drvdata(pdev);
 
-	pinctrl_unregister(scu->pctl);
 	clk_disable_unprepare(scu->clk);
 
 	return 0;

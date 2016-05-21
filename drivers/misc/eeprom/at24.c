@@ -23,7 +23,6 @@
 #include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/nvmem-provider.h>
-#include <linux/regmap.h>
 #include <linux/platform_data/at24.h>
 
 /*
@@ -69,7 +68,6 @@ struct at24_data {
 	unsigned write_max;
 	unsigned num_addresses;
 
-	struct regmap_config regmap_config;
 	struct nvmem_config nvmem_config;
 	struct nvmem_device *nvmem;
 
@@ -245,17 +243,16 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 		if (status == count)
 			return count;
 
-		/* REVISIT: at HZ=100, this is sloooow */
-		msleep(1);
+		usleep_range(1000, 1500);
 	} while (time_before(read_time, timeout));
 
 	return -ETIMEDOUT;
 }
 
-static ssize_t at24_read(struct at24_data *at24,
-		char *buf, loff_t off, size_t count)
+static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 {
-	ssize_t retval = 0;
+	struct at24_data *at24 = priv;
+	char *buf = val;
 
 	if (unlikely(!count))
 		return count;
@@ -267,23 +264,21 @@ static ssize_t at24_read(struct at24_data *at24,
 	mutex_lock(&at24->lock);
 
 	while (count) {
-		ssize_t	status;
+		int	status;
 
 		status = at24_eeprom_read(at24, buf, off, count);
-		if (status <= 0) {
-			if (retval == 0)
-				retval = status;
-			break;
+		if (status < 0) {
+			mutex_unlock(&at24->lock);
+			return status;
 		}
 		buf += status;
 		off += status;
 		count -= status;
-		retval += status;
 	}
 
 	mutex_unlock(&at24->lock);
 
-	return retval;
+	return 0;
 }
 
 /*
@@ -365,20 +360,19 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 		if (status == count)
 			return count;
 
-		/* REVISIT: at HZ=100, this is sloooow */
-		msleep(1);
+		usleep_range(1000, 1500);
 	} while (time_before(write_time, timeout));
 
 	return -ETIMEDOUT;
 }
 
-static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
-			  size_t count)
+static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 {
-	ssize_t retval = 0;
+	struct at24_data *at24 = priv;
+	char *buf = val;
 
 	if (unlikely(!count))
-		return count;
+		return -EINVAL;
 
 	/*
 	 * Write data to chip, protecting against concurrent updates
@@ -387,69 +381,22 @@ static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
 	mutex_lock(&at24->lock);
 
 	while (count) {
-		ssize_t	status;
+		int status;
 
 		status = at24_eeprom_write(at24, buf, off, count);
-		if (status <= 0) {
-			if (retval == 0)
-				retval = status;
-			break;
+		if (status < 0) {
+			mutex_unlock(&at24->lock);
+			return status;
 		}
 		buf += status;
 		off += status;
 		count -= status;
-		retval += status;
 	}
 
 	mutex_unlock(&at24->lock);
 
-	return retval;
-}
-
-/*-------------------------------------------------------------------------*/
-
-/*
- * Provide a regmap interface, which is registered with the NVMEM
- * framework
-*/
-static int at24_regmap_read(void *context, const void *reg, size_t reg_size,
-			    void *val, size_t val_size)
-{
-	struct at24_data *at24 = context;
-	off_t offset = *(u32 *)reg;
-	int err;
-
-	err = at24_read(at24, val, offset, val_size);
-	if (err)
-		return err;
 	return 0;
 }
-
-static int at24_regmap_write(void *context, const void *data, size_t count)
-{
-	struct at24_data *at24 = context;
-	const char *buf;
-	u32 offset;
-	size_t len;
-	int err;
-
-	memcpy(&offset, data, sizeof(offset));
-	buf = (const char *)data + sizeof(offset);
-	len = count - sizeof(offset);
-
-	err = at24_write(at24, buf, offset, len);
-	if (err)
-		return err;
-	return 0;
-}
-
-static const struct regmap_bus at24_regmap_bus = {
-	.read = at24_regmap_read,
-	.write = at24_regmap_write,
-	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
-};
-
-/*-------------------------------------------------------------------------*/
 
 #ifdef CONFIG_OF
 static void at24_get_ofdata(struct i2c_client *client,
@@ -482,7 +429,6 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct at24_data *at24;
 	int err;
 	unsigned i, num_addresses;
-	struct regmap *regmap;
 
 	if (client->dev.platform_data) {
 		chip = *(struct at24_platform_data *)client->dev.platform_data;
@@ -544,10 +490,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		} else {
 			return -EPFNOSUPPORT;
 		}
-	}
 
-	/* Use I2C operations unless we're stuck with SMBus extensions. */
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		if (i2c_check_functionality(client->adapter,
 				I2C_FUNC_SMBUS_WRITE_I2C_BLOCK)) {
 			use_smbus_write = I2C_SMBUS_I2C_BLOCK_DATA;
@@ -612,19 +555,6 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 
-	at24->regmap_config.reg_bits = 32;
-	at24->regmap_config.val_bits = 8;
-	at24->regmap_config.reg_stride = 1;
-	at24->regmap_config.max_register = chip.byte_len - 1;
-
-	regmap = devm_regmap_init(&client->dev, &at24_regmap_bus, at24,
-				  &at24->regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "regmap init failed\n");
-		err = PTR_ERR(regmap);
-		goto err_clients;
-	}
-
 	at24->nvmem_config.name = dev_name(&client->dev);
 	at24->nvmem_config.dev = &client->dev;
 	at24->nvmem_config.read_only = !writable;
@@ -632,6 +562,12 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	at24->nvmem_config.owner = THIS_MODULE;
 	at24->nvmem_config.compat = true;
 	at24->nvmem_config.base_dev = &client->dev;
+	at24->nvmem_config.reg_read = at24_read;
+	at24->nvmem_config.reg_write = at24_write;
+	at24->nvmem_config.priv = at24;
+	at24->nvmem_config.stride = 4;
+	at24->nvmem_config.word_size = 1;
+	at24->nvmem_config.size = chip.byte_len;
 
 	at24->nvmem = nvmem_register(&at24->nvmem_config);
 

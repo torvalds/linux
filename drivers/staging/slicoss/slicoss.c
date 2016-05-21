@@ -898,6 +898,7 @@ static void slic_upr_start(struct adapter *adapter)
 {
 	struct slic_upr *upr;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
+
 	upr = adapter->upr_list;
 	if (!upr)
 		return;
@@ -1144,7 +1145,7 @@ static int slic_config_get(struct adapter *adapter, u32 config, u32 config_h)
 /*
  * Compute a checksum of the EEPROM according to RFC 1071.
  */
-static u16 slic_eeprom_cksum(void *eeprom, unsigned len)
+static u16 slic_eeprom_cksum(void *eeprom, unsigned int len)
 {
 	u16 *wp = eeprom;
 	u32 checksum = 0;
@@ -1855,6 +1856,11 @@ static void slic_xmit_build_request(struct adapter *adapter,
 	ihcmd->u.slic_buffers.totlen = skb->len;
 	phys_addr = pci_map_single(adapter->pcidev, skb->data, skb->len,
 			PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(adapter->pcidev, phys_addr)) {
+		kfree_skb(skb);
+		dev_err(&adapter->pcidev->dev, "DMA mapping error\n");
+		return;
+	}
 	ihcmd->u.slic_buffers.bufs[0].paddrl = SLIC_GET_ADDR_LOW(phys_addr);
 	ihcmd->u.slic_buffers.bufs[0].paddrh = SLIC_GET_ADDR_HIGH(phys_addr);
 	ihcmd->u.slic_buffers.bufs[0].length = skb->len;

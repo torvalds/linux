@@ -10,8 +10,6 @@
 #ifndef _ZCOMP_H_
 #define _ZCOMP_H_
 
-#include <linux/mutex.h>
-
 struct zcomp_strm {
 	/* compression/decompression buffer */
 	void *buffer;
@@ -21,8 +19,6 @@ struct zcomp_strm {
 	 * working memory)
 	 */
 	void *private;
-	/* used in multi stream backend, protected by backend strm_lock */
-	struct list_head list;
 };
 
 /* static compression backend */
@@ -41,19 +37,15 @@ struct zcomp_backend {
 
 /* dynamic per-device compression frontend */
 struct zcomp {
-	void *stream;
+	struct zcomp_strm * __percpu *stream;
 	struct zcomp_backend *backend;
-
-	struct zcomp_strm *(*strm_find)(struct zcomp *comp);
-	void (*strm_release)(struct zcomp *comp, struct zcomp_strm *zstrm);
-	bool (*set_max_streams)(struct zcomp *comp, int num_strm);
-	void (*destroy)(struct zcomp *comp);
+	struct notifier_block notifier;
 };
 
 ssize_t zcomp_available_show(const char *comp, char *buf);
 bool zcomp_available_algorithm(const char *comp);
 
-struct zcomp *zcomp_create(const char *comp, int max_strm);
+struct zcomp *zcomp_create(const char *comp);
 void zcomp_destroy(struct zcomp *comp);
 
 struct zcomp_strm *zcomp_strm_find(struct zcomp *comp);

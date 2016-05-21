@@ -87,10 +87,10 @@ static const struct board_staging_clk lcdc0_clocks[] __initconst = {
 
 static const struct board_staging_dev armadillo800eva_devices[] __initconst = {
 	{
-		.pdev		= &lcdc0_device,
-		.clocks		= lcdc0_clocks,
-		.nclocks	= ARRAY_SIZE(lcdc0_clocks),
-		.domain		= "/system-controller@e6180000/pm-domains/c5/a4lc@1"
+		.pdev	 = &lcdc0_device,
+		.clocks	 = lcdc0_clocks,
+		.nclocks = ARRAY_SIZE(lcdc0_clocks),
+		.domain	 = "/system-controller@e6180000/pm-domains/c5/a4lc@1"
 	},
 };
 

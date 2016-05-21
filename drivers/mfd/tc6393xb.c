@@ -24,7 +24,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mfd/tc6393xb.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 
 #define SCR_REVID	0x08		/* b Revision ID	*/
@@ -434,7 +434,7 @@ static struct mfd_cell tc6393xb_cells[] = {
 static int tc6393xb_gpio_get(struct gpio_chip *chip,
 		unsigned offset)
 {
-	struct tc6393xb *tc6393xb = container_of(chip, struct tc6393xb, gpio);
+	struct tc6393xb *tc6393xb = gpiochip_get_data(chip);
 
 	/* XXX: does dsr also represent inputs? */
 	return !!(tmio_ioread8(tc6393xb->scr + SCR_GPO_DSR(offset / 8))
@@ -444,7 +444,7 @@ static int tc6393xb_gpio_get(struct gpio_chip *chip,
 static void __tc6393xb_gpio_set(struct gpio_chip *chip,
 		unsigned offset, int value)
 {
-	struct tc6393xb *tc6393xb = container_of(chip, struct tc6393xb, gpio);
+	struct tc6393xb *tc6393xb = gpiochip_get_data(chip);
 	u8  dsr;
 
 	dsr = tmio_ioread8(tc6393xb->scr + SCR_GPO_DSR(offset / 8));
@@ -459,7 +459,7 @@ static void __tc6393xb_gpio_set(struct gpio_chip *chip,
 static void tc6393xb_gpio_set(struct gpio_chip *chip,
 		unsigned offset, int value)
 {
-	struct tc6393xb *tc6393xb = container_of(chip, struct tc6393xb, gpio);
+	struct tc6393xb *tc6393xb = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	spin_lock_irqsave(&tc6393xb->lock, flags);
@@ -472,7 +472,7 @@ static void tc6393xb_gpio_set(struct gpio_chip *chip,
 static int tc6393xb_gpio_direction_input(struct gpio_chip *chip,
 			unsigned offset)
 {
-	struct tc6393xb *tc6393xb = container_of(chip, struct tc6393xb, gpio);
+	struct tc6393xb *tc6393xb = gpiochip_get_data(chip);
 	unsigned long flags;
 	u8 doecr;
 
@@ -490,7 +490,7 @@ static int tc6393xb_gpio_direction_input(struct gpio_chip *chip,
 static int tc6393xb_gpio_direction_output(struct gpio_chip *chip,
 			unsigned offset, int value)
 {
-	struct tc6393xb *tc6393xb = container_of(chip, struct tc6393xb, gpio);
+	struct tc6393xb *tc6393xb = gpiochip_get_data(chip);
 	unsigned long flags;
 	u8 doecr;
 
@@ -517,7 +517,7 @@ static int tc6393xb_register_gpio(struct tc6393xb *tc6393xb, int gpio_base)
 	tc6393xb->gpio.direction_input = tc6393xb_gpio_direction_input;
 	tc6393xb->gpio.direction_output = tc6393xb_gpio_direction_output;
 
-	return gpiochip_add(&tc6393xb->gpio);
+	return gpiochip_add_data(&tc6393xb->gpio, tc6393xb);
 }
 
 /*--------------------------------------------------------------------------*/

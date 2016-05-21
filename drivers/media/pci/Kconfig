@@ -14,6 +14,7 @@ source "drivers/media/pci/meye/Kconfig"
 source "drivers/media/pci/solo6x10/Kconfig"
 source "drivers/media/pci/sta2x11/Kconfig"
 source "drivers/media/pci/tw68/Kconfig"
+source "drivers/media/pci/tw686x/Kconfig"
 source "drivers/media/pci/zoran/Kconfig"
 endif
 

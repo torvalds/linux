@@ -1530,7 +1530,19 @@ static int ftrace_cmp_recs(const void *a, const void *b)
 	return 0;
 }
 
-static unsigned long ftrace_location_range(unsigned long start, unsigned long end)
+/**
+ * ftrace_location_range - return the first address of a traced location
+ *	if it touches the given ip range
+ * @start: start of range to search.
+ * @end: end of range to search (inclusive). @end points to the last byte
+ *	to check.
+ *
+ * Returns rec->ip if the related ftrace location is a least partly within
+ * the given address range. That is, the first address of the instruction
+ * that is either a NOP or call to the function tracer. It checks the ftrace
+ * internal tables to determine if the address belongs or not.
+ */
+unsigned long ftrace_location_range(unsigned long start, unsigned long end)
 {
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
@@ -3444,10 +3456,22 @@ struct ftrace_glob {
 	int type;
 };
 
+/*
+ * If symbols in an architecture don't correspond exactly to the user-visible
+ * name of what they represent, it is possible to define this function to
+ * perform the necessary adjustments.
+*/
+char * __weak arch_ftrace_match_adjust(char *str, const char *search)
+{
+	return str;
+}
+
 static int ftrace_match(char *str, struct ftrace_glob *g)
 {
 	int matched = 0;
 	int slen;
+
+	str = arch_ftrace_match_adjust(str, g->search);
 
 	switch (g->type) {
 	case MATCH_FULL:

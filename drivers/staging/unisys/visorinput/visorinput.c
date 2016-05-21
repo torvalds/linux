@@ -123,9 +123,9 @@ static const unsigned char visorkbd_keycode[KEYCODE_TABLE_BYTES] = {
 	[38] = KEY_L,
 	[39] = KEY_SEMICOLON,
 	[40] = KEY_APOSTROPHE,
-	[41] = KEY_GRAVE,	/* FIXME, '#' */
+	[41] = KEY_GRAVE,
 	[42] = KEY_LEFTSHIFT,
-	[43] = KEY_BACKSLASH,	/* FIXME, '~' */
+	[43] = KEY_BACKSLASH,
 	[44] = KEY_Z,
 	[45] = KEY_X,
 	[46] = KEY_C,
@@ -173,7 +173,7 @@ static const unsigned char visorkbd_keycode[KEYCODE_TABLE_BYTES] = {
 	[88] = KEY_F12,
 	[90] = KEY_KPLEFTPAREN,
 	[91] = KEY_KPRIGHTPAREN,
-	[92] = KEY_KPASTERISK,	/* FIXME */
+	[92] = KEY_KPASTERISK,
 	[93] = KEY_KPASTERISK,
 	[94] = KEY_KPPLUS,
 	[95] = KEY_HELP,
@@ -467,18 +467,14 @@ handle_locking_key(struct input_dev *visorinput_dev,
 		break;
 	default:
 		led = -1;
-		break;
+		return;
 	}
-	if (led >= 0) {
-		int old_state = (test_bit(led, visorinput_dev->led) != 0);
-
-		if (old_state != desired_state) {
-			input_report_key(visorinput_dev, keycode, 1);
-			input_sync(visorinput_dev);
-			input_report_key(visorinput_dev, keycode, 0);
-			input_sync(visorinput_dev);
-			__change_bit(led, visorinput_dev->led);
-		}
+	if (test_bit(led, visorinput_dev->led) != desired_state) {
+		input_report_key(visorinput_dev, keycode, 1);
+		input_sync(visorinput_dev);
+		input_report_key(visorinput_dev, keycode, 0);
+		input_sync(visorinput_dev);
+		__change_bit(led, visorinput_dev->led);
 	}
 }
 

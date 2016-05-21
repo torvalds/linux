@@ -428,7 +428,7 @@ static void hists__baseline_only(struct hists *hists)
 	struct rb_root *root;
 	struct rb_node *next;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -450,7 +450,7 @@ static void hists__precompute(struct hists *hists)
 	struct rb_root *root;
 	struct rb_node *next;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;

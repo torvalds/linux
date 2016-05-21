@@ -79,6 +79,7 @@
 #include <termios.h>
 #include <linux/bitops.h>
 #include <termios.h>
+#include "strlist.h"
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
@@ -159,12 +160,6 @@ static inline char *gitstrchrnul(const char *s, int c)
 }
 #endif
 
-/*
- * Wrappers:
- */
-void *xrealloc(void *ptr, size_t size) __attribute__((weak));
-
-
 static inline void *zalloc(size_t size)
 {
 	return calloc(1, size);
@@ -222,6 +217,8 @@ static inline int sane_case(int x, int high)
 
 int mkdir_p(char *path, mode_t mode);
 int rm_rf(char *path);
+struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dirent *));
+bool lsdir_no_dot_filter(const char *name, struct dirent *d);
 int copyfile(const char *from, const char *to);
 int copyfile_mode(const char *from, const char *to, mode_t mode);
 int copyfile_offset(int fromfd, loff_t from_ofs, int tofd, loff_t to_ofs, u64 size);
@@ -254,11 +251,17 @@ int hex2u64(const char *ptr, u64 *val);
 char *ltrim(char *s);
 char *rtrim(char *s);
 
+static inline char *trim(char *s)
+{
+	return ltrim(rtrim(s));
+}
+
 void dump_stack(void);
 void sighandler_dump_stack(int sig);
 
 extern unsigned int page_size;
 extern int cacheline_size;
+extern unsigned int sysctl_perf_event_max_stack;
 
 struct parse_tag {
 	char tag;

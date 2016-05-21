@@ -122,6 +122,7 @@ config MTK_SMI
 	  mainly help enable/disable iommu and control the power domain and
 	  clocks for each local arbiter.
 
+source "drivers/memory/samsung/Kconfig"
 source "drivers/memory/tegra/Kconfig"
 
 endif

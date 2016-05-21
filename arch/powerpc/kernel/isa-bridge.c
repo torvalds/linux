@@ -109,14 +109,14 @@ static void pci_process_ISA_OF_ranges(struct device_node *isa_node,
 		size = 0x10000;
 
 	__ioremap_at(phb_io_base_phys, (void *)ISA_IO_BASE,
-		     size, _PAGE_NO_CACHE|_PAGE_GUARDED);
+		     size, pgprot_val(pgprot_noncached(__pgprot(0))));
 	return;
 
 inval_range:
 	printk(KERN_ERR "no ISA IO ranges or unexpected isa range, "
 	       "mapping 64k\n");
 	__ioremap_at(phb_io_base_phys, (void *)ISA_IO_BASE,
-		     0x10000, _PAGE_NO_CACHE|_PAGE_GUARDED);
+		     0x10000, pgprot_val(pgprot_noncached(__pgprot(0))));
 }
 
 

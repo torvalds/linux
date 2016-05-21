@@ -534,7 +534,7 @@ static void el3_tx_timeout(struct net_device *dev)
 	netdev_warn(dev, "Transmit timed out!\n");
 	dump_status(dev);
 	dev->stats.tx_errors++;
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
 	tc589_wait_for_completion(dev, TxReset);
 	outw(TxEnable, ioaddr + EL3_CMD);

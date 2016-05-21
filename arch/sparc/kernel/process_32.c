@@ -184,21 +184,21 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 /*
  * Free current thread data structures etc..
  */
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
 #ifndef CONFIG_SMP
-	if(last_task_used_math == current) {
+	if (last_task_used_math == tsk) {
 #else
-	if (test_thread_flag(TIF_USEDFPU)) {
+	if (test_ti_thread_flag(task_thread_info(tsk), TIF_USEDFPU)) {
 #endif
 		/* Keep process from leaving FPU in a bogon state. */
 		put_psr(get_psr() | PSR_EF);
-		fpsave(&current->thread.float_regs[0], &current->thread.fsr,
-		       &current->thread.fpqueue[0], &current->thread.fpqdepth);
+		fpsave(&tsk->thread.float_regs[0], &tsk->thread.fsr,
+		       &tsk->thread.fpqueue[0], &tsk->thread.fpqdepth);
 #ifndef CONFIG_SMP
 		last_task_used_math = NULL;
 #else
-		clear_thread_flag(TIF_USEDFPU);
+		clear_ti_thread_flag(task_thread_info(tsk), TIF_USEDFPU);
 #endif
 	}
 }

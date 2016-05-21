@@ -1382,12 +1382,11 @@ retry_snap:
 	     ceph_cap_string(got));
 	ceph_put_cap_refs(ci, got);
 
-	if (written >= 0 &&
-	    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host) ||
-	     ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
-		err = vfs_fsync_range(file, pos, pos + written - 1, 1);
-		if (err < 0)
-			written = err;
+	if (written >= 0) {
+		if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))
+			iocb->ki_flags |= IOCB_DSYNC;
+
+		written = generic_write_sync(iocb, written);
 	}
 
 	goto out_unlocked;

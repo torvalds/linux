@@ -524,6 +524,7 @@ struct i2c_adapter {
 
 	/* data fields that are valid for all devices	*/
 	struct rt_mutex bus_lock;
+	struct rt_mutex mux_lock;
 
 	int timeout;			/* in jiffies */
 	int retries;
@@ -538,6 +539,10 @@ struct i2c_adapter {
 
 	struct i2c_bus_recovery_info *bus_recovery_info;
 	const struct i2c_adapter_quirks *quirks;
+
+	void (*lock_bus)(struct i2c_adapter *, unsigned int flags);
+	int (*trylock_bus)(struct i2c_adapter *, unsigned int flags);
+	void (*unlock_bus)(struct i2c_adapter *, unsigned int flags);
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
@@ -567,8 +572,44 @@ i2c_parent_is_i2c_adapter(const struct i2c_adapter *adapter)
 int i2c_for_each_dev(void *data, int (*fn)(struct device *, void *));
 
 /* Adapter locking functions, exported for shared pin cases */
-void i2c_lock_adapter(struct i2c_adapter *);
-void i2c_unlock_adapter(struct i2c_adapter *);
+#define I2C_LOCK_ROOT_ADAPTER BIT(0)
+#define I2C_LOCK_SEGMENT      BIT(1)
+
+/**
+ * i2c_lock_bus - Get exclusive access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ * @flags: I2C_LOCK_ROOT_ADAPTER locks the root i2c adapter, I2C_LOCK_SEGMENT
+ *	locks only this branch in the adapter tree
+ */
+static inline void
+i2c_lock_bus(struct i2c_adapter *adapter, unsigned int flags)
+{
+	adapter->lock_bus(adapter, flags);
+}
+
+/**
+ * i2c_unlock_bus - Release exclusive access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ * @flags: I2C_LOCK_ROOT_ADAPTER unlocks the root i2c adapter, I2C_LOCK_SEGMENT
+ *	unlocks only this branch in the adapter tree
+ */
+static inline void
+i2c_unlock_bus(struct i2c_adapter *adapter, unsigned int flags)
+{
+	adapter->unlock_bus(adapter, flags);
+}
+
+static inline void
+i2c_lock_adapter(struct i2c_adapter *adapter)
+{
+	i2c_lock_bus(adapter, I2C_LOCK_ROOT_ADAPTER);
+}
+
+static inline void
+i2c_unlock_adapter(struct i2c_adapter *adapter)
+{
+	i2c_unlock_bus(adapter, I2C_LOCK_ROOT_ADAPTER);
+}
 
 /*flags for the client struct: */
 #define I2C_CLIENT_PEC		0x04	/* Use Packet Error Checking */
@@ -652,6 +693,11 @@ static inline bool i2c_check_quirks(struct i2c_adapter *adap, u64 quirks)
 static inline int i2c_adapter_id(struct i2c_adapter *adap)
 {
 	return adap->nr;
+}
+
+static inline u8 i2c_8bit_addr_from_msg(const struct i2c_msg *msg)
+{
+	return (msg->addr << 1) | (msg->flags & I2C_M_RD ? 1 : 0);
 }
 
 /**

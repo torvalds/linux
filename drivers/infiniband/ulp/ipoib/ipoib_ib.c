@@ -51,8 +51,6 @@ MODULE_PARM_DESC(data_debug_level,
 		 "Enable data path debug tracing if > 0");
 #endif
 
-static DEFINE_MUTEX(pkey_mutex);
-
 struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 				 struct ib_pd *pd, struct ib_ah_attr *attr)
 {
@@ -637,7 +635,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		if (netif_queue_stopped(dev))
 			netif_wake_queue(dev);
 	} else {
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 
 		address->last_send = priv->tx_head;
 		++priv->tx_head;

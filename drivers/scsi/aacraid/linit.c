@@ -1299,6 +1299,8 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		shost->this_id = shost->max_id;
 
+	aac_intr_normal(aac, 0, 2, 0, NULL);
+
 	/*
 	 * dmb - we may need to move the setting of these parms somewhere else once
 	 * we get a fib that can report the actual numbers
@@ -1431,8 +1433,8 @@ static int aac_acquire_resources(struct aac_dev *dev)
 		/* After EEH recovery or suspend resume, max_msix count
 		 * may change, therfore updating in init as well.
 		 */
-		aac_adapter_start(dev);
 		dev->init->Sa_MSIXVectors = cpu_to_le32(dev->max_msix);
+		aac_adapter_start(dev);
 	}
 	return 0;
 

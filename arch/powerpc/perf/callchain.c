@@ -137,7 +137,7 @@ static int read_user_stack_slow(void __user *ptr, void *buf, int nb)
 	offset = addr & ((1UL << shift) - 1);
 
 	pte = READ_ONCE(*ptep);
-	if (!pte_present(pte) || !(pte_val(pte) & _PAGE_USER))
+	if (!pte_present(pte) || !pte_user(pte))
 		goto err_out;
 	pfn = pte_pfn(pte);
 	if (!page_is_ram(pfn))
@@ -247,7 +247,7 @@ static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 	sp = regs->gpr[1];
 	perf_callchain_store(entry, next_ip);
 
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < sysctl_perf_event_max_stack) {
 		fp = (unsigned long __user *) sp;
 		if (!valid_user_sp(sp, 1) || read_user_stack_64(fp, &next_sp))
 			return;
@@ -453,7 +453,7 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 	sp = regs->gpr[1];
 	perf_callchain_store(entry, next_ip);
 
-	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+	while (entry->nr < sysctl_perf_event_max_stack) {
 		fp = (unsigned int __user *) (unsigned long) sp;
 		if (!valid_user_sp(sp, 0) || read_user_stack_32(fp, &next_sp))
 			return;

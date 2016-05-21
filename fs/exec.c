@@ -850,15 +850,25 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 	if (ret)
 		return ret;
 
+	ret = deny_write_access(file);
+	if (ret)
+		return ret;
+
 	i_size = i_size_read(file_inode(file));
-	if (max_size > 0 && i_size > max_size)
-		return -EFBIG;
-	if (i_size <= 0)
-		return -EINVAL;
+	if (max_size > 0 && i_size > max_size) {
+		ret = -EFBIG;
+		goto out;
+	}
+	if (i_size <= 0) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	*buf = vmalloc(i_size);
-	if (!*buf)
-		return -ENOMEM;
+	if (!*buf) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	pos = 0;
 	while (pos < i_size) {
@@ -876,18 +886,21 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 
 	if (pos != i_size) {
 		ret = -EIO;
-		goto out;
+		goto out_free;
 	}
 
 	ret = security_kernel_post_read_file(file, *buf, i_size, id);
 	if (!ret)
 		*size = pos;
 
-out:
+out_free:
 	if (ret < 0) {
 		vfree(*buf);
 		*buf = NULL;
 	}
+
+out:
+	allow_write_access(file);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kernel_read_file);
@@ -1387,7 +1400,12 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 	kuid_t uid;
 	kgid_t gid;
 
-	/* clear any previous set[ug]id data from a previous binary */
+	/*
+	 * Since this can be called multiple times (via prepare_binprm),
+	 * we must clear any previous work done when setting set[ug]id
+	 * bits from any earlier bprm->file uses (for example when run
+	 * first for a setuid script then again for its interpreter).
+	 */
 	bprm->cred->euid = current_euid();
 	bprm->cred->egid = current_egid();
 

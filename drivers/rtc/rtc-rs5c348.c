@@ -25,8 +25,6 @@
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 
-#define DRV_VERSION "0.2"
-
 #define RS5C348_REG_SECS	0
 #define RS5C348_REG_MINS	1
 #define RS5C348_REG_HOURS	2
@@ -171,7 +169,6 @@ static int rs5c348_probe(struct spi_device *spi)
 		goto kfree_exit;
 	}
 
-	dev_info(&spi->dev, "chip found, driver version " DRV_VERSION "\n");
 	dev_info(&spi->dev, "spiclk %u KHz.\n",
 		 (spi->max_speed_hz + 500) / 1000);
 
@@ -230,5 +227,4 @@ module_spi_driver(rs5c348_driver);
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("Ricoh RS5C348 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("spi:rtc-rs5c348");

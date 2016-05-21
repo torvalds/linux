@@ -54,7 +54,10 @@ static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 	iattrs->ia_mode = kn->mode;
 	iattrs->ia_uid = GLOBAL_ROOT_UID;
 	iattrs->ia_gid = GLOBAL_ROOT_GID;
-	iattrs->ia_atime = iattrs->ia_mtime = iattrs->ia_ctime = CURRENT_TIME;
+
+	ktime_get_real_ts(&iattrs->ia_atime);
+	iattrs->ia_mtime = iattrs->ia_atime;
+	iattrs->ia_ctime = iattrs->ia_atime;
 
 	simple_xattrs_init(&kn->iattr->xattrs);
 out_unlock:
@@ -208,10 +211,10 @@ int kernfs_iop_removexattr(struct dentry *dentry, const char *name)
 	return simple_xattr_set(&attrs->xattrs, name, NULL, 0, XATTR_REPLACE);
 }
 
-ssize_t kernfs_iop_getxattr(struct dentry *dentry, const char *name, void *buf,
-			    size_t size)
+ssize_t kernfs_iop_getxattr(struct dentry *unused, struct inode *inode,
+			    const char *name, void *buf, size_t size)
 {
-	struct kernfs_node *kn = dentry->d_fsdata;
+	struct kernfs_node *kn = inode->i_private;
 	struct kernfs_iattrs *attrs;
 
 	attrs = kernfs_iattrs(kn);
@@ -236,16 +239,18 @@ ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
 static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
 {
 	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime =
+		inode->i_ctime = current_fs_time(inode->i_sb);
 }
 
 static inline void set_inode_attr(struct inode *inode, struct iattr *iattr)
 {
+	struct super_block *sb = inode->i_sb;
 	inode->i_uid = iattr->ia_uid;
 	inode->i_gid = iattr->ia_gid;
-	inode->i_atime = iattr->ia_atime;
-	inode->i_mtime = iattr->ia_mtime;
-	inode->i_ctime = iattr->ia_ctime;
+	inode->i_atime = timespec_trunc(iattr->ia_atime, sb->s_time_gran);
+	inode->i_mtime = timespec_trunc(iattr->ia_mtime, sb->s_time_gran);
+	inode->i_ctime = timespec_trunc(iattr->ia_ctime, sb->s_time_gran);
 }
 
 static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)

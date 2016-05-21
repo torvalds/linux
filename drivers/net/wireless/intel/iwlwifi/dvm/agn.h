@@ -158,7 +158,7 @@ void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 			 struct iwl_rxon_context *ctx);
 void iwl_set_flags_for_band(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
-			    enum ieee80211_band band,
+			    enum nl80211_band band,
 			    struct ieee80211_vif *vif);
 
 /* uCode */
@@ -186,7 +186,7 @@ int iwl_send_statistics_request(struct iwl_priv *priv,
 				u8 flags, bool clear);
 
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
-			struct iwl_priv *priv, enum ieee80211_band band)
+			struct iwl_priv *priv, enum nl80211_band band)
 {
 	return priv->hw->wiphy->bands[band];
 }
@@ -198,7 +198,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan);
 #endif
 
 /* rx */
-int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
+int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum nl80211_band band);
 void iwl_setup_rx_handlers(struct iwl_priv *priv);
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 
@@ -258,7 +258,7 @@ void iwl_cancel_scan_deferred_work(struct iwl_priv *priv);
 int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 				   struct ieee80211_vif *vif,
 				   enum iwl_scan_type scan_type,
-				   enum ieee80211_band band);
+				   enum nl80211_band band);
 
 /* For faster active scanning, scan will move to the next channel if fewer than
  * PLCP_QUIET_THRESH packets are heard on this channel within

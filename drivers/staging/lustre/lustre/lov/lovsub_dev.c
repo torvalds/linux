@@ -151,8 +151,9 @@ static int lovsub_req_init(const struct lu_env *env, struct cl_device *dev,
 	if (lsr) {
 		cl_req_slice_add(req, &lsr->lsrq_cl, dev, &lovsub_req_ops);
 		result = 0;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
 }
 
@@ -182,10 +183,12 @@ static struct lu_device *lovsub_device_alloc(const struct lu_env *env,
 			d = lovsub2lu_dev(lsd);
 			d->ld_ops	 = &lovsub_lu_ops;
 			lsd->acid_cl.cd_ops = &lovsub_cl_ops;
-		} else
+		} else {
 			d = ERR_PTR(result);
-	} else
+		}
+	} else {
 		d = ERR_PTR(-ENOMEM);
+	}
 	return d;
 }
 

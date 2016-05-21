@@ -190,6 +190,7 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			 * drain settings, but only for INT1 and not
 			 * for the DRDY line on INT2.
 			 */
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_GYRO_1_MULTIREAD_BIT,
 		.bootime = 2,
@@ -203,6 +204,7 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			[2] = LSM330DLC_GYRO_DEV_NAME,
 			[3] = L3G4IS_GYRO_DEV_NAME,
 			[4] = LSM330_GYRO_DEV_NAME,
+			[5] = LSM9DS0_GYRO_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_gyro_16bit_channels,
 		.odr = {
@@ -258,6 +260,7 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			 * drain settings, but only for INT1 and not
 			 * for the DRDY line on INT2.
 			 */
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_GYRO_2_MULTIREAD_BIT,
 		.bootime = 2,
@@ -322,6 +325,7 @@ static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 			 * drain settings, but only for INT1 and not
 			 * for the DRDY line on INT2.
 			 */
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_GYRO_3_MULTIREAD_BIT,
 		.bootime = 2,

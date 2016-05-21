@@ -376,7 +376,7 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	priv->tx_head = TX_NEXT(tx_head);
 
-	ndev->trans_start = jiffies;
+	netif_trans_update(ndev);
 	ret = NETDEV_TX_OK;
 out_unlock:
 	spin_unlock_irq(&priv->txlock);

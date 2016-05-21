@@ -320,7 +320,7 @@ static int medusa_l1_inode_listxattr(struct dentry *dentry)
 	return 0;
 }
 
-static int medusa_l1_inode_getsecurity(const struct inode *inode, const char *name,
+static int medusa_l1_inode_getsecurity(struct inode *inode, const char *name,
 				 void **buffer, bool alloc)
 {
 	return -EOPNOTSUPP;
@@ -340,7 +340,7 @@ static int medusa_l1_inode_listsecurity(struct inode *inode, char *buffer,
 	return 0;
 }
 
-static void medusa_l1_inode_getsecid(const struct inode *inode, u32 *secid)
+static void medusa_l1_inode_getsecid(struct inode *inode, u32 *secid)
 {
 	*secid = 0;
 }
@@ -1353,7 +1353,7 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(kernel_act_as, medusa_l1_kernel_act_as),
 	LSM_HOOK_INIT(kernel_create_files_as, medusa_l1_kernel_create_files_as),
 	LSM_HOOK_INIT(kernel_module_request, medusa_l1_kernel_module_request),
-	LSM_HOOK_INIT(kernel_module_from_file, medusa_l1_kernel_module_from_file),
+	//LSM_HOOK_INIT(kernel_module_from_file, medusa_l1_kernel_module_from_file),
 	LSM_HOOK_INIT(task_fix_setuid, medusa_l1_task_fix_setuid),
 	LSM_HOOK_INIT(task_setpgid, medusa_l1_task_setpgid),
 	LSM_HOOK_INIT(task_getpgid, medusa_l1_task_getpgid),

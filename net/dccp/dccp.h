@@ -198,9 +198,9 @@ struct dccp_mib {
 };
 
 DECLARE_SNMP_STAT(struct dccp_mib, dccp_statistics);
-#define DCCP_INC_STATS(field)	    SNMP_INC_STATS(dccp_statistics, field)
-#define DCCP_INC_STATS_BH(field)    SNMP_INC_STATS_BH(dccp_statistics, field)
-#define DCCP_DEC_STATS(field)	    SNMP_DEC_STATS(dccp_statistics, field)
+#define DCCP_INC_STATS(field)	SNMP_INC_STATS(dccp_statistics, field)
+#define __DCCP_INC_STATS(field)	__SNMP_INC_STATS(dccp_statistics, field)
+#define DCCP_DEC_STATS(field)	SNMP_DEC_STATS(dccp_statistics, field)
 
 /*
  * 	Checksumming routines

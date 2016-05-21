@@ -17,7 +17,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -666,7 +666,7 @@ static void sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 	struct uart_port *port = &s->p[portno].port;
 
 	do {
-		unsigned int iir, msr, rxlen;
+		unsigned int iir, rxlen;
 
 		iir = sc16is7xx_port_read(port, SC16IS7XX_IIR_REG);
 		if (iir & SC16IS7XX_IIR_NO_INT_BIT)
@@ -682,12 +682,6 @@ static void sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 			rxlen = sc16is7xx_port_read(port, SC16IS7XX_RXLVL_REG);
 			if (rxlen)
 				sc16is7xx_handle_rx(port, rxlen, iir);
-			break;
-
-		case SC16IS7XX_IIR_CTSRTS_SRC:
-			msr = sc16is7xx_port_read(port, SC16IS7XX_MSR_REG);
-			uart_handle_cts_change(port,
-					       !!(msr & SC16IS7XX_MSR_DCTS_BIT));
 			break;
 		case SC16IS7XX_IIR_THRI_SRC:
 			sc16is7xx_handle_tx(port);
@@ -1014,9 +1008,8 @@ static int sc16is7xx_startup(struct uart_port *port)
 			      SC16IS7XX_EFCR_TXDISABLE_BIT,
 			      0);
 
-	/* Enable RX, TX, CTS change interrupts */
-	val = SC16IS7XX_IER_RDI_BIT | SC16IS7XX_IER_THRI_BIT |
-	      SC16IS7XX_IER_CTSI_BIT;
+	/* Enable RX, TX interrupts */
+	val = SC16IS7XX_IER_RDI_BIT | SC16IS7XX_IER_THRI_BIT;
 	sc16is7xx_port_write(port, SC16IS7XX_IER_REG, val);
 
 	return 0;
@@ -1104,8 +1097,7 @@ static const struct uart_ops sc16is7xx_ops = {
 static int sc16is7xx_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	unsigned int val;
-	struct sc16is7xx_port *s = container_of(chip, struct sc16is7xx_port,
-						gpio);
+	struct sc16is7xx_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[0].port;
 
 	val = sc16is7xx_port_read(port, SC16IS7XX_IOSTATE_REG);
@@ -1115,8 +1107,7 @@ static int sc16is7xx_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void sc16is7xx_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct sc16is7xx_port *s = container_of(chip, struct sc16is7xx_port,
-						gpio);
+	struct sc16is7xx_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[0].port;
 
 	sc16is7xx_port_update(port, SC16IS7XX_IOSTATE_REG, BIT(offset),
@@ -1126,8 +1117,7 @@ static void sc16is7xx_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 static int sc16is7xx_gpio_direction_input(struct gpio_chip *chip,
 					  unsigned offset)
 {
-	struct sc16is7xx_port *s = container_of(chip, struct sc16is7xx_port,
-						gpio);
+	struct sc16is7xx_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[0].port;
 
 	sc16is7xx_port_update(port, SC16IS7XX_IODIR_REG, BIT(offset), 0);
@@ -1138,8 +1128,7 @@ static int sc16is7xx_gpio_direction_input(struct gpio_chip *chip,
 static int sc16is7xx_gpio_direction_output(struct gpio_chip *chip,
 					   unsigned offset, int val)
 {
-	struct sc16is7xx_port *s = container_of(chip, struct sc16is7xx_port,
-						gpio);
+	struct sc16is7xx_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[0].port;
 
 	sc16is7xx_port_update(port, SC16IS7XX_IOSTATE_REG, BIT(offset),
@@ -1210,7 +1199,7 @@ static int sc16is7xx_probe(struct device *dev,
 		s->gpio.base		 = -1;
 		s->gpio.ngpio		 = devtype->nr_gpio;
 		s->gpio.can_sleep	 = 1;
-		ret = gpiochip_add(&s->gpio);
+		ret = gpiochip_add_data(&s->gpio, s);
 		if (ret)
 			goto out_thread;
 	}

@@ -58,6 +58,55 @@ static DEFINE_SPINLOCK(dev_list_lock);
 
 static struct class *nvme_class;
 
+bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
+		enum nvme_ctrl_state new_state)
+{
+	enum nvme_ctrl_state old_state = ctrl->state;
+	bool changed = false;
+
+	spin_lock_irq(&ctrl->lock);
+	switch (new_state) {
+	case NVME_CTRL_LIVE:
+		switch (old_state) {
+		case NVME_CTRL_RESETTING:
+			changed = true;
+			/* FALLTHRU */
+		default:
+			break;
+		}
+		break;
+	case NVME_CTRL_RESETTING:
+		switch (old_state) {
+		case NVME_CTRL_NEW:
+		case NVME_CTRL_LIVE:
+			changed = true;
+			/* FALLTHRU */
+		default:
+			break;
+		}
+		break;
+	case NVME_CTRL_DELETING:
+		switch (old_state) {
+		case NVME_CTRL_LIVE:
+		case NVME_CTRL_RESETTING:
+			changed = true;
+			/* FALLTHRU */
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+	spin_unlock_irq(&ctrl->lock);
+
+	if (changed)
+		ctrl->state = new_state;
+
+	return changed;
+}
+EXPORT_SYMBOL_GPL(nvme_change_ctrl_state);
+
 static void nvme_free_ns(struct kref *kref)
 {
 	struct nvme_ns *ns = container_of(kref, struct nvme_ns, kref);
@@ -137,6 +186,111 @@ struct request *nvme_alloc_request(struct request_queue *q,
 	return req;
 }
 EXPORT_SYMBOL_GPL(nvme_alloc_request);
+
+static inline void nvme_setup_flush(struct nvme_ns *ns,
+		struct nvme_command *cmnd)
+{
+	memset(cmnd, 0, sizeof(*cmnd));
+	cmnd->common.opcode = nvme_cmd_flush;
+	cmnd->common.nsid = cpu_to_le32(ns->ns_id);
+}
+
+static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
+		struct nvme_command *cmnd)
+{
+	struct nvme_dsm_range *range;
+	struct page *page;
+	int offset;
+	unsigned int nr_bytes = blk_rq_bytes(req);
+
+	range = kmalloc(sizeof(*range), GFP_ATOMIC);
+	if (!range)
+		return BLK_MQ_RQ_QUEUE_BUSY;
+
+	range->cattr = cpu_to_le32(0);
+	range->nlb = cpu_to_le32(nr_bytes >> ns->lba_shift);
+	range->slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
+
+	memset(cmnd, 0, sizeof(*cmnd));
+	cmnd->dsm.opcode = nvme_cmd_dsm;
+	cmnd->dsm.nsid = cpu_to_le32(ns->ns_id);
+	cmnd->dsm.nr = 0;
+	cmnd->dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
+
+	req->completion_data = range;
+	page = virt_to_page(range);
+	offset = offset_in_page(range);
+	blk_add_request_payload(req, page, offset, sizeof(*range));
+
+	/*
+	 * we set __data_len back to the size of the area to be discarded
+	 * on disk. This allows us to report completion on the full amount
+	 * of blocks described by the request.
+	 */
+	req->__data_len = nr_bytes;
+
+	return 0;
+}
+
+static inline void nvme_setup_rw(struct nvme_ns *ns, struct request *req,
+		struct nvme_command *cmnd)
+{
+	u16 control = 0;
+	u32 dsmgmt = 0;
+
+	if (req->cmd_flags & REQ_FUA)
+		control |= NVME_RW_FUA;
+	if (req->cmd_flags & (REQ_FAILFAST_DEV | REQ_RAHEAD))
+		control |= NVME_RW_LR;
+
+	if (req->cmd_flags & REQ_RAHEAD)
+		dsmgmt |= NVME_RW_DSM_FREQ_PREFETCH;
+
+	memset(cmnd, 0, sizeof(*cmnd));
+	cmnd->rw.opcode = (rq_data_dir(req) ? nvme_cmd_write : nvme_cmd_read);
+	cmnd->rw.command_id = req->tag;
+	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
+	cmnd->rw.slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
+	cmnd->rw.length = cpu_to_le16((blk_rq_bytes(req) >> ns->lba_shift) - 1);
+
+	if (ns->ms) {
+		switch (ns->pi_type) {
+		case NVME_NS_DPS_PI_TYPE3:
+			control |= NVME_RW_PRINFO_PRCHK_GUARD;
+			break;
+		case NVME_NS_DPS_PI_TYPE1:
+		case NVME_NS_DPS_PI_TYPE2:
+			control |= NVME_RW_PRINFO_PRCHK_GUARD |
+					NVME_RW_PRINFO_PRCHK_REF;
+			cmnd->rw.reftag = cpu_to_le32(
+					nvme_block_nr(ns, blk_rq_pos(req)));
+			break;
+		}
+		if (!blk_integrity_rq(req))
+			control |= NVME_RW_PRINFO_PRACT;
+	}
+
+	cmnd->rw.control = cpu_to_le16(control);
+	cmnd->rw.dsmgmt = cpu_to_le32(dsmgmt);
+}
+
+int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
+		struct nvme_command *cmd)
+{
+	int ret = 0;
+
+	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
+		memcpy(cmd, req->cmd, sizeof(*cmd));
+	else if (req->cmd_flags & REQ_FLUSH)
+		nvme_setup_flush(ns, cmd);
+	else if (req->cmd_flags & REQ_DISCARD)
+		ret = nvme_setup_discard(ns, req, cmd);
+	else
+		nvme_setup_rw(ns, req, cmd);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nvme_setup_cmd);
 
 /*
  * Returns 0 on success.  If the result is negative, it's a Linux error code;
@@ -894,6 +1048,8 @@ EXPORT_SYMBOL_GPL(nvme_shutdown_ctrl);
 static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 		struct request_queue *q)
 {
+	bool vwc = false;
+
 	if (ctrl->max_hw_sectors) {
 		u32 max_segments =
 			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1;
@@ -903,9 +1059,10 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 	}
 	if (ctrl->stripe_size)
 		blk_queue_chunk_sectors(q, ctrl->stripe_size >> 9);
-	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
-		blk_queue_flush(q, REQ_FLUSH | REQ_FUA);
 	blk_queue_virt_boundary(q, ctrl->page_size - 1);
+	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
+		vwc = true;
+	blk_queue_write_cache(q, vwc, vwc);
 }
 
 /*
@@ -1272,7 +1429,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	if (nvme_revalidate_disk(ns->disk))
 		goto out_free_disk;
 
-	list_add_tail(&ns->list, &ctrl->namespaces);
+	list_add_tail_rcu(&ns->list, &ctrl->namespaces);
 	kref_get(&ctrl->kref);
 	if (ns->type == NVME_NS_LIGHTNVM)
 		return;
@@ -1295,6 +1452,8 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 static void nvme_ns_remove(struct nvme_ns *ns)
 {
+	lockdep_assert_held(&ns->ctrl->namespaces_mutex);
+
 	if (test_and_set_bit(NVME_NS_REMOVING, &ns->flags))
 		return;
 
@@ -1307,9 +1466,8 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 		blk_mq_abort_requeue_list(ns->queue);
 		blk_cleanup_queue(ns->queue);
 	}
-	mutex_lock(&ns->ctrl->namespaces_mutex);
 	list_del_init(&ns->list);
-	mutex_unlock(&ns->ctrl->namespaces_mutex);
+	synchronize_rcu();
 	nvme_put_ns(ns);
 }
 
@@ -1361,7 +1519,7 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl, unsigned nn)
 	return ret;
 }
 
-static void __nvme_scan_namespaces(struct nvme_ctrl *ctrl, unsigned nn)
+static void nvme_scan_ns_sequential(struct nvme_ctrl *ctrl, unsigned nn)
 {
 	struct nvme_ns *ns, *next;
 	unsigned i;
@@ -1377,10 +1535,15 @@ static void __nvme_scan_namespaces(struct nvme_ctrl *ctrl, unsigned nn)
 	}
 }
 
-void nvme_scan_namespaces(struct nvme_ctrl *ctrl)
+static void nvme_scan_work(struct work_struct *work)
 {
+	struct nvme_ctrl *ctrl =
+		container_of(work, struct nvme_ctrl, scan_work);
 	struct nvme_id_ctrl *id;
 	unsigned nn;
+
+	if (ctrl->state != NVME_CTRL_LIVE)
+		return;
 
 	if (nvme_identify_ctrl(ctrl, &id))
 		return;
@@ -1392,22 +1555,85 @@ void nvme_scan_namespaces(struct nvme_ctrl *ctrl)
 		if (!nvme_scan_ns_list(ctrl, nn))
 			goto done;
 	}
-	__nvme_scan_namespaces(ctrl, le32_to_cpup(&id->nn));
+	nvme_scan_ns_sequential(ctrl, nn);
  done:
 	list_sort(NULL, &ctrl->namespaces, ns_cmp);
 	mutex_unlock(&ctrl->namespaces_mutex);
 	kfree(id);
+
+	if (ctrl->ops->post_scan)
+		ctrl->ops->post_scan(ctrl);
 }
-EXPORT_SYMBOL_GPL(nvme_scan_namespaces);
+
+void nvme_queue_scan(struct nvme_ctrl *ctrl)
+{
+	/*
+	 * Do not queue new scan work when a controller is reset during
+	 * removal.
+	 */
+	if (ctrl->state == NVME_CTRL_LIVE)
+		schedule_work(&ctrl->scan_work);
+}
+EXPORT_SYMBOL_GPL(nvme_queue_scan);
 
 void nvme_remove_namespaces(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns, *next;
 
+	mutex_lock(&ctrl->namespaces_mutex);
 	list_for_each_entry_safe(ns, next, &ctrl->namespaces, list)
 		nvme_ns_remove(ns);
+	mutex_unlock(&ctrl->namespaces_mutex);
 }
 EXPORT_SYMBOL_GPL(nvme_remove_namespaces);
+
+static void nvme_async_event_work(struct work_struct *work)
+{
+	struct nvme_ctrl *ctrl =
+		container_of(work, struct nvme_ctrl, async_event_work);
+
+	spin_lock_irq(&ctrl->lock);
+	while (ctrl->event_limit > 0) {
+		int aer_idx = --ctrl->event_limit;
+
+		spin_unlock_irq(&ctrl->lock);
+		ctrl->ops->submit_async_event(ctrl, aer_idx);
+		spin_lock_irq(&ctrl->lock);
+	}
+	spin_unlock_irq(&ctrl->lock);
+}
+
+void nvme_complete_async_event(struct nvme_ctrl *ctrl,
+		struct nvme_completion *cqe)
+{
+	u16 status = le16_to_cpu(cqe->status) >> 1;
+	u32 result = le32_to_cpu(cqe->result);
+
+	if (status == NVME_SC_SUCCESS || status == NVME_SC_ABORT_REQ) {
+		++ctrl->event_limit;
+		schedule_work(&ctrl->async_event_work);
+	}
+
+	if (status != NVME_SC_SUCCESS)
+		return;
+
+	switch (result & 0xff07) {
+	case NVME_AER_NOTICE_NS_CHANGED:
+		dev_info(ctrl->device, "rescanning\n");
+		nvme_queue_scan(ctrl);
+		break;
+	default:
+		dev_warn(ctrl->device, "async event result %08x\n", result);
+	}
+}
+EXPORT_SYMBOL_GPL(nvme_complete_async_event);
+
+void nvme_queue_async_events(struct nvme_ctrl *ctrl)
+{
+	ctrl->event_limit = NVME_NR_AERS;
+	schedule_work(&ctrl->async_event_work);
+}
+EXPORT_SYMBOL_GPL(nvme_queue_async_events);
 
 static DEFINE_IDA(nvme_instance_ida);
 
@@ -1440,6 +1666,10 @@ static void nvme_release_instance(struct nvme_ctrl *ctrl)
 
 void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
 {
+	flush_work(&ctrl->async_event_work);
+	flush_work(&ctrl->scan_work);
+	nvme_remove_namespaces(ctrl);
+
 	device_destroy(nvme_class, MKDEV(nvme_char_major, ctrl->instance));
 
 	spin_lock(&dev_list_lock);
@@ -1475,12 +1705,16 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 {
 	int ret;
 
+	ctrl->state = NVME_CTRL_NEW;
+	spin_lock_init(&ctrl->lock);
 	INIT_LIST_HEAD(&ctrl->namespaces);
 	mutex_init(&ctrl->namespaces_mutex);
 	kref_init(&ctrl->kref);
 	ctrl->dev = dev;
 	ctrl->ops = ops;
 	ctrl->quirks = quirks;
+	INIT_WORK(&ctrl->scan_work, nvme_scan_work);
+	INIT_WORK(&ctrl->async_event_work, nvme_async_event_work);
 
 	ret = nvme_set_instance(ctrl);
 	if (ret)
@@ -1520,8 +1754,8 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
 
-	mutex_lock(&ctrl->namespaces_mutex);
-	list_for_each_entry(ns, &ctrl->namespaces, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ns, &ctrl->namespaces, list) {
 		if (!kref_get_unless_zero(&ns->kref))
 			continue;
 
@@ -1538,7 +1772,7 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 
 		nvme_put_ns(ns);
 	}
-	mutex_unlock(&ctrl->namespaces_mutex);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nvme_kill_queues);
 
@@ -1546,8 +1780,8 @@ void nvme_stop_queues(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
 
-	mutex_lock(&ctrl->namespaces_mutex);
-	list_for_each_entry(ns, &ctrl->namespaces, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ns, &ctrl->namespaces, list) {
 		spin_lock_irq(ns->queue->queue_lock);
 		queue_flag_set(QUEUE_FLAG_STOPPED, ns->queue);
 		spin_unlock_irq(ns->queue->queue_lock);
@@ -1555,7 +1789,7 @@ void nvme_stop_queues(struct nvme_ctrl *ctrl)
 		blk_mq_cancel_requeue_work(ns->queue);
 		blk_mq_stop_hw_queues(ns->queue);
 	}
-	mutex_unlock(&ctrl->namespaces_mutex);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nvme_stop_queues);
 
@@ -1563,13 +1797,13 @@ void nvme_start_queues(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns;
 
-	mutex_lock(&ctrl->namespaces_mutex);
-	list_for_each_entry(ns, &ctrl->namespaces, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ns, &ctrl->namespaces, list) {
 		queue_flag_clear_unlocked(QUEUE_FLAG_STOPPED, ns->queue);
 		blk_mq_start_stopped_hw_queues(ns->queue, true);
 		blk_mq_kick_requeue_list(ns->queue);
 	}
-	mutex_unlock(&ctrl->namespaces_mutex);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nvme_start_queues);
 
@@ -1607,9 +1841,9 @@ int __init nvme_core_init(void)
 
 void nvme_core_exit(void)
 {
-	unregister_blkdev(nvme_major, "nvme");
 	class_destroy(nvme_class);
 	__unregister_chrdev(nvme_char_major, 0, NVME_MINORS, "nvme");
+	unregister_blkdev(nvme_major, "nvme");
 }
 
 MODULE_LICENSE("GPL");

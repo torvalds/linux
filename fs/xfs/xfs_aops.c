@@ -1406,8 +1406,7 @@ xfs_end_io_direct_write(
 STATIC ssize_t
 xfs_vm_direct_IO(
 	struct kiocb		*iocb,
-	struct iov_iter		*iter,
-	loff_t			offset)
+	struct iov_iter		*iter)
 {
 	struct inode		*inode = iocb->ki_filp->f_mapping->host;
 	dio_iodone_t		*endio = NULL;
@@ -1420,12 +1419,12 @@ xfs_vm_direct_IO(
 	}
 
 	if (IS_DAX(inode)) {
-		return dax_do_io(iocb, inode, iter, offset,
+		return dax_do_io(iocb, inode, iter,
 				 xfs_get_blocks_direct, endio, 0);
 	}
 
 	bdev = xfs_find_bdev_for_inode(inode);
-	return  __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
+	return  __blockdev_direct_IO(iocb, inode, bdev, iter,
 			xfs_get_blocks_direct, endio, NULL, flags);
 }
 

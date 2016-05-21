@@ -190,7 +190,6 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 
 	if (ent->driver_data) {
 		struct mwifiex_pcie_device *data = (void *)ent->driver_data;
-		card->pcie.firmware = data->firmware;
 		card->pcie.reg = data->reg;
 		card->pcie.blksz_fw_dl = data->blksz_fw_dl;
 		card->pcie.tx_buf_size = data->tx_buf_size;
@@ -266,6 +265,11 @@ static const struct pci_device_id mwifiex_ids[] = {
 	},
 	{
 		PCIE_VENDOR_ID_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8997,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		.driver_data = (unsigned long)&mwifiex_pcie8997,
+	},
+	{
+		PCIE_VENDOR_ID_V2_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8997,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		.driver_data = (unsigned long)&mwifiex_pcie8997,
 	},
@@ -2351,6 +2355,47 @@ static int mwifiex_pcie_host_to_card(struct mwifiex_adapter *adapter, u8 type,
 	return 0;
 }
 
+/* Function to dump PCIE scratch registers in case of FW crash
+ */
+static int
+mwifiex_pcie_reg_dump(struct mwifiex_adapter *adapter, char *drv_buf)
+{
+	char *p = drv_buf;
+	char buf[256], *ptr;
+	int i;
+	u32 value;
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+	int pcie_scratch_reg[] = {PCIE_SCRATCH_12_REG,
+				  PCIE_SCRATCH_13_REG,
+				  PCIE_SCRATCH_14_REG};
+
+	if (!p)
+		return 0;
+
+	mwifiex_dbg(adapter, MSG, "PCIE register dump start\n");
+
+	if (mwifiex_read_reg(adapter, reg->fw_status, &value)) {
+		mwifiex_dbg(adapter, ERROR, "failed to read firmware status");
+		return 0;
+	}
+
+	ptr = buf;
+	mwifiex_dbg(adapter, MSG, "pcie scratch register:");
+	for (i = 0; i < ARRAY_SIZE(pcie_scratch_reg); i++) {
+		mwifiex_read_reg(adapter, pcie_scratch_reg[i], &value);
+		ptr += sprintf(ptr, "reg:0x%x, value=0x%x\n",
+			       pcie_scratch_reg[i], value);
+	}
+
+	mwifiex_dbg(adapter, MSG, "%s\n", buf);
+	p += sprintf(p, "%s\n", buf);
+
+	mwifiex_dbg(adapter, MSG, "PCIE register dump end\n");
+
+	return p - drv_buf;
+}
+
 /* This function read/write firmware */
 static enum rdwr_status
 mwifiex_pcie_rdwr_firmware(struct mwifiex_adapter *adapter, u8 doneflag)
@@ -2759,6 +2804,68 @@ static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
 }
 
 /*
+ * This function get firmare name for downloading by revision id
+ *
+ * Read revision id register to get revision id
+ */
+static void mwifiex_pcie_get_fw_name(struct mwifiex_adapter *adapter)
+{
+	int revision_id = 0;
+	int version;
+	struct pcie_service_card *card = adapter->card;
+
+	switch (card->dev->device) {
+	case PCIE_DEVICE_ID_MARVELL_88W8766P:
+		strcpy(adapter->fw_name, PCIE8766_DEFAULT_FW_NAME);
+		break;
+	case PCIE_DEVICE_ID_MARVELL_88W8897:
+		mwifiex_write_reg(adapter, 0x0c58, 0x80c00000);
+		mwifiex_read_reg(adapter, 0x0c58, &revision_id);
+		revision_id &= 0xff00;
+		switch (revision_id) {
+		case PCIE8897_A0:
+			strcpy(adapter->fw_name, PCIE8897_A0_FW_NAME);
+			break;
+		case PCIE8897_B0:
+			strcpy(adapter->fw_name, PCIE8897_B0_FW_NAME);
+			break;
+		default:
+			strcpy(adapter->fw_name, PCIE8897_DEFAULT_FW_NAME);
+
+			break;
+		}
+		break;
+	case PCIE_DEVICE_ID_MARVELL_88W8997:
+		mwifiex_read_reg(adapter, 0x0c48, &revision_id);
+		mwifiex_read_reg(adapter, 0x0cd0, &version);
+		version &= 0x7;
+		switch (revision_id) {
+		case PCIE8997_V2:
+			if (version == CHIP_VER_PCIEUSB)
+				strcpy(adapter->fw_name,
+				       PCIEUSB8997_FW_NAME_V2);
+			else
+				strcpy(adapter->fw_name,
+				       PCIEUART8997_FW_NAME_V2);
+			break;
+		case PCIE8997_Z:
+			if (version == CHIP_VER_PCIEUSB)
+				strcpy(adapter->fw_name,
+				       PCIEUSB8997_FW_NAME_Z);
+			else
+				strcpy(adapter->fw_name,
+				       PCIEUART8997_FW_NAME_Z);
+			break;
+		default:
+			strcpy(adapter->fw_name, PCIE8997_DEFAULT_FW_NAME);
+			break;
+		}
+	default:
+		break;
+	}
+}
+
+/*
  * This function registers the PCIE device.
  *
  * PCIE IRQ is claimed, block size is set and driver data is initialized.
@@ -2778,8 +2885,8 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	adapter->tx_buf_size = card->pcie.tx_buf_size;
 	adapter->mem_type_mapping_tbl = card->pcie.mem_type_mapping_tbl;
 	adapter->num_mem_types = card->pcie.num_mem_types;
-	strcpy(adapter->fw_name, card->pcie.firmware);
 	adapter->ext_scan = card->pcie.can_ext_scan;
+	mwifiex_pcie_get_fw_name(adapter);
 
 	return 0;
 }
@@ -2850,6 +2957,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.cleanup_mpa_buf =		NULL,
 	.init_fw_port =			mwifiex_pcie_init_fw_port,
 	.clean_pcie_ring =		mwifiex_clean_pcie_ring_buf,
+	.reg_dump =			mwifiex_pcie_reg_dump,
 	.device_dump =			mwifiex_pcie_device_dump,
 };
 
@@ -2907,6 +3015,3 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex PCI-Express Driver version " PCIE_VERSION);
 MODULE_VERSION(PCIE_VERSION);
 MODULE_LICENSE("GPL v2");
-MODULE_FIRMWARE(PCIE8766_DEFAULT_FW_NAME);
-MODULE_FIRMWARE(PCIE8897_DEFAULT_FW_NAME);
-MODULE_FIRMWARE(PCIE8997_DEFAULT_FW_NAME);

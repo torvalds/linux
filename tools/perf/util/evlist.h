@@ -87,6 +87,17 @@ int perf_evlist__add_dummy(struct perf_evlist *evlist);
 int perf_evlist__add_newtp(struct perf_evlist *evlist,
 			   const char *sys, const char *name, void *handler);
 
+void __perf_evlist__set_sample_bit(struct perf_evlist *evlist,
+				   enum perf_event_sample_format bit);
+void __perf_evlist__reset_sample_bit(struct perf_evlist *evlist,
+				     enum perf_event_sample_format bit);
+
+#define perf_evlist__set_sample_bit(evlist, bit) \
+	__perf_evlist__set_sample_bit(evlist, PERF_SAMPLE_##bit)
+
+#define perf_evlist__reset_sample_bit(evlist, bit) \
+	__perf_evlist__reset_sample_bit(evlist, PERF_SAMPLE_##bit)
+
 int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter);
 int perf_evlist__set_filter_pid(struct perf_evlist *evlist, pid_t pid);
 int perf_evlist__set_filter_pids(struct perf_evlist *evlist, size_t npids, pid_t *pids);
@@ -118,16 +129,23 @@ struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id);
 
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx);
 
+union perf_event *perf_evlist__mmap_read_backward(struct perf_evlist *evlist,
+						  int idx);
+void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx);
+
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx);
 
 int perf_evlist__open(struct perf_evlist *evlist);
 void perf_evlist__close(struct perf_evlist *evlist);
 
+struct callchain_param;
+
 void perf_evlist__set_id_pos(struct perf_evlist *evlist);
 bool perf_can_sample_identifier(void);
 bool perf_can_record_switch_events(void);
 bool perf_can_record_cpu_wide(void);
-void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts);
+void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts,
+			 struct callchain_param *callchain);
 int record_opts__config(struct record_opts *opts);
 
 int perf_evlist__prepare_workload(struct perf_evlist *evlist,
@@ -143,6 +161,8 @@ int __perf_evlist__parse_mmap_pages(unsigned int *mmap_pages, const char *str);
 int perf_evlist__parse_mmap_pages(const struct option *opt,
 				  const char *str,
 				  int unset);
+
+unsigned long perf_event_mlock_kb_in_pages(void);
 
 int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 			 bool overwrite, unsigned int auxtrace_pages,

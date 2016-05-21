@@ -69,9 +69,9 @@
 
 #define IGB_SYSTIM_OVERFLOW_PERIOD	(HZ * 60 * 9)
 #define IGB_PTP_TX_TIMEOUT		(HZ * 15)
-#define INCPERIOD_82576			(1 << E1000_TIMINCA_16NS_SHIFT)
-#define INCVALUE_82576_MASK		((1 << E1000_TIMINCA_16NS_SHIFT) - 1)
-#define INCVALUE_82576			(16 << IGB_82576_TSYNC_SHIFT)
+#define INCPERIOD_82576			BIT(E1000_TIMINCA_16NS_SHIFT)
+#define INCVALUE_82576_MASK		GENMASK(E1000_TIMINCA_16NS_SHIFT - 1, 0)
+#define INCVALUE_82576			(16u << IGB_82576_TSYNC_SHIFT)
 #define IGB_NBITS_82580			40
 
 static void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
@@ -722,11 +722,29 @@ static void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct skb_shared_hwtstamps shhwtstamps;
 	u64 regval;
+	int adjust = 0;
 
 	regval = rd32(E1000_TXSTMPL);
 	regval |= (u64)rd32(E1000_TXSTMPH) << 32;
 
 	igb_ptp_systim_to_hwtstamp(adapter, &shhwtstamps, regval);
+	/* adjust timestamp for the TX latency based on link speed */
+	if (adapter->hw.mac.type == e1000_i210) {
+		switch (adapter->link_speed) {
+		case SPEED_10:
+			adjust = IGB_I210_TX_LATENCY_10;
+			break;
+		case SPEED_100:
+			adjust = IGB_I210_TX_LATENCY_100;
+			break;
+		case SPEED_1000:
+			adjust = IGB_I210_TX_LATENCY_1000;
+			break;
+		}
+	}
+
+	shhwtstamps.hwtstamp = ktime_sub_ns(shhwtstamps.hwtstamp, adjust);
+
 	skb_tstamp_tx(adapter->ptp_tx_skb, &shhwtstamps);
 	dev_kfree_skb_any(adapter->ptp_tx_skb);
 	adapter->ptp_tx_skb = NULL;
@@ -771,6 +789,7 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct e1000_hw *hw = &adapter->hw;
 	u64 regval;
+	int adjust = 0;
 
 	/* If this bit is set, then the RX registers contain the time stamp. No
 	 * other packet will be time stamped until we read these registers, so
@@ -789,6 +808,23 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 	regval |= (u64)rd32(E1000_RXSTMPH) << 32;
 
 	igb_ptp_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
+
+	/* adjust timestamp for the RX latency based on link speed */
+	if (adapter->hw.mac.type == e1000_i210) {
+		switch (adapter->link_speed) {
+		case SPEED_10:
+			adjust = IGB_I210_RX_LATENCY_10;
+			break;
+		case SPEED_100:
+			adjust = IGB_I210_RX_LATENCY_100;
+			break;
+		case SPEED_1000:
+			adjust = IGB_I210_RX_LATENCY_1000;
+			break;
+		}
+	}
+	skb_hwtstamps(skb)->hwtstamp =
+		ktime_add_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
 
 	/* Update the last_rx_timestamp timer in order to enable watchdog check
 	 * for error case of latched timestamp on a dropped packet.

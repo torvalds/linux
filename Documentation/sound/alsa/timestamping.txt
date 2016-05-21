@@ -129,7 +129,7 @@ will be required to issue multiple queries and perform an
 interpolation of the results
 
 In some hardware-specific configuration, the system timestamp is
-latched by a low-level audio subsytem, and the information provided
+latched by a low-level audio subsystem, and the information provided
 back to the driver. Due to potential delays in the communication with
 the hardware, there is a risk of misalignment with the avail and delay
 information. To make sure applications are not confused, a

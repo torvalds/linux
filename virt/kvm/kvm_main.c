@@ -2028,6 +2028,8 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 			 */
 			if (kvm_vcpu_check_block(vcpu) < 0) {
 				++vcpu->stat.halt_successful_poll;
+				if (!vcpu_valid_wakeup(vcpu))
+					++vcpu->stat.halt_poll_invalid;
 				goto out;
 			}
 			cur = ktime_get();
@@ -2053,7 +2055,9 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 out:
 	block_ns = ktime_to_ns(cur) - ktime_to_ns(start);
 
-	if (halt_poll_ns) {
+	if (!vcpu_valid_wakeup(vcpu))
+		shrink_halt_poll_ns(vcpu);
+	else if (halt_poll_ns) {
 		if (block_ns <= vcpu->halt_poll_ns)
 			;
 		/* we had a long block, shrink polling */
@@ -2066,18 +2070,14 @@ out:
 	} else
 		vcpu->halt_poll_ns = 0;
 
-	trace_kvm_vcpu_wakeup(block_ns, waited);
+	trace_kvm_vcpu_wakeup(block_ns, waited, vcpu_valid_wakeup(vcpu));
+	kvm_arch_vcpu_block_finish(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_block);
 
 #ifndef CONFIG_S390
-/*
- * Kick a sleeping VCPU, or a guest VCPU in guest mode, into host kernel mode.
- */
-void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
+void kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 {
-	int me;
-	int cpu = vcpu->cpu;
 	struct swait_queue_head *wqp;
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
@@ -2086,6 +2086,18 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 		++vcpu->stat.halt_wakeup;
 	}
 
+}
+EXPORT_SYMBOL_GPL(kvm_vcpu_wake_up);
+
+/*
+ * Kick a sleeping VCPU, or a guest VCPU in guest mode, into host kernel mode.
+ */
+void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
+{
+	int me;
+	int cpu = vcpu->cpu;
+
+	kvm_vcpu_wake_up(vcpu);
 	me = get_cpu();
 	if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
 		if (kvm_arch_vcpu_should_kick(vcpu))
@@ -2272,7 +2284,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	int r;
 	struct kvm_vcpu *vcpu;
 
-	if (id >= KVM_MAX_VCPUS)
+	if (id >= KVM_MAX_VCPU_ID)
 		return -EINVAL;
 
 	vcpu = kvm_arch_vcpu_create(kvm, id);
@@ -2746,6 +2758,8 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 	case KVM_CAP_MULTI_ADDRESS_SPACE:
 		return KVM_ADDRESS_SPACE_NUM;
 #endif
+	case KVM_CAP_MAX_VCPU_ID:
+		return KVM_MAX_VCPU_ID;
 	default:
 		break;
 	}

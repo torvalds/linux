@@ -224,9 +224,9 @@ static inline struct page *dio_get_page(struct dio *dio,
  * filesystems can use it to hold additional state between get_block calls and
  * dio_complete.
  */
-static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
-		bool is_async)
+static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
 {
+	loff_t offset = dio->iocb->ki_pos;
 	ssize_t transferred = 0;
 
 	/*
@@ -256,6 +256,7 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 	if (dio->end_io) {
 		int err;
 
+		// XXX: ki_pos??
 		err = dio->end_io(dio->iocb, offset, ret, dio->private);
 		if (err)
 			ret = err;
@@ -265,15 +266,15 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 		inode_dio_end(dio->inode);
 
 	if (is_async) {
-		if (dio->rw & WRITE) {
-			int err;
+		/*
+		 * generic_write_sync expects ki_pos to have been updated
+		 * already, but the submission path only does this for
+		 * synchronous I/O.
+		 */
+		dio->iocb->ki_pos += transferred;
 
-			err = generic_write_sync(dio->iocb->ki_filp, offset,
-						 transferred);
-			if (err < 0 && ret > 0)
-				ret = err;
-		}
-
+		if (dio->rw & WRITE)
+			ret = generic_write_sync(dio->iocb,  transferred);
 		dio->iocb->ki_complete(dio->iocb, ret, 0);
 	}
 
@@ -285,7 +286,7 @@ static void dio_aio_complete_work(struct work_struct *work)
 {
 	struct dio *dio = container_of(work, struct dio, complete_work);
 
-	dio_complete(dio, dio->iocb->ki_pos, 0, true);
+	dio_complete(dio, 0, true);
 }
 
 static int dio_bio_complete(struct dio *dio, struct bio *bio);
@@ -314,7 +315,7 @@ static void dio_bio_end_aio(struct bio *bio)
 			queue_work(dio->inode->i_sb->s_dio_done_wq,
 				   &dio->complete_work);
 		} else {
-			dio_complete(dio, dio->iocb->ki_pos, 0, true);
+			dio_complete(dio, 0, true);
 		}
 	}
 }
@@ -1113,7 +1114,7 @@ static inline int drop_refcount(struct dio *dio)
 static inline ssize_t
 do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		      struct block_device *bdev, struct iov_iter *iter,
-		      loff_t offset, get_block_t get_block, dio_iodone_t end_io,
+		      get_block_t get_block, dio_iodone_t end_io,
 		      dio_submit_t submit_io, int flags)
 {
 	unsigned i_blkbits = ACCESS_ONCE(inode->i_blkbits);
@@ -1121,6 +1122,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	unsigned blocksize_mask = (1 << blkbits) - 1;
 	ssize_t retval = -EINVAL;
 	size_t count = iov_iter_count(iter);
+	loff_t offset = iocb->ki_pos;
 	loff_t end = offset + count;
 	struct dio *dio;
 	struct dio_submit sdio = { 0, };
@@ -1318,7 +1320,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		dio_await_completion(dio);
 
 	if (drop_refcount(dio) == 0) {
-		retval = dio_complete(dio, offset, retval, false);
+		retval = dio_complete(dio, retval, false);
 	} else
 		BUG_ON(retval != -EIOCBQUEUED);
 
@@ -1328,7 +1330,7 @@ out:
 
 ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 			     struct block_device *bdev, struct iov_iter *iter,
-			     loff_t offset, get_block_t get_block,
+			     get_block_t get_block,
 			     dio_iodone_t end_io, dio_submit_t submit_io,
 			     int flags)
 {
@@ -1344,7 +1346,7 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	prefetch(bdev->bd_queue);
 	prefetch((char *)bdev->bd_queue + SMP_CACHE_BYTES);
 
-	return do_blockdev_direct_IO(iocb, inode, bdev, iter, offset, get_block,
+	return do_blockdev_direct_IO(iocb, inode, bdev, iter, get_block,
 				     end_io, submit_io, flags);
 }
 

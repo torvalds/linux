@@ -430,11 +430,11 @@ void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 
 void qib_send_rc_ack(struct rvt_qp *qp);
 
-int qib_make_rc_req(struct rvt_qp *qp);
+int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags);
 
-int qib_make_uc_req(struct rvt_qp *qp);
+int qib_make_uc_req(struct rvt_qp *qp, unsigned long *flags);
 
-int qib_make_ud_req(struct rvt_qp *qp);
+int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags);
 
 int qib_register_ib_device(struct qib_devdata *);
 

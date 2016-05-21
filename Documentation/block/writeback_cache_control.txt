@@ -71,7 +71,7 @@ requests that have a payload.  For devices with volatile write caches the
 driver needs to tell the block layer that it supports flushing caches by
 doing:
 
-	blk_queue_flush(sdkp->disk->queue, REQ_FLUSH);
+	blk_queue_write_cache(sdkp->disk->queue, true, false);
 
 and handle empty REQ_FLUSH requests in its prep_fn/request_fn.  Note that
 REQ_FLUSH requests with a payload are automatically turned into a sequence
@@ -79,7 +79,7 @@ of an empty REQ_FLUSH request followed by the actual write by the block
 layer.  For devices that also support the FUA bit the block layer needs
 to be told to pass through the REQ_FUA bit using:
 
-	blk_queue_flush(sdkp->disk->queue, REQ_FLUSH | REQ_FUA);
+	blk_queue_write_cache(sdkp->disk->queue, true, true);
 
 and the driver must handle write requests that have the REQ_FUA bit set
 in prep_fn/request_fn.  If the FUA bit is not natively supported the block

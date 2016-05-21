@@ -3777,7 +3777,7 @@ static void nfs4_proc_unlink_setup(struct rpc_message *msg, struct inode *dir)
 
 static void nfs4_proc_unlink_rpc_prepare(struct rpc_task *task, struct nfs_unlinkdata *data)
 {
-	nfs4_setup_sequence(NFS_SERVER(data->dir),
+	nfs4_setup_sequence(NFS_SB(data->dentry->d_sb),
 			&data->args.seq_args,
 			&data->res.seq_res,
 			task);
@@ -6263,10 +6263,10 @@ static int nfs4_xattr_set_nfs4_acl(const struct xattr_handler *handler,
 }
 
 static int nfs4_xattr_get_nfs4_acl(const struct xattr_handler *handler,
-				   struct dentry *dentry, const char *key,
-				   void *buf, size_t buflen)
+				   struct dentry *unused, struct inode *inode,
+				   const char *key, void *buf, size_t buflen)
 {
-	return nfs4_proc_get_acl(d_inode(dentry), buf, buflen);
+	return nfs4_proc_get_acl(inode, buf, buflen);
 }
 
 static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
@@ -6288,11 +6288,11 @@ static int nfs4_xattr_set_nfs4_label(const struct xattr_handler *handler,
 }
 
 static int nfs4_xattr_get_nfs4_label(const struct xattr_handler *handler,
-				     struct dentry *dentry, const char *key,
-				     void *buf, size_t buflen)
+				     struct dentry *unused, struct inode *inode,
+				     const char *key, void *buf, size_t buflen)
 {
 	if (security_ismaclabel(key))
-		return nfs4_get_security_label(d_inode(dentry), buf, buflen);
+		return nfs4_get_security_label(inode, buf, buflen);
 	return -EOPNOTSUPP;
 }
 

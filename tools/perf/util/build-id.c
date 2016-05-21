@@ -261,14 +261,14 @@ static int machine__write_buildid_table(struct machine *machine, int fd)
 
 		if (dso__is_vdso(pos)) {
 			name = pos->short_name;
-			name_len = pos->short_name_len + 1;
+			name_len = pos->short_name_len;
 		} else if (dso__is_kcore(pos)) {
 			machine__mmap_name(machine, nm, sizeof(nm));
 			name = nm;
-			name_len = strlen(nm) + 1;
+			name_len = strlen(nm);
 		} else {
 			name = pos->long_name;
-			name_len = pos->long_name_len + 1;
+			name_len = pos->long_name_len;
 		}
 
 		in_kernel = pos->kernel ||
@@ -365,39 +365,17 @@ static char *build_id_cache__dirname_from_path(const char *name,
 int build_id_cache__list_build_ids(const char *pathname,
 				   struct strlist **result)
 {
-	struct strlist *list;
 	char *dir_name;
-	DIR *dir;
-	struct dirent *d;
 	int ret = 0;
 
-	list = strlist__new(NULL, NULL);
 	dir_name = build_id_cache__dirname_from_path(pathname, false, false);
-	if (!list || !dir_name) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!dir_name)
+		return -ENOMEM;
 
-	/* List up all dirents */
-	dir = opendir(dir_name);
-	if (!dir) {
+	*result = lsdir(dir_name, lsdir_no_dot_filter);
+	if (!*result)
 		ret = -errno;
-		goto out;
-	}
-
-	while ((d = readdir(dir)) != NULL) {
-		if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
-			continue;
-		strlist__add(list, d->d_name);
-	}
-	closedir(dir);
-
-out:
 	free(dir_name);
-	if (ret)
-		strlist__delete(list);
-	else
-		*result = list;
 
 	return ret;
 }

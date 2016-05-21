@@ -158,7 +158,7 @@ int tty_throttle_safe(struct tty_struct *tty)
 	int ret = 0;
 
 	mutex_lock(&tty->throttle_mutex);
-	if (!test_bit(TTY_THROTTLED, &tty->flags)) {
+	if (!tty_throttled(tty)) {
 		if (tty->flow_change != TTY_THROTTLE_SAFE)
 			ret = 1;
 		else {
@@ -189,7 +189,7 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 	int ret = 0;
 
 	mutex_lock(&tty->throttle_mutex);
-	if (test_bit(TTY_THROTTLED, &tty->flags)) {
+	if (tty_throttled(tty)) {
 		if (tty->flow_change != TTY_UNTHROTTLE_SAFE)
 			ret = 1;
 		else {

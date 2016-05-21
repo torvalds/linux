@@ -1275,7 +1275,7 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto busy;
 	}
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	stats->tx_bytes += skb->len;
 	goto ok;
 

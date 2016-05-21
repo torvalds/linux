@@ -215,6 +215,7 @@ struct hfi1_pkt_state {
 	struct hfi1_ibport *ibp;
 	struct hfi1_pportdata *ppd;
 	struct verbs_txreq *s_txreq;
+	unsigned long flags;
 };
 
 #define HFI1_PSN_CREDIT  16
@@ -333,9 +334,6 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
 #define PSN_SHIFT 1
 #endif
 #define PSN_MODIFY_MASK 0xFFFFFF
-
-/* Number of bits to pay attention to in the opcode for checking qp type */
-#define OPCODE_QP_MASK 0xE0
 
 /*
  * Compare the lower 24 bits of the msn values.

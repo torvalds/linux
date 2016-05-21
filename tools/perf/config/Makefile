@@ -23,11 +23,17 @@ $(call detected_var,ARCH)
 
 NO_PERF_REGS := 1
 
+# Additional ARCH settings for ppc
+ifeq ($(ARCH),powerpc)
+  NO_PERF_REGS := 0
+  LIBUNWIND_LIBS := -lunwind -lunwind-ppc64
+endif
+
 # Additional ARCH settings for x86
 ifeq ($(ARCH),x86)
   $(call detected,CONFIG_X86)
   ifeq (${IS_64_BIT}, 1)
-    CFLAGS += -DHAVE_ARCH_X86_64_SUPPORT
+    CFLAGS += -DHAVE_ARCH_X86_64_SUPPORT -DHAVE_SYSCALL_TABLE -I$(OUTPUT)arch/x86/include/generated
     ARCH_INCLUDE = ../../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memset_64.S
     LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
     $(call detected,CONFIG_X86_64)
@@ -294,9 +300,6 @@ ifndef NO_LIBELF
   ifeq ($(feature-libelf-getphdrnum), 1)
     CFLAGS += -DHAVE_ELF_GETPHDRNUM_SUPPORT
   endif
-
-  # include ARCH specific config
-  -include $(src-perf)/arch/$(ARCH)/Makefile
 
   ifndef NO_DWARF
     ifeq ($(origin PERF_HAVE_DWARF_REGS), undefined)

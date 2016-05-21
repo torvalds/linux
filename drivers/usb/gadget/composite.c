@@ -66,19 +66,35 @@ function_descriptors(struct usb_function *f,
 {
 	struct usb_descriptor_header **descriptors;
 
+	/*
+	 * NOTE: we try to help gadget drivers which might not be setting
+	 * max_speed appropriately.
+	 */
+
 	switch (speed) {
 	case USB_SPEED_SUPER_PLUS:
 		descriptors = f->ssp_descriptors;
-		break;
+		if (descriptors)
+			break;
+		/* FALLTHROUGH */
 	case USB_SPEED_SUPER:
 		descriptors = f->ss_descriptors;
-		break;
+		if (descriptors)
+			break;
+		/* FALLTHROUGH */
 	case USB_SPEED_HIGH:
 		descriptors = f->hs_descriptors;
-		break;
+		if (descriptors)
+			break;
+		/* FALLTHROUGH */
 	default:
 		descriptors = f->fs_descriptors;
 	}
+
+	/*
+	 * if we can't find any descriptors at all, then this gadget deserves to
+	 * Oops with a NULL pointer dereference
+	 */
 
 	return descriptors;
 }

@@ -38,11 +38,6 @@
 #define DBG(f, x...) \
 	pr_debug(DRIVER_NAME " [%s()]: " f, __func__,## x)
 
-#if defined(CONFIG_LEDS_CLASS) || (defined(CONFIG_LEDS_CLASS_MODULE) && \
-	defined(CONFIG_MMC_SDHCI_MODULE))
-#define SDHCI_USE_LEDS_CLASS
-#endif
-
 #define MAX_TUNING_LOOP 40
 
 static unsigned int debug_quirks = 0;
@@ -53,29 +48,7 @@ static void sdhci_finish_data(struct sdhci_host *);
 static void sdhci_finish_command(struct sdhci_host *);
 static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode);
 static void sdhci_enable_preset_value(struct sdhci_host *host, bool enable);
-static int sdhci_do_get_cd(struct sdhci_host *host);
-
-#ifdef CONFIG_PM
-static int sdhci_runtime_pm_get(struct sdhci_host *host);
-static int sdhci_runtime_pm_put(struct sdhci_host *host);
-static void sdhci_runtime_pm_bus_on(struct sdhci_host *host);
-static void sdhci_runtime_pm_bus_off(struct sdhci_host *host);
-#else
-static inline int sdhci_runtime_pm_get(struct sdhci_host *host)
-{
-	return 0;
-}
-static inline int sdhci_runtime_pm_put(struct sdhci_host *host)
-{
-	return 0;
-}
-static void sdhci_runtime_pm_bus_on(struct sdhci_host *host)
-{
-}
-static void sdhci_runtime_pm_bus_off(struct sdhci_host *host)
-{
-}
-#endif
+static int sdhci_get_cd(struct mmc_host *mmc);
 
 static void sdhci_dumpregs(struct sdhci_host *host)
 {
@@ -171,6 +144,22 @@ static void sdhci_disable_card_detection(struct sdhci_host *host)
 	sdhci_set_card_detection(host, false);
 }
 
+static void sdhci_runtime_pm_bus_on(struct sdhci_host *host)
+{
+	if (host->bus_on)
+		return;
+	host->bus_on = true;
+	pm_runtime_get_noresume(host->mmc->parent);
+}
+
+static void sdhci_runtime_pm_bus_off(struct sdhci_host *host)
+{
+	if (!host->bus_on)
+		return;
+	host->bus_on = false;
+	pm_runtime_put_noidle(host->mmc->parent);
+}
+
 void sdhci_reset(struct sdhci_host *host, u8 mask)
 {
 	unsigned long timeout;
@@ -204,7 +193,7 @@ EXPORT_SYMBOL_GPL(sdhci_reset);
 static void sdhci_do_reset(struct sdhci_host *host, u8 mask)
 {
 	if (host->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
-		if (!sdhci_do_get_cd(host))
+		if (!sdhci_get_cd(host->mmc))
 			return;
 	}
 
@@ -252,7 +241,7 @@ static void sdhci_reinit(struct sdhci_host *host)
 	sdhci_enable_card_detection(host);
 }
 
-static void sdhci_activate_led(struct sdhci_host *host)
+static void __sdhci_led_activate(struct sdhci_host *host)
 {
 	u8 ctrl;
 
@@ -261,7 +250,7 @@ static void sdhci_activate_led(struct sdhci_host *host)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
-static void sdhci_deactivate_led(struct sdhci_host *host)
+static void __sdhci_led_deactivate(struct sdhci_host *host)
 {
 	u8 ctrl;
 
@@ -270,9 +259,9 @@ static void sdhci_deactivate_led(struct sdhci_host *host)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 }
 
-#ifdef SDHCI_USE_LEDS_CLASS
+#if IS_REACHABLE(CONFIG_LEDS_CLASS)
 static void sdhci_led_control(struct led_classdev *led,
-	enum led_brightness brightness)
+			      enum led_brightness brightness)
 {
 	struct sdhci_host *host = container_of(led, struct sdhci_host, led);
 	unsigned long flags;
@@ -283,12 +272,62 @@ static void sdhci_led_control(struct led_classdev *led,
 		goto out;
 
 	if (brightness == LED_OFF)
-		sdhci_deactivate_led(host);
+		__sdhci_led_deactivate(host);
 	else
-		sdhci_activate_led(host);
+		__sdhci_led_activate(host);
 out:
 	spin_unlock_irqrestore(&host->lock, flags);
 }
+
+static int sdhci_led_register(struct sdhci_host *host)
+{
+	struct mmc_host *mmc = host->mmc;
+
+	snprintf(host->led_name, sizeof(host->led_name),
+		 "%s::", mmc_hostname(mmc));
+
+	host->led.name = host->led_name;
+	host->led.brightness = LED_OFF;
+	host->led.default_trigger = mmc_hostname(mmc);
+	host->led.brightness_set = sdhci_led_control;
+
+	return led_classdev_register(mmc_dev(mmc), &host->led);
+}
+
+static void sdhci_led_unregister(struct sdhci_host *host)
+{
+	led_classdev_unregister(&host->led);
+}
+
+static inline void sdhci_led_activate(struct sdhci_host *host)
+{
+}
+
+static inline void sdhci_led_deactivate(struct sdhci_host *host)
+{
+}
+
+#else
+
+static inline int sdhci_led_register(struct sdhci_host *host)
+{
+	return 0;
+}
+
+static inline void sdhci_led_unregister(struct sdhci_host *host)
+{
+}
+
+static inline void sdhci_led_activate(struct sdhci_host *host)
+{
+	__sdhci_led_activate(host);
+}
+
+static inline void sdhci_led_deactivate(struct sdhci_host *host)
+{
+	__sdhci_led_deactivate(host);
+}
+
 #endif
 
 /*****************************************************************************\
@@ -1091,22 +1130,13 @@ static u16 sdhci_get_preset_value(struct sdhci_host *host)
 	return preset;
 }
 
-void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
+u16 sdhci_calc_clk(struct sdhci_host *host, unsigned int clock,
+		   unsigned int *actual_clock)
 {
 	int div = 0; /* Initialized for compiler warning */
 	int real_div = div, clk_mul = 1;
 	u16 clk = 0;
-	unsigned long timeout;
 	bool switch_base_clk = false;
-
-	host->mmc->actual_clock = 0;
-
-	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
-	if (host->quirks2 & SDHCI_QUIRK2_NEED_DELAY_AFTER_INT_CLK_RST)
-		mdelay(1);
-
-	if (clock == 0)
-		return;
 
 	if (host->version >= SDHCI_SPEC_300) {
 		if (host->preset_enabled) {
@@ -1184,10 +1214,29 @@ void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 
 clock_set:
 	if (real_div)
-		host->mmc->actual_clock = (host->max_clk * clk_mul) / real_div;
+		*actual_clock = (host->max_clk * clk_mul) / real_div;
 	clk |= (div & SDHCI_DIV_MASK) << SDHCI_DIVIDER_SHIFT;
 	clk |= ((div & SDHCI_DIV_HI_MASK) >> SDHCI_DIV_MASK_LEN)
 		<< SDHCI_DIVIDER_HI_SHIFT;
+
+	return clk;
+}
+EXPORT_SYMBOL_GPL(sdhci_calc_clk);
+
+void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	u16 clk;
+	unsigned long timeout;
+
+	host->mmc->actual_clock = 0;
+
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+
+	if (clock == 0)
+		return;
+
+	clk = sdhci_calc_clk(host, clock, &host->mmc->actual_clock);
+
 	clk |= SDHCI_CLOCK_INT_EN;
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
 
@@ -1319,8 +1368,6 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	host = mmc_priv(mmc);
 
-	sdhci_runtime_pm_get(host);
-
 	/* Firstly check card presence */
 	present = mmc->ops->get_cd(mmc);
 
@@ -1328,9 +1375,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	WARN_ON(host->mrq != NULL);
 
-#ifndef SDHCI_USE_LEDS_CLASS
-	sdhci_activate_led(host);
-#endif
+	sdhci_led_activate(host);
 
 	/*
 	 * Ensure we don't send the STOP for non-SET_BLOCK_COUNTED
@@ -1405,11 +1450,11 @@ void sdhci_set_uhs_signaling(struct sdhci_host *host, unsigned timing)
 }
 EXPORT_SYMBOL_GPL(sdhci_set_uhs_signaling);
 
-static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
+static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
+	struct sdhci_host *host = mmc_priv(mmc);
 	unsigned long flags;
 	u8 ctrl;
-	struct mmc_host *mmc = host->mmc;
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -1563,18 +1608,10 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+static int sdhci_get_cd(struct mmc_host *mmc)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
-
-	sdhci_runtime_pm_get(host);
-	sdhci_do_set_ios(host, ios);
-	sdhci_runtime_pm_put(host);
-}
-
-static int sdhci_do_get_cd(struct sdhci_host *host)
-{
-	int gpio_cd = mmc_gpio_get_cd(host->mmc);
+	int gpio_cd = mmc_gpio_get_cd(mmc);
 
 	if (host->flags & SDHCI_DEVICE_DEAD)
 		return 0;
@@ -1596,17 +1633,6 @@ static int sdhci_do_get_cd(struct sdhci_host *host)
 
 	/* Host native card detect */
 	return !!(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT);
-}
-
-static int sdhci_get_cd(struct mmc_host *mmc)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-	int ret;
-
-	sdhci_runtime_pm_get(host);
-	ret = sdhci_do_get_cd(host);
-	sdhci_runtime_pm_put(host);
-	return ret;
 }
 
 static int sdhci_check_ro(struct sdhci_host *host)
@@ -1633,8 +1659,9 @@ static int sdhci_check_ro(struct sdhci_host *host)
 
 #define SAMPLE_COUNT	5
 
-static int sdhci_do_get_ro(struct sdhci_host *host)
+static int sdhci_get_ro(struct mmc_host *mmc)
 {
+	struct sdhci_host *host = mmc_priv(mmc);
 	int i, ro_count;
 
 	if (!(host->quirks & SDHCI_QUIRK_UNSTABLE_RO_DETECT))
@@ -1659,17 +1686,6 @@ static void sdhci_hw_reset(struct mmc_host *mmc)
 		host->ops->hw_reset(host);
 }
 
-static int sdhci_get_ro(struct mmc_host *mmc)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-	int ret;
-
-	sdhci_runtime_pm_get(host);
-	ret = sdhci_do_get_ro(host);
-	sdhci_runtime_pm_put(host);
-	return ret;
-}
-
 static void sdhci_enable_sdio_irq_nolock(struct sdhci_host *host, int enable)
 {
 	if (!(host->flags & SDHCI_DEVICE_DEAD)) {
@@ -1689,8 +1705,6 @@ static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	struct sdhci_host *host = mmc_priv(mmc);
 	unsigned long flags;
 
-	sdhci_runtime_pm_get(host);
-
 	spin_lock_irqsave(&host->lock, flags);
 	if (enable)
 		host->flags |= SDHCI_SDIO_IRQ_ENABLED;
@@ -1699,14 +1713,12 @@ static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 
 	sdhci_enable_sdio_irq_nolock(host, enable);
 	spin_unlock_irqrestore(&host->lock, flags);
-
-	sdhci_runtime_pm_put(host);
 }
 
-static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
-						struct mmc_ios *ios)
+static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
+					     struct mmc_ios *ios)
 {
-	struct mmc_host *mmc = host->mmc;
+	struct sdhci_host *host = mmc_priv(mmc);
 	u16 ctrl;
 	int ret;
 
@@ -1794,29 +1806,13 @@ static int sdhci_do_start_signal_voltage_switch(struct sdhci_host *host,
 	}
 }
 
-static int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
-	struct mmc_ios *ios)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-	int err;
-
-	if (host->version < SDHCI_SPEC_300)
-		return 0;
-	sdhci_runtime_pm_get(host);
-	err = sdhci_do_start_signal_voltage_switch(host, ios);
-	sdhci_runtime_pm_put(host);
-	return err;
-}
-
 static int sdhci_card_busy(struct mmc_host *mmc)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 	u32 present_state;
 
-	sdhci_runtime_pm_get(host);
 	/* Check whether DAT[3:0] is 0000 */
 	present_state = sdhci_readl(host, SDHCI_PRESENT_STATE);
-	sdhci_runtime_pm_put(host);
 
 	return !(present_state & SDHCI_DATA_LVL_MASK);
 }
@@ -1843,7 +1839,6 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	unsigned int tuning_count = 0;
 	bool hs400_tuning;
 
-	sdhci_runtime_pm_get(host);
 	spin_lock_irqsave(&host->lock, flags);
 
 	hs400_tuning = host->flags & SDHCI_HS400_TUNING;
@@ -1879,8 +1874,7 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		break;
 
 	case MMC_TIMING_UHS_SDR50:
-		if (host->flags & SDHCI_SDR50_NEEDS_TUNING ||
-		    host->flags & SDHCI_SDR104_NEEDS_TUNING)
+		if (host->flags & SDHCI_SDR50_NEEDS_TUNING)
 			break;
 		/* FALLTHROUGH */
 
@@ -1891,7 +1885,6 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	if (host->ops->platform_execute_tuning) {
 		spin_unlock_irqrestore(&host->lock, flags);
 		err = host->ops->platform_execute_tuning(host, opcode);
-		sdhci_runtime_pm_put(host);
 		return err;
 	}
 
@@ -2023,8 +2016,6 @@ out:
 	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
 out_unlock:
 	spin_unlock_irqrestore(&host->lock, flags);
-	sdhci_runtime_pm_put(host);
-
 	return err;
 }
 
@@ -2105,7 +2096,7 @@ static void sdhci_card_event(struct mmc_host *mmc)
 	if (host->ops->card_event)
 		host->ops->card_event(host);
 
-	present = sdhci_do_get_cd(host);
+	present = sdhci_get_cd(host->mmc);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -2214,15 +2205,12 @@ static void sdhci_tasklet_finish(unsigned long param)
 	host->cmd = NULL;
 	host->data = NULL;
 
-#ifndef SDHCI_USE_LEDS_CLASS
-	sdhci_deactivate_led(host);
-#endif
+	sdhci_led_deactivate(host);
 
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	mmc_request_done(host->mmc, mrq);
-	sdhci_runtime_pm_put(host);
 }
 
 static void sdhci_timeout_timer(unsigned long data)
@@ -2679,7 +2667,7 @@ int sdhci_resume_host(struct sdhci_host *host)
 		sdhci_init(host, 0);
 		host->pwr = 0;
 		host->clock = 0;
-		sdhci_do_set_ios(host, &host->mmc->ios);
+		sdhci_set_ios(host->mmc, &host->mmc->ios);
 	} else {
 		sdhci_init(host, (host->mmc->pm_flags & MMC_PM_KEEP_POWER));
 		mmiowb();
@@ -2702,33 +2690,6 @@ int sdhci_resume_host(struct sdhci_host *host)
 }
 
 EXPORT_SYMBOL_GPL(sdhci_resume_host);
-
-static int sdhci_runtime_pm_get(struct sdhci_host *host)
-{
-	return pm_runtime_get_sync(host->mmc->parent);
-}
-
-static int sdhci_runtime_pm_put(struct sdhci_host *host)
-{
-	pm_runtime_mark_last_busy(host->mmc->parent);
-	return pm_runtime_put_autosuspend(host->mmc->parent);
-}
-
-static void sdhci_runtime_pm_bus_on(struct sdhci_host *host)
-{
-	if (host->bus_on)
-		return;
-	host->bus_on = true;
-	pm_runtime_get_noresume(host->mmc->parent);
-}
-
-static void sdhci_runtime_pm_bus_off(struct sdhci_host *host)
-{
-	if (!host->bus_on)
-		return;
-	host->bus_on = false;
-	pm_runtime_put_noidle(host->mmc->parent);
-}
 
 int sdhci_runtime_suspend_host(struct sdhci_host *host)
 {
@@ -2768,8 +2729,8 @@ int sdhci_runtime_resume_host(struct sdhci_host *host)
 	/* Force clock and power re-program */
 	host->pwr = 0;
 	host->clock = 0;
-	sdhci_do_start_signal_voltage_switch(host, &host->mmc->ios);
-	sdhci_do_set_ios(host, &host->mmc->ios);
+	sdhci_start_signal_voltage_switch(host->mmc, &host->mmc->ios);
+	sdhci_set_ios(host->mmc, &host->mmc->ios);
 
 	if ((host_flags & SDHCI_PV_ENABLED) &&
 		!(host->quirks2 & SDHCI_QUIRK2_PRESET_VALUE_BROKEN)) {
@@ -3014,7 +2975,8 @@ int sdhci_add_host(struct sdhci_host *host)
 		if (!host->ops->get_max_clock) {
 			pr_err("%s: Hardware doesn't specify base clock frequency.\n",
 			       mmc_hostname(mmc));
-			return -ENODEV;
+			ret = -ENODEV;
+			goto undma;
 		}
 		host->max_clk = host->ops->get_max_clock(host);
 	}
@@ -3051,7 +3013,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	} else
 		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_200;
 
-	if (!mmc->f_max || (mmc->f_max && (mmc->f_max > max_clk)))
+	if (!mmc->f_max || mmc->f_max > max_clk)
 		mmc->f_max = max_clk;
 
 	if (!(host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)) {
@@ -3064,7 +3026,8 @@ int sdhci_add_host(struct sdhci_host *host)
 			} else {
 				pr_err("%s: Hardware doesn't specify timeout clock frequency.\n",
 					mmc_hostname(mmc));
-				return -ENODEV;
+				ret = -ENODEV;
+				goto undma;
 			}
 		}
 
@@ -3118,8 +3081,9 @@ int sdhci_add_host(struct sdhci_host *host)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	/* If there are external regulators, get them */
-	if (mmc_regulator_get_supply(mmc) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
+	ret = mmc_regulator_get_supply(mmc);
+	if (ret == -EPROBE_DEFER)
+		goto undma;
 
 	/* If vqmmc regulator and no 1.8V signalling, then there's no UHS */
 	if (!IS_ERR(mmc->supply.vqmmc)) {
@@ -3173,10 +3137,6 @@ int sdhci_add_host(struct sdhci_host *host)
 	/* Does the host need tuning for SDR50? */
 	if (caps[1] & SDHCI_USE_SDR50_TUNING)
 		host->flags |= SDHCI_SDR50_NEEDS_TUNING;
-
-	/* Does the host need tuning for SDR104 / HS200? */
-	if (mmc->caps2 & MMC_CAP2_HS200)
-		host->flags |= SDHCI_SDR104_NEEDS_TUNING;
 
 	/* Driver Type(s) (A, C, D) supported by the host */
 	if (caps[1] & SDHCI_DRIVER_TYPE_A)
@@ -3276,7 +3236,8 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (mmc->ocr_avail == 0) {
 		pr_err("%s: Hardware doesn't report any support voltages.\n",
 		       mmc_hostname(mmc));
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unreg;
 	}
 
 	spin_lock_init(&host->lock);
@@ -3360,25 +3321,18 @@ int sdhci_add_host(struct sdhci_host *host)
 	sdhci_dumpregs(host);
 #endif
 
-#ifdef SDHCI_USE_LEDS_CLASS
-	snprintf(host->led_name, sizeof(host->led_name),
-		"%s::", mmc_hostname(mmc));
-	host->led.name = host->led_name;
-	host->led.brightness = LED_OFF;
-	host->led.default_trigger = mmc_hostname(mmc);
-	host->led.brightness_set = sdhci_led_control;
-
-	ret = led_classdev_register(mmc_dev(mmc), &host->led);
+	ret = sdhci_led_register(host);
 	if (ret) {
 		pr_err("%s: Failed to register LED device: %d\n",
 		       mmc_hostname(mmc), ret);
-		goto reset;
+		goto unirq;
 	}
-#endif
 
 	mmiowb();
 
-	mmc_add_host(mmc);
+	ret = mmc_add_host(mmc);
+	if (ret)
+		goto unled;
 
 	pr_info("%s: SDHCI controller on %s [%s] using %s\n",
 		mmc_hostname(mmc), host->hw_name, dev_name(mmc_dev(mmc)),
@@ -3390,15 +3344,25 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	return 0;
 
-#ifdef SDHCI_USE_LEDS_CLASS
-reset:
+unled:
+	sdhci_led_unregister(host);
+unirq:
 	sdhci_do_reset(host, SDHCI_RESET_ALL);
 	sdhci_writel(host, 0, SDHCI_INT_ENABLE);
 	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
 	free_irq(host->irq, host);
-#endif
 untasklet:
 	tasklet_kill(&host->finish_tasklet);
+unreg:
+	if (!IS_ERR(mmc->supply.vqmmc))
+		regulator_disable(mmc->supply.vqmmc);
+undma:
+	if (host->align_buffer)
+		dma_free_coherent(mmc_dev(mmc), host->align_buffer_sz +
+				  host->adma_table_sz, host->align_buffer,
+				  host->align_addr);
+	host->adma_table = NULL;
+	host->align_buffer = NULL;
 
 	return ret;
 }
@@ -3430,9 +3394,7 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 
 	mmc_remove_host(mmc);
 
-#ifdef SDHCI_USE_LEDS_CLASS
-	led_classdev_unregister(&host->led);
-#endif
+	sdhci_led_unregister(host);
 
 	if (!dead)
 		sdhci_do_reset(host, SDHCI_RESET_ALL);

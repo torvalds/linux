@@ -842,6 +842,58 @@ bpf_map_op__new(struct parse_events_term *term)
 	return op;
 }
 
+static struct bpf_map_op *
+bpf_map_op__clone(struct bpf_map_op *op)
+{
+	struct bpf_map_op *newop;
+
+	newop = memdup(op, sizeof(*op));
+	if (!newop) {
+		pr_debug("Failed to alloc bpf_map_op\n");
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&newop->list);
+	if (op->key_type == BPF_MAP_KEY_RANGES) {
+		size_t memsz = op->k.array.nr_ranges *
+			       sizeof(op->k.array.ranges[0]);
+
+		newop->k.array.ranges = memdup(op->k.array.ranges, memsz);
+		if (!newop->k.array.ranges) {
+			pr_debug("Failed to alloc indices for map\n");
+			free(newop);
+			return NULL;
+		}
+	}
+
+	return newop;
+}
+
+static struct bpf_map_priv *
+bpf_map_priv__clone(struct bpf_map_priv *priv)
+{
+	struct bpf_map_priv *newpriv;
+	struct bpf_map_op *pos, *newop;
+
+	newpriv = zalloc(sizeof(*newpriv));
+	if (!newpriv) {
+		pr_debug("No enough memory to alloc map private\n");
+		return NULL;
+	}
+	INIT_LIST_HEAD(&newpriv->ops_list);
+
+	list_for_each_entry(pos, &priv->ops_list, list) {
+		newop = bpf_map_op__clone(pos);
+		if (!newop) {
+			bpf_map_priv__purge(newpriv);
+			return NULL;
+		}
+		list_add_tail(&newop->list, &newpriv->ops_list);
+	}
+
+	return newpriv;
+}
+
 static int
 bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 {
@@ -1417,6 +1469,89 @@ int bpf__apply_obj_config(void)
 	return 0;
 }
 
+#define bpf__for_each_map(pos, obj, objtmp)	\
+	bpf_object__for_each_safe(obj, objtmp)	\
+		bpf_map__for_each(pos, obj)
+
+#define bpf__for_each_stdout_map(pos, obj, objtmp)	\
+	bpf__for_each_map(pos, obj, objtmp) 		\
+		if (bpf_map__get_name(pos) && 		\
+			(strcmp("__bpf_stdout__", 	\
+				bpf_map__get_name(pos)) == 0))
+
+int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
+{
+	struct bpf_map_priv *tmpl_priv = NULL;
+	struct bpf_object *obj, *tmp;
+	struct perf_evsel *evsel = NULL;
+	struct bpf_map *map;
+	int err;
+	bool need_init = false;
+
+	bpf__for_each_stdout_map(map, obj, tmp) {
+		struct bpf_map_priv *priv;
+
+		err = bpf_map__get_private(map, (void **)&priv);
+		if (err)
+			return -BPF_LOADER_ERRNO__INTERNAL;
+
+		/*
+		 * No need to check map type: type should have been
+		 * verified by kernel.
+		 */
+		if (!need_init && !priv)
+			need_init = !priv;
+		if (!tmpl_priv && priv)
+			tmpl_priv = priv;
+	}
+
+	if (!need_init)
+		return 0;
+
+	if (!tmpl_priv) {
+		err = parse_events(evlist, "bpf-output/no-inherit=1,name=__bpf_stdout__/",
+				   NULL);
+		if (err) {
+			pr_debug("ERROR: failed to create bpf-output event\n");
+			return -err;
+		}
+
+		evsel = perf_evlist__last(evlist);
+	}
+
+	bpf__for_each_stdout_map(map, obj, tmp) {
+		struct bpf_map_priv *priv;
+
+		err = bpf_map__get_private(map, (void **)&priv);
+		if (err)
+			return -BPF_LOADER_ERRNO__INTERNAL;
+		if (priv)
+			continue;
+
+		if (tmpl_priv) {
+			priv = bpf_map_priv__clone(tmpl_priv);
+			if (!priv)
+				return -ENOMEM;
+
+			err = bpf_map__set_private(map, priv, bpf_map_priv__clear);
+			if (err) {
+				bpf_map_priv__clear(map, priv);
+				return err;
+			}
+		} else if (evsel) {
+			struct bpf_map_op *op;
+
+			op = bpf_map__add_newop(map, NULL);
+			if (IS_ERR(op))
+				return PTR_ERR(op);
+			op->op_type = BPF_MAP_OP_SET_EVSEL;
+			op->v.evsel = evsel;
+		}
+	}
+
+	return 0;
+}
+
 #define ERRNO_OFFSET(e)		((e) - __BPF_LOADER_ERRNO__START)
 #define ERRCODE_OFFSET(c)	ERRNO_OFFSET(BPF_LOADER_ERRNO__##c)
 #define NR_ERRNO	(__BPF_LOADER_ERRNO__END - __BPF_LOADER_ERRNO__START)
@@ -1587,6 +1722,14 @@ int bpf__strerror_apply_obj_config(int err, char *buf, size_t size)
 			    "%s (Hint: use -i to turn off inherit)", emsg);
 	bpf__strerror_entry(BPF_LOADER_ERRNO__OBJCONF_MAP_EVTTYPE,
 			    "Can only put raw, hardware and BPF output event into a BPF map");
+	bpf__strerror_end(buf, size);
+	return 0;
+}
+
+int bpf__strerror_setup_stdout(struct perf_evlist *evlist __maybe_unused,
+			       int err, char *buf, size_t size)
+{
+	bpf__strerror_head(err, buf, size);
 	bpf__strerror_end(buf, size);
 	return 0;
 }

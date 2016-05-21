@@ -245,7 +245,7 @@
 		button@2 {
 			label = "Factory Reset Button";
 			linux,code = <KEY_RESTART>;
-			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -260,7 +260,7 @@
 		};
 
 		sata {
-			gpios = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 22 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 	};
@@ -313,7 +313,7 @@
 
 &pinctrl {
 	keys_pin: keys-pin {
-		marvell,pins = "mpp24", "mpp47";
+		marvell,pins = "mpp24", "mpp29";
 		marvell,function = "gpio";
 	};
 

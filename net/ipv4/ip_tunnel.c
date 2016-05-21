@@ -443,29 +443,6 @@ drop:
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_rcv);
 
-static int ip_encap_hlen(struct ip_tunnel_encap *e)
-{
-	const struct ip_tunnel_encap_ops *ops;
-	int hlen = -EINVAL;
-
-	if (e->type == TUNNEL_ENCAP_NONE)
-		return 0;
-
-	if (e->type >= MAX_IPTUN_ENCAP_OPS)
-		return -EINVAL;
-
-	rcu_read_lock();
-	ops = rcu_dereference(iptun_encaps[e->type]);
-	if (likely(ops && ops->encap_hlen))
-		hlen = ops->encap_hlen(e);
-	rcu_read_unlock();
-
-	return hlen;
-}
-
-const struct ip_tunnel_encap_ops __rcu *
-		iptun_encaps[MAX_IPTUN_ENCAP_OPS] __read_mostly;
-
 int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *ops,
 			    unsigned int num)
 {
@@ -518,28 +495,6 @@ int ip_tunnel_encap_setup(struct ip_tunnel *t,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_encap_setup);
-
-int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
-		    u8 *protocol, struct flowi4 *fl4)
-{
-	const struct ip_tunnel_encap_ops *ops;
-	int ret = -EINVAL;
-
-	if (t->encap.type == TUNNEL_ENCAP_NONE)
-		return 0;
-
-	if (t->encap.type >= MAX_IPTUN_ENCAP_OPS)
-		return -EINVAL;
-
-	rcu_read_lock();
-	ops = rcu_dereference(iptun_encaps[t->encap.type]);
-	if (likely(ops && ops->build_header))
-		ret = ops->build_header(skb, &t->encap, protocol, fl4);
-	rcu_read_unlock();
-
-	return ret;
-}
-EXPORT_SYMBOL(ip_tunnel_encap);
 
 static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 			    struct rtable *rt, __be16 df,

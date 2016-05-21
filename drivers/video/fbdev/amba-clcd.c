@@ -34,8 +34,6 @@
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 
-#include <asm/sizes.h>
-
 #define to_clcd(info)	container_of(info, struct clcd_fb, fb)
 
 /* This is limited to 16 characters when displayed by X startup */

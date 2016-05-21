@@ -229,7 +229,7 @@ static struct platform_driver ehci_msm_driver = {
 	},
 };
 
-static const struct ehci_driver_overrides msm_overrides __initdata = {
+static const struct ehci_driver_overrides msm_overrides __initconst = {
 	.reset = ehci_msm_reset,
 };
 
