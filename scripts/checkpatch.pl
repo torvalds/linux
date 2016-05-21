@@ -809,11 +809,8 @@ if ($git) {
 	my @commits = ();
 	foreach my $commit_expr (@ARGV) {
 		my $git_range;
-		if ($commit_expr =~ m/-/) {
-			my @tmp = split(/-/, $commit_expr);
-			die "$P: incorrect git commit expression '$commit_expr' $!\n"
-			    if (@tmp != 2);
-			$git_range = "-$tmp[1] $tmp[0]";
+		if ($commit_expr =~ m/^(.*)-(\d+)$/) {
+			$git_range = "-$2 $1";
 		} elsif ($commit_expr =~ m/\.\./) {
 			$git_range = "$commit_expr";
 		} else {
@@ -821,7 +818,8 @@ if ($git) {
 		}
 		my $lines = `git log --no-color --no-merges --pretty=format:'%H %s' $git_range`;
 		foreach my $line (split(/\n/, $lines)) {
-			$line =~ /(^\w+) (.*)/;
+			$line =~ /^([0-9a-fA-F]{40,40}) (.*)$/;
+			next if (!defined($1) || !defined($2));
 			my $sha1 = $1;
 			my $subject = $2;
 			unshift(@commits, $sha1);
