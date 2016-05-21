@@ -34,11 +34,22 @@ static inline __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
 	return this_cpu_read(printk_func)(fmt, args);
 }
 
+extern atomic_t nmi_message_lost;
+static inline int get_nmi_message_lost(void)
+{
+	return atomic_xchg(&nmi_message_lost, 0);
+}
+
 #else /* CONFIG_PRINTK_NMI */
 
 static inline __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
 {
 	return vprintk_default(fmt, args);
+}
+
+static inline int get_nmi_message_lost(void)
+{
+	return 0;
 }
 
 #endif /* CONFIG_PRINTK_NMI */
