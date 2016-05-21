@@ -876,7 +876,7 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
 			     struct radix_tree_iter *iter, unsigned flags)
 {
 	unsigned shift, tag = flags & RADIX_TREE_ITER_TAG_MASK;
-	struct radix_tree_node *rnode, *node;
+	struct radix_tree_node *node, *child;
 	unsigned long index, offset, maxindex;
 
 	if ((flags & RADIX_TREE_ITER_TAGGED) && !root_tag_get(root, tag))
@@ -896,38 +896,29 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
 		return NULL;
 
  restart:
-	shift = radix_tree_load_root(root, &rnode, &maxindex);
+	shift = radix_tree_load_root(root, &child, &maxindex);
 	if (index > maxindex)
 		return NULL;
+	if (!child)
+		return NULL;
 
-	if (radix_tree_is_internal_node(rnode)) {
-		rnode = entry_to_node(rnode);
-	} else if (rnode) {
+	if (!radix_tree_is_internal_node(child)) {
 		/* Single-slot tree */
 		iter->index = index;
 		iter->next_index = maxindex + 1;
 		iter->tags = 1;
-		__set_iter_shift(iter, shift);
+		__set_iter_shift(iter, 0);
 		return (void **)&root->rnode;
-	} else
-		return NULL;
+	}
 
-	shift -= RADIX_TREE_MAP_SHIFT;
-	offset = index >> shift;
-
-	node = rnode;
-	while (1) {
-		struct radix_tree_node *slot;
-		unsigned new_off = radix_tree_descend(node, &slot, offset);
-
-		if (new_off < offset) {
-			offset = new_off;
-			index &= ~((RADIX_TREE_MAP_SIZE << shift) - 1);
-			index |= offset << shift;
-		}
+	do {
+		node = entry_to_node(child);
+		shift -= RADIX_TREE_MAP_SHIFT;
+		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+		offset = radix_tree_descend(node, &child, offset);
 
 		if ((flags & RADIX_TREE_ITER_TAGGED) ?
-				!tag_get(node, tag, offset) : !slot) {
+				!tag_get(node, tag, offset) : !child) {
 			/* Hole detected */
 			if (flags & RADIX_TREE_ITER_CONTIG)
 				return NULL;
@@ -945,29 +936,23 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
 					if (slot)
 						break;
 				}
-			index &= ~((RADIX_TREE_MAP_SIZE << shift) - 1);
+			index &= ~node_maxindex(node);
 			index += offset << shift;
 			/* Overflow after ~0UL */
 			if (!index)
 				return NULL;
 			if (offset == RADIX_TREE_MAP_SIZE)
 				goto restart;
-			slot = rcu_dereference_raw(node->slots[offset]);
+			child = rcu_dereference_raw(node->slots[offset]);
 		}
 
-		if ((slot == NULL) || (slot == RADIX_TREE_RETRY))
+		if ((child == NULL) || (child == RADIX_TREE_RETRY))
 			goto restart;
-		if (!radix_tree_is_internal_node(slot))
-			break;
-
-		node = entry_to_node(slot);
-		shift -= RADIX_TREE_MAP_SHIFT;
-		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-	}
+	} while (radix_tree_is_internal_node(child));
 
 	/* Update the iterator state */
-	iter->index = index & ~((1 << shift) - 1);
-	iter->next_index = (index | ((RADIX_TREE_MAP_SIZE << shift) - 1)) + 1;
+	iter->index = (index &~ node_maxindex(node)) | (offset << node->shift);
+	iter->next_index = (index | node_maxindex(node)) + 1;
 	__set_iter_shift(iter, shift);
 
 	/* Construct iter->tags bit-mask from node->tags[tag] array */
