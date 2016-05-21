@@ -66,12 +66,12 @@ struct radix_tree_preload {
 };
 static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
 
-static inline void *ptr_to_indirect(void *ptr)
+static inline void *node_to_entry(void *ptr)
 {
 	return (void *)((unsigned long)ptr | RADIX_TREE_INTERNAL_NODE);
 }
 
-#define RADIX_TREE_RETRY	ptr_to_indirect(NULL)
+#define RADIX_TREE_RETRY	node_to_entry(NULL)
 
 #ifdef CONFIG_RADIX_TREE_MULTIORDER
 /* Sibling slots point directly to another slot in the same node */
@@ -470,13 +470,12 @@ static int radix_tree_extend(struct radix_tree_root *root,
 		if (radix_tree_is_indirect_ptr(slot)) {
 			slot = indirect_to_ptr(slot);
 			slot->parent = node;
-			slot = ptr_to_indirect(slot);
+			slot = node_to_entry(slot);
 		}
 		node->slots[0] = slot;
-		node = ptr_to_indirect(node);
-		rcu_assign_pointer(root->rnode, node);
+		slot = node_to_entry(node);
+		rcu_assign_pointer(root->rnode, slot);
 		shift += RADIX_TREE_MAP_SHIFT;
-		slot = node;
 	} while (shift <= maxshift);
 out:
 	return maxshift + RADIX_TREE_MAP_SHIFT;
@@ -534,11 +533,11 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 			slot->parent = node;
 			if (node) {
 				rcu_assign_pointer(node->slots[offset],
-							ptr_to_indirect(slot));
+							node_to_entry(slot));
 				node->count++;
 			} else
 				rcu_assign_pointer(root->rnode,
-							ptr_to_indirect(slot));
+							node_to_entry(slot));
 		} else if (!radix_tree_is_indirect_ptr(slot))
 			break;
 
@@ -553,7 +552,7 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 	if (order > shift) {
 		int i, n = 1 << (order - shift);
 		offset = offset & ~(n - 1);
-		slot = ptr_to_indirect(&node->slots[offset]);
+		slot = node_to_entry(&node->slots[offset]);
 		for (i = 0; i < n; i++) {
 			if (node->slots[offset + i])
 				return -EEXIST;
@@ -1422,7 +1421,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root)
 		if (radix_tree_is_indirect_ptr(slot)) {
 			slot = indirect_to_ptr(slot);
 			slot->parent = NULL;
-			slot = ptr_to_indirect(slot);
+			slot = node_to_entry(slot);
 		}
 
 		/*
@@ -1563,7 +1562,7 @@ void *radix_tree_delete_item(struct radix_tree_root *root,
 			radix_tree_tag_clear(root, index, tag);
 	}
 
-	delete_sibling_entries(node, ptr_to_indirect(slot), offset);
+	delete_sibling_entries(node, node_to_entry(slot), offset);
 	node->slots[offset] = NULL;
 	node->count--;
 
