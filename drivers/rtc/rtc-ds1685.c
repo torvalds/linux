@@ -103,6 +103,26 @@ ds1685_rtc_bin2bcd(struct ds1685_priv *rtc, u8 val, u8 bin_mask, u8 bcd_mask)
 }
 
 /**
+ * s1685_rtc_check_mday - check validity of the day of month.
+ * @rtc: pointer to the ds1685 rtc structure.
+ * @mday: day of month.
+ *
+ * Returns -EDOM if the day of month is not within 1..31 range.
+ */
+static inline int
+ds1685_rtc_check_mday(struct ds1685_priv *rtc, u8 mday)
+{
+	if (rtc->bcd_mode) {
+		if (mday < 0x01 || mday > 0x31 || (mday & 0x0f) > 0x09)
+			return -EDOM;
+	} else {
+		if (mday < 1 || mday > 31)
+			return -EDOM;
+	}
+	return 0;
+}
+
+/**
  * ds1685_rtc_switch_to_bank0 - switch the rtc to bank 0.
  * @rtc: pointer to the ds1685 rtc structure.
  */
@@ -377,6 +397,7 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
 	u8 seconds, minutes, hours, mday, ctrlb, ctrlc;
+	int ret;
 
 	/* Fetch the alarm info from the RTC alarm registers. */
 	ds1685_rtc_begin_data_access(rtc);
@@ -388,9 +409,10 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ctrlc	= rtc->read(rtc, RTC_CTRL_C);
 	ds1685_rtc_end_data_access(rtc);
 
-	/* Check month date. */
-	if (!(mday >= 1) && (mday <= 31))
-		return -EDOM;
+	/* Check the month date for validity. */
+	ret = ds1685_rtc_check_mday(rtc, mday);
+	if (ret)
+		return ret;
 
 	/*
 	 * Check the three alarm bytes.
@@ -445,6 +467,7 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
 	u8 ctrlb, seconds, minutes, hours, mday;
+	int ret;
 
 	/* Fetch the alarm info and convert to BCD. */
 	seconds	= ds1685_rtc_bin2bcd(rtc, alrm->time.tm_sec,
@@ -461,8 +484,9 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 				     RTC_MDAY_BCD_MASK);
 
 	/* Check the month date for validity. */
-	if (!(mday >= 1) && (mday <= 31))
-		return -EDOM;
+	ret = ds1685_rtc_check_mday(rtc, mday);
+	if (ret)
+		return ret;
 
 	/*
 	 * Check the three alarm bytes.
