@@ -17,6 +17,7 @@
 
 #include <linux/preempt.h>
 #include <linux/spinlock.h>
+#include <linux/debug_locks.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/irq_work.h>
@@ -106,7 +107,16 @@ static void print_nmi_seq_line(struct nmi_seq_buf *s, int start, int end)
 {
 	const char *buf = s->buffer + start;
 
-	printk("%.*s", (end - start) + 1, buf);
+	/*
+	 * The buffers are flushed in NMI only on panic.  The messages must
+	 * go only into the ring buffer at this stage.  Consoles will get
+	 * explicitly called later when a crashdump is not generated.
+	 */
+	if (in_nmi())
+		printk_deferred("%.*s", (end - start) + 1, buf);
+	else
+		printk("%.*s", (end - start) + 1, buf);
+
 }
 
 /*
@@ -192,6 +202,33 @@ void printk_nmi_flush(void)
 
 	for_each_possible_cpu(cpu)
 		__printk_nmi_flush(&per_cpu(nmi_print_seq, cpu).work);
+}
+
+/**
+ * printk_nmi_flush_on_panic - flush all per-cpu nmi buffers when the system
+ *	goes down.
+ *
+ * Similar to printk_nmi_flush() but it can be called even in NMI context when
+ * the system goes down. It does the best effort to get NMI messages into
+ * the main ring buffer.
+ *
+ * Note that it could try harder when there is only one CPU online.
+ */
+void printk_nmi_flush_on_panic(void)
+{
+	/*
+	 * Make sure that we could access the main ring buffer.
+	 * Do not risk a double release when more CPUs are up.
+	 */
+	if (in_nmi() && raw_spin_is_locked(&logbuf_lock)) {
+		if (num_online_cpus() > 1)
+			return;
+
+		debug_locks_off();
+		raw_spin_lock_init(&logbuf_lock);
+	}
+
+	printk_nmi_flush();
 }
 
 void __init printk_nmi_init(void)

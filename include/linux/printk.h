@@ -127,11 +127,13 @@ extern void printk_nmi_init(void);
 extern void printk_nmi_enter(void);
 extern void printk_nmi_exit(void);
 extern void printk_nmi_flush(void);
+extern void printk_nmi_flush_on_panic(void);
 #else
 static inline void printk_nmi_init(void) { }
 static inline void printk_nmi_enter(void) { }
 static inline void printk_nmi_exit(void) { }
 static inline void printk_nmi_flush(void) { }
+static inline void printk_nmi_flush_on_panic(void) { }
 #endif /* PRINTK_NMI */
 
 #ifdef CONFIG_PRINTK
