@@ -2447,6 +2447,8 @@ config ISA_DMA_API
 	  Enables ISA-style DMA support for devices requiring such controllers.
 	  If unsure, say Y.
 
+if X86_32
+
 config ISA
 	bool "ISA support"
 	---help---
@@ -2455,8 +2457,6 @@ config ISA
 	  inside your box.  Other bus systems are PCI, EISA, MicroChannel
 	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
-
-if X86_32
 
 config EISA
 	bool "EISA support"
