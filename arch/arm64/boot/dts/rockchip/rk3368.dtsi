@@ -634,6 +634,11 @@
 	pmugrf: syscon@ff738000 {
 		compatible = "rockchip,rk3368-pmugrf", "syscon", "simple-mfd";
 		reg = <0x0 0xff738000 0x0 0x1000>;
+
+		pmu_io_domains: io-domains {
+			compatible = "rockchip,rk3368-pmu-io-voltage-domain";
+			status = "disabled";
+		};
 	};
 
 	cru: clock-controller@ff760000 {
@@ -647,6 +652,11 @@
 	grf: syscon@ff770000 {
 		compatible = "rockchip,rk3368-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xff770000 0x0 0x1000>;
+
+		io_domains: io-domains {
+			compatible = "rockchip,rk3368-io-voltage-domain";
+			status = "disabled";
+		};
 	};
 
 	wdt: watchdog@ff800000 {
