@@ -1,5 +1,5 @@
 config R8723AU
-	tristate "Realtek RTL8723AU Wireless LAN NIC driver"
+	tristate "Realtek RTL8723AU Wireless LAN NIC driver (deprecated)"
 	depends on USB && WLAN && RFKILL
 	select WIRELESS_EXT
 	select WEXT_PRIV
@@ -7,7 +7,10 @@ config R8723AU
 	default n
 	---help---
 	This option adds the Realtek RTL8723AU USB device such as found in
-	the Lenovo Yogi 13 tablet. If built as a module, it will be called r8723au.
+	the Lenovo Yoga 13 tablet. If built as a module, it will be called r8723au.
+
+	Note: This driver is deprecated and scheduled to be removed in a
+	future kernel release. Please use rtl8xxxu instead.
 
 if R8723AU
 

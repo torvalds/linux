@@ -776,6 +776,15 @@ S:	Supported
 F:	drivers/android/
 F:	drivers/staging/android/
 
+ANDROID ION DRIVER
+M:	Laura Abbott <labbott@redhat.com>
+M:	Sumit Semwal <sumit.semwal@linaro.org>
+L:	devel@driverdev.osuosl.org
+S:	Supported
+F:	drivers/staging/android/ion
+F:	drivers/staging/android/uapi/ion.h
+F:	drivers/staging/android/uapi/ion_test.h
+
 AOA (Apple Onboard Audio) ALSA DRIVER
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -4746,6 +4755,7 @@ F:	sound/soc/fsl/mpc8610_hpcd.c
 
 FREESCALE QORIQ MANAGEMENT COMPLEX DRIVER
 M:	"J. German Rivera" <German.Rivera@freescale.com>
+M:	Stuart Yoder <stuart.yoder@nxp.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/fsl-mc/
@@ -5617,7 +5627,7 @@ IIO SUBSYSTEM AND DRIVERS
 M:	Jonathan Cameron <jic23@kernel.org>
 R:	Hartmut Knaack <knaack.h@gmx.de>
 R:	Lars-Peter Clausen <lars@metafoo.de>
-R:	Peter Meerwald <pmeerw@pmeerw.net>
+R:	Peter Meerwald-Stadler <pmeerw@pmeerw.net>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/

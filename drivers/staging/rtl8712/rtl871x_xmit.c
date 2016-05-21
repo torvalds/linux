@@ -848,7 +848,7 @@ void r8712_free_xmitframe_queue(struct xmit_priv *pxmitpriv,
 	phead = &pframequeue->queue;
 	plist = phead->next;
 	while (!end_of_queue_search(phead, plist)) {
-		pxmitframe = LIST_CONTAINOR(plist, struct xmit_frame, list);
+		pxmitframe = container_of(plist, struct xmit_frame, list);
 		plist = plist->next;
 		r8712_free_xmitframe(pxmitpriv, pxmitframe);
 	}

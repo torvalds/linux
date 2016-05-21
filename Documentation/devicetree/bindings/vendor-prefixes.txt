@@ -151,6 +151,7 @@ lsi	LSI Corp. (LSI Logic)
 lltc	Linear Technology Corporation
 marvell	Marvell Technology Group Ltd.
 maxim	Maxim Integrated Products
+meas	Measurement Specialties
 mediatek	MediaTek Inc.
 melexis	Melexis N.V.
 merrii	Merrii Technology Co., Ltd.

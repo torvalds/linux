@@ -160,6 +160,16 @@ static const struct req_msg_field *fld_query_server[] = {
 	&RMF_FLD_MDFLD
 };
 
+static const struct req_msg_field *fld_read_client[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_FLD_MDFLD
+};
+
+static const struct req_msg_field *fld_read_server[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_GENERIC_DATA
+};
+
 static const struct req_msg_field *mds_getattr_name_client[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_MDT_BODY,
@@ -566,12 +576,18 @@ static const struct req_msg_field *ost_get_info_generic_server[] = {
 
 static const struct req_msg_field *ost_get_info_generic_client[] = {
 	&RMF_PTLRPC_BODY,
-	&RMF_SETINFO_KEY
+	&RMF_GETINFO_KEY
 };
 
 static const struct req_msg_field *ost_get_last_id_server[] = {
 	&RMF_PTLRPC_BODY,
 	&RMF_OBD_ID
+};
+
+static const struct req_msg_field *ost_get_last_fid_client[] = {
+	&RMF_PTLRPC_BODY,
+	&RMF_GETINFO_KEY,
+	&RMF_FID,
 };
 
 static const struct req_msg_field *ost_get_last_fid_server[] = {
@@ -643,6 +659,7 @@ static struct req_format *req_formats[] = {
 	&RQF_MGS_CONFIG_READ,
 	&RQF_SEQ_QUERY,
 	&RQF_FLD_QUERY,
+	&RQF_FLD_READ,
 	&RQF_MDS_CONNECT,
 	&RQF_MDS_DISCONNECT,
 	&RQF_MDS_GET_INFO,
@@ -696,7 +713,7 @@ static struct req_format *req_formats[] = {
 	&RQF_OST_BRW_WRITE,
 	&RQF_OST_STATFS,
 	&RQF_OST_SET_GRANT_INFO,
-	&RQF_OST_GET_INFO_GENERIC,
+	&RQF_OST_GET_INFO,
 	&RQF_OST_GET_INFO_LAST_ID,
 	&RQF_OST_GET_INFO_LAST_FID,
 	&RQF_OST_SET_INFO_LAST_FID,
@@ -1162,6 +1179,10 @@ struct req_format RQF_FLD_QUERY =
 	DEFINE_REQ_FMT0("FLD_QUERY", fld_query_client, fld_query_server);
 EXPORT_SYMBOL(RQF_FLD_QUERY);
 
+struct req_format RQF_FLD_READ =
+	DEFINE_REQ_FMT0("FLD_READ", fld_read_client, fld_read_server);
+EXPORT_SYMBOL(RQF_FLD_READ);
+
 struct req_format RQF_LOG_CANCEL =
 	DEFINE_REQ_FMT0("OBD_LOG_CANCEL", log_cancel_client, empty);
 EXPORT_SYMBOL(RQF_LOG_CANCEL);
@@ -1519,10 +1540,10 @@ struct req_format RQF_OST_SET_GRANT_INFO =
 			ost_body_only);
 EXPORT_SYMBOL(RQF_OST_SET_GRANT_INFO);
 
-struct req_format RQF_OST_GET_INFO_GENERIC =
+struct req_format RQF_OST_GET_INFO =
 	DEFINE_REQ_FMT0("OST_GET_INFO", ost_get_info_generic_client,
 			ost_get_info_generic_server);
-EXPORT_SYMBOL(RQF_OST_GET_INFO_GENERIC);
+EXPORT_SYMBOL(RQF_OST_GET_INFO);
 
 struct req_format RQF_OST_GET_INFO_LAST_ID =
 	DEFINE_REQ_FMT0("OST_GET_INFO_LAST_ID", ost_get_info_generic_client,
@@ -1530,7 +1551,7 @@ struct req_format RQF_OST_GET_INFO_LAST_ID =
 EXPORT_SYMBOL(RQF_OST_GET_INFO_LAST_ID);
 
 struct req_format RQF_OST_GET_INFO_LAST_FID =
-	DEFINE_REQ_FMT0("OST_GET_INFO_LAST_FID", obd_set_info_client,
+	DEFINE_REQ_FMT0("OST_GET_INFO_LAST_FID", ost_get_last_fid_client,
 			ost_get_last_fid_server);
 EXPORT_SYMBOL(RQF_OST_GET_INFO_LAST_FID);
 
