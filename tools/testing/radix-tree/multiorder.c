@@ -19,6 +19,102 @@
 
 #include "test.h"
 
+#define for_each_index(i, base, order) \
+	for (i = base; i < base + (1 << order); i++)
+
+static void __multiorder_tag_test(int index, int order)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	int base, err, i;
+
+	/* our canonical entry */
+	base = index & ~((1 << order) - 1);
+
+	printf("Multiorder tag test with index %d, canonical entry %d\n",
+			index, base);
+
+	err = item_insert_order(&tree, index, order);
+	assert(!err);
+
+	/*
+	 * Verify we get collisions for covered indices.  We try and fail to
+	 * insert an exceptional entry so we don't leak memory via
+	 * item_insert_order().
+	 */
+	for_each_index(i, base, order) {
+		err = __radix_tree_insert(&tree, i, order,
+				(void *)(0xA0 | RADIX_TREE_EXCEPTIONAL_ENTRY));
+		assert(err == -EEXIST);
+	}
+
+	for_each_index(i, base, order) {
+		assert(!radix_tree_tag_get(&tree, i, 0));
+		assert(!radix_tree_tag_get(&tree, i, 1));
+	}
+
+	assert(radix_tree_tag_set(&tree, index, 0));
+
+	for_each_index(i, base, order) {
+		assert(radix_tree_tag_get(&tree, i, 0));
+		assert(!radix_tree_tag_get(&tree, i, 1));
+	}
+
+	assert(radix_tree_tag_clear(&tree, index, 0));
+
+	for_each_index(i, base, order) {
+		assert(!radix_tree_tag_get(&tree, i, 0));
+		assert(!radix_tree_tag_get(&tree, i, 1));
+	}
+
+	assert(!radix_tree_tagged(&tree, 0));
+	assert(!radix_tree_tagged(&tree, 1));
+
+	item_kill_tree(&tree);
+}
+
+static void multiorder_tag_tests(void)
+{
+	/* test multi-order entry for indices 0-7 with no sibling pointers */
+	__multiorder_tag_test(0, 3);
+	__multiorder_tag_test(5, 3);
+
+	/* test multi-order entry for indices 8-15 with no sibling pointers */
+	__multiorder_tag_test(8, 3);
+	__multiorder_tag_test(15, 3);
+
+	/*
+	 * Our order 5 entry covers indices 0-31 in a tree with height=2.
+	 * This is broken up as follows:
+	 * 0-7:		canonical entry
+	 * 8-15:	sibling 1
+	 * 16-23:	sibling 2
+	 * 24-31:	sibling 3
+	 */
+	__multiorder_tag_test(0, 5);
+	__multiorder_tag_test(29, 5);
+
+	/* same test, but with indices 32-63 */
+	__multiorder_tag_test(32, 5);
+	__multiorder_tag_test(44, 5);
+
+	/*
+	 * Our order 8 entry covers indices 0-255 in a tree with height=3.
+	 * This is broken up as follows:
+	 * 0-63:	canonical entry
+	 * 64-127:	sibling 1
+	 * 128-191:	sibling 2
+	 * 192-255:	sibling 3
+	 */
+	__multiorder_tag_test(0, 8);
+	__multiorder_tag_test(190, 8);
+
+	/* same test, but with indices 256-511 */
+	__multiorder_tag_test(256, 8);
+	__multiorder_tag_test(300, 8);
+
+	__multiorder_tag_test(0x12345678UL, 8);
+}
+
 static void multiorder_check(unsigned long index, int order)
 {
 	unsigned long i;
@@ -196,6 +292,7 @@ void multiorder_checks(void)
 		multiorder_shrink((1UL << (i + RADIX_TREE_MAP_SHIFT)), i);
 
 	multiorder_insert_bug();
+	multiorder_tag_tests();
 	multiorder_iteration();
 	multiorder_tagged_iteration();
 }
