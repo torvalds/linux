@@ -178,7 +178,7 @@
 /* Hyp System Trap Register */
 #define HSTR_EL2_T(x)	(1 << x)
 
-/* Hyp Coproccessor Trap Register Shifts */
+/* Hyp Coprocessor Trap Register Shifts */
 #define CPTR_EL2_TFP_SHIFT 10
 
 /* Hyp Coprocessor Trap Register */
