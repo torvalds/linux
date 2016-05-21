@@ -27,6 +27,7 @@ my $emacs = 0;
 my $terse = 0;
 my $showfile = 0;
 my $file = 0;
+my $git = 0;
 my $check = 0;
 my $check_orig = 0;
 my $summary = 1;
@@ -69,6 +70,16 @@ Options:
   --emacs                    emacs compile window format
   --terse                    one line per report
   --showfile                 emit diffed file position, not input file position
+  -g, --git                  treat FILE as a single commit or git revision range
+                             single git commit with:
+                               <rev>
+                               <rev>^
+                               <rev>~n
+                             multiple git commits with:
+                               <rev1>..<rev2>
+                               <rev1>...<rev2>
+                               <rev>-<count>
+                             git merges are ignored
   -f, --file                 treat FILE as regular source file
   --subjective, --strict     enable more subjective tests
   --list-types               list the possible message types
@@ -174,6 +185,7 @@ GetOptions(
 	'terse!'	=> \$terse,
 	'showfile!'	=> \$showfile,
 	'f|file!'	=> \$file,
+	'g|git!'	=> \$git,
 	'subjective!'	=> \$check,
 	'strict!'	=> \$check,
 	'ignore=s'	=> \@ignore,
@@ -788,10 +800,42 @@ my @fixed_inserted = ();
 my @fixed_deleted = ();
 my $fixlinenr = -1;
 
+# If input is git commits, extract all commits from the commit expressions.
+# For example, HEAD-3 means we need check 'HEAD, HEAD~1, HEAD~2'.
+die "$P: No git repository found\n" if ($git && !-e ".git");
+
+if ($git) {
+	my @commits = ();
+	for my $commit_expr (@ARGV) {
+		my $git_range;
+		if ($commit_expr =~ m/-/) {
+			my @tmp = split(/-/, $commit_expr);
+			die "$P: incorrect git commits expression $commit_expr$!\n"
+			    if (@tmp != 2);
+			$git_range = "-$tmp[1] $tmp[0]";
+		} elsif ($commit_expr =~ m/\.\./) {
+			$git_range = "$commit_expr";
+		}
+		if (defined $git_range) {
+			my $lines = `git log --no-merges --pretty=format:'%H' $git_range`;
+			foreach my $line (split(/\n/, $lines)) {
+				unshift(@commits, $line);
+			}
+		} else {
+			unshift(@commits, $commit_expr);
+		}
+	}
+	die "$P: no git commits after extraction!\n" if (@commits == 0);
+	@ARGV = @commits;
+}
+
 my $vname;
 for my $filename (@ARGV) {
 	my $FILE;
-	if ($file) {
+	if ($git) {
+		open($FILE, '-|', "git format-patch -M --stdout -1 $filename") ||
+			die "$P: $filename: git format-patch failed - $!\n";
+	} elsif ($file) {
 		open($FILE, '-|', "diff -u /dev/null $filename") ||
 			die "$P: $filename: diff failed - $!\n";
 	} elsif ($filename eq '-') {
@@ -802,6 +846,8 @@ for my $filename (@ARGV) {
 	}
 	if ($filename eq '-') {
 		$vname = 'Your patch';
+	} elsif ($git) {
+		$vname = "Commit " . substr($filename, 0, 12) . `git log -1 --pretty=format:' ("%s")' $filename`;
 	} else {
 		$vname = $filename;
 	}
