@@ -4,6 +4,7 @@ config AVR32
 	# that we usually don't need on AVR32.
 	select EXPERT
 	select HAVE_CLK
+	select HAVE_EXIT_THREAD
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select VIRT_TO_BUS

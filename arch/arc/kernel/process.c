@@ -183,13 +183,6 @@ void flush_thread(void)
 {
 }
 
-/*
- * Free any architecture-specific thread data structures, etc.
- */
-void exit_thread(void)
-{
-}
-
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 {
 	return 0;
