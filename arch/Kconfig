@@ -517,6 +517,11 @@ config HAVE_ARCH_MMAP_RND_BITS
 	  - ARCH_MMAP_RND_BITS_MIN
 	  - ARCH_MMAP_RND_BITS_MAX
 
+config HAVE_EXIT_THREAD
+	bool
+	help
+	  An architecture implements exit_thread.
+
 config ARCH_MMAP_RND_BITS_MIN
 	int
 

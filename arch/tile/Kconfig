@@ -3,6 +3,7 @@
 
 config TILE
 	def_bool y
+	select HAVE_EXIT_THREAD
 	select HAVE_PERF_EVENTS
 	select USE_PMC if PERF_EVENTS
 	select HAVE_DMA_API_DEBUG

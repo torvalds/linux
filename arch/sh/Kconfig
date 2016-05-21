@@ -71,6 +71,7 @@ config SUPERH32
 
 config SUPERH64
 	def_bool ARCH = "sh64"
+	select HAVE_EXIT_THREAD
 	select KALLSYMS
 
 config ARCH_DEFCONFIG
