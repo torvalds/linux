@@ -40,5 +40,6 @@ extern int nr_allocated;
 
 /* Normally private parts of lib/radix-tree.c */
 void *indirect_to_ptr(void *ptr);
+void radix_tree_dump(struct radix_tree_root *root);
 int root_tag_get(struct radix_tree_root *root, unsigned int tag);
 unsigned long radix_tree_maxindex(unsigned int height);

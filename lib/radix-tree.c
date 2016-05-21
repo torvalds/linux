@@ -215,27 +215,36 @@ radix_tree_find_next_bit(const unsigned long *addr,
 	return size;
 }
 
-#if 0
-static void dump_node(void *slot, int height, int offset)
+#ifndef __KERNEL__
+static void dump_node(struct radix_tree_node *node, unsigned offset,
+				unsigned shift, unsigned long index)
 {
-	struct radix_tree_node *node;
-	int i;
+	unsigned long i;
 
-	if (!slot)
-		return;
-
-	if (height == 0) {
-		pr_debug("radix entry %p offset %d\n", slot, offset);
-		return;
-	}
-
-	node = indirect_to_ptr(slot);
 	pr_debug("radix node: %p offset %d tags %lx %lx %lx path %x count %d parent %p\n",
-		slot, offset, node->tags[0][0], node->tags[1][0],
-		node->tags[2][0], node->path, node->count, node->parent);
+		node, offset,
+		node->tags[0][0], node->tags[1][0], node->tags[2][0],
+		node->path, node->count, node->parent);
 
-	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++)
-		dump_node(node->slots[i], height - 1, i);
+	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
+		unsigned long first = index | (i << shift);
+		unsigned long last = first | ((1UL << shift) - 1);
+		void *entry = node->slots[i];
+		if (!entry)
+			continue;
+		if (is_sibling_entry(node, entry)) {
+			pr_debug("radix sblng %p offset %ld val %p indices %ld-%ld\n",
+					entry, i,
+					*(void **)indirect_to_ptr(entry),
+					first, last);
+		} else if (!radix_tree_is_indirect_ptr(entry)) {
+			pr_debug("radix entry %p offset %ld indices %ld-%ld\n",
+					entry, i, first, last);
+		} else {
+			dump_node(indirect_to_ptr(entry), i,
+					shift - RADIX_TREE_MAP_SHIFT, first);
+		}
+	}
 }
 
 /* For debug */
@@ -246,7 +255,8 @@ static void radix_tree_dump(struct radix_tree_root *root)
 			root->gfp_mask >> __GFP_BITS_SHIFT);
 	if (!radix_tree_is_indirect_ptr(root->rnode))
 		return;
-	dump_node(root->rnode, root->height, 0);
+	dump_node(indirect_to_ptr(root->rnode), 0,
+				(root->height - 1) * RADIX_TREE_MAP_SHIFT, 0);
 }
 #endif
 
