@@ -68,7 +68,7 @@ static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
 
 static inline void *ptr_to_indirect(void *ptr)
 {
-	return (void *)((unsigned long)ptr | RADIX_TREE_INDIRECT_PTR);
+	return (void *)((unsigned long)ptr | RADIX_TREE_INTERNAL_NODE);
 }
 
 #define RADIX_TREE_RETRY	ptr_to_indirect(NULL)

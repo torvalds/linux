@@ -29,20 +29,16 @@
 #include <linux/rcupdate.h>
 
 /*
- * An indirect pointer (root->rnode pointing to a radix_tree_node, rather
- * than a data item) is signalled by the low bit set in the root->rnode
- * pointer.
+ * Entries in the radix tree have the low bit set if they refer to a
+ * radix_tree_node.  If the low bit is clear then the entry is user data.
  *
- * In this case root->height is > 0, but the indirect pointer tests are
- * needed for RCU lookups (because root->height is unreliable). The only
- * time callers need worry about this is when doing a lookup_slot under
- * RCU.
- *
- * Indirect pointer in fact is also used to tag the last pointer of a node
- * when it is shrunk, before we rcu free the node. See shrink code for
- * details.
+ * We also use the low bit to indicate that the slot will be freed in the
+ * next RCU idle period, and users need to re-walk the tree to find the
+ * new slot for the index that they were looking for.  See the comment in
+ * radix_tree_shrink() for details.
  */
-#define RADIX_TREE_INDIRECT_PTR		1
+#define RADIX_TREE_INTERNAL_NODE	1
+
 /*
  * A common use of the radix tree is to store pointers to struct pages;
  * but shmem/tmpfs needs also to store swap entries in the same tree:
@@ -63,7 +59,7 @@
 
 static inline int radix_tree_is_indirect_ptr(void *ptr)
 {
-	return (int)((unsigned long)ptr & RADIX_TREE_INDIRECT_PTR);
+	return (int)((unsigned long)ptr & RADIX_TREE_INTERNAL_NODE);
 }
 
 /*** radix-tree API starts here ***/
@@ -228,7 +224,7 @@ static inline void *radix_tree_deref_slot_protected(void **pslot,
  */
 static inline int radix_tree_deref_retry(void *arg)
 {
-	return unlikely((unsigned long)arg & RADIX_TREE_INDIRECT_PTR);
+	return unlikely(radix_tree_is_indirect_ptr(arg));
 }
 
 /**
@@ -250,7 +246,7 @@ static inline int radix_tree_exceptional_entry(void *arg)
 static inline int radix_tree_exception(void *arg)
 {
 	return unlikely((unsigned long)arg &
-		(RADIX_TREE_INDIRECT_PTR | RADIX_TREE_EXCEPTIONAL_ENTRY));
+		(RADIX_TREE_INTERNAL_NODE | RADIX_TREE_EXCEPTIONAL_ENTRY));
 }
 
 /**
@@ -448,7 +444,7 @@ radix_tree_chunk_size(struct radix_tree_iter *iter)
 
 static inline void *indirect_to_ptr(void *ptr)
 {
-	return (void *)((unsigned long)ptr & ~RADIX_TREE_INDIRECT_PTR);
+	return (void *)((unsigned long)ptr & ~RADIX_TREE_INTERNAL_NODE);
 }
 
 /**
