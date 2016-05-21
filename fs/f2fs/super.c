@@ -613,6 +613,9 @@ static void f2fs_dirty_inode(struct inode *inode, int flags)
 			inode->i_ino == F2FS_META_INO(sbi))
 		return;
 
+	if (is_inode_flag_set(inode, FI_AUTO_RECOVER))
+		clear_inode_flag(inode, FI_AUTO_RECOVER);
+
 	spin_lock(&sbi->inode_lock[DIRTY_META]);
 	if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
 		spin_unlock(&sbi->inode_lock[DIRTY_META]);
@@ -638,6 +641,7 @@ void f2fs_inode_synced(struct inode *inode)
 	}
 	list_del_init(&F2FS_I(inode)->gdirty_list);
 	clear_inode_flag(inode, FI_DIRTY_INODE);
+	clear_inode_flag(inode, FI_AUTO_RECOVER);
 	dec_page_count(sbi, F2FS_DIRTY_IMETA);
 	spin_unlock(&sbi->inode_lock[DIRTY_META]);
 	stat_dec_dirty_inode(F2FS_I_SB(inode), DIRTY_META);

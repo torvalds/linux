@@ -154,6 +154,9 @@ static int do_read_inode(struct inode *inode)
 	if (__written_first_block(ri))
 		set_inode_flag(inode, FI_FIRST_BLOCK_WRITTEN);
 
+	if (!need_inode_block_update(sbi, inode->i_ino))
+		fi->last_disk_size = inode->i_size;
+
 	f2fs_put_page(node_page, 1);
 
 	stat_inc_inline_xattr(inode);

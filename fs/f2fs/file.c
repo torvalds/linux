@@ -208,7 +208,7 @@ static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
 	}
 
 	/* if the inode is dirty, let's recover all the time */
-	if (!datasync) {
+	if (!datasync && !f2fs_skip_inode_update(inode)) {
 		f2fs_write_inode(inode, NULL);
 		goto go_write;
 	}
@@ -251,7 +251,7 @@ go_write:
 		goto out;
 	}
 sync_nodes:
-	ret = fsync_node_pages(sbi, ino, &wbc, atomic);
+	ret = fsync_node_pages(sbi, inode, &wbc, atomic);
 	if (ret)
 		goto out;
 

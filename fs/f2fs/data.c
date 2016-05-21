@@ -1204,6 +1204,7 @@ static int f2fs_write_data_page(struct page *page,
 	loff_t i_size = i_size_read(inode);
 	const pgoff_t end_index = ((unsigned long long) i_size)
 							>> PAGE_SHIFT;
+	loff_t psize = (page->index + 1) << PAGE_SHIFT;
 	unsigned offset = 0;
 	bool need_balance_fs = false;
 	int err = 0;
@@ -1265,6 +1266,8 @@ write:
 		err = f2fs_write_inline_data(inode, page);
 	if (err == -EAGAIN)
 		err = do_write_data_page(&fio);
+	if (F2FS_I(inode)->last_disk_size < psize)
+		F2FS_I(inode)->last_disk_size = psize;
 	f2fs_unlock_op(sbi);
 done:
 	if (err && err != -ENOENT)

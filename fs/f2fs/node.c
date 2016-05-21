@@ -1293,7 +1293,7 @@ continue_unlock:
 	return last_page;
 }
 
-int fsync_node_pages(struct f2fs_sb_info *sbi, nid_t ino,
+int fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
 			struct writeback_control *wbc, bool atomic)
 {
 	pgoff_t index, end;
@@ -1301,6 +1301,7 @@ int fsync_node_pages(struct f2fs_sb_info *sbi, nid_t ino,
 	int ret = 0;
 	struct page *last_page = NULL;
 	bool marked = false;
+	nid_t ino = inode->i_ino;
 
 	if (atomic) {
 		last_page = last_fsync_dnode(sbi, ino);
@@ -1354,9 +1355,13 @@ continue_unlock:
 
 			if (!atomic || page == last_page) {
 				set_fsync_mark(page, 1);
-				if (IS_INODE(page))
+				if (IS_INODE(page)) {
+					if (is_inode_flag_set(inode,
+								FI_DIRTY_INODE))
+						update_inode(inode, page);
 					set_dentry_mark(page,
 						need_dentry_mark(sbi, ino));
+				}
 				/*  may be written by other thread */
 				if (!PageDirty(page))
 					set_page_dirty(page);

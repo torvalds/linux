@@ -441,6 +441,7 @@ struct f2fs_inode_info {
 	unsigned int clevel;		/* maximum level of given file name */
 	nid_t i_xattr_nid;		/* node id that contains xattrs */
 	unsigned long long xattr_ver;	/* cp version of xattr modification */
+	loff_t	last_disk_size;		/* lastly written file size */
 
 	struct list_head dirty_list;	/* dirty list for dirs and files */
 	struct list_head gdirty_list;	/* linked in global dirty list */
@@ -1516,6 +1517,7 @@ static inline void f2fs_change_bit(unsigned int nr, char *addr)
 enum {
 	FI_NEW_INODE,		/* indicate newly allocated inode */
 	FI_DIRTY_INODE,		/* indicate inode is dirty or not */
+	FI_AUTO_RECOVER,	/* indicate inode is recoverable */
 	FI_DIRTY_DIR,		/* indicate directory has dirty pages */
 	FI_INC_LINK,		/* need to increment i_nlink */
 	FI_ACL_MODE,		/* indicate acl mode */
@@ -1591,18 +1593,35 @@ static inline void f2fs_i_links_write(struct inode *inode, bool inc)
 static inline void f2fs_i_blocks_write(struct inode *inode,
 					blkcnt_t diff, bool add)
 {
+	bool clean = !is_inode_flag_set(inode, FI_DIRTY_INODE);
+	bool recover = is_inode_flag_set(inode, FI_AUTO_RECOVER);
+
 	inode->i_blocks = add ? inode->i_blocks + diff :
 				inode->i_blocks - diff;
 	mark_inode_dirty_sync(inode);
+	if (clean || recover)
+		set_inode_flag(inode, FI_AUTO_RECOVER);
 }
 
 static inline void f2fs_i_size_write(struct inode *inode, loff_t i_size)
 {
+	bool clean = !is_inode_flag_set(inode, FI_DIRTY_INODE);
+	bool recover = is_inode_flag_set(inode, FI_AUTO_RECOVER);
+
 	if (i_size_read(inode) == i_size)
 		return;
 
 	i_size_write(inode, i_size);
 	mark_inode_dirty_sync(inode);
+	if (clean || recover)
+		set_inode_flag(inode, FI_AUTO_RECOVER);
+}
+
+static inline bool f2fs_skip_inode_update(struct inode *inode)
+{
+	if (!is_inode_flag_set(inode, FI_AUTO_RECOVER))
+		return false;
+	return F2FS_I(inode)->last_disk_size == i_size_read(inode);
 }
 
 static inline void f2fs_i_depth_write(struct inode *inode, unsigned int depth)
@@ -1936,8 +1955,8 @@ void ra_node_page(struct f2fs_sb_info *, nid_t);
 struct page *get_node_page(struct f2fs_sb_info *, pgoff_t);
 struct page *get_node_page_ra(struct page *, int);
 void move_node_page(struct page *, int);
-int fsync_node_pages(struct f2fs_sb_info *, nid_t, struct writeback_control *,
-								bool);
+int fsync_node_pages(struct f2fs_sb_info *, struct inode *,
+			struct writeback_control *, bool);
 int sync_node_pages(struct f2fs_sb_info *, struct writeback_control *);
 bool alloc_nid(struct f2fs_sb_info *, nid_t *);
 void alloc_nid_done(struct f2fs_sb_info *, nid_t);

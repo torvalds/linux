@@ -455,6 +455,9 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 			continue;
 		}
 
+		if ((start + 1) << PAGE_SHIFT > i_size_read(inode))
+			f2fs_i_size_write(inode, (start + 1) << PAGE_SHIFT);
+
 		/*
 		 * dest is reserved block, invalidate src block
 		 * and then reserve one new block in dnode page.
