@@ -9,6 +9,9 @@
 
 #include "../../include/linux/compiler.h"
 
+#define CONFIG_SHMEM
+#define CONFIG_SWAP
+
 #ifndef NULL
 #define NULL	0
 #endif

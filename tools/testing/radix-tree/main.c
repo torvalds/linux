@@ -232,10 +232,51 @@ void copy_tag_check(void)
 	item_kill_tree(&tree);
 }
 
+void __locate_check(struct radix_tree_root *tree, unsigned long index)
+{
+	struct item *item;
+	unsigned long index2;
+
+	item_insert(tree, index);
+	item = item_lookup(tree, index);
+	index2 = radix_tree_locate_item(tree, item);
+	if (index != index2) {
+		printf("index %ld inserted; found %ld\n",
+			index, index2);
+		abort();
+	}
+}
+
+static void locate_check(void)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	unsigned long offset, index;
+
+	for (offset = 0; offset < (1 << 3); offset++) {
+		for (index = 0; index < (1UL << 5); index++) {
+			__locate_check(&tree, index + offset);
+		}
+		if (radix_tree_locate_item(&tree, &tree) != -1)
+			abort();
+
+		item_kill_tree(&tree);
+	}
+
+	if (radix_tree_locate_item(&tree, &tree) != -1)
+		abort();
+	__locate_check(&tree, -1);
+	if (radix_tree_locate_item(&tree, &tree) != -1)
+		abort();
+	item_kill_tree(&tree);
+}
+
 static void single_thread_tests(void)
 {
 	int i;
 
+	printf("starting single_thread_tests: %d allocated\n", nr_allocated);
+	locate_check();
+	printf("after locate_check: %d allocated\n", nr_allocated);
 	tag_check();
 	printf("after tag_check: %d allocated\n", nr_allocated);
 	gang_check();
