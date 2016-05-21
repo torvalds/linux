@@ -3200,14 +3200,10 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	return ret;
 }
 
-static noinline void update_nr_written(struct page *page,
-				      struct writeback_control *wbc,
-				      unsigned long nr_written)
+static void update_nr_written(struct page *page, struct writeback_control *wbc,
+			      unsigned long nr_written)
 {
 	wbc->nr_to_write -= nr_written;
-	if (wbc->range_cyclic || (wbc->nr_to_write > 0 &&
-	    wbc->range_start == 0 && wbc->range_end == LLONG_MAX))
-		page->mapping->writeback_index = page->index + nr_written;
 }
 
 /*
@@ -3368,6 +3364,8 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 	while (cur <= end) {
 		u64 em_end;
+		unsigned long max_nr;
+
 		if (cur >= i_size) {
 			if (tree->ops && tree->ops->writepage_end_io_hook)
 				tree->ops->writepage_end_io_hook(page, cur,
@@ -3423,32 +3421,23 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 			continue;
 		}
 
-		if (tree->ops && tree->ops->writepage_io_hook) {
-			ret = tree->ops->writepage_io_hook(page, cur,
-						cur + iosize - 1);
-		} else {
-			ret = 0;
+		max_nr = (i_size >> PAGE_SHIFT) + 1;
+
+		set_range_writeback(tree, cur, cur + iosize - 1);
+		if (!PageWriteback(page)) {
+			btrfs_err(BTRFS_I(inode)->root->fs_info,
+				   "page %lu not writeback, cur %llu end %llu",
+			       page->index, cur, end);
 		}
-		if (ret) {
+
+		ret = submit_extent_page(write_flags, tree, wbc, page,
+					 sector, iosize, pg_offset,
+					 bdev, &epd->bio, max_nr,
+					 end_bio_extent_writepage,
+					 0, 0, 0, false);
+		if (ret)
 			SetPageError(page);
-		} else {
-			unsigned long max_nr = (i_size >> PAGE_SHIFT) + 1;
 
-			set_range_writeback(tree, cur, cur + iosize - 1);
-			if (!PageWriteback(page)) {
-				btrfs_err(BTRFS_I(inode)->root->fs_info,
-					   "page %lu not writeback, cur %llu end %llu",
-				       page->index, cur, end);
-			}
-
-			ret = submit_extent_page(write_flags, tree, wbc, page,
-						 sector, iosize, pg_offset,
-						 bdev, &epd->bio, max_nr,
-						 end_bio_extent_writepage,
-						 0, 0, 0, false);
-			if (ret)
-				SetPageError(page);
-		}
 		cur = cur + iosize;
 		pg_offset += iosize;
 		nr++;
@@ -3920,12 +3909,13 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	struct inode *inode = mapping->host;
 	int ret = 0;
 	int done = 0;
-	int err = 0;
 	int nr_to_write_done = 0;
 	struct pagevec pvec;
 	int nr_pages;
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
+	pgoff_t done_index;
+	int range_whole = 0;
 	int scanned = 0;
 	int tag;
 
@@ -3948,6 +3938,8 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	} else {
 		index = wbc->range_start >> PAGE_SHIFT;
 		end = wbc->range_end >> PAGE_SHIFT;
+		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
+			range_whole = 1;
 		scanned = 1;
 	}
 	if (wbc->sync_mode == WB_SYNC_ALL)
@@ -3957,6 +3949,7 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 retry:
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		tag_pages_for_writeback(mapping, index, end);
+	done_index = index;
 	while (!done && !nr_to_write_done && (index <= end) &&
 	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
 			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1))) {
@@ -3966,6 +3959,7 @@ retry:
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 
+			done_index = page->index;
 			/*
 			 * At this point we hold neither mapping->tree_lock nor
 			 * lock on the page itself: the page may be truncated or
@@ -4007,8 +4001,20 @@ retry:
 				unlock_page(page);
 				ret = 0;
 			}
-			if (!err && ret < 0)
-				err = ret;
+			if (ret < 0) {
+				/*
+				 * done_index is set past this page,
+				 * so media errors will not choke
+				 * background writeout for the entire
+				 * file. This has consequences for
+				 * range_cyclic semantics (ie. it may
+				 * not be suitable for data integrity
+				 * writeout).
+				 */
+				done_index = page->index + 1;
+				done = 1;
+				break;
+			}
 
 			/*
 			 * the filesystem may choose to bump up nr_to_write.
@@ -4020,7 +4026,7 @@ retry:
 		pagevec_release(&pvec);
 		cond_resched();
 	}
-	if (!scanned && !done && !err) {
+	if (!scanned && !done) {
 		/*
 		 * We hit the last page and there is more work to be done: wrap
 		 * back to the start of the file
@@ -4029,8 +4035,12 @@ retry:
 		index = 0;
 		goto retry;
 	}
+
+	if (wbc->range_cyclic || (wbc->nr_to_write > 0 && range_whole))
+		mapping->writeback_index = done_index;
+
 	btrfs_add_delayed_iput(inode);
-	return err;
+	return ret;
 }
 
 static void flush_epd_write_bio(struct extent_page_data *epd)
@@ -4822,7 +4832,7 @@ struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 		return NULL;
 	eb->fs_info = fs_info;
 again:
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	ret = radix_tree_preload(GFP_NOFS);
 	if (ret)
 		goto free_eb;
 	spin_lock(&fs_info->buffer_lock);
@@ -4923,7 +4933,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	if (uptodate)
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 again:
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	ret = radix_tree_preload(GFP_NOFS);
 	if (ret)
 		goto free_eb;
 
