@@ -57,7 +57,7 @@
 #define RADIX_DAX_ENTRY(sector, pmd) ((void *)((unsigned long)sector << \
 		RADIX_DAX_SHIFT | (pmd ? RADIX_DAX_PMD : RADIX_DAX_PTE)))
 
-static inline int radix_tree_is_indirect_ptr(void *ptr)
+static inline int radix_tree_is_internal_node(void *ptr)
 {
 	return (int)((unsigned long)ptr & RADIX_TREE_INTERNAL_NODE);
 }
@@ -224,7 +224,7 @@ static inline void *radix_tree_deref_slot_protected(void **pslot,
  */
 static inline int radix_tree_deref_retry(void *arg)
 {
-	return unlikely(radix_tree_is_indirect_ptr(arg));
+	return unlikely(radix_tree_is_internal_node(arg));
 }
 
 /**
@@ -259,7 +259,7 @@ static inline int radix_tree_exception(void *arg)
  */
 static inline void radix_tree_replace_slot(void **pslot, void *item)
 {
-	BUG_ON(radix_tree_is_indirect_ptr(item));
+	BUG_ON(radix_tree_is_internal_node(item));
 	rcu_assign_pointer(*pslot, item);
 }
 
@@ -468,7 +468,7 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 		if (unlikely(!iter->tags))
 			return NULL;
 		while (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
-					radix_tree_is_indirect_ptr(slot[1])) {
+					radix_tree_is_internal_node(slot[1])) {
 			if (entry_to_node(slot[1]) == canon) {
 				iter->tags >>= 1;
 				iter->index = __radix_tree_iter_add(iter, 1);
@@ -498,7 +498,7 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 			iter->index = __radix_tree_iter_add(iter, 1);
 
 			if (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
-			    radix_tree_is_indirect_ptr(*slot)) {
+			    radix_tree_is_internal_node(*slot)) {
 				if (entry_to_node(*slot) == canon)
 					continue;
 				iter->next_index = iter->index;

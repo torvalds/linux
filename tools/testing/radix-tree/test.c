@@ -193,7 +193,7 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
 {
 	struct radix_tree_node *node = root->rnode;
-	if (!radix_tree_is_indirect_ptr(node))
+	if (!radix_tree_is_internal_node(node))
 		return;
 	verify_node(node, tag, !!root_tag_get(root, tag));
 }
@@ -222,7 +222,7 @@ void tree_verify_min_height(struct radix_tree_root *root, int maxindex)
 {
 	unsigned shift;
 	struct radix_tree_node *node = root->rnode;
-	if (!radix_tree_is_indirect_ptr(node)) {
+	if (!radix_tree_is_internal_node(node)) {
 		assert(maxindex == 0);
 		return;
 	}
