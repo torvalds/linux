@@ -232,6 +232,7 @@ nouveau_backlight_init(struct drm_device *dev)
 		case NV_DEVICE_INFO_V0_TESLA:
 		case NV_DEVICE_INFO_V0_FERMI:
 		case NV_DEVICE_INFO_V0_KEPLER:
+		case NV_DEVICE_INFO_V0_MAXWELL:
 			return nv50_backlight_init(connector);
 		default:
 			break;
