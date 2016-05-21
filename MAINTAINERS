@@ -8378,7 +8378,6 @@ F:	drivers/platform/x86/panasonic-laptop.c
 
 PANASONIC MN10300/AM33/AM34 PORT
 M:	David Howells <dhowells@redhat.com>
-M:	Koichi Yasutake <yasutake.koichi@jp.panasonic.com>
 L:	linux-am33-list@redhat.com (moderated for non-subscribers)
 W:	ftp://ftp.redhat.com/pub/redhat/gnupro/AM33/
 S:	Maintained
