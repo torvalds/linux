@@ -166,6 +166,7 @@ config S390
 	select TTY
 	select VIRT_CPU_ACCOUNTING
 	select VIRT_TO_BUS
+	select HAVE_NMI
 
 
 config SCHED_OMIT_FRAME_POINTER
