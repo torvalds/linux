@@ -1303,58 +1303,54 @@ EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
 #if defined(CONFIG_SHMEM) && defined(CONFIG_SWAP)
 #include <linux/sched.h> /* for cond_resched() */
 
+struct locate_info {
+	unsigned long found_index;
+	bool stop;
+};
+
 /*
  * This linear search is at present only useful to shmem_unuse_inode().
  */
 static unsigned long __locate(struct radix_tree_node *slot, void *item,
-			      unsigned long index, unsigned long *found_index)
+			      unsigned long index, struct locate_info *info)
 {
 	unsigned int shift, height;
 	unsigned long i;
 
 	height = slot->path & RADIX_TREE_HEIGHT_MASK;
-	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
+	shift = height * RADIX_TREE_MAP_SHIFT;
 
-	for ( ; height > 1; height--) {
-		i = (index >> shift) & RADIX_TREE_MAP_MASK;
-		for (;;) {
-			if (slot->slots[i] != NULL)
-				break;
-			index &= ~((1UL << shift) - 1);
-			index += 1UL << shift;
-			if (index == 0)
-				goto out;	/* 32-bit wraparound */
-			i++;
-			if (i == RADIX_TREE_MAP_SIZE)
-				goto out;
-		}
-
-		slot = rcu_dereference_raw(slot->slots[i]);
-		if (slot == NULL)
-			goto out;
-		if (!radix_tree_is_indirect_ptr(slot)) {
-			if (slot == item) {
-				*found_index = index + i;
-				index = 0;
-			} else {
-				index += shift;
-			}
-			goto out;
-		}
-		slot = indirect_to_ptr(slot);
+	do {
 		shift -= RADIX_TREE_MAP_SHIFT;
-	}
 
-	/* Bottom level: check items */
-	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
-		if (slot->slots[i] == item) {
-			*found_index = index + i;
-			index = 0;
-			goto out;
+		for (i = (index >> shift) & RADIX_TREE_MAP_MASK;
+		     i < RADIX_TREE_MAP_SIZE;
+		     i++, index += (1UL << shift)) {
+			struct radix_tree_node *node =
+					rcu_dereference_raw(slot->slots[i]);
+			if (node == RADIX_TREE_RETRY)
+				goto out;
+			if (!radix_tree_is_indirect_ptr(node)) {
+				if (node == item) {
+					info->found_index = index;
+					info->stop = true;
+					goto out;
+				}
+				continue;
+			}
+			node = indirect_to_ptr(node);
+			if (is_sibling_entry(slot, node))
+				continue;
+			slot = node;
+			break;
 		}
-	}
-	index += RADIX_TREE_MAP_SIZE;
+		if (i == RADIX_TREE_MAP_SIZE)
+			break;
+	} while (shift);
+
 out:
+	if ((index == 0) && (i == RADIX_TREE_MAP_SIZE))
+		info->stop = true;
 	return index;
 }
 
@@ -1372,7 +1368,10 @@ unsigned long radix_tree_locate_item(struct radix_tree_root *root, void *item)
 	struct radix_tree_node *node;
 	unsigned long max_index;
 	unsigned long cur_index = 0;
-	unsigned long found_index = -1;
+	struct locate_info info = {
+		.found_index = -1,
+		.stop = false,
+	};
 
 	do {
 		rcu_read_lock();
@@ -1380,24 +1379,24 @@ unsigned long radix_tree_locate_item(struct radix_tree_root *root, void *item)
 		if (!radix_tree_is_indirect_ptr(node)) {
 			rcu_read_unlock();
 			if (node == item)
-				found_index = 0;
+				info.found_index = 0;
 			break;
 		}
 
 		node = indirect_to_ptr(node);
-		max_index = radix_tree_maxindex(node->path &
-						RADIX_TREE_HEIGHT_MASK);
+
+		max_index = node_maxindex(node);
 		if (cur_index > max_index) {
 			rcu_read_unlock();
 			break;
 		}
 
-		cur_index = __locate(node, item, cur_index, &found_index);
+		cur_index = __locate(node, item, cur_index, &info);
 		rcu_read_unlock();
 		cond_resched();
-	} while (cur_index != 0 && cur_index <= max_index);
+	} while (!info.stop && cur_index <= max_index);
 
-	return found_index;
+	return info.found_index;
 }
 #else
 unsigned long radix_tree_locate_item(struct radix_tree_root *root, void *item)

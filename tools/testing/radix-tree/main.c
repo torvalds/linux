@@ -232,17 +232,18 @@ void copy_tag_check(void)
 	item_kill_tree(&tree);
 }
 
-void __locate_check(struct radix_tree_root *tree, unsigned long index)
+void __locate_check(struct radix_tree_root *tree, unsigned long index,
+			unsigned order)
 {
 	struct item *item;
 	unsigned long index2;
 
-	item_insert(tree, index);
+	item_insert_order(tree, index, order);
 	item = item_lookup(tree, index);
 	index2 = radix_tree_locate_item(tree, item);
 	if (index != index2) {
-		printf("index %ld inserted; found %ld\n",
-			index, index2);
+		printf("index %ld order %d inserted; found %ld\n",
+			index, order, index2);
 		abort();
 	}
 }
@@ -250,21 +251,26 @@ void __locate_check(struct radix_tree_root *tree, unsigned long index)
 static void locate_check(void)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
+	unsigned order;
 	unsigned long offset, index;
 
-	for (offset = 0; offset < (1 << 3); offset++) {
-		for (index = 0; index < (1UL << 5); index++) {
-			__locate_check(&tree, index + offset);
-		}
-		if (radix_tree_locate_item(&tree, &tree) != -1)
-			abort();
+	for (order = 0; order < 20; order++) {
+		for (offset = 0; offset < (1 << (order + 3));
+		     offset += (1UL << order)) {
+			for (index = 0; index < (1UL << (order + 5));
+			     index += (1UL << order)) {
+				__locate_check(&tree, index + offset, order);
+			}
+			if (radix_tree_locate_item(&tree, &tree) != -1)
+				abort();
 
-		item_kill_tree(&tree);
+			item_kill_tree(&tree);
+		}
 	}
 
 	if (radix_tree_locate_item(&tree, &tree) != -1)
 		abort();
-	__locate_check(&tree, -1);
+	__locate_check(&tree, -1, 0);
 	if (radix_tree_locate_item(&tree, &tree) != -1)
 		abort();
 	item_kill_tree(&tree);
