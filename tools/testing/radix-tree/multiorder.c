@@ -92,6 +92,96 @@ static void multiorder_insert_bug(void)
 	item_kill_tree(&tree);
 }
 
+void multiorder_iteration(void)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	struct radix_tree_iter iter;
+	void **slot;
+	int i, err;
+
+	printf("Multiorder iteration test\n");
+
+#define NUM_ENTRIES 11
+	int index[NUM_ENTRIES] = {0, 2, 4, 8, 16, 32, 34, 36, 64, 72, 128};
+	int order[NUM_ENTRIES] = {1, 1, 2, 3,  4,  1,  0,  1,  3,  0, 7};
+
+	for (i = 0; i < NUM_ENTRIES; i++) {
+		err = item_insert_order(&tree, index[i], order[i]);
+		assert(!err);
+	}
+
+	i = 0;
+	/* start from index 1 to verify we find the multi-order entry at 0 */
+	radix_tree_for_each_slot(slot, &tree, &iter, 1) {
+		int height = order[i] / RADIX_TREE_MAP_SHIFT;
+		int shift = height * RADIX_TREE_MAP_SHIFT;
+
+		assert(iter.index == index[i]);
+		assert(iter.shift == shift);
+		i++;
+	}
+
+	/*
+	 * Now iterate through the tree starting at an elevated multi-order
+	 * entry, beginning at an index in the middle of the range.
+	 */
+	i = 8;
+	radix_tree_for_each_slot(slot, &tree, &iter, 70) {
+		int height = order[i] / RADIX_TREE_MAP_SHIFT;
+		int shift = height * RADIX_TREE_MAP_SHIFT;
+
+		assert(iter.index == index[i]);
+		assert(iter.shift == shift);
+		i++;
+	}
+
+	item_kill_tree(&tree);
+}
+
+void multiorder_tagged_iteration(void)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	struct radix_tree_iter iter;
+	void **slot;
+	int i;
+
+	printf("Multiorder tagged iteration test\n");
+
+#define MT_NUM_ENTRIES 9
+	int index[MT_NUM_ENTRIES] = {0, 2, 4, 16, 32, 40, 64, 72, 128};
+	int order[MT_NUM_ENTRIES] = {1, 0, 2, 4,  3,  1,  3,  0,   7};
+
+#define TAG_ENTRIES 7
+	int tag_index[TAG_ENTRIES] = {0, 4, 16, 40, 64, 72, 128};
+
+	for (i = 0; i < MT_NUM_ENTRIES; i++)
+		assert(!item_insert_order(&tree, index[i], order[i]));
+
+	assert(!radix_tree_tagged(&tree, 1));
+
+	for (i = 0; i < TAG_ENTRIES; i++)
+		assert(radix_tree_tag_set(&tree, tag_index[i], 1));
+
+	i = 0;
+	/* start from index 1 to verify we find the multi-order entry at 0 */
+	radix_tree_for_each_tagged(slot, &tree, &iter, 1, 1) {
+		assert(iter.index == tag_index[i]);
+		i++;
+	}
+
+	/*
+	 * Now iterate through the tree starting at an elevated multi-order
+	 * entry, beginning at an index in the middle of the range.
+	 */
+	i = 4;
+	radix_tree_for_each_slot(slot, &tree, &iter, 70) {
+		assert(iter.index == tag_index[i]);
+		i++;
+	}
+
+	item_kill_tree(&tree);
+}
+
 void multiorder_checks(void)
 {
 	int i;
@@ -106,4 +196,6 @@ void multiorder_checks(void)
 		multiorder_shrink((1UL << (i + RADIX_TREE_MAP_SHIFT)), i);
 
 	multiorder_insert_bug();
+	multiorder_iteration();
+	multiorder_tagged_iteration();
 }
