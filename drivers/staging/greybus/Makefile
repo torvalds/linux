@@ -6,7 +6,6 @@ greybus-y :=	core.o		\
 		interface.o	\
 		bundle.o	\
 		connection.o	\
-		protocol.o	\
 		control.o	\
 		svc.o		\
 		svc_watchdog.o	\
