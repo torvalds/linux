@@ -143,7 +143,7 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
 }
 
 static int verify_node(struct radix_tree_node *slot, unsigned int tag,
-			unsigned int height, int tagged)
+			int tagged)
 {
 	int anyset = 0;
 	int i;
@@ -159,7 +159,8 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 		}
 	}
 	if (tagged != anyset) {
-		printf("tag: %u, height %u, tagged: %d, anyset: %d\n", tag, height, tagged, anyset);
+		printf("tag: %u, shift %u, tagged: %d, anyset: %d\n",
+			tag, slot->shift, tagged, anyset);
 		for (j = 0; j < RADIX_TREE_MAX_TAGS; j++) {
 			printf("tag %d: ", j);
 			for (i = 0; i < RADIX_TREE_TAG_LONGS; i++)
@@ -171,10 +172,10 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 	assert(tagged == anyset);
 
 	/* Go for next level */
-	if (height > 1) {
+	if (slot->shift > 0) {
 		for (i = 0; i < RADIX_TREE_MAP_SIZE; i++)
 			if (slot->slots[i])
-				if (verify_node(slot->slots[i], tag, height - 1,
+				if (verify_node(slot->slots[i], tag,
 					    !!test_bit(i, slot->tags[tag]))) {
 					printf("Failure at off %d\n", i);
 					for (j = 0; j < RADIX_TREE_MAX_TAGS; j++) {
@@ -191,9 +192,10 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 
 void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
 {
-	if (!root->height)
+	struct radix_tree_node *node = root->rnode;
+	if (!radix_tree_is_indirect_ptr(node))
 		return;
-	verify_node(root->rnode, tag, root->height, !!root_tag_get(root, tag));
+	verify_node(node, tag, !!root_tag_get(root, tag));
 }
 
 void item_kill_tree(struct radix_tree_root *root)
@@ -218,9 +220,19 @@ void item_kill_tree(struct radix_tree_root *root)
 
 void tree_verify_min_height(struct radix_tree_root *root, int maxindex)
 {
-	assert(radix_tree_maxindex(root->height) >= maxindex);
-	if (root->height > 1)
-		assert(radix_tree_maxindex(root->height-1) < maxindex);
-	else if (root->height == 1)
-		assert(radix_tree_maxindex(root->height-1) <= maxindex);
+	unsigned shift;
+	struct radix_tree_node *node = root->rnode;
+	if (!radix_tree_is_indirect_ptr(node)) {
+		assert(maxindex == 0);
+		return;
+	}
+
+	node = indirect_to_ptr(node);
+	assert(maxindex <= node_maxindex(node));
+
+	shift = node->shift;
+	if (shift > 0)
+		assert(maxindex > shift_maxindex(shift - RADIX_TREE_MAP_SHIFT));
+	else
+		assert(maxindex > 0);
 }
