@@ -977,7 +977,7 @@ S:	Maintained
 L:	linux-arm-kernel@axis.com
 F:	arch/arm/mach-artpec
 F:	arch/arm/boot/dts/artpec6*
-F:	drivers/clk/clk-artpec6.c
+F:	drivers/clk/axis
 
 ARM/ASPEED MACHINE SUPPORT
 M:	Joel Stanley <joel@jms.id.au>
