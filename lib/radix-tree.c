@@ -483,8 +483,6 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 	unsigned int height, shift, offset;
 	int error;
 
-	BUG_ON((0 < order) && (order < RADIX_TREE_MAP_SHIFT));
-
 	/* Make sure the tree is high enough.  */
 	if (index > radix_tree_maxindex(root->height)) {
 		error = radix_tree_extend(root, index, order);
