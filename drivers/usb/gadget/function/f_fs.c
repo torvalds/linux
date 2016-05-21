@@ -640,6 +640,44 @@ static void ffs_epfile_io_complete(struct usb_ep *_ep, struct usb_request *req)
 	}
 }
 
+static ssize_t ffs_copy_to_iter(void *data, int data_len, struct iov_iter *iter)
+{
+	ssize_t ret = copy_to_iter(data, data_len, iter);
+	if (likely(ret == data_len))
+		return ret;
+
+	if (unlikely(iov_iter_count(iter)))
+		return -EFAULT;
+
+	/*
+	 * Dear user space developer!
+	 *
+	 * TL;DR: To stop getting below error message in your kernel log, change
+	 * user space code using functionfs to align read buffers to a max
+	 * packet size.
+	 *
+	 * Some UDCs (e.g. dwc3) require request sizes to be a multiple of a max
+	 * packet size.  When unaligned buffer is passed to functionfs, it
+	 * internally uses a larger, aligned buffer so that such UDCs are happy.
+	 *
+	 * Unfortunately, this means that host may send more data than was
+	 * requested in read(2) system call.  f_fs doesn’t know what to do with
+	 * that excess data so it simply drops it.
+	 *
+	 * Was the buffer aligned in the first place, no such problem would
+	 * happen.
+	 *
+	 * This only affects OUT endpoints, i.e. reading data with a read(2),
+	 * aio_read(2) etc. system calls.  Writing data to an IN endpoint is not
+	 * affected.
+	 */
+	pr_err("functionfs read size %d > requested size %zd, dropping excess data. "
+	       "Align read buffer size to max packet size to avoid the problem.\n",
+	       data_len, ret);
+
+	return ret;
+}
+
 static void ffs_user_copy_worker(struct work_struct *work)
 {
 	struct ffs_io_data *io_data = container_of(work, struct ffs_io_data,
@@ -650,9 +688,7 @@ static void ffs_user_copy_worker(struct work_struct *work)
 
 	if (io_data->read && ret > 0) {
 		use_mm(io_data->mm);
-		ret = copy_to_iter(io_data->buf, ret, &io_data->data);
-		if (ret != io_data->req->actual && iov_iter_count(&io_data->data))
-			ret = -EFAULT;
+		ret = ffs_copy_to_iter(io_data->buf, ret, &io_data->data);
 		unuse_mm(io_data->mm);
 	}
 
@@ -803,18 +839,13 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			interrupted = ep->status < 0;
 		}
 
-		/*
-		 * XXX We may end up silently droping data here.  Since data_len
-		 * (i.e. req->length) may be bigger than len (after being
-		 * rounded up to maxpacketsize), we may end up with more data
-		 * then user space has space for.
-		 */
-		ret = interrupted ? -EINTR : ep->status;
-		if (io_data->read && ret > 0) {
-			ret = copy_to_iter(data, ret, &io_data->data);
-			if (!ret)
-				ret = -EFAULT;
-		}
+		if (interrupted)
+			ret = -EINTR;
+		else if (io_data->read && ep->status > 0)
+			ret = ffs_copy_to_iter(data, ep->status,
+					       &io_data->data);
+		else
+			ret = ep->status;
 		goto error_mutex;
 	} else if (!(req = usb_ep_alloc_request(ep->ep, GFP_KERNEL))) {
 		ret = -ENOMEM;
