@@ -416,6 +416,8 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 			return -ENODEV;
 	}
 
+	if (nd_pfn->align == 0)
+		nd_pfn->align = le32_to_cpu(pfn_sb->align);
 	if (nd_pfn->align > nvdimm_namespace_capacity(ndns)) {
 		dev_err(&nd_pfn->dev, "alignment: %lx exceeds capacity %llx\n",
 				nd_pfn->align, nvdimm_namespace_capacity(ndns));
@@ -436,8 +438,8 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		return -EBUSY;
 	}
 
-	nd_pfn->align = le32_to_cpu(pfn_sb->align);
-	if (!is_power_of_2(offset) || offset < PAGE_SIZE) {
+	if ((nd_pfn->align && !IS_ALIGNED(offset, nd_pfn->align))
+			|| !IS_ALIGNED(offset, PAGE_SIZE)) {
 		dev_err(&nd_pfn->dev, "bad offset: %#llx dax disabled\n",
 				offset);
 		return -ENXIO;
