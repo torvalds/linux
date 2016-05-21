@@ -275,6 +275,8 @@ static void single_thread_tests(bool long_run)
 	int i;
 
 	printf("starting single_thread_tests: %d allocated\n", nr_allocated);
+	multiorder_checks();
+	printf("after multiorder_check: %d allocated\n", nr_allocated);
 	locate_check();
 	printf("after locate_check: %d allocated\n", nr_allocated);
 	tag_check();
