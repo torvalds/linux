@@ -96,7 +96,8 @@ static int allocate_minors(struct usb_serial *serial, int num_ports)
 	mutex_lock(&table_lock);
 	for (i = 0; i < num_ports; ++i) {
 		port = serial->port[i];
-		minor = idr_alloc(&serial_minors, port, 0, 0, GFP_KERNEL);
+		minor = idr_alloc(&serial_minors, port, 0,
+					USB_SERIAL_TTY_MINORS, GFP_KERNEL);
 		if (minor < 0)
 			goto error;
 		port->minor = minor;
@@ -815,7 +816,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 		}
 	}
 
-#if defined(CONFIG_USB_SERIAL_PL2303) || defined(CONFIG_USB_SERIAL_PL2303_MODULE)
+#if IS_ENABLED(CONFIG_USB_SERIAL_PL2303)
 	/* BEGIN HORRIBLE HACK FOR PL2303 */
 	/* this is needed due to the looney way its endpoints are set up */
 	if (((le16_to_cpu(dev->descriptor.idVendor) == PL2303_VENDOR_ID) &&
