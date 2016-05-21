@@ -442,7 +442,7 @@ radix_tree_chunk_size(struct radix_tree_iter *iter)
 	return (iter->next_index - iter->index) >> iter_shift(iter);
 }
 
-static inline void *indirect_to_ptr(void *ptr)
+static inline struct radix_tree_node *entry_to_node(void *ptr)
 {
 	return (void *)((unsigned long)ptr & ~RADIX_TREE_INTERNAL_NODE);
 }
@@ -469,7 +469,7 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 			return NULL;
 		while (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
 					radix_tree_is_indirect_ptr(slot[1])) {
-			if (indirect_to_ptr(slot[1]) == canon) {
+			if (entry_to_node(slot[1]) == canon) {
 				iter->tags >>= 1;
 				iter->index = __radix_tree_iter_add(iter, 1);
 				slot++;
@@ -499,12 +499,10 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 
 			if (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
 			    radix_tree_is_indirect_ptr(*slot)) {
-				if (indirect_to_ptr(*slot) == canon)
+				if (entry_to_node(*slot) == canon)
 					continue;
-				else {
-					iter->next_index = iter->index;
-					break;
-				}
+				iter->next_index = iter->index;
+				break;
 			}
 
 			if (likely(*slot))

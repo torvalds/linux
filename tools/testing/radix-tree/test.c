@@ -149,7 +149,7 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 	int i;
 	int j;
 
-	slot = indirect_to_ptr(slot);
+	slot = entry_to_node(slot);
 
 	/* Verify consistency at this level */
 	for (i = 0; i < RADIX_TREE_TAG_LONGS; i++) {
@@ -227,7 +227,7 @@ void tree_verify_min_height(struct radix_tree_root *root, int maxindex)
 		return;
 	}
 
-	node = indirect_to_ptr(node);
+	node = entry_to_node(node);
 	assert(maxindex <= node_maxindex(node));
 
 	shift = node->shift;
