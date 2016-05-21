@@ -93,6 +93,25 @@ static bool is_idle(struct device *dev, struct nd_namespace_common *ndns)
 	return true;
 }
 
+struct nd_pfn *to_nd_pfn_safe(struct device *dev)
+{
+	/*
+	 * pfn device attributes are re-used by dax device instances, so we
+	 * need to be careful to correct device-to-nd_pfn conversion.
+	 */
+	if (is_nd_pfn(dev))
+		return to_nd_pfn(dev);
+
+	if (is_nd_dax(dev)) {
+		struct nd_dax *nd_dax = to_nd_dax(dev);
+
+		return &nd_dax->nd_pfn;
+	}
+
+	WARN_ON(1);
+	return NULL;
+}
+
 static void nd_detach_and_reset(struct device *dev,
 		struct nd_namespace_common **_ndns)
 {
@@ -106,8 +125,8 @@ static void nd_detach_and_reset(struct device *dev,
 		nd_btt->lbasize = 0;
 		kfree(nd_btt->uuid);
 		nd_btt->uuid = NULL;
-	} else if (is_nd_pfn(dev)) {
-		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+	} else if (is_nd_pfn(dev) || is_nd_dax(dev)) {
+		struct nd_pfn *nd_pfn = to_nd_pfn_safe(dev);
 
 		kfree(nd_pfn->uuid);
 		nd_pfn->uuid = NULL;

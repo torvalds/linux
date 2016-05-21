@@ -54,25 +54,6 @@ struct nd_pfn *to_nd_pfn(struct device *dev)
 }
 EXPORT_SYMBOL(to_nd_pfn);
 
-static struct nd_pfn *to_nd_pfn_safe(struct device *dev)
-{
-	/*
-	 * pfn device attributes are re-used by dax device instances, so we
-	 * need to be careful to correct device-to-nd_pfn conversion.
-	 */
-	if (is_nd_pfn(dev))
-		return to_nd_pfn(dev);
-
-	if (is_nd_dax(dev)) {
-		struct nd_dax *nd_dax = to_nd_dax(dev);
-
-		return &nd_dax->nd_pfn;
-	}
-
-	WARN_ON(1);
-	return NULL;
-}
-
 static ssize_t mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {

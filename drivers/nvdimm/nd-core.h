@@ -94,4 +94,5 @@ bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 ssize_t nd_namespace_store(struct device *dev,
 		struct nd_namespace_common **_ndns, const char *buf,
 		size_t len);
+struct nd_pfn *to_nd_pfn_safe(struct device *dev);
 #endif /* __ND_CORE_H__ */
