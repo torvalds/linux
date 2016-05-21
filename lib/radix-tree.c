@@ -1415,8 +1415,10 @@ unsigned long radix_tree_locate_item(struct radix_tree_root *root, void *item)
  *	radix_tree_shrink    -    shrink height of a radix tree to minimal
  *	@root		radix tree root
  */
-static inline void radix_tree_shrink(struct radix_tree_root *root)
+static inline bool radix_tree_shrink(struct radix_tree_root *root)
 {
+	bool shrunk = false;
+
 	/* try to shrink tree height */
 	while (root->height > 0) {
 		struct radix_tree_node *to_free = root->rnode;
@@ -1476,7 +1478,10 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
 			to_free->slots[0] = RADIX_TREE_RETRY;
 
 		radix_tree_node_free(to_free);
+		shrunk = true;
 	}
+
+	return shrunk;
 }
 
 /**
@@ -1499,11 +1504,8 @@ bool __radix_tree_delete_node(struct radix_tree_root *root,
 		struct radix_tree_node *parent;
 
 		if (node->count) {
-			if (node == indirect_to_ptr(root->rnode)) {
-				radix_tree_shrink(root);
-				if (root->height == 0)
-					deleted = true;
-			}
+			if (node == indirect_to_ptr(root->rnode))
+				deleted |= radix_tree_shrink(root);
 			return deleted;
 		}
 
