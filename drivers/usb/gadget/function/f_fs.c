@@ -130,12 +130,24 @@ struct ffs_epfile {
 
 	struct dentry			*dentry;
 
+	/*
+	 * Buffer for holding data from partial reads which may happen since
+	 * we’re rounding user read requests to a multiple of a max packet size.
+	 */
+	struct ffs_buffer		*read_buffer;	/* P: epfile->mutex */
+
 	char				name[5];
 
 	unsigned char			in;	/* P: ffs->eps_lock */
 	unsigned char			isoc;	/* P: ffs->eps_lock */
 
 	unsigned char			_pad;
+};
+
+struct ffs_buffer {
+	size_t length;
+	char *data;
+	char storage[];
 };
 
 /*  ffs_io_data structure ***************************************************/
@@ -667,6 +679,11 @@ static ssize_t ffs_copy_to_iter(void *data, int data_len, struct iov_iter *iter)
 	 * Was the buffer aligned in the first place, no such problem would
 	 * happen.
 	 *
+	 * Data may be dropped only in AIO reads.  Synchronous reads are handled
+	 * by splitting a request into multiple parts.  This splitting may still
+	 * be a problem though so it’s likely best to align the buffer
+	 * regardless of it being AIO or not..
+	 *
 	 * This only affects OUT endpoints, i.e. reading data with a read(2),
 	 * aio_read(2) etc. system calls.  Writing data to an IN endpoint is not
 	 * affected.
@@ -716,6 +733,56 @@ static void ffs_epfile_async_io_complete(struct usb_ep *_ep,
 	schedule_work(&io_data->work);
 }
 
+/* Assumes epfile->mutex is held. */
+static ssize_t __ffs_epfile_read_buffered(struct ffs_epfile *epfile,
+					  struct iov_iter *iter)
+{
+	struct ffs_buffer *buf = epfile->read_buffer;
+	ssize_t ret;
+	if (!buf)
+		return 0;
+
+	ret = copy_to_iter(buf->data, buf->length, iter);
+	if (buf->length == ret) {
+		kfree(buf);
+		epfile->read_buffer = NULL;
+	} else if (unlikely(iov_iter_count(iter))) {
+		ret = -EFAULT;
+	} else {
+		buf->length -= ret;
+		buf->data += ret;
+	}
+	return ret;
+}
+
+/* Assumes epfile->mutex is held. */
+static ssize_t __ffs_epfile_read_data(struct ffs_epfile *epfile,
+				      void *data, int data_len,
+				      struct iov_iter *iter)
+{
+	struct ffs_buffer *buf;
+
+	ssize_t ret = copy_to_iter(data, data_len, iter);
+	if (likely(data_len == ret))
+		return ret;
+
+	if (unlikely(iov_iter_count(iter)))
+		return -EFAULT;
+
+	/* See ffs_copy_to_iter for more context. */
+	pr_warn("functionfs read size %d > requested size %zd, splitting request into multiple reads.",
+		data_len, ret);
+
+	data_len -= ret;
+	buf = kmalloc(sizeof(*buf) + data_len, GFP_KERNEL);
+	buf->length = data_len;
+	buf->data = buf->storage;
+	memcpy(buf->storage, data + ret, data_len);
+	epfile->read_buffer = buf;
+
+	return ret;
+}
+
 static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 {
 	struct ffs_epfile *epfile = file->private_data;
@@ -745,21 +812,40 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 	if (halt && epfile->isoc)
 		return -EINVAL;
 
+	/* We will be using request and read_buffer */
+	ret = ffs_mutex_lock(&epfile->mutex, file->f_flags & O_NONBLOCK);
+	if (unlikely(ret))
+		goto error;
+
 	/* Allocate & copy */
 	if (!halt) {
+		struct usb_gadget *gadget;
+
+		/*
+		 * Do we have buffered data from previous partial read?  Check
+		 * that for synchronous case only because we do not have
+		 * facility to ‘wake up’ a pending asynchronous read and push
+		 * buffered data to it which we would need to make things behave
+		 * consistently.
+		 */
+		if (!io_data->aio && io_data->read) {
+			ret = __ffs_epfile_read_buffered(epfile, &io_data->data);
+			if (ret)
+				goto error_mutex;
+		}
+
 		/*
 		 * if we _do_ wait above, the epfile->ffs->gadget might be NULL
 		 * before the waiting completes, so do not assign to 'gadget'
 		 * earlier
 		 */
-		struct usb_gadget *gadget = epfile->ffs->gadget;
-		size_t copied;
+		gadget = epfile->ffs->gadget;
 
 		spin_lock_irq(&epfile->ffs->eps_lock);
 		/* In the meantime, endpoint got disabled or changed. */
 		if (epfile->ep != ep) {
-			spin_unlock_irq(&epfile->ffs->eps_lock);
-			return -ESHUTDOWN;
+			ret = -ESHUTDOWN;
+			goto error_lock;
 		}
 		data_len = iov_iter_count(&io_data->data);
 		/*
@@ -771,21 +857,16 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		spin_unlock_irq(&epfile->ffs->eps_lock);
 
 		data = kmalloc(data_len, GFP_KERNEL);
-		if (unlikely(!data))
-			return -ENOMEM;
-		if (!io_data->read) {
-			copied = copy_from_iter(data, data_len, &io_data->data);
-			if (copied != data_len) {
-				ret = -EFAULT;
-				goto error;
-			}
+		if (unlikely(!data)) {
+			ret = -ENOMEM;
+			goto error_mutex;
+		}
+		if (!io_data->read &&
+		    copy_from_iter(data, data_len, &io_data->data) != data_len) {
+			ret = -EFAULT;
+			goto error_mutex;
 		}
 	}
-
-	/* We will be using request */
-	ret = ffs_mutex_lock(&epfile->mutex, file->f_flags & O_NONBLOCK);
-	if (unlikely(ret))
-		goto error;
 
 	spin_lock_irq(&epfile->ffs->eps_lock);
 
@@ -842,8 +923,8 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		if (interrupted)
 			ret = -EINTR;
 		else if (io_data->read && ep->status > 0)
-			ret = ffs_copy_to_iter(data, ep->status,
-					       &io_data->data);
+			ret = __ffs_epfile_read_data(epfile, data, ep->status,
+						     &io_data->data);
 		else
 			ret = ep->status;
 		goto error_mutex;
@@ -1011,6 +1092,8 @@ ffs_epfile_release(struct inode *inode, struct file *file)
 
 	ENTER();
 
+	kfree(epfile->read_buffer);
+	epfile->read_buffer = NULL;
 	ffs_data_closed(epfile->ffs);
 
 	return 0;
@@ -1636,19 +1719,24 @@ static void ffs_func_eps_disable(struct ffs_function *func)
 	unsigned count            = func->ffs->eps_count;
 	unsigned long flags;
 
-	spin_lock_irqsave(&func->ffs->eps_lock, flags);
 	do {
+		if (epfile)
+			mutex_lock(&epfile->mutex);
+		spin_lock_irqsave(&func->ffs->eps_lock, flags);
 		/* pending requests get nuked */
 		if (likely(ep->ep))
 			usb_ep_disable(ep->ep);
 		++ep;
+		spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
 
 		if (epfile) {
 			epfile->ep = NULL;
+			kfree(epfile->read_buffer);
+			epfile->read_buffer = NULL;
+			mutex_unlock(&epfile->mutex);
 			++epfile;
 		}
 	} while (--count);
-	spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
 }
 
 static int ffs_func_eps_enable(struct ffs_function *func)
