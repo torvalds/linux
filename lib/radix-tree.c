@@ -1395,37 +1395,37 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root)
 	bool shrunk = false;
 
 	for (;;) {
-		struct radix_tree_node *to_free = root->rnode;
-		struct radix_tree_node *slot;
+		struct radix_tree_node *node = root->rnode;
+		struct radix_tree_node *child;
 
-		if (!radix_tree_is_internal_node(to_free))
+		if (!radix_tree_is_internal_node(node))
 			break;
-		to_free = entry_to_node(to_free);
+		node = entry_to_node(node);
 
 		/*
 		 * The candidate node has more than one child, or its child
 		 * is not at the leftmost slot, or the child is a multiorder
 		 * entry, we cannot shrink.
 		 */
-		if (to_free->count != 1)
+		if (node->count != 1)
 			break;
-		slot = to_free->slots[0];
-		if (!slot)
+		child = node->slots[0];
+		if (!child)
 			break;
-		if (!radix_tree_is_internal_node(slot) && to_free->shift)
+		if (!radix_tree_is_internal_node(child) && node->shift)
 			break;
 
-		if (radix_tree_is_internal_node(slot))
-			entry_to_node(slot)->parent = NULL;
+		if (radix_tree_is_internal_node(child))
+			entry_to_node(child)->parent = NULL;
 
 		/*
 		 * We don't need rcu_assign_pointer(), since we are simply
 		 * moving the node from one part of the tree to another: if it
 		 * was safe to dereference the old pointer to it
-		 * (to_free->slots[0]), it will be safe to dereference the new
+		 * (node->slots[0]), it will be safe to dereference the new
 		 * one (root->rnode) as far as dependent read barriers go.
 		 */
-		root->rnode = slot;
+		root->rnode = child;
 
 		/*
 		 * We have a dilemma here. The node's slot[0] must not be
@@ -1445,10 +1445,10 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root)
 		 * also results in a stale slot). So tag the slot as indirect
 		 * to force callers to retry.
 		 */
-		if (!radix_tree_is_internal_node(slot))
-			to_free->slots[0] = RADIX_TREE_RETRY;
+		if (!radix_tree_is_internal_node(child))
+			node->slots[0] = RADIX_TREE_RETRY;
 
-		radix_tree_node_free(to_free);
+		radix_tree_node_free(node);
 		shrunk = true;
 	}
 
