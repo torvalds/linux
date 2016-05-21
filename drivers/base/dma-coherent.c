@@ -261,7 +261,7 @@ int dma_mmap_from_coherent(struct device *dev, struct vm_area_struct *vma,
 		   (mem->virt_base + (mem->size << PAGE_SHIFT))) {
 		unsigned long off = vma->vm_pgoff;
 		int start = (vaddr - mem->virt_base) >> PAGE_SHIFT;
-		int user_count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+		int user_count = vma_pages(vma);
 		int count = size >> PAGE_SHIFT;
 
 		*ret = -ENXIO;
