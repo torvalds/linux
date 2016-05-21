@@ -793,3 +793,8 @@ struct nd_region *nvdimm_volatile_region_create(struct nvdimm_bus *nvdimm_bus,
 			__func__);
 }
 EXPORT_SYMBOL_GPL(nvdimm_volatile_region_create);
+
+void __exit nd_region_devs_exit(void)
+{
+	ida_destroy(&region_ida);
+}

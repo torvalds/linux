@@ -232,7 +232,7 @@ bool is_nd_pfn(struct device *dev);
 struct device *nd_pfn_create(struct nd_region *nd_region);
 struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
 		struct nd_namespace_common *ndns);
-int nd_pfn_validate(struct nd_pfn *nd_pfn);
+int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig);
 extern struct attribute_group nd_pfn_attribute_group;
 #else
 static inline int nd_pfn_probe(struct device *dev,
@@ -251,7 +251,7 @@ static inline struct device *nd_pfn_create(struct nd_region *nd_region)
 	return NULL;
 }
 
-static inline int nd_pfn_validate(struct nd_pfn *nd_pfn)
+static inline int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 {
 	return -ENODEV;
 }
@@ -259,9 +259,16 @@ static inline int nd_pfn_validate(struct nd_pfn *nd_pfn)
 
 struct nd_dax *to_nd_dax(struct device *dev);
 #if IS_ENABLED(CONFIG_NVDIMM_DAX)
+int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns);
 bool is_nd_dax(struct device *dev);
 struct device *nd_dax_create(struct nd_region *nd_region);
 #else
+static inline int nd_dax_probe(struct device *dev,
+		struct nd_namespace_common *ndns)
+{
+	return -ENODEV;
+}
+
 static inline bool is_nd_dax(struct device *dev)
 {
 	return false;

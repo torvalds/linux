@@ -552,3 +552,8 @@ int nvdimm_bus_check_dimm_count(struct nvdimm_bus *nvdimm_bus, int dimm_count)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nvdimm_bus_check_dimm_count);
+
+void __exit nvdimm_devs_exit(void)
+{
+	ida_destroy(&dimm_ida);
+}

@@ -54,25 +54,6 @@ struct nd_pfn *to_nd_pfn(struct device *dev)
 }
 EXPORT_SYMBOL(to_nd_pfn);
 
-static struct nd_pfn *to_nd_pfn_safe(struct device *dev)
-{
-	/*
-	 * pfn device attributes are re-used by dax device instances, so we
-	 * need to be careful to correct device-to-nd_pfn conversion.
-	 */
-	if (is_nd_pfn(dev))
-		return to_nd_pfn(dev);
-
-	if (is_nd_dax(dev)) {
-		struct nd_dax *nd_dax = to_nd_dax(dev);
-
-		return &nd_dax->nd_pfn;
-	}
-
-	WARN_ON(1);
-	return NULL;
-}
-
 static ssize_t mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -360,7 +341,7 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 	return dev;
 }
 
-int nd_pfn_validate(struct nd_pfn *nd_pfn)
+int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 {
 	u64 checksum, offset;
 	struct nd_namespace_io *nsio;
@@ -377,7 +358,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb)))
 		return -ENXIO;
 
-	if (memcmp(pfn_sb->signature, PFN_SIG, PFN_SIG_LEN) != 0)
+	if (memcmp(pfn_sb->signature, sig, PFN_SIG_LEN) != 0)
 		return -ENODEV;
 
 	checksum = le64_to_cpu(pfn_sb->checksum);
@@ -416,6 +397,8 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 			return -ENODEV;
 	}
 
+	if (nd_pfn->align == 0)
+		nd_pfn->align = le32_to_cpu(pfn_sb->align);
 	if (nd_pfn->align > nvdimm_namespace_capacity(ndns)) {
 		dev_err(&nd_pfn->dev, "alignment: %lx exceeds capacity %llx\n",
 				nd_pfn->align, nvdimm_namespace_capacity(ndns));
@@ -436,8 +419,8 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 		return -EBUSY;
 	}
 
-	nd_pfn->align = le32_to_cpu(pfn_sb->align);
-	if (!is_power_of_2(offset) || offset < PAGE_SIZE) {
+	if ((nd_pfn->align && !IS_ALIGNED(offset, nd_pfn->align))
+			|| !IS_ALIGNED(offset, PAGE_SIZE)) {
 		dev_err(&nd_pfn->dev, "bad offset: %#llx dax disabled\n",
 				offset);
 		return -ENXIO;
@@ -467,7 +450,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 	pfn_sb = devm_kzalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
 	nd_pfn = to_nd_pfn(pfn_dev);
 	nd_pfn->pfn_sb = pfn_sb;
-	rc = nd_pfn_validate(nd_pfn);
+	rc = nd_pfn_validate(nd_pfn, PFN_SIG);
 	dev_dbg(dev, "%s: pfn: %s\n", __func__,
 			rc == 0 ? dev_name(pfn_dev) : "<none>");
 	if (rc < 0) {
@@ -552,6 +535,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	struct nd_pfn_sb *pfn_sb;
 	unsigned long npfns;
 	phys_addr_t offset;
+	const char *sig;
 	u64 checksum;
 	int rc;
 
@@ -560,7 +544,11 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 		return -ENOMEM;
 
 	nd_pfn->pfn_sb = pfn_sb;
-	rc = nd_pfn_validate(nd_pfn);
+	if (is_nd_dax(&nd_pfn->dev))
+		sig = DAX_SIG;
+	else
+		sig = PFN_SIG;
+	rc = nd_pfn_validate(nd_pfn, sig);
 	if (rc != -ENODEV)
 		return rc;
 
@@ -635,7 +623,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
 	pfn_sb->dataoff = cpu_to_le64(offset);
 	pfn_sb->npfns = cpu_to_le64(npfns);
-	memcpy(pfn_sb->signature, PFN_SIG, PFN_SIG_LEN);
+	memcpy(pfn_sb->signature, sig, PFN_SIG_LEN);
 	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
 	pfn_sb->version_major = cpu_to_le16(1);

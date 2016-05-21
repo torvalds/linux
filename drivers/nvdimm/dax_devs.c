@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include "nd-core.h"
+#include "pfn.h"
 #include "nd.h"
 
 static void nd_dax_release(struct device *dev)
@@ -97,3 +98,37 @@ struct device *nd_dax_create(struct nd_region *nd_region)
 	__nd_device_register(dev);
 	return dev;
 }
+
+int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns)
+{
+	int rc;
+	struct nd_dax *nd_dax;
+	struct device *dax_dev;
+	struct nd_pfn *nd_pfn;
+	struct nd_pfn_sb *pfn_sb;
+	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
+
+	if (ndns->force_raw)
+		return -ENODEV;
+
+	nvdimm_bus_lock(&ndns->dev);
+	nd_dax = nd_dax_alloc(nd_region);
+	nd_pfn = &nd_dax->nd_pfn;
+	dax_dev = nd_pfn_devinit(nd_pfn, ndns);
+	nvdimm_bus_unlock(&ndns->dev);
+	if (!dax_dev)
+		return -ENOMEM;
+	pfn_sb = devm_kzalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
+	nd_pfn->pfn_sb = pfn_sb;
+	rc = nd_pfn_validate(nd_pfn, DAX_SIG);
+	dev_dbg(dev, "%s: dax: %s\n", __func__,
+			rc == 0 ? dev_name(dax_dev) : "<none>");
+	if (rc < 0) {
+		__nd_detach_ndns(dax_dev, &nd_pfn->ndns);
+		put_device(dax_dev);
+	} else
+		__nd_device_register(dax_dev);
+
+	return rc;
+}
+EXPORT_SYMBOL(nd_dax_probe);

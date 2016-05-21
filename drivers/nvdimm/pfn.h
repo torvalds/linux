@@ -19,6 +19,7 @@
 
 #define PFN_SIG_LEN 16
 #define PFN_SIG "NVDIMM_PFN_INFO\0"
+#define DAX_SIG "NVDIMM_DAX_INFO\0"
 
 struct nd_pfn_sb {
 	u8 signature[PFN_SIG_LEN];
