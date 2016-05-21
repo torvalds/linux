@@ -22,7 +22,7 @@
 
 /*
  * during early_printk no ioremap possible at this early stage
- * lets use KSEG1 instead
+ * let's use KSEG1 instead
  */
 #define LTQ_ASC0_BASE_ADDR	0x1E100C00
 #define LTQ_EARLY_ASC		KSEG1ADDR(LTQ_ASC0_BASE_ADDR)
