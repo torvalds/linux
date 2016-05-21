@@ -108,7 +108,7 @@ static void arc_perf_event_update(struct perf_event *event,
 	int64_t delta = new_raw_count - prev_raw_count;
 
 	/*
-	 * We don't afaraid of hwc->prev_count changing beneath our feet
+	 * We aren't afraid of hwc->prev_count changing beneath our feet
 	 * because there's no way for us to re-enter this function anytime.
 	 */
 	local64_set(&hwc->prev_count, new_raw_count);

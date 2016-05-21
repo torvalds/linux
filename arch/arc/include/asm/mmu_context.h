@@ -83,7 +83,7 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 		local_flush_tlb_all();
 
 		/*
-		 * Above checke for rollover of 8 bit ASID in 32 bit container.
+		 * Above check for rollover of 8 bit ASID in 32 bit container.
 		 * If the container itself wrapped around, set it to a non zero
 		 * "generation" to distinguish from no context
 		 */

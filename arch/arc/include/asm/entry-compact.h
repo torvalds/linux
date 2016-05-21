@@ -76,8 +76,8 @@
 	 * We need to be a bit more cautious here. What if a kernel bug in
 	 * L1 ISR, caused SP to go whaco (some small value which looks like
 	 * USER stk) and then we take L2 ISR.
-	 * Above brlo alone would treat it as a valid L1-L2 sceanrio
-	 * instead of shouting alound
+	 * Above brlo alone would treat it as a valid L1-L2 scenario
+	 * instead of shouting around
 	 * The only feasible way is to make sure this L2 happened in
 	 * L1 prelogue ONLY i.e. ilink2 is less than a pre-set marker in
 	 * L1 ISR before it switches stack
