@@ -28,6 +28,7 @@ my $terse = 0;
 my $showfile = 0;
 my $file = 0;
 my $git = 0;
+my %git_commits = ();
 my $check = 0;
 my $check_orig = 0;
 my $summary = 1;
@@ -806,23 +807,25 @@ die "$P: No git repository found\n" if ($git && !-e ".git");
 
 if ($git) {
 	my @commits = ();
-	for my $commit_expr (@ARGV) {
+	foreach my $commit_expr (@ARGV) {
 		my $git_range;
 		if ($commit_expr =~ m/-/) {
 			my @tmp = split(/-/, $commit_expr);
-			die "$P: incorrect git commits expression $commit_expr$!\n"
+			die "$P: incorrect git commit expression '$commit_expr' $!\n"
 			    if (@tmp != 2);
 			$git_range = "-$tmp[1] $tmp[0]";
 		} elsif ($commit_expr =~ m/\.\./) {
 			$git_range = "$commit_expr";
-		}
-		if (defined $git_range) {
-			my $lines = `git log --no-merges --pretty=format:'%H' $git_range`;
-			foreach my $line (split(/\n/, $lines)) {
-				unshift(@commits, $line);
-			}
 		} else {
-			unshift(@commits, $commit_expr);
+			$git_range = "-1 $commit_expr";
+		}
+		my $lines = `git log --no-color --no-merges --pretty=format:'%H %s' $git_range`;
+		foreach my $line (split(/\n/, $lines)) {
+			$line =~ /(^\w+) (.*)/;
+			my $sha1 = $1;
+			my $subject = $2;
+			unshift(@commits, $sha1);
+			$git_commits{$sha1} = $subject;
 		}
 	}
 	die "$P: no git commits after extraction!\n" if (@commits == 0);
@@ -847,7 +850,7 @@ for my $filename (@ARGV) {
 	if ($filename eq '-') {
 		$vname = 'Your patch';
 	} elsif ($git) {
-		$vname = "Commit " . substr($filename, 0, 12) . `git log -1 --pretty=format:' ("%s")' $filename`;
+		$vname = "Commit " . substr($filename, 0, 12) . ' ("' . $git_commits{$filename} . '")';
 	} else {
 		$vname = $filename;
 	}
