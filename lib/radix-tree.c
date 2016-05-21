@@ -1009,9 +1009,9 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 		unsigned long nr_to_tag,
 		unsigned int iftag, unsigned int settag)
 {
-	struct radix_tree_node *slot, *node = NULL;
+	struct radix_tree_node *parent, *node, *child;
 	unsigned long maxindex;
-	unsigned int shift = radix_tree_load_root(root, &slot, &maxindex);
+	unsigned int shift = radix_tree_load_root(root, &child, &maxindex);
 	unsigned long tagged = 0;
 	unsigned long index = *first_indexp;
 
@@ -1024,28 +1024,25 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 		*first_indexp = last_index + 1;
 		return 0;
 	}
-	if (!radix_tree_is_internal_node(slot)) {
+	if (!radix_tree_is_internal_node(child)) {
 		*first_indexp = last_index + 1;
 		root_tag_set(root, settag);
 		return 1;
 	}
 
-	node = entry_to_node(slot);
+	node = entry_to_node(child);
 	shift -= RADIX_TREE_MAP_SHIFT;
 
 	for (;;) {
-		unsigned long upindex;
-		unsigned offset;
-
-		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-		offset = radix_tree_descend(node, &slot, offset);
-		if (!slot)
+		unsigned offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+		offset = radix_tree_descend(node, &child, offset);
+		if (!child)
 			goto next;
 		if (!tag_get(node, iftag, offset))
 			goto next;
 		/* Sibling slots never have tags set on them */
-		if (radix_tree_is_internal_node(slot)) {
-			node = entry_to_node(slot);
+		if (radix_tree_is_internal_node(child)) {
+			node = entry_to_node(child);
 			shift -= RADIX_TREE_MAP_SHIFT;
 			continue;
 		}
@@ -1054,20 +1051,18 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 		tagged++;
 		tag_set(node, settag, offset);
 
-		slot = node->parent;
 		/* walk back up the path tagging interior nodes */
-		upindex = index >> shift;
-		while (slot) {
-			upindex >>= RADIX_TREE_MAP_SHIFT;
-			offset = upindex & RADIX_TREE_MAP_MASK;
-
-			/* stop if we find a node with the tag already set */
-			if (tag_get(slot, settag, offset))
+		parent = node;
+		for (;;) {
+			offset = parent->offset;
+			parent = parent->parent;
+			if (!parent)
 				break;
-			tag_set(slot, settag, offset);
-			slot = slot->parent;
+			/* stop if we find a node with the tag already set */
+			if (tag_get(parent, settag, offset))
+				break;
+			tag_set(parent, settag, offset);
 		}
-
  next:
 		/* Go to next item at level determined by 'shift' */
 		index = ((index >> shift) + 1) << shift;
