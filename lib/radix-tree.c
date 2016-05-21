@@ -1033,14 +1033,13 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 		unsigned long nr_to_tag,
 		unsigned int iftag, unsigned int settag)
 {
-	unsigned int height = root->height;
-	struct radix_tree_node *node = NULL;
-	struct radix_tree_node *slot;
-	unsigned int shift;
+	struct radix_tree_node *slot, *node = NULL;
+	unsigned long maxindex;
+	unsigned int shift = radix_tree_load_root(root, &slot, &maxindex);
 	unsigned long tagged = 0;
 	unsigned long index = *first_indexp;
 
-	last_index = min(last_index, radix_tree_maxindex(height));
+	last_index = min(last_index, maxindex);
 	if (index > last_index)
 		return 0;
 	if (!nr_to_tag)
@@ -1049,80 +1048,71 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 		*first_indexp = last_index + 1;
 		return 0;
 	}
-	if (height == 0) {
+	if (!radix_tree_is_indirect_ptr(slot)) {
 		*first_indexp = last_index + 1;
 		root_tag_set(root, settag);
 		return 1;
 	}
 
-	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
-	slot = indirect_to_ptr(root->rnode);
+	node = indirect_to_ptr(slot);
+	shift -= RADIX_TREE_MAP_SHIFT;
 
 	for (;;) {
 		unsigned long upindex;
-		int offset;
+		unsigned offset;
 
 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-		if (!slot->slots[offset])
+		offset = radix_tree_descend(node, &slot, offset);
+		if (!slot)
 			goto next;
-		if (!tag_get(slot, iftag, offset))
+		if (!tag_get(node, iftag, offset))
 			goto next;
-		if (shift) {
-			node = slot;
-			slot = slot->slots[offset];
-			if (radix_tree_is_indirect_ptr(slot)) {
-				slot = indirect_to_ptr(slot);
-				shift -= RADIX_TREE_MAP_SHIFT;
-				continue;
-			} else {
-				slot = node;
-				node = node->parent;
-			}
+		/* Sibling slots never have tags set on them */
+		if (radix_tree_is_indirect_ptr(slot)) {
+			node = indirect_to_ptr(slot);
+			shift -= RADIX_TREE_MAP_SHIFT;
+			continue;
 		}
 
 		/* tag the leaf */
-		tagged += 1 << shift;
-		tag_set(slot, settag, offset);
+		tagged++;
+		tag_set(node, settag, offset);
 
+		slot = node->parent;
 		/* walk back up the path tagging interior nodes */
-		upindex = index;
-		while (node) {
+		upindex = index >> shift;
+		while (slot) {
 			upindex >>= RADIX_TREE_MAP_SHIFT;
 			offset = upindex & RADIX_TREE_MAP_MASK;
 
 			/* stop if we find a node with the tag already set */
-			if (tag_get(node, settag, offset))
+			if (tag_get(slot, settag, offset))
 				break;
-			tag_set(node, settag, offset);
-			node = node->parent;
+			tag_set(slot, settag, offset);
+			slot = slot->parent;
 		}
 
-		/*
-		 * Small optimization: now clear that node pointer.
-		 * Since all of this slot's ancestors now have the tag set
-		 * from setting it above, we have no further need to walk
-		 * back up the tree setting tags, until we update slot to
-		 * point to another radix_tree_node.
-		 */
-		node = NULL;
-
-next:
+ next:
 		/* Go to next item at level determined by 'shift' */
 		index = ((index >> shift) + 1) << shift;
 		/* Overflow can happen when last_index is ~0UL... */
 		if (index > last_index || !index)
 			break;
-		if (tagged >= nr_to_tag)
-			break;
-		while (((index >> shift) & RADIX_TREE_MAP_MASK) == 0) {
+		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+		while (offset == 0) {
 			/*
 			 * We've fully scanned this node. Go up. Because
 			 * last_index is guaranteed to be in the tree, what
 			 * we do below cannot wander astray.
 			 */
-			slot = slot->parent;
+			node = node->parent;
 			shift += RADIX_TREE_MAP_SHIFT;
+			offset = (index >> shift) & RADIX_TREE_MAP_MASK;
 		}
+		if (is_sibling_entry(node, node->slots[offset]))
+			goto next;
+		if (tagged >= nr_to_tag)
+			break;
 	}
 	/*
 	 * We need not to tag the root tag if there is no tag which is set with

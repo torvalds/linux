@@ -26,6 +26,7 @@ static void __multiorder_tag_test(int index, int order)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
 	int base, err, i;
+	unsigned long first = 0;
 
 	/* our canonical entry */
 	base = index & ~((1 << order) - 1);
@@ -59,12 +60,15 @@ static void __multiorder_tag_test(int index, int order)
 		assert(!radix_tree_tag_get(&tree, i, 1));
 	}
 
+	assert(radix_tree_range_tag_if_tagged(&tree, &first, ~0UL, 10, 0, 1) == 1);
 	assert(radix_tree_tag_clear(&tree, index, 0));
 
 	for_each_index(i, base, order) {
 		assert(!radix_tree_tag_get(&tree, i, 0));
-		assert(!radix_tree_tag_get(&tree, i, 1));
+		assert(radix_tree_tag_get(&tree, i, 1));
 	}
+
+	assert(radix_tree_tag_clear(&tree, index, 1));
 
 	assert(!radix_tree_tagged(&tree, 0));
 	assert(!radix_tree_tagged(&tree, 1));
@@ -244,6 +248,7 @@ void multiorder_tagged_iteration(void)
 	RADIX_TREE(tree, GFP_KERNEL);
 	struct radix_tree_iter iter;
 	void **slot;
+	unsigned long first = 0;
 	int i;
 
 	printf("Multiorder tagged iteration test\n");
@@ -276,6 +281,24 @@ void multiorder_tagged_iteration(void)
 	 */
 	i = 4;
 	radix_tree_for_each_slot(slot, &tree, &iter, 70) {
+		assert(iter.index == tag_index[i]);
+		i++;
+	}
+
+	radix_tree_range_tag_if_tagged(&tree, &first, ~0UL,
+					MT_NUM_ENTRIES, 1, 2);
+
+	i = 0;
+	radix_tree_for_each_tagged(slot, &tree, &iter, 1, 2) {
+		assert(iter.index == tag_index[i]);
+		i++;
+	}
+
+	first = 1;
+	radix_tree_range_tag_if_tagged(&tree, &first, ~0UL,
+					MT_NUM_ENTRIES, 1, 0);
+	i = 0;
+	radix_tree_for_each_tagged(slot, &tree, &iter, 0, 0) {
 		assert(iter.index == tag_index[i]);
 		i++;
 	}
