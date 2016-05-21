@@ -1304,7 +1304,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 
 	/* Need UDP and VXLAN header to be present */
 	if (!pskb_may_pull(skb, VXLAN_HLEN))
-		return 1;
+		goto drop;
 
 	unparsed = *vxlan_hdr(skb);
 	/* VNI flag always required to be set */
@@ -1313,7 +1313,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 			   ntohl(vxlan_hdr(skb)->vx_flags),
 			   ntohl(vxlan_hdr(skb)->vx_vni));
 		/* Return non vxlan pkt */
-		return 1;
+		goto drop;
 	}
 	unparsed.vx_flags &= ~VXLAN_HF_VNI;
 	unparsed.vx_vni &= ~VXLAN_VNI_MASK;

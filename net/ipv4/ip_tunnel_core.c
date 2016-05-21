@@ -37,6 +37,7 @@
 #include <net/icmp.h>
 #include <net/protocol.h>
 #include <net/ip_tunnels.h>
+#include <net/ip6_tunnel.h>
 #include <net/arp.h>
 #include <net/checksum.h>
 #include <net/dsfield.h>
@@ -46,6 +47,14 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/dst_metadata.h>
+
+const struct ip_tunnel_encap_ops __rcu *
+		iptun_encaps[MAX_IPTUN_ENCAP_OPS] __read_mostly;
+EXPORT_SYMBOL(iptun_encaps);
+
+const struct ip6_tnl_encap_ops __rcu *
+		ip6tun_encaps[MAX_IPTUN_ENCAP_OPS] __read_mostly;
+EXPORT_SYMBOL(ip6tun_encaps);
 
 void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, __u8 proto,
