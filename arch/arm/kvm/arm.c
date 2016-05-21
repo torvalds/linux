@@ -376,7 +376,7 @@ void force_vm_exit(const cpumask_t *mask)
 
 /**
  * need_new_vmid_gen - check that the VMID is still valid
- * @kvm: The VM's VMID to checkt
+ * @kvm: The VM's VMID to check
  *
  * return true if there is a new generation of VMIDs being used
  *
