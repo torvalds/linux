@@ -232,7 +232,7 @@ void copy_tag_check(void)
 	item_kill_tree(&tree);
 }
 
-void __locate_check(struct radix_tree_root *tree, unsigned long index,
+static void __locate_check(struct radix_tree_root *tree, unsigned long index,
 			unsigned order)
 {
 	struct item *item;
@@ -248,11 +248,24 @@ void __locate_check(struct radix_tree_root *tree, unsigned long index,
 	}
 }
 
+static void __order_0_locate_check(void)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	int i;
+
+	for (i = 0; i < 50; i++)
+		__locate_check(&tree, rand() % INT_MAX, 0);
+
+	item_kill_tree(&tree);
+}
+
 static void locate_check(void)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
 	unsigned order;
 	unsigned long offset, index;
+
+	__order_0_locate_check();
 
 	for (order = 0; order < 20; order++) {
 		for (offset = 0; offset < (1 << (order + 3));
