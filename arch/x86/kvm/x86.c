@@ -8418,7 +8418,7 @@ void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 	/*
 	 * When producer of consumer is unregistered, we change back to
 	 * remapped mode, so we can re-use the current implementation
-	 * when the irq is masked/disabed or the consumer side (KVM
+	 * when the irq is masked/disabled or the consumer side (KVM
 	 * int this case doesn't want to receive the interrupts.
 	*/
 	ret = kvm_x86_ops->update_pi_irte(irqfd->kvm, prod->irq, irqfd->gsi, 0);

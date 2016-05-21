@@ -3364,7 +3364,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 
 	/*
 	 * Some cpus support VM_ENTRY_(LOAD|SAVE)_IA32_PERF_GLOBAL_CTRL
-	 * but due to arrata below it can't be used. Workaround is to use
+	 * but due to errata below it can't be used. Workaround is to use
 	 * msr load mechanism to switch IA32_PERF_GLOBAL_CTRL.
 	 *
 	 * VM Exit May Incorrectly Clear IA32_PERF_GLOBAL_CTRL [34:32]

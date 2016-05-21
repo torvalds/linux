@@ -523,7 +523,7 @@ static void mmu_spte_set(u64 *sptep, u64 new_spte)
 }
 
 /* Rules for using mmu_spte_update:
- * Update the state bits, it means the mapped pfn is not changged.
+ * Update the state bits, it means the mapped pfn is not changed.
  *
  * Whenever we overwrite a writable spte with a read-only one we
  * should flush remote TLBs. Otherwise rmap_write_protect
