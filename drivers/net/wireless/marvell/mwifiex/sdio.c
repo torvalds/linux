@@ -1492,7 +1492,7 @@ rx_curr_single:
 		mwifiex_dbg(adapter, INFO, "info: RX: port: %d, rx_len: %d\n",
 			    port, rx_len);
 
-		skb = mwifiex_alloc_dma_align_buf(rx_len, GFP_KERNEL | GFP_DMA);
+		skb = mwifiex_alloc_dma_align_buf(rx_len, GFP_KERNEL);
 		if (!skb) {
 			mwifiex_dbg(adapter, ERROR,
 				    "single skb allocated fail,\t"
@@ -1597,7 +1597,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		rx_len = (u16) (rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE);
 		mwifiex_dbg(adapter, INFO, "info: rx_len = %d\n", rx_len);
 
-		skb = mwifiex_alloc_dma_align_buf(rx_len, GFP_KERNEL | GFP_DMA);
+		skb = mwifiex_alloc_dma_align_buf(rx_len, GFP_KERNEL);
 		if (!skb)
 			return -1;
 
