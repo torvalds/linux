@@ -499,12 +499,13 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 			unsigned order, struct radix_tree_node **nodep,
 			void ***slotp)
 {
-	struct radix_tree_node *node = NULL, *slot;
+	struct radix_tree_node *node = NULL, *child;
+	void **slot = (void **)&root->rnode;
 	unsigned long maxindex;
-	unsigned int shift, offset;
+	unsigned int shift, offset = 0;
 	unsigned long max = index | ((1UL << order) - 1);
 
-	shift = radix_tree_load_root(root, &slot, &maxindex);
+	shift = radix_tree_load_root(root, &child, &maxindex);
 
 	/* Make sure the tree is high enough.  */
 	if (max > maxindex) {
@@ -512,51 +513,48 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 		if (error < 0)
 			return error;
 		shift = error;
-		slot = root->rnode;
+		child = root->rnode;
 		if (order == shift)
 			shift += RADIX_TREE_MAP_SHIFT;
 	}
 
-	offset = 0;			/* uninitialised var warning */
 	while (shift > order) {
 		shift -= RADIX_TREE_MAP_SHIFT;
-		if (slot == NULL) {
+		if (child == NULL) {
 			/* Have to add a child node.  */
-			slot = radix_tree_node_alloc(root);
-			if (!slot)
+			child = radix_tree_node_alloc(root);
+			if (!child)
 				return -ENOMEM;
-			slot->shift = shift;
-			slot->offset = offset;
-			slot->parent = node;
-			if (node) {
-				rcu_assign_pointer(node->slots[offset],
-							node_to_entry(slot));
+			child->shift = shift;
+			child->offset = offset;
+			child->parent = node;
+			rcu_assign_pointer(*slot, node_to_entry(child));
+			if (node)
 				node->count++;
-			} else
-				rcu_assign_pointer(root->rnode,
-							node_to_entry(slot));
-		} else if (!radix_tree_is_internal_node(slot))
+		} else if (!radix_tree_is_internal_node(child))
 			break;
 
 		/* Go a level down */
-		node = entry_to_node(slot);
+		node = entry_to_node(child);
 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-		offset = radix_tree_descend(node, &slot, offset);
+		offset = radix_tree_descend(node, &child, offset);
+		slot = &node->slots[offset];
 	}
 
 #ifdef CONFIG_RADIX_TREE_MULTIORDER
 	/* Insert pointers to the canonical entry */
 	if (order > shift) {
-		int i, n = 1 << (order - shift);
+		unsigned i, n = 1 << (order - shift);
 		offset = offset & ~(n - 1);
-		slot = node_to_entry(&node->slots[offset]);
+		slot = &node->slots[offset];
+		child = node_to_entry(slot);
 		for (i = 0; i < n; i++) {
-			if (node->slots[offset + i])
+			if (slot[i])
 				return -EEXIST;
 		}
 
 		for (i = 1; i < n; i++) {
-			rcu_assign_pointer(node->slots[offset + i], slot);
+			rcu_assign_pointer(slot[i], child);
 			node->count++;
 		}
 	}
@@ -565,7 +563,7 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 	if (nodep)
 		*nodep = node;
 	if (slotp)
-		*slotp = node ? node->slots + offset : (void **)&root->rnode;
+		*slotp = slot;
 	return 0;
 }
 
