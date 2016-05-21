@@ -3,7 +3,7 @@ ASoC Machine Driver
 
 The ASoC machine (or board) driver is the code that glues together all the
 component drivers (e.g. codecs, platforms and DAIs). It also describes the
-relationships between each componnent which include audio paths, GPIOs,
+relationships between each component which include audio paths, GPIOs,
 interrupts, clocking, jacks and voltage regulators.
 
 The machine driver can contain codec and platform specific code. It registers
