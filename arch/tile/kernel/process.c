@@ -539,7 +539,7 @@ void flush_thread(void)
 /*
  * Free current thread data structures etc..
  */
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
 #ifdef CONFIG_HARDWALL
 	/*
@@ -548,7 +548,7 @@ void exit_thread(void)
 	 * the last reference to a hardwall fd, it would already have
 	 * been released and deactivated at this point.)
 	 */
-	hardwall_deactivate_all(current);
+	hardwall_deactivate_all(tsk);
 #endif
 }
 
