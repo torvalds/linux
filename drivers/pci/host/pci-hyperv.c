@@ -1809,14 +1809,14 @@ static void hv_pci_free_bridge_windows(struct hv_pcibus_device *hbus)
 
 	if (hbus->low_mmio_space && hbus->low_mmio_res) {
 		hbus->low_mmio_res->flags |= IORESOURCE_BUSY;
-		release_mem_region(hbus->low_mmio_res->start,
-				   resource_size(hbus->low_mmio_res));
+		vmbus_free_mmio(hbus->low_mmio_res->start,
+				resource_size(hbus->low_mmio_res));
 	}
 
 	if (hbus->high_mmio_space && hbus->high_mmio_res) {
 		hbus->high_mmio_res->flags |= IORESOURCE_BUSY;
-		release_mem_region(hbus->high_mmio_res->start,
-				   resource_size(hbus->high_mmio_res));
+		vmbus_free_mmio(hbus->high_mmio_res->start,
+				resource_size(hbus->high_mmio_res));
 	}
 }
 
@@ -1894,8 +1894,8 @@ static int hv_pci_allocate_bridge_windows(struct hv_pcibus_device *hbus)
 
 release_low_mmio:
 	if (hbus->low_mmio_res) {
-		release_mem_region(hbus->low_mmio_res->start,
-				   resource_size(hbus->low_mmio_res));
+		vmbus_free_mmio(hbus->low_mmio_res->start,
+				resource_size(hbus->low_mmio_res));
 	}
 
 	return ret;
@@ -1938,7 +1938,7 @@ static int hv_allocate_config_window(struct hv_pcibus_device *hbus)
 
 static void hv_free_config_window(struct hv_pcibus_device *hbus)
 {
-	release_mem_region(hbus->mem_config->start, PCI_CONFIG_MMIO_LENGTH);
+	vmbus_free_mmio(hbus->mem_config->start, PCI_CONFIG_MMIO_LENGTH);
 }
 
 /**

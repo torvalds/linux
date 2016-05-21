@@ -9843,6 +9843,7 @@ F:	drivers/mmc/host/dw_mmc*
 SYSTEM TRACE MODULE CLASS
 M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ash/stm.git
 F:	Documentation/trace/stm.txt
 F:	drivers/hwtracing/stm/
 F:	include/linux/stm.h
