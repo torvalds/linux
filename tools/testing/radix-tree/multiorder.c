@@ -46,6 +46,41 @@ static void multiorder_check(unsigned long index, int order)
 		item_check_absent(&tree, i);
 }
 
+static void multiorder_shrink(unsigned long index, int order)
+{
+	unsigned long i;
+	unsigned long max = 1 << order;
+	RADIX_TREE(tree, GFP_KERNEL);
+	struct radix_tree_node *node;
+
+	printf("Multiorder shrink index %ld, order %d\n", index, order);
+
+	assert(item_insert_order(&tree, 0, order) == 0);
+
+	node = tree.rnode;
+
+	assert(item_insert(&tree, index) == 0);
+	assert(node != tree.rnode);
+
+	assert(item_delete(&tree, index) != 0);
+	assert(node == tree.rnode);
+
+	for (i = 0; i < max; i++) {
+		struct item *item = item_lookup(&tree, i);
+		assert(item != 0);
+		assert(item->index == 0);
+	}
+	for (i = max; i < 2*max; i++)
+		item_check_absent(&tree, i);
+
+	if (!item_delete(&tree, 0)) {
+		printf("failed to delete index %ld (order %d)\n", index, order);		abort();
+	}
+
+	for (i = 0; i < 2*max; i++)
+		item_check_absent(&tree, i);
+}
+
 void multiorder_checks(void)
 {
 	int i;
@@ -55,4 +90,8 @@ void multiorder_checks(void)
 		multiorder_check(0, i);
 		multiorder_check((1UL << i) + 1, i);
 	}
+
+	for (i = 0; i < 15; i++)
+		multiorder_shrink((1UL << (i + RADIX_TREE_MAP_SHIFT)), i);
+
 }

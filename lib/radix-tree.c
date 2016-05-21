@@ -80,6 +80,8 @@ static inline void *indirect_to_ptr(void *ptr)
 	return (void *)((unsigned long)ptr & ~RADIX_TREE_INDIRECT_PTR);
 }
 
+#define RADIX_TREE_RETRY	ptr_to_indirect(NULL)
+
 #ifdef CONFIG_RADIX_TREE_MULTIORDER
 /* Sibling slots point directly to another slot in the same node */
 static inline bool is_sibling_entry(struct radix_tree_node *parent, void *node)
@@ -1443,6 +1445,14 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
 		slot = to_free->slots[0];
 		if (!slot)
 			break;
+		if (!radix_tree_is_indirect_ptr(slot) && (root->height > 1))
+			break;
+
+		if (radix_tree_is_indirect_ptr(slot)) {
+			slot = indirect_to_ptr(slot);
+			slot->parent = NULL;
+			slot = ptr_to_indirect(slot);
+		}
 
 		/*
 		 * We don't need rcu_assign_pointer(), since we are simply
@@ -1451,14 +1461,6 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
 		 * (to_free->slots[0]), it will be safe to dereference the new
 		 * one (root->rnode) as far as dependent read barriers go.
 		 */
-		if (root->height > 1) {
-			if (!radix_tree_is_indirect_ptr(slot))
-				break;
-
-			slot = indirect_to_ptr(slot);
-			slot->parent = NULL;
-			slot = ptr_to_indirect(slot);
-		}
 		root->rnode = slot;
 		root->height--;
 
@@ -1480,9 +1482,8 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
 		 * also results in a stale slot). So tag the slot as indirect
 		 * to force callers to retry.
 		 */
-		if (root->height == 0)
-			*((unsigned long *)&to_free->slots[0]) |=
-						RADIX_TREE_INDIRECT_PTR;
+		if (!radix_tree_is_indirect_ptr(slot))
+			to_free->slots[0] = RADIX_TREE_RETRY;
 
 		radix_tree_node_free(to_free);
 	}
