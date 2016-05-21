@@ -61,7 +61,7 @@ static phys_addr_t dram_sync_paddr;
 static u32 dram_sync_size;
 
 /*
- * The OMAP4 bus structure contains asynchrnous bridges which can buffer
+ * The OMAP4 bus structure contains asynchronous bridges which can buffer
  * data writes from the MPU. These asynchronous bridges can be found on
  * paths between the MPU to EMIF, and the MPU to L3 interconnects.
  *
