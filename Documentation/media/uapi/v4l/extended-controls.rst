@@ -2846,7 +2846,7 @@ JPEG Control IDs
     input image is sampled, in respect to maximum sample rate in each
     spatial dimension. See :ref:`itu-t81`, clause A.1.1. for more
     details. The ``V4L2_CID_JPEG_CHROMA_SUBSAMPLING`` control determines
-    how Cb and Cr components are downsampled after coverting an input
+    how Cb and Cr components are downsampled after converting an input
     image from RGB to Y'CbCr color space.
 
 .. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
