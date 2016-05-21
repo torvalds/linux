@@ -768,6 +768,7 @@ D: Z85230 driver
 D: Former security contact point (please use vendor-sec@lst.de)
 D: ex 2.2 maintainer
 D: 2.1.x modular sound
+D: Assigned major/minor numbers maintainer at lanana.org
 S: c/o Red Hat UK Ltd
 S: Alexandra House
 S: Alexandra Terrace

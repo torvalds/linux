@@ -6067,6 +6067,13 @@ F:	include/linux/irqdomain.h
 F:	kernel/irq/irqdomain.c
 F:	kernel/irq/msi.c
 
+ISA
+M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+S:	Maintained
+F:	Documentation/isa.txt
+F:	drivers/base/isa.c
+F:	include/linux/isa.h
+
 ISAPNP
 M:	Jaroslav Kysela <perex@perex.cz>
 S:	Maintained
