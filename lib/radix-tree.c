@@ -722,35 +722,32 @@ EXPORT_SYMBOL(radix_tree_lookup);
 void *radix_tree_tag_set(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag)
 {
-	unsigned int height, shift;
-	struct radix_tree_node *slot;
+	struct radix_tree_node *node, *parent;
+	unsigned long maxindex;
+	unsigned int shift;
 
-	height = root->height;
-	BUG_ON(index > radix_tree_maxindex(height));
+	shift = radix_tree_load_root(root, &node, &maxindex);
+	BUG_ON(index > maxindex);
 
-	slot = indirect_to_ptr(root->rnode);
-	shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
+	while (radix_tree_is_indirect_ptr(node)) {
+		unsigned offset;
 
-	while (height > 0) {
-		int offset;
-
-		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-		if (!tag_get(slot, tag, offset))
-			tag_set(slot, tag, offset);
-		slot = slot->slots[offset];
-		BUG_ON(slot == NULL);
-		if (!radix_tree_is_indirect_ptr(slot))
-			break;
-		slot = indirect_to_ptr(slot);
 		shift -= RADIX_TREE_MAP_SHIFT;
-		height--;
+		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+
+		parent = indirect_to_ptr(node);
+		offset = radix_tree_descend(parent, &node, offset);
+		BUG_ON(!node);
+
+		if (!tag_get(parent, tag, offset))
+			tag_set(parent, tag, offset);
 	}
 
 	/* set the root's tag bit */
-	if (slot && !root_tag_get(root, tag))
+	if (!root_tag_get(root, tag))
 		root_tag_set(root, tag);
 
-	return slot;
+	return node;
 }
 EXPORT_SYMBOL(radix_tree_tag_set);
 
