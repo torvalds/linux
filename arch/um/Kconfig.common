@@ -1,6 +1,7 @@
 config UML
 	bool
 	default y
+	select ARCH_HAS_KCOV
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_UID16
