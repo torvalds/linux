@@ -89,7 +89,7 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
 #define RADIX_TREE_COUNT_MASK	((1UL << RADIX_TREE_COUNT_SHIFT) - 1)
 
 struct radix_tree_node {
-	unsigned char	height;	/* From the bottom */
+	unsigned char	shift;	/* Bits remaining in each slot */
 	unsigned char	offset;	/* Slot offset in parent */
 	unsigned int	count;
 	union {

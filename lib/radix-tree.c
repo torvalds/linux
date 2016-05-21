@@ -223,10 +223,10 @@ static void dump_node(struct radix_tree_node *node,
 {
 	unsigned long i;
 
-	pr_debug("radix node: %p offset %d tags %lx %lx %lx height %d count %d parent %p\n",
+	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d parent %p\n",
 		node, node->offset,
 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
-		node->height, node->count, node->parent);
+		node->shift, node->count, node->parent);
 
 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
 		unsigned long first = index | (i << shift);
@@ -419,9 +419,14 @@ static inline unsigned long radix_tree_maxindex(unsigned int height)
 	return height_to_maxindex[height];
 }
 
+static inline unsigned long shift_maxindex(unsigned int shift)
+{
+	return (RADIX_TREE_MAP_SIZE << shift) - 1;
+}
+
 static inline unsigned long node_maxindex(struct radix_tree_node *node)
 {
-	return radix_tree_maxindex(node->height);
+	return shift_maxindex(node->shift);
 }
 
 static unsigned radix_tree_load_root(struct radix_tree_root *root,
@@ -434,7 +439,7 @@ static unsigned radix_tree_load_root(struct radix_tree_root *root,
 	if (likely(radix_tree_is_indirect_ptr(node))) {
 		node = indirect_to_ptr(node);
 		*maxindex = node_maxindex(node);
-		return node->height * RADIX_TREE_MAP_SHIFT;
+		return node->shift + RADIX_TREE_MAP_SHIFT;
 	}
 
 	*maxindex = 0;
@@ -475,9 +480,9 @@ static int radix_tree_extend(struct radix_tree_root *root,
 		}
 
 		/* Increase the height.  */
-		newheight = root->height + 1;
+		newheight = root->height;
 		BUG_ON(newheight > BITS_PER_LONG);
-		node->height = newheight;
+		node->shift = newheight * RADIX_TREE_MAP_SHIFT;
 		node->offset = 0;
 		node->count = 1;
 		node->parent = NULL;
@@ -490,7 +495,7 @@ static int radix_tree_extend(struct radix_tree_root *root,
 		node->slots[0] = slot;
 		node = ptr_to_indirect(node);
 		rcu_assign_pointer(root->rnode, node);
-		root->height = newheight;
+		root->height = ++newheight;
 	} while (height > root->height);
 out:
 	return height * RADIX_TREE_MAP_SHIFT;
@@ -519,7 +524,7 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 {
 	struct radix_tree_node *node = NULL, *slot;
 	unsigned long maxindex;
-	unsigned int height, shift, offset;
+	unsigned int shift, offset;
 	unsigned long max = index | ((1UL << order) - 1);
 
 	shift = radix_tree_load_root(root, &slot, &maxindex);
@@ -537,16 +542,15 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 		}
 	}
 
-	height = root->height;
-
 	offset = 0;			/* uninitialised var warning */
 	while (shift > order) {
+		shift -= RADIX_TREE_MAP_SHIFT;
 		if (slot == NULL) {
 			/* Have to add a child node.  */
 			slot = radix_tree_node_alloc(root);
 			if (!slot)
 				return -ENOMEM;
-			slot->height = height;
+			slot->shift = shift;
 			slot->offset = offset;
 			slot->parent = node;
 			if (node) {
@@ -560,8 +564,6 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 			break;
 
 		/* Go a level down */
-		height--;
-		shift -= RADIX_TREE_MAP_SHIFT;
 		node = indirect_to_ptr(slot);
 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
 		offset = radix_tree_descend(node, &slot, offset);
@@ -1322,7 +1324,7 @@ static unsigned long __locate(struct radix_tree_node *slot, void *item,
 	unsigned int shift;
 	unsigned long i;
 
-	shift = slot->height * RADIX_TREE_MAP_SHIFT;
+	shift = slot->shift + RADIX_TREE_MAP_SHIFT;
 
 	do {
 		shift -= RADIX_TREE_MAP_SHIFT;
