@@ -550,7 +550,7 @@ int st_sensors_check_device_support(struct iio_dev *indio_dev,
 			int num_sensors_list,
 			const struct st_sensor_settings *sensor_settings)
 {
-	int i, n, err;
+	int i, n, err = 0;
 	u8 wai;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
@@ -570,17 +570,21 @@ int st_sensors_check_device_support(struct iio_dev *indio_dev,
 		return -ENODEV;
 	}
 
-	err = sdata->tf->read_byte(&sdata->tb, sdata->dev,
-					sensor_settings[i].wai_addr, &wai);
-	if (err < 0) {
-		dev_err(&indio_dev->dev, "failed to read Who-Am-I register.\n");
-		return err;
-	}
+	if (sensor_settings[i].wai_addr) {
+		err = sdata->tf->read_byte(&sdata->tb, sdata->dev,
+					   sensor_settings[i].wai_addr, &wai);
+		if (err < 0) {
+			dev_err(&indio_dev->dev,
+				"failed to read Who-Am-I register.\n");
+			return err;
+		}
 
-	if (sensor_settings[i].wai != wai) {
-		dev_err(&indio_dev->dev, "%s: WhoAmI mismatch (0x%x).\n",
-						indio_dev->name, wai);
-		return -EINVAL;
+		if (sensor_settings[i].wai != wai) {
+			dev_err(&indio_dev->dev,
+				"%s: WhoAmI mismatch (0x%x).\n",
+				indio_dev->name, wai);
+			return -EINVAL;
+		}
 	}
 
 	sdata->sensor_settings =
