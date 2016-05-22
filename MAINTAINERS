@@ -10137,6 +10137,7 @@ M:	"Martin K. Petersen" <martin.petersen@oracle.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkp/scsi.git
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/scsi/
 F:	drivers/scsi/
 F:	include/scsi/
 
