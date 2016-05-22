@@ -535,9 +535,7 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 				return ret;
 
 			if (r->presumed_offset != offset &&
-			    __copy_to_user_inatomic(&user_relocs->presumed_offset,
-						    &r->presumed_offset,
-						    sizeof(r->presumed_offset))) {
+			    __put_user(r->presumed_offset, &user_relocs->presumed_offset)) {
 				return -EFAULT;
 			}
 
