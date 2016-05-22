@@ -72,7 +72,8 @@ static const struct iio_chan_spec as3935_channels[] = {
 		.type           = IIO_PROXIMITY,
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_PROCESSED),
+			BIT(IIO_CHAN_INFO_PROCESSED) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index     = 0,
 		.scan_type = {
 			.sign           = 'u',
@@ -181,7 +182,12 @@ static int as3935_read_raw(struct iio_dev *indio_dev,
 		/* storm out of range */
 		if (*val == AS3935_DATA_MASK)
 			return -EINVAL;
-		*val *= 1000;
+
+		if (m == IIO_CHAN_INFO_PROCESSED)
+			*val *= 1000;
+		break;
+	case IIO_CHAN_INFO_SCALE:
+		*val = 1000;
 		break;
 	default:
 		return -EINVAL;
