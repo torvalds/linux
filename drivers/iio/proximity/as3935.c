@@ -64,6 +64,7 @@ struct as3935_state {
 	struct delayed_work work;
 
 	u32 tune_cap;
+	u8 buffer[16]; /* 8-bit data + 56-bit padding + 64-bit timestamp */
 	u8 buf[2] ____cacheline_aligned;
 };
 
@@ -212,9 +213,10 @@ static irqreturn_t as3935_trigger_handler(int irq, void *private)
 	ret = as3935_read(st, AS3935_DATA, &val);
 	if (ret)
 		goto err_read;
-	val &= AS3935_DATA_MASK;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &val, pf->timestamp);
+	st->buffer[0] = val & AS3935_DATA_MASK;
+	iio_push_to_buffers_with_timestamp(indio_dev, &st->buffer,
+					   pf->timestamp);
 err_read:
 	iio_trigger_notify_done(indio_dev->trig);
 
