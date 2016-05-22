@@ -21,9 +21,6 @@ struct nvkm_client {
 
 int  nvkm_client_new(const char *name, u64 device, const char *cfg,
 		     const char *dbg, struct nvkm_client **);
-void nvkm_client_del(struct nvkm_client **);
-int  nvkm_client_init(struct nvkm_client *);
-int  nvkm_client_fini(struct nvkm_client *, bool suspend);
 
 int nvkm_client_notify_new(struct nvkm_object *, struct nvkm_event *,
 			   void *data, u32 size);

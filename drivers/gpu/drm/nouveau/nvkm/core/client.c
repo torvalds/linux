@@ -206,44 +206,35 @@ nvkm_client_child_get(struct nvkm_object *object, int index,
 	return 0;
 }
 
-static const struct nvkm_object_func
-nvkm_client_object_func = {
-	.mthd = nvkm_client_mthd,
-	.sclass = nvkm_client_child_get,
-};
-
-int
-nvkm_client_fini(struct nvkm_client *client, bool suspend)
+static int
+nvkm_client_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvkm_object *object = &client->object;
+	struct nvkm_client *client = nvkm_client(object);
 	const char *name[2] = { "fini", "suspend" };
 	int i;
 	nvif_debug(object, "%s notify\n", name[suspend]);
 	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
 		nvkm_client_notify_put(client, i);
-	return nvkm_object_fini(&client->object, suspend);
+	return 0;
 }
 
-int
-nvkm_client_init(struct nvkm_client *client)
+static void *
+nvkm_client_dtor(struct nvkm_object *object)
 {
-	return nvkm_object_init(&client->object);
-}
-
-void
-nvkm_client_del(struct nvkm_client **pclient)
-{
-	struct nvkm_client *client = *pclient;
+	struct nvkm_client *client = nvkm_client(object);
 	int i;
-	if (client) {
-		nvkm_client_fini(client, false);
-		for (i = 0; i < ARRAY_SIZE(client->notify); i++)
-			nvkm_client_notify_del(client, i);
-		nvkm_object_dtor(&client->object);
-		kfree(*pclient);
-		*pclient = NULL;
-	}
+	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
+		nvkm_client_notify_del(client, i);
+	return client;
 }
+
+static const struct nvkm_object_func
+nvkm_client = {
+	.dtor = nvkm_client_dtor,
+	.fini = nvkm_client_fini,
+	.mthd = nvkm_client_mthd,
+	.sclass = nvkm_client_child_get,
+};
 
 int
 nvkm_client_new(const char *name, u64 device, const char *cfg,
@@ -256,7 +247,7 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 		return -ENOMEM;
 	oclass.client = client;
 
-	nvkm_object_ctor(&nvkm_client_object_func, &oclass, &client->object);
+	nvkm_object_ctor(&nvkm_client, &oclass, &client->object);
 	snprintf(client->name, sizeof(client->name), "%s", name);
 	client->device = device;
 	client->debug = nvkm_dbgopt(dbg, "CLIENT");

@@ -60,20 +60,24 @@ nvkm_client_ioctl(void *priv, bool super, void *data, u32 size, void **hack)
 static int
 nvkm_client_resume(void *priv)
 {
-	return nvkm_client_init(priv);
+	struct nvkm_client *client = priv;
+	return nvkm_object_init(&client->object);
 }
 
 static int
 nvkm_client_suspend(void *priv)
 {
-	return nvkm_client_fini(priv, true);
+	struct nvkm_client *client = priv;
+	return nvkm_object_fini(&client->object, true);
 }
 
 static void
 nvkm_client_driver_fini(void *priv)
 {
 	struct nvkm_client *client = priv;
-	nvkm_client_del(&client);
+	struct nvkm_object *object = &client->object;
+	nvkm_object_fini(object, false);
+	nvkm_object_del(&object);
 }
 
 static int
