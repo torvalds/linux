@@ -31,9 +31,41 @@
 #include <nvif/if0000.h>
 #include <nvif/unpack.h>
 
-static const struct nvkm_sclass
+static int
+nvkm_uclient_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		 struct nvkm_object **pobject)
+{
+	union {
+		struct nvif_client_v0 v0;
+	} *args = argv;
+	struct nvkm_client *client;
+	int ret = -ENOSYS;
+
+	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))){
+		args->v0.name[sizeof(args->v0.name) - 1] = 0;
+		ret = nvkm_client_new(args->v0.name, args->v0.device, NULL,
+				      NULL, oclass->client->ntfy, &client);
+		if (ret)
+			return ret;
+	} else
+		return ret;
+
+	client->object.client = oclass->client;
+	client->object.handle = oclass->handle;
+	client->object.route  = oclass->route;
+	client->object.token  = oclass->token;
+	client->object.object = oclass->object;
+	client->debug = oclass->client->debug;
+	*pobject = &client->object;
+	return 0;
+}
+
+const struct nvkm_sclass
 nvkm_uclient_sclass = {
 	.oclass = NVIF_CLASS_CLIENT,
+	.minver = 0,
+	.maxver = 0,
+	.ctor = nvkm_uclient_new,
 };
 
 struct nvkm_client_notify {
@@ -143,6 +175,19 @@ nvkm_client_notify_new(struct nvkm_object *object,
 	return ret;
 }
 
+static const struct nvkm_object_func nvkm_client;
+struct nvkm_client *
+nvkm_client_search(struct nvkm_client *client, u64 handle)
+{
+	struct nvkm_object *object;
+
+	object = nvkm_object_search(client, handle, &nvkm_client);
+	if (IS_ERR(object))
+		return (void *)object;
+
+	return nvkm_client(object);
+}
+
 static int
 nvkm_client_mthd_devlist(struct nvkm_client *client, void *data, u32 size)
 {
@@ -196,7 +241,8 @@ nvkm_client_child_get(struct nvkm_object *object, int index,
 	const struct nvkm_sclass *sclass;
 
 	switch (index) {
-	case 0: sclass = &nvkm_udevice_sclass; break;
+	case 0: sclass = &nvkm_uclient_sclass; break;
+	case 1: sclass = &nvkm_udevice_sclass; break;
 	default:
 		return -EINVAL;
 	}

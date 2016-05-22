@@ -37,6 +37,8 @@
 #include <core/pci.h>
 #include <core/tegra.h>
 
+#include <nvif/driver.h>
+
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 #include <nvif/cla06f.h>
@@ -119,8 +121,8 @@ nouveau_cli_create(struct drm_device *dev, const char *sname,
 		snprintf(cli->name, sizeof(cli->name), "%s", sname);
 		cli->dev = dev;
 
-		ret = nvif_client_init(NULL, cli->name, nouveau_name(dev),
-				       nouveau_config, nouveau_debug,
+		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
+				       cli->name, nouveau_name(dev),
 				       &cli->base);
 		if (ret == 0) {
 			mutex_init(&cli->mutex);
