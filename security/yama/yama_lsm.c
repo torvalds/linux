@@ -19,6 +19,9 @@
 #include <linux/ratelimit.h>
 #include <linux/workqueue.h>
 #include <linux/string_helpers.h>
+#include <linux/task_work.h>
+#include <linux/sched.h>
+#include <linux/spinlock.h>
 
 #define YAMA_SCOPE_DISABLED	0
 #define YAMA_SCOPE_RELATIONAL	1
@@ -42,20 +45,71 @@ static DEFINE_SPINLOCK(ptracer_relations_lock);
 static void yama_relation_cleanup(struct work_struct *work);
 static DECLARE_WORK(yama_relation_work, yama_relation_cleanup);
 
-static void report_access(const char *access, struct task_struct *target,
-			  struct task_struct *agent)
+struct access_report_info {
+	struct callback_head work;
+	const char *access;
+	struct task_struct *target;
+	struct task_struct *agent;
+};
+
+static void __report_access(struct callback_head *work)
 {
+	struct access_report_info *info =
+		container_of(work, struct access_report_info, work);
 	char *target_cmd, *agent_cmd;
 
-	target_cmd = kstrdup_quotable_cmdline(target, GFP_ATOMIC);
-	agent_cmd = kstrdup_quotable_cmdline(agent, GFP_ATOMIC);
+	target_cmd = kstrdup_quotable_cmdline(info->target, GFP_KERNEL);
+	agent_cmd = kstrdup_quotable_cmdline(info->agent, GFP_KERNEL);
 
 	pr_notice_ratelimited(
 		"ptrace %s of \"%s\"[%d] was attempted by \"%s\"[%d]\n",
-		access, target_cmd, target->pid, agent_cmd, agent->pid);
+		info->access, target_cmd, info->target->pid, agent_cmd,
+		info->agent->pid);
 
 	kfree(agent_cmd);
 	kfree(target_cmd);
+
+	put_task_struct(info->agent);
+	put_task_struct(info->target);
+	kfree(info);
+}
+
+/* defers execution because cmdline access can sleep */
+static void report_access(const char *access, struct task_struct *target,
+				struct task_struct *agent)
+{
+	struct access_report_info *info;
+	char agent_comm[sizeof(agent->comm)];
+
+	assert_spin_locked(&target->alloc_lock); /* for target->comm */
+
+	if (current->flags & PF_KTHREAD) {
+		/* I don't think kthreads call task_work_run() before exiting.
+		 * Imagine angry ranting about procfs here.
+		 */
+		pr_notice_ratelimited(
+		    "ptrace %s of \"%s\"[%d] was attempted by \"%s\"[%d]\n",
+		    access, target->comm, target->pid,
+		    get_task_comm(agent_comm, agent), agent->pid);
+		return;
+	}
+
+	info = kmalloc(sizeof(*info), GFP_ATOMIC);
+	if (!info)
+		return;
+	init_task_work(&info->work, __report_access);
+	get_task_struct(target);
+	get_task_struct(agent);
+	info->access = access;
+	info->target = target;
+	info->agent = agent;
+	if (task_work_add(current, &info->work, true) == 0)
+		return; /* success */
+
+	WARN(1, "report_access called from exiting task");
+	put_task_struct(target);
+	put_task_struct(agent);
+	kfree(info);
 }
 
 /**
@@ -351,8 +405,11 @@ int yama_ptrace_traceme(struct task_struct *parent)
 		break;
 	}
 
-	if (rc)
+	if (rc) {
+		task_lock(current);
 		report_access("traceme", current, parent);
+		task_unlock(current);
+	}
 
 	return rc;
 }
