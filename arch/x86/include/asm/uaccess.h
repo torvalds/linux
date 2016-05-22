@@ -463,17 +463,23 @@ struct __large_struct { unsigned long buf[100]; };
  * we do not write to any memory gcc knows about, so there are no
  * aliasing issues.
  */
-#define __put_user_asm(x, addr, err, itype, rtype, ltype, errret)	\
-	asm volatile("\n"						\
-		     "1:	mov"itype" %"rtype"1,%2\n"		\
-		     "2:\n"						\
-		     ".section .fixup,\"ax\"\n"				\
-		     "3:	mov %3,%0\n"				\
-		     "	jmp 2b\n"					\
-		     ".previous\n"					\
-		     _ASM_EXTABLE_UA(1b, 3b)				\
-		     : "=r"(err)					\
-		     : ltype(x), "m" (__m(addr)), "i" (errret), "0" (err))
+#define __put_user_goto(x, addr, itype, rtype, ltype, label)	\
+	asm_volatile_goto("\n"						\
+		"1:	mov"itype" %"rtype"0,%1\n"			\
+		_ASM_EXTABLE_UA(1b, %l2)					\
+		: : ltype(x), "m" (__m(addr))				\
+		: : label)
+
+#define __put_user_failed(x, addr, itype, rtype, ltype, errret)		\
+	({	__label__ __puflab;					\
+		int __pufret = errret;					\
+		__put_user_goto(x,addr,itype,rtype,ltype,__puflab);	\
+		__pufret = 0;						\
+	__puflab: __pufret; })
+
+#define __put_user_asm(x, addr, retval, itype, rtype, ltype, errret)	do {	\
+	retval = __put_user_failed(x, addr, itype, rtype, ltype, errret);	\
+} while (0)
 
 #define __put_user_asm_ex(x, addr, itype, rtype, ltype)			\
 	asm volatile("1:	mov"itype" %"rtype"0,%1\n"		\
