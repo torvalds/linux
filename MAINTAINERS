@@ -3765,6 +3765,9 @@ T:	git git://people.freedesktop.org/~airlied/linux
 S:	Maintained
 F:	drivers/gpu/drm/
 F:	drivers/gpu/vga/
+F:	Documentation/devicetree/bindings/display/
+F:	Documentation/devicetree/bindings/gpu/
+F:	Documentation/devicetree/bindings/video/
 F:	Documentation/DocBook/gpu.*
 F:	include/drm/
 F:	include/uapi/drm/
