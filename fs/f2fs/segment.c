@@ -223,9 +223,11 @@ static int __revoke_inmem_pages(struct inode *inode,
 			f2fs_put_dnode(&dn);
 		}
 next:
-		ClearPageUptodate(page);
+		/* we don't need to invalidate this in the sccessful status */
+		if (drop || recover)
+			ClearPageUptodate(page);
 		set_page_private(page, 0);
-		ClearPageUptodate(page);
+		ClearPagePrivate(page);
 		f2fs_put_page(page, 1);
 
 		list_del(&cur->list);
@@ -238,6 +240,8 @@ next:
 void drop_inmem_pages(struct inode *inode)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
+
+	clear_inode_flag(F2FS_I(inode), FI_ATOMIC_FILE);
 
 	mutex_lock(&fi->inmem_lock);
 	__revoke_inmem_pages(inode, &fi->inmem_pages, true, false);
