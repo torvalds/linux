@@ -6732,6 +6732,7 @@ S:	Maintained
 F:	drivers/ata/
 F:	include/linux/ata.h
 F:	include/linux/libata.h
+F:	Documentation/devicetree/bindings/ata/
 
 LIBATA PATA ARASAN COMPACT FLASH CONTROLLER
 M:	Viresh Kumar <vireshk@kernel.org>
