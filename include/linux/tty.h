@@ -228,7 +228,8 @@ struct tty_port {
 	int			count;		/* Usage count */
 	wait_queue_head_t	open_wait;	/* Open waiters */
 	wait_queue_head_t	delta_msr_wait;	/* Modem status change */
-	unsigned long		flags;		/* TTY flags ASY_*/
+	unsigned long		flags;		/* User TTY flags ASYNC_ */
+	unsigned long		iflags;		/* Internal flags TTY_PORT_ */
 	unsigned char		console:1,	/* port is a console */
 				low_latency:1;	/* optional: tune for latency */
 	struct mutex		mutex;		/* Locking */
@@ -241,6 +242,18 @@ struct tty_port {
 						   set to size of fifo */
 	struct kref		kref;		/* Ref counter */
 };
+
+/* tty_port::iflags bits -- use atomic bit ops */
+#define TTY_PORT_INITIALIZED	0	/* device is initialized */
+#define TTY_PORT_SUSPENDED	1	/* device is suspended */
+#define TTY_PORT_ACTIVE		2	/* device is open */
+
+/*
+ * uart drivers: use the uart_port::status field and the UPSTAT_* defines
+ * for s/w-based flow control steering and carrier detection status
+ */
+#define TTY_PORT_CTS_FLOW	3	/* h/w flow control enabled */
+#define TTY_PORT_CHECK_CD	4	/* carrier detect enabled */
 
 /*
  * Where all of the state associated with a tty is kept while the tty
@@ -338,7 +351,6 @@ struct tty_file_private {
 #define TTY_OTHER_CLOSED 	2	/* Other side (if any) has closed */
 #define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
-#define TTY_OTHER_DONE		6	/* Closed pty has completed input processing */
 #define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
 #define TTY_PTY_LOCK 		16	/* pty private */
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
@@ -358,6 +370,16 @@ static inline void tty_set_flow_change(struct tty_struct *tty, int val)
 {
 	tty->flow_change = val;
 	smp_mb();
+}
+
+static inline bool tty_io_error(struct tty_struct *tty)
+{
+	return test_bit(TTY_IO_ERROR, &tty->flags);
+}
+
+static inline bool tty_throttled(struct tty_struct *tty)
+{
+	return test_bit(TTY_THROTTLED, &tty->flags);
 }
 
 #ifdef CONFIG_TTY
@@ -459,6 +481,7 @@ extern void tty_buffer_init(struct tty_port *port);
 extern void tty_buffer_set_lock_subclass(struct tty_port *port);
 extern bool tty_buffer_restart_work(struct tty_port *port);
 extern bool tty_buffer_cancel_work(struct tty_port *port);
+extern void tty_buffer_flush_work(struct tty_port *port);
 extern speed_t tty_termios_baud_rate(struct ktermios *termios);
 extern speed_t tty_termios_input_baud_rate(struct ktermios *termios);
 extern void tty_termios_encode_baud_rate(struct ktermios *termios,
@@ -539,7 +562,67 @@ static inline struct tty_port *tty_port_get(struct tty_port *port)
 /* If the cts flow control is enabled, return true. */
 static inline bool tty_port_cts_enabled(struct tty_port *port)
 {
-	return port->flags & ASYNC_CTS_FLOW;
+	return test_bit(TTY_PORT_CTS_FLOW, &port->iflags);
+}
+
+static inline void tty_port_set_cts_flow(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_CTS_FLOW, &port->iflags);
+	else
+		clear_bit(TTY_PORT_CTS_FLOW, &port->iflags);
+}
+
+static inline bool tty_port_active(struct tty_port *port)
+{
+	return test_bit(TTY_PORT_ACTIVE, &port->iflags);
+}
+
+static inline void tty_port_set_active(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_ACTIVE, &port->iflags);
+	else
+		clear_bit(TTY_PORT_ACTIVE, &port->iflags);
+}
+
+static inline bool tty_port_check_carrier(struct tty_port *port)
+{
+	return test_bit(TTY_PORT_CHECK_CD, &port->iflags);
+}
+
+static inline void tty_port_set_check_carrier(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_CHECK_CD, &port->iflags);
+	else
+		clear_bit(TTY_PORT_CHECK_CD, &port->iflags);
+}
+
+static inline bool tty_port_suspended(struct tty_port *port)
+{
+	return test_bit(TTY_PORT_SUSPENDED, &port->iflags);
+}
+
+static inline void tty_port_set_suspended(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_SUSPENDED, &port->iflags);
+	else
+		clear_bit(TTY_PORT_SUSPENDED, &port->iflags);
+}
+
+static inline bool tty_port_initialized(struct tty_port *port)
+{
+	return test_bit(TTY_PORT_INITIALIZED, &port->iflags);
+}
+
+static inline void tty_port_set_initialized(struct tty_port *port, bool val)
+{
+	if (val)
+		set_bit(TTY_PORT_INITIALIZED, &port->iflags);
+	else
+		clear_bit(TTY_PORT_INITIALIZED, &port->iflags);
 }
 
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);

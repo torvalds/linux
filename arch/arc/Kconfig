@@ -107,6 +107,7 @@ choice
 
 config ISA_ARCOMPACT
 	bool "ARCompact ISA"
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  The original ARC ISA of ARC600/700 cores
 

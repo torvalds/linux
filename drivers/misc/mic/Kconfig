@@ -132,6 +132,7 @@ config VOP
 	tristate "VOP Driver"
 	depends on 64BIT && PCI && X86 && VOP_BUS
 	select VHOST_RING
+	select VIRTIO
 	help
 	  This enables VOP (Virtio over PCIe) Driver support for the Intel
 	  Many Integrated Core (MIC) family of PCIe form factor coprocessor

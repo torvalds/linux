@@ -213,6 +213,7 @@ config SERIAL_MESON_CONSOLE
 	bool "Support for console on meson"
 	depends on SERIAL_MESON=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Say Y here if you wish to use a Amlogic MesonX UART as the
 	  system console (the system console is the device which
@@ -1404,11 +1405,12 @@ config SERIAL_PCH_UART_CONSOLE
 config SERIAL_MXS_AUART
 	tristate "MXS AUART support"
 	depends on HAS_DMA
-	depends on ARCH_MXS || COMPILE_TEST
+	depends on ARCH_MXS || MACH_ASM9260 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
-	  This driver supports the MXS Application UART (AUART) port.
+	  This driver supports the MXS and Alphascale ASM9260 Application
+	  UART (AUART) port.
 
 config SERIAL_MXS_AUART_CONSOLE
 	bool "MXS AUART console support"
@@ -1466,6 +1468,19 @@ config SERIAL_EFM32_UART
 	help
 	  This driver support the USART and UART ports on
 	  Energy Micro's efm32 SoCs.
+
+config SERIAL_MPS2_UART_CONSOLE
+	bool "MPS2 UART console support"
+	depends on SERIAL_MPS2_UART
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+
+config SERIAL_MPS2_UART
+	bool "MPS2 UART port"
+	depends on ARM || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver support the UART ports on ARM MPS2.
 
 config SERIAL_EFM32_UART_CONSOLE
 	bool "EFM32 UART/USART console support"
@@ -1625,6 +1640,7 @@ config SERIAL_STM32_CONSOLE
 
 config SERIAL_MVEBU_UART
 	bool "Marvell EBU serial port support"
+	depends on ARCH_MVEBU || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  This driver is for Marvell EBU SoC's UART. If you have a machine

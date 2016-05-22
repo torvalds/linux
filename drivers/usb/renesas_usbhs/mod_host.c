@@ -929,7 +929,8 @@ static int usbhsh_dcp_queue_push(struct usb_hcd *hcd,
 /*
  *		dma map functions
  */
-static int usbhsh_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
+static int usbhsh_dma_map_ctrl(struct device *dma_dev, struct usbhs_pkt *pkt,
+			       int map)
 {
 	if (map) {
 		struct usbhsh_request *ureq = usbhsh_pkt_to_ureq(pkt);
