@@ -213,7 +213,6 @@ static irqreturn_t as3935_trigger_handler(int irq, void *private)
 	if (ret)
 		goto err_read;
 	val &= AS3935_DATA_MASK;
-	val *= 1000;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &val, pf->timestamp);
 err_read:
