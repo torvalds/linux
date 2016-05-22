@@ -527,7 +527,7 @@ static void nvt_set_cir_iren(struct nvt_dev *nvt)
 {
 	u8 iren;
 
-	iren = CIR_IREN_RTR | CIR_IREN_PE;
+	iren = CIR_IREN_RTR | CIR_IREN_PE | CIR_IREN_RFO;
 	nvt_cir_reg_write(nvt, iren, CIR_IREN);
 }
 
@@ -835,7 +835,6 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 {
 	u8 fifocount, val;
 	unsigned int b_idx;
-	bool overrun = false;
 	int i;
 
 	/* Get count of how many bytes to read from RX FIFO */
@@ -843,11 +842,6 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 	/* if we get 0xff, probably means the logical dev is disabled */
 	if (fifocount == 0xff)
 		return;
-	/* watch out for a fifo overrun condition */
-	else if (fifocount > RX_BUF_LEN) {
-		overrun = true;
-		fifocount = RX_BUF_LEN;
-	}
 
 	nvt_dbg("attempting to fetch %u bytes from hw rx fifo", fifocount);
 
@@ -869,9 +863,6 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 	nvt_dbg("%s: pkts now %d", __func__, nvt->pkts);
 
 	nvt_process_rx_ir_data(nvt);
-
-	if (overrun)
-		nvt_handle_rx_fifo_overrun(nvt);
 }
 
 static void nvt_cir_log_irqs(u8 status, u8 iren)
@@ -944,6 +935,9 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	nvt_cir_reg_write(nvt, 0, CIR_IRSTS);
 
 	nvt_cir_log_irqs(status, iren);
+
+	if (status & CIR_IRSTS_RFO)
+		nvt_handle_rx_fifo_overrun(nvt);
 
 	if (status & CIR_IRSTS_RTR) {
 		/* FIXME: add code for study/learn mode */
