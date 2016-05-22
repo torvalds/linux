@@ -798,6 +798,7 @@ M:	Laura Abbott <labbott@redhat.com>
 M:	Sumit Semwal <sumit.semwal@linaro.org>
 L:	devel@driverdev.osuosl.org
 S:	Supported
+F:	Documentation/devicetree/bindings/staging/ion/
 F:	drivers/staging/android/ion
 F:	drivers/staging/android/uapi/ion.h
 F:	drivers/staging/android/uapi/ion_test.h
