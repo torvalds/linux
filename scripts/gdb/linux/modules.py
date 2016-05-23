@@ -21,8 +21,11 @@ module_type = utils.CachedType("struct module")
 
 def module_list():
     global module_type
+    modules = utils.gdb_eval_or_none("modules")
+    if modules is None:
+        return
+
     module_ptr_type = module_type.get_type().pointer()
-    modules = gdb.parse_and_eval("modules")
 
     for module in lists.list_for_each_entry(modules, module_ptr_type, "list"):
         yield module
