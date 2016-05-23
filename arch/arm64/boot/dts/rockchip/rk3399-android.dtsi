@@ -324,6 +324,7 @@
 	mipi1_rk_fb: mipi-rk-fb@ff968000 {
 		compatible = "rockchip,rk3399-dsi";
 		rockchip,prop = <1>;
+		rockchip,grf = <&grf>;
 		reg = <0x0 0xff968000 0x0 0x8000>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI1>, <&cru SCLK_MIPIDPHY_CFG>;
