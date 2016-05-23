@@ -3781,6 +3781,9 @@ void ath10k_mac_tx_push_pending(struct ath10k *ar)
 	int ret;
 	int max;
 
+	if (ar->htt.num_pending_tx >= (ar->htt.max_num_pending_tx / 2))
+		return;
+
 	spin_lock_bh(&ar->txqs_lock);
 	rcu_read_lock();
 
@@ -4051,9 +4054,7 @@ static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw,
 		list_add_tail(&artxq->list, &ar->txqs);
 	spin_unlock_bh(&ar->txqs_lock);
 
-	if (ath10k_mac_tx_can_push(hw, txq))
-		tasklet_schedule(&ar->htt.txrx_compl_task);
-
+	ath10k_mac_tx_push_pending(ar);
 	ath10k_htt_tx_txq_update(hw, txq);
 }
 
