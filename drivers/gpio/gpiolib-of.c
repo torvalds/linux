@@ -409,6 +409,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 			break;
 
 		pctldev = of_pinctrl_get(pinspec.np);
+		of_node_put(pinspec.np);
 		if (!pctldev)
 			return -EPROBE_DEFER;
 
