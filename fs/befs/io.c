@@ -26,7 +26,7 @@
 struct buffer_head *
 befs_bread_iaddr(struct super_block *sb, befs_inode_addr iaddr)
 {
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	befs_blocknr_t block = 0;
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
