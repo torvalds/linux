@@ -97,7 +97,7 @@ def cpu_list(mask_name):
         bits >>= 1
         bit += 1
 
-        yield cpu
+        yield int(cpu)
 
 
 def each_online_cpu():
