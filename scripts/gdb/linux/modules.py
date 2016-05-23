@@ -78,7 +78,7 @@ class LxLsmod(gdb.Command):
                 address=str(layout['base']).split()[0],
                 name=module['name'].string(),
                 size=str(layout['size']),
-                ref=str(module['refcnt']['counter'])))
+                ref=str(module['refcnt']['counter'] - 1)))
 
             source_list = module['source_list']
             t = self._module_use_type.get_type().pointer()
