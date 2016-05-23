@@ -42,9 +42,9 @@ int nilfs_sufile_mark_dirty(struct inode *sufile, __u64 segnum);
 int nilfs_sufile_set_segment_usage(struct inode *sufile, __u64 segnum,
 				   unsigned long nblocks, time_t modtime);
 int nilfs_sufile_get_stat(struct inode *, struct nilfs_sustat *);
-ssize_t nilfs_sufile_get_suinfo(struct inode *, __u64, void *, unsigned,
+ssize_t nilfs_sufile_get_suinfo(struct inode *, __u64, void *, unsigned int,
 				size_t);
-ssize_t nilfs_sufile_set_suinfo(struct inode *, void *, unsigned , size_t);
+ssize_t nilfs_sufile_set_suinfo(struct inode *, void *, unsigned int, size_t);
 
 int nilfs_sufile_updatev(struct inode *, __u64 *, size_t, int, size_t *,
 			 void (*dofunc)(struct inode *, __u64,

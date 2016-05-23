@@ -819,7 +819,7 @@ out:
  * %-ENOMEM - Insufficient amount of memory available.
  */
 ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
-				unsigned sisz, size_t nsi)
+				unsigned int sisz, size_t nsi)
 {
 	struct buffer_head *su_bh;
 	struct nilfs_segment_usage *su;
@@ -897,7 +897,7 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
  * %-EINVAL - Invalid values in input (segment number, flags or nblocks)
  */
 ssize_t nilfs_sufile_set_suinfo(struct inode *sufile, void *buf,
-				unsigned supsz, size_t nsup)
+				unsigned int supsz, size_t nsup)
 {
 	struct the_nilfs *nilfs = sufile->i_sb->s_fs_info;
 	struct buffer_head *header_bh, *bh;
