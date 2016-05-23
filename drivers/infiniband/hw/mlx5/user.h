@@ -152,6 +152,40 @@ struct mlx5_ib_create_qp {
 	__u64	sq_buf_addr;
 };
 
+/* RX Hash function flags */
+enum mlx5_rx_hash_function_flags {
+	MLX5_RX_HASH_FUNC_TOEPLITZ	= 1 << 0,
+};
+
+/*
+ * RX Hash flags, these flags allows to set which incoming packet's field should
+ * participates in RX Hash. Each flag represent certain packet's field,
+ * when the flag is set the field that is represented by the flag will
+ * participate in RX Hash calculation.
+ * Note: *IPV4 and *IPV6 flags can't be enabled together on the same QP
+ * and *TCP and *UDP flags can't be enabled together on the same QP.
+*/
+enum mlx5_rx_hash_fields {
+	MLX5_RX_HASH_SRC_IPV4	= 1 << 0,
+	MLX5_RX_HASH_DST_IPV4	= 1 << 1,
+	MLX5_RX_HASH_SRC_IPV6	= 1 << 2,
+	MLX5_RX_HASH_DST_IPV6	= 1 << 3,
+	MLX5_RX_HASH_SRC_PORT_TCP	= 1 << 4,
+	MLX5_RX_HASH_DST_PORT_TCP	= 1 << 5,
+	MLX5_RX_HASH_SRC_PORT_UDP	= 1 << 6,
+	MLX5_RX_HASH_DST_PORT_UDP	= 1 << 7
+};
+
+struct mlx5_ib_create_qp_rss {
+	__u64 rx_hash_fields_mask; /* enum mlx5_rx_hash_fields */
+	__u8 rx_hash_function; /* enum mlx5_rx_hash_function_flags */
+	__u8 rx_key_len; /* valid only for Toeplitz */
+	__u8 reserved[6];
+	__u8 rx_hash_key[128]; /* valid only for Toeplitz */
+	__u32   comp_mask;
+	__u32   reserved1;
+};
+
 struct mlx5_ib_create_qp_resp {
 	__u32	uuar_index;
 };

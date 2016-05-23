@@ -295,6 +295,10 @@ struct mlx5_ib_qp_trans {
 	u8			resp_depth;
 };
 
+struct mlx5_ib_rss_qp {
+	u32	tirn;
+};
+
 struct mlx5_ib_rq {
 	struct mlx5_ib_qp_base base;
 	struct mlx5_ib_wq	*rq;
@@ -323,6 +327,7 @@ struct mlx5_ib_qp {
 	union {
 		struct mlx5_ib_qp_trans trans_qp;
 		struct mlx5_ib_raw_packet_qp raw_packet_qp;
+		struct mlx5_ib_rss_qp rss_qp;
 	};
 	struct mlx5_buf		buf;
 
