@@ -368,8 +368,8 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 
 	gbaudio_unregister_module(gbmodule);
 	gbaudio_tplg_release(gbmodule);
-	gbmodule->topology = NULL;
 	kfree(gbmodule->topology);
+	gbmodule->topology = NULL;
 	gb_connection_disable(gbmodule->mgmt_connection);
 	list_for_each_entry_safe(dai, _dai, &gbmodule->data_list, list) {
 		gb_connection_disable(dai->connection);
