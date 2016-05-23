@@ -1076,17 +1076,11 @@ static int copy_and_ioctl(int cmd, struct obd_export *exp,
 	void *copy;
 	int rc;
 
-	copy = kzalloc(size, GFP_NOFS);
-	if (!copy)
-		return -ENOMEM;
-
-	if (copy_from_user(copy, data, size)) {
-		rc = -EFAULT;
-		goto out;
-	}
+	copy = memdup_user(data, size);
+	if (IS_ERR(copy))
+		return PTR_ERR(copy);
 
 	rc = obd_iocontrol(cmd, exp, size, copy, NULL);
-out:
 	kfree(copy);
 
 	return rc;
