@@ -3608,19 +3608,19 @@ bool intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 
 /* intel_opregion.c */
 #ifdef CONFIG_ACPI
-extern int intel_opregion_setup(struct drm_device *dev);
-extern void intel_opregion_init(struct drm_device *dev);
-extern void intel_opregion_fini(struct drm_device *dev);
+extern int intel_opregion_setup(struct drm_i915_private *dev_priv);
+extern void intel_opregion_init(struct drm_i915_private *dev_priv);
+extern void intel_opregion_fini(struct drm_i915_private *dev_priv);
 extern void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
 extern int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 					 bool enable);
-extern int intel_opregion_notify_adapter(struct drm_device *dev,
+extern int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
 					 pci_power_t state);
-extern int intel_opregion_get_panel_type(struct drm_device *dev);
+extern int intel_opregion_get_panel_type(struct drm_i915_private *dev_priv);
 #else
-static inline int intel_opregion_setup(struct drm_device *dev) { return 0; }
-static inline void intel_opregion_init(struct drm_device *dev) { return; }
-static inline void intel_opregion_fini(struct drm_device *dev) { return; }
+static inline int intel_opregion_setup(struct drm_i915_private *dev) { return 0; }
+static inline void intel_opregion_init(struct drm_i915_private *dev) { }
+static inline void intel_opregion_fini(struct drm_i915_private *dev) { }
 static inline void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
 {
 }
@@ -3630,11 +3630,11 @@ intel_opregion_notify_encoder(struct intel_encoder *intel_encoder, bool enable)
 	return 0;
 }
 static inline int
-intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
+intel_opregion_notify_adapter(struct drm_i915_private *dev, pci_power_t state)
 {
 	return 0;
 }
-static inline int intel_opregion_get_panel_type(struct drm_device *dev)
+static inline int intel_opregion_get_panel_type(struct drm_i915_private *dev)
 {
 	return -ENODEV;
 }

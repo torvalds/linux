@@ -213,7 +213,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.lvds_dither = lvds_options->pixel_dither;
 
-	ret = intel_opregion_get_panel_type(dev_priv->dev);
+	ret = intel_opregion_get_panel_type(dev_priv);
 	if (ret >= 0) {
 		WARN_ON(ret > 0xf);
 		panel_type = ret;
