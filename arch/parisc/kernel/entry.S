@@ -2019,6 +2019,7 @@ ftrace_stub:
 	.procend
 ENDPROC(mcount)
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.align 8
 	.globl return_to_handler
 	.type  return_to_handler, @function
@@ -2040,11 +2041,17 @@ parisc_return_to_handler:
 #endif
 
 	/* call ftrace_return_to_handler(0) */
+	.import ftrace_return_to_handler,code
+	load32 ftrace_return_to_handler,%ret0
+	load32 .Lftrace_ret,%r2
 #ifdef CONFIG_64BIT
 	ldo -16(%sp),%ret1		/* Reference param save area */
+	bve	(%ret0)
+#else
+	bv	%r0(%ret0)
 #endif
-	BL ftrace_return_to_handler,%r2
 	ldi 0,%r26
+.Lftrace_ret:
 	copy %ret0,%rp
 
 	/* restore original return values */
@@ -2061,6 +2068,8 @@ parisc_return_to_handler:
 	.exit
 	.procend
 ENDPROC(return_to_handler)
+
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #endif	/* CONFIG_FUNCTION_TRACER */
 
