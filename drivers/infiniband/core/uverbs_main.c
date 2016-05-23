@@ -76,6 +76,7 @@ DEFINE_IDR(ib_uverbs_qp_idr);
 DEFINE_IDR(ib_uverbs_srq_idr);
 DEFINE_IDR(ib_uverbs_xrcd_idr);
 DEFINE_IDR(ib_uverbs_rule_idr);
+DEFINE_IDR(ib_uverbs_wq_idr);
 
 static DEFINE_SPINLOCK(map_lock);
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
@@ -130,6 +131,9 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_EX_CMD_QUERY_DEVICE]	= ib_uverbs_ex_query_device,
 	[IB_USER_VERBS_EX_CMD_CREATE_CQ]	= ib_uverbs_ex_create_cq,
 	[IB_USER_VERBS_EX_CMD_CREATE_QP]        = ib_uverbs_ex_create_qp,
+	[IB_USER_VERBS_EX_CMD_CREATE_WQ]        = ib_uverbs_ex_create_wq,
+	[IB_USER_VERBS_EX_CMD_MODIFY_WQ]        = ib_uverbs_ex_modify_wq,
+	[IB_USER_VERBS_EX_CMD_DESTROY_WQ]       = ib_uverbs_ex_destroy_wq,
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
@@ -263,6 +267,17 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		}
 		ib_uverbs_release_uevent(file, &uqp->uevent);
 		kfree(uqp);
+	}
+
+	list_for_each_entry_safe(uobj, tmp, &context->wq_list, list) {
+		struct ib_wq *wq = uobj->object;
+		struct ib_uwq_object *uwq =
+			container_of(uobj, struct ib_uwq_object, uevent.uobject);
+
+		idr_remove_uobj(&ib_uverbs_wq_idr, uobj);
+		ib_destroy_wq(wq);
+		ib_uverbs_release_uevent(file, &uwq->uevent);
+		kfree(uwq);
 	}
 
 	list_for_each_entry_safe(uobj, tmp, &context->srq_list, list) {
@@ -562,6 +577,16 @@ void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr)
 
 	uobj = container_of(event->element.qp->uobject,
 			    struct ib_uevent_object, uobject);
+
+	ib_uverbs_async_handler(context_ptr, uobj->uobject.user_handle,
+				event->event, &uobj->event_list,
+				&uobj->events_reported);
+}
+
+void ib_uverbs_wq_event_handler(struct ib_event *event, void *context_ptr)
+{
+	struct ib_uevent_object *uobj = container_of(event->element.wq->uobject,
+						  struct ib_uevent_object, uobject);
 
 	ib_uverbs_async_handler(context_ptr, uobj->uobject.user_handle,
 				event->event, &uobj->event_list,
