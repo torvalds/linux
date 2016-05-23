@@ -17,4 +17,5 @@ export GCCPLUGINS_DIR HOSTLIBS
 $(HOSTLIBS)-y := $(GCC_PLUGIN)
 always := $($(HOSTLIBS)-y)
 
+cyc_complexity_plugin-objs := cyc_complexity_plugin.o
 clean-files += *.so
