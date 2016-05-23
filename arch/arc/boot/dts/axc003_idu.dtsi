@@ -131,4 +131,18 @@
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>;	/* 512MiB */
 	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		/*
+		 * Move frame buffer out of IOC aperture (0x8z-0xAz).
+		 */
+		frame_buffer: frame_buffer@be000000 {
+			compatible = "shared-dma-pool";
+			reg = <0xbe000000 0x2000000>;
+			no-map;
+		};
+	};
 };

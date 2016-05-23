@@ -145,7 +145,7 @@ out:
 
 int tonga_program_jump_on_start(struct pp_smumgr *smumgr)
 {
-	static unsigned char pData[] = { 0xE0, 0x00, 0x80, 0x40 };
+	static const unsigned char pData[] = { 0xE0, 0x00, 0x80, 0x40 };
 
 	tonga_copy_bytes_to_smc(smumgr, 0x0, pData, 4, sizeof(pData)+1);
 

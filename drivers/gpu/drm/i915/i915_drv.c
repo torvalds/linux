@@ -66,6 +66,11 @@ static struct drm_driver driver;
 #define IVB_CURSOR_OFFSETS \
 	.cursor_offsets = { CURSOR_A_OFFSET, IVB_CURSOR_B_OFFSET, IVB_CURSOR_C_OFFSET }
 
+#define BDW_COLORS \
+	.color = { .degamma_lut_size = 512, .gamma_lut_size = 512 }
+#define CHV_COLORS \
+	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257 }
+
 static const struct intel_device_info intel_i830_info = {
 	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
@@ -288,24 +293,28 @@ static const struct intel_device_info intel_haswell_m_info = {
 	.is_mobile = 1,
 };
 
+#define BDW_FEATURES \
+	HSW_FEATURES, \
+	BDW_COLORS
+
 static const struct intel_device_info intel_broadwell_d_info = {
-	HSW_FEATURES,
+	BDW_FEATURES,
 	.gen = 8,
 };
 
 static const struct intel_device_info intel_broadwell_m_info = {
-	HSW_FEATURES,
+	BDW_FEATURES,
 	.gen = 8, .is_mobile = 1,
 };
 
 static const struct intel_device_info intel_broadwell_gt3d_info = {
-	HSW_FEATURES,
+	BDW_FEATURES,
 	.gen = 8,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
 
 static const struct intel_device_info intel_broadwell_gt3m_info = {
-	HSW_FEATURES,
+	BDW_FEATURES,
 	.gen = 8, .is_mobile = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
 };
@@ -318,16 +327,17 @@ static const struct intel_device_info intel_cherryview_info = {
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_CHV_PIPEOFFSETS,
 	CURSOR_OFFSETS,
+	CHV_COLORS,
 };
 
 static const struct intel_device_info intel_skylake_info = {
-	HSW_FEATURES,
+	BDW_FEATURES,
 	.is_skylake = 1,
 	.gen = 9,
 };
 
 static const struct intel_device_info intel_skylake_gt3_info = {
-	HSW_FEATURES,
+	BDW_FEATURES,
 	.is_skylake = 1,
 	.gen = 9,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
@@ -345,18 +355,17 @@ static const struct intel_device_info intel_broxton_info = {
 	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
+	BDW_COLORS,
 };
 
 static const struct intel_device_info intel_kabylake_info = {
-	HSW_FEATURES,
-	.is_preliminary = 1,
+	BDW_FEATURES,
 	.is_kabylake = 1,
 	.gen = 9,
 };
 
 static const struct intel_device_info intel_kabylake_gt3_info = {
-	HSW_FEATURES,
-	.is_preliminary = 1,
+	BDW_FEATURES,
 	.is_kabylake = 1,
 	.gen = 9,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
@@ -504,6 +513,7 @@ void intel_detect_pch(struct drm_device *dev)
 				WARN_ON(!IS_SKYLAKE(dev) &&
 					!IS_KABYLAKE(dev));
 			} else if ((id == INTEL_PCH_P2X_DEVICE_ID_TYPE) ||
+				   (id == INTEL_PCH_P3X_DEVICE_ID_TYPE) ||
 				   ((id == INTEL_PCH_QEMU_DEVICE_ID_TYPE) &&
 				    pch->subsystem_vendor == 0x1af4 &&
 				    pch->subsystem_device == 0x1100)) {
@@ -557,10 +567,9 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 	drm_modeset_unlock_all(dev);
 }
 
-static int intel_suspend_complete(struct drm_i915_private *dev_priv);
 static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 			      bool rpm_resume);
-static int bxt_resume_prepare(struct drm_i915_private *dev_priv);
+static int vlv_suspend_complete(struct drm_i915_private *dev_priv);
 
 static bool suspend_to_idle(struct drm_i915_private *dev_priv)
 {
@@ -630,8 +639,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_display_set_init_power(dev_priv, false);
 
-	if (HAS_CSR(dev_priv))
-		flush_work(&dev_priv->csr.work);
+	intel_csr_ucode_suspend(dev_priv);
 
 out:
 	enable_rpm_wakeref_asserts(dev_priv);
@@ -647,7 +655,8 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	fw_csr = suspend_to_idle(dev_priv) && dev_priv->csr.dmc_payload;
+	fw_csr = !IS_BROXTON(dev_priv) &&
+		suspend_to_idle(dev_priv) && dev_priv->csr.dmc_payload;
 	/*
 	 * In case of firmware assisted context save/restore don't manually
 	 * deinit the power domains. This also means the CSR/DMC firmware will
@@ -658,7 +667,13 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 	if (!fw_csr)
 		intel_power_domains_suspend(dev_priv);
 
-	ret = intel_suspend_complete(dev_priv);
+	ret = 0;
+	if (IS_BROXTON(dev_priv))
+		bxt_enable_dc9(dev_priv);
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		hsw_enable_pc8(dev_priv);
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		ret = vlv_suspend_complete(dev_priv);
 
 	if (ret) {
 		DRM_ERROR("Suspend complete failed: %d\n", ret);
@@ -721,6 +736,8 @@ static int i915_drm_resume(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	disable_rpm_wakeref_asserts(dev_priv);
+
+	intel_csr_ucode_resume(dev_priv);
 
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_restore_gtt_mappings(dev);
@@ -850,20 +867,24 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_early_sanitize(dev, true);
 
-	if (IS_BROXTON(dev))
-		ret = bxt_resume_prepare(dev_priv);
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (IS_BROXTON(dev)) {
+		if (!dev_priv->suspended_to_idle)
+			gen9_sanitize_dc_state(dev_priv);
+		bxt_disable_dc9(dev_priv);
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		hsw_disable_pc8(dev_priv);
+	}
 
 	intel_uncore_sanitize(dev);
 
-	if (!(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
+	if (IS_BROXTON(dev_priv) ||
+	    !(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
 		intel_power_domains_init_hw(dev_priv, true);
+
+	enable_rpm_wakeref_asserts(dev_priv);
 
 out:
 	dev_priv->suspended_to_idle = false;
-
-	enable_rpm_wakeref_asserts(dev_priv);
 
 	return ret;
 }
@@ -900,23 +921,32 @@ int i915_resume_switcheroo(struct drm_device *dev)
 int i915_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	bool simulated;
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
+	unsigned reset_counter;
 	int ret;
 
 	intel_reset_gt_powersave(dev);
 
 	mutex_lock(&dev->struct_mutex);
 
+	/* Clear any previous failed attempts at recovery. Time to try again. */
+	atomic_andnot(I915_WEDGED, &error->reset_counter);
+
+	/* Clear the reset-in-progress flag and increment the reset epoch. */
+	reset_counter = atomic_inc_return(&error->reset_counter);
+	if (WARN_ON(__i915_reset_in_progress(reset_counter))) {
+		ret = -EIO;
+		goto error;
+	}
+
 	i915_gem_reset(dev);
 
-	simulated = dev_priv->gpu_error.stop_rings != 0;
-
-	ret = intel_gpu_reset(dev);
+	ret = intel_gpu_reset(dev, ALL_ENGINES);
 
 	/* Also reset the gpu hangman. */
-	if (simulated) {
+	if (error->stop_rings != 0) {
 		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
-		dev_priv->gpu_error.stop_rings = 0;
+		error->stop_rings = 0;
 		if (ret == -ENODEV) {
 			DRM_INFO("Reset not implemented, but ignoring "
 				 "error for simulated gpu hangs\n");
@@ -928,9 +958,11 @@ int i915_reset(struct drm_device *dev)
 		pr_notice("drm/i915: Resetting chip after gpu hang\n");
 
 	if (ret) {
-		DRM_ERROR("Failed to reset chip: %i\n", ret);
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
+		if (ret != -ENODEV)
+			DRM_ERROR("Failed to reset chip: %i\n", ret);
+		else
+			DRM_DEBUG_DRIVER("GPU reset disabled\n");
+		goto error;
 	}
 
 	intel_overlay_reset(dev_priv);
@@ -949,19 +981,13 @@ int i915_reset(struct drm_device *dev)
 	 * was running at the time of the reset (i.e. we weren't VT
 	 * switched away).
 	 */
-
-	/* Used to prevent gem_check_wedged returning -EAGAIN during gpu reset */
-	dev_priv->gpu_error.reload_in_reset = true;
-
 	ret = i915_gem_init_hw(dev);
-
-	dev_priv->gpu_error.reload_in_reset = false;
-
-	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		DRM_ERROR("Failed hw init on reset %d\n", ret);
-		return ret;
+		goto error;
 	}
+
+	mutex_unlock(&dev->struct_mutex);
 
 	/*
 	 * rps/rc6 re-init is necessary to restore state lost after the
@@ -973,6 +999,11 @@ int i915_reset(struct drm_device *dev)
 		intel_enable_gt_powersave(dev);
 
 	return 0;
+
+error:
+	atomic_or(I915_WEDGED, &error->reset_counter);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1077,44 +1108,6 @@ static int i915_pm_resume(struct device *dev)
 		return 0;
 
 	return i915_drm_resume(drm_dev);
-}
-
-static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
-{
-	hsw_enable_pc8(dev_priv);
-
-	return 0;
-}
-
-static int bxt_suspend_complete(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	/* TODO: when DC5 support is added disable DC5 here. */
-
-	broxton_ddi_phy_uninit(dev);
-	broxton_uninit_cdclk(dev);
-	bxt_enable_dc9(dev_priv);
-
-	return 0;
-}
-
-static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	/* TODO: when CSR FW support is added make sure the FW is loaded */
-
-	bxt_disable_dc9(dev_priv);
-
-	/*
-	 * TODO: when DC5 support is added enable DC5 here if the CSR FW
-	 * is available.
-	 */
-	broxton_init_cdclk(dev);
-	broxton_ddi_phy_init(dev);
-
-	return 0;
 }
 
 /*
@@ -1420,7 +1413,7 @@ static int vlv_suspend_complete(struct drm_i915_private *dev_priv)
 	if (err)
 		goto err2;
 
-	if (!IS_CHERRYVIEW(dev_priv->dev))
+	if (!IS_CHERRYVIEW(dev_priv))
 		vlv_save_gunit_s0ix_state(dev_priv);
 
 	err = vlv_force_gfx_clock(dev_priv, false);
@@ -1452,7 +1445,7 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 	 */
 	ret = vlv_force_gfx_clock(dev_priv, true);
 
-	if (!IS_CHERRYVIEW(dev_priv->dev))
+	if (!IS_CHERRYVIEW(dev_priv))
 		vlv_restore_gunit_s0ix_state(dev_priv);
 
 	err = vlv_allow_gt_wake(dev_priv, true);
@@ -1522,7 +1515,16 @@ static int intel_runtime_suspend(struct device *device)
 	intel_suspend_gt_powersave(dev);
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
-	ret = intel_suspend_complete(dev_priv);
+	ret = 0;
+	if (IS_BROXTON(dev_priv)) {
+		bxt_display_core_uninit(dev_priv);
+		bxt_enable_dc9(dev_priv);
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
+		hsw_enable_pc8(dev_priv);
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		ret = vlv_suspend_complete(dev_priv);
+	}
+
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
 		intel_runtime_pm_enable_interrupts(dev_priv);
@@ -1596,12 +1598,17 @@ static int intel_runtime_resume(struct device *device)
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev);
 
-	if (IS_BROXTON(dev))
-		ret = bxt_resume_prepare(dev_priv);
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+	if (IS_BROXTON(dev)) {
+		bxt_disable_dc9(dev_priv);
+		bxt_display_core_init(dev_priv, true);
+		if (dev_priv->csr.dmc_payload &&
+		    (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC5))
+			gen9_enable_dc5(dev_priv);
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		hsw_disable_pc8(dev_priv);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		ret = vlv_resume_prepare(dev_priv, true);
+	}
 
 	/*
 	 * No point of rolling back things in case of an error, as the best
@@ -1628,26 +1635,6 @@ static int intel_runtime_resume(struct device *device)
 		DRM_ERROR("Runtime resume failed, disabling it (%d)\n", ret);
 	else
 		DRM_DEBUG_KMS("Device resumed\n");
-
-	return ret;
-}
-
-/*
- * This function implements common functionality of runtime and system
- * suspend sequence.
- */
-static int intel_suspend_complete(struct drm_i915_private *dev_priv)
-{
-	int ret;
-
-	if (IS_BROXTON(dev_priv))
-		ret = bxt_suspend_complete(dev_priv);
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		ret = hsw_suspend_complete(dev_priv);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		ret = vlv_suspend_complete(dev_priv);
-	else
-		ret = 0;
 
 	return ret;
 }
@@ -1772,10 +1759,8 @@ static int __init i915_init(void)
 	if (i915.modeset == 0)
 		driver.driver_features &= ~DRIVER_MODESET;
 
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && i915.modeset == -1)
 		driver.driver_features &= ~DRIVER_MODESET;
-#endif
 
 	if (!(driver.driver_features & DRIVER_MODESET)) {
 		/* Silently fail loading to not upset userspace. */

@@ -51,6 +51,9 @@
 #include "bif/bif_5_0_d.h"
 #include "bif/bif_5_0_sh_mask.h"
 
+#include "dce/dce_10_0_d.h"
+#include "dce/dce_10_0_sh_mask.h"
+
 #include "cgs_linux.h"
 #include "eventmgr.h"
 #include "amd_pcie_helpers.h"
@@ -86,17 +89,17 @@
 typedef uint32_t PECI_RegistryValue;
 
 /* [2.5%,~2.5%] Clock stretched is multiple of 2.5% vs not and [Fmin, Fmax, LDO_REFSEL, USE_FOR_LOW_FREQ] */
-uint16_t PP_ClockStretcherLookupTable[2][4] = {
+static const uint16_t PP_ClockStretcherLookupTable[2][4] = {
 	{600, 1050, 3, 0},
 	{600, 1050, 6, 1} };
 
 /* [FF, SS] type, [] 4 voltage ranges, and [Floor Freq, Boundary Freq, VID min , VID max] */
-uint32_t PP_ClockStretcherDDTTable[2][4][4] = {
+static const uint32_t PP_ClockStretcherDDTTable[2][4][4] = {
 	{ {265, 529, 120, 128}, {325, 650, 96, 119}, {430, 860, 32, 95}, {0, 0, 0, 31} },
 	{ {275, 550, 104, 112}, {319, 638, 96, 103}, {360, 720, 64, 95}, {384, 768, 32, 63} } };
 
 /* [Use_For_Low_freq] value, [0%, 5%, 10%, 7.14%, 14.28%, 20%] (coming from PWR_CKS_CNTL.stretch_amount reg spec) */
-uint8_t PP_ClockStretchAmountConversion[2][6] = {
+static const uint8_t PP_ClockStretchAmountConversion[2][6] = {
 	{0, 1, 3, 2, 4, 5},
 	{0, 2, 4, 5, 6, 5} };
 
@@ -110,7 +113,7 @@ enum DPM_EVENT_SRC {
 };
 typedef enum DPM_EVENT_SRC DPM_EVENT_SRC;
 
-const unsigned long PhwTonga_Magic = (unsigned long)(PHM_VIslands_Magic);
+static const unsigned long PhwTonga_Magic = (unsigned long)(PHM_VIslands_Magic);
 
 struct tonga_power_state *cast_phw_tonga_power_state(
 				  struct pp_hw_power_state *hw_ps)
@@ -429,19 +432,20 @@ int tonga_get_evv_voltage(struct pp_hwmgr *hwmgr)
 						}
 					}
 				}
-				PP_ASSERT_WITH_CODE(0 == atomctrl_get_voltage_evv_on_sclk
-						(hwmgr, VOLTAGE_TYPE_VDDGFX, sclk,
-						 virtual_voltage_id, &vddgfx),
-						"Error retrieving EVV voltage value!", continue);
+				if (0 == atomctrl_get_voltage_evv_on_sclk
+				    (hwmgr, VOLTAGE_TYPE_VDDGFX, sclk,
+				     virtual_voltage_id, &vddgfx)) {
+					/* need to make sure vddgfx is less than 2v or else, it could burn the ASIC. */
+					PP_ASSERT_WITH_CODE((vddgfx < 2000 && vddgfx != 0), "Invalid VDDGFX value!", return -1);
 
-				/* need to make sure vddgfx is less than 2v or else, it could burn the ASIC. */
-				PP_ASSERT_WITH_CODE((vddgfx < 2000 && vddgfx != 0), "Invalid VDDGFX value!", return -1);
-
-				/* the voltage should not be zero nor equal to leakage ID */
-				if (vddgfx != 0 && vddgfx != virtual_voltage_id) {
-					data->vddcgfx_leakage.actual_voltage[data->vddcgfx_leakage.count] = vddgfx;
-					data->vddcgfx_leakage.leakage_id[data->vddcgfx_leakage.count] = virtual_voltage_id;
-					data->vddcgfx_leakage.count++;
+					/* the voltage should not be zero nor equal to leakage ID */
+					if (vddgfx != 0 && vddgfx != virtual_voltage_id) {
+						data->vddcgfx_leakage.actual_voltage[data->vddcgfx_leakage.count] = vddgfx;
+						data->vddcgfx_leakage.leakage_id[data->vddcgfx_leakage.count] = virtual_voltage_id;
+						data->vddcgfx_leakage.count++;
+					}
+				} else {
+					printk("Error retrieving EVV voltage value!\n");
 				}
 			}
 		} else {
@@ -449,20 +453,20 @@ int tonga_get_evv_voltage(struct pp_hwmgr *hwmgr)
 			if (0 == tonga_get_sclk_for_voltage_evv(hwmgr,
 						pptable_info->vddc_lookup_table,
 						virtual_voltage_id, &sclk)) {
-				PP_ASSERT_WITH_CODE(0 == atomctrl_get_voltage_evv_on_sclk
-						(hwmgr, VOLTAGE_TYPE_VDDC, sclk,
-						 virtual_voltage_id, &vddc),
-						"Error retrieving EVV voltage value!", continue);
+				if (0 == atomctrl_get_voltage_evv_on_sclk
+				    (hwmgr, VOLTAGE_TYPE_VDDC, sclk,
+				     virtual_voltage_id, &vddc)) {
+					/* need to make sure vddc is less than 2v or else, it could burn the ASIC. */
+					PP_ASSERT_WITH_CODE(vddc < 2000, "Invalid VDDC value!", return -1);
 
-				/* need to make sure vddc is less than 2v or else, it could burn the ASIC. */
-				if (vddc > 2000)
-					printk(KERN_ERR "[ powerplay ] Invalid VDDC value! \n");
-
-				/* the voltage should not be zero nor equal to leakage ID */
-				if (vddc != 0 && vddc != virtual_voltage_id) {
-					data->vddc_leakage.actual_voltage[data->vddc_leakage.count] = vddc;
-					data->vddc_leakage.leakage_id[data->vddc_leakage.count] = virtual_voltage_id;
-					data->vddc_leakage.count++;
+					/* the voltage should not be zero nor equal to leakage ID */
+					if (vddc != 0 && vddc != virtual_voltage_id) {
+						data->vddc_leakage.actual_voltage[data->vddc_leakage.count] = vddc;
+						data->vddc_leakage.leakage_id[data->vddc_leakage.count] = virtual_voltage_id;
+						data->vddc_leakage.count++;
+					}
+				} else {
+					printk("Error retrieving EVV voltage value!\n");
 				}
 			}
 		}
@@ -2037,14 +2041,11 @@ static int tonga_populate_single_memory_level(
 	data->display_timing.num_existing_displays = info.display_count;
 
 	if ((data->mclk_stutter_mode_threshold != 0) &&
-			(memory_clock <= data->mclk_stutter_mode_threshold) &&
-			(data->is_uvd_enabled == 0)
-#if defined(LINUX)
-			&& (PHM_READ_FIELD(hwmgr->device, DPG_PIPE_STUTTER_CONTROL, STUTTER_ENABLE) & 0x1)
-			&& (data->display_timing.num_existing_displays <= 2)
-			&& (data->display_timing.num_existing_displays != 0)
-#endif
-	)
+	    (memory_clock <= data->mclk_stutter_mode_threshold) &&
+	    (data->is_uvd_enabled == 0)
+	    && (PHM_READ_FIELD(hwmgr->device, DPG_PIPE_STUTTER_CONTROL, STUTTER_ENABLE) & 0x1)
+	    && (data->display_timing.num_existing_displays <= 2)
+	    && (data->display_timing.num_existing_displays != 0))
 		memory_level->StutterEnable = 1;
 
 	/* decide strobe mode*/
@@ -2415,6 +2416,24 @@ int tonga_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static uint8_t tonga_get_sleep_divider_id_from_clock(uint32_t engine_clock,
+		uint32_t min_engine_clock_in_sr)
+{
+	uint32_t i, temp;
+	uint32_t min = max(min_engine_clock_in_sr, (uint32_t)TONGA_MINIMUM_ENGINE_CLOCK);
+
+	PP_ASSERT_WITH_CODE((engine_clock >= min),
+			"Engine clock can't satisfy stutter requirement!", return 0);
+
+	for (i = TONGA_MAX_DEEPSLEEP_DIVIDER_ID;; i--) {
+		temp = engine_clock >> i;
+
+		if(temp >= min || i == 0)
+			break;
+	}
+	return (uint8_t)i;
+}
+
 /**
  * Populates single SMC SCLK structure using the provided engine clock
  *
@@ -2463,12 +2482,12 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr, uint32_t 
 	*get the DAL clock. do it in funture.
 	PECI_GetMinClockSettings(hwmgr->peci, &minClocks);
 	data->display_timing.min_clock_insr = minClocks.engineClockInSR;
-
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
-	{
-		graphic_level->DeepSleepDivId = PhwTonga_GetSleepDividerIdFromClock(hwmgr, engine_clock, minClocks.engineClockInSR);
-	}
 */
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SclkDeepSleep))
+		graphic_level->DeepSleepDivId =
+				tonga_get_sleep_divider_id_from_clock(engine_clock,
+						data->display_timing.min_clock_insr);
 
 	/* Default to slow, highest DPM level will be set to PPSMC_DISPLAY_WATERMARK_LOW later.*/
 	graphic_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
@@ -2663,7 +2682,7 @@ static int tonga_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 struct TONGA_DLL_SPEED_SETTING {
 	uint16_t            Min;                          /* Minimum Data Rate*/
 	uint16_t            Max;                          /* Maximum Data Rate*/
-	uint32_t 			dll_speed;                     /* The desired DLL_SPEED setting*/
+	uint32_t			dll_speed;                     /* The desired DLL_SPEED setting*/
 };
 
 static int tonga_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
@@ -3296,14 +3315,14 @@ static int tonga_set_private_var_based_on_pptale(struct pp_hwmgr *hwmgr)
 		pptable_info->vdd_dep_on_mclk;
 
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table != NULL,
-		"VDD dependency on SCLK table is missing. 	\
+		"VDD dependency on SCLK table is missing.	\
 		This table is mandatory", return -1);
 	PP_ASSERT_WITH_CODE(allowed_sclk_vdd_table->count >= 1,
-		"VDD dependency on SCLK table has to have is missing. 	\
+		"VDD dependency on SCLK table has to have is missing.	\
 		This table is mandatory", return -1);
 
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table != NULL,
-		"VDD dependency on MCLK table is missing. 	\
+		"VDD dependency on MCLK table is missing.	\
 		This table is mandatory", return -1);
 	PP_ASSERT_WITH_CODE(allowed_mclk_vdd_table->count >= 1,
 		"VDD dependency on MCLK table has to have is missing.	 \
@@ -4424,17 +4443,14 @@ int tonga_reset_asic_tasks(struct pp_hwmgr *hwmgr)
 
 int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->dyn_state.vddc_dep_on_dal_pwrl) {
-		kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
-		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+
+	if (data->soft_pp_table) {
+		kfree(data->soft_pp_table);
+		data->soft_pp_table = NULL;
 	}
 
-	if (NULL != hwmgr->backend) {
-		kfree(hwmgr->backend);
-		hwmgr->backend = NULL;
-	}
-
-	return 0;
+	return phm_hwmgr_backend_fini(hwmgr);
 }
 
 /**
@@ -5874,7 +5890,7 @@ uint32_t tonga_get_xclk(struct pp_hwmgr *hwmgr)
 	if (!fw_info)
 		return 0;
 
-	reference_clock = le16_to_cpu(fw_info->usMinPixelClockPLL_Output);
+	reference_clock = le16_to_cpu(fw_info->usReferenceClock);
 
 	divide = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_CLKPIN_CNTL, XTALIN_DIVIDE);
 
@@ -6039,24 +6055,40 @@ static int tonga_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
 {
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 
-	*table = (char *)&data->smc_state_table;
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+		memcpy(data->soft_pp_table, hwmgr->soft_pp_table,
+				hwmgr->soft_pp_table_size);
+	}
 
-	return sizeof(struct SMU72_Discrete_DpmTable);
+	*table = (char *)&data->soft_pp_table;
+
+	return hwmgr->soft_pp_table_size;
 }
 
 static int tonga_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
 {
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 
-	void *table = (void *)&data->smc_state_table;
+	if (!data->soft_pp_table) {
+		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		if (!data->soft_pp_table)
+			return -ENOMEM;
+	}
 
-	memcpy(table, buf, size);
+	memcpy(data->soft_pp_table, buf, size);
+
+	hwmgr->soft_pp_table = data->soft_pp_table;
+
+	/* TODO: re-init powerplay to implement modified pptable */
 
 	return 0;
 }
 
 static int tonga_force_clock_level(struct pp_hwmgr *hwmgr,
-		enum pp_clock_type type, int level)
+		enum pp_clock_type type, uint32_t mask)
 {
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 
@@ -6068,20 +6100,28 @@ static int tonga_force_clock_level(struct pp_hwmgr *hwmgr,
 		if (!data->sclk_dpm_key_disabled)
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					PPSMC_MSG_SCLKDPM_SetEnabledMask,
-					(1 << level));
+					data->dpm_level_enable_mask.sclk_dpm_enable_mask & mask);
 		break;
 	case PP_MCLK:
 		if (!data->mclk_dpm_key_disabled)
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					PPSMC_MSG_MCLKDPM_SetEnabledMask,
-					(1 << level));
+					data->dpm_level_enable_mask.mclk_dpm_enable_mask & mask);
 		break;
 	case PP_PCIE:
+	{
+		uint32_t tmp = mask & data->dpm_level_enable_mask.pcie_dpm_enable_mask;
+		uint32_t level = 0;
+
+		while (tmp >>= 1)
+			level++;
+
 		if (!data->pcie_dpm_key_disabled)
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					PPSMC_MSG_PCIeDPM_ForceLevel,
-					(1 << level));
+					level);
 		break;
+	}
 	default:
 		break;
 	}
@@ -6173,6 +6213,7 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.powergate_uvd = tonga_phm_powergate_uvd,
 	.powergate_vce = tonga_phm_powergate_vce,
 	.disable_clock_power_gating = tonga_phm_disable_clock_power_gating,
+	.update_clock_gatings = tonga_phm_update_clock_gatings,
 	.notify_smc_display_config_after_ps_adjustment = tonga_notify_smc_display_config_after_ps_adjustment,
 	.display_config_changed = tonga_display_configuration_changed_task,
 	.set_max_fan_pwm_output = tonga_set_max_fan_pwm_output,
