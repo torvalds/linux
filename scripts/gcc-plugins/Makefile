@@ -14,8 +14,14 @@ endif
 
 export GCCPLUGINS_DIR HOSTLIBS
 
+ifneq ($(CFLAGS_KCOV), $(SANCOV_PLUGIN))
+  GCC_PLUGIN := $(filter-out $(SANCOV_PLUGIN), $(GCC_PLUGIN))
+endif
+
 $(HOSTLIBS)-y := $(GCC_PLUGIN)
 always := $($(HOSTLIBS)-y)
 
 cyc_complexity_plugin-objs := cyc_complexity_plugin.o
+sancov_plugin-objs := sancov_plugin.o
+
 clean-files += *.so
