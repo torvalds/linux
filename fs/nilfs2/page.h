@@ -13,8 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Written by Ryusuke Konishi <ryusuke@osrg.net>,
- *            Seiji Kihara <kihara@osrg.net>.
+ * Written by Ryusuke Konishi and Seiji Kihara.
  */
 
 #ifndef _NILFS_PAGE_H

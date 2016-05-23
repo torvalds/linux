@@ -13,9 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * This file was originally written by Seiji Kihara <kihara@osrg.net>
- * and fully revised by Ryusuke Konishi <ryusuke@osrg.net> for
- * stabilization and simplification.
+ * Originally written by Seiji Kihara.
+ * Fully revised by Ryusuke Konishi for stabilization and simplification.
  *
  */
 

@@ -13,8 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *
- * Written by Koji Sato <koji@osrg.net>
- *            Ryusuke Konishi <ryusuke@osrg.net>
+ * Written by Koji Sato and Ryusuke Konishi.
  */
 /*
  *  linux/include/linux/ext2_fs.h

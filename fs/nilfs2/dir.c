@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Modified for NILFS by Amagai Yoshiji <amagai@osrg.net>
+ * Modified for NILFS by Amagai Yoshiji.
  */
 /*
  *  linux/fs/ext2/dir.c

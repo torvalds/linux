@@ -13,8 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Modified for NILFS by Amagai Yoshiji <amagai@osrg.net>,
- *                       Ryusuke Konishi <ryusuke@osrg.net>
+ * Modified for NILFS by Amagai Yoshiji and Ryusuke Konishi.
  */
 /*
  *  linux/fs/ext2/namei.c

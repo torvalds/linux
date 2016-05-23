@@ -13,8 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Written by Seiji Kihara <kihara@osrg.net>
- * Revised by Ryusuke Konishi <ryusuke@osrg.net>
+ * Written by Seiji Kihara.
+ * Revised by Ryusuke Konishi.
  */
 
 #ifndef _NILFS_BTNODE_H

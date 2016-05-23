@@ -13,9 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Original code was written by Koji Sato <koji@osrg.net>.
- * Two allocators were unified by Ryusuke Konishi <ryusuke@osrg.net>,
- *                                Amagai Yoshiji <amagai@osrg.net>.
+ * Originally written by Koji Sato.
+ * Two allocators were unified by Ryusuke Konishi and Amagai Yoshiji.
  */
 
 #ifndef _NILFS_ALLOC_H

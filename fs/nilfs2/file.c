@@ -13,8 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * Written by Amagai Yoshiji <amagai@osrg.net>,
- *            Ryusuke Konishi <ryusuke@osrg.net>
+ * Written by Amagai Yoshiji and Ryusuke Konishi.
  */
 
 #include <linux/fs.h>
