@@ -113,8 +113,19 @@ struct s_pstats {
 extern struct dev_rcv_lists can_rx_alldev_list;
 
 /* function prototypes for the CAN networklayer procfs (proc.c) */
+#ifdef CONFIG_PROC_FS
 void can_init_proc(void);
 void can_remove_proc(void);
+#else
+static inline void can_init_proc(void)
+{
+	pr_info("can: Can't create /proc/net/can. CONFIG_PROC_FS missing!\n");
+}
+
+static inline void can_remove_proc(void)
+{
+}
+#endif
 void can_stat_update(unsigned long data);
 
 /* structures and variables from af_can.c needed in proc.c for reading */
