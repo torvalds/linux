@@ -603,7 +603,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	arche_platform_wd_irq_en(arche_pdata);
+	gpio_direction_input(arche_pdata->wake_detect_gpio);
 
 	ret = device_create_file(dev, &dev_attr_state);
 	if (ret) {
