@@ -154,3 +154,10 @@ def get_gdbserver_type():
         if gdbserver_type is not None and hasattr(gdb, 'events'):
             gdb.events.exited.connect(exit_handler)
     return gdbserver_type
+
+
+def gdb_eval_or_none(expresssion):
+    try:
+        return gdb.parse_and_eval(expresssion)
+    except:
+        return None
