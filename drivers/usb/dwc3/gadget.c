@@ -303,7 +303,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned cmd,
 				ret = 0;
 				break;
 			case DEPEVT_TRANSFER_NO_RESOURCE:
-				dwc3_trace(trace_dwc3_gadget, "%s: no resource available");
+				dwc3_trace(trace_dwc3_gadget, "no resource available");
 				ret = -EINVAL;
 				break;
 			case DEPEVT_TRANSFER_BUS_EXPIRY:
@@ -318,7 +318,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned cmd,
 				 * give a hint to the gadget driver that this is
 				 * the case by returning -EAGAIN.
 				 */
-				dwc3_trace(trace_dwc3_gadget, "%s: bus expiry");
+				dwc3_trace(trace_dwc3_gadget, "bus expiry");
 				ret = -EAGAIN;
 				break;
 			default:
