@@ -523,6 +523,14 @@ struct ib_uverbs_create_qp {
 	__u64 driver_data[0];
 };
 
+enum ib_uverbs_create_qp_mask {
+	IB_UVERBS_CREATE_QP_MASK_IND_TABLE = 1UL << 0,
+};
+
+enum {
+	IB_UVERBS_CREATE_QP_SUP_COMP_MASK = IB_UVERBS_CREATE_QP_MASK_IND_TABLE,
+};
+
 struct ib_uverbs_ex_create_qp {
 	__u64 user_handle;
 	__u32 pd_handle;
@@ -540,6 +548,8 @@ struct ib_uverbs_ex_create_qp {
 	__u8 reserved;
 	__u32 comp_mask;
 	__u32 create_flags;
+	__u32 rwq_ind_tbl_handle;
+	__u32  reserved1;
 };
 
 struct ib_uverbs_open_qp {
