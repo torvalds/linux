@@ -48,7 +48,7 @@ struct buffer_head *
 befs_read_datastream(struct super_block *sb, const befs_data_stream *ds,
 		     befs_off_t pos, uint * off)
 {
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	befs_block_run run;
 	befs_blocknr_t block;	/* block coresponding to pos */
 
