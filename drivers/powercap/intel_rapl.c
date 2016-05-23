@@ -1392,7 +1392,7 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 	}
 	rp->nr_domains = bitmap_weight(&rp->domain_map,	RAPL_DOMAIN_MAX);
 	if (!rp->nr_domains) {
-		pr_err("no valid rapl domains found in package %d\n", rp->id);
+		pr_debug("no valid rapl domains found in package %d\n", rp->id);
 		ret = -ENODEV;
 		goto done;
 	}
