@@ -226,10 +226,13 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
  * amdgpu_sync_is_idle - test if all fences are signaled
  *
  * @sync: the sync object
+ * @ring: optional ring to use for test
  *
- * Returns true if all fences in the sync object are signaled.
+ * Returns true if all fences in the sync object are signaled or scheduled to
+ * the ring (if provided).
  */
-bool amdgpu_sync_is_idle(struct amdgpu_sync *sync)
+bool amdgpu_sync_is_idle(struct amdgpu_sync *sync,
+			 struct amdgpu_ring *ring)
 {
 	struct amdgpu_sync_entry *e;
 	struct hlist_node *tmp;
@@ -237,6 +240,16 @@ bool amdgpu_sync_is_idle(struct amdgpu_sync *sync)
 
 	hash_for_each_safe(sync->fences, i, tmp, e, node) {
 		struct fence *f = e->fence;
+		struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
+
+		if (ring && s_fence) {
+			/* For fences from the same ring it is sufficient
+			 * when they are scheduled.
+			 */
+			if (s_fence->sched == &ring->sched &&
+			    fence_is_signaled(&s_fence->scheduled))
+				continue;
+		}
 
 		if (fence_is_signaled(f)) {
 			hash_del(&e->node);

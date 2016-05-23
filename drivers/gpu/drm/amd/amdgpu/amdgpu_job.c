@@ -166,7 +166,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	}
 	job = to_amdgpu_job(sched_job);
 
-	BUG_ON(!amdgpu_sync_is_idle(&job->sync));
+	BUG_ON(!amdgpu_sync_is_idle(&job->sync, NULL));
 
 	trace_amdgpu_sched_run_job(job);
 	r = amdgpu_ib_schedule(job->ring, job->num_ibs, job->ibs,

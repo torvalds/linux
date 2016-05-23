@@ -597,7 +597,8 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     struct amdgpu_sync *sync,
 		     struct reservation_object *resv,
 		     void *owner);
-bool amdgpu_sync_is_idle(struct amdgpu_sync *sync);
+bool amdgpu_sync_is_idle(struct amdgpu_sync *sync,
+			 struct amdgpu_ring *ring);
 int amdgpu_sync_cycle_fences(struct amdgpu_sync *dst, struct amdgpu_sync *src,
 			     struct fence *fence);
 struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);

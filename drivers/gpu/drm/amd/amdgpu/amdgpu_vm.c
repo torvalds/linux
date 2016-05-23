@@ -240,13 +240,13 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			      struct amdgpu_vm_id,
 			      list);
 
-	if (!amdgpu_sync_is_idle(&id->active)) {
+	if (!amdgpu_sync_is_idle(&id->active, NULL)) {
 		struct list_head *head = &adev->vm_manager.ids_lru;
 		struct amdgpu_vm_id *tmp;
 
 		list_for_each_entry_safe(id, tmp, &adev->vm_manager.ids_lru,
 					 list) {
-			if (amdgpu_sync_is_idle(&id->active)) {
+			if (amdgpu_sync_is_idle(&id->active, NULL)) {
 				list_move(&id->list, head);
 				head = &id->list;
 			}
