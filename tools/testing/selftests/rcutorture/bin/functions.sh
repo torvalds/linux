@@ -171,7 +171,6 @@ identify_qemu_append () {
 identify_qemu_args () {
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
-		echo -soundhw pcspk
 		;;
 	qemu-system-ppc64)
 		echo -enable-kvm -M pseries -nodefaults
