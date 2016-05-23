@@ -994,7 +994,6 @@ struct rx_pkt_end {
 	__le32 info0; /* %RX_PKT_END_INFO0_ */
 	__le32 phy_timestamp_1;
 	__le32 phy_timestamp_2;
-	__le32 rx_location_info; /* %RX_LOCATION_INFO_ */
 } __packed;
 
 enum rx_phy_ppdu_end_info0 {
@@ -1067,6 +1066,7 @@ struct rx_phy_ppdu_end {
 
 struct rx_ppdu_end_qca99x0 {
 	struct rx_pkt_end rx_pkt_end;
+	__le32 rx_location_info; /* %RX_LOCATION_INFO_ */
 	struct rx_phy_ppdu_end rx_phy_ppdu_end;
 	__le32 rx_timing_offset; /* %RX_PPDU_END_RX_TIMING_OFFSET_ */
 	__le32 rx_info; /* %RX_PPDU_END_RX_INFO_ */
