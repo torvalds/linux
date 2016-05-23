@@ -1798,7 +1798,7 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 	u8				i;
 
 	for (i = 0; i < num; i++) {
-		u8 epnum = (i << 1) | (!!direction);
+		u8 epnum = (i << 1) | (direction ? 1 : 0);
 
 		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
 		if (!dep)
