@@ -1154,20 +1154,15 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 #endif
 		/* last one */ {""}
 	};
-	struct net *net = data;
-	int ret;
-
-	ret = simple_fill_super(sb, 0x6e667364, nfsd_files);
-	if (ret)
-		return ret;
-	sb->s_fs_info = get_net(net);
-	return 0;
+	get_net(sb->s_fs_info);
+	return simple_fill_super(sb, 0x6e667364, nfsd_files);
 }
 
 static struct dentry *nfsd_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_ns(fs_type, flags, current->nsproxy->net_ns, nfsd_fill_super);
+	struct net *net = current->nsproxy->net_ns;
+	return mount_ns(fs_type, flags, data, net, net->user_ns, nfsd_fill_super);
 }
 
 static void nfsd_umount(struct super_block *sb)
