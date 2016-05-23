@@ -215,6 +215,16 @@ struct diag204_x_phys_cpu {
 	char  reserved3[80];
 } __packed;
 
+struct diag204_x_part_block {
+	struct diag204_x_part_hdr hdr;
+	struct diag204_x_cpu_info cpus[];
+} __packed;
+
+struct diag204_x_phys_block {
+	struct diag204_x_phys_hdr hdr;
+	struct diag204_x_phys_cpu cpus[];
+} __packed;
+
 int diag204(unsigned long subcode, unsigned long size, void *addr);
 int diag224(void *ptr);
 #endif /* _ASM_S390_DIAG_H */

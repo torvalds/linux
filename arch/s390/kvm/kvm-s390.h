@@ -250,6 +250,9 @@ int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
 
+/* implemented in sthyi.c */
+int handle_sthyi(struct kvm_vcpu *vcpu);
+
 /* implemented in kvm-s390.c */
 void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
 long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable);
