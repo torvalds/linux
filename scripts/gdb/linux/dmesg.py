@@ -33,11 +33,12 @@ class LxDmesg(gdb.Command):
         if log_first_idx < log_next_idx:
             log_buf_2nd_half = -1
             length = log_next_idx - log_first_idx
-            log_buf = inf.read_memory(start, length)
+            log_buf = utils.read_memoryview(inf, start, length).tobytes()
         else:
             log_buf_2nd_half = log_buf_len - log_first_idx
-            log_buf = inf.read_memory(start, log_buf_2nd_half) + \
-                inf.read_memory(log_buf_addr, log_next_idx)
+            a = utils.read_memoryview(inf, start, log_buf_2nd_half)
+            b = utils.read_memoryview(inf, log_buf_addr, log_next_idx)
+            log_buf = a.tobytes() + b.tobytes()
 
         pos = 0
         while pos < log_buf.__len__():
