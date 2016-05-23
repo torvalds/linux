@@ -220,7 +220,7 @@ static void __init imx6q_1588_init(void)
 				IMX6Q_GPR1_ENET_CLK_SEL_MASK,
 				clksel);
 	else
-		pr_err("failed to find fsl,imx6q-iomux-gpr regmap\n");
+		pr_err("failed to find fsl,imx6q-iomuxc-gpr regmap\n");
 
 	clk_put(enet_ref);
 put_ptp_clk:
