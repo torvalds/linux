@@ -327,19 +327,13 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned cmd,
 
 			break;
 		}
+	} while (--timeout);
 
-		/*
-		 * We can't sleep here, because it is also called from
-		 * interrupt context.
-		 */
-		timeout--;
-		if (!timeout) {
-			dwc3_trace(trace_dwc3_gadget,
-					"Command Timed Out");
-			ret = -ETIMEDOUT;
-			break;
-		}
-	} while (1);
+	if (timeout == 0) {
+		dwc3_trace(trace_dwc3_gadget,
+				"Command Timed Out");
+		ret = -ETIMEDOUT;
+	}
 
 	if (unlikely(susphy)) {
 		reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
