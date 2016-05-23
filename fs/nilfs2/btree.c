@@ -1029,12 +1029,12 @@ static __u64 nilfs_btree_find_target_v(const struct nilfs_bmap *btree,
 	if (ptr != NILFS_BMAP_INVALID_PTR)
 		/* sequential access */
 		return ptr;
-	else {
-		ptr = nilfs_btree_find_near(btree, path);
-		if (ptr != NILFS_BMAP_INVALID_PTR)
-			/* near */
-			return ptr;
-	}
+
+	ptr = nilfs_btree_find_near(btree, path);
+	if (ptr != NILFS_BMAP_INVALID_PTR)
+		/* near */
+		return ptr;
+
 	/* block group */
 	return nilfs_bmap_find_target_in_group(btree);
 }

@@ -150,17 +150,15 @@ static int nilfs_prepare_segment_lock(struct nilfs_transaction_info *ti)
 	if (cur_ti) {
 		if (cur_ti->ti_magic == NILFS_TI_MAGIC)
 			return ++cur_ti->ti_count;
-		else {
-			/*
-			 * If journal_info field is occupied by other FS,
-			 * it is saved and will be restored on
-			 * nilfs_transaction_commit().
-			 */
-			printk(KERN_WARNING
-			       "NILFS warning: journal info from a different "
-			       "FS\n");
-			save = current->journal_info;
-		}
+
+		/*
+		 * If journal_info field is occupied by other FS,
+		 * it is saved and will be restored on
+		 * nilfs_transaction_commit().
+		 */
+		printk(KERN_WARNING
+		       "NILFS warning: journal info from a different FS\n");
+		save = current->journal_info;
 	}
 	if (!ti) {
 		ti = kmem_cache_alloc(nilfs_transaction_cachep, GFP_NOFS);
@@ -2552,10 +2550,10 @@ static int nilfs_segctor_thread(void *arg)
 
 		if (timeout || sci->sc_seq_request != sci->sc_seq_done)
 			mode = SC_LSEG_SR;
-		else if (!sci->sc_flush_request)
-			break;
-		else
+		else if (sci->sc_flush_request)
 			mode = nilfs_segctor_flush_mode(sci);
+		else
+			break;
 
 		spin_unlock(&sci->sc_state_lock);
 		nilfs_segctor_thread_construct(sci, mode);

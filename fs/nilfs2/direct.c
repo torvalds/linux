@@ -107,9 +107,9 @@ nilfs_direct_find_target_v(const struct nilfs_bmap *direct, __u64 key)
 	if (ptr != NILFS_BMAP_INVALID_PTR)
 		/* sequential access */
 		return ptr;
-	else
-		/* block group */
-		return nilfs_bmap_find_target_in_group(direct);
+
+	/* block group */
+	return nilfs_bmap_find_target_in_group(direct);
 }
 
 static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
