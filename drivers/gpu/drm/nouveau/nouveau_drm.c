@@ -131,8 +131,13 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	mutex_init(&cli->mutex);
 	usif_client_init(cli);
 
-	ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
-			       cli->name, device, &cli->base);
+	if (cli == &drm->client) {
+		ret = nvif_driver_init(NULL, nouveau_config, nouveau_debug,
+				       cli->name, device, &cli->base);
+	} else {
+		ret = nvif_client_init(&drm->client.base, cli->name, device,
+				       &cli->base);
+	}
 	if (ret) {
 		NV_ERROR(drm, "Client allocation failed: %d\n", ret);
 		goto done;
@@ -569,7 +574,6 @@ static int
 nouveau_do_suspend(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_cli *cli;
 	int ret;
 
 	nouveau_led_suspend(dev);
@@ -599,7 +603,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 			goto fail_display;
 	}
 
-	NV_INFO(drm, "suspending client object trees...\n");
+	NV_INFO(drm, "suspending fence...\n");
 	if (drm->fence && nouveau_fence(drm)->suspend) {
 		if (!nouveau_fence(drm)->suspend(drm)) {
 			ret = -ENOMEM;
@@ -607,13 +611,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 		}
 	}
 
-	list_for_each_entry(cli, &drm->clients, head) {
-		ret = nvif_client_suspend(&cli->base);
-		if (ret)
-			goto fail_client;
-	}
-
-	NV_INFO(drm, "suspending kernel object tree...\n");
+	NV_INFO(drm, "suspending object tree...\n");
 	ret = nvif_client_suspend(&drm->client.base);
 	if (ret)
 		goto fail_client;
@@ -621,10 +619,6 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	return 0;
 
 fail_client:
-	list_for_each_entry_continue_reverse(cli, &drm->clients, head) {
-		nvif_client_resume(&cli->base);
-	}
-
 	if (drm->fence && nouveau_fence(drm)->resume)
 		nouveau_fence(drm)->resume(drm);
 
@@ -640,18 +634,13 @@ static int
 nouveau_do_resume(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_cli *cli;
 
-	NV_INFO(drm, "resuming kernel object tree...\n");
+	NV_INFO(drm, "resuming object tree...\n");
 	nvif_client_resume(&drm->client.base);
 
-	NV_INFO(drm, "resuming client object trees...\n");
+	NV_INFO(drm, "resuming fence...\n");
 	if (drm->fence && nouveau_fence(drm)->resume)
 		nouveau_fence(drm)->resume(drm);
-
-	list_for_each_entry(cli, &drm->clients, head) {
-		nvif_client_resume(&cli->base);
-	}
 
 	nouveau_run_vbios_init(dev);
 
