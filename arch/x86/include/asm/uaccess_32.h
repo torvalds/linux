@@ -65,32 +65,6 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
 static __always_inline unsigned long
 __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 {
-	/* Avoid zeroing the tail if the copy fails..
-	 * If 'n' is constant and 1, 2, or 4, we do still zero on a failure,
-	 * but as the zeroing behaviour is only significant when n is not
-	 * constant, that shouldn't be a problem.
-	 */
-	if (__builtin_constant_p(n)) {
-		unsigned long ret;
-
-		switch (n) {
-		case 1:
-			__uaccess_begin();
-			__get_user_size(*(u8 *)to, from, 1, ret, 1);
-			__uaccess_end();
-			return ret;
-		case 2:
-			__uaccess_begin();
-			__get_user_size(*(u16 *)to, from, 2, ret, 2);
-			__uaccess_end();
-			return ret;
-		case 4:
-			__uaccess_begin();
-			__get_user_size(*(u32 *)to, from, 4, ret, 4);
-			__uaccess_end();
-			return ret;
-		}
-	}
 	return __copy_from_user_ll_nozero(to, from, n);
 }
 
