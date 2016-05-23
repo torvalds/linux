@@ -1735,8 +1735,8 @@ int nfs_commit_file(struct file *file, struct nfs_write_verifier *verf)
 
 	open = get_nfs_open_context(nfs_file_open_context(file));
 	req  = nfs_create_request(open, NULL, NULL, 0, i_size_read(inode));
-	if (!req) {
-		ret = -ENOMEM;
+	if (IS_ERR(req)) {
+		ret = PTR_ERR(req);
 		goto out_put;
 	}
 
