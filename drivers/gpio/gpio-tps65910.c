@@ -184,7 +184,6 @@ skip_init:
 
 static struct platform_driver tps65910_gpio_driver = {
 	.driver.name    = "tps65910-gpio",
-	.driver.owner   = THIS_MODULE,
 	.probe		= tps65910_gpio_probe,
 };
 

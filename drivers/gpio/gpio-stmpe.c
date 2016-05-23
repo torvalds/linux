@@ -433,7 +433,6 @@ static struct platform_driver stmpe_gpio_driver = {
 	.driver = {
 		.suppress_bind_attrs	= true,
 		.name			= "stmpe-gpio",
-		.owner			= THIS_MODULE,
 	},
 	.probe		= stmpe_gpio_probe,
 };
