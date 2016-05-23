@@ -348,6 +348,6 @@ nvkm_falcon_new_(const struct nvkm_falcon_func *func,
 	falcon->data.size = func->data.size;
 	*pengine = &falcon->engine;
 
-	return nvkm_engine_ctor(&nvkm_falcon, device, index, func->pmc_enable,
+	return nvkm_engine_ctor(&nvkm_falcon, device, index,
 				enable, &falcon->engine);
 }

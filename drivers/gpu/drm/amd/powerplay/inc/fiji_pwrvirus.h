@@ -46,7 +46,7 @@ struct PWR_Command_Table
 typedef struct PWR_Command_Table PWR_Command_Table;
 
 #define PWR_VIRUS_TABLE_SIZE  10243
-static PWR_Command_Table PwrVirusTable[PWR_VIRUS_TABLE_SIZE] =
+static const PWR_Command_Table PwrVirusTable[PWR_VIRUS_TABLE_SIZE] =
 {
     { PwrCmdWrite, 0x100100b6, mmPCIE_INDEX                               },
     { PwrCmdWrite, 0x00000000, mmPCIE_DATA                                },

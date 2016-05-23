@@ -1,5 +1,5 @@
-#ifndef __NOUVEAU_DRMCLI_H__
-#define __NOUVEAU_DRMCLI_H__
+#ifndef __NOUVEAU_DRV_H__
+#define __NOUVEAU_DRV_H__
 
 #define DRIVER_AUTHOR		"Nouveau Project"
 #define DRIVER_EMAIL		"nouveau@lists.freedesktop.org"
