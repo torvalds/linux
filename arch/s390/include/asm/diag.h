@@ -97,6 +97,11 @@ enum diag204_format {
 	DIAG204_INFO_EXT = 0x00010000
 };
 
+enum diag204_cpu_flags {
+	DIAG204_CPU_ONLINE = 0x20,
+	DIAG204_CPU_CAPPED = 0x40,
+};
+
 struct diag204_info_blk_hdr {
 	__u8  npar;
 	__u8  flags;
@@ -136,10 +141,13 @@ struct diag204_x_part_hdr {
 	__u64 online_cs;
 	__u64 online_es;
 	__u8  upid;
-	char  reserved1[3];
+	__u8  reserved:3;
+	__u8  mtid:5;
+	char  reserved1[2];
 	__u32 group_mlu;
 	char  group_name[8];
-	char  reserved2[32];
+	char  hardware_group_name[8];
+	char  reserved2[24];
 } __packed;
 
 struct diag204_cpu_info {
@@ -168,7 +176,9 @@ struct diag204_x_cpu_info {
 	__u64 wait_time;
 	__u32 pma_weight;
 	__u32 polar_weight;
-	char  reserved3[40];
+	__u32 cpu_type_cap;
+	__u32 group_cpu_type_cap;
+	char  reserved3[32];
 } __packed;
 
 struct diag204_phys_hdr {
@@ -199,7 +209,8 @@ struct diag204_x_phys_cpu {
 	__u16 cpu_addr;
 	char  reserved1[2];
 	__u8  ctidx;
-	char  reserved2[3];
+	char  reserved2[1];
+	__u16 weight;
 	__u64 mgm_time;
 	char  reserved3[80];
 } __packed;
