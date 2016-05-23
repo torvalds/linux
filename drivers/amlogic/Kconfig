@@ -75,6 +75,7 @@ source "drivers/amlogic/mipi/Kconfig"
 source "drivers/amlogic/d2d3/Kconfig"
 source "drivers/amlogic/amvecm/Kconfig"
 source "drivers/amlogic/dvb_tv/Kconfig"
+source "drivers/amlogic/ion_dev/Kconfig"
 
 #
 # crypto
