@@ -921,7 +921,7 @@ int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty)
 			/* This will happen when somebody is freeing
 			   this inode. */
 			nilfs_warning(inode->i_sb, __func__,
-				      "cannot get inode (ino=%lu)\n",
+				      "cannot get inode (ino=%lu)",
 				      inode->i_ino);
 			spin_unlock(&nilfs->ns_inode_lock);
 			return -EINVAL; /* NILFS_I_DIRTY may remain for
@@ -942,7 +942,7 @@ int __nilfs_mark_inode_dirty(struct inode *inode, int flags)
 	err = nilfs_load_inode_block(inode, &ibh);
 	if (unlikely(err)) {
 		nilfs_warning(inode->i_sb, __func__,
-			      "failed to reget inode block.\n");
+			      "failed to reget inode block.");
 		return err;
 	}
 	nilfs_update_inode(inode, ibh, flags);
@@ -969,7 +969,7 @@ void nilfs_dirty_inode(struct inode *inode, int flags)
 
 	if (is_bad_inode(inode)) {
 		nilfs_warning(inode->i_sb, __func__,
-			      "tried to mark bad_inode dirty. ignored.\n");
+			      "tried to mark bad_inode dirty. ignored.");
 		dump_stack();
 		return;
 	}

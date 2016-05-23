@@ -619,7 +619,7 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
 
 	if (!nilfs_clear_bit_atomic(lock, group_offset, bitmap))
 		nilfs_warning(inode->i_sb, __func__,
-			      "entry number %llu already freed: ino=%lu\n",
+			      "entry number %llu already freed: ino=%lu",
 			      (unsigned long long)req->pr_entry_nr,
 			      (unsigned long)inode->i_ino);
 	else
@@ -660,7 +660,7 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
 
 	if (!nilfs_clear_bit_atomic(lock, group_offset, bitmap))
 		nilfs_warning(inode->i_sb, __func__,
-			      "entry number %llu already freed: ino=%lu\n",
+			      "entry number %llu already freed: ino=%lu",
 			      (unsigned long long)req->pr_entry_nr,
 			      (unsigned long)inode->i_ino);
 	else
@@ -769,7 +769,7 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 			if (!nilfs_clear_bit_atomic(lock, group_offset,
 						    bitmap)) {
 				nilfs_warning(inode->i_sb, __func__,
-					      "entry number %llu already freed: ino=%lu\n",
+					      "entry number %llu already freed: ino=%lu",
 					      (unsigned long long)entry_nrs[j],
 					      (unsigned long)inode->i_ino);
 			} else {
@@ -814,7 +814,7 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 							      last_nrs[k]);
 			if (ret && ret != -ENOENT) {
 				nilfs_warning(inode->i_sb, __func__,
-					      "failed to delete block of entry %llu: ino=%lu, err=%d\n",
+					      "failed to delete block of entry %llu: ino=%lu, err=%d",
 					      (unsigned long long)last_nrs[k],
 					      (unsigned long)inode->i_ino, ret);
 			}
@@ -833,7 +833,7 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 			ret = nilfs_palloc_delete_bitmap_block(inode, group);
 			if (ret && ret != -ENOENT) {
 				nilfs_warning(inode->i_sb, __func__,
-					      "failed to delete bitmap block of group %lu: ino=%lu, err=%d\n",
+					      "failed to delete bitmap block of group %lu: ino=%lu, err=%d",
 					      group,
 					      (unsigned long)inode->i_ino, ret);
 			}
