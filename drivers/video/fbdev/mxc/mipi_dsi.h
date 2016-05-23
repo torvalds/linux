@@ -22,7 +22,7 @@
 #define mipi_dbg(fmt, ...)
 #endif
 
-#define	DSI_CMD_BUF_MAXSIZE         (32)
+#define	DSI_CMD_BUF_MAXSIZE         (128)
 
 /* DPI interface pixel color coding map */
 enum mipi_dsi_dpi_fmt {
@@ -103,6 +103,11 @@ int mipid_hx8369_lcd_setup(struct mipi_dsi_info *);
 void mipid_otm8018b_get_lcd_videomode(struct fb_videomode **mode, int *size,
 		struct mipi_lcd_config **data);
 int mipid_otm8018b_lcd_setup(struct mipi_dsi_info *);
+#endif
+#ifdef CONFIG_FB_MXC_TRULY_PANEL_TFT3P5581E
+void mipid_hx8363_get_lcd_videomode(struct fb_videomode **mode, int *size,
+		struct mipi_lcd_config **data);
+int mipid_hx8363_lcd_setup(struct mipi_dsi_info *);
 #endif
 
 #ifndef CONFIG_FB_MXC_TRULY_WVGA_SYNC_PANEL

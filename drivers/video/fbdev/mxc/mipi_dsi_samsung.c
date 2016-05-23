@@ -62,6 +62,12 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 	 {mipid_otm8018b_get_lcd_videomode, mipid_otm8018b_lcd_setup}
 	},
 #endif
+#ifdef CONFIG_FB_MXC_TRULY_PANEL_TFT3P5581E
+	{
+	 "TRULY-WVGA-TFT3P5581E",
+	 {mipid_hx8363_get_lcd_videomode, mipid_hx8363_lcd_setup}
+	},
+#endif
 	{
 	"", {NULL, NULL}
 	}
@@ -386,9 +392,13 @@ static int mipi_dsi_master_init(struct mipi_dsi_info *mipi_dsi,
 	       MIPI_DSI_PLL_BYPASS(0) |
 	       MIPI_DSI_BYTE_CLK_SRC(0),
 	       mipi_dsi->mmio_base + MIPI_DSI_CLKCTRL);
-	writel(MIPI_DSI_PLL_EN(1) |
-	       MIPI_DSI_PMS(0x4190),
-	       mipi_dsi->mmio_base + MIPI_DSI_PLLCTRL);
+	if (!strcmp(mipi_dsi->lcd_panel, "TRULY-WVGA-TFT3P5581E"))
+		writel(MIPI_DSI_PLL_EN(1) | MIPI_DSI_PMS(0x3141),
+		       mipi_dsi->mmio_base + MIPI_DSI_PLLCTRL);
+	else
+		writel(MIPI_DSI_PLL_EN(1) | MIPI_DSI_PMS(0x4190),
+		       mipi_dsi->mmio_base + MIPI_DSI_PLLCTRL);
+
 	/* set PLLTMR: stable time */
 	writel(33024, mipi_dsi->mmio_base + MIPI_DSI_PLLTMR);
 	udelay(300);
@@ -443,17 +453,31 @@ static int mipi_dsi_master_init(struct mipi_dsi_info *mipi_dsi,
 	       mipi_dsi->mmio_base + MIPI_DSI_MSYNC);
 
 	/* configure d-phy timings */
-	writel(MIPI_DSI_M_TLPXCTL(11) | MIPI_DSI_M_THSEXITCTL(18),
-	       mipi_dsi->mmio_base + MIPI_DSI_PHYTIMING);
-	writel(MIPI_DSI_M_TCLKPRPRCTL(13) |
-	       MIPI_DSI_M_TCLKZEROCTL(65) |
-	       MIPI_DSI_M_TCLKPOSTCTL(17) |
-	       MIPI_DSI_M_TCLKTRAILCTL(13),
-	       mipi_dsi->mmio_base + MIPI_DSI_PHYTIMING1);
-	writel(MIPI_DSI_M_THSPRPRCTL(16) |
-	       MIPI_DSI_M_THSZEROCTL(24) |
-	       MIPI_DSI_M_THSTRAILCTL(16),
-	       mipi_dsi->mmio_base + MIPI_DSI_PHYTIMING2);
+	if (!strcmp(mipi_dsi->lcd_panel, "TRULY-WVGA-TFT3P5581E")) {
+		writel(MIPI_DSI_M_TLPXCTL(2) | MIPI_DSI_M_THSEXITCTL(4),
+			mipi_dsi->mmio_base + MIPI_DSI_PHYTIMING);
+		writel(MIPI_DSI_M_TCLKPRPRCTL(5) |
+			MIPI_DSI_M_TCLKZEROCTL(14) |
+			MIPI_DSI_M_TCLKPOSTCTL(8) |
+			MIPI_DSI_M_TCLKTRAILCTL(3),
+			mipi_dsi->mmio_base + MIPI_DSI_PHYTIMING1);
+		writel(MIPI_DSI_M_THSPRPRCTL(3) |
+			MIPI_DSI_M_THSZEROCTL(3) |
+			MIPI_DSI_M_THSTRAILCTL(3),
+			mipi_dsi->mmio_base + MIPI_DSI_PHYTIMING2);
+	} else {
+		writel(MIPI_DSI_M_TLPXCTL(11) | MIPI_DSI_M_THSEXITCTL(18),
+			mipi_dsi->mmio_base + MIPI_DSI_PHYTIMING);
+		writel(MIPI_DSI_M_TCLKPRPRCTL(13) |
+			MIPI_DSI_M_TCLKZEROCTL(65) |
+			MIPI_DSI_M_TCLKPOSTCTL(17) |
+			MIPI_DSI_M_TCLKTRAILCTL(13),
+			mipi_dsi->mmio_base + MIPI_DSI_PHYTIMING1);
+		writel(MIPI_DSI_M_THSPRPRCTL(16) |
+			MIPI_DSI_M_THSZEROCTL(24) |
+			MIPI_DSI_M_THSTRAILCTL(16),
+			mipi_dsi->mmio_base + MIPI_DSI_PHYTIMING2);
+	}
 
 	writel(0xf000f, mipi_dsi->mmio_base + MIPI_DSI_TIMEOUT);
 
