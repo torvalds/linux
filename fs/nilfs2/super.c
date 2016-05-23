@@ -273,7 +273,7 @@ struct nilfs_super_block **nilfs_prepare_super(struct super_block *sb,
 		}
 	} else if (sbp[1] &&
 		   sbp[1]->s_magic != cpu_to_le16(NILFS_SUPER_MAGIC)) {
-			memcpy(sbp[1], sbp[0], nilfs->ns_sbsize);
+		memcpy(sbp[1], sbp[0], nilfs->ns_sbsize);
 	}
 
 	if (flip && sbp[1])
