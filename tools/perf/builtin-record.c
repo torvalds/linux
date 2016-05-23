@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <sched.h>
 #include <sys/mman.h>
+#include <asm/bug.h>
 
 
 struct record {
@@ -98,6 +99,13 @@ static int record__mmap_read(struct record *rec, int idx)
 	rec->samples++;
 
 	size = head - old;
+	if (size > (unsigned long)(md->mask) + 1) {
+		WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
+
+		md->prev = head;
+		perf_evlist__mmap_consume(rec->evlist, idx);
+		return 0;
+	}
 
 	if ((old & md->mask) + size != (head & md->mask)) {
 		buf = &data[old & md->mask];
