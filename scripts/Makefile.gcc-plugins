@@ -1,0 +1,23 @@
+ifdef CONFIG_GCC_PLUGINS
+  __PLUGINCC := $(call cc-ifversion, -ge, 0408, $(HOSTCXX), $(HOSTCC))
+  PLUGINCC := $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-plugin.sh "$(__PLUGINCC)" "$(HOSTCXX)" "$(CC)")
+
+  GCC_PLUGINS_CFLAGS := $(addprefix -fplugin=$(objtree)/scripts/gcc-plugins/, $(gcc-plugin-y))
+
+  export PLUGINCC GCC_PLUGINS_CFLAGS GCC_PLUGIN
+
+  ifeq ($(PLUGINCC),)
+    ifneq ($(GCC_PLUGINS_CFLAGS),)
+      ifeq ($(call cc-ifversion, -ge, 0405, y), y)
+        PLUGINCC := $(shell $(CONFIG_SHELL) -x $(srctree)/scripts/gcc-plugin.sh "$(__PLUGINCC)" "$(HOSTCXX)" "$(CC)")
+        $(warning warning: your gcc installation does not support plugins, perhaps the necessary headers are missing?)
+      else
+        $(warning warning: your gcc version does not support plugins, you should upgrade it to gcc 4.5 at least)
+      endif
+    endif
+  endif
+
+  KBUILD_CFLAGS += $(GCC_PLUGINS_CFLAGS)
+  GCC_PLUGIN := $(gcc-plugin-y)
+
+endif
