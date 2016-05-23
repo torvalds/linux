@@ -68,13 +68,17 @@ int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
 	mi->mi_blocks_per_group =
 		DIV_ROUND_UP(nilfs_palloc_entries_per_group(inode),
 			     mi->mi_entries_per_block) + 1;
-		/* Number of blocks in a group including entry blocks and
-		   a bitmap block */
+		/*
+		 * Number of blocks in a group including entry blocks
+		 * and a bitmap block
+		 */
 	mi->mi_blocks_per_desc_block =
 		nilfs_palloc_groups_per_desc_block(inode) *
 		mi->mi_blocks_per_group + 1;
-		/* Number of blocks per descriptor including the
-		   descriptor block */
+		/*
+		 * Number of blocks per descriptor including the
+		 * descriptor block
+		 */
 	return 0;
 }
 

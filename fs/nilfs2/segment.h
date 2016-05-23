@@ -189,11 +189,15 @@ enum {
 	NILFS_SC_DIRTY,		/* One or more dirty meta-data blocks exist */
 	NILFS_SC_UNCLOSED,	/* Logical segment is not closed */
 	NILFS_SC_SUPER_ROOT,	/* The latest segment has a super root */
-	NILFS_SC_PRIOR_FLUSH,	/* Requesting immediate flush without making a
-				   checkpoint */
-	NILFS_SC_HAVE_DELTA,	/* Next checkpoint will have update of files
-				   other than DAT, cpfile, sufile, or files
-				   moved by GC */
+	NILFS_SC_PRIOR_FLUSH,	/*
+				 * Requesting immediate flush without making a
+				 * checkpoint
+				 */
+	NILFS_SC_HAVE_DELTA,	/*
+				 * Next checkpoint will have update of files
+				 * other than DAT, cpfile, sufile, or files
+				 * moved by GC.
+				 */
 };
 
 /* sc_state */
@@ -203,17 +207,23 @@ enum {
 /*
  * Constant parameters
  */
-#define NILFS_SC_CLEANUP_RETRY	    3  /* Retry count of construction when
-					  destroying segctord */
+#define NILFS_SC_CLEANUP_RETRY	    3  /*
+					* Retry count of construction when
+					* destroying segctord
+					*/
 
 /*
  * Default values of timeout, in seconds.
  */
-#define NILFS_SC_DEFAULT_TIMEOUT    5   /* Timeout value of dirty blocks.
-					   It triggers construction of a
-					   logical segment with a super root */
-#define NILFS_SC_DEFAULT_SR_FREQ    30  /* Maximum frequency of super root
-					   creation */
+#define NILFS_SC_DEFAULT_TIMEOUT    5   /*
+					 * Timeout value of dirty blocks.
+					 * It triggers construction of a
+					 * logical segment with a super root.
+					 */
+#define NILFS_SC_DEFAULT_SR_FREQ    30  /*
+					 * Maximum frequency of super root
+					 * creation
+					 */
 
 /*
  * The default threshold amount of data, in block counts.

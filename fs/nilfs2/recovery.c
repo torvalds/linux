@@ -43,8 +43,10 @@ enum {
 
 /* work structure for recovery */
 struct nilfs_recovery_block {
-	ino_t ino;		/* Inode number of the file that this block
-				   belongs to */
+	ino_t ino;		/*
+				 * Inode number of the file that this block
+				 * belongs to
+				 */
 	sector_t blocknr;	/* block number */
 	__u64 vblocknr;		/* virtual block number */
 	unsigned long blkoff;	/* File offset of the data block (per block) */
@@ -869,9 +871,11 @@ int nilfs_search_super_root(struct the_nilfs *nilfs,
 
 		flags = le16_to_cpu(sum->ss_flags);
 		if (!(flags & NILFS_SS_SR) && !scan_newer) {
-			/* This will never happen because a superblock
-			   (last_segment) always points to a pseg
-			   having a super root. */
+			/*
+			 * This will never happen because a superblock
+			 * (last_segment) always points to a pseg with
+			 * a super root.
+			 */
 			ret = NILFS_SEG_FAIL_CONSISTENCY;
 			goto failed;
 		}

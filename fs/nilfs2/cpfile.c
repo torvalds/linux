@@ -870,8 +870,10 @@ int nilfs_cpfile_is_snapshot(struct inode *cpfile, __u64 cno)
 	void *kaddr;
 	int ret;
 
-	/* CP number is invalid if it's zero or larger than the
-	largest	exist one.*/
+	/*
+	 * CP number is invalid if it's zero or larger than the
+	 * largest existing one.
+	 */
 	if (cno == 0 || cno >= nilfs_mdt_cno(cpfile))
 		return -ENOENT;
 	down_read(&NILFS_MDT(cpfile)->mi_sem);

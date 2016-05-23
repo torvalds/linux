@@ -617,8 +617,10 @@ int init_nilfs(struct the_nilfs *nilfs, struct super_block *sb, char *data)
 		err = nilfs_load_super_block(nilfs, sb, blocksize, &sbp);
 		if (err)
 			goto out;
-			/* not failed_sbh; sbh is released automatically
-			   when reloading fails. */
+			/*
+			 * Not to failed_sbh; sbh is released automatically
+			 * when reloading fails.
+			 */
 	}
 	nilfs->ns_blocksize_bits = sb->s_blocksize_bits;
 	nilfs->ns_blocksize = blocksize;

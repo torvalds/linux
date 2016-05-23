@@ -64,8 +64,10 @@ int nilfs_ifile_create_inode(struct inode *ifile, ino_t *out_ino,
 	struct nilfs_palloc_req req;
 	int ret;
 
-	req.pr_entry_nr = 0;  /* 0 says find free inode from beginning of
-				 a group. dull code!! */
+	req.pr_entry_nr = 0;  /*
+			       * 0 says find free inode from beginning
+			       * of a group. dull code!!
+			       */
 	req.pr_entry_bh = NULL;
 
 	ret = nilfs_palloc_prepare_alloc_entry(ifile, &req);

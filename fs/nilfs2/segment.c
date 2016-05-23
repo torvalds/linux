@@ -45,18 +45,26 @@
  */
 #define SC_N_INODEVEC	16   /* Size of locally allocated inode vector */
 
-#define SC_MAX_SEGDELTA 64   /* Upper limit of the number of segments
-				appended in collection retry loop */
+#define SC_MAX_SEGDELTA 64   /*
+			      * Upper limit of the number of segments
+			      * appended in collection retry loop
+			      */
 
 /* Construction mode */
 enum {
 	SC_LSEG_SR = 1,	/* Make a logical segment having a super root */
-	SC_LSEG_DSYNC,	/* Flush data blocks of a given file and make
-			   a logical segment without a super root */
-	SC_FLUSH_FILE,	/* Flush data files, leads to segment writes without
-			   creating a checkpoint */
-	SC_FLUSH_DAT,	/* Flush DAT file. This also creates segments without
-			   a checkpoint */
+	SC_LSEG_DSYNC,	/*
+			 * Flush data blocks of a given file and make
+			 * a logical segment without a super root.
+			 */
+	SC_FLUSH_FILE,	/*
+			 * Flush data files, leads to segment writes without
+			 * creating a checkpoint.
+			 */
+	SC_FLUSH_DAT,	/*
+			 * Flush DAT file.  This also creates segments
+			 * without a checkpoint.
+			 */
 };
 
 /* Stage numbers of dirty block collection */
@@ -438,8 +446,10 @@ static int nilfs_segctor_feed_segment(struct nilfs_sc_info *sci)
 {
 	sci->sc_nblk_this_inc += sci->sc_curseg->sb_sum.nblocks;
 	if (NILFS_SEGBUF_IS_LAST(sci->sc_curseg, &sci->sc_segbufs))
-		return -E2BIG; /* The current segment is filled up
-				  (internal code) */
+		return -E2BIG; /*
+				* The current segment is filled up
+				* (internal code)
+				*/
 	sci->sc_curseg = NILFS_NEXT_SEGBUF(sci->sc_curseg);
 	return nilfs_segctor_reset_segment_buffer(sci);
 }
@@ -869,9 +879,11 @@ static int nilfs_segctor_create_checkpoint(struct nilfs_sc_info *sci)
 	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, nilfs->ns_cno, 1,
 					  &raw_cp, &bh_cp);
 	if (likely(!err)) {
-		/* The following code is duplicated with cpfile.  But, it is
-		   needed to collect the checkpoint even if it was not newly
-		   created */
+		/*
+		 * The following code is duplicated with cpfile.  But, it is
+		 * needed to collect the checkpoint even if it was not newly
+		 * created.
+		 */
 		mark_buffer_dirty(bh_cp);
 		nilfs_mdt_mark_dirty(nilfs->ns_cpfile);
 		nilfs_cpfile_put_checkpoint(
@@ -1400,8 +1412,10 @@ static void nilfs_free_incomplete_logs(struct list_head *logs,
 	if (atomic_read(&segbuf->sb_err)) {
 		/* Case 1: The first segment failed */
 		if (segbuf->sb_pseg_start != segbuf->sb_fseg_start)
-			/* Case 1a:  Partial segment appended into an existing
-			   segment */
+			/*
+			 * Case 1a:  Partial segment appended into an existing
+			 * segment
+			 */
 			nilfs_terminate_segment(nilfs, segbuf->sb_fseg_start,
 						segbuf->sb_fseg_end);
 		else /* Case 1b:  New full segment */
@@ -1625,8 +1639,10 @@ static int nilfs_segctor_assign(struct nilfs_sc_info *sci, int mode)
 static void nilfs_begin_page_io(struct page *page)
 {
 	if (!page || PageWriteback(page))
-		/* For split b-tree node pages, this function may be called
-		   twice.  We ignore the 2nd or later calls by this check. */
+		/*
+		 * For split b-tree node pages, this function may be called
+		 * twice.  We ignore the 2nd or later calls by this check.
+		 */
 		return;
 
 	lock_page(page);
@@ -2679,8 +2695,10 @@ static void nilfs_segctor_write_out(struct nilfs_sc_info *sci)
 {
 	int ret, retrycount = NILFS_SC_CLEANUP_RETRY;
 
-	/* The segctord thread was stopped and its timer was removed.
-	   But some tasks remain. */
+	/*
+	 * The segctord thread was stopped and its timer was removed.
+	 * But some tasks remain.
+	 */
 	do {
 		struct nilfs_transaction_info ti;
 

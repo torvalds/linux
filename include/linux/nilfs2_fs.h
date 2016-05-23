@@ -127,10 +127,14 @@ struct nilfs_super_root {
 #define NILFS_MOUNT_ERRORS_RO		0x0020  /* Remount fs ro on errors */
 #define NILFS_MOUNT_ERRORS_PANIC	0x0040  /* Panic on errors */
 #define NILFS_MOUNT_BARRIER		0x1000  /* Use block barriers */
-#define NILFS_MOUNT_STRICT_ORDER	0x2000  /* Apply strict in-order
-						   semantics also for data */
-#define NILFS_MOUNT_NORECOVERY		0x4000  /* Disable write access during
-						   mount-time recovery */
+#define NILFS_MOUNT_STRICT_ORDER	0x2000  /*
+						 * Apply strict in-order
+						 * semantics also for data
+						 */
+#define NILFS_MOUNT_NORECOVERY		0x4000  /*
+						 * Disable write access during
+						 * mount-time recovery
+						 */
 #define NILFS_MOUNT_DISCARD		0x8000  /* Issue DISCARD requests */
 
 
@@ -142,16 +146,20 @@ struct nilfs_super_block {
 	__le16	s_minor_rev_level;	/* minor revision level */
 	__le16	s_magic;		/* Magic signature */
 
-	__le16  s_bytes;		/* Bytes count of CRC calculation
-					   for this structure. s_reserved
-					   is excluded. */
+	__le16  s_bytes;		/*
+					 * Bytes count of CRC calculation
+					 * for this structure. s_reserved
+					 * is excluded.
+					 */
 	__le16  s_flags;		/* flags */
 	__le32  s_crc_seed;		/* Seed value of CRC calculation */
 /*10*/	__le32	s_sum;			/* Check sum of super block */
 
-	__le32	s_log_block_size;	/* Block size represented as follows
-					   blocksize =
-					       1 << (s_log_block_size + 10) */
+	__le32	s_log_block_size;	/*
+					 * Block size represented as follows
+					 * blocksize =
+					 *     1 << (s_log_block_size + 10)
+					 */
 	__le64  s_nsegments;		/* Number of segments in filesystem */
 /*20*/	__le64  s_dev_size;		/* block device size in bytes */
 	__le64	s_first_data_block;	/* 1st seg disk block number */
@@ -163,8 +171,10 @@ struct nilfs_super_block {
 	__le64  s_last_seq;             /* seq. number of seg written last */
 /*50*/	__le64	s_free_blocks_count;	/* Free blocks count */
 
-	__le64	s_ctime;		/* Creation time (execution time of
-					   newfs) */
+	__le64	s_ctime;		/*
+					 * Creation time (execution time of
+					 * newfs)
+					 */
 /*60*/	__le64	s_mtime;		/* Mount time */
 	__le64	s_wtime;		/* Write time */
 /*70*/	__le16	s_mnt_count;		/* Mount count */
@@ -188,8 +198,10 @@ struct nilfs_super_block {
 /*A8*/	char	s_volume_name[80];	/* volume name */
 
 /*F8*/	__le32  s_c_interval;           /* Commit interval of segment */
-	__le32  s_c_block_max;          /* Threshold of data amount for
-					   the segment construction */
+	__le32  s_c_block_max;          /*
+					 * Threshold of data amount for
+					 * the segment construction
+					 */
 /*100*/	__le64  s_feature_compat;	/* Compatible feature set */
 	__le64  s_feature_compat_ro;	/* Read-only compatible feature set */
 	__le64  s_feature_incompat;	/* Incompatible feature set */
@@ -242,12 +254,18 @@ struct nilfs_super_block {
 
 #define NILFS_SB_OFFSET_BYTES	1024	/* byte offset of nilfs superblock */
 
-#define NILFS_SEG_MIN_BLOCKS	16	/* Minimum number of blocks in
-					   a full segment */
-#define NILFS_PSEG_MIN_BLOCKS	2	/* Minimum number of blocks in
-					   a partial segment */
-#define NILFS_MIN_NRSVSEGS	8	/* Minimum number of reserved
-					   segments */
+#define NILFS_SEG_MIN_BLOCKS	16	/*
+					 * Minimum number of blocks in
+					 * a full segment
+					 */
+#define NILFS_PSEG_MIN_BLOCKS	2	/*
+					 * Minimum number of blocks in
+					 * a partial segment
+					 */
+#define NILFS_MIN_NRSVSEGS	8	/*
+					 * Minimum number of reserved
+					 * segments
+					 */
 
 /*
  * We call DAT, cpfile, and sufile root metadata files.  Inodes of
@@ -513,9 +531,11 @@ struct nilfs_checkpoint {
 	__le64 cp_inodes_count;
 	__le64 cp_blocks_count;
 
-	/* Do not change the byte offset of ifile inode.
-	   To keep the compatibility of the disk format,
-	   additional fields should be added behind cp_ifile_inode. */
+	/*
+	 * Do not change the byte offset of ifile inode.
+	 * To keep the compatibility of the disk format,
+	 * additional fields should be added behind cp_ifile_inode.
+	 */
 	struct nilfs_inode cp_ifile_inode;
 };
 

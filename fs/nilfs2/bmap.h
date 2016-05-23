@@ -122,10 +122,14 @@ struct nilfs_bmap {
 
 /* pointer type */
 #define NILFS_BMAP_PTR_P	0	/* physical block number (i.e. LBN) */
-#define NILFS_BMAP_PTR_VS	1	/* virtual block number (single
-					   version) */
-#define NILFS_BMAP_PTR_VM	2	/* virtual block number (has multiple
-					   versions) */
+#define NILFS_BMAP_PTR_VS	1	/*
+					 * virtual block number (single
+					 * version)
+					 */
+#define NILFS_BMAP_PTR_VM	2	/*
+					 * virtual block number (has multiple
+					 * versions)
+					 */
 #define NILFS_BMAP_PTR_U	(-1)	/* never perform pointer operations */
 
 #define NILFS_BMAP_USE_VBN(bmap)	((bmap)->b_ptr_type > 0)
