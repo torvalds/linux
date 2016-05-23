@@ -35,6 +35,7 @@
 #include <linux/fs_struct.h>
 #include <linux/posix_acl.h>
 #include <linux/hash.h>
+#include <linux/bitops.h>
 #include <asm/uaccess.h>
 
 #include "internal.h"
@@ -1788,44 +1789,89 @@ static int walk_component(struct nameidata *nd, int flags)
 #include <asm/word-at-a-time.h>
 
 #ifdef CONFIG_64BIT
-
-static inline unsigned int fold_hash(unsigned long hash)
-{
-	return hash_64(hash, 32);
-}
+/*
+ * Register pressure in the mixing function is an issue, particularly
+ * on 32-bit x86, but almost any function requires one state value and
+ * one temporary.  Instead, use a function designed for two state values
+ * and no temporaries.
+ *
+ * This function cannot create a collision in only two iterations, so
+ * we have two iterations to achieve avalanche.  In those two iterations,
+ * we have six layers of mixing, which is enough to spread one bit's
+ * influence out to 2^6 = 64 state bits.
+ *
+ * Rotate constants are scored by considering either 64 one-bit input
+ * deltas or 64*63/2 = 2016 two-bit input deltas, and finding the
+ * probability of that delta causing a change to each of the 128 output
+ * bits, using a sample of random initial states.
+ *
+ * The Shannon entropy of the computed probabilities is then summed
+ * to produce a score.  Ideally, any input change has a 50% chance of
+ * toggling any given output bit.
+ *
+ * Mixing scores (in bits) for (12,45):
+ * Input delta: 1-bit      2-bit
+ * 1 round:     713.3    42542.6
+ * 2 rounds:   2753.7   140389.8
+ * 3 rounds:   5954.1   233458.2
+ * 4 rounds:   7862.6   256672.2
+ * Perfect:    8192     258048
+ *            (64*128) (64*63/2 * 128)
+ */
+#define HASH_MIX(x, y, a)	\
+	(	x ^= (a),	\
+	y ^= x,	x = rol64(x,12),\
+	x += y,	y = rol64(y,45),\
+	y *= 9			)
 
 /*
- * This is George Marsaglia's XORSHIFT generator.
- * It implements a maximum-period LFSR in only a few
- * instructions.  It also has the property (required
- * by hash_name()) that mix_hash(0) = 0.
+ * Fold two longs into one 32-bit hash value.  This must be fast, but
+ * latency isn't quite as critical, as there is a fair bit of additional
+ * work done before the hash value is used.
  */
-static inline unsigned long mix_hash(unsigned long hash)
+static inline unsigned int fold_hash(unsigned long x, unsigned long y)
 {
-	hash ^= hash << 13;
-	hash ^= hash >> 7;
-	hash ^= hash << 17;
-	return hash;
+	y ^= x * GOLDEN_RATIO_64;
+	y *= GOLDEN_RATIO_64;
+	return y >> 32;
 }
 
 #else	/* 32-bit case */
 
-#define fold_hash(x) (x)
+/*
+ * Mixing scores (in bits) for (7,20):
+ * Input delta: 1-bit      2-bit
+ * 1 round:     330.3     9201.6
+ * 2 rounds:   1246.4    25475.4
+ * 3 rounds:   1907.1    31295.1
+ * 4 rounds:   2042.3    31718.6
+ * Perfect:    2048      31744
+ *            (32*64)   (32*31/2 * 64)
+ */
+#define HASH_MIX(x, y, a)	\
+	(	x ^= (a),	\
+	y ^= x,	x = rol32(x, 7),\
+	x += y,	y = rol32(y,20),\
+	y *= 9			)
 
-static inline unsigned long mix_hash(unsigned long hash)
+static inline unsigned int fold_hash(unsigned long x, unsigned long y)
 {
-	hash ^= hash << 13;
-	hash ^= hash >> 17;
-	hash ^= hash << 5;
-	return hash;
+	/* Use arch-optimized multiply if one exists */
+	return __hash_32(y ^ __hash_32(x));
 }
 
 #endif
 
-/* Return the hash of a string of known length */
+/*
+ * Return the hash of a string of known length.  This is carfully
+ * designed to match hash_name(), which is the more critical function.
+ * In particular, we must end by hashing a final word containing 0..7
+ * payload bytes, to match the way that hash_name() iterates until it
+ * finds the delimiter after the name.
+ */
 unsigned int full_name_hash(const char *name, unsigned int len)
 {
-	unsigned long a, hash = 0;
+	unsigned long a, x = 0, y = 0;
 
 	for (;;) {
 		if (!len)
@@ -1833,36 +1879,34 @@ unsigned int full_name_hash(const char *name, unsigned int len)
 		a = load_unaligned_zeropad(name);
 		if (len < sizeof(unsigned long))
 			break;
-		hash = mix_hash(hash + a);
+		HASH_MIX(x, y, a);
 		name += sizeof(unsigned long);
 		len -= sizeof(unsigned long);
 	}
-	hash += a & bytemask_from_count(len);
+	x ^= a & bytemask_from_count(len);
 done:
-	return fold_hash(hash);
+	return fold_hash(x, y);
 }
 EXPORT_SYMBOL(full_name_hash);
 
 /* Return the "hash_len" (hash and length) of a null-terminated string */
 u64 hashlen_string(const char *name)
 {
-	unsigned long a, adata, mask, hash, len;
+	unsigned long a = 0, x = 0, y = 0, adata, mask, len;
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 
-	hash = a = 0;
 	len = -sizeof(unsigned long);
 	do {
-		hash = mix_hash(hash + a);
+		HASH_MIX(x, y, a);
 		len += sizeof(unsigned long);
 		a = load_unaligned_zeropad(name+len);
 	} while (!has_zero(a, &adata, &constants));
 
 	adata = prep_zero_mask(a, adata, &constants);
 	mask = create_zero_mask(adata);
-	hash += a & zero_bytemask(mask);
-	len += find_zero(mask);
+	x ^= a & zero_bytemask(mask);
 
-	return hashlen_create(fold_hash(hash), len);
+	return hashlen_create(fold_hash(x, y), len + find_zero(mask));
 }
 EXPORT_SYMBOL(hashlen_string);
 
@@ -1872,13 +1916,12 @@ EXPORT_SYMBOL(hashlen_string);
  */
 static inline u64 hash_name(const char *name)
 {
-	unsigned long a, b, adata, bdata, mask, hash, len;
+	unsigned long a = 0, b, x = 0, y = 0, adata, bdata, mask, len;
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 
-	hash = a = 0;
 	len = -sizeof(unsigned long);
 	do {
-		hash = mix_hash(hash + a);
+		HASH_MIX(x, y, a);
 		len += sizeof(unsigned long);
 		a = load_unaligned_zeropad(name+len);
 		b = a ^ REPEAT_BYTE('/');
@@ -1886,15 +1929,13 @@ static inline u64 hash_name(const char *name)
 
 	adata = prep_zero_mask(a, adata, &constants);
 	bdata = prep_zero_mask(b, bdata, &constants);
-
 	mask = create_zero_mask(adata | bdata);
+	x ^= a & zero_bytemask(mask);
 
-	hash += a & zero_bytemask(mask);
-	len += find_zero(mask);
-	return hashlen_create(fold_hash(hash), len);
+	return hashlen_create(fold_hash(x, y), len + find_zero(mask));
 }
 
-#else
+#else	/* !CONFIG_DCACHE_WORD_ACCESS: Slow, byte-at-a-time version */
 
 /* Return the hash of a string of known length */
 unsigned int full_name_hash(const char *name, unsigned int len)
@@ -1965,7 +2006,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		int type;
 
 		err = may_lookup(nd);
- 		if (err)
+		if (err)
 			return err;
 
 		hash_len = hash_name(name);
