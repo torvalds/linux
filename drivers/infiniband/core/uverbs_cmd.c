@@ -58,6 +58,7 @@ static struct uverbs_lock_class srq_lock_class	= { .name = "SRQ-uobj" };
 static struct uverbs_lock_class xrcd_lock_class = { .name = "XRCD-uobj" };
 static struct uverbs_lock_class rule_lock_class = { .name = "RULE-uobj" };
 static struct uverbs_lock_class wq_lock_class = { .name = "WQ-uobj" };
+static struct uverbs_lock_class rwq_ind_table_lock_class = { .name = "IND_TBL-uobj" };
 
 /*
  * The ib_uobject locking scheme is as follows:
@@ -338,6 +339,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	INIT_LIST_HEAD(&ucontext->srq_list);
 	INIT_LIST_HEAD(&ucontext->ah_list);
 	INIT_LIST_HEAD(&ucontext->wq_list);
+	INIT_LIST_HEAD(&ucontext->rwq_ind_tbl_list);
 	INIT_LIST_HEAD(&ucontext->xrcd_list);
 	INIT_LIST_HEAD(&ucontext->rule_list);
 	rcu_read_lock();
@@ -3296,6 +3298,214 @@ int ib_uverbs_ex_modify_wq(struct ib_uverbs_file *file,
 	wq_attr.wq_state = cmd.wq_state;
 	ret = wq->device->modify_wq(wq, &wq_attr, cmd.attr_mask, uhw);
 	put_wq_read(wq);
+	return ret;
+}
+
+int ib_uverbs_ex_create_rwq_ind_table(struct ib_uverbs_file *file,
+				      struct ib_device *ib_dev,
+				      struct ib_udata *ucore,
+				      struct ib_udata *uhw)
+{
+	struct ib_uverbs_ex_create_rwq_ind_table	  cmd = {};
+	struct ib_uverbs_ex_create_rwq_ind_table_resp  resp = {};
+	struct ib_uobject		  *uobj;
+	int err = 0;
+	struct ib_rwq_ind_table_init_attr init_attr = {};
+	struct ib_rwq_ind_table *rwq_ind_tbl;
+	struct ib_wq	**wqs = NULL;
+	u32 *wqs_handles = NULL;
+	struct ib_wq	*wq = NULL;
+	int i, j, num_read_wqs;
+	u32 num_wq_handles;
+	u32 expected_in_size;
+	size_t required_cmd_sz_header;
+	size_t required_resp_len;
+
+	required_cmd_sz_header = offsetof(typeof(cmd), log_ind_tbl_size) + sizeof(cmd.log_ind_tbl_size);
+	required_resp_len = offsetof(typeof(resp), ind_tbl_num) + sizeof(resp.ind_tbl_num);
+
+	if (ucore->inlen < required_cmd_sz_header)
+		return -EINVAL;
+
+	if (ucore->outlen < required_resp_len)
+		return -ENOSPC;
+
+	err = ib_copy_from_udata(&cmd, ucore, required_cmd_sz_header);
+	if (err)
+		return err;
+
+	ucore->inbuf += required_cmd_sz_header;
+	ucore->inlen -= required_cmd_sz_header;
+
+	if (cmd.comp_mask)
+		return -EOPNOTSUPP;
+
+	if (cmd.log_ind_tbl_size > IB_USER_VERBS_MAX_LOG_IND_TBL_SIZE)
+		return -EINVAL;
+
+	num_wq_handles = 1 << cmd.log_ind_tbl_size;
+	expected_in_size = num_wq_handles * sizeof(__u32);
+	if (num_wq_handles == 1)
+		/* input size for wq handles is u64 aligned */
+		expected_in_size += sizeof(__u32);
+
+	if (ucore->inlen < expected_in_size)
+		return -EINVAL;
+
+	if (ucore->inlen > expected_in_size &&
+	    !ib_is_udata_cleared(ucore, expected_in_size,
+				 ucore->inlen - expected_in_size))
+		return -EOPNOTSUPP;
+
+	wqs_handles = kcalloc(num_wq_handles, sizeof(*wqs_handles),
+			      GFP_KERNEL);
+	if (!wqs_handles)
+		return -ENOMEM;
+
+	err = ib_copy_from_udata(wqs_handles, ucore,
+				 num_wq_handles * sizeof(__u32));
+	if (err)
+		goto err_free;
+
+	wqs = kcalloc(num_wq_handles, sizeof(*wqs), GFP_KERNEL);
+	if (!wqs) {
+		err = -ENOMEM;
+		goto  err_free;
+	}
+
+	for (num_read_wqs = 0; num_read_wqs < num_wq_handles;
+			num_read_wqs++) {
+		wq = idr_read_wq(wqs_handles[num_read_wqs], file->ucontext);
+		if (!wq) {
+			err = -EINVAL;
+			goto put_wqs;
+		}
+
+		wqs[num_read_wqs] = wq;
+	}
+
+	uobj = kmalloc(sizeof(*uobj), GFP_KERNEL);
+	if (!uobj) {
+		err = -ENOMEM;
+		goto put_wqs;
+	}
+
+	init_uobj(uobj, 0, file->ucontext, &rwq_ind_table_lock_class);
+	down_write(&uobj->mutex);
+	init_attr.log_ind_tbl_size = cmd.log_ind_tbl_size;
+	init_attr.ind_tbl = wqs;
+	rwq_ind_tbl = ib_dev->create_rwq_ind_table(ib_dev, &init_attr, uhw);
+
+	if (IS_ERR(rwq_ind_tbl)) {
+		err = PTR_ERR(rwq_ind_tbl);
+		goto err_uobj;
+	}
+
+	rwq_ind_tbl->ind_tbl = wqs;
+	rwq_ind_tbl->log_ind_tbl_size = init_attr.log_ind_tbl_size;
+	rwq_ind_tbl->uobject = uobj;
+	uobj->object = rwq_ind_tbl;
+	rwq_ind_tbl->device = ib_dev;
+	atomic_set(&rwq_ind_tbl->usecnt, 0);
+
+	for (i = 0; i < num_wq_handles; i++)
+		atomic_inc(&wqs[i]->usecnt);
+
+	err = idr_add_uobj(&ib_uverbs_rwq_ind_tbl_idr, uobj);
+	if (err)
+		goto destroy_ind_tbl;
+
+	resp.ind_tbl_handle = uobj->id;
+	resp.ind_tbl_num = rwq_ind_tbl->ind_tbl_num;
+	resp.response_length = required_resp_len;
+
+	err = ib_copy_to_udata(ucore,
+			       &resp, resp.response_length);
+	if (err)
+		goto err_copy;
+
+	kfree(wqs_handles);
+
+	for (j = 0; j < num_read_wqs; j++)
+		put_wq_read(wqs[j]);
+
+	mutex_lock(&file->mutex);
+	list_add_tail(&uobj->list, &file->ucontext->rwq_ind_tbl_list);
+	mutex_unlock(&file->mutex);
+
+	uobj->live = 1;
+
+	up_write(&uobj->mutex);
+	return 0;
+
+err_copy:
+	idr_remove_uobj(&ib_uverbs_rwq_ind_tbl_idr, uobj);
+destroy_ind_tbl:
+	ib_destroy_rwq_ind_table(rwq_ind_tbl);
+err_uobj:
+	put_uobj_write(uobj);
+put_wqs:
+	for (j = 0; j < num_read_wqs; j++)
+		put_wq_read(wqs[j]);
+err_free:
+	kfree(wqs_handles);
+	kfree(wqs);
+	return err;
+}
+
+int ib_uverbs_ex_destroy_rwq_ind_table(struct ib_uverbs_file *file,
+				       struct ib_device *ib_dev,
+				       struct ib_udata *ucore,
+				       struct ib_udata *uhw)
+{
+	struct ib_uverbs_ex_destroy_rwq_ind_table	cmd = {};
+	struct ib_rwq_ind_table *rwq_ind_tbl;
+	struct ib_uobject		*uobj;
+	int			ret;
+	struct ib_wq	**ind_tbl;
+	size_t required_cmd_sz;
+
+	required_cmd_sz = offsetof(typeof(cmd), ind_tbl_handle) + sizeof(cmd.ind_tbl_handle);
+
+	if (ucore->inlen < required_cmd_sz)
+		return -EINVAL;
+
+	if (ucore->inlen > sizeof(cmd) &&
+	    !ib_is_udata_cleared(ucore, sizeof(cmd),
+				 ucore->inlen - sizeof(cmd)))
+		return -EOPNOTSUPP;
+
+	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	if (ret)
+		return ret;
+
+	if (cmd.comp_mask)
+		return -EOPNOTSUPP;
+
+	uobj = idr_write_uobj(&ib_uverbs_rwq_ind_tbl_idr, cmd.ind_tbl_handle,
+			      file->ucontext);
+	if (!uobj)
+		return -EINVAL;
+	rwq_ind_tbl = uobj->object;
+	ind_tbl = rwq_ind_tbl->ind_tbl;
+
+	ret = ib_destroy_rwq_ind_table(rwq_ind_tbl);
+	if (!ret)
+		uobj->live = 0;
+
+	put_uobj_write(uobj);
+
+	if (ret)
+		return ret;
+
+	idr_remove_uobj(&ib_uverbs_rwq_ind_tbl_idr, uobj);
+
+	mutex_lock(&file->mutex);
+	list_del(&uobj->list);
+	mutex_unlock(&file->mutex);
+
+	put_uobj(uobj);
+	kfree(ind_tbl);
 	return ret;
 }
 

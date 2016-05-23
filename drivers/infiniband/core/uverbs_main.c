@@ -77,6 +77,7 @@ DEFINE_IDR(ib_uverbs_srq_idr);
 DEFINE_IDR(ib_uverbs_xrcd_idr);
 DEFINE_IDR(ib_uverbs_rule_idr);
 DEFINE_IDR(ib_uverbs_wq_idr);
+DEFINE_IDR(ib_uverbs_rwq_ind_tbl_idr);
 
 static DEFINE_SPINLOCK(map_lock);
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
@@ -134,6 +135,8 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_EX_CMD_CREATE_WQ]        = ib_uverbs_ex_create_wq,
 	[IB_USER_VERBS_EX_CMD_MODIFY_WQ]        = ib_uverbs_ex_modify_wq,
 	[IB_USER_VERBS_EX_CMD_DESTROY_WQ]       = ib_uverbs_ex_destroy_wq,
+	[IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL] = ib_uverbs_ex_create_rwq_ind_table,
+	[IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL] = ib_uverbs_ex_destroy_rwq_ind_table,
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
@@ -267,6 +270,16 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		}
 		ib_uverbs_release_uevent(file, &uqp->uevent);
 		kfree(uqp);
+	}
+
+	list_for_each_entry_safe(uobj, tmp, &context->rwq_ind_tbl_list, list) {
+		struct ib_rwq_ind_table *rwq_ind_tbl = uobj->object;
+		struct ib_wq **ind_tbl = rwq_ind_tbl->ind_tbl;
+
+		idr_remove_uobj(&ib_uverbs_rwq_ind_tbl_idr, uobj);
+		ib_destroy_rwq_ind_table(rwq_ind_tbl);
+		kfree(ind_tbl);
+		kfree(uobj);
 	}
 
 	list_for_each_entry_safe(uobj, tmp, &context->wq_list, list) {

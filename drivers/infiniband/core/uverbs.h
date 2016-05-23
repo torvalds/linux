@@ -186,6 +186,7 @@ extern struct idr ib_uverbs_srq_idr;
 extern struct idr ib_uverbs_xrcd_idr;
 extern struct idr ib_uverbs_rule_idr;
 extern struct idr ib_uverbs_wq_idr;
+extern struct idr ib_uverbs_rwq_ind_tbl_idr;
 
 void idr_remove_uobj(struct idr *idp, struct ib_uobject *uobj);
 
@@ -284,5 +285,7 @@ IB_UVERBS_DECLARE_EX_CMD(create_qp);
 IB_UVERBS_DECLARE_EX_CMD(create_wq);
 IB_UVERBS_DECLARE_EX_CMD(modify_wq);
 IB_UVERBS_DECLARE_EX_CMD(destroy_wq);
+IB_UVERBS_DECLARE_EX_CMD(create_rwq_ind_table);
+IB_UVERBS_DECLARE_EX_CMD(destroy_rwq_ind_table);
 
 #endif /* UVERBS_H */

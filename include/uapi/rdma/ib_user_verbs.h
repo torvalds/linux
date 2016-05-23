@@ -98,6 +98,8 @@ enum {
 	IB_USER_VERBS_EX_CMD_CREATE_WQ,
 	IB_USER_VERBS_EX_CMD_MODIFY_WQ,
 	IB_USER_VERBS_EX_CMD_DESTROY_WQ,
+	IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL,
+	IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL
 };
 
 /*
@@ -985,6 +987,30 @@ struct ib_uverbs_ex_modify_wq  {
 	__u32 wq_handle;
 	__u32 wq_state;
 	__u32 curr_wq_state;
+};
+
+/* Prevent memory allocation rather than max expected size */
+#define IB_USER_VERBS_MAX_LOG_IND_TBL_SIZE 0x0d
+struct ib_uverbs_ex_create_rwq_ind_table  {
+	__u32 comp_mask;
+	__u32 log_ind_tbl_size;
+	/* Following are the wq handles according to log_ind_tbl_size
+	 * wq_handle1
+	 * wq_handle2
+	 */
+	__u32 wq_handles[0];
+};
+
+struct ib_uverbs_ex_create_rwq_ind_table_resp {
+	__u32 comp_mask;
+	__u32 response_length;
+	__u32 ind_tbl_handle;
+	__u32 ind_tbl_num;
+};
+
+struct ib_uverbs_ex_destroy_rwq_ind_table  {
+	__u32 comp_mask;
+	__u32 ind_tbl_handle;
 };
 
 #endif /* IB_USER_VERBS_H */

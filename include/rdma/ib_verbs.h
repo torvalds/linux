@@ -1326,6 +1326,7 @@ struct ib_ucontext {
 	struct list_head	xrcd_list;
 	struct list_head	rule_list;
 	struct list_head	wq_list;
+	struct list_head	rwq_ind_tbl_list;
 	int			closing;
 
 	struct pid             *tgid;
