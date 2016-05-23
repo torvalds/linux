@@ -33,7 +33,8 @@
 
 #include "apei-internal.h"
 
-#define EINJ_PFX "EINJ: "
+#undef pr_fmt
+#define pr_fmt(fmt) "EINJ: " fmt
 
 #define SPIN_UNIT		100			/* 100ns */
 /* Firmware should respond within 1 milliseconds */
@@ -179,8 +180,7 @@ static int einj_get_available_error_type(u32 *type)
 static int einj_timedout(u64 *t)
 {
 	if ((s64)*t < SPIN_UNIT) {
-		pr_warning(FW_WARN EINJ_PFX
-			   "Firmware does not respond in time\n");
+		pr_warning(FW_WARN "Firmware does not respond in time\n");
 		return 1;
 	}
 	*t -= SPIN_UNIT;
@@ -307,8 +307,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	r = request_mem_region(trigger_paddr, sizeof(*trigger_tab),
 			       "APEI EINJ Trigger Table");
 	if (!r) {
-		pr_err(EINJ_PFX
-	"Can not request [mem %#010llx-%#010llx] for Trigger table\n",
+		pr_err("Can not request [mem %#010llx-%#010llx] for Trigger table\n",
 		       (unsigned long long)trigger_paddr,
 		       (unsigned long long)trigger_paddr +
 			    sizeof(*trigger_tab) - 1);
@@ -316,13 +315,12 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	}
 	trigger_tab = ioremap_cache(trigger_paddr, sizeof(*trigger_tab));
 	if (!trigger_tab) {
-		pr_err(EINJ_PFX "Failed to map trigger table!\n");
+		pr_err("Failed to map trigger table!\n");
 		goto out_rel_header;
 	}
 	rc = einj_check_trigger_header(trigger_tab);
 	if (rc) {
-		pr_warning(FW_BUG EINJ_PFX
-			   "The trigger error action table is invalid\n");
+		pr_warning(FW_BUG "Invalid trigger error action table.\n");
 		goto out_rel_header;
 	}
 
@@ -336,8 +334,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 			       table_size - sizeof(*trigger_tab),
 			       "APEI EINJ Trigger Table");
 	if (!r) {
-		pr_err(EINJ_PFX
-"Can not request [mem %#010llx-%#010llx] for Trigger Table Entry\n",
+		pr_err("Can not request [mem %#010llx-%#010llx] for Trigger Table Entry\n",
 		       (unsigned long long)trigger_paddr + sizeof(*trigger_tab),
 		       (unsigned long long)trigger_paddr + table_size - 1);
 		goto out_rel_header;
@@ -345,7 +342,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	iounmap(trigger_tab);
 	trigger_tab = ioremap_cache(trigger_paddr, table_size);
 	if (!trigger_tab) {
-		pr_err(EINJ_PFX "Failed to map trigger table!\n");
+		pr_err("Failed to map trigger table!\n");
 		goto out_rel_entry;
 	}
 	trigger_entry = (struct acpi_whea_header *)
@@ -704,13 +701,13 @@ static int __init einj_init(void)
 		return -ENODEV;
 	else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
-		pr_err(EINJ_PFX "Failed to get table, %s\n", msg);
+		pr_err("Failed to get table, %s\n", msg);
 		return -EINVAL;
 	}
 
 	rc = einj_check_table(einj_tab);
 	if (rc) {
-		pr_warning(FW_BUG EINJ_PFX "EINJ table is invalid\n");
+		pr_warning(FW_BUG "EINJ table is invalid\n");
 		return -EINVAL;
 	}
 
@@ -787,7 +784,7 @@ static int __init einj_init(void)
 			goto err_unmap;
 	}
 
-	pr_info(EINJ_PFX "Error INJection is initialized.\n");
+	pr_info("Error INJection is initialized.\n");
 
 	return 0;
 
