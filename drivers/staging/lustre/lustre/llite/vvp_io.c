@@ -47,8 +47,8 @@
 #include "llite_internal.h"
 #include "vvp_internal.h"
 
-struct vvp_io *cl2vvp_io(const struct lu_env *env,
-			 const struct cl_io_slice *slice)
+static struct vvp_io *cl2vvp_io(const struct lu_env *env,
+				const struct cl_io_slice *slice)
 {
 	struct vvp_io *vio;
 
@@ -1259,7 +1259,7 @@ static int vvp_io_read_page(const struct lu_env *env,
 	return 0;
 }
 
-void vvp_io_end(const struct lu_env *env, const struct cl_io_slice *ios)
+static void vvp_io_end(const struct lu_env *env, const struct cl_io_slice *ios)
 {
 	CLOBINVRNT(env, ios->cis_io->ci_obj,
 		   vvp_object_invariant(ios->cis_io->ci_obj));

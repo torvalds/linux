@@ -150,8 +150,8 @@ struct lu_context_key vvp_session_key = {
 	.lct_fini = vvp_session_key_fini
 };
 
-void *vvp_thread_key_init(const struct lu_context *ctx,
-			  struct lu_context_key *key)
+static void *vvp_thread_key_init(const struct lu_context *ctx,
+				 struct lu_context_key *key)
 {
 	struct vvp_thread_info *vti;
 
@@ -161,8 +161,8 @@ void *vvp_thread_key_init(const struct lu_context *ctx,
 	return vti;
 }
 
-void vvp_thread_key_fini(const struct lu_context *ctx,
-			 struct lu_context_key *key, void *data)
+static void vvp_thread_key_fini(const struct lu_context *ctx,
+				struct lu_context_key *key, void *data)
 {
 	struct vvp_thread_info *vti = data;
 

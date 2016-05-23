@@ -192,7 +192,7 @@ static int lustre_start_simple(char *obdname, char *type, char *uuid,
 	return rc;
 }
 
-DEFINE_MUTEX(mgc_start_lock);
+static DEFINE_MUTEX(mgc_start_lock);
 
 /** Set up a mgc obd to process startup logs
  *
