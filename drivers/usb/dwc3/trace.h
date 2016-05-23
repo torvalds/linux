@@ -71,7 +71,8 @@ DECLARE_EVENT_CLASS(dwc3_log_event,
 	TP_fast_assign(
 		__entry->event = event;
 	),
-	TP_printk("event %08x", __entry->event)
+	TP_printk("event (%08x): %s", __entry->event,
+			dwc3_decode_event(__entry->event))
 );
 
 DEFINE_EVENT(dwc3_log_event, dwc3_event,
