@@ -102,7 +102,10 @@ int cxl_allocate_afu_irqs(struct cxl_context *ctx, int num)
 	if (num == 0)
 		num = ctx->afu->pp_irqs;
 	res = afu_allocate_irqs(ctx, num);
-	if (!res && !cpu_has_feature(CPU_FTR_HVMODE)) {
+	if (res)
+		return res;
+
+	if (!cpu_has_feature(CPU_FTR_HVMODE)) {
 		/* In a guest, the PSL interrupt is not multiplexed. It was
 		 * allocated above, and we need to set its handler
 		 */
@@ -110,6 +113,13 @@ int cxl_allocate_afu_irqs(struct cxl_context *ctx, int num)
 		if (hwirq)
 			cxl_map_irq(ctx->afu->adapter, hwirq, cxl_ops->psl_interrupt, ctx, "psl");
 	}
+
+	if (ctx->status == STARTED) {
+		if (cxl_ops->update_ivtes)
+			cxl_ops->update_ivtes(ctx);
+		else WARN(1, "BUG: cxl_allocate_afu_irqs must be called prior to starting the context on this platform\n");
+	}
+
 	return res;
 }
 EXPORT_SYMBOL_GPL(cxl_allocate_afu_irqs);
