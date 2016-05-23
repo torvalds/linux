@@ -580,7 +580,7 @@ config SPI_SIRF
 
 config SPI_ST_SSC4
 	tristate "STMicroelectronics SPI SSC-based driver"
-	depends on ARCH_STI
+	depends on ARCH_STI || COMPILE_TEST
 	help
 	  STMicroelectronics SoCs support for SPI. If you say yes to
 	  this option, support will be included for the SSC driven SPI.
@@ -667,7 +667,7 @@ config SPI_XILINX
 
 config SPI_XLP
 	tristate "Netlogic XLP SPI controller driver"
-	depends on CPU_XLP || COMPILE_TEST
+	depends on CPU_XLP || ARCH_VULCAN || COMPILE_TEST
 	help
 	  Enable support for the SPI controller on the Netlogic XLP SoCs.
 	  Currently supported XLP variants are XLP8XX, XLP3XX, XLP2XX, XLP9XX
