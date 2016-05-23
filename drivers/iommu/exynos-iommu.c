@@ -602,37 +602,31 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	}
 
 	data->clk = devm_clk_get(dev, "sysmmu");
-	if (!IS_ERR(data->clk)) {
-		ret = clk_prepare(data->clk);
-		if (ret) {
-			dev_err(dev, "Failed to prepare clk\n");
-			return ret;
-		}
-	} else {
+	if (PTR_ERR(data->clk) == -ENOENT)
 		data->clk = NULL;
-	}
+	else if (IS_ERR(data->clk))
+		return PTR_ERR(data->clk);
+	ret = clk_prepare(data->clk);
+	if (ret)
+		return ret;
 
 	data->aclk = devm_clk_get(dev, "aclk");
-	if (!IS_ERR(data->aclk)) {
-		ret = clk_prepare(data->aclk);
-		if (ret) {
-			dev_err(dev, "Failed to prepare aclk\n");
-			return ret;
-		}
-	} else {
+	if (PTR_ERR(data->aclk) == -ENOENT)
 		data->aclk = NULL;
-	}
+	else if (IS_ERR(data->aclk))
+		return PTR_ERR(data->aclk);
+	ret = clk_prepare(data->aclk);
+	if (ret)
+		return ret;
 
 	data->pclk = devm_clk_get(dev, "pclk");
-	if (!IS_ERR(data->pclk)) {
-		ret = clk_prepare(data->pclk);
-		if (ret) {
-			dev_err(dev, "Failed to prepare pclk\n");
-			return ret;
-		}
-	} else {
+	if (PTR_ERR(data->pclk) == -ENOENT)
 		data->pclk = NULL;
-	}
+	else if (IS_ERR(data->pclk))
+		return PTR_ERR(data->pclk);
+	ret = clk_prepare(data->pclk);
+	if (ret)
+		return ret;
 
 	if (!data->clk && (!data->aclk || !data->pclk)) {
 		dev_err(dev, "Failed to get device clock(s)!\n");
@@ -640,15 +634,13 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	}
 
 	data->clk_master = devm_clk_get(dev, "master");
-	if (!IS_ERR(data->clk_master)) {
-		ret = clk_prepare(data->clk_master);
-		if (ret) {
-			dev_err(dev, "Failed to prepare master's clk\n");
-			return ret;
-		}
-	} else {
+	if (PTR_ERR(data->clk_master) == -ENOENT)
 		data->clk_master = NULL;
-	}
+	else if (IS_ERR(data->clk_master))
+		return PTR_ERR(data->clk_master);
+	ret = clk_prepare(data->clk_master);
+	if (ret)
+		return ret;
 
 	data->sysmmu = dev;
 	spin_lock_init(&data->lock);
