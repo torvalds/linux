@@ -139,9 +139,17 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	kfree(nvbo);
 }
 
+static inline u64
+roundup_64(u64 x, u32 y)
+{
+	x += y - 1;
+	do_div(x, y);
+	return x * y;
+}
+
 static void
 nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
-		       int *align, int *size)
+		       int *align, u64 *size)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct nvif_device *device = &drm->client.device;
@@ -150,31 +158,31 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
 		if (nvbo->tile_mode) {
 			if (device->info.chipset >= 0x40) {
 				*align = 65536;
-				*size = roundup(*size, 64 * nvbo->tile_mode);
+				*size = roundup_64(*size, 64 * nvbo->tile_mode);
 
 			} else if (device->info.chipset >= 0x30) {
 				*align = 32768;
-				*size = roundup(*size, 64 * nvbo->tile_mode);
+				*size = roundup_64(*size, 64 * nvbo->tile_mode);
 
 			} else if (device->info.chipset >= 0x20) {
 				*align = 16384;
-				*size = roundup(*size, 64 * nvbo->tile_mode);
+				*size = roundup_64(*size, 64 * nvbo->tile_mode);
 
 			} else if (device->info.chipset >= 0x10) {
 				*align = 16384;
-				*size = roundup(*size, 32 * nvbo->tile_mode);
+				*size = roundup_64(*size, 32 * nvbo->tile_mode);
 			}
 		}
 	} else {
-		*size = roundup(*size, (1 << nvbo->page_shift));
+		*size = roundup_64(*size, (1 << nvbo->page_shift));
 		*align = max((1 <<  nvbo->page_shift), *align);
 	}
 
-	*size = roundup(*size, PAGE_SIZE);
+	*size = roundup_64(*size, PAGE_SIZE);
 }
 
 int
-nouveau_bo_new(struct nouveau_cli *cli, int size, int align,
+nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	       uint32_t flags, uint32_t tile_mode, uint32_t tile_flags,
 	       struct sg_table *sg, struct reservation_object *robj,
 	       struct nouveau_bo **pnvbo)
@@ -184,15 +192,9 @@ nouveau_bo_new(struct nouveau_cli *cli, int size, int align,
 	size_t acc_size;
 	int ret;
 	int type = ttm_bo_type_device;
-	int lpg_shift = 12;
-	int max_size;
 
-	if (drm->client.vm)
-		lpg_shift = drm->client.vm->mmu->lpg_shift;
-	max_size = INT_MAX & ~((1 << lpg_shift) - 1);
-
-	if (size <= 0 || size > max_size) {
-		NV_WARN(drm, "skipped size %x\n", (u32)size);
+	if (!size) {
+		NV_WARN(drm, "skipped size %016llx\n", size);
 		return -EINVAL;
 	}
 
