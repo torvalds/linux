@@ -207,6 +207,7 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 int dwc3_send_gadget_generic_command(struct dwc3 *dwc, unsigned cmd, u32 param)
 {
 	u32		timeout = 500;
+	int		ret = 0;
 	u32		reg;
 
 	trace_dwc3_gadget_generic_cmd(cmd, param);
@@ -221,22 +222,20 @@ int dwc3_send_gadget_generic_command(struct dwc3 *dwc, unsigned cmd, u32 param)
 					"Command Complete --> %d",
 					DWC3_DGCMD_STATUS(reg));
 			if (DWC3_DGCMD_STATUS(reg))
-				return -EINVAL;
-			return 0;
+				ret = -EINVAL;
+			break;
 		}
 
-		/*
-		 * We can't sleep here, because it's also called from
-		 * interrupt context.
-		 */
-		timeout--;
-		if (!timeout) {
-			dwc3_trace(trace_dwc3_gadget,
-					"Command Timed Out");
-			return -ETIMEDOUT;
-		}
 		udelay(1);
-	} while (1);
+	} while (timeout--);
+
+	if (!timeout) {
+		dwc3_trace(trace_dwc3_gadget,
+				"Command Timed Out");
+		ret = -ETIMEDOUT;
+	}
+
+	return ret;
 }
 
 static int __dwc3_gadget_wakeup(struct dwc3 *dwc);
