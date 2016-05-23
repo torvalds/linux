@@ -44,6 +44,7 @@
 static inline int nilfs_add_nondir(struct dentry *dentry, struct inode *inode)
 {
 	int err = nilfs_add_link(dentry, inode);
+
 	if (!err) {
 		d_instantiate(dentry, inode);
 		unlock_new_inode(inode);

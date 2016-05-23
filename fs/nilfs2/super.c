@@ -743,6 +743,7 @@ static int parse_options(char *options, struct super_block *sb, int is_remount)
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
+
 		if (!*p)
 			continue;
 
