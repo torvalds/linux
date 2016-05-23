@@ -148,3 +148,7 @@ out:
 	return err;
 }
 EXPORT_SYMBOL(ufshcd_dwc_link_startup_notify);
+
+MODULE_AUTHOR("Joao Pinto <Joao.Pinto@synopsys.com>");
+MODULE_DESCRIPTION("UFS Host driver for Synopsys Designware Core");
+MODULE_LICENSE("Dual BSD/GPL");
