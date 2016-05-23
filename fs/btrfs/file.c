@@ -1696,7 +1696,9 @@ again:
 			btrfs_end_write_no_snapshoting(root);
 			btrfs_delalloc_release_metadata(inode, release_bytes);
 		} else {
-			btrfs_delalloc_release_space(inode, pos, release_bytes);
+			btrfs_delalloc_release_space(inode,
+						round_down(pos, root->sectorsize),
+						release_bytes);
 		}
 	}
 
@@ -2952,7 +2954,7 @@ const struct file_operations btrfs_file_operations = {
 	.fallocate	= btrfs_fallocate,
 	.unlocked_ioctl	= btrfs_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= btrfs_ioctl,
+	.compat_ioctl	= btrfs_compat_ioctl,
 #endif
 	.copy_file_range = btrfs_copy_file_range,
 	.clone_file_range = btrfs_clone_file_range,

@@ -84,7 +84,7 @@ static ssize_t read_cc_table_bin(struct file *filp, struct kobject *kobj,
 		rcu_read_unlock();
 		return -EINVAL;
 	}
-	memcpy(buf, &cc_state->cct, count);
+	memcpy(buf, (void *)&cc_state->cct + pos, count);
 	rcu_read_unlock();
 
 	return count;
@@ -131,7 +131,7 @@ static ssize_t read_cc_setting_bin(struct file *filp, struct kobject *kobj,
 		rcu_read_unlock();
 		return -EINVAL;
 	}
-	memcpy(buf, &cc_state->cong_setting, count);
+	memcpy(buf, (void *)&cc_state->cong_setting + pos, count);
 	rcu_read_unlock();
 
 	return count;

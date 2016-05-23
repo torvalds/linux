@@ -168,6 +168,7 @@ struct RGF_ICR {
 #define RGF_DMA_EP_MISC_ICR		(0x881bec) /* struct RGF_ICR */
 	#define BIT_DMA_EP_MISC_ICR_RX_HTRSH	BIT(0)
 	#define BIT_DMA_EP_MISC_ICR_TX_NO_ACT	BIT(1)
+	#define BIT_DMA_EP_MISC_ICR_HALP	BIT(27)
 	#define BIT_DMA_EP_MISC_ICR_FW_INT(n)	BIT(28+n) /* n = [0..3] */
 
 /* Legacy interrupt moderation control (before Sparrow v2)*/
@@ -534,6 +535,41 @@ struct pmc_ctx {
 	int			descriptor_size;
 };
 
+struct wil_halp {
+	struct mutex		lock; /* protect halp ref_cnt */
+	unsigned int		ref_cnt;
+	struct completion	comp;
+};
+
+struct wil_blob_wrapper {
+	struct wil6210_priv *wil;
+	struct debugfs_blob_wrapper blob;
+};
+
+#define WIL_LED_MAX_ID			(2)
+#define WIL_LED_INVALID_ID		(0xF)
+#define WIL_LED_BLINK_ON_SLOW_MS	(300)
+#define WIL_LED_BLINK_OFF_SLOW_MS	(300)
+#define WIL_LED_BLINK_ON_MED_MS		(200)
+#define WIL_LED_BLINK_OFF_MED_MS	(200)
+#define WIL_LED_BLINK_ON_FAST_MS	(100)
+#define WIL_LED_BLINK_OFF_FAST_MS	(100)
+enum {
+	WIL_LED_TIME_SLOW = 0,
+	WIL_LED_TIME_MED,
+	WIL_LED_TIME_FAST,
+	WIL_LED_TIME_LAST,
+};
+
+struct blink_on_off_time {
+	u32 on_ms;
+	u32 off_ms;
+};
+
+extern struct blink_on_off_time led_blink_time[WIL_LED_TIME_LAST];
+extern u8 led_id;
+extern u8 led_polarity;
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	struct wireless_dev *wdev;
@@ -606,7 +642,7 @@ struct wil6210_priv {
 	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
 	struct dentry *debug;
-	struct debugfs_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
+	struct wil_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
 	u8 discovery_mode;
 
 	void *platform_handle;
@@ -622,6 +658,10 @@ struct wil6210_priv {
 	struct wireless_dev *p2p_wdev;
 	struct mutex p2p_wdev_mutex; /* protect @p2p_wdev */
 	struct wireless_dev *radio_wdev;
+
+	/* High Access Latency Policy voting */
+	struct wil_halp halp;
+
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -635,11 +675,13 @@ struct wil6210_priv {
 __printf(2, 3)
 void wil_dbg_trace(struct wil6210_priv *wil, const char *fmt, ...);
 __printf(2, 3)
-void wil_err(struct wil6210_priv *wil, const char *fmt, ...);
+void __wil_err(struct wil6210_priv *wil, const char *fmt, ...);
 __printf(2, 3)
-void wil_err_ratelimited(struct wil6210_priv *wil, const char *fmt, ...);
+void __wil_err_ratelimited(struct wil6210_priv *wil, const char *fmt, ...);
 __printf(2, 3)
-void wil_info(struct wil6210_priv *wil, const char *fmt, ...);
+void __wil_info(struct wil6210_priv *wil, const char *fmt, ...);
+__printf(2, 3)
+void wil_dbg_ratelimited(const struct wil6210_priv *wil, const char *fmt, ...);
 #define wil_dbg(wil, fmt, arg...) do { \
 	netdev_dbg(wil_to_ndev(wil), fmt, ##arg); \
 	wil_dbg_trace(wil, fmt, ##arg); \
@@ -650,6 +692,10 @@ void wil_info(struct wil6210_priv *wil, const char *fmt, ...);
 #define wil_dbg_wmi(wil, fmt, arg...) wil_dbg(wil, "DBG[ WMI]" fmt, ##arg)
 #define wil_dbg_misc(wil, fmt, arg...) wil_dbg(wil, "DBG[MISC]" fmt, ##arg)
 #define wil_dbg_pm(wil, fmt, arg...) wil_dbg(wil, "DBG[ PM ]" fmt, ##arg)
+#define wil_err(wil, fmt, arg...) __wil_err(wil, "%s: " fmt, __func__, ##arg)
+#define wil_info(wil, fmt, arg...) __wil_info(wil, "%s: " fmt, __func__, ##arg)
+#define wil_err_ratelimited(wil, fmt, arg...) \
+	__wil_err_ratelimited(wil, "%s: " fmt, __func__, ##arg)
 
 /* target operations */
 /* register read */
@@ -707,6 +753,12 @@ void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 			  size_t count);
 void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 			size_t count);
+void wil_memcpy_fromio_halp_vote(struct wil6210_priv *wil, void *dst,
+				 const volatile void __iomem *src,
+				 size_t count);
+void wil_memcpy_toio_halp_vote(struct wil6210_priv *wil,
+			       volatile void __iomem *dst,
+			       const void *src, size_t count);
 
 void *wil_if_alloc(struct device *dev);
 void wil_if_free(struct wil6210_priv *wil);
@@ -772,6 +824,7 @@ void wil_disable_irq(struct wil6210_priv *wil);
 void wil_enable_irq(struct wil6210_priv *wil);
 
 /* P2P */
+bool wil_p2p_is_social_scan(struct cfg80211_scan_request *request);
 void wil_p2p_discovery_timer_fn(ulong x);
 int wil_p2p_search(struct wil6210_priv *wil,
 		   struct cfg80211_scan_request *request);
@@ -805,6 +858,7 @@ int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
 int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
 		  u8 chan, u8 hidden_ssid, u8 is_go);
 int wmi_pcp_stop(struct wil6210_priv *wil);
+int wmi_led_cfg(struct wil6210_priv *wil, bool enable);
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 			u16 reason_code, bool from_event);
 void wil_probe_client_flush(struct wil6210_priv *wil);
@@ -841,5 +895,10 @@ int wil_resume(struct wil6210_priv *wil, bool is_runtime);
 
 int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size);
 void wil_fw_core_dump(struct wil6210_priv *wil);
+
+void wil_halp_vote(struct wil6210_priv *wil);
+void wil_halp_unvote(struct wil6210_priv *wil);
+void wil6210_set_halp(struct wil6210_priv *wil);
+void wil6210_clear_halp(struct wil6210_priv *wil);
 
 #endif /* __WIL6210_H__ */

@@ -1192,8 +1192,8 @@ int inet_sk_rebuild_header(struct sock *sk)
 }
 EXPORT_SYMBOL(inet_sk_rebuild_header);
 
-static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
-					netdev_features_t features)
+struct sk_buff *inet_gso_segment(struct sk_buff *skb,
+				 netdev_features_t features)
 {
 	bool udpfrag = false, fixedid = false, encap;
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
@@ -1204,24 +1204,6 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 	int nhoff;
 	int ihl;
 	int id;
-
-	if (unlikely(skb_shinfo(skb)->gso_type &
-		     ~(SKB_GSO_TCPV4 |
-		       SKB_GSO_UDP |
-		       SKB_GSO_DODGY |
-		       SKB_GSO_TCP_ECN |
-		       SKB_GSO_GRE |
-		       SKB_GSO_GRE_CSUM |
-		       SKB_GSO_IPIP |
-		       SKB_GSO_SIT |
-		       SKB_GSO_TCPV6 |
-		       SKB_GSO_UDP_TUNNEL |
-		       SKB_GSO_UDP_TUNNEL_CSUM |
-		       SKB_GSO_TCP_FIXEDID |
-		       SKB_GSO_TUNNEL_REMCSUM |
-		       SKB_GSO_PARTIAL |
-		       0)))
-		goto out;
 
 	skb_reset_network_header(skb);
 	nhoff = skb_network_header(skb) - skb_mac_header(skb);
@@ -1298,9 +1280,9 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 out:
 	return segs;
 }
+EXPORT_SYMBOL(inet_gso_segment);
 
-static struct sk_buff **inet_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
+struct sk_buff **inet_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
 	const struct net_offload *ops;
 	struct sk_buff **pp = NULL;
@@ -1416,6 +1398,7 @@ out:
 
 	return pp;
 }
+EXPORT_SYMBOL(inet_gro_receive);
 
 static struct sk_buff **ipip_gro_receive(struct sk_buff **head,
 					 struct sk_buff *skb)
@@ -1467,7 +1450,7 @@ int inet_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	return -EINVAL;
 }
 
-static int inet_gro_complete(struct sk_buff *skb, int nhoff)
+int inet_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	__be16 newlen = htons(skb->len - nhoff);
 	struct iphdr *iph = (struct iphdr *)(skb->data + nhoff);
@@ -1497,11 +1480,12 @@ out_unlock:
 
 	return err;
 }
+EXPORT_SYMBOL(inet_gro_complete);
 
 static int ipip_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	skb->encapsulation = 1;
-	skb_shinfo(skb)->gso_type |= SKB_GSO_IPIP;
+	skb_shinfo(skb)->gso_type |= SKB_GSO_IPXIP4;
 	return inet_gro_complete(skb, nhoff);
 }
 

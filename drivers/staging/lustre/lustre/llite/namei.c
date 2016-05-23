@@ -128,12 +128,14 @@ struct inode *ll_iget(struct super_block *sb, ino_t hash,
 			if (rc != 0) {
 				iget_failed(inode);
 				inode = NULL;
-			} else
+			} else {
 				unlock_new_inode(inode);
-		} else if (!(inode->i_state & (I_FREEING | I_CLEAR)))
+			}
+		} else if (!(inode->i_state & (I_FREEING | I_CLEAR))) {
 			ll_update_inode(inode, md);
-		CDEBUG(D_VFSTRACE, "got inode: %p for "DFID"\n",
-		       inode, PFID(&md->body->fid1));
+			CDEBUG(D_VFSTRACE, "got inode: "DFID"(%p)\n",
+			       PFID(&md->body->fid1), inode);
+		}
 	}
 	return inode;
 }
@@ -188,7 +190,7 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			break;
 
 		/* Invalidate all dentries associated with this inode */
-		LASSERT(lock->l_flags & LDLM_FL_CANCELING);
+		LASSERT(ldlm_is_canceling(lock));
 
 		if (!fid_res_name_eq(ll_inode2fid(inode),
 				     &lock->l_resource->lr_name)) {
@@ -255,8 +257,8 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 		}
 
 		if ((bits & MDS_INODELOCK_UPDATE) && S_ISDIR(inode->i_mode)) {
-			CDEBUG(D_INODE, "invalidating inode %lu\n",
-			       inode->i_ino);
+			CDEBUG(D_INODE, "invalidating inode "DFID"\n",
+			       PFID(ll_inode2fid(inode)));
 			truncate_inode_pages(inode->i_mapping, 0);
 			ll_invalidate_negative_children(inode);
 		}
@@ -476,9 +478,8 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	if (dentry->d_name.len > ll_i2sbi(parent)->ll_namelen)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),intent=%s\n",
-	       dentry, parent->i_ino,
-	       parent->i_generation, parent, LL_IT2STR(it));
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir="DFID"(%p),intent=%s\n",
+	       dentry, PFID(ll_inode2fid(parent)), parent, LL_IT2STR(it));
 
 	if (d_mountpoint(dentry))
 		CERROR("Tell Peter, lookup on mtpt, it %s\n", LL_IT2STR(it));
@@ -553,9 +554,8 @@ static struct dentry *ll_lookup_nd(struct inode *parent, struct dentry *dentry,
 	struct lookup_intent *itp, it = { .it_op = IT_GETATTR };
 	struct dentry *de;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),flags=%u\n",
-	       dentry, parent->i_ino,
-	       parent->i_generation, parent, flags);
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir="DFID"(%p),flags=%u\n",
+	       dentry, PFID(ll_inode2fid(parent)), parent, flags);
 
 	/* Optimize away (CREATE && !OPEN). Let .create handle the race. */
 	if ((flags & LOOKUP_CREATE) && !(flags & LOOKUP_OPEN))
@@ -586,10 +586,9 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	long long lookup_flags = LOOKUP_OPEN;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE,
-	       "VFS Op:name=%pd,dir=%lu/%u(%p),file %p,open_flags %x,mode %x opened %d\n",
-	       dentry, dir->i_ino,
-	       dir->i_generation, dir, file, open_flags, mode, *opened);
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir="DFID"(%p),file %p,open_flags %x,mode %x opened %d\n",
+	       dentry, PFID(ll_inode2fid(dir)), dir, file, open_flags, mode,
+	       *opened);
 
 	it = kzalloc(sizeof(*it), GFP_NOFS);
 	if (!it)
@@ -680,8 +679,8 @@ static struct inode *ll_create_node(struct inode *dir, struct lookup_intent *it)
 	 * lock on the inode.  Since we finally have an inode pointer,
 	 * stuff it in the lock.
 	 */
-	CDEBUG(D_DLMTRACE, "setting l_ast_data to inode %p (%lu/%u)\n",
-	       inode, inode->i_ino, inode->i_generation);
+	CDEBUG(D_DLMTRACE, "setting l_ast_data to inode "DFID"(%p)\n",
+	       PFID(ll_inode2fid(dir)), inode);
 	ll_set_lock_data(sbi->ll_md_exp, inode, it, NULL);
  out:
 	ptlrpc_req_finished(request);
@@ -708,9 +707,8 @@ static int ll_create_it(struct inode *dir, struct dentry *dentry, int mode,
 	struct inode *inode;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),intent=%s\n",
-	       dentry, dir->i_ino,
-	       dir->i_generation, dir, LL_IT2STR(it));
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir="DFID"(%p), intent=%s\n",
+	       dentry, PFID(ll_inode2fid(dir)), dir, LL_IT2STR(it));
 
 	rc = it_open_error(DISP_OPEN_CREATE, it);
 	if (rc)
@@ -733,8 +731,9 @@ static void ll_update_times(struct ptlrpc_request *request,
 	LASSERT(body);
 	if (body->valid & OBD_MD_FLMTIME &&
 	    body->mtime > LTIME_S(inode->i_mtime)) {
-		CDEBUG(D_INODE, "setting ino %lu mtime from %lu to %llu\n",
-		       inode->i_ino, LTIME_S(inode->i_mtime), body->mtime);
+		CDEBUG(D_INODE, "setting fid "DFID" mtime from %lu to %llu\n",
+		       PFID(ll_inode2fid(inode)), LTIME_S(inode->i_mtime),
+		       body->mtime);
 		LTIME_S(inode->i_mtime) = body->mtime;
 	}
 	if (body->valid & OBD_MD_FLCTIME &&
@@ -791,9 +790,9 @@ static int ll_mknod(struct inode *dir, struct dentry *dchild,
 {
 	int err;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p) mode %o dev %x\n",
-	       dchild, dir->i_ino, dir->i_generation, dir,
-	       mode, old_encode_dev(rdev));
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir="DFID"(%p) mode %o dev %x\n",
+	       dchild, PFID(ll_inode2fid(dir)), dir, mode,
+	       old_encode_dev(rdev));
 
 	if (!IS_POSIXACL(dir) || !exp_connect_umask(ll_i2mdexp(dir)))
 		mode &= ~current_umask();
@@ -831,9 +830,8 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 {
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),flags=%u, excl=%d\n",
-	       dentry, dir->i_ino,
-	       dir->i_generation, dir, mode, want_excl);
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir="DFID"(%p), flags=%u, excl=%d\n",
+	       dentry, PFID(ll_inode2fid(dir)), dir, mode, want_excl);
 
 	rc = ll_mknod(dir, dentry, mode, 0);
 
@@ -843,12 +841,6 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 	       dentry, d_unhashed(dentry));
 
 	return rc;
-}
-
-static inline void ll_get_child_fid(struct dentry *child, struct lu_fid *fid)
-{
-	if (d_really_is_positive(child))
-		*fid = *ll_inode2fid(d_inode(child));
 }
 
 int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
@@ -927,23 +919,25 @@ out:
  * is any lock existing. They will recycle dentries and inodes based upon locks
  * too. b=20433
  */
-static int ll_unlink(struct inode *dir, struct dentry *dentry)
+static int ll_unlink(struct inode *dir, struct dentry *dchild)
 {
 	struct ptlrpc_request *request = NULL;
 	struct md_op_data *op_data;
 	int rc;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
-	       dentry, dir->i_ino, dir->i_generation, dir);
+	       dchild, dir->i_ino, dir->i_generation, dir);
 
 	op_data = ll_prep_md_op_data(NULL, dir, NULL,
-				     dentry->d_name.name,
-				     dentry->d_name.len,
+				     dchild->d_name.name,
+				     dchild->d_name.len,
 				     0, LUSTRE_OPC_ANY, NULL);
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	ll_get_child_fid(dentry, &op_data->op_fid3);
+	if (dchild && dchild->d_inode)
+		op_data->op_fid3 = *ll_inode2fid(dchild->d_inode);
+
 	op_data->op_fid2 = op_data->op_fid3;
 	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
 	ll_finish_md_op_data(op_data);
@@ -963,8 +957,8 @@ static int ll_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int err;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
-	       dentry, dir->i_ino, dir->i_generation, dir);
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir"DFID"(%p)\n",
+	       dentry, PFID(ll_inode2fid(dir)), dir);
 
 	if (!IS_POSIXACL(dir) || !exp_connect_umask(ll_i2mdexp(dir)))
 		mode &= ~current_umask();
@@ -977,23 +971,25 @@ static int ll_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return err;
 }
 
-static int ll_rmdir(struct inode *dir, struct dentry *dentry)
+static int ll_rmdir(struct inode *dir, struct dentry *dchild)
 {
 	struct ptlrpc_request *request = NULL;
 	struct md_op_data *op_data;
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
-	       dentry, dir->i_ino, dir->i_generation, dir);
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir="DFID"(%p)\n",
+	       dchild, PFID(ll_inode2fid(dir)), dir);
 
 	op_data = ll_prep_md_op_data(NULL, dir, NULL,
-				     dentry->d_name.name,
-				     dentry->d_name.len,
+				     dchild->d_name.name,
+				     dchild->d_name.len,
 				     S_IFDIR, LUSTRE_OPC_ANY, NULL);
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	ll_get_child_fid(dentry, &op_data->op_fid3);
+	if (dchild && dchild->d_inode)
+		op_data->op_fid3 = *ll_inode2fid(dchild->d_inode);
+
 	op_data->op_fid2 = op_data->op_fid3;
 	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
 	ll_finish_md_op_data(op_data);
@@ -1011,9 +1007,8 @@ static int ll_symlink(struct inode *dir, struct dentry *dentry,
 {
 	int err;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),target=%.*s\n",
-	       dentry, dir->i_ino, dir->i_generation,
-	       dir, 3000, oldname);
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd, dir="DFID"(%p),target=%.*s\n",
+	       dentry, PFID(ll_inode2fid(dir)), dir, 3000, oldname);
 
 	err = ll_new_node(dir, dentry, oldname, S_IFLNK | S_IRWXUGO,
 			  0, LUSTRE_OPC_SYMLINK);
@@ -1033,10 +1028,9 @@ static int ll_link(struct dentry *old_dentry, struct inode *dir,
 	struct md_op_data *op_data;
 	int err;
 
-	CDEBUG(D_VFSTRACE,
-	       "VFS Op: inode=%lu/%u(%p), dir=%lu/%u(%p), target=%pd\n",
-	       src->i_ino, src->i_generation, src, dir->i_ino,
-	       dir->i_generation, dir, new_dentry);
+	CDEBUG(D_VFSTRACE, "VFS Op: inode="DFID"(%p), dir="DFID"(%p), target=%pd\n",
+	       PFID(ll_inode2fid(src)), src, PFID(ll_inode2fid(dir)), dir,
+	       new_dentry);
 
 	op_data = ll_prep_md_op_data(NULL, src, dir, new_dentry->d_name.name,
 				     new_dentry->d_name.len,
@@ -1056,42 +1050,45 @@ out:
 	return err;
 }
 
-static int ll_rename(struct inode *old_dir, struct dentry *old_dentry,
-		     struct inode *new_dir, struct dentry *new_dentry)
+static int ll_rename(struct inode *src, struct dentry *src_dchild,
+		     struct inode *tgt, struct dentry *tgt_dchild)
 {
 	struct ptlrpc_request *request = NULL;
-	struct ll_sb_info *sbi = ll_i2sbi(old_dir);
+	struct ll_sb_info *sbi = ll_i2sbi(src);
 	struct md_op_data *op_data;
 	int err;
 
 	CDEBUG(D_VFSTRACE,
-	       "VFS Op:oldname=%pd,src_dir=%lu/%u(%p),newname=%pd,tgt_dir=%lu/%u(%p)\n",
-	       old_dentry, old_dir->i_ino, old_dir->i_generation, old_dir,
-	       new_dentry, new_dir->i_ino, new_dir->i_generation, new_dir);
+	       "VFS Op:oldname=%pd, src_dir="DFID"(%p), newname=%pd, tgt_dir="DFID"(%p)\n",
+	       src_dchild, PFID(ll_inode2fid(src)), src,
+	       tgt_dchild, PFID(ll_inode2fid(tgt)), tgt);
 
-	op_data = ll_prep_md_op_data(NULL, old_dir, new_dir, NULL, 0, 0,
+	op_data = ll_prep_md_op_data(NULL, src, tgt, NULL, 0, 0,
 				     LUSTRE_OPC_ANY, NULL);
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	ll_get_child_fid(old_dentry, &op_data->op_fid3);
-	ll_get_child_fid(new_dentry, &op_data->op_fid4);
+	if (src_dchild && src_dchild->d_inode)
+		op_data->op_fid3 = *ll_inode2fid(src_dchild->d_inode);
+	if (tgt_dchild && tgt_dchild->d_inode)
+		op_data->op_fid4 = *ll_inode2fid(tgt_dchild->d_inode);
+
 	err = md_rename(sbi->ll_md_exp, op_data,
-			old_dentry->d_name.name,
-			old_dentry->d_name.len,
-			new_dentry->d_name.name,
-			new_dentry->d_name.len, &request);
+			src_dchild->d_name.name,
+			src_dchild->d_name.len,
+			tgt_dchild->d_name.name,
+			tgt_dchild->d_name.len, &request);
 	ll_finish_md_op_data(op_data);
 	if (!err) {
-		ll_update_times(request, old_dir);
-		ll_update_times(request, new_dir);
+		ll_update_times(request, src);
+		ll_update_times(request, tgt);
 		ll_stats_ops_tally(sbi, LPROC_LL_RENAME, 1);
-		err = ll_objects_destroy(request, old_dir);
+		err = ll_objects_destroy(request, src);
 	}
 
 	ptlrpc_req_finished(request);
 	if (!err)
-		d_move(old_dentry, new_dentry);
+		d_move(src_dchild, tgt_dchild);
 	return err;
 }
 

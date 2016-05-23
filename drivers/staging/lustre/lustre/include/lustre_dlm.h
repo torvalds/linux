@@ -71,6 +71,7 @@ struct obd_device;
  */
 enum ldlm_error {
 	ELDLM_OK = 0,
+	ELDLM_LOCK_MATCHED = 1,
 
 	ELDLM_LOCK_CHANGED = 300,
 	ELDLM_LOCK_ABORTED = 301,
@@ -269,7 +270,7 @@ struct ldlm_pool {
 	struct completion	 pl_kobj_unregister;
 };
 
-typedef int (*ldlm_cancel_for_recovery)(struct ldlm_lock *lock);
+typedef int (*ldlm_cancel_cbt)(struct ldlm_lock *lock);
 
 /**
  * LVB operations.
@@ -446,8 +447,11 @@ struct ldlm_namespace {
 	/** Limit of parallel AST RPC count. */
 	unsigned		ns_max_parallel_ast;
 
-	/** Callback to cancel locks before replaying it during recovery. */
-	ldlm_cancel_for_recovery ns_cancel_for_recovery;
+	/**
+	 * Callback to check if a lock is good to be canceled by ELC or
+	 * during recovery.
+	 */
+	ldlm_cancel_cbt		ns_cancel;
 
 	/** LDLM lock stats */
 	struct lprocfs_stats	*ns_stats;
@@ -479,9 +483,9 @@ static inline int ns_connect_lru_resize(struct ldlm_namespace *ns)
 }
 
 static inline void ns_register_cancel(struct ldlm_namespace *ns,
-				      ldlm_cancel_for_recovery arg)
+				      ldlm_cancel_cbt arg)
 {
-	ns->ns_cancel_for_recovery = arg;
+	ns->ns_cancel = arg;
 }
 
 struct ldlm_lock;

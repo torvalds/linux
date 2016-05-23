@@ -220,6 +220,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_ON_DEMAND_PAGING		= (1 << 31),
 	IB_DEVICE_SG_GAPS_REG			= (1ULL << 32),
 	IB_DEVICE_VIRTUAL_FUNCTION		= ((u64)1 << 33),
+	IB_DEVICE_RAW_SCATTER_FCS		= ((u64)1 << 34),
 };
 
 enum ib_signature_prot_cap {
@@ -931,6 +932,13 @@ struct ib_qp_cap {
 	u32	max_send_sge;
 	u32	max_recv_sge;
 	u32	max_inline_data;
+
+	/*
+	 * Maximum number of rdma_rw_ctx structures in flight at a time.
+	 * ib_create_qp() will calculate the right amount of neededed WRs
+	 * and MRs based on this.
+	 */
+	u32	max_rdma_ctxs;
 };
 
 enum ib_sig_type {
@@ -981,6 +989,7 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_NETIF_QP			= 1 << 5,
 	IB_QP_CREATE_SIGNATURE_EN		= 1 << 6,
 	IB_QP_CREATE_USE_GFP_NOIO		= 1 << 7,
+	IB_QP_CREATE_SCATTER_FCS		= 1 << 8,
 	/* reserve bits 26-31 for low level drivers' internal use */
 	IB_QP_CREATE_RESERVED_START		= 1 << 26,
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
@@ -1002,7 +1011,11 @@ struct ib_qp_init_attr {
 	enum ib_sig_type	sq_sig_type;
 	enum ib_qp_type		qp_type;
 	enum ib_qp_create_flags	create_flags;
-	u8			port_num; /* special QP types only */
+
+	/*
+	 * Only needed for special QP types, or when using the RW API.
+	 */
+	u8			port_num;
 };
 
 struct ib_qp_open_attr {
@@ -1421,9 +1434,14 @@ struct ib_qp {
 	struct ib_pd	       *pd;
 	struct ib_cq	       *send_cq;
 	struct ib_cq	       *recv_cq;
+	spinlock_t		mr_lock;
+	int			mrs_used;
+	struct list_head	rdma_mrs;
+	struct list_head	sig_mrs;
 	struct ib_srq	       *srq;
 	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
 	struct list_head	xrcd_list;
+
 	/* count times opened, mcast attaches, flow attaches */
 	atomic_t		usecnt;
 	struct list_head	open_list;
@@ -1438,12 +1456,16 @@ struct ib_qp {
 struct ib_mr {
 	struct ib_device  *device;
 	struct ib_pd	  *pd;
-	struct ib_uobject *uobject;
 	u32		   lkey;
 	u32		   rkey;
 	u64		   iova;
 	u32		   length;
 	unsigned int	   page_size;
+	bool		   need_inval;
+	union {
+		struct ib_uobject	*uobject;	/* user */
+		struct list_head	qp_entry;	/* FR */
+	};
 };
 
 struct ib_mw {
@@ -1827,7 +1849,8 @@ struct ib_device {
 					       u32 max_num_sg);
 	int                        (*map_mr_sg)(struct ib_mr *mr,
 						struct scatterlist *sg,
-						int sg_nents);
+						int sg_nents,
+						unsigned int *sg_offset);
 	struct ib_mw *             (*alloc_mw)(struct ib_pd *pd,
 					       enum ib_mw_type type,
 					       struct ib_udata *udata);
@@ -2315,6 +2338,18 @@ static inline bool rdma_cap_roce_gid_table(const struct ib_device *device,
 {
 	return rdma_protocol_roce(device, port_num) &&
 		device->add_gid && device->del_gid;
+}
+
+/*
+ * Check if the device supports READ W/ INVALIDATE.
+ */
+static inline bool rdma_cap_read_inv(struct ib_device *dev, u32 port_num)
+{
+	/*
+	 * iWarp drivers must support READ W/ INVALIDATE.  No other protocol
+	 * has support for it yet.
+	 */
+	return rdma_protocol_iwarp(dev, port_num);
 }
 
 int ib_query_gid(struct ib_device *device,
@@ -3111,29 +3146,23 @@ struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);
 
-int ib_map_mr_sg(struct ib_mr *mr,
-		 struct scatterlist *sg,
-		 int sg_nents,
-		 unsigned int page_size);
+int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
+		 unsigned int *sg_offset, unsigned int page_size);
 
 static inline int
-ib_map_mr_sg_zbva(struct ib_mr *mr,
-		  struct scatterlist *sg,
-		  int sg_nents,
-		  unsigned int page_size)
+ib_map_mr_sg_zbva(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
+		  unsigned int *sg_offset, unsigned int page_size)
 {
 	int n;
 
-	n = ib_map_mr_sg(mr, sg, sg_nents, page_size);
+	n = ib_map_mr_sg(mr, sg, sg_nents, sg_offset, page_size);
 	mr->iova = 0;
 
 	return n;
 }
 
-int ib_sg_to_pages(struct ib_mr *mr,
-		   struct scatterlist *sgl,
-		   int sg_nents,
-		   int (*set_page)(struct ib_mr *, u64));
+int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
+		unsigned int *sg_offset, int (*set_page)(struct ib_mr *, u64));
 
 void ib_drain_rq(struct ib_qp *qp);
 void ib_drain_sq(struct ib_qp *qp);

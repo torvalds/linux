@@ -187,7 +187,11 @@ config HAVE_OPTPROBES
 config HAVE_KPROBES_ON_FTRACE
 	bool
 
+config HAVE_NMI
+	bool
+
 config HAVE_NMI_WATCHDOG
+	depends on HAVE_NMI
 	bool
 #
 # An arch should select this if it provides all these things:
@@ -517,6 +521,11 @@ config HAVE_ARCH_MMAP_RND_BITS
 	  - ARCH_MMAP_RND_BITS_MIN
 	  - ARCH_MMAP_RND_BITS_MAX
 
+config HAVE_EXIT_THREAD
+	bool
+	help
+	  An architecture implements exit_thread.
+
 config ARCH_MMAP_RND_BITS_MIN
 	int
 
@@ -637,5 +646,8 @@ config COMPAT_OLD_SIGACTION
 
 config ARCH_NO_COHERENT_DMA_MMAP
 	bool
+
+config CPU_NO_EFFICIENT_FFS
+	def_bool n
 
 source "kernel/gcov/Kconfig"

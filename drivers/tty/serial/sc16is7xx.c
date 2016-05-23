@@ -666,7 +666,7 @@ static void sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 	struct uart_port *port = &s->p[portno].port;
 
 	do {
-		unsigned int iir, msr, rxlen;
+		unsigned int iir, rxlen;
 
 		iir = sc16is7xx_port_read(port, SC16IS7XX_IIR_REG);
 		if (iir & SC16IS7XX_IIR_NO_INT_BIT)
@@ -682,12 +682,6 @@ static void sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 			rxlen = sc16is7xx_port_read(port, SC16IS7XX_RXLVL_REG);
 			if (rxlen)
 				sc16is7xx_handle_rx(port, rxlen, iir);
-			break;
-
-		case SC16IS7XX_IIR_CTSRTS_SRC:
-			msr = sc16is7xx_port_read(port, SC16IS7XX_MSR_REG);
-			uart_handle_cts_change(port,
-					       !!(msr & SC16IS7XX_MSR_DCTS_BIT));
 			break;
 		case SC16IS7XX_IIR_THRI_SRC:
 			sc16is7xx_handle_tx(port);
@@ -1014,9 +1008,8 @@ static int sc16is7xx_startup(struct uart_port *port)
 			      SC16IS7XX_EFCR_TXDISABLE_BIT,
 			      0);
 
-	/* Enable RX, TX, CTS change interrupts */
-	val = SC16IS7XX_IER_RDI_BIT | SC16IS7XX_IER_THRI_BIT |
-	      SC16IS7XX_IER_CTSI_BIT;
+	/* Enable RX, TX interrupts */
+	val = SC16IS7XX_IER_RDI_BIT | SC16IS7XX_IER_THRI_BIT;
 	sc16is7xx_port_write(port, SC16IS7XX_IER_REG, val);
 
 	return 0;

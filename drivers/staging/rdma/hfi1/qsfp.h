@@ -82,8 +82,9 @@
 /* Byte 128 is Identifier: must be 0x0c for QSFP, or 0x0d for QSFP+ */
 #define QSFP_MOD_ID_OFFS 128
 /*
- * Byte 129 is "Extended Identifier". We only care about D7,D6: Power class
- *  0:1.5W, 1:2.0W, 2:2.5W, 3:3.5W
+ * Byte 129 is "Extended Identifier".
+ * For bits [7:6]: 0:1.5W, 1:2.0W, 2:2.5W, 3:3.5W
+ * For bits [1:0]: 0:Unused, 1:4W, 2:4.5W, 3:5W
  */
 #define QSFP_MOD_PWR_OFFS 129
 /* Byte 130 is Connector type. Not Intel req'd */
@@ -190,6 +191,9 @@ extern const char *const hfi1_qsfp_devtech[16];
 #define QSFP_HIGH_BIAS_WARNING		0x22
 #define QSFP_LOW_BIAS_WARNING		0x11
 
+#define QSFP_ATTEN_SDR(attenarray) (attenarray[0])
+#define QSFP_ATTEN_DDR(attenarray) (attenarray[1])
+
 /*
  * struct qsfp_data encapsulates state of QSFP device for one port.
  * it will be part of port-specific data if a board supports QSFP.
@@ -201,12 +205,6 @@ extern const char *const hfi1_qsfp_devtech[16];
  * and let the qsfp_lock arbitrate access to common resources.
  *
  */
-
-#define QSFP_PWR(pbyte) (((pbyte) >> 6) & 3)
-#define QSFP_HIGH_PWR(pbyte) (((pbyte) & 3) | 4)
-#define QSFP_ATTEN_SDR(attenarray) (attenarray[0])
-#define QSFP_ATTEN_DDR(attenarray) (attenarray[1])
-
 struct qsfp_data {
 	/* Helps to find our way */
 	struct hfi1_pportdata *ppd;
@@ -223,6 +221,7 @@ struct qsfp_data {
 
 int refresh_qsfp_cache(struct hfi1_pportdata *ppd,
 		       struct qsfp_data *cp);
+int get_qsfp_power_class(u8 power_byte);
 int qsfp_mod_present(struct hfi1_pportdata *ppd);
 int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr,
 		   u32 len, u8 *data);

@@ -185,6 +185,10 @@ int	core_tpg_set_initiator_node_tag(struct se_portal_group *,
 int	core_tpg_register(struct se_wwn *, struct se_portal_group *, int);
 int	core_tpg_deregister(struct se_portal_group *);
 
+int	target_alloc_sgl(struct scatterlist **sgl, unsigned int *nents,
+		u32 length, bool zero_page, bool chainable);
+void	target_free_sgl(struct scatterlist *sgl, int nents);
+
 /*
  * The LIO target core uses DMA_TO_DEVICE to mean that data is going
  * to the target (eg handling a WRITE) and DMA_FROM_DEVICE to mean

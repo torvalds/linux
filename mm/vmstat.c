@@ -1352,7 +1352,6 @@ static const struct file_operations proc_vmstat_file_operations = {
 static struct workqueue_struct *vmstat_wq;
 static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
 int sysctl_stat_interval __read_mostly = HZ;
-static cpumask_var_t cpu_stat_off;
 
 #ifdef CONFIG_PROC_FS
 static void refresh_vm_stats(struct work_struct *work)
@@ -1421,24 +1420,10 @@ static void vmstat_update(struct work_struct *w)
 		 * Counters were updated so we expect more updates
 		 * to occur in the future. Keep on running the
 		 * update worker thread.
-		 * If we were marked on cpu_stat_off clear the flag
-		 * so that vmstat_shepherd doesn't schedule us again.
 		 */
-		if (!cpumask_test_and_clear_cpu(smp_processor_id(),
-						cpu_stat_off)) {
-			queue_delayed_work_on(smp_processor_id(), vmstat_wq,
+		queue_delayed_work_on(smp_processor_id(), vmstat_wq,
 				this_cpu_ptr(&vmstat_work),
 				round_jiffies_relative(sysctl_stat_interval));
-		}
-	} else {
-		/*
-		 * We did not update any counters so the app may be in
-		 * a mode where it does not cause counter updates.
-		 * We may be uselessly running vmstat_update.
-		 * Defer the checking for differentials to the
-		 * shepherd thread on a different processor.
-		 */
-		cpumask_set_cpu(smp_processor_id(), cpu_stat_off);
 	}
 }
 
@@ -1470,16 +1455,17 @@ static bool need_update(int cpu)
 	return false;
 }
 
+/*
+ * Switch off vmstat processing and then fold all the remaining differentials
+ * until the diffs stay at zero. The function is used by NOHZ and can only be
+ * invoked when tick processing is not active.
+ */
 void quiet_vmstat(void)
 {
 	if (system_state != SYSTEM_RUNNING)
 		return;
 
-	/*
-	 * If we are already in hands of the shepherd then there
-	 * is nothing for us to do here.
-	 */
-	if (cpumask_test_and_set_cpu(smp_processor_id(), cpu_stat_off))
+	if (!delayed_work_pending(this_cpu_ptr(&vmstat_work)))
 		return;
 
 	if (!need_update(smp_processor_id()))
@@ -1493,7 +1479,6 @@ void quiet_vmstat(void)
 	 */
 	refresh_cpu_vm_stats(false);
 }
-
 
 /*
  * Shepherd worker thread that checks the
@@ -1511,20 +1496,11 @@ static void vmstat_shepherd(struct work_struct *w)
 
 	get_online_cpus();
 	/* Check processors whose vmstat worker threads have been disabled */
-	for_each_cpu(cpu, cpu_stat_off) {
+	for_each_online_cpu(cpu) {
 		struct delayed_work *dw = &per_cpu(vmstat_work, cpu);
 
-		if (need_update(cpu)) {
-			if (cpumask_test_and_clear_cpu(cpu, cpu_stat_off))
-				queue_delayed_work_on(cpu, vmstat_wq, dw, 0);
-		} else {
-			/*
-			 * Cancel the work if quiet_vmstat has put this
-			 * cpu on cpu_stat_off because the work item might
-			 * be still scheduled
-			 */
-			cancel_delayed_work(dw);
-		}
+		if (!delayed_work_pending(dw) && need_update(cpu))
+			queue_delayed_work_on(cpu, vmstat_wq, dw, 0);
 	}
 	put_online_cpus();
 
@@ -1539,10 +1515,6 @@ static void __init start_shepherd_timer(void)
 	for_each_possible_cpu(cpu)
 		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
 			vmstat_update);
-
-	if (!alloc_cpumask_var(&cpu_stat_off, GFP_KERNEL))
-		BUG();
-	cpumask_copy(cpu_stat_off, cpu_online_mask);
 
 	vmstat_wq = alloc_workqueue("vmstat", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
 	schedule_delayed_work(&shepherd,
@@ -1578,16 +1550,13 @@ static int vmstat_cpuup_callback(struct notifier_block *nfb,
 	case CPU_ONLINE_FROZEN:
 		refresh_zone_stat_thresholds();
 		node_set_state(cpu_to_node(cpu), N_CPU);
-		cpumask_set_cpu(cpu, cpu_stat_off);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-		cpumask_clear_cpu(cpu, cpu_stat_off);
 		break;
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		cpumask_set_cpu(cpu, cpu_stat_off);
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:

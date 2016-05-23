@@ -236,6 +236,7 @@ certainly invest a bit more effort into libata core layer).
 CLOCK
   devm_clk_get()
   devm_clk_put()
+  devm_clk_hw_register()
 
 DMA
   dmam_alloc_coherent()
@@ -267,6 +268,10 @@ IIO
   devm_iio_kfifo_free()
   devm_iio_trigger_alloc()
   devm_iio_trigger_free()
+  devm_iio_channel_get()
+  devm_iio_channel_release()
+  devm_iio_channel_get_all()
+  devm_iio_channel_release_all()
 
 INPUT
   devm_input_allocate_device()

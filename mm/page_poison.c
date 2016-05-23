@@ -13,13 +13,7 @@ static int early_page_poison_param(char *buf)
 {
 	if (!buf)
 		return -EINVAL;
-
-	if (strcmp(buf, "on") == 0)
-		want_page_poisoning = true;
-	else if (strcmp(buf, "off") == 0)
-		want_page_poisoning = false;
-
-	return 0;
+	return strtobool(buf, &want_page_poisoning);
 }
 early_param("page_poison", early_page_poison_param);
 

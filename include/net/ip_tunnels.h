@@ -171,22 +171,6 @@ struct ip_tunnel_net {
 	struct ip_tunnel __rcu *collect_md_tun;
 };
 
-struct ip_tunnel_encap_ops {
-	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
-	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
-			    u8 *protocol, struct flowi4 *fl4);
-};
-
-#define MAX_IPTUN_ENCAP_OPS 8
-
-extern const struct ip_tunnel_encap_ops __rcu *
-		iptun_encaps[MAX_IPTUN_ENCAP_OPS];
-
-int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *op,
-			    unsigned int num);
-int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
-			    unsigned int num);
-
 static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 				      __be32 saddr, __be32 daddr,
 				      u8 tos, u8 ttl, __be32 label,
@@ -251,8 +235,6 @@ void ip_tunnel_delete_net(struct ip_tunnel_net *itn, struct rtnl_link_ops *ops);
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		    const struct iphdr *tnl_params, const u8 protocol);
 int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd);
-int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
-		    u8 *protocol, struct flowi4 *fl4);
 int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict);
 int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu);
 
@@ -271,8 +253,66 @@ int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		      struct ip_tunnel_parm *p);
 void ip_tunnel_setup(struct net_device *dev, int net_id);
+
+struct ip_tunnel_encap_ops {
+	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
+	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			    u8 *protocol, struct flowi4 *fl4);
+};
+
+#define MAX_IPTUN_ENCAP_OPS 8
+
+extern const struct ip_tunnel_encap_ops __rcu *
+		iptun_encaps[MAX_IPTUN_ENCAP_OPS];
+
+int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *op,
+			    unsigned int num);
+int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
+			    unsigned int num);
+
 int ip_tunnel_encap_setup(struct ip_tunnel *t,
 			  struct ip_tunnel_encap *ipencap);
+
+static inline int ip_encap_hlen(struct ip_tunnel_encap *e)
+{
+	const struct ip_tunnel_encap_ops *ops;
+	int hlen = -EINVAL;
+
+	if (e->type == TUNNEL_ENCAP_NONE)
+		return 0;
+
+	if (e->type >= MAX_IPTUN_ENCAP_OPS)
+		return -EINVAL;
+
+	rcu_read_lock();
+	ops = rcu_dereference(iptun_encaps[e->type]);
+	if (likely(ops && ops->encap_hlen))
+		hlen = ops->encap_hlen(e);
+	rcu_read_unlock();
+
+	return hlen;
+}
+
+static inline int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
+				  u8 *protocol, struct flowi4 *fl4)
+{
+	const struct ip_tunnel_encap_ops *ops;
+	int ret = -EINVAL;
+
+	if (t->encap.type == TUNNEL_ENCAP_NONE)
+		return 0;
+
+	if (t->encap.type >= MAX_IPTUN_ENCAP_OPS)
+		return -EINVAL;
+
+	rcu_read_lock();
+	ops = rcu_dereference(iptun_encaps[t->encap.type]);
+	if (likely(ops && ops->build_header))
+		ret = ops->build_header(skb, &t->encap, protocol, fl4);
+	rcu_read_unlock();
+
+	return ret;
+}
 
 /* Extract dsfield from inner protocol */
 static inline u8 ip_tunnel_get_dsfield(const struct iphdr *iph,

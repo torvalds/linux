@@ -191,7 +191,7 @@ static bool sane_reclaim(struct scan_control *sc)
 }
 #endif
 
-static unsigned long zone_reclaimable_pages(struct zone *zone)
+unsigned long zone_reclaimable_pages(struct zone *zone)
 {
 	unsigned long nr;
 
@@ -1862,83 +1862,63 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	free_hot_cold_page_list(&l_hold, true);
 }
 
-#ifdef CONFIG_SWAP
-static bool inactive_anon_is_low_global(struct zone *zone)
-{
-	unsigned long active, inactive;
-
-	active = zone_page_state(zone, NR_ACTIVE_ANON);
-	inactive = zone_page_state(zone, NR_INACTIVE_ANON);
-
-	return inactive * zone->inactive_ratio < active;
-}
-
-/**
- * inactive_anon_is_low - check if anonymous pages need to be deactivated
- * @lruvec: LRU vector to check
+/*
+ * The inactive anon list should be small enough that the VM never has
+ * to do too much work.
  *
- * Returns true if the zone does not have enough inactive anon pages,
- * meaning some active anon pages need to be deactivated.
+ * The inactive file list should be small enough to leave most memory
+ * to the established workingset on the scan-resistant active list,
+ * but large enough to avoid thrashing the aggregate readahead window.
+ *
+ * Both inactive lists should also be large enough that each inactive
+ * page has a chance to be referenced again before it is reclaimed.
+ *
+ * The inactive_ratio is the target ratio of ACTIVE to INACTIVE pages
+ * on this LRU, maintained by the pageout code. A zone->inactive_ratio
+ * of 3 means 3:1 or 25% of the pages are kept on the inactive list.
+ *
+ * total     target    max
+ * memory    ratio     inactive
+ * -------------------------------------
+ *   10MB       1         5MB
+ *  100MB       1        50MB
+ *    1GB       3       250MB
+ *   10GB      10       0.9GB
+ *  100GB      31         3GB
+ *    1TB     101        10GB
+ *   10TB     320        32GB
  */
-static bool inactive_anon_is_low(struct lruvec *lruvec)
+static bool inactive_list_is_low(struct lruvec *lruvec, bool file)
 {
+	unsigned long inactive_ratio;
+	unsigned long inactive;
+	unsigned long active;
+	unsigned long gb;
+
 	/*
 	 * If we don't have swap space, anonymous page deactivation
 	 * is pointless.
 	 */
-	if (!total_swap_pages)
+	if (!file && !total_swap_pages)
 		return false;
 
-	if (!mem_cgroup_disabled())
-		return mem_cgroup_inactive_anon_is_low(lruvec);
+	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
 
-	return inactive_anon_is_low_global(lruvec_zone(lruvec));
-}
-#else
-static inline bool inactive_anon_is_low(struct lruvec *lruvec)
-{
-	return false;
-}
-#endif
-
-/**
- * inactive_file_is_low - check if file pages need to be deactivated
- * @lruvec: LRU vector to check
- *
- * When the system is doing streaming IO, memory pressure here
- * ensures that active file pages get deactivated, until more
- * than half of the file pages are on the inactive list.
- *
- * Once we get to that situation, protect the system's working
- * set from being evicted by disabling active file page aging.
- *
- * This uses a different ratio than the anonymous pages, because
- * the page cache uses a use-once replacement algorithm.
- */
-static bool inactive_file_is_low(struct lruvec *lruvec)
-{
-	unsigned long inactive;
-	unsigned long active;
-
-	inactive = lruvec_lru_size(lruvec, LRU_INACTIVE_FILE);
-	active = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
-
-	return active > inactive;
-}
-
-static bool inactive_list_is_low(struct lruvec *lruvec, enum lru_list lru)
-{
-	if (is_file_lru(lru))
-		return inactive_file_is_low(lruvec);
+	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+	if (gb)
+		inactive_ratio = int_sqrt(10 * gb);
 	else
-		return inactive_anon_is_low(lruvec);
+		inactive_ratio = 1;
+
+	return inactive * inactive_ratio < active;
 }
 
 static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
 				 struct lruvec *lruvec, struct scan_control *sc)
 {
 	if (is_active_lru(lru)) {
-		if (inactive_list_is_low(lruvec, lru))
+		if (inactive_list_is_low(lruvec, is_file_lru(lru)))
 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
 		return 0;
 	}
@@ -2059,7 +2039,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 	 * lruvec even if it has plenty of old anonymous pages unless the
 	 * system is under heavy pressure.
 	 */
-	if (!inactive_file_is_low(lruvec) &&
+	if (!inactive_list_is_low(lruvec, true) &&
 	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
 		scan_balance = SCAN_FILE;
 		goto out;
@@ -2301,7 +2281,7 @@ static void shrink_zone_memcg(struct zone *zone, struct mem_cgroup *memcg,
 	 * Even if we did not try to evict anon pages at all, we want to
 	 * rebalance the anon lru active/inactive ratio.
 	 */
-	if (inactive_anon_is_low(lruvec))
+	if (inactive_list_is_low(lruvec, false))
 		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
 				   sc, LRU_ACTIVE_ANON);
 
@@ -2479,7 +2459,7 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
  * Returns true if compaction should go ahead for a high-order request, or
  * the high-order allocation would succeed without compaction.
  */
-static inline bool compaction_ready(struct zone *zone, int order)
+static inline bool compaction_ready(struct zone *zone, int order, int classzone_idx)
 {
 	unsigned long balance_gap, watermark;
 	bool watermark_ok;
@@ -2493,7 +2473,7 @@ static inline bool compaction_ready(struct zone *zone, int order)
 	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
 			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
 	watermark = high_wmark_pages(zone) + balance_gap + (2UL << order);
-	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0);
+	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
 
 	/*
 	 * If compaction is deferred, reclaim up to a point where
@@ -2506,7 +2486,7 @@ static inline bool compaction_ready(struct zone *zone, int order)
 	 * If compaction is not ready to start and allocation is not likely
 	 * to succeed without it, then keep reclaiming.
 	 */
-	if (compaction_suitable(zone, order, 0, 0) == COMPACT_SKIPPED)
+	if (compaction_suitable(zone, order, 0, classzone_idx) == COMPACT_SKIPPED)
 		return false;
 
 	return watermark_ok;
@@ -2527,10 +2507,8 @@ static inline bool compaction_ready(struct zone *zone, int order)
  *
  * If a zone is deemed to be full of pinned pages then just give it a light
  * scan then give up on it.
- *
- * Returns true if a zone was reclaimable.
  */
-static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 {
 	struct zoneref *z;
 	struct zone *zone;
@@ -2538,7 +2516,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 	unsigned long nr_soft_scanned;
 	gfp_t orig_mask;
 	enum zone_type requested_highidx = gfp_zone(sc->gfp_mask);
-	bool reclaimable = false;
 
 	/*
 	 * If the number of buffer_heads in the machine exceeds the maximum
@@ -2586,7 +2563,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 			if (IS_ENABLED(CONFIG_COMPACTION) &&
 			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
 			    zonelist_zone_idx(z) <= requested_highidx &&
-			    compaction_ready(zone, sc->order)) {
+			    compaction_ready(zone, sc->order, requested_highidx)) {
 				sc->compaction_ready = true;
 				continue;
 			}
@@ -2603,17 +2580,10 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 						&nr_soft_scanned);
 			sc->nr_reclaimed += nr_soft_reclaimed;
 			sc->nr_scanned += nr_soft_scanned;
-			if (nr_soft_reclaimed)
-				reclaimable = true;
 			/* need some check for avoid more shrink_zone() */
 		}
 
-		if (shrink_zone(zone, sc, zone_idx(zone) == classzone_idx))
-			reclaimable = true;
-
-		if (global_reclaim(sc) &&
-		    !reclaimable && zone_reclaimable(zone))
-			reclaimable = true;
+		shrink_zone(zone, sc, zone_idx(zone) == classzone_idx);
 	}
 
 	/*
@@ -2621,8 +2591,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 	 * promoted it to __GFP_HIGHMEM.
 	 */
 	sc->gfp_mask = orig_mask;
-
-	return reclaimable;
 }
 
 /*
@@ -2647,7 +2615,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 	int initial_priority = sc->priority;
 	unsigned long total_scanned = 0;
 	unsigned long writeback_threshold;
-	bool zones_reclaimable;
 retry:
 	delayacct_freepages_start();
 
@@ -2658,7 +2625,7 @@ retry:
 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
 				sc->priority);
 		sc->nr_scanned = 0;
-		zones_reclaimable = shrink_zones(zonelist, sc);
+		shrink_zones(zonelist, sc);
 
 		total_scanned += sc->nr_scanned;
 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
@@ -2704,10 +2671,6 @@ retry:
 		sc->may_thrash = 1;
 		goto retry;
 	}
-
-	/* Any of the zones still reclaimable?  Don't OOM. */
-	if (zones_reclaimable)
-		return 1;
 
 	return 0;
 }
@@ -2962,7 +2925,7 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc)
 	do {
 		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
 
-		if (inactive_anon_is_low(lruvec))
+		if (inactive_list_is_low(lruvec, false))
 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
 					   sc, LRU_ACTIVE_ANON);
 

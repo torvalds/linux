@@ -158,10 +158,15 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	int i;
 	int rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) hash %llu\n",
-	       inode->i_ino, inode->i_generation, inode, hash);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p) hash %llu\n",
+	       PFID(ll_inode2fid(inode)), inode, hash);
 
 	LASSERT(max_pages > 0 && max_pages <= MD_MAX_BRW_PAGES);
+
+	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, NULL);
+	if (IS_ERR(op_data))
+		return PTR_ERR(op_data);
 
 	page_pool = kcalloc(max_pages, sizeof(page), GFP_NOFS);
 	if (page_pool) {
@@ -177,8 +182,6 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 		page_pool[npages] = page;
 	}
 
-	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
-				     LUSTRE_OPC_ANY, NULL);
 	op_data->op_npages = npages;
 	op_data->op_offset = hash;
 	rc = md_readpage(exp, op_data, page_pool, &request);
@@ -190,7 +193,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 		body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
 		/* Checked by mdc_readpage() */
 		if (body->valid & OBD_MD_FLSIZE)
-			cl_isize_write(inode, body->size);
+			i_size_write(inode, body->size);
 
 		nrdpgs = (request->rq_bulk->bd_nob_transferred+PAGE_SIZE-1)
 			 >> PAGE_SHIFT;
@@ -372,8 +375,8 @@ struct page *ll_get_dir_page(struct inode *dir, __u64 hash,
 			return ERR_PTR(rc);
 		}
 
-		CDEBUG(D_INODE, "setting lr_lvb_inode to inode %p (%lu/%u)\n",
-		       dir, dir->i_ino, dir->i_generation);
+		CDEBUG(D_INODE, "setting lr_lvb_inode to inode "DFID"(%p)\n",
+		       PFID(ll_inode2fid(dir)), dir);
 		md_set_lock_data(ll_i2sbi(dir)->ll_md_exp,
 				 &it.d.lustre.it_lock_handle, dir, NULL);
 	} else {
@@ -466,6 +469,28 @@ fail:
 	ll_release_page(page, 1);
 	page = ERR_PTR(-EIO);
 	goto out_unlock;
+}
+
+/**
+ * return IF_* type for given lu_dirent entry.
+ * IF_* flag shld be converted to particular OS file type in
+ * platform llite module.
+ */
+static __u16 ll_dirent_type_get(struct lu_dirent *ent)
+{
+	__u16 type = 0;
+	struct luda_type *lt;
+	int len = 0;
+
+	if (le32_to_cpu(ent->lde_attrs) & LUDA_TYPE) {
+		const unsigned int align = sizeof(struct luda_type) - 1;
+
+		len = le16_to_cpu(ent->lde_namelen);
+		len = (len + align) & ~align;
+		lt = (void *)ent->lde_name + len;
+		type = IFTODT(le16_to_cpu(lt->lt_type));
+	}
+	return type;
 }
 
 int ll_dir_read(struct inode *inode, struct dir_context *ctx)
@@ -589,15 +614,16 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 	struct inode		*inode	= file_inode(filp);
 	struct ll_file_data	*lfd	= LUSTRE_FPRIVATE(filp);
 	struct ll_sb_info	*sbi	= ll_i2sbi(inode);
+	__u64 pos = lfd ? lfd->lfd_pos : 0;
 	int			hash64	= sbi->ll_flags & LL_SBI_64BIT_HASH;
 	int			api32	= ll_need_32bit_api(sbi);
 	int			rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) pos %lu/%llu 32bit_api %d\n",
-	       inode->i_ino, inode->i_generation,
-	       inode, (unsigned long)lfd->lfd_pos, i_size_read(inode), api32);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p) pos %lu/%llu 32bit_api %d\n",
+	       PFID(ll_inode2fid(inode)), inode, (unsigned long)pos,
+	       i_size_read(inode), api32);
 
-	if (lfd->lfd_pos == MDS_DIR_END_OFF) {
+	if (pos == MDS_DIR_END_OFF) {
 		/*
 		 * end-of-file.
 		 */
@@ -605,9 +631,10 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 		goto out;
 	}
 
-	ctx->pos = lfd->lfd_pos;
+	ctx->pos = pos;
 	rc = ll_dir_read(inode, ctx);
-	lfd->lfd_pos = ctx->pos;
+	if (lfd)
+		lfd->lfd_pos = ctx->pos;
 	if (ctx->pos == MDS_DIR_END_OFF) {
 		if (api32)
 			ctx->pos = LL_DIR_END_OFF_32BIT;
@@ -804,9 +831,8 @@ int ll_dir_getstripe(struct inode *inode, struct lov_mds_md **lmmp,
 	rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 	ll_finish_md_op_data(op_data);
 	if (rc < 0) {
-		CDEBUG(D_INFO, "md_getattr failed on inode %lu/%u: rc %d\n",
-		       inode->i_ino,
-		       inode->i_generation, rc);
+		CDEBUG(D_INFO, "md_getattr failed on inode "DFID": rc %d\n",
+		       PFID(ll_inode2fid(inode)), rc);
 		goto out;
 	}
 
@@ -916,7 +942,7 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 		}
 
 		/* Read current file data version */
-		rc = ll_data_version(inode, &data_version, 1);
+		rc = ll_data_version(inode, &data_version, LL_DV_RD_FLUSH);
 		iput(inode);
 		if (rc != 0) {
 			CDEBUG(D_HSM, "Could not read file data version of "
@@ -936,6 +962,9 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 	}
 
 progress:
+	/* On error, the request should be considered as completed */
+	if (hpk.hpk_errval > 0)
+		hpk.hpk_flags |= HP_FLAG_COMPLETED;
 	rc = obd_iocontrol(LL_IOC_HSM_PROGRESS, sbi->ll_md_exp, sizeof(hpk),
 			   &hpk, NULL);
 
@@ -997,8 +1026,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 			goto progress;
 		}
 
-		rc = ll_data_version(inode, &data_version,
-				     copy->hc_hai.hai_action == HSMA_ARCHIVE);
+		rc = ll_data_version(inode, &data_version, LL_DV_RD_FLUSH);
 		iput(inode);
 		if (rc) {
 			CDEBUG(D_HSM, "Could not read file data version. Request could not be confirmed.\n");
@@ -1033,7 +1061,6 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 			/* hpk_errval must be >= 0 */
 			hpk.hpk_errval = EBUSY;
 		}
-
 	}
 
 progress:
@@ -1242,8 +1269,8 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct obd_ioctl_data *data;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), cmd=%#x\n",
-	       inode->i_ino, inode->i_generation, inode, cmd);
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), cmd=%#x\n",
+	       PFID(ll_inode2fid(inode)), inode, cmd);
 
 	/* asm-ppc{,64} declares TCGETS, et. al. as type 't' not 'T' */
 	if (_IOC_TYPE(cmd) == 'T' || _IOC_TYPE(cmd) == 't') /* tty ioctls */
@@ -1362,7 +1389,6 @@ out_free:
 lmv_out_free:
 		obd_ioctl_freedata(buf, len);
 		return rc;
-
 	}
 	case LL_IOC_LOV_SETSTRIPE: {
 		struct lov_user_md_v3 lumv3;
@@ -1474,8 +1500,9 @@ free_lmv:
 					       cmd == LL_IOC_MDC_GETINFO)) {
 				rc = 0;
 				goto skip_lmm;
-			} else
+			} else {
 				goto out_req;
+			}
 		}
 
 		if (cmd == IOC_MDC_GETFILESTRIPE ||
@@ -1688,15 +1715,16 @@ out_quotactl:
 		return ll_flush_ctx(inode);
 #ifdef CONFIG_FS_POSIX_ACL
 	case LL_IOC_RMTACL: {
-	    if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
-		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
+		if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
+			struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
-		rc = rct_add(&sbi->ll_rct, current_pid(), arg);
-		if (!rc)
-			fd->fd_flags |= LL_FILE_RMTACL;
-		return rc;
-	    } else
-		return 0;
+			rc = rct_add(&sbi->ll_rct, current_pid(), arg);
+			if (!rc)
+				fd->fd_flags |= LL_FILE_RMTACL;
+			return rc;
+		} else {
+			return 0;
+		}
 	}
 #endif
 	case LL_IOC_GETOBDCOUNT: {
@@ -1817,6 +1845,9 @@ out_quotactl:
 		return rc;
 	}
 	case LL_IOC_HSM_CT_START:
+		if (!capable(CFS_CAP_SYS_ADMIN))
+			return -EPERM;
+
 		rc = copy_and_ioctl(cmd, sbi->ll_md_exp, (void __user *)arg,
 				    sizeof(struct lustre_kernelcomm));
 		return rc;

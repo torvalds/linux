@@ -90,6 +90,7 @@ enum {
  * DQA queue numbers
  *
  * @IWL_MVM_DQA_CMD_QUEUE: a queue reserved for sending HCMDs to the FW
+ * @IWL_MVM_DQA_P2P_DEVICE_QUEUE: a queue reserved for P2P device frames
  * @IWL_MVM_DQA_GCAST_QUEUE: a queue reserved for P2P GO/SoftAP GCAST frames
  * @IWL_MVM_DQA_BSS_CLIENT_QUEUE: a queue reserved for BSS activity, to ensure
  *	that we are never left without the possibility to connect to an AP.
@@ -97,6 +98,8 @@ enum {
  *	Each MGMT queue is mapped to a single STA
  *	MGMT frames are frames that return true on ieee80211_is_mgmt()
  * @IWL_MVM_DQA_MAX_MGMT_QUEUE: last TXQ in pool for MGMT frames
+ * @IWL_MVM_DQA_AP_PROBE_RESP_QUEUE: a queue reserved for P2P GO/SoftAP probe
+ *	responses
  * @IWL_MVM_DQA_MIN_DATA_QUEUE: first TXQ in pool for DATA frames.
  *	DATA frames are intended for !ieee80211_is_mgmt() frames, but if
  *	the MGMT TXQ pool is exhausted, mgmt frames can be sent on DATA queues
@@ -105,10 +108,12 @@ enum {
  */
 enum iwl_mvm_dqa_txq {
 	IWL_MVM_DQA_CMD_QUEUE = 0,
+	IWL_MVM_DQA_P2P_DEVICE_QUEUE = 2,
 	IWL_MVM_DQA_GCAST_QUEUE = 3,
 	IWL_MVM_DQA_BSS_CLIENT_QUEUE = 4,
 	IWL_MVM_DQA_MIN_MGMT_QUEUE = 5,
 	IWL_MVM_DQA_MAX_MGMT_QUEUE = 8,
+	IWL_MVM_DQA_AP_PROBE_RESP_QUEUE = 9,
 	IWL_MVM_DQA_MIN_DATA_QUEUE = 10,
 	IWL_MVM_DQA_MAX_DATA_QUEUE = 31,
 };

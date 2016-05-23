@@ -1065,7 +1065,7 @@ static int iss_register_entities(struct iss_device *iss)
 		}
 
 		ret = media_create_pad_link(&sensor->entity, 0, input, pad,
-					       flags);
+					    flags);
 		if (ret < 0)
 			goto done;
 	}

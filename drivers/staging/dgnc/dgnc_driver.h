@@ -202,18 +202,13 @@ struct dgnc_board {
 						 * to our channels.
 						 */
 
-	struct tty_driver	SerialDriver;
-	char		SerialName[200];
-	struct tty_driver	PrintDriver;
-	char		PrintName[200];
+	struct tty_driver *serial_driver;
+	char		serial_name[200];
+	struct tty_driver *print_driver;
+	char		print_name[200];
 
-	bool		dgnc_Major_Serial_Registered;
-	bool		dgnc_Major_TransparentPrint_Registered;
-
-	uint		dgnc_Serial_Major;
-	uint		dgnc_TransparentPrint_Major;
-
-	uint		TtyRefCnt;
+	bool		dgnc_major_serial_registered;
+	bool		dgnc_major_transparent_print_registered;
 
 	u16		dpatype;	/* The board "type",
 					 * as defined by DPA
@@ -399,12 +394,12 @@ struct channel_t {
 /*
  * Our Global Variables.
  */
-extern uint		dgnc_Major;		/* Our driver/mgmt major */
+extern uint		dgnc_major;		/* Our driver/mgmt major */
 extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
 extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
-extern uint		dgnc_NumBoards;		/* Total number of boards */
-extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board
+extern uint		dgnc_num_boards;		/* Total number of boards */
+extern struct dgnc_board	*dgnc_board[MAXBOARDS];	/* Array of board
 							 * structs
 							 */
 

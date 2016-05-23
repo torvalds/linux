@@ -61,11 +61,11 @@ void __big_gang_check(void)
 	} while (!wrapped);
 }
 
-void big_gang_check(void)
+void big_gang_check(bool long_run)
 {
 	int i;
 
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < (long_run ? 1000 : 3); i++) {
 		__big_gang_check();
 		srand(time(0));
 		printf("%d ", i);
@@ -232,10 +232,72 @@ void copy_tag_check(void)
 	item_kill_tree(&tree);
 }
 
-static void single_thread_tests(void)
+static void __locate_check(struct radix_tree_root *tree, unsigned long index,
+			unsigned order)
+{
+	struct item *item;
+	unsigned long index2;
+
+	item_insert_order(tree, index, order);
+	item = item_lookup(tree, index);
+	index2 = radix_tree_locate_item(tree, item);
+	if (index != index2) {
+		printf("index %ld order %d inserted; found %ld\n",
+			index, order, index2);
+		abort();
+	}
+}
+
+static void __order_0_locate_check(void)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	int i;
+
+	for (i = 0; i < 50; i++)
+		__locate_check(&tree, rand() % INT_MAX, 0);
+
+	item_kill_tree(&tree);
+}
+
+static void locate_check(void)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	unsigned order;
+	unsigned long offset, index;
+
+	__order_0_locate_check();
+
+	for (order = 0; order < 20; order++) {
+		for (offset = 0; offset < (1 << (order + 3));
+		     offset += (1UL << order)) {
+			for (index = 0; index < (1UL << (order + 5));
+			     index += (1UL << order)) {
+				__locate_check(&tree, index + offset, order);
+			}
+			if (radix_tree_locate_item(&tree, &tree) != -1)
+				abort();
+
+			item_kill_tree(&tree);
+		}
+	}
+
+	if (radix_tree_locate_item(&tree, &tree) != -1)
+		abort();
+	__locate_check(&tree, -1, 0);
+	if (radix_tree_locate_item(&tree, &tree) != -1)
+		abort();
+	item_kill_tree(&tree);
+}
+
+static void single_thread_tests(bool long_run)
 {
 	int i;
 
+	printf("starting single_thread_tests: %d allocated\n", nr_allocated);
+	multiorder_checks();
+	printf("after multiorder_check: %d allocated\n", nr_allocated);
+	locate_check();
+	printf("after locate_check: %d allocated\n", nr_allocated);
 	tag_check();
 	printf("after tag_check: %d allocated\n", nr_allocated);
 	gang_check();
@@ -244,9 +306,9 @@ static void single_thread_tests(void)
 	printf("after add_and_check: %d allocated\n", nr_allocated);
 	dynamic_height_check();
 	printf("after dynamic_height_check: %d allocated\n", nr_allocated);
-	big_gang_check();
+	big_gang_check(long_run);
 	printf("after big_gang_check: %d allocated\n", nr_allocated);
-	for (i = 0; i < 2000; i++) {
+	for (i = 0; i < (long_run ? 2000 : 3); i++) {
 		copy_tag_check();
 		printf("%d ", i);
 		fflush(stdout);
@@ -254,15 +316,23 @@ static void single_thread_tests(void)
 	printf("after copy_tag_check: %d allocated\n", nr_allocated);
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+	bool long_run = false;
+	int opt;
+
+	while ((opt = getopt(argc, argv, "l")) != -1) {
+		if (opt == 'l')
+			long_run = true;
+	}
+
 	rcu_register_thread();
 	radix_tree_init();
 
 	regression1_test();
 	regression2_test();
 	regression3_test();
-	single_thread_tests();
+	single_thread_tests(long_run);
 
 	sleep(1);
 	printf("after sleep(1): %d allocated\n", nr_allocated);

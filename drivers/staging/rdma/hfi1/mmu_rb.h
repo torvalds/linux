@@ -70,5 +70,7 @@ int hfi1_mmu_rb_insert(struct rb_root *, struct mmu_rb_node *);
 void hfi1_mmu_rb_remove(struct rb_root *, struct mmu_rb_node *);
 struct mmu_rb_node *hfi1_mmu_rb_search(struct rb_root *, unsigned long,
 				       unsigned long);
+struct mmu_rb_node *hfi1_mmu_rb_extract(struct rb_root *, unsigned long,
+					unsigned long);
 
 #endif /* _HFI1_MMU_RB_H */

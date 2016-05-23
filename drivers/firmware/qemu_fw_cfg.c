@@ -125,9 +125,7 @@ static void fw_cfg_io_cleanup(void)
 #  define FW_CFG_CTRL_OFF 0x00
 #  define FW_CFG_DATA_OFF 0x01
 # else
-#  warning "QEMU FW_CFG may not be available on this architecture!"
-#  define FW_CFG_CTRL_OFF 0x00
-#  define FW_CFG_DATA_OFF 0x01
+#  error "QEMU FW_CFG not available on this architecture!"
 # endif
 #endif
 

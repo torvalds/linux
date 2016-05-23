@@ -3081,13 +3081,12 @@ static int ocrdma_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-int ocrdma_map_mr_sg(struct ib_mr *ibmr,
-		     struct scatterlist *sg,
-		     int sg_nents)
+int ocrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		     unsigned int *sg_offset)
 {
 	struct ocrdma_mr *mr = get_ocrdma_mr(ibmr);
 
 	mr->npages = 0;
 
-	return ib_sg_to_pages(ibmr, sg, sg_nents, ocrdma_set_page);
+	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, ocrdma_set_page);
 }

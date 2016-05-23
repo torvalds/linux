@@ -600,10 +600,11 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 static void o2net_data_ready(struct sock *sk)
 {
 	void (*ready)(struct sock *sk);
+	struct o2net_sock_container *sc;
 
-	read_lock(&sk->sk_callback_lock);
-	if (sk->sk_user_data) {
-		struct o2net_sock_container *sc = sk->sk_user_data;
+	read_lock_bh(&sk->sk_callback_lock);
+	sc = sk->sk_user_data;
+	if (sc) {
 		sclog(sc, "data_ready hit\n");
 		o2net_set_data_ready_time(sc);
 		o2net_sc_queue_work(sc, &sc->sc_rx_work);
@@ -611,7 +612,7 @@ static void o2net_data_ready(struct sock *sk)
 	} else {
 		ready = sk->sk_data_ready;
 	}
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 
 	ready(sk);
 }
@@ -622,7 +623,7 @@ static void o2net_state_change(struct sock *sk)
 	void (*state_change)(struct sock *sk);
 	struct o2net_sock_container *sc;
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	sc = sk->sk_user_data;
 	if (sc == NULL) {
 		state_change = sk->sk_state_change;
@@ -649,7 +650,7 @@ static void o2net_state_change(struct sock *sk)
 		break;
 	}
 out:
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	state_change(sk);
 }
 
@@ -2012,7 +2013,7 @@ static void o2net_listen_data_ready(struct sock *sk)
 {
 	void (*ready)(struct sock *sk);
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	ready = sk->sk_user_data;
 	if (ready == NULL) { /* check for teardown race */
 		ready = sk->sk_data_ready;
@@ -2039,7 +2040,7 @@ static void o2net_listen_data_ready(struct sock *sk)
 	}
 
 out:
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	if (ready != NULL)
 		ready(sk);
 }

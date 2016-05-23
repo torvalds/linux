@@ -783,15 +783,14 @@ static int iwch_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-static int iwch_map_mr_sg(struct ib_mr *ibmr,
-			  struct scatterlist *sg,
-			  int sg_nents)
+static int iwch_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
+			  int sg_nents, unsigned int *sg_offset)
 {
 	struct iwch_mr *mhp = to_iwch_mr(ibmr);
 
 	mhp->npages = 0;
 
-	return ib_sg_to_pages(ibmr, sg, sg_nents, iwch_set_page);
+	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, iwch_set_page);
 }
 
 static int iwch_destroy_qp(struct ib_qp *ib_qp)

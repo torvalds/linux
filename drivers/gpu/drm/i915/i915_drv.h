@@ -3577,11 +3577,6 @@ static inline i915_reg_t i915_vgacntrl_reg(struct drm_device *dev)
 		return VGACNTRL;
 }
 
-static inline void __user *to_user_ptr(u64 address)
-{
-	return (void __user *)(uintptr_t)address;
-}
-
 static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
 {
 	unsigned long j = msecs_to_jiffies(m);

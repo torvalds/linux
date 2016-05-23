@@ -829,13 +829,13 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
-		qp->allowed_ops = IB_OPCODE_UD_SEND_ONLY & RVT_OPCODE_QP_MASK;
+		qp->allowed_ops = IB_OPCODE_UD;
 		break;
 	case IB_QPT_RC:
-		qp->allowed_ops = IB_OPCODE_RC_SEND_ONLY & RVT_OPCODE_QP_MASK;
+		qp->allowed_ops = IB_OPCODE_RC;
 		break;
 	case IB_QPT_UC:
-		qp->allowed_ops = IB_OPCODE_UC_SEND_ONLY & RVT_OPCODE_QP_MASK;
+		qp->allowed_ops = IB_OPCODE_UC;
 		break;
 	default:
 		ret = ERR_PTR(-EINVAL);

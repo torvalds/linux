@@ -2652,8 +2652,7 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
 }
 
 /*
- * Reclaims as many pages from the given memcg as possible and moves
- * the rest to the parent.
+ * Reclaims as many pages from the given memcg as possible.
  *
  * Caller is responsible for holding css reference for memcg.
  */

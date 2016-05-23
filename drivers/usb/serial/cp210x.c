@@ -331,6 +331,42 @@ struct cp210x_comm_status {
  */
 #define PURGE_ALL		0x000f
 
+/* CP210X_GET_FLOW/CP210X_SET_FLOW read/write these 0x10 bytes */
+struct cp210x_flow_ctl {
+	__le32	ulControlHandshake;
+	__le32	ulFlowReplace;
+	__le32	ulXonLimit;
+	__le32	ulXoffLimit;
+} __packed;
+
+/* cp210x_flow_ctl::ulControlHandshake */
+#define CP210X_SERIAL_DTR_MASK		GENMASK(1, 0)
+#define CP210X_SERIAL_DTR_SHIFT(_mode)	(_mode)
+#define CP210X_SERIAL_CTS_HANDSHAKE	BIT(3)
+#define CP210X_SERIAL_DSR_HANDSHAKE	BIT(4)
+#define CP210X_SERIAL_DCD_HANDSHAKE	BIT(5)
+#define CP210X_SERIAL_DSR_SENSITIVITY	BIT(6)
+
+/* values for cp210x_flow_ctl::ulControlHandshake::CP210X_SERIAL_DTR_MASK */
+#define CP210X_SERIAL_DTR_INACTIVE	0
+#define CP210X_SERIAL_DTR_ACTIVE	1
+#define CP210X_SERIAL_DTR_FLOW_CTL	2
+
+/* cp210x_flow_ctl::ulFlowReplace */
+#define CP210X_SERIAL_AUTO_TRANSMIT	BIT(0)
+#define CP210X_SERIAL_AUTO_RECEIVE	BIT(1)
+#define CP210X_SERIAL_ERROR_CHAR	BIT(2)
+#define CP210X_SERIAL_NULL_STRIPPING	BIT(3)
+#define CP210X_SERIAL_BREAK_CHAR	BIT(4)
+#define CP210X_SERIAL_RTS_MASK		GENMASK(7, 6)
+#define CP210X_SERIAL_RTS_SHIFT(_mode)	(_mode << 6)
+#define CP210X_SERIAL_XOFF_CONTINUE	BIT(31)
+
+/* values for cp210x_flow_ctl::ulFlowReplace::CP210X_SERIAL_RTS_MASK */
+#define CP210X_SERIAL_RTS_INACTIVE	0
+#define CP210X_SERIAL_RTS_ACTIVE	1
+#define CP210X_SERIAL_RTS_FLOW_CTL	2
+
 /*
  * Reads a variable-sized block of CP210X_ registers, identified by req.
  * Returns data into buf in native USB byte order.
@@ -698,9 +734,10 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 {
 	struct device *dev = &port->dev;
 	unsigned int cflag;
-	u8 modem_ctl[16];
+	struct cp210x_flow_ctl flow_ctl;
 	u32 baud;
 	u16 bits;
+	u32 ctl_hs;
 
 	cp210x_read_u32_reg(port, CP210X_GET_BAUDRATE, &baud);
 
@@ -796,9 +833,10 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 		break;
 	}
 
-	cp210x_read_reg_block(port, CP210X_GET_FLOW, modem_ctl,
-			sizeof(modem_ctl));
-	if (modem_ctl[0] & 0x08) {
+	cp210x_read_reg_block(port, CP210X_GET_FLOW, &flow_ctl,
+			sizeof(flow_ctl));
+	ctl_hs = le32_to_cpu(flow_ctl.ulControlHandshake);
+	if (ctl_hs & CP210X_SERIAL_CTS_HANDSHAKE) {
 		dev_dbg(dev, "%s - flow control = CRTSCTS\n", __func__);
 		cflag |= CRTSCTS;
 	} else {
@@ -867,7 +905,6 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	struct device *dev = &port->dev;
 	unsigned int cflag, old_cflag;
 	u16 bits;
-	u8 modem_ctl[16];
 
 	cflag = tty->termios.c_cflag;
 	old_cflag = old_termios->c_cflag;
@@ -951,35 +988,44 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	}
 
 	if ((cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
+		struct cp210x_flow_ctl flow_ctl;
+		u32 ctl_hs;
+		u32 flow_repl;
 
-		/* Only bytes 0, 4 and 7 out of first 8 have functional bits */
+		cp210x_read_reg_block(port, CP210X_GET_FLOW, &flow_ctl,
+				sizeof(flow_ctl));
+		ctl_hs = le32_to_cpu(flow_ctl.ulControlHandshake);
+		flow_repl = le32_to_cpu(flow_ctl.ulFlowReplace);
+		dev_dbg(dev, "%s - read ulControlHandshake=0x%08x, ulFlowReplace=0x%08x\n",
+				__func__, ctl_hs, flow_repl);
 
-		cp210x_read_reg_block(port, CP210X_GET_FLOW, modem_ctl,
-				sizeof(modem_ctl));
-		dev_dbg(dev, "%s - read modem controls = %02x .. .. .. %02x .. .. %02x\n",
-			__func__, modem_ctl[0], modem_ctl[4], modem_ctl[7]);
-
+		ctl_hs &= ~CP210X_SERIAL_DSR_HANDSHAKE;
+		ctl_hs &= ~CP210X_SERIAL_DCD_HANDSHAKE;
+		ctl_hs &= ~CP210X_SERIAL_DSR_SENSITIVITY;
+		ctl_hs &= ~CP210X_SERIAL_DTR_MASK;
+		ctl_hs |= CP210X_SERIAL_DTR_SHIFT(CP210X_SERIAL_DTR_ACTIVE);
 		if (cflag & CRTSCTS) {
-			modem_ctl[0] &= ~0x7B;
-			modem_ctl[0] |= 0x09;
-			modem_ctl[4] = 0x80;
-			/* FIXME - why clear reserved bits just read? */
-			modem_ctl[5] = 0;
-			modem_ctl[6] = 0;
-			modem_ctl[7] = 0;
+			ctl_hs |= CP210X_SERIAL_CTS_HANDSHAKE;
+
+			flow_repl &= ~CP210X_SERIAL_RTS_MASK;
+			flow_repl |= CP210X_SERIAL_RTS_SHIFT(
+					CP210X_SERIAL_RTS_FLOW_CTL);
 			dev_dbg(dev, "%s - flow control = CRTSCTS\n", __func__);
 		} else {
-			modem_ctl[0] &= ~0x7B;
-			modem_ctl[0] |= 0x01;
-			/* FIXME - OR here instead of assignment looks wrong */
-			modem_ctl[4] |= 0x40;
+			ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
+
+			flow_repl &= ~CP210X_SERIAL_RTS_MASK;
+			flow_repl |= CP210X_SERIAL_RTS_SHIFT(
+					CP210X_SERIAL_RTS_ACTIVE);
 			dev_dbg(dev, "%s - flow control = NONE\n", __func__);
 		}
 
-		dev_dbg(dev, "%s - write modem controls = %02x .. .. .. %02x .. .. %02x\n",
-			__func__, modem_ctl[0], modem_ctl[4], modem_ctl[7]);
-		cp210x_write_reg_block(port, CP210X_SET_FLOW, modem_ctl,
-				sizeof(modem_ctl));
+		dev_dbg(dev, "%s - write ulControlHandshake=0x%08x, ulFlowReplace=0x%08x\n",
+				__func__, ctl_hs, flow_repl);
+		flow_ctl.ulControlHandshake = cpu_to_le32(ctl_hs);
+		flow_ctl.ulFlowReplace = cpu_to_le32(flow_repl);
+		cp210x_write_reg_block(port, CP210X_SET_FLOW, &flow_ctl,
+				sizeof(flow_ctl));
 	}
 
 }

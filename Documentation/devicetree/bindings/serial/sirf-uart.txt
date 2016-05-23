@@ -9,9 +9,9 @@ Required properties:
 - clocks : Should contain uart clock number
 
 Optional properties:
-- sirf,uart-has-rtscts: we have hardware flow controller pins in hardware
-- rts-gpios: RTS pin for USP-based UART if sirf,uart-has-rtscts is true
-- cts-gpios: CTS pin for USP-based UART if sirf,uart-has-rtscts is true
+- uart-has-rtscts: we have hardware flow controller pins in hardware
+- rts-gpios: RTS pin for USP-based UART if uart-has-rtscts is true
+- cts-gpios: CTS pin for USP-based UART if uart-has-rtscts is true
 
 Example:
 
@@ -28,7 +28,7 @@ On the board-specific dts, we can put rts-gpios and cts-gpios like
 
 usp@b0090000 {
 	compatible = "sirf,prima2-usp-uart";
-	sirf,uart-has-rtscts;
+	uart-has-rtscts;
 	rts-gpios = <&gpio 15 0>;
 	cts-gpios = <&gpio 46 0>;
 };
