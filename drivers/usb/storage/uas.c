@@ -848,7 +848,6 @@ static struct scsi_host_template uas_host_template = {
 	.slave_configure = uas_slave_configure,
 	.eh_abort_handler = uas_eh_abort_handler,
 	.eh_bus_reset_handler = uas_eh_bus_reset_handler,
-	.can_queue = MAX_CMNDS,
 	.this_id = -1,
 	.sg_tablesize = SG_NONE,
 	.skip_settle_delay = 1,
