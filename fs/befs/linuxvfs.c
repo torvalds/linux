@@ -155,7 +155,7 @@ befs_get_block(struct inode *inode, sector_t block,
 static struct dentry *
 befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
-	struct inode *inode = NULL;
+	struct inode *inode;
 	struct super_block *sb = dir->i_sb;
 	const befs_data_stream *ds = &BEFS_I(dir)->i_data.ds;
 	befs_off_t offset;
