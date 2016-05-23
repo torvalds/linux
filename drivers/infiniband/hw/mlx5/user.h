@@ -179,6 +179,11 @@ struct mlx5_ib_create_wq_resp {
 	__u32	reserved;
 };
 
+struct mlx5_ib_create_rwq_ind_tbl_resp {
+	__u32	response_length;
+	__u32	reserved;
+};
+
 struct mlx5_ib_modify_wq {
 	__u32	comp_mask;
 	__u32	reserved;

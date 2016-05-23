@@ -247,6 +247,11 @@ enum {
 	MLX5_WQ_KERNEL
 };
 
+struct mlx5_ib_rwq_ind_table {
+	struct ib_rwq_ind_table ib_rwq_ind_tbl;
+	u32			rqtn;
+};
+
 /*
  * Connect-IB can trigger up to four concurrent pagefaults
  * per-QP.
@@ -657,6 +662,11 @@ static inline struct mlx5_ib_rwq *to_mrwq(struct ib_wq *ibwq)
 	return container_of(ibwq, struct mlx5_ib_rwq, ibwq);
 }
 
+static inline struct mlx5_ib_rwq_ind_table *to_mrwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_tbl)
+{
+	return container_of(ib_rwq_ind_tbl, struct mlx5_ib_rwq_ind_table, ib_rwq_ind_tbl);
+}
+
 static inline struct mlx5_ib_srq *to_mibsrq(struct mlx5_core_srq *msrq)
 {
 	return container_of(msrq, struct mlx5_ib_srq, msrq);
@@ -797,6 +807,10 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 int mlx5_ib_destroy_wq(struct ib_wq *wq);
 int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		      u32 wq_attr_mask, struct ib_udata *udata);
+struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
+						      struct ib_rwq_ind_table_init_attr *init_attr,
+						      struct ib_udata *udata);
+int mlx5_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table);
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 extern struct workqueue_struct *mlx5_ib_page_fault_wq;
