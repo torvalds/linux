@@ -86,21 +86,21 @@ DECLARE_EVENT_CLASS(dwc3_log_ctrl,
 	TP_STRUCT__entry(
 		__field(__u8, bRequestType)
 		__field(__u8, bRequest)
-		__field(__le16, wValue)
-		__field(__le16, wIndex)
-		__field(__le16, wLength)
+		__field(__u16, wValue)
+		__field(__u16, wIndex)
+		__field(__u16, wLength)
 	),
 	TP_fast_assign(
 		__entry->bRequestType = ctrl->bRequestType;
 		__entry->bRequest = ctrl->bRequest;
-		__entry->wValue = ctrl->wValue;
-		__entry->wIndex = ctrl->wIndex;
-		__entry->wLength = ctrl->wLength;
+		__entry->wValue = le16_to_cpu(ctrl->wValue);
+		__entry->wIndex = le16_to_cpu(ctrl->wIndex);
+		__entry->wLength = le16_to_cpu(ctrl->wLength);
 	),
 	TP_printk("bRequestType %02x bRequest %02x wValue %04x wIndex %04x wLength %d",
 		__entry->bRequestType, __entry->bRequest,
-		le16_to_cpu(__entry->wValue), le16_to_cpu(__entry->wIndex),
-		le16_to_cpu(__entry->wLength)
+		__entry->wValue, __entry->wIndex,
+		__entry->wLength
 	)
 );
 
