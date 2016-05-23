@@ -1554,6 +1554,88 @@ int ib_dealloc_xrcd(struct ib_xrcd *xrcd)
 }
 EXPORT_SYMBOL(ib_dealloc_xrcd);
 
+/**
+ * ib_create_wq - Creates a WQ associated with the specified protection
+ * domain.
+ * @pd: The protection domain associated with the WQ.
+ * @wq_init_attr: A list of initial attributes required to create the
+ * WQ. If WQ creation succeeds, then the attributes are updated to
+ * the actual capabilities of the created WQ.
+ *
+ * wq_init_attr->max_wr and wq_init_attr->max_sge determine
+ * the requested size of the WQ, and set to the actual values allocated
+ * on return.
+ * If ib_create_wq() succeeds, then max_wr and max_sge will always be
+ * at least as large as the requested values.
+ */
+struct ib_wq *ib_create_wq(struct ib_pd *pd,
+			   struct ib_wq_init_attr *wq_attr)
+{
+	struct ib_wq *wq;
+
+	if (!pd->device->create_wq)
+		return ERR_PTR(-ENOSYS);
+
+	wq = pd->device->create_wq(pd, wq_attr, NULL);
+	if (!IS_ERR(wq)) {
+		wq->event_handler = wq_attr->event_handler;
+		wq->wq_context = wq_attr->wq_context;
+		wq->wq_type = wq_attr->wq_type;
+		wq->cq = wq_attr->cq;
+		wq->device = pd->device;
+		wq->pd = pd;
+		wq->uobject = NULL;
+		atomic_inc(&pd->usecnt);
+		atomic_inc(&wq_attr->cq->usecnt);
+		atomic_set(&wq->usecnt, 0);
+	}
+	return wq;
+}
+EXPORT_SYMBOL(ib_create_wq);
+
+/**
+ * ib_destroy_wq - Destroys the specified WQ.
+ * @wq: The WQ to destroy.
+ */
+int ib_destroy_wq(struct ib_wq *wq)
+{
+	int err;
+	struct ib_cq *cq = wq->cq;
+	struct ib_pd *pd = wq->pd;
+
+	if (atomic_read(&wq->usecnt))
+		return -EBUSY;
+
+	err = wq->device->destroy_wq(wq);
+	if (!err) {
+		atomic_dec(&pd->usecnt);
+		atomic_dec(&cq->usecnt);
+	}
+	return err;
+}
+EXPORT_SYMBOL(ib_destroy_wq);
+
+/**
+ * ib_modify_wq - Modifies the specified WQ.
+ * @wq: The WQ to modify.
+ * @wq_attr: On input, specifies the WQ attributes to modify.
+ * @wq_attr_mask: A bit-mask used to specify which attributes of the WQ
+ *   are being modified.
+ * On output, the current values of selected WQ attributes are returned.
+ */
+int ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
+		 u32 wq_attr_mask)
+{
+	int err;
+
+	if (!wq->device->modify_wq)
+		return -ENOSYS;
+
+	err = wq->device->modify_wq(wq, wq_attr, wq_attr_mask, NULL);
+	return err;
+}
+EXPORT_SYMBOL(ib_modify_wq);
+
 struct ib_flow *ib_create_flow(struct ib_qp *qp,
 			       struct ib_flow_attr *flow_attr,
 			       int domain)

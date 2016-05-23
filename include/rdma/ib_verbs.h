@@ -1428,6 +1428,48 @@ struct ib_srq {
 	} ext;
 };
 
+enum ib_wq_type {
+	IB_WQT_RQ
+};
+
+enum ib_wq_state {
+	IB_WQS_RESET,
+	IB_WQS_RDY,
+	IB_WQS_ERR
+};
+
+struct ib_wq {
+	struct ib_device       *device;
+	struct ib_uobject      *uobject;
+	void		    *wq_context;
+	void		    (*event_handler)(struct ib_event *, void *);
+	struct ib_pd	       *pd;
+	struct ib_cq	       *cq;
+	u32		wq_num;
+	enum ib_wq_state       state;
+	enum ib_wq_type	wq_type;
+	atomic_t		usecnt;
+};
+
+struct ib_wq_init_attr {
+	void		       *wq_context;
+	enum ib_wq_type	wq_type;
+	u32		max_wr;
+	u32		max_sge;
+	struct	ib_cq	       *cq;
+	void		    (*event_handler)(struct ib_event *, void *);
+};
+
+enum ib_wq_attr_mask {
+	IB_WQ_STATE	= 1 << 0,
+	IB_WQ_CUR_STATE	= 1 << 1,
+};
+
+struct ib_wq_attr {
+	enum	ib_wq_state	wq_state;
+	enum	ib_wq_state	curr_wq_state;
+};
+
 struct ib_qp {
 	struct ib_device       *device;
 	struct ib_pd	       *pd;
@@ -1921,7 +1963,14 @@ struct ib_device {
 						   struct ifla_vf_stats *stats);
 	int			   (*set_vf_guid)(struct ib_device *device, int vf, u8 port, u64 guid,
 						  int type);
-
+	struct ib_wq *		   (*create_wq)(struct ib_pd *pd,
+						struct ib_wq_init_attr *init_attr,
+						struct ib_udata *udata);
+	int			   (*destroy_wq)(struct ib_wq *wq);
+	int			   (*modify_wq)(struct ib_wq *wq,
+						struct ib_wq_attr *attr,
+						u32 wq_attr_mask,
+						struct ib_udata *udata);
 	struct ib_dma_mapping_ops   *dma_ops;
 
 	struct module               *owner;
@@ -3167,6 +3216,11 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);
+struct ib_wq *ib_create_wq(struct ib_pd *pd,
+			   struct ib_wq_init_attr *init_attr);
+int ib_destroy_wq(struct ib_wq *wq);
+int ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *attr,
+		 u32 wq_attr_mask);
 
 int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
 		 unsigned int *sg_offset, unsigned int page_size);
