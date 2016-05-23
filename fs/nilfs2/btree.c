@@ -685,7 +685,8 @@ static int nilfs_btree_lookup(const struct nilfs_bmap *btree,
 }
 
 static int nilfs_btree_lookup_contig(const struct nilfs_bmap *btree,
-				     __u64 key, __u64 *ptrp, unsigned maxblocks)
+				     __u64 key, __u64 *ptrp,
+				     unsigned int maxblocks)
 {
 	struct nilfs_btree_path *path;
 	struct nilfs_btree_node *node;

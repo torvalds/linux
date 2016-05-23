@@ -490,8 +490,8 @@ void nilfs_mdt_destroy(struct inode *inode)
 	kfree(mdi);
 }
 
-void nilfs_mdt_set_entry_size(struct inode *inode, unsigned entry_size,
-			      unsigned header_size)
+void nilfs_mdt_set_entry_size(struct inode *inode, unsigned int entry_size,
+			      unsigned int header_size)
 {
 	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
 

@@ -37,7 +37,7 @@ nilfs_palloc_entries_per_group(const struct inode *inode)
 	return 1UL << (inode->i_blkbits + 3 /* log2(8 = CHAR_BITS) */);
 }
 
-int nilfs_palloc_init_blockgroup(struct inode *, unsigned);
+int nilfs_palloc_init_blockgroup(struct inode *, unsigned int);
 int nilfs_palloc_get_entry_block(struct inode *, __u64, int,
 				 struct buffer_head **);
 void *nilfs_palloc_block_get_entry(const struct inode *, __u64,

@@ -431,7 +431,8 @@ static void nilfs_cpfile_checkpoint_to_cpinfo(struct inode *cpfile,
 }
 
 static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 *cnop,
-					  void *buf, unsigned cisz, size_t nci)
+					  void *buf, unsigned int cisz,
+					  size_t nci)
 {
 	struct nilfs_checkpoint *cp;
 	struct nilfs_cpinfo *ci = buf;
@@ -482,7 +483,8 @@ static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 *cnop,
 }
 
 static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
-					  void *buf, unsigned cisz, size_t nci)
+					  void *buf, unsigned int cisz,
+					  size_t nci)
 {
 	struct buffer_head *bh;
 	struct nilfs_cpfile_header *header;
@@ -568,7 +570,7 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
  */
 
 ssize_t nilfs_cpfile_get_cpinfo(struct inode *cpfile, __u64 *cnop, int mode,
-				void *buf, unsigned cisz, size_t nci)
+				void *buf, unsigned int cisz, size_t nci)
 {
 	switch (mode) {
 	case NILFS_CHECKPOINT:

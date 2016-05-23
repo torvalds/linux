@@ -139,7 +139,7 @@ static int nilfs_symlink(struct inode *dir, struct dentry *dentry,
 {
 	struct nilfs_transaction_info ti;
 	struct super_block *sb = dir->i_sb;
-	unsigned l = strlen(symname)+1;
+	unsigned int l = strlen(symname) + 1;
 	struct inode *inode;
 	int err;
 

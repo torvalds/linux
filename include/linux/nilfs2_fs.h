@@ -322,9 +322,9 @@ enum {
 					~NILFS_DIR_ROUND)
 #define NILFS_MAX_REC_LEN		((1<<16)-1)
 
-static inline unsigned nilfs_rec_len_from_disk(__le16 dlen)
+static inline unsigned int nilfs_rec_len_from_disk(__le16 dlen)
 {
-	unsigned len = le16_to_cpu(dlen);
+	unsigned int len = le16_to_cpu(dlen);
 
 #if !defined(__KERNEL__) || (PAGE_SIZE >= 65536)
 	if (len == NILFS_MAX_REC_LEN)
@@ -333,7 +333,7 @@ static inline unsigned nilfs_rec_len_from_disk(__le16 dlen)
 	return len;
 }
 
-static inline __le16 nilfs_rec_len_to_disk(unsigned len)
+static inline __le16 nilfs_rec_len_to_disk(unsigned int len)
 {
 #if !defined(__KERNEL__) || (PAGE_SIZE >= 65536)
 	if (len == (1 << 16))

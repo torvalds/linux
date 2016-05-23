@@ -393,10 +393,10 @@ static void nilfs_transaction_unlock(struct super_block *sb)
 
 static void *nilfs_segctor_map_segsum_entry(struct nilfs_sc_info *sci,
 					    struct nilfs_segsum_pointer *ssp,
-					    unsigned bytes)
+					    unsigned int bytes)
 {
 	struct nilfs_segment_buffer *segbuf = sci->sc_curseg;
-	unsigned blocksize = sci->sc_super->s_blocksize;
+	unsigned int blocksize = sci->sc_super->s_blocksize;
 	void *p;
 
 	if (unlikely(ssp->offset + bytes > blocksize)) {
@@ -418,8 +418,8 @@ static int nilfs_segctor_reset_segment_buffer(struct nilfs_sc_info *sci)
 {
 	struct nilfs_segment_buffer *segbuf = sci->sc_curseg;
 	struct buffer_head *sumbh;
-	unsigned sumbytes;
-	unsigned flags = 0;
+	unsigned int sumbytes;
+	unsigned int flags = 0;
 	int err;
 
 	if (nilfs_doing_gc())
@@ -468,9 +468,9 @@ static int nilfs_segctor_add_super_root(struct nilfs_sc_info *sci)
  */
 static int nilfs_segctor_segsum_block_required(
 	struct nilfs_sc_info *sci, const struct nilfs_segsum_pointer *ssp,
-	unsigned binfo_size)
+	unsigned int binfo_size)
 {
-	unsigned blocksize = sci->sc_super->s_blocksize;
+	unsigned int blocksize = sci->sc_super->s_blocksize;
 	/* Size of finfo and binfo is enough small against blocksize */
 
 	return ssp->offset + binfo_size +
@@ -529,7 +529,7 @@ static void nilfs_segctor_end_finfo(struct nilfs_sc_info *sci,
 static int nilfs_segctor_add_file_block(struct nilfs_sc_info *sci,
 					struct buffer_head *bh,
 					struct inode *inode,
-					unsigned binfo_size)
+					unsigned int binfo_size)
 {
 	struct nilfs_segment_buffer *segbuf;
 	int required, err = 0;
@@ -773,7 +773,7 @@ static void nilfs_dispose_list(struct the_nilfs *nilfs,
 {
 	struct nilfs_inode_info *ii, *n;
 	struct nilfs_inode_info *ivec[SC_N_INODEVEC], **pii;
-	unsigned nv = 0;
+	unsigned int nv = 0;
 
 	while (!list_empty(head)) {
 		spin_lock(&nilfs->ns_inode_lock);
@@ -954,7 +954,7 @@ static void nilfs_segctor_fill_in_super_root(struct nilfs_sc_info *sci,
 {
 	struct buffer_head *bh_sr;
 	struct nilfs_super_root *raw_sr;
-	unsigned isz, srsz;
+	unsigned int isz, srsz;
 
 	bh_sr = NILFS_LAST_SEGBUF(&sci->sc_segbufs)->sb_super_root;
 	raw_sr = (struct nilfs_super_root *)bh_sr->b_data;

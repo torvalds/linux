@@ -114,10 +114,10 @@ struct the_nilfs {
 	struct buffer_head     *ns_sbh[2];
 	struct nilfs_super_block *ns_sbp[2];
 	time_t			ns_sbwtime;
-	unsigned		ns_sbwcount;
-	unsigned		ns_sbsize;
-	unsigned		ns_mount_state;
-	unsigned		ns_sb_update_freq;
+	unsigned int		ns_sbwcount;
+	unsigned int		ns_sbsize;
+	unsigned int		ns_mount_state;
+	unsigned int		ns_sb_update_freq;
 
 	/*
 	 * Following fields are dedicated to a writable FS-instance.
@@ -306,7 +306,7 @@ static inline void nilfs_get_root(struct nilfs_root *root)
 
 static inline int nilfs_valid_fs(struct the_nilfs *nilfs)
 {
-	unsigned valid_fs;
+	unsigned int valid_fs;
 
 	down_read(&nilfs->ns_sem);
 	valid_fs = (nilfs->ns_mount_state & NILFS_VALID_FS);

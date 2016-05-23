@@ -435,12 +435,12 @@ void nilfs_clear_dirty_page(struct page *page, bool silent)
 	__nilfs_clear_page_dirty(page);
 }
 
-unsigned nilfs_page_count_clean_buffers(struct page *page,
-					unsigned from, unsigned to)
+unsigned int nilfs_page_count_clean_buffers(struct page *page,
+					    unsigned int from, unsigned int to)
 {
-	unsigned block_start, block_end;
+	unsigned int block_start, block_end;
 	struct buffer_head *bh, *head;
-	unsigned nc = 0;
+	unsigned int nc = 0;
 
 	for (bh = head = page_buffers(page), block_start = 0;
 	     bh != head || !block_start;

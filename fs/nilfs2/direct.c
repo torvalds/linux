@@ -58,7 +58,7 @@ static int nilfs_direct_lookup(const struct nilfs_bmap *direct,
 
 static int nilfs_direct_lookup_contig(const struct nilfs_bmap *direct,
 				      __u64 key, __u64 *ptrp,
-				      unsigned maxblocks)
+				      unsigned int maxblocks)
 {
 	struct inode *dat = NULL;
 	__u64 ptr, ptr2;
@@ -79,7 +79,8 @@ static int nilfs_direct_lookup_contig(const struct nilfs_bmap *direct,
 		ptr = blocknr;
 	}
 
-	maxblocks = min_t(unsigned, maxblocks, NILFS_DIRECT_KEY_MAX - key + 1);
+	maxblocks = min_t(unsigned int, maxblocks,
+			  NILFS_DIRECT_KEY_MAX - key + 1);
 	for (cnt = 1; cnt < maxblocks &&
 		     (ptr2 = nilfs_direct_get_ptr(direct, key + cnt)) !=
 		     NILFS_BMAP_INVALID_PTR;

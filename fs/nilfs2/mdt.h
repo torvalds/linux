@@ -53,8 +53,8 @@ struct nilfs_shadow_map {
 struct nilfs_mdt_info {
 	struct rw_semaphore	mi_sem;
 	struct blockgroup_lock *mi_bgl;
-	unsigned		mi_entry_size;
-	unsigned		mi_first_entry_offset;
+	unsigned int		mi_entry_size;
+	unsigned int		mi_first_entry_offset;
 	unsigned long		mi_entries_per_block;
 	struct nilfs_palloc_cache *mi_palloc_cache;
 	struct nilfs_shadow_map *mi_shadow;
@@ -90,7 +90,7 @@ int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz);
 void nilfs_mdt_clear(struct inode *inode);
 void nilfs_mdt_destroy(struct inode *inode);
 
-void nilfs_mdt_set_entry_size(struct inode *, unsigned, unsigned);
+void nilfs_mdt_set_entry_size(struct inode *, unsigned int, unsigned int);
 
 int nilfs_mdt_setup_shadow_map(struct inode *inode,
 			       struct nilfs_shadow_map *shadow);

@@ -756,7 +756,7 @@ nilfs_superblock_sb_write_count_show(struct nilfs_superblock_attr *attr,
 				      struct the_nilfs *nilfs,
 				      char *buf)
 {
-	unsigned sbwcount;
+	unsigned int sbwcount;
 
 	down_read(&nilfs->ns_sem);
 	sbwcount = nilfs->ns_sbwcount;
@@ -770,7 +770,7 @@ nilfs_superblock_sb_update_frequency_show(struct nilfs_superblock_attr *attr,
 					    struct the_nilfs *nilfs,
 					    char *buf)
 {
-	unsigned sb_update_freq;
+	unsigned int sb_update_freq;
 
 	down_read(&nilfs->ns_sem);
 	sb_update_freq = nilfs->ns_sb_update_freq;
@@ -784,7 +784,7 @@ nilfs_superblock_sb_update_frequency_store(struct nilfs_superblock_attr *attr,
 					    struct the_nilfs *nilfs,
 					    const char *buf, size_t count)
 {
-	unsigned val;
+	unsigned int val;
 	int err;
 
 	err = kstrtouint(skip_spaces(buf), 0, &val);

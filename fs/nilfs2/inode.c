@@ -83,7 +83,7 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
 	__u64 blknum = 0;
 	int err = 0, ret;
-	unsigned maxblocks = bh_result->b_size >> inode->i_blkbits;
+	unsigned int maxblocks = bh_result->b_size >> inode->i_blkbits;
 
 	down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	ret = nilfs_bmap_lookup_contig(ii->i_bmap, blkoff, &blknum, maxblocks);
@@ -163,7 +163,7 @@ static int nilfs_readpage(struct file *file, struct page *page)
  * @nr_pages - number of pages to be read
  */
 static int nilfs_readpages(struct file *file, struct address_space *mapping,
-			   struct list_head *pages, unsigned nr_pages)
+			   struct list_head *pages, unsigned int nr_pages)
 {
 	return mpage_readpages(mapping, pages, nr_pages, nilfs_get_block);
 }
@@ -222,7 +222,7 @@ static int nilfs_set_page_dirty(struct page *page)
 	int ret = __set_page_dirty_nobuffers(page);
 
 	if (page_has_buffers(page)) {
-		unsigned nr_dirty = 0;
+		unsigned int nr_dirty = 0;
 		struct buffer_head *bh, *head;
 
 		/*
@@ -245,7 +245,7 @@ static int nilfs_set_page_dirty(struct page *page)
 		if (nr_dirty)
 			nilfs_set_file_dirty(inode, nr_dirty);
 	} else if (ret) {
-		unsigned nr_dirty = 1 << (PAGE_SHIFT - inode->i_blkbits);
+		unsigned int nr_dirty = 1 << (PAGE_SHIFT - inode->i_blkbits);
 
 		nilfs_set_file_dirty(inode, nr_dirty);
 	}
@@ -287,8 +287,8 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
 			   struct page *page, void *fsdata)
 {
 	struct inode *inode = mapping->host;
-	unsigned start = pos & (PAGE_SIZE - 1);
-	unsigned nr_dirty;
+	unsigned int start = pos & (PAGE_SIZE - 1);
+	unsigned int nr_dirty;
 	int err;
 
 	nr_dirty = nilfs_page_count_clean_buffers(page, start,
@@ -902,7 +902,7 @@ int nilfs_inode_dirty(struct inode *inode)
 	return ret;
 }
 
-int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty)
+int nilfs_set_file_dirty(struct inode *inode, unsigned int nr_dirty)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;

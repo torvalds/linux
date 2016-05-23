@@ -152,7 +152,7 @@ int nilfs_read_super_root_block(struct the_nilfs *nilfs, sector_t sr_block,
 
 	sr = (struct nilfs_super_root *)bh_sr->b_data;
 	if (check) {
-		unsigned bytes = le16_to_cpu(sr->sr_bytes);
+		unsigned int bytes = le16_to_cpu(sr->sr_bytes);
 
 		if (bytes == 0 || bytes > nilfs->ns_blocksize) {
 			ret = NILFS_SEG_FAIL_CHECKSUM_SUPER_ROOT;
@@ -504,7 +504,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 {
 	struct inode *inode;
 	struct nilfs_recovery_block *rb, *n;
-	unsigned blocksize = nilfs->ns_blocksize;
+	unsigned int blocksize = nilfs->ns_blocksize;
 	struct page *page;
 	loff_t pos;
 	int err = 0, err2 = 0;

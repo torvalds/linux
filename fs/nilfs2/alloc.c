@@ -53,7 +53,7 @@ nilfs_palloc_groups_count(const struct inode *inode)
  * @inode: inode of metadata file using this allocator
  * @entry_size: size of the persistent object
  */
-int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned entry_size)
+int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
 {
 	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
 
@@ -384,7 +384,7 @@ void *nilfs_palloc_block_get_entry(const struct inode *inode, __u64 nr,
  */
 static int nilfs_palloc_find_available_slot(unsigned char *bitmap,
 					    unsigned long target,
-					    unsigned bsize,
+					    unsigned int bsize,
 					    spinlock_t *lock)
 {
 	int pos, end = bsize;
@@ -735,8 +735,8 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 	unsigned long group, group_offset;
 	__u64 group_min_nr, last_nrs[8];
 	const unsigned long epg = nilfs_palloc_entries_per_group(inode);
-	const unsigned epb = NILFS_MDT(inode)->mi_entries_per_block;
-	unsigned entry_start, end, pos;
+	const unsigned int epb = NILFS_MDT(inode)->mi_entries_per_block;
+	unsigned int entry_start, end, pos;
 	spinlock_t *lock;
 	int i, j, k, ret;
 	u32 nfree;
