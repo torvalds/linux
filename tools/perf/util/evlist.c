@@ -44,6 +44,7 @@ void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 	perf_evlist__set_maps(evlist, cpus, threads);
 	fdarray__init(&evlist->pollfd, 64);
 	evlist->workload.pid = -1;
+	evlist->backward = false;
 }
 
 struct perf_evlist *perf_evlist__new(void)
