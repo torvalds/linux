@@ -291,12 +291,13 @@ init:
 // Main program loop, very simple, sleeps until woken up by the interrupt
 // handler, pulls a command from the queue and executes its handler
 //
-main:
-	bset $flags $p0
+wait:
 	sleep $p0
+	bset $flags $p0
+main:
 	mov $r13 #cmd_queue
 	call(queue_get)
-	bra $p1 #main
+	bra $p1 #wait
 
 	// 0x0000-0x0003 are all context transfers
 	cmpu b32 $r14 0x04

@@ -2230,6 +2230,7 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 }
 
 const struct amd_ip_funcs cz_dpm_ip_funcs = {
+	.name = "cz_dpm",
 	.early_init = cz_dpm_early_init,
 	.late_init = cz_dpm_late_init,
 	.sw_init = cz_dpm_sw_init,
@@ -2241,7 +2242,6 @@ const struct amd_ip_funcs cz_dpm_ip_funcs = {
 	.is_idle = NULL,
 	.wait_for_idle = NULL,
 	.soft_reset = NULL,
-	.print_status = NULL,
 	.set_clockgating_state = cz_dpm_set_clockgating_state,
 	.set_powergating_state = cz_dpm_set_powergating_state,
 };

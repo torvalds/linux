@@ -84,7 +84,7 @@ int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 }
 
 int phm_construct_table(struct pp_hwmgr *hwmgr,
-			struct phm_master_table_header *master_table,
+			const struct phm_master_table_header *master_table,
 			struct phm_runtime_table_header *rt_table)
 {
 	uint32_t function_count = 0;

@@ -141,7 +141,7 @@ enum phm_master_table_flag {
 struct phm_master_table_header {
 	uint32_t storage_size;
 	uint32_t flags;
-	struct phm_master_table_item *master_list;
+	const struct phm_master_table_item *master_list;
 };
 
 struct phm_runtime_table_header {
@@ -199,7 +199,7 @@ extern int phm_dispatch_table(struct pp_hwmgr *hwmgr,
 			      void *input, void *output);
 
 extern int phm_construct_table(struct pp_hwmgr *hwmgr,
-			       struct phm_master_table_header *master_table,
+			       const struct phm_master_table_header *master_table,
 			       struct phm_runtime_table_header *rt_table);
 
 extern int phm_destroy_table(struct pp_hwmgr *hwmgr,
@@ -335,8 +335,9 @@ struct pp_hwmgr_func {
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
 	int (*get_pp_table)(struct pp_hwmgr *hwmgr, char **table);
 	int (*set_pp_table)(struct pp_hwmgr *hwmgr, const char *buf, size_t size);
-	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, int level);
+	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
+	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);
 };
 
 struct pp_table_func {
@@ -499,7 +500,7 @@ struct phm_dynamic_state_info {
 	struct phm_ppm_table                          *ppm_parameter_table;
 	struct phm_cac_tdp_table                      *cac_dtp_table;
 	struct phm_clock_voltage_dependency_table	  *vdd_gfx_dependency_on_sclk;
-	struct phm_vq_budgeting_table		  		  *vq_budgeting_table;
+	struct phm_vq_budgeting_table				  *vq_budgeting_table;
 };
 
 struct pp_fan_info {
@@ -576,6 +577,7 @@ struct pp_hwmgr {
 	void *device;
 	struct pp_smumgr *smumgr;
 	const void *soft_pp_table;
+	uint32_t soft_pp_table_size;
 	bool need_pp_table_upload;
 	enum amd_dpm_forced_level dpm_level;
 	bool block_hw_access;

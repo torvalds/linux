@@ -4034,9 +4034,14 @@ static void si_gpu_pci_config_reset(struct radeon_device *rdev)
 	}
 }
 
-int si_asic_reset(struct radeon_device *rdev)
+int si_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	u32 reset_mask;
+
+	if (hard) {
+		si_gpu_pci_config_reset(rdev);
+		return 0;
+	}
 
 	reset_mask = si_gpu_check_soft_reset(rdev);
 
@@ -4357,6 +4362,10 @@ static bool si_vm_reg_valid(u32 reg)
 {
 	/* context regs are fine */
 	if (reg >= 0x28000)
+		return true;
+
+	/* shader regs are also fine */
+	if (reg >= 0xB000 && reg < 0xC000)
 		return true;
 
 	/* check config regs */
@@ -6821,6 +6830,159 @@ restart_ih:
 /*
  * startup/shutdown callbacks
  */
+static void si_uvd_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_uvd)
+		return;
+
+	r = radeon_uvd_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
+		/*
+		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
+		 * to early fails uvd_v2_2_resume() and thus nothing happens
+		 * there. So it is pointless to try to go through that code
+		 * hence why we disable uvd here.
+		 */
+		rdev->has_uvd = 0;
+		return;
+	}
+	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
+	r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX], 4096);
+}
+
+static void si_uvd_start(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_uvd)
+		return;
+
+	r = uvd_v2_2_resume(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed UVD resume (%d).\n", r);
+		goto error;
+	}
+	r = radeon_fence_driver_start_ring(rdev, R600_RING_TYPE_UVD_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing UVD fences (%d).\n", r);
+		goto error;
+	}
+	return;
+
+error:
+	rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+}
+
+static void si_uvd_resume(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	int r;
+
+	if (!rdev->has_uvd || !rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size)
+		return;
+
+	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, RADEON_CP_PACKET2);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing UVD ring (%d).\n", r);
+		return;
+	}
+	r = uvd_v1_0_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing UVD (%d).\n", r);
+		return;
+	}
+}
+
+static void si_vce_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_vce)
+		return;
+
+	r = radeon_vce_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed VCE (%d) init.\n", r);
+		/*
+		 * At this point rdev->vce.vcpu_bo is NULL which trickles down
+		 * to early fails si_vce_start() and thus nothing happens
+		 * there. So it is pointless to try to go through that code
+		 * hence why we disable vce here.
+		 */
+		rdev->has_vce = 0;
+		return;
+	}
+	rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_obj = NULL;
+	r600_ring_init(rdev, &rdev->ring[TN_RING_TYPE_VCE1_INDEX], 4096);
+	rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_obj = NULL;
+	r600_ring_init(rdev, &rdev->ring[TN_RING_TYPE_VCE2_INDEX], 4096);
+}
+
+static void si_vce_start(struct radeon_device *rdev)
+{
+	int r;
+
+	if (!rdev->has_vce)
+		return;
+
+	r = radeon_vce_resume(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed VCE resume (%d).\n", r);
+		goto error;
+	}
+	r = vce_v1_0_resume(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed VCE resume (%d).\n", r);
+		goto error;
+	}
+	r = radeon_fence_driver_start_ring(rdev, TN_RING_TYPE_VCE1_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE1 fences (%d).\n", r);
+		goto error;
+	}
+	r = radeon_fence_driver_start_ring(rdev, TN_RING_TYPE_VCE2_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE2 fences (%d).\n", r);
+		goto error;
+	}
+	return;
+
+error:
+	rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size = 0;
+	rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_size = 0;
+}
+
+static void si_vce_resume(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	int r;
+
+	if (!rdev->has_vce || !rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size)
+		return;
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, VCE_CMD_NO_OP);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE1 ring (%d).\n", r);
+		return;
+	}
+	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, 0, VCE_CMD_NO_OP);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE1 ring (%d).\n", r);
+		return;
+	}
+	r = vce_v1_0_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing VCE (%d).\n", r);
+		return;
+	}
+}
+
 static int si_startup(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring;
@@ -6899,33 +7061,8 @@ static int si_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	if (rdev->has_uvd) {
-		r = uvd_v2_2_resume(rdev);
-		if (!r) {
-			r = radeon_fence_driver_start_ring(rdev,
-							   R600_RING_TYPE_UVD_INDEX);
-			if (r)
-				dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
-		}
-		if (r)
-			rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
-	}
-
-	r = radeon_vce_resume(rdev);
-	if (!r) {
-		r = vce_v1_0_resume(rdev);
-		if (!r)
-			r = radeon_fence_driver_start_ring(rdev,
-							   TN_RING_TYPE_VCE1_INDEX);
-		if (!r)
-			r = radeon_fence_driver_start_ring(rdev,
-							   TN_RING_TYPE_VCE2_INDEX);
-	}
-	if (r) {
-		dev_err(rdev->dev, "VCE init error (%d).\n", r);
-		rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size = 0;
-		rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_size = 0;
-	}
+	si_uvd_start(rdev);
+	si_vce_start(rdev);
 
 	/* Enable IRQ */
 	if (!rdev->irq.installed) {
@@ -6983,34 +7120,8 @@ static int si_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	if (rdev->has_uvd) {
-		ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-		if (ring->ring_size) {
-			r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-					     RADEON_CP_PACKET2);
-			if (!r)
-				r = uvd_v1_0_init(rdev);
-			if (r)
-				DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
-		}
-	}
-
-	r = -ENOENT;
-
-	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
-	if (ring->ring_size)
-		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     VCE_CMD_NO_OP);
-
-	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
-	if (ring->ring_size)
-		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
-				     VCE_CMD_NO_OP);
-
-	if (!r)
-		r = vce_v1_0_init(rdev);
-	else if (r != -ENOENT)
-		DRM_ERROR("radeon: failed initializing VCE (%d).\n", r);
+	si_uvd_resume(rdev);
+	si_vce_resume(rdev);
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
@@ -7070,8 +7181,9 @@ int si_suspend(struct radeon_device *rdev)
 	if (rdev->has_uvd) {
 		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
-		radeon_vce_suspend(rdev);
 	}
+	if (rdev->has_vce)
+		radeon_vce_suspend(rdev);
 	si_fini_pg(rdev);
 	si_fini_cg(rdev);
 	si_irq_suspend(rdev);
@@ -7169,25 +7281,8 @@ int si_init(struct radeon_device *rdev)
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 64 * 1024);
 
-	if (rdev->has_uvd) {
-		r = radeon_uvd_init(rdev);
-		if (!r) {
-			ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-			ring->ring_obj = NULL;
-			r600_ring_init(rdev, ring, 4096);
-		}
-	}
-
-	r = radeon_vce_init(rdev);
-	if (!r) {
-		ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
-		ring->ring_obj = NULL;
-		r600_ring_init(rdev, ring, 4096);
-
-		ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
-		ring->ring_obj = NULL;
-		r600_ring_init(rdev, ring, 4096);
-	}
+	si_uvd_init(rdev);
+	si_vce_init(rdev);
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
@@ -7240,8 +7335,9 @@ void si_fini(struct radeon_device *rdev)
 	if (rdev->has_uvd) {
 		uvd_v1_0_fini(rdev);
 		radeon_uvd_fini(rdev);
-		radeon_vce_fini(rdev);
 	}
+	if (rdev->has_vce)
+		radeon_vce_fini(rdev);
 	si_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
