@@ -44,7 +44,7 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	if (tty->driver->subtype == PTY_TYPE_MASTER)
 		WARN_ON(tty->count > 1);
 	else {
-		if (test_bit(TTY_IO_ERROR, &tty->flags))
+		if (tty_io_error(tty))
 			return;
 		if (tty->count > 2)
 			return;
@@ -59,7 +59,7 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	if (!tty->link)
 		return;
 	set_bit(TTY_OTHER_CLOSED, &tty->link->flags);
-	tty_flip_buffer_push(tty->link->port);
+	wake_up_interruptible(&tty->link->read_wait);
 	wake_up_interruptible(&tty->link->write_wait);
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
@@ -247,9 +247,7 @@ static int pty_open(struct tty_struct *tty, struct file *filp)
 		goto out;
 
 	clear_bit(TTY_IO_ERROR, &tty->flags);
-	/* TTY_OTHER_CLOSED must be cleared before TTY_OTHER_DONE */
 	clear_bit(TTY_OTHER_CLOSED, &tty->link->flags);
-	clear_bit(TTY_OTHER_DONE, &tty->link->flags);
 	set_bit(TTY_THROTTLED, &tty->flags);
 	return 0;
 

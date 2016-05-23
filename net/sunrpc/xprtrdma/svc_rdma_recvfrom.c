@@ -281,7 +281,7 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 	}
 	atomic_inc(&xprt->sc_dma_used);
 
-	n = ib_map_mr_sg(frmr->mr, frmr->sg, frmr->sg_nents, PAGE_SIZE);
+	n = ib_map_mr_sg(frmr->mr, frmr->sg, frmr->sg_nents, NULL, PAGE_SIZE);
 	if (unlikely(n != frmr->sg_nents)) {
 		pr_err("svcrdma: failed to map mr %p (%d/%d elements)\n",
 		       frmr->mr, n, frmr->sg_nents);

@@ -421,7 +421,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		return -ENOMEM;
 	}
 
-	n = ib_map_mr_sg(mr, frmr->sg, frmr->sg_nents, PAGE_SIZE);
+	n = ib_map_mr_sg(mr, frmr->sg, frmr->sg_nents, NULL, PAGE_SIZE);
 	if (unlikely(n != frmr->sg_nents)) {
 		pr_err("RPC:       %s: failed to map mr %p (%u/%u)\n",
 		       __func__, frmr->fr_mr, n, frmr->sg_nents);

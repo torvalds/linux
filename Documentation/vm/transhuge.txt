@@ -340,7 +340,7 @@ unaffected. libhugetlbfs will also work fine as usual.
 
 == Graceful fallback ==
 
-Code walking pagetables but unware about huge pmds can simply call
+Code walking pagetables but unaware about huge pmds can simply call
 split_huge_pmd(vma, pmd, addr) where the pmd is the one returned by
 pmd_offset. It's trivial to make the code transparent hugepage aware
 by just grepping for "pmd_offset" and adding split_huge_pmd where
@@ -414,7 +414,7 @@ tracking. The alternative is alter ->_mapcount in all subpages on each
 map/unmap of the whole compound page.
 
 We set PG_double_map when a PMD of the page got split for the first time,
-but still have PMD mapping. The addtional references go away with last
+but still have PMD mapping. The additional references go away with last
 compound_mapcount.
 
 split_huge_page internally has to distribute the refcounts in the head
@@ -432,10 +432,10 @@ page->_mapcount.
 We safe against physical memory scanners too: the only legitimate way
 scanner can get reference to a page is get_page_unless_zero().
 
-All tail pages has zero ->_refcount until atomic_add(). It prevent scanner
-from geting reference to tail page up to the point. After the atomic_add()
-we don't care about ->_refcount value.  We already known how many references
-with should uncharge from head page.
+All tail pages have zero ->_refcount until atomic_add(). This prevents the
+scanner from getting a reference to the tail page up to that point. After the
+atomic_add() we don't care about the ->_refcount value.  We already known how
+many references should be uncharged from the head page.
 
 For head page get_page_unless_zero() will succeed and we don't mind. It's
 clear where reference should go after split: it will stay on head page.

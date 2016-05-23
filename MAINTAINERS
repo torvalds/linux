@@ -175,7 +175,6 @@ F:	drivers/net/ethernet/realtek/r8169.c
 8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-serial@vger.kernel.org
-W:	http://serial.sourceforge.net
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty.git
 F:	drivers/tty/serial/8250*
@@ -777,6 +776,15 @@ S:	Supported
 F:	drivers/android/
 F:	drivers/staging/android/
 
+ANDROID ION DRIVER
+M:	Laura Abbott <labbott@redhat.com>
+M:	Sumit Semwal <sumit.semwal@linaro.org>
+L:	devel@driverdev.osuosl.org
+S:	Supported
+F:	drivers/staging/android/ion
+F:	drivers/staging/android/uapi/ion.h
+F:	drivers/staging/android/uapi/ion_test.h
+
 AOA (Apple Onboard Audio) ALSA DRIVER
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -977,7 +985,7 @@ S:	Maintained
 L:	linux-arm-kernel@axis.com
 F:	arch/arm/mach-artpec
 F:	arch/arm/boot/dts/artpec6*
-F:	drivers/clk/clk-artpec6.c
+F:	drivers/clk/axis
 
 ARM/ASPEED MACHINE SUPPORT
 M:	Joel Stanley <joel@jms.id.au>
@@ -2047,6 +2055,11 @@ ATMEL AT91 / AT32 SERIAL DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/tty/serial/atmel_serial.c
+
+ATMEL AT91 SAMA5D2-Compatible Shutdown Controller
+M:	Nicolas Ferre <nicolas.ferre@atmel.com>
+S:	Supported
+F:	drivers/power/reset/at91-sama5d2_shdwc.c
 
 ATMEL SAMA5D2 ADC DRIVER
 M:	Ludovic Desroches <ludovic.desroches@atmel.com>
@@ -4742,6 +4755,7 @@ F:	sound/soc/fsl/mpc8610_hpcd.c
 
 FREESCALE QORIQ MANAGEMENT COMPLEX DRIVER
 M:	"J. German Rivera" <German.Rivera@freescale.com>
+M:	Stuart Yoder <stuart.yoder@nxp.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/fsl-mc/
@@ -4779,7 +4793,7 @@ F:	include/linux/fscache*.h
 F2FS FILE SYSTEM
 M:	Jaegeuk Kim <jaegeuk@kernel.org>
 M:	Changman Lee <cm224.lee@samsung.com>
-R:	Chao Yu <chao2.yu@samsung.com>
+R:	Chao Yu <yuchao0@huawei.com>
 L:	linux-f2fs-devel@lists.sourceforge.net
 W:	http://en.wikipedia.org/wiki/F2FS
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs.git
@@ -5613,7 +5627,7 @@ IIO SUBSYSTEM AND DRIVERS
 M:	Jonathan Cameron <jic23@kernel.org>
 R:	Hartmut Knaack <knaack.h@gmx.de>
 R:	Lars-Peter Clausen <lars@metafoo.de>
-R:	Peter Meerwald <pmeerw@pmeerw.net>
+R:	Peter Meerwald-Stadler <pmeerw@pmeerw.net>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/
@@ -5897,6 +5911,7 @@ F:	drivers/net/wireless/intel/iwlegacy/
 INTEL WIRELESS WIFI LINK (iwlwifi)
 M:	Johannes Berg <johannes.berg@intel.com>
 M:	Emmanuel Grumbach <emmanuel.grumbach@intel.com>
+M:	Luca Coelho <luciano.coelho@intel.com>
 M:	Intel Linux Wireless <linuxwifi@intel.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://intellinuxwireless.org
@@ -6061,6 +6076,13 @@ F:	Documentation/IRQ-domain.txt
 F:	include/linux/irqdomain.h
 F:	kernel/irq/irqdomain.c
 F:	kernel/irq/msi.c
+
+ISA
+M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+S:	Maintained
+F:	Documentation/isa.txt
+F:	drivers/base/isa.c
+F:	include/linux/isa.h
 
 ISAPNP
 M:	Jaroslav Kysela <perex@perex.cz>
@@ -6242,7 +6264,7 @@ S:	Maintained
 F:	arch/*/include/asm/kasan.h
 F:	arch/*/mm/kasan_init*
 F:	Documentation/kasan.txt
-F:	include/linux/kasan.h
+F:	include/linux/kasan*.h
 F:	lib/test_kasan.c
 F:	mm/kasan/
 F:	scripts/Makefile.kasan
@@ -8258,7 +8280,6 @@ F:	drivers/of/resolver.c
 OPENRISC ARCHITECTURE
 M:	Jonas Bonn <jonas@southpole.se>
 W:	http://openrisc.net
-L:	linux@lists.openrisc.net (moderated for non-subscribers)
 S:	Maintained
 T:	git git://openrisc.net/~jonas/linux
 F:	arch/openrisc/
@@ -8379,7 +8400,6 @@ F:	drivers/platform/x86/panasonic-laptop.c
 
 PANASONIC MN10300/AM33/AM34 PORT
 M:	David Howells <dhowells@redhat.com>
-M:	Koichi Yasutake <yasutake.koichi@jp.panasonic.com>
 L:	linux-am33-list@redhat.com (moderated for non-subscribers)
 W:	ftp://ftp.redhat.com/pub/redhat/gnupro/AM33/
 S:	Maintained
@@ -8813,7 +8833,6 @@ F:	drivers/pinctrl/pinctrl-single.c
 
 PIN CONTROLLER - ST SPEAR
 M:	Viresh Kumar <vireshk@kernel.org>
-L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
@@ -9838,6 +9857,7 @@ F:	drivers/mmc/host/dw_mmc*
 SYSTEM TRACE MODULE CLASS
 M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ash/stm.git
 F:	Documentation/trace/stm.txt
 F:	drivers/hwtracing/stm/
 F:	include/linux/stm.h
@@ -10017,7 +10037,6 @@ F:	drivers/mmc/host/sdhci-s3c*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) ST SPEAR DRIVER
 M:	Viresh Kumar <vireshk@kernel.org>
-L:	spear-devel@list.st.com
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
 F:	drivers/mmc/host/sdhci-spear.c
@@ -10580,7 +10599,6 @@ F:	include/linux/compiler.h
 SPEAR PLATFORM SUPPORT
 M:	Viresh Kumar <vireshk@kernel.org>
 M:	Shiraz Hashim <shiraz.linux.kernel@gmail.com>
-L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
@@ -10589,7 +10607,6 @@ F:	arch/arm/mach-spear/
 
 SPEAR CLOCK FRAMEWORK SUPPORT
 M:	Viresh Kumar <vireshk@kernel.org>
-L:	spear-devel@list.st.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
@@ -11501,7 +11518,8 @@ F:	Documentation/filesystems/ubifs.txt
 F:	fs/ubifs/
 
 UCLINUX (M68KNOMMU AND COLDFIRE)
-M:	Greg Ungerer <gerg@uclinux.org>
+M:	Greg Ungerer <gerg@linux-m68k.org>
+W:	http://www.linux-m68k.org/
 W:	http://www.uclinux.org/
 L:	linux-m68k@lists.linux-m68k.org
 L:	uclinux-dev@uclinux.org  (subscribers-only)

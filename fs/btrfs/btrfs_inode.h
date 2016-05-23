@@ -196,6 +196,16 @@ struct btrfs_inode {
 	struct list_head delayed_iput;
 	long delayed_iput_count;
 
+	/*
+	 * To avoid races between lockless (i_mutex not held) direct IO writes
+	 * and concurrent fsync requests. Direct IO writes must acquire read
+	 * access on this semaphore for creating an extent map and its
+	 * corresponding ordered extent. The fast fsync path must acquire write
+	 * access on this semaphore before it collects ordered extents and
+	 * extent maps.
+	 */
+	struct rw_semaphore dio_sem;
+
 	struct inode vfs_inode;
 };
 

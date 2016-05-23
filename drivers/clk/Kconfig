@@ -200,6 +200,12 @@ config COMMON_CLK_PXA
 config COMMON_CLK_PIC32
 	def_bool COMMON_CLK && MACH_PIC32
 
+config COMMON_CLK_OXNAS
+	bool "Clock driver for the OXNAS SoC Family"
+	select MFD_SYSCON
+	---help---
+	  Support for the OXNAS SoC Family clocks.
+
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/mvebu/Kconfig"

@@ -69,6 +69,7 @@ enum inv_devices {
 	INV_MPU6050,
 	INV_MPU6500,
 	INV_MPU6000,
+	INV_MPU9150,
 	INV_NUM_PARTS
 };
 
@@ -94,13 +95,13 @@ struct inv_mpu6050_chip_config {
 
 /**
  *  struct inv_mpu6050_hw - Other important hardware information.
- *  @num_reg:	Number of registers on device.
+ *  @whoami:	Self identification byte from WHO_AM_I register
  *  @name:      name of the chip.
  *  @reg:   register map of the chip.
  *  @config:    configuration of the chip.
  */
 struct inv_mpu6050_hw {
-	u8 num_reg;
+	u8 whoami;
 	u8 *name;
 	const struct inv_mpu6050_reg_map *reg;
 	const struct inv_mpu6050_chip_config *config;
@@ -115,7 +116,8 @@ struct inv_mpu6050_hw {
  *  @hw:		Other hardware-specific information.
  *  @chip_type:		chip type.
  *  @time_stamp_lock:	spin lock to time stamp.
- *  @plat_data:		platform data.
+ *  @plat_data:		platform data (deprecated in favor of @orientation).
+ *  @orientation:	sensor chip orientation relative to main hardware.
  *  @timestamps:        kfifo queue to store time stamp.
  *  @map		regmap pointer.
  *  @irq		interrupt number.
@@ -132,6 +134,7 @@ struct inv_mpu6050_state {
 	struct i2c_client *mux_client;
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
+	struct iio_mount_matrix orientation;
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
 	struct regmap *map;
 	int irq;
@@ -215,6 +218,13 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_MAX_FIFO_RATE            1000
 #define INV_MPU6050_MIN_FIFO_RATE            4
 #define INV_MPU6050_ONE_K_HZ                 1000
+
+#define INV_MPU6050_REG_WHOAMI			117
+
+#define INV_MPU6000_WHOAMI_VALUE		0x68
+#define INV_MPU6050_WHOAMI_VALUE		0x68
+#define INV_MPU6500_WHOAMI_VALUE		0x70
+#define INV_MPU9150_WHOAMI_VALUE		0x68
 
 /* scan element definition */
 enum inv_mpu6050_scan {

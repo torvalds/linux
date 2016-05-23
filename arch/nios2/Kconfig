@@ -15,6 +15,7 @@ config NIOS2
 	select SOC_BUS
 	select SPARSE_IRQ
 	select USB_ARCH_HAS_HCD if USB_SUPPORT
+	select CPU_NO_EFFICIENT_FFS
 
 config GENERIC_CSUM
 	def_bool y

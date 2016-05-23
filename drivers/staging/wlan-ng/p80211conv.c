@@ -75,8 +75,8 @@
 #include "p80211ioctl.h"
 #include "p80211req.h"
 
-static u8 oui_rfc1042[] = { 0x00, 0x00, 0x00 };
-static u8 oui_8021h[] = { 0x00, 0x00, 0xf8 };
+static const u8 oui_rfc1042[] = { 0x00, 0x00, 0x00 };
+static const u8 oui_8021h[] = { 0x00, 0x00, 0xf8 };
 
 /*----------------------------------------------------------------
 * p80211pb_ether_to_80211
@@ -243,7 +243,6 @@ static void orinoco_spy_gather(wlandevice_t *wlandev, char *mac,
 
 	for (i = 0; i < wlandev->spy_number; i++) {
 		if (!memcmp(wlandev->spy_address[i], mac, ETH_ALEN)) {
-			memcpy(wlandev->spy_address[i], mac, ETH_ALEN);
 			wlandev->spy_stat[i].level = rxmeta->signal;
 			wlandev->spy_stat[i].noise = rxmeta->noise;
 			wlandev->spy_stat[i].qual =

@@ -994,7 +994,7 @@ static void usb_bus_init (struct usb_bus *bus)
 	bus->bandwidth_allocated = 0;
 	bus->bandwidth_int_reqs  = 0;
 	bus->bandwidth_isoc_reqs = 0;
-	mutex_init(&bus->usb_address0_mutex);
+	mutex_init(&bus->devnum_next_mutex);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1118,6 +1118,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 		/* Did the HC die before the root hub was registered? */
 		if (HCD_DEAD(hcd))
 			usb_hc_died (hcd);	/* This time clean up */
+		usb_dev->dev.of_node = parent_dev->of_node;
 	}
 	mutex_unlock(&usb_bus_idr_lock);
 
@@ -2521,6 +2522,14 @@ struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
 		return NULL;
 	}
 	if (primary_hcd == NULL) {
+		hcd->address0_mutex = kmalloc(sizeof(*hcd->address0_mutex),
+				GFP_KERNEL);
+		if (!hcd->address0_mutex) {
+			kfree(hcd);
+			dev_dbg(dev, "hcd address0 mutex alloc failed\n");
+			return NULL;
+		}
+		mutex_init(hcd->address0_mutex);
 		hcd->bandwidth_mutex = kmalloc(sizeof(*hcd->bandwidth_mutex),
 				GFP_KERNEL);
 		if (!hcd->bandwidth_mutex) {
@@ -2532,6 +2541,7 @@ struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
 		dev_set_drvdata(dev, hcd);
 	} else {
 		mutex_lock(&usb_port_peer_mutex);
+		hcd->address0_mutex = primary_hcd->address0_mutex;
 		hcd->bandwidth_mutex = primary_hcd->bandwidth_mutex;
 		hcd->primary_hcd = primary_hcd;
 		primary_hcd->primary_hcd = primary_hcd;
@@ -2598,8 +2608,10 @@ static void hcd_release(struct kref *kref)
 	struct usb_hcd *hcd = container_of (kref, struct usb_hcd, kref);
 
 	mutex_lock(&usb_port_peer_mutex);
-	if (usb_hcd_is_primary_hcd(hcd))
+	if (usb_hcd_is_primary_hcd(hcd)) {
+		kfree(hcd->address0_mutex);
 		kfree(hcd->bandwidth_mutex);
+	}
 	if (hcd->shared_hcd) {
 		struct usb_hcd *peer = hcd->shared_hcd;
 

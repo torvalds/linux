@@ -311,7 +311,7 @@ u32 xenvif_set_hash_key(struct xenvif *vif, u32 gref, u32 len)
 	if (len > XEN_NETBK_MAX_HASH_KEY_SIZE)
 		return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
 
-	if (len != 0) {
+	if (copy_op.len != 0) {
 		gnttab_batch_copy(&copy_op, 1);
 
 		if (copy_op.status != GNTST_okay)
@@ -359,7 +359,7 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 		if (mapping[off++] >= vif->num_queues)
 			return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
 
-	if (len != 0) {
+	if (copy_op.len != 0) {
 		gnttab_batch_copy(&copy_op, 1);
 
 		if (copy_op.status != GNTST_okay)

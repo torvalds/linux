@@ -169,13 +169,14 @@ static int inv_mpu_remove(struct i2c_client *client)
 static const struct i2c_device_id inv_mpu_id[] = {
 	{"mpu6050", INV_MPU6050},
 	{"mpu6500", INV_MPU6500},
+	{"mpu9150", INV_MPU9150},
 	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, inv_mpu_id);
 
 static const struct acpi_device_id inv_acpi_match[] = {
-	{"INVN6500", 0},
+	{"INVN6500", INV_MPU6500},
 	{ },
 };
 

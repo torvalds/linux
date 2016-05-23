@@ -80,7 +80,6 @@ static void vgacon_deinit(struct vc_data *c);
 static void vgacon_cursor(struct vc_data *c, int mode);
 static int vgacon_switch(struct vc_data *c);
 static int vgacon_blank(struct vc_data *c, int blank, int mode_switch);
-static int vgacon_set_palette(struct vc_data *vc, unsigned char *table);
 static int vgacon_scrolldelta(struct vc_data *c, int lines);
 static int vgacon_set_origin(struct vc_data *c);
 static void vgacon_save_screen(struct vc_data *c);
@@ -847,7 +846,7 @@ static int vgacon_switch(struct vc_data *c)
 	return 0;		/* Redrawing not needed */
 }
 
-static void vga_set_palette(struct vc_data *vc, unsigned char *table)
+static void vga_set_palette(struct vc_data *vc, const unsigned char *table)
 {
 	int i, j;
 
@@ -860,7 +859,7 @@ static void vga_set_palette(struct vc_data *vc, unsigned char *table)
 	}
 }
 
-static int vgacon_set_palette(struct vc_data *vc, unsigned char *table)
+static int vgacon_set_palette(struct vc_data *vc, const unsigned char *table)
 {
 #ifdef CAN_LOAD_PALETTE
 	if (vga_video_type != VIDEO_TYPE_VGAC || vga_palette_blanked

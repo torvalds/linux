@@ -475,8 +475,7 @@ static inline atomic_t *compound_mapcount_ptr(struct page *page)
 
 static inline int compound_mapcount(struct page *page)
 {
-	if (!PageCompound(page))
-		return 0;
+	VM_BUG_ON_PAGE(!PageCompound(page), page);
 	page = compound_head(page);
 	return atomic_read(compound_mapcount_ptr(page)) + 1;
 }
@@ -597,7 +596,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
 }
 
 void do_set_pte(struct vm_area_struct *vma, unsigned long address,
-		struct page *page, pte_t *pte, bool write, bool anon);
+		struct page *page, pte_t *pte, bool write, bool anon, bool old);
 #endif
 
 /*
@@ -1764,7 +1763,7 @@ extern void free_highmem_page(struct page *page);
 extern void adjust_managed_page_count(struct page *page, long count);
 extern void mem_init_print_info(const char *str);
 
-extern void reserve_bootmem_region(unsigned long start, unsigned long end);
+extern void reserve_bootmem_region(phys_addr_t start, phys_addr_t end);
 
 /* Free the reserved page into the buddy system, so it gets managed. */
 static inline void __free_reserved_page(struct page *page)
@@ -2387,6 +2386,9 @@ static inline bool page_is_guard(struct page *page)
 		return false;
 
 	page_ext = lookup_page_ext(page);
+	if (unlikely(!page_ext))
+		return false;
+
 	return test_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
 }
 #else

@@ -521,7 +521,8 @@ static struct wmi_cmd_map wmi_10_2_4_cmd_map = {
 	.vdev_filter_neighbor_rx_packets_cmdid = WMI_CMD_UNSUPPORTED,
 	.mu_cal_start_cmdid = WMI_CMD_UNSUPPORTED,
 	.set_cca_params_cmdid = WMI_CMD_UNSUPPORTED,
-	.pdev_bss_chan_info_request_cmdid = WMI_CMD_UNSUPPORTED,
+	.pdev_bss_chan_info_request_cmdid =
+		WMI_10_2_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
 };
 
 /* 10.4 WMI cmd track */
@@ -1633,6 +1634,7 @@ void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
 	ch->max_power = arg->max_power;
 	ch->reg_power = arg->max_reg_power;
 	ch->antenna_max = arg->max_antenna_gain;
+	ch->max_tx_power = arg->max_power;
 
 	/* mode & flags share storage */
 	ch->mode = arg->mode;
@@ -4792,6 +4794,58 @@ static int ath10k_wmi_event_temperature(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
+static int ath10k_wmi_event_pdev_bss_chan_info(struct ath10k *ar,
+					       struct sk_buff *skb)
+{
+	struct wmi_pdev_bss_chan_info_event *ev;
+	struct survey_info *survey;
+	u64 busy, total, tx, rx, rx_bss;
+	u32 freq, noise_floor;
+	u32 cc_freq_hz = ar->hw_params.channel_counters_freq_hz;
+	int idx;
+
+	ev = (struct wmi_pdev_bss_chan_info_event *)skb->data;
+	if (WARN_ON(skb->len < sizeof(*ev)))
+		return -EPROTO;
+
+	freq        = __le32_to_cpu(ev->freq);
+	noise_floor = __le32_to_cpu(ev->noise_floor);
+	busy        = __le64_to_cpu(ev->cycle_busy);
+	total       = __le64_to_cpu(ev->cycle_total);
+	tx          = __le64_to_cpu(ev->cycle_tx);
+	rx          = __le64_to_cpu(ev->cycle_rx);
+	rx_bss      = __le64_to_cpu(ev->cycle_rx_bss);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi event pdev bss chan info:\n freq: %d noise: %d cycle: busy %llu total %llu tx %llu rx %llu rx_bss %llu\n",
+		   freq, noise_floor, busy, total, tx, rx, rx_bss);
+
+	spin_lock_bh(&ar->data_lock);
+	idx = freq_to_idx(ar, freq);
+	if (idx >= ARRAY_SIZE(ar->survey)) {
+		ath10k_warn(ar, "bss chan info: invalid frequency %d (idx %d out of bounds)\n",
+			    freq, idx);
+		goto exit;
+	}
+
+	survey = &ar->survey[idx];
+
+	survey->noise     = noise_floor;
+	survey->time      = div_u64(total, cc_freq_hz);
+	survey->time_busy = div_u64(busy, cc_freq_hz);
+	survey->time_rx   = div_u64(rx_bss, cc_freq_hz);
+	survey->time_tx   = div_u64(tx, cc_freq_hz);
+	survey->filled   |= (SURVEY_INFO_NOISE_DBM |
+			     SURVEY_INFO_TIME |
+			     SURVEY_INFO_TIME_BUSY |
+			     SURVEY_INFO_TIME_RX |
+			     SURVEY_INFO_TIME_TX);
+exit:
+	spin_unlock_bh(&ar->data_lock);
+	complete(&ar->bss_survey_done);
+	return 0;
+}
+
 static void ath10k_wmi_op_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -5135,6 +5189,9 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_10_2_PDEV_TEMPERATURE_EVENTID:
 		ath10k_wmi_event_temperature(ar, skb);
 		break;
+	case WMI_10_2_PDEV_BSS_CHAN_INFO_EVENTID:
+		ath10k_wmi_event_pdev_bss_chan_info(ar, skb);
+		break;
 	case WMI_10_2_RTT_KEEPALIVE_EVENTID:
 	case WMI_10_2_GPIO_INPUT_EVENTID:
 	case WMI_10_2_PEER_RATECODE_LIST_EVENTID:
@@ -5212,6 +5269,7 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_event_vdev_stopped(ar, skb);
 		break;
 	case WMI_10_4_WOW_WAKEUP_HOST_EVENTID:
+	case WMI_10_4_PEER_RATECODE_LIST_EVENTID:
 		ath10k_dbg(ar, ATH10K_DBG_WMI,
 			   "received event id %d not implemented\n", id);
 		break;
@@ -5220,6 +5278,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_PDEV_TEMPERATURE_EVENTID:
 		ath10k_wmi_event_temperature(ar, skb);
+		break;
+	case WMI_10_4_PDEV_BSS_CHAN_INFO_EVENTID:
+		ath10k_wmi_event_pdev_bss_chan_info(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
@@ -5605,6 +5666,9 @@ static struct sk_buff *ath10k_wmi_10_2_op_gen_init(struct ath10k *ar)
 
 	if (ath10k_peer_stats_enabled(ar))
 		features |= WMI_10_2_PEER_STATS;
+
+	if (test_bit(WMI_SERVICE_BSS_CHANNEL_INFO_64, ar->wmi.svc_map))
+		features |= WMI_10_2_BSS_CHAN_INFO;
 
 	cmd->resource_config.feature_mask = __cpu_to_le32(features);
 
@@ -6633,6 +6697,26 @@ ath10k_wmi_10_2_op_gen_pdev_get_temperature(struct ath10k *ar)
 		return ERR_PTR(-ENOMEM);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi pdev get temperature\n");
+	return skb;
+}
+
+static struct sk_buff *
+ath10k_wmi_10_2_op_gen_pdev_bss_chan_info(struct ath10k *ar,
+					  enum wmi_bss_survey_req_type type)
+{
+	struct wmi_pdev_chan_info_req_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_pdev_chan_info_req_cmd *)skb->data;
+	cmd->type = __cpu_to_le32(type);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi pdev bss info request type %d\n", type);
+
 	return skb;
 }
 
@@ -7735,6 +7819,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.gen_init = ath10k_wmi_10_2_op_gen_init,
 	.gen_peer_assoc = ath10k_wmi_10_2_op_gen_peer_assoc,
 	.gen_pdev_get_temperature = ath10k_wmi_10_2_op_gen_pdev_get_temperature,
+	.gen_pdev_bss_chan_info_req = ath10k_wmi_10_2_op_gen_pdev_bss_chan_info,
 
 	/* shared with 10.1 */
 	.map_svc = wmi_10x_svc_map,
@@ -7861,6 +7946,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.gen_request_stats = ath10k_wmi_op_gen_request_stats,
 	.gen_pdev_get_temperature = ath10k_wmi_10_2_op_gen_pdev_get_temperature,
 	.get_vdev_subtype = ath10k_wmi_10_4_op_get_vdev_subtype,
+	.gen_pdev_bss_chan_info_req = ath10k_wmi_10_2_op_gen_pdev_bss_chan_info,
 };
 
 int ath10k_wmi_attach(struct ath10k *ar)

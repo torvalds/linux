@@ -109,7 +109,7 @@ const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
 	struct lpddr2_timings	*timings = NULL;
 	u32			arr_sz = 0, i = 0;
 	struct device_node	*np_tim;
-	char			*tim_compat;
+	char			*tim_compat = NULL;
 
 	switch (device_type) {
 	case DDR_TYPE_LPDDR2_S2:
