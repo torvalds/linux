@@ -88,17 +88,18 @@ static int record__mmap_read(struct record *rec, int idx)
 	struct perf_mmap *md = &rec->evlist->mmap[idx];
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
+	u64 end = head, start = old;
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
 	void *buf;
 	int rc = 0;
 
-	if (old == head)
+	if (start == end)
 		return 0;
 
 	rec->samples++;
 
-	size = head - old;
+	size = end - start;
 	if (size > (unsigned long)(md->mask) + 1) {
 		WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
@@ -107,10 +108,10 @@ static int record__mmap_read(struct record *rec, int idx)
 		return 0;
 	}
 
-	if ((old & md->mask) + size != (head & md->mask)) {
-		buf = &data[old & md->mask];
-		size = md->mask + 1 - (old & md->mask);
-		old += size;
+	if ((start & md->mask) + size != (end & md->mask)) {
+		buf = &data[start & md->mask];
+		size = md->mask + 1 - (start & md->mask);
+		start += size;
 
 		if (record__write(rec, buf, size) < 0) {
 			rc = -1;
@@ -118,16 +119,16 @@ static int record__mmap_read(struct record *rec, int idx)
 		}
 	}
 
-	buf = &data[old & md->mask];
-	size = head - old;
-	old += size;
+	buf = &data[start & md->mask];
+	size = end - start;
+	start += size;
 
 	if (record__write(rec, buf, size) < 0) {
 		rc = -1;
 		goto out;
 	}
 
-	md->prev = old;
+	md->prev = head;
 	perf_evlist__mmap_consume(rec->evlist, idx);
 out:
 	return rc;
