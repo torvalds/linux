@@ -1,0 +1,32 @@
+/*
+ * gdb helper commands and functions for Linux kernel debugging
+ *
+ *  Kernel constants derived from include files.
+ *
+ * Copyright (c) 2016 Linaro Ltd
+ *
+ * Authors:
+ *  Kieran Bingham <kieran.bingham@linaro.org>
+ *
+ * This work is licensed under the terms of the GNU GPL version 2.
+ *
+ */
+
+/* We need to stringify expanded macros so that they can be parsed */
+#define STRING(x) #x
+#define XSTRING(x) STRING(x)
+
+#define LX_VALUE(x) LX_##x = x
+#define LX_GDBPARSED(x) LX_##x = gdb.parse_and_eval(XSTRING(x))
+
+/*
+ * IS_ENABLED generates (a || b) which is not compatible with python
+ * We can only switch on configuration items we know are available
+ * Therefore - IS_BUILTIN() is more appropriate
+ */
+#define LX_CONFIG(x) LX_##x = IS_BUILTIN(x)
+
+/* The build system will take care of deleting everything above this marker */
+<!-- end-c-headers -->
+
+import gdb
