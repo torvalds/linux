@@ -631,7 +631,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	intel_opregion_notify_adapter(dev_priv, opregion_target_state);
 
 	intel_uncore_forcewake_reset(dev_priv, false);
-	intel_opregion_fini(dev_priv);
+	intel_opregion_unregister(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
 
@@ -794,7 +794,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	/* Config may have changed between suspend and resume */
 	drm_helper_hpd_irq_event(dev);
 
-	intel_opregion_init(dev_priv);
+	intel_opregion_register(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING, false);
 

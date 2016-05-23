@@ -3609,8 +3609,8 @@ bool intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 /* intel_opregion.c */
 #ifdef CONFIG_ACPI
 extern int intel_opregion_setup(struct drm_i915_private *dev_priv);
-extern void intel_opregion_init(struct drm_i915_private *dev_priv);
-extern void intel_opregion_fini(struct drm_i915_private *dev_priv);
+extern void intel_opregion_register(struct drm_i915_private *dev_priv);
+extern void intel_opregion_unregister(struct drm_i915_private *dev_priv);
 extern void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
 extern int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 					 bool enable);

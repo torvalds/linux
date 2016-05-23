@@ -778,7 +778,7 @@ static void intel_setup_cadls(struct drm_i915_private *dev_priv)
 	} while (++i < 8 && disp_id != 0);
 }
 
-void intel_opregion_init(struct drm_i915_private *dev_priv)
+void intel_opregion_register(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
 
@@ -805,7 +805,7 @@ void intel_opregion_init(struct drm_i915_private *dev_priv)
 	}
 }
 
-void intel_opregion_fini(struct drm_i915_private *dev_priv)
+void intel_opregion_unregister(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
 
