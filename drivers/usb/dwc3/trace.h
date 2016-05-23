@@ -167,25 +167,28 @@ DEFINE_EVENT(dwc3_log_request, dwc3_gadget_giveback,
 );
 
 DECLARE_EVENT_CLASS(dwc3_log_generic_cmd,
-	TP_PROTO(unsigned int cmd, u32 param),
-	TP_ARGS(cmd, param),
+	TP_PROTO(unsigned int cmd, u32 param, int status),
+	TP_ARGS(cmd, param, status),
 	TP_STRUCT__entry(
 		__field(unsigned int, cmd)
 		__field(u32, param)
+		__field(int, status)
 	),
 	TP_fast_assign(
 		__entry->cmd = cmd;
 		__entry->param = param;
+		__entry->status = status;
 	),
-	TP_printk("cmd '%s' [%d] param %08x",
+	TP_printk("cmd '%s' [%d] param %08x --> status: %s",
 		dwc3_gadget_generic_cmd_string(__entry->cmd),
-		__entry->cmd, __entry->param
+		__entry->cmd, __entry->param,
+		dwc3_gadget_generic_cmd_status_string(__entry->status)
 	)
 );
 
 DEFINE_EVENT(dwc3_log_generic_cmd, dwc3_gadget_generic_cmd,
-	TP_PROTO(unsigned int cmd, u32 param),
-	TP_ARGS(cmd, param)
+	TP_PROTO(unsigned int cmd, u32 param, int status),
+	TP_ARGS(cmd, param, status)
 );
 
 DECLARE_EVENT_CLASS(dwc3_log_gadget_ep_cmd,
