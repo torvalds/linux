@@ -295,7 +295,7 @@ static void init_once(void *foo)
 static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 {
 	struct buffer_head *bh;
-	befs_inode *raw_inode = NULL;
+	befs_inode *raw_inode;
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 	struct befs_inode_info *befs_ino = NULL;
 	struct inode *inode;
