@@ -2171,7 +2171,7 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 	 * The determine_valid_ioctls() call already should ensure
 	 * that this can never happen, but just in case...
 	 */
-	if (WARN_ON(!ops->vidioc_cropcap && !ops->vidioc_cropcap))
+	if (WARN_ON(!ops->vidioc_cropcap && !ops->vidioc_g_selection))
 		return -ENOTTY;
 
 	if (ops->vidioc_cropcap)
