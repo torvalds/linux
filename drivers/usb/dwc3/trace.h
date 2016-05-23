@@ -190,14 +190,15 @@ DEFINE_EVENT(dwc3_log_generic_cmd, dwc3_gadget_generic_cmd,
 
 DECLARE_EVENT_CLASS(dwc3_log_gadget_ep_cmd,
 	TP_PROTO(struct dwc3_ep *dep, unsigned int cmd,
-		struct dwc3_gadget_ep_cmd_params *params),
-	TP_ARGS(dep, cmd, params),
+		struct dwc3_gadget_ep_cmd_params *params, int cmd_status),
+	TP_ARGS(dep, cmd, params, cmd_status),
 	TP_STRUCT__entry(
 		__dynamic_array(char, name, DWC3_MSG_MAX)
 		__field(unsigned int, cmd)
 		__field(u32, param0)
 		__field(u32, param1)
 		__field(u32, param2)
+		__field(int, cmd_status)
 	),
 	TP_fast_assign(
 		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", dep->name);
@@ -205,18 +206,20 @@ DECLARE_EVENT_CLASS(dwc3_log_gadget_ep_cmd,
 		__entry->param0 = params->param0;
 		__entry->param1 = params->param1;
 		__entry->param2 = params->param2;
+		__entry->cmd_status = cmd_status;
 	),
-	TP_printk("%s: cmd '%s' [%d] params %08x %08x %08x",
+	TP_printk("%s: cmd '%s' [%d] params %08x %08x %08x --> status: %s",
 		__get_str(name), dwc3_gadget_ep_cmd_string(__entry->cmd),
 		__entry->cmd, __entry->param0,
-		__entry->param1, __entry->param2
+		__entry->param1, __entry->param2,
+		dwc3_ep_cmd_status_string(__entry->cmd_status)
 	)
 );
 
 DEFINE_EVENT(dwc3_log_gadget_ep_cmd, dwc3_gadget_ep_cmd,
 	TP_PROTO(struct dwc3_ep *dep, unsigned int cmd,
-		struct dwc3_gadget_ep_cmd_params *params),
-	TP_ARGS(dep, cmd, params)
+		struct dwc3_gadget_ep_cmd_params *params, int cmd_status),
+	TP_ARGS(dep, cmd, params, cmd_status)
 );
 
 DECLARE_EVENT_CLASS(dwc3_log_trb,

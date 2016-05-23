@@ -248,10 +248,9 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned cmd,
 	u32			timeout = 500;
 	u32			reg;
 
+	int			cmd_status = 0;
 	int			susphy = false;
 	int			ret = -EINVAL;
-
-	trace_dwc3_gadget_ep_cmd(dep, cmd, params);
 
 	/*
 	 * Synopsys Databook 2.60a states, on section 6.3.2.5.[1-8], that if
@@ -292,7 +291,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned cmd,
 	do {
 		reg = dwc3_readl(dep->regs, DWC3_DEPCMD);
 		if (!(reg & DWC3_DEPCMD_CMDACT)) {
-			int cmd_status = DWC3_DEPCMD_STATUS(reg);
+			cmd_status = DWC3_DEPCMD_STATUS(reg);
 
 			dwc3_trace(trace_dwc3_gadget,
 					"Command Complete --> %d",
@@ -333,7 +332,10 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned cmd,
 		dwc3_trace(trace_dwc3_gadget,
 				"Command Timed Out");
 		ret = -ETIMEDOUT;
+		cmd_status = -ETIMEDOUT;
 	}
+
+	trace_dwc3_gadget_ep_cmd(dep, cmd, params, cmd_status);
 
 	if (unlikely(susphy)) {
 		reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));

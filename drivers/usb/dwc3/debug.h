@@ -280,6 +280,22 @@ static inline const char *dwc3_decode_event(u32 event)
 		return dwc3_ep_event_string(&evt.depevt);
 }
 
+static inline const char *dwc3_ep_cmd_status_string(int status)
+{
+	switch (status) {
+	case -ETIMEDOUT:
+		return "Timed Out";
+	case 0:
+		return "Successful";
+	case DEPEVT_TRANSFER_NO_RESOURCE:
+		return "No Resource";
+	case DEPEVT_TRANSFER_BUS_EXPIRY:
+		return "Bus Expiry";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 void dwc3_trace(void (*trace)(struct va_format *), const char *fmt, ...);
 
 #ifdef CONFIG_DEBUG_FS
