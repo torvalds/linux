@@ -136,9 +136,6 @@ static int do_kexec_load(unsigned long entry, unsigned long nr_segments,
 	if (ret)
 		return ret;
 
-	if (flags & KEXEC_ON_CRASH)
-		crash_map_reserved_pages();
-
 	if (flags & KEXEC_PRESERVE_CONTEXT)
 		image->preserve_context = 1;
 
@@ -161,12 +158,6 @@ out:
 	if ((flags & KEXEC_ON_CRASH) && kexec_crash_image)
 		arch_kexec_protect_crashkres();
 
-	/*
-	 * Once the reserved memory is mapped, we should unmap this memory
-	 * before returning
-	 */
-	if (flags & KEXEC_ON_CRASH)
-		crash_unmap_reserved_pages();
 	kimage_free(image);
 	return ret;
 }
@@ -231,9 +222,6 @@ SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
 		return -EBUSY;
 
 	result = do_kexec_load(entry, nr_segments, segments, flags);
-
-	if ((flags & KEXEC_ON_CRASH) && kexec_crash_image)
-		arch_kexec_protect_crashkres();
 
 	mutex_unlock(&kexec_mutex);
 
