@@ -297,6 +297,13 @@ int amdgpu_sync_cycle_fences(struct amdgpu_sync *dst, struct amdgpu_sync *src,
 	return 0;
 }
 
+/**
+ * amdgpu_sync_get_fence - get the next fence from the sync object
+ *
+ * @sync: sync object to use
+ *
+ * Get and removes the next fence from the sync object not signaled yet.
+ */
 struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync)
 {
 	struct amdgpu_sync_entry *e;
