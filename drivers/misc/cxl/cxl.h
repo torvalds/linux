@@ -81,6 +81,7 @@ static const cxl_p1_reg_t CXL_PSL_TLBIA   = {0x00A8};
 static const cxl_p1_reg_t CXL_PSL_AFUSEL  = {0x00B0};
 
 /* 0x00C0:7EFF Implementation dependent area */
+/* PSL registers */
 static const cxl_p1_reg_t CXL_PSL_FIR1      = {0x0100};
 static const cxl_p1_reg_t CXL_PSL_FIR2      = {0x0108};
 static const cxl_p1_reg_t CXL_PSL_Timebase  = {0x0110};
@@ -91,6 +92,11 @@ static const cxl_p1_reg_t CXL_PSL_FIR_CNTL  = {0x0148};
 static const cxl_p1_reg_t CXL_PSL_DSNDCTL   = {0x0150};
 static const cxl_p1_reg_t CXL_PSL_SNWRALLOC = {0x0158};
 static const cxl_p1_reg_t CXL_PSL_TRACE     = {0x0170};
+/* XSL registers (Mellanox CX4) */
+static const cxl_p1_reg_t CXL_XSL_Timebase  = {0x0100};
+static const cxl_p1_reg_t CXL_XSL_TB_CTLSTAT = {0x0108};
+static const cxl_p1_reg_t CXL_XSL_FEC       = {0x0158};
+static const cxl_p1_reg_t CXL_XSL_DSNCTL    = {0x0168};
 /* 0x7F00:7FFF Reserved PCIe MSI-X Pending Bit Array area */
 /* 0x8000:FFFF Reserved PCIe MSI-X Table Area */
 
@@ -525,6 +531,20 @@ struct cxl_context {
 	struct rcu_head rcu;
 };
 
+struct cxl_service_layer_ops {
+	int (*adapter_regs_init)(struct cxl *adapter, struct pci_dev *dev);
+	int (*afu_regs_init)(struct cxl_afu *afu);
+	int (*register_serr_irq)(struct cxl_afu *afu);
+	void (*release_serr_irq)(struct cxl_afu *afu);
+	void (*debugfs_add_adapter_sl_regs)(struct cxl *adapter, struct dentry *dir);
+	void (*debugfs_add_afu_sl_regs)(struct cxl_afu *afu, struct dentry *dir);
+	void (*psl_irq_dump_registers)(struct cxl_context *ctx);
+	void (*err_irq_dump_registers)(struct cxl *adapter);
+	void (*debugfs_stop_trace)(struct cxl *adapter);
+	void (*write_timebase_ctrl)(struct cxl *adapter);
+	u64 (*timebase_read)(struct cxl *adapter);
+};
+
 struct cxl_native {
 	u64 afu_desc_off;
 	u64 afu_desc_size;
@@ -533,6 +553,7 @@ struct cxl_native {
 	irq_hw_number_t err_hwirq;
 	unsigned int err_virq;
 	u64 ps_off;
+	const struct cxl_service_layer_ops *sl_ops;
 };
 
 struct cxl_guest {
@@ -805,6 +826,11 @@ int cxl_tlb_slb_invalidate(struct cxl *adapter);
 int cxl_afu_disable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
 
+void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter, struct dentry *dir);
+void cxl_debugfs_add_adapter_xsl_regs(struct cxl *adapter, struct dentry *dir);
+void cxl_debugfs_add_afu_psl_regs(struct cxl_afu *afu, struct dentry *dir);
+void cxl_native_psl_irq_dump_regs(struct cxl_context *ctx);
+void cxl_native_err_irq_dump_regs(struct cxl *adapter);
 void cxl_stop_trace(struct cxl *cxl);
 int cxl_pci_vphb_add(struct cxl_afu *afu);
 void cxl_pci_vphb_remove(struct cxl_afu *afu);

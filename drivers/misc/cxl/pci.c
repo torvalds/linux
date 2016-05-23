@@ -352,13 +352,10 @@ static u64 get_capp_unit_id(struct device_node *np)
 	return 0;
 }
 
-static int init_implementation_adapter_regs(struct cxl *adapter, struct pci_dev *dev)
+static int calc_capp_routing(struct pci_dev *dev, u64 *chipid, u64 *capp_unit_id)
 {
 	struct device_node *np;
 	const __be32 *prop;
-	u64 psl_dsnctl;
-	u64 chipid;
-	u64 capp_unit_id;
 
 	if (!(np = pnv_pci_get_phb_node(dev)))
 		return -ENODEV;
@@ -367,13 +364,27 @@ static int init_implementation_adapter_regs(struct cxl *adapter, struct pci_dev 
 		np = of_get_next_parent(np);
 	if (!np)
 		return -ENODEV;
-	chipid = be32_to_cpup(prop);
-	capp_unit_id = get_capp_unit_id(np);
+	*chipid = be32_to_cpup(prop);
+	*capp_unit_id = get_capp_unit_id(np);
 	of_node_put(np);
-	if (!capp_unit_id) {
+	if (!*capp_unit_id) {
 		pr_err("cxl: invalid capp unit id\n");
 		return -ENODEV;
 	}
+
+	return 0;
+}
+
+static int init_implementation_adapter_psl_regs(struct cxl *adapter, struct pci_dev *dev)
+{
+	u64 psl_dsnctl;
+	u64 chipid;
+	u64 capp_unit_id;
+	int rc;
+
+	rc = calc_capp_routing(dev, &chipid, &capp_unit_id);
+	if (rc)
+		return rc;
 
 	psl_dsnctl = 0x0000900000000000ULL; /* pteupd ttype, scdone */
 	psl_dsnctl |= (0x2ULL << (63-38)); /* MMIO hang pulse: 256 us */
@@ -393,8 +404,61 @@ static int init_implementation_adapter_regs(struct cxl *adapter, struct pci_dev 
 	return 0;
 }
 
+static int init_implementation_adapter_xsl_regs(struct cxl *adapter, struct pci_dev *dev)
+{
+	u64 xsl_dsnctl;
+	u64 chipid;
+	u64 capp_unit_id;
+	int rc;
+
+	rc = calc_capp_routing(dev, &chipid, &capp_unit_id);
+	if (rc)
+		return rc;
+
+	/* Tell XSL where to route data to */
+	xsl_dsnctl = 0x0000600000000000ULL | (chipid << (63-5));
+	xsl_dsnctl |= (capp_unit_id << (63-13));
+	cxl_p1_write(adapter, CXL_XSL_DSNCTL, xsl_dsnctl);
+
+	return 0;
+}
+
+/* PSL & XSL */
+#define TBSYNC_CAL(n) (((u64)n & 0x7) << (63-3))
 #define TBSYNC_CNT(n) (((u64)n & 0x7) << (63-6))
-#define _2048_250MHZ_CYCLES 1
+/* For the PSL this is a multiple for 0 < n <= 7: */
+#define PSL_2048_250MHZ_CYCLES 1
+
+static void write_timebase_ctrl_psl(struct cxl *adapter)
+{
+	cxl_p1_write(adapter, CXL_PSL_TB_CTLSTAT,
+		     TBSYNC_CNT(2 * PSL_2048_250MHZ_CYCLES));
+}
+
+/* XSL */
+#define TBSYNC_ENA (1ULL << 63)
+/* For the XSL this is 2**n * 2000 clocks for 0 < n <= 6: */
+#define XSL_2000_CLOCKS 1
+#define XSL_4000_CLOCKS 2
+#define XSL_8000_CLOCKS 3
+
+static void write_timebase_ctrl_xsl(struct cxl *adapter)
+{
+	cxl_p1_write(adapter, CXL_XSL_TB_CTLSTAT,
+		     TBSYNC_ENA |
+		     TBSYNC_CAL(3) |
+		     TBSYNC_CNT(XSL_4000_CLOCKS));
+}
+
+static u64 timebase_read_psl(struct cxl *adapter)
+{
+	return cxl_p1_read(adapter, CXL_PSL_Timebase);
+}
+
+static u64 timebase_read_xsl(struct cxl *adapter)
+{
+	return cxl_p1_read(adapter, CXL_XSL_Timebase);
+}
 
 static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 {
@@ -421,8 +485,7 @@ static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 	 * Setup PSL Timebase Control and Status register
 	 * with the recommended Timebase Sync Count value
 	 */
-	cxl_p1_write(adapter, CXL_PSL_TB_CTLSTAT,
-		     TBSYNC_CNT(2 * _2048_250MHZ_CYCLES));
+	adapter->native->sl_ops->write_timebase_ctrl(adapter);
 
 	/* Enable PSL Timebase */
 	cxl_p1_write(adapter, CXL_PSL_Control, 0x0000000000000000);
@@ -435,7 +498,7 @@ static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 			dev_info(&dev->dev, "PSL timebase can't synchronize\n");
 			return;
 		}
-		psl_tb = cxl_p1_read(adapter, CXL_PSL_Timebase);
+		psl_tb = adapter->native->sl_ops->timebase_read(adapter);
 		delta = mftb() - psl_tb;
 		if (delta < 0)
 			delta = -delta;
@@ -445,7 +508,7 @@ static void cxl_setup_psl_timebase(struct cxl *adapter, struct pci_dev *dev)
 	return;
 }
 
-static int init_implementation_afu_regs(struct cxl_afu *afu)
+static int init_implementation_afu_psl_regs(struct cxl_afu *afu)
 {
 	/* read/write masks for this slice */
 	cxl_p1n_write(afu, CXL_PSL_APCALLOC_A, 0xFFFFFFFEFEFEFEFEULL);
@@ -753,11 +816,13 @@ static int sanitise_afu_regs(struct cxl_afu *afu)
 		else
 			cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_A);
 	}
-	reg = cxl_p1n_read(afu, CXL_PSL_SERR_An);
-	if (reg) {
-		if (reg & ~0xffff)
-			dev_warn(&afu->dev, "AFU had pending SERR: %#016llx\n", reg);
-		cxl_p1n_write(afu, CXL_PSL_SERR_An, reg & ~0xffff);
+	if (afu->adapter->native->sl_ops->register_serr_irq) {
+		reg = cxl_p1n_read(afu, CXL_PSL_SERR_An);
+		if (reg) {
+			if (reg & ~0xffff)
+				dev_warn(&afu->dev, "AFU had pending SERR: %#016llx\n", reg);
+			cxl_p1n_write(afu, CXL_PSL_SERR_An, reg & ~0xffff);
+		}
 	}
 	reg = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 	if (reg) {
@@ -835,11 +900,13 @@ static int pci_configure_afu(struct cxl_afu *afu, struct cxl *adapter, struct pc
 	if ((rc = cxl_afu_descriptor_looks_ok(afu)))
 		goto err1;
 
-	if ((rc = init_implementation_afu_regs(afu)))
-		goto err1;
+	if (adapter->native->sl_ops->afu_regs_init)
+		if ((rc = adapter->native->sl_ops->afu_regs_init(afu)))
+			goto err1;
 
-	if ((rc = cxl_native_register_serr_irq(afu)))
-		goto err1;
+	if (adapter->native->sl_ops->register_serr_irq)
+		if ((rc = adapter->native->sl_ops->register_serr_irq(afu)))
+			goto err1;
 
 	if ((rc = cxl_native_register_psl_irq(afu)))
 		goto err2;
@@ -847,7 +914,8 @@ static int pci_configure_afu(struct cxl_afu *afu, struct cxl *adapter, struct pc
 	return 0;
 
 err2:
-	cxl_native_release_serr_irq(afu);
+	if (adapter->native->sl_ops->release_serr_irq)
+		adapter->native->sl_ops->release_serr_irq(afu);
 err1:
 	pci_unmap_slice_regs(afu);
 	return rc;
@@ -856,7 +924,8 @@ err1:
 static void pci_deconfigure_afu(struct cxl_afu *afu)
 {
 	cxl_native_release_psl_irq(afu);
-	cxl_native_release_serr_irq(afu);
+	if (afu->adapter->native->sl_ops->release_serr_irq)
+		afu->adapter->native->sl_ops->release_serr_irq(afu);
 	pci_unmap_slice_regs(afu);
 }
 
@@ -1177,7 +1246,7 @@ static int cxl_configure_adapter(struct cxl *adapter, struct pci_dev *dev)
 	if ((rc = sanitise_adapter_regs(adapter)))
 		goto err;
 
-	if ((rc = init_implementation_adapter_regs(adapter, dev)))
+	if ((rc = adapter->native->sl_ops->adapter_regs_init(adapter, dev)))
 		goto err;
 
 	if ((rc = pnv_phb_to_cxl_mode(dev, OPAL_PHB_CAPI_MODE_CAPI)))
@@ -1212,6 +1281,39 @@ static void cxl_deconfigure_adapter(struct cxl *adapter)
 	pci_disable_device(pdev);
 }
 
+static const struct cxl_service_layer_ops psl_ops = {
+	.adapter_regs_init = init_implementation_adapter_psl_regs,
+	.afu_regs_init = init_implementation_afu_psl_regs,
+	.register_serr_irq = cxl_native_register_serr_irq,
+	.release_serr_irq = cxl_native_release_serr_irq,
+	.debugfs_add_adapter_sl_regs = cxl_debugfs_add_adapter_psl_regs,
+	.debugfs_add_afu_sl_regs = cxl_debugfs_add_afu_psl_regs,
+	.psl_irq_dump_registers = cxl_native_psl_irq_dump_regs,
+	.err_irq_dump_registers = cxl_native_err_irq_dump_regs,
+	.debugfs_stop_trace = cxl_stop_trace,
+	.write_timebase_ctrl = write_timebase_ctrl_psl,
+	.timebase_read = timebase_read_psl,
+};
+
+static const struct cxl_service_layer_ops xsl_ops = {
+	.adapter_regs_init = init_implementation_adapter_xsl_regs,
+	.debugfs_add_adapter_sl_regs = cxl_debugfs_add_adapter_xsl_regs,
+	.write_timebase_ctrl = write_timebase_ctrl_xsl,
+	.timebase_read = timebase_read_xsl,
+};
+
+static void set_sl_ops(struct cxl *adapter, struct pci_dev *dev)
+{
+	if (dev->vendor == PCI_VENDOR_ID_MELLANOX && dev->device == 0x1013) {
+		dev_info(&adapter->dev, "Device uses an XSL\n");
+		adapter->native->sl_ops = &xsl_ops;
+	} else {
+		dev_info(&adapter->dev, "Device uses a PSL\n");
+		adapter->native->sl_ops = &psl_ops;
+	}
+}
+
+
 static struct cxl *cxl_pci_init_adapter(struct pci_dev *dev)
 {
 	struct cxl *adapter;
@@ -1226,6 +1328,8 @@ static struct cxl *cxl_pci_init_adapter(struct pci_dev *dev)
 		rc = -ENOMEM;
 		goto err_release;
 	}
+
+	set_sl_ops(adapter, dev);
 
 	/* Set defaults for parameters which need to persist over
 	 * configure/reconfigure

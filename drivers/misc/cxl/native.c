@@ -795,26 +795,38 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 	return 0;
 }
 
-static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
-						u64 dsisr, u64 errstat)
+void cxl_native_psl_irq_dump_regs(struct cxl_context *ctx)
 {
 	u64 fir1, fir2, fir_slice, serr, afu_debug;
 
 	fir1 = cxl_p1_read(ctx->afu->adapter, CXL_PSL_FIR1);
 	fir2 = cxl_p1_read(ctx->afu->adapter, CXL_PSL_FIR2);
 	fir_slice = cxl_p1n_read(ctx->afu, CXL_PSL_FIR_SLICE_An);
-	serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
 	afu_debug = cxl_p1n_read(ctx->afu, CXL_AFU_DEBUG_An);
 
-	dev_crit(&ctx->afu->dev, "PSL ERROR STATUS: 0x%016llx\n", errstat);
 	dev_crit(&ctx->afu->dev, "PSL_FIR1: 0x%016llx\n", fir1);
 	dev_crit(&ctx->afu->dev, "PSL_FIR2: 0x%016llx\n", fir2);
-	dev_crit(&ctx->afu->dev, "PSL_SERR_An: 0x%016llx\n", serr);
+	if (ctx->afu->adapter->native->sl_ops->register_serr_irq) {
+		serr = cxl_p1n_read(ctx->afu, CXL_PSL_SERR_An);
+		dev_crit(&ctx->afu->dev, "PSL_SERR_An: 0x%016llx\n", serr);
+	}
 	dev_crit(&ctx->afu->dev, "PSL_FIR_SLICE_An: 0x%016llx\n", fir_slice);
 	dev_crit(&ctx->afu->dev, "CXL_PSL_AFU_DEBUG_An: 0x%016llx\n", afu_debug);
+}
 
-	dev_crit(&ctx->afu->dev, "STOPPING CXL TRACE\n");
-	cxl_stop_trace(ctx->afu->adapter);
+static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
+						u64 dsisr, u64 errstat)
+{
+
+	dev_crit(&ctx->afu->dev, "PSL ERROR STATUS: 0x%016llx\n", errstat);
+
+	if (ctx->afu->adapter->native->sl_ops->psl_irq_dump_registers)
+		ctx->afu->adapter->native->sl_ops->psl_irq_dump_registers(ctx);
+
+	if (ctx->afu->adapter->native->sl_ops->debugfs_stop_trace) {
+		dev_crit(&ctx->afu->dev, "STOPPING CXL TRACE\n");
+		ctx->afu->adapter->native->sl_ops->debugfs_stop_trace(ctx->afu->adapter);
+	}
 
 	return cxl_ops->ack_irq(ctx, 0, errstat);
 }
@@ -892,6 +904,9 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 	struct cxl_afu *afu = data;
 	u64 fir_slice, errstat, serr, afu_debug;
 
+	/*
+	 * slice err interrupt is only used with full PSL (no XSL)
+	 */
 	WARN(irq, "CXL SLICE ERROR interrupt %i\n", irq);
 
 	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
@@ -908,23 +923,33 @@ static irqreturn_t native_slice_irq_err(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+void cxl_native_err_irq_dump_regs(struct cxl *adapter)
+{
+	u64 fir1, fir2;
+
+	fir1 = cxl_p1_read(adapter, CXL_PSL_FIR1);
+	fir2 = cxl_p1_read(adapter, CXL_PSL_FIR2);
+
+	dev_crit(&adapter->dev, "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n", fir1, fir2);
+}
+
 static irqreturn_t native_irq_err(int irq, void *data)
 {
 	struct cxl *adapter = data;
-	u64 fir1, fir2, err_ivte;
+	u64 err_ivte;
 
 	WARN(1, "CXL ERROR interrupt %i\n", irq);
 
 	err_ivte = cxl_p1_read(adapter, CXL_PSL_ErrIVTE);
 	dev_crit(&adapter->dev, "PSL_ErrIVTE: 0x%016llx\n", err_ivte);
 
-	dev_crit(&adapter->dev, "STOPPING CXL TRACE\n");
-	cxl_stop_trace(adapter);
+	if (adapter->native->sl_ops->debugfs_stop_trace) {
+		dev_crit(&adapter->dev, "STOPPING CXL TRACE\n");
+		adapter->native->sl_ops->debugfs_stop_trace(adapter);
+	}
 
-	fir1 = cxl_p1_read(adapter, CXL_PSL_FIR1);
-	fir2 = cxl_p1_read(adapter, CXL_PSL_FIR2);
-
-	dev_crit(&adapter->dev, "PSL_FIR1: 0x%016llx\nPSL_FIR2: 0x%016llx\n", fir1, fir2);
+	if (adapter->native->sl_ops->err_irq_dump_registers)
+		adapter->native->sl_ops->err_irq_dump_registers(adapter);
 
 	return IRQ_HANDLED;
 }
