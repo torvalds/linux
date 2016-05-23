@@ -524,16 +524,15 @@ static void sysmmu_tlb_invalidate_flpdcache(struct sysmmu_drvdata *data,
 {
 	unsigned long flags;
 
-	clk_enable(data->clk_master);
 
 	spin_lock_irqsave(&data->lock, flags);
-	if (is_sysmmu_active(data)) {
-		if (data->version >= MAKE_MMU_VER(3, 3))
-			__sysmmu_tlb_invalidate_entry(data, iova, 1);
+	if (is_sysmmu_active(data) && data->version >= MAKE_MMU_VER(3, 3)) {
+		clk_enable(data->clk_master);
+		__sysmmu_tlb_invalidate_entry(data, iova, 1);
+		clk_disable(data->clk_master);
 	}
 	spin_unlock_irqrestore(&data->lock, flags);
 
-	clk_disable(data->clk_master);
 }
 
 static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
