@@ -66,6 +66,10 @@ position p;
 |
 * kzfree@p(x)
 |
+* __krealloc@p(x, ...)
+|
+* krealloc@p(x, ...)
+|
 * free_pages@p(x, ...)
 |
 * free_page@p(x)
