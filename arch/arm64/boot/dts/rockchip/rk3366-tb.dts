@@ -49,7 +49,7 @@
 	compatible = "rockchip,tb", "rockchip,rk3366";
 
 	chosen {
-		bootargs = "console=uart,mmio32,0xff690000 clk_ignore_unused";
+		bootargs = "console=uart,mmio32,0xff690000";
 	};
 
 	ion {
