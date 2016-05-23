@@ -296,6 +296,20 @@ static inline const char *dwc3_ep_cmd_status_string(int status)
 	}
 }
 
+static inline const char *dwc3_gadget_generic_cmd_status_string(int status)
+{
+	switch (status) {
+	case -ETIMEDOUT:
+		return "Timed Out";
+	case 0:
+		return "Successful";
+	case 1:
+		return "Error";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 void dwc3_trace(void (*trace)(struct va_format *), const char *fmt, ...);
 
 #ifdef CONFIG_DEBUG_FS
