@@ -291,7 +291,7 @@ int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
 {
 	struct drm_gem_object *gem_obj;
 
-	gem_obj = drm_gem_object_lookup(drm, file_priv, handle);
+	gem_obj = drm_gem_object_lookup(file_priv, handle);
 	if (!gem_obj) {
 		dev_err(drm->dev, "failed to lookup GEM object\n");
 		return -EINVAL;

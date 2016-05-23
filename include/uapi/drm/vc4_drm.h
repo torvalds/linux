@@ -26,6 +26,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define DRM_VC4_SUBMIT_CL                         0x00
 #define DRM_VC4_WAIT_SEQNO                        0x01
 #define DRM_VC4_WAIT_BO                           0x02
@@ -275,5 +279,9 @@ struct drm_vc4_get_hang_state {
 	/* Pad that we may save more registers into in the future. */
 	__u32 pad[16];
 };
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* _UAPI_VC4_DRM_H_ */

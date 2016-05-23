@@ -128,9 +128,9 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 
 /**
  * get_mocs_settings()
- * @dev:        DRM device.
+ * @dev_priv:	i915 device.
  * @table:      Output table that will be made to point at appropriate
- *              MOCS values for the device.
+ *	      MOCS values for the device.
  *
  * This function will return the values of the MOCS table that needs to
  * be programmed for the platform. It will return the values that need
@@ -138,28 +138,28 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
  *
  * Return: true if there are applicable MOCS settings for the device.
  */
-static bool get_mocs_settings(struct drm_device *dev,
+static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 			      struct drm_i915_mocs_table *table)
 {
 	bool result = false;
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
 		table->table = skylake_mocs_table;
 		result = true;
-	} else if (IS_BROXTON(dev)) {
+	} else if (IS_BROXTON(dev_priv)) {
 		table->size  = ARRAY_SIZE(broxton_mocs_table);
 		table->table = broxton_mocs_table;
 		result = true;
 	} else {
-		WARN_ONCE(INTEL_INFO(dev)->gen >= 9,
+		WARN_ONCE(INTEL_INFO(dev_priv)->gen >= 9,
 			  "Platform that should have a MOCS table does not.\n");
 	}
 
 	return result;
 }
 
-static i915_reg_t mocs_register(enum intel_ring_id ring, int index)
+static i915_reg_t mocs_register(enum intel_engine_id ring, int index)
 {
 	switch (ring) {
 	case RCS:
@@ -179,10 +179,49 @@ static i915_reg_t mocs_register(enum intel_ring_id ring, int index)
 }
 
 /**
+ * intel_mocs_init_engine() - emit the mocs control table
+ * @engine:	The engine for whom to emit the registers.
+ *
+ * This function simply emits a MI_LOAD_REGISTER_IMM command for the
+ * given table starting at the given address.
+ *
+ * Return: 0 on success, otherwise the error status.
+ */
+int intel_mocs_init_engine(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = to_i915(engine->dev);
+	struct drm_i915_mocs_table table;
+	unsigned int index;
+
+	if (!get_mocs_settings(dev_priv, &table))
+		return 0;
+
+	if (WARN_ON(table.size > GEN9_NUM_MOCS_ENTRIES))
+		return -ENODEV;
+
+	for (index = 0; index < table.size; index++)
+		I915_WRITE(mocs_register(engine->id, index),
+			   table.table[index].control_value);
+
+	/*
+	 * Ok, now set the unused entries to uncached. These entries
+	 * are officially undefined and no contract for the contents
+	 * and settings is given for these entries.
+	 *
+	 * Entry 0 in the table is uncached - so we are just writing
+	 * that value to all the used entries.
+	 */
+	for (; index < GEN9_NUM_MOCS_ENTRIES; index++)
+		I915_WRITE(mocs_register(engine->id, index),
+			   table.table[0].control_value);
+
+	return 0;
+}
+
+/**
  * emit_mocs_control_table() - emit the mocs control table
  * @req:	Request to set up the MOCS table for.
  * @table:	The values to program into the control regs.
- * @ring:	The engine for whom to emit the registers.
  *
  * This function simply emits a MI_LOAD_REGISTER_IMM command for the
  * given table starting at the given address.
@@ -190,10 +229,10 @@ static i915_reg_t mocs_register(enum intel_ring_id ring, int index)
  * Return: 0 on success, otherwise the error status.
  */
 static int emit_mocs_control_table(struct drm_i915_gem_request *req,
-				   const struct drm_i915_mocs_table *table,
-				   enum intel_ring_id ring)
+				   const struct drm_i915_mocs_table *table)
 {
 	struct intel_ringbuffer *ringbuf = req->ringbuf;
+	enum intel_engine_id engine = req->engine->id;
 	unsigned int index;
 	int ret;
 
@@ -210,7 +249,8 @@ static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 				MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES));
 
 	for (index = 0; index < table->size; index++) {
-		intel_logical_ring_emit_reg(ringbuf, mocs_register(ring, index));
+		intel_logical_ring_emit_reg(ringbuf,
+					    mocs_register(engine, index));
 		intel_logical_ring_emit(ringbuf,
 					table->table[index].control_value);
 	}
@@ -224,14 +264,24 @@ static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 	 * that value to all the used entries.
 	 */
 	for (; index < GEN9_NUM_MOCS_ENTRIES; index++) {
-		intel_logical_ring_emit_reg(ringbuf, mocs_register(ring, index));
-		intel_logical_ring_emit(ringbuf, table->table[0].control_value);
+		intel_logical_ring_emit_reg(ringbuf,
+					    mocs_register(engine, index));
+		intel_logical_ring_emit(ringbuf,
+					table->table[0].control_value);
 	}
 
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 	intel_logical_ring_advance(ringbuf);
 
 	return 0;
+}
+
+static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
+			       u16 low,
+			       u16 high)
+{
+	return table->table[low].l3cc_value |
+	       table->table[high].l3cc_value << 16;
 }
 
 /**
@@ -249,11 +299,7 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 				const struct drm_i915_mocs_table *table)
 {
 	struct intel_ringbuffer *ringbuf = req->ringbuf;
-	unsigned int count;
 	unsigned int i;
-	u32 value;
-	u32 filler = (table->table[0].l3cc_value & 0xffff) |
-			((table->table[0].l3cc_value & 0xffff) << 16);
 	int ret;
 
 	if (WARN_ON(table->size > GEN9_NUM_MOCS_ENTRIES))
@@ -268,20 +314,18 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 	intel_logical_ring_emit(ringbuf,
 			MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES / 2));
 
-	for (i = 0, count = 0; i < table->size / 2; i++, count += 2) {
-		value = (table->table[count].l3cc_value & 0xffff) |
-			((table->table[count + 1].l3cc_value & 0xffff) << 16);
-
+	for (i = 0; i < table->size/2; i++) {
 		intel_logical_ring_emit_reg(ringbuf, GEN9_LNCFCMOCS(i));
-		intel_logical_ring_emit(ringbuf, value);
+		intel_logical_ring_emit(ringbuf,
+					l3cc_combine(table, 2*i, 2*i+1));
 	}
 
 	if (table->size & 0x01) {
 		/* Odd table size - 1 left over */
-		value = (table->table[count].l3cc_value & 0xffff) |
-			((table->table[0].l3cc_value & 0xffff) << 16);
-	} else
-		value = filler;
+		intel_logical_ring_emit_reg(ringbuf, GEN9_LNCFCMOCS(i));
+		intel_logical_ring_emit(ringbuf, l3cc_combine(table, 2*i, 0));
+		i++;
+	}
 
 	/*
 	 * Now set the rest of the table to uncached - use entry 0 as
@@ -290,15 +334,54 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 	 */
 	for (; i < GEN9_NUM_MOCS_ENTRIES / 2; i++) {
 		intel_logical_ring_emit_reg(ringbuf, GEN9_LNCFCMOCS(i));
-		intel_logical_ring_emit(ringbuf, value);
-
-		value = filler;
+		intel_logical_ring_emit(ringbuf, l3cc_combine(table, 0, 0));
 	}
 
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 	intel_logical_ring_advance(ringbuf);
 
 	return 0;
+}
+
+/**
+ * intel_mocs_init_l3cc_table() - program the mocs control table
+ * @dev:      The the device to be programmed.
+ *
+ * This function simply programs the mocs registers for the given table
+ * starting at the given address. This register set is  programmed in pairs.
+ *
+ * These registers may get programmed more than once, it is simpler to
+ * re-program 32 registers than maintain the state of when they were programmed.
+ * We are always reprogramming with the same values and this only on context
+ * start.
+ *
+ * Return: Nothing.
+ */
+void intel_mocs_init_l3cc_table(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_mocs_table table;
+	unsigned int i;
+
+	if (!get_mocs_settings(dev_priv, &table))
+		return;
+
+	for (i = 0; i < table.size/2; i++)
+		I915_WRITE(GEN9_LNCFCMOCS(i), l3cc_combine(&table, 2*i, 2*i+1));
+
+	/* Odd table size - 1 left over */
+	if (table.size & 0x01) {
+		I915_WRITE(GEN9_LNCFCMOCS(i), l3cc_combine(&table, 2*i, 0));
+		i++;
+	}
+
+	/*
+	 * Now set the rest of the table to uncached - use entry 0 as
+	 * this will be uncached. Leave the last pair as initialised as
+	 * they are reserved by the hardware.
+	 */
+	for (; i < (GEN9_NUM_MOCS_ENTRIES / 2); i++)
+		I915_WRITE(GEN9_LNCFCMOCS(i), l3cc_combine(&table, 0, 0));
 }
 
 /**
@@ -322,17 +405,11 @@ int intel_rcs_context_init_mocs(struct drm_i915_gem_request *req)
 	struct drm_i915_mocs_table t;
 	int ret;
 
-	if (get_mocs_settings(req->ring->dev, &t)) {
-		struct drm_i915_private *dev_priv = req->i915;
-		struct intel_engine_cs *ring;
-		enum intel_ring_id ring_id;
-
-		/* Program the control registers */
-		for_each_ring(ring, dev_priv, ring_id) {
-			ret = emit_mocs_control_table(req, &t, ring_id);
-			if (ret)
-				return ret;
-		}
+	if (get_mocs_settings(req->i915, &t)) {
+		/* Program the RCS control registers */
+		ret = emit_mocs_control_table(req, &t);
+		if (ret)
+			return ret;
 
 		/* Now program the l3cc registers */
 		ret = emit_mocs_l3cc_table(req, &t);

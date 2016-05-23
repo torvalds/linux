@@ -177,7 +177,7 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 	struct exynos_drm_gem *exynos_gem;
 	struct drm_gem_object *obj;
 
-	obj = drm_gem_object_lookup(dev, file_priv, gem_handle);
+	obj = drm_gem_object_lookup(file_priv, gem_handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
 		return 0;
@@ -296,7 +296,7 @@ dma_addr_t *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
 	struct exynos_drm_gem *exynos_gem;
 	struct drm_gem_object *obj;
 
-	obj = drm_gem_object_lookup(dev, filp, gem_handle);
+	obj = drm_gem_object_lookup(filp, gem_handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
 		return ERR_PTR(-EINVAL);
@@ -313,7 +313,7 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 {
 	struct drm_gem_object *obj;
 
-	obj = drm_gem_object_lookup(dev, filp, gem_handle);
+	obj = drm_gem_object_lookup(filp, gem_handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
 		return;
@@ -362,12 +362,9 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 	struct drm_exynos_gem_info *args = data;
 	struct drm_gem_object *obj;
 
-	mutex_lock(&dev->struct_mutex);
-
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
-		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -376,36 +373,9 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 	args->flags = exynos_gem->flags;
 	args->size = exynos_gem->size;
 
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 
 	return 0;
-}
-
-int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
-				struct sg_table *sgt,
-				enum dma_data_direction dir)
-{
-	int nents;
-
-	mutex_lock(&drm_dev->struct_mutex);
-
-	nents = dma_map_sg(to_dma_dev(drm_dev), sgt->sgl, sgt->nents, dir);
-	if (!nents) {
-		DRM_ERROR("failed to map sgl with dma.\n");
-		mutex_unlock(&drm_dev->struct_mutex);
-		return nents;
-	}
-
-	mutex_unlock(&drm_dev->struct_mutex);
-	return 0;
-}
-
-void exynos_gem_unmap_sgt_from_dma(struct drm_device *drm_dev,
-				struct sg_table *sgt,
-				enum dma_data_direction dir)
-{
-	dma_unmap_sg(to_dma_dev(drm_dev), sgt->sgl, sgt->nents, dir);
 }
 
 void exynos_drm_gem_free_object(struct drm_gem_object *obj)
@@ -458,27 +428,22 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 	struct drm_gem_object *obj;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
-
 	/*
 	 * get offset of memory allocated for drm framebuffer.
 	 * - this callback would be called by user application
 	 *	with DRM_IOCTL_MODE_MAP_DUMB command.
 	 */
 
-	obj = drm_gem_object_lookup(dev, file_priv, handle);
+	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 	DRM_DEBUG_KMS("offset = 0x%lx\n", (unsigned long)*offset);
 
-	drm_gem_object_unreference(obj);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
 
@@ -516,21 +481,11 @@ out:
 	}
 }
 
-int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+static int exynos_drm_gem_mmap_obj(struct drm_gem_object *obj,
+				   struct vm_area_struct *vma)
 {
-	struct exynos_drm_gem *exynos_gem;
-	struct drm_gem_object *obj;
+	struct exynos_drm_gem *exynos_gem = to_exynos_gem(obj);
 	int ret;
-
-	/* set vm_area_struct. */
-	ret = drm_gem_mmap(filp, vma);
-	if (ret < 0) {
-		DRM_ERROR("failed to mmap.\n");
-		return ret;
-	}
-
-	obj = vma->vm_private_data;
-	exynos_gem = to_exynos_gem(obj);
 
 	DRM_DEBUG_KMS("flags = 0x%x\n", exynos_gem->flags);
 
@@ -554,6 +509,26 @@ err_close_vm:
 	drm_gem_vm_close(vma);
 
 	return ret;
+}
+
+int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct drm_gem_object *obj;
+	int ret;
+
+	/* set vm_area_struct. */
+	ret = drm_gem_mmap(filp, vma);
+	if (ret < 0) {
+		DRM_ERROR("failed to mmap.\n");
+		return ret;
+	}
+
+	obj = vma->vm_private_data;
+
+	if (obj->import_attach)
+		return dma_buf_mmap(obj->dma_buf, vma, 0);
+
+	return exynos_drm_gem_mmap_obj(obj, vma);
 }
 
 /* low-level interface prime helpers */
@@ -629,4 +604,16 @@ void *exynos_drm_gem_prime_vmap(struct drm_gem_object *obj)
 void exynos_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
 	/* Nothing to do */
+}
+
+int exynos_drm_gem_prime_mmap(struct drm_gem_object *obj,
+			      struct vm_area_struct *vma)
+{
+	int ret;
+
+	ret = drm_gem_mmap_obj(obj, obj->size, vma);
+	if (ret < 0)
+		return ret;
+
+	return exynos_drm_gem_mmap_obj(obj, vma);
 }

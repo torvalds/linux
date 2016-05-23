@@ -55,6 +55,9 @@ struct nvkm_fb {
 		struct nvkm_fb_tile region[16];
 		int regions;
 	} tile;
+
+	struct nvkm_memory *mmu_rd;
+	struct nvkm_memory *mmu_wr;
 };
 
 bool nvkm_fb_memtype_valid(struct nvkm_fb *, u32 memtype);
@@ -87,6 +90,7 @@ int gf100_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gk104_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gk20a_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gm107_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gm200_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 
 #include <subdev/bios.h>
 #include <subdev/bios/ramcfg.h>

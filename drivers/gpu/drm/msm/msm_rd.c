@@ -296,7 +296,7 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 
 	n = snprintf(msg, sizeof(msg), "%.*s/%d: fence=%u",
 			TASK_COMM_LEN, current->comm, task_pid_nr(current),
-			submit->fence);
+			submit->fence->seqno);
 
 	rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
 

@@ -2549,19 +2549,17 @@ static int ci_get_dependency_volt_by_clk(struct amdgpu_device *adev,
 	return 0;
 }
 
-static u8 ci_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
-					     u32 sclk, u32 min_sclk_in_sr)
+static u8 ci_get_sleep_divider_id_from_clock(u32 sclk, u32 min_sclk_in_sr)
 {
 	u32 i;
 	u32 tmp;
-	u32 min = (min_sclk_in_sr > CISLAND_MINIMUM_ENGINE_CLOCK) ?
-		min_sclk_in_sr : CISLAND_MINIMUM_ENGINE_CLOCK;
+	u32 min = max(min_sclk_in_sr, (u32)CISLAND_MINIMUM_ENGINE_CLOCK);
 
 	if (sclk < min)
 		return 0;
 
 	for (i = CISLAND_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
-		tmp = sclk / (1 << i);
+		tmp = sclk >> i;
 		if (tmp >= min || i == 0)
 			break;
 	}
@@ -3358,8 +3356,7 @@ static int ci_populate_single_graphic_level(struct amdgpu_device *adev,
 	graphic_level->PowerThrottle = 0;
 
 	if (pi->caps_sclk_ds)
-		graphic_level->DeepSleepDivId = ci_get_sleep_divider_id_from_clock(adev,
-										   engine_clock,
+		graphic_level->DeepSleepDivId = ci_get_sleep_divider_id_from_clock(engine_clock,
 										   CISLAND_MINIMUM_ENGINE_CLOCK);
 
 	graphic_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
@@ -6309,215 +6306,6 @@ static int ci_dpm_wait_for_idle(void *handle)
 	return 0;
 }
 
-static void ci_dpm_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "CIK DPM registers\n");
-	dev_info(adev->dev, "  BIOS_SCRATCH_4=0x%08X\n",
-		 RREG32(mmBIOS_SCRATCH_4));
-	dev_info(adev->dev, "  MC_ARB_DRAM_TIMING=0x%08X\n",
-		 RREG32(mmMC_ARB_DRAM_TIMING));
-	dev_info(adev->dev, "  MC_ARB_DRAM_TIMING2=0x%08X\n",
-		 RREG32(mmMC_ARB_DRAM_TIMING2));
-	dev_info(adev->dev, "  MC_ARB_BURST_TIME=0x%08X\n",
-		 RREG32(mmMC_ARB_BURST_TIME));
-	dev_info(adev->dev, "  MC_ARB_DRAM_TIMING_1=0x%08X\n",
-		 RREG32(mmMC_ARB_DRAM_TIMING_1));
-	dev_info(adev->dev, "  MC_ARB_DRAM_TIMING2_1=0x%08X\n",
-		 RREG32(mmMC_ARB_DRAM_TIMING2_1));
-	dev_info(adev->dev, "  MC_CG_CONFIG=0x%08X\n",
-		 RREG32(mmMC_CG_CONFIG));
-	dev_info(adev->dev, "  MC_ARB_CG=0x%08X\n",
-		 RREG32(mmMC_ARB_CG));
-	dev_info(adev->dev, "  DIDT_SQ_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_SQ_CTRL0));
-	dev_info(adev->dev, "  DIDT_DB_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_DB_CTRL0));
-	dev_info(adev->dev, "  DIDT_TD_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_TD_CTRL0));
-	dev_info(adev->dev, "  DIDT_TCP_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_TCP_CTRL0));
-	dev_info(adev->dev, "  CG_THERMAL_INT=0x%08X\n",
-		 RREG32_SMC(ixCG_THERMAL_INT));
-	dev_info(adev->dev, "  CG_THERMAL_CTRL=0x%08X\n",
-		 RREG32_SMC(ixCG_THERMAL_CTRL));
-	dev_info(adev->dev, "  GENERAL_PWRMGT=0x%08X\n",
-		 RREG32_SMC(ixGENERAL_PWRMGT));
-	dev_info(adev->dev, "  MC_SEQ_CNTL_3=0x%08X\n",
-		 RREG32(mmMC_SEQ_CNTL_3));
-	dev_info(adev->dev, "  LCAC_MC0_CNTL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC0_CNTL));
-	dev_info(adev->dev, "  LCAC_MC1_CNTL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC1_CNTL));
-	dev_info(adev->dev, "  LCAC_CPL_CNTL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_CPL_CNTL));
-	dev_info(adev->dev, "  SCLK_PWRMGT_CNTL=0x%08X\n",
-		 RREG32_SMC(ixSCLK_PWRMGT_CNTL));
-	dev_info(adev->dev, "  BIF_LNCNT_RESET=0x%08X\n",
-		 RREG32(mmBIF_LNCNT_RESET));
-	dev_info(adev->dev, "  FIRMWARE_FLAGS=0x%08X\n",
-		 RREG32_SMC(ixFIRMWARE_FLAGS));
-	dev_info(adev->dev, "  CG_SPLL_FUNC_CNTL=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_FUNC_CNTL));
-	dev_info(adev->dev, "  CG_SPLL_FUNC_CNTL_2=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_FUNC_CNTL_2));
-	dev_info(adev->dev, "  CG_SPLL_FUNC_CNTL_3=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_FUNC_CNTL_3));
-	dev_info(adev->dev, "  CG_SPLL_FUNC_CNTL_4=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_FUNC_CNTL_4));
-	dev_info(adev->dev, "  CG_SPLL_SPREAD_SPECTRUM=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_SPREAD_SPECTRUM));
-	dev_info(adev->dev, "  CG_SPLL_SPREAD_SPECTRUM_2=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_SPREAD_SPECTRUM_2));
-	dev_info(adev->dev, "  DLL_CNTL=0x%08X\n",
-		 RREG32(mmDLL_CNTL));
-	dev_info(adev->dev, "  MCLK_PWRMGT_CNTL=0x%08X\n",
-		 RREG32(mmMCLK_PWRMGT_CNTL));
-	dev_info(adev->dev, "  MPLL_AD_FUNC_CNTL=0x%08X\n",
-		 RREG32(mmMPLL_AD_FUNC_CNTL));
-	dev_info(adev->dev, "  MPLL_DQ_FUNC_CNTL=0x%08X\n",
-		 RREG32(mmMPLL_DQ_FUNC_CNTL));
-	dev_info(adev->dev, "  MPLL_FUNC_CNTL=0x%08X\n",
-		 RREG32(mmMPLL_FUNC_CNTL));
-	dev_info(adev->dev, "  MPLL_FUNC_CNTL_1=0x%08X\n",
-		 RREG32(mmMPLL_FUNC_CNTL_1));
-	dev_info(adev->dev, "  MPLL_FUNC_CNTL_2=0x%08X\n",
-		 RREG32(mmMPLL_FUNC_CNTL_2));
-	dev_info(adev->dev, "  MPLL_SS1=0x%08X\n",
-		 RREG32(mmMPLL_SS1));
-	dev_info(adev->dev, "  MPLL_SS2=0x%08X\n",
-		 RREG32(mmMPLL_SS2));
-	dev_info(adev->dev, "  CG_DISPLAY_GAP_CNTL=0x%08X\n",
-		 RREG32_SMC(ixCG_DISPLAY_GAP_CNTL));
-	dev_info(adev->dev, "  CG_DISPLAY_GAP_CNTL2=0x%08X\n",
-		 RREG32_SMC(ixCG_DISPLAY_GAP_CNTL2));
-	dev_info(adev->dev, "  CG_STATIC_SCREEN_PARAMETER=0x%08X\n",
-		 RREG32_SMC(ixCG_STATIC_SCREEN_PARAMETER));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_0=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_0));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_1=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_1));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_2=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_2));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_3=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_3));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_4=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_4));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_5=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_5));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_6=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_6));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_7=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_7));
-	dev_info(adev->dev, "  RCU_UC_EVENTS=0x%08X\n",
-		 RREG32_SMC(ixRCU_UC_EVENTS));
-	dev_info(adev->dev, "  DPM_TABLE_475=0x%08X\n",
-		 RREG32_SMC(ixDPM_TABLE_475));
-	dev_info(adev->dev, "  MC_SEQ_RAS_TIMING_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_RAS_TIMING_LP));
-	dev_info(adev->dev, "  MC_SEQ_RAS_TIMING=0x%08X\n",
-		 RREG32(mmMC_SEQ_RAS_TIMING));
-	dev_info(adev->dev, "  MC_SEQ_CAS_TIMING_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_CAS_TIMING_LP));
-	dev_info(adev->dev, "  MC_SEQ_CAS_TIMING=0x%08X\n",
-		 RREG32(mmMC_SEQ_CAS_TIMING));
-	dev_info(adev->dev, "  MC_SEQ_DLL_STBY_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_DLL_STBY_LP));
-	dev_info(adev->dev, "  MC_SEQ_DLL_STBY=0x%08X\n",
-		 RREG32(mmMC_SEQ_DLL_STBY));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CMD0_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CMD0_LP));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CMD0=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CMD0));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CMD1_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CMD1_LP));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CMD1=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CMD1));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CTRL_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CTRL_LP));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CTRL=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CTRL));
-	dev_info(adev->dev, "  MC_SEQ_PMG_DVS_CMD_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_DVS_CMD_LP));
-	dev_info(adev->dev, "  MC_SEQ_PMG_DVS_CMD=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_DVS_CMD));
-	dev_info(adev->dev, "  MC_SEQ_PMG_DVS_CTL_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_DVS_CTL_LP));
-	dev_info(adev->dev, "  MC_SEQ_PMG_DVS_CTL=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_DVS_CTL));
-	dev_info(adev->dev, "  MC_SEQ_MISC_TIMING_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_MISC_TIMING_LP));
-	dev_info(adev->dev, "  MC_SEQ_MISC_TIMING=0x%08X\n",
-		 RREG32(mmMC_SEQ_MISC_TIMING));
-	dev_info(adev->dev, "  MC_SEQ_MISC_TIMING2_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_MISC_TIMING2_LP));
-	dev_info(adev->dev, "  MC_SEQ_MISC_TIMING2=0x%08X\n",
-		 RREG32(mmMC_SEQ_MISC_TIMING2));
-	dev_info(adev->dev, "  MC_SEQ_PMG_CMD_EMRS_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_CMD_EMRS_LP));
-	dev_info(adev->dev, "  MC_PMG_CMD_EMRS=0x%08X\n",
-		 RREG32(mmMC_PMG_CMD_EMRS));
-	dev_info(adev->dev, "  MC_SEQ_PMG_CMD_MRS_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_CMD_MRS_LP));
-	dev_info(adev->dev, "  MC_PMG_CMD_MRS=0x%08X\n",
-		 RREG32(mmMC_PMG_CMD_MRS));
-	dev_info(adev->dev, "  MC_SEQ_PMG_CMD_MRS1_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_CMD_MRS1_LP));
-	dev_info(adev->dev, "  MC_PMG_CMD_MRS1=0x%08X\n",
-		 RREG32(mmMC_PMG_CMD_MRS1));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_D0_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_D0_LP));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_D0=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_D0));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_D1_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_D1_LP));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_D1=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_D1));
-	dev_info(adev->dev, "  MC_SEQ_RD_CTL_D0_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_RD_CTL_D0_LP));
-	dev_info(adev->dev, "  MC_SEQ_RD_CTL_D0=0x%08X\n",
-		 RREG32(mmMC_SEQ_RD_CTL_D0));
-	dev_info(adev->dev, "  MC_SEQ_RD_CTL_D1_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_RD_CTL_D1_LP));
-	dev_info(adev->dev, "  MC_SEQ_RD_CTL_D1=0x%08X\n",
-		 RREG32(mmMC_SEQ_RD_CTL_D1));
-	dev_info(adev->dev, "  MC_SEQ_PMG_TIMING_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_TIMING_LP));
-	dev_info(adev->dev, "  MC_SEQ_PMG_TIMING=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_TIMING));
-	dev_info(adev->dev, "  MC_SEQ_PMG_CMD_MRS2_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_CMD_MRS2_LP));
-	dev_info(adev->dev, "  MC_PMG_CMD_MRS2=0x%08X\n",
-		 RREG32(mmMC_PMG_CMD_MRS2));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_2_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_2_LP));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_2=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_2));
-	dev_info(adev->dev, "  PCIE_LC_SPEED_CNTL=0x%08X\n",
-		 RREG32_PCIE(ixPCIE_LC_SPEED_CNTL));
-	dev_info(adev->dev, "  PCIE_LC_LINK_WIDTH_CNTL=0x%08X\n",
-		 RREG32_PCIE(ixPCIE_LC_LINK_WIDTH_CNTL));
-	dev_info(adev->dev, "  SMC_IND_INDEX_0=0x%08X\n",
-		 RREG32(mmSMC_IND_INDEX_0));
-	dev_info(adev->dev, "  SMC_IND_DATA_0=0x%08X\n",
-		 RREG32(mmSMC_IND_DATA_0));
-	dev_info(adev->dev, "  SMC_IND_ACCESS_CNTL=0x%08X\n",
-		 RREG32(mmSMC_IND_ACCESS_CNTL));
-	dev_info(adev->dev, "  SMC_RESP_0=0x%08X\n",
-		 RREG32(mmSMC_RESP_0));
-	dev_info(adev->dev, "  SMC_MESSAGE_0=0x%08X\n",
-		 RREG32(mmSMC_MESSAGE_0));
-	dev_info(adev->dev, "  SMC_SYSCON_RESET_CNTL=0x%08X\n",
-		 RREG32_SMC(ixSMC_SYSCON_RESET_CNTL));
-	dev_info(adev->dev, "  SMC_SYSCON_CLOCK_CNTL_0=0x%08X\n",
-		 RREG32_SMC(ixSMC_SYSCON_CLOCK_CNTL_0));
-	dev_info(adev->dev, "  SMC_SYSCON_MISC_CNTL=0x%08X\n",
-		 RREG32_SMC(ixSMC_SYSCON_MISC_CNTL));
-	dev_info(adev->dev, "  SMC_PC_C=0x%08X\n",
-		 RREG32_SMC(ixSMC_PC_C));
-}
-
 static int ci_dpm_soft_reset(void *handle)
 {
 	return 0;
@@ -6572,7 +6360,7 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 }
 
 static int ci_dpm_process_interrupt(struct amdgpu_device *adev,
-				    struct amdgpu_irq_src *source, 
+				    struct amdgpu_irq_src *source,
 				    struct amdgpu_iv_entry *entry)
 {
 	bool queue_thermal = false;
@@ -6614,6 +6402,7 @@ static int ci_dpm_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs ci_dpm_ip_funcs = {
+	.name = "ci_dpm",
 	.early_init = ci_dpm_early_init,
 	.late_init = ci_dpm_late_init,
 	.sw_init = ci_dpm_sw_init,
@@ -6625,7 +6414,6 @@ const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.is_idle = ci_dpm_is_idle,
 	.wait_for_idle = ci_dpm_wait_for_idle,
 	.soft_reset = ci_dpm_soft_reset,
-	.print_status = ci_dpm_print_status,
 	.set_clockgating_state = ci_dpm_set_clockgating_state,
 	.set_powergating_state = ci_dpm_set_powergating_state,
 };

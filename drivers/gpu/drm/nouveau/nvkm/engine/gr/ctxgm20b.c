@@ -40,15 +40,14 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
-	int idle_timeout_save;
+	u32 idle_timeout;
 	int i, tmp;
 
 	gf100_gr_mmio(gr, gr->fuc_sw_ctx);
 
 	gf100_gr_wait_idle(gr);
 
-	idle_timeout_save = nvkm_rd32(device, 0x404154);
-	nvkm_wr32(device, 0x404154, 0x00000000);
+	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
 
 	grctx->attrib(info);
 
@@ -63,7 +62,6 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
 
-	gk104_grctx_generate_rop_active_fbps(gr);
 	nvkm_wr32(device, 0x408908, nvkm_rd32(device, 0x410108) | 0x80000000);
 
 	for (tmp = 0, i = 0; i < gr->gpc_nr; i++)
@@ -74,7 +72,7 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	gf100_gr_wait_idle(gr);
 
-	nvkm_wr32(device, 0x404154, idle_timeout_save);
+	nvkm_wr32(device, 0x404154, idle_timeout);
 	gf100_gr_wait_idle(gr);
 
 	gf100_gr_mthd(gr, gr->fuc_method);

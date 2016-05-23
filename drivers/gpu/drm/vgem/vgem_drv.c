@@ -89,7 +89,6 @@ int vgem_gem_get_pages(struct drm_vgem_gem_object *obj)
 static int vgem_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_vgem_gem_object *obj = vma->vm_private_data;
-	struct drm_device *dev = obj->base.dev;
 	loff_t num_pages;
 	pgoff_t page_offset;
 	int ret;
@@ -103,12 +102,8 @@ static int vgem_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (page_offset > num_pages)
 		return VM_FAULT_SIGBUS;
 
-	mutex_lock(&dev->struct_mutex);
-
 	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
 			     obj->pages[page_offset]);
-
-	mutex_unlock(&dev->struct_mutex);
 	switch (ret) {
 	case 0:
 		return VM_FAULT_NOPAGE;
@@ -151,6 +146,10 @@ static struct drm_gem_object *vgem_gem_create(struct drm_device *dev,
 	gem_object = &obj->base;
 
 	err = drm_gem_object_init(dev, gem_object, size);
+	if (err)
+		goto out;
+
+	err = vgem_gem_get_pages(obj);
 	if (err)
 		goto out;
 
@@ -201,37 +200,23 @@ int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
 	int ret = 0;
 	struct drm_gem_object *obj;
 
-	mutex_lock(&dev->struct_mutex);
-	obj = drm_gem_object_lookup(dev, file, handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	obj = drm_gem_object_lookup(file, handle);
+	if (!obj)
+		return -ENOENT;
 
-	if (!drm_vma_node_has_offset(&obj->vma_node)) {
-		ret = drm_gem_create_mmap_offset(obj);
-		if (ret)
-			goto unref;
-	}
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto unref;
 
 	BUG_ON(!obj->filp);
 
 	obj->filp->private_data = obj;
 
-	ret = vgem_gem_get_pages(to_vgem_bo(obj));
-	if (ret)
-		goto fail_get_pages;
-
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 
-	goto unref;
-
-fail_get_pages:
-	drm_gem_free_mmap_offset(obj);
 unref:
-	drm_gem_object_unreference(obj);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
+
 	return ret;
 }
 
