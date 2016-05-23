@@ -14,6 +14,7 @@
 
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/radix-tree.h>
 
 /* We need to stringify expanded macros so that they can be parsed */
 
@@ -50,3 +51,9 @@ LX_VALUE(MNT_NOEXEC)
 LX_VALUE(MNT_NOATIME)
 LX_VALUE(MNT_NODIRATIME)
 LX_VALUE(MNT_RELATIME)
+
+/* linux/radix-tree.h */
+LX_VALUE(RADIX_TREE_INDIRECT_PTR)
+LX_GDBPARSED(RADIX_TREE_HEIGHT_MASK)
+LX_GDBPARSED(RADIX_TREE_MAP_SHIFT)
+LX_GDBPARSED(RADIX_TREE_MAP_MASK)
