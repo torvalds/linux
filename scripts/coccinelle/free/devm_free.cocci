@@ -48,6 +48,8 @@ position p;
 (
 * kfree@p(x)
 |
+* kzfree@p(x)
+|
 * free_irq@p(x)
 |
 * iounmap@p(x)
