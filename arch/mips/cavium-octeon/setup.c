@@ -65,7 +65,7 @@ EXPORT_SYMBOL(octeon_should_swizzle_table);
 extern void pci_console_init(const char *arg);
 #endif
 
-static unsigned long long MAX_MEMORY = 512ull << 20;
+static unsigned long long MAX_MEMORY = ULLONG_MAX;
 
 DEFINE_SEMAPHORE(octeon_bootbus_sem);
 EXPORT_SYMBOL(octeon_bootbus_sem);
