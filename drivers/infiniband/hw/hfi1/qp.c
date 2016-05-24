@@ -512,6 +512,7 @@ static void iowait_wakeup(struct iowait *wait, int reason)
 static void iowait_sdma_drained(struct iowait *wait)
 {
 	struct rvt_qp *qp = iowait_to_qp(wait);
+	unsigned long flags;
 
 	/*
 	 * This happens when the send engine notes
@@ -519,12 +520,12 @@ static void iowait_sdma_drained(struct iowait *wait)
 	 * do the flush work until that QP's
 	 * sdma work has finished.
 	 */
-	spin_lock(&qp->s_lock);
+	spin_lock_irqsave(&qp->s_lock, flags);
 	if (qp->s_flags & RVT_S_WAIT_DMA) {
 		qp->s_flags &= ~RVT_S_WAIT_DMA;
 		hfi1_schedule_send(qp);
 	}
-	spin_unlock(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
 /**
