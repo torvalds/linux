@@ -1316,6 +1316,14 @@ static int aggr_header_lens[] = {
 	[AGGR_GLOBAL] = 0,
 };
 
+static const char *aggr_header_csv[] = {
+	[AGGR_CORE] 	= 	"core,cpus,",
+	[AGGR_SOCKET] 	= 	"socket,cpus",
+	[AGGR_NONE] 	= 	"cpu,",
+	[AGGR_THREAD] 	= 	"comm-pid,",
+	[AGGR_GLOBAL] 	=	""
+};
+
 static void print_metric_headers(const char *prefix, bool no_indent)
 {
 	struct perf_stat_output_ctx out;
@@ -1330,6 +1338,12 @@ static void print_metric_headers(const char *prefix, bool no_indent)
 	if (!csv_output && !no_indent)
 		fprintf(stat_config.output, "%*s",
 			aggr_header_lens[stat_config.aggr_mode], "");
+	if (csv_output) {
+		if (stat_config.interval)
+			fputs("time,", stat_config.output);
+		fputs(aggr_header_csv[stat_config.aggr_mode],
+			stat_config.output);
+	}
 
 	/* Print metrics headers only */
 	evlist__for_each(evsel_list, counter) {
