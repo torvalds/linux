@@ -1883,8 +1883,7 @@ static int snd_pcm_drop(struct snd_pcm_substream *substream)
 	runtime = substream->runtime;
 
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN ||
-	    runtime->status->state == SNDRV_PCM_STATE_DISCONNECTED ||
-	    runtime->status->state == SNDRV_PCM_STATE_SUSPENDED)
+	    runtime->status->state == SNDRV_PCM_STATE_DISCONNECTED)
 		return -EBADFD;
 
 	snd_pcm_stream_lock_irq(substream);
