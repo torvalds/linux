@@ -79,6 +79,11 @@ static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
 	ID(TRANSACTION_START,	cpu/tx-start/),
 	ID(ELISION_START,	cpu/el-start/),
 	ID(CYCLES_IN_TX_CP,	cpu/cycles-ct/),
+	ID(TOPDOWN_TOTAL_SLOTS, topdown-total-slots),
+	ID(TOPDOWN_SLOTS_ISSUED, topdown-slots-issued),
+	ID(TOPDOWN_SLOTS_RETIRED, topdown-slots-retired),
+	ID(TOPDOWN_FETCH_BUBBLES, topdown-fetch-bubbles),
+	ID(TOPDOWN_RECOVERY_BUBBLES, topdown-recovery-bubbles),
 };
 #undef ID
 
