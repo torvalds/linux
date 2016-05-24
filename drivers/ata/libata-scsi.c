@@ -270,11 +270,52 @@ DEVICE_ATTR(unload_heads, S_IRUGO | S_IWUSR,
 	    ata_scsi_park_show, ata_scsi_park_store);
 EXPORT_SYMBOL_GPL(dev_attr_unload_heads);
 
-static void ata_scsi_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
+void ata_scsi_set_sense(struct ata_device *dev, struct scsi_cmnd *cmd,
+			u8 sk, u8 asc, u8 ascq)
 {
+	bool d_sense = (dev->flags & ATA_DFLAG_D_SENSE);
+
+	if (!cmd)
+		return;
+
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
-	scsi_build_sense_buffer(0, cmd->sense_buffer, sk, asc, ascq);
+	scsi_build_sense_buffer(d_sense, cmd->sense_buffer, sk, asc, ascq);
+}
+
+void ata_scsi_set_sense_information(struct ata_device *dev,
+				    struct scsi_cmnd *cmd,
+				    const struct ata_taskfile *tf)
+{
+	u64 information;
+
+	if (!cmd)
+		return;
+
+	information = ata_tf_read_block(tf, dev);
+	if (information == U64_MAX)
+		return;
+
+	scsi_set_sense_information(cmd->sense_buffer,
+				   SCSI_SENSE_BUFFERSIZE, information);
+}
+
+static void ata_scsi_set_invalid_field(struct ata_device *dev,
+				       struct scsi_cmnd *cmd, u16 field, u8 bit)
+{
+	ata_scsi_set_sense(dev, cmd, ILLEGAL_REQUEST, 0x24, 0x0);
+	/* "Invalid field in cbd" */
+	scsi_set_sense_field_pointer(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
+				     field, bit, 1);
+}
+
+static void ata_scsi_set_invalid_parameter(struct ata_device *dev,
+					   struct scsi_cmnd *cmd, u16 field)
+{
+	/* "Invalid field in parameter list" */
+	ata_scsi_set_sense(dev, cmd, ILLEGAL_REQUEST, 0x26, 0x0);
+	scsi_set_sense_field_pointer(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
+				     field, 0xff, 0);
 }
 
 static ssize_t
@@ -364,10 +405,10 @@ struct device_attribute *ata_common_sdev_attrs[] = {
 };
 EXPORT_SYMBOL_GPL(ata_common_sdev_attrs);
 
-static void ata_scsi_invalid_field(struct scsi_cmnd *cmd)
+static void ata_scsi_invalid_field(struct ata_device *dev,
+				   struct scsi_cmnd *cmd, u16 field)
 {
-	ata_scsi_set_sense(cmd, ILLEGAL_REQUEST, 0x24, 0x0);
-	/* "Invalid field in cbd" */
+	ata_scsi_set_invalid_field(dev, cmd, field, 0xff);
 	cmd->scsi_done(cmd);
 }
 
@@ -980,6 +1021,7 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 	unsigned char *sb = cmd->sense_buffer;
 	unsigned char *desc = sb + 8;
 	int verbose = qc->ap->ops->error_handler == NULL;
+	u8 sense_key, asc, ascq;
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
 
@@ -992,47 +1034,71 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
 	if (qc->err_mask ||
 	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->print_id, tf->command, tf->feature,
-				   &sb[1], &sb[2], &sb[3], verbose);
-		sb[1] &= 0x0f;
+				   &sense_key, &asc, &ascq, verbose);
+		ata_scsi_set_sense(qc->dev, cmd, sense_key, asc, ascq);
 	} else {
-		sb[1] = RECOVERED_ERROR;
-		sb[2] = 0;
-		sb[3] = 0x1D;
+		/*
+		 * ATA PASS-THROUGH INFORMATION AVAILABLE
+		 * Always in descriptor format sense.
+		 */
+		scsi_build_sense_buffer(1, cmd->sense_buffer,
+					RECOVERED_ERROR, 0, 0x1D);
 	}
 
-	/*
-	 * Sense data is current and format is descriptor.
-	 */
-	sb[0] = 0x72;
+	if ((cmd->sense_buffer[0] & 0x7f) >= 0x72) {
+		u8 len;
 
-	desc[0] = 0x09;
+		/* descriptor format */
+		len = sb[7];
+		desc = (char *)scsi_sense_desc_find(sb, len + 8, 9);
+		if (!desc) {
+			if (SCSI_SENSE_BUFFERSIZE < len + 14)
+				return;
+			sb[7] = len + 14;
+			desc = sb + 8 + len;
+		}
+		desc[0] = 9;
+		desc[1] = 12;
+		/*
+		 * Copy registers into sense buffer.
+		 */
+		desc[2] = 0x00;
+		desc[3] = tf->feature;	/* == error reg */
+		desc[5] = tf->nsect;
+		desc[7] = tf->lbal;
+		desc[9] = tf->lbam;
+		desc[11] = tf->lbah;
+		desc[12] = tf->device;
+		desc[13] = tf->command; /* == status reg */
 
-	/* set length of additional sense data */
-	sb[7] = 14;
-	desc[1] = 12;
-
-	/*
-	 * Copy registers into sense buffer.
-	 */
-	desc[2] = 0x00;
-	desc[3] = tf->feature;	/* == error reg */
-	desc[5] = tf->nsect;
-	desc[7] = tf->lbal;
-	desc[9] = tf->lbam;
-	desc[11] = tf->lbah;
-	desc[12] = tf->device;
-	desc[13] = tf->command; /* == status reg */
-
-	/*
-	 * Fill in Extend bit, and the high order bytes
-	 * if applicable.
-	 */
-	if (tf->flags & ATA_TFLAG_LBA48) {
-		desc[2] |= 0x01;
-		desc[4] = tf->hob_nsect;
-		desc[6] = tf->hob_lbal;
-		desc[8] = tf->hob_lbam;
-		desc[10] = tf->hob_lbah;
+		/*
+		 * Fill in Extend bit, and the high order bytes
+		 * if applicable.
+		 */
+		if (tf->flags & ATA_TFLAG_LBA48) {
+			desc[2] |= 0x01;
+			desc[4] = tf->hob_nsect;
+			desc[6] = tf->hob_lbal;
+			desc[8] = tf->hob_lbam;
+			desc[10] = tf->hob_lbah;
+		}
+	} else {
+		/* Fixed sense format */
+		desc[0] = tf->feature;
+		desc[1] = tf->command; /* status */
+		desc[2] = tf->device;
+		desc[3] = tf->nsect;
+		desc[0] = 0;
+		if (tf->flags & ATA_TFLAG_LBA48)  {
+			desc[8] |= 0x80;
+			if (tf->hob_nsect)
+				desc[8] |= 0x40;
+			if (tf->hob_lbal || tf->hob_lbam || tf->hob_lbah)
+				desc[8] |= 0x20;
+		}
+		desc[9] = tf->lbal;
+		desc[10] = tf->lbam;
+		desc[11] = tf->lbah;
 	}
 }
 
@@ -1052,41 +1118,41 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_taskfile *tf = &qc->result_tf;
 	unsigned char *sb = cmd->sense_buffer;
-	unsigned char *desc = sb + 8;
 	int verbose = qc->ap->ops->error_handler == NULL;
 	u64 block;
+	u8 sense_key, asc, ascq;
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
 
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
-	/* sense data is current and format is descriptor */
-	sb[0] = 0x72;
-
+	if (ata_dev_disabled(dev)) {
+		/* Device disabled after error recovery */
+		/* LOGICAL UNIT NOT READY, HARD RESET REQUIRED */
+		ata_scsi_set_sense(dev, cmd, NOT_READY, 0x04, 0x21);
+		return;
+	}
 	/* Use ata_to_sense_error() to map status register bits
 	 * onto sense key, asc & ascq.
 	 */
 	if (qc->err_mask ||
 	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->print_id, tf->command, tf->feature,
-				   &sb[1], &sb[2], &sb[3], verbose);
-		sb[1] &= 0x0f;
+				   &sense_key, &asc, &ascq, verbose);
+		ata_scsi_set_sense(dev, cmd, sense_key, asc, ascq);
+	} else {
+		/* Could not decode error */
+		ata_dev_warn(dev, "could not decode error status 0x%x err_mask 0x%x\n",
+			     tf->command, qc->err_mask);
+		ata_scsi_set_sense(dev, cmd, ABORTED_COMMAND, 0, 0);
+		return;
 	}
 
 	block = ata_tf_read_block(&qc->result_tf, dev);
+	if (block == U64_MAX)
+		return;
 
-	/* information sense data descriptor */
-	sb[7] = 12;
-	desc[0] = 0x00;
-	desc[1] = 10;
-
-	desc[2] |= 0x80;	/* valid */
-	desc[6] = block >> 40;
-	desc[7] = block >> 32;
-	desc[8] = block >> 24;
-	desc[9] = block >> 16;
-	desc[10] = block >> 8;
-	desc[11] = block;
+	scsi_set_sense_information(sb, SCSI_SENSE_BUFFERSIZE, block);
 }
 
 static void ata_scsi_sdev_config(struct scsi_device *sdev)
@@ -1343,19 +1409,29 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *scmd = qc->scsicmd;
 	struct ata_taskfile *tf = &qc->tf;
 	const u8 *cdb = scmd->cmnd;
+	u16 fp;
+	u8 bp = 0xff;
 
-	if (scmd->cmd_len < 5)
+	if (scmd->cmd_len < 5) {
+		fp = 4;
 		goto invalid_fld;
+	}
 
 	tf->flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_ISADDR;
 	tf->protocol = ATA_PROT_NODATA;
 	if (cdb[1] & 0x1) {
 		;	/* ignore IMMED bit, violates sat-r05 */
 	}
-	if (cdb[4] & 0x2)
+	if (cdb[4] & 0x2) {
+		fp = 4;
+		bp = 1;
 		goto invalid_fld;       /* LOEJ bit set not supported */
-	if (((cdb[4] >> 4) & 0xf) != 0)
+	}
+	if (((cdb[4] >> 4) & 0xf) != 0) {
+		fp = 4;
+		bp = 3;
 		goto invalid_fld;       /* power conditions not supported */
+	}
 
 	if (cdb[4] & 0x1) {
 		tf->nsect = 1;	/* 1 sector, lba=0 */
@@ -1401,8 +1477,7 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
  invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x0);
-	/* "Invalid field in cbd" */
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, bp);
 	return 1;
  skip:
 	scmd->result = SAM_STAT_GOOD;
@@ -1553,20 +1628,27 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc)
 	const u8 *cdb = scmd->cmnd;
 	u64 block;
 	u32 n_block;
+	u16 fp;
 
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->protocol = ATA_PROT_NODATA;
 
 	if (cdb[0] == VERIFY) {
-		if (scmd->cmd_len < 10)
+		if (scmd->cmd_len < 10) {
+			fp = 9;
 			goto invalid_fld;
+		}
 		scsi_10_lba_len(cdb, &block, &n_block);
 	} else if (cdb[0] == VERIFY_16) {
-		if (scmd->cmd_len < 16)
+		if (scmd->cmd_len < 16) {
+			fp = 15;
 			goto invalid_fld;
+		}
 		scsi_16_lba_len(cdb, &block, &n_block);
-	} else
+	} else {
+		fp = 0;
 		goto invalid_fld;
+	}
 
 	if (!n_block)
 		goto nothing_to_do;
@@ -1640,12 +1722,11 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
 invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x0);
-	/* "Invalid field in cbd" */
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, 0xff);
 	return 1;
 
 out_of_range:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x21, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x21, 0x0);
 	/* "Logical Block Address out of range" */
 	return 1;
 
@@ -1680,6 +1761,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	u64 block;
 	u32 n_block;
 	int rc;
+	u16 fp = 0;
 
 	if (cdb[0] == WRITE_10 || cdb[0] == WRITE_6 || cdb[0] == WRITE_16)
 		tf_flags |= ATA_TFLAG_WRITE;
@@ -1688,16 +1770,20 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	switch (cdb[0]) {
 	case READ_10:
 	case WRITE_10:
-		if (unlikely(scmd->cmd_len < 10))
+		if (unlikely(scmd->cmd_len < 10)) {
+			fp = 9;
 			goto invalid_fld;
+		}
 		scsi_10_lba_len(cdb, &block, &n_block);
 		if (cdb[1] & (1 << 3))
 			tf_flags |= ATA_TFLAG_FUA;
 		break;
 	case READ_6:
 	case WRITE_6:
-		if (unlikely(scmd->cmd_len < 6))
+		if (unlikely(scmd->cmd_len < 6)) {
+			fp = 5;
 			goto invalid_fld;
+		}
 		scsi_6_lba_len(cdb, &block, &n_block);
 
 		/* for 6-byte r/w commands, transfer length 0
@@ -1708,14 +1794,17 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 		break;
 	case READ_16:
 	case WRITE_16:
-		if (unlikely(scmd->cmd_len < 16))
+		if (unlikely(scmd->cmd_len < 16)) {
+			fp = 15;
 			goto invalid_fld;
+		}
 		scsi_16_lba_len(cdb, &block, &n_block);
 		if (cdb[1] & (1 << 3))
 			tf_flags |= ATA_TFLAG_FUA;
 		break;
 	default:
 		DPRINTK("no-byte command\n");
+		fp = 0;
 		goto invalid_fld;
 	}
 
@@ -1742,12 +1831,11 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 		goto out_of_range;
 	/* treat all other errors as -EINVAL, fall through */
 invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x0);
-	/* "Invalid field in cbd" */
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, 0xff);
 	return 1;
 
 out_of_range:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x21, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x21, 0x0);
 	/* "Logical Block Address out of range" */
 	return 1;
 
@@ -1784,6 +1872,8 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	if (((cdb[0] == ATA_16) || (cdb[0] == ATA_12)) &&
 	    ((cdb[2] & 0x20) || need_sense))
 		ata_gen_passthru_sense(qc);
+	else if (qc->flags & ATA_QCFLAG_SENSE_VALID)
+		cmd->result = SAM_STAT_CHECK_CONDITION;
 	else if (need_sense)
 		ata_gen_ata_sense(qc);
 	else
@@ -1992,14 +2082,14 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 		0x00,
 		0xA0,	/* SAM-5 (no version claimed) */
 
-		0x04,
-		0xC0,	/* SBC-3 (no version claimed) */
+		0x06,
+		0x00,	/* SBC-4 (no version claimed) */
 
-		0x04,
-		0x60,	/* SPC-4 (no version claimed) */
+		0x05,
+		0xC0,	/* SPC-5 (no version claimed) */
 
 		0x60,
-		0x20,   /* ZBC (no version claimed) */
+		0x24,   /* ZBC r05 */
 	};
 
 	u8 hdr[] = {
@@ -2019,10 +2109,8 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	    (args->dev->link->ap->pflags & ATA_PFLAG_EXTERNAL))
 		hdr[1] |= (1 << 7);
 
-	if (args->dev->class == ATA_DEV_ZAC) {
+	if (args->dev->class == ATA_DEV_ZAC)
 		hdr[0] = TYPE_ZBC;
-		hdr[2] = 0x6; /* ZBC is defined in SPC-4 */
-	}
 
 	memcpy(rbuf, hdr, sizeof(hdr));
 	memcpy(&rbuf[8], "ATA     ", 8);
@@ -2036,7 +2124,7 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	if (rbuf[32] == 0 || rbuf[32] == ' ')
 		memcpy(&rbuf[32], "n/a ", 4);
 
-	if (args->dev->class == ATA_DEV_ZAC)
+	if (ata_id_zoned_cap(args->id) || args->dev->class == ATA_DEV_ZAC)
 		memcpy(rbuf + 58, versions_zbc, sizeof(versions_zbc));
 	else
 		memcpy(rbuf + 58, versions, sizeof(versions));
@@ -2056,6 +2144,7 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
  */
 static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
 {
+	int num_pages;
 	const u8 pages[] = {
 		0x00,	/* page 0x00, this page */
 		0x80,	/* page 0x80, unit serial no page */
@@ -2064,10 +2153,14 @@ static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
 		0xb0,	/* page 0xb0, block limits page */
 		0xb1,	/* page 0xb1, block device characteristics page */
 		0xb2,	/* page 0xb2, thin provisioning page */
+		0xb6,	/* page 0xb6, zoned block device characteristics */
 	};
 
-	rbuf[3] = sizeof(pages);	/* number of supported VPD pages */
-	memcpy(rbuf + 4, pages, sizeof(pages));
+	num_pages = sizeof(pages);
+	if (!(args->dev->flags & ATA_DFLAG_ZAC))
+		num_pages--;
+	rbuf[3] = num_pages;	/* number of supported VPD pages */
+	memcpy(rbuf + 4, pages, num_pages);
 	return 0;
 }
 
@@ -2232,12 +2325,15 @@ static unsigned int ata_scsiop_inq_b1(struct ata_scsi_args *args, u8 *rbuf)
 {
 	int form_factor = ata_id_form_factor(args->id);
 	int media_rotation_rate = ata_id_rotation_rate(args->id);
+	u8 zoned = ata_id_zoned_cap(args->id);
 
 	rbuf[1] = 0xb1;
 	rbuf[3] = 0x3c;
 	rbuf[4] = media_rotation_rate >> 8;
 	rbuf[5] = media_rotation_rate;
 	rbuf[7] = form_factor;
+	if (zoned)
+		rbuf[8] = (zoned << 4);
 
 	return 0;
 }
@@ -2248,6 +2344,26 @@ static unsigned int ata_scsiop_inq_b2(struct ata_scsi_args *args, u8 *rbuf)
 	rbuf[1] = 0xb2;
 	rbuf[3] = 0x4;
 	rbuf[5] = 1 << 6;	/* TPWS */
+
+	return 0;
+}
+
+static unsigned int ata_scsiop_inq_b6(struct ata_scsi_args *args, u8 *rbuf)
+{
+	/*
+	 * zbc-r05 SCSI Zoned Block device characteristics VPD page
+	 */
+	rbuf[1] = 0xb6;
+	rbuf[3] = 0x3C;
+
+	/*
+	 * URSWRZ bit is only meaningful for host-managed ZAC drives
+	 */
+	if (args->dev->zac_zoned_cap & 1)
+		rbuf[4] |= 1;
+	put_unaligned_be32(args->dev->zac_zones_optimal_open, &rbuf[8]);
+	put_unaligned_be32(args->dev->zac_zones_optimal_nonseq, &rbuf[12]);
+	put_unaligned_be32(args->dev->zac_zones_max_open, &rbuf[16]);
 
 	return 0;
 }
@@ -2317,6 +2433,7 @@ static unsigned int ata_msense_caching(u16 *id, u8 *buf, bool changeable)
 
 /**
  *	ata_msense_ctl_mode - Simulate MODE SENSE control mode page
+ *	@dev: ATA device of interest
  *	@buf: output buffer
  *	@changeable: whether changeable parameters are requested
  *
@@ -2325,9 +2442,12 @@ static unsigned int ata_msense_caching(u16 *id, u8 *buf, bool changeable)
  *	LOCKING:
  *	None.
  */
-static unsigned int ata_msense_ctl_mode(u8 *buf, bool changeable)
+static unsigned int ata_msense_ctl_mode(struct ata_device *dev, u8 *buf,
+					bool changeable)
 {
 	modecpy(buf, def_control_mpage, sizeof(def_control_mpage), changeable);
+	if (changeable && (dev->flags & ATA_DFLAG_D_SENSE))
+		buf[2] |= (1 << 2);	/* Descriptor sense requested */
 	return sizeof(def_control_mpage);
 }
 
@@ -2395,7 +2515,8 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 	};
 	u8 pg, spg;
 	unsigned int ebd, page_control, six_byte;
-	u8 dpofua;
+	u8 dpofua, bp = 0xff;
+	u16 fp;
 
 	VPRINTK("ENTER\n");
 
@@ -2414,6 +2535,8 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 	case 3: /* saved */
 		goto saving_not_supp;
 	default:
+		fp = 2;
+		bp = 6;
 		goto invalid_fld;
 	}
 
@@ -2428,8 +2551,10 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 	 * No mode subpages supported (yet) but asking for _all_
 	 * subpages may be valid
 	 */
-	if (spg && (spg != ALL_SUB_MPAGES))
+	if (spg && (spg != ALL_SUB_MPAGES)) {
+		fp = 3;
 		goto invalid_fld;
+	}
 
 	switch(pg) {
 	case RW_RECOVERY_MPAGE:
@@ -2441,16 +2566,17 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 		break;
 
 	case CONTROL_MPAGE:
-		p += ata_msense_ctl_mode(p, page_control == 1);
+		p += ata_msense_ctl_mode(args->dev, p, page_control == 1);
 		break;
 
 	case ALL_MPAGES:
 		p += ata_msense_rw_recovery(p, page_control == 1);
 		p += ata_msense_caching(args->id, p, page_control == 1);
-		p += ata_msense_ctl_mode(p, page_control == 1);
+		p += ata_msense_ctl_mode(args->dev, p, page_control == 1);
 		break;
 
 	default:		/* invalid page code */
+		fp = 2;
 		goto invalid_fld;
 	}
 
@@ -2480,12 +2606,11 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 	return 0;
 
 invalid_fld:
-	ata_scsi_set_sense(args->cmd, ILLEGAL_REQUEST, 0x24, 0x0);
-	/* "Invalid field in cbd" */
+	ata_scsi_set_invalid_field(dev, args->cmd, fp, bp);
 	return 1;
 
 saving_not_supp:
-	ata_scsi_set_sense(args->cmd, ILLEGAL_REQUEST, 0x39, 0x0);
+	ata_scsi_set_sense(dev, args->cmd, ILLEGAL_REQUEST, 0x39, 0x0);
 	 /* "Saving parameters not supported" */
 	return 1;
 }
@@ -2561,6 +2686,9 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 				rbuf[14] |= 0x40; /* LBPRZ */
 			}
 		}
+		if (ata_id_zoned_cap(args->id) ||
+		    args->dev->class == ATA_DEV_ZAC)
+			rbuf[12] = (1 << 4); /* RC_BASIS */
 	}
 	return 0;
 }
@@ -2942,9 +3070,12 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *scmd = qc->scsicmd;
 	struct ata_device *dev = qc->dev;
 	const u8 *cdb = scmd->cmnd;
+	u16 fp;
 
-	if ((tf->protocol = ata_scsi_map_proto(cdb[1])) == ATA_PROT_UNKNOWN)
+	if ((tf->protocol = ata_scsi_map_proto(cdb[1])) == ATA_PROT_UNKNOWN) {
+		fp = 1;
 		goto invalid_fld;
+	}
 
 	/* enable LBA */
 	tf->flags |= ATA_TFLAG_LBA;
@@ -3008,8 +3139,10 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	case ATA_CMD_READ_LONG_ONCE:
 	case ATA_CMD_WRITE_LONG:
 	case ATA_CMD_WRITE_LONG_ONCE:
-		if (tf->protocol != ATA_PROT_PIO || tf->nsect != 1)
+		if (tf->protocol != ATA_PROT_PIO || tf->nsect != 1) {
+			fp = 1;
 			goto invalid_fld;
+		}
 		qc->sect_size = scsi_bufflen(scmd);
 		break;
 
@@ -3072,12 +3205,16 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	ata_qc_set_pc_nbytes(qc);
 
 	/* We may not issue DMA commands if no DMA mode is set */
-	if (tf->protocol == ATA_PROT_DMA && dev->dma_mode == 0)
+	if (tf->protocol == ATA_PROT_DMA && dev->dma_mode == 0) {
+		fp = 1;
 		goto invalid_fld;
+	}
 
 	/* sanity check for pio multi commands */
-	if ((cdb[1] & 0xe0) && !is_multi_taskfile(tf))
+	if ((cdb[1] & 0xe0) && !is_multi_taskfile(tf)) {
+		fp = 1;
 		goto invalid_fld;
+	}
 
 	if (is_multi_taskfile(tf)) {
 		unsigned int multi_count = 1 << (cdb[1] >> 5);
@@ -3098,8 +3235,10 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * ->set_dmamode(), and ->post_set_mode() hooks).
 	 */
 	if (tf->command == ATA_CMD_SET_FEATURES &&
-	    tf->feature == SETFEATURES_XFER)
+	    tf->feature == SETFEATURES_XFER) {
+		fp = (cdb[0] == ATA_16) ? 4 : 3;
 		goto invalid_fld;
+	}
 
 	/*
 	 * Filter TPM commands by default. These provide an
@@ -3116,14 +3255,15 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * so that we comply with the TC consortium stated goal that the user
 	 * can turn off TC features of their system.
 	 */
-	if (tf->command >= 0x5C && tf->command <= 0x5F && !libata_allow_tpm)
+	if (tf->command >= 0x5C && tf->command <= 0x5F && !libata_allow_tpm) {
+		fp = (cdb[0] == ATA_16) ? 14 : 9;
 		goto invalid_fld;
+	}
 
 	return 0;
 
  invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x00);
-	/* "Invalid field in cdb" */
+	ata_scsi_set_invalid_field(dev, scmd, fp, 0xff);
 	return 1;
 }
 
@@ -3137,25 +3277,32 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 	u32 n_block;
 	u32 size;
 	void *buf;
+	u16 fp;
+	u8 bp = 0xff;
 
 	/* we may not issue DMA commands if no DMA mode is set */
 	if (unlikely(!dev->dma_mode))
-		goto invalid_fld;
+		goto invalid_opcode;
 
-	if (unlikely(scmd->cmd_len < 16))
+	if (unlikely(scmd->cmd_len < 16)) {
+		fp = 15;
 		goto invalid_fld;
+	}
 	scsi_16_lba_len(cdb, &block, &n_block);
 
 	/* for now we only support WRITE SAME with the unmap bit set */
-	if (unlikely(!(cdb[1] & 0x8)))
+	if (unlikely(!(cdb[1] & 0x8))) {
+		fp = 1;
+		bp = 3;
 		goto invalid_fld;
+	}
 
 	/*
 	 * WRITE SAME always has a sector sized buffer as payload, this
 	 * should never be a multiple entry S/G list.
 	 */
 	if (!scsi_sg_count(scmd))
-		goto invalid_fld;
+		goto invalid_param_len;
 
 	buf = page_address(sg_page(scsi_sglist(scmd)));
 	size = ata_set_lba_range_entries(buf, 512, block, n_block);
@@ -3186,9 +3333,242 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
 
 	return 0;
 
+invalid_fld:
+	ata_scsi_set_invalid_field(dev, scmd, fp, bp);
+	return 1;
+invalid_param_len:
+	/* "Parameter list length error" */
+	ata_scsi_set_sense(dev, scmd, ILLEGAL_REQUEST, 0x1a, 0x0);
+	return 1;
+invalid_opcode:
+	/* "Invalid command operation code" */
+	ata_scsi_set_sense(dev, scmd, ILLEGAL_REQUEST, 0x20, 0x0);
+	return 1;
+}
+
+/**
+ *	ata_scsi_report_zones_complete - convert ATA output
+ *	@qc: command structure returning the data
+ *
+ *	Convert T-13 little-endian field representation into
+ *	T-10 big-endian field representation.
+ *	What a mess.
+ */
+static void ata_scsi_report_zones_complete(struct ata_queued_cmd *qc)
+{
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	struct sg_mapping_iter miter;
+	unsigned long flags;
+	unsigned int bytes = 0;
+
+	sg_miter_start(&miter, scsi_sglist(scmd), scsi_sg_count(scmd),
+		       SG_MITER_TO_SG | SG_MITER_ATOMIC);
+
+	local_irq_save(flags);
+	while (sg_miter_next(&miter)) {
+		unsigned int offset = 0;
+
+		if (bytes == 0) {
+			char *hdr;
+			u32 list_length;
+			u64 max_lba, opt_lba;
+			u16 same;
+
+			/* Swizzle header */
+			hdr = miter.addr;
+			list_length = get_unaligned_le32(&hdr[0]);
+			same = get_unaligned_le16(&hdr[4]);
+			max_lba = get_unaligned_le64(&hdr[8]);
+			opt_lba = get_unaligned_le64(&hdr[16]);
+			put_unaligned_be32(list_length, &hdr[0]);
+			hdr[4] = same & 0xf;
+			put_unaligned_be64(max_lba, &hdr[8]);
+			put_unaligned_be64(opt_lba, &hdr[16]);
+			offset += 64;
+			bytes += 64;
+		}
+		while (offset < miter.length) {
+			char *rec;
+			u8 cond, type, non_seq, reset;
+			u64 size, start, wp;
+
+			/* Swizzle zone descriptor */
+			rec = miter.addr + offset;
+			type = rec[0] & 0xf;
+			cond = (rec[1] >> 4) & 0xf;
+			non_seq = (rec[1] & 2);
+			reset = (rec[1] & 1);
+			size = get_unaligned_le64(&rec[8]);
+			start = get_unaligned_le64(&rec[16]);
+			wp = get_unaligned_le64(&rec[24]);
+			rec[0] = type;
+			rec[1] = (cond << 4) | non_seq | reset;
+			put_unaligned_be64(size, &rec[8]);
+			put_unaligned_be64(start, &rec[16]);
+			put_unaligned_be64(wp, &rec[24]);
+			WARN_ON(offset + 64 > miter.length);
+			offset += 64;
+			bytes += 64;
+		}
+	}
+	sg_miter_stop(&miter);
+	local_irq_restore(flags);
+
+	ata_scsi_qc_complete(qc);
+}
+
+static unsigned int ata_scsi_zbc_in_xlat(struct ata_queued_cmd *qc)
+{
+	struct ata_taskfile *tf = &qc->tf;
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	const u8 *cdb = scmd->cmnd;
+	u16 sect, fp = (u16)-1;
+	u8 sa, options, bp = 0xff;
+	u64 block;
+	u32 n_block;
+
+	if (unlikely(scmd->cmd_len < 16)) {
+		ata_dev_warn(qc->dev, "invalid cdb length %d\n",
+			     scmd->cmd_len);
+		fp = 15;
+		goto invalid_fld;
+	}
+	scsi_16_lba_len(cdb, &block, &n_block);
+	if (n_block != scsi_bufflen(scmd)) {
+		ata_dev_warn(qc->dev, "non-matching transfer count (%d/%d)\n",
+			     n_block, scsi_bufflen(scmd));
+		goto invalid_param_len;
+	}
+	sa = cdb[1] & 0x1f;
+	if (sa != ZI_REPORT_ZONES) {
+		ata_dev_warn(qc->dev, "invalid service action %d\n", sa);
+		fp = 1;
+		goto invalid_fld;
+	}
+	/*
+	 * ZAC allows only for transfers in 512 byte blocks,
+	 * and uses a 16 bit value for the transfer count.
+	 */
+	if ((n_block / 512) > 0xffff || n_block < 512 || (n_block % 512)) {
+		ata_dev_warn(qc->dev, "invalid transfer count %d\n", n_block);
+		goto invalid_param_len;
+	}
+	sect = n_block / 512;
+	options = cdb[14];
+
+	if (ata_ncq_enabled(qc->dev) &&
+	    ata_fpdma_zac_mgmt_in_supported(qc->dev)) {
+		tf->protocol = ATA_PROT_NCQ;
+		tf->command = ATA_CMD_FPDMA_RECV;
+		tf->hob_nsect = ATA_SUBCMD_FPDMA_RECV_ZAC_MGMT_IN & 0x1f;
+		tf->nsect = qc->tag << 3;
+		tf->feature = sect & 0xff;
+		tf->hob_feature = (sect >> 8) & 0xff;
+		tf->auxiliary = ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES;
+	} else {
+		tf->command = ATA_CMD_ZAC_MGMT_IN;
+		tf->feature = ATA_SUBCMD_ZAC_MGMT_IN_REPORT_ZONES;
+		tf->protocol = ATA_PROT_DMA;
+		tf->hob_feature = options;
+		tf->hob_nsect = (sect >> 8) & 0xff;
+		tf->nsect = sect & 0xff;
+	}
+	tf->device = ATA_LBA;
+	tf->lbah = (block >> 16) & 0xff;
+	tf->lbam = (block >> 8) & 0xff;
+	tf->lbal = block & 0xff;
+	tf->hob_lbah = (block >> 40) & 0xff;
+	tf->hob_lbam = (block >> 32) & 0xff;
+	tf->hob_lbal = (block >> 24) & 0xff;
+
+	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48;
+	qc->flags |= ATA_QCFLAG_RESULT_TF;
+
+	ata_qc_set_pc_nbytes(qc);
+
+	qc->complete_fn = ata_scsi_report_zones_complete;
+
+	return 0;
+
+invalid_fld:
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, bp);
+	return 1;
+
+invalid_param_len:
+	/* "Parameter list length error" */
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x1a, 0x0);
+	return 1;
+}
+
+static unsigned int ata_scsi_zbc_out_xlat(struct ata_queued_cmd *qc)
+{
+	struct ata_taskfile *tf = &qc->tf;
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	struct ata_device *dev = qc->dev;
+	const u8 *cdb = scmd->cmnd;
+	u8 reset_all, sa;
+	u64 block;
+	u32 n_block;
+	u16 fp = (u16)-1;
+
+	if (unlikely(scmd->cmd_len < 16)) {
+		fp = 15;
+		goto invalid_fld;
+	}
+
+	sa = cdb[1] & 0x1f;
+	if ((sa != ZO_CLOSE_ZONE) && (sa != ZO_FINISH_ZONE) &&
+	    (sa != ZO_OPEN_ZONE) && (sa != ZO_RESET_WRITE_POINTER)) {
+		fp = 1;
+		goto invalid_fld;
+	}
+
+	scsi_16_lba_len(cdb, &block, &n_block);
+	if (n_block) {
+		/*
+		 * ZAC MANAGEMENT OUT doesn't define any length
+		 */
+		goto invalid_param_len;
+	}
+	if (block > dev->n_sectors)
+		goto out_of_range;
+
+	reset_all = cdb[14] & 0x1;
+
+	if (ata_ncq_enabled(qc->dev) &&
+	    ata_fpdma_zac_mgmt_out_supported(qc->dev)) {
+		tf->protocol = ATA_PROT_NCQ;
+		tf->command = ATA_CMD_NCQ_NON_DATA;
+		tf->hob_nsect = ATA_SUBCMD_NCQ_NON_DATA_ZAC_MGMT_OUT;
+		tf->nsect = qc->tag << 3;
+		tf->auxiliary = sa | (reset_all & 0x1) << 8;
+	} else {
+		tf->protocol = ATA_PROT_NODATA;
+		tf->command = ATA_CMD_ZAC_MGMT_OUT;
+		tf->feature = sa;
+		tf->hob_feature = reset_all & 0x1;
+	}
+	tf->lbah = (block >> 16) & 0xff;
+	tf->lbam = (block >> 8) & 0xff;
+	tf->lbal = block & 0xff;
+	tf->hob_lbah = (block >> 40) & 0xff;
+	tf->hob_lbam = (block >> 32) & 0xff;
+	tf->hob_lbal = (block >> 24) & 0xff;
+	tf->device = ATA_LBA;
+	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48;
+
+	return 0;
+
  invalid_fld:
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x00);
-	/* "Invalid field in cdb" */
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, 0xff);
+	return 1;
+ out_of_range:
+	/* "Logical Block Address out of range" */
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x21, 0x00);
+	return 1;
+invalid_param_len:
+	/* "Parameter list length error" */
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x1a, 0x0);
 	return 1;
 }
 
@@ -3197,6 +3577,7 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
  *	@qc: Storage for translated ATA taskfile
  *	@buf: input buffer
  *	@len: number of valid bytes in the input buffer
+ *	@fp: out parameter for the failed field on error
  *
  *	Prepare a taskfile to modify caching information for the device.
  *
@@ -3204,20 +3585,26 @@ static unsigned int ata_scsi_write_same_xlat(struct ata_queued_cmd *qc)
  *	None.
  */
 static int ata_mselect_caching(struct ata_queued_cmd *qc,
-			       const u8 *buf, int len)
+			       const u8 *buf, int len, u16 *fp)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_device *dev = qc->dev;
 	char mpage[CACHE_MPAGE_LEN];
 	u8 wce;
+	int i;
 
 	/*
 	 * The first two bytes of def_cache_mpage are a header, so offsets
 	 * in mpage are off by 2 compared to buf.  Same for len.
 	 */
 
-	if (len != CACHE_MPAGE_LEN - 2)
+	if (len != CACHE_MPAGE_LEN - 2) {
+		if (len < CACHE_MPAGE_LEN - 2)
+			*fp = len;
+		else
+			*fp = CACHE_MPAGE_LEN - 2;
 		return -EINVAL;
+	}
 
 	wce = buf[0] & (1 << 2);
 
@@ -3225,16 +3612,76 @@ static int ata_mselect_caching(struct ata_queued_cmd *qc,
 	 * Check that read-only bits are not modified.
 	 */
 	ata_msense_caching(dev->id, mpage, false);
-	mpage[2] &= ~(1 << 2);
-	mpage[2] |= wce;
-	if (memcmp(mpage + 2, buf, CACHE_MPAGE_LEN - 2) != 0)
-		return -EINVAL;
+	for (i = 0; i < CACHE_MPAGE_LEN - 2; i++) {
+		if (i == 0)
+			continue;
+		if (mpage[i + 2] != buf[i]) {
+			*fp = i;
+			return -EINVAL;
+		}
+	}
 
 	tf->flags |= ATA_TFLAG_DEVICE | ATA_TFLAG_ISADDR;
 	tf->protocol = ATA_PROT_NODATA;
 	tf->nsect = 0;
 	tf->command = ATA_CMD_SET_FEATURES;
 	tf->feature = wce ? SETFEATURES_WC_ON : SETFEATURES_WC_OFF;
+	return 0;
+}
+
+/**
+ *	ata_mselect_control - Simulate MODE SELECT for control page
+ *	@qc: Storage for translated ATA taskfile
+ *	@buf: input buffer
+ *	@len: number of valid bytes in the input buffer
+ *	@fp: out parameter for the failed field on error
+ *
+ *	Prepare a taskfile to modify caching information for the device.
+ *
+ *	LOCKING:
+ *	None.
+ */
+static int ata_mselect_control(struct ata_queued_cmd *qc,
+			       const u8 *buf, int len, u16 *fp)
+{
+	struct ata_device *dev = qc->dev;
+	char mpage[CONTROL_MPAGE_LEN];
+	u8 d_sense;
+	int i;
+
+	/*
+	 * The first two bytes of def_control_mpage are a header, so offsets
+	 * in mpage are off by 2 compared to buf.  Same for len.
+	 */
+
+	if (len != CONTROL_MPAGE_LEN - 2) {
+		if (len < CONTROL_MPAGE_LEN - 2)
+			*fp = len;
+		else
+			*fp = CONTROL_MPAGE_LEN - 2;
+		return -EINVAL;
+	}
+
+	d_sense = buf[0] & (1 << 2);
+
+	/*
+	 * Check that read-only bits are not modified.
+	 */
+	ata_msense_ctl_mode(dev, mpage, false);
+	for (i = 0; i < CONTROL_MPAGE_LEN - 2; i++) {
+		if (i == 0)
+			continue;
+		if (mpage[2 + i] != buf[i]) {
+			*fp = i;
+			return -EINVAL;
+		}
+	}
+	if (d_sense & (1 << 2))
+		dev->flags |= ATA_DFLAG_D_SENSE;
+	else
+		dev->flags &= ~ATA_DFLAG_D_SENSE;
+	qc->scsicmd->result = SAM_STAT_GOOD;
+	qc->scsicmd->scsi_done(qc->scsicmd);
 	return 0;
 }
 
@@ -3257,27 +3704,36 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	u8 pg, spg;
 	unsigned six_byte, pg_len, hdr_len, bd_len;
 	int len;
+	u16 fp = (u16)-1;
+	u8 bp = 0xff;
 
 	VPRINTK("ENTER\n");
 
 	six_byte = (cdb[0] == MODE_SELECT);
 	if (six_byte) {
-		if (scmd->cmd_len < 5)
+		if (scmd->cmd_len < 5) {
+			fp = 4;
 			goto invalid_fld;
+		}
 
 		len = cdb[4];
 		hdr_len = 4;
 	} else {
-		if (scmd->cmd_len < 9)
+		if (scmd->cmd_len < 9) {
+			fp = 8;
 			goto invalid_fld;
+		}
 
 		len = (cdb[7] << 8) + cdb[8];
 		hdr_len = 8;
 	}
 
 	/* We only support PF=1, SP=0.  */
-	if ((cdb[1] & 0x11) != 0x10)
+	if ((cdb[1] & 0x11) != 0x10) {
+		fp = 1;
+		bp = (cdb[1] & 0x01) ? 1 : 5;
 		goto invalid_fld;
+	}
 
 	/* Test early for possible overrun.  */
 	if (!scsi_sg_count(scmd) || scsi_sglist(scmd)->length < len)
@@ -3298,8 +3754,11 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	p += hdr_len;
 	if (len < bd_len)
 		goto invalid_param_len;
-	if (bd_len != 0 && bd_len != 8)
+	if (bd_len != 0 && bd_len != 8) {
+		fp = (six_byte) ? 3 : 6;
+		fp += bd_len + hdr_len;
 		goto invalid_param;
+	}
 
 	len -= bd_len;
 	p += bd_len;
@@ -3330,18 +3789,29 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	 * No mode subpages supported (yet) but asking for _all_
 	 * subpages may be valid
 	 */
-	if (spg && (spg != ALL_SUB_MPAGES))
+	if (spg && (spg != ALL_SUB_MPAGES)) {
+		fp = (p[0] & 0x40) ? 1 : 0;
+		fp += hdr_len + bd_len;
 		goto invalid_param;
+	}
 	if (pg_len > len)
 		goto invalid_param_len;
 
 	switch (pg) {
 	case CACHE_MPAGE:
-		if (ata_mselect_caching(qc, p, pg_len) < 0)
+		if (ata_mselect_caching(qc, p, pg_len, &fp) < 0) {
+			fp += hdr_len + bd_len;
 			goto invalid_param;
+		}
 		break;
-
+	case CONTROL_MPAGE:
+		if (ata_mselect_control(qc, p, pg_len, &fp) < 0) {
+			fp += hdr_len + bd_len;
+			goto invalid_param;
+		}
+		break;
 	default:		/* invalid page code */
+		fp = bd_len + hdr_len;
 		goto invalid_param;
 	}
 
@@ -3355,18 +3825,16 @@ static unsigned int ata_scsi_mode_select_xlat(struct ata_queued_cmd *qc)
 	return 0;
 
  invalid_fld:
-	/* "Invalid field in CDB" */
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x24, 0x0);
+	ata_scsi_set_invalid_field(qc->dev, scmd, fp, bp);
 	return 1;
 
  invalid_param:
-	/* "Invalid field in parameter list" */
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x26, 0x0);
+	ata_scsi_set_invalid_parameter(qc->dev, scmd, fp);
 	return 1;
 
  invalid_param_len:
 	/* "Parameter list length error" */
-	ata_scsi_set_sense(scmd, ILLEGAL_REQUEST, 0x1a, 0x0);
+	ata_scsi_set_sense(qc->dev, scmd, ILLEGAL_REQUEST, 0x1a, 0x0);
 	return 1;
 
  skip:
@@ -3418,6 +3886,12 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case MODE_SELECT_10:
 		return ata_scsi_mode_select_xlat;
 		break;
+
+	case ZBC_IN:
+		return ata_scsi_zbc_in_xlat;
+
+	case ZBC_OUT:
+		return ata_scsi_zbc_out_xlat;
 
 	case START_STOP:
 		return ata_scsi_start_stop_xlat;
@@ -3567,12 +4041,12 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	switch(scsicmd[0]) {
 	/* TODO: worth improving? */
 	case FORMAT_UNIT:
-		ata_scsi_invalid_field(cmd);
+		ata_scsi_invalid_field(dev, cmd, 0);
 		break;
 
 	case INQUIRY:
-		if (scsicmd[1] & 2)	           /* is CmdDt set?  */
-			ata_scsi_invalid_field(cmd);
+		if (scsicmd[1] & 2)		   /* is CmdDt set?  */
+		    ata_scsi_invalid_field(dev, cmd, 1);
 		else if ((scsicmd[1] & 1) == 0)    /* is EVPD clear? */
 			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_std);
 		else switch (scsicmd[2]) {
@@ -3597,8 +4071,14 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		case 0xb2:
 			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b2);
 			break;
+		case 0xb6:
+			if (dev->flags & ATA_DFLAG_ZAC) {
+				ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b6);
+				break;
+			}
+			/* Fallthrough */
 		default:
-			ata_scsi_invalid_field(cmd);
+			ata_scsi_invalid_field(dev, cmd, 2);
 			break;
 		}
 		break;
@@ -3616,7 +4096,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		if ((scsicmd[1] & 0x1f) == SAI_READ_CAPACITY_16)
 			ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
 		else
-			ata_scsi_invalid_field(cmd);
+			ata_scsi_invalid_field(dev, cmd, 1);
 		break;
 
 	case REPORT_LUNS:
@@ -3624,7 +4104,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		break;
 
 	case REQUEST_SENSE:
-		ata_scsi_set_sense(cmd, 0, 0, 0);
+		ata_scsi_set_sense(dev, cmd, 0, 0, 0);
 		cmd->result = (DRIVER_SENSE << 24);
 		cmd->scsi_done(cmd);
 		break;
@@ -3648,12 +4128,12 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		if ((tmp8 == 0x4) && (!scsicmd[3]) && (!scsicmd[4]))
 			ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
 		else
-			ata_scsi_invalid_field(cmd);
+			ata_scsi_invalid_field(dev, cmd, 1);
 		break;
 
 	/* all other commands */
 	default:
-		ata_scsi_set_sense(cmd, ILLEGAL_REQUEST, 0x20, 0x0);
+		ata_scsi_set_sense(dev, cmd, ILLEGAL_REQUEST, 0x20, 0x0);
 		/* "Invalid command operation code" */
 		cmd->scsi_done(cmd);
 		break;

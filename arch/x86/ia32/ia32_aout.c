@@ -116,13 +116,13 @@ static struct linux_binfmt aout_format = {
 	.min_coredump	= PAGE_SIZE
 };
 
-static void set_brk(unsigned long start, unsigned long end)
+static unsigned long set_brk(unsigned long start, unsigned long end)
 {
 	start = PAGE_ALIGN(start);
 	end = PAGE_ALIGN(end);
 	if (end <= start)
-		return;
-	vm_brk(start, end - start);
+		return start;
+	return vm_brk(start, end - start);
 }
 
 #ifdef CONFIG_COREDUMP
@@ -349,7 +349,10 @@ static int load_aout_binary(struct linux_binprm *bprm)
 #endif
 
 		if (!bprm->file->f_op->mmap || (fd_offset & ~PAGE_MASK) != 0) {
-			vm_brk(N_TXTADDR(ex), ex.a_text+ex.a_data);
+			error = vm_brk(N_TXTADDR(ex), ex.a_text+ex.a_data);
+			if (IS_ERR_VALUE(error))
+				return error;
+
 			read_code(bprm->file, N_TXTADDR(ex), fd_offset,
 					ex.a_text+ex.a_data);
 			goto beyond_if;
@@ -372,10 +375,13 @@ static int load_aout_binary(struct linux_binprm *bprm)
 		if (error != N_DATADDR(ex))
 			return error;
 	}
-beyond_if:
-	set_binfmt(&aout_format);
 
-	set_brk(current->mm->start_brk, current->mm->brk);
+beyond_if:
+	error = set_brk(current->mm->start_brk, current->mm->brk);
+	if (IS_ERR_VALUE(error))
+		return error;
+
+	set_binfmt(&aout_format);
 
 	current->mm->start_stack =
 		(unsigned long)create_aout_tables((char __user *)bprm->p, bprm);
@@ -434,7 +440,9 @@ static int load_aout_library(struct file *file)
 			error_time = jiffies;
 		}
 #endif
-		vm_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);
+		retval = vm_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);
+		if (IS_ERR_VALUE(retval))
+			goto out;
 
 		read_code(file, start_addr, N_TXTOFF(ex),
 			  ex.a_text + ex.a_data);
