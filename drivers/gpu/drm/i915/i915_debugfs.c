@@ -2014,9 +2014,23 @@ static int i915_context_status(struct seq_file *m, void *unused)
 			continue;
 
 		seq_printf(m, "HW context %u ", ctx->hw_id);
+		if (IS_ERR(ctx->file_priv)) {
+			seq_puts(m, "(deleted) ");
+		} else if (ctx->file_priv) {
+			struct pid *pid = ctx->file_priv->file->pid;
+			struct task_struct *task;
+
+			task = get_pid_task(pid, PIDTYPE_PID);
+			if (task) {
+				seq_printf(m, "(%s [%d]) ",
+					   task->comm, task->pid);
+				put_task_struct(task);
+			}
+		} else {
+			seq_puts(m, "(kernel) ");
+		}
+
 		describe_ctx(m, ctx);
-		if (ctx == dev_priv->kernel_context)
-			seq_printf(m, "(kernel context) ");
 
 		if (i915.enable_execlists) {
 			seq_putc(m, '\n');

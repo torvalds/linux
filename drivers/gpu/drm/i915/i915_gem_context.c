@@ -468,6 +468,7 @@ static int context_idr_cleanup(int id, void *p, void *data)
 {
 	struct i915_gem_context *ctx = p;
 
+	ctx->file_priv = ERR_PTR(-EBADF);
 	i915_gem_context_unreference(ctx);
 	return 0;
 }
@@ -938,7 +939,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 		return PTR_ERR(ctx);
 	}
 
-	idr_remove(&ctx->file_priv->context_idr, ctx->user_handle);
+	idr_remove(&file_priv->context_idr, ctx->user_handle);
 	i915_gem_context_unreference(ctx);
 	mutex_unlock(&dev->struct_mutex);
 
