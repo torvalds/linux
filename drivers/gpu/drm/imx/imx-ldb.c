@@ -25,6 +25,7 @@
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <linux/regmap.h>
 #include <linux/videodev2.h>
@@ -625,7 +626,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 				/* fallback to display-timings node */
 				ret = of_get_drm_display_mode(child,
 							      &channel->mode,
-							      0);
+							      OF_USE_NATIVE_MODE);
 				if (!ret)
 					channel->mode_valid = 1;
 			}
