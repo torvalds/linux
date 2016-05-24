@@ -212,8 +212,6 @@ out_err:
 	return -1;
 }
 
-void __init acpi_numa_arch_fixup(void) {}
-
 int __init x86_acpi_numa_init(void)
 {
 	int ret;
