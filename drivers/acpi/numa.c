@@ -252,8 +252,11 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 
 	if (srat_disabled())
 		goto out_err;
-	if (ma->header.length != sizeof(struct acpi_srat_mem_affinity))
+	if (ma->header.length < sizeof(struct acpi_srat_mem_affinity)) {
+		pr_err("SRAT: Unexpected header length: %d\n",
+		       ma->header.length);
 		goto out_err_bad_srat;
+	}
 	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
 		goto out_err;
 	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
@@ -267,13 +270,17 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		pxm &= 0xff;
 
 	node = acpi_map_pxm_to_node(pxm);
-	if (node < 0) {
-		printk(KERN_ERR "SRAT: Too many proximity domains.\n");
+	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+		pr_err("SRAT: Too many proximity domains.\n");
 		goto out_err_bad_srat;
 	}
 
-	if (numa_add_memblk(node, start, end) < 0)
+	if (numa_add_memblk(node, start, end) < 0) {
+		pr_err("SRAT: Failed to add memblk to node %u [mem %#010Lx-%#010Lx]\n",
+		       node, (unsigned long long) start,
+		       (unsigned long long) end - 1);
 		goto out_err_bad_srat;
+	}
 
 	node_set(node, numa_nodes_parsed);
 
