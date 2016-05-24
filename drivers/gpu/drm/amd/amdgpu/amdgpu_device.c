@@ -1245,6 +1245,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 	case CHIP_PITCAIRN:
 	case CHIP_OLAND:
 	case CHIP_HAINAN:
+		adev->family = AMDGPU_FAMILY_SI;
 		r = si_set_ip_blocks(adev);
 		if (r)
 			return r;
