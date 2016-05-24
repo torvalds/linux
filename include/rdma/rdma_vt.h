@@ -426,6 +426,15 @@ static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
 }
 
 /*
+ * Return the max atomic suitable for determining
+ * the size of the ack ring buffer in a QP.
+ */
+static inline unsigned int rvt_max_atomic(struct rvt_dev_info *rdi)
+{
+	return rdi->dparms.max_rdma_atomic + 1;
+}
+
+/*
  * Return the indexed PKEY from the port PKEY table.
  */
 static inline u16 rvt_get_pkey(struct rvt_dev_info *rdi,

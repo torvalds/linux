@@ -397,6 +397,7 @@ static void free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
 static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 {
 	unsigned n;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 
 	if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags))
 		rvt_put_ss(&qp->s_rdma_read_sge);
@@ -431,7 +432,7 @@ static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 	if (qp->ibqp.qp_type != IB_QPT_RC)
 		return;
 
-	for (n = 0; n < ARRAY_SIZE(qp->s_ack_queue); n++) {
+	for (n = 0; n < rvt_max_atomic(rdi); n++) {
 		struct rvt_ack_entry *e = &qp->s_ack_queue[n];
 
 		if (e->opcode == IB_OPCODE_RC_RDMA_READ_REQUEST &&
@@ -569,7 +570,12 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	qp->s_ssn = 1;
 	qp->s_lsn = 0;
 	qp->s_mig_state = IB_MIG_MIGRATED;
-	memset(qp->s_ack_queue, 0, sizeof(qp->s_ack_queue));
+	if (qp->s_ack_queue)
+		memset(
+			qp->s_ack_queue,
+			0,
+			rvt_max_atomic(rdi) *
+				sizeof(*qp->s_ack_queue));
 	qp->r_head_ack_queue = 0;
 	qp->s_tail_ack_queue = 0;
 	qp->s_num_rd_atomic = 0;
@@ -677,6 +683,16 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			goto bail_swq;
 
 		RCU_INIT_POINTER(qp->next, NULL);
+		if (init_attr->qp_type == IB_QPT_RC) {
+			qp->s_ack_queue =
+				kzalloc_node(
+					sizeof(*qp->s_ack_queue) *
+					 rvt_max_atomic(rdi),
+					gfp,
+					rdi->dparms.node);
+			if (!qp->s_ack_queue)
+				goto bail_qp;
+		}
 
 		/*
 		 * Driver needs to set up it's private QP structure and do any
@@ -857,6 +873,7 @@ bail_driver_priv:
 	rdi->driver_f.qp_priv_free(rdi, qp);
 
 bail_qp:
+	kfree(qp->s_ack_queue);
 	kfree(qp);
 
 bail_swq:
@@ -1284,6 +1301,7 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 		vfree(qp->r_rq.wq);
 	vfree(qp->s_wq);
 	rdi->driver_f.qp_priv_free(rdi, qp);
+	kfree(qp->s_ack_queue);
 	kfree(qp);
 	return 0;
 }
