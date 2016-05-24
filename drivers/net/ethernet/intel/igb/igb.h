@@ -477,6 +477,7 @@ struct igb_adapter {
 
 /* flags controlling PTP/1588 function */
 #define IGB_PTP_ENABLED		BIT(0)
+#define IGB_PTP_OVERFLOW_CHECK	BIT(1)
 
 #define IGB_FLAG_HAS_MSI		BIT(0)
 #define IGB_FLAG_DCA_ENABLED		BIT(1)

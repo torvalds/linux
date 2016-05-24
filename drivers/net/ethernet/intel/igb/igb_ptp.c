@@ -1067,6 +1067,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->cc.shift = IGB_82576_TSYNC_SHIFT;
 		/* Dial the nominal frequency. */
 		wr32(E1000_TIMINCA, INCPERIOD_82576 | INCVALUE_82576);
+		adapter->ptp_flags |= IGB_PTP_OVERFLOW_CHECK;
 		break;
 	case e1000_82580:
 	case e1000_i354:
@@ -1087,6 +1088,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->cc.shift = 0;
 		/* Enable the timer functions by clearing bit 31. */
 		wr32(E1000_TSAUXC, 0x0);
+		adapter->ptp_flags |= IGB_PTP_OVERFLOW_CHECK;
 		break;
 	case e1000_i210:
 	case e1000_i211:
@@ -1132,7 +1134,9 @@ void igb_ptp_init(struct igb_adapter *adapter)
 	} else {
 		timecounter_init(&adapter->tc, &adapter->cc,
 				 ktime_to_ns(ktime_get_real()));
+	}
 
+	if (adapter->ptp_flags & IGB_PTP_OVERFLOW_CHECK) {
 		INIT_DELAYED_WORK(&adapter->ptp_overflow_work,
 				  igb_ptp_overflow_check);
 
@@ -1169,20 +1173,11 @@ void igb_ptp_init(struct igb_adapter *adapter)
  **/
 void igb_ptp_stop(struct igb_adapter *adapter)
 {
-	switch (adapter->hw.mac.type) {
-	case e1000_82576:
-	case e1000_82580:
-	case e1000_i354:
-	case e1000_i350:
-		cancel_delayed_work_sync(&adapter->ptp_overflow_work);
-		break;
-	case e1000_i210:
-	case e1000_i211:
-		/* No delayed work to cancel. */
-		break;
-	default:
+	if (!(adapter->ptp_flags & IGB_PTP_ENABLED))
 		return;
-	}
+
+	if (adapter->ptp_flags & IGB_PTP_OVERFLOW_CHECK)
+		cancel_delayed_work_sync(&adapter->ptp_overflow_work);
 
 	cancel_work_sync(&adapter->ptp_tx_work);
 	if (adapter->ptp_tx_skb) {
