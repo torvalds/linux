@@ -30,6 +30,7 @@
 #include "s5p_mfc_dec.h"
 #include "s5p_mfc_enc.h"
 #include "s5p_mfc_intr.h"
+#include "s5p_mfc_iommu.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_cmd.h"
 #include "s5p_mfc_pm.h"
@@ -1084,6 +1085,22 @@ static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 	struct device *dev = &mfc_dev->plat_dev->dev;
 
 	/*
+	 * When IOMMU is available, we cannot use the default configuration,
+	 * because of MFC firmware requirements: address space limited to
+	 * 256M and non-zero default start address.
+	 * This is still simplified, not optimal configuration, but for now
+	 * IOMMU core doesn't allow to configure device's IOMMUs channel
+	 * separately.
+	 */
+	if (exynos_is_iommu_available(dev)) {
+		int ret = exynos_configure_iommu(dev, S5P_MFC_IOMMU_DMA_BASE,
+						 S5P_MFC_IOMMU_DMA_SIZE);
+		if (ret == 0)
+			mfc_dev->mem_dev_l = mfc_dev->mem_dev_r = dev;
+		return ret;
+	}
+
+	/*
 	 * Create and initialize virtual devices for accessing
 	 * reserved memory regions.
 	 */
@@ -1103,6 +1120,13 @@ static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 
 static void s5p_mfc_unconfigure_dma_memory(struct s5p_mfc_dev *mfc_dev)
 {
+	struct device *dev = &mfc_dev->plat_dev->dev;
+
+	if (exynos_is_iommu_available(dev)) {
+		exynos_unconfigure_iommu(dev);
+		return;
+	}
+
 	device_unregister(mfc_dev->mem_dev_l);
 	device_unregister(mfc_dev->mem_dev_r);
 }
