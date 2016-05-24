@@ -40,6 +40,7 @@ static int node_to_pxm_map[MAX_NUMNODES]
 			= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
 
 unsigned char acpi_srat_revision __initdata;
+int acpi_numa __initdata;
 
 int pxm_to_node(int pxm)
 {
@@ -195,6 +196,17 @@ static int __init slit_valid(struct acpi_table_slit *slit)
 		}
 	}
 	return 1;
+}
+
+void __init bad_srat(void)
+{
+	pr_err("SRAT: SRAT not used.\n");
+	acpi_numa = -1;
+}
+
+int __init srat_disabled(void)
+{
+	return acpi_numa < 0;
 }
 
 #if defined(CONFIG_X86) || defined(CONFIG_ARM64)
