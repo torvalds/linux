@@ -220,38 +220,6 @@ err:
 }
 
 /**
- * mei_amthif_send_cmd - send amthif command to the ME
- *
- * @cl: the host client
- * @cb: mei call back struct
- *
- * Return: 0 on success, <0 on failure.
- */
-static int mei_amthif_send_cmd(struct mei_cl *cl, struct mei_cl_cb *cb)
-{
-	struct mei_device *dev;
-	int ret;
-
-	if (!cl->dev || !cb)
-		return -ENODEV;
-
-	dev = cl->dev;
-
-	dev->iamthif_state = MEI_IAMTHIF_WRITING;
-	dev->iamthif_fp = cb->fp;
-	dev->iamthif_canceled = false;
-
-	ret = mei_cl_write(cl, cb, false);
-	if (ret < 0)
-		return ret;
-
-	if (cb->completed)
-		cb->status = mei_amthif_read_start(cl, cb->fp);
-
-	return 0;
-}
-
-/**
  * mei_amthif_run_next_cmd - send next amt command from queue
  *
  * @dev: the device structure
@@ -262,20 +230,32 @@ int mei_amthif_run_next_cmd(struct mei_device *dev)
 {
 	struct mei_cl *cl = &dev->iamthif_cl;
 	struct mei_cl_cb *cb;
+	int ret;
 
 	dev->iamthif_canceled = false;
-	dev->iamthif_state = MEI_IAMTHIF_IDLE;
-	dev->iamthif_fp = NULL;
 
 	dev_dbg(dev->dev, "complete amthif cmd_list cb.\n");
 
 	cb = list_first_entry_or_null(&dev->amthif_cmd_list.list,
 					typeof(*cb), list);
-	if (!cb)
+	if (!cb) {
+		dev->iamthif_state = MEI_IAMTHIF_IDLE;
+		dev->iamthif_fp = NULL;
 		return 0;
+	}
 
 	list_del_init(&cb->list);
-	return mei_amthif_send_cmd(cl, cb);
+	dev->iamthif_state = MEI_IAMTHIF_WRITING;
+	dev->iamthif_fp = cb->fp;
+
+	ret = mei_cl_write(cl, cb, false);
+	if (ret < 0)
+		return ret;
+
+	if (cb->completed)
+		cb->status = mei_amthif_read_start(cl, cb->fp);
+
+	return 0;
 }
 
 /**
