@@ -82,6 +82,7 @@ int amdgpu_exp_hw_support = 0;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_powerplay = -1;
+int amdgpu_powercontainment = 1;
 unsigned amdgpu_pcie_gen_cap = 0;
 unsigned amdgpu_pcie_lane_cap = 0;
 
@@ -160,6 +161,9 @@ module_param_named(sched_hw_submission, amdgpu_sched_hw_submission, int, 0444);
 #ifdef CONFIG_DRM_AMD_POWERPLAY
 MODULE_PARM_DESC(powerplay, "Powerplay component (1 = enable, 0 = disable, -1 = auto (default))");
 module_param_named(powerplay, amdgpu_powerplay, int, 0444);
+
+MODULE_PARM_DESC(powercontainment, "Power Containment (1 = enable (default), 0 = disable)");
+module_param_named(powercontainment, amdgpu_powercontainment, int, 0444);
 #endif
 
 MODULE_PARM_DESC(pcie_gen_cap, "PCIE Gen Caps (0: autodetect (default))");

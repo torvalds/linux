@@ -73,17 +73,18 @@ void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 	if (!tmp) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_PowerContainment);
-
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_CAC);
 
 		fiji_hwmgr->fast_watermark_threshold = 100;
 
-		tmp = 1;
-		fiji_hwmgr->enable_dte_feature = tmp ? false : true;
-		fiji_hwmgr->enable_tdc_limit_feature = tmp ? true : false;
-		fiji_hwmgr->enable_pkg_pwr_tracking_feature = tmp ? true : false;
+		if (hwmgr->powercontainment_enabled) {
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				    PHM_PlatformCaps_PowerContainment);
+			tmp = 1;
+			fiji_hwmgr->enable_dte_feature = tmp ? false : true;
+			fiji_hwmgr->enable_tdc_limit_feature = tmp ? true : false;
+			fiji_hwmgr->enable_pkg_pwr_tracking_feature = tmp ? true : false;
+		}
 	}
 }
 

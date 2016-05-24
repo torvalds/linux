@@ -2606,8 +2606,13 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_TCPRamping);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_PowerContainment);
+	if (hwmgr->powercontainment_enabled)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+	else
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 							PHM_PlatformCaps_CAC);
 

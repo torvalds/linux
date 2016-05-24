@@ -58,6 +58,7 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->hw_revision = pp_init->rev_id;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
+	hwmgr->powercontainment_enabled = pp_init->powercontainment_enabled;
 
 	switch (hwmgr->chip_family) {
 	case AMD_FAMILY_CZ:
