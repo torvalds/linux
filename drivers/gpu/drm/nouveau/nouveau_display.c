@@ -1057,6 +1057,7 @@ int
 nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 			    struct drm_mode_create_dumb *args)
 {
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *bo;
 	uint32_t domain;
 	int ret;
@@ -1071,7 +1072,7 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	else
 		domain = NOUVEAU_GEM_DOMAIN_GART;
 
-	ret = nouveau_gem_new(dev, args->size, 0, domain, 0, 0, &bo);
+	ret = nouveau_gem_new(cli, args->size, 0, domain, 0, 0, &bo);
 	if (ret)
 		return ret;
 

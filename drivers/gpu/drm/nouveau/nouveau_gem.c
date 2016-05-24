@@ -175,11 +175,11 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 }
 
 int
-nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
+nouveau_gem_new(struct nouveau_cli *cli, int size, int align, uint32_t domain,
 		uint32_t tile_mode, uint32_t tile_flags,
 		struct nouveau_bo **pnvbo)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_drm *drm = nouveau_drm(cli->dev);
 	struct nouveau_bo *nvbo;
 	u32 flags = 0;
 	int ret;
@@ -194,7 +194,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 	if (domain & NOUVEAU_GEM_DOMAIN_COHERENT)
 		flags |= TTM_PL_FLAG_UNCACHED;
 
-	ret = nouveau_bo_new(&drm->client, size, align, flags, tile_mode,
+	ret = nouveau_bo_new(cli, size, align, flags, tile_mode,
 			     tile_flags, NULL, NULL, pnvbo);
 	if (ret)
 		return ret;
@@ -211,7 +211,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 
 	/* Initialize the embedded gem-object. We return a single gem-reference
 	 * to the caller, instead of a normal nouveau_bo ttm reference. */
-	ret = drm_gem_object_init(dev, &nvbo->gem, nvbo->bo.mem.size);
+	ret = drm_gem_object_init(drm->dev, &nvbo->gem, nvbo->bo.mem.size);
 	if (ret) {
 		nouveau_bo_ref(NULL, pnvbo);
 		return -ENOMEM;
@@ -267,7 +267,7 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ret = nouveau_gem_new(dev, req->info.size, req->align,
+	ret = nouveau_gem_new(cli, req->info.size, req->align,
 			      req->info.domain, req->info.tile_mode,
 			      req->info.tile_flags, &nvbo);
 	if (ret)

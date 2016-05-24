@@ -341,8 +341,9 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	ret = nouveau_gem_new(dev, mode_cmd.pitches[0] * mode_cmd.height,
-			      0, NOUVEAU_GEM_DOMAIN_VRAM, 0, 0x0000, &nvbo);
+	ret = nouveau_gem_new(&drm->client, mode_cmd.pitches[0] *
+			      mode_cmd.height, 0, NOUVEAU_GEM_DOMAIN_VRAM,
+			      0, 0x0000, &nvbo);
 	if (ret) {
 		NV_ERROR(drm, "failed to allocate framebuffer\n");
 		goto out;
