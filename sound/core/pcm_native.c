@@ -2865,13 +2865,9 @@ static int snd_pcm_common_ioctl1(struct file *file,
 	case SNDRV_PCM_IOCTL_DROP:
 		return snd_pcm_drop(substream);
 	case SNDRV_PCM_IOCTL_PAUSE:
-	{
-		int res;
-		snd_pcm_stream_lock_irq(substream);
-		res = snd_pcm_pause(substream, (int)(unsigned long)arg);
-		snd_pcm_stream_unlock_irq(substream);
-		return res;
-	}
+		return snd_pcm_action_lock_irq(&snd_pcm_action_pause,
+					       substream,
+					       (int)(unsigned long)arg);
 	}
 	pcm_dbg(substream->pcm, "unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
