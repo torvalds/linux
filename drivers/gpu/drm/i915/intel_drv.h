@@ -304,8 +304,6 @@ struct intel_atomic_state {
 	unsigned int active_crtcs;
 	unsigned int min_pixclk[I915_MAX_PIPES];
 
-	struct intel_flip_work *work[I915_MAX_PIPES];
-
 	/* SKL/KBL Only */
 	unsigned int cdclk_pll_vco;
 
@@ -646,7 +644,7 @@ struct intel_crtc {
 	unsigned long enabled_power_domains;
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
-	struct list_head flip_work;
+	struct intel_flip_work *flip_work;
 
 	atomic_t unpin_work_count;
 
@@ -663,6 +661,9 @@ struct intel_crtc {
 	uint32_t cursor_base;
 
 	struct intel_crtc_state *config;
+
+	/* reset counter value when the last flip was submitted */
+	unsigned int reset_counter;
 
 	/* Access to these should be protected by dev_priv->irq_lock. */
 	bool cpu_fifo_underrun_disabled;
@@ -972,28 +973,20 @@ intel_get_crtc_for_plane(struct drm_device *dev, int plane)
 }
 
 struct intel_flip_work {
-	struct list_head head;
-
 	struct work_struct unpin_work;
 	struct work_struct mmio_work;
 
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *old_fb;
+	struct drm_i915_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
 	atomic_t pending;
+	u32 flip_count;
+	u32 gtt_offset;
+	struct drm_i915_gem_request *flip_queued_req;
 	u32 flip_queued_vblank;
-
-	unsigned put_power_domains;
-	unsigned num_planes;
-
-	bool can_async_unpin, free_new_crtc_state;
-	unsigned fb_bits;
-
-	unsigned num_old_connectors, num_new_connectors;
-	struct drm_connector_state **old_connector_state;
-	struct drm_connector_state **new_connector_state;
-
-	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
-	struct intel_plane_state *old_plane_state[I915_MAX_PLANES + 1];
-	struct intel_plane_state *new_plane_state[I915_MAX_PLANES + 1];
+	u32 flip_ready_vblank;
+	unsigned int rotation;
 };
 
 struct intel_load_detect_pipe {
@@ -1153,7 +1146,6 @@ unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info
 bool intel_has_pending_fb_unpin(struct drm_device *dev);
 void intel_mark_busy(struct drm_i915_private *dev_priv);
 void intel_mark_idle(struct drm_i915_private *dev_priv);
-void intel_free_flip_work(struct intel_flip_work *work);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 int intel_display_suspend(struct drm_device *dev);
 void intel_encoder_destroy(struct drm_encoder *encoder);
@@ -1206,8 +1198,9 @@ struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj);
+void intel_finish_page_flip_cs(struct drm_i915_private *dev_priv, int pipe);
 void intel_finish_page_flip_mmio(struct drm_i915_private *dev_priv, int pipe);
-
+void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe);
 int intel_prepare_plane_fb(struct drm_plane *plane,
 			   const struct drm_plane_state *new_state);
 void intel_cleanup_plane_fb(struct drm_plane *plane,
@@ -1430,15 +1423,11 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 			   struct drm_atomic_state *state);
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv);
-void intel_fbc_pre_update(struct intel_crtc *crtc,
-			  struct intel_crtc_state *crtc_state,
-			  struct intel_plane_state *plane_state);
+void intel_fbc_pre_update(struct intel_crtc *crtc);
 void intel_fbc_post_update(struct intel_crtc *crtc);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
 void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv);
-void intel_fbc_enable(struct intel_crtc *crtc,
-		      struct intel_crtc_state *crtc_state,
-		      struct intel_plane_state *plane_state);
+void intel_fbc_enable(struct intel_crtc *crtc);
 void intel_fbc_disable(struct intel_crtc *crtc);
 void intel_fbc_global_disable(struct drm_i915_private *dev_priv);
 void intel_fbc_invalidate(struct drm_i915_private *dev_priv,

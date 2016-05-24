@@ -102,7 +102,6 @@ intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
 	WARN_ON(state && to_intel_plane_state(state)->wait_req);
-	WARN_ON(state && state->fence);
 	drm_atomic_helper_plane_destroy_state(plane, state);
 }
 

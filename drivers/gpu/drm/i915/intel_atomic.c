@@ -311,17 +311,6 @@ intel_atomic_state_alloc(struct drm_device *dev)
 void intel_atomic_state_clear(struct drm_atomic_state *s)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(s);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(state->work); i++) {
-		struct intel_flip_work *work = state->work[i];
-
-		if (work)
-			intel_free_flip_work(work);
-
-		state->work[i] = NULL;
-	}
-
 	drm_atomic_state_default_clear(&state->base);
 	state->dpll_set = state->modeset = false;
 }

@@ -260,7 +260,9 @@ int intel_sanitize_enable_execlists(struct drm_i915_private *dev_priv, int enabl
 	if (enable_execlists == 0)
 		return 0;
 
-	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv) && USES_PPGTT(dev_priv))
+	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv) &&
+	    USES_PPGTT(dev_priv) &&
+	    i915.use_mmio_flip >= 0)
 		return 1;
 
 	return 0;

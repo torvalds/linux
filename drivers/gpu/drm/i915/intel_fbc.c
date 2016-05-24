@@ -480,10 +480,10 @@ static void intel_fbc_deactivate(struct drm_i915_private *dev_priv)
 		intel_fbc_hw_deactivate(dev_priv);
 }
 
-static bool multiple_pipes_ok(struct intel_crtc *crtc,
-			      struct intel_plane_state *plane_state)
+static bool multiple_pipes_ok(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct drm_plane *primary = crtc->base.primary;
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	enum pipe pipe = crtc->pipe;
 
@@ -491,7 +491,9 @@ static bool multiple_pipes_ok(struct intel_crtc *crtc,
 	if (!no_fbc_on_multiple_pipes(dev_priv))
 		return true;
 
-	if (plane_state->visible)
+	WARN_ON(!drm_modeset_is_locked(&primary->mutex));
+
+	if (to_intel_plane_state(primary->state)->visible)
 		fbc->visible_pipes_mask |= (1 << pipe);
 	else
 		fbc->visible_pipes_mask &= ~(1 << pipe);
@@ -706,15 +708,20 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 	return effective_w <= max_w && effective_h <= max_h;
 }
 
-static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
-					 struct intel_crtc_state *crtc_state,
-					 struct intel_plane_state *plane_state)
+static void intel_fbc_update_state_cache(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+	struct intel_plane_state *plane_state =
+		to_intel_plane_state(crtc->base.primary->state);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	struct drm_i915_gem_object *obj;
+
+	WARN_ON(!drm_modeset_is_locked(&crtc->base.mutex));
+	WARN_ON(!drm_modeset_is_locked(&crtc->base.primary->mutex));
 
 	cache->crtc.mode_flags = crtc_state->base.adjusted_mode.flags;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
@@ -880,9 +887,7 @@ static bool intel_fbc_reg_params_equal(struct intel_fbc_reg_params *params1,
 	return memcmp(params1, params2, sizeof(*params1)) == 0;
 }
 
-void intel_fbc_pre_update(struct intel_crtc *crtc,
-			  struct intel_crtc_state *crtc_state,
-			  struct intel_plane_state *plane_state)
+void intel_fbc_pre_update(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
@@ -892,7 +897,7 @@ void intel_fbc_pre_update(struct intel_crtc *crtc,
 
 	mutex_lock(&fbc->lock);
 
-	if (!multiple_pipes_ok(crtc, plane_state)) {
+	if (!multiple_pipes_ok(crtc)) {
 		fbc->no_fbc_reason = "more than one pipe active";
 		goto deactivate;
 	}
@@ -900,7 +905,7 @@ void intel_fbc_pre_update(struct intel_crtc *crtc,
 	if (!fbc->enabled || fbc->crtc != crtc)
 		goto unlock;
 
-	intel_fbc_update_state_cache(crtc, crtc_state, plane_state);
+	intel_fbc_update_state_cache(crtc);
 
 deactivate:
 	intel_fbc_deactivate(dev_priv);
@@ -1084,9 +1089,7 @@ out:
  * intel_fbc_enable multiple times for the same pipe without an
  * intel_fbc_disable in the middle, as long as it is deactivated.
  */
-void intel_fbc_enable(struct intel_crtc *crtc,
-		      struct intel_crtc_state *crtc_state,
-		      struct intel_plane_state *plane_state)
+void intel_fbc_enable(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
@@ -1099,19 +1102,19 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 	if (fbc->enabled) {
 		WARN_ON(fbc->crtc == NULL);
 		if (fbc->crtc == crtc) {
-			WARN_ON(!crtc_state->enable_fbc);
+			WARN_ON(!crtc->config->enable_fbc);
 			WARN_ON(fbc->active);
 		}
 		goto out;
 	}
 
-	if (!crtc_state->enable_fbc)
+	if (!crtc->config->enable_fbc)
 		goto out;
 
 	WARN_ON(fbc->active);
 	WARN_ON(fbc->crtc != NULL);
 
-	intel_fbc_update_state_cache(crtc, crtc_state, plane_state);
+	intel_fbc_update_state_cache(crtc);
 	if (intel_fbc_alloc_cfb(crtc)) {
 		fbc->no_fbc_reason = "not enough stolen memory";
 		goto out;
