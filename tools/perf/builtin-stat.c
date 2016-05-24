@@ -1316,7 +1316,7 @@ static int aggr_header_lens[] = {
 	[AGGR_GLOBAL] = 0,
 };
 
-static void print_metric_headers(char *prefix)
+static void print_metric_headers(const char *prefix, bool no_indent)
 {
 	struct perf_stat_output_ctx out;
 	struct perf_evsel *counter;
@@ -1327,7 +1327,7 @@ static void print_metric_headers(char *prefix)
 	if (prefix)
 		fprintf(stat_config.output, "%s", prefix);
 
-	if (!csv_output)
+	if (!csv_output && !no_indent)
 		fprintf(stat_config.output, "%*s",
 			aggr_header_lens[stat_config.aggr_mode], "");
 
@@ -1352,28 +1352,40 @@ static void print_interval(char *prefix, struct timespec *ts)
 
 	sprintf(prefix, "%6lu.%09lu%s", ts->tv_sec, ts->tv_nsec, csv_sep);
 
-	if (num_print_interval == 0 && !csv_output && !metric_only) {
+	if (num_print_interval == 0 && !csv_output) {
 		switch (stat_config.aggr_mode) {
 		case AGGR_SOCKET:
-			fprintf(output, "#           time socket cpus             counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time socket cpus");
+			if (!metric_only)
+				fprintf(output, "             counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_CORE:
-			fprintf(output, "#           time core         cpus             counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time core         cpus");
+			if (!metric_only)
+				fprintf(output, "             counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_NONE:
-			fprintf(output, "#           time CPU                counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time CPU");
+			if (!metric_only)
+				fprintf(output, "                counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_THREAD:
-			fprintf(output, "#           time             comm-pid                  counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time             comm-pid");
+			if (!metric_only)
+				fprintf(output, "                  counts %*s events\n", unit_width, "unit");
 			break;
 		case AGGR_GLOBAL:
 		default:
-			fprintf(output, "#           time             counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#           time");
+			if (!metric_only)
+				fprintf(output, "             counts %*s events\n", unit_width, "unit");
 		case AGGR_UNSET:
 			break;
 		}
 	}
 
+	if (num_print_interval == 0 && metric_only)
+		print_metric_headers(" ", true);
 	if (++num_print_interval == 25)
 		num_print_interval = 0;
 }
@@ -1442,8 +1454,8 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	if (metric_only) {
 		static int num_print_iv;
 
-		if (num_print_iv == 0)
-			print_metric_headers(prefix);
+		if (num_print_iv == 0 && !interval)
+			print_metric_headers(prefix, false);
 		if (num_print_iv++ == 25)
 			num_print_iv = 0;
 		if (stat_config.aggr_mode == AGGR_GLOBAL && prefix)
