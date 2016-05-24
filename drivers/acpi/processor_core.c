@@ -108,13 +108,12 @@ static int map_gicc_mpidr(struct acpi_subtable_header *entry,
 	return -EINVAL;
 }
 
-static phys_cpuid_t map_madt_entry(int type, u32 acpi_id)
+static phys_cpuid_t map_madt_entry(struct acpi_table_madt *madt,
+				   int type, u32 acpi_id)
 {
 	unsigned long madt_end, entry;
 	phys_cpuid_t phys_id = PHYS_CPUID_INVALID;	/* CPU hardware ID */
-	struct acpi_table_madt *madt;
 
-	madt = get_madt_table();
 	if (!madt)
 		return phys_id;
 
@@ -143,6 +142,25 @@ static phys_cpuid_t map_madt_entry(int type, u32 acpi_id)
 		entry += header->length;
 	}
 	return phys_id;
+}
+
+phys_cpuid_t __init acpi_map_madt_entry(u32 acpi_id)
+{
+	struct acpi_table_madt *madt = NULL;
+	acpi_size tbl_size;
+	phys_cpuid_t rv;
+
+	acpi_get_table_with_size(ACPI_SIG_MADT, 0,
+				 (struct acpi_table_header **)&madt,
+				 &tbl_size);
+	if (!madt)
+		return PHYS_CPUID_INVALID;
+
+	rv = map_madt_entry(madt, 1, acpi_id);
+
+	early_acpi_os_unmap_memory(madt, tbl_size);
+
+	return rv;
 }
 
 static phys_cpuid_t map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
@@ -185,7 +203,7 @@ phys_cpuid_t acpi_get_phys_id(acpi_handle handle, int type, u32 acpi_id)
 
 	phys_id = map_mat_entry(handle, type, acpi_id);
 	if (invalid_phys_cpuid(phys_id))
-		phys_id = map_madt_entry(type, acpi_id);
+		phys_id = map_madt_entry(get_madt_table(), type, acpi_id);
 
 	return phys_id;
 }
