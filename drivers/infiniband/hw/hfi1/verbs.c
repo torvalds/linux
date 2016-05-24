@@ -335,6 +335,8 @@ const u8 hdr_len_by_opcode[256] = {
 	[IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE]             = 12 + 8 + 4,
 	[IB_OPCODE_RC_COMPARE_SWAP]                   = 12 + 8 + 28,
 	[IB_OPCODE_RC_FETCH_ADD]                      = 12 + 8 + 28,
+	[IB_OPCODE_RC_SEND_LAST_WITH_INVALIDATE]      = 12 + 8 + 4,
+	[IB_OPCODE_RC_SEND_ONLY_WITH_INVALIDATE]      = 12 + 8 + 4,
 	/* UC */
 	[IB_OPCODE_UC_SEND_FIRST]                     = 12 + 8,
 	[IB_OPCODE_UC_SEND_MIDDLE]                    = 12 + 8,

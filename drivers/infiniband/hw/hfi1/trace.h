@@ -392,6 +392,8 @@ __print_symbolic(opcode,                                   \
 	ib_opcode_name(RC_ATOMIC_ACKNOWLEDGE),             \
 	ib_opcode_name(RC_COMPARE_SWAP),                   \
 	ib_opcode_name(RC_FETCH_ADD),                      \
+	ib_opcode_name(RC_SEND_LAST_WITH_INVALIDATE),      \
+	ib_opcode_name(RC_SEND_ONLY_WITH_INVALIDATE),      \
 	ib_opcode_name(UC_SEND_FIRST),                     \
 	ib_opcode_name(UC_SEND_MIDDLE),                    \
 	ib_opcode_name(UC_SEND_LAST),                      \
