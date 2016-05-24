@@ -11,6 +11,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <dt-bindings/clock/exynos5433.h>
 
@@ -3594,23 +3595,35 @@ static const struct samsung_gate_clock apollo_gate_clks[] __initconst = {
 			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
 };
 
-static const struct samsung_cmu_info apollo_cmu_info __initconst = {
-	.pll_clks		= apollo_pll_clks,
-	.nr_pll_clks		= ARRAY_SIZE(apollo_pll_clks),
-	.mux_clks		= apollo_mux_clks,
-	.nr_mux_clks		= ARRAY_SIZE(apollo_mux_clks),
-	.div_clks		= apollo_div_clks,
-	.nr_div_clks		= ARRAY_SIZE(apollo_div_clks),
-	.gate_clks		= apollo_gate_clks,
-	.nr_gate_clks		= ARRAY_SIZE(apollo_gate_clks),
-	.nr_clk_ids		= APOLLO_NR_CLK,
-	.clk_regs		= apollo_clk_regs,
-	.nr_clk_regs		= ARRAY_SIZE(apollo_clk_regs),
-};
-
 static void __init exynos5433_cmu_apollo_init(struct device_node *np)
 {
-	samsung_cmu_register_one(np, &apollo_cmu_info);
+	void __iomem *reg_base;
+	struct samsung_clk_provider *ctx;
+
+	reg_base = of_iomap(np, 0);
+	if (!reg_base) {
+		panic("%s: failed to map registers\n", __func__);
+		return;
+	}
+
+	ctx = samsung_clk_init(np, reg_base, APOLLO_NR_CLK);
+	if (!ctx) {
+		panic("%s: unable to allocate ctx\n", __func__);
+		return;
+	}
+
+	samsung_clk_register_pll(ctx, apollo_pll_clks,
+				 ARRAY_SIZE(apollo_pll_clks), reg_base);
+	samsung_clk_register_mux(ctx, apollo_mux_clks,
+				 ARRAY_SIZE(apollo_mux_clks));
+	samsung_clk_register_div(ctx, apollo_div_clks,
+				 ARRAY_SIZE(apollo_div_clks));
+	samsung_clk_register_gate(ctx, apollo_gate_clks,
+				  ARRAY_SIZE(apollo_gate_clks));
+	samsung_clk_sleep_init(reg_base, apollo_clk_regs,
+			       ARRAY_SIZE(apollo_clk_regs));
+
+	samsung_clk_of_add_provider(np, ctx);
 }
 CLK_OF_DECLARE(exynos5433_cmu_apollo, "samsung,exynos5433-cmu-apollo",
 		exynos5433_cmu_apollo_init);
@@ -3806,23 +3819,35 @@ static const struct samsung_gate_clock atlas_gate_clks[] __initconst = {
 			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
 };
 
-static const struct samsung_cmu_info atlas_cmu_info __initconst = {
-	.pll_clks		= atlas_pll_clks,
-	.nr_pll_clks		= ARRAY_SIZE(atlas_pll_clks),
-	.mux_clks		= atlas_mux_clks,
-	.nr_mux_clks		= ARRAY_SIZE(atlas_mux_clks),
-	.div_clks		= atlas_div_clks,
-	.nr_div_clks		= ARRAY_SIZE(atlas_div_clks),
-	.gate_clks		= atlas_gate_clks,
-	.nr_gate_clks		= ARRAY_SIZE(atlas_gate_clks),
-	.nr_clk_ids		= ATLAS_NR_CLK,
-	.clk_regs		= atlas_clk_regs,
-	.nr_clk_regs		= ARRAY_SIZE(atlas_clk_regs),
-};
-
 static void __init exynos5433_cmu_atlas_init(struct device_node *np)
 {
-	samsung_cmu_register_one(np, &atlas_cmu_info);
+	void __iomem *reg_base;
+	struct samsung_clk_provider *ctx;
+
+	reg_base = of_iomap(np, 0);
+	if (!reg_base) {
+		panic("%s: failed to map registers\n", __func__);
+		return;
+	}
+
+	ctx = samsung_clk_init(np, reg_base, ATLAS_NR_CLK);
+	if (!ctx) {
+		panic("%s: unable to allocate ctx\n", __func__);
+		return;
+	}
+
+	samsung_clk_register_pll(ctx, atlas_pll_clks,
+				 ARRAY_SIZE(atlas_pll_clks), reg_base);
+	samsung_clk_register_mux(ctx, atlas_mux_clks,
+				 ARRAY_SIZE(atlas_mux_clks));
+	samsung_clk_register_div(ctx, atlas_div_clks,
+				 ARRAY_SIZE(atlas_div_clks));
+	samsung_clk_register_gate(ctx, atlas_gate_clks,
+				  ARRAY_SIZE(atlas_gate_clks));
+	samsung_clk_sleep_init(reg_base, atlas_clk_regs,
+			       ARRAY_SIZE(atlas_clk_regs));
+
+	samsung_clk_of_add_provider(np, ctx);
 }
 CLK_OF_DECLARE(exynos5433_cmu_atlas, "samsung,exynos5433-cmu-atlas",
 		exynos5433_cmu_atlas_init);

@@ -399,6 +399,10 @@ extern struct samsung_clk_provider __init *samsung_cmu_register_one(
 
 extern unsigned long _get_rate(const char *clk_name);
 
+extern void samsung_clk_sleep_init(void __iomem *reg_base,
+			const unsigned long *rdump,
+			unsigned long nr_rdump);
+
 extern void samsung_clk_save(void __iomem *base,
 			struct samsung_clk_reg_dump *rd,
 			unsigned int num_regs);
