@@ -156,6 +156,59 @@ DEFINE_OPERATION_EVENT(gb_operation_put_active);
 
 #undef DEFINE_OPERATION_EVENT
 
+DECLARE_EVENT_CLASS(gb_module,
+
+	TP_PROTO(struct gb_module *module),
+
+	TP_ARGS(module),
+
+	TP_STRUCT__entry(
+		__field(int, hd_bus_id)
+		__field(u8, module_id)
+		__field(u8, num_interfaces)
+		__field(bool, disconnected)
+	),
+
+	TP_fast_assign(
+		__entry->hd_bus_id = module->hd->bus_id;
+		__entry->module_id = module->module_id;
+		__entry->disconnected = module->disconnected;
+	),
+
+	TP_printk("greybus: hd_bus_id=%d module_id=%hhu disconnected=%u",
+		__entry->hd_bus_id, __entry->module_id, __entry->disconnected)
+);
+
+#define DEFINE_MODULE_EVENT(name)					\
+		DEFINE_EVENT(gb_module, name,				\
+				TP_PROTO(struct gb_module *module),	\
+				TP_ARGS(module))
+
+/*
+ * Occurs after a new module is successfully created, before
+ * creating any of its interfaces.
+ */
+DEFINE_MODULE_EVENT(gb_module_create);
+
+/*
+ * Occurs after the last reference to a module has been dropped.
+ */
+DEFINE_MODULE_EVENT(gb_module_release);
+
+/*
+ * Occurs after a module is successfully created, before registering
+ * any of its interfaces.
+ */
+DEFINE_MODULE_EVENT(gb_module_add);
+
+/*
+ * Occurs when a module is deleted, before deregistering its
+ * interfaces.
+ */
+DEFINE_MODULE_EVENT(gb_module_del);
+
+#undef DEFINE_MODULE_EVENT
+
 DECLARE_EVENT_CLASS(gb_host_device,
 
 	TP_PROTO(struct gb_host_device *hd),
