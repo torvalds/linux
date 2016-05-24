@@ -2588,7 +2588,7 @@ static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 	 * to look up the current opcode to get the length of the instruction
 	 * to be able to forward the PSW.
 	 */
-	rc = read_guest_instr(vcpu, &opcode, 1);
+	rc = read_guest_instr(vcpu, vcpu->arch.sie_block->gpsw.addr, &opcode, 1);
 	ilen = insn_length(opcode);
 	if (rc < 0) {
 		return rc;

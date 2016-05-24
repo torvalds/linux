@@ -247,10 +247,11 @@ int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 /**
  * read_guest_instr - copy instruction data from guest space to kernel space
  * @vcpu: virtual cpu
+ * @ga: guest address
  * @data: destination address in kernel space
  * @len: number of bytes to copy
  *
- * Copy @len bytes from the current psw address (guest space) to @data (kernel
+ * Copy @len bytes from the given address (guest space) to @data (kernel
  * space).
  *
  * The behaviour of read_guest_instr is identical to read_guest, except that
@@ -258,10 +259,10 @@ int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
  * address-space mode.
  */
 static inline __must_check
-int read_guest_instr(struct kvm_vcpu *vcpu, void *data, unsigned long len)
+int read_guest_instr(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+		     unsigned long len)
 {
-	return access_guest(vcpu, vcpu->arch.sie_block->gpsw.addr, 0, data, len,
-			    GACC_IFETCH);
+	return access_guest(vcpu, ga, 0, data, len, GACC_IFETCH);
 }
 
 /**
