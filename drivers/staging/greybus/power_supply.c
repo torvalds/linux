@@ -547,10 +547,7 @@ static int gb_power_supply_register(struct gb_power_supply *gbpsy)
 
 	gbpsy->psy = power_supply_register(&connection->bundle->dev,
 					   &gbpsy->desc, &cfg);
-	if (IS_ERR(gbpsy->psy))
-		return PTR_ERR(gbpsy->psy);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(gbpsy->psy);
 }
 #endif
 
