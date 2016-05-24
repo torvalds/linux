@@ -655,6 +655,13 @@ perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused
 	return 0;
 }
 
+static const struct perf_event_mmap_page *record__pick_pc(struct record *rec)
+{
+	if (rec->evlist && rec->evlist->mmap && rec->evlist->mmap[0].base)
+		return rec->evlist->mmap[0].base;
+	return NULL;
+}
+
 static int record__synthesize(struct record *rec)
 {
 	struct perf_session *session = rec->session;
@@ -692,7 +699,7 @@ static int record__synthesize(struct record *rec)
 		}
 	}
 
-	err = perf_event__synth_time_conv(rec->evlist->mmap[0].base, tool,
+	err = perf_event__synth_time_conv(record__pick_pc(rec), tool,
 					  process_synthesized_event, machine);
 	if (err)
 		goto out;
