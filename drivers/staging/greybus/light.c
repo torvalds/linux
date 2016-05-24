@@ -1019,8 +1019,7 @@ static int gb_lights_light_register(struct gb_light *light)
 static void gb_lights_channel_free(struct gb_channel *channel)
 {
 #ifndef LED_HAVE_SET_BLOCKING
-	if (&channel->work_brightness_set)
-		flush_work(&channel->work_brightness_set);
+	flush_work(&channel->work_brightness_set);
 #endif
 	kfree(channel->attrs);
 	kfree(channel->attr_group);
