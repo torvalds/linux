@@ -48,7 +48,7 @@ struct buffer_head *
 befs_read_datastream(struct super_block *sb, const befs_data_stream *ds,
 		     befs_off_t pos, uint * off)
 {
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	befs_block_run run;
 	befs_blocknr_t block;	/* block coresponding to pos */
 
@@ -127,7 +127,7 @@ befs_read_lsymlink(struct super_block *sb, const befs_data_stream *ds,
 {
 	befs_off_t bytes_read = 0;	/* bytes readed */
 	u16 plen;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	befs_debug(sb, "---> %s length: %llu", __func__, len);
 
 	while (bytes_read < len) {
@@ -429,7 +429,7 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	struct buffer_head *dbl_indir_block;
 	struct buffer_head *indir_block;
 	befs_block_run indir_run;
-	befs_disk_inode_addr *iaddr_array = NULL;
+	befs_disk_inode_addr *iaddr_array;
 	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	befs_blocknr_t indir_start_blk =
@@ -488,7 +488,6 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	iaddr_array = (befs_disk_inode_addr *) dbl_indir_block->b_data;
 	indir_run = fsrun_to_cpu(sb, iaddr_array[dbl_block_indx]);
 	brelse(dbl_indir_block);
-	iaddr_array = NULL;
 
 	/* Read indirect block */
 	which_block = indir_indx / befs_iaddrs_per_block(sb);
@@ -513,7 +512,6 @@ befs_find_brun_dblindirect(struct super_block *sb,
 	iaddr_array = (befs_disk_inode_addr *) indir_block->b_data;
 	*run = fsrun_to_cpu(sb, iaddr_array[block_indx]);
 	brelse(indir_block);
-	iaddr_array = NULL;
 
 	blockno_at_run_start = indir_start_blk;
 	blockno_at_run_start += diblklen * dblindir_indx;

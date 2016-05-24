@@ -92,28 +92,23 @@ instance_slam() {
 }
 
 instance_slam &
-x=`jobs -l`
-p1=`echo $x | cut -d' ' -f2`
+p1=$!
 echo $p1
 
 instance_slam &
-x=`jobs -l | tail -1`
-p2=`echo $x | cut -d' ' -f2`
+p2=$!
 echo $p2
 
 instance_slam &
-x=`jobs -l | tail -1`
-p3=`echo $x | cut -d' ' -f2`
+p3=$!
 echo $p3
 
 instance_slam &
-x=`jobs -l | tail -1`
-p4=`echo $x | cut -d' ' -f2`
+p4=$!
 echo $p4
 
 instance_slam &
-x=`jobs -l | tail -1`
-p5=`echo $x | cut -d' ' -f2`
+p5=$!
 echo $p5
 
 ls -lR >/dev/null

@@ -13,11 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Ryusuke Konishi <ryusuke@osrg.net>
+ * Written by Ryusuke Konishi.
  */
 
 #include <linux/buffer_head.h>
@@ -32,6 +28,7 @@
 #include "segment.h"
 #include "page.h"
 #include "mdt.h"
+#include "alloc.h"		/* nilfs_palloc_destroy_cache() */
 
 #include <trace/events/nilfs2.h>
 
@@ -393,34 +390,6 @@ int nilfs_mdt_forget_block(struct inode *inode, unsigned long block)
 	return ret;
 }
 
-/**
- * nilfs_mdt_mark_block_dirty - mark a block on the meta data file dirty.
- * @inode: inode of the meta data file
- * @block: block offset
- *
- * Return Value: On success, it returns 0. On error, the following negative
- * error code is returned.
- *
- * %-ENOMEM - Insufficient memory available.
- *
- * %-EIO - I/O error
- *
- * %-ENOENT - the specified block does not exist (hole block)
- */
-int nilfs_mdt_mark_block_dirty(struct inode *inode, unsigned long block)
-{
-	struct buffer_head *bh;
-	int err;
-
-	err = nilfs_mdt_read_block(inode, block, 0, &bh);
-	if (unlikely(err))
-		return err;
-	mark_buffer_dirty(bh);
-	nilfs_mdt_mark_dirty(inode);
-	brelse(bh);
-	return 0;
-}
-
 int nilfs_mdt_fetch_dirty(struct inode *inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
@@ -497,8 +466,32 @@ int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz)
 	return 0;
 }
 
-void nilfs_mdt_set_entry_size(struct inode *inode, unsigned entry_size,
-			      unsigned header_size)
+/**
+ * nilfs_mdt_clear - do cleanup for the metadata file
+ * @inode: inode of the metadata file
+ */
+void nilfs_mdt_clear(struct inode *inode)
+{
+	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+
+	if (mdi->mi_palloc_cache)
+		nilfs_palloc_destroy_cache(inode);
+}
+
+/**
+ * nilfs_mdt_destroy - release resources used by the metadata file
+ * @inode: inode of the metadata file
+ */
+void nilfs_mdt_destroy(struct inode *inode)
+{
+	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+
+	kfree(mdi->mi_bgl); /* kfree(NULL) is safe */
+	kfree(mdi);
+}
+
+void nilfs_mdt_set_entry_size(struct inode *inode, unsigned int entry_size,
+			      unsigned int header_size)
 {
 	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
 
