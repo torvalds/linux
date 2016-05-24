@@ -335,10 +335,10 @@ static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdat
 /*
  * Requires arche_pdata->platform_state_mutex to be held
  */
-static void arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_pdata)
+static int arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_pdata)
 {
 	if (arche_pdata->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
-		return;
+		return 0;
 
 	dev_info(arche_pdata->dev, "Switching to FW flashing state\n");
 
@@ -353,6 +353,7 @@ static void arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_
 
 	arche_platform_set_state(arche_pdata, ARCHE_PLATFORM_STATE_FW_FLASHING);
 
+	return 0;
 }
 
 /*
@@ -424,7 +425,9 @@ static ssize_t state_store(struct device *dev,
 
 		arche_platform_poweroff_seq(arche_pdata);
 
-		arche_platform_fw_flashing_seq(arche_pdata);
+		ret = arche_platform_fw_flashing_seq(arche_pdata);
+		if (ret)
+			goto exit;
 
 		device_for_each_child(arche_pdata->dev, NULL, apb_fw_flashing_state);
 	} else {
