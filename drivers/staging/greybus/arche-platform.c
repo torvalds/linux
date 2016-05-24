@@ -407,8 +407,15 @@ static ssize_t state_store(struct device *dev,
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_ACTIVE)
 			goto exit;
 
+		/* First we want to make sure we power off everything
+		 * and then activate back again */
+		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
+		arche_platform_poweroff_seq(arche_pdata);
+
 		arche_platform_wd_irq_en(arche_pdata);
 		ret = arche_platform_coldboot_seq(arche_pdata);
+		if (ret)
+			goto exit;
 
 	} else if (sysfs_streq(buf, "standby")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_STANDBY)
