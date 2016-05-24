@@ -365,7 +365,7 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 		struct dquot *transfer_to[MAXQUOTAS] = { };
 
 		transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
-		if (transfer_to[PRJQUOTA]) {
+		if (!IS_ERR(transfer_to[PRJQUOTA])) {
 			err = __dquot_transfer(inode, transfer_to);
 			dqput(transfer_to[PRJQUOTA]);
 			if (err)
