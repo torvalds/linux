@@ -337,6 +337,8 @@ static int arche_platform_coldboot_seq(struct arche_platform_drvdata *arche_pdat
  */
 static int arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_pdata)
 {
+	int ret;
+
 	if (arche_pdata->state == ARCHE_PLATFORM_STATE_FW_FLASHING)
 		return 0;
 
@@ -348,6 +350,14 @@ static int arche_platform_fw_flashing_seq(struct arche_platform_drvdata *arche_p
 	gpio_set_value(arche_pdata->svc_sysboot_gpio, 1);
 
 	usleep_range(100, 200);
+
+	ret = clk_prepare_enable(arche_pdata->svc_ref_clk);
+	if (ret) {
+		dev_err(arche_pdata->dev, "failed to enable svc_ref_clk: %d\n",
+				ret);
+		return ret;
+	}
+
 	svc_reset_onoff(arche_pdata->svc_reset_gpio,
 			!arche_pdata->is_reset_act_hi);
 
@@ -374,9 +384,9 @@ static void arche_platform_poweroff_seq(struct arche_platform_drvdata *arche_pda
 		arche_platform_set_wake_detect_state(arche_pdata,
 						     WD_STATE_IDLE);
 		spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
-
-		clk_disable_unprepare(arche_pdata->svc_ref_clk);
 	}
+
+	clk_disable_unprepare(arche_pdata->svc_ref_clk);
 
 	/* As part of exit, put APB back in reset state */
 	svc_reset_onoff(arche_pdata->svc_reset_gpio,
