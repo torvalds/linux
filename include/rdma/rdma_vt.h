@@ -149,15 +149,15 @@ struct rvt_driver_params {
 	int qpn_res_end;
 	int nports;
 	int npkeys;
-	u8 qos_shift;
 	char cq_name[RVT_CQN_MAX];
 	int node;
-	int max_rdma_atomic;
 	int psn_mask;
 	int psn_shift;
 	int psn_modify_mask;
 	u32 core_cap_flags;
 	u32 max_mad_size;
+	u8 qos_shift;
+	u8 max_rdma_atomic;
 };
 
 /* Protection domain */
