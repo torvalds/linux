@@ -606,23 +606,17 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 		if (pmxops->strict) {
 			if (desc->mux_owner)
 				seq_printf(s, "pin %d (%s): device %s%s",
-					   pin,
-					   desc->name ? desc->name : "unnamed",
-					   desc->mux_owner,
+					   pin, desc->name, desc->mux_owner,
 					   is_hog ? " (HOG)" : "");
 			else if (desc->gpio_owner)
 				seq_printf(s, "pin %d (%s): GPIO %s",
-					   pin,
-					   desc->name ? desc->name : "unnamed",
-					   desc->gpio_owner);
+					   pin, desc->name, desc->gpio_owner);
 			else
 				seq_printf(s, "pin %d (%s): UNCLAIMED",
-					   pin,
-					   desc->name ? desc->name : "unnamed");
+					   pin, desc->name);
 		} else {
 			/* For non-strict controllers */
-			seq_printf(s, "pin %d (%s): %s %s%s", pin,
-				   desc->name ? desc->name : "unnamed",
+			seq_printf(s, "pin %d (%s): %s %s%s", pin, desc->name,
 				   desc->mux_owner ? desc->mux_owner
 				   : "(MUX UNCLAIMED)",
 				   desc->gpio_owner ? desc->gpio_owner
