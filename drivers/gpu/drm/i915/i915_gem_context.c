@@ -303,9 +303,7 @@ static struct i915_gem_context *
 i915_gem_create_context(struct drm_device *dev,
 			struct drm_i915_file_private *file_priv)
 {
-	const bool is_global_default_ctx = file_priv == NULL;
 	struct i915_gem_context *ctx;
-	int ret = 0;
 
 	lockdep_assert_held(&dev->struct_mutex);
 
@@ -313,30 +311,15 @@ i915_gem_create_context(struct drm_device *dev,
 	if (IS_ERR(ctx))
 		return ctx;
 
-	if (is_global_default_ctx && ctx->legacy_hw_ctx.rcs_state) {
-		/* We may need to do things with the shrinker which
-		 * require us to immediately switch back to the default
-		 * context. This can cause a problem as pinning the
-		 * default context also requires GTT space which may not
-		 * be available. To avoid this we always pin the default
-		 * context.
-		 */
-		ret = i915_gem_obj_ggtt_pin(ctx->legacy_hw_ctx.rcs_state,
-					    get_context_alignment(to_i915(dev)), 0);
-		if (ret) {
-			DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
-			goto err_destroy;
-		}
-	}
-
 	if (USES_FULL_PPGTT(dev)) {
 		struct i915_hw_ppgtt *ppgtt = i915_ppgtt_create(dev, file_priv);
 
-		if (IS_ERR_OR_NULL(ppgtt)) {
+		if (IS_ERR(ppgtt)) {
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));
-			ret = PTR_ERR(ppgtt);
-			goto err_unpin;
+			idr_remove(&file_priv->context_idr, ctx->user_handle);
+			i915_gem_context_unreference(ctx);
+			return ERR_CAST(ppgtt);
 		}
 
 		ctx->ppgtt = ppgtt;
@@ -345,14 +328,6 @@ i915_gem_create_context(struct drm_device *dev,
 	trace_i915_context_create(ctx);
 
 	return ctx;
-
-err_unpin:
-	if (is_global_default_ctx && ctx->legacy_hw_ctx.rcs_state)
-		i915_gem_object_ggtt_unpin(ctx->legacy_hw_ctx.rcs_state);
-err_destroy:
-	idr_remove(&file_priv->context_idr, ctx->user_handle);
-	i915_gem_context_unreference(ctx);
-	return ERR_PTR(ret);
 }
 
 static void i915_gem_context_unpin(struct i915_gem_context *ctx,
@@ -424,6 +399,26 @@ int i915_gem_context_init(struct drm_device *dev)
 		DRM_ERROR("Failed to create default global context (error %ld)\n",
 			  PTR_ERR(ctx));
 		return PTR_ERR(ctx);
+	}
+
+	if (ctx->legacy_hw_ctx.rcs_state) {
+		int ret;
+
+		/* We may need to do things with the shrinker which
+		 * require us to immediately switch back to the default
+		 * context. This can cause a problem as pinning the
+		 * default context also requires GTT space which may not
+		 * be available. To avoid this we always pin the default
+		 * context.
+		 */
+		ret = i915_gem_obj_ggtt_pin(ctx->legacy_hw_ctx.rcs_state,
+					    get_context_alignment(dev_priv), 0);
+		if (ret) {
+			DRM_ERROR("Failed to pinned default global context (error %d)\n",
+				  ret);
+			i915_gem_context_unreference(ctx);
+			return ret;
+		}
 	}
 
 	dev_priv->kernel_context = ctx;
