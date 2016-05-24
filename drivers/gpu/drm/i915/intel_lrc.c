@@ -2410,31 +2410,6 @@ populate_lr_context(struct i915_gem_context *ctx,
 }
 
 /**
- * intel_lr_context_free() - free the LRC specific bits of a context
- * @ctx: the LR context to free.
- *
- * The real context freeing is done in i915_gem_context_free: this only
- * takes care of the bits that are LRC related: the per-engine backing
- * objects and the logical ringbuffer.
- */
-void intel_lr_context_free(struct i915_gem_context *ctx)
-{
-	int i;
-
-	for (i = I915_NUM_ENGINES; --i >= 0; ) {
-		struct intel_ringbuffer *ringbuf = ctx->engine[i].ringbuf;
-		struct drm_i915_gem_object *ctx_obj = ctx->engine[i].state;
-
-		if (!ctx_obj)
-			continue;
-
-		WARN_ON(ctx->engine[i].pin_count);
-		intel_ringbuffer_free(ringbuf);
-		drm_gem_object_unreference(&ctx_obj->base);
-	}
-}
-
-/**
  * intel_lr_context_size() - return the size of the context for an engine
  * @ring: which engine to find the context size for
  *
@@ -2494,7 +2469,6 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	struct intel_ringbuffer *ringbuf;
 	int ret;
 
-	WARN_ON(ctx->legacy_hw_ctx.rcs_state != NULL);
 	WARN_ON(ce->state);
 
 	context_size = round_up(intel_lr_context_size(engine), 4096);

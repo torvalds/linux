@@ -199,13 +199,6 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (frontbuffer: 0x%03x)", obj->frontbuffer_bits);
 }
 
-static void describe_ctx(struct seq_file *m, struct i915_gem_context *ctx)
-{
-	seq_putc(m, ctx->legacy_hw_ctx.initialized ? 'I' : 'i');
-	seq_putc(m, ctx->remap_slice ? 'R' : 'r');
-	seq_putc(m, ' ');
-}
-
 static int i915_gem_object_list_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -2001,7 +1994,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
-	enum intel_engine_id id;
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -2009,10 +2001,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		return ret;
 
 	list_for_each_entry(ctx, &dev_priv->context_list, link) {
-		if (!i915.enable_execlists &&
-		    ctx->legacy_hw_ctx.rcs_state == NULL)
-			continue;
-
 		seq_printf(m, "HW context %u ", ctx->hw_id);
 		if (IS_ERR(ctx->file_priv)) {
 			seq_puts(m, "(deleted) ");
@@ -2030,25 +2018,19 @@ static int i915_context_status(struct seq_file *m, void *unused)
 			seq_puts(m, "(kernel) ");
 		}
 
-		describe_ctx(m, ctx);
+		seq_putc(m, ctx->remap_slice ? 'R' : 'r');
+		seq_putc(m, '\n');
 
-		if (i915.enable_execlists) {
+		for_each_engine(engine, dev_priv) {
+			struct intel_context *ce = &ctx->engine[engine->id];
+
+			seq_printf(m, "%s: ", engine->name);
+			seq_putc(m, ce->initialised ? 'I' : 'i');
+			if (ce->state)
+				describe_obj(m, ce->state);
+			if (ce->ringbuf)
+				describe_ctx_ringbuf(m, ce->ringbuf);
 			seq_putc(m, '\n');
-			for_each_engine_id(engine, dev_priv, id) {
-				struct drm_i915_gem_object *ctx_obj =
-					ctx->engine[id].state;
-				struct intel_ringbuffer *ringbuf =
-					ctx->engine[id].ringbuf;
-
-				seq_printf(m, "%s: ", engine->name);
-				if (ctx_obj)
-					describe_obj(m, ctx_obj);
-				if (ringbuf)
-					describe_ctx_ringbuf(m, ringbuf);
-				seq_putc(m, '\n');
-			}
-		} else {
-			describe_obj(m, ctx->legacy_hw_ctx.rcs_state);
 		}
 
 		seq_putc(m, '\n');
@@ -2063,10 +2045,10 @@ static void i915_dump_lrc_obj(struct seq_file *m,
 			      struct i915_gem_context *ctx,
 			      struct intel_engine_cs *engine)
 {
+	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine->id].state;
 	struct page *page;
 	uint32_t *reg_state;
 	int j;
-	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine->id].state;
 	unsigned long ggtt_offset = 0;
 
 	seq_printf(m, "CONTEXT: %s %u\n", engine->name, ctx->hw_id);

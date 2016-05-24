@@ -101,7 +101,6 @@ static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
 
 struct i915_gem_context;
 
-void intel_lr_context_free(struct i915_gem_context *ctx);
 uint32_t intel_lr_context_size(struct intel_engine_cs *engine);
 void intel_lr_context_unpin(struct i915_gem_context *ctx,
 			    struct intel_engine_cs *engine);

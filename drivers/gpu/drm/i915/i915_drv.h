@@ -862,13 +862,6 @@ struct i915_gem_context {
 	/* Unique identifier for this context, used by the hw for tracking */
 	unsigned hw_id;
 
-	/* Legacy ring buffer submission */
-	struct {
-		struct drm_i915_gem_object *rcs_state;
-		bool initialized;
-	} legacy_hw_ctx;
-
-	/* Execlists */
 	struct intel_context {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
