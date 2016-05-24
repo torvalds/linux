@@ -127,7 +127,6 @@ static int open_proxy_open(struct inode *inode, struct file *filp)
 		r = real_fops->open(inode, filp);
 
 out:
-	fops_put(real_fops);
 	debugfs_use_file_finish(srcu_idx);
 	return r;
 }
