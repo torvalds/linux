@@ -299,8 +299,7 @@ int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	/*
 	 * The previous request is still in processing, queue this one.
 	 */
-	if (dev->iamthif_state > MEI_IAMTHIF_IDLE &&
-	    dev->iamthif_state < MEI_IAMTHIF_READ_COMPLETE)
+	if (dev->iamthif_state != MEI_IAMTHIF_IDLE)
 		return 0;
 
 	return mei_amthif_run_next_cmd(dev);
@@ -309,7 +308,6 @@ int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 /**
  * mei_amthif_poll - the amthif poll function
  *
- * @dev: the device structure
  * @file: pointer to file structure
  * @wait: pointer to poll_table structure
  *
@@ -317,25 +315,18 @@ int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
  *
  * Locking: called under "dev->device_lock" lock
  */
-
-unsigned int mei_amthif_poll(struct mei_device *dev,
-		struct file *file, poll_table *wait)
+unsigned int mei_amthif_poll(struct file *file, poll_table *wait)
 {
+	struct mei_cl *cl = file->private_data;
+	struct mei_cl_cb *cb = mei_cl_read_cb(cl, file);
 	unsigned int mask = 0;
 
-	poll_wait(file, &dev->iamthif_cl.rx_wait, wait);
-
-	if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE &&
-	    dev->iamthif_fp == file) {
-
+	poll_wait(file, &cl->rx_wait, wait);
+	if (cb)
 		mask |= POLLIN | POLLRDNORM;
-		mei_amthif_run_next_cmd(dev);
-	}
 
 	return mask;
 }
-
-
 
 /**
  * mei_amthif_irq_write - write iamthif command in irq thread context.
@@ -393,7 +384,6 @@ int mei_amthif_irq_read_msg(struct mei_cl *cl,
 		return 0;
 
 	dev_dbg(dev->dev, "completed amthif read.\n ");
-	dev->iamthif_current_cb = NULL;
 	dev->iamthif_stall_timer = 0;
 
 	return 0;
@@ -425,13 +415,15 @@ void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 	}
 
 	if (!dev->iamthif_canceled) {
-		dev->iamthif_state = MEI_IAMTHIF_READ_COMPLETE;
-		dev->iamthif_stall_timer = 0;
 		list_add_tail(&cb->list, &cl->rd_completed);
 		dev_dbg(dev->dev, "amthif read completed\n");
 	} else {
-		mei_amthif_run_next_cmd(dev);
+		mei_io_cb_free(cb);
 	}
+
+	dev->iamthif_current_cb = NULL;
+	dev->iamthif_stall_timer = 0;
+	mei_amthif_run_next_cmd(dev);
 
 	dev_dbg(dev->dev, "completing amthif call back.\n");
 	wake_up_interruptible(&cl->rx_wait);
@@ -539,10 +531,6 @@ int mei_amthif_release(struct mei_device *dev, struct file *file)
 		dev_dbg(dev->dev, "amthif canceled iamthif state %d\n",
 		    dev->iamthif_state);
 		dev->iamthif_canceled = true;
-		if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE) {
-			dev_dbg(dev->dev, "run next amthif iamthif cb\n");
-			mei_amthif_run_next_cmd(dev);
-		}
 	}
 
 	if (mei_clear_lists(dev, file))

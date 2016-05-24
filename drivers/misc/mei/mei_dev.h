@@ -80,9 +80,7 @@ const char *mei_dev_state_str(int state);
 enum iamthif_states {
 	MEI_IAMTHIF_IDLE,
 	MEI_IAMTHIF_WRITING,
-	MEI_IAMTHIF_FLOW_CONTROL,
 	MEI_IAMTHIF_READING,
-	MEI_IAMTHIF_READ_COMPLETE
 };
 
 enum mei_file_transaction_states {
@@ -572,8 +570,7 @@ int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl);
 int mei_amthif_read(struct mei_device *dev, struct file *file,
 		char __user *ubuf, size_t length, loff_t *offset);
 
-unsigned int mei_amthif_poll(struct mei_device *dev,
-		struct file *file, poll_table *wait);
+unsigned int mei_amthif_poll(struct file *file, poll_table *wait);
 
 int mei_amthif_release(struct mei_device *dev, struct file *file);
 

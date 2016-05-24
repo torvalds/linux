@@ -610,7 +610,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 	}
 
 	if (cl == &dev->iamthif_cl) {
-		mask = mei_amthif_poll(dev, file, wait);
+		mask = mei_amthif_poll(file, wait);
 		goto out;
 	}
 
