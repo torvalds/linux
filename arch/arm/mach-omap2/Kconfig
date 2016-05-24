@@ -37,6 +37,7 @@ config ARCH_OMAP4
 	select PM if CPU_IDLE
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
+	select OMAP_INTERCONNECT
 
 config SOC_OMAP5
 	bool "TI OMAP5"
