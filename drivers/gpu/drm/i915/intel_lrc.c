@@ -300,7 +300,7 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
  * 					  descriptor for a pinned context
  *
  * @ctx: Context to work on
- * @ring: Engine the descriptor will be used with
+ * @engine: Engine the descriptor will be used with
  *
  * The context descriptor encodes various attributes of a context,
  * including its GTT address and some flags. Because it's fairly
@@ -318,16 +318,17 @@ static void
 intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 				   struct intel_engine_cs *engine)
 {
+	struct intel_context *ce = &ctx->engine[engine->id];
 	u64 desc;
 
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > (1<<GEN8_CTX_ID_WIDTH));
 
 	desc = engine->ctx_desc_template;			/* bits  0-11 */
-	desc |= ctx->engine[engine->id].lrc_vma->node.start +	/* bits 12-31 */
-	       LRC_PPHWSP_PN * PAGE_SIZE;
+	desc |= ce->lrc_vma->node.start + LRC_PPHWSP_PN * PAGE_SIZE;
+								/* bits 12-31 */
 	desc |= (u64)ctx->hw_id << GEN8_CTX_ID_SHIFT;		/* bits 32-52 */
 
-	ctx->engine[engine->id].lrc_desc = desc;
+	ce->lrc_desc = desc;
 }
 
 uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
@@ -674,6 +675,7 @@ static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
+	struct intel_context *ce = &request->ctx->engine[engine->id];
 	int ret;
 
 	/* Flush enough space to reduce the likelihood of waiting after
@@ -682,13 +684,13 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	 */
 	request->reserved_space += EXECLISTS_REQUEST_SIZE;
 
-	if (request->ctx->engine[engine->id].state == NULL) {
+	if (!ce->state) {
 		ret = execlists_context_deferred_alloc(request->ctx, engine);
 		if (ret)
 			return ret;
 	}
 
-	request->ringbuf = request->ctx->engine[engine->id].ringbuf;
+	request->ringbuf = ce->ringbuf;
 
 	if (i915.enable_guc_submission) {
 		/*
@@ -709,12 +711,12 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	if (ret)
 		goto err_unpin;
 
-	if (!request->ctx->engine[engine->id].initialised) {
+	if (!ce->initialised) {
 		ret = engine->init_context(request);
 		if (ret)
 			goto err_unpin;
 
-		request->ctx->engine[engine->id].initialised = true;
+		ce->initialised = true;
 	}
 
 	/* Note that after this point, we have committed to using
@@ -933,24 +935,22 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 				struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = ctx->i915;
-	struct drm_i915_gem_object *ctx_obj;
-	struct intel_ringbuffer *ringbuf;
+	struct intel_context *ce = &ctx->engine[engine->id];
 	void *vaddr;
 	u32 *lrc_reg_state;
 	int ret;
 
 	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
 
-	if (ctx->engine[engine->id].pin_count++)
+	if (ce->pin_count++)
 		return 0;
 
-	ctx_obj = ctx->engine[engine->id].state;
-	ret = i915_gem_obj_ggtt_pin(ctx_obj, GEN8_LR_CONTEXT_ALIGN,
-			PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+	ret = i915_gem_obj_ggtt_pin(ce->state, GEN8_LR_CONTEXT_ALIGN,
+				    PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
 	if (ret)
 		goto err;
 
-	vaddr = i915_gem_object_pin_map(ctx_obj);
+	vaddr = i915_gem_object_pin_map(ce->state);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
 		goto unpin_ctx_obj;
@@ -958,17 +958,17 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 
 	lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 
-	ringbuf = ctx->engine[engine->id].ringbuf;
-	ret = intel_pin_and_map_ringbuffer_obj(dev_priv, ringbuf);
+	ret = intel_pin_and_map_ringbuffer_obj(dev_priv, ce->ringbuf);
 	if (ret)
 		goto unpin_map;
 
 	i915_gem_context_reference(ctx);
-	ctx->engine[engine->id].lrc_vma = i915_gem_obj_to_ggtt(ctx_obj);
+	ce->lrc_vma = i915_gem_obj_to_ggtt(ce->state);
 	intel_lr_context_descriptor_update(ctx, engine);
-	lrc_reg_state[CTX_RING_BUFFER_START+1] = ringbuf->vma->node.start;
-	ctx->engine[engine->id].lrc_reg_state = lrc_reg_state;
-	ctx_obj->dirty = true;
+
+	lrc_reg_state[CTX_RING_BUFFER_START+1] = ce->ringbuf->vma->node.start;
+	ce->lrc_reg_state = lrc_reg_state;
+	ce->state->dirty = true;
 
 	/* Invalidate GuC TLB. */
 	if (i915.enable_guc_submission)
@@ -977,34 +977,33 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 	return 0;
 
 unpin_map:
-	i915_gem_object_unpin_map(ctx_obj);
+	i915_gem_object_unpin_map(ce->state);
 unpin_ctx_obj:
-	i915_gem_object_ggtt_unpin(ctx_obj);
+	i915_gem_object_ggtt_unpin(ce->state);
 err:
-	ctx->engine[engine->id].pin_count = 0;
+	ce->pin_count = 0;
 	return ret;
 }
 
 void intel_lr_context_unpin(struct i915_gem_context *ctx,
 			    struct intel_engine_cs *engine)
 {
-	struct drm_i915_gem_object *ctx_obj;
+	struct intel_context *ce = &ctx->engine[engine->id];
 
 	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
-	GEM_BUG_ON(ctx->engine[engine->id].pin_count == 0);
+	GEM_BUG_ON(ce->pin_count == 0);
 
-	if (--ctx->engine[engine->id].pin_count)
+	if (--ce->pin_count)
 		return;
 
-	intel_unpin_ringbuffer_obj(ctx->engine[engine->id].ringbuf);
+	intel_unpin_ringbuffer_obj(ce->ringbuf);
 
-	ctx_obj = ctx->engine[engine->id].state;
-	i915_gem_object_unpin_map(ctx_obj);
-	i915_gem_object_ggtt_unpin(ctx_obj);
+	i915_gem_object_unpin_map(ce->state);
+	i915_gem_object_ggtt_unpin(ce->state);
 
-	ctx->engine[engine->id].lrc_vma = NULL;
-	ctx->engine[engine->id].lrc_desc = 0;
-	ctx->engine[engine->id].lrc_reg_state = NULL;
+	ce->lrc_vma = NULL;
+	ce->lrc_desc = 0;
+	ce->lrc_reg_state = NULL;
 
 	i915_gem_context_unreference(ctx);
 }
@@ -2490,12 +2489,13 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *ctx_obj;
+	struct intel_context *ce = &ctx->engine[engine->id];
 	uint32_t context_size;
 	struct intel_ringbuffer *ringbuf;
 	int ret;
 
 	WARN_ON(ctx->legacy_hw_ctx.rcs_state != NULL);
-	WARN_ON(ctx->engine[engine->id].state);
+	WARN_ON(ce->state);
 
 	context_size = round_up(intel_lr_context_size(engine), 4096);
 
@@ -2520,9 +2520,9 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		goto error_ringbuf;
 	}
 
-	ctx->engine[engine->id].ringbuf = ringbuf;
-	ctx->engine[engine->id].state = ctx_obj;
-	ctx->engine[engine->id].initialised = engine->init_context == NULL;
+	ce->ringbuf = ringbuf;
+	ce->state = ctx_obj;
+	ce->initialised = engine->init_context == NULL;
 
 	return 0;
 
@@ -2530,8 +2530,8 @@ error_ringbuf:
 	intel_ringbuffer_free(ringbuf);
 error_deref_obj:
 	drm_gem_object_unreference(&ctx_obj->base);
-	ctx->engine[engine->id].ringbuf = NULL;
-	ctx->engine[engine->id].state = NULL;
+	ce->ringbuf = NULL;
+	ce->state = NULL;
 	return ret;
 }
 
@@ -2541,10 +2541,8 @@ void intel_lr_context_reset(struct drm_i915_private *dev_priv,
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv) {
-		struct drm_i915_gem_object *ctx_obj =
-				ctx->engine[engine->id].state;
-		struct intel_ringbuffer *ringbuf =
-				ctx->engine[engine->id].ringbuf;
+		struct intel_context *ce = &ctx->engine[engine->id];
+		struct drm_i915_gem_object *ctx_obj = ce->state;
 		void *vaddr;
 		uint32_t *reg_state;
 
@@ -2563,7 +2561,7 @@ void intel_lr_context_reset(struct drm_i915_private *dev_priv,
 
 		i915_gem_object_unpin_map(ctx_obj);
 
-		ringbuf->head = 0;
-		ringbuf->tail = 0;
+		ce->ringbuf->head = 0;
+		ce->ringbuf->tail = 0;
 	}
 }

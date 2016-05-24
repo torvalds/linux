@@ -363,7 +363,6 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	struct i915_gem_context *ctx = client->owner;
 	struct guc_context_desc desc;
 	struct sg_table *sg;
-	enum intel_engine_id id;
 	u32 gfx_addr;
 
 	memset(&desc, 0, sizeof(desc));
@@ -373,10 +372,10 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.priority = client->priority;
 	desc.db_id = client->doorbell_id;
 
-	for_each_engine_id(engine, dev_priv, id) {
+	for_each_engine(engine, dev_priv) {
+		struct intel_context *ce = &ctx->engine[engine->id];
 		struct guc_execlist_context *lrc = &desc.lrc[engine->guc_id];
 		struct drm_i915_gem_object *obj;
-		uint64_t ctx_desc;
 
 		/* TODO: We have a design issue to be solved here. Only when we
 		 * receive the first batch, we know which engine is used by the
@@ -385,20 +384,18 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		 * for now who owns a GuC client. But for future owner of GuC
 		 * client, need to make sure lrc is pinned prior to enter here.
 		 */
-		obj = ctx->engine[id].state;
-		if (!obj)
+		if (!ce->state)
 			break;	/* XXX: continue? */
 
-		ctx_desc = intel_lr_context_descriptor(ctx, engine);
-		lrc->context_desc = (u32)ctx_desc;
+		lrc->context_desc = lower_32_bits(ce->lrc_desc);
 
 		/* The state page is after PPHWSP */
-		gfx_addr = i915_gem_obj_ggtt_offset(obj);
+		gfx_addr = i915_gem_obj_ggtt_offset(ce->state);
 		lrc->ring_lcra = gfx_addr + LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
 				(engine->guc_id << GUC_ELC_ENGINE_OFFSET);
 
-		obj = ctx->engine[id].ringbuf->obj;
+		obj = ce->ringbuf->obj;
 		gfx_addr = i915_gem_obj_ggtt_offset(obj);
 
 		lrc->ring_begin = gfx_addr;

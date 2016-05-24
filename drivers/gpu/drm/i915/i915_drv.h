@@ -869,7 +869,7 @@ struct i915_gem_context {
 	} legacy_hw_ctx;
 
 	/* Execlists */
-	struct {
+	struct intel_context {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
 		int pin_count;
