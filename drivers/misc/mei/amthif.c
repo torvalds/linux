@@ -196,17 +196,10 @@ static int mei_amthif_read_start(struct mei_cl *cl, const struct file *file)
 {
 	struct mei_device *dev = cl->dev;
 	struct mei_cl_cb *cb;
-	int rets;
 
-	cb = mei_io_cb_init(cl, MEI_FOP_READ, file);
-	if (!cb) {
-		rets = -ENOMEM;
-		goto err;
-	}
-
-	rets = mei_io_cb_alloc_buf(cb, mei_cl_mtu(cl));
-	if (rets)
-		goto err;
+	cb = mei_cl_alloc_cb(cl, mei_cl_mtu(cl), MEI_FOP_READ, file);
+	if (!cb)
+		return -ENOMEM;
 
 	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 
@@ -214,9 +207,6 @@ static int mei_amthif_read_start(struct mei_cl *cl, const struct file *file)
 	dev->iamthif_fp = cb->fp;
 
 	return 0;
-err:
-	mei_io_cb_free(cb);
-	return rets;
 }
 
 /**
