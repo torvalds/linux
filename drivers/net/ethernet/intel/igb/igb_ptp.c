@@ -1147,12 +1147,13 @@ void igb_ptp_init(struct igb_adapter *adapter)
 }
 
 /**
- * igb_ptp_stop - Disable PTP device and stop the overflow check.
- * @adapter: Board private structure.
+ * igb_ptp_suspend - Disable PTP work items and prepare for suspend
+ * @adapter: Board private structure
  *
- * This function stops the PTP support and cancels the delayed work.
- **/
-void igb_ptp_stop(struct igb_adapter *adapter)
+ * This function stops the overflow check work and PTP Tx timestamp work, and
+ * will prepare the device for OS suspend.
+ */
+void igb_ptp_suspend(struct igb_adapter *adapter)
 {
 	if (!(adapter->ptp_flags & IGB_PTP_ENABLED))
 		return;
@@ -1166,6 +1167,17 @@ void igb_ptp_stop(struct igb_adapter *adapter)
 		adapter->ptp_tx_skb = NULL;
 		clear_bit_unlock(__IGB_PTP_TX_IN_PROGRESS, &adapter->state);
 	}
+}
+
+/**
+ * igb_ptp_stop - Disable PTP device and stop the overflow check.
+ * @adapter: Board private structure.
+ *
+ * This function stops the PTP support and cancels the delayed work.
+ **/
+void igb_ptp_stop(struct igb_adapter *adapter)
+{
+	igb_ptp_suspend(adapter);
 
 	if (adapter->ptp_clock) {
 		ptp_clock_unregister(adapter->ptp_clock);
