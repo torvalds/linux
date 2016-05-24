@@ -3974,9 +3974,13 @@ static int gfx_v8_0_cp_gfx_start(struct amdgpu_device *adev)
 		amdgpu_ring_write(ring, 0x3a00161a);
 		amdgpu_ring_write(ring, 0x0000002e);
 		break;
-	case CHIP_TOPAZ:
 	case CHIP_CARRIZO:
 		amdgpu_ring_write(ring, 0x00000002);
+		amdgpu_ring_write(ring, 0x00000000);
+		break;
+	case CHIP_TOPAZ:
+		amdgpu_ring_write(ring, adev->gfx.config.num_rbs == 1 ?
+				0x00000000 : 0x00000002);
 		amdgpu_ring_write(ring, 0x00000000);
 		break;
 	case CHIP_STONEY:
