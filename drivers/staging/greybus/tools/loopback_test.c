@@ -59,10 +59,10 @@ struct loopback_results {
 	uint32_t apbridge_unipro_latency_min;
 	uint32_t apbridge_unipro_latency_jitter;
 
-	float gpbridge_firmware_latency_avg;
-	uint32_t gpbridge_firmware_latency_max;
-	uint32_t gpbridge_firmware_latency_min;
-	uint32_t gpbridge_firmware_latency_jitter;
+	float gbphy_firmware_latency_avg;
+	uint32_t gbphy_firmware_latency_max;
+	uint32_t gbphy_firmware_latency_min;
+	uint32_t gbphy_firmware_latency_jitter;
 
 	uint32_t error;
 };
@@ -155,17 +155,17 @@ GET_MAX(throughput_max);
 GET_MAX(request_max);
 GET_MAX(latency_max);
 GET_MAX(apbridge_unipro_latency_max);
-GET_MAX(gpbridge_firmware_latency_max);
+GET_MAX(gbphy_firmware_latency_max);
 GET_MIN(throughput_min);
 GET_MIN(request_min);
 GET_MIN(latency_min);
 GET_MIN(apbridge_unipro_latency_min);
-GET_MIN(gpbridge_firmware_latency_min);
+GET_MIN(gbphy_firmware_latency_min);
 GET_AVG(throughput_avg);
 GET_AVG(request_avg);
 GET_AVG(latency_avg);
 GET_AVG(apbridge_unipro_latency_avg);
-GET_AVG(gpbridge_firmware_latency_avg);
+GET_AVG(gbphy_firmware_latency_avg);
 
 void abort()
 {
@@ -351,20 +351,20 @@ static int get_results(struct loopback_test *t)
 		r->apbridge_unipro_latency_avg =
 			read_sysfs_float(d->sysfs_entry, "apbridge_unipro_latency_avg");
 
-		r->gpbridge_firmware_latency_min =
-			read_sysfs_int(d->sysfs_entry, "gpbridge_firmware_latency_min");
-		r->gpbridge_firmware_latency_max =
-			read_sysfs_int(d->sysfs_entry, "gpbridge_firmware_latency_max");
-		r->gpbridge_firmware_latency_avg =
-			read_sysfs_float(d->sysfs_entry, "gpbridge_firmware_latency_avg");
+		r->gbphy_firmware_latency_min =
+			read_sysfs_int(d->sysfs_entry, "gbphy_firmware_latency_min");
+		r->gbphy_firmware_latency_max =
+			read_sysfs_int(d->sysfs_entry, "gbphy_firmware_latency_max");
+		r->gbphy_firmware_latency_avg =
+			read_sysfs_float(d->sysfs_entry, "gbphy_firmware_latency_avg");
 
 		r->request_jitter = r->request_max - r->request_min;
 		r->latency_jitter = r->latency_max - r->latency_min;
 		r->throughput_jitter = r->throughput_max - r->throughput_min;
 		r->apbridge_unipro_latency_jitter =
 			r->apbridge_unipro_latency_max - r->apbridge_unipro_latency_min;
-		r->gpbridge_firmware_latency_jitter =
-			r->gpbridge_firmware_latency_max - r->gpbridge_firmware_latency_min;
+		r->gbphy_firmware_latency_jitter =
+			r->gbphy_firmware_latency_max - r->gbphy_firmware_latency_min;
 
 	}
 
@@ -391,20 +391,20 @@ static int get_results(struct loopback_test *t)
 		r->apbridge_unipro_latency_avg =
 			get_apbridge_unipro_latency_avg_aggregate(t);
 
-		r->gpbridge_firmware_latency_min =
-			get_gpbridge_firmware_latency_min_aggregate(t);
-		r->gpbridge_firmware_latency_max =
-			get_gpbridge_firmware_latency_max_aggregate(t);
-		r->gpbridge_firmware_latency_avg =
-			get_gpbridge_firmware_latency_avg_aggregate(t);
+		r->gbphy_firmware_latency_min =
+			get_gbphy_firmware_latency_min_aggregate(t);
+		r->gbphy_firmware_latency_max =
+			get_gbphy_firmware_latency_max_aggregate(t);
+		r->gbphy_firmware_latency_avg =
+			get_gbphy_firmware_latency_avg_aggregate(t);
 
 		r->request_jitter = r->request_max - r->request_min;
 		r->latency_jitter = r->latency_max - r->latency_min;
 		r->throughput_jitter = r->throughput_max - r->throughput_min;
 		r->apbridge_unipro_latency_jitter =
 			r->apbridge_unipro_latency_max - r->apbridge_unipro_latency_min;
-		r->gpbridge_firmware_latency_jitter =
-			r->gpbridge_firmware_latency_max - r->gpbridge_firmware_latency_min;
+		r->gbphy_firmware_latency_jitter =
+			r->gbphy_firmware_latency_max - r->gbphy_firmware_latency_min;
 
 	}
 
@@ -467,11 +467,11 @@ int format_output(struct loopback_test *t,
 			r->apbridge_unipro_latency_jitter);
 
 		len += snprintf(&buf[len], buf_len - len,
-			" gpbridge-latency usec:\tmin=%u max=%u average=%f jitter=%u\n",
-			r->gpbridge_firmware_latency_min,
-			r->gpbridge_firmware_latency_max,
-			r->gpbridge_firmware_latency_avg,
-			r->gpbridge_firmware_latency_jitter);
+			" gbphy-latency usec:\tmin=%u max=%u average=%f jitter=%u\n",
+			r->gbphy_firmware_latency_min,
+			r->gbphy_firmware_latency_max,
+			r->gbphy_firmware_latency_avg,
+			r->gbphy_firmware_latency_jitter);
 
 	} else {
 		len += snprintf(&buf[len], buf_len- len, ",%s,%s,%u,%u,%u",
@@ -503,10 +503,10 @@ int format_output(struct loopback_test *t,
 			r->apbridge_unipro_latency_jitter);
 
 		len += snprintf(&buf[len], buf_len - len, ",%u,%u,%f,%u",
-			r->gpbridge_firmware_latency_min,
-			r->gpbridge_firmware_latency_max,
-			r->gpbridge_firmware_latency_avg,
-			r->gpbridge_firmware_latency_jitter);
+			r->gbphy_firmware_latency_min,
+			r->gbphy_firmware_latency_max,
+			r->gbphy_firmware_latency_avg,
+			r->gbphy_firmware_latency_jitter);
 	}
 
 	printf("\n%s\n", buf);
