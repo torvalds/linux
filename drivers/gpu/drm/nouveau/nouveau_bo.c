@@ -174,12 +174,12 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
 }
 
 int
-nouveau_bo_new(struct drm_device *dev, int size, int align,
+nouveau_bo_new(struct nouveau_cli *cli, int size, int align,
 	       uint32_t flags, uint32_t tile_mode, uint32_t tile_flags,
 	       struct sg_table *sg, struct reservation_object *robj,
 	       struct nouveau_bo **pnvbo)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_drm *drm = nouveau_drm(cli->dev);
 	struct nouveau_bo *nvbo;
 	size_t acc_size;
 	int ret;
@@ -208,6 +208,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->tile_mode = tile_mode;
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &drm->ttm.bdev;
+	nvbo->cli = cli;
 
 	if (!nvxx_device(&drm->device)->func->cpu_coherent)
 		nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;

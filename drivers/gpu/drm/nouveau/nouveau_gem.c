@@ -194,7 +194,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 	if (domain & NOUVEAU_GEM_DOMAIN_COHERENT)
 		flags |= TTM_PL_FLAG_UNCACHED;
 
-	ret = nouveau_bo_new(dev, size, align, flags, tile_mode,
+	ret = nouveau_bo_new(&drm->client, size, align, flags, tile_mode,
 			     tile_flags, NULL, NULL, pnvbo);
 	if (ret)
 		return ret;

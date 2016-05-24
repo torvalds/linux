@@ -219,8 +219,8 @@ nv84_fence_create(struct nouveau_drm *drm)
 			  * will lose CPU/GPU coherency!
 			  */
 			 TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
-	ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0, domain, 0,
-			     0, NULL, NULL, &priv->bo);
+	ret = nouveau_bo_new(&drm->client, 16 * priv->base.contexts, 0,
+			     domain, 0, 0, NULL, NULL, &priv->bo);
 	if (ret == 0) {
 		ret = nouveau_bo_pin(priv->bo, domain, false);
 		if (ret == 0) {
@@ -233,7 +233,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 	}
 
 	if (ret == 0)
-		ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0,
+		ret = nouveau_bo_new(&drm->client, 16 * priv->base.contexts, 0,
 				     TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED, 0,
 				     0, NULL, NULL, &priv->bo_gart);
 	if (ret == 0) {

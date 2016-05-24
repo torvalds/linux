@@ -2428,7 +2428,7 @@ nv50_head_create(struct drm_device *dev, int index)
 	drm_crtc_helper_add(crtc, &nv50_head_help);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
-	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
+	ret = nouveau_bo_new(&drm->client, 8192, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &head->base.lut.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM, true);
@@ -4451,7 +4451,7 @@ nv50_display_create(struct drm_device *dev)
 		dev->driver->driver_features |= DRIVER_ATOMIC;
 
 	/* small shared memory area we use for notifiers and semaphores */
-	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
+	ret = nouveau_bo_new(&drm->client, 4096, 0x1000, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &disp->sync);
 	if (!ret) {
 		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM, true);
