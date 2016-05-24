@@ -297,11 +297,16 @@ out_put_clk:
 
 static int cpufreq_exit(struct cpufreq_policy *policy)
 {
+	struct cpumask cpus;
 	struct private_data *priv = policy->driver_data;
 
+	priv->cpu_dev = get_cpu_device(policy->cpu);
 	cpufreq_cooling_unregister(priv->cdev);
 	dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &policy->freq_table);
-	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
+	cpumask_copy(&cpus, policy->related_cpus);
+	cpumask_clear_cpu(policy->cpu, &cpus);
+	dev_pm_opp_of_cpumask_remove_table(&cpus);
+	dev_pm_opp_of_remove_table(priv->cpu_dev);
 	if (priv->reg_name)
 		dev_pm_opp_put_regulator(priv->cpu_dev);
 
