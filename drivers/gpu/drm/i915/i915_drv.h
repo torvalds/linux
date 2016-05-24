@@ -1760,6 +1760,7 @@ struct drm_i915_private {
 	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
+	struct i915_gem_context *kernel_context;
 	struct intel_engine_cs engine[I915_NUM_ENGINES];
 	struct drm_i915_gem_object *semaphore_obj;
 	uint32_t last_seqno, next_seqno;
@@ -2016,8 +2017,6 @@ struct drm_i915_private {
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
 		void (*stop_engine)(struct intel_engine_cs *engine);
 	} gt;
-
-	struct i915_gem_context *kernel_context;
 
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];

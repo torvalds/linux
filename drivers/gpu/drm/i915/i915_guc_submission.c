@@ -935,11 +935,12 @@ int i915_guc_submission_enable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_gem_context *ctx = dev_priv->kernel_context;
 	struct i915_guc_client *client;
 
 	/* client for execbuf submission */
-	client = guc_client_alloc(dev, GUC_CTX_PRIORITY_KMD_NORMAL, ctx);
+	client = guc_client_alloc(dev,
+				  GUC_CTX_PRIORITY_KMD_NORMAL,
+				  dev_priv->kernel_context);
 	if (!client) {
 		DRM_ERROR("Failed to create execbuf guc_client\n");
 		return -ENOMEM;
