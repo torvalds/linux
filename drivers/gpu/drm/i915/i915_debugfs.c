@@ -417,6 +417,42 @@ static void print_batch_pool_stats(struct seq_file *m,
 	print_file_stats(m, "[k]batch pool", stats);
 }
 
+static int per_file_ctx_stats(int id, void *ptr, void *data)
+{
+	struct i915_gem_context *ctx = ptr;
+	int n;
+
+	for (n = 0; n < ARRAY_SIZE(ctx->engine); n++) {
+		if (ctx->engine[n].state)
+			per_file_stats(0, ctx->engine[n].state, data);
+		if (ctx->engine[n].ringbuf)
+			per_file_stats(0, ctx->engine[n].ringbuf->obj, data);
+	}
+
+	return 0;
+}
+
+static void print_context_stats(struct seq_file *m,
+				struct drm_i915_private *dev_priv)
+{
+	struct file_stats stats;
+	struct drm_file *file;
+
+	memset(&stats, 0, sizeof(stats));
+
+	mutex_lock(&dev_priv->dev->struct_mutex);
+	if (dev_priv->kernel_context)
+		per_file_ctx_stats(0, dev_priv->kernel_context, &stats);
+
+	list_for_each_entry(file, &dev_priv->dev->filelist, lhead) {
+		struct drm_i915_file_private *fpriv = file->driver_priv;
+		idr_for_each(&fpriv->context_idr, per_file_ctx_stats, &stats);
+	}
+	mutex_unlock(&dev_priv->dev->struct_mutex);
+
+	print_file_stats(m, "[k]contexts", stats);
+}
+
 #define count_vmas(list, member) do { \
 	list_for_each_entry(vma, list, member) { \
 		size += i915_gem_obj_total_ggtt_size(vma->obj); \
@@ -521,10 +557,10 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 
 	seq_putc(m, '\n');
 	print_batch_pool_stats(m, dev_priv);
-
 	mutex_unlock(&dev->struct_mutex);
 
 	mutex_lock(&dev->filelist_mutex);
+	print_context_stats(m, dev_priv);
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
 		struct task_struct *task;
