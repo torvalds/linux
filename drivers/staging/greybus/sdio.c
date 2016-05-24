@@ -684,9 +684,12 @@ static int gb_mmc_get_ro(struct mmc_host *mmc)
 	struct gb_sdio_host *host = mmc_priv(mmc);
 
 	mutex_lock(&host->lock);
-	if (host->removed)
+	if (host->removed) {
+		mutex_unlock(&host->lock);
 		return -ESHUTDOWN;
+	}
 	mutex_unlock(&host->lock);
+
 	return host->read_only;
 }
 
@@ -695,9 +698,12 @@ static int gb_mmc_get_cd(struct mmc_host *mmc)
 	struct gb_sdio_host *host = mmc_priv(mmc);
 
 	mutex_lock(&host->lock);
-	if (host->removed)
+	if (host->removed) {
+		mutex_unlock(&host->lock);
 		return -ESHUTDOWN;
+	}
 	mutex_unlock(&host->lock);
+
 	return host->card_present;
 }
 
