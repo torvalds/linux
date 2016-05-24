@@ -1540,14 +1540,7 @@ static const struct action_ops snd_pcm_action_resume = {
 
 static int snd_pcm_resume(struct snd_pcm_substream *substream)
 {
-	struct snd_card *card = substream->pcm->card;
-	int res;
-
-	snd_power_lock(card);
-	if ((res = snd_power_wait(card, SNDRV_CTL_POWER_D0)) >= 0)
-		res = snd_pcm_action_lock_irq(&snd_pcm_action_resume, substream, 0);
-	snd_power_unlock(card);
-	return res;
+	return snd_pcm_action_lock_irq(&snd_pcm_action_resume, substream, 0);
 }
 
 #else
@@ -1566,16 +1559,8 @@ static int snd_pcm_resume(struct snd_pcm_substream *substream)
  */
 static int snd_pcm_xrun(struct snd_pcm_substream *substream)
 {
-	struct snd_card *card = substream->pcm->card;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int result;
-
-	snd_power_lock(card);
-	if (runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
-		result = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-		if (result < 0)
-			goto _unlock;
-	}
 
 	snd_pcm_stream_lock_irq(substream);
 	switch (runtime->status->state) {
@@ -1589,8 +1574,6 @@ static int snd_pcm_xrun(struct snd_pcm_substream *substream)
 		result = -EBADFD;
 	}
 	snd_pcm_stream_unlock_irq(substream);
- _unlock:
-	snd_power_unlock(card);
 	return result;
 }
 
@@ -1694,8 +1677,6 @@ static const struct action_ops snd_pcm_action_prepare = {
 static int snd_pcm_prepare(struct snd_pcm_substream *substream,
 			   struct file *file)
 {
-	int res;
-	struct snd_card *card = substream->pcm->card;
 	int f_flags;
 
 	if (file)
@@ -1703,12 +1684,8 @@ static int snd_pcm_prepare(struct snd_pcm_substream *substream,
 	else
 		f_flags = substream->f_flags;
 
-	snd_power_lock(card);
-	if ((res = snd_power_wait(card, SNDRV_CTL_POWER_D0)) >= 0)
-		res = snd_pcm_action_nonatomic(&snd_pcm_action_prepare,
-					       substream, f_flags);
-	snd_power_unlock(card);
-	return res;
+	return snd_pcm_action_nonatomic(&snd_pcm_action_prepare,
+					substream, f_flags);
 }
 
 /*
@@ -1805,15 +1782,6 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
 
-	snd_power_lock(card);
-	if (runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
-		result = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-		if (result < 0) {
-			snd_power_unlock(card);
-			return result;
-		}
-	}
-
 	if (file) {
 		if (file->f_flags & O_NONBLOCK)
 			nonblock = 1;
@@ -1896,7 +1864,6 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
  unlock:
 	snd_pcm_stream_unlock_irq(substream);
 	up_read(&snd_pcm_link_rwsem);
-	snd_power_unlock(card);
 
 	return result;
 }
@@ -2798,7 +2765,7 @@ static int snd_pcm_tstamp(struct snd_pcm_substream *substream, int __user *_arg)
 	return 0;
 }
 		
-static int snd_pcm_common_ioctl1(struct file *file,
+static int snd_pcm_common_ioctl(struct file *file,
 				 struct snd_pcm_substream *substream,
 				 unsigned int cmd, void __user *arg)
 {
@@ -2871,6 +2838,21 @@ static int snd_pcm_common_ioctl1(struct file *file,
 	}
 	pcm_dbg(substream->pcm, "unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
+}
+
+static int snd_pcm_common_ioctl1(struct file *file,
+				 struct snd_pcm_substream *substream,
+				 unsigned int cmd, void __user *arg)
+{
+	struct snd_card *card = substream->pcm->card;
+	int res;
+
+	snd_power_lock(card);
+	res = snd_power_wait(card, SNDRV_CTL_POWER_D0);
+	if (res >= 0)
+		res = snd_pcm_common_ioctl(file, substream, cmd, arg);
+	snd_power_unlock(card);
+	return res;
 }
 
 static int snd_pcm_playback_ioctl1(struct file *file,
