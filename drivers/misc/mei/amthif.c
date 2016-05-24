@@ -399,34 +399,44 @@ void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
 	struct mei_device *dev = cl->dev;
 
-	if (cb->fop_type == MEI_FOP_WRITE) {
+	dev_dbg(dev->dev, "completing amthif call back.\n");
+	switch (cb->fop_type) {
+	case MEI_FOP_WRITE:
 		if (!cb->status) {
 			dev->iamthif_stall_timer = MEI_IAMTHIF_STALL_TIMER;
 			mei_io_cb_free(cb);
 			return;
 		}
-		/*
-		 * in case of error enqueue the write cb to complete read list
-		 * so it can be propagated to the reader
-		 */
-		list_add_tail(&cb->list, &cl->rd_completed);
-		wake_up_interruptible(&cl->rx_wait);
-		return;
+		dev->iamthif_current_cb = NULL;
+		dev->iamthif_state = MEI_IAMTHIF_IDLE;
+		dev->iamthif_fp = NULL;
+		if (!dev->iamthif_canceled) {
+			/*
+			 * in case of error enqueue the write cb to complete
+			 * read list so it can be propagated to the reader
+			 */
+			list_add_tail(&cb->list, &cl->rd_completed);
+			wake_up_interruptible(&cl->rx_wait);
+		} else {
+			mei_io_cb_free(cb);
+		}
+		break;
+	case MEI_FOP_READ:
+		if (!dev->iamthif_canceled) {
+			list_add_tail(&cb->list, &cl->rd_completed);
+			dev_dbg(dev->dev, "amthif read completed\n");
+			wake_up_interruptible(&cl->rx_wait);
+		} else {
+			mei_io_cb_free(cb);
+		}
+
+		dev->iamthif_current_cb = NULL;
+		dev->iamthif_stall_timer = 0;
+		mei_amthif_run_next_cmd(dev);
+		break;
+	default:
+		WARN_ON(1);
 	}
-
-	if (!dev->iamthif_canceled) {
-		list_add_tail(&cb->list, &cl->rd_completed);
-		dev_dbg(dev->dev, "amthif read completed\n");
-	} else {
-		mei_io_cb_free(cb);
-	}
-
-	dev->iamthif_current_cb = NULL;
-	dev->iamthif_stall_timer = 0;
-	mei_amthif_run_next_cmd(dev);
-
-	dev_dbg(dev->dev, "completing amthif call back.\n");
-	wake_up_interruptible(&cl->rx_wait);
 }
 
 /**
@@ -439,32 +449,15 @@ void mei_amthif_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
  *
  * mei_clear_list is called to clear resources associated with file
  * when application calls close function or Ctrl-C was pressed
- *
- * Return: true if callback removed from the list, false otherwise
  */
-static bool mei_clear_list(struct mei_device *dev,
+static void mei_clear_list(struct mei_device *dev,
 		const struct file *file, struct list_head *mei_cb_list)
 {
-	struct mei_cl *cl = &dev->iamthif_cl;
 	struct mei_cl_cb *cb, *next;
-	bool removed = false;
 
-	/* list all list member */
-	list_for_each_entry_safe(cb, next, mei_cb_list, list) {
-		/* check if list member associated with a file */
-		if (file == cb->fp) {
-			/* check if cb equal to current iamthif cb */
-			if (dev->iamthif_current_cb == cb) {
-				dev->iamthif_current_cb = NULL;
-				/* send flow control to iamthif client */
-				mei_hbm_cl_flow_control_req(dev, cl);
-			}
-			/* free all allocated buffers */
+	list_for_each_entry_safe(cb, next, mei_cb_list, list)
+		if (file == cb->fp)
 			mei_io_cb_free(cb);
-			removed = true;
-		}
-	}
-	return removed;
 }
 
 /**
@@ -475,41 +468,14 @@ static bool mei_clear_list(struct mei_device *dev,
  *
  * mei_clear_lists is called to clear resources associated with file
  * when application calls close function or Ctrl-C was pressed
- *
- * Return: true if callback removed from the list, false otherwise
  */
-static bool mei_clear_lists(struct mei_device *dev, const struct file *file)
+static void mei_clear_lists(struct mei_device *dev, const struct file *file)
 {
-	bool removed = false;
 	struct mei_cl *cl = &dev->iamthif_cl;
 
-	/* remove callbacks associated with a file */
 	mei_clear_list(dev, file, &dev->amthif_cmd_list.list);
-	if (mei_clear_list(dev, file, &cl->rd_completed))
-		removed = true;
-
+	mei_clear_list(dev, file, &cl->rd_completed);
 	mei_clear_list(dev, file, &dev->ctrl_rd_list.list);
-
-	if (mei_clear_list(dev, file, &dev->ctrl_wr_list.list))
-		removed = true;
-
-	if (mei_clear_list(dev, file, &dev->write_waiting_list.list))
-		removed = true;
-
-	if (mei_clear_list(dev, file, &dev->write_list.list))
-		removed = true;
-
-	/* check if iamthif_current_cb not NULL */
-	if (dev->iamthif_current_cb && !removed) {
-		/* check file and iamthif current cb association */
-		if (dev->iamthif_current_cb->fp == file) {
-			/* remove cb */
-			mei_io_cb_free(dev->iamthif_current_cb);
-			dev->iamthif_current_cb = NULL;
-			removed = true;
-		}
-	}
-	return removed;
 }
 
 /**
@@ -533,8 +499,7 @@ int mei_amthif_release(struct mei_device *dev, struct file *file)
 		dev->iamthif_canceled = true;
 	}
 
-	if (mei_clear_lists(dev, file))
-		dev->iamthif_state = MEI_IAMTHIF_IDLE;
+	mei_clear_lists(dev, file);
 
 	return 0;
 }

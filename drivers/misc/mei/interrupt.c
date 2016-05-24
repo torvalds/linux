@@ -514,8 +514,6 @@ void mei_timer(struct work_struct *work)
 		if (--dev->iamthif_stall_timer == 0) {
 			dev_err(dev->dev, "timer: amthif  hanged.\n");
 			mei_reset(dev);
-			dev->iamthif_canceled = false;
-			dev->iamthif_state = MEI_IAMTHIF_IDLE;
 
 			mei_io_cb_free(dev->iamthif_current_cb);
 			dev->iamthif_current_cb = NULL;
