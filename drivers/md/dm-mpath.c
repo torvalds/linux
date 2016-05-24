@@ -109,11 +109,6 @@ struct multipath {
 struct dm_mpath_io {
 	struct pgpath *pgpath;
 	size_t nr_bytes;
-
-	/*
-	 * FIXME: make request-based code _not_ include this member.
-	 */
-	struct dm_bio_details bio_details;
 };
 
 typedef int (*action_fn) (struct pgpath *pgpath);
@@ -294,19 +289,39 @@ static void clear_request_fn_mpio(struct multipath *m, union map_info *info)
 	}
 }
 
-static struct dm_mpath_io *get_mpio_from_bio(struct bio *bio)
+static size_t multipath_per_bio_data_size(void)
 {
-	return dm_per_bio_data(bio, sizeof(struct dm_mpath_io));
+	return sizeof(struct dm_mpath_io) + sizeof(struct dm_bio_details);
 }
 
-static struct dm_mpath_io *set_mpio_bio(struct multipath *m, struct bio *bio)
+static struct dm_mpath_io *get_mpio_from_bio(struct bio *bio)
+{
+	return dm_per_bio_data(bio, multipath_per_bio_data_size());
+}
+
+static struct dm_bio_details *get_bio_details_from_bio(struct bio *bio)
+{
+	/* dm_bio_details is immediately after the dm_mpath_io in bio's per-bio-data */
+	struct dm_mpath_io *mpio = get_mpio_from_bio(bio);
+	void *bio_details = mpio + 1;
+
+	return bio_details;
+}
+
+static void multipath_init_per_bio_data(struct bio *bio, struct dm_mpath_io **mpio_p,
+					struct dm_bio_details **bio_details_p)
 {
 	struct dm_mpath_io *mpio = get_mpio_from_bio(bio);
+	struct dm_bio_details *bio_details = get_bio_details_from_bio(bio);
 
 	memset(mpio, 0, sizeof(*mpio));
-	dm_bio_record(&mpio->bio_details, bio);
+	memset(bio_details, 0, sizeof(*bio_details));
+	dm_bio_record(bio_details, bio);
 
-	return mpio;
+	if (mpio_p)
+		*mpio_p = mpio;
+	if (bio_details_p)
+		*bio_details_p = bio_details;
 }
 
 /*-----------------------------------------------
@@ -629,7 +644,9 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 static int multipath_map_bio(struct dm_target *ti, struct bio *bio)
 {
 	struct multipath *m = ti->private;
-	struct dm_mpath_io *mpio = set_mpio_bio(m, bio);
+	struct dm_mpath_io *mpio = NULL;
+
+	multipath_init_per_bio_data(bio, &mpio, NULL);
 
 	return __multipath_map_bio(m, bio, mpio);
 }
@@ -1113,7 +1130,9 @@ static int __multipath_ctr(struct dm_target *ti, unsigned int argc,
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
 	ti->num_write_same_bios = 1;
-	if (use_blk_mq || bio_based)
+	if (bio_based)
+		ti->per_io_data_size = multipath_per_bio_data_size();
+	else if (use_blk_mq)
 		ti->per_io_data_size = sizeof(struct dm_mpath_io);
 
 	return 0;
@@ -1576,7 +1595,7 @@ static int do_end_io_bio(struct multipath *m, struct bio *clone,
 	}
 
 	/* Queue for the daemon to resubmit */
-	dm_bio_restore(&mpio->bio_details, clone);
+	dm_bio_restore(get_bio_details_from_bio(clone), clone);
 
 	spin_lock_irqsave(&m->lock, flags);
 	bio_list_add(&m->queued_bios, clone);
