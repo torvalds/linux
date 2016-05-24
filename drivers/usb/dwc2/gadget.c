@@ -2974,6 +2974,11 @@ static int dwc2_hsotg_ep_sethalt(struct usb_ep *ep, int value, bool now)
 		return 0;
 	}
 
+	if (hs_ep->isochronous) {
+		dev_err(hs->dev, "%s is Isochronous Endpoint\n", ep->name);
+		return -EINVAL;
+	}
+
 	if (!now && value && !list_empty(&hs_ep->queue)) {
 		dev_dbg(hs->dev, "%s request is pending, cannot halt\n",
 			ep->name);
