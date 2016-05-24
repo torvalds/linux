@@ -1835,8 +1835,7 @@ int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_scontexts)
 	struct pio_vl_map *oldmap, *newmap;
 
 	if (!vl_scontexts) {
-		/* send context 0 reserved for VL15 */
-		for (i = 1; i < dd->num_send_contexts; i++)
+		for (i = 0; i < dd->num_send_contexts; i++)
 			if (dd->send_contexts[i].type == SC_KERNEL)
 				num_kernel_send_contexts++;
 		/* truncate divide */
