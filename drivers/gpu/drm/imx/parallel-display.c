@@ -35,7 +35,6 @@ struct imx_parallel_display {
 	void *edid;
 	int edid_len;
 	u32 bus_format;
-	int mode_valid;
 	struct drm_display_mode mode;
 	struct drm_panel *panel;
 };
@@ -66,17 +65,6 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 	if (imxpd->edid) {
 		drm_mode_connector_update_edid_property(connector, imxpd->edid);
 		num_modes = drm_add_edid_modes(connector, imxpd->edid);
-	}
-
-	if (imxpd->mode_valid) {
-		struct drm_display_mode *mode = drm_mode_create(connector->dev);
-
-		if (!mode)
-			return -EINVAL;
-		drm_mode_copy(mode, &imxpd->mode);
-		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
-		drm_mode_probed_add(connector, mode);
-		num_modes++;
 	}
 
 	if (np) {
