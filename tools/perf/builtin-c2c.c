@@ -810,6 +810,22 @@ percent_stores_l1miss_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 STAT_FN(lcl_dram)
 STAT_FN(rmt_dram)
 
+static int
+pid_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+	  struct hist_entry *he)
+{
+	int width = c2c_width(fmt, hpp, he->hists);
+
+	return scnprintf(hpp->buf, hpp->size, "%*d", width, he->thread->pid_);
+}
+
+static int64_t
+pid_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+	struct hist_entry *left, struct hist_entry *right)
+{
+	return left->thread->pid_ - right->thread->pid_;
+}
+
 #define HEADER_LOW(__h)			\
 	{				\
 		.line[1] = {		\
@@ -1074,6 +1090,14 @@ static struct c2c_dimension dim_dram_rmt = {
 	.width		= 8,
 };
 
+static struct c2c_dimension dim_pid = {
+	.header		= HEADER_LOW("Pid"),
+	.name		= "pid",
+	.cmp		= pid_cmp,
+	.entry		= pid_entry,
+	.width		= 7,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
 	&dim_offset,
@@ -1103,6 +1127,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_percent_stores_l1miss,
 	&dim_dram_lcl,
 	&dim_dram_rmt,
+	&dim_pid,
 	NULL,
 };
 
