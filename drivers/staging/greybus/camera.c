@@ -883,8 +883,7 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 
 static void gb_camera_debugfs_cleanup(struct gb_camera *gcam)
 {
-	if (gcam->debugfs.root)
-		debugfs_remove_recursive(gcam->debugfs.root);
+	debugfs_remove_recursive(gcam->debugfs.root);
 
 	vfree(gcam->debugfs.buffers);
 }
