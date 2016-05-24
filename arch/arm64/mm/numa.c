@@ -29,7 +29,7 @@ static int cpu_to_node_map[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
 
 static int numa_distance_cnt;
 static u8 *numa_distance;
-static int numa_off;
+static bool numa_off;
 
 static __init int numa_parse_early_param(char *opt)
 {
@@ -37,7 +37,7 @@ static __init int numa_parse_early_param(char *opt)
 		return -EINVAL;
 	if (!strncmp(opt, "off", 3)) {
 		pr_info("%s\n", "NUMA turned off");
-		numa_off = 1;
+		numa_off = true;
 	}
 	return 0;
 }
@@ -362,7 +362,10 @@ static int __init dummy_numa_init(void)
 	int ret;
 	struct memblock_region *mblk;
 
-	pr_info("%s\n", "No NUMA configuration found");
+	if (numa_off)
+		pr_info("NUMA disabled\n"); /* Forced off on command line. */
+	else
+		pr_info("No NUMA configuration found\n");
 	pr_info("NUMA: Faking a node at [mem %#018Lx-%#018Lx]\n",
 	       0LLU, PFN_PHYS(max_pfn) - 1);
 
@@ -375,7 +378,7 @@ static int __init dummy_numa_init(void)
 		return ret;
 	}
 
-	numa_off = 1;
+	numa_off = true;
 	return 0;
 }
 
