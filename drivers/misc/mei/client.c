@@ -420,31 +420,6 @@ static inline void mei_io_list_free(struct mei_cl_cb *list, struct mei_cl *cl)
 }
 
 /**
- * mei_io_cb_alloc_buf - allocate callback buffer
- *
- * @cb: io callback structure
- * @length: size of the buffer
- *
- * Return: 0 on success
- *         -EINVAL if cb is NULL
- *         -ENOMEM if allocation failed
- */
-int mei_io_cb_alloc_buf(struct mei_cl_cb *cb, size_t length)
-{
-	if (!cb)
-		return -EINVAL;
-
-	if (length == 0)
-		return 0;
-
-	cb->buf.data = kmalloc(length, GFP_KERNEL);
-	if (!cb->buf.data)
-		return -ENOMEM;
-	cb->buf.size = length;
-	return 0;
-}
-
-/**
  * mei_cl_alloc_cb - a convenient wrapper for allocating read cb
  *
  * @cl: host client
@@ -464,10 +439,15 @@ struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
 	if (!cb)
 		return NULL;
 
-	if (mei_io_cb_alloc_buf(cb, length)) {
+	if (length == 0)
+		return cb;
+
+	cb->buf.data = kmalloc(length, GFP_KERNEL);
+	if (!cb->buf.data) {
 		mei_io_cb_free(cb);
 		return NULL;
 	}
+	cb->buf.size = length;
 
 	return cb;
 }
