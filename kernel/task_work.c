@@ -108,7 +108,6 @@ void task_work_run(void)
 		 * fail, but it can play with *work and other entries.
 		 */
 		raw_spin_unlock_wait(&task->pi_lock);
-		smp_mb();
 
 		do {
 			next = work->next;

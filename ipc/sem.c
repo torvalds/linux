@@ -282,7 +282,6 @@ static void sem_wait_array(struct sem_array *sma)
 		sem = sma->sem_base + i;
 		spin_unlock_wait(&sem->lock);
 	}
-	smp_acquire__after_ctrl_dep();
 }
 
 /*
