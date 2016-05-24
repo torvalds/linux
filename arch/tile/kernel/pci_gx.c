@@ -40,7 +40,7 @@
 #include <arch/sim.h>
 
 /*
- * This file containes the routines to search for PCI buses,
+ * This file contains the routines to search for PCI buses,
  * enumerate the buses, and configure any attached devices.
  */
 
@@ -434,7 +434,7 @@ int __init tile_pci_init(void)
 
 	/*
 	 * Now determine which PCIe ports are configured to operate in RC
-	 * mode. There is a differece in the port configuration capability
+	 * mode. There is a difference in the port configuration capability
 	 * between the Gx36 and Gx72 devices.
 	 *
 	 * The Gx36 has configuration capability for each of the 3 PCIe

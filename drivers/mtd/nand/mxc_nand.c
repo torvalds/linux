@@ -34,7 +34,6 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_mtd.h>
 
 #include <asm/mach/flash.h>
 #include <linux/platform_data/mtd-mxc_nand.h>
@@ -149,7 +148,7 @@ struct mxc_nand_devtype_data {
 	int (*check_int)(struct mxc_nand_host *);
 	void (*irq_control)(struct mxc_nand_host *, int);
 	u32 (*get_ecc_status)(struct mxc_nand_host *);
-	struct nand_ecclayout *ecclayout_512, *ecclayout_2k, *ecclayout_4k;
+	const struct mtd_ooblayout_ops *ooblayout;
 	void (*select_chip)(struct mtd_info *mtd, int chip);
 	int (*correct_data)(struct mtd_info *mtd, u_char *dat,
 			u_char *read_ecc, u_char *calc_ecc);
@@ -198,73 +197,6 @@ struct mxc_nand_host {
 
 	const struct mxc_nand_devtype_data *devtype_data;
 	struct mxc_nand_platform_data pdata;
-};
-
-/* OOB placement block for use with hardware ecc generation */
-static struct nand_ecclayout nandv1_hw_eccoob_smallpage = {
-	.eccbytes = 5,
-	.eccpos = {6, 7, 8, 9, 10},
-	.oobfree = {{0, 5}, {12, 4}, }
-};
-
-static struct nand_ecclayout nandv1_hw_eccoob_largepage = {
-	.eccbytes = 20,
-	.eccpos = {6, 7, 8, 9, 10, 22, 23, 24, 25, 26,
-		   38, 39, 40, 41, 42, 54, 55, 56, 57, 58},
-	.oobfree = {{2, 4}, {11, 10}, {27, 10}, {43, 10}, {59, 5}, }
-};
-
-/* OOB description for 512 byte pages with 16 byte OOB */
-static struct nand_ecclayout nandv2_hw_eccoob_smallpage = {
-	.eccbytes = 1 * 9,
-	.eccpos = {
-		 7,  8,  9, 10, 11, 12, 13, 14, 15
-	},
-	.oobfree = {
-		{.offset = 0, .length = 5}
-	}
-};
-
-/* OOB description for 2048 byte pages with 64 byte OOB */
-static struct nand_ecclayout nandv2_hw_eccoob_largepage = {
-	.eccbytes = 4 * 9,
-	.eccpos = {
-		 7,  8,  9, 10, 11, 12, 13, 14, 15,
-		23, 24, 25, 26, 27, 28, 29, 30, 31,
-		39, 40, 41, 42, 43, 44, 45, 46, 47,
-		55, 56, 57, 58, 59, 60, 61, 62, 63
-	},
-	.oobfree = {
-		{.offset = 2, .length = 4},
-		{.offset = 16, .length = 7},
-		{.offset = 32, .length = 7},
-		{.offset = 48, .length = 7}
-	}
-};
-
-/* OOB description for 4096 byte pages with 128 byte OOB */
-static struct nand_ecclayout nandv2_hw_eccoob_4k = {
-	.eccbytes = 8 * 9,
-	.eccpos = {
-		7,  8,  9, 10, 11, 12, 13, 14, 15,
-		23, 24, 25, 26, 27, 28, 29, 30, 31,
-		39, 40, 41, 42, 43, 44, 45, 46, 47,
-		55, 56, 57, 58, 59, 60, 61, 62, 63,
-		71, 72, 73, 74, 75, 76, 77, 78, 79,
-		87, 88, 89, 90, 91, 92, 93, 94, 95,
-		103, 104, 105, 106, 107, 108, 109, 110, 111,
-		119, 120, 121, 122, 123, 124, 125, 126, 127,
-	},
-	.oobfree = {
-		{.offset = 2, .length = 4},
-		{.offset = 16, .length = 7},
-		{.offset = 32, .length = 7},
-		{.offset = 48, .length = 7},
-		{.offset = 64, .length = 7},
-		{.offset = 80, .length = 7},
-		{.offset = 96, .length = 7},
-		{.offset = 112, .length = 7},
-	}
 };
 
 static const char * const part_probes[] = {
@@ -942,6 +874,99 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 	}
 }
 
+static int mxc_v1_ooblayout_ecc(struct mtd_info *mtd, int section,
+				struct mtd_oob_region *oobregion)
+{
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+
+	if (section >= nand_chip->ecc.steps)
+		return -ERANGE;
+
+	oobregion->offset = (section * 16) + 6;
+	oobregion->length = nand_chip->ecc.bytes;
+
+	return 0;
+}
+
+static int mxc_v1_ooblayout_free(struct mtd_info *mtd, int section,
+				 struct mtd_oob_region *oobregion)
+{
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+
+	if (section > nand_chip->ecc.steps)
+		return -ERANGE;
+
+	if (!section) {
+		if (mtd->writesize <= 512) {
+			oobregion->offset = 0;
+			oobregion->length = 5;
+		} else {
+			oobregion->offset = 2;
+			oobregion->length = 4;
+		}
+	} else {
+		oobregion->offset = ((section - 1) * 16) +
+				    nand_chip->ecc.bytes + 6;
+		if (section < nand_chip->ecc.steps)
+			oobregion->length = (section * 16) + 6 -
+					    oobregion->offset;
+		else
+			oobregion->length = mtd->oobsize - oobregion->offset;
+	}
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops mxc_v1_ooblayout_ops = {
+	.ecc = mxc_v1_ooblayout_ecc,
+	.free = mxc_v1_ooblayout_free,
+};
+
+static int mxc_v2_ooblayout_ecc(struct mtd_info *mtd, int section,
+				struct mtd_oob_region *oobregion)
+{
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	int stepsize = nand_chip->ecc.bytes == 9 ? 16 : 26;
+
+	if (section >= nand_chip->ecc.steps)
+		return -ERANGE;
+
+	oobregion->offset = (section * stepsize) + 7;
+	oobregion->length = nand_chip->ecc.bytes;
+
+	return 0;
+}
+
+static int mxc_v2_ooblayout_free(struct mtd_info *mtd, int section,
+				 struct mtd_oob_region *oobregion)
+{
+	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	int stepsize = nand_chip->ecc.bytes == 9 ? 16 : 26;
+
+	if (section > nand_chip->ecc.steps)
+		return -ERANGE;
+
+	if (!section) {
+		if (mtd->writesize <= 512) {
+			oobregion->offset = 0;
+			oobregion->length = 5;
+		} else {
+			oobregion->offset = 2;
+			oobregion->length = 4;
+		}
+	} else {
+		oobregion->offset = section * stepsize;
+		oobregion->length = 7;
+	}
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops mxc_v2_ooblayout_ops = {
+	.ecc = mxc_v2_ooblayout_ecc,
+	.free = mxc_v2_ooblayout_free,
+};
+
 /*
  * v2 and v3 type controllers can do 4bit or 8bit ecc depending
  * on how much oob the nand chip has. For 8bit ecc we need at least
@@ -957,23 +982,6 @@ static int get_eccsize(struct mtd_info *mtd)
 		return 4;
 	else
 		return 8;
-}
-
-static void ecc_8bit_layout_4k(struct nand_ecclayout *layout)
-{
-	int i, j;
-
-	layout->eccbytes = 8*18;
-	for (i = 0; i < 8; i++)
-		for (j = 0; j < 18; j++)
-			layout->eccpos[i*18 + j] = i*26 + j + 7;
-
-	layout->oobfree[0].offset = 2;
-	layout->oobfree[0].length = 4;
-	for (i = 1; i < 8; i++) {
-		layout->oobfree[i].offset = i*26;
-		layout->oobfree[i].length = 7;
-	}
 }
 
 static void preset_v1(struct mtd_info *mtd)
@@ -1269,9 +1277,7 @@ static const struct mxc_nand_devtype_data imx21_nand_devtype_data = {
 	.check_int = check_int_v1_v2,
 	.irq_control = irq_control_v1_v2,
 	.get_ecc_status = get_ecc_status_v1,
-	.ecclayout_512 = &nandv1_hw_eccoob_smallpage,
-	.ecclayout_2k = &nandv1_hw_eccoob_largepage,
-	.ecclayout_4k = &nandv1_hw_eccoob_smallpage, /* XXX: needs fix */
+	.ooblayout = &mxc_v1_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
 	.correct_data = mxc_nand_correct_data_v1,
 	.irqpending_quirk = 1,
@@ -1294,9 +1300,7 @@ static const struct mxc_nand_devtype_data imx27_nand_devtype_data = {
 	.check_int = check_int_v1_v2,
 	.irq_control = irq_control_v1_v2,
 	.get_ecc_status = get_ecc_status_v1,
-	.ecclayout_512 = &nandv1_hw_eccoob_smallpage,
-	.ecclayout_2k = &nandv1_hw_eccoob_largepage,
-	.ecclayout_4k = &nandv1_hw_eccoob_smallpage, /* XXX: needs fix */
+	.ooblayout = &mxc_v1_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
 	.correct_data = mxc_nand_correct_data_v1,
 	.irqpending_quirk = 0,
@@ -1320,9 +1324,7 @@ static const struct mxc_nand_devtype_data imx25_nand_devtype_data = {
 	.check_int = check_int_v1_v2,
 	.irq_control = irq_control_v1_v2,
 	.get_ecc_status = get_ecc_status_v2,
-	.ecclayout_512 = &nandv2_hw_eccoob_smallpage,
-	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
-	.ecclayout_4k = &nandv2_hw_eccoob_4k,
+	.ooblayout = &mxc_v2_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v2,
 	.correct_data = mxc_nand_correct_data_v2_v3,
 	.irqpending_quirk = 0,
@@ -1346,9 +1348,7 @@ static const struct mxc_nand_devtype_data imx51_nand_devtype_data = {
 	.check_int = check_int_v3,
 	.irq_control = irq_control_v3,
 	.get_ecc_status = get_ecc_status_v3,
-	.ecclayout_512 = &nandv2_hw_eccoob_smallpage,
-	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
-	.ecclayout_4k = &nandv2_hw_eccoob_smallpage, /* XXX: needs fix */
+	.ooblayout = &mxc_v2_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
 	.correct_data = mxc_nand_correct_data_v2_v3,
 	.irqpending_quirk = 0,
@@ -1373,9 +1373,7 @@ static const struct mxc_nand_devtype_data imx53_nand_devtype_data = {
 	.check_int = check_int_v3,
 	.irq_control = irq_control_v3,
 	.get_ecc_status = get_ecc_status_v3,
-	.ecclayout_512 = &nandv2_hw_eccoob_smallpage,
-	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
-	.ecclayout_4k = &nandv2_hw_eccoob_smallpage, /* XXX: needs fix */
+	.ooblayout = &mxc_v2_ooblayout_ops,
 	.select_chip = mxc_nand_select_chip_v1_v3,
 	.correct_data = mxc_nand_correct_data_v2_v3,
 	.irqpending_quirk = 0,
@@ -1461,24 +1459,11 @@ MODULE_DEVICE_TABLE(of, mxcnd_dt_ids);
 static int __init mxcnd_probe_dt(struct mxc_nand_host *host)
 {
 	struct device_node *np = host->dev->of_node;
-	struct mxc_nand_platform_data *pdata = &host->pdata;
 	const struct of_device_id *of_id =
 		of_match_device(mxcnd_dt_ids, host->dev);
-	int buswidth;
 
 	if (!np)
 		return 1;
-
-	if (of_get_nand_ecc_mode(np) >= 0)
-		pdata->hw_ecc = 1;
-
-	pdata->flash_bbt = of_get_nand_on_flash_bbt(np);
-
-	buswidth = of_get_nand_bus_width(np);
-	if (buswidth < 0)
-		return buswidth;
-
-	pdata->width = buswidth / 8;
 
 	host->devtype_data = of_id->data;
 
@@ -1576,27 +1561,22 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	this->select_chip = host->devtype_data->select_chip;
 	this->ecc.size = 512;
-	this->ecc.layout = host->devtype_data->ecclayout_512;
+	mtd_set_ooblayout(mtd, host->devtype_data->ooblayout);
 
 	if (host->pdata.hw_ecc) {
-		this->ecc.calculate = mxc_nand_calculate_ecc;
-		this->ecc.hwctl = mxc_nand_enable_hwecc;
-		this->ecc.correct = host->devtype_data->correct_data;
 		this->ecc.mode = NAND_ECC_HW;
 	} else {
 		this->ecc.mode = NAND_ECC_SOFT;
+		this->ecc.algo = NAND_ECC_HAMMING;
 	}
 
 	/* NAND bus width determines access functions used by upper layer */
 	if (host->pdata.width == 2)
 		this->options |= NAND_BUSWIDTH_16;
 
-	if (host->pdata.flash_bbt) {
-		this->bbt_td = &bbt_main_descr;
-		this->bbt_md = &bbt_mirror_descr;
-		/* update flash based bbt */
+	/* update flash based bbt */
+	if (host->pdata.flash_bbt)
 		this->bbt_options |= NAND_BBT_USE_FLASH;
-	}
 
 	init_completion(&host->op_completion);
 
@@ -1637,6 +1617,26 @@ static int mxcnd_probe(struct platform_device *pdev)
 		goto escan;
 	}
 
+	switch (this->ecc.mode) {
+	case NAND_ECC_HW:
+		this->ecc.calculate = mxc_nand_calculate_ecc;
+		this->ecc.hwctl = mxc_nand_enable_hwecc;
+		this->ecc.correct = host->devtype_data->correct_data;
+		break;
+
+	case NAND_ECC_SOFT:
+		break;
+
+	default:
+		err = -EINVAL;
+		goto escan;
+	}
+
+	if (this->bbt_options & NAND_BBT_USE_FLASH) {
+		this->bbt_td = &bbt_main_descr;
+		this->bbt_md = &bbt_mirror_descr;
+	}
+
 	/* allocate the right size buffer now */
 	devm_kfree(&pdev->dev, (void *)host->data_buf);
 	host->data_buf = devm_kzalloc(&pdev->dev, mtd->writesize + mtd->oobsize,
@@ -1649,12 +1649,11 @@ static int mxcnd_probe(struct platform_device *pdev)
 	/* Call preset again, with correct writesize this time */
 	host->devtype_data->preset(mtd);
 
-	if (mtd->writesize == 2048)
-		this->ecc.layout = host->devtype_data->ecclayout_2k;
-	else if (mtd->writesize == 4096) {
-		this->ecc.layout = host->devtype_data->ecclayout_4k;
-		if (get_eccsize(mtd) == 8)
-			ecc_8bit_layout_4k(this->ecc.layout);
+	if (!this->ecc.bytes) {
+		if (host->eccsize == 8)
+			this->ecc.bytes = 18;
+		else if (host->eccsize == 4)
+			this->ecc.bytes = 9;
 	}
 
 	/*

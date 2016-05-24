@@ -163,7 +163,8 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 		addr = 0;
 	}
 
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
 
 	addr = get_unmapped_area(NULL, addr,
 				 image->size - image->sym_vvar_start, 0, 0);
