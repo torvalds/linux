@@ -1684,6 +1684,17 @@ static int snd_pcm_prepare(struct snd_pcm_substream *substream,
 	else
 		f_flags = substream->f_flags;
 
+	snd_pcm_stream_lock_irq(substream);
+	switch (substream->runtime->status->state) {
+	case SNDRV_PCM_STATE_PAUSED:
+		snd_pcm_pause(substream, 0);
+		/* fallthru */
+	case SNDRV_PCM_STATE_SUSPENDED:
+		snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
+		break;
+	}
+	snd_pcm_stream_unlock_irq(substream);
+
 	return snd_pcm_action_nonatomic(&snd_pcm_action_prepare,
 					substream, f_flags);
 }
