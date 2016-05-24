@@ -5540,21 +5540,22 @@ skl_dpll0_update(struct drm_i915_private *dev_priv)
 	u32 val;
 
 	dev_priv->cdclk_pll.ref = 24000;
+	dev_priv->cdclk_pll.vco = 0;
 
 	val = I915_READ(LCPLL1_CTL);
-	if ((val & LCPLL_PLL_ENABLE) == 0) {
-		dev_priv->cdclk_pll.vco = 0;
+	if ((val & LCPLL_PLL_ENABLE) == 0)
 		return;
-	}
 
-	WARN_ON((val & LCPLL_PLL_LOCK) == 0);
+	if (WARN_ON((val & LCPLL_PLL_LOCK) == 0))
+		return;
 
 	val = I915_READ(DPLL_CTRL1);
 
-	WARN_ON((val & (DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) |
-			DPLL_CTRL1_SSC(SKL_DPLL0) |
-			DPLL_CTRL1_OVERRIDE(SKL_DPLL0))) !=
-		DPLL_CTRL1_OVERRIDE(SKL_DPLL0));
+	if (WARN_ON((val & (DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) |
+			    DPLL_CTRL1_SSC(SKL_DPLL0) |
+			    DPLL_CTRL1_OVERRIDE(SKL_DPLL0))) !=
+		    DPLL_CTRL1_OVERRIDE(SKL_DPLL0)))
+		return;
 
 	switch (val & DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0)) {
 	case DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810, SKL_DPLL0):
@@ -5569,7 +5570,6 @@ skl_dpll0_update(struct drm_i915_private *dev_priv)
 		break;
 	default:
 		MISSING_CASE(val & DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0));
-		dev_priv->cdclk_pll.vco = 0;
 		break;
 	}
 }
@@ -5769,18 +5769,11 @@ static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	if ((I915_READ(SWF_ILK(0x18)) & 0x00FFFFFF) == 0)
 		goto sanitize;
 
-	/* Is PLL enabled and locked ? */
-	if ((I915_READ(LCPLL1_CTL) & (LCPLL_PLL_ENABLE | LCPLL_PLL_LOCK)) !=
-	    (LCPLL_PLL_ENABLE | LCPLL_PLL_LOCK))
-		goto sanitize;
-
-	if ((I915_READ(DPLL_CTRL1) & (DPLL_CTRL1_HDMI_MODE(SKL_DPLL0) |
-				      DPLL_CTRL1_SSC(SKL_DPLL0) |
-				      DPLL_CTRL1_OVERRIDE(SKL_DPLL0))) !=
-	    DPLL_CTRL1_OVERRIDE(SKL_DPLL0))
-		goto sanitize;
-
 	intel_update_cdclk(dev_priv->dev);
+	/* Is PLL enabled and locked ? */
+	if (dev_priv->cdclk_pll.vco == 0 ||
+	    dev_priv->cdclk_freq == dev_priv->cdclk_pll.ref)
+		goto sanitize;
 
 	/* DPLL okay; verify the cdclock
 	 *
@@ -6681,14 +6674,14 @@ static void bxt_de_pll_update(struct drm_i915_private *dev_priv)
 	u32 val;
 
 	dev_priv->cdclk_pll.ref = 19200;
+	dev_priv->cdclk_pll.vco = 0;
 
 	val = I915_READ(BXT_DE_PLL_ENABLE);
-	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0) {
-		dev_priv->cdclk_pll.vco = 0;
+	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0)
 		return;
-	}
 
-	WARN_ON((val & BXT_DE_PLL_LOCK) == 0);
+	if (WARN_ON((val & BXT_DE_PLL_LOCK) == 0))
+		return;
 
 	val = I915_READ(BXT_DE_PLL_CTL);
 	dev_priv->cdclk_pll.vco = (val & BXT_DE_PLL_RATIO_MASK) *
