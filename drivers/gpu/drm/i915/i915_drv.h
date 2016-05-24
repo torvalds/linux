@@ -3427,11 +3427,24 @@ void i915_gem_context_reset(struct drm_device *dev);
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct drm_i915_gem_request *req);
-struct i915_gem_context *
-i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
 void i915_gem_context_free(struct kref *ctx_ref);
 struct drm_i915_gem_object *
 i915_gem_alloc_context_obj(struct drm_device *dev, size_t size);
+
+static inline struct i915_gem_context *
+i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
+{
+	struct i915_gem_context *ctx;
+
+	lockdep_assert_held(&file_priv->dev_priv->dev->struct_mutex);
+
+	ctx = idr_find(&file_priv->context_idr, id);
+	if (!ctx)
+		return ERR_PTR(-ENOENT);
+
+	return ctx;
+}
+
 static inline void i915_gem_context_reference(struct i915_gem_context *ctx)
 {
 	kref_get(&ctx->ref);

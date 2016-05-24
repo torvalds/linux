@@ -506,20 +506,6 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 	idr_destroy(&file_priv->context_idr);
 }
 
-struct i915_gem_context *
-i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
-{
-	struct i915_gem_context *ctx;
-
-	lockdep_assert_held(&file_priv->dev_priv->dev->struct_mutex);
-
-	ctx = idr_find(&file_priv->context_idr, id);
-	if (!ctx)
-		return ERR_PTR(-ENOENT);
-
-	return ctx;
-}
-
 static inline int
 mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 {
@@ -951,7 +937,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_context_get(file_priv, args->ctx_id);
+	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
 	if (IS_ERR(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
 		return PTR_ERR(ctx);
@@ -977,7 +963,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_context_get(file_priv, args->ctx_id);
+	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
 	if (IS_ERR(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
 		return PTR_ERR(ctx);
@@ -1020,7 +1006,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_context_get(file_priv, args->ctx_id);
+	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
 	if (IS_ERR(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
 		return PTR_ERR(ctx);
@@ -1072,7 +1058,7 @@ int i915_gem_context_reset_stats_ioctl(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_context_get(file->driver_priv, args->ctx_id);
+	ctx = i915_gem_context_lookup(file->driver_priv, args->ctx_id);
 	if (IS_ERR(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
 		return PTR_ERR(ctx);

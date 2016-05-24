@@ -1075,7 +1075,7 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 	if (engine->id != RCS && ctx_id != DEFAULT_CONTEXT_HANDLE)
 		return ERR_PTR(-EINVAL);
 
-	ctx = i915_gem_context_get(file->driver_priv, ctx_id);
+	ctx = i915_gem_context_lookup(file->driver_priv, ctx_id);
 	if (IS_ERR(ctx))
 		return ctx;
 
