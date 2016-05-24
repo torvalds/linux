@@ -465,6 +465,17 @@ struct nand_jedec_params {
 } __packed;
 
 /**
+ * struct nand_id - NAND id structure
+ * @data: buffer containing the id bytes. Currently 8 bytes large, but can
+ *	  be extended if required.
+ * @len: ID length.
+ */
+struct nand_id {
+	u8 data[8];
+	int len;
+};
+
+/**
  * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independent devices
  * @lock:               protection lock
  * @active:		the mtd device which holds the controller currently
@@ -793,6 +804,7 @@ nand_get_sdr_timings(const struct nand_data_interface *conf)
  * @pagebuf_bitflips:	[INTERN] holds the bitflip count for the page which is
  *			currently in data_buf.
  * @subpagesize:	[INTERN] holds the subpagesize
+ * @id:			[INTERN] holds NAND ID
  * @onfi_version:	[INTERN] holds the chip ONFI version (BCD encoded),
  *			non 0 if ONFI supported.
  * @jedec_version:	[INTERN] holds the chip JEDEC version (BCD encoded),
@@ -881,6 +893,7 @@ struct nand_chip {
 	int badblockpos;
 	int badblockbits;
 
+	struct nand_id id;
 	int onfi_version;
 	int jedec_version;
 	union {

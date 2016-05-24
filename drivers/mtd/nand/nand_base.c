@@ -3821,17 +3821,15 @@ static int nand_get_bits_per_cell(u8 cellinfo)
  * chip. The rest of the parameters must be decoded according to generic or
  * manufacturer-specific "extended ID" decoding patterns.
  */
-static void nand_decode_ext_id(struct nand_chip *chip, u8 id_data[8],
-			       int *busw)
+static void nand_decode_ext_id(struct nand_chip *chip, int *busw)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	int extid, id_len;
+	int extid, id_len = chip->id.len;
+	u8 *id_data = chip->id.data;
 	/* The 3rd id byte holds MLC / multichip data */
 	chip->bits_per_cell = nand_get_bits_per_cell(id_data[2]);
 	/* The 4th id byte is the important one */
 	extid = id_data[3];
-
-	id_len = nand_id_len(id_data, 8);
 
 	/*
 	 * Field definitions are in the following datasheets:
@@ -3956,9 +3954,10 @@ static void nand_decode_ext_id(struct nand_chip *chip, u8 id_data[8],
  * the chip.
  */
 static void nand_decode_id(struct nand_chip *chip, struct nand_flash_dev *type,
-			   u8 id_data[8], int *busw)
+			   int *busw)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	u8 *id_data = chip->id.data;
 	int maf_id = id_data[0];
 
 	mtd->erasesize = type->erasesize;
@@ -3988,9 +3987,10 @@ static void nand_decode_id(struct nand_chip *chip, struct nand_flash_dev *type,
  * heuristic patterns using various detected parameters (e.g., manufacturer,
  * page size, cell-type information).
  */
-static void nand_decode_bbm_options(struct nand_chip *chip, u8 id_data[8])
+static void nand_decode_bbm_options(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	u8 *id_data = chip->id.data;
 	int maf_id = id_data[0];
 
 	/* Set the bad block position */
@@ -4026,10 +4026,10 @@ static inline bool is_full_id_nand(struct nand_flash_dev *type)
 }
 
 static bool find_full_id_nand(struct nand_chip *chip,
-			      struct nand_flash_dev *type, u8 *id_data,
-			      int *busw)
+			      struct nand_flash_dev *type, int *busw)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	u8 *id_data = chip->id.data;
 
 	if (!strncmp(type->id, id_data, type->id_len)) {
 		mtd->writesize = type->pagesize;
@@ -4058,13 +4058,13 @@ static bool find_full_id_nand(struct nand_chip *chip,
  * Get the flash and manufacturer id and lookup if the type is supported.
  */
 static int nand_get_flash_type(struct nand_chip *chip,
-			       int *maf_id, int *dev_id,
 			       struct nand_flash_dev *type)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int busw;
 	int i, maf_idx;
-	u8 id_data[8];
+	u8 *id_data = chip->id.data;
+	u8 maf_id, dev_id;
 
 	/*
 	 * Reset the chip, required by some chips (e.g. Micron MT29FxGxxxxx)
@@ -4079,8 +4079,8 @@ static int nand_get_flash_type(struct nand_chip *chip,
 	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
 
 	/* Read manufacturer and device IDs */
-	*maf_id = chip->read_byte(mtd);
-	*dev_id = chip->read_byte(mtd);
+	maf_id = chip->read_byte(mtd);
+	dev_id = chip->read_byte(mtd);
 
 	/*
 	 * Try again to make sure, as some systems the bus-hold or other
@@ -4095,20 +4095,22 @@ static int nand_get_flash_type(struct nand_chip *chip,
 	for (i = 0; i < 8; i++)
 		id_data[i] = chip->read_byte(mtd);
 
-	if (id_data[0] != *maf_id || id_data[1] != *dev_id) {
+	if (id_data[0] != maf_id || id_data[1] != dev_id) {
 		pr_info("second ID read did not match %02x,%02x against %02x,%02x\n",
-			*maf_id, *dev_id, id_data[0], id_data[1]);
+			maf_id, dev_id, id_data[0], id_data[1]);
 		return -ENODEV;
 	}
+
+	chip->id.len = nand_id_len(id_data, 8);
 
 	if (!type)
 		type = nand_flash_ids;
 
 	for (; type->name != NULL; type++) {
 		if (is_full_id_nand(type)) {
-			if (find_full_id_nand(chip, type, id_data, &busw))
+			if (find_full_id_nand(chip, type, &busw))
 				goto ident_done;
-		} else if (*dev_id == type->dev_id) {
+		} else if (dev_id == type->dev_id) {
 			break;
 		}
 	}
@@ -4134,9 +4136,9 @@ static int nand_get_flash_type(struct nand_chip *chip,
 
 	if (!type->pagesize) {
 		/* Decode parameters from extended ID */
-		nand_decode_ext_id(chip, id_data, &busw);
+		nand_decode_ext_id(chip, &busw);
 	} else {
-		nand_decode_id(chip, type, id_data, &busw);
+		nand_decode_id(chip, type, &busw);
 	}
 	/* Get chip options */
 	chip->options |= type->options;
@@ -4145,13 +4147,13 @@ static int nand_get_flash_type(struct nand_chip *chip,
 	 * Check if chip is not a Samsung device. Do not clear the
 	 * options for chips which do not have an extended id.
 	 */
-	if (*maf_id != NAND_MFR_SAMSUNG && !type->pagesize)
+	if (maf_id != NAND_MFR_SAMSUNG && !type->pagesize)
 		chip->options &= ~NAND_SAMSUNG_LP_OPTIONS;
 ident_done:
 
 	/* Try to identify manufacturer */
 	for (maf_idx = 0; nand_manuf_ids[maf_idx].id != 0x0; maf_idx++) {
-		if (nand_manuf_ids[maf_idx].id == *maf_id)
+		if (nand_manuf_ids[maf_idx].id == maf_id)
 			break;
 	}
 
@@ -4165,7 +4167,7 @@ ident_done:
 		 * chip correct!
 		 */
 		pr_info("device found, Manufacturer ID: 0x%02x, Chip ID: 0x%02x\n",
-			*maf_id, *dev_id);
+			maf_id, dev_id);
 		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name, mtd->name);
 		pr_warn("bus width %d instead %d bit\n",
 			   (chip->options & NAND_BUSWIDTH_16) ? 16 : 8,
@@ -4173,7 +4175,7 @@ ident_done:
 		return -EINVAL;
 	}
 
-	nand_decode_bbm_options(chip, id_data);
+	nand_decode_bbm_options(chip);
 
 	/* Calculate the address shift from the page size */
 	chip->page_shift = ffs(mtd->writesize) - 1;
@@ -4197,7 +4199,7 @@ ident_done:
 		chip->cmdfunc = nand_command_lp;
 
 	pr_info("device found, Manufacturer ID: 0x%02x, Chip ID: 0x%02x\n",
-		*maf_id, *dev_id);
+		maf_id, dev_id);
 
 	if (chip->onfi_version)
 		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name,
@@ -4400,7 +4402,7 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	nand_set_defaults(chip, chip->options & NAND_BUSWIDTH_16);
 
 	/* Read the flash type */
-	ret = nand_get_flash_type(chip, &nand_maf_id, &nand_dev_id, table);
+	ret = nand_get_flash_type(chip, table);
 	if (ret) {
 		if (!(chip->options & NAND_SCAN_SILENT_NODEV))
 			pr_warn("No NAND device found\n");
@@ -4424,6 +4426,9 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	ret = nand_setup_data_interface(chip);
 	if (ret)
 		return ret;
+
+	nand_maf_id = chip->id.data[0];
+	nand_dev_id = chip->id.data[1];
 
 	chip->select_chip(mtd, -1);
 
