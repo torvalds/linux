@@ -153,6 +153,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 {
 	struct i915_gem_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
 
+	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
 	trace_i915_context_free(ctx);
 
 	if (i915.enable_execlists)
@@ -180,6 +181,8 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 {
 	struct drm_i915_gem_object *obj;
 	int ret;
+
+	lockdep_assert_held(&dev->struct_mutex);
 
 	obj = i915_gem_object_create(dev, size);
 	if (IS_ERR(obj))
@@ -304,7 +307,7 @@ i915_gem_create_context(struct drm_device *dev,
 	struct i915_gem_context *ctx;
 	int ret = 0;
 
-	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+	lockdep_assert_held(&dev->struct_mutex);
 
 	ctx = __create_hw_context(dev, file_priv);
 	if (IS_ERR(ctx))
@@ -367,6 +370,8 @@ static void i915_gem_context_unpin(struct i915_gem_context *ctx,
 void i915_gem_context_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	lockdep_assert_held(&dev->struct_mutex);
 
 	if (i915.enable_execlists) {
 		struct i915_gem_context *ctx;
@@ -433,6 +438,8 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 
+	lockdep_assert_held(&dev_priv->dev->struct_mutex);
+
 	for_each_engine(engine, dev_priv) {
 		if (engine->last_context == NULL)
 			continue;
@@ -450,6 +457,8 @@ void i915_gem_context_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_gem_context *dctx = dev_priv->kernel_context;
+
+	lockdep_assert_held(&dev->struct_mutex);
 
 	if (dctx->legacy_hw_ctx.rcs_state)
 		i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
@@ -491,6 +500,8 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
+	lockdep_assert_held(&dev->struct_mutex);
+
 	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
 	idr_destroy(&file_priv->context_idr);
 }
@@ -499,6 +510,8 @@ struct i915_gem_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 {
 	struct i915_gem_context *ctx;
+
+	lockdep_assert_held(&file_priv->dev_priv->dev->struct_mutex);
 
 	ctx = idr_find(&file_priv->context_idr, id);
 	if (!ctx)
@@ -852,10 +865,9 @@ unpin_out:
 int i915_switch_context(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = req->i915;
 
 	WARN_ON(i915.enable_execlists);
-	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+	lockdep_assert_held(&req->i915->dev->struct_mutex);
 
 	if (engine->id != RCS ||
 	    req->ctx->legacy_hw_ctx.rcs_state == NULL) {

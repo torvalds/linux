@@ -3439,6 +3439,7 @@ static inline void i915_gem_context_reference(struct i915_gem_context *ctx)
 
 static inline void i915_gem_context_unreference(struct i915_gem_context *ctx)
 {
+	lockdep_assert_held(&ctx->i915->dev->struct_mutex);
 	kref_put(&ctx->ref, i915_gem_context_free);
 }
 
