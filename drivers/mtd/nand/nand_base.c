@@ -4050,8 +4050,7 @@ static bool find_full_id_nand(struct nand_chip *chip,
 /*
  * Get the flash and manufacturer id and lookup if the type is supported.
  */
-static int nand_get_flash_type(struct nand_chip *chip,
-			       struct nand_flash_dev *type)
+static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int busw;
@@ -4408,7 +4407,7 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	nand_set_defaults(chip);
 
 	/* Read the flash type */
-	ret = nand_get_flash_type(chip, table);
+	ret = nand_detect(chip, table);
 	if (ret) {
 		if (!(chip->options & NAND_SCAN_SILENT_NODEV))
 			pr_warn("No NAND device found\n");
