@@ -455,7 +455,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	char *new_opts = kstrdup(data, GFP_KERNEL);
 
-	if (!new_opts)
+	if (data && !new_opts)
 		return -ENOMEM;
 
 	sync_filesystem(s);
@@ -493,7 +493,8 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 	if (!(*flags & MS_RDONLY)) mark_dirty(s, 1);
 
-	replace_mount_options(s, new_opts);
+	if (new_opts)
+		replace_mount_options(s, new_opts);
 
 	hpfs_unlock(s);
 	return 0;
