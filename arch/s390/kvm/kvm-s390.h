@@ -238,6 +238,8 @@ static inline void kvm_s390_forward_psw(struct kvm_vcpu *vcpu, int ilen)
 }
 static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
 {
+	/* don't inject PER events if we re-execute the instruction */
+	vcpu->arch.sie_block->icptstatus &= ~0x02;
 	kvm_s390_rewind_psw(vcpu, kvm_s390_get_ilen(vcpu));
 }
 
@@ -377,6 +379,7 @@ int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 			    struct kvm_guest_debug *dbg);
 void kvm_s390_clear_bp_data(struct kvm_vcpu *vcpu);
 void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_per_ifetch_icpt(struct kvm_vcpu *vcpu);
 void kvm_s390_handle_per_event(struct kvm_vcpu *vcpu);
 
 /* support for Basic/Extended SCA handling */
