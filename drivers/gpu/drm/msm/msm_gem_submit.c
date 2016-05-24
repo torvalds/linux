@@ -40,12 +40,14 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 
 	submit->dev = dev;
 	submit->gpu = gpu;
+	submit->fence = NULL;
 	submit->pid = get_pid(task_pid(current));
 
 	/* initially, until copy_from_user() and bo lookup succeeds: */
 	submit->nr_bos = 0;
 	submit->nr_cmds = 0;
 
+	INIT_LIST_HEAD(&submit->node);
 	INIT_LIST_HEAD(&submit->bo_list);
 	ww_acquire_init(&submit->ticket, &reservation_ww_class);
 
