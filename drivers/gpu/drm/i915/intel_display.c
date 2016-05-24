@@ -6624,10 +6624,10 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
+	int clock_limit = dev_priv->max_dotclk_freq;
 
-	/* FIXME should check pixel clock limits on all platforms */
 	if (INTEL_INFO(dev)->gen < 4) {
-		int clock_limit = dev_priv->max_cdclk_freq * 9 / 10;
+		clock_limit = dev_priv->max_cdclk_freq * 9 / 10;
 
 		/*
 		 * Enable double wide mode when the dot clock
@@ -6635,16 +6635,16 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		 */
 		if (intel_crtc_supports_double_wide(crtc) &&
 		    adjusted_mode->crtc_clock > clock_limit) {
-			clock_limit *= 2;
+			clock_limit = dev_priv->max_dotclk_freq;
 			pipe_config->double_wide = true;
 		}
+	}
 
-		if (adjusted_mode->crtc_clock > clock_limit) {
-			DRM_DEBUG_KMS("requested pixel clock (%d kHz) too high (max: %d kHz, double wide: %s)\n",
-				      adjusted_mode->crtc_clock, clock_limit,
-				      yesno(pipe_config->double_wide));
-			return -EINVAL;
-		}
+	if (adjusted_mode->crtc_clock > clock_limit) {
+		DRM_DEBUG_KMS("requested pixel clock (%d kHz) too high (max: %d kHz, double wide: %s)\n",
+			      adjusted_mode->crtc_clock, clock_limit,
+			      yesno(pipe_config->double_wide));
+		return -EINVAL;
 	}
 
 	/*
