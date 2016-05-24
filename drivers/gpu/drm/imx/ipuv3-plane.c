@@ -463,7 +463,7 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 	kfree(ipu_plane);
 }
 
-static struct drm_plane_funcs ipu_plane_funcs = {
+static const struct drm_plane_funcs ipu_plane_funcs = {
 	.update_plane	= ipu_update_plane,
 	.disable_plane	= ipu_disable_plane,
 	.destroy	= ipu_plane_destroy,
