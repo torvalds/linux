@@ -2090,7 +2090,7 @@ int fc_lport_bsg_request(struct fc_bsg_job *job)
 	struct fc_rport *rport;
 	struct fc_rport_priv *rdata;
 	int rc = -EINVAL;
-	u32 did;
+	u32 did, tov;
 
 	job->reply->reply_payload_rcv_len = 0;
 	if (rsp)
@@ -2121,15 +2121,20 @@ int fc_lport_bsg_request(struct fc_bsg_job *job)
 
 	case FC_BSG_HST_CT:
 		did = ntoh24(job->request->rqst_data.h_ct.port_id);
-		if (did == FC_FID_DIR_SERV)
+		if (did == FC_FID_DIR_SERV) {
 			rdata = lport->dns_rdata;
-		else
+			if (!rdata)
+				break;
+			tov = rdata->e_d_tov;
+		} else {
 			rdata = lport->tt.rport_lookup(lport, did);
+			if (!rdata)
+				break;
+			tov = rdata->e_d_tov;
+			kref_put(&rdata->kref, lport->tt.rport_destroy);
+		}
 
-		if (!rdata)
-			break;
-
-		rc = fc_lport_ct_request(job, lport, did, rdata->e_d_tov);
+		rc = fc_lport_ct_request(job, lport, did, tov);
 		break;
 
 	case FC_BSG_HST_ELS_NOLOGIN:
