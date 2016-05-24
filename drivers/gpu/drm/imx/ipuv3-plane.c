@@ -430,7 +430,6 @@ static int ipu_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (crtc != plane->crtc)
 		dev_dbg(plane->dev->dev, "crtc change: %p -> %p\n",
 				plane->crtc, crtc);
-	plane->crtc = crtc;
 
 	if (!ipu_plane->enabled)
 		ipu_plane_enable(ipu_plane);
