@@ -1,0 +1,61 @@
+kvm_stat(1)
+===========
+
+NAME
+----
+kvm_stat - Report KVM kernel module event counters
+
+SYNOPSIS
+--------
+[verse]
+'kvm_stat' [OPTION]...
+
+DESCRIPTION
+-----------
+kvm_stat prints counts of KVM kernel module trace events.  These events signify
+state transitions such as guest mode entry and exit.
+
+This tool is useful for observing guest behavior from the host perspective.
+Often conclusions about performance or buggy behavior can be drawn from the
+output.
+
+The set of KVM kernel module trace events may be specific to the kernel version
+or architecture.  It is best to check the KVM kernel module source code for the
+meaning of events.
+
+Note that trace events are counted globally across all running guests.
+
+OPTIONS
+-------
+-1::
+--once::
+--batch::
+	run in batch mode for one second
+
+-l::
+--log::
+	run in logging mode (like vmstat)
+
+-t::
+--tracepoints::
+	retrieve statistics from tracepoints
+
+-d::
+--debugfs::
+	retrieve statistics from debugfs
+
+-f<fields>::
+--fields=<fields>::
+	fields to display (regex)
+
+-h::
+--help::
+	show help message
+
+SEE ALSO
+--------
+'perf'(1), 'trace-cmd'(1)
+
+AUTHOR
+------
+Stefan Hajnoczi <stefanha@redhat.com>
