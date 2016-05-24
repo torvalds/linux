@@ -191,6 +191,42 @@
 
 		#include "ns2-clock.dtsi"
 
+		pdc0: iproc-pdc0@612c0000 {
+			compatible = "brcm,iproc-pdc-mbox";
+			reg = <0x612c0000 0x445>;  /* PDC FS0 regs */
+			interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
+		};
+
+		pdc1: iproc-pdc1@612e0000 {
+			compatible = "brcm,iproc-pdc-mbox";
+			reg = <0x612e0000 0x445>;  /* PDC FS1 regs */
+			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
+		};
+
+		pdc2: iproc-pdc2@61300000 {
+			compatible = "brcm,iproc-pdc-mbox";
+			reg = <0x61300000 0x445>;  /* PDC FS2 regs */
+			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
+		};
+
+		pdc3: iproc-pdc3@61320000 {
+			compatible = "brcm,iproc-pdc-mbox";
+			reg = <0x61320000 0x445>;  /* PDC FS3 regs */
+			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
+		};
+
 		dma0: dma@61360000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x61360000 0x1000>;
