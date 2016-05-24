@@ -209,6 +209,86 @@ DEFINE_MODULE_EVENT(gb_module_del);
 
 #undef DEFINE_MODULE_EVENT
 
+DECLARE_EVENT_CLASS(gb_interface,
+
+	TP_PROTO(struct gb_interface *intf),
+
+	TP_ARGS(intf),
+
+	TP_STRUCT__entry(
+		__field(u8, id)		/* Interface id */
+		__field(u8, module_id)
+		__field(u8, device_id)
+		__field(bool, disconnected)
+		__field(bool, ejected)
+		__field(bool, active)
+		__field(bool, enabled)
+	),
+
+	TP_fast_assign(
+		__entry->id = intf->interface_id;
+		__entry->module_id = intf->module->module_id;
+		__entry->device_id = intf->device_id;
+		__entry->disconnected = intf->disconnected;
+		__entry->ejected = intf->ejected;
+		__entry->active = intf->active;
+		__entry->enabled = intf->enabled;
+	),
+
+	TP_printk("greybus: intf_id=%hhu device_id=%hhu module_id=%hhu D=%u J=%u A=%u E=%u",
+		__entry->id, __entry->device_id, __entry->module_id,
+		__entry->disconnected, __entry->ejected, __entry->active,
+		__entry->enabled)
+);
+
+#define DEFINE_INTERFACE_EVENT(name)					\
+		DEFINE_EVENT(gb_interface, name,			\
+				TP_PROTO(struct gb_interface *intf),	\
+				TP_ARGS(intf))
+
+/*
+ * Occurs after a new interface is successfully created.
+ */
+DEFINE_INTERFACE_EVENT(gb_interface_create);
+
+/*
+ * Occurs after the last reference to an interface has been dropped.
+ */
+DEFINE_INTERFACE_EVENT(gb_interface_release);
+
+/*
+ * Occurs after an interface been registerd.
+ */
+DEFINE_INTERFACE_EVENT(gb_interface_add);
+
+/*
+ * Occurs when a registered interface gets deregisterd.
+ */
+DEFINE_INTERFACE_EVENT(gb_interface_del);
+
+/*
+ * Occurs when a registered interface has been successfully
+ * activated.
+ */
+DEFINE_INTERFACE_EVENT(gb_interface_activate);
+
+/*
+ * Occurs when an activated interface is being deactivated.
+ */
+DEFINE_INTERFACE_EVENT(gb_interface_deactivate);
+
+/*
+ * Occurs when an interface has been successfully enabled.
+ */
+DEFINE_INTERFACE_EVENT(gb_interface_enable);
+
+/*
+ * Occurs when an enabled interface is being disabled.
+ */
+DEFINE_INTERFACE_EVENT(gb_interface_disable);
+
+#undef DEFINE_INTERFACE_EVENT
+
 DECLARE_EVENT_CLASS(gb_host_device,
 
 	TP_PROTO(struct gb_host_device *hd),

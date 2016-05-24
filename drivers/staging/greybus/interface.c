@@ -9,6 +9,7 @@
 
 #include "greybus.h"
 
+#include "greybus_trace.h"
 
 #define GB_INTERFACE_DEVICE_ID_BAD	0xff
 
@@ -326,6 +327,8 @@ static void gb_interface_release(struct device *dev)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
 
+	trace_gb_interface_release(intf);
+
 	kfree(intf);
 }
 
@@ -374,6 +377,8 @@ struct gb_interface *gb_interface_create(struct gb_module *module,
 	device_initialize(&intf->dev);
 	dev_set_name(&intf->dev, "%s.%u", dev_name(&module->dev),
 			interface_id);
+
+	trace_gb_interface_create(intf);
 
 	return intf;
 }
@@ -506,6 +511,8 @@ int gb_interface_activate(struct gb_interface *intf)
 
 	intf->active = true;
 
+	trace_gb_interface_activate(intf);
+
 	return 0;
 
 err_hibernate_link:
@@ -529,6 +536,8 @@ void gb_interface_deactivate(struct gb_interface *intf)
 {
 	if (!intf->active)
 		return;
+
+	trace_gb_interface_deactivate(intf);
 
 	gb_interface_route_destroy(intf);
 	gb_interface_hibernate_link(intf);
@@ -629,6 +638,8 @@ int gb_interface_enable(struct gb_interface *intf)
 
 	intf->enabled = true;
 
+	trace_gb_interface_enable(intf);
+
 	return 0;
 
 err_destroy_bundles:
@@ -657,6 +668,8 @@ void gb_interface_disable(struct gb_interface *intf)
 
 	if (!intf->enabled)
 		return;
+
+	trace_gb_interface_disable(intf);
 
 	/*
 	 * Disable the control-connection early to avoid operation timeouts
@@ -687,6 +700,8 @@ int gb_interface_add(struct gb_interface *intf)
 		return ret;
 	}
 
+	trace_gb_interface_add(intf);
+
 	dev_info(&intf->dev, "Interface added: VID=0x%08x, PID=0x%08x\n",
 		 intf->vendor_id, intf->product_id);
 	dev_info(&intf->dev, "DDBL1 Manufacturer=0x%08x, Product=0x%08x\n",
@@ -699,6 +714,8 @@ int gb_interface_add(struct gb_interface *intf)
 void gb_interface_del(struct gb_interface *intf)
 {
 	if (device_is_registered(&intf->dev)) {
+		trace_gb_interface_del(intf);
+
 		device_del(&intf->dev);
 		dev_info(&intf->dev, "Interface removed\n");
 	}
