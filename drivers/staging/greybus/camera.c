@@ -873,7 +873,7 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 		if (IS_ERR(dentry)) {
 			gcam_err(gcam,
 				 "debugfs operation %s create failed (%ld)\n",
-				 entry->name, PTR_ERR(gcam->debugfs.root));
+				 entry->name, PTR_ERR(dentry));
 			return PTR_ERR(dentry);
 		}
 	}
