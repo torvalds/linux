@@ -238,7 +238,9 @@ static int handle_prog(struct kvm_vcpu *vcpu)
 	vcpu->stat.exit_program_interruption++;
 
 	if (guestdbg_enabled(vcpu) && per_event(vcpu)) {
-		kvm_s390_handle_per_event(vcpu);
+		rc = kvm_s390_handle_per_event(vcpu);
+		if (rc)
+			return rc;
 		/* the interrupt might have been filtered out completely */
 		if (vcpu->arch.sie_block->iprcc == 0)
 			return 0;
