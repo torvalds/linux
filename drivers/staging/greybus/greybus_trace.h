@@ -158,45 +158,55 @@ DEFINE_OPERATION_EVENT(gb_operation_put_active);
 
 DECLARE_EVENT_CLASS(gb_host_device,
 
-	TP_PROTO(struct gb_host_device *hd, u16 intf_cport_id,
-		 size_t payload_size),
+	TP_PROTO(struct gb_host_device *hd),
 
-	TP_ARGS(hd, intf_cport_id, payload_size),
+	TP_ARGS(hd),
 
 	TP_STRUCT__entry(
-		__string(name, dev_name(&hd->dev))
-		__field(u16, intf_cport_id)
-		__field(size_t, payload_size)
+		__field(int, bus_id)
+		__field(u8, num_cports)
+		__field(size_t, buffer_size_max)
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev_name(&hd->dev))
-		__entry->intf_cport_id = intf_cport_id;
-		__entry->payload_size = payload_size;
+		__entry->bus_id = hd->bus_id;
+		__entry->num_cports = hd->num_cports;
+		__entry->buffer_size_max = hd->buffer_size_max;
 	),
 
-	TP_printk("greybus:%s if_id=%u l=%zu", __get_str(name),
-		  __entry->intf_cport_id, __entry->payload_size)
+	TP_printk("greybus: bus_id=%d num_cports=%hu mtu=%zu",
+		__entry->bus_id, __entry->num_cports,
+		__entry->buffer_size_max)
 );
 
 #define DEFINE_HD_EVENT(name)						\
 		DEFINE_EVENT(gb_host_device, name,			\
-				TP_PROTO(struct gb_host_device *hd,	\
-					u16 intf_cport_id,		\
-					size_t payload_size),		\
-				TP_ARGS(hd, intf_cport_id, payload_size))
+				TP_PROTO(struct gb_host_device *hd),	\
+				TP_ARGS(hd))
 
 /*
- * Occurs immediately before calling usb_submit_urb() to send a
- * message to the UniPro bridge.
+ * Occurs after a new host device is successfully created, before
+ * its SVC has been set up.
  */
-DEFINE_HD_EVENT(gb_host_device_send);
+DEFINE_HD_EVENT(gb_hd_create);
 
 /*
- * Occurs after receiving a UniPro message via the USB subsystem,
- * just prior to handing it to the Greybus core for handling.
+ * Occurs after the last reference to a host device has been
+ * dropped.
  */
-DEFINE_HD_EVENT(gb_host_device_recv);
+DEFINE_HD_EVENT(gb_hd_release);
+
+/*
+ * Occurs after a new host device has been added, after the
+ * connection to its SVC has * been enabled.
+ */
+DEFINE_HD_EVENT(gb_hd_add);
+
+/*
+ * Occurs when a host device is being disconnected from the AP USB
+ * host controller.
+ */
+DEFINE_HD_EVENT(gb_hd_del);
 
 #undef DEFINE_HD_EVENT
 

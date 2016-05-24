@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 
 #include "greybus.h"
-
+#include "greybus_trace.h"
 
 static struct ida gb_hd_bus_id_map;
 
@@ -87,6 +87,8 @@ void gb_hd_cport_release(struct gb_host_device *hd, u16 cport_id)
 	}
 
 	ida_simple_remove(&hd->cport_id_map, cport_id);
+
+	trace_gb_hd_release(hd);
 }
 
 static void gb_hd_release(struct device *dev)
@@ -168,6 +170,8 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	device_initialize(&hd->dev);
 	dev_set_name(&hd->dev, "greybus%d", hd->bus_id);
 
+	trace_gb_hd_create(hd);
+
 	hd->svc = gb_svc_create(hd);
 	if (!hd->svc) {
 		dev_err(&hd->dev, "failed to create svc\n");
@@ -193,12 +197,16 @@ int gb_hd_add(struct gb_host_device *hd)
 		return ret;
 	}
 
+	trace_gb_hd_add(hd);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gb_hd_add);
 
 void gb_hd_del(struct gb_host_device *hd)
 {
+	trace_gb_hd_del(hd);
+
 	/*
 	 * Tear down the svc and flush any on-going hotplug processing before
 	 * removing the remaining interfaces.

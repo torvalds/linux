@@ -16,8 +16,6 @@
 #include "greybus.h"
 #include "kernel_ver.h"
 #include "connection.h"
-#include "greybus_trace.h"
-
 
 /* Fixed CPort numbers */
 #define ES2_CPORT_CDSI0		16
@@ -469,7 +467,6 @@ static int message_send(struct gb_host_device *hd, u16 cport_id,
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	urb->transfer_flags |= URB_ZERO_PACKET;
-	trace_gb_host_device_send(hd, cport_id, buffer_size);
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		dev_err(&udev->dev, "failed to submit out-urb: %d\n", retval);
@@ -909,7 +906,6 @@ static void cport_in_callback(struct urb *urb)
 	cport_id = gb_message_cport_unpack(header);
 
 	if (cport_id_valid(hd, cport_id)) {
-		trace_gb_host_device_recv(hd, cport_id, urb->actual_length);
 		greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
 							urb->actual_length);
 	} else {
