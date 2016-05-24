@@ -72,7 +72,7 @@ static void gb_operation_put_active(struct gb_operation *operation)
 
 	spin_lock_irqsave(&connection->lock, flags);
 
-	trace_gb_operation_get_active(operation);
+	trace_gb_operation_put_active(operation);
 
 	if (--operation->active == 0) {
 		list_del(&operation->links);
