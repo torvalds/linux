@@ -16,6 +16,7 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #include <linux/rockchip/grf.h>
 #endif
 
+#define RK3399_GRF_CON7		0xe21c
 #define RK3399_GRF_CON20	0x6250
 #define RK3399_GRF_CON22	0x6258
 #define RK3399_GRF_CON23	0x625c

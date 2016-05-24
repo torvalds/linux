@@ -1655,6 +1655,61 @@ static struct rk_fb_trsm_ops trsm_dsi_ops = {
 	.dsp_pwr_off = rk32_mipi_power_down_DDR,
 };
 #endif
+
+static void rockchip_3399_grf_config(int lcdc_id)
+{
+	int dsi_num;
+	int val;
+
+	dsi_num = rk_mipi_get_dsi_num();
+	if (dsi_num == 1) {
+		if (lcdc_id == 1) {
+			val = 0x1 << 16 | 0x1;
+			regmap_write(dsi0->grf_base, RK3399_GRF_CON20, val);
+		} else {
+			val = 0x1 << 16 | 0x0;
+			regmap_write(dsi0->grf_base, RK3399_GRF_CON20, val);
+		}
+
+		val = 0x1 << 28 | 0x0 << 12;
+		val |= 0xf << 20 | 0x0 << 4;
+		val |= 0xf << 16 | 0x0;
+		regmap_write(dsi0->grf_base, RK3399_GRF_CON22, val);
+	} else {
+		if (lcdc_id == 1) {
+			val = 0x1 << 16 | 0x1;
+			val |= 0x1 << 20 | 0x1 << 4;
+			regmap_write(dsi0->grf_base, RK3399_GRF_CON20, val);
+		} else {
+			val = 0x1 << 16 | 0x0;
+			val |= 0x1 << 20 | 0x0 << 4;
+			regmap_write(dsi0->grf_base, RK3399_GRF_CON20, val);
+		}
+
+		val = 0x1 << 28 | 0x0 << 12;
+		val |= 0xf << 20 | 0x0 << 4;
+		val |= 0xf << 16 | 0x0;
+		regmap_write(dsi0->grf_base, RK3399_GRF_CON22, val);
+
+		val = 0x1 << 20 | 0x0 << 0x4;
+		regmap_write(dsi0->grf_base, RK3399_GRF_CON7, val);
+
+		val = 0xf << 24 | 0x0 << 8;
+		val |= 0xf << 20 | 0x0 << 4;
+		val |= 0xf << 16 | 0x0;
+		regmap_write(dsi0->grf_base, RK3399_GRF_CON23, val);
+
+		val = 0x1 << 22 | 0x1 << 6;
+		val |= 0x1 << 21 | 0x0 << 5;
+		regmap_write(dsi0->grf_base, RK3399_GRF_CON24, val);
+
+		val = 0xf << 24 | 0x0 << 8;
+		val |= 0xf << 20 | 0x0 << 4;
+		val |= 0xf << 16 | 0xf;
+		regmap_write(dsi0->grf_base, RK3399_GRF_CON23, val);
+	}
+}
+
 static void rk32_init_phy_mode(int lcdc_id)
 {
 	int val0 = 0, val1 = 0;
@@ -1683,13 +1738,7 @@ static void rk32_init_phy_mode(int lcdc_id)
 			writel_relaxed(val1, RK_GRF_VIRT + RK3288_GRF_SOC_CON14);
 		}
 	} else if (dsi0->ops.id == DSI_RK3399) {
-		val0 = 0x1 << 16 | 0x0;
-		regmap_write(dsi0->grf_base, RK3399_GRF_CON20, val0);
-
-		val0 = 0x1 << 28 | 0x0 << 12;
-		val0 |= 0xf << 20 | 0x0 << 4;
-		val0 |= 0xf << 16 | 0x0;
-		regmap_write(dsi0->grf_base, RK3399_GRF_CON22, val0);
+		rockchip_3399_grf_config(lcdc_id);
 	}
 }
 
