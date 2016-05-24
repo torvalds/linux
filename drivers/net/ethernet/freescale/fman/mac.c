@@ -469,9 +469,9 @@ static void adjust_link_memac(struct net_device *net_dev)
 /* Initializes driver's PHY state, and attaches to the PHY.
  * Returns 0 on success.
  */
-static int init_phy(struct net_device *net_dev,
-		    struct mac_device *mac_dev,
-		    void (*adj_lnk)(struct net_device *))
+static struct phy_device *init_phy(struct net_device *net_dev,
+				   struct mac_device *mac_dev,
+				   void (*adj_lnk)(struct net_device *))
 {
 	struct phy_device	*phy_dev;
 	struct mac_priv_s	*priv = mac_dev->priv;
@@ -480,7 +480,7 @@ static int init_phy(struct net_device *net_dev,
 				 priv->phy_if);
 	if (!phy_dev) {
 		netdev_err(net_dev, "Could not connect to PHY\n");
-		return -ENODEV;
+		return NULL;
 	}
 
 	/* Remove any features not supported by the controller */
@@ -493,23 +493,23 @@ static int init_phy(struct net_device *net_dev,
 
 	mac_dev->phy_dev = phy_dev;
 
-	return 0;
+	return phy_dev;
 }
 
-static int dtsec_init_phy(struct net_device *net_dev,
-			  struct mac_device *mac_dev)
+static struct phy_device *dtsec_init_phy(struct net_device *net_dev,
+					 struct mac_device *mac_dev)
 {
 	return init_phy(net_dev, mac_dev, &adjust_link_dtsec);
 }
 
-static int tgec_init_phy(struct net_device *net_dev,
-			 struct mac_device *mac_dev)
+static struct phy_device *tgec_init_phy(struct net_device *net_dev,
+					struct mac_device *mac_dev)
 {
 	return init_phy(net_dev, mac_dev, adjust_link_void);
 }
 
-static int memac_init_phy(struct net_device *net_dev,
-			  struct mac_device *mac_dev)
+static struct phy_device *memac_init_phy(struct net_device *net_dev,
+					 struct mac_device *mac_dev)
 {
 	return init_phy(net_dev, mac_dev, &adjust_link_memac);
 }
