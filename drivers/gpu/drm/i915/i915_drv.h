@@ -829,7 +829,6 @@ struct i915_ctx_hang_stats {
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_HANDLE 0
 
-#define CONTEXT_NO_ZEROMAP (1<<0)
 /**
  * struct i915_gem_context - as the name implies, represents a context.
  * @ref: reference count.
@@ -851,28 +850,31 @@ struct i915_ctx_hang_stats {
  */
 struct i915_gem_context {
 	struct kref ref;
-	int user_handle;
-	uint8_t remap_slice;
 	struct drm_i915_private *i915;
-	int flags;
 	struct drm_i915_file_private *file_priv;
-	struct i915_ctx_hang_stats hang_stats;
 	struct i915_hw_ppgtt *ppgtt;
 
+	struct i915_ctx_hang_stats hang_stats;
+
 	/* Unique identifier for this context, used by the hw for tracking */
+	unsigned long flags;
 	unsigned hw_id;
+	u32 user_handle;
+#define CONTEXT_NO_ZEROMAP		(1<<0)
 
 	struct intel_context {
 		struct drm_i915_gem_object *state;
 		struct intel_ringbuffer *ringbuf;
-		int pin_count;
 		struct i915_vma *lrc_vma;
-		u64 lrc_desc;
 		uint32_t *lrc_reg_state;
+		u64 lrc_desc;
+		int pin_count;
 		bool initialised;
 	} engine[I915_NUM_ENGINES];
 
 	struct list_head link;
+
+	u8 remap_slice;
 };
 
 enum fb_op_origin {
