@@ -402,6 +402,10 @@
 	status = "okay";
 };
 
+&saradc {
+	status = "okay";
+};
+
 &pinctrl {
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
