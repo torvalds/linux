@@ -131,25 +131,25 @@ void __init early_map_cpu_to_node(unsigned int cpu, int nid)
  * numa_add_memblk - Set node id to memblk
  * @nid: NUMA node ID of the new memblk
  * @start: Start address of the new memblk
- * @size:  Size of the new memblk
+ * @end:  End address of the new memblk
  *
  * RETURNS:
  * 0 on success, -errno on failure.
  */
-int __init numa_add_memblk(int nid, u64 start, u64 size)
+int __init numa_add_memblk(int nid, u64 start, u64 end)
 {
 	int ret;
 
-	ret = memblock_set_node(start, size, &memblock.memory, nid);
+	ret = memblock_set_node(start, (end - start), &memblock.memory, nid);
 	if (ret < 0) {
 		pr_err("NUMA: memblock [0x%llx - 0x%llx] failed to add on node %d\n",
-			start, (start + size - 1), nid);
+			start, (end - 1), nid);
 		return ret;
 	}
 
 	node_set(nid, numa_nodes_parsed);
 	pr_info("NUMA: Adding memblock [0x%llx - 0x%llx] on node %d\n",
-			start, (start + size - 1), nid);
+			start, (end - 1), nid);
 	return ret;
 }
 
@@ -367,7 +367,7 @@ static int __init dummy_numa_init(void)
 	       0LLU, PFN_PHYS(max_pfn) - 1);
 
 	for_each_memblock(memory, mblk) {
-		ret = numa_add_memblk(0, mblk->base, mblk->size);
+		ret = numa_add_memblk(0, mblk->base, mblk->base + mblk->size);
 		if (!ret)
 			continue;
 
