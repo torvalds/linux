@@ -13,6 +13,7 @@
 #include "exynos4412.dtsi"
 #include "exynos4412-ppmu-common.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	chosen {
@@ -497,6 +498,11 @@
 		 <&clock_audss EXYNOS_DOUT_AUD_BUS>,
 		 <&clock_audss EXYNOS_SCLK_I2S>;
 	clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+};
+
+&mfc {
+	memory-region = <&mfc_left>, <&mfc_right>;
+	status = "okay";
 };
 
 &mixer {
