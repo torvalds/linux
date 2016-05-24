@@ -1175,11 +1175,13 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 		}
 	}
 
+	vb2_dma_contig_set_max_seg_size(dev->mem_dev_l, DMA_BIT_MASK(32));
 	dev->alloc_ctx[0] = vb2_dma_contig_init_ctx(dev->mem_dev_l);
 	if (IS_ERR(dev->alloc_ctx[0])) {
 		ret = PTR_ERR(dev->alloc_ctx[0]);
 		goto err_res;
 	}
+	vb2_dma_contig_set_max_seg_size(dev->mem_dev_r, DMA_BIT_MASK(32));
 	dev->alloc_ctx[1] = vb2_dma_contig_init_ctx(dev->mem_dev_r);
 	if (IS_ERR(dev->alloc_ctx[1])) {
 		ret = PTR_ERR(dev->alloc_ctx[1]);
@@ -1307,6 +1309,8 @@ static int s5p_mfc_remove(struct platform_device *pdev)
 	s5p_mfc_release_firmware(dev);
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[1]);
+	vb2_dma_contig_clear_max_seg_size(dev->mem_dev_l);
+	vb2_dma_contig_clear_max_seg_size(dev->mem_dev_r);
 	if (pdev->dev.of_node) {
 		put_device(dev->mem_dev_l);
 		put_device(dev->mem_dev_r);

@@ -847,6 +847,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_pm;
 
+	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
 	is->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 	if (IS_ERR(is->alloc_ctx)) {
 		ret = PTR_ERR(is->alloc_ctx);
@@ -940,6 +941,7 @@ static int fimc_is_remove(struct platform_device *pdev)
 	free_irq(is->irq, is);
 	fimc_is_unregister_subdevs(is);
 	vb2_dma_contig_cleanup_ctx(is->alloc_ctx);
+	vb2_dma_contig_clear_max_seg_size(dev);
 	fimc_is_put_clocks(is);
 	fimc_is_debugfs_remove(is);
 	release_firmware(is->fw.f_w);
