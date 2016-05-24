@@ -436,7 +436,7 @@
 			interrupts = <GIC_SPI 361 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_ccint", "emda3_mperr",
+			interrupt-names = "edma3_ccint", "edma3_mperr",
 					  "edma3_ccerrint";
 			dma-requests = <64>;
 			#dma-cells = <2>;
