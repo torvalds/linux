@@ -400,7 +400,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @amthif_cmd_list : amthif list for cmd waiting
  * @iamthif_fp : file for current amthif operation
  * @iamthif_cl  : amthif host client
- * @iamthif_current_cb : amthif current operation callback
  * @iamthif_open_count : number of opened amthif connections
  * @iamthif_stall_timer : timer to detect amthif hang
  * @iamthif_state : amthif processor state
@@ -485,7 +484,6 @@ struct mei_device {
 	/* driver managed amthif list for reading completed amthif cmd data */
 	const struct file *iamthif_fp;
 	struct mei_cl iamthif_cl;
-	struct mei_cl_cb *iamthif_current_cb;
 	long iamthif_open_count;
 	u32 iamthif_stall_timer;
 	enum iamthif_states iamthif_state;
