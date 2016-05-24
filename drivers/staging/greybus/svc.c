@@ -779,7 +779,7 @@ static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 				    &pwrmon_debugfs_current_fops);
 		debugfs_create_file("power_now", S_IRUGO, dir, rail,
 				    &pwrmon_debugfs_power_fops);
-	};
+	}
 
 	kfree(rail_names);
 	return;
