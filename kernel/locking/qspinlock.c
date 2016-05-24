@@ -379,7 +379,7 @@ void queued_spin_unlock_wait(struct qspinlock *lock)
 		cpu_relax();
 
 done:
-	smp_rmb(); /* CTRL + RMB -> ACQUIRE */
+	smp_acquire__after_ctrl_dep();
 }
 EXPORT_SYMBOL(queued_spin_unlock_wait);
 #endif

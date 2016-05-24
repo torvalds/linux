@@ -305,6 +305,17 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 })
 
 /**
+ * smp_acquire__after_ctrl_dep() - Provide ACQUIRE ordering after a control dependency
+ *
+ * A control dependency provides a LOAD->STORE order, the additional RMB
+ * provides LOAD->LOAD order, together they provide LOAD->{LOAD,STORE} order,
+ * aka. (load)-ACQUIRE.
+ *
+ * Architectures that do not do load speculation can have this be barrier().
+ */
+#define smp_acquire__after_ctrl_dep()		smp_rmb()
+
+/**
  * smp_cond_load_acquire() - (Spin) wait for cond with ACQUIRE ordering
  * @ptr: pointer to the variable to wait on
  * @cond: boolean expression to wait for
@@ -314,10 +325,6 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  *
  * Due to C lacking lambda expressions we load the value of *ptr into a
  * pre-named variable @VAL to be used in @cond.
- *
- * The control dependency provides a LOAD->STORE order, the additional RMB
- * provides LOAD->LOAD order, together they provide LOAD->{LOAD,STORE} order,
- * aka. ACQUIRE.
  */
 #ifndef smp_cond_load_acquire
 #define smp_cond_load_acquire(ptr, cond_expr) ({		\
@@ -329,7 +336,7 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 			break;					\
 		cpu_relax();					\
 	}							\
-	smp_rmb(); /* ctrl + rmb := acquire */			\
+	smp_acquire__after_ctrl_dep();				\
 	VAL;							\
 })
 #endif
