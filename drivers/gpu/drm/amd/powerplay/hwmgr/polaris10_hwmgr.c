@@ -4978,6 +4978,47 @@ static int polaris10_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 	return 0;
 }
 
+static int polaris10_get_mclk_od(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+	struct polaris10_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mclk_table);
+	int value;
+
+	value = (mclk_table->dpm_levels[mclk_table->count - 1].value -
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value) *
+			100 /
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return value;
+}
+
+static int polaris10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mclk_table);
+	struct pp_power_state  *ps;
+	struct polaris10_power_state  *polaris10_ps;
+
+	if (value > 20)
+		value = 20;
+
+	ps = hwmgr->request_ps;
+
+	if (ps == NULL)
+		return -EINVAL;
+
+	polaris10_ps = cast_phw_polaris10_power_state(&ps->hardware);
+
+	polaris10_ps->performance_levels[polaris10_ps->performance_level_count - 1].memory_clock =
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value *
+			value / 100 +
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return 0;
+}
 static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 	.backend_init = &polaris10_hwmgr_backend_init,
 	.backend_fini = &polaris10_hwmgr_backend_fini,
@@ -5023,6 +5064,8 @@ static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 	.enable_per_cu_power_gating = polaris10_phm_enable_per_cu_power_gating,
 	.get_sclk_od = polaris10_get_sclk_od,
 	.set_sclk_od = polaris10_set_sclk_od,
+	.get_mclk_od = polaris10_get_mclk_od,
+	.set_mclk_od = polaris10_set_mclk_od,
 };
 
 int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr)
