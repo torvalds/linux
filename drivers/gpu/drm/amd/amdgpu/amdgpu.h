@@ -1563,6 +1563,8 @@ struct amdgpu_dpm_funcs {
 	int (*print_clock_levels)(struct amdgpu_device *adev, enum pp_clock_type type, char *buf);
 	int (*get_sclk_od)(struct amdgpu_device *adev);
 	int (*set_sclk_od)(struct amdgpu_device *adev, uint32_t value);
+	int (*get_mclk_od)(struct amdgpu_device *adev);
+	int (*set_mclk_od)(struct amdgpu_device *adev, uint32_t value);
 };
 
 struct amdgpu_dpm {
@@ -2350,6 +2352,12 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 
 #define amdgpu_dpm_set_sclk_od(adev, value) \
 	(adev)->powerplay.pp_funcs->set_sclk_od((adev)->powerplay.pp_handle, value)
+
+#define amdgpu_dpm_get_mclk_od(adev) \
+	((adev)->powerplay.pp_funcs->get_mclk_od((adev)->powerplay.pp_handle))
+
+#define amdgpu_dpm_set_mclk_od(adev, value) \
+	((adev)->powerplay.pp_funcs->set_mclk_od((adev)->powerplay.pp_handle, value))
 
 #define amdgpu_dpm_dispatch_task(adev, event_id, input, output)		\
 	(adev)->powerplay.pp_funcs->dispatch_tasks((adev)->powerplay.pp_handle, (event_id), (input), (output))

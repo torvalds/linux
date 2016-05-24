@@ -340,6 +340,8 @@ struct pp_hwmgr_func {
 	int (*enable_per_cu_power_gating)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*get_sclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_sclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
+	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
+	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 };
 
 struct pp_table_func {

@@ -345,6 +345,8 @@ struct amd_powerplay_funcs {
 	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
 	int (*get_sclk_od)(void *handle);
 	int (*set_sclk_od)(void *handle, uint32_t value);
+	int (*get_mclk_od)(void *handle);
+	int (*set_mclk_od)(void *handle, uint32_t value);
 };
 
 struct amd_powerplay {

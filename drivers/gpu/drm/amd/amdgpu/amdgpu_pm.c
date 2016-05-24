@@ -527,6 +527,52 @@ fail:
 	return count;
 }
 
+static ssize_t amdgpu_get_pp_mclk_od(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	uint32_t value = 0;
+
+	if (adev->pp_enabled)
+		value = amdgpu_dpm_get_mclk_od(adev);
+	else if (adev->pm.funcs->get_mclk_od)
+		value = adev->pm.funcs->get_mclk_od(adev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", value);
+}
+
+static ssize_t amdgpu_set_pp_mclk_od(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf,
+		size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	int ret;
+	long int value;
+
+	ret = kstrtol(buf, 0, &value);
+
+	if (ret) {
+		count = -EINVAL;
+		goto fail;
+	}
+
+	if (adev->pp_enabled) {
+		amdgpu_dpm_set_mclk_od(adev, (uint32_t)value);
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_READJUST_POWER_STATE, NULL, NULL);
+	} else if (adev->pm.funcs->set_mclk_od) {
+		adev->pm.funcs->set_mclk_od(adev, (uint32_t)value);
+		adev->pm.dpm.current_ps = adev->pm.dpm.boot_ps;
+		amdgpu_pm_compute_clocks(adev);
+	}
+
+fail:
+	return count;
+}
+
 static DEVICE_ATTR(power_dpm_state, S_IRUGO | S_IWUSR, amdgpu_get_dpm_state, amdgpu_set_dpm_state);
 static DEVICE_ATTR(power_dpm_force_performance_level, S_IRUGO | S_IWUSR,
 		   amdgpu_get_dpm_forced_performance_level,
@@ -551,6 +597,9 @@ static DEVICE_ATTR(pp_dpm_pcie, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(pp_sclk_od, S_IRUGO | S_IWUSR,
 		amdgpu_get_pp_sclk_od,
 		amdgpu_set_pp_sclk_od);
+static DEVICE_ATTR(pp_mclk_od, S_IRUGO | S_IWUSR,
+		amdgpu_get_pp_mclk_od,
+		amdgpu_set_pp_mclk_od);
 
 static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
@@ -1191,6 +1240,11 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("failed to create device file pp_sclk_od\n");
 		return ret;
 	}
+	ret = device_create_file(adev->dev, &dev_attr_pp_mclk_od);
+	if (ret) {
+		DRM_ERROR("failed to create device file pp_mclk_od\n");
+		return ret;
+	}
 
 	ret = amdgpu_debugfs_pm_init(adev);
 	if (ret) {
@@ -1219,6 +1273,7 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_mclk);
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
 	device_remove_file(adev->dev, &dev_attr_pp_sclk_od);
+	device_remove_file(adev->dev, &dev_attr_pp_mclk_od);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
