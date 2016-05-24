@@ -265,3 +265,14 @@ void thread__find_cpumode_addr_location(struct thread *thread,
 			break;
 	}
 }
+
+struct thread *thread__main_thread(struct machine *machine, struct thread *thread)
+{
+	if (thread->pid_ == thread->tid)
+		return thread__get(thread);
+
+	if (thread->pid_ == -1)
+		return NULL;
+
+	return machine__find_thread(machine, thread->pid_, thread->pid_);
+}
