@@ -683,6 +683,7 @@ static int dln2_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct dln2_spi *dln2;
 	struct dln2_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device *dev = &pdev->dev;
 	int ret;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*dln2));
@@ -700,6 +701,7 @@ static int dln2_spi_probe(struct platform_device *pdev)
 	}
 
 	dln2->master = master;
+	dln2->master->dev.of_node = dev->of_node;
 	dln2->pdev = pdev;
 	dln2->port = pdata->port;
 	/* cs/mode can never be 0xff, so the first transfer will set them */

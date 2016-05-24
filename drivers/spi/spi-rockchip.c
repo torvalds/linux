@@ -744,10 +744,8 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	rs->dma_rx.ch = dma_request_chan(rs->dev, "rx");
 	if (IS_ERR(rs->dma_rx.ch)) {
 		if (PTR_ERR(rs->dma_rx.ch) == -EPROBE_DEFER) {
-			dma_release_channel(rs->dma_tx.ch);
-			rs->dma_tx.ch = NULL;
 			ret = -EPROBE_DEFER;
-			goto err_get_fifo_len;
+			goto err_free_dma_tx;
 		}
 		dev_warn(rs->dev, "Failed to request RX DMA channel\n");
 		rs->dma_rx.ch = NULL;
@@ -775,10 +773,11 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 
 err_register_master:
 	pm_runtime_disable(&pdev->dev);
-	if (rs->dma_tx.ch)
-		dma_release_channel(rs->dma_tx.ch);
 	if (rs->dma_rx.ch)
 		dma_release_channel(rs->dma_rx.ch);
+err_free_dma_tx:
+	if (rs->dma_tx.ch)
+		dma_release_channel(rs->dma_tx.ch);
 err_get_fifo_len:
 	clk_disable_unprepare(rs->spiclk);
 err_spiclk_enable:
