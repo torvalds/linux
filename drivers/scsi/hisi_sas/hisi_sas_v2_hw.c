@@ -1630,6 +1630,9 @@ static u8 get_ata_protocol(u8 cmd, int direction)
 	switch (cmd) {
 	case ATA_CMD_FPDMA_WRITE:
 	case ATA_CMD_FPDMA_READ:
+	case ATA_CMD_FPDMA_RECV:
+	case ATA_CMD_FPDMA_SEND:
+	case ATA_CMD_NCQ_NON_DATA:
 	return SATA_PROTOCOL_FPDMA;
 
 	case ATA_CMD_ID_ATA:

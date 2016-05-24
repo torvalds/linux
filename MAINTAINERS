@@ -1951,6 +1951,16 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/asus-wireless.c
 
+ASYMMETRIC KEYS
+M:	David Howells <dhowells@redhat.com>
+L:	keyrings@vger.kernel.org
+S:	Maintained
+F:	Documentation/crypto/asymmetric-keys.txt
+F:	include/linux/verification.h
+F:	include/crypto/public_key.h
+F:	include/crypto/pkcs7.h
+F:	crypto/asymmetric_keys/
+
 ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
 R:	Dan Williams <dan.j.williams@intel.com>
 W:	http://sourceforge.net/projects/xscaleiop
@@ -6557,6 +6567,8 @@ S:	Maintained
 F:	Documentation/security/keys.txt
 F:	include/linux/key.h
 F:	include/linux/key-type.h
+F:	include/linux/keyctl.h
+F:	include/uapi/linux/keyctl.h
 F:	include/keys/
 F:	security/keys/
 
