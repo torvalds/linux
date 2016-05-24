@@ -2839,14 +2839,7 @@ void (*disable_vblank) (struct drm_device *dev, int crtc);</synopsis>
     <para>
       Drivers must initialize the vertical blanking handling core with a call to
       <function>drm_vblank_init</function> in their
-      <methodname>load</methodname> operation. The function will set the struct
-      <structname>drm_device</structname>
-      <structfield>vblank_disable_allowed</structfield> field to 0. This will
-      keep vertical blanking interrupts enabled permanently until the first mode
-      set operation, where <structfield>vblank_disable_allowed</structfield> is
-      set to 1. The reason behind this is not clear. Drivers can set the field
-      to 1 after <function>calling drm_vblank_init</function> to make vertical
-      blanking interrupts dynamically managed from the beginning.
+      <methodname>load</methodname> operation.
     </para>
     <para>
       Vertical blanking interrupts can be enabled by the DRM core or by drivers
