@@ -609,15 +609,15 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
-	if (cl == &dev->iamthif_cl) {
-		mask = mei_amthif_poll(file, wait);
-		goto out;
-	}
-
 	if (notify_en) {
 		poll_wait(file, &cl->ev_wait, wait);
 		if (cl->notify_ev)
 			mask |= POLLPRI;
+	}
+
+	if (cl == &dev->iamthif_cl) {
+		mask |= mei_amthif_poll(file, wait);
+		goto out;
 	}
 
 	if (req_events & (POLLIN | POLLRDNORM)) {
