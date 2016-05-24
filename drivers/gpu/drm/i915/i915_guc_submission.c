@@ -360,7 +360,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	struct drm_i915_gem_object *client_obj = client->client_obj;
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_engine_cs *engine;
-	struct intel_context *ctx = client->owner;
+	struct i915_gem_context *ctx = client->owner;
 	struct guc_context_desc desc;
 	struct sg_table *sg;
 	enum intel_engine_id id;
@@ -426,7 +426,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.wq_size = client->wq_size;
 
 	/*
-	 * XXX: Take LRCs from an existing intel_context if this is not an
+	 * XXX: Take LRCs from an existing context if this is not an
 	 * IsKMDCreatedContext client
 	 */
 	desc.desc_private = (uintptr_t)client;
@@ -700,7 +700,7 @@ static void guc_client_free(struct drm_device *dev,
  */
 static struct i915_guc_client *guc_client_alloc(struct drm_device *dev,
 						uint32_t priority,
-						struct intel_context *ctx)
+						struct i915_gem_context *ctx)
 {
 	struct i915_guc_client *client;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -938,7 +938,7 @@ int i915_guc_submission_enable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct intel_context *ctx = dev_priv->kernel_context;
+	struct i915_gem_context *ctx = dev_priv->kernel_context;
 	struct i915_guc_client *client;
 
 	/* client for execbuf submission */
@@ -989,7 +989,7 @@ int intel_guc_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	u32 data[3];
 
 	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
@@ -1015,7 +1015,7 @@ int intel_guc_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	u32 data[3];
 
 	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)

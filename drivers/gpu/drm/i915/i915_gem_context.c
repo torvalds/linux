@@ -134,7 +134,7 @@ static int get_context_size(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static void i915_gem_context_clean(struct intel_context *ctx)
+static void i915_gem_context_clean(struct i915_gem_context *ctx)
 {
 	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
 	struct i915_vma *vma, *next;
@@ -151,7 +151,7 @@ static void i915_gem_context_clean(struct intel_context *ctx)
 
 void i915_gem_context_free(struct kref *ctx_ref)
 {
-	struct intel_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
+	struct i915_gem_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
 
 	trace_i915_context_free(ctx);
 
@@ -234,12 +234,12 @@ static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
 	return 0;
 }
 
-static struct intel_context *
+static struct i915_gem_context *
 __create_hw_context(struct drm_device *dev,
 		    struct drm_i915_file_private *file_priv)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	int ret;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -296,12 +296,12 @@ err_out:
  * context state of the GPU for applications that don't utilize HW contexts, as
  * well as an idle case.
  */
-static struct intel_context *
+static struct i915_gem_context *
 i915_gem_create_context(struct drm_device *dev,
 			struct drm_i915_file_private *file_priv)
 {
 	const bool is_global_default_ctx = file_priv == NULL;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	int ret = 0;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -352,7 +352,7 @@ err_destroy:
 	return ERR_PTR(ret);
 }
 
-static void i915_gem_context_unpin(struct intel_context *ctx,
+static void i915_gem_context_unpin(struct i915_gem_context *ctx,
 				   struct intel_engine_cs *engine)
 {
 	if (i915.enable_execlists) {
@@ -369,7 +369,7 @@ void i915_gem_context_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (i915.enable_execlists) {
-		struct intel_context *ctx;
+		struct i915_gem_context *ctx;
 
 		list_for_each_entry(ctx, &dev_priv->context_list, link)
 			intel_lr_context_reset(dev_priv, ctx);
@@ -381,7 +381,7 @@ void i915_gem_context_reset(struct drm_device *dev)
 int i915_gem_context_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 
 	/* Init should only be called once per module load. Eventually the
 	 * restriction on the context_disabled check can be loosened. */
@@ -449,7 +449,7 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 void i915_gem_context_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_context *dctx = dev_priv->kernel_context;
+	struct i915_gem_context *dctx = dev_priv->kernel_context;
 
 	if (dctx->legacy_hw_ctx.rcs_state)
 		i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
@@ -462,7 +462,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 
 static int context_idr_cleanup(int id, void *p, void *data)
 {
-	struct intel_context *ctx = p;
+	struct i915_gem_context *ctx = p;
 
 	i915_gem_context_unreference(ctx);
 	return 0;
@@ -471,7 +471,7 @@ static int context_idr_cleanup(int id, void *p, void *data)
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 
 	idr_init(&file_priv->context_idr);
 
@@ -495,12 +495,12 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 	idr_destroy(&file_priv->context_idr);
 }
 
-struct intel_context *
+struct i915_gem_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 {
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 
-	ctx = (struct intel_context *)idr_find(&file_priv->context_idr, id);
+	ctx = idr_find(&file_priv->context_idr, id);
 	if (!ctx)
 		return ERR_PTR(-ENOENT);
 
@@ -641,7 +641,7 @@ static int remap_l3(struct drm_i915_gem_request *req, int slice)
 
 static inline bool skip_rcs_switch(struct i915_hw_ppgtt *ppgtt,
 				   struct intel_engine_cs *engine,
-				   struct intel_context *to)
+				   struct i915_gem_context *to)
 {
 	if (to->remap_slice)
 		return false;
@@ -658,7 +658,7 @@ static inline bool skip_rcs_switch(struct i915_hw_ppgtt *ppgtt,
 static bool
 needs_pd_load_pre(struct i915_hw_ppgtt *ppgtt,
 		  struct intel_engine_cs *engine,
-		  struct intel_context *to)
+		  struct i915_gem_context *to)
 {
 	if (!ppgtt)
 		return false;
@@ -683,7 +683,7 @@ needs_pd_load_pre(struct i915_hw_ppgtt *ppgtt,
 
 static bool
 needs_pd_load_post(struct i915_hw_ppgtt *ppgtt,
-		   struct intel_context *to,
+		   struct i915_gem_context *to,
 		   u32 hw_flags)
 {
 	if (!ppgtt)
@@ -700,10 +700,10 @@ needs_pd_load_post(struct i915_hw_ppgtt *ppgtt,
 
 static int do_rcs_switch(struct drm_i915_gem_request *req)
 {
-	struct intel_context *to = req->ctx;
+	struct i915_gem_context *to = req->ctx;
 	struct intel_engine_cs *engine = req->engine;
 	struct i915_hw_ppgtt *ppgtt = to->ppgtt ?: req->i915->mm.aliasing_ppgtt;
-	struct intel_context *from;
+	struct i915_gem_context *from;
 	u32 hw_flags;
 	int ret, i;
 
@@ -859,7 +859,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 
 	if (engine->id != RCS ||
 	    req->ctx->legacy_hw_ctx.rcs_state == NULL) {
-		struct intel_context *to = req->ctx;
+		struct i915_gem_context *to = req->ctx;
 		struct i915_hw_ppgtt *ppgtt =
 			to->ppgtt ?: req->i915->mm.aliasing_ppgtt;
 
@@ -897,7 +897,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_context_create *args = data;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	int ret;
 
 	if (!contexts_enabled(dev))
@@ -926,7 +926,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_context_destroy *args = data;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	int ret;
 
 	if (args->pad != 0)
@@ -958,7 +958,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct drm_i915_gem_context_param *args = data;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	int ret;
 
 	ret = i915_mutex_lock_interruptible(dev);
@@ -1001,7 +1001,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct drm_i915_gem_context_param *args = data;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	int ret;
 
 	ret = i915_mutex_lock_interruptible(dev);
@@ -1047,7 +1047,7 @@ int i915_gem_context_reset_stats_ioctl(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_reset_stats *args = data;
 	struct i915_ctx_hang_stats *hs;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	int ret;
 
 	if (args->flags || args->pad)

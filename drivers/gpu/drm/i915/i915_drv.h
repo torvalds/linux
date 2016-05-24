@@ -831,7 +831,7 @@ struct i915_ctx_hang_stats {
 
 #define CONTEXT_NO_ZEROMAP (1<<0)
 /**
- * struct intel_context - as the name implies, represents a context.
+ * struct i915_gem_context - as the name implies, represents a context.
  * @ref: reference count.
  * @user_handle: userspace tracking identity for this context.
  * @remap_slice: l3 row remapping information.
@@ -849,7 +849,7 @@ struct i915_ctx_hang_stats {
  * Contexts are memory images used by the hardware to store copies of their
  * internal state.
  */
-struct intel_context {
+struct i915_gem_context {
 	struct kref ref;
 	int user_handle;
 	uint8_t remap_slice;
@@ -1710,7 +1710,7 @@ struct i915_execbuffer_params {
 	uint64_t                        batch_obj_vm_offset;
 	struct intel_engine_cs *engine;
 	struct drm_i915_gem_object      *batch_obj;
-	struct intel_context            *ctx;
+	struct i915_gem_context            *ctx;
 	struct drm_i915_gem_request     *request;
 };
 
@@ -2017,7 +2017,7 @@ struct drm_i915_private {
 		void (*stop_engine)(struct intel_engine_cs *engine);
 	} gt;
 
-	struct intel_context *kernel_context;
+	struct i915_gem_context *kernel_context;
 
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];
@@ -2385,7 +2385,7 @@ struct drm_i915_gem_request {
 	 * i915_gem_request_free() will then decrement the refcount on the
 	 * context.
 	 */
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	struct intel_ringbuffer *ringbuf;
 
 	/**
@@ -2397,7 +2397,7 @@ struct drm_i915_gem_request {
 	 * we keep the previous context pinned until the following (this)
 	 * request is retired.
 	 */
-	struct intel_context *previous_context;
+	struct i915_gem_context *previous_context;
 
 	/** Batch buffer related to this request if any (used for
 	    error state dump only) */
@@ -2441,7 +2441,7 @@ struct drm_i915_gem_request {
 
 struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
-		       struct intel_context *ctx);
+		       struct i915_gem_context *ctx);
 void i915_gem_request_free(struct kref *req_ref);
 int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 				   struct drm_file *file);
@@ -3427,22 +3427,22 @@ void i915_gem_context_reset(struct drm_device *dev);
 int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct drm_i915_gem_request *req);
-struct intel_context *
+struct i915_gem_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id);
 void i915_gem_context_free(struct kref *ctx_ref);
 struct drm_i915_gem_object *
 i915_gem_alloc_context_obj(struct drm_device *dev, size_t size);
-static inline void i915_gem_context_reference(struct intel_context *ctx)
+static inline void i915_gem_context_reference(struct i915_gem_context *ctx)
 {
 	kref_get(&ctx->ref);
 }
 
-static inline void i915_gem_context_unreference(struct intel_context *ctx)
+static inline void i915_gem_context_unreference(struct i915_gem_context *ctx)
 {
 	kref_put(&ctx->ref, i915_gem_context_free);
 }
 
-static inline bool i915_gem_context_is_default(const struct intel_context *c)
+static inline bool i915_gem_context_is_default(const struct i915_gem_context *c)
 {
 	return c->user_handle == DEFAULT_CONTEXT_HANDLE;
 }

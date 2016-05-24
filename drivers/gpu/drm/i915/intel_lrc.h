@@ -99,16 +99,18 @@ static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
 #define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + 1)
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
 
-void intel_lr_context_free(struct intel_context *ctx);
+struct i915_gem_context;
+
+void intel_lr_context_free(struct i915_gem_context *ctx);
 uint32_t intel_lr_context_size(struct intel_engine_cs *engine);
-void intel_lr_context_unpin(struct intel_context *ctx,
+void intel_lr_context_unpin(struct i915_gem_context *ctx,
 			    struct intel_engine_cs *engine);
 
 struct drm_i915_private;
 
 void intel_lr_context_reset(struct drm_i915_private *dev_priv,
-			    struct intel_context *ctx);
-uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
+			    struct i915_gem_context *ctx);
+uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
 				     struct intel_engine_cs *engine);
 
 /* Execlists */

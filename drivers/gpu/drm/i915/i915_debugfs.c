@@ -199,7 +199,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (frontbuffer: 0x%03x)", obj->frontbuffer_bits);
 }
 
-static void describe_ctx(struct seq_file *m, struct intel_context *ctx)
+static void describe_ctx(struct seq_file *m, struct i915_gem_context *ctx)
 {
 	seq_putc(m, ctx->legacy_hw_ctx.initialized ? 'I' : 'i');
 	seq_putc(m, ctx->remap_slice ? 'R' : 'r');
@@ -2000,7 +2000,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
 	int ret;
 
@@ -2046,7 +2046,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 }
 
 static void i915_dump_lrc_obj(struct seq_file *m,
-			      struct intel_context *ctx,
+			      struct i915_gem_context *ctx,
 			      struct intel_engine_cs *engine)
 {
 	struct page *page;
@@ -2094,7 +2094,7 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
-	struct intel_context *ctx;
+	struct i915_gem_context *ctx;
 	int ret;
 
 	if (!i915.enable_execlists) {
@@ -2274,7 +2274,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 
 static int per_file_ctx(int id, void *ptr, void *data)
 {
-	struct intel_context *ctx = ptr;
+	struct i915_gem_context *ctx = ptr;
 	struct seq_file *m = data;
 	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
 

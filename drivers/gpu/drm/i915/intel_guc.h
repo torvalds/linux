@@ -64,7 +64,7 @@ struct drm_i915_gem_request;
 struct i915_guc_client {
 	struct drm_i915_gem_object *client_obj;
 	void *client_base;		/* first page (only) of above	*/
-	struct intel_context *owner;
+	struct i915_gem_context *owner;
 	struct intel_guc *guc;
 	uint32_t priority;
 	uint32_t ctx_index;

@@ -231,9 +231,9 @@ enum {
 /* Typical size of the average request (2 pipecontrols and a MI_BB) */
 #define EXECLISTS_REQUEST_SIZE 64 /* bytes */
 
-static int execlists_context_deferred_alloc(struct intel_context *ctx,
+static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine);
-static int intel_lr_context_pin(struct intel_context *ctx,
+static int intel_lr_context_pin(struct i915_gem_context *ctx,
 				struct intel_engine_cs *engine);
 
 /**
@@ -315,7 +315,7 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
  *    bits 55-63:    group ID, currently unused and set to 0
  */
 static void
-intel_lr_context_descriptor_update(struct intel_context *ctx,
+intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 				   struct intel_engine_cs *engine)
 {
 	u64 desc;
@@ -330,7 +330,7 @@ intel_lr_context_descriptor_update(struct intel_context *ctx,
 	ctx->engine[engine->id].lrc_desc = desc;
 }
 
-uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
+uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,
 				     struct intel_engine_cs *engine)
 {
 	return ctx->engine[engine->id].lrc_desc;
@@ -929,7 +929,7 @@ int logical_ring_flush_all_caches(struct drm_i915_gem_request *req)
 	return 0;
 }
 
-static int intel_lr_context_pin(struct intel_context *ctx,
+static int intel_lr_context_pin(struct i915_gem_context *ctx,
 				struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = ctx->i915;
@@ -985,7 +985,7 @@ err:
 	return ret;
 }
 
-void intel_lr_context_unpin(struct intel_context *ctx,
+void intel_lr_context_unpin(struct i915_gem_context *ctx,
 			    struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *ctx_obj;
@@ -2046,7 +2046,7 @@ logical_ring_setup(struct drm_device *dev, enum intel_engine_id id)
 static int
 logical_ring_init(struct intel_engine_cs *engine)
 {
-	struct intel_context *dctx = engine->i915->kernel_context;
+	struct i915_gem_context *dctx = engine->i915->kernel_context;
 	int ret;
 
 	ret = i915_cmd_parser_init_ring(engine);
@@ -2270,7 +2270,7 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 }
 
 static int
-populate_lr_context(struct intel_context *ctx,
+populate_lr_context(struct i915_gem_context *ctx,
 		    struct drm_i915_gem_object *ctx_obj,
 		    struct intel_engine_cs *engine,
 		    struct intel_ringbuffer *ringbuf)
@@ -2418,7 +2418,7 @@ populate_lr_context(struct intel_context *ctx,
  * takes care of the bits that are LRC related: the per-engine backing
  * objects and the logical ringbuffer.
  */
-void intel_lr_context_free(struct intel_context *ctx)
+void intel_lr_context_free(struct i915_gem_context *ctx)
 {
 	int i;
 
@@ -2486,7 +2486,7 @@ uint32_t intel_lr_context_size(struct intel_engine_cs *engine)
  *
  * Return: non-zero on error.
  */
-static int execlists_context_deferred_alloc(struct intel_context *ctx,
+static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *ctx_obj;
@@ -2536,7 +2536,7 @@ error_deref_obj:
 }
 
 void intel_lr_context_reset(struct drm_i915_private *dev_priv,
-			    struct intel_context *ctx)
+			    struct i915_gem_context *ctx)
 {
 	struct intel_engine_cs *engine;
 
