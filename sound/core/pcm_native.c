@@ -2869,7 +2869,7 @@ static int snd_pcm_playback_ioctl1(struct file *file,
 				   struct snd_pcm_substream *substream,
 				   unsigned int cmd, void __user *arg)
 {
-	if (snd_BUG_ON(!substream))
+	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 	if (snd_BUG_ON(substream->stream != SNDRV_PCM_STREAM_PLAYBACK))
 		return -EINVAL;
@@ -2949,7 +2949,7 @@ static int snd_pcm_capture_ioctl1(struct file *file,
 				  struct snd_pcm_substream *substream,
 				  unsigned int cmd, void __user *arg)
 {
-	if (snd_BUG_ON(!substream))
+	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 	if (snd_BUG_ON(substream->stream != SNDRV_PCM_STREAM_CAPTURE))
 		return -EINVAL;
