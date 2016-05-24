@@ -23,8 +23,9 @@
  * http://infocenter.arm.com/help/topic/com.arm.doc.den0028a/index.html
  */
 
-#define ARM_SMCCC_STD_CALL		0
-#define ARM_SMCCC_FAST_CALL		1
+/* This constant is shifted by 31, make sure it's of an unsigned type */
+#define ARM_SMCCC_STD_CALL		0UL
+#define ARM_SMCCC_FAST_CALL		1UL
 #define ARM_SMCCC_TYPE_SHIFT		31
 
 #define ARM_SMCCC_SMC_32		0
