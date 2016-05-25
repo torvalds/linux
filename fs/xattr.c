@@ -655,6 +655,7 @@ strcmp_prefix(const char *a, const char *a_prefix)
  * operations to the correct xattr_handler.
  */
 #define for_each_xattr_handler(handlers, handler)		\
+	if (handlers)						\
 		for ((handler) = *(handlers)++;			\
 			(handler) != NULL;			\
 			(handler) = *(handlers)++)
