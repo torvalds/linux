@@ -23,8 +23,6 @@
 
 
 / {
-	clock-frequency		= <500000000>;	/* 500 MHZ */
-
 	soc100 {
 		bus-frequency	= <166666666>;
 
