@@ -187,7 +187,7 @@ static int bh1780_probe(struct i2c_client *client,
 
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &bh1780_info;
-	indio_dev->name = id->name;
+	indio_dev->name = "bh1780";
 	indio_dev->channels = bh1780_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bh1780_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
