@@ -727,8 +727,8 @@ static void ceph_aio_retry_work(struct work_struct *work)
 	req->r_ops[0] = orig_req->r_ops[0];
 	osd_req_op_init(req, 1, CEPH_OSD_OP_STARTSYNC, 0);
 
-	ceph_osdc_build_request(req, req->r_ops[0].extent.offset,
-				snapc, CEPH_NOSNAP, &aio_req->mtime);
+	req->r_mtime = aio_req->mtime;
+	req->r_data_offset = req->r_ops[0].extent.offset;
 
 	ceph_osdc_put_request(orig_req);
 
@@ -882,13 +882,11 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 					(pos+len) | (PAGE_SIZE - 1));
 
 			osd_req_op_init(req, 1, CEPH_OSD_OP_STARTSYNC, 0);
+			req->r_mtime = mtime;
 		}
-
 
 		osd_req_op_extent_osd_data_pages(req, 0, pages, len, start,
 						 false, false);
-
-		ceph_osdc_build_request(req, pos, snapc, vino.snap, &mtime);
 
 		if (aio_req) {
 			aio_req->total_len += len;
@@ -1074,9 +1072,7 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 		osd_req_op_extent_osd_data_pages(req, 0, pages, len, 0,
 						false, true);
 
-		/* BUG_ON(vino.snap != CEPH_NOSNAP); */
-		ceph_osdc_build_request(req, pos, snapc, vino.snap, &mtime);
-
+		req->r_mtime = mtime;
 		ret = ceph_osdc_start_request(&fsc->client->osdc, req, false);
 		if (!ret)
 			ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
@@ -1532,9 +1528,7 @@ static int ceph_zero_partial_object(struct inode *inode,
 		goto out;
 	}
 
-	ceph_osdc_build_request(req, offset, NULL, ceph_vino(inode).snap,
-				&inode->i_mtime);
-
+	req->r_mtime = inode->i_mtime;
 	ret = ceph_osdc_start_request(&fsc->client->osdc, req, false);
 	if (!ret) {
 		ret = ceph_osdc_wait_request(&fsc->client->osdc, req);

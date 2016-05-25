@@ -145,6 +145,43 @@ static int monc_show(struct seq_file *s, void *p)
 	return 0;
 }
 
+static void dump_target(struct seq_file *s, struct ceph_osd_request_target *t)
+{
+	int i;
+
+	seq_printf(s, "osd%d\t%llu.%x\t[", t->osd, t->pgid.pool, t->pgid.seed);
+	for (i = 0; i < t->up.size; i++)
+		seq_printf(s, "%s%d", (!i ? "" : ","), t->up.osds[i]);
+	seq_printf(s, "]/%d\t[", t->up.primary);
+	for (i = 0; i < t->acting.size; i++)
+		seq_printf(s, "%s%d", (!i ? "" : ","), t->acting.osds[i]);
+	seq_printf(s, "]/%d\t%*pE\t0x%x", t->acting.primary,
+		   t->target_oid.name_len, t->target_oid.name, t->flags);
+	if (t->paused)
+		seq_puts(s, "\tP");
+}
+
+static void dump_request(struct seq_file *s, struct ceph_osd_request *req)
+{
+	int i;
+
+	seq_printf(s, "%llu\t", req->r_tid);
+	dump_target(s, &req->r_t);
+
+	seq_printf(s, "\t%d\t%u'%llu", req->r_attempts,
+		   le32_to_cpu(req->r_replay_version.epoch),
+		   le64_to_cpu(req->r_replay_version.version));
+
+	for (i = 0; i < req->r_num_ops; i++) {
+		struct ceph_osd_req_op *op = &req->r_ops[i];
+
+		seq_printf(s, "%s%s", (i == 0 ? "\t" : ","),
+			   ceph_osd_op_name(op->op));
+	}
+
+	seq_putc(s, '\n');
+}
+
 static int osdc_show(struct seq_file *s, void *pp)
 {
 	struct ceph_client *client = s->private;
@@ -154,32 +191,10 @@ static int osdc_show(struct seq_file *s, void *pp)
 	mutex_lock(&osdc->request_mutex);
 	for (p = rb_first(&osdc->requests); p; p = rb_next(p)) {
 		struct ceph_osd_request *req;
-		unsigned int i;
-		int opcode;
 
 		req = rb_entry(p, struct ceph_osd_request, r_node);
 
-		seq_printf(s, "%lld\tosd%d\t%lld.%x\t", req->r_tid,
-			   req->r_osd ? req->r_osd->o_osd : -1,
-			   req->r_t.pgid.pool, req->r_t.pgid.seed);
-
-		seq_printf(s, "%*pE", req->r_base_oid.name_len,
-			   req->r_base_oid.name);
-
-		if (req->r_reassert_version.epoch)
-			seq_printf(s, "\t%u'%llu",
-			   (unsigned int)le32_to_cpu(req->r_reassert_version.epoch),
-			   le64_to_cpu(req->r_reassert_version.version));
-		else
-			seq_printf(s, "\t");
-
-		for (i = 0; i < req->r_num_ops; i++) {
-			opcode = req->r_ops[i].op;
-			seq_printf(s, "%s%s", (i == 0 ? "\t" : ","),
-				   ceph_osd_op_name(opcode));
-		}
-
-		seq_printf(s, "\n");
+		dump_request(s, req);
 	}
 	mutex_unlock(&osdc->request_mutex);
 	return 0;

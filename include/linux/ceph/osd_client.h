@@ -104,7 +104,7 @@ struct ceph_osd_req_op {
 			struct ceph_osd_data response_data;
 			__u8 class_len;
 			__u8 method_len;
-			__u8 argc;
+			u32 indata_len;
 		} cls;
 		struct {
 			u64 cookie;
@@ -162,14 +162,6 @@ struct ceph_osd_request {
 	/* request osd ops array  */
 	unsigned int		r_num_ops;
 
-	/* these are updated on each send */
-	__le32           *r_request_osdmap_epoch;
-	__le32           *r_request_flags;
-	__le64           *r_request_pool;
-	void             *r_request_pgid;
-	__le32           *r_request_attempts;
-	struct ceph_eversion *r_request_reassert_version;
-
 	int               r_result;
 	int               r_got_reply;
 	int		  r_linger;
@@ -180,16 +172,22 @@ struct ceph_osd_request {
 	struct completion r_completion, r_safe_completion;
 	ceph_osdc_callback_t r_callback;
 	ceph_osdc_unsafe_callback_t r_unsafe_callback;
-	struct ceph_eversion r_reassert_version;
 	struct list_head  r_unsafe_item;
 
 	struct inode *r_inode;         	      /* for use by callbacks */
 	void *r_priv;			      /* ditto */
 
-	u64               r_snapid;
-	unsigned long     r_stamp;            /* send OR check time */
+	/* set by submitter */
+	u64 r_snapid;                         /* for reads, CEPH_NOSNAP o/w */
+	struct ceph_snap_context *r_snapc;    /* for writes */
+	struct timespec r_mtime;              /* ditto */
+	u64 r_data_offset;                    /* ditto */
 
-	struct ceph_snap_context *r_snapc;    /* snap context for writes */
+	/* internal */
+	unsigned long r_stamp;                /* jiffies, send or check time */
+	int r_attempts;
+	struct ceph_eversion r_replay_version; /* aka reassert_version */
+	u32 r_last_force_resend;
 
 	struct ceph_osd_req_op r_ops[];
 };
@@ -333,11 +331,6 @@ extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *
 					       bool use_mempool,
 					       gfp_t gfp_flags);
 int ceph_osdc_alloc_messages(struct ceph_osd_request *req, gfp_t gfp);
-
-extern void ceph_osdc_build_request(struct ceph_osd_request *req, u64 off,
-				    struct ceph_snap_context *snapc,
-				    u64 snap_id,
-				    struct timespec *mtime);
 
 extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 				      struct ceph_file_layout *layout,
