@@ -483,7 +483,8 @@ int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd)
 	return __perf_evlist__add_pollfd(evlist, fd, -1, POLLIN);
 }
 
-static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd)
+static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd,
+					 void *arg __maybe_unused)
 {
 	struct perf_evlist *evlist = container_of(fda, struct perf_evlist, pollfd);
 
@@ -493,7 +494,7 @@ static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd)
 int perf_evlist__filter_pollfd(struct perf_evlist *evlist, short revents_and_mask)
 {
 	return fdarray__filter(&evlist->pollfd, revents_and_mask,
-			       perf_evlist__munmap_filtered);
+			       perf_evlist__munmap_filtered, NULL);
 }
 
 int perf_evlist__poll(struct perf_evlist *evlist, int timeout)
