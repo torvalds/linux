@@ -541,6 +541,21 @@ brcmf_cfg80211_update_proto_addr_mode(struct wireless_dev *wdev)
 						ADDR_INDIRECT);
 }
 
+static int brcmf_get_first_free_bsscfgidx(struct brcmf_pub *drvr)
+{
+	int bsscfgidx;
+
+	for (bsscfgidx = 0; bsscfgidx < BRCMF_MAX_IFS; bsscfgidx++) {
+		/* bsscfgidx 1 is reserved for legacy P2P */
+		if (bsscfgidx == 1)
+			continue;
+		if (!drvr->iflist[bsscfgidx])
+			return bsscfgidx;
+	}
+
+	return -ENOMEM;
+}
+
 static int brcmf_cfg80211_request_ap_if(struct brcmf_if *ifp)
 {
 	struct brcmf_mbss_ssid_le mbss_ssid_le;
@@ -548,7 +563,7 @@ static int brcmf_cfg80211_request_ap_if(struct brcmf_if *ifp)
 	int err;
 
 	memset(&mbss_ssid_le, 0, sizeof(mbss_ssid_le));
-	bsscfgidx = brcmf_get_next_free_bsscfgidx(ifp->drvr);
+	bsscfgidx = brcmf_get_first_free_bsscfgidx(ifp->drvr);
 	if (bsscfgidx < 0)
 		return bsscfgidx;
 

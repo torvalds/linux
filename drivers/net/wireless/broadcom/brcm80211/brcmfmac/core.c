@@ -753,30 +753,6 @@ void brcmf_remove_interface(struct brcmf_if *ifp)
 	brcmf_del_if(ifp->drvr, ifp->bsscfgidx);
 }
 
-int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
-{
-	int ifidx;
-	int bsscfgidx;
-	bool available;
-	int highest;
-
-	available = false;
-	bsscfgidx = 2;
-	highest = 2;
-	for (ifidx = 0; ifidx < BRCMF_MAX_IFS; ifidx++) {
-		if (drvr->iflist[ifidx]) {
-			if (drvr->iflist[ifidx]->bsscfgidx == bsscfgidx)
-				bsscfgidx = highest + 1;
-			else if (drvr->iflist[ifidx]->bsscfgidx > highest)
-				highest = drvr->iflist[ifidx]->bsscfgidx;
-		} else {
-			available = true;
-		}
-	}
-
-	return available ? bsscfgidx : -ENOMEM;
-}
-
 #ifdef CONFIG_INET
 #define ARPOL_MAX_ENTRIES	8
 static int brcmf_inetaddr_changed(struct notifier_block *nb,
