@@ -478,6 +478,9 @@ unsigned char *choose_random_location(unsigned long input,
 
 	boot_params->hdr.loadflags |= KASLR_FLAG;
 
+	/* Prepare to add new identity pagetables on demand. */
+	initialize_identity_maps();
+
 	/* Record the various known unsafe memory ranges. */
 	mem_avoid_init(input, input_size, output);
 
