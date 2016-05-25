@@ -448,7 +448,12 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
 
 		ring->ready = true;
+	}
 
+	cik_sdma_enable(adev, true);
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		ring = &adev->sdma.instance[i].ring;
 		r = amdgpu_ring_test_ring(ring);
 		if (r) {
 			ring->ready = false;
@@ -531,8 +536,8 @@ static int cik_sdma_start(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	/* unhalt the MEs */
-	cik_sdma_enable(adev, true);
+	/* halt the engine before programing */
+	cik_sdma_enable(adev, false);
 
 	/* start the gfx rings and rlc compute queues */
 	r = cik_sdma_gfx_resume(adev);

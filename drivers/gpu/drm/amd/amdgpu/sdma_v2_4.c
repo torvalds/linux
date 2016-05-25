@@ -491,7 +491,11 @@ static int sdma_v2_4_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
 
 		ring->ready = true;
+	}
 
+	sdma_v2_4_enable(adev, true);
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		ring = &adev->sdma.instance[i].ring;
 		r = amdgpu_ring_test_ring(ring);
 		if (r) {
 			ring->ready = false;
@@ -582,8 +586,8 @@ static int sdma_v2_4_start(struct amdgpu_device *adev)
 			return -EINVAL;
 	}
 
-	/* unhalt the MEs */
-	sdma_v2_4_enable(adev, true);
+	/* halt the engine before programing */
+	sdma_v2_4_enable(adev, false);
 
 	/* start the gfx rings and rlc compute queues */
 	r = sdma_v2_4_gfx_resume(adev);
