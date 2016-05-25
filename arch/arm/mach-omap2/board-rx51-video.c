@@ -15,7 +15,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mm.h>
 #include <asm/mach-types.h>
-#include <video/omapdss.h>
+#include <linux/platform_data/omapdss.h>
 #include <video/omap-panel-data.h>
 
 #include <linux/platform_data/spi-omap2-mcspi.h>

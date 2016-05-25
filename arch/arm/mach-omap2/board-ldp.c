@@ -39,7 +39,7 @@
 #include "gpmc.h"
 #include "gpmc-smsc911x.h"
 
-#include <video/omapdss.h>
+#include <linux/platform_data/omapdss.h>
 #include <video/omap-panel-data.h>
 
 #include "board-flash.h"
