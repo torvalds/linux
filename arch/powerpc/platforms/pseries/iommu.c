@@ -873,7 +873,7 @@ static int query_ddw(struct pci_dev *dev, const u32 *ddw_avail,
 	dn = pci_device_to_OF_node(dev);
 	pdn = PCI_DN(dn);
 	buid = pdn->phb->buid;
-	cfg_addr = (pdn->busno << 8) | pdn->devfn;
+	cfg_addr = ((pdn->busno << 16) | (pdn->devfn << 8));
 
 	ret = rtas_call(ddw_avail[0], 3, 5, (u32 *)query,
 		  cfg_addr, BUID_HI(buid), BUID_LO(buid));
@@ -902,7 +902,7 @@ static int create_ddw(struct pci_dev *dev, const u32 *ddw_avail,
 	dn = pci_device_to_OF_node(dev);
 	pdn = PCI_DN(dn);
 	buid = pdn->phb->buid;
-	cfg_addr = (pdn->busno << 8) | pdn->devfn;
+	cfg_addr = ((pdn->busno << 16) | (pdn->devfn << 8));
 
 	do {
 		/* extra outputs are LIOBN and dma-addr (hi, lo) */
