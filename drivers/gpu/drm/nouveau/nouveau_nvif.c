@@ -71,15 +71,6 @@ nvkm_client_suspend(void *priv)
 	return nvkm_object_fini(&client->object, true);
 }
 
-static void
-nvkm_client_driver_fini(void *priv)
-{
-	struct nvkm_client *client = priv;
-	struct nvkm_object *object = &client->object;
-	nvkm_object_fini(object, false);
-	nvkm_object_del(&object);
-}
-
 static int
 nvkm_client_ntfy(const void *header, u32 length, const void *data, u32 size)
 {
@@ -128,7 +119,6 @@ const struct nvif_driver
 nvif_driver_nvkm = {
 	.name = "nvkm",
 	.init = nvkm_client_driver_init,
-	.fini = nvkm_client_driver_fini,
 	.suspend = nvkm_client_suspend,
 	.resume = nvkm_client_resume,
 	.ioctl = nvkm_client_ioctl,

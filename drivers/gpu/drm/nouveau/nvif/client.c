@@ -47,11 +47,11 @@ nvif_client_resume(struct nvif_client *client)
 void
 nvif_client_fini(struct nvif_client *client)
 {
+	nvif_object_fini(&client->object);
 	if (client->driver) {
-		client->driver->fini(client->object.priv);
+		if (client->driver->fini)
+			client->driver->fini(client->object.priv);
 		client->driver = NULL;
-		client->object.client = NULL;
-		nvif_object_fini(&client->object);
 	}
 }
 
