@@ -85,7 +85,25 @@ vmlinux-objs-$(CONFIG_EFI_STUB) += $(obj)/eboot.o $(obj)/efi_stub_$(BITS).o \
 	$(objtree)/drivers/firmware/efi/libstub/lib.a
 vmlinux-objs-$(CONFIG_EFI_MIXED) += $(obj)/efi_thunk_$(BITS).o
 
+# The compressed kernel is built with -fPIC/-fPIE so that a boot loader
+# can place it anywhere in memory and it will still run. However, since
+# it is executed as-is without any ELF relocation processing performed
+# (and has already had all relocation sections stripped from the binary),
+# none of the code can use data relocations (e.g. static assignments of
+# pointer values), since they will be meaningless at runtime. This check
+# will refuse to link the vmlinux if any of these relocations are found.
+quiet_cmd_check_data_rel = DATAREL $@
+define cmd_check_data_rel
+	for obj in $(filter %.o,$^); do \
+		readelf -S $$obj | grep -qF .rel.local && { \
+			echo "error: $$obj has data relocations!" >&2; \
+			exit 1; \
+		} || true; \
+	done
+endef
+
 $(obj)/vmlinux: $(vmlinux-objs-y) FORCE
+	$(call if_changed,check_data_rel)
 	$(call if_changed,ld)
 
 OBJCOPYFLAGS_vmlinux.bin :=  -R .comment -S
