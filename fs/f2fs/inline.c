@@ -286,8 +286,10 @@ struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
 	f2fs_hash_t namehash;
 
 	ipage = get_node_page(sbi, dir->i_ino);
-	if (IS_ERR(ipage))
+	if (IS_ERR(ipage)) {
+		*res_page = ipage;
 		return NULL;
+	}
 
 	namehash = f2fs_dentry_hash(&name);
 
