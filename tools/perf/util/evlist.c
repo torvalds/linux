@@ -777,7 +777,7 @@ broken_event:
 	return event;
 }
 
-union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
+union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int idx)
 {
 	struct perf_mmap *md = &evlist->mmap[idx];
 	u64 head;
@@ -830,6 +830,13 @@ perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
 		end = head + md->mask + 1;
 
 	return perf_mmap__read(md, false, start, end, &md->prev);
+}
+
+union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
+{
+	if (!evlist->backward)
+		return perf_evlist__mmap_read_forward(evlist, idx);
+	return perf_evlist__mmap_read_backward(evlist, idx);
 }
 
 void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
