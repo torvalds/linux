@@ -535,6 +535,16 @@ Bridge layer
 Bridge VLAN filtering
 ---------------------
 
+- port_vlan_filtering: bridge layer function invoked when the bridge gets
+  configured for turning on or off VLAN filtering. If nothing specific needs to
+  be done at the hardware level, this callback does not need to be implemented.
+  When VLAN filtering is turned on, the hardware must be programmed with
+  rejecting 802.1Q frames which have VLAN IDs outside of the programmed allowed
+  VLAN ID map/rules.  If there is no PVID programmed into the switch port,
+  untagged frames must be rejected as well. When turned off the switch must
+  accept any 802.1Q frames irrespective of their VLAN ID, and untagged frames are
+  allowed.
+
 - port_vlan_prepare: bridge layer function invoked when the bridge prepares the
   configuration of a VLAN on the given port. If the operation is not supported
   by the hardware, this function should return -EOPNOTSUPP to inform the bridge
