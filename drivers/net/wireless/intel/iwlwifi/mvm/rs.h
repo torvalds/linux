@@ -205,6 +205,7 @@ struct rs_rate {
 #define is_ht20(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_20)
 #define is_ht40(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_40)
 #define is_ht80(rate)         ((rate)->bw == RATE_MCS_CHAN_WIDTH_80)
+#define is_ht160(rate)        ((rate)->bw == RATE_MCS_CHAN_WIDTH_160)
 
 #define IWL_MAX_MCS_DISPLAY_SIZE	12
 
