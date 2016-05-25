@@ -557,6 +557,12 @@ bool ff_layout_avoid_mds_available_ds(struct pnfs_layout_segment *lseg)
 	       ff_layout_has_available_ds(lseg);
 }
 
+bool ff_layout_avoid_read_on_rw(struct pnfs_layout_segment *lseg)
+{
+	return lseg->pls_range.iomode == IOMODE_RW &&
+	       ff_layout_no_read_on_rw(lseg);
+}
+
 module_param(dataserver_retrans, uint, 0644);
 MODULE_PARM_DESC(dataserver_retrans, "The  number of times the NFSv4.1 client "
 			"retries a request before it attempts further "
