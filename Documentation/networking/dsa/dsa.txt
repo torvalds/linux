@@ -369,8 +369,6 @@ does not allocate any driver private context space.
 Switch configuration
 --------------------
 
-- priv_size: additional size needed by the switch driver for its private context
-
 - tag_protocol: this is to indicate what kind of tagging protocol is supported,
   should be a valid value from the dsa_tag_protocol enum
 
