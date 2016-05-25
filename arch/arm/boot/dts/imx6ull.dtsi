@@ -742,7 +742,7 @@
 				#interrupt-cells = <3>;
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&intc>;
-				fsl,mf-mix-wakeup-irq = <0x7c00000 0x7d00 0x0 0x1400640>;
+				fsl,mf-mix-wakeup-irq = <0xfc00000 0x7d00 0x0 0x1400640>;
 			};
 
 			iomuxc: iomuxc@020e0000 {
