@@ -655,6 +655,7 @@ strcmp_prefix(const char *a, const char *a_prefix)
  * operations to the correct xattr_handler.
  */
 #define for_each_xattr_handler(handlers, handler)		\
+	if (handlers)						\
 		for ((handler) = *(handlers)++;			\
 			(handler) != NULL;			\
 			(handler) = *(handlers)++)
@@ -668,7 +669,7 @@ xattr_resolve_name(const struct xattr_handler **handlers, const char **name)
 	const struct xattr_handler *handler;
 
 	if (!*name)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	for_each_xattr_handler(handlers, handler) {
 		const char *n;
