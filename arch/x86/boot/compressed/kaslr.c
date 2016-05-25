@@ -492,7 +492,7 @@ void choose_random_location(unsigned long input,
 			    unsigned long output_size,
 			    unsigned long *virt_addr)
 {
-	unsigned long random_addr;
+	unsigned long random_addr, min_addr;
 
 	/* By default, keep output position unchanged. */
 	*virt_addr = *output;
@@ -510,8 +510,15 @@ void choose_random_location(unsigned long input,
 	/* Record the various known unsafe memory ranges. */
 	mem_avoid_init(input, input_size, *output);
 
+	/*
+	 * Low end of the randomization range should be the
+	 * smaller of 512M or the initial kernel image
+	 * location:
+	 */
+	min_addr = min(*output, 512UL << 20);
+
 	/* Walk e820 and find a random address. */
-	random_addr = find_random_phys_addr(*output, output_size);
+	random_addr = find_random_phys_addr(min_addr, output_size);
 	if (!random_addr) {
 		warn("KASLR disabled: could not find suitable E820 region!");
 	} else {
