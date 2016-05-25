@@ -2066,17 +2066,30 @@ EXPORT_SYMBOL_GPL(gpiod_to_irq);
  */
 int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 {
-	if (offset >= chip->ngpio)
-		return -EINVAL;
+	struct gpio_desc *desc;
 
-	if (test_bit(FLAG_IS_OUT, &chip->gpiodev->descs[offset].flags)) {
+	desc = gpiochip_get_desc(chip, offset);
+	if (IS_ERR(desc))
+		return PTR_ERR(desc);
+
+	/* Flush direction if something changed behind our back */
+	if (chip->get_direction) {
+		int dir = chip->get_direction(chip, offset);
+
+		if (dir)
+			clear_bit(FLAG_IS_OUT, &desc->flags);
+		else
+			set_bit(FLAG_IS_OUT, &desc->flags);
+	}
+
+	if (test_bit(FLAG_IS_OUT, &desc->flags)) {
 		chip_err(chip,
 			  "%s: tried to flag a GPIO set as output for IRQ\n",
 			  __func__);
 		return -EIO;
 	}
 
-	set_bit(FLAG_USED_AS_IRQ, &chip->gpiodev->descs[offset].flags);
+	set_bit(FLAG_USED_AS_IRQ, &desc->flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gpiochip_lock_as_irq);
