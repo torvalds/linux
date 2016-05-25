@@ -547,7 +547,7 @@ static irqreturn_t i801_isr(int irq, void *dev_id)
 	status &= SMBHSTSTS_INTR | STATUS_ERROR_FLAGS;
 	if (status) {
 		outb_p(status, SMBHSTSTS(priv));
-		priv->status |= status;
+		priv->status = status;
 		wake_up(&priv->waitq);
 	}
 
