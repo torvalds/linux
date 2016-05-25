@@ -387,7 +387,7 @@ static int gb_interface_vsys_set(struct gb_interface *intf, bool enable)
 
 	ret = gb_svc_intf_vsys_set(svc, intf->interface_id, enable);
 	if (ret) {
-		dev_err(&intf->dev, "failed to enable v_sys: %d\n", ret);
+		dev_err(&intf->dev, "failed to set v_sys: %d\n", ret);
 		return ret;
 	}
 
@@ -403,7 +403,7 @@ static int gb_interface_refclk_set(struct gb_interface *intf, bool enable)
 
 	ret = gb_svc_intf_refclk_set(svc, intf->interface_id, enable);
 	if (ret) {
-		dev_err(&intf->dev, "failed to enable refclk: %d\n", ret);
+		dev_err(&intf->dev, "failed to set refclk: %d\n", ret);
 		return ret;
 	}
 
@@ -419,7 +419,7 @@ static int gb_interface_unipro_set(struct gb_interface *intf, bool enable)
 
 	ret = gb_svc_intf_unipro_set(svc, intf->interface_id, enable);
 	if (ret) {
-		dev_err(&intf->dev, "failed to enable UniPro: %d\n", ret);
+		dev_err(&intf->dev, "failed to set UniPro: %d\n", ret);
 		return ret;
 	}
 
