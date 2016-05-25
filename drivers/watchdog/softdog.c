@@ -54,12 +54,12 @@ module_param(soft_panic, int, 0);
 MODULE_PARM_DESC(soft_panic,
 	"Softdog action, set to 1 to panic, 0 to reboot (default=0)");
 
-static void watchdog_fire(unsigned long);
+static void softdog_fire(unsigned long);
 
-static struct timer_list watchdog_ticktock =
-		TIMER_INITIALIZER(watchdog_fire, 0, 0);
+static struct timer_list softdog_ticktock =
+		TIMER_INITIALIZER(softdog_fire, 0, 0);
 
-static void watchdog_fire(unsigned long data)
+static void softdog_fire(unsigned long data)
 {
 	module_put(THIS_MODULE);
 	if (soft_noboot)
@@ -76,14 +76,14 @@ static void watchdog_fire(unsigned long data)
 
 static int softdog_ping(struct watchdog_device *w)
 {
-	if (!mod_timer(&watchdog_ticktock, jiffies+(w->timeout*HZ)))
+	if (!mod_timer(&softdog_ticktock, jiffies+(w->timeout*HZ)))
 		__module_get(THIS_MODULE);
 	return 0;
 }
 
 static int softdog_stop(struct watchdog_device *w)
 {
-	if (del_timer(&watchdog_ticktock))
+	if (del_timer(&softdog_ticktock))
 		module_put(THIS_MODULE);
 
 	return 0;
@@ -115,7 +115,7 @@ static struct watchdog_device softdog_dev = {
 	.timeout = TIMER_MARGIN,
 };
 
-static int __init watchdog_init(void)
+static int __init softdog_init(void)
 {
 	int ret;
 
@@ -132,14 +132,13 @@ static int __init watchdog_init(void)
 
 	return 0;
 }
+module_init(softdog_init);
 
-static void __exit watchdog_exit(void)
+static void __exit softdog_exit(void)
 {
 	watchdog_unregister_device(&softdog_dev);
 }
-
-module_init(watchdog_init);
-module_exit(watchdog_exit);
+module_exit(softdog_exit);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("Software Watchdog Device Driver");
