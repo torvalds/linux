@@ -238,7 +238,9 @@ nvkm_client = {
 
 int
 nvkm_client_new(const char *name, u64 device, const char *cfg,
-		const char *dbg, struct nvkm_client **pclient)
+		const char *dbg,
+		int (*ntfy)(const void *, u32, const void *, u32),
+		struct nvkm_client **pclient)
 {
 	struct nvkm_oclass oclass = { .base = nvkm_uclient_sclass };
 	struct nvkm_client *client;
@@ -252,5 +254,6 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 	client->device = device;
 	client->debug = nvkm_dbgopt(dbg, "CLIENT");
 	client->objroot = RB_ROOT;
+	client->ntfy = ntfy;
 	return 0;
 }

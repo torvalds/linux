@@ -20,7 +20,9 @@ struct nvkm_client {
 };
 
 int  nvkm_client_new(const char *name, u64 device, const char *cfg,
-		     const char *dbg, struct nvkm_client **);
+		     const char *dbg,
+		     int (*)(const void *, u32, const void *, u32),
+		     struct nvkm_client **);
 
 int nvkm_client_notify_new(struct nvkm_object *, struct nvkm_event *,
 			   void *data, u32 size);

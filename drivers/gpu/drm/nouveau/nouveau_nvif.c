@@ -103,16 +103,8 @@ static int
 nvkm_client_driver_init(const char *name, u64 device, const char *cfg,
 			const char *dbg, void **ppriv)
 {
-	struct nvkm_client *client;
-	int ret;
-
-	ret = nvkm_client_new(name, device, cfg, dbg, &client);
-	*ppriv = client;
-	if (ret)
-		return ret;
-
-	client->ntfy = nvkm_client_ntfy;
-	return 0;
+	return nvkm_client_new(name, device, cfg, dbg, nvkm_client_ntfy,
+			       (struct nvkm_client **)ppriv);
 }
 
 const struct nvif_driver
