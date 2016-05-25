@@ -17,23 +17,6 @@
  *
  *	Software only watchdog driver. Unlike its big brother the WDT501P
  *	driver this won't always recover a failed machine.
- *
- *  03/96: Angelo Haritsis <ah@doc.ic.ac.uk> :
- *	Modularised.
- *	Added soft_margin; use upon insmod to change the timer delay.
- *	NB: uses same minor as wdt (WATCHDOG_MINOR); we could use separate
- *	    minors.
- *
- *  19980911 Alan Cox
- *	Made SMP safe for 2.3.x
- *
- *  20011127 Joel Becker (jlbec@evilplan.org>
- *	Added soft_noboot; Allows testing the softdog trigger without
- *	requiring a recompile.
- *	Added WDIOC_GETTIMEOUT and WDIOC_SETTIMOUT.
- *
- *  20020530 Joel Becker <joel.becker@oracle.com>
- *	Added Matt Domsch's nowayout module option.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -71,18 +54,10 @@ module_param(soft_panic, int, 0);
 MODULE_PARM_DESC(soft_panic,
 	"Softdog action, set to 1 to panic, 0 to reboot (default=0)");
 
-/*
- *	Our timer
- */
-
 static void watchdog_fire(unsigned long);
 
 static struct timer_list watchdog_ticktock =
 		TIMER_INITIALIZER(watchdog_fire, 0, 0);
-
-/*
- *	If the timer expires..
- */
 
 static void watchdog_fire(unsigned long data)
 {
@@ -98,10 +73,6 @@ static void watchdog_fire(unsigned long data)
 		pr_crit("Reboot didn't ?????\n");
 	}
 }
-
-/*
- *	Softdog operations
- */
 
 static int softdog_ping(struct watchdog_device *w)
 {
@@ -123,10 +94,6 @@ static int softdog_set_timeout(struct watchdog_device *w, unsigned int t)
 	w->timeout = t;
 	return 0;
 }
-
-/*
- *	Kernel Interfaces
- */
 
 static struct watchdog_info softdog_info = {
 	.identity = "Software Watchdog",
