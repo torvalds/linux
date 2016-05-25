@@ -260,20 +260,26 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 	BUG_ON(num < 1); /* monmap sub is always there */
 	ceph_encode_32(&p, num);
 	for (i = 0; i < ARRAY_SIZE(monc->subs); i++) {
-		const char *s = ceph_sub_str[i];
+		char buf[32];
+		int len;
 
 		if (!monc->subs[i].want)
 			continue;
 
-		dout("%s %s start %llu flags 0x%x\n", __func__, s,
+		len = sprintf(buf, "%s", ceph_sub_str[i]);
+		if (i == CEPH_SUB_MDSMAP &&
+		    monc->fs_cluster_id != CEPH_FS_CLUSTER_ID_NONE)
+			len += sprintf(buf + len, ".%d", monc->fs_cluster_id);
+
+		dout("%s %s start %llu flags 0x%x\n", __func__, buf,
 		     le64_to_cpu(monc->subs[i].item.start),
 		     monc->subs[i].item.flags);
-		ceph_encode_string(&p, end, s, strlen(s));
+		ceph_encode_string(&p, end, buf, len);
 		memcpy(p, &monc->subs[i].item, sizeof(monc->subs[i].item));
 		p += sizeof(monc->subs[i].item);
 	}
 
-	BUG_ON(p != (end - 35 - (ARRAY_SIZE(monc->subs) - num) * 19));
+	BUG_ON(p > end);
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 	ceph_msg_revoke(msg);
@@ -948,7 +954,7 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	if (!monc->m_subscribe_ack)
 		goto out_auth;
 
-	monc->m_subscribe = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 96, GFP_NOFS,
+	monc->m_subscribe = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 128, GFP_NOFS,
 					 true);
 	if (!monc->m_subscribe)
 		goto out_subscribe_ack;
@@ -973,6 +979,8 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	INIT_DELAYED_WORK(&monc->delayed_work, delayed_work);
 	monc->generic_request_tree = RB_ROOT;
 	monc->last_tid = 0;
+
+	monc->fs_cluster_id = CEPH_FS_CLUSTER_ID_NONE;
 
 	return 0;
 

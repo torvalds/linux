@@ -96,6 +96,7 @@ struct ceph_mon_client {
 		bool want;
 		u32 have; /* epoch */
 	} subs[3];
+	int fs_cluster_id; /* "mdsmap.<id>" sub */
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_file;

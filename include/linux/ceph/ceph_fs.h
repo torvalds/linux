@@ -208,6 +208,8 @@ struct ceph_mon_subscribe_ack {
 	struct ceph_fsid fsid;
 } __attribute__ ((packed));
 
+#define CEPH_FS_CLUSTER_ID_NONE  -1
+
 /*
  * mdsmap flags
  */

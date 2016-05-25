@@ -128,6 +128,7 @@ static int monc_show(struct seq_file *s, void *p)
 					CEPH_SUBSCRIBE_ONETIME ?  "" : "+"));
 		seq_putc(s, '\n');
 	}
+	seq_printf(s, "fs_cluster_id %d\n", monc->fs_cluster_id);
 
 	for (rp = rb_first(&monc->generic_request_tree); rp; rp = rb_next(rp)) {
 		__u16 op;
