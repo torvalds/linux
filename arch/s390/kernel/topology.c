@@ -80,11 +80,10 @@ static cpumask_t cpu_thread_map(unsigned int cpu)
 	return mask;
 }
 
-static struct mask_info *add_cpus_to_mask(struct topology_core *tl_core,
-					  struct mask_info *drawer,
-					  struct mask_info *book,
-					  struct mask_info *socket,
-					  int one_socket_per_cpu)
+static void add_cpus_to_mask(struct topology_core *tl_core,
+			     struct mask_info *drawer,
+			     struct mask_info *book,
+			     struct mask_info *socket)
 {
 	struct cpu_topology_s390 *topo;
 	unsigned int core;
@@ -101,21 +100,15 @@ static struct mask_info *add_cpus_to_mask(struct topology_core *tl_core,
 			topo = &per_cpu(cpu_topology, lcpu + i);
 			topo->drawer_id = drawer->id;
 			topo->book_id = book->id;
+			topo->socket_id = socket->id;
 			topo->core_id = rcore;
 			topo->thread_id = lcpu + i;
 			cpumask_set_cpu(lcpu + i, &drawer->mask);
 			cpumask_set_cpu(lcpu + i, &book->mask);
 			cpumask_set_cpu(lcpu + i, &socket->mask);
-			if (one_socket_per_cpu)
-				topo->socket_id = rcore;
-			else
-				topo->socket_id = socket->id;
 			smp_cpu_set_polarization(lcpu + i, tl_core->pp);
 		}
-		if (one_socket_per_cpu)
-			socket = socket->next;
 	}
-	return socket;
 }
 
 static void clear_masks(void)
@@ -146,13 +139,14 @@ static union topology_entry *next_tle(union topology_entry *tle)
 	return (union topology_entry *)((struct topology_container *)tle + 1);
 }
 
-static void __tl_to_masks_generic(struct sysinfo_15_1_x *info)
+static void tl_to_masks(struct sysinfo_15_1_x *info)
 {
 	struct mask_info *socket = &socket_info;
 	struct mask_info *book = &book_info;
 	struct mask_info *drawer = &drawer_info;
 	union topology_entry *tle, *end;
 
+	clear_masks();
 	tle = info->tle;
 	end = (union topology_entry *)((unsigned long)info + info->length);
 	while (tle < end) {
@@ -170,55 +164,13 @@ static void __tl_to_masks_generic(struct sysinfo_15_1_x *info)
 			socket->id = tle->container.id;
 			break;
 		case 0:
-			add_cpus_to_mask(&tle->cpu, drawer, book, socket, 0);
+			add_cpus_to_mask(&tle->cpu, drawer, book, socket);
 			break;
 		default:
 			clear_masks();
 			return;
 		}
 		tle = next_tle(tle);
-	}
-}
-
-static void __tl_to_masks_z10(struct sysinfo_15_1_x *info)
-{
-	struct mask_info *socket = &socket_info;
-	struct mask_info *book = &book_info;
-	struct mask_info *drawer = &drawer_info;
-	union topology_entry *tle, *end;
-
-	tle = info->tle;
-	end = (union topology_entry *)((unsigned long)info + info->length);
-	while (tle < end) {
-		switch (tle->nl) {
-		case 1:
-			book = book->next;
-			book->id = tle->container.id;
-			break;
-		case 0:
-			socket = add_cpus_to_mask(&tle->cpu, drawer, book, socket, 1);
-			break;
-		default:
-			clear_masks();
-			return;
-		}
-		tle = next_tle(tle);
-	}
-}
-
-static void tl_to_masks(struct sysinfo_15_1_x *info)
-{
-	struct cpuid cpu_id;
-
-	get_cpu_id(&cpu_id);
-	clear_masks();
-	switch (cpu_id.machine) {
-	case 0x2097:
-	case 0x2098:
-		__tl_to_masks_z10(info);
-		break;
-	default:
-		__tl_to_masks_generic(info);
 	}
 }
 
