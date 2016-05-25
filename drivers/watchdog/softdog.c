@@ -87,12 +87,6 @@ static int softdog_stop(struct watchdog_device *w)
 	return 0;
 }
 
-static int softdog_set_timeout(struct watchdog_device *w, unsigned int t)
-{
-	w->timeout = t;
-	return 0;
-}
-
 static struct watchdog_info softdog_info = {
 	.identity = "Software Watchdog",
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
@@ -102,7 +96,6 @@ static struct watchdog_ops softdog_ops = {
 	.owner = THIS_MODULE,
 	.start = softdog_ping,
 	.stop = softdog_stop,
-	.set_timeout = softdog_set_timeout,
 };
 
 static struct watchdog_device softdog_dev = {
