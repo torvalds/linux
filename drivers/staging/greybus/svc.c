@@ -578,33 +578,23 @@ void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id)
 
 int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
 			       u8 tx_mode, u8 tx_gear, u8 tx_nlanes,
-			       u8 tx_amplitude, u8 tx_hs_equalizer,
 			       u8 rx_mode, u8 rx_gear, u8 rx_nlanes,
-			       u8 flags, u32 quirks,
-			       struct gb_svc_l2_timer_cfg *local,
-			       struct gb_svc_l2_timer_cfg *remote)
+			       u8 flags, u32 quirks)
 {
 	struct gb_svc_intf_set_pwrm_request request;
 	struct gb_svc_intf_set_pwrm_response response;
 	int ret;
-	u16 result_code;
 
 	request.intf_id = intf_id;
 	request.hs_series = hs_series;
 	request.tx_mode = tx_mode;
 	request.tx_gear = tx_gear;
 	request.tx_nlanes = tx_nlanes;
-	request.tx_amplitude = tx_amplitude;
-	request.tx_hs_equalizer = tx_hs_equalizer;
 	request.rx_mode = rx_mode;
 	request.rx_gear = rx_gear;
 	request.rx_nlanes = rx_nlanes;
 	request.flags = flags;
 	request.quirks = cpu_to_le32(quirks);
-	if (local)
-		request.local_l2timerdata = *local;
-	if (remote)
-		request.remote_l2timerdata = *remote;
 
 	ret = gb_operation_sync(svc->connection, GB_SVC_TYPE_INTF_SET_PWRM,
 				&request, sizeof(request),
@@ -612,13 +602,7 @@ int gb_svc_intf_set_power_mode(struct gb_svc *svc, u8 intf_id, u8 hs_series,
 	if (ret < 0)
 		return ret;
 
-	result_code = le16_to_cpu(response.result_code);
-	if (result_code != GB_SVC_SETPWRM_PWR_LOCAL) {
-		dev_err(&svc->dev, "set power mode = %d\n", result_code);
-		return -EIO;
-	}
-
-	return 0;
+	return le16_to_cpu(response.result_code);
 }
 EXPORT_SYMBOL_GPL(gb_svc_intf_set_power_mode);
 
@@ -942,11 +926,9 @@ static void gb_svc_process_hello_deferred(struct gb_operation *operation)
 					GB_SVC_UNIPRO_HS_SERIES_A,
 					GB_SVC_UNIPRO_SLOW_AUTO_MODE,
 					2, 1,
-					GB_SVC_SMALL_AMPLITUDE, GB_SVC_NO_DE_EMPHASIS,
 					GB_SVC_UNIPRO_SLOW_AUTO_MODE,
 					2, 1,
-					0, 0,
-					NULL, NULL);
+					0, 0);
 
 	if (ret)
 		dev_warn(&svc->dev,

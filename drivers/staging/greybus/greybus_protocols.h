@@ -1136,13 +1136,6 @@ struct gb_svc_timesync_ping_response {
 #define GB_SVC_UNIPRO_HIBERNATE_MODE		0x11
 #define GB_SVC_UNIPRO_OFF_MODE			0x12
 
-#define GB_SVC_SMALL_AMPLITUDE          0x01
-#define GB_SVC_LARGE_AMPLITUDE          0x02
-
-#define GB_SVC_NO_DE_EMPHASIS           0x00
-#define GB_SVC_SMALL_DE_EMPHASIS        0x01
-#define GB_SVC_LARGE_DE_EMPHASIS        0x02
-
 #define GB_SVC_PWRM_RXTERMINATION		0x01
 #define GB_SVC_PWRM_TXTERMINATION		0x02
 #define GB_SVC_PWRM_LINE_RESET			0x04
@@ -1153,38 +1146,17 @@ struct gb_svc_timesync_ping_response {
 #define GB_SVC_UNIPRO_HS_SERIES_A		0x01
 #define GB_SVC_UNIPRO_HS_SERIES_B		0x02
 
-#define GB_SVC_SETPWRM_PWR_OK           0x00
-#define GB_SVC_SETPWRM_PWR_LOCAL        0x01
-#define GB_SVC_SETPWRM_PWR_REMOTE       0x02
-#define GB_SVC_SETPWRM_PWR_BUSY         0x03
-#define GB_SVC_SETPWRM_PWR_ERROR_CAP    0x04
-#define GB_SVC_SETPWRM_PWR_FATAL_ERROR  0x05
-
-struct gb_svc_l2_timer_cfg {
-	__le16 tsb_fc0_protection_timeout;
-	__le16 tsb_tc0_replay_timeout;
-	__le16 tsb_afc0_req_timeout;
-	__le16 tsb_fc1_protection_timeout;
-	__le16 tsb_tc1_replay_timeout;
-	__le16 tsb_afc1_req_timeout;
-	__le16 reserved_for_tc2[3];
-	__le16 reserved_for_tc3[3];
-} __packed;
-
 struct gb_svc_intf_set_pwrm_request {
 	__u8	intf_id;
 	__u8	hs_series;
 	__u8	tx_mode;
 	__u8	tx_gear;
 	__u8	tx_nlanes;
-	__u8	tx_amplitude;
-	__u8	tx_hs_equalizer;
 	__u8	rx_mode;
 	__u8	rx_gear;
 	__u8	rx_nlanes;
 	__u8	flags;
 	__le32	quirks;
-	struct gb_svc_l2_timer_cfg local_l2timerdata, remote_l2timerdata;
 } __packed;
 
 struct gb_svc_intf_set_pwrm_response {

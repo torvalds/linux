@@ -121,23 +121,17 @@ static int gb_camera_set_intf_power_mode(struct gb_camera *gcam, u8 intf_id,
 		ret = gb_svc_intf_set_power_mode(svc, intf_id,
 						 GB_SVC_UNIPRO_HS_SERIES_A,
 						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
-						 GB_SVC_SMALL_AMPLITUDE,
-						 GB_SVC_NO_DE_EMPHASIS,
 						 GB_SVC_UNIPRO_FAST_MODE, 2, 2,
 						 GB_SVC_PWRM_RXTERMINATION |
-						 GB_SVC_PWRM_TXTERMINATION, 0,
-						 NULL, NULL);
+						 GB_SVC_PWRM_TXTERMINATION, 0);
 	else
 		ret = gb_svc_intf_set_power_mode(svc, intf_id,
 						 GB_SVC_UNIPRO_HS_SERIES_A,
 						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
 						 2, 1,
-						 GB_SVC_SMALL_AMPLITUDE,
-						 GB_SVC_NO_DE_EMPHASIS,
 						 GB_SVC_UNIPRO_SLOW_AUTO_MODE,
 						 2, 1,
-						 0, 0,
-						 NULL, NULL);
+						 0, 0);
 
 	return ret;
 }
