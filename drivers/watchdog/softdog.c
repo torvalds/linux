@@ -111,22 +111,15 @@ static struct watchdog_device softdog_dev = {
 	.info = &softdog_info,
 	.ops = &softdog_ops,
 	.min_timeout = 1,
-	.max_timeout = 0xFFFF
+	.max_timeout = 65535,
+	.timeout = TIMER_MARGIN,
 };
 
 static int __init watchdog_init(void)
 {
 	int ret;
 
-	/* Check that the soft_margin value is within it's range;
-	   if not reset to the default */
-	if (soft_margin < 1 || soft_margin > 65535) {
-		pr_info("soft_margin must be 0 < soft_margin < 65536, using %d\n",
-			TIMER_MARGIN);
-		return -EINVAL;
-	}
-	softdog_dev.timeout = soft_margin;
-
+	watchdog_init_timeout(&softdog_dev, soft_margin, NULL);
 	watchdog_set_nowayout(&softdog_dev, nowayout);
 	watchdog_stop_on_reboot(&softdog_dev);
 
@@ -134,8 +127,8 @@ static int __init watchdog_init(void)
 	if (ret)
 		return ret;
 
-	pr_info("Software Watchdog Timer: 0.08 initialized. soft_noboot=%d soft_margin=%d sec soft_panic=%d (nowayout=%d)\n",
-		soft_noboot, soft_margin, soft_panic, nowayout);
+	pr_info("initialized. soft_noboot=%d soft_margin=%d sec soft_panic=%d (nowayout=%d)\n",
+		soft_noboot, softdog_dev.timeout, soft_panic, nowayout);
 
 	return 0;
 }
