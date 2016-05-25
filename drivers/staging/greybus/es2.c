@@ -622,11 +622,6 @@ static int latency_tag_enable(struct gb_host_device *hd, u16 cport_id)
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct usb_device *udev = es2->usb_dev;
 
-	if (!cport_id_valid(hd, cport_id)) {
-		dev_err(&udev->dev, "invalid cport %u\n", cport_id);
-		return -EINVAL;
-	}
-
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 GB_APB_REQUEST_LATENCY_TAG_EN,
 				 USB_DIR_OUT | USB_TYPE_VENDOR |
@@ -644,11 +639,6 @@ static int latency_tag_disable(struct gb_host_device *hd, u16 cport_id)
 	int retval;
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct usb_device *udev = es2->usb_dev;
-
-	if (!cport_id_valid(hd, cport_id)) {
-		dev_err(&udev->dev, "invalid cport %u\n", cport_id);
-		return -EINVAL;
-	}
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 GB_APB_REQUEST_LATENCY_TAG_DIS,
