@@ -117,6 +117,8 @@ int ipoib_open(struct net_device *dev)
 
 	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
+	priv->sm_fullmember_sendonly_support = false;
+
 	if (ipoib_ib_dev_open(dev)) {
 		if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags))
 			return 0;
@@ -627,6 +629,77 @@ void ipoib_mark_paths_invalid(struct net_device *dev)
 	}
 
 	spin_unlock_irq(&priv->lock);
+}
+
+struct classport_info_context {
+	struct ipoib_dev_priv	*priv;
+	struct completion	done;
+	struct ib_sa_query	*sa_query;
+};
+
+static void classport_info_query_cb(int status, struct ib_class_port_info *rec,
+				    void *context)
+{
+	struct classport_info_context *cb_ctx = context;
+	struct ipoib_dev_priv *priv;
+
+	WARN_ON(!context);
+
+	priv = cb_ctx->priv;
+
+	if (status || !rec) {
+		pr_debug("device: %s failed query classport_info status: %d\n",
+			 priv->dev->name, status);
+		/* keeps the default, will try next mcast_restart */
+		priv->sm_fullmember_sendonly_support = false;
+		goto out;
+	}
+
+	if (ib_get_cpi_capmask2(rec) &
+	    IB_SA_CAP_MASK2_SENDONLY_FULL_MEM_SUPPORT) {
+		pr_debug("device: %s enabled fullmember-sendonly for sendonly MCG\n",
+			 priv->dev->name);
+		priv->sm_fullmember_sendonly_support = true;
+	} else {
+		pr_debug("device: %s disabled fullmember-sendonly for sendonly MCG\n",
+			 priv->dev->name);
+		priv->sm_fullmember_sendonly_support = false;
+	}
+
+out:
+	complete(&cb_ctx->done);
+}
+
+int ipoib_check_sm_sendonly_fullmember_support(struct ipoib_dev_priv *priv)
+{
+	struct classport_info_context *callback_context;
+	int ret;
+
+	callback_context = kmalloc(sizeof(*callback_context), GFP_KERNEL);
+	if (!callback_context)
+		return -ENOMEM;
+
+	callback_context->priv = priv;
+	init_completion(&callback_context->done);
+
+	ret = ib_sa_classport_info_rec_query(&ipoib_sa_client,
+					     priv->ca, priv->port, 3000,
+					     GFP_KERNEL,
+					     classport_info_query_cb,
+					     callback_context,
+					     &callback_context->sa_query);
+	if (ret < 0) {
+		pr_info("%s failed to send ib_sa_classport_info query, ret: %d\n",
+			priv->dev->name, ret);
+		kfree(callback_context);
+		return ret;
+	}
+
+	/* waiting for the callback to finish before returnning */
+	wait_for_completion(&callback_context->done);
+	kfree(callback_context);
+
+	return ret;
 }
 
 void ipoib_flush_paths(struct net_device *dev)

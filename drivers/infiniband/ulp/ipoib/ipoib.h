@@ -392,6 +392,7 @@ struct ipoib_dev_priv {
 	struct ipoib_ethtool_st ethtool;
 	struct timer_list poll_timer;
 	unsigned max_send_sge;
+	bool sm_fullmember_sendonly_support;
 };
 
 struct ipoib_ah {
@@ -476,6 +477,7 @@ void ipoib_reap_ah(struct work_struct *work);
 
 void ipoib_mark_paths_invalid(struct net_device *dev);
 void ipoib_flush_paths(struct net_device *dev);
+int ipoib_check_sm_sendonly_fullmember_support(struct ipoib_dev_priv *priv);
 struct ipoib_dev_priv *ipoib_intf_alloc(const char *format);
 
 int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
