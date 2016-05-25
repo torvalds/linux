@@ -106,9 +106,11 @@ nvkm_ioctl_new(struct nvkm_client *client,
 
 	do {
 		memset(&oclass, 0x00, sizeof(oclass));
-		oclass.client = client;
 		oclass.handle = args->v0.handle;
+		oclass.route  = args->v0.route;
+		oclass.token  = args->v0.token;
 		oclass.object = args->v0.object;
+		oclass.client = client;
 		oclass.parent = parent;
 		ret = parent->func->sclass(parent, i++, &oclass);
 		if (ret)
@@ -127,9 +129,6 @@ nvkm_ioctl_new(struct nvkm_client *client,
 		ret = nvkm_object_init(object);
 		if (ret == 0) {
 			list_add(&object->head, &parent->tree);
-			object->route = args->v0.route;
-			object->token = args->v0.token;
-			object->object = args->v0.object;
 			if (nvkm_object_insert(object)) {
 				client->data = object;
 				return 0;

@@ -289,6 +289,9 @@ nvkm_object_ctor(const struct nvkm_object_func *func,
 	object->engine = nvkm_engine_ref(oclass->engine);
 	object->oclass = oclass->base.oclass;
 	object->handle = oclass->handle;
+	object->route  = oclass->route;
+	object->token  = oclass->token;
+	object->object = oclass->object;
 	INIT_LIST_HEAD(&object->head);
 	INIT_LIST_HEAD(&object->tree);
 	RB_CLEAR_NODE(&object->node);
