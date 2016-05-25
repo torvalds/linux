@@ -190,12 +190,11 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 			if (!(vcpu->arch.vgic_cpu.live_lrs & (1UL << i)))
 				continue;
 
-			if (cpu_if->vgic_elrsr & (1 << i)) {
+			if (cpu_if->vgic_elrsr & (1 << i))
 				cpu_if->vgic_lr[i] &= ~ICH_LR_STATE;
-				continue;
-			}
+			else
+				cpu_if->vgic_lr[i] = __gic_v3_get_lr(i);
 
-			cpu_if->vgic_lr[i] = __gic_v3_get_lr(i);
 			__gic_v3_set_lr(0, i);
 		}
 
