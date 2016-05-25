@@ -49,6 +49,7 @@ char *fault_name[FAULT_MAX] = {
 	[FAULT_ORPHAN]		= "orphan",
 	[FAULT_BLOCK]		= "no more block",
 	[FAULT_DIR_DEPTH]	= "too big dir depth",
+	[FAULT_EVICT_INODE]	= "evict_inode fail",
 };
 
 static void f2fs_build_fault_attr(unsigned int rate)
