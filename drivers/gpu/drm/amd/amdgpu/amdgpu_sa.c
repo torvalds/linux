@@ -115,6 +115,7 @@ int amdgpu_sa_bo_manager_start(struct amdgpu_device *adev,
 		return r;
 	}
 	r = amdgpu_bo_kmap(sa_manager->bo, &sa_manager->cpu_ptr);
+	memset(sa_manager->cpu_ptr, 0, sa_manager->size);
 	amdgpu_bo_unreserve(sa_manager->bo);
 	return r;
 }
