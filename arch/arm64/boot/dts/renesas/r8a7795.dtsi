@@ -153,7 +153,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		gic: interrupt-controller@0xf1010000 {
+		gic: interrupt-controller@f1010000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
 			#address-cells = <0>;
