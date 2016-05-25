@@ -1710,6 +1710,10 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how,
 {
 	struct nfs_commit_data	*data;
 
+	/* another commit raced with us */
+	if (list_empty(head))
+		return 0;
+
 	data = nfs_commitdata_alloc();
 
 	if (!data)
