@@ -821,6 +821,36 @@ ff_layout_choose_best_ds_for_read(struct pnfs_layout_segment *lseg,
 }
 
 static void
+ff_layout_pg_get_read(struct nfs_pageio_descriptor *pgio,
+		      struct nfs_page *req,
+		      bool strict_iomode)
+{
+retry_strict:
+	pnfs_put_lseg(pgio->pg_lseg);
+	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
+					   req->wb_context,
+					   0,
+					   NFS4_MAX_UINT64,
+					   IOMODE_READ,
+					   strict_iomode,
+					   GFP_KERNEL);
+	if (IS_ERR(pgio->pg_lseg)) {
+		pgio->pg_error = PTR_ERR(pgio->pg_lseg);
+		pgio->pg_lseg = NULL;
+	}
+
+	/* If we don't have checking, do get a IOMODE_RW
+	 * segment, and the server wants to avoid READs
+	 * there, then retry!
+	 */
+	if (pgio->pg_lseg && !strict_iomode &&
+	    ff_layout_avoid_read_on_rw(pgio->pg_lseg)) {
+		strict_iomode = true;
+		goto retry_strict;
+	}
+}
+
+static void
 ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 			struct nfs_page *req)
 {
@@ -830,19 +860,10 @@ ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 	int ds_idx;
 
 	/* Use full layout for now */
-	if (!pgio->pg_lseg || ff_layout_avoid_read_on_rw(pgio->pg_lseg)) {
-		pnfs_put_lseg(pgio->pg_lseg);
-		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
-						   req->wb_context,
-						   0,
-						   NFS4_MAX_UINT64,
-						   IOMODE_READ,
-						   GFP_KERNEL);
-		if (IS_ERR(pgio->pg_lseg)) {
-			pgio->pg_error = PTR_ERR(pgio->pg_lseg);
-			pgio->pg_lseg = NULL;
-		}
-	}
+	if (!pgio->pg_lseg)
+		ff_layout_pg_get_read(pgio, req, false);
+	else if (ff_layout_avoid_read_on_rw(pgio->pg_lseg))
+		ff_layout_pg_get_read(pgio, req, true);
 
 	/* If no lseg, fall back to read through mds */
 	if (pgio->pg_lseg == NULL)
@@ -894,6 +915,7 @@ ff_layout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 						   0,
 						   NFS4_MAX_UINT64,
 						   IOMODE_RW,
+						   false,
 						   GFP_NOFS);
 		if (IS_ERR(pgio->pg_lseg)) {
 			pgio->pg_error = PTR_ERR(pgio->pg_lseg);
@@ -952,6 +974,7 @@ ff_layout_pg_get_mirror_count_write(struct nfs_pageio_descriptor *pgio,
 						   0,
 						   NFS4_MAX_UINT64,
 						   IOMODE_RW,
+						   false,
 						   GFP_NOFS);
 		if (IS_ERR(pgio->pg_lseg)) {
 			pgio->pg_error = PTR_ERR(pgio->pg_lseg);

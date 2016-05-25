@@ -1321,23 +1321,28 @@ out_existing:
 
 /*
  * iomode matching rules:
- * iomode	lseg	match
- * -----	-----	-----
- * ANY		READ	true
- * ANY		RW	true
- * RW		READ	false
- * RW		RW	true
- * READ		READ	true
- * READ		RW	true
+ * iomode	lseg	strict match
+ *                      iomode
+ * -----	-----	------ -----
+ * ANY		READ	N/A    true
+ * ANY		RW	N/A    true
+ * RW		READ	N/A    false
+ * RW		RW	N/A    true
+ * READ		READ	N/A    true
+ * READ		RW	true   false
+ * READ		RW	false  true
  */
 static bool
 pnfs_lseg_range_match(const struct pnfs_layout_range *ls_range,
-		 const struct pnfs_layout_range *range)
+		 const struct pnfs_layout_range *range,
+		 bool strict_iomode)
 {
 	struct pnfs_layout_range range1;
 
 	if ((range->iomode == IOMODE_RW &&
 	     ls_range->iomode != IOMODE_RW) ||
+	    (range->iomode != ls_range->iomode &&
+	     strict_iomode == true) ||
 	    !pnfs_lseg_range_intersecting(ls_range, range))
 		return 0;
 
@@ -1352,7 +1357,8 @@ pnfs_lseg_range_match(const struct pnfs_layout_range *ls_range,
  */
 static struct pnfs_layout_segment *
 pnfs_find_lseg(struct pnfs_layout_hdr *lo,
-		struct pnfs_layout_range *range)
+		struct pnfs_layout_range *range,
+		bool strict_iomode)
 {
 	struct pnfs_layout_segment *lseg, *ret = NULL;
 
@@ -1361,7 +1367,8 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo,
 	list_for_each_entry(lseg, &lo->plh_segs, pls_list) {
 		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags) &&
 		    !test_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags) &&
-		    pnfs_lseg_range_match(&lseg->pls_range, range)) {
+		    pnfs_lseg_range_match(&lseg->pls_range, range,
+					  strict_iomode)) {
 			ret = pnfs_get_lseg(lseg);
 			break;
 		}
@@ -1478,6 +1485,7 @@ pnfs_update_layout(struct inode *ino,
 		   loff_t pos,
 		   u64 count,
 		   enum pnfs_iomode iomode,
+		   bool strict_iomode,
 		   gfp_t gfp_flags)
 {
 	struct pnfs_layout_range arg = {
@@ -1539,7 +1547,7 @@ lookup_again:
 		goto out_unlock;
 	}
 
-	lseg = pnfs_find_lseg(lo, &arg);
+	lseg = pnfs_find_lseg(lo, &arg, strict_iomode);
 	if (lseg) {
 		trace_pnfs_update_layout(ino, pos, count, iomode, lo, lseg,
 				PNFS_UPDATE_LAYOUT_FOUND_CACHED);
@@ -1883,6 +1891,7 @@ pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *r
 						   req_offset(req),
 						   rd_size,
 						   IOMODE_READ,
+						   false,
 						   GFP_KERNEL);
 		if (IS_ERR(pgio->pg_lseg)) {
 			pgio->pg_error = PTR_ERR(pgio->pg_lseg);
@@ -1907,6 +1916,7 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
 						   req_offset(req),
 						   wb_size,
 						   IOMODE_RW,
+						   false,
 						   GFP_NOFS);
 		if (IS_ERR(pgio->pg_lseg)) {
 			pgio->pg_error = PTR_ERR(pgio->pg_lseg);

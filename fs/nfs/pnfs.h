@@ -288,6 +288,7 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       loff_t pos,
 					       u64 count,
 					       enum pnfs_iomode iomode,
+					       bool strict_iomode,
 					       gfp_t gfp_flags);
 void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo);
 
