@@ -1098,6 +1098,12 @@ static struct c2c_dimension dim_pid = {
 	.width		= 7,
 };
 
+static struct c2c_dimension dim_tid = {
+	.header		= HEADER_LOW("Tid"),
+	.name		= "tid",
+	.se		= &sort_thread,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
 	&dim_offset,
@@ -1128,6 +1134,7 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_dram_lcl,
 	&dim_dram_rmt,
 	&dim_pid,
+	&dim_tid,
 	NULL,
 };
 
