@@ -332,6 +332,8 @@ static int dc_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pmap->pctl);
 	}
 
+	platform_set_drvdata(pdev, pmap);
+
 	return dc_gpiochip_add(pmap, pdev->dev.of_node);
 }
 
