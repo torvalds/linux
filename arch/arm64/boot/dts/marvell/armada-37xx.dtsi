@@ -105,6 +105,22 @@
 				status = "disabled";
 			};
 
+			nb_perih_clk: nb-periph-clk@13000{
+				compatible = "marvell,armada-3700-periph-clock-nb";
+				reg = <0x13000 0x100>;
+				clocks = <&tbg 0>, <&tbg 1>, <&tbg 2>,
+				<&tbg 3>, <&xtalclk>;
+				#clock-cells = <1>;
+			};
+
+			sb_perih_clk: sb-periph-clk@18000{
+				compatible = "marvell,armada-3700-periph-clock-sb";
+				reg = <0x18000 0x100>;
+				clocks = <&tbg 0>, <&tbg 1>, <&tbg 2>,
+				<&tbg 3>, <&xtalclk>;
+				#clock-cells = <1>;
+			};
+
 			tbg: tbg@13200 {
 				compatible = "marvell,armada-3700-tbg-clock";
 				reg = <0x13200 0x100>;
