@@ -478,6 +478,9 @@ config SCHED_MC
 config SCHED_BOOK
 	def_bool n
 
+config SCHED_DRAWER
+	def_bool n
+
 config SCHED_TOPOLOGY
 	def_bool y
 	prompt "Topology scheduler support"
@@ -485,6 +488,7 @@ config SCHED_TOPOLOGY
 	select SCHED_SMT
 	select SCHED_MC
 	select SCHED_BOOK
+	select SCHED_DRAWER
 	help
 	  Topology scheduler support improves the CPU scheduler's decision
 	  making when dealing with machines that have multi-threading,
