@@ -58,7 +58,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
 #define VERBOSE_PERFOUT_ERRSTRING(s) \
 	do { if (verbose) pr_alert("%s" PERF_FLAG "!!! %s\n", perf_type, s); } while (0)
 
-torture_param(bool, gp_exp, true, "Use expedited GP wait primitives");
+torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(int, nwriters, -1, "Number of RCU updater threads");
@@ -358,8 +358,6 @@ rcu_perf_writer(void *arg)
 	u64 *wdpp = writer_durations[me];
 
 	VERBOSE_PERFOUT_STRING("rcu_perf_writer task started");
-	WARN_ON(rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp);
-	WARN_ON(rcu_gp_is_normal() && gp_exp);
 	WARN_ON(!wdpp);
 	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
 	sp.sched_priority = 1;
@@ -624,6 +622,16 @@ rcu_perf_init(void)
 	if (!writer_tasks || !writer_durations || !writer_n_durations) {
 		VERBOSE_PERFOUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;
+		goto unwind;
+	}
+	if (rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp) {
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods expedited, no normal ones to measure!");
+		firsterr = -EINVAL;
+		goto unwind;
+	}
+	if (rcu_gp_is_normal() && gp_exp) {
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods normal, no expedited ones to measure!");
+		firsterr = -EINVAL;
 		goto unwind;
 	}
 	for (i = 0; i < nrealwriters; i++) {
