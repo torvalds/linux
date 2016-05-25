@@ -31,6 +31,11 @@
 #include <nvif/if0000.h>
 #include <nvif/unpack.h>
 
+static const struct nvkm_sclass
+nvkm_uclient_sclass = {
+	.oclass = NVIF_CLASS_CLIENT,
+};
+
 struct nvkm_client_notify {
 	struct nvkm_client *client;
 	struct nvkm_notify n;
@@ -139,16 +144,16 @@ nvkm_client_notify_new(struct nvkm_object *object,
 }
 
 static int
-nvkm_client_mthd_devlist(struct nvkm_object *object, void *data, u32 size)
+nvkm_client_mthd_devlist(struct nvkm_client *client, void *data, u32 size)
 {
 	union {
-		struct nv_client_devlist_v0 v0;
+		struct nvif_client_devlist_v0 v0;
 	} *args = data;
 	int ret = -ENOSYS;
 
-	nvif_ioctl(object, "client devlist size %d\n", size);
+	nvif_ioctl(&client->object, "client devlist size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		nvif_ioctl(object, "client devlist vers %d count %d\n",
+		nvif_ioctl(&client->object, "client devlist vers %d count %d\n",
 			   args->v0.version, args->v0.count);
 		if (size == sizeof(args->v0.device[0]) * args->v0.count) {
 			ret = nvkm_device_list(args->v0.device, args->v0.count);
@@ -167,9 +172,10 @@ nvkm_client_mthd_devlist(struct nvkm_object *object, void *data, u32 size)
 static int
 nvkm_client_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
+	struct nvkm_client *client = nvkm_client(object);
 	switch (mthd) {
-	case NV_CLIENT_DEVLIST:
-		return nvkm_client_mthd_devlist(object, data, size);
+	case NVIF_CLIENT_V0_DEVLIST:
+		return nvkm_client_mthd_devlist(client, data, size);
 	default:
 		break;
 	}
@@ -243,7 +249,7 @@ int
 nvkm_client_new(const char *name, u64 device, const char *cfg,
 		const char *dbg, struct nvkm_client **pclient)
 {
-	struct nvkm_oclass oclass = {};
+	struct nvkm_oclass oclass = { .base = nvkm_uclient_sclass };
 	struct nvkm_client *client;
 
 	if (!(client = *pclient = kzalloc(sizeof(*client), GFP_KERNEL)))

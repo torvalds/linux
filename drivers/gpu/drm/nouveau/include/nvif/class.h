@@ -2,13 +2,17 @@
 #define __NVIF_CLASS_H__
 
 /* these class numbers are made up by us, and not nvidia-assigned */
-#define NVIF_CLASS_CONTROL                                    /* if0001.h */ -1
-#define NVIF_CLASS_PERFMON                                    /* if0002.h */ -2
-#define NVIF_CLASS_PERFDOM                                    /* if0003.h */ -3
-#define NVIF_CLASS_SW_NV04                                    /* if0004.h */ -4
-#define NVIF_CLASS_SW_NV10                                    /* if0005.h */ -5
-#define NVIF_CLASS_SW_NV50                                    /* if0005.h */ -6
-#define NVIF_CLASS_SW_GF100                                   /* if0005.h */ -7
+#define NVIF_CLASS_CLIENT                            /* if0000.h */ -0x00000000
+
+#define NVIF_CLASS_CONTROL                           /* if0001.h */ -0x00000001
+
+#define NVIF_CLASS_PERFMON                           /* if0002.h */ -0x00000002
+#define NVIF_CLASS_PERFDOM                           /* if0003.h */ -0x00000003
+
+#define NVIF_CLASS_SW_NV04                           /* if0004.h */ -0x00000004
+#define NVIF_CLASS_SW_NV10                           /* if0005.h */ -0x00000005
+#define NVIF_CLASS_SW_NV50                           /* if0005.h */ -0x00000006
+#define NVIF_CLASS_SW_GF100                          /* if0005.h */ -0x00000007
 
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_NULL_CLASS                                                0x00000030

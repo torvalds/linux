@@ -1,5 +1,6 @@
 #ifndef __NVKM_CLIENT_H__
 #define __NVKM_CLIENT_H__
+#define nvkm_client(p) container_of((p), struct nvkm_client, object)
 #include <core/object.h>
 
 struct nvkm_client {
