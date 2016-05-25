@@ -688,11 +688,9 @@ static void altr_create_edacdev_dbgfs(struct edac_device_ctl_info *edac_dci,
 static const struct of_device_id altr_edac_device_of_match[] = {
 #ifdef CONFIG_EDAC_ALTERA_L2C
 	{ .compatible = "altr,socfpga-l2-ecc", .data = &l2ecc_data },
-	{ .compatible = "altr,socfpga-a10-l2-ecc", .data = &a10_l2ecc_data },
 #endif
 #ifdef CONFIG_EDAC_ALTERA_OCRAM
 	{ .compatible = "altr,socfpga-ocram-ecc", .data = &ocramecc_data },
-	{ .compatible = "altr,socfpga-a10-ocram-ecc", .data = &a10_ocramecc_data },
 #endif
 	{},
 };
@@ -1058,6 +1056,17 @@ const struct edac_device_prv_data a10_l2ecc_data = {
 #endif	/* CONFIG_EDAC_ALTERA_L2C */
 
 /********************* Arria10 EDAC Device Functions *************************/
+static const struct of_device_id altr_edac_a10_device_of_match[] = {
+#ifdef CONFIG_EDAC_ALTERA_L2C
+	{ .compatible = "altr,socfpga-a10-l2-ecc", .data = &a10_l2ecc_data },
+#endif
+#ifdef CONFIG_EDAC_ALTERA_OCRAM
+	{ .compatible = "altr,socfpga-a10-ocram-ecc",
+	  .data = &a10_ocramecc_data },
+#endif
+	{},
+};
+MODULE_DEVICE_TABLE(of, altr_edac_a10_device_of_match);
 
 /*
  * The Arria10 EDAC Device Functions differ from the Cyclone5/Arria5
@@ -1128,7 +1137,7 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 	const struct edac_device_prv_data *prv;
 	/* Get matching node and check for valid result */
 	const struct of_device_id *pdev_id =
-		of_match_node(altr_edac_device_of_match, np);
+		of_match_node(altr_edac_a10_device_of_match, np);
 	if (IS_ERR_OR_NULL(pdev_id))
 		return -ENODEV;
 
@@ -1329,6 +1338,11 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 		else if (of_device_is_compatible(child,
 						 "altr,socfpga-a10-ocram-ecc"))
 			altr_edac_a10_device_add(edac, child);
+		else if (of_device_is_compatible(child,
+						 "altr,sdram-edac-a10"))
+			of_platform_populate(pdev->dev.of_node,
+					     altr_sdram_ctrl_of_match,
+					     NULL, &pdev->dev);
 	}
 
 	return 0;
