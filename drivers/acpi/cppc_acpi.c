@@ -601,9 +601,6 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	/* Store CPU Logical ID */
 	cpc_ptr->cpu_id = pr->id;
 
-	/* Plug it into this CPUs CPC descriptor. */
-	per_cpu(cpc_desc_ptr, pr->id) = cpc_ptr;
-
 	/* Parse PSD data for this CPU */
 	ret = acpi_get_psd(cpc_ptr, handle);
 	if (ret)
@@ -615,6 +612,9 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 		if (ret)
 			goto out_free;
 	}
+
+	/* Plug PSD data into this CPUs CPC descriptor. */
+	per_cpu(cpc_desc_ptr, pr->id) = cpc_ptr;
 
 	/* Everything looks okay */
 	pr_debug("Parsed CPC struct for CPU: %d\n", pr->id);
