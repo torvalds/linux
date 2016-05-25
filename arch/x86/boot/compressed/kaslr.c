@@ -463,17 +463,20 @@ static unsigned long find_random_virt_addr(unsigned long minimum,
  * Since this function examines addresses much more numerically,
  * it takes the input and output pointers as 'unsigned long'.
  */
-unsigned char *choose_random_location(unsigned long input,
-				      unsigned long input_size,
-				      unsigned long output,
-				      unsigned long output_size)
+void choose_random_location(unsigned long input,
+			    unsigned long input_size,
+			    unsigned long *output,
+			    unsigned long output_size,
+			    unsigned long *virt_addr)
 {
-	unsigned long choice = output;
 	unsigned long random_addr;
+
+	/* By default, keep output position unchanged. */
+	*virt_addr = *output;
 
 	if (cmdline_find_option_bool("nokaslr")) {
 		warn("KASLR disabled: 'nokaslr' on cmdline.");
-		goto out;
+		return;
 	}
 
 	boot_params->hdr.loadflags |= KASLR_FLAG;
@@ -482,25 +485,25 @@ unsigned char *choose_random_location(unsigned long input,
 	initialize_identity_maps();
 
 	/* Record the various known unsafe memory ranges. */
-	mem_avoid_init(input, input_size, output);
+	mem_avoid_init(input, input_size, *output);
 
 	/* Walk e820 and find a random address. */
-	random_addr = find_random_phys_addr(output, output_size);
+	random_addr = find_random_phys_addr(*output, output_size);
 	if (!random_addr) {
 		warn("KASLR disabled: could not find suitable E820 region!");
-		goto out;
+	} else {
+		/* Update the new physical address location. */
+		if (*output != random_addr) {
+			add_identity_map(random_addr, output_size);
+			*output = random_addr;
+		}
 	}
-
-	/* Always enforce the minimum. */
-	if (random_addr < choice)
-		goto out;
-
-	choice = random_addr;
-
-	add_identity_map(choice, output_size);
 
 	/* This actually loads the identity pagetable on x86_64. */
 	finalize_identity_maps();
-out:
-	return (unsigned char *)choice;
+
+	/* Pick random virtual address starting from LOAD_PHYSICAL_ADDR. */
+	if (IS_ENABLED(CONFIG_X86_64))
+		random_addr = find_random_virt_addr(LOAD_PHYSICAL_ADDR, output_size);
+	*virt_addr = random_addr;
 }
