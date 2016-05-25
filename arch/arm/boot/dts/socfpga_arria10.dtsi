@@ -572,12 +572,6 @@
 			reg = <0xffcfb100 0x80>;
 		};
 
-		sdramedac {
-			compatible = "altr,sdram-edac-a10";
-			altr,sdr-syscon = <&sdr>;
-			interrupts = <0 2 4>, <0 0 4>;
-		};
-
 		L2: l2-cache@fffff000 {
 			compatible = "arm,pl310-cache";
 			reg = <0xfffff000 0x1000>;
@@ -613,6 +607,13 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			ranges;
+
+			sdramedac {
+				compatible = "altr,sdram-edac-a10";
+				altr,sdr-syscon = <&sdr>;
+				interrupts = <17 IRQ_TYPE_LEVEL_HIGH>,
+					     <49 IRQ_TYPE_LEVEL_HIGH>;
+			};
 
 			l2-ecc@ffd06010 {
 				compatible = "altr,socfpga-a10-l2-ecc";
