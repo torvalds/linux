@@ -856,9 +856,11 @@ static void perf_evlist__mmap_get(struct perf_evlist *evlist, int idx)
 
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx)
 {
-	BUG_ON(atomic_read(&evlist->mmap[idx].refcnt) == 0);
+	struct perf_mmap *md = &evlist->mmap[idx];
 
-	if (atomic_dec_and_test(&evlist->mmap[idx].refcnt))
+	BUG_ON(md->base && atomic_read(&md->refcnt) == 0);
+
+	if (atomic_dec_and_test(&md->refcnt))
 		__perf_evlist__munmap(evlist, idx);
 }
 
