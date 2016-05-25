@@ -105,6 +105,18 @@
 				status = "disabled";
 			};
 
+			gpio1: gpio@13800 {
+				compatible = "marvell,mvebu-gpio-3700",
+				"syscon", "simple-mfd";
+				reg = <0x13800 0x500>;
+
+				xtalclk: xtal-clk {
+					compatible = "marvell,armada-3700-xtal-clock";
+					clock-output-names = "xtal";
+					#clock-cells = <0>;
+				};
+			};
+
 			usb3: usb@58000 {
 				compatible = "marvell,armada3700-xhci",
 				"generic-xhci";
