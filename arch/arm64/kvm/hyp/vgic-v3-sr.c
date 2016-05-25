@@ -313,10 +313,8 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 	 * Prevent the guest from touching the GIC system registers if
 	 * SRE isn't enabled for GICv3 emulation.
 	 */
-	if (!cpu_if->vgic_sre) {
-		write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
-			     ICC_SRE_EL2);
-	}
+	write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
+		     ICC_SRE_EL2);
 }
 
 void __hyp_text __vgic_v3_init_lrs(void)
