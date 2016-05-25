@@ -530,7 +530,6 @@ static int ak4613_i2c_remove(struct i2c_client *client)
 static struct i2c_driver ak4613_i2c_driver = {
 	.driver = {
 		.name = "ak4613-codec",
-		.owner = THIS_MODULE,
 		.of_match_table = ak4613_of_match,
 	},
 	.probe		= ak4613_i2c_probe,
