@@ -256,7 +256,7 @@ int pinmux_request_gpio(struct pinctrl_dev *pctldev,
 	/* Conjure some name stating what chip and pin this is taken by */
 	owner = kasprintf(GFP_KERNEL, "%s:%d", range->name, gpio);
 	if (!owner)
-		return -EINVAL;
+		return -ENOMEM;
 
 	ret = pin_request(pctldev, pin, owner, range);
 	if (ret < 0)
