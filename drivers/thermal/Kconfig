@@ -186,7 +186,7 @@ config HISI_THERMAL
 
 config IMX_THERMAL
 	tristate "Temperature sensor driver for Freescale i.MX SoCs"
-	depends on CPU_THERMAL
+	depends on (ARCH_MXC && CPU_THERMAL) || COMPILE_TEST
 	depends on MFD_SYSCON
 	depends on OF
 	help
