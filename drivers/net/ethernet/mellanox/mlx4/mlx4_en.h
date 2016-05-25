@@ -270,6 +270,7 @@ struct mlx4_en_tx_ring {
 	unsigned long		tx_csum;
 	unsigned long		tso_packets;
 	unsigned long		xmit_more;
+	unsigned int		tx_dropped;
 	struct mlx4_bf		bf;
 	unsigned long		queue_stopped;
 
