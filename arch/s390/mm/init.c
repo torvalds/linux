@@ -118,10 +118,8 @@ void mark_rodata_ro(void)
 
 void __init mem_init(void)
 {
-	if (MACHINE_HAS_TLB_LC)
-		cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(0, &init_mm.context.cpu_attach_mask);
 	cpumask_set_cpu(0, mm_cpumask(&init_mm));
-	atomic_set(&init_mm.context.attach_count, 1);
 
 	set_max_mapnr(max_low_pfn);
         high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);

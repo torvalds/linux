@@ -242,10 +242,8 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 {
 	struct lowcore *lc = pcpu->lowcore;
 
-	if (MACHINE_HAS_TLB_LC)
-		cpumask_set_cpu(cpu, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(cpu, &init_mm.context.cpu_attach_mask);
 	cpumask_set_cpu(cpu, mm_cpumask(&init_mm));
-	atomic_inc(&init_mm.context.attach_count);
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->percpu_offset = __per_cpu_offset[cpu];
@@ -876,10 +874,8 @@ void __cpu_die(unsigned int cpu)
 	while (!pcpu_stopped(pcpu))
 		cpu_relax();
 	pcpu_free_lowcore(pcpu);
-	atomic_dec(&init_mm.context.attach_count);
 	cpumask_clear_cpu(cpu, mm_cpumask(&init_mm));
-	if (MACHINE_HAS_TLB_LC)
-		cpumask_clear_cpu(cpu, &init_mm.context.cpu_attach_mask);
+	cpumask_clear_cpu(cpu, &init_mm.context.cpu_attach_mask);
 }
 
 void __noreturn cpu_die(void)
