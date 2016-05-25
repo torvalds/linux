@@ -504,7 +504,7 @@ int batadv_v_elp_packet_recv(struct sk_buff *skb,
 	/* did we receive a B.A.T.M.A.N. V ELP packet on an interface
 	 * that does not have B.A.T.M.A.N. V ELP enabled ?
 	 */
-	if (strcmp(bat_priv->bat_algo_ops->name, "BATMAN_V") != 0)
+	if (strcmp(bat_priv->algo_ops->name, "BATMAN_V") != 0)
 		return NET_RX_DROP;
 
 	elp_packet = (struct batadv_elp_packet *)skb->data;

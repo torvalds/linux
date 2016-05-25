@@ -412,7 +412,7 @@ static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 
-	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
+	return sprintf(buff, "%s\n", bat_priv->algo_ops->name);
 }
 
 static void batadv_post_gw_reselect(struct net_device *net_dev)

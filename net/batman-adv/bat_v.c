@@ -322,16 +322,22 @@ err_ifinfo1:
 
 static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.name = "BATMAN_V",
-	.bat_iface_activate = batadv_v_iface_activate,
-	.bat_iface_enable = batadv_v_iface_enable,
-	.bat_iface_disable = batadv_v_iface_disable,
-	.bat_iface_update_mac = batadv_v_iface_update_mac,
-	.bat_primary_iface_set = batadv_v_primary_iface_set,
-	.bat_hardif_neigh_init = batadv_v_hardif_neigh_init,
-	.bat_orig_print = batadv_v_orig_print,
-	.bat_neigh_cmp = batadv_v_neigh_cmp,
-	.bat_neigh_is_similar_or_better = batadv_v_neigh_is_sob,
-	.bat_neigh_print = batadv_v_neigh_print,
+	.iface = {
+		.activate = batadv_v_iface_activate,
+		.enable = batadv_v_iface_enable,
+		.disable = batadv_v_iface_disable,
+		.update_mac = batadv_v_iface_update_mac,
+		.primary_set = batadv_v_primary_iface_set,
+	},
+	.neigh = {
+		.hardif_init = batadv_v_hardif_neigh_init,
+		.cmp = batadv_v_neigh_cmp,
+		.is_similar_or_better = batadv_v_neigh_is_sob,
+		.print = batadv_v_neigh_print,
+	},
+	.orig = {
+		.print = batadv_v_orig_print,
+	},
 };
 
 /**

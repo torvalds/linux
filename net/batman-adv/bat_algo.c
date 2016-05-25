@@ -65,12 +65,12 @@ int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
 	}
 
 	/* all algorithms must implement all ops (for now) */
-	if (!bat_algo_ops->bat_iface_enable ||
-	    !bat_algo_ops->bat_iface_disable ||
-	    !bat_algo_ops->bat_iface_update_mac ||
-	    !bat_algo_ops->bat_primary_iface_set ||
-	    !bat_algo_ops->bat_neigh_cmp ||
-	    !bat_algo_ops->bat_neigh_is_similar_or_better) {
+	if (!bat_algo_ops->iface.enable ||
+	    !bat_algo_ops->iface.disable ||
+	    !bat_algo_ops->iface.update_mac ||
+	    !bat_algo_ops->iface.primary_set ||
+	    !bat_algo_ops->neigh.cmp ||
+	    !bat_algo_ops->neigh.is_similar_or_better) {
 		pr_info("Routing algo '%s' does not implement required ops\n",
 			bat_algo_ops->name);
 		return -EINVAL;
@@ -90,7 +90,7 @@ int batadv_algo_select(struct batadv_priv *bat_priv, char *name)
 	if (!bat_algo_ops)
 		return -EINVAL;
 
-	bat_priv->bat_algo_ops = bat_algo_ops;
+	bat_priv->algo_ops = bat_algo_ops;
 
 	return 0;
 }

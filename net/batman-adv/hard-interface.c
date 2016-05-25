@@ -247,7 +247,7 @@ static void batadv_primary_if_select(struct batadv_priv *bat_priv,
 	if (!new_hard_iface)
 		goto out;
 
-	bat_priv->bat_algo_ops->bat_primary_iface_set(new_hard_iface);
+	bat_priv->algo_ops->iface.primary_set(new_hard_iface);
 	batadv_primary_if_update_addr(bat_priv, curr_hard_iface);
 
 out:
@@ -394,7 +394,7 @@ batadv_hardif_activate_interface(struct batadv_hard_iface *hard_iface)
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	bat_priv->bat_algo_ops->bat_iface_update_mac(hard_iface);
+	bat_priv->algo_ops->iface.update_mac(hard_iface);
 	hard_iface->if_status = BATADV_IF_TO_BE_ACTIVATED;
 
 	/* the first active interface becomes our primary interface or
@@ -409,8 +409,8 @@ batadv_hardif_activate_interface(struct batadv_hard_iface *hard_iface)
 
 	batadv_update_min_mtu(hard_iface->soft_iface);
 
-	if (bat_priv->bat_algo_ops->bat_iface_activate)
-		bat_priv->bat_algo_ops->bat_iface_activate(hard_iface);
+	if (bat_priv->algo_ops->iface.activate)
+		bat_priv->algo_ops->iface.activate(hard_iface);
 
 out:
 	if (primary_if)
@@ -508,7 +508,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	if (ret)
 		goto err_dev;
 
-	ret = bat_priv->bat_algo_ops->bat_iface_enable(hard_iface);
+	ret = bat_priv->algo_ops->iface.enable(hard_iface);
 	if (ret < 0)
 		goto err_upper;
 
@@ -517,7 +517,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	hard_iface->if_status = BATADV_IF_INACTIVE;
 	ret = batadv_orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
 	if (ret < 0) {
-		bat_priv->bat_algo_ops->bat_iface_disable(hard_iface);
+		bat_priv->algo_ops->iface.disable(hard_iface);
 		bat_priv->num_ifaces--;
 		hard_iface->if_status = BATADV_IF_NOT_IN_USE;
 		goto err_upper;
@@ -598,7 +598,7 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
 			batadv_hardif_put(new_if);
 	}
 
-	bat_priv->bat_algo_ops->bat_iface_disable(hard_iface);
+	bat_priv->algo_ops->iface.disable(hard_iface);
 	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
 
 	/* delete all references to this hard_iface */
@@ -783,7 +783,7 @@ static int batadv_hard_if_event(struct notifier_block *this,
 		batadv_check_known_mac_addr(hard_iface->net_dev);
 
 		bat_priv = netdev_priv(hard_iface->soft_iface);
-		bat_priv->bat_algo_ops->bat_iface_update_mac(hard_iface);
+		bat_priv->algo_ops->iface.update_mac(hard_iface);
 
 		primary_if = batadv_primary_if_get_selected(bat_priv);
 		if (!primary_if)

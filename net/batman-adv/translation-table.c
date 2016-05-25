@@ -1546,7 +1546,7 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 			    struct batadv_tt_global_entry *tt_global_entry)
 {
 	struct batadv_neigh_node *router, *best_router = NULL;
-	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
+	struct batadv_algo_ops *bao = bat_priv->algo_ops;
 	struct hlist_head *head;
 	struct batadv_tt_orig_list_entry *orig_entry, *best_entry = NULL;
 
@@ -1558,8 +1558,8 @@ batadv_transtable_best_orig(struct batadv_priv *bat_priv,
 			continue;
 
 		if (best_router &&
-		    bao->bat_neigh_cmp(router, BATADV_IF_DEFAULT,
-				       best_router, BATADV_IF_DEFAULT) <= 0) {
+		    bao->neigh.cmp(router, BATADV_IF_DEFAULT, best_router,
+				   BATADV_IF_DEFAULT) <= 0) {
 			batadv_neigh_node_put(router);
 			continue;
 		}

@@ -1016,7 +1016,7 @@ struct batadv_priv_bat_v {
  * @cleanup_work: work queue callback item for soft-interface deinit
  * @primary_if: one of the hard-interfaces assigned to this mesh interface
  *  becomes the primary interface
- * @bat_algo_ops: routing algorithm used by this mesh interface
+ * @algo_ops: routing algorithm used by this mesh interface
  * @softif_vlan_list: a list of softif_vlan structs, one per VLAN created on top
  *  of the mesh interface represented by this object
  * @softif_vlan_list_lock: lock protecting softif_vlan_list
@@ -1074,7 +1074,7 @@ struct batadv_priv {
 	struct delayed_work orig_work;
 	struct work_struct cleanup_work;
 	struct batadv_hard_iface __rcu *primary_if;  /* rcu protected pointer */
-	struct batadv_algo_ops *bat_algo_ops;
+	struct batadv_algo_ops *algo_ops;
 	struct hlist_head softif_vlan_list;
 	spinlock_t softif_vlan_list_lock; /* protects softif_vlan_list */
 #ifdef CONFIG_BATMAN_ADV_BLA
@@ -1388,59 +1388,77 @@ struct batadv_forw_packet {
 };
 
 /**
+ * struct batadv_algo_iface_ops - mesh algorithm callbacks (interface specific)
+ * @activate: start routing mechanisms when hard-interface is brought up
+ * @enable: init routing info when hard-interface is enabled
+ * @disable: de-init routing info when hard-interface is disabled
+ * @update_mac: (re-)init mac addresses of the protocol information
+ *  belonging to this hard-interface
+ * @primary_set: called when primary interface is selected / changed
+ */
+struct batadv_algo_iface_ops {
+	void (*activate)(struct batadv_hard_iface *hard_iface);
+	int (*enable)(struct batadv_hard_iface *hard_iface);
+	void (*disable)(struct batadv_hard_iface *hard_iface);
+	void (*update_mac)(struct batadv_hard_iface *hard_iface);
+	void (*primary_set)(struct batadv_hard_iface *hard_iface);
+};
+
+/**
+ * struct batadv_algo_neigh_ops - mesh algorithm callbacks (neighbour specific)
+ * @hardif_init: called on creation of single hop entry
+ * @cmp: compare the metrics of two neighbors for their respective outgoing
+ *  interfaces
+ * @is_similar_or_better: check if neigh1 is equally similar or better than
+ *  neigh2 for their respective outgoing interface from the metric prospective
+ * @print: print the single hop neighbor list (optional)
+ */
+struct batadv_algo_neigh_ops {
+	void (*hardif_init)(struct batadv_hardif_neigh_node *neigh);
+	int (*cmp)(struct batadv_neigh_node *neigh1,
+		   struct batadv_hard_iface *if_outgoing1,
+		   struct batadv_neigh_node *neigh2,
+		   struct batadv_hard_iface *if_outgoing2);
+	bool (*is_similar_or_better)(struct batadv_neigh_node *neigh1,
+				     struct batadv_hard_iface *if_outgoing1,
+				     struct batadv_neigh_node *neigh2,
+				     struct batadv_hard_iface *if_outgoing2);
+	void (*print)(struct batadv_priv *priv, struct seq_file *seq);
+};
+
+/**
+ * struct batadv_algo_orig_ops - mesh algorithm callbacks (originator specific)
+ * @free: free the resources allocated by the routing algorithm for an orig_node
+ *  object
+ * @add_if: ask the routing algorithm to apply the needed changes to the
+ *  orig_node due to a new hard-interface being added into the mesh
+ * @del_if: ask the routing algorithm to apply the needed changes to the
+ *  orig_node due to an hard-interface being removed from the mesh
+ * @print: print the originator table (optional)
+ */
+struct batadv_algo_orig_ops {
+	void (*free)(struct batadv_orig_node *orig_node);
+	int (*add_if)(struct batadv_orig_node *orig_node, int max_if_num);
+	int (*del_if)(struct batadv_orig_node *orig_node, int max_if_num,
+		      int del_if_num);
+	void (*print)(struct batadv_priv *priv, struct seq_file *seq,
+		      struct batadv_hard_iface *hard_iface);
+};
+
+/**
  * struct batadv_algo_ops - mesh algorithm callbacks
  * @list: list node for the batadv_algo_list
  * @name: name of the algorithm
- * @bat_iface_activate: start routing mechanisms when hard-interface is brought
- *  up
- * @bat_iface_enable: init routing info when hard-interface is enabled
- * @bat_iface_disable: de-init routing info when hard-interface is disabled
- * @bat_iface_update_mac: (re-)init mac addresses of the protocol information
- *  belonging to this hard-interface
- * @bat_primary_iface_set: called when primary interface is selected / changed
- * @bat_hardif_neigh_init: called on creation of single hop entry
- * @bat_neigh_cmp: compare the metrics of two neighbors for their respective
- *  outgoing interfaces
- * @bat_neigh_is_similar_or_better: check if neigh1 is equally similar or
- *  better than neigh2 for their respective outgoing interface from the metric
- *  prospective
- * @bat_neigh_print: print the single hop neighbor list (optional)
- * @bat_orig_print: print the originator table (optional)
- * @bat_orig_free: free the resources allocated by the routing algorithm for an
- *  orig_node object
- * @bat_orig_add_if: ask the routing algorithm to apply the needed changes to
- *  the orig_node due to a new hard-interface being added into the mesh
- * @bat_orig_del_if: ask the routing algorithm to apply the needed changes to
- *  the orig_node due to an hard-interface being removed from the mesh
+ * @iface: callbacks related to interface handling
+ * @neigh: callbacks related to neighbors handling
+ * @orig: callbacks related to originators handling
  */
 struct batadv_algo_ops {
 	struct hlist_node list;
 	char *name;
-	void (*bat_iface_activate)(struct batadv_hard_iface *hard_iface);
-	int (*bat_iface_enable)(struct batadv_hard_iface *hard_iface);
-	void (*bat_iface_disable)(struct batadv_hard_iface *hard_iface);
-	void (*bat_iface_update_mac)(struct batadv_hard_iface *hard_iface);
-	void (*bat_primary_iface_set)(struct batadv_hard_iface *hard_iface);
-	/* neigh_node handling API */
-	void (*bat_hardif_neigh_init)(struct batadv_hardif_neigh_node *neigh);
-	int (*bat_neigh_cmp)(struct batadv_neigh_node *neigh1,
-			     struct batadv_hard_iface *if_outgoing1,
-			     struct batadv_neigh_node *neigh2,
-			     struct batadv_hard_iface *if_outgoing2);
-	bool (*bat_neigh_is_similar_or_better)
-		(struct batadv_neigh_node *neigh1,
-		 struct batadv_hard_iface *if_outgoing1,
-		 struct batadv_neigh_node *neigh2,
-		 struct batadv_hard_iface *if_outgoing2);
-	void (*bat_neigh_print)(struct batadv_priv *priv, struct seq_file *seq);
-	/* orig_node handling API */
-	void (*bat_orig_print)(struct batadv_priv *priv, struct seq_file *seq,
-			       struct batadv_hard_iface *hard_iface);
-	void (*bat_orig_free)(struct batadv_orig_node *orig_node);
-	int (*bat_orig_add_if)(struct batadv_orig_node *orig_node,
-			       int max_if_num);
-	int (*bat_orig_del_if)(struct batadv_orig_node *orig_node,
-			       int max_if_num, int del_if_num);
+	struct batadv_algo_iface_ops iface;
+	struct batadv_algo_neigh_ops neigh;
+	struct batadv_algo_orig_ops orig;
 };
 
 /**

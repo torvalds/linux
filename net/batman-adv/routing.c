@@ -482,7 +482,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 		   struct batadv_orig_node *orig_node,
 		   struct batadv_hard_iface *recv_if)
 {
-	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
+	struct batadv_algo_ops *bao = bat_priv->algo_ops;
 	struct batadv_neigh_node *first_candidate_router = NULL;
 	struct batadv_neigh_node *next_candidate_router = NULL;
 	struct batadv_neigh_node *router, *cand_router = NULL;
@@ -536,9 +536,9 @@ batadv_find_router(struct batadv_priv *bat_priv,
 		/* alternative candidate should be good enough to be
 		 * considered
 		 */
-		if (!bao->bat_neigh_is_similar_or_better(cand_router,
-							 cand->if_outgoing,
-							 router, recv_if))
+		if (!bao->neigh.is_similar_or_better(cand_router,
+						     cand->if_outgoing, router,
+						     recv_if))
 			goto next;
 
 		/* don't use the same router twice */
