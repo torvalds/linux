@@ -57,6 +57,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CS47L24 if MFD_CS47L24
+	select SND_SOC_CS53L30 if I2C
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
@@ -449,6 +450,11 @@ config SND_SOC_CS4349
 
 config SND_SOC_CS47L24
 	tristate
+
+# Cirrus Logic Quad-Channel ADC
+config SND_SOC_CS53L30
+	tristate "Cirrus Logic CS53L30 CODEC"
+	depends on I2C
 
 config SND_SOC_CX20442
 	tristate
