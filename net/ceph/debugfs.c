@@ -177,6 +177,9 @@ static void dump_request(struct seq_file *s, struct ceph_osd_request *req)
 
 		seq_printf(s, "%s%s", (i == 0 ? "\t" : ","),
 			   ceph_osd_op_name(op->op));
+		if (op->op == CEPH_OSD_OP_WATCH)
+			seq_printf(s, "-%s",
+				   ceph_osd_watch_op_name(op->watch.op));
 	}
 
 	seq_putc(s, '\n');
@@ -192,6 +195,31 @@ static void dump_requests(struct seq_file *s, struct ceph_osd *osd)
 		    rb_entry(n, struct ceph_osd_request, r_node);
 
 		dump_request(s, req);
+	}
+
+	mutex_unlock(&osd->lock);
+}
+
+static void dump_linger_request(struct seq_file *s,
+				struct ceph_osd_linger_request *lreq)
+{
+	seq_printf(s, "%llu\t", lreq->linger_id);
+	dump_target(s, &lreq->t);
+
+	seq_printf(s, "\t%u\t%s/%d\n", lreq->register_gen,
+		   lreq->committed ? "C" : "", lreq->last_error);
+}
+
+static void dump_linger_requests(struct seq_file *s, struct ceph_osd *osd)
+{
+	struct rb_node *n;
+
+	mutex_lock(&osd->lock);
+	for (n = rb_first(&osd->o_linger_requests); n; n = rb_next(n)) {
+		struct ceph_osd_linger_request *lreq =
+		    rb_entry(n, struct ceph_osd_linger_request, node);
+
+		dump_linger_request(s, lreq);
 	}
 
 	mutex_unlock(&osd->lock);
@@ -213,6 +241,14 @@ static int osdc_show(struct seq_file *s, void *pp)
 		dump_requests(s, osd);
 	}
 	dump_requests(s, &osdc->homeless_osd);
+
+	seq_puts(s, "LINGER REQUESTS\n");
+	for (n = rb_first(&osdc->osds); n; n = rb_next(n)) {
+		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_node);
+
+		dump_linger_requests(s, osd);
+	}
+	dump_linger_requests(s, &osdc->homeless_osd);
 
 	up_read(&osdc->lock);
 	return 0;

@@ -427,7 +427,17 @@ enum {
 	CEPH_OSD_CMPXATTR_MODE_U64    = 2
 };
 
-#define RADOS_NOTIFY_VER	1
+enum {
+	CEPH_OSD_WATCH_OP_UNWATCH = 0,
+	CEPH_OSD_WATCH_OP_LEGACY_WATCH = 1,
+	/* note: use only ODD ids to prevent pre-giant code from
+	   interpreting the op as UNWATCH */
+	CEPH_OSD_WATCH_OP_WATCH = 3,
+	CEPH_OSD_WATCH_OP_RECONNECT = 5,
+	CEPH_OSD_WATCH_OP_PING = 7,
+};
+
+const char *ceph_osd_watch_op_name(int o);
 
 /*
  * an individual object operation.  each may be accompanied by some data
@@ -462,8 +472,9 @@ struct ceph_osd_op {
 	        } __attribute__ ((packed)) snap;
 		struct {
 			__le64 cookie;
-			__le64 ver;
-			__u8 flag;	/* 0 = unwatch, 1 = watch */
+			__le64 ver;     /* no longer used */
+			__u8 op;	/* CEPH_OSD_WATCH_OP_* */
+			__le32 gen;     /* registration generation */
 		} __attribute__ ((packed)) watch;
 		struct {
 			__le64 offset, length;
