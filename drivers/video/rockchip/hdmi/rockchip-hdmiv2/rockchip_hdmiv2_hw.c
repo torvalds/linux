@@ -6,6 +6,11 @@
 #include <linux/rockchip/iomap.h>
 #include "rockchip_hdmiv2.h"
 #include "rockchip_hdmiv2_hw.h"
+#include <linux/rockchip/grf.h>
+
+#define HDMI_SEL_LCDC(x, bit)	((((x) & 1) << bit) | (1 << (16 + bit)))
+#define grf_writel(v, offset)	writel_relaxed(v, RK_GRF_VIRT + offset)
+#define RK3399_GRF_SOC_CON20 0x6250
 
 static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {
 /*	tmdsclk = (pixclk / ref_cntrl ) * (fbdiv2 * fbdiv1) / nctrl / tmdsmhl
@@ -2055,6 +2060,18 @@ void rockchip_hdmiv2_dev_init_ops(struct hdmi_ops *ops)
 void rockchip_hdmiv2_dev_initial(struct hdmi_dev *hdmi_dev)
 {
 	struct hdmi *hdmi = hdmi_dev->hdmi;
+
+	/*lcdc source select*/
+	if (hdmi_dev->soctype == HDMI_SOC_RK3288) {
+		grf_writel(HDMI_SEL_LCDC(hdmi->property->videosrc, 4),
+			   RK3288_GRF_SOC_CON6);
+		/* select GPIO7_C0 as cec pin */
+		grf_writel(((1 << 12) | (1 << 28)), RK3288_GRF_SOC_CON8);
+	} else if (hdmi_dev->soctype == HDMI_SOC_RK3399) {
+		regmap_write(hdmi_dev->grf_base,
+			     RK3399_GRF_SOC_CON20,
+			     HDMI_SEL_LCDC(hdmi->property->videosrc, 6));
+	}
 
 	if (!hdmi->uboot) {
 		pr_info("reset hdmi\n");

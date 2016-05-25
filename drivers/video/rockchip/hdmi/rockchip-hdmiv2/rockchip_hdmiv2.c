@@ -20,10 +20,6 @@
 #include "rockchip_hdmiv2.h"
 #include "rockchip_hdmiv2_hw.h"
 
-#define HDMI_SEL_LCDC(x, bit)	((((x) & 1) << bit) | (1 << (16 + bit)))
-#define grf_writel(v, offset)	writel_relaxed(v, RK_GRF_VIRT + offset)
-#define GRF_SOC_CON20 0x6250
-
 static struct hdmi_dev *hdmi_dev;
 
 static struct hdmi_property rk_hdmi_property = {
@@ -210,6 +206,11 @@ void ext_pll_set_27m_out(void)
 
 static int rockchip_hdmiv2_clk_enable(struct hdmi_dev *hdmi_dev)
 {
+	if ((hdmi_dev->clk_on & HDMI_PD_ON) == 0) {
+		pm_runtime_get_sync(hdmi_dev->dev);
+		hdmi_dev->clk_on |= HDMI_PD_ON;
+	}
+
 	if (hdmi_dev->soctype == HDMI_SOC_RK322X ||
 	    hdmi_dev->soctype == HDMI_SOC_RK3366 ||
 	    hdmi_dev->soctype == HDMI_SOC_RK3399) {
@@ -232,11 +233,7 @@ static int rockchip_hdmiv2_clk_enable(struct hdmi_dev *hdmi_dev)
 			clk_prepare_enable(hdmi_dev->pclk_phy);
 			hdmi_dev->clk_on |= HDMI_EXT_PHY_CLK_ON;
 		}
-	} else if ((hdmi_dev->clk_on & HDMI_PD_ON) == 0) {
-		pm_runtime_get_sync(hdmi_dev->dev);
-		hdmi_dev->clk_on |= HDMI_PD_ON;
 	}
-
 	if ((hdmi_dev->clk_on & HDMI_PCLK_ON) == 0) {
 		if (!hdmi_dev->pclk) {
 			hdmi_dev->pclk =
@@ -551,17 +548,6 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto failed1;
 	}
-	/*lcdc source select*/
-	if (hdmi_dev->soctype == HDMI_SOC_RK3288) {
-		grf_writel(HDMI_SEL_LCDC(rk_hdmi_property.videosrc, 4),
-			   RK3288_GRF_SOC_CON6);
-		/* select GPIO7_C0 as cec pin */
-		grf_writel(((1 << 12) | (1 << 28)), RK3288_GRF_SOC_CON8);
-	} else if (hdmi_dev->soctype == HDMI_SOC_RK3399) {
-		regmap_write(hdmi_dev->grf_base,
-			     GRF_SOC_CON20,
-			     HDMI_SEL_LCDC(rk_hdmi_property.videosrc, 6));
-	}
 	rockchip_hdmiv2_dev_init_ops(&rk_hdmi_ops);
 	/* Register HDMI device */
 	rk_hdmi_property.name = (char *)pdev->name;
@@ -737,6 +723,7 @@ static void rockchip_hdmiv2_shutdown(struct platform_device *pdev)
 		    hdmi->ops->setmute)
 			hdmi->ops->setmute(hdmi, HDMI_VIDEO_MUTE);
 	}
+	pm_runtime_disable(hdmi_dev->dev);
 }
 
 static struct platform_driver rockchip_hdmiv2_driver = {
