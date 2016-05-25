@@ -152,8 +152,9 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	struct mlx4_counter tmp_counter_stats;
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
 	struct mlx4_en_stat_out_flow_control_mbox *flowstats;
-	struct mlx4_en_priv *priv = netdev_priv(mdev->pndev[port]);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device *dev = mdev->pndev[port];
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct net_device_stats *stats = &dev->stats;
 	struct mlx4_cmd_mailbox *mailbox;
 	u64 in_mod = reset << 8 | port;
 	int err;
@@ -239,20 +240,11 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	stats->multicast = en_stats_adder(&mlx4_en_stats->MCAST_prio_0,
 					  &mlx4_en_stats->MCAST_prio_1,
 					  NUM_PRIORITIES);
-	stats->collisions = 0;
 	stats->rx_dropped = be32_to_cpu(mlx4_en_stats->RDROP) +
 			    sw_rx_dropped;
 	stats->rx_length_errors = be32_to_cpu(mlx4_en_stats->RdropLength);
-	stats->rx_over_errors = 0;
 	stats->rx_crc_errors = be32_to_cpu(mlx4_en_stats->RCRC);
-	stats->rx_frame_errors = 0;
 	stats->rx_fifo_errors = be32_to_cpu(mlx4_en_stats->RdropOvflw);
-	stats->rx_missed_errors = 0;
-	stats->tx_aborted_errors = 0;
-	stats->tx_carrier_errors = 0;
-	stats->tx_fifo_errors = 0;
-	stats->tx_heartbeat_errors = 0;
-	stats->tx_window_errors = 0;
 	stats->tx_dropped += be32_to_cpu(mlx4_en_stats->TDROP);
 
 	/* RX stats */
