@@ -54,11 +54,6 @@ module_param(soft_panic, int, 0);
 MODULE_PARM_DESC(soft_panic,
 	"Softdog action, set to 1 to panic, 0 to reboot (default=0)");
 
-static void softdog_fire(unsigned long);
-
-static struct timer_list softdog_ticktock =
-		TIMER_INITIALIZER(softdog_fire, 0, 0);
-
 static void softdog_fire(unsigned long data)
 {
 	module_put(THIS_MODULE);
@@ -73,6 +68,9 @@ static void softdog_fire(unsigned long data)
 		pr_crit("Reboot didn't ?????\n");
 	}
 }
+
+static struct timer_list softdog_ticktock =
+		TIMER_INITIALIZER(softdog_fire, 0, 0);
 
 static int softdog_ping(struct watchdog_device *w)
 {
