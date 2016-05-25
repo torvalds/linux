@@ -49,7 +49,7 @@ bool dm_use_blk_mq_default(void);
 bool dm_use_blk_mq(struct mapped_device *md);
 
 int dm_old_init_request_queue(struct mapped_device *md);
-int dm_mq_init_request_queue(struct mapped_device *md, struct dm_target *immutable_tgt);
+int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t);
 void dm_mq_cleanup_mapped_device(struct mapped_device *md);
 
 void dm_start_queue(struct request_queue *q);

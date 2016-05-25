@@ -43,8 +43,10 @@ struct dm_table {
 	struct dm_target *targets;
 
 	struct target_type *immutable_target_type;
-	unsigned integrity_supported:1;
-	unsigned singleton:1;
+
+	bool integrity_supported:1;
+	bool singleton:1;
+	bool all_blk_mq:1;
 
 	/*
 	 * Indicates the rw permissions for the new logical
@@ -206,6 +208,7 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 		return -ENOMEM;
 	}
 
+	t->type = DM_TYPE_NONE;
 	t->mode = mode;
 	t->md = md;
 	*result = t;
@@ -703,7 +706,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 			      dm_device_name(t->md), type);
 			return -EINVAL;
 		}
-		t->singleton = 1;
+		t->singleton = true;
 	}
 
 	if (dm_target_always_writeable(tgt->type) && !(t->mode & FMODE_WRITE)) {
@@ -830,15 +833,28 @@ static bool __table_type_request_based(unsigned table_type)
 		table_type == DM_TYPE_MQ_REQUEST_BASED);
 }
 
-static int dm_table_set_type(struct dm_table *t)
+void dm_table_set_type(struct dm_table *t, unsigned type)
+{
+	t->type = type;
+}
+EXPORT_SYMBOL_GPL(dm_table_set_type);
+
+static int dm_table_determine_type(struct dm_table *t)
 {
 	unsigned i;
 	unsigned bio_based = 0, request_based = 0, hybrid = 0;
-	bool use_blk_mq = false;
+	bool verify_blk_mq = false;
 	struct dm_target *tgt;
 	struct dm_dev_internal *dd;
-	struct list_head *devices;
+	struct list_head *devices = dm_table_get_devices(t);
 	unsigned live_md_type = dm_get_md_type(t->md);
+
+	if (t->type != DM_TYPE_NONE) {
+		/* target already set the table's type */
+		if (t->type == DM_TYPE_BIO_BASED)
+			return 0;
+		goto verify_rq_based;
+	}
 
 	for (i = 0; i < t->num_targets; i++) {
 		tgt = t->targets + i;
@@ -876,6 +892,19 @@ static int dm_table_set_type(struct dm_table *t)
 
 	BUG_ON(!request_based); /* No targets in this table */
 
+	if (list_empty(devices) && __table_type_request_based(live_md_type)) {
+		/* inherit live MD type */
+		t->type = live_md_type;
+		return 0;
+	}
+
+	/*
+	 * The only way to establish DM_TYPE_MQ_REQUEST_BASED is by
+	 * having a compatible target use dm_table_set_type.
+	 */
+	t->type = DM_TYPE_REQUEST_BASED;
+
+verify_rq_based:
 	/*
 	 * Request-based dm supports only tables that have a single target now.
 	 * To support multiple targets, request splitting support is needed,
@@ -888,7 +917,6 @@ static int dm_table_set_type(struct dm_table *t)
 	}
 
 	/* Non-request-stackable devices can't be used for request-based dm */
-	devices = dm_table_get_devices(t);
 	list_for_each_entry(dd, devices, list) {
 		struct request_queue *q = bdev_get_queue(dd->dm_dev->bdev);
 
@@ -899,10 +927,10 @@ static int dm_table_set_type(struct dm_table *t)
 		}
 
 		if (q->mq_ops)
-			use_blk_mq = true;
+			verify_blk_mq = true;
 	}
 
-	if (use_blk_mq) {
+	if (verify_blk_mq) {
 		/* verify _all_ devices in the table are blk-mq devices */
 		list_for_each_entry(dd, devices, list)
 			if (!bdev_get_queue(dd->dm_dev->bdev)->mq_ops) {
@@ -910,14 +938,9 @@ static int dm_table_set_type(struct dm_table *t)
 				      " are blk-mq request-stackable");
 				return -EINVAL;
 			}
-		t->type = DM_TYPE_MQ_REQUEST_BASED;
 
-	} else if (list_empty(devices) && __table_type_request_based(live_md_type)) {
-		/* inherit live MD type */
-		t->type = live_md_type;
-
-	} else
-		t->type = DM_TYPE_REQUEST_BASED;
+		t->all_blk_mq = true;
+	}
 
 	return 0;
 }
@@ -961,9 +984,9 @@ bool dm_table_request_based(struct dm_table *t)
 	return __table_type_request_based(dm_table_get_type(t));
 }
 
-bool dm_table_mq_request_based(struct dm_table *t)
+bool dm_table_all_blk_mq_devices(struct dm_table *t)
 {
-	return dm_table_get_type(t) == DM_TYPE_MQ_REQUEST_BASED;
+	return t->all_blk_mq;
 }
 
 static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *md)
@@ -1106,7 +1129,7 @@ static int dm_table_register_integrity(struct dm_table *t)
 		return 0;
 
 	if (!integrity_profile_exists(dm_disk(md))) {
-		t->integrity_supported = 1;
+		t->integrity_supported = true;
 		/*
 		 * Register integrity profile during table load; we can do
 		 * this because the final profile must match during resume.
@@ -1129,7 +1152,7 @@ static int dm_table_register_integrity(struct dm_table *t)
 	}
 
 	/* Preserve existing integrity profile */
-	t->integrity_supported = 1;
+	t->integrity_supported = true;
 	return 0;
 }
 
@@ -1141,9 +1164,9 @@ int dm_table_complete(struct dm_table *t)
 {
 	int r;
 
-	r = dm_table_set_type(t);
+	r = dm_table_determine_type(t);
 	if (r) {
-		DMERR("unable to set table type");
+		DMERR("unable to determine table type");
 		return r;
 	}
 

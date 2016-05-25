@@ -90,6 +90,8 @@ struct multipath {
 	atomic_t pg_init_in_progress;	/* Only one pg_init allowed at once */
 	atomic_t pg_init_count;		/* Number of times pg_init called */
 
+	unsigned queue_mode;
+
 	/*
 	 * We must use a mempool of dm_mpath_io structs so that we
 	 * can resubmit bios on error.
@@ -131,7 +133,6 @@ static void process_queued_bios(struct work_struct *work);
 #define MPATHF_PG_INIT_DISABLED 4		/* pg_init is not currently allowed */
 #define MPATHF_PG_INIT_REQUIRED 5		/* pg_init needs calling? */
 #define MPATHF_PG_INIT_DELAY_RETRY 6		/* Delay pg_init retry? */
-#define MPATHF_BIO_BASED 7			/* Device is bio-based? */
 
 /*-----------------------------------------------
  * Allocation routines
@@ -191,8 +192,7 @@ static void free_priority_group(struct priority_group *pg,
 	kfree(pg);
 }
 
-static struct multipath *alloc_multipath(struct dm_target *ti, bool use_blk_mq,
-					 bool bio_based)
+static struct multipath *alloc_multipath(struct dm_target *ti)
 {
 	struct multipath *m;
 
@@ -210,31 +210,46 @@ static struct multipath *alloc_multipath(struct dm_target *ti, bool use_blk_mq,
 		mutex_init(&m->work_mutex);
 
 		m->mpio_pool = NULL;
-		if (!use_blk_mq && !bio_based) {
-			unsigned min_ios = dm_get_reserved_rq_based_ios();
-
-			m->mpio_pool = mempool_create_slab_pool(min_ios, _mpio_cache);
-			if (!m->mpio_pool) {
-				kfree(m);
-				return NULL;
-			}
-		}
-
-		if (bio_based) {
-			INIT_WORK(&m->process_queued_bios, process_queued_bios);
-			set_bit(MPATHF_BIO_BASED, &m->flags);
-			/*
-			 * bio-based doesn't support any direct scsi_dh management;
-			 * it just discovers if a scsi_dh is attached.
-			 */
-			set_bit(MPATHF_RETAIN_ATTACHED_HW_HANDLER, &m->flags);
-		}
+		m->queue_mode = DM_TYPE_NONE;
 
 		m->ti = ti;
 		ti->private = m;
 	}
 
 	return m;
+}
+
+static int alloc_multipath_stage2(struct dm_target *ti, struct multipath *m)
+{
+	if (m->queue_mode == DM_TYPE_NONE) {
+		/*
+		 * Default to request-based.
+		 */
+		if (dm_use_blk_mq(dm_table_get_md(ti->table)))
+			m->queue_mode = DM_TYPE_MQ_REQUEST_BASED;
+		else
+			m->queue_mode = DM_TYPE_REQUEST_BASED;
+	}
+
+	if (m->queue_mode == DM_TYPE_REQUEST_BASED) {
+		unsigned min_ios = dm_get_reserved_rq_based_ios();
+
+		m->mpio_pool = mempool_create_slab_pool(min_ios, _mpio_cache);
+		if (!m->mpio_pool)
+			return -ENOMEM;
+	}
+	else if (m->queue_mode == DM_TYPE_BIO_BASED) {
+		INIT_WORK(&m->process_queued_bios, process_queued_bios);
+		/*
+		 * bio-based doesn't support any direct scsi_dh management;
+		 * it just discovers if a scsi_dh is attached.
+		 */
+		set_bit(MPATHF_RETAIN_ATTACHED_HW_HANDLER, &m->flags);
+	}
+
+	dm_table_set_type(ti->table, m->queue_mode);
+
+	return 0;
 }
 
 static void free_multipath(struct multipath *m)
@@ -653,7 +668,7 @@ static int multipath_map_bio(struct dm_target *ti, struct bio *bio)
 
 static void process_queued_bios_list(struct multipath *m)
 {
-	if (test_bit(MPATHF_BIO_BASED, &m->flags))
+	if (m->queue_mode == DM_TYPE_BIO_BASED)
 		queue_work(kmultipathd, &m->process_queued_bios);
 }
 
@@ -964,7 +979,7 @@ static int parse_hw_handler(struct dm_arg_set *as, struct multipath *m)
 	if (!hw_argc)
 		return 0;
 
-	if (test_bit(MPATHF_BIO_BASED, &m->flags)) {
+	if (m->queue_mode == DM_TYPE_BIO_BASED) {
 		dm_consume_args(as, hw_argc);
 		DMERR("bio-based multipath doesn't allow hardware handler args");
 		return 0;
@@ -1005,7 +1020,7 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 	const char *arg_name;
 
 	static struct dm_arg _args[] = {
-		{0, 6, "invalid number of feature args"},
+		{0, 8, "invalid number of feature args"},
 		{1, 50, "pg_init_retries must be between 1 and 50"},
 		{0, 60000, "pg_init_delay_msecs must be between 0 and 60000"},
 	};
@@ -1045,6 +1060,24 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 			continue;
 		}
 
+		if (!strcasecmp(arg_name, "queue_mode") &&
+		    (argc >= 1)) {
+			const char *queue_mode_name = dm_shift_arg(as);
+
+			if (!strcasecmp(queue_mode_name, "bio"))
+				m->queue_mode = DM_TYPE_BIO_BASED;
+			else if (!strcasecmp(queue_mode_name, "rq"))
+				m->queue_mode = DM_TYPE_REQUEST_BASED;
+			else if (!strcasecmp(queue_mode_name, "mq"))
+				m->queue_mode = DM_TYPE_MQ_REQUEST_BASED;
+			else {
+				ti->error = "Unknown 'queue_mode' requested";
+				r = -EINVAL;
+			}
+			argc--;
+			continue;
+		}
+
 		ti->error = "Unrecognised multipath feature request";
 		r = -EINVAL;
 	} while (argc && !r);
@@ -1052,8 +1085,7 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 	return r;
 }
 
-static int __multipath_ctr(struct dm_target *ti, unsigned int argc,
-			   char **argv, bool bio_based)
+static int multipath_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
 	/* target arguments */
 	static struct dm_arg _args[] = {
@@ -1066,18 +1098,21 @@ static int __multipath_ctr(struct dm_target *ti, unsigned int argc,
 	struct dm_arg_set as;
 	unsigned pg_count = 0;
 	unsigned next_pg_num;
-	bool use_blk_mq = dm_use_blk_mq(dm_table_get_md(ti->table));
 
 	as.argc = argc;
 	as.argv = argv;
 
-	m = alloc_multipath(ti, use_blk_mq, bio_based);
+	m = alloc_multipath(ti);
 	if (!m) {
 		ti->error = "can't allocate multipath";
 		return -EINVAL;
 	}
 
 	r = parse_features(&as, m);
+	if (r)
+		goto bad;
+
+	r = alloc_multipath_stage2(ti, m);
 	if (r)
 		goto bad;
 
@@ -1130,9 +1165,9 @@ static int __multipath_ctr(struct dm_target *ti, unsigned int argc,
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
 	ti->num_write_same_bios = 1;
-	if (bio_based)
+	if (m->queue_mode == DM_TYPE_BIO_BASED)
 		ti->per_io_data_size = multipath_per_bio_data_size();
-	else if (use_blk_mq)
+	else if (m->queue_mode == DM_TYPE_MQ_REQUEST_BASED)
 		ti->per_io_data_size = sizeof(struct dm_mpath_io);
 
 	return 0;
@@ -1140,16 +1175,6 @@ static int __multipath_ctr(struct dm_target *ti, unsigned int argc,
  bad:
 	free_multipath(m);
 	return r;
-}
-
-static int multipath_ctr(struct dm_target *ti, unsigned argc, char **argv)
-{
-	return __multipath_ctr(ti, argc, argv, false);
-}
-
-static int multipath_bio_ctr(struct dm_target *ti, unsigned argc, char **argv)
-{
-	return __multipath_ctr(ti, argc, argv, true);
 }
 
 static void multipath_wait_for_pg_init_completion(struct multipath *m)
@@ -1700,7 +1725,9 @@ static void multipath_status(struct dm_target *ti, status_type_t type,
 		DMEMIT("%u ", test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags) +
 			      (m->pg_init_retries > 0) * 2 +
 			      (m->pg_init_delay_msecs != DM_PG_INIT_DELAY_DEFAULT) * 2 +
-			      test_bit(MPATHF_RETAIN_ATTACHED_HW_HANDLER, &m->flags));
+			      test_bit(MPATHF_RETAIN_ATTACHED_HW_HANDLER, &m->flags) +
+			      (m->queue_mode != DM_TYPE_REQUEST_BASED) * 2);
+
 		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
 			DMEMIT("queue_if_no_path ");
 		if (m->pg_init_retries)
@@ -1709,6 +1736,16 @@ static void multipath_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("pg_init_delay_msecs %u ", m->pg_init_delay_msecs);
 		if (test_bit(MPATHF_RETAIN_ATTACHED_HW_HANDLER, &m->flags))
 			DMEMIT("retain_attached_hw_handler ");
+		if (m->queue_mode != DM_TYPE_REQUEST_BASED) {
+			switch(m->queue_mode) {
+			case DM_TYPE_BIO_BASED:
+				DMEMIT("queue_mode bio ");
+				break;
+			case DM_TYPE_MQ_REQUEST_BASED:
+				DMEMIT("queue_mode mq ");
+				break;
+			}
+		}
 	}
 
 	if (!m->hw_handler_name || type == STATUSTYPE_INFO)
@@ -1995,7 +2032,7 @@ static int multipath_busy(struct dm_target *ti)
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 11, 0},
+	.version = {1, 12, 0},
 	.features = DM_TARGET_SINGLETON | DM_TARGET_IMMUTABLE,
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
@@ -2004,22 +2041,6 @@ static struct target_type multipath_target = {
 	.clone_and_map_rq = multipath_clone_and_map,
 	.release_clone_rq = multipath_release_clone,
 	.rq_end_io = multipath_end_io,
-	.presuspend = multipath_presuspend,
-	.postsuspend = multipath_postsuspend,
-	.resume = multipath_resume,
-	.status = multipath_status,
-	.message = multipath_message,
-	.prepare_ioctl = multipath_prepare_ioctl,
-	.iterate_devices = multipath_iterate_devices,
-	.busy = multipath_busy,
-};
-
-static struct target_type multipath_bio_target = {
-	.name = "multipath-bio",
-	.version = {1, 0, 0},
-	.module = THIS_MODULE,
-	.ctr = multipath_bio_ctr,
-	.dtr = multipath_dtr,
 	.map = multipath_map_bio,
 	.end_io = multipath_end_io_bio,
 	.presuspend = multipath_presuspend,
@@ -2048,13 +2069,6 @@ static int __init dm_multipath_init(void)
 		goto bad_register_target;
 	}
 
-	r = dm_register_target(&multipath_bio_target);
-	if (r < 0) {
-		DMERR("bio-based register failed %d", r);
-		r = -EINVAL;
-		goto bad_register_bio_based_target;
-	}
-
 	kmultipathd = alloc_workqueue("kmpathd", WQ_MEM_RECLAIM, 0);
 	if (!kmultipathd) {
 		DMERR("failed to create workqueue kmpathd");
@@ -2081,8 +2095,6 @@ static int __init dm_multipath_init(void)
 bad_alloc_kmpath_handlerd:
 	destroy_workqueue(kmultipathd);
 bad_alloc_kmultipathd:
-	dm_unregister_target(&multipath_bio_target);
-bad_register_bio_based_target:
 	dm_unregister_target(&multipath_target);
 bad_register_target:
 	kmem_cache_destroy(_mpio_cache);
@@ -2096,7 +2108,6 @@ static void __exit dm_multipath_exit(void)
 	destroy_workqueue(kmultipathd);
 
 	dm_unregister_target(&multipath_target);
-	dm_unregister_target(&multipath_bio_target);
 	kmem_cache_destroy(_mpio_cache);
 }
 

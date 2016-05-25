@@ -230,7 +230,14 @@ static void free_rq_clone(struct request *clone)
 
 	blk_rq_unprep_clone(clone);
 
-	if (md->type == DM_TYPE_MQ_REQUEST_BASED)
+	/*
+	 * It is possible for a clone_old_rq() allocated clone to
+	 * get passed in -- it may not yet have a request_queue.
+	 * This is known to occur if the error target replaces
+	 * a multipath target that has a request_fn queue stacked
+	 * on blk-mq queue(s).
+	 */
+	if (clone->q && clone->q->mq_ops)
 		/* stacked on blk-mq queue(s) */
 		tio->ti->type->release_clone_rq(clone);
 	else if (!md->queue->mq_ops)
@@ -561,7 +568,7 @@ static struct dm_rq_target_io *dm_old_prep_tio(struct request *rq,
 	 * Must clone a request if this .request_fn DM device
 	 * is stacked on .request_fn device(s).
 	 */
-	if (!dm_table_mq_request_based(table)) {
+	if (!dm_table_all_blk_mq_devices(table)) {
 		if (!clone_old_rq(rq, md, tio, gfp_mask)) {
 			dm_put_live_table(md, srcu_idx);
 			free_old_rq_tio(tio);
@@ -711,7 +718,7 @@ ssize_t dm_attr_rq_based_seq_io_merge_deadline_store(struct mapped_device *md,
 {
 	unsigned deadline;
 
-	if (!dm_request_based(md) || md->use_blk_mq)
+	if (dm_get_md_type(md) != DM_TYPE_REQUEST_BASED)
 		return count;
 
 	if (kstrtouint(buf, 10, &deadline))
@@ -886,12 +893,13 @@ static struct blk_mq_ops dm_mq_ops = {
 	.init_request = dm_mq_init_request,
 };
 
-int dm_mq_init_request_queue(struct mapped_device *md, struct dm_target *immutable_tgt)
+int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 {
 	struct request_queue *q;
+	struct dm_target *immutable_tgt;
 	int err;
 
-	if (dm_get_md_type(md) == DM_TYPE_REQUEST_BASED) {
+	if (!dm_table_all_blk_mq_devices(t)) {
 		DMERR("request-based dm-mq may only be stacked on blk-mq device(s)");
 		return -EINVAL;
 	}
@@ -908,6 +916,7 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_target *immutab
 	md->tag_set->driver_data = md;
 
 	md->tag_set->cmd_size = sizeof(struct dm_rq_target_io);
+	immutable_tgt = dm_table_get_immutable_target(t);
 	if (immutable_tgt && immutable_tgt->per_io_data_size) {
 		/* any target-specific per-io data is immediately after the tio */
 		md->tag_set->cmd_size += immutable_tgt->per_io_data_size;
