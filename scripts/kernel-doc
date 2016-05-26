@@ -1805,6 +1805,7 @@ sub output_highlight_rst {
 sub output_function_rst(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
+    my $oldprefix = $lineprefix;
     my $start;
 
     print ".. c:function:: ";
@@ -1829,9 +1830,13 @@ sub output_function_rst(%) {
 	    print $type . " " . $parameter;
 	}
     }
-    print ")\n\n    " . $args{'purpose'} . "\n\n";
+    print ")\n\n";
+    $lineprefix = "   ";
+    output_highlight_rst($args{'purpose'});
+    print "\n";
 
     print ":Parameters:\n\n";
+    $lineprefix = "        ";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	my $parameter_name = $parameter;
 	#$parameter_name =~ s/\[.*//;
@@ -1844,15 +1849,14 @@ sub output_function_rst(%) {
 	}
 	if (defined($args{'parameterdescs'}{$parameter_name}) &&
 	    $args{'parameterdescs'}{$parameter_name} ne $undescribed) {
-	    my $oldprefix = $lineprefix;
-	    $lineprefix = "        ";
 	    output_highlight_rst($args{'parameterdescs'}{$parameter_name});
-	    $lineprefix = $oldprefix;
 	} else {
 	    print "\n        _undescribed_\n";
 	}
 	print "\n";
     }
+
+    $lineprefix = $oldprefix;
     output_section_rst(@_);
 }
 
@@ -1874,14 +1878,16 @@ sub output_section_rst(%) {
 sub output_enum_rst(%) {
     my %args = %{$_[0]};
     my ($parameter);
+    my $oldprefix = $lineprefix;
     my $count;
     my $name = "enum " . $args{'enum'};
 
     print "\n\n.. c:type:: " . $name . "\n\n";
-    print "    " . $args{'purpose'} . "\n\n";
+    $lineprefix = "   ";
+    output_highlight_rst($args{'purpose'});
+    print "\n";
 
     print "..\n\n:Constants:\n\n";
-    my $oldprefix = $lineprefix;
     $lineprefix = "    ";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	print "  `$parameter`\n";
@@ -1892,6 +1898,7 @@ sub output_enum_rst(%) {
 	}
 	print "\n";
     }
+
     $lineprefix = $oldprefix;
     output_section_rst(@_);
 }
@@ -1899,23 +1906,29 @@ sub output_enum_rst(%) {
 sub output_typedef_rst(%) {
     my %args = %{$_[0]};
     my ($parameter);
-    my $count;
+    my $oldprefix = $lineprefix;
     my $name = "typedef " . $args{'typedef'};
 
     ### FIXME: should the name below contain "typedef" or not?
     print "\n\n.. c:type:: " . $name . "\n\n";
-    print "    " . $args{'purpose'} . "\n\n";
+    $lineprefix = "   ";
+    output_highlight_rst($args{'purpose'});
+    print "\n";
 
+    $lineprefix = $oldprefix;
     output_section_rst(@_);
 }
 
 sub output_struct_rst(%) {
     my %args = %{$_[0]};
     my ($parameter);
+    my $oldprefix = $lineprefix;
     my $name = $args{'type'} . " " . $args{'struct'};
 
     print "\n\n.. c:type:: " . $name . "\n\n";
-    print "    " . $args{'purpose'} . "\n\n";
+    $lineprefix = "   ";
+    output_highlight_rst($args{'purpose'});
+    print "\n";
 
     print ":Definition:\n\n";
     print " ::\n\n";
@@ -1944,6 +1957,7 @@ sub output_struct_rst(%) {
     print "  };\n\n";
 
     print ":Members:\n\n";
+    $lineprefix = "        ";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	($parameter =~ /^#/) && next;
 
@@ -1953,13 +1967,12 @@ sub output_struct_rst(%) {
 	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
 	$type = $args{'parametertypes'}{$parameter};
 	print "      `$type $parameter`" . "\n";
-	my $oldprefix = $lineprefix;
-	$lineprefix = "        ";
 	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
-	$lineprefix = $oldprefix;
 	print "\n";
     }
     print "\n";
+
+    $lineprefix = $oldprefix;
     output_section_rst(@_);
 }
 
