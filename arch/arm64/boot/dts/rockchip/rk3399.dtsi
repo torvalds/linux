@@ -114,6 +114,7 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <121>;
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster0_opp>;
@@ -155,6 +156,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <1068>;
 			clocks = <&cru ARMCLKB>;
 			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster1_opp>;
@@ -709,24 +711,25 @@
 	};
 
 	thermal-zones {
-		cpu {
+		soc_thermal: soc-thermal {
 			polling-delay-passive = <100>; /* milliseconds */
 			polling-delay = <1000>; /* milliseconds */
+			sustainable-power = <2600>; /* milliwatts */
 
 			thermal-sensors = <&tsadc 0>;
 
 			trips {
-				cpu_alert0: cpu_alert0 {
+				threshold: trip-point@0 {
 					temperature = <70000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
-				cpu_alert1: cpu_alert1 {
-					temperature = <75000>; /* millicelsius */
+				target: trip-point@1 {
+					temperature = <85000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
-				cpu_crit: cpu_crit {
+				soc_crit: soc-crit {
 					temperature = <95000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "critical";
@@ -735,45 +738,28 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&cpu_alert0>;
+					trip = <&target>;
 					cooling-device =
-						<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 				map1 {
-					trip = <&cpu_alert1>;
+					trip = <&target>;
 					cooling-device =
-						<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
-			};
-		};
-
-		gpu {
-			polling-delay-passive = <100>; /* milliseconds */
-			polling-delay = <1000>; /* milliseconds */
-
-			thermal-sensors = <&tsadc 1>;
-
-			trips {
-				gpu_alert0: gpu_alert0 {
-					temperature = <75000>; /* millicelsius */
-					hysteresis = <2000>; /* millicelsius */
-					type = "passive";
-				};
-				gpu_crit: gpu_crit {
-					temperature = <95000>; /* millicelsius */
-					hysteresis = <2000>; /* millicelsius */
-					type = "critical";
-				};
-			};
-
-			cooling-maps {
-				map0 {
-					trip = <&gpu_alert0>;
+				map2 {
+					trip = <&target>;
 					cooling-device =
 						<&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
+		};
+
+		gpu_thermal: gpu-thermal {
+			polling-delay-passive = <100>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+
+			thermal-sensors = <&tsadc 1>;
 		};
 	};
 
@@ -1232,10 +1218,10 @@
 			compatible = "arm,mali-simple-power-model";
 			voltage = <900>;
 			frequency = <500>;
-			static-power = <500>;
-			dynamic-power = <1500>;
-			ts = <20000 2000 (-20) 2>;
-			thermal-zone = "gpu";
+			static-power = <300>;
+			dynamic-power = <1780>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "gpu-thermal";
 		};
 	};
 
