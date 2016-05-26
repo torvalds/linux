@@ -350,24 +350,29 @@ my $section_counter = 0;
 
 my $lineprefix="";
 
-# states
-# 0 - normal code
-# 1 - looking for function name
-# 2 - scanning field start.
-# 3 - scanning prototype.
-# 4 - documentation block
-# 5 - gathering documentation outside main block
+# Parser states
+use constant {
+    STATE_NORMAL        => 0, # normal code
+    STATE_NAME          => 1, # looking for function name
+    STATE_FIELD         => 2, # scanning field start
+    STATE_PROTO         => 3, # scanning prototype
+    STATE_DOCBLOCK      => 4, # documentation block
+    STATE_INLINE        => 5, # gathering documentation outside main block
+};
 my $state;
 my $in_doc_sect;
 
-# Split Doc State
-# 0 - Invalid (Before start or after finish)
-# 1 - Is started (the /** was found inside a struct)
-# 2 - The @parameter header was found, start accepting multi paragraph text.
-# 3 - Finished (the */ was found)
-# 4 - Error - Comment without header was found. Spit a warning as it's not
-#     proper kernel-doc and ignore the rest.
-my $split_doc_state;
+# Inline documentation state
+use constant {
+    STATE_INLINE_NA     => 0, # not applicable ($state != STATE_INLINE)
+    STATE_INLINE_NAME   => 1, # looking for member name (@foo:)
+    STATE_INLINE_TEXT   => 2, # looking for member documentation
+    STATE_INLINE_END    => 3, # done
+    STATE_INLINE_ERROR  => 4, # error - Comment without header was found.
+                              # Spit a warning as it's not
+                              # proper kernel-doc and ignore the rest.
+};
+my $inline_doc_state;
 
 #declaration types: can be
 # 'function', 'struct', 'union', 'enum', 'typedef'
@@ -383,9 +388,9 @@ my $doc_decl = $doc_com . '(\w+)';
 my $doc_sect = $doc_com . '([' . $doc_special . ']?[\w\s]+):(.*)';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
-my $doc_split_start = '^\s*/\*\*\s*$';
-my $doc_split_sect = '\s*\*\s*(@[\w\s]+):(.*)';
-my $doc_split_end = '^\s*\*/\s*$';
+my $doc_inline_start = '^\s*/\*\*\s*$';
+my $doc_inline_sect = '\s*\*\s*(@[\w\s]+):(.*)';
+my $doc_inline_end = '^\s*\*/\s*$';
 my $export_symbol = '^\s*EXPORT_SYMBOL(_GPL)?\s*\(\s*(\w+)\s*\)\s*;';
 
 my %constants;
@@ -2497,8 +2502,8 @@ sub reset_state {
     $struct_actual = "";
     $prototype = "";
 
-    $state = 0;
-    $split_doc_state = 0;
+    $state = STATE_NORMAL;
+    $inline_doc_state = STATE_INLINE_NA;
 }
 
 sub tracepoint_munge($) {
@@ -2707,14 +2712,14 @@ sub process_file($) {
 	while (s/\\\s*$//) {
 	    $_ .= <IN>;
 	}
-	if ($state == 0) {
+	if ($state == STATE_NORMAL) {
 	    if (/$doc_start/o) {
-		$state = 1;		# next line is always the function name
+		$state = STATE_NAME;	# next line is always the function name
 		$in_doc_sect = 0;
 	    }
-	} elsif ($state == 1) {	# this line is the function name (always)
+	} elsif ($state == STATE_NAME) {# this line is the function name (always)
 	    if (/$doc_block/o) {
-		$state = 4;
+		$state = STATE_DOCBLOCK;
 		$contents = "";
 		if ( $1 eq "" ) {
 			$section = $section_intro;
@@ -2728,7 +2733,7 @@ sub process_file($) {
 		    $identifier = $1;
 		}
 
-		$state = 2;
+		$state = STATE_FIELD;
 		if (/-(.*)/) {
 		    # strip leading/trailing/multiple spaces
 		    $descr= $1;
@@ -2766,9 +2771,9 @@ sub process_file($) {
 		print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
 		" - I thought it was a doc line\n";
 		++$warnings;
-		$state = 0;
+		$state = STATE_NORMAL;
 	    }
-	} elsif ($state == 2) {	# look for head: lines, and include content
+	} elsif ($state == STATE_FIELD) {	# look for head: lines, and include content
 	    if (/$doc_sect/o) {
 		$newsection = $1;
 		$newcontents = $2;
@@ -2806,7 +2811,7 @@ sub process_file($) {
 		}
 
 		$prototype = "";
-		$state = 3;
+		$state = STATE_PROTO;
 		$brcount = 0;
 #		print STDERR "end of doc comment, looking for prototype\n";
 	    } elsif (/$doc_content/) {
@@ -2834,9 +2839,9 @@ sub process_file($) {
 		print STDERR "${file}:$.: warning: bad line: $_";
 		++$warnings;
 	    }
-	} elsif ($state == 5) { # scanning for split parameters
+	} elsif ($state == STATE_INLINE) { # scanning for inline parameters
 	    # First line (state 1) needs to be a @parameter
-	    if ($split_doc_state == 1 && /$doc_split_sect/o) {
+	    if ($inline_doc_state == STATE_INLINE_NAME && /$doc_inline_sect/o) {
 		$section = $1;
 		$contents = $2;
 		if ($contents ne "") {
@@ -2846,37 +2851,37 @@ sub process_file($) {
 		    }
 		$contents .= "\n";
 		}
-		$split_doc_state = 2;
+		$inline_doc_state = STATE_INLINE_TEXT;
 	    # Documentation block end */
-	    } elsif (/$doc_split_end/) {
+	    } elsif (/$doc_inline_end/) {
 		if (($contents ne "") && ($contents ne "\n")) {
 		    dump_section($file, $section, xml_escape($contents));
 		    $section = $section_default;
 		    $contents = "";
 		}
-		$state = 3;
-		$split_doc_state = 0;
+		$state = STATE_PROTO;
+		$inline_doc_state = STATE_INLINE_NA;
 	    # Regular text
 	    } elsif (/$doc_content/) {
-		if ($split_doc_state == 2) {
+		if ($inline_doc_state == STATE_INLINE_TEXT) {
 		    $contents .= $1 . "\n";
-		} elsif ($split_doc_state == 1) {
-		    $split_doc_state = 4;
+		} elsif ($inline_doc_state == STATE_INLINE_NAME) {
+		    $inline_doc_state = STATE_INLINE_ERROR;
 		    print STDERR "Warning(${file}:$.): ";
 		    print STDERR "Incorrect use of kernel-doc format: $_";
 		    ++$warnings;
 		}
 	    }
-	} elsif ($state == 3) {	# scanning for function '{' (end of prototype)
-	    if (/$doc_split_start/) {
-		$state = 5;
-		$split_doc_state = 1;
+	} elsif ($state == STATE_PROTO) {	# scanning for function '{' (end of prototype)
+	    if (/$doc_inline_start/) {
+		$state = STATE_INLINE;
+		$inline_doc_state = STATE_INLINE_NAME;
 	    } elsif ($decl_type eq 'function') {
 		process_state3_function($_, $file);
 	    } else {
 		process_state3_type($_, $file);
 	    }
-	} elsif ($state == 4) {
+	} elsif ($state == STATE_DOCBLOCK) {
 		# Documentation block
 		if (/$doc_block/) {
 			dump_doc_section($file, $section, xml_escape($contents));
@@ -2907,7 +2912,7 @@ sub process_file($) {
 			%sections = ();
 			@sectionlist = ();
 			$prototype = "";
-			$state = 0;
+			$state = STATE_NORMAL;
 		}
 		elsif (/$doc_content/)
 		{
