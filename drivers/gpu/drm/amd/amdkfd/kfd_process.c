@@ -242,13 +242,19 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 	pqm_uninit(&p->pqm);
 
 	/* Iterate over all process device data structure and check
-	 * if we should reset all wavefronts */
-	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
+	 * if we should delete debug managers and reset all wavefronts
+	 */
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
+		if ((pdd->dev->dbgmgr) &&
+				(pdd->dev->dbgmgr->pasid == p->pasid))
+			kfd_dbgmgr_destroy(pdd->dev->dbgmgr);
+
 		if (pdd->reset_wavefronts) {
 			pr_warn("amdkfd: Resetting all wave fronts\n");
 			dbgdev_wave_reset_wavefronts(pdd->dev, p);
 			pdd->reset_wavefronts = false;
 		}
+	}
 
 	mutex_unlock(&p->mutex);
 
