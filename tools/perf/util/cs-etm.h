@@ -18,6 +18,10 @@
 #ifndef INCLUDE__UTIL_PERF_CS_ETM_H__
 #define INCLUDE__UTIL_PERF_CS_ETM_H__
 
+#include "util/event.h"
+#include "util/intlist.h"
+#include "util/session.h"
+
 /* Versionning header in case things need tro change in the future.  That way
  * decoding of old snapshot is still possible.
  */
@@ -60,6 +64,9 @@ enum {
 	CS_ETMV4_TRCAUTHSTATUS,
 	CS_ETMV4_PRIV_MAX,
 };
+
+/* RB tree for quick conversion between traceID and CPUs */
+struct intlist *traceid_list;
 
 #define KiB(x) ((x) * 1024)
 #define MiB(x) ((x) * 1024 * 1024)

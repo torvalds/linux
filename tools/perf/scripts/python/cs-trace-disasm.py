@@ -82,6 +82,7 @@ def process_event(t):
         if (len(disasm_cache) > cache_size):
                 disasm_cache.clear();
 
+        cpu = format(sample['cpu'], "d");
         addr_range = format(sample['ip'],"x")  + ":" + format(sample['addr'],"x");
 
         try:
@@ -103,6 +104,7 @@ def process_event(t):
                 disasm_output = check_output(disasm).split('\n')
                 disasm_cache[addr_range] = disasm_output;
 
+        print "FILE: %s\tCPU: %s" % (dso, cpu);
         for line in disasm_output:
                 m = disasm_re.search(line)
                 if (m != None) :

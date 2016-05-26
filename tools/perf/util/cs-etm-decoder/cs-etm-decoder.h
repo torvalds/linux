@@ -51,6 +51,7 @@ struct cs_etm_packet {
         uint64_t end_addr;
         bool     exc;
         bool     exc_ret;
+        int cpu;
 };
 
 

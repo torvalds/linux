@@ -16,10 +16,13 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/err.h>
 #include <stdlib.h>
 
+#include "../cs-etm.h"
 #include "cs-etm-decoder.h"
 #include "../util.h"
+#include "../util/intlist.h"
 
 #include "c_api/opencsd_c_api.h"
 #include "ocsd_if_types.h"
@@ -102,10 +105,12 @@ int cs_etm_decoder__flush(struct cs_etm_decoder *decoder)
 
 static int cs_etm_decoder__buffer_packet(struct cs_etm_decoder *decoder,
 					 const ocsd_generic_trace_elem *elem,
+					 const uint8_t trace_chan_id,
 					 enum cs_etm_sample_type sample_type)
 {
         int err = 0;
         uint32_t et = 0;
+        struct int_node *inode = NULL;
 
         if (decoder == NULL) return -1;
 
@@ -116,12 +121,18 @@ static int cs_etm_decoder__buffer_packet(struct cs_etm_decoder *decoder,
         if (err) return err;
 
         et = decoder->end_tail;
+        /* Search the RB tree for the cpu associated with this traceID */
+        inode = intlist__find(traceid_list, trace_chan_id);
+        if (!inode)
+                return PTR_ERR(inode);
 
         decoder->packet_buffer[et].sample_type = sample_type;
         decoder->packet_buffer[et].start_addr = elem->st_addr;
         decoder->packet_buffer[et].end_addr   = elem->en_addr;
         decoder->packet_buffer[et].exc        = false;
         decoder->packet_buffer[et].exc_ret    = false;
+        decoder->packet_buffer[et].cpu        = *((int*)inode->priv);
+
         et = (et + 1) & (MAX_BUFFER - 1);
 
         decoder->end_tail = et;
@@ -177,7 +188,8 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
                 //decoder->discontinuity = true;
                 //break;
         case OCSD_GEN_TRC_ELEM_INSTR_RANGE:
-                cs_etm_decoder__buffer_packet(decoder,elem, CS_ETM_RANGE);
+                cs_etm_decoder__buffer_packet(decoder,elem,
+					      trace_chan_id, CS_ETM_RANGE);
                 resp = OCSD_RESP_WAIT;
                 break; 
         case OCSD_GEN_TRC_ELEM_EXCEPTION:
@@ -409,6 +421,7 @@ static void cs_etm_decoder__clear_buffer(struct cs_etm_decoder *decoder)
                 decoder->packet_buffer[i].end_addr   = 0xdeadbeefdeadbeefUL;
                 decoder->packet_buffer[i].exc        = false;
                 decoder->packet_buffer[i].exc_ret    = false;
+                decoder->packet_buffer[i].cpu        = INT_MIN;
         }
 }
 

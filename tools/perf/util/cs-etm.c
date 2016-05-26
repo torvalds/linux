@@ -15,6 +15,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -29,6 +30,7 @@
 #include "evlist.h"
 #include "machine.h"
 #include "util.h"
+#include "util/intlist.h"
 #include "color.h"
 #include "cs-etm.h"
 #include "cs-etm-decoder/cs-etm-decoder.h"
@@ -234,12 +236,20 @@ static void cs_etm__free(struct perf_session *session)
 {
 
         size_t i;
+        struct int_node *inode, *tmp;
         struct cs_etm_auxtrace *aux = container_of(session->auxtrace,
                                                    struct cs_etm_auxtrace,
                                                    auxtrace);
         auxtrace_heap__free(&aux->heap);
         cs_etm__free_events(session);
         session->auxtrace = NULL;
+
+        /* First remove all traceID/CPU# nodes from the RB tree */
+        intlist__for_each_safe(inode, tmp, traceid_list)
+                intlist__remove(traceid_list, inode);
+        /* Then the RB tree itself */
+        intlist__delete(traceid_list);
+
         //thread__delete(aux->unknown_thread);
         for (i = 0; i < aux->num_cpu; ++i) {
                 zfree(&aux->metadata[i]);
@@ -613,7 +623,7 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
         sample.id = etmq->etm->instructions_id;
         sample.stream_id = etmq->etm->instructions_id;
         sample.period = (end_addr - start_addr) >> 2; 
-        sample.cpu = etmq->cpu;
+        sample.cpu = packet->cpu;
         sample.flags = 0; // etmq->flags;
         sample.insn_len = 1; // etmq->insn_len;
 
@@ -1326,12 +1336,19 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
         size_t priv_size = 0;
         size_t num_cpu;
         struct cs_etm_auxtrace *etm = 0;
-        int err = 0;
+        int err = 0, idx = -1;
         u64 *ptr;
         u64 *hdr = NULL;
         u64 **metadata = NULL;
         size_t i,j,k;
         unsigned pmu_type;
+        struct int_node *inode;
+
+        /*
+         * sizeof(auxtrace_info_event::type) +
+         * sizeof(auxtrace_info_event::reserved) == 8
+         */
+        info_header_size = 8;
 
         if (total_size < (event_header_size + info_header_size))
                 return -EINVAL;
@@ -1355,7 +1372,20 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
                 return -EINVAL;
         }
 
+        /*
+         * Create an RB tree for traceID-CPU# tuple.  Since the conversion has
+         * to be made for each packet that gets decoded optimizing access in
+         * anything other than a sequential array is worth doing.
+         */
+        traceid_list = intlist__new(NULL);
+        if (!traceid_list)
+                return -ENOMEM;
+
         metadata = zalloc(sizeof(u64 *) * num_cpu);
+        if (!metadata) {
+		err = -ENOMEM;
+                goto err_free_traceid_list;
+        }
 
         if (metadata == NULL) {
                 return -EINVAL;
@@ -1369,6 +1399,9 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
                         for (k = 0; k < CS_ETM_PRIV_MAX; k++) {
                                 metadata[j][k] = ptr[i+k];
                         }
+
+			/* The traceID is our handle */
+			idx = metadata[j][CS_ETM_ETMIDR];
                         i += CS_ETM_PRIV_MAX;
                 } else if (ptr[i] == __perf_cs_etmv4_magic) {
                         metadata[j] = zalloc(sizeof(u64)*CS_ETMV4_PRIV_MAX);
@@ -1377,8 +1410,33 @@ int cs_etm__process_auxtrace_info(union perf_event *event,
                         for (k = 0; k < CS_ETMV4_PRIV_MAX; k++) {
                                 metadata[j][k] = ptr[i+k];
                         }
+
+			/* The traceID is our handle */
+			idx = metadata[j][CS_ETMV4_TRCTRACEIDR];
                         i += CS_ETMV4_PRIV_MAX;
                 }
+
+		/* Get an RB node for this CPU */
+		inode = intlist__findnew(traceid_list, idx);
+
+		/* Something went wrong, no need to continue */
+		if (!inode) {
+			err = PTR_ERR(inode);
+			goto err_free_metadata;
+		}
+
+		/*
+		 * The node for that CPU should not have been taken already.
+		 * Backout if that's the case.
+		 */
+		if (inode->priv) {
+			err = -EINVAL;
+			goto err_free_metadata;
+		}
+
+		/* All good, associate the traceID with the CPU# */
+		inode->priv = &metadata[j][CS_ETM_CPU];
+
         }
 
         if (i*8 != priv_size)
@@ -1463,5 +1521,13 @@ err_free_queues:
         session->auxtrace = NULL;
 err_free:
         free(etm);
+err_free_metadata:
+	/* No need to check @metadata[j], free(NULL) is supported */
+	for (j = 0; j < num_cpu; ++j)
+		free(metadata[j]);
+	free(metadata);
+err_free_traceid_list:
+	intlist__delete(traceid_list);
+
         return err;
 }
