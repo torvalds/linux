@@ -33,20 +33,6 @@
 struct omap_dss_device;
 
 /**
- * encoder_tfp410 platform data
- * @name: name for this display entity
- * @power_down_gpio: gpio number for PD pin (or -1 if not available)
- * @data_lines: number of DPI datalines
- */
-struct encoder_tfp410_platform_data {
-	const char *name;
-	const char *source;
-	int power_down_gpio;
-	int data_lines;
-};
-
-
-/**
  * connector_atv platform data
  * @name: name for this display entity
  * @source: name of the display entity used as a video source
