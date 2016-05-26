@@ -283,7 +283,8 @@ my @highlights_rst = (
                        [$type_func, "\\:c\\:func\\:`\$1()`"],
                        [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
                        [$type_enum_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
-                       [$type_struct, "\\:c\\:type\\:`struct \$1 <\$1>`"],
+                       # in rst this can refer to any type
+                       [$type_struct, "\\:c\\:type\\:`\$1`"],
                        [$type_param, "**\$1**"]
 		      );
 my $blankline_rst = "\n";
