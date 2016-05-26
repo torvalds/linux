@@ -632,7 +632,6 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	}
 
 	ctrl |= DXEPCTL_EPENA;	/* ensure ep enabled */
-	ctrl |= DXEPCTL_USBACTEP;
 
 	dev_dbg(hsotg->dev, "ep0 state:%d\n", hsotg->ep0_state);
 
