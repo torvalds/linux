@@ -667,6 +667,16 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 			__func__, &ureq->dma, dma_reg);
 	}
 
+	if (hs_ep->isochronous && hs_ep->interval == 1) {
+		hs_ep->target_frame = dwc2_hsotg_read_frameno(hsotg);
+		dwc2_gadget_incr_frame_num(hs_ep);
+
+		if (hs_ep->target_frame & 0x1)
+			ctrl |= DXEPCTL_SETODDFR;
+		else
+			ctrl |= DXEPCTL_SETEVENFR;
+	}
+
 	ctrl |= DXEPCTL_EPENA;	/* ensure ep enabled */
 
 	dev_dbg(hsotg->dev, "ep0 state:%d\n", hsotg->ep0_state);
@@ -863,9 +873,18 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	first = list_empty(&hs_ep->queue);
 	list_add_tail(&hs_req->queue, &hs_ep->queue);
 
-	if (first)
-		dwc2_hsotg_start_req(hs, hs_ep, hs_req, false);
+	if (first) {
+		if (!hs_ep->isochronous) {
+			dwc2_hsotg_start_req(hs, hs_ep, hs_req, false);
+			return 0;
+		}
 
+		while (dwc2_gadget_target_frame_elapsed(hs_ep))
+			dwc2_gadget_incr_frame_num(hs_ep);
+
+		if (hs_ep->target_frame != TARGET_FRAME_INITIAL)
+			dwc2_hsotg_start_req(hs, hs_ep, hs_req, false);
+	}
 	return 0;
 }
 
@@ -1673,9 +1692,10 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
 	 * adjust the ISOC parity here.
 	 */
 	if (!using_dma(hsotg)) {
-		hs_ep->has_correct_parity = 1;
 		if (hs_ep->isochronous && hs_ep->interval == 1)
 			dwc2_hsotg_change_ep_iso_parity(hsotg, DOEPCTL(epnum));
+		else if (hs_ep->isochronous && hs_ep->interval > 1)
+			dwc2_gadget_incr_frame_num(hs_ep);
 	}
 
 	dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, result);
@@ -2216,11 +2236,10 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 	if (idx == 0 && (ints & (DXEPINT_SETUP | DXEPINT_SETUP_RCVD)))
 		ints &= ~DXEPINT_XFERCOMPL;
 
-	if (ints & DXEPINT_XFERCOMPL) {
-		hs_ep->has_correct_parity = 1;
-		if (hs_ep->isochronous && hs_ep->interval == 1)
-			dwc2_hsotg_change_ep_iso_parity(hsotg, epctl_reg);
+	if (ints & DXEPINT_STSPHSERCVD)
+		dev_dbg(hsotg->dev, "%s: StsPhseRcvd asserted\n", __func__);
 
+	if (ints & DXEPINT_XFERCOMPL) {
 		dev_dbg(hsotg->dev,
 			"%s: XferCompl: DxEPCTL=0x%08x, DXEPTSIZ=%08x\n",
 			__func__, dwc2_readl(hsotg->regs + epctl_reg),
@@ -2231,7 +2250,12 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 		 * at completing IN requests here
 		 */
 		if (dir_in) {
+			if (hs_ep->isochronous && hs_ep->interval > 1)
+				dwc2_gadget_incr_frame_num(hs_ep);
+
 			dwc2_hsotg_complete_in(hsotg, hs_ep);
+			if (ints & DXEPINT_NAKINTRPT)
+				ints &= ~DXEPINT_NAKINTRPT;
 
 			if (idx == 0 && !hs_ep->req)
 				dwc2_hsotg_enqueue_setup(hsotg);
@@ -2240,6 +2264,8 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 			 * We're using DMA, we need to fire an OutDone here
 			 * as we ignore the RXFIFO.
 			 */
+			if (hs_ep->isochronous && hs_ep->interval > 1)
+				dwc2_gadget_incr_frame_num(hs_ep);
 
 			dwc2_hsotg_handle_outdone(hsotg, idx);
 		}
@@ -2556,18 +2582,16 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	dwc2_writel(((hsotg->dedicated_fifos && !using_dma(hsotg)) ?
 		DIEPMSK_TXFIFOEMPTY | DIEPMSK_INTKNTXFEMPMSK : 0) |
 		DIEPMSK_EPDISBLDMSK | DIEPMSK_XFERCOMPLMSK |
-		DIEPMSK_TIMEOUTMSK | DIEPMSK_AHBERRMSK |
-		DIEPMSK_INTKNEPMISMSK,
+		DIEPMSK_TIMEOUTMSK | DIEPMSK_AHBERRMSK,
 		hsotg->regs + DIEPMSK);
 
 	/*
 	 * don't need XferCompl, we get that from RXFIFO in slave mode. In
 	 * DMA mode we may need this.
 	 */
-	dwc2_writel((using_dma(hsotg) ? (DIEPMSK_XFERCOMPLMSK |
-				    DIEPMSK_TIMEOUTMSK) : 0) |
+	dwc2_writel((using_dma(hsotg) ? (DIEPMSK_XFERCOMPLMSK) : 0) |
 		DOEPMSK_EPDISBLDMSK | DOEPMSK_AHBERRMSK |
-		DOEPMSK_SETUPMSK,
+		DOEPMSK_SETUPMSK | DOEPMSK_STSPHSERCVDMSK,
 		hsotg->regs + DOEPMSK);
 
 	dwc2_writel(0, hsotg->regs + DAINTMSK);
@@ -2858,11 +2882,29 @@ irq_retry:
 	 */
 
 	if (gintsts & GINTSTS_GOUTNAKEFF) {
-		dev_info(hsotg->dev, "GOUTNakEff triggered\n");
+		u8 idx;
+		u32 epctrl;
+		u32 gintmsk;
+		struct dwc2_hsotg_ep *hs_ep;
 
-		__orr32(hsotg->regs + DCTL, DCTL_CGOUTNAK);
+		/* Mask this interrupt */
+		gintmsk = dwc2_readl(hsotg->regs + GINTMSK);
+		gintmsk &= ~GINTSTS_GOUTNAKEFF;
+		dwc2_writel(gintmsk, hsotg->regs + GINTMSK);
 
-		dwc2_hsotg_dump(hsotg);
+		dev_dbg(hsotg->dev, "GOUTNakEff triggered\n");
+		for (idx = 1; idx <= hsotg->num_of_eps; idx++) {
+			hs_ep = hsotg->eps_out[idx];
+			epctrl = dwc2_readl(hsotg->regs + DOEPCTL(idx));
+
+			if ((epctrl & DXEPCTL_EPENA) && hs_ep->isochronous) {
+				epctrl |= DXEPCTL_SNAK;
+				epctrl |= DXEPCTL_EPDIS;
+				dwc2_writel(epctrl, hsotg->regs + DOEPCTL(idx));
+			}
+		}
+
+		/* This interrupt bit is cleared in DXEPINT_EPDISBLD handler */
 	}
 
 	if (gintsts & GINTSTS_GINNAKEFF) {
@@ -2909,6 +2951,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	u32 epctrl_reg;
 	u32 epctrl;
 	u32 mps;
+	u32 mask;
 	unsigned int dir_in;
 	unsigned int i, val, size;
 	int ret = 0;
@@ -2951,15 +2994,6 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	 */
 	epctrl |= DXEPCTL_USBACTEP;
 
-	/*
-	 * set the NAK status on the endpoint, otherwise we might try and
-	 * do something with data that we've yet got a request to process
-	 * since the RXFIFO will take data for an endpoint even if the
-	 * size register hasn't been set.
-	 */
-
-	epctrl |= DXEPCTL_SNAK;
-
 	/* update the endpoint state */
 	dwc2_hsotg_set_ep_maxpacket(hsotg, hs_ep->index, mps, dir_in);
 
@@ -2975,8 +3009,17 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		epctrl |= DXEPCTL_SETEVENFR;
 		hs_ep->isochronous = 1;
 		hs_ep->interval = 1 << (desc->bInterval - 1);
-		if (dir_in)
+		hs_ep->target_frame = TARGET_FRAME_INITIAL;
+		if (dir_in) {
 			hs_ep->periodic = 1;
+			mask = dwc2_readl(hsotg->regs + DIEPMSK);
+			mask |= DIEPMSK_NAKMSK;
+			dwc2_writel(mask, hsotg->regs + DIEPMSK);
+		} else {
+			mask = dwc2_readl(hsotg->regs + DOEPMSK);
+			mask |= DOEPMSK_OUTTKNEPDISMSK;
+			dwc2_writel(mask, hsotg->regs + DOEPMSK);
+		}
 		break;
 
 	case USB_ENDPOINT_XFER_BULK:
@@ -3043,7 +3086,7 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	}
 
 	/* for non control endpoints, set PID to D0 */
-	if (index)
+	if (index && !hs_ep->isochronous)
 		epctrl |= DXEPCTL_SETD0PID;
 
 	dev_dbg(hsotg->dev, "%s: write DxEPCTL=0x%08x\n",
