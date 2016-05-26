@@ -2889,6 +2889,10 @@ sub process_file($) {
 	    } elsif (/$doc_content/) {
 		if ($inline_doc_state == STATE_INLINE_TEXT) {
 		    $contents .= $1 . "\n";
+		    # nuke leading blank lines
+		    if ($contents =~ /^\s*$/) {
+			$contents = "";
+		    }
 		} elsif ($inline_doc_state == STATE_INLINE_NAME) {
 		    $inline_doc_state = STATE_INLINE_ERROR;
 		    print STDERR "Warning(${file}:$.): ";
