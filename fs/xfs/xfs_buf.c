@@ -1100,22 +1100,18 @@ xfs_bwrite(
 	return error;
 }
 
-STATIC void
+static void
 xfs_buf_bio_end_io(
 	struct bio		*bio)
 {
-	xfs_buf_t		*bp = (xfs_buf_t *)bio->bi_private;
+	struct xfs_buf		*bp = (struct xfs_buf *)bio->bi_private;
 
 	/*
 	 * don't overwrite existing errors - otherwise we can lose errors on
 	 * buffers that require multiple bios to complete.
 	 */
-	if (bio->bi_error) {
-		spin_lock(&bp->b_lock);
-		if (!bp->b_io_error)
-			bp->b_io_error = bio->bi_error;
-		spin_unlock(&bp->b_lock);
-	}
+	if (bio->bi_error)
+		cmpxchg(&bp->b_io_error, 0, bio->bi_error);
 
 	if (!bp->b_error && xfs_buf_is_vmapped(bp) && (bp->b_flags & XBF_READ))
 		invalidate_kernel_vmap_range(bp->b_addr, xfs_buf_vmap_len(bp));

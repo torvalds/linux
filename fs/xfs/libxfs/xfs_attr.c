@@ -242,37 +242,21 @@ xfs_attr_set(
 			return error;
 	}
 
-	/*
-	 * Start our first transaction of the day.
-	 *
-	 * All future transactions during this code must be "chained" off
-	 * this one via the trans_dup() call.  All transactions will contain
-	 * the inode, and the inode will always be marked with trans_ihold().
-	 * Since the inode will be locked in all transactions, we must log
-	 * the inode in every transaction to let it float upward through
-	 * the log.
-	 */
-	args.trans = xfs_trans_alloc(mp, XFS_TRANS_ATTR_SET);
+	tres.tr_logres = M_RES(mp)->tr_attrsetm.tr_logres +
+			 M_RES(mp)->tr_attrsetrt.tr_logres * args.total;
+	tres.tr_logcount = XFS_ATTRSET_LOG_COUNT;
+	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
 
 	/*
 	 * Root fork attributes can use reserved data blocks for this
 	 * operation if necessary
 	 */
-
-	if (rsvd)
-		args.trans->t_flags |= XFS_TRANS_RESERVE;
-
-	tres.tr_logres = M_RES(mp)->tr_attrsetm.tr_logres +
-			 M_RES(mp)->tr_attrsetrt.tr_logres * args.total;
-	tres.tr_logcount = XFS_ATTRSET_LOG_COUNT;
-	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
-	error = xfs_trans_reserve(args.trans, &tres, args.total, 0);
-	if (error) {
-		xfs_trans_cancel(args.trans);
+	error = xfs_trans_alloc(mp, &tres, args.total, 0,
+			rsvd ? XFS_TRANS_RESERVE : 0, &args.trans);
+	if (error)
 		return error;
-	}
-	xfs_ilock(dp, XFS_ILOCK_EXCL);
 
+	xfs_ilock(dp, XFS_ILOCK_EXCL);
 	error = xfs_trans_reserve_quota_nblks(args.trans, dp, args.total, 0,
 				rsvd ? XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_FORCE_RES :
 				       XFS_QMOPT_RES_REGBLKS);
@@ -429,31 +413,15 @@ xfs_attr_remove(
 		return error;
 
 	/*
-	 * Start our first transaction of the day.
-	 *
-	 * All future transactions during this code must be "chained" off
-	 * this one via the trans_dup() call.  All transactions will contain
-	 * the inode, and the inode will always be marked with trans_ihold().
-	 * Since the inode will be locked in all transactions, we must log
-	 * the inode in every transaction to let it float upward through
-	 * the log.
-	 */
-	args.trans = xfs_trans_alloc(mp, XFS_TRANS_ATTR_RM);
-
-	/*
 	 * Root fork attributes can use reserved data blocks for this
 	 * operation if necessary
 	 */
-
-	if (flags & ATTR_ROOT)
-		args.trans->t_flags |= XFS_TRANS_RESERVE;
-
-	error = xfs_trans_reserve(args.trans, &M_RES(mp)->tr_attrrm,
-				  XFS_ATTRRM_SPACE_RES(mp), 0);
-	if (error) {
-		xfs_trans_cancel(args.trans);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_attrrm,
+			XFS_ATTRRM_SPACE_RES(mp), 0,
+			(flags & ATTR_ROOT) ? XFS_TRANS_RESERVE : 0,
+			&args.trans);
+	if (error)
 		return error;
-	}
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 	/*

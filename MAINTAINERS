@@ -11296,6 +11296,7 @@ F:	drivers/platform/x86/thinkpad_acpi.c
 
 TI BANDGAP AND THERMAL DRIVER
 M:	Eduardo Valentin <edubezval@gmail.com>
+M:	Keerthy <j-keerthy@ti.com>
 L:	linux-pm@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
