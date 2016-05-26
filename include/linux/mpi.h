@@ -80,7 +80,6 @@ void *mpi_get_buffer(MPI a, unsigned *nbytes, int *sign);
 int mpi_read_buffer(MPI a, uint8_t *buf, unsigned buf_len, unsigned *nbytes,
 		    int *sign);
 void *mpi_get_secure_buffer(MPI a, unsigned *nbytes, int *sign);
-int mpi_set_buffer(MPI a, const void *buffer, unsigned nbytes, int sign);
 int mpi_write_to_sgl(MPI a, struct scatterlist *sg, unsigned *nbytes,
 		     int *sign);
 
