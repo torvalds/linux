@@ -161,6 +161,8 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct init_qm_port_params *p_qm_port;
 	u16 num_pqs, multi_cos_tcs = 1;
+	u8 pf_wfq = qm_info->pf_wfq;
+	u32 pf_rl = qm_info->pf_rl;
 	u16 num_vfs = 0;
 
 #ifdef CONFIG_QED_SRIOV
@@ -269,10 +271,10 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 	for (i = 0; i < qm_info->num_vports; i++)
 		qm_info->qm_vport_params[i].vport_wfq = 1;
 
-	qm_info->pf_wfq = 0;
-	qm_info->pf_rl = 0;
 	qm_info->vport_rl_en = 1;
 	qm_info->vport_wfq_en = 1;
+	qm_info->pf_rl = pf_rl;
+	qm_info->pf_wfq = pf_wfq;
 
 	return 0;
 
