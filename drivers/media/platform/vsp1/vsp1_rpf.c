@@ -247,7 +247,7 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 		return ERR_PTR(ret);
 
 	/* Initialize the control handler. */
-	ret = vsp1_rwpf_init_ctrls(rpf);
+	ret = vsp1_rwpf_init_ctrls(rpf, 0);
 	if (ret < 0) {
 		dev_err(vsp1->dev, "rpf%u: failed to initialize controls\n",
 			index);
