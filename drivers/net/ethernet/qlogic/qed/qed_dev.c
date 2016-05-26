@@ -835,6 +835,11 @@ int qed_hw_init(struct qed_dev *cdev,
 	u32 load_code, param;
 	int rc, mfw_rc, i;
 
+	if ((int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
+		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
+		return -EINVAL;
+	}
+
 	if (IS_PF(cdev)) {
 		rc = qed_init_fw_data(cdev, bin_fw_data);
 		if (rc != 0)
