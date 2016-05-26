@@ -2339,83 +2339,41 @@ static void __trace_userstack(struct trace_array *tr, unsigned long flags)
 
 /* created for use with alloc_percpu */
 struct trace_buffer_struct {
-	char buffer[TRACE_BUF_SIZE];
+	int nesting;
+	char buffer[4][TRACE_BUF_SIZE];
 };
 
 static struct trace_buffer_struct *trace_percpu_buffer;
-static struct trace_buffer_struct *trace_percpu_sirq_buffer;
-static struct trace_buffer_struct *trace_percpu_irq_buffer;
-static struct trace_buffer_struct *trace_percpu_nmi_buffer;
 
 /*
- * The buffer used is dependent on the context. There is a per cpu
- * buffer for normal context, softirq contex, hard irq context and
- * for NMI context. Thise allows for lockless recording.
- *
- * Note, if the buffers failed to be allocated, then this returns NULL
+ * Thise allows for lockless recording.  If we're nested too deeply, then
+ * this returns NULL.
  */
 static char *get_trace_buf(void)
 {
-	struct trace_buffer_struct *percpu_buffer;
+	struct trace_buffer_struct *buffer = this_cpu_ptr(trace_percpu_buffer);
 
-	/*
-	 * If we have allocated per cpu buffers, then we do not
-	 * need to do any locking.
-	 */
-	if (in_nmi())
-		percpu_buffer = trace_percpu_nmi_buffer;
-	else if (in_irq())
-		percpu_buffer = trace_percpu_irq_buffer;
-	else if (in_softirq())
-		percpu_buffer = trace_percpu_sirq_buffer;
-	else
-		percpu_buffer = trace_percpu_buffer;
-
-	if (!percpu_buffer)
+	if (!buffer || buffer->nesting >= 4)
 		return NULL;
 
-	return this_cpu_ptr(&percpu_buffer->buffer[0]);
+	return &buffer->buffer[buffer->nesting++][0];
+}
+
+static void put_trace_buf(void)
+{
+	this_cpu_dec(trace_percpu_buffer->nesting);
 }
 
 static int alloc_percpu_trace_buffer(void)
 {
 	struct trace_buffer_struct *buffers;
-	struct trace_buffer_struct *sirq_buffers;
-	struct trace_buffer_struct *irq_buffers;
-	struct trace_buffer_struct *nmi_buffers;
 
 	buffers = alloc_percpu(struct trace_buffer_struct);
-	if (!buffers)
-		goto err_warn;
-
-	sirq_buffers = alloc_percpu(struct trace_buffer_struct);
-	if (!sirq_buffers)
-		goto err_sirq;
-
-	irq_buffers = alloc_percpu(struct trace_buffer_struct);
-	if (!irq_buffers)
-		goto err_irq;
-
-	nmi_buffers = alloc_percpu(struct trace_buffer_struct);
-	if (!nmi_buffers)
-		goto err_nmi;
+	if (WARN(!buffers, "Could not allocate percpu trace_printk buffer"))
+		return -ENOMEM;
 
 	trace_percpu_buffer = buffers;
-	trace_percpu_sirq_buffer = sirq_buffers;
-	trace_percpu_irq_buffer = irq_buffers;
-	trace_percpu_nmi_buffer = nmi_buffers;
-
 	return 0;
-
- err_nmi:
-	free_percpu(irq_buffers);
- err_irq:
-	free_percpu(sirq_buffers);
- err_sirq:
-	free_percpu(buffers);
- err_warn:
-	WARN(1, "Could not allocate percpu trace_printk buffer");
-	return -ENOMEM;
 }
 
 static int buffers_allocated;
@@ -2506,7 +2464,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	tbuffer = get_trace_buf();
 	if (!tbuffer) {
 		len = 0;
-		goto out;
+		goto out_nobuffer;
 	}
 
 	len = vbin_printf((u32 *)tbuffer, TRACE_BUF_SIZE/sizeof(int), fmt, args);
@@ -2532,6 +2490,9 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	}
 
 out:
+	put_trace_buf();
+
+out_nobuffer:
 	preempt_enable_notrace();
 	unpause_graph_tracing();
 
@@ -2563,7 +2524,7 @@ __trace_array_vprintk(struct ring_buffer *buffer,
 	tbuffer = get_trace_buf();
 	if (!tbuffer) {
 		len = 0;
-		goto out;
+		goto out_nobuffer;
 	}
 
 	len = vscnprintf(tbuffer, TRACE_BUF_SIZE, fmt, args);
@@ -2582,7 +2543,11 @@ __trace_array_vprintk(struct ring_buffer *buffer,
 		__buffer_unlock_commit(buffer, event);
 		ftrace_trace_stack(&global_trace, buffer, flags, 6, pc, NULL);
 	}
- out:
+
+out:
+	put_trace_buf();
+
+out_nobuffer:
 	preempt_enable_notrace();
 	unpause_graph_tracing();
 
