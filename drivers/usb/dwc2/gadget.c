@@ -2024,6 +2024,74 @@ static u32 dwc2_gadget_read_ep_interrupts(struct dwc2_hsotg *hsotg,
 }
 
 /**
+ * dwc2_gadget_handle_ep_disabled - handle DXEPINT_EPDISBLD
+ * @hs_ep: The endpoint on which interrupt is asserted.
+ *
+ * This interrupt indicates that the endpoint has been disabled per the
+ * application's request.
+ *
+ * For IN endpoints flushes txfifo, in case of BULK clears DCTL_CGNPINNAK,
+ * in case of ISOC completes current request.
+ *
+ * For ISOC-OUT endpoints completes expired requests. If there is remaining
+ * request starts it.
+ */
+static void dwc2_gadget_handle_ep_disabled(struct dwc2_hsotg_ep *hs_ep)
+{
+	struct dwc2_hsotg *hsotg = hs_ep->parent;
+	struct dwc2_hsotg_req *hs_req;
+	unsigned char idx = hs_ep->index;
+	int dir_in = hs_ep->dir_in;
+	u32 epctl_reg = dir_in ? DIEPCTL(idx) : DOEPCTL(idx);
+	int dctl = dwc2_readl(hsotg->regs + DCTL);
+
+	dev_dbg(hsotg->dev, "%s: EPDisbld\n", __func__);
+
+	if (dir_in) {
+		int epctl = dwc2_readl(hsotg->regs + epctl_reg);
+
+		dwc2_hsotg_txfifo_flush(hsotg, hs_ep->fifo_index);
+
+		if (hs_ep->isochronous) {
+			dwc2_hsotg_complete_in(hsotg, hs_ep);
+			return;
+		}
+
+		if ((epctl & DXEPCTL_STALL) && (epctl & DXEPCTL_EPTYPE_BULK)) {
+			int dctl = dwc2_readl(hsotg->regs + DCTL);
+
+			dctl |= DCTL_CGNPINNAK;
+			dwc2_writel(dctl, hsotg->regs + DCTL);
+		}
+		return;
+	}
+
+	if (dctl & DCTL_GOUTNAKSTS) {
+		dctl |= DCTL_CGOUTNAK;
+		dwc2_writel(dctl, hsotg->regs + DCTL);
+	}
+
+	if (!hs_ep->isochronous)
+		return;
+
+	if (list_empty(&hs_ep->queue)) {
+		dev_dbg(hsotg->dev, "%s: complete_ep 0x%p, ep->queue empty!\n",
+			__func__, hs_ep);
+		return;
+	}
+
+	do {
+		hs_req = get_ep_head(hs_ep);
+		if (hs_req)
+			dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req,
+						    -ENODATA);
+		dwc2_gadget_incr_frame_num(hs_ep);
+	} while (dwc2_gadget_target_frame_elapsed(hs_ep));
+
+	dwc2_gadget_start_next_request(hs_ep);
+}
+
+/**
  * dwc2_gadget_handle_out_token_ep_disabled - handle DXEPINT_OUTTKNEPDIS
  * @hs_ep: The endpoint on which interrupt is asserted.
  *
@@ -2177,23 +2245,8 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 		}
 	}
 
-	if (ints & DXEPINT_EPDISBLD) {
-		dev_dbg(hsotg->dev, "%s: EPDisbld\n", __func__);
-
-		if (dir_in) {
-			int epctl = dwc2_readl(hsotg->regs + epctl_reg);
-
-			dwc2_hsotg_txfifo_flush(hsotg, hs_ep->fifo_index);
-
-			if ((epctl & DXEPCTL_STALL) &&
-				(epctl & DXEPCTL_EPTYPE_BULK)) {
-				int dctl = dwc2_readl(hsotg->regs + DCTL);
-
-				dctl |= DCTL_CGNPINNAK;
-				dwc2_writel(dctl, hsotg->regs + DCTL);
-			}
-		}
-	}
+	if (ints & DXEPINT_EPDISBLD)
+		dwc2_gadget_handle_ep_disabled(hs_ep);
 
 	if (ints & DXEPINT_OUTTKNEPDIS)
 		dwc2_gadget_handle_out_token_ep_disabled(hs_ep);
