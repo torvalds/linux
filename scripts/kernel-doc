@@ -1796,7 +1796,6 @@ sub output_highlight_rst {
 	if ($line eq "") {
 	    print $lineprefix, $blankline;
 	} else {
-	    $line =~ s/\\\\\\/\&/g;
 	    print $lineprefix, $line;
 	}
 	print "\n";
