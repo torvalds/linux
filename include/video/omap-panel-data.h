@@ -105,33 +105,6 @@ struct panel_dpi_platform_data {
 };
 
 /**
- * panel_dsicm platform data
- * @name: name for this display entity
- * @source: name of the display entity used as a video source
- * @reset_gpio: gpio to reset the panel (or -1)
- * @use_ext_te: use external TE GPIO
- * @ext_te_gpio: external TE GPIO
- * @ulps_timeout: time to wait before entering ULPS, 0 = disabled (ms)
- * @use_dsi_backlight: true if panel uses DSI command to control backlight
- * @pin_config: DSI pin configuration
- */
-struct panel_dsicm_platform_data {
-	const char *name;
-	const char *source;
-
-	int reset_gpio;
-
-	bool use_ext_te;
-	int ext_te_gpio;
-
-	unsigned ulps_timeout;
-
-	bool use_dsi_backlight;
-
-	struct omap_dsi_pin_config pin_config;
-};
-
-/**
  * panel_acx565akm platform data
  * @name: name for this display entity
  * @source: name of the display entity used as a video source
