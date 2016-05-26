@@ -74,7 +74,7 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 	}
 	hw = wlandev->priv;
 
-	if (wlan_setup(wlandev, &(interface->dev)) != 0) {
+	if (wlan_setup(wlandev, &interface->dev) != 0) {
 		dev_err(&interface->dev, "wlan_setup() failed.\n");
 		result = -EIO;
 		goto failed;
@@ -87,7 +87,7 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 	/* Register the wlandev, this gets us a name and registers the
 	 * linux netdevice.
 	 */
-	SET_NETDEV_DEV(wlandev->netdev, &(interface->dev));
+	SET_NETDEV_DEV(wlandev->netdev, &interface->dev);
 
 	/* Do a chip-level reset on the MAC */
 	if (prism2_doreset) {
