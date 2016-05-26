@@ -396,14 +396,12 @@ my $inline_doc_state;
 # 'function', 'struct', 'union', 'enum', 'typedef'
 my $decl_type;
 
-my $doc_special = "\@\%\$\&";
-
 my $doc_start = '^/\*\*\s*$'; # Allow whitespace at end of comment start.
 my $doc_end = '\*/';
 my $doc_com = '\s*\*\s*';
 my $doc_com_body = '\s*\* ?';
 my $doc_decl = $doc_com . '(\w+)';
-my $doc_sect = $doc_com . '([' . $doc_special . ']?[\w\s]+):(.*)';
+my $doc_sect = $doc_com . '(\@?[\w\s]+):(.*)';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 my $doc_inline_start = '^\s*/\*\*\s*$';
@@ -411,7 +409,6 @@ my $doc_inline_sect = '\s*\*\s*(@[\w\s]+):(.*)';
 my $doc_inline_end = '^\s*\*/\s*$';
 my $export_symbol = '^\s*EXPORT_SYMBOL(_GPL)?\s*\(\s*(\w+)\s*\)\s*;';
 
-my %constants;
 my %parameterdescs;
 my @parameterlist;
 my %sections;
@@ -511,11 +508,7 @@ sub dump_section {
     my $name = shift;
     my $contents = join "\n", @_;
 
-    if ($name =~ m/$type_constant/) {
-	$name = $1;
-#	print STDERR "constant section '$1' = '$contents'\n";
-	$constants{$name} = $contents;
-    } elsif ($name =~ m/$type_param/) {
+    if ($name =~ m/$type_param/) {
 #	print STDERR "parameter def '$1' = '$contents'\n";
 	$name = $1;
 	$parameterdescs{$name} = $contents;
@@ -2528,7 +2521,6 @@ sub dump_function($$) {
 
 sub reset_state {
     $function = "";
-    %constants = ();
     %parameterdescs = ();
     %parametertypes = ();
     @parameterlist = ();
@@ -2924,7 +2916,6 @@ sub process_file($) {
 			dump_doc_section($file, $section, xml_escape($contents));
 			$contents = "";
 			$function = "";
-			%constants = ();
 			%parameterdescs = ();
 			%parametertypes = ();
 			@parameterlist = ();
@@ -2942,7 +2933,6 @@ sub process_file($) {
 			dump_doc_section($file, $section, xml_escape($contents));
 			$contents = "";
 			$function = "";
-			%constants = ();
 			%parameterdescs = ();
 			%parametertypes = ();
 			@parameterlist = ();
