@@ -211,6 +211,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		sysoff = memdup_user((void __user *)arg, sizeof(*sysoff));
 		if (IS_ERR(sysoff)) {
 			err = PTR_ERR(sysoff);
+			sysoff = NULL;
 			break;
 		}
 		if (sysoff->n_samples > PTP_MAX_SAMPLES) {
