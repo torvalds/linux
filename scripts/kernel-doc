@@ -280,7 +280,7 @@ my $blankline_text = "";
 # rst-mode
 my @highlights_rst = (
                        [$type_constant, "``\$1``"],
-                       [$type_func, "\\:c\\:func\\:`\$1`"],
+                       [$type_func, "\\:c\\:func\\:`\$1()`"],
                        [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
                        [$type_enum_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
                        [$type_struct, "\\:c\\:type\\:`struct \$1 <\$1>`"],
