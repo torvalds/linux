@@ -588,7 +588,14 @@ static void qed_calc_hw_mode(struct qed_hwfn *p_hwfn)
 
 	hw_mode |= 1 << MODE_ASIC;
 
+	if (p_hwfn->cdev->num_hwfns > 1)
+		hw_mode |= 1 << MODE_100G;
+
 	p_hwfn->hw_info.hw_mode = hw_mode;
+
+	DP_VERBOSE(p_hwfn, (NETIF_MSG_PROBE | NETIF_MSG_IFUP),
+		   "Configuring function for hw_mode: 0x%08x\n",
+		   p_hwfn->hw_info.hw_mode);
 }
 
 /* Init run time data for all PFs on an engine. */
