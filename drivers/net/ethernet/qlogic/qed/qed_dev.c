@@ -2105,6 +2105,13 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev, u32 min_pf_rate)
 {
 	int i;
 
+	if (cdev->num_hwfns > 1) {
+		DP_VERBOSE(cdev,
+			   NETIF_MSG_LINK,
+			   "WFQ configuration is not supported for this device\n");
+		return;
+	}
+
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
