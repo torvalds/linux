@@ -155,7 +155,7 @@ void qed_resc_free(struct qed_dev *cdev)
 	}
 }
 
-static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
+static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 {
 	u8 num_vports, vf_offset = 0, i, vport_id, num_ports, curr_queue = 0;
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
@@ -182,23 +182,28 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn)
 
 	/* PQs will be arranged as follows: First per-TC PQ then pure-LB quete.
 	 */
-	qm_info->qm_pq_params = kzalloc(sizeof(*qm_info->qm_pq_params) *
-					num_pqs, GFP_KERNEL);
+	qm_info->qm_pq_params = kcalloc(num_pqs,
+					sizeof(struct init_qm_pq_params),
+					b_sleepable ? GFP_KERNEL : GFP_ATOMIC);
 	if (!qm_info->qm_pq_params)
 		goto alloc_err;
 
-	qm_info->qm_vport_params = kzalloc(sizeof(*qm_info->qm_vport_params) *
-					   num_vports, GFP_KERNEL);
+	qm_info->qm_vport_params = kcalloc(num_vports,
+					   sizeof(struct init_qm_vport_params),
+					   b_sleepable ? GFP_KERNEL
+						       : GFP_ATOMIC);
 	if (!qm_info->qm_vport_params)
 		goto alloc_err;
 
-	qm_info->qm_port_params = kzalloc(sizeof(*qm_info->qm_port_params) *
-					  MAX_NUM_PORTS, GFP_KERNEL);
+	qm_info->qm_port_params = kcalloc(MAX_NUM_PORTS,
+					  sizeof(struct init_qm_port_params),
+					  b_sleepable ? GFP_KERNEL
+						      : GFP_ATOMIC);
 	if (!qm_info->qm_port_params)
 		goto alloc_err;
 
-	qm_info->wfq_data = kcalloc(num_vports, sizeof(*qm_info->wfq_data),
-				    GFP_KERNEL);
+	qm_info->wfq_data = kcalloc(num_vports, sizeof(struct qed_wfq_data),
+				    b_sleepable ? GFP_KERNEL : GFP_ATOMIC);
 	if (!qm_info->wfq_data)
 		goto alloc_err;
 
@@ -299,7 +304,7 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_qm_info_free(p_hwfn);
 
 	/* initialize qed's qm data structure */
-	rc = qed_init_qm_info(p_hwfn);
+	rc = qed_init_qm_info(p_hwfn, false);
 	if (rc)
 		return rc;
 
@@ -388,7 +393,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			goto alloc_err;
 
 		/* Prepare and process QM requirements */
-		rc = qed_init_qm_info(p_hwfn);
+		rc = qed_init_qm_info(p_hwfn, true);
 		if (rc)
 			goto alloc_err;
 
