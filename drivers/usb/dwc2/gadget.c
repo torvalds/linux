@@ -658,14 +658,6 @@ static void dwc2_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	}
 
 	/*
-	 * clear the INTknTXFEmpMsk when we start request, more as a aide
-	 * to debugging to see what is going on.
-	 */
-	if (dir_in)
-		dwc2_writel(DIEPMSK_INTKNTXFEMPMSK,
-		       hsotg->regs + DIEPINT(index));
-
-	/*
 	 * Note, trying to clear the NAK here causes problems with transmit
 	 * on the S3C6400 ending up with the TXFIFO becoming full.
 	 */
