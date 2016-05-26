@@ -97,6 +97,25 @@ static inline bool using_dma(struct dwc2_hsotg *hsotg)
 }
 
 /**
+ * dwc2_gadget_incr_frame_num - Increments the targeted frame number.
+ * @hs_ep: The endpoint
+ * @increment: The value to increment by
+ *
+ * This function will also check if the frame number overruns DSTS_SOFFN_LIMIT.
+ * If an overrun occurs it will wrap the value and set the frame_overrun flag.
+ */
+static inline void dwc2_gadget_incr_frame_num(struct dwc2_hsotg_ep *hs_ep)
+{
+	hs_ep->target_frame += hs_ep->interval;
+	if (hs_ep->target_frame > DSTS_SOFFN_LIMIT) {
+		hs_ep->frame_overrun = 1;
+		hs_ep->target_frame &= DSTS_SOFFN_LIMIT;
+	} else {
+		hs_ep->frame_overrun = 0;
+	}
+}
+
+/**
  * dwc2_hsotg_en_gsint - enable one or more of the general interrupt
  * @hsotg: The device state
  * @ints: A bitmask of the interrupts to enable
