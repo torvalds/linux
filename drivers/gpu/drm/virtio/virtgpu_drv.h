@@ -336,6 +336,7 @@ void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev);
 
 /* virtio_gpu_plane.c */
 struct drm_plane *virtio_gpu_plane_init(struct virtio_gpu_device *vgdev,
+					enum drm_plane_type type,
 					int index);
 
 /* virtio_gpu_ttm.c */
