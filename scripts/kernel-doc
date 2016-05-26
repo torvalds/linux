@@ -1786,12 +1786,7 @@ sub output_highlight_rst {
     die $@ if $@;
 
     foreach $line (split "\n", $contents) {
-	if ($line eq "") {
-	    print $lineprefix, $blankline;
-	} else {
-	    print $lineprefix, $line;
-	}
-	print "\n";
+	print $lineprefix . $line . "\n";
     }
 }
 
