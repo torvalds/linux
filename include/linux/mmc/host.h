@@ -19,6 +19,7 @@
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/mmc.h>
 #include <linux/mmc/pm.h>
 
 struct mmc_ios {
@@ -77,6 +78,8 @@ struct mmc_ios {
 #define MMC_SET_DRIVER_TYPE_A	1
 #define MMC_SET_DRIVER_TYPE_C	2
 #define MMC_SET_DRIVER_TYPE_D	3
+
+	bool enhanced_strobe;			/* hs400es selection */
 };
 
 struct mmc_host_ops {
@@ -143,6 +146,9 @@ struct mmc_host_ops {
 
 	/* Prepare HS400 target operating frequency depending host driver */
 	int	(*prepare_hs400_tuning)(struct mmc_host *host, struct mmc_ios *ios);
+	/* Prepare enhanced strobe depending host driver */
+	void	(*hs400_enhanced_strobe)(struct mmc_host *host,
+					 struct mmc_ios *ios);
 	int	(*select_drive_strength)(struct mmc_card *card,
 					 unsigned int max_dtr, int host_drv,
 					 int card_drv, int *drv_type);
@@ -512,6 +518,11 @@ static inline bool mmc_card_ddr52(struct mmc_card *card)
 static inline bool mmc_card_hs400(struct mmc_card *card)
 {
 	return card->host->ios.timing == MMC_TIMING_MMC_HS400;
+}
+
+static inline bool mmc_card_hs400es(struct mmc_card *card)
+{
+	return card->host->ios.enhanced_strobe;
 }
 
 void mmc_retune_timer_stop(struct mmc_host *host);
