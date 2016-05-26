@@ -194,7 +194,7 @@ do {									\
 })
 #endif
 
-#endif
+#endif	/* CONFIG_SMP */
 
 /* Barriers for virtual machine guests when talking to an SMP host */
 #define virt_mb() __smp_mb()

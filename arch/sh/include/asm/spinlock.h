@@ -19,14 +19,20 @@
 #error "Need movli.l/movco.l for spinlocks"
 #endif
 
+#include <asm/barrier.h>
+#include <asm/processor.h>
+
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
  */
 
 #define arch_spin_is_locked(x)		((x)->lock <= 0)
 #define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-#define arch_spin_unlock_wait(x) \
-	do { while (arch_spin_is_locked(x)) cpu_relax(); } while (0)
+
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	smp_cond_load_acquire(&lock->lock, VAL > 0);
+}
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
