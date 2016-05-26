@@ -2878,7 +2878,7 @@ sub process_file($) {
 		           substr($contents, 0, 1) eq "\t") {
 			$contents = substr($contents, 1);
 		    }
-		$contents .= "\n";
+		    $contents .= "\n";
 		}
 		$inline_doc_state = STATE_INLINE_TEXT;
 	    # Documentation block end */
