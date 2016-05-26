@@ -113,7 +113,7 @@ static int test_find_delalloc(void)
 	 * |--- delalloc ---|
 	 * |---  search  ---|
 	 */
-	set_extent_delalloc(&tmp, 0, 4095, NULL, GFP_KERNEL);
+	set_extent_delalloc(&tmp, 0, 4095, NULL);
 	start = 0;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -144,7 +144,7 @@ static int test_find_delalloc(void)
 		test_msg("Couldn't find the locked page\n");
 		goto out_bits;
 	}
-	set_extent_delalloc(&tmp, 4096, max_bytes - 1, NULL, GFP_KERNEL);
+	set_extent_delalloc(&tmp, 4096, max_bytes - 1, NULL);
 	start = test_start;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -176,7 +176,7 @@ static int test_find_delalloc(void)
 	locked_page = find_lock_page(inode->i_mapping, test_start >>
 				     PAGE_SHIFT);
 	if (!locked_page) {
-		test_msg("Could'nt find the locked page\n");
+		test_msg("Couldn't find the locked page\n");
 		goto out_bits;
 	}
 	start = test_start;
@@ -199,7 +199,7 @@ static int test_find_delalloc(void)
 	 *
 	 * We are re-using our test_start from above since it works out well.
 	 */
-	set_extent_delalloc(&tmp, max_bytes, total_dirty - 1, NULL, GFP_KERNEL);
+	set_extent_delalloc(&tmp, max_bytes, total_dirty - 1, NULL);
 	start = test_start;
 	end = 0;
 	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
@@ -262,7 +262,7 @@ static int test_find_delalloc(void)
 	}
 	ret = 0;
 out_bits:
-	clear_extent_bits(&tmp, 0, total_dirty - 1, (unsigned)-1, GFP_KERNEL);
+	clear_extent_bits(&tmp, 0, total_dirty - 1, (unsigned)-1);
 out:
 	if (locked_page)
 		put_page(locked_page);

@@ -296,7 +296,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		}
 	} else {
 		/*
-		 * Revert back under same assuptions as above
+		 * Revert back under same assumptions as above
 		 */
 		if (S_ISREG(mode)) {
 			if (inode->i_size == 0)
@@ -465,7 +465,7 @@ static noinline int create_subvol(struct inode *dir,
 
 	/*
 	 * Don't create subvolume whose level is not zero. Or qgroup will be
-	 * screwed up since it assume subvolme qgroup's level to be 0.
+	 * screwed up since it assumes subvolume qgroup's level to be 0.
 	 */
 	if (btrfs_qgroup_level(objectid)) {
 		ret = -ENOSPC;
@@ -780,7 +780,7 @@ free_pending:
  *	a. be owner of dir, or
  *	b. be owner of victim, or
  *	c. have CAP_FOWNER capability
- *  6. If the victim is append-only or immutable we can't do antyhing with
+ *  6. If the victim is append-only or immutable we can't do anything with
  *     links pointing to it.
  *  7. If we were asked to remove a directory and victim isn't one - ENOTDIR.
  *  8. If we were asked to remove a non-directory and victim isn't one - EISDIR.
@@ -1237,7 +1237,7 @@ again:
 
 
 	set_extent_defrag(&BTRFS_I(inode)->io_tree, page_start, page_end - 1,
-			  &cached_state, GFP_NOFS);
+			  &cached_state);
 
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree,
 			     page_start, page_end - 1, &cached_state,
@@ -4650,7 +4650,7 @@ again:
 	}
 
 	/*
-	 * mut. excl. ops lock is locked.  Three possibilites:
+	 * mut. excl. ops lock is locked.  Three possibilities:
 	 *   (1) some other op is running
 	 *   (2) balance is running
 	 *   (3) balance is paused -- special case (think resume)
@@ -5567,7 +5567,7 @@ long btrfs_ioctl(struct file *file, unsigned int
 		ret = btrfs_sync_fs(file_inode(file)->i_sb, 1);
 		/*
 		 * The transaction thread may want to do more work,
-		 * namely it pokes the cleaner ktread that will start
+		 * namely it pokes the cleaner kthread that will start
 		 * processing uncleaned subvols.
 		 */
 		wake_up_process(root->fs_info->transaction_kthread);

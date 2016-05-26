@@ -1939,7 +1939,7 @@ static int inode_to_path(u64 inum, u32 name_len, unsigned long name_off,
  * from ipath->fspath->val[i].
  * when it returns, there are ipath->fspath->elem_cnt number of paths available
  * in ipath->fspath->val[]. when the allocated space wasn't sufficient, the
- * number of missed paths in recored in ipath->fspath->elem_missed, otherwise,
+ * number of missed paths is recorded in ipath->fspath->elem_missed, otherwise,
  * it's zero. ipath->fspath->bytes_missing holds the number of bytes that would
  * have been needed to return all paths.
  */
