@@ -80,10 +80,8 @@ EXPORT_SYMBOL_GPL(mpi_read_raw_data);
 MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 {
 	const uint8_t *buffer = xbuffer;
-	int i, j;
-	unsigned nbits, nbytes, nlimbs;
-	mpi_limb_t a;
-	MPI val = NULL;
+	unsigned int nbits, nbytes;
+	MPI val;
 
 	if (*ret_nread < 2)
 		return ERR_PTR(-EINVAL);
@@ -93,7 +91,6 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 		pr_info("MPI: mpi too large (%u bits)\n", nbits);
 		return ERR_PTR(-EINVAL);
 	}
-	buffer += 2;
 
 	nbytes = DIV_ROUND_UP(nbits, 8);
 	if (nbytes + 2 > *ret_nread) {
@@ -102,24 +99,9 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 		return ERR_PTR(-EINVAL);
 	}
 
-	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
-	val = mpi_alloc(nlimbs);
+	val = mpi_read_raw_data(buffer + 2, nbytes);
 	if (!val)
 		return ERR_PTR(-ENOMEM);
-	i = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
-	i %= BYTES_PER_MPI_LIMB;
-	val->nbits = nbits;
-	j = val->nlimbs = nlimbs;
-	val->sign = 0;
-	for (; j > 0; j--) {
-		a = 0;
-		for (; i < BYTES_PER_MPI_LIMB; i++) {
-			a <<= 8;
-			a |= *buffer++;
-		}
-		i = 0;
-		val->d[j - 1] = a;
-	}
 
 	*ret_nread = nbytes + 2;
 	return val;
