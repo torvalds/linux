@@ -1,5 +1,3 @@
-#ifndef _HFI1_DEVICE_H
-#define _HFI1_DEVICE_H
 /*
  * Copyright(c) 2015, 2016 Intel Corporation.
  *
@@ -46,14 +44,59 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#include <linux/delay.h>
+#include "hfi.h"
+#include "common.h"
+#include "eprom.h"
 
-int hfi1_cdev_init(int minor, const char *name,
-		   const struct file_operations *fops,
-		   struct cdev *cdev, struct device **devp,
-		   bool user_accessible);
-void hfi1_cdev_cleanup(struct cdev *cdev, struct device **devp);
-const char *class_name(void);
-int __init dev_init(void);
-void dev_cleanup(void);
+#define CMD_SHIFT 24
+#define CMD_RELEASE_POWERDOWN_NOID  ((0xab << CMD_SHIFT))
 
-#endif                          /* _HFI1_DEVICE_H */
+/* controller interface speeds */
+#define EP_SPEED_FULL 0x2	/* full speed */
+
+/*
+ * How long to wait for the EPROM to become available, in ms.
+ * The spec 32 Mb EPROM takes around 40s to erase then write.
+ * Double it for safety.
+ */
+#define EPROM_TIMEOUT 80000 /* ms */
+/*
+ * Initialize the EPROM handler.
+ */
+int eprom_init(struct hfi1_devdata *dd)
+{
+	int ret = 0;
+
+	/* only the discrete chip has an EPROM */
+	if (dd->pcidev->device != PCI_DEVICE_ID_INTEL0)
+		return 0;
+
+	/*
+	 * It is OK if both HFIs reset the EPROM as long as they don't
+	 * do it at the same time.
+	 */
+	ret = acquire_chip_resource(dd, CR_EPROM, EPROM_TIMEOUT);
+	if (ret) {
+		dd_dev_err(dd,
+			   "%s: unable to acquire EPROM resource, no EPROM support\n",
+			   __func__);
+		goto done_asic;
+	}
+
+	/* reset EPROM to be sure it is in a good state */
+
+	/* set reset */
+	write_csr(dd, ASIC_EEP_CTL_STAT, ASIC_EEP_CTL_STAT_EP_RESET_SMASK);
+	/* clear reset, set speed */
+	write_csr(dd, ASIC_EEP_CTL_STAT,
+		  EP_SPEED_FULL << ASIC_EEP_CTL_STAT_RATE_SPI_SHIFT);
+
+	/* wake the device with command "release powerdown NoID" */
+	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_RELEASE_POWERDOWN_NOID);
+
+	dd->eprom_available = true;
+	release_chip_resource(dd, CR_EPROM);
+done_asic:
+	return ret;
+}

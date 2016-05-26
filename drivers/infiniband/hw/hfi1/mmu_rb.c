@@ -45,6 +45,7 @@
  *
  */
 #include <linux/list.h>
+#include <linux/rculist.h>
 #include <linux/mmu_notifier.h>
 #include <linux/interval_tree_generic.h>
 
@@ -97,7 +98,6 @@ static unsigned long mmu_node_last(struct mmu_rb_node *node)
 int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops)
 {
 	struct mmu_rb_handler *handlr;
-	unsigned long flags;
 
 	if (!ops->invalidate)
 		return -EINVAL;
@@ -111,9 +111,9 @@ int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops)
 	INIT_HLIST_NODE(&handlr->mn.hlist);
 	spin_lock_init(&handlr->lock);
 	handlr->mn.ops = &mn_opts;
-	spin_lock_irqsave(&mmu_rb_lock, flags);
-	list_add_tail(&handlr->list, &mmu_rb_handlers);
-	spin_unlock_irqrestore(&mmu_rb_lock, flags);
+	spin_lock(&mmu_rb_lock);
+	list_add_tail_rcu(&handlr->list, &mmu_rb_handlers);
+	spin_unlock(&mmu_rb_lock);
 
 	return mmu_notifier_register(&handlr->mn, current->mm);
 }
@@ -130,9 +130,10 @@ void hfi1_mmu_rb_unregister(struct rb_root *root)
 	if (current->mm)
 		mmu_notifier_unregister(&handler->mn, current->mm);
 
-	spin_lock_irqsave(&mmu_rb_lock, flags);
-	list_del(&handler->list);
-	spin_unlock_irqrestore(&mmu_rb_lock, flags);
+	spin_lock(&mmu_rb_lock);
+	list_del_rcu(&handler->list);
+	spin_unlock(&mmu_rb_lock);
+	synchronize_rcu();
 
 	spin_lock_irqsave(&handler->lock, flags);
 	if (!RB_EMPTY_ROOT(root)) {
@@ -271,16 +272,15 @@ void hfi1_mmu_rb_remove(struct rb_root *root, struct mmu_rb_node *node)
 static struct mmu_rb_handler *find_mmu_handler(struct rb_root *root)
 {
 	struct mmu_rb_handler *handler;
-	unsigned long flags;
 
-	spin_lock_irqsave(&mmu_rb_lock, flags);
-	list_for_each_entry(handler, &mmu_rb_handlers, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(handler, &mmu_rb_handlers, list) {
 		if (handler->root == root)
 			goto unlock;
 	}
 	handler = NULL;
 unlock:
-	spin_unlock_irqrestore(&mmu_rb_lock, flags);
+	rcu_read_unlock();
 	return handler;
 }
 

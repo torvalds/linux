@@ -134,6 +134,7 @@ static const char * const sdma_state_names[] = {
 	[sdma_state_s99_running]                = "s99_Running",
 };
 
+#ifdef CONFIG_SDMA_VERBOSITY
 static const char * const sdma_event_names[] = {
 	[sdma_event_e00_go_hw_down]   = "e00_GoHwDown",
 	[sdma_event_e10_go_hw_start]  = "e10_GoHwStart",
@@ -150,6 +151,7 @@ static const char * const sdma_event_names[] = {
 	[sdma_event_e85_link_down]    = "e85_LinkDown",
 	[sdma_event_e90_sw_halted]    = "e90_SwHalted",
 };
+#endif
 
 static const struct sdma_set_state_action sdma_action_table[] = {
 	[sdma_state_s00_hw_down] = {
@@ -376,7 +378,7 @@ static inline void complete_tx(struct sdma_engine *sde,
 	sdma_txclean(sde->dd, tx);
 	if (complete)
 		(*complete)(tx, res);
-	if (iowait_sdma_dec(wait) && wait)
+	if (wait && iowait_sdma_dec(wait))
 		iowait_drain_wakeup(wait);
 }
 

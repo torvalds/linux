@@ -298,6 +298,7 @@ enum link_tuning_encoding {
 /* platform.c */
 void get_platform_config(struct hfi1_devdata *dd);
 void free_platform_config(struct hfi1_devdata *dd);
+void get_port_type(struct hfi1_pportdata *ppd);
 int set_qsfp_tx(struct hfi1_pportdata *ppd, int on);
 void tune_serdes(struct hfi1_pportdata *ppd);
 

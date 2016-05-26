@@ -66,6 +66,7 @@ u8 ibhdr_exhdr_len(struct hfi1_ib_header *hdr)
 #define RETH_PRN "reth vaddr 0x%.16llx rkey 0x%.8x dlen 0x%.8x"
 #define AETH_PRN "aeth syn 0x%.2x %s msn 0x%.8x"
 #define DETH_PRN "deth qkey 0x%.8x sqpn 0x%.6x"
+#define IETH_PRN "ieth rkey 0x%.8x"
 #define ATOMICACKETH_PRN "origdata %lld"
 #define ATOMICETH_PRN "vaddr 0x%llx rkey 0x%.8x sdata %lld cdata %lld"
 
@@ -166,6 +167,12 @@ const char *parse_everbs_hdrs(
 				 be32_to_cpu(eh->ud.deth[0]),
 				 be32_to_cpu(eh->ud.deth[1]) & RVT_QPN_MASK);
 		break;
+	/* ieth */
+	case OP(RC, SEND_LAST_WITH_INVALIDATE):
+	case OP(RC, SEND_ONLY_WITH_INVALIDATE):
+		trace_seq_printf(p, IETH_PRN,
+				 be32_to_cpu(eh->ieth));
+		break;
 	}
 	trace_seq_putc(p, 0);
 	return ret;
@@ -233,3 +240,4 @@ __hfi1_trace_fn(FIRMWARE);
 __hfi1_trace_fn(RCVCTRL);
 __hfi1_trace_fn(TID);
 __hfi1_trace_fn(MMU);
+__hfi1_trace_fn(IOCTL);

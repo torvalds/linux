@@ -60,7 +60,8 @@ static dev_t hfi1_dev;
 int hfi1_cdev_init(int minor, const char *name,
 		   const struct file_operations *fops,
 		   struct cdev *cdev, struct device **devp,
-		   bool user_accessible)
+		   bool user_accessible,
+		   struct kobject *parent)
 {
 	const dev_t dev = MKDEV(MAJOR(hfi1_dev), minor);
 	struct device *device = NULL;
@@ -68,6 +69,7 @@ int hfi1_cdev_init(int minor, const char *name,
 
 	cdev_init(cdev, fops);
 	cdev->owner = THIS_MODULE;
+	cdev->kobj.parent = parent;
 	kobject_set_name(&cdev->kobj, name);
 
 	ret = cdev_add(cdev, dev, 1);
@@ -82,13 +84,13 @@ int hfi1_cdev_init(int minor, const char *name,
 	else
 		device = device_create(class, NULL, dev, NULL, "%s", name);
 
-	if (!IS_ERR(device))
-		goto done;
-	ret = PTR_ERR(device);
-	device = NULL;
-	pr_err("Could not create device for minor %d, %s (err %d)\n",
-	       minor, name, -ret);
-	cdev_del(cdev);
+	if (IS_ERR(device)) {
+		ret = PTR_ERR(device);
+		device = NULL;
+		pr_err("Could not create device for minor %d, %s (err %d)\n",
+			minor, name, -ret);
+		cdev_del(cdev);
+	}
 done:
 	*devp = device;
 	return ret;

@@ -7,7 +7,7 @@
 #
 obj-$(CONFIG_INFINIBAND_HFI1) += hfi1.o
 
-hfi1-y := affinity.o chip.o device.o diag.o driver.o efivar.o \
+hfi1-y := affinity.o chip.o device.o driver.o efivar.o \
 	eprom.o file_ops.o firmware.o \
 	init.o intr.o mad.o mmu_rb.o pcie.o pio.o pio_copy.o platform.o \
 	qp.o qsfp.o rc.o ruc.o sdma.o sysfs.o trace.o twsi.o \

@@ -74,8 +74,8 @@ __print_symbolic(etype,                         \
 
 TRACE_EVENT(hfi1_rcvhdr,
 	    TP_PROTO(struct hfi1_devdata *dd,
-		     u64 eflags,
 		     u32 ctxt,
+		     u64 eflags,
 		     u32 etype,
 		     u32 hlen,
 		     u32 tlen,
@@ -392,6 +392,8 @@ __print_symbolic(opcode,                                   \
 	ib_opcode_name(RC_ATOMIC_ACKNOWLEDGE),             \
 	ib_opcode_name(RC_COMPARE_SWAP),                   \
 	ib_opcode_name(RC_FETCH_ADD),                      \
+	ib_opcode_name(RC_SEND_LAST_WITH_INVALIDATE),      \
+	ib_opcode_name(RC_SEND_ONLY_WITH_INVALIDATE),      \
 	ib_opcode_name(UC_SEND_FIRST),                     \
 	ib_opcode_name(UC_SEND_MIDDLE),                    \
 	ib_opcode_name(UC_SEND_LAST),                      \
@@ -1341,6 +1343,7 @@ __hfi1_trace_def(FIRMWARE);
 __hfi1_trace_def(RCVCTRL);
 __hfi1_trace_def(TID);
 __hfi1_trace_def(MMU);
+__hfi1_trace_def(IOCTL);
 
 #define hfi1_cdbg(which, fmt, ...) \
 	__hfi1_trace_##which(__func__, fmt, ##__VA_ARGS__)

@@ -152,6 +152,7 @@ union ib_ehdrs {
 	} at;
 	__be32 imm_data;
 	__be32 aeth;
+	__be32 ieth;
 	struct ib_atomic_eth atomic_eth;
 }  __packed;
 
