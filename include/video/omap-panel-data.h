@@ -47,18 +47,6 @@ struct encoder_tfp410_platform_data {
 
 
 /**
- * connector_dvi platform data
- * @name: name for this display entity
- * @source: name of the display entity used as a video source
- * @i2c_bus_num: i2c bus number to be used for reading EDID
- */
-struct connector_dvi_platform_data {
-	const char *name;
-	const char *source;
-	int i2c_bus_num;
-};
-
-/**
  * connector_atv platform data
  * @name: name for this display entity
  * @source: name of the display entity used as a video source
