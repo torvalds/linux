@@ -2098,9 +2098,13 @@ static int wm5102_probe(struct platform_device *pdev)
 
 static int wm5102_remove(struct platform_device *pdev)
 {
+	struct wm5102_priv *wm5102 = platform_get_drvdata(pdev);
+
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	wm_adsp2_remove(&wm5102->core.adsp[0]);
 
 	return 0;
 }
