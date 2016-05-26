@@ -59,16 +59,6 @@ struct connector_dvi_platform_data {
 };
 
 /**
- * connector_hdmi platform data
- * @name: name for this display entity
- * @source: name of the display entity used as a video source
- */
-struct connector_hdmi_platform_data {
-	const char *name;
-	const char *source;
-};
-
-/**
  * connector_atv platform data
  * @name: name for this display entity
  * @source: name of the display entity used as a video source
