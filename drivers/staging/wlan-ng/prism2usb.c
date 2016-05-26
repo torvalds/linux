@@ -137,7 +137,7 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 	wlandevice_t *wlandev;
 
 	wlandev = (wlandevice_t *)usb_get_intfdata(interface);
-	if (wlandev != NULL) {
+	if (wlandev) {
 		LIST_HEAD(cleanlist);
 		hfa384x_usbctlx_t *ctlx, *temp;
 		unsigned long flags;
