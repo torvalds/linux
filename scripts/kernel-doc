@@ -214,6 +214,8 @@ my $type_enum_full = '\&(enum)\s*([_\w]+)';
 my $type_struct_full = '\&(struct)\s*([_\w]+)';
 my $type_typedef_full = '\&(typedef)\s*([_\w]+)';
 my $type_union_full = '\&(union)\s*([_\w]+)';
+my $type_member = '\&([_\w]+)((\.|->)[_\w]+)';
+my $type_member_func = $type_member . '\(\)';
 
 # Output conversion substitutions.
 #  One for each output format
@@ -282,6 +284,9 @@ my $blankline_text = "";
 # rst-mode
 my @highlights_rst = (
                        [$type_constant, "``\$1``"],
+                       # Note: need to escape () to avoid func matching later
+                       [$type_member_func, "\\:c\\:type\\:`\$1\$2\\\\(\\\\) <\$1>`"],
+                       [$type_member, "\\:c\\:type\\:`\$1\$2 <\$1>`"],
                        [$type_func, "\\:c\\:func\\:`\$1()`"],
                        [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
                        [$type_enum_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
