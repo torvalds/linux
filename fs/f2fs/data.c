@@ -1444,7 +1444,6 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	int ret;
-	long diff;
 
 	/* deal with chardevs and other special file */
 	if (!mapping->a_ops->writepage)
@@ -1469,14 +1468,14 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 
 	trace_f2fs_writepages(mapping->host, wbc, DATA);
 
-	diff = nr_pages_to_write(sbi, DATA, wbc);
-
 	ret = f2fs_write_cache_pages(mapping, wbc, __f2fs_writepage, mapping);
-	f2fs_submit_merged_bio_cond(sbi, inode, NULL, 0, DATA, WRITE);
+	/*
+	 * if some pages were truncated, we cannot guarantee its mapping->host
+	 * to detect pending bios.
+	 */
+	f2fs_submit_merged_bio(sbi, DATA, WRITE);
 
 	remove_dirty_inode(inode);
-
-	wbc->nr_to_write = max((long)0, wbc->nr_to_write - diff);
 	return ret;
 
 skip_write:
