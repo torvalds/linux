@@ -2000,6 +2000,94 @@ static u32 dwc2_gadget_read_ep_interrupts(struct dwc2_hsotg *hsotg,
 }
 
 /**
+ * dwc2_gadget_handle_out_token_ep_disabled - handle DXEPINT_OUTTKNEPDIS
+ * @hs_ep: The endpoint on which interrupt is asserted.
+ *
+ * This is starting point for ISOC-OUT transfer, synchronization done with
+ * first out token received from host while corresponding EP is disabled.
+ *
+ * Device does not know initial frame in which out token will come. For this
+ * HW generates OUTTKNEPDIS - out token is received while EP is disabled. Upon
+ * getting this interrupt SW starts calculation for next transfer frame.
+ */
+static void dwc2_gadget_handle_out_token_ep_disabled(struct dwc2_hsotg_ep *ep)
+{
+	struct dwc2_hsotg *hsotg = ep->parent;
+	int dir_in = ep->dir_in;
+	u32 doepmsk;
+
+	if (dir_in || !ep->isochronous)
+		return;
+
+	dwc2_hsotg_complete_request(hsotg, ep, get_ep_head(ep), -ENODATA);
+
+	if (ep->interval > 1 &&
+	    ep->target_frame == TARGET_FRAME_INITIAL) {
+		u32 dsts;
+		u32 ctrl;
+
+		dsts = dwc2_readl(hsotg->regs + DSTS);
+		ep->target_frame = dwc2_hsotg_read_frameno(hsotg);
+		dwc2_gadget_incr_frame_num(ep);
+
+		ctrl = dwc2_readl(hsotg->regs + DOEPCTL(ep->index));
+		if (ep->target_frame & 0x1)
+			ctrl |= DXEPCTL_SETODDFR;
+		else
+			ctrl |= DXEPCTL_SETEVENFR;
+
+		dwc2_writel(ctrl, hsotg->regs + DOEPCTL(ep->index));
+	}
+
+	dwc2_gadget_start_next_request(ep);
+	doepmsk = dwc2_readl(hsotg->regs + DOEPMSK);
+	doepmsk &= ~DOEPMSK_OUTTKNEPDISMSK;
+	dwc2_writel(doepmsk, hsotg->regs + DOEPMSK);
+}
+
+/**
+* dwc2_gadget_handle_nak - handle NAK interrupt
+* @hs_ep: The endpoint on which interrupt is asserted.
+*
+* This is starting point for ISOC-IN transfer, synchronization done with
+* first IN token received from host while corresponding EP is disabled.
+*
+* Device does not know when first one token will arrive from host. On first
+* token arrival HW generates 2 interrupts: 'in token received while FIFO empty'
+* and 'NAK'. NAK interrupt for ISOC-IN means that token has arrived and ZLP was
+* sent in response to that as there was no data in FIFO. SW is basing on this
+* interrupt to obtain frame in which token has come and then based on the
+* interval calculates next frame for transfer.
+*/
+static void dwc2_gadget_handle_nak(struct dwc2_hsotg_ep *hs_ep)
+{
+	struct dwc2_hsotg *hsotg = hs_ep->parent;
+	int dir_in = hs_ep->dir_in;
+
+	if (!dir_in || !hs_ep->isochronous)
+		return;
+
+	if (hs_ep->target_frame == TARGET_FRAME_INITIAL) {
+		hs_ep->target_frame = dwc2_hsotg_read_frameno(hsotg);
+		if (hs_ep->interval > 1) {
+			u32 ctrl = dwc2_readl(hsotg->regs +
+					      DIEPCTL(hs_ep->index));
+			if (hs_ep->target_frame & 0x1)
+				ctrl |= DXEPCTL_SETODDFR;
+			else
+				ctrl |= DXEPCTL_SETEVENFR;
+
+			dwc2_writel(ctrl, hsotg->regs + DIEPCTL(hs_ep->index));
+		}
+
+		dwc2_hsotg_complete_request(hsotg, hs_ep,
+					    get_ep_head(hs_ep), 0);
+	}
+
+	dwc2_gadget_incr_frame_num(hs_ep);
+}
+
+/**
  * dwc2_hsotg_epint - handle an in/out endpoint interrupt
  * @hsotg: The driver state
  * @idx: The index for the endpoint (0..15)
@@ -2082,6 +2170,12 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 			}
 		}
 	}
+
+	if (ints & DXEPINT_OUTTKNEPDIS)
+		dwc2_gadget_handle_out_token_ep_disabled(hs_ep);
+
+	if (ints & DXEPINT_NAKINTRPT)
+		dwc2_gadget_handle_nak(hs_ep);
 
 	if (ints & DXEPINT_AHBERR)
 		dev_dbg(hsotg->dev, "%s: AHBErr\n", __func__);
