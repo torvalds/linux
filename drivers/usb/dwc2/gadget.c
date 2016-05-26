@@ -1947,6 +1947,34 @@ static void dwc2_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 }
 
 /**
+ * dwc2_gadget_read_ep_interrupts - reads interrupts for given ep
+ * @hsotg: The device state.
+ * @idx: Index of ep.
+ * @dir_in: Endpoint direction 1-in 0-out.
+ *
+ * Reads for endpoint with given index and direction, by masking
+ * epint_reg with coresponding mask.
+ */
+static u32 dwc2_gadget_read_ep_interrupts(struct dwc2_hsotg *hsotg,
+					  unsigned int idx, int dir_in)
+{
+	u32 epmsk_reg = dir_in ? DIEPMSK : DOEPMSK;
+	u32 epint_reg = dir_in ? DIEPINT(idx) : DOEPINT(idx);
+	u32 ints;
+	u32 mask;
+	u32 diepempmsk;
+
+	mask = dwc2_readl(hsotg->regs + epmsk_reg);
+	diepempmsk = dwc2_readl(hsotg->regs + DIEPEMPMSK);
+	mask |= ((diepempmsk >> idx) & 0x1) ? DIEPMSK_TXFIFOEMPTY : 0;
+	mask |= DXEPINT_SETUP_RCVD;
+
+	ints = dwc2_readl(hsotg->regs + epint_reg);
+	ints &= mask;
+	return ints;
+}
+
+/**
  * dwc2_hsotg_epint - handle an in/out endpoint interrupt
  * @hsotg: The driver state
  * @idx: The index for the endpoint (0..15)
@@ -1964,7 +1992,7 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 	u32 ints;
 	u32 ctrl;
 
-	ints = dwc2_readl(hsotg->regs + epint_reg);
+	ints = dwc2_gadget_read_ep_interrupts(hsotg, idx, dir_in);
 	ctrl = dwc2_readl(hsotg->regs + epctl_reg);
 
 	/* Clear endpoint interrupts */
