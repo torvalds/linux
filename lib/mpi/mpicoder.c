@@ -97,8 +97,8 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 
 	nbytes = DIV_ROUND_UP(nbits, 8);
 	if (nbytes + 2 > *ret_nread) {
-		printk("MPI: mpi larger than buffer nread=%d ret_nread=%d\n",
-				*ret_nread + 1, *ret_nread);
+		pr_info("MPI: mpi larger than buffer nbytes=%u ret_nread=%u\n",
+				nbytes, *ret_nread);
 		return ERR_PTR(-EINVAL);
 	}
 
