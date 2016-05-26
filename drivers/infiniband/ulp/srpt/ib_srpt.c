@@ -254,8 +254,8 @@ static void srpt_get_class_port_info(struct ib_dm_mad *mad)
 	memset(cif, 0, sizeof(*cif));
 	cif->base_version = 1;
 	cif->class_version = 1;
-	cif->resp_time_value = 20;
 
+	ib_set_cpi_resp_time(cif, 20);
 	mad->mad_hdr.status = 0;
 }
 
