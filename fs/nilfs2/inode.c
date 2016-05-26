@@ -829,7 +829,7 @@ int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct super_block *sb = inode->i_sb;
 	int err;
 
-	err = inode_change_ok(inode, iattr);
+	err = setattr_prepare(dentry, iattr);
 	if (err)
 		return err;
 

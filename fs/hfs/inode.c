@@ -605,7 +605,7 @@ int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
 	struct hfs_sb_info *hsb = HFS_SB(inode->i_sb);
 	int error;
 
-	error = inode_change_ok(inode, attr); /* basic permission checks */
+	error = setattr_prepare(dentry, attr); /* basic permission checks */
 	if (error)
 		return error;
 

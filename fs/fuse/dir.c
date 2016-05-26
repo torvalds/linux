@@ -1609,7 +1609,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	if (!(fc->flags & FUSE_DEFAULT_PERMISSIONS))
 		attr->ia_valid |= ATTR_FORCE;
 
-	err = inode_change_ok(inode, attr);
+	err = setattr_prepare(dentry, attr);
 	if (err)
 		return err;
 

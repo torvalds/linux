@@ -17,19 +17,22 @@
 #include <linux/ima.h>
 
 /**
- * inode_change_ok - check if attribute changes to an inode are allowed
- * @inode:	inode to check
+ * setattr_prepare - check if attribute changes to a dentry are allowed
+ * @dentry:	dentry to check
  * @attr:	attributes to change
  *
  * Check if we are allowed to change the attributes contained in @attr
- * in the given inode.  This includes the normal unix access permission
- * checks, as well as checks for rlimits and others.
+ * in the given dentry.  This includes the normal unix access permission
+ * checks, as well as checks for rlimits and others. The function also clears
+ * SGID bit from mode if user is not allowed to set it. Also file capabilities
+ * and IMA extended attributes are cleared if ATTR_KILL_PRIV is set.
  *
  * Should be called as the first thing in ->setattr implementations,
  * possibly after taking additional locks.
  */
-int inode_change_ok(const struct inode *inode, struct iattr *attr)
+int setattr_prepare(struct dentry *dentry, struct iattr *attr)
 {
+	struct inode *inode = d_inode(dentry);
 	unsigned int ia_valid = attr->ia_valid;
 
 	/*
@@ -79,7 +82,7 @@ int inode_change_ok(const struct inode *inode, struct iattr *attr)
 
 	return 0;
 }
-EXPORT_SYMBOL(inode_change_ok);
+EXPORT_SYMBOL(setattr_prepare);
 
 /**
  * inode_newsize_ok - may this inode be truncated to a given size
