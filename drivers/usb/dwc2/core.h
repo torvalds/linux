@@ -177,6 +177,8 @@ struct dwc2_hsotg_req;
  * @fifo_load: The amount of data loaded into the FIFO (periodic IN)
  * @last_load: The offset of data for the last start of request.
  * @size_loaded: The last loaded size for DxEPTSIZE for periodic IN
+ * @target_frame: Targeted frame num to setup next ISOC transfer
+ * @frame_overrun: Indicates SOF number overrun in DSTS
  *
  * This is the driver's state for each registered enpoint, allowing it
  * to keep track of transactions that need doing. Each endpoint has a
@@ -214,6 +216,9 @@ struct dwc2_hsotg_ep {
 	unsigned int            isochronous:1;
 	unsigned int            send_zlp:1;
 	unsigned int            has_correct_parity:1;
+	unsigned int            target_frame;
+#define TARGET_FRAME_INITIAL   0xFFFFFFFF
+	bool			frame_overrun;
 
 	char                    name[10];
 };
