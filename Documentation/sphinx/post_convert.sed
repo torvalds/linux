@@ -1,9 +1,13 @@
 #
-# pandoc thinks that both "_" needs to be escaped.  Remove the extra
-# backslashes.  Also put in proper backquotes now that pandoc won't quote
-# them.
+# Unescape.
 #
 s/$bq/`/g
+s/$lt/</g
+s/$gt/>/g
+#
+# pandoc thinks that both "_" needs to be escaped.  Remove the extra
+# backslashes.
+#
 s/\\_/_/g
 #
 # Unwrap docproc directives.
