@@ -45,6 +45,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -483,16 +485,16 @@ static inline unsigned long zs_stat_get(struct size_class *class,
 
 #ifdef CONFIG_ZSMALLOC_STAT
 
-static int __init zs_stat_init(void)
+static void __init zs_stat_init(void)
 {
-	if (!debugfs_initialized())
-		return -ENODEV;
+	if (!debugfs_initialized()) {
+		pr_warn("debugfs not available, stat dir not created\n");
+		return;
+	}
 
 	zs_stat_root = debugfs_create_dir("zsmalloc", NULL);
 	if (!zs_stat_root)
-		return -ENOMEM;
-
-	return 0;
+		pr_warn("debugfs 'zsmalloc' stat dir creation failed\n");
 }
 
 static void __exit zs_stat_exit(void)
@@ -577,8 +579,10 @@ static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
 {
 	struct dentry *entry;
 
-	if (!zs_stat_root)
+	if (!zs_stat_root) {
+		pr_warn("no root stat dir, not creating <%s> stat dir\n", name);
 		return;
+	}
 
 	entry = debugfs_create_dir(name, zs_stat_root);
 	if (!entry) {
@@ -592,7 +596,8 @@ static void zs_pool_stat_create(struct zs_pool *pool, const char *name)
 	if (!entry) {
 		pr_warn("%s: debugfs file entry <%s> creation failed\n",
 				name, "classes");
-		return;
+		debugfs_remove_recursive(pool->stat_dentry);
+		pool->stat_dentry = NULL;
 	}
 }
 
@@ -602,9 +607,8 @@ static void zs_pool_stat_destroy(struct zs_pool *pool)
 }
 
 #else /* CONFIG_ZSMALLOC_STAT */
-static int __init zs_stat_init(void)
+static void __init zs_stat_init(void)
 {
-	return 0;
 }
 
 static void __exit zs_stat_exit(void)
@@ -2011,17 +2015,10 @@ static int __init zs_init(void)
 	zpool_register_driver(&zs_zpool_driver);
 #endif
 
-	ret = zs_stat_init();
-	if (ret) {
-		pr_err("zs stat initialization failed\n");
-		goto stat_fail;
-	}
+	zs_stat_init();
+
 	return 0;
 
-stat_fail:
-#ifdef CONFIG_ZPOOL
-	zpool_unregister_driver(&zs_zpool_driver);
-#endif
 notifier_fail:
 	zs_unregister_cpu_notifier();
 
