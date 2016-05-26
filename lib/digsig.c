@@ -114,13 +114,15 @@ static int digsig_verify_rsa(struct key *key,
 		datap += remaining;
 	}
 
-	err = -ENOMEM;
-
 	mblen = mpi_get_nbits(pkey[0]);
 	mlen = DIV_ROUND_UP(mblen, 8);
 
-	if (mlen == 0)
+	if (mlen == 0) {
+		err = -EINVAL;
 		goto err;
+	}
+
+	err = -ENOMEM;
 
 	out1 = kzalloc(mlen, GFP_KERNEL);
 	if (!out1)
