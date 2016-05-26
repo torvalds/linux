@@ -1045,6 +1045,42 @@ static struct dwc2_hsotg_req *get_ep_head(struct dwc2_hsotg_ep *hs_ep)
 }
 
 /**
+ * dwc2_gadget_start_next_request - Starts next request from ep queue
+ * @hs_ep: Endpoint structure
+ *
+ * If queue is empty and EP is ISOC-OUT - unmasks OUTTKNEPDIS which is masked
+ * in its handler. Hence we need to unmask it here to be able to do
+ * resynchronization.
+ */
+static void dwc2_gadget_start_next_request(struct dwc2_hsotg_ep *hs_ep)
+{
+	u32 mask;
+	struct dwc2_hsotg *hsotg = hs_ep->parent;
+	int dir_in = hs_ep->dir_in;
+	struct dwc2_hsotg_req *hs_req;
+	u32 epmsk_reg = dir_in ? DIEPMSK : DOEPMSK;
+
+	if (!list_empty(&hs_ep->queue)) {
+		hs_req = get_ep_head(hs_ep);
+		dwc2_hsotg_start_req(hsotg, hs_ep, hs_req, false);
+		return;
+	}
+	if (!hs_ep->isochronous)
+		return;
+
+	if (dir_in) {
+		dev_dbg(hsotg->dev, "%s: No more ISOC-IN requests\n",
+			__func__);
+	} else {
+		dev_dbg(hsotg->dev, "%s: No more ISOC-OUT requests\n",
+			__func__);
+		mask = dwc2_readl(hsotg->regs + epmsk_reg);
+		mask |= DOEPMSK_OUTTKNEPDISMSK;
+		dwc2_writel(mask, hsotg->regs + epmsk_reg);
+	}
+}
+
+/**
  * dwc2_hsotg_process_req_feature - process request {SET,CLEAR}_FEATURE
  * @hsotg: The device state
  * @ctrl: USB control request
@@ -1054,7 +1090,6 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 {
 	struct dwc2_hsotg_ep *ep0 = hsotg->eps_out[0];
 	struct dwc2_hsotg_req *hs_req;
-	bool restart;
 	bool set = (ctrl->bRequest == USB_REQ_SET_FEATURE);
 	struct dwc2_hsotg_ep *ep;
 	int ret;
@@ -1137,12 +1172,7 @@ static int dwc2_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 
 				/* If we have pending request, then start it */
 				if (!ep->req) {
-					restart = !list_empty(&ep->queue);
-					if (restart) {
-						hs_req = get_ep_head(ep);
-						dwc2_hsotg_start_req(hsotg, ep,
-								hs_req, false);
-					}
+					dwc2_gadget_start_next_request(ep);
 				}
 			}
 
@@ -1383,7 +1413,6 @@ static void dwc2_hsotg_complete_request(struct dwc2_hsotg *hsotg,
 				       struct dwc2_hsotg_req *hs_req,
 				       int result)
 {
-	bool restart;
 
 	if (!hs_req) {
 		dev_dbg(hsotg->dev, "%s: nothing to complete?\n", __func__);
@@ -1427,11 +1456,7 @@ static void dwc2_hsotg_complete_request(struct dwc2_hsotg *hsotg,
 	 */
 
 	if (!hs_ep->req && result >= 0) {
-		restart = !list_empty(&hs_ep->queue);
-		if (restart) {
-			hs_req = get_ep_head(hs_ep);
-			dwc2_hsotg_start_req(hsotg, hs_ep, hs_req, false);
-		}
+		dwc2_gadget_start_next_request(hs_ep);
 	}
 }
 
