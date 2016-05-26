@@ -310,7 +310,7 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 		uint32_t iova = submit->cmd[i].iova;
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 		struct msm_gem_object *obj = submit->bos[idx].obj;
-		const char *buf = msm_gem_vaddr_locked(&obj->base);
+		const char *buf = msm_gem_get_vaddr_locked(&obj->base);
 
 		if (IS_ERR(buf))
 			continue;
@@ -335,6 +335,8 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 					(uint32_t[2]){ iova, szd }, 8);
 			break;
 		}
+
+		msm_gem_put_vaddr_locked(&obj->base);
 	}
 }
 #endif

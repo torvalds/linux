@@ -1066,7 +1066,7 @@ static int dsi_cmd_dma_add(struct msm_dsi_host *msm_host,
 	}
 
 	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) {
-		data = msm_gem_vaddr(msm_host->tx_gem_obj);
+		data = msm_gem_get_vaddr(msm_host->tx_gem_obj);
 		if (IS_ERR(data)) {
 			ret = PTR_ERR(data);
 			pr_err("%s: get vaddr failed, %d\n", __func__, ret);
@@ -1093,6 +1093,9 @@ static int dsi_cmd_dma_add(struct msm_dsi_host *msm_host,
 	/* Append 0xff to the end */
 	if (packet.size < len)
 		memset(data + packet.size, 0xff, len - packet.size);
+
+	if (cfg_hnd->major == MSM_DSI_VER_MAJOR_6G)
+		msm_gem_put_vaddr(msm_host->tx_gem_obj);
 
 	return len;
 }

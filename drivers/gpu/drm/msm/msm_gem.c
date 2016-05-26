@@ -408,7 +408,7 @@ fail:
 	return ret;
 }
 
-void *msm_gem_vaddr_locked(struct drm_gem_object *obj)
+void *msm_gem_get_vaddr_locked(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
@@ -424,13 +424,24 @@ void *msm_gem_vaddr_locked(struct drm_gem_object *obj)
 	return msm_obj->vaddr;
 }
 
-void *msm_gem_vaddr(struct drm_gem_object *obj)
+void *msm_gem_get_vaddr(struct drm_gem_object *obj)
 {
 	void *ret;
 	mutex_lock(&obj->dev->struct_mutex);
-	ret = msm_gem_vaddr_locked(obj);
+	ret = msm_gem_get_vaddr_locked(obj);
 	mutex_unlock(&obj->dev->struct_mutex);
 	return ret;
+}
+
+void msm_gem_put_vaddr_locked(struct drm_gem_object *obj)
+{
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
+	/* no-op for now */
+}
+
+void msm_gem_put_vaddr(struct drm_gem_object *obj)
+{
+	/* no-op for now */
 }
 
 /* Update madvise status, returns true if not purged, else

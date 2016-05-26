@@ -200,8 +200,10 @@ struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 		struct dma_buf_attachment *attach, struct sg_table *sg);
 int msm_gem_prime_pin(struct drm_gem_object *obj);
 void msm_gem_prime_unpin(struct drm_gem_object *obj);
-void *msm_gem_vaddr_locked(struct drm_gem_object *obj);
-void *msm_gem_vaddr(struct drm_gem_object *obj);
+void *msm_gem_get_vaddr_locked(struct drm_gem_object *obj);
+void *msm_gem_get_vaddr(struct drm_gem_object *obj);
+void msm_gem_put_vaddr_locked(struct drm_gem_object *obj);
+void msm_gem_put_vaddr(struct drm_gem_object *obj);
 int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv);
 void msm_gem_purge(struct drm_gem_object *obj);
 int msm_gem_sync_object(struct drm_gem_object *obj,

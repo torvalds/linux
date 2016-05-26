@@ -407,7 +407,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return ret;
 	}
 
-	adreno_gpu->memptrs = msm_gem_vaddr(adreno_gpu->memptrs_bo);
+	adreno_gpu->memptrs = msm_gem_get_vaddr(adreno_gpu->memptrs_bo);
 	if (IS_ERR(adreno_gpu->memptrs)) {
 		dev_err(drm->dev, "could not vmap memptrs\n");
 		return -ENOMEM;
@@ -426,8 +426,12 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 void adreno_gpu_cleanup(struct adreno_gpu *gpu)
 {
 	if (gpu->memptrs_bo) {
+		if (gpu->memptrs)
+			msm_gem_put_vaddr(gpu->memptrs_bo);
+
 		if (gpu->memptrs_iova)
 			msm_gem_put_iova(gpu->memptrs_bo, gpu->base.id);
+
 		drm_gem_object_unreference_unlocked(gpu->memptrs_bo);
 	}
 	release_firmware(gpu->pm4);
