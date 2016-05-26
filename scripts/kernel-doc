@@ -212,6 +212,8 @@ my $type_struct_xml = '\\&amp;((struct\s*)*[_\w]+)';
 my $type_env = '(\$\w+)';
 my $type_enum_full = '\&(enum)\s*([_\w]+)';
 my $type_struct_full = '\&(struct)\s*([_\w]+)';
+my $type_typedef_full = '\&(typedef)\s*([_\w]+)';
+my $type_union_full = '\&(union)\s*([_\w]+)';
 
 # Output conversion substitutions.
 #  One for each output format
@@ -283,6 +285,8 @@ my @highlights_rst = (
                        [$type_func, "\\:c\\:func\\:`\$1()`"],
                        [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
                        [$type_enum_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_typedef_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_union_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
                        # in rst this can refer to any type
                        [$type_struct, "\\:c\\:type\\:`\$1`"],
                        [$type_param, "**\$1**"]
