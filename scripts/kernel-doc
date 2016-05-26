@@ -1823,23 +1823,23 @@ sub output_function_rst(%) {
     output_highlight_rst($args{'purpose'});
     print "\n";
 
-    print ":Parameters:\n\n";
-    $lineprefix = "        ";
+    print "**Parameters**\n\n";
+    $lineprefix = "  ";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	my $parameter_name = $parameter;
 	#$parameter_name =~ s/\[.*//;
 	$type = $args{'parametertypes'}{$parameter};
 
 	if ($type ne "") {
-	    print "      ``$type $parameter``\n";
+	    print "``$type $parameter``\n";
 	} else {
-	    print "      ``$parameter``\n";
+	    print "``$parameter``\n";
 	}
 	if (defined($args{'parameterdescs'}{$parameter_name}) &&
 	    $args{'parameterdescs'}{$parameter_name} ne $undescribed) {
 	    output_highlight_rst($args{'parameterdescs'}{$parameter_name});
 	} else {
-	    print "\n        _undescribed_\n";
+	    print "  _undescribed_\n";
 	}
 	print "\n";
     }
@@ -1852,10 +1852,10 @@ sub output_section_rst(%) {
     my %args = %{$_[0]};
     my $section;
     my $oldprefix = $lineprefix;
-    $lineprefix = "        ";
+    $lineprefix = "";
 
     foreach $section (@{$args{'sectionlist'}}) {
-	print ":$section:\n\n";
+	print "**$section**\n\n";
 	output_highlight_rst($args{'sections'}{$section});
 	print "\n";
     }
@@ -1875,14 +1875,14 @@ sub output_enum_rst(%) {
     output_highlight_rst($args{'purpose'});
     print "\n";
 
-    print "..\n\n:Constants:\n\n";
-    $lineprefix = "    ";
+    print "**Constants**\n\n";
+    $lineprefix = "  ";
     foreach $parameter (@{$args{'parameterlist'}}) {
-	print "  `$parameter`\n";
+	print "``$parameter``\n";
 	if ($args{'parameterdescs'}{$parameter} ne $undescribed) {
 	    output_highlight_rst($args{'parameterdescs'}{$parameter});
 	} else {
-	    print "    undescribed\n";
+	    print "  _undescribed_\n";
 	}
 	print "\n";
     }
@@ -1918,12 +1918,12 @@ sub output_struct_rst(%) {
     output_highlight_rst($args{'purpose'});
     print "\n";
 
-    print ":Definition:\n\n";
-    print " ::\n\n";
+    print "**Definition**\n\n";
+    print "::\n\n";
     print "  " . $args{'type'} . " " . $args{'struct'} . " {\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	if ($parameter =~ /^#/) {
-	    print "    " . "$parameter\n";
+	    print "  " . "$parameter\n";
 	    next;
 	}
 
@@ -1944,8 +1944,8 @@ sub output_struct_rst(%) {
     }
     print "  };\n\n";
 
-    print ":Members:\n\n";
-    $lineprefix = "        ";
+    print "**Members**\n\n";
+    $lineprefix = "  ";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	($parameter =~ /^#/) && next;
 
@@ -1954,7 +1954,7 @@ sub output_struct_rst(%) {
 
 	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
 	$type = $args{'parametertypes'}{$parameter};
-	print "      `$type $parameter`" . "\n";
+	print "``$type $parameter``\n";
 	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
 	print "\n";
     }
