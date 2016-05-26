@@ -51,8 +51,6 @@ MPI mpi_read_raw_data(const void *xbuffer, size_t nbytes)
 	}
 	if (nbytes > 0)
 		nbits -= count_leading_zeros(buffer[0]);
-	else
-		nbits = 0;
 
 	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
 	val = mpi_alloc(nlimbs);
