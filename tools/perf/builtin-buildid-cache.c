@@ -119,8 +119,8 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 	if (build_id_cache__kcore_buildid(from_dir, sbuildid) < 0)
 		return -1;
 
-	scnprintf(to_dir, sizeof(to_dir), "%s/[kernel.kcore]/%s",
-		  buildid_dir, sbuildid);
+	scnprintf(to_dir, sizeof(to_dir), "%s/%s/%s",
+		  buildid_dir, DSO__NAME_KCORE, sbuildid);
 
 	if (!force &&
 	    !build_id_cache__kcore_existing(from_dir, to_dir, sizeof(to_dir))) {
@@ -131,8 +131,8 @@ static int build_id_cache__add_kcore(const char *filename, bool force)
 	if (build_id_cache__kcore_dir(dir, sizeof(dir)))
 		return -1;
 
-	scnprintf(to_dir, sizeof(to_dir), "%s/[kernel.kcore]/%s/%s",
-		  buildid_dir, sbuildid, dir);
+	scnprintf(to_dir, sizeof(to_dir), "%s/%s/%s/%s",
+		  buildid_dir, DSO__NAME_KCORE, sbuildid, dir);
 
 	if (mkdir_p(to_dir, 0755))
 		return -1;
