@@ -944,7 +944,7 @@ config SND_SOC_WM8983
 	tristate
 
 config SND_SOC_WM8985
-	tristate
+	tristate "Wolfson Microelectronics WM8985 and WM8758 codec driver"
 
 config SND_SOC_WM8988
 	tristate
