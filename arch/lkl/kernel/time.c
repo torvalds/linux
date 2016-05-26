@@ -105,6 +105,8 @@ static struct irqaction irq0  = {
 void __init time_init(void)
 {
 	int ret;
+	struct timespec ts;
+	unsigned long long time;
 
 	if (!lkl_ops->timer_alloc || !lkl_ops->timer_free ||
 	    !lkl_ops->timer_set_oneshot || !lkl_ops->time) {
@@ -120,6 +122,11 @@ void __init time_init(void)
 		pr_err("lkl: unable to register clocksource\n");
 
 	clockevents_config_and_register(&clockevent, HZ, 0, 0xffffffff);
+
+	time = lkl_ops->time();
+	ts.tv_sec = time / NSEC_PER_SEC;
+	ts.tv_nsec = time % NSEC_PER_SEC;
+	do_settimeofday(&ts);
 
 	pr_info("lkl: time and timers initialized (irq%d)\n", timer_irq);
 }
