@@ -2866,10 +2866,8 @@ static void dwc2_hsotg_ep_stop_xfr(struct dwc2_hsotg *hsotg,
 			dev_warn(hsotg->dev,
 				"%s: timeout DIEPINT.NAKEFF\n", __func__);
 	} else {
-		/* Clear any pending nak effect interrupt */
-		dwc2_writel(GINTSTS_GOUTNAKEFF, hsotg->regs + GINTSTS);
-
-		__orr32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
+		if (!(dwc2_readl(hsotg->regs + GINTSTS) & GINTSTS_GOUTNAKEFF))
+			__orr32(hsotg->regs + DCTL, DCTL_SGOUTNAK);
 
 		/* Wait for global nak to take effect */
 		if (dwc2_hsotg_wait_bit_set(hsotg, GINTSTS,
