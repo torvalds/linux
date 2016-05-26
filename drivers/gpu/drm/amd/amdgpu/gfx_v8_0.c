@@ -5805,6 +5805,8 @@ static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev
 			WREG32(mmRLC_CGCG_CGLS_CTRL, data);
 	}
 
+	gfx_v8_0_wait_for_rlc_serdes(adev);
+
 	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 }
 static int gfx_v8_0_update_gfx_clock_gating(struct amdgpu_device *adev,
