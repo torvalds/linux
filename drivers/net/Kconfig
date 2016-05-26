@@ -485,4 +485,8 @@ config FUJITSU_ES
 
 source "drivers/net/hyperv/Kconfig"
 
+config IVSHMEM_NET
+	tristate "IVSHMEM virtual network device"
+	depends on PCI
+
 endif # NETDEVICES

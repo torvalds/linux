@@ -75,3 +75,5 @@ obj-$(CONFIG_HYPERV_NET) += hyperv/
 obj-$(CONFIG_NTB_NETDEV) += ntb_netdev.o
 
 obj-$(CONFIG_FUJITSU_ES) += fjes/
+
+obj-$(CONFIG_IVSHMEM_NET) += ivshmem-net.o
