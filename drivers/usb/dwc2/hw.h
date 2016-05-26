@@ -560,6 +560,7 @@
 #define DXEPINT_INEPNAKEFF		(1 << 6)
 #define DXEPINT_BACK2BACKSETUP		(1 << 6)
 #define DXEPINT_INTKNEPMIS		(1 << 5)
+#define DXEPINT_STSPHSERCVD		(1 << 5)
 #define DXEPINT_INTKNTXFEMP		(1 << 4)
 #define DXEPINT_OUTTKNEPDIS		(1 << 4)
 #define DXEPINT_TIMEOUT			(1 << 3)
