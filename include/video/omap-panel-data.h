@@ -30,8 +30,6 @@
 #include <video/omapdss.h>
 #include <video/display_timing.h>
 
-struct omap_dss_device;
-
 /**
  * connector_atv platform data
  * @name: name for this display entity
