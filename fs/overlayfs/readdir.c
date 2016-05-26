@@ -218,9 +218,7 @@ static int ovl_check_whiteouts(struct dentry *dir, struct ovl_readdir_data *rdd)
 	cap_raise(override_cred->cap_effective, CAP_DAC_OVERRIDE);
 	old_cred = override_creds(override_cred);
 
-	inode_lock(dir->d_inode);
-	err = 0;
-	// XXX: err = mutex_lock_killable(&dir->d_inode->i_mutex);
+	err = down_write_killable(&dir->d_inode->i_rwsem);
 	if (!err) {
 		while (rdd->first_maybe_whiteout) {
 			p = rdd->first_maybe_whiteout;
