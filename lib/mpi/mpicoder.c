@@ -86,12 +86,12 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 	MPI val = NULL;
 
 	if (*ret_nread < 2)
-		goto leave;
+		return ERR_PTR(-EINVAL);
 	nbits = buffer[0] << 8 | buffer[1];
 
 	if (nbits > MAX_EXTERN_MPI_BITS) {
 		pr_info("MPI: mpi too large (%u bits)\n", nbits);
-		goto leave;
+		return ERR_PTR(-EINVAL);
 	}
 	buffer += 2;
 	nread = 2;
@@ -100,7 +100,7 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
 	val = mpi_alloc(nlimbs);
 	if (!val)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	i = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
 	i %= BYTES_PER_MPI_LIMB;
 	val->nbits = nbits;
