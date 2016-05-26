@@ -29,7 +29,7 @@ described as GRGR... BGBG..., RGRG... GBGB..., etc. Below is an example
 of one of these formats
 
 **Byte Order.**
-Each cell is one byte, high 6 bits in high bytes are 0.
+Each cell is one byte, high 4 bits in high bytes are 0.
 
 
 
