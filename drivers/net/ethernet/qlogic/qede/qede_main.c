@@ -1824,7 +1824,7 @@ static int qede_set_vf_rate(struct net_device *dev, int vfidx,
 {
 	struct qede_dev *edev = netdev_priv(dev);
 
-	return edev->ops->iov->set_rate(edev->cdev, vfidx, max_tx_rate,
+	return edev->ops->iov->set_rate(edev->cdev, vfidx, min_tx_rate,
 					max_tx_rate);
 }
 
