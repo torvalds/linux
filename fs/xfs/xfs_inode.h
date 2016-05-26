@@ -440,6 +440,9 @@ loff_t	__xfs_seek_hole_data(struct inode *inode, loff_t start,
 
 
 /* from xfs_iops.c */
+extern void xfs_setup_inode(struct xfs_inode *ip);
+extern void xfs_setup_iops(struct xfs_inode *ip);
+
 /*
  * When setting up a newly allocated inode, we need to call
  * xfs_finish_inode_setup() once the inode is fully instantiated at
@@ -447,7 +450,6 @@ loff_t	__xfs_seek_hole_data(struct inode *inode, loff_t start,
  * before we've completed instantiation. Otherwise we can do it
  * the moment the inode lookup is complete.
  */
-extern void xfs_setup_inode(struct xfs_inode *ip);
 static inline void xfs_finish_inode_setup(struct xfs_inode *ip)
 {
 	xfs_iflags_clear(ip, XFS_INEW);
@@ -458,6 +460,7 @@ static inline void xfs_finish_inode_setup(struct xfs_inode *ip)
 static inline void xfs_setup_existing_inode(struct xfs_inode *ip)
 {
 	xfs_setup_inode(ip);
+	xfs_setup_iops(ip);
 	xfs_finish_inode_setup(ip);
 }
 

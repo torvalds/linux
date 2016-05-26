@@ -183,6 +183,26 @@ typedef struct xfs_buf {
 	unsigned int		b_page_count;	/* size of page array */
 	unsigned int		b_offset;	/* page offset in first page */
 	int			b_error;	/* error code on I/O */
+
+	/*
+	 * async write failure retry count. Initialised to zero on the first
+	 * failure, then when it exceeds the maximum configured without a
+	 * success the write is considered to be failed permanently and the
+	 * iodone handler will take appropriate action.
+	 *
+	 * For retry timeouts, we record the jiffie of the first failure. This
+	 * means that we can change the retry timeout for buffers already under
+	 * I/O and thus avoid getting stuck in a retry loop with a long timeout.
+	 *
+	 * last_error is used to ensure that we are getting repeated errors, not
+	 * different errors. e.g. a block device might change ENOSPC to EIO when
+	 * a failure timeout occurs, so we want to re-initialise the error
+	 * retry behaviour appropriately when that happens.
+	 */
+	int			b_retries;
+	unsigned long		b_first_retry_time; /* in jiffies */
+	int			b_last_error;
+
 	const struct xfs_buf_ops	*b_ops;
 
 #ifdef XFS_BUF_LOCK_TRACKING
