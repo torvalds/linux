@@ -166,7 +166,7 @@ struct dwc2_hsotg_req;
  *          means that it is sending data to the Host.
  * @index: The index for the endpoint registers.
  * @mc: Multi Count - number of transactions per microframe
- * @interval - Interval for periodic endpoints
+ * @interval - Interval for periodic endpoints, in frames or microframes.
  * @name: The name array passed to the USB core.
  * @halted: Set if the endpoint has been halted.
  * @periodic: Set if this is a periodic ep, such as Interrupt

@@ -2693,16 +2693,13 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	hs_ep->periodic = 0;
 	hs_ep->halted = 0;
 	hs_ep->interval = desc->bInterval;
-	hs_ep->has_correct_parity = 0;
-
-	if (hs_ep->interval > 1 && hs_ep->mc > 1)
-		dev_err(hsotg->dev, "MC > 1 when interval is not 1\n");
 
 	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_ISOC:
 		epctrl |= DXEPCTL_EPTYPE_ISO;
 		epctrl |= DXEPCTL_SETEVENFR;
 		hs_ep->isochronous = 1;
+		hs_ep->interval = 1 << (desc->bInterval - 1);
 		if (dir_in)
 			hs_ep->periodic = 1;
 		break;
@@ -2714,6 +2711,9 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 	case USB_ENDPOINT_XFER_INT:
 		if (dir_in)
 			hs_ep->periodic = 1;
+
+		if (hsotg->gadget.speed == USB_SPEED_HIGH)
+			hs_ep->interval = 1 << (desc->bInterval - 1);
 
 		epctrl |= DXEPCTL_EPTYPE_INTERRUPT;
 		break;
