@@ -614,7 +614,6 @@ static void nfit_mem_init_bdw(struct acpi_nfit_desc *acpi_desc,
 {
 	u16 dcr = __to_nfit_memdev(nfit_mem)->region_index;
 	struct nfit_memdev *nfit_memdev;
-	struct nfit_flush *nfit_flush;
 	struct nfit_bdw *nfit_bdw;
 	struct nfit_idt *nfit_idt;
 	u16 idt_idx, range_index;
@@ -647,14 +646,6 @@ static void nfit_mem_init_bdw(struct acpi_nfit_desc *acpi_desc,
 			nfit_mem->idt_bdw = nfit_idt->idt;
 			break;
 		}
-
-		list_for_each_entry(nfit_flush, &acpi_desc->flushes, list) {
-			if (nfit_flush->flush->device_handle !=
-					nfit_memdev->memdev->device_handle)
-				continue;
-			nfit_mem->nfit_flush = nfit_flush;
-			break;
-		}
 		break;
 	}
 }
@@ -675,6 +666,7 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
+		struct nfit_flush *nfit_flush;
 		struct nfit_dcr *nfit_dcr;
 		u32 device_handle;
 		u16 dcr;
@@ -718,6 +710,13 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 			else if (nfit_mem->dcr->windows == 0
 					&& nfit_dcr->dcr->windows)
 				nfit_mem->dcr = nfit_dcr->dcr;
+			break;
+		}
+
+		list_for_each_entry(nfit_flush, &acpi_desc->flushes, list) {
+			if (nfit_flush->flush->device_handle != device_handle)
+				continue;
+			nfit_mem->nfit_flush = nfit_flush;
 			break;
 		}
 
