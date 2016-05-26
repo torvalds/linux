@@ -2037,20 +2037,20 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 
 	if (dir_in && !hs_ep->isochronous) {
 		/* not sure if this is important, but we'll clear it anyway */
-		if (ints & DIEPMSK_INTKNTXFEMPMSK) {
+		if (ints & DXEPINT_INTKNTXFEMP) {
 			dev_dbg(hsotg->dev, "%s: ep%d: INTknTXFEmpMsk\n",
 				__func__, idx);
 		}
 
 		/* this probably means something bad is happening */
-		if (ints & DIEPMSK_INTKNEPMISMSK) {
+		if (ints & DXEPINT_INTKNEPMIS) {
 			dev_warn(hsotg->dev, "%s: ep%d: INTknEP\n",
 				 __func__, idx);
 		}
 
 		/* FIFO has space or is empty (see GAHBCFG) */
 		if (hsotg->dedicated_fifos &&
-		    ints & DIEPMSK_TXFIFOEMPTY) {
+		    ints & DXEPINT_TXFEMP) {
 			dev_dbg(hsotg->dev, "%s: ep%d: TxFIFOEmpty\n",
 				__func__, idx);
 			if (!using_dma(hsotg))
