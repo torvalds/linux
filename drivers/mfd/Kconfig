@@ -535,8 +535,8 @@ config MFD_88PM860X
 	  battery-charger under the corresponding menus.
 
 config MFD_MAX14577
-	bool "Maxim Semiconductor MAX14577/77836 MUIC + Charger Support"
-	depends on I2C=y
+	tristate "Maxim Semiconductor MAX14577/77836 MUIC + Charger Support"
+	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
