@@ -1,0 +1,23 @@
+.\"  This page Copyright (C) 2016 Andy Whitcroft <apw@canonical.com>
+.\"  Distributed under the GPL v2 or later.
+.TH LSVMBUS 8
+.SH NAME
+lsvmbus \- List Hyper-V VMBus devices
+.SH SYNOPSIS
+.ft B
+.B lsvmbus [-vv]
+.br
+.SH DESCRIPTION
+\fBlsvmbus\fP
+displays devices attached to the Hyper-V VMBus.
+.SH OPTIONS
+.\"
+.TP
+.B -v
+With -v more information is printed including the VMBus Rel_ID, class ID,
+Rel_ID, and which channel is bound to which virtual processor.  Use -vv
+for additional detail including the Device_ID and the sysfs path.
+.\"
+.SH AUTHORS
+.nf
+Written by Dexuan Cui <decui@microsoft.com>
