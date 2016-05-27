@@ -183,8 +183,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 
 	if (ret) {
 		pr_err("%s: failed to enable function\n", __func__);
-		kfree(card);
-		return ret;
+		goto err_free;
 	}
 
 	/* device tree node parsing and platform specific configuration*/
@@ -195,11 +194,17 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 			       MWIFIEX_SDIO);
 	if (ret) {
 		pr_err("%s: add card failed\n", __func__);
-		kfree(card);
-		sdio_claim_host(func);
-		sdio_disable_func(func);
-		sdio_release_host(func);
+		goto err_disable;
 	}
+
+	return 0;
+
+err_disable:
+	sdio_claim_host(func);
+	sdio_disable_func(func);
+	sdio_release_host(func);
+err_free:
+	kfree(card);
 
 	return ret;
 }
