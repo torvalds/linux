@@ -184,7 +184,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	if (ret) {
 		pr_err("%s: failed to enable function\n", __func__);
 		kfree(card);
-		return -EIO;
+		return ret;
 	}
 
 	/* device tree node parsing and platform specific configuration*/
