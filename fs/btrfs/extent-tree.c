@@ -5615,48 +5615,21 @@ void btrfs_block_rsv_release(struct btrfs_root *root,
 				num_bytes);
 }
 
-/*
- * helper to calculate size of global block reservation.
- * the desired value is sum of space used by extent tree,
- * checksum tree and root tree
- */
-static u64 calc_global_metadata_size(struct btrfs_fs_info *fs_info)
-{
-	struct btrfs_space_info *sinfo;
-	u64 num_bytes;
-	u64 meta_used;
-	u64 data_used;
-	int csum_size = btrfs_super_csum_size(fs_info->super_copy);
-
-	sinfo = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA);
-	spin_lock(&sinfo->lock);
-	data_used = sinfo->bytes_used;
-	spin_unlock(&sinfo->lock);
-
-	sinfo = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA);
-	spin_lock(&sinfo->lock);
-	if (sinfo->flags & BTRFS_BLOCK_GROUP_DATA)
-		data_used = 0;
-	meta_used = sinfo->bytes_used;
-	spin_unlock(&sinfo->lock);
-
-	num_bytes = (data_used >> fs_info->sb->s_blocksize_bits) *
-		    csum_size * 2;
-	num_bytes += div_u64(data_used + meta_used, 50);
-
-	if (num_bytes * 3 > meta_used)
-		num_bytes = div_u64(meta_used, 3);
-
-	return ALIGN(num_bytes, fs_info->extent_root->nodesize << 10);
-}
-
 static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
 	struct btrfs_space_info *sinfo = block_rsv->space_info;
 	u64 num_bytes;
 
-	num_bytes = calc_global_metadata_size(fs_info);
+	/*
+	 * The global block rsv is based on the size of the extent tree, the
+	 * checksum tree and the root tree.  If the fs is empty we want to set
+	 * it to a minimal amount for safety.
+	 */
+	num_bytes = btrfs_root_used(&fs_info->extent_root->root_item) +
+		btrfs_root_used(&fs_info->csum_root->root_item) +
+		btrfs_root_used(&fs_info->tree_root->root_item);
+	num_bytes = max_t(u64, num_bytes, SZ_16M);
 
 	spin_lock(&sinfo->lock);
 	spin_lock(&block_rsv->lock);
