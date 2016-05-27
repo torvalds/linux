@@ -476,6 +476,7 @@ static irqreturn_t ath10k_ahb_interrupt_handler(int irq, void *arg)
 
 static int ath10k_ahb_request_irq_legacy(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 	int ret;
 
@@ -487,6 +488,7 @@ static int ath10k_ahb_request_irq_legacy(struct ath10k *ar)
 			    ar_ahb->irq, ret);
 		return ret;
 	}
+	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_LEGACY;
 
 	return 0;
 }
