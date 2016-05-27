@@ -329,6 +329,43 @@ void watchdog_unregister_device(struct watchdog_device *wdd)
 
 EXPORT_SYMBOL_GPL(watchdog_unregister_device);
 
+static void devm_watchdog_unregister_device(struct device *dev, void *res)
+{
+	watchdog_unregister_device(*(struct watchdog_device **)res);
+}
+
+/**
+ * devm_watchdog_register_device() - resource managed watchdog_register_device()
+ * @dev: device that is registering this watchdog device
+ * @wdd: watchdog device
+ *
+ * Managed watchdog_register_device(). For watchdog device registered by this
+ * function,  watchdog_unregister_device() is automatically called on driver
+ * detach. See watchdog_register_device() for more information.
+ */
+int devm_watchdog_register_device(struct device *dev,
+				struct watchdog_device *wdd)
+{
+	struct watchdog_device **rcwdd;
+	int ret;
+
+	rcwdd = devres_alloc(devm_watchdog_unregister_device, sizeof(*wdd),
+			     GFP_KERNEL);
+	if (!rcwdd)
+		return -ENOMEM;
+
+	ret = watchdog_register_device(wdd);
+	if (!ret) {
+		*rcwdd = wdd;
+		devres_add(dev, rcwdd);
+	} else {
+		devres_free(rcwdd);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_watchdog_register_device);
+
 static int __init watchdog_deferred_registration(void)
 {
 	mutex_lock(&wtd_deferred_reg_mutex);
