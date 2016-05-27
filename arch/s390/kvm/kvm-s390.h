@@ -254,6 +254,7 @@ int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 
 /* implemented in vsie.c */
 int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu);
+void kvm_s390_vsie_kick(struct kvm_vcpu *vcpu);
 void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
 				 unsigned long end);
 void kvm_s390_vsie_init(struct kvm *kvm);

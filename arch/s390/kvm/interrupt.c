@@ -995,6 +995,11 @@ void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 		swake_up(&vcpu->wq);
 		vcpu->stat.halt_wakeup++;
 	}
+	/*
+	 * The VCPU might not be sleeping but is executing the VSIE. Let's
+	 * kick it, so it leaves the SIE to process the request.
+	 */
+	kvm_s390_vsie_kick(vcpu);
 }
 
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)

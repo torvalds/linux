@@ -549,6 +549,8 @@ struct kvm_guestdbg_info_arch {
 
 struct kvm_vcpu_arch {
 	struct kvm_s390_sie_block *sie_block;
+	/* if vsie is active, currently executed shadow sie control block */
+	struct kvm_s390_sie_block *vsie_block;
 	unsigned int      host_acrs[NUM_ACRS];
 	struct fpu	  host_fpregs;
 	struct kvm_s390_local_interrupt local_int;

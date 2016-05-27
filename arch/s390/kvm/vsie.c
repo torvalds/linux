@@ -838,6 +838,23 @@ static int acquire_gmap_shadow(struct kvm_vcpu *vcpu,
 }
 
 /*
+ * Register the shadow scb at the VCPU, e.g. for kicking out of vsie.
+ */
+static void register_shadow_scb(struct kvm_vcpu *vcpu,
+				struct vsie_page *vsie_page)
+{
+	WRITE_ONCE(vcpu->arch.vsie_block, &vsie_page->scb_s);
+}
+
+/*
+ * Unregister a shadow scb from a VCPU.
+ */
+static void unregister_shadow_scb(struct kvm_vcpu *vcpu)
+{
+	WRITE_ONCE(vcpu->arch.vsie_block, NULL);
+}
+
+/*
  * Run the vsie on a shadowed scb, managing the gmap shadow, handling
  * prefix pages and faults.
  *
@@ -860,6 +877,7 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			rc = do_vsie_run(vcpu, vsie_page);
 			gmap_enable(vcpu->arch.gmap);
 		}
+		atomic_andnot(PROG_BLOCK_SIE, &scb_s->prog20);
 
 		if (rc == -EAGAIN)
 			rc = 0;
@@ -1000,7 +1018,9 @@ int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu)
 	rc = pin_blocks(vcpu, vsie_page);
 	if (rc)
 		goto out_unshadow;
+	register_shadow_scb(vcpu, vsie_page);
 	rc = vsie_run(vcpu, vsie_page);
+	unregister_shadow_scb(vcpu);
 	unpin_blocks(vcpu, vsie_page);
 out_unshadow:
 	unshadow_scb(vcpu, vsie_page);
@@ -1038,4 +1058,19 @@ void kvm_s390_vsie_destroy(struct kvm *kvm)
 	}
 	kvm->arch.vsie.page_count = 0;
 	mutex_unlock(&kvm->arch.vsie.mutex);
+}
+
+void kvm_s390_vsie_kick(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_sie_block *scb = READ_ONCE(vcpu->arch.vsie_block);
+
+	/*
+	 * Even if the VCPU lets go of the shadow sie block reference, it is
+	 * still valid in the cache. So we can safely kick it.
+	 */
+	if (scb) {
+		atomic_or(PROG_BLOCK_SIE, &scb->prog20);
+		if (scb->prog0c & PROG_IN_SIE)
+			atomic_or(CPUSTAT_STOP_INT, &scb->cpuflags);
+	}
 }
