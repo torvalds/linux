@@ -610,14 +610,28 @@ static void xpad360w_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned cha
 }
 
 /*
- *	xpadone_process_buttons
+ *	xpadone_process_packet
  *
- *	Process a button update packet from an Xbox one controller.
+ *	Completes a request by converting the data into events for the
+ *	input subsystem. This version is for the Xbox One controller.
+ *
+ *	The report format was gleaned from
+ *	https://github.com/kylelemons/xbox/blob/master/xbox.go
  */
-static void xpadone_process_buttons(struct usb_xpad *xpad,
-				struct input_dev *dev,
-				unsigned char *data)
+static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *data)
 {
+	struct input_dev *dev = xpad->dev;
+
+	/* the xbox button has its own special report */
+	if (data[0] == 0X07) {
+		input_report_key(dev, BTN_MODE, data[4] & 0x01);
+		input_sync(dev);
+		return;
+	}
+	/* check invalid packet */
+	else if (data[0] != 0X20)
+		return;
+
 	/* menu/view buttons */
 	input_report_key(dev, BTN_START,  data[4] & 0x04);
 	input_report_key(dev, BTN_SELECT, data[4] & 0x08);
@@ -678,34 +692,6 @@ static void xpadone_process_buttons(struct usb_xpad *xpad,
 	}
 
 	input_sync(dev);
-}
-
-/*
- *	xpadone_process_packet
- *
- *	Completes a request by converting the data into events for the
- *	input subsystem. This version is for the Xbox One controller.
- *
- *	The report format was gleaned from
- *	https://github.com/kylelemons/xbox/blob/master/xbox.go
- */
-
-static void xpadone_process_packet(struct usb_xpad *xpad,
-				u16 cmd, unsigned char *data)
-{
-	struct input_dev *dev = xpad->dev;
-
-	switch (data[0]) {
-	case 0x20:
-		xpadone_process_buttons(xpad, dev, data);
-		break;
-
-	case 0x07:
-		/* the xbox button has its own special report */
-		input_report_key(dev, BTN_MODE, data[4] & 0x01);
-		input_sync(dev);
-		break;
-	}
 }
 
 static void xpad_irq_in(struct urb *urb)
