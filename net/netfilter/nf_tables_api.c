@@ -2641,6 +2641,8 @@ static int nf_tables_getset(struct net *net, struct sock *nlsk,
 	/* Only accept unspec with dump */
 	if (nfmsg->nfgen_family == NFPROTO_UNSPEC)
 		return -EAFNOSUPPORT;
+	if (!nla[NFTA_SET_TABLE])
+		return -EINVAL;
 
 	set = nf_tables_set_lookup(ctx.table, nla[NFTA_SET_NAME]);
 	if (IS_ERR(set))
