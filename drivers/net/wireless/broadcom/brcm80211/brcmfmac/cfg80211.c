@@ -684,20 +684,24 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 		return ERR_PTR(-EOPNOTSUPP);
 	case NL80211_IFTYPE_AP:
 		wdev = brcmf_ap_add_vif(wiphy, name, flags, params);
-		if (!IS_ERR(wdev))
-			brcmf_cfg80211_update_proto_addr_mode(wdev);
-		return wdev;
+		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
 	case NL80211_IFTYPE_P2P_DEVICE:
 		wdev = brcmf_p2p_add_vif(wiphy, name, name_assign_type, type, flags, params);
-		if (!IS_ERR(wdev))
-			brcmf_cfg80211_update_proto_addr_mode(wdev);
-		return wdev;
+		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	default:
 		return ERR_PTR(-EINVAL);
 	}
+
+	if (IS_ERR(wdev))
+		brcmf_err("add iface %s type %d failed: err=%d\n",
+			  name, type, (int)PTR_ERR(wdev));
+	else
+		brcmf_cfg80211_update_proto_addr_mode(wdev);
+
+	return wdev;
 }
 
 static void brcmf_scan_config_mpc(struct brcmf_if *ifp, int mpc)

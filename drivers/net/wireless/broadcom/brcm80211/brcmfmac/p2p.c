@@ -2030,8 +2030,6 @@ static int brcmf_p2p_request_p2p_if(struct brcmf_p2p_info *p2p,
 
 	err = brcmf_fil_iovar_data_set(ifp, "p2p_ifadd", &if_request,
 				       sizeof(if_request));
-	if (err)
-		return err;
 
 	return err;
 }
