@@ -48,7 +48,7 @@
 #define GOLDEN_RATIO_32 0x61C88647
 #define GOLDEN_RATIO_64 0x61C8864680B583EBull
 
-static __always_inline u64 hash_64(u64 val, unsigned int bits)
+static __always_inline u32 hash_64(u64 val, unsigned int bits)
 {
 	u64 hash = val;
 
@@ -72,7 +72,7 @@ static __always_inline u64 hash_64(u64 val, unsigned int bits)
 #endif
 
 	/* High bits are more random, so use them. */
-	return hash >> (64 - bits);
+	return (u32)(hash >> (64 - bits));
 }
 
 static inline u32 hash_32(u32 val, unsigned int bits)
@@ -84,7 +84,7 @@ static inline u32 hash_32(u32 val, unsigned int bits)
 	return hash >> (32 - bits);
 }
 
-static inline unsigned long hash_ptr(const void *ptr, unsigned int bits)
+static inline u32 hash_ptr(const void *ptr, unsigned int bits)
 {
 	return hash_long((unsigned long)ptr, bits);
 }
