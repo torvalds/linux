@@ -62,6 +62,7 @@ struct ceph_mount_options {
 	int cap_release_safety;
 	int max_readdir;       /* max readdir result (entires) */
 	int max_readdir_bytes; /* max readdir result (bytes) */
+	int mds_namespace;
 
 	/*
 	 * everything above this point can be memcmp'd; everything below
@@ -69,6 +70,7 @@ struct ceph_mount_options {
 	 */
 
 	char *snapdir_name;   /* default ".snap" */
+	char *server_path;    /* default  "/" */
 };
 
 struct ceph_fs_client {
@@ -295,6 +297,7 @@ struct ceph_inode_info {
 	u64 i_files, i_subdirs;
 
 	struct rb_root i_fragtree;
+	int i_fragtree_nsplits;
 	struct mutex i_fragtree_mutex;
 
 	struct ceph_inode_xattrs_info i_xattrs;
@@ -469,6 +472,7 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_POOL_RD		(1 << 5)  /* can read from pool */
 #define CEPH_I_POOL_WR		(1 << 6)  /* can write to pool */
 #define CEPH_I_SEC_INITED	(1 << 7)  /* security initialized */
+#define CEPH_I_CAP_DROPPED	(1 << 8)  /* caps were forcibly dropped */
 
 static inline void __ceph_dir_set_complete(struct ceph_inode_info *ci,
 					   long long release_count,
@@ -535,11 +539,6 @@ extern u32 ceph_choose_frag(struct ceph_inode_info *ci, u32 v,
 static inline struct ceph_dentry_info *ceph_dentry(struct dentry *dentry)
 {
 	return (struct ceph_dentry_info *)dentry->d_fsdata;
-}
-
-static inline loff_t ceph_make_fpos(unsigned frag, unsigned off)
-{
-	return ((loff_t)frag << 32) | (loff_t)off;
 }
 
 /*
@@ -632,7 +631,6 @@ struct ceph_file_info {
 	struct ceph_mds_request *last_readdir;
 
 	/* readdir: position within a frag */
-	unsigned offset;       /* offset of last chunk, adjusted for . and .. */
 	unsigned next_offset;  /* offset of next chunk (last_name's + 1) */
 	char *last_name;       /* last entry in previous chunk */
 	long long dir_release_count;
@@ -927,6 +925,7 @@ extern void ceph_pool_perm_destroy(struct ceph_mds_client* mdsc);
 /* file.c */
 extern const struct file_operations ceph_file_fops;
 
+extern int ceph_renew_caps(struct inode *inode);
 extern int ceph_open(struct inode *inode, struct file *file);
 extern int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 			    struct file *file, unsigned flags, umode_t mode,
@@ -942,6 +941,7 @@ extern const struct inode_operations ceph_snapdir_iops;
 extern const struct dentry_operations ceph_dentry_ops, ceph_snap_dentry_ops,
 	ceph_snapdir_dentry_ops;
 
+extern loff_t ceph_make_fpos(unsigned high, unsigned off, bool hash_order);
 extern int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry);
 extern int ceph_handle_snapdir(struct ceph_mds_request *req,
 			       struct dentry *dentry, int err);
