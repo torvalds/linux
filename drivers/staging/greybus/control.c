@@ -149,6 +149,18 @@ int gb_control_disconnected_operation(struct gb_control *control, u16 cport_id)
 				 sizeof(request), NULL, 0);
 }
 
+int gb_control_disconnecting_operation(struct gb_control *control,
+					u16 cport_id)
+{
+	struct gb_control_disconnecting_request request;
+
+	request.cport_id = cpu_to_le16(cport_id);
+
+	return gb_operation_sync(control->connection,
+				 GB_CONTROL_TYPE_DISCONNECTING, &request,
+				 sizeof(request), NULL, 0);
+}
+
 int gb_control_mode_switch_operation(struct gb_control *control)
 {
 	return gb_operation_unidirectional(control->connection,

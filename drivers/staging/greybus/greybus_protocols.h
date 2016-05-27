@@ -123,6 +123,7 @@ struct gb_protocol_version_response {
 #define GB_CONTROL_TYPE_TIMESYNC_AUTHORITATIVE	0x09
 /*	Unused					0x0a */
 #define GB_CONTROL_TYPE_BUNDLE_VERSION		0x0b
+#define GB_CONTROL_TYPE_DISCONNECTING		0x0c
 #define GB_CONTROL_TYPE_TIMESYNC_GET_LAST_EVENT	0x0d
 #define GB_CONTROL_TYPE_MODE_SWITCH		0x0e
 
@@ -159,6 +160,11 @@ struct gb_control_get_manifest_response {
 struct gb_control_connected_request {
 	__le16			cport_id;
 } __packed;
+
+struct gb_control_disconnecting_request {
+	__le16			cport_id;
+} __packed;
+/* disconnecting response has no payload */
 
 struct gb_control_disconnected_request {
 	__le16			cport_id;
