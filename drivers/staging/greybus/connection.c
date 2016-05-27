@@ -302,6 +302,24 @@ static void gb_connection_hd_cport_disable(struct gb_connection *connection)
 	}
 }
 
+static int gb_connection_hd_cport_flush(struct gb_connection *connection)
+{
+	struct gb_host_device *hd = connection->hd;
+	int ret;
+
+	if (!hd->driver->cport_flush)
+		return 0;
+
+	ret = hd->driver->cport_flush(hd, connection->hd_cport_id);
+	if (ret) {
+		dev_err(&hd->dev, "%s: failed to flush host cport: %d\n",
+				connection->name, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int
 gb_connection_hd_cport_features_enable(struct gb_connection *connection)
 {
@@ -651,6 +669,9 @@ err_control_disconnecting:
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
 
+	/* Transmit queue should already be empty. */
+	gb_connection_hd_cport_flush(connection);
+
 	gb_connection_ping(connection);
 	gb_connection_hd_cport_features_disable(connection);
 	gb_connection_svc_connection_quiescing(connection);
@@ -736,6 +757,8 @@ void gb_connection_disable(struct gb_connection *connection)
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
 
+	gb_connection_hd_cport_flush(connection);
+
 	gb_connection_ping(connection);
 	gb_connection_hd_cport_features_disable(connection);
 	gb_connection_svc_connection_quiescing(connection);
@@ -766,6 +789,7 @@ void gb_connection_disable_forced(struct gb_connection *connection)
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
 
+	gb_connection_hd_cport_flush(connection);
 	gb_connection_hd_cport_features_disable(connection);
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
