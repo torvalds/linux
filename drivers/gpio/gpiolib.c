@@ -20,6 +20,7 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 #include <uapi/linux/gpio.h>
 
 #include "gpiolib.h"
@@ -316,7 +317,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct gpio_device *gdev = filp->private_data;
 	struct gpio_chip *chip = gdev->chip;
-	int __user *ip = (int __user *)arg;
+	void __user *ip = (void __user *)arg;
 
 	/* We fail any subsequent ioctl():s when the chip is gone */
 	if (!chip)
@@ -388,6 +389,14 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_COMPAT
+static long gpio_ioctl_compat(struct file *filp, unsigned int cmd,
+			      unsigned long arg)
+{
+	return gpio_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+
 /**
  * gpio_chrdev_open() - open the chardev for ioctl operations
  * @inode: inode for this chardev
@@ -431,7 +440,9 @@ static const struct file_operations gpio_fileops = {
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 	.unlocked_ioctl = gpio_ioctl,
-	.compat_ioctl = gpio_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = gpio_ioctl_compat,
+#endif
 };
 
 static void gpiodevice_release(struct device *dev)
