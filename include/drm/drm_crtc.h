@@ -753,6 +753,9 @@ struct drm_crtc {
 	struct drm_plane *primary;
 	struct drm_plane *cursor;
 
+	/* position inside the mode_config.list, can be used as a [] idx */
+	unsigned index;
+
 	/* position of cursor plane on crtc */
 	int cursor_x;
 	int cursor_y;
@@ -1097,6 +1100,10 @@ struct drm_encoder {
 	struct drm_mode_object base;
 	char *name;
 	int encoder_type;
+
+	/* position inside the mode_config.list, can be used as a [] idx */
+	unsigned index;
+
 	uint32_t possible_crtcs;
 	uint32_t possible_clones;
 
@@ -1542,6 +1549,9 @@ struct drm_plane {
 	struct drm_object_properties properties;
 
 	enum drm_plane_type type;
+
+	/* position inside the mode_config.list, can be used as a [] idx */
+	unsigned index;
 
 	const struct drm_plane_helper_funcs *helper_private;
 
@@ -2240,7 +2250,18 @@ int drm_crtc_init_with_planes(struct drm_device *dev,
 			      const struct drm_crtc_funcs *funcs,
 			      const char *name, ...);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
-extern unsigned int drm_crtc_index(struct drm_crtc *crtc);
+
+/**
+ * drm_crtc_index - find the index of a registered CRTC
+ * @crtc: CRTC to find index for
+ *
+ * Given a registered CRTC, return the index of that CRTC within a DRM
+ * device's list of CRTCs.
+ */
+static inline unsigned int drm_crtc_index(struct drm_crtc *crtc)
+{
+	return crtc->index;
+}
 
 /**
  * drm_crtc_mask - find the mask of a registered CRTC
@@ -2294,7 +2315,18 @@ int drm_encoder_init(struct drm_device *dev,
 		     struct drm_encoder *encoder,
 		     const struct drm_encoder_funcs *funcs,
 		     int encoder_type, const char *name, ...);
-extern unsigned int drm_encoder_index(struct drm_encoder *encoder);
+
+/**
+ * drm_encoder_index - find the index of a registered encoder
+ * @encoder: encoder to find index for
+ *
+ * Given a registered encoder, return the index of that encoder within a DRM
+ * device's list of encoders.
+ */
+static inline unsigned int drm_encoder_index(struct drm_encoder *encoder)
+{
+	return encoder->index;
+}
 
 /**
  * drm_encoder_crtc_ok - can a given crtc drive a given encoder?
@@ -2325,7 +2357,18 @@ extern int drm_plane_init(struct drm_device *dev,
 			  const uint32_t *formats, unsigned int format_count,
 			  bool is_primary);
 extern void drm_plane_cleanup(struct drm_plane *plane);
-extern unsigned int drm_plane_index(struct drm_plane *plane);
+
+/**
+ * drm_plane_index - find the index of a registered plane
+ * @plane: plane to find index for
+ *
+ * Given a registered plane, return the index of that plane within a DRM
+ * device's list of planes.
+ */
+static inline unsigned int drm_plane_index(struct drm_plane *plane)
+{
+	return plane->index;
+}
 extern struct drm_plane * drm_plane_from_index(struct drm_device *dev, int idx);
 extern void drm_plane_force_disable(struct drm_plane *plane);
 extern int drm_plane_check_pixel_format(const struct drm_plane *plane,
