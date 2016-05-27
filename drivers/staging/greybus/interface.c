@@ -8,8 +8,9 @@
  */
 
 #include "greybus.h"
-
 #include "greybus_trace.h"
+
+#define GB_INTERFACE_MODE_SWITCH_TIMEOUT	1000
 
 #define GB_INTERFACE_DEVICE_ID_BAD	0xff
 
@@ -163,6 +164,174 @@ static void gb_interface_route_destroy(struct gb_interface *intf)
 	intf->device_id = GB_INTERFACE_DEVICE_ID_BAD;
 }
 
+/* Locking: Caller holds the interface mutex. */
+static int gb_interface_legacy_mode_switch(struct gb_interface *intf)
+{
+	int ret;
+
+	dev_info(&intf->dev, "legacy mode switch detected\n");
+
+	/* Mark as disconnected to prevent I/O during disable. */
+	intf->disconnected = true;
+	gb_interface_disable(intf);
+	intf->disconnected = false;
+
+	ret = gb_interface_enable(intf);
+	if (ret) {
+		dev_err(&intf->dev, "failed to re-enable interface: %d\n", ret);
+		gb_interface_deactivate(intf);
+	}
+
+	return ret;
+}
+
+void gb_interface_mailbox_event(struct gb_interface *intf, u16 result,
+								u32 mailbox)
+{
+	mutex_lock(&intf->mutex);
+
+	if (result) {
+		dev_warn(&intf->dev,
+				"mailbox event with UniPro error: 0x%04x\n",
+				result);
+		goto err_disable;
+	}
+
+	if (mailbox != GB_SVC_INTF_MAILBOX_GREYBUS) {
+		dev_warn(&intf->dev,
+				"mailbox event with unexpected value: 0x%08x\n",
+				mailbox);
+		goto err_disable;
+	}
+
+	if (intf->quirks & GB_INTERFACE_QUIRK_LEGACY_MODE_SWITCH) {
+		gb_interface_legacy_mode_switch(intf);
+		goto out_unlock;
+	}
+
+	if (!intf->mode_switch) {
+		dev_warn(&intf->dev, "unexpected mailbox event: 0x%08x\n",
+				mailbox);
+		goto err_disable;
+	}
+
+	dev_info(&intf->dev, "mode switch detected\n");
+
+	complete(&intf->mode_switch_completion);
+
+out_unlock:
+	mutex_unlock(&intf->mutex);
+
+	return;
+
+err_disable:
+	gb_interface_disable(intf);
+	gb_interface_deactivate(intf);
+	mutex_unlock(&intf->mutex);
+}
+
+static void gb_interface_mode_switch_work(struct work_struct *work)
+{
+	struct gb_interface *intf;
+	struct gb_control *control;
+	unsigned long timeout;
+	int ret;
+
+	intf = container_of(work, struct gb_interface, mode_switch_work);
+
+	mutex_lock(&intf->mutex);
+	/* Make sure interface is still enabled. */
+	if (!intf->enabled) {
+		dev_dbg(&intf->dev, "mode switch aborted\n");
+		intf->mode_switch = false;
+		mutex_unlock(&intf->mutex);
+		goto out_interface_put;
+	}
+
+	/*
+	 * Prepare the control device for mode switch and make sure to get an
+	 * extra reference before it goes away during interface disable.
+	 */
+	control = gb_control_get(intf->control);
+	gb_control_mode_switch_prepare(control);
+	gb_interface_disable(intf);
+	mutex_unlock(&intf->mutex);
+
+	timeout = msecs_to_jiffies(GB_INTERFACE_MODE_SWITCH_TIMEOUT);
+	ret = wait_for_completion_interruptible_timeout(
+			&intf->mode_switch_completion, timeout);
+
+	/* Finalise control-connection mode switch. */
+	gb_control_mode_switch_complete(control);
+	gb_control_put(control);
+
+	if (ret < 0) {
+		dev_err(&intf->dev, "mode switch interrupted\n");
+		goto err_deactivate;
+	} else if (ret == 0) {
+		dev_err(&intf->dev, "mode switch timed out\n");
+		goto err_deactivate;
+	}
+
+	/* Re-enable (re-enumerate) interface if still active. */
+	mutex_lock(&intf->mutex);
+	intf->mode_switch = false;
+	if (intf->active) {
+		ret = gb_interface_enable(intf);
+		if (ret) {
+			dev_err(&intf->dev, "failed to re-enable interface: %d\n",
+					ret);
+			gb_interface_deactivate(intf);
+		}
+	}
+	mutex_unlock(&intf->mutex);
+
+out_interface_put:
+	gb_interface_put(intf);
+
+	return;
+
+err_deactivate:
+	mutex_lock(&intf->mutex);
+	intf->mode_switch = false;
+	gb_interface_deactivate(intf);
+	mutex_unlock(&intf->mutex);
+
+	gb_interface_put(intf);
+}
+
+int gb_interface_request_mode_switch(struct gb_interface *intf)
+{
+	int ret = 0;
+
+	mutex_lock(&intf->mutex);
+	if (intf->mode_switch) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
+	intf->mode_switch = true;
+	reinit_completion(&intf->mode_switch_completion);
+
+	/*
+	 * Get a reference to the interface device, which will be put once the
+	 * mode switch is complete.
+	 */
+	get_device(&intf->dev);
+
+	if (!queue_work(system_long_wq, &intf->mode_switch_work)) {
+		put_device(&intf->dev);
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
+out_unlock:
+	mutex_unlock(&intf->mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gb_interface_request_mode_switch);
+
 /*
  * T_TstSrcIncrement is written by the module on ES2 as a stand-in for the
  * init-status attribute DME_TOSHIBA_INIT_STATUS. The AP needs to read and
@@ -222,7 +391,8 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	 * for example, requires E2EFC, CSD and CSV to be disabled.
 	 */
 	bootrom_quirks = GB_INTERFACE_QUIRK_NO_CPORT_FEATURES |
-				GB_INTERFACE_QUIRK_FORCED_DISABLE;
+				GB_INTERFACE_QUIRK_FORCED_DISABLE |
+				GB_INTERFACE_QUIRK_LEGACY_MODE_SWITCH;
 	switch (init_status) {
 	case GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED:
 	case GB_INIT_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED:
@@ -368,6 +538,8 @@ struct gb_interface *gb_interface_create(struct gb_module *module,
 	INIT_LIST_HEAD(&intf->bundles);
 	INIT_LIST_HEAD(&intf->manifest_descs);
 	mutex_init(&intf->mutex);
+	INIT_WORK(&intf->mode_switch_work, gb_interface_mode_switch_work);
+	init_completion(&intf->mode_switch_completion);
 
 	/* Invalid device id to start with */
 	intf->device_id = GB_INTERFACE_DEVICE_ID_BAD;
@@ -541,6 +713,10 @@ void gb_interface_deactivate(struct gb_interface *intf)
 		return;
 
 	trace_gb_interface_deactivate(intf);
+
+	/* Abort any ongoing mode switch. */
+	if (intf->mode_switch)
+		complete(&intf->mode_switch_completion);
 
 	gb_interface_route_destroy(intf);
 	gb_interface_hibernate_link(intf);

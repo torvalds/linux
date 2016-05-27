@@ -58,6 +58,8 @@ struct gb_connection {
 	atomic_t			op_cycle;
 
 	void				*private;
+
+	bool				mode_switch;
 };
 
 struct gb_connection *gb_connection_create_static(struct gb_host_device *hd,
@@ -82,6 +84,9 @@ int gb_connection_enable_tx(struct gb_connection *connection);
 void gb_connection_disable_rx(struct gb_connection *connection);
 void gb_connection_disable(struct gb_connection *connection);
 void gb_connection_disable_forced(struct gb_connection *connection);
+
+void gb_connection_mode_switch_prepare(struct gb_connection *connection);
+void gb_connection_mode_switch_complete(struct gb_connection *connection);
 
 void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);

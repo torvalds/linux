@@ -364,7 +364,24 @@ void gb_control_del(struct gb_control *control)
 		device_del(&control->dev);
 }
 
+struct gb_control *gb_control_get(struct gb_control *control)
+{
+	get_device(&control->dev);
+
+	return control;
+}
+
 void gb_control_put(struct gb_control *control)
 {
 	put_device(&control->dev);
+}
+
+void gb_control_mode_switch_prepare(struct gb_control *control)
+{
+	gb_connection_mode_switch_prepare(control->connection);
+}
+
+void gb_control_mode_switch_complete(struct gb_control *control)
+{
+	gb_connection_mode_switch_complete(control->connection);
 }

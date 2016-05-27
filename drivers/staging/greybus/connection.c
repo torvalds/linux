@@ -487,10 +487,23 @@ gb_connection_control_disconnected(struct gb_connection *connection)
 	if (gb_connection_is_static(connection))
 		return;
 
-	if (gb_connection_is_control(connection))
-		return;
-
 	control = connection->intf->control;
+
+	if (gb_connection_is_control(connection)) {
+		if (connection->mode_switch) {
+			ret = gb_control_mode_switch_operation(control);
+			if (ret) {
+				/*
+				 * Allow mode switch to time out waiting for
+				 * mailbox event.
+				 */
+				return;
+			}
+		}
+
+		return;
+	}
+
 
 	ret = gb_control_disconnected_operation(control, cport_id);
 	if (ret) {
@@ -743,6 +756,18 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(gb_connection_disable_rx);
 
+void gb_connection_mode_switch_prepare(struct gb_connection *connection)
+{
+	connection->mode_switch = true;
+}
+
+void gb_connection_mode_switch_complete(struct gb_connection *connection)
+{
+	gb_connection_svc_connection_destroy(connection);
+	gb_connection_hd_cport_disable(connection);
+	connection->mode_switch = false;
+}
+
 void gb_connection_disable(struct gb_connection *connection)
 {
 	mutex_lock(&connection->mutex);
@@ -768,8 +793,11 @@ void gb_connection_disable(struct gb_connection *connection)
 
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
-	gb_connection_svc_connection_destroy(connection);
-	gb_connection_hd_cport_disable(connection);
+	/* control-connection tear down is deferred when mode switching */
+	if (!connection->mode_switch) {
+		gb_connection_svc_connection_destroy(connection);
+		gb_connection_hd_cport_disable(connection);
+	}
 
 out_unlock:
 	mutex_unlock(&connection->mutex);

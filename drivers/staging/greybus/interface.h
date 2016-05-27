@@ -14,6 +14,7 @@
 #define GB_INTERFACE_QUIRK_NO_INIT_STATUS		BIT(1)
 #define GB_INTERFACE_QUIRK_NO_ARA_IDS			BIT(2)
 #define GB_INTERFACE_QUIRK_FORCED_DISABLE		BIT(3)
+#define GB_INTERFACE_QUIRK_LEGACY_MODE_SWITCH		BIT(4)
 
 struct gb_interface {
 	struct device dev;
@@ -40,9 +41,14 @@ struct gb_interface {
 	struct mutex mutex;
 
 	bool disconnected;
+
 	bool ejected;
 	bool active;
 	bool enabled;
+	bool mode_switch;
+
+	struct work_struct mode_switch_work;
+	struct completion mode_switch_completion;
 };
 #define to_gb_interface(d) container_of(d, struct gb_interface, dev)
 
@@ -55,5 +61,9 @@ void gb_interface_disable(struct gb_interface *intf);
 int gb_interface_add(struct gb_interface *intf);
 void gb_interface_del(struct gb_interface *intf);
 void gb_interface_put(struct gb_interface *intf);
+void gb_interface_mailbox_event(struct gb_interface *intf, u16 result,
+								u32 mailbox);
+
+int gb_interface_request_mode_switch(struct gb_interface *intf);
 
 #endif /* __INTERFACE_H */

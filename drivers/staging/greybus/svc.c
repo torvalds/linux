@@ -895,28 +895,6 @@ static struct gb_module *gb_svc_module_lookup(struct gb_svc *svc, u8 module_id)
 	return NULL;
 }
 
-static void gb_svc_intf_reenable(struct gb_svc *svc, struct gb_interface *intf)
-{
-	int ret;
-
-	mutex_lock(&intf->mutex);
-
-	/* Mark as disconnected to prevent I/O during disable. */
-	intf->disconnected = true;
-	gb_interface_disable(intf);
-	intf->disconnected = false;
-
-	ret = gb_interface_enable(intf);
-	if (ret) {
-		dev_err(&svc->dev, "failed to enable interface %u: %d\n",
-				intf->interface_id, ret);
-
-		gb_interface_deactivate(intf);
-	}
-
-	mutex_unlock(&intf->mutex);
-}
-
 static void gb_svc_process_hello_deferred(struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
@@ -965,10 +943,9 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	/* All modules are considered 1x2 for now */
 	module = gb_svc_module_lookup(svc, intf_id);
 	if (module) {
-		dev_info(&svc->dev, "mode switch detected on interface %u\n",
-				intf_id);
-
-		return gb_svc_intf_reenable(svc, module->interfaces[0]);
+		/* legacy mode switch */
+		return gb_interface_mailbox_event(module->interfaces[0], 0,
+						GB_SVC_INTF_MAILBOX_GREYBUS);
 	}
 
 	module = gb_module_create(hd, intf_id, 1);
@@ -1115,31 +1092,7 @@ static void gb_svc_process_intf_mailbox_event(struct gb_operation *operation)
 		return;
 	}
 
-	if (result_code) {
-		dev_warn(&svc->dev,
-				"mailbox event %u with UniPro error: 0x%04x\n",
-				intf_id, result_code);
-		goto err_disable_interface;
-	}
-
-	if (mailbox != GB_SVC_INTF_MAILBOX_GREYBUS) {
-		dev_warn(&svc->dev,
-				"mailbox event %u with unexected value: 0x%08x\n",
-				intf_id, mailbox);
-		goto err_disable_interface;
-	}
-
-	dev_info(&svc->dev, "mode switch detected on interface %u\n", intf_id);
-
-	gb_svc_intf_reenable(svc, intf);
-
-	return;
-
-err_disable_interface:
-	mutex_lock(&intf->mutex);
-	gb_interface_disable(intf);
-	gb_interface_deactivate(intf);
-	mutex_unlock(&intf->mutex);
+	gb_interface_mailbox_event(intf, result_code, mailbox);
 }
 
 static void gb_svc_process_deferred_request(struct work_struct *work)

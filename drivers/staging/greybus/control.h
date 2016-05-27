@@ -31,6 +31,7 @@ int gb_control_enable(struct gb_control *control);
 void gb_control_disable(struct gb_control *control);
 int gb_control_add(struct gb_control *control);
 void gb_control_del(struct gb_control *control);
+struct gb_control *gb_control_get(struct gb_control *control);
 void gb_control_put(struct gb_control *control);
 
 int gb_control_get_bundle_versions(struct gb_control *control);
@@ -39,6 +40,8 @@ int gb_control_disconnected_operation(struct gb_control *control, u16 cport_id);
 int gb_control_disconnecting_operation(struct gb_control *control,
 					u16 cport_id);
 int gb_control_mode_switch_operation(struct gb_control *control);
+void gb_control_mode_switch_prepare(struct gb_control *control);
+void gb_control_mode_switch_complete(struct gb_control *control);
 int gb_control_get_manifest_size_operation(struct gb_interface *intf);
 int gb_control_get_manifest_operation(struct gb_interface *intf, void *manifest,
 				      size_t size);
