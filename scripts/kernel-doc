@@ -2701,6 +2701,7 @@ sub process_file($) {
     my $in_purpose = 0;
     my $initial_section_counter = $section_counter;
     my ($orig_file) = @_;
+    my $leading_space;
 
     if (defined($ENV{'SRCTREE'})) {
 	$file = "$ENV{'SRCTREE'}" . "/" . $orig_file;
@@ -2822,6 +2823,7 @@ sub process_file($) {
 		    $contents .= "\n";
 		}
 		$section = $newsection;
+		$leading_space = undef;
 	    } elsif (/$doc_end/) {
 		if (($contents ne "") && ($contents ne "\n")) {
 		    dump_section($file, $section, xml_escape($contents));
@@ -2856,7 +2858,19 @@ sub process_file($) {
 		    $declaration_purpose .= " " . xml_escape($1);
 		    $declaration_purpose =~ s/\s+/ /g;
 		} else {
-		    $contents .= $1 . "\n";
+		    my $cont = $1;
+		    if ($section =~ m/^@/ || $section eq $section_context) {
+			if (!defined $leading_space) {
+			    if ($cont =~ m/^(\s+)/) {
+				$leading_space = $1;
+			    } else {
+				$leading_space = "";
+			    }
+			}
+
+			$cont =~ s/^$leading_space//;
+		    }
+		    $contents .= $cont . "\n";
 		}
 	    } else {
 		# i dont know - bad line?  ignore.
