@@ -91,7 +91,7 @@ static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 	return i2c_dev;
 }
 
-static void return_i2c_dev(struct i2c_dev *i2c_dev)
+static void put_i2c_dev(struct i2c_dev *i2c_dev)
 {
 	spin_lock(&i2c_dev_list_lock);
 	list_del(&i2c_dev->list);
@@ -575,7 +575,7 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 error:
 	cdev_del(&i2c_dev->cdev);
 error_cdev:
-	return_i2c_dev(i2c_dev);
+	put_i2c_dev(i2c_dev);
 	return res;
 }
 
@@ -592,7 +592,7 @@ static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 	if (!i2c_dev) /* attach_adapter must have failed */
 		return 0;
 
-	return_i2c_dev(i2c_dev);
+	put_i2c_dev(i2c_dev);
 	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 	cdev_del(&i2c_dev->cdev);
 
