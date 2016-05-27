@@ -202,7 +202,7 @@ static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (IS_ERR(handle))
 		result = VM_FAULT_SIGBUS;
 	else
-		result = __dax_fault(vma, vmf, ext4_dax_get_block, NULL);
+		result = __dax_fault(vma, vmf, ext4_dax_get_block);
 
 	if (write) {
 		if (!IS_ERR(handle))
@@ -238,7 +238,7 @@ static int ext4_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
 		result = VM_FAULT_SIGBUS;
 	else
 		result = __dax_pmd_fault(vma, addr, pmd, flags,
-					 ext4_dax_get_block, NULL);
+					 ext4_dax_get_block);
 
 	if (write) {
 		if (!IS_ERR(handle))
