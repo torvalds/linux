@@ -47,11 +47,15 @@ static int gb_operation_get_active(struct gb_operation *operation)
 
 	spin_lock_irqsave(&connection->lock, flags);
 
-	if (connection->state != GB_CONNECTION_STATE_ENABLED &&
-			(connection->state != GB_CONNECTION_STATE_ENABLED_TX ||
-			 gb_operation_is_incoming(operation))) {
-		spin_unlock_irqrestore(&connection->lock, flags);
-		return -ENOTCONN;
+	switch (connection->state) {
+	case GB_CONNECTION_STATE_ENABLED:
+		break;
+	case GB_CONNECTION_STATE_ENABLED_TX:
+		if (gb_operation_is_incoming(operation))
+			goto err_unlock;
+		break;
+	default:
+		goto err_unlock;
 	}
 
 	if (operation->active++ == 0)
@@ -62,6 +66,11 @@ static int gb_operation_get_active(struct gb_operation *operation)
 	spin_unlock_irqrestore(&connection->lock, flags);
 
 	return 0;
+
+err_unlock:
+	spin_unlock_irqrestore(&connection->lock, flags);
+
+	return -ENOTCONN;
 }
 
 /* Caller holds operation reference. */
