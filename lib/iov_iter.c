@@ -569,6 +569,25 @@ unsigned long iov_iter_alignment(const struct iov_iter *i)
 }
 EXPORT_SYMBOL(iov_iter_alignment);
 
+unsigned long iov_iter_gap_alignment(const struct iov_iter *i)
+{
+        unsigned long res = 0;
+	size_t size = i->count;
+	if (!size)
+		return 0;
+
+	iterate_all_kinds(i, size, v,
+		(res |= (!res ? 0 : (unsigned long)v.iov_base) |
+			(size != v.iov_len ? size : 0), 0),
+		(res |= (!res ? 0 : (unsigned long)v.bv_offset) |
+			(size != v.bv_len ? size : 0)),
+		(res |= (!res ? 0 : (unsigned long)v.iov_base) |
+			(size != v.iov_len ? size : 0))
+		);
+		return res;
+}
+EXPORT_SYMBOL(iov_iter_gap_alignment);
+
 ssize_t iov_iter_get_pages(struct iov_iter *i,
 		   struct page **pages, size_t maxsize, unsigned maxpages,
 		   size_t *start)
