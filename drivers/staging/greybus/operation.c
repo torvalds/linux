@@ -570,7 +570,6 @@ gb_operation_create_flags(struct gb_connection *connection,
 		trace_gb_operation_create(operation);
 
 	return operation;
-
 }
 EXPORT_SYMBOL_GPL(gb_operation_create_flags);
 
