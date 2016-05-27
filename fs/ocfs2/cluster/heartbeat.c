@@ -272,6 +272,10 @@ struct o2hb_region {
 	struct delayed_work	hr_write_timeout_work;
 	unsigned long		hr_last_timeout_start;
 
+	/* negotiate timer, used to negotiate extending hb timeout. */
+	struct delayed_work	hr_nego_timeout_work;
+	unsigned long		hr_nego_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
+
 	/* Used during o2hb_check_slot to hold a copy of the block
 	 * being checked because we temporarily have to zero out the
 	 * crc field. */
@@ -319,7 +323,7 @@ static void o2hb_write_timeout(struct work_struct *work)
 	o2quo_disk_timeout();
 }
 
-static void o2hb_arm_write_timeout(struct o2hb_region *reg)
+static void o2hb_arm_timeout(struct o2hb_region *reg)
 {
 	/* Arm writeout only after thread reaches steady state */
 	if (atomic_read(&reg->hr_steady_iterations) != 0)
@@ -337,11 +341,49 @@ static void o2hb_arm_write_timeout(struct o2hb_region *reg)
 	reg->hr_last_timeout_start = jiffies;
 	schedule_delayed_work(&reg->hr_write_timeout_work,
 			      msecs_to_jiffies(O2HB_MAX_WRITE_TIMEOUT_MS));
+
+	cancel_delayed_work(&reg->hr_nego_timeout_work);
+	/* negotiate timeout must be less than write timeout. */
+	schedule_delayed_work(&reg->hr_nego_timeout_work,
+			      msecs_to_jiffies(O2HB_MAX_WRITE_TIMEOUT_MS)/2);
+	memset(reg->hr_nego_node_bitmap, 0, sizeof(reg->hr_nego_node_bitmap));
 }
 
-static void o2hb_disarm_write_timeout(struct o2hb_region *reg)
+static void o2hb_disarm_timeout(struct o2hb_region *reg)
 {
 	cancel_delayed_work_sync(&reg->hr_write_timeout_work);
+	cancel_delayed_work_sync(&reg->hr_nego_timeout_work);
+}
+
+static void o2hb_nego_timeout(struct work_struct *work)
+{
+	unsigned long live_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	int master_node;
+	struct o2hb_region *reg;
+
+	reg = container_of(work, struct o2hb_region, hr_nego_timeout_work.work);
+	o2hb_fill_node_map(live_node_bitmap, sizeof(live_node_bitmap));
+	/* lowest node as master node to make negotiate decision. */
+	master_node = find_next_bit(live_node_bitmap, O2NM_MAX_NODES, 0);
+
+	if (master_node == o2nm_this_node()) {
+		set_bit(master_node, reg->hr_nego_node_bitmap);
+		if (memcmp(reg->hr_nego_node_bitmap, live_node_bitmap,
+				sizeof(reg->hr_nego_node_bitmap))) {
+			/* check negotiate bitmap every second to do timeout
+			 * approve decision.
+			 */
+			schedule_delayed_work(&reg->hr_nego_timeout_work,
+				msecs_to_jiffies(1000));
+
+			return;
+		}
+
+		/* approve negotiate timeout request. */
+	} else {
+		/* negotiate timeout with master node. */
+	}
+
 }
 
 static inline void o2hb_bio_wait_init(struct o2hb_bio_wait_ctxt *wc)
@@ -1032,7 +1074,7 @@ static int o2hb_do_disk_heartbeat(struct o2hb_region *reg)
 	/* Skip disarming the timeout if own slot has stale/bad data */
 	if (own_slot_ok) {
 		o2hb_set_quorum_device(reg);
-		o2hb_arm_write_timeout(reg);
+		o2hb_arm_timeout(reg);
 	}
 
 bail:
@@ -1114,7 +1156,7 @@ static int o2hb_thread(void *data)
 		}
 	}
 
-	o2hb_disarm_write_timeout(reg);
+	o2hb_disarm_timeout(reg);
 
 	/* unclean stop is only used in very bad situation */
 	for(i = 0; !reg->hr_unclean_stop && i < reg->hr_blocks; i++)
@@ -1762,6 +1804,7 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 	}
 
 	INIT_DELAYED_WORK(&reg->hr_write_timeout_work, o2hb_write_timeout);
+	INIT_DELAYED_WORK(&reg->hr_nego_timeout_work, o2hb_nego_timeout);
 
 	/*
 	 * A node is considered live after it has beat LIVE_THRESHOLD
