@@ -35,8 +35,7 @@
 #include <linux/suspend.h>
 #include <linux/slab.h>
 
-#include <video/omapdss.h>
-
+#include "omapdss.h"
 #include "dss.h"
 #include "dss_features.h"
 

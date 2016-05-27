@@ -22,8 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/sched.h>
 
-#include <video/omapdss.h>
-
+#include "omapdss.h"
 #include "dss.h"
 
 #define PLL_CONTROL			0x0000

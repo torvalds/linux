@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/of_gpio.h>
 
-#include <video/omapdss.h>
+#include "../dss/omapdss.h"
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;

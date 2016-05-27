@@ -24,7 +24,6 @@
 #include <linux/platform_data/omap_drm.h>
 #include <linux/types.h>
 #include <linux/wait.h>
-#include <video/omapdss.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
