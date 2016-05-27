@@ -1221,7 +1221,7 @@ static int tegra210_pll_fixed_mdiv_cfg(struct clk_hw *hw,
 		p = rate >= params->vco_min ? 1 : -EINVAL;
 	}
 
-	if (IS_ERR_VALUE(p))
+	if (p < 0)
 		return -EINVAL;
 
 	cfg->m = tegra_pll_get_fixed_mdiv(hw, input_rate);
