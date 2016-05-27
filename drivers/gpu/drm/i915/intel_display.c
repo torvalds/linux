@@ -4310,9 +4310,9 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 
 	bool force_detach = !fb || !plane_state->visible;
 
-	DRM_DEBUG_KMS("Updating scaler for [PLANE:%d] scaler_user index %u.%u\n",
-		      intel_plane->base.base.id, intel_crtc->pipe,
-		      drm_plane_index(&intel_plane->base));
+	DRM_DEBUG_KMS("Updating scaler for [PLANE:%d:%s] scaler_user index %u.%u\n",
+		      intel_plane->base.base.id, intel_plane->base.name,
+		      intel_crtc->pipe, drm_plane_index(&intel_plane->base));
 
 	ret = skl_update_scaler(crtc_state, force_detach,
 				drm_plane_index(&intel_plane->base),
@@ -4328,8 +4328,9 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 
 	/* check colorkey */
 	if (plane_state->ckey.flags != I915_SET_COLORKEY_NONE) {
-		DRM_DEBUG_KMS("[PLANE:%d] scaling with color key not allowed",
-			      intel_plane->base.base.id);
+		DRM_DEBUG_KMS("[PLANE:%d:%s] scaling with color key not allowed",
+			      intel_plane->base.base.id,
+			      intel_plane->base.name);
 		return -EINVAL;
 	}
 
@@ -4348,8 +4349,9 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_VYUY:
 		break;
 	default:
-		DRM_DEBUG_KMS("[PLANE:%d] FB:%d unsupported scaling format 0x%x\n",
-			intel_plane->base.base.id, fb->base.id, fb->pixel_format);
+		DRM_DEBUG_KMS("[PLANE:%d:%s] FB:%d unsupported scaling format 0x%x\n",
+			      intel_plane->base.base.id, intel_plane->base.name,
+			      fb->base.id, fb->pixel_format);
 		return -EINVAL;
 	}
 
@@ -11977,13 +11979,15 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	turn_off = was_visible && (!visible || mode_changed);
 	turn_on = visible && (!was_visible || mode_changed);
 
-	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] has [PLANE:%i] with fb %i\n",
+	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] has [PLANE:%d:%s] with fb %i\n",
 			 intel_crtc->base.base.id,
 			 intel_crtc->base.name,
-			 plane->base.id, fb ? fb->base.id : -1);
+			 plane->base.id, plane->name,
+			 fb ? fb->base.id : -1);
 
-	DRM_DEBUG_ATOMIC("[PLANE:%i] visible %i -> %i, off %i, on %i, ms %i\n",
-			 plane->base.id, was_visible, visible,
+	DRM_DEBUG_ATOMIC("[PLANE:%d:%s] visible %i -> %i, off %i, on %i, ms %i\n",
+			 plane->base.id, plane->name,
+			 was_visible, visible,
 			 turn_off, turn_on, mode_changed);
 
 	if (turn_on) {
@@ -12376,18 +12380,20 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		state = to_intel_plane_state(plane->state);
 		fb = state->base.fb;
 		if (!fb) {
-			DRM_DEBUG_KMS("%s PLANE:%d plane: %u.%u idx: %d "
-				"disabled, scaler_id = %d\n",
+			DRM_DEBUG_KMS("%s [PLANE:%d:%s] plane: %u.%u idx: %d "
+				      "disabled, scaler_id = %d\n",
 				plane->type == DRM_PLANE_TYPE_CURSOR ? "CURSOR" : "STANDARD",
-				plane->base.id, intel_plane->pipe,
+				plane->base.id, plane->name,
+				intel_plane->pipe,
 				(crtc->base.primary == plane) ? 0 : intel_plane->plane + 1,
 				drm_plane_index(plane), state->scaler_id);
 			continue;
 		}
 
-		DRM_DEBUG_KMS("%s PLANE:%d plane: %u.%u idx: %d enabled",
+		DRM_DEBUG_KMS("%s [PLANE:%d:%s] plane: %u.%u idx: %d enabled",
 			plane->type == DRM_PLANE_TYPE_CURSOR ? "CURSOR" : "STANDARD",
-			plane->base.id, intel_plane->pipe,
+			plane->base.id, plane->name,
+			intel_plane->pipe,
 			crtc->base.primary == plane ? 0 : intel_plane->plane + 1,
 			drm_plane_index(plane));
 		DRM_DEBUG_KMS("\tFB:%d, fb = %ux%u format = 0x%x",
