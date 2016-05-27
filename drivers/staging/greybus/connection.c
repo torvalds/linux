@@ -654,6 +654,27 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(gb_connection_disable);
 
+/* Disable a connection without communicating with the remote end. */
+void gb_connection_disable_forced(struct gb_connection *connection)
+{
+	mutex_lock(&connection->mutex);
+
+	if (connection->state == GB_CONNECTION_STATE_DISABLED)
+		goto out_unlock;
+
+	spin_lock_irq(&connection->lock);
+	connection->state = GB_CONNECTION_STATE_DISABLED;
+	gb_connection_cancel_operations(connection, -ESHUTDOWN);
+	spin_unlock_irq(&connection->lock);
+
+	gb_connection_svc_connection_destroy(connection);
+	gb_connection_hd_cport_disable(connection);
+
+out_unlock:
+	mutex_unlock(&connection->mutex);
+}
+EXPORT_SYMBOL_GPL(gb_connection_disable_forced);
+
 /* Caller must have disabled the connection before destroying it. */
 void gb_connection_destroy(struct gb_connection *connection)
 {

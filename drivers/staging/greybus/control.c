@@ -316,7 +316,10 @@ void gb_control_disable(struct gb_control *control)
 {
 	dev_dbg(&control->connection->intf->dev, "%s\n", __func__);
 
-	gb_connection_disable(control->connection);
+	if (control->intf->disconnected)
+		gb_connection_disable_forced(control->connection);
+	else
+		gb_connection_disable(control->connection);
 }
 
 int gb_control_add(struct gb_control *control)

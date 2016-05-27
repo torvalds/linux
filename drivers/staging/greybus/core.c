@@ -189,7 +189,7 @@ static int greybus_remove(struct device *dev)
 
 	list_for_each_entry(connection, &bundle->connections, bundle_links) {
 		if (bundle->intf->disconnected)
-			gb_connection_disable(connection);
+			gb_connection_disable_forced(connection);
 		else
 			gb_connection_disable_rx(connection);
 	}

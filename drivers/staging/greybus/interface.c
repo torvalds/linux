@@ -671,13 +671,6 @@ void gb_interface_disable(struct gb_interface *intf)
 
 	trace_gb_interface_disable(intf);
 
-	/*
-	 * Disable the control-connection early to avoid operation timeouts
-	 * when the interface is already gone.
-	 */
-	if (intf->disconnected)
-		gb_control_disable(intf->control);
-
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
 
