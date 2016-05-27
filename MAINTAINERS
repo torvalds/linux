@@ -11319,6 +11319,20 @@ F:	include/trace/
 F:	kernel/trace/
 F:	tools/testing/selftests/ftrace/
 
+TRACING MMIO ACCESSES (MMIOTRACE)
+M:	Steven Rostedt <rostedt@goodmis.org>
+M:	Ingo Molnar <mingo@kernel.org>
+R:	Karol Herbst <karolherbst@gmail.com>
+R:	Pekka Paalanen <ppaalanen@gmail.com>
+S:	Maintained
+L:	linux-kernel@vger.kernel.org
+L:	nouveau@lists.freedesktop.org
+F:	kernel/trace/trace_mmiotrace.c
+F:	include/linux/mmiotrace.h
+F:	arch/x86/mm/kmmio.c
+F:	arch/x86/mm/mmio-mod.c
+F:	arch/x86/mm/testmmiotrace.c
+
 TRIVIAL PATCHES
 M:	Jiri Kosina <trivial@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/trivial.git

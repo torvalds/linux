@@ -166,7 +166,7 @@ again:
 	if (unlikely(event->hw.event_base == MSR_SMI_COUNT))
 		delta = sign_extend64(delta, 31);
 
-	local64_add(now - prev, &event->count);
+	local64_add(delta, &event->count);
 }
 
 static void msr_event_start(struct perf_event *event, int flags)

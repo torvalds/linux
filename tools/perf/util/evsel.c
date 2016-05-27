@@ -2345,6 +2345,8 @@ out:
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize)
 {
+	int paranoid;
+
 	if ((err == ENOENT || err == ENXIO || err == ENODEV) &&
 	    evsel->attr.type   == PERF_TYPE_HARDWARE &&
 	    evsel->attr.config == PERF_COUNT_HW_CPU_CYCLES) {
@@ -2364,6 +2366,22 @@ bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 
 		zfree(&evsel->name);
 		return true;
+	} else if (err == EACCES && !evsel->attr.exclude_kernel &&
+		   (paranoid = perf_event_paranoid()) > 1) {
+		const char *name = perf_evsel__name(evsel);
+		char *new_name;
+
+		if (asprintf(&new_name, "%s%su", name, strchr(name, ':') ? "" : ":") < 0)
+			return false;
+
+		if (evsel->name)
+			free(evsel->name);
+		evsel->name = new_name;
+		scnprintf(msg, msgsize,
+"kernel.perf_event_paranoid=%d, trying to fall back to excluding kernel samples", paranoid);
+		evsel->attr.exclude_kernel = 1;
+
+		return true;
 	}
 
 	return false;
@@ -2382,12 +2400,13 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid,\n"
 		 "which controls use of the performance events system by\n"
 		 "unprivileged users (without CAP_SYS_ADMIN).\n\n"
-		 "The default value is 1:\n\n"
+		 "The current value is %d:\n\n"
 		 "  -1: Allow use of (almost) all events by all users\n"
 		 ">= 0: Disallow raw tracepoint access by users without CAP_IOC_LOCK\n"
 		 ">= 1: Disallow CPU event access by users without CAP_SYS_ADMIN\n"
 		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN",
-				 target->system_wide ? "system-wide " : "");
+				 target->system_wide ? "system-wide " : "",
+				 perf_event_paranoid());
 	case ENOENT:
 		return scnprintf(msg, size, "The %s event is not supported.",
 				 perf_evsel__name(evsel));

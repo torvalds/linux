@@ -25,7 +25,7 @@
 	writel_relaxed((((value) & mask) << shift), ip->base + offset)
 
 /*
- * AUD_UNIPERIF_SOFT_RST reg
+ * UNIPERIF_SOFT_RST reg
  */
 
 #define UNIPERIF_SOFT_RST_OFFSET(ip) 0x0000
@@ -50,7 +50,7 @@
 		UNIPERIF_SOFT_RST_SOFT_RST_MASK(ip))
 
 /*
- * AUD_UNIPERIF_FIFO_DATA reg
+ * UNIPERIF_FIFO_DATA reg
  */
 
 #define UNIPERIF_FIFO_DATA_OFFSET(ip) 0x0004
@@ -58,7 +58,7 @@
 	writel_relaxed(value, ip->base + UNIPERIF_FIFO_DATA_OFFSET(ip))
 
 /*
- * AUD_UNIPERIF_CHANNEL_STA_REGN reg
+ * UNIPERIF_CHANNEL_STA_REGN reg
  */
 
 #define UNIPERIF_CHANNEL_STA_REGN(ip, n) (0x0060 + (4 * n))
@@ -105,7 +105,7 @@
 	writel_relaxed(value, ip->base + UNIPERIF_CHANNEL_STA_REG5_OFFSET(ip))
 
 /*
- *  AUD_UNIPERIF_ITS reg
+ *  UNIPERIF_ITS reg
  */
 
 #define UNIPERIF_ITS_OFFSET(ip) 0x000C
@@ -143,7 +143,7 @@
 		0 : (BIT(UNIPERIF_ITS_UNDERFLOW_REC_FAILED_SHIFT(ip))))
 
 /*
- *  AUD_UNIPERIF_ITS_BCLR reg
+ *  UNIPERIF_ITS_BCLR reg
  */
 
 /* FIFO_ERROR */
@@ -160,7 +160,7 @@
 	writel_relaxed(value, ip->base + UNIPERIF_ITS_BCLR_OFFSET(ip))
 
 /*
- *  AUD_UNIPERIF_ITM reg
+ *  UNIPERIF_ITM reg
  */
 
 #define UNIPERIF_ITM_OFFSET(ip) 0x0018
@@ -188,7 +188,7 @@
 		0 : (BIT(UNIPERIF_ITM_UNDERFLOW_REC_FAILED_SHIFT(ip))))
 
 /*
- *  AUD_UNIPERIF_ITM_BCLR reg
+ *  UNIPERIF_ITM_BCLR reg
  */
 
 #define UNIPERIF_ITM_BCLR_OFFSET(ip) 0x001c
@@ -213,7 +213,7 @@
 		UNIPERIF_ITM_BCLR_DMA_ERROR_MASK(ip))
 
 /*
- *  AUD_UNIPERIF_ITM_BSET reg
+ *  UNIPERIF_ITM_BSET reg
  */
 
 #define UNIPERIF_ITM_BSET_OFFSET(ip) 0x0020
@@ -767,7 +767,7 @@
 	SET_UNIPERIF_REG(ip, \
 		UNIPERIF_CTRL_OFFSET(ip), \
 		UNIPERIF_CTRL_READER_OUT_SEL_SHIFT(ip), \
-		CORAUD_UNIPERIF_CTRL_READER_OUT_SEL_MASK(ip), 1)
+		UNIPERIF_CTRL_READER_OUT_SEL_MASK(ip), 1)
 
 /* UNDERFLOW_REC_WINDOW */
 #define UNIPERIF_CTRL_UNDERFLOW_REC_WINDOW_SHIFT(ip) 20
@@ -1046,7 +1046,7 @@
 		UNIPERIF_STATUS_1_UNDERFLOW_DURATION_MASK(ip), value)
 
 /*
- * AUD_UNIPERIF_CHANNEL_STA_REGN reg
+ * UNIPERIF_CHANNEL_STA_REGN reg
  */
 
 #define UNIPERIF_CHANNEL_STA_REGN(ip, n) (0x0060 + (4 * n))
@@ -1057,7 +1057,7 @@
 			UNIPERIF_CHANNEL_STA_REGN(ip, n))
 
 /*
- * AUD_UNIPERIF_USER_VALIDITY reg
+ * UNIPERIF_USER_VALIDITY reg
  */
 
 #define UNIPERIF_USER_VALIDITY_OFFSET(ip) 0x0090
@@ -1101,11 +1101,135 @@
 		UNIPERIF_DBG_STANDBY_LEFT_SP_MASK(ip), value)
 
 /*
+ * UNIPERIF_TDM_ENABLE
+ */
+#define UNIPERIF_TDM_ENABLE_OFFSET(ip) 0x0118
+#define GET_UNIPERIF_TDM_ENABLE(ip) \
+	readl_relaxed(ip->base + UNIPERIF_TDM_ENABLE_OFFSET(ip))
+#define SET_UNIPERIF_TDM_ENABLE(ip, value) \
+	writel_relaxed(value, ip->base + UNIPERIF_TDM_ENABLE_OFFSET(ip))
+
+/* TDM_ENABLE */
+#define UNIPERIF_TDM_ENABLE_EN_TDM_SHIFT(ip) 0x0
+#define UNIPERIF_TDM_ENABLE_EN_TDM_MASK(ip) 0x1
+#define GET_UNIPERIF_TDM_ENABLE_EN_TDM(ip) \
+		GET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_ENABLE_OFFSET(ip), \
+		UNIPERIF_TDM_ENABLE_EN_TDM_SHIFT(ip), \
+		UNIPERIF_TDM_ENABLE_EN_TDM_MASK(ip))
+#define SET_UNIPERIF_TDM_ENABLE_TDM_ENABLE(ip) \
+		SET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_ENABLE_OFFSET(ip), \
+		UNIPERIF_TDM_ENABLE_EN_TDM_SHIFT(ip), \
+		UNIPERIF_TDM_ENABLE_EN_TDM_MASK(ip), 1)
+#define SET_UNIPERIF_TDM_ENABLE_TDM_DISABLE(ip) \
+		SET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_ENABLE_OFFSET(ip), \
+		UNIPERIF_TDM_ENABLE_EN_TDM_SHIFT(ip), \
+		UNIPERIF_TDM_ENABLE_EN_TDM_MASK(ip), 0)
+
+/*
+ * UNIPERIF_TDM_FS_REF_FREQ
+ */
+#define UNIPERIF_TDM_FS_REF_FREQ_OFFSET(ip) 0x011c
+#define GET_UNIPERIF_TDM_FS_REF_FREQ(ip) \
+	readl_relaxed(ip->base + UNIPERIF_TDM_FS_REF_FREQ_OFFSET(ip))
+#define SET_UNIPERIF_TDM_FS_REF_FREQ(ip, value) \
+	writel_relaxed(value, ip->base + \
+			UNIPERIF_TDM_FS_REF_FREQ_OFFSET(ip))
+
+/* REF_FREQ */
+#define UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_SHIFT(ip) 0x0
+#define VALUE_UNIPERIF_TDM_FS_REF_FREQ_8KHZ(ip) 0
+#define VALUE_UNIPERIF_TDM_FS_REF_FREQ_16KHZ(ip) 1
+#define VALUE_UNIPERIF_TDM_FS_REF_FREQ_32KHZ(ip) 2
+#define VALUE_UNIPERIF_TDM_FS_REF_FREQ_48KHZ(ip) 3
+#define UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_MASK(ip) 0x3
+#define GET_UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ(ip) \
+		GET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_FS_REF_FREQ_OFFSET(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_SHIFT(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_MASK(ip))
+#define SET_UNIPERIF_TDM_FS_REF_FREQ_8KHZ(ip) \
+		SET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_FS_REF_FREQ_OFFSET(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_SHIFT(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_MASK(ip), \
+		VALUE_UNIPERIF_TDM_FS_REF_FREQ_8KHZ(ip))
+#define SET_UNIPERIF_TDM_FS_REF_FREQ_16KHZ(ip) \
+		SET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_FS_REF_FREQ_OFFSET(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_SHIFT(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_MASK(ip), \
+		VALUE_UNIPERIF_TDM_FS_REF_FREQ_16KHZ(ip))
+#define SET_UNIPERIF_TDM_FS_REF_FREQ_32KHZ(ip) \
+		SET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_FS_REF_FREQ_OFFSET(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_SHIFT(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_MASK(ip), \
+		VALUE_UNIPERIF_TDM_FS_REF_FREQ_32KHZ(ip))
+#define SET_UNIPERIF_TDM_FS_REF_FREQ_48KHZ(ip) \
+		SET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_FS_REF_FREQ_OFFSET(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_SHIFT(ip), \
+		UNIPERIF_TDM_FS_REF_FREQ_REF_FREQ_MASK(ip), \
+		VALUE_UNIPERIF_TDM_FS_REF_FREQ_48KHZ(ip))
+
+/*
+ * UNIPERIF_TDM_FS_REF_DIV
+ */
+#define UNIPERIF_TDM_FS_REF_DIV_OFFSET(ip) 0x0120
+#define GET_UNIPERIF_TDM_FS_REF_DIV(ip) \
+	readl_relaxed(ip->base + UNIPERIF_TDM_FS_REF_DIV_OFFSET(ip))
+#define SET_UNIPERIF_TDM_FS_REF_DIV(ip, value) \
+		writel_relaxed(value, ip->base + \
+			UNIPERIF_TDM_FS_REF_DIV_OFFSET(ip))
+
+/* NUM_TIMESLOT */
+#define UNIPERIF_TDM_FS_REF_DIV_NUM_TIMESLOT_SHIFT(ip) 0x0
+#define UNIPERIF_TDM_FS_REF_DIV_NUM_TIMESLOT_MASK(ip) 0xff
+#define GET_UNIPERIF_TDM_FS_REF_DIV_NUM_TIMESLOT(ip) \
+		GET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_FS_REF_DIV_OFFSET(ip), \
+		UNIPERIF_TDM_FS_REF_DIV_NUM_TIMESLOT_SHIFT(ip), \
+		UNIPERIF_TDM_FS_REF_DIV_NUM_TIMESLOT_MASK(ip))
+#define SET_UNIPERIF_TDM_FS_REF_DIV_NUM_TIMESLOT(ip, value) \
+		SET_UNIPERIF_REG(ip, \
+		UNIPERIF_TDM_FS_REF_DIV_OFFSET(ip), \
+		UNIPERIF_TDM_FS_REF_DIV_NUM_TIMESLOT_SHIFT(ip), \
+		UNIPERIF_TDM_FS_REF_DIV_NUM_TIMESLOT_MASK(ip), value)
+
+/*
+ * UNIPERIF_TDM_WORD_POS_X_Y
+ * 32 bits of UNIPERIF_TDM_WORD_POS_X_Y register shall be set in 1 shot
+ */
+#define UNIPERIF_TDM_WORD_POS_1_2_OFFSET(ip) 0x013c
+#define UNIPERIF_TDM_WORD_POS_3_4_OFFSET(ip) 0x0140
+#define UNIPERIF_TDM_WORD_POS_5_6_OFFSET(ip) 0x0144
+#define UNIPERIF_TDM_WORD_POS_7_8_OFFSET(ip) 0x0148
+#define GET_UNIPERIF_TDM_WORD_POS(ip, words) \
+	readl_relaxed(ip->base + UNIPERIF_TDM_WORD_POS_##words##_OFFSET(ip))
+#define SET_UNIPERIF_TDM_WORD_POS(ip, words, value) \
+		writel_relaxed(value, ip->base + \
+		UNIPERIF_TDM_WORD_POS_##words##_OFFSET(ip))
+/*
  * uniperipheral IP capabilities
  */
 
 #define UNIPERIF_FIFO_SIZE		70 /* FIFO is 70 cells deep */
 #define UNIPERIF_FIFO_FRAMES		4  /* FDMA trigger limit in frames */
+
+#define UNIPERIF_TYPE_IS_HDMI(p) \
+	((p)->info->type == SND_ST_UNIPERIF_TYPE_HDMI)
+#define UNIPERIF_TYPE_IS_PCM(p) \
+	((p)->info->type == SND_ST_UNIPERIF_TYPE_PCM)
+#define UNIPERIF_TYPE_IS_SPDIF(p) \
+	((p)->info->type == SND_ST_UNIPERIF_TYPE_SPDIF)
+#define UNIPERIF_TYPE_IS_IEC958(p) \
+	(UNIPERIF_TYPE_IS_HDMI(p) || \
+		UNIPERIF_TYPE_IS_SPDIF(p))
+#define UNIPERIF_TYPE_IS_TDM(p) \
+	((p)->info->type == SND_ST_UNIPERIF_TYPE_TDM)
 
 /*
  * Uniperipheral IP revisions
@@ -1125,10 +1249,11 @@ enum uniperif_version {
 };
 
 enum uniperif_type {
-	SND_ST_UNIPERIF_PLAYER_TYPE_NONE,
-	SND_ST_UNIPERIF_PLAYER_TYPE_HDMI,
-	SND_ST_UNIPERIF_PLAYER_TYPE_PCM,
-	SND_ST_UNIPERIF_PLAYER_TYPE_SPDIF
+	SND_ST_UNIPERIF_TYPE_NONE,
+	SND_ST_UNIPERIF_TYPE_HDMI,
+	SND_ST_UNIPERIF_TYPE_PCM,
+	SND_ST_UNIPERIF_TYPE_SPDIF,
+	SND_ST_UNIPERIF_TYPE_TDM
 };
 
 enum uniperif_state {
@@ -1145,9 +1270,17 @@ enum uniperif_iec958_encoding_mode {
 	UNIPERIF_IEC958_ENCODING_MODE_ENCODED
 };
 
+enum uniperif_word_pos {
+	WORD_1_2,
+	WORD_3_4,
+	WORD_5_6,
+	WORD_7_8,
+	WORD_MAX
+};
+
 struct uniperif_info {
 	int id; /* instance value of the uniperipheral IP */
-	enum uniperif_type player_type;
+	enum uniperif_type type;
 	int underflow_enabled;		/* Underflow recovery mode */
 };
 
@@ -1156,12 +1289,20 @@ struct uniperif_iec958_settings {
 	struct snd_aes_iec958 iec958;
 };
 
+struct dai_tdm_slot {
+	unsigned int mask;
+	int slots;
+	int slot_width;
+	unsigned int avail_slots;
+};
+
 struct uniperif {
 	/* System information */
 	struct uniperif_info *info;
 	struct device *dev;
 	int ver; /* IP version, used by register access macros */
 	struct regmap_field *clk_sel;
+	struct regmap_field *valid_sel;
 
 	/* capabilities */
 	const struct snd_pcm_hardware *hw;
@@ -1192,6 +1333,7 @@ struct uniperif {
 
 	/* dai properties */
 	unsigned int daifmt;
+	struct dai_tdm_slot tdm_slot;
 
 	/* DAI callbacks */
 	const struct snd_soc_dai_ops *dai_ops;
@@ -1207,6 +1349,28 @@ struct sti_uniperiph_data {
 	struct platform_device *pdev;
 	struct snd_soc_dai_driver *dai;
 	struct sti_uniperiph_dai dai_data;
+};
+
+static const struct snd_pcm_hardware uni_tdm_hw = {
+	.info = SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
+		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_MMAP_VALID,
+
+	.formats = SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S16_LE,
+
+	.rates = SNDRV_PCM_RATE_CONTINUOUS,
+	.rate_min = 8000,
+	.rate_max = 48000,
+
+	.channels_min = 1,
+	.channels_max = 32,
+
+	.periods_min = 2,
+	.periods_max = 10,
+
+	.period_bytes_min = 128,
+	.period_bytes_max = 64 * PAGE_SIZE,
+	.buffer_bytes_max = 256 * PAGE_SIZE
 };
 
 /* uniperiph player*/
@@ -1225,5 +1389,29 @@ int sti_uniperiph_dai_set_fmt(struct snd_soc_dai *dai,
 int sti_uniperiph_dai_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai);
+
+static inline int sti_uniperiph_get_user_frame_size(
+	struct snd_pcm_runtime *runtime)
+{
+	return (runtime->channels * snd_pcm_format_width(runtime->format) / 8);
+}
+
+static inline int sti_uniperiph_get_unip_tdm_frame_size(struct uniperif *uni)
+{
+	return (uni->tdm_slot.slots * uni->tdm_slot.slot_width / 8);
+}
+
+int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+			       unsigned int rx_mask, int slots,
+			       int slot_width);
+
+int sti_uniperiph_get_tdm_word_pos(struct uniperif *uni,
+				   unsigned int *word_pos);
+
+int sti_uniperiph_fix_tdm_chan(struct snd_pcm_hw_params *params,
+			       struct snd_pcm_hw_rule *rule);
+
+int sti_uniperiph_fix_tdm_format(struct snd_pcm_hw_params *params,
+				 struct snd_pcm_hw_rule *rule);
 
 #endif

@@ -83,6 +83,8 @@
 #define CLE_TYPE_POS		0
 #define CLE_TYPE_LEN		2
 
+#define CLE_DROP_POS		28
+#define CLE_DROP_LEN		1
 #define CLE_DSTQIDL_POS		25
 #define CLE_DSTQIDL_LEN		7
 #define CLE_DSTQIDH_POS		0
