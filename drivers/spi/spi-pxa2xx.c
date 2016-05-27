@@ -1240,7 +1240,7 @@ static int setup(struct spi_device *spi)
 			chip->frm = spi->chip_select;
 		} else
 			chip->gpio_cs = -1;
-		chip->enable_dma = 0;
+		chip->enable_dma = drv_data->master_info->enable_dma;
 		chip->timeout = TIMOUT_DFLT;
 	}
 
@@ -1259,17 +1259,9 @@ static int setup(struct spi_device *spi)
 			tx_hi_thres = chip_info->tx_hi_threshold;
 		if (chip_info->rx_threshold)
 			rx_thres = chip_info->rx_threshold;
-		chip->enable_dma = drv_data->master_info->enable_dma;
 		chip->dma_threshold = 0;
 		if (chip_info->enable_loopback)
 			chip->cr1 = SSCR1_LBM;
-	} else if (ACPI_HANDLE(&spi->dev)) {
-		/*
-		 * Slave devices enumerated from ACPI namespace don't
-		 * usually have chip_info but we still might want to use
-		 * DMA with them.
-		 */
-		chip->enable_dma = drv_data->master_info->enable_dma;
 	}
 
 	chip->lpss_rx_threshold = SSIRF_RxThresh(rx_thres);
