@@ -174,6 +174,7 @@ static void gb_interface_route_destroy(struct gb_interface *intf)
 static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 {
 	struct gb_host_device *hd = intf->hd;
+	unsigned long bootrom_quirks;
 	int ret;
 	u32 value;
 	u16 attr;
@@ -217,16 +218,18 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 		init_status = value >> 24;
 
 	/*
-	 * Check if the interface is executing the quirky ES3 bootrom that
-	 * requires E2EFC, CSD and CSV to be disabled.
+	 * Check if the interface is executing the quirky ES3 bootrom that,
+	 * for example, requires E2EFC, CSD and CSV to be disabled.
 	 */
+	bootrom_quirks = GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
+
 	switch (init_status) {
 	case GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED:
 	case GB_INIT_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED:
-		intf->quirks |= GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
+		intf->quirks |= bootrom_quirks;
 		break;
 	default:
-		intf->quirks &= ~GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
+		intf->quirks &= ~bootrom_quirks;
 	}
 
 	/* Clear the init status. */
