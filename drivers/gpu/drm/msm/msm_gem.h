@@ -34,6 +34,11 @@ struct msm_gem_object {
 	 */
 	uint8_t madv;
 
+	/**
+	 * count of active vmap'ing
+	 */
+	uint8_t vmap_count;
+
 	/* And object is either:
 	 *  inactive - on priv->inactive_list
 	 *  active   - on one one of the gpu's active_list..  well, at
@@ -81,6 +86,11 @@ static inline bool is_purgeable(struct msm_gem_object *msm_obj)
 {
 	return (msm_obj->madv == MSM_MADV_DONTNEED) && msm_obj->sgt &&
 			!msm_obj->base.dma_buf && !msm_obj->base.import_attach;
+}
+
+static inline bool is_vunmapable(struct msm_gem_object *msm_obj)
+{
+	return (msm_obj->vmap_count == 0) && msm_obj->vaddr;
 }
 
 #define MAX_CMDS 4

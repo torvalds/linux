@@ -100,6 +100,42 @@ msm_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 	return freed;
 }
 
+static int
+msm_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr)
+{
+	struct msm_drm_private *priv =
+		container_of(nb, struct msm_drm_private, vmap_notifier);
+	struct drm_device *dev = priv->dev;
+	struct msm_gem_object *msm_obj;
+	unsigned unmapped = 0;
+	bool unlock;
+
+	if (!msm_gem_shrinker_lock(dev, &unlock))
+		return NOTIFY_DONE;
+
+	list_for_each_entry(msm_obj, &priv->inactive_list, mm_list) {
+		if (is_vunmapable(msm_obj)) {
+			msm_gem_vunmap(&msm_obj->base);
+			/* since we don't know any better, lets bail after a few
+			 * and if necessary the shrinker will be invoked again.
+			 * Seems better than unmapping *everything*
+			 */
+			if (++unmapped >= 15)
+				break;
+		}
+	}
+
+	if (unlock)
+		mutex_unlock(&dev->struct_mutex);
+
+	*(unsigned long *)ptr += unmapped;
+
+	if (unmapped > 0)
+		pr_info_ratelimited("Purging %u vmaps\n", unmapped);
+
+	return NOTIFY_DONE;
+}
+
 /**
  * msm_gem_shrinker_init - Initialize msm shrinker
  * @dev_priv: msm device
@@ -113,6 +149,9 @@ void msm_gem_shrinker_init(struct drm_device *dev)
 	priv->shrinker.scan_objects = msm_gem_shrinker_scan;
 	priv->shrinker.seeks = DEFAULT_SEEKS;
 	WARN_ON(register_shrinker(&priv->shrinker));
+
+	priv->vmap_notifier.notifier_call = msm_gem_shrinker_vmap;
+	WARN_ON(register_vmap_purge_notifier(&priv->vmap_notifier));
 }
 
 /**
@@ -124,5 +163,6 @@ void msm_gem_shrinker_init(struct drm_device *dev)
 void msm_gem_shrinker_cleanup(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
+	WARN_ON(unregister_vmap_purge_notifier(&priv->vmap_notifier));
 	unregister_shrinker(&priv->shrinker);
 }
