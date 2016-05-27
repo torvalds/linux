@@ -102,8 +102,7 @@ static int mwifiex_sdio_probe_of(struct device *dev, struct sdio_mmc_card *card)
 	struct mwifiex_plt_wake_cfg *cfg;
 	int ret;
 
-	if (!dev->of_node ||
-	    !of_match_node(mwifiex_sdio_of_match_table, dev->of_node)) {
+	if (!of_match_node(mwifiex_sdio_of_match_table, dev->of_node)) {
 		dev_err(dev, "sdio platform data not available\n");
 		return -1;
 	}
@@ -189,7 +188,8 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	}
 
 	/* device tree node parsing and platform specific configuration*/
-	mwifiex_sdio_probe_of(&func->dev, card);
+	if (func->dev.of_node)
+		mwifiex_sdio_probe_of(&func->dev, card);
 
 	if (mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
 			     MWIFIEX_SDIO)) {
