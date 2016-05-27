@@ -389,6 +389,21 @@ gb_connection_svc_connection_destroy(struct gb_connection *connection)
 				  connection->intf_cport_id);
 }
 
+static void
+gb_connection_svc_connection_quiescing(struct gb_connection *connection)
+{
+	struct gb_host_device *hd = connection->hd;
+
+	if (gb_connection_is_static(connection))
+		return;
+
+	gb_svc_connection_quiescing(hd->svc,
+					hd->svc->ap_intf_id,
+					connection->hd_cport_id,
+					connection->intf->interface_id,
+					connection->intf_cport_id);
+}
+
 /* Inform Interface about active CPorts */
 static int gb_connection_control_connected(struct gb_connection *connection)
 {
@@ -424,7 +439,26 @@ static int gb_connection_control_connected(struct gb_connection *connection)
 	return 0;
 }
 
-/* Inform Interface about inactive CPorts */
+static void
+gb_connection_control_disconnecting(struct gb_connection *connection)
+{
+	struct gb_control *control;
+	u16 cport_id = connection->intf_cport_id;
+	int ret;
+
+	if (gb_connection_is_static(connection))
+		return;
+
+	control = connection->intf->control;
+
+	ret = gb_control_disconnecting_operation(control, cport_id);
+	if (ret) {
+		dev_err(&connection->hd->dev,
+				"%s: failed to send disconnecting: %d\n",
+				connection->name, ret);
+	}
+}
+
 static void
 gb_connection_control_disconnected(struct gb_connection *connection)
 {
@@ -447,10 +481,56 @@ gb_connection_control_disconnected(struct gb_connection *connection)
 	}
 }
 
+static int gb_connection_ping_operation(struct gb_connection *connection)
+{
+	struct gb_operation *operation;
+	int ret;
+
+	operation = gb_operation_create_core(connection,
+						GB_REQUEST_TYPE_PING,
+						0, 0, 0,
+						GFP_KERNEL);
+	if (!operation)
+		return -ENOMEM;
+
+	ret = gb_operation_request_send_sync(operation);
+
+	gb_operation_put(operation);
+
+	return ret;
+}
+
+static int gb_connection_ping(struct gb_connection *connection)
+{
+	struct gb_host_device *hd = connection->hd;
+	int ret;
+
+	if (gb_connection_is_static(connection))
+		return 0;
+
+	if (gb_connection_is_offloaded(connection)) {
+		if (!hd->driver->cport_ping)
+			return 0;
+
+		ret = hd->driver->cport_ping(hd, connection->intf_cport_id);
+	} else {
+		ret = gb_connection_ping_operation(connection);
+	}
+
+	if (ret) {
+		dev_err(&hd->dev, "%s: failed to send ping: %d\n",
+				connection->name, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 /*
  * Cancel all active operations on a connection.
  *
- * Locking: Called with connection lock held and state set to DISABLED.
+ * Locking: Called with connection lock held and state set to DISABLED or
+ * DISCONNECTING.
  */
 static void gb_connection_cancel_operations(struct gb_connection *connection,
 						int errno)
@@ -559,17 +639,24 @@ static int _gb_connection_enable(struct gb_connection *connection, bool rx)
 
 	ret = gb_connection_control_connected(connection);
 	if (ret)
-		goto err_flush_operations;
+		goto err_control_disconnecting;
 
 	return 0;
 
-err_flush_operations:
+err_control_disconnecting:
+	gb_connection_control_disconnecting(connection);
+
 	spin_lock_irq(&connection->lock);
-	connection->state = GB_CONNECTION_STATE_DISABLED;
+	connection->state = GB_CONNECTION_STATE_DISCONNECTING;
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
 
+	gb_connection_ping(connection);
 	gb_connection_hd_cport_features_disable(connection);
+	gb_connection_svc_connection_quiescing(connection);
+	gb_connection_ping(connection);
+	gb_connection_control_disconnected(connection);
+	connection->state = GB_CONNECTION_STATE_DISABLED;
 err_svc_connection_destroy:
 	gb_connection_svc_connection_destroy(connection);
 err_hd_cport_disable:
@@ -642,14 +729,22 @@ void gb_connection_disable(struct gb_connection *connection)
 	if (connection->state == GB_CONNECTION_STATE_DISABLED)
 		goto out_unlock;
 
-	gb_connection_control_disconnected(connection);
+	gb_connection_control_disconnecting(connection);
 
 	spin_lock_irq(&connection->lock);
-	connection->state = GB_CONNECTION_STATE_DISABLED;
+	connection->state = GB_CONNECTION_STATE_DISCONNECTING;
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
 
+	gb_connection_ping(connection);
 	gb_connection_hd_cport_features_disable(connection);
+	gb_connection_svc_connection_quiescing(connection);
+	gb_connection_ping(connection);
+
+	gb_connection_control_disconnected(connection);
+
+	connection->state = GB_CONNECTION_STATE_DISABLED;
+
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
 

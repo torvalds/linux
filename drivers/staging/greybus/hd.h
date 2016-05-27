@@ -21,6 +21,7 @@ struct gb_hd_driver {
 	void (*cport_release)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_enable)(struct gb_host_device *hd, u16 cport_id);
 	int (*cport_disable)(struct gb_host_device *hd, u16 cport_id);
+	int (*cport_ping)(struct gb_host_device *hd, u16 cport_id);
 	int (*message_send)(struct gb_host_device *hd, u16 dest_cport_id,
 			struct gb_message *message, gfp_t gfp_mask);
 	void (*message_cancel)(struct gb_message *message);

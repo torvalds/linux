@@ -46,12 +46,15 @@ static int gb_operation_get_active(struct gb_operation *operation)
 	unsigned long flags;
 
 	spin_lock_irqsave(&connection->lock, flags);
-
 	switch (connection->state) {
 	case GB_CONNECTION_STATE_ENABLED:
 		break;
 	case GB_CONNECTION_STATE_ENABLED_TX:
 		if (gb_operation_is_incoming(operation))
+			goto err_unlock;
+		break;
+	case GB_CONNECTION_STATE_DISCONNECTING:
+		if (!gb_operation_is_core(operation))
 			goto err_unlock;
 		break;
 	default:

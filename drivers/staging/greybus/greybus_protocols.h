@@ -96,6 +96,7 @@ struct gb_operation_msg_hdr {
 
 
 /* Generic request types */
+#define GB_REQUEST_TYPE_PING			0x00
 #define GB_REQUEST_TYPE_PROTOCOL_VERSION	0x01
 #define GB_REQUEST_TYPE_INVALID			0x7f
 
