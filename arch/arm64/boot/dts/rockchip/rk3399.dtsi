@@ -849,35 +849,30 @@
 		reg = <0x0 0xff310000 0x0 0x1000>;
 
 		power: power-controller {
-			status = "disabled";
+			status = "okay";
 			compatible = "rockchip,rk3399-power-controller";
 			#power-domain-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			pd_center {
-				reg = <RK3399_PD_CENTER>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				pd_vdu {
-					reg = <RK3399_PD_VDU>;
-					pm_qos = <&qos_video_m1_r>,
-						 <&qos_video_m1_w>;
-				};
-				pd_vcodec {
-					reg = <RK3399_PD_VCODEC>;
-					pm_qos = <&qos_video_m0>;
-				};
-				pd_iep {
-					reg = <RK3399_PD_IEP>;
-					pm_qos = <&qos_iep>;
-				};
-				pd_rga {
-					reg = <RK3399_PD_RGA>;
-					pm_qos = <&qos_rga_r>,
-						 <&qos_rga_w>;
-				};
+			pd_vdu {
+				reg = <RK3399_PD_VDU>;
+				pm_qos = <&qos_video_m1_r>,
+					 <&qos_video_m1_w>;
+			};
+			pd_vcodec {
+				reg = <RK3399_PD_VCODEC>;
+				pm_qos = <&qos_video_m0>;
+			};
+			pd_iep {
+				reg = <RK3399_PD_IEP>;
+				pm_qos = <&qos_iep>;
+			};
+			pd_rga {
+				reg = <RK3399_PD_RGA>;
+				pm_qos = <&qos_rga_r>,
+					 <&qos_rga_w>;
 			};
 			pd_vio {
 				reg = <RK3399_PD_VIO>;
