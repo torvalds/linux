@@ -1408,6 +1408,26 @@ static struct gmap *gmap_find_shadow(struct gmap *parent, unsigned long asce,
 }
 
 /**
+ * gmap_shadow_valid - check if a shadow guest address space matches the
+ *                     given properties and is still valid
+ * @sg: pointer to the shadow guest address space structure
+ * @asce: ASCE for which the shadow table is requested
+ * @edat_level: edat level to be used for the shadow translation
+ *
+ * Returns 1 if the gmap shadow is still valid and matches the given
+ * properties, the caller can continue using it. Returns 0 otherwise, the
+ * caller has to request a new shadow gmap in this case.
+ *
+ */
+int gmap_shadow_valid(struct gmap *sg, unsigned long asce, int edat_level)
+{
+	if (sg->removed)
+		return 0;
+	return sg->orig_asce == asce && sg->edat_level == edat_level;
+}
+EXPORT_SYMBOL_GPL(gmap_shadow_valid);
+
+/**
  * gmap_shadow - create/find a shadow guest address space
  * @parent: pointer to the parent gmap
  * @asce: ASCE for which the shadow table is created
