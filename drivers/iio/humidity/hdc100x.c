@@ -211,7 +211,7 @@ static int hdc100x_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_TEMP) {
-			*val = 165;
+			*val = 165000;
 			*val2 = 65536 >> 2;
 			return IIO_VAL_FRACTIONAL;
 		} else {
