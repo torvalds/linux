@@ -313,4 +313,19 @@ static inline bool led_sysfs_is_disabled(struct led_classdev *led_cdev)
 #define SPI_NOR_MODALIAS "m25p80"
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0)
+/**
+ * reinit_completion - reinitialize a completion structure
+ * @x:  pointer to completion structure that is to be reinitialized
+ *
+ * This inline function should be used to reinitialize a completion structure
+ * so it can be reused. This is especially important after complete_all() is
+ * used.
+ */
+static inline void reinit_completion(struct completion *x)
+{
+	x->done = 0;
+}
+#endif
+
 #endif	/* __GREYBUS_KERNEL_VER_H */
