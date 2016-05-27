@@ -14157,9 +14157,11 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc,
  */
 void intel_plane_destroy(struct drm_plane *plane)
 {
-	struct intel_plane *intel_plane = to_intel_plane(plane);
+	if (!plane)
+		return;
+
 	drm_plane_cleanup(plane);
-	kfree(intel_plane);
+	kfree(to_intel_plane(plane));
 }
 
 const struct drm_plane_funcs intel_plane_funcs = {
@@ -14512,10 +14514,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	return;
 
 fail:
-	if (primary)
-		drm_plane_cleanup(primary);
-	if (cursor)
-		drm_plane_cleanup(cursor);
+	intel_plane_destroy(primary);
+	intel_plane_destroy(cursor);
 	kfree(crtc_state);
 	kfree(intel_crtc);
 }
