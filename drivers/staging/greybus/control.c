@@ -163,9 +163,18 @@ int gb_control_disconnecting_operation(struct gb_control *control,
 
 int gb_control_mode_switch_operation(struct gb_control *control)
 {
-	return gb_operation_unidirectional(control->connection,
+	int ret;
+
+	ret = gb_operation_unidirectional(control->connection,
 						GB_CONTROL_TYPE_MODE_SWITCH,
 						NULL, 0);
+	if (ret) {
+		dev_err(&control->dev, "failed to send mode switch: %d\n",
+				ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 int gb_control_timesync_enable(struct gb_control *control, u8 count,
