@@ -312,7 +312,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	/* Do the secure computing check first. */
-	if (secure_computing() == -1)
+	if (secure_computing(NULL) == -1)
 		return -1;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&

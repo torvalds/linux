@@ -21,7 +21,7 @@ void handle_syscall(struct uml_pt_regs *r)
 	PT_REGS_SET_SYSCALL_RETURN(regs, -ENOSYS);
 
 	/* Do the secure computing check first; failures should be fast. */
-	if (secure_computing() == -1)
+	if (secure_computing(NULL) == -1)
 		return;
 
 	if (syscall_trace_enter(regs))

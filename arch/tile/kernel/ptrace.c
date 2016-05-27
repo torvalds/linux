@@ -255,7 +255,7 @@ int do_syscall_trace_enter(struct pt_regs *regs)
 {
 	u32 work = ACCESS_ONCE(current_thread_info()->flags);
 
-	if (secure_computing() == -1)
+	if (secure_computing(NULL) == -1)
 		return -1;
 
 	if (work & _TIF_SYSCALL_TRACE) {
