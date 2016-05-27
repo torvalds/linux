@@ -43,6 +43,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK5386
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_ALC5632 if I2C
+	select SND_SOC_BT_SCO
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
@@ -64,7 +65,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
 	select SND_SOC_DMIC
-	select SND_SOC_BT_SCO
 	select SND_SOC_ES8328_SPI if SPI_MASTER
 	select SND_SOC_ES8328_I2C if I2C
 	select SND_SOC_GTM601
@@ -370,6 +370,9 @@ config SND_SOC_ALC5623
 config SND_SOC_ALC5632
 	tristate
 
+config SND_SOC_BT_SCO
+	tristate
+
 config SND_SOC_CQ0093VC
 	tristate
 
@@ -474,9 +477,6 @@ config SND_SOC_DA732X
         tristate
 
 config SND_SOC_DA9055
-	tristate
-
-config SND_SOC_BT_SCO
 	tristate
 
 config SND_SOC_DMIC
