@@ -2183,34 +2183,6 @@ static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
 	ath10k_mac_tx_push_pending(ar);
 }
 
-static inline enum nl80211_band phy_mode_to_band(u32 phy_mode)
-{
-	enum nl80211_band band;
-
-	switch (phy_mode) {
-	case MODE_11A:
-	case MODE_11NA_HT20:
-	case MODE_11NA_HT40:
-	case MODE_11AC_VHT20:
-	case MODE_11AC_VHT40:
-	case MODE_11AC_VHT80:
-		band = NL80211_BAND_5GHZ;
-		break;
-	case MODE_11G:
-	case MODE_11B:
-	case MODE_11GONLY:
-	case MODE_11NG_HT20:
-	case MODE_11NG_HT40:
-	case MODE_11AC_VHT20_2G:
-	case MODE_11AC_VHT40_2G:
-	case MODE_11AC_VHT80_2G:
-	default:
-		band = NL80211_BAND_2GHZ;
-	}
-
-	return band;
-}
-
 void ath10k_htt_htc_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	bool release;
