@@ -170,7 +170,7 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	 * already running.
 	 */
 	if (readl(dev->base + WD_COUNTER)) {
-		set_bit(WDOG_ACTIVE, &dev->wdt.status);
+		set_bit(WDOG_HW_RUNNING, &dev->wdt.status);
 		tangox_wdt_start(&dev->wdt);
 	}
 
