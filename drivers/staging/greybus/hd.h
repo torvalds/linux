@@ -61,6 +61,7 @@ struct gb_host_device {
 #define to_gb_host_device(d) container_of(d, struct gb_host_device, dev)
 
 int gb_hd_cport_reserve(struct gb_host_device *hd, u16 cport_id);
+void gb_hd_cport_release_reserved(struct gb_host_device *hd, u16 cport_id);
 int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id,
 					unsigned long flags);
 void gb_hd_cport_release(struct gb_host_device *hd, u16 cport_id);

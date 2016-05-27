@@ -54,6 +54,14 @@ int gb_hd_cport_reserve(struct gb_host_device *hd, u16 cport_id)
 }
 EXPORT_SYMBOL_GPL(gb_hd_cport_reserve);
 
+void gb_hd_cport_release_reserved(struct gb_host_device *hd, u16 cport_id)
+{
+	struct ida *id_map = &hd->cport_id_map;
+
+	ida_simple_remove(id_map, cport_id);
+}
+EXPORT_SYMBOL_GPL(gb_hd_cport_release_reserved);
+
 /* Locking: Caller guarantees serialisation */
 int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id,
 				unsigned long flags)
