@@ -153,8 +153,10 @@ struct byt_community {
 		.name			= (n),			\
 		.pins			= (p),			\
 		.npins			= ARRAY_SIZE((p)),	\
-		.has_simple_funcs	= 1,		\
-		.simple_funcs		= (f),			\
+		.has_simple_funcs	= 1,			\
+		{						\
+			.simple_funcs		= (f),		\
+		},						\
 		.nfuncs			= ARRAY_SIZE((f)),	\
 	}
 #define PIN_GROUP_MIXED(n, p, f)				\
@@ -163,7 +165,9 @@ struct byt_community {
 		.pins			= (p),			\
 		.npins			= ARRAY_SIZE((p)),	\
 		.has_simple_funcs	= 0,			\
-		.mixed_funcs		= (f),			\
+		{						\
+			.mixed_funcs		= (f),		\
+		},						\
 		.nfuncs			= ARRAY_SIZE((f)),	\
 	}
 

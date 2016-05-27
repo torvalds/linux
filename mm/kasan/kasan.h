@@ -77,7 +77,6 @@ struct kasan_alloc_meta {
 	struct kasan_track track;
 	u32 state : 2;	/* enum kasan_state */
 	u32 alloc_size : 30;
-	u32 reserved;
 };
 
 struct qlist_node {
