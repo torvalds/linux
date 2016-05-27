@@ -345,7 +345,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 	int ret;
 
 	if (gb_connection_is_static(connection))
-		return gb_connection_hd_cport_features_enable(connection);
+		return 0;
 
 	intf = connection->intf;
 
@@ -373,23 +373,12 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 		return ret;
 	}
 
-	ret = gb_connection_hd_cport_features_enable(connection);
-	if (ret) {
-		gb_svc_connection_destroy(hd->svc, hd->svc->ap_intf_id,
-					  connection->hd_cport_id,
-					  intf->interface_id,
-					  connection->intf_cport_id);
-		return ret;
-	}
-
 	return 0;
 }
 
 static void
 gb_connection_svc_connection_destroy(struct gb_connection *connection)
 {
-	gb_connection_hd_cport_features_disable(connection);
-
 	if (gb_connection_is_static(connection))
 		return;
 
@@ -557,6 +546,10 @@ static int _gb_connection_enable(struct gb_connection *connection, bool rx)
 	if (ret)
 		goto err_hd_cport_disable;
 
+	ret = gb_connection_hd_cport_features_enable(connection);
+	if (ret)
+		goto err_svc_connection_destroy;
+
 	spin_lock_irq(&connection->lock);
 	if (connection->handler && rx)
 		connection->state = GB_CONNECTION_STATE_ENABLED;
@@ -576,6 +569,8 @@ err_flush_operations:
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
 
+	gb_connection_hd_cport_features_disable(connection);
+err_svc_connection_destroy:
 	gb_connection_svc_connection_destroy(connection);
 err_hd_cport_disable:
 	gb_connection_hd_cport_disable(connection);
@@ -654,6 +649,7 @@ void gb_connection_disable(struct gb_connection *connection)
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
 
+	gb_connection_hd_cport_features_disable(connection);
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
 
@@ -675,6 +671,7 @@ void gb_connection_disable_forced(struct gb_connection *connection)
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
 
+	gb_connection_hd_cport_features_disable(connection);
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
 
