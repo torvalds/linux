@@ -13,6 +13,7 @@
 #define GB_INTERFACE_QUIRK_NO_CPORT_FEATURES		BIT(0)
 #define GB_INTERFACE_QUIRK_NO_INIT_STATUS		BIT(1)
 #define GB_INTERFACE_QUIRK_NO_ARA_IDS			BIT(2)
+#define GB_INTERFACE_QUIRK_FORCED_DISABLE		BIT(3)
 
 struct gb_interface {
 	struct device dev;

@@ -221,8 +221,8 @@ static int gb_interface_read_and_clear_init_status(struct gb_interface *intf)
 	 * Check if the interface is executing the quirky ES3 bootrom that,
 	 * for example, requires E2EFC, CSD and CSV to be disabled.
 	 */
-	bootrom_quirks = GB_INTERFACE_QUIRK_NO_CPORT_FEATURES;
-
+	bootrom_quirks = GB_INTERFACE_QUIRK_NO_CPORT_FEATURES |
+				GB_INTERFACE_QUIRK_FORCED_DISABLE;
 	switch (init_status) {
 	case GB_INIT_BOOTROM_UNIPRO_BOOT_STARTED:
 	case GB_INIT_BOOTROM_FALLBACK_UNIPRO_BOOT_STARTED:
@@ -673,6 +673,10 @@ void gb_interface_disable(struct gb_interface *intf)
 		return;
 
 	trace_gb_interface_disable(intf);
+
+	/* Set disconnected flag to avoid I/O during connection tear down. */
+	if (intf->quirks & GB_INTERFACE_QUIRK_FORCED_DISABLE)
+		intf->disconnected = true;
 
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
