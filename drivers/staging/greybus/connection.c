@@ -227,7 +227,8 @@ gb_connection_create_static(struct gb_host_device *hd, u16 hd_cport_id,
 struct gb_connection *
 gb_connection_create_control(struct gb_interface *intf)
 {
-	return _gb_connection_create(intf->hd, -1, intf, NULL, 0, NULL, 0);
+	return _gb_connection_create(intf->hd, -1, intf, NULL, 0, NULL,
+					GB_CONNECTION_FLAG_CONTROL);
 }
 
 struct gb_connection *
@@ -412,10 +413,10 @@ static int gb_connection_control_connected(struct gb_connection *connection)
 		return 0;
 	}
 
-	control = connection->intf->control;
-
-	if (connection == control->connection)
+	if (gb_connection_is_control(connection))
 		return 0;
+
+	control = connection->intf->control;
 
 	ret = gb_control_connected_operation(control, cport_id);
 	if (ret) {
@@ -438,10 +439,10 @@ gb_connection_control_disconnected(struct gb_connection *connection)
 	if (gb_connection_is_static(connection))
 		return;
 
-	control = connection->intf->control;
-
-	if (connection == control->connection)
+	if (gb_connection_is_control(connection))
 		return;
+
+	control = connection->intf->control;
 
 	ret = gb_control_disconnected_operation(control, cport_id);
 	if (ret) {

@@ -17,6 +17,7 @@
 #define GB_CONNECTION_FLAG_NO_FLOWCTRL	BIT(1)
 #define GB_CONNECTION_FLAG_OFFLOADED	BIT(2)
 #define GB_CONNECTION_FLAG_CDSI1	BIT(3)
+#define GB_CONNECTION_FLAG_CONTROL	BIT(4)
 
 enum gb_connection_state {
 	GB_CONNECTION_STATE_INVALID	= 0,
@@ -102,6 +103,11 @@ gb_connection_flow_control_disabled(struct gb_connection *connection)
 static inline bool gb_connection_is_offloaded(struct gb_connection *connection)
 {
 	return connection->flags & GB_CONNECTION_FLAG_OFFLOADED;
+}
+
+static inline bool gb_connection_is_control(struct gb_connection *connection)
+{
+	return connection->flags & GB_CONNECTION_FLAG_CONTROL;
 }
 
 static inline void *gb_connection_get_data(struct gb_connection *connection)
