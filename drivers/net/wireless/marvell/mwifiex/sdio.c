@@ -187,8 +187,13 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	}
 
 	/* device tree node parsing and platform specific configuration*/
-	if (func->dev.of_node)
-		mwifiex_sdio_probe_of(&func->dev, card);
+	if (func->dev.of_node) {
+		ret = mwifiex_sdio_probe_of(&func->dev, card);
+		if (ret) {
+			dev_err(&func->dev, "SDIO dt node parse failed\n");
+			goto err_disable;
+		}
+	}
 
 	ret = mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
 			       MWIFIEX_SDIO);
