@@ -1206,7 +1206,7 @@
 		clock-names = "clk_mali";
 		#cooling-cells = <2>; /* min followed by max */
 		operating-points-v2 = <&gpu_opp_table>;
-
+		power-domains = <&power RK3399_PD_GPU>;
 		status = "disabled";
 
 		power_model {
