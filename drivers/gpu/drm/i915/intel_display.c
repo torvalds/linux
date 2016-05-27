@@ -14233,10 +14233,24 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 		primary->disable_plane = i9xx_disable_primary_plane;
 	}
 
-	ret = drm_universal_plane_init(dev, &primary->base, 0,
-				       &intel_plane_funcs,
-				       intel_primary_formats, num_formats,
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (INTEL_INFO(dev)->gen >= 9)
+		ret = drm_universal_plane_init(dev, &primary->base, 0,
+					       &intel_plane_funcs,
+					       intel_primary_formats, num_formats,
+					       DRM_PLANE_TYPE_PRIMARY,
+					       "plane 1%c", pipe_name(pipe));
+	else if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
+		ret = drm_universal_plane_init(dev, &primary->base, 0,
+					       &intel_plane_funcs,
+					       intel_primary_formats, num_formats,
+					       DRM_PLANE_TYPE_PRIMARY,
+					       "primary %c", pipe_name(pipe));
+	else
+		ret = drm_universal_plane_init(dev, &primary->base, 0,
+					       &intel_plane_funcs,
+					       intel_primary_formats, num_formats,
+					       DRM_PLANE_TYPE_PRIMARY,
+					       "plane %c", plane_name(primary->plane));
 	if (ret)
 		goto fail;
 
@@ -14394,7 +14408,8 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 				       &intel_plane_funcs,
 				       intel_cursor_formats,
 				       ARRAY_SIZE(intel_cursor_formats),
-				       DRM_PLANE_TYPE_CURSOR, NULL);
+				       DRM_PLANE_TYPE_CURSOR,
+				       "cursor %c", pipe_name(pipe));
 	if (ret)
 		goto fail;
 
