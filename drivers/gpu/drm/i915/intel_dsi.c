@@ -46,6 +46,22 @@ static const struct {
 	},
 };
 
+/* return pixels in terms of txbyteclkhs */
+static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
+		       u16 burst_mode_ratio)
+{
+	return DIV_ROUND_UP(DIV_ROUND_UP(pixels * bpp * burst_mode_ratio,
+					 8 * 100), lane_count);
+}
+
+/* return pixels equvalent to txbyteclkhs */
+static u16 pixels_from_txbyteclkhs(u16 clk_hs, int bpp, int lane_count,
+			u16 burst_mode_ratio)
+{
+	return DIV_ROUND_UP((clk_hs * lane_count * 8 * 100),
+						(bpp * burst_mode_ratio));
+}
+
 enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt)
 {
 	/* It just so happens the VBT matches register contents. */
@@ -780,10 +796,19 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *adjusted_mode =
 					&pipe_config->base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode_sw;
+	struct intel_crtc *intel_crtc;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	unsigned int lane_count = intel_dsi->lane_count;
 	unsigned int bpp, fmt;
 	enum port port;
-	u16 vfp, vsync, vbp;
+	u16 hactive, hfp, hsync, hbp, vfp, vsync, vbp;
+	u16 hfp_sw, hsync_sw, hbp_sw;
+	u16 crtc_htotal_sw, crtc_hsync_start_sw, crtc_hsync_end_sw,
+				crtc_hblank_start_sw, crtc_hblank_end_sw;
+
+	intel_crtc = to_intel_crtc(encoder->base.crtc);
+	adjusted_mode_sw = &intel_crtc->config->base.adjusted_mode;
 
 	/*
 	 * Atleast one port is active as encoder->get_config called only if
@@ -808,26 +833,118 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	adjusted_mode->crtc_vtotal =
 				I915_READ(BXT_MIPI_TRANS_VTOTAL(port));
 
+	hactive = adjusted_mode->crtc_hdisplay;
+	hfp = I915_READ(MIPI_HFP_COUNT(port));
+
 	/*
-	 * TODO: Retrieve hfp, hsync and hbp. Adjust them for dual link and
-	 * calculate hsync_start, hsync_end, htotal and hblank_end
+	 * Meaningful for video mode non-burst sync pulse mode only,
+	 * can be zero for non-burst sync events and burst modes
 	 */
+	hsync = I915_READ(MIPI_HSYNC_PADDING_COUNT(port));
+	hbp = I915_READ(MIPI_HBP_COUNT(port));
+
+	/* harizontal values are in terms of high speed byte clock */
+	hfp = pixels_from_txbyteclkhs(hfp, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+	hsync = pixels_from_txbyteclkhs(hsync, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+	hbp = pixels_from_txbyteclkhs(hbp, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+
+	if (intel_dsi->dual_link) {
+		hfp *= 2;
+		hsync *= 2;
+		hbp *= 2;
+	}
 
 	/* vertical values are in terms of lines */
 	vfp = I915_READ(MIPI_VFP_COUNT(port));
 	vsync = I915_READ(MIPI_VSYNC_PADDING_COUNT(port));
 	vbp = I915_READ(MIPI_VBP_COUNT(port));
 
+	adjusted_mode->crtc_htotal = hactive + hfp + hsync + hbp;
+	adjusted_mode->crtc_hsync_start = hfp + adjusted_mode->crtc_hdisplay;
+	adjusted_mode->crtc_hsync_end = hsync + adjusted_mode->crtc_hsync_start;
 	adjusted_mode->crtc_hblank_start = adjusted_mode->crtc_hdisplay;
+	adjusted_mode->crtc_hblank_end = adjusted_mode->crtc_htotal;
 
-	adjusted_mode->crtc_vsync_start =
-				vfp + adjusted_mode->crtc_vdisplay;
-	adjusted_mode->crtc_vsync_end =
-				vsync + adjusted_mode->crtc_vsync_start;
+	adjusted_mode->crtc_vsync_start = vfp + adjusted_mode->crtc_vdisplay;
+	adjusted_mode->crtc_vsync_end = vsync + adjusted_mode->crtc_vsync_start;
 	adjusted_mode->crtc_vblank_start = adjusted_mode->crtc_vdisplay;
 	adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vtotal;
-}
 
+	/*
+	 * In BXT DSI there is no regs programmed with few horizontal timings
+	 * in Pixels but txbyteclkhs.. So retrieval process adds some
+	 * ROUND_UP ERRORS in the process of PIXELS<==>txbyteclkhs.
+	 * Actually here for the given adjusted_mode, we are calculating the
+	 * value programmed to the port and then back to the horizontal timing
+	 * param in pixels. This is the expected value, including roundup errors
+	 * And if that is same as retrieved value from port, then
+	 * (HW state) adjusted_mode's horizontal timings are corrected to
+	 * match with SW state to nullify the errors.
+	 */
+	/* Calculating the value programmed to the Port register */
+	hfp_sw = adjusted_mode_sw->crtc_hsync_start -
+					adjusted_mode_sw->crtc_hdisplay;
+	hsync_sw = adjusted_mode_sw->crtc_hsync_end -
+					adjusted_mode_sw->crtc_hsync_start;
+	hbp_sw = adjusted_mode_sw->crtc_htotal -
+					adjusted_mode_sw->crtc_hsync_end;
+
+	if (intel_dsi->dual_link) {
+		hfp_sw /= 2;
+		hsync_sw /= 2;
+		hbp_sw /= 2;
+	}
+
+	hfp_sw = txbyteclkhs(hfp_sw, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+	hsync_sw = txbyteclkhs(hsync_sw, bpp, lane_count,
+			    intel_dsi->burst_mode_ratio);
+	hbp_sw = txbyteclkhs(hbp_sw, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+
+	/* Reverse calculating the adjusted mode parameters from port reg vals*/
+	hfp_sw = pixels_from_txbyteclkhs(hfp_sw, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+	hsync_sw = pixels_from_txbyteclkhs(hsync_sw, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+	hbp_sw = pixels_from_txbyteclkhs(hbp_sw, bpp, lane_count,
+						intel_dsi->burst_mode_ratio);
+
+	if (intel_dsi->dual_link) {
+		hfp_sw *= 2;
+		hsync_sw *= 2;
+		hbp_sw *= 2;
+	}
+
+	crtc_htotal_sw = adjusted_mode_sw->crtc_hdisplay + hfp_sw +
+							hsync_sw + hbp_sw;
+	crtc_hsync_start_sw = hfp_sw + adjusted_mode_sw->crtc_hdisplay;
+	crtc_hsync_end_sw = hsync_sw + crtc_hsync_start_sw;
+	crtc_hblank_start_sw = adjusted_mode_sw->crtc_hdisplay;
+	crtc_hblank_end_sw = crtc_htotal_sw;
+
+	if (adjusted_mode->crtc_htotal == crtc_htotal_sw)
+		adjusted_mode->crtc_htotal = adjusted_mode_sw->crtc_htotal;
+
+	if (adjusted_mode->crtc_hsync_start == crtc_hsync_start_sw)
+		adjusted_mode->crtc_hsync_start =
+					adjusted_mode_sw->crtc_hsync_start;
+
+	if (adjusted_mode->crtc_hsync_end == crtc_hsync_end_sw)
+		adjusted_mode->crtc_hsync_end =
+					adjusted_mode_sw->crtc_hsync_end;
+
+	if (adjusted_mode->crtc_hblank_start == crtc_hblank_start_sw)
+		adjusted_mode->crtc_hblank_start =
+					adjusted_mode_sw->crtc_hblank_start;
+
+	if (adjusted_mode->crtc_hblank_end == crtc_hblank_end_sw)
+		adjusted_mode->crtc_hblank_end =
+					adjusted_mode_sw->crtc_hblank_end;
+}
 
 static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
@@ -889,14 +1006,6 @@ static u16 txclkesc(u32 divider, unsigned int us)
 	case ESCAPE_CLOCK_DIVIDER_4:
 		return 5 * us;
 	}
-}
-
-/* return pixels in terms of txbyteclkhs */
-static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
-		       u16 burst_mode_ratio)
-{
-	return DIV_ROUND_UP(DIV_ROUND_UP(pixels * bpp * burst_mode_ratio,
-					 8 * 100), lane_count);
 }
 
 static void set_dsi_timings(struct drm_encoder *encoder,
