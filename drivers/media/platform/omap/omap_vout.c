@@ -45,7 +45,7 @@
 #include <media/v4l2-ioctl.h>
 
 #include <video/omapvrfb.h>
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 
 #include "omap_voutlib.h"
 #include "omap_voutdef.h"
