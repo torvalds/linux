@@ -191,14 +191,14 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	if (func->dev.of_node)
 		mwifiex_sdio_probe_of(&func->dev, card);
 
-	if (mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
-			     MWIFIEX_SDIO)) {
+	ret = mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
+			       MWIFIEX_SDIO);
+	if (ret) {
 		pr_err("%s: add card failed\n", __func__);
 		kfree(card);
 		sdio_claim_host(func);
-		ret = sdio_disable_func(func);
+		sdio_disable_func(func);
 		sdio_release_host(func);
-		ret = -1;
 	}
 
 	return ret;
