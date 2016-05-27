@@ -131,6 +131,11 @@ DECLARE_EVENT_CLASS(gb_operation,
 DEFINE_OPERATION_EVENT(gb_operation_create);
 
 /*
+ * Occurs after a new core operation has been created.
+ */
+DEFINE_OPERATION_EVENT(gb_operation_create_core);
+
+/*
  * Occurs after a new operation has been created for an incoming
  * request has been successfully created and initialized.
  */

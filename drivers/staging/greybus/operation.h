@@ -60,6 +60,7 @@ struct gb_message {
 #define GB_OPERATION_FLAG_INCOMING		BIT(0)
 #define GB_OPERATION_FLAG_UNIDIRECTIONAL	BIT(1)
 #define GB_OPERATION_FLAG_SHORT_RESPONSE	BIT(2)
+#define GB_OPERATION_FLAG_CORE			BIT(3)
 
 #define GB_OPERATION_FLAG_USER_MASK	(GB_OPERATION_FLAG_SHORT_RESPONSE | \
 					 GB_OPERATION_FLAG_UNIDIRECTIONAL)
@@ -123,6 +124,11 @@ gb_operation_short_response_allowed(struct gb_operation *operation)
 	return operation->flags & GB_OPERATION_FLAG_SHORT_RESPONSE;
 }
 
+static inline bool gb_operation_is_core(struct gb_operation *operation)
+{
+	return operation->flags & GB_OPERATION_FLAG_CORE;
+}
+
 void gb_connection_recv(struct gb_connection *connection,
 					void *data, size_t size);
 
@@ -143,6 +149,12 @@ gb_operation_create(struct gb_connection *connection,
 	return gb_operation_create_flags(connection, type, request_size,
 						response_size, 0, gfp);
 }
+
+struct gb_operation *
+gb_operation_create_core(struct gb_connection *connection,
+				u8 type, size_t request_size,
+				size_t response_size, unsigned long flags,
+				gfp_t gfp);
 
 void gb_operation_get(struct gb_operation *operation);
 void gb_operation_put(struct gb_operation *operation);

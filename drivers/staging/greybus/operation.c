@@ -571,6 +571,26 @@ gb_operation_create_flags(struct gb_connection *connection,
 }
 EXPORT_SYMBOL_GPL(gb_operation_create_flags);
 
+struct gb_operation *
+gb_operation_create_core(struct gb_connection *connection,
+				u8 type, size_t request_size,
+				size_t response_size, unsigned long flags,
+				gfp_t gfp)
+{
+	struct gb_operation *operation;
+
+	flags |= GB_OPERATION_FLAG_CORE;
+
+	operation = gb_operation_create_common(connection, type,
+						request_size, response_size,
+						flags, gfp);
+	if (operation)
+		trace_gb_operation_create_core(operation);
+
+	return operation;
+}
+/* Do not export this function. */
+
 size_t gb_operation_get_payload_size_max(struct gb_connection *connection)
 {
 	struct gb_host_device *hd = connection->hd;
