@@ -978,7 +978,7 @@ void intel_lvds_init(struct drm_device *dev)
 			   DRM_MODE_CONNECTOR_LVDS);
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_lvds_enc_funcs,
-			 DRM_MODE_ENCODER_LVDS, NULL);
+			 DRM_MODE_ENCODER_LVDS, "LVDS");
 
 	intel_encoder->enable = intel_enable_lvds;
 	intel_encoder->pre_enable = intel_pre_enable_lvds;
