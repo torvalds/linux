@@ -1251,10 +1251,10 @@ int __gfs2_xattr_set(struct inode *inode, const char *name,
 }
 
 static int gfs2_xattr_set(const struct xattr_handler *handler,
-			  struct dentry *dentry, const char *name,
-			  const void *value, size_t size, int flags)
+			  struct dentry *unused, struct inode *inode,
+			  const char *name, const void *value,
+			  size_t size, int flags)
 {
-	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int ret;

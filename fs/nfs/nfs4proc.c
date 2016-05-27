@@ -4993,12 +4993,11 @@ static int nfs4_do_set_security_label(struct inode *inode,
 }
 
 static int
-nfs4_set_security_label(struct dentry *dentry, const void *buf, size_t buflen)
+nfs4_set_security_label(struct inode *inode, const void *buf, size_t buflen)
 {
 	struct nfs4_label ilabel, *olabel = NULL;
 	struct nfs_fattr fattr;
 	struct rpc_cred *cred;
-	struct inode *inode = d_inode(dentry);
 	int status;
 
 	if (!nfs_server_capable(inode, NFS_CAP_SECURITY_LABEL))
@@ -6255,11 +6254,11 @@ nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 #define XATTR_NAME_NFSV4_ACL "system.nfs4_acl"
 
 static int nfs4_xattr_set_nfs4_acl(const struct xattr_handler *handler,
-				   struct dentry *dentry, const char *key,
-				   const void *buf, size_t buflen,
-				   int flags)
+				   struct dentry *unused, struct inode *inode,
+				   const char *key, const void *buf,
+				   size_t buflen, int flags)
 {
-	return nfs4_proc_set_acl(d_inode(dentry), buf, buflen);
+	return nfs4_proc_set_acl(inode, buf, buflen);
 }
 
 static int nfs4_xattr_get_nfs4_acl(const struct xattr_handler *handler,
@@ -6277,12 +6276,12 @@ static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 
 static int nfs4_xattr_set_nfs4_label(const struct xattr_handler *handler,
-				     struct dentry *dentry, const char *key,
-				     const void *buf, size_t buflen,
-				     int flags)
+				     struct dentry *unused, struct inode *inode,
+				     const char *key, const void *buf,
+				     size_t buflen, int flags)
 {
 	if (security_ismaclabel(key))
-		return nfs4_set_security_label(dentry, buf, buflen);
+		return nfs4_set_security_label(inode, buf, buflen);
 
 	return -EOPNOTSUPP;
 }

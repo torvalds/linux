@@ -754,7 +754,8 @@ generic_setxattr(struct dentry *dentry, const char *name, const void *value, siz
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
-	return handler->set(handler, dentry, name, value, size, flags);
+	return handler->set(handler, dentry, d_inode(dentry), name, value,
+			    size, flags);
 }
 
 /*
@@ -769,7 +770,8 @@ generic_removexattr(struct dentry *dentry, const char *name)
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
-	return handler->set(handler, dentry, name, NULL, 0, XATTR_REPLACE);
+	return handler->set(handler, dentry, d_inode(dentry), name, NULL,
+			    0, XATTR_REPLACE);
 }
 
 EXPORT_SYMBOL(generic_getxattr);

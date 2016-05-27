@@ -33,8 +33,8 @@ struct xattr_handler {
 		   struct inode *inode, const char *name, void *buffer,
 		   size_t size);
 	int (*set)(const struct xattr_handler *, struct dentry *dentry,
-		   const char *name, const void *buffer, size_t size,
-		   int flags);
+		   struct inode *inode, const char *name, const void *buffer,
+		   size_t size, int flags);
 };
 
 const char *xattr_full_name(const struct xattr_handler *, const char *);
