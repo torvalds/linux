@@ -93,6 +93,13 @@ int hwmgr_fini(struct pp_hwmgr *hwmgr)
 	if (hwmgr == NULL || hwmgr->ps == NULL)
 		return -EINVAL;
 
+	/* do hwmgr finish*/
+	kfree(hwmgr->backend);
+
+	kfree(hwmgr->start_thermal_controller.function_list);
+
+	kfree(hwmgr->set_temperature_range.function_list);
+
 	kfree(hwmgr->ps);
 	kfree(hwmgr);
 	return 0;
