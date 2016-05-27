@@ -924,73 +924,6 @@ static void gb_svc_process_hello_deferred(struct gb_operation *operation)
 			ret);
 }
 
-static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
-{
-	struct gb_svc_intf_hotplug_request *request;
-	struct gb_connection *connection = operation->connection;
-	struct gb_svc *svc = gb_connection_get_data(connection);
-	struct gb_host_device *hd = connection->hd;
-	struct gb_module *module;
-	u8 intf_id;
-	int ret;
-
-	/* The request message size has already been verified. */
-	request = operation->request->payload;
-	intf_id = request->intf_id;
-
-	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, intf_id);
-
-	/* All modules are considered 1x2 for now */
-	module = gb_svc_module_lookup(svc, intf_id);
-	if (module) {
-		/* legacy mode switch */
-		return gb_interface_mailbox_event(module->interfaces[0], 0,
-						GB_SVC_INTF_MAILBOX_GREYBUS);
-	}
-
-	module = gb_module_create(hd, intf_id, 1);
-	if (!module) {
-		dev_err(&svc->dev, "failed to create module\n");
-		return;
-	}
-
-	ret = gb_module_add(module);
-	if (ret) {
-		gb_module_put(module);
-		return;
-	}
-
-	list_add(&module->hd_node, &hd->modules);
-}
-
-static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
-{
-	struct gb_svc *svc = gb_connection_get_data(operation->connection);
-	struct gb_svc_intf_hot_unplug_request *request;
-	struct gb_module *module;
-	u8 intf_id;
-
-	/* The request message size has already been verified. */
-	request = operation->request->payload;
-	intf_id = request->intf_id;
-
-	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, intf_id);
-
-	/* All modules are considered 1x2 for now */
-	module = gb_svc_module_lookup(svc, intf_id);
-	if (!module) {
-		dev_warn(&svc->dev, "could not find hot-unplug interface %u\n",
-				intf_id);
-		return;
-	}
-
-	module->disconnected = true;
-
-	gb_module_del(module);
-	list_del(&module->hd_node);
-	gb_module_put(module);
-}
-
 static void gb_svc_process_module_inserted(struct gb_operation *operation)
 {
 	struct gb_svc_module_inserted_request *request;
@@ -1111,12 +1044,6 @@ static void gb_svc_process_deferred_request(struct work_struct *work)
 	case GB_SVC_TYPE_SVC_HELLO:
 		gb_svc_process_hello_deferred(operation);
 		break;
-	case GB_SVC_TYPE_INTF_HOTPLUG:
-		gb_svc_process_intf_hotplug(operation);
-		break;
-	case GB_SVC_TYPE_INTF_HOT_UNPLUG:
-		gb_svc_process_intf_hot_unplug(operation);
-		break;
 	case GB_SVC_TYPE_MODULE_INSERTED:
 		gb_svc_process_module_inserted(operation);
 		break;
@@ -1151,51 +1078,6 @@ static int gb_svc_queue_deferred_request(struct gb_operation *operation)
 	queue_work(svc->wq, &dr->work);
 
 	return 0;
-}
-
-/*
- * Bringing up a module can be time consuming, as that may require lots of
- * initialization on the module side. Over that, we may also need to download
- * the firmware first and flash that on the module.
- *
- * In order not to make other svc events wait for all this to finish,
- * handle most of module hotplug stuff outside of the hotplug callback, with
- * help of a workqueue.
- */
-static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
-{
-	struct gb_svc *svc = gb_connection_get_data(op->connection);
-	struct gb_svc_intf_hotplug_request *request;
-
-	if (op->request->payload_size < sizeof(*request)) {
-		dev_warn(&svc->dev, "short hotplug request received (%zu < %zu)\n",
-				op->request->payload_size, sizeof(*request));
-		return -EINVAL;
-	}
-
-	request = op->request->payload;
-
-	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, request->intf_id);
-
-	return gb_svc_queue_deferred_request(op);
-}
-
-static int gb_svc_intf_hot_unplug_recv(struct gb_operation *op)
-{
-	struct gb_svc *svc = gb_connection_get_data(op->connection);
-	struct gb_svc_intf_hot_unplug_request *request;
-
-	if (op->request->payload_size < sizeof(*request)) {
-		dev_warn(&svc->dev, "short hot unplug request received (%zu < %zu)\n",
-				op->request->payload_size, sizeof(*request));
-		return -EINVAL;
-	}
-
-	request = op->request->payload;
-
-	dev_dbg(&svc->dev, "%s - id = %u\n", __func__, request->intf_id);
-
-	return gb_svc_queue_deferred_request(op);
 }
 
 static int gb_svc_intf_reset_recv(struct gb_operation *op)
@@ -1371,10 +1253,6 @@ static int gb_svc_request_handler(struct gb_operation *op)
 		if (!ret)
 			svc->state = GB_SVC_STATE_SVC_HELLO;
 		return ret;
-	case GB_SVC_TYPE_INTF_HOTPLUG:
-		return gb_svc_intf_hotplug_recv(op);
-	case GB_SVC_TYPE_INTF_HOT_UNPLUG:
-		return gb_svc_intf_hot_unplug_recv(op);
 	case GB_SVC_TYPE_INTF_RESET:
 		return gb_svc_intf_reset_recv(op);
 	case GB_SVC_TYPE_KEY_EVENT:

@@ -908,8 +908,6 @@ struct gb_spi_transfer_response {
 #define GB_SVC_TYPE_PROTOCOL_VERSION		0x01
 #define GB_SVC_TYPE_SVC_HELLO			0x02
 #define GB_SVC_TYPE_INTF_DEVICE_ID		0x03
-#define GB_SVC_TYPE_INTF_HOTPLUG		0x04
-#define GB_SVC_TYPE_INTF_HOT_UNPLUG		0x05
 #define GB_SVC_TYPE_INTF_RESET			0x06
 #define GB_SVC_TYPE_CONN_CREATE			0x07
 #define GB_SVC_TYPE_CONN_DESTROY		0x08
@@ -982,23 +980,6 @@ struct gb_svc_intf_device_id_request {
 	__u8	device_id;
 } __packed;
 /* device id response has no payload */
-
-struct gb_svc_intf_hotplug_request {
-	__u8	intf_id;
-	struct {
-		__le32	ddbl1_mfr_id;
-		__le32	ddbl1_prod_id;
-		__le32	ara_vend_id;
-		__le32	ara_prod_id;
-		__le64	serial_number;
-	} data;
-} __packed;
-/* hotplug response has no payload */
-
-struct gb_svc_intf_hot_unplug_request {
-	__u8	intf_id;
-} __packed;
-/* hot unplug response has no payload */
 
 struct gb_svc_intf_reset_request {
 	__u8	intf_id;
