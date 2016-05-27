@@ -22,6 +22,8 @@
  *  General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -48,14 +50,11 @@ module_param(debug, bool, 0644);
 #define _COMPONENT		ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_slot");
 
-#define MY_NAME "pci_slot"
-#define err(format, arg...) pr_err("%s: " format , MY_NAME , ## arg)
-#define info(format, arg...) pr_info("%s: " format , MY_NAME , ## arg)
-#define dbg(format, arg...)					\
-	do {							\
-		if (debug)					\
-			pr_debug("%s: " format,	MY_NAME , ## arg); \
-	} while (0)
+#define dbg(fmt, ...)						\
+do {								\
+	if (debug)						\
+		pr_debug(fmt, ##__VA_ARGS__);			\
+} while (0)
 
 #define SLOT_NAME_SIZE 21		/* Inspired by #define in acpiphp.h */
 
@@ -132,15 +131,13 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	}
 
 	slot = kmalloc(sizeof(*slot), GFP_KERNEL);
-	if (!slot) {
-		err("%s: cannot allocate memory\n", __func__);
+	if (!slot)
 		return AE_OK;
-	}
 
 	snprintf(name, sizeof(name), "%llu", sun);
 	pci_slot = pci_create_slot(pci_bus, device, name, NULL);
 	if (IS_ERR(pci_slot)) {
-		err("pci_create_slot returned %ld\n", PTR_ERR(pci_slot));
+		pr_err("pci_create_slot returned %ld\n", PTR_ERR(pci_slot));
 		kfree(slot);
 		return AE_OK;
 	}
@@ -150,8 +147,8 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	get_device(&pci_bus->dev);
 
-	dbg("pci_slot: %p, pci_bus: %x, device: %d, name: %s\n",
-		pci_slot, pci_bus->number, device, name);
+	dbg("%p, pci_bus: %x, device: %d, name: %s\n",
+	    pci_slot, pci_bus->number, device, name);
 
 	return AE_OK;
 }
@@ -186,7 +183,8 @@ void acpi_pci_slot_remove(struct pci_bus *bus)
 
 static int do_sta_before_sun(const struct dmi_system_id *d)
 {
-	info("%s detected: will evaluate _STA before calling _SUN\n", d->ident);
+	pr_info("%s detected: will evaluate _STA before calling _SUN\n",
+		d->ident);
 	check_sta_before_sun = 1;
 	return 0;
 }
