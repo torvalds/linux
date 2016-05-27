@@ -99,7 +99,7 @@ struct telemetry_core_ops {
 	int (*reset_events)(void);
 };
 
-int telemetry_set_pltdata(struct telemetry_core_ops *ops,
+int telemetry_set_pltdata(const struct telemetry_core_ops *ops,
 			  struct telemetry_plt_config *pltconfig);
 
 int telemetry_clear_pltdata(void);

@@ -5331,7 +5331,7 @@ static int tonga_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
 		PP_ASSERT_WITH_CODE(
-			true == tonga_is_dpm_running(hwmgr),
+			0 == tonga_is_dpm_running(hwmgr),
 			"Trying to freeze SCLK DPM when DPM is disabled",
 			);
 		PP_ASSERT_WITH_CODE(
@@ -5344,7 +5344,7 @@ static int tonga_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
-		PP_ASSERT_WITH_CODE(true == tonga_is_dpm_running(hwmgr),
+		PP_ASSERT_WITH_CODE(0 == tonga_is_dpm_running(hwmgr),
 			"Trying to freeze MCLK DPM when DPM is disabled",
 			);
 		PP_ASSERT_WITH_CODE(
@@ -5445,7 +5445,7 @@ static int tonga_populate_and_upload_sclk_mclk_dpm_levels(struct pp_hwmgr *hwmgr
 	}
 
 	if (data->need_update_smu7_dpm_table & (DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK)) {
-		result = tonga_populate_all_memory_levels(hwmgr);
+		result = tonga_populate_all_graphic_levels(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == result),
 			"Failed to populate SCLK during PopulateNewDPMClocksStates Function!",
 			return result);
@@ -5647,7 +5647,7 @@ static int tonga_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
 
-		PP_ASSERT_WITH_CODE(true == tonga_is_dpm_running(hwmgr),
+		PP_ASSERT_WITH_CODE(0 == tonga_is_dpm_running(hwmgr),
 			"Trying to Unfreeze SCLK DPM when DPM is disabled",
 			);
 		PP_ASSERT_WITH_CODE(
@@ -5661,7 +5661,7 @@ static int tonga_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
 		PP_ASSERT_WITH_CODE(
-				true == tonga_is_dpm_running(hwmgr),
+				0 == tonga_is_dpm_running(hwmgr),
 				"Trying to Unfreeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(
@@ -6056,11 +6056,11 @@ static int tonga_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
 	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
 
 	if (!data->soft_pp_table) {
-		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
+		data->soft_pp_table = kmemdup(hwmgr->soft_pp_table,
+					      hwmgr->soft_pp_table_size,
+					      GFP_KERNEL);
 		if (!data->soft_pp_table)
 			return -ENOMEM;
-		memcpy(data->soft_pp_table, hwmgr->soft_pp_table,
-				hwmgr->soft_pp_table_size);
 	}
 
 	*table = (char *)&data->soft_pp_table;
