@@ -393,7 +393,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 		irq_base = irq_alloc_descs(-1, 0, gc->ngpio, 0);
 	else
 		irq_base = irq_alloc_descs(-1, XLP_GPIO_IRQ_BASE, gc->ngpio, 0);
-	if (IS_ERR_VALUE(irq_base)) {
+	if (irq_base < 0) {
 		dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
 		return irq_base;
 	}
