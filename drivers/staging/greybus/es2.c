@@ -869,6 +869,10 @@ static void es2_destroy(struct es2_ap_dev *es2)
 
 	kfree(es2->cport_to_ep);
 
+	/* release reserved CDSI0 and CDSI1 cports */
+	gb_hd_cport_release_reserved(es2->hd, ES2_CPORT_CDSI1);
+	gb_hd_cport_release_reserved(es2->hd, ES2_CPORT_CDSI0);
+
 	udev = es2->usb_dev;
 	gb_hd_put(es2->hd);
 
