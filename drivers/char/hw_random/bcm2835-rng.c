@@ -43,6 +43,8 @@ static int bcm2835_rng_read(struct hwrng *rng, void *buf, size_t max,
 			       bool wait)
 {
 	void __iomem *rng_base = (void __iomem *)rng->priv;
+	u32 max_words = max / sizeof(u32);
+	u32 num_words, count;
 
 	while ((__raw_readl(rng_base + RNG_STATUS) >> 24) == 0) {
 		if (!wait)
@@ -50,8 +52,14 @@ static int bcm2835_rng_read(struct hwrng *rng, void *buf, size_t max,
 		cpu_relax();
 	}
 
-	*(u32 *)buf = __raw_readl(rng_base + RNG_DATA);
-	return sizeof(u32);
+	num_words = readl(rng_base + RNG_STATUS) >> 24;
+	if (num_words > max_words)
+		num_words = max_words;
+
+	for (count = 0; count < num_words; count++)
+		((u32 *)buf)[count] = readl(rng_base + RNG_DATA);
+
+	return num_words * sizeof(u32);
 }
 
 static struct hwrng bcm2835_rng_ops = {
