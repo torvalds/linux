@@ -189,10 +189,15 @@ static __init int sync_debugfs_init(void)
 {
 	dbgfs = debugfs_create_dir("sync", NULL);
 
-	debugfs_create_file("info", 0444, dbgfs, NULL, &sync_info_debugfs_fops);
-
-	debugfs_create_file("sw_sync", 0644, dbgfs, NULL,
-			    &sw_sync_debugfs_fops);
+	/*
+	 * The debugfs files won't ever get removed and thus, there is
+	 * no need to protect it against removal races. The use of
+	 * debugfs_create_file_unsafe() is actually safe here.
+	 */
+	debugfs_create_file_unsafe("info", 0444, dbgfs, NULL,
+				   &sync_info_debugfs_fops);
+	debugfs_create_file_unsafe("sw_sync", 0644, dbgfs, NULL,
+				   &sw_sync_debugfs_fops);
 
 	return 0;
 }
