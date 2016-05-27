@@ -208,8 +208,8 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		if (memcmp(&crtc_state->dpll_hw_state,
 			   &shared_dpll[i].hw_state,
 			   sizeof(crtc_state->dpll_hw_state)) == 0) {
-			DRM_DEBUG_KMS("CRTC:%d sharing existing %s (crtc mask 0x%08x, active %x)\n",
-				      crtc->base.base.id, pll->name,
+			DRM_DEBUG_KMS("[CRTC:%d:%s] sharing existing %s (crtc mask 0x%08x, active %x)\n",
+				      crtc->base.base.id, crtc->base.name, pll->name,
 				      shared_dpll[i].crtc_mask,
 				      pll->active_mask);
 			return pll;
@@ -220,8 +220,8 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 	for (i = range_min; i <= range_max; i++) {
 		pll = &dev_priv->shared_dplls[i];
 		if (shared_dpll[i].crtc_mask == 0) {
-			DRM_DEBUG_KMS("CRTC:%d allocated %s\n",
-				      crtc->base.base.id, pll->name);
+			DRM_DEBUG_KMS("[CRTC:%d:%s] allocated %s\n",
+				      crtc->base.base.id, crtc->base.name, pll->name);
 			return pll;
 		}
 	}
@@ -358,8 +358,8 @@ ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		i = (enum intel_dpll_id) crtc->pipe;
 		pll = &dev_priv->shared_dplls[i];
 
-		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
-			      crtc->base.base.id, pll->name);
+		DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
+			      crtc->base.base.id, crtc->base.name, pll->name);
 	} else {
 		pll = intel_find_shared_dpll(crtc, crtc_state,
 					     DPLL_ID_PCH_PLL_A,
@@ -1613,8 +1613,8 @@ bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	i = (enum intel_dpll_id) intel_dig_port->port;
 	pll = intel_get_shared_dpll_by_id(dev_priv, i);
 
-	DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
-		crtc->base.base.id, pll->name);
+	DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
+		      crtc->base.base.id, crtc->base.name, pll->name);
 
 	intel_reference_shared_dpll(pll, crtc_state);
 
