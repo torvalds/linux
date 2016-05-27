@@ -268,7 +268,7 @@ static ssize_t tool_spadfn_write(struct tool_ctx *tc,
 {
 	int spad_idx;
 	u32 spad_val;
-	char *buf;
+	char *buf, *buf_ptr;
 	int pos, n;
 	ssize_t rc;
 
@@ -288,14 +288,15 @@ static ssize_t tool_spadfn_write(struct tool_ctx *tc,
 	}
 
 	buf[size] = 0;
-
-	n = sscanf(buf, "%d %i%n", &spad_idx, &spad_val, &pos);
+	buf_ptr = buf;
+	n = sscanf(buf_ptr, "%d %i%n", &spad_idx, &spad_val, &pos);
 	while (n == 2) {
+		buf_ptr += pos;
 		rc = spad_write_fn(tc->ntb, spad_idx, spad_val);
 		if (rc)
 			break;
 
-		n = sscanf(buf + pos, "%d %i%n", &spad_idx, &spad_val, &pos);
+		n = sscanf(buf_ptr, "%d %i%n", &spad_idx, &spad_val, &pos);
 	}
 
 	if (n < 0)
