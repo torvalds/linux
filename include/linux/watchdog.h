@@ -66,7 +66,8 @@ struct watchdog_ops {
  *		as configurable from user space. Only relevant if
  *		max_hw_heartbeat_ms is not provided.
  * @min_hw_heartbeat_ms:
- *		Minimum time between heartbeats, in milli-seconds.
+ *		Hardware limit for minimum time between heartbeats,
+ *		in milli-seconds.
  * @max_hw_heartbeat_ms:
  *		Hardware limit for maximum timeout, in milli-seconds.
  *		Replaces max_timeout if specified.
