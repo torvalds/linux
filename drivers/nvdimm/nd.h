@@ -52,6 +52,7 @@ struct nvdimm_drvdata {
 struct nd_region_data {
 	int ns_count;
 	int ns_active;
+	unsigned int flush_mask;
 	void __iomem *flush_wpq[0][0];
 };
 

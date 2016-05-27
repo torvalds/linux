@@ -14,6 +14,7 @@
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/hash.h>
 #include <linux/pmem.h>
 #include <linux/sort.h>
 #include <linux/io.h>
@@ -28,6 +29,7 @@
 #include <linux/io-64-nonatomic-hi-lo.h>
 
 static DEFINE_IDA(region_ida);
+static DEFINE_PER_CPU(int, flush_idx);
 
 static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
 		struct nd_region_data *ndrd)
@@ -67,7 +69,7 @@ static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
 
 int nd_region_activate(struct nd_region *nd_region)
 {
-	int i;
+	int i, num_flush = 0;
 	struct nd_region_data *ndrd;
 	struct device *dev = &nd_region->dev;
 	size_t flush_data_size = sizeof(void *);
@@ -79,6 +81,7 @@ int nd_region_activate(struct nd_region *nd_region)
 
 		/* at least one null hint slot per-dimm for the "no-hint" case */
 		flush_data_size += sizeof(void *);
+		num_flush = min_not_zero(num_flush, nvdimm->num_flush);
 		if (!nvdimm->num_flush)
 			continue;
 		flush_data_size += nvdimm->num_flush * sizeof(void *);
@@ -90,6 +93,7 @@ int nd_region_activate(struct nd_region *nd_region)
 		return -ENOMEM;
 	dev_set_drvdata(dev, ndrd);
 
+	ndrd->flush_mask = (1 << ilog2(num_flush)) - 1;
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm *nvdimm = nd_mapping->nvdimm;
@@ -878,7 +882,14 @@ EXPORT_SYMBOL_GPL(nvdimm_volatile_region_create);
 void nvdimm_flush(struct nd_region *nd_region)
 {
 	struct nd_region_data *ndrd = dev_get_drvdata(&nd_region->dev);
-	int i;
+	int i, idx;
+
+	/*
+	 * Try to encourage some diversity in flush hint addresses
+	 * across cpus assuming a limited number of flush hints.
+	 */
+	idx = this_cpu_read(flush_idx);
+	idx = this_cpu_add_return(flush_idx, hash_32(current->pid + idx, 8));
 
 	/*
 	 * The first wmb() is needed to 'sfence' all previous writes
@@ -890,7 +901,7 @@ void nvdimm_flush(struct nd_region *nd_region)
 	wmb();
 	for (i = 0; i < nd_region->ndr_mappings; i++)
 		if (ndrd->flush_wpq[i][0])
-			writeq(1, ndrd->flush_wpq[i][0]);
+			writeq(1, ndrd->flush_wpq[i][idx & ndrd->flush_mask]);
 	wmb();
 }
 EXPORT_SYMBOL_GPL(nvdimm_flush);
