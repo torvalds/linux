@@ -1756,6 +1756,16 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		if (test_bit(WMI_SERVICE_BSS_CHANNEL_INFO_64, ar->wmi.svc_map))
 			val |= WMI_10_4_BSS_CHANNEL_INFO_64;
 
+		/* 10.4 firmware supports BT-Coex without reloading firmware
+		 * via pdev param. To support Bluetooth coexistence pdev param,
+		 * WMI_COEX_GPIO_SUPPORT of extended resource config should be
+		 * enabled always.
+		 */
+		if (test_bit(WMI_SERVICE_COEX_GPIO, ar->wmi.svc_map) &&
+		    test_bit(ATH10K_FW_FEATURE_BTCOEX_PARAM,
+			     ar->running_fw->fw_file.fw_features))
+			val |= WMI_10_4_COEX_GPIO_SUPPORT;
+
 		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {
 			ath10k_err(ar,
