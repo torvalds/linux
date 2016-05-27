@@ -5135,6 +5135,8 @@ static int __reserve_metadata_bytes(struct btrfs_root *root,
 	int ret = 0;
 
 	ASSERT(orig_bytes);
+	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_ALL);
+
 	spin_lock(&space_info->lock);
 	ret = -ENOSPC;
 	used = space_info->bytes_used + space_info->bytes_reserved +
