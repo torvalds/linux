@@ -2615,10 +2615,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->max_seg_size = mmc->max_req_size;
 	}
 
-	if (dw_mci_get_cd(mmc))
-		set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-	else
-		clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
+	dw_mci_get_cd(mmc);
 
 	ret = mmc_add_host(mmc);
 	if (ret)
