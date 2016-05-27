@@ -35,7 +35,6 @@
 #include <linux/dmi.h>
 #include <linux/pci-acpi.h>
 
-static bool debug;
 static int check_sta_before_sun;
 
 #define DRIVER_VERSION 	"0.1"
@@ -44,17 +43,9 @@ static int check_sta_before_sun;
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
-module_param(debug, bool, 0644);
 
 #define _COMPONENT		ACPI_PCI_COMPONENT
 ACPI_MODULE_NAME("pci_slot");
-
-#define dbg(fmt, ...)						\
-do {								\
-	if (debug)						\
-		pr_debug(fmt, ##__VA_ARGS__);			\
-} while (0)
 
 #define SLOT_NAME_SIZE 21		/* Inspired by #define in acpiphp.h */
 
@@ -75,7 +66,7 @@ check_slot(acpi_handle handle, unsigned long long *sun)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-	dbg("Checking slot on path: %s\n", (char *)buffer.pointer);
+	pr_debug("Checking slot on path: %s\n", (char *)buffer.pointer);
 
 	if (check_sta_before_sun) {
 		/* If SxFy doesn't have _STA, we just assume it's there */
@@ -86,14 +77,16 @@ check_slot(acpi_handle handle, unsigned long long *sun)
 
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
 	if (ACPI_FAILURE(status)) {
-		dbg("_ADR returned %d on %s\n", status, (char *)buffer.pointer);
+		pr_debug("_ADR returned %d on %s\n",
+			 status, (char *)buffer.pointer);
 		goto out;
 	}
 
 	/* No _SUN == not a slot == bail */
 	status = acpi_evaluate_integer(handle, "_SUN", NULL, sun);
 	if (ACPI_FAILURE(status)) {
-		dbg("_SUN returned %d on %s\n", status, (char *)buffer.pointer);
+		pr_debug("_SUN returned %d on %s\n",
+			 status, (char *)buffer.pointer);
 		goto out;
 	}
 
@@ -147,8 +140,8 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	get_device(&pci_bus->dev);
 
-	dbg("%p, pci_bus: %x, device: %d, name: %s\n",
-	    pci_slot, pci_bus->number, device, name);
+	pr_debug("%p, pci_bus: %x, device: %d, name: %s\n",
+		 pci_slot, pci_bus->number, device, name);
 
 	return AE_OK;
 }
