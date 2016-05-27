@@ -127,11 +127,8 @@ static int set_brk(unsigned long start, unsigned long end)
 {
 	start = PAGE_ALIGN(start);
 	end = PAGE_ALIGN(end);
-	if (end > start) {
-		unsigned long addr;
-		addr = vm_brk(start, end - start);
-		if (BAD_ADDR(addr))
-			return addr;
+	if (end > start)
+		return vm_brk(start, end - start);
 	}
 	return 0;
 }
@@ -275,7 +272,7 @@ static int load_aout_binary(struct linux_binprm * bprm)
 		map_size = ex.a_text+ex.a_data;
 #endif
 		error = vm_brk(text_addr & PAGE_MASK, map_size);
-		if (error != (text_addr & PAGE_MASK))
+		if (error)
 			return error;
 
 		error = read_code(bprm->file, text_addr, pos,
@@ -298,7 +295,7 @@ static int load_aout_binary(struct linux_binprm * bprm)
 
 		if (!bprm->file->f_op->mmap||((fd_offset & ~PAGE_MASK) != 0)) {
 			error = vm_brk(N_TXTADDR(ex), ex.a_text+ex.a_data);
-			if (IS_ERR_VALUE(error))
+			if (error)
 				return error;
 
 			read_code(bprm->file, N_TXTADDR(ex), fd_offset,
@@ -382,7 +379,7 @@ static int load_aout_library(struct file *file)
 			       file);
 		}
 		retval = vm_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);
-		if (IS_ERR_VALUE(retval))
+		if (retval)
 			goto out;
 
 		read_code(file, start_addr, N_TXTOFF(ex),
@@ -402,9 +399,8 @@ static int load_aout_library(struct file *file)
 	len = PAGE_ALIGN(ex.a_text + ex.a_data);
 	bss = ex.a_text + ex.a_data + ex.a_bss;
 	if (bss > len) {
-		error = vm_brk(start_addr + len, bss - len);
-		retval = error;
-		if (error != start_addr + len)
+		retval = vm_brk(start_addr + len, bss - len);
+		if (retval)
 			goto out;
 	}
 	retval = 0;
