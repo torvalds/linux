@@ -566,11 +566,11 @@ static int _gb_connection_enable(struct gb_connection *connection, bool rx)
 
 	ret = gb_connection_control_connected(connection);
 	if (ret)
-		goto err_svc_destroy;
+		goto err_flush_operations;
 
 	return 0;
 
-err_svc_destroy:
+err_flush_operations:
 	spin_lock_irq(&connection->lock);
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 	gb_connection_cancel_operations(connection, -ESHUTDOWN);
