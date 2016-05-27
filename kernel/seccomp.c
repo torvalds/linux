@@ -579,9 +579,9 @@ void secure_computing_strict(int this_syscall)
 		BUG();
 }
 #else
-int __secure_computing(void)
+int __secure_computing(const struct seccomp_data *sd)
 {
-	u32 phase1_result = seccomp_phase1(NULL);
+	u32 phase1_result = seccomp_phase1(sd);
 
 	if (likely(phase1_result == SECCOMP_PHASE1_OK))
 		return 0;
