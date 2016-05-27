@@ -55,8 +55,21 @@ struct amdgpu_fence {
 };
 
 static struct kmem_cache *amdgpu_fence_slab;
-static atomic_t amdgpu_fence_slab_ref = ATOMIC_INIT(0);
 
+int amdgpu_fence_slab_init(void)
+{
+	amdgpu_fence_slab = kmem_cache_create(
+		"amdgpu_fence", sizeof(struct amdgpu_fence), 0,
+		SLAB_HWCACHE_ALIGN, NULL);
+	if (!amdgpu_fence_slab)
+		return -ENOMEM;
+	return 0;
+}
+
+void amdgpu_fence_slab_fini(void)
+{
+	kmem_cache_destroy(amdgpu_fence_slab);
+}
 /*
  * Cast helper
  */
@@ -396,13 +409,6 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
  */
 int amdgpu_fence_driver_init(struct amdgpu_device *adev)
 {
-	if (atomic_inc_return(&amdgpu_fence_slab_ref) == 1) {
-		amdgpu_fence_slab = kmem_cache_create(
-			"amdgpu_fence", sizeof(struct amdgpu_fence), 0,
-			SLAB_HWCACHE_ALIGN, NULL);
-		if (!amdgpu_fence_slab)
-			return -ENOMEM;
-	}
 	if (amdgpu_debugfs_fence_init(adev))
 		dev_err(adev->dev, "fence debugfs file creation failed\n");
 
@@ -437,13 +443,10 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		amd_sched_fini(&ring->sched);
 		del_timer_sync(&ring->fence_drv.fallback_timer);
 		for (j = 0; j <= ring->fence_drv.num_fences_mask; ++j)
-			fence_put(ring->fence_drv.fences[i]);
+			fence_put(ring->fence_drv.fences[j]);
 		kfree(ring->fence_drv.fences);
 		ring->fence_drv.initialized = false;
 	}
-
-	if (atomic_dec_and_test(&amdgpu_fence_slab_ref))
-		kmem_cache_destroy(amdgpu_fence_slab);
 }
 
 /**
