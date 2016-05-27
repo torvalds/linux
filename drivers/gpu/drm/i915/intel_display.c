@@ -12380,31 +12380,24 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		state = to_intel_plane_state(plane->state);
 		fb = state->base.fb;
 		if (!fb) {
-			DRM_DEBUG_KMS("%s [PLANE:%d:%s] plane: %u.%u idx: %d "
-				      "disabled, scaler_id = %d\n",
-				plane->type == DRM_PLANE_TYPE_CURSOR ? "CURSOR" : "STANDARD",
-				plane->base.id, plane->name,
-				intel_plane->pipe,
-				(crtc->base.primary == plane) ? 0 : intel_plane->plane + 1,
-				drm_plane_index(plane), state->scaler_id);
+			DRM_DEBUG_KMS("[PLANE:%d:%s] disabled, scaler_id = %d\n",
+				      plane->base.id, plane->name, state->scaler_id);
 			continue;
 		}
 
-		DRM_DEBUG_KMS("%s [PLANE:%d:%s] plane: %u.%u idx: %d enabled",
-			plane->type == DRM_PLANE_TYPE_CURSOR ? "CURSOR" : "STANDARD",
-			plane->base.id, plane->name,
-			intel_plane->pipe,
-			crtc->base.primary == plane ? 0 : intel_plane->plane + 1,
-			drm_plane_index(plane));
-		DRM_DEBUG_KMS("\tFB:%d, fb = %ux%u format = 0x%x",
-			fb->base.id, fb->width, fb->height, fb->pixel_format);
-		DRM_DEBUG_KMS("\tscaler:%d src (%u, %u) %ux%u dst (%u, %u) %ux%u\n",
-			state->scaler_id,
-			state->src.x1 >> 16, state->src.y1 >> 16,
-			drm_rect_width(&state->src) >> 16,
-			drm_rect_height(&state->src) >> 16,
-			state->dst.x1, state->dst.y1,
-			drm_rect_width(&state->dst), drm_rect_height(&state->dst));
+		DRM_DEBUG_KMS("[PLANE:%d:%s] enabled",
+			      plane->base.id, plane->name);
+		DRM_DEBUG_KMS("\tFB:%d, fb = %ux%u format = %s",
+			      fb->base.id, fb->width, fb->height,
+			      drm_get_format_name(fb->pixel_format));
+		DRM_DEBUG_KMS("\tscaler:%d src %dx%d+%d+%d dst %dx%d+%d+%d\n",
+			      state->scaler_id,
+			      state->src.x1 >> 16, state->src.y1 >> 16,
+			      drm_rect_width(&state->src) >> 16,
+			      drm_rect_height(&state->src) >> 16,
+			      state->dst.x1, state->dst.y1,
+			      drm_rect_width(&state->dst),
+			      drm_rect_height(&state->dst));
 	}
 }
 
