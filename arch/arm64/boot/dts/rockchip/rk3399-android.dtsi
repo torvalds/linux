@@ -237,6 +237,7 @@
 		rockchip,grf = <&grf>;
 		rockchip,pwr18 = <0>;
 		rockchip,iommu-enabled = <1>;
+		power-domains = <&power RK3399_PD_VOPB>;
 		power_ctr: power_ctr {
 		/*rockchip,debug = <0>;
 		lcd_en: lcd-en {
@@ -280,6 +281,7 @@
 		rockchip,grf = <&grf>;
 		rockchip,pwr18 = <0>;
 		rockchip,iommu-enabled = <1>;
+		power-domains = <&power RK3399_PD_VOPL>;
 	};
 
 	vopl_mmu_rk_fb: vopl-mmu {
@@ -309,6 +311,7 @@
 		pinctrl-0 = <&hdmi_i2c_xfer &hdmi_cec>;
 		pinctrl-1 = <&i2c3_gpio>;
 		rockchip,grf = <&grf>;
+		power-domains = <&power RK3399_PD_HDCP>;
 	};
 
 	mipi0_rk_fb: mipi-rk-fb@ff960000 {
@@ -319,6 +322,7 @@
 		interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI0>, <&cru SCLK_MIPIDPHY_CFG>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
+		power-domains = <&power RK3399_PD_VIO>;
 	};
 
 	mipi1_rk_fb: mipi-rk-fb@ff968000 {
@@ -329,6 +333,7 @@
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_MIPIDPHY_REF>, <&cru PCLK_MIPI_DSI1>, <&cru SCLK_MIPIDPHY_CFG>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "mipi_dphy_cfg";
+		power-domains = <&power RK3399_PD_VIO>;
 	};
 
 	hdmi-sound {
