@@ -95,13 +95,13 @@ void gb_hd_cport_release(struct gb_host_device *hd, u16 cport_id)
 	}
 
 	ida_simple_remove(&hd->cport_id_map, cport_id);
-
-	trace_gb_hd_release(hd);
 }
 
 static void gb_hd_release(struct device *dev)
 {
 	struct gb_host_device *hd = to_gb_host_device(dev);
+
+	trace_gb_hd_release(hd);
 
 	if (hd->svc)
 		gb_svc_put(hd->svc);
