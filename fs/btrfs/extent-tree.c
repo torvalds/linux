@@ -5744,7 +5744,13 @@ int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
 				  struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_block_rsv *src_rsv = get_block_rsv(trans, root);
+	/*
+	 * We always use trans->block_rsv here as we will have reserved space
+	 * for our orphan when starting the transaction, using get_block_rsv()
+	 * here will sometimes make us choose the wrong block rsv as we could be
+	 * doing a reloc inode for a non refcounted root.
+	 */
+	struct btrfs_block_rsv *src_rsv = trans->block_rsv;
 	struct btrfs_block_rsv *dst_rsv = root->orphan_block_rsv;
 
 	/*
