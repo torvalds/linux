@@ -2892,6 +2892,9 @@ static void handle_reply(struct ceph_osd *osd, struct ceph_msg *msg)
 			dout("req %p tid %llu cb\n", req, req->r_tid);
 			__complete_request(req);
 		}
+		if (m.flags & CEPH_OSD_FLAG_ONDISK)
+			complete_all(&req->r_safe_completion);
+		ceph_osdc_put_request(req);
 	} else {
 		if (req->r_unsafe_callback) {
 			dout("req %p tid %llu unsafe-cb\n", req, req->r_tid);
@@ -2900,10 +2903,7 @@ static void handle_reply(struct ceph_osd *osd, struct ceph_msg *msg)
 			WARN_ON(1);
 		}
 	}
-	if (m.flags & CEPH_OSD_FLAG_ONDISK)
-		complete_all(&req->r_safe_completion);
 
-	ceph_osdc_put_request(req);
 	return;
 
 fail_request:
