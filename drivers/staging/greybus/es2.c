@@ -602,7 +602,7 @@ static void es2_cport_release(struct gb_host_device *hd, u16 cport_id)
 	ida_simple_remove(&hd->cport_id_map, cport_id);
 }
 
-static int cport_enable(struct gb_host_device *hd, u16 cport_id)
+static int cport_disable(struct gb_host_device *hd, u16 cport_id)
 {
 	int retval;
 
@@ -794,7 +794,7 @@ static struct gb_hd_driver es2_driver = {
 	.message_cancel			= message_cancel,
 	.cport_allocate			= es2_cport_allocate,
 	.cport_release			= es2_cport_release,
-	.cport_enable			= cport_enable,
+	.cport_disable			= cport_disable,
 	.latency_tag_enable		= latency_tag_enable,
 	.latency_tag_disable		= latency_tag_disable,
 	.output				= output,
