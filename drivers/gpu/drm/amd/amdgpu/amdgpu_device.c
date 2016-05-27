@@ -827,8 +827,10 @@ static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
  */
 static void amdgpu_atombios_fini(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.atom_context)
+	if (adev->mode_info.atom_context) {
 		kfree(adev->mode_info.atom_context->scratch);
+		kfree(adev->mode_info.atom_context->iio);
+	}
 	kfree(adev->mode_info.atom_context);
 	adev->mode_info.atom_context = NULL;
 	kfree(adev->mode_info.atom_card_info);
