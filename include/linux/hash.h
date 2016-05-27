@@ -41,19 +41,40 @@
 #define GOLDEN_RATIO_32 0x61C88647
 #define GOLDEN_RATIO_64 0x61C8864680B583EBull
 
+#ifdef CONFIG_HAVE_ARCH_HASH
+/* This header may use the GOLDEN_RATIO_xx constants */
+#include <asm/hash.h>
+#endif
 
-static inline u32 __hash_32(u32 val)
+/*
+ * The _generic versions exist only so lib/test_hash.c can compare
+ * the arch-optimized versions with the generic.
+ *
+ * Note that if you change these, any <asm/hash.h> that aren't updated
+ * to match need to have their HAVE_ARCH_* define values updated so the
+ * self-test will not false-positive.
+ */
+#ifndef HAVE_ARCH__HASH_32
+#define __hash_32 __hash_32_generic
+#endif
+static inline u32 __hash_32_generic(u32 val)
 {
 	return val * GOLDEN_RATIO_32;
 }
 
-static inline u32 hash_32(u32 val, unsigned int bits)
+#ifndef HAVE_ARCH_HASH_32
+#define hash_32 hash_32_generic
+#endif
+static inline u32 hash_32_generic(u32 val, unsigned int bits)
 {
 	/* High bits are more random, so use them. */
 	return __hash_32(val) >> (32 - bits);
 }
 
-static __always_inline u32 hash_64(u64 val, unsigned int bits)
+#ifndef HAVE_ARCH_HASH_64
+#define hash_64 hash_64_generic
+#endif
+static __always_inline u32 hash_64_generic(u64 val, unsigned int bits)
 {
 #if BITS_PER_LONG == 64
 	/* 64x64-bit multiply is efficient on all 64-bit processors */
