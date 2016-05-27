@@ -103,8 +103,8 @@ static int mwifiex_sdio_probe_of(struct device *dev, struct sdio_mmc_card *card)
 	int ret;
 
 	if (!of_match_node(mwifiex_sdio_of_match_table, dev->of_node)) {
-		dev_err(dev, "sdio platform data not available\n");
-		return -1;
+		dev_err(dev, "required compatible string missing\n");
+		return -EINVAL;
 	}
 
 	card->plt_of_node = dev->of_node;
