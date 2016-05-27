@@ -4442,7 +4442,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_join_params join_params;
 	enum nl80211_iftype dev_role;
 	struct brcmf_fil_bss_enable_le bss_enable;
-	u16 chanspec;
+	u16 chanspec = chandef_to_chanspec(&cfg->d11inf, &settings->chandef);
 	bool mbss;
 	int is_11d;
 
@@ -4518,16 +4518,8 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 	brcmf_config_ap_mgmt_ie(ifp->vif, &settings->beacon);
 
+	/* Parameters shared by all radio interfaces */
 	if (!mbss) {
-		chanspec = chandef_to_chanspec(&cfg->d11inf,
-					       &settings->chandef);
-		err = brcmf_fil_iovar_int_set(ifp, "chanspec", chanspec);
-		if (err < 0) {
-			brcmf_err("Set Channel failed: chspec=%d, %d\n",
-				  chanspec, err);
-			goto exit;
-		}
-
 		if (is_11d != ifp->vif->is_11d) {
 			err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_REGULATORY,
 						    is_11d);
@@ -4575,6 +4567,8 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		err = -EINVAL;
 		goto exit;
 	}
+
+	/* Interface specific setup */
 	if (dev_role == NL80211_IFTYPE_AP) {
 		if ((brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MBSS)) && (!mbss))
 			brcmf_fil_iovar_int_set(ifp, "mbss", 1);
@@ -4583,6 +4577,17 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		if (err < 0) {
 			brcmf_err("setting AP mode failed %d\n", err);
 			goto exit;
+		}
+		if (!mbss) {
+			/* Firmware 10.x requires setting channel after enabling
+			 * AP and before bringing interface up.
+			 */
+			err = brcmf_fil_iovar_int_set(ifp, "chanspec", chanspec);
+			if (err < 0) {
+				brcmf_err("Set Channel failed: chspec=%d, %d\n",
+					  chanspec, err);
+				goto exit;
+			}
 		}
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 1);
 		if (err < 0) {
@@ -4605,7 +4610,13 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			goto exit;
 		}
 		brcmf_dbg(TRACE, "AP mode configuration complete\n");
-	} else {
+	} else if (dev_role == NL80211_IFTYPE_P2P_GO) {
+		err = brcmf_fil_iovar_int_set(ifp, "chanspec", chanspec);
+		if (err < 0) {
+			brcmf_err("Set Channel failed: chspec=%d, %d\n",
+				  chanspec, err);
+			goto exit;
+		}
 		err = brcmf_fil_bsscfg_data_set(ifp, "ssid", &ssid_le,
 						sizeof(ssid_le));
 		if (err < 0) {
@@ -4622,7 +4633,10 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		}
 
 		brcmf_dbg(TRACE, "GO mode configuration complete\n");
+	} else {
+		WARN_ON(1);
 	}
+
 	set_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 	brcmf_net_setcarrier(ifp, true);
 
