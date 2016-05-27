@@ -1578,6 +1578,42 @@ bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 	return false;
 }
 
+bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum port port)
+{
+	static const struct {
+		u16 dp, hdmi;
+	} port_mapping[] = {
+		/*
+		 * Buggy VBTs may declare DP ports as having
+		 * HDMI type dvo_port :( So let's check both.
+		 */
+		[PORT_B] = { DVO_PORT_DPB, DVO_PORT_HDMIB, },
+		[PORT_C] = { DVO_PORT_DPC, DVO_PORT_HDMIC, },
+		[PORT_D] = { DVO_PORT_DPD, DVO_PORT_HDMID, },
+		[PORT_E] = { DVO_PORT_DPE, DVO_PORT_HDMIE, },
+	};
+	int i;
+
+	if (port == PORT_A || port >= ARRAY_SIZE(port_mapping))
+		return false;
+
+	if (!dev_priv->vbt.child_dev_num)
+		return false;
+
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		const union child_device_config *p_child =
+			&dev_priv->vbt.child_dev[i];
+
+		if ((p_child->common.dvo_port == port_mapping[port].dp ||
+		     p_child->common.dvo_port == port_mapping[port].hdmi) &&
+		    (p_child->common.device_type & DEVICE_TYPE_DP_DUAL_MODE_BITS) ==
+		    (DEVICE_TYPE_DP_DUAL_MODE & DEVICE_TYPE_DP_DUAL_MODE_BITS))
+			return true;
+	}
+
+	return false;
+}
+
 /**
  * intel_bios_is_dsi_present - is DSI present in VBT
  * @dev_priv:	i915 device instance
