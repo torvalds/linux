@@ -1839,7 +1839,7 @@ sub output_function_rst(%) {
 	    $args{'parameterdescs'}{$parameter_name} ne $undescribed) {
 	    output_highlight_rst($args{'parameterdescs'}{$parameter_name});
 	} else {
-	    print "  _undescribed_\n";
+	    print "  *undescribed*\n";
 	}
 	print "\n";
     }
@@ -1882,7 +1882,7 @@ sub output_enum_rst(%) {
 	if ($args{'parameterdescs'}{$parameter} ne $undescribed) {
 	    output_highlight_rst($args{'parameterdescs'}{$parameter});
 	} else {
-	    print "  _undescribed_\n";
+	    print "  *undescribed*\n";
 	}
 	print "\n";
     }
