@@ -266,9 +266,8 @@ int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio)
 
 	nsio->addr = devm_memremap(dev, res->start, resource_size(res),
 			ARCH_MEMREMAP_PMEM);
-	if (IS_ERR(nsio->addr))
-		return PTR_ERR(nsio->addr);
-	return 0;
+
+	return PTR_ERR_OR_ZERO(nsio->addr);
 }
 EXPORT_SYMBOL_GPL(devm_nsio_enable);
 

@@ -395,12 +395,10 @@ int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus)
 	dev = device_create(nd_class, &nvdimm_bus->dev, devt, nvdimm_bus,
 			"ndctl%d", nvdimm_bus->id);
 
-	if (IS_ERR(dev)) {
+	if (IS_ERR(dev))
 		dev_dbg(&nvdimm_bus->dev, "failed to register ndctl%d: %ld\n",
 				nvdimm_bus->id, PTR_ERR(dev));
-		return PTR_ERR(dev);
-	}
-	return 0;
+	return PTR_ERR_OR_ZERO(dev);
 }
 
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus)
