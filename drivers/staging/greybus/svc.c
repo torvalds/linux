@@ -438,6 +438,16 @@ int gb_svc_connection_create(struct gb_svc *svc,
 }
 EXPORT_SYMBOL_GPL(gb_svc_connection_create);
 
+void gb_svc_connection_quiescing(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
+					u8 intf2_id, u16 cport2_id)
+{
+	/* FIXME: implement */
+
+	dev_dbg(&svc->dev, "%s - (%u:%u %u:%u)\n", __func__,
+				intf1_id, cport1_id, intf2_id, cport2_id);
+}
+EXPORT_SYMBOL_GPL(gb_svc_connection_quiescing);
+
 void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			       u8 intf2_id, u16 cport2_id)
 {
