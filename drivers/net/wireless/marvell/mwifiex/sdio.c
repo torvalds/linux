@@ -114,7 +114,7 @@ static int mwifiex_sdio_probe_of(struct device *dev, struct sdio_mmc_card *card)
 	if (cfg && card->plt_of_node) {
 		cfg->irq_wifi = irq_of_parse_and_map(card->plt_of_node, 0);
 		if (!cfg->irq_wifi) {
-			dev_err(dev,
+			dev_dbg(dev,
 				"fail to parse irq_wifi from device tree\n");
 		} else {
 			ret = devm_request_irq(dev, cfg->irq_wifi,
