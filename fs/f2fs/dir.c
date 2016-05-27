@@ -230,7 +230,7 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 
 	err = fscrypt_setup_filename(dir, child, 1, &fname);
 	if (err) {
-		*res_page = ERR_PTR(-ENOMEM);
+		*res_page = ERR_PTR(err);
 		return NULL;
 	}
 
