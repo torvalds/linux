@@ -182,7 +182,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	sdio_release_host(func);
 
 	if (ret) {
-		pr_err("%s: failed to enable function\n", __func__);
+		dev_err(&func->dev, "failed to enable function\n");
 		goto err_free;
 	}
 
@@ -193,7 +193,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	ret = mwifiex_add_card(card, &add_remove_card_sem, &sdio_ops,
 			       MWIFIEX_SDIO);
 	if (ret) {
-		pr_err("%s: add card failed\n", __func__);
+		dev_err(&func->dev, "add card failed\n");
 		goto err_disable;
 	}
 
