@@ -866,7 +866,6 @@ static int _name##_open_fs(struct inode *inode, struct file *file)	\
 }									\
 									\
 static const struct file_operations f2fs_seq_##_name##_fops = {		\
-	.owner = THIS_MODULE,						\
 	.open = _name##_open_fs,					\
 	.read = seq_read,						\
 	.llseek = seq_lseek,						\

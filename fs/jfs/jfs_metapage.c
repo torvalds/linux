@@ -828,7 +828,6 @@ static int jfs_mpstat_proc_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations jfs_mpstat_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= jfs_mpstat_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
