@@ -75,7 +75,7 @@ extern __iomem void *ltq_cgu_membase;
 
 /*
  * during early_printk no ioremap is possible
- * lets use KSEG1 instead
+ * let's use KSEG1 instead
  */
 #define LTQ_ASC1_BASE_ADDR	0x1E100C00
 #define LTQ_EARLY_ASC		KSEG1ADDR(LTQ_ASC1_BASE_ADDR)
