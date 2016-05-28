@@ -609,23 +609,21 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 	char buf[32];
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
-
 	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
 
 	/* make sure that buf is null terminated */
 	buf[sizeof(buf) - 1] = 0;
 
+	/* drop the possible '\n' from the end */
+	if (buf[count - 1] == '\n')
+		buf[count - 1] = 0;
+
+	mutex_lock(&ar->conf_mutex);
+
 	if (ar->state != ATH10K_STATE_ON &&
 	    ar->state != ATH10K_STATE_RESTARTED) {
 		ret = -ENETDOWN;
 		goto exit;
-	}
-
-	/* drop the possible '\n' from the end */
-	if (buf[count - 1] == '\n') {
-		buf[count - 1] = 0;
-		count--;
 	}
 
 	if (!strcmp(buf, "soft")) {
