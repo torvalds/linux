@@ -2190,7 +2190,7 @@ static int btrfs_prepare_sprout(struct btrfs_root *root)
 }
 
 /*
- * strore the expected generation for seed devices in device items.
+ * Store the expected generation for seed devices in device items.
  */
 static int btrfs_finish_sprout(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root)
@@ -3387,7 +3387,7 @@ static int should_balance_chunk(struct btrfs_root *root,
 	} else if ((bargs->flags & BTRFS_BALANCE_ARGS_LIMIT_RANGE)) {
 		/*
 		 * Same logic as the 'limit' filter; the minimum cannot be
-		 * determined here because we do not have the global informatoin
+		 * determined here because we do not have the global information
 		 * about the count of all chunks that satisfy the filters.
 		 */
 		if (bargs->limit_max == 0)
@@ -6076,7 +6076,7 @@ static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
 {
 	atomic_inc(&bbio->error);
 	if (atomic_dec_and_test(&bbio->stripes_pending)) {
-		/* Shoud be the original bio. */
+		/* Should be the original bio. */
 		WARN_ON(bio != bbio->orig_bio);
 
 		btrfs_io_bio(bio)->mirror_num = bbio->mirror_num;
@@ -6560,7 +6560,7 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	set_extent_buffer_uptodate(sb);
 	btrfs_set_buffer_lockdep_class(root->root_key.objectid, sb, 0);
 	/*
-	 * The sb extent buffer is artifical and just used to read the system array.
+	 * The sb extent buffer is artificial and just used to read the system array.
 	 * set_extent_buffer_uptodate() call does not properly mark all it's
 	 * pages up-to-date when the page is larger: extent does not cover the
 	 * whole page and consequently check_page_uptodate does not find all
@@ -6630,13 +6630,13 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 		sb_array_offset += len;
 		cur_offset += len;
 	}
-	free_extent_buffer(sb);
+	free_extent_buffer_stale(sb);
 	return ret;
 
 out_short_read:
 	printk(KERN_ERR "BTRFS: sys_array too short to read %u bytes at offset %u\n",
 			len, cur_offset);
-	free_extent_buffer(sb);
+	free_extent_buffer_stale(sb);
 	return -EIO;
 }
 
