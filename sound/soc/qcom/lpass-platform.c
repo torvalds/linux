@@ -474,7 +474,7 @@ static int lpass_platform_pcm_new(struct snd_soc_pcm_runtime *soc_runtime)
 	struct lpass_data *drvdata =
 		snd_soc_platform_get_drvdata(soc_runtime->platform);
 	struct lpass_variant *v = drvdata->variant;
-	int ret;
+	int ret = -EINVAL;
 	struct lpass_pcm_data *data;
 	size_t size = lpass_platform_pcm_hardware.buffer_bytes_max;
 
@@ -518,8 +518,10 @@ static int lpass_platform_pcm_new(struct snd_soc_pcm_runtime *soc_runtime)
 			data->wrdma_ch = v->alloc_dma_channel(drvdata,
 						SNDRV_PCM_STREAM_CAPTURE);
 
-		if (data->wrdma_ch < 0)
+		if (data->wrdma_ch < 0) {
+			ret = data->wrdma_ch;
 			goto capture_alloc_err;
+		}
 
 		drvdata->substream[data->wrdma_ch] = csubstream;
 
