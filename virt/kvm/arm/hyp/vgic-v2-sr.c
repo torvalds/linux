@@ -21,18 +21,11 @@
 
 #include <asm/kvm_hyp.h>
 
-#ifdef CONFIG_KVM_NEW_VGIC
-extern struct vgic_global kvm_vgic_global_state;
-#define vgic_v2_params kvm_vgic_global_state
-#else
-extern struct vgic_params vgic_v2_params;
-#endif
-
 static void __hyp_text save_maint_int_state(struct kvm_vcpu *vcpu,
 					    void __iomem *base)
 {
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	int nr_lr = (kern_hyp_va(&vgic_v2_params))->nr_lr;
+	int nr_lr = (kern_hyp_va(&kvm_vgic_global_state))->nr_lr;
 	u32 eisr0, eisr1;
 	int i;
 	bool expect_mi;
@@ -74,7 +67,7 @@ static void __hyp_text save_maint_int_state(struct kvm_vcpu *vcpu,
 static void __hyp_text save_elrsr(struct kvm_vcpu *vcpu, void __iomem *base)
 {
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	int nr_lr = (kern_hyp_va(&vgic_v2_params))->nr_lr;
+	int nr_lr = (kern_hyp_va(&kvm_vgic_global_state))->nr_lr;
 	u32 elrsr0, elrsr1;
 
 	elrsr0 = readl_relaxed(base + GICH_ELRSR0);
@@ -93,7 +86,7 @@ static void __hyp_text save_elrsr(struct kvm_vcpu *vcpu, void __iomem *base)
 static void __hyp_text save_lrs(struct kvm_vcpu *vcpu, void __iomem *base)
 {
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	int nr_lr = (kern_hyp_va(&vgic_v2_params))->nr_lr;
+	int nr_lr = (kern_hyp_va(&kvm_vgic_global_state))->nr_lr;
 	int i;
 
 	for (i = 0; i < nr_lr; i++) {
@@ -147,7 +140,7 @@ void __hyp_text __vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
 	void __iomem *base = kern_hyp_va(vgic->vctrl_base);
-	int nr_lr = (kern_hyp_va(&vgic_v2_params))->nr_lr;
+	int nr_lr = (kern_hyp_va(&kvm_vgic_global_state))->nr_lr;
 	int i;
 	u64 live_lrs = 0;
 
