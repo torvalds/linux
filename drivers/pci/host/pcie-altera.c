@@ -415,11 +415,6 @@ static void altera_pcie_isr(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void altera_pcie_release_of_pci_ranges(struct altera_pcie *pcie)
-{
-	pci_free_resource_list(&pcie->resources);
-}
-
 static int altera_pcie_parse_request_of_pci_ranges(struct altera_pcie *pcie)
 {
 	int err, res_valid = 0;
@@ -439,25 +434,18 @@ static int altera_pcie_parse_request_of_pci_ranges(struct altera_pcie *pcie)
 	resource_list_for_each_entry(win, &pcie->resources) {
 		struct resource *res = win->res;
 
-		switch (resource_type(res)) {
-		case IORESOURCE_MEM:
+		if (resource_type(res) == IORESOURCE_MEM)
 			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
-			break;
-		default:
-			continue;
-		}
 	}
 
-	if (!res_valid) {
-		dev_err(dev, "non-prefetchable memory resource required\n");
-		err = -EINVAL;
-		goto out_release_res;
-	}
+	if (res_valid)
+		return 0;
 
-	return 0;
+	dev_err(dev, "non-prefetchable memory resource required\n");
+	err = -EINVAL;
 
 out_release_res:
-	altera_pcie_release_of_pci_ranges(pcie);
+	pci_free_resource_list(&pcie->resources);
 	return err;
 }
 
