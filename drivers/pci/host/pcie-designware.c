@@ -452,6 +452,10 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	if (ret)
 		return ret;
 
+	ret = devm_request_pci_bus_resources(&pdev->dev, &res);
+	if (ret)
+		goto error;
+
 	/* Get the I/O and memory ranges from DT */
 	resource_list_for_each_entry(win, &res) {
 		switch (resource_type(win->res)) {
