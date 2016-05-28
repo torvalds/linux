@@ -149,15 +149,15 @@ struct rvt_driver_params {
 	int qpn_res_end;
 	int nports;
 	int npkeys;
-	u8 qos_shift;
 	char cq_name[RVT_CQN_MAX];
 	int node;
-	int max_rdma_atomic;
 	int psn_mask;
 	int psn_shift;
 	int psn_modify_mask;
 	u32 core_cap_flags;
 	u32 max_mad_size;
+	u8 qos_shift;
+	u8 max_rdma_atomic;
 };
 
 /* Protection domain */
@@ -423,6 +423,15 @@ static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
 	 * All ports have same number of pkeys.
 	 */
 	return rdi->dparms.npkeys;
+}
+
+/*
+ * Return the max atomic suitable for determining
+ * the size of the ack ring buffer in a QP.
+ */
+static inline unsigned int rvt_max_atomic(struct rvt_dev_info *rdi)
+{
+	return rdi->dparms.max_rdma_atomic + 1;
 }
 
 /*
