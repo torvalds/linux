@@ -2814,11 +2814,11 @@ sub process_file($) {
 		$in_doc_sect = 1;
 		$in_purpose = 0;
 		$contents = $newcontents;
+		while ((substr($contents, 0, 1) eq " ") ||
+		       substr($contents, 0, 1) eq "\t") {
+		    $contents = substr($contents, 1);
+		}
 		if ($contents ne "") {
-		    while ((substr($contents, 0, 1) eq " ") ||
-			substr($contents, 0, 1) eq "\t") {
-			    $contents = substr($contents, 1);
-		    }
 		    $contents .= "\n";
 		}
 		$section = $newsection;
