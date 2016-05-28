@@ -536,7 +536,6 @@ struct se_node_acl {
 	char			initiatorname[TRANSPORT_IQN_LEN];
 	/* Used to signal demo mode created ACL, disabled by default */
 	bool			dynamic_node_acl;
-	bool			acl_stop:1;
 	u32			queue_depth;
 	u32			acl_index;
 	enum target_prot_type	saved_prot_type;
@@ -603,7 +602,6 @@ struct se_session {
 	struct list_head	sess_cmd_list;
 	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
-	struct kref		sess_kref;
 	void			*sess_cmd_map;
 	struct percpu_ida	sess_tag_pool;
 };
