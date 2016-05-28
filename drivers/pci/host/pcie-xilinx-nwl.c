@@ -829,6 +829,10 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	err = devm_request_pci_bus_resources(pcie->dev, &res);
+	if (err)
+		goto error;
+
 	err = nwl_pcie_init_irq_domain(pcie);
 	if (err) {
 		dev_err(pcie->dev, "Failed creating IRQ Domain\n");
