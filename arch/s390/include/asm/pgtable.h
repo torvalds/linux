@@ -32,7 +32,7 @@
 #include <asm/bug.h>
 #include <asm/page.h>
 
-extern pgd_t swapper_pg_dir[] __attribute__ ((aligned (4096)));
+extern pgd_t swapper_pg_dir[];
 extern void paging_init(void);
 extern void vmem_map_init(void);
 pmd_t *vmem_pmd_alloc(void);
