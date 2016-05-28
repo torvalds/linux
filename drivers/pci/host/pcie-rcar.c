@@ -938,11 +938,6 @@ static const struct of_device_id rcar_pcie_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rcar_pcie_of_match);
 
-static void rcar_pcie_release_of_pci_ranges(struct rcar_pcie *pci)
-{
-	pci_free_resource_list(&pci->resources);
-}
-
 static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 {
 	int err;
@@ -962,28 +957,18 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 	resource_list_for_each_entry(win, &pci->resources) {
 		struct resource *res = win->res;
 
-		switch (resource_type(res)) {
-		case IORESOURCE_IO:
+		if (resource_type(res) == IORESOURCE_IO) {
 			err = pci_remap_iospace(res, iobase);
-			if (err) {
+			if (err)
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);
-				continue;
-			}
-			break;
-		case IORESOURCE_MEM:
-			break;
-
-		case IORESOURCE_BUS:
-		default:
-			continue;
 		}
 	}
 
 	return 0;
 
 out_release_res:
-	rcar_pcie_release_of_pci_ranges(pci);
+	pci_free_resource_list(&pci->resources);
 	return err;
 }
 
