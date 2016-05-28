@@ -1897,7 +1897,6 @@ sub output_typedef_rst(%) {
     my $oldprefix = $lineprefix;
     my $name = "typedef " . $args{'typedef'};
 
-    ### FIXME: should the name below contain "typedef" or not?
     print "\n\n.. c:type:: " . $name . "\n\n";
     $lineprefix = "   ";
     output_highlight_rst($args{'purpose'});
