@@ -38,7 +38,7 @@ static int gen_pci_parse_request_of_pci_ranges(struct device *dev,
 
 	err = devm_request_pci_bus_resources(dev, resources);
 	if (err)
-		goto out_release_res;
+		return err;
 
 	resource_list_for_each_entry(win, resources) {
 		struct resource *res = win->res;
@@ -46,32 +46,24 @@ static int gen_pci_parse_request_of_pci_ranges(struct device *dev,
 		switch (resource_type(res)) {
 		case IORESOURCE_IO:
 			err = pci_remap_iospace(res, iobase);
-			if (err) {
+			if (err)
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);
-				continue;
-			}
 			break;
 		case IORESOURCE_MEM:
 			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
 			break;
 		case IORESOURCE_BUS:
 			*bus_range = res;
-		default:
-			continue;
+			break;
 		}
 	}
 
-	if (!res_valid) {
-		dev_err(dev, "non-prefetchable memory resource required\n");
-		err = -EINVAL;
-		goto out_release_res;
-	}
+	if (res_valid)
+		return 0;
 
-	return 0;
-
-out_release_res:
-	return err;
+	dev_err(dev, "non-prefetchable memory resource required\n");
+	return -EINVAL;
 }
 
 static void gen_pci_unmap_cfg(void *ptr)
