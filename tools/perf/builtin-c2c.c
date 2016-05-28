@@ -807,6 +807,9 @@ percent_stores_l1miss_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	return per_left - per_right;
 }
 
+STAT_FN(lcl_dram)
+STAT_FN(rmt_dram)
+
 #define HEADER_LOW(__h)			\
 	{				\
 		.line[1] = {		\
@@ -1055,6 +1058,22 @@ static struct c2c_dimension dim_percent_stores_l1miss = {
 	.width		= 7,
 };
 
+static struct c2c_dimension dim_dram_lcl = {
+	.header		= HEADER_SPAN("--- Load Dram ----", "Lcl", 1),
+	.name		= "dram_lcl",
+	.cmp		= lcl_dram_cmp,
+	.entry		= lcl_dram_entry,
+	.width		= 8,
+};
+
+static struct c2c_dimension dim_dram_rmt = {
+	.header		= HEADER_SPAN_LOW("Rmt"),
+	.name		= "dram_rmt",
+	.cmp		= rmt_dram_cmp,
+	.entry		= rmt_dram_entry,
+	.width		= 8,
+};
+
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
 	&dim_offset,
@@ -1082,6 +1101,8 @@ static struct c2c_dimension *dimensions[] = {
 	&dim_percent_lcl_hitm,
 	&dim_percent_stores_l1hit,
 	&dim_percent_stores_l1miss,
+	&dim_dram_lcl,
+	&dim_dram_rmt,
 	NULL,
 };
 
