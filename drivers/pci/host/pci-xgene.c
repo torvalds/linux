@@ -540,6 +540,10 @@ static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = devm_request_pci_bus_resources(&pdev->dev, &res);
+	if (ret)
+		goto error;
+
 	ret = xgene_pcie_setup(port, &res, iobase);
 	if (ret)
 		goto error;
