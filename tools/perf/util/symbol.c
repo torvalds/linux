@@ -1704,10 +1704,7 @@ proc_kallsyms:
 	}
 
 	/* Finally, find a cache of kallsyms */
-	scnprintf(path, sizeof(path), "%s/%s/%s",
-		  buildid_dir, DSO__NAME_KALLSYMS, sbuild_id);
-
-	if (access(path, F_OK)) {
+	if (!build_id_cache__kallsyms_path(sbuild_id, path, sizeof(path))) {
 		pr_err("No kallsyms or vmlinux with build-id %s was found\n",
 		       sbuild_id);
 		return NULL;
