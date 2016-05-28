@@ -1141,12 +1141,13 @@ ecryptfs_write_metadata_to_contents(struct inode *ecryptfs_inode,
 
 static int
 ecryptfs_write_metadata_to_xattr(struct dentry *ecryptfs_dentry,
+				 struct inode *ecryptfs_inode,
 				 char *page_virt, size_t size)
 {
 	int rc;
 
-	rc = ecryptfs_setxattr(ecryptfs_dentry, ECRYPTFS_XATTR_NAME, page_virt,
-			       size, 0);
+	rc = ecryptfs_setxattr(ecryptfs_dentry, ecryptfs_inode,
+			       ECRYPTFS_XATTR_NAME, page_virt, size, 0);
 	return rc;
 }
 
@@ -1215,8 +1216,8 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
 		goto out_free;
 	}
 	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
-		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry, virt,
-						      size);
+		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry, ecryptfs_inode,
+						      virt, size);
 	else
 		rc = ecryptfs_write_metadata_to_contents(ecryptfs_inode, virt,
 							 virt_len);
