@@ -453,6 +453,7 @@ struct rvt_sge_state;
 #define HLS_LINK_COOLDOWN BIT(__HLS_LINK_COOLDOWN_BP)
 
 #define HLS_UP (HLS_UP_INIT | HLS_UP_ARMED | HLS_UP_ACTIVE)
+#define HLS_DOWN ~(HLS_UP)
 
 /* use this MTU size if none other is given */
 #define HFI1_DEFAULT_ACTIVE_MTU 10240
@@ -1168,6 +1169,7 @@ struct hfi1_devdata {
 	atomic_t aspm_disabled_cnt;
 
 	struct hfi1_affinity *affinity;
+	struct kobject kobj;
 };
 
 /* 8051 firmware version helper */
@@ -1882,9 +1884,8 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 		get_unit_name((dd)->unit), ##__VA_ARGS__)
 
 #define hfi1_dev_porterr(dd, port, fmt, ...) \
-	dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
-			get_unit_name((dd)->unit), (dd)->unit, (port), \
-			##__VA_ARGS__)
+	dev_err(&(dd)->pcidev->dev, "%s: port %u: " fmt, \
+			get_unit_name((dd)->unit), (port), ##__VA_ARGS__)
 
 /*
  * this is used for formatting hw error messages...

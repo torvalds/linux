@@ -1161,7 +1161,7 @@ int hfi1_set_lid(struct hfi1_pportdata *ppd, u32 lid, u8 lmc)
 	ppd->lmc = lmc;
 	hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_LIDLMC, 0);
 
-	dd_dev_info(dd, "IB%u:%u got a lid: 0x%x\n", dd->unit, ppd->port, lid);
+	dd_dev_info(dd, "port %u: got a lid: 0x%x\n", ppd->port, lid);
 
 	return 0;
 }

@@ -997,6 +997,106 @@ static inline int update_child_pkey(struct ipoib_dev_priv *priv)
 	return 0;
 }
 
+/*
+ * returns true if the device address of the ipoib interface has changed and the
+ * new address is a valid one (i.e in the gid table), return false otherwise.
+ */
+static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
+{
+	union ib_gid search_gid;
+	union ib_gid gid0;
+	union ib_gid *netdev_gid;
+	int err;
+	u16 index;
+	u8 port;
+	bool ret = false;
+
+	netdev_gid = (union ib_gid *)(priv->dev->dev_addr + 4);
+	if (ib_query_gid(priv->ca, priv->port, 0, &gid0, NULL))
+		return false;
+
+	netif_addr_lock(priv->dev);
+
+	/* The subnet prefix may have changed, update it now so we won't have
+	 * to do it later
+	 */
+	priv->local_gid.global.subnet_prefix = gid0.global.subnet_prefix;
+	netdev_gid->global.subnet_prefix = gid0.global.subnet_prefix;
+	search_gid.global.subnet_prefix = gid0.global.subnet_prefix;
+
+	search_gid.global.interface_id = priv->local_gid.global.interface_id;
+
+	netif_addr_unlock(priv->dev);
+
+	err = ib_find_gid(priv->ca, &search_gid, IB_GID_TYPE_IB,
+			  priv->dev, &port, &index);
+
+	netif_addr_lock(priv->dev);
+
+	if (search_gid.global.interface_id !=
+	    priv->local_gid.global.interface_id)
+		/* There was a change while we were looking up the gid, bail
+		 * here and let the next work sort this out
+		 */
+		goto out;
+
+	/* The next section of code needs some background:
+	 * Per IB spec the port GUID can't change if the HCA is powered on.
+	 * port GUID is the basis for GID at index 0 which is the basis for
+	 * the default device address of a ipoib interface.
+	 *
+	 * so it seems the flow should be:
+	 * if user_changed_dev_addr && gid in gid tbl
+	 *	set bit dev_addr_set
+	 *	return true
+	 * else
+	 *	return false
+	 *
+	 * The issue is that there are devices that don't follow the spec,
+	 * they change the port GUID when the HCA is powered, so in order
+	 * not to break userspace applications, We need to check if the
+	 * user wanted to control the device address and we assume that
+	 * if he sets the device address back to be based on GID index 0,
+	 * he no longer wishs to control it.
+	 *
+	 * If the user doesn't control the the device address,
+	 * IPOIB_FLAG_DEV_ADDR_SET is set and ib_find_gid failed it means
+	 * the port GUID has changed and GID at index 0 has changed
+	 * so we need to change priv->local_gid and priv->dev->dev_addr
+	 * to reflect the new GID.
+	 */
+	if (!test_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags)) {
+		if (!err && port == priv->port) {
+			set_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
+			if (index == 0)
+				clear_bit(IPOIB_FLAG_DEV_ADDR_CTRL,
+					  &priv->flags);
+			else
+				set_bit(IPOIB_FLAG_DEV_ADDR_CTRL, &priv->flags);
+			ret = true;
+		} else {
+			ret = false;
+		}
+	} else {
+		if (!err && port == priv->port) {
+			ret = true;
+		} else {
+			if (!test_bit(IPOIB_FLAG_DEV_ADDR_CTRL, &priv->flags)) {
+				memcpy(&priv->local_gid, &gid0,
+				       sizeof(priv->local_gid));
+				memcpy(priv->dev->dev_addr + 4, &gid0,
+				       sizeof(priv->local_gid));
+				ret = true;
+			}
+		}
+	}
+
+out:
+	netif_addr_unlock(priv->dev);
+
+	return ret;
+}
+
 static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 				enum ipoib_flush_level level,
 				int nesting)
@@ -1018,6 +1118,9 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 
 	if (!test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags) &&
 	    level != IPOIB_FLUSH_HEAVY) {
+		/* Make sure the dev_addr is set even if not flushing */
+		if (level == IPOIB_FLUSH_LIGHT)
+			ipoib_dev_addr_changed_valid(priv);
 		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_INITIALIZED not set.\n");
 		return;
 	}
@@ -1029,7 +1132,8 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 				update_parent_pkey(priv);
 			else
 				update_child_pkey(priv);
-		}
+		} else if (level == IPOIB_FLUSH_LIGHT)
+			ipoib_dev_addr_changed_valid(priv);
 		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_ADMIN_UP not set.\n");
 		return;
 	}
@@ -1081,7 +1185,8 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)) {
 		if (level >= IPOIB_FLUSH_NORMAL)
 			ipoib_ib_dev_up(dev);
-		ipoib_mcast_restart_task(&priv->restart_task);
+		if (ipoib_dev_addr_changed_valid(priv))
+			ipoib_mcast_restart_task(&priv->restart_task);
 	}
 }
 

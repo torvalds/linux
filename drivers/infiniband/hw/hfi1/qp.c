@@ -49,7 +49,6 @@
 #include <linux/vmalloc.h>
 #include <linux/hash.h>
 #include <linux/module.h>
-#include <linux/random.h>
 #include <linux/seq_file.h>
 #include <rdma/rdma_vt.h>
 #include <rdma/rdmavt_qp.h>
@@ -161,9 +160,6 @@ static inline int opa_mtu_enum_to_int(int mtu)
  * This function is what we would push to the core layer if we wanted to be a
  * "first class citizen".  Instead we hide this here and rely on Verbs ULPs
  * to blindly pass the MTU enum value from the PathRecord to us.
- *
- * The actual flag used to determine "8k MTU" will change and is currently
- * unknown.
  */
 static inline int verbs_mtu_enum_to_int(struct ib_device *dev, enum ib_mtu mtu)
 {
@@ -516,6 +512,7 @@ static void iowait_wakeup(struct iowait *wait, int reason)
 static void iowait_sdma_drained(struct iowait *wait)
 {
 	struct rvt_qp *qp = iowait_to_qp(wait);
+	unsigned long flags;
 
 	/*
 	 * This happens when the send engine notes
@@ -523,12 +520,12 @@ static void iowait_sdma_drained(struct iowait *wait)
 	 * do the flush work until that QP's
 	 * sdma work has finished.
 	 */
-	spin_lock(&qp->s_lock);
+	spin_lock_irqsave(&qp->s_lock, flags);
 	if (qp->s_flags & RVT_S_WAIT_DMA) {
 		qp->s_flags &= ~RVT_S_WAIT_DMA;
 		hfi1_schedule_send(qp);
 	}
-	spin_unlock(&qp->s_lock);
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
 /**

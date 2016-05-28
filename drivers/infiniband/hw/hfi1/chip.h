@@ -398,6 +398,12 @@
 /* Lane ID for general configuration registers */
 #define GENERAL_CONFIG 4
 
+/* LINK_TUNING_PARAMETERS fields */
+#define TUNING_METHOD_SHIFT 24
+
+/* LINK_OPTIMIZATION_SETTINGS fields */
+#define ENABLE_EXT_DEV_CONFIG_SHIFT 24
+
 /* LOAD_DATA 8051 command shifts and fields */
 #define LOAD_DATA_FIELD_ID_SHIFT 40
 #define LOAD_DATA_FIELD_ID_MASK 0xfull

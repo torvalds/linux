@@ -178,7 +178,8 @@
 		     HFI1_CAP_PKEY_CHECK |		\
 		     HFI1_CAP_NO_INTEGRITY)
 
-#define HFI1_USER_SWVERSION ((HFI1_USER_SWMAJOR << 16) | HFI1_USER_SWMINOR)
+#define HFI1_USER_SWVERSION ((HFI1_USER_SWMAJOR << HFI1_SWMAJOR_SHIFT) | \
+			     HFI1_USER_SWMINOR)
 
 #ifndef HFI1_KERN_TYPE
 #define HFI1_KERN_TYPE 0
@@ -348,6 +349,8 @@ struct hfi1_message_header {
 #define HFI1_BECN_SHIFT 30
 #define HFI1_BECN_MASK 1
 #define HFI1_BECN_SMASK BIT(HFI1_BECN_SHIFT)
+
+#define HFI1_PSM_IOC_BASE_SEQ 0x0
 
 static inline __u64 rhf_to_cpu(const __le32 *rbuf)
 {

@@ -1037,6 +1037,7 @@ static void dc_shutdown(struct hfi1_devdata *);
 static void dc_start(struct hfi1_devdata *);
 static int qos_rmt_entries(struct hfi1_devdata *dd, unsigned int *mp,
 			   unsigned int *np);
+static void remove_full_mgmt_pkey(struct hfi1_pportdata *ppd);
 
 /*
  * Error interrupt table entry.  This is used as input to the interrupt
@@ -6105,7 +6106,7 @@ int acquire_lcb_access(struct hfi1_devdata *dd, int sleep_ok)
 	}
 
 	/* this access is valid only when the link is up */
-	if ((ppd->host_link_state & HLS_UP) == 0) {
+	if (ppd->host_link_state & HLS_DOWN) {
 		dd_dev_info(dd, "%s: link state %s not up\n",
 			    __func__, link_state_name(ppd->host_link_state));
 		ret = -EBUSY;
@@ -6961,6 +6962,8 @@ void handle_link_down(struct work_struct *work)
 	}
 
 	reset_neighbor_info(ppd);
+	if (ppd->mgmt_allowed)
+		remove_full_mgmt_pkey(ppd);
 
 	/* disable the port */
 	clear_rcvctrl(ppd->dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
@@ -7066,6 +7069,12 @@ static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 		dd_dev_warn(dd, "%s pkey[2] already set to 0x%x, resetting it to 0x%x\n",
 			    __func__, ppd->pkeys[2], FULL_MGMT_P_KEY);
 	ppd->pkeys[2] = FULL_MGMT_P_KEY;
+	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
+}
+
+static void remove_full_mgmt_pkey(struct hfi1_pportdata *ppd)
+{
+	ppd->pkeys[2] = 0;
 	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
 }
 
@@ -7429,7 +7438,7 @@ void apply_link_downgrade_policy(struct hfi1_pportdata *ppd, int refresh_widths)
 retry:
 	mutex_lock(&ppd->hls_lock);
 	/* only apply if the link is up */
-	if (!(ppd->host_link_state & HLS_UP)) {
+	if (ppd->host_link_state & HLS_DOWN) {
 		/* still going up..wait and retry */
 		if (ppd->host_link_state & HLS_GOING_UP) {
 			if (++tries < 1000) {
@@ -9212,9 +9221,6 @@ void reset_qsfp(struct hfi1_pportdata *ppd)
 
 	/* Reset the QSFP */
 	mask = (u64)QSFP_HFI0_RESET_N;
-	qsfp_mask = read_csr(dd, dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE);
-	qsfp_mask |= mask;
-	write_csr(dd, dd->hfi1_id ? ASIC_QSFP2_OE : ASIC_QSFP1_OE, qsfp_mask);
 
 	qsfp_mask = read_csr(dd,
 			     dd->hfi1_id ? ASIC_QSFP2_OUT : ASIC_QSFP1_OUT);
@@ -9251,6 +9257,12 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 	    (qsfp_interrupt_status[0] & QSFP_LOW_TEMP_WARNING))
 		dd_dev_info(dd, "%s: QSFP cable temperature too low\n",
 			    __func__);
+
+	/*
+	 * The remaining alarms/warnings don't matter if the link is down.
+	 */
+	if (ppd->host_link_state & HLS_DOWN)
+		return 0;
 
 	if ((qsfp_interrupt_status[1] & QSFP_HIGH_VCC_ALARM) ||
 	    (qsfp_interrupt_status[1] & QSFP_HIGH_VCC_WARNING))
@@ -9346,9 +9358,8 @@ void qsfp_event(struct work_struct *work)
 		return;
 
 	/*
-	 * Turn DC back on after cables has been
-	 * re-inserted. Up until now, the DC has been in
-	 * reset to save power.
+	 * Turn DC back on after cable has been re-inserted. Up until
+	 * now, the DC has been in reset to save power.
 	 */
 	dc_start(dd);
 
@@ -9480,7 +9491,15 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 			return ret;
 	}
 
-	/* tune the SERDES to a ballpark setting for
+	get_port_type(ppd);
+	if (ppd->port_type == PORT_TYPE_QSFP) {
+		set_qsfp_int_n(ppd, 0);
+		wait_for_qsfp_init(ppd);
+		set_qsfp_int_n(ppd, 1);
+	}
+
+	/*
+	 * Tune the SerDes to a ballpark setting for
 	 * optimal signal and bit error rate
 	 * Needs to be done before starting the link
 	 */
@@ -10074,7 +10093,7 @@ u32 driver_physical_state(struct hfi1_pportdata *ppd)
  */
 u32 driver_logical_state(struct hfi1_pportdata *ppd)
 {
-	if (ppd->host_link_state && !(ppd->host_link_state & HLS_UP))
+	if (ppd->host_link_state && (ppd->host_link_state & HLS_DOWN))
 		return IB_PORT_DOWN;
 
 	switch (ppd->host_link_state & HLS_UP) {
@@ -14578,7 +14597,7 @@ u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,
 		   (reason), (ret))
 
 /*
- * Initialize the Avago Thermal sensor.
+ * Initialize the thermal sensor.
  *
  * After initialization, enable polling of thermal sensor through
  * SBus interface. In order for this to work, the SBus Master
