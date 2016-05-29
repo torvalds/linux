@@ -175,7 +175,7 @@ static struct rt2880_pmx_func spi_cs1_grp_mt7628[] = {
 };
 
 static struct rt2880_pmx_func spis_grp_mt7628[] = {
-	FUNC("pwm", 3, 14, 4),
+	FUNC("pwm_uart2", 3, 14, 4),
 	FUNC("util", 2, 14, 4),
 	FUNC("gpio", 1, 14, 4),
 	FUNC("spis", 0, 14, 4),
