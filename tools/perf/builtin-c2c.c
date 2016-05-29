@@ -63,6 +63,13 @@ struct perf_c2c {
 	/* HITM shared clines stats */
 	struct c2c_stats	hitm_stats;
 	int			shared_clines;
+
+	int			 display;
+};
+
+enum {
+	DISPLAY_LCL,
+	DISPLAY_RMT,
 };
 
 static struct perf_c2c c2c;
@@ -684,15 +691,24 @@ static double percent_hitm(struct c2c_hist_entry *c2c_he)
 	struct c2c_hists *hists;
 	struct c2c_stats *stats;
 	struct c2c_stats *total;
-	int tot, st;
+	int tot = 0, st = 0;
 	double p;
 
 	hists = container_of(c2c_he->he.hists, struct c2c_hists, hists);
 	stats = &c2c_he->stats;
 	total = &hists->stats;
 
-	st  = stats->rmt_hitm;
-	tot = total->rmt_hitm;
+	switch (c2c.display) {
+	case DISPLAY_RMT:
+		st  = stats->rmt_hitm;
+		tot = total->rmt_hitm;
+		break;
+	case DISPLAY_LCL:
+		st  = stats->lcl_hitm;
+		tot = total->lcl_hitm;
+	default:
+		break;
+	}
 
 	p = tot ? (double) st / tot : 0;
 
@@ -975,13 +991,25 @@ node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 			ret = scnprintf(hpp->buf, hpp->size, "%2d{%2d ", node, num);
 			advance_hpp(hpp, ret);
 
-
-			if (c2c_he->stats.rmt_hitm > 0) {
-				ret = scnprintf(hpp->buf, hpp->size, "%5.1f%% ",
-						percent(stats->rmt_hitm, c2c_he->stats.rmt_hitm));
-			} else {
-				ret = scnprintf(hpp->buf, hpp->size, "%6s ", "n/a");
+		#define DISPLAY_HITM(__h)						\
+			if (c2c_he->stats.__h> 0) {					\
+				ret = scnprintf(hpp->buf, hpp->size, "%5.1f%% ",	\
+						percent(stats->__h, c2c_he->stats.__h));\
+			} else {							\
+				ret = scnprintf(hpp->buf, hpp->size, "%6s ", "n/a");	\
 			}
+
+			switch (c2c.display) {
+			case DISPLAY_RMT:
+				DISPLAY_HITM(rmt_hitm);
+				break;
+			case DISPLAY_LCL:
+				DISPLAY_HITM(lcl_hitm);
+			default:
+				break;
+			}
+
+		#undef DISPLAY_HITM
 
 			advance_hpp(hpp, ret);
 
@@ -1258,8 +1286,12 @@ static struct c2c_dimension dim_tot_loads = {
 	.width		= 7,
 };
 
+static struct c2c_header percent_hitm_header[] = {
+	[DISPLAY_LCL] = HEADER_BOTH("Lcl", "Hitm"),
+	[DISPLAY_RMT] = HEADER_BOTH("Rmt", "Hitm"),
+};
+
 static struct c2c_dimension dim_percent_hitm = {
-	.header		= HEADER_LOW("%hitm"),
 	.name		= "percent_hitm",
 	.cmp		= percent_hitm_cmp,
 	.entry		= percent_hitm_entry,
@@ -1654,13 +1686,26 @@ static bool he__display(struct hist_entry *he, struct c2c_stats *stats)
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 
-	if (stats->rmt_hitm) {
-		ld_dist = ((double)c2c_he->stats.rmt_hitm / stats->rmt_hitm);
-		if (ld_dist < DISPLAY_LINE_LIMIT)
-			he->filtered = HIST_FILTER__C2C;
-	} else {
-		he->filtered = HIST_FILTER__C2C;
+#define FILTER_HITM(__h)						\
+	if (stats->__h) {						\
+		ld_dist = ((double)c2c_he->stats.__h / stats->__h);	\
+		if (ld_dist < DISPLAY_LINE_LIMIT)			\
+			he->filtered = HIST_FILTER__C2C;		\
+	} else {							\
+		he->filtered = HIST_FILTER__C2C;			\
 	}
+
+	switch (c2c.display) {
+	case DISPLAY_LCL:
+		FILTER_HITM(lcl_hitm);
+		break;
+	case DISPLAY_RMT:
+		FILTER_HITM(rmt_hitm);
+	default:
+		break;
+	};
+
+#undef FILTER_HITM
 
 	return he->filtered == 0;
 }
@@ -1668,9 +1713,12 @@ static bool he__display(struct hist_entry *he, struct c2c_stats *stats)
 static inline int valid_hitm_or_store(struct hist_entry *he)
 {
 	struct c2c_hist_entry *c2c_he;
+	bool has_hitm;
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
-	return c2c_he->stats.rmt_hitm || c2c_he->stats.store;
+	has_hitm = c2c.display == DISPLAY_LCL ?
+		   c2c_he->stats.lcl_hitm : c2c_he->stats.rmt_hitm;
+	return has_hitm || c2c_he->stats.store;
 }
 
 static int filter_cb(struct hist_entry *he)
@@ -1951,6 +1999,8 @@ static void print_c2c_info(FILE *out, struct perf_session *session)
 			perf_evsel__name(evsel));
 		first = false;
 	}
+	fprintf(out, "  Cachelines sort on                : %s HITMs\n",
+		c2c.display == DISPLAY_LCL ? "Local" : "Remote");
 }
 
 static void perf_c2c__hists_fprintf(FILE *out, struct perf_session *session)
@@ -2083,8 +2133,10 @@ static int perf_c2c_browser__title(struct hist_browser *browser,
 				   char *bf, size_t size)
 {
 	scnprintf(bf, size,
-		  "Shared Data Cache Line Table "
-		  "(%lu entries)", browser->nr_non_filtered_entries);
+		  "Shared Data Cache Line Table     "
+		  "(%lu entries, sorted on %s HITMs)",
+		  browser->nr_non_filtered_entries,
+		  c2c.display == DISPLAY_LCL ? "local" : "remote");
 	return 0;
 }
 
@@ -2156,6 +2208,8 @@ static void ui_quirks(void)
 		dim_offset.width  = 5;
 		dim_offset.header = header_offset_tui;
 	}
+
+	dim_percent_hitm.header = percent_hitm_header[c2c.display];
 }
 
 #define CALLCHAIN_DEFAULT_OPT  "graph,0.5,caller,function,percent"
@@ -2210,6 +2264,22 @@ static int setup_callchain(struct perf_evlist *evlist)
 	return 0;
 }
 
+static int setup_display(const char *str)
+{
+	const char *display = str ?: "rmt";
+
+	if (!strcmp(display, "rmt"))
+		c2c.display = DISPLAY_RMT;
+	else if (!strcmp(display, "lcl"))
+		c2c.display = DISPLAY_LCL;
+	else {
+		pr_err("failed: unknown display type: %s\n", str);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int perf_c2c__report(int argc, const char **argv)
 {
 	struct perf_session *session;
@@ -2218,6 +2288,7 @@ static int perf_c2c__report(int argc, const char **argv)
 		.mode = PERF_DATA_MODE_READ,
 	};
 	char callchain_default_opt[] = CALLCHAIN_DEFAULT_OPT;
+	const char *display = NULL;
 	const struct option c2c_options[] = {
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
@@ -2236,6 +2307,7 @@ static int perf_c2c__report(int argc, const char **argv)
 			     "print_type,threshold[,print_limit],order,sort_key[,branch],value",
 			     callchain_help, &parse_callchain_opt,
 			     callchain_default_opt),
+	OPT_STRING('d', "display", &display, NULL, "lcl,rmt"),
 	OPT_END()
 	};
 	int err = 0;
@@ -2259,6 +2331,10 @@ static int perf_c2c__report(int argc, const char **argv)
 		input_name = "perf.data";
 
 	file.path = input_name;
+
+	err = setup_display(display);
+	if (err)
+		goto out;
 
 	err = c2c_hists__init(&c2c.hists, "dcacheline", 2);
 	if (err) {
@@ -2307,7 +2383,7 @@ static int perf_c2c__report(int argc, const char **argv)
 			"tot_loads,"
 			"ld_fbhit,ld_l1hit,ld_l2hit,"
 			"ld_lclhit,ld_rmthit",
-			"rmt_hitm"
+			c2c.display == DISPLAY_LCL ? "lcl_hitm" : "rmt_hitm"
 			);
 
 	ui_progress__init(&prog, c2c.hists.hists.nr_entries, "Sorting...");
