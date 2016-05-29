@@ -45,7 +45,6 @@ struct nvkm_secboot {
 
 	enum nvkm_devidx devidx;
 	u32 base;
-	u32 enable_mask;
 };
 #define nvkm_secboot(p) container_of((p), struct nvkm_secboot, subdev)
 

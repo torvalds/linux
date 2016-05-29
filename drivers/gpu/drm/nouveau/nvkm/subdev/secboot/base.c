@@ -71,12 +71,11 @@ nvkm_secboot_falcon_enable(struct nvkm_secboot *sb)
 	int ret;
 
 	/* enable engine */
-	nvkm_mask(device, 0x200, sb->enable_mask, sb->enable_mask);
-	nvkm_rd32(device, 0x200);
+	nvkm_mc_enable(device, sb->devidx);
 	ret = nvkm_wait_msec(device, 10, sb->base + 0x10c, 0x6, 0x0);
 	if (ret < 0) {
-		nvkm_mask(device, 0x200, sb->enable_mask, 0x0);
 		nvkm_error(&sb->subdev, "Falcon mem scrubbing timeout\n");
+		nvkm_mc_disable(device, sb->devidx);
 		return ret;
 	}
 
@@ -103,7 +102,7 @@ nvkm_secboot_falcon_disable(struct nvkm_secboot *sb)
 	falcon_wait_idle(device, sb->base);
 
 	/* disable engine */
-	nvkm_mask(device, 0x200, sb->enable_mask, 0x0);
+	nvkm_mc_disable(device, sb->devidx);
 
 	return 0;
 }
@@ -271,7 +270,6 @@ nvkm_secboot_ctor(const struct nvkm_secboot_func *func,
 	case NVKM_SECBOOT_FALCON_PMU:
 		sb->devidx = NVKM_SUBDEV_PMU;
 		sb->base = 0x10a000;
-		sb->enable_mask = 0x2000;
 		break;
 	default:
 		nvkm_error(&sb->subdev, "invalid secure boot falcon\n");
