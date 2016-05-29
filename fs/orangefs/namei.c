@@ -405,12 +405,8 @@ static int orangefs_rename(struct inode *old_dir,
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "orangefs_rename: called (%s/%s => %s/%s) ct=%d\n",
-		     old_dentry->d_parent->d_name.name,
-		     old_dentry->d_name.name,
-		     new_dentry->d_parent->d_name.name,
-		     new_dentry->d_name.name,
-		     d_count(new_dentry));
+		     "orangefs_rename: called (%pd2 => %pd2) ct=%d\n",
+		     old_dentry, new_dentry, d_count(new_dentry));
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_RENAME);
 	if (!new_op)
