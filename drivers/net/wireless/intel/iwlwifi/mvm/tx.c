@@ -1329,7 +1329,15 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			bool send_eosp_ndp = false;
 
 			spin_lock_bh(&mvmsta->lock);
-			txq_agg = (mvmsta->tid_data[tid].state == IWL_AGG_ON);
+			if (iwl_mvm_is_dqa_supported(mvm)) {
+				enum iwl_mvm_agg_state state;
+
+				state = mvmsta->tid_data[tid].state;
+				txq_agg = (state == IWL_AGG_ON ||
+					state == IWL_EMPTYING_HW_QUEUE_DELBA);
+			} else {
+				txq_agg = txq_id >= mvm->first_agg_queue;
+			}
 
 			if (!is_ndp) {
 				tid_data->next_reclaimed = next_reclaimed;
