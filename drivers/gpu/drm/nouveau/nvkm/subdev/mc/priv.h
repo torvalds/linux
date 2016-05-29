@@ -11,6 +11,7 @@ int nvkm_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *,
 struct nvkm_mc_map {
 	u32 stat;
 	u32 unit;
+	bool noauto;
 };
 
 struct nvkm_mc_func {

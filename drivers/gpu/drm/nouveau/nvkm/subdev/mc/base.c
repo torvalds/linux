@@ -95,22 +95,32 @@ nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 	*handled = intr != 0;
 }
 
-static void
-nvkm_mc_reset_(struct nvkm_mc *mc, enum nvkm_devidx devidx)
+static u32
+nvkm_mc_reset_mask(struct nvkm_device *device, bool isauto,
+		   enum nvkm_devidx devidx)
 {
-	struct nvkm_device *device = mc->subdev.device;
+	struct nvkm_mc *mc = device->mc;
 	const struct nvkm_mc_map *map;
-	u64 pmc_enable;
-
-	if (!(pmc_enable = nvkm_top_reset(device, devidx))) {
-		for (map = mc->func->reset; map && map->stat; map++) {
-			if (map->unit == devidx) {
-				pmc_enable = map->stat;
-				break;
+	u64 pmc_enable = 0;
+	if (likely(mc)) {
+		if (!(pmc_enable = nvkm_top_reset(device, devidx))) {
+			for (map = mc->func->reset; map && map->stat; map++) {
+				if (!isauto || !map->noauto) {
+					if (map->unit == devidx) {
+						pmc_enable = map->stat;
+						break;
+					}
+				}
 			}
 		}
 	}
+	return pmc_enable;
+}
 
+void
+nvkm_mc_reset(struct nvkm_device *device, enum nvkm_devidx devidx)
+{
+	u64 pmc_enable = nvkm_mc_reset_mask(device, true, devidx);
 	if (pmc_enable) {
 		nvkm_mask(device, 0x000200, pmc_enable, 0x00000000);
 		nvkm_mask(device, 0x000200, pmc_enable, pmc_enable);
@@ -119,11 +129,21 @@ nvkm_mc_reset_(struct nvkm_mc *mc, enum nvkm_devidx devidx)
 }
 
 void
-nvkm_mc_reset(struct nvkm_device *device, enum nvkm_devidx devidx)
+nvkm_mc_disable(struct nvkm_device *device, enum nvkm_devidx devidx)
 {
-	struct nvkm_mc *mc = device->mc;
-	if (likely(mc))
-		nvkm_mc_reset_(mc, devidx);
+	u64 pmc_enable = nvkm_mc_reset_mask(device, false, devidx);
+	if (pmc_enable)
+		nvkm_mask(device, 0x000200, pmc_enable, 0x00000000);
+}
+
+void
+nvkm_mc_enable(struct nvkm_device *device, enum nvkm_devidx devidx)
+{
+	u64 pmc_enable = nvkm_mc_reset_mask(device, false, devidx);
+	if (pmc_enable) {
+		nvkm_mask(device, 0x000200, pmc_enable, pmc_enable);
+		nvkm_rd32(device, 0x000200);
+	}
 }
 
 static int
