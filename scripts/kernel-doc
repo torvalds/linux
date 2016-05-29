@@ -1764,7 +1764,9 @@ sub output_blockhead_rst(%) {
     my ($parameter, $section);
 
     foreach $section (@{$args{'sectionlist'}}) {
-	print "**$section**\n\n";
+	if ($output_selection != OUTPUT_INCLUDE) {
+	    print "**$section**\n\n";
+	}
 	output_highlight_rst($args{'sections'}{$section});
 	print "\n";
     }
