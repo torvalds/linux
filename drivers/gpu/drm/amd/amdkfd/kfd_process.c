@@ -63,13 +63,12 @@ static struct kfd_process *create_process(const struct task_struct *thread);
 void kfd_process_create_wq(void)
 {
 	if (!kfd_process_wq)
-		kfd_process_wq = create_workqueue("kfd_process_wq");
+		kfd_process_wq = alloc_workqueue("kfd_process_wq", 0, 0);
 }
 
 void kfd_process_destroy_wq(void)
 {
 	if (kfd_process_wq) {
-		flush_workqueue(kfd_process_wq);
 		destroy_workqueue(kfd_process_wq);
 		kfd_process_wq = NULL;
 	}
