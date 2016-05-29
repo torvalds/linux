@@ -1962,20 +1962,20 @@ unsigned int full_name_hash(const char *name, unsigned int len)
 EXPORT_SYMBOL(full_name_hash);
 
 /* Return the "hash_len" (hash and length) of a null-terminated string */
-u64 hash_string(const char *name)
+u64 hashlen_string(const char *name)
 {
 	unsigned long hash = init_name_hash();
 	unsigned long len = 0, c;
 
 	c = (unsigned char)*name;
-	do {
+	while (c) {
 		len++;
 		hash = partial_name_hash(c, hash);
 		c = (unsigned char)name[len];
-	} while (c);
+	}
 	return hashlen_create(end_name_hash(hash), len);
 }
-EXPORT_SYMBOL(hash_string);
+EXPORT_SYMBOL(hashlen_string);
 
 /*
  * We know there's a real path component here of at least
