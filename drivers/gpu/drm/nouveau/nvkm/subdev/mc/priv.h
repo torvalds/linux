@@ -3,6 +3,8 @@
 #define nvkm_mc(p) container_of((p), struct nvkm_mc, subdev)
 #include <subdev/mc.h>
 
+void nvkm_mc_ctor(const struct nvkm_mc_func *, struct nvkm_device *,
+		  int index, struct nvkm_mc *);
 int nvkm_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *,
 		 int index, struct nvkm_mc **);
 

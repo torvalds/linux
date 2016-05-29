@@ -148,16 +148,21 @@ nvkm_mc = {
 	.fini = nvkm_mc_fini,
 };
 
+void
+nvkm_mc_ctor(const struct nvkm_mc_func *func, struct nvkm_device *device,
+	     int index, struct nvkm_mc *mc)
+{
+	nvkm_subdev_ctor(&nvkm_mc, device, index, &mc->subdev);
+	mc->func = func;
+}
+
 int
 nvkm_mc_new_(const struct nvkm_mc_func *func, struct nvkm_device *device,
 	     int index, struct nvkm_mc **pmc)
 {
 	struct nvkm_mc *mc;
-
 	if (!(mc = *pmc = kzalloc(sizeof(*mc), GFP_KERNEL)))
 		return -ENOMEM;
-
-	nvkm_subdev_ctor(&nvkm_mc, device, index, &mc->subdev);
-	mc->func = func;
+	nvkm_mc_ctor(func, device, index, *pmc);
 	return 0;
 }
