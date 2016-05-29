@@ -129,7 +129,6 @@ static int set_brk(unsigned long start, unsigned long end)
 	end = PAGE_ALIGN(end);
 	if (end > start)
 		return vm_brk(start, end - start);
-	}
 	return 0;
 }
 
