@@ -139,12 +139,16 @@ EXPORT_SYMBOL(__msr_check_and_clear);
 #ifdef CONFIG_PPC_FPU
 void __giveup_fpu(struct task_struct *tsk)
 {
+	unsigned long msr;
+
 	save_fpu(tsk);
-	tsk->thread.regs->msr &= ~MSR_FP;
+	msr = tsk->thread.regs->msr;
+	msr &= ~MSR_FP;
 #ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX))
-		tsk->thread.regs->msr &= ~MSR_VSX;
+		msr &= ~MSR_VSX;
 #endif
+	tsk->thread.regs->msr = msr;
 }
 
 void giveup_fpu(struct task_struct *tsk)
@@ -219,12 +223,16 @@ static int restore_fp(struct task_struct *tsk) { return 0; }
 
 static void __giveup_altivec(struct task_struct *tsk)
 {
+	unsigned long msr;
+
 	save_altivec(tsk);
-	tsk->thread.regs->msr &= ~MSR_VEC;
+	msr = tsk->thread.regs->msr;
+	msr &= ~MSR_VEC;
 #ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX))
-		tsk->thread.regs->msr &= ~MSR_VSX;
+		msr &= ~MSR_VSX;
 #endif
+	tsk->thread.regs->msr = msr;
 }
 
 void giveup_altivec(struct task_struct *tsk)
