@@ -44,6 +44,7 @@ void nv50_mc_init(struct nvkm_mc *);
 
 void gf100_mc_intr_unarm(struct nvkm_mc *);
 void gf100_mc_intr_rearm(struct nvkm_mc *);
+void gf100_mc_intr_mask(struct nvkm_mc *, u32, u32);
 u32 gf100_mc_intr_stat(struct nvkm_mc *);
 void gf100_mc_unk260(struct nvkm_mc *, u32);
 
