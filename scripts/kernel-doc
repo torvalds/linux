@@ -401,7 +401,8 @@ my $doc_end = '\*/';
 my $doc_com = '\s*\*\s*';
 my $doc_com_body = '\s*\* ?';
 my $doc_decl = $doc_com . '(\w+)';
-my $doc_sect = $doc_com . '(\@?[\w\s]+):(.*)';
+# @params and a strictly limited set of supported section names
+my $doc_sect = $doc_com . '\s*(\@\w+|description|context|returns?)\s*:(.*)';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 my $doc_inline_start = '^\s*/\*\*\s*$';
@@ -417,6 +418,8 @@ my $sectcheck;
 my $struct_actual;
 
 my $contents = "";
+
+# the canonical section names. see also $doc_sect above.
 my $section_default = "Description";	# default section
 my $section_intro = "Introduction";
 my $section = $section_default;
@@ -2798,9 +2801,21 @@ sub process_file($) {
 		$state = STATE_NORMAL;
 	    }
 	} elsif ($state == STATE_FIELD) {	# look for head: lines, and include content
-	    if (/$doc_sect/o) {
+	    if (/$doc_sect/i) { # case insensitive for supported section names
 		$newsection = $1;
 		$newcontents = $2;
+
+		# map the supported section names to the canonical names
+		if ($newsection =~ m/^description$/i) {
+		    $newsection = $section_default;
+		} elsif ($newsection =~ m/^context$/i) {
+		    $newsection = $section_context;
+		} elsif ($newsection =~ m/^returns?$/i) {
+		    $newsection = $section_return;
+		} elsif ($newsection =~ m/^\@return$/) {
+		    # special: @return is a section, not a param description
+		    $newsection = $section_return;
+		}
 
 		if (($contents ne "") && ($contents ne "\n")) {
 		    if (!$in_doc_sect && $verbose) {
