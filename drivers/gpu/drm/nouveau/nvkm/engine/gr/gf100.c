@@ -1460,7 +1460,7 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 
 	if (gr->firmware) {
 		/* load fuc microcode */
-		nvkm_mc_unk260(device->mc, 0);
+		nvkm_mc_unk260(device, 0);
 
 		/* securely-managed falcons must be reset using secure boot */
 		if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
@@ -1474,7 +1474,7 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 			gf100_gr_init_fw(gr, 0x41a000, &gr->fuc41ac,
 					 &gr->fuc41ad);
 
-		nvkm_mc_unk260(device->mc, 1);
+		nvkm_mc_unk260(device, 1);
 
 		/* start both of them running */
 		nvkm_wr32(device, 0x409840, 0xffffffff);
@@ -1576,7 +1576,7 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 	}
 
 	/* load HUB microcode */
-	nvkm_mc_unk260(device->mc, 0);
+	nvkm_mc_unk260(device, 0);
 	nvkm_wr32(device, 0x4091c0, 0x01000000);
 	for (i = 0; i < gr->func->fecs.ucode->data.size / 4; i++)
 		nvkm_wr32(device, 0x4091c4, gr->func->fecs.ucode->data.data[i]);
@@ -1599,7 +1599,7 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 			nvkm_wr32(device, 0x41a188, i >> 6);
 		nvkm_wr32(device, 0x41a184, gr->func->gpccs.ucode->code.data[i]);
 	}
-	nvkm_mc_unk260(device->mc, 1);
+	nvkm_mc_unk260(device, 1);
 
 	/* load register lists */
 	gf100_gr_init_csdata(gr, grctx->hub, 0x409000, 0x000, 0x000000);

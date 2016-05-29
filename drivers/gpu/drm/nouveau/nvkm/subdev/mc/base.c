@@ -27,22 +27,27 @@
 #include <subdev/top.h>
 
 void
-nvkm_mc_unk260(struct nvkm_mc *mc, u32 data)
+nvkm_mc_unk260(struct nvkm_device *device, u32 data)
 {
-	if (mc->func->unk260)
+	struct nvkm_mc *mc = device->mc;
+	if (likely(mc) && mc->func->unk260)
 		mc->func->unk260(mc, data);
 }
 
 void
-nvkm_mc_intr_unarm(struct nvkm_mc *mc)
+nvkm_mc_intr_unarm(struct nvkm_device *device)
 {
-	return mc->func->intr_unarm(mc);
+	struct nvkm_mc *mc = device->mc;
+	if (likely(mc))
+		mc->func->intr_unarm(mc);
 }
 
 void
-nvkm_mc_intr_rearm(struct nvkm_mc *mc)
+nvkm_mc_intr_rearm(struct nvkm_device *device)
 {
-	return mc->func->intr_rearm(mc);
+	struct nvkm_mc *mc = device->mc;
+	if (likely(mc))
+		mc->func->intr_rearm(mc);
 }
 
 static u32
@@ -55,14 +60,18 @@ nvkm_mc_intr_mask(struct nvkm_mc *mc)
 }
 
 void
-nvkm_mc_intr(struct nvkm_mc *mc, bool *handled)
+nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 {
-	struct nvkm_device *device = mc->subdev.device;
+	struct nvkm_mc *mc = device->mc;
 	struct nvkm_subdev *subdev;
-	const struct nvkm_mc_map *map = mc->func->intr;
-	u32 stat, intr = nvkm_mc_intr_mask(mc);
+	const struct nvkm_mc_map *map;
+	u32 stat, intr;
 	u64 subdevs;
 
+	if (unlikely(!mc))
+		return;
+
+	intr = nvkm_mc_intr_mask(mc);
 	stat = nvkm_top_intr(device, intr, &subdevs);
 	while (subdevs) {
 		enum nvkm_devidx subidx = __ffs64(subdevs);
@@ -72,14 +81,13 @@ nvkm_mc_intr(struct nvkm_mc *mc, bool *handled)
 		subdevs &= ~BIT_ULL(subidx);
 	}
 
-	while (map->stat) {
+	for (map = mc->func->intr; map->stat; map++) {
 		if (intr & map->stat) {
 			subdev = nvkm_device_subdev(device, map->unit);
 			if (subdev)
 				nvkm_subdev_intr(subdev);
 			stat &= ~map->stat;
 		}
-		map++;
 	}
 
 	if (stat)
@@ -111,8 +119,9 @@ nvkm_mc_reset_(struct nvkm_mc *mc, enum nvkm_devidx devidx)
 }
 
 void
-nvkm_mc_reset(struct nvkm_mc *mc, enum nvkm_devidx devidx)
+nvkm_mc_reset(struct nvkm_device *device, enum nvkm_devidx devidx)
 {
+	struct nvkm_mc *mc = device->mc;
 	if (likely(mc))
 		nvkm_mc_reset_(mc, devidx);
 }
@@ -120,8 +129,7 @@ nvkm_mc_reset(struct nvkm_mc *mc, enum nvkm_devidx devidx)
 static int
 nvkm_mc_fini(struct nvkm_subdev *subdev, bool suspend)
 {
-	struct nvkm_mc *mc = nvkm_mc(subdev);
-	nvkm_mc_intr_unarm(mc);
+	nvkm_mc_intr_unarm(subdev->device);
 	return 0;
 }
 
@@ -131,7 +139,7 @@ nvkm_mc_init(struct nvkm_subdev *subdev)
 	struct nvkm_mc *mc = nvkm_mc(subdev);
 	if (mc->func->init)
 		mc->func->init(mc);
-	nvkm_mc_intr_rearm(mc);
+	nvkm_mc_intr_rearm(subdev->device);
 	return 0;
 }
 

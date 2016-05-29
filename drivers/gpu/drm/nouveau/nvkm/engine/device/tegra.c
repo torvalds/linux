@@ -191,13 +191,11 @@ static irqreturn_t
 nvkm_device_tegra_intr(int irq, void *arg)
 {
 	struct nvkm_device_tegra *tdev = arg;
-	struct nvkm_mc *mc = tdev->device.mc;
+	struct nvkm_device *device = &tdev->device;
 	bool handled = false;
-	if (likely(mc)) {
-		nvkm_mc_intr_unarm(mc);
-		nvkm_mc_intr(mc, &handled);
-		nvkm_mc_intr_rearm(mc);
-	}
+	nvkm_mc_intr_unarm(device);
+	nvkm_mc_intr(device, &handled);
+	nvkm_mc_intr_rearm(device);
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 

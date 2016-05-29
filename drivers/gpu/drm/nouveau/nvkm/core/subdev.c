@@ -105,7 +105,7 @@ nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 		}
 	}
 
-	nvkm_mc_reset(device->mc, subdev->index);
+	nvkm_mc_reset(device, subdev->index);
 
 	time = ktime_to_us(ktime_get()) - time;
 	nvkm_trace(subdev, "%s completed in %lldus\n", action, time);
