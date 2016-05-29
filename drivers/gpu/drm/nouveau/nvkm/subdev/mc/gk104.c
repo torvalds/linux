@@ -26,6 +26,7 @@
 const struct nvkm_mc_map
 gk104_mc_reset[] = {
 	{ 0x00000100, NVKM_ENGINE_FIFO },
+	{ 0x00002000, NVKM_SUBDEV_PMU, true },
 	{}
 };
 
