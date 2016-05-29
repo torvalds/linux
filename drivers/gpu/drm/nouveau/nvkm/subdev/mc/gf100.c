@@ -76,7 +76,7 @@ gf100_mc_intr_rearm(struct nvkm_mc *mc)
 }
 
 u32
-gf100_mc_intr_mask(struct nvkm_mc *mc)
+gf100_mc_intr_stat(struct nvkm_mc *mc)
 {
 	struct nvkm_device *device = mc->subdev.device;
 	u32 intr0 = nvkm_rd32(device, 0x000100);
@@ -96,7 +96,7 @@ gf100_mc = {
 	.intr = gf100_mc_intr,
 	.intr_unarm = gf100_mc_intr_unarm,
 	.intr_rearm = gf100_mc_intr_rearm,
-	.intr_mask = gf100_mc_intr_mask,
+	.intr_stat = gf100_mc_intr_stat,
 	.reset = gf100_mc_reset,
 	.unk260 = gf100_mc_unk260,
 };

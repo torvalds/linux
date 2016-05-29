@@ -51,9 +51,9 @@ nvkm_mc_intr_rearm(struct nvkm_device *device)
 }
 
 static u32
-nvkm_mc_intr_mask(struct nvkm_mc *mc)
+nvkm_mc_intr_stat(struct nvkm_mc *mc)
 {
-	u32 intr = mc->func->intr_mask(mc);
+	u32 intr = mc->func->intr_stat(mc);
 	if (WARN_ON_ONCE(intr == 0xffffffff))
 		intr = 0; /* likely fallen off the bus */
 	return intr;
@@ -71,7 +71,7 @@ nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 	if (unlikely(!mc))
 		return;
 
-	intr = nvkm_mc_intr_mask(mc);
+	intr = nvkm_mc_intr_stat(mc);
 	stat = nvkm_top_intr(device, intr, &subdevs);
 	while (subdevs) {
 		enum nvkm_devidx subidx = __ffs64(subdevs);
