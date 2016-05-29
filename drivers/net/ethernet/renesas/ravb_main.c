@@ -2112,8 +2112,7 @@ static int ravb_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops ravb_dev_pm_ops = {
-	.runtime_suspend = ravb_runtime_nop,
-	.runtime_resume = ravb_runtime_nop,
+	SET_RUNTIME_PM_OPS(ravb_runtime_nop, ravb_runtime_nop, NULL)
 };
 
 #define RAVB_PM_OPS (&ravb_dev_pm_ops)
