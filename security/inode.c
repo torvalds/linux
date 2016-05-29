@@ -191,10 +191,6 @@ void securityfs_remove(struct dentry *dentry)
 	if (!dentry || IS_ERR(dentry))
 		return;
 
-	parent = dentry->d_parent;
-	if (!parent || d_really_is_negative(parent))
-		return;
-
 	inode_lock(d_inode(parent));
 	if (simple_positive(dentry)) {
 		if (d_is_dir(dentry))
