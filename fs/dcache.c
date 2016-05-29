@@ -1769,7 +1769,7 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 	raw_write_seqcount_begin(&dentry->d_seq);
 	__d_set_inode_and_type(dentry, inode, add_flags);
 	raw_write_seqcount_end(&dentry->d_seq);
-	__fsnotify_d_instantiate(dentry);
+	fsnotify_update_flags(dentry);
 	spin_unlock(&dentry->d_lock);
 }
 
@@ -2563,7 +2563,7 @@ static inline void __d_add(struct dentry *dentry, struct inode *inode)
 		raw_write_seqcount_begin(&dentry->d_seq);
 		__d_set_inode_and_type(dentry, inode, add_flags);
 		raw_write_seqcount_end(&dentry->d_seq);
-		__fsnotify_d_instantiate(dentry);
+		fsnotify_update_flags(dentry);
 	}
 	_d_rehash(dentry);
 	if (dir)
@@ -2853,8 +2853,8 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 		list_move(&target->d_child, &target->d_parent->d_subdirs);
 		list_move(&dentry->d_child, &dentry->d_parent->d_subdirs);
 		if (exchange)
-			fsnotify_d_move(target);
-		fsnotify_d_move(dentry);
+			fsnotify_update_flags(target);
+		fsnotify_update_flags(dentry);
 	}
 
 	write_seqcount_end(&target->d_seq);

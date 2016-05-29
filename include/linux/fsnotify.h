@@ -52,18 +52,6 @@ static inline int fsnotify_perm(struct file *file, int mask)
 }
 
 /*
- * fsnotify_d_move - dentry has been moved
- */
-static inline void fsnotify_d_move(struct dentry *dentry)
-{
-	/*
-	 * On move we need to update dentry->d_flags to indicate if the new parent
-	 * cares about events from this dentry.
-	 */
-	__fsnotify_update_dcache_flags(dentry);
-}
-
-/*
  * fsnotify_link_count - inode's link count changed
  */
 static inline void fsnotify_link_count(struct inode *inode)
