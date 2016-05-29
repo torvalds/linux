@@ -186,20 +186,21 @@ EXPORT_SYMBOL_GPL(securityfs_create_dir);
  */
 void securityfs_remove(struct dentry *dentry)
 {
-	struct dentry *parent;
+	struct inode *dir;
 
 	if (!dentry || IS_ERR(dentry))
 		return;
 
-	inode_lock(d_inode(parent));
+	dir = d_inode(dentry->d_parent);
+	inode_lock(dir);
 	if (simple_positive(dentry)) {
 		if (d_is_dir(dentry))
-			simple_rmdir(d_inode(parent), dentry);
+			simple_rmdir(dir, dentry);
 		else
-			simple_unlink(d_inode(parent), dentry);
+			simple_unlink(dir, dentry);
 		dput(dentry);
 	}
-	inode_unlock(d_inode(parent));
+	inode_unlock(dir);
 	simple_release_fs(&mount, &mount_count);
 }
 EXPORT_SYMBOL_GPL(securityfs_remove);
