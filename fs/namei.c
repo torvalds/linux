@@ -1968,11 +1968,11 @@ u64 hashlen_string(const char *name)
 	unsigned long len = 0, c;
 
 	c = (unsigned char)*name;
-	do {
+	while (c) {
 		len++;
 		hash = partial_name_hash(c, hash);
 		c = (unsigned char)name[len];
-	} while (c);
+	}
 	return hashlen_create(end_name_hash(hash), len);
 }
 EXPORT_SYMBOL(hashlen_string);
