@@ -524,11 +524,13 @@ sub dump_section {
     } else {
 #	print STDERR "other section '$name' = '$contents'\n";
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
-		print STDERR "${file}:$.: error: duplicate section name '$name'\n";
-		++$errors;
+	    print STDERR "${file}:$.: warning: duplicate section name '$name'\n";
+	    ++$warnings;
+	    $sections{$name} .= $contents;
+	} else {
+	    $sections{$name} = $contents;
+	    push @sectionlist, $name;
 	}
-	$sections{$name} = $contents;
-	push @sectionlist, $name;
     }
 }
 
