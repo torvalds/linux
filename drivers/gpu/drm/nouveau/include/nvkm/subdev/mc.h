@@ -13,6 +13,7 @@ void nvkm_mc_reset(struct nvkm_device *, enum nvkm_devidx);
 void nvkm_mc_intr(struct nvkm_device *, bool *handled);
 void nvkm_mc_intr_unarm(struct nvkm_device *);
 void nvkm_mc_intr_rearm(struct nvkm_device *);
+void nvkm_mc_intr_mask(struct nvkm_device *, enum nvkm_devidx, bool enable);
 void nvkm_mc_unk260(struct nvkm_device *, u32 data);
 
 int nv04_mc_new(struct nvkm_device *, int, struct nvkm_mc **);

@@ -21,6 +21,8 @@ struct nvkm_mc_func {
 	void (*intr_unarm)(struct nvkm_mc *);
 	/* enable reporting of interrupts to host */
 	void (*intr_rearm)(struct nvkm_mc *);
+	/* (un)mask delivery of specific interrupts */
+	void (*intr_mask)(struct nvkm_mc *, u32 mask, u32 stat);
 	/* retrieve pending interrupt mask (NV_PMC_INTR) */
 	u32 (*intr_stat)(struct nvkm_mc *);
 	const struct nvkm_mc_map *reset;
