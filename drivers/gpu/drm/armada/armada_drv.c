@@ -197,7 +197,7 @@ static struct drm_driver armada_drm_driver = {
 	.debugfs_init		= armada_drm_debugfs_init,
 	.debugfs_cleanup	= armada_drm_debugfs_cleanup,
 #endif
-	.gem_free_object	= armada_gem_free_object,
+	.gem_free_object_unlocked = armada_gem_free_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= armada_gem_prime_export,
