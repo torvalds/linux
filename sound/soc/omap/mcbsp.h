@@ -349,6 +349,6 @@ int omap_st_disable(struct omap_mcbsp *mcbsp);
 int omap_st_is_enabled(struct omap_mcbsp *mcbsp);
 
 int omap_mcbsp_init(struct platform_device *pdev);
-void omap_mcbsp_sysfs_remove(struct omap_mcbsp *mcbsp);
+void omap_mcbsp_cleanup(struct omap_mcbsp *mcbsp);
 
 #endif /* __ASOC_MCBSP_H */
