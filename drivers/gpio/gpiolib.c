@@ -629,6 +629,8 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 		goto err_free_label;
 	}
 
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
 	for (i = 0; i < chip->ngpio; i++) {
 		struct gpio_desc *desc = &gdev->descs[i];
 
@@ -659,8 +661,6 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 			set_bit(FLAG_IS_OUT, &desc->flags);
 		}
 	}
-
-	spin_unlock_irqrestore(&gpio_lock, flags);
 
 #ifdef CONFIG_PINCTRL
 	INIT_LIST_HEAD(&gdev->pin_ranges);
