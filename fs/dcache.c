@@ -335,44 +335,21 @@ static inline void dentry_rcuwalk_invalidate(struct dentry *dentry)
 
 /*
  * Release the dentry's inode, using the filesystem
- * d_iput() operation if defined. Dentry has no refcount
- * and is unhashed.
- */
-static void dentry_iput(struct dentry * dentry)
-	__releases(dentry->d_lock)
-	__releases(dentry->d_inode->i_lock)
-{
-	struct inode *inode = dentry->d_inode;
-	if (inode) {
-		__d_clear_type_and_inode(dentry);
-		hlist_del_init(&dentry->d_u.d_alias);
-		spin_unlock(&dentry->d_lock);
-		spin_unlock(&inode->i_lock);
-		if (!inode->i_nlink)
-			fsnotify_inoderemove(inode);
-		if (dentry->d_op && dentry->d_op->d_iput)
-			dentry->d_op->d_iput(dentry, inode);
-		else
-			iput(inode);
-	} else {
-		spin_unlock(&dentry->d_lock);
-	}
-}
-
-/*
- * Release the dentry's inode, using the filesystem
- * d_iput() operation if defined. dentry remains in-use.
+ * d_iput() operation if defined.
  */
 static void dentry_unlink_inode(struct dentry * dentry)
 	__releases(dentry->d_lock)
 	__releases(dentry->d_inode->i_lock)
 {
 	struct inode *inode = dentry->d_inode;
+	bool hashed = !d_unhashed(dentry);
 
-	raw_write_seqcount_begin(&dentry->d_seq);
+	if (hashed)
+		raw_write_seqcount_begin(&dentry->d_seq);
 	__d_clear_type_and_inode(dentry);
 	hlist_del_init(&dentry->d_u.d_alias);
-	raw_write_seqcount_end(&dentry->d_seq);
+	if (hashed)
+		raw_write_seqcount_end(&dentry->d_seq);
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&inode->i_lock);
 	if (!inode->i_nlink)
@@ -540,12 +517,10 @@ static void __dentry_kill(struct dentry *dentry)
 	dentry->d_flags |= DCACHE_DENTRY_KILLED;
 	if (parent)
 		spin_unlock(&parent->d_lock);
-	dentry_iput(dentry);
-	/*
-	 * dentry_iput drops the locks, at which point nobody (except
-	 * transient RCU lookups) can reach this dentry.
-	 */
-	BUG_ON(dentry->d_lockref.count > 0);
+	if (dentry->d_inode)
+		dentry_unlink_inode(dentry);
+	else
+		spin_unlock(&dentry->d_lock);
 	this_cpu_dec(nr_dentry);
 	if (dentry->d_op && dentry->d_op->d_release)
 		dentry->d_op->d_release(dentry);
