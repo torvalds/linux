@@ -992,10 +992,8 @@ static int msm_pdev_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "qcom,mdp4", .data = (void *) 4 },	/* mdp4 */
-	{ .compatible = "qcom,mdp5", .data = (void *) 5 },	/* mdp5 */
-	/* to support downstream DT files */
-	{ .compatible = "qcom,mdss_mdp", .data = (void *) 5 },  /* mdp5 */
+	{ .compatible = "qcom,mdp4", .data = (void *)4 },	/* MDP4 */
+	{ .compatible = "qcom,mdss", .data = (void *)5 },	/* MDP5 MDSS */
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);

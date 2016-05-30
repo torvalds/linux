@@ -809,12 +809,20 @@ static int mdp5_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id mdp5_dt_match[] = {
+	{ .compatible = "qcom,mdp5", },
+	/* to support downstream DT files */
+	{ .compatible = "qcom,mdss_mdp", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, mdp5_dt_match);
+
 static struct platform_driver mdp5_driver = {
 	.probe = mdp5_dev_probe,
 	.remove = mdp5_dev_remove,
 	.driver = {
 		.name = "msm_mdp",
-		/* Add a DT match field once we move to new hierarchy */
+		.of_match_table = mdp5_dt_match,
 	},
 };
 
