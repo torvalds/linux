@@ -105,6 +105,8 @@ void mlx5_lag_remove(struct mlx5_core_dev *dev);
 void mlx5_add_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
 void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
 
+bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv);
+
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
 

@@ -583,3 +583,20 @@ unlock:
 }
 EXPORT_SYMBOL(mlx5_lag_get_roce_netdev);
 
+bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv)
+{
+	struct mlx5_core_dev *dev = container_of(priv, struct mlx5_core_dev,
+						 priv);
+	struct mlx5_lag *ldev;
+
+	if (intf->protocol != MLX5_INTERFACE_PROTOCOL_IB)
+		return true;
+
+	ldev = mlx5_lag_dev_get(dev);
+	if (!ldev || !mlx5_lag_is_bonded(ldev) || ldev->pf[0].dev == dev)
+		return true;
+
+	/* If bonded, we do not add an IB device for PF1. */
+	return false;
+}
+
