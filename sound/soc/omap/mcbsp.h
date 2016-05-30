@@ -280,6 +280,7 @@ struct omap_mcbsp_reg_cfg {
 
 struct omap_mcbsp_st_data {
 	void __iomem *io_base_st;
+	struct clk *mcbsp_iclk;
 	bool running;
 	bool enabled;
 	s16 taps[128];	/* Sidetone filter coefficients */
