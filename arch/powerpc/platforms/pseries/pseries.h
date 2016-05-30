@@ -36,13 +36,7 @@ extern void smp_init_pseries(void);
 static inline void smp_init_pseries(void) { };
 #endif
 
-#ifdef CONFIG_KEXEC
-extern void setup_kexec_cpu_down_xics(void);
-extern void setup_kexec_cpu_down_mpic(void);
-#else
-static inline void setup_kexec_cpu_down_xics(void) { }
-static inline void setup_kexec_cpu_down_mpic(void) { }
-#endif
+extern void pseries_kexec_cpu_down(int crash_shutdown, int secondary);
 
 extern void pSeries_final_fixup(void);
 

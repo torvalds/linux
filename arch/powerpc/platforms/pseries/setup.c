@@ -436,7 +436,6 @@ static void __init pSeries_setup_arch(void)
 	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
 
 	/* Discover PIC type and setup ppc_md accordingly */
-	setup_kexec_cpu_down_xics();
 	smp_init_pseries();
 
 
@@ -786,6 +785,7 @@ define_machine(pseries) {
 	.machine_check_exception = pSeries_machine_check_exception,
 #ifdef CONFIG_KEXEC
 	.machine_kexec          = pSeries_machine_kexec,
+	.kexec_cpu_down         = pseries_kexec_cpu_down,
 #endif
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 	.memory_block_size	= pseries_memory_block_size,
