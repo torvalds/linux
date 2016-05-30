@@ -66,6 +66,16 @@ MODULE_FIRMWARE("radeon/mullins_sdma1.bin");
 
 u32 amdgpu_cik_gpu_check_soft_reset(struct amdgpu_device *adev);
 
+
+static void cik_sdma_free_microcode(struct amdgpu_device *adev)
+{
+	int i;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+			release_firmware(adev->sdma.instance[i].fw);
+			adev->sdma.instance[i].fw = NULL;
+	}
+}
+
 /*
  * sDMA - System DMA
  * Starting with CIK, the GPU has new asynchronous
@@ -1005,6 +1015,7 @@ static int cik_sdma_sw_fini(void *handle)
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 
+	cik_sdma_free_microcode(adev);
 	return 0;
 }
 
