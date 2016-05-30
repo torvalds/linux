@@ -228,9 +228,9 @@ static int vfio_intx_set_signal(struct vfio_pci_device *vdev, int fd)
 
 static void vfio_intx_disable(struct vfio_pci_device *vdev)
 {
-	vfio_intx_set_signal(vdev, -1);
 	vfio_virqfd_disable(&vdev->ctx[0].unmask);
 	vfio_virqfd_disable(&vdev->ctx[0].mask);
+	vfio_intx_set_signal(vdev, -1);
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
 	vdev->num_ctx = 0;
 	kfree(vdev->ctx);
@@ -401,12 +401,12 @@ static void vfio_msi_disable(struct vfio_pci_device *vdev, bool msix)
 	struct pci_dev *pdev = vdev->pdev;
 	int i;
 
-	vfio_msi_set_block(vdev, 0, vdev->num_ctx, NULL, msix);
-
 	for (i = 0; i < vdev->num_ctx; i++) {
 		vfio_virqfd_disable(&vdev->ctx[i].unmask);
 		vfio_virqfd_disable(&vdev->ctx[i].mask);
 	}
+
+	vfio_msi_set_block(vdev, 0, vdev->num_ctx, NULL, msix);
 
 	if (msix) {
 		pci_disable_msix(vdev->pdev);
