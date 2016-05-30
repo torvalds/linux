@@ -78,6 +78,8 @@
 
 #define CCM_LPCG_START		0x4040
 #define CCM_LPCG_STEP		0x10
+#define CCM_EIM_LPCG		0x4160
+#define CCM_PXP_LPCG		0x44c0
 #define CCM_PCIE_LPCG		0x4600
 
 #define BM_CCM_ROOT_POST_PODF	0x3f
@@ -715,11 +717,15 @@ static int imx7_pm_enter(suspend_state_t state)
 		imx_gpcv2_pre_suspend(true);
 		if (imx_gpcv2_is_mf_mix_off()) {
 			/*
-			 * per design requirement, EXSC for PCIe/EIM
+			 * per design requirement, EXSC for PCIe/EIM/PXP
 			 * will need clock to recover RDC setting on
 			 * resume, so enable PCIe/EIM LPCG for RDC
 			 * recovery when M/F mix off
 			 */
+			writel_relaxed(0x3, pm_info->ccm_base.vbase +
+				CCM_EIM_LPCG);
+			writel_relaxed(0x3, pm_info->ccm_base.vbase +
+				CCM_PXP_LPCG);
 			writel_relaxed(0x3, pm_info->ccm_base.vbase +
 				CCM_PCIE_LPCG);
 			/* stop m4 if mix will also be shutdown */
@@ -759,6 +765,10 @@ static int imx7_pm_enter(suspend_state_t state)
 		}
 		if (imx_gpcv2_is_mf_mix_off() ||
 			imx7_pm_is_resume_from_lpsr()) {
+			writel_relaxed(0x0, pm_info->ccm_base.vbase +
+				CCM_EIM_LPCG);
+			writel_relaxed(0x0, pm_info->ccm_base.vbase +
+				CCM_PXP_LPCG);
 			writel_relaxed(0x0, pm_info->ccm_base.vbase +
 				CCM_PCIE_LPCG);
 			memcpy(ocram_base, ocram_saved_in_ddr, ocram_size);
