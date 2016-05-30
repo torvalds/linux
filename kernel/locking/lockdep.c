@@ -46,6 +46,7 @@
 #include <linux/gfp.h>
 #include <linux/kmemcheck.h>
 #include <linux/random.h>
+#include <linux/jhash.h>
 
 #include <asm/sections.h>
 
@@ -309,10 +310,14 @@ static struct hlist_head chainhash_table[CHAINHASH_SIZE];
  * It's a 64-bit hash, because it's important for the keys to be
  * unique.
  */
-#define iterate_chain_key(key1, key2) \
-	(((key1) << MAX_LOCKDEP_KEYS_BITS) ^ \
-	((key1) >> (64-MAX_LOCKDEP_KEYS_BITS)) ^ \
-	(key2))
+static inline u64 iterate_chain_key(u64 key, u32 idx)
+{
+	u32 k0 = key, k1 = key >> 32;
+
+	__jhash_mix(idx, k0, k1); /* Macro that modifies arguments! */
+
+	return k0 | (u64)k1 << 32;
+}
 
 void lockdep_off(void)
 {
