@@ -351,6 +351,10 @@
 	};
 };
 
+&tsadc {
+	status = "okay";
+};
+
 &nandc0 {
 	status = "okay"; /* enable both for emmc and nand */
 };
