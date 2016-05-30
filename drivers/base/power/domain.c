@@ -938,7 +938,6 @@ static void pm_genpd_complete(struct device *dev)
 	pm_generic_complete(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_request_idle(dev);
 }
 
 /**
