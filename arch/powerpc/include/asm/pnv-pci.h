@@ -11,6 +11,7 @@
 #define _ASM_PNV_PCI_H
 
 #include <linux/pci.h>
+#include <linux/irq.h>
 #include <misc/cxl-base.h>
 
 int pnv_phb_to_cxl_mode(struct pci_dev *dev, uint64_t mode);
@@ -20,6 +21,8 @@ int pnv_cxl_alloc_hwirqs(struct pci_dev *dev, int num);
 void pnv_cxl_release_hwirqs(struct pci_dev *dev, int hwirq, int num);
 int pnv_cxl_get_irq_count(struct pci_dev *dev);
 struct device_node *pnv_pci_get_phb_node(struct pci_dev *dev);
+int64_t pnv_opal_pci_msi_eoi(struct irq_chip *chip, unsigned int hw_irq);
+bool is_pnv_opal_msi(struct irq_chip *chip);
 
 #ifdef CONFIG_CXL_BASE
 int pnv_cxl_alloc_hwirq_ranges(struct cxl_irq_ranges *irqs,
