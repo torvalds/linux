@@ -163,18 +163,24 @@ int gb_control_disconnecting_operation(struct gb_control *control,
 
 int gb_control_mode_switch_operation(struct gb_control *control)
 {
+	struct gb_operation *operation;
 	int ret;
 
-	ret = gb_operation_unidirectional(control->connection,
-						GB_CONTROL_TYPE_MODE_SWITCH,
-						NULL, 0);
+	operation = gb_operation_create_core(control->connection,
+					GB_CONTROL_TYPE_MODE_SWITCH,
+					0, 0, GB_OPERATION_FLAG_UNIDIRECTIONAL,
+					GFP_KERNEL);
+	if (!operation)
+		return -ENOMEM;
+
+	ret = gb_operation_request_send_sync(operation);
 	if (ret) {
-		dev_err(&control->dev, "failed to send mode switch: %d\n",
-				ret);
-		return ret;
+		dev_err(&control->dev, "failed to send mode switch: %d\n", ret);
 	}
 
-	return 0;
+	gb_operation_put(operation);
+
+	return ret;
 }
 
 int gb_control_timesync_enable(struct gb_control *control, u8 count,
