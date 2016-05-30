@@ -72,6 +72,7 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 {
 	int ret = 0, i;
 	struct skl_sst *skl = ctx->thread_context;
+	struct firmware stripped_fw;
 	u32 reg;
 
 	skl->boot_complete = false;
@@ -85,6 +86,12 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 			return -EIO;
 		}
 	}
+
+	/* check for extended manifest */
+	stripped_fw.data = ctx->fw->data;
+	stripped_fw.size = ctx->fw->size;
+
+	skl_dsp_strip_extended_manifest(&stripped_fw);
 
 	ret = skl_dsp_boot(ctx);
 	if (ret < 0) {
@@ -119,7 +126,7 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		goto transfer_firmware_failed;
 	}
 
-	ret = skl_transfer_firmware(ctx, ctx->fw->data, ctx->fw->size);
+	ret = skl_transfer_firmware(ctx, stripped_fw.data, stripped_fw.size);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Transfer firmware failed%d\n", ret);
 		goto transfer_firmware_failed;
