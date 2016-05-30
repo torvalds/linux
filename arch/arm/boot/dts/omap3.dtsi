@@ -493,6 +493,8 @@
 			dmas = <&sdma 31>,
 			       <&sdma 32>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp1_fck>;
+			clock-names = "fck";
 			status = "disabled";
 		};
 
@@ -511,6 +513,8 @@
 			dmas = <&sdma 33>,
 			       <&sdma 34>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp2_fck>, <&mcbsp2_ick>;
+			clock-names = "fck", "ick";
 			status = "disabled";
 		};
 
@@ -529,6 +533,8 @@
 			dmas = <&sdma 17>,
 			       <&sdma 18>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp3_fck>, <&mcbsp3_ick>;
+			clock-names = "fck", "ick";
 			status = "disabled";
 		};
 
@@ -545,6 +551,8 @@
 			dmas = <&sdma 19>,
 			       <&sdma 20>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp4_fck>;
+			clock-names = "fck";
 			status = "disabled";
 		};
 
@@ -561,6 +569,8 @@
 			dmas = <&sdma 21>,
 			       <&sdma 22>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp5_fck>;
+			clock-names = "fck";
 			status = "disabled";
 		};
 
