@@ -1630,6 +1630,7 @@ static void _rtl8723e_read_adapter_info(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	struct device *dev = &rtl_pcipriv(hw)->dev.pdev->dev;
 	u16 i, usvalue;
 	u8 hwinfo[HWSET_MAX_SIZE];
 	u16 eeprom_id;
@@ -1638,15 +1639,19 @@ static void _rtl8723e_read_adapter_info(struct ieee80211_hw *hw,
 		/* need add */
 		return;
 	}
-	if (rtlefuse->epromtype == EEPROM_BOOT_EFUSE) {
+	switch (rtlefuse->epromtype) {
+	case EEPROM_BOOT_EFUSE:
 		rtl_efuse_shadow_map_update(hw);
 
-		memcpy(hwinfo, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
-		       HWSET_MAX_SIZE);
-	} else if (rtlefuse->epromtype == EEPROM_93C46) {
+	case EEPROM_93C46:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "RTL819X Not boot from eeprom, check it !!");
+		return;
+
+	default:
+		dev_warn(dev, "no efuse data\n");
 	}
+	memcpy(hwinfo, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0], HWSET_MAX_SIZE);
 
 	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, "MAP\n",
 		      hwinfo, HWSET_MAX_SIZE);
