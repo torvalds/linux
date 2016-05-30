@@ -132,20 +132,19 @@ static int sst_transfer_fw_host_dma(struct sst_dsp *ctx)
 
 static int bxt_load_base_firmware(struct sst_dsp *ctx)
 {
-	const struct firmware *fw = NULL;
 	struct skl_sst *skl = ctx->thread_context;
 	int ret;
 
-	ret = request_firmware(&fw, ctx->fw_name, ctx->dev);
+	ret = request_firmware(&ctx->fw, ctx->fw_name, ctx->dev);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Request firmware failed %d\n", ret);
 		goto sst_load_base_firmware_failed;
 	}
 
-	ret = sst_bxt_prepare_fw(ctx, fw->data, fw->size);
+	ret = sst_bxt_prepare_fw(ctx, ctx->fw->data, ctx->fw->size);
 	/* Retry Enabling core and ROM load. Retry seemed to help */
 	if (ret < 0) {
-		ret = sst_bxt_prepare_fw(ctx, fw->data, fw->size);
+		ret = sst_bxt_prepare_fw(ctx, ctx->fw->data, ctx->fw->size);
 		if (ret < 0) {
 			dev_err(ctx->dev, "Core En/ROM load fail:%d\n", ret);
 			goto sst_load_base_firmware_failed;
@@ -175,7 +174,7 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 	}
 
 sst_load_base_firmware_failed:
-	release_firmware(fw);
+	release_firmware(ctx->fw);
 	return ret;
 }
 
