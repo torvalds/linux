@@ -59,6 +59,15 @@ static int omap3_mcbsp_force_ick_on(struct clk *clk, bool force_on)
 		return omap2_clk_allow_idle(clk);
 }
 
+void __init omap3_mcbsp_init_pdata_callback(
+					struct omap_mcbsp_platform_data *pdata)
+{
+	if (!pdata)
+		return;
+
+	pdata->force_ick_on = omap3_mcbsp_force_ick_on;
+}
+
 static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 {
 	int id, count = 1;

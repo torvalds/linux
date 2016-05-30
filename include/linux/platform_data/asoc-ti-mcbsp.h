@@ -56,4 +56,6 @@ struct omap_mcbsp_dev_attr {
 	const char *sidetone;
 };
 
+void omap3_mcbsp_init_pdata_callback(struct omap_mcbsp_platform_data *pdata);
+
 #endif
