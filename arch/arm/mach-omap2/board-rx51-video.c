@@ -22,6 +22,7 @@
 
 #include "soc.h"
 #include "board-rx51.h"
+#include "display.h"
 
 #include "mux.h"
 

@@ -330,9 +330,6 @@ struct omap_dss_board_info {
 	enum omapdss_version version;
 };
 
-/* Init with the board info */
-extern int omap_display_init(struct omap_dss_board_info *board_data);
-
 struct omap_video_timings {
 	/* Unit: pixels */
 	u16 x_res;
