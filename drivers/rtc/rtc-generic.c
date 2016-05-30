@@ -10,7 +10,7 @@
 #include <linux/rtc.h>
 
 #if defined(CONFIG_M68K) || defined(CONFIG_PARISC) || \
-    defined(CONFIG_PPC) || defined(CONFIG_SUPERH32)
+    defined(CONFIG_PPC)
 #include <asm/rtc.h>
 
 static int generic_get_time(struct device *dev, struct rtc_time *tm)
