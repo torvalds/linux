@@ -120,17 +120,9 @@ static void omap_framebuffer_destroy(struct drm_framebuffer *fb)
 	kfree(omap_fb);
 }
 
-static int omap_framebuffer_dirty(struct drm_framebuffer *fb,
-		struct drm_file *file_priv, unsigned flags, unsigned color,
-		struct drm_clip_rect *clips, unsigned num_clips)
-{
-	return 0;
-}
-
 static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.create_handle = omap_framebuffer_create_handle,
 	.destroy = omap_framebuffer_destroy,
-	.dirty = omap_framebuffer_dirty,
 };
 
 static uint32_t get_linear_addr(struct plane *plane,
