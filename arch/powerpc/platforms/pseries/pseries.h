@@ -31,11 +31,9 @@ extern int pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
 
 #ifdef CONFIG_SMP
-extern void smp_init_pseries_mpic(void);
-extern void smp_init_pseries_xics(void);
+extern void smp_init_pseries(void);
 #else
-static inline void smp_init_pseries_mpic(void) { };
-static inline void smp_init_pseries_xics(void) { };
+static inline void smp_init_pseries(void) { };
 #endif
 
 #ifdef CONFIG_KEXEC

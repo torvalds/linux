@@ -437,7 +437,7 @@ static void __init pSeries_setup_arch(void)
 
 	/* Discover PIC type and setup ppc_md accordingly */
 	setup_kexec_cpu_down_xics();
-	smp_init_pseries_xics();
+	smp_init_pseries();
 
 
 	/* openpic global configuration register (64-bit format). */
