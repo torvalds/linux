@@ -68,6 +68,8 @@ static int skl_transfer_firmware(struct sst_dsp *ctx,
 	return ret;
 }
 
+#define SKL_ADSP_FW_BIN_HDR_OFFSET 0x284
+
 static int skl_load_base_firmware(struct sst_dsp *ctx)
 {
 	int ret = 0, i;
@@ -85,6 +87,16 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 			skl_dsp_disable_core(ctx);
 			return -EIO;
 		}
+
+	}
+
+	ret = snd_skl_parse_uuids(ctx, SKL_ADSP_FW_BIN_HDR_OFFSET);
+	if (ret < 0) {
+		dev_err(ctx->dev,
+				"UUID parsing err: %d\n", ret);
+		release_firmware(ctx->fw);
+		skl_dsp_disable_core(ctx);
+		return ret;
 	}
 
 	/* check for extended manifest */
@@ -416,6 +428,7 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	skl->dev = dev;
 	skl_dev.thread_context = skl;
+	INIT_LIST_HEAD(&skl->uuid_list);
 
 	skl->dsp = skl_dsp_ctx_init(dev, &skl_dev, irq);
 	if (!skl->dsp) {
@@ -459,6 +472,7 @@ EXPORT_SYMBOL_GPL(skl_sst_dsp_init);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {
 	skl_clear_module_table(ctx->dsp);
+	skl_freeup_uuid_list(ctx);
 	skl_ipc_free(&ctx->ipc);
 	ctx->dsp->ops->free(ctx->dsp);
 	if (ctx->boot_complete) {
