@@ -34,7 +34,7 @@ struct twl6040_clk {
 	int enabled;
 };
 
-static int twl6040_bitclk_is_enabled(struct clk_hw *hw)
+static int twl6040_bitclk_is_prepared(struct clk_hw *hw)
 {
 	struct twl6040_clk *twl6040_clk = container_of(hw, struct twl6040_clk,
 						       mcpdm_fclk);
@@ -66,7 +66,7 @@ static void twl6040_bitclk_unprepare(struct clk_hw *hw)
 }
 
 static const struct clk_ops twl6040_mcpdm_ops = {
-	.is_enabled = twl6040_bitclk_is_enabled,
+	.is_prepared = twl6040_bitclk_is_prepared,
 	.prepare = twl6040_bitclk_prepare,
 	.unprepare = twl6040_bitclk_unprepare,
 };
