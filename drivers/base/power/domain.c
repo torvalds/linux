@@ -761,6 +761,7 @@ static int pm_genpd_prepare(struct device *dev)
 static int pm_genpd_suspend_noirq(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
+	int ret;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -770,6 +771,12 @@ static int pm_genpd_suspend_noirq(struct device *dev)
 
 	if (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev))
 		return 0;
+
+	if (genpd->dev_ops.stop && genpd->dev_ops.start) {
+		ret = pm_runtime_force_suspend(dev);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Since all of the "noirq" callbacks are executed sequentially, it is
@@ -791,6 +798,7 @@ static int pm_genpd_suspend_noirq(struct device *dev)
 static int pm_genpd_resume_noirq(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
+	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -809,7 +817,10 @@ static int pm_genpd_resume_noirq(struct device *dev)
 	pm_genpd_sync_poweron(genpd, true);
 	genpd->suspended_count--;
 
-	return 0;
+	if (genpd->dev_ops.stop && genpd->dev_ops.start)
+		ret = pm_runtime_force_resume(dev);
+
+	return ret;
 }
 
 /**
@@ -824,6 +835,7 @@ static int pm_genpd_resume_noirq(struct device *dev)
 static int pm_genpd_freeze_noirq(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
+	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -831,7 +843,10 @@ static int pm_genpd_freeze_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return 0;
+	if (genpd->dev_ops.stop && genpd->dev_ops.start)
+		ret = pm_runtime_force_suspend(dev);
+
+	return ret;
 }
 
 /**
@@ -844,6 +859,7 @@ static int pm_genpd_freeze_noirq(struct device *dev)
 static int pm_genpd_thaw_noirq(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
+	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -851,7 +867,10 @@ static int pm_genpd_thaw_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return 0;
+	if (genpd->dev_ops.stop && genpd->dev_ops.start)
+		ret = pm_runtime_force_resume(dev);
+
+	return ret;
 }
 
 /**
@@ -864,6 +883,7 @@ static int pm_genpd_thaw_noirq(struct device *dev)
 static int pm_genpd_restore_noirq(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
+	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -889,7 +909,10 @@ static int pm_genpd_restore_noirq(struct device *dev)
 
 	pm_genpd_sync_poweron(genpd, true);
 
-	return 0;
+	if (genpd->dev_ops.stop && genpd->dev_ops.start)
+		ret = pm_runtime_force_resume(dev);
+
+	return ret;
 }
 
 /**
