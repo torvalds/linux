@@ -994,12 +994,13 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param)
 	if (starting) {
 		params.param0 = upper_32_bits(req->trb_dma);
 		params.param1 = lower_32_bits(req->trb_dma);
-		cmd = DWC3_DEPCMD_STARTTRANSFER;
+		cmd = DWC3_DEPCMD_STARTTRANSFER |
+			DWC3_DEPCMD_PARAM(cmd_param);
 	} else {
-		cmd = DWC3_DEPCMD_UPDATETRANSFER;
+		cmd = DWC3_DEPCMD_UPDATETRANSFER |
+			DWC3_DEPCMD_PARAM(dep->resource_index);
 	}
 
-	cmd |= DWC3_DEPCMD_PARAM(cmd_param);
 	ret = dwc3_send_gadget_ep_cmd(dep, cmd, &params);
 	if (ret < 0) {
 		/*
