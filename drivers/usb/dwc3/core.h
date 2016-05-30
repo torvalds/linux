@@ -497,6 +497,8 @@ struct dwc3_event_buffer {
  * @type: set to bmAttributes & USB_ENDPOINT_XFERTYPE_MASK
  * @resource_index: Resource transfer index
  * @interval: the interval on which the ISOC transfer is started
+ * @allocated_requests: number of requests allocated
+ * @queued_requests: number of requests queued for transfer
  * @name: a human readable name e.g. ep1out-bulk
  * @direction: true for TX, false for RX
  * @stream_capable: true when streams are enabled
@@ -541,6 +543,8 @@ struct dwc3_ep {
 	u8			number;
 	u8			type;
 	u8			resource_index;
+	u32			allocated_requests;
+	u32			queued_requests;
 	u32			interval;
 
 	char			name[20];

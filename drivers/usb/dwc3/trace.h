@@ -231,6 +231,8 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 	TP_STRUCT__entry(
 		__dynamic_array(char, name, DWC3_MSG_MAX)
 		__field(struct dwc3_trb *, trb)
+		__field(u32, allocated)
+		__field(u32, queued)
 		__field(u32, bpl)
 		__field(u32, bph)
 		__field(u32, size)
@@ -239,13 +241,16 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 	TP_fast_assign(
 		snprintf(__get_str(name), DWC3_MSG_MAX, "%s", dep->name);
 		__entry->trb = trb;
+		__entry->allocated = dep->allocated_requests;
+		__entry->queued = dep->queued_requests;
 		__entry->bpl = trb->bpl;
 		__entry->bph = trb->bph;
 		__entry->size = trb->size;
 		__entry->ctrl = trb->ctrl;
 	),
-	TP_printk("%s: trb %p buf %08x%08x size %d ctrl %08x (%c%c%c%c:%c%c:%s)",
-		__get_str(name), __entry->trb, __entry->bph, __entry->bpl,
+	TP_printk("%s: %d/%d trb %p buf %08x%08x size %d ctrl %08x (%c%c%c%c:%c%c:%s)",
+		__get_str(name), __entry->queued, __entry->allocated,
+		__entry->trb, __entry->bph, __entry->bpl,
 		__entry->size, __entry->ctrl,
 		__entry->ctrl & DWC3_TRB_CTRL_HWO ? 'H' : 'h',
 		__entry->ctrl & DWC3_TRB_CTRL_LST ? 'L' : 'l',
