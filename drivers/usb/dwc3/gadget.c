@@ -924,7 +924,7 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 			chain = false;
 		}
 
-		if (!trbs_left)
+		if (!trbs_left--)
 			last = true;
 
 		if (last)
