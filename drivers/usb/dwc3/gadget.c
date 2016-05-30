@@ -600,8 +600,16 @@ static void dwc3_stop_active_transfer(struct dwc3 *dwc, u32 epnum, bool force);
 static void dwc3_remove_requests(struct dwc3 *dwc, struct dwc3_ep *dep)
 {
 	struct dwc3_request		*req;
+	struct dwc3_trb			*current_trb;
+	unsigned			transfer_in_flight;
 
-	if (!list_empty(&dep->started_list)) {
+	if (dep->number > 1)
+		current_trb = &dep->trb_pool[dep->trb_enqueue];
+	else
+		current_trb = &dwc->ep0_trb[dep->trb_enqueue];
+	transfer_in_flight = current_trb->ctrl & DWC3_TRB_CTRL_HWO;
+
+	if (transfer_in_flight && !list_empty(&dep->started_list)) {
 		dwc3_stop_active_transfer(dwc, dep->number, true);
 
 		/* - giveback all requests to gadget driver */
@@ -1302,9 +1310,21 @@ int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol)
 	memset(&params, 0x00, sizeof(params));
 
 	if (value) {
-		if (!protocol && ((dep->direction && dep->flags & DWC3_EP_BUSY) ||
-				(!list_empty(&dep->started_list) ||
-				 !list_empty(&dep->pending_list)))) {
+		struct dwc3_trb *trb;
+
+		unsigned transfer_in_flight;
+		unsigned started;
+
+		if (dep->number > 1)
+			trb = dwc3_ep_prev_trb(dep, dep->trb_enqueue);
+		else
+			trb = &dwc->ep0_trb[dep->trb_enqueue];
+
+		transfer_in_flight = trb->ctrl & DWC3_TRB_CTRL_HWO;
+		started = !list_empty(&dep->started_list);
+
+		if (!protocol && ((dep->direction && transfer_in_flight) ||
+				(!dep->direction && started))) {
 			dwc3_trace(trace_dwc3_gadget,
 					"%s: pending request, cannot halt",
 					dep->name);
