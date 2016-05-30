@@ -482,6 +482,11 @@ static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 			return -EPERM;
 		}
 
+		/*
+		 * Disallow new ioctls as the fw-core bundle driver is going to
+		 * get disconnected soon and the character device will get
+		 * removed.
+		 */
 		fw_mgmt->mode_switch_started = true;
 
 		ret = gb_interface_request_mode_switch(fw_mgmt->connection->intf);
