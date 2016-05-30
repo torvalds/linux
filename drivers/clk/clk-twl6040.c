@@ -95,7 +95,8 @@ static int twl6040_clk_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, clkdata);
 
-	return 0;
+	return of_clk_add_provider(pdev->dev.parent->of_node,
+				   of_clk_src_simple_get, clkdata->clk);
 }
 
 static struct platform_driver twl6040_clk_driver = {
