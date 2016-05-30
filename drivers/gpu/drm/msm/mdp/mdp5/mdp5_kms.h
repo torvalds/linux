@@ -31,6 +31,8 @@ struct mdp5_kms {
 
 	struct drm_device *dev;
 
+	struct platform_device *pdev;
+
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
 

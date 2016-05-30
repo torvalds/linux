@@ -111,7 +111,7 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 		return mdp5_encoder_set_split_display(encoder, slave_encoder);
 }
 
-static void mdp5_destroy(struct msm_kms *kms)
+static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct msm_mmu *mmu = mdp5_kms->mmu;
@@ -148,7 +148,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
-		.destroy         = mdp5_destroy,
+		.destroy         = mdp5_kms_destroy,
 	},
 	.set_irqmask         = mdp5_set_irqmask,
 };
@@ -430,6 +430,21 @@ static void read_hw_revision(struct mdp5_kms *mdp5_kms,
 
 	*major = FIELD(version, MDSS_HW_VERSION_MAJOR);
 	*minor = FIELD(version, MDSS_HW_VERSION_MINOR);
+
+	DBG("MDP5 version v%d.%d", *major, *minor);
+}
+
+static void read_mdp_hw_revision(struct mdp5_kms *mdp5_kms,
+				 u32 *major, u32 *minor)
+{
+	u32 version;
+
+	mdp5_enable(mdp5_kms);
+	version = mdp5_read(mdp5_kms, REG_MDP5_MDP_HW_VERSION(0));
+	mdp5_disable(mdp5_kms);
+
+	*major = FIELD(version, MDP5_MDP_HW_VERSION_MAJOR);
+	*minor = FIELD(version, MDP5_MDP_HW_VERSION_MINOR);
 
 	DBG("MDP5 version v%d.%d", *major, *minor);
 }
@@ -757,6 +772,170 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 fail:
 	if (kms)
-		mdp5_destroy(kms);
+		mdp5_kms_destroy(kms);
 	return ERR_PTR(ret);
+}
+
+static void mdp5_destroy(struct platform_device *pdev)
+{
+	struct mdp5_kms *mdp5_kms = platform_get_drvdata(pdev);
+
+	if (mdp5_kms->ctlm)
+		mdp5_ctlm_destroy(mdp5_kms->ctlm);
+	if (mdp5_kms->smp)
+		mdp5_smp_destroy(mdp5_kms->smp);
+	if (mdp5_kms->cfg)
+		mdp5_cfg_destroy(mdp5_kms->cfg);
+}
+
+static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct mdp5_kms *mdp5_kms;
+	struct mdp5_cfg *config;
+	u32 major, minor;
+	int ret;
+
+	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
+	if (!mdp5_kms) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	platform_set_drvdata(pdev, mdp5_kms);
+
+	spin_lock_init(&mdp5_kms->resource_lock);
+
+	mdp5_kms->dev = dev;
+	mdp5_kms->pdev = pdev;
+
+	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
+	if (IS_ERR(mdp5_kms->mmio)) {
+		ret = PTR_ERR(mdp5_kms->mmio);
+		goto fail;
+	}
+
+	/* mandatory clocks: */
+	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk", true);
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk", true);
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->core_clk, "core_clk", true);
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk", true);
+	if (ret)
+		goto fail;
+
+	/* optional clocks: */
+	get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk", false);
+
+	/* we need to set a default rate before enabling.  Set a safe
+	 * rate first, then figure out hw revision, and then set a
+	 * more optimal rate:
+	 */
+	clk_set_rate(mdp5_kms->core_clk, 200000000);
+
+	read_mdp_hw_revision(mdp5_kms, &major, &minor);
+
+	mdp5_kms->cfg = mdp5_cfg_init(mdp5_kms, major, minor);
+	if (IS_ERR(mdp5_kms->cfg)) {
+		ret = PTR_ERR(mdp5_kms->cfg);
+		mdp5_kms->cfg = NULL;
+		goto fail;
+	}
+
+	config = mdp5_cfg_get_config(mdp5_kms->cfg);
+	mdp5_kms->caps = config->hw->mdp.caps;
+
+	/* TODO: compute core clock rate at runtime */
+	clk_set_rate(mdp5_kms->core_clk, config->hw->max_clk);
+
+	/*
+	 * Some chipsets have a Shared Memory Pool (SMP), while others
+	 * have dedicated latency buffering per source pipe instead;
+	 * this section initializes the SMP:
+	 */
+	if (mdp5_kms->caps & MDP_CAP_SMP) {
+		mdp5_kms->smp = mdp5_smp_init(mdp5_kms->dev, &config->hw->smp);
+		if (IS_ERR(mdp5_kms->smp)) {
+			ret = PTR_ERR(mdp5_kms->smp);
+			mdp5_kms->smp = NULL;
+			goto fail;
+		}
+	}
+
+	mdp5_kms->ctlm = mdp5_ctlm_init(dev, mdp5_kms->mmio, mdp5_kms->cfg);
+	if (IS_ERR(mdp5_kms->ctlm)) {
+		ret = PTR_ERR(mdp5_kms->ctlm);
+		mdp5_kms->ctlm = NULL;
+		goto fail;
+	}
+
+	/* set uninit-ed kms */
+	priv->kms = &mdp5_kms->base.base;
+
+	return 0;
+fail:
+	mdp5_destroy(pdev);
+	return ret;
+}
+
+static int mdp5_bind(struct device *dev, struct device *master, void *data)
+{
+	struct drm_device *ddev = dev_get_drvdata(master);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	DBG("");
+
+	return mdp5_init(pdev, ddev);
+}
+
+static void mdp5_unbind(struct device *dev, struct device *master,
+			void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	mdp5_destroy(pdev);
+}
+
+static const struct component_ops mdp5_ops = {
+	.bind   = mdp5_bind,
+	.unbind = mdp5_unbind,
+};
+
+static int mdp5_dev_probe(struct platform_device *pdev)
+{
+	DBG("");
+	return component_add(&pdev->dev, &mdp5_ops);
+}
+
+static int mdp5_dev_remove(struct platform_device *pdev)
+{
+	DBG("");
+	component_del(&pdev->dev, &mdp5_ops);
+	return 0;
+}
+
+static struct platform_driver mdp5_driver = {
+	.probe = mdp5_dev_probe,
+	.remove = mdp5_dev_remove,
+	.driver = {
+		.name = "msm_mdp",
+		/* Add a DT match field once we move to new hierarchy */
+	},
+};
+
+void __init msm_mdp_register(void)
+{
+	DBG("");
+	platform_driver_register(&mdp5_driver);
+}
+
+void __exit msm_mdp_unregister(void)
+{
+	DBG("");
+	platform_driver_unregister(&mdp5_driver);
 }
