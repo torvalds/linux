@@ -328,6 +328,11 @@ int tonga_write_smc_sram_dword(struct pp_smumgr *smumgr,
 
 static int tonga_smu_fini(struct pp_smumgr *smumgr)
 {
+	struct tonga_smumgr *priv = (struct tonga_smumgr *)(smumgr->backend);
+
+	smu_free_memory(smumgr->device, (void *)priv->smu_buffer.handle);
+	smu_free_memory(smumgr->device, (void *)priv->header_buffer.handle);
+
 	if (smumgr->backend != NULL) {
 		kfree(smumgr->backend);
 		smumgr->backend = NULL;
