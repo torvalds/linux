@@ -478,42 +478,6 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 
 }
 
-static int orangefs_xattr_set_trusted(const struct xattr_handler *handler,
-				     struct dentry *unused,
-				     struct inode *inode,
-				     const char *name,
-				     const void *buffer,
-				     size_t size,
-				     int flags)
-{
-	return orangefs_inode_setxattr(inode,
-				    XATTR_TRUSTED_PREFIX,
-				    name,
-				    buffer,
-				    size,
-				    flags);
-}
-
-static int orangefs_xattr_get_trusted(const struct xattr_handler *handler,
-				      struct dentry *unused,
-				      struct inode *inode,
-				      const char *name,
-				      void *buffer,
-				      size_t size)
-{
-	return orangefs_inode_getxattr(inode,
-				    XATTR_TRUSTED_PREFIX,
-				    name,
-				    buffer,
-				    size);
-}
-
-static struct xattr_handler orangefs_xattr_trusted_handler = {
-	.prefix = XATTR_TRUSTED_PREFIX,
-	.get = orangefs_xattr_get_trusted,
-	.set = orangefs_xattr_set_trusted,
-};
-
 static struct xattr_handler orangefs_xattr_default_handler = {
 	.prefix = "",  /* match any name => handlers called with full name */
 	.get = orangefs_xattr_get_default,
@@ -523,7 +487,6 @@ static struct xattr_handler orangefs_xattr_default_handler = {
 const struct xattr_handler *orangefs_xattr_handlers[] = {
 	&posix_acl_access_xattr_handler,
 	&posix_acl_default_xattr_handler,
-	&orangefs_xattr_trusted_handler,
 	&orangefs_xattr_default_handler,
 	NULL
 };
