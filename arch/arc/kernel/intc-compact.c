@@ -28,10 +28,8 @@ void arc_init_IRQ(void)
 {
 	int level_mask = 0;
 
-       /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
-	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ3_LV2) << 3;
-	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ5_LV2) << 5;
-	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ6_LV2) << 6;
+       /* Is timer high priority Interrupt (Level2 in ARCompact jargon) */
+	level_mask |= IS_ENABLED(CONFIG_ARC_COMPACT_IRQ_LEVELS) << TIMER0_IRQ;
 
 	/*
 	 * Write to register, even if no LV2 IRQs configured to reset it

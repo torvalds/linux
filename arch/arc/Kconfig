@@ -186,9 +186,6 @@ if SMP
 config ARC_HAS_COH_CACHES
 	def_bool n
 
-config ARC_HAS_REENTRANT_IRQ_LV2
-	def_bool n
-
 config ARC_MCIP
 	bool "ARConnect Multicore IP (MCIP) Support "
 	depends on ISA_ARCV2
@@ -366,25 +363,10 @@ config NODES_SHIFT
 if ISA_ARCOMPACT
 
 config ARC_COMPACT_IRQ_LEVELS
-	bool "ARCompact IRQ Priorities: High(2)/Low(1)"
+	bool "Setup Timer IRQ as high Priority"
 	default n
-	# Timer HAS to be high priority, for any other high priority config
-	select ARC_IRQ3_LV2
 	# if SMP, LV2 enabled ONLY if ARC implementation has LV2 re-entrancy
-	depends on !SMP || ARC_HAS_REENTRANT_IRQ_LV2
-
-if ARC_COMPACT_IRQ_LEVELS
-
-config ARC_IRQ3_LV2
-	bool
-
-config ARC_IRQ5_LV2
-	bool
-
-config ARC_IRQ6_LV2
-	bool
-
-endif	#ARC_COMPACT_IRQ_LEVELS
+	depends on !SMP
 
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
