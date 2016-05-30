@@ -6552,7 +6552,7 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 				       nla_data(ssid), nla_len(ssid));
 				request->match_sets[i].ssid.ssid_len =
 					nla_len(ssid);
-				/* special attribute - old implemenation w/a */
+				/* special attribute - old implementation w/a */
 				request->match_sets[i].rssi_thold =
 					default_match_rssi;
 				rssi = tb[NL80211_SCHED_SCAN_MATCH_ATTR_RSSI];
