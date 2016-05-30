@@ -29,10 +29,6 @@ static int gb_spi_probe(struct gbphy_device *gbphy_dev,
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_gbphy_get_version(connection);
-	if (ret)
-		goto exit_connection_disable;
-
 	ret = gb_spilib_master_init(connection, &gbphy_dev->dev);
 	if (ret)
 		goto exit_connection_disable;

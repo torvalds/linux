@@ -206,10 +206,6 @@ static int gb_pwm_probe(struct gbphy_device *gbphy_dev,
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_gbphy_get_version(connection);
-	if (ret)
-		goto exit_connection_disable;
-
 	/* Query number of pwms present */
 	ret = gb_pwm_count_operation(pwmc);
 	if (ret)

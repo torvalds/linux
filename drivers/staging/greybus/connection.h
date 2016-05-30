@@ -44,9 +44,6 @@ struct gb_connection {
 	gb_request_handler_t		handler;
 	unsigned long			flags;
 
-	u8				module_major;
-	u8				module_minor;
-
 	struct mutex			mutex;
 	spinlock_t			lock;
 	enum gb_connection_state	state;

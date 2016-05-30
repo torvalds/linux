@@ -190,10 +190,6 @@ static int gb_usb_probe(struct gbphy_device *gbphy_dev,
 	if (retval)
 		goto exit_connection_destroy;
 
-	retval = gb_gbphy_get_version(connection);
-	if (retval)
-		goto exit_connection_disable;
-
 	/*
 	 * FIXME: The USB bridged-PHY protocol driver depends on changes to
 	 *        USB core which are not yet upstream.

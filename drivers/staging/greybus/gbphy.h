@@ -46,7 +46,6 @@ struct gbphy_driver {
 };
 #define to_gbphy_driver(d) container_of(d, struct gbphy_driver, driver)
 
-int gb_gbphy_get_version(struct gb_connection *connection);
 int gb_gbphy_register_driver(struct gbphy_driver *driver,
 			     struct module *owner, const char *mod_name);
 void gb_gbphy_deregister_driver(struct gbphy_driver *driver);

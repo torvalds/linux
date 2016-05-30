@@ -904,10 +904,6 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 	if (retval)
 		goto exit_release_minor;
 
-	retval = gb_gbphy_get_version(connection);
-	if (retval)
-		goto exit_connection_disable;
-
 	send_control(gb_tty, gb_tty->ctrlout);
 
 	/* initialize the uart to be 9600n81 */

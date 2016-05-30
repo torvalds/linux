@@ -748,10 +748,6 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_gbphy_get_version(connection);
-	if (ret)
-		goto exit_connection_disable;
-
 	ret = gb_sdio_get_caps(host);
 	if (ret < 0)
 		goto exit_connection_disable;

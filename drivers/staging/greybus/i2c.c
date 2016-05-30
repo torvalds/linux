@@ -271,10 +271,6 @@ static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_gbphy_get_version(connection);
-	if (ret)
-		goto exit_connection_disable;
-
 	ret = gb_i2c_device_setup(gb_i2c_dev);
 	if (ret)
 		goto exit_connection_disable;

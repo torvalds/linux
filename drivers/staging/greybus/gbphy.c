@@ -171,33 +171,6 @@ void gb_gbphy_deregister_driver(struct gbphy_driver *driver)
 }
 EXPORT_SYMBOL_GPL(gb_gbphy_deregister_driver);
 
-int gb_gbphy_get_version(struct gb_connection *connection)
-{
-	struct gb_protocol_version_request request;
-	struct gb_protocol_version_response response;
-	int retval;
-
-	request.major = 1;
-	request.minor = 0;
-
-	retval = gb_operation_sync(connection, GB_REQUEST_TYPE_PROTOCOL_VERSION,
-				   &request, sizeof(request), &response,
-				   sizeof(response));
-	if (retval)
-		return retval;
-
-	/* FIXME - do proper version negotiation here someday... */
-
-	connection->module_major = response.major;
-	connection->module_minor = response.minor;
-
-	dev_dbg(&connection->hd->dev, "%s: v%u.%u\n", connection->name,
-		response.major, response.minor);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gb_gbphy_get_version);
-
 static struct gbphy_device *gb_gbphy_create_dev(struct gb_bundle *bundle,
 				struct greybus_descriptor_cport *cport_desc)
 {

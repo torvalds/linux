@@ -97,7 +97,6 @@ struct gb_operation_msg_hdr {
 
 /* Generic request types */
 #define GB_REQUEST_TYPE_PING			0x00
-#define GB_REQUEST_TYPE_PROTOCOL_VERSION	0x01
 #define GB_REQUEST_TYPE_INVALID			0x7f
 
 struct gb_protocol_version_request {
@@ -614,10 +613,6 @@ struct gb_hid_input_report_request {
 
 /* I2C */
 
-/* Version of the Greybus i2c protocol we support */
-#define GB_I2C_VERSION_MAJOR		0x00
-#define GB_I2C_VERSION_MINOR		0x01
-
 /* Greybus i2c request types */
 #define GB_I2C_TYPE_FUNCTIONALITY	0x02
 #define GB_I2C_TYPE_TRANSFER		0x05
@@ -653,10 +648,6 @@ struct gb_i2c_transfer_response {
 
 
 /* GPIO */
-
-/* Version of the Greybus GPIO protocol we support */
-#define GB_GPIO_VERSION_MAJOR		0x00
-#define GB_GPIO_VERSION_MINOR		0x01
 
 /* Greybus GPIO request types */
 #define GB_GPIO_TYPE_LINE_COUNT		0x02
@@ -757,10 +748,6 @@ struct gb_gpio_irq_event_request {
 
 /* PWM */
 
-/* Version of the Greybus PWM protocol we support */
-#define GB_PWM_VERSION_MAJOR		0x00
-#define GB_PWM_VERSION_MINOR		0x01
-
 /* Greybus PWM operation types */
 #define GB_PWM_TYPE_PWM_COUNT		0x02
 #define GB_PWM_TYPE_ACTIVATE		0x03
@@ -803,10 +790,6 @@ struct gb_pwm_disable_request {
 } __packed;
 
 /* SPI */
-
-/* Version of the Greybus spi protocol we support */
-#define GB_SPI_VERSION_MAJOR		0x00
-#define GB_SPI_VERSION_MINOR		0x01
 
 /* Should match up with modes in linux/spi/spi.h */
 #define GB_SPI_MODE_CPHA		0x01		/* clock phase */
@@ -1246,10 +1229,6 @@ struct gb_raw_send_request {
 
 /* UART */
 
-/* Version of the Greybus UART protocol we support */
-#define GB_UART_VERSION_MAJOR		0x00
-#define GB_UART_VERSION_MINOR		0x01
-
 /* Greybus UART operation types */
 #define GB_UART_TYPE_SEND_DATA			0x02
 #define GB_UART_TYPE_RECEIVE_DATA		0x03	/* Unsolicited data */
@@ -1356,10 +1335,6 @@ struct gb_loopback_transfer_response {
 } __packed;
 
 /* SDIO */
-/* Version of the Greybus sdio protocol we support */
-#define GB_SDIO_VERSION_MAJOR		0x00
-#define GB_SDIO_VERSION_MINOR		0x01
-
 /* Greybus SDIO operation types */
 #define GB_SDIO_TYPE_GET_CAPABILITIES		0x02
 #define GB_SDIO_TYPE_SET_IOS			0x03

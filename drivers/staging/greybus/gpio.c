@@ -654,10 +654,6 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	if (ret)
 		goto exit_connection_destroy;
 
-	ret = gb_gbphy_get_version(connection);
-	if (ret)
-		goto exit_connection_disable;
-
 	ret = gb_gpio_controller_setup(ggc);
 	if (ret)
 		goto exit_connection_disable;
