@@ -66,7 +66,6 @@
  *****************************************************************************/
 #include <linux/firmware.h>
 #include <linux/rtnetlink.h>
-#include <linux/pci.h>
 #include <linux/acpi.h>
 #include "iwl-trans.h"
 #include "iwl-csr.h"
@@ -802,9 +801,8 @@ static int iwl_mvm_get_bios_mcc(struct iwl_mvm *mvm, char *mcc)
 	struct acpi_buffer wrdd = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
 	u32 mcc_val;
-	struct pci_dev *pdev = to_pci_dev(mvm->dev);
 
-	root_handle = ACPI_HANDLE(&pdev->dev);
+	root_handle = ACPI_HANDLE(mvm->dev);
 	if (!root_handle) {
 		IWL_DEBUG_LAR(mvm,
 			      "Could not retrieve root port ACPI handle\n");
