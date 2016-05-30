@@ -2763,6 +2763,8 @@ sub process_file($) {
 		}
 
 		$state = STATE_FIELD;
+		$contents = "";
+		$section = $section_default;
 		if (/-(.*)/) {
 		    # strip leading/trailing/multiple spaces
 		    $descr= $1;
@@ -2960,6 +2962,7 @@ sub process_file($) {
 		elsif (/$doc_end/)
 		{
 			dump_doc_section($file, $section, xml_escape($contents));
+			$section = $section_default;
 			$contents = "";
 			$function = "";
 			%parameterdescs = ();
