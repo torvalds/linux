@@ -93,9 +93,10 @@
  *   2.43.0 - RADEON_INFO_GPU_RESET_COUNTER
  *   2.44.0 - SET_APPEND_CNT packet3 support
  *   2.45.0 - Allow setting shader registers using DMA/COPY packet3 on SI
+ *   2.46.0 - Add PFP_SYNC_ME support on evergreen
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	45
+#define KMS_DRIVER_MINOR	46
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
