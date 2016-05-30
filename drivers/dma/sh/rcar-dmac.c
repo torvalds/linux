@@ -510,7 +510,7 @@ static void rcar_dmac_desc_put(struct rcar_dmac_chan *chan,
 
 	spin_lock_irqsave(&chan->lock, flags);
 	list_splice_tail_init(&desc->chunks, &chan->desc.chunks_free);
-	list_add_tail(&desc->node, &chan->desc.free);
+	list_add(&desc->node, &chan->desc.free);
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
 
