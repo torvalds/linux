@@ -44,6 +44,7 @@ void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 	perf_evlist__set_maps(evlist, cpus, threads);
 	fdarray__init(&evlist->pollfd, 64);
 	evlist->workload.pid = -1;
+	evlist->backward = false;
 }
 
 struct perf_evlist *perf_evlist__new(void)
@@ -679,53 +680,79 @@ static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
 	return NULL;
 }
 
-union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
+static int perf_evlist__set_paused(struct perf_evlist *evlist, bool value)
 {
-	struct perf_mmap *md = &evlist->mmap[idx];
-	u64 head;
-	u64 old = md->prev;
+	int i;
+
+	for (i = 0; i < evlist->nr_mmaps; i++) {
+		int fd = evlist->mmap[i].fd;
+		int err;
+
+		if (fd < 0)
+			continue;
+		err = ioctl(fd, PERF_EVENT_IOC_PAUSE_OUTPUT, value ? 1 : 0);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+int perf_evlist__pause(struct perf_evlist *evlist)
+{
+	return perf_evlist__set_paused(evlist, true);
+}
+
+int perf_evlist__resume(struct perf_evlist *evlist)
+{
+	return perf_evlist__set_paused(evlist, false);
+}
+
+/* When check_messup is true, 'end' must points to a good entry */
+static union perf_event *
+perf_mmap__read(struct perf_mmap *md, bool check_messup, u64 start,
+		u64 end, u64 *prev)
+{
 	unsigned char *data = md->base + page_size;
 	union perf_event *event = NULL;
+	int diff = end - start;
 
-	/*
-	 * Check if event was unmapped due to a POLLHUP/POLLERR.
-	 */
-	if (!atomic_read(&md->refcnt))
-		return NULL;
-
-	head = perf_mmap__read_head(md);
-	if (evlist->overwrite) {
+	if (check_messup) {
 		/*
 		 * If we're further behind than half the buffer, there's a chance
 		 * the writer will bite our tail and mess up the samples under us.
 		 *
-		 * If we somehow ended up ahead of the head, we got messed up.
+		 * If we somehow ended up ahead of the 'end', we got messed up.
 		 *
-		 * In either case, truncate and restart at head.
+		 * In either case, truncate and restart at 'end'.
 		 */
-		int diff = head - old;
 		if (diff > md->mask / 2 || diff < 0) {
 			fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
 
 			/*
-			 * head points to a known good entry, start there.
+			 * 'end' points to a known good entry, start there.
 			 */
-			old = head;
+			start = end;
+			diff = 0;
 		}
 	}
 
-	if (old != head) {
+	if (diff >= (int)sizeof(event->header)) {
 		size_t size;
 
-		event = (union perf_event *)&data[old & md->mask];
+		event = (union perf_event *)&data[start & md->mask];
 		size = event->header.size;
+
+		if (size < sizeof(event->header) || diff < (int)size) {
+			event = NULL;
+			goto broken_event;
+		}
 
 		/*
 		 * Event straddles the mmap boundary -- header should always
 		 * be inside due to u64 alignment of output.
 		 */
-		if ((old & md->mask) + size != ((old + size) & md->mask)) {
-			unsigned int offset = old;
+		if ((start & md->mask) + size != ((start + size) & md->mask)) {
+			unsigned int offset = start;
 			unsigned int len = min(sizeof(*event), size), cpy;
 			void *dst = md->event_copy;
 
@@ -740,12 +767,81 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 			event = (union perf_event *) md->event_copy;
 		}
 
-		old += size;
+		start += size;
 	}
 
-	md->prev = old;
+broken_event:
+	if (prev)
+		*prev = start;
 
 	return event;
+}
+
+union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
+{
+	struct perf_mmap *md = &evlist->mmap[idx];
+	u64 head;
+	u64 old = md->prev;
+
+	/*
+	 * Check if event was unmapped due to a POLLHUP/POLLERR.
+	 */
+	if (!atomic_read(&md->refcnt))
+		return NULL;
+
+	head = perf_mmap__read_head(md);
+
+	return perf_mmap__read(md, evlist->overwrite, old, head, &md->prev);
+}
+
+union perf_event *
+perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
+{
+	struct perf_mmap *md = &evlist->mmap[idx];
+	u64 head, end;
+	u64 start = md->prev;
+
+	/*
+	 * Check if event was unmapped due to a POLLHUP/POLLERR.
+	 */
+	if (!atomic_read(&md->refcnt))
+		return NULL;
+
+	head = perf_mmap__read_head(md);
+	if (!head)
+		return NULL;
+
+	/*
+	 * 'head' pointer starts from 0. Kernel minus sizeof(record) form
+	 * it each time when kernel writes to it, so in fact 'head' is
+	 * negative. 'end' pointer is made manually by adding the size of
+	 * the ring buffer to 'head' pointer, means the validate data can
+	 * read is the whole ring buffer. If 'end' is positive, the ring
+	 * buffer has not fully filled, so we must adjust 'end' to 0.
+	 *
+	 * However, since both 'head' and 'end' is unsigned, we can't
+	 * simply compare 'end' against 0. Here we compare '-head' and
+	 * the size of the ring buffer, where -head is the number of bytes
+	 * kernel write to the ring buffer.
+	 */
+	if (-head < (u64)(md->mask + 1))
+		end = 0;
+	else
+		end = head + md->mask + 1;
+
+	return perf_mmap__read(md, false, start, end, &md->prev);
+}
+
+void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
+{
+	struct perf_mmap *md = &evlist->mmap[idx];
+	u64 head;
+
+	if (!atomic_read(&md->refcnt))
+		return;
+
+	head = perf_mmap__read_head(md);
+	md->prev = head;
 }
 
 static bool perf_mmap__empty(struct perf_mmap *md)
@@ -813,6 +909,7 @@ static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx)
 	if (evlist->mmap[idx].base != NULL) {
 		munmap(evlist->mmap[idx].base, evlist->mmap_len);
 		evlist->mmap[idx].base = NULL;
+		evlist->mmap[idx].fd = -1;
 		atomic_set(&evlist->mmap[idx].refcnt, 0);
 	}
 	auxtrace_mmap__munmap(&evlist->mmap[idx].auxtrace_mmap);
@@ -833,10 +930,14 @@ void perf_evlist__munmap(struct perf_evlist *evlist)
 
 static int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 {
+	int i;
+
 	evlist->nr_mmaps = cpu_map__nr(evlist->cpus);
 	if (cpu_map__empty(evlist->cpus))
 		evlist->nr_mmaps = thread_map__nr(evlist->threads);
 	evlist->mmap = zalloc(evlist->nr_mmaps * sizeof(struct perf_mmap));
+	for (i = 0; i < evlist->nr_mmaps; i++)
+		evlist->mmap[i].fd = -1;
 	return evlist->mmap != NULL ? 0 : -ENOMEM;
 }
 
@@ -873,6 +974,7 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist, int idx,
 		evlist->mmap[idx].base = NULL;
 		return -1;
 	}
+	evlist->mmap[idx].fd = fd;
 
 	if (auxtrace_mmap__mmap(&evlist->mmap[idx].auxtrace_mmap,
 				&mp->auxtrace_mp, evlist->mmap[idx].base, fd))
@@ -986,26 +1088,34 @@ out_unmap:
 	return -1;
 }
 
+unsigned long perf_event_mlock_kb_in_pages(void)
+{
+	unsigned long pages;
+	int max;
+
+	if (sysctl__read_int("kernel/perf_event_mlock_kb", &max) < 0) {
+		/*
+		 * Pick a once upon a time good value, i.e. things look
+		 * strange since we can't read a sysctl value, but lets not
+		 * die yet...
+		 */
+		max = 512;
+	} else {
+		max -= (page_size / 1024);
+	}
+
+	pages = (max * 1024) / page_size;
+	if (!is_power_of_2(pages))
+		pages = rounddown_pow_of_two(pages);
+
+	return pages;
+}
+
 static size_t perf_evlist__mmap_size(unsigned long pages)
 {
-	if (pages == UINT_MAX) {
-		int max;
-
-		if (sysctl__read_int("kernel/perf_event_mlock_kb", &max) < 0) {
-			/*
-			 * Pick a once upon a time good value, i.e. things look
-			 * strange since we can't read a sysctl value, but lets not
-			 * die yet...
-			 */
-			max = 512;
-		} else {
-			max -= (page_size / 1024);
-		}
-
-		pages = (max * 1024) / page_size;
-		if (!is_power_of_2(pages))
-			pages = rounddown_pow_of_two(pages);
-	} else if (!is_power_of_2(pages))
+	if (pages == UINT_MAX)
+		pages = perf_event_mlock_kb_in_pages();
+	else if (!is_power_of_2(pages))
 		return 0;
 
 	return (pages + 1) * page_size;
@@ -1190,6 +1300,24 @@ void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
 	}
 
 	perf_evlist__propagate_maps(evlist);
+}
+
+void __perf_evlist__set_sample_bit(struct perf_evlist *evlist,
+				   enum perf_event_sample_format bit)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel)
+		__perf_evsel__set_sample_bit(evsel, bit);
+}
+
+void __perf_evlist__reset_sample_bit(struct perf_evlist *evlist,
+				     enum perf_event_sample_format bit)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel)
+		__perf_evsel__reset_sample_bit(evsel, bit);
 }
 
 int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel)

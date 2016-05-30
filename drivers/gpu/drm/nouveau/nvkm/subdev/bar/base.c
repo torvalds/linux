@@ -77,7 +77,7 @@ void
 nvkm_bar_ctor(const struct nvkm_bar_func *func, struct nvkm_device *device,
 	      int index, struct nvkm_bar *bar)
 {
-	nvkm_subdev_ctor(&nvkm_bar, device, index, 0, &bar->subdev);
+	nvkm_subdev_ctor(&nvkm_bar, device, index, &bar->subdev);
 	bar->func = func;
 	spin_lock_init(&bar->lock);
 }

@@ -221,6 +221,16 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn,
 			struct qed_ptt *p_ptt);
 
 /**
+ * @brief qed_vfid_to_concrete - build a concrete FID for a
+ *        given VF ID
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param vfid
+ */
+u32 qed_vfid_to_concrete(struct qed_hwfn *p_hwfn, u8 vfid);
+
+/**
  * @brief qed_dmae_idx_to_go_cmd - map the idx to dmae cmd
  * this is declared here since other files will require it.
  * @param idx

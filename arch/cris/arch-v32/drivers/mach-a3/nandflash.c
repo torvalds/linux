@@ -157,6 +157,7 @@ struct mtd_info *__init crisv32_nand_flash_probe(void)
 	/* 20 us command delay time */
 	this->chip_delay = 20;
 	this->ecc.mode = NAND_ECC_SOFT;
+	this->ecc.algo = NAND_ECC_HAMMING;
 
 	/* Enable the following for a flash based bad block table */
 	/* this->bbt_options = NAND_BBT_USE_FLASH; */

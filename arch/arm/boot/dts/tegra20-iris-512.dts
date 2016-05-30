@@ -11,6 +11,10 @@
 		serial1 = &uartd;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	host1x@50000000 {
 		hdmi@54280000 {
 			status = "okay";

@@ -364,7 +364,6 @@ DEFINE_BUF_EVENT(xfs_buf_delwri_split);
 DEFINE_BUF_EVENT(xfs_buf_get_uncached);
 DEFINE_BUF_EVENT(xfs_bdstrat_shut);
 DEFINE_BUF_EVENT(xfs_buf_item_relse);
-DEFINE_BUF_EVENT(xfs_buf_item_iodone);
 DEFINE_BUF_EVENT(xfs_buf_item_iodone_async);
 DEFINE_BUF_EVENT(xfs_buf_error_relse);
 DEFINE_BUF_EVENT(xfs_buf_wait_buftarg);
@@ -944,7 +943,6 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 	TP_ARGS(log, tic),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(unsigned, trans_type)
 		__field(char, ocnt)
 		__field(char, cnt)
 		__field(int, curr_res)
@@ -962,7 +960,6 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 	),
 	TP_fast_assign(
 		__entry->dev = log->l_mp->m_super->s_dev;
-		__entry->trans_type = tic->t_trans_type;
 		__entry->ocnt = tic->t_ocnt;
 		__entry->cnt = tic->t_cnt;
 		__entry->curr_res = tic->t_curr_res;
@@ -980,14 +977,13 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		__entry->curr_block = log->l_curr_block;
 		__entry->tail_lsn = atomic64_read(&log->l_tail_lsn);
 	),
-	TP_printk("dev %d:%d type %s t_ocnt %u t_cnt %u t_curr_res %u "
+	TP_printk("dev %d:%d t_ocnt %u t_cnt %u t_curr_res %u "
 		  "t_unit_res %u t_flags %s reserveq %s "
 		  "writeq %s grant_reserve_cycle %d "
 		  "grant_reserve_bytes %d grant_write_cycle %d "
 		  "grant_write_bytes %d curr_cycle %d curr_block %d "
 		  "tail_cycle %d tail_block %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __print_symbolic(__entry->trans_type, XFS_TRANS_TYPES),
 		  __entry->ocnt,
 		  __entry->cnt,
 		  __entry->curr_res,
@@ -1053,19 +1049,21 @@ DECLARE_EVENT_CLASS(xfs_log_item_class,
 )
 
 TRACE_EVENT(xfs_log_force,
-	TP_PROTO(struct xfs_mount *mp, xfs_lsn_t lsn),
-	TP_ARGS(mp, lsn),
+	TP_PROTO(struct xfs_mount *mp, xfs_lsn_t lsn, unsigned long caller_ip),
+	TP_ARGS(mp, lsn, caller_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_lsn_t, lsn)
+		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
 		__entry->lsn = lsn;
+		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d lsn 0x%llx",
+	TP_printk("dev %d:%d lsn 0x%llx caller %ps",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->lsn)
+		  __entry->lsn, (void *)__entry->caller_ip)
 )
 
 #define DEFINE_LOG_ITEM_EVENT(name) \

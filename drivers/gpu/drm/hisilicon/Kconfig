@@ -1,0 +1,5 @@
+#
+# hisilicon drm device configuration.
+# Please keep this list sorted alphabetically
+
+source "drivers/gpu/drm/hisilicon/kirin/Kconfig"

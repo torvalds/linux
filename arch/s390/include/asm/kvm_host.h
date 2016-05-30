@@ -38,7 +38,7 @@
  */
 #define KVM_NR_IRQCHIPS 1
 #define KVM_IRQCHIP_NUM_PINS 4096
-#define KVM_HALT_POLL_NS_DEFAULT 0
+#define KVM_HALT_POLL_NS_DEFAULT 80000
 
 /* s390-specific vcpu->requests bit members */
 #define KVM_REQ_ENABLE_IBS         8
@@ -247,6 +247,7 @@ struct kvm_vcpu_stat {
 	u32 exit_instruction;
 	u32 halt_successful_poll;
 	u32 halt_attempted_poll;
+	u32 halt_poll_invalid;
 	u32 halt_wakeup;
 	u32 instruction_lctl;
 	u32 instruction_lctlg;
@@ -544,10 +545,6 @@ struct kvm_vcpu_arch {
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
 	struct kvm_s390_pgm_info pgm;
-	union  {
-		struct cpuid	cpu_id;
-		u64		stidp_data;
-	};
 	struct gmap *gmap;
 	struct kvm_guestdbg_info_arch guestdbg;
 	unsigned long pfault_token;
@@ -605,7 +602,7 @@ struct kvm_s390_cpu_model {
 	__u64 fac_mask[S390_ARCH_FAC_LIST_SIZE_U64];
 	/* facility list requested by guest (in dma page) */
 	__u64 *fac_list;
-	struct cpuid cpu_id;
+	u64 cpuid;
 	unsigned short ibc;
 };
 
@@ -699,5 +696,7 @@ static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 		struct kvm_memory_slot *slot) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+
+void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu);
 
 #endif

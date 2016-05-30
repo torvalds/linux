@@ -131,7 +131,7 @@ static struct ieee80211_rate rtl_ratetable_5g[] = {
 };
 
 static const struct ieee80211_supported_band rtl_band_2ghz = {
-	.band = IEEE80211_BAND_2GHZ,
+	.band = NL80211_BAND_2GHZ,
 
 	.channels = rtl_channeltable_2g,
 	.n_channels = ARRAY_SIZE(rtl_channeltable_2g),
@@ -143,7 +143,7 @@ static const struct ieee80211_supported_band rtl_band_2ghz = {
 };
 
 static struct ieee80211_supported_band rtl_band_5ghz = {
-	.band = IEEE80211_BAND_5GHZ,
+	.band = NL80211_BAND_5GHZ,
 
 	.channels = rtl_channeltable_5g,
 	.n_channels = ARRAY_SIZE(rtl_channeltable_5g),
@@ -197,7 +197,7 @@ static void _rtl_init_hw_ht_capab(struct ieee80211_hw *hw,
 
 	ht_cap->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 
-	/*hw->wiphy->bands[IEEE80211_BAND_2GHZ]
+	/*hw->wiphy->bands[NL80211_BAND_2GHZ]
 	 *base on ant_num
 	 *rx_mask: RX mask
 	 *if rx_ant = 1 rx_mask[0]= 0xff;==>MCS0-MCS7
@@ -328,26 +328,26 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	    rtlhal->bandset == BAND_ON_BOTH) {
 		/* 1: 2.4 G bands */
 		/* <1> use  mac->bands as mem for hw->wiphy->bands */
-		sband = &(rtlmac->bands[IEEE80211_BAND_2GHZ]);
+		sband = &(rtlmac->bands[NL80211_BAND_2GHZ]);
 
-		/* <2> set hw->wiphy->bands[IEEE80211_BAND_2GHZ]
+		/* <2> set hw->wiphy->bands[NL80211_BAND_2GHZ]
 		 * to default value(1T1R) */
-		memcpy(&(rtlmac->bands[IEEE80211_BAND_2GHZ]), &rtl_band_2ghz,
+		memcpy(&(rtlmac->bands[NL80211_BAND_2GHZ]), &rtl_band_2ghz,
 				sizeof(struct ieee80211_supported_band));
 
 		/* <3> init ht cap base on ant_num */
 		_rtl_init_hw_ht_capab(hw, &sband->ht_cap);
 
 		/* <4> set mac->sband to wiphy->sband */
-		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = sband;
+		hw->wiphy->bands[NL80211_BAND_2GHZ] = sband;
 
 		/* 2: 5 G bands */
 		/* <1> use  mac->bands as mem for hw->wiphy->bands */
-		sband = &(rtlmac->bands[IEEE80211_BAND_5GHZ]);
+		sband = &(rtlmac->bands[NL80211_BAND_5GHZ]);
 
-		/* <2> set hw->wiphy->bands[IEEE80211_BAND_5GHZ]
+		/* <2> set hw->wiphy->bands[NL80211_BAND_5GHZ]
 		 * to default value(1T1R) */
-		memcpy(&(rtlmac->bands[IEEE80211_BAND_5GHZ]), &rtl_band_5ghz,
+		memcpy(&(rtlmac->bands[NL80211_BAND_5GHZ]), &rtl_band_5ghz,
 				sizeof(struct ieee80211_supported_band));
 
 		/* <3> init ht cap base on ant_num */
@@ -355,15 +355,15 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 
 		_rtl_init_hw_vht_capab(hw, &sband->vht_cap);
 		/* <4> set mac->sband to wiphy->sband */
-		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = sband;
+		hw->wiphy->bands[NL80211_BAND_5GHZ] = sband;
 	} else {
 		if (rtlhal->current_bandtype == BAND_ON_2_4G) {
 			/* <1> use  mac->bands as mem for hw->wiphy->bands */
-			sband = &(rtlmac->bands[IEEE80211_BAND_2GHZ]);
+			sband = &(rtlmac->bands[NL80211_BAND_2GHZ]);
 
-			/* <2> set hw->wiphy->bands[IEEE80211_BAND_2GHZ]
+			/* <2> set hw->wiphy->bands[NL80211_BAND_2GHZ]
 			 * to default value(1T1R) */
-			memcpy(&(rtlmac->bands[IEEE80211_BAND_2GHZ]),
+			memcpy(&(rtlmac->bands[NL80211_BAND_2GHZ]),
 			       &rtl_band_2ghz,
 			       sizeof(struct ieee80211_supported_band));
 
@@ -371,14 +371,14 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 			_rtl_init_hw_ht_capab(hw, &sband->ht_cap);
 
 			/* <4> set mac->sband to wiphy->sband */
-			hw->wiphy->bands[IEEE80211_BAND_2GHZ] = sband;
+			hw->wiphy->bands[NL80211_BAND_2GHZ] = sband;
 		} else if (rtlhal->current_bandtype == BAND_ON_5G) {
 			/* <1> use  mac->bands as mem for hw->wiphy->bands */
-			sband = &(rtlmac->bands[IEEE80211_BAND_5GHZ]);
+			sband = &(rtlmac->bands[NL80211_BAND_5GHZ]);
 
-			/* <2> set hw->wiphy->bands[IEEE80211_BAND_5GHZ]
+			/* <2> set hw->wiphy->bands[NL80211_BAND_5GHZ]
 			 * to default value(1T1R) */
-			memcpy(&(rtlmac->bands[IEEE80211_BAND_5GHZ]),
+			memcpy(&(rtlmac->bands[NL80211_BAND_5GHZ]),
 			       &rtl_band_5ghz,
 			       sizeof(struct ieee80211_supported_band));
 
@@ -387,7 +387,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 
 			_rtl_init_hw_vht_capab(hw, &sband->vht_cap);
 			/* <4> set mac->sband to wiphy->sband */
-			hw->wiphy->bands[IEEE80211_BAND_5GHZ] = sband;
+			hw->wiphy->bands[NL80211_BAND_5GHZ] = sband;
 		} else {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG, "Err BAND %d\n",
 				 rtlhal->current_bandtype);
@@ -861,7 +861,7 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
 
 /* mac80211's rate_idx is like this:
  *
- * 2.4G band:rx_status->band == IEEE80211_BAND_2GHZ
+ * 2.4G band:rx_status->band == NL80211_BAND_2GHZ
  *
  * B/G rate:
  * (rx_status->flag & RX_FLAG_HT) = 0,
@@ -871,7 +871,7 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw,
  * (rx_status->flag & RX_FLAG_HT) = 1,
  * DESC_RATEMCS0-->DESC_RATEMCS15 ==> idx is 0-->15
  *
- * 5G band:rx_status->band == IEEE80211_BAND_5GHZ
+ * 5G band:rx_status->band == NL80211_BAND_5GHZ
  * A rate:
  * (rx_status->flag & RX_FLAG_HT) = 0,
  * DESC_RATE6M-->DESC_RATE54M ==> idx is 0-->7,
@@ -958,7 +958,7 @@ int rtlwifi_rate_mapping(struct ieee80211_hw *hw, bool isht, bool isvht,
 		return rate_idx;
 	}
 	if (false == isht) {
-		if (IEEE80211_BAND_2GHZ == hw->conf.chandef.chan->band) {
+		if (NL80211_BAND_2GHZ == hw->conf.chandef.chan->band) {
 			switch (desc_rate) {
 			case DESC_RATE1M:
 				rate_idx = 0;
@@ -1660,9 +1660,9 @@ void rtl_watchdog_wq_callback(void *data)
 		if (((rtlpriv->link_info.num_rx_inperiod +
 		      rtlpriv->link_info.num_tx_inperiod) > 8) ||
 		    (rtlpriv->link_info.num_rx_inperiod > 2))
-			rtl_lps_enter(hw);
-		else
 			rtl_lps_leave(hw);
+		else
+			rtl_lps_enter(hw);
 	}
 
 	rtlpriv->link_info.num_rx_inperiod = 0;

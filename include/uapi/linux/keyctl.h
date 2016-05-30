@@ -12,6 +12,8 @@
 #ifndef _LINUX_KEYCTL_H
 #define _LINUX_KEYCTL_H
 
+#include <linux/types.h>
+
 /* special process keyring shortcut IDs */
 #define KEY_SPEC_THREAD_KEYRING		-1	/* - key ID for thread-specific keyring */
 #define KEY_SPEC_PROCESS_KEYRING	-2	/* - key ID for process-specific keyring */
@@ -57,5 +59,13 @@
 #define KEYCTL_INSTANTIATE_IOV		20	/* instantiate a partially constructed key */
 #define KEYCTL_INVALIDATE		21	/* invalidate a key */
 #define KEYCTL_GET_PERSISTENT		22	/* get a user's persistent keyring */
+#define KEYCTL_DH_COMPUTE		23	/* Compute Diffie-Hellman values */
+
+/* keyctl structures */
+struct keyctl_dh_params {
+	__s32 private;
+	__s32 prime;
+	__s32 base;
+};
 
 #endif /*  _LINUX_KEYCTL_H */

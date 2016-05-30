@@ -49,7 +49,8 @@ EXPORT_SYMBOL(cfs_percpt_lock_free);
  * reason we always allocate cacheline-aligned memory block.
  */
 struct cfs_percpt_lock *
-cfs_percpt_lock_alloc(struct cfs_cpt_table *cptab)
+cfs_percpt_lock_create(struct cfs_cpt_table *cptab,
+		       struct lock_class_key *keys)
 {
 	struct cfs_percpt_lock	*pcl;
 	spinlock_t		*lock;
@@ -67,12 +68,18 @@ cfs_percpt_lock_alloc(struct cfs_cpt_table *cptab)
 		return NULL;
 	}
 
-	cfs_percpt_for_each(lock, i, pcl->pcl_locks)
+	if (!keys)
+		CWARN("Cannot setup class key for percpt lock, you may see recursive locking warnings which are actually fake.\n");
+
+	cfs_percpt_for_each(lock, i, pcl->pcl_locks) {
 		spin_lock_init(lock);
+		if (keys != NULL)
+			lockdep_set_class(lock, &keys[i]);
+	}
 
 	return pcl;
 }
-EXPORT_SYMBOL(cfs_percpt_lock_alloc);
+EXPORT_SYMBOL(cfs_percpt_lock_create);
 
 /**
  * lock a CPU partition
@@ -142,44 +149,3 @@ cfs_percpt_unlock(struct cfs_percpt_lock *pcl, int index)
 	}
 }
 EXPORT_SYMBOL(cfs_percpt_unlock);
-
-/** free cpu-partition refcount */
-void
-cfs_percpt_atomic_free(atomic_t **refs)
-{
-	cfs_percpt_free(refs);
-}
-EXPORT_SYMBOL(cfs_percpt_atomic_free);
-
-/** allocate cpu-partition refcount with initial value @init_val */
-atomic_t **
-cfs_percpt_atomic_alloc(struct cfs_cpt_table *cptab, int init_val)
-{
-	atomic_t	**refs;
-	atomic_t	*ref;
-	int		i;
-
-	refs = cfs_percpt_alloc(cptab, sizeof(*ref));
-	if (!refs)
-		return NULL;
-
-	cfs_percpt_for_each(ref, i, refs)
-		atomic_set(ref, init_val);
-	return refs;
-}
-EXPORT_SYMBOL(cfs_percpt_atomic_alloc);
-
-/** return sum of cpu-partition refs */
-int
-cfs_percpt_atomic_summary(atomic_t **refs)
-{
-	atomic_t	*ref;
-	int		i;
-	int		val = 0;
-
-	cfs_percpt_for_each(ref, i, refs)
-		val += atomic_read(ref);
-
-	return val;
-}
-EXPORT_SYMBOL(cfs_percpt_atomic_summary);

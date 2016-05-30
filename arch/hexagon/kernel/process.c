@@ -137,13 +137,6 @@ void release_thread(struct task_struct *dead_task)
 }
 
 /*
- * Free any architecture-specific thread data structures, etc.
- */
-void exit_thread(void)
-{
-}
-
-/*
  * Some archs flush debug and FPU info here
  */
 void flush_thread(void)

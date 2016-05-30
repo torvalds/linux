@@ -25,6 +25,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_of.h>
+#include <video/imx-ipu-v3.h>
 
 #include "imx-drm.h"
 
@@ -252,13 +253,6 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	if (ret)
 		goto err_kms;
 
-	/*
-	 * with vblank_disable_allowed = true, vblank interrupt will be
-	 * disabled by drm timer once a current process gives up ownership
-	 * of vblank event. (after drm_vblank_put function is called)
-	 */
-	drm->vblank_disable_allowed = true;
-
 	platform_set_drvdata(drm->platformdev, drm);
 
 	/* Now try and bind all our sub-components */
@@ -411,7 +405,7 @@ static struct drm_driver imx_drm_driver = {
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
 	.set_busid		= drm_platform_set_busid,
-	.gem_free_object	= drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
@@ -443,6 +437,13 @@ static struct drm_driver imx_drm_driver = {
 static int compare_of(struct device *dev, void *data)
 {
 	struct device_node *np = data;
+
+	/* Special case for DI, dev->of_node may not be set yet */
+	if (strcmp(dev->driver->name, "imx-ipuv3-crtc") == 0) {
+		struct ipu_client_platformdata *pdata = dev->platform_data;
+
+		return pdata->of_node == np;
+	}
 
 	/* Special case for LDB, one device for two channels */
 	if (of_node_cmp(np->name, "lvds-channel") == 0) {

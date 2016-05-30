@@ -54,10 +54,13 @@ union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r)
 	assert(ieee754sp_issnan(r));
 
 	ieee754_setcx(IEEE754_INVALID_OPERATION);
-	if (ieee754_csr.nan2008)
+	if (ieee754_csr.nan2008) {
 		SPMANT(r) |= SP_MBIT(SP_FBITS - 1);
-	else
-		r = ieee754sp_indef();
+	} else {
+		SPMANT(r) &= ~SP_MBIT(SP_FBITS - 1);
+		if (!ieee754sp_isnan(r))
+			SPMANT(r) |= SP_MBIT(SP_FBITS - 2);
+	}
 
 	return r;
 }
@@ -138,7 +141,8 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 		} else {
 			/* sticky right shift es bits
 			 */
-			SPXSRSXn(es);
+			xm = XSPSRS(xm, es);
+			xe += es;
 			assert((xm & (SP_HIDDEN_BIT << 3)) == 0);
 			assert(xe == SP_EMIN);
 		}

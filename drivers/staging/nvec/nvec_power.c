@@ -90,7 +90,7 @@ static int nvec_power_notifier(struct notifier_block *nb,
 {
 	struct nvec_power *power =
 	    container_of(nb, struct nvec_power, notifier);
-	struct bat_response *res = (struct bat_response *)data;
+	struct bat_response *res = data;
 
 	if (event_type != NVEC_SYS)
 		return NOTIFY_DONE;
@@ -126,7 +126,7 @@ static int nvec_power_bat_notifier(struct notifier_block *nb,
 {
 	struct nvec_power *power =
 	    container_of(nb, struct nvec_power, notifier);
-	struct bat_response *res = (struct bat_response *)data;
+	struct bat_response *res = data;
 	int status_changed = 0;
 
 	if (event_type != NVEC_BAT)

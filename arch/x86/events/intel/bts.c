@@ -171,18 +171,6 @@ static void bts_buffer_pad_out(struct bts_phys *phys, unsigned long head)
 	memset(page_address(phys->page) + index, 0, phys->size - index);
 }
 
-static bool bts_buffer_is_full(struct bts_buffer *buf, struct bts_ctx *bts)
-{
-	if (buf->snapshot)
-		return false;
-
-	if (local_read(&buf->data_size) >= bts->handle.size ||
-	    bts->handle.size - local_read(&buf->data_size) < BTS_RECORD_SIZE)
-		return true;
-
-	return false;
-}
-
 static void bts_update(struct bts_ctx *bts)
 {
 	int cpu = raw_smp_processor_id();
@@ -213,17 +201,14 @@ static void bts_update(struct bts_ctx *bts)
 	}
 }
 
+static int
+bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle);
+
 static void __bts_event_start(struct perf_event *event)
 {
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
 	struct bts_buffer *buf = perf_get_aux(&bts->handle);
 	u64 config = 0;
-
-	if (!buf || bts_buffer_is_full(buf, bts))
-		return;
-
-	event->hw.itrace_started = 1;
-	event->hw.state = 0;
 
 	if (!buf->snapshot)
 		config |= ARCH_PERFMON_EVENTSEL_INT;
@@ -241,16 +226,41 @@ static void __bts_event_start(struct perf_event *event)
 	wmb();
 
 	intel_pmu_enable_bts(config);
+
 }
 
 static void bts_event_start(struct perf_event *event, int flags)
 {
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
+	struct bts_buffer *buf;
+
+	buf = perf_aux_output_begin(&bts->handle, event);
+	if (!buf)
+		goto fail_stop;
+
+	if (bts_buffer_reset(buf, &bts->handle))
+		goto fail_end_stop;
+
+	bts->ds_back.bts_buffer_base = cpuc->ds->bts_buffer_base;
+	bts->ds_back.bts_absolute_maximum = cpuc->ds->bts_absolute_maximum;
+	bts->ds_back.bts_interrupt_threshold = cpuc->ds->bts_interrupt_threshold;
+
+	event->hw.itrace_started = 1;
+	event->hw.state = 0;
 
 	__bts_event_start(event);
 
 	/* PMI handler: this counter is running and likely generating PMIs */
 	ACCESS_ONCE(bts->started) = 1;
+
+	return;
+
+fail_end_stop:
+	perf_aux_output_end(&bts->handle, 0, false);
+
+fail_stop:
+	event->hw.state = PERF_HES_STOPPED;
 }
 
 static void __bts_event_stop(struct perf_event *event)
@@ -269,15 +279,32 @@ static void __bts_event_stop(struct perf_event *event)
 
 static void bts_event_stop(struct perf_event *event, int flags)
 {
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
+	struct bts_buffer *buf = perf_get_aux(&bts->handle);
 
 	/* PMI handler: don't restart this counter */
 	ACCESS_ONCE(bts->started) = 0;
 
 	__bts_event_stop(event);
 
-	if (flags & PERF_EF_UPDATE)
+	if (flags & PERF_EF_UPDATE) {
 		bts_update(bts);
+
+		if (buf) {
+			if (buf->snapshot)
+				bts->handle.head =
+					local_xchg(&buf->data_size,
+						   buf->nr_pages << PAGE_SHIFT);
+			perf_aux_output_end(&bts->handle, local_xchg(&buf->data_size, 0),
+					    !!local_xchg(&buf->lost, 0));
+		}
+
+		cpuc->ds->bts_index = bts->ds_back.bts_buffer_base;
+		cpuc->ds->bts_buffer_base = bts->ds_back.bts_buffer_base;
+		cpuc->ds->bts_absolute_maximum = bts->ds_back.bts_absolute_maximum;
+		cpuc->ds->bts_interrupt_threshold = bts->ds_back.bts_interrupt_threshold;
+	}
 }
 
 void intel_bts_enable_local(void)
@@ -417,34 +444,14 @@ int intel_bts_interrupt(void)
 
 static void bts_event_del(struct perf_event *event, int mode)
 {
-	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
-	struct bts_buffer *buf = perf_get_aux(&bts->handle);
-
 	bts_event_stop(event, PERF_EF_UPDATE);
-
-	if (buf) {
-		if (buf->snapshot)
-			bts->handle.head =
-				local_xchg(&buf->data_size,
-					   buf->nr_pages << PAGE_SHIFT);
-		perf_aux_output_end(&bts->handle, local_xchg(&buf->data_size, 0),
-				    !!local_xchg(&buf->lost, 0));
-	}
-
-	cpuc->ds->bts_index = bts->ds_back.bts_buffer_base;
-	cpuc->ds->bts_buffer_base = bts->ds_back.bts_buffer_base;
-	cpuc->ds->bts_absolute_maximum = bts->ds_back.bts_absolute_maximum;
-	cpuc->ds->bts_interrupt_threshold = bts->ds_back.bts_interrupt_threshold;
 }
 
 static int bts_event_add(struct perf_event *event, int mode)
 {
-	struct bts_buffer *buf;
 	struct bts_ctx *bts = this_cpu_ptr(&bts_ctx);
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
-	int ret = -EBUSY;
 
 	event->hw.state = PERF_HES_STOPPED;
 
@@ -454,26 +461,10 @@ static int bts_event_add(struct perf_event *event, int mode)
 	if (bts->handle.event)
 		return -EBUSY;
 
-	buf = perf_aux_output_begin(&bts->handle, event);
-	if (!buf)
-		return -EINVAL;
-
-	ret = bts_buffer_reset(buf, &bts->handle);
-	if (ret) {
-		perf_aux_output_end(&bts->handle, 0, false);
-		return ret;
-	}
-
-	bts->ds_back.bts_buffer_base = cpuc->ds->bts_buffer_base;
-	bts->ds_back.bts_absolute_maximum = cpuc->ds->bts_absolute_maximum;
-	bts->ds_back.bts_interrupt_threshold = cpuc->ds->bts_interrupt_threshold;
-
 	if (mode & PERF_EF_START) {
 		bts_event_start(event, 0);
-		if (hwc->state & PERF_HES_STOPPED) {
-			bts_event_del(event, 0);
-			return -EBUSY;
-		}
+		if (hwc->state & PERF_HES_STOPPED)
+			return -EINVAL;
 	}
 
 	return 0;

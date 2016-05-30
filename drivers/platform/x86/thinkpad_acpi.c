@@ -5001,6 +5001,8 @@ static int kbdlight_set_level(int level)
 	return 0;
 }
 
+static int kbdlight_set_level_and_update(int level);
+
 static int kbdlight_get_level(void)
 {
 	int status = 0;
@@ -5068,7 +5070,7 @@ static void kbdlight_set_worker(struct work_struct *work)
 			container_of(work, struct tpacpi_led_classdev, work);
 
 	if (likely(tpacpi_lifecycle == TPACPI_LIFE_RUNNING))
-		kbdlight_set_level(data->new_state);
+		kbdlight_set_level_and_update(data->new_state);
 }
 
 static void kbdlight_sysfs_set(struct led_classdev *led_cdev,
@@ -5099,7 +5101,6 @@ static struct tpacpi_led_classdev tpacpi_led_kbdlight = {
 		.max_brightness	= 2,
 		.brightness_set	= &kbdlight_sysfs_set,
 		.brightness_get	= &kbdlight_sysfs_get,
-		.flags		= LED_CORE_SUSPENDRESUME,
 	}
 };
 
@@ -5135,6 +5136,20 @@ static void kbdlight_exit(void)
 	if (tp_features.kbdlight)
 		led_classdev_unregister(&tpacpi_led_kbdlight.led_classdev);
 	flush_workqueue(tpacpi_wq);
+}
+
+static int kbdlight_set_level_and_update(int level)
+{
+	int ret;
+	struct led_classdev *led_cdev;
+
+	ret = kbdlight_set_level(level);
+	led_cdev = &tpacpi_led_kbdlight.led_classdev;
+
+	if (ret == 0 && !(led_cdev->flags & LED_SUSPENDED))
+		led_cdev->brightness = level;
+
+	return ret;
 }
 
 static int kbdlight_read(struct seq_file *m)
@@ -5177,13 +5192,35 @@ static int kbdlight_write(char *buf)
 	if (level == -1)
 		return -EINVAL;
 
-	return kbdlight_set_level(level);
+	return kbdlight_set_level_and_update(level);
+}
+
+static void kbdlight_suspend(void)
+{
+	struct led_classdev *led_cdev;
+
+	if (!tp_features.kbdlight)
+		return;
+
+	led_cdev = &tpacpi_led_kbdlight.led_classdev;
+	led_update_brightness(led_cdev);
+	led_classdev_suspend(led_cdev);
+}
+
+static void kbdlight_resume(void)
+{
+	if (!tp_features.kbdlight)
+		return;
+
+	led_classdev_resume(&tpacpi_led_kbdlight.led_classdev);
 }
 
 static struct ibm_struct kbdlight_driver_data = {
 	.name = "kbdlight",
 	.read = kbdlight_read,
 	.write = kbdlight_write,
+	.suspend = kbdlight_suspend,
+	.resume = kbdlight_resume,
 	.exit = kbdlight_exit,
 };
 

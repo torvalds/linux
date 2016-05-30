@@ -1561,21 +1561,45 @@ int fib_sync_up(struct net_device *dev, unsigned int nh_flags)
 }
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
+static bool fib_good_nh(const struct fib_nh *nh)
+{
+	int state = NUD_REACHABLE;
+
+	if (nh->nh_scope == RT_SCOPE_LINK) {
+		struct neighbour *n;
+
+		rcu_read_lock_bh();
+
+		n = __ipv4_neigh_lookup_noref(nh->nh_dev, nh->nh_gw);
+		if (n)
+			state = n->nud_state;
+
+		rcu_read_unlock_bh();
+	}
+
+	return !!(state & NUD_VALID);
+}
 
 void fib_select_multipath(struct fib_result *res, int hash)
 {
 	struct fib_info *fi = res->fi;
+	struct net *net = fi->fib_net;
+	bool first = false;
 
 	for_nexthops(fi) {
 		if (hash > atomic_read(&nh->nh_upper_bound))
 			continue;
 
-		res->nh_sel = nhsel;
-		return;
+		if (!net->ipv4.sysctl_fib_multipath_use_neigh ||
+		    fib_good_nh(nh)) {
+			res->nh_sel = nhsel;
+			return;
+		}
+		if (!first) {
+			res->nh_sel = nhsel;
+			first = true;
+		}
 	} endfor_nexthops(fi);
-
-	/* Race condition: route has just become dead. */
-	res->nh_sel = 0;
 }
 #endif
 

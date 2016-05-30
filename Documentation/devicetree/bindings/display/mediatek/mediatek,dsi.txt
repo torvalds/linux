@@ -1,0 +1,60 @@
+Mediatek DSI Device
+===================
+
+The Mediatek DSI function block is a sink of the display subsystem and can
+drive up to 4-lane MIPI DSI output. Two DSIs can be synchronized for dual-
+channel output.
+
+Required properties:
+- compatible: "mediatek,<chip>-dsi"
+- reg: Physical base address and length of the controller's registers
+- interrupts: The interrupt signal from the function block.
+- clocks: device clocks
+  See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
+- clock-names: must contain "engine", "digital", and "hs"
+- phys: phandle link to the MIPI D-PHY controller.
+- phy-names: must contain "dphy"
+- port: Output port node with endpoint definitions as described in
+  Documentation/devicetree/bindings/graph.txt. This port should be connected
+  to the input port of an attached DSI panel or DSI-to-eDP encoder chip.
+
+MIPI TX Configuration Module
+============================
+
+The MIPI TX configuration module controls the MIPI D-PHY.
+
+Required properties:
+- compatible: "mediatek,<chip>-mipi-tx"
+- reg: Physical base address and length of the controller's registers
+- clocks: PLL reference clock
+- clock-output-names: name of the output clock line to the DSI encoder
+- #clock-cells: must be <0>;
+- #phy-cells: must be <0>.
+
+Example:
+
+mipi_tx0: mipi-dphy@10215000 {
+	compatible = "mediatek,mt8173-mipi-tx";
+	reg = <0 0x10215000 0 0x1000>;
+	clocks = <&clk26m>;
+	clock-output-names = "mipi_tx0_pll";
+	#clock-cells = <0>;
+	#phy-cells = <0>;
+};
+
+dsi0: dsi@1401b000 {
+	compatible = "mediatek,mt8173-dsi";
+	reg = <0 0x1401b000 0 0x1000>;
+	interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_LOW>;
+	clocks = <&mmsys MM_DSI0_ENGINE>, <&mmsys MM_DSI0_DIGITAL>,
+		 <&mipi_tx0>;
+	clock-names = "engine", "digital", "hs";
+	phys = <&mipi_tx0>;
+	phy-names = "dphy";
+
+	port {
+		dsi0_out: endpoint {
+			remote-endpoint = <&panel_in>;
+		};
+	};
+};

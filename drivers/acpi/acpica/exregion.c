@@ -325,15 +325,15 @@ acpi_ex_system_io_space_handler(u32 function,
 	switch (function) {
 	case ACPI_READ:
 
-		status = acpi_hw_read_port((acpi_io_address) address,
+		status = acpi_hw_read_port((acpi_io_address)address,
 					   &value32, bit_width);
 		*value = value32;
 		break;
 
 	case ACPI_WRITE:
 
-		status = acpi_hw_write_port((acpi_io_address) address,
-					    (u32) * value, bit_width);
+		status = acpi_hw_write_port((acpi_io_address)address,
+					    (u32)*value, bit_width);
 		break;
 
 	default:

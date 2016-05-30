@@ -80,6 +80,7 @@ struct ti_device {
 	int			td_open_port_count;
 	struct usb_serial	*td_serial;
 	int			td_is_3410;
+	bool			td_rs485_only;
 	int			td_urb_error;
 };
 
@@ -160,6 +161,11 @@ static const struct usb_device_id ti_id_table_3410[] = {
 	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_STRIP_PORT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, FRI2_PRODUCT_ID) },
 	{ USB_DEVICE(HONEYWELL_VENDOR_ID, HONEYWELL_HGI80_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1110_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1130_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1131_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1150_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1151_PRODUCT_ID) },
 	{ }	/* terminator */
 };
 
@@ -193,6 +199,11 @@ static const struct usb_device_id ti_id_table_combined[] = {
 	{ USB_DEVICE(ABBOTT_VENDOR_ID, ABBOTT_STRIP_PORT_ID) },
 	{ USB_DEVICE(TI_VENDOR_ID, FRI2_PRODUCT_ID) },
 	{ USB_DEVICE(HONEYWELL_VENDOR_ID, HONEYWELL_HGI80_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1110_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1130_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1131_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1150_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1151_PRODUCT_ID) },
 	{ }	/* terminator */
 };
 
@@ -277,6 +288,11 @@ MODULE_FIRMWARE("mts_gsm.fw");
 MODULE_FIRMWARE("mts_edge.fw");
 MODULE_FIRMWARE("mts_mt9234mu.fw");
 MODULE_FIRMWARE("mts_mt9234zba.fw");
+MODULE_FIRMWARE("moxa/moxa-1110.fw");
+MODULE_FIRMWARE("moxa/moxa-1130.fw");
+MODULE_FIRMWARE("moxa/moxa-1131.fw");
+MODULE_FIRMWARE("moxa/moxa-1150.fw");
+MODULE_FIRMWARE("moxa/moxa-1151.fw");
 
 module_param(closing_wait, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(closing_wait,
@@ -292,6 +308,9 @@ static int ti_startup(struct usb_serial *serial)
 {
 	struct ti_device *tdev;
 	struct usb_device *dev = serial->dev;
+	struct usb_host_interface *cur_altsetting;
+	int num_endpoints;
+	u16 vid, pid;
 	int status;
 
 	dev_dbg(&dev->dev,
@@ -315,8 +334,22 @@ static int ti_startup(struct usb_serial *serial)
 	dev_dbg(&dev->dev, "%s - device type is %s\n", __func__,
 		tdev->td_is_3410 ? "3410" : "5052");
 
-	/* if we have only 1 configuration, download firmware */
-	if (dev->descriptor.bNumConfigurations == 1) {
+	vid = le16_to_cpu(dev->descriptor.idVendor);
+	pid = le16_to_cpu(dev->descriptor.idProduct);
+	if (vid == MXU1_VENDOR_ID) {
+		switch (pid) {
+		case MXU1_1130_PRODUCT_ID:
+		case MXU1_1131_PRODUCT_ID:
+			tdev->td_rs485_only = true;
+			break;
+		}
+	}
+
+	cur_altsetting = serial->interface->cur_altsetting;
+	num_endpoints = cur_altsetting->desc.bNumEndpoints;
+
+	/* if we have only 1 configuration and 1 endpoint, download firmware */
+	if (dev->descriptor.bNumConfigurations == 1 && num_endpoints == 1) {
 		status = ti_download_firmware(tdev);
 
 		if (status != 0)
@@ -371,7 +404,11 @@ static int ti_port_probe(struct usb_serial_port *port)
 	port->port.closing_wait = msecs_to_jiffies(10 * closing_wait);
 	tport->tp_port = port;
 	tport->tp_tdev = usb_get_serial_data(port->serial);
-	tport->tp_uart_mode = 0;	/* default is RS232 */
+
+	if (tport->tp_tdev->td_rs485_only)
+		tport->tp_uart_mode = TI_UART_485_RECEIVER_DISABLED;
+	else
+		tport->tp_uart_mode = TI_UART_232;
 
 	usb_set_serial_port_data(port, tport);
 
@@ -1450,6 +1487,16 @@ static int ti_download_firmware(struct ti_device *tdev)
 	const struct firmware *fw_p;
 	char buf[32];
 
+	if (le16_to_cpu(dev->descriptor.idVendor) == MXU1_VENDOR_ID) {
+		snprintf(buf,
+			sizeof(buf),
+			"moxa/moxa-%04x.fw",
+			le16_to_cpu(dev->descriptor.idProduct));
+
+		status = request_firmware(&fw_p, buf, &dev->dev);
+		goto check_firmware;
+	}
+
 	/* try ID specific firmware first, then try generic firmware */
 	sprintf(buf, "ti_usb-v%04x-p%04x.fw",
 			le16_to_cpu(dev->descriptor.idVendor),
@@ -1487,6 +1534,8 @@ static int ti_download_firmware(struct ti_device *tdev)
 		}
 		status = request_firmware(&fw_p, buf, &dev->dev);
 	}
+
+check_firmware:
 	if (status) {
 		dev_err(&dev->dev, "%s - firmware not found\n", __func__);
 		return -ENOENT;

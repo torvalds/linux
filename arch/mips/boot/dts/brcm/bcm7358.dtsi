@@ -18,8 +18,6 @@
 
 	aliases {
 		uart0 = &uart0;
-		uart1 = &uart1;
-		uart2 = &uart2;
 	};
 
 	cpu_intc: cpu_intc {

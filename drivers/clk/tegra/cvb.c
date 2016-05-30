@@ -61,29 +61,28 @@ static int round_voltage(int mv, const struct rail_alignment *align, int up)
 	return mv;
 }
 
-static int build_opp_table(const struct cvb_table *d,
-			   int speedo_value,
-			   unsigned long max_freq,
-			   struct device *opp_dev)
+static int build_opp_table(struct device *dev, const struct cvb_table *table,
+			   int speedo_value, unsigned long max_freq)
 {
+	const struct rail_alignment *align = &table->alignment;
 	int i, ret, dfll_mv, min_mv, max_mv;
-	const struct cvb_table_freq_entry *table = NULL;
-	const struct rail_alignment *align = &d->alignment;
 
-	min_mv = round_voltage(d->min_millivolts, align, UP);
-	max_mv = round_voltage(d->max_millivolts, align, DOWN);
+	min_mv = round_voltage(table->min_millivolts, align, UP);
+	max_mv = round_voltage(table->max_millivolts, align, DOWN);
 
 	for (i = 0; i < MAX_DVFS_FREQS; i++) {
-		table = &d->cvb_table[i];
-		if (!table->freq || (table->freq > max_freq))
+		const struct cvb_table_freq_entry *entry = &table->entries[i];
+
+		if (!entry->freq || (entry->freq > max_freq))
 			break;
 
-		dfll_mv = get_cvb_voltage(
-			speedo_value, d->speedo_scale, &table->coefficients);
-		dfll_mv = round_cvb_voltage(dfll_mv, d->voltage_scale, align);
+		dfll_mv = get_cvb_voltage(speedo_value, table->speedo_scale,
+					  &entry->coefficients);
+		dfll_mv = round_cvb_voltage(dfll_mv, table->voltage_scale,
+					    align);
 		dfll_mv = clamp(dfll_mv, min_mv, max_mv);
 
-		ret = dev_pm_opp_add(opp_dev, table->freq, dfll_mv * 1000);
+		ret = dev_pm_opp_add(dev, entry->freq, dfll_mv * 1000);
 		if (ret)
 			return ret;
 	}
@@ -92,7 +91,7 @@ static int build_opp_table(const struct cvb_table *d,
 }
 
 /**
- * tegra_cvb_build_opp_table - build OPP table from Tegra CVB tables
+ * tegra_cvb_add_opp_table - build OPP table from Tegra CVB tables
  * @cvb_tables: array of CVB tables
  * @sz: size of the previously mentioned array
  * @process_id: process id of the HW module
@@ -108,26 +107,42 @@ static int build_opp_table(const struct cvb_table *d,
  * given @opp_dev. Returns a pointer to the struct cvb_table that matched
  * or an ERR_PTR on failure.
  */
-const struct cvb_table *tegra_cvb_build_opp_table(
-		const struct cvb_table *cvb_tables,
-		size_t sz, int process_id,
-		int speedo_id, int speedo_value,
-		unsigned long max_rate,
-		struct device *opp_dev)
+const struct cvb_table *
+tegra_cvb_add_opp_table(struct device *dev, const struct cvb_table *tables,
+			size_t count, int process_id, int speedo_id,
+			int speedo_value, unsigned long max_freq)
 {
-	int i, ret;
+	size_t i;
+	int ret;
 
-	for (i = 0; i < sz; i++) {
-		const struct cvb_table *d = &cvb_tables[i];
+	for (i = 0; i < count; i++) {
+		const struct cvb_table *table = &tables[i];
 
-		if (d->speedo_id != -1 && d->speedo_id != speedo_id)
+		if (table->speedo_id != -1 && table->speedo_id != speedo_id)
 			continue;
-		if (d->process_id != -1 && d->process_id != process_id)
+
+		if (table->process_id != -1 && table->process_id != process_id)
 			continue;
 
-		ret = build_opp_table(d, speedo_value, max_rate, opp_dev);
-		return ret ? ERR_PTR(ret) : d;
+		ret = build_opp_table(dev, table, speedo_value, max_freq);
+		return ret ? ERR_PTR(ret) : table;
 	}
 
 	return ERR_PTR(-EINVAL);
+}
+
+void tegra_cvb_remove_opp_table(struct device *dev,
+				const struct cvb_table *table,
+				unsigned long max_freq)
+{
+	unsigned int i;
+
+	for (i = 0; i < MAX_DVFS_FREQS; i++) {
+		const struct cvb_table_freq_entry *entry = &table->entries[i];
+
+		if (!entry->freq || (entry->freq > max_freq))
+			break;
+
+		dev_pm_opp_remove(dev, entry->freq);
+	}
 }

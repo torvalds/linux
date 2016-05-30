@@ -18,10 +18,6 @@
 #include <linux/types.h>
 #include "dim2_reg.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * The values below are specified in the hardware specification.
  * So, they should not be changed until the hardware specification changes.
@@ -42,14 +38,12 @@ struct dim_ch_state_t {
 	u16 done_buffers; /* Number of completed buffers */
 };
 
-typedef int atomic_counter_t;
-
 struct int_ch_state {
 	/* changed only in interrupt context */
-	volatile atomic_counter_t request_counter;
+	volatile int request_counter;
 
 	/* changed only in task context */
-	volatile atomic_counter_t service_counter;
+	volatile int service_counter;
 
 	u8 idx1;
 	u8 idx2;
@@ -109,9 +103,5 @@ u32 dimcb_io_read(u32 __iomem *ptr32);
 void dimcb_io_write(u32 __iomem *ptr32, u32 value);
 
 void dimcb_on_error(u8 error_id, const char *error_message);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* _DIM2_HAL_H */

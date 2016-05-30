@@ -411,7 +411,8 @@ int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
 
 	lockdep_assert_held(&ar_pci->ce_lock);
 
-	if (CE_RING_DELTA(nentries_mask, write_index, sw_index - 1) == 0)
+	if ((pipe->id != 5) &&
+	    CE_RING_DELTA(nentries_mask, write_index, sw_index - 1) == 0)
 		return -ENOSPC;
 
 	desc->addr = __cpu_to_le32(paddr);
@@ -423,6 +424,19 @@ int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
 	dest_ring->write_index = write_index;
 
 	return 0;
+}
+
+void ath10k_ce_rx_update_write_idx(struct ath10k_ce_pipe *pipe, u32 nentries)
+{
+	struct ath10k *ar = pipe->ar;
+	struct ath10k_ce_ring *dest_ring = pipe->dest_ring;
+	unsigned int nentries_mask = dest_ring->nentries_mask;
+	unsigned int write_index = dest_ring->write_index;
+	u32 ctrl_addr = pipe->ctrl_addr;
+
+	write_index = CE_RING_IDX_ADD(nentries_mask, write_index, nentries);
+	ath10k_ce_dest_ring_write_index_set(ar, ctrl_addr, write_index);
+	dest_ring->write_index = write_index;
 }
 
 int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
@@ -444,14 +458,10 @@ int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
  */
 int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 					 void **per_transfer_contextp,
-					 u32 *bufferp,
-					 unsigned int *nbytesp,
-					 unsigned int *transfer_idp,
-					 unsigned int *flagsp)
+					 unsigned int *nbytesp)
 {
 	struct ath10k_ce_ring *dest_ring = ce_state->dest_ring;
 	unsigned int nentries_mask = dest_ring->nentries_mask;
-	struct ath10k *ar = ce_state->ar;
 	unsigned int sw_index = dest_ring->sw_index;
 
 	struct ce_desc *base = dest_ring->base_addr_owner_space;
@@ -476,21 +486,17 @@ int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 	desc->nbytes = 0;
 
 	/* Return data from completed destination descriptor */
-	*bufferp = __le32_to_cpu(sdesc.addr);
 	*nbytesp = nbytes;
-	*transfer_idp = MS(__le16_to_cpu(sdesc.flags), CE_DESC_FLAGS_META_DATA);
-
-	if (__le16_to_cpu(sdesc.flags) & CE_DESC_FLAGS_BYTE_SWAP)
-		*flagsp = CE_RECV_FLAG_SWAPPED;
-	else
-		*flagsp = 0;
 
 	if (per_transfer_contextp)
 		*per_transfer_contextp =
 			dest_ring->per_transfer_context[sw_index];
 
-	/* sanity */
-	dest_ring->per_transfer_context[sw_index] = NULL;
+	/* Copy engine 5 (HTT Rx) will reuse the same transfer context.
+	 * So update transfer context all CEs except CE5.
+	 */
+	if (ce_state->id != 5)
+		dest_ring->per_transfer_context[sw_index] = NULL;
 
 	/* Update sw_index */
 	sw_index = CE_RING_IDX_INCR(nentries_mask, sw_index);
@@ -501,10 +507,7 @@ int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 
 int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
-				  u32 *bufferp,
-				  unsigned int *nbytesp,
-				  unsigned int *transfer_idp,
-				  unsigned int *flagsp)
+				  unsigned int *nbytesp)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -513,8 +516,7 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 	spin_lock_bh(&ar_pci->ce_lock);
 	ret = ath10k_ce_completed_recv_next_nolock(ce_state,
 						   per_transfer_contextp,
-						   bufferp, nbytesp,
-						   transfer_idp, flagsp);
+						   nbytesp);
 	spin_unlock_bh(&ar_pci->ce_lock);
 
 	return ret;
@@ -1048,11 +1050,11 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 	 *
 	 * For the lack of a better place do the check here.
 	 */
-	BUILD_BUG_ON(2*TARGET_NUM_MSDU_DESC >
+	BUILD_BUG_ON(2 * TARGET_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
-	BUILD_BUG_ON(2*TARGET_10X_NUM_MSDU_DESC >
+	BUILD_BUG_ON(2 * TARGET_10X_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
-	BUILD_BUG_ON(2*TARGET_TLV_NUM_MSDU_DESC >
+	BUILD_BUG_ON(2 * TARGET_TLV_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 
 	ce_state->ar = ar;

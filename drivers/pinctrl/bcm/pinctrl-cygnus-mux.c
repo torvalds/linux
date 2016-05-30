@@ -737,7 +737,7 @@ static const struct pinctrl_ops cygnus_pinctrl_ops = {
 	.get_group_pins = cygnus_get_group_pins,
 	.pin_dbg_show = cygnus_pin_dbg_show,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int cygnus_get_functions_count(struct pinctrl_dev *pctrl_dev)
@@ -987,7 +987,7 @@ static int cygnus_pinmux_probe(struct platform_device *pdev)
 	cygnus_pinctrl_desc.pins = pins;
 	cygnus_pinctrl_desc.npins = num_pins;
 
-	pinctrl->pctl = pinctrl_register(&cygnus_pinctrl_desc, &pdev->dev,
+	pinctrl->pctl = devm_pinctrl_register(&pdev->dev, &cygnus_pinctrl_desc,
 			pinctrl);
 	if (IS_ERR(pinctrl->pctl)) {
 		dev_err(&pdev->dev, "unable to register Cygnus IOMUX pinctrl\n");

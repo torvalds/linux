@@ -77,7 +77,9 @@ static int ll_readlink_internal(struct inode *inode,
 	ll_finish_md_op_data(op_data);
 	if (rc) {
 		if (rc != -ENOENT)
-			CERROR("inode %lu: rc = %d\n", inode->i_ino, rc);
+			CERROR("%s: inode "DFID": rc = %d\n",
+			       ll_get_fsname(inode->i_sb, NULL, 0),
+			       PFID(ll_inode2fid(inode)), rc);
 		goto failed;
 	}
 
@@ -90,8 +92,10 @@ static int ll_readlink_internal(struct inode *inode,
 
 	LASSERT(symlen != 0);
 	if (body->eadatasize != symlen) {
-		CERROR("inode %lu: symlink length %d not expected %d\n",
-		       inode->i_ino, body->eadatasize - 1, symlen - 1);
+		CERROR("%s: inode "DFID": symlink length %d not expected %d\n",
+		       ll_get_fsname(inode->i_sb, NULL, 0),
+		       PFID(ll_inode2fid(inode)), body->eadatasize - 1,
+		       symlen - 1);
 		rc = -EPROTO;
 		goto failed;
 	}

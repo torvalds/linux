@@ -41,6 +41,7 @@
 #include <linux/vmalloc.h>
 #include <linux/tcp.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/moduleparam.h>
 
 #include "mlx4_en.h"
@@ -93,18 +94,11 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	/* Allocate HW buffers on provided NUMA node */
 	set_dev_node(&mdev->dev->persist->pdev->dev, node);
-	err = mlx4_alloc_hwq_res(mdev->dev, &ring->wqres, ring->buf_size,
-				 2 * PAGE_SIZE);
+	err = mlx4_alloc_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
 	if (err) {
 		en_err(priv, "Failed allocating hwq resources\n");
 		goto err_bounce;
-	}
-
-	err = mlx4_en_map_buffer(&ring->wqres.buf);
-	if (err) {
-		en_err(priv, "Failed to map TX buffer\n");
-		goto err_hwq_res;
 	}
 
 	ring->buf = ring->wqres.buf.direct.buf;
@@ -117,7 +111,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 				    MLX4_RESERVE_ETH_BF_QP);
 	if (err) {
 		en_err(priv, "failed reserving qp for TX ring\n");
-		goto err_map;
+		goto err_hwq_res;
 	}
 
 	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp, GFP_KERNEL);
@@ -154,8 +148,6 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 err_reserve:
 	mlx4_qp_release_range(mdev->dev, ring->qpn, 1);
-err_map:
-	mlx4_en_unmap_buffer(&ring->wqres.buf);
 err_hwq_res:
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 err_bounce:
@@ -182,7 +174,6 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	mlx4_qp_remove(mdev->dev, &ring->qp);
 	mlx4_qp_free(mdev->dev, &ring->qp);
 	mlx4_qp_release_range(priv->mdev->dev, ring->qpn, 1);
-	mlx4_en_unmap_buffer(&ring->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 	kfree(ring->bounce_buf);
 	ring->bounce_buf = NULL;
@@ -920,8 +911,18 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 				 tx_ind, fragptr);
 
 	if (skb->encapsulation) {
-		struct iphdr *ipv4 = (struct iphdr *)skb_inner_network_header(skb);
-		if (ipv4->protocol == IPPROTO_TCP || ipv4->protocol == IPPROTO_UDP)
+		union {
+			struct iphdr *v4;
+			struct ipv6hdr *v6;
+			unsigned char *hdr;
+		} ip;
+		u8 proto;
+
+		ip.hdr = skb_inner_network_header(skb);
+		proto = (ip.v4->version == 4) ? ip.v4->protocol :
+						ip.v6->nexthdr;
+
+		if (proto == IPPROTO_TCP || proto == IPPROTO_UDP)
 			op_own |= cpu_to_be32(MLX4_WQE_CTRL_IIP | MLX4_WQE_CTRL_ILP);
 		else
 			op_own |= cpu_to_be32(MLX4_WQE_CTRL_IIP);

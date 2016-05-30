@@ -941,7 +941,7 @@ arch_initcall(init_hw_perf_events);
 /*
  * Tile specific backtracing code for perf_events.
  */
-static inline void perf_callchain(struct perf_callchain_entry *entry,
+static inline void perf_callchain(struct perf_callchain_entry_ctx *entry,
 		    struct pt_regs *regs)
 {
 	struct KBacktraceIterator kbt;
@@ -992,13 +992,13 @@ static inline void perf_callchain(struct perf_callchain_entry *entry,
 	}
 }
 
-void perf_callchain_user(struct perf_callchain_entry *entry,
+void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 		    struct pt_regs *regs)
 {
 	perf_callchain(entry, regs);
 }
 
-void perf_callchain_kernel(struct perf_callchain_entry *entry,
+void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 		      struct pt_regs *regs)
 {
 	perf_callchain(entry, regs);

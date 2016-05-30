@@ -65,27 +65,8 @@ struct klp_func {
 };
 
 /**
- * struct klp_reloc - relocation structure for live patching
- * @loc:	address where the relocation will be written
- * @sympos:	position in kallsyms to disambiguate symbols (optional)
- * @type:	ELF relocation type
- * @name:	name of the referenced symbol (for lookup/verification)
- * @addend:	offset from the referenced symbol
- * @external:	symbol is either exported or within the live patch module itself
- */
-struct klp_reloc {
-	unsigned long loc;
-	unsigned long sympos;
-	unsigned long type;
-	const char *name;
-	int addend;
-	int external;
-};
-
-/**
  * struct klp_object - kernel object structure for live patching
  * @name:	module name (or NULL for vmlinux)
- * @relocs:	relocation entries to be applied at load time
  * @funcs:	function entries for functions to be patched in the object
  * @kobj:	kobject for sysfs resources
  * @mod:	kernel module associated with the patched object
@@ -95,7 +76,6 @@ struct klp_reloc {
 struct klp_object {
 	/* external */
 	const char *name;
-	struct klp_reloc *relocs;
 	struct klp_func *funcs;
 
 	/* internal */
@@ -124,10 +104,12 @@ struct klp_patch {
 };
 
 #define klp_for_each_object(patch, obj) \
-	for (obj = patch->objs; obj->funcs; obj++)
+	for (obj = patch->objs; obj->funcs || obj->name; obj++)
 
 #define klp_for_each_func(obj, func) \
-	for (func = obj->funcs; func->old_name; func++)
+	for (func = obj->funcs; \
+	     func->old_name || func->new_func || func->old_sympos; \
+	     func++)
 
 int klp_register_patch(struct klp_patch *);
 int klp_unregister_patch(struct klp_patch *);

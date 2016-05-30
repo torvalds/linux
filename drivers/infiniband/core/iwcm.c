@@ -459,7 +459,7 @@ static void iw_cm_check_wildcard(struct sockaddr_storage *pm_addr,
 	if (pm_addr->ss_family == AF_INET) {
 		struct sockaddr_in *pm4_addr = (struct sockaddr_in *)pm_addr;
 
-		if (pm4_addr->sin_addr.s_addr == INADDR_ANY) {
+		if (pm4_addr->sin_addr.s_addr == htonl(INADDR_ANY)) {
 			struct sockaddr_in *cm4_addr =
 				(struct sockaddr_in *)cm_addr;
 			struct sockaddr_in *cm4_outaddr =
@@ -1175,7 +1175,7 @@ static int __init iw_cm_init(void)
 	if (ret)
 		pr_err("iw_cm: couldn't init iwpm\n");
 
-	ret = ibnl_add_client(RDMA_NL_IWCM, RDMA_NL_IWPM_NUM_OPS,
+	ret = ibnl_add_client(RDMA_NL_IWCM, ARRAY_SIZE(iwcm_nl_cb_table),
 			      iwcm_nl_cb_table);
 	if (ret)
 		pr_err("iw_cm: couldn't register netlink callbacks\n");

@@ -21,6 +21,7 @@ extern int ima_file_mmap(struct file *file, unsigned long prot);
 extern int ima_read_file(struct file *file, enum kernel_read_file_id id);
 extern int ima_post_read_file(struct file *file, void *buf, loff_t size,
 			      enum kernel_read_file_id id);
+extern void ima_post_path_mknod(struct dentry *dentry);
 
 #else
 static inline int ima_bprm_check(struct linux_binprm *bprm)
@@ -52,6 +53,11 @@ static inline int ima_post_read_file(struct file *file, void *buf, loff_t size,
 				     enum kernel_read_file_id id)
 {
 	return 0;
+}
+
+static inline void ima_post_path_mknod(struct dentry *dentry)
+{
+	return;
 }
 
 #endif /* CONFIG_IMA */

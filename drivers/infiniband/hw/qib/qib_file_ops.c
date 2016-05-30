@@ -824,10 +824,7 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	phys = dd->physaddr + piobufs;
 
 #if defined(__powerpc__)
-	/* There isn't a generic way to specify writethrough mappings */
-	pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
-	pgprot_val(vma->vm_page_prot) |= _PAGE_WRITETHRU;
-	pgprot_val(vma->vm_page_prot) &= ~_PAGE_GUARDED;
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 #endif
 
 	/*

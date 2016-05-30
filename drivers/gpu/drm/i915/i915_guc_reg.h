@@ -27,9 +27,12 @@
 /* Definitions of GuC H/W registers, bits, etc */
 
 #define GUC_STATUS			_MMIO(0xc000)
+#define   GS_RESET_SHIFT		0
+#define   GS_MIA_IN_RESET		  (0x01 << GS_RESET_SHIFT)
 #define   GS_BOOTROM_SHIFT		1
 #define   GS_BOOTROM_MASK		  (0x7F << GS_BOOTROM_SHIFT)
 #define   GS_BOOTROM_RSA_FAILED		  (0x50 << GS_BOOTROM_SHIFT)
+#define   GS_BOOTROM_JUMP_PASSED	  (0x76 << GS_BOOTROM_SHIFT)
 #define   GS_UKERNEL_SHIFT		8
 #define   GS_UKERNEL_MASK		  (0xFF << GS_UKERNEL_SHIFT)
 #define   GS_UKERNEL_LAPIC_DONE		  (0x30 << GS_UKERNEL_SHIFT)
@@ -37,7 +40,13 @@
 #define   GS_UKERNEL_READY		  (0xF0 << GS_UKERNEL_SHIFT)
 #define   GS_MIA_SHIFT			16
 #define   GS_MIA_MASK			  (0x07 << GS_MIA_SHIFT)
-#define   GS_MIA_CORE_STATE		  (1 << GS_MIA_SHIFT)
+#define   GS_MIA_CORE_STATE		  (0x01 << GS_MIA_SHIFT)
+#define   GS_MIA_HALT_REQUESTED		  (0x02 << GS_MIA_SHIFT)
+#define   GS_MIA_ISR_ENTRY		  (0x04 << GS_MIA_SHIFT)
+#define   GS_AUTH_STATUS_SHIFT		30
+#define   GS_AUTH_STATUS_MASK		  (0x03 << GS_AUTH_STATUS_SHIFT)
+#define   GS_AUTH_STATUS_BAD		  (0x01 << GS_AUTH_STATUS_SHIFT)
+#define   GS_AUTH_STATUS_GOOD		  (0x02 << GS_AUTH_STATUS_SHIFT)
 
 #define SOFT_SCRATCH(n)			_MMIO(0xc180 + (n) * 4)
 #define SOFT_SCRATCH_COUNT		16

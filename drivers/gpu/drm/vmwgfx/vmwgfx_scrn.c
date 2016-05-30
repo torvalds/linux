@@ -285,14 +285,17 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 	}
 
 	/* Only one active implicit frame-buffer at a time. */
+	mutex_lock(&dev_priv->global_kms_state_mutex);
 	if (sou->base.is_implicit &&
 	    dev_priv->implicit_fb && vfb &&
 	    !(dev_priv->num_implicit == 1 &&
 	      sou->base.active_implicit) &&
 	    dev_priv->implicit_fb != vfb) {
+		mutex_unlock(&dev_priv->global_kms_state_mutex);
 		DRM_ERROR("Multiple implicit framebuffers not supported.\n");
 		return -EINVAL;
 	}
+	mutex_unlock(&dev_priv->global_kms_state_mutex);
 
 	/* since they always map one to one these are safe */
 	connector = &sou->base.connector;

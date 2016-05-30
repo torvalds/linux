@@ -1,0 +1,59 @@
+/*
+ * gdb helper commands and functions for Linux kernel debugging
+ *
+ *  Kernel constants derived from include files.
+ *
+ * Copyright (c) 2016 Linaro Ltd
+ *
+ * Authors:
+ *  Kieran Bingham <kieran.bingham@linaro.org>
+ *
+ * This work is licensed under the terms of the GNU GPL version 2.
+ *
+ */
+
+#include <linux/fs.h>
+#include <linux/mount.h>
+#include <linux/radix-tree.h>
+
+/* We need to stringify expanded macros so that they can be parsed */
+
+#define STRING(x) #x
+#define XSTRING(x) STRING(x)
+
+#define LX_VALUE(x) LX_##x = x
+#define LX_GDBPARSED(x) LX_##x = gdb.parse_and_eval(XSTRING(x))
+
+/*
+ * IS_ENABLED generates (a || b) which is not compatible with python
+ * We can only switch on configuration items we know are available
+ * Therefore - IS_BUILTIN() is more appropriate
+ */
+#define LX_CONFIG(x) LX_##x = IS_BUILTIN(x)
+
+/* The build system will take care of deleting everything above this marker */
+<!-- end-c-headers -->
+
+import gdb
+
+/* linux/fs.h */
+LX_VALUE(MS_RDONLY)
+LX_VALUE(MS_SYNCHRONOUS)
+LX_VALUE(MS_MANDLOCK)
+LX_VALUE(MS_DIRSYNC)
+LX_VALUE(MS_NOATIME)
+LX_VALUE(MS_NODIRATIME)
+
+/* linux/mount.h */
+LX_VALUE(MNT_NOSUID)
+LX_VALUE(MNT_NODEV)
+LX_VALUE(MNT_NOEXEC)
+LX_VALUE(MNT_NOATIME)
+LX_VALUE(MNT_NODIRATIME)
+LX_VALUE(MNT_RELATIME)
+
+/* linux/radix-tree.h */
+LX_VALUE(RADIX_TREE_INDIRECT_PTR)
+LX_GDBPARSED(RADIX_TREE_HEIGHT_MASK)
+LX_GDBPARSED(RADIX_TREE_MAP_SHIFT)
+LX_GDBPARSED(RADIX_TREE_MAP_MASK)

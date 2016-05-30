@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2013-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -37,39 +37,40 @@ static inline void trace_ ## name(proto) {}
 #endif /* !CONFIG_WIL6210_TRACING || defined(__CHECKER__) */
 
 DECLARE_EVENT_CLASS(wil6210_wmi,
-	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
+	TP_PROTO(struct wmi_cmd_hdr *wmi, void *buf, u16 buf_len),
 
 	TP_ARGS(wmi, buf, buf_len),
 
 	TP_STRUCT__entry(
 		__field(u8, mid)
-		__field(u16, id)
-		__field(u32, timestamp)
+		__field(u16, command_id)
+		__field(u32, fw_timestamp)
 		__field(u16, buf_len)
 		__dynamic_array(u8, buf, buf_len)
 	),
 
 	TP_fast_assign(
 		__entry->mid = wmi->mid;
-		__entry->id = le16_to_cpu(wmi->id);
-		__entry->timestamp = le32_to_cpu(wmi->timestamp);
+		__entry->command_id = le16_to_cpu(wmi->command_id);
+		__entry->fw_timestamp = le32_to_cpu(wmi->fw_timestamp);
 		__entry->buf_len = buf_len;
 		memcpy(__get_dynamic_array(buf), buf, buf_len);
 	),
 
 	TP_printk(
 		"MID %d id 0x%04x len %d timestamp %d",
-		__entry->mid, __entry->id, __entry->buf_len, __entry->timestamp
+		__entry->mid, __entry->command_id, __entry->buf_len,
+		__entry->fw_timestamp
 	)
 );
 
 DEFINE_EVENT(wil6210_wmi, wil6210_wmi_cmd,
-	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
+	TP_PROTO(struct wmi_cmd_hdr *wmi, void *buf, u16 buf_len),
 	TP_ARGS(wmi, buf, buf_len)
 );
 
 DEFINE_EVENT(wil6210_wmi, wil6210_wmi_event,
-	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
+	TP_PROTO(struct wmi_cmd_hdr *wmi, void *buf, u16 buf_len),
 	TP_ARGS(wmi, buf, buf_len)
 );
 

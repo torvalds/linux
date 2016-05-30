@@ -286,12 +286,12 @@ static int pxa168_eth_stop(struct net_device *dev);
 
 static inline u32 rdl(struct pxa168_eth_private *pep, int offset)
 {
-	return readl(pep->base + offset);
+	return readl_relaxed(pep->base + offset);
 }
 
 static inline void wrl(struct pxa168_eth_private *pep, int offset, u32 data)
 {
-	writel(data, pep->base + offset);
+	writel_relaxed(data, pep->base + offset);
 }
 
 static void abort_dma(struct pxa168_eth_private *pep)
@@ -342,9 +342,9 @@ static void rxq_refill(struct net_device *dev)
 		pep->rx_skb[used_rx_desc] = skb;
 
 		/* Return the descriptor to DMA ownership */
-		wmb();
+		dma_wmb();
 		p_used_rx_desc->cmd_sts = BUF_OWNED_BY_DMA | RX_EN_INT;
-		wmb();
+		dma_wmb();
 
 		/* Move the used descriptor pointer to the next descriptor */
 		pep->rx_used_desc_q = (used_rx_desc + 1) % pep->rx_ring_size;
@@ -794,7 +794,7 @@ static int rxq_process(struct net_device *dev, int budget)
 		rx_used_desc = pep->rx_used_desc_q;
 		rx_desc = &pep->p_rx_desc_area[rx_curr_desc];
 		cmd_sts = rx_desc->cmd_sts;
-		rmb();
+		dma_rmb();
 		if (cmd_sts & (BUF_OWNED_BY_DMA))
 			break;
 		skb = pep->rx_skb[rx_curr_desc];
@@ -981,8 +981,6 @@ static int pxa168_init_phy(struct net_device *dev)
 	pep->phy = mdiobus_scan(pep->smi_bus, pep->phy_addr);
 	if (IS_ERR(pep->phy))
 		return PTR_ERR(pep->phy);
-	if (!pep->phy)
-		return -ENODEV;
 
 	err = phy_connect_direct(dev, pep->phy, pxa168_eth_adjust_link,
 				 pep->phy_intf);
@@ -1289,7 +1287,7 @@ static int pxa168_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_tx_timestamp(skb);
 
-	wmb();
+	dma_wmb();
 	desc->cmd_sts = BUF_OWNED_BY_DMA | TX_GEN_CRC | TX_FIRST_DESC |
 			TX_ZERO_PADDING | TX_LAST_DESC | TX_EN_INT;
 	wmb();
@@ -1297,7 +1295,7 @@ static int pxa168_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	stats->tx_bytes += length;
 	stats->tx_packets++;
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	if (pep->tx_ring_size - pep->tx_desc_count <= 1) {
 		/* We handled the current skb, but now we are out of space.*/
 		netif_stop_queue(dev);

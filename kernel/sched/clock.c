@@ -318,6 +318,7 @@ u64 sched_clock_cpu(int cpu)
 
 	return clock;
 }
+EXPORT_SYMBOL_GPL(sched_clock_cpu);
 
 void sched_clock_tick(void)
 {
@@ -363,39 +364,6 @@ void sched_clock_idle_wakeup_event(u64 delta_ns)
 }
 EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 
-/*
- * As outlined at the top, provides a fast, high resolution, nanosecond
- * time source that is monotonic per cpu argument and has bounded drift
- * between cpus.
- *
- * ######################### BIG FAT WARNING ##########################
- * # when comparing cpu_clock(i) to cpu_clock(j) for i != j, time can #
- * # go backwards !!                                                  #
- * ####################################################################
- */
-u64 cpu_clock(int cpu)
-{
-	if (!sched_clock_stable())
-		return sched_clock_cpu(cpu);
-
-	return sched_clock();
-}
-
-/*
- * Similar to cpu_clock() for the current cpu. Time will only be observed
- * to be monotonic if care is taken to only compare timestampt taken on the
- * same CPU.
- *
- * See cpu_clock().
- */
-u64 local_clock(void)
-{
-	if (!sched_clock_stable())
-		return sched_clock_cpu(raw_smp_processor_id());
-
-	return sched_clock();
-}
-
 #else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
 
 void sched_clock_init(void)
@@ -410,21 +378,7 @@ u64 sched_clock_cpu(int cpu)
 
 	return sched_clock();
 }
-
-u64 cpu_clock(int cpu)
-{
-	return sched_clock();
-}
-
-u64 local_clock(void)
-{
-	return sched_clock();
-}
-
 #endif /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
-
-EXPORT_SYMBOL_GPL(cpu_clock);
-EXPORT_SYMBOL_GPL(local_clock);
 
 /*
  * Running clock - returns the time that has elapsed while a guest has been

@@ -49,8 +49,13 @@
 			no-map;
 		};
 
-		efs@0fd600000 {
-			reg = <0x0fd60000 0x1a0000>;
+		rfsa@0fd60000 {
+			reg = <0x0fd60000 0x20000>;
+			no-map;
+		};
+
+		rmtfs@0fd80000 {
+			reg = <0x0fd80000 0x180000>;
 			no-map;
 		};
 
@@ -161,6 +166,31 @@
 		qcom,rpm-msg-ram = <&rpm_msg_ram>;
 
 		hwlocks = <&tcsr_mutex 3>;
+	};
+
+	smp2p-modem {
+		compatible = "qcom,smp2p";
+		qcom,smem = <435>, <428>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <0 27 IRQ_TYPE_EDGE_RISING>;
+
+		qcom,ipc = <&apcs 8 14>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <1>;
+
+		modem_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,state-cells = <1>;
+		};
+
+		modem_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 
 	smp2p-wcnss {
@@ -440,6 +470,17 @@
 			interrupts = <0 208 0>;
 		};
 
+		i2c@f9924000 {
+			status = "disabled";
+			compatible = "qcom,i2c-qup-v2.1.1";
+			reg = <0xf9924000 0x1000>;
+			interrupts = <0 96 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		blsp_i2c8: i2c@f9964000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
@@ -481,6 +522,13 @@
 
 	smd {
 		compatible = "qcom,smd";
+
+		modem {
+			interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&apcs 8 12>;
+			qcom,smd-edge = <0>;
+		};
 
 		rpm {
 			interrupts = <0 168 1>;

@@ -48,6 +48,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_addr.h>
+#include <rdma/rw.h>
 
 #include "core_priv.h"
 
@@ -723,59 +724,89 @@ struct ib_qp *ib_open_qp(struct ib_xrcd *xrcd,
 }
 EXPORT_SYMBOL(ib_open_qp);
 
+static struct ib_qp *ib_create_xrc_qp(struct ib_qp *qp,
+		struct ib_qp_init_attr *qp_init_attr)
+{
+	struct ib_qp *real_qp = qp;
+
+	qp->event_handler = __ib_shared_qp_event_handler;
+	qp->qp_context = qp;
+	qp->pd = NULL;
+	qp->send_cq = qp->recv_cq = NULL;
+	qp->srq = NULL;
+	qp->xrcd = qp_init_attr->xrcd;
+	atomic_inc(&qp_init_attr->xrcd->usecnt);
+	INIT_LIST_HEAD(&qp->open_list);
+
+	qp = __ib_open_qp(real_qp, qp_init_attr->event_handler,
+			  qp_init_attr->qp_context);
+	if (!IS_ERR(qp))
+		__ib_insert_xrcd_qp(qp_init_attr->xrcd, real_qp);
+	else
+		real_qp->device->destroy_qp(real_qp);
+	return qp;
+}
+
 struct ib_qp *ib_create_qp(struct ib_pd *pd,
 			   struct ib_qp_init_attr *qp_init_attr)
 {
-	struct ib_qp *qp, *real_qp;
-	struct ib_device *device;
+	struct ib_device *device = pd ? pd->device : qp_init_attr->xrcd->device;
+	struct ib_qp *qp;
+	int ret;
 
-	device = pd ? pd->device : qp_init_attr->xrcd->device;
+	/*
+	 * If the callers is using the RDMA API calculate the resources
+	 * needed for the RDMA READ/WRITE operations.
+	 *
+	 * Note that these callers need to pass in a port number.
+	 */
+	if (qp_init_attr->cap.max_rdma_ctxs)
+		rdma_rw_init_qp(device, qp_init_attr);
+
 	qp = device->create_qp(pd, qp_init_attr, NULL);
+	if (IS_ERR(qp))
+		return qp;
 
-	if (!IS_ERR(qp)) {
-		qp->device     = device;
-		qp->real_qp    = qp;
-		qp->uobject    = NULL;
-		qp->qp_type    = qp_init_attr->qp_type;
+	qp->device     = device;
+	qp->real_qp    = qp;
+	qp->uobject    = NULL;
+	qp->qp_type    = qp_init_attr->qp_type;
 
-		atomic_set(&qp->usecnt, 0);
-		if (qp_init_attr->qp_type == IB_QPT_XRC_TGT) {
-			qp->event_handler = __ib_shared_qp_event_handler;
-			qp->qp_context = qp;
-			qp->pd = NULL;
-			qp->send_cq = qp->recv_cq = NULL;
-			qp->srq = NULL;
-			qp->xrcd = qp_init_attr->xrcd;
-			atomic_inc(&qp_init_attr->xrcd->usecnt);
-			INIT_LIST_HEAD(&qp->open_list);
+	atomic_set(&qp->usecnt, 0);
+	qp->mrs_used = 0;
+	spin_lock_init(&qp->mr_lock);
+	INIT_LIST_HEAD(&qp->rdma_mrs);
+	INIT_LIST_HEAD(&qp->sig_mrs);
 
-			real_qp = qp;
-			qp = __ib_open_qp(real_qp, qp_init_attr->event_handler,
-					  qp_init_attr->qp_context);
-			if (!IS_ERR(qp))
-				__ib_insert_xrcd_qp(qp_init_attr->xrcd, real_qp);
-			else
-				real_qp->device->destroy_qp(real_qp);
-		} else {
-			qp->event_handler = qp_init_attr->event_handler;
-			qp->qp_context = qp_init_attr->qp_context;
-			if (qp_init_attr->qp_type == IB_QPT_XRC_INI) {
-				qp->recv_cq = NULL;
-				qp->srq = NULL;
-			} else {
-				qp->recv_cq = qp_init_attr->recv_cq;
-				atomic_inc(&qp_init_attr->recv_cq->usecnt);
-				qp->srq = qp_init_attr->srq;
-				if (qp->srq)
-					atomic_inc(&qp_init_attr->srq->usecnt);
-			}
+	if (qp_init_attr->qp_type == IB_QPT_XRC_TGT)
+		return ib_create_xrc_qp(qp, qp_init_attr);
 
-			qp->pd	    = pd;
-			qp->send_cq = qp_init_attr->send_cq;
-			qp->xrcd    = NULL;
+	qp->event_handler = qp_init_attr->event_handler;
+	qp->qp_context = qp_init_attr->qp_context;
+	if (qp_init_attr->qp_type == IB_QPT_XRC_INI) {
+		qp->recv_cq = NULL;
+		qp->srq = NULL;
+	} else {
+		qp->recv_cq = qp_init_attr->recv_cq;
+		atomic_inc(&qp_init_attr->recv_cq->usecnt);
+		qp->srq = qp_init_attr->srq;
+		if (qp->srq)
+			atomic_inc(&qp_init_attr->srq->usecnt);
+	}
 
-			atomic_inc(&pd->usecnt);
-			atomic_inc(&qp_init_attr->send_cq->usecnt);
+	qp->pd	    = pd;
+	qp->send_cq = qp_init_attr->send_cq;
+	qp->xrcd    = NULL;
+
+	atomic_inc(&pd->usecnt);
+	atomic_inc(&qp_init_attr->send_cq->usecnt);
+
+	if (qp_init_attr->cap.max_rdma_ctxs) {
+		ret = rdma_rw_init_mrs(qp, qp_init_attr);
+		if (ret) {
+			pr_err("failed to init MR pool ret= %d\n", ret);
+			ib_destroy_qp(qp);
+			qp = ERR_PTR(ret);
 		}
 	}
 
@@ -1250,6 +1281,8 @@ int ib_destroy_qp(struct ib_qp *qp)
 	struct ib_srq *srq;
 	int ret;
 
+	WARN_ON_ONCE(qp->mrs_used > 0);
+
 	if (atomic_read(&qp->usecnt))
 		return -EBUSY;
 
@@ -1260,6 +1293,9 @@ int ib_destroy_qp(struct ib_qp *qp)
 	scq  = qp->send_cq;
 	rcq  = qp->recv_cq;
 	srq  = qp->srq;
+
+	if (!qp->uobject)
+		rdma_rw_cleanup_mrs(qp);
 
 	ret = qp->device->destroy_qp(qp);
 	if (!ret) {
@@ -1343,6 +1379,7 @@ struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
 		mr->pd      = pd;
 		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
+		mr->need_inval = false;
 	}
 
 	return mr;
@@ -1389,6 +1426,7 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 		mr->pd      = pd;
 		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
+		mr->need_inval = false;
 	}
 
 	return mr;
@@ -1597,6 +1635,7 @@ EXPORT_SYMBOL(ib_set_vf_guid);
  * @mr:            memory region
  * @sg:            dma mapped scatterlist
  * @sg_nents:      number of entries in sg
+ * @sg_offset:     offset in bytes into sg
  * @page_size:     page vector desired page size
  *
  * Constraints:
@@ -1615,17 +1654,15 @@ EXPORT_SYMBOL(ib_set_vf_guid);
  * After this completes successfully, the  memory region
  * is ready for registration.
  */
-int ib_map_mr_sg(struct ib_mr *mr,
-		 struct scatterlist *sg,
-		 int sg_nents,
-		 unsigned int page_size)
+int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
+		 unsigned int *sg_offset, unsigned int page_size)
 {
 	if (unlikely(!mr->device->map_mr_sg))
 		return -ENOSYS;
 
 	mr->page_size = page_size;
 
-	return mr->device->map_mr_sg(mr, sg, sg_nents);
+	return mr->device->map_mr_sg(mr, sg, sg_nents, sg_offset);
 }
 EXPORT_SYMBOL(ib_map_mr_sg);
 
@@ -1635,6 +1672,10 @@ EXPORT_SYMBOL(ib_map_mr_sg);
  * @mr:            memory region
  * @sgl:           dma mapped scatterlist
  * @sg_nents:      number of entries in sg
+ * @sg_offset_p:   IN:  start offset in bytes into sg
+ *                 OUT: offset in bytes for element n of the sg of the first
+ *                      byte that has not been processed where n is the return
+ *                      value of this function.
  * @set_page:      driver page assignment function pointer
  *
  * Core service helper for drivers to convert the largest
@@ -1645,23 +1686,26 @@ EXPORT_SYMBOL(ib_map_mr_sg);
  * Returns the number of sg elements that were assigned to
  * a page vector.
  */
-int ib_sg_to_pages(struct ib_mr *mr,
-		   struct scatterlist *sgl,
-		   int sg_nents,
-		   int (*set_page)(struct ib_mr *, u64))
+int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
+		unsigned int *sg_offset_p, int (*set_page)(struct ib_mr *, u64))
 {
 	struct scatterlist *sg;
 	u64 last_end_dma_addr = 0;
+	unsigned int sg_offset = sg_offset_p ? *sg_offset_p : 0;
 	unsigned int last_page_off = 0;
 	u64 page_mask = ~((u64)mr->page_size - 1);
 	int i, ret;
 
-	mr->iova = sg_dma_address(&sgl[0]);
+	if (unlikely(sg_nents <= 0 || sg_offset > sg_dma_len(&sgl[0])))
+		return -EINVAL;
+
+	mr->iova = sg_dma_address(&sgl[0]) + sg_offset;
 	mr->length = 0;
 
 	for_each_sg(sgl, sg, sg_nents, i) {
-		u64 dma_addr = sg_dma_address(sg);
-		unsigned int dma_len = sg_dma_len(sg);
+		u64 dma_addr = sg_dma_address(sg) + sg_offset;
+		u64 prev_addr = dma_addr;
+		unsigned int dma_len = sg_dma_len(sg) - sg_offset;
 		u64 end_dma_addr = dma_addr + dma_len;
 		u64 page_addr = dma_addr & page_mask;
 
@@ -1685,8 +1729,14 @@ int ib_sg_to_pages(struct ib_mr *mr,
 
 		do {
 			ret = set_page(mr, page_addr);
-			if (unlikely(ret < 0))
-				return i ? : ret;
+			if (unlikely(ret < 0)) {
+				sg_offset = prev_addr - sg_dma_address(sg);
+				mr->length += prev_addr - dma_addr;
+				if (sg_offset_p)
+					*sg_offset_p = sg_offset;
+				return i || sg_offset ? i : ret;
+			}
+			prev_addr = page_addr;
 next_page:
 			page_addr += mr->page_size;
 		} while (page_addr < end_dma_addr);
@@ -1694,8 +1744,12 @@ next_page:
 		mr->length += dma_len;
 		last_end_dma_addr = end_dma_addr;
 		last_page_off = end_dma_addr & ~page_mask;
+
+		sg_offset = 0;
 	}
 
+	if (sg_offset_p)
+		*sg_offset_p = 0;
 	return i;
 }
 EXPORT_SYMBOL(ib_sg_to_pages);

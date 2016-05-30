@@ -932,17 +932,14 @@ error:
 
 static inline int __tun_gso_type_mask(int encaps_af, int orig_af)
 {
-	if (encaps_af == AF_INET) {
-		if (orig_af == AF_INET)
-			return SKB_GSO_IPIP;
-
-		return SKB_GSO_SIT;
+	switch (encaps_af) {
+	case AF_INET:
+		return SKB_GSO_IPXIP4;
+	case AF_INET6:
+		return SKB_GSO_IPXIP6;
+	default:
+		return 0;
 	}
-
-	/* GSO: we need to provide proper SKB_GSO_ value for IPv6:
-	 * SKB_GSO_SIT/IPV6
-	 */
-	return 0;
 }
 
 /*
@@ -1013,8 +1010,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (IS_ERR(skb))
 		goto tx_error;
 
-	skb = iptunnel_handle_offloads(skb, __tun_gso_type_mask(AF_INET, cp->af));
-	if (IS_ERR(skb))
+	if (iptunnel_handle_offloads(skb, __tun_gso_type_mask(AF_INET, cp->af)))
 		goto tx_error;
 
 	skb->transport_header = skb->network_header;
@@ -1105,8 +1101,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (IS_ERR(skb))
 		goto tx_error;
 
-	skb = iptunnel_handle_offloads(skb, __tun_gso_type_mask(AF_INET6, cp->af));
-	if (IS_ERR(skb))
+	if (iptunnel_handle_offloads(skb, __tun_gso_type_mask(AF_INET6, cp->af)))
 		goto tx_error;
 
 	skb->transport_header = skb->network_header;

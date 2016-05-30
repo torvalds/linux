@@ -1,4 +1,5 @@
-/* Unusual Devices File for the Datafab USB Compact Flash reader
+/*
+ * Unusual Devices File for the Datafab USB Compact Flash reader
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -79,7 +80,8 @@ UNUSUAL_DEV(  0x07c4, 0xa109, 0x0000, 0xffff,
 		USB_SC_SCSI, USB_PR_DATAFAB, NULL,
 		0),
 
-/* Reported by Felix Moeller <felix@derklecks.de>
+/*
+ * Reported by Felix Moeller <felix@derklecks.de>
  * in Germany this is sold by Hama with the productnumber 46952
  * as "DualSlot CompactFlash(TM) & MStick Drive USB"
  */

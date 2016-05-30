@@ -62,6 +62,10 @@
 
 #define FIRMWARE_READY				0xfedc
 
+struct btmrvl_plt_wake_cfg {
+	int irq_bt;
+	bool wake_by_bt;
+};
 
 struct btmrvl_sdio_card_reg {
 	u8 cfg;
@@ -97,6 +101,8 @@ struct btmrvl_sdio_card {
 	u16 sd_blksz_fw_dl;
 	u8 rx_unit;
 	struct btmrvl_private *priv;
+	struct device_node *plt_of_node;
+	struct btmrvl_plt_wake_cfg *plt_wake_cfg;
 };
 
 struct btmrvl_sdio_device {

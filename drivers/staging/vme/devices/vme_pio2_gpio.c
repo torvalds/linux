@@ -17,7 +17,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/ctype.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/vme.h>
 
@@ -25,16 +25,11 @@
 
 static const char driver_name[] = "pio2_gpio";
 
-static struct pio2_card *gpio_to_pio2_card(struct gpio_chip *chip)
-{
-	return container_of(chip, struct pio2_card, gc);
-}
-
 static int pio2_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	u8 reg;
 	int retval;
-	struct pio2_card *card = gpio_to_pio2_card(chip);
+	struct pio2_card *card = gpiochip_get_data(chip);
 
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == OUTPUT) |
 	    (card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
@@ -71,7 +66,7 @@ static void pio2_gpio_set(struct gpio_chip *chip,
 {
 	u8 reg;
 	int retval;
-	struct pio2_card *card = gpio_to_pio2_card(chip);
+	struct pio2_card *card = gpiochip_get_data(chip);
 
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == INPUT) |
 	    (card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
@@ -97,10 +92,10 @@ static void pio2_gpio_set(struct gpio_chip *chip,
 }
 
 /* Directionality configured at board build - send appropriate response */
-static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
+static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned int offset)
 {
 	int data;
-	struct pio2_card *card = gpio_to_pio2_card(chip);
+	struct pio2_card *card = gpiochip_get_data(chip);
 
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == OUTPUT) |
 	    (card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
@@ -116,10 +111,11 @@ static int pio2_gpio_dir_in(struct gpio_chip *chip, unsigned offset)
 }
 
 /* Directionality configured at board build - send appropriate response */
-static int pio2_gpio_dir_out(struct gpio_chip *chip, unsigned offset, int value)
+static int pio2_gpio_dir_out(struct gpio_chip *chip,
+			     unsigned int offset, int value)
 {
 	int data;
-	struct pio2_card *card = gpio_to_pio2_card(chip);
+	struct pio2_card *card = gpiochip_get_data(chip);
 
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == INPUT) |
 	    (card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
@@ -205,7 +201,7 @@ int pio2_gpio_init(struct pio2_card *card)
 	card->gc.set = pio2_gpio_set;
 
 	/* This function adds a memory mapped GPIO chip */
-	retval = gpiochip_add(&card->gc);
+	retval = gpiochip_add_data(&card->gc, card);
 	if (retval) {
 		dev_err(&card->vdev->dev, "Unable to register GPIO\n");
 		kfree(card->gc.label);

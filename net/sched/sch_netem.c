@@ -1051,7 +1051,8 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	if (q->rate >= (1ULL << 32)) {
-		if (nla_put_u64(skb, TCA_NETEM_RATE64, q->rate))
+		if (nla_put_u64_64bit(skb, TCA_NETEM_RATE64, q->rate,
+				      TCA_NETEM_PAD))
 			goto nla_put_failure;
 		rate.rate = ~0U;
 	} else {
