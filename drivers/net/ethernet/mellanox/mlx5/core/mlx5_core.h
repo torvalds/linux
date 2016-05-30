@@ -107,4 +107,16 @@ void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
 
+static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
+{
+	/* LACP owner conditions:
+	 * 1) Function is physical.
+	 * 2) LAG is supported by FW.
+	 * 3) LAG is managed by driver (currently the only option).
+	 */
+	return  MLX5_CAP_GEN(dev, vport_group_manager) &&
+		   (MLX5_CAP_GEN(dev, num_lag_ports) > 1) &&
+		    MLX5_CAP_GEN(dev, lag_master);
+}
+
 #endif /* __MLX5_CORE_H__ */
