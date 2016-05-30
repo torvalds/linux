@@ -484,7 +484,14 @@ static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 
 		fw_mgmt->mode_switch_started = true;
 
-		/* FIXME: Initiate mode-switch from here */
+		ret = gb_interface_request_mode_switch(fw_mgmt->connection->intf);
+		if (ret) {
+			dev_err(fw_mgmt->parent, "Mode-switch failed: %d\n",
+				ret);
+			fw_mgmt->mode_switch_started = false;
+			return ret;
+		}
+
 		return 0;
 	default:
 		return -ENOTTY;
