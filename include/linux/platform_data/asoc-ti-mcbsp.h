@@ -45,6 +45,7 @@ struct omap_mcbsp_platform_data {
 	bool has_wakeup; /* Wakeup capability */
 	bool has_ccr; /* Transceiver has configuration control registers */
 	int (*enable_st_clock)(unsigned int, bool);
+	int (*force_ick_on)(struct clk *clk, bool force_on);
 };
 
 /**

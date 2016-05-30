@@ -48,6 +48,17 @@ static int omap3_enable_st_clock(unsigned int id, bool enable)
 		return omap2_clk_allow_idle(mcbsp_iclks[id]);
 }
 
+static int omap3_mcbsp_force_ick_on(struct clk *clk, bool force_on)
+{
+	if (!clk)
+		return 0;
+
+	if (force_on)
+		return omap2_clk_deny_idle(clk);
+	else
+		return omap2_clk_allow_idle(clk);
+}
+
 static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 {
 	int id, count = 1;
@@ -97,6 +108,7 @@ static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		oh_device[1] = omap_hwmod_lookup((
 		(struct omap_mcbsp_dev_attr *)(oh->dev_attr))->sidetone);
 		pdata->enable_st_clock = omap3_enable_st_clock;
+		pdata->force_ick_on = omap3_mcbsp_force_ick_on;
 		sprintf(clk_name, "mcbsp%d_ick", id);
 		mcbsp_iclks[id] = clk_get(NULL, clk_name);
 		count++;
