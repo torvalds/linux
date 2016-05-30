@@ -187,8 +187,7 @@ static int genpd_poweron(struct generic_pm_domain *genpd, unsigned int depth)
 	struct gpd_link *link;
 	int ret = 0;
 
-	if (genpd->status == GPD_STATE_ACTIVE
-	    || (genpd->prepared_count > 0 && genpd->suspend_power_off))
+	if (genpd->status == GPD_STATE_ACTIVE)
 		return 0;
 
 	/*
@@ -735,21 +734,22 @@ static int pm_genpd_prepare(struct device *dev)
 
 	mutex_lock(&genpd->lock);
 
-	if (genpd->prepared_count++ == 0) {
+	if (genpd->prepared_count++ == 0)
 		genpd->suspended_count = 0;
-		genpd->suspend_power_off = genpd->status == GPD_STATE_POWER_OFF;
-	}
 
 	mutex_unlock(&genpd->lock);
 
-	if (genpd->suspend_power_off)
-		return 0;
-
 	/*
-	 * The PM domain must be in the GPD_STATE_ACTIVE state at this point,
-	 * so genpd_poweron() will return immediately, but if the device
-	 * is suspended (e.g. it's been stopped by genpd_stop_dev()), we need
-	 * to make it operational.
+	 * Even if the PM domain is powered off at this point, we can't expect
+	 * it to remain in that state during the entire system PM suspend
+	 * phase. Any subsystem/driver for a device in the PM domain, may still
+	 * need to serve a request which may require the device to be runtime
+	 * resumed and its PM domain to be powered.
+	 *
+	 * As we are disabling runtime PM at this point, we are preventing the
+	 * subsystem/driver to decide themselves. For that reason, we need to
+	 * make sure the device is operational as it may be required in some
+	 * cases.
 	 */
 	pm_runtime_resume(dev);
 	__pm_runtime_disable(dev, false);
@@ -758,8 +758,7 @@ static int pm_genpd_prepare(struct device *dev)
 	if (ret) {
 		mutex_lock(&genpd->lock);
 
-		if (--genpd->prepared_count == 0)
-			genpd->suspend_power_off = false;
+		genpd->prepared_count--;
 
 		mutex_unlock(&genpd->lock);
 		pm_runtime_enable(dev);
@@ -786,7 +785,7 @@ static int pm_genpd_suspend(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : pm_generic_suspend(dev);
+	return pm_generic_suspend(dev);
 }
 
 /**
@@ -807,7 +806,7 @@ static int pm_genpd_suspend_late(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : pm_generic_suspend_late(dev);
+	return pm_generic_suspend_late(dev);
 }
 
 /**
@@ -827,8 +826,7 @@ static int pm_genpd_suspend_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	if (genpd->suspend_power_off
-	    || (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev)))
+	if (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev))
 		return 0;
 
 	genpd_stop_dev(genpd, dev);
@@ -860,8 +858,7 @@ static int pm_genpd_resume_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	if (genpd->suspend_power_off
-	    || (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev)))
+	if (dev->power.wakeup_path && genpd_dev_active_wakeup(genpd, dev))
 		return 0;
 
 	/*
@@ -894,7 +891,7 @@ static int pm_genpd_resume_early(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : pm_generic_resume_early(dev);
+	return pm_generic_resume_early(dev);
 }
 
 /**
@@ -915,7 +912,7 @@ static int pm_genpd_resume(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : pm_generic_resume(dev);
+	return pm_generic_resume(dev);
 }
 
 /**
@@ -936,7 +933,7 @@ static int pm_genpd_freeze(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : pm_generic_freeze(dev);
+	return pm_generic_freeze(dev);
 }
 
 /**
@@ -958,7 +955,7 @@ static int pm_genpd_freeze_late(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : pm_generic_freeze_late(dev);
+	return pm_generic_freeze_late(dev);
 }
 
 /**
@@ -980,7 +977,7 @@ static int pm_genpd_freeze_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : genpd_stop_dev(genpd, dev);
+	return genpd_stop_dev(genpd, dev);
 }
 
 /**
@@ -1000,8 +997,7 @@ static int pm_genpd_thaw_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ?
-		0 : genpd_start_dev(genpd, dev);
+	return genpd_start_dev(genpd, dev);
 }
 
 /**
@@ -1023,7 +1019,7 @@ static int pm_genpd_thaw_early(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : pm_generic_thaw_early(dev);
+	return pm_generic_thaw_early(dev);
 }
 
 /**
@@ -1044,7 +1040,7 @@ static int pm_genpd_thaw(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	return genpd->suspend_power_off ? 0 : pm_generic_thaw(dev);
+	return pm_generic_thaw(dev);
 }
 
 /**
@@ -1072,26 +1068,13 @@ static int pm_genpd_restore_noirq(struct device *dev)
 	 * At this point suspended_count == 0 means we are being run for the
 	 * first time for the given domain in the present cycle.
 	 */
-	if (genpd->suspended_count++ == 0) {
+	if (genpd->suspended_count++ == 0)
 		/*
 		 * The boot kernel might put the domain into arbitrary state,
 		 * so make it appear as powered off to pm_genpd_sync_poweron(),
 		 * so that it tries to power it on in case it was really off.
 		 */
 		genpd->status = GPD_STATE_POWER_OFF;
-		if (genpd->suspend_power_off) {
-			/*
-			 * If the domain was off before the hibernation, make
-			 * sure it will be off going forward.
-			 */
-			genpd_power_off(genpd, true);
-
-			return 0;
-		}
-	}
-
-	if (genpd->suspend_power_off)
-		return 0;
 
 	pm_genpd_sync_poweron(genpd, true);
 
@@ -1110,7 +1093,6 @@ static int pm_genpd_restore_noirq(struct device *dev)
 static void pm_genpd_complete(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
-	bool run_complete;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -1120,18 +1102,14 @@ static void pm_genpd_complete(struct device *dev)
 
 	mutex_lock(&genpd->lock);
 
-	run_complete = !genpd->suspend_power_off;
-	if (--genpd->prepared_count == 0)
-		genpd->suspend_power_off = false;
+	genpd->prepared_count--;
 
 	mutex_unlock(&genpd->lock);
 
-	if (run_complete) {
-		pm_generic_complete(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-		pm_request_idle(dev);
-	}
+	pm_generic_complete(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_request_idle(dev);
 }
 
 /**
