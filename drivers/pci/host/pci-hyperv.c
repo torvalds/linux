@@ -1661,10 +1661,8 @@ static void hv_pci_onchannelcallback(void *context)
 		 * All incoming packets must be at least as large as a
 		 * response.
 		 */
-		if (bytes_recvd <= sizeof(struct pci_response)) {
-			kfree(buffer);
-			return;
-		}
+		if (bytes_recvd <= sizeof(struct pci_response))
+			break;
 		desc = (struct vmpacket_descriptor *)buffer;
 
 		switch (desc->type) {
@@ -1679,8 +1677,7 @@ static void hv_pci_onchannelcallback(void *context)
 			comp_packet->completion_func(comp_packet->compl_ctxt,
 						     response,
 						     bytes_recvd);
-			kfree(buffer);
-			return;
+			break;
 
 		case VM_PKT_DATA_INBAND:
 
@@ -1729,6 +1726,8 @@ static void hv_pci_onchannelcallback(void *context)
 		}
 		break;
 	}
+
+	kfree(buffer);
 }
 
 /**
