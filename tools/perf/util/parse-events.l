@@ -260,6 +260,7 @@ cycles-ct					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
 cycles-t					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
 mem-loads					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
 mem-stores					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
+topdown-[a-z-]+					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
 
 L1-dcache|l1-d|l1d|L1-data		|
 L1-icache|l1-i|l1i|L1-instruction	|

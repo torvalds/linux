@@ -204,6 +204,38 @@ Aggregate counts per physical processor for system-wide mode measurements.
 --no-aggr::
 Do not aggregate counts across all monitored CPUs.
 
+--topdown::
+Print top down level 1 metrics if supported by the CPU. This allows to
+determine bottle necks in the CPU pipeline for CPU bound workloads,
+by breaking the cycles consumed down into frontend bound, backend bound,
+bad speculation and retiring.
+
+Frontend bound means that the CPU cannot fetch and decode instructions fast
+enough. Backend bound means that computation or memory access is the bottle
+neck. Bad Speculation means that the CPU wasted cycles due to branch
+mispredictions and similar issues. Retiring means that the CPU computed without
+an apparently bottleneck. The bottleneck is only the real bottleneck
+if the workload is actually bound by the CPU and not by something else.
+
+For best results it is usually a good idea to use it with interval
+mode like -I 1000, as the bottleneck of workloads can change often.
+
+The top down metrics are collected per core instead of per
+CPU thread. Per core mode is automatically enabled
+and -a (global monitoring) is needed, requiring root rights or
+perf.perf_event_paranoid=-1.
+
+Topdown uses the full Performance Monitoring Unit, and needs
+disabling of the NMI watchdog (as root):
+echo 0 > /proc/sys/kernel/nmi_watchdog
+for best results. Otherwise the bottlenecks may be inconsistent
+on workload with changing phases.
+
+This enables --metric-only, unless overriden with --no-metric-only.
+
+To interpret the results it is usually needed to know on which
+CPUs the workload runs on. If needed the CPUs can be forced using
+taskset.
 
 EXAMPLES
 --------
