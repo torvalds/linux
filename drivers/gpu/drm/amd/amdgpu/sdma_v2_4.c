@@ -105,6 +105,15 @@ static void sdma_v2_4_init_golden_registers(struct amdgpu_device *adev)
 	}
 }
 
+static void sdma_v2_4_free_microcode(struct amdgpu_device *adev)
+{
+	int i;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		release_firmware(adev->sdma.instance[i].fw);
+		adev->sdma.instance[i].fw = NULL;
+	}
+}
+
 /**
  * sdma_v2_4_init_microcode - load ucode images from disk
  *
@@ -1018,6 +1027,7 @@ static int sdma_v2_4_sw_fini(void *handle)
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 
+	sdma_v2_4_free_microcode(adev);
 	return 0;
 }
 
