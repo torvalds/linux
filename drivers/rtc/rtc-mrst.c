@@ -32,11 +32,11 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
+#include <linux/mc146818rtc.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sfi.h>
 
-#include <asm-generic/rtc.h>
 #include <asm/intel_scu_ipc.h>
 #include <asm/intel-mid.h>
 #include <asm/intel_mid_vrtc.h>
