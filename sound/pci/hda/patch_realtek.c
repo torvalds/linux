@@ -346,6 +346,9 @@ static void alc_fill_eapd_coef(struct hda_codec *codec)
 	case 0x10ec0234:
 	case 0x10ec0274:
 	case 0x10ec0294:
+	case 0x10ec0700:
+	case 0x10ec0701:
+	case 0x10ec0703:
 		alc_update_coef_idx(codec, 0x10, 1<<15, 0);
 		break;
 	case 0x10ec0662:
@@ -2655,6 +2658,7 @@ enum {
 	ALC269_TYPE_ALC256,
 	ALC269_TYPE_ALC225,
 	ALC269_TYPE_ALC294,
+	ALC269_TYPE_ALC700,
 };
 
 /*
@@ -2686,6 +2690,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	case ALC269_TYPE_ALC256:
 	case ALC269_TYPE_ALC225:
 	case ALC269_TYPE_ALC294:
+	case ALC269_TYPE_ALC700:
 		ssids = alc269_ssids;
 		break;
 	default:
@@ -6099,6 +6104,14 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0294:
 		spec->codec_variant = ALC269_TYPE_ALC294;
 		break;
+	case 0x10ec0700:
+	case 0x10ec0701:
+	case 0x10ec0703:
+		spec->codec_variant = ALC269_TYPE_ALC700;
+		spec->gen.mixer_nid = 0; /* ALC700 does not have any loopback mixer path */
+		alc_update_coef_idx(codec, 0x4a, 0, 1 << 15); /* Combo jack auto trigger control */
+		break;
+
 	}
 
 	if (snd_hda_codec_read(codec, 0x51, 0, AC_VERB_PARAMETERS, 0) == 0x10ec5505) {
@@ -7054,6 +7067,9 @@ static const struct hda_device_id snd_hda_id_realtek[] = {
 	HDA_CODEC_ENTRY(0x10ec0670, "ALC670", patch_alc662),
 	HDA_CODEC_ENTRY(0x10ec0671, "ALC671", patch_alc662),
 	HDA_CODEC_ENTRY(0x10ec0680, "ALC680", patch_alc680),
+	HDA_CODEC_ENTRY(0x10ec0700, "ALC700", patch_alc269),
+	HDA_CODEC_ENTRY(0x10ec0701, "ALC701", patch_alc269),
+	HDA_CODEC_ENTRY(0x10ec0703, "ALC703", patch_alc269),
 	HDA_CODEC_ENTRY(0x10ec0867, "ALC891", patch_alc882),
 	HDA_CODEC_ENTRY(0x10ec0880, "ALC880", patch_alc880),
 	HDA_CODEC_ENTRY(0x10ec0882, "ALC882", patch_alc882),
