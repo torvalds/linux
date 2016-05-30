@@ -836,6 +836,26 @@ err1:
 	return r;
 }
 
+
+static void gfx_v8_0_free_microcode(struct amdgpu_device *adev) {
+	release_firmware(adev->gfx.pfp_fw);
+	adev->gfx.pfp_fw = NULL;
+	release_firmware(adev->gfx.me_fw);
+	adev->gfx.me_fw = NULL;
+	release_firmware(adev->gfx.ce_fw);
+	adev->gfx.ce_fw = NULL;
+	release_firmware(adev->gfx.rlc_fw);
+	adev->gfx.rlc_fw = NULL;
+	release_firmware(adev->gfx.mec_fw);
+	adev->gfx.mec_fw = NULL;
+	if ((adev->asic_type != CHIP_STONEY) &&
+	    (adev->asic_type != CHIP_TOPAZ))
+		release_firmware(adev->gfx.mec2_fw);
+	adev->gfx.mec2_fw = NULL;
+
+	kfree(adev->gfx.rlc.register_list_format);
+}
+
 static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 {
 	const char *chip_name;
@@ -1983,7 +2003,7 @@ static int gfx_v8_0_sw_fini(void *handle)
 
 	gfx_v8_0_rlc_fini(adev);
 
-	kfree(adev->gfx.rlc.register_list_format);
+	gfx_v8_0_free_microcode(adev);
 
 	return 0;
 }
