@@ -1539,9 +1539,9 @@ static void encode_request(struct ceph_osd_request *req, struct ceph_msg *msg)
 	 */
 	msg->hdr.data_off = cpu_to_le16(req->r_data_offset);
 
-	dout("%s req %p oid %*pE oid_len %d front %zu data %u\n", __func__,
-	     req, req->r_t.target_oid.name_len, req->r_t.target_oid.name,
-	     req->r_t.target_oid.name_len, msg->front.iov_len, data_len);
+	dout("%s req %p oid %s oid_len %d front %zu data %u\n", __func__,
+	     req, req->r_t.target_oid.name, req->r_t.target_oid.name_len,
+	     msg->front.iov_len, data_len);
 }
 
 /*

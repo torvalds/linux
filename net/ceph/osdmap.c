@@ -1778,8 +1778,8 @@ int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
 	raw_pgid->seed = ceph_str_hash(pi->object_hash, oid->name,
 				       oid->name_len);
 
-	dout("%s %*pE -> raw_pgid %llu.%x\n", __func__, oid->name_len,
-	     oid->name, raw_pgid->pool, raw_pgid->seed);
+	dout("%s %s -> raw_pgid %llu.%x\n", __func__, oid->name,
+	     raw_pgid->pool, raw_pgid->seed);
 	return 0;
 }
 EXPORT_SYMBOL(ceph_object_locator_to_pg);
