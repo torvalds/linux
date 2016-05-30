@@ -9,7 +9,9 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 #include <linux/kernel.h>
+#include <asm/cacheflush.h>
 #include <asm/fpu.h>
+#include <asm/irq.h>
 #include <asm/rtc.h>
 #include <asm/busctl-regs.h>
 
