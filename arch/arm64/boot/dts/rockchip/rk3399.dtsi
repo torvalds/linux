@@ -118,6 +118,7 @@
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster0_opp>;
+			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
 
 		cpu_l1: cpu@1 {
@@ -128,6 +129,7 @@
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster0_opp>;
+			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
 
 		cpu_l2: cpu@2 {
@@ -138,6 +140,7 @@
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster0_opp>;
+			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
 
 		cpu_l3: cpu@3 {
@@ -148,6 +151,7 @@
 			clocks = <&cru ARMCLKL>;
 			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster0_opp>;
+			sched-energy-costs = <&CPU_COST_A53 &CLUSTER_COST_A53>;
 		};
 
 		cpu_b0: cpu@100 {
@@ -160,6 +164,7 @@
 			clocks = <&cru ARMCLKB>;
 			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster1_opp>;
+			sched-energy-costs = <&CPU_COST_A72 &CLUSTER_COST_A72>;
 		};
 
 		cpu_b1: cpu@101 {
@@ -170,6 +175,7 @@
 			clocks = <&cru ARMCLKB>;
 			cpu-idle-states = <&cpu_sleep>;
 			operating-points-v2 = <&cluster1_opp>;
+			sched-energy-costs = <&CPU_COST_A72 &CLUSTER_COST_A72>;
 		};
 
 		idle-states {
@@ -183,6 +189,9 @@
 				min-residency-us = <1150>;
 			};
 		};
+
+		/include/ "rk3399-sched-energy.dtsi"
+
 	};
 
 	cluster0_opp: opp_table0 {
