@@ -515,13 +515,7 @@ static int tvout_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_tvout *tvout = (struct sti_tvout *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
 	struct drm_crtc *crtc;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "TVOUT: (vaddr = 0x%p)", tvout->regs);
 
@@ -587,7 +581,6 @@ static int tvout_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP(TVO_AUX_IN_VID_FORMAT);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 

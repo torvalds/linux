@@ -177,12 +177,6 @@ static int dvo_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_dvo *dvo = (struct sti_dvo *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "DVO: (vaddr = 0x%p)", dvo->regs);
 	DBGFS_DUMP(DVO_AWG_DIGSYNC_CTRL);
@@ -193,7 +187,6 @@ static int dvo_dbg_show(struct seq_file *s, void *data)
 	dvo_dbg_awg_microcode(s, dvo->regs + DVO_DIGSYNC_INSTR_I);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 

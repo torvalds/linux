@@ -72,11 +72,6 @@ static int sti_drm_fps_dbg_show(struct seq_file *s, void *data)
 	struct drm_info_node *node = s->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_plane *p;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	list_for_each_entry(p, &dev->mode_config.plane_list, head) {
 		struct sti_plane *plane = to_sti_plane(p);
@@ -86,7 +81,6 @@ static int sti_drm_fps_dbg_show(struct seq_file *s, void *data)
 			   plane->fps_info.fips_str);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
