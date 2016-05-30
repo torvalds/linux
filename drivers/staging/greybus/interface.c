@@ -10,7 +10,7 @@
 #include "greybus.h"
 #include "greybus_trace.h"
 
-#define GB_INTERFACE_MODE_SWITCH_TIMEOUT	1000
+#define GB_INTERFACE_MODE_SWITCH_TIMEOUT	2000
 
 #define GB_INTERFACE_DEVICE_ID_BAD	0xff
 
