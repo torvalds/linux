@@ -25,10 +25,9 @@
 #include "ahb.h"
 
 static const struct of_device_id ath10k_ahb_of_match[] = {
-	/* TODO: enable this entry once everything in place.
-	 * { .compatible = "qcom,ipq4019-wifi",
-	 *   .data = (void *)ATH10K_HW_QCA4019 },
-	 */
+	{ .compatible = "qcom,ipq4019-wifi",
+	  .data = (void *)ATH10K_HW_QCA4019
+	},
 	{ }
 };
 
@@ -919,8 +918,6 @@ static struct platform_driver ath10k_ahb_driver = {
 int ath10k_ahb_init(void)
 {
 	int ret;
-
-	printk(KERN_ERR "AHB support is still work in progress\n");
 
 	ret = platform_driver_register(&ath10k_ahb_driver);
 	if (ret)
