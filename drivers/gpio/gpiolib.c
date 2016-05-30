@@ -1367,10 +1367,13 @@ done:
 /*
  * This descriptor validation needs to be inserted verbatim into each
  * function taking a descriptor, so we need to use a preprocessor
- * macro to avoid endless duplication.
+ * macro to avoid endless duplication. If the desc is NULL it is an
+ * optional GPIO and calls should just bail out.
  */
 #define VALIDATE_DESC(desc) do { \
-	if (!desc || !desc->gdev) { \
+	if (!desc) \
+		return 0; \
+	if (!desc->gdev) { \
 		pr_warn("%s: invalid GPIO\n", __func__); \
 		return -EINVAL; \
 	} \
@@ -1381,7 +1384,9 @@ done:
 	} } while (0)
 
 #define VALIDATE_DESC_VOID(desc) do { \
-	if (!desc || !desc->gdev) { \
+	if (!desc) \
+		return; \
+	if (!desc->gdev) { \
 		pr_warn("%s: invalid GPIO\n", __func__); \
 		return; \
 	} \
