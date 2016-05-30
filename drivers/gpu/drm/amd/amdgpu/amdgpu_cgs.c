@@ -787,6 +787,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		}
 
 		hdr = (const struct smc_firmware_header_v1_0 *)	adev->pm.fw->data;
+		amdgpu_ucode_print_smc_hdr(&hdr->header);
 		adev->pm.fw_version = le32_to_cpu(hdr->header.ucode_version);
 		ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes);
 		ucode_start_address = le32_to_cpu(hdr->ucode_start_addr);
