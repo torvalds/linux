@@ -63,7 +63,7 @@ nvkm_mc_intr(struct nvkm_mc *mc, bool *handled)
 	u32 stat, intr = nvkm_mc_intr_mask(mc);
 	u64 subdevs;
 
-	stat = nvkm_top_intr(device->top, intr, &subdevs);
+	stat = nvkm_top_intr(device, intr, &subdevs);
 	while (subdevs) {
 		enum nvkm_devidx subidx = __ffs64(subdevs);
 		subdev = nvkm_device_subdev(device, subidx);
@@ -94,7 +94,7 @@ nvkm_mc_reset_(struct nvkm_mc *mc, enum nvkm_devidx devidx)
 	const struct nvkm_mc_map *map;
 	u64 pmc_enable;
 
-	if (!(pmc_enable = nvkm_top_reset(device->top, devidx))) {
+	if (!(pmc_enable = nvkm_top_reset(device, devidx))) {
 		for (map = mc->func->reset; map && map->stat; map++) {
 			if (map->unit == devidx) {
 				pmc_enable = map->stat;
