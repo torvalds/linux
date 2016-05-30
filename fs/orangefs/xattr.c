@@ -456,7 +456,7 @@ static int orangefs_xattr_set_default(const struct xattr_handler *handler,
 				      int flags)
 {
 	return orangefs_inode_setxattr(inode,
-				    ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
+				    "",
 				    name,
 				    buffer,
 				    size,
@@ -471,7 +471,7 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 				      size_t size)
 {
 	return orangefs_inode_getxattr(inode,
-				    ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
+				    "",
 				    name,
 				    buffer,
 				    size);
@@ -487,7 +487,7 @@ static int orangefs_xattr_set_trusted(const struct xattr_handler *handler,
 				     int flags)
 {
 	return orangefs_inode_setxattr(inode,
-				    ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
+				    XATTR_TRUSTED_PREFIX,
 				    name,
 				    buffer,
 				    size,
@@ -502,25 +502,20 @@ static int orangefs_xattr_get_trusted(const struct xattr_handler *handler,
 				      size_t size)
 {
 	return orangefs_inode_getxattr(inode,
-				    ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
+				    XATTR_TRUSTED_PREFIX,
 				    name,
 				    buffer,
 				    size);
 }
 
 static struct xattr_handler orangefs_xattr_trusted_handler = {
-	.prefix = ORANGEFS_XATTR_NAME_TRUSTED_PREFIX,
+	.prefix = XATTR_TRUSTED_PREFIX,
 	.get = orangefs_xattr_get_trusted,
 	.set = orangefs_xattr_set_trusted,
 };
 
 static struct xattr_handler orangefs_xattr_default_handler = {
-	/*
-	 * NOTE: this is set to be the empty string.
-	 * so that all un-prefixed xattrs keys get caught
-	 * here!
-	 */
-	.prefix = ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
+	.prefix = "",  /* match any name => handlers called with full name */
 	.get = orangefs_xattr_get_default,
 	.set = orangefs_xattr_set_default,
 };

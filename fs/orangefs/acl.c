@@ -18,10 +18,10 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		key = ORANGEFS_XATTR_NAME_ACL_ACCESS;
+		key = XATTR_NAME_POSIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		key = ORANGEFS_XATTR_NAME_ACL_DEFAULT;
+		key = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		gossip_err("orangefs_get_acl: bogus value of type %d\n", type);
@@ -74,7 +74,7 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = ORANGEFS_XATTR_NAME_ACL_ACCESS;
+		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		if (acl) {
 			umode_t mode = inode->i_mode;
 			/*
@@ -98,7 +98,7 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		}
 		break;
 	case ACL_TYPE_DEFAULT:
-		name = ORANGEFS_XATTR_NAME_ACL_DEFAULT;
+		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		gossip_err("%s: invalid type %d!\n", __func__, type);

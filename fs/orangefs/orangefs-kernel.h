@@ -119,17 +119,6 @@ struct client_debug_mask {
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
 #endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
 
-/* orangefs xattr and acl related defines */
-#define ORANGEFS_XATTR_INDEX_POSIX_ACL_ACCESS  1
-#define ORANGEFS_XATTR_INDEX_POSIX_ACL_DEFAULT 2
-#define ORANGEFS_XATTR_INDEX_TRUSTED           3
-#define ORANGEFS_XATTR_INDEX_DEFAULT           4
-
-#define ORANGEFS_XATTR_NAME_ACL_ACCESS XATTR_NAME_POSIX_ACL_ACCESS
-#define ORANGEFS_XATTR_NAME_ACL_DEFAULT XATTR_NAME_POSIX_ACL_DEFAULT
-#define ORANGEFS_XATTR_NAME_TRUSTED_PREFIX "trusted."
-#define ORANGEFS_XATTR_NAME_DEFAULT_PREFIX ""
-
 /* these functions are defined in orangefs-utils.c */
 int orangefs_prepare_cdm_array(char *debug_array_string);
 int orangefs_prepare_debugfs_help_string(int);
