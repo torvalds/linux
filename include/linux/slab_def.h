@@ -80,6 +80,10 @@ struct kmem_cache {
 	struct kasan_cache kasan_info;
 #endif
 
+#ifdef CONFIG_SLAB_FREELIST_RANDOM
+	void *random_seq;
+#endif
+
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
 

@@ -20,6 +20,18 @@ struct gpio_device;
 #ifdef CONFIG_GPIOLIB
 
 /**
+ * enum single_ended_mode - mode for single ended operation
+ * @LINE_MODE_PUSH_PULL: normal mode for a GPIO line, drive actively high/low
+ * @LINE_MODE_OPEN_DRAIN: set line to be open drain
+ * @LINE_MODE_OPEN_SOURCE: set line to be open source
+ */
+enum single_ended_mode {
+	LINE_MODE_PUSH_PULL,
+	LINE_MODE_OPEN_DRAIN,
+	LINE_MODE_OPEN_SOURCE,
+};
+
+/**
  * struct gpio_chip - abstract a GPIO controller
  * @label: a functional name for the GPIO device, such as a part
  *	number or the name of the SoC IP-block implementing it.
@@ -38,7 +50,15 @@ struct gpio_device;
  * @set: assigns output value for signal "offset"
  * @set_multiple: assigns output values for multiple signals defined by "mask"
  * @set_debounce: optional hook for setting debounce time for specified gpio in
- *      interrupt triggered gpio chips
+ *	interrupt triggered gpio chips
+ * @set_single_ended: optional hook for setting a line as open drain, open
+ *	source, or non-single ended (restore from open drain/source to normal
+ *	push-pull mode) this should be implemented if the hardware supports
+ *	open drain or open source settings. The GPIOlib will otherwise try
+ *	to emulate open drain/source by not actively driving lines high/low
+ *	if a consumer request this. The driver may return -ENOTSUPP if e.g.
+ *	it supports just open drain but not open source and is called
+ *	with LINE_MODE_OPEN_SOURCE as mode argument.
  * @to_irq: optional hook supporting non-static gpio_to_irq() mappings;
  *	implementation may not sleep
  * @dbg_show: optional routine to show contents in debugfs; default code
@@ -130,6 +150,9 @@ struct gpio_chip {
 	int			(*set_debounce)(struct gpio_chip *chip,
 						unsigned offset,
 						unsigned debounce);
+	int			(*set_single_ended)(struct gpio_chip *chip,
+						unsigned offset,
+						enum single_ended_mode mode);
 
 	int			(*to_irq)(struct gpio_chip *chip,
 						unsigned offset);

@@ -629,8 +629,7 @@ static void ipoctal_hangup(struct tty_struct *tty)
 	tty_port_hangup(&channel->tty_port);
 
 	ipoctal_reset_channel(channel);
-
-	clear_bit(ASYNCB_INITIALIZED, &channel->tty_port.flags);
+	tty_port_set_initialized(&channel->tty_port, 0);
 	wake_up_interruptible(&channel->tty_port.open_wait);
 }
 
@@ -642,7 +641,7 @@ static void ipoctal_shutdown(struct tty_struct *tty)
 		return;
 
 	ipoctal_reset_channel(channel);
-	clear_bit(ASYNCB_INITIALIZED, &channel->tty_port.flags);
+	tty_port_set_initialized(&channel->tty_port, 0);
 }
 
 static void ipoctal_cleanup(struct tty_struct *tty)

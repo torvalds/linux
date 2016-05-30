@@ -897,7 +897,6 @@ static void cursor_update(void *data)
 static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 	struct drm_file *file, uint32_t handle, uint32_t w, uint32_t h)
 {
-	struct drm_device *dev = crtc->dev;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct armada_gem_object *obj = NULL;
 	int ret;
@@ -911,7 +910,7 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 		if (w > 64 || h > 64 || (w > 32 && h > 32))
 			return -ENOMEM;
 
-		obj = armada_gem_object_lookup(dev, file, handle);
+		obj = armada_gem_object_lookup(file, handle);
 		if (!obj)
 			return -ENOENT;
 

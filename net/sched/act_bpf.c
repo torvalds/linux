@@ -53,9 +53,11 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
 	filter = rcu_dereference(prog->filter);
 	if (at_ingress) {
 		__skb_push(skb, skb->mac_len);
+		bpf_compute_data_end(skb);
 		filter_res = BPF_PROG_RUN(filter, skb);
 		__skb_pull(skb, skb->mac_len);
 	} else {
+		bpf_compute_data_end(skb);
 		filter_res = BPF_PROG_RUN(filter, skb);
 	}
 	rcu_read_unlock();
@@ -156,7 +158,8 @@ static int tcf_bpf_dump(struct sk_buff *skb, struct tc_action *act,
 	tm.lastuse = jiffies_to_clock_t(jiffies - prog->tcf_tm.lastuse);
 	tm.expires = jiffies_to_clock_t(prog->tcf_tm.expires);
 
-	if (nla_put(skb, TCA_ACT_BPF_TM, sizeof(tm), &tm))
+	if (nla_put_64bit(skb, TCA_ACT_BPF_TM, sizeof(tm), &tm,
+			  TCA_ACT_BPF_PAD))
 		goto nla_put_failure;
 
 	return skb->len;

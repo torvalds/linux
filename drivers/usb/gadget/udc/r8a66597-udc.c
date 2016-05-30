@@ -296,7 +296,7 @@ static void r8a66597_change_curpipe(struct r8a66597 *r8a66597, u16 pipenum,
 	} while ((tmp & mask) != loop);
 }
 
-static inline void pipe_change(struct r8a66597 *r8a66597, u16 pipenum)
+static void pipe_change(struct r8a66597 *r8a66597, u16 pipenum)
 {
 	struct r8a66597_ep *ep = r8a66597->pipenum2ep[pipenum];
 

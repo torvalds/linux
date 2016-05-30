@@ -201,7 +201,7 @@ struct xgene_enet_pdata {
 	const struct xgene_mac_ops *mac_ops;
 	const struct xgene_port_ops *port_ops;
 	struct xgene_ring_ops *ring_ops;
-	struct xgene_cle_ops *cle_ops;
+	const struct xgene_cle_ops *cle_ops;
 	struct delayed_work link_work;
 	u32 port_id;
 	u8 cpu_bufnum;

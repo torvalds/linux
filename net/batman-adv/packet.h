@@ -175,6 +175,7 @@ enum batadv_bla_claimframe {
 	BATADV_CLAIM_TYPE_UNCLAIM	= 0x01,
 	BATADV_CLAIM_TYPE_ANNOUNCE	= 0x02,
 	BATADV_CLAIM_TYPE_REQUEST	= 0x03,
+	BATADV_CLAIM_TYPE_LOOPDETECT	= 0x04,
 };
 
 /**
@@ -501,7 +502,7 @@ struct batadv_coded_packet {
 #pragma pack()
 
 /**
- * struct batadv_unicast_tvlv - generic unicast packet with tvlv payload
+ * struct batadv_unicast_tvlv_packet - generic unicast packet with tvlv payload
  * @packet_type: batman-adv packet type, part of the general header
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header

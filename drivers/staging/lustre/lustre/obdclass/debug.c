@@ -68,8 +68,8 @@ int block_debug_check(char *who, void *addr, int end, __u64 off, __u64 id)
 
 	LASSERT(addr);
 
-	ne_off = le64_to_cpu (off);
-	id = le64_to_cpu (id);
+	ne_off = le64_to_cpu(off);
+	id = le64_to_cpu(id);
 	if (memcmp(addr, (char *)&ne_off, LPDS)) {
 		CDEBUG(D_ERROR, "%s: id %#llx offset %llu off: %#llx != %#llx\n",
 		       who, id, off, *(__u64 *)addr, ne_off);

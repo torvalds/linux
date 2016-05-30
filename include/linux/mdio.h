@@ -13,6 +13,17 @@
 
 struct mii_bus;
 
+/* Multiple levels of nesting are possible. However typically this is
+ * limited to nested DSA like layer, a MUX layer, and the normal
+ * user. Instead of trying to handle the general case, just define
+ * these cases.
+ */
+enum mdio_mutex_lock_class {
+	MDIO_MUTEX_NORMAL,
+	MDIO_MUTEX_MUX,
+	MDIO_MUTEX_NESTED,
+};
+
 struct mdio_device {
 	struct device dev;
 

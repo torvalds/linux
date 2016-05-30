@@ -49,6 +49,10 @@ FEATURE_TESTS_BASIC :=			\
 	libslang			\
 	libcrypto			\
 	libunwind			\
+	libunwind-x86			\
+	libunwind-x86_64		\
+	libunwind-arm			\
+	libunwind-aarch64		\
 	pthread-attr-setaffinity-np	\
 	stackprotector-all		\
 	timerfd				\
@@ -69,7 +73,9 @@ FEATURE_TESTS_EXTRA :=			\
 	libbabeltrace			\
 	liberty				\
 	liberty-z			\
-	libunwind-debug-frame
+	libunwind-debug-frame		\
+	libunwind-debug-frame-arm	\
+	libunwind-debug-frame-aarch64
 
 FEATURE_TESTS ?= $(FEATURE_TESTS_BASIC)
 

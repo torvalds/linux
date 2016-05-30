@@ -402,7 +402,7 @@ hip04_of_init(struct device_node *node, struct device_node *parent)
 	nr_irqs -= hwirq_base; /* calculate # of irqs to allocate */
 
 	irq_base = irq_alloc_descs(-1, hwirq_base, nr_irqs, numa_node_id());
-	if (IS_ERR_VALUE(irq_base)) {
+	if (irq_base < 0) {
 		pr_err("failed to allocate IRQ numbers\n");
 		return -EINVAL;
 	}

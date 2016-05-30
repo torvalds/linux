@@ -382,7 +382,7 @@ static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 
 	ret = of_property_read_u32(dt_node, "ref-clock-frequency",
 				   &pdev_data->ref_clock_freq);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret) {
 		dev_err(glue->dev,
 			"can't get reference clock frequency (%d)\n", ret);
 		return ret;
@@ -425,7 +425,7 @@ static int wl1271_probe(struct spi_device *spi)
 	}
 
 	ret = wlcore_probe_of(spi, glue, &pdev_data);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret) {
 		dev_err(glue->dev,
 			"can't get device tree parameters (%d)\n", ret);
 		return ret;

@@ -193,10 +193,10 @@ vdso_img_insttargets := $(vdso_img_sodbg:%.dbg=install_%)
 $(MODLIB)/vdso: FORCE
 	@mkdir -p $(MODLIB)/vdso
 
-$(vdso_img_insttargets): install_%: $(obj)/%.dbg $(MODLIB)/vdso FORCE
+$(vdso_img_insttargets): install_%: $(obj)/%.dbg $(MODLIB)/vdso
 	$(call cmd,vdso_install)
 
 PHONY += vdso_install $(vdso_img_insttargets)
-vdso_install: $(vdso_img_insttargets) FORCE
+vdso_install: $(vdso_img_insttargets)
 
 clean-files := vdso32.so vdso32.so.dbg vdso64* vdso-image-*.c vdsox32.so*

@@ -346,3 +346,14 @@ const struct ixgbe_mbx_operations ixgbevf_mbx_ops = {
 	.check_for_rst	= ixgbevf_check_for_rst_vf,
 };
 
+/* Mailbox operations when running on Hyper-V.
+ * On Hyper-V, PF/VF communication is not through the
+ * hardware mailbox; this communication is through
+ * a software mediated path.
+ * Most mail box operations are noop while running on
+ * Hyper-V.
+ */
+const struct ixgbe_mbx_operations ixgbevf_hv_mbx_ops = {
+	.init_params	= ixgbevf_init_mbx_params_vf,
+	.check_for_rst	= ixgbevf_check_for_rst_vf,
+};

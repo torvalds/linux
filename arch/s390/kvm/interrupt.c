@@ -977,6 +977,11 @@ no_timer:
 
 void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 {
+	/*
+	 * We cannot move this into the if, as the CPU might be already
+	 * in kvm_vcpu_block without having the waitqueue set (polling)
+	 */
+	vcpu->valid_wakeup = true;
 	if (swait_active(&vcpu->wq)) {
 		/*
 		 * The vcpu gave up the cpu voluntarily, mark it as a good
@@ -2034,6 +2039,27 @@ static int modify_io_adapter(struct kvm_device *dev,
 	return ret;
 }
 
+static int clear_io_irq(struct kvm *kvm, struct kvm_device_attr *attr)
+
+{
+	const u64 isc_mask = 0xffUL << 24; /* all iscs set */
+	u32 schid;
+
+	if (attr->flags)
+		return -EINVAL;
+	if (attr->attr != sizeof(schid))
+		return -EINVAL;
+	if (copy_from_user(&schid, (void __user *) attr->addr, sizeof(schid)))
+		return -EFAULT;
+	kfree(kvm_s390_get_io_int(kvm, isc_mask, schid));
+	/*
+	 * If userspace is conforming to the architecture, we can have at most
+	 * one pending I/O interrupt per subchannel, so this is effectively a
+	 * clear all.
+	 */
+	return 0;
+}
+
 static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r = 0;
@@ -2067,11 +2093,31 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	case KVM_DEV_FLIC_ADAPTER_MODIFY:
 		r = modify_io_adapter(dev, attr);
 		break;
+	case KVM_DEV_FLIC_CLEAR_IO_IRQ:
+		r = clear_io_irq(dev->kvm, attr);
+		break;
 	default:
 		r = -EINVAL;
 	}
 
 	return r;
+}
+
+static int flic_has_attr(struct kvm_device *dev,
+			     struct kvm_device_attr *attr)
+{
+	switch (attr->group) {
+	case KVM_DEV_FLIC_GET_ALL_IRQS:
+	case KVM_DEV_FLIC_ENQUEUE:
+	case KVM_DEV_FLIC_CLEAR_IRQS:
+	case KVM_DEV_FLIC_APF_ENABLE:
+	case KVM_DEV_FLIC_APF_DISABLE_WAIT:
+	case KVM_DEV_FLIC_ADAPTER_REGISTER:
+	case KVM_DEV_FLIC_ADAPTER_MODIFY:
+	case KVM_DEV_FLIC_CLEAR_IO_IRQ:
+		return 0;
+	}
+	return -ENXIO;
 }
 
 static int flic_create(struct kvm_device *dev, u32 type)
@@ -2095,6 +2141,7 @@ struct kvm_device_ops kvm_flic_ops = {
 	.name = "kvm-flic",
 	.get_attr = flic_get_attr,
 	.set_attr = flic_set_attr,
+	.has_attr = flic_has_attr,
 	.create = flic_create,
 	.destroy = flic_destroy,
 };

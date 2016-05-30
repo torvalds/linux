@@ -15,6 +15,7 @@
 #include <linux/cache.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/of.h>
 #include <asm/div64.h>
 #include <asm/io.h>
 

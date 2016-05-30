@@ -1597,10 +1597,10 @@ const struct address_space_operations ubifs_file_address_operations = {
 const struct inode_operations ubifs_file_inode_operations = {
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
-	.setxattr    = ubifs_setxattr,
-	.getxattr    = ubifs_getxattr,
+	.setxattr    = generic_setxattr,
+	.getxattr    = generic_getxattr,
 	.listxattr   = ubifs_listxattr,
-	.removexattr = ubifs_removexattr,
+	.removexattr = generic_removexattr,
 #ifdef CONFIG_UBIFS_ATIME_SUPPORT
 	.update_time = ubifs_update_time,
 #endif
@@ -1611,10 +1611,10 @@ const struct inode_operations ubifs_symlink_inode_operations = {
 	.get_link    = simple_get_link,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
-	.setxattr    = ubifs_setxattr,
-	.getxattr    = ubifs_getxattr,
+	.setxattr    = generic_setxattr,
+	.getxattr    = generic_getxattr,
 	.listxattr   = ubifs_listxattr,
-	.removexattr = ubifs_removexattr,
+	.removexattr = generic_removexattr,
 #ifdef CONFIG_UBIFS_ATIME_SUPPORT
 	.update_time = ubifs_update_time,
 #endif

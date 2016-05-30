@@ -217,7 +217,7 @@ struct i40e_client {
 #define I40E_CLIENT_FLAGS_LAUNCH_ON_PROBE	BIT(0)
 #define I40E_TX_FLAGS_NOTIFY_OTHER_EVENTS	BIT(2)
 	enum i40e_client_type type;
-	struct i40e_client_ops *ops;	/* client ops provided by the client */
+	const struct i40e_client_ops *ops; /* client ops provided by the client */
 };
 
 static inline bool i40e_client_is_registered(struct i40e_client *client)

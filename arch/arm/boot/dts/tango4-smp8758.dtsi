@@ -1,4 +1,4 @@
-#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "tango4-common.dtsi"
 
 / {
 	cpus {
@@ -11,6 +11,9 @@
 			next-level-cache = <&l2cc>;
 			device_type = "cpu";
 			reg = <0>;
+			clocks = <&clkgen CPU_CLK>;
+			clock-latency = <1>;
+			operating-points = <1215000 0 607500 0 405000 0 243000 0 135000 0>;
 		};
 
 		cpu1: cpu@1 {
@@ -27,5 +30,28 @@
 		interrupts =
 			<GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	soc {
+		cpu_temp: thermal@920100 {
+			#thermal-sensor-cells = <0>;
+			compatible = "sigma,smp8758-thermal";
+			reg = <0x920100 12>;
+		};
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay = <997>;		/* milliseconds */
+			polling-delay-passive = <499>;	/* milliseconds */
+			thermal-sensors = <&cpu_temp>;
+			trips {
+				cpu_critical {
+					temperature = <120000>;
+					hysteresis = <2500>;
+					type = "critical";
+				};
+			};
+		};
 	};
 };

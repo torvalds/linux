@@ -18,6 +18,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -38,35 +39,6 @@ static struct scpi_dvfs_info *scpi_get_dvfs_info(struct device *cpu_dev)
 	return scpi_ops->dvfs_get_info(domain);
 }
 
-static int scpi_opp_table_ops(struct device *cpu_dev, bool remove)
-{
-	int idx, ret = 0;
-	struct scpi_opp *opp;
-	struct scpi_dvfs_info *info = scpi_get_dvfs_info(cpu_dev);
-
-	if (IS_ERR(info))
-		return PTR_ERR(info);
-
-	if (!info->opps)
-		return -EIO;
-
-	for (opp = info->opps, idx = 0; idx < info->count; idx++, opp++) {
-		if (remove)
-			dev_pm_opp_remove(cpu_dev, opp->freq);
-		else
-			ret = dev_pm_opp_add(cpu_dev, opp->freq,
-					     opp->m_volt * 1000);
-		if (ret) {
-			dev_warn(cpu_dev, "failed to add opp %uHz %umV\n",
-				 opp->freq, opp->m_volt);
-			while (idx-- > 0)
-				dev_pm_opp_remove(cpu_dev, (--opp)->freq);
-			return ret;
-		}
-	}
-	return ret;
-}
-
 static int scpi_get_transition_latency(struct device *cpu_dev)
 {
 	struct scpi_dvfs_info *info = scpi_get_dvfs_info(cpu_dev);
@@ -76,21 +48,42 @@ static int scpi_get_transition_latency(struct device *cpu_dev)
 	return info->latency;
 }
 
-static int scpi_init_opp_table(struct device *cpu_dev)
+static int scpi_init_opp_table(const struct cpumask *cpumask)
 {
-	return scpi_opp_table_ops(cpu_dev, false);
-}
+	int idx, ret;
+	struct scpi_opp *opp;
+	struct device *cpu_dev = get_cpu_device(cpumask_first(cpumask));
+	struct scpi_dvfs_info *info = scpi_get_dvfs_info(cpu_dev);
 
-static void scpi_free_opp_table(struct device *cpu_dev)
-{
-	scpi_opp_table_ops(cpu_dev, true);
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
+	if (!info->opps)
+		return -EIO;
+
+	for (opp = info->opps, idx = 0; idx < info->count; idx++, opp++) {
+		ret = dev_pm_opp_add(cpu_dev, opp->freq, opp->m_volt * 1000);
+		if (ret) {
+			dev_warn(cpu_dev, "failed to add opp %uHz %umV\n",
+				 opp->freq, opp->m_volt);
+			while (idx-- > 0)
+				dev_pm_opp_remove(cpu_dev, (--opp)->freq);
+			return ret;
+		}
+	}
+
+	ret = dev_pm_opp_set_sharing_cpus(cpu_dev, cpumask);
+	if (ret)
+		dev_err(cpu_dev, "%s: failed to mark OPPs as shared: %d\n",
+			__func__, ret);
+	return ret;
 }
 
 static struct cpufreq_arm_bL_ops scpi_cpufreq_ops = {
 	.name	= "scpi",
 	.get_transition_latency = scpi_get_transition_latency,
 	.init_opp_table = scpi_init_opp_table,
-	.free_opp_table = scpi_free_opp_table,
+	.free_opp_table = dev_pm_opp_cpumask_remove_table,
 };
 
 static int scpi_cpufreq_probe(struct platform_device *pdev)

@@ -29,9 +29,9 @@ struct qed_ptt;
 enum common_event_opcode {
 	COMMON_EVENT_PF_START,
 	COMMON_EVENT_PF_STOP,
-	COMMON_EVENT_RESERVED,
-	COMMON_EVENT_RESERVED2,
-	COMMON_EVENT_RESERVED3,
+	COMMON_EVENT_VF_START,
+	COMMON_EVENT_VF_STOP,
+	COMMON_EVENT_VF_PF_CHANNEL,
 	COMMON_EVENT_RESERVED4,
 	COMMON_EVENT_RESERVED5,
 	COMMON_EVENT_RESERVED6,
@@ -44,9 +44,9 @@ enum common_ramrod_cmd_id {
 	COMMON_RAMROD_UNUSED,
 	COMMON_RAMROD_PF_START /* PF Function Start Ramrod */,
 	COMMON_RAMROD_PF_STOP /* PF Function Stop Ramrod */,
-	COMMON_RAMROD_RESERVED,
-	COMMON_RAMROD_RESERVED2,
-	COMMON_RAMROD_RESERVED3,
+	COMMON_RAMROD_VF_START,
+	COMMON_RAMROD_VF_STOP,
+	COMMON_RAMROD_PF_UPDATE,
 	COMMON_RAMROD_EMPTY,
 	MAX_COMMON_RAMROD_CMD_ID
 };
@@ -573,6 +573,14 @@ union event_ring_element {
 	struct event_ring_next_addr	next_addr;
 };
 
+struct mstorm_non_trigger_vf_zone {
+	struct eth_mstorm_per_queue_stat eth_queue_stat;
+};
+
+struct mstorm_vf_zone {
+	struct mstorm_non_trigger_vf_zone non_trigger;
+};
+
 enum personality_type {
 	BAD_PERSONALITY_TYP,
 	PERSONALITY_RESERVED,
@@ -626,6 +634,59 @@ struct pf_start_ramrod_data {
 	u8				reserved0[4];
 };
 
+/* Data for port update ramrod */
+struct protocol_dcb_data {
+	u8 dcb_enable_flag;
+	u8 dcb_priority;
+	u8 dcb_tc;
+	u8 reserved;
+};
+
+/* tunnel configuration */
+struct pf_update_tunnel_config {
+	u8	update_rx_pf_clss;
+	u8	update_tx_pf_clss;
+	u8	set_vxlan_udp_port_flg;
+	u8	set_geneve_udp_port_flg;
+	u8	tx_enable_vxlan;
+	u8	tx_enable_l2geneve;
+	u8	tx_enable_ipgeneve;
+	u8	tx_enable_l2gre;
+	u8	tx_enable_ipgre;
+	u8	tunnel_clss_vxlan;
+	u8	tunnel_clss_l2geneve;
+	u8	tunnel_clss_ipgeneve;
+	u8	tunnel_clss_l2gre;
+	u8	tunnel_clss_ipgre;
+	__le16	vxlan_udp_port;
+	__le16	geneve_udp_port;
+	__le16	reserved[3];
+};
+
+struct pf_update_ramrod_data {
+	u8 pf_id;
+	u8 update_eth_dcb_data_flag;
+	u8 update_fcoe_dcb_data_flag;
+	u8 update_iscsi_dcb_data_flag;
+	u8 update_roce_dcb_data_flag;
+	u8 update_mf_vlan_flag;
+	__le16 mf_vlan;
+	struct protocol_dcb_data eth_dcb_data;
+	struct protocol_dcb_data fcoe_dcb_data;
+	struct protocol_dcb_data iscsi_dcb_data;
+	struct protocol_dcb_data roce_dcb_data;
+	struct pf_update_tunnel_config	tunnel_config;
+};
+
+/* Tunnel classification scheme */
+enum tunnel_clss {
+	TUNNEL_CLSS_MAC_VLAN = 0,
+	TUNNEL_CLSS_MAC_VNI,
+	TUNNEL_CLSS_INNER_MAC_VLAN,
+	TUNNEL_CLSS_INNER_MAC_VNI,
+	MAX_TUNNEL_CLSS
+};
+
 enum ports_mode {
 	ENGX2_PORTX1 /* 2 engines x 1 port */,
 	ENGX2_PORTX2 /* 2 engines x 2 ports */,
@@ -633,6 +694,16 @@ enum ports_mode {
 	ENGX1_PORTX2 /* 1 engine  x 2 ports */,
 	ENGX1_PORTX4 /* 1 engine  x 4 ports */,
 	MAX_PORTS_MODE
+};
+
+struct pstorm_non_trigger_vf_zone {
+	struct eth_pstorm_per_queue_stat eth_queue_stat;
+	struct regpair reserved[2];
+};
+
+struct pstorm_vf_zone {
+	struct pstorm_non_trigger_vf_zone non_trigger;
+	struct regpair reserved[7];
 };
 
 /* Ramrod Header of SPQE */
@@ -662,6 +733,36 @@ struct tstorm_per_port_stat {
 	struct regpair	eth_irregular_pkt;
 	struct regpair	toe_irregular_pkt;
 	struct regpair	preroce_irregular_pkt;
+};
+
+struct ustorm_non_trigger_vf_zone {
+	struct eth_ustorm_per_queue_stat eth_queue_stat;
+	struct regpair vf_pf_msg_addr;
+};
+
+struct ustorm_trigger_vf_zone {
+	u8 vf_pf_msg_valid;
+	u8 reserved[7];
+};
+
+struct ustorm_vf_zone {
+	struct ustorm_non_trigger_vf_zone non_trigger;
+	struct ustorm_trigger_vf_zone trigger;
+};
+
+struct vf_start_ramrod_data {
+	u8 vf_id;
+	u8 enable_flr_ack;
+	__le16 opaque_fid;
+	u8 personality;
+	u8 reserved[3];
+};
+
+struct vf_stop_ramrod_data {
+	u8 vf_id;
+	u8 reserved0;
+	__le16 reserved1;
+	__le32 reserved2;
 };
 
 struct atten_status_block {
@@ -990,7 +1091,7 @@ enum init_phases {
 	PHASE_ENGINE,
 	PHASE_PORT,
 	PHASE_PF,
-	PHASE_RESERVED,
+	PHASE_VF,
 	PHASE_QM_PF,
 	MAX_INIT_PHASES
 };
@@ -1602,6 +1703,19 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn	*p_hwfn,
 			  bool			is_tx_pq,
 			  u16			start_pq,
 			  u16			num_pqs);
+
+void qed_set_vxlan_dest_port(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt  *p_ptt, u16 dest_port);
+void qed_set_vxlan_enable(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, bool vxlan_enable);
+void qed_set_gre_enable(struct qed_hwfn *p_hwfn,
+			struct qed_ptt  *p_ptt, bool eth_gre_enable,
+			bool ip_gre_enable);
+void qed_set_geneve_dest_port(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt, u16 dest_port);
+void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, bool eth_geneve_enable,
+			   bool ip_geneve_enable);
 
 /* Ystorm flow control mode. Use enum fw_flow_ctrl_mode */
 #define YSTORM_FLOW_CONTROL_MODE_OFFSET  (IRO[0].base)
@@ -3788,7 +3902,7 @@ struct public_drv_mb {
 
 #define DRV_MSG_CODE_SET_LLDP                   0x24000000
 #define DRV_MSG_CODE_SET_DCBX                   0x25000000
-
+#define DRV_MSG_CODE_BW_UPDATE_ACK		0x32000000
 #define DRV_MSG_CODE_NIG_DRAIN                  0x30000000
 
 #define DRV_MSG_CODE_INITIATE_FLR               0x02000000
@@ -3808,6 +3922,7 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_PHY_CORE_WRITE             0x000e0000
 #define DRV_MSG_CODE_SET_VERSION                0x000f0000
 
+#define DRV_MSG_CODE_BIST_TEST                  0x001e0000
 #define DRV_MSG_CODE_SET_LED_MODE               0x00200000
 
 #define DRV_MSG_SEQ_NUMBER_MASK                 0x0000ffff
@@ -3864,6 +3979,18 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_SET_LED_MODE_OPER          0x0
 #define DRV_MB_PARAM_SET_LED_MODE_ON            0x1
 #define DRV_MB_PARAM_SET_LED_MODE_OFF           0x2
+
+#define DRV_MB_PARAM_BIST_UNKNOWN_TEST          0
+#define DRV_MB_PARAM_BIST_REGISTER_TEST         1
+#define DRV_MB_PARAM_BIST_CLOCK_TEST            2
+
+#define DRV_MB_PARAM_BIST_RC_UNKNOWN            0
+#define DRV_MB_PARAM_BIST_RC_PASSED             1
+#define DRV_MB_PARAM_BIST_RC_FAILED             2
+#define DRV_MB_PARAM_BIST_RC_INVALID_PARAMETER          3
+
+#define DRV_MB_PARAM_BIST_TEST_INDEX_SHIFT      0
+#define DRV_MB_PARAM_BIST_TEST_INDEX_MASK       0x000000FF
 
 	u32 fw_mb_header;
 #define FW_MSG_CODE_MASK                        0xffff0000
@@ -5067,4 +5194,8 @@ struct hw_set_image {
 	struct hw_set_info	hw_sets[1];
 };
 
+int qed_init_pf_wfq(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		    u8 pf_id, u16 pf_wfq);
+int qed_init_vport_wfq(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		       u16 first_tx_pq_id[NUM_OF_TCS], u16 vport_wfq);
 #endif

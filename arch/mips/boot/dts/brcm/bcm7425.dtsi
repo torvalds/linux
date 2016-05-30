@@ -87,14 +87,32 @@
 			compatible = "brcm,bcm7120-l2-intc";
 			reg = <0x406780 0x8>;
 
-			brcm,int-map-mask = <0x44>;
+			brcm,int-map-mask = <0x44>, <0x7000000>;
 			brcm,int-fwd-mask = <0x70000>;
 
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
 			interrupt-parent = <&periph_intc>;
-			interrupts = <55>;
+			interrupts = <55>, <53>;
+			interrupt-names = "upg_main", "upg_bsc";
+		};
+
+		upg_aon_irq0_intc: upg_aon_irq0_intc@409480 {
+			compatible = "brcm,bcm7120-l2-intc";
+			reg = <0x409480 0x8>;
+
+			brcm,int-map-mask = <0x40>, <0x18000000>, <0x100000>;
+			brcm,int-fwd-mask = <0>;
+			brcm,irq-can-wake;
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			interrupt-parent = <&periph_intc>;
+			interrupts = <56>, <54>, <59>;
+			interrupt-names = "upg_main_aon", "upg_bsc_aon",
+					  "upg_spi";
 		};
 
 		sun_top_ctrl: syscon@404000 {
@@ -117,6 +135,78 @@
 			interrupts = <61>;
 			clocks = <&uart_clk>;
 			status = "disabled";
+		};
+
+		uart1: serial@406b40 {
+			compatible = "ns16550a";
+			reg = <0x406b40 0x20>;
+			reg-io-width = <0x4>;
+			reg-shift = <0x2>;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <62>;
+			clocks = <&uart_clk>;
+			status = "disabled";
+		};
+
+		uart2: serial@406b80 {
+			compatible = "ns16550a";
+			reg = <0x406b80 0x20>;
+			reg-io-width = <0x4>;
+			reg-shift = <0x2>;
+			interrupt-parent = <&periph_intc>;
+			interrupts = <63>;
+			clocks = <&uart_clk>;
+			status = "disabled";
+		};
+
+		bsca: i2c@409180 {
+		      clock-frequency = <390000>;
+		      compatible = "brcm,brcmstb-i2c";
+		      interrupt-parent = <&upg_aon_irq0_intc>;
+		      reg = <0x409180 0x58>;
+		      interrupts = <27>;
+		      interrupt-names = "upg_bsca";
+		      status = "disabled";
+		};
+
+		bscb: i2c@409400 {
+		      clock-frequency = <390000>;
+		      compatible = "brcm,brcmstb-i2c";
+		      interrupt-parent = <&upg_aon_irq0_intc>;
+		      reg = <0x409400 0x58>;
+		      interrupts = <28>;
+		      interrupt-names = "upg_bscb";
+		      status = "disabled";
+		};
+
+		bscc: i2c@406200 {
+		      clock-frequency = <390000>;
+		      compatible = "brcm,brcmstb-i2c";
+		      interrupt-parent = <&upg_irq0_intc>;
+		      reg = <0x406200 0x58>;
+		      interrupts = <24>;
+		      interrupt-names = "upg_bscc";
+		      status = "disabled";
+		};
+
+		bscd: i2c@406280 {
+		      clock-frequency = <390000>;
+		      compatible = "brcm,brcmstb-i2c";
+		      interrupt-parent = <&upg_irq0_intc>;
+		      reg = <0x406280 0x58>;
+		      interrupts = <25>;
+		      interrupt-names = "upg_bscd";
+		      status = "disabled";
+		};
+
+		bsce: i2c@406300 {
+		      clock-frequency = <390000>;
+		      compatible = "brcm,brcmstb-i2c";
+		      interrupt-parent = <&upg_irq0_intc>;
+		      reg = <0x406300 0x58>;
+		      interrupts = <26>;
+		      interrupt-names = "upg_bsce";
+		      status = "disabled";
 		};
 
 		enet0: ethernet@b80000 {
@@ -227,11 +317,9 @@
 			reg-names = "ahci", "top-ctrl";
 			reg = <0x181000 0xa9c>, <0x180020 0x1c>;
 			interrupt-parent = <&periph_intc>;
-			interrupts = <40>;
+			interrupts = <41>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			brcm,broken-ncq;
-			brcm,broken-phy;
 			status = "disabled";
 
 			sata0: sata-port@0 {
@@ -245,7 +333,7 @@
 			};
 		};
 
-		sata_phy: sata-phy@1800000 {
+		sata_phy: sata-phy@180100 {
 			compatible = "brcm,bcm7425-sata-phy", "brcm,phy-sata3";
 			reg = <0x180100 0x0eff>;
 			reg-names = "phy";

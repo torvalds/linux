@@ -32,17 +32,17 @@ Optional subnode-properties:
 
 Example nodes:
 
-	gpio_keys {
+	gpio-keys {
 			compatible = "gpio-keys";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			autorepeat;
-			button@21 {
+
+			up {
 				label = "GPIO Key UP";
 				linux,code = <103>;
 				gpios = <&gpio1 0 1>;
 			};
-			button@22 {
+
+			down {
 				label = "GPIO Key DOWN";
 				linux,code = <108>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;

@@ -261,10 +261,11 @@ it according to the policy which can be read from "auto_online_blocks" file:
 
 % cat /sys/devices/system/memory/auto_online_blocks
 
-The default is "offline" which means the newly added memory is not in a
-ready-to-use state and you have to "online" the newly added memory blocks
-manually. Automatic onlining can be requested by writing "online" to
-"auto_online_blocks" file:
+The default depends on the CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE kernel config
+option. If it is disabled the default is "offline" which means the newly added
+memory is not in a ready-to-use state and you have to "online" the newly added
+memory blocks manually. Automatic onlining can be requested by writing "online"
+to "auto_online_blocks" file:
 
 % echo online > /sys/devices/system/memory/auto_online_blocks
 

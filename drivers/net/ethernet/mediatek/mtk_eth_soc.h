@@ -363,6 +363,7 @@ struct mtk_rx_ring {
  * @clk_gp1:		The gmac1 clock
  * @clk_gp2:		The gmac2 clock
  * @mii_bus:		If there is a bus we need to create an instance for it
+ * @pending_work:	The workqueue used to reset the dma ring
  */
 
 struct mtk_eth {
@@ -389,6 +390,7 @@ struct mtk_eth {
 	struct clk			*clk_gp1;
 	struct clk			*clk_gp2;
 	struct mii_bus			*mii_bus;
+	struct work_struct		pending_work;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
@@ -398,7 +400,6 @@ struct mtk_eth {
  * @hw:			Backpointer to our main datastruture
  * @hw_stats:		Packet statistics counter
  * @phy_dev:		The attached PHY if available
- * @pending_work:	The workqueue used to reset the dma ring
  */
 struct mtk_mac {
 	int				id;
@@ -406,7 +407,6 @@ struct mtk_mac {
 	struct mtk_eth			*hw;
 	struct mtk_hw_stats		*hw_stats;
 	struct phy_device		*phy_dev;
-	struct work_struct		pending_work;
 };
 
 /* the struct describing the SoC. these are declared in the soc_xyz.c files */

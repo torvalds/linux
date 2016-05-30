@@ -1438,8 +1438,8 @@ static void mlxsw_sp_fdb_notify_rec_process(struct mlxsw_sp *mlxsw_sp,
 
 static void mlxsw_sp_fdb_notify_work_schedule(struct mlxsw_sp *mlxsw_sp)
 {
-	schedule_delayed_work(&mlxsw_sp->fdb_notify.dw,
-			      msecs_to_jiffies(mlxsw_sp->fdb_notify.interval));
+	mlxsw_core_schedule_dw(&mlxsw_sp->fdb_notify.dw,
+			       msecs_to_jiffies(mlxsw_sp->fdb_notify.interval));
 }
 
 static void mlxsw_sp_fdb_notify_work(struct work_struct *work)

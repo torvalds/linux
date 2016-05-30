@@ -13,6 +13,7 @@
 #include <linux/if_link.h>
 #include <linux/qed/eth_common.h>
 #include <linux/qed/qed_if.h>
+#include <linux/qed/qed_iov_if.h>
 
 struct qed_dev_eth_info {
 	struct qed_dev_info common;
@@ -27,12 +28,15 @@ struct qed_dev_eth_info {
 struct qed_update_vport_rss_params {
 	u16	rss_ind_table[128];
 	u32	rss_key[10];
+	u8	rss_caps;
 };
 
 struct qed_update_vport_params {
 	u8 vport_id;
 	u8 update_vport_active_flg;
 	u8 vport_active_flg;
+	u8 update_tx_switching_flg;
+	u8 tx_switching_flg;
 	u8 update_accept_any_vlan_flg;
 	u8 accept_any_vlan;
 	u8 update_rss_flg;
@@ -111,12 +115,23 @@ struct qed_queue_start_common_params {
 	u16 sb_idx;
 };
 
+struct qed_tunn_params {
+	u16 vxlan_port;
+	u8 update_vxlan_port;
+	u16 geneve_port;
+	u8 update_geneve_port;
+};
+
 struct qed_eth_cb_ops {
 	struct qed_common_cb_ops common;
+	void (*force_mac) (void *dev, u8 *mac);
 };
 
 struct qed_eth_ops {
 	const struct qed_common_ops *common;
+#ifdef CONFIG_QED_SRIOV
+	const struct qed_iov_hv_ops *iov;
+#endif
 
 	int (*fill_dev_info)(struct qed_dev *cdev,
 			     struct qed_dev_eth_info *info);
@@ -124,6 +139,8 @@ struct qed_eth_ops {
 	void (*register_ops)(struct qed_dev *cdev,
 			     struct qed_eth_cb_ops *ops,
 			     void *cookie);
+
+	 bool(*check_mac) (struct qed_dev *cdev, u8 *mac);
 
 	int (*vport_start)(struct qed_dev *cdev,
 			   struct qed_start_vport_params *params);
@@ -165,9 +182,12 @@ struct qed_eth_ops {
 
 	void (*get_vport_stats)(struct qed_dev *cdev,
 				struct qed_eth_stats *stats);
+
+	int (*tunn_config)(struct qed_dev *cdev,
+			   struct qed_tunn_params *params);
 };
 
-const struct qed_eth_ops *qed_get_eth_ops(u32 version);
+const struct qed_eth_ops *qed_get_eth_ops(void);
 void qed_put_eth_ops(void);
 
 #endif

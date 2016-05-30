@@ -135,8 +135,7 @@ static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
 
 	value = (u64)10 * (1 << 23) / 7 * 125;
 	value = (bw * value) + adc_clock / 2;
-	do_div(value, adc_clock);
-	*nominal_rate = value;
+	*nominal_rate = div_u64(value, adc_clock);
 
 	dprintk("%s: bw %d, adc_clock %d => 0x%x\n",
 		__func__, bw, adc_clock, *nominal_rate);
@@ -163,8 +162,7 @@ static void zl10353_calc_input_freq(struct dvb_frontend *fe,
 		if (ife > adc_clock / 2)
 			ife = adc_clock - ife;
 	}
-	value = (u64)65536 * ife + adc_clock / 2;
-	do_div(value, adc_clock);
+	value = div_u64((u64)65536 * ife + adc_clock / 2, adc_clock);
 	*input_freq = -value;
 
 	dprintk("%s: if2 %d, ife %d, adc_clock %d => %d / 0x%x\n",

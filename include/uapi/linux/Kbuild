@@ -141,6 +141,7 @@ header-y += gfs2_ondisk.h
 header-y += gigaset_dev.h
 header-y += gpio.h
 header-y += gsmmux.h
+header-y += gtp.h
 header-y += hdlcdrv.h
 header-y += hdlc.h
 header-y += hdreg.h
