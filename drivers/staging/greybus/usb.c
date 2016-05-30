@@ -16,10 +16,6 @@
 #include "greybus.h"
 #include "gbphy.h"
 
-/* Version of the Greybus USB protocol we support */
-#define GB_USB_VERSION_MAJOR		0x00
-#define GB_USB_VERSION_MINOR		0x01
-
 /* Greybus USB request types */
 #define GB_USB_TYPE_HCD_START		0x02
 #define GB_USB_TYPE_HCD_STOP		0x03

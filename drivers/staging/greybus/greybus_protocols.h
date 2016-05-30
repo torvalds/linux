@@ -407,10 +407,6 @@ struct gb_bootrom_get_vid_pid_response {
 
 /* Power Supply */
 
-/* Version of the Greybus power supply protocol we support */
-#define GB_POWER_SUPPLY_VERSION_MAJOR		0x00
-#define GB_POWER_SUPPLY_VERSION_MINOR		0x01
-
 /* Greybus power supply request types */
 #define GB_POWER_SUPPLY_TYPE_GET_SUPPLIES		0x02
 #define GB_POWER_SUPPLY_TYPE_GET_DESCRIPTION		0x03
@@ -571,10 +567,6 @@ struct gb_power_supply_event_request {
 
 
 /* HID */
-
-/* Version of the Greybus hid protocol we support */
-#define GB_HID_VERSION_MAJOR		0x00
-#define GB_HID_VERSION_MINOR		0x01
 
 /* Greybus HID operation types */
 #define GB_HID_TYPE_GET_DESC		0x02
@@ -1243,10 +1235,6 @@ struct gb_svc_intf_mailbox_event_request {
 
 /* RAW */
 
-/* Version of the Greybus raw protocol we support */
-#define	GB_RAW_VERSION_MAJOR			0x00
-#define	GB_RAW_VERSION_MINOR			0x01
-
 /* Greybus raw request types */
 #define	GB_RAW_TYPE_SEND			0x02
 
@@ -1343,10 +1331,6 @@ struct gb_uart_serial_flush_request {
 } __packed;
 
 /* Loopback */
-
-/* Version of the Greybus loopback protocol we support */
-#define GB_LOOPBACK_VERSION_MAJOR		0x00
-#define GB_LOOPBACK_VERSION_MINOR		0x01
 
 /* Greybus loopback request types */
 #define GB_LOOPBACK_TYPE_PING			0x02
@@ -1532,9 +1516,6 @@ struct gb_sdio_event_request {
 
 /* Camera */
 
-#define GB_CAMERA_VERSION_MAJOR			0x00
-#define GB_CAMERA_VERSION_MINOR			0x01
-
 /* Greybus Camera request types */
 #define GB_CAMERA_TYPE_CAPABILITIES		0x02
 #define GB_CAMERA_TYPE_CONFIGURE_STREAMS	0x03
@@ -1607,9 +1588,6 @@ struct gb_camera_metadata_request {
 } __packed;
 
 /* Lights */
-
-#define GB_LIGHTS_VERSION_MAJOR 0x00
-#define GB_LIGHTS_VERSION_MINOR 0x01
 
 /* Greybus Lights request types */
 #define GB_LIGHTS_TYPE_GET_LIGHTS		0x02
@@ -1782,11 +1760,6 @@ struct gb_lights_get_flash_fault_response {
 
 /* Audio */
 
-/* Version of the Greybus audio protocol we support */
-#define GB_AUDIO_VERSION_MAJOR			0x00
-#define GB_AUDIO_VERSION_MINOR			0x01
-
-#define GB_AUDIO_TYPE_PROTOCOL_VERSION		0x01
 #define GB_AUDIO_TYPE_GET_TOPOLOGY_SIZE		0x02
 #define GB_AUDIO_TYPE_GET_TOPOLOGY		0x03
 #define GB_AUDIO_TYPE_GET_CONTROL		0x04

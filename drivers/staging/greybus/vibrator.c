@@ -21,10 +21,6 @@ struct gb_vibrator_device {
 	int			minor;		/* vibrator minor number */
 };
 
-/* Version of the Greybus vibrator protocol we support */
-#define	GB_VIBRATOR_VERSION_MAJOR		0x00
-#define	GB_VIBRATOR_VERSION_MINOR		0x01
-
 /* Greybus Vibrator operation types */
 #define	GB_VIBRATOR_TYPE_ON			0x02
 #define	GB_VIBRATOR_TYPE_OFF			0x03
