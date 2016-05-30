@@ -302,6 +302,11 @@ mvme5100)
     platformo="$object/fixed-head.o $object/mvme5100.o"
     binary=y
     ;;
+mvme7100)
+    platformo="$object/motload-head.o $object/mvme7100.o"
+    link_address='0x4000000'
+    binary=y
+    ;;
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
