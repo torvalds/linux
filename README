@@ -210,10 +210,10 @@ CONFIGURING the kernel:
                            store the lsmod of that machine into a file
                            and pass it in as a LSMOD parameter.
 
-                                   target$ lsmod > /tmp/mylsmod
-                                   target$ scp /tmp/mylsmod host:/tmp
+                           target$ lsmod > /tmp/mylsmod
+                           target$ scp /tmp/mylsmod host:/tmp
 
-                                   host$ make LSMOD=/tmp/mylsmod localmodconfig
+                           host$ make LSMOD=/tmp/mylsmod localmodconfig
 
                            The above also works when cross compiling.
 
