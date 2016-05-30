@@ -94,6 +94,7 @@ struct ti_qspi {
 #define QSPI_FLEN(n)			((n - 1) << 0)
 #define QSPI_WLEN_MAX_BITS		128
 #define QSPI_WLEN_MAX_BYTES		16
+#define QSPI_WLEN_MASK			QSPI_WLEN(QSPI_WLEN_MAX_BITS)
 
 /* STATUS REGISTER */
 #define BUSY				0x01
@@ -224,16 +225,16 @@ static inline int ti_qspi_poll_wc(struct ti_qspi *qspi)
 	return  -ETIMEDOUT;
 }
 
-static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
+static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t,
+			  int count)
 {
-	int wlen, count, xfer_len;
+	int wlen, xfer_len;
 	unsigned int cmd;
 	const u8 *txbuf;
 	u32 data;
 
 	txbuf = t->tx_buf;
 	cmd = qspi->cmd | QSPI_WR_SNGL;
-	count = t->len;
 	wlen = t->bits_per_word >> 3;	/* in bytes */
 	xfer_len = wlen;
 
@@ -293,9 +294,10 @@ static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 	return 0;
 }
 
-static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t)
+static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t,
+			 int count)
 {
-	int wlen, count;
+	int wlen;
 	unsigned int cmd;
 	u8 *rxbuf;
 
@@ -312,7 +314,6 @@ static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 		cmd |= QSPI_RD_SNGL;
 		break;
 	}
-	count = t->len;
 	wlen = t->bits_per_word >> 3;	/* in bytes */
 
 	while (count) {
@@ -343,12 +344,13 @@ static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 	return 0;
 }
 
-static int qspi_transfer_msg(struct ti_qspi *qspi, struct spi_transfer *t)
+static int qspi_transfer_msg(struct ti_qspi *qspi, struct spi_transfer *t,
+			     int count)
 {
 	int ret;
 
 	if (t->tx_buf) {
-		ret = qspi_write_msg(qspi, t);
+		ret = qspi_write_msg(qspi, t, count);
 		if (ret) {
 			dev_dbg(qspi->dev, "Error while writing\n");
 			return ret;
@@ -356,7 +358,7 @@ static int qspi_transfer_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 	}
 
 	if (t->rx_buf) {
-		ret = qspi_read_msg(qspi, t);
+		ret = qspi_read_msg(qspi, t, count);
 		if (ret) {
 			dev_dbg(qspi->dev, "Error while reading\n");
 			return ret;
@@ -373,7 +375,8 @@ static int ti_qspi_start_transfer_one(struct spi_master *master,
 	struct spi_device *spi = m->spi;
 	struct spi_transfer *t;
 	int status = 0, ret;
-	int frame_length;
+	unsigned int frame_len_words, transfer_len_words;
+	int wlen;
 
 	/* setup device control reg */
 	qspi->dc = 0;
@@ -385,30 +388,38 @@ static int ti_qspi_start_transfer_one(struct spi_master *master,
 	if (spi->mode & SPI_CS_HIGH)
 		qspi->dc |= QSPI_CSPOL(spi->chip_select);
 
-	frame_length = (m->frame_length << 3) / spi->bits_per_word;
-
-	frame_length = clamp(frame_length, 0, QSPI_FRAME);
+	frame_len_words = 0;
+	list_for_each_entry(t, &m->transfers, transfer_list)
+		frame_len_words += t->len / (t->bits_per_word >> 3);
+	frame_len_words = min_t(unsigned int, frame_len_words, QSPI_FRAME);
 
 	/* setup command reg */
 	qspi->cmd = 0;
 	qspi->cmd |= QSPI_EN_CS(spi->chip_select);
-	qspi->cmd |= QSPI_FLEN(frame_length);
+	qspi->cmd |= QSPI_FLEN(frame_len_words);
 
 	ti_qspi_write(qspi, qspi->dc, QSPI_SPI_DC_REG);
 
 	mutex_lock(&qspi->list_lock);
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		qspi->cmd |= QSPI_WLEN(t->bits_per_word);
+		qspi->cmd = ((qspi->cmd & ~QSPI_WLEN_MASK) |
+			     QSPI_WLEN(t->bits_per_word));
 
-		ret = qspi_transfer_msg(qspi, t);
+		wlen = t->bits_per_word >> 3;
+		transfer_len_words = min(t->len / wlen, frame_len_words);
+
+		ret = qspi_transfer_msg(qspi, t, transfer_len_words * wlen);
 		if (ret) {
 			dev_dbg(qspi->dev, "transfer message failed\n");
 			mutex_unlock(&qspi->list_lock);
 			return -EINVAL;
 		}
 
-		m->actual_length += t->len;
+		m->actual_length += transfer_len_words * wlen;
+		frame_len_words -= transfer_len_words;
+		if (frame_len_words == 0)
+			break;
 	}
 
 	mutex_unlock(&qspi->list_lock);

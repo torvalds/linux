@@ -145,6 +145,8 @@ int adf_enable_aer(struct adf_accel_dev *accel_dev, struct pci_driver *adf);
 void adf_disable_aer(struct adf_accel_dev *accel_dev);
 int adf_init_aer(void);
 void adf_exit_aer(void);
+int adf_init_pf_wq(void);
+void adf_exit_pf_wq(void);
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev);
 void adf_exit_admin_comms(struct adf_accel_dev *accel_dev);
 int adf_send_admin_init(struct adf_accel_dev *accel_dev);

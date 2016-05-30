@@ -1732,10 +1732,13 @@ static struct page *isolate_source_page(struct size_class *class)
 static unsigned long zs_can_compact(struct size_class *class)
 {
 	unsigned long obj_wasted;
+	unsigned long obj_allocated = zs_stat_get(class, OBJ_ALLOCATED);
+	unsigned long obj_used = zs_stat_get(class, OBJ_USED);
 
-	obj_wasted = zs_stat_get(class, OBJ_ALLOCATED) -
-		zs_stat_get(class, OBJ_USED);
+	if (obj_allocated <= obj_used)
+		return 0;
 
+	obj_wasted = obj_allocated - obj_used;
 	obj_wasted /= get_maxobj_per_zspage(class->size,
 			class->pages_per_zspage);
 
