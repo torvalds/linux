@@ -212,7 +212,7 @@ CONFIGURING the kernel:
 
                                    target$ lsmod > /tmp/mylsmod
                                    target$ scp /tmp/mylsmod host:/tmp
-                
+
                                    host$ make LSMOD=/tmp/mylsmod localmodconfig
 
                            The above also works when cross compiling.
