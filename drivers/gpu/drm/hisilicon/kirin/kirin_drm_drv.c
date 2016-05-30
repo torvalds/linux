@@ -173,7 +173,7 @@ static struct drm_driver kirin_drm_driver = {
 	.fops			= &kirin_drm_fops,
 	.set_busid		= drm_platform_set_busid,
 
-	.gem_free_object	= drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= kirin_gem_cma_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
