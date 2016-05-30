@@ -25,12 +25,12 @@ static bool devices_handle_discard_safely = false;
  * The following flags are used by dm-raid.c to set up the array state.
  * They must be cleared before md_run is called.
  */
-#define FirstUse 10             /* rdev flag */
+#define FirstUse 10		/* rdev flag */
 
 struct raid_dev {
 	/*
 	 * Two DM devices, one to hold metadata and one to hold the
-	 * actual data/parity.  The reason for this is to not confuse
+	 * actual data/parity.	The reason for this is to not confuse
 	 * ti->len and give more flexibility in altering size and
 	 * characteristics.
 	 *
@@ -51,21 +51,21 @@ struct raid_dev {
  * 1 = no flag value
  * 2 = flag with value
  */
-#define CTR_FLAG_SYNC              0x1   /* 1 */ /* Not with raid0! */
-#define CTR_FLAG_NOSYNC            0x2   /* 1 */ /* Not with raid0! */
-#define CTR_FLAG_REBUILD           0x4   /* 2 */ /* Not with raid0! */
-#define CTR_FLAG_DAEMON_SLEEP      0x8   /* 2 */ /* Not with raid0! */
-#define CTR_FLAG_MIN_RECOVERY_RATE 0x10  /* 2 */ /* Not with raid0! */
-#define CTR_FLAG_MAX_RECOVERY_RATE 0x20  /* 2 */ /* Not with raid0! */
-#define CTR_FLAG_MAX_WRITE_BEHIND  0x40  /* 2 */ /* Only with raid1! */
-#define CTR_FLAG_WRITE_MOSTLY      0x80  /* 2 */ /* Only with raid1! */
-#define CTR_FLAG_STRIPE_CACHE      0x100 /* 2 */ /* Only with raid4/5/6! */
-#define CTR_FLAG_REGION_SIZE       0x200 /* 2 */ /* Not with raid0! */
-#define CTR_FLAG_RAID10_COPIES     0x400 /* 2 */ /* Only with raid10 */
-#define CTR_FLAG_RAID10_FORMAT     0x800 /* 2 */ /* Only with raid10 */
+#define CTR_FLAG_SYNC		   0x1	 /* 1 */ /* Not with raid0! */
+#define CTR_FLAG_NOSYNC		   0x2	 /* 1 */ /* Not with raid0! */
+#define CTR_FLAG_REBUILD	   0x4	 /* 2 */ /* Not with raid0! */
+#define CTR_FLAG_DAEMON_SLEEP	   0x8	 /* 2 */ /* Not with raid0! */
+#define CTR_FLAG_MIN_RECOVERY_RATE 0x10	 /* 2 */ /* Not with raid0! */
+#define CTR_FLAG_MAX_RECOVERY_RATE 0x20	 /* 2 */ /* Not with raid0! */
+#define CTR_FLAG_MAX_WRITE_BEHIND  0x40	 /* 2 */ /* Only with raid1! */
+#define CTR_FLAG_WRITE_MOSTLY	   0x80	 /* 2 */ /* Only with raid1! */
+#define CTR_FLAG_STRIPE_CACHE	   0x100 /* 2 */ /* Only with raid4/5/6! */
+#define CTR_FLAG_REGION_SIZE	   0x200 /* 2 */ /* Not with raid0! */
+#define CTR_FLAG_RAID10_COPIES	   0x400 /* 2 */ /* Only with raid10 */
+#define CTR_FLAG_RAID10_FORMAT	   0x800 /* 2 */ /* Only with raid10 */
 /* New for v1.8.0 */
-#define CTR_FLAG_DELTA_DISKS          0x1000 /* 2 */ /* Only with reshapable raid4/5/6/10! */
-#define CTR_FLAG_DATA_OFFSET          0x2000 /* 2 */ /* Only with reshapable raid4/5/6/10! */
+#define CTR_FLAG_DELTA_DISKS	      0x1000 /* 2 */ /* Only with reshapable raid4/5/6/10! */
+#define CTR_FLAG_DATA_OFFSET	      0x2000 /* 2 */ /* Only with reshapable raid4/5/6/10! */
 #define CTR_FLAG_RAID10_USE_NEAR_SETS 0x4000 /* 2 */ /* Only with raid10! */
 
 /*
@@ -221,26 +221,26 @@ static struct raid_type {
 	const unsigned level;		/* RAID level. */
 	const unsigned algorithm;	/* RAID algorithm. */
 } raid_types[] = {
-	{"raid0",         "raid0 (striping)",			    0, 2, 0,  0 /* NONE */},
-	{"raid1",         "raid1 (mirroring)",			    0, 2, 1,  0 /* NONE */},
-	{"raid10_far",    "raid10 far (striped mirrors)",	    0, 2, 10, ALGORITHM_RAID10_FAR},
+	{"raid0",	  "raid0 (striping)",			    0, 2, 0,  0 /* NONE */},
+	{"raid1",	  "raid1 (mirroring)",			    0, 2, 1,  0 /* NONE */},
+	{"raid10_far",	  "raid10 far (striped mirrors)",	    0, 2, 10, ALGORITHM_RAID10_FAR},
 	{"raid10_offset", "raid10 offset (striped mirrors)",	    0, 2, 10, ALGORITHM_RAID10_OFFSET},
-	{"raid10_near",   "raid10 near (striped mirrors)",	    0, 2, 10, ALGORITHM_RAID10_NEAR},
-	{"raid10",        "raid10 (striped mirrors)",		    0, 2, 10, ALGORITHM_RAID10_DEFAULT},
-	{"raid4",         "raid4 (dedicated last parity disk)",	    1, 2, 4,  ALGORITHM_PARITY_N}, /* raid4 layout = raid5_n */
-	{"raid5_n",       "raid5 (dedicated last parity disk)",	    1, 2, 5,  ALGORITHM_PARITY_N},
-	{"raid5_ls",      "raid5 (left symmetric)",		    1, 2, 5,  ALGORITHM_LEFT_SYMMETRIC},
-	{"raid5_rs",      "raid5 (right symmetric)",		    1, 2, 5,  ALGORITHM_RIGHT_SYMMETRIC},
-	{"raid5_la",      "raid5 (left asymmetric)",		    1, 2, 5,  ALGORITHM_LEFT_ASYMMETRIC},
-	{"raid5_ra",      "raid5 (right asymmetric)",		    1, 2, 5,  ALGORITHM_RIGHT_ASYMMETRIC},
-	{"raid6_zr",      "raid6 (zero restart)",		    2, 4, 6,  ALGORITHM_ROTATING_ZERO_RESTART},
-	{"raid6_nr",      "raid6 (N restart)",			    2, 4, 6,  ALGORITHM_ROTATING_N_RESTART},
-	{"raid6_nc",      "raid6 (N continue)",			    2, 4, 6,  ALGORITHM_ROTATING_N_CONTINUE},
-	{"raid6_n_6",     "raid6 (dedicated parity/Q n/6)",	    2, 4, 6,  ALGORITHM_PARITY_N_6},
-	{"raid6_ls_6",    "raid6 (left symmetric dedicated Q 6)",   2, 4, 6,  ALGORITHM_LEFT_SYMMETRIC_6},
-	{"raid6_rs_6",    "raid6 (right symmetric dedicated Q 6)",  2, 4, 6,  ALGORITHM_RIGHT_SYMMETRIC_6},
-	{"raid6_la_6",    "raid6 (left asymmetric dedicated Q 6)",  2, 4, 6,  ALGORITHM_LEFT_ASYMMETRIC_6},
-	{"raid6_ra_6",    "raid6 (right asymmetric dedicated Q 6)", 2, 4, 6,  ALGORITHM_RIGHT_ASYMMETRIC_6}
+	{"raid10_near",	  "raid10 near (striped mirrors)",	    0, 2, 10, ALGORITHM_RAID10_NEAR},
+	{"raid10",	  "raid10 (striped mirrors)",		    0, 2, 10, ALGORITHM_RAID10_DEFAULT},
+	{"raid4",	  "raid4 (dedicated last parity disk)",	    1, 2, 4,  ALGORITHM_PARITY_N}, /* raid4 layout = raid5_n */
+	{"raid5_n",	  "raid5 (dedicated last parity disk)",	    1, 2, 5,  ALGORITHM_PARITY_N},
+	{"raid5_ls",	  "raid5 (left symmetric)",		    1, 2, 5,  ALGORITHM_LEFT_SYMMETRIC},
+	{"raid5_rs",	  "raid5 (right symmetric)",		    1, 2, 5,  ALGORITHM_RIGHT_SYMMETRIC},
+	{"raid5_la",	  "raid5 (left asymmetric)",		    1, 2, 5,  ALGORITHM_LEFT_ASYMMETRIC},
+	{"raid5_ra",	  "raid5 (right asymmetric)",		    1, 2, 5,  ALGORITHM_RIGHT_ASYMMETRIC},
+	{"raid6_zr",	  "raid6 (zero restart)",		    2, 4, 6,  ALGORITHM_ROTATING_ZERO_RESTART},
+	{"raid6_nr",	  "raid6 (N restart)",			    2, 4, 6,  ALGORITHM_ROTATING_N_RESTART},
+	{"raid6_nc",	  "raid6 (N continue)",			    2, 4, 6,  ALGORITHM_ROTATING_N_CONTINUE},
+	{"raid6_n_6",	  "raid6 (dedicated parity/Q n/6)",	    2, 4, 6,  ALGORITHM_PARITY_N_6},
+	{"raid6_ls_6",	  "raid6 (left symmetric dedicated Q 6)",   2, 4, 6,  ALGORITHM_LEFT_SYMMETRIC_6},
+	{"raid6_rs_6",	  "raid6 (right symmetric dedicated Q 6)",  2, 4, 6,  ALGORITHM_RIGHT_SYMMETRIC_6},
+	{"raid6_la_6",	  "raid6 (left asymmetric dedicated Q 6)",  2, 4, 6,  ALGORITHM_LEFT_ASYMMETRIC_6},
+	{"raid6_ra_6",	  "raid6 (right asymmetric dedicated Q 6)", 2, 4, 6,  ALGORITHM_RIGHT_ASYMMETRIC_6}
 };
 
 /* True, if @v is in inclusive range [@min, @max] */
@@ -824,7 +824,7 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 
 	if (!region_size) {
 		/*
-		 * Choose a reasonable default.  All figures in sectors.
+		 * Choose a reasonable default.	 All figures in sectors.
 		 */
 		if (min_region_size > (1 << 13)) {
 			/* If not a power of 2, make it the next power of 2 */
@@ -909,9 +909,9 @@ static int validate_raid_redundancy(struct raid_set *rs)
 		 * simple case where the number of devices is a multiple of the
 		 * number of copies, we must also handle cases where the number
 		 * of devices is not a multiple of the number of copies.
-		 * E.g.    dev1 dev2 dev3 dev4 dev5
-		 *          A    A    B    B    C
-		 *          C    D    D    E    E
+		 * E.g.	   dev1 dev2 dev3 dev4 dev5
+		 *	    A	 A    B	   B	C
+		 *	    C	 D    D	   E	E
 		 */
 		if (!strcmp("near", raid10_md_layout_to_format(rs->md.layout))) {
 			for (i = 0; i < rs->md.raid_disks * copies; i++) {
@@ -934,7 +934,7 @@ static int validate_raid_redundancy(struct raid_set *rs)
 		 * use the 'use_far_sets' variant.)
 		 *
 		 * This check is somewhat complicated by the need to account
-		 * for arrays that are not a multiple of (far) copies.  This
+		 * for arrays that are not a multiple of (far) copies.	This
 		 * results in the need to treat the last (potentially larger)
 		 * set differently.
 		 */
@@ -967,21 +967,21 @@ too_many:
  *
  * Argument definitions
  *    <chunk_size>			The number of sectors per disk that
- *                                      will form the "stripe"
+ *					will form the "stripe"
  *    [[no]sync]			Force or prevent recovery of the
- *                                      entire array
+ *					entire array
  *    [rebuild <idx>]			Rebuild the drive indicated by the index
  *    [daemon_sleep <ms>]		Time between bitmap daemon work to
- *                                      clear bits
+ *					clear bits
  *    [min_recovery_rate <kB/sec/disk>]	Throttle RAID initialization
  *    [max_recovery_rate <kB/sec/disk>]	Throttle RAID initialization
  *    [write_mostly <idx>]		Indicate a write mostly drive via index
  *    [max_write_behind <sectors>]	See '-write-behind=' (man mdadm)
  *    [stripe_cache <sectors>]		Stripe cache size for higher RAIDs
- *    [region_size <sectors>]           Defines granularity of bitmap
+ *    [region_size <sectors>]		Defines granularity of bitmap
  *
  * RAID10-only options:
- *    [raid10_copies <# copies>]        Number of copies.  (Default: 2)
+ *    [raid10_copies <# copies>]	Number of copies.  (Default: 2)
  *    [raid10_format <near|far|offset>] Layout algorithm.  (Default: near)
  */
 static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
@@ -1024,13 +1024,13 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 	 * replacement then one of the following cases applies:
 	 *
 	 *   1) User specifies 'rebuild'.
-	 *      - Device is reset when param is read.
+	 *	- Device is reset when param is read.
 	 *   2) A new device is supplied.
-	 *      - No matching superblock found, resets device.
+	 *	- No matching superblock found, resets device.
 	 *   3) Device failure was transient and returns on reload.
-	 *      - Failure noticed, resets device for bitmap replay.
+	 *	- Failure noticed, resets device for bitmap replay.
 	 *   4) Device hadn't completed recovery after previous failure.
-	 *      - Superblock is read and overrides recovery_offset.
+	 *	- Superblock is read and overrides recovery_offset.
 	 *
 	 * What is found in the superblocks of the devices is always
 	 * authoritative, unless 'rebuild' or '[no]sync' was specified.
@@ -1094,7 +1094,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			 * "rebuild" is being passed in by userspace to provide
 			 * indexes of replaced devices and to set up additional
 			 * devices on raid level takeover.
- 			 */
+			 */
 			if (!_in_range(value, 0, rs->raid_disks - 1))
 				return ti_error_einval(rs->ti, "Invalid rebuild index given");
 
@@ -1756,11 +1756,11 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 		}
 		if (le32_to_cpu(sb->layout) != mddev->layout) {
 			DMERR("Reshaping raid sets not yet supported. (raid layout change)");
-			DMERR("  0x%X vs 0x%X", le32_to_cpu(sb->layout), mddev->layout);
-			DMERR("  Old layout: %s w/ %d copies",
+			DMERR("	 0x%X vs 0x%X", le32_to_cpu(sb->layout), mddev->layout);
+			DMERR("	 Old layout: %s w/ %d copies",
 			      raid10_md_layout_to_format(le32_to_cpu(sb->layout)),
 			      raid10_md_layout_to_copies(le32_to_cpu(sb->layout)));
-			DMERR("  New layout: %s w/ %d copies",
+			DMERR("	 New layout: %s w/ %d copies",
 			      raid10_md_layout_to_format(mddev->layout),
 			      raid10_md_layout_to_copies(mddev->layout));
 			return -EINVAL;
@@ -1789,7 +1789,7 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 	 * During load, we set FirstUse if a new superblock was written.
 	 * There are two reasons we might not have a superblock:
 	 * 1) The raid set is brand new - in which case, all of the
-	 *    devices must have their In_sync bit set.  Also,
+	 *    devices must have their In_sync bit set.	Also,
 	 *    recovery_cp must be 0, unless forced.
 	 * 2) This is a new device being added to an old raid set
 	 *    and the new device needs to be rebuilt - in which
@@ -1969,7 +1969,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 		/*
 		 * Skipping super_load due to CTR_FLAG_SYNC will cause
 		 * the array to undergo initialization again as
-		 * though it were new.  This is the intended effect
+		 * though it were new.	This is the intended effect
 		 * of the "sync" directive.
 		 *
 		 * When reshaping capability is added, we must ensure
@@ -2151,10 +2151,10 @@ static void configure_discard_support(struct raid_set *rs)
 /*
  * Construct a RAID0/1/10/4/5/6 mapping:
  * Args:
- *      <raid_type> <#raid_params> <raid_params>{0,}    \
- *      <#raid_devs> [<meta_dev1> <dev1>]{1,}
+ *	<raid_type> <#raid_params> <raid_params>{0,}	\
+ *	<#raid_devs> [<meta_dev1> <dev1>]{1,}
  *
- * <raid_params> varies by <raid_type>.  See 'parse_raid_params' for
+ * <raid_params> varies by <raid_type>.	 See 'parse_raid_params' for
  * details on possible <raid_params>.
  *
  * Userspace is free to initialize the metadata devices, hence the superblocks to
@@ -2185,14 +2185,14 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	/* Must have <#raid_params> */
 	if (dm_read_arg_group(_args, &as, &num_raid_params, &ti->error))
-                return -EINVAL;
+		return -EINVAL;
 
 	/* number of raid device tupples <meta_dev data_dev> */
 	as_nrd = as;
 	dm_consume_args(&as_nrd, num_raid_params);
 	_args[1].max = (as_nrd.argc - 1) / 2;
 	if (dm_read_arg(_args + 1, &as_nrd, &num_raid_devs, &ti->error))
-                return -EINVAL;
+		return -EINVAL;
 
 	if (!_in_range(num_raid_devs, 1, MAX_RAID_DEVICES))
 		return ti_error_einval(rs->ti, "Invalid number of supplied raid devices");
@@ -2403,7 +2403,7 @@ static sector_t rs_get_progress(struct raid_set *rs,
 
 			/*
 			 * The raid set may be doing an initial sync, or it may
-			 * be rebuilding individual components.  If all the
+			 * be rebuilding individual components.	 If all the
 			 * devices are In_sync, then it is the raid set that is
 			 * being initialized.
 			 */
@@ -2692,7 +2692,7 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 			 * Faulty bit may be set, but sometimes the array can
 			 * be suspended before the personalities can respond
 			 * by removing the device from the array (i.e. calling
-			 * 'hot_remove_disk').  If they haven't yet removed
+			 * 'hot_remove_disk').	If they haven't yet removed
 			 * the failed device, its 'raid_disk' number will be
 			 * '>= 0' - meaning we must call this function
 			 * ourselves.
