@@ -108,51 +108,12 @@ int ks_wlan_do_power_save(ks_wlan_private *priv)
 
 	DPRINTK(4,"psstatus.status=%d\n",atomic_read(&priv->psstatus.status));
 
-#ifdef _SDIO_
 	if((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS){
 		hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
 	}
 	else{
 		priv->dev_state = DEVICE_STATE_READY;
 	}
-#else
-	if((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS){
-		switch(atomic_read(&priv->psstatus.status)){
-		case PS_ACTIVE_SET:
-		case PS_WAKEUP:
-		case PS_SAVE_SET:
-		case PS_SNOOZE:
-			break;
-		case PS_CONF_WAIT:
-			atomic_set(&priv->psstatus.confirm_wait,0);
-			break;
-		case PS_NONE:
-		default:
-			hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
-			break;
-		}
-
-	}
-	else{
-		switch(atomic_read(&priv->psstatus.status)){
-		case PS_ACTIVE_SET:
-		case PS_WAKEUP:
-		case PS_SAVE_SET:
-			break;
-		case PS_CONF_WAIT:
-			atomic_set(&priv->psstatus.confirm_wait,0);
-			atomic_set(&priv->psstatus.status, PS_WAKEUP);
-			break;
-		case PS_SNOOZE:
-			ks_wlan_hw_power_save(priv);
-			break;
-		case PS_NONE:
-		default:
-			hostif_sme_enqueue(priv, SME_POW_MNGMT_REQUEST);
-			break;
-		}
-	}
-#endif
 	return rc;
 }
 
@@ -750,17 +711,11 @@ void hostif_power_mngmt_confirm(ks_wlan_private *priv)
 
 	if(priv->reg.powermgt > POWMGT_ACTIVE_MODE &&
 	   priv->reg.operation_mode == MODE_INFRASTRUCTURE){
-#if !defined(_SDIO_)
-		atomic_set(&priv->psstatus.status,PS_SAVE_SET);
-#endif
 		atomic_set(&priv->psstatus.confirm_wait, 0);
 		priv->dev_state = DEVICE_STATE_SLEEP;
 		ks_wlan_hw_power_save(priv);
 	}else{
 		priv->dev_state = DEVICE_STATE_READY;
-#if !defined(_SDIO_)
-		atomic_set(&priv->psstatus.status,PS_ACTIVE_SET);
-#endif
 	}
 
 }
@@ -833,9 +788,6 @@ void hostif_connect_indication(ks_wlan_private *priv)
 		/* for power save */
 		atomic_set(&priv->psstatus.snooze_guard, 0);
 		atomic_set(&priv->psstatus.confirm_wait,0);
-#if !defined(_SDIO_)
-		atomic_set(&priv->psstatus.status, PS_NONE);
-#endif
 	}
 	ks_wlan_do_power_save(priv);
 
@@ -894,10 +846,8 @@ void hostif_stop_confirm(ks_wlan_private *priv)
 	union iwreq_data wrqu0;
 
 	DPRINTK(3,"\n");
-#ifdef _SDIO_
 	if(priv->dev_state == DEVICE_STATE_SLEEP)
 		priv->dev_state = DEVICE_STATE_READY;
-#endif
 
 	/* disconnect indication */
 	if( (priv->connect_status & CONNECT_STATUS_MASK)== CONNECT_STATUS){
@@ -1178,9 +1128,6 @@ int hostif_data_request(ks_wlan_private *priv, struct sk_buff *packet)
 	if(atomic_read(&priv->psstatus.status)==PS_SNOOZE){ /* power save wakeup */
 		if(!netif_queue_stopped(priv->net_dev))
 			netif_stop_queue(priv->net_dev);
-#if !defined(_SDIO_)
-		schedule_work(&priv->ks_wlan_wakeup_task);
-#endif
 	}
 
 	DPRINTK(4, "skb_buff length=%d\n", packet_len);
@@ -1302,14 +1249,10 @@ int hostif_data_request(ks_wlan_private *priv, struct sk_buff *packet)
 	return result;
 }
 
-#if defined(_SPI_)
-#define ps_confirm_wait_inc(priv)
-#else
 #define ps_confirm_wait_inc(priv)  do{if(atomic_read(&priv->psstatus.status) > PS_ACTIVE_SET){ \
                                                   atomic_inc(&priv->psstatus.confirm_wait); \
                                                   /* atomic_set(&priv->psstatus.status, PS_CONF_WAIT);*/ \
                                       } }while(0)
-#endif
 
 static
 void hostif_mib_get_request( ks_wlan_private *priv, unsigned long mib_attribute)
@@ -2509,9 +2452,6 @@ void hostif_sme_execute(ks_wlan_private *priv, int event)
 		/* for power save */
 		atomic_set(&priv->psstatus.snooze_guard, 0);
 		atomic_set(&priv->psstatus.confirm_wait,0);
-#if !defined(_SDIO_)
-		atomic_set(&priv->psstatus.status, PS_NONE);
-#endif
 		if ( priv->dev_state == DEVICE_STATE_PREINIT ){
 			priv->dev_state = DEVICE_STATE_INIT;
 		}
@@ -2571,16 +2511,6 @@ void hostif_sme_enqueue(ks_wlan_private *priv, unsigned short event)
 {
 	DPRINTK(3,"\n");
 
-#if !defined(_SDIO_)
-	if(atomic_read(&priv->psstatus.status)==PS_SNOOZE && event < SME_START_CONFIRM){ /* power save wakeup*/
-		schedule_work(&priv->ks_wlan_wakeup_task);
-		if(atomic_read(&priv->sme_task.count) <= 0){
-			/* schedule_work(&priv->ks_wlan_wakeup_task); */
-			DPRINTK(4,"sme task disable.\n");
-			tasklet_disable(&priv->sme_task);
-		}
-	}
-#endif
 
 
 	/* enqueue sme event */

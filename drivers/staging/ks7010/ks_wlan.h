@@ -62,17 +62,7 @@ typedef void irqreturn_t;
 #define pci_name(x) x->slot_name 
 #endif
 
-#if (defined _PCMCIA_)
-#include "pcmcia/ks7010_pcmcia.h"
-#elif (defined _PCI_)
-#include "pci/ks7010_pci.h"
-#elif (defined _SDIO_)
 #include "ks7010_sdio.h"
-#elif (defined _SPI_)
-#include "spi/ks7010_spi.h"
-#else
-#error not defined bus type !
-#endif
 
 struct ks_wlan_parameter {
 	uint8_t		operation_mode;	   /* Operation Mode */

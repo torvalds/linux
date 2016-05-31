@@ -268,13 +268,7 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 	priv->reg.rate_set.size = 12;
 
 #ifndef NO_FIRMWARE_CLASS
-#if (defined _PCMCIA_)
-	dev = &priv->ks_wlan_hw.pcmcia_dev->dev;
-#elif (defined _PCI_)
-	dev = &priv->ks_wlan_hw.pci_dev->dev;
-#elif (defined _SDIO_)
 	dev = &priv->ks_wlan_hw.sdio_card->func->dev;
-#endif
 	if((retval = request_firmware(&fw_entry, cfg_file, dev)) !=0 ){
 		DPRINTK(1, "error request_firmware() file=%s ret=%d\n", cfg_file, retval);
 		return 1;
