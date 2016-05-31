@@ -3398,7 +3398,7 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 
 	rc = hostif_data_request(priv, skb);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	DPRINTK(4, "rc=%d\n", rc);
 	if (rc) {
