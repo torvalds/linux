@@ -80,7 +80,7 @@ EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
 
 /**
  * __irq_domain_add() - Allocate a new irq_domain data structure
- * @of_node: optional device-tree node of the interrupt controller
+ * @fwnode: firmware node for the interrupt controller
  * @size: Size of linear map; 0 for radix mapping only
  * @hwirq_max: Maximum number of interrupts supported by controller
  * @direct_max: Maximum value of direct maps; Use ~0 for no limit; 0 for no
@@ -96,10 +96,8 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 				    const struct irq_domain_ops *ops,
 				    void *host_data)
 {
+	struct device_node *of_node = to_of_node(fwnode);
 	struct irq_domain *domain;
-	struct device_node *of_node;
-
-	of_node = to_of_node(fwnode);
 
 	domain = kzalloc_node(sizeof(*domain) + (sizeof(unsigned int) * size),
 			      GFP_KERNEL, of_node_to_nid(of_node));
