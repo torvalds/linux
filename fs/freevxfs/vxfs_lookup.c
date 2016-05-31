@@ -74,9 +74,10 @@ dir_blocks(struct inode *ip)
  * len <= VXFS_NAMELEN and de != NULL are guaranteed by caller.
  */
 static inline int
-vxfs_match(int len, const char * const name, struct vxfs_direct *de)
+vxfs_match(struct vxfs_sb_info *sbi, int len, const char *const name,
+		struct vxfs_direct *de)
 {
-	if (len != de->d_namelen)
+	if (len != fs16_to_cpu(sbi, de->d_namelen))
 		return 0;
 	if (!de->d_ino)
 		return 0;
@@ -84,9 +85,10 @@ vxfs_match(int len, const char * const name, struct vxfs_direct *de)
 }
 
 static inline struct vxfs_direct *
-vxfs_next_entry(struct vxfs_direct *de)
+vxfs_next_entry(struct vxfs_sb_info *sbi, struct vxfs_direct *de)
 {
-	return ((struct vxfs_direct *)((char*)de + de->d_reclen));
+	return ((struct vxfs_direct *)
+		((char *)de + fs16_to_cpu(sbi, de->d_reclen)));
 }
 
 /**
@@ -106,6 +108,7 @@ vxfs_next_entry(struct vxfs_direct *de)
 static struct vxfs_direct *
 vxfs_find_entry(struct inode *ip, struct dentry *dp, struct page **ppp)
 {
+	struct vxfs_sb_info		*sbi = VXFS_SBI(ip->i_sb);
 	u_long				npages, page, nblocks, pblocks, block;
 	u_long				bsize = ip->i_sb->s_blocksize;
 	const char			*name = dp->d_name.name;
@@ -133,14 +136,16 @@ vxfs_find_entry(struct inode *ip, struct dentry *dp, struct page **ppp)
 			limit = baddr + bsize - VXFS_DIRLEN(1);
 			
 			dbp = (struct vxfs_dirblk *)baddr;
-			de = (struct vxfs_direct *)(baddr + VXFS_DIRBLKOV(dbp));
+			de = (struct vxfs_direct *)
+				(baddr + VXFS_DIRBLKOV(sbi, dbp));
 
-			for (; (caddr_t)de <= limit; de = vxfs_next_entry(de)) {
+			for (; (caddr_t)de <= limit;
+					de = vxfs_next_entry(sbi, de)) {
 				if (!de->d_reclen)
 					break;
 				if (!de->d_ino)
 					continue;
-				if (vxfs_match(namelen, name, de)) {
+				if (vxfs_match(sbi, namelen, name, de)) {
 					*ppp = pp;
 					return (de);
 				}
@@ -173,7 +178,7 @@ vxfs_inode_by_name(struct inode *dip, struct dentry *dp)
 
 	de = vxfs_find_entry(dip, dp, &pp);
 	if (de) {
-		ino = de->d_ino;
+		ino = fs32_to_cpu(VXFS_SBI(dip->i_sb), de->d_ino);
 		kunmap(pp);
 		put_page(pp);
 	}
@@ -232,9 +237,11 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 {
 	struct inode		*ip = file_inode(fp);
 	struct super_block	*sbp = ip->i_sb;
+	struct vxfs_sb_info	*sbi = VXFS_SBI(sbp);
 	u_long			bsize = sbp->s_blocksize;
 	u_long			page, npages, block, pblocks, nblocks, offset;
 	loff_t			pos;
+
 
 	if (ctx->pos == 0) {
 		if (!dir_emit_dot(fp, ctx))
@@ -280,9 +287,10 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 			de = (struct vxfs_direct *)
 				(offset ?
 				 (kaddr + offset) :
-				 (baddr + VXFS_DIRBLKOV(dbp)));
+				 (baddr + VXFS_DIRBLKOV(sbi, dbp)));
 
-			for (; (char *)de <= limit; de = vxfs_next_entry(de)) {
+			for (; (char *)de <= limit;
+					de = vxfs_next_entry(sbi, de)) {
 				if (!de->d_reclen)
 					break;
 				if (!de->d_ino)
@@ -290,8 +298,10 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 
 				offset = (char *)de - kaddr;
 				ctx->pos = ((page << PAGE_SHIFT) | offset) + 2;
-				if (!dir_emit(ctx, de->d_name, de->d_namelen,
-					de->d_ino, DT_UNKNOWN)) {
+				if (!dir_emit(ctx, de->d_name,
+						fs16_to_cpu(sbi, de->d_namelen),
+						fs32_to_cpu(sbi, de->d_ino),
+						DT_UNKNOWN)) {
 					vxfs_put_page(pp);
 					return 0;
 				}

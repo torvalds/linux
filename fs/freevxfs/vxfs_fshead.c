@@ -153,7 +153,8 @@ vxfs_read_fshead(struct super_block *sbp)
 	vxfs_dumpfsh(pfp);
 #endif
 
-	tip = vxfs_blkiget(sbp, infp->vsi_iext, sfp->fsh_ilistino[0]);
+	tip = vxfs_blkiget(sbp, infp->vsi_iext,
+			fs32_to_cpu(infp, sfp->fsh_ilistino[0]));
 	if (!tip)
 		goto out_free_pfp;
 
@@ -169,7 +170,7 @@ vxfs_read_fshead(struct super_block *sbp)
 		goto out_iput_stilist;
 	}
 
-	tip = vxfs_stiget(sbp, pfp->fsh_ilistino[0]);
+	tip = vxfs_stiget(sbp, fs32_to_cpu(infp, pfp->fsh_ilistino[0]));
 	if (!tip)
 		goto out_iput_stilist;
 	infp->vsi_ilist = vxfs_get_fake_inode(sbp, tip);

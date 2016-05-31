@@ -68,6 +68,33 @@ vxfs_dumpi(struct vxfs_inode_info *vip, ino_t ino)
 }
 #endif
 
+static inline void dip2vip_cpy(struct vxfs_sb_info *sbi,
+		struct vxfs_inode_info *vip, struct vxfs_dinode *dip)
+{
+	vip->vii_mode = fs32_to_cpu(sbi, dip->vdi_mode);
+	vip->vii_nlink = fs32_to_cpu(sbi, dip->vdi_nlink);
+	vip->vii_uid = fs32_to_cpu(sbi, dip->vdi_uid);
+	vip->vii_gid = fs32_to_cpu(sbi, dip->vdi_gid);
+	vip->vii_size = fs64_to_cpu(sbi, dip->vdi_size);
+	vip->vii_atime = fs32_to_cpu(sbi, dip->vdi_atime);
+	vip->vii_autime = fs32_to_cpu(sbi, dip->vdi_autime);
+	vip->vii_mtime = fs32_to_cpu(sbi, dip->vdi_mtime);
+	vip->vii_mutime = fs32_to_cpu(sbi, dip->vdi_mutime);
+	vip->vii_ctime = fs32_to_cpu(sbi, dip->vdi_ctime);
+	vip->vii_cutime = fs32_to_cpu(sbi, dip->vdi_cutime);
+	vip->vii_orgtype = dip->vdi_orgtype;
+
+	vip->vii_blocks = fs32_to_cpu(sbi, dip->vdi_blocks);
+	vip->vii_gen = fs32_to_cpu(sbi, dip->vdi_gen);
+
+	if (VXFS_ISDIR(vip))
+		vip->vii_dotdot = fs32_to_cpu(sbi, dip->vdi_dotdot);
+	else if (!VXFS_ISREG(vip) && !VXFS_ISLNK(vip))
+		vip->vii_rdev = fs32_to_cpu(sbi, dip->vdi_rdev);
+
+	/* don't endian swap the fields that differ by orgtype */
+	memcpy(&vip->vii_org, &dip->vdi_org, sizeof(vip->vii_org));
+}
 
 /**
  * vxfs_blkiget - find inode based on extent #
@@ -102,7 +129,7 @@ vxfs_blkiget(struct super_block *sbp, u_long extent, ino_t ino)
 		if (!(vip = kmem_cache_alloc(vxfs_inode_cachep, GFP_KERNEL)))
 			goto fail;
 		dip = (struct vxfs_dinode *)(bp->b_data + offset);
-		memcpy(vip, dip, sizeof(*vip));
+		dip2vip_cpy(VXFS_SBI(sbp), vip, dip);
 #ifdef DIAGNOSTIC
 		vxfs_dumpi(vip, ino);
 #endif
@@ -144,7 +171,7 @@ __vxfs_iget(ino_t ino, struct inode *ilistp)
 		if (!(vip = kmem_cache_alloc(vxfs_inode_cachep, GFP_KERNEL)))
 			goto fail;
 		dip = (struct vxfs_dinode *)(kaddr + offset);
-		memcpy(vip, dip, sizeof(*vip));
+		dip2vip_cpy(VXFS_SBI(ilistp->i_sb), vip, dip);
 #ifdef DIAGNOSTIC
 		vxfs_dumpi(vip, ino);
 #endif
