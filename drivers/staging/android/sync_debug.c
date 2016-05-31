@@ -140,9 +140,9 @@ static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
 	list_for_each(pos, &obj->child_list_head) {
-		struct fence *fence =
-			container_of(pos, struct fence, child_list);
-		sync_print_fence(s, fence, false);
+		struct sync_pt *pt =
+			container_of(pos, struct sync_pt, child_list);
+		sync_print_fence(s, &pt->base, false);
 	}
 	spin_unlock_irqrestore(&obj->child_list_lock, flags);
 }
@@ -240,7 +240,7 @@ static long sw_sync_ioctl_create_fence(struct sync_timeline *obj,
 {
 	int fd = get_unused_fd_flags(O_CLOEXEC);
 	int err;
-	struct fence *fence;
+	struct sync_pt *pt;
 	struct sync_file *sync_file;
 	struct sw_sync_create_fence_data data;
 
@@ -252,15 +252,15 @@ static long sw_sync_ioctl_create_fence(struct sync_timeline *obj,
 		goto err;
 	}
 
-	fence = sync_pt_create(obj, sizeof(*fence), data.value);
-	if (!fence) {
+	pt = sync_pt_create(obj, sizeof(*pt), data.value);
+	if (!pt) {
 		err = -ENOMEM;
 		goto err;
 	}
 
-	sync_file = sync_file_create(fence);
+	sync_file = sync_file_create(&pt->base);
 	if (!sync_file) {
-		fence_put(fence);
+		fence_put(&pt->base);
 		err = -ENOMEM;
 		goto err;
 	}

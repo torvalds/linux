@@ -28,8 +28,6 @@
 #define CREATE_TRACE_POINTS
 #include "trace/sync.h"
 
-static const struct fence_ops timeline_fence_ops;
-
 struct sync_timeline *sync_timeline_create(const char *drv_name,
 					   const char *name)
 {
@@ -90,7 +88,7 @@ EXPORT_SYMBOL(sync_timeline_destroy);
 void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 {
 	unsigned long flags;
-	struct fence *fence, *next;
+	struct sync_pt *pt, *next;
 
 	trace_sync_timeline(obj);
 
@@ -98,37 +96,37 @@ void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 
 	obj->value += inc;
 
-	list_for_each_entry_safe(fence, next, &obj->active_list_head,
+	list_for_each_entry_safe(pt, next, &obj->active_list_head,
 				 active_list) {
-		if (fence_is_signaled_locked(fence))
-			list_del_init(&fence->active_list);
+		if (fence_is_signaled_locked(&pt->base))
+			list_del_init(&pt->active_list);
 	}
 
 	spin_unlock_irqrestore(&obj->child_list_lock, flags);
 }
 EXPORT_SYMBOL(sync_timeline_signal);
 
-struct fence *sync_pt_create(struct sync_timeline *obj, int size,
+struct sync_pt *sync_pt_create(struct sync_timeline *obj, int size,
 			     unsigned int value)
 {
 	unsigned long flags;
-	struct fence *fence;
+	struct sync_pt *pt;
 
-	if (size < sizeof(*fence))
+	if (size < sizeof(*pt))
 		return NULL;
 
-	fence = kzalloc(size, GFP_KERNEL);
-	if (!fence)
+	pt = kzalloc(size, GFP_KERNEL);
+	if (!pt)
 		return NULL;
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
 	sync_timeline_get(obj);
-	fence_init(fence, &timeline_fence_ops, &obj->child_list_lock,
+	fence_init(&pt->base, &timeline_fence_ops, &obj->child_list_lock,
 		   obj->context, value);
-	list_add_tail(&fence->child_list, &obj->child_list_head);
-	INIT_LIST_HEAD(&fence->active_list);
+	list_add_tail(&pt->child_list, &obj->child_list_head);
+	INIT_LIST_HEAD(&pt->active_list);
 	spin_unlock_irqrestore(&obj->child_list_lock, flags);
-	return fence;
+	return pt;
 }
 EXPORT_SYMBOL(sync_pt_create);
 
@@ -148,13 +146,14 @@ static const char *timeline_fence_get_timeline_name(struct fence *fence)
 
 static void timeline_fence_release(struct fence *fence)
 {
+	struct sync_pt *pt = fence_to_sync_pt(fence);
 	struct sync_timeline *parent = fence_parent(fence);
 	unsigned long flags;
 
 	spin_lock_irqsave(fence->lock, flags);
-	list_del(&fence->child_list);
-	if (WARN_ON_ONCE(!list_empty(&fence->active_list)))
-		list_del(&fence->active_list);
+	list_del(&pt->child_list);
+	if (WARN_ON_ONCE(!list_empty(&pt->active_list)))
+		list_del(&pt->active_list);
 	spin_unlock_irqrestore(fence->lock, flags);
 
 	sync_timeline_put(parent);
@@ -170,12 +169,13 @@ static bool timeline_fence_signaled(struct fence *fence)
 
 static bool timeline_fence_enable_signaling(struct fence *fence)
 {
+	struct sync_pt *pt = fence_to_sync_pt(fence);
 	struct sync_timeline *parent = fence_parent(fence);
 
 	if (timeline_fence_signaled(fence))
 		return false;
 
-	list_add_tail(&fence->active_list, &parent->active_list_head);
+	list_add_tail(&pt->active_list, &parent->active_list_head);
 	return true;
 }
 
@@ -193,7 +193,7 @@ static void timeline_fence_timeline_value_str(struct fence *fence,
 	snprintf(str, size, "%d", parent->value);
 }
 
-static const struct fence_ops timeline_fence_ops = {
+const struct fence_ops timeline_fence_ops = {
 	.get_driver_name = timeline_fence_get_driver_name,
 	.get_timeline_name = timeline_fence_get_timeline_name,
 	.enable_signaling = timeline_fence_enable_signaling,

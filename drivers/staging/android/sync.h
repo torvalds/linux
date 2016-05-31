@@ -60,6 +60,27 @@ static inline struct sync_timeline *fence_parent(struct fence *fence)
 			    child_list_lock);
 }
 
+/**
+ * struct sync_pt - sync_pt object
+ * @base: base fence object
+ * @child_list: sync timeline child's list
+ * @active_list: sync timeline active child's list
+ */
+struct sync_pt {
+	struct fence base;
+	struct list_head child_list;
+	struct list_head active_list;
+};
+
+extern const struct fence_ops timeline_fence_ops;
+
+static inline struct sync_pt *fence_to_sync_pt(struct fence *fence)
+{
+	if (fence->ops != &timeline_fence_ops)
+		return NULL;
+	return container_of(fence, struct sync_pt, base);
+}
+
 /*
  * API for sync_timeline implementers
  */
@@ -101,13 +122,13 @@ void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc);
  * @size:	size to allocate for this pt
  * @inc:	value of the fence
  *
- * Creates a new fence as a child of @parent.  @size bytes will be
+ * Creates a new sync_pt as a child of @parent.  @size bytes will be
  * allocated allowing for implementation specific data to be kept after
- * the generic sync_timeline struct. Returns the fence object or
+ * the generic sync_timeline struct. Returns the sync_pt object or
  * NULL in case of error.
  */
-struct fence *sync_pt_create(struct sync_timeline *parent, int size,
-			     unsigned int inc);
+struct sync_pt *sync_pt_create(struct sync_timeline *parent, int size,
+			       unsigned int inc);
 
 #ifdef CONFIG_DEBUG_FS
 
