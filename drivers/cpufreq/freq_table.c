@@ -63,8 +63,6 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 	else
 		return 0;
 }
-EXPORT_SYMBOL_GPL(cpufreq_frequency_table_cpuinfo);
-
 
 int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 				   struct cpufreq_frequency_table *table)

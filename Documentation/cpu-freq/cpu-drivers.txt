@@ -231,7 +231,7 @@ if you want to skip one entry in the table, set the frequency to
 CPUFREQ_ENTRY_INVALID. The entries don't need to be in ascending
 order.
 
-By calling cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
+By calling cpufreq_table_validate_and_show(struct cpufreq_policy *policy,
 					struct cpufreq_frequency_table *table);
 the cpuinfo.min_freq and cpuinfo.max_freq values are detected, and
 policy->min and policy->max are set to the same values. This is
