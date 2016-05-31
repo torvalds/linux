@@ -441,10 +441,11 @@ static void ks_wlan_hw_rx(void *dev, uint16_t size)
 
 	/* length check */
 	if(size > 2046 || size == 0){
-
-		DPRINTK(5,"-INVAILED DATA dump\n");
-		print_buffer(&rx_buffer->data[0],32);
-
+#ifdef KS_WLAN_DEBUG
+		if (KS_WLAN_DEBUG > 5)
+			print_hex_dump_bytes("INVALID DATA dump: ", DUMP_PREFIX_OFFSET,
+					     rx_buffer->data, 32);
+#endif
 		/* rx_status update */
 		read_status = READ_STATUS_IDLE;
 		retval = ks7010_sdio_write(priv, READ_STATUS, &read_status, sizeof(read_status));

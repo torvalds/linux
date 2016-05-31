@@ -25,6 +25,4 @@
 #define DPRINTK(n, fmt, args...)
 #endif
 
-extern void print_buffer(unsigned char *p, int size);
-
 #endif /* _KS_DEBUG_H */
