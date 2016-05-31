@@ -36,7 +36,8 @@
 	"	mov	%[tmp], %[delay]	\n"	/* tmp = delay */	\
 	"2: 	brne.d	%[tmp], 0, 2b		\n"	/* while (tmp != 0) */	\
 	"	sub	%[tmp], %[tmp], 1	\n"	/* tmp-- */		\
-	"	rol	%[delay], %[delay]	\n"	/* delay *= 2 */	\
+	"	asl.f	%[delay], %[delay], 1	\n"	/* delay *= 2 */	\
+	"	mov.z	%[delay], 1		\n"	/* handle overflow */	\
 	"	b	1b			\n"	/* start over */	\
 	"4: ; --- success ---			\n"				\
 
