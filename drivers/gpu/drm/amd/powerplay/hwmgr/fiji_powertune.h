@@ -58,7 +58,9 @@ void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
 int fiji_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);
 int fiji_populate_pm_fuses(struct pp_hwmgr *hwmgr);
 int fiji_enable_smc_cac(struct pp_hwmgr *hwmgr);
+int fiji_disable_smc_cac(struct pp_hwmgr *hwmgr);
 int fiji_enable_power_containment(struct pp_hwmgr *hwmgr);
+int fiji_disable_power_containment(struct pp_hwmgr *hwmgr);
 int fiji_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
 int fiji_power_control_set_level(struct pp_hwmgr *hwmgr);
 
