@@ -193,10 +193,8 @@ static __init int sync_debugfs_init(void)
 
 	debugfs_create_file("info", 0444, dbgfs, NULL, &sync_info_debugfs_fops);
 
-#if IS_ENABLED(CONFIG_SW_SYNC)
 	debugfs_create_file("sw_sync", 0644, dbgfs, NULL,
 			    &sw_sync_debugfs_fops);
-#endif
 
 	return 0;
 }

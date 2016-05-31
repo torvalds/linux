@@ -69,64 +69,6 @@ struct sync_pt {
 	struct list_head active_list;
 };
 
-extern const struct fence_ops timeline_fence_ops;
-
-static inline struct sync_pt *fence_to_sync_pt(struct fence *fence)
-{
-	if (fence->ops != &timeline_fence_ops)
-		return NULL;
-	return container_of(fence, struct sync_pt, base);
-}
-
-/*
- * API for sync_timeline implementers
- */
-
-/**
- * sync_timeline_create() - creates a sync object
- * @drv_name:	sync_timeline driver name
- * @name:	sync_timeline name
- *
- * Creates a new sync_timeline. Returns the sync_timeline object or NULL in
- * case of error.
- */
-struct sync_timeline *sync_timeline_create(const char *drv_name,
-					   const char *name);
-
-/**
- * sync_timeline_destroy() - destroys a sync object
- * @obj:	sync_timeline to destroy
- *
- * A sync implementation should call this when the @obj is going away
- * (i.e. module unload.)  @obj won't actually be freed until all its children
- * fences are freed.
- */
-void sync_timeline_destroy(struct sync_timeline *obj);
-
-/**
- * sync_timeline_signal() - signal a status change on a sync_timeline
- * @obj:	sync_timeline to signal
- * @inc:	num to increment on timeline->value
- *
- * A sync implementation should call this any time one of it's fences
- * has signaled or has an error condition.
- */
-void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc);
-
-/**
- * sync_pt_create() - creates a sync pt
- * @parent:	fence's parent sync_timeline
- * @size:	size to allocate for this pt
- * @inc:	value of the fence
- *
- * Creates a new sync_pt as a child of @parent.  @size bytes will be
- * allocated allowing for implementation specific data to be kept after
- * the generic sync_timeline struct. Returns the sync_pt object or
- * NULL in case of error.
- */
-struct sync_pt *sync_pt_create(struct sync_timeline *parent, int size,
-			       unsigned int inc);
-
 #ifdef CONFIG_DEBUG_FS
 
 extern const struct file_operations sw_sync_debugfs_fops;
