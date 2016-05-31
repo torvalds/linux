@@ -35,19 +35,6 @@ static const struct sdio_device_id if_sdio_ids[] = {
 	{ /* all zero */ }
 };
 
-struct ks_sdio_model {
-	int model;
-	const char *firmware;
-};
-
-static struct ks_sdio_model ks_sdio_models[] = {
-	{
-		/* ks7010 */
-		.model = 0x10,
-		.firmware = "ks7010sd.rom",
-	},
-};
-
 static int ks7910_sdio_probe(struct sdio_func *function,
 			     const struct sdio_device_id *device);
 static void ks7910_sdio_remove(struct sdio_func *function);
@@ -996,7 +983,7 @@ static int ks7910_sdio_probe(struct sdio_func *func,
 	struct ks_sdio_card *card;
 	struct net_device *netdev;
 	unsigned char rw_data;
-	int i = 0, ret;
+	int ret;
 
 	DPRINTK(5, "ks7910_sdio_probe()\n");
 
@@ -1009,21 +996,7 @@ static int ks7910_sdio_probe(struct sdio_func *func,
 		return -ENOMEM;
 
 	card->func = func;
-	card->model = 0x10;
 	spin_lock_init(&card->lock);
-
-	/* select model */
-	for (i = 0; i < ARRAY_SIZE(ks_sdio_models); i++) {
-		if (card->model == ks_sdio_models[i].model)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(ks_sdio_models)) {
-		DPRINTK(5, "unkown card model 0x%x\n", card->model);
-		goto error;
-	}
-
-	card->firmware = ks_sdio_models[i].firmware;
 
 	/*** Initialize  SDIO ***/
 	sdio_claim_host(func);
@@ -1172,7 +1145,7 @@ static int ks7910_sdio_probe(struct sdio_func *func,
 	sdio_release_host(func);
 	sdio_set_drvdata(func, NULL);
 	kfree(card);
- error:
+
 	return -ENODEV;
 }
 
