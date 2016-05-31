@@ -5725,8 +5725,11 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (!fixed_mode && dev_priv->vbt.lfp_lvds_vbt_mode) {
 		fixed_mode = drm_mode_duplicate(dev,
 					dev_priv->vbt.lfp_lvds_vbt_mode);
-		if (fixed_mode)
+		if (fixed_mode) {
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+			connector->display_info.width_mm = fixed_mode->width_mm;
+			connector->display_info.height_mm = fixed_mode->height_mm;
+		}
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 
