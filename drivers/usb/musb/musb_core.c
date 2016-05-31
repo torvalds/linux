@@ -2028,9 +2028,15 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb_readl = musb_default_readl;
 	musb_writel = musb_default_writel;
 
-	/* We need musb_read/write functions initialized for PM */
+	/*
+	 * We need musb_read/write functions initialized for PM.
+	 * Note that at least 2430 glue needs autosuspend delay
+	 * somewhere above 300 ms for the hardware to idle properly
+	 * after disconnecting the cable in host mode. Let's use
+	 * 500 ms for some margin.
+	 */
 	pm_runtime_use_autosuspend(musb->controller);
-	pm_runtime_set_autosuspend_delay(musb->controller, 200);
+	pm_runtime_set_autosuspend_delay(musb->controller, 500);
 	pm_runtime_enable(musb->controller);
 
 	/* The musb_platform_init() call:
