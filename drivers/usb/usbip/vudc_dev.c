@@ -450,7 +450,7 @@ static void vudc_shutdown(struct usbip_device *ud)
 	if (ud->tcp_socket)
 		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
 
-	if (ud->tcp_tx) {
+	if (ud->tcp_rx) {
 		kthread_stop_put(ud->tcp_rx);
 		ud->tcp_rx = NULL;
 	}
