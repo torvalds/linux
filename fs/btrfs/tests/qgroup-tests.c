@@ -234,7 +234,7 @@ static int test_no_shared_qgroup(struct btrfs_root *root)
 	}
 
 	/*
-	 * Since the test trans doesn't havee the complicated delayed refs,
+	 * Since the test trans doesn't have the complicated delayed refs,
 	 * we can only call btrfs_qgroup_account_extent() directly to test
 	 * quota.
 	 */

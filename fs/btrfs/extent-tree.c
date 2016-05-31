@@ -231,9 +231,9 @@ static int add_excluded_extent(struct btrfs_root *root,
 {
 	u64 end = start + num_bytes - 1;
 	set_extent_bits(&root->fs_info->freed_extents[0],
-			start, end, EXTENT_UPTODATE, GFP_NOFS);
+			start, end, EXTENT_UPTODATE);
 	set_extent_bits(&root->fs_info->freed_extents[1],
-			start, end, EXTENT_UPTODATE, GFP_NOFS);
+			start, end, EXTENT_UPTODATE);
 	return 0;
 }
 
@@ -246,9 +246,9 @@ static void free_excluded_extents(struct btrfs_root *root,
 	end = start + cache->key.offset - 1;
 
 	clear_extent_bits(&root->fs_info->freed_extents[0],
-			  start, end, EXTENT_UPTODATE, GFP_NOFS);
+			  start, end, EXTENT_UPTODATE);
 	clear_extent_bits(&root->fs_info->freed_extents[1],
-			  start, end, EXTENT_UPTODATE, GFP_NOFS);
+			  start, end, EXTENT_UPTODATE);
 }
 
 static int exclude_super_stripes(struct btrfs_root *root,
@@ -980,7 +980,7 @@ out_free:
  * event that tree block loses its owner tree's reference and do the
  * back refs conversion.
  *
- * When a tree block is COW'd through a tree, there are four cases:
+ * When a tree block is COWed through a tree, there are four cases:
  *
  * The reference count of the block is one and the tree is the block's
  * owner tree. Nothing to do in this case.
@@ -2595,7 +2595,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			}
 
 			/*
-			 * Need to drop our head ref lock and re-aqcuire the
+			 * Need to drop our head ref lock and re-acquire the
 			 * delayed ref lock and then re-check to make sure
 			 * nobody got added.
 			 */
@@ -2747,7 +2747,7 @@ static inline u64 heads_to_leaves(struct btrfs_root *root, u64 heads)
 
 	/*
 	 * We don't ever fill up leaves all the way so multiply by 2 just to be
-	 * closer to what we're really going to want to ouse.
+	 * closer to what we're really going to want to use.
 	 */
 	return div_u64(num_bytes, BTRFS_LEAF_DATA_SIZE(root));
 }
@@ -2851,7 +2851,7 @@ static void delayed_ref_async_start(struct btrfs_work *work)
 	}
 
 	/*
-	 * trans->sync means that when we call end_transaciton, we won't
+	 * trans->sync means that when we call end_transaction, we won't
 	 * wait on delayed refs
 	 */
 	trans->sync = true;
@@ -4296,7 +4296,7 @@ void btrfs_free_reserved_data_space_noquota(struct inode *inode, u64 start,
  * Called if we need to clear a data reservation for this inode
  * Normally in a error case.
  *
- * This one will handle the per-indoe data rsv map for accurate reserved
+ * This one will handle the per-inode data rsv map for accurate reserved
  * space framework.
  */
 void btrfs_free_reserved_data_space(struct inode *inode, u64 start, u64 len)
@@ -4967,7 +4967,7 @@ void btrfs_init_async_reclaim_work(struct work_struct *work)
  * @orig_bytes - the number of bytes we want
  * @flush - whether or not we can flush to make our reservation
  *
- * This will reserve orgi_bytes number of bytes from the space info associated
+ * This will reserve orig_bytes number of bytes from the space info associated
  * with the block_rsv.  If there is not enough space it will make an attempt to
  * flush out space to make room.  It will do this by flushing delalloc if
  * possible or committing the transaction.  If flush is 0 then no attempts to
@@ -5572,7 +5572,7 @@ void btrfs_orphan_release_metadata(struct inode *inode)
  * common file/directory operations, they change two fs/file trees
  * and root tree, the number of items that the qgroup reserves is
  * different with the free space reservation. So we can not use
- * the space reseravtion mechanism in start_transaction().
+ * the space reservation mechanism in start_transaction().
  */
 int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				     struct btrfs_block_rsv *rsv,
@@ -5621,7 +5621,7 @@ void btrfs_subvolume_release_metadata(struct btrfs_root *root,
 /**
  * drop_outstanding_extent - drop an outstanding extent
  * @inode: the inode we're dropping the extent for
- * @num_bytes: the number of bytes we're relaseing.
+ * @num_bytes: the number of bytes we're releasing.
  *
  * This is called when we are freeing up an outstanding extent, either called
  * after an error or after an extent is written.  This will return the number of
@@ -5647,7 +5647,7 @@ static unsigned drop_outstanding_extent(struct inode *inode, u64 num_bytes)
 		drop_inode_space = 1;
 
 	/*
-	 * If we have more or the same amount of outsanding extents than we have
+	 * If we have more or the same amount of outstanding extents than we have
 	 * reserved then we need to leave the reserved extents count alone.
 	 */
 	if (BTRFS_I(inode)->outstanding_extents >=
@@ -5661,8 +5661,8 @@ static unsigned drop_outstanding_extent(struct inode *inode, u64 num_bytes)
 }
 
 /**
- * calc_csum_metadata_size - return the amount of metada space that must be
- *	reserved/free'd for the given bytes.
+ * calc_csum_metadata_size - return the amount of metadata space that must be
+ *	reserved/freed for the given bytes.
  * @inode: the inode we're manipulating
  * @num_bytes: the number of bytes in question
  * @reserve: 1 if we are reserving space, 0 if we are freeing space
@@ -5814,7 +5814,7 @@ out_fail:
 
 		/*
 		 * This is tricky, but first we need to figure out how much we
-		 * free'd from any free-ers that occurred during this
+		 * freed from any free-ers that occurred during this
 		 * reservation, so we reset ->csum_bytes to the csum_bytes
 		 * before we dropped our lock, and then call the free for the
 		 * number of bytes that were freed while we were trying our
@@ -5836,7 +5836,7 @@ out_fail:
 
 		/*
 		 * Now reset ->csum_bytes to what it should be.  If bytes is
-		 * more than to_free then we would have free'd more space had we
+		 * more than to_free then we would have freed more space had we
 		 * not had an artificially high ->csum_bytes, so we need to free
 		 * the remainder.  If bytes is the same or less then we don't
 		 * need to do anything, the other free-ers did the correct
@@ -6515,7 +6515,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			ret = btrfs_discard_extent(root, start,
 						   end + 1 - start, NULL);
 
-		clear_extent_dirty(unpin, start, end, GFP_NOFS);
+		clear_extent_dirty(unpin, start, end);
 		unpin_extent_range(root, start, end, true);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		cond_resched();
@@ -7578,7 +7578,7 @@ loop:
 		if (loop == LOOP_CACHING_NOWAIT) {
 			/*
 			 * We want to skip the LOOP_CACHING_WAIT step if we
-			 * don't have any unached bgs and we've alrelady done a
+			 * don't have any uncached bgs and we've already done a
 			 * full search through.
 			 */
 			if (orig_have_caching_bg || !full_search)
@@ -7982,7 +7982,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 
 	/*
 	 * Mixed block groups will exclude before processing the log so we only
-	 * need to do the exlude dance if this fs isn't mixed.
+	 * need to do the exclude dance if this fs isn't mixed.
 	 */
 	if (!btrfs_fs_incompat(root->fs_info, MIXED_GROUPS)) {
 		ret = __exclude_logged_extent(root, ins->objectid, ins->offset);
@@ -8032,7 +8032,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 					buf->start + buf->len - 1, GFP_NOFS);
 		else
 			set_extent_new(&root->dirty_log_pages, buf->start,
-					buf->start + buf->len - 1, GFP_NOFS);
+					buf->start + buf->len - 1);
 	} else {
 		buf->log_index = -1;
 		set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
@@ -9426,7 +9426,7 @@ u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
 	u64 free_bytes = 0;
 	int factor;
 
-	/* It's df, we don't care if it's racey */
+	/* It's df, we don't care if it's racy */
 	if (list_empty(&sinfo->ro_bgs))
 		return 0;
 
@@ -10635,14 +10635,14 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 */
 		mutex_lock(&fs_info->unused_bg_unpin_mutex);
 		ret = clear_extent_bits(&fs_info->freed_extents[0], start, end,
-				  EXTENT_DIRTY, GFP_NOFS);
+				  EXTENT_DIRTY);
 		if (ret) {
 			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 			btrfs_dec_block_group_ro(root, block_group);
 			goto end_trans;
 		}
 		ret = clear_extent_bits(&fs_info->freed_extents[1], start, end,
-				  EXTENT_DIRTY, GFP_NOFS);
+				  EXTENT_DIRTY);
 		if (ret) {
 			mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 			btrfs_dec_block_group_ro(root, block_group);

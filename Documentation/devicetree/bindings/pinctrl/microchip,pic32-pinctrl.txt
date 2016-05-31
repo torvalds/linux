@@ -34,7 +34,7 @@ pic32_pinctrl: pinctrl@1f801400{
 	#size-cells = <1>;
 	compatible = "microchip,pic32mzda-pinctrl";
 	reg = <0x1f801400 0x400>;
-	clocks = <&PBCLK1>;
+	clocks = <&rootclk PB1CLK>;
 
 	pinctrl_uart2: pinctrl_uart2 {
 		uart2-tx {

@@ -188,7 +188,7 @@ struct btrfs_delayed_ref_root {
 
 	/*
 	 * To make qgroup to skip given root.
-	 * This is for snapshot, as btrfs_qgroup_inherit() will manully
+	 * This is for snapshot, as btrfs_qgroup_inherit() will manually
 	 * modify counters for snapshot and its source, so we should skip
 	 * the snapshot in new_root/old_roots or it will get calculated twice
 	 */

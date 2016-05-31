@@ -160,10 +160,11 @@ static int kernfs_node_setsecdata(struct kernfs_node *kn, void **secdata,
 	return 0;
 }
 
-int kernfs_iop_setxattr(struct dentry *dentry, const char *name,
-			const void *value, size_t size, int flags)
+int kernfs_iop_setxattr(struct dentry *unused, struct inode *inode,
+			const char *name, const void *value,
+			size_t size, int flags)
 {
-	struct kernfs_node *kn = dentry->d_fsdata;
+	struct kernfs_node *kn = inode->i_private;
 	struct kernfs_iattrs *attrs;
 	void *secdata;
 	int error;
@@ -175,11 +176,11 @@ int kernfs_iop_setxattr(struct dentry *dentry, const char *name,
 
 	if (!strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN)) {
 		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
-		error = security_inode_setsecurity(d_inode(dentry), suffix,
+		error = security_inode_setsecurity(inode, suffix,
 						value, size, flags);
 		if (error)
 			return error;
-		error = security_inode_getsecctx(d_inode(dentry),
+		error = security_inode_getsecctx(inode,
 						&secdata, &secdata_len);
 		if (error)
 			return error;

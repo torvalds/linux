@@ -435,8 +435,7 @@ xfs_log_reserve(
 	int		 	cnt,
 	struct xlog_ticket	**ticp,
 	__uint8_t	 	client,
-	bool			permanent,
-	uint		 	t_type)
+	bool			permanent)
 {
 	struct xlog		*log = mp->m_log;
 	struct xlog_ticket	*tic;
@@ -456,7 +455,6 @@ xfs_log_reserve(
 	if (!tic)
 		return -ENOMEM;
 
-	tic->t_trans_type = t_type;
 	*ticp = tic;
 
 	xlog_grant_push_ail(log, tic->t_cnt ? tic->t_unit_res * tic->t_cnt
@@ -823,8 +821,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	} while (iclog != first_iclog);
 #endif
 	if (! (XLOG_FORCED_SHUTDOWN(log))) {
-		error = xfs_log_reserve(mp, 600, 1, &tic,
-					XFS_LOG, 0, XLOG_UNMOUNT_REC_TYPE);
+		error = xfs_log_reserve(mp, 600, 1, &tic, XFS_LOG, 0);
 		if (!error) {
 			/* the data section must be 32 bit size aligned */
 			struct {
@@ -2032,58 +2029,8 @@ xlog_print_tic_res(
 	    REG_TYPE_STR(ICREATE, "inode create")
 	};
 #undef REG_TYPE_STR
-#define TRANS_TYPE_STR(type)	[XFS_TRANS_##type] = #type
-	static char *trans_type_str[XFS_TRANS_TYPE_MAX] = {
-	    TRANS_TYPE_STR(SETATTR_NOT_SIZE),
-	    TRANS_TYPE_STR(SETATTR_SIZE),
-	    TRANS_TYPE_STR(INACTIVE),
-	    TRANS_TYPE_STR(CREATE),
-	    TRANS_TYPE_STR(CREATE_TRUNC),
-	    TRANS_TYPE_STR(TRUNCATE_FILE),
-	    TRANS_TYPE_STR(REMOVE),
-	    TRANS_TYPE_STR(LINK),
-	    TRANS_TYPE_STR(RENAME),
-	    TRANS_TYPE_STR(MKDIR),
-	    TRANS_TYPE_STR(RMDIR),
-	    TRANS_TYPE_STR(SYMLINK),
-	    TRANS_TYPE_STR(SET_DMATTRS),
-	    TRANS_TYPE_STR(GROWFS),
-	    TRANS_TYPE_STR(STRAT_WRITE),
-	    TRANS_TYPE_STR(DIOSTRAT),
-	    TRANS_TYPE_STR(WRITEID),
-	    TRANS_TYPE_STR(ADDAFORK),
-	    TRANS_TYPE_STR(ATTRINVAL),
-	    TRANS_TYPE_STR(ATRUNCATE),
-	    TRANS_TYPE_STR(ATTR_SET),
-	    TRANS_TYPE_STR(ATTR_RM),
-	    TRANS_TYPE_STR(ATTR_FLAG),
-	    TRANS_TYPE_STR(CLEAR_AGI_BUCKET),
-	    TRANS_TYPE_STR(SB_CHANGE),
-	    TRANS_TYPE_STR(DUMMY1),
-	    TRANS_TYPE_STR(DUMMY2),
-	    TRANS_TYPE_STR(QM_QUOTAOFF),
-	    TRANS_TYPE_STR(QM_DQALLOC),
-	    TRANS_TYPE_STR(QM_SETQLIM),
-	    TRANS_TYPE_STR(QM_DQCLUSTER),
-	    TRANS_TYPE_STR(QM_QINOCREATE),
-	    TRANS_TYPE_STR(QM_QUOTAOFF_END),
-	    TRANS_TYPE_STR(FSYNC_TS),
-	    TRANS_TYPE_STR(GROWFSRT_ALLOC),
-	    TRANS_TYPE_STR(GROWFSRT_ZERO),
-	    TRANS_TYPE_STR(GROWFSRT_FREE),
-	    TRANS_TYPE_STR(SWAPEXT),
-	    TRANS_TYPE_STR(CHECKPOINT),
-	    TRANS_TYPE_STR(ICREATE),
-	    TRANS_TYPE_STR(CREATE_TMPFILE)
-	};
-#undef TRANS_TYPE_STR
 
 	xfs_warn(mp, "xlog_write: reservation summary:");
-	xfs_warn(mp, "  trans type  = %s (%u)",
-		 ((ticket->t_trans_type <= 0 ||
-		   ticket->t_trans_type > XFS_TRANS_TYPE_MAX) ?
-		  "bad-trans-type" : trans_type_str[ticket->t_trans_type]),
-		 ticket->t_trans_type);
 	xfs_warn(mp, "  unit res    = %d bytes",
 		 ticket->t_unit_res);
 	xfs_warn(mp, "  current res = %d bytes",
@@ -3378,7 +3325,7 @@ xfs_log_force(
 {
 	int	error;
 
-	trace_xfs_log_force(mp, 0);
+	trace_xfs_log_force(mp, 0, _RET_IP_);
 	error = _xfs_log_force(mp, flags, NULL);
 	if (error)
 		xfs_warn(mp, "%s: error %d returned.", __func__, error);
@@ -3527,7 +3474,7 @@ xfs_log_force_lsn(
 {
 	int	error;
 
-	trace_xfs_log_force(mp, lsn);
+	trace_xfs_log_force(mp, lsn, _RET_IP_);
 	error = _xfs_log_force_lsn(mp, lsn, flags, NULL);
 	if (error)
 		xfs_warn(mp, "%s: error %d returned.", __func__, error);
@@ -3709,7 +3656,6 @@ xlog_ticket_alloc(
 	tic->t_tid		= prandom_u32();
 	tic->t_clientid		= client;
 	tic->t_flags		= XLOG_TIC_INITED;
-	tic->t_trans_type	= 0;
 	if (permanent)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
 

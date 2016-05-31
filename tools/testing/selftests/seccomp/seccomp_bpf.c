@@ -1234,6 +1234,10 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define ARCH_REGS	struct user_pt_regs
 # define SYSCALL_NUM	regs[8]
 # define SYSCALL_RET	regs[0]
+#elif defined(__hppa__)
+# define ARCH_REGS	struct user_regs_struct
+# define SYSCALL_NUM	gr[20]
+# define SYSCALL_RET	gr[28]
 #elif defined(__powerpc__)
 # define ARCH_REGS	struct pt_regs
 # define SYSCALL_NUM	gpr[0]
@@ -1303,7 +1307,7 @@ void change_syscall(struct __test_metadata *_metadata,
 	EXPECT_EQ(0, ret);
 
 #if defined(__x86_64__) || defined(__i386__) || defined(__powerpc__) || \
-    defined(__s390__)
+    defined(__s390__) || defined(__hppa__)
 	{
 		regs.SYSCALL_NUM = syscall;
 	}
@@ -1505,6 +1509,8 @@ TEST_F(TRACE_syscall, syscall_dropped)
 #  define __NR_seccomp 383
 # elif defined(__aarch64__)
 #  define __NR_seccomp 277
+# elif defined(__hppa__)
+#  define __NR_seccomp 338
 # elif defined(__powerpc__)
 #  define __NR_seccomp 358
 # elif defined(__s390__)

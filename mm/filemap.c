@@ -143,13 +143,15 @@ static void page_cache_tree_delete(struct address_space *mapping,
 			return;
 
 	/*
-	 * Track node that only contains shadow entries.
+	 * Track node that only contains shadow entries. DAX mappings contain
+	 * no shadow entries and may contain other exceptional entries so skip
+	 * those.
 	 *
 	 * Avoid acquiring the list_lru lock if already tracked.  The
 	 * list_empty() test is safe as node->private_list is
 	 * protected by mapping->tree_lock.
 	 */
-	if (!workingset_node_pages(node) &&
+	if (!dax_mapping(mapping) && !workingset_node_pages(node) &&
 	    list_empty(&node->private_list)) {
 		node->private_data = mapping;
 		list_lru_add(&workingset_shadow_nodes, &node->private_list);
@@ -580,14 +582,24 @@ static int page_cache_tree_insert(struct address_space *mapping,
 		if (!radix_tree_exceptional_entry(p))
 			return -EEXIST;
 
-		if (WARN_ON(dax_mapping(mapping)))
-			return -EINVAL;
-
-		if (shadowp)
-			*shadowp = p;
 		mapping->nrexceptional--;
-		if (node)
-			workingset_node_shadows_dec(node);
+		if (!dax_mapping(mapping)) {
+			if (shadowp)
+				*shadowp = p;
+			if (node)
+				workingset_node_shadows_dec(node);
+		} else {
+			/* DAX can replace empty locked entry with a hole */
+			WARN_ON_ONCE(p !=
+				(void *)(RADIX_TREE_EXCEPTIONAL_ENTRY |
+					 RADIX_DAX_ENTRY_LOCK));
+			/* DAX accounts exceptional entries as normal pages */
+			if (node)
+				workingset_node_pages_dec(node);
+			/* Wakeup waiters for exceptional entry lock */
+			dax_wake_mapping_entry_waiter(mapping, page->index,
+						      false);
+		}
 	}
 	radix_tree_replace_slot(slot, page);
 	mapping->nrpages++;

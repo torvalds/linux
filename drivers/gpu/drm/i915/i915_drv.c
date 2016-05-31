@@ -734,8 +734,13 @@ int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state)
 static int i915_drm_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
 	disable_rpm_wakeref_asserts(dev_priv);
+
+	ret = i915_ggtt_enable_hw(dev);
+	if (ret)
+		DRM_ERROR("failed to re-enable GGTT\n");
 
 	intel_csr_ucode_resume(dev_priv);
 

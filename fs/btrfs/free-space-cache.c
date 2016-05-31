@@ -1983,7 +1983,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		/*
 		 * If this block group has some small extents we don't want to
 		 * use up all of our free slots in the cache with them, we want
-		 * to reserve them to larger extents, however if we have plent
+		 * to reserve them to larger extents, however if we have plenty
 		 * of cache left then go ahead an dadd them, no sense in adding
 		 * the overhead of a bitmap if we don't have to.
 		 */

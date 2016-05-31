@@ -968,7 +968,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 			      unsigned int cpu_vec, unsigned int irqbase,
 			      struct device_node *node)
 {
-	unsigned int gicconfig;
+	unsigned int gicconfig, cpu;
 	unsigned int v[2];
 
 	__gic_base_addr = gic_base_addr;
@@ -985,6 +985,14 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	gic_vpes = gic_vpes + 1;
 
 	if (cpu_has_veic) {
+		/* Set EIC mode for all VPEs */
+		for_each_present_cpu(cpu) {
+			gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+				  mips_cm_vp_id(cpu));
+			gic_write(GIC_REG(VPE_OTHER, GIC_VPE_CTL),
+				  GIC_VPE_CTL_EIC_MODE_MSK);
+		}
+
 		/* Always use vector 1 in EIC mode */
 		gic_cpu_pin = 0;
 		timer_cpu_pin = gic_cpu_pin;

@@ -54,6 +54,13 @@ config KVM_ARM_PMU
 	  Adds support for a virtual Performance Monitoring Unit (PMU) in
 	  virtual machines.
 
+config KVM_NEW_VGIC
+	bool "New VGIC implementation"
+	depends on KVM
+	default y
+        ---help---
+          uses the new VGIC implementation
+
 source drivers/vhost/Kconfig
 
 endif # VIRTUALIZATION
