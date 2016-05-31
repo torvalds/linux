@@ -28,18 +28,9 @@ struct sync_timeline;
 /**
  * struct sync_timeline_ops - sync object implementation ops
  * @driver_name:	name of the implementation
- * @timeline_value_str: fill str with the value of the sync_timeline's counter
- * @fence_value_str:	fill str with the value of the fence
  */
 struct sync_timeline_ops {
 	const char *driver_name;
-
-	/* optional */
-	void (*timeline_value_str)(struct sync_timeline *timeline, char *str,
-				   int size);
-
-	/* optional */
-	void (*fence_value_str)(struct fence *fence, char *str, int size);
 };
 
 /**
