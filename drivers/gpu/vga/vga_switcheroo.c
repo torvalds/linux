@@ -331,7 +331,8 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  * @id: client identifier
  *
  * Register audio client (audio device on a GPU). The power state of the
- * client is assumed to be ON.
+ * client is assumed to be ON. Beforehand, vga_switcheroo_client_probe_defer()
+ * shall be called to ensure that all prerequisites are met.
  *
  * Return: 0 on success, -ENOMEM on memory allocation error.
  */
@@ -390,13 +391,15 @@ find_active_client(struct list_head *head)
  */
 bool vga_switcheroo_client_probe_defer(struct pci_dev *pdev)
 {
-	/*
-	 * apple-gmux is needed on pre-retina MacBook Pro
-	 * to probe the panel if pdev is the inactive GPU.
-	 */
-	if (apple_gmux_present() && pdev != vga_default_device() &&
-	    !vgasr_priv.handler_flags)
-		return true;
+	if ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
+		/*
+		 * apple-gmux is needed on pre-retina MacBook Pro
+		 * to probe the panel if pdev is the inactive GPU.
+		 */
+		if (apple_gmux_present() && pdev != vga_default_device() &&
+		    !vgasr_priv.handler_flags)
+			return true;
+	}
 
 	return false;
 }
