@@ -1914,8 +1914,8 @@ static int musb_gadget_start(struct usb_gadget *g,
 	if (musb->xceiv->last_event == USB_EVENT_ID)
 		musb_platform_set_vbus(musb, 1);
 
-	if (musb->xceiv->last_event == USB_EVENT_NONE)
-		pm_runtime_put(musb->controller);
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 
 	return 0;
 
@@ -1934,8 +1934,7 @@ static int musb_gadget_stop(struct usb_gadget *g)
 	struct musb	*musb = gadget_to_musb(g);
 	unsigned long	flags;
 
-	if (musb->xceiv->last_event == USB_EVENT_NONE)
-		pm_runtime_get_sync(musb->controller);
+	pm_runtime_get_sync(musb->controller);
 
 	/*
 	 * REVISIT always use otg_set_peripheral() here too;
