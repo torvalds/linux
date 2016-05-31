@@ -25,31 +25,21 @@
 
 #include "sw_sync.h"
 
-struct fence *sw_sync_pt_create(struct sw_sync_timeline *obj, u32 value)
+struct fence *sw_sync_pt_create(struct sync_timeline *obj, u32 value)
 {
-	struct sw_sync_pt *pt;
-
-	pt = (struct sw_sync_pt *)
-		sync_pt_create(&obj->obj, sizeof(struct sw_sync_pt), value);
-
-	pt->value = value;
-
-	return (struct fence *)pt;
+	return sync_pt_create(obj, sizeof(struct fence), value);
 }
 EXPORT_SYMBOL(sw_sync_pt_create);
 
-struct sw_sync_timeline *sw_sync_timeline_create(const char *name)
+struct sync_timeline *sw_sync_timeline_create(const char *name)
 {
-	struct sw_sync_timeline *obj = (struct sw_sync_timeline *)
-		sync_timeline_create(sizeof(struct sw_sync_timeline),
-				     "sw_sync", name);
-
-	return obj;
+	return sync_timeline_create(sizeof(struct sync_timeline),
+				    "sw_sync", name);
 }
 EXPORT_SYMBOL(sw_sync_timeline_create);
 
-void sw_sync_timeline_inc(struct sw_sync_timeline *obj, u32 inc)
+void sw_sync_timeline_inc(struct sync_timeline *obj, u32 inc)
 {
-	sync_timeline_signal(&obj->obj, inc);
+	sync_timeline_signal(obj, inc);
 }
 EXPORT_SYMBOL(sw_sync_timeline_inc);

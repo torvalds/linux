@@ -209,7 +209,7 @@ static const struct file_operations sync_info_debugfs_fops = {
 /* opening sw_sync create a new sync obj */
 static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
 {
-	struct sw_sync_timeline *obj;
+	struct sync_timeline *obj;
 	char task_comm[TASK_COMM_LEN];
 
 	get_task_comm(task_comm, current);
@@ -225,13 +225,13 @@ static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
 
 static int sw_sync_debugfs_release(struct inode *inode, struct file *file)
 {
-	struct sw_sync_timeline *obj = file->private_data;
+	struct sync_timeline *obj = file->private_data;
 
-	sync_timeline_destroy(&obj->obj);
+	sync_timeline_destroy(obj);
 	return 0;
 }
 
-static long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj,
+static long sw_sync_ioctl_create_fence(struct sync_timeline *obj,
 				       unsigned long arg)
 {
 	int fd = get_unused_fd_flags(O_CLOEXEC);
@@ -277,7 +277,7 @@ err:
 	return err;
 }
 
-static long sw_sync_ioctl_inc(struct sw_sync_timeline *obj, unsigned long arg)
+static long sw_sync_ioctl_inc(struct sync_timeline *obj, unsigned long arg)
 {
 	u32 value;
 
@@ -292,7 +292,7 @@ static long sw_sync_ioctl_inc(struct sw_sync_timeline *obj, unsigned long arg)
 static long sw_sync_ioctl(struct file *file, unsigned int cmd,
 			  unsigned long arg)
 {
-	struct sw_sync_timeline *obj = file->private_data;
+	struct sync_timeline *obj = file->private_data;
 
 	switch (cmd) {
 	case SW_SYNC_IOC_CREATE_FENCE:
