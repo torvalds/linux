@@ -6,7 +6,7 @@
 
   <refnamediv>
     <refname>VIDIOC_REQBUFS</refname>
-    <refpurpose>Initiate Memory Mapping or User Pointer I/O</refpurpose>
+    <refpurpose>Initiate Memory Mapping, User Pointer or DMA Buffer I/O</refpurpose>
   </refnamediv>
 
   <refsynopsisdiv>
