@@ -2105,7 +2105,7 @@ void hostif_sme_multicast_set(ks_wlan_private *priv)
 	struct netdev_hw_addr *ha;
 	char	set_address[NIC_MAX_MCAST_LIST*ETH_ALEN];
 	unsigned long filter_type;
-	int i;
+	int i = 0;
 
 	DPRINTK(3,"\n");
 
@@ -2128,6 +2128,7 @@ void hostif_sme_multicast_set(ks_wlan_private *priv)
 			mc_count = netdev_mc_count(dev);
 			netdev_for_each_mc_addr(ha, dev) {
 				memcpy(&set_address[i*ETH_ALEN], ha->addr, ETH_ALEN);
+				i++;
 			}
 			priv->sme_i.sme_flag &= ~SME_MULTICAST;
 			hostif_mib_set_request(priv, LOCAL_MULTICAST_ADDRESS,
