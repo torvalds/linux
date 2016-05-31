@@ -150,6 +150,19 @@ static int kdump_csum_valid(struct kimage *image)
 
 #ifdef CONFIG_CRASH_DUMP
 
+void crash_free_reserved_phys_range(unsigned long begin, unsigned long end)
+{
+	unsigned long addr, size;
+
+	for (addr = begin; addr < end; addr += PAGE_SIZE)
+		free_reserved_page(pfn_to_page(addr >> PAGE_SHIFT));
+	size = begin - crashk_res.start;
+	if (size)
+		os_info_crashkernel_add(crashk_res.start, size);
+	else
+		os_info_crashkernel_add(0, 0);
+}
+
 /*
  * Map or unmap crashkernel memory
  */
@@ -161,13 +174,8 @@ static void crash_map_pages(int enable)
 	       size % KEXEC_CRASH_MEM_ALIGN);
 	if (enable)
 		vmem_add_mapping(crashk_res.start, size);
-	else {
+	else
 		vmem_remove_mapping(crashk_res.start, size);
-		if (size)
-			os_info_crashkernel_add(crashk_res.start, size);
-		else
-			os_info_crashkernel_add(0, 0);
-	}
 }
 
 /*
