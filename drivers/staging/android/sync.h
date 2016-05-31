@@ -13,9 +13,6 @@
 #ifndef _LINUX_SYNC_H
 #define _LINUX_SYNC_H
 
-#include <linux/types.h>
-#include <linux/kref.h>
-#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/fence.h>
