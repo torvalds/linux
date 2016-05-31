@@ -669,18 +669,8 @@ static struct platform_driver omap2430_driver = {
 	},
 };
 
+module_platform_driver(omap2430_driver);
+
 MODULE_DESCRIPTION("OMAP2PLUS MUSB Glue Layer");
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
 MODULE_LICENSE("GPL v2");
-
-static int __init omap2430_init(void)
-{
-	return platform_driver_register(&omap2430_driver);
-}
-subsys_initcall(omap2430_init);
-
-static void __exit omap2430_exit(void)
-{
-	platform_driver_unregister(&omap2430_driver);
-}
-module_exit(omap2430_exit);
