@@ -974,7 +974,7 @@ static int uncore_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 static void uncore_pci_remove(struct pci_dev *pdev)
 {
-	struct intel_uncore_box *box = pci_get_drvdata(pdev);
+	struct intel_uncore_box *box;
 	struct intel_uncore_pmu *pmu;
 	int i, phys_id, pkg;
 
