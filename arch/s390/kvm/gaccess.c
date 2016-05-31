@@ -477,7 +477,7 @@ enum {
 };
 
 static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
-			 ar_t ar, enum gacc_mode mode)
+			 unsigned long ga, ar_t ar, enum gacc_mode mode)
 {
 	int rc;
 	struct psw_bits psw = psw_bits(vcpu->arch.sie_block->gpsw);
@@ -519,6 +519,7 @@ static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
 			vcpu->arch.pgm.exc_access_id = ar;
 			break;
 		case PGM_PROTECTION:
+			tec_bits->addr = ga >> PAGE_SHIFT;
 			tec_bits->b60 = 1;
 			tec_bits->b61 = 1;
 			break;
@@ -783,7 +784,8 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 
 	if (!len)
 		return 0;
-	rc = get_vcpu_asce(vcpu, &asce, ar, mode);
+	ga = kvm_s390_logical_to_effective(vcpu, ga);
+	rc = get_vcpu_asce(vcpu, &asce, ga, ar, mode);
 	if (rc)
 		return rc;
 	nr_pages = (((ga & ~PAGE_MASK) + len - 1) >> PAGE_SHIFT) + 1;
@@ -854,7 +856,7 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
 
 	gva = kvm_s390_logical_to_effective(vcpu, gva);
 	tec = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
-	rc = get_vcpu_asce(vcpu, &asce, ar, mode);
+	rc = get_vcpu_asce(vcpu, &asce, gva, ar, mode);
 	tec->addr = gva >> PAGE_SHIFT;
 	if (rc)
 		return rc;
