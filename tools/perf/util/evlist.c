@@ -946,9 +946,12 @@ static int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 	if (cpu_map__empty(evlist->cpus))
 		evlist->nr_mmaps = thread_map__nr(evlist->threads);
 	evlist->mmap = zalloc(evlist->nr_mmaps * sizeof(struct perf_mmap));
+	if (!evlist->mmap)
+		return -ENOMEM;
+
 	for (i = 0; i < evlist->nr_mmaps; i++)
 		evlist->mmap[i].fd = -1;
-	return evlist->mmap != NULL ? 0 : -ENOMEM;
+	return 0;
 }
 
 struct mmap_params {
