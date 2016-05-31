@@ -832,20 +832,22 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 	err = nwl_pcie_init_irq_domain(pcie);
 	if (err) {
 		dev_err(pcie->dev, "Failed creating IRQ Domain\n");
-		return err;
+		goto error;
 	}
 
 	bus = pci_create_root_bus(&pdev->dev, pcie->root_busno,
 				  &nwl_pcie_ops, pcie, &res);
-	if (!bus)
-		return -ENOMEM;
+	if (!bus) {
+		err = -ENOMEM;
+		goto error;
+	}
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = nwl_pcie_enable_msi(pcie, bus);
 		if (err < 0) {
 			dev_err(&pdev->dev,
 				"failed to enable MSI support: %d\n", err);
-			return err;
+			goto error;
 		}
 	}
 	pci_scan_child_bus(bus);
@@ -855,6 +857,10 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 	pci_bus_add_devices(bus);
 	platform_set_drvdata(pdev, pcie);
 	return 0;
+
+error:
+	pci_free_resource_list(&res);
+	return err;
 }
 
 static int nwl_pcie_remove(struct platform_device *pdev)
