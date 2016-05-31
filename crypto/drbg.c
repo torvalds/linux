@@ -252,8 +252,10 @@ MODULE_ALIAS_CRYPTO("drbg_nopr_ctr_aes192");
 MODULE_ALIAS_CRYPTO("drbg_pr_ctr_aes128");
 MODULE_ALIAS_CRYPTO("drbg_nopr_ctr_aes128");
 
-static int drbg_kcapi_sym(struct drbg_state *drbg, const unsigned char *key,
-			  unsigned char *outval, const struct drbg_string *in);
+static void drbg_kcapi_symsetkey(struct drbg_state *drbg,
+				 const unsigned char *key);
+static int drbg_kcapi_sym(struct drbg_state *drbg, unsigned char *outval,
+			  const struct drbg_string *in);
 static int drbg_init_sym_kernel(struct drbg_state *drbg);
 static int drbg_fini_sym_kernel(struct drbg_state *drbg);
 
@@ -270,6 +272,7 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
 	drbg_string_fill(&data, out, drbg_blocklen(drbg));
 
 	/* 10.4.3 step 2 / 4 */
+	drbg_kcapi_symsetkey(drbg, key);
 	list_for_each_entry(curr, in, list) {
 		const unsigned char *pos = curr->buf;
 		size_t len = curr->len;
@@ -278,7 +281,7 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
 			/* 10.4.3 step 4.2 */
 			if (drbg_blocklen(drbg) == cnt) {
 				cnt = 0;
-				ret = drbg_kcapi_sym(drbg, key, out, &data);
+				ret = drbg_kcapi_sym(drbg, out, &data);
 				if (ret)
 					return ret;
 			}
@@ -290,7 +293,7 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
 	}
 	/* 10.4.3 step 4.2 for last block */
 	if (cnt)
-		ret = drbg_kcapi_sym(drbg, key, out, &data);
+		ret = drbg_kcapi_sym(drbg, out, &data);
 
 	return ret;
 }
@@ -425,6 +428,7 @@ static int drbg_ctr_df(struct drbg_state *drbg,
 	/* 10.4.2 step 12: overwriting of outval is implemented in next step */
 
 	/* 10.4.2 step 13 */
+	drbg_kcapi_symsetkey(drbg, temp);
 	while (generated_len < bytes_to_return) {
 		short blocklen = 0;
 		/*
@@ -432,7 +436,7 @@ static int drbg_ctr_df(struct drbg_state *drbg,
 		 * implicit as the key is only drbg_blocklen in size based on
 		 * the implementation of the cipher function callback
 		 */
-		ret = drbg_kcapi_sym(drbg, temp, X, &cipherin);
+		ret = drbg_kcapi_sym(drbg, X, &cipherin);
 		if (ret)
 			goto out;
 		blocklen = (drbg_blocklen(drbg) <
@@ -488,6 +492,7 @@ static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 		ret = drbg_ctr_df(drbg, df_data, drbg_statelen(drbg), seed);
 		if (ret)
 			goto out;
+		drbg_kcapi_symsetkey(drbg, drbg->C);
 	}
 
 	drbg_string_fill(&cipherin, drbg->V, drbg_blocklen(drbg));
@@ -500,7 +505,7 @@ static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 		crypto_inc(drbg->V, drbg_blocklen(drbg));
 		/*
 		 * 10.2.1.2 step 2.2 */
-		ret = drbg_kcapi_sym(drbg, drbg->C, temp + len, &cipherin);
+		ret = drbg_kcapi_sym(drbg, temp + len, &cipherin);
 		if (ret)
 			goto out;
 		/* 10.2.1.2 step 2.3 and 3 */
@@ -517,6 +522,7 @@ static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 
 	/* 10.2.1.2 step 5 */
 	memcpy(drbg->C, temp, drbg_keylen(drbg));
+	drbg_kcapi_symsetkey(drbg, drbg->C);
 	/* 10.2.1.2 step 6 */
 	memcpy(drbg->V, temp + drbg_keylen(drbg), drbg_blocklen(drbg));
 	ret = 0;
@@ -546,6 +552,7 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 		ret = drbg_ctr_update(drbg, addtl, 2);
 		if (ret)
 			return 0;
+		drbg_kcapi_symsetkey(drbg, drbg->C);
 	}
 
 	/* 10.2.1.5.2 step 4.1 */
@@ -554,7 +561,7 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 	while (len < buflen) {
 		int outlen = 0;
 		/* 10.2.1.5.2 step 4.2 */
-		ret = drbg_kcapi_sym(drbg, drbg->C, drbg->scratchpad, &data);
+		ret = drbg_kcapi_sym(drbg, drbg->scratchpad, &data);
 		if (ret) {
 			len = ret;
 			goto out;
@@ -1653,13 +1660,21 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 	return 0;
 }
 
-static int drbg_kcapi_sym(struct drbg_state *drbg, const unsigned char *key,
-			  unsigned char *outval, const struct drbg_string *in)
+static void drbg_kcapi_symsetkey(struct drbg_state *drbg,
+				 const unsigned char *key)
 {
 	struct crypto_cipher *tfm =
 		(struct crypto_cipher *)drbg->priv_data;
 
 	crypto_cipher_setkey(tfm, key, (drbg_keylen(drbg)));
+}
+
+static int drbg_kcapi_sym(struct drbg_state *drbg, unsigned char *outval,
+			  const struct drbg_string *in)
+{
+	struct crypto_cipher *tfm =
+		(struct crypto_cipher *)drbg->priv_data;
+
 	/* there is only component in *in */
 	BUG_ON(in->len < drbg_blocklen(drbg));
 	crypto_cipher_encrypt_one(tfm, outval, in->buf);
