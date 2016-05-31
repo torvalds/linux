@@ -86,6 +86,24 @@ unsigned int mctrl_gpio_get(struct mctrl_gpios *gpios, unsigned int *mctrl)
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_get);
 
+unsigned int
+mctrl_gpio_get_outputs(struct mctrl_gpios *gpios, unsigned int *mctrl)
+{
+	enum mctrl_gpio_idx i;
+
+	for (i = 0; i < UART_GPIO_MAX; i++) {
+		if (gpios->gpio[i] && mctrl_gpios_desc[i].dir_out) {
+			if (gpiod_get_value(gpios->gpio[i]))
+				*mctrl |= mctrl_gpios_desc[i].mctrl;
+			else
+				*mctrl &= ~mctrl_gpios_desc[i].mctrl;
+		}
+	}
+
+	return *mctrl;
+}
+EXPORT_SYMBOL_GPL(mctrl_gpio_get_outputs);
+
 struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 {
 	struct mctrl_gpios *gpios;
