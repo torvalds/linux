@@ -36,8 +36,8 @@
 #define KS_WLAN_GET_SCAN_TYPE		SIOCIWFIRSTPRIV+13
 #define KS_WLAN_SET_RX_GAIN		SIOCIWFIRSTPRIV+14
 #define KS_WLAN_GET_RX_GAIN		SIOCIWFIRSTPRIV+15
-#define KS_WLAN_HOSTT			SIOCIWFIRSTPRIV+16  /* unused */
-//#define KS_WLAN_SET_REGION		SIOCIWFIRSTPRIV+17
+#define KS_WLAN_HOSTT			SIOCIWFIRSTPRIV+16	/* unused */
+//#define KS_WLAN_SET_REGION            SIOCIWFIRSTPRIV+17
 #define KS_WLAN_SET_BEACON_LOST		SIOCIWFIRSTPRIV+18
 #define KS_WLAN_GET_BEACON_LOST		SIOCIWFIRSTPRIV+19
 
@@ -51,8 +51,8 @@
 #define KS_WLAN_GET_CTS_MODE		SIOCIWFIRSTPRIV+25
 /*					SIOCIWFIRSTPRIV+26 */
 /*					SIOCIWFIRSTPRIV+27 */
-#define KS_WLAN_SET_SLEEP_MODE		SIOCIWFIRSTPRIV+28 /* sleep mode */
-#define KS_WLAN_GET_SLEEP_MODE		SIOCIWFIRSTPRIV+29 /* sleep mode */
+#define KS_WLAN_SET_SLEEP_MODE		SIOCIWFIRSTPRIV+28	/* sleep mode */
+#define KS_WLAN_GET_SLEEP_MODE		SIOCIWFIRSTPRIV+29	/* sleep mode */
 /*					SIOCIWFIRSTPRIV+30 */
 /*					SIOCIWFIRSTPRIV+31 */
 
@@ -62,7 +62,8 @@
 #include <linux/netdevice.h>
 
 extern int ks_wlan_read_config_file(struct ks_wlan_private *priv);
-extern int ks_wlan_setup_parameter(struct ks_wlan_private *priv, unsigned int commit_flag);
+extern int ks_wlan_setup_parameter(struct ks_wlan_private *priv,
+				   unsigned int commit_flag);
 
 #endif /* __KERNEL__ */
 
