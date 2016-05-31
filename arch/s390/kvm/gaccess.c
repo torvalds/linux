@@ -910,37 +910,28 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
 			    unsigned long *gpa, enum gacc_mode mode)
 {
-	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-	struct trans_exc_code_bits *tec;
 	union asce asce;
 	int rc;
 
 	gva = kvm_s390_logical_to_effective(vcpu, gva);
-	tec = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
 	rc = get_vcpu_asce(vcpu, &asce, gva, ar, mode);
-	tec->addr = gva >> PAGE_SHIFT;
 	if (rc)
 		return rc;
 	if (is_low_address(gva) && low_address_protection_enabled(vcpu, asce)) {
-		if (mode == GACC_STORE) {
-			rc = pgm->code = PGM_PROTECTION;
-			return rc;
-		}
+		if (mode == GACC_STORE)
+			return trans_exc(vcpu, PGM_PROTECTION, gva, 0,
+					 mode, PROT_TYPE_LA);
 	}
 
 	if (psw_bits(*psw).t && !asce.r) {	/* Use DAT? */
 		rc = guest_translate(vcpu, gva, gpa, asce, mode);
-		if (rc > 0) {
-			if (rc == PGM_PROTECTION)
-				tec->b61 = 1;
-			pgm->code = rc;
-		}
+		if (rc > 0)
+			return trans_exc(vcpu, rc, gva, 0, mode, PROT_TYPE_DAT);
 	} else {
-		rc = 0;
 		*gpa = kvm_s390_real_to_abs(vcpu, gva);
 		if (kvm_is_error_gpa(vcpu->kvm, *gpa))
-			rc = pgm->code = PGM_ADDRESSING;
+			return trans_exc(vcpu, rc, gva, PGM_ADDRESSING, mode, 0);
 	}
 
 	return rc;
