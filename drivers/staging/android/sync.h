@@ -28,18 +28,11 @@ struct sync_timeline;
 /**
  * struct sync_timeline_ops - sync object implementation ops
  * @driver_name:	name of the implementation
- * @has_signaled:	returns:
- *			  1 if pt has signaled
- *			  0 if pt has not signaled
- *			 <0 on error
  * @timeline_value_str: fill str with the value of the sync_timeline's counter
  * @fence_value_str:	fill str with the value of the fence
  */
 struct sync_timeline_ops {
 	const char *driver_name;
-
-	/* required */
-	int (*has_signaled)(struct fence *fence);
 
 	/* optional */
 	void (*timeline_value_str)(struct sync_timeline *timeline, char *str,
@@ -117,23 +110,26 @@ void sync_timeline_destroy(struct sync_timeline *obj);
 /**
  * sync_timeline_signal() - signal a status change on a sync_timeline
  * @obj:	sync_timeline to signal
+ * @inc:	num to increment on timeline->value
  *
  * A sync implementation should call this any time one of it's fences
  * has signaled or has an error condition.
  */
-void sync_timeline_signal(struct sync_timeline *obj);
+void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc);
 
 /**
  * sync_pt_create() - creates a sync pt
  * @parent:	fence's parent sync_timeline
  * @size:	size to allocate for this pt
+ * @inc:	value of the fence
  *
  * Creates a new fence as a child of @parent.  @size bytes will be
  * allocated allowing for implementation specific data to be kept after
  * the generic sync_timeline struct. Returns the fence object or
  * NULL in case of error.
  */
-struct fence *sync_pt_create(struct sync_timeline *parent, int size);
+struct fence *sync_pt_create(struct sync_timeline *parent, int size,
+			     unsigned int inc);
 
 #ifdef CONFIG_DEBUG_FS
 

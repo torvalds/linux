@@ -90,7 +90,7 @@ void sync_timeline_destroy(struct sync_timeline *obj)
 }
 EXPORT_SYMBOL(sync_timeline_destroy);
 
-void sync_timeline_signal(struct sync_timeline *obj)
+void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 {
 	unsigned long flags;
 	struct fence *fence, *next;
@@ -98,6 +98,8 @@ void sync_timeline_signal(struct sync_timeline *obj)
 	trace_sync_timeline(obj);
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
+
+	obj->value += inc;
 
 	list_for_each_entry_safe(fence, next, &obj->active_list_head,
 				 active_list) {
@@ -109,7 +111,8 @@ void sync_timeline_signal(struct sync_timeline *obj)
 }
 EXPORT_SYMBOL(sync_timeline_signal);
 
-struct fence *sync_pt_create(struct sync_timeline *obj, int size)
+struct fence *sync_pt_create(struct sync_timeline *obj, int size,
+			     unsigned int value)
 {
 	unsigned long flags;
 	struct fence *fence;
@@ -124,7 +127,7 @@ struct fence *sync_pt_create(struct sync_timeline *obj, int size)
 	spin_lock_irqsave(&obj->child_list_lock, flags);
 	sync_timeline_get(obj);
 	fence_init(fence, &android_fence_ops, &obj->child_list_lock,
-		   obj->context, ++obj->value);
+		   obj->context, value);
 	list_add_tail(&fence->child_list, &obj->child_list_head);
 	INIT_LIST_HEAD(&fence->active_list);
 	spin_unlock_irqrestore(&obj->child_list_lock, flags);
@@ -164,12 +167,8 @@ static void android_fence_release(struct fence *fence)
 static bool android_fence_signaled(struct fence *fence)
 {
 	struct sync_timeline *parent = fence_parent(fence);
-	int ret;
 
-	ret = parent->ops->has_signaled(fence);
-	if (ret < 0)
-		fence->status = ret;
-	return ret;
+	return (fence->seqno > parent->value) ? false : true;
 }
 
 static bool android_fence_enable_signaling(struct fence *fence)
