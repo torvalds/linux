@@ -50,6 +50,7 @@
 #define CLK_PWM			279
 #define CLK_MCT			315
 #define CLK_RTC			317
+#define CLK_TMU			318
 #define CLK_MMC0		351
 #define CLK_MMC1		352
 #define CLK_MMC2		353
