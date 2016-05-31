@@ -189,19 +189,17 @@ static void hdlcd_crtc_atomic_begin(struct drm_crtc *crtc,
 				    struct drm_crtc_state *state)
 {
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
-	unsigned long flags;
+	struct drm_pending_vblank_event *event = crtc->state->event;
 
-	if (crtc->state->event) {
-		struct drm_pending_vblank_event *event = crtc->state->event;
-
+	if (event) {
 		crtc->state->event = NULL;
-		event->pipe = drm_crtc_index(crtc);
 
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-		list_add_tail(&event->base.link, &hdlcd->event_list);
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+		spin_lock_irq(&crtc->dev->event_lock);
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irq(&crtc->dev->event_lock);
 	}
 }
 

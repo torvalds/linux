@@ -49,8 +49,6 @@ static int hdlcd_load(struct drm_device *drm, unsigned long flags)
 	atomic_set(&hdlcd->dma_end_count, 0);
 #endif
 
-	INIT_LIST_HEAD(&hdlcd->event_list);
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hdlcd->mmio = devm_ioremap_resource(drm->dev, res);
 	if (IS_ERR(hdlcd->mmio)) {
@@ -160,23 +158,8 @@ static irqreturn_t hdlcd_irq(int irq, void *arg)
 		atomic_inc(&hdlcd->vsync_count);
 
 #endif
-	if (irq_status & HDLCD_INTERRUPT_VSYNC) {
-		bool events_sent = false;
-		unsigned long flags;
-		struct drm_pending_vblank_event	*e, *t;
-
+	if (irq_status & HDLCD_INTERRUPT_VSYNC)
 		drm_crtc_handle_vblank(&hdlcd->crtc);
-
-		spin_lock_irqsave(&drm->event_lock, flags);
-		list_for_each_entry_safe(e, t, &hdlcd->event_list, base.link) {
-			list_del(&e->base.link);
-			drm_crtc_send_vblank_event(&hdlcd->crtc, e);
-			events_sent = true;
-		}
-		if (events_sent)
-			drm_crtc_vblank_put(&hdlcd->crtc);
-		spin_unlock_irqrestore(&drm->event_lock, flags);
-	}
 
 	/* acknowledge interrupt(s) */
 	hdlcd_write(hdlcd, HDLCD_REG_INT_CLEAR, irq_status);
