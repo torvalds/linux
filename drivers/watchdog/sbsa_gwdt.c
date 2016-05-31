@@ -273,7 +273,7 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	wdd->info = &sbsa_gwdt_info;
 	wdd->ops = &sbsa_gwdt_ops;
 	wdd->min_timeout = 1;
-	wdd->max_timeout = U32_MAX / gwdt->clk;
+	wdd->max_hw_heartbeat_ms = U32_MAX / gwdt->clk * 1000;
 	wdd->timeout = DEFAULT_TIMEOUT;
 	watchdog_set_drvdata(wdd, gwdt);
 	watchdog_set_nowayout(wdd, nowayout);
@@ -310,7 +310,7 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 	 * the timeout is (WOR * 2), so the maximum timeout should be doubled.
 	 */
 	if (!action)
-		wdd->max_timeout *= 2;
+		wdd->max_hw_heartbeat_ms *= 2;
 
 	watchdog_init_timeout(wdd, timeout, dev);
 	/*
