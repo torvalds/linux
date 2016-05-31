@@ -65,7 +65,7 @@ static void uniphier_pctl_pin_dbg_show(struct pinctrl_dev *pctldev,
 				       struct seq_file *s, unsigned offset)
 {
 	const struct pinctrl_pin_desc *pin = &pctldev->desc->pins[offset];
-	const char *pull_dir, *drv_str;
+	const char *pull_dir, *drv_type;
 
 	switch (uniphier_pin_get_pull_dir(pin->drv_data)) {
 	case UNIPHIER_PIN_PULL_UP:
@@ -87,30 +87,30 @@ static void uniphier_pctl_pin_dbg_show(struct pinctrl_dev *pctldev,
 		BUG();
 	}
 
-	switch (uniphier_pin_get_drv_str(pin->drv_data)) {
-	case UNIPHIER_PIN_DRV_4_8:
-		drv_str = "4/8(mA)";
+	switch (uniphier_pin_get_drv_type(pin->drv_data)) {
+	case UNIPHIER_PIN_DRV_1BIT:
+		drv_type = "4/8(mA)";
 		break;
-	case UNIPHIER_PIN_DRV_8_12_16_20:
-		drv_str = "8/12/16/20(mA)";
+	case UNIPHIER_PIN_DRV_2BIT:
+		drv_type = "8/12/16/20(mA)";
 		break;
-	case UNIPHIER_PIN_DRV_FIXED_4:
-		drv_str = "4(mA)";
+	case UNIPHIER_PIN_DRV_FIXED4:
+		drv_type = "4(mA)";
 		break;
-	case UNIPHIER_PIN_DRV_FIXED_5:
-		drv_str = "5(mA)";
+	case UNIPHIER_PIN_DRV_FIXED5:
+		drv_type = "5(mA)";
 		break;
-	case UNIPHIER_PIN_DRV_FIXED_8:
-		drv_str = "8(mA)";
+	case UNIPHIER_PIN_DRV_FIXED8:
+		drv_type = "8(mA)";
 		break;
 	case UNIPHIER_PIN_DRV_NONE:
-		drv_str = "NONE";
+		drv_type = "NONE";
 		break;
 	default:
 		BUG();
 	}
 
-	seq_printf(s, " PULL_DIR=%s  DRV_STR=%s", pull_dir, drv_str);
+	seq_printf(s, " PULL_DIR=%s  DRV_TYPE=%s", pull_dir, drv_type);
 }
 #endif
 
@@ -180,30 +180,30 @@ static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
 				       u16 *strength)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
-	enum uniphier_pin_drv_str drv_str =
-				uniphier_pin_get_drv_str(pin->drv_data);
-	const unsigned int strength_4_8[] = {4, 8};
-	const unsigned int strength_8_12_16_20[] = {8, 12, 16, 20};
+	enum uniphier_pin_drv_type type =
+				uniphier_pin_get_drv_type(pin->drv_data);
+	const unsigned int strength_1bit[] = {4, 8};
+	const unsigned int strength_2bit[] = {8, 12, 16, 20};
 	const unsigned int *supported_strength;
 	unsigned int drvctrl, reg, shift, mask, width, val;
 	int ret;
 
-	switch (drv_str) {
-	case UNIPHIER_PIN_DRV_4_8:
-		supported_strength = strength_4_8;
+	switch (type) {
+	case UNIPHIER_PIN_DRV_1BIT:
+		supported_strength = strength_1bit;
 		width = 1;
 		break;
-	case UNIPHIER_PIN_DRV_8_12_16_20:
-		supported_strength = strength_8_12_16_20;
+	case UNIPHIER_PIN_DRV_2BIT:
+		supported_strength = strength_2bit;
 		width = 2;
 		break;
-	case UNIPHIER_PIN_DRV_FIXED_4:
+	case UNIPHIER_PIN_DRV_FIXED4:
 		*strength = 4;
 		return 0;
-	case UNIPHIER_PIN_DRV_FIXED_5:
+	case UNIPHIER_PIN_DRV_FIXED5:
 		*strength = 5;
 		return 0;
-	case UNIPHIER_PIN_DRV_FIXED_8:
+	case UNIPHIER_PIN_DRV_FIXED8:
 		*strength = 8;
 		return 0;
 	default:
@@ -364,20 +364,20 @@ static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
 				       u16 strength)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
-	enum uniphier_pin_drv_str drv_str =
-				uniphier_pin_get_drv_str(pin->drv_data);
-	const unsigned int strength_4_8[] = {4, 8, -1};
-	const unsigned int strength_8_12_16_20[] = {8, 12, 16, 20, -1};
+	enum uniphier_pin_drv_type type =
+				uniphier_pin_get_drv_type(pin->drv_data);
+	const unsigned int strength_1bit[] = {4, 8, -1};
+	const unsigned int strength_2bit[] = {8, 12, 16, 20, -1};
 	const unsigned int *supported_strength;
 	unsigned int drvctrl, reg, shift, mask, width, val;
 
-	switch (drv_str) {
-	case UNIPHIER_PIN_DRV_4_8:
-		supported_strength = strength_4_8;
+	switch (type) {
+	case UNIPHIER_PIN_DRV_1BIT:
+		supported_strength = strength_1bit;
 		width = 1;
 		break;
-	case UNIPHIER_PIN_DRV_8_12_16_20:
-		supported_strength = strength_8_12_16_20;
+	case UNIPHIER_PIN_DRV_2BIT:
+		supported_strength = strength_2bit;
 		width = 2;
 		break;
 	default:
