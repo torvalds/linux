@@ -2227,8 +2227,8 @@ static int __ffs_data_got_strings(struct ffs_data *ffs,
 {
 	u32 str_count, needed_count, lang_count;
 	struct usb_gadget_strings **stringtabs, *t;
-	struct usb_string *strings, *s;
 	const char *data = _data;
+	struct usb_string *s;
 
 	ENTER();
 
@@ -2286,7 +2286,6 @@ static int __ffs_data_got_strings(struct ffs_data *ffs,
 		stringtabs = vla_ptr(vlabuf, d, stringtabs);
 		t = vla_ptr(vlabuf, d, stringtab);
 		s = vla_ptr(vlabuf, d, strings);
-		strings = s;
 	}
 
 	/* For each language */
