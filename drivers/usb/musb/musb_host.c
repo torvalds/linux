@@ -1556,7 +1556,7 @@ static int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
 				  struct urb *urb,
 				  size_t len)
 {
-	struct dma_channel *channel = hw_ep->tx_channel;
+	struct dma_channel *channel = hw_ep->rx_channel;
 	void __iomem *epio = hw_ep->regs;
 	dma_addr_t *buf;
 	u32 length, res;
