@@ -166,6 +166,7 @@ struct uniphier_pinctrl_socdata {
 	const struct uniphier_pinmux_function *functions;
 	int functions_count;
 	unsigned int caps;
+#define UNIPHIER_PINCTRL_CAPS_PERPIN_IECTRL	BIT(1)
 #define UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE	BIT(0)
 };
 

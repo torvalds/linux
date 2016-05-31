@@ -433,22 +433,24 @@ static int uniphier_conf_pin_input_enable(struct pinctrl_dev *pctldev,
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
 	unsigned int iectrl = uniphier_pin_get_iectrl(desc->drv_data);
+	unsigned int reg, mask;
 
-	if (enable == 0) {
-		/*
-		 * Multiple pins share one input enable, so per-pin disabling
-		 * is impossible.
-		 */
-		dev_err(pctldev->dev, "unable to disable input\n");
+	/*
+	 * Multiple pins share one input enable, per-pin disabling is
+	 * impossible.
+	 */
+	if (!(priv->socdata->caps & UNIPHIER_PINCTRL_CAPS_PERPIN_IECTRL) &&
+	    !enable)
 		return -EINVAL;
-	}
 
+	/* UNIPHIER_PIN_IECTRL_NONE means the pin is always input-enabled */
 	if (iectrl == UNIPHIER_PIN_IECTRL_NONE)
-		/* This pin is always input-enabled. nothing to do. */
-		return 0;
+		return enable ? 0 : -EINVAL;
 
-	return regmap_update_bits(priv->regmap, UNIPHIER_PINCTRL_IECTRL,
-				  BIT(iectrl), BIT(iectrl));
+	reg = UNIPHIER_PINCTRL_IECTRL + iectrl / 32 * 4;
+	mask = BIT(iectrl % 32);
+
+	return regmap_update_bits(priv->regmap, reg, mask, enable ? mask : 0);
 }
 
 static int uniphier_conf_pin_config_set(struct pinctrl_dev *pctldev,
