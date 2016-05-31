@@ -1256,7 +1256,7 @@
 				#size-cells = <0>;
 				reg = <3>;
 
-				ipu1_di0_disp1: disp1-endpoint {
+				ipu1_di1_disp1: disp1-endpoint {
 				};
 
 				ipu1_di1_hdmi: hdmi-endpoint {

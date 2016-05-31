@@ -93,7 +93,7 @@
 			reg = <0>;
 
 			lcd_display_in: endpoint {
-				remote-endpoint = <&ipu1_di0_disp1>;
+				remote-endpoint = <&ipu1_di1_disp1>;
 			};
 		};
 
@@ -210,7 +210,7 @@
 	};
 };
 
-&ipu1_di0_disp1 {
+&ipu1_di1_disp1 {
 	remote-endpoint = <&lcd_display_in>;
 };
 
