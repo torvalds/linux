@@ -279,7 +279,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	__asm__ __volatile__(
 	"0:	mov	%[delay], 1		\n"
 	"1:	llock	%[val], [%[slock]]	\n"
-	"	breq	%[val], %[LOCKED], 0b	\n"	/* spin while LOCKED */
+	"	breq	%[val], %[LOCKED], 1b	\n"	/* spin while LOCKED */
 	"	scond	%[LOCKED], [%[slock]]	\n"	/* acquire */
 	"	bz	4f			\n"	/* done */
 	"					\n"
@@ -358,7 +358,7 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 	__asm__ __volatile__(
 	"0:	mov	%[delay], 1		\n"
 	"1:	llock	%[val], [%[rwlock]]	\n"
-	"	brls	%[val], %[WR_LOCKED], 0b\n"	/* <= 0: spin while write locked */
+	"	brls	%[val], %[WR_LOCKED], 1b\n"	/* <= 0: spin while write locked */
 	"	sub	%[val], %[val], 1	\n"	/* reader lock */
 	"	scond	%[val], [%[rwlock]]	\n"
 	"	bz	4f			\n"	/* done */
@@ -427,7 +427,7 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 	__asm__ __volatile__(
 	"0:	mov	%[delay], 1		\n"
 	"1:	llock	%[val], [%[rwlock]]	\n"
-	"	brne	%[val], %[UNLOCKED], 0b	\n"	/* while !UNLOCKED spin */
+	"	brne	%[val], %[UNLOCKED], 1b	\n"	/* while !UNLOCKED spin */
 	"	mov	%[val], %[WR_LOCKED]	\n"
 	"	scond	%[val], [%[rwlock]]	\n"
 	"	bz	4f			\n"
