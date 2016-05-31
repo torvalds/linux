@@ -56,11 +56,13 @@ void __init ptff_init(void);
 
 extern unsigned char ptff_function_mask[16];
 extern unsigned long lpar_offset;
+extern unsigned long initial_leap_seconds;
 
 /* Function codes for the ptff instruction. */
 #define PTFF_QAF	0x00	/* query available functions */
 #define PTFF_QTO	0x01	/* query tod offset */
 #define PTFF_QSI	0x02	/* query steering information */
+#define PTFF_QUI	0x04	/* query UTC information */
 #define PTFF_ATO	0x40	/* adjust tod offset */
 #define PTFF_STO	0x41	/* set tod offset */
 #define PTFF_SFS	0x42	/* set fine steering rate */
@@ -81,6 +83,22 @@ static inline int ptff_query(unsigned int nr)
 	ptr = ptff_function_mask + (nr >> 3);
 	return (*ptr & (0x80 >> (nr & 7))) != 0;
 }
+
+/* Query UTC information result */
+struct ptff_qui {
+	unsigned int tm : 2;
+	unsigned int ts : 2;
+	unsigned int : 28;
+	unsigned int pad_0x04;
+	unsigned long leap_event;
+	short old_leap;
+	short new_leap;
+	unsigned int pad_0x14;
+	unsigned long prt[5];
+	unsigned long cst[3];
+	unsigned int skew;
+	unsigned int pad_0x5c[41];
+} __packed;
 
 static inline int ptff(void *ptff_block, size_t len, unsigned int func)
 {

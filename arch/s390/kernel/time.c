@@ -64,6 +64,7 @@ EXPORT_SYMBOL(s390_epoch_delta_notifier);
 
 unsigned char ptff_function_mask[16];
 unsigned long lpar_offset;
+unsigned long initial_leap_seconds;
 
 /*
  * Get time offsets with PTFF
@@ -71,6 +72,7 @@ unsigned long lpar_offset;
 void __init ptff_init(void)
 {
 	struct ptff_qto qto;
+	struct ptff_qui qui;
 
 	if (!test_facility(28))
 		return;
@@ -79,6 +81,11 @@ void __init ptff_init(void)
 	/* get LPAR offset */
 	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
 		lpar_offset = qto.tod_epoch_difference;
+
+	/* get initial leap seconds */
+	if (ptff_query(PTFF_QUI) && ptff(&qui, sizeof(qui), PTFF_QUI) == 0)
+		initial_leap_seconds = (unsigned long)
+			((long) qui.old_leap * 4096000000L);
 }
 
 /*
@@ -200,12 +207,18 @@ static void stp_reset(void);
 
 void read_persistent_clock64(struct timespec64 *ts)
 {
-	tod_to_timeval(get_tod_clock() - TOD_UNIX_EPOCH, ts);
+	__u64 clock;
+
+	clock = get_tod_clock() - initial_leap_seconds;
+	tod_to_timeval(clock - TOD_UNIX_EPOCH, ts);
 }
 
 void read_boot_clock64(struct timespec64 *ts)
 {
-	tod_to_timeval(sched_clock_base_cc - TOD_UNIX_EPOCH, ts);
+	__u64 clock;
+
+	clock = sched_clock_base_cc - initial_leap_seconds;
+	tod_to_timeval(clock - TOD_UNIX_EPOCH, ts);
 }
 
 static cycle_t read_tod_clock(struct clocksource *cs)
