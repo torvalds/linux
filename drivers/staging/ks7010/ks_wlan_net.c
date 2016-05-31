@@ -1,15 +1,12 @@
 /*
  *   Driver for KeyStream 11b/g wireless LAN
  *
- *   ks_wlan_net.c
- *   $Id: ks_wlan_net.c 1020 2009-09-28 05:48:31Z sekine $
- *
  *   Copyright (C) 2005-2008 KeyStream Corp.
  *   Copyright (C) 2009 Renesas Technology Corp.
  *
  *   This program is free software; you can redistribute it and/or modify
- *   it undr the terms of the GNU General Public License version 2 as
- *   published by the Free Sotware Foundation.
+ *   it under the terms of the GNU General Public License version 2 as
+ *   published by the Free Software Foundation.
  */
 
 #include <linux/version.h>

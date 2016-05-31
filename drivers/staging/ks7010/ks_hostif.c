@@ -1,15 +1,12 @@
 /*
  *   Driver for KeyStream wireless LAN cards.
  *
- *   ks_hostif.c
- *   $Id: ks_hostif.c 996 2009-09-14 02:54:21Z sekine $
- *
  *   Copyright (C) 2005-2008 KeyStream Corp.
  *   Copyright (C) 2009 Renesas Technology Corp.
  *
  *   This program is free software; you can redistribute it and/or modify
- *   it undr the terms of the GNU General Public License version 2 as
- *   published by the Free Sotware Foundation.
+ *   it under the terms of the GNU General Public License version 2 as
+ *   published by the Free Software Foundation.
  */
 
 #include "ks_wlan.h"

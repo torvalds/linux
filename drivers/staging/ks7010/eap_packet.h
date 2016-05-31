@@ -1,9 +1,3 @@
-/*
- *
- *   eap_packet.h 
- *   $Id: eap_packet.h 991 2009-09-14 01:38:58Z sekine $
- *
- */
 #ifndef EAP_PACKET_H
 #define EAP_PACKET_H
 

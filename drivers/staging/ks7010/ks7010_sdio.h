@@ -1,16 +1,12 @@
 /*
- *
  *   Driver for KeyStream, KS7010 based SDIO cards. 
- *   
- *   ks7010_sdio.h
- *   $Id: ks7010_sdio.h 1019 2009-09-28 05:41:07Z sekine $
  *
  *   Copyright (C) 2006-2008 KeyStream Corp.
  *   Copyright (C) 2009 Renesas Technology Corp.
  *
  *   This program is free software; you can redistribute it and/or modify
- *   it undr the terms of the GNU General Public License version 2 as
- *   published by the Free Sotware Foundation.
+ *   it under the terms of the GNU General Public License version 2 as
+ *   published by the Free Software Foundation.
  */
 #ifndef _KS7010_SDIO_H
 #define _KS7010_SDIO_H

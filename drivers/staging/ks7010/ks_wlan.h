@@ -1,15 +1,12 @@
 /*
  *   Driver for KeyStream IEEE802.11 b/g wireless LAN cards.
- *   
- *   ks_wlan.h
- *   $Id: ks_wlan.h 994 2009-09-14 01:51:16Z sekine $
  *
  *   Copyright (C) 2006-2008 KeyStream Corp.
  *   Copyright (C) 2009 Renesas Technology Corp.
  *
  *   This program is free software; you can redistribute it and/or modify
- *   it undr the terms of the GNU General Public License version 2 as
- *   published by the Free Sotware Foundation.
+ *   it under the terms of the GNU General Public License version 2 as
+ *   published by the Free Software Foundation.
  */
 
 #ifndef _KS_WLAN_H

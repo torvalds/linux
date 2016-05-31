@@ -1,15 +1,12 @@
 /*
  *   Driver for KeyStream wireless LAN
  *
- *   michael_mic.c
- *   $Id: michael_mic.c 991 2009-09-14 01:38:58Z sekine $
- *
  *   Copyright (C) 2005-2008 KeyStream Corp.
  *   Copyright (C) 2009 Renesas Technology Corp.
  *
  *   This program is free software; you can redistribute it and/or modify
- *   it undr the terms of the GNU General Public License version 2 as
- *   published by the Free Sotware Foundation.
+ *   it under the terms of the GNU General Public License version 2 as
+ *   published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
