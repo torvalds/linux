@@ -19,9 +19,9 @@
 
 #include "pinctrl-uniphier.h"
 
-#define DRIVER_NAME "proxstream2-pinctrl"
+#define DRIVER_NAME "uniphier-pxs2-pinctrl"
 
-static const struct pinctrl_pin_desc proxstream2_pins[] = {
+static const struct pinctrl_pin_desc uniphier_pxs2_pins[] = {
 	UNIPHIER_PINCTRL_PIN(0, "ED0", UNIPHIER_PIN_IECTRL_NONE,
 			     0, UNIPHIER_PIN_DRV_4_8,
 			     0, UNIPHIER_PIN_PULL_DOWN),
@@ -848,7 +848,7 @@ static const unsigned xirq_muxvals[] = {
 	14, 14, 14, 14, 14, 14, 14, 14,			/* XIRQ16-23 */
 };
 
-static const struct uniphier_pinctrl_group proxstream2_groups[] = {
+static const struct uniphier_pinctrl_group uniphier_pxs2_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(emmc),
 	UNIPHIER_PINCTRL_GROUP(emmc_dat8),
 	UNIPHIER_PINCTRL_GROUP(i2c0),
@@ -1208,7 +1208,7 @@ static const char * const xirq_groups[] = {
 	"xirq20", "xirq21", "xirq22", "xirq23",
 };
 
-static const struct uniphier_pinmux_function proxstream2_functions[] = {
+static const struct uniphier_pinmux_function uniphier_pxs2_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(emmc),
 	UNIPHIER_PINMUX_FUNCTION(i2c0),
 	UNIPHIER_PINMUX_FUNCTION(i2c1),
@@ -1230,43 +1230,43 @@ static const struct uniphier_pinmux_function proxstream2_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(xirq),
 };
 
-static struct uniphier_pinctrl_socdata proxstream2_pindata = {
-	.groups = proxstream2_groups,
-	.groups_count = ARRAY_SIZE(proxstream2_groups),
-	.functions = proxstream2_functions,
-	.functions_count = ARRAY_SIZE(proxstream2_functions),
+static struct uniphier_pinctrl_socdata uniphier_pxs2_pindata = {
+	.groups = uniphier_pxs2_groups,
+	.groups_count = ARRAY_SIZE(uniphier_pxs2_groups),
+	.functions = uniphier_pxs2_functions,
+	.functions_count = ARRAY_SIZE(uniphier_pxs2_functions),
 	.mux_bits = 8,
 	.reg_stride = 4,
 	.load_pinctrl = false,
 };
 
-static struct pinctrl_desc proxstream2_pinctrl_desc = {
+static struct pinctrl_desc uniphier_pxs2_pinctrl_desc = {
 	.name = DRIVER_NAME,
-	.pins = proxstream2_pins,
-	.npins = ARRAY_SIZE(proxstream2_pins),
+	.pins = uniphier_pxs2_pins,
+	.npins = ARRAY_SIZE(uniphier_pxs2_pins),
 	.owner = THIS_MODULE,
 };
 
-static int proxstream2_pinctrl_probe(struct platform_device *pdev)
+static int uniphier_pxs2_pinctrl_probe(struct platform_device *pdev)
 {
-	return uniphier_pinctrl_probe(pdev, &proxstream2_pinctrl_desc,
-				      &proxstream2_pindata);
+	return uniphier_pinctrl_probe(pdev, &uniphier_pxs2_pinctrl_desc,
+				      &uniphier_pxs2_pindata);
 }
 
-static const struct of_device_id proxstream2_pinctrl_match[] = {
+static const struct of_device_id uniphier_pxs2_pinctrl_match[] = {
 	{ .compatible = "socionext,proxstream2-pinctrl" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, proxstream2_pinctrl_match);
+MODULE_DEVICE_TABLE(of, uniphier_pxs2_pinctrl_match);
 
-static struct platform_driver proxstream2_pinctrl_driver = {
-	.probe = proxstream2_pinctrl_probe,
+static struct platform_driver uniphier_pxs2_pinctrl_driver = {
+	.probe = uniphier_pxs2_pinctrl_probe,
 	.driver = {
 		.name = DRIVER_NAME,
-		.of_match_table = proxstream2_pinctrl_match,
+		.of_match_table = uniphier_pxs2_pinctrl_match,
 	},
 };
-module_platform_driver(proxstream2_pinctrl_driver);
+module_platform_driver(uniphier_pxs2_pinctrl_driver);
 
 MODULE_AUTHOR("Masahiro Yamada <yamada.masahiro@socionext.com>");
 MODULE_DESCRIPTION("UniPhier ProXstream2 pinctrl driver");

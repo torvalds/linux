@@ -19,9 +19,9 @@
 
 #include "pinctrl-uniphier.h"
 
-#define DRIVER_NAME "ph1-pro5-pinctrl"
+#define DRIVER_NAME "uniphier-pro5-pinctrl"
 
-static const struct pinctrl_pin_desc ph1_pro5_pins[] = {
+static const struct pinctrl_pin_desc uniphier_pro5_pins[] = {
 	UNIPHIER_PINCTRL_PIN(0, "AEXCKA1", 0,
 			     0, UNIPHIER_PIN_DRV_4_8,
 			     0, UNIPHIER_PIN_PULL_DOWN),
@@ -919,7 +919,7 @@ static const unsigned xirq_alternatives_muxvals[] = {
 	14, 14, 14, 14, 14, 14, 14, 14, 14,
 };
 
-static const struct uniphier_pinctrl_group ph1_pro5_groups[] = {
+static const struct uniphier_pinctrl_group uniphier_pro5_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(nand),
 	UNIPHIER_PINCTRL_GROUP(nand_cs1),
 	UNIPHIER_PINCTRL_GROUP(emmc),
@@ -1291,7 +1291,7 @@ static const char * const xirq_groups[] = {
 	"xirq18b", "xirq18c", "xirq19b", "xirq20b",
 };
 
-static const struct uniphier_pinmux_function ph1_pro5_functions[] = {
+static const struct uniphier_pinmux_function uniphier_pro5_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(emmc),
 	UNIPHIER_PINMUX_FUNCTION(i2c0),
 	UNIPHIER_PINMUX_FUNCTION(i2c1),
@@ -1312,43 +1312,43 @@ static const struct uniphier_pinmux_function ph1_pro5_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(xirq),
 };
 
-static struct uniphier_pinctrl_socdata ph1_pro5_pindata = {
-	.groups = ph1_pro5_groups,
-	.groups_count = ARRAY_SIZE(ph1_pro5_groups),
-	.functions = ph1_pro5_functions,
-	.functions_count = ARRAY_SIZE(ph1_pro5_functions),
+static struct uniphier_pinctrl_socdata uniphier_pro5_pindata = {
+	.groups = uniphier_pro5_groups,
+	.groups_count = ARRAY_SIZE(uniphier_pro5_groups),
+	.functions = uniphier_pro5_functions,
+	.functions_count = ARRAY_SIZE(uniphier_pro5_functions),
 	.mux_bits = 4,
 	.reg_stride = 8,
 	.load_pinctrl = true,
 };
 
-static struct pinctrl_desc ph1_pro5_pinctrl_desc = {
+static struct pinctrl_desc uniphier_pro5_pinctrl_desc = {
 	.name = DRIVER_NAME,
-	.pins = ph1_pro5_pins,
-	.npins = ARRAY_SIZE(ph1_pro5_pins),
+	.pins = uniphier_pro5_pins,
+	.npins = ARRAY_SIZE(uniphier_pro5_pins),
 	.owner = THIS_MODULE,
 };
 
-static int ph1_pro5_pinctrl_probe(struct platform_device *pdev)
+static int uniphier_pro5_pinctrl_probe(struct platform_device *pdev)
 {
-	return uniphier_pinctrl_probe(pdev, &ph1_pro5_pinctrl_desc,
-				      &ph1_pro5_pindata);
+	return uniphier_pinctrl_probe(pdev, &uniphier_pro5_pinctrl_desc,
+				      &uniphier_pro5_pindata);
 }
 
-static const struct of_device_id ph1_pro5_pinctrl_match[] = {
+static const struct of_device_id uniphier_pro5_pinctrl_match[] = {
 	{ .compatible = "socionext,ph1-pro5-pinctrl" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, ph1_pro5_pinctrl_match);
+MODULE_DEVICE_TABLE(of, uniphier_pro5_pinctrl_match);
 
-static struct platform_driver ph1_pro5_pinctrl_driver = {
-	.probe = ph1_pro5_pinctrl_probe,
+static struct platform_driver uniphier_pro5_pinctrl_driver = {
+	.probe = uniphier_pro5_pinctrl_probe,
 	.driver = {
 		.name = DRIVER_NAME,
-		.of_match_table = ph1_pro5_pinctrl_match,
+		.of_match_table = uniphier_pro5_pinctrl_match,
 	},
 };
-module_platform_driver(ph1_pro5_pinctrl_driver);
+module_platform_driver(uniphier_pro5_pinctrl_driver);
 
 MODULE_AUTHOR("Masahiro Yamada <yamada.masahiro@socionext.com>");
 MODULE_DESCRIPTION("UniPhier PH1-Pro5 pinctrl driver");

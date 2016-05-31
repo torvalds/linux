@@ -19,9 +19,9 @@
 
 #include "pinctrl-uniphier.h"
 
-#define DRIVER_NAME "ph1-ld6b-pinctrl"
+#define DRIVER_NAME "uniphier-ld6b-pinctrl"
 
-static const struct pinctrl_pin_desc ph1_ld6b_pins[] = {
+static const struct pinctrl_pin_desc uniphier_ld6b_pins[] = {
 	UNIPHIER_PINCTRL_PIN(0, "ED0", UNIPHIER_PIN_IECTRL_NONE,
 			     0, UNIPHIER_PIN_DRV_4_8,
 			     0, UNIPHIER_PIN_PULL_DOWN),
@@ -858,7 +858,7 @@ static const unsigned xirq_muxvals[] = {
 	14, 14, 14, 14, 14, 14, 14, 14,			/* XIRQ16-23 */
 };
 
-static const struct uniphier_pinctrl_group ph1_ld6b_groups[] = {
+static const struct uniphier_pinctrl_group uniphier_ld6b_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(adinter),
 	UNIPHIER_PINCTRL_GROUP(emmc),
 	UNIPHIER_PINCTRL_GROUP(emmc_dat8),
@@ -1215,7 +1215,7 @@ static const char * const xirq_groups[] = {
 	"xirq20", "xirq21", "xirq22", "xirq23",
 };
 
-static const struct uniphier_pinmux_function ph1_ld6b_functions[] = {
+static const struct uniphier_pinmux_function uniphier_ld6b_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(adinter), /* Achip-Dchip interconnect */
 	UNIPHIER_PINMUX_FUNCTION(emmc),
 	UNIPHIER_PINMUX_FUNCTION(i2c0),
@@ -1235,43 +1235,43 @@ static const struct uniphier_pinmux_function ph1_ld6b_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(xirq),
 };
 
-static struct uniphier_pinctrl_socdata ph1_ld6b_pindata = {
-	.groups = ph1_ld6b_groups,
-	.groups_count = ARRAY_SIZE(ph1_ld6b_groups),
-	.functions = ph1_ld6b_functions,
-	.functions_count = ARRAY_SIZE(ph1_ld6b_functions),
+static struct uniphier_pinctrl_socdata uniphier_ld6b_pindata = {
+	.groups = uniphier_ld6b_groups,
+	.groups_count = ARRAY_SIZE(uniphier_ld6b_groups),
+	.functions = uniphier_ld6b_functions,
+	.functions_count = ARRAY_SIZE(uniphier_ld6b_functions),
 	.mux_bits = 8,
 	.reg_stride = 4,
 	.load_pinctrl = false,
 };
 
-static struct pinctrl_desc ph1_ld6b_pinctrl_desc = {
+static struct pinctrl_desc uniphier_ld6b_pinctrl_desc = {
 	.name = DRIVER_NAME,
-	.pins = ph1_ld6b_pins,
-	.npins = ARRAY_SIZE(ph1_ld6b_pins),
+	.pins = uniphier_ld6b_pins,
+	.npins = ARRAY_SIZE(uniphier_ld6b_pins),
 	.owner = THIS_MODULE,
 };
 
-static int ph1_ld6b_pinctrl_probe(struct platform_device *pdev)
+static int uniphier_ld6b_pinctrl_probe(struct platform_device *pdev)
 {
-	return uniphier_pinctrl_probe(pdev, &ph1_ld6b_pinctrl_desc,
-				      &ph1_ld6b_pindata);
+	return uniphier_pinctrl_probe(pdev, &uniphier_ld6b_pinctrl_desc,
+				      &uniphier_ld6b_pindata);
 }
 
-static const struct of_device_id ph1_ld6b_pinctrl_match[] = {
+static const struct of_device_id uniphier_ld6b_pinctrl_match[] = {
 	{ .compatible = "socionext,ph1-ld6b-pinctrl" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, ph1_ld6b_pinctrl_match);
+MODULE_DEVICE_TABLE(of, uniphier_ld6b_pinctrl_match);
 
-static struct platform_driver ph1_ld6b_pinctrl_driver = {
-	.probe = ph1_ld6b_pinctrl_probe,
+static struct platform_driver uniphier_ld6b_pinctrl_driver = {
+	.probe = uniphier_ld6b_pinctrl_probe,
 	.driver = {
 		.name = DRIVER_NAME,
-		.of_match_table = ph1_ld6b_pinctrl_match,
+		.of_match_table = uniphier_ld6b_pinctrl_match,
 	},
 };
-module_platform_driver(ph1_ld6b_pinctrl_driver);
+module_platform_driver(uniphier_ld6b_pinctrl_driver);
 
 MODULE_AUTHOR("Masahiro Yamada <yamada.masahiro@socionext.com>");
 MODULE_DESCRIPTION("UniPhier PH1-LD6b pinctrl driver");
