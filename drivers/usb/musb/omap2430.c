@@ -435,8 +435,9 @@ static int omap2430_musb_init(struct musb *musb)
 	phy_init(musb->phy);
 	phy_power_on(musb->phy);
 
-	pm_runtime_put_noidle(musb->controller);
-	pm_runtime_put_noidle(glue->dev);
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
+	pm_runtime_put(glue->dev);
 	return 0;
 
 err1:

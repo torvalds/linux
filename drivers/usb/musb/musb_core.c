@@ -2220,7 +2220,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status)
 		goto fail5;
 
-	pm_runtime_put(musb->controller);
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 
 	/*
 	 * For why this is currently needed, see commit 3e43a0725637
@@ -2248,6 +2249,7 @@ fail2_5:
 	usb_phy_shutdown(musb->xceiv);
 
 err_usb_phy_init:
+	pm_runtime_dont_use_autosuspend(musb->controller);
 	pm_runtime_put_sync(musb->controller);
 
 fail2:
@@ -2313,8 +2315,6 @@ static int musb_remove(struct platform_device *pdev)
 	spin_unlock_irqrestore(&musb->lock, flags);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_platform_exit(musb);
-	pm_runtime_put(musb->controller);
-	/* FIXME power down */
 
 	musb_phy_callback = NULL;
 
@@ -2326,6 +2326,9 @@ static int musb_remove(struct platform_device *pdev)
 	cancel_work_sync(&musb->irq_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
+	pm_runtime_dont_use_autosuspend(musb->controller);
+	pm_runtime_put_sync(musb->controller);
+	pm_runtime_disable(musb->controller);
 	musb_free(musb);
 	device_init_wakeup(dev, 0);
 	return 0;

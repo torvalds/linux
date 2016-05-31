@@ -1963,7 +1963,8 @@ static int musb_gadget_stop(struct usb_gadget *g)
 	 * that currently misbehaves.
 	 */
 
-	pm_runtime_put(musb->controller);
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
 
 	return 0;
 }
