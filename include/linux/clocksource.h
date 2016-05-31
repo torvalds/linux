@@ -246,6 +246,9 @@ extern int clocksource_i8253_init(void);
 #define CLOCKSOURCE_OF_DECLARE(name, compat, fn) \
 	OF_DECLARE_1(clksrc, name, compat, fn)
 
+#define CLOCKSOURCE_OF_DECLARE_RET(name, compat, fn) \
+	OF_DECLARE_1_RET(clksrc_ret, name, compat, fn)
+
 #ifdef CONFIG_CLKSRC_PROBE
 extern void clocksource_probe(void);
 #else
