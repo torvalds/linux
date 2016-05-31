@@ -105,12 +105,18 @@ struct gb_camera_ops {
  * struct gb_camera_module - Represents greybus camera module.
  * @priv: Module private data, passed to all camera operations.
  * @ops: Greybus camera operation callbacks.
+ * @interface_id: Interface id of the module.
+ * @refcount: Reference counting object.
+ * @release: Module release function.
  * @list: List entry in the camera modules list.
  */
 struct gb_camera_module {
 	void *priv;
 	const struct gb_camera_ops *ops;
 
+	unsigned int interface_id;
+	struct kref refcount;
+	void (*release)(struct kref *kref);
 	struct list_head list; /* Global list */
 };
 
