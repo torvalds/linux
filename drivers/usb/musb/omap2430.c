@@ -400,13 +400,6 @@ static int omap2430_musb_init(struct musb *musb)
 	if (status < 0)
 		goto err1;
 
-	status = pm_runtime_get_sync(dev);
-	if (status < 0) {
-		dev_err(dev, "pm_runtime_get_sync FAILED %d\n", status);
-		pm_runtime_put_sync(glue->dev);
-		goto err1;
-	}
-
 	l = musb_readl(musb->mregs, OTG_INTERFSEL);
 
 	if (data->interface_type == MUSB_INTERFACE_UTMI) {
@@ -434,9 +427,6 @@ static int omap2430_musb_init(struct musb *musb)
 
 	phy_init(musb->phy);
 	phy_power_on(musb->phy);
-
-	pm_runtime_mark_last_busy(musb->controller);
-	pm_runtime_put_autosuspend(musb->controller);
 	pm_runtime_put(glue->dev);
 	return 0;
 
