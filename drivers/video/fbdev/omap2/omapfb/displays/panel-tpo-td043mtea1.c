@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/of_gpio.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 
 #define TPO_R02_MODE(x)		((x) & 7)
 #define TPO_R02_MODE_800x480	7

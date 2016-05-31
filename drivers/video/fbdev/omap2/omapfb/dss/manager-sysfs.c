@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 
 #include "dss.h"
 #include "dss_features.h"

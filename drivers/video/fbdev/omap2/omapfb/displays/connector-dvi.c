@@ -16,7 +16,7 @@
 
 #include <drm/drm_edid.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 
 static const struct omap_video_timings dvic_default_timings = {
 	.x_res		= 640,

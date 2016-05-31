@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;

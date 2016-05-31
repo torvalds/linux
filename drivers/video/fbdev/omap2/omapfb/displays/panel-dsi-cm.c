@@ -25,7 +25,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 #include <video/mipi_display.h>
 
 /* DSI Virtual channel. Hardcoded for now. */
