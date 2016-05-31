@@ -16,6 +16,7 @@
 #include "exynos54xx.dtsi"
 #include "exynos-syscon-restart.dtsi"
 #include <dt-bindings/clock/exynos5410.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
 	compatible = "samsung,exynos5410", "samsung,exynos5";
@@ -265,6 +266,10 @@
 &usbdrd3_1 {
 	clocks = <&clock CLK_USBD301>;
 	clock-names = "usbdrd30";
+};
+
+&usbdrd_dwc3_1 {
+	interrupts = <GIC_SPI 200 0>;
 };
 
 &usbdrd_phy1 {

@@ -141,7 +141,6 @@
 			usbdrd_dwc3_1: dwc3@12400000 {
 				compatible = "snps,dwc3";
 				reg = <0x12400000 0x10000>;
-				interrupts = <0 73 0>;
 				phys = <&usbdrd_phy1 0>, <&usbdrd_phy1 1>;
 				phy-names = "usb2-phy", "usb3-phy";
 			};
