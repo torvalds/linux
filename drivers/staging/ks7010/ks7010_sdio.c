@@ -56,10 +56,6 @@ static int ks7010_sdio_read( ks_wlan_private *priv, unsigned int address,
 			     unsigned char *buffer, int length );
 static int ks7010_sdio_write( ks_wlan_private *priv, unsigned int address,
 			      unsigned char *buffer, int length );
-#ifdef NO_FIRMWARE_CLASS
-static char *romfile = ROM_FILE;
-module_param(romfile, charp, S_IRUGO);
-#endif
 /* macro */
 
 #define inc_txqhead(priv) \
@@ -723,23 +719,15 @@ error_out:
 	if(read_buf) kfree(read_buf);
 	return rc;
 }
-#ifndef NO_FIRMWARE_CLASS
 #include <linux/firmware.h>
-#endif
 static int ks79xx_upload_firmware(ks_wlan_private *priv, struct ks_sdio_card *card)
 {
 	unsigned int	size, offset,  n = 0;
 	unsigned char	*rom_buf;
 	unsigned char rw_data =0;
 	int retval, rc=0;
-#ifndef NO_FIRMWARE_CLASS
 	int length;
 	const struct firmware *fw_entry = NULL;
-#else
-	int orgfsuid, orgfsgid;
-	struct file     *srcf;
-	mm_segment_t orgfs;
-#endif
 
 	rom_buf = NULL;
 
@@ -758,38 +746,16 @@ static int ks79xx_upload_firmware(ks_wlan_private *priv, struct ks_sdio_card *ca
 		goto error_out0;
 	}
 
-#ifndef NO_FIRMWARE_CLASS
 	if(request_firmware(&fw_entry, priv->reg.rom_file, &priv->ks_wlan_hw.sdio_card->func->dev)!=0){
 		DPRINTK(1,"error request_firmware() file=%s\n", priv->reg.rom_file);
 		return 1;
 	}
 	DPRINTK(4,"success request_firmware() file=%s size=%d\n", priv->reg.rom_file, fw_entry->size);
 	length = fw_entry->size;
-#else
-	orgfsuid=current->fsuid;
-	orgfsgid=current->fsgid;
-	current->fsuid=current->fsgid=0;
-	orgfs=get_fs();
-	set_fs(KERNEL_DS);
-
-	srcf = filp_open(romfile, O_RDONLY, 0);
-	if (IS_ERR(srcf)) {
-		DPRINTK(1, "error %ld opening %s\n", -PTR_ERR(srcf),romfile);
-		rc = 1;
-		goto error_out1;
-	}
-
-        if (!(srcf->f_op && srcf->f_op->read)) {
-                DPRINTK(1, "%s does not have a read method\n", romfile);
-                rc = 2;
-                goto error_out2;
-        }
-#endif
 
 	/* Load Program */
 	n = 0;
         do {
-#ifndef NO_FIRMWARE_CLASS
 		if(length >= ROM_BUFF_SIZE){
 			size = ROM_BUFF_SIZE;
 			length = length - ROM_BUFF_SIZE;
@@ -801,16 +767,6 @@ static int ks79xx_upload_firmware(ks_wlan_private *priv, struct ks_sdio_card *ca
 		DPRINTK(4, "size = %d\n",size);
 		if(size == 0) break;
 		memcpy(rom_buf,fw_entry->data+n,size);
-#else
-		/* The object must have a read method */
-		size = srcf->f_op->read(srcf, rom_buf, ROM_BUFF_SIZE, &srcf->f_pos);
-		if (size < 0) {
-			DPRINTK(1, "Read %s error %d\n", priv->reg.rom_file, -retval);
-			rc = 5;
-			goto error_out2;
-		}
-		else if (size == 0) break;
-#endif
 		/* Update write index */
 		offset = n;
 		retval = ks7010_sdio_update_index(priv, KS7010_IRAM_ADDRESS+offset);
@@ -852,20 +808,8 @@ static int ks79xx_upload_firmware(ks_wlan_private *priv, struct ks_sdio_card *ca
 
 	rc = 0;
 
-#ifdef NO_FIRMWARE_CLASS
- error_out2:
-	retval=filp_close(srcf ,NULL);
-	if (retval)
-		DPRINTK(1, "error %d closing %s\n", -retval,priv->reg.rom_file);
-
- error_out1:
-	set_fs(orgfs);
-	current->fsuid=orgfsuid;
-	current->fsgid=orgfsgid;
-#else
  error_out1:
 	release_firmware(fw_entry);
-#endif
  error_out0:
 	sdio_release_host(card->func);
 	if(rom_buf)

@@ -153,13 +153,8 @@ struct rx_device{
 	unsigned int	qtail; /* rx buffer queue last pointer */
 	spinlock_t  rx_dev_lock;
 };
-#ifndef NO_FIRMWARE_CLASS
 #define	ROM_FILE "ks7010sd.rom"
 #define	CFG_FILE "ks79xx.cfg"
-#else
-#define	ROM_FILE "/lib/firmware/ks7010sd.rom"
-#define	CFG_FILE "/lib/firmware/ks79xx.cfg"
-#endif
 #define	KS_WLAN_DRIVER_VERSION_INFO  "ks7010 sdio linux 007"
 
 #endif /* _KS7010_SDIO_H */

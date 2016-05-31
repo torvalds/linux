@@ -169,11 +169,7 @@ int rate_set_configuration(ks_wlan_private *priv, char *value)
 	return rc;
 }
 
-#ifndef NO_FIRMWARE_CLASS
 #include <linux/firmware.h>
-#else
-#define MAX_CONFIG_FILE_SIZE (1024*10)
-#endif
 int ks_wlan_read_config_file(ks_wlan_private *priv)
 {
 	struct {
@@ -206,18 +202,9 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 		{0,"",""},
 	};
 
-#ifndef NO_FIRMWARE_CLASS
 	const struct firmware *fw_entry;
 	struct device *dev = NULL;
 	int retval;
-#else
-	struct file     *srcf;
-	int nr_read ;
-	int retval;
-	char *cfg_buf=NULL;
-	int orgfsuid, orgfsgid;
-	mm_segment_t orgfs;
-#endif
 	char cfg_file[]=CFG_FILE;
 	char *cur_p, *end_p;
 	char wk_buff[256], *wk_p;
@@ -267,7 +254,6 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 	priv->reg.tx_rate = TX_RATE_FULL_AUTO;
 	priv->reg.rate_set.size = 12;
 
-#ifndef NO_FIRMWARE_CLASS
 	dev = &priv->ks_wlan_hw.sdio_card->func->dev;
 	if((retval = request_firmware(&fw_entry, cfg_file, dev)) !=0 ){
 		DPRINTK(1, "error request_firmware() file=%s ret=%d\n", cfg_file, retval);
@@ -277,46 +263,6 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 	DPRINTK(4, "success request_firmware() file=%s size=%d\n", cfg_file, fw_entry->size);
 	cur_p = fw_entry->data;
 	end_p = cur_p + fw_entry->size;
-#else
-	orgfsuid=current->fsuid;
-	orgfsgid=current->fsgid;
-	orgfs=get_fs();
-	set_fs(KERNEL_DS);
-
-	srcf = filp_open(cfg_file, O_RDONLY, 0);
-	if (IS_ERR(srcf)) {
-		printk(KERN_ERR "error %ld opening %s\n", -PTR_ERR(srcf),cfg_file);
-		goto no_config_file;
-	}
-
-		if (!(srcf->f_op && srcf->f_op->read)) {
-				printk(KERN_ERR "%s does not have a read method\n", cfg_file);
-		goto no_config_file;
-		}
-
-	cfg_buf = (char *)kzalloc(MAX_CONFIG_FILE_SIZE, GFP_ATOMIC);
-		if (!cfg_buf) {
-				printk(KERN_ERR "%s does not read : out of memory \n", cfg_file);
-		goto no_config_file;
-		}
-
-		nr_read = srcf->f_op->read(srcf, (unsigned char *)cfg_buf, MAX_CONFIG_FILE_SIZE, &srcf->f_pos);
-
-	DPRINTK(1, "read retval=%d  file=%s\n", nr_read, priv->reg.cfg_file);
-	retval=filp_close(srcf ,NULL);
-	if (retval)
-		DPRINTK(1, "error %d closing %s\n", -retval,priv->reg.cfg_file);
-
-		if (nr_read < 1) {
-				printk(KERN_ERR "%s does not read : file is empty  num=%d\n", cfg_file, nr_read);
-		goto no_config_file;
-		}else if(nr_read > MAX_CONFIG_FILE_SIZE){
-				printk(KERN_ERR "%s does not read : file is too big \n", cfg_file);
-		goto no_config_file;
-	}
-	cur_p = cfg_buf;
-	end_p = cur_p + nr_read;
-#endif
 	*end_p = '\0';
 
 	while (cur_p < end_p) {
@@ -524,15 +470,7 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 		}
 
 	}
-#ifndef NO_FIRMWARE_CLASS
 	release_firmware(fw_entry);
-#else
-no_config_file:
-	kfree(cfg_buf);
-	set_fs(orgfs);
-	current->fsuid=orgfsuid;
-	current->fsgid=orgfsgid;
-#endif
 
 	DPRINTK(3,"\n    operation_mode = %d\n    channel = %d\n    ssid = %s\n    tx_rate = %d\n \
    preamble = %d\n    powermgt = %d\n    scan_type = %d\n    beacon_lost_count = %d\n    rts = %d\n \
