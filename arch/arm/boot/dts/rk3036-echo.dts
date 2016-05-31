@@ -153,6 +153,8 @@
 };
 
 &emmc {
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
