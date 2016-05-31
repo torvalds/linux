@@ -39,6 +39,7 @@
 #include <linux/gfp.h>
 #include <linux/kprobes.h>
 #include <asm/uaccess.h>
+#include <asm/facility.h>
 #include <asm/delay.h>
 #include <asm/div64.h>
 #include <asm/vdso.h>
@@ -60,6 +61,25 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
 ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_notifier);
 EXPORT_SYMBOL(s390_epoch_delta_notifier);
+
+unsigned char ptff_function_mask[16];
+unsigned long lpar_offset;
+
+/*
+ * Get time offsets with PTFF
+ */
+void __init ptff_init(void)
+{
+	struct ptff_qto qto;
+
+	if (!test_facility(28))
+		return;
+	ptff(&ptff_function_mask, sizeof(ptff_function_mask), PTFF_QAF);
+
+	/* get LPAR offset */
+	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
+		lpar_offset = qto.tod_epoch_difference;
+}
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -337,20 +357,20 @@ static unsigned long clock_sync_flags;
 #define CLOCK_SYNC_STP		3
 
 /*
- * The synchronous get_clock function. It will write the current clock
- * value to the clock pointer and return 0 if the clock is in sync with
- * the external time source. If the clock mode is local it will return
- * -EOPNOTSUPP and -EAGAIN if the clock is not in sync with the external
- * reference.
+ * The get_clock function for the physical clock. It will get the current
+ * TOD clock, subtract the LPAR offset and write the result to *clock.
+ * The function returns 0 if the clock is in sync with the external time
+ * source. If the clock mode is local it will return -EOPNOTSUPP and
+ * -EAGAIN if the clock is not in sync with the external reference.
  */
-int get_sync_clock(unsigned long long *clock)
+int get_phys_clock(unsigned long long *clock)
 {
 	atomic_t *sw_ptr;
 	unsigned int sw0, sw1;
 
 	sw_ptr = &get_cpu_var(clock_sync_word);
 	sw0 = atomic_read(sw_ptr);
-	*clock = get_tod_clock();
+	*clock = get_tod_clock() - lpar_offset;
 	sw1 = atomic_read(sw_ptr);
 	put_cpu_var(clock_sync_word);
 	if (sw0 == sw1 && (sw0 & 0x80000000U))
@@ -364,7 +384,7 @@ int get_sync_clock(unsigned long long *clock)
 		return -EACCES;
 	return -EAGAIN;
 }
-EXPORT_SYMBOL(get_sync_clock);
+EXPORT_SYMBOL(get_phys_clock);
 
 /*
  * Make get_sync_clock return -EAGAIN.
@@ -758,6 +778,7 @@ static int etr_sync_clock(void *data)
 	unsigned long long clock, old_clock, clock_delta, delay, delta;
 	struct clock_sync_data *etr_sync;
 	struct etr_aib *sync_port, *aib;
+	struct ptff_qto qto;
 	int port;
 	int rc;
 
@@ -804,6 +825,10 @@ static int etr_sync_clock(void *data)
 			etr_sync->in_sync = -EAGAIN;
 			rc = -EAGAIN;
 		} else {
+			if (ptff_query(PTFF_QTO) &&
+			    ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
+				/* Update LPAR offset */
+				lpar_offset = qto.tod_epoch_difference;
 			etr_sync->in_sync = 1;
 			rc = 0;
 		}
@@ -1533,6 +1558,7 @@ static int stp_sync_clock(void *data)
 	static int first;
 	unsigned long long old_clock, delta, new_clock, clock_delta;
 	struct clock_sync_data *stp_sync;
+	struct ptff_qto qto;
 	int rc;
 
 	stp_sync = data;
@@ -1558,6 +1584,10 @@ static int stp_sync_clock(void *data)
 		if (rc == 0) {
 			new_clock = old_clock + clock_delta;
 			delta = adjust_time(old_clock, new_clock, 0);
+			if (ptff_query(PTFF_QTO) &&
+			    ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
+				/* Update LPAR offset */
+				lpar_offset = qto.tod_epoch_difference;
 			atomic_notifier_call_chain(&s390_epoch_delta_notifier,
 						   0, &clock_delta);
 			fixup_clock_comparator(delta);

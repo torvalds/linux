@@ -52,6 +52,11 @@ static inline void store_clock_comparator(__u64 *time)
 
 void clock_comparator_work(void);
 
+void __init ptff_init(void);
+
+extern unsigned char ptff_function_mask[16];
+extern unsigned long lpar_offset;
+
 /* Function codes for the ptff instruction. */
 #define PTFF_QAF	0x00	/* query available functions */
 #define PTFF_QTO	0x01	/* query tod offset */
@@ -68,6 +73,14 @@ struct ptff_qto {
 	unsigned long long logical_tod_offset;
 	unsigned long long tod_epoch_difference;
 } __packed;
+
+static inline int ptff_query(unsigned int nr)
+{
+	unsigned char *ptr;
+
+	ptr = ptff_function_mask + (nr >> 3);
+	return (*ptr & (0x80 >> (nr & 7))) != 0;
+}
 
 static inline int ptff(void *ptff_block, size_t len, unsigned int func)
 {
@@ -138,7 +151,7 @@ static inline cycles_t get_cycles(void)
 	return (cycles_t) get_tod_clock() >> 2;
 }
 
-int get_sync_clock(unsigned long long *clock);
+int get_phys_clock(unsigned long long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
 
