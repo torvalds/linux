@@ -261,6 +261,8 @@ static inline char *perf_evsel__strval(struct perf_evsel *evsel,
 
 struct format_field;
 
+u64 format_field__intval(struct format_field *field, struct perf_sample *sample, bool needs_swap);
+
 struct format_field *perf_evsel__field(struct perf_evsel *evsel, const char *name);
 
 #define perf_evsel__match(evsel, t, c)		\
