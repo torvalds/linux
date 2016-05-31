@@ -296,11 +296,6 @@ found:
 void __init radix__early_init_mmu(void)
 {
 	unsigned long lpcr;
-	/*
-	 * setup LPCR UPRT based on mmu_features
-	 */
-	lpcr = mfspr(SPRN_LPCR);
-	mtspr(SPRN_LPCR, lpcr | LPCR_UPRT);
 
 #ifdef CONFIG_PPC_64K_PAGES
 	/* PAGE_SIZE mappings */
@@ -343,8 +338,11 @@ void __init radix__early_init_mmu(void)
 	__pte_frag_size_shift = H_PTE_FRAG_SIZE_SHIFT;
 
 	radix_init_page_sizes();
-	if (!firmware_has_feature(FW_FEATURE_LPAR))
+	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
+		lpcr = mfspr(SPRN_LPCR);
+		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT);
 		radix_init_partition_table();
+	}
 
 	radix_init_pgtable();
 }
@@ -353,16 +351,15 @@ void radix__early_init_mmu_secondary(void)
 {
 	unsigned long lpcr;
 	/*
-	 * setup LPCR UPRT based on mmu_features
+	 * update partition table control register and UPRT
 	 */
-	lpcr = mfspr(SPRN_LPCR);
-	mtspr(SPRN_LPCR, lpcr | LPCR_UPRT);
-	/*
-	 * update partition table control register, 64 K size.
-	 */
-	if (!firmware_has_feature(FW_FEATURE_LPAR))
+	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
+		lpcr = mfspr(SPRN_LPCR);
+		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT);
+
 		mtspr(SPRN_PTCR,
 		      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+	}
 }
 
 void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
