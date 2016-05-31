@@ -29,6 +29,7 @@
 #include <linux/kdev_t.h>
 #include <linux/kfifo.h>
 #include <linux/workqueue.h>
+#include <linux/completion.h>
 
 #include "greybus.h"
 #include "gbphy.h"
@@ -39,6 +40,7 @@
 #define GB_UART_WRITE_FIFO_SIZE		PAGE_SIZE
 #define GB_UART_WRITE_ROOM_MARGIN	1	/* leave some space in fifo */
 #define GB_UART_FIRMWARE_CREDITS	4096
+#define GB_UART_CREDIT_WAIT_TIMEOUT_MSEC	10000
 
 struct gb_tty_line_coding {
 	__le32	rate;
@@ -71,6 +73,7 @@ struct gb_tty {
 	struct kfifo write_fifo;
 	bool close_pending;
 	unsigned int credits;
+	struct completion credits_complete;
 };
 
 static struct tty_driver *gb_tty_driver;
@@ -197,6 +200,9 @@ static int gb_uart_receive_credits_handler(struct gb_operation *op)
 	 */
 	tty_port_tty_wakeup(&gb_tty->port);
 
+	if (gb_tty->credits == GB_UART_FIRMWARE_CREDITS)
+		complete(&gb_tty->credits_complete);
+
 	return ret;
 }
 
@@ -315,6 +321,24 @@ static int send_break(struct gb_tty *gb_tty, u8 state)
 	request.state = state;
 	return gb_operation_sync(gb_tty->connection, GB_UART_TYPE_SEND_BREAK,
 				 &request, sizeof(request), NULL, 0);
+}
+
+static int gb_uart_wait_for_all_credits(struct gb_tty *gb_tty)
+{
+	int ret;
+
+	if (gb_tty->credits == GB_UART_FIRMWARE_CREDITS)
+		return 0;
+
+	ret = wait_for_completion_timeout(&gb_tty->credits_complete,
+			msecs_to_jiffies(GB_UART_CREDIT_WAIT_TIMEOUT_MSEC));
+	if (!ret) {
+		dev_err(&gb_tty->gbphy_dev->dev,
+			"time out waiting for credits\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 static int gb_uart_flush(struct gb_tty *gb_tty, u8 flags)
@@ -765,12 +789,18 @@ static void gb_tty_port_shutdown(struct tty_port *port)
 	kfifo_reset_out(&gb_tty->write_fifo);
 	spin_unlock_irqrestore(&gb_tty->write_lock, flags);
 
+	if (gb_tty->credits == GB_UART_FIRMWARE_CREDITS)
+		goto out;
+
 	ret = gb_uart_flush(gb_tty, GB_SERIAL_FLAG_FLUSH_TRANSMITTER);
 	if (ret) {
 		dev_err(&gb_tty->gbphy_dev->dev,
 			"error flushing transmitter: %d\n", ret);
 	}
 
+	gb_uart_wait_for_all_credits(gb_tty);
+
+out:
 	gb_tty->close_pending = false;
 }
 
@@ -842,6 +872,7 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 		goto exit_buf_free;
 
 	gb_tty->credits = GB_UART_FIRMWARE_CREDITS;
+	init_completion(&gb_tty->credits_complete);
 
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
