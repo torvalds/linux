@@ -545,7 +545,7 @@ el0_ia:
 	enable_dbg_and_irq
 	ct_user_exit
 	mov	x0, x26
-	orr	x1, x25, #1 << 24		// use reserved ISS bit for instruction aborts
+	mov	x1, x25
 	mov	x2, sp
 	bl	do_mem_abort
 	b	ret_to_user

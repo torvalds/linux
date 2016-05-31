@@ -202,8 +202,6 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
 #define VM_FAULT_BADMAP		0x010000
 #define VM_FAULT_BADACCESS	0x020000
 
-#define ESR_LNX_EXEC		(1 << 24)
-
 static int __do_page_fault(struct mm_struct *mm, unsigned long addr,
 			   unsigned int mm_flags, unsigned long vm_flags,
 			   struct task_struct *tsk)
@@ -242,12 +240,17 @@ out:
 	return fault;
 }
 
-static inline int permission_fault(unsigned int esr)
+static inline bool is_permission_fault(unsigned int esr)
 {
 	unsigned int ec       = ESR_ELx_EC(esr);
 	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
 
 	return (ec == ESR_ELx_EC_DABT_CUR && fsc_type == ESR_ELx_FSC_PERM);
+}
+
+static bool is_el0_instruction_abort(unsigned int esr)
+{
+	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_LOW;
 }
 
 static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
@@ -276,14 +279,14 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	if (user_mode(regs))
 		mm_flags |= FAULT_FLAG_USER;
 
-	if (esr & ESR_LNX_EXEC) {
+	if (is_el0_instruction_abort(esr)) {
 		vm_flags = VM_EXEC;
 	} else if ((esr & ESR_ELx_WNR) && !(esr & ESR_ELx_CM)) {
 		vm_flags = VM_WRITE;
 		mm_flags |= FAULT_FLAG_WRITE;
 	}
 
-	if (permission_fault(esr) && (addr < USER_DS)) {
+	if (is_permission_fault(esr) && (addr < USER_DS)) {
 		if (get_fs() == KERNEL_DS)
 			die("Accessing user space memory with fs=KERNEL_DS", regs, esr);
 
