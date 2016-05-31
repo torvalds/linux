@@ -22,12 +22,7 @@
 #include <linux/if_arp.h>
 
 /* Include Wireless Extension definition and check version */
-#ifndef WIRELESS_EXT
-#include <linux/wireless.h>
-#endif /* WIRELESS_EXT */
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>	/* New driver API */
-#endif	/* WIRELESS_EXT > 12 */
 
 extern int ks_wlan_hw_tx(ks_wlan_private *priv, void *p, unsigned long size,
 			 void (*complete_handler)(void *arg1, void *arg2),
@@ -121,10 +116,8 @@ static
 int get_current_ap(ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 {
 	struct local_ap_t *ap;
-#if WIRELESS_EXT > 13
 	union iwreq_data wrqu;
 	struct net_device *netdev=priv->net_dev;
-#endif /* WIRELESS_EXT > 13 */
 	int rc=0;
 
 	DPRINTK(3,"\n");
@@ -190,7 +183,6 @@ int get_current_ap(ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 		ap->wpa_ie.size = 0;
 	}
 
-#if WIRELESS_EXT > 13
 	wrqu.data.length = 0;
 	wrqu.data.flags = 0;
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
@@ -203,7 +195,6 @@ int get_current_ap(ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 			(unsigned char)wrqu.ap_addr.sa_data[4],(unsigned char)wrqu.ap_addr.sa_data[5]);
 		wireless_send_event(netdev, SIOCGIWAP, &wrqu, NULL);
 	}
-#endif
 	DPRINTK(4,"\n    Link AP\n");
 	DPRINTK(4,"    bssid=%02X:%02X:%02X:%02X:%02X:%02X\n \
    essid=%s\n    rate_set=%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X\n    channel=%d\n \
@@ -338,9 +329,7 @@ void hostif_data_indication(ks_wlan_private *priv)
 	struct ieee802_1x_hdr *aa1x_hdr;
 	struct wpa_eapol_key *eap_key;
 	struct michel_mic_t michel_mic;
-#if WIRELESS_EXT > 14
 	union iwreq_data wrqu;
-#endif /* WIRELESS_EXT > 14 */
 
 	DPRINTK(3,"\n");
 
@@ -412,7 +401,6 @@ void hostif_data_indication(ks_wlan_private *priv)
 							mic_failure->counter = 1;
 					}
 					priv->wpa.mic_failure.last_failure_time = now;
-#if WIRELESS_EXT > 14
 					/*  needed parameters: count, keyid, key type, TSC */
 					sprintf(buf, "MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr="
 						"%02x:%02x:%02x:%02x:%02x:%02x)",
@@ -424,7 +412,6 @@ void hostif_data_indication(ks_wlan_private *priv)
 					wrqu.data.length = strlen(buf);
 					DPRINTK(4,"IWEVENT:MICHAELMICFAILURE\n");
 					wireless_send_event(priv->net_dev, IWEVCUSTOM, &wrqu, buf);
-#endif /* WIRELESS_EXT > 14 */
 					return;
 				}
 			}
@@ -754,9 +741,7 @@ void hostif_connect_indication(ks_wlan_private *priv)
 	unsigned int tmp=0;
 	unsigned int old_status=priv->connect_status;
 	struct net_device *netdev=priv->net_dev;
-#if WIRELESS_EXT > 13
 	union iwreq_data wrqu0;
-#endif /* WIRELESS_EXT > 13 */
 	connect_code = get_WORD(priv);
 
 	switch(connect_code){
@@ -791,7 +776,6 @@ void hostif_connect_indication(ks_wlan_private *priv)
 	}
 	ks_wlan_do_power_save(priv);
 
-#if WIRELESS_EXT > 13
 	wrqu0.data.length = 0;
 	wrqu0.data.flags = 0;
 	wrqu0.ap_addr.sa_family = ARPHRD_ETHER;
@@ -802,7 +786,6 @@ void hostif_connect_indication(ks_wlan_private *priv)
 		DPRINTK(3,"disconnect :: scan_ind_count=%d\n",priv->scan_ind_count);
 		wireless_send_event(netdev, SIOCGIWAP, &wrqu0, NULL);
 	}
-#endif /* WIRELESS_EXT > 13 */
 	priv->scan_ind_count=0;
 }
 
@@ -904,7 +887,6 @@ void hostif_adhoc_set_confirm(ks_wlan_private *priv)
 static
 void hostif_associate_indication(ks_wlan_private *priv)
 {
-#if WIRELESS_EXT > 14
 	struct association_request_t *assoc_req;
 	struct association_response_t *assoc_resp;
 	unsigned char *pb;
@@ -944,29 +926,24 @@ void hostif_associate_indication(ks_wlan_private *priv)
 
 	DPRINTK(3,"IWEVENT:ASSOCINFO\n");
 	wireless_send_event(priv->net_dev, IWEVCUSTOM, &wrqu, buf);
-#endif /* WIRELESS_EXT > 14 */
 }
 
 static
 void hostif_bss_scan_confirm(ks_wlan_private *priv)
 {
 	unsigned int result_code;
-#if WIRELESS_EXT > 13
 	struct net_device *dev = priv->net_dev;
 	union iwreq_data wrqu;
-#endif /* WIRELESS_EXT > 13 */
 	result_code = get_DWORD(priv);
 	DPRINTK(2,"result=%d :: scan_ind_count=%d\n", result_code, priv->scan_ind_count);
 
 	priv->sme_i.sme_flag &= ~SME_AP_SCAN;
 	hostif_sme_enqueue(priv, SME_BSS_SCAN_CONFIRM);
 
-#if WIRELESS_EXT > 13
 	wrqu.data.length = 0;
 	wrqu.data.flags = 0;
 	DPRINTK(3,"IWEVENT: SCAN CONFIRM\n");
 	wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
-#endif /* WIRELESS_EXT > 13 */
 	priv->scan_ind_count=0;
 }
 

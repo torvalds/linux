@@ -50,7 +50,6 @@ static int wep_on_off;
 #define WIRELESS_SPY		/* enable iwspy support */
 #include <net/iw_handler.h>	/* New driver API */
 
-#ifdef WIRELESS_EXT
 /* Frequency list (map channels to frequencies) */
 static const long frequency_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
 				       2447, 2452, 2457, 2462, 2467, 2472, 2484 };
@@ -74,7 +73,6 @@ static const struct iw_handler_def	ks_wlan_handler_def;
 
 #define KSC_OPNOTSUPP /* Operation Not Support*/
 
-#endif /* WIRELESS_EXT */
 
 /*
  *	function prototypes
@@ -174,7 +172,6 @@ int ks_wlan_setup_parameter(ks_wlan_private *priv, unsigned int commit_flag)
 	return 0;
 }
 
-#ifdef WIRELESS_EXT
 /*
  * Initial Wireless Extension code for Ks_Wlannet driver by :
  *	Jean Tourrilhes <jt@hpl.hp.com> - HPL - 17 November 00
@@ -1090,7 +1087,6 @@ static int ks_wlan_get_range(struct net_device *dev, struct iw_request_info *inf
 	range->avg_qual.level = 186;	/* -70 dBm */
 	range->avg_qual.noise = 0;
 
-#if defined(WIRELESS_EXT)
 	/* Event capability (kernel + driver) */
 	range->event_capa[0] = (IW_EVENT_CAPA_K_0 |
 				IW_EVENT_CAPA_MASK(SIOCGIWAP) |
@@ -1104,7 +1100,6 @@ static int ks_wlan_get_range(struct net_device *dev, struct iw_request_info *inf
 			   IW_ENC_CAPA_WPA2 |
 			   IW_ENC_CAPA_CIPHER_TKIP |
 			   IW_ENC_CAPA_CIPHER_CCMP);
-#endif
 	return 0;
 }
 
@@ -1229,7 +1224,6 @@ static int ks_wlan_get_aplist(struct net_device *dev, struct iw_request_info *in
 	return 0;
 }
 
-#if defined(WIRELESS_EXT)
 /*------------------------------------------------------------------*/
 /* Wireless Handler : Initiate Scan */
 static int ks_wlan_set_scan(struct net_device *dev, struct iw_request_info *info,
@@ -1452,7 +1446,6 @@ DPRINTK(2,"aplist 0\n");
 
 	return 0;
 }
-#endif	/* WIRELESS_EXT  */
 
 /*------------------------------------------------------------------*/
 /* Commit handler : called after a bunch of SET operations */
@@ -1469,7 +1462,6 @@ static int ks_wlan_config_commit(struct net_device *dev, struct iw_request_info 
 	return 0;
 }
 
-#ifdef WIRELESS_EXT
 /*------------------------------------------------------------------*/
 /* Wireless handler : set association ie params */
 static int ks_wlan_set_genie(struct net_device *dev, struct iw_request_info *info,
@@ -1951,7 +1943,6 @@ static int ks_wlan_set_mlme(struct net_device *dev, struct iw_request_info *info
 		return -EOPNOTSUPP;  /* Not Support */
 	}
 }
-#endif /* WIRELESS_EXT  */
 
 /*------------------------------------------------------------------*/
 /* Private handler : get driver version */
@@ -2915,20 +2906,15 @@ static const struct iw_handler_def	ks_wlan_handler_def =
 	.get_wireless_stats = ks_get_wireless_stats,
 };
 
-#endif /* WIRELESS_EXT */
 
 static int ks_wlan_netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	int rc = 0;
-#if defined(WIRELESS_EXT)
 	struct iwreq *wrq = (struct iwreq *) rq;
-#endif /* WIRELESS_EXT */
 	switch (cmd) {
-#if defined(WIRELESS_EXT)
 	case SIOCIWFIRSTPRIV+20: /* KS_WLAN_SET_STOP_REQ */
 		rc = ks_wlan_set_stop_request(dev, NULL, &(wrq->u.mode), NULL);
 		break;
-#endif /* WIRELESS_EXT >17 */
 	// All other calls are currently unsupported
 	default:
 		rc = -EOPNOTSUPP;
