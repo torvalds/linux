@@ -1,3 +1,6 @@
+config SND_SIMPLE_CARD_UTILS
+       tristate
+
 config SND_SIMPLE_CARD
 	tristate "ASoC Simple sound card support"
 	help
