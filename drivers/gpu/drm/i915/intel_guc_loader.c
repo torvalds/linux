@@ -103,6 +103,7 @@ static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	int irqs;
+	u32 tmp;
 
 	/* tell all command streamers to forward interrupts and vblank to GuC */
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_ALWAYS);
@@ -117,6 +118,16 @@ static void direct_interrupts_to_guc(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_BCS_RCS_IER, ~irqs);
 	I915_WRITE(GUC_VCS2_VCS1_IER, ~irqs);
 	I915_WRITE(GUC_WD_VECS_IER, ~irqs);
+
+	/*
+	 * If GuC has routed PM interrupts to itself, don't keep it.
+	 * and keep other interrupts those are unmasked by GuC.
+	*/
+	tmp = I915_READ(GEN6_PMINTRMSK);
+	if (tmp & GEN8_PMINTR_REDIRECT_TO_NON_DISP) {
+		dev_priv->rps.pm_intr_keep |= ~(tmp & ~GEN8_PMINTR_REDIRECT_TO_NON_DISP);
+		dev_priv->rps.pm_intr_keep &= ~GEN8_PMINTR_REDIRECT_TO_NON_DISP;
+	}
 }
 
 static u32 get_gttype(struct drm_i915_private *dev_priv)

@@ -1127,6 +1127,8 @@ struct intel_gen6_power_mgmt {
 	bool interrupts_enabled;
 	u32 pm_iir;
 
+	u32 pm_intr_keep;
+
 	/* Frequencies are stored in potentially platform dependent multiples.
 	 * In other words, *_freq needs to be multiplied by X to be interesting.
 	 * Soft limits are those which are used for the dynamic reclocking done
