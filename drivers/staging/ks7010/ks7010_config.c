@@ -193,7 +193,7 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 		{8,"WepIndex","1"},				/* 13 */
 		{7,"WepType","STRING"},				/* 14 */
 		{3,"Wep","OFF"},				/* 15 */
-		{13,"PREAMBLE_TYPE","SHORT"},			/* 16 */
+		{13,"PREAMBLE_TYPE","LONG"},			/* 16 */
 		{8,"ScanType","ACTIVE_SCAN"},			/* 17 */
 		{8,"ROM_FILE", ROM_FILE},			/* 18 */
 		{7,"PhyType", "BG_MODE"},			/* 19 */
@@ -216,7 +216,7 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 	priv->reg.ssid.body[0] = '\0';		        /* SSID */
 	priv->reg.ssid.size = 0;		        /* SSID size */
 	priv->reg.tx_rate = TX_RATE_AUTO;		/* TxRate Fully Auto */
-	priv->reg.preamble = SHORT_PREAMBLE;		/* Preamble = SHORT */
+	priv->reg.preamble = LONG_PREAMBLE;		/* Preamble = LONG */
 	priv->reg.powermgt = POWMGT_ACTIVE_MODE;        /* POWMGT_ACTIVE_MODE */
 	priv->reg.scan_type = ACTIVE_SCAN;              /* Active */
 	priv->reg.beacon_lost_count = 20;	        /* Beacon Lost Count */
