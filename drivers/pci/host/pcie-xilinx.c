@@ -660,7 +660,6 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	struct xilinx_pcie_port *port;
 	struct device *dev = &pdev->dev;
 	struct pci_bus *bus;
-
 	int err;
 	resource_size_t iobase = 0;
 	LIST_HEAD(res);
@@ -696,8 +695,10 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	}
 	bus = pci_create_root_bus(&pdev->dev, 0,
 				  &xilinx_pcie_ops, port, &res);
-	if (!bus)
-		return -ENOMEM;
+	if (!bus) {
+		err = -ENOMEM;
+		goto error;
+	}
 
 #ifdef CONFIG_PCI_MSI
 	xilinx_pcie_msi_chip.dev = port->dev;
@@ -712,6 +713,10 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, port);
 
 	return 0;
+
+error:
+	pci_free_resource_list(&res);
+	return err;
 }
 
 /**
