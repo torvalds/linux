@@ -886,7 +886,7 @@ enum skl_disp_power_wells {
  * PLLs can be routed to any transcoder A/B/C.
  *
  * Note: DDI0 is digital port B, DD1 is digital port C, and DDI2 is
- * digital port D (CHV) or port A (BXT).
+ * digital port D (CHV) or port A (BXT). ::
  *
  *
  *     Dual channel PHY (VLV/CHV/BXT)

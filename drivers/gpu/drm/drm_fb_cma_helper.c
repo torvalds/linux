@@ -52,7 +52,7 @@ struct drm_fbdev_cma {
  * will be set up automatically. dirty() is called by
  * drm_fb_helper_deferred_io() in process context (struct delayed_work).
  *
- * Example fbdev deferred io code:
+ * Example fbdev deferred io code::
  *
  *     static int driver_fbdev_fb_dirty(struct drm_framebuffer *fb,
  *                                      struct drm_file *file_priv,

@@ -150,28 +150,28 @@ static int vgt_balloon_space(struct drm_mm *mm,
  * of its graphic space being zero. Yet there are some portions ballooned out(
  * the shadow part, which are marked as reserved by drm allocator). From the
  * host point of view, the graphic address space is partitioned by multiple
- * vGPUs in different VMs.
+ * vGPUs in different VMs. ::
  *
  *                        vGPU1 view         Host view
  *             0 ------> +-----------+     +-----------+
- *               ^       |///////////|     |   vGPU3   |
- *               |       |///////////|     +-----------+
- *               |       |///////////|     |   vGPU2   |
+ *               ^       |###########|     |   vGPU3   |
+ *               |       |###########|     +-----------+
+ *               |       |###########|     |   vGPU2   |
  *               |       +-----------+     +-----------+
  *        mappable GM    | available | ==> |   vGPU1   |
  *               |       +-----------+     +-----------+
- *               |       |///////////|     |           |
- *               v       |///////////|     |   Host    |
+ *               |       |###########|     |           |
+ *               v       |###########|     |   Host    |
  *               +=======+===========+     +===========+
- *               ^       |///////////|     |   vGPU3   |
- *               |       |///////////|     +-----------+
- *               |       |///////////|     |   vGPU2   |
+ *               ^       |###########|     |   vGPU3   |
+ *               |       |###########|     +-----------+
+ *               |       |###########|     |   vGPU2   |
  *               |       +-----------+     +-----------+
  *      unmappable GM    | available | ==> |   vGPU1   |
  *               |       +-----------+     +-----------+
- *               |       |///////////|     |           |
- *               |       |///////////|     |   Host    |
- *               v       |///////////|     |           |
+ *               |       |###########|     |           |
+ *               |       |###########|     |   Host    |
+ *               v       |###########|     |           |
  * total GM size ------> +-----------+     +-----------+
  *
  * Returns:

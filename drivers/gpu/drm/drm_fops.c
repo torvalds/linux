@@ -67,7 +67,7 @@ DEFINE_MUTEX(drm_global_mutex);
  * specific implementations. For GEM-based drivers this is drm_gem_mmap().
  *
  * No other file operations are supported by the DRM userspace API. Overall the
- * following is an example #file_operations structure:
+ * following is an example #file_operations structure::
  *
  *     static const example_drm_fops = {
  *             .owner = THIS_MODULE,
