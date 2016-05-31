@@ -2103,11 +2103,7 @@ void hostif_sme_multicast_set(ks_wlan_private *priv)
 
         struct net_device *dev = priv->net_dev;
 	int mc_count;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
 	struct netdev_hw_addr *ha;
-#else
-	struct dev_mc_list *mclist;
-#endif
 	char	set_address[NIC_MAX_MCAST_LIST*ETH_ALEN];
 	unsigned long filter_type;
 	int i;
@@ -2131,14 +2127,9 @@ void hostif_sme_multicast_set(ks_wlan_private *priv)
 	else {
 		if (priv->sme_i.sme_flag & SME_MULTICAST){
 			mc_count = netdev_mc_count(dev);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35)
 			netdev_for_each_mc_addr(ha, dev) {
 				memcpy(&set_address[i*ETH_ALEN], ha->addr, ETH_ALEN);
 			}
-#else
-			for (i = 0, mclist = dev->mc_list; mclist && i < mc_count; i++, mclist = mclist->next)
-				memcpy(&set_address[i*ETH_ALEN], mclist->dmi_addr, ETH_ALEN);
-#endif
 			priv->sme_i.sme_flag &= ~SME_MULTICAST;
 			hostif_mib_set_request(priv, LOCAL_MULTICAST_ADDRESS,
 					       (ETH_ALEN*mc_count), MIB_VALUE_TYPE_OSTRING, &set_address[0]);

@@ -18,9 +18,6 @@
 #define WPS
 
 #include <linux/version.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)) 
-#include <linux/config.h>
-#endif
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -35,32 +32,9 @@
 #include <linux/timer.h>	/* struct timer_list */
 #include <linux/string.h>
 #include <linux/completion.h>   /* struct completion */
+#include <linux/workqueue.h>
 
 #include <asm/io.h>
-
-/* Workqueue / task queue backwards compatibility stuff */
-#if ((LINUX_VERSION_CODE > KERNEL_VERSION(2,5,41)) || (defined _MVL31_) || (defined _CELF3_))
-#include <linux/workqueue.h>
-#else
-#include <linux/tqueue.h>
-#define work_struct tq_struct
-#define INIT_WORK INIT_TQUEUE
-#define schedule_work schedule_task
-#endif
-
-/* Interrupt handler backwards compatibility stuff */
-/*
-#ifndef IRQ_NONE
-#define IRQ_NONE
-#define IRQ_HANDLED
-typedef void irqreturn_t;
-#endif
-*/
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,23)
-#define free_netdev(x) kfree(x) 
-#define pci_name(x) x->slot_name 
-#endif
 
 #include "ks7010_sdio.h"
 
