@@ -23,13 +23,13 @@
 /* Include Wireless Extension definition and check version */
 #include <net/iw_handler.h>	/* New driver API */
 
-extern int ks_wlan_hw_tx(ks_wlan_private *priv, void *p, unsigned long size,
+extern int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 			 void (*complete_handler)(void *arg1, void *arg2),
 			 void *arg1, void *arg2 );
 extern void send_packet_complete(void *, void *);
 
-extern void ks_wlan_hw_wakeup_request(ks_wlan_private *priv);
-extern int ks_wlan_hw_power_save(ks_wlan_private *priv);
+extern void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv);
+extern int ks_wlan_hw_power_save(struct ks_wlan_private *priv);
 
 /* macro */
 #define inc_smeqhead(priv) \
@@ -42,7 +42,7 @@ extern int ks_wlan_hw_power_save(ks_wlan_private *priv);
 #define KS_WLAN_MEM_FLAG (GFP_ATOMIC)
 
 static
-inline u8 get_BYTE(ks_wlan_private *priv)
+inline u8 get_BYTE(struct ks_wlan_private *priv)
 {
 	u8 data;
 	data = *(priv->rxp)++;
@@ -52,7 +52,7 @@ inline u8 get_BYTE(ks_wlan_private *priv)
 }
 
 static
-inline u16 get_WORD(ks_wlan_private *priv)
+inline u16 get_WORD(struct ks_wlan_private *priv)
 {
 	u16 data;
 	data  = (get_BYTE(priv) & 0xff);
@@ -61,7 +61,7 @@ inline u16 get_WORD(ks_wlan_private *priv)
 }
 
 static
-inline u32 get_DWORD(ks_wlan_private *priv)
+inline u32 get_DWORD(struct ks_wlan_private *priv)
 {
 	u32 data;
 	data  = (get_BYTE(priv) & 0xff);
@@ -73,7 +73,7 @@ inline u32 get_DWORD(ks_wlan_private *priv)
 
 void ks_wlan_hw_wakeup_task(struct work_struct *work)
 {
-	ks_wlan_private *priv = container_of(work, struct ks_wlan_private, ks_wlan_wakeup_task);
+	struct ks_wlan_private *priv = container_of(work, struct ks_wlan_private, ks_wlan_wakeup_task);
 	int ps_status = atomic_read(&priv->psstatus.status);
 
 	if(ps_status==PS_SNOOZE){
@@ -96,7 +96,7 @@ void ks_wlan_hw_wakeup_task(struct work_struct *work)
 }
 
 static
-int ks_wlan_do_power_save(ks_wlan_private *priv)
+int ks_wlan_do_power_save(struct ks_wlan_private *priv)
 {
 	int rc=0;
 
@@ -112,7 +112,7 @@ int ks_wlan_do_power_save(ks_wlan_private *priv)
 }
 
 static
-int get_current_ap(ks_wlan_private *priv, struct link_ap_info_t *ap_info)
+int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 {
 	struct local_ap_t *ap;
 	union iwreq_data wrqu;
@@ -213,7 +213,7 @@ int get_current_ap(ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 }
 
 static
-int get_ap_information(ks_wlan_private *priv, struct ap_info_t *ap_info, struct local_ap_t *ap)
+int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info, struct local_ap_t *ap)
 {
 	unsigned char *bp;
 	int bsize,offset;
@@ -312,7 +312,7 @@ int get_ap_information(ks_wlan_private *priv, struct ap_info_t *ap_info, struct 
 }
 
 static
-void hostif_data_indication(ks_wlan_private *priv)
+void hostif_data_indication(struct ks_wlan_private *priv)
 {
 	unsigned int	rx_ind_size;	/* indicate data size */
 	struct sk_buff *skb;
@@ -491,7 +491,7 @@ void hostif_data_indication(ks_wlan_private *priv)
 }
 
 static
-void hostif_mib_get_confirm(ks_wlan_private *priv)
+void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 {
 	struct net_device *dev=priv->net_dev;
 	uint32_t	mib_status;
@@ -570,7 +570,7 @@ void hostif_mib_get_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_mib_set_confirm(ks_wlan_private *priv)
+void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 {
 	uint32_t	mib_status;	/* +04 MIB Status */
 	uint32_t	mib_attribute;	/* +08 MIB attribute */
@@ -691,7 +691,7 @@ void hostif_mib_set_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_power_mngmt_confirm(ks_wlan_private *priv)
+void hostif_power_mngmt_confirm(struct ks_wlan_private *priv)
 {
 	DPRINTK(3,"\n");
 
@@ -707,7 +707,7 @@ void hostif_power_mngmt_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_sleep_confirm(ks_wlan_private *priv)
+void hostif_sleep_confirm(struct ks_wlan_private *priv)
 {
 	DPRINTK(3,"\n");
 
@@ -716,7 +716,7 @@ void hostif_sleep_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_start_confirm(ks_wlan_private *priv)
+void hostif_start_confirm(struct ks_wlan_private *priv)
 {
 #ifdef  WPS
        union iwreq_data        wrqu;
@@ -734,7 +734,7 @@ void hostif_start_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_connect_indication(ks_wlan_private *priv)
+void hostif_connect_indication(struct ks_wlan_private *priv)
 {
 	unsigned short connect_code;
 	unsigned int tmp=0;
@@ -789,7 +789,7 @@ void hostif_connect_indication(ks_wlan_private *priv)
 }
 
 static
-void hostif_scan_indication(ks_wlan_private *priv)
+void hostif_scan_indication(struct ks_wlan_private *priv)
 {
 	int i;
 	struct ap_info_t *ap_info;
@@ -820,7 +820,7 @@ void hostif_scan_indication(ks_wlan_private *priv)
 }
 
 static
-void hostif_stop_confirm(ks_wlan_private *priv)
+void hostif_stop_confirm(struct ks_wlan_private *priv)
 {
 	unsigned int tmp=0;
 	unsigned int old_status=priv->connect_status;
@@ -856,7 +856,7 @@ void hostif_stop_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_ps_adhoc_set_confirm(ks_wlan_private *priv)
+void hostif_ps_adhoc_set_confirm(struct ks_wlan_private *priv)
 {
 	DPRINTK(3,"\n");
 	priv->infra_status = 0; /* infrastructure mode cancel */
@@ -865,7 +865,7 @@ void hostif_ps_adhoc_set_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_infrastructure_set_confirm(ks_wlan_private *priv)
+void hostif_infrastructure_set_confirm(struct ks_wlan_private *priv)
 {
 	uint16_t result_code;
 	DPRINTK(3,"\n");
@@ -876,7 +876,7 @@ void hostif_infrastructure_set_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_adhoc_set_confirm(ks_wlan_private *priv)
+void hostif_adhoc_set_confirm(struct ks_wlan_private *priv)
 {
 	DPRINTK(3,"\n");
 	priv->infra_status = 1; /* infrastructure mode set */
@@ -884,7 +884,7 @@ void hostif_adhoc_set_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_associate_indication(ks_wlan_private *priv)
+void hostif_associate_indication(struct ks_wlan_private *priv)
 {
 	struct association_request_t *assoc_req;
 	struct association_response_t *assoc_resp;
@@ -928,7 +928,7 @@ void hostif_associate_indication(ks_wlan_private *priv)
 }
 
 static
-void hostif_bss_scan_confirm(ks_wlan_private *priv)
+void hostif_bss_scan_confirm(struct ks_wlan_private *priv)
 {
 	unsigned int result_code;
 	struct net_device *dev = priv->net_dev;
@@ -947,7 +947,7 @@ void hostif_bss_scan_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_phy_information_confirm(ks_wlan_private *priv)
+void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 {
 	struct iw_statistics *wstats = &priv->wstats;
 	unsigned char rssi,signal,noise;
@@ -983,7 +983,7 @@ void hostif_phy_information_confirm(ks_wlan_private *priv)
 }
 
 static
-void hostif_mic_failure_confirm(ks_wlan_private *priv)
+void hostif_mic_failure_confirm(struct ks_wlan_private *priv)
 {
 	DPRINTK(3,"mic_failure=%u\n",priv->wpa.mic_failure.failure);
 	hostif_sme_enqueue(priv, SME_MIC_FAILURE_CONFIRM);
@@ -991,7 +991,7 @@ void hostif_mic_failure_confirm(ks_wlan_private *priv)
 
 
 static
-void hostif_event_check(ks_wlan_private *priv)
+void hostif_event_check(struct ks_wlan_private *priv)
 {
 	unsigned short event;
 
@@ -1065,7 +1065,7 @@ void hostif_event_check(ks_wlan_private *priv)
 
 #define CHECK_ALINE(size) (size%4 ? (size+(4-(size%4))):size)
 
-int hostif_data_request(ks_wlan_private *priv, struct sk_buff *packet)
+int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *packet)
 {
 	unsigned int		packet_len=0;
 
@@ -1231,7 +1231,7 @@ int hostif_data_request(ks_wlan_private *priv, struct sk_buff *packet)
                                       } }while(0)
 
 static
-void hostif_mib_get_request( ks_wlan_private *priv, unsigned long mib_attribute)
+void hostif_mib_get_request( struct ks_wlan_private *priv, unsigned long mib_attribute)
 {
 	struct hostif_mib_get_request_t *pp;
 
@@ -1253,7 +1253,7 @@ void hostif_mib_get_request( ks_wlan_private *priv, unsigned long mib_attribute)
 }
 
 static
-void hostif_mib_set_request( ks_wlan_private *priv, unsigned long mib_attribute,
+void hostif_mib_set_request( struct ks_wlan_private *priv, unsigned long mib_attribute,
 			     unsigned short size, unsigned short type,
 			     void *vp )
 {
@@ -1286,7 +1286,7 @@ void hostif_mib_set_request( ks_wlan_private *priv, unsigned long mib_attribute,
 }
 
 static
-void hostif_start_request( ks_wlan_private *priv, unsigned char mode )
+void hostif_start_request( struct ks_wlan_private *priv, unsigned char mode )
 {
 	struct hostif_start_request_t *pp;
 
@@ -1311,7 +1311,7 @@ void hostif_start_request( ks_wlan_private *priv, unsigned char mode )
 }
 
 static
-void hostif_ps_adhoc_set_request(ks_wlan_private *priv)
+void hostif_ps_adhoc_set_request(struct ks_wlan_private *priv)
 {
 	struct hostif_ps_adhoc_set_request_t *pp;
 	uint16_t capability;
@@ -1352,7 +1352,7 @@ void hostif_ps_adhoc_set_request(ks_wlan_private *priv)
 }
 
 static
-void hostif_infrastructure_set_request(ks_wlan_private *priv)
+void hostif_infrastructure_set_request(struct ks_wlan_private *priv)
 {
 	struct hostif_infrastructure_set_request_t *pp;
 	uint16_t capability;
@@ -1415,7 +1415,7 @@ void hostif_infrastructure_set_request(ks_wlan_private *priv)
 	ks_wlan_hw_tx( priv, pp, hif_align_size(sizeof(*pp)),NULL, NULL, NULL);
 }
 
-void hostif_infrastructure_set2_request(ks_wlan_private *priv)
+void hostif_infrastructure_set2_request(struct ks_wlan_private *priv)
 {
 	struct hostif_infrastructure_set2_request_t *pp;
 	uint16_t capability;
@@ -1481,7 +1481,7 @@ void hostif_infrastructure_set2_request(ks_wlan_private *priv)
 }
 
 static
-void hostif_adhoc_set_request(ks_wlan_private *priv)
+void hostif_adhoc_set_request(struct ks_wlan_private *priv)
 {
 	struct hostif_adhoc_set_request_t *pp;
 	uint16_t capability;
@@ -1524,7 +1524,7 @@ void hostif_adhoc_set_request(ks_wlan_private *priv)
 }
 
 static
-void hostif_adhoc_set2_request(ks_wlan_private *priv)
+void hostif_adhoc_set2_request(struct ks_wlan_private *priv)
 {
 	struct hostif_adhoc_set2_request_t *pp;
 	uint16_t capability;
@@ -1570,7 +1570,7 @@ void hostif_adhoc_set2_request(ks_wlan_private *priv)
 }
 
 static
-void hostif_stop_request( ks_wlan_private *priv )
+void hostif_stop_request( struct ks_wlan_private *priv )
 {
 	struct hostif_stop_request_t *pp;
 
@@ -1591,7 +1591,7 @@ void hostif_stop_request( ks_wlan_private *priv )
 }
 
 static
-void hostif_phy_information_request( ks_wlan_private *priv )
+void hostif_phy_information_request( struct ks_wlan_private *priv )
 {
 	struct hostif_phy_information_request_t *pp;
 
@@ -1619,7 +1619,7 @@ void hostif_phy_information_request( ks_wlan_private *priv )
 }
 
 static
-void hostif_power_mngmt_request( ks_wlan_private *priv, unsigned long mode,
+void hostif_power_mngmt_request( struct ks_wlan_private *priv, unsigned long mode,
 				 unsigned long wake_up, unsigned long receiveDTIMs )
 {
 	struct hostif_power_mngmt_request_t *pp;
@@ -1643,7 +1643,7 @@ void hostif_power_mngmt_request( ks_wlan_private *priv, unsigned long mode,
 }
 
 static
-void hostif_sleep_request( ks_wlan_private *priv, unsigned long mode)
+void hostif_sleep_request( struct ks_wlan_private *priv, unsigned long mode)
 {
 	struct hostif_sleep_request_t *pp;
 
@@ -1673,7 +1673,7 @@ void hostif_sleep_request( ks_wlan_private *priv, unsigned long mode)
 
 
 static
-void hostif_bss_scan_request( ks_wlan_private *priv, unsigned long scan_type , uint8_t *scan_ssid, uint8_t scan_ssid_len)
+void hostif_bss_scan_request( struct ks_wlan_private *priv, unsigned long scan_type , uint8_t *scan_ssid, uint8_t scan_ssid_len)
 {
 	struct hostif_bss_scan_request_t *pp;
 
@@ -1727,7 +1727,7 @@ void hostif_bss_scan_request( ks_wlan_private *priv, unsigned long scan_type , u
 }
 
 static
-void hostif_mic_failure_request( ks_wlan_private *priv, unsigned short failure_count,
+void hostif_mic_failure_request( struct ks_wlan_private *priv, unsigned short failure_count,
 				 unsigned short timer )
 {
 	struct hostif_mic_failure_request_t *pp;
@@ -1750,7 +1750,7 @@ void hostif_mic_failure_request( ks_wlan_private *priv, unsigned short failure_c
 }
 
 /* Device I/O Recieve indicate */
-static void devio_rec_ind(ks_wlan_private *priv, unsigned char *p, unsigned int size)
+static void devio_rec_ind(struct ks_wlan_private *priv, unsigned char *p, unsigned int size)
 {
 	if (priv->device_open_status) {
 		spin_lock(&priv->dev_read_lock); /* request spin lock */
@@ -1772,7 +1772,7 @@ static void devio_rec_ind(ks_wlan_private *priv, unsigned char *p, unsigned int 
 	}
 }
 
-void hostif_receive( ks_wlan_private *priv, unsigned char *p, unsigned int size )
+void hostif_receive( struct ks_wlan_private *priv, unsigned char *p, unsigned int size )
 {
 	DPRINTK(4,"\n");
 
@@ -1788,7 +1788,7 @@ void hostif_receive( ks_wlan_private *priv, unsigned char *p, unsigned int size 
 
 
 static
-void hostif_sme_set_wep(ks_wlan_private *priv, int type)
+void hostif_sme_set_wep(struct ks_wlan_private *priv, int type)
 {
 	uint32_t val;
 	switch(type){
@@ -1844,7 +1844,7 @@ struct rsn_mode_t {
 } __attribute__((packed));
 
 static
-void hostif_sme_set_rsn(ks_wlan_private *priv, int type)
+void hostif_sme_set_rsn(struct ks_wlan_private *priv, int type)
 {
 	struct wpa_suite_t wpa_suite;
 	struct rsn_mode_t rsn_mode;
@@ -1991,7 +1991,7 @@ void hostif_sme_set_rsn(ks_wlan_private *priv, int type)
 }
 
 static
-void hostif_sme_mode_setup(ks_wlan_private *priv)
+void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 {
 	unsigned char rate_size;
 	unsigned char rate_octet[RATE_SET_MAX_SIZE];
@@ -2097,7 +2097,7 @@ void hostif_sme_mode_setup(ks_wlan_private *priv)
 }
 
 static
-void hostif_sme_multicast_set(ks_wlan_private *priv)
+void hostif_sme_multicast_set(struct ks_wlan_private *priv)
 {
 
         struct net_device *dev = priv->net_dev;
@@ -2146,7 +2146,7 @@ void hostif_sme_multicast_set(ks_wlan_private *priv)
 }
 
 static
-void hostif_sme_powermgt_set(ks_wlan_private *priv)
+void hostif_sme_powermgt_set(struct ks_wlan_private *priv)
 {
 	unsigned long mode,wake_up,receiveDTIMs ;
 
@@ -2191,7 +2191,7 @@ void hostif_sme_powermgt_set(ks_wlan_private *priv)
 }
 
 static
-void hostif_sme_sleep_set(ks_wlan_private *priv)
+void hostif_sme_sleep_set(struct ks_wlan_private *priv)
 {
 	DPRINTK(3,"\n");
 	switch(priv->sleep_mode){
@@ -2209,7 +2209,7 @@ void hostif_sme_sleep_set(ks_wlan_private *priv)
 }
 
 static
-void hostif_sme_set_key(ks_wlan_private *priv, int type)
+void hostif_sme_set_key(struct ks_wlan_private *priv, int type)
 {
 	uint32_t val;
 	switch(type){
@@ -2265,7 +2265,7 @@ void hostif_sme_set_key(ks_wlan_private *priv, int type)
 }
 
 static
-void hostif_sme_set_pmksa(ks_wlan_private *priv)
+void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 {
 	struct pmk_cache_t {
 		uint16_t size;
@@ -2296,7 +2296,7 @@ void hostif_sme_set_pmksa(ks_wlan_private *priv)
 
 /* execute sme */
 static
-void hostif_sme_execute(ks_wlan_private *priv, int event)
+void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 {
 	uint32_t val;
 
@@ -2459,7 +2459,7 @@ void hostif_sme_execute(ks_wlan_private *priv, int event)
 static
 void hostif_sme_task( unsigned long dev )
 {
-	ks_wlan_private	*priv = (ks_wlan_private *)dev;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev;
 
 	DPRINTK(3,"\n");
 
@@ -2475,7 +2475,7 @@ void hostif_sme_task( unsigned long dev )
 }
 
 /* send to Station Management Entity module */
-void hostif_sme_enqueue(ks_wlan_private *priv, unsigned short event)
+void hostif_sme_enqueue(struct ks_wlan_private *priv, unsigned short event)
 {
 	DPRINTK(3,"\n");
 
@@ -2500,7 +2500,7 @@ void hostif_sme_enqueue(ks_wlan_private *priv, unsigned short event)
 
 }
 
-int hostif_init( ks_wlan_private *priv )
+int hostif_init( struct ks_wlan_private *priv )
 {
 	int rc=0;
 	int i;
@@ -2555,7 +2555,7 @@ int hostif_init( ks_wlan_private *priv )
 	return rc;
 }
 
-void hostif_exit( ks_wlan_private *priv )
+void hostif_exit( struct ks_wlan_private *priv )
 {
 	tasklet_kill(&priv->sme_task);
 	return;

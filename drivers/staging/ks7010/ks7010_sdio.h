@@ -110,7 +110,7 @@ struct ks_sdio_packet {
 
 struct ks_sdio_card {
 	struct sdio_func	*func;
-	struct ks_wlan_private	*priv;
+	struct ks_wlan_private *priv;
 	int			model;
 	const char		*firmware;
         spinlock_t              lock;

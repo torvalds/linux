@@ -61,8 +61,8 @@
 #include "ks_wlan.h"
 #include <linux/netdevice.h>
 
-extern int ks_wlan_read_config_file(ks_wlan_private *priv);
-extern int ks_wlan_setup_parameter(ks_wlan_private *priv, unsigned int commit_flag);
+extern int ks_wlan_read_config_file(struct ks_wlan_private *priv);
+extern int ks_wlan_setup_parameter(struct ks_wlan_private *priv, unsigned int commit_flag);
 
 #endif /* __KERNEL__ */
 

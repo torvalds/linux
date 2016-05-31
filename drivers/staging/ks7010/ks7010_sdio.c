@@ -51,9 +51,9 @@ static struct ks_sdio_model ks_sdio_models[] = {
 static int ks7910_sdio_probe(struct sdio_func *function, const struct sdio_device_id *device);
 static void ks7910_sdio_remove(struct sdio_func *function);
 static void ks7010_rw_function(struct work_struct *work);
-static int ks7010_sdio_read( ks_wlan_private *priv, unsigned int address,
+static int ks7010_sdio_read( struct ks_wlan_private *priv, unsigned int address,
 			     unsigned char *buffer, int length );
-static int ks7010_sdio_write( ks_wlan_private *priv, unsigned int address,
+static int ks7010_sdio_write( struct ks_wlan_private *priv, unsigned int address,
 			      unsigned char *buffer, int length );
 /* macro */
 
@@ -71,7 +71,7 @@ static int ks7010_sdio_write( ks_wlan_private *priv, unsigned int address,
 #define cnt_rxqbody(priv) \
         (((priv->rx_dev.qtail + RX_DEVICE_BUFF_SIZE) - (priv->rx_dev.qhead)) % RX_DEVICE_BUFF_SIZE )
 
-void ks_wlan_hw_sleep_doze_request(ks_wlan_private *priv)
+void ks_wlan_hw_sleep_doze_request(struct ks_wlan_private *priv)
 {
 	unsigned char rw_data;
 	int retval;
@@ -102,7 +102,7 @@ out:
 	return;
 }
 
-void ks_wlan_hw_sleep_wakeup_request(ks_wlan_private *priv)
+void ks_wlan_hw_sleep_wakeup_request(struct ks_wlan_private *priv)
 {
 	unsigned char rw_data;
 	int retval;
@@ -134,7 +134,7 @@ out:
 }
 
 
-void ks_wlan_hw_wakeup_request(ks_wlan_private *priv)
+void ks_wlan_hw_wakeup_request(struct ks_wlan_private *priv)
 {
 	unsigned char rw_data;
 	int retval;
@@ -155,7 +155,7 @@ void ks_wlan_hw_wakeup_request(ks_wlan_private *priv)
 	}
 }
 
-int _ks_wlan_hw_power_save(ks_wlan_private *priv)
+int _ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 {
 	int rc=0;
 	unsigned char rw_data;
@@ -220,13 +220,13 @@ int _ks_wlan_hw_power_save(ks_wlan_private *priv)
 	return rc;
 }
 
-int ks_wlan_hw_power_save(ks_wlan_private *priv)
+int ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 {
 	queue_delayed_work(priv->ks_wlan_hw.ks7010sdio_wq,&priv->ks_wlan_hw.rw_wq, 1);
 	return 0;
 }
 
-static int ks7010_sdio_read(ks_wlan_private *priv, unsigned int address,
+static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
 			    unsigned char *buffer, int length)
 {
 	int rc = -1;
@@ -249,7 +249,7 @@ static int ks7010_sdio_read(ks_wlan_private *priv, unsigned int address,
 	return rc;
 }
 
-static int ks7010_sdio_write(ks_wlan_private *priv, unsigned int address,
+static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
 			     unsigned char *buffer, int length)
 {
 	int rc = -1;
@@ -272,7 +272,7 @@ static int ks7010_sdio_write(ks_wlan_private *priv, unsigned int address,
 	return rc;
 }
 
-static int enqueue_txdev(ks_wlan_private *priv, unsigned char *p, unsigned long size,
+static int enqueue_txdev(struct ks_wlan_private *priv, unsigned char *p, unsigned long size,
 		  void (*complete_handler)(void *arg1, void *arg2),
 		  void *arg1, void *arg2 )
 {
@@ -306,7 +306,7 @@ static int enqueue_txdev(ks_wlan_private *priv, unsigned char *p, unsigned long 
 }
 
 /* write data */
-static int write_to_device(ks_wlan_private *priv, unsigned char *buffer, unsigned long size )
+static int write_to_device(struct ks_wlan_private *priv, unsigned char *buffer, unsigned long size )
 {
 	int rc,retval;
 	unsigned char rw_data;
@@ -338,7 +338,7 @@ static int write_to_device(ks_wlan_private *priv, unsigned char *buffer, unsigne
 
 static void tx_device_task(void *dev)
 {
-	ks_wlan_private	*priv = (ks_wlan_private *)dev;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev;
 	struct tx_device_buffer	*sp;
 	int rc = 0;
 
@@ -366,7 +366,7 @@ static void tx_device_task(void *dev)
 	return;
 }
 
-int ks_wlan_hw_tx( ks_wlan_private *priv, void *p, unsigned long size,
+int ks_wlan_hw_tx( struct ks_wlan_private *priv, void *p, unsigned long size,
 		   void (*complete_handler)(void *arg1, void *arg2),
 		   void *arg1, void *arg2 )
 {
@@ -396,7 +396,7 @@ int ks_wlan_hw_tx( ks_wlan_private *priv, void *p, unsigned long size,
 
 static void rx_event_task(unsigned long dev)
 {
-        ks_wlan_private *priv = (ks_wlan_private *)dev;
+        struct ks_wlan_private *priv = (struct ks_wlan_private *)dev;
 	struct rx_device_buffer	*rp;
 
 	DPRINTK(4,"\n");
@@ -416,7 +416,7 @@ static void rx_event_task(unsigned long dev)
 
 static void ks_wlan_hw_rx(void *dev, uint16_t size)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev;
 	int retval;
 	struct rx_device_buffer *rx_buffer;
 	struct hostif_hdr *hdr;
@@ -560,7 +560,7 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 {
 	int retval;
 	struct ks_sdio_card *card;
-	ks_wlan_private *priv;
+	struct ks_wlan_private *priv;
 	unsigned char status, rsize, rw_data;
 
 	card = sdio_get_drvdata(func);
@@ -643,7 +643,7 @@ intr_out:
 	return;
 }
 
-static int trx_device_init( ks_wlan_private *priv )
+static int trx_device_init( struct ks_wlan_private *priv )
 {
 	/* initialize values (tx) */
 	priv->tx_dev.qtail = priv->tx_dev.qhead = 0;
@@ -660,7 +660,7 @@ static int trx_device_init( ks_wlan_private *priv )
 	return 0;
 }
 
-static void trx_device_exit( ks_wlan_private *priv )
+static void trx_device_exit( struct ks_wlan_private *priv )
 {
 	struct tx_device_buffer	*sp;
 
@@ -677,7 +677,7 @@ static void trx_device_exit( ks_wlan_private *priv )
 
 	return;
 }
-static int ks7010_sdio_update_index(ks_wlan_private *priv, u32 index)
+static int ks7010_sdio_update_index(struct ks_wlan_private *priv, u32 index)
 {
 	int rc=0;
 	int retval;
@@ -699,7 +699,7 @@ error_out:
 }
 
 #define ROM_BUFF_SIZE (64*1024)
-static int ks7010_sdio_data_compare(ks_wlan_private *priv, u32 address,
+static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 				    unsigned char *data, unsigned int size)
 {
 	int rc=0;
@@ -720,7 +720,7 @@ error_out:
 	return rc;
 }
 #include <linux/firmware.h>
-static int ks79xx_upload_firmware(ks_wlan_private *priv, struct ks_sdio_card *card)
+static int ks79xx_upload_firmware(struct ks_wlan_private *priv, struct ks_sdio_card *card)
 {
 	unsigned int	size, offset,  n = 0;
 	unsigned char	*rom_buf;
@@ -886,7 +886,7 @@ extern int ks_wlan_net_stop(struct net_device *dev);
 
 static int ks7910_sdio_probe(struct sdio_func *func, const struct sdio_device_id *device)
 {
-	ks_wlan_private *priv;
+	struct ks_wlan_private *priv;
 	struct ks_sdio_card *card;
 	struct net_device *netdev;
 	unsigned char rw_data;

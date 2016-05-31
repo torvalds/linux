@@ -87,7 +87,7 @@ void analyze_hex_wep_key(struct ks_wlan_parameter *param, int wep_key_index, cha
 }
 
 static
-int rate_set_configuration(ks_wlan_private *priv, char *value)
+int rate_set_configuration(struct ks_wlan_private *priv, char *value)
 {
 	int rc=0;
 
@@ -169,7 +169,7 @@ int rate_set_configuration(ks_wlan_private *priv, char *value)
 }
 
 #include <linux/firmware.h>
-int ks_wlan_read_config_file(ks_wlan_private *priv)
+int ks_wlan_read_config_file(struct ks_wlan_private *priv)
 {
 	struct {
 		const int key_len;

@@ -623,11 +623,11 @@ enum {
 #include "ks_wlan.h"
 
 /* function prototype */
-extern int hostif_data_request( ks_wlan_private *priv, struct sk_buff *packet );
-extern void hostif_receive( ks_wlan_private *priv, unsigned char *p, unsigned int size );
-extern void hostif_sme_enqueue(ks_wlan_private *priv, uint16_t event);
-extern int hostif_init( ks_wlan_private *priv );
-extern void hostif_exit( ks_wlan_private *priv );
+extern int hostif_data_request( struct ks_wlan_private *priv, struct sk_buff *packet );
+extern void hostif_receive( struct ks_wlan_private *priv, unsigned char *p, unsigned int size );
+extern void hostif_sme_enqueue(struct ks_wlan_private *priv, uint16_t event);
+extern int hostif_init( struct ks_wlan_private *priv );
+extern void hostif_exit( struct ks_wlan_private *priv );
 
 static
 inline int hif_align_size(int size)

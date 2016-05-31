@@ -414,7 +414,7 @@ struct wps_status_t {
 };
 #endif /* WPS */
 
-typedef struct ks_wlan_private{
+struct ks_wlan_private {
 
 	struct hw_info_t ks_wlan_hw;  /* hardware information */
 
@@ -505,7 +505,7 @@ typedef struct ks_wlan_private{
 	uint   sdio_error_count;  /* SDIO error */
 	uint   wakeup_count;      /* for detect wakeup loop */
 	
-} ks_wlan_private; 
+};
 
 
 

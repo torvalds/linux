@@ -73,7 +73,7 @@ static const struct iw_handler_def	ks_wlan_handler_def;
 /*
  *	function prototypes
  */
-extern int ks_wlan_hw_tx(ks_wlan_private *priv, void *p, unsigned long size,
+extern int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p, unsigned long size,
 			void (*complete_handler)(void *arg1, void *arg2),
 			void *arg1,
 			void *arg2 );
@@ -89,7 +89,7 @@ static int ks_wlan_netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cm
 static atomic_t update_phyinfo;
 static struct timer_list update_phyinfo_timer;
 static
-int ks_wlan_update_phy_information(ks_wlan_private *priv)
+int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 {
 		struct iw_statistics *wstats = &priv->wstats;
 
@@ -126,7 +126,7 @@ void ks_wlan_update_phyinfo_timeout(unsigned long ptr)
 	atomic_set(&update_phyinfo,0);
 }
 
-int ks_wlan_setup_parameter(ks_wlan_private *priv, unsigned int commit_flag)
+int ks_wlan_setup_parameter(struct ks_wlan_private *priv, unsigned int commit_flag)
 {
 	DPRINTK(2,"\n");
 
@@ -183,7 +183,7 @@ int ks_wlan_setup_parameter(ks_wlan_private *priv, unsigned int commit_flag)
 static int ks_wlan_get_name(struct net_device *dev, struct iw_request_info *info,
 				char *cwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *) netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *) netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -208,7 +208,7 @@ static int ks_wlan_get_name(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_set_freq(struct net_device *dev, struct iw_request_info *info,
 				struct iw_freq *fwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	int rc = -EINPROGRESS;		/* Call commit handler */
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -250,7 +250,7 @@ static int ks_wlan_set_freq(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_get_freq(struct net_device *dev, struct iw_request_info *info,
 				struct iw_freq *fwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	int f;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -271,7 +271,7 @@ static int ks_wlan_get_freq(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_set_essid(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	size_t len;
 
 	DPRINTK(2," %d\n", dwrq->flags);
@@ -326,7 +326,7 @@ static int ks_wlan_set_essid(struct net_device *dev, struct iw_request_info *inf
 static int ks_wlan_get_essid(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -366,7 +366,7 @@ static int ks_wlan_get_essid(struct net_device *dev, struct iw_request_info *inf
 static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 			   struct sockaddr *ap_addr, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	DPRINTK(2,"\n");
 
@@ -402,7 +402,7 @@ static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 static int ks_wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 			   struct sockaddr *awrq, char *extra)
 {
-		ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+		struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -423,7 +423,7 @@ static int ks_wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 static int ks_wlan_set_nick(struct net_device *dev, struct iw_request_info *info,
 				struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -442,7 +442,7 @@ static int ks_wlan_set_nick(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_get_nick(struct net_device *dev, struct iw_request_info *info,
 				struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -458,7 +458,7 @@ static int ks_wlan_get_nick(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_set_rate(struct net_device *dev, struct iw_request_info *info,
 				struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	int i = 0;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -609,7 +609,7 @@ static int ks_wlan_set_rate(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_get_rate(struct net_device *dev, struct iw_request_info *info,
 				struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	DPRINTK(2, "in_interrupt = %ld update_phyinfo = %d\n",
 		in_interrupt(),atomic_read(&update_phyinfo));
@@ -633,7 +633,7 @@ static int ks_wlan_get_rate(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 			   struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	int rthr = vwrq->value;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -654,7 +654,7 @@ static int ks_wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 static int ks_wlan_get_rts(struct net_device *dev, struct iw_request_info *info,
 			   struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -670,7 +670,7 @@ static int ks_wlan_get_rts(struct net_device *dev, struct iw_request_info *info,
 static int ks_wlan_set_frag(struct net_device *dev, struct iw_request_info *info,
 				struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	int fthr = vwrq->value;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -692,7 +692,7 @@ static int ks_wlan_set_frag(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_get_frag(struct net_device *dev, struct iw_request_info *info,
 				struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -708,7 +708,7 @@ static int ks_wlan_get_frag(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_set_mode(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	DPRINTK(2,"mode=%d\n",*uwrq);
 
@@ -740,7 +740,7 @@ static int ks_wlan_set_mode(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_get_mode(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -764,7 +764,7 @@ static int ks_wlan_get_mode(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_set_encode(struct net_device *dev, struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	wep_key_t key;
 	int index = (dwrq->flags & IW_ENCODE_INDEX);
@@ -878,7 +878,7 @@ static int ks_wlan_set_encode(struct net_device *dev, struct iw_request_info *in
 static int ks_wlan_get_encode(struct net_device *dev, struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	char zeros[16];
 	int index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
 
@@ -974,7 +974,7 @@ static int ks_wlan_get_retry(struct net_device *dev, struct iw_request_info *inf
 static int ks_wlan_get_range(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	struct iw_range *range = (struct iw_range *) extra;
 	int i,k;
 
@@ -1105,7 +1105,7 @@ static int ks_wlan_get_range(struct net_device *dev, struct iw_request_info *inf
 static int ks_wlan_set_power(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	short enabled;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -1136,7 +1136,7 @@ static int ks_wlan_set_power(struct net_device *dev, struct iw_request_info *inf
 static int ks_wlan_get_power(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -1153,7 +1153,7 @@ static int ks_wlan_get_power(struct net_device *dev, struct iw_request_info *inf
 static int ks_wlan_get_iwstats(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_quality *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -1194,7 +1194,7 @@ static int ks_wlan_get_sens(struct net_device *dev, struct iw_request_info *info
 static int ks_wlan_get_aplist(struct net_device *dev, struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	struct sockaddr *address = (struct sockaddr *) extra;
 	struct iw_quality qual[LOCAL_APLIST_MAX];
 
@@ -1225,7 +1225,7 @@ static int ks_wlan_get_aplist(struct net_device *dev, struct iw_request_info *in
 static int ks_wlan_set_scan(struct net_device *dev, struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	struct iw_scan_req *req = NULL;
 	DPRINTK(2,"\n");
 
@@ -1257,7 +1257,7 @@ static int ks_wlan_set_scan(struct net_device *dev, struct iw_request_info *info
 static inline char *ks_wlan_translate_scan(struct net_device *dev, struct iw_request_info *info, char *current_ev,
 					   char *end_buf, struct local_ap_t *ap)
 {
-	/* ks_wlan_private *priv = (ks_wlan_private *)dev->priv; */
+	/* struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv; */
 	struct iw_event	iwe;		/* Temporary buffer */
 	u16 capabilities;
 	char *current_val;	/* For rates */
@@ -1393,7 +1393,7 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev, struct iw_req
 static int ks_wlan_get_scan(struct net_device *dev, struct iw_request_info *info,
 				struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	int i;
 	char *current_ev = extra;
 	DPRINTK(2,"\n");
@@ -1448,7 +1448,7 @@ DPRINTK(2,"aplist 0\n");
 static int ks_wlan_config_commit(struct net_device *dev, struct iw_request_info *info,
 				 void *zwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (!priv->need_commit)
 		return 0;
@@ -1463,7 +1463,7 @@ static int ks_wlan_config_commit(struct net_device *dev, struct iw_request_info 
 static int ks_wlan_set_genie(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	DPRINTK(2, "\n");
 
@@ -1478,7 +1478,7 @@ static int ks_wlan_set_genie(struct net_device *dev, struct iw_request_info *inf
 static int ks_wlan_set_auth_mode(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	int index = (vwrq->flags & IW_AUTH_INDEX);
 	int value = vwrq->value;
 
@@ -1614,7 +1614,7 @@ static int ks_wlan_set_auth_mode(struct net_device *dev, struct iw_request_info 
 static int ks_wlan_get_auth_mode(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_param *vwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	int index = (vwrq->flags & IW_AUTH_INDEX);
 	DPRINTK(2,"index=%d\n",index);
 
@@ -1655,7 +1655,7 @@ static int ks_wlan_get_auth_mode(struct net_device *dev, struct iw_request_info 
 static int ks_wlan_set_encode_ext(struct net_device *dev, struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	struct iw_encode_ext *enc;
 	int index = dwrq->flags & IW_ENCODE_INDEX;
 	unsigned int commit=0;
@@ -1761,12 +1761,12 @@ static int ks_wlan_set_encode_ext(struct net_device *dev, struct iw_request_info
 static int ks_wlan_get_encode_ext(struct net_device *dev, struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
 	/*  WPA (not used ?? wpa_supplicant)
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 	struct iw_encode_ext *enc;
 	enc = (struct iw_encode_ext *)extra;
 	int index = dwrq->flags & IW_ENCODE_INDEX;
@@ -1779,7 +1779,7 @@ static int ks_wlan_get_encode_ext(struct net_device *dev, struct iw_request_info
 static int ks_wlan_set_pmksa(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	struct iw_pmksa *pmksa ;
 	int i;
 	struct pmk_t *pmk;
@@ -1874,7 +1874,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev, struct iw_request_info *inf
 static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 {
 
-	ks_wlan_private *priv = (ks_wlan_private *) netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *) netdev_priv(dev);
 		struct iw_statistics *wstats = &priv->wstats;
 
 	if(!atomic_read(&update_phyinfo)){
@@ -1901,7 +1901,7 @@ static struct iw_statistics *ks_get_wireless_stats(struct net_device *dev)
 static int ks_wlan_set_stop_request(struct net_device *dev, struct iw_request_info *info,
 				    __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	DPRINTK(2,"\n");
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -1919,7 +1919,7 @@ static int ks_wlan_set_stop_request(struct net_device *dev, struct iw_request_in
 static int ks_wlan_set_mlme(struct net_device *dev, struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 	__u32 mode;
 
@@ -1955,7 +1955,7 @@ static int ks_wlan_get_driver_version(struct net_device *dev, struct iw_request_
 static int ks_wlan_get_firmware_version(struct net_device *dev, struct iw_request_info *info,
 					struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	strcpy(extra, &(priv->firmware_version[0]));
 	dwrq->length = priv->version_size+1;
 	return 0;
@@ -1967,7 +1967,7 @@ static int ks_wlan_get_firmware_version(struct net_device *dev, struct iw_reques
 static int ks_wlan_set_detach(struct net_device *dev, struct iw_request_info *info,
 				  __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -1988,7 +1988,7 @@ static int ks_wlan_set_detach(struct net_device *dev, struct iw_request_info *in
 static int ks_wlan_get_detach(struct net_device *dev, struct iw_request_info *info,
 				  __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2001,7 +2001,7 @@ static int ks_wlan_get_detach(struct net_device *dev, struct iw_request_info *in
 static int ks_wlan_get_connect(struct net_device *dev, struct iw_request_info *info,
 				   __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2015,7 +2015,7 @@ static int ks_wlan_get_connect(struct net_device *dev, struct iw_request_info *i
 static int ks_wlan_set_preamble(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2036,7 +2036,7 @@ static int ks_wlan_set_preamble(struct net_device *dev, struct iw_request_info *
 static int ks_wlan_get_preamble(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2049,7 +2049,7 @@ static int ks_wlan_get_preamble(struct net_device *dev, struct iw_request_info *
 static int ks_wlan_set_powermgt(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2078,7 +2078,7 @@ static int ks_wlan_set_powermgt(struct net_device *dev, struct iw_request_info *
 static int ks_wlan_get_powermgt(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2091,7 +2091,7 @@ static int ks_wlan_get_powermgt(struct net_device *dev, struct iw_request_info *
 static int ks_wlan_set_scan_type(struct net_device *dev, struct iw_request_info *info,
 				 __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2110,7 +2110,7 @@ static int ks_wlan_set_scan_type(struct net_device *dev, struct iw_request_info 
 static int ks_wlan_get_scan_type(struct net_device *dev, struct iw_request_info *info,
 				 __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2123,7 +2123,7 @@ static int ks_wlan_get_scan_type(struct net_device *dev, struct iw_request_info 
 static int ks_wlan_data_write(struct net_device *dev, struct iw_request_info *info,
 				  struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 	unsigned char *wbuff = NULL;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -2144,7 +2144,7 @@ static int ks_wlan_data_write(struct net_device *dev, struct iw_request_info *in
 static int ks_wlan_data_read(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 	unsigned short read_length;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -2200,7 +2200,7 @@ static int ks_wlan_data_read(struct net_device *dev, struct iw_request_info *inf
 static int ks_wlan_get_wep_ascii(struct net_device *dev, struct iw_request_info *info,
 				 struct iw_point *dwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 	int i,j,len=0;
 	char tmp[WEP_ASCII_BUFF_SIZE];
 
@@ -2242,7 +2242,7 @@ static int ks_wlan_get_wep_ascii(struct net_device *dev, struct iw_request_info 
 static int ks_wlan_set_beacon_lost(struct net_device *dev, struct iw_request_info *info,
 				   __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2265,7 +2265,7 @@ static int ks_wlan_set_beacon_lost(struct net_device *dev, struct iw_request_inf
 static int ks_wlan_get_beacon_lost(struct net_device *dev, struct iw_request_info *info,
 				   __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2278,7 +2278,7 @@ static int ks_wlan_get_beacon_lost(struct net_device *dev, struct iw_request_inf
 static int ks_wlan_set_phy_type(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2300,7 +2300,7 @@ static int ks_wlan_set_phy_type(struct net_device *dev, struct iw_request_info *
 static int ks_wlan_get_phy_type(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2313,7 +2313,7 @@ static int ks_wlan_get_phy_type(struct net_device *dev, struct iw_request_info *
 static int ks_wlan_set_cts_mode(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2337,7 +2337,7 @@ static int ks_wlan_set_cts_mode(struct net_device *dev, struct iw_request_info *
 static int ks_wlan_get_cts_mode(struct net_device *dev, struct iw_request_info *info,
 				__u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2351,7 +2351,7 @@ static int ks_wlan_set_sleep_mode(struct net_device *dev,
 				     struct iw_request_info *info,
 				     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	DPRINTK(2,"\n");
 
@@ -2379,7 +2379,7 @@ static int ks_wlan_get_sleep_mode(struct net_device *dev,
 				     struct iw_request_info *info,
 				     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	DPRINTK(2, "GET_SLEEP_MODE %d\n", priv->sleep_mode);
 	*uwrq = priv->sleep_mode;
@@ -2393,7 +2393,7 @@ static int ks_wlan_get_sleep_mode(struct net_device *dev,
 static int ks_wlan_set_phy_information_timer(struct net_device *dev, struct iw_request_info *info,
 					     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2412,7 +2412,7 @@ static int ks_wlan_set_phy_information_timer(struct net_device *dev, struct iw_r
 static int ks_wlan_get_phy_information_timer(struct net_device *dev, struct iw_request_info *info,
 					     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2427,7 +2427,7 @@ static int ks_wlan_get_phy_information_timer(struct net_device *dev, struct iw_r
 static int ks_wlan_set_wps_enable(struct net_device *dev, struct iw_request_info *info,
 				  __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	DPRINTK(2,"\n");
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -2446,7 +2446,7 @@ static int ks_wlan_set_wps_enable(struct net_device *dev, struct iw_request_info
 static int ks_wlan_get_wps_enable(struct net_device *dev, struct iw_request_info *info,
 				  __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 	DPRINTK(2,"\n");
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -2464,7 +2464,7 @@ static int ks_wlan_set_wps_probe_req(struct net_device *dev,
 {
 	uint8_t *p = extra;
 	unsigned char len;
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	DPRINTK(2,"\n");
 
@@ -2498,7 +2498,7 @@ static int ks_wlan_get_wps_probe_req(struct net_device *dev,
 				     struct iw_request_info *info,
 				     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 	DPRINTK(2,"\n");
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
@@ -2513,7 +2513,7 @@ static int ks_wlan_get_wps_probe_req(struct net_device *dev,
 static int ks_wlan_set_tx_gain(struct net_device *dev, struct iw_request_info *info,
 					     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2537,7 +2537,7 @@ static int ks_wlan_set_tx_gain(struct net_device *dev, struct iw_request_info *i
 static int ks_wlan_get_tx_gain(struct net_device *dev, struct iw_request_info *info,
 					     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2551,7 +2551,7 @@ static int ks_wlan_get_tx_gain(struct net_device *dev, struct iw_request_info *i
 static int ks_wlan_set_rx_gain(struct net_device *dev, struct iw_request_info *info,
 					     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2574,7 +2574,7 @@ static int ks_wlan_set_rx_gain(struct net_device *dev, struct iw_request_info *i
 static int ks_wlan_get_rx_gain(struct net_device *dev, struct iw_request_info *info,
 					     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2588,7 +2588,7 @@ static int ks_wlan_get_rx_gain(struct net_device *dev, struct iw_request_info *i
 static int ks_wlan_set_region(struct net_device *dev, struct iw_request_info *info,
 					     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)dev->priv;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)dev->priv;
 
 	if (priv->sleep_mode == SLP_SLEEP){ return -EPERM; }  /* for SLEEP MODE */
 
@@ -2607,7 +2607,7 @@ static int ks_wlan_set_region(struct net_device *dev, struct iw_request_info *in
 static int ks_wlan_get_eeprom_cksum(struct net_device *dev, struct iw_request_info *info,
 					     __u32 *uwrq, char *extra)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	*uwrq = priv->eeprom_checksum;
 	return 0;
@@ -2732,7 +2732,7 @@ static int ks_wlan_hostt(struct net_device *dev, struct iw_request_info *info,
 					     __u32 *uwrq, char *extra)
 {
 	int i,event;
-	ks_wlan_private *priv = (ks_wlan_private *)netdev_priv(dev);
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)netdev_priv(dev);
 
 	for(i = 63; i >= 0; i--){
 		event =	priv->hostt.buff[(priv->hostt.qtail -1 -i)%SME_EVENT_BUFF_SIZE] ;
@@ -2924,7 +2924,7 @@ static int ks_wlan_netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cm
 static
 struct net_device_stats *ks_wlan_get_stats(struct net_device *dev)
 {
-	ks_wlan_private *priv = netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	if (priv->dev_state < DEVICE_STATE_READY) {
 				return NULL; /* not finished initialize */
@@ -2936,7 +2936,7 @@ struct net_device_stats *ks_wlan_get_stats(struct net_device *dev)
 static
 int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 {
-	ks_wlan_private *priv = netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	struct sockaddr *mac_addr=(struct sockaddr *)addr;
 	if (netif_running(dev))
 		return -EBUSY;
@@ -2955,7 +2955,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 static
 void ks_wlan_tx_timeout(struct net_device *dev)
 {
-		ks_wlan_private *priv = netdev_priv(dev);
+		struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(1,"head(%d) tail(%d)!!\n",priv->tx_dev.qhead, priv->tx_dev.qtail);
 	if(!netif_queue_stopped(dev)){
@@ -2970,7 +2970,7 @@ void ks_wlan_tx_timeout(struct net_device *dev)
 static
 int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	ks_wlan_private *priv = netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 	int rc = 0;
 
 	DPRINTK(3,"in_interrupt()=%ld\n",in_interrupt());
@@ -3000,7 +3000,7 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 void send_packet_complete(void *arg1, void *arg2)
 {
-	ks_wlan_private *priv = (ks_wlan_private *)arg1;
+	struct ks_wlan_private *priv = (struct ks_wlan_private *)arg1;
 	struct sk_buff *packet = (struct sk_buff *)arg2;
 
 		DPRINTK(3,"\n");
@@ -3023,7 +3023,7 @@ void send_packet_complete(void *arg1, void *arg2)
 static
 void ks_wlan_set_multicast_list(struct net_device *dev)
 {
-	ks_wlan_private *priv = netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	DPRINTK(4,"\n");
 	if (priv->dev_state < DEVICE_STATE_READY) {
@@ -3037,7 +3037,7 @@ void ks_wlan_set_multicast_list(struct net_device *dev)
 static
 int ks_wlan_open(struct net_device *dev)
 {
-	ks_wlan_private *priv = netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	priv->cur_rx = 0;
 
@@ -3082,7 +3082,7 @@ static const struct net_device_ops ks_wlan_netdev_ops = {
 
 int ks_wlan_net_start(struct net_device *dev)
 {
-	ks_wlan_private *priv;
+	struct ks_wlan_private *priv;
 	/* int rc; */
 
 	priv = netdev_priv(dev);
@@ -3121,7 +3121,7 @@ int ks_wlan_net_start(struct net_device *dev)
 
 int ks_wlan_net_stop(struct net_device *dev)
 {
-	ks_wlan_private *priv = netdev_priv(dev);
+	struct ks_wlan_private *priv = netdev_priv(dev);
 
 	int ret = 0;
 	priv->device_open_status = 0;
