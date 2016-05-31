@@ -1961,6 +1961,14 @@ static int iwl_mvm_send_sta_igtk(struct iwl_mvm *mvm,
 		struct ieee80211_key_seq seq;
 		const u8 *pn;
 
+		switch (keyconf->cipher) {
+		case WLAN_CIPHER_SUITE_AES_CMAC:
+			igtk_cmd.ctrl_flags |= cpu_to_le32(STA_KEY_FLG_CCM);
+			break;
+		default:
+			return -EINVAL;
+		}
+
 		memcpy(igtk_cmd.IGTK, keyconf->key, keyconf->keylen);
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		pn = seq.aes_cmac.pn;
