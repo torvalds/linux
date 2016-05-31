@@ -845,6 +845,9 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	struct flow_keys fk;
 	int rc;
 
+	if (flow_id == RPS_FLOW_ID_INVALID)
+		return -EINVAL;
+
 	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
 		return -EPROTONOSUPPORT;
 
@@ -879,8 +882,8 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		return rc;
 
 	/* Remember this so we can check whether to expire the filter later */
-	efx->rps_flow_id[rc] = flow_id;
-	channel = efx_get_channel(efx, skb_get_rx_queue(skb));
+	channel = efx_get_channel(efx, rxq_index);
+	channel->rps_flow_id[rc] = flow_id;
 	++channel->rfs_filters_added;
 
 	if (spec.ether_type == htons(ETH_P_IP))
@@ -902,24 +905,34 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)
 {
 	bool (*expire_one)(struct efx_nic *efx, u32 flow_id, unsigned int index);
-	unsigned int index, size;
+	unsigned int channel_idx, index, size;
 	u32 flow_id;
 
 	if (!spin_trylock_bh(&efx->filter_lock))
 		return false;
 
 	expire_one = efx->type->filter_rfs_expire_one;
+	channel_idx = efx->rps_expire_channel;
 	index = efx->rps_expire_index;
 	size = efx->type->max_rx_ip_filters;
 	while (quota--) {
-		flow_id = efx->rps_flow_id[index];
-		if (expire_one(efx, flow_id, index))
+		struct efx_channel *channel = efx_get_channel(efx, channel_idx);
+		flow_id = channel->rps_flow_id[index];
+
+		if (flow_id != RPS_FLOW_ID_INVALID &&
+		    expire_one(efx, flow_id, index)) {
 			netif_info(efx, rx_status, efx->net_dev,
-				   "expired filter %d [flow %u]\n",
-				   index, flow_id);
-		if (++index == size)
+				   "expired filter %d [queue %u flow %u]\n",
+				   index, channel_idx, flow_id);
+			channel->rps_flow_id[index] = RPS_FLOW_ID_INVALID;
+		}
+		if (++index == size) {
+			if (++channel_idx == efx->n_channels)
+				channel_idx = 0;
 			index = 0;
+		}
 	}
+	efx->rps_expire_channel = channel_idx;
 	efx->rps_expire_index = index;
 
 	spin_unlock_bh(&efx->filter_lock);
