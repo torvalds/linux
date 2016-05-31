@@ -122,6 +122,7 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	struct ccp_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct ccp_aes_req_ctx *rctx = ablkcipher_request_ctx(req);
 	unsigned int unit;
+	u32 unit_size;
 	int ret;
 
 	if (!ctx->u.aes.key_len)
@@ -133,11 +134,17 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	if (!req->info)
 		return -EINVAL;
 
-	for (unit = 0; unit < ARRAY_SIZE(unit_size_map); unit++)
-		if (!(req->nbytes & (unit_size_map[unit].size - 1)))
-			break;
+	unit_size = CCP_XTS_AES_UNIT_SIZE__LAST;
+	if (req->nbytes <= unit_size_map[0].size) {
+		for (unit = 0; unit < ARRAY_SIZE(unit_size_map); unit++) {
+			if (!(req->nbytes & (unit_size_map[unit].size - 1))) {
+				unit_size = unit_size_map[unit].value;
+				break;
+			}
+		}
+	}
 
-	if ((unit_size_map[unit].value == CCP_XTS_AES_UNIT_SIZE__LAST) ||
+	if ((unit_size == CCP_XTS_AES_UNIT_SIZE__LAST) ||
 	    (ctx->u.aes.key_len != AES_KEYSIZE_128)) {
 		/* Use the fallback to process the request for any
 		 * unsupported unit sizes or key sizes
@@ -158,7 +165,7 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	rctx->cmd.engine = CCP_ENGINE_XTS_AES_128;
 	rctx->cmd.u.xts.action = (encrypt) ? CCP_AES_ACTION_ENCRYPT
 					   : CCP_AES_ACTION_DECRYPT;
-	rctx->cmd.u.xts.unit_size = unit_size_map[unit].value;
+	rctx->cmd.u.xts.unit_size = unit_size;
 	rctx->cmd.u.xts.key = &ctx->u.aes.key_sg;
 	rctx->cmd.u.xts.key_len = ctx->u.aes.key_len;
 	rctx->cmd.u.xts.iv = &rctx->iv_sg;

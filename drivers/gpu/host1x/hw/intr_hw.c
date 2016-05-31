@@ -85,7 +85,7 @@ static int _host1x_intr_init_host_sync(struct host1x *host, u32 cpm,
 	err = devm_request_irq(host->dev, host->intr_syncpt_irq,
 			       syncpt_thresh_isr, IRQF_SHARED,
 			       "host1x_syncpt", host);
-	if (IS_ERR_VALUE(err)) {
+	if (err < 0) {
 		WARN_ON(1);
 		return err;
 	}

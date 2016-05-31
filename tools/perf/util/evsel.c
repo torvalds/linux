@@ -37,6 +37,7 @@ static struct {
 	bool clockid;
 	bool clockid_wrong;
 	bool lbr_flags;
+	bool write_backward;
 } perf_missing_features;
 
 static clockid_t clockid;
@@ -1376,6 +1377,8 @@ fallback_missing_features:
 	if (perf_missing_features.lbr_flags)
 		evsel->attr.branch_sample_type &= ~(PERF_SAMPLE_BRANCH_NO_FLAGS |
 				     PERF_SAMPLE_BRANCH_NO_CYCLES);
+	if (perf_missing_features.write_backward)
+		evsel->attr.write_backward = false;
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
@@ -1435,6 +1438,12 @@ retry_open:
 			 */
 			if (perf_missing_features.clockid ||
 			    perf_missing_features.clockid_wrong) {
+				err = -EINVAL;
+				goto out_close;
+			}
+
+			if (evsel->overwrite &&
+			    perf_missing_features.write_backward) {
 				err = -EINVAL;
 				goto out_close;
 			}
@@ -1499,6 +1508,10 @@ try_fallback:
 			 (PERF_SAMPLE_BRANCH_NO_CYCLES |
 			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
 		perf_missing_features.lbr_flags = true;
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.write_backward &&
+			evsel->attr.write_backward) {
+		perf_missing_features.write_backward = true;
 		goto fallback_missing_features;
 	}
 

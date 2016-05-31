@@ -573,6 +573,11 @@ enum nfsd4_cb_op {
 	NFSPROC4_CLNT_CB_SEQUENCE,
 };
 
+/* Returns true iff a is later than b: */
+static inline bool nfsd4_stateid_generation_after(stateid_t *a, stateid_t *b)
+{
+	return (s32)(a->si_generation - b->si_generation) > 0;
+}
 
 struct nfsd4_compound_state;
 struct nfsd_net;

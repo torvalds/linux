@@ -2361,24 +2361,116 @@ static int i40iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+static const char * const i40iw_hw_stat_names[] = {
+	// 32bit names
+	[I40IW_HW_STAT_INDEX_IP4RXDISCARD] = "ip4InDiscards",
+	[I40IW_HW_STAT_INDEX_IP4RXTRUNC] = "ip4InTruncatedPkts",
+	[I40IW_HW_STAT_INDEX_IP4TXNOROUTE] = "ip4OutNoRoutes",
+	[I40IW_HW_STAT_INDEX_IP6RXDISCARD] = "ip6InDiscards",
+	[I40IW_HW_STAT_INDEX_IP6RXTRUNC] = "ip6InTruncatedPkts",
+	[I40IW_HW_STAT_INDEX_IP6TXNOROUTE] = "ip6OutNoRoutes",
+	[I40IW_HW_STAT_INDEX_TCPRTXSEG] = "tcpRetransSegs",
+	[I40IW_HW_STAT_INDEX_TCPRXOPTERR] = "tcpInOptErrors",
+	[I40IW_HW_STAT_INDEX_TCPRXPROTOERR] = "tcpInProtoErrors",
+	// 64bit names
+	[I40IW_HW_STAT_INDEX_IP4RXOCTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4InOctets",
+	[I40IW_HW_STAT_INDEX_IP4RXPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4InPkts",
+	[I40IW_HW_STAT_INDEX_IP4RXFRAGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4InReasmRqd",
+	[I40IW_HW_STAT_INDEX_IP4RXMCPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4InMcastPkts",
+	[I40IW_HW_STAT_INDEX_IP4TXOCTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4OutOctets",
+	[I40IW_HW_STAT_INDEX_IP4TXPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4OutPkts",
+	[I40IW_HW_STAT_INDEX_IP4TXFRAGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4OutSegRqd",
+	[I40IW_HW_STAT_INDEX_IP4TXMCPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip4OutMcastPkts",
+	[I40IW_HW_STAT_INDEX_IP6RXOCTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6InOctets",
+	[I40IW_HW_STAT_INDEX_IP6RXPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6InPkts",
+	[I40IW_HW_STAT_INDEX_IP6RXFRAGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6InReasmRqd",
+	[I40IW_HW_STAT_INDEX_IP6RXMCPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6InMcastPkts",
+	[I40IW_HW_STAT_INDEX_IP6TXOCTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6OutOctets",
+	[I40IW_HW_STAT_INDEX_IP6TXPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6OutPkts",
+	[I40IW_HW_STAT_INDEX_IP6TXFRAGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6OutSegRqd",
+	[I40IW_HW_STAT_INDEX_IP6TXMCPKTS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"ip6OutMcastPkts",
+	[I40IW_HW_STAT_INDEX_TCPRXSEGS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"tcpInSegs",
+	[I40IW_HW_STAT_INDEX_TCPTXSEG + I40IW_HW_STAT_INDEX_MAX_32] =
+		"tcpOutSegs",
+	[I40IW_HW_STAT_INDEX_RDMARXRDS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwInRdmaReads",
+	[I40IW_HW_STAT_INDEX_RDMARXSNDS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwInRdmaSends",
+	[I40IW_HW_STAT_INDEX_RDMARXWRS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwInRdmaWrites",
+	[I40IW_HW_STAT_INDEX_RDMATXRDS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwOutRdmaReads",
+	[I40IW_HW_STAT_INDEX_RDMATXSNDS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwOutRdmaSends",
+	[I40IW_HW_STAT_INDEX_RDMATXWRS + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwOutRdmaWrites",
+	[I40IW_HW_STAT_INDEX_RDMAVBND + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwRdmaBnd",
+	[I40IW_HW_STAT_INDEX_RDMAVINV + I40IW_HW_STAT_INDEX_MAX_32] =
+		"iwRdmaInv"
+};
+
 /**
- * i40iw_get_protocol_stats - Populates the rdma_stats structure
- * @ibdev: ib dev struct
- * @stats: iw protocol stats struct
+ * i40iw_alloc_hw_stats - Allocate a hw stats structure
+ * @ibdev: device pointer from stack
+ * @port_num: port number
  */
-static int i40iw_get_protocol_stats(struct ib_device *ibdev,
-				    union rdma_protocol_stats *stats)
+static struct rdma_hw_stats *i40iw_alloc_hw_stats(struct ib_device *ibdev,
+						  u8 port_num)
+{
+	struct i40iw_device *iwdev = to_iwdev(ibdev);
+	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
+	int num_counters = I40IW_HW_STAT_INDEX_MAX_32 +
+		I40IW_HW_STAT_INDEX_MAX_64;
+	unsigned long lifespan = RDMA_HW_STATS_DEFAULT_LIFESPAN;
+
+	BUILD_BUG_ON(ARRAY_SIZE(i40iw_hw_stat_names) !=
+		     (I40IW_HW_STAT_INDEX_MAX_32 +
+		      I40IW_HW_STAT_INDEX_MAX_64));
+
+	/*
+	 * PFs get the default update lifespan, but VFs only update once
+	 * per second
+	 */
+	if (!dev->is_pf)
+		lifespan = 1000;
+	return rdma_alloc_hw_stats_struct(i40iw_hw_stat_names, num_counters,
+					  lifespan);
+}
+
+/**
+ * i40iw_get_hw_stats - Populates the rdma_hw_stats structure
+ * @ibdev: device pointer from stack
+ * @stats: stats pointer from stack
+ * @port_num: port number
+ * @index: which hw counter the stack is requesting we update
+ */
+static int i40iw_get_hw_stats(struct ib_device *ibdev,
+			      struct rdma_hw_stats *stats,
+			      u8 port_num, int index)
 {
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	struct i40iw_dev_pestat *devstat = &dev->dev_pestat;
 	struct i40iw_dev_hw_stats *hw_stats = &devstat->hw_stats;
-	struct timespec curr_time;
-	static struct timespec last_rd_time = {0, 0};
 	unsigned long flags;
-
-	curr_time = current_kernel_time();
-	memset(stats, 0, sizeof(*stats));
 
 	if (dev->is_pf) {
 		spin_lock_irqsave(&devstat->stats_lock, flags);
@@ -2386,33 +2478,13 @@ static int i40iw_get_protocol_stats(struct ib_device *ibdev,
 			&devstat->hw_stats);
 		spin_unlock_irqrestore(&devstat->stats_lock, flags);
 	} else {
-		if (((u64)curr_time.tv_sec - (u64)last_rd_time.tv_sec) > 1)
-			if (i40iw_vchnl_vf_get_pe_stats(dev, &devstat->hw_stats))
-				return -ENOSYS;
+		if (i40iw_vchnl_vf_get_pe_stats(dev, &devstat->hw_stats))
+			return -ENOSYS;
 	}
 
-	stats->iw.ipInReceives = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4RXPKTS] +
-				 hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6RXPKTS];
-	stats->iw.ipInTruncatedPkts = hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP4RXTRUNC] +
-				      hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP6RXTRUNC];
-	stats->iw.ipInDiscards = hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP4RXDISCARD] +
-				 hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP6RXDISCARD];
-	stats->iw.ipOutNoRoutes = hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP4TXNOROUTE] +
-				  hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_IP6TXNOROUTE];
-	stats->iw.ipReasmReqds = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4RXFRAGS] +
-				 hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6RXFRAGS];
-	stats->iw.ipFragCreates = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4TXFRAGS] +
-				  hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6TXFRAGS];
-	stats->iw.ipInMcastPkts = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4RXMCPKTS] +
-				  hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6RXMCPKTS];
-	stats->iw.ipOutMcastPkts = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP4TXMCPKTS] +
-				   hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_IP6TXMCPKTS];
-	stats->iw.tcpOutSegs = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_TCPTXSEG];
-	stats->iw.tcpInSegs = hw_stats->stat_value_64[I40IW_HW_STAT_INDEX_TCPRXSEGS];
-	stats->iw.tcpRetransSegs = hw_stats->stat_value_32[I40IW_HW_STAT_INDEX_TCPRTXSEG];
+	memcpy(&stats->value[0], &hw_stats, sizeof(*hw_stats));
 
-	last_rd_time = curr_time;
-	return 0;
+	return stats->num_counters;
 }
 
 /**
@@ -2551,7 +2623,8 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.get_dma_mr = i40iw_get_dma_mr;
 	iwibdev->ibdev.reg_user_mr = i40iw_reg_user_mr;
 	iwibdev->ibdev.dereg_mr = i40iw_dereg_mr;
-	iwibdev->ibdev.get_protocol_stats = i40iw_get_protocol_stats;
+	iwibdev->ibdev.alloc_hw_stats = i40iw_alloc_hw_stats;
+	iwibdev->ibdev.get_hw_stats = i40iw_get_hw_stats;
 	iwibdev->ibdev.query_device = i40iw_query_device;
 	iwibdev->ibdev.create_ah = i40iw_create_ah;
 	iwibdev->ibdev.destroy_ah = i40iw_destroy_ah;

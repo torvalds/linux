@@ -8,7 +8,7 @@
 #include "ieee754.h"
 
 /*
- * Emulate the arbritrary instruction ir at xcp->cp0_epc.  Required when
+ * Emulate the arbitrary instruction ir at xcp->cp0_epc.  Required when
  * we have to emulate the instruction in a COP1 branch delay slot.  Do
  * not change cp0_epc due to the instruction
  *
@@ -88,7 +88,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 	fr = (struct emuframe __user *)
 		((regs->regs[29] - sizeof(struct emuframe)) & ~0x7);
 
-	/* Verify that the stack pointer is not competely insane */
+	/* Verify that the stack pointer is not completely insane */
 	if (unlikely(!access_ok(VERIFY_WRITE, fr, sizeof(struct emuframe))))
 		return SIGBUS;
 

@@ -7,6 +7,7 @@
 #include "auxtrace.h"
 #include "util.h"
 #include "debug.h"
+#include "vdso.h"
 
 char dso__symtab_origin(const struct dso *dso)
 {
@@ -62,9 +63,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 		}
 		break;
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
-		/* skip the locally configured cache if a symfs is given */
-		if (symbol_conf.symfs[0] ||
-		    (dso__build_id_filename(dso, filename, size) == NULL))
+		if (dso__build_id_filename(dso, filename, size) == NULL)
 			ret = -1;
 		break;
 
@@ -1169,7 +1168,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	struct dso *pos;
 
 	list_for_each_entry(pos, head, node) {
-		if (with_hits && !pos->hit)
+		if (with_hits && !pos->hit && !dso__is_vdso(pos))
 			continue;
 		if (pos->has_build_id) {
 			have_build_id = true;

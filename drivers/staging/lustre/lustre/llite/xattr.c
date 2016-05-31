@@ -211,11 +211,9 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 	return 0;
 }
 
-int ll_setxattr(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags)
+int ll_setxattr(struct dentry *dentry, struct inode *inode,
+		const char *name, const void *value, size_t size, int flags)
 {
-	struct inode *inode = d_inode(dentry);
-
 	LASSERT(inode);
 	LASSERT(name);
 

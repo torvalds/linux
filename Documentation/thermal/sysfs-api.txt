@@ -69,8 +69,8 @@ temperature) and throttle appropriate devices.
 1.1.2 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
     This interface function removes the thermal zone device.
-    It deletes the corresponding entry form /sys/class/thermal folder and
-    unbind all the thermal cooling devices it uses.
+    It deletes the corresponding entry from /sys/class/thermal folder and
+    unbinds all the thermal cooling devices it uses.
 
 1.1.3 struct thermal_zone_device *thermal_zone_of_sensor_register(
 		struct device *dev, int sensor_id, void *data,
@@ -146,32 +146,32 @@ temperature) and throttle appropriate devices.
 
     This interface function adds a new thermal cooling device (fan/processor/...)
     to /sys/class/thermal/ folder as cooling_device[0-*]. It tries to bind itself
-    to all the thermal zone devices register at the same time.
+    to all the thermal zone devices registered at the same time.
     name: the cooling device name.
     devdata: device private data.
     ops: thermal cooling devices call-backs.
 	.get_max_state: get the Maximum throttle state of the cooling device.
-	.get_cur_state: get the Current throttle state of the cooling device.
+	.get_cur_state: get the Currently requested throttle state of the cooling device.
 	.set_cur_state: set the Current throttle state of the cooling device.
 
 1.2.2 void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 
-    This interface function remove the thermal cooling device.
-    It deletes the corresponding entry form /sys/class/thermal folder and
-    unbind itself from all the thermal zone devices using it.
+    This interface function removes the thermal cooling device.
+    It deletes the corresponding entry from /sys/class/thermal folder and
+    unbinds itself from all the thermal zone devices using it.
 
 1.3 interface for binding a thermal zone device with a thermal cooling device
 1.3.1 int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	int trip, struct thermal_cooling_device *cdev,
 	unsigned long upper, unsigned long lower, unsigned int weight);
 
-    This interface function bind a thermal cooling device to the certain trip
+    This interface function binds a thermal cooling device to a particular trip
     point of a thermal zone device.
     This function is usually called in the thermal zone device .bind callback.
     tz: the thermal zone device
     cdev: thermal cooling device
-    trip: indicates which trip point the cooling devices is associated with
-	  in this thermal zone.
+    trip: indicates which trip point in this thermal zone the cooling device
+          is associated with.
     upper:the Maximum cooling state for this trip point.
           THERMAL_NO_LIMIT means no upper limit,
 	  and the cooling device can be in max_state.
@@ -184,13 +184,13 @@ temperature) and throttle appropriate devices.
 1.3.2 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 		int trip, struct thermal_cooling_device *cdev);
 
-    This interface function unbind a thermal cooling device from the certain
+    This interface function unbinds a thermal cooling device from a particular
     trip point of a thermal zone device. This function is usually called in
     the thermal zone device .unbind callback.
     tz: the thermal zone device
     cdev: thermal cooling device
-    trip: indicates which trip point the cooling devices is associated with
-	  in this thermal zone.
+    trip: indicates which trip point in this thermal zone the cooling device
+          is associated with.
 
 1.4 Thermal Zone Parameters
 1.4.1 struct thermal_bind_params
@@ -210,13 +210,13 @@ temperature) and throttle appropriate devices.
                this thermal zone and cdev, for a particular trip point.
                If nth bit is set, then the cdev and thermal zone are bound
                for trip point n.
-    .limits: This is an array of cooling state limits. Must have exactly
-         2 * thermal_zone.number_of_trip_points. It is an array consisting
-         of tuples <lower-state upper-state> of state limits. Each trip
-         will be associated with one state limit tuple when binding.
-         A NULL pointer means <THERMAL_NO_LIMITS THERMAL_NO_LIMITS>
-         on all trips. These limits are used when binding a cdev to a
-         trip point.
+    .binding_limits: This is an array of cooling state limits. Must have
+                     exactly 2 * thermal_zone.number_of_trip_points. It is an
+                     array consisting of tuples <lower-state upper-state> of
+                     state limits. Each trip will be associated with one state
+                     limit tuple when binding. A NULL pointer means
+                     <THERMAL_NO_LIMITS THERMAL_NO_LIMITS> on all trips.
+                     These limits are used when binding a cdev to a trip point.
     .match: This call back returns success(0) if the 'tz and cdev' need to
 	    be bound, as per platform data.
 1.4.2 struct thermal_zone_params
@@ -351,8 +351,8 @@ cdev[0-*]
 	RO, Optional
 
 cdev[0-*]_trip_point
-	The trip point with which cdev[0-*] is associated in this thermal
-	zone; -1 means the cooling device is not associated with any trip
+	The trip point in this thermal zone which cdev[0-*] is associated
+	with; -1 means the cooling device is not associated with any trip
 	point.
 	RO, Optional
 

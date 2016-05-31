@@ -48,7 +48,7 @@ struct arc_callchain_trace {
 static int callchain_trace(unsigned int addr, void *data)
 {
 	struct arc_callchain_trace *ctrl = data;
-	struct perf_callchain_entry *entry = ctrl->perf_stuff;
+	struct perf_callchain_entry_ctx *entry = ctrl->perf_stuff;
 	perf_callchain_store(entry, addr);
 
 	if (ctrl->depth++ < 3)
@@ -58,7 +58,7 @@ static int callchain_trace(unsigned int addr, void *data)
 }
 
 void
-perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	struct arc_callchain_trace ctrl = {
 		.depth = 0,
@@ -69,7 +69,7 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 }
 
 void
-perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	/*
 	 * User stack can't be unwound trivially with kernel dwarf unwinder

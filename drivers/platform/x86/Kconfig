@@ -846,6 +846,18 @@ config INTEL_IMR
 
 	  If you are running on a Galileo/Quark say Y here.
 
+config INTEL_PMC_CORE
+	bool "Intel PMC Core driver"
+	depends on X86 && PCI
+	---help---
+	  The Intel Platform Controller Hub for Intel Core SoCs provides access
+	  to Power Management Controller registers via a PCI interface. This
+	  driver can utilize debugging capabilities and supported features as
+	  exposed by the Power Management Controller.
+
+	  Supported features:
+		- SLP_S0_RESIDENCY counter.
+
 config IBM_RTL
 	tristate "Device driver to enable PRTL support"
 	depends on X86 && PCI

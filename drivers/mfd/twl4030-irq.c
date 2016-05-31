@@ -696,7 +696,7 @@ int twl4030_init_irq(struct device *dev, int irq_num)
 	nr_irqs = TWL4030_PWR_NR_IRQS + TWL4030_CORE_NR_IRQS;
 
 	irq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
-	if (IS_ERR_VALUE(irq_base)) {
+	if (irq_base < 0) {
 		dev_err(dev, "Fail to allocate IRQ descs\n");
 		return irq_base;
 	}

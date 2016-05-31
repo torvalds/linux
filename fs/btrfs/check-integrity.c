@@ -1939,7 +1939,7 @@ again:
 		/*
 		 * Clear all references of this block. Do not free
 		 * the block itself even if is not referenced anymore
-		 * because it still carries valueable information
+		 * because it still carries valuable information
 		 * like whether it was ever written and IO completed.
 		 */
 		list_for_each_entry_safe(l, tmp, &block->ref_to_list,
