@@ -239,7 +239,7 @@ config IPV6_FOU
 config IPV6_FOU_TUNNEL
 	tristate
 	default NET_FOU_IP_TUNNELS && IPV6_FOU
-	select INET6_TUNNEL
+	select IPV6_TUNNEL
 
 config IPV6_MULTIPLE_TABLES
 	bool "IPv6: Multiple Routing Tables"
