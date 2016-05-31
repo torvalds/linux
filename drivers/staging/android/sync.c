@@ -28,7 +28,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace/sync.h"
 
-static const struct fence_ops android_fence_ops;
+static const struct fence_ops timeline_fence_ops;
 
 struct sync_timeline *sync_timeline_create(int size, const char *drv_name,
 					   const char *name)
@@ -126,7 +126,7 @@ struct fence *sync_pt_create(struct sync_timeline *obj, int size,
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
 	sync_timeline_get(obj);
-	fence_init(fence, &android_fence_ops, &obj->child_list_lock,
+	fence_init(fence, &timeline_fence_ops, &obj->child_list_lock,
 		   obj->context, value);
 	list_add_tail(&fence->child_list, &obj->child_list_head);
 	INIT_LIST_HEAD(&fence->active_list);
@@ -135,21 +135,21 @@ struct fence *sync_pt_create(struct sync_timeline *obj, int size,
 }
 EXPORT_SYMBOL(sync_pt_create);
 
-static const char *android_fence_get_driver_name(struct fence *fence)
+static const char *timeline_fence_get_driver_name(struct fence *fence)
 {
 	struct sync_timeline *parent = fence_parent(fence);
 
 	return parent->drv_name;
 }
 
-static const char *android_fence_get_timeline_name(struct fence *fence)
+static const char *timeline_fence_get_timeline_name(struct fence *fence)
 {
 	struct sync_timeline *parent = fence_parent(fence);
 
 	return parent->name;
 }
 
-static void android_fence_release(struct fence *fence)
+static void timeline_fence_release(struct fence *fence)
 {
 	struct sync_timeline *parent = fence_parent(fence);
 	unsigned long flags;
@@ -164,31 +164,31 @@ static void android_fence_release(struct fence *fence)
 	fence_free(fence);
 }
 
-static bool android_fence_signaled(struct fence *fence)
+static bool timeline_fence_signaled(struct fence *fence)
 {
 	struct sync_timeline *parent = fence_parent(fence);
 
 	return (fence->seqno > parent->value) ? false : true;
 }
 
-static bool android_fence_enable_signaling(struct fence *fence)
+static bool timeline_fence_enable_signaling(struct fence *fence)
 {
 	struct sync_timeline *parent = fence_parent(fence);
 
-	if (android_fence_signaled(fence))
+	if (timeline_fence_signaled(fence))
 		return false;
 
 	list_add_tail(&fence->active_list, &parent->active_list_head);
 	return true;
 }
 
-static void android_fence_value_str(struct fence *fence,
+static void timeline_fence_value_str(struct fence *fence,
 				    char *str, int size)
 {
 	snprintf(str, size, "%d", fence->seqno);
 }
 
-static void android_fence_timeline_value_str(struct fence *fence,
+static void timeline_fence_timeline_value_str(struct fence *fence,
 					     char *str, int size)
 {
 	struct sync_timeline *parent = fence_parent(fence);
@@ -196,13 +196,13 @@ static void android_fence_timeline_value_str(struct fence *fence,
 	snprintf(str, size, "%d", parent->value);
 }
 
-static const struct fence_ops android_fence_ops = {
-	.get_driver_name = android_fence_get_driver_name,
-	.get_timeline_name = android_fence_get_timeline_name,
-	.enable_signaling = android_fence_enable_signaling,
-	.signaled = android_fence_signaled,
+static const struct fence_ops timeline_fence_ops = {
+	.get_driver_name = timeline_fence_get_driver_name,
+	.get_timeline_name = timeline_fence_get_timeline_name,
+	.enable_signaling = timeline_fence_enable_signaling,
+	.signaled = timeline_fence_signaled,
 	.wait = fence_default_wait,
-	.release = android_fence_release,
-	.fence_value_str = android_fence_value_str,
-	.timeline_value_str = android_fence_timeline_value_str,
+	.release = timeline_fence_release,
+	.fence_value_str = timeline_fence_value_str,
+	.timeline_value_str = timeline_fence_timeline_value_str,
 };
