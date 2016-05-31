@@ -26,6 +26,7 @@
 #include "pinctrl-uniphier.h"
 
 struct uniphier_pinctrl_priv {
+	struct pinctrl_desc pctldesc;
 	struct pinctrl_dev *pctldev;
 	struct regmap *regmap;
 	struct uniphier_pinctrl_socdata *socdata;
@@ -639,13 +640,13 @@ static const struct pinmux_ops uniphier_pmxops = {
 };
 
 int uniphier_pinctrl_probe(struct platform_device *pdev,
-			   struct pinctrl_desc *desc,
 			   struct uniphier_pinctrl_socdata *socdata)
 {
 	struct device *dev = &pdev->dev;
 	struct uniphier_pinctrl_priv *priv;
 
 	if (!socdata ||
+	    !socdata->pins || !socdata->npins ||
 	    !socdata->groups ||
 	    !socdata->groups_count ||
 	    !socdata->functions ||
@@ -667,13 +668,15 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	priv->socdata = socdata;
-	desc->name = dev->driver->name;
-	desc->pctlops = &uniphier_pctlops;
-	desc->pmxops = &uniphier_pmxops;
-	desc->confops = &uniphier_confops;
-	desc->owner = dev->driver->owner;
+	priv->pctldesc.name = dev->driver->name;
+	priv->pctldesc.pins = socdata->pins;
+	priv->pctldesc.npins = socdata->npins;
+	priv->pctldesc.pctlops = &uniphier_pctlops;
+	priv->pctldesc.pmxops = &uniphier_pmxops;
+	priv->pctldesc.confops = &uniphier_confops;
+	priv->pctldesc.owner = dev->driver->owner;
 
-	priv->pctldev = devm_pinctrl_register(dev, desc, priv);
+	priv->pctldev = devm_pinctrl_register(dev, &priv->pctldesc, priv);
 	if (IS_ERR(priv->pctldev)) {
 		dev_err(dev, "failed to register UniPhier pinctrl driver\n");
 		return PTR_ERR(priv->pctldev);

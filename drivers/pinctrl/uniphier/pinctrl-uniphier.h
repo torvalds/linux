@@ -19,6 +19,8 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
+struct platform_device;
+
 #define UNIPHIER_PINCTRL_PINMUX_BASE	0x0
 #define UNIPHIER_PINCTRL_LOAD_PINMUX	0x700
 #define UNIPHIER_PINCTRL_DRVCTRL_BASE	0x800
@@ -154,6 +156,8 @@ struct uniphier_pinmux_function {
 };
 
 struct uniphier_pinctrl_socdata {
+	const struct pinctrl_pin_desc *pins;
+	unsigned int npins;
 	const struct uniphier_pinctrl_group *groups;
 	int groups_count;
 	const struct uniphier_pinmux_function *functions;
@@ -205,11 +209,7 @@ struct uniphier_pinctrl_socdata {
 		.num_groups = ARRAY_SIZE(func##_groups),		\
 	}
 
-struct platform_device;
-struct pinctrl_desc;
-
 int uniphier_pinctrl_probe(struct platform_device *pdev,
-			   struct pinctrl_desc *desc,
 			   struct uniphier_pinctrl_socdata *socdata);
 
 #endif /* __PINCTRL_UNIPHIER_H__ */

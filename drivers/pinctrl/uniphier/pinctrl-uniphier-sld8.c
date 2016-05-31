@@ -754,6 +754,8 @@ static const struct uniphier_pinmux_function uniphier_sld8_functions[] = {
 };
 
 static struct uniphier_pinctrl_socdata uniphier_sld8_pindata = {
+	.pins = uniphier_sld8_pins,
+	.npins = ARRAY_SIZE(uniphier_sld8_pins),
 	.groups = uniphier_sld8_groups,
 	.groups_count = ARRAY_SIZE(uniphier_sld8_groups),
 	.functions = uniphier_sld8_functions,
@@ -763,15 +765,9 @@ static struct uniphier_pinctrl_socdata uniphier_sld8_pindata = {
 	.load_pinctrl = false,
 };
 
-static struct pinctrl_desc uniphier_sld8_pinctrl_desc = {
-	.pins = uniphier_sld8_pins,
-	.npins = ARRAY_SIZE(uniphier_sld8_pins),
-};
-
 static int uniphier_sld8_pinctrl_probe(struct platform_device *pdev)
 {
-	return uniphier_pinctrl_probe(pdev, &uniphier_sld8_pinctrl_desc,
-				      &uniphier_sld8_pindata);
+	return uniphier_pinctrl_probe(pdev, &uniphier_sld8_pindata);
 }
 
 static const struct of_device_id uniphier_sld8_pinctrl_match[] = {

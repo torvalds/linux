@@ -1520,6 +1520,8 @@ static const struct uniphier_pinmux_function uniphier_pro4_functions[] = {
 };
 
 static struct uniphier_pinctrl_socdata uniphier_pro4_pindata = {
+	.pins = uniphier_pro4_pins,
+	.npins = ARRAY_SIZE(uniphier_pro4_pins),
 	.groups = uniphier_pro4_groups,
 	.groups_count = ARRAY_SIZE(uniphier_pro4_groups),
 	.functions = uniphier_pro4_functions,
@@ -1529,15 +1531,9 @@ static struct uniphier_pinctrl_socdata uniphier_pro4_pindata = {
 	.load_pinctrl = true,
 };
 
-static struct pinctrl_desc uniphier_pro4_pinctrl_desc = {
-	.pins = uniphier_pro4_pins,
-	.npins = ARRAY_SIZE(uniphier_pro4_pins),
-};
-
 static int uniphier_pro4_pinctrl_probe(struct platform_device *pdev)
 {
-	return uniphier_pinctrl_probe(pdev, &uniphier_pro4_pinctrl_desc,
-				      &uniphier_pro4_pindata);
+	return uniphier_pinctrl_probe(pdev, &uniphier_pro4_pindata);
 }
 
 static const struct of_device_id uniphier_pro4_pinctrl_match[] = {
