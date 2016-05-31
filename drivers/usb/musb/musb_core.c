@@ -2223,12 +2223,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	pm_runtime_mark_last_busy(musb->controller);
 	pm_runtime_put_autosuspend(musb->controller);
 
-	/*
-	 * For why this is currently needed, see commit 3e43a0725637
-	 * ("usb: musb: core: add pm_runtime_irq_safe()")
-	 */
-	pm_runtime_irq_safe(musb->controller);
-
 	return 0;
 
 fail5:
