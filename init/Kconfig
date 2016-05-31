@@ -400,6 +400,15 @@ config IRQ_TIME_ACCOUNTING
 
 	  If in doubt, say N here.
 
+config SCHED_WALT
+        bool "Support window based load tracking"
+        depends on SMP
+        help
+        This feature will allow the scheduler to maintain a tunable window
+	based set of metrics for tasks and runqueues. These metrics can be
+	used to guide task placement as well as task frequency requirements
+	for cpufreq governors.
+
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
 	depends on MULTIUSER
