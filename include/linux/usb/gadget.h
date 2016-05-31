@@ -25,6 +25,8 @@
 #include <linux/workqueue.h>
 #include <linux/usb/ch9.h>
 
+#define UDC_TRACE_STR_MAX	512
+
 struct usb_ep;
 
 /**
@@ -324,6 +326,7 @@ struct usb_gadget_ops {
  * @dev: Driver model state for this abstract device.
  * @out_epnum: last used out ep number
  * @in_epnum: last used in ep number
+ * @mA: last set mA value
  * @otg_caps: OTG capabilities of this gadget.
  * @sg_supported: true if we can handle scatter-gather
  * @is_otg: True if the USB device port uses a Mini-AB jack, so that the
@@ -380,6 +383,7 @@ struct usb_gadget {
 	struct device			dev;
 	unsigned			out_epnum;
 	unsigned			in_epnum;
+	unsigned			mA;
 	struct usb_otg_caps		*otg_caps;
 
 	unsigned			sg_supported:1;
