@@ -955,12 +955,15 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 	if (err)
 		return err;
 
+	err = devm_request_pci_bus_resources(dev, &pci->resources);
+	if (err)
+		goto out_release_res;
+
 	resource_list_for_each_entry(win, &pci->resources) {
-		struct resource *parent, *res = win->res;
+		struct resource *res = win->res;
 
 		switch (resource_type(res)) {
 		case IORESOURCE_IO:
-			parent = &ioport_resource;
 			err = pci_remap_iospace(res, iobase);
 			if (err) {
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
@@ -969,17 +972,12 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 			}
 			break;
 		case IORESOURCE_MEM:
-			parent = &iomem_resource;
 			break;
 
 		case IORESOURCE_BUS:
 		default:
 			continue;
 		}
-
-		err = devm_request_resource(dev, parent, res);
-		if (err)
-			goto out_release_res;
 	}
 
 	return 0;
