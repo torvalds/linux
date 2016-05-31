@@ -163,10 +163,13 @@ static int pca953x_write_regs(struct pca953x_chip *chip, int reg, u8 *val)
 					NBANK(chip), val);
 	} else {
 		switch (chip->chip_type) {
-		case PCA953X_TYPE:
-			ret = i2c_smbus_write_word_data(chip->client,
-			    reg << 1, cpu_to_le16(get_unaligned((u16 *)val)));
+		case PCA953X_TYPE: {
+			__le16 word = cpu_to_le16(get_unaligned((u16 *)val));
+
+			ret = i2c_smbus_write_word_data(chip->client, reg << 1,
+							(__force u16)word);
 			break;
+		}
 		case PCA957X_TYPE:
 			ret = i2c_smbus_write_byte_data(chip->client, reg << 1,
 							val[0]);
