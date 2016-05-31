@@ -94,6 +94,9 @@ static void uniphier_pctl_pin_dbg_show(struct pinctrl_dev *pctldev,
 	case UNIPHIER_PIN_DRV_2BIT:
 		drv_type = "8/12/16/20(mA)";
 		break;
+	case UNIPHIER_PIN_DRV_3BIT:
+		drv_type = "4/5/7/9/11/12/14/16(mA)";
+		break;
 	case UNIPHIER_PIN_DRV_FIXED4:
 		drv_type = "4(mA)";
 		break;
@@ -184,6 +187,7 @@ static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
 				uniphier_pin_get_drv_type(pin->drv_data);
 	const unsigned int strength_1bit[] = {4, 8};
 	const unsigned int strength_2bit[] = {8, 12, 16, 20};
+	const unsigned int strength_3bit[] = {4, 5, 7, 9, 11, 12, 14, 16};
 	const unsigned int *supported_strength;
 	unsigned int drvctrl, reg, shift, mask, width, val;
 	int ret;
@@ -191,11 +195,18 @@ static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
 	switch (type) {
 	case UNIPHIER_PIN_DRV_1BIT:
 		supported_strength = strength_1bit;
+		reg = UNIPHIER_PINCTRL_DRVCTRL_BASE;
 		width = 1;
 		break;
 	case UNIPHIER_PIN_DRV_2BIT:
 		supported_strength = strength_2bit;
+		reg = UNIPHIER_PINCTRL_DRV2CTRL_BASE;
 		width = 2;
+		break;
+	case UNIPHIER_PIN_DRV_3BIT:
+		supported_strength = strength_3bit;
+		reg = UNIPHIER_PINCTRL_DRV3CTRL_BASE;
+		width = 4;
 		break;
 	case UNIPHIER_PIN_DRV_FIXED4:
 		*strength = 4;
@@ -213,9 +224,6 @@ static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
 
 	drvctrl = uniphier_pin_get_drvctrl(pin->drv_data);
 	drvctrl *= width;
-
-	reg = (width == 2) ? UNIPHIER_PINCTRL_DRV2CTRL_BASE :
-			     UNIPHIER_PINCTRL_DRVCTRL_BASE;
 
 	reg += drvctrl / 32 * 4;
 	shift = drvctrl % 32;
@@ -368,17 +376,25 @@ static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
 				uniphier_pin_get_drv_type(pin->drv_data);
 	const unsigned int strength_1bit[] = {4, 8, -1};
 	const unsigned int strength_2bit[] = {8, 12, 16, 20, -1};
+	const unsigned int strength_3bit[] = {4, 5, 7, 9, 11, 12, 14, 16, -1};
 	const unsigned int *supported_strength;
 	unsigned int drvctrl, reg, shift, mask, width, val;
 
 	switch (type) {
 	case UNIPHIER_PIN_DRV_1BIT:
 		supported_strength = strength_1bit;
+		reg = UNIPHIER_PINCTRL_DRVCTRL_BASE;
 		width = 1;
 		break;
 	case UNIPHIER_PIN_DRV_2BIT:
 		supported_strength = strength_2bit;
+		reg = UNIPHIER_PINCTRL_DRV2CTRL_BASE;
 		width = 2;
+		break;
+	case UNIPHIER_PIN_DRV_3BIT:
+		supported_strength = strength_3bit;
+		reg = UNIPHIER_PINCTRL_DRV3CTRL_BASE;
+		width = 4;
 		break;
 	default:
 		dev_err(pctldev->dev,
@@ -403,9 +419,6 @@ static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
 
 	drvctrl = uniphier_pin_get_drvctrl(pin->drv_data);
 	drvctrl *= width;
-
-	reg = (width == 2) ? UNIPHIER_PINCTRL_DRV2CTRL_BASE :
-			     UNIPHIER_PINCTRL_DRVCTRL_BASE;
 
 	reg += drvctrl / 32 * 4;
 	shift = drvctrl % 32;

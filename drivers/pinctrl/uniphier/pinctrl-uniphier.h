@@ -25,6 +25,7 @@ struct platform_device;
 #define UNIPHIER_PINCTRL_LOAD_PINMUX	0x700
 #define UNIPHIER_PINCTRL_DRVCTRL_BASE	0x800
 #define UNIPHIER_PINCTRL_DRV2CTRL_BASE	0x900
+#define UNIPHIER_PINCTRL_DRV3CTRL_BASE	0x980
 #define UNIPHIER_PINCTRL_PUPDCTRL_BASE	0xa00
 #define UNIPHIER_PINCTRL_IECTRL		0xd00
 
@@ -72,6 +73,7 @@ struct platform_device;
 enum uniphier_pin_drv_type {
 	UNIPHIER_PIN_DRV_1BIT,		/* 2 level control: 4/8 mA */
 	UNIPHIER_PIN_DRV_2BIT,		/* 4 level control: 8/12/16/20 mA */
+	UNIPHIER_PIN_DRV_3BIT,		/* 8 level control: 4/5/7/9/11/12/14/16 mA */
 	UNIPHIER_PIN_DRV_FIXED4,	/* fixed to 4mA */
 	UNIPHIER_PIN_DRV_FIXED5,	/* fixed to 5mA */
 	UNIPHIER_PIN_DRV_FIXED8,	/* fixed to 8mA */
