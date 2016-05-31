@@ -466,10 +466,30 @@ virtio_gpu_user_framebuffer_create(struct drm_device *dev,
 	return &virtio_gpu_fb->base;
 }
 
+static int vgdev_atomic_commit(struct drm_device *dev,
+			       struct drm_atomic_state *state,
+			       bool nonblock)
+{
+	if (nonblock)
+		return -EBUSY;
+
+	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_wait_for_fences(dev, state);
+
+	drm_atomic_helper_commit_modeset_disables(dev, state);
+	drm_atomic_helper_commit_modeset_enables(dev, state);
+	drm_atomic_helper_commit_planes(dev, state, true);
+
+	drm_atomic_helper_wait_for_vblanks(dev, state);
+	drm_atomic_helper_cleanup_planes(dev, state);
+	drm_atomic_state_free(state);
+	return 0;
+}
+
 static const struct drm_mode_config_funcs virtio_gpu_mode_funcs = {
 	.fb_create = virtio_gpu_user_framebuffer_create,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_commit = vgdev_atomic_commit,
 };
 
 int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
