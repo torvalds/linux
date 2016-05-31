@@ -432,6 +432,20 @@ static void __init setup_resources(void)
 			}
 		}
 	}
+#ifdef CONFIG_CRASH_DUMP
+	/*
+	 * Re-add removed crash kernel memory as reserved memory. This makes
+	 * sure it will be mapped with the identity mapping and struct pages
+	 * will be created, so it can be resized later on.
+	 * However add it later since the crash kernel resource should not be
+	 * part of the System RAM resource.
+	 */
+	if (crashk_res.end) {
+		memblock_add(crashk_res.start, resource_size(&crashk_res));
+		memblock_reserve(crashk_res.start, resource_size(&crashk_res));
+		insert_resource(&iomem_resource, &crashk_res);
+	}
+#endif
 }
 
 static void __init setup_memory_end(void)
@@ -602,7 +616,6 @@ static void __init reserve_crashkernel(void)
 		diag10_range(PFN_DOWN(crash_base), PFN_DOWN(crash_size));
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
-	insert_resource(&iomem_resource, &crashk_res);
 	memblock_remove(crash_base, crash_size);
 	pr_info("Reserving %lluMB of memory at %lluMB "
 		"for crashkernel (System RAM: %luMB)\n",
