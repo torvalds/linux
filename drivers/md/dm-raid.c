@@ -401,22 +401,6 @@ static bool rt_is_raid456(struct raid_type *rt)
 }
 /* END: raid level bools */
 
-/*
- * Convenience functions to set ti->error to @errmsg and
- * return @r in order to shorten code in a lot of places
- */
-static int ti_error_ret(struct dm_target *ti, const char *errmsg, int r)
-{
-	ti->error = (char *) errmsg;
-	return r;
-}
-
-static int ti_error_einval(struct dm_target *ti, const char *errmsg)
-{
-	return ti_error_ret(ti, errmsg, -EINVAL);
-}
-/* END: convenience functions to set ti->error to @errmsg... */
-
 /* Return invalid ctr flags for the raid level of @rs */
 static uint32_t _invalid_flags(struct raid_set *rs)
 {
@@ -441,8 +425,10 @@ static uint32_t _invalid_flags(struct raid_set *rs)
  */
 static int rs_check_for_invalid_flags(struct raid_set *rs)
 {
-	if (_test_flags(rs->ctr_flags, _invalid_flags(rs)))
-		return ti_error_einval(rs->ti, "Invalid flag combined");
+	if (_test_flags(rs->ctr_flags, _invalid_flags(rs))) {
+		rs->ti->error = "Invalid flag combined";
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -644,12 +630,16 @@ static struct raid_set *context_alloc(struct dm_target *ti, struct raid_type *ra
 	unsigned i;
 	struct raid_set *rs;
 
-	if (raid_devs <= raid_type->parity_devs)
-		return ERR_PTR(ti_error_einval(ti, "Insufficient number of devices"));
+	if (raid_devs <= raid_type->parity_devs) {
+		ti->error = "Insufficient number of devices";
+		return ERR_PTR(-EINVAL);
+	}
 
 	rs = kzalloc(sizeof(*rs) + raid_devs * sizeof(rs->dev[0]), GFP_KERNEL);
-	if (!rs)
-		return ERR_PTR(ti_error_ret(ti, "Cannot allocate raid context", -ENOMEM));
+	if (!rs) {
+		ti->error = "Cannot allocate raid context";
+		return ERR_PTR(-ENOMEM);
+	}
 
 	mddev_init(&rs->md);
 
@@ -743,15 +733,18 @@ static int parse_dev_params(struct raid_set *rs, struct dm_arg_set *as)
 			return -EINVAL;
 
 		if (strcmp(arg, "-")) {
-			r = dm_get_device(rs->ti, arg,
-					    dm_table_get_mode(rs->ti->table),
-					    &rs->dev[i].meta_dev);
-			if (r)
-				return ti_error_ret(rs->ti, "RAID metadata device lookup failure", r);
+			r = dm_get_device(rs->ti, arg, dm_table_get_mode(rs->ti->table),
+					  &rs->dev[i].meta_dev);
+			if (r) {
+				rs->ti->error = "RAID metadata device lookup failure";
+				return r;
+			}
 
 			rs->dev[i].rdev.sb_page = alloc_page(GFP_KERNEL);
-			if (!rs->dev[i].rdev.sb_page)
-				return ti_error_ret(rs->ti, "Failed to allocate superblock page", -ENOMEM);
+			if (!rs->dev[i].rdev.sb_page) {
+				rs->ti->error = "Failed to allocate superblock page";
+				return -ENOMEM;
+			}
 		}
 
 		arg = dm_shift_arg(as);
@@ -760,20 +753,25 @@ static int parse_dev_params(struct raid_set *rs, struct dm_arg_set *as)
 
 		if (!strcmp(arg, "-")) {
 			if (!test_bit(In_sync, &rs->dev[i].rdev.flags) &&
-			    (!rs->dev[i].rdev.recovery_offset))
-				return ti_error_einval(rs->ti, "Drive designated for rebuild not specified");
+			    (!rs->dev[i].rdev.recovery_offset)) {
+				rs->ti->error = "Drive designated for rebuild not specified";
+				return -EINVAL;
+			}
 
-			if (rs->dev[i].meta_dev)
-				return ti_error_einval(rs->ti, "No data device supplied with metadata device");
+			if (rs->dev[i].meta_dev) {
+				rs->ti->error = "No data device supplied with metadata device";
+				return -EINVAL;
+			}
 
 			continue;
 		}
 
-		r = dm_get_device(rs->ti, arg,
-				    dm_table_get_mode(rs->ti->table),
-				    &rs->dev[i].data_dev);
-		if (r)
-			return ti_error_ret(rs->ti, "RAID device lookup failure", r);
+		r = dm_get_device(rs->ti, arg, dm_table_get_mode(rs->ti->table),
+				  &rs->dev[i].data_dev);
+		if (r) {
+			rs->ti->error = "RAID device lookup failure";
+			return r;
+		}
 
 		if (rs->dev[i].meta_dev) {
 			metadata_available = 1;
@@ -801,8 +799,8 @@ static int parse_dev_params(struct raid_set *rs, struct dm_arg_set *as)
 		 *
 		 * User could specify 'nosync' option if desperate.
 		 */
-		DMERR("Unable to rebuild drive while array is not in-sync");
-		return ti_error_einval(rs->ti, "Unable to rebuild drive while array is not in-sync");
+		rs->ti->error = "Unable to rebuild drive while array is not in-sync";
+		return -EINVAL;
 	}
 
 	return 0;
@@ -839,20 +837,27 @@ static int validate_region_size(struct raid_set *rs, unsigned long region_size)
 		/*
 		 * Validate user-supplied value.
 		 */
-		if (region_size > rs->ti->len)
-			return ti_error_einval(rs->ti, "Supplied region size is too large");
+		if (region_size > rs->ti->len) {
+			rs->ti->error = "Supplied region size is too large";
+			return -EINVAL;
+		}
 
 		if (region_size < min_region_size) {
 			DMERR("Supplied region_size (%lu sectors) below minimum (%lu)",
 			      region_size, min_region_size);
-			return ti_error_einval(rs->ti, "Supplied region size is too small");
+			rs->ti->error = "Supplied region size is too small";
+			return -EINVAL;
 		}
 
-		if (!is_power_of_2(region_size))
-			return ti_error_einval(rs->ti, "Region size is not a power of 2");
+		if (!is_power_of_2(region_size)) {
+			rs->ti->error = "Region size is not a power of 2";
+			return -EINVAL;
+		}
 
-		if (region_size < rs->md.chunk_sectors)
-			return ti_error_einval(rs->ti, "Region size is smaller than the chunk size");
+		if (region_size < rs->md.chunk_sectors) {
+			rs->ti->error = "Region size is smaller than the chunk size";
+			return -EINVAL;
+		}
 	}
 
 	/*
@@ -1000,8 +1005,10 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 	arg = dm_shift_arg(as);
 	num_raid_params--; /* Account for chunk_size argument */
 
-	if (kstrtouint(arg, 10, &value) < 0)
-		return ti_error_einval(rs->ti, "Bad numerical argument given for chunk_size");
+	if (kstrtouint(arg, 10, &value) < 0) {
+		rs->ti->error = "Bad numerical argument given for chunk_size";
+		return -EINVAL;
+	}
 
 	/*
 	 * First, parse the in-order required arguments
@@ -1011,10 +1018,13 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 		if (value)
 			DMERR("Ignoring chunk size parameter for RAID 1");
 		value = 0;
-	} else if (!is_power_of_2(value))
-		return ti_error_einval(rs->ti, "Chunk size must be a power of 2");
-	else if (value < 8)
-		return ti_error_einval(rs->ti, "Chunk size value is too small");
+	} else if (!is_power_of_2(value)) {
+		rs->ti->error = "Chunk size must be a power of 2";
+		return -EINVAL;
+	} else if (value < 8) {
+		rs->ti->error = "Chunk size value is too small";
+		return -EINVAL;
+	}
 
 	rs->md.new_chunk_sectors = rs->md.chunk_sectors = value;
 
@@ -1045,49 +1055,67 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 	 */
 	for (i = 0; i < num_raid_params; i++) {
 		key = dm_shift_arg(as);
-		if (!key)
-			return ti_error_einval(rs->ti, "Not enough raid parameters given");
+		if (!key) {
+			rs->ti->error = "Not enough raid parameters given";
+			return -EINVAL;
+		}
 
 		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_NOSYNC))) {
-			if (_test_and_set_flag(CTR_FLAG_NOSYNC, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one 'nosync' argument allowed");
+			if (_test_and_set_flag(CTR_FLAG_NOSYNC, &rs->ctr_flags)) {
+				rs->ti->error = "Only one 'nosync' argument allowed";
+				return -EINVAL;
+			}
 			rs->md.recovery_cp = MaxSector;
 			continue;
 		}
 		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_SYNC))) {
-			if (_test_and_set_flag(CTR_FLAG_SYNC, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one 'sync' argument allowed");
+			if (_test_and_set_flag(CTR_FLAG_SYNC, &rs->ctr_flags)) {
+				rs->ti->error = "Only one 'sync' argument allowed";
+				return -EINVAL;
+			}
 			rs->md.recovery_cp = 0;
 			continue;
 		}
 		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_RAID10_USE_NEAR_SETS))) {
-			if (_test_and_set_flag(CTR_FLAG_RAID10_USE_NEAR_SETS, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one 'raid10_use_new_sets' argument allowed");
+			if (_test_and_set_flag(CTR_FLAG_RAID10_USE_NEAR_SETS, &rs->ctr_flags)) {
+				rs->ti->error = "Only one 'raid10_use_new_sets' argument allowed";
+				return -EINVAL;
+			}
 			continue;
 		}
 
 		arg = dm_shift_arg(as);
 		i++; /* Account for the argument pairs */
-		if (!arg)
-			return ti_error_einval(rs->ti, "Wrong number of raid parameters given");
+		if (!arg) {
+			rs->ti->error = "Wrong number of raid parameters given";
+			return -EINVAL;
+		}
 
 		/*
 		 * Parameters that take a string value are checked here.
 		 */
 
 		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_RAID10_FORMAT))) {
-			if (_test_and_set_flag(CTR_FLAG_RAID10_FORMAT, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one 'raid10_format' argument pair allowed");
-			if (!rt_is_raid10(rt))
-				return ti_error_einval(rs->ti, "'raid10_format' is an invalid parameter for this RAID type");
+			if (_test_and_set_flag(CTR_FLAG_RAID10_FORMAT, &rs->ctr_flags)) {
+				rs->ti->error = "Only one 'raid10_format' argument pair allowed";
+				return -EINVAL;
+			}
+			if (!rt_is_raid10(rt)) {
+				rs->ti->error = "'raid10_format' is an invalid parameter for this RAID type";
+				return -EINVAL;
+			}
 			raid10_format = raid10_name_to_format(arg);
-			if (raid10_format < 0)
-				return ti_error_ret(rs->ti, "Invalid 'raid10_format' value given", raid10_format);
+			if (raid10_format < 0) {
+				rs->ti->error = "Invalid 'raid10_format' value given";
+				return raid10_format;
+			}
 			continue;
 		}
 
-		if (kstrtouint(arg, 10, &value) < 0)
-			return ti_error_einval(rs->ti, "Bad numerical argument given in raid params");
+		if (kstrtouint(arg, 10, &value) < 0) {
+			rs->ti->error = "Bad numerical argument given in raid params";
+			return -EINVAL;
+		}
 
 		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_REBUILD))) {
 			/*
@@ -1095,11 +1123,15 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			 * indexes of replaced devices and to set up additional
 			 * devices on raid level takeover.
 			 */
-			if (!_in_range(value, 0, rs->raid_disks - 1))
-				return ti_error_einval(rs->ti, "Invalid rebuild index given");
+			if (!_in_range(value, 0, rs->raid_disks - 1)) {
+				rs->ti->error = "Invalid rebuild index given";
+				return -EINVAL;
+			}
 
-			if (test_and_set_bit(value, (void *) rs->rebuild_disks))
-				return ti_error_einval(rs->ti, "rebuild for this index already given");
+			if (test_and_set_bit(value, (void *) rs->rebuild_disks)) {
+				rs->ti->error = "rebuild for this index already given";
+				return -EINVAL;
+			}
 
 			rd = rs->dev + value;
 			clear_bit(In_sync, &rd->rdev.flags);
@@ -1107,98 +1139,139 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			rd->rdev.recovery_offset = 0;
 			_set_flag(CTR_FLAG_REBUILD, &rs->ctr_flags);
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_WRITE_MOSTLY))) {
-			if (!rt_is_raid1(rt))
-				return ti_error_einval(rs->ti, "write_mostly option is only valid for RAID1");
+			if (!rt_is_raid1(rt)) {
+				rs->ti->error = "write_mostly option is only valid for RAID1";
+				return -EINVAL;
+			}
 
-			if (!_in_range(value, 0, rs->md.raid_disks - 1))
-				return ti_error_einval(rs->ti, "Invalid write_mostly index given");
+			if (!_in_range(value, 0, rs->md.raid_disks - 1)) {
+				rs->ti->error = "Invalid write_mostly index given";
+				return -EINVAL;
+			}
 
 			set_bit(WriteMostly, &rs->dev[value].rdev.flags);
 			_set_flag(CTR_FLAG_WRITE_MOSTLY, &rs->ctr_flags);
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_MAX_WRITE_BEHIND))) {
-			if (!rt_is_raid1(rt))
-				return ti_error_einval(rs->ti, "max_write_behind option is only valid for RAID1");
+			if (!rt_is_raid1(rt)) {
+				rs->ti->error = "max_write_behind option is only valid for RAID1";
+				return -EINVAL;
+			}
 
-			if (_test_and_set_flag(CTR_FLAG_MAX_WRITE_BEHIND, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one max_write_behind argument pair allowed");
+			if (_test_and_set_flag(CTR_FLAG_MAX_WRITE_BEHIND, &rs->ctr_flags)) {
+				rs->ti->error = "Only one max_write_behind argument pair allowed";
+				return -EINVAL;
+			}
 
 			/*
 			 * In device-mapper, we specify things in sectors, but
 			 * MD records this value in kB
 			 */
 			value /= 2;
-			if (value > COUNTER_MAX)
-				return ti_error_einval(rs->ti, "Max write-behind limit out of range");
+			if (value > COUNTER_MAX) {
+				rs->ti->error = "Max write-behind limit out of range";
+				return -EINVAL;
+			}
 
 			rs->md.bitmap_info.max_write_behind = value;
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_DAEMON_SLEEP))) {
-			if (_test_and_set_flag(CTR_FLAG_DAEMON_SLEEP, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one daemon_sleep argument pair allowed");
-			if (!value || (value > MAX_SCHEDULE_TIMEOUT))
-				return ti_error_einval(rs->ti, "daemon sleep period out of range");
+			if (_test_and_set_flag(CTR_FLAG_DAEMON_SLEEP, &rs->ctr_flags)) {
+				rs->ti->error = "Only one daemon_sleep argument pair allowed";
+				return -EINVAL;
+			}
+			if (!value || (value > MAX_SCHEDULE_TIMEOUT)) {
+				rs->ti->error = "daemon sleep period out of range";
+				return -EINVAL;
+			}
 			rs->md.bitmap_info.daemon_sleep = value;
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_DATA_OFFSET))) {
 			/* Userspace passes new data_offset after having extended the the data image LV */
-			if (_test_and_set_flag(CTR_FLAG_DATA_OFFSET, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one data_offset argument pair allowed");
-
+			if (_test_and_set_flag(CTR_FLAG_DATA_OFFSET, &rs->ctr_flags)) {
+				rs->ti->error = "Only one data_offset argument pair allowed";
+				return -EINVAL;
+			}
 			/* Ensure sensible data offset */
-			if (value < 0)
-				return ti_error_einval(rs->ti, "Bogus data_offset value");
-
+			if (value < 0) {
+				rs->ti->error = "Bogus data_offset value";
+				return -EINVAL;
+			}
 			rs->data_offset = value;
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_DELTA_DISKS))) {
 			/* Define the +/-# of disks to add to/remove from the given raid set */
-			if (_test_and_set_flag(CTR_FLAG_DELTA_DISKS, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one delta_disks argument pair allowed");
-
+			if (_test_and_set_flag(CTR_FLAG_DELTA_DISKS, &rs->ctr_flags)) {
+				rs->ti->error = "Only one delta_disks argument pair allowed";
+				return -EINVAL;
+			}
 			/* Ensure MAX_RAID_DEVICES and raid type minimal_devs! */
-			if (!_in_range(abs(value), 1, MAX_RAID_DEVICES - rt->minimal_devs))
-				return ti_error_einval(rs->ti, "Too many delta_disk requested");
+			if (!_in_range(abs(value), 1, MAX_RAID_DEVICES - rt->minimal_devs)) {
+				rs->ti->error = "Too many delta_disk requested";
+				return -EINVAL;
+			}
 
 			rs->delta_disks = value;
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_STRIPE_CACHE))) {
-			if (_test_and_set_flag(CTR_FLAG_STRIPE_CACHE, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one stripe_cache argument pair allowed");
+			if (_test_and_set_flag(CTR_FLAG_STRIPE_CACHE, &rs->ctr_flags)) {
+				rs->ti->error = "Only one stripe_cache argument pair allowed";
+				return -EINVAL;
+			}
+
 			/*
 			 * In device-mapper, we specify things in sectors, but
 			 * MD records this value in kB
 			 */
 			value /= 2;
 
-			if (!rt_is_raid456(rt))
-				return ti_error_einval(rs->ti, "Inappropriate argument: stripe_cache");
-			if (raid5_set_cache_size(&rs->md, (int)value))
-				return ti_error_einval(rs->ti, "Bad stripe_cache size");
+			if (!rt_is_raid456(rt)) {
+				rs->ti->error = "Inappropriate argument: stripe_cache";
+				return -EINVAL;
+			}
+			if (raid5_set_cache_size(&rs->md, (int)value)) {
+				rs->ti->error = "Bad stripe_cache size";
+				return -EINVAL;
+			}
 
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_MIN_RECOVERY_RATE))) {
-			if (_test_and_set_flag(CTR_FLAG_MIN_RECOVERY_RATE, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one min_recovery_rate argument pair allowed");
-			if (value > INT_MAX)
-				return ti_error_einval(rs->ti, "min_recovery_rate out of range");
+			if (_test_and_set_flag(CTR_FLAG_MIN_RECOVERY_RATE, &rs->ctr_flags)) {
+				rs->ti->error = "Only one min_recovery_rate argument pair allowed";
+				return -EINVAL;
+			}
+			if (value > INT_MAX) {
+				rs->ti->error = "min_recovery_rate out of range";
+				return -EINVAL;
+			}
 			rs->md.sync_speed_min = (int)value;
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_MAX_RECOVERY_RATE))) {
-			if (_test_and_set_flag(CTR_FLAG_MIN_RECOVERY_RATE, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one max_recovery_rate argument pair allowed");
-			if (value > INT_MAX)
-				return ti_error_einval(rs->ti, "max_recovery_rate out of range");
+			if (_test_and_set_flag(CTR_FLAG_MIN_RECOVERY_RATE, &rs->ctr_flags)) {
+				rs->ti->error = "Only one max_recovery_rate argument pair allowed";
+				return -EINVAL;
+			}
+			if (value > INT_MAX) {
+				rs->ti->error = "max_recovery_rate out of range";
+				return -EINVAL;
+			}
 			rs->md.sync_speed_max = (int)value;
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_REGION_SIZE))) {
-			if (_test_and_set_flag(CTR_FLAG_REGION_SIZE, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one region_size argument pair allowed");
+			if (_test_and_set_flag(CTR_FLAG_REGION_SIZE, &rs->ctr_flags)) {
+				rs->ti->error = "Only one region_size argument pair allowed";
+				return -EINVAL;
+			}
 
 			region_size = value;
 		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_RAID10_COPIES))) {
-			if (_test_and_set_flag(CTR_FLAG_RAID10_COPIES, &rs->ctr_flags))
-				return ti_error_einval(rs->ti, "Only one raid10_copies argument pair allowed");
+			if (_test_and_set_flag(CTR_FLAG_RAID10_COPIES, &rs->ctr_flags)) {
+				rs->ti->error = "Only one raid10_copies argument pair allowed";
+				return -EINVAL;
+			}
 
-			if (!_in_range(value, 2, rs->md.raid_disks))
-				return ti_error_einval(rs->ti, "Bad value for 'raid10_copies'");
+			if (!_in_range(value, 2, rs->md.raid_disks)) {
+				rs->ti->error = "Bad value for 'raid10_copies'";
+				return -EINVAL;
+			}
 
 			raid10_copies = value;
 		} else {
 			DMERR("Unable to parse RAID parameter: %s", key);
-			return ti_error_einval(rs->ti, "Unable to parse RAID parameters");
+			rs->ti->error = "Unable to parse RAID parameter";
+			return -EINVAL;
 		}
 	}
 
@@ -1214,21 +1287,29 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 		return -EINVAL;
 
 	if (rt_is_raid10(rt)) {
-		if (raid10_copies > rs->md.raid_disks)
-			return ti_error_einval(rs->ti, "Not enough devices to satisfy specification");
+		if (raid10_copies > rs->md.raid_disks) {
+			rs->ti->error = "Not enough devices to satisfy specification";
+			return -EINVAL;
+		}
 
 		rs->md.new_layout = raid10_format_to_md_layout(rs, raid10_format, raid10_copies);
-		if (rs->md.new_layout < 0)
-			return ti_error_ret(rs->ti, "Error getting raid10 format", rs->md.new_layout);
+		if (rs->md.new_layout < 0) {
+			rs->ti->error = "Error getting raid10 format";
+			return rs->md.new_layout;
+		}
 
 		rt = get_raid_type_by_ll(10, rs->md.new_layout);
-		if (!rt)
-			return ti_error_einval(rs->ti, "Failed to recognize new raid10 layout");
+		if (!rt) {
+			rs->ti->error = "Failed to recognize new raid10 layout";
+			return -EINVAL;
+		}
 
 		if ((rt->algorithm == ALGORITHM_RAID10_DEFAULT ||
 		     rt->algorithm == ALGORITHM_RAID10_NEAR) &&
-		    _test_flag(CTR_FLAG_RAID10_USE_NEAR_SETS, rs->ctr_flags))
-			return ti_error_einval(rs->ti, "RAID10 format 'near' and 'raid10_use_near_sets' are incompatible");
+		    _test_flag(CTR_FLAG_RAID10_USE_NEAR_SETS, rs->ctr_flags)) {
+			rs->ti->error = "RAID10 format 'near' and 'raid10_use_near_sets' are incompatible";
+			return -EINVAL;
+		}
 
 		/* (Len * #mirrors) / #devices */
 		sectors_per_dev = rs->ti->len * raid10_copies;
@@ -1237,9 +1318,10 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 		rs->md.layout = raid10_format_to_md_layout(rs, raid10_format, raid10_copies);
 		rs->md.new_layout = rs->md.layout;
 	} else if (!rt_is_raid1(rt) &&
-		   sector_div(sectors_per_dev,
-			      (rs->md.raid_disks - rt->parity_devs)))
-		return ti_error_einval(rs->ti, "Target length not divisible by number of data devices");
+		   sector_div(sectors_per_dev, (rs->md.raid_disks - rt->parity_devs))) {
+		rs->ti->error = "Target length not divisible by number of data devices";
+		return -EINVAL;
+	}
 
 	rs->raid10_copies = raid10_copies;
 	rs->md.dev_sectors = sectors_per_dev;
@@ -1420,7 +1502,8 @@ static int rs_check_takeover(struct raid_set *rs)
 		break;
 	}
 
-	return ti_error_einval(rs->ti, "takeover not possible");
+	rs->ti->error = "takeover not possible";
+	return -EINVAL;
 }
 
 /* True if @rs requested to be taken over */
@@ -1870,19 +1953,22 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 			if (role != r->raid_disk) {
 				if (_is_raid10_near(mddev->layout)) {
 					if (mddev->raid_disks % _raid10_near_copies(mddev->layout) ||
-					    rs->raid_disks % rs->raid10_copies)
-						return ti_error_einval(rs->ti, "Cannot change raid10 near "
-									       "set to odd # of devices!");
+					    rs->raid_disks % rs->raid10_copies) {
+						rs->ti->error =
+							"Cannot change raid10 near set to odd # of devices!";
+						return -EINVAL;
+					}
 
 					sb2->array_position = cpu_to_le32(r->raid_disk);
 
 				} else if (!(rs_is_raid10(rs) && rt_is_raid0(rs->raid_type)) &&
-				    !(rs_is_raid0(rs) && rt_is_raid10(rs->raid_type)) &&
-				    !rt_is_raid1(rs->raid_type))
-					return ti_error_einval(rs->ti, "Cannot change device positions in raid set");
+					   !(rs_is_raid0(rs) && rt_is_raid10(rs->raid_type)) &&
+					   !rt_is_raid1(rs->raid_type)) {
+					rs->ti->error = "Cannot change device positions in raid set";
+					return -EINVAL;
+				}
 
-				DMINFO("raid device #%d now at position #%d",
-				       role, r->raid_disk);
+				DMINFO("raid device #%d now at position #%d", role, r->raid_disk);
 			}
 
 			/*
@@ -2024,15 +2110,19 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	if (!freshest)
 		return 0;
 
-	if (validate_raid_redundancy(rs))
-		return ti_error_einval(rs->ti, "Insufficient redundancy to activate array");
+	if (validate_raid_redundancy(rs)) {
+		rs->ti->error = "Insufficient redundancy to activate array";
+		return -EINVAL;
+	}
 
 	/*
 	 * Validation of the freshest device provides the source of
 	 * validation for the remaining devices.
 	 */
-	if (super_validate(rs, freshest))
-		return ti_error_einval(rs->ti, "Unable to assemble array: Invalid superblocks");
+	if (super_validate(rs, freshest)) {
+		rs->ti->error = "Unable to assemble array: Invalid superblocks";
+		return -EINVAL;
+	}
 
 	rdev_for_each(rdev, mddev)
 		if ((rdev != freshest) && super_validate(rs, rdev))
@@ -2176,12 +2266,16 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	/* Must have <raid_type> */
 	arg = dm_shift_arg(&as);
-	if (!arg)
-		return ti_error_einval(rs->ti, "No arguments");
+	if (!arg) {
+		ti->error = "No arguments";
+		return -EINVAL;
+	}
 
 	rt = get_raid_type(arg);
-	if (!rt)
-		return ti_error_einval(rs->ti, "Unrecognised raid_type");
+	if (!rt) {
+		ti->error = "Unrecognised raid_type";
+		return -EINVAL;
+	}
 
 	/* Must have <#raid_params> */
 	if (dm_read_arg_group(_args, &as, &num_raid_params, &ti->error))
@@ -2194,8 +2288,10 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (dm_read_arg(_args + 1, &as_nrd, &num_raid_devs, &ti->error))
 		return -EINVAL;
 
-	if (!_in_range(num_raid_devs, 1, MAX_RAID_DEVICES))
-		return ti_error_einval(rs->ti, "Invalid number of supplied raid devices");
+	if (!_in_range(num_raid_devs, 1, MAX_RAID_DEVICES)) {
+		ti->error = "Invalid number of supplied raid devices";
+		return -EINVAL;
+	}
 
 	rs = context_alloc(ti, rt, num_raid_devs);
 	if (IS_ERR(rs))
@@ -2265,7 +2361,8 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	if (ti->len != rs->md.array_sectors) {
-		r = ti_error_einval(ti, "Array size does not match requested target length");
+		ti->error = "Array size does not match requested target length";
+		r = -EINVAL;
 		goto size_mismatch;
 	}
 	rs->callbacks.congested_fn = raid_is_congested;
