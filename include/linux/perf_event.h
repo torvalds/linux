@@ -391,6 +391,14 @@ struct pmu {
 	 * Filter events for PMU-specific reasons.
 	 */
 	int (*filter_match)		(struct perf_event *event); /* optional */
+
+	/*
+	 * Initial, PMU driver specific configuration.
+	 */
+	int (*get_drv_configs)		(struct perf_event *event,
+					 void __user *arg); /* optional */
+	void (*free_drv_configs)	(struct perf_event *event);
+					/* optional */
 };
 
 /**
@@ -558,6 +566,7 @@ struct perf_event {
 	struct irq_work			pending;
 
 	atomic_t			event_limit;
+	struct list_head		drv_configs;
 
 	void (*destroy)(struct perf_event *);
 	struct rcu_head			rcu_head;
