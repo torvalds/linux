@@ -98,6 +98,10 @@ struct arizona_priv {
 	bool dvfs_cached;
 };
 
+struct arizona_voice_trigger_info {
+	int core;
+};
+
 #define ARIZONA_NUM_MIXER_INPUTS 104
 
 extern const unsigned int arizona_mixer_tlv[];

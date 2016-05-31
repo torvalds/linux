@@ -1067,6 +1067,7 @@ static irqreturn_t cs47l24_adsp2_irq(int irq, void *data)
 {
 	struct cs47l24_priv *priv = data;
 	struct arizona *arizona = priv->core.arizona;
+	struct arizona_voice_trigger_info info;
 	int serviced = 0;
 	int i, ret;
 
@@ -1074,10 +1075,12 @@ static irqreturn_t cs47l24_adsp2_irq(int irq, void *data)
 		ret = wm_adsp_compr_handle_irq(&priv->core.adsp[i]);
 		if (ret != -ENODEV)
 			serviced++;
-		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER)
+		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
+			info.core = i;
 			arizona_call_notifiers(arizona,
 					       ARIZONA_NOTIFY_VOICE_TRIGGER,
-					       (void *)i);
+					       &info);
+		}
 	}
 
 	if (!serviced) {
