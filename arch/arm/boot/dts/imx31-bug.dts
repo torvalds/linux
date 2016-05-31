@@ -22,6 +22,6 @@
 };
 
 &uart5 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
