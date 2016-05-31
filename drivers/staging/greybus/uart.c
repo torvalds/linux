@@ -39,6 +39,7 @@ struct gb_tty_line_coding {
 	__u8	format;
 	__u8	parity;
 	__u8	data_bits;
+	__u8	flow_control;
 };
 
 struct gb_tty {
@@ -375,15 +376,20 @@ static void gb_tty_set_termios(struct tty_struct *tty,
 
 	if (C_BAUD(tty) == B0) {
 		newline.rate = gb_tty->line_coding.rate;
-		newctrl &= ~GB_UART_CTRL_DTR;
+		newctrl &= ~(GB_UART_CTRL_DTR | GB_UART_CTRL_RTS);
 	} else if (termios_old && (termios_old->c_cflag & CBAUD) == B0) {
-		newctrl |= GB_UART_CTRL_DTR;
+		newctrl |= (GB_UART_CTRL_DTR | GB_UART_CTRL_RTS);
 	}
 
 	if (newctrl != gb_tty->ctrlout) {
 		gb_tty->ctrlout = newctrl;
 		send_control(gb_tty, newctrl);
 	}
+
+	if (C_CRTSCTS(tty) && C_BAUD(tty) != B0)
+		newline.flow_control |= GB_SERIAL_AUTO_RTSCTS_EN;
+	else
+		newline.flow_control &= ~GB_SERIAL_AUTO_RTSCTS_EN;
 
 	if (memcmp(&gb_tty->line_coding, &newline, sizeof(newline))) {
 		memcpy(&gb_tty->line_coding, &newline, sizeof(newline));

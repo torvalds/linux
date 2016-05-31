@@ -1304,6 +1304,9 @@ struct gb_uart_set_line_coding_request {
 #define GB_SERIAL_SPACE_PARITY			4
 
 	__u8	data_bits;
+
+	__u8	flow_control;
+#define GB_SERIAL_AUTO_RTSCTS_EN		0x1
 } __packed;
 
 /* output control lines */
