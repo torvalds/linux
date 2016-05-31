@@ -203,7 +203,6 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 
 	const struct firmware *fw_entry;
 	struct device *dev = NULL;
-	int retval;
 	char cfg_file[]=CFG_FILE;
 	char *cur_p, *end_p;
 	char wk_buff[256], *wk_p;
@@ -254,10 +253,9 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 	priv->reg.rate_set.size = 12;
 
 	dev = &priv->ks_wlan_hw.sdio_card->func->dev;
-	if((retval = request_firmware(&fw_entry, cfg_file, dev)) !=0 ){
-		DPRINTK(1, "error request_firmware() file=%s ret=%d\n", cfg_file, retval);
-		return 1;
-	}
+	/* If no cfg file, stay with the defaults */
+	if (request_firmware_direct(&fw_entry, cfg_file, dev))
+		return 0;
 
 	DPRINTK(4, "success request_firmware() file=%s size=%d\n", cfg_file, fw_entry->size);
 	cur_p = fw_entry->data;
