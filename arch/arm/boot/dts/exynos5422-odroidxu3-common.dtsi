@@ -576,27 +576,22 @@
 
 &tmu_cpu0 {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &tmu_cpu1 {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &tmu_cpu2 {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &tmu_cpu3 {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &tmu_gpu {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &rtc {
