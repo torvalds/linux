@@ -1269,6 +1269,7 @@ struct gb_raw_send_request {
 #define GB_UART_TYPE_SET_CONTROL_LINE_STATE	0x05
 #define GB_UART_TYPE_SEND_BREAK			0x06
 #define GB_UART_TYPE_SERIAL_STATE		0x07	/* Unsolicited data */
+#define GB_UART_TYPE_RECEIVE_CREDITS		0x08
 
 /* Represents data from AP -> Module */
 struct gb_uart_send_data_request {
@@ -1287,6 +1288,10 @@ struct gb_uart_recv_data_request {
 	__le16	size;
 	__u8	flags;
 	__u8	data[0];
+} __packed;
+
+struct gb_uart_receive_credits_request {
+	__le16  count;
 } __packed;
 
 struct gb_uart_set_line_coding_request {

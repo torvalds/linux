@@ -38,6 +38,7 @@
 
 #define GB_UART_WRITE_FIFO_SIZE		PAGE_SIZE
 #define GB_UART_WRITE_ROOM_MARGIN	1	/* leave some space in fifo */
+#define GB_UART_FIRMWARE_CREDITS	4096
 
 struct gb_tty_line_coding {
 	__le32	rate;
@@ -69,6 +70,7 @@ struct gb_tty {
 	struct work_struct tx_work;
 	struct kfifo write_fifo;
 	bool close_pending;
+	unsigned int credits;
 };
 
 static struct tty_driver *gb_tty_driver;
@@ -151,6 +153,53 @@ static int gb_uart_serial_state_handler(struct gb_operation *op)
 	return 0;
 }
 
+static int gb_uart_receive_credits_handler(struct gb_operation *op)
+{
+	struct gb_connection *connection = op->connection;
+	struct gb_tty *gb_tty = gb_connection_get_data(connection);
+	struct gb_message *request = op->request;
+	struct gb_uart_receive_credits_request *credit_request;
+	unsigned long flags;
+	unsigned int incoming_credits;
+	int ret = 0;
+
+	if (request->payload_size < sizeof(*credit_request)) {
+		dev_err(&gb_tty->gbphy_dev->dev,
+				"short receive_credits event received (%zu < %zu)\n",
+				request->payload_size,
+				sizeof(*credit_request));
+		return -EINVAL;
+	}
+
+	credit_request = request->payload;
+	incoming_credits = le16_to_cpu(credit_request->count);
+
+	spin_lock_irqsave(&gb_tty->write_lock, flags);
+	gb_tty->credits += incoming_credits;
+	if (gb_tty->credits > GB_UART_FIRMWARE_CREDITS) {
+		gb_tty->credits -= incoming_credits;
+		ret = -EINVAL;
+	}
+	spin_unlock_irqrestore(&gb_tty->write_lock, flags);
+
+	if (ret) {
+		dev_err(&gb_tty->gbphy_dev->dev,
+			"invalid number of incoming credits: %d\n",
+			incoming_credits);
+		return ret;
+	}
+
+	if (!gb_tty->close_pending)
+		schedule_work(&gb_tty->tx_work);
+
+	/*
+	 * the port the tty layer may be waiting for credits
+	 */
+	tty_port_tty_wakeup(&gb_tty->port);
+
+	return ret;
+}
+
 static int gb_uart_request_handler(struct gb_operation *op)
 {
 	struct gb_connection *connection = op->connection;
@@ -164,6 +213,9 @@ static int gb_uart_request_handler(struct gb_operation *op)
 		break;
 	case GB_UART_TYPE_SERIAL_STATE:
 		ret = gb_uart_serial_state_handler(op);
+		break;
+	case GB_UART_TYPE_RECEIVE_CREDITS:
+		ret = gb_uart_receive_credits_handler(op);
 		break;
 	default:
 		dev_err(&gb_tty->gbphy_dev->dev,
@@ -190,14 +242,19 @@ static void  gb_uart_tx_write_work(struct work_struct *work)
 			break;
 
 		spin_lock_irqsave(&gb_tty->write_lock, flags);
+		send_size = gb_tty->buffer_payload_max;
+		if (send_size > gb_tty->credits)
+			send_size = gb_tty->credits;
+
 		send_size = kfifo_out_peek(&gb_tty->write_fifo,
 					&request->data[0],
-					gb_tty->buffer_payload_max);
+					send_size);
 		if (!send_size) {
 			spin_unlock_irqrestore(&gb_tty->write_lock, flags);
 			break;
 		}
 
+		gb_tty->credits -= send_size;
 		spin_unlock_irqrestore(&gb_tty->write_lock, flags);
 
 		request->size = cpu_to_le16(send_size);
@@ -208,6 +265,9 @@ static void  gb_uart_tx_write_work(struct work_struct *work)
 		if (ret) {
 			dev_err(&gb_tty->gbphy_dev->dev,
 				"send data error: %d\n", ret);
+			spin_lock_irqsave(&gb_tty->write_lock, flags);
+			gb_tty->credits += send_size;
+			spin_unlock_irqrestore(&gb_tty->write_lock, flags);
 			if (!gb_tty->close_pending)
 				schedule_work(work);
 			return;
@@ -386,6 +446,8 @@ static int gb_tty_chars_in_buffer(struct tty_struct *tty)
 
 	spin_lock_irqsave(&gb_tty->write_lock, flags);
 	chars = kfifo_len(&gb_tty->write_fifo);
+	if (gb_tty->credits < GB_UART_FIRMWARE_CREDITS)
+		chars += GB_UART_FIRMWARE_CREDITS - gb_tty->credits;
 	spin_unlock_irqrestore(&gb_tty->write_lock, flags);
 
 	return chars;
@@ -763,6 +825,8 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 				GFP_KERNEL);
 	if (retval)
 		goto exit_buf_free;
+
+	gb_tty->credits = GB_UART_FIRMWARE_CREDITS;
 
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
