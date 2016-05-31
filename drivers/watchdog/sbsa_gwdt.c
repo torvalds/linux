@@ -283,6 +283,8 @@ static int sbsa_gwdt_probe(struct platform_device *pdev)
 		dev_warn(dev, "System reset by WDT.\n");
 		wdd->bootstatus |= WDIOF_CARDRESET;
 	}
+	if (status & SBSA_GWDT_WCS_EN)
+		set_bit(WDOG_HW_RUNNING, &wdd->status);
 
 	if (action) {
 		irq = platform_get_irq(pdev, 0);
