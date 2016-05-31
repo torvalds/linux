@@ -85,27 +85,32 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 		if (bo->dumb) {
 			virtio_gpu_cmd_transfer_to_host_2d
 				(vgdev, handle, 0,
-				 cpu_to_le32(plane->state->crtc_w),
-				 cpu_to_le32(plane->state->crtc_h),
-				 plane->state->crtc_x, plane->state->crtc_y, NULL);
+				 cpu_to_le32(plane->state->src_w >> 16),
+				 cpu_to_le32(plane->state->src_h >> 16),
+				 plane->state->src_x >> 16,
+				 plane->state->src_y >> 16, NULL);
 		}
 	} else {
 		handle = 0;
 	}
 
-	DRM_DEBUG("handle 0x%x, crtc %dx%d+%d+%d\n", handle,
+	DRM_DEBUG("handle 0x%x, crtc %dx%d+%d+%d, src %dx%d+%d+%d\n", handle,
 		  plane->state->crtc_w, plane->state->crtc_h,
-		  plane->state->crtc_x, plane->state->crtc_y);
+		  plane->state->crtc_x, plane->state->crtc_y,
+		  plane->state->src_w >> 16,
+		  plane->state->src_h >> 16,
+		  plane->state->src_x >> 16,
+		  plane->state->src_y >> 16);
 	virtio_gpu_cmd_set_scanout(vgdev, output->index, handle,
-				   plane->state->crtc_w,
-				   plane->state->crtc_h,
-				   plane->state->crtc_x,
-				   plane->state->crtc_y);
+				   plane->state->src_w >> 16,
+				   plane->state->src_h >> 16,
+				   plane->state->src_x >> 16,
+				   plane->state->src_y >> 16);
 	virtio_gpu_cmd_resource_flush(vgdev, handle,
-				      plane->state->crtc_x,
-				      plane->state->crtc_y,
-				      plane->state->crtc_w,
-				      plane->state->crtc_h);
+				      plane->state->src_x >> 16,
+				      plane->state->src_y >> 16,
+				      plane->state->src_w >> 16,
+				      plane->state->src_h >> 16);
 }
 
 static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
