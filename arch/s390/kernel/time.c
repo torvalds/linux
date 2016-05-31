@@ -1455,7 +1455,7 @@ static void __init stp_reset(void)
 	int rc;
 
 	stp_page = (void *) get_zeroed_page(GFP_ATOMIC);
-	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000);
+	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000, NULL);
 	if (rc == 0)
 		set_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags);
 	else if (stp_online) {
@@ -1554,11 +1554,10 @@ static int stp_sync_clock(void *data)
 	    stp_info.todoff[2] || stp_info.todoff[3] ||
 	    stp_info.tmd != 2) {
 		old_clock = get_tod_clock();
-		rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0);
+		rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0, &clock_delta);
 		if (rc == 0) {
-			new_clock = get_tod_clock();
+			new_clock = old_clock + clock_delta;
 			delta = adjust_time(old_clock, new_clock, 0);
-			clock_delta = new_clock - old_clock;
 			atomic_notifier_call_chain(&s390_epoch_delta_notifier,
 						   0, &clock_delta);
 			fixup_clock_comparator(delta);
@@ -1590,12 +1589,12 @@ static void stp_work_fn(struct work_struct *work)
 	mutex_lock(&stp_work_mutex);
 
 	if (!stp_online) {
-		chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000);
+		chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000, NULL);
 		del_timer_sync(&stp_timer);
 		goto out_unlock;
 	}
 
-	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0xb0e0);
+	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0xb0e0, NULL);
 	if (rc)
 		goto out_unlock;
 
