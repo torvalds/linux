@@ -23,6 +23,9 @@
 #
 # Authors:
 #    Jani Nikula <jani.nikula@intel.com>
+#
+# Please make sure this works on both python2 and python3.
+#
 
 import os
 import subprocess
@@ -75,8 +78,10 @@ class KernelDocDirective(Directive):
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             out, err = p.communicate()
 
-            # assume the kernel sources are utf-8
-            out, err = unicode(out, 'utf-8'), unicode(err, 'utf-8')
+            # python2 needs conversion to unicode.
+            # python3 with universal_newlines=True returns strings.
+            if sys.version_info.major < 3:
+                out, err = unicode(out, 'utf-8'), unicode(err, 'utf-8')
 
             if p.returncode != 0:
                 sys.stderr.write(err)
