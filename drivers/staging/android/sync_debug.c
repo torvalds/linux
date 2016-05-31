@@ -218,7 +218,7 @@ static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
 
 	get_task_comm(task_comm, current);
 
-	obj = sync_timeline_create(sizeof(*obj), "sw_sync", task_comm);
+	obj = sync_timeline_create("sw_sync", task_comm);
 	if (!obj)
 		return -ENOMEM;
 

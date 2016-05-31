@@ -66,16 +66,13 @@ static inline struct sync_timeline *fence_parent(struct fence *fence)
 
 /**
  * sync_timeline_create() - creates a sync object
- * @size:	size to allocate for this obj
  * @drv_name:	sync_timeline driver name
  * @name:	sync_timeline name
  *
- * Creates a new sync_timeline. @size bytes will be allocated allowing
- * for implementation specific data to be kept after the generic
- * sync_timeline struct. Returns the sync_timeline object or NULL in
+ * Creates a new sync_timeline. Returns the sync_timeline object or NULL in
  * case of error.
  */
-struct sync_timeline *sync_timeline_create(int size, const char *drv_name,
+struct sync_timeline *sync_timeline_create(const char *drv_name,
 					   const char *name);
 
 /**

@@ -30,15 +30,12 @@
 
 static const struct fence_ops timeline_fence_ops;
 
-struct sync_timeline *sync_timeline_create(int size, const char *drv_name,
+struct sync_timeline *sync_timeline_create(const char *drv_name,
 					   const char *name)
 {
 	struct sync_timeline *obj;
 
-	if (size < sizeof(struct sync_timeline))
-		return NULL;
-
-	obj = kzalloc(size, GFP_KERNEL);
+	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
 		return NULL;
 
