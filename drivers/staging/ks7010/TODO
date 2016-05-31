@@ -28,7 +28,6 @@ Now the TODOs:
   should understand the change you submit.
 - drop using a config file and use an upstream technique for configuration
 - fix the 'card removal' event when card is inserted when booting
-- driver crashes when removing the card
 - check what other upstream wireless mechanisms can be used instead of the
   custom ones here
 

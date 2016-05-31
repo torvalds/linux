@@ -817,14 +817,8 @@ static int ks79xx_upload_firmware(ks_wlan_private *priv, struct ks_sdio_card *ca
 	return rc;
 }
 
-static void card_init_task(struct work_struct *work)
+static void ks7010_card_init(struct ks_wlan_private *priv)
 {
-	struct hw_info_t *hw;
-	struct ks_wlan_private *priv;
-
-	hw = container_of(work, struct hw_info_t, init_task);
-	priv = container_of(hw, struct ks_wlan_private, ks_wlan_hw);
-
 	DPRINTK(5,"\ncard_init_task()\n");
 
 	/* init_waitqueue_head(&priv->confirm_wait); */
@@ -1052,23 +1046,11 @@ static int ks7910_sdio_probe(struct sdio_func *func, const struct sdio_device_id
 		goto error_free_read_buf;
 	}
 
-	priv->ks_wlan_hw.ks7010sdio_init = create_singlethread_workqueue("ks7010sdio_init");
-	if(!priv->ks_wlan_hw.ks7010sdio_init){
-		DPRINTK(1, "create_workqueue failed !!\n");
-		goto error_free_sdio_wq;
-	}
-
-	INIT_WORK(&priv->ks_wlan_hw.init_task, card_init_task);
 	INIT_DELAYED_WORK(&priv->ks_wlan_hw.rw_wq, ks7010_rw_function);
-
-	queue_work(priv->ks_wlan_hw.ks7010sdio_init, &priv->ks_wlan_hw.init_task);
+	ks7010_card_init(priv);
 
 	return 0;
 
-error_free_sdio_wq:
-	flush_workqueue(priv->ks_wlan_hw.ks7010sdio_wq);
-	destroy_workqueue(priv->ks_wlan_hw.ks7010sdio_wq);
-	priv->ks_wlan_hw.ks7010sdio_wq = NULL;
 error_free_read_buf:
 	kfree(priv->ks_wlan_hw.read_buf);
 	priv->ks_wlan_hw.read_buf = NULL;
@@ -1138,12 +1120,6 @@ static void ks7910_sdio_remove(struct sdio_func *func)
 			destroy_workqueue(priv->ks_wlan_hw.ks7010sdio_wq);
 		}
 		DPRINTK(1, "destroy_workqueue(priv->ks_wlan_hw.ks7010sdio_wq);\n");
-
-		if(priv->ks_wlan_hw.ks7010sdio_init){
-			flush_workqueue(priv->ks_wlan_hw.ks7010sdio_init);
-			destroy_workqueue(priv->ks_wlan_hw.ks7010sdio_init);
-		}
-		DPRINTK(1, "destroy_workqueue(priv->ks_wlan_hw.ks7010sdio_init);\n");
 
 		hostif_exit(priv);
 		DPRINTK(1, "hostif_exit\n");
