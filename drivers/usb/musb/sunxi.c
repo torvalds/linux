@@ -112,7 +112,7 @@ static void sunxi_musb_work(struct work_struct *work)
 		if (test_bit(SUNXI_MUSB_FL_HOSTMODE, &glue->flags)) {
 			set_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
 			musb->xceiv->otg->default_a = 1;
-			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			MUSB_HST_MODE(musb);
 			devctl |= MUSB_DEVCTL_SESSION;
 		} else {
@@ -145,10 +145,12 @@ static void sunxi_musb_set_vbus(struct musb *musb, int is_on)
 {
 	struct sunxi_glue *glue = dev_get_drvdata(musb->controller->parent);
 
-	if (is_on)
+	if (is_on) {
 		set_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
-	else
+		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
+	} else {
 		clear_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
+	}
 
 	schedule_work(&glue->work);
 }
@@ -325,6 +327,7 @@ static int sunxi_set_mode(struct musb *musb, u8 mode)
 		set_bit(SUNXI_MUSB_FL_PHY_ON, &glue->flags);
 		/* Stop musb work from turning vbus off again */
 		set_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
+		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 	}
 
 	return 0;
