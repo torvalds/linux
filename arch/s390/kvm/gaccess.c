@@ -979,20 +979,9 @@ int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
  */
 int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra)
 {
-	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
-	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-	struct trans_exc_code_bits *tec_bits;
 	union ctlreg0 ctlreg0 = {.val = vcpu->arch.sie_block->gcr[0]};
 
 	if (!ctlreg0.lap || !is_low_address(gra))
 		return 0;
-
-	memset(pgm, 0, sizeof(*pgm));
-	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
-	tec_bits->fsi = FSI_STORE;
-	tec_bits->as = psw_bits(*psw).as;
-	tec_bits->addr = gra >> PAGE_SHIFT;
-	pgm->code = PGM_PROTECTION;
-
-	return pgm->code;
+	return trans_exc(vcpu, PGM_PROTECTION, gra, 0, GACC_STORE, PROT_TYPE_LA);
 }
