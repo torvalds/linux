@@ -1090,29 +1090,6 @@ void musb_stop(struct musb *musb)
 	musb_platform_try_idle(musb, 0);
 }
 
-static void musb_shutdown(struct platform_device *pdev)
-{
-	struct musb	*musb = dev_to_musb(&pdev->dev);
-	unsigned long	flags;
-
-	pm_runtime_get_sync(musb->controller);
-
-	musb_host_cleanup(musb);
-	musb_gadget_cleanup(musb);
-
-	spin_lock_irqsave(&musb->lock, flags);
-	musb_platform_disable(musb);
-	musb_generic_disable(musb);
-	spin_unlock_irqrestore(&musb->lock, flags);
-
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
-	musb_platform_exit(musb);
-
-	pm_runtime_put(musb->controller);
-	/* FIXME power down */
-}
-
-
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -2318,6 +2295,7 @@ static int musb_remove(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct musb	*musb = dev_to_musb(dev);
+	unsigned long	flags;
 
 	/* this gets called on rmmod.
 	 *  - Host mode: host may still be active
@@ -2325,7 +2303,19 @@ static int musb_remove(struct platform_device *pdev)
 	 *  - OTG mode: both roles are deactivated (or never-activated)
 	 */
 	musb_exit_debugfs(musb);
-	musb_shutdown(pdev);
+
+	pm_runtime_get_sync(musb->controller);
+	musb_host_cleanup(musb);
+	musb_gadget_cleanup(musb);
+	spin_lock_irqsave(&musb->lock, flags);
+	musb_platform_disable(musb);
+	musb_generic_disable(musb);
+	spin_unlock_irqrestore(&musb->lock, flags);
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+	musb_platform_exit(musb);
+	pm_runtime_put(musb->controller);
+	/* FIXME power down */
+
 	musb_phy_callback = NULL;
 
 	if (musb->dma_controller)
@@ -2618,7 +2608,6 @@ static struct platform_driver musb_driver = {
 	},
 	.probe		= musb_probe,
 	.remove		= musb_remove,
-	.shutdown	= musb_shutdown,
 };
 
 module_platform_driver(musb_driver);
