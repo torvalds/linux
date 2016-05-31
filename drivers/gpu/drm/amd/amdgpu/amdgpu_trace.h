@@ -11,6 +11,44 @@
 #define TRACE_SYSTEM amdgpu
 #define TRACE_INCLUDE_FILE amdgpu_trace
 
+TRACE_EVENT(amdgpu_mm_rreg,
+	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
+	    TP_ARGS(did, reg, value),
+	    TP_STRUCT__entry(
+				__field(unsigned, did)
+				__field(uint32_t, reg)
+				__field(uint32_t, value)
+			    ),
+	    TP_fast_assign(
+			   __entry->did = did;
+			   __entry->reg = reg;
+			   __entry->value = value;
+			   ),
+	    TP_printk("0x%04lx, 0x%04lx, 0x%08lx",
+		      (unsigned long)__entry->did,
+		      (unsigned long)__entry->reg,
+		      (unsigned long)__entry->value)
+);
+
+TRACE_EVENT(amdgpu_mm_wreg,
+	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
+	    TP_ARGS(did, reg, value),
+	    TP_STRUCT__entry(
+				__field(unsigned, did)
+				__field(uint32_t, reg)
+				__field(uint32_t, value)
+			    ),
+	    TP_fast_assign(
+			   __entry->did = did;
+			   __entry->reg = reg;
+			   __entry->value = value;
+			   ),
+	    TP_printk("0x%04lx, 0x%04lx, 0x%08lx",
+		      (unsigned long)__entry->did,
+		      (unsigned long)__entry->reg,
+		      (unsigned long)__entry->value)
+);
+
 TRACE_EVENT(amdgpu_bo_create,
 	    TP_PROTO(struct amdgpu_bo *bo),
 	    TP_ARGS(bo),

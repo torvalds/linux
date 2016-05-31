@@ -35,6 +35,7 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/efi.h>
 #include "amdgpu.h"
+#include "amdgpu_trace.h"
 #include "amdgpu_i2c.h"
 #include "atom.h"
 #include "amdgpu_atombios.h"
@@ -79,24 +80,27 @@ bool amdgpu_device_is_px(struct drm_device *dev)
 uint32_t amdgpu_mm_rreg(struct amdgpu_device *adev, uint32_t reg,
 			bool always_indirect)
 {
+	uint32_t ret;
+
 	if ((reg * 4) < adev->rmmio_size && !always_indirect)
-		return readl(((void __iomem *)adev->rmmio) + (reg * 4));
+		ret = readl(((void __iomem *)adev->rmmio) + (reg * 4));
 	else {
 		unsigned long flags;
-		uint32_t ret;
 
 		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
 		writel((reg * 4), ((void __iomem *)adev->rmmio) + (mmMM_INDEX * 4));
 		ret = readl(((void __iomem *)adev->rmmio) + (mmMM_DATA * 4));
 		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
-
-		return ret;
 	}
+	trace_amdgpu_mm_rreg(adev->pdev->device, reg, ret);
+	return ret;
 }
 
 void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 		    bool always_indirect)
 {
+	trace_amdgpu_mm_wreg(adev->pdev->device, reg, v);
+	
 	if ((reg * 4) < adev->rmmio_size && !always_indirect)
 		writel(v, ((void __iomem *)adev->rmmio) + (reg * 4));
 	else {
