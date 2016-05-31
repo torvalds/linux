@@ -633,7 +633,7 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, u8 epnum)
 	ep->rx_reinit = 0;
 }
 
-static int musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
+static void musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
 		struct musb_hw_ep *hw_ep, struct musb_qh *qh,
 		struct urb *urb, u32 offset,
 		u32 *length, u8 *mode)
@@ -670,17 +670,15 @@ static int musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
 	}
 	channel->desired_mode = *mode;
 	musb_writew(epio, MUSB_TXCSR, csr);
-
-	return 0;
 }
 
-static int musb_tx_dma_set_mode_cppi_tusb(struct dma_controller *dma,
-					  struct musb_hw_ep *hw_ep,
-					  struct musb_qh *qh,
-					  struct urb *urb,
-					  u32 offset,
-					  u32 *length,
-					  u8 *mode)
+static void musb_tx_dma_set_mode_cppi_tusb(struct dma_controller *dma,
+					   struct musb_hw_ep *hw_ep,
+					   struct musb_qh *qh,
+					   struct urb *urb,
+					   u32 offset,
+					   u32 *length,
+					   u8 *mode)
 {
 	struct dma_channel *channel = hw_ep->tx_channel;
 
@@ -691,8 +689,6 @@ static int musb_tx_dma_set_mode_cppi_tusb(struct dma_controller *dma,
 	 * to identify the zero-length-final-packet case.
 	 */
 	*mode = (urb->transfer_flags & URB_ZERO_PACKET) ? 1 : 0;
-
-	return 0;
 }
 
 static bool musb_tx_dma_program(struct dma_controller *dma,
@@ -702,17 +698,14 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 	struct dma_channel	*channel = hw_ep->tx_channel;
 	u16			pkt_size = qh->maxpacket;
 	u8			mode;
-	int			res;
 
 	if (musb_dma_inventra(hw_ep->musb) || musb_dma_ux500(hw_ep->musb))
-		res = musb_tx_dma_set_mode_mentor(dma, hw_ep, qh, urb,
-						 offset, &length, &mode);
+		musb_tx_dma_set_mode_mentor(dma, hw_ep, qh, urb, offset,
+					    &length, &mode);
 	else if (is_cppi_enabled(hw_ep->musb) || tusb_dma_omap(hw_ep->musb))
-		res = musb_tx_dma_set_mode_cppi_tusb(dma, hw_ep, qh, urb,
-						     offset, &length, &mode);
+		musb_tx_dma_set_mode_cppi_tusb(dma, hw_ep, qh, urb, offset,
+					       &length, &mode);
 	else
-		return false;
-	if (res)
 		return false;
 
 	qh->segsize = length;
