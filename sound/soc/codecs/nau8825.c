@@ -217,6 +217,7 @@ static bool nau8825_volatile_reg(struct device *dev, unsigned int reg)
 	case NAU8825_REG_SARDOUT_RAM_STATUS:
 	case NAU8825_REG_CHARGE_PUMP_INPUT_READ:
 	case NAU8825_REG_GENERAL_STATUS:
+	case NAU8825_REG_BIQ_CTRL ... NAU8825_REG_BIQ_COF10:
 		return true;
 	default:
 		return false;
@@ -293,6 +294,54 @@ static int nau8825_output_dac_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int nau8825_biq_coeff_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct soc_bytes_ext *params = (void *)kcontrol->private_value;
+
+	if (!component->regmap)
+		return -EINVAL;
+
+	regmap_raw_read(component->regmap, NAU8825_REG_BIQ_COF1,
+		ucontrol->value.bytes.data, params->max);
+	return 0;
+}
+
+static int nau8825_biq_coeff_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct soc_bytes_ext *params = (void *)kcontrol->private_value;
+	void *data;
+
+	if (!component->regmap)
+		return -EINVAL;
+
+	data = kmemdup(ucontrol->value.bytes.data,
+		params->max, GFP_KERNEL | GFP_DMA);
+	if (!data)
+		return -ENOMEM;
+
+	regmap_update_bits(component->regmap, NAU8825_REG_BIQ_CTRL,
+		NAU8825_BIQ_WRT_EN, 0);
+	regmap_raw_write(component->regmap, NAU8825_REG_BIQ_COF1,
+		data, params->max);
+	regmap_update_bits(component->regmap, NAU8825_REG_BIQ_CTRL,
+		NAU8825_BIQ_WRT_EN, NAU8825_BIQ_WRT_EN);
+
+	kfree(data);
+	return 0;
+}
+
+static const char * const nau8825_biq_path[] = {
+	"ADC", "DAC"
+};
+
+static const struct soc_enum nau8825_biq_path_enum =
+	SOC_ENUM_SINGLE(NAU8825_REG_BIQ_CTRL, NAU8825_BIQ_PATH_SFT,
+		ARRAY_SIZE(nau8825_biq_path), nau8825_biq_path);
+
 static const char * const nau8825_adc_decimation[] = {
 	"32", "64", "128", "256"
 };
@@ -329,6 +378,10 @@ static const struct snd_kcontrol_new nau8825_controls[] = {
 
 	SOC_ENUM("ADC Decimation Rate", nau8825_adc_decimation_enum),
 	SOC_ENUM("DAC Oversampling Rate", nau8825_dac_oversampl_enum),
+	/* programmable biquad filter */
+	SOC_ENUM("BIQ Path Select", nau8825_biq_path_enum),
+	SND_SOC_BYTES_EXT("BIQ Coefficeints", 20,
+		  nau8825_biq_coeff_get, nau8825_biq_coeff_put),
 };
 
 /* DAC Mux 0x33[9] and 0x34[9] */
