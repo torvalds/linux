@@ -21,6 +21,12 @@
 #include <sound/soc-dai.h>
 #include <sound/soc.h>
 
+struct asoc_simple_jack {
+	struct snd_soc_jack jack;
+	struct snd_soc_jack_pin pin;
+	struct snd_soc_jack_gpio gpio;
+};
+
 struct simple_card_data {
 	struct snd_soc_card snd_card;
 	struct simple_dai_props {
@@ -29,10 +35,8 @@ struct simple_card_data {
 		unsigned int mclk_fs;
 	} *dai_props;
 	unsigned int mclk_fs;
-	int gpio_hp_det;
-	int gpio_hp_det_invert;
-	int gpio_mic_det;
-	int gpio_mic_det_invert;
+	struct asoc_simple_jack hp_jack;
+	struct asoc_simple_jack mic_jack;
 	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
 };
 
@@ -41,6 +45,67 @@ struct simple_card_data {
 #define simple_priv_to_props(priv, i) ((priv)->dai_props + i)
 
 #define PREFIX	"simple-audio-card,"
+
+#define asoc_simple_card_init_hp(card, sjack, prefix)\
+	asoc_simple_card_init_jack(card, sjack, 1, prefix)
+#define asoc_simple_card_init_mic(card, sjack, prefix)\
+	asoc_simple_card_init_jack(card, sjack, 0, prefix)
+static int asoc_simple_card_init_jack(struct snd_soc_card *card,
+				      struct asoc_simple_jack *sjack,
+				      int is_hp, char *prefix)
+{
+	struct device *dev = card->dev;
+	enum of_gpio_flags flags;
+	char prop[128];
+	char *pin_name;
+	char *gpio_name;
+	int mask;
+	int det;
+
+	sjack->gpio.gpio = -ENOENT;
+
+	if (is_hp) {
+		snprintf(prop, sizeof(prop), "%shp-det-gpio", prefix);
+		pin_name	= "Headphones";
+		gpio_name	= "Headphone detection";
+		mask		= SND_JACK_HEADPHONE;
+	} else {
+		snprintf(prop, sizeof(prop), "%smic-det-gpio", prefix);
+		pin_name	= "Mic Jack";
+		gpio_name	= "Mic detection";
+		mask		= SND_JACK_MICROPHONE;
+	}
+
+	det = of_get_named_gpio_flags(dev->of_node, prop, 0, &flags);
+	if (det == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	if (gpio_is_valid(det)) {
+		sjack->pin.pin		= pin_name;
+		sjack->pin.mask		= mask;
+
+		sjack->gpio.name	= gpio_name;
+		sjack->gpio.report	= mask;
+		sjack->gpio.gpio	= det;
+		sjack->gpio.invert	= !!(flags & OF_GPIO_ACTIVE_LOW);
+		sjack->gpio.debounce_time = 150;
+
+		snd_soc_card_jack_new(card, pin_name, mask,
+				      &sjack->jack,
+				      &sjack->pin, 1);
+
+		snd_soc_jack_add_gpios(&sjack->jack, 1,
+				       &sjack->gpio);
+	}
+
+	return 0;
+}
+
+static void asoc_simple_card_remove_jack(struct asoc_simple_jack *sjack)
+{
+	if (gpio_is_valid(sjack->gpio.gpio))
+		snd_soc_jack_free_gpios(&sjack->jack, 1, &sjack->gpio);
+}
 
 static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 {
@@ -112,32 +177,6 @@ static struct snd_soc_ops asoc_simple_card_ops = {
 	.hw_params = asoc_simple_card_hw_params,
 };
 
-static struct snd_soc_jack simple_card_hp_jack;
-static struct snd_soc_jack_pin simple_card_hp_jack_pins[] = {
-	{
-		.pin = "Headphones",
-		.mask = SND_JACK_HEADPHONE,
-	},
-};
-static struct snd_soc_jack_gpio simple_card_hp_jack_gpio = {
-	.name = "Headphone detection",
-	.report = SND_JACK_HEADPHONE,
-	.debounce_time = 150,
-};
-
-static struct snd_soc_jack simple_card_mic_jack;
-static struct snd_soc_jack_pin simple_card_mic_jack_pins[] = {
-	{
-		.pin = "Mic Jack",
-		.mask = SND_JACK_MICROPHONE,
-	},
-};
-static struct snd_soc_jack_gpio simple_card_mic_jack_gpio = {
-	.name = "Mic detection",
-	.report = SND_JACK_MICROPHONE,
-	.debounce_time = 150,
-};
-
 static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
 				       struct asoc_simple_dai *set)
 {
@@ -186,30 +225,14 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret < 0)
 		return ret;
 
-	if (gpio_is_valid(priv->gpio_hp_det)) {
-		snd_soc_card_jack_new(rtd->card, "Headphones",
-				      SND_JACK_HEADPHONE,
-				      &simple_card_hp_jack,
-				      simple_card_hp_jack_pins,
-				      ARRAY_SIZE(simple_card_hp_jack_pins));
+	ret = asoc_simple_card_init_hp(rtd->card, &priv->hp_jack, PREFIX);
+	if (ret < 0)
+		return ret;
 
-		simple_card_hp_jack_gpio.gpio = priv->gpio_hp_det;
-		simple_card_hp_jack_gpio.invert = priv->gpio_hp_det_invert;
-		snd_soc_jack_add_gpios(&simple_card_hp_jack, 1,
-				       &simple_card_hp_jack_gpio);
-	}
+	ret = asoc_simple_card_init_mic(rtd->card, &priv->hp_jack, PREFIX);
+	if (ret < 0)
+		return ret;
 
-	if (gpio_is_valid(priv->gpio_mic_det)) {
-		snd_soc_card_jack_new(rtd->card, "Mic Jack",
-				      SND_JACK_MICROPHONE,
-				      &simple_card_mic_jack,
-				      simple_card_mic_jack_pins,
-				      ARRAY_SIZE(simple_card_mic_jack_pins));
-		simple_card_mic_jack_gpio.gpio = priv->gpio_mic_det;
-		simple_card_mic_jack_gpio.invert = priv->gpio_mic_det_invert;
-		snd_soc_jack_add_gpios(&simple_card_mic_jack, 1,
-				       &simple_card_mic_jack_gpio);
-	}
 	return 0;
 }
 
@@ -447,7 +470,6 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 				     struct simple_card_data *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	enum of_gpio_flags flags;
 	u32 val;
 	int ret;
 
@@ -503,18 +525,6 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 			return ret;
 	}
 
-	priv->gpio_hp_det = of_get_named_gpio_flags(node,
-				PREFIX "hp-det-gpio", 0, &flags);
-	priv->gpio_hp_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
-	if (priv->gpio_hp_det == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-
-	priv->gpio_mic_det = of_get_named_gpio_flags(node,
-				PREFIX "mic-det-gpio", 0, &flags);
-	priv->gpio_mic_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
-	if (priv->gpio_mic_det == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-
 	if (!priv->snd_card.name)
 		priv->snd_card.name = priv->snd_card.dai_link->name;
 
@@ -563,9 +573,6 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	dai_link = priv->dai_link;
 	priv->snd_card.dai_link = dai_link;
 	priv->snd_card.num_links = num_links;
-
-	priv->gpio_hp_det = -ENOENT;
-	priv->gpio_mic_det = -ENOENT;
 
 	/* Get room for the other properties */
 	priv->dai_props = devm_kzalloc(dev,
@@ -633,12 +640,8 @@ static int asoc_simple_card_remove(struct platform_device *pdev)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct simple_card_data *priv = snd_soc_card_get_drvdata(card);
 
-	if (gpio_is_valid(priv->gpio_hp_det))
-		snd_soc_jack_free_gpios(&simple_card_hp_jack, 1,
-					&simple_card_hp_jack_gpio);
-	if (gpio_is_valid(priv->gpio_mic_det))
-		snd_soc_jack_free_gpios(&simple_card_mic_jack, 1,
-					&simple_card_mic_jack_gpio);
+	asoc_simple_card_remove_jack(&priv->hp_jack);
+	asoc_simple_card_remove_jack(&priv->mic_jack);
 
 	return asoc_simple_card_unref(card);
 }
