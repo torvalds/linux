@@ -1261,9 +1261,7 @@ static void __exit ks7010_sdio_exit(void)
 module_init(ks7010_sdio_init);
 module_exit(ks7010_sdio_exit);
 
-MODULE_AUTHOR("Qi-Hardware based on KeyStream driver");
-MODULE_DESCRIPTION("Driver for KeyStream, KS7010 based SDIO cards. ");
-#ifdef MODULE_LICENSE
-MODULE_LICENSE("GPL");
-#endif
-MODULE_SUPPORTED_DEVICE("KS7910");
+MODULE_AUTHOR("Sang Engineering, Qi-Hardware, KeyStream");
+MODULE_DESCRIPTION("Driver for KeyStream KS7010 based SDIO cards");
+MODULE_LICENSE("GPL v2");
+MODULE_FIRMWARE(ROM_FILE);
