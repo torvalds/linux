@@ -129,14 +129,6 @@ struct etr_irq_parm {
 	unsigned int _pad2	: 18;
 } __attribute__ ((packed));
 
-/* Query TOD offset result */
-struct etr_ptff_qto {
-	unsigned long long physical_clock;
-	unsigned long long tod_offset;
-	unsigned long long logical_tod_offset;
-	unsigned long long tod_epoch_difference;
-} __attribute__ ((packed));
-
 /* Inline assembly helper functions */
 static inline int etr_setr(struct etr_eacr *ctrl)
 {
@@ -185,30 +177,6 @@ static inline int etr_steai(struct etr_aib *aib, unsigned int func)
 #define ETR_STEAI_ALTERNATE_PORT	0x11
 #define ETR_STEAI_PORT_0		0x12
 #define ETR_STEAI_PORT_1		0x13
-
-static inline int etr_ptff(void *ptff_block, unsigned int func)
-{
-	register unsigned int reg0 asm("0") = func;
-	register unsigned long reg1 asm("1") = (unsigned long) ptff_block;
-	int rc = -EOPNOTSUPP;
-
-	asm volatile(
-		"	.word	0x0104\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (rc), "=m" (ptff_block)
-		: "d" (reg0), "d" (reg1), "m" (ptff_block) : "cc");
-	return rc;
-}
-
-/* Function codes for the ptff instruction. */
-#define ETR_PTFF_QAF	0x00	/* query available functions */
-#define ETR_PTFF_QTO	0x01	/* query tod offset */
-#define ETR_PTFF_QSI	0x02	/* query steering information */
-#define ETR_PTFF_ATO	0x40	/* adjust tod offset */
-#define ETR_PTFF_STO	0x41	/* set tod offset */
-#define ETR_PTFF_SFS	0x42	/* set fine steering rate */
-#define ETR_PTFF_SGS	0x43	/* set gross steering rate */
 
 /* Functions needed by the machine check handler */
 int etr_switch_to_local(void);
