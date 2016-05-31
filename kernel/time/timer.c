@@ -1702,9 +1702,15 @@ static void __sched do_usleep_range(unsigned long min, unsigned long max)
 }
 
 /**
- * usleep_range - Drop in replacement for udelay where wakeup is flexible
+ * usleep_range - Sleep for an approximate time
  * @min: Minimum time in usecs to sleep
  * @max: Maximum time in usecs to sleep
+ *
+ * In non-atomic context where the exact wakeup time is flexible, use
+ * usleep_range() instead of udelay().  The sleep improves responsiveness
+ * by avoiding the CPU-hogging busy-wait of udelay(), and the range reduces
+ * power usage by allowing hrtimers to take advantage of an already-
+ * scheduled interrupt instead of scheduling a new one just for this sleep.
  */
 void __sched usleep_range(unsigned long min, unsigned long max)
 {
