@@ -3042,6 +3042,69 @@ skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate)
 	return total_data_rate;
 }
 
+static uint16_t
+skl_ddb_min_alloc(const struct drm_plane_state *pstate,
+		  const int y)
+{
+	struct drm_framebuffer *fb = pstate->fb;
+	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
+	uint32_t src_w, src_h;
+	uint32_t min_scanlines = 8;
+	uint8_t plane_bpp;
+
+	if (WARN_ON(!fb))
+		return 0;
+
+	/* For packed formats, no y-plane, return 0 */
+	if (y && fb->pixel_format != DRM_FORMAT_NV12)
+		return 0;
+
+	/* For Non Y-tile return 8-blocks */
+	if (fb->modifier[0] != I915_FORMAT_MOD_Y_TILED &&
+	    fb->modifier[0] != I915_FORMAT_MOD_Yf_TILED)
+		return 8;
+
+	src_w = drm_rect_width(&intel_pstate->src) >> 16;
+	src_h = drm_rect_height(&intel_pstate->src) >> 16;
+
+	if (intel_rotation_90_or_270(pstate->rotation))
+		swap(src_w, src_h);
+
+	/* Halve UV plane width and height for NV12 */
+	if (fb->pixel_format == DRM_FORMAT_NV12 && !y) {
+		src_w /= 2;
+		src_h /= 2;
+	}
+
+	if (fb->pixel_format == DRM_FORMAT_NV12 && !y)
+		plane_bpp = drm_format_plane_cpp(fb->pixel_format, 1);
+	else
+		plane_bpp = drm_format_plane_cpp(fb->pixel_format, 0);
+
+	if (intel_rotation_90_or_270(pstate->rotation)) {
+		switch (plane_bpp) {
+		case 1:
+			min_scanlines = 32;
+			break;
+		case 2:
+			min_scanlines = 16;
+			break;
+		case 4:
+			min_scanlines = 8;
+			break;
+		case 8:
+			min_scanlines = 4;
+			break;
+		default:
+			WARN(1, "Unsupported pixel depth %u for rotation",
+			     plane_bpp);
+			min_scanlines = 32;
+		}
+	}
+
+	return DIV_ROUND_UP((4 * src_w * plane_bpp), 512) * min_scanlines/4 + 3;
+}
+
 static int
 skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		      struct skl_ddb_allocation *ddb /* out */)
@@ -3104,11 +3167,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 			continue;
 		}
 
-		minimum[id] = 8;
-		if (pstate->fb->pixel_format == DRM_FORMAT_NV12)
-			y_minimum[id] = 8;
-		else
-			y_minimum[id] = 0;
+		minimum[id] = skl_ddb_min_alloc(pstate, 0);
+		y_minimum[id] = skl_ddb_min_alloc(pstate, 1);
 	}
 
 	for (i = 0; i < PLANE_CURSOR; i++) {
