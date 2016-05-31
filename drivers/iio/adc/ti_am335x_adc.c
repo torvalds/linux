@@ -326,8 +326,7 @@ static int tiadc_channel_init(struct iio_dev *indio_dev, int channels)
 	int i;
 
 	indio_dev->num_channels = channels;
-	chan_array = kcalloc(channels,
-			sizeof(struct iio_chan_spec), GFP_KERNEL);
+	chan_array = kcalloc(channels, sizeof(*chan_array), GFP_KERNEL);
 	if (chan_array == NULL)
 		return -ENOMEM;
 
@@ -467,8 +466,7 @@ static int tiadc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev,
-					  sizeof(struct tiadc_device));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*indio_dev));
 	if (indio_dev == NULL) {
 		dev_err(&pdev->dev, "failed to allocate iio device\n");
 		return -ENOMEM;
