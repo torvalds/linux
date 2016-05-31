@@ -1014,6 +1014,8 @@ static int fiji_smu_fini(struct pp_smumgr *smumgr)
 		kfree(smumgr->backend);
 		smumgr->backend = NULL;
 	}
+
+	cgs_rel_firmware(smumgr->device, CGS_UCODE_ID_SMU);
 	return 0;
 }
 
