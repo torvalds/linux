@@ -1024,7 +1024,8 @@ static int __init ib_core_init(void)
 		goto err_mad;
 	}
 
-	if (ib_add_ibnl_clients()) {
+	ret = ib_add_ibnl_clients();
+	if (ret) {
 		pr_warn("Couldn't register ibnl clients\n");
 		goto err_sa;
 	}
