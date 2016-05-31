@@ -132,6 +132,8 @@ struct sync_pt *sync_pt_create(struct sync_timeline *parent, int size,
 
 #ifdef CONFIG_DEBUG_FS
 
+extern const struct file_operations sw_sync_debugfs_fops;
+
 void sync_timeline_debug_add(struct sync_timeline *obj);
 void sync_timeline_debug_remove(struct sync_timeline *obj);
 void sync_file_debug_add(struct sync_file *fence);
