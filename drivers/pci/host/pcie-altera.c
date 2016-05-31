@@ -432,21 +432,20 @@ static int altera_pcie_parse_request_of_pci_ranges(struct altera_pcie *pcie)
 	if (err)
 		return err;
 
+	err = devm_request_pci_bus_resources(dev, &pcie->resources);
+	if (err)
+		goto out_release_res;
+
 	resource_list_for_each_entry(win, &pcie->resources) {
-		struct resource *parent, *res = win->res;
+		struct resource *res = win->res;
 
 		switch (resource_type(res)) {
 		case IORESOURCE_MEM:
-			parent = &iomem_resource;
 			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
 			break;
 		default:
 			continue;
 		}
-
-		err = devm_request_resource(dev, parent, res);
-		if (err)
-			goto out_release_res;
 	}
 
 	if (!res_valid) {
