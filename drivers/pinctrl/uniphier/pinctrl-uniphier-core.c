@@ -552,9 +552,8 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 				    unsigned muxval)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
-	unsigned mux_bits = priv->socdata->mux_bits;
-	unsigned reg_stride = priv->socdata->reg_stride;
-	unsigned reg, reg_end, shift, mask;
+	unsigned int mux_bits, reg_stride, reg, reg_end, shift, mask;
+	bool load_pinctrl;
 	int ret;
 
 	/* some pins need input-enabling */
@@ -562,6 +561,26 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 					     pin_desc_get(pctldev, pin), 1);
 	if (ret)
 		return ret;
+
+	if (priv->socdata->caps & UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE) {
+		/*
+		 *  Mode     reg_offset     bit_position
+		 *  Normal    4 * n        shift+3:shift
+		 *  Debug     4 * n        shift+7:shift+4
+		 */
+		mux_bits = 4;
+		reg_stride = 8;
+		load_pinctrl = true;
+	} else {
+		/*
+		 *  Mode     reg_offset     bit_position
+		 *  Normal    8 * n        shift+3:shift
+		 *  Debug     8 * n + 4    shift+3:shift
+		 */
+		mux_bits = 8;
+		reg_stride = 4;
+		load_pinctrl = false;
+	}
 
 	reg = UNIPHIER_PINCTRL_PINMUX_BASE + pin * mux_bits / 32 * reg_stride;
 	reg_end = reg + reg_stride;
@@ -580,7 +599,7 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 		muxval >>= mux_bits;
 	}
 
-	if (priv->socdata->load_pinctrl) {
+	if (load_pinctrl) {
 		ret = regmap_write(priv->regmap,
 				   UNIPHIER_PINCTRL_LOAD_PINMUX, 1);
 		if (ret)
@@ -658,12 +677,8 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 
 	if (!socdata ||
 	    !socdata->pins || !socdata->npins ||
-	    !socdata->groups ||
-	    !socdata->groups_count ||
-	    !socdata->functions ||
-	    !socdata->functions_count ||
-	    !socdata->mux_bits ||
-	    !socdata->reg_stride) {
+	    !socdata->groups || !socdata->groups_count ||
+	    !socdata->functions || !socdata->functions_count) {
 		dev_err(dev, "pinctrl socdata lacks necessary members\n");
 		return -EINVAL;
 	}

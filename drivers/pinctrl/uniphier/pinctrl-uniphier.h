@@ -15,6 +15,7 @@
 #ifndef __PINCTRL_UNIPHIER_H__
 #define __PINCTRL_UNIPHIER_H__
 
+#include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -164,9 +165,8 @@ struct uniphier_pinctrl_socdata {
 	int groups_count;
 	const struct uniphier_pinmux_function *functions;
 	int functions_count;
-	unsigned mux_bits;
-	unsigned reg_stride;
-	bool load_pinctrl;
+	unsigned int caps;
+#define UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE	BIT(0)
 };
 
 #define UNIPHIER_PINCTRL_PIN(a, b, c, d, e, f, g)			\

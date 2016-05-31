@@ -760,9 +760,7 @@ static struct uniphier_pinctrl_socdata uniphier_sld8_pindata = {
 	.groups_count = ARRAY_SIZE(uniphier_sld8_groups),
 	.functions = uniphier_sld8_functions,
 	.functions_count = ARRAY_SIZE(uniphier_sld8_functions),
-	.mux_bits = 8,
-	.reg_stride = 4,
-	.load_pinctrl = false,
+	.caps = 0,
 };
 
 static int uniphier_sld8_pinctrl_probe(struct platform_device *pdev)

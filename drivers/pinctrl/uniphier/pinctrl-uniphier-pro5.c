@@ -1317,9 +1317,7 @@ static struct uniphier_pinctrl_socdata uniphier_pro5_pindata = {
 	.groups_count = ARRAY_SIZE(uniphier_pro5_groups),
 	.functions = uniphier_pro5_functions,
 	.functions_count = ARRAY_SIZE(uniphier_pro5_functions),
-	.mux_bits = 4,
-	.reg_stride = 8,
-	.load_pinctrl = true,
+	.caps = UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE,
 };
 
 static int uniphier_pro5_pinctrl_probe(struct platform_device *pdev)

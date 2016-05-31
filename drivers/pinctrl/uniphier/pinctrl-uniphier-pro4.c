@@ -1526,9 +1526,7 @@ static struct uniphier_pinctrl_socdata uniphier_pro4_pindata = {
 	.groups_count = ARRAY_SIZE(uniphier_pro4_groups),
 	.functions = uniphier_pro4_functions,
 	.functions_count = ARRAY_SIZE(uniphier_pro4_functions),
-	.mux_bits = 4,
-	.reg_stride = 8,
-	.load_pinctrl = true,
+	.caps = UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE,
 };
 
 static int uniphier_pro4_pinctrl_probe(struct platform_device *pdev)
