@@ -278,6 +278,8 @@ struct pp_hwmgr_func {
 
 	int (*dynamic_state_management_enable)(
 						struct pp_hwmgr *hw_mgr);
+	int (*dynamic_state_management_disable)(
+						struct pp_hwmgr *hw_mgr);
 
 	int (*patch_boot_state)(struct pp_hwmgr *hwmgr,
 				     struct pp_hw_power_state *hw_ps);
