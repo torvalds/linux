@@ -594,14 +594,13 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, u8 epnum)
 		musb_writew(ep->regs, MUSB_TXCSR, 0);
 
 	/* scrub all previous state, clearing toggle */
-	} else {
-		csr = musb_readw(ep->regs, MUSB_RXCSR);
-		if (csr & MUSB_RXCSR_RXPKTRDY)
-			WARNING("rx%d, packet/%d ready?\n", ep->epnum,
-				musb_readw(ep->regs, MUSB_RXCOUNT));
-
-		musb_h_flush_rxfifo(ep, MUSB_RXCSR_CLRDATATOG);
 	}
+	csr = musb_readw(ep->regs, MUSB_RXCSR);
+	if (csr & MUSB_RXCSR_RXPKTRDY)
+		WARNING("rx%d, packet/%d ready?\n", ep->epnum,
+			musb_readw(ep->regs, MUSB_RXCOUNT));
+
+	musb_h_flush_rxfifo(ep, MUSB_RXCSR_CLRDATATOG);
 
 	/* target addr and (for multipoint) hub addr/port */
 	if (musb->is_multipoint) {
