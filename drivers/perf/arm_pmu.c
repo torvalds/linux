@@ -1040,6 +1040,7 @@ out_destroy:
 out_free:
 	pr_info("%s: failed to register PMU devices!\n",
 		of_node_full_name(node));
+	kfree(pmu->irq_affinity);
 	kfree(pmu);
 	return ret;
 }
