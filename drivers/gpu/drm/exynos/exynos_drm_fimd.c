@@ -120,7 +120,6 @@ static struct fimd_driver_data s3c64xx_fimd_driver_data = {
 	.timing_base = 0x0,
 	.has_clksel = 1,
 	.has_limited_fmt = 1,
-	.has_hw_trigger = 1,
 };
 
 static struct fimd_driver_data exynos3_fimd_driver_data = {
