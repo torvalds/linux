@@ -529,8 +529,7 @@ static int tiadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int tiadc_suspend(struct device *dev)
+static int __maybe_unused tiadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
@@ -548,7 +547,7 @@ static int tiadc_suspend(struct device *dev)
 	return 0;
 }
 
-static int tiadc_resume(struct device *dev)
+static int __maybe_unused tiadc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
@@ -565,14 +564,7 @@ static int tiadc_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops tiadc_pm_ops = {
-	.suspend = tiadc_suspend,
-	.resume = tiadc_resume,
-};
-#define TIADC_PM_OPS (&tiadc_pm_ops)
-#else
-#define TIADC_PM_OPS NULL
-#endif
+static SIMPLE_DEV_PM_OPS(tiadc_pm_ops, tiadc_suspend, tiadc_resume);
 
 static const struct of_device_id ti_adc_dt_ids[] = {
 	{ .compatible = "ti,am3359-adc", },
@@ -583,7 +575,7 @@ MODULE_DEVICE_TABLE(of, ti_adc_dt_ids);
 static struct platform_driver tiadc_driver = {
 	.driver = {
 		.name   = "TI-am335x-adc",
-		.pm	= TIADC_PM_OPS,
+		.pm	= &tiadc_pm_ops,
 		.of_match_table = ti_adc_dt_ids,
 	},
 	.probe	= tiadc_probe,
