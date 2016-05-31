@@ -476,6 +476,68 @@ enum {
 	FSI_FETCH   = 2  /* Exception was due to fetch operation */
 };
 
+enum prot_type {
+	PROT_TYPE_LA   = 0,
+	PROT_TYPE_KEYC = 1,
+	PROT_TYPE_ALC  = 2,
+	PROT_TYPE_DAT  = 3,
+};
+
+static int trans_exc(struct kvm_vcpu *vcpu, int code, unsigned long gva,
+		     ar_t ar, enum gacc_mode mode, enum prot_type prot)
+{
+	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
+	struct trans_exc_code_bits *tec;
+
+	memset(pgm, 0, sizeof(*pgm));
+	pgm->code = code;
+	tec = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
+
+	switch (code) {
+	case PGM_ASCE_TYPE:
+	case PGM_PAGE_TRANSLATION:
+	case PGM_REGION_FIRST_TRANS:
+	case PGM_REGION_SECOND_TRANS:
+	case PGM_REGION_THIRD_TRANS:
+	case PGM_SEGMENT_TRANSLATION:
+		/*
+		 * op_access_id only applies to MOVE_PAGE -> set bit 61
+		 * exc_access_id has to be set to 0 for some instructions. Both
+		 * cases have to be handled by the caller. We can always store
+		 * exc_access_id, as it is undefined for non-ar cases.
+		 */
+		tec->addr = gva >> PAGE_SHIFT;
+		tec->fsi = mode == GACC_STORE ? FSI_STORE : FSI_FETCH;
+		tec->as = psw_bits(vcpu->arch.sie_block->gpsw).as;
+		/* FALL THROUGH */
+	case PGM_ALEN_TRANSLATION:
+	case PGM_ALE_SEQUENCE:
+	case PGM_ASTE_VALIDITY:
+	case PGM_ASTE_SEQUENCE:
+	case PGM_EXTENDED_AUTHORITY:
+		pgm->exc_access_id = ar;
+		break;
+	case PGM_PROTECTION:
+		switch (prot) {
+		case PROT_TYPE_ALC:
+			tec->b60 = 1;
+			/* FALL THROUGH */
+		case PROT_TYPE_DAT:
+			tec->b61 = 1;
+			tec->addr = gva >> PAGE_SHIFT;
+			tec->fsi = mode == GACC_STORE ? FSI_STORE : FSI_FETCH;
+			tec->as = psw_bits(vcpu->arch.sie_block->gpsw).as;
+			/* exc_access_id is undefined for most cases */
+			pgm->exc_access_id = ar;
+			break;
+		default: /* LA and KEYC set b61 to 0, other params undefined */
+			break;
+		}
+		break;
+	}
+	return code;
+}
+
 static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
 			 unsigned long ga, ar_t ar, enum gacc_mode mode)
 {
