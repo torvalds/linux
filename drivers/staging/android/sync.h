@@ -25,10 +25,8 @@
  * @kref:		reference count on fence.
  * @drv_name:		drv_name of the driver using the sync_timeline
  * @name:		name of the sync_timeline. Useful for debugging
- * @destroyed:		set when sync_timeline is destroyed
  * @child_list_head:	list of children sync_pts for this sync_timeline
- * @child_list_lock:	lock protecting @child_list_head, destroyed, and
- *			fence.status
+ * @child_list_lock:	lock protecting @child_list_head and fence.status
  * @active_list_head:	list of active (unsignaled/errored) sync_pts
  * @sync_timeline_list:	membership in global sync_timeline_list
  */
@@ -38,7 +36,6 @@ struct sync_timeline {
 	char			name[32];
 
 	/* protected by child_list_lock */
-	bool			destroyed;
 	int			context, value;
 
 	struct list_head	child_list_head;
