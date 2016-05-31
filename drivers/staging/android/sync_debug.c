@@ -109,7 +109,7 @@ static void sync_print_fence(struct seq_file *s, struct fence *fence, bool show)
 		seq_printf(s, "@%lld.%09ld", (s64)ts64.tv_sec, ts64.tv_nsec);
 	}
 
-	if ((!fence || fence->ops->timeline_value_str) &&
+	if (fence->ops->timeline_value_str &&
 		fence->ops->fence_value_str) {
 		char value[64];
 		bool success;
@@ -117,10 +117,9 @@ static void sync_print_fence(struct seq_file *s, struct fence *fence, bool show)
 		fence->ops->fence_value_str(fence, value, sizeof(value));
 		success = strlen(value);
 
-		if (success)
+		if (success) {
 			seq_printf(s, ": %s", value);
 
-		if (success && fence) {
 			fence->ops->timeline_value_str(fence, value,
 						       sizeof(value));
 
