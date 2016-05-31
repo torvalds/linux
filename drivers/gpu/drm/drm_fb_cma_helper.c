@@ -162,6 +162,10 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
  * drm_fb_cma_create_with_funcs() - helper function for the
  *                                  &drm_mode_config_funcs ->fb_create
  *                                  callback function
+ * @dev: DRM device
+ * @file_priv: drm file for the ioctl call
+ * @mode_cmd: metadata from the userspace fb creation request
+ * @funcs: vtable to be used for the new framebuffer object
  *
  * This can be used to set &drm_framebuffer_funcs for drivers that need the
  * dirty() callback. Use drm_fb_cma_create() if you don't need to change
@@ -223,6 +227,9 @@ EXPORT_SYMBOL_GPL(drm_fb_cma_create_with_funcs);
 
 /**
  * drm_fb_cma_create() - &drm_mode_config_funcs ->fb_create callback function
+ * @dev: DRM device
+ * @file_priv: drm file for the ioctl call
+ * @mode_cmd: metadata from the userspace fb creation request
  *
  * If your hardware has special alignment or pitch requirements these should be
  * checked before calling this function. Use drm_fb_cma_create_with_funcs() if
@@ -246,7 +253,7 @@ EXPORT_SYMBOL_GPL(drm_fb_cma_create);
  * This function will usually be called from the CRTC callback functions.
  */
 struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
-	unsigned int plane)
+						  unsigned int plane)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
 
@@ -258,10 +265,6 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
 
 #ifdef CONFIG_DEBUG_FS
-/*
- * drm_fb_cma_describe() - Helper to dump information about a single
- * CMA framebuffer object
- */
 static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
@@ -279,7 +282,9 @@ static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 
 /**
  * drm_fb_cma_debugfs_show() - Helper to list CMA framebuffer objects
- * in debugfs.
+ *			       in debugfs.
+ * @m: output file
+ * @arg: private data for the callback
  */
 int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
 {
