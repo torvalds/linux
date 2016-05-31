@@ -40,6 +40,8 @@ struct simple_card_data {
 #define simple_priv_to_link(priv, i) ((priv)->snd_card.dai_link + i)
 #define simple_priv_to_props(priv, i) ((priv)->dai_props + i)
 
+#define PREFIX	"simple-audio-card,"
+
 static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -344,7 +346,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 
 	/* For single DAI link & old style of DT node */
 	if (is_top_level_node)
-		prefix = "simple-audio-card,";
+		prefix = PREFIX;
 
 	snprintf(prop, sizeof(prop), "%scpu", prefix);
 	cpu = of_get_child_by_name(node, prop);
@@ -453,26 +455,26 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		return -EINVAL;
 
 	/* Parse the card name from DT */
-	snd_soc_of_parse_card_name(&priv->snd_card, "simple-audio-card,name");
+	snd_soc_of_parse_card_name(&priv->snd_card, PREFIX "name");
 
 	/* The off-codec widgets */
-	if (of_property_read_bool(node, "simple-audio-card,widgets")) {
+	if (of_property_read_bool(node, PREFIX "widgets")) {
 		ret = snd_soc_of_parse_audio_simple_widgets(&priv->snd_card,
-					"simple-audio-card,widgets");
+					PREFIX "widgets");
 		if (ret)
 			return ret;
 	}
 
 	/* DAPM routes */
-	if (of_property_read_bool(node, "simple-audio-card,routing")) {
+	if (of_property_read_bool(node, PREFIX "routing")) {
 		ret = snd_soc_of_parse_audio_routing(&priv->snd_card,
-					"simple-audio-card,routing");
+					PREFIX "routing");
 		if (ret)
 			return ret;
 	}
 
 	/* Factor to mclk, used in hw_params() */
-	ret = of_property_read_u32(node, "simple-audio-card,mclk-fs", &val);
+	ret = of_property_read_u32(node, PREFIX "mclk-fs", &val);
 	if (ret == 0)
 		priv->mclk_fs = val;
 
@@ -480,7 +482,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 		priv->snd_card.name : "");
 
 	/* Single/Muti DAI link(s) & New style of DT node */
-	if (of_get_child_by_name(node, "simple-audio-card,dai-link")) {
+	if (of_get_child_by_name(node, PREFIX "dai-link")) {
 		struct device_node *np = NULL;
 		int i = 0;
 
@@ -502,13 +504,13 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	}
 
 	priv->gpio_hp_det = of_get_named_gpio_flags(node,
-				"simple-audio-card,hp-det-gpio", 0, &flags);
+				PREFIX "hp-det-gpio", 0, &flags);
 	priv->gpio_hp_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
 	if (priv->gpio_hp_det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	priv->gpio_mic_det = of_get_named_gpio_flags(node,
-				"simple-audio-card,mic-det-gpio", 0, &flags);
+				PREFIX "mic-det-gpio", 0, &flags);
 	priv->gpio_mic_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
 	if (priv->gpio_mic_det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
@@ -543,7 +545,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	int num_links, ret;
 
 	/* Get the number of DAI links */
-	if (np && of_get_child_by_name(np, "simple-audio-card,dai-link"))
+	if (np && of_get_child_by_name(np, PREFIX "dai-link"))
 		num_links = of_get_child_count(np);
 	else
 		num_links = 1;
