@@ -1912,14 +1912,9 @@ static void phy_bcast_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
-	unsigned long flags;
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 1);
-
-	spin_lock_irqsave(&hisi_hba->lock, flags);
 	sas_ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
-
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
 			     CHL_INT0_SL_RX_BCST_ACK_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 0);
