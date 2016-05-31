@@ -346,7 +346,7 @@
 					reg = <0x02028000 0x4000>;
 					interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6UL_CLK_SAI1_IPG>,
-						 <&clks IMX6UL_CLK_SAI1>,
+						 <&clks IMX6UL_CLK_DUMMY>,
 						 <&clks IMX6UL_CLK_SAI1>,
 						 <&clks 0>, <&clks 0>;
 					clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
@@ -376,7 +376,7 @@
 					reg = <0x02030000 0x4000>;
 					interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&clks IMX6UL_CLK_SAI3_IPG>,
-						 <&clks IMX6UL_CLK_SAI3>,
+						 <&clks IMX6UL_CLK_DUMMY>,
 						 <&clks IMX6UL_CLK_SAI3>,
 						 <&clks 0>, <&clks 0>;
 					clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
