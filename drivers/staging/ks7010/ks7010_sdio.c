@@ -1237,30 +1237,7 @@ static void ks7910_sdio_remove(struct sdio_func *func)
 	return;
 }
 
-static int __init ks7010_sdio_init(void)
-{
-	int status;
-
-	/* register with bus driver core */
-	status = sdio_register_driver(&ks7010_sdio_driver);
-	if (status != 0) {
-		DPRINTK(1,
-			"ks79xx_sdio : failed to register with bus driver, %d\n",
-			status);
-	}
-	return status;
-}
-
-static void __exit ks7010_sdio_exit(void)
-{
-	DPRINTK(5, " \n");
-	sdio_unregister_driver(&ks7010_sdio_driver);
-	return;
-}
-
-module_init(ks7010_sdio_init);
-module_exit(ks7010_sdio_exit);
-
+module_driver(ks7010_sdio_driver, sdio_register_driver, sdio_unregister_driver);
 MODULE_AUTHOR("Sang Engineering, Qi-Hardware, KeyStream");
 MODULE_DESCRIPTION("Driver for KeyStream KS7010 based SDIO cards");
 MODULE_LICENSE("GPL v2");
