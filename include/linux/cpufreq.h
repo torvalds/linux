@@ -185,6 +185,18 @@ static inline unsigned int cpufreq_quick_get_max(unsigned int cpu)
 static inline void disable_cpufreq(void) { }
 #endif
 
+#ifdef CONFIG_CPU_FREQ_STAT
+void cpufreq_stats_create_table(struct cpufreq_policy *policy);
+void cpufreq_stats_free_table(struct cpufreq_policy *policy);
+void cpufreq_stats_record_transition(struct cpufreq_policy *policy,
+				     unsigned int new_freq);
+#else
+static inline void cpufreq_stats_create_table(struct cpufreq_policy *policy) { }
+static inline void cpufreq_stats_free_table(struct cpufreq_policy *policy) { }
+static inline void cpufreq_stats_record_transition(struct cpufreq_policy *policy,
+						   unsigned int new_freq) { }
+#endif /* CONFIG_CPU_FREQ_STAT */
+
 /*********************************************************************
  *                      CPUFREQ DRIVER INTERFACE                     *
  *********************************************************************/
