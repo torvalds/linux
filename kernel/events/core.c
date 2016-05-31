@@ -8843,7 +8843,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 
 	if (!event->parent) {
 		if (event->attr.sample_type & PERF_SAMPLE_CALLCHAIN) {
-			err = get_callchain_buffers();
+			err = get_callchain_buffers(attr->sample_max_stack);
 			if (err)
 				goto err_addr_filters;
 		}
@@ -9164,6 +9164,9 @@ SYSCALL_DEFINE5(perf_event_open,
 		if (attr.sample_period & (1ULL << 63))
 			return -EINVAL;
 	}
+
+	if (!attr.sample_max_stack)
+		attr.sample_max_stack = sysctl_perf_event_max_stack;
 
 	/*
 	 * In cgroup mode, the pid argument is used to pass the fd

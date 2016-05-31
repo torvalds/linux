@@ -349,6 +349,11 @@ static inline bool dso__is_kcore(struct dso *dso)
 	       dso->binary_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
 
+static inline bool dso__is_kallsyms(struct dso *dso)
+{
+	return dso->kernel && dso->long_name[0] != '/';
+}
+
 void dso__free_a2l(struct dso *dso);
 
 enum dso_type dso__type(struct dso *dso, struct machine *machine);

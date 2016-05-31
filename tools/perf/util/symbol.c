@@ -1641,6 +1641,20 @@ static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 	return ret;
 }
 
+/*
+ * Use open(O_RDONLY) to check readability directly instead of access(R_OK)
+ * since access(R_OK) only checks with real UID/GID but open() use effective
+ * UID/GID and actual capabilities (e.g. /proc/kcore requires CAP_SYS_RAWIO).
+ */
+static bool filename__readable(const char *file)
+{
+	int fd = open(file, O_RDONLY);
+	if (fd < 0)
+		return false;
+	close(fd);
+	return true;
+}
+
 static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 {
 	u8 host_build_id[BUILD_ID_SIZE];
@@ -1660,58 +1674,43 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 				 sizeof(host_build_id)) == 0)
 		is_host = dso__build_id_equal(dso, host_build_id);
 
-	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
-
-	scnprintf(path, sizeof(path), "%s/%s/%s", buildid_dir,
-		  DSO__NAME_KCORE, sbuild_id);
-
-	/* Use /proc/kallsyms if possible */
+	/* Try a fast path for /proc/kallsyms if possible */
 	if (is_host) {
-		DIR *d;
-		int fd;
-
-		/* If no cached kcore go with /proc/kallsyms */
-		d = opendir(path);
-		if (!d)
-			goto proc_kallsyms;
-		closedir(d);
-
 		/*
-		 * Do not check the build-id cache, until we know we cannot use
-		 * /proc/kcore.
+		 * Do not check the build-id cache, unless we know we cannot use
+		 * /proc/kcore or module maps don't match to /proc/kallsyms.
+		 * To check readability of /proc/kcore, do not use access(R_OK)
+		 * since /proc/kcore requires CAP_SYS_RAWIO to read and access
+		 * can't check it.
 		 */
-		fd = open("/proc/kcore", O_RDONLY);
-		if (fd != -1) {
-			close(fd);
-			/* If module maps match go with /proc/kallsyms */
-			if (!validate_kcore_addresses("/proc/kallsyms", map))
-				goto proc_kallsyms;
-		}
-
-		/* Find kallsyms in build-id cache with kcore */
-		if (!find_matching_kcore(map, path, sizeof(path)))
-			return strdup(path);
-
-		goto proc_kallsyms;
+		if (filename__readable("/proc/kcore") &&
+		    !validate_kcore_addresses("/proc/kallsyms", map))
+			goto proc_kallsyms;
 	}
 
+	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
+
 	/* Find kallsyms in build-id cache with kcore */
+	scnprintf(path, sizeof(path), "%s/%s/%s",
+		  buildid_dir, DSO__NAME_KCORE, sbuild_id);
+
 	if (!find_matching_kcore(map, path, sizeof(path)))
 		return strdup(path);
 
-	scnprintf(path, sizeof(path), "%s/%s/%s",
-		  buildid_dir, DSO__NAME_KALLSYMS, sbuild_id);
+	/* Use current /proc/kallsyms if possible */
+	if (is_host) {
+proc_kallsyms:
+		return strdup("/proc/kallsyms");
+	}
 
-	if (access(path, F_OK)) {
+	/* Finally, find a cache of kallsyms */
+	if (!build_id_cache__kallsyms_path(sbuild_id, path, sizeof(path))) {
 		pr_err("No kallsyms or vmlinux with build-id %s was found\n",
 		       sbuild_id);
 		return NULL;
 	}
 
 	return strdup(path);
-
-proc_kallsyms:
-	return strdup("/proc/kallsyms");
 }
 
 static int dso__load_kernel_sym(struct dso *dso, struct map *map,

@@ -276,6 +276,9 @@ enum perf_event_read_format {
 
 /*
  * Hardware event_id to monitor via a performance monitoring event:
+ *
+ * @sample_max_stack: Max number of frame pointers in a callchain,
+ *		      should be < /proc/sys/kernel/perf_event_max_stack
  */
 struct perf_event_attr {
 
@@ -385,7 +388,8 @@ struct perf_event_attr {
 	 * Wakeup watermark for AUX area
 	 */
 	__u32	aux_watermark;
-	__u32	__reserved_2;	/* align to __u64 */
+	__u16	sample_max_stack;
+	__u16	__reserved_2;	/* align to __u64 */
 };
 
 #define perf_flags(attr)	(*(&(attr)->read_format + 1))

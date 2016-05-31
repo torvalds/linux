@@ -462,9 +462,9 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int __perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd, int idx)
+static int __perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd, int idx, short revent)
 {
-	int pos = fdarray__add(&evlist->pollfd, fd, POLLIN | POLLERR | POLLHUP);
+	int pos = fdarray__add(&evlist->pollfd, fd, revent | POLLERR | POLLHUP);
 	/*
 	 * Save the idx so that when we filter out fds POLLHUP'ed we can
 	 * close the associated evlist->mmap[] entry.
@@ -480,10 +480,11 @@ static int __perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd, int idx
 
 int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd)
 {
-	return __perf_evlist__add_pollfd(evlist, fd, -1);
+	return __perf_evlist__add_pollfd(evlist, fd, -1, POLLIN);
 }
 
-static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd)
+static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd,
+					 void *arg __maybe_unused)
 {
 	struct perf_evlist *evlist = container_of(fda, struct perf_evlist, pollfd);
 
@@ -493,7 +494,7 @@ static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd)
 int perf_evlist__filter_pollfd(struct perf_evlist *evlist, short revents_and_mask)
 {
 	return fdarray__filter(&evlist->pollfd, revents_and_mask,
-			       perf_evlist__munmap_filtered);
+			       perf_evlist__munmap_filtered, NULL);
 }
 
 int perf_evlist__poll(struct perf_evlist *evlist, int timeout)
@@ -777,7 +778,7 @@ broken_event:
 	return event;
 }
 
-union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
+union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int idx)
 {
 	struct perf_mmap *md = &evlist->mmap[idx];
 	u64 head;
@@ -832,6 +833,13 @@ perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
 	return perf_mmap__read(md, false, start, end, &md->prev);
 }
 
+union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
+{
+	if (!evlist->backward)
+		return perf_evlist__mmap_read_forward(evlist, idx);
+	return perf_evlist__mmap_read_backward(evlist, idx);
+}
+
 void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
 {
 	struct perf_mmap *md = &evlist->mmap[idx];
@@ -856,9 +864,11 @@ static void perf_evlist__mmap_get(struct perf_evlist *evlist, int idx)
 
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx)
 {
-	BUG_ON(atomic_read(&evlist->mmap[idx].refcnt) == 0);
+	struct perf_mmap *md = &evlist->mmap[idx];
 
-	if (atomic_dec_and_test(&evlist->mmap[idx].refcnt))
+	BUG_ON(md->base && atomic_read(&md->refcnt) == 0);
+
+	if (atomic_dec_and_test(&md->refcnt))
 		__perf_evlist__munmap(evlist, idx);
 }
 
@@ -983,14 +993,27 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist, int idx,
 	return 0;
 }
 
+static bool
+perf_evlist__should_poll(struct perf_evlist *evlist __maybe_unused,
+			 struct perf_evsel *evsel)
+{
+	if (evsel->overwrite)
+		return false;
+	return true;
+}
+
 static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 				       struct mmap_params *mp, int cpu,
 				       int thread, int *output)
 {
 	struct perf_evsel *evsel;
+	int revent;
 
 	evlist__for_each(evlist, evsel) {
 		int fd;
+
+		if (evsel->overwrite != (evlist->overwrite && evlist->backward))
+			continue;
 
 		if (evsel->system_wide && thread)
 			continue;
@@ -1008,6 +1031,8 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 			perf_evlist__mmap_get(evlist, idx);
 		}
 
+		revent = perf_evlist__should_poll(evlist, evsel) ? POLLIN : 0;
+
 		/*
 		 * The system_wide flag causes a selected event to be opened
 		 * always without a pid.  Consequently it will never get a
@@ -1016,7 +1041,7 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 		 * Therefore don't add it for polling.
 		 */
 		if (!evsel->system_wide &&
-		    __perf_evlist__add_pollfd(evlist, fd, idx) < 0) {
+		    __perf_evlist__add_pollfd(evlist, fd, idx, revent) < 0) {
 			perf_evlist__mmap_put(evlist, idx);
 			return -1;
 		}
