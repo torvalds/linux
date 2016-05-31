@@ -36,4 +36,8 @@ config PINCTRL_UNIPHIER_LD11
 	tristate "UniPhier PH1-LD11 SoC pinctrl driver"
 	default ARM64
 
+config PINCTRL_UNIPHIER_LD20
+	tristate "UniPhier PH1-LD20 SoC pinctrl driver"
+	default ARM64
+
 endif
