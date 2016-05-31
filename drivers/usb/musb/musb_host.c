@@ -684,9 +684,6 @@ static int musb_tx_dma_set_mode_cppi_tusb(struct dma_controller *dma,
 {
 	struct dma_channel *channel = hw_ep->tx_channel;
 
-	if (!is_cppi_enabled(hw_ep->musb) && !tusb_dma_omap(hw_ep->musb))
-		return -ENODEV;
-
 	channel->actual_len = 0;
 
 	/*
@@ -710,9 +707,11 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 	if (musb_dma_inventra(hw_ep->musb) || musb_dma_ux500(hw_ep->musb))
 		res = musb_tx_dma_set_mode_mentor(dma, hw_ep, qh, urb,
 						 offset, &length, &mode);
-	else
+	else if (is_cppi_enabled(hw_ep->musb) || tusb_dma_omap(hw_ep->musb))
 		res = musb_tx_dma_set_mode_cppi_tusb(dma, hw_ep, qh, urb,
 						     offset, &length, &mode);
+	else
+		return false;
 	if (res)
 		return false;
 
