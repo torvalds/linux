@@ -839,6 +839,19 @@ static int sur40_vidioc_g_fmt(struct file *file, void *priv,
 	return 0;
 }
 
+static int sur40_ioctl_parm(struct file *file, void *priv,
+			    struct v4l2_streamparm *p)
+{
+	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	p->parm.capture.timeperframe.numerator = 1;
+	p->parm.capture.timeperframe.denominator = 60;
+	p->parm.capture.readbuffers = 3;
+	return 0;
+}
+
 static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 				 struct v4l2_fmtdesc *f)
 {
@@ -870,14 +883,14 @@ static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
 {
 	struct sur40_state *sur40 = video_drvdata(file);
 
-	if ((f->index > 1) || ((f->pixel_format != V4L2_TCH_FMT_TU08)
+	if ((f->index > 0) || ((f->pixel_format != V4L2_TCH_FMT_TU08)
 		&& (f->pixel_format != V4L2_PIX_FMT_GREY))
 		|| (f->width  != sur40->pix_fmt.width)
 		|| (f->height != sur40->pix_fmt.height))
 		return -EINVAL;
 
 	f->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	f->discrete.denominator  = 60/(f->index+1);
+	f->discrete.denominator  = 60;
 	f->discrete.numerator = 1;
 	return 0;
 }
@@ -936,6 +949,9 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 
 	.vidioc_enum_framesizes = sur40_vidioc_enum_framesizes,
 	.vidioc_enum_frameintervals = sur40_vidioc_enum_frameintervals,
+
+	.vidioc_g_parm = sur40_ioctl_parm,
+	.vidioc_s_parm = sur40_ioctl_parm,
 
 	.vidioc_enum_input	= sur40_vidioc_enum_input,
 	.vidioc_g_input		= sur40_vidioc_g_input,
