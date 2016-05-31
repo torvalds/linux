@@ -19,8 +19,6 @@
 
 #include "pinctrl-uniphier.h"
 
-#define DRIVER_NAME "uniphier-ld6b-pinctrl"
-
 static const struct pinctrl_pin_desc uniphier_ld6b_pins[] = {
 	UNIPHIER_PINCTRL_PIN(0, "ED0", UNIPHIER_PIN_IECTRL_NONE,
 			     0, UNIPHIER_PIN_DRV_4_8,
@@ -1246,7 +1244,6 @@ static struct uniphier_pinctrl_socdata uniphier_ld6b_pindata = {
 };
 
 static struct pinctrl_desc uniphier_ld6b_pinctrl_desc = {
-	.name = DRIVER_NAME,
 	.pins = uniphier_ld6b_pins,
 	.npins = ARRAY_SIZE(uniphier_ld6b_pins),
 };
@@ -1266,7 +1263,7 @@ MODULE_DEVICE_TABLE(of, uniphier_ld6b_pinctrl_match);
 static struct platform_driver uniphier_ld6b_pinctrl_driver = {
 	.probe = uniphier_ld6b_pinctrl_probe,
 	.driver = {
-		.name = DRIVER_NAME,
+		.name = "uniphier-ld6b-pinctrl",
 		.of_match_table = uniphier_ld6b_pinctrl_match,
 	},
 };

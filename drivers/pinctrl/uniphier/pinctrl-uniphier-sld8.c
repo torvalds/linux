@@ -19,8 +19,6 @@
 
 #include "pinctrl-uniphier.h"
 
-#define DRIVER_NAME "uniphier-sld8-pinctrl"
-
 static const struct pinctrl_pin_desc uniphier_sld8_pins[] = {
 	UNIPHIER_PINCTRL_PIN(0, "PCA00", 0,
 			     15, UNIPHIER_PIN_DRV_4_8,
@@ -766,7 +764,6 @@ static struct uniphier_pinctrl_socdata uniphier_sld8_pindata = {
 };
 
 static struct pinctrl_desc uniphier_sld8_pinctrl_desc = {
-	.name = DRIVER_NAME,
 	.pins = uniphier_sld8_pins,
 	.npins = ARRAY_SIZE(uniphier_sld8_pins),
 };
@@ -786,7 +783,7 @@ MODULE_DEVICE_TABLE(of, uniphier_sld8_pinctrl_match);
 static struct platform_driver uniphier_sld8_pinctrl_driver = {
 	.probe = uniphier_sld8_pinctrl_probe,
 	.driver = {
-		.name = DRIVER_NAME,
+		.name = "uniphier-sld8-pinctrl",
 		.of_match_table = uniphier_sld8_pinctrl_match,
 	},
 };

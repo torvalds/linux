@@ -667,6 +667,7 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	priv->socdata = socdata;
+	desc->name = dev->driver->name;
 	desc->pctlops = &uniphier_pctlops;
 	desc->pmxops = &uniphier_pmxops;
 	desc->confops = &uniphier_confops;

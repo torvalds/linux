@@ -19,8 +19,6 @@
 
 #include "pinctrl-uniphier.h"
 
-#define DRIVER_NAME "uniphier-pro4-pinctrl"
-
 static const struct pinctrl_pin_desc uniphier_pro4_pins[] = {
 	UNIPHIER_PINCTRL_PIN(0, "CK24O", UNIPHIER_PIN_IECTRL_NONE,
 			     0, UNIPHIER_PIN_DRV_4_8,
@@ -1532,7 +1530,6 @@ static struct uniphier_pinctrl_socdata uniphier_pro4_pindata = {
 };
 
 static struct pinctrl_desc uniphier_pro4_pinctrl_desc = {
-	.name = DRIVER_NAME,
 	.pins = uniphier_pro4_pins,
 	.npins = ARRAY_SIZE(uniphier_pro4_pins),
 };
@@ -1552,7 +1549,7 @@ MODULE_DEVICE_TABLE(of, uniphier_pro4_pinctrl_match);
 static struct platform_driver uniphier_pro4_pinctrl_driver = {
 	.probe = uniphier_pro4_pinctrl_probe,
 	.driver = {
-		.name = DRIVER_NAME,
+		.name = "uniphier-pro4-pinctrl",
 		.of_match_table = uniphier_pro4_pinctrl_match,
 	},
 };

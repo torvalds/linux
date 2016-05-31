@@ -19,8 +19,6 @@
 
 #include "pinctrl-uniphier.h"
 
-#define DRIVER_NAME "uniphier-pxs2-pinctrl"
-
 static const struct pinctrl_pin_desc uniphier_pxs2_pins[] = {
 	UNIPHIER_PINCTRL_PIN(0, "ED0", UNIPHIER_PIN_IECTRL_NONE,
 			     0, UNIPHIER_PIN_DRV_4_8,
@@ -1241,7 +1239,6 @@ static struct uniphier_pinctrl_socdata uniphier_pxs2_pindata = {
 };
 
 static struct pinctrl_desc uniphier_pxs2_pinctrl_desc = {
-	.name = DRIVER_NAME,
 	.pins = uniphier_pxs2_pins,
 	.npins = ARRAY_SIZE(uniphier_pxs2_pins),
 };
@@ -1261,7 +1258,7 @@ MODULE_DEVICE_TABLE(of, uniphier_pxs2_pinctrl_match);
 static struct platform_driver uniphier_pxs2_pinctrl_driver = {
 	.probe = uniphier_pxs2_pinctrl_probe,
 	.driver = {
-		.name = DRIVER_NAME,
+		.name = "uniphier-pxs2-pinctrl",
 		.of_match_table = uniphier_pxs2_pinctrl_match,
 	},
 };
