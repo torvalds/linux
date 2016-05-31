@@ -604,6 +604,22 @@ static int gb_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	return -ENOIOCTLCMD;
 }
 
+static void gb_tty_dtr_rts(struct tty_port *port, int on)
+{
+	struct gb_tty *gb_tty;
+	u8 newctrl;
+
+	gb_tty = container_of(port, struct gb_tty, port);
+	newctrl = gb_tty->ctrlout;
+
+	if (on)
+		newctrl |= (GB_UART_CTRL_DTR | GB_UART_CTRL_RTS);
+	else
+		newctrl &= ~(GB_UART_CTRL_DTR | GB_UART_CTRL_RTS);
+
+	gb_tty->ctrlout = newctrl;
+	send_control(gb_tty, newctrl);
+}
 
 static const struct tty_operations gb_ops = {
 	.install =		gb_tty_install,
@@ -623,7 +639,9 @@ static const struct tty_operations gb_ops = {
 	.tiocmset =		gb_tty_tiocmset,
 };
 
-static struct tty_port_operations null_ops = { };
+static struct tty_port_operations gb_port_ops = {
+	.dtr_rts =		gb_tty_dtr_rts,
+};
 
 static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 			 const struct gbphy_device_id *id)
@@ -681,7 +699,7 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 	mutex_init(&gb_tty->mutex);
 
 	tty_port_init(&gb_tty->port);
-	gb_tty->port.ops = &null_ops;
+	gb_tty->port.ops = &gb_port_ops;
 
 	gb_tty->connection = connection;
 	gb_tty->gbphy_dev = gbphy_dev;
