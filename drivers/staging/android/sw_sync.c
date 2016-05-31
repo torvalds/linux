@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/sync_file.h>
 
-#include "sync.h"
+#include "sync_debug.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace/sync.h"

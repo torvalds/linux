@@ -15,7 +15,7 @@
  */
 
 #include <linux/debugfs.h>
-#include "sync.h"
+#include "sync_debug.h"
 
 #ifdef CONFIG_DEBUG_FS
 
