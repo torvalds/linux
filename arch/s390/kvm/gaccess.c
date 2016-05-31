@@ -792,40 +792,31 @@ static int low_address_protection_enabled(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
-static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga,
+static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar,
 			    unsigned long *pages, unsigned long nr_pages,
 			    const union asce asce, enum gacc_mode mode)
 {
-	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
-	struct trans_exc_code_bits *tec_bits;
-	int lap_enabled, rc;
+	int lap_enabled, rc = 0;
 
-	tec_bits = (struct trans_exc_code_bits *)&pgm->trans_exc_code;
 	lap_enabled = low_address_protection_enabled(vcpu, asce);
 	while (nr_pages) {
 		ga = kvm_s390_logical_to_effective(vcpu, ga);
-		tec_bits->addr = ga >> PAGE_SHIFT;
-		if (mode == GACC_STORE && lap_enabled && is_low_address(ga)) {
-			pgm->code = PGM_PROTECTION;
-			return pgm->code;
-		}
+		if (mode == GACC_STORE && lap_enabled && is_low_address(ga))
+			return trans_exc(vcpu, PGM_PROTECTION, ga, ar, mode,
+					 PROT_TYPE_LA);
 		ga &= PAGE_MASK;
 		if (psw_bits(*psw).t) {
 			rc = guest_translate(vcpu, ga, pages, asce, mode);
 			if (rc < 0)
 				return rc;
-			if (rc == PGM_PROTECTION)
-				tec_bits->b61 = 1;
-			if (rc)
-				pgm->code = rc;
 		} else {
 			*pages = kvm_s390_real_to_abs(vcpu, ga);
 			if (kvm_is_error_gpa(vcpu->kvm, *pages))
-				pgm->code = PGM_ADDRESSING;
+				rc = PGM_ADDRESSING;
 		}
-		if (pgm->code)
-			return pgm->code;
+		if (rc)
+			return trans_exc(vcpu, rc, ga, ar, mode, PROT_TYPE_DAT);
 		ga += PAGE_SIZE;
 		pages++;
 		nr_pages--;
@@ -859,7 +850,7 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 	need_ipte_lock = psw_bits(*psw).t && !asce.r;
 	if (need_ipte_lock)
 		ipte_lock(vcpu);
-	rc = guest_page_range(vcpu, ga, pages, nr_pages, asce, mode);
+	rc = guest_page_range(vcpu, ga, ar, pages, nr_pages, asce, mode);
 	for (idx = 0; idx < nr_pages && !rc; idx++) {
 		gpa = *(pages + idx) + (ga & ~PAGE_MASK);
 		_len = min(PAGE_SIZE - (gpa & ~PAGE_MASK), len);
