@@ -38,16 +38,11 @@ struct fence *sw_sync_pt_create(struct sw_sync_timeline *obj, u32 value)
 }
 EXPORT_SYMBOL(sw_sync_pt_create);
 
-static struct sync_timeline_ops sw_sync_timeline_ops = {
-	.driver_name = "sw_sync",
-};
-
 struct sw_sync_timeline *sw_sync_timeline_create(const char *name)
 {
 	struct sw_sync_timeline *obj = (struct sw_sync_timeline *)
-		sync_timeline_create(&sw_sync_timeline_ops,
-				     sizeof(struct sw_sync_timeline),
-				     name);
+		sync_timeline_create(sizeof(struct sw_sync_timeline),
+				     "sw_sync", name);
 
 	return obj;
 }

@@ -30,8 +30,8 @@
 
 static const struct fence_ops android_fence_ops;
 
-struct sync_timeline *sync_timeline_create(const struct sync_timeline_ops *ops,
-					   int size, const char *name)
+struct sync_timeline *sync_timeline_create(int size, const char *drv_name,
+					   const char *name)
 {
 	struct sync_timeline *obj;
 
@@ -43,9 +43,9 @@ struct sync_timeline *sync_timeline_create(const struct sync_timeline_ops *ops,
 		return NULL;
 
 	kref_init(&obj->kref);
-	obj->ops = ops;
 	obj->context = fence_context_alloc(1);
 	strlcpy(obj->name, name, sizeof(obj->name));
+	strlcpy(obj->drv_name, drv_name, sizeof(obj->drv_name));
 
 	INIT_LIST_HEAD(&obj->child_list_head);
 	INIT_LIST_HEAD(&obj->active_list_head);
@@ -139,7 +139,7 @@ static const char *android_fence_get_driver_name(struct fence *fence)
 {
 	struct sync_timeline *parent = fence_parent(fence);
 
-	return parent->ops->driver_name;
+	return parent->drv_name;
 }
 
 static const char *android_fence_get_timeline_name(struct fence *fence)

@@ -23,20 +23,10 @@
 #include <linux/sync_file.h>
 #include <uapi/linux/sync_file.h>
 
-struct sync_timeline;
-
-/**
- * struct sync_timeline_ops - sync object implementation ops
- * @driver_name:	name of the implementation
- */
-struct sync_timeline_ops {
-	const char *driver_name;
-};
-
 /**
  * struct sync_timeline - sync object
  * @kref:		reference count on fence.
- * @ops:		ops that define the implementation of the sync_timeline
+ * @drv_name:		drv_name of the driver using the sync_timeline
  * @name:		name of the sync_timeline. Useful for debugging
  * @destroyed:		set when sync_timeline is destroyed
  * @child_list_head:	list of children sync_pts for this sync_timeline
@@ -47,7 +37,7 @@ struct sync_timeline_ops {
  */
 struct sync_timeline {
 	struct kref		kref;
-	const struct sync_timeline_ops	*ops;
+	char			drv_name[32];
 	char			name[32];
 
 	/* protected by child_list_lock */
@@ -76,17 +66,17 @@ static inline struct sync_timeline *fence_parent(struct fence *fence)
 
 /**
  * sync_timeline_create() - creates a sync object
- * @ops:	specifies the implementation ops for the object
  * @size:	size to allocate for this obj
+ * @drv_name:	sync_timeline driver name
  * @name:	sync_timeline name
  *
- * Creates a new sync_timeline which will use the implementation specified by
- * @ops.  @size bytes will be allocated allowing for implementation specific
- * data to be kept after the generic sync_timeline struct. Returns the
- * sync_timeline object or NULL in case of error.
+ * Creates a new sync_timeline. @size bytes will be allocated allowing
+ * for implementation specific data to be kept after the generic
+ * sync_timeline struct. Returns the sync_timeline object or NULL in
+ * case of error.
  */
-struct sync_timeline *sync_timeline_create(const struct sync_timeline_ops *ops,
-					   int size, const char *name);
+struct sync_timeline *sync_timeline_create(int size, const char *drv_name,
+					   const char *name);
 
 /**
  * sync_timeline_destroy() - destroys a sync object
