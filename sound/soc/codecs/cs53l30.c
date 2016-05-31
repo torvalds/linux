@@ -1055,7 +1055,11 @@ static int cs53l30_runtime_resume(struct device *dev)
 		gpiod_set_value_cansleep(cs53l30->reset_gpio, 1);
 
 	regcache_cache_only(cs53l30->regmap, false);
-	regcache_sync(cs53l30->regmap);
+	ret = regcache_sync(cs53l30->regmap);
+	if (ret) {
+		dev_err(dev, "failed to synchronize regcache: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
