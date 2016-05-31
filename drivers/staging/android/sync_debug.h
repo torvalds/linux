@@ -41,9 +41,7 @@ struct sync_timeline {
 
 	struct list_head	active_list_head;
 
-#ifdef CONFIG_DEBUG_FS
 	struct list_head	sync_timeline_list;
-#endif
 };
 
 static inline struct sync_timeline *fence_parent(struct fence *fence)
@@ -64,7 +62,7 @@ struct sync_pt {
 	struct list_head active_list;
 };
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_SW_SYNC
 
 extern const struct file_operations sw_sync_debugfs_fops;
 
