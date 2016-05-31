@@ -180,22 +180,24 @@ static void omap2430_set_power(struct musb *musb, bool enabled, bool cable)
 	}
 }
 
-static void omap2430_musb_mailbox(enum musb_vbus_id_status status)
+static int omap2430_musb_mailbox(enum musb_vbus_id_status status)
 {
 	struct omap2430_glue	*glue = _glue;
 
 	if (!glue) {
 		pr_err("%s: musb core is not yet initialized\n", __func__);
-		return;
+		return -EPROBE_DEFER;
 	}
 	glue->status = status;
 
 	if (!glue_to_musb(glue)) {
 		pr_err("%s: musb core is not yet ready\n", __func__);
-		return;
+		return -EPROBE_DEFER;
 	}
 
 	schedule_work(&glue->omap_musb_mailbox_work);
+
+	return 0;
 }
 
 static void omap_musb_set_mailbox(struct omap2430_glue *glue)

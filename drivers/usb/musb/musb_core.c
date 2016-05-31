@@ -1679,7 +1679,7 @@ EXPORT_SYMBOL_GPL(musb_dma_completion);
 #define use_dma			0
 #endif
 
-static void (*musb_phy_callback)(enum musb_vbus_id_status status);
+static int (*musb_phy_callback)(enum musb_vbus_id_status status);
 
 /*
  * musb_mailbox - optional phy notifier function
@@ -1688,11 +1688,12 @@ static void (*musb_phy_callback)(enum musb_vbus_id_status status);
  * Optionally gets called from the USB PHY. Note that the USB PHY must be
  * disabled at the point the phy_callback is registered or unregistered.
  */
-void musb_mailbox(enum musb_vbus_id_status status)
+int musb_mailbox(enum musb_vbus_id_status status)
 {
 	if (musb_phy_callback)
-		musb_phy_callback(status);
+		return musb_phy_callback(status);
 
+	return -ENODEV;
 };
 EXPORT_SYMBOL_GPL(musb_mailbox);
 

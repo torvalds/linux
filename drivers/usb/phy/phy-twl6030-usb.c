@@ -227,12 +227,16 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 			twl->asleep = 1;
 			status = MUSB_VBUS_VALID;
 			twl->linkstat = status;
-			musb_mailbox(status);
+			ret = musb_mailbox(status);
+			if (ret)
+				twl->linkstat = MUSB_UNKNOWN;
 		} else {
 			if (twl->linkstat != MUSB_UNKNOWN) {
 				status = MUSB_VBUS_OFF;
 				twl->linkstat = status;
-				musb_mailbox(status);
+				ret = musb_mailbox(status);
+				if (ret)
+					twl->linkstat = MUSB_UNKNOWN;
 				if (twl->asleep) {
 					regulator_disable(twl->usb3v3);
 					twl->asleep = 0;
@@ -264,7 +268,9 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x10, USB_ID_INT_EN_HI_SET);
 		status = MUSB_ID_GROUND;
 		twl->linkstat = status;
-		musb_mailbox(status);
+		ret = musb_mailbox(status);
+		if (ret)
+			twl->linkstat = MUSB_UNKNOWN;
 	} else  {
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x10, USB_ID_INT_EN_HI_CLR);
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x1, USB_ID_INT_EN_HI_SET);
