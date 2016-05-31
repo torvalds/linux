@@ -1270,6 +1270,7 @@ struct gb_raw_send_request {
 #define GB_UART_TYPE_SEND_BREAK			0x06
 #define GB_UART_TYPE_SERIAL_STATE		0x07	/* Unsolicited data */
 #define GB_UART_TYPE_RECEIVE_CREDITS		0x08
+#define GB_UART_TYPE_FLUSH_FIFOS		0x09
 
 /* Represents data from AP -> Module */
 struct gb_uart_send_data_request {
@@ -1333,6 +1334,12 @@ struct gb_uart_set_break_request {
 
 struct gb_uart_serial_state_request {
 	__u8	control;
+} __packed;
+
+struct gb_uart_serial_flush_request {
+	__u8    flags;
+#define GB_SERIAL_FLAG_FLUSH_TRANSMITTER	0x01
+#define GB_SERIAL_FLAG_FLUSH_RECEIVER		0x02
 } __packed;
 
 /* Loopback */

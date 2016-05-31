@@ -317,6 +317,14 @@ static int send_break(struct gb_tty *gb_tty, u8 state)
 				 &request, sizeof(request), NULL, 0);
 }
 
+static int gb_uart_flush(struct gb_tty *gb_tty, u8 flags)
+{
+	struct gb_uart_serial_flush_request request;
+
+	request.flags = flags;
+	return gb_operation_sync(gb_tty->connection, GB_UART_TYPE_FLUSH_FIFOS,
+				 &request, sizeof(request), NULL, 0);
+}
 
 static struct gb_tty *get_gb_by_minor(unsigned minor)
 {
@@ -745,6 +753,7 @@ static void gb_tty_port_shutdown(struct tty_port *port)
 {
 	struct gb_tty *gb_tty;
 	unsigned long flags;
+	int ret;
 
 	gb_tty = container_of(port, struct gb_tty, port);
 
@@ -755,6 +764,12 @@ static void gb_tty_port_shutdown(struct tty_port *port)
 	spin_lock_irqsave(&gb_tty->write_lock, flags);
 	kfifo_reset_out(&gb_tty->write_fifo);
 	spin_unlock_irqrestore(&gb_tty->write_lock, flags);
+
+	ret = gb_uart_flush(gb_tty, GB_SERIAL_FLAG_FLUSH_TRANSMITTER);
+	if (ret) {
+		dev_err(&gb_tty->gbphy_dev->dev,
+			"error flushing transmitter: %d\n", ret);
+	}
 
 	gb_tty->close_pending = false;
 }
