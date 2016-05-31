@@ -312,6 +312,7 @@ struct musb {
 	struct work_struct	irq_work;
 	struct delayed_work	deassert_reset_work;
 	struct delayed_work	finish_resume_work;
+	struct delayed_work	gadget_work;
 	u16			hwvers;
 
 	u16			intrrxe;

@@ -1656,6 +1656,20 @@ static int musb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 	return usb_phy_set_power(musb->xceiv, mA);
 }
 
+static void musb_gadget_work(struct work_struct *work)
+{
+	struct musb *musb;
+	unsigned long flags;
+
+	musb = container_of(work, struct musb, gadget_work.work);
+	pm_runtime_get_sync(musb->controller);
+	spin_lock_irqsave(&musb->lock, flags);
+	musb_pullup(musb, musb->softconnect);
+	spin_unlock_irqrestore(&musb->lock, flags);
+	pm_runtime_mark_last_busy(musb->controller);
+	pm_runtime_put_autosuspend(musb->controller);
+}
+
 static int musb_gadget_pullup(struct usb_gadget *gadget, int is_on)
 {
 	struct musb	*musb = gadget_to_musb(gadget);
@@ -1663,19 +1677,15 @@ static int musb_gadget_pullup(struct usb_gadget *gadget, int is_on)
 
 	is_on = !!is_on;
 
-	pm_runtime_get_sync(musb->controller);
-
 	/* NOTE: this assumes we are sensing vbus; we'd rather
 	 * not pullup unless the B-session is active.
 	 */
 	spin_lock_irqsave(&musb->lock, flags);
 	if (is_on != musb->softconnect) {
 		musb->softconnect = is_on;
-		musb_pullup(musb, is_on);
+		schedule_delayed_work(&musb->gadget_work, 0);
 	}
 	spin_unlock_irqrestore(&musb->lock, flags);
-
-	pm_runtime_put(musb->controller);
 
 	return 0;
 }
@@ -1845,7 +1855,7 @@ int musb_gadget_setup(struct musb *musb)
 #elif IS_ENABLED(CONFIG_USB_MUSB_GADGET)
 	musb->g.is_otg = 0;
 #endif
-
+	INIT_DELAYED_WORK(&musb->gadget_work, musb_gadget_work);
 	musb_g_init_endpoints(musb);
 
 	musb->is_active = 0;
@@ -1866,6 +1876,8 @@ void musb_gadget_cleanup(struct musb *musb)
 {
 	if (musb->port_mode == MUSB_PORT_MODE_HOST)
 		return;
+
+	cancel_delayed_work_sync(&musb->gadget_work);
 	usb_del_gadget_udc(&musb->g);
 }
 
