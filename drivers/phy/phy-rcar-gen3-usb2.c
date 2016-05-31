@@ -144,12 +144,6 @@ static void rcar_gen3_init_for_peri(struct rcar_gen3_chan *ch)
 	extcon_set_cable_state_(ch->extcon, EXTCON_USB, true);
 }
 
-static bool rcar_gen3_check_vbus(struct rcar_gen3_chan *ch)
-{
-	return !!(readl(ch->base + USB2_ADPCTRL) &
-		  USB2_ADPCTRL_OTGSESSVLD);
-}
-
 static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 {
 	return !!(readl(ch->base + USB2_ADPCTRL) & USB2_ADPCTRL_IDDIG);
@@ -157,13 +151,7 @@ static bool rcar_gen3_check_id(struct rcar_gen3_chan *ch)
 
 static void rcar_gen3_device_recognition(struct rcar_gen3_chan *ch)
 {
-	bool is_host = true;
-
-	/* B-device? */
-	if (rcar_gen3_check_id(ch) && rcar_gen3_check_vbus(ch))
-		is_host = false;
-
-	if (is_host)
+	if (!rcar_gen3_check_id(ch))
 		rcar_gen3_init_for_host(ch);
 	else
 		rcar_gen3_init_for_peri(ch);
