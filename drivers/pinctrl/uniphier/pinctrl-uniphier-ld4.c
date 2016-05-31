@@ -567,6 +567,18 @@ static const unsigned nand_cs1_pins[] = {22, 23};
 static const int nand_cs1_muxvals[] = {0, 0};
 static const unsigned sd_pins[] = {44, 45, 46, 47, 48, 49, 50, 51, 52};
 static const int sd_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const unsigned system_bus_pins[] = {16, 17, 18, 19, 20, 165, 166, 167,
+					   168, 169, 170, 171, 172, 173};
+static const int system_bus_muxvals[] = {0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1,
+					 -1, -1, -1};
+static const unsigned system_bus_cs0_pins[] = {155};
+static const int system_bus_cs0_muxvals[] = {1};
+static const unsigned system_bus_cs1_pins[] = {174};
+static const int system_bus_cs1_muxvals[] = {-1};
+static const unsigned system_bus_cs2_pins[] = {64};
+static const int system_bus_cs2_muxvals[] = {1};
+static const unsigned system_bus_cs3_pins[] = {156};
+static const int system_bus_cs3_muxvals[] = {1};
 static const unsigned uart0_pins[] = {85, 88};
 static const int uart0_muxvals[] = {1, 1};
 static const unsigned uart1_pins[] = {155, 156};
@@ -650,6 +662,11 @@ static const struct uniphier_pinctrl_group uniphier_ld4_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(nand),
 	UNIPHIER_PINCTRL_GROUP(nand_cs1),
 	UNIPHIER_PINCTRL_GROUP(sd),
+	UNIPHIER_PINCTRL_GROUP(system_bus),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs0),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs1),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs2),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs3),
 	UNIPHIER_PINCTRL_GROUP(uart0),
 	UNIPHIER_PINCTRL_GROUP(uart1),
 	UNIPHIER_PINCTRL_GROUP(uart1b),
@@ -808,6 +825,11 @@ static const char * const i2c2_groups[] = {"i2c2"};
 static const char * const i2c3_groups[] = {"i2c3"};
 static const char * const nand_groups[] = {"nand", "nand_cs1"};
 static const char * const sd_groups[] = {"sd"};
+static const char * const system_bus_groups[] = {"system_bus",
+						 "system_bus_cs0",
+						 "system_bus_cs1",
+						 "system_bus_cs2",
+						 "system_bus_cs3"};
 static const char * const uart0_groups[] = {"uart0"};
 static const char * const uart1_groups[] = {"uart1", "uart1b"};
 static const char * const uart2_groups[] = {"uart2"};
@@ -864,6 +886,7 @@ static const struct uniphier_pinmux_function uniphier_ld4_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(i2c3),
 	UNIPHIER_PINMUX_FUNCTION(nand),
 	UNIPHIER_PINMUX_FUNCTION(sd),
+	UNIPHIER_PINMUX_FUNCTION(system_bus),
 	UNIPHIER_PINMUX_FUNCTION(uart0),
 	UNIPHIER_PINMUX_FUNCTION(uart1),
 	UNIPHIER_PINMUX_FUNCTION(uart2),

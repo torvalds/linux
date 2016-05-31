@@ -817,6 +817,26 @@ static const unsigned nand_cs1_pins[] = {26, 27};
 static const int nand_cs1_muxvals[] = {0, 0};
 static const unsigned sd_pins[] = {250, 251, 252, 253, 254, 255, 256, 257, 258};
 static const int sd_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const unsigned system_bus_pins[] = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+					   14, 15, 16, 17};
+static const int system_bus_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					 0};
+static const unsigned system_bus_cs0_pins[] = {105};
+static const int system_bus_cs0_muxvals[] = {1};
+static const unsigned system_bus_cs1_pins[] = {18};
+static const int system_bus_cs1_muxvals[] = {0};
+static const unsigned system_bus_cs2_pins[] = {106};
+static const int system_bus_cs2_muxvals[] = {1};
+static const unsigned system_bus_cs3_pins[] = {100};
+static const int system_bus_cs3_muxvals[] = {1};
+static const unsigned system_bus_cs4_pins[] = {101};
+static const int system_bus_cs4_muxvals[] = {1};
+static const unsigned system_bus_cs5_pins[] = {102};
+static const int system_bus_cs5_muxvals[] = {1};
+static const unsigned system_bus_cs6_pins[] = {69};
+static const int system_bus_cs6_muxvals[] = {5};
+static const unsigned system_bus_cs7_pins[] = {70};
+static const int system_bus_cs7_muxvals[] = {5};
 static const unsigned uart0_pins[] = {47, 48};
 static const int uart0_muxvals[] = {0, 0};
 static const unsigned uart0b_pins[] = {227, 228};
@@ -930,6 +950,15 @@ static const struct uniphier_pinctrl_group uniphier_pro5_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(i2c5c),
 	UNIPHIER_PINCTRL_GROUP(i2c6),
 	UNIPHIER_PINCTRL_GROUP(sd),
+	UNIPHIER_PINCTRL_GROUP(system_bus),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs0),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs1),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs2),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs3),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs4),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs5),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs6),
+	UNIPHIER_PINCTRL_GROUP(system_bus_cs7),
 	UNIPHIER_PINCTRL_GROUP(uart0),
 	UNIPHIER_PINCTRL_GROUP(uart0b),
 	UNIPHIER_PINCTRL_GROUP(uart1),
@@ -1210,6 +1239,15 @@ static const char * const i2c5_groups[] = {"i2c5", "i2c5b", "i2c5c"};
 static const char * const i2c6_groups[] = {"i2c6"};
 static const char * const nand_groups[] = {"nand", "nand_cs1"};
 static const char * const sd_groups[] = {"sd"};
+static const char * const system_bus_groups[] = {"system_bus",
+						 "system_bus_cs0",
+						 "system_bus_cs1",
+						 "system_bus_cs2",
+						 "system_bus_cs3",
+						 "system_bus_cs4",
+						 "system_bus_cs5",
+						 "system_bus_cs6",
+						 "system_bus_cs7"};
 static const char * const uart0_groups[] = {"uart0", "uart0b"};
 static const char * const uart1_groups[] = {"uart1"};
 static const char * const uart2_groups[] = {"uart2"};
@@ -1298,6 +1336,7 @@ static const struct uniphier_pinmux_function uniphier_pro5_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(i2c6),
 	UNIPHIER_PINMUX_FUNCTION(nand),
 	UNIPHIER_PINMUX_FUNCTION(sd),
+	UNIPHIER_PINMUX_FUNCTION(system_bus),
 	UNIPHIER_PINMUX_FUNCTION(uart0),
 	UNIPHIER_PINMUX_FUNCTION(uart1),
 	UNIPHIER_PINMUX_FUNCTION(uart2),
