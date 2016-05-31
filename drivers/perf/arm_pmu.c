@@ -992,9 +992,6 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 
 	armpmu_init(pmu);
 
-	if (!__oprofile_cpu_pmu)
-		__oprofile_cpu_pmu = pmu;
-
 	pmu->plat_device = pdev;
 
 	if (node && (of_id = of_match_node(of_table, pdev->dev.of_node))) {
@@ -1029,6 +1026,9 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	ret = perf_pmu_register(&pmu->pmu, pmu->name, -1);
 	if (ret)
 		goto out_destroy;
+
+	if (!__oprofile_cpu_pmu)
+		__oprofile_cpu_pmu = pmu;
 
 	pr_info("enabled with %s PMU driver, %d counters available\n",
 			pmu->name, pmu->num_events);
