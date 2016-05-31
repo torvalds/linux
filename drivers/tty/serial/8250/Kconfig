@@ -6,6 +6,7 @@
 config SERIAL_8250
 	tristate "8250/16550 and compatible serial support"
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	---help---
 	  This selects whether you want to include the driver for the standard
 	  serial ports.  The standard answer is Y.  People who might say N
