@@ -120,7 +120,7 @@ static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
 	struct list_head *pos;
 	unsigned long flags;
 
-	seq_printf(s, "%s %s: %d\n", obj->name, obj->drv_name, obj->value);
+	seq_printf(s, "%s: %d\n", obj->name, obj->value);
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
 	list_for_each(pos, &obj->child_list_head) {
