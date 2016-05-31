@@ -82,6 +82,42 @@
 			#clock-cells = <1>;
 		};
 
+		tmu_cpu0: tmu@10060000 {
+			compatible = "samsung,exynos5420-tmu";
+			reg = <0x10060000 0x100>;
+			interrupts = <GIC_SPI 65 0>;
+			clocks = <&clock CLK_TMU>;
+			clock-names = "tmu_apbif";
+			#include "exynos4412-tmu-sensor-conf.dtsi"
+		};
+
+		tmu_cpu1: tmu@10064000 {
+			compatible = "samsung,exynos5420-tmu";
+			reg = <0x10064000 0x100>;
+			interrupts = <GIC_SPI 183 0>;
+			clocks = <&clock CLK_TMU>;
+			clock-names = "tmu_apbif";
+			#include "exynos4412-tmu-sensor-conf.dtsi"
+		};
+
+		tmu_cpu2: tmu@10068000 {
+			compatible = "samsung,exynos5420-tmu";
+			reg = <0x10068000 0x100>;
+			interrupts = <GIC_SPI 184 0>;
+			clocks = <&clock CLK_TMU>;
+			clock-names = "tmu_apbif";
+			#include "exynos4412-tmu-sensor-conf.dtsi"
+		};
+
+		tmu_cpu3: tmu@1006c000 {
+			compatible = "samsung,exynos5420-tmu";
+			reg = <0x1006c000 0x100>;
+			interrupts = <GIC_SPI 185 0>;
+			clocks = <&clock CLK_TMU>;
+			clock-names = "tmu_apbif";
+			#include "exynos4412-tmu-sensor-conf.dtsi"
+		};
+
 		mmc_0: mmc@12200000 {
 			compatible = "samsung,exynos5250-dw-mshc";
 			reg = <0x12200000 0x1000>;
@@ -146,6 +182,25 @@
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x03860000 0x1000>;
 			interrupts = <0 47 0>;
+		};
+	};
+
+	thermal-zones {
+		cpu0_thermal: cpu0-thermal {
+			thermal-sensors = <&tmu_cpu0>;
+			#include "exynos5420-trip-points.dtsi"
+		};
+		cpu1_thermal: cpu1-thermal {
+		       thermal-sensors = <&tmu_cpu1>;
+		       #include "exynos5420-trip-points.dtsi"
+		};
+		cpu2_thermal: cpu2-thermal {
+		       thermal-sensors = <&tmu_cpu2>;
+		       #include "exynos5420-trip-points.dtsi"
+		};
+		cpu3_thermal: cpu3-thermal {
+		       thermal-sensors = <&tmu_cpu3>;
+		       #include "exynos5420-trip-points.dtsi"
 		};
 	};
 };
