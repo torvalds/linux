@@ -670,6 +670,7 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 	desc->pctlops = &uniphier_pctlops;
 	desc->pmxops = &uniphier_pmxops;
 	desc->confops = &uniphier_confops;
+	desc->owner = dev->driver->owner;
 
 	priv->pctldev = devm_pinctrl_register(dev, desc, priv);
 	if (IS_ERR(priv->pctldev)) {

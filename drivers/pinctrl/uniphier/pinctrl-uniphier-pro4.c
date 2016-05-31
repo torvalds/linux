@@ -1535,7 +1535,6 @@ static struct pinctrl_desc uniphier_pro4_pinctrl_desc = {
 	.name = DRIVER_NAME,
 	.pins = uniphier_pro4_pins,
 	.npins = ARRAY_SIZE(uniphier_pro4_pins),
-	.owner = THIS_MODULE,
 };
 
 static int uniphier_pro4_pinctrl_probe(struct platform_device *pdev)
