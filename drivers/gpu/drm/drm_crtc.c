@@ -4839,7 +4839,8 @@ bool drm_property_change_valid_get(struct drm_property *property,
 		if (value == 0)
 			return true;
 
-		return _object_find(property->dev, value, property->values[0]) != NULL;
+		*ref = _object_find(property->dev, value, property->values[0]);
+		return *ref != NULL;
 	}
 
 	for (i = 0; i < property->num_values; i++)
