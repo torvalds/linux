@@ -10,6 +10,7 @@
 
 #include <dt-bindings/clock/r8a7796-cpg-mssr.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/power/r8a7796-sysc.h>
 
 / {
 	compatible = "renesas,r8a7796";
@@ -30,6 +31,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x0>;
 			device_type = "cpu";
+			power-domains = <&sysc R8A7796_PD_CA57_CPU0>;
 			next-level-cache = <&L2_CA57>;
 			enable-method = "psci";
 		};
@@ -37,6 +39,7 @@
 		L2_CA57: cache-controller@0 {
 			compatible = "cache";
 			reg = <0>;
+			power-domains = <&sysc R8A7796_PD_CA57_SCU>;
 			cache-unified;
 			cache-level = <2>;
 		};
@@ -102,6 +105,12 @@
 			clock-names = "extal", "extalr";
 			#clock-cells = <2>;
 			#power-domain-cells = <0>;
+		};
+
+		sysc: system-controller@e6180000 {
+			compatible = "renesas,r8a7796-sysc";
+			reg = <0 0xe6180000 0 0x0400>;
+			#power-domain-cells = <1>;
 		};
 
 		scif2: serial@e6e88000 {
