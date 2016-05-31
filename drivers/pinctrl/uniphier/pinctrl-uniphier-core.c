@@ -551,7 +551,7 @@ static int uniphier_pmx_get_function_groups(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
-				    unsigned muxval)
+				    int muxval)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
 	unsigned int mux_bits, reg_stride, reg, reg_end, shift, mask;
@@ -563,6 +563,9 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 					     pin_desc_get(pctldev, pin), 1);
 	if (ret)
 		return ret;
+
+	if (muxval < 0)
+		return 0;	/* dedicated pin; nothing to do for pin-mux */
 
 	if (priv->socdata->caps & UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE) {
 		/*

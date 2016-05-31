@@ -148,7 +148,7 @@ struct uniphier_pinctrl_group {
 	const char *name;
 	const unsigned *pins;
 	unsigned num_pins;
-	const unsigned *muxvals;
+	const int *muxvals;
 	enum uniphier_pinmux_gpio_range_type range_type;
 };
 

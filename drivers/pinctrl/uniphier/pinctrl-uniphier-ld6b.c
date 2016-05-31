@@ -735,52 +735,51 @@ static const unsigned adinter_pins[] = {
 	215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228,
 	229, 230, 231, 232, 233, 234,
 };
-static const unsigned adinter_muxvals[] = {
+static const int adinter_muxvals[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0,
 };
 static const unsigned emmc_pins[] = {36, 37, 38, 39, 40, 41, 42};
-static const unsigned emmc_muxvals[] = {1, 1, 1, 1, 1, 1, 1};
+static const int emmc_muxvals[] = {1, 1, 1, 1, 1, 1, 1};
 static const unsigned emmc_dat8_pins[] = {43, 44, 45, 46};
-static const unsigned emmc_dat8_muxvals[] = {1, 1, 1, 1};
+static const int emmc_dat8_muxvals[] = {1, 1, 1, 1};
 static const unsigned i2c0_pins[] = {109, 110};
-static const unsigned i2c0_muxvals[] = {0, 0};
+static const int i2c0_muxvals[] = {0, 0};
 static const unsigned i2c1_pins[] = {111, 112};
-static const unsigned i2c1_muxvals[] = {0, 0};
+static const int i2c1_muxvals[] = {0, 0};
 static const unsigned i2c2_pins[] = {115, 116};
-static const unsigned i2c2_muxvals[] = {1, 1};
+static const int i2c2_muxvals[] = {1, 1};
 static const unsigned i2c3_pins[] = {118, 119};
-static const unsigned i2c3_muxvals[] = {1, 1};
+static const int i2c3_muxvals[] = {1, 1};
 static const unsigned nand_pins[] = {30, 31, 32, 33, 34, 35, 36, 39, 40, 41,
 				     42, 43, 44, 45, 46};
-static const unsigned nand_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0};
+static const int nand_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static const unsigned nand_cs1_pins[] = {37, 38};
-static const unsigned nand_cs1_muxvals[] = {0, 0};
+static const int nand_cs1_muxvals[] = {0, 0};
 static const unsigned sd_pins[] = {47, 48, 49, 50, 51, 52, 53, 54, 55};
-static const unsigned sd_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const int sd_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 static const unsigned uart0_pins[] = {135, 136};
-static const unsigned uart0_muxvals[] = {3, 3};
+static const int uart0_muxvals[] = {3, 3};
 static const unsigned uart0b_pins[] = {11, 12};
-static const unsigned uart0b_muxvals[] = {2, 2};
+static const int uart0b_muxvals[] = {2, 2};
 static const unsigned uart1_pins[] = {115, 116};
-static const unsigned uart1_muxvals[] = {0, 0};
+static const int uart1_muxvals[] = {0, 0};
 static const unsigned uart1b_pins[] = {113, 114};
-static const unsigned uart1b_muxvals[] = {1, 1};
+static const int uart1b_muxvals[] = {1, 1};
 static const unsigned uart2_pins[] = {113, 114};
-static const unsigned uart2_muxvals[] = {2, 2};
+static const int uart2_muxvals[] = {2, 2};
 static const unsigned uart2b_pins[] = {86, 87};
-static const unsigned uart2b_muxvals[] = {1, 1};
+static const int uart2b_muxvals[] = {1, 1};
 static const unsigned usb0_pins[] = {56, 57};
-static const unsigned usb0_muxvals[] = {0, 0};
+static const int usb0_muxvals[] = {0, 0};
 static const unsigned usb1_pins[] = {58, 59};
-static const unsigned usb1_muxvals[] = {0, 0};
+static const int usb1_muxvals[] = {0, 0};
 static const unsigned usb2_pins[] = {60, 61};
-static const unsigned usb2_muxvals[] = {0, 0};
+static const int usb2_muxvals[] = {0, 0};
 static const unsigned usb3_pins[] = {62, 63};
-static const unsigned usb3_muxvals[] = {0, 0};
+static const int usb3_muxvals[] = {0, 0};
 static const unsigned port_range0_pins[] = {
 	127, 128, 129, 130, 131, 132, 133, 134,		/* PORT0x */
 	135, 136, 137, 138, 139, 140, 141, 142,		/* PORT1x */
@@ -794,7 +793,7 @@ static const unsigned port_range0_pins[] = {
 	61, 62, 63, 64, 65, 66, 67, 68,			/* PORT9x */
 	69, 70, 71, 76, 77, 78, 79, 80,			/* PORT10x */
 };
-static const unsigned port_range0_muxvals[] = {
+static const int port_range0_muxvals[] = {
 	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT0x */
 	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT1x */
 	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT2x */
@@ -826,7 +825,7 @@ static const unsigned port_range1_pins[] = {
 	218, 219, 220, 221, 223, 224, 225, 226,		/* PORT27x */
 	227, 228, 229, 230, 231, 232, 233, 234,		/* PORT28x */
 };
-static const unsigned port_range1_muxvals[] = {
+static const int port_range1_muxvals[] = {
 	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT12x */
 	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT13x */
 	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT14x */
@@ -850,7 +849,7 @@ static const unsigned xirq_pins[] = {
 	126, 72, 73, 92, 177, 93, 94, 176,		/* XIRQ8-15 */
 	74, 91, 27, 28, 29, 75, 20, 26,			/* XIRQ16-23 */
 };
-static const unsigned xirq_muxvals[] = {
+static const int xirq_muxvals[] = {
 	14, 14, 14, 14, 14, 14, 14, 14,			/* XIRQ0-7 */
 	14, 14, 14, 14, 14, 14, 14, 14,			/* XIRQ8-15 */
 	14, 14, 14, 14, 14, 14, 14, 14,			/* XIRQ16-23 */
