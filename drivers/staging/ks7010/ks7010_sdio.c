@@ -234,8 +234,8 @@ int ks_wlan_hw_power_save(struct ks_wlan_private *priv)
 static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
 			    unsigned char *buffer, int length)
 {
-	int rc = -1;
 	struct ks_sdio_card *card;
+	int rc;
 
 	card = priv->ks_wlan_hw.sdio_card;
 
@@ -244,12 +244,8 @@ static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
 	else	/* CMD53 multi-block transfer */
 		rc = sdio_memcpy_fromio(card->func, buffer, address, length);
 
-	if (rc != 0) {
-		printk("sdio error erorr=%d size=%d\n", rc, length);
-		++priv->sdio_error_count;
-	} else {
-		priv->sdio_error_count = 0;
-	}
+	if (rc != 0)
+		DPRINTK(1, "sdio error=%d size=%d\n", rc, length);
 
 	return rc;
 }
@@ -257,8 +253,8 @@ static int ks7010_sdio_read(struct ks_wlan_private *priv, unsigned int address,
 static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
 			     unsigned char *buffer, int length)
 {
-	int rc = -1;
 	struct ks_sdio_card *card;
+	int rc;
 
 	card = priv->ks_wlan_hw.sdio_card;
 
@@ -268,12 +264,8 @@ static int ks7010_sdio_write(struct ks_wlan_private *priv, unsigned int address,
 		rc = sdio_memcpy_toio(card->func, (unsigned int)address, buffer,
 				      length);
 
-	if (rc != 0) {
-		printk("sdio error erorr=%d size=%d\n", rc, length);
-		++priv->sdio_error_count;
-	} else {
-		priv->sdio_error_count = 0;
-	}
+	if (rc != 0)
+		DPRINTK(1, "sdio error=%d size=%d\n", rc, length);
 
 	return rc;
 }

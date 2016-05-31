@@ -500,9 +500,7 @@ struct ks_wlan_private {
 	unsigned long last_doze;
 	unsigned long last_wakeup;
 
-	uint sdio_error_count;	/* SDIO error */
 	uint wakeup_count;	/* for detect wakeup loop */
-
 };
 
 #endif /* _KS_WLAN_H */
