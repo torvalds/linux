@@ -35,7 +35,9 @@ struct gb_camera_debugfs_buffer {
 
 /**
  * struct gb_camera - A Greybus Camera Device
- * @connection: the greybus connection for camera control
+ * @connection: the greybus connection for camera management
+ * @data_connection: the greybus connection for camera data
+ * @mutex: protects the connection field
  * @debugfs: debugfs entries for camera protocol operations testing
  * @module: Greybus camera module registered to HOST processor.
  */
@@ -43,6 +45,7 @@ struct gb_camera {
 	struct gb_bundle *bundle;
 	struct gb_connection *connection;
 	struct gb_connection *data_connection;
+	struct mutex mutex;
 
 	struct {
 		struct dentry *root;
@@ -163,15 +166,24 @@ static int gb_camera_set_power_mode(struct gb_camera *gcam, bool hs)
 static int gb_camera_capabilities(struct gb_camera *gcam,
 				  u8 *capabilities, size_t *size)
 {
-	struct gb_operation *op;
+	struct gb_operation *op = NULL;
 	int ret;
+
+	mutex_lock(&gcam->mutex);
+
+	if (!gcam->connection) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	op = gb_operation_create_flags(gcam->connection,
 				       GB_CAMERA_TYPE_CAPABILITIES, 0, *size,
 				       GB_OPERATION_FLAG_SHORT_RESPONSE,
 				       GFP_KERNEL);
-	if (!op)
-		return -ENOMEM;
+	if (!op) {
+		ret = -ENOMEM;
+		goto done;
+	}
 
 	ret = gb_operation_request_send_sync(op);
 	if (ret) {
@@ -183,7 +195,9 @@ static int gb_camera_capabilities(struct gb_camera *gcam,
 	*size = op->response->payload_size;
 
 done:
-	gb_operation_put(op);
+	mutex_unlock(&gcam->mutex);
+	if (op)
+		gb_operation_put(op);
 	return ret;
 }
 
@@ -222,8 +236,9 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	req = kmalloc(req_size, GFP_KERNEL);
 	resp = kmalloc(resp_size, GFP_KERNEL);
 	if (!req || !resp) {
-		ret = -ENOMEM;
-		goto done;
+		kfree(req);
+		kfree(resp);
+		return -ENOMEM;
 	}
 
 	req->num_streams = nstreams;
@@ -237,6 +252,13 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 		cfg->height = cpu_to_le16(streams[i].height);
 		cfg->format = cpu_to_le16(streams[i].format);
 		cfg->padding = 0;
+	}
+
+	mutex_lock(&gcam->mutex);
+
+	if (!gcam->connection) {
+		ret = -EINVAL;
+		goto done;
 	}
 
 	ret = gb_operation_sync(gcam->connection,
@@ -329,6 +351,7 @@ static int gb_camera_configure_streams(struct gb_camera *gcam,
 	ret = 0;
 
 done:
+	mutex_unlock(&gcam->mutex);
 	kfree(req);
 	kfree(resp);
 	return ret;
@@ -356,8 +379,17 @@ static int gb_camera_capture(struct gb_camera *gcam, u32 request_id,
 	req->num_frames = cpu_to_le16(num_frames);
 	memcpy(req->settings, settings, settings_size);
 
+	mutex_lock(&gcam->mutex);
+
+	if (!gcam->connection) {
+		ret = -EINVAL;
+		goto done;
+	}
+
 	ret = gb_operation_sync(gcam->connection, GB_CAMERA_TYPE_CAPTURE,
-				 req, req_size, NULL, 0);
+				req, req_size, NULL, 0);
+done:
+	mutex_unlock(&gcam->mutex);
 
 	kfree(req);
 
@@ -369,15 +401,26 @@ static int gb_camera_flush(struct gb_camera *gcam, u32 *request_id)
 	struct gb_camera_flush_response resp;
 	int ret;
 
+	mutex_lock(&gcam->mutex);
+
+	if (!gcam->connection) {
+		ret = -EINVAL;
+		goto done;
+	}
+
 	ret = gb_operation_sync(gcam->connection, GB_CAMERA_TYPE_FLUSH, NULL, 0,
 				&resp, sizeof(resp));
+
 	if (ret < 0)
-		return ret;
+		goto done;
 
 	if (request_id)
 		*request_id = le32_to_cpu(resp.request_id);
 
-	return 0;
+done:
+	mutex_unlock(&gcam->mutex);
+
+	return ret;
 }
 
 static int gb_camera_request_handler(struct gb_operation *op)
@@ -526,18 +569,6 @@ static const struct gb_camera_ops gb_cam_ops = {
 	.capture = gb_camera_op_capture,
 	.flush = gb_camera_op_flush,
 };
-
-static int gb_camera_register_intf_ops(struct gb_camera *gcam)
-{
-	gcam->module.priv = gcam;
-	gcam->module.ops = &gb_cam_ops;
-	return gb_camera_register(&gcam->module);
-}
-
-static int gb_camera_unregister_intf_ops(struct gb_camera *gcam)
-{
-	return gb_camera_unregister(&gcam->module);
-}
 
 /* -----------------------------------------------------------------------------
  * DebugFS
@@ -899,14 +930,23 @@ static void gb_camera_cleanup(struct gb_camera *gcam)
 	if (gcam->data_connection) {
 		gb_connection_disable(gcam->data_connection);
 		gb_connection_destroy(gcam->data_connection);
+		gcam->data_connection = NULL;
 	}
 
+	mutex_lock(&gcam->mutex);
 	if (gcam->connection) {
 		gb_connection_disable(gcam->connection);
 		gb_connection_destroy(gcam->connection);
+		gcam->connection = NULL;
 	}
+	mutex_unlock(&gcam->mutex);
+}
 
-	kfree(gcam);
+static void gb_camera_release_module(struct kref *ref)
+{
+	struct gb_camera_module *cam_mod =
+		container_of(ref, struct gb_camera_module, refcount);
+	kfree(cam_mod->priv);
 }
 
 static int gb_camera_probe(struct gb_bundle *bundle,
@@ -964,6 +1004,8 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 	if (ret)
 		goto error;
 
+	mutex_init(&gcam->mutex);
+
 	/*
 	 * Create the data connection between the camera module data CPort and
 	 * APB CDSI1. The CDSI1 CPort ID is hardcoded by the ES2 bridge.
@@ -986,7 +1028,11 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 	if (ret < 0)
 		goto error;
 
-	ret = gb_camera_register_intf_ops(gcam);
+	gcam->module.priv = gcam;
+	gcam->module.ops = &gb_cam_ops;
+	gcam->module.interface_id = gcam->connection->intf->interface_id;
+	gcam->module.release = gb_camera_release_module;
+	ret = gb_camera_register(&gcam->module);
 	if (ret < 0)
 		goto error;
 
@@ -996,6 +1042,7 @@ static int gb_camera_probe(struct gb_bundle *bundle,
 
 error:
 	gb_camera_cleanup(gcam);
+	kfree(gcam);
 	return ret;
 }
 
@@ -1003,8 +1050,8 @@ static void gb_camera_disconnect(struct gb_bundle *bundle)
 {
 	struct gb_camera *gcam = greybus_get_drvdata(bundle);
 
-	gb_camera_unregister_intf_ops(gcam);
 	gb_camera_cleanup(gcam);
+	gb_camera_unregister(&gcam->module);
 }
 
 static const struct greybus_bundle_id gb_camera_id_table[] = {
