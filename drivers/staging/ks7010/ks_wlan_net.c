@@ -40,7 +40,6 @@ static int wep_on_off;
 #include "ks_wlan.h"
 #include "ks_hostif.h"
 #include "ks_wlan_ioctl.h"
-#include "ks_debug.h"
 
 /* Include Wireless Extension definition and check version */
 #include <linux/wireless.h>

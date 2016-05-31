@@ -4,7 +4,6 @@
 #include "ks_wlan.h"
 #include "ks_hostif.h"
 #include "ks_wlan_ioctl.h"
-#include "ks_debug.h"
 
 static int wep_on_off;
 #define	WEP_OFF		0

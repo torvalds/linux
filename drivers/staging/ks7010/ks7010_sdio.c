@@ -19,7 +19,6 @@
 
 #include "ks_wlan.h"
 #include "ks_wlan_ioctl.h"
-#include "ks_debug.h"
 #include "ks_hostif.h"
 
 #include "ks7010_sdio.h"

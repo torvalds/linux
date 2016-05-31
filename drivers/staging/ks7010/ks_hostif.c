@@ -13,7 +13,6 @@
  */
 
 #include "ks_wlan.h"
-#include "ks_debug.h"
 #include "ks_hostif.h"
 #include "eap_packet.h"
 #include "michael_mic.h"

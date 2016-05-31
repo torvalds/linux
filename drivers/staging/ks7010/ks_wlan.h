@@ -38,6 +38,13 @@
 
 #include "ks7010_sdio.h"
 
+#ifdef KS_WLAN_DEBUG
+#define DPRINTK(n, fmt, args...) \
+                 if (KS_WLAN_DEBUG>(n)) printk(KERN_NOTICE "%s: "fmt, __FUNCTION__, ## args)
+#else
+#define DPRINTK(n, fmt, args...)
+#endif
+
 struct ks_wlan_parameter {
 	uint8_t		operation_mode;	   /* Operation Mode */
 	uint8_t		channel;	   /*  Channel */
