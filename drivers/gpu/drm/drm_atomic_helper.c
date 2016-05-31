@@ -2920,7 +2920,7 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_destroy_state);
  * @red: red correction table
  * @green: green correction table
  * @blue: green correction table
- * @start:
+ * @start: first entry, must always be 0
  * @size: size of the tables
  *
  * Implements support for legacy gamma correction table for drivers
