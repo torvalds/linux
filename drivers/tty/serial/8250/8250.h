@@ -129,6 +129,16 @@ void serial8250_rpm_put(struct uart_8250_port *p);
 int serial8250_em485_init(struct uart_8250_port *p);
 void serial8250_em485_destroy(struct uart_8250_port *p);
 
+static inline void serial8250_out_MCR(struct uart_8250_port *up, int value)
+{
+	serial_out(up, UART_MCR, value);
+}
+
+static inline int serial8250_in_MCR(struct uart_8250_port *up)
+{
+	return serial_in(up, UART_MCR);
+}
+
 #if defined(__alpha__) && !defined(CONFIG_PCI)
 /*
  * Digital did something really horribly wrong with the OUT1 and OUT2

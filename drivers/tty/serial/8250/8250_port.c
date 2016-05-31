@@ -527,13 +527,13 @@ static void serial8250_clear_fifos(struct uart_8250_port *p)
 
 static inline void serial8250_em485_rts_after_send(struct uart_8250_port *p)
 {
-	unsigned char mcr = serial_in(p, UART_MCR);
+	unsigned char mcr = serial8250_in_MCR(p);
 
 	if (p->port.rs485.flags & SER_RS485_RTS_AFTER_SEND)
 		mcr |= UART_MCR_RTS;
 	else
 		mcr &= ~UART_MCR_RTS;
-	serial_out(p, UART_MCR, mcr);
+	serial8250_out_MCR(p, mcr);
 }
 
 static void serial8250_em485_handle_start_tx(unsigned long arg);
@@ -785,10 +785,10 @@ static int size_fifo(struct uart_8250_port *up)
 	old_lcr = serial_in(up, UART_LCR);
 	serial_out(up, UART_LCR, 0);
 	old_fcr = serial_in(up, UART_FCR);
-	old_mcr = serial_in(up, UART_MCR);
+	old_mcr = serial8250_in_MCR(up);
 	serial_out(up, UART_FCR, UART_FCR_ENABLE_FIFO |
 		    UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
-	serial_out(up, UART_MCR, UART_MCR_LOOP);
+	serial8250_out_MCR(up, UART_MCR_LOOP);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	old_dl = serial_dl_read(up);
 	serial_dl_write(up, 0x0001);
@@ -800,7 +800,7 @@ static int size_fifo(struct uart_8250_port *up)
 	     (count < 256); count++)
 		serial_in(up, UART_RX);
 	serial_out(up, UART_FCR, old_fcr);
-	serial_out(up, UART_MCR, old_mcr);
+	serial8250_out_MCR(up, old_mcr);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	serial_dl_write(up, old_dl);
 	serial_out(up, UART_LCR, old_lcr);
@@ -1040,17 +1040,17 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	 * it's changed. If so, set baud_base in EXCR2 to 921600. -- dwmw2
 	 */
 	serial_out(up, UART_LCR, 0);
-	status1 = serial_in(up, UART_MCR);
+	status1 = serial8250_in_MCR(up);
 	serial_out(up, UART_LCR, 0xE0);
 	status2 = serial_in(up, 0x02); /* EXCR1 */
 
 	if (!((status2 ^ status1) & UART_MCR_LOOP)) {
 		serial_out(up, UART_LCR, 0);
-		serial_out(up, UART_MCR, status1 ^ UART_MCR_LOOP);
+		serial8250_out_MCR(up, status1 ^ UART_MCR_LOOP);
 		serial_out(up, UART_LCR, 0xE0);
 		status2 = serial_in(up, 0x02); /* EXCR1 */
 		serial_out(up, UART_LCR, 0);
-		serial_out(up, UART_MCR, status1);
+		serial8250_out_MCR(up, status1);
 
 		if ((status2 ^ status1) & UART_MCR_LOOP) {
 			unsigned short quot;
@@ -1224,7 +1224,7 @@ static void autoconfig(struct uart_8250_port *up)
 		}
 	}
 
-	save_mcr = serial_in(up, UART_MCR);
+	save_mcr = serial8250_in_MCR(up);
 	save_lcr = serial_in(up, UART_LCR);
 
 	/*
@@ -1237,9 +1237,9 @@ static void autoconfig(struct uart_8250_port *up)
 	 * that conflicts with COM 1-4 --- we hope!
 	 */
 	if (!(port->flags & UPF_SKIP_TEST)) {
-		serial_out(up, UART_MCR, UART_MCR_LOOP | 0x0A);
+		serial8250_out_MCR(up, UART_MCR_LOOP | 0x0A);
 		status1 = serial_in(up, UART_MSR) & 0xF0;
-		serial_out(up, UART_MCR, save_mcr);
+		serial8250_out_MCR(up, save_mcr);
 		if (status1 != 0x90) {
 			spin_unlock_irqrestore(&port->lock, flags);
 			DEBUG_AUTOCONF("LOOP test failed (%02x) ",
@@ -1305,7 +1305,7 @@ static void autoconfig(struct uart_8250_port *up)
 	if (port->type == PORT_RSA)
 		serial_out(up, UART_RSA_FRR, 0);
 #endif
-	serial_out(up, UART_MCR, save_mcr);
+	serial8250_out_MCR(up, save_mcr);
 	serial8250_clear_fifos(up);
 	serial_in(up, UART_RX);
 	if (up->capabilities & UART_CAP_UUE)
@@ -1353,19 +1353,18 @@ static void autoconfig_irq(struct uart_8250_port *up)
 
 	/* forget possible initially masked and pending IRQ */
 	probe_irq_off(probe_irq_on());
-	save_mcr = serial_in(up, UART_MCR);
+	save_mcr = serial8250_in_MCR(up);
 	save_ier = serial_in(up, UART_IER);
-	serial_out(up, UART_MCR, UART_MCR_OUT1 | UART_MCR_OUT2);
+	serial8250_out_MCR(up, UART_MCR_OUT1 | UART_MCR_OUT2);
 
 	irqs = probe_irq_on();
-	serial_out(up, UART_MCR, 0);
+	serial8250_out_MCR(up, 0);
 	udelay(10);
 	if (port->flags & UPF_FOURPORT) {
-		serial_out(up, UART_MCR,
-			    UART_MCR_DTR | UART_MCR_RTS);
+		serial8250_out_MCR(up, UART_MCR_DTR | UART_MCR_RTS);
 	} else {
-		serial_out(up, UART_MCR,
-			    UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT2);
+		serial8250_out_MCR(up,
+			UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT2);
 	}
 	serial_out(up, UART_IER, 0x0f);	/* enable all intrs */
 	serial_in(up, UART_LSR);
@@ -1376,7 +1375,7 @@ static void autoconfig_irq(struct uart_8250_port *up)
 	udelay(20);
 	irq = probe_irq_off(irqs);
 
-	serial_out(up, UART_MCR, save_mcr);
+	serial8250_out_MCR(up, save_mcr);
 	serial_out(up, UART_IER, save_ier);
 
 	if (port->flags & UPF_FOURPORT)
@@ -1549,14 +1548,14 @@ static inline void start_tx_rs485(struct uart_port *port)
 	del_timer(&em485->stop_tx_timer);
 	em485->active_timer = NULL;
 
-	mcr = serial_in(up, UART_MCR);
+	mcr = serial8250_in_MCR(up);
 	if (!!(up->port.rs485.flags & SER_RS485_RTS_ON_SEND) !=
 	    !!(mcr & UART_MCR_RTS)) {
 		if (up->port.rs485.flags & SER_RS485_RTS_ON_SEND)
 			mcr |= UART_MCR_RTS;
 		else
 			mcr &= ~UART_MCR_RTS;
-		serial_out(up, UART_MCR, mcr);
+		serial8250_out_MCR(up, mcr);
 
 		if (up->port.rs485.delay_rts_before_send > 0) {
 			em485->active_timer = &em485->start_tx_timer;
@@ -1943,7 +1942,7 @@ void serial8250_do_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 	mcr = (mcr & up->mcr_mask) | up->mcr_force | up->mcr;
 
-	serial_port_out(port, UART_MCR, mcr);
+	serial8250_out_MCR(up, mcr);
 }
 EXPORT_SYMBOL_GPL(serial8250_do_set_mctrl);
 
@@ -3090,7 +3089,7 @@ static void serial8250_console_restore(struct uart_8250_port *up)
 
 	serial8250_set_divisor(port, baud, quot, frac);
 	serial_port_out(port, UART_LCR, up->lcr);
-	serial_port_out(port, UART_MCR, UART_MCR_DTR | UART_MCR_RTS);
+	serial8250_out_MCR(up, UART_MCR_DTR | UART_MCR_RTS);
 }
 
 /*
