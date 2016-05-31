@@ -750,7 +750,7 @@ static int ks79xx_upload_firmware(ks_wlan_private *priv, struct ks_sdio_card *ca
 		DPRINTK(1,"error request_firmware() file=%s\n", priv->reg.rom_file);
 		return 1;
 	}
-	DPRINTK(4,"success request_firmware() file=%s size=%d\n", priv->reg.rom_file, fw_entry->size);
+	DPRINTK(4,"success request_firmware() file=%s size=%zu\n", priv->reg.rom_file, fw_entry->size);
 	length = fw_entry->size;
 
 	/* Load Program */

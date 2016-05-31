@@ -257,7 +257,7 @@ int ks_wlan_read_config_file(ks_wlan_private *priv)
 	if (request_firmware_direct(&fw_entry, cfg_file, dev))
 		return 0;
 
-	DPRINTK(4, "success request_firmware() file=%s size=%d\n", cfg_file, fw_entry->size);
+	DPRINTK(4, "success request_firmware() file=%s size=%zu\n", cfg_file, fw_entry->size);
 	cur_p = fw_entry->data;
 	end_p = cur_p + fw_entry->size;
 	*end_p = '\0';
