@@ -59,7 +59,6 @@ struct cs2000_priv {
 	struct i2c_client *client;
 	struct clk *clk_in;
 	struct clk *ref_clk;
-	struct clk *clk_out;
 };
 
 static const struct of_device_id cs2000_of_match[] = {
@@ -371,7 +370,6 @@ static int cs2000_clk_register(struct cs2000_priv *priv)
 	struct device_node *np = dev->of_node;
 	struct clk_init_data init;
 	const char *name = np->name;
-	struct clk *clk;
 	static const char *parent_names[CLK_MAX];
 	int ch = 0; /* it uses ch0 only at this point */
 	int rate;
@@ -400,17 +398,15 @@ static int cs2000_clk_register(struct cs2000_priv *priv)
 
 	priv->hw.init = &init;
 
-	clk = clk_register(dev, &priv->hw);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = clk_hw_register(dev, &priv->hw);
+	if (ret)
+		return ret;
 
-	ret = of_clk_add_provider(np, of_clk_src_simple_get, clk);
+	ret = of_clk_add_hw_provider(np, of_clk_hw_simple_get, &priv->hw);
 	if (ret < 0) {
-		clk_unregister(clk);
+		clk_hw_unregister(&priv->hw);
 		return ret;
 	}
-
-	priv->clk_out = clk;
 
 	return 0;
 }
@@ -454,7 +450,7 @@ static int cs2000_remove(struct i2c_client *client)
 
 	of_clk_del_provider(np);
 
-	clk_unregister(priv->clk_out);
+	clk_hw_unregister(&priv->hw);
 
 	return 0;
 }
