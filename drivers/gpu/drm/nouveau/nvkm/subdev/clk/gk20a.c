@@ -28,70 +28,6 @@
 #include <core/tegra.h>
 #include <subdev/timer.h>
 
-#define KHZ (1000)
-#define MHZ (KHZ * 1000)
-
-#define MASK(w)	((1 << (w)) - 1)
-
-#define GPCPLL_CFG		(SYS_GPCPLL_CFG_BASE + 0)
-#define GPCPLL_CFG_ENABLE	BIT(0)
-#define GPCPLL_CFG_IDDQ		BIT(1)
-#define GPCPLL_CFG_LOCK_DET_OFF	BIT(4)
-#define GPCPLL_CFG_LOCK		BIT(17)
-
-#define GPCPLL_COEFF		(SYS_GPCPLL_CFG_BASE + 4)
-#define GPCPLL_COEFF_M_SHIFT	0
-#define GPCPLL_COEFF_M_WIDTH	8
-#define GPCPLL_COEFF_N_SHIFT	8
-#define GPCPLL_COEFF_N_WIDTH	8
-#define GPCPLL_COEFF_P_SHIFT	16
-#define GPCPLL_COEFF_P_WIDTH	6
-
-#define GPCPLL_CFG2			(SYS_GPCPLL_CFG_BASE + 0xc)
-#define GPCPLL_CFG2_SETUP2_SHIFT	16
-#define GPCPLL_CFG2_PLL_STEPA_SHIFT	24
-
-#define GPCPLL_CFG3			(SYS_GPCPLL_CFG_BASE + 0x18)
-#define GPCPLL_CFG3_PLL_STEPB_SHIFT	16
-
-#define GPC_BCASE_GPCPLL_CFG_BASE		0x00132800
-#define GPCPLL_NDIV_SLOWDOWN			(SYS_GPCPLL_CFG_BASE + 0x1c)
-#define GPCPLL_NDIV_SLOWDOWN_NDIV_LO_SHIFT	0
-#define GPCPLL_NDIV_SLOWDOWN_NDIV_MID_SHIFT	8
-#define GPCPLL_NDIV_SLOWDOWN_STEP_SIZE_LO2MID_SHIFT	16
-#define GPCPLL_NDIV_SLOWDOWN_SLOWDOWN_USING_PLL_SHIFT	22
-#define GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT	31
-
-#define SEL_VCO				(SYS_GPCPLL_CFG_BASE + 0x100)
-#define SEL_VCO_GPC2CLK_OUT_SHIFT	0
-
-#define GPC2CLK_OUT			(SYS_GPCPLL_CFG_BASE + 0x250)
-#define GPC2CLK_OUT_SDIV14_INDIV4_WIDTH	1
-#define GPC2CLK_OUT_SDIV14_INDIV4_SHIFT	31
-#define GPC2CLK_OUT_SDIV14_INDIV4_MODE	1
-#define GPC2CLK_OUT_VCODIV_WIDTH	6
-#define GPC2CLK_OUT_VCODIV_SHIFT	8
-#define GPC2CLK_OUT_VCODIV1		0
-#define GPC2CLK_OUT_VCODIV2		2
-#define GPC2CLK_OUT_VCODIV_MASK		(MASK(GPC2CLK_OUT_VCODIV_WIDTH) << \
-					GPC2CLK_OUT_VCODIV_SHIFT)
-#define GPC2CLK_OUT_BYPDIV_WIDTH	6
-#define GPC2CLK_OUT_BYPDIV_SHIFT	0
-#define GPC2CLK_OUT_BYPDIV31		0x3c
-#define GPC2CLK_OUT_INIT_MASK	((MASK(GPC2CLK_OUT_SDIV14_INDIV4_WIDTH) << \
-		GPC2CLK_OUT_SDIV14_INDIV4_SHIFT)\
-		| (MASK(GPC2CLK_OUT_VCODIV_WIDTH) << GPC2CLK_OUT_VCODIV_SHIFT)\
-		| (MASK(GPC2CLK_OUT_BYPDIV_WIDTH) << GPC2CLK_OUT_BYPDIV_SHIFT))
-#define GPC2CLK_OUT_INIT_VAL	((GPC2CLK_OUT_SDIV14_INDIV4_MODE << \
-		GPC2CLK_OUT_SDIV14_INDIV4_SHIFT) \
-		| (GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT) \
-		| (GPC2CLK_OUT_BYPDIV31 << GPC2CLK_OUT_BYPDIV_SHIFT))
-
-#define GPC_BCAST_NDIV_SLOWDOWN_DEBUG	(GPC_BCASE_GPCPLL_CFG_BASE + 0xa0)
-#define GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_SHIFT	24
-#define GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK \
-	    (0x1 << GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_SHIFT)
-
 static const u8 _pl_to_div[] = {
 /* PL:   0, 1, 2, 3, 4, 5, 6,  7,  8,  9, 10, 11, 12, 13, 14 */
 /* p: */ 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 12, 16, 20, 24, 32,
@@ -125,7 +61,7 @@ static const struct gk20a_clk_pllg_params gk20a_pllg_params = {
 	.min_pl = 1, .max_pl = 32,
 };
 
-static void
+void
 gk20a_pllg_read_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
@@ -137,7 +73,7 @@ gk20a_pllg_read_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll)
 	pll->pl = (val >> GPCPLL_COEFF_P_SHIFT) & MASK(GPCPLL_COEFF_P_WIDTH);
 }
 
-static void
+void
 gk20a_pllg_write_mnp(struct gk20a_clk *clk, const struct gk20a_pll *pll)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
@@ -149,7 +85,7 @@ gk20a_pllg_write_mnp(struct gk20a_clk *clk, const struct gk20a_pll *pll)
 	nvkm_wr32(device, GPCPLL_COEFF, val);
 }
 
-static u32
+u32
 gk20a_pllg_calc_rate(struct gk20a_clk *clk, struct gk20a_pll *pll)
 {
 	u32 rate;
@@ -161,14 +97,7 @@ gk20a_pllg_calc_rate(struct gk20a_clk *clk, struct gk20a_pll *pll)
 	return rate / divider / 2;
 }
 
-static u32
-gk20a_pllg_n_lo(struct gk20a_clk *clk, struct gk20a_pll *pll)
-{
-	return DIV_ROUND_UP(pll->m * clk->params->min_vco,
-			    clk->parent_rate / KHZ);
-}
-
-static int
+int
 gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate,
 		    struct gk20a_pll *pll)
 {
@@ -321,16 +250,6 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 	nvkm_rd32(device, GPCPLL_NDIV_SLOWDOWN);
 
 	return ret;
-}
-
-static bool
-gk20a_pllg_is_enabled(struct gk20a_clk *clk)
-{
-	struct nvkm_device *device = clk->base.subdev.device;
-	u32 val;
-
-	val = nvkm_rd32(device, GPCPLL_CFG);
-	return val & GPCPLL_CFG_ENABLE;
 }
 
 static int
