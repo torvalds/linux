@@ -30,7 +30,6 @@ struct twl6040_pdmclk {
 	struct twl6040 *twl6040;
 	struct device *dev;
 	struct clk_hw pdmclk_hw;
-	struct clk *clk;
 	int enabled;
 };
 
@@ -93,6 +92,7 @@ static int twl6040_pdmclk_probe(struct platform_device *pdev)
 {
 	struct twl6040 *twl6040 = dev_get_drvdata(pdev->dev.parent);
 	struct twl6040_pdmclk *clkdata;
+	int ret;
 
 	clkdata = devm_kzalloc(&pdev->dev, sizeof(*clkdata), GFP_KERNEL);
 	if (!clkdata)
@@ -102,14 +102,15 @@ static int twl6040_pdmclk_probe(struct platform_device *pdev)
 	clkdata->twl6040 = twl6040;
 
 	clkdata->pdmclk_hw.init = &twl6040_pdmclk_init;
-	clkdata->clk = devm_clk_register(&pdev->dev, &clkdata->pdmclk_hw);
-	if (IS_ERR(clkdata->clk))
-		return PTR_ERR(clkdata->clk);
+	ret = devm_clk_hw_register(&pdev->dev, &clkdata->pdmclk_hw);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, clkdata);
 
-	return of_clk_add_provider(pdev->dev.parent->of_node,
-				   of_clk_src_simple_get, clkdata->clk);
+	return of_clk_add_hw_provider(pdev->dev.parent->of_node,
+				      of_clk_hw_simple_get,
+				      &clkdata->pdmclk_hw);
 }
 
 static struct platform_driver twl6040_pdmclk_driver = {
