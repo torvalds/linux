@@ -626,4 +626,9 @@
 				"sru-src6", "sru-src7", "sru-src8";
 		};
 	};
+
+	rst: reset-controller@ffcc0000 {
+		compatible = "renesas,r8a7778-reset-wdt";
+		reg = <0xffcc0000 0x40>;
+	};
 };
