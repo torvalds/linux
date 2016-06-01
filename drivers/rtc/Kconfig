@@ -5,6 +5,10 @@
 config RTC_LIB
 	bool
 
+config RTC_MC146818_LIB
+	bool
+	select RTC_LIB
+
 menuconfig RTC_CLASS
 	bool "Real Time Clock"
 	default n
@@ -809,6 +813,7 @@ config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
 	depends on X86 || ARM || M32R || PPC || MIPS || SPARC64 || MN10300
 	default y if X86
+	select RTC_MC146818_LIB
 	help
 	  Say "yes" here to get direct support for the real time clock
 	  found in every PC or ACPI-based system, and some other boards.
@@ -827,6 +832,7 @@ config RTC_DRV_CMOS
 config RTC_DRV_ALPHA
 	bool "Alpha PC-style CMOS"
 	depends on ALPHA
+	select RTC_MC146818_LIB
 	default y
 	help
 	  Direct support for the real-time clock found on every Alpha
