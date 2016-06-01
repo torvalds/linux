@@ -223,7 +223,8 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 				continue;
 			}
 
-			plane_state = to_intel_plane_state(drm_state->plane_states[i]);
+			plane_state = intel_atomic_get_existing_plane_state(drm_state,
+									    intel_plane);
 			scaler_id = &plane_state->scaler_id;
 		}
 
