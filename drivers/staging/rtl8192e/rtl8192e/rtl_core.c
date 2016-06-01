@@ -1277,14 +1277,14 @@ RESET_START:
 		rtllib_stop_scan_syncro(ieee);
 
 		if (ieee->state == RTLLIB_LINKED) {
-			SEM_DOWN_IEEE_WX(&ieee->wx_sem);
+			mutex_lock(&ieee->wx_mutex);
 			netdev_info(dev, "ieee->state is RTLLIB_LINKED\n");
 			rtllib_stop_send_beacons(priv->rtllib);
 			del_timer_sync(&ieee->associate_timer);
 			cancel_delayed_work(&ieee->associate_retry_wq);
 			rtllib_stop_scan(ieee);
 			netif_carrier_off(dev);
-			SEM_UP_IEEE_WX(&ieee->wx_sem);
+			mutex_unlock(&ieee->wx_mutex);
 		} else {
 			netdev_info(dev, "ieee->state is NOT LINKED\n");
 			rtllib_softmac_stop_protocol(priv->rtllib, 0, true);

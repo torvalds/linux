@@ -753,7 +753,7 @@ static void rtllib_start_scan(struct rtllib_device *ieee)
 	}
 }
 
-/* called with wx_sem held */
+/* called with wx_mutex held */
 void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 {
 	if (IS_DOT11D_ENABLE(ieee)) {
@@ -1590,7 +1590,7 @@ static void rtllib_associate_procedure_wq(void *data)
 	rtllib_stop_scan_syncro(ieee);
 	if (ieee->rtllib_ips_leave != NULL)
 		ieee->rtllib_ips_leave(ieee->dev);
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->data_hard_stop)
 		ieee->data_hard_stop(ieee->dev);
@@ -1605,14 +1605,14 @@ static void rtllib_associate_procedure_wq(void *data)
 			 __func__);
 		if (ieee->rtllib_ips_leave_wq != NULL)
 			ieee->rtllib_ips_leave_wq(ieee->dev);
-		up(&ieee->wx_sem);
+		mutex_unlock(&ieee->wx_mutex);
 		return;
 	}
 	ieee->associate_seq = 1;
 
 	rtllib_associate_step1(ieee, ieee->current_network.bssid);
 
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 
 inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
@@ -2582,16 +2582,16 @@ static void rtllib_start_ibss_wq(void *data)
 				     struct rtllib_device, start_ibss_wq);
 	/* iwconfig mode ad-hoc will schedule this and return
 	 * on the other hand this will block further iwconfig SET
-	 * operations because of the wx_sem hold.
+	 * operations because of the wx_mutex hold.
 	 * Anyway some most set operations set a flag to speed-up
 	 * (abort) this wq (when syncro scanning) before sleeping
-	 * on the semaphore
+	 * on the mutex
 	 */
 	if (!ieee->proto_started) {
 		netdev_info(ieee->dev, "==========oh driver down return\n");
 		return;
 	}
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->current_network.ssid_len == 0) {
 		strcpy(ieee->current_network.ssid, RTLLIB_DEFAULT_TX_ESSID);
@@ -2703,7 +2703,7 @@ static void rtllib_start_ibss_wq(void *data)
 
 	netif_carrier_on(ieee->dev);
 
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 
 inline void rtllib_start_ibss(struct rtllib_device *ieee)
@@ -2711,7 +2711,7 @@ inline void rtllib_start_ibss(struct rtllib_device *ieee)
 	schedule_delayed_work(&ieee->start_ibss_wq, msecs_to_jiffies(150));
 }
 
-/* this is called only in user context, with wx_sem held */
+/* this is called only in user context, with wx_mutex held */
 static void rtllib_start_bss(struct rtllib_device *ieee)
 {
 	unsigned long flags;
@@ -2773,7 +2773,7 @@ static void rtllib_associate_retry_wq(void *data)
 				     struct rtllib_device, associate_retry_wq);
 	unsigned long flags;
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	if (!ieee->proto_started)
 		goto exit;
 
@@ -2806,7 +2806,7 @@ static void rtllib_associate_retry_wq(void *data)
 
 	ieee->beinretry = false;
 exit:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 
 static struct sk_buff *rtllib_get_beacon_(struct rtllib_device *ieee)
@@ -2853,9 +2853,9 @@ void rtllib_softmac_stop_protocol(struct rtllib_device *ieee, u8 mesh_flag,
 				  u8 shutdown)
 {
 	rtllib_stop_scan_syncro(ieee);
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	rtllib_stop_protocol(ieee, shutdown);
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 EXPORT_SYMBOL(rtllib_softmac_stop_protocol);
 
@@ -2902,9 +2902,9 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 
 void rtllib_softmac_start_protocol(struct rtllib_device *ieee, u8 mesh_flag)
 {
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	rtllib_start_protocol(ieee);
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 EXPORT_SYMBOL(rtllib_softmac_start_protocol);
 
@@ -3034,7 +3034,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	INIT_WORK_RSL(&ieee->wx_sync_scan_wq, (void *)rtllib_wx_sync_scan_wq,
 		      ieee);
 
-	sema_init(&ieee->wx_sem, 1);
+	mutex_init(&ieee->wx_mutex);
 	sema_init(&ieee->scan_sem, 1);
 	sema_init(&ieee->ips_sem, 1);
 
@@ -3049,7 +3049,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 
 void rtllib_softmac_free(struct rtllib_device *ieee)
 {
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	kfree(ieee->pDot11dInfo);
 	ieee->pDot11dInfo = NULL;
 	del_timer_sync(&ieee->associate_timer);
@@ -3064,7 +3064,7 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 	cancel_work_sync(&ieee->associate_complete_wq);
 	cancel_work_sync(&ieee->ips_leave_wq);
 	cancel_work_sync(&ieee->wx_sync_scan_wq);
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	tasklet_kill(&ieee->ps_task);
 }
 
@@ -3499,7 +3499,7 @@ int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee, struct iw_point *p,
 	struct ieee_param *param;
 	int ret = 0;
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (p->length < sizeof(struct ieee_param) || !p->pointer) {
 		ret = -EINVAL;
@@ -3543,7 +3543,7 @@ int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee, struct iw_point *p,
 
 	kfree(param);
 out:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 
 	return ret;
 }

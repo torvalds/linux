@@ -31,6 +31,7 @@
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
+#include <linux/mutex.h>
 
 #include <linux/delay.h>
 #include <linux/wireless.h>
@@ -1651,7 +1652,7 @@ struct rtllib_device {
 	short proto_started;
 	short proto_stoppping;
 
-	struct semaphore wx_sem;
+	struct mutex wx_mutex;
 	struct semaphore scan_sem;
 	struct semaphore ips_sem;
 
@@ -2212,7 +2213,5 @@ void rtllib_indicate_packets(struct rtllib_device *ieee,
 void HTUseDefaultSetting(struct rtllib_device *ieee);
 #define RT_ASOC_RETRY_LIMIT	5
 u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee);
-#define SEM_DOWN_IEEE_WX(psem) down(psem)
-#define SEM_UP_IEEE_WX(psem) up(psem)
 
 #endif /* RTLLIB_H */
