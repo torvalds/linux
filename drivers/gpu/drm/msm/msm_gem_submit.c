@@ -29,10 +29,11 @@
 #define BO_PINNED   0x2000
 
 static struct msm_gem_submit *submit_create(struct drm_device *dev,
-		struct msm_gpu *gpu, int nr)
+		struct msm_gpu *gpu, int nr_bos, int nr_cmds)
 {
 	struct msm_gem_submit *submit;
-	int sz = sizeof(*submit) + (nr * sizeof(submit->bos[0]));
+	int sz = sizeof(*submit) + (nr_bos * sizeof(submit->bos[0])) +
+			(nr_cmds * sizeof(*submit->cmd));
 
 	submit = kmalloc(sz, GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
 	if (!submit)
@@ -42,6 +43,7 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 	submit->gpu = gpu;
 	submit->fence = NULL;
 	submit->pid = get_pid(task_pid(current));
+	submit->cmd = (void *)&submit->bos[nr_bos];
 
 	/* initially, until copy_from_user() and bo lookup succeeds: */
 	submit->nr_bos = 0;
@@ -371,14 +373,11 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (args->pipe != MSM_PIPE_3D0)
 		return -EINVAL;
 
-	if (args->nr_cmds > MAX_CMDS)
-		return -EINVAL;
-
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	submit = submit_create(dev, gpu, args->nr_bos);
+	submit = submit_create(dev, gpu, args->nr_bos, args->nr_cmds);
 	if (!submit) {
 		ret = -ENOMEM;
 		goto out_unlock;

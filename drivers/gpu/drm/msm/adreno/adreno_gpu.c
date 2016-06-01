@@ -139,7 +139,7 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct msm_drm_private *priv = gpu->dev->dev_private;
 	struct msm_ringbuffer *ring = gpu->rb;
-	unsigned i, ibs = 0;
+	unsigned i;
 
 	for (i = 0; i < submit->nr_cmds; i++) {
 		switch (submit->cmd[i].type) {
@@ -155,17 +155,10 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 				CP_INDIRECT_BUFFER_PFE : CP_INDIRECT_BUFFER_PFD, 2);
 			OUT_RING(ring, submit->cmd[i].iova);
 			OUT_RING(ring, submit->cmd[i].size);
-			ibs++;
+			OUT_PKT2(ring);
 			break;
 		}
 	}
-
-	/* on a320, at least, we seem to need to pad things out to an
-	 * even number of qwords to avoid issue w/ CP hanging on wrap-
-	 * around:
-	 */
-	if (ibs % 2)
-		OUT_PKT2(ring);
 
 	OUT_PKT0(ring, REG_AXXX_CP_SCRATCH_REG2, 1);
 	OUT_RING(ring, submit->fence->seqno);

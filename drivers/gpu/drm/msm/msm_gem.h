@@ -93,8 +93,6 @@ static inline bool is_vunmapable(struct msm_gem_object *msm_obj)
 	return (msm_obj->vmap_count == 0) && msm_obj->vaddr;
 }
 
-#define MAX_CMDS 4
-
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,
  * associated with the cmdstream submission for synchronization (and
  * make it easier to unwind when things go wrong, etc).  This only
@@ -116,7 +114,7 @@ struct msm_gem_submit {
 		uint32_t size;  /* in dwords */
 		uint32_t iova;
 		uint32_t idx;   /* cmdstream buffer idx in bos[] */
-	} cmd[MAX_CMDS];
+	} *cmd;  /* array of size nr_cmds */
 	struct {
 		uint32_t flags;
 		struct msm_gem_object *obj;
