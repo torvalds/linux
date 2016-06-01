@@ -237,6 +237,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	i = ring->idx;
 	do {
 		struct fence *flushed;
+		bool same_ring = ring->idx == i;
 
 		id = vm->ids[i++];
 		if (i == AMDGPU_MAX_RINGS)
@@ -252,7 +253,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (pd_addr != id->pd_gpu_addr)
 			continue;
 
-		if (id->last_user != ring &&
+		if (!same_ring &&
 		    (!id->last_flush || !fence_is_signaled(id->last_flush)))
 			continue;
 
@@ -261,15 +262,9 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		    (!flushed || fence_is_later(updates, flushed)))
 			continue;
 
-		/* Good we can use this VMID */
-		if (id->last_user == ring) {
-			r = amdgpu_sync_fence(ring->adev, sync,
-					      id->first);
-			if (r)
-				goto error;
-		}
-
-		/* And remember this submission as user of the VMID */
+		/* Good we can use this VMID. Remember this submission as
+		 * user of the VMID.
+		 */
 		r = amdgpu_sync_fence(ring->adev, &id->active, fence);
 		if (r)
 			goto error;
@@ -306,7 +301,6 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	id->pd_gpu_addr = pd_addr;
 
 	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
-	id->last_user = ring;
 	atomic64_set(&id->owner, vm->client_id);
 	vm->ids[ring->idx] = id;
 
@@ -357,16 +351,13 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring,
 		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id);
 		amdgpu_ring_emit_vm_flush(ring, vm_id, pd_addr);
 
+		r = amdgpu_fence_emit(ring, &fence);
+		if (r)
+			return r;
+
 		mutex_lock(&adev->vm_manager.lock);
-		if ((id->pd_gpu_addr == pd_addr) && (id->last_user == ring)) {
-			r = amdgpu_fence_emit(ring, &fence);
-			if (r) {
-				mutex_unlock(&adev->vm_manager.lock);
-				return r;
-			}
-			fence_put(id->last_flush);
-			id->last_flush = fence;
-		}
+		fence_put(id->last_flush);
+		id->last_flush = fence;
 		mutex_unlock(&adev->vm_manager.lock);
 	}
 
