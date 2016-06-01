@@ -143,7 +143,7 @@ static struct delay_timer dw_apb_delay_timer = {
 #endif
 
 static int num_called;
-static void __init dw_apb_timer_init(struct device_node *timer)
+static int __init dw_apb_timer_init(struct device_node *timer)
 {
 	switch (num_called) {
 	case 0:
@@ -164,8 +164,10 @@ static void __init dw_apb_timer_init(struct device_node *timer)
 	}
 
 	num_called++;
+
+	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(pc3x2_timer, "picochip,pc3x2-timer", dw_apb_timer_init);
-CLOCKSOURCE_OF_DECLARE(apb_timer_osc, "snps,dw-apb-timer-osc", dw_apb_timer_init);
-CLOCKSOURCE_OF_DECLARE(apb_timer_sp, "snps,dw-apb-timer-sp", dw_apb_timer_init);
-CLOCKSOURCE_OF_DECLARE(apb_timer, "snps,dw-apb-timer", dw_apb_timer_init);
+CLOCKSOURCE_OF_DECLARE_RET(pc3x2_timer, "picochip,pc3x2-timer", dw_apb_timer_init);
+CLOCKSOURCE_OF_DECLARE_RET(apb_timer_osc, "snps,dw-apb-timer-osc", dw_apb_timer_init);
+CLOCKSOURCE_OF_DECLARE_RET(apb_timer_sp, "snps,dw-apb-timer-sp", dw_apb_timer_init);
+CLOCKSOURCE_OF_DECLARE_RET(apb_timer, "snps,dw-apb-timer", dw_apb_timer_init);
