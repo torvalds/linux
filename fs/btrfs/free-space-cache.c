@@ -1660,7 +1660,7 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	 * sure we don't go over our overall goal of MAX_CACHE_BYTES_PER_GIG as
 	 * we add more bitmaps.
 	 */
-	bitmap_bytes = (ctl->total_bitmaps + 1) * PAGE_SIZE;
+	bitmap_bytes = (ctl->total_bitmaps + 1) * ctl->unit;
 
 	if (bitmap_bytes >= max_bytes) {
 		ctl->extents_thresh = 0;

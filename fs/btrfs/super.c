@@ -2319,27 +2319,31 @@ static void btrfs_print_mod_info(void)
 static int btrfs_run_sanity_tests(void)
 {
 	int ret;
+	u32 sectorsize, nodesize;
 
+	sectorsize = PAGE_SIZE;
+	nodesize = PAGE_SIZE;
 	ret = btrfs_init_test_fs();
 	if (ret)
 		return ret;
 
-	ret = btrfs_test_free_space_cache();
+	ret = btrfs_test_free_space_cache(sectorsize, nodesize);
 	if (ret)
 		goto out;
-	ret = btrfs_test_extent_buffer_operations();
+	ret = btrfs_test_extent_buffer_operations(sectorsize,
+		nodesize);
 	if (ret)
 		goto out;
-	ret = btrfs_test_extent_io();
+	ret = btrfs_test_extent_io(sectorsize, nodesize);
 	if (ret)
 		goto out;
-	ret = btrfs_test_inodes();
+	ret = btrfs_test_inodes(sectorsize, nodesize);
 	if (ret)
 		goto out;
-	ret = btrfs_test_qgroups();
+	ret = btrfs_test_qgroups(sectorsize, nodesize);
 	if (ret)
 		goto out;
-	ret = btrfs_test_free_space_tree();
+	ret = btrfs_test_free_space_tree(sectorsize, nodesize);
 out:
 	btrfs_destroy_test_fs();
 	return ret;
