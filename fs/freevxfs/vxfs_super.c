@@ -52,19 +52,6 @@ MODULE_AUTHOR("Christoph Hellwig");
 MODULE_DESCRIPTION("Veritas Filesystem (VxFS) driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
-
-
-static void		vxfs_put_super(struct super_block *);
-static int		vxfs_statfs(struct dentry *, struct kstatfs *);
-static int		vxfs_remount(struct super_block *, int *, char *);
-
-static const struct super_operations vxfs_super_ops = {
-	.evict_inode =		vxfs_evict_inode,
-	.put_super =		vxfs_put_super,
-	.statfs =		vxfs_statfs,
-	.remount_fs =		vxfs_remount,
-};
-
 /**
  * vxfs_put_super - free superblock resources
  * @sbp:	VFS superblock.
@@ -130,6 +117,12 @@ static int vxfs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+static const struct super_operations vxfs_super_ops = {
+	.evict_inode		= vxfs_evict_inode,
+	.put_super		= vxfs_put_super,
+	.statfs			= vxfs_statfs,
+	.remount_fs		= vxfs_remount,
+};
 
 static int vxfs_try_sb_magic(struct super_block *sbp, int silent,
 		unsigned blk, __fs32 magic)
