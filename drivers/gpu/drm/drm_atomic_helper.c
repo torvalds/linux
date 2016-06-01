@@ -110,8 +110,10 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 
 		if (funcs->atomic_best_encoder)
 			new_encoder = funcs->atomic_best_encoder(connector, conn_state);
-		else
+		else if (funcs->best_encoder)
 			new_encoder = funcs->best_encoder(connector);
+		else
+			new_encoder = drm_atomic_helper_best_encoder(connector);
 
 		if (new_encoder) {
 			if (encoder_mask & (1 << drm_encoder_index(new_encoder))) {
