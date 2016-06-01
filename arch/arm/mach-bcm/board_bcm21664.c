@@ -12,7 +12,6 @@
  */
 
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/io.h>
 
 #include <asm/mach/arch.h>
@@ -60,7 +59,6 @@ static void bcm21664_restart(enum reboot_mode mode, const char *cmd)
 
 static void __init bcm21664_init(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	kona_l2_cache_init();
 }
 

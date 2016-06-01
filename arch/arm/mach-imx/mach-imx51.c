@@ -52,8 +52,6 @@ static void __init imx51_dt_init(void)
 {
 	imx51_ipu_mipi_setup();
 	imx_src_init();
-
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static void __init imx51_init_late(void)

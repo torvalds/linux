@@ -73,7 +73,6 @@ static void __init rockchip_timer_init(void)
 static void __init rockchip_dt_init(void)
 {
 	rockchip_suspend_init();
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char * const rockchip_board_dt_compat[] = {
