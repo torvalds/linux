@@ -9,12 +9,11 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -153,13 +152,11 @@ static void __exception_irq_entry tzic_handle_irq(struct pt_regs *regs)
  * interrupts. It registers the interrupt enable and disable functions
  * to the kernel for each interrupt source.
  */
-void __init tzic_init_irq(void)
+static int __init tzic_init_dt(struct device_node *np, struct device_node *p)
 {
-	struct device_node *np;
 	int irq_base;
 	int i;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,tzic");
 	tzic_base = of_iomap(np, 0);
 	WARN_ON(!tzic_base);
 
@@ -199,7 +196,10 @@ void __init tzic_init_irq(void)
 #endif
 
 	pr_info("TrustZone Interrupt Controller (TZIC) initialized\n");
+
+	return 0;
 }
+IRQCHIP_DECLARE(tzic, "fsl,tzic", tzic_init_dt);
 
 /**
  * tzic_enable_wake() - enable wakeup interrupt

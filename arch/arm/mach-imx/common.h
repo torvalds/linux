@@ -32,7 +32,6 @@ void imx27_init_early(void);
 void imx31_init_early(void);
 void imx35_init_early(void);
 void mxc_init_irq(void __iomem *);
-void tzic_init_irq(void);
 void mx1_init_irq(void);
 void mx21_init_irq(void);
 void mx27_init_irq(void);
