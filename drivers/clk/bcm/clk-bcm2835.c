@@ -303,8 +303,8 @@ struct bcm2835_cprman {
 	spinlock_t regs_lock; /* spinlock for all clocks */
 	const char *osc_name;
 
-	struct clk_onecell_data onecell;
-	struct clk *clks[];
+	/* Must be last */
+	struct clk_hw_onecell_data onecell;
 };
 
 static inline void cprman_write(struct bcm2835_cprman *cprman, u32 reg, u32 val)
@@ -345,24 +345,24 @@ static int bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
  */
 void __init bcm2835_init_clocks(void)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	int ret;
 
-	clk = clk_register_fixed_rate(NULL, "apb_pclk", NULL, 0, 126000000);
-	if (IS_ERR(clk))
+	hw = clk_hw_register_fixed_rate(NULL, "apb_pclk", NULL, 0, 126000000);
+	if (IS_ERR(hw))
 		pr_err("apb_pclk not registered\n");
 
-	clk = clk_register_fixed_rate(NULL, "uart0_pclk", NULL, 0, 3000000);
-	if (IS_ERR(clk))
+	hw = clk_hw_register_fixed_rate(NULL, "uart0_pclk", NULL, 0, 3000000);
+	if (IS_ERR(hw))
 		pr_err("uart0_pclk not registered\n");
-	ret = clk_register_clkdev(clk, NULL, "20201000.uart");
+	ret = clk_hw_register_clkdev(hw, NULL, "20201000.uart");
 	if (ret)
 		pr_err("uart0_pclk alias not registered\n");
 
-	clk = clk_register_fixed_rate(NULL, "uart1_pclk", NULL, 0, 125000000);
-	if (IS_ERR(clk))
+	hw = clk_hw_register_fixed_rate(NULL, "uart1_pclk", NULL, 0, 125000000);
+	if (IS_ERR(hw))
 		pr_err("uart1_pclk not registered\n");
-	ret = clk_register_clkdev(clk, NULL, "20215000.uart");
+	ret = clk_hw_register_clkdev(hw, NULL, "20215000.uart");
 	if (ret)
 		pr_err("uart1_pclk alias not registered\n");
 }
@@ -1147,11 +1147,12 @@ static const struct clk_ops bcm2835_vpu_clock_clk_ops = {
 	.debug_init = bcm2835_clock_debug_init,
 };
 
-static struct clk *bcm2835_register_pll(struct bcm2835_cprman *cprman,
-					const struct bcm2835_pll_data *data)
+static struct clk_hw *bcm2835_register_pll(struct bcm2835_cprman *cprman,
+					   const struct bcm2835_pll_data *data)
 {
 	struct bcm2835_pll *pll;
 	struct clk_init_data init;
+	int ret;
 
 	memset(&init, 0, sizeof(init));
 
@@ -1170,17 +1171,20 @@ static struct clk *bcm2835_register_pll(struct bcm2835_cprman *cprman,
 	pll->data = data;
 	pll->hw.init = &init;
 
-	return devm_clk_register(cprman->dev, &pll->hw);
+	ret = devm_clk_hw_register(cprman->dev, &pll->hw);
+	if (ret)
+		return NULL;
+	return &pll->hw;
 }
 
-static struct clk *
+static struct clk_hw *
 bcm2835_register_pll_divider(struct bcm2835_cprman *cprman,
 			     const struct bcm2835_pll_divider_data *data)
 {
 	struct bcm2835_pll_divider *divider;
 	struct clk_init_data init;
-	struct clk *clk;
 	const char *divider_name;
+	int ret;
 
 	if (data->fixed_divider != 1) {
 		divider_name = devm_kasprintf(cprman->dev, GFP_KERNEL,
@@ -1214,32 +1218,33 @@ bcm2835_register_pll_divider(struct bcm2835_cprman *cprman,
 	divider->cprman = cprman;
 	divider->data = data;
 
-	clk = devm_clk_register(cprman->dev, &divider->div.hw);
-	if (IS_ERR(clk))
-		return clk;
+	ret = devm_clk_hw_register(cprman->dev, &divider->div.hw);
+	if (ret)
+		return ERR_PTR(ret);
 
 	/*
 	 * PLLH's channels have a fixed divide by 10 afterwards, which
 	 * is what our consumers are actually using.
 	 */
 	if (data->fixed_divider != 1) {
-		return clk_register_fixed_factor(cprman->dev, data->name,
-						 divider_name,
-						 CLK_SET_RATE_PARENT,
-						 1,
-						 data->fixed_divider);
+		return clk_hw_register_fixed_factor(cprman->dev, data->name,
+						    divider_name,
+						    CLK_SET_RATE_PARENT,
+						    1,
+						    data->fixed_divider);
 	}
 
-	return clk;
+	return &divider->div.hw;
 }
 
-static struct clk *bcm2835_register_clock(struct bcm2835_cprman *cprman,
+static struct clk_hw *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 					  const struct bcm2835_clock_data *data)
 {
 	struct bcm2835_clock *clock;
 	struct clk_init_data init;
 	const char *parents[1 << CM_SRC_BITS];
 	size_t i;
+	int ret;
 
 	/*
 	 * Replace our "xosc" references with the oscillator's
@@ -1279,7 +1284,10 @@ static struct clk *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 	clock->data = data;
 	clock->hw.init = &init;
 
-	return devm_clk_register(cprman->dev, &clock->hw);
+	ret = devm_clk_hw_register(cprman->dev, &clock->hw);
+	if (ret)
+		return ERR_PTR(ret);
+	return &clock->hw;
 }
 
 static struct clk *bcm2835_register_gate(struct bcm2835_cprman *cprman,
@@ -1291,8 +1299,8 @@ static struct clk *bcm2835_register_gate(struct bcm2835_cprman *cprman,
 				 CM_GATE_BIT, 0, &cprman->regs_lock);
 }
 
-typedef struct clk *(*bcm2835_clk_register)(struct bcm2835_cprman *cprman,
-					    const void *data);
+typedef struct clk_hw *(*bcm2835_clk_register)(struct bcm2835_cprman *cprman,
+					       const void *data);
 struct bcm2835_clk_desc {
 	bcm2835_clk_register clk_register;
 	const void *data;
@@ -1847,7 +1855,7 @@ static int bcm2835_mark_sdc_parent_critical(struct clk *sdc)
 static int bcm2835_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct clk **clks;
+	struct clk_hw **hws;
 	struct bcm2835_cprman *cprman;
 	struct resource *res;
 	const struct bcm2835_clk_desc *desc;
@@ -1855,8 +1863,8 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 	size_t i;
 	int ret;
 
-	cprman = devm_kzalloc(dev,
-			      sizeof(*cprman) + asize * sizeof(*clks),
+	cprman = devm_kzalloc(dev, sizeof(*cprman) +
+			      sizeof(*cprman->onecell.hws) * asize,
 			      GFP_KERNEL);
 	if (!cprman)
 		return -ENOMEM;
@@ -1874,22 +1882,21 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, cprman);
 
-	cprman->onecell.clk_num = asize;
-	cprman->onecell.clks = cprman->clks;
-	clks = cprman->clks;
+	cprman->onecell.num = asize;
+	hws = cprman->onecell.hws;
 
 	for (i = 0; i < asize; i++) {
 		desc = &clk_desc_array[i];
 		if (desc->clk_register && desc->data)
-			clks[i] = desc->clk_register(cprman, desc->data);
+			hws[i] = desc->clk_register(cprman, desc->data);
 	}
 
-	ret = bcm2835_mark_sdc_parent_critical(clks[BCM2835_CLOCK_SDRAM]);
+	ret = bcm2835_mark_sdc_parent_critical(hws[BCM2835_CLOCK_SDRAM]->clk);
 	if (ret)
 		return ret;
 
-	return of_clk_add_provider(dev->of_node, of_clk_src_onecell_get,
-				   &cprman->onecell);
+	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+				      &cprman->onecell);
 }
 
 static const struct of_device_id bcm2835_clk_of_match[] = {
