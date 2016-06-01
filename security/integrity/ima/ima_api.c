@@ -266,7 +266,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 					    xattr_len, NULL};
 	int violation = 0;
 
-	if (iint->flags & IMA_MEASURED)
+	if (iint->measured_pcrs & (0x1 << pcr))
 		return;
 
 	result = ima_alloc_init_template(&event_data, &entry);
@@ -277,8 +277,10 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	}
 
 	result = ima_store_template(entry, violation, inode, filename, pcr);
-	if (!result || result == -EEXIST)
+	if (!result || result == -EEXIST) {
 		iint->flags |= IMA_MEASURED;
+		iint->measured_pcrs |= (0x1 << pcr);
+	}
 	if (result < 0)
 		ima_free_template_entry(entry);
 }

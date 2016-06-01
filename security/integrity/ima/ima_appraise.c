@@ -370,6 +370,7 @@ static void ima_reset_appraise_flags(struct inode *inode, int digsig)
 		return;
 
 	iint->flags &= ~IMA_DONE_MASK;
+	iint->measured_pcrs = 0;
 	if (digsig)
 		iint->flags |= IMA_DIGSIG;
 	return;

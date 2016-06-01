@@ -125,6 +125,7 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
 		if ((iint->version != inode->i_version) ||
 		    (iint->flags & IMA_NEW_FILE)) {
 			iint->flags &= ~(IMA_DONE_MASK | IMA_NEW_FILE);
+			iint->measured_pcrs = 0;
 			if (iint->flags & IMA_APPRAISE)
 				ima_update_xattr(iint, file);
 		}
@@ -210,7 +211,11 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	 */
 	iint->flags |= action;
 	action &= IMA_DO_MASK;
-	action &= ~((iint->flags & IMA_DONE_MASK) >> 1);
+	action &= ~((iint->flags & (IMA_DONE_MASK ^ IMA_MEASURED)) >> 1);
+
+	/* If target pcr is already measured, unset IMA_MEASURE action */
+	if ((action & IMA_MEASURE) && (iint->measured_pcrs & (0x1 << pcr)))
+		action ^= IMA_MEASURE;
 
 	/* Nothing to do, just return existing appraised status */
 	if (!action) {
