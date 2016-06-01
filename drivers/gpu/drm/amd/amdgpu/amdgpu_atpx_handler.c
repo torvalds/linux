@@ -183,6 +183,11 @@ static int amdgpu_atpx_validate(struct amdgpu_atpx *atpx)
 				  ATPX_DFP_SIGNAL_MUXED))
 			atpx->functions.disp_mux_cntl = true;
 
+		if (valid_bits & ATPX_MS_HYBRID_GFX_SUPPORTED) {
+			printk("Hybrid Graphics, ATPX dGPU power cntl disabled\n");
+			atpx->functions.power_cntl = false;
+		}
+
 		kfree(info);
 	}
 	return 0;
