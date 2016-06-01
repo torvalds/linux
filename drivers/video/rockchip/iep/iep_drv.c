@@ -30,6 +30,7 @@
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
 #include <asm/cacheflush.h>
@@ -54,7 +55,6 @@ MODULE_PARM_DESC(debug,
 
 struct iep_drvdata {
 	struct miscdevice miscdev;
-	struct device dev;
 	void *iep_base;
 	int irq0;
 
@@ -80,6 +80,7 @@ struct iep_drvdata {
 
 	/* capability for this iep device */
 	struct IEP_CAP cap;
+	struct device *dev;
 };
 
 struct iep_drvdata *iep_drvdata1 = NULL;
@@ -224,6 +225,7 @@ static void iep_power_on(void)
 	/* iep_soft_rst(iep_drvdata1->iep_base); */
 
 #ifdef IEP_CLK_ENABLE
+	pm_runtime_get_sync(iep_drvdata1->dev);
 	if (iep_drvdata1->pd_iep)
 		clk_prepare_enable(iep_drvdata1->pd_iep);
 	clk_prepare_enable(iep_drvdata1->aclk_iep);
@@ -270,6 +272,7 @@ static void iep_power_off(void)
 	clk_disable_unprepare(iep_drvdata1->hclk_iep);
 	if (iep_drvdata1->pd_iep)
 		clk_disable_unprepare(iep_drvdata1->pd_iep);
+	pm_runtime_put(iep_drvdata1->dev);
 #endif
 
 	wake_unlock(&iep_drvdata1->wake_lock);
@@ -1136,6 +1139,11 @@ static int iep_drv_probe(struct platform_device *pdev)
 		goto err_misc_register;
 	}
 
+	data->dev = &pdev->dev;
+#ifdef IEP_CLK_ENABLE
+	pm_runtime_enable(data->dev);
+#endif
+
 #if defined(CONFIG_IEP_IOMMU)
 	iep_service.iommu_dev = NULL;
 	if (iommu_en) {
@@ -1207,6 +1215,8 @@ static int iep_drv_remove(struct platform_device *pdev)
 
 	if (data->pd_iep)
 		devm_clk_put(&pdev->dev, data->pd_iep);
+
+	pm_runtime_disable(data->dev);
 #endif
 
 	return 0;
