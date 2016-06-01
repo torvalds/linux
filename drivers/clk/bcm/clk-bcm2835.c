@@ -36,6 +36,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/clk.h>
 #include <linux/clk/bcm2835.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
@@ -1801,6 +1802,25 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.ctl_reg = CM_PERIICTL),
 };
 
+/*
+ * Permanently take a reference on the parent of the SDRAM clock.
+ *
+ * While the SDRAM is being driven by its dedicated PLL most of the
+ * time, there is a little loop running in the firmware that
+ * periodically switches the SDRAM to using our CM clock to do PVT
+ * recalibration, with the assumption that the previously configured
+ * SDRAM parent is still enabled and running.
+ */
+static int bcm2835_mark_sdc_parent_critical(struct clk *sdc)
+{
+	struct clk *parent = clk_get_parent(sdc);
+
+	if (IS_ERR(parent))
+		return PTR_ERR(parent);
+
+	return clk_prepare_enable(parent);
+}
+
 static int bcm2835_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1810,6 +1830,7 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 	const struct bcm2835_clk_desc *desc;
 	const size_t asize = ARRAY_SIZE(clk_desc_array);
 	size_t i;
+	int ret;
 
 	cprman = devm_kzalloc(dev,
 			      sizeof(*cprman) + asize * sizeof(*clks),
@@ -1839,6 +1860,10 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 		if (desc->clk_register && desc->data)
 			clks[i] = desc->clk_register(cprman, desc->data);
 	}
+
+	ret = bcm2835_mark_sdc_parent_critical(clks[BCM2835_CLOCK_SDRAM]);
+	if (ret)
+		return ret;
 
 	return of_clk_add_provider(dev->of_node, of_clk_src_onecell_get,
 				   &cprman->onecell);
