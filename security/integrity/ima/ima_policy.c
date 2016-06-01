@@ -324,6 +324,7 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * @inode: pointer to an inode for which the policy decision is being made
  * @func: IMA hook identifier
  * @mask: requested action (MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
+ * @pcr: set the pcr to extend
  *
  * Measure decision based on func/mask/fsmagic and LSM(subj/obj/type)
  * conditions.
@@ -333,7 +334,7 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * than writes so ima_match_policy() is classical RCU candidate.
  */
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
-		     int flags)
+		     int flags, int *pcr)
 {
 	struct ima_rule_entry *entry;
 	int action = 0, actmask = flags | (flags << 1);
@@ -357,6 +358,9 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 			actmask &= ~(entry->action | entry->action << 1);
 		else
 			actmask &= ~(entry->action | entry->action >> 1);
+
+		if ((pcr) && (entry->flags & IMA_PCR))
+			*pcr = entry->pcr;
 
 		if (!actmask)
 			break;
