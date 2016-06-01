@@ -79,9 +79,9 @@ vxfs_put_super(struct super_block *sbp)
 {
 	struct vxfs_sb_info	*infp = VXFS_SBI(sbp);
 
-	vxfs_put_fake_inode(infp->vsi_fship);
-	vxfs_put_fake_inode(infp->vsi_ilist);
-	vxfs_put_fake_inode(infp->vsi_stilist);
+	iput(infp->vsi_fship);
+	iput(infp->vsi_ilist);
+	iput(infp->vsi_stilist);
 
 	brelse(infp->vsi_bp);
 	kfree(infp);
@@ -278,9 +278,9 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	return 0;
 	
 out_free_ilist:
-	vxfs_put_fake_inode(infp->vsi_fship);
-	vxfs_put_fake_inode(infp->vsi_ilist);
-	vxfs_put_fake_inode(infp->vsi_stilist);
+	iput(infp->vsi_fship);
+	iput(infp->vsi_ilist);
+	iput(infp->vsi_stilist);
 out:
 	brelse(infp->vsi_bp);
 	kfree(infp);

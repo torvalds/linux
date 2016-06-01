@@ -296,19 +296,6 @@ vxfs_get_fake_inode(struct super_block *sbp, struct vxfs_inode_info *vip)
 }
 
 /**
- * vxfs_put_fake_inode - free faked inode
- * *ip:			VFS inode
- *
- * Description:
- *  vxfs_put_fake_inode frees all data associated with @ip.
- */
-void
-vxfs_put_fake_inode(struct inode *ip)
-{
-	iput(ip);
-}
-
-/**
  * vxfs_iget - get an inode
  * @sbp:	the superblock to get the inode for
  * @ino:	the number of the inode to get
