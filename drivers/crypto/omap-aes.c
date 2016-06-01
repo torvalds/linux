@@ -1185,17 +1185,19 @@ static int omap_aes_probe(struct platform_device *pdev)
 	spin_unlock(&list_lock);
 
 	for (i = 0; i < dd->pdata->algs_info_size; i++) {
-		for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
-			algp = &dd->pdata->algs_info[i].algs_list[j];
+		if (!dd->pdata->algs_info[i].registered) {
+			for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
+				algp = &dd->pdata->algs_info[i].algs_list[j];
 
-			pr_debug("reg alg: %s\n", algp->cra_name);
-			INIT_LIST_HEAD(&algp->cra_list);
+				pr_debug("reg alg: %s\n", algp->cra_name);
+				INIT_LIST_HEAD(&algp->cra_list);
 
-			err = crypto_register_alg(algp);
-			if (err)
-				goto err_algs;
+				err = crypto_register_alg(algp);
+				if (err)
+					goto err_algs;
 
-			dd->pdata->algs_info[i].registered++;
+				dd->pdata->algs_info[i].registered++;
+			}
 		}
 	}
 
