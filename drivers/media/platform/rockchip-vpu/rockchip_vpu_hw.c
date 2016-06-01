@@ -1,5 +1,5 @@
 /*
- * Rockchip RK3288 VPU codec driver
+ * Rockchip VPU codec driver
  *
  * Copyright (C) 2014 Google, Inc.
  *	Tomasz Figa <tfiga@chromium.org>
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  */
 
-#include "rk3288_vpu_common.h"
+#include "rockchip_vpu_common.h"
 
 #include <linux/clk.h>
 #include <linux/delay.h>

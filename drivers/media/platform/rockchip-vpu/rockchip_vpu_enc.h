@@ -1,8 +1,9 @@
 /*
- * Rockchip RK3288 VPU codec driver
+ * Rockchip VPU codec driver
  *
- * Copyright (C) 2014 Rockchip Electronics Co., Ltd.
- *	Hertz Wong <hertz.wong@rock-chips.com>
+ * Copyright (c) 2014 Rockchip Electronics Co., Ltd.
+ *	Alpha Lin <Alpha.Lin@rock-chips.com>
+ *	Jeffy Chen <jeffy.chen@rock-chips.com>
  *
  * Copyright (C) 2014 Google, Inc.
  *	Tomasz Figa <tfiga@chromium.org>
@@ -21,13 +22,15 @@
  * GNU General Public License for more details.
  */
 
-#ifndef RK3288_VPU_DEC_H_
-#define RK3288_VPU_DEC_H_
+#ifndef ROCKCHIP_VPU_ENC_H_
+#define ROCKCHIP_VPU_ENC_H_
 
-struct vb2_ops *get_dec_queue_ops(void);
-const struct v4l2_ioctl_ops *get_dec_v4l2_ioctl_ops(void);
-struct rk3288_vpu_fmt *get_dec_def_fmt(bool src);
-int rk3288_vpu_dec_init(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_dec_exit(struct rk3288_vpu_ctx *ctx);
+struct vb2_ops *get_enc_queue_ops(void);
+const struct v4l2_ioctl_ops *get_enc_v4l2_ioctl_ops(void);
+struct rk3288_vpu_fmt *get_enc_def_fmt(bool src);
+int rk3288_vpu_enc_init(struct rk3288_vpu_ctx *ctx);
+void rk3288_vpu_enc_exit(struct rk3288_vpu_ctx *ctx);
+int rk3288_vpu_enc_init_dummy_ctx(struct rk3288_vpu_dev *dev);
+void rk3288_vpu_enc_free_dummy_ctx(struct rk3288_vpu_dev *dev);
 
-#endif /* RK3288_VPU_DEC_H_ */
+#endif				/* ROCKCHIP_VPU_ENC_H_  */

@@ -1,5 +1,5 @@
 /*
- * Rockchip RK3288 VPU codec driver
+ * Rockchip VPU codec driver
  *
  * Copyright (C) 2014 Rockchip Electronics Co., Ltd.
  *	Alpha Lin <Alpha.Lin@rock-chips.com>
@@ -22,7 +22,7 @@
  * GNU General Public License for more details.
  */
 
-#include "rk3288_vpu_common.h"
+#include "rockchip_vpu_common.h"
 
 #include <linux/clk.h>
 #include <linux/interrupt.h>
@@ -38,8 +38,8 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-sg.h>
 
-#include "rk3288_vpu_enc.h"
-#include "rk3288_vpu_hw.h"
+#include "rockchip_vpu_enc.h"
+#include "rockchip_vpu_hw.h"
 
 #define DEF_SRC_FMT_ENC				V4L2_PIX_FMT_NV12
 #define DEF_DST_FMT_ENC				V4L2_PIX_FMT_VP8

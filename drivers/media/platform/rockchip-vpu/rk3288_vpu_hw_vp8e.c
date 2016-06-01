@@ -18,13 +18,13 @@
  * GNU General Public License for more details.
  */
 
-#include "rk3288_vpu_common.h"
+#include "rockchip_vpu_common.h"
 
 #include <linux/types.h>
 #include <linux/sort.h>
 
 #include "rk3288_vpu_regs.h"
-#include "rk3288_vpu_hw.h"
+#include "rockchip_vpu_hw.h"
 
 /* Various parameters specific to VP8 encoder. */
 #define VP8_CABAC_CTX_OFFSET			192

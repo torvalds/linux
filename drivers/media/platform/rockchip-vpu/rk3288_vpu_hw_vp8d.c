@@ -17,9 +17,9 @@
  * GNU General Public License for more details.
  */
 
-#include "rk3288_vpu_hw.h"
+#include "rockchip_vpu_hw.h"
 #include "rk3288_vpu_regs.h"
-#include "rk3288_vpu_common.h"
+#include "rockchip_vpu_common.h"
 
 #define DEC_8190_ALIGN_MASK	0x07U
 

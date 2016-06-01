@@ -1,5 +1,5 @@
 /*
- * Rockchip RK3288 VPU codec driver
+ * Rockchip VPU codec driver
  *
  * Copyright (C) 2014 Google, Inc.
  *	Tomasz Figa <tfiga@chromium.org>
@@ -14,8 +14,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef RK3288_VPU_HW_H_
-#define RK3288_VPU_HW_H_
+#ifndef ROCKCHIP_VPU_HW_H_
+#define ROCKCHIP_VPU_HW_H_
 
 #include <media/videobuf2-core.h>
 
@@ -176,4 +176,4 @@ const struct rk3288_vp8e_reg_params *rk3288_vpu_vp8e_get_dummy_params(void);
 void rk3288_vpu_vp8e_assemble_bitstream(struct rk3288_vpu_ctx *ctx,
 					struct rk3288_vpu_buf *dst_buf);
 
-#endif /* RK3288_VPU_HW_H_ */
+#endif /* ROCKCHIP_VPU_HW_H_ */

@@ -1,5 +1,5 @@
 /*
- * Rockchip RK3288 VPU codec driver
+ * Rockchip VPU codec driver
  *
  * Copyright (C) 2014 Google, Inc.
  *	Tomasz Figa <tfiga@chromium.org>
@@ -18,7 +18,7 @@
  * GNU General Public License for more details.
  */
 
-#include "rk3288_vpu_common.h"
+#include "rockchip_vpu_common.h"
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -31,9 +31,9 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include "rk3288_vpu_dec.h"
-#include "rk3288_vpu_enc.h"
-#include "rk3288_vpu_hw.h"
+#include "rockchip_vpu_dec.h"
+#include "rockchip_vpu_enc.h"
+#include "rockchip_vpu_hw.h"
 
 int debug;
 module_param(debug, int, S_IRUGO | S_IWUSR);
@@ -821,4 +821,4 @@ module_platform_driver(rk3288_vpu_driver);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Alpha Lin <Alpha.Lin@Rock-Chips.com>");
 MODULE_AUTHOR("Tomasz Figa <tfiga@chromium.org>");
-MODULE_DESCRIPTION("Rockchip RK3288 VPU codec driver");
+MODULE_DESCRIPTION("Rockchip VPU codec driver");

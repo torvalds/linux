@@ -1,5 +1,5 @@
 /*
- * Rockchip RK3288 VPU codec driver
+ * Rockchip VPU codec driver
  *
  * Copyright (C) 2014 Google, Inc.
  *	Tomasz Figa <tfiga@chromium.org>
@@ -18,8 +18,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef RK3288_VPU_COMMON_H_
-#define RK3288_VPU_COMMON_H_
+#ifndef ROCKCHIP_VPU_COMMON_H_
+#define ROCKCHIP_VPU_COMMON_H_
 
 /* Enable debugging by default for now. */
 #define DEBUG
@@ -34,7 +34,7 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include "rk3288_vpu_hw.h"
+#include "rockchip_vpu_hw.h"
 
 #define RK3288_VPU_NAME			"rk3288-vpu"
 #define RK3288_VPU_DEC_NAME		"rk3288-vpu-dec"
@@ -518,4 +518,4 @@ static inline u32 vdpu_read(struct rk3288_vpu_dev *vpu, u32 reg)
 	return val;
 }
 
-#endif /* RK3288_VPU_COMMON_H_ */
+#endif /* ROCKCHIP_VPU_COMMON_H_ */
