@@ -281,9 +281,9 @@ static int _rtl92e_wx_set_mode(struct net_device *dev,
 				netdev_info(dev,
 					    "=========>%s(): rtl92e_ips_leave\n",
 					    __func__);
-				down(&priv->rtllib->ips_sem);
+				mutex_lock(&priv->rtllib->ips_mutex);
 				rtl92e_ips_leave(dev);
-				up(&priv->rtllib->ips_sem);
+				mutex_unlock(&priv->rtllib->ips_mutex);
 			}
 		}
 	}
@@ -442,9 +442,9 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 				RT_TRACE(COMP_PS,
 					 "=========>%s(): rtl92e_ips_leave\n",
 					 __func__);
-				down(&priv->rtllib->ips_sem);
+				mutex_lock(&priv->rtllib->ips_mutex);
 				rtl92e_ips_leave(dev);
-				up(&priv->rtllib->ips_sem);
+				mutex_unlock(&priv->rtllib->ips_mutex);
 			}
 		}
 		rtllib_stop_scan(priv->rtllib);
@@ -698,9 +698,9 @@ static int _rtl92e_wx_set_enc(struct net_device *dev,
 		return -ENETDOWN;
 
 	priv->rtllib->wx_set_enc = 1;
-	down(&priv->rtllib->ips_sem);
+	mutex_lock(&priv->rtllib->ips_mutex);
 	rtl92e_ips_leave(dev);
-	up(&priv->rtllib->ips_sem);
+	mutex_unlock(&priv->rtllib->ips_mutex);
 	mutex_lock(&priv->wx_mutex);
 
 	RT_TRACE(COMP_SEC, "Setting SW wep key");
@@ -905,9 +905,9 @@ static int _rtl92e_wx_set_encode_ext(struct net_device *dev,
 	mutex_lock(&priv->wx_mutex);
 
 	priv->rtllib->wx_set_enc = 1;
-	down(&priv->rtllib->ips_sem);
+	mutex_lock(&priv->rtllib->ips_mutex);
 	rtl92e_ips_leave(dev);
-	up(&priv->rtllib->ips_sem);
+	mutex_unlock(&priv->rtllib->ips_mutex);
 
 	ret = rtllib_wx_set_encode_ext(ieee, info, wrqu, extra);
 	{

@@ -3036,7 +3036,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 
 	mutex_init(&ieee->wx_mutex);
 	mutex_init(&ieee->scan_mutex);
-	sema_init(&ieee->ips_sem, 1);
+	mutex_init(&ieee->ips_mutex);
 
 	spin_lock_init(&ieee->mgmt_tx_lock);
 	spin_lock_init(&ieee->beacon_lock);

@@ -30,7 +30,6 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
-#include <linux/semaphore.h>
 #include <linux/mutex.h>
 
 #include <linux/delay.h>
@@ -1654,7 +1653,7 @@ struct rtllib_device {
 
 	struct mutex wx_mutex;
 	struct mutex scan_mutex;
-	struct semaphore ips_sem;
+	struct mutex ips_mutex;
 
 	spinlock_t mgmt_tx_lock;
 	spinlock_t beacon_lock;
