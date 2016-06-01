@@ -381,6 +381,9 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 	char *kbuf; /* k-addr because vread() takes vmlist_lock rwlock */
 	int err = 0;
 
+	if (!pfn_valid(PFN_DOWN(p)))
+		return -EIO;
+
 	read = 0;
 	if (p < (unsigned long) high_memory) {
 		low_count = count;
@@ -508,6 +511,9 @@ static ssize_t write_kmem(struct file *file, const char __user *buf,
 	ssize_t virtr = 0;
 	char *kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
 	int err = 0;
+
+	if (!pfn_valid(PFN_DOWN(p)))
+		return -EIO;
 
 	if (p < (unsigned long) high_memory) {
 		unsigned long to_write = min_t(unsigned long, count,
