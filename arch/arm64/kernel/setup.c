@@ -39,7 +39,6 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/memblock.h>
-#include <linux/of_iommu.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/efi.h>
@@ -305,7 +304,6 @@ void __init setup_arch(char **cmdline_p)
 static int __init arm64_device_init(void)
 {
 	if (of_have_populated_dt()) {
-		of_iommu_init();
 		of_platform_populate(NULL, of_default_bus_match_table,
 				     NULL, NULL);
 	} else if (acpi_disabled) {

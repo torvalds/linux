@@ -11,7 +11,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
-#include <linux/of_iommu.h>
 #include <linux/clocksource.h>
 #include <linux/irqchip.h>
 #include <linux/clk-provider.h>
@@ -185,7 +184,6 @@ static int __init sh_of_device_init(void)
 {
 	pr_info("SH generic board support: populating platform devices\n");
 	if (of_have_populated_dt()) {
-		of_iommu_init();
 		of_platform_populate(NULL, of_default_bus_match_table,
 				     NULL, NULL);
 	} else {
