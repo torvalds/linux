@@ -841,6 +841,11 @@
 			>;
 		};
 
+		pinctrl_wdog: wdoggrp {
+			fsl,pins = <
+				MX6UL_PAD_GPIO1_IO08__WDOG1_WDOG_B	0x30b0
+			>;
+		};
 	};
 };
 
@@ -1004,4 +1009,10 @@
 	enable-sdio-wakeup;
 	vmmc-supply = <&reg_sd2_vmmc>;
 	status = "okay";
+};
+
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,wdog_b;
 };
