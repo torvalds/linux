@@ -369,8 +369,6 @@ does not allocate any driver private context space.
 Switch configuration
 --------------------
 
-- priv_size: additional size needed by the switch driver for its private context
-
 - tag_protocol: this is to indicate what kind of tagging protocol is supported,
   should be a valid value from the dsa_tag_protocol enum
 
@@ -415,11 +413,6 @@ PHY devices and link management
 - phy_write: Function invoked by the DSA slave MDIO bus when attempting to write
   to the switch port MDIO registers. If unavailable return a negative error
   code.
-
-- poll_link: Function invoked by DSA to query the link state of the switch
-  builtin Ethernet PHYs, per port. This function is responsible for calling
-  netif_carrier_{on,off} when appropriate, and can be used to poll all ports in a
-  single call. Executes from workqueue context.
 
 - adjust_link: Function invoked by the PHY library when a slave network device
   is attached to a PHY device. This function is responsible for appropriately
@@ -541,6 +534,16 @@ Bridge layer
 
 Bridge VLAN filtering
 ---------------------
+
+- port_vlan_filtering: bridge layer function invoked when the bridge gets
+  configured for turning on or off VLAN filtering. If nothing specific needs to
+  be done at the hardware level, this callback does not need to be implemented.
+  When VLAN filtering is turned on, the hardware must be programmed with
+  rejecting 802.1Q frames which have VLAN IDs outside of the programmed allowed
+  VLAN ID map/rules.  If there is no PVID programmed into the switch port,
+  untagged frames must be rejected as well. When turned off the switch must
+  accept any 802.1Q frames irrespective of their VLAN ID, and untagged frames are
+  allowed.
 
 - port_vlan_prepare: bridge layer function invoked when the bridge prepares the
   configuration of a VLAN on the given port. If the operation is not supported

@@ -124,7 +124,7 @@ as_indicate_complete:
 		break;
 	case as_addparty:
 	case as_dropparty:
-		sk->sk_err_soft = msg->reply;
+		sk->sk_err_soft = -msg->reply;
 					/* < 0 failure, otherwise ep_ref */
 		clear_bit(ATM_VF_WAITING, &vcc->flags);
 		break;

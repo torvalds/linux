@@ -69,7 +69,7 @@ int gue6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 }
 EXPORT_SYMBOL(gue6_build_header);
 
-#ifdef CONFIG_NET_FOU_IP_TUNNELS
+#if IS_ENABLED(CONFIG_IPV6_FOU_TUNNEL)
 
 static const struct ip6_tnl_encap_ops fou_ip6tun_ops = {
 	.encap_hlen = fou_encap_hlen,
