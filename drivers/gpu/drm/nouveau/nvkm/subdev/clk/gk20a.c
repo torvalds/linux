@@ -263,7 +263,7 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 val;
-	int ramp_timeout;
+	int ret = 0;
 
 	/* get old coefficients */
 	val = nvkm_rd32(device, GPCPLL_COEFF);
@@ -284,17 +284,16 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 	nvkm_wr32(device, GPCPLL_COEFF, val);
 
 	/* dynamic ramp to new ndiv */
-	val = nvkm_rd32(device, GPCPLL_NDIV_SLOWDOWN);
-	val |= 0x1 << GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT;
 	udelay(1);
-	nvkm_wr32(device, GPCPLL_NDIV_SLOWDOWN, val);
+	nvkm_mask(device, GPCPLL_NDIV_SLOWDOWN,
+		  BIT(GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT),
+		  BIT(GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT));
 
-	for (ramp_timeout = 500; ramp_timeout > 0; ramp_timeout--) {
-		udelay(1);
-		val = nvkm_rd32(device, GPC_BCAST_NDIV_SLOWDOWN_DEBUG);
-		if (val & GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK)
-			break;
-	}
+	/* wait for ramping to complete */
+	if (nvkm_wait_usec(device, 500, GPC_BCAST_NDIV_SLOWDOWN_DEBUG,
+		GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK,
+		GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK) < 0)
+		ret = -ETIMEDOUT;
 
 	/* exit slowdown mode */
 	nvkm_mask(device, GPCPLL_NDIV_SLOWDOWN,
@@ -302,12 +301,7 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 		BIT(GPCPLL_NDIV_SLOWDOWN_EN_DYNRAMP_SHIFT), 0);
 	nvkm_rd32(device, GPCPLL_NDIV_SLOWDOWN);
 
-	if (ramp_timeout <= 0) {
-		nvkm_error(subdev, "gpcpll dynamic ramp timeout\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
+	return ret;
 }
 
 static void
