@@ -54,7 +54,7 @@ struct gk20a_clk {
 };
 #define gk20a_clk(p) container_of((p), struct gk20a_clk, base)
 
-int _gk20a_clk_ctor(struct nvkm_device *, int, const struct nvkm_clk_func *,
+int gk20a_clk_ctor(struct nvkm_device *, int, const struct nvkm_clk_func *,
 		    const struct gk20a_clk_pllg_params *, struct gk20a_clk *);
 void gk20a_clk_fini(struct nvkm_clk *);
 int gk20a_clk_read(struct nvkm_clk *, enum nv_clk_src);

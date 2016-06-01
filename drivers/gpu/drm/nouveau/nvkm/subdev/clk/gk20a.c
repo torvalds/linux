@@ -691,7 +691,7 @@ gk20a_clk = {
 };
 
 int
-_gk20a_clk_ctor(struct nvkm_device *device, int index,
+gk20a_clk_ctor(struct nvkm_device *device, int index,
 		const struct nvkm_clk_func *func,
 		const struct gk20a_clk_pllg_params *params,
 		struct gk20a_clk *clk)
@@ -730,7 +730,7 @@ gk20a_clk_new(struct nvkm_device *device, int index, struct nvkm_clk **pclk)
 		return -ENOMEM;
 	*pclk = &clk->base;
 
-	ret = _gk20a_clk_ctor(device, index, &gk20a_clk, &gk20a_pllg_params,
+	ret = gk20a_clk_ctor(device, index, &gk20a_clk, &gk20a_pllg_params,
 			      clk);
 
 	clk->pl_to_div = pl_to_div;
