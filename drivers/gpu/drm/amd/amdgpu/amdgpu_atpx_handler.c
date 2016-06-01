@@ -64,6 +64,10 @@ bool amdgpu_has_atpx(void) {
 	return amdgpu_atpx_priv.atpx_detected;
 }
 
+bool amdgpu_has_atpx_dgpu_power_cntl(void) {
+	return amdgpu_atpx_priv.atpx.functions.power_cntl;
+}
+
 /**
  * amdgpu_atpx_call - call an ATPX method
  *
