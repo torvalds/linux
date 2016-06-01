@@ -20,7 +20,6 @@ struct device;
 struct device_node;
 struct generic_pm_domain;
 
-void r8a7779_clocks_init(u32 mode);
 void rcar_gen2_clocks_init(u32 mode);
 
 void cpg_mstp_add_clk_domain(struct device_node *np);
