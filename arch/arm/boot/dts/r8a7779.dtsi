@@ -590,6 +590,11 @@
 		};
 	};
 
+	rst: reset-controller@ffcc0000 {
+		compatible = "renesas,r8a7779-reset-wdt";
+		reg = <0xffcc0000 0x48>;
+	};
+
 	sysc: system-controller@ffd85000 {
 		compatible = "renesas,r8a7779-sysc";
 		reg = <0xffd85000 0x0200>;
