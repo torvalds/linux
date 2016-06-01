@@ -1009,15 +1009,27 @@ static int bcm2835_clock_set_rate(struct clk_hw *hw,
 	return 0;
 }
 
+static bool
+bcm2835_clk_is_pllc(struct clk_hw *hw)
+{
+	if (!hw)
+		return false;
+
+	return strncmp(clk_hw_get_name(hw), "pllc", 4) == 0;
+}
+
 static int bcm2835_clock_determine_rate(struct clk_hw *hw,
 					struct clk_rate_request *req)
 {
 	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
 	struct clk_hw *parent, *best_parent = NULL;
+	bool current_parent_is_pllc;
 	unsigned long rate, best_rate = 0;
 	unsigned long prate, best_prate = 0;
 	size_t i;
 	u32 div;
+
+	current_parent_is_pllc = bcm2835_clk_is_pllc(clk_hw_get_parent(hw));
 
 	/*
 	 * Select parent clock that results in the closest but lower rate
@@ -1026,6 +1038,17 @@ static int bcm2835_clock_determine_rate(struct clk_hw *hw,
 		parent = clk_hw_get_parent_by_index(hw, i);
 		if (!parent)
 			continue;
+
+		/*
+		 * Don't choose a PLLC-derived clock as our parent
+		 * unless it had been manually set that way.  PLLC's
+		 * frequency gets adjusted by the firmware due to
+		 * over-temp or under-voltage conditions, without
+		 * prior notification to our clock consumer.
+		 */
+		if (bcm2835_clk_is_pllc(parent) && !current_parent_is_pllc)
+			continue;
+
 		prate = clk_hw_get_rate(parent);
 		div = bcm2835_clock_choose_div(hw, req->rate, prate, true);
 		rate = bcm2835_clock_rate_from_divisor(clock, prate, div);
