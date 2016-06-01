@@ -243,7 +243,7 @@ static struct drm_driver mtk_drm_driver = {
 	.enable_vblank = mtk_drm_crtc_enable_vblank,
 	.disable_vblank = mtk_drm_crtc_disable_vblank,
 
-	.gem_free_object = mtk_drm_gem_free_object,
+	.gem_free_object_unlocked = mtk_drm_gem_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = mtk_drm_gem_dumb_create,
 	.dumb_map_offset = mtk_drm_gem_dumb_map_offset,

@@ -414,6 +414,9 @@ mode_fixup(struct drm_atomic_state *state)
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
 
+		if (!crtc_state->enable)
+			continue;
+
 		if (!crtc_state->mode_changed &&
 		    !crtc_state->connectors_changed)
 			continue;

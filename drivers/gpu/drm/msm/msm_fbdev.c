@@ -184,21 +184,7 @@ fail:
 	return ret;
 }
 
-static void msm_crtc_fb_gamma_set(struct drm_crtc *crtc,
-		u16 red, u16 green, u16 blue, int regno)
-{
-	DBG("fbdev: set gamma");
-}
-
-static void msm_crtc_fb_gamma_get(struct drm_crtc *crtc,
-		u16 *red, u16 *green, u16 *blue, int regno)
-{
-	DBG("fbdev: get gamma");
-}
-
 static const struct drm_fb_helper_funcs msm_fb_helper_funcs = {
-	.gamma_set = msm_crtc_fb_gamma_set,
-	.gamma_get = msm_crtc_fb_gamma_get,
 	.fb_probe = msm_fbdev_create,
 };
 
