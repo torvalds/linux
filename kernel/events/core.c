@@ -3682,15 +3682,28 @@ static void detach_sb_event(struct perf_event *event)
 	raw_spin_unlock(&pel->lock);
 }
 
-static void unaccount_pmu_sb_event(struct perf_event *event)
+static bool is_sb_event(struct perf_event *event)
 {
+	struct perf_event_attr *attr = &event->attr;
+
 	if (event->parent)
-		return;
+		return false;
 
 	if (event->attach_state & PERF_ATTACH_TASK)
-		return;
+		return false;
 
-	detach_sb_event(event);
+	if (attr->mmap || attr->mmap_data || attr->mmap2 ||
+	    attr->comm || attr->comm_exec ||
+	    attr->task ||
+	    attr->context_switch)
+		return true;
+	return false;
+}
+
+static void unaccount_pmu_sb_event(struct perf_event *event)
+{
+	if (is_sb_event(event))
+		detach_sb_event(event);
 }
 
 static void unaccount_event_cpu(struct perf_event *event, int cpu)
@@ -8666,18 +8679,7 @@ static void attach_sb_event(struct perf_event *event)
  */
 static void account_pmu_sb_event(struct perf_event *event)
 {
-	struct perf_event_attr *attr = &event->attr;
-
-	if (event->parent)
-		return;
-
-	if (event->attach_state & PERF_ATTACH_TASK)
-		return;
-
-	if (attr->mmap || attr->mmap_data || attr->mmap2 ||
-	    attr->comm || attr->comm_exec ||
-	    attr->task ||
-	    attr->context_switch)
+	if (is_sb_event(event))
 		attach_sb_event(event);
 }
 
