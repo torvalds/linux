@@ -223,16 +223,16 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_sync_is_idle - test if all fences are signaled
+ * amdgpu_sync_peek_fence - get the next fence not signaled yet
  *
  * @sync: the sync object
  * @ring: optional ring to use for test
  *
- * Returns true if all fences in the sync object are signaled or scheduled to
- * the ring (if provided).
+ * Returns the next fence not signaled yet without removing it from the sync
+ * object.
  */
-bool amdgpu_sync_is_idle(struct amdgpu_sync *sync,
-			 struct amdgpu_ring *ring)
+struct fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
+				     struct amdgpu_ring *ring)
 {
 	struct amdgpu_sync_entry *e;
 	struct hlist_node *tmp;
@@ -246,9 +246,12 @@ bool amdgpu_sync_is_idle(struct amdgpu_sync *sync,
 			/* For fences from the same ring it is sufficient
 			 * when they are scheduled.
 			 */
-			if (s_fence->sched == &ring->sched &&
-			    fence_is_signaled(&s_fence->scheduled))
-				continue;
+			if (s_fence->sched == &ring->sched) {
+				if (fence_is_signaled(&s_fence->scheduled))
+					continue;
+
+				return &s_fence->scheduled;
+			}
 		}
 
 		if (fence_is_signaled(f)) {
@@ -258,56 +261,10 @@ bool amdgpu_sync_is_idle(struct amdgpu_sync *sync,
 			continue;
 		}
 
-		return false;
+		return f;
 	}
 
-	return true;
-}
-
-/**
- * amdgpu_sync_cycle_fences - move fences from one sync object into another
- *
- * @dst: the destination sync object
- * @src: the source sync object
- * @fence: fence to add to source
- *
- * Remove all fences from source and put them into destination and add
- * fence as new one into source.
- */
-int amdgpu_sync_cycle_fences(struct amdgpu_sync *dst, struct amdgpu_sync *src,
-			     struct fence *fence)
-{
-	struct amdgpu_sync_entry *e, *newone;
-	struct hlist_node *tmp;
-	int i;
-
-	/* Allocate the new entry before moving the old ones */
-	newone = kmem_cache_alloc(amdgpu_sync_slab, GFP_KERNEL);
-	if (!newone)
-		return -ENOMEM;
-
-	hash_for_each_safe(src->fences, i, tmp, e, node) {
-		struct fence *f = e->fence;
-
-		hash_del(&e->node);
-		if (fence_is_signaled(f)) {
-			fence_put(f);
-			kmem_cache_free(amdgpu_sync_slab, e);
-			continue;
-		}
-
-		if (amdgpu_sync_add_later(dst, f)) {
-			kmem_cache_free(amdgpu_sync_slab, e);
-			continue;
-		}
-
-		hash_add(dst->fences, &e->node, f->context);
-	}
-
-	hash_add(src->fences, &newone->node, fence->context);
-	newone->fence = fence_get(fence);
-
-	return 0;
+	return NULL;
 }
 
 /**

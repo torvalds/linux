@@ -25,6 +25,7 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+#include <linux/fence-array.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
@@ -180,82 +181,116 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	struct fence *updates = sync->last_vm_update;
 	struct amdgpu_vm_id *id, *idle;
-	unsigned i = ring->idx;
-	int r;
+	struct fence **fences;
+	unsigned i;
+	int r = 0;
+
+	fences = kmalloc_array(sizeof(void *), adev->vm_manager.num_ids,
+			       GFP_KERNEL);
+	if (!fences)
+		return -ENOMEM;
 
 	mutex_lock(&adev->vm_manager.lock);
 
 	/* Check if we have an idle VMID */
+	i = 0;
 	list_for_each_entry(idle, &adev->vm_manager.ids_lru, list) {
-		if (amdgpu_sync_is_idle(&idle->active, ring))
+		fences[i] = amdgpu_sync_peek_fence(&idle->active, ring);
+		if (!fences[i])
 			break;
-
+		++i;
 	}
 
-	/* If we can't find a idle VMID to use, just wait for the oldest */
+	/* If we can't find a idle VMID to use, wait till one becomes available */
 	if (&idle->list == &adev->vm_manager.ids_lru) {
-		id = list_first_entry(&adev->vm_manager.ids_lru,
-				      struct amdgpu_vm_id,
-				      list);
-	} else {
-		/* Check if we can use a VMID already assigned to this VM */
-		do {
-			struct fence *flushed;
+		u64 fence_context = adev->vm_manager.fence_context + ring->idx;
+		unsigned seqno = ++adev->vm_manager.seqno[ring->idx];
+		struct fence_array *array;
+		unsigned j;
 
-			id = vm->ids[i++];
-			if (i == AMDGPU_MAX_RINGS)
-				i = 0;
+		for (j = 0; j < i; ++j)
+			fence_get(fences[j]);
 
-			/* Check all the prerequisites to using this VMID */
-			if (!id)
-				continue;
+		array = fence_array_create(i, fences, fence_context,
+					   seqno, true);
+		if (!array) {
+			for (j = 0; j < i; ++j)
+				fence_put(fences[j]);
+			kfree(fences);
+			r = -ENOMEM;
+			goto error;
+		}
 
-			if (atomic64_read(&id->owner) != vm->client_id)
-				continue;
 
-			if (pd_addr != id->pd_gpu_addr)
-				continue;
+		r = amdgpu_sync_fence(ring->adev, sync, &array->base);
+		fence_put(&array->base);
+		if (r)
+			goto error;
 
-			if (id->last_user != ring && (!id->last_flush ||
-			    !fence_is_signaled(id->last_flush)))
-				continue;
+		mutex_unlock(&adev->vm_manager.lock);
+		return 0;
 
-			flushed  = id->flushed_updates;
-			if (updates && (!flushed ||
-			    fence_is_later(updates, flushed)))
-				continue;
+	}
+	kfree(fences);
 
-			/* Good we can use this VMID */
-			if (id->last_user == ring) {
-				r = amdgpu_sync_fence(ring->adev, sync,
-						      id->first);
-				if (r)
-					goto error;
-			}
+	/* Check if we can use a VMID already assigned to this VM */
+	i = ring->idx;
+	do {
+		struct fence *flushed;
 
-			/* And remember this submission as user of the VMID */
-			r = amdgpu_sync_fence(ring->adev, &id->active, fence);
+		id = vm->ids[i++];
+		if (i == AMDGPU_MAX_RINGS)
+			i = 0;
+
+		/* Check all the prerequisites to using this VMID */
+		if (!id)
+			continue;
+
+		if (atomic64_read(&id->owner) != vm->client_id)
+			continue;
+
+		if (pd_addr != id->pd_gpu_addr)
+			continue;
+
+		if (id->last_user != ring &&
+		    (!id->last_flush || !fence_is_signaled(id->last_flush)))
+			continue;
+
+		flushed  = id->flushed_updates;
+		if (updates &&
+		    (!flushed || fence_is_later(updates, flushed)))
+			continue;
+
+		/* Good we can use this VMID */
+		if (id->last_user == ring) {
+			r = amdgpu_sync_fence(ring->adev, sync,
+					      id->first);
 			if (r)
 				goto error;
+		}
 
-			list_move_tail(&id->list, &adev->vm_manager.ids_lru);
-			vm->ids[ring->idx] = id;
+		/* And remember this submission as user of the VMID */
+		r = amdgpu_sync_fence(ring->adev, &id->active, fence);
+		if (r)
+			goto error;
 
-			*vm_id = id - adev->vm_manager.ids;
-			*vm_pd_addr = AMDGPU_VM_NO_FLUSH;
-			trace_amdgpu_vm_grab_id(vm, ring->idx, *vm_id,
-						*vm_pd_addr);
+		list_move_tail(&id->list, &adev->vm_manager.ids_lru);
+		vm->ids[ring->idx] = id;
 
-			mutex_unlock(&adev->vm_manager.lock);
-			return 0;
+		*vm_id = id - adev->vm_manager.ids;
+		*vm_pd_addr = AMDGPU_VM_NO_FLUSH;
+		trace_amdgpu_vm_grab_id(vm, ring->idx, *vm_id, *vm_pd_addr);
 
-		} while (i != ring->idx);
+		mutex_unlock(&adev->vm_manager.lock);
+		return 0;
 
-		/* Still no ID to use? Then use the idle one found earlier */
-		id = idle;
-	}
+	} while (i != ring->idx);
 
-	r = amdgpu_sync_cycle_fences(sync, &id->active, fence);
+	/* Still no ID to use? Then use the idle one found earlier */
+	id = idle;
+
+	/* Remember this submission as user of the VMID */
+	r = amdgpu_sync_fence(ring->adev, &id->active, fence);
 	if (r)
 		goto error;
 
@@ -1514,6 +1549,10 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 		list_add_tail(&adev->vm_manager.ids[i].list,
 			      &adev->vm_manager.ids_lru);
 	}
+
+	adev->vm_manager.fence_context = fence_context_alloc(AMDGPU_MAX_RINGS);
+	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
+		adev->vm_manager.seqno[i] = 0;
 
 	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
 	atomic64_set(&adev->vm_manager.client_counter, 0);
