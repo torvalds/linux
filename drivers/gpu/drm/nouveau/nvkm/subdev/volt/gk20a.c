@@ -80,10 +80,11 @@ gk20a_volt_get_cvb_t_voltage(int speedo, int temp, int s_scale, int t_scale,
 static int
 gk20a_volt_calc_voltage(const struct cvb_coef *coef, int speedo)
 {
+	static const int v_scale = 1000;
 	int mv;
 
 	mv = gk20a_volt_get_cvb_t_voltage(speedo, -10, 100, 10, coef);
-	mv = DIV_ROUND_UP(mv, 1000);
+	mv = DIV_ROUND_UP(mv, v_scale);
 
 	return mv * 1000;
 }
