@@ -456,6 +456,7 @@ bool common_iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(common_iommu_setup_dma_ops);
 
 void common_iommu_teardown_dma_ops(struct device *dev)
 {
@@ -469,3 +470,4 @@ void common_iommu_teardown_dma_ops(struct device *dev)
 
 	arch_set_dma_ops(dev, NULL);
 }
+EXPORT_SYMBOL_GPL(common_iommu_teardown_dma_ops);
