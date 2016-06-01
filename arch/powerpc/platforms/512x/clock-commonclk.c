@@ -719,7 +719,7 @@ static void mpc512x_clk_setup_clock_tree(struct device_node *np, int busfreq)
 	 *   most one of a mux, div, and gate each into one 'struct clk'
 	 *   item
 	 * - PSC/MSCAN/SPDIF clock generation OTOH already is very
-	 *   specific and cannot get mapped to componsites (at least not
+	 *   specific and cannot get mapped to composites (at least not
 	 *   a single one, maybe two of them, but then some of these
 	 *   intermediate clock signals get referenced elsewhere (e.g.
 	 *   in the clock frequency measurement, CFM) and thus need

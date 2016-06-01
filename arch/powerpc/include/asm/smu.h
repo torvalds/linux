@@ -185,7 +185,7 @@
  *  x = processor mask
  *  y = op. point index
  *  z = processor freq. step index
- * I haven't yet decyphered result codes
+ * I haven't yet deciphered result codes
  *
  */
 #define SMU_CMD_POWER_COMMAND			0xaa

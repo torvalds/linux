@@ -367,7 +367,7 @@ static void pseries_lpar_idle(void)
 {
 	/*
 	 * Default handler to go into low thread priority and possibly
-	 * low power mode by cedeing processor to hypervisor
+	 * low power mode by ceding processor to hypervisor
 	 */
 
 	/* Indicate to hypervisor that we are idle. */

@@ -434,7 +434,7 @@ extern void slb_set_size(u16 size);
  * function.  Used in slb_allocate() and do_stab_bolted.  The function
  * computed is: (protovsid*VSID_MULTIPLIER) % VSID_MODULUS
  *
- *	rt = register continaing the proto-VSID and into which the
+ *	rt = register containing the proto-VSID and into which the
  *		VSID will be stored
  *	rx = scratch register (clobbered)
  *

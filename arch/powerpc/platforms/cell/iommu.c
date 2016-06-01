@@ -178,7 +178,7 @@ static int tce_build_cell(struct iommu_table *tbl, long index, long npages,
 	 * default for now.*/
 #ifdef CELL_IOMMU_STRICT_PROTECTION
 	/* to avoid referencing a global, we use a trick here to setup the
-	 * protection bit. "prot" is setup to be 3 fields of 4 bits apprended
+	 * protection bit. "prot" is setup to be 3 fields of 4 bits appended
 	 * together for each of the 3 supported direction values. It is then
 	 * shifted left so that the fields matching the desired direction
 	 * lands on the appropriate bits, and other bits are masked out.
@@ -338,7 +338,7 @@ static unsigned long *cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 	start_seg = base >> IO_SEGMENT_SHIFT;
 	segments  = size >> IO_SEGMENT_SHIFT;
 	pages_per_segment = 1ull << IO_PAGENO_BITS(page_shift);
-	/* PTEs for each segment must start on a 4K bounday */
+	/* PTEs for each segment must start on a 4K boundary */
 	pages_per_segment = max(pages_per_segment,
 				(1 << 12) / sizeof(unsigned long));
 

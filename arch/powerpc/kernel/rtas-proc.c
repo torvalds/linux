@@ -698,7 +698,7 @@ static void check_location(struct seq_file *m, const char *c)
 /* 
  * Format: 
  * ${LETTER}${NUMBER}[[-/]${LETTER}${NUMBER} [ ... ] ]
- * the '.' may be an abbrevation
+ * the '.' may be an abbreviation
  */
 static void check_location_string(struct seq_file *m, const char *c)
 {

@@ -197,7 +197,7 @@ static int pnv_ioda2_init_m64(struct pnv_phb *phb)
 
 	/*
 	 * Strip off the segment used by the reserved PE, which is
-	 * expected to be 0 or last one of PE capabicity.
+	 * expected to be 0 or last one of PE capability.
 	 */
 	r = &phb->hose->mem_resources[1];
 	if (phb->ioda.reserved_pe_idx == 0)
