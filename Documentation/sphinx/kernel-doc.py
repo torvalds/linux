@@ -57,7 +57,7 @@ class KernelDocDirective(Directive):
         env.note_dependency(os.path.abspath(filename))
 
         tab_width = self.options.get('tab-width', self.state.document.settings.tab_width)
-        source = self.state_machine.input_lines.source(self.lineno - self.state_machine.input_offset - 1)
+        source = filename
 
         # FIXME: make this nicer and more robust against errors
         if 'export' in self.options:
