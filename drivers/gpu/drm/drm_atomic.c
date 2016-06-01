@@ -45,7 +45,6 @@ void drm_atomic_state_default_release(struct drm_atomic_state *state)
 {
 	kfree(state->connectors);
 	kfree(state->crtcs);
-	kfree(state->crtc_states);
 	kfree(state->planes);
 }
 EXPORT_SYMBOL(drm_atomic_state_default_release);
@@ -69,10 +68,6 @@ drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 	state->crtcs = kcalloc(dev->mode_config.num_crtc,
 			       sizeof(*state->crtcs), GFP_KERNEL);
 	if (!state->crtcs)
-		goto fail;
-	state->crtc_states = kcalloc(dev->mode_config.num_crtc,
-				     sizeof(*state->crtc_states), GFP_KERNEL);
-	if (!state->crtc_states)
 		goto fail;
 	state->planes = kcalloc(dev->mode_config.num_total_plane,
 				sizeof(*state->planes), GFP_KERNEL);
@@ -146,15 +141,15 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 	}
 
 	for (i = 0; i < config->num_crtc; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
+		struct drm_crtc *crtc = state->crtcs[i].ptr;
 
 		if (!crtc)
 			continue;
 
 		crtc->funcs->atomic_destroy_state(crtc,
-						  state->crtc_states[i]);
-		state->crtcs[i] = NULL;
-		state->crtc_states[i] = NULL;
+						  state->crtcs[i].state);
+		state->crtcs[i].ptr = NULL;
+		state->crtcs[i].state = NULL;
 	}
 
 	for (i = 0; i < config->num_total_plane; i++) {
@@ -264,8 +259,8 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 	if (!crtc_state)
 		return ERR_PTR(-ENOMEM);
 
-	state->crtc_states[index] = crtc_state;
-	state->crtcs[index] = crtc;
+	state->crtcs[index].state = crtc_state;
+	state->crtcs[index].ptr = crtc;
 	crtc_state->state = state;
 
 	DRM_DEBUG_ATOMIC("Added [CRTC:%d:%s] %p state to %p\n",

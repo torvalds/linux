@@ -71,7 +71,7 @@ static inline struct drm_crtc_state *
 drm_atomic_get_existing_crtc_state(struct drm_atomic_state *state,
 				   struct drm_crtc *crtc)
 {
-	return state->crtc_states[drm_crtc_index(crtc)];
+	return state->crtcs[drm_crtc_index(crtc)].state;
 }
 
 /**
@@ -183,11 +183,11 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 	     (__i)++)							\
 		for_each_if (connector)
 
-#define for_each_crtc_in_state(state, crtc, crtc_state, __i)	\
+#define for_each_crtc_in_state(__state, crtc, crtc_state, __i)	\
 	for ((__i) = 0;						\
-	     (__i) < (state)->dev->mode_config.num_crtc &&	\
-	     ((crtc) = (state)->crtcs[__i],			\
-	     (crtc_state) = (state)->crtc_states[__i], 1);	\
+	     (__i) < (__state)->dev->mode_config.num_crtc &&	\
+	     ((crtc) = (__state)->crtcs[__i].ptr,			\
+	     (crtc_state) = (__state)->crtcs[__i].state, 1);	\
 	     (__i)++)						\
 		for_each_if (crtc_state)
 

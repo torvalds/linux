@@ -1698,6 +1698,11 @@ struct __drm_planes_state {
 	struct drm_plane_state *state;
 };
 
+struct __drm_crtcs_state {
+	struct drm_crtc *ptr;
+	struct drm_crtc_state *state;
+};
+
 struct __drm_connnectors_state {
 	struct drm_connector *ptr;
 	struct drm_connector_state *state;
@@ -1722,8 +1727,7 @@ struct drm_atomic_state {
 	bool legacy_cursor_update : 1;
 	bool legacy_set_config : 1;
 	struct __drm_planes_state *planes;
-	struct drm_crtc **crtcs;
-	struct drm_crtc_state **crtc_states;
+	struct __drm_crtcs_state *crtcs;
 	int num_connector;
 	struct __drm_connnectors_state *connectors;
 

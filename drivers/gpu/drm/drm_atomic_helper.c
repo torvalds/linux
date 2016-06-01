@@ -1578,7 +1578,7 @@ void drm_atomic_helper_swap_state(struct drm_device *dev,
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		crtc->state->state = state;
-		swap(state->crtc_states[i], crtc->state);
+		swap(state->crtcs[i].state, crtc->state);
 		crtc->state->state = NULL;
 	}
 
