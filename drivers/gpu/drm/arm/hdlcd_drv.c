@@ -254,6 +254,7 @@ static int hdlcd_show_pxlclock(struct seq_file *m, void *arg)
 static struct drm_info_list hdlcd_debugfs_list[] = {
 	{ "interrupt_count", hdlcd_show_underrun_count, 0 },
 	{ "clocks", hdlcd_show_pxlclock, 0 },
+	{ "fb", drm_fb_cma_debugfs_show, 0 },
 };
 
 static int hdlcd_debugfs_init(struct drm_minor *minor)
