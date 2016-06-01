@@ -12,6 +12,9 @@
 
 #include <linux/hardirq.h>
 
+#define CREATE_TRACE_POINTS
+#include <asm/trace/fpu.h>
+
 /*
  * Represents the initial FPU state. It's mostly (but not completely) zeroes,
  * depending on the FPU hardware format:
@@ -192,6 +195,7 @@ void fpu__save(struct fpu *fpu)
 	WARN_ON_FPU(fpu != &current->thread.fpu);
 
 	preempt_disable();
+	trace_x86_fpu_before_save(fpu);
 	if (fpu->fpregs_active) {
 		if (!copy_fpregs_to_fpstate(fpu)) {
 			if (use_eager_fpu())
@@ -200,6 +204,7 @@ void fpu__save(struct fpu *fpu)
 				fpregs_deactivate(fpu);
 		}
 	}
+	trace_x86_fpu_after_save(fpu);
 	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(fpu__save);
@@ -275,6 +280,9 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	}
 	preempt_enable();
 
+	trace_x86_fpu_copy_src(src_fpu);
+	trace_x86_fpu_copy_dst(dst_fpu);
+
 	return 0;
 }
 
@@ -288,7 +296,9 @@ void fpu__activate_curr(struct fpu *fpu)
 
 	if (!fpu->fpstate_active) {
 		fpstate_init(&fpu->state);
+		trace_x86_fpu_init_state(fpu);
 
+		trace_x86_fpu_activate_state(fpu);
 		/* Safe to do for the current task: */
 		fpu->fpstate_active = 1;
 	}
@@ -314,7 +324,9 @@ void fpu__activate_fpstate_read(struct fpu *fpu)
 	} else {
 		if (!fpu->fpstate_active) {
 			fpstate_init(&fpu->state);
+			trace_x86_fpu_init_state(fpu);
 
+			trace_x86_fpu_activate_state(fpu);
 			/* Safe to do for current and for stopped child tasks: */
 			fpu->fpstate_active = 1;
 		}
@@ -347,7 +359,9 @@ void fpu__activate_fpstate_write(struct fpu *fpu)
 		fpu->last_cpu = -1;
 	} else {
 		fpstate_init(&fpu->state);
+		trace_x86_fpu_init_state(fpu);
 
+		trace_x86_fpu_activate_state(fpu);
 		/* Safe to do for stopped child tasks: */
 		fpu->fpstate_active = 1;
 	}
@@ -432,9 +446,11 @@ void fpu__restore(struct fpu *fpu)
 
 	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
 	kernel_fpu_disable();
+	trace_x86_fpu_before_restore(fpu);
 	fpregs_activate(fpu);
 	copy_kernel_to_fpregs(&fpu->state);
 	fpu->counter++;
+	trace_x86_fpu_after_restore(fpu);
 	kernel_fpu_enable();
 }
 EXPORT_SYMBOL_GPL(fpu__restore);
@@ -462,6 +478,8 @@ void fpu__drop(struct fpu *fpu)
 	}
 
 	fpu->fpstate_active = 0;
+
+	trace_x86_fpu_dropped(fpu);
 
 	preempt_enable();
 }

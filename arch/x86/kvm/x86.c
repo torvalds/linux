@@ -55,9 +55,6 @@
 #include <linux/irqbypass.h>
 #include <trace/events/kvm.h>
 
-#define CREATE_TRACE_POINTS
-#include "trace.h"
-
 #include <asm/debugreg.h>
 #include <asm/msr.h>
 #include <asm/desc.h>
@@ -67,6 +64,9 @@
 #include <asm/pvclock.h>
 #include <asm/div64.h>
 #include <asm/irq_remapping.h>
+
+#define CREATE_TRACE_POINTS
+#include "trace.h"
 
 #define MAX_IO_MSRS 256
 #define KVM_MAX_MCE_BANKS 32
