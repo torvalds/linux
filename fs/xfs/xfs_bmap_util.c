@@ -407,7 +407,7 @@ xfs_bmap_count_tree(
 /*
  * Count fsblocks of the given fork.
  */
-int						/* error */
+static int					/* error */
 xfs_bmap_count_blocks(
 	xfs_trans_t		*tp,		/* transaction pointer */
 	xfs_inode_t		*ip,		/* incore inode */

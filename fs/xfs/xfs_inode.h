@@ -395,12 +395,8 @@ void		xfs_ilock_demote(xfs_inode_t *, uint);
 int		xfs_isilocked(xfs_inode_t *, uint);
 uint		xfs_ilock_data_map_shared(struct xfs_inode *);
 uint		xfs_ilock_attr_map_shared(struct xfs_inode *);
-int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, umode_t,
-			   xfs_nlink_t, xfs_dev_t, prid_t, int,
-			   struct xfs_buf **, xfs_inode_t **);
 
 uint		xfs_ip2xflags(struct xfs_inode *);
-uint		xfs_dic2xflags(struct xfs_dinode *);
 int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
 			   struct xfs_bmap_free *);
 int		xfs_itruncate_extents(struct xfs_trans **, struct xfs_inode *,
@@ -411,7 +407,6 @@ void		xfs_iunpin_wait(xfs_inode_t *);
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
 
 int		xfs_iflush(struct xfs_inode *, struct xfs_buf **);
-void		xfs_lock_inodes(xfs_inode_t **, int, uint);
 void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
 
 xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
@@ -419,8 +414,6 @@ xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
 int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_inode *, umode_t,
 			       xfs_nlink_t, xfs_dev_t, prid_t, int,
 			       struct xfs_inode **, int *);
-int		xfs_droplink(struct xfs_trans *, struct xfs_inode *);
-int		xfs_bumplink(struct xfs_trans *, struct xfs_inode *);
 
 /* from xfs_file.c */
 enum xfs_prealloc_flags {

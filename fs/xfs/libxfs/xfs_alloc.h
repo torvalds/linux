@@ -212,13 +212,6 @@ xfs_free_extent(
 	xfs_fsblock_t	bno,	/* starting block number of extent */
 	xfs_extlen_t	len);	/* length of extent */
 
-int					/* error */
-xfs_alloc_lookup_le(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agblock_t		bno,	/* starting block of extent */
-	xfs_extlen_t		len,	/* length of extent */
-	int			*stat);	/* success/failure */
-
 int				/* error */
 xfs_alloc_lookup_ge(
 	struct xfs_btree_cur	*cur,	/* btree cursor */

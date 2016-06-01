@@ -546,7 +546,7 @@ xfs_showargs(
 
 	return 0;
 }
-__uint64_t
+static __uint64_t
 xfs_max_file_offset(
 	unsigned int		blockshift)
 {
