@@ -149,19 +149,20 @@ gk20a_pllg_write_mnp(struct gk20a_clk *clk, const struct gk20a_pll *pll)
 }
 
 static u32
-gk20a_pllg_calc_rate(struct gk20a_clk *clk)
+gk20a_pllg_calc_rate(struct gk20a_clk *clk, struct gk20a_pll *pll)
 {
 	u32 rate;
 	u32 divider;
 
-	rate = clk->parent_rate * clk->pll.n;
-	divider = clk->pll.m * clk->pl_to_div(clk->pll.pl);
+	rate = clk->parent_rate * pll->n;
+	divider = pll->m * clk->pl_to_div(pll->pl);
 
 	return rate / divider / 2;
 }
 
 static int
-gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate)
+gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate,
+		    struct gk20a_pll *pll)
 {
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	u32 target_clk_f, ref_clk_f, target_freq;
@@ -256,16 +257,16 @@ found_match:
 			   "no best match for target @ %dMHz on gpc_pll",
 			   target_clk_f / KHZ);
 
-	clk->pll.m = best_m;
-	clk->pll.n = best_n;
-	clk->pll.pl = best_pl;
+	pll->m = best_m;
+	pll->n = best_n;
+	pll->pl = best_pl;
 
-	target_freq = gk20a_pllg_calc_rate(clk);
+	target_freq = gk20a_pllg_calc_rate(clk, pll);
 
 	nvkm_debug(subdev,
-		   "actual target freq %d MHz, M %d, N %d, PL %d(div%d)\n",
-		   target_freq / MHZ, clk->pll.m, clk->pll.n, clk->pll.pl,
-		   clk->pl_to_div(clk->pll.pl));
+		   "actual target freq %d KHz, M %d, N %d, PL %d(div%d)\n",
+		   target_freq / KHZ, pll->m, pll->n, pll->pl,
+		   clk->pl_to_div(pll->pl));
 	return 0;
 }
 
@@ -333,7 +334,8 @@ gk20a_pllg_disable(struct gk20a_clk *clk)
 }
 
 static int
-_gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
+_gk20a_pllg_program_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll,
+			bool allow_slide)
 {
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
@@ -346,9 +348,9 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 
 	/* do NDIV slide if there is no change in M and PL */
 	cfg = nvkm_rd32(device, GPCPLL_CFG);
-	if (allow_slide && clk->pll.m == old_pll.m &&
-	    clk->pll.pl == old_pll.pl && (cfg & GPCPLL_CFG_ENABLE)) {
-		return gk20a_pllg_slide(clk, clk->pll.n);
+	if (allow_slide && pll->m == old_pll.m &&
+	    pll->pl == old_pll.pl && (cfg & GPCPLL_CFG_ENABLE)) {
+		return gk20a_pllg_slide(clk, pll->n);
 	}
 
 	/* slide down to NDIV_LO */
@@ -385,11 +387,11 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 	gk20a_pllg_disable(clk);
 
 	nvkm_debug(subdev, "%s: m=%d n=%d pl=%d\n", __func__,
-		   clk->pll.m, clk->pll.n, clk->pll.pl);
+		   pll->m, pll->n, pll->pl);
 
-	old_pll = clk->pll;
+	old_pll = *pll;
 	if (allow_slide)
-		old_pll.n = DIV_ROUND_UP(clk->pll.m * clk->params->min_vco,
+		old_pll.n = DIV_ROUND_UP(pll->m * clk->params->min_vco,
 					 clk->parent_rate / KHZ);
 	gk20a_pllg_write_mnp(clk, &old_pll);
 
@@ -425,7 +427,7 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 	}
 
 	/* slide up to new NDIV */
-	return allow_slide ? gk20a_pllg_slide(clk, clk->pll.n) : 0;
+	return allow_slide ? gk20a_pllg_slide(clk, pll->n) : 0;
 }
 
 static int
@@ -433,9 +435,9 @@ gk20a_pllg_program_mnp(struct gk20a_clk *clk)
 {
 	int err;
 
-	err = _gk20a_pllg_program_mnp(clk, true);
+	err = _gk20a_pllg_program_mnp(clk, &clk->pll, true);
 	if (err)
-		err = _gk20a_pllg_program_mnp(clk, false);
+		err = _gk20a_pllg_program_mnp(clk, &clk->pll, false);
 
 	return err;
 }
@@ -540,13 +542,14 @@ gk20a_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 	struct gk20a_clk *clk = gk20a_clk(base);
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct gk20a_pll pll;
 
 	switch (src) {
 	case nv_clk_src_crystal:
 		return device->crystal;
 	case nv_clk_src_gpc:
-		gk20a_pllg_read_mnp(clk, &clk->pll);
-		return gk20a_pllg_calc_rate(clk) / GK20A_CLK_GPC_MDIV;
+		gk20a_pllg_read_mnp(clk, &pll);
+		return gk20a_pllg_calc_rate(clk, &pll) / GK20A_CLK_GPC_MDIV;
 	default:
 		nvkm_error(subdev, "invalid clock source %d\n", src);
 		return -EINVAL;
@@ -559,7 +562,7 @@ gk20a_clk_calc(struct nvkm_clk *base, struct nvkm_cstate *cstate)
 	struct gk20a_clk *clk = gk20a_clk(base);
 
 	return gk20a_pllg_calc_mnp(clk, cstate->domain[nv_clk_src_gpc] *
-					 GK20A_CLK_GPC_MDIV);
+					 GK20A_CLK_GPC_MDIV, &clk->pll);
 }
 
 int
