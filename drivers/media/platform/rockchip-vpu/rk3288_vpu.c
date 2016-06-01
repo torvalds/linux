@@ -179,12 +179,14 @@ void rk3288_vpu_run_done(struct rk3288_vpu_ctx *ctx,
 		ctx->run_ops->run_done(ctx, result);
 
 	if (!rk3288_vpu_ctx_is_dummy_encode(ctx)) {
-		struct vb2_buffer *src = &ctx->run.src->b;
-		struct vb2_buffer *dst = &ctx->run.dst->b;
+		struct vb2_v4l2_buffer *src =
+			to_vb2_v4l2_buffer(&ctx->run.src->vb.vb2_buf);
+		struct vb2_v4l2_buffer *dst =
+			to_vb2_v4l2_buffer(&ctx->run.dst->vb.vb2_buf);
 
-		dst->v4l2_buf.timestamp = src->v4l2_buf.timestamp;
-		vb2_buffer_done(&ctx->run.src->b, result);
-		vb2_buffer_done(&ctx->run.dst->b, result);
+		dst->timestamp = src->timestamp;
+		vb2_buffer_done(&ctx->run.src->vb.vb2_buf, result);
+		vb2_buffer_done(&ctx->run.dst->vb.vb2_buf, result);
 	}
 
 	dev->current_ctx = NULL;
@@ -399,7 +401,7 @@ static int rk3288_vpu_open(struct file *filp)
 	}
 
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
 	ret = vb2_queue_init(q);
 	if (ret) {
@@ -421,7 +423,7 @@ static int rk3288_vpu_open(struct file *filp)
 		q->ops = get_dec_queue_ops();
 
 	q->mem_ops = &vb2_dma_contig_memops;
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
 	ret = vb2_queue_init(q);
 	if (ret) {

@@ -103,12 +103,12 @@ struct rk3288_vpu_vp8e_buf_data {
 
 /**
  * struct rk3288_vpu_buf - Private data related to each VB2 buffer.
+ * @vb:			Pointer to related VB2 buffer.
  * @list:		List head for queuing in buffer queue.
- * @b:			Pointer to related VB2 buffer.
  * @flags:		Buffer state. See enum rk3288_vpu_buf_flags.
  */
 struct rk3288_vpu_buf {
-	struct vb2_buffer b;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 
 	/* Mode-specific data. */
@@ -440,7 +440,7 @@ static inline struct rk3288_vpu_ctx *ctrl_to_ctx(struct v4l2_ctrl *ctrl)
 
 static inline struct rk3288_vpu_buf *vb_to_buf(struct vb2_buffer *vb)
 {
-	return container_of(vb, struct rk3288_vpu_buf, b);
+	return container_of(to_vb2_v4l2_buffer(vb), struct rk3288_vpu_buf, vb);
 }
 
 static inline bool rk3288_vpu_ctx_is_encoder(struct rk3288_vpu_ctx *ctx)

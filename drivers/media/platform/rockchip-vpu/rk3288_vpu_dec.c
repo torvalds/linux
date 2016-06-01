@@ -170,8 +170,9 @@ static int vidioc_querycap(struct file *file, void *priv,
 	 * device capability flags are left only for backward compatibility
 	 * and are scheduled for removal.
 	 */
-	cap->capabilities = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING |
+	cap->device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING |
 	    V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	vpu_debug_leave();
 
@@ -817,7 +818,7 @@ static const struct v4l2_ioctl_ops rk3288_vpu_dec_ioctl_ops = {
 };
 
 static int rk3288_vpu_queue_setup(struct vb2_queue *vq,
-				  const struct v4l2_format *fmt,
+				  const void *parg,
 				  unsigned int *buf_count,
 				  unsigned int *plane_count,
 				  unsigned int psize[], void *allocators[])
@@ -880,7 +881,7 @@ static int rk3288_vpu_buf_init(struct vb2_buffer *vb)
 	vpu_debug_enter();
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		ctx->dst_bufs[vb->v4l2_buf.index] = vb;
+		ctx->dst_bufs[vb->index] = vb;
 
 	vpu_debug_leave();
 
@@ -895,7 +896,7 @@ static void rk3288_vpu_buf_cleanup(struct vb2_buffer *vb)
 	vpu_debug_enter();
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		ctx->dst_bufs[vb->v4l2_buf.index] = NULL;
+		ctx->dst_bufs[vb->index] = NULL;
 
 	vpu_debug_leave();
 }
@@ -1013,9 +1014,9 @@ static void rk3288_vpu_stop_streaming(struct vb2_queue *q)
 
 	while (!list_empty(&queue)) {
 		b = list_first_entry(&queue, struct rk3288_vpu_buf, list);
-		for (i = 0; i < b->b.num_planes; i++)
-			vb2_set_plane_payload(&b->b, i, 0);
-		vb2_buffer_done(&b->b, VB2_BUF_STATE_ERROR);
+		for (i = 0; i < b->vb.vb2_buf.num_planes; i++)
+			vb2_set_plane_payload(&b->vb.vb2_buf, i, 0);
+		vb2_buffer_done(&b->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		list_del(&b->list);
 	}
 
@@ -1091,7 +1092,7 @@ const struct v4l2_ioctl_ops *get_dec_v4l2_ioctl_ops(void)
 
 static void rk3288_vpu_dec_prepare_run(struct rk3288_vpu_ctx *ctx)
 {
-	struct v4l2_buffer *src = &ctx->run.src->b.v4l2_buf;
+	struct vb2_v4l2_buffer *src = to_vb2_v4l2_buffer(&ctx->run.src->vb.vb2_buf);
 
 	v4l2_ctrl_apply_store(&ctx->ctrl_handler, src->config_store);
 
@@ -1116,7 +1117,7 @@ static void rk3288_vpu_dec_run_done(struct rk3288_vpu_ctx *ctx,
 				    enum vb2_buffer_state result)
 {
 	struct v4l2_plane_pix_format *plane_fmts = ctx->dst_fmt.plane_fmt;
-	struct vb2_buffer *dst = &ctx->run.dst->b;
+	struct vb2_buffer *dst = &ctx->run.dst->vb.vb2_buf;
 	int i;
 
 	if (result != VB2_BUF_STATE_DONE) {

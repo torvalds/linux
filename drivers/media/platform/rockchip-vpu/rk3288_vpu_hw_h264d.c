@@ -302,7 +302,7 @@ static void rk3288_vpu_h264d_set_params(struct rk3288_vpu_ctx *ctx)
 	reg = VDPU_REG_DEC_CTRL3_START_CODE_E
 		| VDPU_REG_DEC_CTRL3_INIT_QP(pps->pic_init_qp_minus26 + 26)
 		| VDPU_REG_DEC_CTRL3_STREAM_LEN(
-			vb2_get_plane_payload(&ctx->run.src->b, 0));
+			vb2_get_plane_payload(&ctx->run.src->vb.vb2_buf, 0));
 	vdpu_write_relaxed(vpu, reg, VDPU_REG_DEC_CTRL3);
 
 	/* Decoder control register 4. */
@@ -487,7 +487,7 @@ static void rk3288_vpu_h264d_set_ref(struct rk3288_vpu_ctx *ctx)
 		    && dpb[i].buf_index < ctx->vq_dst.num_buffers)
 			buf = ctx->dst_bufs[dpb[i].buf_index];
 		else
-			buf = &ctx->run.dst->b;
+			buf = &ctx->run.dst->vb.vb2_buf;
 
 		vdpu_write_relaxed(vpu, vb2_dma_contig_plane_dma_addr(buf, 0),
 					VDPU_REG_ADDR_REF(i));
@@ -503,11 +503,11 @@ static void rk3288_vpu_h264d_set_buffers(struct rk3288_vpu_ctx *ctx)
 	dma_addr_t src_dma, dst_dma;
 
 	/* Source (stream) buffer. */
-	src_dma = vb2_dma_contig_plane_dma_addr(&ctx->run.src->b, 0);
+	src_dma = vb2_dma_contig_plane_dma_addr(&ctx->run.src->vb.vb2_buf, 0);
 	vdpu_write_relaxed(vpu, src_dma, VDPU_REG_ADDR_STR);
 
 	/* Destination (decoded frame) buffer. */
-	dst_dma = vb2_dma_contig_plane_dma_addr(&ctx->run.dst->b, 0);
+	dst_dma = vb2_dma_contig_plane_dma_addr(&ctx->run.dst->vb.vb2_buf, 0);
 	vdpu_write_relaxed(vpu, dst_dma, VDPU_REG_ADDR_DST);
 
 	/* Higher profiles require DMV buffer appended to reference frames. */
@@ -544,7 +544,7 @@ void rk3288_vpu_h264d_run(struct rk3288_vpu_ctx *ctx)
 	schedule_delayed_work(&vpu->watchdog_work, msecs_to_jiffies(2000));
 
 	/* Start decoding! */
-	vdpu_write_relaxed(vpu, VDPU_REG_CONFIG_DEC_AXI_RD_ID(0xff)
+	vdpu_write_relaxed(vpu, VDPU_REG_CONFIG_DEC_AXI_RD_ID(0xffu)
 				| VDPU_REG_CONFIG_DEC_TIMEOUT_E
 				| VDPU_REG_CONFIG_DEC_OUT_ENDIAN
 				| VDPU_REG_CONFIG_DEC_STRENDIAN_E
