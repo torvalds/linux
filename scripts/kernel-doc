@@ -2942,24 +2942,7 @@ sub process_file($) {
 		process_state3_type($_, $file);
 	    }
 	} elsif ($state == STATE_DOCBLOCK) {
-		# Documentation block
-		if (/$doc_block/) {
-			dump_doc_section($file, $section, xml_escape($contents));
-			$contents = "";
-			$function = "";
-			%parameterdescs = ();
-			%parametertypes = ();
-			@parameterlist = ();
-			%sections = ();
-			@sectionlist = ();
-			$prototype = "";
-			if ( $1 eq "" ) {
-				$section = $section_intro;
-			} else {
-				$section = $1;
-			}
-		}
-		elsif (/$doc_end/)
+		if (/$doc_end/)
 		{
 			dump_doc_section($file, $section, xml_escape($contents));
 			$section = $section_default;
