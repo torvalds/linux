@@ -2399,7 +2399,7 @@ EXPORT_SYMBOL(drm_atomic_helper_page_flip);
  * This is the main helper function provided by the atomic helper framework for
  * implementing the legacy DPMS connector interface. It computes the new desired
  * ->active state for the corresponding CRTC (if the connector is enabled) and
- *  updates it.
+ * updates it.
  *
  * Returns:
  * Returns 0 on success, negative errno numbers on failure.

@@ -535,7 +535,7 @@ EXPORT_SYMBOL(drm_framebuffer_unregister_private);
  *
  * Cleanup framebuffer. This function is intended to be used from the drivers
  * ->destroy callback. It can also be used to clean up driver private
- *  framebuffers embedded into a larger structure.
+ * framebuffers embedded into a larger structure.
  *
  * Note that this function does not remove the fb from active usuage - if it is
  * still used anywhere, hilarity can ensue since userspace could call getfb on

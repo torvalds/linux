@@ -544,6 +544,7 @@ EXPORT_SYMBOL(drm_gtf_mode_complex);
  *
  * This function is to create the modeline based on the GTF algorithm.
  * Generalized Timing Formula is derived from:
+ *
  *	GTF Spreadsheet by Andy Morrish (1/5/97)
  *	available at http://www.vesa.org
  *
