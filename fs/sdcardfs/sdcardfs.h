@@ -465,13 +465,13 @@ extern int setup_obb_dentry(struct dentry *dentry, struct path *lower_path);
 static inline struct dentry *lock_parent(struct dentry *dentry)
 {
 	struct dentry *dir = dget_parent(dentry);
-	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
 	return dir;
 }
 
 static inline void unlock_dir(struct dentry *dir)
 {
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 	dput(dir);
 }
 
@@ -500,16 +500,16 @@ static inline int prepare_dir(const char *path_s, uid_t uid, gid_t gid, mode_t m
 	attrs.ia_uid = make_kuid(&init_user_ns, uid);
 	attrs.ia_gid = make_kgid(&init_user_ns, gid);
 	attrs.ia_valid = ATTR_UID | ATTR_GID;
-	mutex_lock(&d_inode(dent)->i_mutex);
+	inode_lock(d_inode(dent));
 	notify_change2(parent.mnt, dent, &attrs, NULL);
-	mutex_unlock(&d_inode(dent)->i_mutex);
+	inode_unlock(d_inode(dent));
 
 out_dput:
 	dput(dent);
 
 out_unlock:
 	/* parent dentry locked by lookup_create */
-	mutex_unlock(&d_inode(parent.dentry)->i_mutex);
+	inode_unlock(d_inode(parent.dentry));
 	path_put(&parent);
 	return err;
 }

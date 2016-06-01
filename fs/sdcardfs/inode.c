@@ -804,10 +804,10 @@ static int sdcardfs_setattr(struct vfsmount *mnt, struct dentry *dentry, struct 
 	 * unlinked (no inode->i_sb and i_ino==0.  This happens if someone
 	 * tries to open(), unlink(), then ftruncate() a file.
 	 */
-	mutex_lock(&d_inode(lower_dentry)->i_mutex);
+	inode_lock(d_inode(lower_dentry));
 	err = notify_change2(lower_mnt, lower_dentry, &lower_ia, /* note: lower_ia */
 			NULL);
-	mutex_unlock(&d_inode(lower_dentry)->i_mutex);
+	inode_unlock(d_inode(lower_dentry));
 	if (current->mm)
 		up_write(&current->mm->mmap_sem);
 	if (err)

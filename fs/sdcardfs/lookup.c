@@ -244,7 +244,7 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 	if (err == -ENOENT) {
 		struct dentry *child;
 		struct dentry *match = NULL;
-		mutex_lock(&d_inode(lower_dir_dentry)->i_mutex);
+		inode_lock(d_inode(lower_dir_dentry));
 		spin_lock(&lower_dir_dentry->d_lock);
 		list_for_each_entry(child, &lower_dir_dentry->d_subdirs, d_child) {
 			if (child && d_inode(child)) {
@@ -255,7 +255,7 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 			}
 		}
 		spin_unlock(&lower_dir_dentry->d_lock);
-		mutex_unlock(&d_inode(lower_dir_dentry)->i_mutex);
+		inode_unlock(d_inode(lower_dir_dentry));
 		if (match) {
 			err = vfs_path_lookup(lower_dir_dentry,
 						lower_dir_mnt,
@@ -344,7 +344,7 @@ out:
  * On fail (== error)
  * 	returns error ptr
  *
- * @dir : Parent inode. It is locked (dir->i_mutex)
+ * @dir : Parent inode.
  * @dentry : Target dentry to lookup. we should set each of fields.
  *	     (dentry->d_name is initialized already)
  * @nd : nameidata of parent inode
