@@ -59,6 +59,7 @@ i915-y += intel_audio.o \
 	  intel_bios.o \
 	  intel_color.o \
 	  intel_display.o \
+	  intel_dpio_phy.o \
 	  intel_dpll_mgr.o \
 	  intel_fbc.o \
 	  intel_fifo_underrun.o \
@@ -81,10 +82,12 @@ i915-y += dvo_ch7017.o \
 	  dvo_tfp410.o \
 	  intel_crt.o \
 	  intel_ddi.o \
+	  intel_dp_aux_backlight.o \
 	  intel_dp_link_training.o \
 	  intel_dp_mst.o \
 	  intel_dp.o \
 	  intel_dsi.o \
+	  intel_dsi_dcs_backlight.o \
 	  intel_dsi_panel_vbt.o \
 	  intel_dsi_pll.o \
 	  intel_dvo.o \

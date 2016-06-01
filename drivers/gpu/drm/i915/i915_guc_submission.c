@@ -158,8 +158,7 @@ static int host2guc_sample_forcewake(struct intel_guc *guc,
 
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
 	/* WaRsDisableCoarsePowerGating:skl,bxt */
-	if (!intel_enable_rc6(dev) ||
-	    NEEDS_WaRsDisableCoarsePowerGating(dev))
+	if (!intel_enable_rc6() || NEEDS_WaRsDisableCoarsePowerGating(dev))
 		data[1] = 0;
 	else
 		/* bit 0 and 1 are for Render and Media domain separately */
@@ -587,8 +586,8 @@ static struct drm_i915_gem_object *gem_allocate_guc_obj(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_alloc_object(dev, size);
-	if (!obj)
+	obj = i915_gem_object_create(dev, size);
+	if (IS_ERR(obj))
 		return NULL;
 
 	if (i915_gem_object_get_pages(obj)) {

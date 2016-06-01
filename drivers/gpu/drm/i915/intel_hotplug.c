@@ -220,7 +220,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 		}
 	}
 	if (dev_priv->display.hpd_irq_setup)
-		dev_priv->display.hpd_irq_setup(dev);
+		dev_priv->display.hpd_irq_setup(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	intel_runtime_pm_put(dev_priv);
@@ -346,7 +346,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 
 /**
  * intel_hpd_irq_handler - main hotplug irq handler
- * @dev: drm device
+ * @dev_priv: drm_i915_private
  * @pin_mask: a mask of hpd pins that have triggered the irq
  * @long_mask: a mask of hpd pins that may be long hpd pulses
  *
@@ -360,10 +360,9 @@ static void i915_hotplug_work_func(struct work_struct *work)
  * Here, we do hotplug irq storm detection and mitigation, and pass further
  * processing to appropriate bottom halves.
  */
-void intel_hpd_irq_handler(struct drm_device *dev,
+void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 			   u32 pin_mask, u32 long_mask)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 	enum port port;
 	bool storm_detected = false;
@@ -407,7 +406,7 @@ void intel_hpd_irq_handler(struct drm_device *dev,
 			 * hotplug bits itself. So only WARN about unexpected
 			 * interrupts on saner platforms.
 			 */
-			WARN_ONCE(!HAS_GMCH_DISPLAY(dev),
+			WARN_ONCE(!HAS_GMCH_DISPLAY(dev_priv),
 				  "Received HPD interrupt on pin %d although disabled\n", i);
 			continue;
 		}
@@ -427,7 +426,7 @@ void intel_hpd_irq_handler(struct drm_device *dev,
 	}
 
 	if (storm_detected)
-		dev_priv->display.hpd_irq_setup(dev);
+		dev_priv->display.hpd_irq_setup(dev_priv);
 	spin_unlock(&dev_priv->irq_lock);
 
 	/*
@@ -485,7 +484,7 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 	 */
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display.hpd_irq_setup)
-		dev_priv->display.hpd_irq_setup(dev);
+		dev_priv->display.hpd_irq_setup(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 

@@ -574,10 +574,8 @@ static void asle_work(struct work_struct *work)
 	asle->aslc = aslc_stat;
 }
 
-void intel_opregion_asle_intr(struct drm_device *dev)
+void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	if (dev_priv->opregion.asle)
 		schedule_work(&dev_priv->opregion.asle_work);
 }

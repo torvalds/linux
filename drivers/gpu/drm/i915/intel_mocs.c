@@ -189,7 +189,7 @@ static i915_reg_t mocs_register(enum intel_engine_id ring, int index)
  */
 int intel_mocs_init_engine(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = to_i915(engine->dev);
+	struct drm_i915_private *dev_priv = engine->i915;
 	struct drm_i915_mocs_table table;
 	unsigned int index;
 

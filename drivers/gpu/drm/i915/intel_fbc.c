@@ -740,7 +740,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc)
 
 	/* FIXME: We lack the proper locking here, so only run this on the
 	 * platforms that need. */
-	if (INTEL_INFO(dev_priv)->gen >= 5 && INTEL_INFO(dev_priv)->gen < 7)
+	if (IS_GEN(dev_priv, 5, 6))
 		cache->fb.ilk_ggtt_offset = i915_gem_obj_ggtt_offset(obj);
 	cache->fb.pixel_format = fb->pixel_format;
 	cache->fb.stride = fb->pitches[0];
@@ -827,7 +827,7 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 	bool enable_by_default = IS_HASWELL(dev_priv) ||
 				 IS_BROADWELL(dev_priv);
 
-	if (intel_vgpu_active(dev_priv->dev)) {
+	if (intel_vgpu_active(dev_priv)) {
 		fbc->no_fbc_reason = "VGPU is active";
 		return false;
 	}

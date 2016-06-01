@@ -43,7 +43,7 @@ static u32 calc_residency(struct drm_device *dev,
 	u64 units = 128ULL, div = 100000ULL;
 	u32 ret;
 
-	if (!intel_enable_rc6(dev))
+	if (!intel_enable_rc6())
 		return 0;
 
 	intel_runtime_pm_get(dev_priv);
@@ -70,8 +70,7 @@ static u32 calc_residency(struct drm_device *dev,
 static ssize_t
 show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_minor *dminor = dev_to_drm_minor(kdev);
-	return snprintf(buf, PAGE_SIZE, "%x\n", intel_enable_rc6(dminor->dev));
+	return snprintf(buf, PAGE_SIZE, "%x\n", intel_enable_rc6());
 }
 
 static ssize_t
@@ -397,7 +396,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	/* We still need *_set_rps to process the new max_delay and
 	 * update the interrupt limits and PMINTRMSK even though
 	 * frequency request may be unchanged. */
-	intel_set_rps(dev, val);
+	intel_set_rps(dev_priv, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -461,7 +460,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	/* We still need *_set_rps to process the new min_delay and
 	 * update the interrupt limits and PMINTRMSK even though
 	 * frequency request may be unchanged. */
-	intel_set_rps(dev, val);
+	intel_set_rps(dev_priv, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 

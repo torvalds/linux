@@ -59,8 +59,11 @@
  *
  */
 
-#define I915_SKL_GUC_UCODE "i915/skl_guc_ver6.bin"
+#define I915_SKL_GUC_UCODE "i915/skl_guc_ver6_1.bin"
 MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
+
+#define I915_BXT_GUC_UCODE "i915/bxt_guc_ver8_7.bin"
+MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
 
 /* User-friendly representation of an enum */
 const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
@@ -281,6 +284,17 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static u32 guc_wopcm_size(struct drm_i915_private *dev_priv)
+{
+	u32 wopcm_size = GUC_WOPCM_TOP;
+
+	/* On BXT, the top of WOPCM is reserved for RC6 context */
+	if (IS_BROXTON(dev_priv))
+		wopcm_size -= BXT_GUC_WOPCM_RC6_RESERVED;
+
+	return wopcm_size;
+}
+
 /*
  * Load the GuC firmware blob into the MinuteIA.
  */
@@ -308,7 +322,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	/* init WOPCM */
-	I915_WRITE(GUC_WOPCM_SIZE, GUC_WOPCM_SIZE_VALUE);
+	I915_WRITE(GUC_WOPCM_SIZE, guc_wopcm_size(dev_priv));
 	I915_WRITE(DMA_GUC_WOPCM_OFFSET, GUC_WOPCM_OFFSET_VALUE);
 
 	/* Enable MIA caching. GuC clock gating is disabled. */
@@ -552,9 +566,7 @@ static void guc_fw_fetch(struct drm_device *dev, struct intel_guc_fw *guc_fw)
 
 	/* Header and uCode will be loaded to WOPCM. Size of the two. */
 	size = guc_fw->header_size + guc_fw->ucode_size;
-
-	/* Top 32k of WOPCM is reserved (8K stack + 24k RC6 context). */
-	if (size > GUC_WOPCM_SIZE_VALUE - 0x8000) {
+	if (size > guc_wopcm_size(dev->dev_private)) {
 		DRM_ERROR("Firmware is too large to fit in WOPCM\n");
 		goto fail;
 	}
@@ -640,6 +652,10 @@ void intel_guc_ucode_init(struct drm_device *dev)
 		fw_path = I915_SKL_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = 6;
 		guc_fw->guc_fw_minor_wanted = 1;
+	} else if (IS_BROXTON(dev)) {
+		fw_path = I915_BXT_GUC_UCODE;
+		guc_fw->guc_fw_major_wanted = 8;
+		guc_fw->guc_fw_minor_wanted = 7;
 	} else {
 		i915.enable_guc_submission = false;
 		fw_path = "";	/* unknown device */

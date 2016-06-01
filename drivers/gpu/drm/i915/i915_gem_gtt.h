@@ -34,6 +34,8 @@
 #ifndef __I915_GEM_GTT_H__
 #define __I915_GEM_GTT_H__
 
+#include <linux/io-mapping.h>
+
 struct drm_i915_file_private;
 
 typedef uint32_t gen6_pte_t;
@@ -175,6 +177,7 @@ struct i915_vma {
 	struct drm_mm_node node;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
+	void __iomem *iomap;
 
 	/** Flags and address space this VMA is bound to */
 #define GLOBAL_BIND	(1<<0)
@@ -518,9 +521,7 @@ int i915_ggtt_enable_hw(struct drm_device *dev);
 void i915_gem_init_ggtt(struct drm_device *dev);
 void i915_ggtt_cleanup_hw(struct drm_device *dev);
 
-int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
 int i915_ppgtt_init_hw(struct drm_device *dev);
-int i915_ppgtt_init_ring(struct drm_i915_gem_request *req);
 void i915_ppgtt_release(struct kref *kref);
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_device *dev,
 					struct drm_i915_file_private *fpriv);
@@ -535,7 +536,7 @@ static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 		kref_put(&ppgtt->ref, i915_ppgtt_release);
 }
 
-void i915_check_and_clear_faults(struct drm_device *dev);
+void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 
@@ -559,5 +560,37 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 size_t
 i915_ggtt_view_size(struct drm_i915_gem_object *obj,
 		    const struct i915_ggtt_view *view);
+
+/**
+ * i915_vma_pin_iomap - calls ioremap_wc to map the GGTT VMA via the aperture
+ * @vma: VMA to iomap
+ *
+ * The passed in VMA has to be pinned in the global GTT mappable region.
+ * An extra pinning of the VMA is acquired for the return iomapping,
+ * the caller must call i915_vma_unpin_iomap to relinquish the pinning
+ * after the iomapping is no longer required.
+ *
+ * Callers must hold the struct_mutex.
+ *
+ * Returns a valid iomapped pointer or ERR_PTR.
+ */
+void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
+
+/**
+ * i915_vma_unpin_iomap - unpins the mapping returned from i915_vma_iomap
+ * @vma: VMA to unpin
+ *
+ * Unpins the previously iomapped VMA from i915_vma_pin_iomap().
+ *
+ * Callers must hold the struct_mutex. This function is only valid to be
+ * called on a VMA previously iomapped by the caller with i915_vma_pin_iomap().
+ */
+static inline void i915_vma_unpin_iomap(struct i915_vma *vma)
+{
+	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	GEM_BUG_ON(vma->pin_count == 0);
+	GEM_BUG_ON(vma->iomap == NULL);
+	vma->pin_count--;
+}
 
 #endif

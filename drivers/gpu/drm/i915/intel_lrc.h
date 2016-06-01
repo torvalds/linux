@@ -101,8 +101,6 @@ static inline void intel_logical_ring_emit_reg(struct intel_ringbuffer *ringbuf,
 
 void intel_lr_context_free(struct intel_context *ctx);
 uint32_t intel_lr_context_size(struct intel_engine_cs *engine);
-int intel_lr_context_deferred_alloc(struct intel_context *ctx,
-				    struct intel_engine_cs *engine);
 void intel_lr_context_unpin(struct intel_context *ctx,
 			    struct intel_engine_cs *engine);
 
@@ -113,16 +111,14 @@ void intel_lr_context_reset(struct drm_i915_private *dev_priv,
 uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 				     struct intel_engine_cs *engine);
 
-u32 intel_execlists_ctx_id(struct intel_context *ctx,
-			   struct intel_engine_cs *engine);
-
 /* Execlists */
-int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
+int intel_sanitize_enable_execlists(struct drm_i915_private *dev_priv,
+				    int enable_execlists);
 struct i915_execbuffer_params;
 int intel_execlists_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas);
 
-void intel_execlists_retire_requests(struct intel_engine_cs *engine);
+void intel_execlists_cancel_requests(struct intel_engine_cs *engine);
 
 #endif /* _INTEL_LRC_H_ */

@@ -532,7 +532,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	enum port port;
-	u32 tmp;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -551,11 +550,13 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	msleep(intel_dsi->panel_on_delay);
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		u32 val;
+
 		/* Disable DPOunit clock gating, can stall pipe */
-		tmp = I915_READ(DSPCLK_GATE_D);
-		tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
-		I915_WRITE(DSPCLK_GATE_D, tmp);
+		val = I915_READ(DSPCLK_GATE_D);
+		val |= DPOUNIT_CLOCK_GATE_DISABLE;
+		I915_WRITE(DSPCLK_GATE_D, val);
 	}
 
 	/* put device in ready state */
@@ -693,7 +694,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 
 	intel_dsi_clear_device_ready(encoder);
 
-	if (!IS_BROXTON(dev_priv)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		u32 val;
 
 		val = I915_READ(DSPCLK_GATE_D);
@@ -1473,10 +1474,42 @@ void intel_dsi_init(struct drm_device *dev)
 	else
 		intel_encoder->crtc_mask = BIT(PIPE_B);
 
-	if (dev_priv->vbt.dsi.config->dual_link)
+	if (dev_priv->vbt.dsi.config->dual_link) {
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);
-	else
+
+		switch (dev_priv->vbt.dsi.config->dl_dcs_backlight_ports) {
+		case DL_DCS_PORT_A:
+			intel_dsi->dcs_backlight_ports = BIT(PORT_A);
+			break;
+		case DL_DCS_PORT_C:
+			intel_dsi->dcs_backlight_ports = BIT(PORT_C);
+			break;
+		default:
+		case DL_DCS_PORT_A_AND_C:
+			intel_dsi->dcs_backlight_ports = BIT(PORT_A) | BIT(PORT_C);
+			break;
+		}
+
+		switch (dev_priv->vbt.dsi.config->dl_dcs_cabc_ports) {
+		case DL_DCS_PORT_A:
+			intel_dsi->dcs_cabc_ports = BIT(PORT_A);
+			break;
+		case DL_DCS_PORT_C:
+			intel_dsi->dcs_cabc_ports = BIT(PORT_C);
+			break;
+		default:
+		case DL_DCS_PORT_A_AND_C:
+			intel_dsi->dcs_cabc_ports = BIT(PORT_A) | BIT(PORT_C);
+			break;
+		}
+	} else {
 		intel_dsi->ports = BIT(port);
+		intel_dsi->dcs_backlight_ports = BIT(port);
+		intel_dsi->dcs_cabc_ports = BIT(port);
+	}
+
+	if (!dev_priv->vbt.dsi.config->cabc_supported)
+		intel_dsi->dcs_cabc_ports = 0;
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {

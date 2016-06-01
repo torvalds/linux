@@ -621,17 +621,11 @@ static void i915_audio_component_codec_wake_override(struct device *dev,
 static int i915_audio_component_get_cdclk_freq(struct device *dev)
 {
 	struct drm_i915_private *dev_priv = dev_to_i915(dev);
-	int ret;
 
 	if (WARN_ON_ONCE(!HAS_DDI(dev_priv)))
 		return -ENODEV;
 
-	intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
-	ret = dev_priv->display.get_display_clock_speed(dev_priv->dev);
-
-	intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
-
-	return ret;
+	return dev_priv->cdclk_freq;
 }
 
 static int i915_audio_component_sync_audio_rate(struct device *dev,

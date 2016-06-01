@@ -722,7 +722,7 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *engine,
 	struct i915_address_space *vm;
 	struct list_head ordered_vmas;
 	struct list_head pinned_vmas;
-	bool has_fenced_gpu_access = INTEL_INFO(engine->dev)->gen < 4;
+	bool has_fenced_gpu_access = INTEL_GEN(engine->i915) < 4;
 	int retry;
 
 	i915_gem_retire_requests_ring(engine);
@@ -963,7 +963,7 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 	}
 
 	if (flush_chipset)
-		i915_gem_chipset_flush(req->engine->dev);
+		i915_gem_chipset_flush(req->engine->i915);
 
 	if (flush_domains & I915_GEM_DOMAIN_GTT)
 		wmb();
@@ -1083,14 +1083,6 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 		return ERR_PTR(-EIO);
 	}
 
-	if (i915.enable_execlists && !ctx->engine[engine->id].state) {
-		int ret = intel_lr_context_deferred_alloc(ctx, engine);
-		if (ret) {
-			DRM_DEBUG("Could not create LRC %u: %d\n", ctx_id, ret);
-			return ERR_PTR(ret);
-		}
-	}
-
 	return ctx;
 }
 
@@ -1125,7 +1117,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
 			i915_gem_request_assign(&obj->last_fenced_req, req);
 			if (entry->flags & __EXEC_OBJECT_HAS_FENCE) {
-				struct drm_i915_private *dev_priv = to_i915(engine->dev);
+				struct drm_i915_private *dev_priv = engine->i915;
 				list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,
 					       &dev_priv->mm.fence_list);
 			}

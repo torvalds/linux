@@ -29,7 +29,7 @@
 #include "intel_renderstate.h"
 
 static const struct intel_renderstate_rodata *
-render_state_get_rodata(struct drm_device *dev, const int gen)
+render_state_get_rodata(const int gen)
 {
 	switch (gen) {
 	case 6:
@@ -45,21 +45,22 @@ render_state_get_rodata(struct drm_device *dev, const int gen)
 	return NULL;
 }
 
-static int render_state_init(struct render_state *so, struct drm_device *dev)
+static int render_state_init(struct render_state *so,
+			     struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	so->gen = INTEL_INFO(dev)->gen;
-	so->rodata = render_state_get_rodata(dev, so->gen);
+	so->gen = INTEL_GEN(dev_priv);
+	so->rodata = render_state_get_rodata(so->gen);
 	if (so->rodata == NULL)
 		return 0;
 
 	if (so->rodata->batch_items * 4 > 4096)
 		return -EINVAL;
 
-	so->obj = i915_gem_alloc_object(dev, 4096);
-	if (so->obj == NULL)
-		return -ENOMEM;
+	so->obj = i915_gem_object_create(dev_priv->dev, 4096);
+	if (IS_ERR(so->obj))
+		return PTR_ERR(so->obj);
 
 	ret = i915_gem_obj_ggtt_pin(so->obj, 4096, 0);
 	if (ret)
@@ -177,7 +178,7 @@ int i915_gem_render_state_prepare(struct intel_engine_cs *engine,
 	if (WARN_ON(engine->id != RCS))
 		return -ENOENT;
 
-	ret = render_state_init(so, engine->dev);
+	ret = render_state_init(so, engine->i915);
 	if (ret)
 		return ret;
 

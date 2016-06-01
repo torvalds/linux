@@ -125,7 +125,7 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 	if (INTEL_INFO(obj->base.dev)->gen >= 4)
 		return true;
 
-	if (INTEL_INFO(obj->base.dev)->gen == 3) {
+	if (IS_GEN3(obj->base.dev)) {
 		if (i915_gem_obj_ggtt_offset(obj) & ~I915_FENCE_START_MASK)
 			return false;
 	} else {
@@ -229,7 +229,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 */
 		if (obj->map_and_fenceable &&
 		    !i915_gem_object_fence_ok(obj, args->tiling_mode))
-			ret = i915_gem_object_ggtt_unbind(obj);
+			ret = i915_vma_unbind(i915_gem_obj_to_ggtt(obj));
 
 		if (ret == 0) {
 			if (obj->pages &&

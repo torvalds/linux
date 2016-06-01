@@ -56,7 +56,7 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 
 	/* See the comment at the drm_mm_init() call for more about this check.
 	 * WaSkipStolenMemoryFirstPage:bdw,chv (incomplete) */
-	if (INTEL_INFO(dev_priv)->gen == 8 && start < 4096)
+	if (IS_GEN8(dev_priv) && start < 4096)
 		start = 4096;
 
 	mutex_lock(&dev_priv->mm.stolen_lock);
@@ -109,9 +109,9 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 3) {
 		u32 bsm;
 
-		pci_read_config_dword(dev->pdev, BSM, &bsm);
+		pci_read_config_dword(dev->pdev, INTEL_BSM, &bsm);
 
-		base = bsm & BSM_MASK;
+		base = bsm & INTEL_BSM_MASK;
 	} else if (IS_I865G(dev)) {
 		u16 toud = 0;
 
