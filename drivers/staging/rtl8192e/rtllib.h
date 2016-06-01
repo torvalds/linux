@@ -1653,7 +1653,7 @@ struct rtllib_device {
 	short proto_stoppping;
 
 	struct mutex wx_mutex;
-	struct semaphore scan_sem;
+	struct mutex scan_mutex;
 	struct semaphore ips_sem;
 
 	spinlock_t mgmt_tx_lock;

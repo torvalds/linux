@@ -513,7 +513,7 @@ static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 
 	ieee->be_scan_inprogress = true;
 
-	down(&ieee->scan_sem);
+	mutex_lock(&ieee->scan_mutex);
 
 	while (1) {
 		do {
@@ -566,7 +566,7 @@ out:
 		if (IS_DOT11D_ENABLE(ieee))
 			DOT11D_ScanComplete(ieee);
 	}
-	up(&ieee->scan_sem);
+	mutex_unlock(&ieee->scan_mutex);
 
 	ieee->be_scan_inprogress = false;
 
@@ -587,7 +587,7 @@ static void rtllib_softmac_scan_wq(void *data)
 	if (rtllib_act_scanning(ieee, true))
 		return;
 
-	down(&ieee->scan_sem);
+	mutex_lock(&ieee->scan_mutex);
 
 	if (ieee->eRFPowerState == eRfOff) {
 		netdev_info(ieee->dev,
@@ -618,7 +618,7 @@ static void rtllib_softmac_scan_wq(void *data)
 	schedule_delayed_work(&ieee->softmac_scan_wq,
 			      msecs_to_jiffies(RTLLIB_SOFTMAC_SCAN_TIME));
 
-	up(&ieee->scan_sem);
+	mutex_unlock(&ieee->scan_mutex);
 	return;
 
 out:
@@ -630,7 +630,7 @@ out1:
 	ieee->actscanning = false;
 	ieee->scan_watch_dog = 0;
 	ieee->scanning_continue = 0;
-	up(&ieee->scan_sem);
+	mutex_unlock(&ieee->scan_mutex);
 }
 
 
@@ -683,7 +683,7 @@ EXPORT_SYMBOL(rtllib_start_send_beacons);
 
 static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 {
-	down(&ieee->scan_sem);
+	mutex_lock(&ieee->scan_mutex);
 	ieee->scan_watch_dog = 0;
 	if (ieee->scanning_continue == 1) {
 		ieee->scanning_continue = 0;
@@ -692,7 +692,7 @@ static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 		cancel_delayed_work_sync(&ieee->softmac_scan_wq);
 	}
 
-	up(&ieee->scan_sem);
+	mutex_unlock(&ieee->scan_mutex);
 }
 
 void rtllib_stop_scan(struct rtllib_device *ieee)
@@ -3035,7 +3035,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 		      ieee);
 
 	mutex_init(&ieee->wx_mutex);
-	sema_init(&ieee->scan_sem, 1);
+	mutex_init(&ieee->scan_mutex);
 	sema_init(&ieee->ips_sem, 1);
 
 	spin_lock_init(&ieee->mgmt_tx_lock);
