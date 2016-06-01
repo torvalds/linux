@@ -338,6 +338,7 @@ static int usb3503_platform_probe(struct platform_device *pdev)
 	if (!hub)
 		return -ENOMEM;
 	hub->dev = &pdev->dev;
+	platform_set_drvdata(pdev, hub);
 
 	return usb3503_probe(hub);
 }
