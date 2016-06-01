@@ -417,7 +417,10 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_ignore_hotplug(pdev);
-	pci_set_power_state(pdev, PCI_D3cold);
+	if (amdgpu_has_atpx_dgpu_power_cntl())
+		pci_set_power_state(pdev, PCI_D3cold);
+	else
+		pci_set_power_state(pdev, PCI_D3hot);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 
 	return 0;
