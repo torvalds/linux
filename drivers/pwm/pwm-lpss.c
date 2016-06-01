@@ -27,7 +27,6 @@
 #define PWM_SW_UPDATE			BIT(30)
 #define PWM_BASE_UNIT_SHIFT		8
 #define PWM_ON_TIME_DIV_MASK		0x000000ff
-#define PWM_DIVISION_CORRECTION		0x2
 
 /* Size of each PWM register space if multiple */
 #define PWM_SIZE			0x400
@@ -101,17 +100,16 @@ static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * The equation is:
-	 * base_unit = ((freq / c) * base_unit_range) + correction
+	 * base_unit = round(base_unit_range * freq / c)
 	 */
 	base_unit_range = BIT(lpwm->info->base_unit_bits);
-	base_unit = freq * base_unit_range;
+	freq *= base_unit_range;
 
 	c = lpwm->info->clk_rate;
 	if (!c)
 		return -EINVAL;
 
-	do_div(base_unit, c);
-	base_unit += PWM_DIVISION_CORRECTION;
+	base_unit = DIV_ROUND_CLOSEST_ULL(freq, c);
 
 	if (duty_ns <= 0)
 		duty_ns = 1;
