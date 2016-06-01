@@ -359,7 +359,7 @@ xfs_buf_item_format(
 	for (i = 0; i < bip->bli_format_count; i++) {
 		xfs_buf_item_format_segment(bip, lv, &vecp, offset,
 					    &bip->bli_formats[i]);
-		offset += bp->b_maps[i].bm_len;
+		offset += BBTOB(bp->b_maps[i].bm_len);
 	}
 
 	/*
@@ -915,20 +915,28 @@ xfs_buf_item_log(
 	for (i = 0; i < bip->bli_format_count; i++) {
 		if (start > last)
 			break;
-		end = start + BBTOB(bp->b_maps[i].bm_len);
+		end = start + BBTOB(bp->b_maps[i].bm_len) - 1;
+
+		/* skip to the map that includes the first byte to log */
 		if (first > end) {
 			start += BBTOB(bp->b_maps[i].bm_len);
 			continue;
 		}
+
+		/*
+		 * Trim the range to this segment and mark it in the bitmap.
+		 * Note that we must convert buffer offsets to segment relative
+		 * offsets (e.g., the first byte of each segment is byte 0 of
+		 * that segment).
+		 */
 		if (first < start)
 			first = start;
 		if (end > last)
 			end = last;
-
-		xfs_buf_item_log_segment(first, end,
+		xfs_buf_item_log_segment(first - start, end - start,
 					 &bip->bli_formats[i].blf_data_map[0]);
 
-		start += bp->b_maps[i].bm_len;
+		start += BBTOB(bp->b_maps[i].bm_len);
 	}
 }
 
