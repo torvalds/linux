@@ -2134,8 +2134,7 @@ no_timings:
 	/* is child a common bus? */
 	if (of_match_node(of_default_bus_match_table, child))
 		/* create children and other common bus children */
-		if (of_platform_populate(child, of_default_bus_match_table,
-					 NULL, &pdev->dev))
+		if (of_platform_default_populate(child, NULL, &pdev->dev))
 			goto err_child_fail;
 
 	return 0;
