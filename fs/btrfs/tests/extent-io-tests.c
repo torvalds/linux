@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/sizes.h>
 #include "btrfs-tests.h"
+#include "../ctree.h"
 #include "../extent_io.h"
 
 #define PROCESS_UNLOCK		(1 << 0)
@@ -298,25 +299,29 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 		return -EINVAL;
 	}
 
-	bitmap_set(bitmap, (PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
-		   sizeof(long) * BITS_PER_BYTE);
-	extent_buffer_bitmap_set(eb, PAGE_SIZE - sizeof(long) / 2, 0,
-				 sizeof(long) * BITS_PER_BYTE);
-	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
-		test_msg("Setting straddling pages failed\n");
-		return -EINVAL;
-	}
+	/* Straddling pages test */
+	if (len > PAGE_SIZE) {
+		bitmap_set(bitmap,
+			(PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
+			sizeof(long) * BITS_PER_BYTE);
+		extent_buffer_bitmap_set(eb, PAGE_SIZE - sizeof(long) / 2, 0,
+					sizeof(long) * BITS_PER_BYTE);
+		if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
+			test_msg("Setting straddling pages failed\n");
+			return -EINVAL;
+		}
 
-	bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
-	bitmap_clear(bitmap,
-		     (PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
-		     sizeof(long) * BITS_PER_BYTE);
-	extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
-	extent_buffer_bitmap_clear(eb, PAGE_SIZE - sizeof(long) / 2, 0,
-				   sizeof(long) * BITS_PER_BYTE);
-	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
-		test_msg("Clearing straddling pages failed\n");
-		return -EINVAL;
+		bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
+		bitmap_clear(bitmap,
+			(PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
+			sizeof(long) * BITS_PER_BYTE);
+		extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
+		extent_buffer_bitmap_clear(eb, PAGE_SIZE - sizeof(long) / 2, 0,
+					sizeof(long) * BITS_PER_BYTE);
+		if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
+			test_msg("Clearing straddling pages failed\n");
+			return -EINVAL;
+		}
 	}
 
 	/*
@@ -359,7 +364,13 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 	int ret;
 
 	test_msg("Running extent buffer bitmap tests\n");
-	len = sectorsize * 4;
+
+	/*
+	 * In ppc64, sectorsize can be 64K, thus 4 * 64K will be larger than
+	 * BTRFS_MAX_METADATA_BLOCKSIZE.
+	 */
+	len = (sectorsize < BTRFS_MAX_METADATA_BLOCKSIZE)
+		? sectorsize * 4 : sectorsize;
 
 	bitmap = kmalloc(len, GFP_KERNEL);
 	if (!bitmap) {
