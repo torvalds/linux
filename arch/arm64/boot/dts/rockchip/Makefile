@@ -10,6 +10,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-fpga.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gru-gru.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gru-kevin-r0.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gru-kevin-r1.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-mid-818-android.dtb
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
