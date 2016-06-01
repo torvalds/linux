@@ -21,6 +21,16 @@
 #include "msm_gpu.h"
 #include "msm_kms.h"
 
+
+/*
+ * MSM driver version:
+ * - 1.0.0 - initial interface
+ * - 1.1.0 - adds madvise, and support for submits with > 4 cmd buffers
+ */
+#define MSM_VERSION_MAJOR	1
+#define MSM_VERSION_MINOR	1
+#define MSM_VERSION_PATCHLEVEL	0
+
 static void msm_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -807,8 +817,9 @@ static struct drm_driver msm_driver = {
 	.name               = "msm",
 	.desc               = "MSM Snapdragon DRM",
 	.date               = "20130625",
-	.major              = 1,
-	.minor              = 0,
+	.major              = MSM_VERSION_MAJOR,
+	.minor              = MSM_VERSION_MINOR,
+	.patchlevel         = MSM_VERSION_PATCHLEVEL,
 };
 
 #ifdef CONFIG_PM_SLEEP
