@@ -1206,7 +1206,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	}
 	if (bdb->version < 106) {
 		expected_size = 22;
-	} else if (bdb->version < 109) {
+	} else if (bdb->version < 111) {
 		expected_size = 27;
 	} else if (bdb->version < 195) {
 		BUILD_BUG_ON(sizeof(struct old_child_dev_config) != 33);
