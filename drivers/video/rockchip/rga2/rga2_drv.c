@@ -42,6 +42,8 @@
 #include <linux/wakelock.h>
 #include <linux/scatterlist.h>
 #include <linux/rockchip_ion.h>
+#include <linux/version.h>
+#include <linux/pm_runtime.h>
 
 #include "rga2.h"
 #include "rga2_reg_info.h"
@@ -75,7 +77,7 @@ long (*rga_ioctl_kernel_p)(struct rga_req *);
 
 struct rga2_drvdata_t {
 	struct miscdevice miscdev;
-	struct device dev;
+	struct device *dev;
 	void *rga_base;
 	int irq;
 
@@ -203,6 +205,10 @@ static void rga2_power_on(void)
 	static ktime_t last;
 	ktime_t now = ktime_get();
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_get_sync(rga2_drvdata->dev);
+#endif
+
 	if (ktime_to_ns(ktime_sub(now, last)) > NSEC_PER_SEC) {
 		cancel_delayed_work_sync(&rga2_drvdata->power_off_work);
 		rga2_queue_power_off_work();
@@ -239,6 +245,11 @@ static void rga2_power_off(void)
 	clk_disable_unprepare(rga2_drvdata->rga2);
 	clk_disable_unprepare(rga2_drvdata->aclk_rga2);
 	clk_disable_unprepare(rga2_drvdata->hclk_rga2);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_put(rga2_drvdata->dev);
+#endif
+
 	wake_unlock(&rga2_drvdata->wake_lock);
     first_RGA2_proc = 0;
 	rga2_service.enable = false;
@@ -1219,6 +1230,7 @@ static int rga2_drv_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, data);
+	data->dev = &pdev->dev;
 	rga2_drvdata = data;
 	of_property_read_u32(np, "dev_mode", &rga2_service.dev_mode);
 
@@ -1238,6 +1250,10 @@ static int rga2_drv_probe(struct platform_device *pdev)
 		ERR("cannot register miscdev (%d)\n", ret);
 		goto err_misc_register;
 	}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_enable(&pdev->dev);
+#endif
 
 	pr_info("Driver loaded succesfully\n");
 
@@ -1267,6 +1283,10 @@ static int rga2_drv_remove(struct platform_device *pdev)
 	devm_clk_put(&pdev->dev, data->rga2);
 	devm_clk_put(&pdev->dev, data->aclk_rga2);
 	devm_clk_put(&pdev->dev, data->hclk_rga2);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_disable(&pdev->dev);
+#endif
 
 	kfree(data);
 	return 0;
