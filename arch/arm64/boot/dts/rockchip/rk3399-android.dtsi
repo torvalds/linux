@@ -152,6 +152,7 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		resets = <&cru SRST_H_VCODEC>, <&cru SRST_A_VCODEC>;
 		reset-names = "video_h", "video_a";
+		power-domains = <&power RK3399_PD_VCODEC>;
 		name = "vpu_service";
 		dev_mode = <0>;
 	};
@@ -175,6 +176,7 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_cabac", "clk_core";
 		resets = <&cru SRST_H_VDU>, <&cru SRST_A_VDU>;
 		reset-names = "video_h", "video_a";
+		power-domains = <&power RK3399_PD_VDU>;
 		dev_mode = <2>;
 		name = "rkvdec";
 	};
