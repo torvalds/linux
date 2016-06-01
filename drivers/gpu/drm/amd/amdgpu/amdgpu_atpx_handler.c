@@ -195,11 +195,6 @@ static int amdgpu_atpx_validate(struct amdgpu_atpx *atpx)
 	if (valid_bits & ATPX_MS_HYBRID_GFX_SUPPORTED) {
 		printk("Hybrid Graphics, ATPX dGPU power cntl disabled\n");
 		atpx->functions.power_cntl = false;
-	} else if (atpx->functions.power_cntl == false) {
-		/* make sure required functions are enabled */
-		/* dGPU power control is required */
-		printk("ATPX dGPU power cntl not present, forcing\n");
-		atpx->functions.power_cntl = true;
 	}
 
 	return 0;
