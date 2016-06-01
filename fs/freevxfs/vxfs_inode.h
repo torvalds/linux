@@ -151,6 +151,8 @@ struct vxfs_dinode {
  * The inode as represented in the main memory.
  */
 struct vxfs_inode_info {
+	struct inode	vfs_inode;
+
 	__u32		vii_mode;
 	__u32		vii_nlink;	/* Link count */
 	__u32		vii_uid;	/* UID */
@@ -182,5 +184,10 @@ struct vxfs_inode_info {
 #define vii_immed	vii_org.immed
 #define vii_ext4	vii_org.ext4
 #define vii_typed	vii_org.typed
+
+static inline struct vxfs_inode_info *VXFS_INO(struct inode *inode)
+{
+	return container_of(inode, struct vxfs_inode_info, vfs_inode);
+}
 
 #endif /* _VXFS_INODE_H_ */

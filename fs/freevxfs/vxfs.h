@@ -272,13 +272,6 @@ enum {
 #define VXFS_ISIMMED(ip)	VXFS_IS_ORG((ip), VXFS_ORG_IMMED)
 #define VXFS_ISTYPED(ip)	VXFS_IS_ORG((ip), VXFS_ORG_TYPED)
 
-
-/*
- * Get filesystem private data from VFS inode.
- */
-#define VXFS_INO(ip) \
-	((struct vxfs_inode_info *)(ip)->i_private)
-
 /*
  * Get filesystem private data from VFS superblock.
  */

@@ -52,6 +52,8 @@ MODULE_AUTHOR("Christoph Hellwig");
 MODULE_DESCRIPTION("Veritas Filesystem (VxFS) driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
+static struct kmem_cache *vxfs_inode_cachep;
+
 /**
  * vxfs_put_super - free superblock resources
  * @sbp:	VFS superblock.
@@ -117,7 +119,31 @@ static int vxfs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+static struct inode *vxfs_alloc_inode(struct super_block *sb)
+{
+	struct vxfs_inode_info *vi;
+
+	vi = kmem_cache_alloc(vxfs_inode_cachep, GFP_KERNEL);
+	if (!vi)
+		return NULL;
+	return &vi->vfs_inode;
+}
+
+static void vxfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+
+	kmem_cache_free(vxfs_inode_cachep, VXFS_INO(inode));
+}
+
+static void vxfs_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, vxfs_i_callback);
+}
+
 static const struct super_operations vxfs_super_ops = {
+	.alloc_inode		= vxfs_alloc_inode,
+	.destroy_inode		= vxfs_destroy_inode,
 	.evict_inode		= vxfs_evict_inode,
 	.put_super		= vxfs_put_super,
 	.statfs			= vxfs_statfs,
@@ -206,6 +232,7 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 		goto out;
 	}
 
+	sbp->s_op = &vxfs_super_ops;
 	sbp->s_fs_info = infp;
 
 	if (!vxfs_try_sb_magic(sbp, silent, 1,
@@ -256,7 +283,6 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 		goto out;
 	}
 
-	sbp->s_op = &vxfs_super_ops;
 	root = vxfs_iget(sbp, VXFS_ROOT_INO);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
