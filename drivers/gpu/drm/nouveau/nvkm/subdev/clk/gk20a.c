@@ -136,6 +136,18 @@ gk20a_pllg_read_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll)
 	pll->pl = (val >> GPCPLL_COEFF_P_SHIFT) & MASK(GPCPLL_COEFF_P_WIDTH);
 }
 
+static void
+gk20a_pllg_write_mnp(struct gk20a_clk *clk, const struct gk20a_pll *pll)
+{
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 val;
+
+	val = (pll->m & MASK(GPCPLL_COEFF_M_WIDTH)) << GPCPLL_COEFF_M_SHIFT;
+	val |= (pll->n & MASK(GPCPLL_COEFF_N_WIDTH)) << GPCPLL_COEFF_N_SHIFT;
+	val |= (pll->pl & MASK(GPCPLL_COEFF_P_WIDTH)) << GPCPLL_COEFF_P_SHIFT;
+	nvkm_wr32(device, GPCPLL_COEFF, val);
+}
+
 static u32
 gk20a_pllg_calc_rate(struct gk20a_clk *clk)
 {
@@ -262,13 +274,13 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 {
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 val;
+	struct gk20a_pll pll;
 	int ret = 0;
 
 	/* get old coefficients */
-	val = nvkm_rd32(device, GPCPLL_COEFF);
+	gk20a_pllg_read_mnp(clk, &pll);
 	/* do nothing if NDIV is the same */
-	if (n == ((val >> GPCPLL_COEFF_N_SHIFT) & MASK(GPCPLL_COEFF_N_WIDTH)))
+	if (n == pll.n)
 		return 0;
 
 	/* pll slowdown mode */
@@ -277,11 +289,9 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 		BIT(GPCPLL_NDIV_SLOWDOWN_SLOWDOWN_USING_PLL_SHIFT));
 
 	/* new ndiv ready for ramp */
-	val = nvkm_rd32(device, GPCPLL_COEFF);
-	val &= ~(MASK(GPCPLL_COEFF_N_WIDTH) << GPCPLL_COEFF_N_SHIFT);
-	val |= (n & MASK(GPCPLL_COEFF_N_WIDTH)) << GPCPLL_COEFF_N_SHIFT;
+	pll.n = n;
 	udelay(1);
-	nvkm_wr32(device, GPCPLL_COEFF, val);
+	gk20a_pllg_write_mnp(clk, &pll);
 
 	/* dynamic ramp to new ndiv */
 	udelay(1);
@@ -377,12 +387,11 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, bool allow_slide)
 	nvkm_debug(subdev, "%s: m=%d n=%d pl=%d\n", __func__,
 		   clk->pll.m, clk->pll.n, clk->pll.pl);
 
-	n_lo = DIV_ROUND_UP(clk->pll.m * clk->params->min_vco,
-			    clk->parent_rate / KHZ);
-	val = clk->pll.m << GPCPLL_COEFF_M_SHIFT;
-	val |= (allow_slide ? n_lo : clk->pll.n) << GPCPLL_COEFF_N_SHIFT;
-	val |= clk->pll.pl << GPCPLL_COEFF_P_SHIFT;
-	nvkm_wr32(device, GPCPLL_COEFF, val);
+	old_pll = clk->pll;
+	if (allow_slide)
+		old_pll.n = DIV_ROUND_UP(clk->pll.m * clk->params->min_vco,
+					 clk->parent_rate / KHZ);
+	gk20a_pllg_write_mnp(clk, &old_pll);
 
 	gk20a_pllg_enable(clk);
 
