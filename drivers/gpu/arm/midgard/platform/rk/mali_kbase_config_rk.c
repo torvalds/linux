@@ -17,6 +17,7 @@
 
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
+#include <linux/of.h>
 
 #include "mali_kbase_rk.h"
 
@@ -49,6 +50,28 @@ static void rk_pm_disable_clk(struct kbase_device *kbdev);
 
 /*---------------------------------------------------------------------------*/
 
+static void rk_pm_power_off_delay_work(struct work_struct *work)
+{
+	struct rk_context *platform =
+		container_of(to_delayed_work(work), struct rk_context, work);
+	struct kbase_device *kbdev = platform->kbdev;
+
+	if (!platform->is_powered) {
+		D("mali_dev is already powered off.");
+		return;
+	}
+
+	if (pm_runtime_enabled(kbdev->dev)) {
+		D("to put_sync_suspend mali_dev.");
+		pm_runtime_put_sync_suspend(kbdev->dev);
+	}
+
+	rk_pm_disable_regulator(kbdev);
+
+	platform->is_powered = false;
+	KBASE_TIMELINE_GPU_POWER(kbdev, 0);
+}
+
 static int kbase_platform_rk_init(struct kbase_device *kbdev)
 {
 	struct rk_context *platform;
@@ -60,14 +83,40 @@ static int kbase_platform_rk_init(struct kbase_device *kbdev)
 	}
 
 	platform->is_powered = false;
+	platform->kbdev = kbdev;
+
+	platform->delay_ms = 200;
+	if (of_property_read_u32(kbdev->dev->of_node, "power-off-delay-ms",
+				 &platform->delay_ms))
+		W("power-off-delay-ms not available.");
+
+	platform->power_off_wq = create_freezable_workqueue("gpu_power_off_wq");
+	if (!platform->power_off_wq) {
+		E("couldn't create workqueue");
+		return -ENOMEM;
+	}
+	INIT_DEFERRABLE_WORK(&platform->work, rk_pm_power_off_delay_work);
 
 	kbdev->platform_context = (void *)platform;
+	pm_runtime_enable(kbdev->dev);
 
 	return 0;
 }
 
 static void kbase_platform_rk_term(struct kbase_device *kbdev)
 {
+	struct rk_context *platform =
+		(struct rk_context *)kbdev->platform_context;
+
+	pm_runtime_disable(kbdev->dev);
+	kbdev->platform_context = NULL;
+
+	if (platform) {
+		destroy_workqueue(platform->power_off_wq);
+		platform->is_powered = false;
+		platform->kbdev = NULL;
+		kfree(platform);
+	}
 }
 
 struct kbase_platform_funcs_conf platform_funcs = {
@@ -90,15 +139,21 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 {
 	int ret = 1; /* Assume GPU has been powered off */
 	int err = 0;
-	struct rk_context *platform;
+	struct rk_context *platform =
+		(struct rk_context *)kbdev->platform_context;
 
-	platform = (struct rk_context *)kbdev->platform_context;
-	if (platform->is_powered) {
-		W("mali_device is already powered.");
-		return 0;
+	cancel_delayed_work_sync(&platform->work);
+
+	err = rk_pm_enable_clk(kbdev);
+	if (err) {
+		E("failed to enable clk: %d", err);
+		return err;
 	}
 
-	D("powering on.");
+	if (platform->is_powered) {
+		D("mali_device is already powered.");
+		return 0;
+	}
 
 	/* we must enable vdd_gpu before pd_gpu_in_chip. */
 	err = rk_pm_enable_regulator(kbdev);
@@ -123,12 +178,6 @@ static int rk_pm_callback_power_on(struct kbase_device *kbdev)
 		}
 	}
 
-	err = rk_pm_enable_clk(kbdev); /* clk is not relative to pd. */
-	if (err) {
-		E("failed to enable clk: %d", err);
-		return err;
-	}
-
 	platform->is_powered = true;
 	KBASE_TIMELINE_GPU_POWER(kbdev, 1);
 
@@ -140,44 +189,18 @@ static void rk_pm_callback_power_off(struct kbase_device *kbdev)
 	struct rk_context *platform =
 		(struct rk_context *)kbdev->platform_context;
 
-	if (!platform->is_powered) {
-		W("mali_dev is already powered off.");
-		return;
-	}
-
-	D("powering off.");
-
-	platform->is_powered = false;
-	KBASE_TIMELINE_GPU_POWER(kbdev, 0);
-
 	rk_pm_disable_clk(kbdev);
-
-	if (pm_runtime_enabled(kbdev->dev)) {
-		pm_runtime_mark_last_busy(kbdev->dev);
-		D("to put_sync_suspend mali_dev.");
-		pm_runtime_put_sync_suspend(kbdev->dev);
-	}
-
-	rk_pm_disable_regulator(kbdev);
+	queue_delayed_work(platform->power_off_wq, &platform->work,
+			   msecs_to_jiffies(platform->delay_ms));
 }
 
 int rk_kbase_device_runtime_init(struct kbase_device *kbdev)
 {
-	pm_runtime_set_autosuspend_delay(kbdev->dev, 200);
-	pm_runtime_use_autosuspend(kbdev->dev);
-
-	/* no need to call pm_runtime_set_active here. */
-
-	D("to enable pm_runtime.");
-	pm_runtime_enable(kbdev->dev);
-
 	return 0;
 }
 
 void rk_kbase_device_runtime_disable(struct kbase_device *kbdev)
 {
-	D("to disable pm_runtime.");
-	pm_runtime_disable(kbdev->dev);
 }
 
 struct kbase_pm_callback_conf pm_callbacks = {

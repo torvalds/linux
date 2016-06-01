@@ -24,6 +24,10 @@
  */
 struct rk_context {
 	bool is_powered;
+	struct kbase_device *kbdev;
+	struct workqueue_struct *power_off_wq;
+	struct delayed_work work;
+	unsigned int delay_ms;
 };
 
 #endif				/* _MALI_KBASE_RK_H_ */
