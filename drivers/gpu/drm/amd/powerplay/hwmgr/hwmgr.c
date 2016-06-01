@@ -95,6 +95,8 @@ int hwmgr_fini(struct pp_hwmgr *hwmgr)
 		return -EINVAL;
 
 	/* do hwmgr finish*/
+	kfree(hwmgr->hardcode_pp_table);
+
 	kfree(hwmgr->backend);
 
 	kfree(hwmgr->start_thermal_controller.function_list);

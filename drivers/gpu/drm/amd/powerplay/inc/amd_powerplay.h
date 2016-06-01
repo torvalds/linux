@@ -360,6 +360,8 @@ int amd_powerplay_init(struct amd_pp_init *pp_init,
 
 int amd_powerplay_fini(void *handle);
 
+int amd_powerplay_reset(void *handle);
+
 int amd_powerplay_display_configuration_change(void *handle,
 		const struct amd_pp_display_configuration *input);
 

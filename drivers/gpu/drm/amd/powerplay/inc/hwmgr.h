@@ -584,6 +584,7 @@ struct pp_hwmgr {
 	struct pp_smumgr *smumgr;
 	const void *soft_pp_table;
 	uint32_t soft_pp_table_size;
+	void *hardcode_pp_table;
 	bool need_pp_table_upload;
 	enum amd_dpm_forced_level dpm_level;
 	bool block_hw_access;
