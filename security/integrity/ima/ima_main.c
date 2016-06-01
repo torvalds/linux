@@ -239,7 +239,7 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname,
-				      xattr_value, xattr_len);
+				      xattr_value, xattr_len, pcr);
 	if (action & IMA_APPRAISE_SUBMASK)
 		rc = ima_appraise_measurement(func, iint, file, pathname,
 					      xattr_value, xattr_len, opened);
