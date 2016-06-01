@@ -54,11 +54,9 @@ extern int			vxfs_read_fshead(struct super_block *);
 extern const struct address_space_operations vxfs_immed_aops;
 extern struct kmem_cache	*vxfs_inode_cachep;
 extern void			vxfs_dumpi(struct vxfs_inode_info *, ino_t);
-extern struct inode *		vxfs_get_fake_inode(struct super_block *,
-					struct vxfs_inode_info *);
-extern struct vxfs_inode_info *	vxfs_blkiget(struct super_block *, u_long, ino_t);
-extern struct vxfs_inode_info *	vxfs_stiget(struct super_block *, ino_t);
-extern struct inode *		vxfs_iget(struct super_block *, ino_t);
+extern struct inode		*vxfs_blkiget(struct super_block *, u_long, ino_t);
+extern struct inode		*vxfs_stiget(struct super_block *, ino_t);
+extern struct inode		*vxfs_iget(struct super_block *, ino_t);
 extern void			vxfs_evict_inode(struct inode *);
 
 /* vxfs_lookup.c */

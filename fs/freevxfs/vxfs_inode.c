@@ -44,6 +44,8 @@
 
 struct kmem_cache		*vxfs_inode_cachep;
 
+static struct inode *		vxfs_get_fake_inode(struct super_block *,
+					struct vxfs_inode_info *);
 
 #ifdef DIAGNOSTIC
 /*
@@ -112,10 +114,11 @@ static inline void dip2vip_cpy(struct vxfs_sb_info *sbi,
  *  buffercache.  This function should not be used outside the
  *  read_super() method, otherwise the data may be incoherent.
  */
-struct vxfs_inode_info *
+struct inode *
 vxfs_blkiget(struct super_block *sbp, u_long extent, ino_t ino)
 {
 	struct buffer_head		*bp;
+	struct inode			*inode;
 	u_long				block, offset;
 
 	block = extent + ((ino * VXFS_ISIZE) / sbp->s_blocksize);
@@ -134,7 +137,11 @@ vxfs_blkiget(struct super_block *sbp, u_long extent, ino_t ino)
 		vxfs_dumpi(vip, ino);
 #endif
 		brelse(bp);
-		return (vip);
+
+		inode = vxfs_get_fake_inode(sbp, vip);
+		if (!inode)
+			kmem_cache_free(vxfs_inode_cachep, vip);
+		return inode;
 	}
 
 fail:
@@ -152,7 +159,7 @@ fail:
  * Description:
  *  Search the for inode number @ino in the filesystem
  *  described by @sbp.  Use the specified inode table (@ilistp).
- *  Returns the matching VxFS inode on success, else an error code.
+ *  Returns the matching inode on success, else an error code.
  */
 static struct vxfs_inode_info *
 __vxfs_iget(ino_t ino, struct inode *ilistp)
@@ -196,15 +203,21 @@ fail:
  * Description:
  *  Find inode @ino in the filesystem described by @sbp using
  *  the structural inode list.
- *  Returns the matching VxFS inode on success, else a NULL pointer.
+ *  Returns the matching inode on success, else a NULL pointer.
  */
-struct vxfs_inode_info *
+struct inode *
 vxfs_stiget(struct super_block *sbp, ino_t ino)
 {
 	struct vxfs_inode_info *vip;
+	struct inode *inode;
 
 	vip = __vxfs_iget(ino, VXFS_SBI(sbp)->vsi_stilist);
-	return IS_ERR(vip) ? NULL : vip;
+	if (IS_ERR(vip))
+		return NULL;
+	inode = vxfs_get_fake_inode(sbp, vip);
+	if (!inode)
+		kmem_cache_free(vxfs_inode_cachep, vip);
+	return inode;
 }
 
 /**
@@ -282,7 +295,7 @@ vxfs_iinit(struct inode *ip, struct vxfs_inode_info *vip)
  *  superblock, vxfs_inode pair.
  *  Returns the filled VFS inode.
  */
-struct inode *
+static struct inode *
 vxfs_get_fake_inode(struct super_block *sbp, struct vxfs_inode_info *vip)
 {
 	struct inode			*ip = NULL;
