@@ -670,6 +670,18 @@ config RTC_DRV_DS1390
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1390.
 
+config RTC_DRV_MAX6916
+	tristate "Maxim MAX6916"
+	help
+	  If you say yes here you will get support for the
+	  Maxim MAX6916 SPI RTC chip.
+
+	  This driver only supports the RTC feature, and not other chip
+	  features such as alarms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max6916.
+
 config RTC_DRV_R9701
 	tristate "Epson RTC-9701JE"
 	help
