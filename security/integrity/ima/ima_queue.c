@@ -90,14 +90,14 @@ static int ima_add_digest_entry(struct ima_template_entry *entry)
 	return 0;
 }
 
-static int ima_pcr_extend(const u8 *hash)
+static int ima_pcr_extend(const u8 *hash, int pcr)
 {
 	int result = 0;
 
 	if (!ima_used_chip)
 		return result;
 
-	result = tpm_pcr_extend(TPM_ANY_NUM, CONFIG_IMA_MEASURE_PCR_IDX, hash);
+	result = tpm_pcr_extend(TPM_ANY_NUM, pcr, hash);
 	if (result != 0)
 		pr_err("Error Communicating to TPM chip, result: %d\n", result);
 	return result;
@@ -136,7 +136,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	if (violation)		/* invalidate pcr */
 		memset(digest, 0xff, sizeof(digest));
 
-	tpmresult = ima_pcr_extend(digest);
+	tpmresult = ima_pcr_extend(digest, entry->pcr);
 	if (tpmresult != 0) {
 		snprintf(tpm_audit_cause, AUDIT_CAUSE_LEN_MAX, "TPM_error(%d)",
 			 tpmresult);
