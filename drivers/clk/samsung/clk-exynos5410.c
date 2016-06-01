@@ -31,6 +31,7 @@
 #define SRC_CPU			0x200
 #define DIV_CPU0		0x500
 #define SRC_CPERI1		0x4204
+#define GATE_IP_G2D		0x8800
 #define DIV_TOP0		0x10510
 #define DIV_TOP1		0x10514
 #define DIV_FSYS0		0x10548
@@ -154,11 +155,14 @@ static const struct samsung_div_clock exynos5410_div_clks[] __initconst = {
 	DIV(0, "dout_pwm", "mout_pwm", DIV_PERIC3, 0, 4),
 
 	DIV(0, "aclk200", "mout_aclk200", DIV_TOP0, 12, 3),
+	DIV(0, "aclk266", "mpll_user_p", DIV_TOP0, 16, 3),
 	DIV(0, "aclk400", "mout_aclk400", DIV_TOP0, 24, 3),
 };
 
 static const struct samsung_gate_clock exynos5410_gate_clks[] __initconst = {
+	GATE(CLK_SSS, "sss", "aclk266", GATE_IP_G2D, 2, 0, 0),
 	GATE(CLK_MCT, "mct", "aclk66", GATE_IP_PERIS, 18, 0, 0),
+	GATE(CLK_WDT, "wdt", "aclk66", GATE_IP_PERIS, 19, 0, 0),
 	GATE(CLK_RTC, "rtc", "aclk66", GATE_IP_PERIS, 20, 0, 0),
 	GATE(CLK_TMU, "tmu", "aclk66", GATE_IP_PERIS, 21, 0, 0),
 
