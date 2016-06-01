@@ -86,7 +86,7 @@ static inline struct drm_plane_state *
 drm_atomic_get_existing_plane_state(struct drm_atomic_state *state,
 				    struct drm_plane *plane)
 {
-	return state->plane_states[drm_plane_index(plane)];
+	return state->planes[drm_plane_index(plane)].state;
 }
 
 /**
@@ -139,8 +139,8 @@ static inline const struct drm_plane_state *
 __drm_atomic_get_current_plane_state(struct drm_atomic_state *state,
 				     struct drm_plane *plane)
 {
-	if (state->plane_states[drm_plane_index(plane)])
-		return state->plane_states[drm_plane_index(plane)];
+	if (state->planes[drm_plane_index(plane)].state)
+		return state->planes[drm_plane_index(plane)].state;
 
 	return plane->state;
 }
@@ -191,11 +191,11 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 	     (__i)++)						\
 		for_each_if (crtc_state)
 
-#define for_each_plane_in_state(state, plane, plane_state, __i)		\
+#define for_each_plane_in_state(__state, plane, plane_state, __i)		\
 	for ((__i) = 0;							\
-	     (__i) < (state)->dev->mode_config.num_total_plane &&	\
-	     ((plane) = (state)->planes[__i],				\
-	     (plane_state) = (state)->plane_states[__i], 1);		\
+	     (__i) < (__state)->dev->mode_config.num_total_plane &&	\
+	     ((plane) = (__state)->planes[__i].ptr,				\
+	     (plane_state) = (__state)->planes[__i].state, 1);		\
 	     (__i)++)							\
 		for_each_if (plane_state)
 static inline bool

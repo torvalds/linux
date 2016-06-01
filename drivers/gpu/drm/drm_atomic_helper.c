@@ -1584,7 +1584,7 @@ void drm_atomic_helper_swap_state(struct drm_device *dev,
 
 	for_each_plane_in_state(state, plane, plane_state, i) {
 		plane->state->state = state;
-		swap(state->plane_states[i], plane->state);
+		swap(state->planes[i].state, plane->state);
 		plane->state->state = NULL;
 	}
 }

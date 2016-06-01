@@ -47,7 +47,6 @@ void drm_atomic_state_default_release(struct drm_atomic_state *state)
 	kfree(state->crtcs);
 	kfree(state->crtc_states);
 	kfree(state->planes);
-	kfree(state->plane_states);
 }
 EXPORT_SYMBOL(drm_atomic_state_default_release);
 
@@ -78,10 +77,6 @@ drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 	state->planes = kcalloc(dev->mode_config.num_total_plane,
 				sizeof(*state->planes), GFP_KERNEL);
 	if (!state->planes)
-		goto fail;
-	state->plane_states = kcalloc(dev->mode_config.num_total_plane,
-				      sizeof(*state->plane_states), GFP_KERNEL);
-	if (!state->plane_states)
 		goto fail;
 
 	state->dev = dev;
@@ -163,15 +158,15 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 	}
 
 	for (i = 0; i < config->num_total_plane; i++) {
-		struct drm_plane *plane = state->planes[i];
+		struct drm_plane *plane = state->planes[i].ptr;
 
 		if (!plane)
 			continue;
 
 		plane->funcs->atomic_destroy_state(plane,
-						   state->plane_states[i]);
-		state->planes[i] = NULL;
-		state->plane_states[i] = NULL;
+						   state->planes[i].state);
+		state->planes[i].ptr = NULL;
+		state->planes[i].state = NULL;
 	}
 }
 EXPORT_SYMBOL(drm_atomic_state_default_clear);
@@ -630,8 +625,8 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 	if (!plane_state)
 		return ERR_PTR(-ENOMEM);
 
-	state->plane_states[index] = plane_state;
-	state->planes[index] = plane;
+	state->planes[index].state = plane_state;
+	state->planes[index].ptr = plane;
 	plane_state->state = state;
 
 	DRM_DEBUG_ATOMIC("Added [PLANE:%d:%s] %p state to %p\n",
