@@ -363,6 +363,12 @@ static int of_platform_bus_create(struct device_node *bus,
 		return 0;
 	}
 
+	if (of_node_check_flag(bus, OF_POPULATED_BUS)) {
+		pr_debug("%s() - skipping %s, already populated\n",
+			__func__, bus->full_name);
+		return 0;
+	}
+
 	auxdata = of_dev_lookup(lookup, bus);
 	if (auxdata) {
 		bus_id = auxdata->name;
@@ -414,7 +420,7 @@ int of_platform_bus_probe(struct device_node *root,
 	if (!root)
 		return -EINVAL;
 
-	pr_debug("of_platform_bus_probe()\n");
+	pr_debug("%s()\n", __func__);
 	pr_debug(" starting at: %s\n", root->full_name);
 
 	/* Do a self check of bus type, if there's a match, create children */
@@ -466,6 +472,9 @@ int of_platform_populate(struct device_node *root,
 	if (!root)
 		return -EINVAL;
 
+	pr_debug("%s()\n", __func__);
+	pr_debug(" starting at: %s\n", root->full_name);
+
 	for_each_child_of_node(root, child) {
 		rc = of_platform_bus_create(child, matches, lookup, parent, true);
 		if (rc) {
@@ -488,6 +497,15 @@ int of_platform_default_populate(struct device_node *root,
 				    parent);
 }
 EXPORT_SYMBOL_GPL(of_platform_default_populate);
+
+static int __init of_platform_default_populate_init(void)
+{
+	if (of_have_populated_dt())
+		of_platform_default_populate(NULL, NULL, NULL);
+
+	return 0;
+}
+arch_initcall_sync(of_platform_default_populate_init);
 
 static int of_platform_device_destroy(struct device *dev, void *data)
 {
