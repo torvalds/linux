@@ -29,7 +29,7 @@
 #define KHZ (1000)
 #define MHZ (KHZ * 1000)
 
-#define MASK(w)	((1 << w) - 1)
+#define MASK(w)	((1 << (w)) - 1)
 
 #define BYPASSCTRL_SYS	(SYS_GPCPLL_CFG_BASE + 0x340)
 #define BYPASSCTRL_SYS_GPCPLL_SHIFT	0

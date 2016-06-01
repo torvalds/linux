@@ -31,7 +31,7 @@
 #define KHZ (1000)
 #define MHZ (KHZ * 1000)
 
-#define MASK(w)	((1 << w) - 1)
+#define MASK(w)	((1 << (w)) - 1)
 
 #define GPCPLL_CFG		(SYS_GPCPLL_CFG_BASE + 0)
 #define GPCPLL_CFG_ENABLE	BIT(0)
