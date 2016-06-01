@@ -898,8 +898,9 @@ static int c_can_handle_state_change(struct net_device *dev,
 		cf->data[1] = (bec.txerr > bec.rxerr) ?
 			CAN_ERR_CRTL_TX_WARNING :
 			CAN_ERR_CRTL_RX_WARNING;
-		cf->data[6] = bec.txerr;
 		cf->data[7] = bec.rxerr;
+		cf->data[6] = bec.txerr;
+		
 
 		break;
 	case C_CAN_ERROR_PASSIVE:
@@ -909,9 +910,9 @@ static int c_can_handle_state_change(struct net_device *dev,
 			cf->data[1] |= CAN_ERR_CRTL_RX_PASSIVE;
 		if (bec.txerr > 127)
 			cf->data[1] |= CAN_ERR_CRTL_TX_PASSIVE;
-
-		cf->data[6] = bec.txerr;
 		cf->data[7] = bec.rxerr;
+		cf->data[6] = bec.txerr;
+		
 		break;
 	case C_CAN_BUS_OFF:
 		/* bus-off state */
