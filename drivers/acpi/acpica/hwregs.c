@@ -83,27 +83,22 @@ acpi_hw_write_multiple(u32 value,
 static u8
 acpi_hw_get_access_bit_width(struct acpi_generic_address *reg, u8 max_bit_width)
 {
-	u64 address;
-
 	if (!reg->access_width) {
+		if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+			max_bit_width = 32;
+		}
+
 		/*
 		 * Detect old register descriptors where only the bit_width field
-		 * makes senses. The target address is copied to handle possible
-		 * alignment issues.
+		 * makes senses.
 		 */
-		ACPI_MOVE_64_TO_64(&address, &reg->address);
-		if (!reg->bit_offset && reg->bit_width &&
+		if (reg->bit_width < max_bit_width &&
+		    !reg->bit_offset && reg->bit_width &&
 		    ACPI_IS_POWER_OF_TWO(reg->bit_width) &&
-		    ACPI_IS_ALIGNED(reg->bit_width, 8) &&
-		    ACPI_IS_ALIGNED(address, reg->bit_width)) {
+		    ACPI_IS_ALIGNED(reg->bit_width, 8)) {
 			return (reg->bit_width);
-		} else {
-			if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
-				return (32);
-			} else {
-				return (max_bit_width);
-			}
 		}
+		return (max_bit_width);
 	} else {
 		return (1 << (reg->access_width + 2));
 	}
