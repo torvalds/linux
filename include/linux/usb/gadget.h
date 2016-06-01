@@ -1034,6 +1034,8 @@ static inline int usb_gadget_activate(struct usb_gadget *gadget)
  * @udc_name: A name of UDC this driver should be bound to. If udc_name is NULL,
  *	this driver will be bound to any available UDC.
  * @pending: UDC core private data used for deferred probe of this driver.
+ * @match_existing_only: If udc is not found, return an error and don't add this
+ *      gadget driver to list of pending driver
  *
  * Devices are disabled till a gadget driver successfully bind()s, which
  * means the driver will handle setup() requests needed to enumerate (and
@@ -1097,6 +1099,7 @@ struct usb_gadget_driver {
 
 	char			*udc_name;
 	struct list_head	pending;
+	unsigned                match_existing_only:1;
 };
 
 
