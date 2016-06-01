@@ -77,6 +77,11 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		void __user *userptr =
 			u64_to_user_ptr(args->bos + (i * sizeof(submit_bo)));
 
+		/* make sure we don't have garbage flags, in case we hit
+		 * error path before flags is initialized:
+		 */
+		submit->bos[i].flags = 0;
+
 		ret = copy_from_user(&submit_bo, userptr, sizeof(submit_bo));
 		if (ret) {
 			ret = -EFAULT;
