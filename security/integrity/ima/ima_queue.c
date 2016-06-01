@@ -44,7 +44,8 @@ struct ima_h_table ima_htable = {
 static DEFINE_MUTEX(ima_extend_list_mutex);
 
 /* lookup up the digest value in the hash table, and return the entry */
-static struct ima_queue_entry *ima_lookup_digest_entry(u8 *digest_value)
+static struct ima_queue_entry *ima_lookup_digest_entry(u8 *digest_value,
+						       int pcr)
 {
 	struct ima_queue_entry *qe, *ret = NULL;
 	unsigned int key;
@@ -54,7 +55,7 @@ static struct ima_queue_entry *ima_lookup_digest_entry(u8 *digest_value)
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(qe, &ima_htable.queue[key], hnext) {
 		rc = memcmp(qe->entry->digest, digest_value, TPM_DIGEST_SIZE);
-		if (rc == 0) {
+		if ((rc == 0) && (qe->entry->pcr == pcr)) {
 			ret = qe;
 			break;
 		}
@@ -118,7 +119,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	mutex_lock(&ima_extend_list_mutex);
 	if (!violation) {
 		memcpy(digest, entry->digest, sizeof(digest));
-		if (ima_lookup_digest_entry(digest)) {
+		if (ima_lookup_digest_entry(digest, entry->pcr)) {
 			audit_cause = "hash_exists";
 			result = -EEXIST;
 			goto out;
