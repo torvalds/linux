@@ -144,9 +144,9 @@ gk20a_volt = {
 };
 
 int
-_gk20a_volt_ctor(struct nvkm_device *device, int index,
-		 const struct cvb_coef *coefs, int nb_coefs,
-		 struct gk20a_volt *volt)
+gk20a_volt_ctor(struct nvkm_device *device, int index,
+		const struct cvb_coef *coefs, int nb_coefs,
+		struct gk20a_volt *volt)
 {
 	struct nvkm_device_tegra *tdev = device->func->tegra(device);
 	int i, uv;
@@ -181,6 +181,6 @@ gk20a_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 		return -ENOMEM;
 	*pvolt = &volt->base;
 
-	return _gk20a_volt_ctor(device, index, gk20a_cvb_coef,
-				ARRAY_SIZE(gk20a_cvb_coef), volt);
+	return gk20a_volt_ctor(device, index, gk20a_cvb_coef,
+			       ARRAY_SIZE(gk20a_cvb_coef), volt);
 }

@@ -37,8 +37,8 @@ struct gk20a_volt {
 	struct regulator *vdd;
 };
 
-int _gk20a_volt_ctor(struct nvkm_device *device, int index,
-		     const struct cvb_coef *coefs, int nb_coefs,
-		     struct gk20a_volt *volt);
+int gk20a_volt_ctor(struct nvkm_device *device, int index,
+		    const struct cvb_coef *coefs, int nb_coefs,
+		    struct gk20a_volt *volt);
 
 #endif
