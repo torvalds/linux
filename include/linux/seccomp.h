@@ -35,12 +35,6 @@ static inline int secure_computing(const struct seccomp_data *sd)
 		return  __secure_computing(sd);
 	return 0;
 }
-
-#define SECCOMP_PHASE1_OK	0
-#define SECCOMP_PHASE1_SKIP	1
-
-extern u32 seccomp_phase1(struct seccomp_data *sd);
-int seccomp_phase2(u32 phase1_result);
 #else
 extern void secure_computing_strict(int this_syscall);
 #endif
