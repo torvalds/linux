@@ -92,7 +92,7 @@ static void arcpgu_preclose(struct drm_device *drm, struct drm_file *file)
 		if (e->base.file_priv != file)
 			continue;
 		list_del(&e->base.link);
-		e->base.destroy(&e->base);
+		kfree(&e->base);
 	}
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
