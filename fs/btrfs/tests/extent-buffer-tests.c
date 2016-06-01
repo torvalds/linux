@@ -225,6 +225,6 @@ out:
 
 int btrfs_test_extent_buffer_operations(u32 sectorsize, u32 nodesize)
 {
-	test_msg("Running extent buffer operation tests");
+	test_msg("Running extent buffer operation tests\n");
 	return test_btrfs_split_item(sectorsize, nodesize);
 }

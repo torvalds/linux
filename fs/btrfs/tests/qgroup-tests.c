@@ -229,7 +229,7 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 	btrfs_init_dummy_trans(&trans);
 
 	test_msg("Qgroup basic add\n");
-	ret = btrfs_create_qgroup(NULL, fs_info, 5);
+	ret = btrfs_create_qgroup(NULL, fs_info, BTRFS_FS_TREE_OBJECTID);
 	if (ret) {
 		test_msg("Couldn't create a qgroup %d\n", ret);
 		return ret;
@@ -247,7 +247,8 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = insert_normal_tree_ref(root, nodesize, nodesize, 0, 5);
+	ret = insert_normal_tree_ref(root, nodesize, nodesize, 0,
+				BTRFS_FS_TREE_OBJECTID);
 	if (ret)
 		return ret;
 
@@ -266,7 +267,8 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 		return ret;
 	}
 
-	if (btrfs_verify_qgroup_counts(fs_info, 5, nodesize, nodesize)) {
+	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID,
+				nodesize, nodesize)) {
 		test_msg("Qgroup counts didn't match expected values\n");
 		return -EINVAL;
 	}
@@ -299,7 +301,7 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 		return -EINVAL;
 	}
 
-	if (btrfs_verify_qgroup_counts(fs_info, 5, 0, 0)) {
+	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID, 0, 0)) {
 		test_msg("Qgroup counts didn't match expected values\n");
 		return -EINVAL;
 	}
@@ -325,8 +327,11 @@ static int test_multiple_refs(struct btrfs_root *root,
 
 	test_msg("Qgroup multiple refs test\n");
 
-	/* We have 5 created already from the previous test */
-	ret = btrfs_create_qgroup(NULL, fs_info, 256);
+	/*
+	 * We have BTRFS_FS_TREE_OBJECTID created already from the
+	 * previous test.
+	 */
+	ret = btrfs_create_qgroup(NULL, fs_info, BTRFS_FIRST_FREE_OBJECTID);
 	if (ret) {
 		test_msg("Couldn't create a qgroup %d\n", ret);
 		return ret;
@@ -339,7 +344,8 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = insert_normal_tree_ref(root, nodesize, nodesize, 0, 5);
+	ret = insert_normal_tree_ref(root, nodesize, nodesize, 0,
+				BTRFS_FS_TREE_OBJECTID);
 	if (ret)
 		return ret;
 
@@ -358,7 +364,7 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	if (btrfs_verify_qgroup_counts(fs_info, 5,
+	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID,
 				       nodesize, nodesize)) {
 		test_msg("Qgroup counts didn't match expected values\n");
 		return -EINVAL;
@@ -371,7 +377,8 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = add_tree_ref(root, nodesize, nodesize, 0, 256);
+	ret = add_tree_ref(root, nodesize, nodesize, 0,
+			BTRFS_FIRST_FREE_OBJECTID);
 	if (ret)
 		return ret;
 
@@ -390,12 +397,14 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	if (btrfs_verify_qgroup_counts(fs_info, 5, nodesize, 0)) {
+	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID,
+					nodesize, 0)) {
 		test_msg("Qgroup counts didn't match expected values\n");
 		return -EINVAL;
 	}
 
-	if (btrfs_verify_qgroup_counts(fs_info, 256, nodesize, 0)) {
+	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FIRST_FREE_OBJECTID,
+					nodesize, 0)) {
 		test_msg("Qgroup counts didn't match expected values\n");
 		return -EINVAL;
 	}
@@ -407,7 +416,8 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	ret = remove_extent_ref(root, nodesize, nodesize, 0, 256);
+	ret = remove_extent_ref(root, nodesize, nodesize, 0,
+				BTRFS_FIRST_FREE_OBJECTID);
 	if (ret)
 		return ret;
 
@@ -426,12 +436,14 @@ static int test_multiple_refs(struct btrfs_root *root,
 		return ret;
 	}
 
-	if (btrfs_verify_qgroup_counts(fs_info, 256, 0, 0)) {
+	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FIRST_FREE_OBJECTID,
+					0, 0)) {
 		test_msg("Qgroup counts didn't match expected values\n");
 		return -EINVAL;
 	}
 
-	if (btrfs_verify_qgroup_counts(fs_info, 5, nodesize, nodesize)) {
+	if (btrfs_verify_qgroup_counts(fs_info, BTRFS_FS_TREE_OBJECTID,
+					nodesize, nodesize)) {
 		test_msg("Qgroup counts didn't match expected values\n");
 		return -EINVAL;
 	}
@@ -490,7 +502,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	tmp_root->root_key.objectid = 5;
+	tmp_root->root_key.objectid = BTRFS_FS_TREE_OBJECTID;
 	root->fs_info->fs_root = tmp_root;
 	ret = btrfs_insert_fs_root(root->fs_info, tmp_root);
 	if (ret) {
@@ -505,7 +517,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	tmp_root->root_key.objectid = 256;
+	tmp_root->root_key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	ret = btrfs_insert_fs_root(root->fs_info, tmp_root);
 	if (ret) {
 		test_msg("Couldn't insert fs root %d\n", ret);
