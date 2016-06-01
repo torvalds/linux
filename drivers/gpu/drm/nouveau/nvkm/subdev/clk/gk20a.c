@@ -160,6 +160,13 @@ gk20a_pllg_calc_rate(struct gk20a_clk *clk, struct gk20a_pll *pll)
 	return rate / divider / 2;
 }
 
+static u32
+gk20a_pllg_n_lo(struct gk20a_clk *clk, struct gk20a_pll *pll)
+{
+	return DIV_ROUND_UP(pll->m * clk->params->min_vco,
+			    clk->parent_rate / KHZ);
+}
+
 static int
 gk20a_pllg_calc_mnp(struct gk20a_clk *clk, unsigned long rate,
 		    struct gk20a_pll *pll)
@@ -341,7 +348,6 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll,
 	struct nvkm_device *device = subdev->device;
 	u32 val, cfg;
 	struct gk20a_pll old_pll;
-	u32 n_lo;
 
 	/* get old coefficients */
 	gk20a_pllg_read_mnp(clk, &old_pll);
@@ -357,10 +363,7 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll,
 	if (allow_slide && (cfg & GPCPLL_CFG_ENABLE)) {
 		int ret;
 
-		n_lo = DIV_ROUND_UP(old_pll.m * clk->params->min_vco,
-				    clk->parent_rate / KHZ);
-		ret = gk20a_pllg_slide(clk, n_lo);
-
+		ret = gk20a_pllg_slide(clk, gk20a_pllg_n_lo(clk, &old_pll));
 		if (ret)
 			return ret;
 	}
@@ -391,8 +394,7 @@ _gk20a_pllg_program_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll,
 
 	old_pll = *pll;
 	if (allow_slide)
-		old_pll.n = DIV_ROUND_UP(pll->m * clk->params->min_vco,
-					 clk->parent_rate / KHZ);
+		old_pll.n = gk20a_pllg_n_lo(clk, pll);
 	gk20a_pllg_write_mnp(clk, &old_pll);
 
 	gk20a_pllg_enable(clk);
@@ -628,8 +630,7 @@ gk20a_clk_fini(struct nvkm_clk *base)
 		u32 n_lo;
 
 		gk20a_pllg_read_mnp(clk, &pll);
-		n_lo = DIV_ROUND_UP(pll.m * clk->params->min_vco,
-				    clk->parent_rate / KHZ);
+		n_lo = gk20a_pllg_n_lo(clk, &pll);
 		gk20a_pllg_slide(clk, n_lo);
 	}
 
