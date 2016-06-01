@@ -28,7 +28,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
-#include <asm/dma-iommu.h>
+#include <linux/dma-iommu.h>
 
 #include "rk3288_vpu_regs.h"
 
@@ -203,45 +203,57 @@ static int rk3288_vpu_iommu_init(struct rk3288_vpu_dev *vpu)
 {
 	int ret;
 
-	vpu->mapping = arm_iommu_create_mapping(&platform_bus_type,
-						0x10000000, SZ_2G);
-	if (IS_ERR(vpu->mapping)) {
-		ret = PTR_ERR(vpu->mapping);
-		return ret;
-	}
-
 	vpu->dev->dma_parms = devm_kzalloc(vpu->dev,
-				sizeof(*vpu->dev->dma_parms), GFP_KERNEL);
+					   sizeof(*vpu->dev->dma_parms),
+					   GFP_KERNEL);
 	if (!vpu->dev->dma_parms)
-		goto err_release_mapping;
+		return -ENOMEM;
 
-	dma_set_max_seg_size(vpu->dev, 0xffffffffu);
+	vpu->domain = iommu_domain_alloc(vpu->dev->bus);
+	if (!vpu->domain)
+		goto err_free_parms;
 
-	ret = arm_iommu_attach_device(vpu->dev, vpu->mapping);
+	ret = iommu_get_dma_cookie(vpu->domain);
 	if (ret)
-		goto err_release_mapping;
+		goto err_free_domain;
+
+	ret = dma_set_coherent_mask(vpu->dev, DMA_BIT_MASK(32));
+	if (ret)
+		goto err_put_cookie;
+
+	dma_set_max_seg_size(vpu->dev, DMA_BIT_MASK(32));
+
+	ret = iommu_attach_device(vpu->domain, vpu->dev);
+	if (ret)
+		goto err_put_cookie;
+
+	common_iommu_setup_dma_ops(vpu->dev, 0x10000000, SZ_2G,
+				   vpu->domain->ops);
 
 	return 0;
 
-err_release_mapping:
-	arm_iommu_release_mapping(vpu->mapping);
-
+err_put_cookie:
+	iommu_put_dma_cookie(vpu->domain);
+err_free_domain:
+	iommu_domain_free(vpu->domain);
+err_free_parms:
 	return ret;
 }
 
 static void rk3288_vpu_iommu_cleanup(struct rk3288_vpu_dev *vpu)
 {
-	arm_iommu_detach_device(vpu->dev);
-	arm_iommu_release_mapping(vpu->mapping);
+	iommu_detach_device(vpu->domain, vpu->dev);
+	iommu_put_dma_cookie(vpu->domain);
+	iommu_domain_free(vpu->domain);
 }
-#else
+#else /* CONFIG_ROCKCHIP_IOMMU */
 static inline int rk3288_vpu_iommu_init(struct rk3288_vpu_dev *vpu)
 {
 	return 0;
 }
 
 static inline void rk3288_vpu_iommu_cleanup(struct rk3288_vpu_dev *vpu) { }
-#endif
+#endif /* CONFIG_ROCKCHIP_IOMMU */
 
 int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu)
 {
