@@ -25,7 +25,7 @@
 #define CLK_SET_PARENT_GATE	BIT(1) /* must be gated across re-parent */
 #define CLK_SET_RATE_PARENT	BIT(2) /* propagate rate change up one level */
 #define CLK_IGNORE_UNUSED	BIT(3) /* do not gate even if unused */
-#define CLK_IS_ROOT		BIT(4) /* Deprecated: Don't use */
+				/* unused */
 #define CLK_IS_BASIC		BIT(5) /* Basic clk, can't do a to_clk_foo() */
 #define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
 #define CLK_SET_RATE_NO_REPARENT BIT(7) /* don't re-parent on rate change */
