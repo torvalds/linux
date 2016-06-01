@@ -2318,32 +2318,42 @@ static void btrfs_print_mod_info(void)
 
 static int btrfs_run_sanity_tests(void)
 {
-	int ret;
+	int ret, i;
 	u32 sectorsize, nodesize;
-
-	sectorsize = PAGE_SIZE;
-	nodesize = PAGE_SIZE;
+	u32 test_sectorsize[] = {
+		PAGE_SIZE,
+	};
 	ret = btrfs_init_test_fs();
 	if (ret)
 		return ret;
-
-	ret = btrfs_test_free_space_cache(sectorsize, nodesize);
-	if (ret)
-		goto out;
-	ret = btrfs_test_extent_buffer_operations(sectorsize,
-		nodesize);
-	if (ret)
-		goto out;
-	ret = btrfs_test_extent_io(sectorsize, nodesize);
-	if (ret)
-		goto out;
-	ret = btrfs_test_inodes(sectorsize, nodesize);
-	if (ret)
-		goto out;
-	ret = btrfs_test_qgroups(sectorsize, nodesize);
-	if (ret)
-		goto out;
-	ret = btrfs_test_free_space_tree(sectorsize, nodesize);
+	for (i = 0; i < ARRAY_SIZE(test_sectorsize); i++) {
+		sectorsize = test_sectorsize[i];
+		for (nodesize = sectorsize;
+		     nodesize <= BTRFS_MAX_METADATA_BLOCKSIZE;
+		     nodesize <<= 1) {
+			pr_info("BTRFS: selftest: sectorsize: %u  nodesize: %u\n",
+				sectorsize, nodesize);
+			ret = btrfs_test_free_space_cache(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_extent_buffer_operations(sectorsize,
+				nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_extent_io(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_inodes(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_qgroups(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_free_space_tree(sectorsize, nodesize);
+			if (ret)
+				goto out;
+		}
+	}
 out:
 	btrfs_destroy_test_fs();
 	return ret;
