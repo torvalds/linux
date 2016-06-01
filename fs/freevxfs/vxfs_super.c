@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000-2001 Christoph Hellwig.
+ * Copyright (c) 2016 Krzysztof Blaszkowski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +49,7 @@
 #include "vxfs_inode.h"
 
 
-MODULE_AUTHOR("Christoph Hellwig");
+MODULE_AUTHOR("Christoph Hellwig, Krzysztof Blaszkowski");
 MODULE_DESCRIPTION("Veritas Filesystem (VxFS) driver");
 MODULE_LICENSE("Dual BSD/GPL");
 

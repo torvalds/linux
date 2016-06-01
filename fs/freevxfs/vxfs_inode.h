@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000-2001 Christoph Hellwig.
+ * Copyright (c) 2016 Krzysztof Blaszkowski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
