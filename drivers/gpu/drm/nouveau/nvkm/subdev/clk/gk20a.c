@@ -72,6 +72,7 @@
 #define GPC2CLK_OUT_VCODIV_WIDTH	6
 #define GPC2CLK_OUT_VCODIV_SHIFT	8
 #define GPC2CLK_OUT_VCODIV1		0
+#define GPC2CLK_OUT_VCODIV2		2
 #define GPC2CLK_OUT_VCODIV_MASK		(MASK(GPC2CLK_OUT_VCODIV_WIDTH) << \
 					GPC2CLK_OUT_VCODIV_SHIFT)
 #define GPC2CLK_OUT_BYPDIV_WIDTH	6
@@ -322,13 +323,42 @@ gk20a_pllg_slide(struct gk20a_clk *clk, u32 n)
 	return ret;
 }
 
-static void
+static bool
+gk20a_pllg_is_enabled(struct gk20a_clk *clk)
+{
+	struct nvkm_device *device = clk->base.subdev.device;
+	u32 val;
+
+	val = nvkm_rd32(device, GPCPLL_CFG);
+	return val & GPCPLL_CFG_ENABLE;
+}
+
+static int
 gk20a_pllg_enable(struct gk20a_clk *clk)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
+	u32 val;
 
 	nvkm_mask(device, GPCPLL_CFG, GPCPLL_CFG_ENABLE, GPCPLL_CFG_ENABLE);
 	nvkm_rd32(device, GPCPLL_CFG);
+
+	/* enable lock detection */
+	val = nvkm_rd32(device, GPCPLL_CFG);
+	if (val & GPCPLL_CFG_LOCK_DET_OFF) {
+		val &= ~GPCPLL_CFG_LOCK_DET_OFF;
+		nvkm_wr32(device, GPCPLL_CFG, val);
+	}
+
+	/* wait for lock */
+	if (nvkm_wait_usec(device, 300, GPCPLL_CFG, GPCPLL_CFG_LOCK,
+			   GPCPLL_CFG_LOCK) < 0)
+		return -ETIMEDOUT;
+
+	/* switch to VCO mode */
+	nvkm_mask(device, SEL_VCO, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT),
+		BIT(SEL_VCO_GPC2CLK_OUT_SHIFT));
+
+	return 0;
 }
 
 static void
@@ -336,112 +366,81 @@ gk20a_pllg_disable(struct gk20a_clk *clk)
 {
 	struct nvkm_device *device = clk->base.subdev.device;
 
+	/* put PLL in bypass before disabling it */
+	nvkm_mask(device, SEL_VCO, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT), 0);
+
 	nvkm_mask(device, GPCPLL_CFG, GPCPLL_CFG_ENABLE, 0);
 	nvkm_rd32(device, GPCPLL_CFG);
 }
 
 static int
-_gk20a_pllg_program_mnp(struct gk20a_clk *clk, struct gk20a_pll *pll,
-			bool allow_slide)
+gk20a_pllg_program_mnp(struct gk20a_clk *clk, const struct gk20a_pll *pll)
 {
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 val, cfg;
-	struct gk20a_pll old_pll;
+	struct gk20a_pll cur_pll;
+	int ret;
 
-	/* get old coefficients */
-	gk20a_pllg_read_mnp(clk, &old_pll);
+	gk20a_pllg_read_mnp(clk, &cur_pll);
 
-	/* do NDIV slide if there is no change in M and PL */
-	cfg = nvkm_rd32(device, GPCPLL_CFG);
-	if (allow_slide && pll->m == old_pll.m &&
-	    pll->pl == old_pll.pl && (cfg & GPCPLL_CFG_ENABLE)) {
-		return gk20a_pllg_slide(clk, pll->n);
-	}
+	/* split VCO-to-bypass jump in half by setting out divider 1:2 */
+	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
+		  GPC2CLK_OUT_VCODIV2 << GPC2CLK_OUT_VCODIV_SHIFT);
+	/* Intentional 2nd write to assure linear divider operation */
+	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
+		  GPC2CLK_OUT_VCODIV2 << GPC2CLK_OUT_VCODIV_SHIFT);
+	nvkm_rd32(device, GPC2CLK_OUT);
+	udelay(2);
 
-	/* slide down to NDIV_LO */
-	if (allow_slide && (cfg & GPCPLL_CFG_ENABLE)) {
-		int ret;
+	gk20a_pllg_disable(clk);
 
-		ret = gk20a_pllg_slide(clk, gk20a_pllg_n_lo(clk, &old_pll));
+	gk20a_pllg_write_mnp(clk, pll);
+
+	ret = gk20a_pllg_enable(clk);
+	if (ret)
+		return ret;
+
+	/* restore out divider 1:1 */
+	udelay(2);
+	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
+		  GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT);
+	/* Intentional 2nd write to assure linear divider operation */
+	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
+		  GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT);
+	nvkm_rd32(device, GPC2CLK_OUT);
+
+	return 0;
+}
+
+static int
+gk20a_pllg_program_mnp_slide(struct gk20a_clk *clk, const struct gk20a_pll *pll)
+{
+	struct gk20a_pll cur_pll;
+	int ret;
+
+	if (gk20a_pllg_is_enabled(clk)) {
+		gk20a_pllg_read_mnp(clk, &cur_pll);
+
+		/* just do NDIV slide if there is no change to M and PL */
+		if (pll->m == cur_pll.m && pll->pl == cur_pll.pl)
+			return gk20a_pllg_slide(clk, pll->n);
+
+		/* slide down to current NDIV_LO */
+		cur_pll.n = gk20a_pllg_n_lo(clk, &cur_pll);
+		ret = gk20a_pllg_slide(clk, cur_pll.n);
 		if (ret)
 			return ret;
 	}
 
-	/* split FO-to-bypass jump in halfs by setting out divider 1:2 */
-	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_VCODIV_MASK,
-		0x2 << GPC2CLK_OUT_VCODIV_SHIFT);
-
-	/* put PLL in bypass before programming it */
-	val = nvkm_rd32(device, SEL_VCO);
-	val &= ~(BIT(SEL_VCO_GPC2CLK_OUT_SHIFT));
-	udelay(2);
-	nvkm_wr32(device, SEL_VCO, val);
-
-	/* get out from IDDQ */
-	val = nvkm_rd32(device, GPCPLL_CFG);
-	if (val & GPCPLL_CFG_IDDQ) {
-		val &= ~GPCPLL_CFG_IDDQ;
-		nvkm_wr32(device, GPCPLL_CFG, val);
-		nvkm_rd32(device, GPCPLL_CFG);
-		udelay(2);
-	}
-
-	gk20a_pllg_disable(clk);
-
-	nvkm_debug(subdev, "%s: m=%d n=%d pl=%d\n", __func__,
-		   pll->m, pll->n, pll->pl);
-
-	old_pll = *pll;
-	if (allow_slide)
-		old_pll.n = gk20a_pllg_n_lo(clk, pll);
-	gk20a_pllg_write_mnp(clk, &old_pll);
-
-	gk20a_pllg_enable(clk);
-
-	val = nvkm_rd32(device, GPCPLL_CFG);
-	if (val & GPCPLL_CFG_LOCK_DET_OFF) {
-		val &= ~GPCPLL_CFG_LOCK_DET_OFF;
-		nvkm_wr32(device, GPCPLL_CFG, val);
-	}
-
-	if (nvkm_usec(device, 300,
-		if (nvkm_rd32(device, GPCPLL_CFG) & GPCPLL_CFG_LOCK)
-			break;
-	) < 0)
-		return -ETIMEDOUT;
-
-	/* switch to VCO mode */
-	nvkm_mask(device, SEL_VCO, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT),
-		  BIT(SEL_VCO_GPC2CLK_OUT_SHIFT));
-
-	/* restore out divider 1:1 */
-	val = nvkm_rd32(device, GPC2CLK_OUT);
-	if ((val & GPC2CLK_OUT_VCODIV_MASK) !=
-	    (GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT)) {
-		val &= ~GPC2CLK_OUT_VCODIV_MASK;
-		val |= GPC2CLK_OUT_VCODIV1 << GPC2CLK_OUT_VCODIV_SHIFT;
-		udelay(2);
-		nvkm_wr32(device, GPC2CLK_OUT, val);
-		/* Intentional 2nd write to assure linear divider operation */
-		nvkm_wr32(device, GPC2CLK_OUT, val);
-		nvkm_rd32(device, GPC2CLK_OUT);
-	}
+	/* program MNP with the new clock parameters and new NDIV_LO */
+	cur_pll = *pll;
+	cur_pll.n = gk20a_pllg_n_lo(clk, &cur_pll);
+	ret = gk20a_pllg_program_mnp(clk, &cur_pll);
+	if (ret)
+		return ret;
 
 	/* slide up to new NDIV */
-	return allow_slide ? gk20a_pllg_slide(clk, pll->n) : 0;
-}
-
-static int
-gk20a_pllg_program_mnp(struct gk20a_clk *clk)
-{
-	int err;
-
-	err = _gk20a_pllg_program_mnp(clk, &clk->pll, true);
-	if (err)
-		err = _gk20a_pllg_program_mnp(clk, &clk->pll, false);
-
-	return err;
+	return gk20a_pllg_slide(clk, pll->n);
 }
 
 static struct nvkm_pstate
@@ -571,8 +570,13 @@ int
 gk20a_clk_prog(struct nvkm_clk *base)
 {
 	struct gk20a_clk *clk = gk20a_clk(base);
+	int ret;
 
-	return gk20a_pllg_program_mnp(clk);
+	ret = gk20a_pllg_program_mnp_slide(clk, &clk->pll);
+	if (ret)
+		ret = gk20a_pllg_program_mnp(clk, &clk->pll);
+
+	return ret;
 }
 
 void
@@ -621,11 +625,9 @@ gk20a_clk_fini(struct nvkm_clk *base)
 {
 	struct nvkm_device *device = base->subdev.device;
 	struct gk20a_clk *clk = gk20a_clk(base);
-	u32 val;
 
 	/* slide to VCO min */
-	val = nvkm_rd32(device, GPCPLL_CFG);
-	if (val & GPCPLL_CFG_ENABLE) {
+	if (gk20a_pllg_is_enabled(clk)) {
 		struct gk20a_pll pll;
 		u32 n_lo;
 
@@ -634,10 +636,10 @@ gk20a_clk_fini(struct nvkm_clk *base)
 		gk20a_pllg_slide(clk, n_lo);
 	}
 
-	/* put PLL in bypass before disabling it */
-	nvkm_mask(device, SEL_VCO, BIT(SEL_VCO_GPC2CLK_OUT_SHIFT), 0);
-
 	gk20a_pllg_disable(clk);
+
+	/* set IDDQ */
+	nvkm_mask(device, GPCPLL_CFG, GPCPLL_CFG_IDDQ, 1);
 }
 
 static int
@@ -647,6 +649,11 @@ gk20a_clk_init(struct nvkm_clk *base)
 	struct nvkm_subdev *subdev = &clk->base.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ret;
+
+	/* get out from IDDQ */
+	nvkm_mask(device, GPCPLL_CFG, GPCPLL_CFG_IDDQ, 0);
+	nvkm_rd32(device, GPCPLL_CFG);
+	udelay(5);
 
 	nvkm_mask(device, GPC2CLK_OUT, GPC2CLK_OUT_INIT_MASK,
 		  GPC2CLK_OUT_INIT_VAL);
