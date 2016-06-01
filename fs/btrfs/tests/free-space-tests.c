@@ -843,7 +843,13 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 
 	test_msg("Running btrfs free space cache tests\n");
 
-	cache = btrfs_alloc_dummy_block_group(1024 * 1024 * 1024, sectorsize);
+	/*
+	 * For ppc64 (with 64k page size), bytes per bitmap might be
+	 * larger than 1G.  To make bitmap test available in ppc64,
+	 * alloc dummy block group whose size cross bitmaps.
+	 */
+	cache = btrfs_alloc_dummy_block_group(BITS_PER_BITMAP * sectorsize
+					+ PAGE_SIZE, sectorsize);
 	if (!cache) {
 		test_msg("Couldn't run the tests\n");
 		return 0;
