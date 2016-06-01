@@ -49,6 +49,7 @@
 #define CLK_UART3		260
 #define CLK_PWM			279
 #define CLK_MCT			315
+#define CLK_WDT			316
 #define CLK_RTC			317
 #define CLK_TMU			318
 #define CLK_MMC0		351
@@ -57,6 +58,7 @@
 #define CLK_USBH20		365
 #define CLK_USBD300		366
 #define CLK_USBD301		367
+#define CLK_SSS			471
 
 #define CLK_NR_CLKS		512
 
