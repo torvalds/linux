@@ -1572,7 +1572,7 @@ void drm_atomic_helper_swap_state(struct drm_device *dev,
 
 	for_each_connector_in_state(state, connector, conn_state, i) {
 		connector->state->state = state;
-		swap(state->connector_states[i], connector->state);
+		swap(state->connectors[i].state, connector->state);
 		connector->state->state = NULL;
 	}
 

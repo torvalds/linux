@@ -106,7 +106,7 @@ drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
 	if (index >= state->num_connector)
 		return NULL;
 
-	return state->connector_states[index];
+	return state->connectors[index].state;
 }
 
 /**
@@ -175,11 +175,11 @@ int __must_check drm_atomic_check_only(struct drm_atomic_state *state);
 int __must_check drm_atomic_commit(struct drm_atomic_state *state);
 int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 
-#define for_each_connector_in_state(state, connector, connector_state, __i) \
+#define for_each_connector_in_state(__state, connector, connector_state, __i) \
 	for ((__i) = 0;							\
-	     (__i) < (state)->num_connector &&				\
-	     ((connector) = (state)->connectors[__i],			\
-	     (connector_state) = (state)->connector_states[__i], 1); 	\
+	     (__i) < (__state)->num_connector &&				\
+	     ((connector) = (__state)->connectors[__i].ptr,			\
+	     (connector_state) = (__state)->connectors[__i].state, 1); 	\
 	     (__i)++)							\
 		for_each_if (connector)
 

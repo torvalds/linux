@@ -44,7 +44,6 @@
 void drm_atomic_state_default_release(struct drm_atomic_state *state)
 {
 	kfree(state->connectors);
-	kfree(state->connector_states);
 	kfree(state->crtcs);
 	kfree(state->crtc_states);
 	kfree(state->planes);
@@ -139,15 +138,15 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 	DRM_DEBUG_ATOMIC("Clearing atomic state %p\n", state);
 
 	for (i = 0; i < state->num_connector; i++) {
-		struct drm_connector *connector = state->connectors[i];
+		struct drm_connector *connector = state->connectors[i].ptr;
 
 		if (!connector)
 			continue;
 
 		connector->funcs->atomic_destroy_state(connector,
-						       state->connector_states[i]);
-		state->connectors[i] = NULL;
-		state->connector_states[i] = NULL;
+						       state->connectors[i].state);
+		state->connectors[i].ptr = NULL;
+		state->connectors[i].state = NULL;
 		drm_connector_unreference(connector);
 	}
 
@@ -896,8 +895,7 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	index = drm_connector_index(connector);
 
 	if (index >= state->num_connector) {
-		struct drm_connector **c;
-		struct drm_connector_state **cs;
+		struct __drm_connnectors_state *c;
 		int alloc = max(index + 1, config->num_connector);
 
 		c = krealloc(state->connectors, alloc * sizeof(*state->connectors), GFP_KERNEL);
@@ -908,26 +906,19 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 		memset(&state->connectors[state->num_connector], 0,
 		       sizeof(*state->connectors) * (alloc - state->num_connector));
 
-		cs = krealloc(state->connector_states, alloc * sizeof(*state->connector_states), GFP_KERNEL);
-		if (!cs)
-			return ERR_PTR(-ENOMEM);
-
-		state->connector_states = cs;
-		memset(&state->connector_states[state->num_connector], 0,
-		       sizeof(*state->connector_states) * (alloc - state->num_connector));
 		state->num_connector = alloc;
 	}
 
-	if (state->connector_states[index])
-		return state->connector_states[index];
+	if (state->connectors[index].state)
+		return state->connectors[index].state;
 
 	connector_state = connector->funcs->atomic_duplicate_state(connector);
 	if (!connector_state)
 		return ERR_PTR(-ENOMEM);
 
 	drm_connector_reference(connector);
-	state->connector_states[index] = connector_state;
-	state->connectors[index] = connector;
+	state->connectors[index].state = connector_state;
+	state->connectors[index].ptr = connector;
 	connector_state->state = state;
 
 	DRM_DEBUG_ATOMIC("Added [CONNECTOR:%d] %p state to %p\n",

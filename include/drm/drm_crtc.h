@@ -1693,6 +1693,11 @@ struct drm_bridge {
 	void *driver_private;
 };
 
+struct __drm_connnectors_state {
+	struct drm_connector *ptr;
+	struct drm_connector_state *state;
+};
+
 /**
  * struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
@@ -1704,8 +1709,7 @@ struct drm_bridge {
  * @crtcs: pointer to array of CRTC pointers
  * @crtc_states: pointer to array of CRTC states pointers
  * @num_connector: size of the @connectors and @connector_states arrays
- * @connectors: pointer to array of connector pointers
- * @connector_states: pointer to array of connector states pointers
+ * @connectors: pointer to array of structures with per-connector data
  * @acquire_ctx: acquire context for this atomic modeset state update
  */
 struct drm_atomic_state {
@@ -1718,8 +1722,7 @@ struct drm_atomic_state {
 	struct drm_crtc **crtcs;
 	struct drm_crtc_state **crtc_states;
 	int num_connector;
-	struct drm_connector **connectors;
-	struct drm_connector_state **connector_states;
+	struct __drm_connnectors_state *connectors;
 
 	struct drm_modeset_acquire_ctx *acquire_ctx;
 };
