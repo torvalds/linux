@@ -58,6 +58,7 @@ static struct ti_dt_clk am43xx_clks[] = {
 	DT_CLK(NULL, "smartreflex1_fck", "smartreflex1_fck"),
 	DT_CLK(NULL, "sha0_fck", "sha0_fck"),
 	DT_CLK(NULL, "aes0_fck", "aes0_fck"),
+	DT_CLK(NULL, "rng_fck", "rng_fck"),
 	DT_CLK(NULL, "timer1_fck", "timer1_fck"),
 	DT_CLK(NULL, "timer2_fck", "timer2_fck"),
 	DT_CLK(NULL, "timer3_fck", "timer3_fck"),
