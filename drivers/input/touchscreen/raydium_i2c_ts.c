@@ -930,7 +930,7 @@ static int raydium_i2c_power_on(struct raydium_data *ts)
 {
 	int error;
 
-	if (IS_ERR_OR_NULL(ts->reset_gpio))
+	if (!ts->reset_gpio)
 		return 0;
 
 	gpiod_set_value_cansleep(ts->reset_gpio, 1);
@@ -967,7 +967,7 @@ static void raydium_i2c_power_off(void *_data)
 {
 	struct raydium_data *ts = _data;
 
-	if (!IS_ERR_OR_NULL(ts->reset_gpio)) {
+	if (ts->reset_gpio) {
 		gpiod_set_value_cansleep(ts->reset_gpio, 1);
 		regulator_disable(ts->vccio);
 		regulator_disable(ts->avdd);
@@ -1018,11 +1018,10 @@ static int raydium_i2c_probe(struct i2c_client *client,
 						 GPIOD_OUT_LOW);
 	if (IS_ERR(ts->reset_gpio)) {
 		error = PTR_ERR(ts->reset_gpio);
-		if (error != -EPROBE_DEFER) {
+		if (error != -EPROBE_DEFER)
 			dev_err(&client->dev,
 				"failed to get reset gpio: %d\n", error);
-			return error;
-		}
+		return error;
 	}
 
 	error = raydium_i2c_power_on(ts);
@@ -1138,7 +1137,7 @@ static int __maybe_unused raydium_i2c_suspend(struct device *dev)
 
 	/* Sleep is not available in BLDR recovery mode */
 	if (ts->boot_mode != RAYDIUM_TS_MAIN)
-		return -ENOMEM;
+		return -EBUSY;
 
 	disable_irq(client->irq);
 
