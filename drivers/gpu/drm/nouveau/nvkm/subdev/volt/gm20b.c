@@ -41,16 +41,31 @@ const struct cvb_coef gm20b_cvb_coef[] = {
 	/* 921600 */ { 2647676, -106455, 1632 },
 };
 
+const u32 speedo_to_vmin[] = {
+	/*   0,      1,      2,      3,      4, */
+	950000, 840000, 818750, 840000, 810000,
+};
+
 int
 gm20b_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 {
+	struct nvkm_device_tegra *tdev = device->func->tegra(device);
 	struct gk20a_volt *volt;
+	u32 vmin;
+
+	if (tdev->gpu_speedo_id >= ARRAY_SIZE(speedo_to_vmin)) {
+		nvdev_error(device, "unsupported speedo %d\n",
+			    tdev->gpu_speedo_id);
+		return -EINVAL;
+	}
 
 	volt = kzalloc(sizeof(*volt), GFP_KERNEL);
 	if (!volt)
 		return -ENOMEM;
 	*pvolt = &volt->base;
 
+	vmin = speedo_to_vmin[tdev->gpu_speedo_id];
+
 	return gk20a_volt_ctor(device, index, gm20b_cvb_coef,
-			       ARRAY_SIZE(gm20b_cvb_coef), volt);
+			       ARRAY_SIZE(gm20b_cvb_coef), vmin, volt);
 }
