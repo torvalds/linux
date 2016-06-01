@@ -37,6 +37,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
@@ -760,6 +761,7 @@ static void vpu_service_power_off(struct vpu_service_info *pservice)
 		if (pservice->clk_cabac)
 			clk_disable_unprepare(pservice->clk_cabac);
 #endif
+	pm_runtime_put(pservice->dev);
 
 	atomic_add(1, &pservice->power_off_cnt);
 	wake_unlock(&pservice->wake_lock);
@@ -822,6 +824,7 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 	if (pservice->pd_video)
 		clk_prepare_enable(pservice->pd_video);
 #endif
+	pm_runtime_get_sync(pservice->dev);
 
 	udelay(5);
 	atomic_add(1, &pservice->power_on_cnt);
@@ -2228,6 +2231,8 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 
 	clear_bit(MMU_ACTIVATED, &data->state);
 	vcodec_enter_mode(data);
+
+	vpu_service_power_on(pservice);
 	ret = vpu_service_check_hw(data);
 	if (ret < 0) {
 		vpu_err("error: hw info check faild\n");
@@ -2499,8 +2504,6 @@ static int vcodec_probe(struct platform_device *pdev)
 	if (0 > vpu_get_clk(pservice))
 		goto err;
 
-	vpu_service_power_on(pservice);
-
 	if (of_property_read_bool(np, "reg")) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -2514,6 +2517,8 @@ static int vcodec_probe(struct platform_device *pdev)
 	} else {
 		pservice->reg_base = 0;
 	}
+
+	pm_runtime_enable(dev);
 
 	if (of_property_read_bool(np, "subcnt")) {
 		for (i = 0; i < pservice->subcnt; i++) {
@@ -2549,6 +2554,9 @@ static int vcodec_remove(struct platform_device *pdev)
 	struct vpu_subdev_data *data = platform_get_drvdata(pdev);
 
 	vcodec_subdev_remove(data);
+
+	pm_runtime_disable(data->pservice->dev);
+
 	return 0;
 }
 
