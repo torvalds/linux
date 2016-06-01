@@ -77,7 +77,7 @@ gk20a_volt_get_cvb_t_voltage(int speedo, int temp, int s_scale, int t_scale,
 	return mv;
 }
 
-int
+static int
 gk20a_volt_calc_voltage(const struct cvb_coef *coef, int speedo)
 {
 	int mv;
@@ -88,7 +88,7 @@ gk20a_volt_calc_voltage(const struct cvb_coef *coef, int speedo)
 	return mv * 1000;
 }
 
-int
+static int
 gk20a_volt_vid_get(struct nvkm_volt *base)
 {
 	struct gk20a_volt *volt = gk20a_volt(base);
@@ -103,7 +103,7 @@ gk20a_volt_vid_get(struct nvkm_volt *base)
 	return -EINVAL;
 }
 
-int
+static int
 gk20a_volt_vid_set(struct nvkm_volt *base, u8 vid)
 {
 	struct gk20a_volt *volt = gk20a_volt(base);
@@ -113,7 +113,7 @@ gk20a_volt_vid_set(struct nvkm_volt *base, u8 vid)
 	return regulator_set_voltage(volt->vdd, volt->base.vid[vid].uv, 1200000);
 }
 
-int
+static int
 gk20a_volt_set_id(struct nvkm_volt *base, u8 id, int condition)
 {
 	struct gk20a_volt *volt = gk20a_volt(base);
