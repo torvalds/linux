@@ -265,8 +265,23 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 /* Copy data from chunk into a frame buffer, deinterlacing the data
  * into every second line. Unfortunately, they don't align nicely into
  * 720 pixel lines, as the chunk is 240 words long, which is 480 pixels.
- * Therefore, we break down the chunk into two halves before copyting,
- * so that we can interleave a line if needed. */
+ * Therefore, we break down the chunk into two halves before copying,
+ * so that we can interleave a line if needed.
+ *
+ * Each "chunk" is 240 words; a word in this context equals 4 bytes.
+ * Image format is YUYV/YUV 4:2:2, consisting of Y Cr Y Cb, defining two
+ * pixels, the Cr and Cb shared between the two pixels, but each having
+ * separate Y values. Thus, the 240 words equal 480 pixels. It therefore,
+ * takes 1.5 chunks to make a 720 pixel-wide line for the frame.
+ * The image is interlaced, so there is a "scan" of odd lines, followed
+ * by "scan" of even numbered lines.
+ *
+ * Following code is writing the chunks in correct sequence, skipping
+ * the rows based on "odd" value.
+ * line 1: chunk[0][  0..479] chunk[0][480..959] chunk[1][  0..479]
+ * line 3: chunk[1][480..959] chunk[2][  0..479] chunk[2][480..959]
+ * ...etc.
+ */
 static void usbtv_chunk_to_vbuf(u32 *frame, __be32 *src, int chunk_no, int odd)
 {
 	int half;
