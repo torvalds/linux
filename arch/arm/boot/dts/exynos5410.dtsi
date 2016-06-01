@@ -298,6 +298,11 @@
 	clock-names = "uart", "clk_uart_baud0";
 };
 
+&sss {
+	clocks = <&clock CLK_SSS>;
+	clock-names = "secss";
+};
+
 &sromc {
 	#address-cells = <2>;
 	#size-cells = <1>;
@@ -348,6 +353,12 @@
 	clock-names = "phy", "ref";
 	samsung,sysreg-phandle = <&sysreg_system_controller>;
 	samsung,pmureg-phandle = <&pmu_system_controller>;
+};
+
+&watchdog {
+	clocks = <&clock CLK_WDT>;
+	clock-names = "watchdog";
+	samsung,syscon-phandle = <&pmu_system_controller>;
 };
 
 #include "exynos5410-pinctrl.dtsi"

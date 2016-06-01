@@ -74,6 +74,18 @@
 			};
 		};
 
+		watchdog: watchdog@101d0000 {
+			compatible = "samsung,exynos5420-wdt";
+			reg = <0x101d0000 0x100>;
+			interrupts = <0 42 0>;
+		};
+
+		sss: sss@10830000 {
+			compatible = "samsung,exynos4210-secss";
+			reg = <0x10830000 0x300>;
+			interrupts = <0 112 0>;
+		};
+
 		/* i2c_0-3 are defined in exynos5.dtsi */
 		hsi2c_4: i2c@12ca0000 {
 			compatible = "samsung,exynos5250-hsi2c";

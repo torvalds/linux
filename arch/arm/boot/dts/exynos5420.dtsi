@@ -731,23 +731,6 @@
 			#include "exynos4412-tmu-sensor-conf.dtsi"
 		};
 
-		watchdog: watchdog@101D0000 {
-			compatible = "samsung,exynos5420-wdt";
-			reg = <0x101D0000 0x100>;
-			interrupts = <0 42 0>;
-			clocks = <&clock CLK_WDT>;
-			clock-names = "watchdog";
-			samsung,syscon-phandle = <&pmu_system_controller>;
-		};
-
-		sss: sss@10830000 {
-			compatible = "samsung,exynos4210-secss";
-			reg = <0x10830000 0x300>;
-			interrupts = <0 112 0>;
-			clocks = <&clock CLK_SSS>;
-			clock-names = "secss";
-		};
-
 		sysmmu_g2dr: sysmmu@0x10A60000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x10A60000 0x1000>;
@@ -1438,6 +1421,11 @@
 	clock-names = "uart", "clk_uart_baud0";
 };
 
+&sss {
+	clocks = <&clock CLK_SSS>;
+	clock-names = "secss";
+};
+
 &usbdrd3_0 {
 	clocks = <&clock CLK_USBD300>;
 	clock-names = "usbdrd30";
@@ -1479,6 +1467,12 @@
 	clock-names = "phy", "ref";
 	samsung,sysreg-phandle = <&sysreg_system_controller>;
 	samsung,pmureg-phandle = <&pmu_system_controller>;
+};
+
+&watchdog {
+	clocks = <&clock CLK_WDT>;
+	clock-names = "watchdog";
+	samsung,syscon-phandle = <&pmu_system_controller>;
 };
 
 #include "exynos5420-pinctrl.dtsi"
