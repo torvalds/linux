@@ -273,6 +273,16 @@ out:
 	return ret;
 }
 
+/**
+ * test_bit_in_byte - Determine whether a bit is set in a byte
+ * @nr: bit number to test
+ * @addr: Address to start counting from
+ */
+static inline int test_bit_in_byte(int nr, const u8 *addr)
+{
+	return 1UL & (addr[nr / BITS_PER_BYTE] >> (nr & (BITS_PER_BYTE - 1)));
+}
+
 static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 			     unsigned long len)
 {
@@ -338,7 +348,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	for (i = 0; i < len * BITS_PER_BYTE; i++) {
 		int bit, bit1;
 
-		bit = !!test_bit(i, bitmap);
+		bit = !!test_bit_in_byte(i, (u8 *)bitmap);
 		bit1 = !!extent_buffer_test_bit(eb, 0, i);
 		if (bit1 != bit) {
 			test_msg("Testing bit pattern failed\n");
