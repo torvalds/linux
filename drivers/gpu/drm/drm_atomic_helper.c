@@ -519,7 +519,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 		if (!funcs || !funcs->atomic_check)
 			continue;
 
-		ret = funcs->atomic_check(crtc, state->crtc_states[i]);
+		ret = funcs->atomic_check(crtc, crtc_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d] atomic driver check failed\n",
 					 crtc->base.id);
@@ -1161,16 +1161,12 @@ EXPORT_SYMBOL(drm_atomic_helper_commit);
 int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 				     struct drm_atomic_state *state)
 {
-	int nplanes = dev->mode_config.num_total_plane;
-	int ret, i;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	int ret, i, j;
 
-	for (i = 0; i < nplanes; i++) {
+	for_each_plane_in_state(state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *plane_state = state->plane_states[i];
-
-		if (!plane)
-			continue;
 
 		funcs = plane->helper_private;
 
@@ -1184,12 +1180,10 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 	return 0;
 
 fail:
-	for (i--; i >= 0; i--) {
+	for_each_plane_in_state(state, plane, plane_state, j) {
 		const struct drm_plane_helper_funcs *funcs;
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *plane_state = state->plane_states[i];
 
-		if (!plane)
+		if (j >= i)
 			continue;
 
 		funcs = plane->helper_private;
@@ -1433,35 +1427,26 @@ void drm_atomic_helper_swap_state(struct drm_device *dev,
 				  struct drm_atomic_state *state)
 {
 	int i;
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 
-	for (i = 0; i < dev->mode_config.num_connector; i++) {
-		struct drm_connector *connector = state->connectors[i];
-
-		if (!connector)
-			continue;
-
+	for_each_connector_in_state(state, connector, conn_state, i) {
 		connector->state->state = state;
 		swap(state->connector_states[i], connector->state);
 		connector->state->state = NULL;
 	}
 
-	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-
-		if (!crtc)
-			continue;
-
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		crtc->state->state = state;
 		swap(state->crtc_states[i], crtc->state);
 		crtc->state->state = NULL;
 	}
 
-	for (i = 0; i < dev->mode_config.num_total_plane; i++) {
-		struct drm_plane *plane = state->planes[i];
-
-		if (!plane)
-			continue;
-
+	for_each_plane_in_state(state, plane, plane_state, i) {
 		plane->state->state = state;
 		swap(state->plane_states[i], plane->state);
 		plane->state->state = NULL;
