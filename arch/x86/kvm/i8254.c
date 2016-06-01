@@ -645,7 +645,6 @@ static const struct kvm_io_device_ops speaker_dev_ops = {
 	.write    = speaker_ioport_write,
 };
 
-/* Caller must hold slots_lock */
 struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 {
 	struct kvm_pit *pit;
@@ -690,6 +689,7 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 
 	kvm_pit_set_reinject(pit, true);
 
+	mutex_lock(&kvm->slots_lock);
 	kvm_iodevice_init(&pit->dev, &pit_dev_ops);
 	ret = kvm_io_bus_register_dev(kvm, KVM_PIO_BUS, KVM_PIT_BASE_ADDRESS,
 				      KVM_PIT_MEM_LENGTH, &pit->dev);
@@ -704,12 +704,14 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 		if (ret < 0)
 			goto fail_register_speaker;
 	}
+	mutex_unlock(&kvm->slots_lock);
 
 	return pit;
 
 fail_register_speaker:
 	kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->dev);
 fail_register_pit:
+	mutex_unlock(&kvm->slots_lock);
 	kvm_pit_set_reinject(pit, false);
 	kthread_stop(pit->worker_task);
 fail_kthread:
