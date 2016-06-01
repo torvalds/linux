@@ -125,9 +125,7 @@ xfs_bmap_finish(
 		if (committed) {
 			xfs_efi_release(efi);
 			xfs_force_shutdown((*tp)->t_mountp,
-				(error == -EFSCORRUPTED) ?
-					SHUTDOWN_CORRUPT_INCORE :
-					SHUTDOWN_META_IO_ERROR);
+					   SHUTDOWN_META_IO_ERROR);
 		}
 		return error;
 	}
