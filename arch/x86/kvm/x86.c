@@ -7816,7 +7816,7 @@ int __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size)
 
 	slot = id_to_memslot(slots, id);
 	if (size) {
-		if (WARN_ON(slot->npages))
+		if (slot->npages)
 			return -EEXIST;
 
 		/*
