@@ -62,4 +62,6 @@ int gk20a_clk_calc(struct nvkm_clk *, struct nvkm_cstate *);
 int gk20a_clk_prog(struct nvkm_clk *);
 void gk20a_clk_tidy(struct nvkm_clk *);
 
+int gk20a_clk_setup_slide(struct gk20a_clk *);
+
 #endif

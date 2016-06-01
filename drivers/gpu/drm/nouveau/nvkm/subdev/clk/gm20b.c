@@ -144,6 +144,10 @@ gm20b_clk_init(struct nvkm_clk *base)
 	struct nvkm_device *device = subdev->device;
 	int ret;
 
+	ret = gk20a_clk_setup_slide(clk);
+	if (ret)
+		return ret;
+
 	/* Set the global bypass control to VCO */
 	nvkm_mask(device, BYPASSCTRL_SYS,
 	       MASK(BYPASSCTRL_SYS_GPCPLL_WIDTH) << BYPASSCTRL_SYS_GPCPLL_SHIFT,
