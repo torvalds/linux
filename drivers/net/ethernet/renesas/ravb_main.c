@@ -362,8 +362,6 @@ static void ravb_emac_init(struct net_device *ndev)
 	ravb_write(ndev,
 		   (ndev->dev_addr[4] << 8)  | (ndev->dev_addr[5]), MALR);
 
-	ravb_write(ndev, 1, MPR);
-
 	/* E-MAC status register clear */
 	ravb_write(ndev, ECSR_ICD | ECSR_MPD, ECSR);
 
