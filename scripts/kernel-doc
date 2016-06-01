@@ -2593,7 +2593,7 @@ sub syscall_munge() {
 	}
 }
 
-sub process_state3_function($$) {
+sub process_proto_function($$) {
     my $x = shift;
     my $file = shift;
 
@@ -2623,7 +2623,7 @@ sub process_state3_function($$) {
     }
 }
 
-sub process_state3_type($$) {
+sub process_proto_type($$) {
     my $x = shift;
     my $file = shift;
 
@@ -2937,9 +2937,9 @@ sub process_file($) {
 		$state = STATE_INLINE;
 		$inline_doc_state = STATE_INLINE_NAME;
 	    } elsif ($decl_type eq 'function') {
-		process_state3_function($_, $file);
+		process_proto_function($_, $file);
 	    } else {
-		process_state3_type($_, $file);
+		process_proto_type($_, $file);
 	    }
 	} elsif ($state == STATE_DOCBLOCK) {
 		if (/$doc_end/)
