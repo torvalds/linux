@@ -375,7 +375,7 @@ struct r8192_priv {
 	struct tasklet_struct		irq_tx_tasklet;
 	struct tasklet_struct		irq_prepare_beacon_tasklet;
 
-	struct semaphore			wx_sem;
+	struct mutex				wx_mutex;
 	struct semaphore			rf_sem;
 	struct mutex				mutex;
 
