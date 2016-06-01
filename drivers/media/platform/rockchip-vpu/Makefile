@@ -1,7 +1,7 @@
 
-obj-$(CONFIG_VIDEO_RK3288_VPU) += rk3288-vpu.o
+obj-$(CONFIG_VIDEO_ROCKCHIP_VPU) += rockchip-vpu.o
 
-rk3288-vpu-y += rk3288_vpu.o \
+rockchip-vpu-y += rk3288_vpu.o \
 		rk3288_vpu_dec.o \
 		rk3288_vpu_enc.o \
 		rk3288_vpu_hw.o \

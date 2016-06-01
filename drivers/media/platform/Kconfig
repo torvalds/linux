@@ -267,16 +267,16 @@ config VIDEO_TI_VPE
 	  Support for the TI VPE(Video Processing Engine) block
 	  found on DRA7XX SoC.
 
-config VIDEO_RK3288_VPU
-	tristate "Rockchip RK3288 VPU driver"
+config VIDEO_ROCKCHIP_VPU
+	tristate "Rockchip ROCKCHIP VPU driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
 	select VIDEOBUF2_DMA_CONTIG
 	default n
 	---help---
-	  Support for the VPU video codec found on Rockchip RK3288 SoC.
+	  Support for the VPU video codec found on Rockchip SoC.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called rk3288-vpu.
+	  will be called rockchip-vpu.
 
 config VIDEO_TI_VPE_DEBUG
 	bool "VPE debug messages"
