@@ -276,6 +276,26 @@ uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj)
 	return offset;
 }
 
+static void
+put_iova(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct msm_drm_private *priv = obj->dev->dev_private;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	int id;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
+		struct msm_mmu *mmu = priv->mmus[id];
+		if (mmu && msm_obj->domain[id].iova) {
+			uint32_t offset = msm_obj->domain[id].iova;
+			mmu->funcs->unmap(mmu, offset, msm_obj->sgt, obj->size);
+			msm_obj->domain[id].iova = 0;
+		}
+	}
+}
+
 /* should be called under struct_mutex.. although it can be called
  * from atomic context without struct_mutex to acquire an extra
  * iova ref if you know one is already held.
@@ -608,9 +628,7 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 void msm_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct msm_drm_private *priv = obj->dev->dev_private;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	int id;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
@@ -619,13 +637,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 
 	list_del(&msm_obj->mm_list);
 
-	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
-		struct msm_mmu *mmu = priv->mmus[id];
-		if (mmu && msm_obj->domain[id].iova) {
-			uint32_t offset = msm_obj->domain[id].iova;
-			mmu->funcs->unmap(mmu, offset, msm_obj->sgt, obj->size);
-		}
-	}
+	put_iova(obj);
 
 	if (obj->import_attach) {
 		if (msm_obj->vaddr)
