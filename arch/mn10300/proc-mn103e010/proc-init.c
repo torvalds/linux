@@ -9,6 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 #include <linux/kernel.h>
+#include <linux/irq.h>
 #include <asm/cacheflush.h>
 #include <asm/fpu.h>
 #include <asm/irq.h>
