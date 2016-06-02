@@ -504,6 +504,12 @@ static int vrf_dev_init(struct net_device *dev)
 
 	dev->flags = IFF_MASTER | IFF_NOARP;
 
+	/* MTU is irrelevant for VRF device; set to 64k similar to lo */
+	dev->mtu = 64 * 1024;
+
+	/* similarly, oper state is irrelevant; set to up to avoid confusion */
+	dev->operstate = IF_OPER_UP;
+
 	return 0;
 
 out_rth:
