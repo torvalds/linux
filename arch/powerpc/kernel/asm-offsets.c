@@ -72,6 +72,9 @@
 #include <asm/fixmap.h>
 #endif
 
+#define STACK_PT_REGS_OFFSET(sym, val)	\
+	DEFINE(sym, STACK_FRAME_OVERHEAD + offsetof(struct pt_regs, val))
+
 int main(void)
 {
 	OFFSET(THREAD, task_struct, thread);
@@ -265,38 +268,38 @@ int main(void)
 	DEFINE(PROM_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs) + 16);
 	DEFINE(RTAS_FRAME_SIZE, STACK_FRAME_OVERHEAD + sizeof(struct pt_regs) + 16);
 #endif /* CONFIG_PPC64 */
-	DEFINE(GPR0, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[0]));
-	DEFINE(GPR1, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[1]));
-	DEFINE(GPR2, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[2]));
-	DEFINE(GPR3, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[3]));
-	DEFINE(GPR4, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[4]));
-	DEFINE(GPR5, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[5]));
-	DEFINE(GPR6, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[6]));
-	DEFINE(GPR7, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[7]));
-	DEFINE(GPR8, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[8]));
-	DEFINE(GPR9, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[9]));
-	DEFINE(GPR10, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[10]));
-	DEFINE(GPR11, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[11]));
-	DEFINE(GPR12, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[12]));
-	DEFINE(GPR13, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[13]));
+	STACK_PT_REGS_OFFSET(GPR0, gpr[0]);
+	STACK_PT_REGS_OFFSET(GPR1, gpr[1]);
+	STACK_PT_REGS_OFFSET(GPR2, gpr[2]);
+	STACK_PT_REGS_OFFSET(GPR3, gpr[3]);
+	STACK_PT_REGS_OFFSET(GPR4, gpr[4]);
+	STACK_PT_REGS_OFFSET(GPR5, gpr[5]);
+	STACK_PT_REGS_OFFSET(GPR6, gpr[6]);
+	STACK_PT_REGS_OFFSET(GPR7, gpr[7]);
+	STACK_PT_REGS_OFFSET(GPR8, gpr[8]);
+	STACK_PT_REGS_OFFSET(GPR9, gpr[9]);
+	STACK_PT_REGS_OFFSET(GPR10, gpr[10]);
+	STACK_PT_REGS_OFFSET(GPR11, gpr[11]);
+	STACK_PT_REGS_OFFSET(GPR12, gpr[12]);
+	STACK_PT_REGS_OFFSET(GPR13, gpr[13]);
 #ifndef CONFIG_PPC64
-	DEFINE(GPR14, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, gpr[14]));
+	STACK_PT_REGS_OFFSET(GPR14, gpr[14]);
 #endif /* CONFIG_PPC64 */
 	/*
 	 * Note: these symbols include _ because they overlap with special
 	 * register names
 	 */
-	DEFINE(_NIP, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, nip));
-	DEFINE(_MSR, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, msr));
-	DEFINE(_CTR, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, ctr));
-	DEFINE(_LINK, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, link));
-	DEFINE(_CCR, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, ccr));
-	DEFINE(_XER, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, xer));
-	DEFINE(_DAR, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, dar));
-	DEFINE(_DSISR, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, dsisr));
-	DEFINE(ORIG_GPR3, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, orig_gpr3));
-	DEFINE(RESULT, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, result));
-	DEFINE(_TRAP, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, trap));
+	STACK_PT_REGS_OFFSET(_NIP, nip);
+	STACK_PT_REGS_OFFSET(_MSR, msr);
+	STACK_PT_REGS_OFFSET(_CTR, ctr);
+	STACK_PT_REGS_OFFSET(_LINK, link);
+	STACK_PT_REGS_OFFSET(_CCR, ccr);
+	STACK_PT_REGS_OFFSET(_XER, xer);
+	STACK_PT_REGS_OFFSET(_DAR, dar);
+	STACK_PT_REGS_OFFSET(_DSISR, dsisr);
+	STACK_PT_REGS_OFFSET(ORIG_GPR3, orig_gpr3);
+	STACK_PT_REGS_OFFSET(RESULT, result);
+	STACK_PT_REGS_OFFSET(_TRAP, trap);
 #ifndef CONFIG_PPC64
 	/*
 	 * The PowerPC 400-class & Book-E processors have neither the DAR
@@ -304,10 +307,10 @@ int main(void)
 	 * DEAR and ESR SPRs for such processors.  For critical interrupts
 	 * we use them to hold SRR0 and SRR1.
 	 */
-	DEFINE(_DEAR, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, dar));
-	DEFINE(_ESR, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, dsisr));
+	STACK_PT_REGS_OFFSET(_DEAR, dar);
+	STACK_PT_REGS_OFFSET(_ESR, dsisr);
 #else /* CONFIG_PPC64 */
-	DEFINE(SOFTE, STACK_FRAME_OVERHEAD+offsetof(struct pt_regs, softe));
+	STACK_PT_REGS_OFFSET(SOFTE, softe);
 
 	/* These _only_ to be used with {PROM,RTAS}_FRAME_SIZE!!! */
 	DEFINE(_SRR0, STACK_FRAME_OVERHEAD+sizeof(struct pt_regs));
