@@ -75,6 +75,27 @@
 	status = "okay";
 };
 
+&spi1 {
+	status = "okay";
+
+	resource-manager@0 {
+		compatible = "altr,a10sr";
+		reg = <0>;
+		spi-max-frequency = <100000>;
+		/* low-level active IRQ at GPIO1_5 */
+		interrupt-parent = <&portb>;
+		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		a10sr_gpio: gpio-controller {
+			compatible = "altr,a10sr-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};
+};
+
 &i2c1 {
 	speed-mode = <0>;
 	status = "okay";
