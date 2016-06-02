@@ -581,7 +581,8 @@ void secure_computing_strict(int this_syscall)
 #else
 
 #ifdef CONFIG_SECCOMP_FILTER
-static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd)
+static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
+			    const bool recheck_after_trace)
 {
 	u32 filter_ret, action;
 	int data;
@@ -613,6 +614,10 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd)
 		goto skip;
 
 	case SECCOMP_RET_TRACE:
+		/* We've been put in this state by the ptracer already. */
+		if (recheck_after_trace)
+			return 0;
+
 		/* ENOSYS these calls if there is no tracer attached. */
 		if (!ptrace_event_enabled(current, PTRACE_EVENT_SECCOMP)) {
 			syscall_set_return_value(current,
@@ -636,6 +641,15 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd)
 		if (this_syscall < 0)
 			goto skip;
 
+		/*
+		 * Recheck the syscall, since it may have changed. This
+		 * intentionally uses a NULL struct seccomp_data to force
+		 * a reload of all registers. This does not goto skip since
+		 * a skip would have already been reported.
+		 */
+		if (__seccomp_filter(this_syscall, NULL, true))
+			return -1;
+
 		return 0;
 
 	case SECCOMP_RET_ALLOW:
@@ -654,7 +668,8 @@ skip:
 	return -1;
 }
 #else
-static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd)
+static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
+			    const bool recheck_after_trace)
 {
 	BUG();
 }
@@ -677,7 +692,7 @@ int __secure_computing(const struct seccomp_data *sd)
 		__secure_computing_strict(this_syscall);  /* may call do_exit */
 		return 0;
 	case SECCOMP_MODE_FILTER:
-		return __seccomp_filter(this_syscall, sd);
+		return __seccomp_filter(this_syscall, sd, false);
 	default:
 		BUG();
 	}
