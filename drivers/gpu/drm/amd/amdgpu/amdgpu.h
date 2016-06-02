@@ -2401,10 +2401,12 @@ bool amdgpu_device_is_px(struct drm_device *dev);
 void amdgpu_register_atpx_handler(void);
 void amdgpu_unregister_atpx_handler(void);
 bool amdgpu_has_atpx_dgpu_power_cntl(void);
+bool amdgpu_is_atpx_hybrid(void);
 #else
 static inline void amdgpu_register_atpx_handler(void) {}
 static inline void amdgpu_unregister_atpx_handler(void) {}
 static inline bool amdgpu_has_atpx_dgpu_power_cntl(void) { return false; }
+static inline bool amdgpu_is_atpx_hybrid(void) { return false; }
 #endif
 
 /*
