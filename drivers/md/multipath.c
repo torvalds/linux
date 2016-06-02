@@ -141,17 +141,19 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
 	return;
 }
 
-static void multipath_status (struct seq_file *seq, struct mddev *mddev)
+static void multipath_status(struct seq_file *seq, struct mddev *mddev)
 {
 	struct mpconf *conf = mddev->private;
 	int i;
 
 	seq_printf (seq, " [%d/%d] [", conf->raid_disks,
 		    conf->raid_disks - mddev->degraded);
-	for (i = 0; i < conf->raid_disks; i++)
-		seq_printf (seq, "%s",
-			       conf->multipaths[i].rdev &&
-			       test_bit(In_sync, &conf->multipaths[i].rdev->flags) ? "U" : "_");
+	rcu_read_lock();
+	for (i = 0; i < conf->raid_disks; i++) {
+		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		seq_printf (seq, "%s", rdev && test_bit(In_sync, &rdev->flags) ? "U" : "_");
+	}
+	rcu_read_unlock();
 	seq_printf (seq, "]");
 }
 
