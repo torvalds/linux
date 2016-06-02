@@ -417,7 +417,9 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_ignore_hotplug(pdev);
-	if (amdgpu_has_atpx_dgpu_power_cntl())
+	if (amdgpu_is_atpx_hybrid())
+		pci_set_power_state(pdev, PCI_D3cold);
+	else if (amdgpu_has_atpx_dgpu_power_cntl())
 		pci_set_power_state(pdev, PCI_D3cold);
 	else
 		pci_set_power_state(pdev, PCI_D3hot);
