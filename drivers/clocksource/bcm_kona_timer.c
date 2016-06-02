@@ -20,7 +20,6 @@
 #include <linux/clk.h>
 
 #include <linux/io.h>
-#include <asm/mach/time.h>
 
 #include <linux/of.h>
 #include <linux/of_address.h>
