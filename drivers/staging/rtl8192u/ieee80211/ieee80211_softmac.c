@@ -621,7 +621,7 @@ static void ieee80211_start_scan(struct ieee80211_device *ieee)
 
 }
 
-/* called with wx_sem held */
+/* called with wx_mutex held */
 void ieee80211_start_scan_syncro(struct ieee80211_device *ieee)
 {
 	if (IS_DOT11D_ENABLE(ieee) )
@@ -1389,7 +1389,7 @@ static void ieee80211_associate_procedure_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, associate_procedure_wq);
 	ieee->sync_scan_hurryup = 1;
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->data_hard_stop)
 		ieee->data_hard_stop(ieee->dev);
@@ -1402,7 +1402,7 @@ static void ieee80211_associate_procedure_wq(struct work_struct *work)
 	ieee->associate_seq = 1;
 	ieee80211_associate_step1(ieee);
 
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 
 inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee80211_network *net)
@@ -2331,7 +2331,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, start_ibss_wq);
 	/* iwconfig mode ad-hoc will schedule this and return
 	 * on the other hand this will block further iwconfig SET
-	 * operations because of the wx_sem hold.
+	 * operations because of the wx_mutex hold.
 	 * Anyway some most set operations set a flag to speed-up
 	 * (abort) this wq (when syncro scanning) before sleeping
 	 * on the semaphore
@@ -2340,7 +2340,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 		printk("==========oh driver down return\n");
 		return;
 	}
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 
 	if (ieee->current_network.ssid_len == 0) {
 		strcpy(ieee->current_network.ssid, IEEE80211_DEFAULT_TX_ESSID);
@@ -2431,7 +2431,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 		ieee->data_hard_resume(ieee->dev);
 	netif_carrier_on(ieee->dev);
 
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 
 inline void ieee80211_start_ibss(struct ieee80211_device *ieee)
@@ -2439,7 +2439,7 @@ inline void ieee80211_start_ibss(struct ieee80211_device *ieee)
 	schedule_delayed_work(&ieee->start_ibss_wq, 150);
 }
 
-/* this is called only in user context, with wx_sem held */
+/* this is called only in user context, with wx_mutex held */
 void ieee80211_start_bss(struct ieee80211_device *ieee)
 {
 	unsigned long flags;
@@ -2505,7 +2505,7 @@ static void ieee80211_associate_retry_wq(struct work_struct *work)
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, associate_retry_wq);
 	unsigned long flags;
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	if(!ieee->proto_started)
 		goto exit;
 
@@ -2537,7 +2537,7 @@ static void ieee80211_associate_retry_wq(struct work_struct *work)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
 exit:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 
 struct sk_buff *ieee80211_get_beacon_(struct ieee80211_device *ieee)
@@ -2583,9 +2583,9 @@ EXPORT_SYMBOL(ieee80211_get_beacon);
 void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee)
 {
 	ieee->sync_scan_hurryup = 1;
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	ieee80211_stop_protocol(ieee);
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 EXPORT_SYMBOL(ieee80211_softmac_stop_protocol);
 
@@ -2609,9 +2609,9 @@ void ieee80211_stop_protocol(struct ieee80211_device *ieee)
 void ieee80211_softmac_start_protocol(struct ieee80211_device *ieee)
 {
 	ieee->sync_scan_hurryup = 0;
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	ieee80211_start_protocol(ieee);
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 EXPORT_SYMBOL(ieee80211_softmac_start_protocol);
 
@@ -2728,7 +2728,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	INIT_WORK(&ieee->wx_sync_scan_wq, ieee80211_wx_sync_scan_wq);
 
 
-	sema_init(&ieee->wx_sem, 1);
+	mutex_init(&ieee->wx_mutex);
 	sema_init(&ieee->scan_sem, 1);
 
 	spin_lock_init(&ieee->mgmt_tx_lock);
@@ -2742,14 +2742,14 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 
 void ieee80211_softmac_free(struct ieee80211_device *ieee)
 {
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	kfree(ieee->pDot11dInfo);
 	ieee->pDot11dInfo = NULL;
 	del_timer_sync(&ieee->associate_timer);
 
 	cancel_delayed_work(&ieee->associate_retry_wq);
 
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 }
 
 /********************************************************
@@ -3138,7 +3138,7 @@ int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee, struct iw_poin
 	struct ieee_param *param;
 	int ret=0;
 
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	//IEEE_DEBUG_INFO("wpa_supplicant: len=%d\n", p->length);
 
 	if (p->length < sizeof(struct ieee_param) || !p->pointer) {
@@ -3183,7 +3183,7 @@ int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee, struct iw_poin
 
 	kfree(param);
 out:
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 
 	return ret;
 }

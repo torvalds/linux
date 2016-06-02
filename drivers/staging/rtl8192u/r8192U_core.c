@@ -3388,14 +3388,14 @@ RESET_START:
 
 		ieee->sync_scan_hurryup = 1;
 		if (ieee->state == IEEE80211_LINKED) {
-			down(&ieee->wx_sem);
+			mutex_lock(&ieee->wx_mutex);
 			netdev_dbg(dev, "ieee->state is IEEE80211_LINKED\n");
 			ieee80211_stop_send_beacons(priv->ieee80211);
 			del_timer_sync(&ieee->associate_timer);
 			cancel_delayed_work(&ieee->associate_retry_wq);
 			ieee80211_stop_scan(ieee);
 			netif_carrier_off(dev);
-			up(&ieee->wx_sem);
+			mutex_unlock(&ieee->wx_mutex);
 		} else {
 			netdev_dbg(dev, "ieee->state is NOT LINKED\n");
 			ieee80211_softmac_stop_protocol(priv->ieee80211);
