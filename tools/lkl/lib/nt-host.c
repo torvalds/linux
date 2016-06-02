@@ -5,6 +5,8 @@
 #include <lkl_host.h>
 #include "iomem.h"
 
+#define DIFF_1601_TO_1970_IN_100NS (11644473600L * 10000000L)
+
 struct lkl_mutex_t {
 	HANDLE mutex;
 };
@@ -117,14 +119,14 @@ static unsigned long long time_ns(void)
 {
 	SYSTEMTIME st;
 	FILETIME ft;
-	LARGE_INTEGER li;
+	ULARGE_INTEGER uli;
 
 	GetSystemTime(&st);
 	SystemTimeToFileTime(&st, &ft);
-	li.LowPart = ft.dwLowDateTime;
-	li.HighPart = ft.dwHighDateTime;
+	uli.LowPart = ft.dwLowDateTime;
+	uli.HighPart = ft.dwHighDateTime;
 
-	return li.QuadPart*100;
+	return (uli.QuadPart - DIFF_1601_TO_1970_IN_100NS) * 100;
 }
 
 struct timer {
