@@ -187,6 +187,6 @@ const char *bpf_map__get_name(struct bpf_map *map);
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 int bpf_map__set_private(struct bpf_map *map, void *priv,
 			 bpf_map_clear_priv_t clear_priv);
-int bpf_map__get_private(struct bpf_map *map, void **ppriv);
+void *bpf_map__priv(struct bpf_map *map);
 
 #endif

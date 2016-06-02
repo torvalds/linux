@@ -1351,14 +1351,9 @@ int bpf_map__set_private(struct bpf_map *map, void *priv,
 	return 0;
 }
 
-int bpf_map__get_private(struct bpf_map *map, void **ppriv)
+void *bpf_map__priv(struct bpf_map *map)
 {
-	if (!map)
-		return -EINVAL;
-
-	if (ppriv)
-		*ppriv = map->priv;
-	return 0;
+	return map ? map->priv : ERR_PTR(-EINVAL);
 }
 
 struct bpf_map *

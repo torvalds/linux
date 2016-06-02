@@ -897,15 +897,13 @@ bpf_map_priv__clone(struct bpf_map_priv *priv)
 static int
 bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 {
-	struct bpf_map_priv *priv;
+	struct bpf_map_priv *priv = bpf_map__priv(map);
 	const char *map_name;
-	int err;
 
 	map_name = bpf_map__get_name(map);
-	err = bpf_map__get_private(map, (void **)&priv);
-	if (err) {
+	if (IS_ERR(priv)) {
 		pr_debug("Failed to get private from map %s\n", map_name);
-		return err;
+		return PTR_ERR(priv);
 	}
 
 	if (!priv) {
@@ -1264,12 +1262,11 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 	const char *name;
 	struct bpf_map_op *op;
 	struct bpf_map_def def;
-	struct bpf_map_priv *priv;
+	struct bpf_map_priv *priv = bpf_map__priv(map);
 
 	name = bpf_map__get_name(map);
 
-	err = bpf_map__get_private(map, (void **)&priv);
-	if (err) {
+	if (IS_ERR(priv)) {
 		pr_debug("ERROR: failed to get private from map %s\n", name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
@@ -1489,10 +1486,9 @@ int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 	bool need_init = false;
 
 	bpf__for_each_stdout_map(map, obj, tmp) {
-		struct bpf_map_priv *priv;
+		struct bpf_map_priv *priv = bpf_map__priv(map);
 
-		err = bpf_map__get_private(map, (void **)&priv);
-		if (err)
+		if (IS_ERR(priv))
 			return -BPF_LOADER_ERRNO__INTERNAL;
 
 		/*
@@ -1520,10 +1516,9 @@ int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 	}
 
 	bpf__for_each_stdout_map(map, obj, tmp) {
-		struct bpf_map_priv *priv;
+		struct bpf_map_priv *priv = bpf_map__priv(map);
 
-		err = bpf_map__get_private(map, (void **)&priv);
-		if (err)
+		if (IS_ERR(priv))
 			return -BPF_LOADER_ERRNO__INTERNAL;
 		if (priv)
 			continue;
