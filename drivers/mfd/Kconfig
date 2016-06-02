@@ -1643,5 +1643,13 @@ config MFD_VEXPRESS_SYSREG
 	  System Registers are the platform configuration block
 	  on the ARM Ltd. Versatile Express board.
 
+config MFD_INTEL_VUPORT
+	tristate "Intel virtual USB port controller"
+	select MFD_CORE
+	depends on X86 && ACPI
+	help
+	  Say Y here to enable support for Intel's dual role port mux
+	  controlled by GPIOs.
+
 endmenu
 endif
