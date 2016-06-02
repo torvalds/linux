@@ -39,6 +39,9 @@ Optional properties:
 			disabling the suspend signal to the PHY.
  - snps,dis_rxdet_inp3_quirk: when set core will disable receiver detection
 			in PHY P3 power state.
+ - snps,dis-u2-freeclk-exists-quirk: when set, clear the u2_freeclk_exists
+			in GUSB2PHYCFG, specify that USB2 PHY doesn't provide
+			a free-running PHY clock.
  - snps,is-utmi-l1-suspend: true when DWC3 asserts output signal
 			utmi_l1_suspend_n, false when asserts utmi_sleep_n
  - snps,hird-threshold: HIRD threshold
