@@ -499,6 +499,23 @@ int nfs_key_timeout_notify(struct file *filp, struct inode *inode);
 bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx);
 void nfs_pageio_stop_mirroring(struct nfs_pageio_descriptor *pgio);
 
+#ifdef CONFIG_NFS_V4_1
+static inline
+void nfs_clear_pnfs_ds_commit_verifiers(struct pnfs_ds_commit_info *cinfo)
+{
+	int i;
+
+	for (i = 0; i < cinfo->nbuckets; i++)
+		cinfo->buckets[i].direct_verf.committed = NFS_INVALID_STABLE_HOW;
+}
+#else
+static inline
+void nfs_clear_pnfs_ds_commit_verifiers(struct pnfs_ds_commit_info *cinfo)
+{
+}
+#endif
+
+
 #ifdef CONFIG_MIGRATION
 extern int nfs_migrate_page(struct address_space *,
 		struct page *, struct page *, enum migrate_mode);
