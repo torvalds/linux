@@ -34,6 +34,13 @@ config BCM2835_TIMER
 	help
 	  Enables the support for the BCM2835 timer driver.
 
+config BCM_KONA_TIMER
+	bool "BCM mobile timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables the support for the BCM Kona mobile timer driver.
+
 config DIGICOLOR_TIMER
 	bool "Digicolor timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
