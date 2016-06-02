@@ -3229,7 +3229,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			bio->bi_error = -EIO;
 
 			sector = r10_bio->devs[i].addr;
-			atomic_inc(&conf->mirrors[d].rdev->nr_pending);
+			atomic_inc(&conf->mirrors[d].replacement->nr_pending);
 			bio->bi_next = biolist;
 			biolist = bio;
 			bio->bi_private = r10_bio;
