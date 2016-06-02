@@ -243,7 +243,7 @@ static u32 start_drv_threads(struct _adapter *padapter)
 void r8712_stop_drv_threads(struct _adapter *padapter)
 {
 	/*Below is to terminate r8712_cmd_thread & event_thread...*/
-	up(&padapter->cmdpriv.cmd_queue_sema);
+	complete(&padapter->cmdpriv.cmd_queue_comp);
 	if (padapter->cmdThread)
 		_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
 	padapter->cmdpriv.cmd_seq = 1;

@@ -322,7 +322,7 @@ int r8712_cmd_thread(void *context)
 
 	allow_signal(SIGTERM);
 	while (1) {
-		if ((_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL)
+		if (wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp))
 			break;
 		if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
 			break;
