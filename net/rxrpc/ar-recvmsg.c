@@ -9,6 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/export.h>
@@ -307,7 +309,7 @@ receive_non_data_message:
 			       &abort_code);
 		break;
 	default:
-		pr_err("RxRPC: Unknown packet mark %u\n", skb->mark);
+		pr_err("Unknown packet mark %u\n", skb->mark);
 		BUG();
 		break;
 	}

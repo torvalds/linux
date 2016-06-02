@@ -12,6 +12,8 @@
  *	"afs@CAMBRIDGE.REDHAT.COM>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <crypto/skcipher.h>
 #include <linux/module.h>
 #include <linux/net.h>
@@ -800,7 +802,7 @@ static void rxrpc_free_token_list(struct rxrpc_key_token *token)
 				rxrpc_rxk5_free(token->k5);
 			break;
 		default:
-			printk(KERN_ERR "Unknown token type %x on rxrpc key\n",
+			pr_err("Unknown token type %x on rxrpc key\n",
 			       token->security_index);
 			BUG();
 		}

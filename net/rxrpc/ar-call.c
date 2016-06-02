@@ -9,6 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/circ_buf.h>
@@ -669,8 +671,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 			       conn->channels[3] == NULL);
 			break;
 		default:
-			printk(KERN_ERR "RxRPC: conn->avail_calls=%d\n",
-			       conn->avail_calls);
+			pr_err("conn->avail_calls=%d\n", conn->avail_calls);
 			BUG();
 		}
 	}
@@ -935,16 +936,15 @@ void __exit rxrpc_destroy_all_calls(void)
 			if (call->state != RXRPC_CALL_DEAD)
 				break;
 		default:
-			printk(KERN_ERR "RXRPC:"
-			       " Call %p still in use (%d,%d,%s,%lx,%lx)!\n",
+			pr_err("Call %p still in use (%d,%d,%s,%lx,%lx)!\n",
 			       call, atomic_read(&call->usage),
 			       atomic_read(&call->ackr_not_idle),
 			       rxrpc_call_states[call->state],
 			       call->flags, call->events);
 			if (!skb_queue_empty(&call->rx_queue))
-				printk(KERN_ERR"RXRPC: Rx queue occupied\n");
+				pr_err("Rx queue occupied\n");
 			if (!skb_queue_empty(&call->rx_oos_queue))
-				printk(KERN_ERR"RXRPC: OOS queue occupied\n");
+				pr_err("OOS queue occupied\n");
 			break;
 		}
 

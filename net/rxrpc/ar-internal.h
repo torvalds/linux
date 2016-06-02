@@ -744,21 +744,18 @@ do {							\
 #define ASSERT(X)						\
 do {								\
 	if (unlikely(!(X))) {					\
-		printk(KERN_ERR "\n");				\
-		printk(KERN_ERR "RxRPC: Assertion failed\n");	\
+		pr_err("Assertion failed\n");			\
 		BUG();						\
 	}							\
 } while (0)
 
 #define ASSERTCMP(X, OP, Y)						\
 do {									\
-	if (unlikely(!((X) OP (Y)))) {					\
-		printk(KERN_ERR "\n");					\
-		printk(KERN_ERR "RxRPC: Assertion failed\n");		\
-		printk(KERN_ERR "%lu " #OP " %lu is false\n",		\
-		       (unsigned long)(X), (unsigned long)(Y));		\
-		printk(KERN_ERR "0x%lx " #OP " 0x%lx is false\n",	\
-		       (unsigned long)(X), (unsigned long)(Y));		\
+	unsigned long _x = (unsigned long)(X);				\
+	unsigned long _y = (unsigned long)(Y);				\
+	if (unlikely(!(_x OP _y))) {					\
+		pr_err("Assertion failed - %lu(0x%lx) %s %lu(0x%lx) is false\n",			\
+		       _x, _x, #OP, _y, _y);				\
 		BUG();							\
 	}								\
 } while (0)
@@ -766,21 +763,18 @@ do {									\
 #define ASSERTIF(C, X)						\
 do {								\
 	if (unlikely((C) && !(X))) {				\
-		printk(KERN_ERR "\n");				\
-		printk(KERN_ERR "RxRPC: Assertion failed\n");	\
+		pr_err("Assertion failed\n");			\
 		BUG();						\
 	}							\
 } while (0)
 
 #define ASSERTIFCMP(C, X, OP, Y)					\
 do {									\
-	if (unlikely((C) && !((X) OP (Y)))) {				\
-		printk(KERN_ERR "\n");					\
-		printk(KERN_ERR "RxRPC: Assertion failed\n");		\
-		printk(KERN_ERR "%lu " #OP " %lu is false\n",		\
-		       (unsigned long)(X), (unsigned long)(Y));		\
-		printk(KERN_ERR "0x%lx " #OP " 0x%lx is false\n",	\
-		       (unsigned long)(X), (unsigned long)(Y));		\
+	unsigned long _x = (unsigned long)(X);				\
+	unsigned long _y = (unsigned long)(Y);				\
+	if (unlikely((C) && !(_x OP _y))) {				\
+		pr_err("Assertion failed - %lu(0x%lx) %s %lu(0x%lx) is false\n", \
+		       _x, _x, #OP, _y, _y);				\
 		BUG();							\
 	}								\
 } while (0)

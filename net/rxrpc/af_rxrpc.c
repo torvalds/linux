@@ -9,6 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/net.h>
@@ -796,49 +798,49 @@ static int __init af_rxrpc_init(void)
 		"rxrpc_call_jar", sizeof(struct rxrpc_call), 0,
 		SLAB_HWCACHE_ALIGN, NULL);
 	if (!rxrpc_call_jar) {
-		printk(KERN_NOTICE "RxRPC: Failed to allocate call jar\n");
+		pr_notice("Failed to allocate call jar\n");
 		goto error_call_jar;
 	}
 
 	rxrpc_workqueue = alloc_workqueue("krxrpcd", 0, 1);
 	if (!rxrpc_workqueue) {
-		printk(KERN_NOTICE "RxRPC: Failed to allocate work queue\n");
+		pr_notice("Failed to allocate work queue\n");
 		goto error_work_queue;
 	}
 
 	ret = rxrpc_init_security();
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot initialise security\n");
+		pr_crit("Cannot initialise security\n");
 		goto error_security;
 	}
 
 	ret = proto_register(&rxrpc_proto, 1);
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register protocol\n");
+		pr_crit("Cannot register protocol\n");
 		goto error_proto;
 	}
 
 	ret = sock_register(&rxrpc_family_ops);
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register socket family\n");
+		pr_crit("Cannot register socket family\n");
 		goto error_sock;
 	}
 
 	ret = register_key_type(&key_type_rxrpc);
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register client key type\n");
+		pr_crit("Cannot register client key type\n");
 		goto error_key_type;
 	}
 
 	ret = register_key_type(&key_type_rxrpc_s);
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register server key type\n");
+		pr_crit("Cannot register server key type\n");
 		goto error_key_type_s;
 	}
 
 	ret = rxrpc_sysctl_init();
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register sysctls\n");
+		pr_crit("Cannot register sysctls\n");
 		goto error_sysctls;
 	}
 
