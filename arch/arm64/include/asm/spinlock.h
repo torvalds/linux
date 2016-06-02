@@ -30,20 +30,39 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 {
 	unsigned int tmp;
 	arch_spinlock_t lockval;
+	u32 owner;
 
 	/*
 	 * Ensure prior spin_lock operations to other locks have completed
 	 * on this CPU before we test whether "lock" is locked.
 	 */
 	smp_mb();
+	owner = READ_ONCE(lock->owner) << 16;
 
 	asm volatile(
 "	sevl\n"
 "1:	wfe\n"
 "2:	ldaxr	%w0, %2\n"
+	/* Is the lock free? */
 "	eor	%w1, %w0, %w0, ror #16\n"
-"	cbnz	%w1, 1b\n"
-	/* Serialise against any concurrent lockers */
+"	cbz	%w1, 3f\n"
+	/* Lock taken -- has there been a subsequent unlock->lock transition? */
+"	eor	%w1, %w3, %w0, lsl #16\n"
+"	cbz	%w1, 1b\n"
+	/*
+	 * The owner has been updated, so there was an unlock->lock
+	 * transition that we missed. That means we can rely on the
+	 * store-release of the unlock operation paired with the
+	 * load-acquire of the lock operation to publish any of our
+	 * previous stores to the new lock owner and therefore don't
+	 * need to bother with the writeback below.
+	 */
+"	b	4f\n"
+"3:\n"
+	/*
+	 * Serialise against any concurrent lockers by writing back the
+	 * unlocked lock value
+	 */
 	ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
 "	stxr	%w1, %w0, %2\n"
@@ -53,9 +72,11 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 "	mov	%w1, %w0\n"
 "	cas	%w0, %w0, %2\n"
 "	eor	%w1, %w1, %w0\n")
+	/* Somebody else wrote to the lock, GOTO 10 and reload the value */
 "	cbnz	%w1, 2b\n"
+"4:"
 	: "=&r" (lockval), "=&r" (tmp), "+Q" (*lock)
-	:
+	: "r" (owner)
 	: "memory");
 }
 
