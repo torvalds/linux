@@ -231,6 +231,8 @@ int update_inode(struct inode *inode, struct page *node_page)
 {
 	struct f2fs_inode *ri;
 
+	f2fs_inode_synced(inode);
+
 	f2fs_wait_on_page_writeback(node_page, NODE, true);
 
 	ri = F2FS_INODE(node_page);
@@ -265,7 +267,6 @@ int update_inode(struct inode *inode, struct page *node_page)
 
 	__set_inode_rdev(inode, ri);
 	set_cold_node(inode, node_page);
-	f2fs_inode_synced(inode);
 
 	/* deleted inode */
 	if (inode->i_nlink == 0)
