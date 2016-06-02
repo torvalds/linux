@@ -170,14 +170,11 @@ static struct fimd_driver_data exynos5420_fimd_driver_data = {
 	.lcdblk_vt_shift = 24,
 	.lcdblk_bypass_shift = 15,
 	.lcdblk_mic_bypass_shift = 11,
-	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
 	.has_mic_bypass = 1,
 	.has_dp_clk = 1,
-	.has_hw_trigger = 1,
-	.has_trigger_per_te = 1,
 };
 
 struct fimd_context {
