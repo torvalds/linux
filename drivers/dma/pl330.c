@@ -491,6 +491,8 @@ struct pl330_dmac {
 	/* Peripheral channels connected to this DMAC */
 	unsigned int num_peripherals;
 	struct dma_pl330_chan *peripherals; /* keep at end */
+	/* set peripherals request type according to soc config*/
+	enum pl330_cond peripherals_req_type;
 	int quirks;
 };
 
@@ -1156,12 +1158,7 @@ static inline int _ldst_devtomem(struct pl330_dmac *pl330, unsigned dry_run,
 				 int cyc)
 {
 	int off = 0;
-	enum pl330_cond cond;
-
-	if (pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP)
-		cond = BURST;
-	else
-		cond = SINGLE;
+	enum pl330_cond cond = pl330->peripherals_req_type;
 
 	while (cyc--) {
 		off += _emit_WFP(dry_run, &buf[off], cond, pxs->desc->peri);
@@ -1181,12 +1178,7 @@ static inline int _ldst_memtodev(struct pl330_dmac *pl330,
 				 const struct _xfer_spec *pxs, int cyc)
 {
 	int off = 0;
-	enum pl330_cond cond;
-
-	if (pl330->quirks & PL330_QUIRK_BROKEN_NO_FLUSHP)
-		cond = BURST;
-	else
-		cond = SINGLE;
+	enum pl330_cond cond = pl330->peripherals_req_type;
 
 	while (cyc--) {
 		off += _emit_WFP(dry_run, &buf[off], cond, pxs->desc->peri);
@@ -2597,7 +2589,12 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 
 		desc->rqtype = direction;
 		desc->rqcfg.brst_size = pch->burst_sz;
-		desc->rqcfg.brst_len = 1;
+
+		if (pl330->peripherals_req_type == BURST)
+			desc->rqcfg.brst_len = pch->burst_len;
+		else
+			desc->rqcfg.brst_len = 1;
+
 		desc->bytes_requested = period_len;
 		fill_px(&desc->px, dst, src, period_len);
 
@@ -2699,6 +2696,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 {
 	struct dma_pl330_desc *first, *desc = NULL;
 	struct dma_pl330_chan *pch = to_pchan(chan);
+	struct pl330_dmac *pl330 = pch->dmac;
 	struct scatterlist *sg;
 	int i;
 	dma_addr_t addr;
@@ -2742,7 +2740,12 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		}
 
 		desc->rqcfg.brst_size = pch->burst_sz;
-		desc->rqcfg.brst_len = 1;
+
+		if (pl330->peripherals_req_type == BURST)
+			desc->rqcfg.brst_len = pch->burst_len;
+		else
+			desc->rqcfg.brst_len = 1;
+
 		desc->rqtype = direction;
 		desc->bytes_requested = sg_dma_len(sg);
 	}
@@ -2837,6 +2840,11 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	pd->dev = &adev->dev;
 
 	pl330->mcbufsz = pdat ? pdat->mcbuf_sz : 0;
+
+	if (of_find_property(np, "peripherals-req-type-burst", NULL))
+		pl330->peripherals_req_type = BURST;
+	else
+		pl330->peripherals_req_type = SINGLE;
 
 	/* get quirk */
 	for (i = 0; i < ARRAY_SIZE(of_quirks); i++)
