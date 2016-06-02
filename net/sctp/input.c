@@ -139,7 +139,9 @@ int sctp_rcv(struct sk_buff *skb)
 	skb->csum_valid = 0; /* Previous value not applicable */
 	if (skb_csum_unnecessary(skb))
 		__skb_decr_checksum_unnecessary(skb);
-	else if (!sctp_checksum_disable && sctp_rcv_checksum(net, skb) < 0)
+	else if (!sctp_checksum_disable &&
+		 !(skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) &&
+		 sctp_rcv_checksum(net, skb) < 0)
 		goto discard_it;
 	skb->csum_valid = 1;
 
@@ -1174,6 +1176,14 @@ static struct sctp_association *__sctp_rcv_lookup_harder(struct net *net,
 				      struct sctp_transport **transportp)
 {
 	sctp_chunkhdr_t *ch;
+
+	/* We do not allow GSO frames here as we need to linearize and
+	 * then cannot guarantee frame boundaries. This shouldn't be an
+	 * issue as packets hitting this are mostly INIT or INIT-ACK and
+	 * those cannot be on GSO-style anyway.
+	 */
+	if ((skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP)
+		return NULL;
 
 	if (skb_linearize(skb))
 		return NULL;
