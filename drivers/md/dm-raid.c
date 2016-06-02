@@ -2942,7 +2942,8 @@ module_param(devices_handle_discard_safely, bool, 0644);
 MODULE_PARM_DESC(devices_handle_discard_safely,
 		 "Set to Y if all devices in each array reliably return zeroes on reads from discarded regions");
 
-MODULE_DESCRIPTION(DM_NAME " raid4/5/6 target");
+MODULE_DESCRIPTION(DM_NAME " raid0/1/10/4/5/6 target");
+MODULE_ALIAS("dm-raid0");
 MODULE_ALIAS("dm-raid1");
 MODULE_ALIAS("dm-raid10");
 MODULE_ALIAS("dm-raid4");
