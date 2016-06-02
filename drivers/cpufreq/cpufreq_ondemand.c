@@ -420,12 +420,7 @@ static struct od_ops od_ops = {
 };
 
 static struct dbs_governor od_dbs_gov = {
-	.gov = {
-		.name = "ondemand",
-		.governor = cpufreq_governor_dbs,
-		.max_transition_latency	= TRANSITION_LATENCY_LIMIT,
-		.owner = THIS_MODULE,
-	},
+	.gov = CPUFREQ_DBS_GOVERNOR_INITIALIZER("ondemand"),
 	.kobj_type = { .default_attrs = od_attributes },
 	.gov_dbs_timer = od_dbs_timer,
 	.alloc = od_alloc,

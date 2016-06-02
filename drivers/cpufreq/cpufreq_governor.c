@@ -389,7 +389,7 @@ static void free_policy_dbs_info(struct policy_dbs_info *policy_dbs,
 	gov->free(policy_dbs);
 }
 
-static int cpufreq_governor_init(struct cpufreq_policy *policy)
+int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 {
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct dbs_data *dbs_data;
@@ -474,8 +474,9 @@ out:
 	mutex_unlock(&gov_dbs_data_mutex);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpufreq_dbs_governor_init);
 
-static int cpufreq_governor_exit(struct cpufreq_policy *policy)
+void cpufreq_dbs_governor_exit(struct cpufreq_policy *policy)
 {
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
@@ -500,10 +501,10 @@ static int cpufreq_governor_exit(struct cpufreq_policy *policy)
 	free_policy_dbs_info(policy_dbs, gov);
 
 	mutex_unlock(&gov_dbs_data_mutex);
-	return 0;
 }
+EXPORT_SYMBOL_GPL(cpufreq_dbs_governor_exit);
 
-static int cpufreq_governor_start(struct cpufreq_policy *policy)
+int cpufreq_dbs_governor_start(struct cpufreq_policy *policy)
 {
 	struct dbs_governor *gov = dbs_governor_of(policy);
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
@@ -539,14 +540,15 @@ static int cpufreq_governor_start(struct cpufreq_policy *policy)
 	gov_set_update_util(policy_dbs, sampling_rate);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpufreq_dbs_governor_start);
 
-static int cpufreq_governor_stop(struct cpufreq_policy *policy)
+void cpufreq_dbs_governor_stop(struct cpufreq_policy *policy)
 {
 	gov_cancel_work(policy);
-	return 0;
 }
+EXPORT_SYMBOL_GPL(cpufreq_dbs_governor_stop);
 
-static int cpufreq_governor_limits(struct cpufreq_policy *policy)
+void cpufreq_dbs_governor_limits(struct cpufreq_policy *policy)
 {
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 
@@ -560,26 +562,5 @@ static int cpufreq_governor_limits(struct cpufreq_policy *policy)
 	gov_update_sample_delay(policy_dbs, 0);
 
 	mutex_unlock(&policy_dbs->timer_mutex);
-
-	return 0;
 }
-
-int cpufreq_governor_dbs(struct cpufreq_policy *policy, unsigned int event)
-{
-	if (event == CPUFREQ_GOV_POLICY_INIT) {
-		return cpufreq_governor_init(policy);
-	} else if (policy->governor_data) {
-		switch (event) {
-		case CPUFREQ_GOV_POLICY_EXIT:
-			return cpufreq_governor_exit(policy);
-		case CPUFREQ_GOV_START:
-			return cpufreq_governor_start(policy);
-		case CPUFREQ_GOV_STOP:
-			return cpufreq_governor_stop(policy);
-		case CPUFREQ_GOV_LIMITS:
-			return cpufreq_governor_limits(policy);
-		}
-	}
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(cpufreq_governor_dbs);
+EXPORT_SYMBOL_GPL(cpufreq_dbs_governor_limits);

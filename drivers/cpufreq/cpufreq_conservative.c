@@ -313,12 +313,7 @@ static void cs_start(struct cpufreq_policy *policy)
 }
 
 static struct dbs_governor cs_dbs_gov = {
-	.gov = {
-		.name = "conservative",
-		.governor = cpufreq_governor_dbs,
-		.max_transition_latency = TRANSITION_LATENCY_LIMIT,
-		.owner = THIS_MODULE,
-	},
+	.gov = CPUFREQ_DBS_GOVERNOR_INITIALIZER("conservative"),
 	.kobj_type = { .default_attrs = cs_attributes },
 	.gov_dbs_timer = cs_dbs_timer,
 	.alloc = cs_alloc,
