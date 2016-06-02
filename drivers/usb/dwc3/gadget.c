@@ -462,9 +462,13 @@ static int dwc3_gadget_start_config(struct dwc3 *dwc, struct dwc3_ep *dep)
 static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 		const struct usb_endpoint_descriptor *desc,
 		const struct usb_ss_ep_comp_descriptor *comp_desc,
-		bool ignore, bool restore)
+		bool modify, bool restore)
 {
 	struct dwc3_gadget_ep_cmd_params params;
+
+	if (dev_WARN_ONCE(dwc->dev, modify && restore,
+					"Can't modify and restore\n"))
+		return -EINVAL;
 
 	memset(&params, 0x00, sizeof(params));
 
@@ -477,12 +481,13 @@ static int dwc3_gadget_set_ep_config(struct dwc3 *dwc, struct dwc3_ep *dep,
 		params.param0 |= DWC3_DEPCFG_BURST_SIZE(burst - 1);
 	}
 
-	if (ignore)
-		params.param0 |= DWC3_DEPCFG_IGN_SEQ_NUM;
-
-	if (restore) {
+	if (modify) {
+		params.param0 |= DWC3_DEPCFG_ACTION_MODIFY;
+	} else if (restore) {
 		params.param0 |= DWC3_DEPCFG_ACTION_RESTORE;
 		params.param2 |= dep->saved_state;
+	} else {
+		params.param0 |= DWC3_DEPCFG_ACTION_INIT;
 	}
 
 	params.param1 = DWC3_DEPCFG_XFER_COMPLETE_EN;
@@ -544,7 +549,7 @@ static int dwc3_gadget_set_xfer_resource(struct dwc3 *dwc, struct dwc3_ep *dep)
 static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 		const struct usb_endpoint_descriptor *desc,
 		const struct usb_ss_ep_comp_descriptor *comp_desc,
-		bool ignore, bool restore)
+		bool modify, bool restore)
 {
 	struct dwc3		*dwc = dep->dwc;
 	u32			reg;
@@ -558,7 +563,7 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 			return ret;
 	}
 
-	ret = dwc3_gadget_set_ep_config(dwc, dep, desc, comp_desc, ignore,
+	ret = dwc3_gadget_set_ep_config(dwc, dep, desc, comp_desc, modify,
 			restore);
 	if (ret)
 		return ret;
