@@ -207,8 +207,6 @@ int vc4_kms_load(struct drm_device *dev)
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.async_page_flip = true;
 
-	dev->vblank_disable_allowed = true;
-
 	drm_mode_config_reset(dev);
 
 	vc4->fbdev = drm_fbdev_cma_init(dev, 32,

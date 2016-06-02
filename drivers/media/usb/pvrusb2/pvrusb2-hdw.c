@@ -3672,11 +3672,10 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 
 
 	hdw->cmd_debug_state = 1;
-	if (write_len) {
+	if (write_len && write_data)
 		hdw->cmd_debug_code = ((unsigned char *)write_data)[0];
-	} else {
+	else
 		hdw->cmd_debug_code = 0;
-	}
 	hdw->cmd_debug_write_len = write_len;
 	hdw->cmd_debug_read_len = read_len;
 
@@ -3688,7 +3687,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 	setup_timer(&timer, pvr2_ctl_timeout, (unsigned long)hdw);
 	timer.expires = jiffies + timeout;
 
-	if (write_len) {
+	if (write_len && write_data) {
 		hdw->cmd_debug_state = 2;
 		/* Transfer write data to internal buffer */
 		for (idx = 0; idx < write_len; idx++) {
@@ -3795,7 +3794,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 			goto done;
 		}
 	}
-	if (read_len) {
+	if (read_len && read_data) {
 		/* Validate results of read request */
 		if ((hdw->ctl_read_urb->status != 0) &&
 		    (hdw->ctl_read_urb->status != -ENOENT) &&

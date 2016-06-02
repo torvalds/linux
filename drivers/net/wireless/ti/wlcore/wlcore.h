@@ -342,7 +342,7 @@ struct wl1271 {
 	struct wl12xx_vif *sched_vif;
 
 	/* The current band */
-	enum ieee80211_band band;
+	enum nl80211_band band;
 
 	struct completion *elp_compl;
 	struct delayed_work elp_work;
@@ -517,7 +517,7 @@ void wlcore_update_inconn_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			      struct wl1271_station *wl_sta, bool in_conn);
 
 static inline void
-wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
+wlcore_set_ht_cap(struct wl1271 *wl, enum nl80211_band band,
 		  struct ieee80211_sta_ht_cap *ht_cap)
 {
 	memcpy(&wl->ht_cap[band], ht_cap, sizeof(*ht_cap));

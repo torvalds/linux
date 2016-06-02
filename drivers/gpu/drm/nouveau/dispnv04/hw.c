@@ -23,7 +23,7 @@
  */
 
 #include <drm/drmP.h>
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "hw.h"
 
 #include <subdev/bios/pll.h>

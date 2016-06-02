@@ -1001,6 +1001,7 @@ finish:
 			return 0;
 		}
 	} else {
+		static bool warned;
 
 		spin_lock(&imp->imp_lock);
 		list_del(&imp->imp_conn_current->oic_item);
@@ -1021,7 +1022,7 @@ finish:
 			goto out;
 		}
 
-		if ((ocd->ocd_connect_flags & OBD_CONNECT_VERSION) &&
+		if (!warned && (ocd->ocd_connect_flags & OBD_CONNECT_VERSION) &&
 		    (ocd->ocd_version > LUSTRE_VERSION_CODE +
 					LUSTRE_VERSION_OFFSET_WARN ||
 		     ocd->ocd_version < LUSTRE_VERSION_CODE -
@@ -1029,10 +1030,8 @@ finish:
 			/* Sigh, some compilers do not like #ifdef in the middle
 			 * of macro arguments
 			 */
-			const char *older = "older. Consider upgrading server or downgrading client"
-				;
-			const char *newer = "newer than client version. Consider upgrading client"
-					    ;
+			const char *older = "older than client. Consider upgrading server";
+			const char *newer = "newer than client. Consider recompiling application";
 
 			LCONSOLE_WARN("Server %s version (%d.%d.%d.%d) is much %s (%s)\n",
 				      obd2cli_tgt(imp->imp_obd),
@@ -1042,6 +1041,7 @@ finish:
 				      OBD_OCD_VERSION_FIX(ocd->ocd_version),
 				      ocd->ocd_version > LUSTRE_VERSION_CODE ?
 				      newer : older, LUSTRE_VERSION_STRING);
+			warned = true;
 		}
 
 #if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(3, 2, 50, 0)
@@ -1370,7 +1370,6 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 			if (rc)
 				goto out;
 		}
-
 	}
 
 	if (imp->imp_state == LUSTRE_IMP_REPLAY_WAIT) {
@@ -1453,7 +1452,6 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 				       back_to_sleep, LWI_ON_SIGNAL_NOOP, NULL);
 		rc = l_wait_event(imp->imp_recovery_waitq,
 				  !ptlrpc_import_in_recovery(imp), &lwi);
-
 	}
 
 	spin_lock(&imp->imp_lock);

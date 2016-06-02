@@ -18,6 +18,9 @@
 
 #include "hnae.h"
 
+#define HNS_DEBUG_OFFSET	6
+#define HNS_SRV_OFFSET		2
+
 enum hns_nic_state {
 	NIC_STATE_TESTING = 0,
 	NIC_STATE_RESETTING,

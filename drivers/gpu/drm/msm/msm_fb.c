@@ -145,8 +145,7 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 	int ret, i, n = drm_format_num_planes(mode_cmd->pixel_format);
 
 	for (i = 0; i < n; i++) {
-		bos[i] = drm_gem_object_lookup(dev, file,
-				mode_cmd->handles[i]);
+		bos[i] = drm_gem_object_lookup(file, mode_cmd->handles[i]);
 		if (!bos[i]) {
 			ret = -ENXIO;
 			goto out_unref;

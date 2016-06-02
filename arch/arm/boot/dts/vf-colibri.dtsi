@@ -40,6 +40,11 @@
  */
 
 / {
+	aliases {
+		ethernet0 = &fec1;
+		ethernet1 = &fec0;
+	};
+
 	bl: backlight {
 		compatible = "pwm-backlight";
 		pinctrl-names = "default";
@@ -125,8 +130,6 @@
 };
 
 &nfc {
-	assigned-clocks = <&clks VF610_CLK_NFC>;
-	assigned-clock-rates = <33000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_nfc>;
 	status = "okay";
@@ -216,6 +219,39 @@
 				VF610_PAD_PTD10__GPIO_89	0x22ed /* EXT_IO_0 */
 				VF610_PAD_PTD9__GPIO_88		0x22ed /* EXT_IO_1 */
 				VF610_PAD_PTD26__GPIO_68	0x22ed /* EXT_IO_2 */
+			>;
+		};
+
+		pinctrl_dcu0_1: dcu0grp_1 {
+			fsl,pins = <
+				VF610_PAD_PTE0__DCU0_HSYNC	0x1902
+				VF610_PAD_PTE1__DCU0_VSYNC	0x1902
+				VF610_PAD_PTE2__DCU0_PCLK	0x1902
+				VF610_PAD_PTE4__DCU0_DE		0x1902
+				VF610_PAD_PTE5__DCU0_R0		0x1902
+				VF610_PAD_PTE6__DCU0_R1		0x1902
+				VF610_PAD_PTE7__DCU0_R2		0x1902
+				VF610_PAD_PTE8__DCU0_R3		0x1902
+				VF610_PAD_PTE9__DCU0_R4		0x1902
+				VF610_PAD_PTE10__DCU0_R5	0x1902
+				VF610_PAD_PTE11__DCU0_R6	0x1902
+				VF610_PAD_PTE12__DCU0_R7	0x1902
+				VF610_PAD_PTE13__DCU0_G0	0x1902
+				VF610_PAD_PTE14__DCU0_G1	0x1902
+				VF610_PAD_PTE15__DCU0_G2	0x1902
+				VF610_PAD_PTE16__DCU0_G3	0x1902
+				VF610_PAD_PTE17__DCU0_G4	0x1902
+				VF610_PAD_PTE18__DCU0_G5	0x1902
+				VF610_PAD_PTE19__DCU0_G6	0x1902
+				VF610_PAD_PTE20__DCU0_G7	0x1902
+				VF610_PAD_PTE21__DCU0_B0	0x1902
+				VF610_PAD_PTE22__DCU0_B1	0x1902
+				VF610_PAD_PTE23__DCU0_B2	0x1902
+				VF610_PAD_PTE24__DCU0_B3	0x1902
+				VF610_PAD_PTE25__DCU0_B4	0x1902
+				VF610_PAD_PTE26__DCU0_B5	0x1902
+				VF610_PAD_PTE27__DCU0_B6	0x1902
+				VF610_PAD_PTE28__DCU0_B7	0x1902
 			>;
 		};
 

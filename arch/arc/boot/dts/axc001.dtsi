@@ -11,6 +11,8 @@
  * Note that this file only supports the 770D CPU
  */
 
+/include/ "skeleton.dtsi"
+
 / {
 	compatible = "snps,arc";
 	clock-frequency = <750000000>;	/* 750 MHZ */
@@ -24,7 +26,13 @@
 
 		ranges = <0x00000000 0xf0000000 0x10000000>;
 
-		cpu_intc: arc700-intc@cpu {
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <750000000>;
+		};
+
+		core_intc: arc700-intc@cpu {
 			compatible = "snps,arc700-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -48,7 +56,7 @@
 				reg = <0>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				interrupt-parent = <&cpu_intc>;
+				interrupt-parent = <&core_intc>;
 				interrupts = <15>;
 			};
 		};
@@ -86,7 +94,7 @@
 		compatible = "snps,dw-apb-ictl";
 		reg = < 0xe0012000 0x200 >;
 		interrupt-controller;
-		interrupt-parent = <&cpu_intc>;
+		interrupt-parent = <&core_intc>;
 		interrupts = < 7 >;
 	};
 

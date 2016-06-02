@@ -368,7 +368,7 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 	status->decrypted = !GET_RX_DESC_SWDEC(pdesc);
 	status->rate = (u8)GET_RX_DESC_RXMCS(pdesc);
 	status->isampdu = (bool)(GET_RX_DESC_PAGGR(pdesc) == 1);
-		status->timestamp_low = GET_RX_DESC_TSFL(pdesc);
+	status->timestamp_low = GET_RX_DESC_TSFL(pdesc);
 	status->is_cck = RTL92EE_RX_HAL_IS_CCK_RATE(status->rate);
 
 	status->macid = GET_RX_DESC_MACID(pdesc);

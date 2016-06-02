@@ -236,7 +236,7 @@ static void ceph_vfs_readpage_complete_unlock(struct page *page, void *data, int
 	unlock_page(page);
 }
 
-static inline int cache_valid(struct ceph_inode_info *ci)
+static inline bool cache_valid(struct ceph_inode_info *ci)
 {
 	return ((ceph_caps_issued(ci) & CEPH_CAP_FILE_CACHE) &&
 		(ci->i_fscache_gen == ci->i_rdcache_gen));

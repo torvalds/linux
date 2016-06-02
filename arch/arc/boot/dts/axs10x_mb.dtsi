@@ -16,7 +16,20 @@
 		ranges = <0x00000000 0xe0000000 0x10000000>;
 		interrupt-parent = <&mb_intc>;
 
+		i2sclk: i2sclk@100a0 {
+			compatible = "snps,axs10x-i2s-pll-clock";
+			reg = <0x100a0 0x10>;
+			clocks = <&i2spll_clk>;
+			#clock-cells = <0>;
+		};
+
 		clocks {
+			i2spll_clk: i2spll_clk {
+				compatible = "fixed-clock";
+				clock-frequency = <27000000>;
+				#clock-cells = <0>;
+			};
+
 			i2cclk: i2cclk {
 				compatible = "fixed-clock";
 				clock-frequency = <50000000>;

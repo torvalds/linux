@@ -57,6 +57,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/time.h>
+#include <linux/ktime.h>
 #include <linux/kthread.h>
 #include <linux/aer.h>
 
@@ -654,6 +655,9 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
 	case MPI2_EVENT_TEMP_THRESHOLD:
 		desc = "Temperature Threshold";
 		break;
+	case MPI2_EVENT_ACTIVE_CABLE_EXCEPTION:
+		desc = "Active cable exception";
+		break;
 	}
 
 	if (!desc)
@@ -1100,18 +1104,16 @@ _base_is_controller_msix_enabled(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
- * mpt3sas_base_flush_reply_queues - flushing the MSIX reply queues
+ * mpt3sas_base_sync_reply_irqs - flush pending MSIX interrupts
  * @ioc: per adapter object
- * Context: ISR conext
+ * Context: non ISR conext
  *
- * Called when a Task Management request has completed. We want
- * to flush the other reply queues so all the outstanding IO has been
- * completed back to OS before we process the TM completetion.
+ * Called when a Task Management request has completed.
  *
  * Return nothing.
  */
 void
-mpt3sas_base_flush_reply_queues(struct MPT3SAS_ADAPTER *ioc)
+mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc)
 {
 	struct adapter_reply_queue *reply_q;
 
@@ -1122,12 +1124,13 @@ mpt3sas_base_flush_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 		return;
 
 	list_for_each_entry(reply_q, &ioc->reply_queue_list, list) {
-		if (ioc->shost_recovery)
+		if (ioc->shost_recovery || ioc->remove_host ||
+				ioc->pci_error_recovery)
 			return;
 		/* TMs are on msix_index == 0 */
 		if (reply_q->msix_index == 0)
 			continue;
-		_base_interrupt(reply_q->vector, (void *)reply_q);
+		synchronize_irq(reply_q->vector);
 	}
 }
 
@@ -3207,10 +3210,10 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc,  int sleep_flag)
 		sg_tablesize = MPT_MIN_PHYS_SEGMENTS;
 	else if (sg_tablesize > MPT_MAX_PHYS_SEGMENTS) {
 		sg_tablesize = min_t(unsigned short, sg_tablesize,
-				      SCSI_MAX_SG_CHAIN_SEGMENTS);
+				      SG_MAX_SEGMENTS);
 		pr_warn(MPT3SAS_FMT
 		 "sg_tablesize(%u) is bigger than kernel"
-		 " defined SCSI_MAX_SG_SEGMENTS(%u)\n", ioc->name,
+		 " defined SG_CHUNK_SIZE(%u)\n", ioc->name,
 		 sg_tablesize, MPT_MAX_PHYS_SEGMENTS);
 	}
 	ioc->shost->sg_tablesize = sg_tablesize;
@@ -4387,7 +4390,7 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	Mpi2IOCInitRequest_t mpi_request;
 	Mpi2IOCInitReply_t mpi_reply;
 	int i, r = 0;
-	struct timeval current_time;
+	ktime_t current_time;
 	u16 ioc_status;
 	u32 reply_post_free_array_sz = 0;
 	Mpi2IOCInitRDPQArrayEntry *reply_post_free_array = NULL;
@@ -4449,9 +4452,8 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc, int sleep_flag)
 	/* This time stamp specifies number of milliseconds
 	 * since epoch ~ midnight January 1, 1970.
 	 */
-	do_gettimeofday(&current_time);
-	mpi_request.TimeStamp = cpu_to_le64((u64)current_time.tv_sec * 1000 +
-	    (current_time.tv_usec / 1000));
+	current_time = ktime_get_real();
+	mpi_request.TimeStamp = cpu_to_le64(ktime_to_ms(current_time));
 
 	if (ioc->logging_level & MPT_DEBUG_INIT) {
 		__le32 *mfp;
@@ -5424,6 +5426,8 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	_base_unmask_events(ioc, MPI2_EVENT_IR_OPERATION_STATUS);
 	_base_unmask_events(ioc, MPI2_EVENT_LOG_ENTRY_ADDED);
 	_base_unmask_events(ioc, MPI2_EVENT_TEMP_THRESHOLD);
+	if (ioc->hba_mpi_version_belonged == MPI26_VERSION)
+		_base_unmask_events(ioc, MPI2_EVENT_ACTIVE_CABLE_EXCEPTION);
 
 	r = _base_make_ioc_operational(ioc, CAN_SLEEP);
 	if (r)

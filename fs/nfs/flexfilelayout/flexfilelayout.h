@@ -10,7 +10,8 @@
 #define FS_NFS_NFS4FLEXFILELAYOUT_H
 
 #define FF_FLAGS_NO_LAYOUTCOMMIT 1
-#define FF_FLAGS_NO_IO_THRU_MDS 2
+#define FF_FLAGS_NO_IO_THRU_MDS  2
+#define FF_FLAGS_NO_READ_IO      4
 
 #include "../pnfs.h"
 
@@ -76,9 +77,8 @@ struct nfs4_ff_layout_mirror {
 	u32				fh_versions_cnt;
 	struct nfs_fh			*fh_versions;
 	nfs4_stateid			stateid;
-	u32				uid;
-	u32				gid;
-	struct rpc_cred			*cred;
+	struct rpc_cred	__rcu		*ro_cred;
+	struct rpc_cred	__rcu		*rw_cred;
 	atomic_t			ref;
 	spinlock_t			lock;
 	struct nfs4_ff_layoutstat	read_stat;
@@ -154,6 +154,12 @@ ff_layout_no_fallback_to_mds(struct pnfs_layout_segment *lseg)
 }
 
 static inline bool
+ff_layout_no_read_on_rw(struct pnfs_layout_segment *lseg)
+{
+	return FF_LAYOUT_LSEG(lseg)->flags & FF_FLAGS_NO_READ_IO;
+}
+
+static inline bool
 ff_layout_test_devid_unavailable(struct nfs4_deviceid_node *node)
 {
 	return nfs4_test_deviceid_unavailable(node);
@@ -192,4 +198,7 @@ nfs4_ff_find_or_create_ds_client(struct pnfs_layout_segment *lseg,
 struct rpc_cred *ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg,
 				       u32 ds_idx, struct rpc_cred *mdscred);
 bool ff_layout_has_available_ds(struct pnfs_layout_segment *lseg);
+bool ff_layout_avoid_mds_available_ds(struct pnfs_layout_segment *lseg);
+bool ff_layout_avoid_read_on_rw(struct pnfs_layout_segment *lseg);
+
 #endif /* FS_NFS_NFS4FLEXFILELAYOUT_H */

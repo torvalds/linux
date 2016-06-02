@@ -374,12 +374,15 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
 		hfsplus_free_fork(sb, cnid, &fork, HFSPLUS_TYPE_RSRC);
 	}
 
+	/* we only need to take spinlock for exclusion with ->release() */
+	spin_lock(&HFSPLUS_I(dir)->open_dir_lock);
 	list_for_each(pos, &HFSPLUS_I(dir)->open_dir_list) {
 		struct hfsplus_readdir_data *rd =
 			list_entry(pos, struct hfsplus_readdir_data, list);
 		if (fd.tree->keycmp(fd.search_key, (void *)&rd->key) < 0)
 			rd->file->f_pos--;
 	}
+	spin_unlock(&HFSPLUS_I(dir)->open_dir_lock);
 
 	err = hfs_brec_remove(&fd);
 	if (err)

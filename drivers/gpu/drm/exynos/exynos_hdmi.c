@@ -1626,7 +1626,7 @@ static int hdmi_clk_init(struct hdmi_context *hdata)
 
 	clks = devm_kzalloc(dev, sizeof(*clks) * count, GFP_KERNEL);
 	if (!clks)
-	return -ENOMEM;
+		return -ENOMEM;
 
 	hdata->clk_gates = clks;
 	hdata->clk_muxes = clks + drv_data->clk_gates.count;

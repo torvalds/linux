@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_usif.h"
 #include "nouveau_abi16.h"
 

@@ -113,6 +113,35 @@ static inline bool vfio_pci_is_vga(struct pci_dev *pdev)
 static void vfio_pci_try_bus_reset(struct vfio_pci_device *vdev);
 static void vfio_pci_disable(struct vfio_pci_device *vdev);
 
+/*
+ * INTx masking requires the ability to disable INTx signaling via PCI_COMMAND
+ * _and_ the ability detect when the device is asserting INTx via PCI_STATUS.
+ * If a device implements the former but not the latter we would typically
+ * expect broken_intx_masking be set and require an exclusive interrupt.
+ * However since we do have control of the device's ability to assert INTx,
+ * we can instead pretend that the device does not implement INTx, virtualizing
+ * the pin register to report zero and maintaining DisINTx set on the host.
+ */
+static bool vfio_pci_nointx(struct pci_dev *pdev)
+{
+	switch (pdev->vendor) {
+	case PCI_VENDOR_ID_INTEL:
+		switch (pdev->device) {
+		/* All i40e (XL710/X710) 10/20/40GbE NICs */
+		case 0x1572:
+		case 0x1574:
+		case 0x1580 ... 0x1581:
+		case 0x1583 ... 0x1589:
+		case 0x37d0 ... 0x37d2:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	return false;
+}
+
 static int vfio_pci_enable(struct vfio_pci_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
@@ -136,21 +165,27 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 		pr_debug("%s: Couldn't store %s saved state\n",
 			 __func__, dev_name(&pdev->dev));
 
+	if (likely(!nointxmask)) {
+		if (vfio_pci_nointx(pdev)) {
+			dev_info(&pdev->dev, "Masking broken INTx support\n");
+			vdev->nointx = true;
+			pci_intx(pdev, 0);
+		} else
+			vdev->pci_2_3 = pci_intx_mask_supported(pdev);
+	}
+
+	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+	if (vdev->pci_2_3 && (cmd & PCI_COMMAND_INTX_DISABLE)) {
+		cmd &= ~PCI_COMMAND_INTX_DISABLE;
+		pci_write_config_word(pdev, PCI_COMMAND, cmd);
+	}
+
 	ret = vfio_config_init(vdev);
 	if (ret) {
 		kfree(vdev->pci_saved_state);
 		vdev->pci_saved_state = NULL;
 		pci_disable_device(pdev);
 		return ret;
-	}
-
-	if (likely(!nointxmask))
-		vdev->pci_2_3 = pci_intx_mask_supported(pdev);
-
-	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
-	if (vdev->pci_2_3 && (cmd & PCI_COMMAND_INTX_DISABLE)) {
-		cmd &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(pdev, PCI_COMMAND, cmd);
 	}
 
 	msix_pos = pdev->msix_cap;
@@ -304,7 +339,7 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 	if (irq_type == VFIO_PCI_INTX_IRQ_INDEX) {
 		u8 pin;
 		pci_read_config_byte(vdev->pdev, PCI_INTERRUPT_PIN, &pin);
-		if (IS_ENABLED(CONFIG_VFIO_PCI_INTX) && pin)
+		if (IS_ENABLED(CONFIG_VFIO_PCI_INTX) && !vdev->nointx && pin)
 			return 1;
 
 	} else if (irq_type == VFIO_PCI_MSI_IRQ_INDEX) {

@@ -412,6 +412,7 @@ struct vmw_private {
 	struct drm_property *implicit_placement_property;
 	unsigned num_implicit;
 	struct vmw_framebuffer *implicit_fb;
+	struct mutex global_kms_state_mutex;
 
 	/*
 	 * Context and surface management.
@@ -1234,4 +1235,10 @@ static inline void vmw_mmio_write(u32 value, u32 *addr)
 {
 	WRITE_ONCE(*addr, value);
 }
+
+/**
+ * Add vmw_msg module function
+ */
+extern int vmw_host_log(const char *log);
+
 #endif

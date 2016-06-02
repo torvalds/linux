@@ -334,7 +334,7 @@ more specifically with its VLAN filtering portion when configuring VLANs on top
 of per-port slave network devices. Since DSA primarily deals with
 MDIO-connected switches, although not exclusively, SWITCHDEV's
 prepare/abort/commit phases are often simplified into a prepare phase which
-checks whether the operation is supporte by the DSA switch driver, and a commit
+checks whether the operation is supported by the DSA switch driver, and a commit
 phase which applies the changes.
 
 As of today, the only SWITCHDEV objects supported by DSA are the FDB and VLAN
@@ -533,7 +533,7 @@ Bridge layer
   out at the switch hardware for the switch to (re) learn MAC addresses behind
   this port.
 
-- port_stp_update: bridge layer function invoked when a given switch port STP
+- port_stp_state_set: bridge layer function invoked when a given switch port STP
   state is computed by the bridge layer and should be propagated to switch
   hardware to forward/block/learn traffic. The switch driver is responsible for
   computing a STP state change based on current and asked parameters and perform
@@ -541,6 +541,12 @@ Bridge layer
 
 Bridge VLAN filtering
 ---------------------
+
+- port_vlan_prepare: bridge layer function invoked when the bridge prepares the
+  configuration of a VLAN on the given port. If the operation is not supported
+  by the hardware, this function should return -EOPNOTSUPP to inform the bridge
+  code to fallback to a software implementation. No hardware setup must be done
+  in this function. See port_vlan_add for this and details.
 
 - port_vlan_add: bridge layer function invoked when a VLAN is configured
   (tagged or untagged) for the given switch port
@@ -551,6 +557,12 @@ Bridge VLAN filtering
 - port_vlan_dump: bridge layer function invoked with a switchdev callback
   function that the driver has to call for each VLAN the given port is a member
   of. A switchdev object is used to carry the VID and bridge flags.
+
+- port_fdb_prepare: bridge layer function invoked when the bridge prepares the
+  installation of a Forwarding Database entry. If the operation is not
+  supported, this function should return -EOPNOTSUPP to inform the bridge code
+  to fallback to a software implementation. No hardware setup must be done in
+  this function. See port_fdb_add for this and details.
 
 - port_fdb_add: bridge layer function invoked when the bridge wants to install a
   Forwarding Database entry, the switch hardware should be programmed with the
@@ -564,6 +576,10 @@ of DSA, would be the its port-based VLAN, used by the associated bridge device.
   Forwarding Database entry, the switch hardware should be programmed to delete
   the specified MAC address from the specified VLAN ID if it was mapped into
   this port forwarding database
+
+- port_fdb_dump: bridge layer function invoked with a switchdev callback
+  function that the driver has to call for each MAC address known to be behind
+  the given port. A switchdev object is used to carry the VID and FDB info.
 
 TODO
 ====

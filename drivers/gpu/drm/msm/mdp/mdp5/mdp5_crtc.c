@@ -518,7 +518,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 		goto set_cursor;
 	}
 
-	cursor_bo = drm_gem_object_lookup(dev, file, handle);
+	cursor_bo = drm_gem_object_lookup(file, handle);
 	if (!cursor_bo)
 		return -ENOENT;
 

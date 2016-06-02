@@ -166,7 +166,7 @@ static void exynos_drm_plane_destroy_state(struct drm_plane *plane,
 {
 	struct exynos_drm_plane_state *old_exynos_state =
 					to_exynos_plane_state(old_state);
-	__drm_atomic_helper_plane_destroy_state(plane, old_state);
+	__drm_atomic_helper_plane_destroy_state(old_state);
 	kfree(old_exynos_state);
 }
 

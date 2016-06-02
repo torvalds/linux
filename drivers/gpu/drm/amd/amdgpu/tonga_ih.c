@@ -99,7 +99,6 @@ static void tonga_ih_disable_interrupts(struct amdgpu_device *adev)
  */
 static int tonga_ih_irq_init(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	int rb_bufsz;
 	u32 interrupt_cntl, ih_rb_cntl, ih_doorbell_rtpr;
 	u64 wptr_off;
@@ -165,7 +164,7 @@ static int tonga_ih_irq_init(struct amdgpu_device *adev)
 	/* enable interrupts */
 	tonga_ih_enable_interrupts(adev);
 
-	return ret;
+	return 0;
 }
 
 /**

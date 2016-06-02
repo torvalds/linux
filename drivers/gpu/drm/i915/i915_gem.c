@@ -319,7 +319,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	void *vaddr = obj->phys_handle->vaddr + args->offset;
-	char __user *user_data = to_user_ptr(args->data_ptr);
+	char __user *user_data = u64_to_user_ptr(args->data_ptr);
 	int ret = 0;
 
 	/* We manually control the domain here and pretend that it
@@ -600,7 +600,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 	int needs_clflush = 0;
 	struct sg_page_iter sg_iter;
 
-	user_data = to_user_ptr(args->data_ptr);
+	user_data = u64_to_user_ptr(args->data_ptr);
 	remain = args->size;
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
@@ -687,7 +687,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		return 0;
 
 	if (!access_ok(VERIFY_WRITE,
-		       to_user_ptr(args->data_ptr),
+		       u64_to_user_ptr(args->data_ptr),
 		       args->size))
 		return -EFAULT;
 
@@ -695,7 +695,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file, args->handle));
 	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
@@ -779,7 +779,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 	if (ret)
 		goto out_unpin;
 
-	user_data = to_user_ptr(args->data_ptr);
+	user_data = u64_to_user_ptr(args->data_ptr);
 	remain = args->size;
 
 	offset = i915_gem_obj_ggtt_offset(obj) + args->offset;
@@ -903,7 +903,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	int needs_clflush_before = 0;
 	struct sg_page_iter sg_iter;
 
-	user_data = to_user_ptr(args->data_ptr);
+	user_data = u64_to_user_ptr(args->data_ptr);
 	remain = args->size;
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
@@ -1032,12 +1032,12 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		return 0;
 
 	if (!access_ok(VERIFY_READ,
-		       to_user_ptr(args->data_ptr),
+		       u64_to_user_ptr(args->data_ptr),
 		       args->size))
 		return -EFAULT;
 
 	if (likely(!i915.prefault_disable)) {
-		ret = fault_in_multipages_readable(to_user_ptr(args->data_ptr),
+		ret = fault_in_multipages_readable(u64_to_user_ptr(args->data_ptr),
 						   args->size);
 		if (ret)
 			return -EFAULT;
@@ -1049,7 +1049,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto put_rpm;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file, args->handle));
 	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
@@ -1617,7 +1617,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file, args->handle));
 	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
@@ -1665,7 +1665,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file, args->handle));
 	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
@@ -1709,10 +1709,10 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & ~(I915_MMAP_WC))
 		return -EINVAL;
 
-	if (args->flags & I915_MMAP_WC && !cpu_has_pat)
+	if (args->flags & I915_MMAP_WC && !boot_cpu_has(X86_FEATURE_PAT))
 		return -ENODEV;
 
-	obj = drm_gem_object_lookup(dev, file, args->handle);
+	obj = drm_gem_object_lookup(file, args->handle);
 	if (obj == NULL)
 		return -ENOENT;
 
@@ -1731,7 +1731,10 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		struct mm_struct *mm = current->mm;
 		struct vm_area_struct *vma;
 
-		down_write(&mm->mmap_sem);
+		if (down_write_killable(&mm->mmap_sem)) {
+			drm_gem_object_unreference_unlocked(obj);
+			return -EINTR;
+		}
 		vma = find_vma(mm, addr);
 		if (vma)
 			vma->vm_page_prot =
@@ -2075,7 +2078,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	if (ret)
 		return ret;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file, handle));
 	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
@@ -3132,7 +3135,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (ret)
 		return ret;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->bo_handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file, args->bo_handle));
 	if (&obj->base == NULL) {
 		mutex_unlock(&dev->struct_mutex);
 		return -ENOENT;
@@ -3939,7 +3942,7 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file, args->handle));
 	if (&obj->base == NULL)
 		return -ENOENT;
 
@@ -4000,7 +4003,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto rpm_put;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file, args->handle));
 	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
@@ -4370,7 +4373,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file, args->handle));
 	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
@@ -4435,7 +4438,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file_priv, args->handle));
+	obj = to_intel_bo(drm_gem_object_lookup(file_priv, args->handle));
 	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;

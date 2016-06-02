@@ -52,3 +52,5 @@
  51 -> DVBSky T982                                         [4254:0982]
  52 -> Hauppauge WinTV-HVR5525                             [0070:f038]
  53 -> Hauppauge WinTV Starburst                           [0070:c12a]
+ 54 -> ViewCast 260e                                       [1576:0260]
+ 55 -> ViewCast 460e                                       [1576:0460]

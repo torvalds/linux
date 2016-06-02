@@ -7,6 +7,12 @@ Required properties:
 - compatible: "renesas,usb-phy-r8a7790" if the device is a part of R8A7790 SoC.
 	      "renesas,usb-phy-r8a7791" if the device is a part of R8A7791 SoC.
 	      "renesas,usb-phy-r8a7794" if the device is a part of R8A7794 SoC.
+	      "renesas,rcar-gen2-usb-phy" for a generic R-Car Gen2 compatible device.
+
+	      When compatible with the generic version, nodes must list the
+	      SoC-specific version corresponding to the platform first
+	      followed by the generic version.
+
 - reg: offset and length of the register block.
 - #address-cells: number of address cells for the USB channel subnodes, must
 		  be <1>.
@@ -34,7 +40,7 @@ the USB channel; see the selector meanings below:
 Example (Lager board):
 
 	usb-phy@e6590100 {
-		compatible = "renesas,usb-phy-r8a7790";
+		compatible = "renesas,usb-phy-r8a7790", "renesas,rcar-gen2-usb-phy";
 		reg = <0 0xe6590100 0 0x100>;
 		#address-cells = <1>;
 		#size-cells = <0>;

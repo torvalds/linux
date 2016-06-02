@@ -342,6 +342,18 @@ static int bcm2835_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return bcm2835_gpio_get_bit(pc, GPLEV0, offset);
 }
 
+static int bcm2835_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
+{
+	struct bcm2835_pinctrl *pc = gpiochip_get_data(chip);
+	enum bcm2835_fsel fsel = bcm2835_pinctrl_fsel_get(pc, offset);
+
+	/* Alternative function doesn't clearly provide a direction */
+	if (fsel > BCM2835_FSEL_GPIO_OUT)
+		return -EINVAL;
+
+	return (fsel == BCM2835_FSEL_GPIO_IN);
+}
+
 static void bcm2835_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct bcm2835_pinctrl *pc = gpiochip_get_data(chip);
@@ -370,6 +382,7 @@ static struct gpio_chip bcm2835_gpio_chip = {
 	.free = gpiochip_generic_free,
 	.direction_input = bcm2835_gpio_direction_input,
 	.direction_output = bcm2835_gpio_direction_output,
+	.get_direction = bcm2835_gpio_get_direction,
 	.get = bcm2835_gpio_get,
 	.set = bcm2835_gpio_set,
 	.to_irq = bcm2835_gpio_to_irq,
@@ -1027,7 +1040,7 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	pc->pctl_dev = pinctrl_register(&bcm2835_pinctrl_desc, dev, pc);
+	pc->pctl_dev = devm_pinctrl_register(dev, &bcm2835_pinctrl_desc, pc);
 	if (IS_ERR(pc->pctl_dev)) {
 		gpiochip_remove(&pc->gpio_chip);
 		return PTR_ERR(pc->pctl_dev);
@@ -1045,7 +1058,6 @@ static int bcm2835_pinctrl_remove(struct platform_device *pdev)
 {
 	struct bcm2835_pinctrl *pc = platform_get_drvdata(pdev);
 
-	pinctrl_unregister(pc->pctl_dev);
 	gpiochip_remove(&pc->gpio_chip);
 
 	return 0;

@@ -30,12 +30,12 @@
  *
  * As KMS moves toward more fine grained locking, and atomic ioctl where
  * userspace can indirectly control locking order, it becomes necessary
- * to use ww_mutex and acquire-contexts to avoid deadlocks.  But because
+ * to use &ww_mutex and acquire-contexts to avoid deadlocks.  But because
  * the locking is more distributed around the driver code, we want a bit
  * of extra utility/tracking out of our acquire-ctx.  This is provided
  * by drm_modeset_lock / drm_modeset_acquire_ctx.
  *
- * For basic principles of ww_mutex, see: Documentation/locking/ww-mutex-design.txt
+ * For basic principles of &ww_mutex, see: Documentation/locking/ww-mutex-design.txt
  *
  * The basic usage pattern is to:
  *
@@ -51,6 +51,13 @@
  *     ... do stuff ...
  *     drm_modeset_drop_locks(&ctx);
  *     drm_modeset_acquire_fini(&ctx);
+ *
+ *  On top of of these per-object locks using &ww_mutex there's also an overall
+ *  dev->mode_config.lock, for protecting everything else. Mostly this means
+ *  probe state of connectors, and preventing hotplug add/removal of connectors.
+ *
+ *  Finally there's a bunch of dedicated locks to protect drm core internal
+ *  lists and lookup data structures.
  */
 
 /**

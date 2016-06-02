@@ -55,6 +55,16 @@ struct its_collection {
 };
 
 /*
+ * The ITS_BASER structure - contains memory information and cached
+ * value of BASER register configuration.
+ */
+struct its_baser {
+	void		*base;
+	u64		val;
+	u32		order;
+};
+
+/*
  * The ITS structure - contains most of the infrastructure, with the
  * top-level MSI domain, the command queue, the collections, and the
  * list of devices writing to it.
@@ -66,14 +76,12 @@ struct its_node {
 	unsigned long		phys_base;
 	struct its_cmd_block	*cmd_base;
 	struct its_cmd_block	*cmd_write;
-	struct {
-		void		*base;
-		u32		order;
-	} tables[GITS_BASER_NR_REGS];
+	struct its_baser	tables[GITS_BASER_NR_REGS];
 	struct its_collection	*collections;
 	struct list_head	its_device_list;
 	u64			flags;
 	u32			ite_size;
+	u32			device_ids;
 };
 
 #define ITS_ITT_ALIGN		SZ_256
@@ -838,6 +846,8 @@ static int its_alloc_tables(const char *node_name, struct its_node *its)
 		ids	= GITS_TYPER_DEVBITS(typer);
 	}
 
+	its->device_ids = ids;
+
 	for (i = 0; i < GITS_BASER_NR_REGS; i++) {
 		u64 val = readq_relaxed(its->base + GITS_BASER + i * 8);
 		u64 type = GITS_BASER_TYPE(val);
@@ -913,6 +923,7 @@ retry_baser:
 		}
 
 		val |= alloc_pages - 1;
+		its->tables[i].val = val;
 
 		writeq_relaxed(val, its->base + GITS_BASER + i * 8);
 		tmp = readq_relaxed(its->base + GITS_BASER + i * 8);
@@ -1138,9 +1149,22 @@ static struct its_device *its_find_device(struct its_node *its, u32 dev_id)
 	return its_dev;
 }
 
+static struct its_baser *its_get_baser(struct its_node *its, u32 type)
+{
+	int i;
+
+	for (i = 0; i < GITS_BASER_NR_REGS; i++) {
+		if (GITS_BASER_TYPE(its->tables[i].val) == type)
+			return &its->tables[i];
+	}
+
+	return NULL;
+}
+
 static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 					    int nvecs)
 {
+	struct its_baser *baser;
 	struct its_device *dev;
 	unsigned long *lpi_map;
 	unsigned long flags;
@@ -1150,6 +1174,16 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	int nr_lpis;
 	int nr_ites;
 	int sz;
+
+	baser = its_get_baser(its, GITS_BASER_TYPE_DEVICE);
+
+	/* Don't allow 'dev_id' that exceeds single, flat table limit */
+	if (baser) {
+		if (dev_id >= (PAGE_ORDER_TO_SIZE(baser->order) /
+			      GITS_BASER_ENTRY_SIZE(baser->val)))
+			return NULL;
+	} else if (ilog2(dev_id) >= its->device_ids)
+		return NULL;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	/*

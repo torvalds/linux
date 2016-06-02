@@ -444,27 +444,19 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct sta2x11_vip *vip = video_drvdata(file);
-	v4l2_std_id oldstd = vip->std, newstd;
-	int status;
 
-	if (V4L2_STD_ALL == std) {
-		v4l2_subdev_call(vip->decoder, video, s_std, std);
-		ssleep(2);
-		v4l2_subdev_call(vip->decoder, video, querystd, &newstd);
-		v4l2_subdev_call(vip->decoder, video, g_input_status, &status);
-		if (status & V4L2_IN_ST_NO_SIGNAL)
+	/*
+	 * This is here for backwards compatibility only.
+	 * The use of V4L2_STD_ALL to trigger a querystd is non-standard.
+	 */
+	if (std == V4L2_STD_ALL) {
+		v4l2_subdev_call(vip->decoder, video, querystd, &std);
+		if (std == V4L2_STD_UNKNOWN)
 			return -EIO;
-		std = vip->std = newstd;
-		if (oldstd != std) {
-			if (V4L2_STD_525_60 & std)
-				vip->format = formats_60[0];
-			else
-				vip->format = formats_50[0];
-		}
-		return 0;
 	}
 
-	if (oldstd != std) {
+	if (vip->std != std) {
+		vip->std = std;
 		if (V4L2_STD_525_60 & std)
 			vip->format = formats_60[0];
 		else

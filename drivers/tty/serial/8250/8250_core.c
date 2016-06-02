@@ -830,6 +830,7 @@ static int serial8250_probe(struct platform_device *dev)
 		uart.port.handle_irq	= p->handle_irq;
 		uart.port.handle_break	= p->handle_break;
 		uart.port.set_termios	= p->set_termios;
+		uart.port.get_mctrl	= p->get_mctrl;
 		uart.port.pm		= p->pm;
 		uart.port.dev		= &dev->dev;
 		uart.port.irqflags	|= irqflag;
@@ -1022,6 +1023,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		/*  Possibly override set_termios call */
 		if (up->port.set_termios)
 			uart->port.set_termios = up->port.set_termios;
+		if (up->port.get_mctrl)
+			uart->port.get_mctrl = up->port.get_mctrl;
 		if (up->port.set_mctrl)
 			uart->port.set_mctrl = up->port.set_mctrl;
 		if (up->port.startup)

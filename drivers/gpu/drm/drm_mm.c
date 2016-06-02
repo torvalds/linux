@@ -179,11 +179,13 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 {
 	struct drm_mm_node *hole;
-	u64 end = node->start + node->size;
+	u64 end;
 	u64 hole_start;
 	u64 hole_end;
 
 	BUG_ON(node == NULL);
+
+	end = node->start + node->size;
 
 	/* Find the relevant hole to add our node to */
 	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {

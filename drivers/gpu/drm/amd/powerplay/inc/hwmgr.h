@@ -673,7 +673,7 @@ extern int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr, phm_ppt_v1_volta
 extern int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
 extern int phm_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask);
-
+extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 
 #define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 

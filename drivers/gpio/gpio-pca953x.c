@@ -38,8 +38,13 @@
 #define PCA957X_MSK		6
 #define PCA957X_INTS		7
 
+#define PCAL953X_IN_LATCH	34
+#define PCAL953X_INT_MASK	37
+#define PCAL953X_INT_STAT	38
+
 #define PCA_GPIO_MASK		0x00FF
 #define PCA_INT			0x0100
+#define PCA_PCAL			0x0200
 #define PCA953X_TYPE		0x1000
 #define PCA957X_TYPE		0x2000
 #define PCA_TYPE_MASK		0xF000
@@ -77,7 +82,7 @@ static const struct i2c_device_id pca953x_id[] = {
 MODULE_DEVICE_TABLE(i2c, pca953x_id);
 
 static const struct acpi_device_id pca953x_acpi_ids[] = {
-	{ "INT3491", 16 | PCA953X_TYPE | PCA_INT, },
+	{ "INT3491", 16 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, pca953x_acpi_ids);
@@ -437,6 +442,18 @@ static void pca953x_irq_bus_sync_unlock(struct irq_data *d)
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
 	u8 new_irqs;
 	int level, i;
+	u8 invert_irq_mask[MAX_BANK];
+
+	if (chip->driver_data & PCA_PCAL) {
+		/* Enable latch on interrupt-enabled inputs */
+		pca953x_write_regs(chip, PCAL953X_IN_LATCH, chip->irq_mask);
+
+		for (i = 0; i < NBANK(chip); i++)
+			invert_irq_mask[i] = ~chip->irq_mask[i];
+
+		/* Unmask enabled interrupts */
+		pca953x_write_regs(chip, PCAL953X_INT_MASK, invert_irq_mask);
+	}
 
 	/* Look for any newly setup interrupt */
 	for (i = 0; i < NBANK(chip); i++) {
@@ -497,6 +514,29 @@ static bool pca953x_irq_pending(struct pca953x_chip *chip, u8 *pending)
 	bool trigger_seen = false;
 	u8 trigger[MAX_BANK];
 	int ret, i, offset = 0;
+
+	if (chip->driver_data & PCA_PCAL) {
+		/* Read the current interrupt status from the device */
+		ret = pca953x_read_regs(chip, PCAL953X_INT_STAT, trigger);
+		if (ret)
+			return false;
+
+		/* Check latched inputs and clear interrupt status */
+		ret = pca953x_read_regs(chip, PCA953X_INPUT, cur_stat);
+		if (ret)
+			return false;
+
+		for (i = 0; i < NBANK(chip); i++) {
+			/* Apply filter for rising/falling edge selection */
+			pending[i] = (~cur_stat[i] & chip->irq_trig_fall[i]) |
+				(cur_stat[i] & chip->irq_trig_raise[i]);
+			pending[i] &= trigger[i];
+			if (pending[i])
+				pending_seen = true;
+		}
+
+		return pending_seen;
+	}
 
 	switch (chip->chip_type) {
 	case PCA953X_TYPE:

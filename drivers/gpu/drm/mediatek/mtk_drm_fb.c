@@ -138,7 +138,7 @@ struct drm_framebuffer *mtk_drm_mode_fb_create(struct drm_device *dev,
 	if (drm_format_num_planes(cmd->pixel_format) != 1)
 		return ERR_PTR(-EINVAL);
 
-	gem = drm_gem_object_lookup(dev, file, cmd->handles[0]);
+	gem = drm_gem_object_lookup(file, cmd->handles[0]);
 	if (!gem)
 		return ERR_PTR(-ENOENT);
 

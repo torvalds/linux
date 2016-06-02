@@ -75,7 +75,7 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 		return 0;
 
 	/* Update OSXSAVE bit */
-	if (cpu_has_xsave && best->function == 0x1) {
+	if (boot_cpu_has(X86_FEATURE_XSAVE) && best->function == 0x1) {
 		best->ecx &= ~F(OSXSAVE);
 		if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE))
 			best->ecx |= F(OSXSAVE);

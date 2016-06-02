@@ -34,11 +34,9 @@
 #include "radeon_drv.h"
 
 #include <drm/drm_pciids.h>
-#include <linux/apple-gmux.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
-#include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 #include <drm/drm_gem.h>
 
@@ -340,13 +338,7 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	if (ret == -EPROBE_DEFER)
 		return ret;
 
-	/*
-	 * apple-gmux is needed on dual GPU MacBook Pro
-	 * to probe the panel if we're the inactive GPU.
-	 */
-	if (IS_ENABLED(CONFIG_VGA_ARB) && IS_ENABLED(CONFIG_VGA_SWITCHEROO) &&
-	    apple_gmux_present() && pdev != vga_default_device() &&
-	    !vga_switcheroo_handler_flags())
+	if (vga_switcheroo_client_probe_defer(pdev))
 		return -EPROBE_DEFER;
 
 	/* Get rid of things like offb */

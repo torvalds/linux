@@ -525,7 +525,7 @@ static int setup_cipher_iv_desc(struct cryptocop_tfrm_ctx *tc, struct cryptocop_
 	return 0;
 }
 
-/* Map the ouput length of the transform to operation output starting on the inject index. */
+/* Map the output length of the transform to operation output starting on the inject index. */
 static int create_input_descriptors(struct cryptocop_operation *operation, struct cryptocop_tfrm_ctx *tc, struct cryptocop_dma_desc **id, int alloc_flag)
 {
 	int                        err = 0;

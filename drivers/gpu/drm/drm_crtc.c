@@ -1030,8 +1030,6 @@ int drm_connector_register(struct drm_connector *connector)
 {
 	int ret;
 
-	drm_mode_object_register(connector->dev, &connector->base);
-
 	ret = drm_sysfs_connector_add(connector);
 	if (ret)
 		return ret;
@@ -1041,6 +1039,8 @@ int drm_connector_register(struct drm_connector *connector)
 		drm_sysfs_connector_remove(connector);
 		return ret;
 	}
+
+	drm_mode_object_register(connector->dev, &connector->base);
 
 	return 0;
 }
@@ -5139,6 +5139,9 @@ EXPORT_SYMBOL(drm_mode_connector_attach_encoder);
 int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 				 int gamma_size)
 {
+	uint16_t *r_base, *g_base, *b_base;
+	int i;
+
 	crtc->gamma_size = gamma_size;
 
 	crtc->gamma_store = kcalloc(gamma_size, sizeof(uint16_t) * 3,
@@ -5147,6 +5150,16 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 		crtc->gamma_size = 0;
 		return -ENOMEM;
 	}
+
+	r_base = crtc->gamma_store;
+	g_base = r_base + gamma_size;
+	b_base = g_base + gamma_size;
+	for (i = 0; i < gamma_size; i++) {
+		r_base[i] = i << 8;
+		g_base[i] = i << 8;
+		b_base[i] = i << 8;
+	}
+
 
 	return 0;
 }

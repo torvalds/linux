@@ -713,7 +713,7 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0)
-		return ret;
+		goto err_pm_dis;
 
 	/* report a bug if gpio chip registration fails */
 	ret = gpiochip_add_data(chip, gpio);
@@ -745,6 +745,8 @@ err_rm_gpiochip:
 	gpiochip_remove(chip);
 err_pm_put:
 	pm_runtime_put(&pdev->dev);
+err_pm_dis:
+	pm_runtime_disable(&pdev->dev);
 
 	return ret;
 }

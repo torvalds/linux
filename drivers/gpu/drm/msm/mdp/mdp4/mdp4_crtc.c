@@ -427,7 +427,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	if (handle) {
-		cursor_bo = drm_gem_object_lookup(dev, file_priv, handle);
+		cursor_bo = drm_gem_object_lookup(file_priv, handle);
 		if (!cursor_bo)
 			return -ENOENT;
 	} else {

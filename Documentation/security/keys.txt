@@ -823,6 +823,36 @@ The keyctl syscall functions are:
      A process must have search permission on the key for this function to be
      successful.
 
+ (*) Compute a Diffie-Hellman shared secret or public key
+
+       long keyctl(KEYCTL_DH_COMPUTE, struct keyctl_dh_params *params,
+		   char *buffer, size_t buflen);
+
+     The params struct contains serial numbers for three keys:
+
+	 - The prime, p, known to both parties
+	 - The local private key
+	 - The base integer, which is either a shared generator or the
+	   remote public key
+
+     The value computed is:
+
+	result = base ^ private (mod prime)
+
+     If the base is the shared generator, the result is the local
+     public key.  If the base is the remote public key, the result is
+     the shared secret.
+
+     The buffer length must be at least the length of the prime, or zero.
+
+     If the buffer length is nonzero, the length of the result is
+     returned when it is successfully calculated and copied in to the
+     buffer. When the buffer length is zero, the minimum required
+     buffer length is returned.
+
+     This function will return error EOPNOTSUPP if the key type is not
+     supported, error ENOKEY if the key could not be found, or error
+     EACCES if the key is not readable by the caller.
 
 ===============
 KERNEL SERVICES
@@ -999,6 +1029,10 @@ payload contents" for more information.
 	struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 				  const struct cred *cred,
 				  key_perm_t perm,
+				  int (*restrict_link)(struct key *,
+						       const struct key_type *,
+						       unsigned long,
+						       const union key_payload *),
 				  unsigned long flags,
 				  struct key *dest);
 
@@ -1009,6 +1043,24 @@ payload contents" for more information.
     Error EDQUOT can be returned if the keyring would overload the quota (pass
     KEY_ALLOC_NOT_IN_QUOTA in flags if the keyring shouldn't be accounted
     towards the user's quota).  Error ENOMEM can also be returned.
+
+    If restrict_link not NULL, it should point to a function that will be
+    called each time an attempt is made to link a key into the new keyring.
+    This function is called to check whether a key may be added into the keying
+    or not.  Callers of key_create_or_update() within the kernel can pass
+    KEY_ALLOC_BYPASS_RESTRICTION to suppress the check.  An example of using
+    this is to manage rings of cryptographic keys that are set up when the
+    kernel boots where userspace is also permitted to add keys - provided they
+    can be verified by a key the kernel already has.
+
+    When called, the restriction function will be passed the keyring being
+    added to, the key flags value and the type and payload of the key being
+    added.  Note that when a new key is being created, this is called between
+    payload preparsing and actual key creation.  The function should return 0
+    to allow the link or an error to reject it.
+
+    A convenience function, restrict_link_reject, exists to always return
+    -EPERM to in this case.
 
 
 (*) To check the validity of a key, this function can be called:

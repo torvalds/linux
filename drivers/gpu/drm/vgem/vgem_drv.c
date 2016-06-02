@@ -200,7 +200,7 @@ int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
 	int ret = 0;
 	struct drm_gem_object *obj;
 
-	obj = drm_gem_object_lookup(dev, file, handle);
+	obj = drm_gem_object_lookup(file, handle);
 	if (!obj)
 		return -ENOENT;
 
@@ -235,7 +235,7 @@ static const struct file_operations vgem_driver_fops = {
 
 static struct drm_driver vgem_driver = {
 	.driver_features		= DRIVER_GEM,
-	.gem_free_object		= vgem_gem_free_object,
+	.gem_free_object_unlocked	= vgem_gem_free_object,
 	.gem_vm_ops			= &vgem_gem_vm_ops,
 	.ioctls				= vgem_ioctls,
 	.fops				= &vgem_driver_fops,

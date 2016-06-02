@@ -10,6 +10,8 @@
  * Device tree for AXC003 CPU card: HS38x2 (Dual Core) with IDU intc
  */
 
+/include/ "skeleton_hs_idu.dtsi"
+
 / {
 	compatible = "snps,arc";
 	clock-frequency = <90000000>;
@@ -23,7 +25,13 @@
 
 		ranges = <0x00000000 0xf0000000 0x10000000>;
 
-		cpu_intc: archs-intc@cpu {
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <100000000>;
+		};
+
+		core_intc: archs-intc@cpu {
 			compatible = "snps,archs-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -32,7 +40,7 @@
 		idu_intc: idu-interrupt-controller {
 			compatible = "snps,archs-idu-intc";
 			interrupt-controller;
-			interrupt-parent = <&cpu_intc>;
+			interrupt-parent = <&core_intc>;
 
 			/*
 			 * <hwirq  distribution>
@@ -89,7 +97,7 @@
 		arcpct0: pct {
 			compatible = "snps,archs-pct";
 			#interrupt-cells = <1>;
-			interrupt-parent = <&cpu_intc>;
+			interrupt-parent = <&core_intc>;
 			interrupts = <20>;
 		};
 	};

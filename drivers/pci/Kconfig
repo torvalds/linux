@@ -83,6 +83,9 @@ config HT_IRQ
 config PCI_ATS
 	bool
 
+config PCI_ECAM
+	bool
+
 config PCI_IOV
 	bool "PCI IOV support"
 	depends on PCI

@@ -634,6 +634,7 @@ static int send_nlmsg_done(struct sk_buff *skb, u8 nl_client, int iwpm_pid)
 	if (!(ibnl_put_msg(skb, &nlh, 0, 0, nl_client,
 			   RDMA_NL_IWPM_MAPINFO, NLM_F_MULTI))) {
 		pr_warn("%s Unable to put NLMSG_DONE\n", __func__);
+		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
 	nlh->nlmsg_type = NLMSG_DONE;

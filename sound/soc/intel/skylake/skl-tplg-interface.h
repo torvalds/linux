@@ -181,7 +181,7 @@ struct skl_dfw_pipe {
 } __packed;
 
 struct skl_dfw_module {
-	char uuid[SKL_UUID_STR_SZ];
+	u8 uuid[16];
 
 	u16 module_id;
 	u16 instance_id;

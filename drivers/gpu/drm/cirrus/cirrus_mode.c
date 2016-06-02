@@ -331,9 +331,6 @@ static void cirrus_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 	struct cirrus_crtc *cirrus_crtc = to_cirrus_crtc(crtc);
 	int i;
 
-	if (size != CIRRUS_LUT_SIZE)
-		return;
-
 	for (i = 0; i < CIRRUS_LUT_SIZE; i++) {
 		cirrus_crtc->lut_r[i] = red[i];
 		cirrus_crtc->lut_g[i] = green[i];

@@ -86,7 +86,7 @@ struct pl08x_channel_data {
  * @mem_buses: buses which memory can be accessed from: PL08X_AHB1 | PL08X_AHB2
  */
 struct pl08x_platform_data {
-	const struct pl08x_channel_data *slave_channels;
+	struct pl08x_channel_data *slave_channels;
 	unsigned int num_slave_channels;
 	struct pl08x_channel_data memcpy_channel;
 	int (*get_xfer_signal)(const struct pl08x_channel_data *);

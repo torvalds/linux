@@ -172,6 +172,77 @@ TRACE_EVENT(rcu_grace_period_init,
 );
 
 /*
+ * Tracepoint for expedited grace-period events.  Takes a string identifying
+ * the RCU flavor, the expedited grace-period sequence number, and a string
+ * identifying the grace-period-related event as follows:
+ *
+ *	"snap": Captured snapshot of expedited grace period sequence number.
+ *	"start": Started a real expedited grace period.
+ *	"end": Ended a real expedited grace period.
+ *	"endwake": Woke piggybackers up.
+ *	"done": Someone else did the expedited grace period for us.
+ */
+TRACE_EVENT(rcu_exp_grace_period,
+
+	TP_PROTO(const char *rcuname, unsigned long gpseq, const char *gpevent),
+
+	TP_ARGS(rcuname, gpseq, gpevent),
+
+	TP_STRUCT__entry(
+		__field(const char *, rcuname)
+		__field(unsigned long, gpseq)
+		__field(const char *, gpevent)
+	),
+
+	TP_fast_assign(
+		__entry->rcuname = rcuname;
+		__entry->gpseq = gpseq;
+		__entry->gpevent = gpevent;
+	),
+
+	TP_printk("%s %lu %s",
+		  __entry->rcuname, __entry->gpseq, __entry->gpevent)
+);
+
+/*
+ * Tracepoint for expedited grace-period funnel-locking events.  Takes a
+ * string identifying the RCU flavor, an integer identifying the rcu_node
+ * combining-tree level, another pair of integers identifying the lowest-
+ * and highest-numbered CPU associated with the current rcu_node structure,
+ * and a string.  identifying the grace-period-related event as follows:
+ *
+ *	"nxtlvl": Advance to next level of rcu_node funnel
+ *	"wait": Wait for someone else to do expedited GP
+ */
+TRACE_EVENT(rcu_exp_funnel_lock,
+
+	TP_PROTO(const char *rcuname, u8 level, int grplo, int grphi,
+		 const char *gpevent),
+
+	TP_ARGS(rcuname, level, grplo, grphi, gpevent),
+
+	TP_STRUCT__entry(
+		__field(const char *, rcuname)
+		__field(u8, level)
+		__field(int, grplo)
+		__field(int, grphi)
+		__field(const char *, gpevent)
+	),
+
+	TP_fast_assign(
+		__entry->rcuname = rcuname;
+		__entry->level = level;
+		__entry->grplo = grplo;
+		__entry->grphi = grphi;
+		__entry->gpevent = gpevent;
+	),
+
+	TP_printk("%s %d %d %d %s",
+		  __entry->rcuname, __entry->level, __entry->grplo,
+		  __entry->grphi, __entry->gpevent)
+);
+
+/*
  * Tracepoint for RCU no-CBs CPU callback handoffs.  This event is intended
  * to assist debugging of these handoffs.
  *
@@ -704,11 +775,15 @@ TRACE_EVENT(rcu_barrier,
 #else /* #ifdef CONFIG_RCU_TRACE */
 
 #define trace_rcu_grace_period(rcuname, gpnum, gpevent) do { } while (0)
-#define trace_rcu_grace_period_init(rcuname, gpnum, level, grplo, grphi, \
-				    qsmask) do { } while (0)
 #define trace_rcu_future_grace_period(rcuname, gpnum, completed, c, \
 				      level, grplo, grphi, event) \
 				      do { } while (0)
+#define trace_rcu_grace_period_init(rcuname, gpnum, level, grplo, grphi, \
+				    qsmask) do { } while (0)
+#define trace_rcu_exp_grace_period(rcuname, gqseq, gpevent) \
+	do { } while (0)
+#define trace_rcu_exp_funnel_lock(rcuname, level, grplo, grphi, gpevent) \
+	do { } while (0)
 #define trace_rcu_nocb_wake(rcuname, cpu, reason) do { } while (0)
 #define trace_rcu_preempt_task(rcuname, pid, gpnum) do { } while (0)
 #define trace_rcu_unlock_preempted_task(rcuname, gpnum, pid) do { } while (0)

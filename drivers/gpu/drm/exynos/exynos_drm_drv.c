@@ -212,13 +212,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	 */
 	dev->irq_enabled = true;
 
-	/*
-	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
-	 * by drm timer once a current process gives up ownership of
-	 * vblank event.(after drm_vblank_put function is called)
-	 */
-	dev->vblank_disable_allowed = true;
-
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(dev);
 

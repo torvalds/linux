@@ -80,6 +80,9 @@ int rds_tcp_accept_one(struct socket *sock)
 	int conn_state;
 	struct sock *nsk;
 
+	if (!sock) /* module unload or netns delete in progress */
+		return -ENETUNREACH;
+
 	ret = sock_create_kern(sock_net(sock->sk), sock->sk->sk_family,
 			       sock->sk->sk_type, sock->sk->sk_protocol,
 			       &new_sock);
@@ -129,11 +132,13 @@ int rds_tcp_accept_one(struct socket *sock)
 		 * so we must quiesce any send threads before resetting
 		 * c_transport_data.
 		 */
-		wait_event(conn->c_waitq,
-			   !test_bit(RDS_IN_XMIT, &conn->c_flags));
-		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr)) {
+		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr) ||
+		    !conn->c_outgoing) {
 			goto rst_nsk;
-		} else if (rs_tcp->t_sock) {
+		} else {
+			atomic_set(&conn->c_state, RDS_CONN_CONNECTING);
+			wait_event(conn->c_waitq,
+				   !test_bit(RDS_IN_XMIT, &conn->c_flags));
 			rds_tcp_restore_callbacks(rs_tcp->t_sock, rs_tcp);
 			conn->c_outgoing = 0;
 		}
@@ -166,7 +171,7 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 
 	rdsdebug("listen data ready sk %p\n", sk);
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	ready = sk->sk_user_data;
 	if (!ready) { /* check for teardown race */
 		ready = sk->sk_data_ready;
@@ -183,7 +188,7 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 		rds_tcp_accept_work(sk);
 
 out:
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	ready(sk);
 }
 

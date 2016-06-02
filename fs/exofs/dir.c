@@ -79,7 +79,7 @@ static int exofs_commit_chunk(struct page *page, loff_t pos, unsigned len)
 	return err;
 }
 
-static void exofs_check_page(struct page *page)
+static bool exofs_check_page(struct page *page)
 {
 	struct inode *dir = page->mapping->host;
 	unsigned chunk_size = exofs_chunk_size(dir);
@@ -114,7 +114,7 @@ static void exofs_check_page(struct page *page)
 		goto Eend;
 out:
 	SetPageChecked(page);
-	return;
+	return true;
 
 Ebadsize:
 	EXOFS_ERR("ERROR [exofs_check_page]: "
@@ -150,8 +150,8 @@ Eend:
 		dir->i_ino, (page->index<<PAGE_SHIFT)+offs,
 		_LLU(le64_to_cpu(p->inode_no)));
 fail:
-	SetPageChecked(page);
 	SetPageError(page);
+	return false;
 }
 
 static struct page *exofs_get_page(struct inode *dir, unsigned long n)
@@ -161,10 +161,10 @@ static struct page *exofs_get_page(struct inode *dir, unsigned long n)
 
 	if (!IS_ERR(page)) {
 		kmap(page);
-		if (!PageChecked(page))
-			exofs_check_page(page);
-		if (PageError(page))
-			goto fail;
+		if (unlikely(!PageChecked(page))) {
+			if (PageError(page) || !exofs_check_page(page))
+				goto fail;
+		}
 	}
 	return page;
 
@@ -657,5 +657,5 @@ not_empty:
 const struct file_operations exofs_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= exofs_readdir,
+	.iterate_shared	= exofs_readdir,
 };

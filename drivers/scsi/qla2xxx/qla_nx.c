@@ -1229,7 +1229,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	if (buf == NULL) {
 		ql_log(ql_log_fatal, vha, 0x010c,
 		    "Unable to allocate memory.\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < n; i++) {

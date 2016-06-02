@@ -524,7 +524,7 @@ void
 nvkm_mmu_ctor(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 	      int index, struct nvkm_mmu *mmu)
 {
-	nvkm_subdev_ctor(&nvkm_mmu, device, index, 0, &mmu->subdev);
+	nvkm_subdev_ctor(&nvkm_mmu, device, index, &mmu->subdev);
 	mmu->func = func;
 	mmu->limit = func->limit;
 	mmu->dma_bits = func->dma_bits;

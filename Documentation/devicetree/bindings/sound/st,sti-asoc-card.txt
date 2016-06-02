@@ -37,16 +37,17 @@ Required properties:
 
   - dai-name: DAI name that describes the IP.
 
+  - IP mode: IP working mode depending on associated codec.
+	"HDMI" connected to HDMI codec and support IEC HDMI formats (player only).
+	"SPDIF" connected to SPDIF codec and support SPDIF formats (player only).
+	"PCM" PCM standard mode for I2S or TDM bus.
+	"TDM" TDM mode for TDM bus.
+
 Required properties ("st,sti-uni-player" compatibility only):
   - clocks: CPU_DAI IP clock source, listed in the same order than the
 	    CPU_DAI properties.
 
   - uniperiph-id: internal SOC IP instance ID.
-
-  - IP mode: IP working mode depending on associated codec.
-	"HDMI" connected to HDMI codec IP and IEC HDMI formats.
-	"SPDIF"connected to SPDIF codec and support SPDIF formats.
-	"PCM"  PCM standard mode for I2S or TDM bus.
 
 Optional properties:
   - pinctrl-0: defined for CPU_DAI@1 and CPU_DAI@4 to describe I2S PIOs for
@@ -55,6 +56,22 @@ Optional properties:
   - pinctrl-names: should contain only one value - "default".
 
 Example:
+
+	sti_uni_player1: sti-uni-player@1 {
+		compatible = "st,sti-uni-player";
+		status = "okay";
+		#sound-dai-cells = <0>;
+		st,syscfg = <&syscfg_core>;
+		clocks = <&clk_s_d0_flexgen CLK_PCM_1>;
+		reg = <0x8D81000 0x158>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
+		dmas = <&fdma0 3 0 1>;
+		st,dai-name = "Uni Player #1 (I2S)";
+		dma-names = "tx";
+		st,uniperiph-id = <1>;
+		st,version = <5>;
+		st,mode = "TDM";
+	};
 
 	sti_uni_player2: sti-uni-player@2 {
 		compatible = "st,sti-uni-player";
@@ -65,7 +82,7 @@ Example:
 		reg = <0x8D82000 0x158>;
 		interrupts = <GIC_SPI 86 IRQ_TYPE_NONE>;
 		dmas = <&fdma0 4 0 1>;
-		dai-name = "Uni Player #1 (DAC)";
+		dai-name = "Uni Player #2 (DAC)";
 		dma-names = "tx";
 		uniperiph-id = <2>;
 		version = <5>;
@@ -82,7 +99,7 @@ Example:
 		interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
 		dmas = <&fdma0 7 0 1>;
 		dma-names = "tx";
-		dai-name = "Uni Player #1 (PIO)";
+		dai-name = "Uni Player #3 (SPDIF)";
 		uniperiph-id = <3>;
 		version = <5>;
 		mode = "SPDIF";
@@ -99,6 +116,7 @@ Example:
 		dma-names = "rx";
 		dai-name = "Uni Reader #1 (HDMI RX)";
 		version = <3>;
+		st,mode = "PCM";
 	};
 
 2) sti-sas-codec: internal audio codec IPs driver
@@ -150,6 +168,22 @@ Example of audio card declaration:
 
 			codec {
 				sound-dai = <&sti_sasg_codec 0>;
+			};
+		};
+		simple-audio-card,dai-link@2 {
+			/* TDM playback  */
+			format = "left_j";
+			frame-inversion = <1>;
+			cpu {
+				sound-dai = <&sti_uni_player1>;
+				dai-tdm-slot-num = <16>;
+				dai-tdm-slot-width = <16>;
+				dai-tdm-slot-tx-mask =
+					<1 1 1 1 0 0 0 0 0 0 1 1 0 0 1 1>;
+			};
+
+			codec {
+				sound-dai = <&sti_sasg_codec 3>;
 			};
 		};
 	};

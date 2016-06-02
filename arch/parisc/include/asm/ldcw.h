@@ -40,7 +40,7 @@
    memory to indicate to the compiler that the assembly code reads
    or writes to items other than those listed in the input and output
    operands.  This may pessimize the code somewhat but __ldcw is
-   usually used within code blocks surrounded by memory barriors.  */
+   usually used within code blocks surrounded by memory barriers.  */
 #define __ldcw(a) ({						\
 	unsigned __ret;						\
 	__asm__ __volatile__(__LDCW " 0(%1),%0"			\

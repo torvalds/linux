@@ -137,7 +137,7 @@ static const u32 polaris11_golden_settings_a11[] =
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
 	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
 	mmFBC_DEBUG1, 0xffffffff, 0x00000008,
-	mmFBC_MISC, 0x9f313fff, 0x14300008,
+	mmFBC_MISC, 0x9f313fff, 0x14302008,
 	mmHDMI_CONTROL, 0x313f031f, 0x00000011,
 };
 
@@ -145,7 +145,7 @@ static const u32 polaris10_golden_settings_a11[] =
 {
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
 	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
-	mmFBC_MISC, 0x9f313fff, 0x14300008,
+	mmFBC_MISC, 0x9f313fff, 0x14302008,
 	mmHDMI_CONTROL, 0x313f031f, 0x00000011,
 };
 
@@ -2605,7 +2605,7 @@ static int dce_v11_0_crtc_cursor_set2(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	obj = drm_gem_object_lookup(crtc->dev, file_priv, handle);
+	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("Cannot find cursor object %x for crtc %d\n", handle, amdgpu_crtc->crtc_id);
 		return -ENOENT;

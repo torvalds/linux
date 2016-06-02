@@ -1042,7 +1042,6 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
-	int pindex;
 
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 *palette;
@@ -1074,38 +1073,10 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		    !fb_helper->funcs->gamma_get))
 		return -EINVAL;
 
-	pindex = regno;
+	WARN_ON(fb->bits_per_pixel != 8);
 
-	if (fb->bits_per_pixel == 16) {
-		pindex = regno << 3;
+	fb_helper->funcs->gamma_set(crtc, red, green, blue, regno);
 
-		if (fb->depth == 16 && regno > 63)
-			return -EINVAL;
-		if (fb->depth == 15 && regno > 31)
-			return -EINVAL;
-
-		if (fb->depth == 16) {
-			u16 r, g, b;
-			int i;
-			if (regno < 32) {
-				for (i = 0; i < 8; i++)
-					fb_helper->funcs->gamma_set(crtc, red,
-						green, blue, pindex + i);
-			}
-
-			fb_helper->funcs->gamma_get(crtc, &r,
-						    &g, &b,
-						    pindex >> 1);
-
-			for (i = 0; i < 4; i++)
-				fb_helper->funcs->gamma_set(crtc, r,
-							    green, b,
-							    (pindex >> 1) + i);
-		}
-	}
-
-	if (fb->depth != 16)
-		fb_helper->funcs->gamma_set(crtc, red, green, blue, pindex);
 	return 0;
 }
 
@@ -1968,7 +1939,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 			  int n, int width, int height)
 {
 	int c, o;
-	struct drm_device *dev = fb_helper->dev;
 	struct drm_connector *connector;
 	const struct drm_connector_helper_funcs *connector_funcs;
 	struct drm_encoder *encoder;
@@ -1987,7 +1957,7 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	if (modes[n] == NULL)
 		return best_score;
 
-	crtcs = kzalloc(dev->mode_config.num_connector *
+	crtcs = kzalloc(fb_helper->connector_count *
 			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
 	if (!crtcs)
 		return best_score;
@@ -2033,7 +2003,7 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 		if (score > best_score) {
 			best_score = score;
 			memcpy(best_crtcs, crtcs,
-			       dev->mode_config.num_connector *
+			       fb_helper->connector_count *
 			       sizeof(struct drm_fb_helper_crtc *));
 		}
 	}

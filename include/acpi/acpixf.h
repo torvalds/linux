@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20160108
+#define ACPI_CA_VERSION                 0x20160422
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -192,7 +192,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
 /*
  * Optionally support group module level code.
  */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_group_module_level_code, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_group_module_level_code, FALSE);
 
 /*
  * Optionally use 32-bit FADT addresses if and when there is a conflict
@@ -484,8 +484,8 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init acpi_load_tables(void))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init acpi_reallocate_root_table(void))
 
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status __init
-			    acpi_find_root_pointer(acpi_physical_address *
-						   rsdp_address))
+			    acpi_find_root_pointer(acpi_physical_address
+						   *rsdp_address))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_get_table_header(acpi_string signature,
 						   u32 instance,
@@ -530,7 +530,7 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_get_handle(acpi_handle parent,
 					     acpi_string pathname,
-					     acpi_handle * ret_handle))
+					     acpi_handle *ret_handle))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_attach_data(acpi_handle object,
 					      acpi_object_handler handler,
@@ -575,15 +575,15 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_get_next_object(acpi_object_type type,
 						 acpi_handle parent,
 						 acpi_handle child,
-						 acpi_handle * out_handle))
+						 acpi_handle *out_handle))
 
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_get_type(acpi_handle object,
-					  acpi_object_type * out_type))
+					  acpi_object_type *out_type))
 
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_get_parent(acpi_handle object,
-					    acpi_handle * out_handle))
+					    acpi_handle *out_handle))
 
 /*
  * Handler interfaces
@@ -755,7 +755,7 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable_all_wakeup_gpes(void))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_get_gpe_device(u32 gpe_index,
-						    acpi_handle * gpe_device))
+						    acpi_handle *gpe_device))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_install_gpe_block(acpi_handle gpe_device,
@@ -771,8 +771,8 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
  * Resource interfaces
  */
 typedef
-acpi_status(*acpi_walk_resource_callback) (struct acpi_resource * resource,
-					   void *context);
+acpi_status (*acpi_walk_resource_callback) (struct acpi_resource * resource,
+					    void *context);
 
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_get_vendor_resource(acpi_handle device,
@@ -938,7 +938,8 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(void
 ACPI_APP_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(1)
 				void ACPI_INTERNAL_VAR_XFACE
 				acpi_log_error(const char *format, ...))
- acpi_status acpi_initialize_debugger(void);
+
+acpi_status acpi_initialize_debugger(void);
 
 void acpi_terminate_debugger(void);
 

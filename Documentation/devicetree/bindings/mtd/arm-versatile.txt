@@ -1,8 +1,26 @@
 Flash device on ARM Versatile board
 
+These flash chips are found in the ARM reference designs like Integrator,
+Versatile, RealView, Versatile Express etc.
+
+They are regular CFI compatible (Intel or AMD extended) flash chips with
+some special write protect/VPP bits that can be controlled by the machine's
+system controller.
+
 Required properties:
-- compatible : must be "arm,versatile-flash";
+- compatible : must be "arm,versatile-flash", "cfi-flash";
+- reg : memory address for the flash chip
 - bank-width : width in bytes of flash interface.
+
+For the rest of the properties, see mtd-physmap.txt.
 
 The device tree may optionally contain sub-nodes describing partitions of the
 address space. See partition.txt for more detail.
+
+Example:
+
+flash@34000000 {
+	compatible = "arm,versatile-flash", "cfi-flash";
+	reg = <0x34000000 0x4000000>;
+	bank-width = <4>;
+};

@@ -1153,7 +1153,6 @@ struct gfar_private {
 	phy_interface_t interface;
 	struct device_node *phy_node;
 	struct device_node *tbi_node;
-	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
 	int oldspeed;
 	int oldduplex;

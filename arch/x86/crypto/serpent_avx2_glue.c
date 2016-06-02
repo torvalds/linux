@@ -538,7 +538,7 @@ static int __init init(void)
 {
 	const char *feature_name;
 
-	if (!cpu_has_avx2 || !cpu_has_osxsave) {
+	if (!boot_cpu_has(X86_FEATURE_AVX2) || !boot_cpu_has(X86_FEATURE_OSXSAVE)) {
 		pr_info("AVX2 instructions are not detected.\n");
 		return -ENODEV;
 	}

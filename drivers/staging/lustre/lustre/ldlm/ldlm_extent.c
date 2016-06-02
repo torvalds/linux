@@ -75,12 +75,12 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 	 * just after we finish and take our lock into account in its
 	 * calculation of the kms
 	 */
-	lock->l_flags |= LDLM_FL_KMS_IGNORE;
+	ldlm_set_kms_ignore(lock);
 
 	list_for_each(tmp, &res->lr_granted) {
 		lck = list_entry(tmp, struct ldlm_lock, l_res_link);
 
-		if (lck->l_flags & LDLM_FL_KMS_IGNORE)
+		if (ldlm_is_kms_ignore(lck))
 			continue;
 
 		if (lck->l_policy_data.l_extent.end >= old_kms)

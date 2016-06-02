@@ -707,7 +707,7 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	    (status & EXTENT_STATUS_WRITTEN)) {
 		ext4_warning(inode->i_sb, "Inserting extent [%u/%u] as "
 				" delayed and written which can potentially "
-				" cause data loss.\n", lblk, len);
+				" cause data loss.", lblk, len);
 		WARN_ON(1);
 	}
 

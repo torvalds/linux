@@ -186,3 +186,11 @@ only cn_test.c test module used it.
 Some work in netlink area is still being done, so things can be changed in
 2.6.15 timeframe, if it will happen, documentation will be updated for that
 kernel.
+
+/*****************************************/
+Code samples
+/*****************************************/
+
+Sample code for a connector test module and user space can be found
+in samples/connector/. To build this code, enable CONFIG_CONNECTOR
+and CONFIG_SAMPLES.

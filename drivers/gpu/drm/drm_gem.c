@@ -588,7 +588,6 @@ EXPORT_SYMBOL(drm_gem_put_pages);
 
 /**
  * drm_gem_object_lookup - look up a GEM object from it's handle
- * @dev: DRM device
  * @filp: DRM file private date
  * @handle: userspace handle
  *
@@ -598,8 +597,7 @@ EXPORT_SYMBOL(drm_gem_put_pages);
  * otherwise.
  */
 struct drm_gem_object *
-drm_gem_object_lookup(struct drm_device *dev, struct drm_file *filp,
-		      u32 handle)
+drm_gem_object_lookup(struct drm_file *filp, u32 handle)
 {
 	struct drm_gem_object *obj;
 
@@ -607,12 +605,8 @@ drm_gem_object_lookup(struct drm_device *dev, struct drm_file *filp,
 
 	/* Check if we currently have a reference on the object */
 	obj = idr_find(&filp->object_idr, handle);
-	if (obj == NULL) {
-		spin_unlock(&filp->table_lock);
-		return NULL;
-	}
-
-	drm_gem_object_reference(obj);
+	if (obj)
+		drm_gem_object_reference(obj);
 
 	spin_unlock(&filp->table_lock);
 
@@ -665,7 +659,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_GEM))
 		return -ENODEV;
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (obj == NULL)
 		return -ENOENT;
 

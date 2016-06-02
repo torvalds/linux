@@ -170,7 +170,7 @@ int ima_alloc_init_template(struct ima_event_data *event_data,
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode, const unsigned char *filename);
 void ima_free_template_entry(struct ima_template_entry *entry);
-const char *ima_d_path(struct path *path, char **pathbuf);
+const char *ima_d_path(const struct path *path, char **pathbuf);
 
 /* IMA policy related functions */
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,

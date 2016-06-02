@@ -177,7 +177,7 @@ unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
 	struct exynos_drm_gem *exynos_gem;
 	struct drm_gem_object *obj;
 
-	obj = drm_gem_object_lookup(dev, file_priv, gem_handle);
+	obj = drm_gem_object_lookup(file_priv, gem_handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
 		return 0;
@@ -296,7 +296,7 @@ dma_addr_t *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
 	struct exynos_drm_gem *exynos_gem;
 	struct drm_gem_object *obj;
 
-	obj = drm_gem_object_lookup(dev, filp, gem_handle);
+	obj = drm_gem_object_lookup(filp, gem_handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
 		return ERR_PTR(-EINVAL);
@@ -313,7 +313,7 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 {
 	struct drm_gem_object *obj;
 
-	obj = drm_gem_object_lookup(dev, filp, gem_handle);
+	obj = drm_gem_object_lookup(filp, gem_handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
 		return;
@@ -362,7 +362,7 @@ int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 	struct drm_exynos_gem_info *args = data;
 	struct drm_gem_object *obj;
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
 		return -EINVAL;
@@ -434,7 +434,7 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 	 *	with DRM_IOCTL_MODE_MAP_DUMB command.
 	 */
 
-	obj = drm_gem_object_lookup(dev, file_priv, handle);
+	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
 		return -EINVAL;
