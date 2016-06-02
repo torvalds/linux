@@ -2287,6 +2287,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags) &&
+			    !test_bit(Faulty, &rdev->flags) &&
 			    is_badblock(rdev, r10_bio->devs[sl].addr + sect, s,
 					&first_bad, &bad_sectors) == 0) {
 				atomic_inc(&rdev->nr_pending);
@@ -2339,6 +2340,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			d = r10_bio->devs[sl].devnum;
 			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (!rdev ||
+			    test_bit(Faulty, &rdev->flags) ||
 			    !test_bit(In_sync, &rdev->flags))
 				continue;
 
@@ -2378,6 +2380,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			d = r10_bio->devs[sl].devnum;
 			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (!rdev ||
+			    test_bit(Faulty, &rdev->flags) ||
 			    !test_bit(In_sync, &rdev->flags))
 				continue;
 
@@ -2953,6 +2956,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			mreplace = rcu_dereference(mirror->replacement);
 
 			if ((mrdev == NULL ||
+			     test_bit(Faulty, &mrdev->flags) ||
 			     test_bit(In_sync, &mrdev->flags)) &&
 			    (mreplace == NULL ||
 			     test_bit(Faulty, &mreplace->flags))) {
@@ -2971,6 +2975,8 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				rcu_read_unlock();
 				continue;
 			}
+			if (mreplace && test_bit(Faulty, &mreplace->flags))
+				mreplace = NULL;
 			/* Unless we are doing a full sync, or a replacement
 			 * we only need to recover the block if it is set in
 			 * the bitmap
