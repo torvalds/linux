@@ -6511,6 +6511,16 @@ S:	Maintained
 F:	arch/x86/include/asm/pmc_core.h
 F:	drivers/platform/x86/intel_pmc_core*
 
+INTEL USB DUAL ROLE PORT MUX DRIVERS
+M:	Lu Baolu <baolu.lu@linux.intel.com>
+L:	linux-usb@vger.kernel.org
+S:	Supported
+F:	include/linux/usb/portmux.h
+F:	drivers/usb/mux/portmux-core.c
+F:	drivers/usb/mux/portmux-intel-gpio.c
+F:	drivers/usb/mux/portmux-intel-drcfg.c
+F:	drivers/mfd/intel-vuport.c
+
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-mips@linux-mips.org
