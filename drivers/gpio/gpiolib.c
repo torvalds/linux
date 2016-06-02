@@ -22,6 +22,9 @@
 #include <linux/uaccess.h>
 #include <linux/compat.h>
 #include <linux/anon_inodes.h>
+#include <linux/kfifo.h>
+#include <linux/poll.h>
+#include <linux/timekeeping.h>
 #include <uapi/linux/gpio.h>
 
 #include "gpiolib.h"
@@ -501,6 +504,299 @@ out_free_lh:
 	return ret;
 }
 
+/*
+ * GPIO line event management
+ */
+
+/**
+ * struct lineevent_state - contains the state of a userspace event
+ * @gdev: the GPIO device the event pertains to
+ * @label: consumer label used to tag descriptors
+ * @desc: the GPIO descriptor held by this event
+ * @eflags: the event flags this line was requested with
+ * @irq: the interrupt that trigger in response to events on this GPIO
+ * @wait: wait queue that handles blocking reads of events
+ * @events: KFIFO for the GPIO events
+ * @read_lock: mutex lock to protect reads from colliding with adding
+ * new events to the FIFO
+ */
+struct lineevent_state {
+	struct gpio_device *gdev;
+	const char *label;
+	struct gpio_desc *desc;
+	u32 eflags;
+	int irq;
+	wait_queue_head_t wait;
+	DECLARE_KFIFO(events, struct gpioevent_data, 16);
+	struct mutex read_lock;
+};
+
+static unsigned int lineevent_poll(struct file *filep,
+				   struct poll_table_struct *wait)
+{
+	struct lineevent_state *le = filep->private_data;
+	unsigned int events = 0;
+
+	poll_wait(filep, &le->wait, wait);
+
+	if (!kfifo_is_empty(&le->events))
+		events = POLLIN | POLLRDNORM;
+
+	return events;
+}
+
+
+static ssize_t lineevent_read(struct file *filep,
+			      char __user *buf,
+			      size_t count,
+			      loff_t *f_ps)
+{
+	struct lineevent_state *le = filep->private_data;
+	unsigned int copied;
+	int ret;
+
+	if (count < sizeof(struct gpioevent_data))
+		return -EINVAL;
+
+	do {
+		if (kfifo_is_empty(&le->events)) {
+			if (filep->f_flags & O_NONBLOCK)
+				return -EAGAIN;
+
+			ret = wait_event_interruptible(le->wait,
+					!kfifo_is_empty(&le->events));
+			if (ret)
+				return ret;
+		}
+
+		if (mutex_lock_interruptible(&le->read_lock))
+			return -ERESTARTSYS;
+		ret = kfifo_to_user(&le->events, buf, count, &copied);
+		mutex_unlock(&le->read_lock);
+
+		if (ret)
+			return ret;
+
+		/*
+		 * If we couldn't read anything from the fifo (a different
+		 * thread might have been faster) we either return -EAGAIN if
+		 * the file descriptor is non-blocking, otherwise we go back to
+		 * sleep and wait for more data to arrive.
+		 */
+		if (copied == 0 && (filep->f_flags & O_NONBLOCK))
+			return -EAGAIN;
+
+	} while (copied == 0);
+
+	return copied;
+}
+
+static int lineevent_release(struct inode *inode, struct file *filep)
+{
+	struct lineevent_state *le = filep->private_data;
+	struct gpio_device *gdev = le->gdev;
+
+	free_irq(le->irq, le);
+	gpiod_free(le->desc);
+	kfree(le->label);
+	kfree(le);
+	put_device(&gdev->dev);
+	return 0;
+}
+
+static long lineevent_ioctl(struct file *filep, unsigned int cmd,
+			    unsigned long arg)
+{
+	struct lineevent_state *le = filep->private_data;
+	void __user *ip = (void __user *)arg;
+	struct gpiohandle_data ghd;
+
+	/*
+	 * We can get the value for an event line but not set it,
+	 * because it is input by definition.
+	 */
+	if (cmd == GPIOHANDLE_GET_LINE_VALUES_IOCTL) {
+		int val;
+
+		val = gpiod_get_value_cansleep(le->desc);
+		if (val < 0)
+			return val;
+		ghd.values[0] = val;
+
+		if (copy_to_user(ip, &ghd, sizeof(ghd)))
+			return -EFAULT;
+
+		return 0;
+	}
+	return -EINVAL;
+}
+
+#ifdef CONFIG_COMPAT
+static long lineevent_ioctl_compat(struct file *filep, unsigned int cmd,
+				   unsigned long arg)
+{
+	return lineevent_ioctl(filep, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+
+static const struct file_operations lineevent_fileops = {
+	.release = lineevent_release,
+	.read = lineevent_read,
+	.poll = lineevent_poll,
+	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
+	.unlocked_ioctl = lineevent_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = lineevent_ioctl_compat,
+#endif
+};
+
+irqreturn_t lineevent_irq_thread(int irq, void *p)
+{
+	struct lineevent_state *le = p;
+	struct gpioevent_data ge;
+	int ret;
+
+	ge.timestamp = ktime_get_real_ns();
+
+	if (le->eflags & GPIOEVENT_REQUEST_BOTH_EDGES) {
+		int level = gpiod_get_value_cansleep(le->desc);
+
+		if (level)
+			/* Emit low-to-high event */
+			ge.id = GPIOEVENT_EVENT_RISING_EDGE;
+		else
+			/* Emit high-to-low event */
+			ge.id = GPIOEVENT_EVENT_FALLING_EDGE;
+	} else if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE) {
+		/* Emit low-to-high event */
+		ge.id = GPIOEVENT_EVENT_RISING_EDGE;
+	} else if (le->eflags & GPIOEVENT_REQUEST_FALLING_EDGE) {
+		/* Emit high-to-low event */
+		ge.id = GPIOEVENT_EVENT_FALLING_EDGE;
+	}
+
+	ret = kfifo_put(&le->events, ge);
+	if (ret != 0)
+		wake_up_poll(&le->wait, POLLIN);
+
+	return IRQ_HANDLED;
+}
+
+static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+{
+	struct gpioevent_request eventreq;
+	struct lineevent_state *le;
+	struct gpio_desc *desc;
+	u32 offset;
+	u32 lflags;
+	u32 eflags;
+	int fd;
+	int ret;
+	int irqflags = 0;
+
+	if (copy_from_user(&eventreq, ip, sizeof(eventreq)))
+		return -EFAULT;
+
+	le = kzalloc(sizeof(*le), GFP_KERNEL);
+	if (!le)
+		return -ENOMEM;
+	le->gdev = gdev;
+	get_device(&gdev->dev);
+
+	/* Make sure this is terminated */
+	eventreq.consumer_label[sizeof(eventreq.consumer_label)-1] = '\0';
+	if (strlen(eventreq.consumer_label)) {
+		le->label = kstrdup(eventreq.consumer_label,
+				    GFP_KERNEL);
+		if (!le->label) {
+			ret = -ENOMEM;
+			goto out_free_le;
+		}
+	}
+
+	offset = eventreq.lineoffset;
+	lflags = eventreq.handleflags;
+	eflags = eventreq.eventflags;
+
+	/* This is just wrong: we don't look for events on output lines */
+	if (lflags & GPIOHANDLE_REQUEST_OUTPUT) {
+		ret = -EINVAL;
+		goto out_free_label;
+	}
+
+	desc = &gdev->descs[offset];
+	ret = gpiod_request(desc, le->label);
+	if (ret)
+		goto out_free_desc;
+	le->desc = desc;
+	le->eflags = eflags;
+
+	if (lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW)
+		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	if (lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN)
+		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+	if (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE)
+		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+
+	ret = gpiod_direction_input(desc);
+	if (ret)
+		goto out_free_desc;
+
+	le->irq = gpiod_to_irq(desc);
+	if (le->irq <= 0) {
+		ret = -ENODEV;
+		goto out_free_desc;
+	}
+
+	if (eflags & GPIOEVENT_REQUEST_RISING_EDGE)
+		irqflags |= IRQF_TRIGGER_RISING;
+	if (eflags & GPIOEVENT_REQUEST_FALLING_EDGE)
+		irqflags |= IRQF_TRIGGER_FALLING;
+	irqflags |= IRQF_ONESHOT;
+	irqflags |= IRQF_SHARED;
+
+	INIT_KFIFO(le->events);
+	init_waitqueue_head(&le->wait);
+	mutex_init(&le->read_lock);
+
+	/* Request a thread to read the events */
+	ret = request_threaded_irq(le->irq,
+			NULL,
+			lineevent_irq_thread,
+			irqflags,
+			le->label,
+			le);
+	if (ret)
+		goto out_free_desc;
+
+	fd = anon_inode_getfd("gpio-event",
+			      &lineevent_fileops,
+			      le,
+			      O_RDONLY | O_CLOEXEC);
+	if (fd < 0) {
+		ret = fd;
+		goto out_free_irq;
+	}
+
+	eventreq.fd = fd;
+	if (copy_to_user(ip, &eventreq, sizeof(eventreq)))
+		return -EFAULT;
+
+	return 0;
+
+out_free_irq:
+	free_irq(le->irq, le);
+out_free_desc:
+	gpiod_free(le->desc);
+out_free_label:
+	kfree(le->label);
+out_free_le:
+	kfree(le);
+	put_device(&gdev->dev);
+	return ret;
+}
+
 /**
  * gpio_ioctl() - ioctl handler for the GPIO chardev
  */
@@ -578,6 +874,8 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return 0;
 	} else if (cmd == GPIO_GET_LINEHANDLE_IOCTL) {
 		return linehandle_create(gdev, ip);
+	} else if (cmd == GPIO_GET_LINEEVENT_IOCTL) {
+		return lineevent_create(gdev, ip);
 	}
 	return -EINVAL;
 }
