@@ -1,0 +1,8 @@
+#
+# USB port mux driver configuration
+#
+
+menuconfig USB_PORTMUX
+	bool "USB dual role port MUX support"
+	help
+	  Generic USB dual role port mux support.

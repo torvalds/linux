@@ -148,6 +148,8 @@ endif # USB
 
 source "drivers/usb/phy/Kconfig"
 
+source "drivers/usb/mux/Kconfig"
+
 source "drivers/usb/gadget/Kconfig"
 
 config USB_LED_TRIG

@@ -18,3 +18,21 @@ Description:
 		devices to opt-out of driver binding using a driver_override
 		name such as "none".  Only a single driver may be specified in
 		the override, there is no support for parsing delimiters.
+
+What:		/sys/bus/platform/devices/.../portmux.N/name
+		/sys/bus/platform/devices/.../portmux.N/state
+Date:		April 2016
+Contact:	Lu Baolu <baolu.lu@linux.intel.com>
+Description:
+		In some platforms, a single USB port is shared between a USB host
+		controller and a device controller. A USB mux driver is needed to
+		handle the port mux. Read-only attribute "name" shows the name of
+		the port mux device. "state" attribute shows and stores the mux
+		state.
+		For read:
+		'unknown'    - the mux hasn't been set yet;
+		'peripheral' - mux has been switched to PERIPHERAL controller;
+		'host'       - mux has been switched to HOST controller.
+		For write:
+		'peripheral' - mux will be switched to PERIPHERAL controller;
+		'host'       - mux will be switched to HOST controller.
