@@ -50,7 +50,7 @@ static struct {
 int
 test_llvm__fetch_bpf_obj(void **p_obj_buf,
 			 size_t *p_obj_buf_sz,
-			 enum test_llvm__testcase index,
+			 enum test_llvm__testcase idx,
 			 bool force)
 {
 	const char *source;
@@ -59,11 +59,11 @@ test_llvm__fetch_bpf_obj(void **p_obj_buf,
 	char *tmpl_new = NULL, *clang_opt_new = NULL;
 	int err, old_verbose, ret = TEST_FAIL;
 
-	if (index >= __LLVM_TESTCASE_MAX)
+	if (idx >= __LLVM_TESTCASE_MAX)
 		return TEST_FAIL;
 
-	source = bpf_source_table[index].source;
-	desc = bpf_source_table[index].desc;
+	source = bpf_source_table[idx].source;
+	desc = bpf_source_table[idx].desc;
 
 	perf_config(perf_config_cb, NULL);
 

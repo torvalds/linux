@@ -81,6 +81,56 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 	printk("\n");
 }
 
+#ifdef CONFIG_ARM64_HW_AFDBM
+/*
+ * This function sets the access flags (dirty, accessed), as well as write
+ * permission, and only to a more permissive setting.
+ *
+ * It needs to cope with hardware update of the accessed/dirty state by other
+ * agents in the system and can safely skip the __sync_icache_dcache() call as,
+ * like set_pte_at(), the PTE is never changed from no-exec to exec here.
+ *
+ * Returns whether or not the PTE actually changed.
+ */
+int ptep_set_access_flags(struct vm_area_struct *vma,
+			  unsigned long address, pte_t *ptep,
+			  pte_t entry, int dirty)
+{
+	pteval_t old_pteval;
+	unsigned int tmp;
+
+	if (pte_same(*ptep, entry))
+		return 0;
+
+	/* only preserve the access flags and write permission */
+	pte_val(entry) &= PTE_AF | PTE_WRITE | PTE_DIRTY;
+
+	/*
+	 * PTE_RDONLY is cleared by default in the asm below, so set it in
+	 * back if necessary (read-only or clean PTE).
+	 */
+	if (!pte_write(entry) || !dirty)
+		pte_val(entry) |= PTE_RDONLY;
+
+	/*
+	 * Setting the flags must be done atomically to avoid racing with the
+	 * hardware update of the access/dirty state.
+	 */
+	asm volatile("//	ptep_set_access_flags\n"
+	"	prfm	pstl1strm, %2\n"
+	"1:	ldxr	%0, %2\n"
+	"	and	%0, %0, %3		// clear PTE_RDONLY\n"
+	"	orr	%0, %0, %4		// set flags\n"
+	"	stxr	%w1, %0, %2\n"
+	"	cbnz	%w1, 1b\n"
+	: "=&r" (old_pteval), "=&r" (tmp), "+Q" (pte_val(*ptep))
+	: "L" (~PTE_RDONLY), "r" (pte_val(entry)));
+
+	flush_tlb_fix_spurious_fault(vma, address);
+	return 1;
+}
+#endif
+
 /*
  * The kernel tried to access some page that wasn't present.
  */
