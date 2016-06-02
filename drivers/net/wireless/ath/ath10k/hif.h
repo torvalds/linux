@@ -87,6 +87,10 @@ struct ath10k_hif_ops {
 
 	int (*suspend)(struct ath10k *ar);
 	int (*resume)(struct ath10k *ar);
+
+	/* fetch calibration data from target eeprom */
+	int (*fetch_cal_eeprom)(struct ath10k *ar, void **data,
+				size_t *data_len);
 };
 
 static inline int ath10k_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
@@ -200,6 +204,16 @@ static inline void ath10k_hif_write32(struct ath10k *ar,
 	}
 
 	ar->hif.ops->write32(ar, address, data);
+}
+
+static inline int ath10k_hif_fetch_cal_eeprom(struct ath10k *ar,
+					      void **data,
+					      size_t *data_len)
+{
+	if (!ar->hif.ops->fetch_cal_eeprom)
+		return -EOPNOTSUPP;
+
+	return ar->hif.ops->fetch_cal_eeprom(ar, data, data_len);
 }
 
 #endif /* _HIF_H_ */

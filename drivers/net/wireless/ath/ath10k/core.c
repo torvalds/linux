@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/of.h>
+#include <asm/byteorder.h>
 
 #include "core.h"
 #include "mac.h"
@@ -570,6 +571,35 @@ out_free:
 	kfree(data);
 
 out:
+	return ret;
+}
+
+static int ath10k_download_cal_eeprom(struct ath10k *ar)
+{
+	size_t data_len;
+	void *data = NULL;
+	int ret;
+
+	ret = ath10k_hif_fetch_cal_eeprom(ar, &data, &data_len);
+	if (ret) {
+		if (ret != -EOPNOTSUPP)
+			ath10k_warn(ar, "failed to read calibration data from EEPROM: %d\n",
+				    ret);
+		goto out_free;
+	}
+
+	ret = ath10k_download_board_data(ar, data, data_len);
+	if (ret) {
+		ath10k_warn(ar, "failed to download calibration data from EEPROM: %d\n",
+			    ret);
+		goto out_free;
+	}
+
+	ret = 0;
+
+out_free:
+	kfree(data);
+
 	return ret;
 }
 
@@ -1335,7 +1365,17 @@ static int ath10k_download_cal_data(struct ath10k *ar)
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT,
-		   "boot did not find DT entry, try OTP next: %d\n",
+		   "boot did not find DT entry, try target EEPROM next: %d\n",
+		   ret);
+
+	ret = ath10k_download_cal_eeprom(ar);
+	if (ret == 0) {
+		ar->cal_mode = ATH10K_CAL_MODE_EEPROM;
+		goto done;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot did not find target EEPROM entry, try OTP next: %d\n",
 		   ret);
 
 	ret = ath10k_download_and_run_otp(ar);
