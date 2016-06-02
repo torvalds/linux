@@ -78,17 +78,11 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 {
 	int i;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	int nplanes = mdp5_kms->dev->mode_config.num_total_plane;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 
-	for (i = 0; i < nplanes; i++) {
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *plane_state = state->plane_states[i];
-
-		if (!plane)
-			continue;
-
+	for_each_plane_in_state(state, plane, plane_state, i)
 		mdp5_plane_complete_commit(plane, plane_state);
-	}
 
 	mdp5_disable(mdp5_kms);
 }
