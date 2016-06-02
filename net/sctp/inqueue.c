@@ -130,7 +130,8 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 	 * at this time.
 	 */
 
-	if ((chunk = queue->in_progress)) {
+	chunk = queue->in_progress;
+	if (chunk) {
 		/* There is a packet that we have been working on.
 		 * Any post processing work to do before we move on?
 		 */
@@ -152,14 +153,28 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 	if (!chunk) {
 		struct list_head *entry;
 
+next_chunk:
 		/* Is the queue empty?  */
 		if (list_empty(&queue->in_chunk_list))
 			return NULL;
 
 		entry = queue->in_chunk_list.next;
-		chunk = queue->in_progress =
-			list_entry(entry, struct sctp_chunk, list);
+		chunk = list_entry(entry, struct sctp_chunk, list);
 		list_del_init(entry);
+
+		/* Linearize if it's not GSO */
+		if (skb_is_nonlinear(chunk->skb)) {
+			if (skb_linearize(chunk->skb)) {
+				__SCTP_INC_STATS(dev_net(chunk->skb->dev), SCTP_MIB_IN_PKT_DISCARDS);
+				sctp_chunk_free(chunk);
+				goto next_chunk;
+			}
+
+			/* Update sctp_hdr as it probably changed */
+			chunk->sctp_hdr = sctp_hdr(chunk->skb);
+		}
+
+		queue->in_progress = chunk;
 
 		/* This is the first chunk in the packet.  */
 		chunk->singleton = 1;
@@ -172,14 +187,6 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 
 	chunk->chunk_hdr = ch;
 	chunk->chunk_end = ((__u8 *)ch) + WORD_ROUND(ntohs(ch->length));
-	/* In the unlikely case of an IP reassembly, the skb could be
-	 * non-linear. If so, update chunk_end so that it doesn't go past
-	 * the skb->tail.
-	 */
-	if (unlikely(skb_is_nonlinear(chunk->skb))) {
-		if (chunk->chunk_end > skb_tail_pointer(chunk->skb))
-			chunk->chunk_end = skb_tail_pointer(chunk->skb);
-	}
 	skb_pull(chunk->skb, sizeof(sctp_chunkhdr_t));
 	chunk->subh.v = NULL; /* Subheader is no longer valid.  */
 
