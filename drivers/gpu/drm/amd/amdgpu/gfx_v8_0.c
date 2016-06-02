@@ -6440,9 +6440,9 @@ static void gfx_v8_0_set_rlc_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
-	case CHIP_STONEY:
 		adev->gfx.rlc.funcs = &iceland_rlc_funcs;
 		break;
+	case CHIP_STONEY:
 	case CHIP_CARRIZO:
 		adev->gfx.rlc.funcs = &cz_rlc_funcs;
 		break;
