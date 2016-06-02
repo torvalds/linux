@@ -164,10 +164,12 @@ void radeon_debugfs_cleanup(struct drm_minor *minor);
 void radeon_register_atpx_handler(void);
 void radeon_unregister_atpx_handler(void);
 bool radeon_has_atpx_dgpu_power_cntl(void);
+bool radeon_is_atpx_hybrid(void);
 #else
 static inline void radeon_register_atpx_handler(void) {}
 static inline void radeon_unregister_atpx_handler(void) {}
 static inline bool radeon_has_atpx_dgpu_power_cntl(void) { return false; }
+static inline bool radeon_is_atpx_hybrid(void) { return false; }
 #endif
 
 int radeon_no_wb;

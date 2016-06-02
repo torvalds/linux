@@ -28,6 +28,7 @@ struct radeon_atpx_functions {
 struct radeon_atpx {
 	acpi_handle handle;
 	struct radeon_atpx_functions functions;
+	bool is_hybrid;
 };
 
 static struct radeon_atpx_priv {
@@ -65,6 +66,10 @@ bool radeon_has_atpx(void) {
 
 bool radeon_has_atpx_dgpu_power_cntl(void) {
 	return radeon_atpx_priv.atpx.functions.power_cntl;
+}
+
+bool radeon_is_atpx_hybrid(void) {
+	return radeon_atpx_priv.atpx.is_hybrid;
 }
 
 /**
@@ -190,9 +195,11 @@ static int radeon_atpx_validate(struct radeon_atpx *atpx)
 			  ATPX_DYNAMIC_DGPU_POWER_OFF_SUPPORTED))
 		atpx->functions.power_cntl = true;
 
+	atpx->is_hybrid = false;
 	if (valid_bits & ATPX_MS_HYBRID_GFX_SUPPORTED) {
-		printk("Hybrid Graphics, ATPX dGPU power cntl disabled\n");
+		printk("ATPX Hybrid Graphics\n");
 		atpx->functions.power_cntl = false;
+		atpx->is_hybrid = true;
 	}
 
 	return 0;
