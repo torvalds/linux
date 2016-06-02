@@ -163,15 +163,10 @@ static struct irqaction kona_timer_irq = {
 	.handler = kona_timer_interrupt,
 };
 
-static void __init kona_timer_init(struct device_node *node)
+static int __init kona_timer_init(struct device_node *node)
 {
 	u32 freq;
 	struct clk *external_clk;
-
-	if (!of_device_is_available(node)) {
-		pr_info("Kona Timer v1 marked as disabled in device tree\n");
-		return;
-	}
 
 	external_clk = of_clk_get_by_name(node, NULL);
 
@@ -182,7 +177,7 @@ static void __init kona_timer_init(struct device_node *node)
 		arch_timer_rate = freq;
 	} else {
 		pr_err("Kona Timer v1 unable to determine clock-frequency");
-		return;
+		return -EINVAL;
 	}
 
 	/* Setup IRQ numbers */
@@ -196,11 +191,13 @@ static void __init kona_timer_init(struct device_node *node)
 	kona_timer_clockevents_init();
 	setup_irq(timers.tmr_irq, &kona_timer_irq);
 	kona_timer_set_next_event((arch_timer_rate / HZ), NULL);
+
+	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(brcm_kona, "brcm,kona-timer", kona_timer_init);
+CLOCKSOURCE_OF_DECLARE_RET(brcm_kona, "brcm,kona-timer", kona_timer_init);
 /*
  * bcm,kona-timer is deprecated by brcm,kona-timer
  * being kept here for driver compatibility
  */
-CLOCKSOURCE_OF_DECLARE(bcm_kona, "bcm,kona-timer", kona_timer_init);
+CLOCKSOURCE_OF_DECLARE_RET(bcm_kona, "bcm,kona-timer", kona_timer_init);
