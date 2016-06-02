@@ -427,7 +427,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 	short ch = 0;
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
-	down(&ieee->scan_sem);
+	mutex_lock(&ieee->scan_mutex);
 
 	while(1)
 	{
@@ -475,13 +475,13 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 out:
 	if(ieee->state < IEEE80211_LINKED){
 		ieee->actscanning = false;
-		up(&ieee->scan_sem);
+		mutex_unlock(&ieee->scan_mutex);
 	}
 	else{
 	ieee->sync_scan_hurryup = 0;
 	if(IS_DOT11D_ENABLE(ieee))
 		DOT11D_ScanComplete(ieee);
-	up(&ieee->scan_sem);
+	mutex_unlock(&ieee->scan_mutex);
 }
 }
 EXPORT_SYMBOL(ieee80211_softmac_scan_syncro);
@@ -495,7 +495,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
 	if(!ieee->ieee_up)
 		return;
-	down(&ieee->scan_sem);
+	mutex_lock(&ieee->scan_mutex);
 	do{
 		ieee->current_network.channel =
 			(ieee->current_network.channel + 1) % MAX_CHANNEL_NUMBER;
@@ -517,7 +517,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 
 	schedule_delayed_work(&ieee->softmac_scan_wq, IEEE80211_SOFTMAC_SCAN_TIME);
 
-	up(&ieee->scan_sem);
+	mutex_unlock(&ieee->scan_mutex);
 	return;
 out:
 	if(IS_DOT11D_ENABLE(ieee))
@@ -525,7 +525,7 @@ out:
 	ieee->actscanning = false;
 	watchdog = 0;
 	ieee->scanning = 0;
-	up(&ieee->scan_sem);
+	mutex_unlock(&ieee->scan_mutex);
 }
 
 
@@ -579,7 +579,7 @@ static void ieee80211_softmac_stop_scan(struct ieee80211_device *ieee)
 
 	//ieee->sync_scan_hurryup = 1;
 
-	down(&ieee->scan_sem);
+	mutex_lock(&ieee->scan_mutex);
 //	spin_lock_irqsave(&ieee->lock, flags);
 
 	if (ieee->scanning == 1) {
@@ -589,7 +589,7 @@ static void ieee80211_softmac_stop_scan(struct ieee80211_device *ieee)
 	}
 
 //	spin_unlock_irqrestore(&ieee->lock, flags);
-	up(&ieee->scan_sem);
+	mutex_unlock(&ieee->scan_mutex);
 }
 
 void ieee80211_stop_scan(struct ieee80211_device *ieee)
@@ -2729,7 +2729,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 
 
 	mutex_init(&ieee->wx_mutex);
-	sema_init(&ieee->scan_sem, 1);
+	mutex_init(&ieee->scan_mutex);
 
 	spin_lock_init(&ieee->mgmt_tx_lock);
 	spin_lock_init(&ieee->beacon_lock);
