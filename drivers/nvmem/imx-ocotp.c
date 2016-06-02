@@ -15,6 +15,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -26,6 +27,7 @@
 
 struct ocotp_priv {
 	struct device *dev;
+	struct clk *clk;
 	void __iomem *base;
 	unsigned int nregs;
 };
@@ -36,7 +38,7 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 	struct ocotp_priv *priv = context;
 	unsigned int count;
 	u32 *buf = val;
-	int i;
+	int i, ret;
 	u32 index;
 
 	index = offset >> 2;
@@ -45,8 +47,15 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 	if (count > (priv->nregs - index))
 		count = priv->nregs - index;
 
+	ret = clk_prepare_enable(priv->clk);
+	if (ret < 0) {
+		dev_err(priv->dev, "failed to prepare/enable ocotp clk\n");
+		return ret;
+	}
 	for (i = index; i < (index + count); i++)
 		*buf++ = readl(priv->base + 0x400 + i * 0x10);
+
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }
@@ -84,6 +93,10 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 	priv->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
+
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
 
 	of_id = of_match_device(imx_ocotp_dt_ids, dev);
 	priv->nregs = (unsigned int)of_id->data;
