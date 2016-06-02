@@ -192,9 +192,6 @@ static int of_thermal_set_emul_temp(struct thermal_zone_device *tz,
 {
 	struct __thermal_zone *data = tz->devdata;
 
-	if (!data->ops || !data->ops->set_emul_temp)
-		return -EINVAL;
-
 	return data->ops->set_emul_temp(data->sensor_data, temp);
 }
 
@@ -432,7 +429,9 @@ thermal_zone_of_add_sensor(struct device_node *zone,
 	if (ops->set_trips)
 		tzd->ops->set_trips = of_thermal_set_trips;
 
-	tzd->ops->set_emul_temp = of_thermal_set_emul_temp;
+	if (ops->set_emul_temp)
+		tzd->ops->set_emul_temp = of_thermal_set_emul_temp;
+
 	mutex_unlock(&tzd->lock);
 
 	return tzd;
