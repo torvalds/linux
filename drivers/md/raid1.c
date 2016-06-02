@@ -2056,29 +2056,30 @@ static void fix_read_error(struct r1conf *conf, int read_disk,
 			s = PAGE_SIZE >> 9;
 
 		do {
-			/* Note: no rcu protection needed here
-			 * as this is synchronous in the raid1d thread
-			 * which is the thread that might remove
-			 * a device.  If raid1d ever becomes multi-threaded....
-			 */
 			sector_t first_bad;
 			int bad_sectors;
 
-			rdev = conf->mirrors[d].rdev;
+			rcu_read_lock();
+			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (rdev &&
 			    (test_bit(In_sync, &rdev->flags) ||
 			     (!test_bit(Faulty, &rdev->flags) &&
 			      rdev->recovery_offset >= sect + s)) &&
 			    is_badblock(rdev, sect, s,
-					&first_bad, &bad_sectors) == 0 &&
-			    sync_page_io(rdev, sect, s<<9,
-					 conf->tmppage, READ, false))
-				success = 1;
-			else {
-				d++;
-				if (d == conf->raid_disks * 2)
-					d = 0;
-			}
+					&first_bad, &bad_sectors) == 0) {
+				atomic_inc(&rdev->nr_pending);
+				rcu_read_unlock();
+				if (sync_page_io(rdev, sect, s<<9,
+						 conf->tmppage, READ, false))
+					success = 1;
+				rdev_dec_pending(rdev, mddev);
+				if (success)
+					break;
+			} else
+				rcu_read_unlock();
+			d++;
+			if (d == conf->raid_disks * 2)
+				d = 0;
 		} while (!success && d != read_disk);
 
 		if (!success) {
@@ -2094,11 +2095,17 @@ static void fix_read_error(struct r1conf *conf, int read_disk,
 			if (d==0)
 				d = conf->raid_disks * 2;
 			d--;
-			rdev = conf->mirrors[d].rdev;
+			rcu_read_lock();
+			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (rdev &&
-			    !test_bit(Faulty, &rdev->flags))
+			    !test_bit(Faulty, &rdev->flags)) {
+				atomic_inc(&rdev->nr_pending);
+				rcu_read_unlock();
 				r1_sync_page_io(rdev, sect, s,
 						conf->tmppage, WRITE);
+				rdev_dec_pending(rdev, mddev);
+			} else
+				rcu_read_unlock();
 		}
 		d = start;
 		while (d != read_disk) {
@@ -2106,9 +2113,12 @@ static void fix_read_error(struct r1conf *conf, int read_disk,
 			if (d==0)
 				d = conf->raid_disks * 2;
 			d--;
-			rdev = conf->mirrors[d].rdev;
+			rcu_read_lock();
+			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (rdev &&
 			    !test_bit(Faulty, &rdev->flags)) {
+				atomic_inc(&rdev->nr_pending);
+				rcu_read_unlock();
 				if (r1_sync_page_io(rdev, sect, s,
 						    conf->tmppage, READ)) {
 					atomic_add(s, &rdev->corrected_errors);
@@ -2117,10 +2127,12 @@ static void fix_read_error(struct r1conf *conf, int read_disk,
 					       "(%d sectors at %llu on %s)\n",
 					       mdname(mddev), s,
 					       (unsigned long long)(sect +
-					           rdev->data_offset),
+								    rdev->data_offset),
 					       bdevname(rdev->bdev, b));
 				}
-			}
+				rdev_dec_pending(rdev, mddev);
+			} else
+				rcu_read_unlock();
 		}
 		sectors -= s;
 		sect += s;
