@@ -53,7 +53,8 @@ Example:
 
 		nand@0 {
 			reg = <0>;
-			nand-ecc-mode = "soft_bch";
+			nand-ecc-mode = "soft";
+			nand-ecc-algo = "bch";
 
 			/* controller specific properties */
 		};

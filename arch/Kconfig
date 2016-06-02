@@ -598,6 +598,14 @@ config HAVE_STACK_VALIDATION
 	  Architecture supports the 'objtool check' host tool command, which
 	  performs compile-time stack metadata validation.
 
+config HAVE_ARCH_HASH
+	bool
+	default n
+	help
+	  If this is set, the architecture provides an <asm/hash.h>
+	  file which provides platform-specific implementations of some
+	  functions in <linux/hash.h> or fs/namei.c.
+
 #
 # ABI hall of shame
 #

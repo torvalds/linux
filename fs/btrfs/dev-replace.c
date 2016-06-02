@@ -450,7 +450,7 @@ int btrfs_dev_replace_by_ioctl(struct btrfs_root *root,
 }
 
 /*
- * blocked until all flighting bios are finished.
+ * blocked until all in-flight bios operations are finished.
  */
 static void btrfs_rm_dev_replace_blocked(struct btrfs_fs_info *fs_info)
 {

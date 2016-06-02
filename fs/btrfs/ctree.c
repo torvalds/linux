@@ -156,7 +156,7 @@ struct extent_buffer *btrfs_root_node(struct btrfs_root *root)
 
 		/*
 		 * RCU really hurts here, we could free up the root node because
-		 * it was cow'ed but we may not get the new root node yet so do
+		 * it was COWed but we may not get the new root node yet so do
 		 * the inc_not_zero dance and if it doesn't work then
 		 * synchronize_rcu and try again.
 		 */
@@ -955,7 +955,7 @@ int btrfs_block_can_be_shared(struct btrfs_root *root,
 			      struct extent_buffer *buf)
 {
 	/*
-	 * Tree blocks not in refernece counted trees and tree roots
+	 * Tree blocks not in reference counted trees and tree roots
 	 * are never shared. If a block was allocated after the last
 	 * snapshot and the block was not allocated by tree relocation,
 	 * we know the block is not shared.
@@ -1270,7 +1270,7 @@ __tree_mod_log_oldest_root(struct btrfs_fs_info *fs_info,
 
 /*
  * tm is a pointer to the first operation to rewind within eb. then, all
- * previous operations will be rewinded (until we reach something older than
+ * previous operations will be rewound (until we reach something older than
  * time_seq).
  */
 static void
@@ -1345,7 +1345,7 @@ __tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 }
 
 /*
- * Called with eb read locked. If the buffer cannot be rewinded, the same buffer
+ * Called with eb read locked. If the buffer cannot be rewound, the same buffer
  * is returned. If rewind operations happen, a fresh buffer is returned. The
  * returned buffer is always read-locked. If the returned buffer is not the
  * input buffer, the lock on the input buffer is released and the input buffer
@@ -1516,7 +1516,7 @@ static inline int should_cow_block(struct btrfs_trans_handle *trans,
 	 * 3) the root is not forced COW.
 	 *
 	 * What is forced COW:
-	 *    when we create snapshot during commiting the transaction,
+	 *    when we create snapshot during committing the transaction,
 	 *    after we've finished coping src root, we must COW the shared
 	 *    block to ensure the metadata consistency.
 	 */
@@ -1531,7 +1531,7 @@ static inline int should_cow_block(struct btrfs_trans_handle *trans,
 
 /*
  * cows a single block, see __btrfs_cow_block for the real work.
- * This version of it has extra checks so that a block isn't cow'd more than
+ * This version of it has extra checks so that a block isn't COWed more than
  * once per transaction, as long as it hasn't been written yet
  */
 noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
@@ -2986,7 +2986,7 @@ again:
 		btrfs_unlock_up_safe(p, level + 1);
 
 		/*
-		 * Since we can unwind eb's we want to do a real search every
+		 * Since we can unwind ebs we want to do a real search every
 		 * time.
 		 */
 		prev_cmp = -1;

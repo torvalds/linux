@@ -721,48 +721,6 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	return ret;
 }
 
-static int logical_ring_wait_for_space(struct drm_i915_gem_request *req,
-				       int bytes)
-{
-	struct intel_ringbuffer *ringbuf = req->ringbuf;
-	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_gem_request *target;
-	unsigned space;
-	int ret;
-
-	if (intel_ring_space(ringbuf) >= bytes)
-		return 0;
-
-	/* The whole point of reserving space is to not wait! */
-	WARN_ON(ringbuf->reserved_in_use);
-
-	list_for_each_entry(target, &engine->request_list, list) {
-		/*
-		 * The request queue is per-engine, so can contain requests
-		 * from multiple ringbuffers. Here, we must ignore any that
-		 * aren't from the ringbuffer we're considering.
-		 */
-		if (target->ringbuf != ringbuf)
-			continue;
-
-		/* Would completion of this request free enough space? */
-		space = __intel_ring_space(target->postfix, ringbuf->tail,
-					   ringbuf->size);
-		if (space >= bytes)
-			break;
-	}
-
-	if (WARN_ON(&target->list == &engine->request_list))
-		return -ENOSPC;
-
-	ret = i915_wait_request(target);
-	if (ret)
-		return ret;
-
-	ringbuf->space = space;
-	return 0;
-}
-
 /*
  * intel_logical_ring_advance_and_submit() - advance the tail and submit the workload
  * @request: Request to advance the logical ringbuffer of.
@@ -814,92 +772,6 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 	return 0;
 }
 
-static void __wrap_ring_buffer(struct intel_ringbuffer *ringbuf)
-{
-	uint32_t __iomem *virt;
-	int rem = ringbuf->size - ringbuf->tail;
-
-	virt = ringbuf->virtual_start + ringbuf->tail;
-	rem /= 4;
-	while (rem--)
-		iowrite32(MI_NOOP, virt++);
-
-	ringbuf->tail = 0;
-	intel_ring_update_space(ringbuf);
-}
-
-static int logical_ring_prepare(struct drm_i915_gem_request *req, int bytes)
-{
-	struct intel_ringbuffer *ringbuf = req->ringbuf;
-	int remain_usable = ringbuf->effective_size - ringbuf->tail;
-	int remain_actual = ringbuf->size - ringbuf->tail;
-	int ret, total_bytes, wait_bytes = 0;
-	bool need_wrap = false;
-
-	if (ringbuf->reserved_in_use)
-		total_bytes = bytes;
-	else
-		total_bytes = bytes + ringbuf->reserved_size;
-
-	if (unlikely(bytes > remain_usable)) {
-		/*
-		 * Not enough space for the basic request. So need to flush
-		 * out the remainder and then wait for base + reserved.
-		 */
-		wait_bytes = remain_actual + total_bytes;
-		need_wrap = true;
-	} else {
-		if (unlikely(total_bytes > remain_usable)) {
-			/*
-			 * The base request will fit but the reserved space
-			 * falls off the end. So don't need an immediate wrap
-			 * and only need to effectively wait for the reserved
-			 * size space from the start of ringbuffer.
-			 */
-			wait_bytes = remain_actual + ringbuf->reserved_size;
-		} else if (total_bytes > ringbuf->space) {
-			/* No wrapping required, just waiting. */
-			wait_bytes = total_bytes;
-		}
-	}
-
-	if (wait_bytes) {
-		ret = logical_ring_wait_for_space(req, wait_bytes);
-		if (unlikely(ret))
-			return ret;
-
-		if (need_wrap)
-			__wrap_ring_buffer(ringbuf);
-	}
-
-	return 0;
-}
-
-/**
- * intel_logical_ring_begin() - prepare the logical ringbuffer to accept some commands
- *
- * @req: The request to start some new work for
- * @num_dwords: number of DWORDs that we plan to write to the ringbuffer.
- *
- * The ringbuffer might not be ready to accept the commands right away (maybe it needs to
- * be wrapped, or wait a bit for the tail to be updated). This function takes care of that
- * and also preallocates a request (every workload submission is still mediated through
- * requests, same as it did with legacy ringbuffer submission).
- *
- * Return: non-zero if the ringbuffer is not ready to be written to.
- */
-int intel_logical_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
-{
-	int ret;
-
-	ret = logical_ring_prepare(req, num_dwords * sizeof(uint32_t));
-	if (ret)
-		return ret;
-
-	req->ringbuf->space -= num_dwords * sizeof(uint32_t);
-	return 0;
-}
-
 int intel_logical_ring_reserve_space(struct drm_i915_gem_request *request)
 {
 	/*
@@ -912,7 +784,7 @@ int intel_logical_ring_reserve_space(struct drm_i915_gem_request *request)
 	 */
 	intel_ring_reserved_space_reserve(request->ringbuf, MIN_SPACE_FOR_ADD_REQUEST);
 
-	return intel_logical_ring_begin(request, 0);
+	return intel_ring_begin(request, 0);
 }
 
 /**
@@ -982,7 +854,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 
 	if (engine == &dev_priv->engine[RCS] &&
 	    instp_mode != dev_priv->relative_constants_mode) {
-		ret = intel_logical_ring_begin(params->request, 4);
+		ret = intel_ring_begin(params->request, 4);
 		if (ret)
 			return ret;
 
@@ -1178,7 +1050,7 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	ret = intel_logical_ring_begin(req, w->count * 2 + 2);
+	ret = intel_ring_begin(req, w->count * 2 + 2);
 	if (ret)
 		return ret;
 
@@ -1669,7 +1541,7 @@ static int intel_logical_ring_emit_pdps(struct drm_i915_gem_request *req)
 	const int num_lri_cmds = GEN8_LEGACY_PDPES * 2;
 	int i, ret;
 
-	ret = intel_logical_ring_begin(req, num_lri_cmds * 2 + 2);
+	ret = intel_ring_begin(req, num_lri_cmds * 2 + 2);
 	if (ret)
 		return ret;
 
@@ -1716,7 +1588,7 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 		req->ctx->ppgtt->pd_dirty_rings &= ~intel_engine_flag(req->engine);
 	}
 
-	ret = intel_logical_ring_begin(req, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -1778,7 +1650,7 @@ static int gen8_emit_flush(struct drm_i915_gem_request *request,
 	uint32_t cmd;
 	int ret;
 
-	ret = intel_logical_ring_begin(request, 4);
+	ret = intel_ring_begin(request, 4);
 	if (ret)
 		return ret;
 
@@ -1846,7 +1718,7 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 			vf_flush_wa = true;
 	}
 
-	ret = intel_logical_ring_begin(request, vf_flush_wa ? 12 : 6);
+	ret = intel_ring_begin(request, vf_flush_wa ? 12 : 6);
 	if (ret)
 		return ret;
 
@@ -1920,7 +1792,7 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
 	int ret;
 
-	ret = intel_logical_ring_begin(request, 6 + WA_TAIL_DWORDS);
+	ret = intel_ring_begin(request, 6 + WA_TAIL_DWORDS);
 	if (ret)
 		return ret;
 
@@ -1944,7 +1816,7 @@ static int gen8_emit_request_render(struct drm_i915_gem_request *request)
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
 	int ret;
 
-	ret = intel_logical_ring_begin(request, 8 + WA_TAIL_DWORDS);
+	ret = intel_ring_begin(request, 8 + WA_TAIL_DWORDS);
 	if (ret)
 		return ret;
 

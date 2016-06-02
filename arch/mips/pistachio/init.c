@@ -83,12 +83,16 @@ static void __init plat_setup_iocoherency(void)
 	}
 }
 
-void __init plat_mem_setup(void)
+void __init *plat_get_fdt(void)
 {
 	if (fw_arg0 != -2)
 		panic("Device-tree not present");
+	return (void *)fw_arg1;
+}
 
-	__dt_setup_arch((void *)fw_arg1);
+void __init plat_mem_setup(void)
+{
+	__dt_setup_arch(plat_get_fdt());
 
 	plat_setup_iocoherency();
 }

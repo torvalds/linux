@@ -668,8 +668,8 @@ int find_inline_backref(struct extent_buffer *leaf, int slot,
  * roots of b-trees that reference the tree block.
  *
  * the basic idea of this function is check backrefs of a given block
- * to find upper level blocks that refernece the block, and then check
- * bakcrefs of these upper level blocks recursively. the recursion stop
+ * to find upper level blocks that reference the block, and then check
+ * backrefs of these upper level blocks recursively. the recursion stop
  * when tree root is reached or backrefs for the block is cached.
  *
  * NOTE: if we find backrefs for a block are cached, we know backrefs
@@ -1160,7 +1160,7 @@ out:
 			if (!RB_EMPTY_NODE(&upper->rb_node))
 				continue;
 
-			/* Add this guy's upper edges to the list to proces */
+			/* Add this guy's upper edges to the list to process */
 			list_for_each_entry(edge, &upper->upper, list[LOWER])
 				list_add_tail(&edge->list[UPPER], &list);
 			if (list_empty(&upper->upper))
@@ -2396,7 +2396,7 @@ again:
 		}
 
 		/*
-		 * we keep the old last snapshod transid in rtranid when we
+		 * we keep the old last snapshot transid in rtranid when we
 		 * created the relocation tree.
 		 */
 		last_snap = btrfs_root_rtransid(&reloc_root->root_item);
@@ -2616,7 +2616,7 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 			 * only one thread can access block_rsv at this point,
 			 * so we don't need hold lock to protect block_rsv.
 			 * we expand more reservation size here to allow enough
-			 * space for relocation and we will return eailer in
+			 * space for relocation and we will return earlier in
 			 * enospc case.
 			 */
 			rc->block_rsv->size = tmp + rc->extent_root->nodesize *
@@ -2814,7 +2814,7 @@ static void mark_block_processed(struct reloc_control *rc,
 				 u64 bytenr, u32 blocksize)
 {
 	set_extent_bits(&rc->processed_blocks, bytenr, bytenr + blocksize - 1,
-			EXTENT_DIRTY, GFP_NOFS);
+			EXTENT_DIRTY);
 }
 
 static void __mark_block_processed(struct reloc_control *rc,
@@ -3182,7 +3182,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 		    page_start + offset == cluster->boundary[nr]) {
 			set_extent_bits(&BTRFS_I(inode)->io_tree,
 					page_start, page_end,
-					EXTENT_BOUNDARY, GFP_NOFS);
+					EXTENT_BOUNDARY);
 			nr++;
 		}
 
@@ -4059,8 +4059,7 @@ restart:
 	}
 
 	btrfs_release_path(path);
-	clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY,
-			  GFP_NOFS);
+	clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY);
 
 	if (trans) {
 		btrfs_end_transaction_throttle(trans, rc->extent_root);
@@ -4591,7 +4590,7 @@ int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
 
 /*
  * called before creating snapshot. it calculates metadata reservation
- * requried for relocating tree blocks in the snapshot
+ * required for relocating tree blocks in the snapshot
  */
 void btrfs_reloc_pre_snapshot(struct btrfs_pending_snapshot *pending,
 			      u64 *bytes_to_reserve)

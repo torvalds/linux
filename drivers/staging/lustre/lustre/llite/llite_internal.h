@@ -976,8 +976,8 @@ static inline __u64 ll_file_maxbytes(struct inode *inode)
 }
 
 /* llite/xattr.c */
-int ll_setxattr(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags);
+int ll_setxattr(struct dentry *dentry, struct inode *inode,
+		const char *name, const void *value, size_t size, int flags);
 ssize_t ll_getxattr(struct dentry *dentry, struct inode *inode,
 		    const char *name, void *buffer, size_t size);
 ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size);

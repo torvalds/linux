@@ -211,8 +211,6 @@ struct rvt_mmap_info {
 	unsigned size;
 };
 
-#define RVT_MAX_RDMA_ATOMIC	16
-
 /*
  * This structure holds the information that the send tasklet needs
  * to send a RDMA read response or atomic operation.
@@ -282,8 +280,7 @@ struct rvt_qp {
 	atomic_t refcount ____cacheline_aligned_in_smp;
 	wait_queue_head_t wait;
 
-	struct rvt_ack_entry s_ack_queue[RVT_MAX_RDMA_ATOMIC + 1]
-		____cacheline_aligned_in_smp;
+	struct rvt_ack_entry *s_ack_queue;
 	struct rvt_sge_state s_rdma_read_sge;
 
 	spinlock_t r_lock ____cacheline_aligned_in_smp;      /* used for APM */

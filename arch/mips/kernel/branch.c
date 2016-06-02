@@ -481,7 +481,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			/*
 			 * OK we are here either because we hit a NAL
 			 * instruction or because we are emulating an
-			 * old bltzal{,l} one. Lets figure out what the
+			 * old bltzal{,l} one. Let's figure out what the
 			 * case really is.
 			 */
 			if (!insn.i_format.rs) {
@@ -515,7 +515,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			/*
 			 * OK we are here either because we hit a BAL
 			 * instruction or because we are emulating an
-			 * old bgezal{,l} one. Lets figure out what the
+			 * old bgezal{,l} one. Let's figure out what the
 			 * case really is.
 			 */
 			if (!insn.i_format.rs) {

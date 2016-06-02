@@ -2202,7 +2202,7 @@ fpu_emul:
 	}
 
 	/*
-	 * Lets not return to userland just yet. It's constly and
+	 * Let's not return to userland just yet. It's costly and
 	 * it's likely we have more R2 instructions to emulate
 	 */
 	if (!err && (pass++ < MIPS_R2_EMUL_TOTAL_PASS)) {

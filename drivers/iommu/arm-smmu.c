@@ -950,7 +950,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 
 	ret = __arm_smmu_alloc_bitmap(smmu->context_map, start,
 				      smmu->num_context_banks);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		goto out_unlock;
 
 	cfg->cbndx = ret;
@@ -989,7 +989,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
 	ret = request_irq(irq, arm_smmu_context_fault, IRQF_SHARED,
 			  "arm-smmu-context-fault", domain);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret < 0) {
 		dev_err(smmu->dev, "failed to request context IRQ %d (%u)\n",
 			cfg->irptndx, irq);
 		cfg->irptndx = INVALID_IRPTNDX;
@@ -1099,7 +1099,7 @@ static int arm_smmu_master_configure_smrs(struct arm_smmu_device *smmu,
 	for (i = 0; i < cfg->num_streamids; ++i) {
 		int idx = __arm_smmu_alloc_bitmap(smmu->smr_map, 0,
 						  smmu->num_mapping_groups);
-		if (IS_ERR_VALUE(idx)) {
+		if (idx < 0) {
 			dev_err(smmu->dev, "failed to allocate free SMR\n");
 			goto err_free_smrs;
 		}
@@ -1233,7 +1233,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		return ret;
 
 	/*

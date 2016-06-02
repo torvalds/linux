@@ -1702,9 +1702,9 @@ static const struct intel_dpll_mgr hsw_pll_mgr = {
 
 static const struct dpll_info skl_plls[] = {
 	{ "DPLL 0", DPLL_ID_SKL_DPLL0, &skl_ddi_dpll0_funcs, INTEL_DPLL_ALWAYS_ON },
-	{ "DPPL 1", DPLL_ID_SKL_DPLL1, &skl_ddi_pll_funcs,   0 },
-	{ "DPPL 2", DPLL_ID_SKL_DPLL2, &skl_ddi_pll_funcs,   0 },
-	{ "DPPL 3", DPLL_ID_SKL_DPLL3, &skl_ddi_pll_funcs,   0 },
+	{ "DPLL 1", DPLL_ID_SKL_DPLL1, &skl_ddi_pll_funcs,   0 },
+	{ "DPLL 2", DPLL_ID_SKL_DPLL2, &skl_ddi_pll_funcs,   0 },
+	{ "DPLL 3", DPLL_ID_SKL_DPLL3, &skl_ddi_pll_funcs,   0 },
 	{ NULL, -1, NULL, },
 };
 

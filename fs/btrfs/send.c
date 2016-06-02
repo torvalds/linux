@@ -1831,7 +1831,7 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 
 	/*
 	 * If we have a parent root we need to verify that the parent dir was
-	 * not delted and then re-created, if it was then we have no overwrite
+	 * not deleted and then re-created, if it was then we have no overwrite
 	 * and we can just unlink this entry.
 	 */
 	if (sctx->parent_root) {
@@ -4192,9 +4192,9 @@ static int __process_new_xattr(int num, struct btrfs_key *di_key,
 		return -ENOMEM;
 
 	/*
-	 * This hack is needed because empty acl's are stored as zero byte
+	 * This hack is needed because empty acls are stored as zero byte
 	 * data in xattrs. Problem with that is, that receiving these zero byte
-	 * acl's will fail later. To fix this, we send a dummy acl list that
+	 * acls will fail later. To fix this, we send a dummy acl list that
 	 * only contains the version number and no entries.
 	 */
 	if (!strncmp(name, XATTR_NAME_POSIX_ACL_ACCESS, name_len) ||

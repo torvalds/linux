@@ -1431,7 +1431,7 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 	int gpio_ro = mmc_gpio_get_ro(mmc);
 
 	/* Use platform get_ro function, else try on board write protect */
-	if (!IS_ERR_VALUE(gpio_ro))
+	if (gpio_ro >= 0)
 		read_only = gpio_ro;
 	else
 		read_only =
@@ -1454,7 +1454,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	if ((mmc->caps & MMC_CAP_NEEDS_POLL) ||
 	    (mmc->caps & MMC_CAP_NONREMOVABLE))
 		present = 1;
-	else if (!IS_ERR_VALUE(gpio_cd))
+	else if (gpio_cd >= 0)
 		present = gpio_cd;
 	else
 		present = (mci_readl(slot->host, CDETECT) & (1 << slot->id))
@@ -2927,7 +2927,7 @@ static void dw_mci_enable_cd(struct dw_mci *host)
 		if (slot->mmc->caps & MMC_CAP_NEEDS_POLL)
 			return;
 
-		if (IS_ERR_VALUE(mmc_gpio_get_cd(slot->mmc)))
+		if (mmc_gpio_get_cd(slot->mmc) < 0)
 			break;
 	}
 	if (i == host->num_slots)

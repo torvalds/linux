@@ -112,7 +112,7 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 		 * Note that a running device replace operation is not
 		 * canceled here although there is no way to update
 		 * the progress. It would add the risk of a deadlock,
-		 * therefore the canceling is ommited. The only penalty
+		 * therefore the canceling is omitted. The only penalty
 		 * is that some I/O remains active until the procedure
 		 * completes. The next time when the filesystem is
 		 * mounted writeable again, the device replace
@@ -1877,7 +1877,7 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	int ret;
 
 	/*
-	 * We aren't under the device list lock, so this is racey-ish, but good
+	 * We aren't under the device list lock, so this is racy-ish, but good
 	 * enough for our purposes.
 	 */
 	nr_devices = fs_info->fs_devices->open_devices;
@@ -1896,7 +1896,7 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	if (!devices_info)
 		return -ENOMEM;
 
-	/* calc min stripe number for data space alloction */
+	/* calc min stripe number for data space allocation */
 	type = btrfs_get_alloc_profile(root, 1);
 	if (type & BTRFS_BLOCK_GROUP_RAID0) {
 		min_stripes = 2;
@@ -1932,7 +1932,7 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 		avail_space *= BTRFS_STRIPE_LEN;
 
 		/*
-		 * In order to avoid overwritting the superblock on the drive,
+		 * In order to avoid overwriting the superblock on the drive,
 		 * btrfs starts at an offset of at least 1MB when doing chunk
 		 * allocation.
 		 */

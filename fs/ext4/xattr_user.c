@@ -30,12 +30,13 @@ ext4_xattr_user_get(const struct xattr_handler *handler,
 
 static int
 ext4_xattr_user_set(const struct xattr_handler *handler,
-		    struct dentry *dentry, const char *name,
-		    const void *value, size_t size, int flags)
+		    struct dentry *unused, struct inode *inode,
+		    const char *name, const void *value,
+		    size_t size, int flags)
 {
-	if (!test_opt(dentry->d_sb, XATTR_USER))
+	if (!test_opt(inode->i_sb, XATTR_USER))
 		return -EOPNOTSUPP;
-	return ext4_xattr_set(d_inode(dentry), EXT4_XATTR_INDEX_USER,
+	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_USER,
 			      name, value, size, flags);
 }
 

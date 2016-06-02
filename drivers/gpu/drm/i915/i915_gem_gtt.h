@@ -514,6 +514,7 @@ i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
 }
 
 int i915_ggtt_init_hw(struct drm_device *dev);
+int i915_ggtt_enable_hw(struct drm_device *dev);
 void i915_gem_init_ggtt(struct drm_device *dev);
 void i915_ggtt_cleanup_hw(struct drm_device *dev);
 

@@ -66,7 +66,7 @@
 #define OPENOWNER_POOL_SIZE	8
 
 const nfs4_stateid zero_stateid = {
-	.data = { 0 },
+	{ .data = { 0 } },
 	.type = NFS4_SPECIAL_STATEID_TYPE,
 };
 static DEFINE_MUTEX(nfs_clid_init_mutex);

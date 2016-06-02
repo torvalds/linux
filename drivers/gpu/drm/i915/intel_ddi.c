@@ -1601,6 +1601,12 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
 
+	if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+
+		intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
+	}
+
 	intel_prepare_ddi_buffer(intel_encoder);
 
 	if (type == INTEL_OUTPUT_EDP) {
@@ -1667,6 +1673,12 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 					DPLL_CTRL2_DDI_CLK_OFF(port)));
 	else if (INTEL_INFO(dev)->gen < 9)
 		I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
+
+	if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+
+		intel_dp_dual_mode_set_tmds_output(intel_hdmi, false);
+	}
 }
 
 static void intel_enable_ddi(struct intel_encoder *intel_encoder)
@@ -2180,8 +2192,10 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 
 		if (intel_hdmi->infoframe_enabled(&encoder->base, pipe_config))
 			pipe_config->has_infoframe = true;
-		break;
+		/* fall through */
 	case TRANS_DDI_MODE_SELECT_DVI:
+		pipe_config->lane_count = 4;
+		break;
 	case TRANS_DDI_MODE_SELECT_FDI:
 		break;
 	case TRANS_DDI_MODE_SELECT_DP_SST:

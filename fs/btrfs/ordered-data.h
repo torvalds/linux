@@ -58,7 +58,7 @@ struct btrfs_ordered_sum {
 
 #define BTRFS_ORDERED_COMPRESSED 3 /* writing a zlib compressed extent */
 
-#define BTRFS_ORDERED_PREALLOC 4 /* set when writing to prealloced extent */
+#define BTRFS_ORDERED_PREALLOC 4 /* set when writing to preallocated extent */
 
 #define BTRFS_ORDERED_DIRECT 5 /* set when we're doing DIO with this extent */
 

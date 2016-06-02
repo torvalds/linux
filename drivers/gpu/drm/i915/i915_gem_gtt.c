@@ -3236,6 +3236,14 @@ out_gtt_cleanup:
 	return ret;
 }
 
+int i915_ggtt_enable_hw(struct drm_device *dev)
+{
+	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
+		return -EIO;
+
+	return 0;
+}
+
 void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);

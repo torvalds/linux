@@ -103,7 +103,6 @@ static void iceland_ih_disable_interrupts(struct amdgpu_device *adev)
  */
 static int iceland_ih_irq_init(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	int rb_bufsz;
 	u32 interrupt_cntl, ih_cntl, ih_rb_cntl;
 	u64 wptr_off;
@@ -157,7 +156,7 @@ static int iceland_ih_irq_init(struct amdgpu_device *adev)
 	/* enable interrupts */
 	iceland_ih_enable_interrupts(adev);
 
-	return ret;
+	return 0;
 }
 
 /**

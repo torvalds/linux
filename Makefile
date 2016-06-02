@@ -1,8 +1,8 @@
 VERSION = 4
-PATCHLEVEL = 6
+PATCHLEVEL = 7
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = Charred Weasel
+EXTRAVERSION = -rc1
+NAME = Psychotic Stoned Sheep
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

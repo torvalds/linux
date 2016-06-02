@@ -1456,7 +1456,10 @@ i915_wait_request(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	__i915_gem_request_retire__upto(req);
+	/* If the GPU hung, we want to keep the requests to find the guilty. */
+	if (req->reset_counter == i915_reset_counter(&dev_priv->gpu_error))
+		__i915_gem_request_retire__upto(req);
+
 	return 0;
 }
 
@@ -1513,7 +1516,8 @@ i915_gem_object_retire_request(struct drm_i915_gem_object *obj,
 	else if (obj->last_write_req == req)
 		i915_gem_object_retire__write(obj);
 
-	__i915_gem_request_retire__upto(req);
+	if (req->reset_counter == i915_reset_counter(&req->i915->gpu_error))
+		__i915_gem_request_retire__upto(req);
 }
 
 /* A nonblocking variant of the above wait. This is a highly dangerous routine
@@ -4859,9 +4863,6 @@ i915_gem_init_hw(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 	int ret, j;
-
-	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
-		return -EIO;
 
 	/* Double layer security blanket, see i915_gem_init() */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);

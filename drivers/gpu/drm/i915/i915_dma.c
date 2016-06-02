@@ -1183,6 +1183,12 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
+	ret = i915_ggtt_enable_hw(dev);
+	if (ret) {
+		DRM_ERROR("failed to enable GGTT\n");
+		goto out_ggtt;
+	}
+
 	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
 	 * otherwise the vga fbdev driver falls over. */
 	ret = i915_kick_out_firmware_fb(dev_priv);
