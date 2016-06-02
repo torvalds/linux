@@ -85,6 +85,8 @@ int amdgpu_powerplay = -1;
 int amdgpu_powercontainment = 1;
 unsigned amdgpu_pcie_gen_cap = 0;
 unsigned amdgpu_pcie_lane_cap = 0;
+unsigned amdgpu_cg_mask = 0xffffffff;
+unsigned amdgpu_pg_mask = 0xffffffff;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -171,6 +173,12 @@ module_param_named(pcie_gen_cap, amdgpu_pcie_gen_cap, uint, 0444);
 
 MODULE_PARM_DESC(pcie_lane_cap, "PCIE Lane Caps (0: autodetect (default))");
 module_param_named(pcie_lane_cap, amdgpu_pcie_lane_cap, uint, 0444);
+
+MODULE_PARM_DESC(cg_mask, "Clockgating flags mask (0 = disable clock gating)");
+module_param_named(cg_mask, amdgpu_cg_mask, uint, 0444);
+
+MODULE_PARM_DESC(pg_mask, "Powergating flags mask (0 = disable power gating)");
+module_param_named(pg_mask, amdgpu_pg_mask, uint, 0444);
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef CONFIG_DRM_AMDGPU_CIK

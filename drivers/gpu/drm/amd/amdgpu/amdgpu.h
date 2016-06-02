@@ -88,6 +88,8 @@ extern int amdgpu_powerplay;
 extern int amdgpu_powercontainment;
 extern unsigned amdgpu_pcie_gen_cap;
 extern unsigned amdgpu_pcie_lane_cap;
+extern unsigned amdgpu_cg_mask;
+extern unsigned amdgpu_pg_mask;
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
 #define AMDGPU_MAX_USEC_TIMEOUT			100000	/* 100 ms */

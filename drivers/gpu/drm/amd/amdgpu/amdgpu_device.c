@@ -1213,6 +1213,9 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 		}
 	}
 
+	adev->cg_flags &= amdgpu_cg_mask;
+	adev->pg_flags &= amdgpu_pg_mask;
+
 	return 0;
 }
 
