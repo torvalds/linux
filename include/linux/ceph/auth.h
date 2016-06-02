@@ -104,7 +104,7 @@ extern int ceph_auth_build_hello(struct ceph_auth_client *ac,
 extern int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 				  void *buf, size_t len,
 				  void *reply_buf, size_t reply_len);
-extern int ceph_entity_name_encode(const char *name, void **p, void *end);
+int ceph_auth_entity_name_encode(const char *name, void **p, void *end);
 
 extern int ceph_build_auth(struct ceph_auth_client *ac,
 		    void *msg_buf, size_t msg_len);
