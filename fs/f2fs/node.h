@@ -23,7 +23,7 @@
 #define MAX_RA_NODE		128
 
 /* control the memory footprint threshold (10MB per 1GB ram) */
-#define DEF_RAM_THRESHOLD	10
+#define DEF_RAM_THRESHOLD	1
 
 /* control dirty nats ratio threshold (default: 10% over max nid count) */
 #define DEF_DIRTY_NAT_RATIO_THRESHOLD		10
