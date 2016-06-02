@@ -332,7 +332,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->path_id		= QED_PATH_ID(p_hwfn);
 	p_ramrod->dont_log_ramrods	= 0;
 	p_ramrod->log_type_mask		= cpu_to_le16(0xf);
-	p_ramrod->mf_mode = mode;
+
 	switch (mode) {
 	case QED_MF_DEFAULT:
 	case QED_MF_NPAR:
@@ -368,6 +368,8 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->base_vf_id = (u8) p_iov->first_vf_in_pf;
 		p_ramrod->num_vfs = (u8) p_iov->total_vfs;
 	}
+	p_ramrod->hsi_fp_ver.major_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MAJOR;
+	p_ramrod->hsi_fp_ver.minor_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MINOR;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
 		   "Setting event_ring_sb [id %04x index %02x], outer_tag [%d]\n",

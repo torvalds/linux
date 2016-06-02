@@ -531,9 +531,9 @@ static void qed_mcp_handle_transceiver_change(struct qed_hwfn *p_hwfn,
 				  transceiver_data)));
 
 	transceiver_state = GET_FIELD(transceiver_state,
-				      PMM_TRANSCEIVER_STATE);
+				      ETH_TRANSCEIVER_STATE);
 
-	if (transceiver_state == PMM_TRANSCEIVER_STATE_PRESENT)
+	if (transceiver_state == ETH_TRANSCEIVER_STATE_PRESENT)
 		DP_NOTICE(p_hwfn, "Transceiver is present.\n");
 	else
 		DP_NOTICE(p_hwfn, "Transceiver is unplugged.\n");
@@ -668,14 +668,12 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	qed_link_update(p_hwfn);
 }
 
-int qed_mcp_set_link(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt,
-		     bool b_up)
+int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 {
 	struct qed_mcp_link_params *params = &p_hwfn->mcp_info->link_input;
 	struct qed_mcp_mb_params mb_params;
 	union drv_union_data union_data;
-	struct pmm_phy_cfg *phy_cfg;
+	struct eth_phy_cfg *phy_cfg;
 	int rc = 0;
 	u32 cmd;
 
@@ -685,9 +683,9 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn,
 	cmd = b_up ? DRV_MSG_CODE_INIT_PHY : DRV_MSG_CODE_LINK_RESET;
 	if (!params->speed.autoneg)
 		phy_cfg->speed = params->speed.forced_speed;
-	phy_cfg->pause |= (params->pause.autoneg) ? PMM_PAUSE_AUTONEG : 0;
-	phy_cfg->pause |= (params->pause.forced_rx) ? PMM_PAUSE_RX : 0;
-	phy_cfg->pause |= (params->pause.forced_tx) ? PMM_PAUSE_TX : 0;
+	phy_cfg->pause |= (params->pause.autoneg) ? ETH_PAUSE_AUTONEG : 0;
+	phy_cfg->pause |= (params->pause.forced_rx) ? ETH_PAUSE_RX : 0;
+	phy_cfg->pause |= (params->pause.forced_tx) ? ETH_PAUSE_TX : 0;
 	phy_cfg->adv_speed = params->speed.advertised_speeds;
 	phy_cfg->loopback_mode = params->loopback_mode;
 
@@ -771,6 +769,34 @@ static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
 		((u32 *)p_data)[i] = qed_rd(p_hwfn, p_ptt,
 					    func_addr + (i << 2));
 	return size;
+}
+
+int qed_hw_init_first_eth(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 *p_pf)
+{
+	struct public_func shmem_info;
+	int i;
+
+	/* Find first Ethernet interface in port */
+	for (i = 0; i < NUM_OF_ENG_PFS(p_hwfn->cdev);
+	     i += p_hwfn->cdev->num_ports_in_engines) {
+		qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info,
+				       MCP_PF_ID_BY_REL(p_hwfn, i));
+
+		if (shmem_info.config & FUNC_MF_CFG_FUNC_HIDE)
+			continue;
+
+		if ((shmem_info.config & FUNC_MF_CFG_PROTOCOL_MASK) ==
+		    FUNC_MF_CFG_PROTOCOL_ETHERNET) {
+			*p_pf = (u8)i;
+			return 0;
+		}
+	}
+
+	DP_NOTICE(p_hwfn,
+		  "Failed to find on port an ethernet interface in MF_SI mode\n");
+
+	return -EINVAL;
 }
 
 static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn,

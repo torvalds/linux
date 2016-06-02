@@ -543,8 +543,7 @@ void qed_gtt_init(struct qed_hwfn *p_hwfn)
 			       pxp_global_win[i]);
 }
 
-int qed_init_fw_data(struct qed_dev *cdev,
-		     const u8 *data)
+int qed_init_fw_data(struct qed_dev *cdev, const u8 *data)
 {
 	struct qed_fw_data *fw = cdev->fw_data;
 	struct bin_buffer_hdr *buf_hdr;
@@ -555,7 +554,11 @@ int qed_init_fw_data(struct qed_dev *cdev,
 		return -EINVAL;
 	}
 
-	buf_hdr = (struct bin_buffer_hdr *)data;
+	/* First Dword contains metadata and should be skipped */
+	buf_hdr = (struct bin_buffer_hdr *)(data + sizeof(u32));
+
+	offset = buf_hdr[BIN_BUF_FW_VER_INFO].offset;
+	fw->fw_ver_info = (struct fw_ver_info *)(data + offset);
 
 	offset = buf_hdr[BIN_BUF_INIT_CMD].offset;
 	fw->init_ops = (union init_op *)(data + offset);

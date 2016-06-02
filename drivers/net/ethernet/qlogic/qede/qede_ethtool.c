@@ -910,6 +910,8 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	memset(first_bd, 0, sizeof(*first_bd));
 	val = 1 << ETH_TX_1ST_BD_FLAGS_START_BD_SHIFT;
 	first_bd->data.bd_flags.bitfields = val;
+	val = skb->len & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK;
+	first_bd->data.bitfields |= (val << ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT);
 
 	/* Map skb linear data for DMA and set in the first BD */
 	mapping = dma_map_single(&edev->pdev->dev, skb->data,

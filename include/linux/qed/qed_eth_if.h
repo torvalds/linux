@@ -113,6 +113,7 @@ struct qed_queue_start_common_params {
 	u8 vport_id;
 	u16 sb;
 	u16 sb_idx;
+	u16 vf_qid;
 };
 
 struct qed_tunn_params {

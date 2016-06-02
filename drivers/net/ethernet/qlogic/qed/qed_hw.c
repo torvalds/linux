@@ -446,7 +446,7 @@ qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 			   idx_cmd,
 			   le32_to_cpu(command->opcode),
 			   le16_to_cpu(command->opcode_b),
-			   le16_to_cpu(command->length),
+			   le16_to_cpu(command->length_dw),
 			   le32_to_cpu(command->src_addr_hi),
 			   le32_to_cpu(command->src_addr_lo),
 			   le32_to_cpu(command->dst_addr_hi),
@@ -461,7 +461,7 @@ qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 		   idx_cmd,
 		   le32_to_cpu(command->opcode),
 		   le16_to_cpu(command->opcode_b),
-		   le16_to_cpu(command->length),
+		   le16_to_cpu(command->length_dw),
 		   le32_to_cpu(command->src_addr_hi),
 		   le32_to_cpu(command->src_addr_lo),
 		   le32_to_cpu(command->dst_addr_hi),
@@ -645,7 +645,7 @@ static int qed_dmae_execute_sub_operation(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	cmd->length = cpu_to_le16((u16)length);
+	cmd->length_dw = cpu_to_le16((u16)length);
 
 	qed_dmae_post_command(p_hwfn, p_ptt);
 

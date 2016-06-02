@@ -13,9 +13,19 @@
 
 #define X_FINAL_CLEANUP_AGG_INT 1
 
+/* Queue Zone sizes in bytes */
+#define TSTORM_QZONE_SIZE 8
+#define MSTORM_QZONE_SIZE 0
+#define USTORM_QZONE_SIZE 8
+#define XSTORM_QZONE_SIZE 8
+#define YSTORM_QZONE_SIZE 0
+#define PSTORM_QZONE_SIZE 0
+
+#define ETH_MAX_NUM_RX_QUEUES_PER_VF 16
+
 #define FW_MAJOR_VERSION	8
-#define FW_MINOR_VERSION	7
-#define FW_REVISION_VERSION	3
+#define FW_MINOR_VERSION	10
+#define FW_REVISION_VERSION	5
 #define FW_ENGINEERING_VERSION	0
 
 /***********************/
@@ -97,45 +107,86 @@
 #define DQ_XCM_AGG_VAL_SEL_REG6   7
 
 /* XCM agg val selection */
-#define DQ_XCM_ETH_EDPM_NUM_BDS_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD2
-#define DQ_XCM_ETH_TX_BD_CONS_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD3
-#define DQ_XCM_CORE_TX_BD_CONS_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD3
-#define DQ_XCM_ETH_TX_BD_PROD_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD4
-#define DQ_XCM_CORE_TX_BD_PROD_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD4
-#define DQ_XCM_CORE_SPQ_PROD_CMD \
-	DQ_XCM_AGG_VAL_SEL_WORD4
-#define DQ_XCM_ETH_GO_TO_BD_CONS_CMD            DQ_XCM_AGG_VAL_SEL_WORD5
+#define	DQ_XCM_CORE_TX_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD3
+#define	DQ_XCM_CORE_TX_BD_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define	DQ_XCM_CORE_SPQ_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define	DQ_XCM_ETH_EDPM_NUM_BDS_CMD	DQ_XCM_AGG_VAL_SEL_WORD2
+#define	DQ_XCM_ETH_TX_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD3
+#define	DQ_XCM_ETH_TX_BD_PROD_CMD	DQ_XCM_AGG_VAL_SEL_WORD4
+#define	DQ_XCM_ETH_GO_TO_BD_CONS_CMD	DQ_XCM_AGG_VAL_SEL_WORD5
+
+/* UCM agg val selection (HW) */
+#define	DQ_UCM_AGG_VAL_SEL_WORD0	0
+#define	DQ_UCM_AGG_VAL_SEL_WORD1	1
+#define	DQ_UCM_AGG_VAL_SEL_WORD2	2
+#define	DQ_UCM_AGG_VAL_SEL_WORD3	3
+#define	DQ_UCM_AGG_VAL_SEL_REG0	4
+#define	DQ_UCM_AGG_VAL_SEL_REG1	5
+#define	DQ_UCM_AGG_VAL_SEL_REG2	6
+#define	DQ_UCM_AGG_VAL_SEL_REG3	7
+
+/* UCM agg val selection (FW) */
+#define DQ_UCM_ETH_PMD_TX_CONS_CMD	DQ_UCM_AGG_VAL_SEL_WORD2
+#define DQ_UCM_ETH_PMD_RX_CONS_CMD	DQ_UCM_AGG_VAL_SEL_WORD3
+#define DQ_UCM_ROCE_CQ_CONS_CMD		DQ_UCM_AGG_VAL_SEL_REG0
+#define DQ_UCM_ROCE_CQ_PROD_CMD		DQ_UCM_AGG_VAL_SEL_REG2
+
+/* TCM agg val selection (HW) */
+#define	DQ_TCM_AGG_VAL_SEL_WORD0	0
+#define	DQ_TCM_AGG_VAL_SEL_WORD1	1
+#define	DQ_TCM_AGG_VAL_SEL_WORD2	2
+#define	DQ_TCM_AGG_VAL_SEL_WORD3	3
+#define	DQ_TCM_AGG_VAL_SEL_REG1		4
+#define	DQ_TCM_AGG_VAL_SEL_REG2		5
+#define	DQ_TCM_AGG_VAL_SEL_REG6		6
+#define	DQ_TCM_AGG_VAL_SEL_REG9		7
+
+/* TCM agg val selection (FW) */
+#define DQ_TCM_L2B_BD_PROD_CMD \
+	DQ_TCM_AGG_VAL_SEL_WORD1
+#define DQ_TCM_ROCE_RQ_PROD_CMD	\
+	DQ_TCM_AGG_VAL_SEL_WORD0
 
 /* XCM agg counter flag selection */
-#define DQ_XCM_AGG_FLG_SHIFT_BIT14  0
-#define DQ_XCM_AGG_FLG_SHIFT_BIT15  1
-#define DQ_XCM_AGG_FLG_SHIFT_CF12   2
-#define DQ_XCM_AGG_FLG_SHIFT_CF13   3
-#define DQ_XCM_AGG_FLG_SHIFT_CF18   4
-#define DQ_XCM_AGG_FLG_SHIFT_CF19   5
-#define DQ_XCM_AGG_FLG_SHIFT_CF22   6
-#define DQ_XCM_AGG_FLG_SHIFT_CF23   7
+#define	DQ_XCM_AGG_FLG_SHIFT_BIT14	0
+#define	DQ_XCM_AGG_FLG_SHIFT_BIT15	1
+#define	DQ_XCM_AGG_FLG_SHIFT_CF12	2
+#define	DQ_XCM_AGG_FLG_SHIFT_CF13	3
+#define	DQ_XCM_AGG_FLG_SHIFT_CF18	4
+#define	DQ_XCM_AGG_FLG_SHIFT_CF19	5
+#define	DQ_XCM_AGG_FLG_SHIFT_CF22	6
+#define	DQ_XCM_AGG_FLG_SHIFT_CF23	7
 
 /* XCM agg counter flag selection */
-#define DQ_XCM_ETH_DQ_CF_CMD		(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF18)
-#define DQ_XCM_CORE_DQ_CF_CMD		(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF18)
-#define DQ_XCM_ETH_TERMINATE_CMD	(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF19)
-#define DQ_XCM_CORE_TERMINATE_CMD	(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF19)
-#define DQ_XCM_ETH_SLOW_PATH_CMD	(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF22)
-#define DQ_XCM_CORE_SLOW_PATH_CMD	(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF22)
-#define DQ_XCM_ETH_TPH_EN_CMD		(1 << \
-					DQ_XCM_AGG_FLG_SHIFT_CF23)
+#define DQ_XCM_CORE_DQ_CF_CMD		(1 << DQ_XCM_AGG_FLG_SHIFT_CF18)
+#define DQ_XCM_CORE_TERMINATE_CMD	(1 << DQ_XCM_AGG_FLG_SHIFT_CF19)
+#define DQ_XCM_CORE_SLOW_PATH_CMD	(1 << DQ_XCM_AGG_FLG_SHIFT_CF22)
+#define DQ_XCM_ETH_DQ_CF_CMD		(1 << DQ_XCM_AGG_FLG_SHIFT_CF18)
+#define DQ_XCM_ETH_TERMINATE_CMD	(1 << DQ_XCM_AGG_FLG_SHIFT_CF19)
+#define DQ_XCM_ETH_SLOW_PATH_CMD	(1 << DQ_XCM_AGG_FLG_SHIFT_CF22)
+#define DQ_XCM_ETH_TPH_EN_CMD		(1 << DQ_XCM_AGG_FLG_SHIFT_CF23)
+
+/* UCM agg counter flag selection (HW) */
+#define	DQ_UCM_AGG_FLG_SHIFT_CF0	0
+#define	DQ_UCM_AGG_FLG_SHIFT_CF1	1
+#define	DQ_UCM_AGG_FLG_SHIFT_CF3	2
+#define	DQ_UCM_AGG_FLG_SHIFT_CF4	3
+#define	DQ_UCM_AGG_FLG_SHIFT_CF5	4
+#define	DQ_UCM_AGG_FLG_SHIFT_CF6	5
+#define	DQ_UCM_AGG_FLG_SHIFT_RULE0EN	6
+#define	DQ_UCM_AGG_FLG_SHIFT_RULE1EN	7
+
+/* UCM agg counter flag selection (FW) */
+#define DQ_UCM_ETH_PMD_TX_ARM_CMD	(1 << DQ_UCM_AGG_FLG_SHIFT_CF4)
+#define DQ_UCM_ETH_PMD_RX_ARM_CMD	(1 << DQ_UCM_AGG_FLG_SHIFT_CF5)
+
+#define	DQ_REGION_SHIFT	(12)
+
+/* DPM */
+#define	DQ_DPM_WQE_BUFF_SIZE	(320)
+
+/* Conn type ranges */
+#define	DQ_CONN_TYPE_RANGE_SHIFT	(4)
 
 /*****************/
 /* QM CONSTANTS  */
@@ -282,8 +333,6 @@
 	(PXP_EXTERNAL_BAR_GLOBAL_WINDOW_START + \
 	 PXP_EXTERNAL_BAR_GLOBAL_WINDOW_LENGTH - 1)
 
-#define PXP_ILT_PAGE_SIZE_NUM_BITS_MIN	12
-#define PXP_ILT_BLOCK_FACTOR_MULTIPLIER	1024
 
 #define PXP_VF_BAR0_START_IGU                   0
 #define PXP_VF_BAR0_IGU_LENGTH                  0x3000
@@ -342,6 +391,9 @@
 
 #define PXP_VF_BAR0_GRC_WINDOW_LENGTH           32
 
+#define PXP_ILT_PAGE_SIZE_NUM_BITS_MIN		12
+#define PXP_ILT_BLOCK_FACTOR_MULTIPLIER		1024
+
 /* ILT Records */
 #define PXP_NUM_ILT_RECORDS_BB 7600
 #define PXP_NUM_ILT_RECORDS_K2 11000
@@ -379,6 +431,38 @@ struct async_data {
 	u8	fw_debug_param;
 };
 
+struct coalescing_timeset {
+	u8 value;
+#define	COALESCING_TIMESET_TIMESET_MASK		0x7F
+#define	COALESCING_TIMESET_TIMESET_SHIFT	0
+#define	COALESCING_TIMESET_VALID_MASK		0x1
+#define	COALESCING_TIMESET_VALID_SHIFT		7
+};
+
+struct common_prs_pf_msg_info {
+	__le32 value;
+#define	COMMON_PRS_PF_MSG_INFO_NPAR_DEFAULT_PF_MASK	0x1
+#define	COMMON_PRS_PF_MSG_INFO_NPAR_DEFAULT_PF_SHIFT	0
+#define	COMMON_PRS_PF_MSG_INFO_FW_DEBUG_1_MASK		0x1
+#define	COMMON_PRS_PF_MSG_INFO_FW_DEBUG_1_SHIFT		1
+#define	COMMON_PRS_PF_MSG_INFO_FW_DEBUG_2_MASK		0x1
+#define	COMMON_PRS_PF_MSG_INFO_FW_DEBUG_2_SHIFT		2
+#define	COMMON_PRS_PF_MSG_INFO_FW_DEBUG_3_MASK		0x1
+#define	COMMON_PRS_PF_MSG_INFO_FW_DEBUG_3_SHIFT		3
+#define	COMMON_PRS_PF_MSG_INFO_RESERVED_MASK		0xFFFFFFF
+#define	COMMON_PRS_PF_MSG_INFO_RESERVED_SHIFT		4
+};
+
+struct common_queue_zone {
+	__le16 ring_drv_data_consumer;
+	__le16 reserved;
+};
+
+struct eth_rx_prod_data {
+	__le16 bd_prod;
+	__le16 cqe_prod;
+};
+
 struct regpair {
 	__le32	lo;
 	__le32	hi;
@@ -388,11 +472,23 @@ struct vf_pf_channel_eqe_data {
 	struct regpair msg_addr;
 };
 
+struct malicious_vf_eqe_data {
+	u8 vf_id;
+	u8 err_id;
+	__le16 reserved[3];
+};
+
+struct initial_cleanup_eqe_data {
+	u8 vf_id;
+	u8 reserved[7];
+};
+
 /* Event Data Union */
 union event_ring_data {
-	u8				bytes[8];
-	struct vf_pf_channel_eqe_data	vf_pf_channel;
-	struct async_data		async_info;
+	u8 bytes[8];
+	struct vf_pf_channel_eqe_data vf_pf_channel;
+	struct malicious_vf_eqe_data malicious_vf;
+	struct initial_cleanup_eqe_data vf_init_cleanup;
 };
 
 /* Event Ring Entry */
@@ -431,6 +527,16 @@ enum protocol_type {
 	PROTOCOLID_COMMON,
 	PROTOCOLID_RESERVED6,
 	MAX_PROTOCOL_TYPE
+};
+
+struct ustorm_eth_queue_zone {
+	struct coalescing_timeset int_coalescing_timeset;
+	u8 reserved[3];
+};
+
+struct ustorm_queue_zone {
+	struct ustorm_eth_queue_zone eth;
+	struct common_queue_zone common;
 };
 
 /* status block structure */
@@ -683,19 +789,4 @@ struct status_block {
 #define STATUS_BLOCK_ZERO_PAD3_SHIFT  24
 };
 
-struct tunnel_parsing_flags {
-	u8 flags;
-#define TUNNEL_PARSING_FLAGS_TYPE_MASK              0x3
-#define TUNNEL_PARSING_FLAGS_TYPE_SHIFT             0
-#define TUNNEL_PARSING_FLAGS_TENNANT_ID_EXIST_MASK  0x1
-#define TUNNEL_PARSING_FLAGS_TENNANT_ID_EXIST_SHIFT 2
-#define TUNNEL_PARSING_FLAGS_NEXT_PROTOCOL_MASK     0x3
-#define TUNNEL_PARSING_FLAGS_NEXT_PROTOCOL_SHIFT    3
-#define TUNNEL_PARSING_FLAGS_FIRSTHDRIPMATCH_MASK   0x1
-#define TUNNEL_PARSING_FLAGS_FIRSTHDRIPMATCH_SHIFT  5
-#define TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_MASK     0x1
-#define TUNNEL_PARSING_FLAGS_IPV4_FRAGMENT_SHIFT    6
-#define TUNNEL_PARSING_FLAGS_IPV4_OPTIONS_MASK      0x1
-#define TUNNEL_PARSING_FLAGS_IPV4_OPTIONS_SHIFT     7
-};
 #endif /* __COMMON_HSI__ */

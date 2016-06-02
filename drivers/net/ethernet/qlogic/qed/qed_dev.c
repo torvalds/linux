@@ -244,6 +244,7 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 		qm_info->qm_pq_params[curr_queue].tc_id =
 		    p_hwfn->hw_info.non_offload_tc;
 		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		qm_info->qm_pq_params[curr_queue].rl_valid = 1;
 		curr_queue++;
 	}
 
@@ -256,7 +257,10 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 	for (i = 0; i < num_ports; i++) {
 		p_qm_port = &qm_info->qm_port_params[i];
 		p_qm_port->active = 1;
-		p_qm_port->num_active_phys_tcs = 4;
+		if (num_ports == 4)
+			p_qm_port->active_phys_tcs = 0x7;
+		else
+			p_qm_port->active_phys_tcs = 0x9f;
 		p_qm_port->num_pbf_cmd_lines = PBF_MAX_CMD_LINES / num_ports;
 		p_qm_port->num_btb_blocks = BTB_MAX_BLOCKS / num_ports;
 	}
@@ -703,8 +707,31 @@ static int qed_hw_init_port(struct qed_hwfn *p_hwfn,
 {
 	int rc = 0;
 
-	rc = qed_init_run(p_hwfn, p_ptt, PHASE_PORT, p_hwfn->port_id,
-			  hw_mode);
+	rc = qed_init_run(p_hwfn, p_ptt, PHASE_PORT, p_hwfn->port_id, hw_mode);
+	if (rc != 0)
+		return rc;
+
+	if (hw_mode & (1 << MODE_MF_SI)) {
+		u8 pf_id = 0;
+
+		if (!qed_hw_init_first_eth(p_hwfn, p_ptt, &pf_id)) {
+			DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
+				   "PF[%08x] is first eth on engine\n", pf_id);
+
+			/* We should have configured BIT for ppfid, i.e., the
+			 * relative function number in the port. But there's a
+			 * bug in LLH in BB where the ppfid is actually engine
+			 * based, so we need to take this into account.
+			 */
+			qed_wr(p_hwfn, p_ptt,
+			       NIG_REG_LLH_TAGMAC_DEF_PF_VECTOR, 1 << pf_id);
+		}
+
+		/* Take the protocol-based hit vector if there is a hit,
+		 * otherwise take the other vector.
+		 */
+		qed_wr(p_hwfn, p_ptt, NIG_REG_LLH_CLS_TYPE_DUALMODE, 0x2);
+	}
 	return rc;
 }
 
@@ -772,6 +799,21 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 
 	/* Pure runtime initializations - directly to the HW  */
 	qed_int_igu_init_pure_rt(p_hwfn, p_ptt, true, true);
+
+	if (hw_mode & (1 << MODE_MF_SI)) {
+		u8 pf_id = 0;
+		u32 val;
+
+		if (!qed_hw_init_first_eth(p_hwfn, p_ptt, &pf_id)) {
+			if (p_hwfn->rel_pf_id == pf_id) {
+				DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
+					   "PF[%d] is first ETH on engine\n",
+					   pf_id);
+				val = 1;
+			}
+			qed_wr(p_hwfn, p_ptt, PRS_REG_MSG_INFO, val);
+		}
+	}
 
 	if (b_hw_start) {
 		/* enable interrupts */
@@ -1304,31 +1346,31 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 
 	switch ((core_cfg & NVM_CFG1_GLOB_NETWORK_PORT_MODE_MASK) >>
 		NVM_CFG1_GLOB_NETWORK_PORT_MODE_OFFSET) {
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_2X40G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_2X40G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X40G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_2X50G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X50G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X50G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_1X100G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_1X100G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X100G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_4X10G_F:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_4X10G_F:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_F;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_4X10G_E:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X10G_E:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X10G_E;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_4X20G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_BB_4X20G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_4X20G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_1X40G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X40G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X40G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_2X25G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_2X25G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_2X25G;
 		break;
-	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_DE_1X25G:
+	case NVM_CFG1_GLOB_NETWORK_PORT_MODE_1X25G:
 		p_hwfn->hw_info.port_mode = QED_PORT_MODE_DE_1X25G;
 		break;
 	default:
@@ -1373,7 +1415,7 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 	case NVM_CFG1_PORT_DRV_LINK_SPEED_50G:
 		link->speed.forced_speed = 50000;
 		break;
-	case NVM_CFG1_PORT_DRV_LINK_SPEED_100G:
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_BB_100G:
 		link->speed.forced_speed = 100000;
 		break;
 	default:

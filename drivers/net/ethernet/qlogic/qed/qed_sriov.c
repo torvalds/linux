@@ -47,6 +47,8 @@ static int qed_sp_vf_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->opaque_fid = cpu_to_le16(opaque_vfid);
 
 	p_ramrod->personality = PERSONALITY_ETH;
+	p_ramrod->hsi_fp_ver.major_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MAJOR;
+	p_ramrod->hsi_fp_ver.minor_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MINOR;
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
@@ -1585,10 +1587,6 @@ static void qed_iov_vf_mbx_stop_vport(struct qed_hwfn *p_hwfn,
 			     sizeof(struct pfvf_def_resp_tlv), status);
 }
 
-#define TSTORM_QZONE_START   PXP_VF_BAR0_START_SDM_ZONE_A
-#define MSTORM_QZONE_START(dev)   (TSTORM_QZONE_START +	\
-				   (TSTORM_QZONE_SIZE * NUM_OF_L2_QUEUES(dev)))
-
 static void qed_iov_vf_mbx_start_rxq_resp(struct qed_hwfn *p_hwfn,
 					  struct qed_ptt *p_ptt,
 					  struct qed_vf_info *vf, u8 status)
@@ -1606,16 +1604,11 @@ static void qed_iov_vf_mbx_start_rxq_resp(struct qed_hwfn *p_hwfn,
 
 	/* Update the TLV with the response */
 	if (status == PFVF_STATUS_SUCCESS) {
-		u16 hw_qid = 0;
-
 		req = &mbx->req_virt->start_rxq;
-		qed_fw_l2_queue(p_hwfn, vf->vf_queues[req->rx_qid].fw_rx_qid,
-				&hw_qid);
-
-		p_tlv->offset = MSTORM_QZONE_START(p_hwfn->cdev) +
-				hw_qid * MSTORM_QZONE_SIZE +
-				offsetof(struct mstorm_eth_queue_zone,
-					 rx_producers);
+		p_tlv->offset = PXP_VF_BAR0_START_MSDM_ZONE_B +
+				offsetof(struct mstorm_vf_zone,
+					 non_trigger.eth_rx_queue_producers) +
+				sizeof(struct eth_rx_prod_data) * req->rx_qid;
 	}
 
 	qed_iov_send_response(p_hwfn, p_ptt, vf, sizeof(*p_tlv), status);
@@ -1634,6 +1627,7 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	memset(&params, 0, sizeof(params));
 	req = &mbx->req_virt->start_rxq;
 	params.queue_id =  vf->vf_queues[req->rx_qid].fw_rx_qid;
+	params.vf_qid = req->rx_qid;
 	params.vport_id = vf->vport_id;
 	params.sb = req->hw_sb;
 	params.sb_idx = req->sb_index;
