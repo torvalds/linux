@@ -18,4 +18,11 @@ tristate "Intel dual role port mux controlled by GPIOs"
 	  Say Y here to enable support for Intel dual role port mux
 	  controlled by GPIOs.
 
+config INTEL_MUX_DRCFG
+	tristate "Intel dual role port mux controlled by register"
+	depends on X86
+	help
+	  Say Y here to enable support for Intel dual role port mux
+	  controlled by the Dual Role Configuration Register.
+
 endif
