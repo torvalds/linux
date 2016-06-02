@@ -631,8 +631,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		mode_changed = true;
 	}
 
-	/* take a reference on all connectors in set */
+	/* take a reference on all unbound connectors in set, reuse the
+	 * already taken reference for bound connectors
+	 */
 	for (ro = 0; ro < set->num_connectors; ro++) {
+		if (set->connectors[ro]->encoder)
+			continue;
 		drm_connector_reference(set->connectors[ro]);
 	}
 
@@ -754,12 +758,6 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		}
 	}
 
-	/* after fail drop reference on all connectors in save set */
-	count = 0;
-	drm_for_each_connector(connector, dev) {
-		drm_connector_unreference(&save_connectors[count++]);
-	}
-
 	kfree(save_connectors);
 	kfree(save_encoders);
 	return 0;
@@ -776,8 +774,12 @@ fail:
 		*connector = save_connectors[count++];
 	}
 
-	/* after fail drop reference on all connectors in set */
+	/* after fail drop reference on all unbound connectors in set, let
+	 * bound connectors keep their reference
+	 */
 	for (ro = 0; ro < set->num_connectors; ro++) {
+		if (set->connectors[ro]->encoder)
+			continue;
 		drm_connector_unreference(set->connectors[ro]);
 	}
 
