@@ -27,6 +27,13 @@ config CLKBLD_I8253
 config CLKSRC_MMIO
 	bool
 
+config BCM2835_TIMER
+	bool "BCM2835 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables the support for the BCM2835 timer driver.
+
 config DIGICOLOR_TIMER
 	bool "Digicolor timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
