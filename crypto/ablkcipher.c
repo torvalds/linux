@@ -14,7 +14,6 @@
  */
 
 #include <crypto/internal/skcipher.h>
-#include <linux/cpumask.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/rtnetlink.h>
