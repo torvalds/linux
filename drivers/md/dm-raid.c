@@ -587,8 +587,8 @@ static void rs_set_new(struct raid_set *rs)
 	mddev->delta_disks = 0;
 }
 
-
-static struct raid_set *context_alloc(struct dm_target *ti, struct raid_type *raid_type, unsigned raid_devs)
+static struct raid_set *raid_set_alloc(struct dm_target *ti, struct raid_type *raid_type,
+				       unsigned raid_devs)
 {
 	unsigned i;
 	struct raid_set *rs;
@@ -634,7 +634,7 @@ static struct raid_set *context_alloc(struct dm_target *ti, struct raid_type *ra
 	return rs;
 }
 
-static void context_free(struct raid_set *rs)
+static void raid_set_free(struct raid_set *rs)
 {
 	int i;
 
@@ -663,7 +663,7 @@ static void context_free(struct raid_set *rs)
  *    <meta_dev> -
  *
  * This code parses those words.  If there is a failure,
- * the caller must use context_free to unwind the operations.
+ * the caller must use raid_set_free() to unwind the operations.
  */
 static int parse_dev_params(struct raid_set *rs, struct dm_arg_set *as)
 {
@@ -2260,7 +2260,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		return -EINVAL;
 	}
 
-	rs = context_alloc(ti, rt, num_raid_devs);
+	rs = raid_set_alloc(ti, rt, num_raid_devs);
 	if (IS_ERR(rs))
 		return PTR_ERR(rs);
 
@@ -2341,7 +2341,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 size_mismatch:
 	md_stop(&rs->md);
 bad:
-	context_free(rs);
+	raid_set_free(rs);
 
 	return r;
 }
@@ -2352,7 +2352,7 @@ static void raid_dtr(struct dm_target *ti)
 
 	list_del_init(&rs->callbacks.list);
 	md_stop(&rs->md);
-	context_free(rs);
+	raid_set_free(rs);
 }
 
 static int raid_map(struct dm_target *ti, struct bio *bio)
