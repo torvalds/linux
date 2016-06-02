@@ -562,6 +562,21 @@
 			status = "disabled";
 		};
 
+		spi1: spi@ffda5000 {
+			compatible = "snps,dw-apb-ssi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xffda5000 0x100>;
+			interrupts = <0 102 4>;
+			num-chipselect = <4>;
+			bus-num = <0>;
+			/*32bit_access;*/
+			tx-dma-channel = <&pdma 16>;
+			rx-dma-channel = <&pdma 17>;
+			clocks = <&spi_m_clk>;
+			status = "disabled";
+		};
+
 		sdr: sdr@ffc25000 {
 			compatible = "syscon";
 			reg = <0xffcfb100 0x80>;
