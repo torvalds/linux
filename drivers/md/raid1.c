@@ -689,13 +689,6 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		if (!rdev)
 			goto retry;
 		atomic_inc(&rdev->nr_pending);
-		if (test_bit(Faulty, &rdev->flags)) {
-			/* cannot risk returning a device that failed
-			 * before we inc'ed nr_pending
-			 */
-			rdev_dec_pending(rdev, conf->mddev);
-			goto retry;
-		}
 		sectors = best_good_sectors;
 
 		if (conf->mirrors[best_disk].next_seq_sect != this_sector)

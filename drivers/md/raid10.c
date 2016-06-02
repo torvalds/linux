@@ -707,7 +707,6 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 
 	raid10_find_phys(conf, r10_bio);
 	rcu_read_lock();
-retry:
 	sectors = r10_bio->sectors;
 	best_slot = -1;
 	best_rdev = NULL;
@@ -804,13 +803,6 @@ retry:
 
 	if (slot >= 0) {
 		atomic_inc(&rdev->nr_pending);
-		if (test_bit(Faulty, &rdev->flags)) {
-			/* Cannot risk returning a device that failed
-			 * before we inc'ed nr_pending
-			 */
-			rdev_dec_pending(rdev, conf->mddev);
-			goto retry;
-		}
 		r10_bio->read_slot = slot;
 	} else
 		rdev = NULL;
