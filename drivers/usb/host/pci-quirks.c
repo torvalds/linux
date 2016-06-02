@@ -15,6 +15,8 @@
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/platform_device.h>
+
 #include "pci-quirks.h"
 #include "xhci-ext-caps.h"
 
@@ -76,6 +78,9 @@
 #define USB_INTEL_USB2PRM      0xD4
 #define USB_INTEL_USB3_PSSEN   0xD8
 #define USB_INTEL_USB3PRM      0xDC
+
+#define DEVICE_ID_INTEL_BROXTON_P_XHCI		0x5aa8
+#define DEVICE_ID_INTEL_CHERRYVIEW_XHCI		0x22b5
 
 /* ASMEDIA quirk use */
 #define ASMT_DATA_WRITE0_REG	0xF8
@@ -1016,6 +1021,36 @@ void usb_disable_xhci_ports(struct pci_dev *xhci_pdev)
 }
 EXPORT_SYMBOL_GPL(usb_disable_xhci_ports);
 
+static void create_intel_usb_mux_device(struct pci_dev *xhci_pdev,
+					void __iomem *base)
+{
+	int ret;
+	struct platform_device *plat_dev;
+	struct property_entry pentry[] = {
+		PROPERTY_ENTRY_U64("reg-start",
+				   pci_resource_start(xhci_pdev, 0) + 0x80d8),
+		PROPERTY_ENTRY_U64("reg-size", 8),
+		{ },
+	};
+
+	if (!xhci_find_next_ext_cap(base, 0, XHCI_EXT_CAPS_INTEL_USB_MUX))
+		return;
+
+	plat_dev = platform_device_alloc("intel-mux-drcfg",
+					 PLATFORM_DEVID_NONE);
+	if (!plat_dev)
+		return;
+
+	plat_dev->dev.parent = &xhci_pdev->dev;
+	platform_device_add_properties(plat_dev, pentry);
+	ret = platform_device_add(plat_dev);
+	if (ret) {
+		dev_warn(&xhci_pdev->dev,
+			 "failed to create mux device with error %d", ret);
+		platform_device_put(plat_dev);
+	}
+}
+
 /**
  * PCI Quirks for xHCI.
  *
@@ -1090,8 +1125,13 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 	writel(val, base + ext_cap_offset + XHCI_LEGACY_CONTROL_OFFSET);
 
 hc_init:
-	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
 		usb_enable_intel_xhci_ports(pdev);
+
+		if (pdev->device == DEVICE_ID_INTEL_BROXTON_P_XHCI ||
+		    pdev->device == DEVICE_ID_INTEL_CHERRYVIEW_XHCI)
+			create_intel_usb_mux_device(pdev, base);
+	}
 
 	op_reg_base = base + XHCI_HC_LENGTH(readl(base));
 
