@@ -109,6 +109,42 @@ drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
 	return state->connector_states[index];
 }
 
+/**
+ * __drm_atomic_get_current_plane_state - get current plane state
+ * @state: global atomic state object
+ * @plane: plane to grab
+ *
+ * This function returns the plane state for the given plane, either from
+ * @state, or if the plane isn't part of the atomic state update, from @plane.
+ * This is useful in atomic check callbacks, when drivers need to peek at, but
+ * not change, state of other planes, since it avoids threading an error code
+ * back up the call chain.
+ *
+ * WARNING:
+ *
+ * Note that this function is in general unsafe since it doesn't check for the
+ * required locking for access state structures. Drivers must ensure that it is
+ * save to access the returned state structure through other means. One commone
+ * example is when planes are fixed to a single CRTC, and the driver knows that
+ * the CRTC locks is held already. In that case holding the CRTC locks gives a
+ * read-lock on all planes connected to that CRTC. But if planes can be
+ * reassigned things get more tricky. In that case it's better to use
+ * drm_atomic_get_plane_state and wire up full error handling.
+ *
+ * Returns:
+ *
+ * Read-only pointer to the current plane state.
+ */
+static inline const struct drm_plane_state *
+__drm_atomic_get_current_plane_state(struct drm_atomic_state *state,
+				     struct drm_plane *plane)
+{
+	if (state->plane_states[drm_plane_index(plane)])
+		return state->plane_states[drm_plane_index(plane)];
+
+	return plane->state;
+}
+
 int __must_check
 drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 			     struct drm_display_mode *mode);

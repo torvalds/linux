@@ -374,6 +374,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct plane_state pstates[STAGE_MAX + 1];
 	const struct mdp5_cfg_hw *hw_cfg;
+	const struct drm_plane_state *pstate;
 	int cnt = 0, i;
 
 	DBG("%s: check", mdp5_crtc->name);
@@ -382,20 +383,13 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	 * and that we don't have conflicting mixer stages:
 	 */
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
-	drm_atomic_crtc_state_for_each_plane(plane, state) {
-		struct drm_plane_state *pstate;
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
 		if (cnt >= (hw_cfg->lm.nb_stages)) {
 			dev_err(dev->dev, "too many planes!\n");
 			return -EINVAL;
 		}
 
-		pstate = state->state->plane_states[drm_plane_index(plane)];
 
-		/* plane might not have changed, in which case take
-		 * current state:
-		 */
-		if (!pstate)
-			pstate = plane->state;
 		pstates[cnt].plane = plane;
 		pstates[cnt].state = to_mdp5_plane_state(pstate);
 
