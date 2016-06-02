@@ -1,4 +1,4 @@
-TEST_PROGS := gettimeofday context_switch
+TEST_PROGS := gettimeofday context_switch mmap_bench futex_bench
 
 CFLAGS += -O2
 
