@@ -1083,7 +1083,7 @@ int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
 			}
 
 			ath10k_dbg_dump(ar, ATH10K_DBG_BOOT, "features", "",
-					ar->running_fw->fw_file.fw_features,
+					fw_file->fw_features,
 					sizeof(fw_file->fw_features));
 			break;
 		case ATH10K_FW_IE_FW_IMAGE:
