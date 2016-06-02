@@ -3239,15 +3239,16 @@ static int want_replace(struct stripe_head *sh, int disk_idx)
 {
 	struct md_rdev *rdev;
 	int rv = 0;
-	/* Doing recovery so rcu locking not required */
-	rdev = sh->raid_conf->disks[disk_idx].replacement;
+
+	rcu_read_lock();
+	rdev = rcu_dereference(sh->raid_conf->disks[disk_idx].replacement);
 	if (rdev
 	    && !test_bit(Faulty, &rdev->flags)
 	    && !test_bit(In_sync, &rdev->flags)
 	    && (rdev->recovery_offset <= sh->sector
 		|| rdev->mddev->recovery_cp <= sh->sector))
 		rv = 1;
-
+	rcu_read_unlock();
 	return rv;
 }
 
