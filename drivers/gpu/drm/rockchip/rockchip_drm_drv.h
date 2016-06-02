@@ -126,6 +126,8 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev);
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev);
+int rockchip_drm_wait_line_flag(struct drm_crtc *crtc, unsigned int line_num,
+				unsigned int mstimeout);
 
 int rockchip_drm_register_subdrv(struct drm_rockchip_subdrv *subdrv);
 int rockchip_drm_unregister_subdrv(struct drm_rockchip_subdrv *subdrv);
