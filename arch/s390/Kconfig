@@ -163,6 +163,7 @@ config S390
 	select NO_BOOTMEM
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select TTY
 	select VIRT_CPU_ACCOUNTING
@@ -604,16 +605,6 @@ config PCI_NR_FUNCTIONS
 	help
 	  This allows you to specify the maximum number of PCI functions which
 	  this kernel will support.
-
-config PCI_NR_MSI
-	int "Maximum number of MSI interrupts (64-32768)"
-	range 64 32768
-	default "256"
-	help
-	  This defines the number of virtual interrupts the kernel will
-	  provide for MSI interrupts. If you configure your system to have
-	  too few drivers will fail to allocate MSI interrupts for all
-	  PCI devices.
 
 source "drivers/pci/Kconfig"
 
