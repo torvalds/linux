@@ -1319,13 +1319,9 @@ int bpf_map__get_fd(struct bpf_map *map)
 	return map->fd;
 }
 
-int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef)
+const struct bpf_map_def *bpf_map__def(struct bpf_map *map)
 {
-	if (!map || !pdef)
-		return -EINVAL;
-
-	*pdef = map->def;
-	return 0;
+	return map ? &map->def : ERR_PTR(-EINVAL);
 }
 
 const char *bpf_map__name(struct bpf_map *map)

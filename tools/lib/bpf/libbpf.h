@@ -181,7 +181,7 @@ bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
 	     (pos) = bpf_map__next((pos), (obj)))
 
 int bpf_map__get_fd(struct bpf_map *map);
-int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef);
+const struct bpf_map_def *bpf_map__def(struct bpf_map *map);
 const char *bpf_map__name(struct bpf_map *map);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);

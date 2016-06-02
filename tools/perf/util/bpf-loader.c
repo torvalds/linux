@@ -945,28 +945,26 @@ static int
 __bpf_map__config_value(struct bpf_map *map,
 			struct parse_events_term *term)
 {
-	struct bpf_map_def def;
 	struct bpf_map_op *op;
 	const char *map_name = bpf_map__name(map);
-	int err;
+	const struct bpf_map_def *def = bpf_map__def(map);
 
-	err = bpf_map__get_def(map, &def);
-	if (err) {
+	if (IS_ERR(def)) {
 		pr_debug("Unable to get map definition from '%s'\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
 
-	if (def.type != BPF_MAP_TYPE_ARRAY) {
+	if (def->type != BPF_MAP_TYPE_ARRAY) {
 		pr_debug("Map %s type is not BPF_MAP_TYPE_ARRAY\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE;
 	}
-	if (def.key_size < sizeof(unsigned int)) {
+	if (def->key_size < sizeof(unsigned int)) {
 		pr_debug("Map %s has incorrect key size\n", map_name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_KEYSIZE;
 	}
-	switch (def.value_size) {
+	switch (def->value_size) {
 	case 1:
 	case 2:
 	case 4:
@@ -1009,10 +1007,9 @@ __bpf_map__config_event(struct bpf_map *map,
 			struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
-	struct bpf_map_def def;
+	const struct bpf_map_def *def;
 	struct bpf_map_op *op;
 	const char *map_name = bpf_map__name(map);
-	int err;
 
 	evsel = perf_evlist__find_evsel_by_str(evlist, term->val.str);
 	if (!evsel) {
@@ -1021,18 +1018,18 @@ __bpf_map__config_event(struct bpf_map *map,
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_NOEVT;
 	}
 
-	err = bpf_map__get_def(map, &def);
-	if (err) {
+	def = bpf_map__def(map);
+	if (IS_ERR(def)) {
 		pr_debug("Unable to get map definition from '%s'\n",
 			 map_name);
-		return err;
+		return PTR_ERR(def);
 	}
 
 	/*
 	 * No need to check key_size and value_size:
 	 * kernel has already checked them.
 	 */
-	if (def.type != BPF_MAP_TYPE_PERF_EVENT_ARRAY) {
+	if (def->type != BPF_MAP_TYPE_PERF_EVENT_ARRAY) {
 		pr_debug("Map %s type is not BPF_MAP_TYPE_PERF_EVENT_ARRAY\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE;
@@ -1081,9 +1078,8 @@ config_map_indices_range_check(struct parse_events_term *term,
 			       const char *map_name)
 {
 	struct parse_events_array *array = &term->array;
-	struct bpf_map_def def;
+	const struct bpf_map_def *def;
 	unsigned int i;
-	int err;
 
 	if (!array->nr_ranges)
 		return 0;
@@ -1093,8 +1089,8 @@ config_map_indices_range_check(struct parse_events_term *term,
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
 
-	err = bpf_map__get_def(map, &def);
-	if (err) {
+	def = bpf_map__def(map);
+	if (IS_ERR(def)) {
 		pr_debug("ERROR: Unable to get map definition from '%s'\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
@@ -1105,7 +1101,7 @@ config_map_indices_range_check(struct parse_events_term *term,
 		size_t length = array->ranges[i].length;
 		unsigned int idx = start + length - 1;
 
-		if (idx >= def.max_entries) {
+		if (idx >= def->max_entries) {
 			pr_debug("ERROR: index %d too large\n", idx);
 			return -BPF_LOADER_ERRNO__OBJCONF_MAP_IDX2BIG;
 		}
@@ -1198,14 +1194,14 @@ out:
 }
 
 typedef int (*map_config_func_t)(const char *name, int map_fd,
-				 struct bpf_map_def *pdef,
+				 const struct bpf_map_def *pdef,
 				 struct bpf_map_op *op,
 				 void *pkey, void *arg);
 
 static int
 foreach_key_array_all(map_config_func_t func,
 		      void *arg, const char *name,
-		      int map_fd, struct bpf_map_def *pdef,
+		      int map_fd, const struct bpf_map_def *pdef,
 		      struct bpf_map_op *op)
 {
 	unsigned int i;
@@ -1225,7 +1221,7 @@ foreach_key_array_all(map_config_func_t func,
 static int
 foreach_key_array_ranges(map_config_func_t func, void *arg,
 			 const char *name, int map_fd,
-			 struct bpf_map_def *pdef,
+			 const struct bpf_map_def *pdef,
 			 struct bpf_map_op *op)
 {
 	unsigned int i, j;
@@ -1256,7 +1252,7 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 {
 	int err, map_fd;
 	struct bpf_map_op *op;
-	struct bpf_map_def def;
+	const struct bpf_map_def *def;
 	const char *name = bpf_map__name(map);
 	struct bpf_map_priv *priv = bpf_map__priv(map);
 
@@ -1269,8 +1265,8 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 		return 0;
 	}
 
-	err = bpf_map__get_def(map, &def);
-	if (err) {
+	def = bpf_map__def(map);
+	if (IS_ERR(def)) {
 		pr_debug("ERROR: failed to get definition from map %s\n", name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
@@ -1281,17 +1277,17 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 	}
 
 	list_for_each_entry(op, &priv->ops_list, list) {
-		switch (def.type) {
+		switch (def->type) {
 		case BPF_MAP_TYPE_ARRAY:
 		case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
 			switch (op->key_type) {
 			case BPF_MAP_KEY_ALL:
 				err = foreach_key_array_all(func, arg, name,
-							    map_fd, &def, op);
+							    map_fd, def, op);
 				break;
 			case BPF_MAP_KEY_RANGES:
 				err = foreach_key_array_ranges(func, arg, name,
-							       map_fd, &def,
+							       map_fd, def,
 							       op);
 				break;
 			default:
@@ -1401,7 +1397,7 @@ apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
 
 static int
 apply_obj_config_map_for_key(const char *name, int map_fd,
-			     struct bpf_map_def *pdef __maybe_unused,
+			     const struct bpf_map_def *pdef,
 			     struct bpf_map_op *op,
 			     void *pkey, void *arg __maybe_unused)
 {
