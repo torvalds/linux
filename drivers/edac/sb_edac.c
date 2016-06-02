@@ -329,6 +329,7 @@ struct pci_id_descr {
 struct pci_id_table {
 	const struct pci_id_descr	*descr;
 	int				n_devs;
+	enum type			type;
 };
 
 struct sbridge_dev {
@@ -397,9 +398,14 @@ static const struct pci_id_descr pci_dev_descr_sbridge[] = {
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_SBRIDGE_BR, 0)		},
 };
 
-#define PCI_ID_TABLE_ENTRY(A) { .descr=A, .n_devs = ARRAY_SIZE(A) }
+#define PCI_ID_TABLE_ENTRY(A, T) {	\
+	.descr = A,			\
+	.n_devs = ARRAY_SIZE(A),	\
+	.type = T			\
+}
+
 static const struct pci_id_table pci_dev_descr_sbridge_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_sbridge),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_sbridge, SANDY_BRIDGE),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -466,7 +472,7 @@ static const struct pci_id_descr pci_dev_descr_ibridge[] = {
 };
 
 static const struct pci_id_table pci_dev_descr_ibridge_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_ibridge),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_ibridge, IVY_BRIDGE),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -539,7 +545,7 @@ static const struct pci_id_descr pci_dev_descr_haswell[] = {
 };
 
 static const struct pci_id_table pci_dev_descr_haswell_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_haswell),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_haswell, HASWELL),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -583,7 +589,7 @@ static const struct pci_id_descr pci_dev_descr_knl[] = {
 };
 
 static const struct pci_id_table pci_dev_descr_knl_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_knl),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_knl, KNIGHTS_LANDING),
 	{0,}
 };
 
@@ -651,7 +657,7 @@ static const struct pci_id_descr pci_dev_descr_broadwell[] = {
 };
 
 static const struct pci_id_table pci_dev_descr_broadwell_table[] = {
-	PCI_ID_TABLE_ENTRY(pci_dev_descr_broadwell),
+	PCI_ID_TABLE_ENTRY(pci_dev_descr_broadwell, BROADWELL),
 	{0,}			/* 0 terminated list. */
 };
 
@@ -3360,12 +3366,12 @@ fail0:
 #define ICPU(model, table) \
 	{ X86_VENDOR_INTEL, 6, model, 0, (unsigned long)&table }
 
-/* Order here must match "enum type" */
 static const struct x86_cpu_id sbridge_cpuids[] = {
 	ICPU(0x2d, pci_dev_descr_sbridge_table),	/* SANDY_BRIDGE */
 	ICPU(0x3e, pci_dev_descr_ibridge_table),	/* IVY_BRIDGE */
 	ICPU(0x3f, pci_dev_descr_haswell_table),	/* HASWELL */
 	ICPU(0x4f, pci_dev_descr_broadwell_table),	/* BROADWELL */
+	ICPU(0x56, pci_dev_descr_broadwell_table),	/* BROADWELL-DE */
 	ICPU(0x57, pci_dev_descr_knl_table),		/* KNIGHTS_LANDING */
 	{ }
 };
@@ -3401,7 +3407,7 @@ static int sbridge_probe(const struct x86_cpu_id *id)
 			 mc, mc + 1, num_mc);
 
 		sbridge_dev->mc = mc++;
-		rc = sbridge_register_mci(sbridge_dev, id - sbridge_cpuids);
+		rc = sbridge_register_mci(sbridge_dev, ptable->type);
 		if (unlikely(rc < 0))
 			goto fail1;
 	}
