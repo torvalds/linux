@@ -460,31 +460,8 @@ static void nfs_invalidate_page(struct page *page, unsigned int offset,
  */
 static int nfs_release_page(struct page *page, gfp_t gfp)
 {
-	struct address_space *mapping = page->mapping;
-
 	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
 
-	/* Always try to initiate a 'commit' if relevant, but only
-	 * wait for it if the caller allows blocking.  Even then,
-	 * only wait 1 second and only if the 'bdi' is not congested.
-	 * Waiting indefinitely can cause deadlocks when the NFS
-	 * server is on this machine, when a new TCP connection is
-	 * needed and in other rare cases.  There is no particular
-	 * need to wait extensively here.  A short wait has the
-	 * benefit that someone else can worry about the freezer.
-	 */
-	if (mapping) {
-		struct nfs_server *nfss = NFS_SERVER(mapping->host);
-		nfs_commit_inode(mapping->host, 0);
-		if (gfpflags_allow_blocking(gfp) &&
-		    !bdi_write_congested(&nfss->backing_dev_info)) {
-			wait_on_page_bit_killable_timeout(page, PG_private,
-							  HZ);
-			if (PagePrivate(page))
-				set_bdi_congested(&nfss->backing_dev_info,
-						  BLK_RW_ASYNC);
-		}
-	}
 	/* If PagePrivate() is set, then the page is not freeable */
 	if (PagePrivate(page))
 		return 0;
