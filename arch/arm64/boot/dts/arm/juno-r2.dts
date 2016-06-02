@@ -181,3 +181,27 @@
 &pcie_ctlr {
 	status = "okay";
 };
+
+&etm0 {
+	cpu = <&A72_0>;
+};
+
+&etm1 {
+	cpu = <&A72_1>;
+};
+
+&etm2 {
+	cpu = <&A53_0>;
+};
+
+&etm3 {
+	cpu = <&A53_1>;
+};
+
+&etm4 {
+	cpu = <&A53_2>;
+};
+
+&etm5 {
+	cpu = <&A53_3>;
+};
