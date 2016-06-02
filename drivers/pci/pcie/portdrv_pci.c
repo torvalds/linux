@@ -134,11 +134,6 @@ static int pcie_portdrv_probe(struct pci_dev *dev,
 		return status;
 
 	pci_save_state(dev);
-	/*
-	 * D3cold may not work properly on some PCIe port, so disable
-	 * it by default.
-	 */
-	dev->d3cold_allowed = false;
 	return 0;
 }
 
