@@ -645,8 +645,8 @@ static void f2fs_dirty_inode(struct inode *inode, int flags)
 	list_add_tail(&F2FS_I(inode)->gdirty_list,
 				&sbi->inode_list[DIRTY_META]);
 	inc_page_count(sbi, F2FS_DIRTY_IMETA);
-	spin_unlock(&sbi->inode_lock[DIRTY_META]);
 	stat_inc_dirty_inode(sbi, DIRTY_META);
+	spin_unlock(&sbi->inode_lock[DIRTY_META]);
 }
 
 void f2fs_inode_synced(struct inode *inode)
@@ -662,8 +662,8 @@ void f2fs_inode_synced(struct inode *inode)
 	clear_inode_flag(inode, FI_DIRTY_INODE);
 	clear_inode_flag(inode, FI_AUTO_RECOVER);
 	dec_page_count(sbi, F2FS_DIRTY_IMETA);
-	spin_unlock(&sbi->inode_lock[DIRTY_META]);
 	stat_dec_dirty_inode(F2FS_I_SB(inode), DIRTY_META);
+	spin_unlock(&sbi->inode_lock[DIRTY_META]);
 }
 
 static void f2fs_i_callback(struct rcu_head *head)
