@@ -63,7 +63,7 @@ struct raid_dev {
 #define CTR_FLAG_REGION_SIZE	   0x200 /* 2 */ /* Not with raid0! */
 #define CTR_FLAG_RAID10_COPIES	   0x400 /* 2 */ /* Only with raid10 */
 #define CTR_FLAG_RAID10_FORMAT	   0x800 /* 2 */ /* Only with raid10 */
-/* New for v1.8.0 */
+/* New for v1.9.0 */
 #define CTR_FLAG_DELTA_DISKS	      0x1000 /* 2 */ /* Only with reshapable raid4/5/6/10! */
 #define CTR_FLAG_DATA_OFFSET	      0x2000 /* 2 */ /* Only with reshapable raid4/5/6/10! */
 #define CTR_FLAG_RAID10_USE_NEAR_SETS 0x4000 /* 2 */ /* Only with raid10! */
@@ -1513,8 +1513,7 @@ static bool rs_takeover_requested(struct raid_set *rs)
 }
 
 /*  Features */
-#define	FEATURE_FLAG_SUPPORTS_V180	0x1 /* Supports v1.8.0 extended superblock */
-#define	FEATURE_FLAG_SUPPORTS_RESHAPE	0x2 /* Supports v1.8.0 reshaping functionality */
+#define	FEATURE_FLAG_SUPPORTS_V190	0x1 /* Supports extended superblock */
 
 /* State flags for sb->flags */
 #define	SB_FLAG_RESHAPE_ACTIVE		0x1
@@ -1527,13 +1526,13 @@ static bool rs_takeover_requested(struct raid_set *rs)
 #define DM_RAID_MAGIC 0x64526D44
 struct dm_raid_superblock {
 	__le32 magic;		/* "DmRd" */
-	__le32 compat_features;	/* Used to indicate compatible features (like 1.8.0 ondisk metadata extension) */
+	__le32 compat_features;	/* Used to indicate compatible features (like 1.9.0 ondisk metadata extension) */
 
 	__le32 num_devices;	/* Number of devices in this raid set. (Max 64) */
 	__le32 array_position;	/* The position of this drive in the raid set */
 
 	__le64 events;		/* Incremented by md when superblock updated */
-	__le64 failed_devices;	/* Pre 1.8.0 part of bit field of devices to */
+	__le64 failed_devices;	/* Pre 1.9.0 part of bit field of devices to */
 				/* indicate failures (see extension below) */
 
 	/*
@@ -1556,9 +1555,9 @@ struct dm_raid_superblock {
 	__le32 stripe_sectors;
 
 	/********************************************************************
-	 * BELOW FOLLOW V1.8.0 EXTENSIONS TO THE PRISTINE SUPERBLOCK FORMAT!!!
+	 * BELOW FOLLOW V1.9.0 EXTENSIONS TO THE PRISTINE SUPERBLOCK FORMAT!!!
 	 *
-	 * FEATURE_FLAG_SUPPORTS_V180 in the features member indicates that those exist
+	 * FEATURE_FLAG_SUPPORTS_V190 in the features member indicates that those exist
 	 */
 
 	__le32 flags; /* Flags defining array states for reshaping */
@@ -1592,7 +1591,7 @@ struct dm_raid_superblock {
 
 	/*
 	 * Additonal Bit field of devices indicating failures to support
-	 * up to 256 devices with the 1.8.0 on-disk metadata format
+	 * up to 256 devices with the 1.9.0 on-disk metadata format
 	 */
 	__le64 extended_failed_devices[DISKS_ARRAY_ELEMS - 1];
 
@@ -1625,7 +1624,7 @@ static void sb_retrieve_failed_devices(struct dm_raid_superblock *sb, uint64_t *
 	failed_devices[0] = le64_to_cpu(sb->failed_devices);
 	memset(failed_devices + 1, 0, sizeof(sb->extended_failed_devices));
 
-	if (_test_flag(FEATURE_FLAG_SUPPORTS_V180, le32_to_cpu(sb->compat_features))) {
+	if (_test_flag(FEATURE_FLAG_SUPPORTS_V190, le32_to_cpu(sb->compat_features))) {
 		int i = ARRAY_SIZE(sb->extended_failed_devices);
 
 		while (i--)
@@ -1675,7 +1674,7 @@ static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 		sb_update_failed_devices(sb, failed_devices);
 
 	sb->magic = cpu_to_le32(DM_RAID_MAGIC);
-	sb->compat_features = cpu_to_le32(FEATURE_FLAG_SUPPORTS_V180); /* Don't set reshape flag yet */
+	sb->compat_features = cpu_to_le32(FEATURE_FLAG_SUPPORTS_V190);
 
 	sb->num_devices = cpu_to_le32(mddev->raid_disks);
 	sb->array_position = cpu_to_le32(rdev->raid_disk);
@@ -1754,7 +1753,7 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 		super_sync(rdev->mddev, rdev);
 
 		set_bit(FirstUse, &rdev->flags);
-		sb->compat_features = cpu_to_le32(FEATURE_FLAG_SUPPORTS_V180); /* Don't set reshape flag yet */
+		sb->compat_features = cpu_to_le32(FEATURE_FLAG_SUPPORTS_V190);
 
 		/* Force writing of superblocks to disk */
 		set_bit(MD_CHANGE_DEVS, &rdev->mddev->flags);
@@ -1800,7 +1799,7 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 	 * Reshaping is supported, e.g. reshape_position is valid
 	 * in superblock and superblock content is authoritative.
 	 */
-	if (_test_flag(FEATURE_FLAG_SUPPORTS_V180, le32_to_cpu(sb->compat_features))) {
+	if (_test_flag(FEATURE_FLAG_SUPPORTS_V190, le32_to_cpu(sb->compat_features))) {
 		/* Superblock is authoritative wrt given raid set layout! */
 		mddev->raid_disks = le32_to_cpu(sb->num_devices);
 		mddev->level = le32_to_cpu(sb->level);
@@ -1831,7 +1830,7 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 
 	} else {
 		/*
-		 * No takeover/reshaping, because we don't have the extended v1.8.0 metadata
+		 * No takeover/reshaping, because we don't have the extended v1.9.0 metadata
 		 */
 		if (le32_to_cpu(sb->level) != mddev->level) {
 			DMERR("Reshaping/takeover raid sets not yet supported. (raid level/stripes/size change)");
@@ -2000,8 +1999,12 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 	if (!mddev->events && super_init_validation(rs, rdev))
 		return -EINVAL;
 
-	if (le32_to_cpu(sb->compat_features) != FEATURE_FLAG_SUPPORTS_V180 ||
-	    sb->incompat_features) {
+	if (le32_to_cpu(sb->compat_features) != FEATURE_FLAG_SUPPORTS_V190) {
+		rs->ti->error = "Unable to assemble array: Unknown flag(s) in compatible feature flags";
+		return -EINVAL;
+	}
+
+	if (sb->incompat_features) {
 		rs->ti->error = "Unable to assemble array: No incompatible feature flags supported yet";
 		return -EINVAL;
 	}
@@ -2595,7 +2598,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		DMEMIT(" %llu", (unsigned long long) resync_mismatches);
 
 		/*
-		 * v1.8.0+:
+		 * v1.9.0+:
 		 *
 		 * data_offset (needed for out of space reshaping)
 		 *   This field shows the data offset into the data
@@ -2903,7 +2906,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 8, 1},
+	.version = {1, 9, 0},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,
