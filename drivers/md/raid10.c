@@ -2262,7 +2262,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 		printk(KERN_NOTICE
 		       "md/raid10:%s: %s: Failing raid device\n",
 		       mdname(mddev), b);
-		md_error(mddev, conf->mirrors[d].rdev);
+		md_error(mddev, rdev);
 		r10_bio->devs[r10_bio->read_slot].bio = IO_BLOCKED;
 		return;
 	}
