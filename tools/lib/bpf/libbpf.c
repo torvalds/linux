@@ -1328,11 +1328,9 @@ int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef)
 	return 0;
 }
 
-const char *bpf_map__get_name(struct bpf_map *map)
+const char *bpf_map__name(struct bpf_map *map)
 {
-	if (!map)
-		return NULL;
-	return map->name;
+	return map ? map->name : NULL;
 }
 
 int bpf_map__set_private(struct bpf_map *map, void *priv,

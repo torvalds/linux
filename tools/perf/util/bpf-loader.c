@@ -897,10 +897,9 @@ bpf_map_priv__clone(struct bpf_map_priv *priv)
 static int
 bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 {
+	const char *map_name = bpf_map__name(map);
 	struct bpf_map_priv *priv = bpf_map__priv(map);
-	const char *map_name;
 
-	map_name = bpf_map__get_name(map);
 	if (IS_ERR(priv)) {
 		pr_debug("Failed to get private from map %s\n", map_name);
 		return PTR_ERR(priv);
@@ -948,10 +947,8 @@ __bpf_map__config_value(struct bpf_map *map,
 {
 	struct bpf_map_def def;
 	struct bpf_map_op *op;
-	const char *map_name;
+	const char *map_name = bpf_map__name(map);
 	int err;
-
-	map_name = bpf_map__get_name(map);
 
 	err = bpf_map__get_def(map, &def);
 	if (err) {
@@ -1014,10 +1011,9 @@ __bpf_map__config_event(struct bpf_map *map,
 	struct perf_evsel *evsel;
 	struct bpf_map_def def;
 	struct bpf_map_op *op;
-	const char *map_name;
+	const char *map_name = bpf_map__name(map);
 	int err;
 
-	map_name = bpf_map__get_name(map);
 	evsel = perf_evlist__find_evsel_by_str(evlist, term->val.str);
 	if (!evsel) {
 		pr_debug("Event (for '%s') '%s' doesn't exist\n",
@@ -1259,12 +1255,10 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 			   void *arg)
 {
 	int err, map_fd;
-	const char *name;
 	struct bpf_map_op *op;
 	struct bpf_map_def def;
+	const char *name = bpf_map__name(map);
 	struct bpf_map_priv *priv = bpf_map__priv(map);
-
-	name = bpf_map__get_name(map);
 
 	if (IS_ERR(priv)) {
 		pr_debug("ERROR: failed to get private from map %s\n", name);
@@ -1472,9 +1466,9 @@ int bpf__apply_obj_config(void)
 
 #define bpf__for_each_stdout_map(pos, obj, objtmp)	\
 	bpf__for_each_map(pos, obj, objtmp) 		\
-		if (bpf_map__get_name(pos) && 		\
+		if (bpf_map__name(pos) && 		\
 			(strcmp("__bpf_stdout__", 	\
-				bpf_map__get_name(pos)) == 0))
+				bpf_map__name(pos)) == 0))
 
 int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 {
