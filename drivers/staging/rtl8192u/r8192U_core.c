@@ -2376,7 +2376,7 @@ static void rtl8192_init_priv_lock(struct r8192_priv *priv)
 {
 	spin_lock_init(&priv->tx_lock);
 	spin_lock_init(&priv->irq_lock);
-	sema_init(&priv->wx_sem, 1);
+	mutex_init(&priv->wx_mutex);
 	sema_init(&priv->rf_sem, 1);
 	mutex_init(&priv->mutex);
 }
@@ -3368,12 +3368,12 @@ RESET_START:
 
 		/* Set the variable for reset. */
 		priv->ResetProgress = RESET_TYPE_SILENT;
-		down(&priv->wx_sem);
+		mutex_lock(&priv->wx_mutex);
 		if (priv->up == 0) {
 			RT_TRACE(COMP_ERR,
 				 "%s():the driver is not up! return\n",
 				 __func__);
-			up(&priv->wx_sem);
+			mutex_unlock(&priv->wx_mutex);
 			return;
 		}
 		priv->up = 0;
@@ -3400,7 +3400,7 @@ RESET_START:
 			netdev_dbg(dev, "ieee->state is NOT LINKED\n");
 			ieee80211_softmac_stop_protocol(priv->ieee80211);
 		}
-		up(&priv->wx_sem);
+		mutex_unlock(&priv->wx_mutex);
 		RT_TRACE(COMP_RESET,
 			 "%s():<==========down process is finished\n",
 			 __func__);
@@ -3598,9 +3598,9 @@ static int rtl8192_open(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 	ret = rtl8192_up(dev);
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
 
@@ -3621,11 +3621,11 @@ static int rtl8192_close(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ret = rtl8192_down(dev);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
 }
@@ -3697,11 +3697,11 @@ static void rtl8192_restart(struct work_struct *work)
 					       reset_wq);
 	struct net_device *dev = priv->ieee80211->dev;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	rtl8192_commit(dev);
 
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 }
 
 static void r8192_set_multicast(struct net_device *dev)
@@ -3724,12 +3724,12 @@ static int r8192_set_mac_adr(struct net_device *dev, void *mac)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct sockaddr *addr = mac;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
 
 	schedule_work(&priv->reset_wq);
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 
 	return 0;
 }
@@ -3746,7 +3746,7 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	struct iw_point *p = &wrq->u.data;
 	struct ieee_param *ipw = NULL;
 
-	down(&priv->wx_sem);
+	mutex_lock(&priv->wx_mutex);
 
 
 	if (p->length < sizeof(struct ieee_param) || !p->pointer) {
@@ -3839,7 +3839,7 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	kfree(ipw);
 	ipw = NULL;
 out:
-	up(&priv->wx_sem);
+	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
 

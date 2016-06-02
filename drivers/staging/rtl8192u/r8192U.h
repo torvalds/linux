@@ -879,7 +879,7 @@ typedef struct r8192_priv {
 	/* If 1, allow bad crc frame, reception in monitor mode */
 	short crcmon;
 
-	struct semaphore wx_sem;
+	struct mutex wx_mutex;
 	struct semaphore rf_sem;	/* Used to lock rf write operation */
 
 	u8 rf_type;			/* 0: 1T2R, 1: 2T4R */
