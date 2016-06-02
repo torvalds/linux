@@ -1598,7 +1598,7 @@ static void raid10_error(struct mddev *mddev, struct md_rdev *rdev)
 static void print_conf(struct r10conf *conf)
 {
 	int i;
-	struct raid10_info *tmp;
+	struct md_rdev *rdev;
 
 	printk(KERN_DEBUG "RAID10 conf printout:\n");
 	if (!conf) {
@@ -1608,14 +1608,16 @@ static void print_conf(struct r10conf *conf)
 	printk(KERN_DEBUG " --- wd:%d rd:%d\n", conf->geo.raid_disks - conf->mddev->degraded,
 		conf->geo.raid_disks);
 
+	/* This is only called with ->reconfix_mutex held, so
+	 * rcu protection of rdev is not needed */
 	for (i = 0; i < conf->geo.raid_disks; i++) {
 		char b[BDEVNAME_SIZE];
-		tmp = conf->mirrors + i;
-		if (tmp->rdev)
+		rdev = conf->mirrors[i].rdev;
+		if (rdev)
 			printk(KERN_DEBUG " disk %d, wo:%d, o:%d, dev:%s\n",
-				i, !test_bit(In_sync, &tmp->rdev->flags),
-			        !test_bit(Faulty, &tmp->rdev->flags),
-				bdevname(tmp->rdev->bdev,b));
+				i, !test_bit(In_sync, &rdev->flags),
+			        !test_bit(Faulty, &rdev->flags),
+				bdevname(rdev->bdev,b));
 	}
 }
 
