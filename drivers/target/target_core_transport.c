@@ -2559,7 +2559,8 @@ static void target_release_cmd_kref(struct kref *kref)
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 
 	spin_lock(&se_cmd->t_state_lock);
-	fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP);
+	fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP) &&
+		      (se_cmd->transport_state & CMD_T_ABORTED);
 	spin_unlock(&se_cmd->t_state_lock);
 
 	if (se_cmd->cmd_wait_set || fabric_stop) {
