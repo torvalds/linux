@@ -582,14 +582,13 @@ void f2fs_delete_inline_entry(struct f2fs_dir_entry *dentry, struct page *page,
 				&inline_dentry->dentry_bitmap);
 
 	set_page_dirty(page);
+	f2fs_put_page(page, 1);
 
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	mark_inode_dirty_sync(dir);
 
 	if (inode)
-		f2fs_drop_nlink(dir, inode, page);
-
-	f2fs_put_page(page, 1);
+		f2fs_drop_nlink(dir, inode);
 }
 
 bool f2fs_empty_inline_dir(struct inode *dir)

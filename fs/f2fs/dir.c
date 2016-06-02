@@ -664,7 +664,7 @@ fail:
 	return err;
 }
 
-void f2fs_drop_nlink(struct inode *dir, struct inode *inode, struct page *page)
+void f2fs_drop_nlink(struct inode *dir, struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 
@@ -723,7 +723,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	mark_inode_dirty_sync(dir);
 
 	if (inode)
-		f2fs_drop_nlink(dir, inode, NULL);
+		f2fs_drop_nlink(dir, inode);
 
 	if (bit_pos == NR_DENTRY_IN_BLOCK &&
 			!truncate_hole(dir, page->index, page->index + 1)) {
