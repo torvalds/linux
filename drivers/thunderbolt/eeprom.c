@@ -444,6 +444,7 @@ int tb_drom_read(struct tb_switch *sw)
 	return tb_drom_parse_entries(sw);
 err:
 	kfree(sw->drom);
+	sw->drom = NULL;
 	return -EIO;
 
 }
