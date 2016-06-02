@@ -124,9 +124,9 @@ drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
  *
  * Note that this function is in general unsafe since it doesn't check for the
  * required locking for access state structures. Drivers must ensure that it is
- * save to access the returned state structure through other means. One commone
+ * safe to access the returned state structure through other means. One common
  * example is when planes are fixed to a single CRTC, and the driver knows that
- * the CRTC locks is held already. In that case holding the CRTC locks gives a
+ * the CRTC lock is held already. In that case holding the CRTC lock gives a
  * read-lock on all planes connected to that CRTC. But if planes can be
  * reassigned things get more tricky. In that case it's better to use
  * drm_atomic_get_plane_state and wire up full error handling.
