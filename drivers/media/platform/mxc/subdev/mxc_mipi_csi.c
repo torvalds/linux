@@ -381,11 +381,6 @@ static int mipi_csis_phy_init(struct csi_state *state)
 	ret = regulator_set_voltage(state->mipi_phy_regulator,
 			1000000, 1000000);
 
-	ret = regulator_enable(state->mipi_phy_regulator);
-	if (ret) {
-		dev_err(state->dev, "failed to set mipi regulator.\n");
-		return ret;
-	}
 	return ret;
 }
 
