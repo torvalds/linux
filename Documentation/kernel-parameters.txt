@@ -3047,6 +3047,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		compat	Treat PCIe ports as PCI-to-PCI bridges, disable the PCIe
 			ports driver.
 
+	pcie_port_pm=	[PCIE] PCIe port power management handling:
+		off	Disable power management of all PCIe ports
+		force	Forcibly enable power management of all PCIe ports
+
 	pcie_pme=	[PCIE,PM] Native PCIe PME signaling options:
 		nomsi	Do not use MSI for native PCIe PME signaling (this makes
 			all PCIe root ports use INTx for all services).
