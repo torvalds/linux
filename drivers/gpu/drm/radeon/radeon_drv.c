@@ -411,9 +411,7 @@ static int radeon_pmops_runtime_suspend(struct device *dev)
 	pci_ignore_hotplug(pdev);
 	if (radeon_is_atpx_hybrid())
 		pci_set_power_state(pdev, PCI_D3cold);
-	else if (radeon_has_atpx_dgpu_power_cntl())
-		pci_set_power_state(pdev, PCI_D3cold);
-	else
+	else if (!radeon_has_atpx_dgpu_power_cntl())
 		pci_set_power_state(pdev, PCI_D3hot);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 
@@ -431,7 +429,9 @@ static int radeon_pmops_runtime_resume(struct device *dev)
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
-	pci_set_power_state(pdev, PCI_D0);
+	if (radeon_is_atpx_hybrid() ||
+	    !radeon_has_atpx_dgpu_power_cntl())
+		pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	ret = pci_enable_device(pdev);
 	if (ret)
