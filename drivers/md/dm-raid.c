@@ -244,7 +244,7 @@ static struct raid_type {
 };
 
 /* True, if @v is in inclusive range [@min, @max] */
-static bool _in_range(long v, long min, long max)
+static bool __within_range(long v, long min, long max)
 {
 	return v >= min && v <= max;
 }
@@ -385,7 +385,7 @@ static bool rt_is_raid10(struct raid_type *rt)
 /* Return true, if raid type in @rt is raid4/5 */
 static bool rt_is_raid45(struct raid_type *rt)
 {
-	return _in_range(rt->level, 4, 5);
+	return __within_range(rt->level, 4, 5);
 }
 
 /* Return true, if raid type in @rt is raid6 */
@@ -397,7 +397,7 @@ static bool rt_is_raid6(struct raid_type *rt)
 /* Return true, if raid type in @rt is raid4/5/6 */
 static bool rt_is_raid456(struct raid_type *rt)
 {
-	return _in_range(rt->level, 4, 6);
+	return __within_range(rt->level, 4, 6);
 }
 /* END: raid level bools */
 
@@ -1123,7 +1123,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			 * indexes of replaced devices and to set up additional
 			 * devices on raid level takeover.
 			 */
-			if (!_in_range(value, 0, rs->raid_disks - 1)) {
+			if (!__within_range(value, 0, rs->raid_disks - 1)) {
 				rs->ti->error = "Invalid rebuild index given";
 				return -EINVAL;
 			}
@@ -1144,7 +1144,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 
-			if (!_in_range(value, 0, rs->md.raid_disks - 1)) {
+			if (!__within_range(value, 0, rs->md.raid_disks - 1)) {
 				rs->ti->error = "Invalid write_mostly index given";
 				return -EINVAL;
 			}
@@ -1202,7 +1202,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 			/* Ensure MAX_RAID_DEVICES and raid type minimal_devs! */
-			if (!_in_range(abs(value), 1, MAX_RAID_DEVICES - rt->minimal_devs)) {
+			if (!__within_range(abs(value), 1, MAX_RAID_DEVICES - rt->minimal_devs)) {
 				rs->ti->error = "Too many delta_disk requested";
 				return -EINVAL;
 			}
@@ -1262,7 +1262,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 
-			if (!_in_range(value, 2, rs->md.raid_disks)) {
+			if (!__within_range(value, 2, rs->md.raid_disks)) {
 				rs->ti->error = "Bad value for 'raid10_copies'";
 				return -EINVAL;
 			}
@@ -1380,7 +1380,7 @@ static int rs_check_takeover(struct raid_set *rs)
 			return 0;
 
 		/* raid0 with multiple disks -> raid4/5/6 */
-		if (_in_range(mddev->new_level, 4, 6) &&
+		if (__within_range(mddev->new_level, 4, 6) &&
 		    mddev->new_layout == ALGORITHM_PARITY_N &&
 		    mddev->raid_disks > 1)
 			return 0;
@@ -1418,14 +1418,14 @@ static int rs_check_takeover(struct raid_set *rs)
 			return 0;
 
 		/* raid10_{near,far} with 2 disks -> raid4/5 */
-		if (_in_range(mddev->new_level, 4, 5) &&
+		if (__within_range(mddev->new_level, 4, 5) &&
 		    mddev->raid_disks == 2)
 			return 0;
 		break;
 
 	case 1:
 		/* raid1 with 2 disks -> raid4/5 */
-		if (_in_range(mddev->new_level, 4, 5) &&
+		if (__within_range(mddev->new_level, 4, 5) &&
 		    mddev->raid_disks == 2) {
 			mddev->degraded = 1;
 			return 0;
@@ -1453,7 +1453,7 @@ static int rs_check_takeover(struct raid_set *rs)
 			return 0;
 
 		/* raid4 -> raid5/6 with parity N */
-		if (_in_range(mddev->new_level, 5, 6) &&
+		if (__within_range(mddev->new_level, 5, 6) &&
 		    mddev->layout == ALGORITHM_PARITY_N)
 			return 0;
 		break;
@@ -1477,7 +1477,7 @@ static int rs_check_takeover(struct raid_set *rs)
 		/* raid5 with parity N -> raid6 with parity N */
 		if (mddev->new_level == 6 &&
 		    ((mddev->layout == ALGORITHM_PARITY_N && mddev->new_layout == ALGORITHM_PARITY_N) ||
-		      _in_range(mddev->new_layout, ALGORITHM_LEFT_ASYMMETRIC_6, ALGORITHM_RIGHT_SYMMETRIC_6)))
+		      __within_range(mddev->new_layout, ALGORITHM_LEFT_ASYMMETRIC_6, ALGORITHM_RIGHT_SYMMETRIC_6)))
 			return 0;
 		break;
 
@@ -1495,7 +1495,7 @@ static int rs_check_takeover(struct raid_set *rs)
 		/* raid6_*_n with parity N -> raid5_* */
 		if (mddev->new_level == 5 &&
 		    ((mddev->layout == ALGORITHM_PARITY_N && mddev->new_layout == ALGORITHM_PARITY_N) ||
-		     _in_range(mddev->new_layout, ALGORITHM_LEFT_ASYMMETRIC, ALGORITHM_RIGHT_SYMMETRIC)))
+		     __within_range(mddev->new_layout, ALGORITHM_LEFT_ASYMMETRIC, ALGORITHM_RIGHT_SYMMETRIC)))
 			return 0;
 
 	default:
@@ -2291,7 +2291,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (dm_read_arg(_args + 1, &as_nrd, &num_raid_devs, &ti->error))
 		return -EINVAL;
 
-	if (!_in_range(num_raid_devs, 1, MAX_RAID_DEVICES)) {
+	if (!__within_range(num_raid_devs, 1, MAX_RAID_DEVICES)) {
 		ti->error = "Invalid number of supplied raid devices";
 		return -EINVAL;
 	}
