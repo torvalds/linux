@@ -11,7 +11,6 @@
 struct ring_buffer {
 	atomic_t			refcount;
 	struct rcu_head			rcu_head;
-	struct irq_work			irq_work;
 #ifdef CONFIG_PERF_USE_VMALLOC
 	struct work_struct		work;
 	int				page_order;	/* allocation order  */
