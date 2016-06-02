@@ -58,6 +58,7 @@ static const struct pci_device_id ath10k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, QCA99X0_2_0_DEVICE_ID) }, /* PCI-E QCA99X0 V2 */
 	{ PCI_VDEVICE(ATHEROS, QCA9984_1_0_DEVICE_ID) }, /* PCI-E QCA9984 V1 */
 	{ PCI_VDEVICE(ATHEROS, QCA9377_1_0_DEVICE_ID) }, /* PCI-E QCA9377 V1 */
+	{ PCI_VDEVICE(ATHEROS, QCA9887_1_0_DEVICE_ID) }, /* PCI-E QCA9887 */
 	{0}
 };
 
@@ -87,6 +88,7 @@ static const struct ath10k_pci_supp_chip ath10k_pci_supp_chips[] = {
 	{ QCA9377_1_0_DEVICE_ID, QCA9377_HW_1_0_CHIP_ID_REV },
 	{ QCA9377_1_0_DEVICE_ID, QCA9377_HW_1_1_CHIP_ID_REV },
 
+	{ QCA9887_1_0_DEVICE_ID, QCA9887_HW_1_0_CHIP_ID_REV },
 };
 
 static void ath10k_pci_buffer_cleanup(struct ath10k *ar);
@@ -841,6 +843,7 @@ static u32 ath10k_pci_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 
 	switch (ar->hw_rev) {
 	case ATH10K_HW_QCA988X:
+	case ATH10K_HW_QCA9887:
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
 		val = (ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
@@ -1569,6 +1572,7 @@ static void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
 
 	switch (ar->hw_rev) {
 	case ATH10K_HW_QCA988X:
+	case ATH10K_HW_QCA9887:
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
 		val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
@@ -1593,6 +1597,7 @@ static void ath10k_pci_irq_msi_fw_unmask(struct ath10k *ar)
 
 	switch (ar->hw_rev) {
 	case ATH10K_HW_QCA988X:
+	case ATH10K_HW_QCA9887:
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
 		val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
@@ -1944,6 +1949,7 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 	case QCA988X_2_0_DEVICE_ID:
 	case QCA99X0_2_0_DEVICE_ID:
 	case QCA9984_1_0_DEVICE_ID:
+	case QCA9887_1_0_DEVICE_ID:
 		return 1;
 	case QCA6164_2_1_DEVICE_ID:
 	case QCA6174_2_1_DEVICE_ID:
@@ -2998,6 +3004,13 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		pci_soft_reset = ath10k_pci_warm_reset;
 		pci_hard_reset = ath10k_pci_qca988x_chip_reset;
 		break;
+	case QCA9887_1_0_DEVICE_ID:
+		dev_warn(&pdev->dev, "QCA9887 support is still experimental, there are likely bugs. You have been warned.\n");
+		hw_rev = ATH10K_HW_QCA9887;
+		pci_ps = false;
+		pci_soft_reset = ath10k_pci_warm_reset;
+		pci_hard_reset = ath10k_pci_qca988x_chip_reset;
+		break;
 	case QCA6164_2_1_DEVICE_ID:
 	case QCA6174_2_1_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA6174;
@@ -3209,6 +3222,11 @@ MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_FW_API4_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_FW_API5_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" QCA988X_HW_2_0_BOARD_DATA_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" ATH10K_BOARD_API2_FILE);
+
+/* QCA9887 1.0 firmware files */
+MODULE_FIRMWARE(QCA9887_HW_1_0_FW_DIR "/" ATH10K_FW_API5_FILE);
+MODULE_FIRMWARE(QCA9887_HW_1_0_FW_DIR "/" QCA9887_HW_1_0_BOARD_DATA_FILE);
+MODULE_FIRMWARE(QCA9887_HW_1_0_FW_DIR "/" ATH10K_BOARD_API2_FILE);
 
 /* QCA6174 2.1 firmware files */
 MODULE_FIRMWARE(QCA6174_HW_2_1_FW_DIR "/" ATH10K_FW_API4_FILE);

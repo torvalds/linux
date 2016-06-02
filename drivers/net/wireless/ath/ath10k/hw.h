@@ -28,6 +28,7 @@
 #define QCA99X0_2_0_DEVICE_ID   (0x0040)
 #define QCA9984_1_0_DEVICE_ID	(0x0046)
 #define QCA9377_1_0_DEVICE_ID   (0x0042)
+#define QCA9887_1_0_DEVICE_ID   (0x0050)
 
 /* QCA988X 1.0 definitions (unsupported) */
 #define QCA988X_HW_1_0_CHIP_ID_REV	0x0
@@ -38,6 +39,13 @@
 #define QCA988X_HW_2_0_FW_DIR		ATH10K_FW_DIR "/QCA988X/hw2.0"
 #define QCA988X_HW_2_0_BOARD_DATA_FILE	"board.bin"
 #define QCA988X_HW_2_0_PATCH_LOAD_ADDR	0x1234
+
+/* QCA9887 1.0 definitions */
+#define QCA9887_HW_1_0_VERSION		0x4100016d
+#define QCA9887_HW_1_0_CHIP_ID_REV	0
+#define QCA9887_HW_1_0_FW_DIR		ATH10K_FW_DIR "/QCA9887/hw1.0"
+#define QCA9887_HW_1_0_BOARD_DATA_FILE	"board.bin"
+#define QCA9887_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA6174 target BMI version signatures */
 #define QCA6174_HW_1_0_VERSION		0x05000000
@@ -205,6 +213,7 @@ enum ath10k_hw_rev {
 	ATH10K_HW_QCA9984,
 	ATH10K_HW_QCA9377,
 	ATH10K_HW_QCA4019,
+	ATH10K_HW_QCA9887,
 };
 
 struct ath10k_hw_regs {
@@ -257,6 +266,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
 
 #define QCA_REV_988X(ar) ((ar)->hw_rev == ATH10K_HW_QCA988X)
+#define QCA_REV_9887(ar) ((ar)->hw_rev == ATH10K_HW_QCA9887)
 #define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
 #define QCA_REV_99X0(ar) ((ar)->hw_rev == ATH10K_HW_QCA99X0)
 #define QCA_REV_9984(ar) ((ar)->hw_rev == ATH10K_HW_QCA9984)
