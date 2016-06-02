@@ -67,6 +67,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -96,6 +97,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		port {
 			tpiu_in_port: endpoint {
 				slave-mode;
@@ -110,6 +112,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -146,6 +149,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		port {
 			etr_in_port: endpoint {
 				slave-mode;
@@ -160,6 +164,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		port {
 			cluster0_etm0_out_port: endpoint {
 				remote-endpoint = <&cluster0_funnel_in_port0>;
@@ -173,6 +178,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -208,6 +214,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		port {
 			cluster0_etm1_out_port: endpoint {
 				remote-endpoint = <&cluster0_funnel_in_port1>;
@@ -221,6 +228,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		port {
 			cluster1_etm0_out_port: endpoint {
 				remote-endpoint = <&cluster1_funnel_in_port0>;
@@ -234,6 +242,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -283,6 +292,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		port {
 			cluster1_etm1_out_port: endpoint {
 				remote-endpoint = <&cluster1_funnel_in_port1>;
@@ -296,6 +306,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		port {
 			cluster1_etm2_out_port: endpoint {
 				remote-endpoint = <&cluster1_funnel_in_port2>;
@@ -309,6 +320,7 @@
 
 		clocks = <&soc_smc50mhz>;
 		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 		port {
 			cluster1_etm3_out_port: endpoint {
 				remote-endpoint = <&cluster1_funnel_in_port3>;
@@ -414,6 +426,12 @@
 				clock-indices = <3>;
 				clock-output-names = "pxlclk";
 			};
+		};
+
+		scpi_devpd: scpi-power-domains {
+			compatible = "arm,scpi-power-domains";
+			num-domains = <2>;
+			#power-domain-cells = <1>;
 		};
 
 		scpi_sensors0: sensors {
