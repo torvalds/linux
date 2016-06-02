@@ -32,6 +32,7 @@ import subprocess
 import sys
 
 from docutils import nodes, statemachine
+from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
 from sphinx.util.compat import Directive
 
@@ -92,8 +93,14 @@ class KernelDocDirective(Directive):
                 sys.stderr.write(err)
 
             lines = statemachine.string2lines(out, tab_width, convert_whitespace=True)
-            self.state_machine.insert_input(lines, source)
-            return []
+            result = ViewList(lines, source)
+
+            node = nodes.section()
+            node.document = self.state.document
+            self.state.nested_parse(result, self.content_offset, node)
+
+            return node.children
+
         except Exception as e:
             env.app.warn('kernel-doc \'%s\' processing failed with: %s' %
                          (" ".join(cmd), str(e)))
