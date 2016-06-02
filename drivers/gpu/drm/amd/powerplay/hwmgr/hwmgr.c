@@ -469,7 +469,7 @@ uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, u
 
 	PP_ASSERT_WITH_CODE(false,
 			"VDDCI is larger than max VDDCI in VDDCI Voltage Table!",
-			return vddci_table->entries[i].value);
+			return vddci_table->entries[i-1].value);
 }
 
 int phm_find_boot_level(void *table,
