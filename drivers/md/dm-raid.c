@@ -328,7 +328,7 @@ static struct arg_name_flag {
 };
 
 /* Return argument name string for given @flag */
-static const char *_argname_by_flag(const uint32_t flag)
+static const char *dm_raid_arg_name_by_flag(const uint32_t flag)
 {
 	if (hweight32(flag) == 1) {
 		struct arg_name_flag *anf = _arg_name_flags + ARRAY_SIZE(_arg_name_flags);
@@ -1060,7 +1060,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			return -EINVAL;
 		}
 
-		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_NOSYNC))) {
+		if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_NOSYNC))) {
 			if (_test_and_set_flag(CTR_FLAG_NOSYNC, &rs->ctr_flags)) {
 				rs->ti->error = "Only one 'nosync' argument allowed";
 				return -EINVAL;
@@ -1068,7 +1068,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			rs->md.recovery_cp = MaxSector;
 			continue;
 		}
-		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_SYNC))) {
+		if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_SYNC))) {
 			if (_test_and_set_flag(CTR_FLAG_SYNC, &rs->ctr_flags)) {
 				rs->ti->error = "Only one 'sync' argument allowed";
 				return -EINVAL;
@@ -1076,7 +1076,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			rs->md.recovery_cp = 0;
 			continue;
 		}
-		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_RAID10_USE_NEAR_SETS))) {
+		if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_USE_NEAR_SETS))) {
 			if (_test_and_set_flag(CTR_FLAG_RAID10_USE_NEAR_SETS, &rs->ctr_flags)) {
 				rs->ti->error = "Only one 'raid10_use_new_sets' argument allowed";
 				return -EINVAL;
@@ -1095,7 +1095,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 		 * Parameters that take a string value are checked here.
 		 */
 
-		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_RAID10_FORMAT))) {
+		if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_FORMAT))) {
 			if (_test_and_set_flag(CTR_FLAG_RAID10_FORMAT, &rs->ctr_flags)) {
 				rs->ti->error = "Only one 'raid10_format' argument pair allowed";
 				return -EINVAL;
@@ -1117,7 +1117,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			return -EINVAL;
 		}
 
-		if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_REBUILD))) {
+		if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_REBUILD))) {
 			/*
 			 * "rebuild" is being passed in by userspace to provide
 			 * indexes of replaced devices and to set up additional
@@ -1138,7 +1138,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			clear_bit(Faulty, &rd->rdev.flags);
 			rd->rdev.recovery_offset = 0;
 			_set_flag(CTR_FLAG_REBUILD, &rs->ctr_flags);
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_WRITE_MOSTLY))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_WRITE_MOSTLY))) {
 			if (!rt_is_raid1(rt)) {
 				rs->ti->error = "write_mostly option is only valid for RAID1";
 				return -EINVAL;
@@ -1151,7 +1151,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 
 			set_bit(WriteMostly, &rs->dev[value].rdev.flags);
 			_set_flag(CTR_FLAG_WRITE_MOSTLY, &rs->ctr_flags);
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_MAX_WRITE_BEHIND))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_MAX_WRITE_BEHIND))) {
 			if (!rt_is_raid1(rt)) {
 				rs->ti->error = "max_write_behind option is only valid for RAID1";
 				return -EINVAL;
@@ -1173,7 +1173,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			}
 
 			rs->md.bitmap_info.max_write_behind = value;
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_DAEMON_SLEEP))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_DAEMON_SLEEP))) {
 			if (_test_and_set_flag(CTR_FLAG_DAEMON_SLEEP, &rs->ctr_flags)) {
 				rs->ti->error = "Only one daemon_sleep argument pair allowed";
 				return -EINVAL;
@@ -1183,7 +1183,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 			rs->md.bitmap_info.daemon_sleep = value;
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_DATA_OFFSET))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_DATA_OFFSET))) {
 			/* Userspace passes new data_offset after having extended the the data image LV */
 			if (_test_and_set_flag(CTR_FLAG_DATA_OFFSET, &rs->ctr_flags)) {
 				rs->ti->error = "Only one data_offset argument pair allowed";
@@ -1195,7 +1195,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 			rs->data_offset = value;
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_DELTA_DISKS))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_DELTA_DISKS))) {
 			/* Define the +/-# of disks to add to/remove from the given raid set */
 			if (_test_and_set_flag(CTR_FLAG_DELTA_DISKS, &rs->ctr_flags)) {
 				rs->ti->error = "Only one delta_disks argument pair allowed";
@@ -1208,7 +1208,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 			}
 
 			rs->delta_disks = value;
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_STRIPE_CACHE))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_STRIPE_CACHE))) {
 			if (_test_and_set_flag(CTR_FLAG_STRIPE_CACHE, &rs->ctr_flags)) {
 				rs->ti->error = "Only one stripe_cache argument pair allowed";
 				return -EINVAL;
@@ -1229,7 +1229,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_MIN_RECOVERY_RATE))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_MIN_RECOVERY_RATE))) {
 			if (_test_and_set_flag(CTR_FLAG_MIN_RECOVERY_RATE, &rs->ctr_flags)) {
 				rs->ti->error = "Only one min_recovery_rate argument pair allowed";
 				return -EINVAL;
@@ -1239,7 +1239,7 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 			rs->md.sync_speed_min = (int)value;
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_MAX_RECOVERY_RATE))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_MAX_RECOVERY_RATE))) {
 			if (_test_and_set_flag(CTR_FLAG_MIN_RECOVERY_RATE, &rs->ctr_flags)) {
 				rs->ti->error = "Only one max_recovery_rate argument pair allowed";
 				return -EINVAL;
@@ -1249,14 +1249,14 @@ static int parse_raid_params(struct raid_set *rs, struct dm_arg_set *as,
 				return -EINVAL;
 			}
 			rs->md.sync_speed_max = (int)value;
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_REGION_SIZE))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_REGION_SIZE))) {
 			if (_test_and_set_flag(CTR_FLAG_REGION_SIZE, &rs->ctr_flags)) {
 				rs->ti->error = "Only one region_size argument pair allowed";
 				return -EINVAL;
 			}
 
 			region_size = value;
-		} else if (!strcasecmp(key, _argname_by_flag(CTR_FLAG_RAID10_COPIES))) {
+		} else if (!strcasecmp(key, dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_COPIES))) {
 			if (_test_and_set_flag(CTR_FLAG_RAID10_COPIES, &rs->ctr_flags)) {
 				rs->ti->error = "Only one raid10_copies argument pair allowed";
 				return -EINVAL;
@@ -2625,46 +2625,46 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		/* Emit table line */
 		DMEMIT("%s %u %u", rs->raid_type->name, raid_param_cnt, mddev->new_chunk_sectors);
 		if (_test_flag(CTR_FLAG_RAID10_FORMAT, rs->ctr_flags))
-			DMEMIT(" %s %s", _argname_by_flag(CTR_FLAG_RAID10_FORMAT),
+			DMEMIT(" %s %s", dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_FORMAT),
 					 raid10_md_layout_to_format(mddev->layout));
 		if (_test_flag(CTR_FLAG_RAID10_COPIES, rs->ctr_flags))
-			DMEMIT(" %s %d", _argname_by_flag(CTR_FLAG_RAID10_COPIES),
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_RAID10_COPIES),
 					 raid10_md_layout_to_copies(mddev->layout));
 		if (_test_flag(CTR_FLAG_NOSYNC, rs->ctr_flags))
-			DMEMIT(" %s", _argname_by_flag(CTR_FLAG_NOSYNC));
+			DMEMIT(" %s", dm_raid_arg_name_by_flag(CTR_FLAG_NOSYNC));
 		if (_test_flag(CTR_FLAG_SYNC, rs->ctr_flags))
-			DMEMIT(" %s", _argname_by_flag(CTR_FLAG_SYNC));
+			DMEMIT(" %s", dm_raid_arg_name_by_flag(CTR_FLAG_SYNC));
 		if (_test_flag(CTR_FLAG_REGION_SIZE, rs->ctr_flags))
-			DMEMIT(" %s %llu", _argname_by_flag(CTR_FLAG_REGION_SIZE),
+			DMEMIT(" %s %llu", dm_raid_arg_name_by_flag(CTR_FLAG_REGION_SIZE),
 					   (unsigned long long) to_sector(mddev->bitmap_info.chunksize));
 		if (_test_flag(CTR_FLAG_DATA_OFFSET, rs->ctr_flags))
-			DMEMIT(" %s %llu", _argname_by_flag(CTR_FLAG_DATA_OFFSET),
+			DMEMIT(" %s %llu", dm_raid_arg_name_by_flag(CTR_FLAG_DATA_OFFSET),
 					   (unsigned long long) rs->data_offset);
 		if (_test_flag(CTR_FLAG_DAEMON_SLEEP, rs->ctr_flags))
-			DMEMIT(" %s %lu", _argname_by_flag(CTR_FLAG_DAEMON_SLEEP),
+			DMEMIT(" %s %lu", dm_raid_arg_name_by_flag(CTR_FLAG_DAEMON_SLEEP),
 					  mddev->bitmap_info.daemon_sleep);
 		if (_test_flag(CTR_FLAG_DELTA_DISKS, rs->ctr_flags))
-			DMEMIT(" %s %d", _argname_by_flag(CTR_FLAG_DELTA_DISKS),
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_DELTA_DISKS),
 					 mddev->delta_disks);
 		if (_test_flag(CTR_FLAG_STRIPE_CACHE, rs->ctr_flags))
-			DMEMIT(" %s %d", _argname_by_flag(CTR_FLAG_STRIPE_CACHE),
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_STRIPE_CACHE),
 					 max_nr_stripes);
 		rdev_for_each(rdev, mddev)
 			if (test_bit(rdev->raid_disk, (void *) rs->rebuild_disks))
-				DMEMIT(" %s %u", _argname_by_flag(CTR_FLAG_REBUILD),
+				DMEMIT(" %s %u", dm_raid_arg_name_by_flag(CTR_FLAG_REBUILD),
 						 rdev->raid_disk);
 		rdev_for_each(rdev, mddev)
 			if (test_bit(WriteMostly, &rdev->flags))
-				DMEMIT(" %s %d", _argname_by_flag(CTR_FLAG_WRITE_MOSTLY),
+				DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_WRITE_MOSTLY),
 						 rdev->raid_disk);
 		if (_test_flag(CTR_FLAG_MAX_WRITE_BEHIND, rs->ctr_flags))
-			DMEMIT(" %s %lu", _argname_by_flag(CTR_FLAG_MAX_WRITE_BEHIND),
+			DMEMIT(" %s %lu", dm_raid_arg_name_by_flag(CTR_FLAG_MAX_WRITE_BEHIND),
 					  mddev->bitmap_info.max_write_behind);
 		if (_test_flag(CTR_FLAG_MAX_RECOVERY_RATE, rs->ctr_flags))
-			DMEMIT(" %s %d", _argname_by_flag(CTR_FLAG_MAX_RECOVERY_RATE),
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_MAX_RECOVERY_RATE),
 					 mddev->sync_speed_max);
 		if (_test_flag(CTR_FLAG_MIN_RECOVERY_RATE, rs->ctr_flags))
-			DMEMIT(" %s %d", _argname_by_flag(CTR_FLAG_MIN_RECOVERY_RATE),
+			DMEMIT(" %s %d", dm_raid_arg_name_by_flag(CTR_FLAG_MIN_RECOVERY_RATE),
 					 mddev->sync_speed_min);
 		DMEMIT(" %d", rs->raid_disks);
 		rdev_for_each(rdev, mddev) {
