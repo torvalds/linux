@@ -195,35 +195,25 @@ struct raid_set {
 	struct raid_dev dev[0];
 };
 
-/* Backup/restore raid set configuration helpers */
-static void _rs_config_backup(struct raid_set *rs, struct rs_layout *l)
+static void rs_config_backup(struct raid_set *rs)
 {
 	struct mddev *mddev = &rs->md;
+	struct rs_layout *l = &rs->rs_layout;
 
 	l->new_level = mddev->new_level;
 	l->new_layout = mddev->new_layout;
 	l->new_chunk_sectors = mddev->new_chunk_sectors;
 }
 
-static void rs_config_backup(struct raid_set *rs)
-{
-	return _rs_config_backup(rs, &rs->rs_layout);
-}
-
-static void _rs_config_restore(struct raid_set *rs, struct rs_layout *l)
+static void rs_config_restore(struct raid_set *rs)
 {
 	struct mddev *mddev = &rs->md;
+	struct rs_layout *l = &rs->rs_layout;
 
 	mddev->new_level = l->new_level;
 	mddev->new_layout = l->new_layout;
 	mddev->new_chunk_sectors = l->new_chunk_sectors;
 }
-
-static void rs_config_restore(struct raid_set *rs)
-{
-	return _rs_config_restore(rs, &rs->rs_layout);
-}
-/* END: backup/restore raid set configuration helpers */
 
 /* raid10 algorithms (i.e. formats) */
 #define	ALGORITHM_RAID10_DEFAULT	0
@@ -272,7 +262,7 @@ static bool __within_range(long v, long min, long max)
 static struct arg_name_flag {
 	const unsigned long flag;
 	const char *name;
-} _arg_name_flags[] = {
+} __arg_name_flags[] = {
 	{ CTR_FLAG_SYNC, "sync"},
 	{ CTR_FLAG_NOSYNC, "nosync"},
 	{ CTR_FLAG_REBUILD, "rebuild"},
@@ -294,9 +284,9 @@ static struct arg_name_flag {
 static const char *dm_raid_arg_name_by_flag(const uint32_t flag)
 {
 	if (hweight32(flag) == 1) {
-		struct arg_name_flag *anf = _arg_name_flags + ARRAY_SIZE(_arg_name_flags);
+		struct arg_name_flag *anf = __arg_name_flags + ARRAY_SIZE(__arg_name_flags);
 
-		while (anf-- > _arg_name_flags)
+		while (anf-- > __arg_name_flags)
 			if (flag & anf->flag)
 				return anf->name;
 
@@ -365,7 +355,7 @@ static bool rt_is_raid456(struct raid_type *rt)
 /* END: raid level bools */
 
 /* Return invalid ctr flags for the raid level of @rs */
-static uint32_t _invalid_flags(struct raid_set *rs)
+static uint32_t __invalid_flags(struct raid_set *rs)
 {
 	if (rt_is_raid0(rs->raid_type))
 		return RAID0_INVALID_FLAGS;
@@ -388,14 +378,13 @@ static uint32_t _invalid_flags(struct raid_set *rs)
  */
 static int rs_check_for_invalid_flags(struct raid_set *rs)
 {
-	if (rs->ctr_flags & _invalid_flags(rs)) {
+	if (rs->ctr_flags & __invalid_flags(rs)) {
 		rs->ti->error = "Invalid flags combination";
 		return -EINVAL;
 	}
 
 	return 0;
 }
-
 
 /* MD raid10 bit definitions and helpers */
 #define RAID10_OFFSET			(1 << 16) /* stripes with data copies area adjacent on devices */
@@ -404,33 +393,33 @@ static int rs_check_for_invalid_flags(struct raid_set *rs)
 #define RAID10_FAR_COPIES_SHIFT		8	  /* raid10 # far copies shift (2nd byte of layout) */
 
 /* Return md raid10 near copies for @layout */
-static unsigned int _raid10_near_copies(int layout)
+static unsigned int __raid10_near_copies(int layout)
 {
 	return layout & 0xFF;
 }
 
 /* Return md raid10 far copies for @layout */
-static unsigned int _raid10_far_copies(int layout)
+static unsigned int __raid10_far_copies(int layout)
 {
-	return _raid10_near_copies(layout >> RAID10_FAR_COPIES_SHIFT);
+	return __raid10_near_copies(layout >> RAID10_FAR_COPIES_SHIFT);
 }
 
 /* Return true if md raid10 offset for @layout */
-static unsigned int _is_raid10_offset(int layout)
+static unsigned int __is_raid10_offset(int layout)
 {
 	return layout & RAID10_OFFSET;
 }
 
 /* Return true if md raid10 near for @layout */
-static unsigned int _is_raid10_near(int layout)
+static unsigned int __is_raid10_near(int layout)
 {
-	return !_is_raid10_offset(layout) && _raid10_near_copies(layout) > 1;
+	return !__is_raid10_offset(layout) && __raid10_near_copies(layout) > 1;
 }
 
 /* Return true if md raid10 far for @layout */
-static unsigned int _is_raid10_far(int layout)
+static unsigned int __is_raid10_far(int layout)
 {
-	return !_is_raid10_offset(layout) && _raid10_far_copies(layout) > 1;
+	return !__is_raid10_offset(layout) && __raid10_far_copies(layout) > 1;
 }
 
 /* Return md raid10 layout string for @layout */
@@ -442,13 +431,13 @@ static const char *raid10_md_layout_to_format(int layout)
 	 *
 	 * Refer to MD's raid10.c for details
 	 */
-	if (_is_raid10_offset(layout))
+	if (__is_raid10_offset(layout))
 		return "offset";
 
-	if (_raid10_near_copies(layout) > 1)
+	if (__raid10_near_copies(layout) > 1)
 		return "near";
 
-	WARN_ON(_raid10_far_copies(layout) < 2);
+	WARN_ON(__raid10_far_copies(layout) < 2);
 
 	return "far";
 }
@@ -466,12 +455,11 @@ static const int raid10_name_to_format(const char *name)
 	return -EINVAL;
 }
 
-
 /* Return md raid10 copies for @layout */
 static unsigned int raid10_md_layout_to_copies(int layout)
 {
-	return _raid10_near_copies(layout) > 1 ?
-	       _raid10_near_copies(layout) : _raid10_far_copies(layout);
+	return __raid10_near_copies(layout) > 1 ?
+		__raid10_near_copies(layout) : __raid10_far_copies(layout);
 }
 
 /* Return md raid10 format id for @format string */
@@ -513,17 +501,17 @@ static int raid10_format_to_md_layout(struct raid_set *rs,
 /* END: MD raid10 bit definitions and helpers */
 
 /* Check for any of the raid10 algorithms */
-static int _got_raid10(struct raid_type *rtp, const int layout)
+static int __got_raid10(struct raid_type *rtp, const int layout)
 {
 	if (rtp->level == 10) {
 		switch (rtp->algorithm) {
 		case ALGORITHM_RAID10_DEFAULT:
 		case ALGORITHM_RAID10_NEAR:
-			return _is_raid10_near(layout);
+			return __is_raid10_near(layout);
 		case ALGORITHM_RAID10_OFFSET:
-			return _is_raid10_offset(layout);
+			return __is_raid10_offset(layout);
 		case ALGORITHM_RAID10_FAR:
-			return _is_raid10_far(layout);
+			return __is_raid10_far(layout);
 		default:
 			break;
 		}
@@ -552,7 +540,7 @@ static struct raid_type *get_raid_type_by_ll(const int level, const int layout)
 	while (rtp-- > raid_types) {
 		/* RAID10 special checks based on @layout flags/properties */
 		if (rtp->level == level &&
-		    (_got_raid10(rtp, layout) || rtp->algorithm == layout))
+		    (__got_raid10(rtp, layout) || rtp->algorithm == layout))
 			return rtp;
 	}
 
@@ -1352,10 +1340,10 @@ static int rs_check_takeover(struct raid_set *rs)
 
 	case 10:
 		/* Can't takeover raid10_offset! */
-		if (_is_raid10_offset(mddev->layout))
+		if (__is_raid10_offset(mddev->layout))
 			break;
 
-		near_copies = _raid10_near_copies(mddev->layout);
+		near_copies = __raid10_near_copies(mddev->layout);
 
 		/* raid10* -> raid0 */
 		if (mddev->new_level == 0) {
@@ -1369,7 +1357,7 @@ static int rs_check_takeover(struct raid_set *rs)
 
 			/* Can takeover raid10_far */
 			if (near_copies == 1 &&
-			   _raid10_far_copies(mddev->layout) > 1)
+			    __raid10_far_copies(mddev->layout) > 1)
 				return 0;
 
 			break;
@@ -1377,7 +1365,7 @@ static int rs_check_takeover(struct raid_set *rs)
 
 		/* raid10_{near,far} -> raid1 */
 		if (mddev->new_level == 1 &&
-		    max(near_copies, _raid10_far_copies(mddev->layout)) == mddev->raid_disks)
+		    max(near_copies, __raid10_far_copies(mddev->layout)) == mddev->raid_disks)
 			return 0;
 
 		/* raid10_{near,far} with 2 disks -> raid4/5 */
@@ -1914,8 +1902,8 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 				continue;
 
 			if (role != r->raid_disk) {
-				if (_is_raid10_near(mddev->layout)) {
-					if (mddev->raid_disks % _raid10_near_copies(mddev->layout) ||
+				if (__is_raid10_near(mddev->layout)) {
+					if (mddev->raid_disks % __raid10_near_copies(mddev->layout) ||
 					    rs->raid_disks % rs->raid10_copies) {
 						rs->ti->error =
 							"Cannot change raid10 near set to odd # of devices!";
@@ -2099,7 +2087,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 }
 
 /* Userpace reordered disks -> adjust raid_disk indexes in @rs */
-static void _reorder_raid_disk_indexes(struct raid_set *rs)
+static void __reorder_raid_disk_indexes(struct raid_set *rs)
 {
 	int i = 0;
 	struct md_rdev *rdev;
@@ -2123,7 +2111,7 @@ static int rs_setup_takeover(struct raid_set *rs)
 	if (rt_is_raid10(rs->raid_type)) {
 		if (mddev->level == 0) {
 			/* Userpace reordered disks -> adjust raid_disk indexes */
-			_reorder_raid_disk_indexes(rs);
+			__reorder_raid_disk_indexes(rs);
 
 			/* raid0 -> raid10_far layout */
 			mddev->layout = raid10_format_to_md_layout(rs, ALGORITHM_RAID10_FAR,
@@ -2400,7 +2388,7 @@ static const char *decipher_sync_action(struct mddev *mddev)
  *  'a' = Alive but not in-sync
  *  'A' = Alive and in-sync
  */
-static const char *_raid_dev_status(struct md_rdev *rdev, bool array_in_sync)
+static const char *__raid_dev_status(struct md_rdev *rdev, bool array_in_sync)
 {
 	if (test_bit(Faulty, &rdev->flags))
 		return "D";
@@ -2484,7 +2472,7 @@ static sector_t rs_get_progress(struct raid_set *rs,
 }
 
 /* Helper to return @dev name or "-" if !@dev */
-static const char *_get_dev_name(struct dm_dev *dev)
+static const char *__get_dev_name(struct dm_dev *dev)
 {
 	return dev ? dev->name : "-";
 }
@@ -2526,7 +2514,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 
 		/* HM FIXME: do we want another state char for raid0? It shows 'D' or 'A' now */
 		rdev_for_each(rdev, mddev)
-			DMEMIT(_raid_dev_status(rdev, array_in_sync));
+			DMEMIT(__raid_dev_status(rdev, array_in_sync));
 
 		/*
 		 * In-sync/Reshape ratio:
@@ -2634,8 +2622,8 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		rdev_for_each(rdev, mddev) {
 			struct raid_dev *rd = container_of(rdev, struct raid_dev, rdev);
 
-			DMEMIT(" %s %s", _get_dev_name(rd->meta_dev),
-					 _get_dev_name(rd->data_dev));
+			DMEMIT(" %s %s", __get_dev_name(rd->meta_dev),
+					 __get_dev_name(rd->data_dev));
 		}
 	}
 }
@@ -2792,8 +2780,7 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 	}
 }
 
-/* Load the dirty region bitmap */
-static int _bitmap_load(struct raid_set *rs)
+static int __load_dirty_region_bitmap(struct raid_set *rs)
 {
 	int r = 0;
 
@@ -2819,7 +2806,7 @@ static int raid_preresume(struct dm_target *ti)
 
 	/*
 	 * The superblocks need to be updated on disk if the
-	 * array is new or _bitmap_load will overwrite them
+	 * array is new or __load_dirty_region_bitmap will overwrite them
 	 * in core with old data.
 	 *
 	 * In case the array got modified (takeover/reshape/resize)
@@ -2843,7 +2830,7 @@ static int raid_preresume(struct dm_target *ti)
 	configure_discard_support(rs);
 
 	/* Load the bitmap from disk unless raid0 */
-	return _bitmap_load(rs);
+	return __load_dirty_region_bitmap(rs);
 }
 
 static void raid_resume(struct dm_target *ti)
