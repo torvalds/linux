@@ -98,7 +98,8 @@ rockchip_vpu_encode_after_decode_war(struct rockchip_vpu_ctx *ctx)
 {
 	struct rockchip_vpu_dev *dev = ctx->dev;
 
-	if (dev->was_decoding && rockchip_vpu_ctx_is_encoder(ctx))
+	if (dev->dummy_encode_ctx &&
+			dev->was_decoding && rockchip_vpu_ctx_is_encoder(ctx))
 		return dev->dummy_encode_ctx;
 
 	return ctx;
@@ -587,6 +588,8 @@ static const struct v4l2_file_operations rockchip_vpu_fops = {
  * Platform driver.
  */
 
+static void* rockchip_get_drv_data(struct platform_device *pdev);
+
 static int rockchip_vpu_probe(struct platform_device *pdev)
 {
 	struct rockchip_vpu_dev *vpu = NULL;
@@ -608,9 +611,11 @@ static int rockchip_vpu_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&vpu->ready_ctxs);
 	init_waitqueue_head(&vpu->run_wq);
 
+	vpu->variant = rockchip_get_drv_data(pdev);
+
 	ret = rockchip_vpu_hw_probe(vpu);
 	if (ret) {
-		dev_err(&pdev->dev, "vcodec_hw_probe failed\n");
+		dev_err(&pdev->dev, "rockchip_vpu_hw_probe failed\n");
 		goto err_hw_probe;
 	}
 
@@ -644,13 +649,20 @@ static int rockchip_vpu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, vpu);
 
-	ret = rockchip_vpu_enc_init_dummy_ctx(vpu);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to create dummy encode context\n");
-		goto err_dummy_enc;
+	/* workaround for rk3288 codecs */
+	if (vpu->variant->codecs == RK3288_CODECS) {
+		ret = rockchip_vpu_enc_init_dummy_ctx(vpu);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to create dummy encode context\n");
+			goto err_dummy_enc;
+		}
 	}
 
 	/* encoder */
+	if (!(vpu->variant->codecs & ROCKCHIP_VPU_ENCODERS))
+		goto no_encoder;
+
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&vpu->v4l2_dev, "Failed to allocate video device\n");
@@ -680,7 +692,11 @@ static int rockchip_vpu_probe(struct platform_device *pdev)
 		"Rockchip VPU encoder registered as /vpu/video%d\n",
 		vfd->num);
 
+no_encoder:
 	/* decoder */
+	if (!(vpu->variant->codecs & ROCKCHIP_VPU_DECODERS))
+		goto no_decoder;
+
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&vpu->v4l2_dev, "Failed to allocate video device\n");
@@ -710,6 +726,7 @@ static int rockchip_vpu_probe(struct platform_device *pdev)
 		"Rockchip VPU decoder registered as /vpu/video%d\n",
 		vfd->num);
 
+no_decoder:
 	vpu_debug_leave();
 
 	return 0;
@@ -764,8 +781,21 @@ static int rockchip_vpu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* Supported VPU variants. */
+static const struct rockchip_vpu_variant rk3288_vpu_variant = {
+	.name = "Rk3288 vpu",
+	.codecs = RK3288_CODECS,
+	.enc_offset = 0x0,
+	.enc_reg_num = 164,
+	.dec_offset = 0x400,
+	.dec_reg_num = 60 + 41,
+};
+
 static struct platform_device_id vpu_driver_ids[] = {
-	{ .name = "rk3288-vpu", },
+	{
+		.name = "rk3288-vpu",
+		.driver_data = (unsigned long)&rk3288_vpu_variant,
+	},
 	{ /* sentinel */ }
 };
 
@@ -773,11 +803,26 @@ MODULE_DEVICE_TABLE(platform, vpu_driver_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_rockchip_vpu_match[] = {
-	{ .compatible = "rockchip,rk3288-vpu", },
+	{ .compatible = "rockchip,rk3288-vpu", .data = &rk3288_vpu_variant, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_rockchip_vpu_match);
 #endif
+
+static void* rockchip_get_drv_data(struct platform_device *pdev)
+{
+#ifdef CONFIG_OF
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(of_rockchip_vpu_match,
+							  pdev->dev.of_node);
+		if (match)
+			return (void *)match->data;
+	}
+#endif
+
+	return (void *)platform_get_device_id(pdev)->driver_data;
+}
 
 #ifdef CONFIG_PM_SLEEP
 static int rockchip_vpu_suspend(struct device *dev)
@@ -812,7 +857,9 @@ static struct platform_driver rockchip_vpu_driver = {
 	.driver = {
 		   .name = ROCKCHIP_VPU_NAME,
 		   .owner = THIS_MODULE,
+#ifdef CONFIG_OF
 		   .of_match_table = of_match_ptr(of_rockchip_vpu_match),
+#endif
 		   .pm = &rockchip_vpu_pm_ops,
 	},
 };

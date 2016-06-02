@@ -39,36 +39,10 @@
 #define VP8_FRAME_TAG_LENGTH_MASK               (0x7ffff << 5)
 
 /**
- * struct rockchip_vpu_variant - information about VPU hardware variant
- *
- * @hw_id:		Top 16 bits (product ID) of hardware ID register.
- * @enc_offset:		Offset from VPU base to encoder registers.
- * @enc_reg_num:	Number of registers of encoder block.
- * @dec_offset:		Offset from VPU base to decoder registers.
- * @dec_reg_num:	Number of registers of decoder block.
- */
-struct rockchip_vpu_variant {
-	u16 hw_id;
-	unsigned enc_offset;
-	unsigned enc_reg_num;
-	unsigned dec_offset;
-	unsigned dec_reg_num;
-};
-
-/* Supported VPU variants. */
-static const struct rockchip_vpu_variant rockchip_vpu_variants[] = {
-	{
-		.hw_id = 0x4831,
-		.enc_offset = 0x0,
-		.enc_reg_num = 164,
-		.dec_offset = 0x400,
-		.dec_reg_num = 60 + 41,
-	},
-};
-
-/**
  * struct rockchip_vpu_codec_ops - codec mode specific operations
  *
+ * @codec_mode:	Codec mode related to this format. See
+ *		enum rockchip_vpu_codec_mode.
  * @init:	Prepare for streaming. Called from VB2 .start_streaming()
  *		when streaming from both queues is being enabled.
  * @exit:	Clean-up after streaming. Called from VB2 .stop_streaming()
@@ -82,6 +56,8 @@ static const struct rockchip_vpu_variant rockchip_vpu_variants[] = {
  * @reset:	Reset the hardware in case of a timeout.
  */
 struct rockchip_vpu_codec_ops {
+	enum rockchip_vpu_codec_mode codec_mode;
+
 	int (*init)(struct rockchip_vpu_ctx *);
 	void (*exit)(struct rockchip_vpu_ctx *);
 
@@ -94,25 +70,6 @@ struct rockchip_vpu_codec_ops {
 /*
  * Hardware control routines.
  */
-
-static int rockchip_vpu_identify(struct rockchip_vpu_dev *vpu)
-{
-	u32 hw_id;
-	int i;
-
-	hw_id = readl(vpu->base) >> 16;
-
-	dev_info(vpu->dev, "Read hardware ID: %x\n", hw_id);
-
-	for (i = 0; i < ARRAY_SIZE(rockchip_vpu_variants); ++i) {
-		if (hw_id == rockchip_vpu_variants[i].hw_id) {
-			vpu->variant = &rockchip_vpu_variants[i];
-			return 0;
-		}
-	}
-
-	return -ENOENT;
-}
 
 void rockchip_vpu_power_on(struct rockchip_vpu_dev *vpu)
 {
@@ -261,16 +218,16 @@ int rockchip_vpu_hw_probe(struct rockchip_vpu_dev *vpu)
 
 	INIT_DELAYED_WORK(&vpu->watchdog_work, rockchip_vpu_watchdog);
 
-	vpu->aclk_vcodec = devm_clk_get(vpu->dev, "aclk_vcodec");
-	if (IS_ERR(vpu->aclk_vcodec)) {
-		dev_err(vpu->dev, "failed to get aclk_vcodec\n");
-		return PTR_ERR(vpu->aclk_vcodec);
+	vpu->aclk = devm_clk_get(vpu->dev, "aclk");
+	if (IS_ERR(vpu->aclk)) {
+		dev_err(vpu->dev, "failed to get aclk\n");
+		return PTR_ERR(vpu->aclk);
 	}
 
-	vpu->hclk_vcodec = devm_clk_get(vpu->dev, "hclk_vcodec");
-	if (IS_ERR(vpu->hclk_vcodec)) {
-		dev_err(vpu->dev, "failed to get hclk_vcodec\n");
-		return PTR_ERR(vpu->hclk_vcodec);
+	vpu->hclk = devm_clk_get(vpu->dev, "hclk");
+	if (IS_ERR(vpu->hclk)) {
+		dev_err(vpu->dev, "failed to get hclk\n");
+		return PTR_ERR(vpu->hclk);
 	}
 
 	/*
@@ -278,21 +235,15 @@ int rockchip_vpu_hw_probe(struct rockchip_vpu_dev *vpu)
 	 *
 	 * VP8 encoding 1280x720@1.2Mbps 200 MHz: 39 fps, 400: MHz 77 fps
 	 */
-	clk_set_rate(vpu->aclk_vcodec, 400*1000*1000);
+	clk_set_rate(vpu->aclk, 400*1000*1000);
 
 	res = platform_get_resource(vpu->pdev, IORESOURCE_MEM, 0);
 	vpu->base = devm_ioremap_resource(vpu->dev, res);
 	if (IS_ERR(vpu->base))
 		return PTR_ERR(vpu->base);
 
-	clk_prepare_enable(vpu->aclk_vcodec);
-	clk_prepare_enable(vpu->hclk_vcodec);
-
-	ret = rockchip_vpu_identify(vpu);
-	if (ret < 0) {
-		dev_err(vpu->dev, "failed to identify hardware variant\n");
-		goto err_power;
-	}
+	clk_prepare_enable(vpu->aclk);
+	clk_prepare_enable(vpu->hclk);
 
 	vpu->enc_base = vpu->base + vpu->variant->enc_offset;
 	vpu->dec_base = vpu->base + vpu->variant->dec_offset;
@@ -344,8 +295,8 @@ int rockchip_vpu_hw_probe(struct rockchip_vpu_dev *vpu)
 err_iommu:
 	rockchip_vpu_iommu_cleanup(vpu);
 err_power:
-	clk_disable_unprepare(vpu->hclk_vcodec);
-	clk_disable_unprepare(vpu->aclk_vcodec);
+	clk_disable_unprepare(vpu->hclk);
+	clk_disable_unprepare(vpu->aclk);
 
 	return ret;
 }
@@ -356,12 +307,13 @@ void rockchip_vpu_hw_remove(struct rockchip_vpu_dev *vpu)
 
 	pm_runtime_disable(vpu->dev);
 
-	clk_disable_unprepare(vpu->hclk_vcodec);
-	clk_disable_unprepare(vpu->aclk_vcodec);
+	clk_disable_unprepare(vpu->hclk);
+	clk_disable_unprepare(vpu->aclk);
 }
 
 static const struct rockchip_vpu_codec_ops mode_ops[] = {
-	[RK3288_VPU_CODEC_VP8E] = {
+	{
+		.codec_mode = RK3288_VPU_CODEC_VP8E,
 		.init = rk3288_vpu_vp8e_init,
 		.exit = rk3288_vpu_vp8e_exit,
 		.irq = rk3288_vpu_enc_irq,
@@ -369,7 +321,8 @@ static const struct rockchip_vpu_codec_ops mode_ops[] = {
 		.done = rk3288_vpu_vp8e_done,
 		.reset = rk3288_vpu_enc_reset,
 	},
-	[RK3288_VPU_CODEC_VP8D] = {
+	{
+		.codec_mode = RK3288_VPU_CODEC_VP8D,
 		.init = rk3288_vpu_vp8d_init,
 		.exit = rk3288_vpu_vp8d_exit,
 		.irq = rk3288_vpu_dec_irq,
@@ -377,7 +330,8 @@ static const struct rockchip_vpu_codec_ops mode_ops[] = {
 		.done = rockchip_vpu_run_done,
 		.reset = rk3288_vpu_dec_reset,
 	},
-	[RK3288_VPU_CODEC_H264D] = {
+	{
+		.codec_mode = RK3288_VPU_CODEC_H264D,
 		.init = rk3288_vpu_h264d_init,
 		.exit = rk3288_vpu_h264d_exit,
 		.irq = rk3288_vpu_dec_irq,
@@ -395,13 +349,22 @@ void rockchip_vpu_run(struct rockchip_vpu_ctx *ctx)
 int rockchip_vpu_init(struct rockchip_vpu_ctx *ctx)
 {
 	enum rockchip_vpu_codec_mode codec_mode;
+	int i;
 
 	if (rockchip_vpu_ctx_is_encoder(ctx))
 		codec_mode = ctx->vpu_dst_fmt->codec_mode; /* Encoder */
 	else
 		codec_mode = ctx->vpu_src_fmt->codec_mode; /* Decoder */
 
-	ctx->hw.codec_ops = &mode_ops[codec_mode];
+	for (i = 0; i < ARRAY_SIZE(mode_ops); i++) {
+		if (mode_ops[i].codec_mode == codec_mode) {
+			ctx->hw.codec_ops = &mode_ops[i];
+			break;
+		}
+	}
+
+	if (!ctx->hw.codec_ops)
+		return -1;
 
 	return ctx->hw.codec_ops->init(ctx);
 }

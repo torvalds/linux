@@ -50,23 +50,47 @@
 #define MB_WIDTH(x_size)		DIV_ROUND_UP(x_size, MB_DIM)
 #define MB_HEIGHT(y_size)		DIV_ROUND_UP(y_size, MB_DIM)
 
-struct rockchip_vpu_variant;
 struct rockchip_vpu_ctx;
 struct rockchip_vpu_codec_ops;
 
 /**
+ * struct rockchip_vpu_variant - information about VPU hardware variant
+ *
+ * @hw_id:		Top 16 bits (product ID) of hardware ID register.
+ * @name:		Vpu name.
+ * @codecs:		Supported codecs of this vpu.
+ * @enc_offset:		Offset from VPU base to encoder registers.
+ * @enc_reg_num:	Number of registers of encoder block.
+ * @dec_offset:		Offset from VPU base to decoder registers.
+ * @dec_reg_num:	Number of registers of decoder block.
+ */
+struct rockchip_vpu_variant {
+	char *name;
+	unsigned codecs;
+	unsigned enc_offset;
+	unsigned enc_reg_num;
+	unsigned dec_offset;
+	unsigned dec_reg_num;
+};
+
+/**
  * enum rockchip_vpu_codec_mode - codec operating mode.
- * @RK_VPU_CODEC_NONE:	No operating mode. Used for RAW video formats.
+ * @RK_VPU_CODEC_NONE:		Used for RAW video formats.
  * @RK3288_VPU_CODEC_H264D:	Rk3288 H264 decoder.
  * @RK3288_VPU_CODEC_VP8D:	Rk3288 VP8 decoder.
  * @RK3288_VPU_CODEC_VP8E:	Rk3288 VP8 encoder.
  */
 enum rockchip_vpu_codec_mode {
-	RK_VPU_CODEC_NONE = -1,
-	RK3288_VPU_CODEC_H264D,
-	RK3288_VPU_CODEC_VP8D,
-	RK3288_VPU_CODEC_VP8E
+	RK_VPU_CODEC_NONE	= (1 << 0),
+	RK3288_VPU_CODEC_H264D	= (1 << 1),
+	RK3288_VPU_CODEC_VP8D	= (1 << 2),
+	RK3288_VPU_CODEC_VP8E	= (1 << 3),
 };
+
+#define ROCKCHIP_VPU_DECODERS	(RK3288_VPU_CODEC_H264D | RK3288_VPU_CODEC_VP8D)
+#define ROCKCHIP_VPU_ENCODERS	(RK3288_VPU_CODEC_VP8E)
+
+#define RK3288_CODECS		(RK_VPU_CODEC_NONE | RK3288_VPU_CODEC_H264D | RK3288_VPU_CODEC_VP8D | RK3288_VPU_CODEC_VP8E)
 
 /**
  * enum rockchip_vpu_plane - indices of planes inside a VB2 buffer.
@@ -138,8 +162,8 @@ enum rockchip_vpu_state {
  *			(for allocations without kernel mapping).
  * @alloc_ctx_vm:	VB2 allocator context
  *			(for allocations with kernel mapping).
- * @aclk_vcodec:	Handle of ACLK clock.
- * @hclk_vcodec:	Handle of HCLK clock.
+ * @aclk:		Handle of ACLK clock.
+ * @hclk:		Handle of HCLK clock.
  * @base:		Mapped address of VPU registers.
  * @enc_base:		Mapped address of VPU encoder register for convenience.
  * @dec_base:		Mapped address of VPU decoder register for convenience.
@@ -168,8 +192,8 @@ struct rockchip_vpu_dev {
 	struct device *dev;
 	void *alloc_ctx;
 	void *alloc_ctx_vm;
-	struct clk *aclk_vcodec;
-	struct clk *hclk_vcodec;
+	struct clk *aclk;
+	struct clk *hclk;
 	void __iomem *base;
 	void __iomem *enc_base;
 	void __iomem *dec_base;
@@ -455,6 +479,13 @@ rockchip_vpu_ctx_is_dummy_encode(struct rockchip_vpu_ctx *ctx)
 	struct rockchip_vpu_dev *dev = ctx->dev;
 
 	return ctx == dev->dummy_encode_ctx;
+}
+
+static inline bool
+rockchip_vpu_dev_codec_support(struct rockchip_vpu_dev *dev,
+			       enum rockchip_vpu_codec_mode codec_mode)
+{
+	return !!(codec_mode & dev->variant->codecs);
 }
 
 int rockchip_vpu_ctrls_setup(struct rockchip_vpu_ctx *ctx,

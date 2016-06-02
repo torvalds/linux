@@ -97,13 +97,15 @@ static struct rockchip_vpu_fmt formats[] = {
 	},
 };
 
-static struct rockchip_vpu_fmt *find_format(u32 fourcc, bool bitstream)
+static struct rockchip_vpu_fmt *find_format(struct rockchip_vpu_dev *dev, u32 fourcc, bool bitstream)
 {
 	unsigned int i;
 
 	vpu_debug_enter();
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
+		if (!rockchip_vpu_dev_codec_support(dev, formats[i].codec_mode))
+			continue;
 		if (formats[i].fourcc != fourcc)
 			continue;
 		if (bitstream && formats[i].codec_mode != RK_VPU_CODEC_NONE)
@@ -360,6 +362,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_enum_framesizes(struct file *file, void *prov,
 				  struct v4l2_frmsizeenum *fsize)
 {
+	struct rockchip_vpu_dev *dev = video_drvdata(file);
 	struct v4l2_frmsize_stepwise *s = &fsize->stepwise;
 	struct rockchip_vpu_fmt *fmt;
 
@@ -369,7 +372,7 @@ static int vidioc_enum_framesizes(struct file *file, void *prov,
 		return -EINVAL;
 	}
 
-	fmt = find_format(fsize->pixel_format, true);
+	fmt = find_format(dev, fsize->pixel_format, true);
 	if (!fmt) {
 		vpu_debug(0, "unsupported bitstream format (%08x)\n",
 				fsize->pixel_format);
@@ -388,14 +391,17 @@ static int vidioc_enum_framesizes(struct file *file, void *prov,
 	return 0;
 }
 
-static int vidioc_enum_fmt(struct v4l2_fmtdesc *f, bool out)
+static int vidioc_enum_fmt(struct file *file, struct v4l2_fmtdesc *f, bool out)
 {
+	struct rockchip_vpu_dev *dev = video_drvdata(file);
 	struct rockchip_vpu_fmt *fmt;
 	int i, j = 0;
 
 	vpu_debug_enter();
 
 	for (i = 0; i < ARRAY_SIZE(formats); ++i) {
+		if (!rockchip_vpu_dev_codec_support(dev, formats[i].codec_mode))
+			continue;
 		if (out && formats[i].codec_mode != RK_VPU_CODEC_NONE)
 			continue;
 		else if (!out && formats[i].codec_mode == RK_VPU_CODEC_NONE)
@@ -427,13 +433,13 @@ static int vidioc_enum_fmt(struct v4l2_fmtdesc *f, bool out)
 static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 					  struct v4l2_fmtdesc *f)
 {
-	return vidioc_enum_fmt(f, false);
+	return vidioc_enum_fmt(file, f, false);
 }
 
 static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *priv,
 					  struct v4l2_fmtdesc *f)
 {
-	return vidioc_enum_fmt(f, true);
+	return vidioc_enum_fmt(file, f, true);
 }
 
 static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
@@ -465,6 +471,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
+	struct rockchip_vpu_dev *dev = video_drvdata(file);
 	struct rockchip_vpu_fmt *fmt;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	char str[5];
@@ -475,7 +482,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		vpu_debug(4, "%s\n", fmt2str(f->fmt.pix_mp.pixelformat, str));
 
-		fmt = find_format(pix_fmt_mp->pixelformat, true);
+		fmt = find_format(dev, pix_fmt_mp->pixelformat, true);
 		if (!fmt) {
 			vpu_err("failed to try capture format\n");
 			return -EINVAL;
@@ -492,7 +499,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		vpu_debug(4, "%s\n", fmt2str(f->fmt.pix_mp.pixelformat, str));
 
-		fmt = find_format(pix_fmt_mp->pixelformat, false);
+		fmt = find_format(dev, pix_fmt_mp->pixelformat, false);
 		if (!fmt) {
 			vpu_err("failed to try output format\n");
 			return -EINVAL;
@@ -546,6 +553,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_dev *dev = ctx->dev;
 	unsigned int mb_width, mb_height;
 	struct rockchip_vpu_fmt *fmt;
 	int ret = 0;
@@ -574,7 +582,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		if (ret)
 			goto out;
 
-		ctx->vpu_dst_fmt = find_format(pix_fmt_mp->pixelformat, true);
+		ctx->vpu_dst_fmt = find_format(dev, pix_fmt_mp->pixelformat, true);
 		ctx->dst_fmt = *pix_fmt_mp;
 		break;
 
@@ -593,7 +601,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		if (ret)
 			goto out;
 
-		fmt = find_format(pix_fmt_mp->pixelformat, false);
+		fmt = find_format(dev, pix_fmt_mp->pixelformat, false);
 		ctx->vpu_src_fmt = fmt;
 
 		mb_width = MB_WIDTH(pix_fmt_mp->width);
@@ -1313,14 +1321,16 @@ static void rockchip_vpu_enc_prepare_run(struct rockchip_vpu_ctx *ctx)
 
 	v4l2_ctrl_apply_store(&ctx->ctrl_handler, config_store);
 
-	memcpy(ctx->run.dst->vp8e.header,
-		get_ctrl_ptr(ctx, ROCKCHIP_VPU_ENC_CTRL_HEADER),
-		ROCKCHIP_HEADER_SIZE);
-	ctx->run.vp8e.reg_params = get_ctrl_ptr(ctx,
-		ROCKCHIP_VPU_ENC_CTRL_REG_PARAMS);
-	memcpy(ctx->run.priv_src.cpu,
-		get_ctrl_ptr(ctx, ROCKCHIP_VPU_ENC_CTRL_HW_PARAMS),
-		ROCKCHIP_HW_PARAMS_SIZE);
+	if (ctx->vpu_dst_fmt->fourcc == V4L2_PIX_FMT_VP8) {
+		memcpy(ctx->run.dst->vp8e.header,
+			get_ctrl_ptr(ctx, ROCKCHIP_VPU_ENC_CTRL_HEADER),
+			ROCKCHIP_HEADER_SIZE);
+		ctx->run.vp8e.reg_params = get_ctrl_ptr(ctx,
+			ROCKCHIP_VPU_ENC_CTRL_REG_PARAMS);
+		memcpy(ctx->run.priv_src.cpu,
+			get_ctrl_ptr(ctx, ROCKCHIP_VPU_ENC_CTRL_HW_PARAMS),
+			ROCKCHIP_HW_PARAMS_SIZE);
+	}
 }
 
 static const struct rockchip_vpu_run_ops rockchip_vpu_enc_run_ops = {
@@ -1332,8 +1342,8 @@ int rockchip_vpu_enc_init(struct rockchip_vpu_ctx *ctx)
 	struct rockchip_vpu_dev *vpu = ctx->dev;
 	int ret;
 
-	ctx->vpu_src_fmt = find_format(DEF_SRC_FMT_ENC, false);
-	ctx->vpu_dst_fmt = find_format(DEF_DST_FMT_ENC, true);
+	ctx->vpu_src_fmt = find_format(vpu, DEF_SRC_FMT_ENC, false);
+	ctx->vpu_dst_fmt = find_format(vpu, DEF_DST_FMT_ENC, true);
 
 	ret = rockchip_vpu_aux_buf_alloc(vpu, &ctx->run.priv_src,
 					ROCKCHIP_HW_PARAMS_SIZE);
@@ -1406,7 +1416,7 @@ int rockchip_vpu_enc_init_dummy_ctx(struct rockchip_vpu_dev *dev)
 
 	ctx->dev = dev;
 
-	ctx->vpu_src_fmt = find_format(DUMMY_SRC_FMT, false);
+	ctx->vpu_src_fmt = find_format(dev, DUMMY_SRC_FMT, false);
 	ctx->src_fmt.width = DUMMY_W;
 	ctx->src_fmt.height = DUMMY_H;
 	ctx->src_fmt.pixelformat = ctx->vpu_src_fmt->fourcc;
@@ -1415,7 +1425,7 @@ int rockchip_vpu_enc_init_dummy_ctx(struct rockchip_vpu_dev *dev)
 	calculate_plane_sizes(ctx->vpu_src_fmt, ctx->src_fmt.width,
 				ctx->src_fmt.height, &ctx->src_fmt);
 
-	ctx->vpu_dst_fmt = find_format(DUMMY_DST_FMT, true);
+	ctx->vpu_dst_fmt = find_format(dev, DUMMY_DST_FMT, true);
 	ctx->dst_fmt.width = ctx->src_fmt.width;
 	ctx->dst_fmt.height = ctx->src_fmt.height;
 	ctx->dst_fmt.pixelformat = ctx->vpu_dst_fmt->fourcc;
@@ -1494,6 +1504,9 @@ void rockchip_vpu_enc_free_dummy_ctx(struct rockchip_vpu_dev *dev)
 {
 	struct rockchip_vpu_ctx *ctx = dev->dummy_encode_ctx;
 	int i;
+
+	if (!ctx)
+		return;
 
 	rockchip_vpu_deinit(ctx);
 
