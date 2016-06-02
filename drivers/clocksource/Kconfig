@@ -250,7 +250,7 @@ config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	 Use ARM global timer clock source as sched_clock
 
 config ARMV7M_SYSTICK
-	bool
+	bool "Support for the ARMv7M system time" if COMPILE_TEST
 	select CLKSRC_OF if OF
 	select CLKSRC_MMIO
 	help
