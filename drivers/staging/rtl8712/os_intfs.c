@@ -245,7 +245,7 @@ void r8712_stop_drv_threads(struct _adapter *padapter)
 	/*Below is to terminate r8712_cmd_thread & event_thread...*/
 	complete(&padapter->cmdpriv.cmd_queue_comp);
 	if (padapter->cmdThread)
-		_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
+		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
 	padapter->cmdpriv.cmd_seq = 1;
 }
 

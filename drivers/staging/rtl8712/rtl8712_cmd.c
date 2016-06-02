@@ -420,7 +420,7 @@ _next:
 			break;
 		r8712_free_cmd_obj(pcmd);
 	} while (1);
-	up(&pcmdpriv->terminate_cmdthread_sema);
+	complete(&pcmdpriv->terminate_cmdthread_comp);
 	thread_exit();
 }
 

@@ -58,7 +58,7 @@ No irqsave is necessary.
 static sint _init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	init_completion(&pcmdpriv->cmd_queue_comp);
-	sema_init(&(pcmdpriv->terminate_cmdthread_sema), 0);
+	init_completion(&pcmdpriv->terminate_cmdthread_comp);
 
 	_init_queue(&(pcmdpriv->cmd_queue));
 
