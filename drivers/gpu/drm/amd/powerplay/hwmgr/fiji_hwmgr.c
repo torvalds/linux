@@ -593,12 +593,18 @@ static int fiji_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 
 static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_hwmgr *data;
 	uint32_t i;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	bool stay_in_boot;
 	int result;
+
+	data = kzalloc(sizeof(struct fiji_hwmgr), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	hwmgr->backend = data;
 
 	data->dll_default_on = false;
 	data->sram_end = SMC_RAM_END;
@@ -5629,16 +5635,8 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 
 int fiji_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_hwmgr  *data;
-	int ret = 0;
-
-	data = kzalloc(sizeof(struct fiji_hwmgr), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	hwmgr->backend = data;
 	hwmgr->hwmgr_func = &fiji_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
 	pp_fiji_thermal_initialize(hwmgr);
-	return ret;
+	return 0;
 }

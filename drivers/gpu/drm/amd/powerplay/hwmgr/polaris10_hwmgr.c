@@ -3115,12 +3115,18 @@ static int polaris10_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 
 int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data;
 	struct pp_atomctrl_gpio_pin_assignment gpio_pin_assignment;
 	uint32_t temp_reg;
 	int result;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+
+	data = kzalloc(sizeof(struct polaris10_hwmgr), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	hwmgr->backend = data;
 
 	data->dll_default_on = false;
 	data->sram_end = SMC_RAM_END;
@@ -5265,13 +5271,6 @@ static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 
 int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_hwmgr  *data;
-
-	data = kzalloc (sizeof(struct polaris10_hwmgr), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	hwmgr->backend = data;
 	hwmgr->hwmgr_func = &polaris10_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
 	pp_polaris10_thermal_initialize(hwmgr);

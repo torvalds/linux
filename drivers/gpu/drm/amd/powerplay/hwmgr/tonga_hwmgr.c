@@ -4442,7 +4442,7 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 	SMU72_Discrete_DpmTable  *table = NULL;
-	tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	tonga_hwmgr *data;
 	pp_atomctrl_gpio_pin_assignment gpio_pin_assignment;
 	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
 	phw_tonga_ulv_parm *ulv;
@@ -4450,6 +4450,12 @@ int tonga_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	PP_ASSERT_WITH_CODE((NULL != hwmgr),
 		"Invalid Parameter!", return -1;);
+
+	data = kzalloc(sizeof(struct tonga_hwmgr), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	hwmgr->backend = data;
 
 	data->dll_defaule_on = 0;
 	data->sram_end = SMC_RAM_END;
@@ -6309,14 +6315,6 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
-	tonga_hwmgr  *data;
-
-	data = kzalloc (sizeof(tonga_hwmgr), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-	memset(data, 0x00, sizeof(tonga_hwmgr));
-
-	hwmgr->backend = data;
 	hwmgr->hwmgr_func = &tonga_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
 	pp_tonga_thermal_initialize(hwmgr);
