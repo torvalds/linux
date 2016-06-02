@@ -6,3 +6,16 @@ menuconfig USB_PORTMUX
 	bool "USB dual role port MUX support"
 	help
 	  Generic USB dual role port mux support.
+
+if USB_PORTMUX
+
+config INTEL_MUX_GPIO
+tristate "Intel dual role port mux controlled by GPIOs"
+	depends on GPIOLIB
+	depends on REGULATOR
+	depends on X86 && ACPI
+	help
+	  Say Y here to enable support for Intel dual role port mux
+	  controlled by GPIOs.
+
+endif
