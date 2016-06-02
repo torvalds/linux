@@ -36,6 +36,30 @@
 		reg = <0x0 0x40000000>; /* 1GB */
 	};
 
+	a10leds {
+		compatible = "gpio-leds";
+
+		a10sr_led0 {
+			label = "a10sr-led0";
+			gpios = <&a10sr_gpio 0 1>;
+		};
+
+		a10sr_led1 {
+			label = "a10sr-led1";
+			gpios = <&a10sr_gpio 1 1>;
+		};
+
+		a10sr_led2 {
+			label = "a10sr-led2";
+			gpios = <&a10sr_gpio 2 1>;
+		};
+
+		a10sr_led3 {
+			label = "a10sr-led3";
+			gpios = <&a10sr_gpio 3 1>;
+		};
+	};
+
 	soc {
 		clkmgr@ffd04000 {
 			clocks {
