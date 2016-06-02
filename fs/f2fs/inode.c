@@ -355,7 +355,7 @@ void f2fs_evict_inode(struct inode *inode)
 	i_size_write(inode, 0);
 retry:
 	if (F2FS_HAS_BLOCKS(inode))
-		err = f2fs_truncate(inode, true);
+		err = f2fs_truncate(inode);
 
 	if (!err) {
 		f2fs_lock_op(sbi);
