@@ -76,6 +76,8 @@ Optional properties:
   - dmas: Must contain a list of two references to DMA specifiers, one for
 	  transmission, and one for reception.
   - dma-names: Must contain a list of two DMA names, "tx" and "rx".
+  - {cts,dsr,dcd,rng,rts,dtr}-gpios: Specify GPIOs for modem lines, cfr. the
+    generic serial DT bindings in serial.txt.
 
 Example:
 	aliases {
