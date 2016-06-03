@@ -55,6 +55,9 @@ MODULE_LICENSE("GPL");
 #define CHAOSKEY_VENDOR_ID	0x1d50	/* OpenMoko */
 #define CHAOSKEY_PRODUCT_ID	0x60c6	/* ChaosKey */
 
+#define ALEA_VENDOR_ID		0x12d8	/* Araneus */
+#define ALEA_PRODUCT_ID		0x0001	/* Alea I */
+
 #define CHAOSKEY_BUF_LEN	64	/* max size of USB full speed packet */
 
 #define NAK_TIMEOUT (HZ)		/* stall/wait timeout for device */
@@ -69,6 +72,7 @@ MODULE_LICENSE("GPL");
 
 static const struct usb_device_id chaoskey_table[] = {
 	{ USB_DEVICE(CHAOSKEY_VENDOR_ID, CHAOSKEY_PRODUCT_ID) },
+	{ USB_DEVICE(ALEA_VENDOR_ID, ALEA_PRODUCT_ID) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, chaoskey_table);
