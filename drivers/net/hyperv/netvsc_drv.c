@@ -701,7 +701,6 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	}
 
 vf_injection_done:
-	net_device_ctx = netdev_priv(net);
 	rx_stats = this_cpu_ptr(net_device_ctx->rx_stats);
 
 	/* Allocate a skb - TODO direct I/O to pages? */
