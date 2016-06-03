@@ -65,7 +65,7 @@ static unsigned int generic_powersave_bias_target(struct cpufreq_policy *policy,
 {
 	unsigned int freq_req, freq_reduc, freq_avg;
 	unsigned int freq_hi, freq_lo;
-	unsigned int index = 0;
+	unsigned int index;
 	unsigned int delay_hi_us;
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct od_policy_dbs_info *dbs_info = to_dbs_info(policy_dbs);
@@ -79,19 +79,17 @@ static unsigned int generic_powersave_bias_target(struct cpufreq_policy *policy,
 		return freq_next;
 	}
 
-	cpufreq_frequency_table_target(policy, freq_next, relation, &index);
+	index = cpufreq_frequency_table_target(policy, freq_next, relation);
 	freq_req = freq_table[index].frequency;
 	freq_reduc = freq_req * od_tuners->powersave_bias / 1000;
 	freq_avg = freq_req - freq_reduc;
 
 	/* Find freq bounds for freq_avg in freq_table */
-	index = 0;
-	cpufreq_frequency_table_target(policy, freq_avg, CPUFREQ_RELATION_H,
-				       &index);
+	index = cpufreq_frequency_table_target(policy, freq_avg,
+					       CPUFREQ_RELATION_H);
 	freq_lo = freq_table[index].frequency;
-	index = 0;
-	cpufreq_frequency_table_target(policy, freq_avg, CPUFREQ_RELATION_L,
-				       &index);
+	index = cpufreq_frequency_table_target(policy, freq_avg,
+					       CPUFREQ_RELATION_L);
 	freq_hi = freq_table[index].frequency;
 
 	/* Find out how long we have to be in hi and lo freqs */

@@ -245,12 +245,11 @@ policy->max, and all other criteria are met. This is helpful for the
 
 int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
                                    unsigned int target_freq,
-                                   unsigned int relation,
-                                   unsigned int *index);
+                                   unsigned int relation);
 
 is the corresponding frequency table helper for the ->target
-stage. Just pass the values to this function, and the unsigned int
-index returns the number of the frequency table entry which contains
+stage. Just pass the values to this function, and this function
+returns the number of the frequency table entry which contains
 the frequency the CPU shall be set to.
 
 The following macros can be used as iterators over cpufreq_frequency_table:
