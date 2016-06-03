@@ -29,7 +29,10 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct perf_sample *data, int max_stack);
 /* libunwind specific */
 #ifdef HAVE_LIBUNWIND_SUPPORT
-int libunwind__arch_reg_id(int regnum);
+#ifndef LIBUNWIND__ARCH_REG_ID
+#define LIBUNWIND__ARCH_REG_ID(regnum) libunwind__arch_reg_id(regnum)
+#endif
+int LIBUNWIND__ARCH_REG_ID(int regnum);
 int unwind__prepare_access(struct thread *thread, struct map *map);
 void unwind__flush_access(struct thread *thread);
 void unwind__finish_access(struct thread *thread);

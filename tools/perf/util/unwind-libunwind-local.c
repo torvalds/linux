@@ -508,7 +508,7 @@ static int access_reg(unw_addr_space_t __maybe_unused as,
 		return 0;
 	}
 
-	id = libunwind__arch_reg_id(regnum);
+	id = LIBUNWIND__ARCH_REG_ID(regnum);
 	if (id < 0)
 		return -EINVAL;
 
