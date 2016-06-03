@@ -67,6 +67,7 @@ struct skl {
 	unsigned int init_failed:1; /* delayed init failed */
 	struct platform_device *dmic_dev;
 	struct platform_device *i2s_dev;
+	struct snd_soc_platform *platform;
 
 	struct nhlt_acpi_table *nhlt; /* nhlt ptr */
 	struct skl_sst *skl_sst; /* sst skl ctx */
@@ -121,4 +122,5 @@ int skl_init_dsp(struct skl *skl);
 int skl_free_dsp(struct skl *skl);
 int skl_suspend_dsp(struct skl *skl);
 int skl_resume_dsp(struct skl *skl);
+void skl_cleanup_resources(struct skl *skl);
 #endif /* __SOUND_SOC_SKL_H */

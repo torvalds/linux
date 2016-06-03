@@ -1197,9 +1197,17 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(platform->dev);
+	struct skl *skl = ebus_to_skl(ebus);
+	int ret;
 
-	if (ebus->ppcap)
-		return skl_tplg_init(platform, ebus);
+	if (ebus->ppcap) {
+		ret = skl_tplg_init(platform, ebus);
+		if (ret < 0) {
+			dev_err(platform->dev, "Failed to init topology!\n");
+			return ret;
+		}
+		skl->platform = platform;
+	}
 
 	return 0;
 }

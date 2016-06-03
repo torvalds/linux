@@ -379,6 +379,16 @@ static int skl_unload_module(struct sst_dsp *ctx, u16 mod_id)
 	return ret;
 }
 
+void skl_clear_module_cnt(struct sst_dsp *ctx)
+{
+	struct skl_module_table *module;
+
+	list_for_each_entry(module, &ctx->module_list, list) {
+		module->usage_cnt = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(skl_clear_module_cnt);
+
 static void skl_clear_module_table(struct sst_dsp *ctx)
 {
 	struct skl_module_table *module, *tmp;

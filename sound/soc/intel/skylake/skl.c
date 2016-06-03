@@ -201,6 +201,7 @@ static int _skl_suspend(struct hdac_ext_bus *ebus)
 	skl_enable_miscbdcge(bus->dev, false);
 	snd_hdac_bus_enter_link_reset(bus);
 	skl_enable_miscbdcge(bus->dev, true);
+	skl_cleanup_resources(skl);
 
 	return 0;
 }
