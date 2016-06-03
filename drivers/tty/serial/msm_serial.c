@@ -726,7 +726,7 @@ static void msm_handle_tx(struct uart_port *port)
 		return;
 	}
 
-	pio_count = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	pio_count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	dma_count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 
 	dma_min = 1;	/* Always DMA */
