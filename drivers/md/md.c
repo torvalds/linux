@@ -2478,8 +2478,7 @@ static int add_bound_rdev(struct md_rdev *rdev)
 		if (add_journal)
 			mddev_resume(mddev);
 		if (err) {
-			unbind_rdev_from_array(rdev);
-			export_rdev(rdev);
+			md_kick_rdev_from_array(rdev);
 			return err;
 		}
 	}
