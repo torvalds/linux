@@ -12,6 +12,8 @@
 
 #include <linux/list.h>
 
+#define	BUNDLE_ID_NONE	U8_MAX
+
 /* Greybus "public" definitions" */
 struct gb_bundle {
 	struct device		dev;

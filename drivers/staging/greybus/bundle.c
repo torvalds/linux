@@ -102,6 +102,11 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 {
 	struct gb_bundle *bundle;
 
+	if (bundle_id == BUNDLE_ID_NONE) {
+		dev_err(&intf->dev, "can't use bundle id %u\n", bundle_id);
+		return NULL;
+	}
+
 	/*
 	 * Reject any attempt to reuse a bundle id.  We initialize
 	 * these serially, so there's no need to worry about keeping
