@@ -83,6 +83,10 @@ MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
 
 static struct dentry *perf_debugfs_dir;
 
+static unsigned long max_mw_size;
+module_param(max_mw_size, ulong, 0644);
+MODULE_PARM_DESC(max_mw_size, "Limit size of large memory windows");
+
 static unsigned int seg_order = 19; /* 512K */
 module_param(seg_order, uint, 0644);
 MODULE_PARM_DESC(seg_order, "size order [n^2] of buffer segment for testing");
@@ -472,6 +476,10 @@ static void perf_link_work(struct work_struct *work)
 	dev_dbg(&perf->ntb->pdev->dev, "%s called\n", __func__);
 
 	size = perf->mw.phys_size;
+
+	if (max_mw_size && size > max_mw_size)
+		size = max_mw_size;
+
 	ntb_peer_spad_write(ndev, MW_SZ_HIGH, upper_32_bits(size));
 	ntb_peer_spad_write(ndev, MW_SZ_LOW, lower_32_bits(size));
 	ntb_peer_spad_write(ndev, VERSION, PERF_VERSION);
