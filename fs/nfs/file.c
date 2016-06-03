@@ -170,12 +170,14 @@ nfs_file_read(struct kiocb *iocb, struct iov_iter *to)
 		iocb->ki_filp,
 		iov_iter_count(to), (unsigned long) iocb->ki_pos);
 
-	result = nfs_revalidate_mapping_protected(inode, iocb->ki_filp->f_mapping);
+	nfs_start_io_read(inode);
+	result = nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 	if (!result) {
 		result = generic_file_read_iter(iocb, to);
 		if (result > 0)
 			nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, result);
 	}
+	nfs_end_io_read(inode);
 	return result;
 }
 EXPORT_SYMBOL_GPL(nfs_file_read);
@@ -191,12 +193,14 @@ nfs_file_splice_read(struct file *filp, loff_t *ppos,
 	dprintk("NFS: splice_read(%pD2, %lu@%Lu)\n",
 		filp, (unsigned long) count, (unsigned long long) *ppos);
 
-	res = nfs_revalidate_mapping_protected(inode, filp->f_mapping);
+	nfs_start_io_read(inode);
+	res = nfs_revalidate_mapping(inode, filp->f_mapping);
 	if (!res) {
 		res = generic_file_splice_read(filp, ppos, pipe, count, flags);
 		if (res > 0)
 			nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, res);
 	}
+	nfs_end_io_read(inode);
 	return res;
 }
 EXPORT_SYMBOL_GPL(nfs_file_splice_read);
@@ -645,14 +649,14 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 			goto out;
 	}
 
-	inode_lock(inode);
+	nfs_start_io_write(inode);
 	result = generic_write_checks(iocb, from);
 	if (result > 0) {
 		current->backing_dev_info = inode_to_bdi(inode);
 		result = generic_perform_write(file, from, iocb->ki_pos);
 		current->backing_dev_info = NULL;
 	}
-	inode_unlock(inode);
+	nfs_end_io_write(inode);
 	if (result <= 0)
 		goto out;
 
