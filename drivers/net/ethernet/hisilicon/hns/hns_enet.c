@@ -1067,13 +1067,8 @@ void hns_nic_update_stats(struct net_device *netdev)
 static void hns_init_mac_addr(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
-	struct device_node *node = priv->dev->of_node;
-	const void *mac_addr_temp;
 
-	mac_addr_temp = of_get_mac_address(node);
-	if (mac_addr_temp && is_valid_ether_addr(mac_addr_temp)) {
-		memcpy(ndev->dev_addr, mac_addr_temp, ndev->addr_len);
-	} else {
+	if (!device_get_mac_address(priv->dev, ndev->dev_addr, ETH_ALEN)) {
 		eth_hw_addr_random(ndev);
 		dev_warn(priv->dev, "No valid mac, use random mac %pM",
 			 ndev->dev_addr);
@@ -1898,10 +1893,10 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 		goto out_read_prop_fail;
 	}
 	/* try to find port-idx-in-ae first */
-	ret = of_property_read_u32(node, "port-idx-in-ae", &port_id);
+	ret = device_property_read_u32(dev, "port-idx-in-ae", &port_id);
 	if (ret) {
 		/* only for old code compatible */
-		ret = of_property_read_u32(node, "port-id", &port_id);
+		ret = device_property_read_u32(dev, "port-id", &port_id);
 		if (ret)
 			goto out_read_prop_fail;
 		/* for old dts, we need to caculate the port offset */

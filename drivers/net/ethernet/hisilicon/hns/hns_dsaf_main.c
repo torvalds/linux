@@ -50,7 +50,7 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	else
 		dsaf_dev->dsaf_ver = AE_VERSION_2;
 
-	ret = of_property_read_string(np, "mode", &mode_str);
+	ret = device_property_read_string(dsaf_dev->dev, "mode", &mode_str);
 	if (ret) {
 		dev_err(dsaf_dev->dev, "get dsaf mode fail, ret=%d!\n", ret);
 		return ret;
@@ -142,7 +142,7 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 		}
 	}
 
-	ret = of_property_read_u32(np, "desc-num", &desc_num);
+	ret = device_property_read_u32(dsaf_dev->dev, "desc-num", &desc_num);
 	if (ret < 0 || desc_num < HNS_DSAF_MIN_DESC_CNT ||
 	    desc_num > HNS_DSAF_MAX_DESC_CNT) {
 		dev_err(dsaf_dev->dev, "get desc-num(%d) fail, ret=%d!\n",
@@ -151,14 +151,15 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 	}
 	dsaf_dev->desc_num = desc_num;
 
-	ret = of_property_read_u32(np, "reset-field-offset", &reset_offset);
+	ret = device_property_read_u32(dsaf_dev->dev, "reset-field-offset",
+				       &reset_offset);
 	if (ret < 0) {
 		dev_dbg(dsaf_dev->dev,
 			"get reset-field-offset fail, ret=%d!\r\n", ret);
 	}
 	dsaf_dev->reset_offset = reset_offset;
 
-	ret = of_property_read_u32(np, "buf-size", &buf_size);
+	ret = device_property_read_u32(dsaf_dev->dev, "buf-size", &buf_size);
 	if (ret < 0) {
 		dev_err(dsaf_dev->dev,
 			"get buf-size fail, ret=%d!\r\n", ret);
