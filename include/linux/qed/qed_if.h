@@ -325,7 +325,8 @@ struct qed_common_ops {
 	int		(*chain_alloc)(struct qed_dev *cdev,
 				       enum qed_chain_use_mode intended_use,
 				       enum qed_chain_mode mode,
-				       u16 num_elems,
+				       enum qed_chain_cnt_type cnt_type,
+				       u32 num_elems,
 				       size_t elem_size,
 				       struct qed_chain *p_chain);
 

@@ -308,6 +308,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
+	u8 page_cnt;
 
 	/* update initial eq producer */
 	qed_eq_prod_update(p_hwfn,
@@ -350,8 +351,8 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	/* Place EQ address in RAMROD */
 	DMA_REGPAIR_LE(p_ramrod->event_ring_pbl_addr,
 		       p_hwfn->p_eq->chain.pbl.p_phys_table);
-	p_ramrod->event_ring_num_pages = (u8)p_hwfn->p_eq->chain.page_cnt;
-
+	page_cnt = (u8)qed_chain_get_page_cnt(&p_hwfn->p_eq->chain);
+	p_ramrod->event_ring_num_pages = page_cnt;
 	DMA_REGPAIR_LE(p_ramrod->consolid_q_pbl_addr,
 		       p_hwfn->p_consq->chain.pbl.p_phys_table);
 
