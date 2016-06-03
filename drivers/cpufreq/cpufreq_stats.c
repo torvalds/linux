@@ -157,11 +157,10 @@ void cpufreq_stats_create_table(struct cpufreq_policy *policy)
 	unsigned int i = 0, count = 0, ret = -ENOMEM;
 	struct cpufreq_stats *stats;
 	unsigned int alloc_size;
-	unsigned int cpu = policy->cpu;
 	struct cpufreq_frequency_table *pos, *table;
 
 	/* We need cpufreq table for creating stats table */
-	table = cpufreq_frequency_get_table(cpu);
+	table = policy->freq_table;
 	if (unlikely(!table))
 		return;
 

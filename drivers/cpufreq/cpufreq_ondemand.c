@@ -113,7 +113,7 @@ static void ondemand_powersave_bias_init(struct cpufreq_policy *policy)
 {
 	struct od_policy_dbs_info *dbs_info = to_dbs_info(policy->governor_data);
 
-	dbs_info->freq_table = cpufreq_frequency_get_table(policy->cpu);
+	dbs_info->freq_table = policy->freq_table;
 	dbs_info->freq_lo = 0;
 }
 
