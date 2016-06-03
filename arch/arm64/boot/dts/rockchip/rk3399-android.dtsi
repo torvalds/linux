@@ -220,16 +220,18 @@
 	};
 
 	fb: fb {
+		status = "okay";
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <DUAL>;
 	};
 
 	rk_screen: screen {
+		status = "okay";
 		compatible = "rockchip,screen";
-		#include <dt-bindings/display/screen-timing/lcd-tv080wum-nl0-mipi.dtsi>
 	};
 
 	vopb_rk_fb: vop-rk-fb@ff900000 {
+		status = "disabled";
 		compatible = "rockchip,rk3399-lcdc";
 		rockchip,prop = <PRMRY>;
 		reg = <0x0 0xff900000 0x0 0x3efc>;
@@ -242,30 +244,10 @@
 		rockchip,pwr18 = <0>;
 		rockchip,iommu-enabled = <1>;
 		power-domains = <&power RK3399_PD_VOPB>;
-		power_ctr: power_ctr {
-		/*rockchip,debug = <0>;
-		lcd_en: lcd-en {
-			rockchip,power_type = <GPIO>;
-			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;//GPIO_C6 = 22
-			rockchip,delay = <10>;
-		};
-		*/
-
-		/*lcd_cs: lcd-cs {
-			rockchip,power_type = <GPIO>;
-			gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;//GPIO_C5 = 21
-			rockchip,delay = <10>;
-		};*/
-
-		/*lcd_rst: lcd-rst {
-			rockchip,power_type = <GPIO>;
-			gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
-			rockchip,delay = <5>;
-		};*/
-		};
 	};
 
 	vopb_mmu_rk_fb: vopb-mmu {
+		status = "okay";
 		dbgname = "vop";
 		compatible = "rockchip,vopb_mmu";
 		reg = <0x0 0xff903f00 0x0 0x100>;
@@ -274,6 +256,7 @@
 	};
 
 	vopl_rk_fb: vop-rk-fb@ff8f0000 {
+		status = "disabled";
 		compatible = "rockchip,rk3399-lcdc";
 		rockchip,prop = <EXTEND>;
 		reg = <0x0 0xff8f0000 0x0 0x3efc>;
@@ -289,6 +272,7 @@
 	};
 
 	vopl_mmu_rk_fb: vopl-mmu {
+		status = "okay";
 		dbgname = "vop";
 		compatible = "rockchip,vopl_mmu";
 		reg = <0x0 0xff8f3f00 0x0 0x100>;
