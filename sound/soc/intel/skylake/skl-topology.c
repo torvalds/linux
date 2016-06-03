@@ -1769,6 +1769,29 @@ static int skl_tplg_create_pipe_widget_list(struct snd_soc_platform *platform)
 	return 0;
 }
 
+static void skl_tplg_set_pipe_type(struct skl *skl, struct skl_pipe *pipe)
+{
+	struct skl_pipe_module *w_module;
+	struct snd_soc_dapm_widget *w;
+	struct skl_module_cfg *mconfig;
+	bool host_found = false, link_found = false;
+
+	list_for_each_entry(w_module, &pipe->w_list, node) {
+		w = w_module->w;
+		mconfig = w->priv;
+
+		if (mconfig->dev_type == SKL_DEVICE_HDAHOST)
+			host_found = true;
+		else if (mconfig->dev_type != SKL_DEVICE_NONE)
+			link_found = true;
+	}
+
+	if (host_found && link_found)
+		pipe->passthru = true;
+	else
+		pipe->passthru = false;
+}
+
 /* This will be read from topology manifest, currently defined here */
 #define SKL_MAX_MCPS 30000000
 #define SKL_FW_MAX_MEM 1000000
@@ -1782,6 +1805,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	const struct firmware *fw;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl *skl = ebus_to_skl(ebus);
+	struct skl_pipeline *ppl;
 
 	ret = request_firmware(&fw, skl->tplg_name, bus->dev);
 	if (ret < 0) {
@@ -1814,6 +1838,9 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	ret = skl_tplg_create_pipe_widget_list(platform);
 	if (ret < 0)
 		return ret;
+
+	list_for_each_entry(ppl, &skl->ppl_list, node)
+		skl_tplg_set_pipe_type(skl, ppl->pipe);
 
 	return 0;
 }

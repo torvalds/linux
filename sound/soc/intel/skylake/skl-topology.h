@@ -271,6 +271,7 @@ struct skl_pipe {
 	struct skl_pipe_params *p_params;
 	enum skl_pipe_state state;
 	struct list_head w_list;
+	bool passthru;
 };
 
 enum skl_module_state {
