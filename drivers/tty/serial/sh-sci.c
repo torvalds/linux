@@ -1835,9 +1835,9 @@ static unsigned int sci_get_mctrl(struct uart_port *port)
 {
 	/*
 	 * CTS/RTS is handled in hardware when supported, while nothing
-	 * else is wired up. Keep it simple and simply assert DSR/CAR.
+	 * else is wired up. Keep it simple and simply assert CTS/DSR/CAR.
 	 */
-	return TIOCM_DSR | TIOCM_CAR;
+	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 }
 
 static void sci_break_ctl(struct uart_port *port, int break_state)
