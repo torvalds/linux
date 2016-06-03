@@ -1601,7 +1601,8 @@ void fm10k_down(struct fm10k_intfc *interface)
 	int err;
 
 	/* signal that we are down to the interrupt handler and service task */
-	set_bit(__FM10K_DOWN, &interface->state);
+	if (test_and_set_bit(__FM10K_DOWN, &interface->state))
+		return;
 
 	/* call carrier off first to avoid false dev_watchdog timeouts */
 	netif_carrier_off(netdev);
