@@ -953,7 +953,7 @@ fail:
 	return NULL;
 }
 
-static int unix_mknod(struct dentry *dentry, struct path *path, umode_t mode,
+static int unix_mknod(struct dentry *dentry, const struct path *path, umode_t mode,
 		      struct path *res)
 {
 	int err;

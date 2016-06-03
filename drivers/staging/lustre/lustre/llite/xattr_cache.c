@@ -229,7 +229,6 @@ static int ll_xattr_cache_valid(struct ll_inode_info *lli)
  */
 static int ll_xattr_cache_destroy_locked(struct ll_inode_info *lli)
 {
-
 	if (!ll_xattr_cache_valid(lli))
 		return 0;
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2015 Intel Corporation.
+  Copyright(c) 1999 - 2016 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -792,7 +792,7 @@ mac_reset_top:
 	}
 
 	gheccr = IXGBE_READ_REG(hw, IXGBE_GHECCR);
-	gheccr &= ~((1 << 21) | (1 << 18) | (1 << 9) | (1 << 6));
+	gheccr &= ~(BIT(21) | BIT(18) | BIT(9) | BIT(6));
 	IXGBE_WRITE_REG(hw, IXGBE_GHECCR, gheccr);
 
 	/*
@@ -914,10 +914,10 @@ static s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	bits = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
 	if (vlan_on)
 		/* Turn on this VLAN id */
-		bits |= (1 << bitindex);
+		bits |= BIT(bitindex);
 	else
 		/* Turn off this VLAN id */
-		bits &= ~(1 << bitindex);
+		bits &= ~BIT(bitindex);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), bits);
 
 	return 0;
@@ -1160,7 +1160,7 @@ static void ixgbe_set_rxpba_82598(struct ixgbe_hw *hw, int num_pb,
 		IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i), IXGBE_TXPBSIZE_40KB);
 }
 
-static struct ixgbe_mac_operations mac_ops_82598 = {
+static const struct ixgbe_mac_operations mac_ops_82598 = {
 	.init_hw		= &ixgbe_init_hw_generic,
 	.reset_hw		= &ixgbe_reset_hw_82598,
 	.start_hw		= &ixgbe_start_hw_82598,
@@ -1192,9 +1192,11 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.clear_vfta		= &ixgbe_clear_vfta_82598,
 	.set_vfta		= &ixgbe_set_vfta_82598,
 	.fc_enable		= &ixgbe_fc_enable_82598,
+	.setup_fc		= ixgbe_setup_fc_generic,
 	.set_fw_drv_ver         = NULL,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
+	.init_swfw_sync		= NULL,
 	.get_thermal_sensor_data = NULL,
 	.init_thermal_sensor_thresh = NULL,
 	.prot_autoc_read	= &prot_autoc_read_generic,
@@ -1203,7 +1205,7 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.disable_rx		= &ixgbe_disable_rx_generic,
 };
 
-static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
+static const struct ixgbe_eeprom_operations eeprom_ops_82598 = {
 	.init_params		= &ixgbe_init_eeprom_params_generic,
 	.read			= &ixgbe_read_eerd_generic,
 	.write			= &ixgbe_write_eeprom_generic,
@@ -1214,7 +1216,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
 	.update_checksum	= &ixgbe_update_eeprom_checksum_generic,
 };
 
-static struct ixgbe_phy_operations phy_ops_82598 = {
+static const struct ixgbe_phy_operations phy_ops_82598 = {
 	.identify		= &ixgbe_identify_phy_generic,
 	.identify_sfp		= &ixgbe_identify_module_generic,
 	.init			= &ixgbe_init_phy_ops_82598,
@@ -1230,7 +1232,7 @@ static struct ixgbe_phy_operations phy_ops_82598 = {
 	.check_overtemp		= &ixgbe_tn_check_overtemp,
 };
 
-struct ixgbe_info ixgbe_82598_info = {
+const struct ixgbe_info ixgbe_82598_info = {
 	.mac			= ixgbe_mac_82598EB,
 	.get_invariants		= &ixgbe_get_invariants_82598,
 	.mac_ops		= &mac_ops_82598,

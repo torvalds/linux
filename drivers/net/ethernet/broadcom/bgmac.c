@@ -1515,7 +1515,7 @@ static int bgmac_mii_register(struct bgmac *bgmac)
 	phy_dev = phy_connect(bgmac->net_dev, bus_id, &bgmac_adjust_link,
 			      PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phy_dev)) {
-		bgmac_err(bgmac, "PHY connecton failed\n");
+		bgmac_err(bgmac, "PHY connection failed\n");
 		err = PTR_ERR(phy_dev);
 		goto err_unregister_bus;
 	}

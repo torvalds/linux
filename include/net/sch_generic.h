@@ -527,11 +527,27 @@ static inline bool qdisc_is_percpu_stats(const struct Qdisc *q)
 	return q->flags & TCQ_F_CPUSTATS;
 }
 
+static inline void _bstats_update(struct gnet_stats_basic_packed *bstats,
+				  __u64 bytes, __u32 packets)
+{
+	bstats->bytes += bytes;
+	bstats->packets += packets;
+}
+
 static inline void bstats_update(struct gnet_stats_basic_packed *bstats,
 				 const struct sk_buff *skb)
 {
-	bstats->bytes += qdisc_pkt_len(skb);
-	bstats->packets += skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
+	_bstats_update(bstats,
+		       qdisc_pkt_len(skb),
+		       skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1);
+}
+
+static inline void _bstats_cpu_update(struct gnet_stats_basic_cpu *bstats,
+				      __u64 bytes, __u32 packets)
+{
+	u64_stats_update_begin(&bstats->syncp);
+	_bstats_update(&bstats->bstats, bytes, packets);
+	u64_stats_update_end(&bstats->syncp);
 }
 
 static inline void bstats_cpu_update(struct gnet_stats_basic_cpu *bstats,

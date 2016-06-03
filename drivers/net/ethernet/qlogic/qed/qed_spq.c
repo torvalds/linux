@@ -27,6 +27,7 @@
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_sriov.h"
 
 /***************************************************************************
 * Structures & Definitions
@@ -242,10 +243,17 @@ static int
 qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			   struct event_ring_entry *p_eqe)
 {
-	DP_NOTICE(p_hwfn,
-		  "Unknown Async completion for protocol: %d\n",
-		   p_eqe->protocol_id);
-	return -EINVAL;
+	switch (p_eqe->protocol_id) {
+	case PROTOCOLID_COMMON:
+		return qed_sriov_eqe_event(p_hwfn,
+					   p_eqe->opcode,
+					   p_eqe->echo, &p_eqe->data);
+	default:
+		DP_NOTICE(p_hwfn,
+			  "Unknown Async completion for protocol: %d\n",
+			  p_eqe->protocol_id);
+		return -EINVAL;
+	}
 }
 
 /***************************************************************************
@@ -379,6 +387,9 @@ static int qed_cqe_completion(
 	struct eth_slow_path_rx_cqe *cqe,
 	enum protocol_type protocol)
 {
+	if (IS_VF(p_hwfn->cdev))
+		return 0;
+
 	/* @@@tmp - it's possible we'll eventually want to handle some
 	 * actual commands that can arrive here, but for now this is only
 	 * used to complete the ramrod using the echo value on the cqe

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
+  Copyright(c) 1999 - 2016 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -214,8 +214,8 @@ s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
 		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
 				    IXGBE_EEC_SIZE_SHIFT);
-		eeprom->word_size = 1 << (eeprom_size +
-					  IXGBE_EEPROM_WORD_SIZE_SHIFT);
+		eeprom->word_size = BIT(eeprom_size +
+					IXGBE_EEPROM_WORD_SIZE_SHIFT);
 
 		hw_dbg(hw, "Eeprom params: type = %d, size = %d\n",
 		       eeprom->type, eeprom->word_size);
@@ -747,6 +747,25 @@ static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_init_swfw_sync_X540 - Release hardware semaphore
+ *  @hw: pointer to hardware structure
+ *
+ *  This function reset hardware semaphore bits for a semaphore that may
+ *  have be left locked due to a catastrophic failure.
+ **/
+void ixgbe_init_swfw_sync_X540(struct ixgbe_hw *hw)
+{
+	/* First try to grab the semaphore but we don't need to bother
+	 * looking to see whether we got the lock or not since we do
+	 * the same thing regardless of whether we got the lock or not.
+	 * We got the lock - we release it.
+	 * We timeout trying to get the lock - we force its release.
+	 */
+	ixgbe_get_swfw_sync_semaphore(hw);
+	ixgbe_release_swfw_sync_semaphore(hw);
+}
+
+/**
  * ixgbe_blink_led_start_X540 - Blink LED based on index.
  * @hw: pointer to hardware structure
  * @index: led number to blink
@@ -810,7 +829,7 @@ s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index)
 
 	return 0;
 }
-static struct ixgbe_mac_operations mac_ops_X540 = {
+static const struct ixgbe_mac_operations mac_ops_X540 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_X540,
 	.start_hw               = &ixgbe_start_hw_X540,
@@ -846,6 +865,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.clear_vfta             = &ixgbe_clear_vfta_generic,
 	.set_vfta               = &ixgbe_set_vfta_generic,
 	.fc_enable              = &ixgbe_fc_enable_generic,
+	.setup_fc		= ixgbe_setup_fc_generic,
 	.set_fw_drv_ver         = &ixgbe_set_fw_drv_ver_generic,
 	.init_uta_tables        = &ixgbe_init_uta_tables_generic,
 	.setup_sfp              = NULL,
@@ -853,6 +873,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync_X540,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync_X540,
+	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
 	.disable_rx_buff	= &ixgbe_disable_rx_buff_generic,
 	.enable_rx_buff		= &ixgbe_enable_rx_buff_generic,
 	.get_thermal_sensor_data = NULL,
@@ -863,7 +884,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.disable_rx		= &ixgbe_disable_rx_generic,
 };
 
-static struct ixgbe_eeprom_operations eeprom_ops_X540 = {
+static const struct ixgbe_eeprom_operations eeprom_ops_X540 = {
 	.init_params            = &ixgbe_init_eeprom_params_X540,
 	.read                   = &ixgbe_read_eerd_X540,
 	.read_buffer		= &ixgbe_read_eerd_buffer_X540,
@@ -874,7 +895,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_X540 = {
 	.update_checksum        = &ixgbe_update_eeprom_checksum_X540,
 };
 
-static struct ixgbe_phy_operations phy_ops_X540 = {
+static const struct ixgbe_phy_operations phy_ops_X540 = {
 	.identify               = &ixgbe_identify_phy_generic,
 	.identify_sfp           = &ixgbe_identify_sfp_module_generic,
 	.init			= NULL,
@@ -897,7 +918,7 @@ static const u32 ixgbe_mvals_X540[IXGBE_MVALS_IDX_LIMIT] = {
 	IXGBE_MVALS_INIT(X540)
 };
 
-struct ixgbe_info ixgbe_X540_info = {
+const struct ixgbe_info ixgbe_X540_info = {
 	.mac                    = ixgbe_mac_X540,
 	.get_invariants         = &ixgbe_get_invariants_X540,
 	.mac_ops                = &mac_ops_X540,

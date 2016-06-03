@@ -36,8 +36,11 @@ physical_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 		       __func__, PTR_ERR(mr));
 		return -ENOMEM;
 	}
-
 	ia->ri_dma_mr = mr;
+
+	rpcrdma_set_max_header_sizes(ia, cdata, min_t(unsigned int,
+						      RPCRDMA_MAX_DATA_SEGS,
+						      RPCRDMA_MAX_HDR_SEGS));
 	return 0;
 }
 
@@ -47,7 +50,7 @@ static size_t
 physical_op_maxpages(struct rpcrdma_xprt *r_xprt)
 {
 	return min_t(unsigned int, RPCRDMA_MAX_DATA_SEGS,
-		     rpcrdma_max_segments(r_xprt));
+		     RPCRDMA_MAX_HDR_SEGS);
 }
 
 static int
@@ -71,17 +74,6 @@ physical_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	return 1;
 }
 
-/* Unmap a memory region, but leave it registered.
- */
-static int
-physical_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
-{
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-
-	rpcrdma_unmap_one(ia->ri_device, seg);
-	return 1;
-}
-
 /* DMA unmap all memory regions that were mapped for "req".
  */
 static void
@@ -94,6 +86,25 @@ physical_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		rpcrdma_unmap_one(device, &req->rl_segments[i++]);
 }
 
+/* Use a slow, safe mechanism to invalidate all memory regions
+ * that were registered for "req".
+ *
+ * For physical memory registration, there is no good way to
+ * fence a single MR that has been advertised to the server. The
+ * client has already handed the server an R_key that cannot be
+ * invalidated and is shared by all MRs on this connection.
+ * Tearing down the PD might be the only safe choice, but it's
+ * not clear that a freshly acquired DMA R_key would be different
+ * than the one used by the PD that was just destroyed.
+ * FIXME.
+ */
+static void
+physical_op_unmap_safe(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
+		       bool sync)
+{
+	physical_op_unmap_sync(r_xprt, req);
+}
+
 static void
 physical_op_destroy(struct rpcrdma_buffer *buf)
 {
@@ -102,7 +113,7 @@ physical_op_destroy(struct rpcrdma_buffer *buf)
 const struct rpcrdma_memreg_ops rpcrdma_physical_memreg_ops = {
 	.ro_map				= physical_op_map,
 	.ro_unmap_sync			= physical_op_unmap_sync,
-	.ro_unmap			= physical_op_unmap,
+	.ro_unmap_safe			= physical_op_unmap_safe,
 	.ro_open			= physical_op_open,
 	.ro_maxpages			= physical_op_maxpages,
 	.ro_init			= physical_op_init,

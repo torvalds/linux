@@ -6,10 +6,8 @@
  * published by the Free Software Foundation.
  *
  */
-
+#include <dt-bindings/clock/microchip,pic32-clock.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-
-#include "pic32mzda-clk.dtsi"
 
 / {
 	#address-cells = <1>;
@@ -50,6 +48,29 @@
 		interrupts = <0 IRQ_TYPE_EDGE_RISING>;
 	};
 
+	/* external clock input on TxCLKI pin */
+	txcki: txcki_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <4000000>;
+		status = "disabled";
+	};
+
+	/* external input on REFCLKIx pin */
+	refix: refix_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		status = "disabled";
+	};
+
+	rootclk: clock-controller@1f801200 {
+		compatible = "microchip,pic32mzda-clk";
+		reg = <0x1f801200 0x200>;
+		#clock-cells = <1>;
+		microchip,pic32mzda-sosc;
+	};
+
 	evic: interrupt-controller@1f810000 {
 		compatible = "microchip,pic32mzda-evic";
 		interrupt-controller;
@@ -63,7 +84,7 @@
 		#size-cells = <1>;
 		compatible = "microchip,pic32mzda-pinctrl";
 		reg = <0x1f801400 0x400>;
-		clocks = <&PBCLK1>;
+		clocks = <&rootclk PB1CLK>;
 	};
 
 	/* PORTA */
@@ -75,7 +96,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <0>;
 		gpio-ranges = <&pic32_pinctrl 0 0 16>;
 	};
@@ -89,7 +110,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <1>;
 		gpio-ranges = <&pic32_pinctrl 0 16 16>;
 	};
@@ -103,7 +124,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <2>;
 		gpio-ranges = <&pic32_pinctrl 0 32 16>;
 	};
@@ -117,7 +138,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <3>;
 		gpio-ranges = <&pic32_pinctrl 0 48 16>;
 	};
@@ -131,7 +152,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <4>;
 		gpio-ranges = <&pic32_pinctrl 0 64 16>;
 	};
@@ -145,7 +166,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <5>;
 		gpio-ranges = <&pic32_pinctrl 0 80 16>;
 	};
@@ -159,7 +180,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <6>;
 		gpio-ranges = <&pic32_pinctrl 0 96 16>;
 	};
@@ -173,7 +194,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <7>;
 		gpio-ranges = <&pic32_pinctrl 0 112 16>;
 	};
@@ -189,7 +210,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <8>;
 		gpio-ranges = <&pic32_pinctrl 0 128 16>;
 	};
@@ -203,7 +224,7 @@
 		gpio-controller;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		clocks = <&PBCLK4>;
+		clocks = <&rootclk PB4CLK>;
 		microchip,gpio-bank = <9>;
 		gpio-ranges = <&pic32_pinctrl 0 144 16>;
 	};
@@ -212,7 +233,7 @@
 		compatible = "microchip,pic32mzda-sdhci";
 		reg = <0x1f8ec000 0x100>;
 		interrupts = <191 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&REFCLKO4>, <&PBCLK5>;
+		clocks = <&rootclk REF4CLK>, <&rootclk PB5CLK>;
 		clock-names = "base_clk", "sys_clk";
 		bus-width = <4>;
 		cap-sd-highspeed;
@@ -225,7 +246,7 @@
 		interrupts = <112 IRQ_TYPE_LEVEL_HIGH>,
 			<113 IRQ_TYPE_LEVEL_HIGH>,
 			<114 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&PBCLK2>;
+		clocks = <&rootclk PB2CLK>;
 		status = "disabled";
 	};
 
@@ -235,7 +256,7 @@
 		interrupts = <145 IRQ_TYPE_LEVEL_HIGH>,
 			<146 IRQ_TYPE_LEVEL_HIGH>,
 			<147 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&PBCLK2>;
+		clocks = <&rootclk PB2CLK>;
 		status = "disabled";
 	};
 
@@ -245,7 +266,7 @@
 		interrupts = <157 IRQ_TYPE_LEVEL_HIGH>,
 			<158 IRQ_TYPE_LEVEL_HIGH>,
 			<159 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&PBCLK2>;
+		clocks = <&rootclk PB2CLK>;
 		status = "disabled";
 	};
 
@@ -255,7 +276,7 @@
 		interrupts = <170 IRQ_TYPE_LEVEL_HIGH>,
 			<171 IRQ_TYPE_LEVEL_HIGH>,
 			<172 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&PBCLK2>;
+		clocks = <&rootclk PB2CLK>;
 		status = "disabled";
 	};
 
@@ -265,7 +286,7 @@
 		interrupts = <179 IRQ_TYPE_LEVEL_HIGH>,
 			<180 IRQ_TYPE_LEVEL_HIGH>,
 			<181 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&PBCLK2>;
+		clocks = <&rootclk PB2CLK>;
 		status = "disabled";
 	};
 
@@ -275,7 +296,7 @@
 		interrupts = <188 IRQ_TYPE_LEVEL_HIGH>,
 			<189 IRQ_TYPE_LEVEL_HIGH>,
 			<190 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&PBCLK2>;
+		clocks = <&rootclk PB2CLK>;
 		status = "disabled";
 	};
 };

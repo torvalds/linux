@@ -347,6 +347,7 @@
 #define   LPCR_LPES_SH	2
 #define   LPCR_RMI     0x00000002      /* real mode is cache inhibit */
 #define   LPCR_HDICE   0x00000001      /* Hyp Decr enable (HV,PR,EE) */
+#define   LPCR_UPRT    0x00400000      /* Use Process Table (ISA 3) */
 #ifndef SPRN_LPID
 #define SPRN_LPID	0x13F	/* Logical Partition Identifier */
 #endif
@@ -587,6 +588,7 @@
 #define SPRN_PIR	0x3FF	/* Processor Identification Register */
 #endif
 #define SPRN_TIR	0x1BE	/* Thread Identification Register */
+#define SPRN_PTCR	0x1D0	/* Partition table control Register */
 #define SPRN_PSPB	0x09F	/* Problem State Priority Boost reg */
 #define SPRN_PTEHI	0x3D5	/* 981 7450 PTE HI word (S/W TLB load) */
 #define SPRN_PTELO	0x3D6	/* 982 7450 PTE LO word (S/W TLB load) */
@@ -1182,6 +1184,7 @@
 #define PVR_970GX	0x0045
 #define PVR_POWER7p	0x004A
 #define PVR_POWER8E	0x004B
+#define PVR_POWER8NVL	0x004C
 #define PVR_POWER8	0x004D
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090

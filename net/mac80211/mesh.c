@@ -25,7 +25,6 @@ bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
 
 void ieee80211s_init(void)
 {
-	mesh_pathtbl_init();
 	mesh_allocated = 1;
 	rm_cache = kmem_cache_create("mesh_rmc", sizeof(struct rmc_entry),
 				     0, 0, NULL);
@@ -35,7 +34,6 @@ void ieee80211s_stop(void)
 {
 	if (!mesh_allocated)
 		return;
-	mesh_pathtbl_unregister();
 	kmem_cache_destroy(rm_cache);
 }
 
@@ -176,22 +174,23 @@ int mesh_rmc_init(struct ieee80211_sub_if_data *sdata)
 		return -ENOMEM;
 	sdata->u.mesh.rmc->idx_mask = RMC_BUCKETS - 1;
 	for (i = 0; i < RMC_BUCKETS; i++)
-		INIT_LIST_HEAD(&sdata->u.mesh.rmc->bucket[i]);
+		INIT_HLIST_HEAD(&sdata->u.mesh.rmc->bucket[i]);
 	return 0;
 }
 
 void mesh_rmc_free(struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_rmc *rmc = sdata->u.mesh.rmc;
-	struct rmc_entry *p, *n;
+	struct rmc_entry *p;
+	struct hlist_node *n;
 	int i;
 
 	if (!sdata->u.mesh.rmc)
 		return;
 
 	for (i = 0; i < RMC_BUCKETS; i++) {
-		list_for_each_entry_safe(p, n, &rmc->bucket[i], list) {
-			list_del(&p->list);
+		hlist_for_each_entry_safe(p, n, &rmc->bucket[i], list) {
+			hlist_del(&p->list);
 			kmem_cache_free(rm_cache, p);
 		}
 	}
@@ -220,16 +219,20 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 	u32 seqnum = 0;
 	int entries = 0;
 	u8 idx;
-	struct rmc_entry *p, *n;
+	struct rmc_entry *p;
+	struct hlist_node *n;
+
+	if (!rmc)
+		return -1;
 
 	/* Don't care about endianness since only match matters */
 	memcpy(&seqnum, &mesh_hdr->seqnum, sizeof(mesh_hdr->seqnum));
 	idx = le32_to_cpu(mesh_hdr->seqnum) & rmc->idx_mask;
-	list_for_each_entry_safe(p, n, &rmc->bucket[idx], list) {
+	hlist_for_each_entry_safe(p, n, &rmc->bucket[idx], list) {
 		++entries;
 		if (time_after(jiffies, p->exp_time) ||
 		    entries == RMC_QUEUE_MAX_LEN) {
-			list_del(&p->list);
+			hlist_del(&p->list);
 			kmem_cache_free(rm_cache, p);
 			--entries;
 		} else if ((seqnum == p->seqnum) && ether_addr_equal(sa, p->sa))
@@ -243,7 +246,7 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 	p->seqnum = seqnum;
 	p->exp_time = jiffies + RMC_TIMEOUT;
 	memcpy(p->sa, sa, ETH_ALEN);
-	list_add(&p->list, &rmc->bucket[idx]);
+	hlist_add_head(&p->list, &rmc->bucket[idx]);
 	return 0;
 }
 
@@ -412,7 +415,7 @@ int mesh_add_ht_cap_ie(struct ieee80211_sub_if_data *sdata,
 		       struct sk_buff *skb)
 {
 	struct ieee80211_local *local = sdata->local;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband;
 	u8 *pos;
 
@@ -475,7 +478,7 @@ int mesh_add_vht_cap_ie(struct ieee80211_sub_if_data *sdata,
 			struct sk_buff *skb)
 {
 	struct ieee80211_local *local = sdata->local;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband;
 	u8 *pos;
 
@@ -677,7 +680,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct mesh_csa_settings *csa;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	u8 *pos;
 	struct ieee80211_sub_if_data *sdata;
 	int hdr_len = offsetof(struct ieee80211_mgmt, u.beacon) +
@@ -927,7 +930,7 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_csa_settings params;
 	struct ieee80211_csa_ie csa_ie;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	enum nl80211_band band = ieee80211_get_sdata_band(sdata);
 	int err;
 	u32 sta_flags;
 
@@ -1081,7 +1084,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_channel *channel;
 	size_t baselen;
 	int freq;
-	enum ieee80211_band band = rx_status->band;
+	enum nl80211_band band = rx_status->band;
 
 	/* ignore ProbeResp to foreign address */
 	if (stype == IEEE80211_STYPE_PROBE_RESP &&
@@ -1348,12 +1351,6 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 		       ifmsh->last_preq + msecs_to_jiffies(ifmsh->mshcfg.dot11MeshHWMPpreqMinInterval)))
 		mesh_path_start_discovery(sdata);
 
-	if (test_and_clear_bit(MESH_WORK_GROW_MPATH_TABLE, &ifmsh->wrkq_flags))
-		mesh_mpath_table_grow();
-
-	if (test_and_clear_bit(MESH_WORK_GROW_MPP_TABLE, &ifmsh->wrkq_flags))
-		mesh_mpp_table_grow();
-
 	if (test_and_clear_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags))
 		ieee80211_mesh_housekeeping(sdata);
 
@@ -1388,6 +1385,9 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)
 		ieee80211s_init();
+
+	mesh_pathtbl_init(sdata);
+
 	setup_timer(&ifmsh->mesh_path_timer,
 		    ieee80211_mesh_path_timer,
 		    (unsigned long) sdata);
@@ -1401,4 +1401,10 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	RCU_INIT_POINTER(ifmsh->beacon, NULL);
 
 	sdata->vif.bss_conf.bssid = zero_addr;
+}
+
+void ieee80211_mesh_teardown_sdata(struct ieee80211_sub_if_data *sdata)
+{
+	mesh_rmc_free(sdata);
+	mesh_pathtbl_unregister(sdata);
 }

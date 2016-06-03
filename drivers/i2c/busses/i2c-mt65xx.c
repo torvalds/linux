@@ -413,10 +413,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 	else
 		writew(I2C_FS_START_CON, i2c->base + OFFSET_EXT_CONF);
 
-	addr_reg = msgs->addr << 1;
-	if (i2c->op == I2C_MASTER_RD)
-		addr_reg |= 0x1;
-
+	addr_reg = i2c_8bit_addr_from_msg(msgs);
 	writew(addr_reg, i2c->base + OFFSET_SLAVE_ADDR);
 
 	/* Clear interrupt status */

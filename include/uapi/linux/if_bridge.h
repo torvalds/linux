@@ -134,6 +134,16 @@ struct bridge_vlan_info {
 	__u16 vid;
 };
 
+struct bridge_vlan_xstats {
+	__u64 rx_bytes;
+	__u64 rx_packets;
+	__u64 tx_bytes;
+	__u64 tx_packets;
+	__u16 vid;
+	__u16 pad1;
+	__u32 pad2;
+};
+
 /* Bridge multicast database attributes
  * [MDBA_MDB] = {
  *     [MDBA_MDB_ENTRY] = {
@@ -232,5 +242,13 @@ enum {
 	__MDBA_SET_ENTRY_MAX,
 };
 #define MDBA_SET_ENTRY_MAX (__MDBA_SET_ENTRY_MAX - 1)
+
+/* Embedded inside LINK_XSTATS_TYPE_BRIDGE */
+enum {
+	BRIDGE_XSTATS_UNSPEC,
+	BRIDGE_XSTATS_VLAN,
+	__BRIDGE_XSTATS_MAX
+};
+#define BRIDGE_XSTATS_MAX (__BRIDGE_XSTATS_MAX - 1)
 
 #endif /* _UAPI_LINUX_IF_BRIDGE_H */

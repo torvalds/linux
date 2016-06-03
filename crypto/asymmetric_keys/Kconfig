@@ -1,5 +1,5 @@
 menuconfig ASYMMETRIC_KEY_TYPE
-	tristate "Asymmetric (public-key cryptographic) key type"
+	bool "Asymmetric (public-key cryptographic) key type"
 	depends on KEYS
 	help
 	  This option provides support for a key type that holds the data for
@@ -40,8 +40,7 @@ config PKCS7_MESSAGE_PARSER
 
 config PKCS7_TEST_KEY
 	tristate "PKCS#7 testing key type"
-	depends on PKCS7_MESSAGE_PARSER
-	select SYSTEM_TRUSTED_KEYRING
+	depends on SYSTEM_DATA_VERIFICATION
 	help
 	  This option provides a type of key that can be loaded up from a
 	  PKCS#7 message - provided the message is signed by a trusted key.  If
@@ -54,6 +53,7 @@ config PKCS7_TEST_KEY
 config SIGNED_PE_FILE_VERIFICATION
 	bool "Support for PE file signature verification"
 	depends on PKCS7_MESSAGE_PARSER=y
+	depends on SYSTEM_DATA_VERIFICATION
 	select ASN1
 	select OID_REGISTRY
 	help

@@ -293,7 +293,7 @@ static int chap_server_compute_md5(
 		pr_debug("[server] MD5 Digests do not match!\n\n");
 		goto out;
 	} else
-		pr_debug("[server] MD5 Digests match, CHAP connetication"
+		pr_debug("[server] MD5 Digests match, CHAP connection"
 				" successful.\n\n");
 	/*
 	 * One way authentication has succeeded, return now if mutual

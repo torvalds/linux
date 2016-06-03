@@ -135,11 +135,6 @@ static void sumo_take_smu_control(struct amdgpu_device *adev, bool enable)
 #endif
 }
 
-static u32 sumo_get_sleep_divider_from_id(u32 id)
-{
-	return 1 << id;
-}
-
 static void sumo_construct_sclk_voltage_mapping_table(struct amdgpu_device *adev,
 						      struct sumo_sclk_voltage_mapping_table *sclk_voltage_mapping_table,
 						      ATOM_AVAILABLE_SCLK_LIST *table)
@@ -2176,8 +2171,7 @@ static u8 kv_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
 	struct kv_power_info *pi = kv_get_pi(adev);
 	u32 i;
 	u32 temp;
-	u32 min = (min_sclk_in_sr > KV_MINIMUM_ENGINE_CLOCK) ?
-		min_sclk_in_sr : KV_MINIMUM_ENGINE_CLOCK;
+	u32 min = max(min_sclk_in_sr, (u32)KV_MINIMUM_ENGINE_CLOCK);
 
 	if (sclk < min)
 		return 0;
@@ -2186,7 +2180,7 @@ static u8 kv_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
 		return 0;
 
 	for (i = KV_MAX_DEEPSLEEP_DIVIDER_ID; i > 0; i--) {
-		temp = sclk / sumo_get_sleep_divider_from_id(i);
+		temp = sclk >> i;
 		if (temp >= min)
 			break;
 	}
@@ -2258,7 +2252,7 @@ static void kv_apply_state_adjust_rules(struct amdgpu_device *adev,
 	if (pi->caps_stable_p_state) {
 		stable_p_state_sclk = (max_limits->sclk * 75) / 100;
 
-		for (i = table->count - 1; i >= 0; i++) {
+		for (i = table->count - 1; i >= 0; i--) {
 			if (stable_p_state_sclk >= table->entries[i].clk) {
 				stable_p_state_sclk = table->entries[i].clk;
 				break;
@@ -3147,62 +3141,6 @@ static int kv_dpm_wait_for_idle(void *handle)
 	return 0;
 }
 
-static void kv_dpm_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "KV/KB DPM registers\n");
-	dev_info(adev->dev, "  DIDT_SQ_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_SQ_CTRL0));
-	dev_info(adev->dev, "  DIDT_DB_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_DB_CTRL0));
-	dev_info(adev->dev, "  DIDT_TD_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_TD_CTRL0));
-	dev_info(adev->dev, "  DIDT_TCP_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_TCP_CTRL0));
-	dev_info(adev->dev, "  LCAC_SX0_OVR_SEL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_SX0_OVR_SEL));
-	dev_info(adev->dev, "  LCAC_SX0_OVR_VAL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_SX0_OVR_VAL));
-	dev_info(adev->dev, "  LCAC_MC0_OVR_SEL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC0_OVR_SEL));
-	dev_info(adev->dev, "  LCAC_MC0_OVR_VAL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC0_OVR_VAL));
-	dev_info(adev->dev, "  LCAC_MC1_OVR_SEL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC1_OVR_SEL));
-	dev_info(adev->dev, "  LCAC_MC1_OVR_VAL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC1_OVR_VAL));
-	dev_info(adev->dev, "  LCAC_MC2_OVR_SEL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC2_OVR_SEL));
-	dev_info(adev->dev, "  LCAC_MC2_OVR_VAL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC2_OVR_VAL));
-	dev_info(adev->dev, "  LCAC_MC3_OVR_SEL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC3_OVR_SEL));
-	dev_info(adev->dev, "  LCAC_MC3_OVR_VAL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC3_OVR_VAL));
-	dev_info(adev->dev, "  LCAC_CPL_OVR_SEL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_CPL_OVR_SEL));
-	dev_info(adev->dev, "  LCAC_CPL_OVR_VAL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_CPL_OVR_VAL));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_0=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_0));
-	dev_info(adev->dev, "  GENERAL_PWRMGT=0x%08X\n",
-		 RREG32_SMC(ixGENERAL_PWRMGT));
-	dev_info(adev->dev, "  SCLK_PWRMGT_CNTL=0x%08X\n",
-		 RREG32_SMC(ixSCLK_PWRMGT_CNTL));
-	dev_info(adev->dev, "  SMC_MESSAGE_0=0x%08X\n",
-		 RREG32(mmSMC_MESSAGE_0));
-	dev_info(adev->dev, "  SMC_RESP_0=0x%08X\n",
-		 RREG32(mmSMC_RESP_0));
-	dev_info(adev->dev, "  SMC_MSG_ARG_0=0x%08X\n",
-		 RREG32(mmSMC_MSG_ARG_0));
-	dev_info(adev->dev, "  SMC_IND_INDEX_0=0x%08X\n",
-		 RREG32(mmSMC_IND_INDEX_0));
-	dev_info(adev->dev, "  SMC_IND_DATA_0=0x%08X\n",
-		 RREG32(mmSMC_IND_DATA_0));
-	dev_info(adev->dev, "  SMC_IND_ACCESS_CNTL=0x%08X\n",
-		 RREG32(mmSMC_IND_ACCESS_CNTL));
-}
 
 static int kv_dpm_soft_reset(void *handle)
 {
@@ -3300,6 +3238,7 @@ static int kv_dpm_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs kv_dpm_ip_funcs = {
+	.name = "kv_dpm",
 	.early_init = kv_dpm_early_init,
 	.late_init = kv_dpm_late_init,
 	.sw_init = kv_dpm_sw_init,
@@ -3311,7 +3250,6 @@ const struct amd_ip_funcs kv_dpm_ip_funcs = {
 	.is_idle = kv_dpm_is_idle,
 	.wait_for_idle = kv_dpm_wait_for_idle,
 	.soft_reset = kv_dpm_soft_reset,
-	.print_status = kv_dpm_print_status,
 	.set_clockgating_state = kv_dpm_set_clockgating_state,
 	.set_powergating_state = kv_dpm_set_powergating_state,
 };

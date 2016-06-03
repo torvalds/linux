@@ -135,8 +135,17 @@ static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds)
 	return BCM_SF2_STATS_SIZE;
 }
 
-static char *bcm_sf2_sw_probe(struct device *host_dev, int sw_addr)
+static const char *bcm_sf2_sw_drv_probe(struct device *dsa_dev,
+					struct device *host_dev, int sw_addr,
+					void **_priv)
 {
+	struct bcm_sf2_priv *priv;
+
+	priv = devm_kzalloc(dsa_dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return NULL;
+	*_priv = priv;
+
 	return "Broadcom Starfighter 2";
 }
 
@@ -151,7 +160,7 @@ static void bcm_sf2_imp_vlan_setup(struct dsa_switch *ds, int cpu_port)
 	 * the same VLAN.
 	 */
 	for (i = 0; i < priv->hw_params.num_ports; i++) {
-		if (!((1 << i) & ds->phys_port_mask))
+		if (!((1 << i) & ds->enabled_port_mask))
 			continue;
 
 		reg = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(i));
@@ -545,12 +554,11 @@ static void bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
 	priv->port_sts[port].bridge_dev = NULL;
 }
 
-static int bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,
-				       u8 state)
+static void bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,
+					u8 state)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	u8 hw_state, cur_hw_state;
-	int ret = 0;
 	u32 reg;
 
 	reg = core_readl(priv, CORE_G_PCTL_PORT(port));
@@ -574,7 +582,7 @@ static int bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,
 		break;
 	default:
 		pr_err("%s: invalid STP state: %d\n", __func__, state);
-		return -EINVAL;
+		return;
 	}
 
 	/* Fast-age ARL entries if we are moving a port from Learning or
@@ -584,10 +592,9 @@ static int bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,
 	if (cur_hw_state != hw_state) {
 		if (cur_hw_state >= G_MISTP_LEARN_STATE &&
 		    hw_state <= G_MISTP_LISTEN_STATE) {
-			ret = bcm_sf2_sw_fast_age_port(ds, port);
-			if (ret) {
+			if (bcm_sf2_sw_fast_age_port(ds, port)) {
 				pr_err("%s: fast-ageing failed\n", __func__);
-				return ret;
+				return;
 			}
 		}
 	}
@@ -596,8 +603,6 @@ static int bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,
 	reg &= ~(G_MISTP_STATE_MASK << G_MISTP_STATE_SHIFT);
 	reg |= hw_state;
 	core_writel(priv, reg, CORE_G_PCTL_PORT(port));
-
-	return 0;
 }
 
 /* Address Resolution Logic routines */
@@ -728,13 +733,14 @@ static int bcm_sf2_sw_fdb_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int bcm_sf2_sw_fdb_add(struct dsa_switch *ds, int port,
-			      const struct switchdev_obj_port_fdb *fdb,
-			      struct switchdev_trans *trans)
+static void bcm_sf2_sw_fdb_add(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_fdb *fdb,
+			       struct switchdev_trans *trans)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 
-	return bcm_sf2_arl_op(priv, 0, port, fdb->addr, fdb->vid, true);
+	if (bcm_sf2_arl_op(priv, 0, port, fdb->addr, fdb->vid, true))
+		pr_err("%s: failed to add MAC address\n", __func__);
 }
 
 static int bcm_sf2_sw_fdb_del(struct dsa_switch *ds, int port,
@@ -943,8 +949,8 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	/* All the interesting properties are at the parent device_node
 	 * level
 	 */
-	dn = ds->pd->of_node->parent;
-	bcm_sf2_identify_ports(priv, ds->pd->of_node);
+	dn = ds->cd->of_node->parent;
+	bcm_sf2_identify_ports(priv, ds->cd->of_node);
 
 	priv->irq0 = irq_of_parse_and_map(dn, 0);
 	priv->irq1 = irq_of_parse_and_map(dn, 1);
@@ -1003,7 +1009,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	/* Enable all valid ports and disable those unused */
 	for (port = 0; port < priv->hw_params.num_ports; port++) {
 		/* IMP port receives special treatment */
-		if ((1 << port) & ds->phys_port_mask)
+		if ((1 << port) & ds->enabled_port_mask)
 			bcm_sf2_port_setup(ds, port, NULL);
 		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
@@ -1016,11 +1022,12 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	 * 7445D0, since 7445E0 disconnects the internal switch pseudo-PHY such
 	 * that we can use the regular SWITCH_MDIO master controller instead.
 	 *
-	 * By default, DSA initializes ds->phys_mii_mask to ds->phys_port_mask
-	 * to have a 1:1 mapping between Port address and PHY address in order
-	 * to utilize the slave_mii_bus instance to read from Port PHYs. This is
-	 * not what we want here, so we initialize phys_mii_mask 0 to always
-	 * utilize the "master" MDIO bus backed by the "mdio-unimac" driver.
+	 * By default, DSA initializes ds->phys_mii_mask to
+	 * ds->enabled_port_mask to have a 1:1 mapping between Port address
+	 * and PHY address in order to utilize the slave_mii_bus instance to
+	 * read from Port PHYs. This is not what we want here, so we
+	 * initialize phys_mii_mask 0 to always utilize the "master" MDIO
+	 * bus backed by the "mdio-unimac" driver.
 	 */
 	if (of_machine_is_compatible("brcm,bcm7445d0"))
 		ds->phys_mii_mask |= ((1 << BRCM_PSEUDO_PHY_ADDR) | (1 << 0));
@@ -1278,7 +1285,7 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 	 * bcm_sf2_sw_setup
 	 */
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if ((1 << port) & ds->phys_port_mask ||
+		if ((1 << port) & ds->enabled_port_mask ||
 		    dsa_is_cpu_port(ds, port))
 			bcm_sf2_port_disable(ds, port, NULL);
 	}
@@ -1302,7 +1309,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 		bcm_sf2_gphy_enable_set(ds, true);
 
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if ((1 << port) & ds->phys_port_mask)
+		if ((1 << port) & ds->enabled_port_mask)
 			bcm_sf2_port_setup(ds, port, NULL);
 		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
@@ -1365,8 +1372,7 @@ static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 
 static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_BRCM,
-	.priv_size		= sizeof(struct bcm_sf2_priv),
-	.probe			= bcm_sf2_sw_probe,
+	.probe			= bcm_sf2_sw_drv_probe,
 	.setup			= bcm_sf2_sw_setup,
 	.set_addr		= bcm_sf2_sw_set_addr,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
@@ -1387,7 +1393,7 @@ static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.set_eee		= bcm_sf2_sw_set_eee,
 	.port_bridge_join	= bcm_sf2_sw_br_join,
 	.port_bridge_leave	= bcm_sf2_sw_br_leave,
-	.port_stp_update	= bcm_sf2_sw_br_set_stp_state,
+	.port_stp_state_set	= bcm_sf2_sw_br_set_stp_state,
 	.port_fdb_prepare	= bcm_sf2_sw_fdb_prepare,
 	.port_fdb_add		= bcm_sf2_sw_fdb_add,
 	.port_fdb_del		= bcm_sf2_sw_fdb_del,

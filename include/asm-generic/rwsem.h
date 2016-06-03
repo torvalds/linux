@@ -53,7 +53,7 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 /*
  * lock for writing
  */
-static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
+static inline void __down_write(struct rw_semaphore *sem)
 {
 	long tmp;
 
@@ -63,9 +63,16 @@ static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
 		rwsem_down_write_failed(sem);
 }
 
-static inline void __down_write(struct rw_semaphore *sem)
+static inline int __down_write_killable(struct rw_semaphore *sem)
 {
-	__down_write_nested(sem, 0);
+	long tmp;
+
+	tmp = atomic_long_add_return_acquire(RWSEM_ACTIVE_WRITE_BIAS,
+				     (atomic_long_t *)&sem->count);
+	if (unlikely(tmp != RWSEM_ACTIVE_WRITE_BIAS))
+		if (IS_ERR(rwsem_down_write_failed_killable(sem)))
+			return -EINTR;
+	return 0;
 }
 
 static inline int __down_write_trylock(struct rw_semaphore *sem)

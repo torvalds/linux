@@ -150,7 +150,7 @@ static int tomoyo_inode_getattr(const struct path *path)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_truncate(struct path *path)
+static int tomoyo_path_truncate(const struct path *path)
 {
 	return tomoyo_path_perm(TOMOYO_TYPE_TRUNCATE, path, NULL);
 }
@@ -163,7 +163,7 @@ static int tomoyo_path_truncate(struct path *path)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_unlink(struct path *parent, struct dentry *dentry)
+static int tomoyo_path_unlink(const struct path *parent, struct dentry *dentry)
 {
 	struct path path = { parent->mnt, dentry };
 	return tomoyo_path_perm(TOMOYO_TYPE_UNLINK, &path, NULL);
@@ -178,7 +178,7 @@ static int tomoyo_path_unlink(struct path *parent, struct dentry *dentry)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
+static int tomoyo_path_mkdir(const struct path *parent, struct dentry *dentry,
 			     umode_t mode)
 {
 	struct path path = { parent->mnt, dentry };
@@ -194,7 +194,7 @@ static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_rmdir(struct path *parent, struct dentry *dentry)
+static int tomoyo_path_rmdir(const struct path *parent, struct dentry *dentry)
 {
 	struct path path = { parent->mnt, dentry };
 	return tomoyo_path_perm(TOMOYO_TYPE_RMDIR, &path, NULL);
@@ -209,7 +209,7 @@ static int tomoyo_path_rmdir(struct path *parent, struct dentry *dentry)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_symlink(struct path *parent, struct dentry *dentry,
+static int tomoyo_path_symlink(const struct path *parent, struct dentry *dentry,
 			       const char *old_name)
 {
 	struct path path = { parent->mnt, dentry };
@@ -226,7 +226,7 @@ static int tomoyo_path_symlink(struct path *parent, struct dentry *dentry,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
+static int tomoyo_path_mknod(const struct path *parent, struct dentry *dentry,
 			     umode_t mode, unsigned int dev)
 {
 	struct path path = { parent->mnt, dentry };
@@ -265,7 +265,7 @@ static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_link(struct dentry *old_dentry, struct path *new_dir,
+static int tomoyo_path_link(struct dentry *old_dentry, const struct path *new_dir,
 			    struct dentry *new_dentry)
 {
 	struct path path1 = { new_dir->mnt, old_dentry };
@@ -283,9 +283,9 @@ static int tomoyo_path_link(struct dentry *old_dentry, struct path *new_dir,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_rename(struct path *old_parent,
+static int tomoyo_path_rename(const struct path *old_parent,
 			      struct dentry *old_dentry,
-			      struct path *new_parent,
+			      const struct path *new_parent,
 			      struct dentry *new_dentry)
 {
 	struct path path1 = { old_parent->mnt, old_dentry };
@@ -351,7 +351,7 @@ static int tomoyo_file_ioctl(struct file *file, unsigned int cmd,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_chmod(struct path *path, umode_t mode)
+static int tomoyo_path_chmod(const struct path *path, umode_t mode)
 {
 	return tomoyo_path_number_perm(TOMOYO_TYPE_CHMOD, path,
 				       mode & S_IALLUGO);
@@ -366,7 +366,7 @@ static int tomoyo_path_chmod(struct path *path, umode_t mode)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_chown(struct path *path, kuid_t uid, kgid_t gid)
+static int tomoyo_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
 	int error = 0;
 	if (uid_valid(uid))
@@ -385,7 +385,7 @@ static int tomoyo_path_chown(struct path *path, kuid_t uid, kgid_t gid)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_chroot(struct path *path)
+static int tomoyo_path_chroot(const struct path *path)
 {
 	return tomoyo_path_perm(TOMOYO_TYPE_CHROOT, path, NULL);
 }
@@ -401,7 +401,7 @@ static int tomoyo_path_chroot(struct path *path)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_sb_mount(const char *dev_name, struct path *path,
+static int tomoyo_sb_mount(const char *dev_name, const struct path *path,
 			   const char *type, unsigned long flags, void *data)
 {
 	return tomoyo_mount_permission(dev_name, path, type, flags, data);
@@ -429,7 +429,7 @@ static int tomoyo_sb_umount(struct vfsmount *mnt, int flags)
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_sb_pivotroot(struct path *old_path, struct path *new_path)
+static int tomoyo_sb_pivotroot(const struct path *old_path, const struct path *new_path)
 {
 	return tomoyo_path2_perm(TOMOYO_TYPE_PIVOT_ROOT, new_path, old_path);
 }

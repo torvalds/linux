@@ -718,7 +718,7 @@ static void stir_send(struct stir_cb *stir, struct sk_buff *skb)
 
 	stir->netdev->stats.tx_packets++;
 	stir->netdev->stats.tx_bytes += skb->len;
-	stir->netdev->trans_start = jiffies;
+	netif_trans_update(stir->netdev);
 	pr_debug("send %d (%d)\n", skb->len, wraplen);
 
 	if (usb_bulk_msg(stir->usbdev, usb_sndbulkpipe(stir->usbdev, 1),

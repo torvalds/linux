@@ -47,47 +47,6 @@ xfs_trans_init(
 }
 
 /*
- * This routine is called to allocate a transaction structure.
- * The type parameter indicates the type of the transaction.  These
- * are enumerated in xfs_trans.h.
- *
- * Dynamically allocate the transaction structure from the transaction
- * zone, initialize it, and return it to the caller.
- */
-xfs_trans_t *
-xfs_trans_alloc(
-	xfs_mount_t	*mp,
-	uint		type)
-{
-	xfs_trans_t     *tp;
-
-	sb_start_intwrite(mp->m_super);
-	tp = _xfs_trans_alloc(mp, type, KM_SLEEP);
-	tp->t_flags |= XFS_TRANS_FREEZE_PROT;
-	return tp;
-}
-
-xfs_trans_t *
-_xfs_trans_alloc(
-	xfs_mount_t	*mp,
-	uint		type,
-	xfs_km_flags_t	memflags)
-{
-	xfs_trans_t	*tp;
-
-	WARN_ON(mp->m_super->s_writers.frozen == SB_FREEZE_COMPLETE);
-	atomic_inc(&mp->m_active_trans);
-
-	tp = kmem_zone_zalloc(xfs_trans_zone, memflags);
-	tp->t_magic = XFS_TRANS_HEADER_MAGIC;
-	tp->t_type = type;
-	tp->t_mountp = mp;
-	INIT_LIST_HEAD(&tp->t_items);
-	INIT_LIST_HEAD(&tp->t_busy);
-	return tp;
-}
-
-/*
  * Free the transaction structure.  If there is more clean up
  * to do when the structure is freed, add it here.
  */
@@ -99,7 +58,7 @@ xfs_trans_free(
 	xfs_extent_busy_clear(tp->t_mountp, &tp->t_busy, false);
 
 	atomic_dec(&tp->t_mountp->m_active_trans);
-	if (tp->t_flags & XFS_TRANS_FREEZE_PROT)
+	if (!(tp->t_flags & XFS_TRANS_NO_WRITECOUNT))
 		sb_end_intwrite(tp->t_mountp->m_super);
 	xfs_trans_free_dqinfo(tp);
 	kmem_zone_free(xfs_trans_zone, tp);
@@ -125,7 +84,6 @@ xfs_trans_dup(
 	 * Initialize the new transaction structure.
 	 */
 	ntp->t_magic = XFS_TRANS_HEADER_MAGIC;
-	ntp->t_type = tp->t_type;
 	ntp->t_mountp = tp->t_mountp;
 	INIT_LIST_HEAD(&ntp->t_items);
 	INIT_LIST_HEAD(&ntp->t_busy);
@@ -135,9 +93,9 @@ xfs_trans_dup(
 
 	ntp->t_flags = XFS_TRANS_PERM_LOG_RES |
 		       (tp->t_flags & XFS_TRANS_RESERVE) |
-		       (tp->t_flags & XFS_TRANS_FREEZE_PROT);
+		       (tp->t_flags & XFS_TRANS_NO_WRITECOUNT);
 	/* We gave our writer reference to the new transaction */
-	tp->t_flags &= ~XFS_TRANS_FREEZE_PROT;
+	tp->t_flags |= XFS_TRANS_NO_WRITECOUNT;
 	ntp->t_ticket = xfs_log_ticket_get(tp->t_ticket);
 	ntp->t_blk_res = tp->t_blk_res - tp->t_blk_res_used;
 	tp->t_blk_res = tp->t_blk_res_used;
@@ -165,7 +123,7 @@ xfs_trans_dup(
  * This does not do quota reservations. That typically is done by the
  * caller afterwards.
  */
-int
+static int
 xfs_trans_reserve(
 	struct xfs_trans	*tp,
 	struct xfs_trans_res	*resp,
@@ -219,7 +177,7 @@ xfs_trans_reserve(
 						resp->tr_logres,
 						resp->tr_logcount,
 						&tp->t_ticket, XFS_TRANSACTION,
-						permanent, tp->t_type);
+						permanent);
 		}
 
 		if (error)
@@ -266,6 +224,42 @@ undo_blocks:
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 
 	return error;
+}
+
+int
+xfs_trans_alloc(
+	struct xfs_mount	*mp,
+	struct xfs_trans_res	*resp,
+	uint			blocks,
+	uint			rtextents,
+	uint			flags,
+	struct xfs_trans	**tpp)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	if (!(flags & XFS_TRANS_NO_WRITECOUNT))
+		sb_start_intwrite(mp->m_super);
+
+	WARN_ON(mp->m_super->s_writers.frozen == SB_FREEZE_COMPLETE);
+	atomic_inc(&mp->m_active_trans);
+
+	tp = kmem_zone_zalloc(xfs_trans_zone,
+		(flags & XFS_TRANS_NOFS) ? KM_NOFS : KM_SLEEP);
+	tp->t_magic = XFS_TRANS_HEADER_MAGIC;
+	tp->t_flags = flags;
+	tp->t_mountp = mp;
+	INIT_LIST_HEAD(&tp->t_items);
+	INIT_LIST_HEAD(&tp->t_busy);
+
+	error = xfs_trans_reserve(tp, resp, blocks, rtextents);
+	if (error) {
+		xfs_trans_cancel(tp);
+		return error;
+	}
+
+	*tpp = tp;
+	return 0;
 }
 
 /*

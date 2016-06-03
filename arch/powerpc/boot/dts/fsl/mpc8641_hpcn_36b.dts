@@ -17,10 +17,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	aliases {
-		pci1 = &pci1;
-	};
-
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x00000000 0x0 0x40000000>;	// 1G at 0x0
@@ -326,29 +322,11 @@
 	};
 
 	pci1: pcie@fffe09000 {
-		compatible = "fsl,mpc8641-pcie";
-		device_type = "pci";
-		#size-cells = <2>;
-		#address-cells = <3>;
 		reg = <0x0f 0xffe09000 0x0 0x1000>;
-		bus-range = <0x0 0xff>;
 		ranges = <0x02000000 0x0 0xe0000000 0x0c 0x20000000 0x0 0x20000000
 			  0x01000000 0x0 0x00000000 0x0f 0xffc10000 0x0 0x00010000>;
-		clock-frequency = <100000000>;
-		interrupts = <25 2 0 0>;
-		interrupt-map-mask = <0xf800 0 0 7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0x0000 0 0 1 &mpic 4 1
-			0x0000 0 0 2 &mpic 5 1
-			0x0000 0 0 3 &mpic 6 1
-			0x0000 0 0 4 &mpic 7 1
-			>;
+
 		pcie@0 {
-			reg = <0 0 0 0 0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
 			ranges = <0x02000000 0x0 0xe0000000
 				  0x02000000 0x0 0xe0000000
 				  0x0 0x20000000

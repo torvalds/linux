@@ -246,6 +246,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
 	return pfn;
 }
 
+/* Caller should ensure that requested range is in a single zone */
 int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 			bool skip_hwpoisoned_pages)
 {
@@ -288,13 +289,10 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
 	 * accordance with memory policy of the user process if possible. For
 	 * now as a simple work-around, we use the next node for destination.
 	 */
-	if (PageHuge(page)) {
-		int node = next_online_node(page_to_nid(page));
-		if (node == MAX_NUMNODES)
-			node = first_online_node;
+	if (PageHuge(page))
 		return alloc_huge_page_node(page_hstate(compound_head(page)),
-					    node);
-	}
+					    next_node_in(page_to_nid(page),
+							 node_online_map));
 
 	if (PageHighMem(page))
 		gfp_mask |= __GFP_HIGHMEM;

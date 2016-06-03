@@ -182,6 +182,7 @@ void __init x86_64_start_reservations(char *real_mode_data)
 	if (!boot_params.hdr.version)
 		copy_bootdata(__va(real_mode_data));
 
+	x86_early_init_platform_quirks();
 	reserve_ebda_region();
 
 	switch (boot_params.hdr.hardware_subarch) {

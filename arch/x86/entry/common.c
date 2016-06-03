@@ -191,7 +191,7 @@ long syscall_trace_enter_phase2(struct pt_regs *regs, u32 arch,
 
 long syscall_trace_enter(struct pt_regs *regs)
 {
-	u32 arch = is_ia32_task() ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
+	u32 arch = in_ia32_syscall() ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
 	unsigned long phase1_result = syscall_trace_enter_phase1(regs, arch);
 
 	if (phase1_result == 0)

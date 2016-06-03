@@ -1125,7 +1125,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	vdev->queue = &go->vidq;
 	video_set_drvdata(vdev, go);
 	vdev->v4l2_dev = &go->v4l2_dev;
-	if (!v4l2_device_has_op(&go->v4l2_dev, video, querystd))
+	if (!v4l2_device_has_op(&go->v4l2_dev, 0, video, querystd))
 		v4l2_disable_ioctl(vdev, VIDIOC_QUERYSTD);
 	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER)) {
 		v4l2_disable_ioctl(vdev, VIDIOC_S_FREQUENCY);

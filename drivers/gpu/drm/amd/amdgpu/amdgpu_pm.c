@@ -362,16 +362,23 @@ static ssize_t amdgpu_set_pp_dpm_sclk(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
 	long level;
+	uint32_t i, mask = 0;
+	char sub_str[2];
 
-	ret = kstrtol(buf, 0, &level);
+	for (i = 0; i < strlen(buf) - 1; i++) {
+		sub_str[0] = *(buf + i);
+		sub_str[1] = '\0';
+		ret = kstrtol(sub_str, 0, &level);
 
-	if (ret) {
-		count = -EINVAL;
-		goto fail;
+		if (ret) {
+			count = -EINVAL;
+			goto fail;
+		}
+		mask |= 1 << level;
 	}
 
 	if (adev->pp_enabled)
-		amdgpu_dpm_force_clock_level(adev, PP_SCLK, level);
+		amdgpu_dpm_force_clock_level(adev, PP_SCLK, mask);
 fail:
 	return count;
 }
@@ -399,16 +406,23 @@ static ssize_t amdgpu_set_pp_dpm_mclk(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
 	long level;
+	uint32_t i, mask = 0;
+	char sub_str[2];
 
-	ret = kstrtol(buf, 0, &level);
+	for (i = 0; i < strlen(buf) - 1; i++) {
+		sub_str[0] = *(buf + i);
+		sub_str[1] = '\0';
+		ret = kstrtol(sub_str, 0, &level);
 
-	if (ret) {
-		count = -EINVAL;
-		goto fail;
+		if (ret) {
+			count = -EINVAL;
+			goto fail;
+		}
+		mask |= 1 << level;
 	}
 
 	if (adev->pp_enabled)
-		amdgpu_dpm_force_clock_level(adev, PP_MCLK, level);
+		amdgpu_dpm_force_clock_level(adev, PP_MCLK, mask);
 fail:
 	return count;
 }
@@ -436,16 +450,23 @@ static ssize_t amdgpu_set_pp_dpm_pcie(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	int ret;
 	long level;
+	uint32_t i, mask = 0;
+	char sub_str[2];
 
-	ret = kstrtol(buf, 0, &level);
+	for (i = 0; i < strlen(buf) - 1; i++) {
+		sub_str[0] = *(buf + i);
+		sub_str[1] = '\0';
+		ret = kstrtol(sub_str, 0, &level);
 
-	if (ret) {
-		count = -EINVAL;
-		goto fail;
+		if (ret) {
+			count = -EINVAL;
+			goto fail;
+		}
+		mask |= 1 << level;
 	}
 
 	if (adev->pp_enabled)
-		amdgpu_dpm_force_clock_level(adev, PP_PCIE, level);
+		amdgpu_dpm_force_clock_level(adev, PP_PCIE, mask);
 fail:
 	return count;
 }
@@ -1212,7 +1233,7 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static struct drm_info_list amdgpu_pm_info_list[] = {
+static const struct drm_info_list amdgpu_pm_info_list[] = {
 	{"amdgpu_pm_info", amdgpu_debugfs_pm_info, 0, NULL},
 };
 #endif

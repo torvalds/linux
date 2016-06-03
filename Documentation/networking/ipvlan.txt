@@ -8,7 +8,7 @@ Initial Release:
 	This is conceptually very similar to the macvlan driver with one major
 exception of using L3 for mux-ing /demux-ing among slaves. This property makes
 the master device share the L2 with it's slave devices. I have developed this
-driver in conjuntion with network namespaces and not sure if there is use case
+driver in conjunction with network namespaces and not sure if there is use case
 outside of it.
 
 
@@ -42,7 +42,7 @@ out. In this mode the slaves will RX/TX multicast and broadcast (if applicable)
 as well.
 
 4.2 L3 mode:
-	In this mode TX processing upto L3 happens on the stack instance attached
+	In this mode TX processing up to L3 happens on the stack instance attached
 to the slave device and packets are switched to the stack instance of the
 master device for the L2 processing and routing from that instance will be
 used before packets are queued on the outbound device. In this mode the slaves
@@ -56,7 +56,7 @@ situations defines your use case then you can choose to use ipvlan -
 	(a) The Linux host that is connected to the external switch / router has
 policy configured that allows only one mac per port.
 	(b) No of virtual devices created on a master exceed the mac capacity and
-puts the NIC in promiscous mode and degraded performance is a concern.
+puts the NIC in promiscuous mode and degraded performance is a concern.
 	(c) If the slave device is to be put into the hostile / untrusted network
 namespace where L2 on the slave could be changed / misused.
 

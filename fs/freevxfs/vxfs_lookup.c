@@ -58,7 +58,7 @@ const struct inode_operations vxfs_dir_inode_ops = {
 const struct file_operations vxfs_dir_operations = {
 	.llseek =		generic_file_llseek,
 	.read =			generic_read_dir,
-	.iterate =		vxfs_readdir,
+	.iterate_shared =	vxfs_readdir,
 };
 
 static inline u_long

@@ -45,9 +45,9 @@ struct drm_gem_object *armada_gem_prime_import(struct drm_device *,
 int armada_gem_map_import(struct armada_gem_object *);
 
 static inline struct armada_gem_object *armada_gem_object_lookup(
-	struct drm_device *dev, struct drm_file *dfile, unsigned handle)
+	struct drm_file *dfile, unsigned handle)
 {
-	struct drm_gem_object *obj = drm_gem_object_lookup(dev, dfile, handle);
+	struct drm_gem_object *obj = drm_gem_object_lookup(dfile, handle);
 
 	return obj ? drm_to_armada_gem(obj) : NULL;
 }

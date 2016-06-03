@@ -110,7 +110,7 @@ static int ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
 	return err;
 }
 
-static void ext2_check_page(struct page *page, int quiet)
+static bool ext2_check_page(struct page *page, int quiet)
 {
 	struct inode *dir = page->mapping->host;
 	struct super_block *sb = dir->i_sb;
@@ -148,7 +148,7 @@ static void ext2_check_page(struct page *page, int quiet)
 		goto Eend;
 out:
 	SetPageChecked(page);
-	return;
+	return true;
 
 	/* Too bad, we had an error */
 
@@ -190,8 +190,8 @@ Eend:
 			(unsigned long) le32_to_cpu(p->inode));
 	}
 fail:
-	SetPageChecked(page);
 	SetPageError(page);
+	return false;
 }
 
 static struct page * ext2_get_page(struct inode *dir, unsigned long n,
@@ -201,10 +201,10 @@ static struct page * ext2_get_page(struct inode *dir, unsigned long n,
 	struct page *page = read_mapping_page(mapping, n, NULL);
 	if (!IS_ERR(page)) {
 		kmap(page);
-		if (!PageChecked(page))
-			ext2_check_page(page, quiet);
-		if (PageError(page))
-			goto fail;
+		if (unlikely(!PageChecked(page))) {
+			if (PageError(page) || !ext2_check_page(page, quiet))
+				goto fail;
+		}
 	}
 	return page;
 
@@ -716,7 +716,7 @@ not_empty:
 const struct file_operations ext2_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= ext2_readdir,
+	.iterate_shared	= ext2_readdir,
 	.unlocked_ioctl = ext2_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ext2_compat_ioctl,

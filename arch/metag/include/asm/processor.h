@@ -134,8 +134,6 @@ static inline void release_thread(struct task_struct *dead_task)
 #define copy_segments(tsk, mm)		do { } while (0)
 #define release_segments(mm)		do { } while (0)
 
-extern void exit_thread(void);
-
 /*
  * Return saved PC of a blocked thread.
  */

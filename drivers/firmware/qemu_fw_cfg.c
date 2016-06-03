@@ -77,7 +77,7 @@ static inline u16 fw_cfg_sel_endianness(u16 key)
 static inline void fw_cfg_read_blob(u16 key,
 				    void *buf, loff_t pos, size_t count)
 {
-	u32 glk;
+	u32 glk = -1U;
 	acpi_status status;
 
 	/* If we have ACPI, ensure mutual exclusion against any potential
@@ -125,9 +125,7 @@ static void fw_cfg_io_cleanup(void)
 #  define FW_CFG_CTRL_OFF 0x00
 #  define FW_CFG_DATA_OFF 0x01
 # else
-#  warning "QEMU FW_CFG may not be available on this architecture!"
-#  define FW_CFG_CTRL_OFF 0x00
-#  define FW_CFG_DATA_OFF 0x01
+#  error "QEMU FW_CFG not available on this architecture!"
 # endif
 #endif
 

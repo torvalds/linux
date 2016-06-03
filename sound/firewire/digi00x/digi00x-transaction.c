@@ -126,12 +126,17 @@ int snd_dg00x_transaction_register(struct snd_dg00x *dg00x)
 	return err;
 error:
 	fw_core_remove_address_handler(&dg00x->async_handler);
-	dg00x->async_handler.address_callback = NULL;
+	dg00x->async_handler.callback_data = NULL;
 	return err;
 }
 
 void snd_dg00x_transaction_unregister(struct snd_dg00x *dg00x)
 {
+	if (dg00x->async_handler.callback_data == NULL)
+		return;
+
 	snd_fw_async_midi_port_destroy(&dg00x->out_control);
 	fw_core_remove_address_handler(&dg00x->async_handler);
+
+	dg00x->async_handler.callback_data = NULL;
 }

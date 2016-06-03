@@ -101,6 +101,23 @@ struct pp_atomctrl_clock_dividers_vi {
 };
 typedef struct pp_atomctrl_clock_dividers_vi pp_atomctrl_clock_dividers_vi;
 
+struct pp_atomctrl_clock_dividers_ai {
+	u16 usSclk_fcw_frac;
+	u16  usSclk_fcw_int;
+	u8   ucSclkPostDiv;
+	u8   ucSclkVcoMode;
+	u8   ucSclkPllRange;
+	u8   ucSscEnable;
+	u16  usSsc_fcw1_frac;
+	u16  usSsc_fcw1_int;
+	u16  usReserved;
+	u16  usPcc_fcw_int;
+	u16  usSsc_fcw_slew_frac;
+	u16  usPcc_fcw_slew_frac;
+};
+typedef struct pp_atomctrl_clock_dividers_ai pp_atomctrl_clock_dividers_ai;
+
+
 union pp_atomctrl_s_mpll_fb_divider {
 	struct {
 		uint32_t cl_kf : 12;
@@ -204,6 +221,21 @@ struct pp_atomctrl_mc_register_address {
 
 typedef struct pp_atomctrl_mc_register_address pp_atomctrl_mc_register_address;
 
+#define MAX_SCLK_RANGE 8
+
+struct pp_atom_ctrl_sclk_range_table_entry{
+	uint8_t  ucVco_setting;
+	uint8_t  ucPostdiv;
+	uint16_t usFcw_pcc;
+	uint16_t usFcw_trans_upper;
+	uint16_t usRcw_trans_lower;
+};
+
+
+struct pp_atom_ctrl_sclk_range_table{
+	struct pp_atom_ctrl_sclk_range_table_entry entry[MAX_SCLK_RANGE];
+};
+
 struct pp_atomctrl_mc_reg_table {
 	uint8_t                         last;                    /* number of registers */
 	uint8_t                         num_entries;             /* number of AC timing entries */
@@ -240,7 +272,11 @@ extern int atomctrl_read_efuse(void *device, uint16_t start_index,
 		uint16_t end_index, uint32_t mask, uint32_t *efuse);
 extern int atomctrl_calculate_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 		uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage, uint16_t dpm_level, bool debug);
-
-
+extern int atomctrl_get_engine_pll_dividers_ai(struct pp_hwmgr *hwmgr, uint32_t clock_value, pp_atomctrl_clock_dividers_ai *dividers);
+extern int atomctrl_set_ac_timing_ai(struct pp_hwmgr *hwmgr, uint32_t memory_clock,
+								uint8_t level);
+extern int atomctrl_get_voltage_evv_on_sclk_ai(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
+				uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage);
+extern int atomctrl_get_smc_sclk_range_table(struct pp_hwmgr *hwmgr, struct pp_atom_ctrl_sclk_range_table *table);
 #endif
 

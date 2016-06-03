@@ -1,5 +1,7 @@
 /*
 * ***************************************************************************
+* Marvell Armada-3700 Serial Driver
+* Author: Wilson Ding <dingwei@marvell.com>
 * Copyright (C) 2015 Marvell International Ltd.
 * ***************************************************************************
 * This program is free software: you can redistribute it and/or modify it
@@ -23,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -594,30 +595,18 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mvebu_uart_remove(struct platform_device *pdev)
-{
-	struct mvebu_uart_data *data = platform_get_drvdata(pdev);
-
-	uart_remove_one_port(&mvebu_uart_driver, data->port);
-	data->port->private_data = NULL;
-	data->port->mapbase      = 0;
-	return 0;
-}
-
 /* Match table for of_platform binding */
 static const struct of_device_id mvebu_uart_of_match[] = {
 	{ .compatible = "marvell,armada-3700-uart", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, mvebu_uart_of_match);
 
 static struct platform_driver mvebu_uart_platform_driver = {
 	.probe	= mvebu_uart_probe,
-	.remove	= mvebu_uart_remove,
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name  = "mvebu-uart",
 		.of_match_table = of_match_ptr(mvebu_uart_of_match),
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -635,16 +624,4 @@ static int __init mvebu_uart_init(void)
 
 	return ret;
 }
-
-static void __exit mvebu_uart_exit(void)
-{
-	platform_driver_unregister(&mvebu_uart_platform_driver);
-	uart_unregister_driver(&mvebu_uart_driver);
-}
-
 arch_initcall(mvebu_uart_init);
-module_exit(mvebu_uart_exit);
-
-MODULE_AUTHOR("Wilson Ding <dingwei@marvell.com>");
-MODULE_DESCRIPTION("Marvell Armada-3700 Serial Driver");
-MODULE_LICENSE("GPL");

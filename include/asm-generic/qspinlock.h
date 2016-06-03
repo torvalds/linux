@@ -28,7 +28,30 @@
  */
 static __always_inline int queued_spin_is_locked(struct qspinlock *lock)
 {
-	return atomic_read(&lock->val);
+	/*
+	 * queued_spin_lock_slowpath() can ACQUIRE the lock before
+	 * issuing the unordered store that sets _Q_LOCKED_VAL.
+	 *
+	 * See both smp_cond_acquire() sites for more detail.
+	 *
+	 * This however means that in code like:
+	 *
+	 *   spin_lock(A)		spin_lock(B)
+	 *   spin_unlock_wait(B)	spin_is_locked(A)
+	 *   do_something()		do_something()
+	 *
+	 * Both CPUs can end up running do_something() because the store
+	 * setting _Q_LOCKED_VAL will pass through the loads in
+	 * spin_unlock_wait() and/or spin_is_locked().
+	 *
+	 * Avoid this by issuing a full memory barrier between the spin_lock()
+	 * and the loads in spin_unlock_wait() and spin_is_locked().
+	 *
+	 * Note that regular mutual exclusion doesn't care about this
+	 * delayed store.
+	 */
+	smp_mb();
+	return atomic_read(&lock->val) & _Q_LOCKED_MASK;
 }
 
 /**
@@ -108,6 +131,8 @@ static __always_inline void queued_spin_unlock(struct qspinlock *lock)
  */
 static inline void queued_spin_unlock_wait(struct qspinlock *lock)
 {
+	/* See queued_spin_is_locked() */
+	smp_mb();
 	while (atomic_read(&lock->val) & _Q_LOCKED_MASK)
 		cpu_relax();
 }

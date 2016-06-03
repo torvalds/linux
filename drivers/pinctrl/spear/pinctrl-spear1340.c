@@ -2020,18 +2020,12 @@ static int spear1340_pinctrl_probe(struct platform_device *pdev)
 	return spear_pinctrl_probe(pdev, &spear1340_machdata);
 }
 
-static int spear1340_pinctrl_remove(struct platform_device *pdev)
-{
-	return spear_pinctrl_remove(pdev);
-}
-
 static struct platform_driver spear1340_pinctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = spear1340_pinctrl_of_match,
 	},
 	.probe = spear1340_pinctrl_probe,
-	.remove = spear1340_pinctrl_remove,
 };
 
 static int __init spear1340_pinctrl_init(void)

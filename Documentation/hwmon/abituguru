@@ -25,7 +25,7 @@ Supported chips:
 	1) For revisions 2 and 3 uGuru's the driver can autodetect the
 	   sensortype (Volt or Temp) for bank1 sensors, for revision 1 uGuru's
 	   this doesnot always work. For these uGuru's the autodection can
-	   be overriden with the bank1_types module param. For all 3 known
+	   be overridden with the bank1_types module param. For all 3 known
 	   revison 1 motherboards the correct use of this param is:
 	   bank1_types=1,1,0,0,0,0,0,2,0,0,0,0,2,0,0,1
 	   You may also need to specify the fan_sensors option for these boards

@@ -30,5 +30,6 @@ void led_set_brightness_nosleep(struct led_classdev *led_cdev,
 
 extern struct rw_semaphore leds_list_lock;
 extern struct list_head leds_list;
+extern struct list_head trigger_list;
 
 #endif	/* __LEDS_H_INCLUDED */

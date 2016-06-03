@@ -596,7 +596,7 @@
 		pinctrl-0 = <&i2s2_bus>;
 	};
 
-	usb@12000000 {
+	usb_dwc3 {
 		compatible = "samsung,exynos5250-dwusb3";
 		clocks = <&clock CLK_USB3>;
 		clock-names = "usbdrd30";
@@ -604,7 +604,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		usbdrd_dwc3: dwc3 {
+		usbdrd_dwc3: dwc3@12000000 {
 			compatible = "synopsys,dwc3";
 			reg = <0x12000000 0x10000>;
 			interrupts = <0 72 0>;
@@ -763,7 +763,7 @@
 		iommu = <&sysmmu_gsc3>;
 	};
 
-	hdmi: hdmi {
+	hdmi: hdmi@14530000 {
 		compatible = "samsung,exynos4212-hdmi";
 		reg = <0x14530000 0x70000>;
 		power-domains = <&pd_disp1>;
@@ -776,7 +776,7 @@
 		samsung,syscon-phandle = <&pmu_system_controller>;
 	};
 
-	mixer {
+	mixer@14450000 {
 		compatible = "samsung,exynos5250-mixer";
 		reg = <0x14450000 0x10000>;
 		power-domains = <&pd_disp1>;
@@ -787,7 +787,7 @@
 		iommus = <&sysmmu_tv>;
 	};
 
-	dp_phy: video-phy@10040720 {
+	dp_phy: video-phy {
 		compatible = "samsung,exynos5250-dp-video-phy";
 		samsung,pmu-syscon = <&pmu_system_controller>;
 		#phy-cells = <0>;

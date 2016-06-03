@@ -354,7 +354,7 @@ int paste_selection(struct tty_struct *tty)
 	add_wait_queue(&vc->paste_wait, &wait);
 	while (sel_buffer && sel_buffer_lth > pasted) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (test_bit(TTY_THROTTLED, &tty->flags)) {
+		if (tty_throttled(tty)) {
 			schedule();
 			continue;
 		}

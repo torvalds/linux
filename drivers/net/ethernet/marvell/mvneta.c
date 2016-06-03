@@ -3354,8 +3354,7 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 		/* Enable per-CPU interrupts on the CPU that is
 		 * brought up.
 		 */
-		smp_call_function_single(cpu, mvneta_percpu_enable,
-					 pp, true);
+		mvneta_percpu_enable(pp);
 
 		/* Enable per-CPU interrupt on the one CPU we care
 		 * about.
@@ -3387,8 +3386,7 @@ static int mvneta_percpu_notifier(struct notifier_block *nfb,
 		/* Disable per-CPU interrupts on the CPU that is
 		 * brought down.
 		 */
-		smp_call_function_single(cpu, mvneta_percpu_disable,
-					 pp, true);
+		mvneta_percpu_disable(pp);
 
 		break;
 	case CPU_DEAD:

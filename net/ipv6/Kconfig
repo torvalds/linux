@@ -218,6 +218,7 @@ config IPV6_GRE
 	tristate "IPv6: GRE tunnel"
 	select IPV6_TUNNEL
 	select NET_IP_TUNNEL
+	depends on NET_IPGRE_DEMUX
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the

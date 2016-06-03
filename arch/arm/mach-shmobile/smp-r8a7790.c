@@ -17,12 +17,12 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/soc/renesas/rcar-sysc.h>
 
 #include <asm/smp_plat.h>
 
 #include "common.h"
 #include "platsmp-apmu.h"
-#include "pm-rcar.h"
 #include "rcar-gen2.h"
 #include "r8a7790.h"
 

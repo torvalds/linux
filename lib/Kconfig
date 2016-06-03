@@ -362,6 +362,9 @@ config INTERVAL_TREE
 
 	  for more information.
 
+config RADIX_TREE_MULTIORDER
+	bool
+
 config ASSOCIATIVE_ARRAY
 	bool
 	help
@@ -522,6 +525,13 @@ config SG_SPLIT
 	 Provides a helper to split scatterlists into chunks, each chunk being
 	 a scatterlist. This should be selected by a driver or an API which
 	 whishes to split a scatterlist amongst multiple DMA channels.
+
+config SG_POOL
+	def_bool n
+	help
+	 Provides a helper to allocate chained scatterlists. This should be
+	 selected by a driver or an API which whishes to allocate chained
+	 scatterlist.
 
 #
 # sg chaining option

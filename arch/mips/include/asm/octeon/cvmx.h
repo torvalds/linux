@@ -57,6 +57,7 @@ enum cvmx_mips_space {
 #include <asm/octeon/cvmx-sysinfo.h>
 
 #include <asm/octeon/cvmx-ciu-defs.h>
+#include <asm/octeon/cvmx-ciu3-defs.h>
 #include <asm/octeon/cvmx-gpio-defs.h>
 #include <asm/octeon/cvmx-iob-defs.h>
 #include <asm/octeon/cvmx-ipd-defs.h>
@@ -341,6 +342,21 @@ static inline unsigned int cvmx_get_core_num(void)
 	return core_num;
 }
 
+/* Maximum # of bits to define core in node */
+#define CVMX_NODE_NO_SHIFT	7
+#define CVMX_NODE_MASK		0x3
+static inline unsigned int cvmx_get_node_num(void)
+{
+	unsigned int core_num = cvmx_get_core_num();
+
+	return (core_num >> CVMX_NODE_NO_SHIFT) & CVMX_NODE_MASK;
+}
+
+static inline unsigned int cvmx_get_local_core_num(void)
+{
+	return cvmx_get_core_num() & ((1 << CVMX_NODE_NO_SHIFT) - 1);
+}
+
 /**
  * Returns the number of bits set in the provided value.
  * Simple wrapper for POP instruction.
@@ -448,8 +464,15 @@ static inline uint64_t cvmx_get_cycle_global(void)
 /* Return the number of cores available in the chip */
 static inline uint32_t cvmx_octeon_num_cores(void)
 {
-	uint32_t ciu_fuse = (uint32_t) cvmx_read_csr(CVMX_CIU_FUSE) & 0xffff;
-	return cvmx_pop(ciu_fuse);
+	u64 ciu_fuse_reg;
+	u64 ciu_fuse;
+
+	if (OCTEON_IS_OCTEON3() && !OCTEON_IS_MODEL(OCTEON_CN70XX))
+		ciu_fuse_reg = CVMX_CIU3_FUSE;
+	else
+		ciu_fuse_reg = CVMX_CIU_FUSE;
+	ciu_fuse = cvmx_read_csr(ciu_fuse_reg);
+	return cvmx_dpop(ciu_fuse);
 }
 
 #endif /*  __CVMX_H__  */

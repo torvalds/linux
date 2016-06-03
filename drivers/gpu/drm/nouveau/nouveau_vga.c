@@ -4,7 +4,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_acpi.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_vga.h"

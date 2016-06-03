@@ -8,6 +8,7 @@
 #include <linux/component.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>

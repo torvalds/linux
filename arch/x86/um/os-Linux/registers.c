@@ -11,19 +11,54 @@
 #endif
 #include <longjmp.h>
 #include <sysdep/ptrace_user.h>
+#include <sys/uio.h>
+#include <asm/sigcontext.h>
+#include <linux/elf.h>
 
-int save_fp_registers(int pid, unsigned long *fp_regs)
+int have_xstate_support;
+
+int save_i387_registers(int pid, unsigned long *fp_regs)
 {
 	if (ptrace(PTRACE_GETFPREGS, pid, 0, fp_regs) < 0)
 		return -errno;
 	return 0;
 }
 
-int restore_fp_registers(int pid, unsigned long *fp_regs)
+int save_fp_registers(int pid, unsigned long *fp_regs)
+{
+	struct iovec iov;
+
+	if (have_xstate_support) {
+		iov.iov_base = fp_regs;
+		iov.iov_len = sizeof(struct _xstate);
+		if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
+			return -errno;
+		return 0;
+	} else {
+		return save_i387_registers(pid, fp_regs);
+	}
+}
+
+int restore_i387_registers(int pid, unsigned long *fp_regs)
 {
 	if (ptrace(PTRACE_SETFPREGS, pid, 0, fp_regs) < 0)
 		return -errno;
 	return 0;
+}
+
+int restore_fp_registers(int pid, unsigned long *fp_regs)
+{
+	struct iovec iov;
+
+	if (have_xstate_support) {
+		iov.iov_base = fp_regs;
+		iov.iov_len = sizeof(struct _xstate);
+		if (ptrace(PTRACE_SETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
+			return -errno;
+		return 0;
+	} else {
+		return restore_i387_registers(pid, fp_regs);
+	}
 }
 
 #ifdef __i386__
@@ -85,6 +120,16 @@ int put_fp_registers(int pid, unsigned long *regs)
 	return restore_fp_registers(pid, regs);
 }
 
+void arch_init_registers(int pid)
+{
+	struct _xstate fp_regs;
+	struct iovec iov;
+
+	iov.iov_base = &fp_regs;
+	iov.iov_len = sizeof(struct _xstate);
+	if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) == 0)
+		have_xstate_support = 1;
+}
 #endif
 
 unsigned long get_thread_reg(int reg, jmp_buf *buf)

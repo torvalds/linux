@@ -115,34 +115,6 @@ cfs_percpt_number(void *vars)
 EXPORT_SYMBOL(cfs_percpt_number);
 
 /*
- * return memory block shadowed from current CPU
- */
-void *
-cfs_percpt_current(void *vars)
-{
-	struct cfs_var_array *arr;
-	int    cpt;
-
-	arr = container_of(vars, struct cfs_var_array, va_ptrs[0]);
-	cpt = cfs_cpt_current(arr->va_cptab, 0);
-	if (cpt < 0)
-		return NULL;
-
-	return arr->va_ptrs[cpt];
-}
-
-void *
-cfs_percpt_index(void *vars, int idx)
-{
-	struct cfs_var_array *arr;
-
-	arr = container_of(vars, struct cfs_var_array, va_ptrs[0]);
-
-	LASSERT(idx >= 0 && idx < arr->va_count);
-	return arr->va_ptrs[idx];
-}
-
-/*
  * free variable array, see more detail in cfs_array_alloc
  */
 void

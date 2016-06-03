@@ -18,10 +18,11 @@
 #define BLINK_DELAY 30
 
 DEFINE_LED_TRIGGER(ledtrig_ide);
-static unsigned long ide_blink_delay = BLINK_DELAY;
 
 void ledtrig_ide_activity(void)
 {
+	unsigned long ide_blink_delay = BLINK_DELAY;
+
 	led_trigger_blink_oneshot(ledtrig_ide,
 				  &ide_blink_delay, &ide_blink_delay, 0);
 }

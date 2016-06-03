@@ -145,7 +145,7 @@ static int __validate_match(struct hists *hists)
 	/*
 	 * Only entries from fake_common_samples should have a pair.
 	 */
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -197,7 +197,7 @@ static int __validate_link(struct hists *hists, int idx)
 	 * and some entries will have no pair.  However every entry
 	 * in other hists should have (dummy) pair.
 	 */
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;

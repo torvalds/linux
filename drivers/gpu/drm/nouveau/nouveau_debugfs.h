@@ -5,7 +5,7 @@
 
 #if defined(CONFIG_DEBUG_FS)
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 
 struct nouveau_debugfs {
 	struct nvif_object ctrl;

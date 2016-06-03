@@ -255,13 +255,13 @@ il3945_rs_next_rate(struct il_priv *il, int rate)
 	int next_rate = il3945_get_prev_ieee_rate(rate);
 
 	switch (il->band) {
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		if (rate == RATE_12M_IDX)
 			next_rate = RATE_9M_IDX;
 		else if (rate == RATE_6M_IDX)
 			next_rate = RATE_6M_IDX;
 		break;
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		if (!(il->_3945.sta_supp_rates & IL_OFDM_RATES_MASK) &&
 		    il_is_associated(il)) {
 			if (rate == RATE_11M_IDX)
@@ -349,7 +349,7 @@ il3945_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 
 	/* Fill the MRR chain with some info about on-chip retransmissions */
 	rate_idx = il3945_hwrate_to_plcp_idx(tx_resp->rate);
-	if (info->band == IEEE80211_BAND_5GHZ)
+	if (info->band == NL80211_BAND_5GHZ)
 		rate_idx -= IL_FIRST_OFDM_RATE;
 
 	fail = tx_resp->failure_frame;
@@ -554,14 +554,14 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	rx_status.mactime = le64_to_cpu(rx_end->timestamp);
 	rx_status.band =
 	    (rx_hdr->
-	     phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ? IEEE80211_BAND_2GHZ :
-	    IEEE80211_BAND_5GHZ;
+	     phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ? NL80211_BAND_2GHZ :
+	    NL80211_BAND_5GHZ;
 	rx_status.freq =
 	    ieee80211_channel_to_frequency(le16_to_cpu(rx_hdr->channel),
 					   rx_status.band);
 
 	rx_status.rate_idx = il3945_hwrate_to_plcp_idx(rx_hdr->rate);
-	if (rx_status.band == IEEE80211_BAND_5GHZ)
+	if (rx_status.band == NL80211_BAND_5GHZ)
 		rx_status.rate_idx -= IL_FIRST_OFDM_RATE;
 
 	rx_status.antenna =
@@ -1409,7 +1409,7 @@ il3945_send_tx_power(struct il_priv *il)
 
 	chan = le16_to_cpu(il->active.channel);
 
-	txpower.band = (il->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
+	txpower.band = (il->band == NL80211_BAND_5GHZ) ? 0 : 1;
 	ch_info = il_get_channel_info(il, il->band, chan);
 	if (!ch_info) {
 		IL_ERR("Failed to get channel info for channel %d [%d]\n", chan,
@@ -2310,7 +2310,7 @@ il3945_manage_ibss_station(struct il_priv *il, struct ieee80211_vif *vif,
 
 		il3945_sync_sta(il, vif_priv->ibss_bssid_sta_id,
 				(il->band ==
-				 IEEE80211_BAND_5GHZ) ? RATE_6M_PLCP :
+				 NL80211_BAND_5GHZ) ? RATE_6M_PLCP :
 				RATE_1M_PLCP);
 		il3945_rate_scale_init(il->hw, vif_priv->ibss_bssid_sta_id);
 
@@ -2343,7 +2343,7 @@ il3945_init_hw_rate_table(struct il_priv *il)
 	}
 
 	switch (il->band) {
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		D_RATE("Select A mode rate scale\n");
 		/* If one of the following CCK rates is used,
 		 * have it fall back to the 6M OFDM rate */
@@ -2359,7 +2359,7 @@ il3945_init_hw_rate_table(struct il_priv *il)
 		    il3945_rates[IL_FIRST_OFDM_RATE].table_rs_idx;
 		break;
 
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		D_RATE("Select B/G mode rate scale\n");
 		/* If an OFDM rate is used, have it fall back to the
 		 * 1M CCK rates */

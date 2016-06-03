@@ -44,6 +44,7 @@
 #define UCODE_ID_IH_REG_RESTORE   11
 #define UCODE_ID_VBIOS            12
 #define UCODE_ID_MISC_METADATA    13
+#define UCODE_ID_SMU_SK		      14
 #define UCODE_ID_RLC_SCRATCH      32
 #define UCODE_ID_RLC_SRM_ARAM     33
 #define UCODE_ID_RLC_SRM_DRAM     34

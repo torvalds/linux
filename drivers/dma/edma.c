@@ -1537,8 +1537,17 @@ static irqreturn_t dma_ccerr_handler(int irq, void *data)
 
 	dev_vdbg(ecc->dev, "dma_ccerr_handler\n");
 
-	if (!edma_error_pending(ecc))
+	if (!edma_error_pending(ecc)) {
+		/*
+		 * The registers indicate no pending error event but the irq
+		 * handler has been called.
+		 * Ask eDMA to re-evaluate the error registers.
+		 */
+		dev_err(ecc->dev, "%s: Error interrupt without error event!\n",
+			__func__);
+		edma_write(ecc, EDMA_EEVAL, 1);
 		return IRQ_NONE;
+	}
 
 	while (1) {
 		/* Event missed register(s) */

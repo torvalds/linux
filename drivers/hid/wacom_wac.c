@@ -684,6 +684,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 		wacom->tool[idx] = wacom_intuos_get_tool_type(wacom->id[idx]);
 
+		wacom->shared->stylus_in_proximity = true;
 		return 1;
 	}
 
@@ -2343,12 +2344,13 @@ static void wacom_setup_basic_pro_pen(struct wacom_wac *wacom_wac)
 	__set_bit(BTN_STYLUS2, input_dev->keybit);
 
 	input_set_abs_params(input_dev, ABS_DISTANCE,
-			     0, wacom_wac->features.distance_max, 0, 0);
+			     0, wacom_wac->features.distance_max, wacom_wac->features.distance_fuzz, 0);
 }
 
 static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
 {
 	struct input_dev *input_dev = wacom_wac->pen_input;
+	struct wacom_features *features = &wacom_wac->features;
 
 	wacom_setup_basic_pro_pen(wacom_wac);
 
@@ -2358,9 +2360,9 @@ static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
 	__set_bit(BTN_TOOL_AIRBRUSH, input_dev->keybit);
 
 	input_set_abs_params(input_dev, ABS_WHEEL, 0, 1023, 0, 0);
-	input_set_abs_params(input_dev, ABS_TILT_X, -64, 63, 0, 0);
+	input_set_abs_params(input_dev, ABS_TILT_X, -64, 63, features->tilt_fuzz, 0);
 	input_abs_set_res(input_dev, ABS_TILT_X, 57);
-	input_set_abs_params(input_dev, ABS_TILT_Y, -64, 63, 0, 0);
+	input_set_abs_params(input_dev, ABS_TILT_Y, -64, 63, features->tilt_fuzz, 0);
 	input_abs_set_res(input_dev, ABS_TILT_Y, 57);
 }
 
@@ -2506,7 +2508,7 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 	case WACOM_G4:
 		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
 					      features->distance_max,
-					      0, 0);
+					      features->distance_fuzz, 0);
 		/* fall through */
 
 	case GRAPHIRE:
@@ -2568,7 +2570,7 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 
 		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
 				      features->distance_max,
-				      0, 0);
+				      features->distance_fuzz, 0);
 
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		input_abs_set_res(input_dev, ABS_Z, 287);
@@ -2627,7 +2629,7 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_STYLUS2, input_dev->keybit);
 			input_set_abs_params(input_dev, ABS_DISTANCE, 0,
 				      features->distance_max,
-				      0, 0);
+				      features->distance_fuzz, 0);
 		}
 		break;
 	case BAMBOO_PAD:
@@ -3395,6 +3397,10 @@ static const struct wacom_features wacom_features_0x33E =
 	{ "Wacom Intuos PT M 2", 21600, 13500, 2047, 63,
 	  INTUOSHT2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
+static const struct wacom_features wacom_features_0x343 =
+	{ "Wacom DTK1651", 34616, 19559, 1023, 0,
+	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =
 	{ "Wacom HID", .type = HID_GENERIC };
@@ -3560,6 +3566,7 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x33C) },
 	{ USB_DEVICE_WACOM(0x33D) },
 	{ USB_DEVICE_WACOM(0x33E) },
+	{ USB_DEVICE_WACOM(0x343) },
 	{ USB_DEVICE_WACOM(0x4001) },
 	{ USB_DEVICE_WACOM(0x4004) },
 	{ USB_DEVICE_WACOM(0x5000) },

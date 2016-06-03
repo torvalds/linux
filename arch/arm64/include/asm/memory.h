@@ -40,6 +40,21 @@
 #define PCI_IO_SIZE		SZ_16M
 
 /*
+ * Log2 of the upper bound of the size of a struct page. Used for sizing
+ * the vmemmap region only, does not affect actual memory footprint.
+ * We don't use sizeof(struct page) directly since taking its size here
+ * requires its definition to be available at this point in the inclusion
+ * chain, and it may not be a power of 2 in the first place.
+ */
+#define STRUCT_PAGE_MAX_SHIFT	6
+
+/*
+ * VMEMMAP_SIZE - allows the whole linear region to be covered by
+ *                a struct page array
+ */
+#define VMEMMAP_SIZE (UL(1) << (VA_BITS - PAGE_SHIFT - 1 + STRUCT_PAGE_MAX_SHIFT))
+
+/*
  * PAGE_OFFSET - the virtual address of the start of the kernel image (top
  *		 (VA_BITS - 1))
  * VA_BITS - the maximum number of bits for virtual addresses.
@@ -54,7 +69,8 @@
 #define MODULES_END		(MODULES_VADDR + MODULES_VSIZE)
 #define MODULES_VADDR		(VA_START + KASAN_SHADOW_SIZE)
 #define MODULES_VSIZE		(SZ_128M)
-#define PCI_IO_END		(PAGE_OFFSET - SZ_2M)
+#define VMEMMAP_START		(PAGE_OFFSET - VMEMMAP_SIZE)
+#define PCI_IO_END		(VMEMMAP_START - SZ_2M)
 #define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
 #define FIXADDR_TOP		(PCI_IO_START - SZ_2M)
 #define TASK_SIZE_64		(UL(1) << VA_BITS)
@@ -70,6 +86,9 @@
 #endif /* CONFIG_COMPAT */
 
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 4))
+
+#define KERNEL_START      _text
+#define KERNEL_END        _end
 
 /*
  * The size of the KASAN shadow region. This should be 1/8th of the
@@ -192,9 +211,19 @@ static inline void *phys_to_virt(phys_addr_t x)
  */
 #define ARCH_PFN_OFFSET		((unsigned long)PHYS_PFN_OFFSET)
 
+#ifndef CONFIG_SPARSEMEM_VMEMMAP
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-#define	virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+#else
+#define __virt_to_pgoff(kaddr)	(((u64)(kaddr) & ~PAGE_OFFSET) / PAGE_SIZE * sizeof(struct page))
+#define __page_to_voff(kaddr)	(((u64)(page) & ~VMEMMAP_START) * PAGE_SIZE / sizeof(struct page))
 
+#define page_to_virt(page)	((void *)((__page_to_voff(page)) | PAGE_OFFSET))
+#define virt_to_page(vaddr)	((struct page *)((__virt_to_pgoff(vaddr)) | VMEMMAP_START))
+
+#define virt_addr_valid(kaddr)	pfn_valid((((u64)(kaddr) & ~PAGE_OFFSET) \
+					   + PHYS_OFFSET) >> PAGE_SHIFT)
+#endif
 #endif
 
 #include <asm-generic/memory_model.h>

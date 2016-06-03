@@ -36,14 +36,10 @@
 #include <scsi/scsi_host.h>
 #include "sun3_scsi.h"
 
-/* Definitions for the core NCR5380 driver. */
-
-#define REAL_DMA
-/* #define SUPPORT_TAGS */
 /* minimum number of bytes to do dma on */
 #define DMA_MIN_SIZE                    129
 
-/* #define MAX_TAGS                     32 */
+/* Definitions for the core NCR5380 driver. */
 
 #define NCR5380_implementation_fields   /* none */
 
@@ -55,14 +51,12 @@
 #define NCR5380_abort                   sun3scsi_abort
 #define NCR5380_info                    sun3scsi_info
 
-#define NCR5380_dma_read_setup(instance, data, count) \
-        sun3scsi_dma_setup(instance, data, count, 0)
-#define NCR5380_dma_write_setup(instance, data, count) \
-        sun3scsi_dma_setup(instance, data, count, 1)
+#define NCR5380_dma_recv_setup(instance, data, count) (count)
+#define NCR5380_dma_send_setup(instance, data, count) (count)
 #define NCR5380_dma_residual(instance) \
         sun3scsi_dma_residual(instance)
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
-        sun3scsi_dma_xfer_len(cmd->SCp.this_residual, cmd, !((phase) & SR_IO))
+        sun3scsi_dma_xfer_len(cmd->SCp.this_residual, cmd)
 
 #define NCR5380_acquire_dma_irq(instance)    (1)
 #define NCR5380_release_dma_irq(instance)
@@ -78,10 +72,6 @@ static int setup_cmd_per_lun = -1;
 module_param(setup_cmd_per_lun, int, 0);
 static int setup_sg_tablesize = -1;
 module_param(setup_sg_tablesize, int, 0);
-#ifdef SUPPORT_TAGS
-static int setup_use_tagged_queuing = -1;
-module_param(setup_use_tagged_queuing, int, 0);
-#endif
 static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 
@@ -263,14 +253,13 @@ static inline unsigned long sun3scsi_dma_residual(struct Scsi_Host *instance)
 	return last_residual;
 }
 
-static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted,
-						  struct scsi_cmnd *cmd,
-						  int write_flag)
+static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted_len,
+                                                  struct scsi_cmnd *cmd)
 {
-	if (cmd->request->cmd_type == REQ_TYPE_FS)
- 		return wanted;
-	else
+	if (wanted_len < DMA_MIN_SIZE || cmd->request->cmd_type != REQ_TYPE_FS)
 		return 0;
+
+	return wanted_len;
 }
 
 static inline int sun3scsi_dma_start(unsigned long count, unsigned char *data)
@@ -408,7 +397,7 @@ static int sun3scsi_dma_finish(int write_flag)
 
 }
 	
-#include "atari_NCR5380.c"
+#include "NCR5380.c"
 
 #ifdef SUN3_SCSI_VME
 #define SUN3_SCSI_NAME          "Sun3 NCR5380 VME SCSI"
@@ -516,10 +505,6 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	instance->io_port = (unsigned long)ioaddr;
 	instance->irq = irq->start;
 
-#ifdef SUPPORT_TAGS
-	host_flags |= setup_use_tagged_queuing > 0 ? FLAG_TAGGED_QUEUING : 0;
-#endif
-
 	error = NCR5380_init(instance, host_flags);
 	if (error)
 		goto fail_init;
@@ -527,15 +512,9 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	error = request_irq(instance->irq, scsi_sun3_intr, 0,
 	                    "NCR5380", instance);
 	if (error) {
-#ifdef REAL_DMA
 		pr_err(PFX "scsi%d: IRQ %d not free, bailing out\n",
 		       instance->host_no, instance->irq);
 		goto fail_irq;
-#else
-		pr_warn(PFX "scsi%d: IRQ %d not free, interrupts disabled\n",
-		        instance->host_no, instance->irq);
-		instance->irq = NO_IRQ;
-#endif
 	}
 
 	dregs->csr = 0;
@@ -565,8 +544,7 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	return 0;
 
 fail_host:
-	if (instance->irq != NO_IRQ)
-		free_irq(instance->irq, instance);
+	free_irq(instance->irq, instance);
 fail_irq:
 	NCR5380_exit(instance);
 fail_init:
@@ -583,8 +561,7 @@ static int __exit sun3_scsi_remove(struct platform_device *pdev)
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
 
 	scsi_remove_host(instance);
-	if (instance->irq != NO_IRQ)
-		free_irq(instance->irq, instance);
+	free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
 	scsi_host_put(instance);
 	if (udc_regs)

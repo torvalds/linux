@@ -977,7 +977,7 @@ static void gfs2_discard(struct gfs2_sbd *sdp, struct buffer_head *bh)
 		if (!list_empty(&bd->bd_list) && !buffer_pinned(bh))
 			list_del_init(&bd->bd_list);
 		else
-			gfs2_remove_from_journal(bh, current->journal_info, 0);
+			gfs2_remove_from_journal(bh, REMOVE_JDATA);
 	}
 	bh->b_bdev = NULL;
 	clear_buffer_mapped(bh);
@@ -1042,13 +1042,13 @@ static int gfs2_ok_for_dio(struct gfs2_inode *ip, loff_t offset)
 
 
 
-static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			      loff_t offset)
+static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct address_space *mapping = inode->i_mapping;
 	struct gfs2_inode *ip = GFS2_I(inode);
+	loff_t offset = iocb->ki_pos;
 	struct gfs2_holder gh;
 	int rv;
 
@@ -1063,7 +1063,7 @@ static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	gfs2_holder_init(ip->i_gl, LM_ST_DEFERRED, 0, &gh);
 	rv = gfs2_glock_nq(&gh);
 	if (rv)
-		return rv;
+		goto out_uninit;
 	rv = gfs2_ok_for_dio(ip, offset);
 	if (rv != 1)
 		goto out; /* dio not valid, fall back to buffered i/o */
@@ -1099,9 +1099,10 @@ static ssize_t gfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	}
 
 	rv = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
-				  offset, gfs2_get_block_direct, NULL, NULL, 0);
+				  gfs2_get_block_direct, NULL, NULL, 0);
 out:
 	gfs2_glock_dq(&gh);
+out_uninit:
 	gfs2_holder_uninit(&gh);
 	return rv;
 }

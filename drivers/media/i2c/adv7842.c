@@ -3300,12 +3300,6 @@ static int adv7842_probe(struct i2c_client *client,
 		err = hdl->error;
 		goto err_hdl;
 	}
-	state->detect_tx_5v_ctrl->is_private = true;
-	state->rgb_quantization_range_ctrl->is_private = true;
-	state->analog_sampling_phase_ctrl->is_private = true;
-	state->free_run_color_ctrl_manual->is_private = true;
-	state->free_run_color_ctrl->is_private = true;
-
 	if (adv7842_s_detect_tx_5v_ctrl(sd)) {
 		err = -ENODEV;
 		goto err_hdl;

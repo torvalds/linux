@@ -1221,26 +1221,19 @@ static struct attribute *coresight_etm_attrs[] = {
 	NULL,
 };
 
-#define coresight_simple_func(name, offset)                             \
-static ssize_t name##_show(struct device *_dev,                         \
-			   struct device_attribute *attr, char *buf)    \
-{                                                                       \
-	struct etm_drvdata *drvdata = dev_get_drvdata(_dev->parent);    \
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n",                      \
-			 readl_relaxed(drvdata->base + offset));        \
-}                                                                       \
-DEVICE_ATTR_RO(name)
+#define coresight_etm3x_simple_func(name, offset)			\
+	coresight_simple_func(struct etm_drvdata, name, offset)
 
-coresight_simple_func(etmccr, ETMCCR);
-coresight_simple_func(etmccer, ETMCCER);
-coresight_simple_func(etmscr, ETMSCR);
-coresight_simple_func(etmidr, ETMIDR);
-coresight_simple_func(etmcr, ETMCR);
-coresight_simple_func(etmtraceidr, ETMTRACEIDR);
-coresight_simple_func(etmteevr, ETMTEEVR);
-coresight_simple_func(etmtssvr, ETMTSSCR);
-coresight_simple_func(etmtecr1, ETMTECR1);
-coresight_simple_func(etmtecr2, ETMTECR2);
+coresight_etm3x_simple_func(etmccr, ETMCCR);
+coresight_etm3x_simple_func(etmccer, ETMCCER);
+coresight_etm3x_simple_func(etmscr, ETMSCR);
+coresight_etm3x_simple_func(etmidr, ETMIDR);
+coresight_etm3x_simple_func(etmcr, ETMCR);
+coresight_etm3x_simple_func(etmtraceidr, ETMTRACEIDR);
+coresight_etm3x_simple_func(etmteevr, ETMTEEVR);
+coresight_etm3x_simple_func(etmtssvr, ETMTSSCR);
+coresight_etm3x_simple_func(etmtecr1, ETMTECR1);
+coresight_etm3x_simple_func(etmtecr2, ETMTECR2);
 
 static struct attribute *coresight_etm_mgmt_attrs[] = {
 	&dev_attr_etmccr.attr,

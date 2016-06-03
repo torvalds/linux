@@ -6,7 +6,6 @@ struct nvkm_subdev {
 	const struct nvkm_subdev_func *func;
 	struct nvkm_device *device;
 	enum nvkm_devidx index;
-	u32 pmc_enable;
 	struct mutex mutex;
 	u32 debug;
 
@@ -24,7 +23,7 @@ struct nvkm_subdev_func {
 
 extern const char *nvkm_subdev_name[NVKM_SUBDEV_NR];
 void nvkm_subdev_ctor(const struct nvkm_subdev_func *, struct nvkm_device *,
-		      int index, u32 pmc_enable, struct nvkm_subdev *);
+		      int index, struct nvkm_subdev *);
 void nvkm_subdev_del(struct nvkm_subdev **);
 int  nvkm_subdev_preinit(struct nvkm_subdev *);
 int  nvkm_subdev_init(struct nvkm_subdev *);

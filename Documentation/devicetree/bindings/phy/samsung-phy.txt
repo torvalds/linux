@@ -2,9 +2,20 @@ Samsung S5P/EXYNOS SoC series MIPI CSIS/DSIM DPHY
 -------------------------------------------------
 
 Required properties:
-- compatible : should be "samsung,s5pv210-mipi-video-phy";
+- compatible : should be one of the listed compatibles:
+	- "samsung,s5pv210-mipi-video-phy"
+	- "samsung,exynos5420-mipi-video-phy"
+	- "samsung,exynos5433-mipi-video-phy"
 - #phy-cells : from the generic phy bindings, must be 1;
-- syscon - phandle to the PMU system controller;
+
+In case of s5pv210 and exynos5420 compatible PHYs:
+- syscon - phandle to the PMU system controller
+
+In case of exynos5433 compatible PHY:
+ - samsung,pmu-syscon - phandle to the PMU system controller
+ - samsung,disp-sysreg - phandle to the DISP system registers controller
+ - samsung,cam0-sysreg - phandle to the CAM0 system registers controller
+ - samsung,cam1-sysreg - phandle to the CAM1 system registers controller
 
 For "samsung,s5pv210-mipi-video-phy" compatible PHYs the second cell in
 the PHY specifier identifies the PHY and its meaning is as follows:
@@ -12,6 +23,9 @@ the PHY specifier identifies the PHY and its meaning is as follows:
   1 - MIPI DSIM 0,
   2 - MIPI CSIS 1,
   3 - MIPI DSIM 1.
+"samsung,exynos5420-mipi-video-phy" and "samsung,exynos5433-mipi-video-phy"
+supports additional fifth PHY:
+  4 - MIPI CSIS 2.
 
 Samsung EXYNOS SoC series Display Port PHY
 -------------------------------------------------

@@ -968,8 +968,8 @@ enum wmi_tlv_service {
 
 #define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id, len) \
 	((svc_id) < (len) && \
-	 __le32_to_cpu((wmi_svc_bmap)[(svc_id)/(sizeof(u32))]) & \
-	 BIT((svc_id)%(sizeof(u32))))
+	 __le32_to_cpu((wmi_svc_bmap)[(svc_id) / (sizeof(u32))]) & \
+	 BIT((svc_id) % (sizeof(u32))))
 
 #define SVCMAP(x, y, len) \
 	do { \

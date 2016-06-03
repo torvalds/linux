@@ -68,6 +68,21 @@ struct efifb_dmi_info efifb_dmi_list[] = {
 	[M_UNKNOWN] = { NULL, 0, 0, 0, 0, OVERRIDE_NONE }
 };
 
+void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
+{
+	int i;
+
+	for (i = 0; i < M_UNKNOWN; i++) {
+		if (efifb_dmi_list[i].base != 0 &&
+		    !strcmp(opt, efifb_dmi_list[i].optname)) {
+			si->lfb_base = efifb_dmi_list[i].base;
+			si->lfb_linelength = efifb_dmi_list[i].stride;
+			si->lfb_width = efifb_dmi_list[i].width;
+			si->lfb_height = efifb_dmi_list[i].height;
+		}
+	}
+}
+
 #define choose_value(dmivalue, fwvalue, field, flags) ({	\
 		typeof(fwvalue) _ret_ = fwvalue;		\
 		if ((flags) & (field))				\
@@ -106,14 +121,24 @@ static int __init efifb_set_system(const struct dmi_system_id *id)
 					continue;
 				for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 					resource_size_t start, end;
+					unsigned long flags;
+
+					flags = pci_resource_flags(dev, i);
+					if (!(flags & IORESOURCE_MEM))
+						continue;
+
+					if (flags & IORESOURCE_UNSET)
+						continue;
+
+					if (pci_resource_len(dev, i) == 0)
+						continue;
 
 					start = pci_resource_start(dev, i);
-					if (start == 0)
-						break;
 					end = pci_resource_end(dev, i);
 					if (screen_info.lfb_base >= start &&
 					    screen_info.lfb_base < end) {
 						found_bar = 1;
+						break;
 					}
 				}
 			}

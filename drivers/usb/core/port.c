@@ -249,18 +249,12 @@ static int usb_port_runtime_suspend(struct device *dev)
 
 	return retval;
 }
-
-static int usb_port_prepare(struct device *dev)
-{
-	return 1;
-}
 #endif
 
 static const struct dev_pm_ops usb_port_pm_ops = {
 #ifdef CONFIG_PM
 	.runtime_suspend =	usb_port_runtime_suspend,
 	.runtime_resume =	usb_port_runtime_resume,
-	.prepare =		usb_port_prepare,
 #endif
 };
 

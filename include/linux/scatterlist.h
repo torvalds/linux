@@ -286,6 +286,31 @@ size_t sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 #define SG_MAX_SINGLE_ALLOC		(PAGE_SIZE / sizeof(struct scatterlist))
 
 /*
+ * The maximum number of SG segments that we will put inside a
+ * scatterlist (unless chaining is used). Should ideally fit inside a
+ * single page, to avoid a higher order allocation.  We could define this
+ * to SG_MAX_SINGLE_ALLOC to pack correctly at the highest order.  The
+ * minimum value is 32
+ */
+#define SG_CHUNK_SIZE	128
+
+/*
+ * Like SG_CHUNK_SIZE, but for archs that have sg chaining. This limit
+ * is totally arbitrary, a setting of 2048 will get you at least 8mb ios.
+ */
+#ifdef CONFIG_ARCH_HAS_SG_CHAIN
+#define SG_MAX_SEGMENTS	2048
+#else
+#define SG_MAX_SEGMENTS	SG_CHUNK_SIZE
+#endif
+
+#ifdef CONFIG_SG_POOL
+void sg_free_table_chained(struct sg_table *table, bool first_chunk);
+int sg_alloc_table_chained(struct sg_table *table, int nents,
+			   struct scatterlist *first_chunk);
+#endif
+
+/*
  * sg page iterator
  *
  * Iterates over sg entries page-by-page.  On each successful iteration,

@@ -19,9 +19,9 @@
  *
  * Allocate a virq that can be used to send IPI to any CPU in dest mask.
  *
- * On success it'll return linux irq number and 0 on failure
+ * On success it'll return linux irq number and error code on failure
  */
-unsigned int irq_reserve_ipi(struct irq_domain *domain,
+int irq_reserve_ipi(struct irq_domain *domain,
 			     const struct cpumask *dest)
 {
 	unsigned int nr_irqs, offset;
@@ -30,18 +30,18 @@ unsigned int irq_reserve_ipi(struct irq_domain *domain,
 
 	if (!domain ||!irq_domain_is_ipi(domain)) {
 		pr_warn("Reservation on a non IPI domain\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	if (!cpumask_subset(dest, cpu_possible_mask)) {
 		pr_warn("Reservation is not in possible_cpu_mask\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	nr_irqs = cpumask_weight(dest);
 	if (!nr_irqs) {
 		pr_warn("Reservation for empty destination mask\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	if (irq_domain_is_ipi_single(domain)) {
@@ -72,14 +72,14 @@ unsigned int irq_reserve_ipi(struct irq_domain *domain,
 			next = cpumask_next(next, dest);
 		if (next < nr_cpu_ids) {
 			pr_warn("Destination mask has holes\n");
-			return 0;
+			return -EINVAL;
 		}
 	}
 
 	virq = irq_domain_alloc_descs(-1, nr_irqs, 0, NUMA_NO_NODE);
 	if (virq <= 0) {
 		pr_warn("Can't reserve IPI, failed to alloc descs\n");
-		return 0;
+		return -ENOMEM;
 	}
 
 	virq = __irq_domain_alloc_irqs(domain, virq, nr_irqs, NUMA_NO_NODE,
@@ -100,17 +100,20 @@ unsigned int irq_reserve_ipi(struct irq_domain *domain,
 
 free_descs:
 	irq_free_descs(virq, nr_irqs);
-	return 0;
+	return -EBUSY;
 }
 
 /**
  * irq_destroy_ipi() - unreserve an IPI that was previously allocated
  * @irq:	linux irq number to be destroyed
+ * @dest:	cpumask of cpus which should have the IPI removed
  *
- * Return the IPIs allocated with irq_reserve_ipi() to the system destroying
- * all virqs associated with them.
+ * The IPIs allocated with irq_reserve_ipi() are retuerned to the system
+ * destroying all virqs associated with them.
+ *
+ * Return 0 on success or error code on failure.
  */
-void irq_destroy_ipi(unsigned int irq)
+int irq_destroy_ipi(unsigned int irq, const struct cpumask *dest)
 {
 	struct irq_data *data = irq_get_irq_data(irq);
 	struct cpumask *ipimask = data ? irq_data_get_affinity_mask(data) : NULL;
@@ -118,7 +121,7 @@ void irq_destroy_ipi(unsigned int irq)
 	unsigned int nr_irqs;
 
 	if (!irq || !data || !ipimask)
-		return;
+		return -EINVAL;
 
 	domain = data->domain;
 	if (WARN_ON(domain == NULL))
@@ -126,15 +129,25 @@ void irq_destroy_ipi(unsigned int irq)
 
 	if (!irq_domain_is_ipi(domain)) {
 		pr_warn("Trying to destroy a non IPI domain!\n");
-		return;
+		return -EINVAL;
 	}
 
-	if (irq_domain_is_ipi_per_cpu(domain))
-		nr_irqs = cpumask_weight(ipimask);
-	else
+	if (WARN_ON(!cpumask_subset(dest, ipimask)))
+		/*
+		 * Must be destroying a subset of CPUs to which this IPI
+		 * was set up to target
+		 */
+		return -EINVAL;
+
+	if (irq_domain_is_ipi_per_cpu(domain)) {
+		irq = irq + cpumask_first(dest) - data->common->ipi_offset;
+		nr_irqs = cpumask_weight(dest);
+	} else {
 		nr_irqs = 1;
+	}
 
 	irq_domain_free_irqs(irq, nr_irqs);
+	return 0;
 }
 
 /**

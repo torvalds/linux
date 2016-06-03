@@ -73,22 +73,16 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	 */
 	set_dev_node(&mdev->dev->persist->pdev->dev, node);
 	err = mlx4_alloc_hwq_res(mdev->dev, &cq->wqres,
-				cq->buf_size, 2 * PAGE_SIZE);
+				cq->buf_size);
 	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
 	if (err)
 		goto err_cq;
-
-	err = mlx4_en_map_buffer(&cq->wqres.buf);
-	if (err)
-		goto err_res;
 
 	cq->buf = (struct mlx4_cqe *)cq->wqres.buf.direct.buf;
 	*pcq = cq;
 
 	return 0;
 
-err_res:
-	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
 err_cq:
 	kfree(cq);
 	*pcq = NULL;
@@ -177,7 +171,6 @@ void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq)
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_cq *cq = *pcq;
 
-	mlx4_en_unmap_buffer(&cq->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
 	if (mlx4_is_eq_vector_valid(mdev->dev, priv->port, cq->vector) &&
 	    cq->is_tx == RX)

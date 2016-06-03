@@ -1,7 +1,7 @@
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_ttm.h"
 
 struct nouveau_sgdma_be {
