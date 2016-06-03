@@ -767,6 +767,16 @@ static void gen9_sseu_info_init(struct drm_device *dev)
 
 	if (IS_BROXTON(dev)) {
 #define IS_SS_DISABLED(_ss_disable, ss)    (_ss_disable & (0x1 << ss))
+		/*
+		 * There is a HW issue in 2x6 fused down parts that requires
+		 * Pooled EU to be enabled as a WA. The pool configuration
+		 * changes depending upon which subslice is fused down. This
+		 * doesn't affect if the device has all 3 subslices enabled.
+		 */
+		/* WaEnablePooledEuFor2x6:bxt */
+		info->has_pooled_eu = ((info->subslice_per_slice == 3) ||
+				       (info->subslice_per_slice == 2 &&
+					INTEL_REVID(dev) < BXT_REVID_C0));
 
 		info->min_eu_in_pool = 0;
 		if (info->has_pooled_eu) {
