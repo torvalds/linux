@@ -840,7 +840,7 @@
 	imx7d-12x12-lpddr3-arm2 {
 		pinctrl_pwm1: pwm1grp {
 			fsl,pins = <
-				MX7D_PAD_GPIO1_IO01__PWM1_OUT	0x110b0
+				MX7D_PAD_GPIO1_IO01__PWM1_OUT	0x30
 			>;
 		};
 	};
