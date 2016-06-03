@@ -1511,17 +1511,20 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		vga_switcheroo_init_domain_pm_ops(adev->dev, &adev->vga_pm_domain);
 
 	/* Read BIOS */
-	if (!amdgpu_get_bios(adev))
-		return -EINVAL;
+	if (!amdgpu_get_bios(adev)) {
+		r = -EINVAL;
+		goto failed;
+	}
 	/* Must be an ATOMBIOS */
 	if (!adev->is_atom_bios) {
 		dev_err(adev->dev, "Expecting atombios for GPU\n");
-		return -EINVAL;
+		r = -EINVAL;
+		goto failed;
 	}
 	r = amdgpu_atombios_init(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_atombios_init failed\n");
-		return r;
+		goto failed;
 	}
 
 	/* See if the asic supports SR-IOV */
@@ -1538,7 +1541,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	     !(adev->virtualization.caps & AMDGPU_VIRT_CAPS_SRIOV_EN))) {
 		if (!adev->bios) {
 			dev_err(adev->dev, "Card not posted and no BIOS - ignoring\n");
-			return -EINVAL;
+			r = -EINVAL;
+			goto failed;
 		}
 		DRM_INFO("GPU not posted. posting now...\n");
 		amdgpu_atom_asic_init(adev->mode_info.atom_context);
@@ -1548,7 +1552,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_atombios_get_clock_info(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_atombios_get_clock_info failed\n");
-		return r;
+		goto failed;
 	}
 	/* init i2c buses */
 	amdgpu_atombios_i2c_init(adev);
@@ -1557,7 +1561,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_fence_driver_init(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_fence_driver_init failed\n");
-		return r;
+		goto failed;
 	}
 
 	/* init the mode config */
@@ -1567,7 +1571,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (r) {
 		dev_err(adev->dev, "amdgpu_init failed\n");
 		amdgpu_fini(adev);
-		return r;
+		goto failed;
 	}
 
 	adev->accel_working = true;
@@ -1577,7 +1581,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_ib_pool_init(adev);
 	if (r) {
 		dev_err(adev->dev, "IB initialization failed (%d).\n", r);
-		return r;
+		goto failed;
 	}
 
 	r = amdgpu_ib_ring_tests(adev);
@@ -1619,10 +1623,15 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_late_init(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_late_init failed\n");
-		return r;
+		goto failed;
 	}
 
 	return 0;
+
+failed:
+	if (runtime)
+		vga_switcheroo_fini_domain_pm_ops(adev->dev);
+	return r;
 }
 
 static void amdgpu_debugfs_remove_files(struct amdgpu_device *adev);
@@ -1656,6 +1665,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	kfree(adev->bios);
 	adev->bios = NULL;
 	vga_switcheroo_unregister_client(adev->pdev);
+	if (adev->flags & AMD_IS_PX)
+		vga_switcheroo_fini_domain_pm_ops(adev->dev);
 	vga_client_register(adev->pdev, NULL, NULL, NULL);
 	if (adev->rio_mem)
 		pci_iounmap(adev->pdev, adev->rio_mem);
