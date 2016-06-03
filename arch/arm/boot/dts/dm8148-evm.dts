@@ -93,12 +93,20 @@
 	};
 };
 
+&mmc1 {
+        status = "disabled";
+};
+
 &mmc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_pins>;
 	vmmc-supply = <&vmmcsd_fixed>;
 	bus-width = <4>;
 	cd-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+};
+
+&mmc3 {
+        status = "disabled";
 };
 
 &pincntl {
