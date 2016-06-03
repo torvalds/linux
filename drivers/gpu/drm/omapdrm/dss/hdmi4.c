@@ -33,6 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
+#include <linux/of.h>
 #include <video/omapdss.h>
 #include <sound/omap-hdmi-audio.h>
 
@@ -112,15 +113,6 @@ static int hdmi_init_regulator(void)
 		if (PTR_ERR(reg) != -EPROBE_DEFER)
 			DSSERR("can't get VDDA regulator\n");
 		return PTR_ERR(reg);
-	}
-
-	if (regulator_can_change_voltage(reg)) {
-		r = regulator_set_voltage(reg, 1800000, 1800000);
-		if (r) {
-			devm_regulator_put(reg);
-			DSSWARN("can't set the regulator voltage\n");
-			return r;
-		}
 	}
 
 	hdmi.vdda_reg = reg;
