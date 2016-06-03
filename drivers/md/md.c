@@ -7809,6 +7809,7 @@ void md_do_sync(struct md_thread *thread)
 		if (ret)
 			goto skip;
 
+		set_bit(MD_CLUSTER_RESYNC_LOCKED, &mddev->flags);
 		if (!(test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ||
 			test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) ||
 			test_bit(MD_RECOVERY_RECOVER, &mddev->recovery))
@@ -8147,18 +8148,11 @@ void md_do_sync(struct md_thread *thread)
 		}
 	}
  skip:
-	if (mddev_is_clustered(mddev) &&
-	    ret == 0) {
-		/* set CHANGE_PENDING here since maybe another
-		 * update is needed, so other nodes are informed */
-		set_mask_bits(&mddev->flags, 0,
-			      BIT(MD_CHANGE_PENDING) | BIT(MD_CHANGE_DEVS));
-		md_wakeup_thread(mddev->thread);
-		wait_event(mddev->sb_wait,
-			   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
-		md_cluster_ops->resync_finish(mddev);
-	} else
-		set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	/* set CHANGE_PENDING here since maybe another update is needed,
+	 * so other nodes are informed. It should be harmless for normal
+	 * raid */
+	set_mask_bits(&mddev->flags, 0,
+		      BIT(MD_CHANGE_PENDING) | BIT(MD_CHANGE_DEVS));
 
 	spin_lock(&mddev->lock);
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
@@ -8502,6 +8496,11 @@ void md_reap_sync_thread(struct mddev *mddev)
 			rdev->saved_raid_disk = -1;
 
 	md_update_sb(mddev, 1);
+	/* MD_CHANGE_PENDING should be cleared by md_update_sb, so we can
+	 * call resync_finish here if MD_CLUSTER_RESYNC_LOCKED is set by
+	 * clustered raid */
+	if (test_and_clear_bit(MD_CLUSTER_RESYNC_LOCKED, &mddev->flags))
+		md_cluster_ops->resync_finish(mddev);
 	clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 	clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
