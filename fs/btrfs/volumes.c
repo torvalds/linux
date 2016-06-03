@@ -6651,6 +6651,7 @@ int btrfs_read_chunk_tree(struct btrfs_root *root)
 	struct btrfs_key found_key;
 	int ret;
 	int slot;
+	u64 total_dev = 0;
 
 	root = root->fs_info->chunk_root;
 
@@ -6692,6 +6693,7 @@ int btrfs_read_chunk_tree(struct btrfs_root *root)
 			ret = read_one_dev(root, leaf, dev_item);
 			if (ret)
 				goto error;
+			total_dev++;
 		} else if (found_key.type == BTRFS_CHUNK_ITEM_KEY) {
 			struct btrfs_chunk *chunk;
 			chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
@@ -6700,6 +6702,28 @@ int btrfs_read_chunk_tree(struct btrfs_root *root)
 				goto error;
 		}
 		path->slots[0]++;
+	}
+
+	/*
+	 * After loading chunk tree, we've got all device information,
+	 * do another round of validation checks.
+	 */
+	if (total_dev != root->fs_info->fs_devices->total_devices) {
+		btrfs_err(root->fs_info,
+	   "super_num_devices %llu mismatch with num_devices %llu found here",
+			  btrfs_super_num_devices(root->fs_info->super_copy),
+			  total_dev);
+		ret = -EINVAL;
+		goto error;
+	}
+	if (btrfs_super_total_bytes(root->fs_info->super_copy) <
+	    root->fs_info->fs_devices->total_rw_bytes) {
+		btrfs_err(root->fs_info,
+	"super_total_bytes %llu mismatch with fs_devices total_rw_bytes %llu",
+			  btrfs_super_total_bytes(root->fs_info->super_copy),
+			  root->fs_info->fs_devices->total_rw_bytes);
+		ret = -EINVAL;
+		goto error;
 	}
 	ret = 0;
 error:
