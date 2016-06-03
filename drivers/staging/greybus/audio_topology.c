@@ -47,6 +47,8 @@ static struct gbaudio_module_info *find_gb_module(
 		}
 	}
 	mutex_unlock(&codec->lock);
+	dev_warn(codec->dev, "%s: module#%d missing in codec list\n", name,
+		 dev_id);
 	return NULL;
 }
 
