@@ -1934,17 +1934,15 @@ void mmc_init_erase(struct mmc_card *card)
 	 * to that size and alignment.
 	 *
 	 * For SD cards that define Allocation Unit size, limit erases to one
-	 * Allocation Unit at a time.  For MMC cards that define High Capacity
-	 * Erase Size, whether it is switched on or not, limit to that size.
-	 * Otherwise just have a stab at a good value.  For modern cards it
-	 * will end up being 4MiB.  Note that if the value is too small, it
-	 * can end up taking longer to erase.
+	 * Allocation Unit at a time.
+	 * For MMC, have a stab at ai good value and for modern cards it will
+	 * end up being 4MiB. Note that if the value is too small, it can end
+	 * up taking longer to erase. Also note, erase_size is already set to
+	 * High Capacity Erase Size if available when this function is called.
 	 */
 	if (mmc_card_sd(card) && card->ssr.au) {
 		card->pref_erase = card->ssr.au;
 		card->erase_shift = ffs(card->ssr.au) - 1;
-	} else if (card->ext_csd.hc_erase_size) {
-		card->pref_erase = card->ext_csd.hc_erase_size;
 	} else if (card->erase_size) {
 		sz = (card->csd.capacity << (card->csd.read_blkbits - 9)) >> 11;
 		if (sz < 128)
