@@ -355,6 +355,7 @@ static const struct intel_device_info intel_broxton_info = {
 	.has_ddi = 1,
 	.has_fpga_dbg = 1,
 	.has_fbc = 1,
+	.has_pooled_eu = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
 	IVB_CURSOR_OFFSETS,
 	BDW_COLORS,
