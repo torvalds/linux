@@ -30,6 +30,7 @@
 import os
 import subprocess
 import sys
+import re
 
 from docutils import nodes, statemachine
 from docutils.statemachine import ViewList
@@ -50,7 +51,7 @@ class KernelDocDirective(Directive):
 
     def run(self):
         env = self.state.document.settings.env
-        cmd = [env.config.kerneldoc_bin, '-rst']
+        cmd = [env.config.kerneldoc_bin, '-rst', '-enable-lineno']
 
         filename = env.config.kerneldoc_srctree + '/' + self.arguments[0]
 
@@ -93,7 +94,19 @@ class KernelDocDirective(Directive):
                 sys.stderr.write(err)
 
             lines = statemachine.string2lines(out, tab_width, convert_whitespace=True)
-            result = ViewList(lines, source)
+            result = ViewList()
+
+            lineoffset = 0;
+            line_regex = re.compile("^#define LINENO ([0-9]+)$")
+            for line in lines:
+                match = line_regex.search(line)
+                if match:
+                    # sphinx counts lines from 0
+                    lineoffset = int(match.group(1)) - 1
+                    # we must eat our comments since the upset the markup
+                else:
+                    result.append(line, source, lineoffset)
+                    lineoffset += 1
 
             node = nodes.section()
             node.document = self.state.document
