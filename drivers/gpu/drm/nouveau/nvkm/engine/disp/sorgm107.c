@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,35 +19,35 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "nv50.h"
-#include "rootnv50.h"
+#include "outpdp.h"
 
-static const struct nv50_disp_func
-gm107_disp = {
-	.intr = gf119_disp_intr,
-	.uevent = &gf119_disp_chan_uevent,
-	.super = gf119_disp_intr_supervisor,
-	.root = &gm107_disp_root_oclass,
-	.head.vblank_init = gf119_disp_vblank_init,
-	.head.vblank_fini = gf119_disp_vblank_fini,
-	.head.scanoutpos = gf119_disp_root_scanoutpos,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = gm107_sor_dp_new,
-	.dac.nr = 3,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
-	.sor.nr = 4,
-	.sor.power = nv50_sor_power,
-	.sor.hda_eld = gf119_hda_eld,
-	.sor.hdmi = gk104_hdmi_ctrl,
+int
+gm107_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
+{
+	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
+	const u32 soff = outp->base.or * 0x800;
+	const u32 data = 0x01010101 * pattern;
+	if (outp->base.info.sorconf.link & 1)
+		nvkm_mask(device, 0x61c110 + soff, 0x0f0f0f0f, data);
+	else
+		nvkm_mask(device, 0x61c12c + soff, 0x0f0f0f0f, data);
+	return 0;
+}
+
+static const struct nvkm_output_dp_func
+gm107_sor_dp_func = {
+	.pattern = gm107_sor_dp_pattern,
+	.lnk_pwr = g94_sor_dp_lnk_pwr,
+	.lnk_ctl = gf119_sor_dp_lnk_ctl,
+	.drv_ctl = gf119_sor_dp_drv_ctl,
 };
 
 int
-gm107_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+gm107_sor_dp_new(struct nvkm_disp *disp, int index,
+		 struct dcb_output *dcbE, struct nvkm_output **poutp)
 {
-	return gf119_disp_new_(&gm107_disp, device, index, pdisp);
+	return nvkm_output_dp_new_(&gm107_sor_dp_func, disp, index, dcbE, poutp);
 }
