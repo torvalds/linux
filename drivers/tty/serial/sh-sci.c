@@ -712,21 +712,14 @@ static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 		return;
 	}
 
-	/*
-	 * For the generic path SCSPTR is necessary. Bail out if that's
-	 * unavailable, too.
-	 */
-	if (!sci_getreg(port, SCSPTR)->size)
-		return;
+	if (sci_getreg(port, SCSPTR)->size) {
+		u16 status = serial_port_in(port, SCSPTR);
 
-	if ((s->cfg->capabilities & SCIx_HAVE_RTSCTS) &&
-	    ((!(cflag & CRTSCTS)))) {
-		unsigned short status;
-
-		status = serial_port_in(port, SCSPTR);
-		status &= ~SCSPTR_CTSIO;
-		status |= SCSPTR_RTSIO;
-		serial_port_out(port, SCSPTR, status); /* Set RTS = 1 */
+		/* RTS# is output, driven 1 */
+		status |= SCSPTR_RTSIO | SCSPTR_RTSDT;
+		/* CTS# and SCK are inputs */
+		status &= ~(SCSPTR_CTSIO | SCSPTR_SCKIO);
+		serial_port_out(port, SCSPTR, status);
 	}
 }
 
