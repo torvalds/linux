@@ -19,24 +19,22 @@
 
 #include <media/videobuf2-core.h>
 
-#define RK3288_HEADER_SIZE		1280
-#define RK3288_HW_PARAMS_SIZE		5487
-#define RK3288_RET_PARAMS_SIZE		488
+#define ROCKCHIP_HEADER_SIZE		1280
+#define ROCKCHIP_HW_PARAMS_SIZE		5487
+#define ROCKCHIP_RET_PARAMS_SIZE	488
 
-struct rk3288_vpu_dev;
-struct rk3288_vpu_ctx;
-struct rk3288_vpu_buf;
-
-struct rk3288_vpu_h264d_priv_tbl;
+struct rockchip_vpu_dev;
+struct rockchip_vpu_ctx;
+struct rockchip_vpu_buf;
 
 /**
- * enum rk3288_vpu_enc_fmt - source format ID for hardware registers.
+ * enum rockchip_vpu_enc_fmt - source format ID for hardware registers.
  */
-enum rk3288_vpu_enc_fmt {
-	RK3288_VPU_ENC_FMT_YUV420P = 0,
-	RK3288_VPU_ENC_FMT_YUV420SP = 1,
-	RK3288_VPU_ENC_FMT_YUYV422 = 2,
-	RK3288_VPU_ENC_FMT_UYVY422 = 3,
+enum rockchip_vpu_enc_fmt {
+	ROCKCHIP_VPU_ENC_FMT_YUV420P = 0,
+	ROCKCHIP_VPU_ENC_FMT_YUV420SP = 1,
+	ROCKCHIP_VPU_ENC_FMT_YUYV422 = 2,
+	ROCKCHIP_VPU_ENC_FMT_UYVY422 = 3,
 };
 
 /**
@@ -87,93 +85,104 @@ struct rk3288_vp8e_reg_params {
 };
 
 /**
- * struct rk3288_vpu_aux_buf - auxiliary DMA buffer for hardware data
+ * struct rockchip_reg_params - low level encoding parameters
+ */
+struct rockchip_reg_params {
+	/* Mode-specific data. */
+	union {
+		const struct rk3288_vp8e_reg_params rk3288_vp8e;
+	};
+};
+
+/**
+ * struct rockchip_vpu_aux_buf - auxiliary DMA buffer for hardware data
  * @cpu:	CPU pointer to the buffer.
  * @dma:	DMA address of the buffer.
  * @size:	Size of the buffer.
  */
-struct rk3288_vpu_aux_buf {
+struct rockchip_vpu_aux_buf {
 	void *cpu;
 	dma_addr_t dma;
 	size_t size;
 };
 
 /**
- * struct rk3288_vpu_vp8e_hw_ctx - Context private data specific to codec mode.
+ * struct rockchip_vpu_vp8e_hw_ctx - Context private data specific to codec mode.
  * @ctrl_buf:		VP8 control buffer.
  * @ext_buf:		VP8 ext data buffer.
  * @mv_buf:		VP8 motion vector buffer.
  * @ref_rec_ptr:	Bit flag for swapping ref and rec buffers every frame.
  */
-struct rk3288_vpu_vp8e_hw_ctx {
-	struct rk3288_vpu_aux_buf ctrl_buf;
-	struct rk3288_vpu_aux_buf ext_buf;
-	struct rk3288_vpu_aux_buf mv_buf;
+struct rockchip_vpu_vp8e_hw_ctx {
+	struct rockchip_vpu_aux_buf ctrl_buf;
+	struct rockchip_vpu_aux_buf ext_buf;
+	struct rockchip_vpu_aux_buf mv_buf;
 	u8 ref_rec_ptr:1;
 };
 
 /**
- * struct rk3288_vpu_vp8d_hw_ctx - Context private data of VP8 decoder.
+ * struct rockchip_vpu_vp8d_hw_ctx - Context private data of VP8 decoder.
  * @segment_map:	Segment map buffer.
  * @prob_tbl:		Probability table buffer.
  */
-struct rk3288_vpu_vp8d_hw_ctx {
-	struct rk3288_vpu_aux_buf segment_map;
-	struct rk3288_vpu_aux_buf prob_tbl;
+struct rockchip_vpu_vp8d_hw_ctx {
+	struct rockchip_vpu_aux_buf segment_map;
+	struct rockchip_vpu_aux_buf prob_tbl;
 };
 
 /**
- * struct rk3288_vpu_h264d_hw_ctx - Per context data specific to H264 decoding.
+ * struct rockchip_vpu_h264d_hw_ctx - Per context data specific to H264 decoding.
  * @priv_tbl:		Private auxiliary buffer for hardware.
  */
-struct rk3288_vpu_h264d_hw_ctx {
-	struct rk3288_vpu_aux_buf priv_tbl;
+struct rockchip_vpu_h264d_hw_ctx {
+	struct rockchip_vpu_aux_buf priv_tbl;
 };
 
 /**
- * struct rk3288_vpu_hw_ctx - Context private data of hardware code.
+ * struct rockchip_vpu_hw_ctx - Context private data of hardware code.
  * @codec_ops:		Set of operations associated with current codec mode.
  */
-struct rk3288_vpu_hw_ctx {
-	const struct rk3288_vpu_codec_ops *codec_ops;
+struct rockchip_vpu_hw_ctx {
+	const struct rockchip_vpu_codec_ops *codec_ops;
 
 	/* Specific for particular codec modes. */
 	union {
-		struct rk3288_vpu_vp8e_hw_ctx vp8e;
-		struct rk3288_vpu_vp8d_hw_ctx vp8d;
-		struct rk3288_vpu_h264d_hw_ctx h264d;
+		struct rockchip_vpu_vp8e_hw_ctx vp8e;
+		struct rockchip_vpu_vp8d_hw_ctx vp8d;
+		struct rockchip_vpu_h264d_hw_ctx h264d;
 		/* Other modes will need different data. */
 	};
 };
 
-int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu);
-void rk3288_vpu_hw_remove(struct rk3288_vpu_dev *vpu);
+int rockchip_vpu_hw_probe(struct rockchip_vpu_dev *vpu);
+void rockchip_vpu_hw_remove(struct rockchip_vpu_dev *vpu);
 
-int rk3288_vpu_init(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_deinit(struct rk3288_vpu_ctx *ctx);
+void rockchip_vpu_power_on(struct rockchip_vpu_dev *vpu);
 
-void rk3288_vpu_run(struct rk3288_vpu_ctx *ctx);
+int rockchip_vpu_init(struct rockchip_vpu_ctx *ctx);
+void rockchip_vpu_deinit(struct rockchip_vpu_ctx *ctx);
 
-/* Run ops for H264 decoder */
-int rk3288_vpu_h264d_init(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_h264d_exit(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_h264d_run(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_power_on(struct rk3288_vpu_dev *vpu);
+void rockchip_vpu_run(struct rockchip_vpu_ctx *ctx);
 
-/* Run ops for VP8 decoder */
-int rk3288_vpu_vp8d_init(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_vp8d_exit(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_vp8d_run(struct rk3288_vpu_ctx *ctx);
+/* Run ops for rk3288 H264 decoder */
+int rk3288_vpu_h264d_init(struct rockchip_vpu_ctx *ctx);
+void rk3288_vpu_h264d_exit(struct rockchip_vpu_ctx *ctx);
+void rk3288_vpu_h264d_run(struct rockchip_vpu_ctx *ctx);
 
-/* Run ops for VP8 encoder */
-int rk3288_vpu_vp8e_init(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_vp8e_exit(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_vp8e_run(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_vp8e_done(struct rk3288_vpu_ctx *ctx,
+/* Run ops for rk3288 VP8 decoder */
+int rk3288_vpu_vp8d_init(struct rockchip_vpu_ctx *ctx);
+void rk3288_vpu_vp8d_exit(struct rockchip_vpu_ctx *ctx);
+void rk3288_vpu_vp8d_run(struct rockchip_vpu_ctx *ctx);
+
+/* Run ops for rk3288 VP8 encoder */
+int rk3288_vpu_vp8e_init(struct rockchip_vpu_ctx *ctx);
+void rk3288_vpu_vp8e_exit(struct rockchip_vpu_ctx *ctx);
+void rk3288_vpu_vp8e_run(struct rockchip_vpu_ctx *ctx);
+void rk3288_vpu_vp8e_done(struct rockchip_vpu_ctx *ctx,
 			  enum vb2_buffer_state result);
-const struct rk3288_vp8e_reg_params *rk3288_vpu_vp8e_get_dummy_params(void);
+const struct rockchip_reg_params *rk3288_vpu_vp8e_get_dummy_params(void);
 
-void rk3288_vpu_vp8e_assemble_bitstream(struct rk3288_vpu_ctx *ctx,
-					struct rk3288_vpu_buf *dst_buf);
+void rk3288_vpu_vp8e_assemble_bitstream(struct rockchip_vpu_ctx *ctx,
+					struct rockchip_vpu_buf *dst_buf);
 
 #endif /* ROCKCHIP_VPU_HW_H_ */

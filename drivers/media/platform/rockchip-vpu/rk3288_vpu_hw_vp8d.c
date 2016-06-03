@@ -181,7 +181,7 @@ static const u32 vp8d_mc_filter[8][6] = {
 	{ 0, -1, 12, 123, -6, 0 }
 };
 
-static inline void vp8d_reg_write(struct rk3288_vpu_dev *vpu,
+static inline void vp8d_reg_write(struct rockchip_vpu_dev *vpu,
 				  const struct vp8d_reg *reg, u32 val)
 {
 	u32 v;
@@ -194,7 +194,7 @@ static inline void vp8d_reg_write(struct rk3288_vpu_dev *vpu,
 
 /* dump hw params for debug */
 #ifdef DEBUG
-static void rk3288_vp8d_dump_hdr(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vp8d_dump_hdr(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_vp8_frame_hdr *hdr = ctx->run.vp8d.frame_hdr;
 	int dct_total_len = 0;
@@ -236,10 +236,10 @@ static void rk3288_vp8d_dump_hdr(struct rk3288_vpu_ctx *ctx)
 	vpu_debug(4, "Dct Part Total Length: 0x%x\n", dct_total_len);
 }
 #else
-static inline void rk3288_vp8d_dump_hdr(struct rk3288_vpu_ctx *ctx) {}
+static inline void rk3288_vp8d_dump_hdr(struct rockchip_vpu_ctx *ctx) {}
 #endif
 
-static void rk3288_vp8d_prob_update(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vp8d_prob_update(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_vp8_frame_hdr *hdr = ctx->run.vp8d.frame_hdr;
 	const struct v4l2_vp8_entropy_hdr *entropy_hdr = &hdr->entropy_hdr;
@@ -338,10 +338,10 @@ static void rk3288_vp8d_prob_update(struct rk3288_vpu_ctx *ctx)
 /*
  * set loop filters
  */
-static void rk3288_vp8d_cfg_lf(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vp8d_cfg_lf(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_vp8_frame_hdr *hdr = ctx->run.vp8d.frame_hdr;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	u32 reg;
 	int i;
 
@@ -378,10 +378,10 @@ static void rk3288_vp8d_cfg_lf(struct rk3288_vpu_ctx *ctx)
 /*
  * set quantization parameters
  */
-static void rk3288_vp8d_cfg_qp(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vp8d_cfg_qp(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_vp8_frame_hdr *hdr = ctx->run.vp8d.frame_hdr;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	int i;
 
 	if (!(hdr->sgmnt_hdr.flags & V4L2_VP8_SEGMNT_HDR_FLAG_ENABLED)) {
@@ -432,10 +432,10 @@ static void rk3288_vp8d_cfg_qp(struct rk3288_vpu_ctx *ctx)
  *   3. number of dct parts is 1, 2, 4 or 8
  *   4. the addresses set to vpu must be 64bits alignment
  */
-static void rk3288_vp8d_cfg_parts(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vp8d_cfg_parts(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_vp8_frame_hdr *hdr = ctx->run.vp8d.frame_hdr;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	u32 dct_part_total_len = 0;
 	u32 dct_size_part_size = 0;
 	u32 dct_part_offset = 0;
@@ -531,10 +531,10 @@ static void rk3288_vp8d_cfg_parts(struct rk3288_vpu_ctx *ctx)
  * prediction filter taps
  * normal 6-tap filters
  */
-static void rk3288_vp8d_cfg_tap(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vp8d_cfg_tap(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_vp8_frame_hdr *hdr = ctx->run.vp8d.frame_hdr;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	struct vp8d_reg reg;
 	u32 val = 0;
 	int i, j;
@@ -572,11 +572,11 @@ static void rk3288_vp8d_cfg_tap(struct rk3288_vpu_ctx *ctx)
 }
 
 /* set reference frame */
-static void rk3288_vp8d_cfg_ref(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vp8d_cfg_ref(struct rockchip_vpu_ctx *ctx)
 {
 	u32 reg;
 	struct vb2_buffer *buf;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	const struct v4l2_ctrl_vp8_frame_hdr *hdr = ctx->run.vp8d.frame_hdr;
 
 	/* set last frame address */
@@ -616,10 +616,10 @@ static void rk3288_vp8d_cfg_ref(struct rk3288_vpu_ctx *ctx)
 	vdpu_write_relaxed(vpu, reg, VDPU_REG_ADDR_REF(5));
 }
 
-static void rk3288_vp8d_cfg_buffers(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vp8d_cfg_buffers(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_vp8_frame_hdr *hdr = ctx->run.vp8d.frame_hdr;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	u32 reg;
 
 	/* set probability table buffer address */
@@ -642,9 +642,9 @@ static void rk3288_vp8d_cfg_buffers(struct rk3288_vpu_ctx *ctx)
 			VDPU_REG_ADDR_DST);
 }
 
-int rk3288_vpu_vp8d_init(struct rk3288_vpu_ctx *ctx)
+int rk3288_vpu_vp8d_init(struct rockchip_vpu_ctx *ctx)
 {
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	unsigned int mb_width, mb_height;
 	size_t segment_map_size;
 	int ret;
@@ -658,7 +658,7 @@ int rk3288_vpu_vp8d_init(struct rk3288_vpu_ctx *ctx)
 	 * In context init the dma buffer for segment map must be allocated.
 	 * And the data in segment map buffer must be set to all zero.
 	 */
-	ret = rk3288_vpu_aux_buf_alloc(vpu, &ctx->hw.vp8d.segment_map,
+	ret = rockchip_vpu_aux_buf_alloc(vpu, &ctx->hw.vp8d.segment_map,
 					segment_map_size);
 	if (ret) {
 		vpu_err("allocate segment map mem failed\n");
@@ -670,7 +670,7 @@ int rk3288_vpu_vp8d_init(struct rk3288_vpu_ctx *ctx)
 	 * Allocate probability table buffer,
 	 * total 1208 bytes, 4K page is far enough.
 	 */
-	ret = rk3288_vpu_aux_buf_alloc(vpu, &ctx->hw.vp8d.prob_tbl,
+	ret = rockchip_vpu_aux_buf_alloc(vpu, &ctx->hw.vp8d.prob_tbl,
 					sizeof(struct vp8_prob_tbl_packed));
 	if (ret) {
 		vpu_err("allocate prob table mem failed\n");
@@ -680,23 +680,23 @@ int rk3288_vpu_vp8d_init(struct rk3288_vpu_ctx *ctx)
 	return 0;
 
 prob_table_failed:
-	rk3288_vpu_aux_buf_free(vpu, &ctx->hw.vp8d.segment_map);
+	rockchip_vpu_aux_buf_free(vpu, &ctx->hw.vp8d.segment_map);
 
 	return ret;
 }
 
-void rk3288_vpu_vp8d_exit(struct rk3288_vpu_ctx *ctx)
+void rk3288_vpu_vp8d_exit(struct rockchip_vpu_ctx *ctx)
 {
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 
-	rk3288_vpu_aux_buf_free(vpu, &ctx->hw.vp8d.segment_map);
-	rk3288_vpu_aux_buf_free(vpu, &ctx->hw.vp8d.prob_tbl);
+	rockchip_vpu_aux_buf_free(vpu, &ctx->hw.vp8d.segment_map);
+	rockchip_vpu_aux_buf_free(vpu, &ctx->hw.vp8d.prob_tbl);
 }
 
-void rk3288_vpu_vp8d_run(struct rk3288_vpu_ctx *ctx)
+void rk3288_vpu_vp8d_run(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_vp8_frame_hdr *hdr = ctx->run.vp8d.frame_hdr;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	size_t height = ctx->dst_fmt.height;
 	size_t width = ctx->dst_fmt.width;
 	u32 mb_width, mb_height;
@@ -711,7 +711,7 @@ void rk3288_vpu_vp8d_run(struct rk3288_vpu_ctx *ctx)
 
 	rk3288_vp8d_prob_update(ctx);
 
-	rk3288_vpu_power_on(vpu);
+	rockchip_vpu_power_on(vpu);
 
 	reg = VDPU_REG_CONFIG_DEC_TIMEOUT_E
 		| VDPU_REG_CONFIG_DEC_STRENDIAN_E

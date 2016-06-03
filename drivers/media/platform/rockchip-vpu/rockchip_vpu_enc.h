@@ -27,10 +27,10 @@
 
 struct vb2_ops *get_enc_queue_ops(void);
 const struct v4l2_ioctl_ops *get_enc_v4l2_ioctl_ops(void);
-struct rk3288_vpu_fmt *get_enc_def_fmt(bool src);
-int rk3288_vpu_enc_init(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_enc_exit(struct rk3288_vpu_ctx *ctx);
-int rk3288_vpu_enc_init_dummy_ctx(struct rk3288_vpu_dev *dev);
-void rk3288_vpu_enc_free_dummy_ctx(struct rk3288_vpu_dev *dev);
+struct rockchip_vpu_fmt *get_enc_def_fmt(bool src);
+int rockchip_vpu_enc_init(struct rockchip_vpu_ctx *ctx);
+void rockchip_vpu_enc_exit(struct rockchip_vpu_ctx *ctx);
+int rockchip_vpu_enc_init_dummy_ctx(struct rockchip_vpu_dev *dev);
+void rockchip_vpu_enc_free_dummy_ctx(struct rockchip_vpu_dev *dev);
 
 #endif				/* ROCKCHIP_VPU_ENC_H_  */

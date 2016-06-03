@@ -33,7 +33,7 @@
 #include "rk3288_vpu_regs.h"
 
 /**
- * struct rk3288_vpu_variant - information about VPU hardware variant
+ * struct rockchip_vpu_variant - information about VPU hardware variant
  *
  * @hw_id:		Top 16 bits (product ID) of hardware ID register.
  * @enc_offset:		Offset from VPU base to encoder registers.
@@ -41,7 +41,7 @@
  * @dec_offset:		Offset from VPU base to decoder registers.
  * @dec_reg_num:	Number of registers of decoder block.
  */
-struct rk3288_vpu_variant {
+struct rockchip_vpu_variant {
 	u16 hw_id;
 	unsigned enc_offset;
 	unsigned enc_reg_num;
@@ -50,7 +50,7 @@ struct rk3288_vpu_variant {
 };
 
 /* Supported VPU variants. */
-static const struct rk3288_vpu_variant rk3288_vpu_variants[] = {
+static const struct rockchip_vpu_variant rockchip_vpu_variants[] = {
 	{
 		.hw_id = 0x4831,
 		.enc_offset = 0x0,
@@ -61,7 +61,7 @@ static const struct rk3288_vpu_variant rk3288_vpu_variants[] = {
 };
 
 /**
- * struct rk3288_vpu_codec_ops - codec mode specific operations
+ * struct rockchip_vpu_codec_ops - codec mode specific operations
  *
  * @init:	Prepare for streaming. Called from VB2 .start_streaming()
  *		when streaming from both queues is being enabled.
@@ -74,20 +74,20 @@ static const struct rk3288_vpu_variant rk3288_vpu_variants[] = {
  * @done:	Read back processing results and additional data from hardware.
  * @reset:	Reset the hardware in case of a timeout.
  */
-struct rk3288_vpu_codec_ops {
-	int (*init)(struct rk3288_vpu_ctx *);
-	void (*exit)(struct rk3288_vpu_ctx *);
+struct rockchip_vpu_codec_ops {
+	int (*init)(struct rockchip_vpu_ctx *);
+	void (*exit)(struct rockchip_vpu_ctx *);
 
-	void (*run)(struct rk3288_vpu_ctx *);
-	void (*done)(struct rk3288_vpu_ctx *, enum vb2_buffer_state);
-	void (*reset)(struct rk3288_vpu_ctx *);
+	void (*run)(struct rockchip_vpu_ctx *);
+	void (*done)(struct rockchip_vpu_ctx *, enum vb2_buffer_state);
+	void (*reset)(struct rockchip_vpu_ctx *);
 };
 
 /*
  * Hardware control routines.
  */
 
-static int rk3288_vpu_identify(struct rk3288_vpu_dev *vpu)
+static int rockchip_vpu_identify(struct rockchip_vpu_dev *vpu)
 {
 	u32 hw_id;
 	int i;
@@ -96,9 +96,9 @@ static int rk3288_vpu_identify(struct rk3288_vpu_dev *vpu)
 
 	dev_info(vpu->dev, "Read hardware ID: %x\n", hw_id);
 
-	for (i = 0; i < ARRAY_SIZE(rk3288_vpu_variants); ++i) {
-		if (hw_id == rk3288_vpu_variants[i].hw_id) {
-			vpu->variant = &rk3288_vpu_variants[i];
+	for (i = 0; i < ARRAY_SIZE(rockchip_vpu_variants); ++i) {
+		if (hw_id == rockchip_vpu_variants[i].hw_id) {
+			vpu->variant = &rockchip_vpu_variants[i];
 			return 0;
 		}
 	}
@@ -106,7 +106,7 @@ static int rk3288_vpu_identify(struct rk3288_vpu_dev *vpu)
 	return -ENOENT;
 }
 
-void rk3288_vpu_power_on(struct rk3288_vpu_dev *vpu)
+void rockchip_vpu_power_on(struct rockchip_vpu_dev *vpu)
 {
 	vpu_debug_enter();
 
@@ -117,7 +117,7 @@ void rk3288_vpu_power_on(struct rk3288_vpu_dev *vpu)
 	vpu_debug_leave();
 }
 
-static void rk3288_vpu_power_off(struct rk3288_vpu_dev *vpu)
+static void rockchip_vpu_power_off(struct rockchip_vpu_dev *vpu)
 {
 	vpu_debug_enter();
 
@@ -135,16 +135,16 @@ static void rk3288_vpu_power_off(struct rk3288_vpu_dev *vpu)
 
 static irqreturn_t vepu_irq(int irq, void *dev_id)
 {
-	struct rk3288_vpu_dev *vpu = dev_id;
+	struct rockchip_vpu_dev *vpu = dev_id;
 	u32 status = vepu_read(vpu, VEPU_REG_INTERRUPT);
 
 	vepu_write(vpu, 0, VEPU_REG_INTERRUPT);
 
 	if (status & VEPU_REG_INTERRUPT_BIT) {
-		struct rk3288_vpu_ctx *ctx = vpu->current_ctx;
+		struct rockchip_vpu_ctx *ctx = vpu->current_ctx;
 
 		vepu_write(vpu, 0, VEPU_REG_AXI_CTRL);
-		rk3288_vpu_power_off(vpu);
+		rockchip_vpu_power_off(vpu);
 		cancel_delayed_work(&vpu->watchdog_work);
 
 		ctx->hw.codec_ops->done(ctx, VB2_BUF_STATE_DONE);
@@ -155,7 +155,7 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 
 static irqreturn_t vdpu_irq(int irq, void *dev_id)
 {
-	struct rk3288_vpu_dev *vpu = dev_id;
+	struct rockchip_vpu_dev *vpu = dev_id;
 	u32 status = vdpu_read(vpu, VDPU_REG_INTERRUPT);
 
 	vdpu_write(vpu, 0, VDPU_REG_INTERRUPT);
@@ -163,10 +163,10 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 	vpu_debug(3, "vdpu_irq status: %08x\n", status);
 
 	if (status & VDPU_REG_INTERRUPT_DEC_IRQ) {
-		struct rk3288_vpu_ctx *ctx = vpu->current_ctx;
+		struct rockchip_vpu_ctx *ctx = vpu->current_ctx;
 
 		vdpu_write(vpu, 0, VDPU_REG_CONFIG);
-		rk3288_vpu_power_off(vpu);
+		rockchip_vpu_power_off(vpu);
 		cancel_delayed_work(&vpu->watchdog_work);
 
 		ctx->hw.codec_ops->done(ctx, VB2_BUF_STATE_DONE);
@@ -175,11 +175,11 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void rk3288_vpu_watchdog(struct work_struct *work)
+static void rockchip_vpu_watchdog(struct work_struct *work)
 {
-	struct rk3288_vpu_dev *vpu = container_of(to_delayed_work(work),
-					struct rk3288_vpu_dev, watchdog_work);
-	struct rk3288_vpu_ctx *ctx = vpu->current_ctx;
+	struct rockchip_vpu_dev *vpu = container_of(to_delayed_work(work),
+					struct rockchip_vpu_dev, watchdog_work);
+	struct rockchip_vpu_ctx *ctx = vpu->current_ctx;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vpu->irqlock, flags);
@@ -190,7 +190,7 @@ static void rk3288_vpu_watchdog(struct work_struct *work)
 
 	vpu_err("frame processing timed out!\n");
 
-	rk3288_vpu_power_off(vpu);
+	rockchip_vpu_power_off(vpu);
 	ctx->hw.codec_ops->done(ctx, VB2_BUF_STATE_ERROR);
 }
 
@@ -199,7 +199,7 @@ static void rk3288_vpu_watchdog(struct work_struct *work)
  */
 
 #if defined(CONFIG_ROCKCHIP_IOMMU)
-static int rk3288_vpu_iommu_init(struct rk3288_vpu_dev *vpu)
+static int rockchip_vpu_iommu_init(struct rockchip_vpu_dev *vpu)
 {
 	int ret;
 
@@ -240,22 +240,22 @@ err_free_parms:
 	return ret;
 }
 
-static void rk3288_vpu_iommu_cleanup(struct rk3288_vpu_dev *vpu)
+static void rockchip_vpu_iommu_cleanup(struct rockchip_vpu_dev *vpu)
 {
 	iommu_detach_device(vpu->domain, vpu->dev);
 	iommu_put_dma_cookie(vpu->domain);
 	iommu_domain_free(vpu->domain);
 }
 #else /* CONFIG_ROCKCHIP_IOMMU */
-static inline int rk3288_vpu_iommu_init(struct rk3288_vpu_dev *vpu)
+static inline int rockchip_vpu_iommu_init(struct rockchip_vpu_dev *vpu)
 {
 	return 0;
 }
 
-static inline void rk3288_vpu_iommu_cleanup(struct rk3288_vpu_dev *vpu) { }
+static inline void rockchip_vpu_iommu_cleanup(struct rockchip_vpu_dev *vpu) { }
 #endif /* CONFIG_ROCKCHIP_IOMMU */
 
-int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu)
+int rockchip_vpu_hw_probe(struct rockchip_vpu_dev *vpu)
 {
 	struct resource *res;
 	int irq_enc, irq_dec;
@@ -263,7 +263,7 @@ int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu)
 
 	pr_info("probe device %s\n", dev_name(vpu->dev));
 
-	INIT_DELAYED_WORK(&vpu->watchdog_work, rk3288_vpu_watchdog);
+	INIT_DELAYED_WORK(&vpu->watchdog_work, rockchip_vpu_watchdog);
 
 	vpu->aclk_vcodec = devm_clk_get(vpu->dev, "aclk_vcodec");
 	if (IS_ERR(vpu->aclk_vcodec)) {
@@ -292,7 +292,7 @@ int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu)
 	clk_prepare_enable(vpu->aclk_vcodec);
 	clk_prepare_enable(vpu->hclk_vcodec);
 
-	ret = rk3288_vpu_identify(vpu);
+	ret = rockchip_vpu_identify(vpu);
 	if (ret < 0) {
 		dev_err(vpu->dev, "failed to identify hardware variant\n");
 		goto err_power;
@@ -307,7 +307,7 @@ int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu)
 		goto err_power;
 	}
 
-	ret = rk3288_vpu_iommu_init(vpu);
+	ret = rockchip_vpu_iommu_init(vpu);
 	if (ret)
 		goto err_power;
 
@@ -346,7 +346,7 @@ int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu)
 	return 0;
 
 err_iommu:
-	rk3288_vpu_iommu_cleanup(vpu);
+	rockchip_vpu_iommu_cleanup(vpu);
 err_power:
 	clk_disable_unprepare(vpu->hclk_vcodec);
 	clk_disable_unprepare(vpu->aclk_vcodec);
@@ -354,9 +354,9 @@ err_power:
 	return ret;
 }
 
-void rk3288_vpu_hw_remove(struct rk3288_vpu_dev *vpu)
+void rockchip_vpu_hw_remove(struct rockchip_vpu_dev *vpu)
 {
-	rk3288_vpu_iommu_cleanup(vpu);
+	rockchip_vpu_iommu_cleanup(vpu);
 
 	pm_runtime_disable(vpu->dev);
 
@@ -364,57 +364,57 @@ void rk3288_vpu_hw_remove(struct rk3288_vpu_dev *vpu)
 	clk_disable_unprepare(vpu->aclk_vcodec);
 }
 
-static void rk3288_vpu_enc_reset(struct rk3288_vpu_ctx *ctx)
+static void rockchip_vpu_enc_reset(struct rockchip_vpu_ctx *ctx)
 {
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 
 	vepu_write(vpu, VEPU_REG_INTERRUPT_DIS_BIT, VEPU_REG_INTERRUPT);
 	vepu_write(vpu, 0, VEPU_REG_ENC_CTRL);
 	vepu_write(vpu, 0, VEPU_REG_AXI_CTRL);
 }
 
-static void rk3288_vpu_dec_reset(struct rk3288_vpu_ctx *ctx)
+static void rockchip_vpu_dec_reset(struct rockchip_vpu_ctx *ctx)
 {
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 
 	vdpu_write(vpu, VDPU_REG_INTERRUPT_DEC_IRQ_DIS, VDPU_REG_INTERRUPT);
 	vdpu_write(vpu, 0, VDPU_REG_CONFIG);
 }
 
-static const struct rk3288_vpu_codec_ops mode_ops[] = {
-	[RK_VPU_CODEC_VP8E] = {
+static const struct rockchip_vpu_codec_ops mode_ops[] = {
+	[RK3288_VPU_CODEC_VP8E] = {
 		.init = rk3288_vpu_vp8e_init,
 		.exit = rk3288_vpu_vp8e_exit,
 		.run = rk3288_vpu_vp8e_run,
 		.done = rk3288_vpu_vp8e_done,
-		.reset = rk3288_vpu_enc_reset,
+		.reset = rockchip_vpu_enc_reset,
 	},
-	[RK_VPU_CODEC_VP8D] = {
+	[RK3288_VPU_CODEC_VP8D] = {
 		.init = rk3288_vpu_vp8d_init,
 		.exit = rk3288_vpu_vp8d_exit,
 		.run = rk3288_vpu_vp8d_run,
-		.done = rk3288_vpu_run_done,
-		.reset = rk3288_vpu_dec_reset,
+		.done = rockchip_vpu_run_done,
+		.reset = rockchip_vpu_dec_reset,
 	},
-	[RK_VPU_CODEC_H264D] = {
+	[RK3288_VPU_CODEC_H264D] = {
 		.init = rk3288_vpu_h264d_init,
 		.exit = rk3288_vpu_h264d_exit,
 		.run = rk3288_vpu_h264d_run,
-		.done = rk3288_vpu_run_done,
-		.reset = rk3288_vpu_dec_reset,
+		.done = rockchip_vpu_run_done,
+		.reset = rockchip_vpu_dec_reset,
 	},
 };
 
-void rk3288_vpu_run(struct rk3288_vpu_ctx *ctx)
+void rockchip_vpu_run(struct rockchip_vpu_ctx *ctx)
 {
 	ctx->hw.codec_ops->run(ctx);
 }
 
-int rk3288_vpu_init(struct rk3288_vpu_ctx *ctx)
+int rockchip_vpu_init(struct rockchip_vpu_ctx *ctx)
 {
-	enum rk3288_vpu_codec_mode codec_mode;
+	enum rockchip_vpu_codec_mode codec_mode;
 
-	if (rk3288_vpu_ctx_is_encoder(ctx))
+	if (rockchip_vpu_ctx_is_encoder(ctx))
 		codec_mode = ctx->vpu_dst_fmt->codec_mode; /* Encoder */
 	else
 		codec_mode = ctx->vpu_src_fmt->codec_mode; /* Decoder */
@@ -424,7 +424,7 @@ int rk3288_vpu_init(struct rk3288_vpu_ctx *ctx)
 	return ctx->hw.codec_ops->init(ctx);
 }
 
-void rk3288_vpu_deinit(struct rk3288_vpu_ctx *ctx)
+void rockchip_vpu_deinit(struct rockchip_vpu_ctx *ctx)
 {
 	ctx->hw.codec_ops->exit(ctx);
 }

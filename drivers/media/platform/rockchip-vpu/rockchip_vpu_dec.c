@@ -38,14 +38,14 @@
 #define DEF_SRC_FMT_DEC				V4L2_PIX_FMT_H264_SLICE
 #define DEF_DST_FMT_DEC				V4L2_PIX_FMT_NV12
 
-#define RK3288_DEC_MIN_WIDTH			48U
-#define RK3288_DEC_MAX_WIDTH			3840U
-#define RK3288_DEC_MIN_HEIGHT			48U
-#define RK3288_DEC_MAX_HEIGHT			2160U
+#define ROCKCHIP_DEC_MIN_WIDTH			48U
+#define ROCKCHIP_DEC_MAX_WIDTH			3840U
+#define ROCKCHIP_DEC_MIN_HEIGHT			48U
+#define ROCKCHIP_DEC_MAX_HEIGHT			2160U
 
-#define RK3288_H264_MAX_SLICES_PER_FRAME	16
+#define ROCKCHIP_H264_MAX_SLICES_PER_FRAME	16
 
-static struct rk3288_vpu_fmt formats[] = {
+static struct rockchip_vpu_fmt formats[] = {
 	{
 		.name = "4:2:0 1 plane Y/CbCr",
 		.fourcc = V4L2_PIX_FMT_NV12,
@@ -56,18 +56,18 @@ static struct rk3288_vpu_fmt formats[] = {
 	{
 		.name = "Slices of H264 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_H264_SLICE,
-		.codec_mode = RK_VPU_CODEC_H264D,
+		.codec_mode = RK3288_VPU_CODEC_H264D,
 		.num_planes = 1,
 	},
 	{
 		.name = "Frames of VP8 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_VP8_FRAME,
-		.codec_mode = RK_VPU_CODEC_VP8D,
+		.codec_mode = RK3288_VPU_CODEC_VP8D,
 		.num_planes = 1,
 	},
 };
 
-static struct rk3288_vpu_fmt *find_format(u32 fourcc, bool bitstream)
+static struct rockchip_vpu_fmt *find_format(u32 fourcc, bool bitstream)
 {
 	unsigned int i;
 
@@ -84,17 +84,17 @@ static struct rk3288_vpu_fmt *find_format(u32 fourcc, bool bitstream)
 
 /* Indices of controls that need to be accessed directly. */
 enum {
-	RK3288_VPU_DEC_CTRL_H264_SPS,
-	RK3288_VPU_DEC_CTRL_H264_PPS,
-	RK3288_VPU_DEC_CTRL_H264_SCALING_MATRIX,
-	RK3288_VPU_DEC_CTRL_H264_SLICE_PARAM,
-	RK3288_VPU_DEC_CTRL_H264_DECODE_PARAM,
-	RK3288_VPU_DEC_CTRL_VP8_FRAME_HDR,
+	ROCKCHIP_VPU_DEC_CTRL_H264_SPS,
+	ROCKCHIP_VPU_DEC_CTRL_H264_PPS,
+	ROCKCHIP_VPU_DEC_CTRL_H264_SCALING_MATRIX,
+	ROCKCHIP_VPU_DEC_CTRL_H264_SLICE_PARAM,
+	ROCKCHIP_VPU_DEC_CTRL_H264_DECODE_PARAM,
+	ROCKCHIP_VPU_DEC_CTRL_VP8_FRAME_HDR,
 };
 
-static struct rk3288_vpu_control controls[] = {
+static struct rockchip_vpu_control controls[] = {
 	/* H264 slice-based interface. */
-	[RK3288_VPU_DEC_CTRL_H264_SPS] = {
+	[ROCKCHIP_VPU_DEC_CTRL_H264_SPS] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_SPS,
 		.type = V4L2_CTRL_TYPE_PRIVATE,
 		.name = "H264 SPS Parameters",
@@ -102,7 +102,7 @@ static struct rk3288_vpu_control controls[] = {
 		.max_stores = VIDEO_MAX_FRAME,
 		.can_store = true,
 	},
-	[RK3288_VPU_DEC_CTRL_H264_PPS] = {
+	[ROCKCHIP_VPU_DEC_CTRL_H264_PPS] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_PPS,
 		.type = V4L2_CTRL_TYPE_PRIVATE,
 		.name = "H264 PPS Parameters",
@@ -110,7 +110,7 @@ static struct rk3288_vpu_control controls[] = {
 		.max_stores = VIDEO_MAX_FRAME,
 		.can_store = true,
 	},
-	[RK3288_VPU_DEC_CTRL_H264_SCALING_MATRIX] = {
+	[ROCKCHIP_VPU_DEC_CTRL_H264_SCALING_MATRIX] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX,
 		.type = V4L2_CTRL_TYPE_PRIVATE,
 		.name = "H264 Scaling Matrix",
@@ -118,16 +118,16 @@ static struct rk3288_vpu_control controls[] = {
 		.max_stores = VIDEO_MAX_FRAME,
 		.can_store = true,
 	},
-	[RK3288_VPU_DEC_CTRL_H264_SLICE_PARAM] = {
+	[ROCKCHIP_VPU_DEC_CTRL_H264_SLICE_PARAM] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAM,
 		.type = V4L2_CTRL_TYPE_PRIVATE,
 		.name = "H264 Slice Parameters",
 		.max_stores = VIDEO_MAX_FRAME,
 		.elem_size = sizeof(struct v4l2_ctrl_h264_slice_param),
-		.dims = { RK3288_H264_MAX_SLICES_PER_FRAME, },
+		.dims = { ROCKCHIP_H264_MAX_SLICES_PER_FRAME, },
 		.can_store = true,
 	},
-	[RK3288_VPU_DEC_CTRL_H264_DECODE_PARAM] = {
+	[ROCKCHIP_VPU_DEC_CTRL_H264_DECODE_PARAM] = {
 		.id = V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAM,
 		.type = V4L2_CTRL_TYPE_PRIVATE,
 		.name = "H264 Decode Parameters",
@@ -135,7 +135,7 @@ static struct rk3288_vpu_control controls[] = {
 		.elem_size = sizeof(struct v4l2_ctrl_h264_decode_param),
 		.can_store = true,
 	},
-	[RK3288_VPU_DEC_CTRL_VP8_FRAME_HDR] = {
+	[ROCKCHIP_VPU_DEC_CTRL_VP8_FRAME_HDR] = {
 		.id = V4L2_CID_MPEG_VIDEO_VP8_FRAME_HDR,
 		.type = V4L2_CTRL_TYPE_PRIVATE,
 		.name = "VP8 Frame Header Parameters",
@@ -145,7 +145,7 @@ static struct rk3288_vpu_control controls[] = {
 	},
 };
 
-static inline const void *get_ctrl_ptr(struct rk3288_vpu_ctx *ctx, unsigned id)
+static inline const void *get_ctrl_ptr(struct rockchip_vpu_ctx *ctx, unsigned id)
 {
 	struct v4l2_ctrl *ctrl = ctx->ctrls[id];
 
@@ -156,13 +156,13 @@ static inline const void *get_ctrl_ptr(struct rk3288_vpu_ctx *ctx, unsigned id)
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	struct rk3288_vpu_dev *dev = video_drvdata(file);
+	struct rockchip_vpu_dev *dev = video_drvdata(file);
 
 	vpu_debug_enter();
 
-	strlcpy(cap->driver, RK3288_VPU_DEC_NAME, sizeof(cap->driver));
+	strlcpy(cap->driver, ROCKCHIP_VPU_DEC_NAME, sizeof(cap->driver));
 	strlcpy(cap->card, dev->pdev->name, sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:" RK3288_VPU_NAME,
+	strlcpy(cap->bus_info, "platform:" ROCKCHIP_VPU_NAME,
 		sizeof(cap->bus_info));
 
 	/*
@@ -183,7 +183,7 @@ static int vidioc_enum_framesizes(struct file *file, void *prov,
 				  struct v4l2_frmsizeenum *fsize)
 {
 	struct v4l2_frmsize_stepwise *s = &fsize->stepwise;
-	struct rk3288_vpu_fmt *fmt;
+	struct rockchip_vpu_fmt *fmt;
 
 	if (fsize->index != 0) {
 		vpu_debug(0, "invalid frame size index (expected 0, got %d)\n",
@@ -200,11 +200,11 @@ static int vidioc_enum_framesizes(struct file *file, void *prov,
 
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
 
-	s->min_width = RK3288_DEC_MIN_WIDTH;
-	s->max_width = RK3288_DEC_MAX_WIDTH;
+	s->min_width = ROCKCHIP_DEC_MIN_WIDTH;
+	s->max_width = ROCKCHIP_DEC_MAX_WIDTH;
 	s->step_width = MB_DIM;
-	s->min_height = RK3288_DEC_MIN_HEIGHT;
-	s->max_height = RK3288_DEC_MAX_HEIGHT;
+	s->min_height = ROCKCHIP_DEC_MIN_HEIGHT;
+	s->max_height = ROCKCHIP_DEC_MAX_HEIGHT;
 	s->step_height = MB_DIM;
 
 	return 0;
@@ -212,7 +212,7 @@ static int vidioc_enum_framesizes(struct file *file, void *prov,
 
 static int vidioc_enum_fmt(struct v4l2_fmtdesc *f, bool out)
 {
-	struct rk3288_vpu_fmt *fmt;
+	struct rockchip_vpu_fmt *fmt;
 	int i, j = 0;
 
 	vpu_debug_enter();
@@ -260,7 +260,7 @@ static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *priv,
 
 static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 
 	vpu_debug_enter();
 
@@ -287,7 +287,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct rk3288_vpu_fmt *fmt;
+	struct rockchip_vpu_fmt *fmt;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	char str[5];
 
@@ -327,9 +327,9 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 		/* Limit to hardware min/max. */
 		pix_fmt_mp->width = clamp(pix_fmt_mp->width,
-				RK3288_DEC_MIN_WIDTH, RK3288_DEC_MAX_WIDTH);
+				ROCKCHIP_DEC_MIN_WIDTH, ROCKCHIP_DEC_MAX_WIDTH);
 		pix_fmt_mp->height = clamp(pix_fmt_mp->height,
-				RK3288_DEC_MIN_HEIGHT, RK3288_DEC_MAX_HEIGHT);
+				ROCKCHIP_DEC_MIN_HEIGHT, ROCKCHIP_DEC_MAX_HEIGHT);
 
 		/* Round up to macroblocks. */
 		pix_fmt_mp->width = round_up(pix_fmt_mp->width, MB_DIM);
@@ -349,9 +349,9 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 	unsigned int mb_width, mb_height;
-	struct rk3288_vpu_fmt *fmt;
+	struct rockchip_vpu_fmt *fmt;
 	int ret = 0;
 	int i;
 
@@ -450,7 +450,7 @@ out:
 static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *reqbufs)
 {
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 	int ret;
 
 	vpu_debug_enter();
@@ -487,7 +487,7 @@ out:
 static int vidioc_querybuf(struct file *file, void *priv,
 			   struct v4l2_buffer *buf)
 {
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 	int ret;
 
 	vpu_debug_enter();
@@ -526,7 +526,7 @@ out:
 /* Queue a buffer */
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 	int ret;
 	int i;
 
@@ -560,7 +560,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 /* Dequeue a buffer */
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 	int ret;
 
 	vpu_debug_enter();
@@ -587,7 +587,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 static int vidioc_expbuf(struct file *file, void *priv,
 			 struct v4l2_exportbuffer *eb)
 {
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 	int ret;
 
 	vpu_debug_enter();
@@ -614,7 +614,7 @@ static int vidioc_expbuf(struct file *file, void *priv,
 static int vidioc_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
 {
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 	int ret;
 
 	vpu_debug_enter();
@@ -641,7 +641,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 static int vidioc_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
 	int ret;
 
 	vpu_debug_enter();
@@ -664,7 +664,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	return ret;
 }
 
-static void rk3288_vpu_dec_set_dpb(struct rk3288_vpu_ctx *ctx,
+static void rockchip_vpu_dec_set_dpb(struct rockchip_vpu_ctx *ctx,
 					    struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_ctrl_h264_decode_param *dec_param = ctrl->p_new.p;
@@ -757,10 +757,10 @@ static void rk3288_vpu_dec_set_dpb(struct rk3288_vpu_ctx *ctx,
 			dec_param->ref_pic_list_p0[i] = 0;
 }
 
-static int rk3288_vpu_dec_s_ctrl(struct v4l2_ctrl *ctrl)
+static int rockchip_vpu_dec_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct rk3288_vpu_ctx *ctx = ctrl_to_ctx(ctrl);
-	struct rk3288_vpu_dev *dev = ctx->dev;
+	struct rockchip_vpu_ctx *ctx = ctrl_to_ctx(ctrl);
+	struct rockchip_vpu_dev *dev = ctx->dev;
 	int ret = 0;
 
 	vpu_debug_enter();
@@ -779,7 +779,7 @@ static int rk3288_vpu_dec_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAM:
 		if (ctrl->store)
 			break;
-		rk3288_vpu_dec_set_dpb(ctx, ctrl);
+		rockchip_vpu_dec_set_dpb(ctx, ctrl);
 		break;
 
 	default:
@@ -793,11 +793,11 @@ static int rk3288_vpu_dec_s_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static const struct v4l2_ctrl_ops rk3288_vpu_dec_ctrl_ops = {
-	.s_ctrl = rk3288_vpu_dec_s_ctrl,
+static const struct v4l2_ctrl_ops rockchip_vpu_dec_ctrl_ops = {
+	.s_ctrl = rockchip_vpu_dec_s_ctrl,
 };
 
-static const struct v4l2_ioctl_ops rk3288_vpu_dec_ioctl_ops = {
+static const struct v4l2_ioctl_ops rockchip_vpu_dec_ioctl_ops = {
 	.vidioc_querycap = vidioc_querycap,
 	.vidioc_enum_framesizes = vidioc_enum_framesizes,
 	.vidioc_enum_fmt_vid_cap_mplane = vidioc_enum_fmt_vid_cap_mplane,
@@ -817,13 +817,13 @@ static const struct v4l2_ioctl_ops rk3288_vpu_dec_ioctl_ops = {
 	.vidioc_streamoff = vidioc_streamoff,
 };
 
-static int rk3288_vpu_queue_setup(struct vb2_queue *vq,
+static int rockchip_vpu_queue_setup(struct vb2_queue *vq,
 				  const void *parg,
 				  unsigned int *buf_count,
 				  unsigned int *plane_count,
 				  unsigned int psize[], void *allocators[])
 {
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
 	int ret = 0;
 
 	vpu_debug_enter();
@@ -873,10 +873,10 @@ static int rk3288_vpu_queue_setup(struct vb2_queue *vq,
 	return ret;
 }
 
-static int rk3288_vpu_buf_init(struct vb2_buffer *vb)
+static int rockchip_vpu_buf_init(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
 
 	vpu_debug_enter();
 
@@ -888,10 +888,10 @@ static int rk3288_vpu_buf_init(struct vb2_buffer *vb)
 	return 0;
 }
 
-static void rk3288_vpu_buf_cleanup(struct vb2_buffer *vb)
+static void rockchip_vpu_buf_cleanup(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
 
 	vpu_debug_enter();
 
@@ -901,10 +901,10 @@ static void rk3288_vpu_buf_cleanup(struct vb2_buffer *vb)
 	vpu_debug_leave();
 }
 
-static int rk3288_vpu_buf_prepare(struct vb2_buffer *vb)
+static int rockchip_vpu_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
 	int ret = 0;
 	int i;
 
@@ -951,19 +951,19 @@ static int rk3288_vpu_buf_prepare(struct vb2_buffer *vb)
 	return ret;
 }
 
-static int rk3288_vpu_start_streaming(struct vb2_queue *q, unsigned int count)
+static int rockchip_vpu_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	int ret = 0;
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(q->drv_priv);
-	struct rk3288_vpu_dev *dev = ctx->dev;
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(q->drv_priv);
+	struct rockchip_vpu_dev *dev = ctx->dev;
 	bool ready = false;
 
 	vpu_debug_enter();
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		ret = rk3288_vpu_init(ctx);
+		ret = rockchip_vpu_init(ctx);
 		if (ret < 0) {
-			vpu_err("rk3288_vpu_init failed\n");
+			vpu_err("rockchip_vpu_init failed\n");
 			return ret;
 		}
 
@@ -973,19 +973,19 @@ static int rk3288_vpu_start_streaming(struct vb2_queue *q, unsigned int count)
 	}
 
 	if (ready)
-		rk3288_vpu_try_context(dev, ctx);
+		rockchip_vpu_try_context(dev, ctx);
 
 	vpu_debug_leave();
 
 	return 0;
 }
 
-static void rk3288_vpu_stop_streaming(struct vb2_queue *q)
+static void rockchip_vpu_stop_streaming(struct vb2_queue *q)
 {
 	unsigned long flags;
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(q->drv_priv);
-	struct rk3288_vpu_dev *dev = ctx->dev;
-	struct rk3288_vpu_buf *b;
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(q->drv_priv);
+	struct rockchip_vpu_dev *dev = ctx->dev;
+	struct rockchip_vpu_buf *b;
 	LIST_HEAD(queue);
 	int i;
 
@@ -1013,7 +1013,7 @@ static void rk3288_vpu_stop_streaming(struct vb2_queue *q)
 	wait_event(dev->run_wq, dev->current_ctx != ctx);
 
 	while (!list_empty(&queue)) {
-		b = list_first_entry(&queue, struct rk3288_vpu_buf, list);
+		b = list_first_entry(&queue, struct rockchip_vpu_buf, list);
 		for (i = 0; i < b->vb.vb2_buf.num_planes; i++)
 			vb2_set_plane_payload(&b->vb.vb2_buf, i, 0);
 		vb2_buffer_done(&b->vb.vb2_buf, VB2_BUF_STATE_ERROR);
@@ -1021,17 +1021,17 @@ static void rk3288_vpu_stop_streaming(struct vb2_queue *q)
 	}
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		rk3288_vpu_deinit(ctx);
+		rockchip_vpu_deinit(ctx);
 
 	vpu_debug_leave();
 }
 
-static void rk3288_vpu_buf_queue(struct vb2_buffer *vb)
+static void rockchip_vpu_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct rk3288_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
-	struct rk3288_vpu_dev *dev = ctx->dev;
-	struct rk3288_vpu_buf *vpu_buf;
+	struct rockchip_vpu_ctx *ctx = fh_to_ctx(vq->drv_priv);
+	struct rockchip_vpu_dev *dev = ctx->dev;
+	struct rockchip_vpu_buf *vpu_buf;
 	unsigned long flags;
 
 	vpu_debug_enter();
@@ -1063,34 +1063,34 @@ static void rk3288_vpu_buf_queue(struct vb2_buffer *vb)
 	}
 
 	if (vb2_is_streaming(&ctx->vq_src) && vb2_is_streaming(&ctx->vq_dst))
-		rk3288_vpu_try_context(dev, ctx);
+		rockchip_vpu_try_context(dev, ctx);
 
 	vpu_debug_leave();
 }
 
-static struct vb2_ops rk3288_vpu_dec_qops = {
-	.queue_setup = rk3288_vpu_queue_setup,
+static struct vb2_ops rockchip_vpu_dec_qops = {
+	.queue_setup = rockchip_vpu_queue_setup,
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
-	.buf_init = rk3288_vpu_buf_init,
-	.buf_prepare = rk3288_vpu_buf_prepare,
-	.buf_cleanup = rk3288_vpu_buf_cleanup,
-	.start_streaming = rk3288_vpu_start_streaming,
-	.stop_streaming = rk3288_vpu_stop_streaming,
-	.buf_queue = rk3288_vpu_buf_queue,
+	.buf_init = rockchip_vpu_buf_init,
+	.buf_prepare = rockchip_vpu_buf_prepare,
+	.buf_cleanup = rockchip_vpu_buf_cleanup,
+	.start_streaming = rockchip_vpu_start_streaming,
+	.stop_streaming = rockchip_vpu_stop_streaming,
+	.buf_queue = rockchip_vpu_buf_queue,
 };
 
 struct vb2_ops *get_dec_queue_ops(void)
 {
-	return &rk3288_vpu_dec_qops;
+	return &rockchip_vpu_dec_qops;
 }
 
 const struct v4l2_ioctl_ops *get_dec_v4l2_ioctl_ops(void)
 {
-	return &rk3288_vpu_dec_ioctl_ops;
+	return &rockchip_vpu_dec_ioctl_ops;
 }
 
-static void rk3288_vpu_dec_prepare_run(struct rk3288_vpu_ctx *ctx)
+static void rockchip_vpu_dec_prepare_run(struct rockchip_vpu_ctx *ctx)
 {
 	struct vb2_v4l2_buffer *src = to_vb2_v4l2_buffer(&ctx->run.src->vb.vb2_buf);
 
@@ -1098,22 +1098,22 @@ static void rk3288_vpu_dec_prepare_run(struct rk3288_vpu_ctx *ctx)
 
 	if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE) {
 		ctx->run.h264d.sps = get_ctrl_ptr(ctx,
-				RK3288_VPU_DEC_CTRL_H264_SPS);
+										  ROCKCHIP_VPU_DEC_CTRL_H264_SPS);
 		ctx->run.h264d.pps = get_ctrl_ptr(ctx,
-				RK3288_VPU_DEC_CTRL_H264_PPS);
+										  ROCKCHIP_VPU_DEC_CTRL_H264_PPS);
 		ctx->run.h264d.scaling_matrix = get_ctrl_ptr(ctx,
-				RK3288_VPU_DEC_CTRL_H264_SCALING_MATRIX);
+										ROCKCHIP_VPU_DEC_CTRL_H264_SCALING_MATRIX);
 		ctx->run.h264d.slice_param = get_ctrl_ptr(ctx,
-				RK3288_VPU_DEC_CTRL_H264_SLICE_PARAM);
+									 ROCKCHIP_VPU_DEC_CTRL_H264_SLICE_PARAM);
 		ctx->run.h264d.decode_param = get_ctrl_ptr(ctx,
-				RK3288_VPU_DEC_CTRL_H264_DECODE_PARAM);
+									  ROCKCHIP_VPU_DEC_CTRL_H264_DECODE_PARAM);
 	} else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_VP8_FRAME) {
 		ctx->run.vp8d.frame_hdr = get_ctrl_ptr(ctx,
-				RK3288_VPU_DEC_CTRL_VP8_FRAME_HDR);
+											   ROCKCHIP_VPU_DEC_CTRL_VP8_FRAME_HDR);
 	}
 }
 
-static void rk3288_vpu_dec_run_done(struct rk3288_vpu_ctx *ctx,
+static void rockchip_vpu_dec_run_done(struct rockchip_vpu_ctx *ctx,
 				    enum vb2_buffer_state result)
 {
 	struct v4l2_plane_pix_format *plane_fmts = ctx->dst_fmt.plane_fmt;
@@ -1131,23 +1131,23 @@ static void rk3288_vpu_dec_run_done(struct rk3288_vpu_ctx *ctx,
 		vb2_set_plane_payload(dst, i, plane_fmts[i].sizeimage);
 }
 
-static const struct rk3288_vpu_run_ops rk3288_vpu_dec_run_ops = {
-	.prepare_run = rk3288_vpu_dec_prepare_run,
-	.run_done = rk3288_vpu_dec_run_done,
+static const struct rockchip_vpu_run_ops rockchip_vpu_dec_run_ops = {
+	.prepare_run = rockchip_vpu_dec_prepare_run,
+	.run_done = rockchip_vpu_dec_run_done,
 };
 
-int rk3288_vpu_dec_init(struct rk3288_vpu_ctx *ctx)
+int rockchip_vpu_dec_init(struct rockchip_vpu_ctx *ctx)
 {
 	ctx->vpu_src_fmt = find_format(DEF_SRC_FMT_DEC, false);
 	ctx->vpu_dst_fmt = find_format(DEF_DST_FMT_DEC, true);
 
-	ctx->run_ops = &rk3288_vpu_dec_run_ops;
+	ctx->run_ops = &rockchip_vpu_dec_run_ops;
 
-	return rk3288_vpu_ctrls_setup(ctx, &rk3288_vpu_dec_ctrl_ops,
+	return rockchip_vpu_ctrls_setup(ctx, &rockchip_vpu_dec_ctrl_ops,
 					controls, ARRAY_SIZE(controls), NULL);
 }
 
-void rk3288_vpu_dec_exit(struct rk3288_vpu_ctx *ctx)
+void rockchip_vpu_dec_exit(struct rockchip_vpu_ctx *ctx)
 {
-	rk3288_vpu_ctrls_delete(ctx);
+	rockchip_vpu_ctrls_delete(ctx);
 }

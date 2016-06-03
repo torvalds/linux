@@ -26,8 +26,8 @@
 
 struct vb2_ops *get_dec_queue_ops(void);
 const struct v4l2_ioctl_ops *get_dec_v4l2_ioctl_ops(void);
-struct rk3288_vpu_fmt *get_dec_def_fmt(bool src);
-int rk3288_vpu_dec_init(struct rk3288_vpu_ctx *ctx);
-void rk3288_vpu_dec_exit(struct rk3288_vpu_ctx *ctx);
+struct rockchip_vpu_fmt *get_dec_def_fmt(bool src);
+int rockchip_vpu_dec_init(struct rockchip_vpu_ctx *ctx);
+void rockchip_vpu_dec_exit(struct rockchip_vpu_ctx *ctx);
 
 #endif /* ROCKCHIP_VPU_DEC_H_ */

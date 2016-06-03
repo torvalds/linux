@@ -199,12 +199,12 @@ static const u32 h264_cabac_table[] = {
 	0x1f0c2517, 0x1f261440
 };
 
-int rk3288_vpu_h264d_init(struct rk3288_vpu_ctx *ctx)
+int rk3288_vpu_h264d_init(struct rockchip_vpu_ctx *ctx)
 {
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	int ret;
 
-	ret = rk3288_vpu_aux_buf_alloc(vpu, &ctx->hw.h264d.priv_tbl,
+	ret = rockchip_vpu_aux_buf_alloc(vpu, &ctx->hw.h264d.priv_tbl,
 				sizeof(struct rk3288_vpu_h264d_priv_tbl));
 	if (ret) {
 		vpu_err("allocate h264 priv_tbl failed\n");
@@ -214,12 +214,12 @@ int rk3288_vpu_h264d_init(struct rk3288_vpu_ctx *ctx)
 	return 0;
 }
 
-void rk3288_vpu_h264d_exit(struct rk3288_vpu_ctx *ctx)
+void rk3288_vpu_h264d_exit(struct rockchip_vpu_ctx *ctx)
 {
-	rk3288_vpu_aux_buf_free(ctx->dev, &ctx->hw.h264d.priv_tbl);
+	rockchip_vpu_aux_buf_free(ctx->dev, &ctx->hw.h264d.priv_tbl);
 }
 
-static void rk3288_vpu_h264d_prepare_table(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vpu_h264d_prepare_table(struct rockchip_vpu_ctx *ctx)
 {
 	struct rk3288_vpu_h264d_priv_tbl *tbl = ctx->hw.h264d.priv_tbl.cpu;
 	const struct v4l2_ctrl_h264_scaling_matrix *scaling =
@@ -253,7 +253,7 @@ static void rk3288_vpu_h264d_prepare_table(struct rk3288_vpu_ctx *ctx)
 	memcpy(tbl->scaling_list, scaling, sizeof(tbl->scaling_list));
 }
 
-static void rk3288_vpu_h264d_set_params(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vpu_h264d_set_params(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_h264_decode_param *dec_param =
 						ctx->run.h264d.decode_param;
@@ -261,7 +261,7 @@ static void rk3288_vpu_h264d_set_params(struct rk3288_vpu_ctx *ctx)
 						ctx->run.h264d.slice_param;
 	const struct v4l2_ctrl_h264_sps *sps = ctx->run.h264d.sps;
 	const struct v4l2_ctrl_h264_pps *pps = ctx->run.h264d.pps;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	u32 reg;
 
 	/* Decoder control register 0. */
@@ -363,13 +363,13 @@ static void rk3288_vpu_h264d_set_params(struct rk3288_vpu_ctx *ctx)
 }
 
 
-static void rk3288_vpu_h264d_set_ref(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vpu_h264d_set_ref(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_h264_decode_param *dec_param =
 						ctx->run.h264d.decode_param;
 	const struct v4l2_h264_dpb_entry *dpb = ctx->run.h264d.dpb;
 	const u8 *dpb_map = ctx->run.h264d.dpb_map;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	u32 dpb_longterm = 0;
 	u32 dpb_valid = 0;
 	int reg_num;
@@ -494,12 +494,12 @@ static void rk3288_vpu_h264d_set_ref(struct rk3288_vpu_ctx *ctx)
 	}
 }
 
-static void rk3288_vpu_h264d_set_buffers(struct rk3288_vpu_ctx *ctx)
+static void rk3288_vpu_h264d_set_buffers(struct rockchip_vpu_ctx *ctx)
 {
 	const struct v4l2_ctrl_h264_sps *sps = ctx->run.h264d.sps;
 	const struct v4l2_ctrl_h264_slice_param *slice =
 						ctx->run.h264d.slice_param;
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 	dma_addr_t src_dma, dst_dma;
 
 	/* Source (stream) buffer. */
@@ -527,14 +527,14 @@ static void rk3288_vpu_h264d_set_buffers(struct rk3288_vpu_ctx *ctx)
 				VDPU_REG_ADDR_QTABLE);
 }
 
-void rk3288_vpu_h264d_run(struct rk3288_vpu_ctx *ctx)
+void rk3288_vpu_h264d_run(struct rockchip_vpu_ctx *ctx)
 {
-	struct rk3288_vpu_dev *vpu = ctx->dev;
+	struct rockchip_vpu_dev *vpu = ctx->dev;
 
 	/* Prepare data in memory. */
 	rk3288_vpu_h264d_prepare_table(ctx);
 
-	rk3288_vpu_power_on(vpu);
+	rockchip_vpu_power_on(vpu);
 
 	/* Configure hardware registers. */
 	rk3288_vpu_h264d_set_params(ctx);
