@@ -171,7 +171,7 @@ DECLARE_EVENT_CLASS(gb_module,
 		__field(int, hd_bus_id)
 		__field(u8, module_id)
 		__field(u8, num_interfaces)
-		__field(bool, disconnected)
+		__field(int, disconnected)	/* bool */
 	),
 
 	TP_fast_assign(
@@ -180,7 +180,7 @@ DECLARE_EVENT_CLASS(gb_module,
 		__entry->disconnected = module->disconnected;
 	),
 
-	TP_printk("greybus: hd_bus_id=%d module_id=%hhu disconnected=%u",
+	TP_printk("greybus: hd_bus_id=%d module_id=%hhu disconnected=%d",
 		__entry->hd_bus_id, __entry->module_id, __entry->disconnected)
 );
 
@@ -224,10 +224,10 @@ DECLARE_EVENT_CLASS(gb_interface,
 		__field(u8, id)		/* Interface id */
 		__field(u8, module_id)
 		__field(u8, device_id)
-		__field(bool, disconnected)
-		__field(bool, ejected)
-		__field(bool, active)
-		__field(bool, enabled)
+		__field(int, disconnected)	/* bool */
+		__field(int, ejected)		/* bool */
+		__field(int, active)		/* bool */
+		__field(int, enabled)		/* bool */
 	),
 
 	TP_fast_assign(
@@ -240,7 +240,7 @@ DECLARE_EVENT_CLASS(gb_interface,
 		__entry->enabled = intf->enabled;
 	),
 
-	TP_printk("greybus: intf_id=%hhu device_id=%hhu module_id=%hhu D=%u J=%u A=%u E=%u",
+	TP_printk("greybus: intf_id=%hhu device_id=%hhu module_id=%hhu D=%d J=%d A=%d E=%d",
 		__entry->id, __entry->device_id, __entry->module_id,
 		__entry->disconnected, __entry->ejected, __entry->active,
 		__entry->enabled)
