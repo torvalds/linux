@@ -1046,7 +1046,7 @@ int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 
 	dev_dbg(ctx->dev, "%s: pipe = %d\n", __func__, pipe->ppl_id);
 
-	/* If pipe is not started, do not try to stop the pipe in FW. */
+	/* If pipe is started, do stop the pipe in FW. */
 	if (pipe->state > SKL_PIPE_STARTED) {
 		ret = skl_set_pipe_state(ctx, pipe, PPL_PAUSED);
 		if (ret < 0) {
@@ -1055,17 +1055,19 @@ int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 		}
 
 		pipe->state = SKL_PIPE_PAUSED;
-	} else {
-		/* If pipe was not created in FW, do not try to delete it */
-		if (pipe->state < SKL_PIPE_CREATED)
-			return 0;
-
-		ret = skl_ipc_delete_pipeline(&ctx->ipc, pipe->ppl_id);
-		if (ret < 0)
-			dev_err(ctx->dev, "Failed to delete pipeline\n");
-
-		pipe->state = SKL_PIPE_INVALID;
 	}
+
+	/* If pipe was not created in FW, do not try to delete it */
+	if (pipe->state < SKL_PIPE_CREATED)
+		return 0;
+
+	ret = skl_ipc_delete_pipeline(&ctx->ipc, pipe->ppl_id);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to delete pipeline\n");
+		return ret;
+	}
+
+	pipe->state = SKL_PIPE_INVALID;
 
 	return ret;
 }
