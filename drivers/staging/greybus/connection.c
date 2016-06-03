@@ -81,6 +81,8 @@ void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
 {
 	struct gb_connection *connection;
 
+	trace_gb_hd_in(hd);
+
 	connection = gb_connection_hd_find(hd, cport_id);
 	if (!connection) {
 		dev_err(&hd->dev,

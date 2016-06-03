@@ -88,6 +88,12 @@ DEFINE_MESSAGE_EVENT(gb_message_cancel_outgoing);
  */
 DEFINE_MESSAGE_EVENT(gb_message_cancel_incoming);
 
+/*
+ * Occurs in the host driver message_send() function just prior to
+ * handing off the data to be processed by hardware.
+ */
+DEFINE_MESSAGE_EVENT(gb_message_submit);
+
 #undef DEFINE_MESSAGE_EVENT
 
 DECLARE_EVENT_CLASS(gb_operation,
@@ -471,7 +477,7 @@ DEFINE_HD_EVENT(gb_hd_release);
 
 /*
  * Occurs after a new host device has been added, after the
- * connection to its SVC has * been enabled.
+ * connection to its SVC has been enabled.
  */
 DEFINE_HD_EVENT(gb_hd_add);
 
@@ -480,6 +486,13 @@ DEFINE_HD_EVENT(gb_hd_add);
  * host controller.
  */
 DEFINE_HD_EVENT(gb_hd_del);
+
+/*
+ * Occurs when a host device has passed received data to the Greybus
+ * core, after it has been determined it is destined for a valid
+ * CPort.
+ */
+DEFINE_HD_EVENT(gb_hd_in);
 
 #undef DEFINE_HD_EVENT
 

@@ -14,6 +14,7 @@
 #include <asm/unaligned.h>
 
 #include "greybus.h"
+#include "greybus_trace.h"
 #include "kernel_ver.h"
 #include "connection.h"
 
@@ -467,6 +468,9 @@ static int message_send(struct gb_host_device *hd, u16 cport_id,
 			  message->buffer, buffer_size,
 			  cport_out_callback, message);
 	urb->transfer_flags |= URB_ZERO_PACKET;
+
+	trace_gb_message_submit(message);
+
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		dev_err(&udev->dev, "failed to submit out-urb: %d\n", retval);

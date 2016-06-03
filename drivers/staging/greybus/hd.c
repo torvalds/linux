@@ -13,6 +13,9 @@
 #include "greybus.h"
 #include "greybus_trace.h"
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(gb_message_submit);
+EXPORT_TRACEPOINT_SYMBOL_GPL(gb_hd_in);
+
 static struct ida gb_hd_bus_id_map;
 
 int gb_hd_output(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
