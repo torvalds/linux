@@ -689,7 +689,8 @@ static struct attribute *fec_attrs[] = {
 
 static struct kobj_type fec_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
-	.default_attrs = fec_attrs
+	.default_attrs = fec_attrs,
+	.release = dm_kobject_release
 };
 
 /*
