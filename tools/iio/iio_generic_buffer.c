@@ -341,7 +341,7 @@ int main(int argc, char **argv)
 
 	char *data = NULL;
 	ssize_t read_size;
-	int dev_num = -1, trig_num;
+	int dev_num = -1, trig_num = -1;
 	char *buffer_access = NULL;
 	int scan_size;
 	int noevents = 0;
@@ -456,7 +456,7 @@ int main(int argc, char **argv)
 
 	if (notrigger) {
 		printf("trigger-less mode selected\n");
-	} if (trig_num > 0) {
+	} if (trig_num >= 0) {
 		char *trig_dev_name;
 		ret = asprintf(&trig_dev_name, "%strigger%d", iio_dir, trig_num);
 		if (ret < 0) {
