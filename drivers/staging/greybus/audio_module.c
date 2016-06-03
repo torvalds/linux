@@ -363,10 +363,12 @@ static void gb_audio_disconnect(struct gb_bundle *bundle)
 	struct gbaudio_data_connection *dai, *_dai;
 
 
+	/* cleanup module related resources first */
+	gbaudio_unregister_module(gbmodule);
+
 	/* inform uevent to above layers */
 	gb_audio_manager_remove(gbmodule->manager_id);
 
-	gbaudio_unregister_module(gbmodule);
 	gbaudio_tplg_release(gbmodule);
 	kfree(gbmodule->topology);
 	gbmodule->topology = NULL;
