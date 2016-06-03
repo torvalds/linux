@@ -1160,6 +1160,12 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  STALL_DOP_GATING_DISABLE);
 
+	/* WaDisablePooledEuLoadBalancingFix:bxt */
+	if (IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER)) {
+		WA_SET_BIT_MASKED(FF_SLICE_CS_CHICKEN2,
+				  GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE);
+	}
+
 	/* WaDisableSbeCacheDispatchPortSharing:bxt */
 	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0)) {
 		WA_SET_BIT_MASKED(

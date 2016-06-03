@@ -6106,6 +6106,7 @@ enum skl_disp_power_wells {
 
 #define FF_SLICE_CS_CHICKEN2			_MMIO(0x20e4)
 #define  GEN9_TSG_BARRIER_ACK_DISABLE		(1<<8)
+#define  GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE  (1<<10)
 
 #define GEN9_CS_DEBUG_MODE1		_MMIO(0x20ec)
 #define GEN9_CTX_PREEMPT_REG		_MMIO(0x2248)
