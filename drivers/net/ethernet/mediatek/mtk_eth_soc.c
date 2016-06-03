@@ -280,7 +280,7 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	return 0;
 
 err_free_bus:
-	kfree(eth->mii_bus);
+	mdiobus_free(eth->mii_bus);
 
 err_put_node:
 	of_node_put(mii_np);
@@ -295,7 +295,7 @@ static void mtk_mdio_cleanup(struct mtk_eth *eth)
 
 	mdiobus_unregister(eth->mii_bus);
 	of_node_put(eth->mii_bus->dev.of_node);
-	kfree(eth->mii_bus);
+	mdiobus_free(eth->mii_bus);
 }
 
 static inline void mtk_irq_disable(struct mtk_eth *eth, u32 mask)
