@@ -2145,10 +2145,12 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 	reg_vfi->wwn[1] = cpu_to_le32(reg_vfi->wwn[1]);
 	reg_vfi->e_d_tov = phba->fc_edtov;
 	reg_vfi->r_a_tov = phba->fc_ratov;
-	reg_vfi->bde.addrHigh = putPaddrHigh(phys);
-	reg_vfi->bde.addrLow = putPaddrLow(phys);
-	reg_vfi->bde.tus.f.bdeSize = sizeof(vport->fc_sparam);
-	reg_vfi->bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+	if (phys) {
+		reg_vfi->bde.addrHigh = putPaddrHigh(phys);
+		reg_vfi->bde.addrLow = putPaddrLow(phys);
+		reg_vfi->bde.tus.f.bdeSize = sizeof(vport->fc_sparam);
+		reg_vfi->bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+	}
 	bf_set(lpfc_reg_vfi_nport_id, reg_vfi, vport->fc_myDID);
 
 	/* Only FC supports upd bit */
