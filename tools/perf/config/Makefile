@@ -362,6 +362,18 @@ ifndef NO_LIBUNWIND
     have_libunwind = 1
   endif
 
+  ifeq ($(feature-libunwind-aarch64), 1)
+    $(call detected,CONFIG_LIBUNWIND_AARCH64)
+    CFLAGS += -DHAVE_LIBUNWIND_AARCH64_SUPPORT
+    LDFLAGS += -lunwind-aarch64
+    have_libunwind = 1
+    $(call feature_check,libunwind-debug-frame-aarch64)
+    ifneq ($(feature-libunwind-debug-frame-aarch64), 1)
+      msg := $(warning No debug_frame support found in libunwind-aarch64);
+      CFLAGS += -DNO_LIBUNWIND_DEBUG_FRAME_AARCH64
+    endif
+  endif
+
   ifneq ($(feature-libunwind), 1)
     msg := $(warning No libunwind found. Please install libunwind-dev[el] >= 1.1 and/or set LIBUNWIND_DIR);
     NO_LOCAL_LIBUNWIND := 1
