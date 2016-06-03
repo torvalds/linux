@@ -31,7 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max77620.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
@@ -566,7 +566,6 @@ static const struct i2c_device_id max77620_id[] = {
 	{"max20024", MAX20024},
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, max77620_id);
 
 static const struct dev_pm_ops max77620_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(max77620_i2c_suspend, max77620_i2c_resume)
@@ -580,11 +579,4 @@ static struct i2c_driver max77620_driver = {
 	.probe = max77620_probe,
 	.id_table = max77620_id,
 };
-
-module_i2c_driver(max77620_driver);
-
-MODULE_DESCRIPTION("MAX77620/MAX20024 Multi Function Device Core Driver");
-MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_AUTHOR("Chaitanya Bandi <bandik@nvidia.com>");
-MODULE_AUTHOR("Mallikarjun Kasoju <mkasoju@nvidia.com>");
-MODULE_LICENSE("GPL v2");
+builtin_i2c_driver(max77620_driver);
