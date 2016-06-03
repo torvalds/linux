@@ -173,6 +173,7 @@ struct rndis_device {
 
 /* Interface */
 struct rndis_message;
+struct netvsc_device;
 int netvsc_device_add(struct hv_device *device, void *additional_info);
 int netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
@@ -189,8 +190,8 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 			struct vmbus_channel *channel,
 			u16 vlan_tci);
 void netvsc_channel_cb(void *context);
-int rndis_filter_open(struct hv_device *dev);
-int rndis_filter_close(struct hv_device *dev);
+int rndis_filter_open(struct netvsc_device *nvdev);
+int rndis_filter_close(struct netvsc_device *nvdev);
 int rndis_filter_device_add(struct hv_device *dev,
 			void *additional_info);
 void rndis_filter_device_remove(struct hv_device *dev);

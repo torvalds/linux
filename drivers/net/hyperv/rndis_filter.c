@@ -1216,23 +1216,19 @@ void rndis_filter_device_remove(struct hv_device *dev)
 }
 
 
-int rndis_filter_open(struct hv_device *dev)
+int rndis_filter_open(struct netvsc_device *nvdev)
 {
-	struct netvsc_device *net_device = hv_device_to_netvsc_device(dev);
-
-	if (!net_device)
+	if (!nvdev)
 		return -EINVAL;
 
-	if (atomic_inc_return(&net_device->open_cnt) != 1)
+	if (atomic_inc_return(&nvdev->open_cnt) != 1)
 		return 0;
 
-	return rndis_filter_open_device(net_device->extension);
+	return rndis_filter_open_device(nvdev->extension);
 }
 
-int rndis_filter_close(struct hv_device *dev)
+int rndis_filter_close(struct netvsc_device *nvdev)
 {
-	struct netvsc_device *nvdev = hv_device_to_netvsc_device(dev);
-
 	if (!nvdev)
 		return -EINVAL;
 

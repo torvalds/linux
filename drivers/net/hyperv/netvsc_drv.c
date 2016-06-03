@@ -98,16 +98,14 @@ static void netvsc_set_multicast_list(struct net_device *net)
 
 static int netvsc_open(struct net_device *net)
 {
-	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *device_obj = net_device_ctx->device_ctx;
-	struct netvsc_device *nvdev = net_device_ctx->nvdev;
+	struct netvsc_device *nvdev = net_device_to_netvsc_device(net);
 	struct rndis_device *rdev;
 	int ret = 0;
 
 	netif_carrier_off(net);
 
 	/* Open up the device */
-	ret = rndis_filter_open(device_obj);
+	ret = rndis_filter_open(nvdev);
 	if (ret != 0) {
 		netdev_err(net, "unable to open device (ret %d).\n", ret);
 		return ret;
@@ -125,7 +123,6 @@ static int netvsc_open(struct net_device *net)
 static int netvsc_close(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *device_obj = net_device_ctx->device_ctx;
 	struct netvsc_device *nvdev = net_device_ctx->nvdev;
 	int ret;
 	u32 aread, awrite, i, msec = 10, retry = 0, retry_max = 20;
@@ -135,7 +132,7 @@ static int netvsc_close(struct net_device *net)
 
 	/* Make sure netvsc_set_multicast_list doesn't re-enable filter! */
 	cancel_work_sync(&net_device_ctx->work);
-	ret = rndis_filter_close(device_obj);
+	ret = rndis_filter_close(nvdev);
 	if (ret != 0) {
 		netdev_err(net, "unable to close device (ret %d).\n", ret);
 		return ret;
@@ -1247,7 +1244,7 @@ static int netvsc_vf_up(struct net_device *vf_netdev)
 	/*
 	 * Open the device before switching data path.
 	 */
-	rndis_filter_open(net_device_ctx->device_ctx);
+	rndis_filter_open(netvsc_dev);
 
 	/*
 	 * notify the host to switch the data path.
@@ -1302,7 +1299,7 @@ static int netvsc_vf_down(struct net_device *vf_netdev)
 		udelay(50);
 	netvsc_switch_datapath(ndev, false);
 	netdev_info(ndev, "Data path switched from VF: %s\n", vf_netdev->name);
-	rndis_filter_close(net_device_ctx->device_ctx);
+	rndis_filter_close(netvsc_dev);
 	netif_carrier_on(ndev);
 	/*
 	 * Notify peers.
