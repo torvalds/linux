@@ -1125,7 +1125,7 @@ int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 		return ret;
 	}
 
-	pipe->state = SKL_PIPE_CREATED;
+	pipe->state = SKL_PIPE_PAUSED;
 
 	return 0;
 }
