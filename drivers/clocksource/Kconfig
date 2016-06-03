@@ -176,6 +176,14 @@ config MOXART_TIMER
 	help
 	  Enables support for the Moxart timer.
 
+config MXS_TIMER
+	bool "Mxs timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	select STMP_DEVICE
+	help
+	  Enables support for the Mxs timer.
+
 config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 	bool "Clocksource PRCMU Timer sched_clock"
 	depends on (CLKSRC_DBX500_PRCMU && !CLKSRC_NOMADIK_MTU_SCHED_CLOCK)
