@@ -386,7 +386,7 @@ static const struct snd_kcontrol_new nau8825_controls[] = {
 	SOC_ENUM("DAC Oversampling Rate", nau8825_dac_oversampl_enum),
 	/* programmable biquad filter */
 	SOC_ENUM("BIQ Path Select", nau8825_biq_path_enum),
-	SND_SOC_BYTES_EXT("BIQ Coefficeints", 20,
+	SND_SOC_BYTES_EXT("BIQ Coefficients", 20,
 		  nau8825_biq_coeff_get, nau8825_biq_coeff_put),
 };
 
