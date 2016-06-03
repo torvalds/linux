@@ -354,6 +354,9 @@ static int hns_mdio_reset(struct mii_bus *bus)
 	struct hns_mdio_device *mdio_dev = (struct hns_mdio_device *)bus->priv;
 	int ret;
 
+	if (!dev_of_node(bus->parent))
+		return -ENOTSUPP;
+
 	if (!mdio_dev->subctrl_vbase) {
 		dev_err(&bus->dev, "mdio sys ctl reg has not maped\n");
 		return -ENODEV;
@@ -397,24 +400,6 @@ static int hns_mdio_reset(struct mii_bus *bus)
 }
 
 /**
- * hns_mdio_bus_name - get mdio bus name
- * @name: mdio bus name
- * @np: mdio device node pointer
- */
-static void hns_mdio_bus_name(char *name, struct device_node *np)
-{
-	const u32 *addr;
-	u64 taddr = OF_BAD_ADDR;
-
-	addr = of_get_address(np, 0, NULL, NULL);
-	if (addr)
-		taddr = of_translate_address(np, addr);
-
-	snprintf(name, MII_BUS_ID_SIZE, "%s@%llx", np->name,
-		 (unsigned long long)taddr);
-}
-
-/**
  * hns_mdio_probe - probe mdio device
  * @pdev: mdio platform device
  *
@@ -422,17 +407,16 @@ static void hns_mdio_bus_name(char *name, struct device_node *np)
  */
 static int hns_mdio_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
 	struct hns_mdio_device *mdio_dev;
 	struct mii_bus *new_bus;
 	struct resource *res;
-	int ret;
+	int ret = -ENODEV;
 
 	if (!pdev) {
 		dev_err(NULL, "pdev is NULL!\r\n");
 		return -ENODEV;
 	}
-	np = pdev->dev.of_node;
+
 	mdio_dev = devm_kzalloc(&pdev->dev, sizeof(*mdio_dev), GFP_KERNEL);
 	if (!mdio_dev)
 		return -ENOMEM;
@@ -448,7 +432,7 @@ static int hns_mdio_probe(struct platform_device *pdev)
 	new_bus->write = hns_mdio_write;
 	new_bus->reset = hns_mdio_reset;
 	new_bus->priv = mdio_dev;
-	hns_mdio_bus_name(new_bus->id, np);
+	new_bus->parent = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mdio_dev->vbase = devm_ioremap_resource(&pdev->dev, res);
@@ -457,16 +441,20 @@ static int hns_mdio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mdio_dev->subctrl_vbase =
-		syscon_node_to_regmap(of_parse_phandle(np, "subctrl-vbase", 0));
-	if (IS_ERR(mdio_dev->subctrl_vbase)) {
-		dev_warn(&pdev->dev, "no syscon hisilicon,peri-c-subctrl\n");
-		mdio_dev->subctrl_vbase = NULL;
-	}
-	new_bus->parent = &pdev->dev;
 	platform_set_drvdata(pdev, new_bus);
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%s", "Mii",
+		 dev_name(&pdev->dev));
+	if (dev_of_node(&pdev->dev)) {
+		mdio_dev->subctrl_vbase = syscon_node_to_regmap(
+			of_parse_phandle(pdev->dev.of_node,
+					 "subctrl-vbase", 0));
+		if (IS_ERR(mdio_dev->subctrl_vbase)) {
+			dev_warn(&pdev->dev, "no syscon hisilicon,peri-c-subctrl\n");
+			mdio_dev->subctrl_vbase = NULL;
+		}
+		ret = of_mdiobus_register(new_bus, pdev->dev.of_node);
+	}
 
-	ret = of_mdiobus_register(new_bus, np);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register as MDIO bus!\n");
 		platform_set_drvdata(pdev, NULL);
