@@ -111,7 +111,14 @@ enum ctype {
 	CT_WRITE_RO,
 	CT_WRITE_RO_AFTER_INIT,
 	CT_WRITE_KERN,
-	CT_WRAP_ATOMIC
+	CT_WRAP_ATOMIC,
+	CT_USERCOPY_HEAP_SIZE_TO,
+	CT_USERCOPY_HEAP_SIZE_FROM,
+	CT_USERCOPY_HEAP_FLAG_TO,
+	CT_USERCOPY_HEAP_FLAG_FROM,
+	CT_USERCOPY_STACK_FRAME_TO,
+	CT_USERCOPY_STACK_FRAME_FROM,
+	CT_USERCOPY_STACK_BEYOND,
 };
 
 static char* cp_name[] = {
@@ -154,7 +161,14 @@ static char* cp_type[] = {
 	"WRITE_RO",
 	"WRITE_RO_AFTER_INIT",
 	"WRITE_KERN",
-	"WRAP_ATOMIC"
+	"WRAP_ATOMIC",
+	"USERCOPY_HEAP_SIZE_TO",
+	"USERCOPY_HEAP_SIZE_FROM",
+	"USERCOPY_HEAP_FLAG_TO",
+	"USERCOPY_HEAP_FLAG_FROM",
+	"USERCOPY_STACK_FRAME_TO",
+	"USERCOPY_STACK_FRAME_FROM",
+	"USERCOPY_STACK_BEYOND",
 };
 
 static struct jprobe lkdtm;
@@ -166,6 +180,8 @@ static char* cpoint_name;
 static char* cpoint_type;
 static int cpoint_count = DEFAULT_COUNT;
 static int recur_count = REC_NUM_DEFAULT;
+static int alloc_size = 1024;
+static size_t cache_size;
 
 static enum cname cpoint = CN_INVALID;
 static enum ctype cptype = CT_NONE;
@@ -174,7 +190,9 @@ static DEFINE_SPINLOCK(count_lock);
 static DEFINE_SPINLOCK(lock_me_up);
 
 static u8 data_area[EXEC_SIZE];
+static struct kmem_cache *bad_cache;
 
+static const unsigned char test_text[] = "This is a test.\n";
 static const unsigned long rodata = 0xAA55AA55;
 static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
 
@@ -188,6 +206,9 @@ MODULE_PARM_DESC(cpoint_type, " Crash Point Type, action to be taken on "\
 module_param(cpoint_count, int, 0644);
 MODULE_PARM_DESC(cpoint_count, " Crash Point Count, number of times the "\
 				"crash point is to be hit to trigger action");
+module_param(alloc_size, int, 0644);
+MODULE_PARM_DESC(alloc_size, " Size of allocation for user copy tests "\
+			     "(from 1 to PAGE_SIZE)");
 
 static unsigned int jp_do_irq(unsigned int irq)
 {
@@ -379,6 +400,228 @@ static void execute_user_location(void *dst)
 	flush_icache_range((unsigned long)dst, (unsigned long)dst + EXEC_SIZE);
 	pr_info("attempting bad execution at %p\n", func);
 	func();
+}
+
+/*
+ * Instead of adding -Wno-return-local-addr, just pass the stack address
+ * through a function to obfuscate it from the compiler.
+ */
+static noinline unsigned char *trick_compiler(unsigned char *stack)
+{
+	return stack + 0;
+}
+
+static noinline unsigned char *do_usercopy_stack_callee(int value)
+{
+	unsigned char buf[32];
+	int i;
+
+	/* Exercise stack to avoid everything living in registers. */
+	for (i = 0; i < sizeof(buf); i++) {
+		buf[i] = value & 0xff;
+	}
+
+	return trick_compiler(buf);
+}
+
+static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
+{
+	unsigned long user_addr;
+	unsigned char good_stack[32];
+	unsigned char *bad_stack;
+	int i;
+
+	/* Exercise stack to avoid everything living in registers. */
+	for (i = 0; i < sizeof(good_stack); i++)
+		good_stack[i] = test_text[i % sizeof(test_text)];
+
+	/* This is a pointer to outside our current stack frame. */
+	if (bad_frame) {
+		bad_stack = do_usercopy_stack_callee(alloc_size);
+	} else {
+		/* Put start address just inside stack. */
+		bad_stack = task_stack_page(current) + THREAD_SIZE;
+		bad_stack -= sizeof(unsigned long);
+	}
+
+	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+			    PROT_READ | PROT_WRITE | PROT_EXEC,
+			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+	if (user_addr >= TASK_SIZE) {
+		pr_warn("Failed to allocate user memory\n");
+		return;
+	}
+
+	if (to_user) {
+		pr_info("attempting good copy_to_user of local stack\n");
+		if (copy_to_user((void __user *)user_addr, good_stack,
+				 sizeof(good_stack))) {
+			pr_warn("copy_to_user failed unexpectedly?!\n");
+			goto free_user;
+		}
+
+		pr_info("attempting bad copy_to_user of distant stack\n");
+		if (copy_to_user((void __user *)user_addr, bad_stack,
+				 sizeof(good_stack))) {
+			pr_warn("copy_to_user failed, but lacked Oops\n");
+			goto free_user;
+		}
+	} else {
+		/*
+		 * There isn't a safe way to not be protected by usercopy
+		 * if we're going to write to another thread's stack.
+		 */
+		if (!bad_frame)
+			goto free_user;
+
+		pr_info("attempting good copy_from_user of local stack\n");
+		if (copy_from_user(good_stack, (void __user *)user_addr,
+				   sizeof(good_stack))) {
+			pr_warn("copy_from_user failed unexpectedly?!\n");
+			goto free_user;
+		}
+
+		pr_info("attempting bad copy_from_user of distant stack\n");
+		if (copy_from_user(bad_stack, (void __user *)user_addr,
+				   sizeof(good_stack))) {
+			pr_warn("copy_from_user failed, but lacked Oops\n");
+			goto free_user;
+		}
+	}
+
+free_user:
+	vm_munmap(user_addr, PAGE_SIZE);
+}
+
+static void do_usercopy_heap_size(bool to_user)
+{
+	unsigned long user_addr;
+	unsigned char *one, *two;
+	size_t size = clamp_t(int, alloc_size, 1, PAGE_SIZE);
+
+	one = kmalloc(size, GFP_KERNEL);
+	two = kmalloc(size, GFP_KERNEL);
+	if (!one || !two) {
+		pr_warn("Failed to allocate kernel memory\n");
+		goto free_kernel;
+	}
+
+	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+			    PROT_READ | PROT_WRITE | PROT_EXEC,
+			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+	if (user_addr >= TASK_SIZE) {
+		pr_warn("Failed to allocate user memory\n");
+		goto free_kernel;
+	}
+
+	memset(one, 'A', size);
+	memset(two, 'B', size);
+
+	if (to_user) {
+		pr_info("attempting good copy_to_user of correct size\n");
+		if (copy_to_user((void __user *)user_addr, one, size)) {
+			pr_warn("copy_to_user failed unexpectedly?!\n");
+			goto free_user;
+		}
+
+		pr_info("attempting bad copy_to_user of too large size\n");
+		if (copy_to_user((void __user *)user_addr, one, 2 * size)) {
+			pr_warn("copy_to_user failed, but lacked Oops\n");
+			goto free_user;
+		}
+	} else {
+		pr_info("attempting good copy_from_user of correct size\n");
+		if (copy_from_user(one, (void __user *)user_addr,
+				   size)) {
+			pr_warn("copy_from_user failed unexpectedly?!\n");
+			goto free_user;
+		}
+
+		pr_info("attempting bad copy_from_user of too large size\n");
+		if (copy_from_user(one, (void __user *)user_addr, 2 * size)) {
+			pr_warn("copy_from_user failed, but lacked Oops\n");
+			goto free_user;
+		}
+	}
+
+free_user:
+	vm_munmap(user_addr, PAGE_SIZE);
+free_kernel:
+	kfree(one);
+	kfree(two);
+}
+
+static void do_usercopy_heap_flag(bool to_user)
+{
+	unsigned long user_addr;
+	unsigned char *good_buf = NULL;
+	unsigned char *bad_buf = NULL;
+
+	/* Make sure cache was prepared. */
+	if (!bad_cache) {
+		pr_warn("Failed to allocate kernel cache\n");
+		return;
+	}
+
+	/*
+	 * Allocate one buffer from each cache (kmalloc will have the
+	 * SLAB_USERCOPY flag already, but "bad_cache" won't).
+	 */
+	good_buf = kmalloc(cache_size, GFP_KERNEL);
+	bad_buf = kmem_cache_alloc(bad_cache, GFP_KERNEL);
+	if (!good_buf || !bad_buf) {
+		pr_warn("Failed to allocate buffers from caches\n");
+		goto free_alloc;
+	}
+
+	/* Allocate user memory we'll poke at. */
+	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
+			    PROT_READ | PROT_WRITE | PROT_EXEC,
+			    MAP_ANONYMOUS | MAP_PRIVATE, 0);
+	if (user_addr >= TASK_SIZE) {
+		pr_warn("Failed to allocate user memory\n");
+		goto free_alloc;
+	}
+
+	memset(good_buf, 'A', cache_size);
+	memset(bad_buf, 'B', cache_size);
+
+	if (to_user) {
+		pr_info("attempting good copy_to_user with SLAB_USERCOPY\n");
+		if (copy_to_user((void __user *)user_addr, good_buf,
+				 cache_size)) {
+			pr_warn("copy_to_user failed unexpectedly?!\n");
+			goto free_user;
+		}
+
+		pr_info("attempting bad copy_to_user w/o SLAB_USERCOPY\n");
+		if (copy_to_user((void __user *)user_addr, bad_buf,
+				 cache_size)) {
+			pr_warn("copy_to_user failed, but lacked Oops\n");
+			goto free_user;
+		}
+	} else {
+		pr_info("attempting good copy_from_user with SLAB_USERCOPY\n");
+		if (copy_from_user(good_buf, (void __user *)user_addr,
+				   cache_size)) {
+			pr_warn("copy_from_user failed unexpectedly?!\n");
+			goto free_user;
+		}
+
+		pr_info("attempting bad copy_from_user w/o SLAB_USERCOPY\n");
+		if (copy_from_user(bad_buf, (void __user *)user_addr,
+				   cache_size)) {
+			pr_warn("copy_from_user failed, but lacked Oops\n");
+			goto free_user;
+		}
+	}
+
+free_user:
+	vm_munmap(user_addr, PAGE_SIZE);
+free_alloc:
+	if (bad_buf)
+		kmem_cache_free(bad_cache, bad_buf);
+	kfree(good_buf);
 }
 
 static void lkdtm_do_action(enum ctype which)
@@ -679,6 +922,27 @@ static void lkdtm_do_action(enum ctype which)
 
 		return;
 	}
+	case CT_USERCOPY_HEAP_SIZE_TO:
+		do_usercopy_heap_size(true);
+		break;
+	case CT_USERCOPY_HEAP_SIZE_FROM:
+		do_usercopy_heap_size(false);
+		break;
+	case CT_USERCOPY_HEAP_FLAG_TO:
+		do_usercopy_heap_flag(true);
+		break;
+	case CT_USERCOPY_HEAP_FLAG_FROM:
+		do_usercopy_heap_flag(false);
+		break;
+	case CT_USERCOPY_STACK_FRAME_TO:
+		do_usercopy_stack(true, true);
+		break;
+	case CT_USERCOPY_STACK_FRAME_FROM:
+		do_usercopy_stack(false, true);
+		break;
+	case CT_USERCOPY_STACK_BEYOND:
+		do_usercopy_stack(true, false);
+		break;
 	case CT_NONE:
 	default:
 		break;
@@ -971,6 +1235,11 @@ static int __init lkdtm_module_init(void)
 	/* Make sure we can write to __ro_after_init values during __init */
 	ro_after_init |= 0xAA;
 
+	/* Prepare cache that lacks SLAB_USERCOPY flag. */
+	cache_size = clamp_t(int, alloc_size, 1, PAGE_SIZE);
+	bad_cache = kmem_cache_create("lkdtm-no-usercopy", cache_size, 0,
+				      0, NULL);
+
 	/* Register debugfs interface */
 	lkdtm_debugfs_root = debugfs_create_dir("provoke-crash", NULL);
 	if (!lkdtm_debugfs_root) {
@@ -1021,6 +1290,8 @@ out_err:
 static void __exit lkdtm_module_exit(void)
 {
 	debugfs_remove_recursive(lkdtm_debugfs_root);
+
+	kmem_cache_destroy(bad_cache);
 
 	unregister_jprobe(&lkdtm);
 	pr_info("Crash point unregistered\n");
