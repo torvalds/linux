@@ -1287,9 +1287,9 @@ static void rcu_dump_cpu_stacks(struct rcu_state *rsp)
 	rcu_for_each_leaf_node(rsp, rnp) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if (rnp->qsmask != 0) {
-			for (cpu = 0; cpu <= rnp->grphi - rnp->grplo; cpu++)
-				if (rnp->qsmask & (1UL << cpu))
-					dump_cpu_task(rnp->grplo + cpu);
+			for_each_leaf_node_possible_cpu(rnp, cpu)
+				if (rnp->qsmask & leaf_node_cpu_bit(rnp, cpu))
+					dump_cpu_task(cpu);
 		}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
@@ -1360,10 +1360,9 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gpnum)
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		ndetected += rcu_print_task_stall(rnp);
 		if (rnp->qsmask != 0) {
-			for (cpu = 0; cpu <= rnp->grphi - rnp->grplo; cpu++)
-				if (rnp->qsmask & (1UL << cpu)) {
-					print_cpu_stall_info(rsp,
-							     rnp->grplo + cpu);
+			for_each_leaf_node_possible_cpu(rnp, cpu)
+				if (rnp->qsmask & leaf_node_cpu_bit(rnp, cpu)) {
+					print_cpu_stall_info(rsp, cpu);
 					ndetected++;
 				}
 		}
@@ -2884,7 +2883,6 @@ static void force_qs_rnp(struct rcu_state *rsp,
 				  unsigned long *maxj),
 			 bool *isidle, unsigned long *maxj)
 {
-	unsigned long bit;
 	int cpu;
 	unsigned long flags;
 	unsigned long mask;
@@ -2919,9 +2917,8 @@ static void force_qs_rnp(struct rcu_state *rsp,
 				continue;
 			}
 		}
-		cpu = rnp->grplo;
-		bit = 1;
-		for (; cpu <= rnp->grphi; cpu++, bit <<= 1) {
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
+			unsigned long bit = leaf_node_cpu_bit(rnp, cpu);
 			if ((rnp->qsmask & bit) != 0) {
 				if (f(per_cpu_ptr(rsp->rda, cpu), isidle, maxj))
 					mask |= bit;
@@ -3750,7 +3747,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 
 	/* Set up local state, ensuring consistent view of global state. */
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
-	rdp->grpmask = 1UL << (cpu - rdp->mynode->grplo);
+	rdp->grpmask = leaf_node_cpu_bit(rdp->mynode, cpu);
 	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
 	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != DYNTICK_TASK_EXIT_IDLE);
 	WARN_ON_ONCE(atomic_read(&rdp->dynticks->dynticks) != 1);
