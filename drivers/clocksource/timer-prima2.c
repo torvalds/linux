@@ -19,7 +19,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/sched_clock.h>
-#include <asm/mach/time.h>
 
 #define PRIMA2_CLOCK_FREQ 1000000
 
