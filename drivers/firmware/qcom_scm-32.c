@@ -168,23 +168,6 @@ static inline void *qcom_scm_get_response_buffer(const struct qcom_scm_response 
 	return (void *)rsp + le32_to_cpu(rsp->buf_offset);
 }
 
-static int qcom_scm_remap_error(int err)
-{
-	pr_err("qcom_scm_call failed with error code %d\n", err);
-	switch (err) {
-	case QCOM_SCM_ERROR:
-		return -EIO;
-	case QCOM_SCM_EINVAL_ADDR:
-	case QCOM_SCM_EINVAL_ARG:
-		return -EINVAL;
-	case QCOM_SCM_EOPNOTSUPP:
-		return -EOPNOTSUPP;
-	case QCOM_SCM_ENOMEM:
-		return -ENOMEM;
-	}
-	return -EINVAL;
-}
-
 static u32 smc(u32 cmd_addr)
 {
 	int context_id;
