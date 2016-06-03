@@ -67,9 +67,18 @@ endif
 #
 #   make DEBUG=1 LIBUNWIND_DIR=/opt/libunwind/
 #
+
+libunwind_arch_set_flags = $(eval $(libunwind_arch_set_flags_code))
+define libunwind_arch_set_flags_code
+  FEATURE_CHECK_CFLAGS-libunwind-$(1)  = -I$(LIBUNWIND_DIR)/include
+  FEATURE_CHECK_LDFLAGS-libunwind-$(1) = -L$(LIBUNWIND_DIR)/lib
+endef
+
 ifdef LIBUNWIND_DIR
   LIBUNWIND_CFLAGS  = -I$(LIBUNWIND_DIR)/include
   LIBUNWIND_LDFLAGS = -L$(LIBUNWIND_DIR)/lib
+  LIBUNWIND_ARCHS = x86 x86_64 arm aarch64 debug-frame-arm debug-frame-aarch64
+  $(foreach libunwind_arch,$(LIBUNWIND_ARCHS),$(call libunwind_arch_set_flags,$(libunwind_arch)))
 endif
 LIBUNWIND_LDFLAGS += $(LIBUNWIND_LIBS)
 
