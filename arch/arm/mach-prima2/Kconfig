@@ -28,6 +28,7 @@ config ARCH_ATLAS7
 	default y
 	select ARM_GIC
 	select CPU_V7
+	select ATLAS7_TIMER
 	select HAVE_ARM_SCU if SMP
 	select HAVE_SMP
 	help
