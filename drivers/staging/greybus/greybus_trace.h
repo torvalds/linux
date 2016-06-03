@@ -302,7 +302,7 @@ DECLARE_EVENT_CLASS(gb_host_device,
 
 	TP_STRUCT__entry(
 		__field(int, bus_id)
-		__field(u8, num_cports)
+		__field(size_t, num_cports)
 		__field(size_t, buffer_size_max)
 	),
 
@@ -312,7 +312,7 @@ DECLARE_EVENT_CLASS(gb_host_device,
 		__entry->buffer_size_max = hd->buffer_size_max;
 	),
 
-	TP_printk("greybus: bus_id=%d num_cports=%hu mtu=%zu",
+	TP_printk("greybus: bus_id=%d num_cports=%zu mtu=%zu",
 		__entry->bus_id, __entry->num_cports,
 		__entry->buffer_size_max)
 );
