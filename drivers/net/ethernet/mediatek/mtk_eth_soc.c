@@ -229,6 +229,9 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 	u32 val, ge_mode;
 
 	np = of_parse_phandle(mac->of_node, "phy-handle", 0);
+	if (!np && of_phy_is_fixed_link(mac->of_node))
+		if (!of_phy_register_fixed_link(mac->of_node))
+			np = of_node_get(mac->of_node);
 	if (!np)
 		return -ENODEV;
 
