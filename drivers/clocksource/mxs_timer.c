@@ -31,8 +31,6 @@
 #include <linux/stmp_device.h>
 #include <linux/sched_clock.h>
 
-#include <asm/mach/time.h>
-
 /*
  * There are 2 versions of the timrot on Freescale MXS-based SoCs.
  * The v1 on MX23 only gets 16 bits counter, while v2 on MX28
