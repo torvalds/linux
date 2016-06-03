@@ -226,7 +226,8 @@ static unsigned long __dma_alloc_iommu(struct device *dev,
 	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
 			      PAGE_SIZE) >> PAGE_SHIFT;
 	return iommu_area_alloc(zdev->iommu_bitmap, zdev->iommu_pages,
-				start, size, 0, boundary_size, 0);
+				start, size, zdev->start_dma >> PAGE_SHIFT,
+				boundary_size, 0);
 }
 
 static unsigned long dma_alloc_iommu(struct device *dev, int size)
