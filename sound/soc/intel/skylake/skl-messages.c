@@ -1130,6 +1130,29 @@ int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 	return 0;
 }
 
+/*
+ * Reset the pipeline by sending set pipe state IPC this will reset the DMA
+ * from the DSP side
+ */
+int skl_reset_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
+{
+	int ret;
+
+	/* If pipe was not created in FW, do not try to pause or delete */
+	if (pipe->state < SKL_PIPE_PAUSED)
+		return 0;
+
+	ret = skl_set_pipe_state(ctx, pipe, PPL_RESET);
+	if (ret < 0) {
+		dev_dbg(ctx->dev, "Failed to reset pipe ret=%d\n", ret);
+		return ret;
+	}
+
+	pipe->state = SKL_PIPE_RESET;
+
+	return 0;
+}
+
 /* Algo parameter set helper function */
 int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
 				u32 param_id, struct skl_module_cfg *mcfg)

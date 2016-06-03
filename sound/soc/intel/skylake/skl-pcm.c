@@ -227,15 +227,24 @@ static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
+	struct skl *skl = get_skl_ctx(dai->dev);
 	unsigned int format_val;
 	int err;
+	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
+
+	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
 
 	format_val = skl_get_format(substream, dai);
 	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d\n",
 				hdac_stream(stream)->stream_tag, format_val);
 	snd_hdac_stream_reset(hdac_stream(stream));
+
+	/* In case of XRUN recovery, reset the FW pipe to clean state */
+	if (mconfig && (substream->runtime->status->state ==
+					SNDRV_PCM_STATE_XRUN))
+		skl_reset_pipe(skl->skl_sst, mconfig->pipe);
 
 	err = snd_hdac_stream_set_params(hdac_stream(stream), format_val);
 	if (err < 0)
@@ -521,6 +530,8 @@ static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 	struct skl_dma_params *dma_params;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct hdac_ext_link *link;
+	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_module_cfg *mconfig = NULL;
 
 	dma_params  = (struct skl_dma_params *)
 			snd_soc_dai_get_dma_data(codec_dai, substream);
@@ -534,6 +545,12 @@ static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	snd_hdac_ext_link_stream_reset(link_dev);
+
+	/* In case of XRUN recovery, reset the FW pipe to clean state */
+	mconfig = skl_tplg_be_get_cpr_module(dai, substream->stream);
+	if (mconfig && (substream->runtime->status->state ==
+					SNDRV_PCM_STATE_XRUN))
+		skl_reset_pipe(skl->skl_sst, mconfig->pipe);
 
 	snd_hdac_ext_link_stream_setup(link_dev, format_val);
 
