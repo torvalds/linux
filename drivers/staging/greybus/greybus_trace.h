@@ -168,8 +168,8 @@ DECLARE_EVENT_CLASS(gb_interface,
 	TP_ARGS(intf),
 
 	TP_STRUCT__entry(
-		__field(u8, id)		/* Interface id */
 		__field(u8, module_id)
+		__field(u8, id)		/* Interface id */
 		__field(u8, device_id)
 		__field(int, disconnected)	/* bool */
 		__field(int, ejected)		/* bool */
@@ -178,8 +178,8 @@ DECLARE_EVENT_CLASS(gb_interface,
 	),
 
 	TP_fast_assign(
-		__entry->id = intf->interface_id;
 		__entry->module_id = intf->module->module_id;
+		__entry->id = intf->interface_id;
 		__entry->device_id = intf->device_id;
 		__entry->disconnected = intf->disconnected;
 		__entry->ejected = intf->ejected;
