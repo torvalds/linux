@@ -80,13 +80,12 @@ ifdef LIBUNWIND_DIR
   LIBUNWIND_ARCHS = x86 x86_64 arm aarch64 debug-frame-arm debug-frame-aarch64
   $(foreach libunwind_arch,$(LIBUNWIND_ARCHS),$(call libunwind_arch_set_flags,$(libunwind_arch)))
 endif
-LIBUNWIND_LDFLAGS += $(LIBUNWIND_LIBS)
 
 # Set per-feature check compilation flags
 FEATURE_CHECK_CFLAGS-libunwind = $(LIBUNWIND_CFLAGS)
-FEATURE_CHECK_LDFLAGS-libunwind = $(LIBUNWIND_LDFLAGS)
+FEATURE_CHECK_LDFLAGS-libunwind = $(LIBUNWIND_LDFLAGS) $(LIBUNWIND_LIBS)
 FEATURE_CHECK_CFLAGS-libunwind-debug-frame = $(LIBUNWIND_CFLAGS)
-FEATURE_CHECK_LDFLAGS-libunwind-debug-frame = $(LIBUNWIND_LDFLAGS)
+FEATURE_CHECK_LDFLAGS-libunwind-debug-frame = $(LIBUNWIND_LDFLAGS) $(LIBUNWIND_LIBS)
 
 ifeq ($(NO_PERF_REGS),0)
   CFLAGS += -DHAVE_PERF_REGS_SUPPORT
@@ -409,7 +408,7 @@ ifndef NO_LIBUNWIND
   CFLAGS  += -DHAVE_LIBUNWIND_SUPPORT
   EXTLIBS += $(LIBUNWIND_LIBS)
   CFLAGS  += $(LIBUNWIND_CFLAGS)
-  LDFLAGS += $(LIBUNWIND_LDFLAGS)
+  LDFLAGS += $(LIBUNWIND_LDFLAGS) $(LIBUNWIND_LIBS)
 endif
 
 ifndef NO_LIBAUDIT
