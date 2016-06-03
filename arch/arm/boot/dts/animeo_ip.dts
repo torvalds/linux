@@ -114,7 +114,7 @@
 			};
 		};
 
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			num-ports = <2>;
 			atmel,vbus-gpio = <&pioB 15 GPIO_ACTIVE_LOW>;
 			status = "okay";
