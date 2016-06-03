@@ -40,8 +40,7 @@ static int
 gf119_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
 	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 loff = gf119_sor_loff(outp);
-	nvkm_mask(device, 0x61c110 + loff, 0x0f0f0f0f, 0x01010101 * pattern);
+	nvkm_mask(device, 0x61c110, 0x0f0f0f0f, 0x01010101 * pattern);
 	return 0;
 }
 
