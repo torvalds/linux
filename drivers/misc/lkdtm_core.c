@@ -1,5 +1,9 @@
 /*
- * Kprobe module for testing crash dumps
+ * Linux Kernel Dump Test Module for testing kernel crashes conditions:
+ * induces system failures at predefined crashpoints and under predefined
+ * operational conditions in order to evaluate the reliability of kernel
+ * sanity checking and crash dumps obtained using different dumping
+ * solutions.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +23,6 @@
  *
  * Author: Ankita Garg <ankita@in.ibm.com>
  *
- * This module induces system failures at predefined crashpoints to
- * evaluate the reliability of crash dumps obtained using different dumping
- * solutions.
- *
  * It is adapted from the Linux Kernel Dump Test Tool by
  * Fernando Luis Vazquez Cao <http://lkdtt.sourceforge.net>
  *
@@ -30,7 +30,7 @@
  *
  * See Documentation/fault-injection/provoke-crashes.txt for instructions
  */
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) "lkdtm: " fmt
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
