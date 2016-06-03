@@ -24,6 +24,7 @@
 #include "hns_dsaf_main.h"
 #include "hns_dsaf_ppe.h"
 #include "hns_dsaf_rcb.h"
+#include "hns_dsaf_misc.h"
 
 const char *g_dsaf_mode_match[DSAF_MODE_MAX] = {
 	[DSAF_MODE_DISABLE_2PORT_64VM] = "2port-64vf",
@@ -173,6 +174,10 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 			"buf_size(%d) is wrong!\n", buf_size);
 		goto unmap_base_addr;
 	}
+
+	dsaf_dev->misc_op = hns_misc_op_get(dsaf_dev);
+	if (!dsaf_dev->misc_op)
+		return -ENOMEM;
 
 	if (!dma_set_mask_and_coherent(dsaf_dev->dev, DMA_BIT_MASK(64ULL)))
 		dev_dbg(dsaf_dev->dev, "set mask to 64bit\n");
@@ -1296,9 +1301,9 @@ static int hns_dsaf_init_hw(struct dsaf_device *dsaf_dev)
 	dev_dbg(dsaf_dev->dev,
 		"hns_dsaf_init_hw begin %s !\n", dsaf_dev->ae_dev.name);
 
-	hns_dsaf_rst(dsaf_dev, 0);
+	dsaf_dev->misc_op->dsaf_reset(dsaf_dev, 0);
 	mdelay(10);
-	hns_dsaf_rst(dsaf_dev, 1);
+	dsaf_dev->misc_op->dsaf_reset(dsaf_dev, 1);
 
 	hns_dsaf_comm_init(dsaf_dev);
 
@@ -1326,7 +1331,7 @@ static int hns_dsaf_init_hw(struct dsaf_device *dsaf_dev)
 static void hns_dsaf_remove_hw(struct dsaf_device *dsaf_dev)
 {
 	/*reset*/
-	hns_dsaf_rst(dsaf_dev, 0);
+	dsaf_dev->misc_op->dsaf_reset(dsaf_dev, 0);
 }
 
 /**

@@ -448,8 +448,6 @@ int hns_mac_set_pauseparam(struct hns_mac_cb *mac_cb, u32 rx_en, u32 tx_en);
 int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu);
 int hns_mac_get_port_info(struct hns_mac_cb *mac_cb,
 			  u8 *auto_neg, u16 *speed, u8 *duplex);
-phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb);
-int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, u8 en);
 int hns_mac_config_mac_loopback(struct hns_mac_cb *mac_cb,
 				enum hnae_loop loop, int en);
 void hns_mac_update_stats(struct hns_mac_cb *mac_cb);

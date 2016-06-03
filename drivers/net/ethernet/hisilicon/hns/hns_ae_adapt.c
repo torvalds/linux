@@ -637,13 +637,15 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 	int ret;
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 
 	switch (loop) {
 	case MAC_INTERNALLOOP_PHY:
 		ret = 0;
 		break;
 	case MAC_INTERNALLOOP_SERDES:
-		ret = hns_mac_config_sds_loopback(vf_cb->mac_cb, en);
+		ret = dsaf_dev->misc_op->cfg_serdes_loopback(vf_cb->mac_cb,
+							     !!en);
 		break;
 	case MAC_INTERNALLOOP_MAC:
 		ret = hns_mac_config_mac_loopback(vf_cb->mac_cb, loop, en);

@@ -95,7 +95,7 @@ void hns_mac_get_link_status(struct hns_mac_cb *mac_cb, u32 *link_status)
 	else
 		*link_status = 0;
 
-	ret = hns_mac_get_sfp_prsnt(mac_cb, &sfp_prsnt);
+	ret = mac_cb->dsaf_dev->misc_op->get_sfp_prsnt(mac_cb, &sfp_prsnt);
 	if (!ret)
 		*link_status = *link_status && sfp_prsnt;
 
@@ -512,7 +512,7 @@ void hns_mac_stop(struct hns_mac_cb *mac_cb)
 
 	mac_ctrl_drv->mac_en_flg = 0;
 	mac_cb->link = 0;
-	cpld_led_reset(mac_cb);
+	mac_cb->dsaf_dev->misc_op->cpld_reset_led(mac_cb);
 }
 
 /**
@@ -804,7 +804,7 @@ int hns_mac_get_cfg(struct dsaf_device *dsaf_dev, struct hns_mac_cb *mac_cb)
 	else
 		mac_cb->mac_type = HNAE_PORT_DEBUG;
 
-	mac_cb->phy_if = hns_mac_get_phy_if(mac_cb);
+	mac_cb->phy_if = dsaf_dev->misc_op->get_phy_if(mac_cb);
 
 	ret = hns_mac_get_mode(mac_cb->phy_if);
 	if (ret < 0) {
@@ -819,7 +819,7 @@ int hns_mac_get_cfg(struct dsaf_device *dsaf_dev, struct hns_mac_cb *mac_cb)
 	if (ret)
 		return ret;
 
-	cpld_led_reset(mac_cb);
+	mac_cb->dsaf_dev->misc_op->cpld_reset_led(mac_cb);
 	mac_cb->vaddr = hns_mac_get_vaddr(dsaf_dev, mac_cb, mac_mode_idx);
 
 	return 0;
@@ -906,7 +906,7 @@ void hns_mac_uninit(struct dsaf_device *dsaf_dev)
 	int max_port_num = hns_mac_get_max_port_num(dsaf_dev);
 
 	for (i = 0; i < max_port_num; i++) {
-		cpld_led_reset(dsaf_dev->mac_cb[i]);
+		dsaf_dev->misc_op->cpld_reset_led(dsaf_dev->mac_cb[i]);
 		dsaf_dev->mac_cb[i] = NULL;
 	}
 }
@@ -989,7 +989,7 @@ void hns_set_led_opt(struct hns_mac_cb *mac_cb)
 		nic_data = 0;
 	mac_cb->txpkt_for_led = mac_cb->hw_stats.tx_good_pkts;
 	mac_cb->rxpkt_for_led = mac_cb->hw_stats.rx_good_pkts;
-	hns_cpld_set_led(mac_cb, (int)mac_cb->link,
+	mac_cb->dsaf_dev->misc_op->cpld_set_led(mac_cb, (int)mac_cb->link,
 			 mac_cb->speed, nic_data);
 }
 
@@ -999,5 +999,5 @@ int hns_cpld_led_set_id(struct hns_mac_cb *mac_cb,
 	if (!mac_cb || !mac_cb->cpld_ctrl)
 		return 0;
 
-	return cpld_set_led_id(mac_cb, status);
+	return mac_cb->dsaf_dev->misc_op->cpld_set_led_id(mac_cb, status);
 }
