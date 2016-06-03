@@ -579,7 +579,7 @@ static unw_accessors_t accessors = {
 	.get_proc_name		= get_proc_name,
 };
 
-int unwind__prepare_access(struct thread *thread)
+static int _unwind__prepare_access(struct thread *thread)
 {
 	if (callchain_param.record_mode != CALLCHAIN_DWARF)
 		return 0;
@@ -594,7 +594,7 @@ int unwind__prepare_access(struct thread *thread)
 	return 0;
 }
 
-void unwind__flush_access(struct thread *thread)
+static void _unwind__flush_access(struct thread *thread)
 {
 	if (callchain_param.record_mode != CALLCHAIN_DWARF)
 		return;
@@ -602,7 +602,7 @@ void unwind__flush_access(struct thread *thread)
 	unw_flush_cache(thread->addr_space, 0, 0);
 }
 
-void unwind__finish_access(struct thread *thread)
+static void _unwind__finish_access(struct thread *thread)
 {
 	if (callchain_param.record_mode != CALLCHAIN_DWARF)
 		return;
@@ -662,7 +662,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	return ret;
 }
 
-int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
+static int _unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct thread *thread,
 			struct perf_sample *data, int max_stack)
 {
@@ -679,4 +679,49 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 		return -EINVAL;
 
 	return get_entries(&ui, cb, arg, max_stack);
+}
+
+static struct unwind_libunwind_ops
+_unwind_libunwind_ops = {
+	.prepare_access = _unwind__prepare_access,
+	.flush_access   = _unwind__flush_access,
+	.finish_access  = _unwind__finish_access,
+	.get_entries    = _unwind__get_entries,
+};
+
+struct unwind_libunwind_ops *
+local_unwind_libunwind_ops = &_unwind_libunwind_ops;
+
+static void unwind__register_ops(struct thread *thread,
+				 struct unwind_libunwind_ops *ops)
+{
+	thread->unwind_libunwind_ops = ops;
+}
+
+int unwind__prepare_access(struct thread *thread)
+{
+	unwind__register_ops(thread, local_unwind_libunwind_ops);
+
+	return thread->unwind_libunwind_ops->prepare_access(thread);
+}
+
+void unwind__flush_access(struct thread *thread)
+{
+	if (thread->unwind_libunwind_ops)
+		thread->unwind_libunwind_ops->flush_access(thread);
+}
+
+void unwind__finish_access(struct thread *thread)
+{
+	if (thread->unwind_libunwind_ops)
+		thread->unwind_libunwind_ops->finish_access(thread);
+}
+
+int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
+			 struct thread *thread,
+			 struct perf_sample *data, int max_stack)
+{
+	if (thread->unwind_libunwind_ops)
+		return thread->unwind_libunwind_ops->get_entries(cb, arg, thread, data, max_stack);
+	return 0;
 }

@@ -11,6 +11,7 @@
 #include <intlist.h>
 
 struct thread_stack;
+struct unwind_libunwind_ops;
 
 struct thread {
 	union {
@@ -33,7 +34,8 @@ struct thread {
 	void			*priv;
 	struct thread_stack	*ts;
 #ifdef HAVE_LIBUNWIND_SUPPORT
-	void			*addr_space;
+	void				*addr_space;
+	struct unwind_libunwind_ops	*unwind_libunwind_ops;
 #endif
 };
 
