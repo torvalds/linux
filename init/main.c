@@ -801,16 +801,16 @@ __setup("initcall_blacklist=", initcall_blacklist);
 
 static int __init_or_module do_one_initcall_debug(initcall_t fn)
 {
-	ktime_t calltime, delta, rettime;
+	unsigned long long calltime, delta, rettime;
 	unsigned long long duration;
 	int ret;
 
 	printk(KERN_DEBUG "calling  %pF @ %i\n", fn, task_pid_nr(current));
-	calltime = ktime_get();
+	calltime = local_clock();
 	ret = fn();
-	rettime = ktime_get();
-	delta = ktime_sub(rettime, calltime);
-	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+	rettime = local_clock();
+	delta = rettime - calltime;
+	duration = delta >> 10;
 	printk(KERN_DEBUG "initcall %pF returned %d after %lld usecs\n",
 		 fn, ret, duration);
 
