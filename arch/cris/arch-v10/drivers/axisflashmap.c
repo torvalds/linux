@@ -397,7 +397,7 @@ static int __init init_axis_flash(void)
 	if (!romfs_in_flash) {
 		/* Create an RAM device for the root partition (romfs). */
 
-#if !defined(CONFIG_MTD_MTDRAM) || (CONFIG_MTDRAM_TOTAL_SIZE != 0) || (CONFIG_MTDRAM_ABS_POS != 0)
+#if !defined(CONFIG_MTD_MTDRAM) || (CONFIG_MTDRAM_TOTAL_SIZE != 0)
 		/* No use trying to boot this kernel from RAM. Panic! */
 		printk(KERN_EMERG "axisflashmap: Cannot create an MTD RAM "
 		       "device due to kernel (mis)configuration!\n");
