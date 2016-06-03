@@ -3526,7 +3526,7 @@ static void srp_add_one(struct ib_device *device)
 	int mr_page_shift, p;
 	u64 max_pages_per_mr;
 
-	srp_dev = kmalloc(sizeof *srp_dev, GFP_KERNEL);
+	srp_dev = kzalloc(sizeof(*srp_dev), GFP_KERNEL);
 	if (!srp_dev)
 		return;
 
@@ -3586,8 +3586,6 @@ static void srp_add_one(struct ib_device *device)
 						   IB_ACCESS_REMOTE_WRITE);
 		if (IS_ERR(srp_dev->global_mr))
 			goto err_pd;
-	} else {
-		srp_dev->global_mr = NULL;
 	}
 
 	for (p = rdma_start_port(device); p <= rdma_end_port(device); ++p) {
