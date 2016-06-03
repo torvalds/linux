@@ -16,6 +16,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/hardirq.h>
+#include <asm/intel-family.h>
 #include <asm/apic.h>
 
 #include "../perf_event.h"
@@ -3319,11 +3320,11 @@ static int intel_snb_pebs_broken(int cpu)
 	u32 rev = UINT_MAX; /* default to broken for unknown models */
 
 	switch (cpu_data(cpu).x86_model) {
-	case 42: /* SNB */
+	case INTEL_FAM6_SANDYBRIDGE:
 		rev = 0x28;
 		break;
 
-	case 45: /* SNB-EP */
+	case INTEL_FAM6_SANDYBRIDGE_X:
 		switch (cpu_data(cpu).x86_mask) {
 		case 6: rev = 0x618; break;
 		case 7: rev = 0x70c; break;
@@ -3573,15 +3574,15 @@ __init int intel_pmu_init(void)
 	 * Install the hw-cache-events table:
 	 */
 	switch (boot_cpu_data.x86_model) {
-	case 14: /* 65nm Core "Yonah" */
+	case INTEL_FAM6_CORE_YONAH:
 		pr_cont("Core events, ");
 		break;
 
-	case 15: /* 65nm Core2 "Merom"          */
+	case INTEL_FAM6_CORE2_MEROM:
 		x86_add_quirk(intel_clovertown_quirk);
-	case 22: /* 65nm Core2 "Merom-L"        */
-	case 23: /* 45nm Core2 "Penryn"         */
-	case 29: /* 45nm Core2 "Dunnington (MP) */
+	case INTEL_FAM6_CORE2_MEROM_L:
+	case INTEL_FAM6_CORE2_PENRYN:
+	case INTEL_FAM6_CORE2_DUNNINGTON:
 		memcpy(hw_cache_event_ids, core2_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 
@@ -3592,9 +3593,9 @@ __init int intel_pmu_init(void)
 		pr_cont("Core2 events, ");
 		break;
 
-	case 30: /* 45nm Nehalem    */
-	case 26: /* 45nm Nehalem-EP */
-	case 46: /* 45nm Nehalem-EX */
+	case INTEL_FAM6_NEHALEM:
+	case INTEL_FAM6_NEHALEM_EP:
+	case INTEL_FAM6_NEHALEM_EX:
 		memcpy(hw_cache_event_ids, nehalem_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, nehalem_hw_cache_extra_regs,
@@ -3622,11 +3623,11 @@ __init int intel_pmu_init(void)
 		pr_cont("Nehalem events, ");
 		break;
 
-	case 28: /* 45nm Atom "Pineview"   */
-	case 38: /* 45nm Atom "Lincroft"   */
-	case 39: /* 32nm Atom "Penwell"    */
-	case 53: /* 32nm Atom "Cloverview" */
-	case 54: /* 32nm Atom "Cedarview"  */
+	case INTEL_FAM6_ATOM_PINEVIEW:
+	case INTEL_FAM6_ATOM_LINCROFT:
+	case INTEL_FAM6_ATOM_PENWELL:
+	case INTEL_FAM6_ATOM_CLOVERVIEW:
+	case INTEL_FAM6_ATOM_CEDARVIEW:
 		memcpy(hw_cache_event_ids, atom_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 
@@ -3638,9 +3639,9 @@ __init int intel_pmu_init(void)
 		pr_cont("Atom events, ");
 		break;
 
-	case 55: /* 22nm Atom "Silvermont"                */
-	case 76: /* 14nm Atom "Airmont"                   */
-	case 77: /* 22nm Atom "Silvermont Avoton/Rangely" */
+	case INTEL_FAM6_ATOM_SILVERMONT1:
+	case INTEL_FAM6_ATOM_SILVERMONT2:
+	case INTEL_FAM6_ATOM_AIRMONT:
 		memcpy(hw_cache_event_ids, slm_hw_cache_event_ids,
 			sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, slm_hw_cache_extra_regs,
@@ -3656,8 +3657,8 @@ __init int intel_pmu_init(void)
 		pr_cont("Silvermont events, ");
 		break;
 
-	case 92: /* 14nm Atom "Goldmont" */
-	case 95: /* 14nm Atom "Goldmont Denverton" */
+	case INTEL_FAM6_ATOM_GOLDMONT:
+	case INTEL_FAM6_ATOM_DENVERTON:
 		memcpy(hw_cache_event_ids, glm_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, glm_hw_cache_extra_regs,
@@ -3680,9 +3681,9 @@ __init int intel_pmu_init(void)
 		pr_cont("Goldmont events, ");
 		break;
 
-	case 37: /* 32nm Westmere    */
-	case 44: /* 32nm Westmere-EP */
-	case 47: /* 32nm Westmere-EX */
+	case INTEL_FAM6_WESTMERE:
+	case INTEL_FAM6_WESTMERE_EP:
+	case INTEL_FAM6_WESTMERE_EX:
 		memcpy(hw_cache_event_ids, westmere_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, nehalem_hw_cache_extra_regs,
@@ -3709,8 +3710,8 @@ __init int intel_pmu_init(void)
 		pr_cont("Westmere events, ");
 		break;
 
-	case 42: /* 32nm SandyBridge         */
-	case 45: /* 32nm SandyBridge-E/EN/EP */
+	case INTEL_FAM6_SANDYBRIDGE:
+	case INTEL_FAM6_SANDYBRIDGE_X:
 		x86_add_quirk(intel_sandybridge_quirk);
 		x86_add_quirk(intel_ht_bug);
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
@@ -3723,7 +3724,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.event_constraints = intel_snb_event_constraints;
 		x86_pmu.pebs_constraints = intel_snb_pebs_event_constraints;
 		x86_pmu.pebs_aliases = intel_pebs_aliases_snb;
-		if (boot_cpu_data.x86_model == 45)
+		if (boot_cpu_data.x86_model == INTEL_FAM6_SANDYBRIDGE_X)
 			x86_pmu.extra_regs = intel_snbep_extra_regs;
 		else
 			x86_pmu.extra_regs = intel_snb_extra_regs;
@@ -3745,8 +3746,8 @@ __init int intel_pmu_init(void)
 		pr_cont("SandyBridge events, ");
 		break;
 
-	case 58: /* 22nm IvyBridge       */
-	case 62: /* 22nm IvyBridge-EP/EX */
+	case INTEL_FAM6_IVYBRIDGE:
+	case INTEL_FAM6_IVYBRIDGE_X:
 		x86_add_quirk(intel_ht_bug);
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
@@ -3762,7 +3763,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.pebs_constraints = intel_ivb_pebs_event_constraints;
 		x86_pmu.pebs_aliases = intel_pebs_aliases_ivb;
 		x86_pmu.pebs_prec_dist = true;
-		if (boot_cpu_data.x86_model == 62)
+		if (boot_cpu_data.x86_model == INTEL_FAM6_IVYBRIDGE_X)
 			x86_pmu.extra_regs = intel_snbep_extra_regs;
 		else
 			x86_pmu.extra_regs = intel_snb_extra_regs;
@@ -3780,10 +3781,10 @@ __init int intel_pmu_init(void)
 		break;
 
 
-	case 60: /* 22nm Haswell Core */
-	case 63: /* 22nm Haswell Server */
-	case 69: /* 22nm Haswell ULT */
-	case 70: /* 22nm Haswell + GT3e (Intel Iris Pro graphics) */
+	case INTEL_FAM6_HASWELL_CORE:
+	case INTEL_FAM6_HASWELL_X:
+	case INTEL_FAM6_HASWELL_ULT:
+	case INTEL_FAM6_HASWELL_GT3E:
 		x86_add_quirk(intel_ht_bug);
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, hsw_hw_cache_event_ids, sizeof(hw_cache_event_ids));
@@ -3807,10 +3808,10 @@ __init int intel_pmu_init(void)
 		pr_cont("Haswell events, ");
 		break;
 
-	case 61: /* 14nm Broadwell Core-M */
-	case 86: /* 14nm Broadwell Xeon D */
-	case 71: /* 14nm Broadwell + GT3e (Intel Iris Pro graphics) */
-	case 79: /* 14nm Broadwell Server */
+	case INTEL_FAM6_BROADWELL_CORE:
+	case INTEL_FAM6_BROADWELL_XEON_D:
+	case INTEL_FAM6_BROADWELL_GT3E:
+	case INTEL_FAM6_BROADWELL_X:
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, hsw_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, hsw_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
@@ -3843,7 +3844,7 @@ __init int intel_pmu_init(void)
 		pr_cont("Broadwell events, ");
 		break;
 
-	case 87: /* Knights Landing Xeon Phi */
+	case INTEL_FAM6_XEON_PHI_KNL:
 		memcpy(hw_cache_event_ids,
 		       slm_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs,
@@ -3861,11 +3862,11 @@ __init int intel_pmu_init(void)
 		pr_cont("Knights Landing events, ");
 		break;
 
-	case 142: /* 14nm Kabylake Mobile */
-	case 158: /* 14nm Kabylake Desktop */
-	case 78: /* 14nm Skylake Mobile */
-	case 94: /* 14nm Skylake Desktop */
-	case 85: /* 14nm Skylake Server */
+	case INTEL_FAM6_SKYLAKE_MOBILE:
+	case INTEL_FAM6_SKYLAKE_DESKTOP:
+	case INTEL_FAM6_SKYLAKE_X:
+	case INTEL_FAM6_KABYLAKE_MOBILE:
+	case INTEL_FAM6_KABYLAKE_DESKTOP:
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, skl_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, skl_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
