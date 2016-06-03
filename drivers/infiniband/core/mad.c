@@ -1638,9 +1638,9 @@ static void remove_mad_reg_req(struct ib_mad_agent_private *agent_priv)
 		/* Now, check to see if there are any methods still in use */
 		if (!check_method_table(method)) {
 			/* If not, release management method table */
-			 kfree(method);
-			 class->method_table[mgmt_class] = NULL;
-			 /* Any management classes left ? */
+			kfree(method);
+			class->method_table[mgmt_class] = NULL;
+			/* Any management classes left ? */
 			if (!check_class_table(class)) {
 				/* If not, release management class table */
 				kfree(class);
