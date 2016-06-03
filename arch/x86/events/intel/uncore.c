@@ -1,4 +1,5 @@
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include "uncore.h"
 
 static struct intel_uncore_type *empty_uncore[] = { NULL, };
@@ -1382,26 +1383,26 @@ static const struct intel_uncore_init_fun skl_uncore_init __initconst = {
 };
 
 static const struct x86_cpu_id intel_uncore_match[] __initconst = {
-	X86_UNCORE_MODEL_MATCH(26, nhm_uncore_init),	/* Nehalem */
-	X86_UNCORE_MODEL_MATCH(30, nhm_uncore_init),
-	X86_UNCORE_MODEL_MATCH(37, nhm_uncore_init),	/* Westmere */
-	X86_UNCORE_MODEL_MATCH(44, nhm_uncore_init),
-	X86_UNCORE_MODEL_MATCH(42, snb_uncore_init),	/* Sandy Bridge */
-	X86_UNCORE_MODEL_MATCH(58, ivb_uncore_init),	/* Ivy Bridge */
-	X86_UNCORE_MODEL_MATCH(60, hsw_uncore_init),	/* Haswell */
-	X86_UNCORE_MODEL_MATCH(69, hsw_uncore_init),	/* Haswell Celeron */
-	X86_UNCORE_MODEL_MATCH(70, hsw_uncore_init),	/* Haswell */
-	X86_UNCORE_MODEL_MATCH(61, bdw_uncore_init),	/* Broadwell */
-	X86_UNCORE_MODEL_MATCH(71, bdw_uncore_init),	/* Broadwell */
-	X86_UNCORE_MODEL_MATCH(45, snbep_uncore_init),	/* Sandy Bridge-EP */
-	X86_UNCORE_MODEL_MATCH(46, nhmex_uncore_init),	/* Nehalem-EX */
-	X86_UNCORE_MODEL_MATCH(47, nhmex_uncore_init),	/* Westmere-EX aka. Xeon E7 */
-	X86_UNCORE_MODEL_MATCH(62, ivbep_uncore_init),	/* Ivy Bridge-EP */
-	X86_UNCORE_MODEL_MATCH(63, hswep_uncore_init),	/* Haswell-EP */
-	X86_UNCORE_MODEL_MATCH(79, bdx_uncore_init),	/* BDX-EP */
-	X86_UNCORE_MODEL_MATCH(86, bdx_uncore_init),	/* BDX-DE */
-	X86_UNCORE_MODEL_MATCH(87, knl_uncore_init),	/* Knights Landing */
-	X86_UNCORE_MODEL_MATCH(94, skl_uncore_init),	/* SkyLake */
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_NEHALEM_EP,	  nhm_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_NEHALEM,	  nhm_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_WESTMERE,	  nhm_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_WESTMERE_EP,	  nhm_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_SANDYBRIDGE,	  snb_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_IVYBRIDGE,	  ivb_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_HASWELL_CORE,	  hsw_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_HASWELL_ULT,	  hsw_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_HASWELL_GT3E,	  hsw_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_BROADWELL_CORE, bdw_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_BROADWELL_GT3E, bdw_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_SANDYBRIDGE_X,  snbep_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_NEHALEM_EX,	  nhmex_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_WESTMERE_EX,	  nhmex_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_IVYBRIDGE_X,	  ivbep_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_HASWELL_X,	  hswep_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_BROADWELL_X,	  bdx_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_BROADWELL_XEON_D, bdx_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_XEON_PHI_KNL,	  knl_uncore_init),
+	X86_UNCORE_MODEL_MATCH(INTEL_FAM6_SKYLAKE_DESKTOP,skl_uncore_init),
 	{},
 };
 
