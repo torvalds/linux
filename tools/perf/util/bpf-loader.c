@@ -1270,7 +1270,7 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 		pr_debug("ERROR: failed to get definition from map %s\n", name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
-	map_fd = bpf_map__get_fd(map);
+	map_fd = bpf_map__fd(map);
 	if (map_fd < 0) {
 		pr_debug("ERROR: failed to get fd from map %s\n", name);
 		return map_fd;

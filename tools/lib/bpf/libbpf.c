@@ -1311,12 +1311,9 @@ int bpf_program__nth_fd(struct bpf_program *prog, int n)
 	return fd;
 }
 
-int bpf_map__get_fd(struct bpf_map *map)
+int bpf_map__fd(struct bpf_map *map)
 {
-	if (!map)
-		return -EINVAL;
-
-	return map->fd;
+	return map ? map->fd : -EINVAL;
 }
 
 const struct bpf_map_def *bpf_map__def(struct bpf_map *map)
