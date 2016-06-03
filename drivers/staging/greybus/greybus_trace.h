@@ -20,11 +20,6 @@ struct gb_connection;
 struct gb_bundle;
 struct gb_host_device;
 
-#define gb_bundle_name(message)						\
-	(message->operation->connection->bundle ?			\
-	dev_name(&message->operation->connection->bundle->dev) :	\
-	dev_name(&message->operation->connection->hd->svc->dev))
-
 DECLARE_EVENT_CLASS(gb_message,
 
 	TP_PROTO(struct gb_message *message),
@@ -32,26 +27,23 @@ DECLARE_EVENT_CLASS(gb_message,
 	TP_ARGS(message),
 
 	TP_STRUCT__entry(
-		__string(name, gb_bundle_name(message))
-		__field(u16, op_id)
-		__field(u16, intf_cport_id)
-		__field(u16, hd_cport_id)
-		__field(size_t, payload_size)
+		__field(u16, size)
+		__field(u16, operation_id)
+		__field(u8, type)
+		__field(u8, result)
 	),
 
 	TP_fast_assign(
-		__assign_str(name, gb_bundle_name(message))
-		__entry->op_id = message->operation->id;
-		__entry->intf_cport_id =
-			message->operation->connection->intf_cport_id;
-		__entry->hd_cport_id =
-			message->operation->connection->hd_cport_id;
-		__entry->payload_size = message->payload_size;
+		__entry->size = le16_to_cpu(message->header->size);
+		__entry->operation_id =
+			le16_to_cpu(message->header->operation_id);
+		__entry->type = message->header->type;
+		__entry->result = message->header->result;
 	),
 
-	TP_printk("greybus:%s op=%04x if_id=%u hd_id=%u l=%zu",
-		  __get_str(name), __entry->op_id, __entry->intf_cport_id,
-		  __entry->hd_cport_id, __entry->payload_size)
+	TP_printk("greybus: size=%hu operation_id=0x%04x type=0x%02x result=0x%02x",
+		  __entry->size, __entry->operation_id,
+		  __entry->type, __entry->result)
 );
 
 #define DEFINE_MESSAGE_EVENT(name)					\
