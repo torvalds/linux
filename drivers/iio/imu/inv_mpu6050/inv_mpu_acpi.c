@@ -56,6 +56,7 @@ static int asus_acpi_get_sensor_info(struct acpi_device *adev,
 	int i;
 	acpi_status status;
 	union acpi_object *cpm;
+	int ret;
 
 	status = acpi_evaluate_object(adev->handle, "CNF0", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -82,10 +83,10 @@ static int asus_acpi_get_sensor_info(struct acpi_device *adev,
 			}
 		}
 	}
-
+	ret = cpm->package.count;
 	kfree(buffer.pointer);
 
-	return cpm->package.count;
+	return ret;
 }
 
 static int acpi_i2c_check_resource(struct acpi_resource *ares, void *data)
