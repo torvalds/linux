@@ -1807,7 +1807,7 @@ static int hns_nic_try_get_ae(struct net_device *ndev)
 	int ret;
 
 	h = hnae_get_handle(&priv->netdev->dev,
-			    priv->ae_node, priv->port_id, NULL);
+			    priv->fwnode, priv->port_id, NULL);
 	if (IS_ERR_OR_NULL(h)) {
 		ret = -ENODEV;
 		dev_dbg(priv->dev, "has not handle, register notifier!\n");
@@ -1867,7 +1867,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct net_device *ndev;
 	struct hns_nic_priv *priv;
-	struct device_node *node = dev->of_node;
+	struct device_node *ae_node;
 	u32 port_id;
 	int ret;
 
@@ -1881,17 +1881,19 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->netdev = ndev;
 
-	if (of_device_is_compatible(node, "hisilicon,hns-nic-v1"))
+	if (of_device_is_compatible(dev->of_node, "hisilicon,hns-nic-v1"))
 		priv->enet_ver = AE_VERSION_1;
 	else
 		priv->enet_ver = AE_VERSION_2;
 
-	priv->ae_node = (void *)of_parse_phandle(node, "ae-handle", 0);
-	if (IS_ERR_OR_NULL(priv->ae_node)) {
-		ret = PTR_ERR(priv->ae_node);
+	ae_node = of_parse_phandle(dev->of_node, "ae-handle", 0);
+	if (IS_ERR_OR_NULL(ae_node)) {
+		ret = PTR_ERR(ae_node);
 		dev_err(dev, "not find ae-handle\n");
 		goto out_read_prop_fail;
 	}
+	priv->fwnode = &ae_node->fwnode;
+
 	/* try to find port-idx-in-ae first */
 	ret = device_property_read_u32(dev, "port-idx-in-ae", &port_id);
 	if (ret) {

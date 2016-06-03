@@ -528,7 +528,7 @@ struct hnae_handle {
 #define ring_to_dev(ring) ((ring)->q->dev->dev)
 
 struct hnae_handle *hnae_get_handle(struct device *owner_dev,
-				    const struct device_node *ae_node,
+				    const struct fwnode_handle	*fwnode,
 				    u32 port_id,
 				    struct hnae_buf_ops *bops);
 
