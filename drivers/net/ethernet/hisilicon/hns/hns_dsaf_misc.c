@@ -362,21 +362,23 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 	if (!misc_op)
 		return NULL;
 
-	misc_op->cpld_set_led = hns_cpld_set_led;
-	misc_op->cpld_reset_led = cpld_led_reset;
-	misc_op->cpld_set_led_id = cpld_set_led_id;
+	if (dev_of_node(dsaf_dev->dev)) {
+		misc_op->cpld_set_led = hns_cpld_set_led;
+		misc_op->cpld_reset_led = cpld_led_reset;
+		misc_op->cpld_set_led_id = cpld_set_led_id;
 
-	misc_op->dsaf_reset = hns_dsaf_rst;
-	misc_op->xge_srst = hns_dsaf_xge_srst_by_port;
-	misc_op->xge_core_srst = hns_dsaf_xge_core_srst_by_port;
-	misc_op->ge_srst = hns_dsaf_ge_srst_by_port;
-	misc_op->ppe_srst = hns_ppe_srst_by_port;
-	misc_op->ppe_comm_srst = hns_ppe_com_srst;
+		misc_op->dsaf_reset = hns_dsaf_rst;
+		misc_op->xge_srst = hns_dsaf_xge_srst_by_port;
+		misc_op->xge_core_srst = hns_dsaf_xge_core_srst_by_port;
+		misc_op->ge_srst = hns_dsaf_ge_srst_by_port;
+		misc_op->ppe_srst = hns_ppe_srst_by_port;
+		misc_op->ppe_comm_srst = hns_ppe_com_srst;
 
-	misc_op->get_phy_if = hns_mac_get_phy_if;
-	misc_op->get_sfp_prsnt = hns_mac_get_sfp_prsnt;
+		misc_op->get_phy_if = hns_mac_get_phy_if;
+		misc_op->get_sfp_prsnt = hns_mac_get_sfp_prsnt;
 
-	misc_op->cfg_serdes_loopback = hns_mac_config_sds_loopback;
+		misc_op->cfg_serdes_loopback = hns_mac_config_sds_loopback;
+	}
 
 	return (void *)misc_op;
 }
