@@ -61,14 +61,9 @@ obj-y				+= char/
 # iommu/ comes before gpu as gpu are using iommu controllers
 obj-$(CONFIG_IOMMU_SUPPORT)	+= iommu/
 
-# gpu/ comes after char for AGP vs DRM startup and after iommu
-obj-y				+= gpu/
 
 obj-$(CONFIG_CONNECTOR)		+= connector/
 
-# i810fb and intelfb depend on char/agp/
-obj-$(CONFIG_FB_I810)           += video/fbdev/i810/
-obj-$(CONFIG_FB_INTEL)          += video/fbdev/intelfb/
 
 obj-$(CONFIG_PARPORT)		+= parport/
 obj-$(CONFIG_NVM)		+= lightnvm/
@@ -82,6 +77,12 @@ obj-$(CONFIG_IDE)		+= ide/
 obj-$(CONFIG_SCSI)		+= scsi/
 obj-y				+= nvme/
 obj-$(CONFIG_ATA)		+= ata/
+
+# gpu/ comes after char for AGP vs DRM startup and after iommu
+obj-y				+= gpu/
+# i810fb and intelfb depend on char/agp/
+obj-$(CONFIG_FB_I810)           += video/fbdev/i810/
+obj-$(CONFIG_FB_INTEL)          += video/fbdev/intelfb/
 obj-$(CONFIG_TARGET_CORE)	+= target/
 obj-$(CONFIG_MTD)		+= mtd/
 obj-$(CONFIG_SPI)		+= spi/
