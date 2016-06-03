@@ -2816,8 +2816,12 @@ int dispc_wb_setup(struct dispc_device *dispc,
 	} else {
 		int wbdelay;
 
-		wbdelay = min(vm->vfront_porch +
-			      vm->vsync_len + vm->vback_porch, (u32)255);
+		if (channel_in == DSS_WB_TV_MGR)
+			wbdelay = min(vm->vsync_len + vm->vback_porch,
+				(u32)255);
+		else
+			wbdelay = min(vm->vfront_porch +
+				vm->vsync_len + vm->vback_porch, (u32)255);
 
 		/* WBDELAYCOUNT */
 		REG_FLD_MOD(dispc, DISPC_OVL_ATTRIBUTES2(plane), wbdelay, 7, 0);
