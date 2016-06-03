@@ -175,6 +175,7 @@ DECLARE_EVENT_CLASS(gb_interface,
 		__field(int, ejected)		/* bool */
 		__field(int, active)		/* bool */
 		__field(int, enabled)		/* bool */
+		__field(int, mode_switch)	/* bool */
 	),
 
 	TP_fast_assign(
@@ -185,12 +186,13 @@ DECLARE_EVENT_CLASS(gb_interface,
 		__entry->ejected = intf->ejected;
 		__entry->active = intf->active;
 		__entry->enabled = intf->enabled;
+		__entry->mode_switch = intf->mode_switch;
 	),
 
-	TP_printk("greybus: intf_id=%hhu device_id=%hhu module_id=%hhu D=%d J=%d A=%d E=%d",
+	TP_printk("greybus: intf_id=%hhu device_id=%hhu module_id=%hhu D=%d J=%d A=%d E=%d M=%d",
 		__entry->id, __entry->device_id, __entry->module_id,
 		__entry->disconnected, __entry->ejected, __entry->active,
-		__entry->enabled)
+		__entry->enabled, __entry->mode_switch)
 );
 
 #define DEFINE_INTERFACE_EVENT(name)					\
