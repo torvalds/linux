@@ -5257,20 +5257,15 @@ static void gfx_v8_0_enable_gfx_static_mg_power_gating(struct amdgpu_device *ade
 					     enable ?
 					     AMD_PG_STATE_GATE : AMD_PG_STATE_UNGATE);
 
-	if (enable) {
-		/* Enable static MGPG */
-		temp = data = RREG32(mmRLC_PG_CNTL);
+	temp = data = RREG32(mmRLC_PG_CNTL);
+	/* Enable static MGPG */
+	if (enable)
 		data |= RLC_PG_CNTL__STATIC_PER_CU_PG_ENABLE_MASK;
-
-		if (temp != data)
-			WREG32(mmRLC_PG_CNTL, data);
-	} else {
-		temp = data = RREG32(mmRLC_PG_CNTL);
+	else
 		data &= ~RLC_PG_CNTL__STATIC_PER_CU_PG_ENABLE_MASK;
 
-		if (temp != data)
-			WREG32(mmRLC_PG_CNTL, data);
-	}
+	if (temp != data)
+		WREG32(mmRLC_PG_CNTL, data);
 }
 
 static void gfx_v8_0_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *adev,
@@ -5278,20 +5273,15 @@ static void gfx_v8_0_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *ad
 {
 	uint32_t data, temp;
 
-	if (enable) {
-		/* Enable dynamic MGPG */
-		temp = data = RREG32(mmRLC_PG_CNTL);
+	temp = data = RREG32(mmRLC_PG_CNTL);
+	/* Enable dynamic MGPG */
+	if (enable)
 		data |= RLC_PG_CNTL__DYN_PER_CU_PG_ENABLE_MASK;
-
-		if (temp != data)
-			WREG32(mmRLC_PG_CNTL, data);
-	} else {
-		temp = data = RREG32(mmRLC_PG_CNTL);
+	else
 		data &= ~RLC_PG_CNTL__DYN_PER_CU_PG_ENABLE_MASK;
 
-		if (temp != data)
-			WREG32(mmRLC_PG_CNTL, data);
-	}
+	if (temp != data)
+		WREG32(mmRLC_PG_CNTL, data);
 }
 
 static void polaris11_enable_gfx_quick_mg_power_gating(struct amdgpu_device *adev,
@@ -5299,20 +5289,15 @@ static void polaris11_enable_gfx_quick_mg_power_gating(struct amdgpu_device *ade
 {
 	uint32_t data, temp;
 
-	if (enable) {
-		/* Enable quick PG */
-		temp = data = RREG32(mmRLC_PG_CNTL);
+	temp = data = RREG32(mmRLC_PG_CNTL);
+	/* Enable quick PG */
+	if (enable)
 		data |= 0x100000;
-
-		if (temp != data)
-			WREG32(mmRLC_PG_CNTL, data);
-	} else {
-		temp = data = RREG32(mmRLC_PG_CNTL);
+	else
 		data &= ~0x100000;
 
-		if (temp != data)
-			WREG32(mmRLC_PG_CNTL, data);
-	}
+	if (temp != data)
+		WREG32(mmRLC_PG_CNTL, data);
 }
 
 static void cz_enable_gfx_cg_power_gating(struct amdgpu_device *adev,
