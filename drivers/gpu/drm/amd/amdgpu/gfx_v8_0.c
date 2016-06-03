@@ -5292,9 +5292,9 @@ static void polaris11_enable_gfx_quick_mg_power_gating(struct amdgpu_device *ade
 	temp = data = RREG32(mmRLC_PG_CNTL);
 	/* Enable quick PG */
 	if (enable)
-		data |= 0x100000;
+		data |= RLC_PG_CNTL__QUICK_PG_ENABLE_MASK;
 	else
-		data &= ~0x100000;
+		data &= ~RLC_PG_CNTL__QUICK_PG_ENABLE_MASK;
 
 	if (temp != data)
 		WREG32(mmRLC_PG_CNTL, data);
