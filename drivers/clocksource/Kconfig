@@ -191,6 +191,14 @@ config PRIMA2_TIMER
 	help
 	  Enables support for the Prima2 timer.
 
+config U300_TIMER
+	bool "U300 timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on ARM
+	select CLKSRC_MMIO
+	help
+	  Enables support for the U300 timer.
+
 config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 	bool "Clocksource PRCMU Timer sched_clock"
 	depends on (CLKSRC_DBX500_PRCMU && !CLKSRC_NOMADIK_MTU_SCHED_CLOCK)
