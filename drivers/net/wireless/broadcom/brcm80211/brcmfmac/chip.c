@@ -685,6 +685,8 @@ static u32 brcmf_chip_tcm_rambase(struct brcmf_chip_priv *ci)
 	case BRCM_CC_43602_CHIP_ID:
 	case BRCM_CC_4371_CHIP_ID:
 		return 0x180000;
+	case BRCM_CC_43465_CHIP_ID:
+	case BRCM_CC_43525_CHIP_ID:
 	case BRCM_CC_4365_CHIP_ID:
 	case BRCM_CC_4366_CHIP_ID:
 		return 0x200000;
