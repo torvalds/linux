@@ -309,11 +309,6 @@ void __init time_init(void)
 	clocks_calc_mult_shift(&cyc2ns_mul, &cyc2ns_shift, current_cr16_khz,
 				NSEC_PER_MSEC, 0);
 
-#if defined(CONFIG_HAVE_UNSTABLE_SCHED_CLOCK) && defined(CONFIG_64BIT)
-	/* At bootup only one 64bit CPU is online and cr16 is "stable" */
-	set_sched_clock_stable();
-#endif
-
 	start_cpu_itimer();	/* get CPU 0 started */
 
 	/* register at clocksource framework */
