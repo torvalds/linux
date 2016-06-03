@@ -1111,6 +1111,39 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 }
 
 /*
+ * Fill the dma id for host and link. In case of passthrough
+ * pipeline, this will both host and link in the same
+ * pipeline, so need to copy the link and host based on dev_type
+ */
+static void skl_tplg_fill_dma_id(struct skl_module_cfg *mcfg,
+				struct skl_pipe_params *params)
+{
+	struct skl_pipe *pipe = mcfg->pipe;
+
+	if (pipe->passthru) {
+		switch (mcfg->dev_type) {
+		case SKL_DEVICE_HDALINK:
+			pipe->p_params->link_dma_id = params->link_dma_id;
+			break;
+
+		case SKL_DEVICE_HDAHOST:
+			pipe->p_params->host_dma_id = params->host_dma_id;
+			break;
+
+		default:
+			break;
+		}
+		pipe->p_params->s_fmt = params->s_fmt;
+		pipe->p_params->ch = params->ch;
+		pipe->p_params->s_freq = params->s_freq;
+		pipe->p_params->stream = params->stream;
+
+	} else {
+		memcpy(pipe->p_params, params, sizeof(*params));
+	}
+}
+
+/*
  * The FE params are passed by hw_params of the DAI.
  * On hw_params, the params are stored in Gateway module of the FE and we
  * need to calculate the format in DSP module configuration, that
@@ -1120,10 +1153,9 @@ int skl_tplg_update_pipe_params(struct device *dev,
 			struct skl_module_cfg *mconfig,
 			struct skl_pipe_params *params)
 {
-	struct skl_pipe *pipe = mconfig->pipe;
 	struct skl_module_fmt *format = NULL;
 
-	memcpy(pipe->p_params, params, sizeof(*params));
+	skl_tplg_fill_dma_id(mconfig, params);
 
 	if (params->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		format = &mconfig->in_fmt[0];
@@ -1310,12 +1342,11 @@ static int skl_tplg_be_fill_pipe_params(struct snd_soc_dai *dai,
 				struct skl_module_cfg *mconfig,
 				struct skl_pipe_params *params)
 {
-	struct skl_pipe *pipe = mconfig->pipe;
 	struct nhlt_specific_cfg *cfg;
 	struct skl *skl = get_skl_ctx(dai->dev);
 	int link_type = skl_tplg_be_link_type(mconfig->dev_type);
 
-	memcpy(pipe->p_params, params, sizeof(*params));
+	skl_tplg_fill_dma_id(mconfig, params);
 
 	if (link_type == NHLT_LINK_HDA)
 		return 0;
