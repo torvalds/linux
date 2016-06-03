@@ -620,10 +620,9 @@ cleanup:
 }
 
 static int
-rndis_filter_set_offload_params(struct hv_device *hdev,
+rndis_filter_set_offload_params(struct net_device *ndev,
 				struct ndis_offload_params *req_offloads)
 {
-	struct net_device *ndev = hv_get_drvdata(hdev);
 	struct netvsc_device *nvdev = net_device_to_netvsc_device(ndev);
 	struct rndis_device *rdev = nvdev->extension;
 	struct rndis_request *request;
@@ -1083,7 +1082,7 @@ int rndis_filter_device_add(struct hv_device *dev,
 	offloads.lso_v2_ipv4 = NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
 
 
-	ret = rndis_filter_set_offload_params(dev, &offloads);
+	ret = rndis_filter_set_offload_params(net, &offloads);
 	if (ret)
 		goto err_dev_remv;
 
