@@ -10,6 +10,7 @@
 #include <linux/workqueue.h>
 
 #include "greybus.h"
+#include "greybus_trace.h"
 
 
 static void gb_connection_kref_release(struct kref *kref);
@@ -38,10 +39,14 @@ gb_connection_intf_find(struct gb_interface *intf, u16 cport_id)
 static void gb_connection_get(struct gb_connection *connection)
 {
 	kref_get(&connection->kref);
+
+	trace_gb_connection_get(connection);
 }
 
 static void gb_connection_put(struct gb_connection *connection)
 {
+	trace_gb_connection_put(connection);
+
 	kref_put(&connection->kref, gb_connection_kref_release);
 }
 
@@ -92,6 +97,8 @@ static void gb_connection_kref_release(struct kref *kref)
 	struct gb_connection *connection;
 
 	connection = container_of(kref, struct gb_connection, kref);
+
+	trace_gb_connection_release(connection);
 
 	kfree(connection);
 }
@@ -203,6 +210,8 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	spin_unlock_irq(&gb_connections_lock);
 
 	mutex_unlock(&gb_connection_mutex);
+
+	trace_gb_connection_create(connection);
 
 	return connection;
 
@@ -709,6 +718,9 @@ int gb_connection_enable(struct gb_connection *connection)
 		goto out_unlock;
 
 	ret = _gb_connection_enable(connection, true);
+	if (!ret)
+		trace_gb_connection_enable(connection);
+
 out_unlock:
 	mutex_unlock(&connection->mutex);
 
@@ -731,6 +743,9 @@ int gb_connection_enable_tx(struct gb_connection *connection)
 		goto out_unlock;
 
 	ret = _gb_connection_enable(connection, false);
+	if (!ret)
+		trace_gb_connection_enable(connection);
+
 out_unlock:
 	mutex_unlock(&connection->mutex);
 
@@ -750,6 +765,8 @@ void gb_connection_disable_rx(struct gb_connection *connection)
 	connection->state = GB_CONNECTION_STATE_ENABLED_TX;
 	gb_connection_flush_incoming_operations(connection, -ESHUTDOWN);
 	spin_unlock_irq(&connection->lock);
+
+	trace_gb_connection_disable(connection);
 
 out_unlock:
 	mutex_unlock(&connection->mutex);
@@ -793,6 +810,8 @@ void gb_connection_disable(struct gb_connection *connection)
 
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
+	trace_gb_connection_disable(connection);
+
 	/* control-connection tear down is deferred when mode switching */
 	if (!connection->mode_switch) {
 		gb_connection_svc_connection_destroy(connection);
@@ -821,6 +840,8 @@ void gb_connection_disable_forced(struct gb_connection *connection)
 	gb_connection_hd_cport_features_disable(connection);
 	gb_connection_svc_connection_destroy(connection);
 	gb_connection_hd_cport_disable(connection);
+
+	trace_gb_connection_disable(connection);
 
 out_unlock:
 	mutex_unlock(&connection->mutex);

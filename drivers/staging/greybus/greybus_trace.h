@@ -16,6 +16,7 @@
 
 struct gb_message;
 struct gb_operation;
+struct gb_connection;
 struct gb_bundle;
 struct gb_host_device;
 
@@ -161,6 +162,80 @@ DEFINE_OPERATION_EVENT(gb_operation_get_active);
 DEFINE_OPERATION_EVENT(gb_operation_put_active);
 
 #undef DEFINE_OPERATION_EVENT
+
+DECLARE_EVENT_CLASS(gb_connection,
+
+	TP_PROTO(struct gb_connection *connection),
+
+	TP_ARGS(connection),
+
+	TP_STRUCT__entry(
+		__field(int, hd_bus_id)
+		__field(u8, bundle_id)
+		/* name contains "hd_cport_id/intf_id:cport_id" */
+		__dynamic_array(char, name, sizeof(connection->name))
+		__field(enum gb_connection_state, state)
+		__field(unsigned long, flags)
+	),
+
+	TP_fast_assign(
+		__entry->hd_bus_id = connection->hd->bus_id;
+		__entry->bundle_id = connection->bundle ?
+				connection->bundle->id : BUNDLE_ID_NONE;
+		memcpy(__get_str(name), connection->name,
+					sizeof(connection->name));
+		__entry->state = connection->state;
+		__entry->flags = connection->flags;
+	),
+
+	TP_printk("hd_bus_id=%d bundle_id=0x%02x name=\"%s\" state=%u flags=0x%lx",
+		  __entry->hd_bus_id, __entry->bundle_id, __get_str(name),
+		  (unsigned int)__entry->state, __entry->flags)
+);
+
+#define DEFINE_CONNECTION_EVENT(name)					\
+		DEFINE_EVENT(gb_connection, name,			\
+				TP_PROTO(struct gb_connection *connection), \
+				TP_ARGS(connection))
+
+/*
+ * Occurs after a new connection is successfully created.
+ */
+DEFINE_CONNECTION_EVENT(gb_connection_create);
+
+/*
+ * Occurs when the last reference to a connection has been dropped,
+ * before its resources are freed.
+ */
+DEFINE_CONNECTION_EVENT(gb_connection_release);
+
+/*
+ * Occurs when a new reference to connection is added, currently
+ * only when a message over the connection is received.
+ */
+DEFINE_CONNECTION_EVENT(gb_connection_get);
+
+/*
+ * Occurs when a new reference to connection is dropped, after a
+ * a received message is handled, or when the connection is
+ * destroyed.
+ */
+DEFINE_CONNECTION_EVENT(gb_connection_put);
+
+/*
+ * Occurs when a request to enable a connection is made, either for
+ * transmit only, or for both transmit and receive.
+ */
+DEFINE_CONNECTION_EVENT(gb_connection_enable);
+
+/*
+ * Occurs when a request to disable a connection is made, either for
+ * receive only, or for both transmit and receive.  Also occurs when
+ * a request to forcefully disable a connection is made.
+ */
+DEFINE_CONNECTION_EVENT(gb_connection_disable);
+
+#undef DEFINE_CONNECTION_EVENT
 
 DECLARE_EVENT_CLASS(gb_bundle,
 
