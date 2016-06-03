@@ -161,9 +161,13 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 	u8 num_vports, vf_offset = 0, i, vport_id, num_ports, curr_queue = 0;
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct init_qm_port_params *p_qm_port;
+	bool init_rdma_offload_pq = false;
+	bool init_pure_ack_pq = false;
+	bool init_ooo_pq = false;
 	u16 num_pqs, multi_cos_tcs = 1;
 	u8 pf_wfq = qm_info->pf_wfq;
 	u32 pf_rl = qm_info->pf_rl;
+	u16 num_pf_rls = 0;
 	u16 num_vfs = 0;
 
 #ifdef CONFIG_QED_SRIOV
@@ -174,6 +178,25 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 
 	num_pqs = multi_cos_tcs + num_vfs + 1;	/* The '1' is for pure-LB */
 	num_vports = (u8)RESC_NUM(p_hwfn, QED_VPORT);
+
+	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+		num_pqs++;	/* for RoCE queue */
+		init_rdma_offload_pq = true;
+		/* we subtract num_vfs because each require a rate limiter,
+		 * and one default rate limiter
+		 */
+		if (p_hwfn->pf_params.rdma_pf_params.enable_dcqcn)
+			num_pf_rls = RESC_NUM(p_hwfn, QED_RL) - num_vfs - 1;
+
+		num_pqs += num_pf_rls;
+		qm_info->num_pf_rls = (u8) num_pf_rls;
+	}
+
+	if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
+		num_pqs += 2;	/* for iSCSI pure-ACK / OOO queue */
+		init_pure_ack_pq = true;
+		init_ooo_pq = true;
+	}
 
 	/* Sanity checking that setup requires legal number of resources */
 	if (num_pqs > RESC_NUM(p_hwfn, QED_PQ)) {
@@ -212,12 +235,22 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 
 	vport_id = (u8)RESC_START(p_hwfn, QED_VPORT);
 
+	/* First init rate limited queues */
+	for (curr_queue = 0; curr_queue < num_pf_rls; curr_queue++) {
+		qm_info->qm_pq_params[curr_queue].vport_id = vport_id++;
+		qm_info->qm_pq_params[curr_queue].tc_id =
+		    p_hwfn->hw_info.non_offload_tc;
+		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		qm_info->qm_pq_params[curr_queue].rl_valid = 1;
+	}
+
 	/* First init per-TC PQs */
 	for (i = 0; i < multi_cos_tcs; i++) {
 		struct init_qm_pq_params *params =
 		    &qm_info->qm_pq_params[curr_queue++];
 
-		if (p_hwfn->hw_info.personality == QED_PCI_ETH) {
+		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE ||
+		    p_hwfn->hw_info.personality == QED_PCI_ETH) {
 			params->vport_id = vport_id;
 			params->tc_id = p_hwfn->hw_info.non_offload_tc;
 			params->wrr_group = 1;
@@ -237,6 +270,32 @@ static int qed_init_qm_info(struct qed_hwfn *p_hwfn, bool b_sleepable)
 	curr_queue++;
 
 	qm_info->offload_pq = 0;
+	if (init_rdma_offload_pq) {
+		qm_info->offload_pq = curr_queue;
+		qm_info->qm_pq_params[curr_queue].vport_id = vport_id;
+		qm_info->qm_pq_params[curr_queue].tc_id =
+		    p_hwfn->hw_info.offload_tc;
+		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		curr_queue++;
+	}
+
+	if (init_pure_ack_pq) {
+		qm_info->pure_ack_pq = curr_queue;
+		qm_info->qm_pq_params[curr_queue].vport_id = vport_id;
+		qm_info->qm_pq_params[curr_queue].tc_id =
+		    p_hwfn->hw_info.offload_tc;
+		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		curr_queue++;
+	}
+
+	if (init_ooo_pq) {
+		qm_info->ooo_pq = curr_queue;
+		qm_info->qm_pq_params[curr_queue].vport_id = vport_id;
+		qm_info->qm_pq_params[curr_queue].tc_id = DCBX_ISCSI_OOO_TC;
+		qm_info->qm_pq_params[curr_queue].wrr_group = 1;
+		curr_queue++;
+	}
+
 	/* Then init per-VF PQs */
 	vf_offset = curr_queue;
 	for (i = 0; i < num_vfs; i++) {
@@ -371,21 +430,20 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (!p_hwfn->p_tx_cids) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to allocate memory for Tx Cids\n");
-			rc = -ENOMEM;
-			goto alloc_err;
+			goto alloc_no_mem;
 		}
 
 		p_hwfn->p_rx_cids = kzalloc(rx_size, GFP_KERNEL);
 		if (!p_hwfn->p_rx_cids) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to allocate memory for Rx Cids\n");
-			rc = -ENOMEM;
-			goto alloc_err;
+			goto alloc_no_mem;
 		}
 	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+		u32 n_eqes, num_cons;
 
 		/* First allocate the context manager structure */
 		rc = qed_cxt_mngr_alloc(p_hwfn);
@@ -434,18 +492,34 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			goto alloc_err;
 
 		/* EQ */
-		p_eq = qed_eq_alloc(p_hwfn, 256);
-		if (!p_eq) {
-			rc = -ENOMEM;
+		n_eqes = qed_chain_get_capacity(&p_hwfn->p_spq->chain);
+		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+			num_cons = qed_cxt_get_proto_cid_count(p_hwfn,
+							       PROTOCOLID_ROCE,
+							       0) * 2;
+			n_eqes += num_cons + 2 * MAX_NUM_VFS_BB;
+		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
+			num_cons =
+			    qed_cxt_get_proto_cid_count(p_hwfn,
+							PROTOCOLID_ISCSI, 0);
+			n_eqes += 2 * num_cons;
+		}
+
+		if (n_eqes > 0xFFFF) {
+			DP_ERR(p_hwfn,
+			       "Cannot allocate 0x%x EQ elements. The maximum of a u16 chain is 0x%x\n",
+			       n_eqes, 0xFFFF);
 			goto alloc_err;
 		}
+
+		p_eq = qed_eq_alloc(p_hwfn, (u16) n_eqes);
+		if (!p_eq)
+			goto alloc_no_mem;
 		p_hwfn->p_eq = p_eq;
 
 		p_consq = qed_consq_alloc(p_hwfn);
-		if (!p_consq) {
-			rc = -ENOMEM;
-			goto alloc_err;
-		}
+		if (!p_consq)
+			goto alloc_no_mem;
 		p_hwfn->p_consq = p_consq;
 
 		/* DMA info initialization */
@@ -474,6 +548,8 @@ int qed_resc_alloc(struct qed_dev *cdev)
 
 	return 0;
 
+alloc_no_mem:
+	rc = -ENOMEM;
 alloc_err:
 	qed_resc_free(cdev);
 	return rc;
@@ -639,6 +715,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 	struct qed_qm_common_rt_init_params params;
 	struct qed_dev *cdev = p_hwfn->cdev;
+	u16 num_pfs, pf_id;
 	u32 concrete_fid;
 	int rc = 0;
 	u8 vf_id;
@@ -687,9 +764,16 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, PSWRQ2_REG_L2P_VALIDATE_VFID, 0);
 	qed_wr(p_hwfn, p_ptt, PGLUE_B_REG_USE_CLIENTID_IN_TAG, 1);
 
-	/* Disable relaxed ordering in the PCI config space */
-	qed_wr(p_hwfn, p_ptt, 0x20b4,
-	       qed_rd(p_hwfn, p_ptt, 0x20b4) & ~0x10);
+	if (QED_IS_BB(p_hwfn->cdev)) {
+		num_pfs = NUM_OF_ENG_PFS(p_hwfn->cdev);
+		for (pf_id = 0; pf_id < num_pfs; pf_id++) {
+			qed_fid_pretend(p_hwfn, p_ptt, pf_id);
+			qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_ROCE, 0x0);
+			qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_TCP, 0x0);
+		}
+		/* pretend to original PF */
+		qed_fid_pretend(p_hwfn, p_ptt, p_hwfn->rel_pf_id);
+	}
 
 	for (vf_id = 0; vf_id < MAX_NUM_VFS_BB; vf_id++) {
 		concrete_fid = qed_vfid_to_concrete(p_hwfn, vf_id);
@@ -779,7 +863,8 @@ static int qed_hw_init_pf(struct qed_hwfn *p_hwfn,
 	}
 
 	/* Protocl Configuration  */
-	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_TCP_RT_OFFSET, 0);
+	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_TCP_RT_OFFSET,
+		     (p_hwfn->hw_info.personality == QED_PCI_ISCSI) ? 1 : 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_FCOE_RT_OFFSET, 0);
 	STORE_RT_REG(p_hwfn, PRS_REG_SEARCH_ROCE_RT_OFFSET, 0);
 
@@ -1256,8 +1341,9 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 		   num_features);
 }
 
-static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
+static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 {
+	u8 enabled_func_idx = p_hwfn->enabled_func_idx;
 	u32 *resc_start = p_hwfn->hw_info.resc_start;
 	u8 num_funcs = p_hwfn->num_funcs_on_engine;
 	u32 *resc_num = p_hwfn->hw_info.resc_num;
@@ -1281,14 +1367,22 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 	resc_num[QED_VPORT] = MAX_NUM_VPORTS_BB / num_funcs;
 	resc_num[QED_RSS_ENG] = ETH_RSS_ENGINE_NUM_BB / num_funcs;
 	resc_num[QED_PQ] = MAX_QM_TX_QUEUES_BB / num_funcs;
-	resc_num[QED_RL] = 8;
+	resc_num[QED_RL] = min_t(u32, 64, resc_num[QED_VPORT]);
 	resc_num[QED_MAC] = ETH_NUM_MAC_FILTERS / num_funcs;
 	resc_num[QED_VLAN] = (ETH_NUM_VLAN_FILTERS - 1 /*For vlan0*/) /
 			     num_funcs;
-	resc_num[QED_ILT] = 950;
+	resc_num[QED_ILT] = PXP_NUM_ILT_RECORDS_BB / num_funcs;
 
 	for (i = 0; i < QED_MAX_RESC; i++)
-		resc_start[i] = resc_num[i] * p_hwfn->rel_pf_id;
+		resc_start[i] = resc_num[i] * enabled_func_idx;
+
+	/* Sanity for ILT */
+	if (RESC_END(p_hwfn, QED_ILT) > PXP_NUM_ILT_RECORDS_BB) {
+		DP_NOTICE(p_hwfn, "Can't assign ILT pages [%08x,...,%08x]\n",
+			  RESC_START(p_hwfn, QED_ILT),
+			  RESC_END(p_hwfn, QED_ILT) - 1);
+		return -EINVAL;
+	}
 
 	qed_hw_set_feat(p_hwfn);
 
@@ -1318,6 +1412,8 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 		   p_hwfn->hw_info.resc_start[QED_VLAN],
 		   p_hwfn->hw_info.resc_num[QED_ILT],
 		   p_hwfn->hw_info.resc_start[QED_ILT]);
+
+	return 0;
 }
 
 static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
@@ -1484,8 +1580,8 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 
 static void qed_get_num_funcs(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	u32 reg_function_hide, tmp, eng_mask;
-	u8 num_funcs;
+	u8 num_funcs, enabled_func_idx = p_hwfn->rel_pf_id;
+	u32 reg_function_hide, tmp, eng_mask, low_pfs_mask;
 
 	num_funcs = MAX_NUM_PFS_BB;
 
@@ -1515,9 +1611,19 @@ static void qed_get_num_funcs(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 				num_funcs++;
 			tmp >>= 0x1;
 		}
+
+		/* Get the PF index within the enabled functions */
+		low_pfs_mask = (0x1 << p_hwfn->abs_pf_id) - 1;
+		tmp = reg_function_hide & eng_mask & low_pfs_mask;
+		while (tmp) {
+			if (tmp & 0x1)
+				enabled_func_idx--;
+			tmp >>= 0x1;
+		}
 	}
 
 	p_hwfn->num_funcs_on_engine = num_funcs;
+	p_hwfn->enabled_func_idx = enabled_func_idx;
 
 	DP_VERBOSE(p_hwfn,
 		   NETIF_MSG_PROBE,
@@ -1587,9 +1693,7 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 
 	qed_get_num_funcs(p_hwfn, p_ptt);
 
-	qed_hw_get_resc(p_hwfn);
-
-	return rc;
+	return qed_hw_get_resc(p_hwfn);
 }
 
 static int qed_get_dev_info(struct qed_dev *cdev)

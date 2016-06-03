@@ -791,16 +791,16 @@ qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 }
 
 u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
-		  enum protocol_type proto,
-		  union qed_qm_pq_params *p_params)
+		  enum protocol_type proto, union qed_qm_pq_params *p_params)
 {
 	u16 pq_id = 0;
 
-	if ((proto == PROTOCOLID_CORE || proto == PROTOCOLID_ETH) &&
-	    !p_params) {
+	if ((proto == PROTOCOLID_CORE ||
+	     proto == PROTOCOLID_ETH ||
+	     proto == PROTOCOLID_ISCSI ||
+	     proto == PROTOCOLID_ROCE) && !p_params) {
 		DP_NOTICE(p_hwfn,
-			  "Protocol %d received NULL PQ params\n",
-			  proto);
+			  "Protocol %d received NULL PQ params\n", proto);
 		return 0;
 	}
 
@@ -808,6 +808,8 @@ u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
 	case PROTOCOLID_CORE:
 		if (p_params->core.tc == LB_TC)
 			pq_id = p_hwfn->qm_info.pure_lb_pq;
+		else if (p_params->core.tc == OOO_LB_TC)
+			pq_id = p_hwfn->qm_info.ooo_pq;
 		else
 			pq_id = p_hwfn->qm_info.offload_pq;
 		break;
@@ -816,6 +818,18 @@ u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
 		if (p_params->eth.is_vf)
 			pq_id += p_hwfn->qm_info.vf_queues_offset +
 				 p_params->eth.vf_id;
+		break;
+	case PROTOCOLID_ISCSI:
+		if (p_params->iscsi.q_idx == 1)
+			pq_id = p_hwfn->qm_info.pure_ack_pq;
+		break;
+	case PROTOCOLID_ROCE:
+		if (p_params->roce.dcqcn)
+			pq_id = p_params->roce.qpid;
+		else
+			pq_id = p_hwfn->qm_info.offload_pq;
+		if (pq_id > p_hwfn->qm_info.num_pf_rls)
+			pq_id = p_hwfn->qm_info.offload_pq;
 		break;
 	default:
 		pq_id = 0;
