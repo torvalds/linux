@@ -569,6 +569,9 @@ static inline void set_page_guard(struct zone *zone, struct page *page,
 		return;
 
 	page_ext = lookup_page_ext(page);
+	if (unlikely(!page_ext))
+		return;
+
 	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
 
 	INIT_LIST_HEAD(&page->lru);
@@ -586,6 +589,9 @@ static inline void clear_page_guard(struct zone *zone, struct page *page,
 		return;
 
 	page_ext = lookup_page_ext(page);
+	if (unlikely(!page_ext))
+		return;
+
 	__clear_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
 
 	set_page_private(page, 0);
