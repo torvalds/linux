@@ -102,7 +102,7 @@ static int lookup_triplets(const char *const *triplets, const char *name)
  * Return architecture name in a normalized form.
  * The conversion logic comes from the Makefile.
  */
-static const char *normalize_arch(char *arch)
+const char *normalize_arch(char *arch)
 {
 	if (!strcmp(arch, "x86_64"))
 		return "x86";
