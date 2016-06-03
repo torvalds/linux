@@ -30,11 +30,12 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 /* libunwind specific */
 #ifdef HAVE_LIBUNWIND_SUPPORT
 int libunwind__arch_reg_id(int regnum);
-int unwind__prepare_access(struct thread *thread);
+int unwind__prepare_access(struct thread *thread, struct map *map);
 void unwind__flush_access(struct thread *thread);
 void unwind__finish_access(struct thread *thread);
 #else
-static inline int unwind__prepare_access(struct thread *thread __maybe_unused)
+static inline int unwind__prepare_access(struct thread *thread __maybe_unused,
+					 struct map *map __maybe_unused)
 {
 	return 0;
 }
@@ -53,7 +54,8 @@ unwind__get_entries(unwind_entry_cb_t cb __maybe_unused,
 	return 0;
 }
 
-static inline int unwind__prepare_access(struct thread *thread __maybe_unused)
+static inline int unwind__prepare_access(struct thread *thread __maybe_unused,
+					 struct map *map __maybe_unused)
 {
 	return 0;
 }
