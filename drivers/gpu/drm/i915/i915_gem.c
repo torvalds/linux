@@ -409,6 +409,9 @@ i915_gem_dumb_create(struct drm_file *file,
 
 /**
  * Creates a new mm object and returns a handle to it.
+ * @dev: drm device pointer
+ * @data: ioctl data blob
+ * @file: drm file pointer
  */
 int
 i915_gem_create_ioctl(struct drm_device *dev, void *data,
@@ -672,6 +675,9 @@ out:
 
 /**
  * Reads data from the object referenced by handle.
+ * @dev: drm device pointer
+ * @data: ioctl data blob
+ * @file: drm file pointer
  *
  * On error, the contents of *data are undefined.
  */
@@ -753,6 +759,10 @@ fast_user_write(struct io_mapping *mapping,
 /**
  * This is the fast pwrite path, where we copy the data directly from the
  * user into the GTT, uncached.
+ * @dev: drm device pointer
+ * @obj: i915 gem object
+ * @args: pwrite arguments structure
+ * @file: drm file pointer
  */
 static int
 i915_gem_gtt_pwrite_fast(struct drm_device *dev,
@@ -1016,6 +1026,9 @@ out:
 
 /**
  * Writes data to the object referenced by handle.
+ * @dev: drm device
+ * @data: ioctl data blob
+ * @file: drm file
  *
  * On error, the contents of the buffer that were to be modified are undefined.
  */
@@ -1213,6 +1226,7 @@ static int __i915_spin_request(struct drm_i915_gem_request *req, int state)
  * @req: duh!
  * @interruptible: do an interruptible wait (normally yes)
  * @timeout: in - how long to wait (NULL forever); out - how much time remaining
+ * @rps: RPS client
  *
  * Note: It is of utmost importance that the passed in seqno and reset_counter
  * values have been read by the caller in an smp safe manner. Where read-side
@@ -1446,6 +1460,7 @@ __i915_gem_request_retire__upto(struct drm_i915_gem_request *req)
 /**
  * Waits for a request to be signaled, and cleans up the
  * request and object lists appropriately for that event.
+ * @req: request to wait on
  */
 int
 i915_wait_request(struct drm_i915_gem_request *req)
@@ -1472,6 +1487,8 @@ i915_wait_request(struct drm_i915_gem_request *req)
 /**
  * Ensures that all rendering to the object has completed and the object is
  * safe to unbind from the GTT or access from the CPU.
+ * @obj: i915 gem object
+ * @readonly: waiting for read access or write
  */
 int
 i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
@@ -1589,6 +1606,9 @@ static struct intel_rps_client *to_rps_client(struct drm_file *file)
 /**
  * Called when user space prepares to use an object with the CPU, either
  * through the mmap ioctl's mapping or a GTT mapping.
+ * @dev: drm device
+ * @data: ioctl data blob
+ * @file: drm file
  */
 int
 i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
@@ -1652,6 +1672,9 @@ unlock:
 
 /**
  * Called when user space has done writes to this buffer
+ * @dev: drm device
+ * @data: ioctl data blob
+ * @file: drm file
  */
 int
 i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
@@ -1682,8 +1705,11 @@ unlock:
 }
 
 /**
- * Maps the contents of an object, returning the address it is mapped
- * into.
+ * i915_gem_mmap_ioctl - Maps the contents of an object, returning the address
+ *			 it is mapped to.
+ * @dev: drm device
+ * @data: ioctl data blob
+ * @file: drm file
  *
  * While the mapping holds a reference on the contents of the object, it doesn't
  * imply a ref on the object itself.
@@ -2001,7 +2027,10 @@ i915_gem_get_gtt_size(struct drm_device *dev, uint32_t size, int tiling_mode)
 
 /**
  * i915_gem_get_gtt_alignment - return required GTT alignment for an object
- * @obj: object to check
+ * @dev: drm device
+ * @size: object size
+ * @tiling_mode: tiling mode
+ * @fenced: is fenced alignemned required or not
  *
  * Return the required GTT alignment for an object, taking into account
  * potential fence register mapping.
@@ -2951,6 +2980,7 @@ void i915_gem_reset(struct drm_device *dev)
 
 /**
  * This function clears the request list as sequence numbers are passed.
+ * @engine: engine to retire requests on
  */
 void
 i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
@@ -3074,6 +3104,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
  * Ensures that an object will eventually get non-busy by flushing any required
  * write domains, emitting any outstanding lazy request and retiring and
  * completed requests.
+ * @obj: object to flush
  */
 static int
 i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
@@ -3099,7 +3130,9 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 
 /**
  * i915_gem_wait_ioctl - implements DRM_IOCTL_I915_GEM_WAIT
- * @DRM_IOCTL_ARGS: standard ioctl arguments
+ * @dev: drm device pointer
+ * @data: ioctl data blob
+ * @file: drm file pointer
  *
  * Returns 0 if successful, else an error is returned with the remaining time in
  * the timeout parameter.
@@ -3489,6 +3522,11 @@ static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 /**
  * Finds free space in the GTT aperture and binds the object or a view of it
  * there.
+ * @obj: object to bind
+ * @vm: address space to bind into
+ * @ggtt_view: global gtt view if applicable
+ * @alignment: requested alignment
+ * @flags: mask of PIN_* flags to use
  */
 static struct i915_vma *
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
@@ -3746,6 +3784,8 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 
 /**
  * Moves a single object to the GTT read, and possibly write domain.
+ * @obj: object to act on
+ * @write: ask for write access or read only
  *
  * This function returns when the move is complete, including waiting on
  * flushes to occur.
@@ -3817,6 +3857,8 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 
 /**
  * Changes the cache-level of an object across all VMA.
+ * @obj: object to act on
+ * @cache_level: new cache level to set for the object
  *
  * After this function returns, the object will be in the new cache-level
  * across all GTT and the contents of the backing storage will be coherent,
@@ -4098,6 +4140,8 @@ i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
 
 /**
  * Moves a single object to the CPU read, and possibly write domain.
+ * @obj: object to act on
+ * @write: requesting write or read-only access
  *
  * This function returns when the move is complete, including waiting on
  * flushes to occur.

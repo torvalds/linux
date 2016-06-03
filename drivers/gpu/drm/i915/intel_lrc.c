@@ -238,7 +238,7 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 
 /**
  * intel_sanitize_enable_execlists() - sanitize i915.enable_execlists
- * @dev: DRM device.
+ * @dev_priv: i915 device private
  * @enable_execlists: value of i915.enable_execlists module parameter.
  *
  * Only certain platforms support Execlists (the prerequisites being
@@ -516,7 +516,7 @@ get_context_status(struct intel_engine_cs *engine, unsigned int read_pointer,
 
 /**
  * intel_lrc_irq_handler() - handle Context Switch interrupts
- * @engine: Engine Command Streamer to handle.
+ * @data: tasklet handler passed in unsigned long
  *
  * Check the unread Context Status Buffers and manage the submission of new
  * contexts to the ELSP accordingly.
@@ -786,15 +786,9 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 
 /**
  * execlists_submission() - submit a batchbuffer for execution, Execlists style
- * @dev: DRM device.
- * @file: DRM file.
- * @ring: Engine Command Streamer to submit to.
- * @ctx: Context to employ for this submission.
+ * @params: execbuffer call parameters.
  * @args: execbuffer call arguments.
  * @vmas: list of vmas.
- * @batch_obj: the batchbuffer to submit.
- * @exec_start: batchbuffer start virtual address pointer.
- * @dispatch_flags: translated execbuffer call flags.
  *
  * This is the evil twin version of i915_gem_ringbuffer_submission. It abstracts
  * away the submission details of the execbuffer ioctl call.
@@ -1138,7 +1132,7 @@ static inline int wa_ctx_end(struct i915_wa_ctx_bb *wa_ctx,
 /**
  * gen8_init_indirectctx_bb() - initialize indirect ctx batch with WA
  *
- * @ring: only applicable for RCS
+ * @engine: only applicable for RCS
  * @wa_ctx: structure representing wa_ctx
  *  offset: specifies start of the batch, should be cache-aligned. This is updated
  *    with the offset value received as input.
@@ -1212,7 +1206,7 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
 /**
  * gen8_init_perctx_bb() - initialize per ctx batch with WA
  *
- * @ring: only applicable for RCS
+ * @engine: only applicable for RCS
  * @wa_ctx: structure representing wa_ctx
  *  offset: specifies start of the batch, should be cache-aligned.
  *  size: size of the batch in DWORDS but HW expects in terms of cachelines
@@ -1860,7 +1854,7 @@ static int gen8_init_rcs_context(struct drm_i915_gem_request *req)
 /**
  * intel_logical_ring_cleanup() - deallocate the Engine Command Streamer
  *
- * @ring: Engine Command Streamer.
+ * @engine: Engine Command Streamer.
  *
  */
 void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
@@ -2413,7 +2407,7 @@ populate_lr_context(struct i915_gem_context *ctx,
 
 /**
  * intel_lr_context_size() - return the size of the context for an engine
- * @ring: which engine to find the context size for
+ * @engine: which engine to find the context size for
  *
  * Each engine may require a different amount of space for a context image,
  * so when allocating (or copying) an image, this function can be used to

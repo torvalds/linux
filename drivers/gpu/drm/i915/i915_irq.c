@@ -588,7 +588,7 @@ i915_disable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 /**
  * i915_enable_asle_pipestat - enable ASLE pipestat for OpRegion
- * @dev: drm device
+ * @dev_priv: i915 device private
  */
 static void i915_enable_asle_pipestat(struct drm_i915_private *dev_priv)
 {
@@ -2517,7 +2517,7 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 
 /**
  * i915_reset_and_wakeup - do process context error handling work
- * @dev: drm device
+ * @dev_priv: i915 device private
  *
  * Fire an error uevent so userspace can see that a hang or error
  * was detected.
@@ -2674,13 +2674,14 @@ static void i915_report_and_clear_eir(struct drm_i915_private *dev_priv)
 
 /**
  * i915_handle_error - handle a gpu error
- * @dev: drm device
+ * @dev_priv: i915 device private
  * @engine_mask: mask representing engines that are hung
  * Do some basic checking of register state at error time and
  * dump it to the syslog.  Also call i915_capture_error_state() to make
  * sure we get a record and make it available in debugfs.  Fire a uevent
  * so userspace knows something bad happened (should trigger collection
  * of a ring dump etc.).
+ * @fmt: Error message format string
  */
 void i915_handle_error(struct drm_i915_private *dev_priv,
 		       u32 engine_mask,

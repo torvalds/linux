@@ -53,7 +53,7 @@
 
 /**
  * i915_check_vgpu - detect virtual GPU
- * @dev: drm device *
+ * @dev_priv: i915 device private
  *
  * This function is called at the initialization stage, to detect whether
  * running on a vGPU.
@@ -135,7 +135,7 @@ static int vgt_balloon_space(struct drm_mm *mm,
 
 /**
  * intel_vgt_balloon - balloon out reserved graphics address trunks
- * @dev_priv: i915 device
+ * @dev: drm device
  *
  * This function is called at the initialization stage, to balloon out the
  * graphic address space allocated to other vGPUs, by marking these spaces as

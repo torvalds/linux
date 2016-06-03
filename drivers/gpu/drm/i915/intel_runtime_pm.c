@@ -2448,6 +2448,7 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 /**
  * intel_power_domains_init_hw - initialize hardware power domain state
  * @dev_priv: i915 device instance
+ * @resume: Called from resume code paths or not
  *
  * This function initializes the hardware power domain state and enables all
  * power domains using intel_display_set_init_power().
