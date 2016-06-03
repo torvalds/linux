@@ -241,8 +241,20 @@ int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
 		if (!dmar_match_pci_path(info, scope->bus, path, level))
 			continue;
 
-		if ((scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT) ^
-		    (info->dev->hdr_type == PCI_HEADER_TYPE_NORMAL)) {
+		/*
+		 * We expect devices with endpoint scope to have normal PCI
+		 * headers, and devices with bridge scope to have bridge PCI
+		 * headers.  However PCI NTB devices may be listed in the
+		 * DMAR table with bridge scope, even though they have a
+		 * normal PCI header.  NTB devices are identified by class
+		 * "BRIDGE_OTHER" (0680h) - we don't declare a socpe mismatch
+		 * for this special case.
+		 */
+		if ((scope->entry_type == ACPI_DMAR_SCOPE_TYPE_ENDPOINT &&
+		     info->dev->hdr_type != PCI_HEADER_TYPE_NORMAL) ||
+		    (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_BRIDGE &&
+		     (info->dev->hdr_type == PCI_HEADER_TYPE_NORMAL &&
+		      info->dev->class >> 8 != PCI_CLASS_BRIDGE_OTHER))) {
 			pr_warn("Device scope type does not match for %s\n",
 				pci_name(info->dev));
 			return -EINVAL;
