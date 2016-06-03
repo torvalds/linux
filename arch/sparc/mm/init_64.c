@@ -324,18 +324,6 @@ static void __update_mmu_tsb_insert(struct mm_struct *mm, unsigned long tsb_inde
 	tsb_insert(tsb, tag, tte);
 }
 
-#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-static inline bool is_hugetlb_pte(pte_t pte)
-{
-	if ((tlb_type == hypervisor &&
-	     (pte_val(pte) & _PAGE_SZALL_4V) == _PAGE_SZHUGE_4V) ||
-	    (tlb_type != hypervisor &&
-	     (pte_val(pte) & _PAGE_SZALL_4U) == _PAGE_SZHUGE_4U))
-		return true;
-	return false;
-}
-#endif
-
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	struct mm_struct *mm;

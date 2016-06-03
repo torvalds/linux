@@ -604,7 +604,6 @@ int obd_init_caches(void)
  out:
 	obd_cleanup_caches();
 	return -ENOMEM;
-
 }
 
 /* map connection to client */

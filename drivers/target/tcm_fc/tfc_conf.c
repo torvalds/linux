@@ -442,7 +442,6 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.tpg_get_inst_index =		ft_tpg_get_inst_index,
 	.check_stop_free =		ft_check_stop_free,
 	.release_cmd =			ft_release_cmd,
-	.shutdown_session =		ft_sess_shutdown,
 	.close_session =		ft_sess_close,
 	.sess_get_index =		ft_sess_get_index,
 	.sess_get_initiator_sid =	NULL,

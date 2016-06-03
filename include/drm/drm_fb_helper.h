@@ -172,6 +172,10 @@ struct drm_fb_helper_connector {
  * @funcs: driver callbacks for fb helper
  * @fbdev: emulated fbdev device info struct
  * @pseudo_palette: fake palette of 16 colors
+ * @dirty_clip: clip rectangle used with deferred_io to accumulate damage to
+ *              the screen buffer
+ * @dirty_lock: spinlock protecting @dirty_clip
+ * @dirty_work: worker used to flush the framebuffer
  *
  * This is the main structure used by the fbdev helpers. Drivers supporting
  * fbdev emulation should embedded this into their overall driver structure.
@@ -189,6 +193,9 @@ struct drm_fb_helper {
 	const struct drm_fb_helper_funcs *funcs;
 	struct fb_info *fbdev;
 	u32 pseudo_palette[17];
+	struct drm_clip_rect dirty_clip;
+	spinlock_t dirty_lock;
+	struct work_struct dirty_work;
 
 	/**
 	 * @kernel_fb_list:
@@ -244,6 +251,9 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 			    uint32_t depth);
 
 void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper);
+
+void drm_fb_helper_deferred_io(struct fb_info *info,
+			       struct list_head *pagelist);
 
 ssize_t drm_fb_helper_sys_read(struct fb_info *info, char __user *buf,
 			       size_t count, loff_t *ppos);
@@ -365,6 +375,11 @@ static inline int drm_fb_helper_setcmap(struct fb_cmap *cmap,
 }
 
 static inline void drm_fb_helper_unlink_fbi(struct drm_fb_helper *fb_helper)
+{
+}
+
+static inline void drm_fb_helper_deferred_io(struct fb_info *info,
+					     struct list_head *pagelist)
 {
 }
 

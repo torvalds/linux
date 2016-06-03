@@ -155,7 +155,7 @@ static int egpio_get(struct gpio_chip *chip, unsigned offset)
 
 	pr_debug("egpio_get_value(%d)\n", chip->base + offset);
 
-	egpio = container_of(chip, struct egpio_chip, chip);
+	egpio = gpiochip_get_data(chip);
 	ei    = dev_get_drvdata(egpio->dev);
 	bit   = egpio_bit(ei, offset);
 	reg   = egpio->reg_start + egpio_pos(ei, offset);
@@ -170,7 +170,7 @@ static int egpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct egpio_chip *egpio;
 
-	egpio = container_of(chip, struct egpio_chip, chip);
+	egpio = gpiochip_get_data(chip);
 	return test_bit(offset, &egpio->is_out) ? -EINVAL : 0;
 }
 
@@ -192,7 +192,7 @@ static void egpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	pr_debug("egpio_set(%s, %d(%d), %d)\n",
 			chip->label, offset, offset+chip->base, value);
 
-	egpio = container_of(chip, struct egpio_chip, chip);
+	egpio = gpiochip_get_data(chip);
 	ei    = dev_get_drvdata(egpio->dev);
 	bit   = egpio_bit(ei, offset);
 	pos   = egpio_pos(ei, offset);
@@ -216,7 +216,7 @@ static int egpio_direction_output(struct gpio_chip *chip,
 {
 	struct egpio_chip *egpio;
 
-	egpio = container_of(chip, struct egpio_chip, chip);
+	egpio = gpiochip_get_data(chip);
 	if (test_bit(offset, &egpio->is_out)) {
 		egpio_set(chip, offset, value);
 		return 0;
@@ -330,7 +330,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 		chip->base            = pdata->chip[i].gpio_base;
 		chip->ngpio           = pdata->chip[i].num_gpios;
 
-		gpiochip_add(chip);
+		gpiochip_add_data(chip, &ei->chip[i]);
 	}
 
 	/* Set initial pin values */

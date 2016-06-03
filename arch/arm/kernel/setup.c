@@ -941,6 +941,12 @@ static int __init init_machine_late(void)
 late_initcall(init_machine_late);
 
 #ifdef CONFIG_KEXEC
+/*
+ * The crash region must be aligned to 128MB to avoid
+ * zImage relocating below the reserved region.
+ */
+#define CRASH_ALIGN	(128 << 20)
+
 static inline unsigned long long get_total_mem(void)
 {
 	unsigned long total;
@@ -967,6 +973,26 @@ static void __init reserve_crashkernel(void)
 				&crash_size, &crash_base);
 	if (ret)
 		return;
+
+	if (crash_base <= 0) {
+		unsigned long long crash_max = idmap_to_phys((u32)~0);
+		crash_base = memblock_find_in_range(CRASH_ALIGN, crash_max,
+						    crash_size, CRASH_ALIGN);
+		if (!crash_base) {
+			pr_err("crashkernel reservation failed - No suitable area found.\n");
+			return;
+		}
+	} else {
+		unsigned long long start;
+
+		start = memblock_find_in_range(crash_base,
+					       crash_base + crash_size,
+					       crash_size, SECTION_SIZE);
+		if (start != crash_base) {
+			pr_err("crashkernel reservation failed - memory is in use.\n");
+			return;
+		}
+	}
 
 	ret = memblock_reserve(crash_base, crash_size);
 	if (ret < 0) {

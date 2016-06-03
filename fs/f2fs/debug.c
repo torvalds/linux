@@ -48,7 +48,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->ndirty_dirs = sbi->ndirty_inode[DIR_INODE];
 	si->ndirty_files = sbi->ndirty_inode[FILE_INODE];
 	si->inmem_pages = get_pages(sbi, F2FS_INMEM_PAGES);
-	si->wb_pages = get_pages(sbi, F2FS_WRITEBACK);
+	si->wb_bios = atomic_read(&sbi->nr_wb_bios);
 	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
 	si->rsvd_segs = reserved_segments(sbi);
 	si->overp_segs = overprovision_segments(sbi);
@@ -58,6 +58,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->inline_xattr = atomic_read(&sbi->inline_xattr);
 	si->inline_inode = atomic_read(&sbi->inline_inode);
 	si->inline_dir = atomic_read(&sbi->inline_dir);
+	si->orphans = sbi->im[ORPHAN_INO].ino_num;
 	si->utilization = utilization(sbi);
 
 	si->free_segs = free_segments(sbi);
@@ -143,6 +144,7 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	si->base_mem = sizeof(struct f2fs_sb_info) + sbi->sb->s_blocksize;
 	si->base_mem += 2 * sizeof(struct f2fs_inode_info);
 	si->base_mem += sizeof(*sbi->ckpt);
+	si->base_mem += sizeof(struct percpu_counter) * NR_COUNT_TYPE;
 
 	/* build sm */
 	si->base_mem += sizeof(struct f2fs_sm_info);
@@ -192,7 +194,7 @@ get_cache:
 	si->cache_mem += NM_I(sbi)->dirty_nat_cnt *
 					sizeof(struct nat_entry_set);
 	si->cache_mem += si->inmem_pages * sizeof(struct inmem_pages);
-	for (i = 0; i <= UPDATE_INO; i++)
+	for (i = 0; i <= ORPHAN_INO; i++)
 		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
 	si->cache_mem += atomic_read(&sbi->total_ext_tree) *
 						sizeof(struct extent_tree);
@@ -216,8 +218,9 @@ static int stat_show(struct seq_file *s, void *v)
 	list_for_each_entry(si, &f2fs_stat_list, stat_list) {
 		update_general_status(si->sbi);
 
-		seq_printf(s, "\n=====[ partition info(%pg). #%d ]=====\n",
-			si->sbi->sb->s_bdev, i++);
+		seq_printf(s, "\n=====[ partition info(%pg). #%d, %s]=====\n",
+			si->sbi->sb->s_bdev, i++,
+			f2fs_readonly(si->sbi->sb) ? "RO": "RW");
 		seq_printf(s, "[SB: 1] [CP: 2] [SIT: %d] [NAT: %d] ",
 			   si->sit_area_segs, si->nat_area_segs);
 		seq_printf(s, "[SSA: %d] [MAIN: %d",
@@ -237,6 +240,8 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->inline_inode);
 		seq_printf(s, "  - Inline_dentry Inode: %u\n",
 			   si->inline_dir);
+		seq_printf(s, "  - Orphan Inode: %u\n",
+			   si->orphans);
 		seq_printf(s, "\nMain area: %d segs, %d secs %d zones\n",
 			   si->main_area_segs, si->main_area_sections,
 			   si->main_area_zones);
@@ -295,15 +300,15 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
 				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
-		seq_printf(s, "  - inmem: %4d, wb: %4d\n",
-			   si->inmem_pages, si->wb_pages);
-		seq_printf(s, "  - nodes: %4d in %4d\n",
+		seq_printf(s, "  - inmem: %4lld, wb_bios: %4d\n",
+			   si->inmem_pages, si->wb_bios);
+		seq_printf(s, "  - nodes: %4lld in %4d\n",
 			   si->ndirty_node, si->node_pages);
-		seq_printf(s, "  - dents: %4d in dirs:%4d\n",
+		seq_printf(s, "  - dents: %4lld in dirs:%4d\n",
 			   si->ndirty_dent, si->ndirty_dirs);
-		seq_printf(s, "  - datas: %4d in files:%4d\n",
+		seq_printf(s, "  - datas: %4lld in files:%4d\n",
 			   si->ndirty_data, si->ndirty_files);
-		seq_printf(s, "  - meta: %4d in %4d\n",
+		seq_printf(s, "  - meta: %4lld in %4d\n",
 			   si->ndirty_meta, si->meta_pages);
 		seq_printf(s, "  - NATs: %9d/%9d\n  - SITs: %9d/%9d\n",
 			   si->dirty_nats, si->nats, si->dirty_sits, si->sits);

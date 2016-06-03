@@ -64,7 +64,7 @@ config IIO_ST_ACCEL_3AXIS
 	help
 	  Say yes here to build support for STMicroelectronics accelerometers:
 	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
-	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12.
+	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12, H3LIS331DL.
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:
@@ -143,7 +143,8 @@ config MMA8452
 	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for the following Freescale 3-axis
-	  accelerometers: MMA8451Q, MMA8452Q, MMA8453Q, MMA8652FC, MMA8653FC.
+	  accelerometers: MMA8451Q, MMA8452Q, MMA8453Q, MMA8652FC, MMA8653FC,
+	  FXLS8471Q.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mma8452.

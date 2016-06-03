@@ -216,7 +216,7 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 			init.parent_names = &clk_name;
 			init.num_parents = 1;
 		} else {
-			init.flags = CLK_IS_ROOT;
+			init.flags = 0;
 			init.parent_names = NULL;
 			init.num_parents = 0;
 		}

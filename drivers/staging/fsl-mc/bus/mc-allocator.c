@@ -39,7 +39,6 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 	struct fsl_mc_resource *resource;
 	struct fsl_mc_device *mc_bus_dev = &mc_bus->mc_dev;
 	int error = -EINVAL;
-	bool mutex_locked = false;
 
 	if (WARN_ON(pool_type < 0 || pool_type >= FSL_MC_NUM_POOL_TYPES))
 		goto out;
@@ -55,13 +54,12 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 		goto out;
 
 	mutex_lock(&res_pool->mutex);
-	mutex_locked = true;
 
 	if (WARN_ON(res_pool->max_count < 0))
-		goto out;
+		goto out_unlock;
 	if (WARN_ON(res_pool->free_count < 0 ||
 		    res_pool->free_count > res_pool->max_count))
-		goto out;
+		goto out_unlock;
 
 	resource = devm_kzalloc(&mc_bus_dev->dev, sizeof(*resource),
 				GFP_KERNEL);
@@ -69,7 +67,7 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 		error = -ENOMEM;
 		dev_err(&mc_bus_dev->dev,
 			"Failed to allocate memory for fsl_mc_resource\n");
-		goto out;
+		goto out_unlock;
 	}
 
 	resource->type = pool_type;
@@ -82,10 +80,9 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 	res_pool->free_count++;
 	res_pool->max_count++;
 	error = 0;
+out_unlock:
+	mutex_unlock(&res_pool->mutex);
 out:
-	if (mutex_locked)
-		mutex_unlock(&res_pool->mutex);
-
 	return error;
 }
 
@@ -106,7 +103,6 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	struct fsl_mc_resource_pool *res_pool;
 	struct fsl_mc_resource *resource;
 	int error = -EINVAL;
-	bool mutex_locked = false;
 
 	if (WARN_ON(!FSL_MC_IS_ALLOCATABLE(mc_dev->obj_desc.type)))
 		goto out;
@@ -122,13 +118,12 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 		goto out;
 
 	mutex_lock(&res_pool->mutex);
-	mutex_locked = true;
 
 	if (WARN_ON(res_pool->max_count <= 0))
-		goto out;
+		goto out_unlock;
 	if (WARN_ON(res_pool->free_count <= 0 ||
 		    res_pool->free_count > res_pool->max_count))
-		goto out;
+		goto out_unlock;
 
 	/*
 	 * If the device is currently allocated, its resource is not
@@ -139,7 +134,7 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 		dev_err(&mc_bus_dev->dev,
 			"Device %s cannot be removed from resource pool\n",
 			dev_name(&mc_dev->dev));
-		goto out;
+		goto out_unlock;
 	}
 
 	list_del(&resource->node);
@@ -150,10 +145,9 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 	devm_kfree(&mc_bus_dev->dev, resource);
 	mc_dev->resource = NULL;
 	error = 0;
+out_unlock:
+	mutex_unlock(&res_pool->mutex);
 out:
-	if (mutex_locked)
-		mutex_unlock(&res_pool->mutex);
-
 	return error;
 }
 
@@ -188,21 +182,19 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 	struct fsl_mc_resource *resource;
 	struct fsl_mc_device *mc_bus_dev = &mc_bus->mc_dev;
 	int error = -EINVAL;
-	bool mutex_locked = false;
 
 	BUILD_BUG_ON(ARRAY_SIZE(fsl_mc_pool_type_strings) !=
 		     FSL_MC_NUM_POOL_TYPES);
 
 	*new_resource = NULL;
 	if (WARN_ON(pool_type < 0 || pool_type >= FSL_MC_NUM_POOL_TYPES))
-		goto error;
+		goto out;
 
 	res_pool = &mc_bus->resource_pools[pool_type];
 	if (WARN_ON(res_pool->mc_bus != mc_bus))
-		goto error;
+		goto out;
 
 	mutex_lock(&res_pool->mutex);
-	mutex_locked = true;
 	resource = list_first_entry_or_null(&res_pool->free_list,
 					    struct fsl_mc_resource, node);
 
@@ -212,28 +204,26 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 		dev_err(&mc_bus_dev->dev,
 			"No more resources of type %s left\n",
 			fsl_mc_pool_type_strings[pool_type]);
-		goto error;
+		goto out_unlock;
 	}
 
 	if (WARN_ON(resource->type != pool_type))
-		goto error;
+		goto out_unlock;
 	if (WARN_ON(resource->parent_pool != res_pool))
-		goto error;
+		goto out_unlock;
 	if (WARN_ON(res_pool->free_count <= 0 ||
 		    res_pool->free_count > res_pool->max_count))
-		goto error;
+		goto out_unlock;
 
 	list_del(&resource->node);
 	INIT_LIST_HEAD(&resource->node);
 
 	res_pool->free_count--;
+	error = 0;
+out_unlock:
 	mutex_unlock(&res_pool->mutex);
 	*new_resource = resource;
-	return 0;
-error:
-	if (mutex_locked)
-		mutex_unlock(&res_pool->mutex);
-
+out:
 	return error;
 }
 EXPORT_SYMBOL_GPL(fsl_mc_resource_allocate);
@@ -241,26 +231,23 @@ EXPORT_SYMBOL_GPL(fsl_mc_resource_allocate);
 void fsl_mc_resource_free(struct fsl_mc_resource *resource)
 {
 	struct fsl_mc_resource_pool *res_pool;
-	bool mutex_locked = false;
 
 	res_pool = resource->parent_pool;
 	if (WARN_ON(resource->type != res_pool->type))
-		goto out;
+		return;
 
 	mutex_lock(&res_pool->mutex);
-	mutex_locked = true;
 	if (WARN_ON(res_pool->free_count < 0 ||
 		    res_pool->free_count >= res_pool->max_count))
-		goto out;
+		goto out_unlock;
 
 	if (WARN_ON(!list_empty(&resource->node)))
-		goto out;
+		goto out_unlock;
 
 	list_add_tail(&resource->node, &res_pool->free_list);
 	res_pool->free_count++;
-out:
-	if (mutex_locked)
-		mutex_unlock(&res_pool->mutex);
+out_unlock:
+	mutex_unlock(&res_pool->mutex);
 }
 EXPORT_SYMBOL_GPL(fsl_mc_resource_free);
 
@@ -306,9 +293,21 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 	if (error < 0)
 		return error;
 
+	error = -EINVAL;
 	dpmcp_dev = resource->data;
 	if (WARN_ON(!dpmcp_dev))
 		goto error_cleanup_resource;
+
+	if (dpmcp_dev->obj_desc.ver_major < DPMCP_MIN_VER_MAJOR ||
+	    (dpmcp_dev->obj_desc.ver_major == DPMCP_MIN_VER_MAJOR &&
+	     dpmcp_dev->obj_desc.ver_minor < DPMCP_MIN_VER_MINOR)) {
+		dev_err(&dpmcp_dev->dev,
+			"ERROR: Version %d.%d of DPMCP not supported.\n",
+			dpmcp_dev->obj_desc.ver_major,
+			dpmcp_dev->obj_desc.ver_minor);
+		error = -ENOTSUPP;
+		goto error_cleanup_resource;
+	}
 
 	if (WARN_ON(dpmcp_dev->obj_desc.region_count == 0))
 		goto error_cleanup_resource;
@@ -722,20 +721,14 @@ static const struct fsl_mc_device_match_id match_id_table[] = {
 	{
 	 .vendor = FSL_MC_VENDOR_FREESCALE,
 	 .obj_type = "dpbp",
-	 .ver_major = DPBP_VER_MAJOR,
-	 .ver_minor = DPBP_VER_MINOR
 	},
 	{
 	 .vendor = FSL_MC_VENDOR_FREESCALE,
 	 .obj_type = "dpmcp",
-	 .ver_major = DPMCP_VER_MAJOR,
-	 .ver_minor = DPMCP_VER_MINOR
 	},
 	{
 	 .vendor = FSL_MC_VENDOR_FREESCALE,
 	 .obj_type = "dpcon",
-	 .ver_major = DPCON_VER_MAJOR,
-	 .ver_minor = DPCON_VER_MINOR
 	},
 	{.vendor = 0x0},
 };

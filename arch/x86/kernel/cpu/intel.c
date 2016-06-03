@@ -25,6 +25,41 @@
 #include <asm/apic.h>
 #endif
 
+/*
+ * Just in case our CPU detection goes bad, or you have a weird system,
+ * allow a way to override the automatic disabling of MPX.
+ */
+static int forcempx;
+
+static int __init forcempx_setup(char *__unused)
+{
+	forcempx = 1;
+
+	return 1;
+}
+__setup("intel-skd-046-workaround=disable", forcempx_setup);
+
+void check_mpx_erratum(struct cpuinfo_x86 *c)
+{
+	if (forcempx)
+		return;
+	/*
+	 * Turn off the MPX feature on CPUs where SMEP is not
+	 * available or disabled.
+	 *
+	 * Works around Intel Erratum SKD046: "Branch Instructions
+	 * May Initialize MPX Bound Registers Incorrectly".
+	 *
+	 * This might falsely disable MPX on systems without
+	 * SMEP, like Atom processors without SMEP.  But there
+	 * is no such hardware known at the moment.
+	 */
+	if (cpu_has(c, X86_FEATURE_MPX) && !cpu_has(c, X86_FEATURE_SMEP)) {
+		setup_clear_cpu_cap(X86_FEATURE_MPX);
+		pr_warn("x86/mpx: Disabling MPX since SMEP not present\n");
+	}
+}
+
 static void early_init_intel(struct cpuinfo_x86 *c)
 {
 	u64 misc_enable;
@@ -173,6 +208,8 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 		if (edx & (1U << 28))
 			c->x86_coreid_bits = get_count_order((ebx >> 16) & 0xff);
 	}
+
+	check_mpx_erratum(c);
 }
 
 #ifdef CONFIG_X86_32

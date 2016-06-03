@@ -82,7 +82,7 @@ struct dentry *ext2_get_parent(struct dentry *child)
 	unsigned long ino = ext2_inode_by_name(d_inode(child), &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	return d_obtain_alias(ext2_iget(d_inode(child)->i_sb, ino));
+	return d_obtain_alias(ext2_iget(child->d_sb, ino));
 } 
 
 /*

@@ -200,13 +200,6 @@ void show_regs(struct pt_regs * regs)
 	__show_regs(regs);
 }
 
-/*
- * Free current thread data structures etc..
- */
-void exit_thread(void)
-{
-}
-
 static void tls_thread_flush(void)
 {
 	asm ("msr tpidr_el0, xzr");

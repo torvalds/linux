@@ -30,7 +30,7 @@ static void tcp_write_err(struct sock *sk)
 	sk->sk_error_report(sk);
 
 	tcp_done(sk);
-	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPABORTONTIMEOUT);
+	__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPABORTONTIMEOUT);
 }
 
 /* Do not allow orphaned sockets to eat all our resources.
@@ -68,7 +68,7 @@ static int tcp_out_of_resources(struct sock *sk, bool do_reset)
 		if (do_reset)
 			tcp_send_active_reset(sk, GFP_ATOMIC);
 		tcp_done(sk);
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPABORTONMEMORY);
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPABORTONMEMORY);
 		return 1;
 	}
 	return 0;
@@ -162,8 +162,8 @@ static int tcp_write_timeout(struct sock *sk)
 			if (tp->syn_fastopen || tp->syn_data)
 				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
 			if (tp->syn_data && icsk->icsk_retransmits == 1)
-				NET_INC_STATS_BH(sock_net(sk),
-						 LINUX_MIB_TCPFASTOPENACTIVEFAIL);
+				NET_INC_STATS(sock_net(sk),
+					      LINUX_MIB_TCPFASTOPENACTIVEFAIL);
 		}
 		retry_until = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_syn_retries;
 		syn_set = true;
@@ -178,8 +178,8 @@ static int tcp_write_timeout(struct sock *sk)
 			    tp->bytes_acked <= tp->rx_opt.mss_clamp) {
 				tcp_fastopen_cache_set(sk, 0, NULL, true, 0);
 				if (icsk->icsk_retransmits == net->ipv4.sysctl_tcp_retries1)
-					NET_INC_STATS_BH(sock_net(sk),
-							 LINUX_MIB_TCPFASTOPENACTIVEFAIL);
+					NET_INC_STATS(sock_net(sk),
+						      LINUX_MIB_TCPFASTOPENACTIVEFAIL);
 			}
 			/* Black hole detection */
 			tcp_mtu_probing(icsk, sk);
@@ -209,6 +209,7 @@ static int tcp_write_timeout(struct sock *sk)
 	return 0;
 }
 
+/* Called with BH disabled */
 void tcp_delack_timer_handler(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -228,7 +229,7 @@ void tcp_delack_timer_handler(struct sock *sk)
 	if (!skb_queue_empty(&tp->ucopy.prequeue)) {
 		struct sk_buff *skb;
 
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSCHEDULERFAILED);
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPSCHEDULERFAILED);
 
 		while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
 			sk_backlog_rcv(sk, skb);
@@ -248,7 +249,7 @@ void tcp_delack_timer_handler(struct sock *sk)
 			icsk->icsk_ack.ato      = TCP_ATO_MIN;
 		}
 		tcp_send_ack(sk);
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_DELAYEDACKS);
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_DELAYEDACKS);
 	}
 
 out:
@@ -265,7 +266,7 @@ static void tcp_delack_timer(unsigned long data)
 		tcp_delack_timer_handler(sk);
 	} else {
 		inet_csk(sk)->icsk_ack.blocked = 1;
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_DELAYEDACKLOCKED);
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_DELAYEDACKLOCKED);
 		/* deleguate our work to tcp_release_cb() */
 		if (!test_and_set_bit(TCP_DELACK_TIMER_DEFERRED, &tcp_sk(sk)->tsq_flags))
 			sock_hold(sk);
@@ -404,7 +405,7 @@ void tcp_retransmit_timer(struct sock *sk)
 			goto out;
 		}
 		tcp_enter_loss(sk);
-		tcp_retransmit_skb(sk, tcp_write_queue_head(sk));
+		tcp_retransmit_skb(sk, tcp_write_queue_head(sk), 1);
 		__sk_dst_reset(sk);
 		goto out_reset_timer;
 	}
@@ -431,12 +432,12 @@ void tcp_retransmit_timer(struct sock *sk)
 		} else {
 			mib_idx = LINUX_MIB_TCPTIMEOUTS;
 		}
-		NET_INC_STATS_BH(sock_net(sk), mib_idx);
+		__NET_INC_STATS(sock_net(sk), mib_idx);
 	}
 
 	tcp_enter_loss(sk);
 
-	if (tcp_retransmit_skb(sk, tcp_write_queue_head(sk)) > 0) {
+	if (tcp_retransmit_skb(sk, tcp_write_queue_head(sk), 1) > 0) {
 		/* Retransmission failed because of local congestion,
 		 * do not backoff.
 		 */
@@ -493,6 +494,7 @@ out_reset_timer:
 out:;
 }
 
+/* Called with BH disabled */
 void tcp_write_timer_handler(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -549,7 +551,7 @@ void tcp_syn_ack_timeout(const struct request_sock *req)
 {
 	struct net *net = read_pnet(&inet_rsk(req)->ireq_net);
 
-	NET_INC_STATS_BH(net, LINUX_MIB_TCPTIMEOUTS);
+	__NET_INC_STATS(net, LINUX_MIB_TCPTIMEOUTS);
 }
 EXPORT_SYMBOL(tcp_syn_ack_timeout);
 

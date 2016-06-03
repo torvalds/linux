@@ -323,23 +323,23 @@ static void xtensa_pmu_read(struct perf_event *event)
 
 static int callchain_trace(struct stackframe *frame, void *data)
 {
-	struct perf_callchain_entry *entry = data;
+	struct perf_callchain_entry_ctx *entry = data;
 
 	perf_callchain_store(entry, frame->pc);
 	return 0;
 }
 
-void perf_callchain_kernel(struct perf_callchain_entry *entry,
+void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
-	xtensa_backtrace_kernel(regs, sysctl_perf_event_max_stack,
+	xtensa_backtrace_kernel(regs, entry->max_stack,
 				callchain_trace, NULL, entry);
 }
 
-void perf_callchain_user(struct perf_callchain_entry *entry,
+void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
-	xtensa_backtrace_user(regs, sysctl_perf_event_max_stack,
+	xtensa_backtrace_user(regs, entry->max_stack,
 			      callchain_trace, entry);
 }
 

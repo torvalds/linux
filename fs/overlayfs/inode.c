@@ -210,8 +210,9 @@ static bool ovl_is_private_xattr(const char *name)
 	return strncmp(name, OVL_XATTR_PRE_NAME, OVL_XATTR_PRE_LEN) == 0;
 }
 
-int ovl_setxattr(struct dentry *dentry, const char *name,
-		 const void *value, size_t size, int flags)
+int ovl_setxattr(struct dentry *dentry, struct inode *inode,
+		 const char *name, const void *value,
+		 size_t size, int flags)
 {
 	int err;
 	struct dentry *upperdentry;
@@ -246,8 +247,8 @@ static bool ovl_need_xattr_filter(struct dentry *dentry,
 		return false;
 }
 
-ssize_t ovl_getxattr(struct dentry *dentry, const char *name,
-		     void *value, size_t size)
+ssize_t ovl_getxattr(struct dentry *dentry, struct inode *inode,
+		     const char *name, void *value, size_t size)
 {
 	struct path realpath;
 	enum ovl_path_type type = ovl_path_real(dentry, &realpath);

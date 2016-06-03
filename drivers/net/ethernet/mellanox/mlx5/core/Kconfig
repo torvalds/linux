@@ -31,10 +31,3 @@ config MLX5_CORE_EN_DCB
 	  This flag is depended on the kernel's DCB support.
 
 	  If unsure, set to Y
-
-config MLX5_CORE_EN_VXLAN
-	bool "VXLAN offloads Support"
-	default y
-	depends on MLX5_CORE_EN && VXLAN && !(MLX5_CORE=y && VXLAN=m)
-	---help---
-	  Say Y here if you want to use VXLAN offloads in the driver.

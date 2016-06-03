@@ -30,7 +30,7 @@
 
 struct amdgpu_acp {
 	struct device *parent;
-	void *cgs_device;
+	struct cgs_device *cgs_device;
 	struct amd_acp_private *private;
 	struct mfd_cell *acp_cell;
 	struct resource *acp_res;

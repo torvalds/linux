@@ -196,11 +196,64 @@ static inline void v4l2_subdev_notify(struct v4l2_subdev *sd,
 			##args);					\
 })
 
-#define v4l2_device_has_op(v4l2_dev, o, f)				\
+/*
+ * Call the specified callback for all subdevs where grp_id & grpmsk != 0
+ * (if grpmsk == `0, then match them all). Ignore any errors. Note that you
+ * cannot add or delete a subdev while walking the subdevs list.
+ */
+#define v4l2_device_mask_call_all(v4l2_dev, grpmsk, o, f, args...)	\
+	do {								\
+		struct v4l2_subdev *__sd;				\
+									\
+		__v4l2_device_call_subdevs_p(v4l2_dev, __sd,		\
+			!(grpmsk) || (__sd->grp_id & (grpmsk)), o, f ,	\
+			##args);					\
+	} while (0)
+
+/*
+ * Call the specified callback for all subdevs where grp_id & grpmsk != 0
+ * (if grpmsk == `0, then match them all). If the callback returns an error
+ * other than 0 or -ENOIOCTLCMD, then return with that error code. Note that
+ * you cannot add or delete a subdev while walking the subdevs list.
+ */
+#define v4l2_device_mask_call_until_err(v4l2_dev, grpmsk, o, f, args...) \
+({									\
+	struct v4l2_subdev *__sd;					\
+	__v4l2_device_call_subdevs_until_err_p(v4l2_dev, __sd,		\
+			!(grpmsk) || (__sd->grp_id & (grpmsk)), o, f ,	\
+			##args);					\
+})
+
+/*
+ * Does any subdev with matching grpid (or all if grpid == 0) has the given
+ * op?
+ */
+#define v4l2_device_has_op(v4l2_dev, grpid, o, f)			\
 ({									\
 	struct v4l2_subdev *__sd;					\
 	bool __result = false;						\
 	list_for_each_entry(__sd, &(v4l2_dev)->subdevs, list) {		\
+		if ((grpid) && __sd->grp_id != (grpid))			\
+			continue;					\
+		if (v4l2_subdev_has_op(__sd, o, f)) {			\
+			__result = true;				\
+			break;						\
+		}							\
+	}								\
+	__result;							\
+})
+
+/*
+ * Does any subdev with matching grpmsk (or all if grpmsk == 0) has the given
+ * op?
+ */
+#define v4l2_device_mask_has_op(v4l2_dev, grpmsk, o, f)			\
+({									\
+	struct v4l2_subdev *__sd;					\
+	bool __result = false;						\
+	list_for_each_entry(__sd, &(v4l2_dev)->subdevs, list) {		\
+		if ((grpmsk) && !(__sd->grp_id & (grpmsk)))		\
+			continue;					\
 		if (v4l2_subdev_has_op(__sd, o, f)) {			\
 			__result = true;				\
 			break;						\

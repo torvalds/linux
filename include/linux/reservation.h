@@ -120,6 +120,24 @@ reservation_object_get_excl(struct reservation_object *obj)
 					 reservation_object_held(obj));
 }
 
+static inline struct fence *
+reservation_object_get_excl_rcu(struct reservation_object *obj)
+{
+	struct fence *fence;
+	unsigned seq;
+retry:
+	seq = read_seqcount_begin(&obj->seq);
+	rcu_read_lock();
+	fence = rcu_dereference(obj->fence_excl);
+	if (read_seqcount_retry(&obj->seq, seq)) {
+		rcu_read_unlock();
+		goto retry;
+	}
+	fence = fence_get(fence);
+	rcu_read_unlock();
+	return fence;
+}
+
 int reservation_object_reserve_shared(struct reservation_object *obj);
 void reservation_object_add_shared_fence(struct reservation_object *obj,
 					 struct fence *fence);

@@ -372,7 +372,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder)
 	if (WARN_ON(port == PORT_A))
 		return;
 
-	if (HAS_PCH_IBX(dev_priv->dev)) {
+	if (HAS_PCH_IBX(dev_priv)) {
 		aud_config = IBX_AUD_CFG(pipe);
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
@@ -561,23 +561,21 @@ void intel_audio_codec_disable(struct intel_encoder *intel_encoder)
 }
 
 /**
- * intel_init_audio - Set up chip specific audio functions
- * @dev: drm device
+ * intel_init_audio_hooks - Set up chip specific audio hooks
+ * @dev_priv: device private
  */
-void intel_init_audio(struct drm_device *dev)
+void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (IS_G4X(dev)) {
+	if (IS_G4X(dev_priv)) {
 		dev_priv->display.audio_codec_enable = g4x_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = g4x_audio_codec_disable;
-	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
-	} else if (IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8) {
+	} else if (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8) {
 		dev_priv->display.audio_codec_enable = hsw_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = hsw_audio_codec_disable;
-	} else if (HAS_PCH_SPLIT(dev)) {
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
 	}

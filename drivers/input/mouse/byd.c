@@ -478,7 +478,6 @@ int byd_init(struct psmouse *psmouse)
 	if (!priv)
 		return -ENOMEM;
 
-	memset(priv, 0, sizeof(*priv));
 	setup_timer(&priv->timer, byd_clear_touch, (unsigned long) psmouse);
 
 	psmouse->private = priv;

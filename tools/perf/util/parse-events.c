@@ -1649,7 +1649,7 @@ static void parse_events_print_error(struct parse_events_error *err,
 
 		buf = _buf;
 
-		/* We're cutting from the beggining. */
+		/* We're cutting from the beginning. */
 		if (err->idx > max_err_idx)
 			cut = err->idx - max_err_idx;
 

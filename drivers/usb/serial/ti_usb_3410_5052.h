@@ -60,6 +60,14 @@
 #define HONEYWELL_VENDOR_ID		0x10ac
 #define HONEYWELL_HGI80_PRODUCT_ID	0x0102  /* Honeywell HGI80 */
 
+/* Moxa UPORT 11x0 vendor and product IDs */
+#define MXU1_VENDOR_ID				0x110a
+#define MXU1_1110_PRODUCT_ID			0x1110
+#define MXU1_1130_PRODUCT_ID			0x1130
+#define MXU1_1131_PRODUCT_ID			0x1131
+#define MXU1_1150_PRODUCT_ID			0x1150
+#define MXU1_1151_PRODUCT_ID			0x1151
+
 /* Commands */
 #define TI_GET_VERSION			0x01
 #define TI_GET_PORT_STATUS		0x02

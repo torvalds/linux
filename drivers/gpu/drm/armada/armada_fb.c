@@ -120,7 +120,7 @@ static struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 		goto err;
 	}
 
-	obj = armada_gem_object_lookup(dev, dfile, mode->handles[0]);
+	obj = armada_gem_object_lookup(dfile, mode->handles[0]);
 	if (!obj) {
 		ret = -ENOENT;
 		goto err;

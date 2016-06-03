@@ -358,7 +358,7 @@ static int stm32_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		ret = stm32_pctrl_dt_subnode_to_map(pctldev, np, map,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
-			pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
+			pinctrl_utils_free_map(pctldev, *map, *num_maps);
 			return ret;
 		}
 	}
@@ -396,7 +396,7 @@ static int stm32_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 
 static const struct pinctrl_ops stm32_pctrl_ops = {
 	.dt_node_to_map		= stm32_pctrl_dt_node_to_map,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 	.get_groups_count	= stm32_pctrl_get_groups_count,
 	.get_group_name		= stm32_pctrl_get_group_name,
 	.get_group_pins		= stm32_pctrl_get_group_pins,
@@ -449,6 +449,29 @@ static void stm32_pmx_set_mode(struct stm32_gpio_bank *bank,
 	val &= ~GENMASK(pin * 2 + 1, pin * 2);
 	val |= mode << (pin * 2);
 	writel_relaxed(val, bank->base + STM32_GPIO_MODER);
+
+	spin_unlock_irqrestore(&bank->lock, flags);
+	clk_disable(bank->clk);
+}
+
+static void stm32_pmx_get_mode(struct stm32_gpio_bank *bank,
+		int pin, u32 *mode, u32 *alt)
+{
+	u32 val;
+	int alt_shift = (pin % 8) * 4;
+	int alt_offset = STM32_GPIO_AFRL + (pin / 8) * 4;
+	unsigned long flags;
+
+	clk_enable(bank->clk);
+	spin_lock_irqsave(&bank->lock, flags);
+
+	val = readl_relaxed(bank->base + alt_offset);
+	val &= GENMASK(alt_shift + 3, alt_shift);
+	*alt = val >> alt_shift;
+
+	val = readl_relaxed(bank->base + STM32_GPIO_MODER);
+	val &= GENMASK(pin * 2 + 1, pin * 2);
+	*mode = val >> (pin * 2);
 
 	spin_unlock_irqrestore(&bank->lock, flags);
 	clk_disable(bank->clk);
@@ -525,6 +548,24 @@ static void stm32_pconf_set_driving(struct stm32_gpio_bank *bank,
 	clk_disable(bank->clk);
 }
 
+static u32 stm32_pconf_get_driving(struct stm32_gpio_bank *bank,
+	unsigned int offset)
+{
+	unsigned long flags;
+	u32 val;
+
+	clk_enable(bank->clk);
+	spin_lock_irqsave(&bank->lock, flags);
+
+	val = readl_relaxed(bank->base + STM32_GPIO_TYPER);
+	val &= BIT(offset);
+
+	spin_unlock_irqrestore(&bank->lock, flags);
+	clk_disable(bank->clk);
+
+	return (val >> offset);
+}
+
 static void stm32_pconf_set_speed(struct stm32_gpio_bank *bank,
 	unsigned offset, u32 speed)
 {
@@ -543,6 +584,24 @@ static void stm32_pconf_set_speed(struct stm32_gpio_bank *bank,
 	clk_disable(bank->clk);
 }
 
+static u32 stm32_pconf_get_speed(struct stm32_gpio_bank *bank,
+	unsigned int offset)
+{
+	unsigned long flags;
+	u32 val;
+
+	clk_enable(bank->clk);
+	spin_lock_irqsave(&bank->lock, flags);
+
+	val = readl_relaxed(bank->base + STM32_GPIO_SPEEDR);
+	val &= GENMASK(offset * 2 + 1, offset * 2);
+
+	spin_unlock_irqrestore(&bank->lock, flags);
+	clk_disable(bank->clk);
+
+	return (val >> (offset * 2));
+}
+
 static void stm32_pconf_set_bias(struct stm32_gpio_bank *bank,
 	unsigned offset, u32 bias)
 {
@@ -559,6 +618,57 @@ static void stm32_pconf_set_bias(struct stm32_gpio_bank *bank,
 
 	spin_unlock_irqrestore(&bank->lock, flags);
 	clk_disable(bank->clk);
+}
+
+static u32 stm32_pconf_get_bias(struct stm32_gpio_bank *bank,
+	unsigned int offset)
+{
+	unsigned long flags;
+	u32 val;
+
+	clk_enable(bank->clk);
+	spin_lock_irqsave(&bank->lock, flags);
+
+	val = readl_relaxed(bank->base + STM32_GPIO_PUPDR);
+	val &= GENMASK(offset * 2 + 1, offset * 2);
+
+	spin_unlock_irqrestore(&bank->lock, flags);
+	clk_disable(bank->clk);
+
+	return (val >> (offset * 2));
+}
+
+static bool stm32_pconf_input_get(struct stm32_gpio_bank *bank,
+	unsigned int offset)
+{
+	unsigned long flags;
+	u32 val;
+
+	clk_enable(bank->clk);
+	spin_lock_irqsave(&bank->lock, flags);
+
+	val = !!(readl_relaxed(bank->base + STM32_GPIO_IDR) & BIT(offset));
+
+	spin_unlock_irqrestore(&bank->lock, flags);
+	clk_disable(bank->clk);
+
+	return val;
+}
+
+static bool stm32_pconf_output_get(struct stm32_gpio_bank *bank,
+	unsigned int offset)
+{
+	unsigned long flags;
+	u32 val;
+
+	clk_enable(bank->clk);
+	spin_lock_irqsave(&bank->lock, flags);
+	val = !!(readl_relaxed(bank->base + STM32_GPIO_ODR) & BIT(offset));
+
+	spin_unlock_irqrestore(&bank->lock, flags);
+	clk_disable(bank->clk);
+
+	return val;
 }
 
 static int stm32_pconf_parse_conf(struct pinctrl_dev *pctldev,
@@ -634,9 +744,73 @@ static int stm32_pconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 	return 0;
 }
 
+static void stm32_pconf_dbg_show(struct pinctrl_dev *pctldev,
+				 struct seq_file *s,
+				 unsigned int pin)
+{
+	struct pinctrl_gpio_range *range;
+	struct stm32_gpio_bank *bank;
+	int offset;
+	u32 mode, alt, drive, speed, bias;
+	static const char * const modes[] = {
+			"input", "output", "alternate", "analog" };
+	static const char * const speeds[] = {
+			"low", "medium", "high", "very high" };
+	static const char * const biasing[] = {
+			"floating", "pull up", "pull down", "" };
+	bool val;
+
+	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
+	bank = gpio_range_to_bank(range);
+	offset = stm32_gpio_pin(pin);
+
+	stm32_pmx_get_mode(bank, offset, &mode, &alt);
+	bias = stm32_pconf_get_bias(bank, offset);
+
+	seq_printf(s, "%s ", modes[mode]);
+
+	switch (mode) {
+	/* input */
+	case 0:
+		val = stm32_pconf_input_get(bank, offset);
+		seq_printf(s, "- %s - %s",
+			   val ? "high" : "low",
+			   biasing[bias]);
+		break;
+
+	/* output */
+	case 1:
+		drive = stm32_pconf_get_driving(bank, offset);
+		speed = stm32_pconf_get_speed(bank, offset);
+		val = stm32_pconf_output_get(bank, offset);
+		seq_printf(s, "- %s - %s - %s - %s %s",
+			   val ? "high" : "low",
+			   drive ? "open drain" : "push pull",
+			   biasing[bias],
+			   speeds[speed], "speed");
+		break;
+
+	/* alternate */
+	case 2:
+		drive = stm32_pconf_get_driving(bank, offset);
+		speed = stm32_pconf_get_speed(bank, offset);
+		seq_printf(s, "%d - %s - %s - %s %s", alt,
+			   drive ? "open drain" : "push pull",
+			   biasing[bias],
+			   speeds[speed], "speed");
+		break;
+
+	/* analog */
+	case 3:
+		break;
+	}
+}
+
+
 static const struct pinconf_ops stm32_pconf_ops = {
 	.pin_config_group_get	= stm32_pconf_group_get,
 	.pin_config_group_set	= stm32_pconf_group_set,
+	.pin_config_dbg_show	= stm32_pconf_dbg_show,
 };
 
 static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
@@ -813,10 +987,11 @@ int stm32_pctl_probe(struct platform_device *pdev)
 	pctl->pctl_desc.pmxops = &stm32_pmx_ops;
 	pctl->dev = &pdev->dev;
 
-	pctl->pctl_dev = pinctrl_register(&pctl->pctl_desc, &pdev->dev, pctl);
-	if (!pctl->pctl_dev) {
+	pctl->pctl_dev = devm_pinctrl_register(&pdev->dev, &pctl->pctl_desc,
+					       pctl);
+	if (IS_ERR(pctl->pctl_dev)) {
 		dev_err(&pdev->dev, "Failed pinctrl registration\n");
-		return -EINVAL;
+		return PTR_ERR(pctl->pctl_dev);
 	}
 
 	for (i = 0; i < pctl->nbanks; i++)

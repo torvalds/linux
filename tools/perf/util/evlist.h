@@ -28,6 +28,7 @@ struct record_opts;
 struct perf_mmap {
 	void		 *base;
 	int		 mask;
+	int		 fd;
 	atomic_t	 refcnt;
 	u64		 prev;
 	struct auxtrace_mmap auxtrace_mmap;
@@ -43,6 +44,7 @@ struct perf_evlist {
 	bool		 overwrite;
 	bool		 enabled;
 	bool		 has_user_cpus;
+	bool		 backward;
 	size_t		 mmap_len;
 	int		 id_pos;
 	int		 is_pos;
@@ -135,6 +137,8 @@ void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx);
 
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx);
 
+int perf_evlist__pause(struct perf_evlist *evlist);
+int perf_evlist__resume(struct perf_evlist *evlist);
 int perf_evlist__open(struct perf_evlist *evlist);
 void perf_evlist__close(struct perf_evlist *evlist);
 

@@ -36,14 +36,15 @@ static DEFINE_SPINLOCK(mirred_list_lock);
 static void tcf_mirred_release(struct tc_action *a, int bind)
 {
 	struct tcf_mirred *m = to_mirred(a);
-	struct net_device *dev = rcu_dereference_protected(m->tcfm_dev, 1);
+	struct net_device *dev;
 
 	/* We could be called either in a RCU callback or with RTNL lock held. */
 	spin_lock_bh(&mirred_list_lock);
 	list_del(&m->tcfm_list);
-	spin_unlock_bh(&mirred_list_lock);
+	dev = rcu_dereference_protected(m->tcfm_dev, 1);
 	if (dev)
 		dev_put(dev);
+	spin_unlock_bh(&mirred_list_lock);
 }
 
 static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
@@ -221,7 +222,7 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, i
 	t.install = jiffies_to_clock_t(jiffies - m->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - m->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(m->tcf_tm.expires);
-	if (nla_put(skb, TCA_MIRRED_TM, sizeof(t), &t))
+	if (nla_put_64bit(skb, TCA_MIRRED_TM, sizeof(t), &t, TCA_MIRRED_PAD))
 		goto nla_put_failure;
 	return skb->len;
 

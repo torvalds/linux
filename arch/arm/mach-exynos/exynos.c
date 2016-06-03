@@ -31,11 +31,6 @@
 
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{
-		.virtual	= (unsigned long)S5P_VA_SROMC,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_SROMC),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= (unsigned long)S5P_VA_CMU,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_CMU),
 		.length		= SZ_128K,
@@ -54,15 +49,6 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 		.virtual	= (unsigned long)S5P_VA_DMC1,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_DMC1),
 		.length		= SZ_64K,
-		.type		= MT_DEVICE,
-	},
-};
-
-static struct map_desc exynos5_iodesc[] __initdata = {
-	{
-		.virtual	= (unsigned long)S5P_VA_SROMC,
-		.pfn		= __phys_to_pfn(EXYNOS5_PA_SROMC),
-		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},
 };
@@ -138,9 +124,6 @@ static void __init exynos_map_io(void)
 {
 	if (soc_is_exynos4())
 		iotable_init(exynos4_iodesc, ARRAY_SIZE(exynos4_iodesc));
-
-	if (soc_is_exynos5())
-		iotable_init(exynos5_iodesc, ARRAY_SIZE(exynos5_iodesc));
 }
 
 static void __init exynos_init_io(void)

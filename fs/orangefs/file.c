@@ -445,7 +445,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_write_iter\n");
 
-	mutex_lock(&file->f_mapping->host->i_mutex);
+	inode_lock(file->f_mapping->host);
 
 	/* Make sure generic_write_checks sees an up to date inode size. */
 	if (file->f_flags & O_APPEND) {
@@ -492,7 +492,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 
 out:
 
-	mutex_unlock(&file->f_mapping->host->i_mutex);
+	inode_unlock(file->f_mapping->host);
 	return rc;
 }
 

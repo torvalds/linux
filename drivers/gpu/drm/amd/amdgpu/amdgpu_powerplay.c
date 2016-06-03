@@ -99,6 +99,10 @@ static int amdgpu_pp_early_init(void *handle)
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
 	switch (adev->asic_type) {
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+		adev->pp_enabled = true;
+		break;
 	case CHIP_TONGA:
 	case CHIP_FIJI:
 		adev->pp_enabled = (amdgpu_powerplay == 0) ? false : true;
@@ -299,16 +303,8 @@ static int amdgpu_pp_soft_reset(void *handle)
 	return ret;
 }
 
-static void amdgpu_pp_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->powerplay.ip_funcs->print_status)
-		adev->powerplay.ip_funcs->print_status(
-					adev->powerplay.pp_handle);
-}
-
 const struct amd_ip_funcs amdgpu_pp_ip_funcs = {
+	.name = "amdgpu_powerplay",
 	.early_init = amdgpu_pp_early_init,
 	.late_init = amdgpu_pp_late_init,
 	.sw_init = amdgpu_pp_sw_init,
@@ -320,7 +316,6 @@ const struct amd_ip_funcs amdgpu_pp_ip_funcs = {
 	.is_idle = amdgpu_pp_is_idle,
 	.wait_for_idle = amdgpu_pp_wait_for_idle,
 	.soft_reset = amdgpu_pp_soft_reset,
-	.print_status = amdgpu_pp_print_status,
 	.set_clockgating_state = amdgpu_pp_set_clockgating_state,
 	.set_powergating_state = amdgpu_pp_set_powergating_state,
 };

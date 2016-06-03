@@ -293,7 +293,7 @@ int dpbp_set_irq(struct fsl_mc_io *mc_io,
 	cmd.params[0] |= mc_enc(0, 8, irq_index);
 	cmd.params[0] |= mc_enc(32, 32, irq_cfg->val);
 	cmd.params[1] |= mc_enc(0, 64, irq_cfg->addr);
-	cmd.params[2] |= mc_enc(0, 32, irq_cfg->user_irq_id);
+	cmd.params[2] |= mc_enc(0, 32, irq_cfg->irq_num);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -334,7 +334,7 @@ int dpbp_get_irq(struct fsl_mc_io *mc_io,
 	/* retrieve response parameters */
 	irq_cfg->val = (u32)mc_dec(cmd.params[0], 0, 32);
 	irq_cfg->addr = (u64)mc_dec(cmd.params[1], 0, 64);
-	irq_cfg->user_irq_id = (int)mc_dec(cmd.params[2], 0, 32);
+	irq_cfg->irq_num = (int)mc_dec(cmd.params[2], 0, 32);
 	*type = (int)mc_dec(cmd.params[2], 32, 32);
 	return 0;
 }
@@ -502,6 +502,7 @@ int dpbp_get_irq_status(struct fsl_mc_io *mc_io,
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPBP_CMDID_GET_IRQ_STATUS,
 					  cmd_flags, token);
+	cmd.params[0] |= mc_enc(0, 32, *status);
 	cmd.params[0] |= mc_enc(32, 8, irq_index);
 
 	/* send command to mc*/
@@ -580,3 +581,75 @@ int dpbp_get_attributes(struct fsl_mc_io *mc_io,
 	return 0;
 }
 EXPORT_SYMBOL(dpbp_get_attributes);
+
+/**
+ * dpbp_set_notifications() - Set notifications towards software
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPBP object
+ * @cfg:	notifications configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpbp_set_notifications(struct fsl_mc_io *mc_io,
+			   u32 cmd_flags,
+			   u16 token,
+			   struct dpbp_notification_cfg	*cfg)
+{
+	struct mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPBP_CMDID_SET_NOTIFICATIONS,
+					  cmd_flags,
+					  token);
+
+	cmd.params[0] |= mc_enc(0, 32, cfg->depletion_entry);
+	cmd.params[0] |= mc_enc(32, 32, cfg->depletion_exit);
+	cmd.params[1] |= mc_enc(0, 32, cfg->surplus_entry);
+	cmd.params[1] |= mc_enc(32, 32, cfg->surplus_exit);
+	cmd.params[2] |= mc_enc(0, 16, cfg->options);
+	cmd.params[3] |= mc_enc(0, 64, cfg->message_ctx);
+	cmd.params[4] |= mc_enc(0, 64, cfg->message_iova);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
+ * dpbp_get_notifications() - Get the notifications configuration
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPBP object
+ * @cfg:	notifications configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpbp_get_notifications(struct fsl_mc_io *mc_io,
+			   u32 cmd_flags,
+			   u16 token,
+			   struct dpbp_notification_cfg	*cfg)
+{
+	struct mc_command cmd = { 0 };
+	int err;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPBP_CMDID_GET_NOTIFICATIONS,
+					  cmd_flags,
+					  token);
+
+	/* send command to mc*/
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	/* retrieve response parameters */
+	cfg->depletion_entry = (u32)mc_dec(cmd.params[0], 0, 32);
+	cfg->depletion_exit = (u32)mc_dec(cmd.params[0], 32, 32);
+	cfg->surplus_entry = (u32)mc_dec(cmd.params[1], 0, 32);
+	cfg->surplus_exit = (u32)mc_dec(cmd.params[1], 32, 32);
+	cfg->options = (u16)mc_dec(cmd.params[2], 0, 16);
+	cfg->message_ctx = (u64)mc_dec(cmd.params[3], 0, 64);
+	cfg->message_iova = (u64)mc_dec(cmd.params[4], 0, 64);
+
+	return 0;
+}

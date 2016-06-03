@@ -64,13 +64,13 @@ static int wlcore_smart_config_sync_event(struct wl1271 *wl, u8 sync_channel,
 					  u8 sync_band)
 {
 	struct sk_buff *skb;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	int freq;
 
 	if (sync_band == WLCORE_BAND_5GHZ)
-		band = IEEE80211_BAND_5GHZ;
+		band = NL80211_BAND_5GHZ;
 	else
-		band = IEEE80211_BAND_2GHZ;
+		band = NL80211_BAND_2GHZ;
 
 	freq = ieee80211_channel_to_frequency(sync_channel, band);
 

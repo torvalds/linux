@@ -46,7 +46,7 @@ struct vibra_info {
 	struct device *dev;
 	struct input_dev *input_dev;
 	struct work_struct play_work;
-	struct mutex mutex;
+
 	int irq;
 
 	bool enabled;
@@ -190,8 +190,6 @@ static void vibra_play_work(struct work_struct *work)
 		return;
 	}
 
-	mutex_lock(&info->mutex);
-
 	if (info->weak_speed || info->strong_speed) {
 		if (!info->enabled)
 			twl6040_vibra_enable(info);
@@ -200,7 +198,6 @@ static void vibra_play_work(struct work_struct *work)
 	} else if (info->enabled)
 		twl6040_vibra_disable(info);
 
-	mutex_unlock(&info->mutex);
 }
 
 static int vibra_play(struct input_dev *input, void *data,
@@ -223,12 +220,8 @@ static void twl6040_vibra_close(struct input_dev *input)
 
 	cancel_work_sync(&info->play_work);
 
-	mutex_lock(&info->mutex);
-
 	if (info->enabled)
 		twl6040_vibra_disable(info);
-
-	mutex_unlock(&info->mutex);
 }
 
 static int __maybe_unused twl6040_vibra_suspend(struct device *dev)
@@ -236,12 +229,10 @@ static int __maybe_unused twl6040_vibra_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct vibra_info *info = platform_get_drvdata(pdev);
 
-	mutex_lock(&info->mutex);
+	cancel_work_sync(&info->play_work);
 
 	if (info->enabled)
 		twl6040_vibra_disable(info);
-
-	mutex_unlock(&info->mutex);
 
 	return 0;
 }
@@ -300,8 +291,6 @@ static int twl6040_vibra_probe(struct platform_device *pdev)
 		dev_err(info->dev, "invalid irq\n");
 		return -EINVAL;
 	}
-
-	mutex_init(&info->mutex);
 
 	error = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
 					  twl6040_vib_irq_handler,

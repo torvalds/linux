@@ -163,8 +163,9 @@ int class_del_uuid(const char *uuid)
 				break;
 			}
 		}
-	} else
+	} else {
 		list_splice_init(&g_uuid_list, &deathrow);
+	}
 	spin_unlock(&g_uuid_lock);
 
 	if (uuid && list_empty(&deathrow)) {

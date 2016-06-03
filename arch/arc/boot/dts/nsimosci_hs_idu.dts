@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "skeleton.dtsi"
+/include/ "skeleton_hs_idu.dtsi"
 
 / {
 	compatible = "snps,nsimosci_hs";
@@ -32,6 +32,12 @@
 
 		/* child and parent address space 1:1 mapped */
 		ranges;
+
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <5000000>;
+		};
 
 		core_intc: core-interrupt-controller {
 			compatible = "snps,archs-intc";

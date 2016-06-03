@@ -355,5 +355,6 @@ unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
 					   struct ath9k_channel *chan);
 
 void ar9003_hw_internal_regulator_apply(struct ath_hw *ah);
+int ar9003_hw_tx_power_regwrite(struct ath_hw *ah, u8 * pPwrArray);
 
 #endif

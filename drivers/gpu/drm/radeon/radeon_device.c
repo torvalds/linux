@@ -1230,7 +1230,7 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		printk(KERN_INFO "radeon: switched off\n");
 		drm_kms_helper_poll_disable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		radeon_suspend_kms(dev, true, true);
+		radeon_suspend_kms(dev, true, true, false);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
@@ -1555,7 +1555,8 @@ void radeon_device_fini(struct radeon_device *rdev)
  * Returns 0 for success or an error on failure.
  * Called at driver suspend.
  */
-int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
+int radeon_suspend_kms(struct drm_device *dev, bool suspend,
+		       bool fbcon, bool freeze)
 {
 	struct radeon_device *rdev;
 	struct drm_crtc *crtc;
@@ -1630,7 +1631,10 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	radeon_agp_suspend(rdev);
 
 	pci_save_state(dev->pdev);
-	if (suspend) {
+	if (freeze && rdev->family >= CHIP_R600) {
+		rdev->asic->asic_reset(rdev, true);
+		pci_restore_state(dev->pdev);
+	} else if (suspend) {
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);

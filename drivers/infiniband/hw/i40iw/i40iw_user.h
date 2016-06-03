@@ -61,7 +61,7 @@ enum i40iw_device_capabilities_const {
 	I40IW_MAX_CQ_SIZE =			1048575,
 	I40IW_MAX_AEQ_ALLOCATE_COUNT =		255,
 	I40IW_DB_ID_ZERO =			0,
-	I40IW_MAX_WQ_FRAGMENT_COUNT =		6,
+	I40IW_MAX_WQ_FRAGMENT_COUNT =		3,
 	I40IW_MAX_SGE_RD =			1,
 	I40IW_MAX_OUTBOUND_MESSAGE_SIZE =	2147483647,
 	I40IW_MAX_INBOUND_MESSAGE_SIZE =	2147483647,
@@ -70,8 +70,8 @@ enum i40iw_device_capabilities_const {
 	I40IW_MAX_VF_FPM_ID =			47,
 	I40IW_MAX_VF_PER_PF =			127,
 	I40IW_MAX_SQ_PAYLOAD_SIZE =		2145386496,
-	I40IW_MAX_INLINE_DATA_SIZE =		112,
-	I40IW_MAX_PUSHMODE_INLINE_DATA_SIZE =	112,
+	I40IW_MAX_INLINE_DATA_SIZE =		48,
+	I40IW_MAX_PUSHMODE_INLINE_DATA_SIZE =	48,
 	I40IW_MAX_IRD_SIZE =			32,
 	I40IW_QPCTX_ENCD_MAXIRD =		3,
 	I40IW_MAX_WQ_ENTRIES =			2048,
@@ -101,6 +101,8 @@ enum i40iw_device_capabilities_const {
 #define I40IW_STAG_KEY_FROM_STAG(stag)      ((stag) && 0x000000FF)
 
 #define I40IW_STAG_INDEX_FROM_STAG(stag)    (((stag) && 0xFFFFFF00) >> 8)
+
+#define	I40IW_MAX_MR_SIZE	0x10000000000L
 
 struct i40iw_qp_uk;
 struct i40iw_cq_uk;
@@ -198,7 +200,7 @@ enum i40iw_completion_notify {
 
 struct i40iw_post_send {
 	i40iw_sgl sg_list;
-	u8 num_sges;
+	u32 num_sges;
 };
 
 struct i40iw_post_inline_send {
@@ -220,7 +222,7 @@ struct i40iw_post_inline_send_w_inv {
 
 struct i40iw_rdma_write {
 	i40iw_sgl lo_sg_list;
-	u8 num_lo_sges;
+	u32 num_lo_sges;
 	struct i40iw_sge rem_addr;
 };
 
@@ -345,7 +347,9 @@ struct i40iw_dev_uk {
 
 struct i40iw_sq_uk_wr_trk_info {
 	u64 wrid;
-	u64 wr_len;
+	u32 wr_len;
+	u8 wqe_size;
+	u8 reserved[3];
 };
 
 struct i40iw_qp_quanta {
@@ -367,6 +371,8 @@ struct i40iw_qp_uk {
 	u32 qp_id;
 	u32 sq_size;
 	u32 rq_size;
+	u32 max_sq_frag_cnt;
+	u32 max_rq_frag_cnt;
 	struct i40iw_qp_uk_ops ops;
 	bool use_srq;
 	u8 swqe_polarity;
@@ -374,8 +380,6 @@ struct i40iw_qp_uk {
 	u8 rwqe_polarity;
 	u8 rq_wqe_size;
 	u8 rq_wqe_size_multiplier;
-	u8 max_sq_frag_cnt;
-	u8 max_rq_frag_cnt;
 	bool deferred_flag;
 };
 
@@ -404,8 +408,9 @@ struct i40iw_qp_uk_init_info {
 	u32 qp_id;
 	u32 sq_size;
 	u32 rq_size;
-	u8 max_sq_frag_cnt;
-	u8 max_rq_frag_cnt;
+	u32 max_sq_frag_cnt;
+	u32 max_rq_frag_cnt;
+	u32 max_inline_data;
 
 };
 
@@ -422,7 +427,10 @@ void i40iw_device_init_uk(struct i40iw_dev_uk *dev);
 
 void i40iw_qp_post_wr(struct i40iw_qp_uk *qp);
 u64 *i40iw_qp_get_next_send_wqe(struct i40iw_qp_uk *qp, u32 *wqe_idx,
-				u8 wqe_size);
+				u8 wqe_size,
+				u32 total_size,
+				u64 wr_id
+				);
 u64 *i40iw_qp_get_next_recv_wqe(struct i40iw_qp_uk *qp, u32 *wqe_idx);
 u64 *i40iw_qp_get_next_srq_wqe(struct i40iw_srq_uk *srq, u32 *wqe_idx);
 
@@ -434,9 +442,9 @@ enum i40iw_status_code i40iw_qp_uk_init(struct i40iw_qp_uk *qp,
 void i40iw_clean_cq(void *queue, struct i40iw_cq_uk *cq);
 enum i40iw_status_code i40iw_nop(struct i40iw_qp_uk *qp, u64 wr_id,
 				 bool signaled, bool post_sq);
-enum i40iw_status_code i40iw_fragcnt_to_wqesize_sq(u8 frag_cnt, u8 *wqe_size);
-enum i40iw_status_code i40iw_fragcnt_to_wqesize_rq(u8 frag_cnt, u8 *wqe_size);
+enum i40iw_status_code i40iw_fragcnt_to_wqesize_sq(u32 frag_cnt, u8 *wqe_size);
+enum i40iw_status_code i40iw_fragcnt_to_wqesize_rq(u32 frag_cnt, u8 *wqe_size);
 enum i40iw_status_code i40iw_inline_data_size_to_wqesize(u32 data_size,
 							 u8 *wqe_size);
-enum i40iw_status_code i40iw_get_wqe_shift(u32 wqdepth, u8 sge, u8 *shift);
+enum i40iw_status_code i40iw_get_wqe_shift(u32 wqdepth, u32 sge, u32 inline_data, u8 *shift);
 #endif

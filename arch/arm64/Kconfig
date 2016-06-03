@@ -61,7 +61,7 @@ config ARM64
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_ARM_SMCCC
-	select HAVE_BPF_JIT
+	select HAVE_EBPF_JIT
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CMPXCHG_DOUBLE
@@ -423,6 +423,15 @@ config CAVIUM_ERRATUM_22375
 
 	  The fixes are in ITS initialization and basically ignore memory access
 	  type and table size provided by the TYPER and BASER registers.
+
+	  If unsure, say Y.
+
+config CAVIUM_ERRATUM_23144
+	bool "Cavium erratum 23144: ITS SYNC hang on dual socket system"
+	depends on NUMA
+	default y
+	help
+	  ITS SYNC command hang for cross node io and collections/cpu mapping.
 
 	  If unsure, say Y.
 

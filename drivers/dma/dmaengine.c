@@ -289,7 +289,7 @@ enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
 	do {
 		status = dma_async_is_tx_complete(chan, cookie, NULL, NULL);
 		if (time_after_eq(jiffies, dma_sync_wait_timeout)) {
-			pr_err("%s: timeout!\n", __func__);
+			dev_err(chan->device->dev, "%s: timeout!\n", __func__);
 			return DMA_ERROR;
 		}
 		if (status != DMA_IN_PROGRESS)
@@ -482,7 +482,8 @@ int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
 	device = chan->device;
 
 	/* check if the channel supports slave transactions */
-	if (!test_bit(DMA_SLAVE, device->cap_mask.bits))
+	if (!(test_bit(DMA_SLAVE, device->cap_mask.bits) ||
+	      test_bit(DMA_CYCLIC, device->cap_mask.bits)))
 		return -ENXIO;
 
 	/*
@@ -518,7 +519,7 @@ static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
 	struct dma_chan *chan;
 
 	if (mask && !__dma_device_satisfies_mask(dev, mask)) {
-		pr_debug("%s: wrong capabilities\n", __func__);
+		dev_dbg(dev->dev, "%s: wrong capabilities\n", __func__);
 		return NULL;
 	}
 	/* devices with multiple channels need special handling as we need to
@@ -533,12 +534,12 @@ static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
 
 	list_for_each_entry(chan, &dev->channels, device_node) {
 		if (chan->client_count) {
-			pr_debug("%s: %s busy\n",
+			dev_dbg(dev->dev, "%s: %s busy\n",
 				 __func__, dma_chan_name(chan));
 			continue;
 		}
 		if (fn && !fn(chan, fn_param)) {
-			pr_debug("%s: %s filter said false\n",
+			dev_dbg(dev->dev, "%s: %s filter said false\n",
 				 __func__, dma_chan_name(chan));
 			continue;
 		}
@@ -567,11 +568,12 @@ static struct dma_chan *find_candidate(struct dma_device *device,
 
 		if (err) {
 			if (err == -ENODEV) {
-				pr_debug("%s: %s module removed\n", __func__,
-					 dma_chan_name(chan));
+				dev_dbg(device->dev, "%s: %s module removed\n",
+					__func__, dma_chan_name(chan));
 				list_del_rcu(&device->global_node);
 			} else
-				pr_debug("%s: failed to get %s: (%d)\n",
+				dev_dbg(device->dev,
+					"%s: failed to get %s: (%d)\n",
 					 __func__, dma_chan_name(chan), err);
 
 			if (--device->privatecnt == 0)
@@ -602,7 +604,8 @@ struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
 		device->privatecnt++;
 		err = dma_chan_get(chan);
 		if (err) {
-			pr_debug("%s: failed to get %s: (%d)\n",
+			dev_dbg(chan->device->dev,
+				"%s: failed to get %s: (%d)\n",
 				__func__, dma_chan_name(chan), err);
 			chan = NULL;
 			if (--device->privatecnt == 0)
@@ -814,8 +817,9 @@ void dmaengine_get(void)
 				list_del_rcu(&device->global_node);
 				break;
 			} else if (err)
-				pr_debug("%s: failed to get %s: (%d)\n",
-				       __func__, dma_chan_name(chan), err);
+				dev_dbg(chan->device->dev,
+					"%s: failed to get %s: (%d)\n",
+					__func__, dma_chan_name(chan), err);
 		}
 	}
 
@@ -862,12 +866,12 @@ static bool device_has_all_tx_types(struct dma_device *device)
 		return false;
 	#endif
 
-	#if defined(CONFIG_ASYNC_MEMCPY) || defined(CONFIG_ASYNC_MEMCPY_MODULE)
+	#if IS_ENABLED(CONFIG_ASYNC_MEMCPY)
 	if (!dma_has_cap(DMA_MEMCPY, device->cap_mask))
 		return false;
 	#endif
 
-	#if defined(CONFIG_ASYNC_XOR) || defined(CONFIG_ASYNC_XOR_MODULE)
+	#if IS_ENABLED(CONFIG_ASYNC_XOR)
 	if (!dma_has_cap(DMA_XOR, device->cap_mask))
 		return false;
 
@@ -877,7 +881,7 @@ static bool device_has_all_tx_types(struct dma_device *device)
 	#endif
 	#endif
 
-	#if defined(CONFIG_ASYNC_PQ) || defined(CONFIG_ASYNC_PQ_MODULE)
+	#if IS_ENABLED(CONFIG_ASYNC_PQ)
 	if (!dma_has_cap(DMA_PQ, device->cap_mask))
 		return false;
 
@@ -1222,8 +1226,9 @@ dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 
 	while (tx->cookie == -EBUSY) {
 		if (time_after_eq(jiffies, dma_sync_wait_timeout)) {
-			pr_err("%s timeout waiting for descriptor submission\n",
-			       __func__);
+			dev_err(tx->chan->device->dev,
+				"%s timeout waiting for descriptor submission\n",
+				__func__);
 			return DMA_ERROR;
 		}
 		cpu_relax();

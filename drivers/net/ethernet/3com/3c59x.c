@@ -1944,7 +1944,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 	}
 	/* Issue Tx Enable */
 	iowrite16(TxEnable, ioaddr + EL3_CMD);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 }
 
 /*

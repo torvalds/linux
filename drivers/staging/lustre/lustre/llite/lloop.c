@@ -274,8 +274,9 @@ static void loop_add_bio(struct lloop_device *lo, struct bio *bio)
 	if (lo->lo_biotail) {
 		lo->lo_biotail->bi_next = bio;
 		lo->lo_biotail = bio;
-	} else
+	} else {
 		lo->lo_bio = lo->lo_biotail = bio;
+	}
 	spin_unlock_irqrestore(&lo->lo_lock, flags);
 
 	atomic_inc(&lo->lo_pending);

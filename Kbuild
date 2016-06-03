@@ -5,6 +5,7 @@
 # 2) Generate timeconst.h
 # 3) Generate asm-offsets.h (may need bounds.h and timeconst.h)
 # 4) Check for missing system calls
+# 5) Generate constants.py (may need bounds.h)
 
 # Default sed regexp - multiline due to syntax constraints
 define sed-y
@@ -95,6 +96,15 @@ quiet_cmd_syscalls = CALL    $<
 
 missing-syscalls: scripts/checksyscalls.sh $(offsets-file) FORCE
 	$(call cmd,syscalls)
+
+#####
+# 5) Generate constants for Python GDB integration
+#
+
+extra-$(CONFIG_GDB_SCRIPTS) += build_constants_py
+
+build_constants_py: $(obj)/$(timeconst-file) $(obj)/$(bounds-file)
+	@$(MAKE) $(build)=scripts/gdb/linux $@
 
 # Keep these three files during make clean
 no-clean-files := $(bounds-file) $(offsets-file) $(timeconst-file)

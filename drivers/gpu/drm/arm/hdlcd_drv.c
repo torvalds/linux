@@ -113,7 +113,7 @@ static void hdlcd_fb_output_poll_changed(struct drm_device *drm)
 }
 
 static int hdlcd_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state, bool async)
+			       struct drm_atomic_state *state, bool nonblock)
 {
 	return drm_atomic_helper_commit(dev, state, false);
 }
@@ -379,7 +379,6 @@ static int hdlcd_drm_bind(struct device *dev)
 		DRM_ERROR("failed to initialise vblank\n");
 		goto err_vblank;
 	}
-	drm->vblank_disable_allowed = true;
 
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);

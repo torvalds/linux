@@ -702,6 +702,13 @@ gf100_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+int
+gf100_gr_rops(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	return (nvkm_rd32(device, 0x409604) & 0x001f0000) >> 16;
+}
+
 void
 gf100_gr_zbc_init(struct gf100_gr *gr)
 {
@@ -1609,32 +1616,12 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 {
 	struct gf100_gr *gr = gf100_gr(base);
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int ret, i, j;
+	int i, j;
 
 	nvkm_pmu_pgob(device->pmu, false);
 
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 256, false,
-			      &gr->unk4188b4);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 256, false,
-			      &gr->unk4188b8);
-	if (ret)
-		return ret;
-
-	nvkm_kmap(gr->unk4188b4);
-	for (i = 0; i < 0x1000; i += 4)
-		nvkm_wo32(gr->unk4188b4, i, 0x00000010);
-	nvkm_done(gr->unk4188b4);
-
-	nvkm_kmap(gr->unk4188b8);
-	for (i = 0; i < 0x1000; i += 4)
-		nvkm_wo32(gr->unk4188b8, i, 0x00000010);
-	nvkm_done(gr->unk4188b8);
-
-	gr->rop_nr = (nvkm_rd32(device, 0x409604) & 0x001f0000) >> 16;
-	gr->gpc_nr =  nvkm_rd32(device, 0x409604) & 0x0000001f;
+	gr->rop_nr = gr->func->rops(gr);
+	gr->gpc_nr = nvkm_rd32(device, 0x409604) & 0x0000001f;
 	for (i = 0; i < gr->gpc_nr; i++) {
 		gr->tpc_nr[i]  = nvkm_rd32(device, GPC_UNIT(i, 0x2608));
 		gr->tpc_total += gr->tpc_nr[i];
@@ -1651,38 +1638,38 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	switch (device->chipset) {
 	case 0xc0:
 		if (gr->tpc_total == 11) { /* 465, 3/4/4/0, 4 */
-			gr->magic_not_rop_nr = 0x07;
+			gr->screen_tile_row_offset = 0x07;
 		} else
 		if (gr->tpc_total == 14) { /* 470, 3/3/4/4, 5 */
-			gr->magic_not_rop_nr = 0x05;
+			gr->screen_tile_row_offset = 0x05;
 		} else
 		if (gr->tpc_total == 15) { /* 480, 3/4/4/4, 6 */
-			gr->magic_not_rop_nr = 0x06;
+			gr->screen_tile_row_offset = 0x06;
 		}
 		break;
 	case 0xc3: /* 450, 4/0/0/0, 2 */
-		gr->magic_not_rop_nr = 0x03;
+		gr->screen_tile_row_offset = 0x03;
 		break;
 	case 0xc4: /* 460, 3/4/0/0, 4 */
-		gr->magic_not_rop_nr = 0x01;
+		gr->screen_tile_row_offset = 0x01;
 		break;
 	case 0xc1: /* 2/0/0/0, 1 */
-		gr->magic_not_rop_nr = 0x01;
+		gr->screen_tile_row_offset = 0x01;
 		break;
 	case 0xc8: /* 4/4/3/4, 5 */
-		gr->magic_not_rop_nr = 0x06;
+		gr->screen_tile_row_offset = 0x06;
 		break;
 	case 0xce: /* 4/4/0/0, 4 */
-		gr->magic_not_rop_nr = 0x03;
+		gr->screen_tile_row_offset = 0x03;
 		break;
 	case 0xcf: /* 4/0/0/0, 3 */
-		gr->magic_not_rop_nr = 0x03;
+		gr->screen_tile_row_offset = 0x03;
 		break;
 	case 0xd7:
 	case 0xd9: /* 1/0/0/0, 1 */
 	case 0xea: /* gk20a */
 	case 0x12b: /* gm20b */
-		gr->magic_not_rop_nr = 0x01;
+		gr->screen_tile_row_offset = 0x01;
 		break;
 	}
 
@@ -1729,8 +1716,6 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	gf100_gr_dtor_init(gr->fuc_sw_ctx);
 	gf100_gr_dtor_init(gr->fuc_sw_nonctx);
 
-	nvkm_memory_del(&gr->unk4188b8);
-	nvkm_memory_del(&gr->unk4188b4);
 	return gr;
 }
 
@@ -1776,7 +1761,7 @@ gf100_gr_ctor(const struct gf100_gr_func *func, struct nvkm_device *device,
 	gr->firmware = nvkm_boolopt(device->cfgopt, "NvGrUseFW",
 				    func->fecs.ucode == NULL);
 
-	ret = nvkm_gr_ctor(&gf100_gr_, device, index, 0x08001000,
+	ret = nvkm_gr_ctor(&gf100_gr_, device, index,
 			   gr->firmware || func->fecs.ucode != NULL,
 			   &gr->base);
 	if (ret)
@@ -1815,6 +1800,7 @@ int
 gf100_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
@@ -1827,8 +1813,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, GPC_BCAST(0x088c), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0890), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0894), 0x00000000);
-	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(gr->unk4188b4) >> 8);
-	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(gr->unk4188b8) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(fb->mmu_wr) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(fb->mmu_rd) >> 8);
 
 	gf100_gr_mmio(gr, gr->func->mmio);
 
@@ -1851,9 +1837,9 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
-			gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-			gr->tpc_total);
+							 gr->tpc_total);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
@@ -1946,6 +1932,7 @@ gf100_gr = {
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
+	.rops = gf100_gr_rops,
 	.grctx = &gf100_grctx,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },

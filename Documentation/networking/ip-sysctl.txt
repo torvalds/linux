@@ -63,6 +63,16 @@ fwmark_reflect - BOOLEAN
 	fwmark of the packet they are replying to.
 	Default: 0
 
+fib_multipath_use_neigh - BOOLEAN
+	Use status of existing neighbor entry when determining nexthop for
+	multipath routes. If disabled, neighbor information is not used and
+	packets could be directed to a failed nexthop. Only valid for kernels
+	built with CONFIG_IP_ROUTE_MULTIPATH enabled.
+	Default: 0 (disabled)
+	Possible values:
+	0 - disabled
+	1 - enabled
+
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.

@@ -15,8 +15,6 @@
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 
-#define DRV_VERSION "0.3"
-
 /* Register map */
 /* rtc section */
 #define ISL1208_REG_SC  0x00
@@ -632,9 +630,6 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (isl1208_i2c_validate_client(client) < 0)
 		return -ENODEV;
 
-	dev_info(&client->dev,
-		 "chip found, driver version " DRV_VERSION "\n");
-
 	if (client->irq > 0) {
 		rc = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 					       isl1208_rtc_interrupt,
@@ -706,4 +701,3 @@ module_i2c_driver(isl1208_driver);
 MODULE_AUTHOR("Herbert Valerio Riedel <hvr@gnu.org>");
 MODULE_DESCRIPTION("Intersil ISL1208 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

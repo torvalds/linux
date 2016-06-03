@@ -52,7 +52,7 @@
 #if defined(__GLIBC__)
 
 /* Coordinate with glibc net/if.h header. */
-#if defined(_NET_IF_H)
+#if defined(_NET_IF_H) && defined(__USE_MISC)
 
 /* GLIBC headers included first so don't define anything
  * that would already be defined. */

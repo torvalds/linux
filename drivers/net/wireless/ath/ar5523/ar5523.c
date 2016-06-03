@@ -1471,12 +1471,12 @@ static int ar5523_init_modes(struct ar5523 *ar)
 	memcpy(ar->channels, ar5523_channels, sizeof(ar5523_channels));
 	memcpy(ar->rates, ar5523_rates, sizeof(ar5523_rates));
 
-	ar->band.band = IEEE80211_BAND_2GHZ;
+	ar->band.band = NL80211_BAND_2GHZ;
 	ar->band.channels = ar->channels;
 	ar->band.n_channels = ARRAY_SIZE(ar5523_channels);
 	ar->band.bitrates = ar->rates;
 	ar->band.n_bitrates = ARRAY_SIZE(ar5523_rates);
-	ar->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &ar->band;
+	ar->hw->wiphy->bands[NL80211_BAND_2GHZ] = &ar->band;
 	return 0;
 }
 

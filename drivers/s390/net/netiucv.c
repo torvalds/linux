@@ -1407,7 +1407,7 @@ static int netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 		IUCV_DBF_TEXT(data, 2, "EBUSY from netiucv_tx\n");
 		return NETDEV_TX_BUSY;
 	}
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	rc = netiucv_transmit_skb(privptr->conn, skb);
 	netiucv_clear_busy(dev);
 	return rc ? NETDEV_TX_BUSY : NETDEV_TX_OK;

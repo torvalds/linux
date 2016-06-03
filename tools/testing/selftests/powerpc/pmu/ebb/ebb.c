@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 
 #include "trace.h"
-#include "reg.h"
 #include "ebb.h"
 
 

@@ -25,6 +25,8 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <linux/module.h>
 
+#define DEFAULT_FBDEFIO_DELAY_MS 50
+
 struct drm_fb_cma {
 	struct drm_framebuffer		fb;
 	struct drm_gem_cma_object	*obj[4];
@@ -34,6 +36,59 @@ struct drm_fbdev_cma {
 	struct drm_fb_helper	fb_helper;
 	struct drm_fb_cma	*fb;
 };
+
+/**
+ * DOC: framebuffer cma helper functions
+ *
+ * Provides helper functions for creating a cma (contiguous memory allocator)
+ * backed framebuffer.
+ *
+ * drm_fb_cma_create() is used in the &drm_mode_config_funcs ->fb_create
+ * callback function to create a cma backed framebuffer.
+ *
+ * An fbdev framebuffer backed by cma is also available by calling
+ * drm_fbdev_cma_init(). drm_fbdev_cma_fini() tears it down.
+ * If the &drm_framebuffer_funcs ->dirty callback is set, fb_deferred_io
+ * will be set up automatically. dirty() is called by
+ * drm_fb_helper_deferred_io() in process context (struct delayed_work).
+ *
+ * Example fbdev deferred io code:
+ *
+ *     static int driver_fbdev_fb_dirty(struct drm_framebuffer *fb,
+ *                                      struct drm_file *file_priv,
+ *                                      unsigned flags, unsigned color,
+ *                                      struct drm_clip_rect *clips,
+ *                                      unsigned num_clips)
+ *     {
+ *         struct drm_gem_cma_object *cma = drm_fb_cma_get_gem_obj(fb, 0);
+ *         ... push changes ...
+ *         return 0;
+ *     }
+ *
+ *     static struct drm_framebuffer_funcs driver_fbdev_fb_funcs = {
+ *         .destroy       = drm_fb_cma_destroy,
+ *         .create_handle = drm_fb_cma_create_handle,
+ *         .dirty         = driver_fbdev_fb_dirty,
+ *     };
+ *
+ *     static int driver_fbdev_create(struct drm_fb_helper *helper,
+ *             struct drm_fb_helper_surface_size *sizes)
+ *     {
+ *         return drm_fbdev_cma_create_with_funcs(helper, sizes,
+ *                                                &driver_fbdev_fb_funcs);
+ *     }
+ *
+ *     static const struct drm_fb_helper_funcs driver_fb_helper_funcs = {
+ *         .fb_probe = driver_fbdev_create,
+ *     };
+ *
+ *     Initialize:
+ *     fbdev = drm_fbdev_cma_init_with_funcs(dev, 16,
+ *                                           dev->mode_config.num_crtc,
+ *                                           dev->mode_config.num_connector,
+ *                                           &driver_fb_helper_funcs);
+ *
+ */
 
 static inline struct drm_fbdev_cma *to_fbdev_cma(struct drm_fb_helper *helper)
 {
@@ -45,7 +100,7 @@ static inline struct drm_fb_cma *to_fb_cma(struct drm_framebuffer *fb)
 	return container_of(fb, struct drm_fb_cma, fb);
 }
 
-static void drm_fb_cma_destroy(struct drm_framebuffer *fb)
+void drm_fb_cma_destroy(struct drm_framebuffer *fb)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
 	int i;
@@ -58,8 +113,9 @@ static void drm_fb_cma_destroy(struct drm_framebuffer *fb)
 	drm_framebuffer_cleanup(fb);
 	kfree(fb_cma);
 }
+EXPORT_SYMBOL(drm_fb_cma_destroy);
 
-static int drm_fb_cma_create_handle(struct drm_framebuffer *fb,
+int drm_fb_cma_create_handle(struct drm_framebuffer *fb,
 	struct drm_file *file_priv, unsigned int *handle)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
@@ -67,6 +123,7 @@ static int drm_fb_cma_create_handle(struct drm_framebuffer *fb,
 	return drm_gem_handle_create(file_priv,
 			&fb_cma->obj[0]->base, handle);
 }
+EXPORT_SYMBOL(drm_fb_cma_create_handle);
 
 static struct drm_framebuffer_funcs drm_fb_cma_funcs = {
 	.destroy	= drm_fb_cma_destroy,
@@ -76,7 +133,7 @@ static struct drm_framebuffer_funcs drm_fb_cma_funcs = {
 static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 	const struct drm_mode_fb_cmd2 *mode_cmd,
 	struct drm_gem_cma_object **obj,
-	unsigned int num_planes)
+	unsigned int num_planes, const struct drm_framebuffer_funcs *funcs)
 {
 	struct drm_fb_cma *fb_cma;
 	int ret;
@@ -91,7 +148,7 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 	for (i = 0; i < num_planes; i++)
 		fb_cma->obj[i] = obj[i];
 
-	ret = drm_framebuffer_init(dev, &fb_cma->fb, &drm_fb_cma_funcs);
+	ret = drm_framebuffer_init(dev, &fb_cma->fb, funcs);
 	if (ret) {
 		dev_err(dev->dev, "Failed to initialize framebuffer: %d\n", ret);
 		kfree(fb_cma);
@@ -102,13 +159,17 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 }
 
 /**
- * drm_fb_cma_create() - (struct drm_mode_config_funcs *)->fb_create callback function
+ * drm_fb_cma_create_with_funcs() - helper function for the
+ *                                  &drm_mode_config_funcs ->fb_create
+ *                                  callback function
  *
- * If your hardware has special alignment or pitch requirements these should be
- * checked before calling this function.
+ * This can be used to set &drm_framebuffer_funcs for drivers that need the
+ * dirty() callback. Use drm_fb_cma_create() if you don't need to change
+ * &drm_framebuffer_funcs.
  */
-struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
-	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
+struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
+	const struct drm_framebuffer_funcs *funcs)
 {
 	struct drm_fb_cma *fb_cma;
 	struct drm_gem_cma_object *objs[4];
@@ -126,7 +187,7 @@ struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
 		unsigned int height = mode_cmd->height / (i ? vsub : 1);
 		unsigned int min_size;
 
-		obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[i]);
+		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
 		if (!obj) {
 			dev_err(dev->dev, "Failed to lookup GEM object\n");
 			ret = -ENXIO;
@@ -145,7 +206,7 @@ struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
 		objs[i] = to_drm_gem_cma_obj(obj);
 	}
 
-	fb_cma = drm_fb_cma_alloc(dev, mode_cmd, objs, i);
+	fb_cma = drm_fb_cma_alloc(dev, mode_cmd, objs, i, funcs);
 	if (IS_ERR(fb_cma)) {
 		ret = PTR_ERR(fb_cma);
 		goto err_gem_object_unreference;
@@ -157,6 +218,21 @@ err_gem_object_unreference:
 	for (i--; i >= 0; i--)
 		drm_gem_object_unreference_unlocked(&objs[i]->base);
 	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(drm_fb_cma_create_with_funcs);
+
+/**
+ * drm_fb_cma_create() - &drm_mode_config_funcs ->fb_create callback function
+ *
+ * If your hardware has special alignment or pitch requirements these should be
+ * checked before calling this function. Use drm_fb_cma_create_with_funcs() if
+ * you need to set &drm_framebuffer_funcs ->dirty.
+ */
+struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
+	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	return drm_fb_cma_create_with_funcs(dev, file_priv, mode_cmd,
+					    &drm_fb_cma_funcs);
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_create);
 
@@ -233,8 +309,67 @@ static struct fb_ops drm_fbdev_cma_ops = {
 	.fb_setcmap	= drm_fb_helper_setcmap,
 };
 
-static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
-	struct drm_fb_helper_surface_size *sizes)
+static int drm_fbdev_cma_deferred_io_mmap(struct fb_info *info,
+					  struct vm_area_struct *vma)
+{
+	fb_deferred_io_mmap(info, vma);
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+
+	return 0;
+}
+
+static int drm_fbdev_cma_defio_init(struct fb_info *fbi,
+				    struct drm_gem_cma_object *cma_obj)
+{
+	struct fb_deferred_io *fbdefio;
+	struct fb_ops *fbops;
+
+	/*
+	 * Per device structures are needed because:
+	 * fbops: fb_deferred_io_cleanup() clears fbops.fb_mmap
+	 * fbdefio: individual delays
+	 */
+	fbdefio = kzalloc(sizeof(*fbdefio), GFP_KERNEL);
+	fbops = kzalloc(sizeof(*fbops), GFP_KERNEL);
+	if (!fbdefio || !fbops) {
+		kfree(fbdefio);
+		return -ENOMEM;
+	}
+
+	/* can't be offset from vaddr since dirty() uses cma_obj */
+	fbi->screen_buffer = cma_obj->vaddr;
+	/* fb_deferred_io_fault() needs a physical address */
+	fbi->fix.smem_start = page_to_phys(virt_to_page(fbi->screen_buffer));
+
+	*fbops = *fbi->fbops;
+	fbi->fbops = fbops;
+
+	fbdefio->delay = msecs_to_jiffies(DEFAULT_FBDEFIO_DELAY_MS);
+	fbdefio->deferred_io = drm_fb_helper_deferred_io;
+	fbi->fbdefio = fbdefio;
+	fb_deferred_io_init(fbi);
+	fbi->fbops->fb_mmap = drm_fbdev_cma_deferred_io_mmap;
+
+	return 0;
+}
+
+static void drm_fbdev_cma_defio_fini(struct fb_info *fbi)
+{
+	if (!fbi->fbdefio)
+		return;
+
+	fb_deferred_io_cleanup(fbi);
+	kfree(fbi->fbdefio);
+	kfree(fbi->fbops);
+}
+
+/*
+ * For use in a (struct drm_fb_helper_funcs *)->fb_probe callback function that
+ * needs custom struct drm_framebuffer_funcs, like dirty() for deferred_io use.
+ */
+int drm_fbdev_cma_create_with_funcs(struct drm_fb_helper *helper,
+	struct drm_fb_helper_surface_size *sizes,
+	const struct drm_framebuffer_funcs *funcs)
 {
 	struct drm_fbdev_cma *fbdev_cma = to_fbdev_cma(helper);
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
@@ -270,7 +405,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 		goto err_gem_free_object;
 	}
 
-	fbdev_cma->fb = drm_fb_cma_alloc(dev, &mode_cmd, &obj, 1);
+	fbdev_cma->fb = drm_fb_cma_alloc(dev, &mode_cmd, &obj, 1, funcs);
 	if (IS_ERR(fbdev_cma->fb)) {
 		dev_err(dev->dev, "Failed to allocate DRM framebuffer.\n");
 		ret = PTR_ERR(fbdev_cma->fb);
@@ -296,13 +431,29 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	fbi->screen_size = size;
 	fbi->fix.smem_len = size;
 
+	if (funcs->dirty) {
+		ret = drm_fbdev_cma_defio_init(fbi, obj);
+		if (ret)
+			goto err_cma_destroy;
+	}
+
 	return 0;
 
+err_cma_destroy:
+	drm_framebuffer_unregister_private(&fbdev_cma->fb->fb);
+	drm_fb_cma_destroy(&fbdev_cma->fb->fb);
 err_fb_info_destroy:
 	drm_fb_helper_release_fbi(helper);
 err_gem_free_object:
 	dev->driver->gem_free_object(&obj->base);
 	return ret;
+}
+EXPORT_SYMBOL(drm_fbdev_cma_create_with_funcs);
+
+static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
+	struct drm_fb_helper_surface_size *sizes)
+{
+	return drm_fbdev_cma_create_with_funcs(helper, sizes, &drm_fb_cma_funcs);
 }
 
 static const struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
@@ -310,17 +461,18 @@ static const struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
 };
 
 /**
- * drm_fbdev_cma_init() - Allocate and initializes a drm_fbdev_cma struct
+ * drm_fbdev_cma_init_with_funcs() - Allocate and initializes a drm_fbdev_cma struct
  * @dev: DRM device
  * @preferred_bpp: Preferred bits per pixel for the device
  * @num_crtc: Number of CRTCs
  * @max_conn_count: Maximum number of connectors
+ * @funcs: fb helper functions, in particular fb_probe()
  *
  * Returns a newly allocated drm_fbdev_cma struct or a ERR_PTR.
  */
-struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
+struct drm_fbdev_cma *drm_fbdev_cma_init_with_funcs(struct drm_device *dev,
 	unsigned int preferred_bpp, unsigned int num_crtc,
-	unsigned int max_conn_count)
+	unsigned int max_conn_count, const struct drm_fb_helper_funcs *funcs)
 {
 	struct drm_fbdev_cma *fbdev_cma;
 	struct drm_fb_helper *helper;
@@ -334,7 +486,7 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 
 	helper = &fbdev_cma->fb_helper;
 
-	drm_fb_helper_prepare(dev, helper, &drm_fb_cma_helper_funcs);
+	drm_fb_helper_prepare(dev, helper, funcs);
 
 	ret = drm_fb_helper_init(dev, helper, num_crtc, max_conn_count);
 	if (ret < 0) {
@@ -364,6 +516,24 @@ err_free:
 
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(drm_fbdev_cma_init_with_funcs);
+
+/**
+ * drm_fbdev_cma_init() - Allocate and initializes a drm_fbdev_cma struct
+ * @dev: DRM device
+ * @preferred_bpp: Preferred bits per pixel for the device
+ * @num_crtc: Number of CRTCs
+ * @max_conn_count: Maximum number of connectors
+ *
+ * Returns a newly allocated drm_fbdev_cma struct or a ERR_PTR.
+ */
+struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
+	unsigned int preferred_bpp, unsigned int num_crtc,
+	unsigned int max_conn_count)
+{
+	return drm_fbdev_cma_init_with_funcs(dev, preferred_bpp, num_crtc,
+				max_conn_count, &drm_fb_cma_helper_funcs);
+}
 EXPORT_SYMBOL_GPL(drm_fbdev_cma_init);
 
 /**
@@ -373,6 +543,7 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_init);
 void drm_fbdev_cma_fini(struct drm_fbdev_cma *fbdev_cma)
 {
 	drm_fb_helper_unregister_fbi(&fbdev_cma->fb_helper);
+	drm_fbdev_cma_defio_fini(fbdev_cma->fb_helper.fbdev);
 	drm_fb_helper_release_fbi(&fbdev_cma->fb_helper);
 
 	if (fbdev_cma->fb) {

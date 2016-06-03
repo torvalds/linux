@@ -138,8 +138,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	mutex_lock(&dev->struct_mutex);
-
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
 	exynos_gem = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG, size);
@@ -154,10 +152,8 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 						   size);
 	}
 
-	if (IS_ERR(exynos_gem)) {
-		ret = PTR_ERR(exynos_gem);
-		goto out;
-	}
+	if (IS_ERR(exynos_gem))
+		return PTR_ERR(exynos_gem);
 
 	exynos_fbdev->exynos_gem = exynos_gem;
 
@@ -173,7 +169,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	if (ret < 0)
 		goto err_destroy_framebuffer;
 
-	mutex_unlock(&dev->struct_mutex);
 	return ret;
 
 err_destroy_framebuffer:
@@ -181,13 +176,12 @@ err_destroy_framebuffer:
 err_destroy_gem:
 	exynos_drm_gem_destroy(exynos_gem);
 
-/*
- * if failed, all resources allocated above would be released by
- * drm_mode_config_cleanup() when drm_load() had been called prior
- * to any specific driver such as fimd or hdmi driver.
- */
-out:
-	mutex_unlock(&dev->struct_mutex);
+	/*
+	 * if failed, all resources allocated above would be released by
+	 * drm_mode_config_cleanup() when drm_load() had been called prior
+	 * to any specific driver such as fimd or hdmi driver.
+	 */
+
 	return ret;
 }
 

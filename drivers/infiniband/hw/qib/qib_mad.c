@@ -1172,11 +1172,13 @@ static int pma_get_classportinfo(struct ib_pma_mad *pmp,
 	 * Set the most significant bit of CM2 to indicate support for
 	 * congestion statistics
 	 */
-	p->reserved[0] = dd->psxmitwait_supported << 7;
+	ib_set_cpi_capmask2(p,
+			    dd->psxmitwait_supported <<
+			    (31 - IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE));
 	/*
 	 * Expected response time is 4.096 usec. * 2^18 == 1.073741824 sec.
 	 */
-	p->resp_time_value = 18;
+	ib_set_cpi_resp_time(p, 18);
 
 	return reply((struct ib_smp *) pmp);
 }

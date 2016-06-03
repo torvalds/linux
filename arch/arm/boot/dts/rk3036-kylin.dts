@@ -46,6 +46,11 @@
 	model = "Rockchip RK3036 KylinBoard";
 	compatible = "rockchip,rk3036-kylin", "rockchip,rk3036";
 
+	memory {
+		device_type = "memory";
+		reg = <0x60000000 0x20000000>;
+	};
+
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 
@@ -127,6 +132,10 @@
 };
 
 &emmc {
+	status = "okay";
+};
+
+&hdmi {
 	status = "okay";
 };
 
@@ -341,7 +350,6 @@
 &sdio {
 	status = "okay";
 
-	broken-cd;
 	bus-width = <4>;
 	cap-sd-highspeed;
 	cap-sdio-irq;
@@ -382,6 +390,14 @@
 };
 
 &usb_otg {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
 	status = "okay";
 };
 

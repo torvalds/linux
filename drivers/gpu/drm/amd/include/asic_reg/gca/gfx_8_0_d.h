@@ -1391,6 +1391,8 @@
 #define mmRLC_CGTT_MGCG_OVERRIDE                                                0xec48
 #define mmRLC_CGCG_CGLS_CTRL                                                    0xec49
 #define mmRLC_CGCG_RAMP_CTRL                                                    0xec4a
+#define mmRLC_CGCG_CGLS_CTRL_3D                                                 0xec9d
+#define mmRLC_CGCG_RAMP_CTRL_3D                                                 0xec9e
 #define mmRLC_DYN_PG_STATUS                                                     0xec4b
 #define mmRLC_DYN_PG_REQUEST                                                    0xec4c
 #define mmRLC_PG_DELAY                                                          0xec4d

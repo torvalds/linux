@@ -221,8 +221,8 @@ int fiji_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	if (duty100 == 0)
 		return -EINVAL;
 
-	tmp64 = (uint64_t)speed * 100;
-	do_div(tmp64, duty100);
+	tmp64 = (uint64_t)speed * duty100;
+	do_div(tmp64, 100);
 	duty = (uint32_t)tmp64;
 
 	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -615,7 +615,7 @@ static int tf_fiji_thermal_disable_alert(struct pp_hwmgr *hwmgr,
 	return fiji_thermal_disable_alert(hwmgr);
 }
 
-static struct phm_master_table_item
+static const struct phm_master_table_item
 fiji_thermal_start_thermal_controller_master_list[] = {
 	{NULL, tf_fiji_thermal_initialize},
 	{NULL, tf_fiji_thermal_set_temperature_range},
@@ -630,14 +630,14 @@ fiji_thermal_start_thermal_controller_master_list[] = {
 	{NULL, NULL}
 };
 
-static struct phm_master_table_header
+static const struct phm_master_table_header
 fiji_thermal_start_thermal_controller_master = {
 	0,
 	PHM_MasterTableFlag_None,
 	fiji_thermal_start_thermal_controller_master_list
 };
 
-static struct phm_master_table_item
+static const struct phm_master_table_item
 fiji_thermal_set_temperature_range_master_list[] = {
 	{NULL, tf_fiji_thermal_disable_alert},
 	{NULL, tf_fiji_thermal_set_temperature_range},
@@ -645,7 +645,7 @@ fiji_thermal_set_temperature_range_master_list[] = {
 	{NULL, NULL}
 };
 
-struct phm_master_table_header
+static const struct phm_master_table_header
 fiji_thermal_set_temperature_range_master = {
 	0,
 	PHM_MasterTableFlag_None,

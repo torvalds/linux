@@ -181,6 +181,16 @@ config CLKSRC_TI_32K
 	  This option enables support for Texas Instruments 32.768 Hz clocksource
 	  available on many OMAP-like platforms.
 
+config CLKSRC_NPS
+	bool "NPS400 clocksource driver" if COMPILE_TEST
+	depends on !PHYS_ADDR_T_64BIT
+	select CLKSRC_MMIO
+	select CLKSRC_OF if OF
+	help
+	  NPS400 clocksource support.
+	  Got 64 bit counter with update rate up to 1000MHz.
+	  This counter is accessed via couple of 32 bit memory mapped registers.
+
 config CLKSRC_STM32
 	bool "Clocksource for STM32 SoCs" if !ARCH_STM32
 	depends on OF && ARM && (ARCH_STM32 || COMPILE_TEST)

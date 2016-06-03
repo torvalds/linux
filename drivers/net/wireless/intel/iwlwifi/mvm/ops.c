@@ -292,7 +292,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(DTS_MEASUREMENT_NOTIFICATION, iwl_mvm_temp_notif,
 		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER_GRP(PHY_OPS_GROUP, DTS_MEASUREMENT_NOTIF_WIDE,
-		       iwl_mvm_temp_notif, RX_HANDLER_ASYNC_LOCKED),
+		       iwl_mvm_temp_notif, RX_HANDLER_ASYNC_UNLOCKED),
 	RX_HANDLER_GRP(PHY_OPS_GROUP, CT_KILL_NOTIFICATION,
 		       iwl_mvm_ct_kill_notif, RX_HANDLER_SYNC),
 
@@ -421,6 +421,21 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 /* Please keep this array *SORTED* by hex value.
  * Access is done through binary search
  */
+static const struct iwl_hcmd_names iwl_mvm_system_names[] = {
+	HCMD_NAME(SHARED_MEM_CFG_CMD),
+};
+
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search
+ */
+static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
+	HCMD_NAME(LINK_QUALITY_MEASUREMENT_CMD),
+	HCMD_NAME(LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF),
+};
+
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search
+ */
 static const struct iwl_hcmd_names iwl_mvm_phy_names[] = {
 	HCMD_NAME(CMD_DTS_MEASUREMENT_TRIGGER_WIDE),
 	HCMD_NAME(CTDP_CONFIG_CMD),
@@ -449,6 +464,8 @@ static const struct iwl_hcmd_names iwl_mvm_prot_offload_names[] = {
 static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[LEGACY_GROUP] = HCMD_ARR(iwl_mvm_legacy_names),
 	[LONG_GROUP] = HCMD_ARR(iwl_mvm_legacy_names),
+	[SYSTEM_GROUP] = HCMD_ARR(iwl_mvm_system_names),
+	[MAC_CONF_GROUP] = HCMD_ARR(iwl_mvm_mac_conf_names),
 	[PHY_OPS_GROUP] = HCMD_ARR(iwl_mvm_phy_names),
 	[DATA_PATH_GROUP] = HCMD_ARR(iwl_mvm_data_path_names),
 	[PROT_OFFLOAD_GROUP] = HCMD_ARR(iwl_mvm_prot_offload_names),
@@ -537,8 +554,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
 
 	mvm->aux_queue = 15;
-	mvm->first_agg_queue = 16;
-	mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
+	if (!iwl_mvm_is_dqa_supported(mvm)) {
+		mvm->first_agg_queue = 16;
+		mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
+	} else {
+		mvm->first_agg_queue = IWL_MVM_DQA_MIN_DATA_QUEUE;
+		mvm->last_agg_queue = IWL_MVM_DQA_MAX_DATA_QUEUE;
+	}
 	if (mvm->cfg->base_params->num_of_queues == 16) {
 		mvm->aux_queue = 11;
 		mvm->first_agg_queue = 12;
@@ -562,11 +584,14 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_WORK(&mvm->d0i3_exit_work, iwl_mvm_d0i3_exit_work);
 	INIT_DELAYED_WORK(&mvm->fw_dump_wk, iwl_mvm_fw_error_dump_wk);
 	INIT_DELAYED_WORK(&mvm->tdls_cs.dwork, iwl_mvm_tdls_ch_switch_work);
+	INIT_WORK(&mvm->add_stream_wk, iwl_mvm_add_new_dqa_stream_wk);
 
 	spin_lock_init(&mvm->d0i3_tx_lock);
 	spin_lock_init(&mvm->refs_lock);
 	skb_queue_head_init(&mvm->d0i3_tx);
 	init_waitqueue_head(&mvm->d0i3_exit_waitq);
+
+	atomic_set(&mvm->queue_sync_counter, 0);
 
 	SET_IEEE80211_DEV(mvm->hw, mvm->trans->dev);
 
@@ -601,7 +626,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.command_groups = iwl_mvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_mvm_groups);
 
-	trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
+	if (iwl_mvm_is_dqa_supported(mvm))
+		trans_cfg.cmd_queue = IWL_MVM_DQA_CMD_QUEUE;
+	else
+		trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
 	trans_cfg.cmd_fifo = IWL_MVM_TX_FIFO_CMD;
 	trans_cfg.scd_set_active = true;
 
@@ -707,8 +735,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	iwl_mvm_tof_init(mvm);
 
-	/* init RSS hash key */
-	get_random_bytes(mvm->secret_key, sizeof(mvm->secret_key));
+	setup_timer(&mvm->scan_timer, iwl_mvm_scan_timeout,
+		    (unsigned long)mvm);
 
 	return op_mode;
 
@@ -762,6 +790,11 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 		kfree(mvm->nvm_sections[i].data);
 
 	iwl_mvm_tof_clean(mvm);
+
+	del_timer_sync(&mvm->scan_timer);
+
+	mutex_destroy(&mvm->mutex);
+	mutex_destroy(&mvm->d0i3_suspend_mutex);
 
 	ieee80211_free_hw(mvm->hw);
 }
@@ -904,7 +937,7 @@ static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
 	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
 		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
 	else if (pkt->hdr.cmd == FRAME_RELEASE)
-		iwl_mvm_rx_frame_release(mvm, rxb, 0);
+		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
 	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
 		iwl_mvm_rx_rx_phy_cmd(mvm, rxb);
 	else
@@ -1182,7 +1215,6 @@ static bool iwl_mvm_disallow_offloading(struct iwl_mvm *mvm,
 					struct iwl_d0i3_iter_data *iter_data)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct ieee80211_sta *ap_sta;
 	struct iwl_mvm_sta *mvmsta;
 	u32 available_tids = 0;
 	u8 tid;
@@ -1191,11 +1223,10 @@ static bool iwl_mvm_disallow_offloading(struct iwl_mvm *mvm,
 		    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT))
 		return false;
 
-	ap_sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id]);
-	if (IS_ERR_OR_NULL(ap_sta))
+	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, mvmvif->ap_sta_id);
+	if (!mvmsta)
 		return false;
 
-	mvmsta = iwl_mvm_sta_from_mac80211(ap_sta);
 	spin_lock_bh(&mvmsta->lock);
 	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
 		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
@@ -1606,7 +1637,7 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
 	if (unlikely(pkt->hdr.cmd == FRAME_RELEASE))
-		iwl_mvm_rx_frame_release(mvm, rxb, queue);
+		iwl_mvm_rx_frame_release(mvm, napi, rxb, queue);
 	else if (unlikely(pkt->hdr.cmd == RX_QUEUES_NOTIFICATION &&
 			  pkt->hdr.group_id == DATA_PATH_GROUP))
 		iwl_mvm_rx_queue_notif(mvm, rxb, queue);

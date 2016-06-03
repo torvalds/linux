@@ -574,7 +574,7 @@ static int newport_font_set(struct vc_data *vc, struct console_font *font, unsig
 	return newport_set_font(vc->vc_num, font);
 }
 
-static int newport_set_palette(struct vc_data *vc, unsigned char *table)
+static int newport_set_palette(struct vc_data *vc, const unsigned char *table)
 {
 	return -EINVAL;
 }

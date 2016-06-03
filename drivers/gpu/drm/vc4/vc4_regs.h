@@ -390,6 +390,12 @@
 #define SCALER_DISPBASE2                        0x0000006c
 #define SCALER_DISPALPHA2                       0x00000070
 #define SCALER_GAMADDR                          0x00000078
+# define SCALER_GAMADDR_AUTOINC			BIT(31)
+/* Enables all gamma ramp SRAMs, not just those of CRTCs with gamma
+ * enabled.
+ */
+# define SCALER_GAMADDR_SRAMENB			BIT(30)
+
 #define SCALER_GAMDATA                          0x000000e0
 #define SCALER_DLIST_START                      0x00002000
 #define SCALER_DLIST_SIZE                       0x00004000

@@ -1662,8 +1662,8 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 
 	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
 
-	scnprintf(path, sizeof(path), "%s/[kernel.kcore]/%s", buildid_dir,
-		  sbuild_id);
+	scnprintf(path, sizeof(path), "%s/%s/%s", buildid_dir,
+		  DSO__NAME_KCORE, sbuild_id);
 
 	/* Use /proc/kallsyms if possible */
 	if (is_host) {
@@ -1699,8 +1699,8 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 	if (!find_matching_kcore(map, path, sizeof(path)))
 		return strdup(path);
 
-	scnprintf(path, sizeof(path), "%s/[kernel.kallsyms]/%s",
-		  buildid_dir, sbuild_id);
+	scnprintf(path, sizeof(path), "%s/%s/%s",
+		  buildid_dir, DSO__NAME_KALLSYMS, sbuild_id);
 
 	if (access(path, F_OK)) {
 		pr_err("No kallsyms or vmlinux with build-id %s was found\n",
@@ -1769,7 +1769,7 @@ do_kallsyms:
 
 	if (err > 0 && !dso__is_kcore(dso)) {
 		dso->binary_type = DSO_BINARY_TYPE__KALLSYMS;
-		dso__set_long_name(dso, "[kernel.kallsyms]", false);
+		dso__set_long_name(dso, DSO__NAME_KALLSYMS, false);
 		map__fixup_start(map);
 		map__fixup_end(map);
 	}
@@ -2032,4 +2032,27 @@ void symbol__exit(void)
 	vmlinux_path__exit();
 	symbol_conf.sym_list = symbol_conf.dso_list = symbol_conf.comm_list = NULL;
 	symbol_conf.initialized = false;
+}
+
+int symbol__config_symfs(const struct option *opt __maybe_unused,
+			 const char *dir, int unset __maybe_unused)
+{
+	char *bf = NULL;
+	int ret;
+
+	symbol_conf.symfs = strdup(dir);
+	if (symbol_conf.symfs == NULL)
+		return -ENOMEM;
+
+	/* skip the locally configured cache if a symfs is given, and
+	 * config buildid dir to symfs/.debug
+	 */
+	ret = asprintf(&bf, "%s/%s", dir, ".debug");
+	if (ret < 0)
+		return -ENOMEM;
+
+	set_buildid_dir(bf);
+
+	free(bf);
+	return 0;
 }

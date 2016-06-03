@@ -187,7 +187,11 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	}
 
 	/* we need to make sure nobody is changing the file size beneath us */
-	reiserfs_mutex_lock_safe(&inode->i_mutex, inode->i_sb);
+{
+	int depth = reiserfs_write_unlock_nested(inode->i_sb);
+	inode_lock(inode);
+	reiserfs_write_lock_nested(inode->i_sb, depth);
+}
 
 	reiserfs_write_lock(inode->i_sb);
 

@@ -429,7 +429,10 @@ static u32 mvs_get_ncq_tag(struct sas_task *task, u32 *tag)
 
 	if (qc) {
 		if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
-			qc->tf.command == ATA_CMD_FPDMA_READ) {
+		    qc->tf.command == ATA_CMD_FPDMA_READ ||
+		    qc->tf.command == ATA_CMD_FPDMA_RECV ||
+		    qc->tf.command == ATA_CMD_FPDMA_SEND ||
+		    qc->tf.command == ATA_CMD_NCQ_NON_DATA) {
 			*tag = qc->tag;
 			return 1;
 		}
