@@ -40,6 +40,7 @@ static bool test_intel(int idx)
 	case INTEL_FAM6_NEHALEM_EX:
 
 	case INTEL_FAM6_WESTMERE:
+	case INTEL_FAM6_WESTMERE2:
 	case INTEL_FAM6_WESTMERE_EP:
 	case INTEL_FAM6_WESTMERE_EX:
 
@@ -68,6 +69,9 @@ static bool test_intel(int idx)
 
 	case INTEL_FAM6_SKYLAKE_MOBILE:
 	case INTEL_FAM6_SKYLAKE_DESKTOP:
+	case INTEL_FAM6_SKYLAKE_X:
+	case INTEL_FAM6_KABYLAKE_MOBILE:
+	case INTEL_FAM6_KABYLAKE_DESKTOP:
 		if (idx == PERF_MSR_SMI || idx == PERF_MSR_PPERF)
 			return true;
 		break;
