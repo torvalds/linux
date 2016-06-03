@@ -250,18 +250,20 @@ DECLARE_EVENT_CLASS(gb_module,
 	TP_STRUCT__entry(
 		__field(int, hd_bus_id)
 		__field(u8, module_id)
-		__field(u8, num_interfaces)
+		__field(size_t, num_interfaces)
 		__field(int, disconnected)	/* bool */
 	),
 
 	TP_fast_assign(
 		__entry->hd_bus_id = module->hd->bus_id;
 		__entry->module_id = module->module_id;
+		__entry->num_interfaces = module->num_interfaces;
 		__entry->disconnected = module->disconnected;
 	),
 
-	TP_printk("greybus: hd_bus_id=%d module_id=%hhu disconnected=%d",
-		__entry->hd_bus_id, __entry->module_id, __entry->disconnected)
+	TP_printk("greybus: hd_bus_id=%d module_id=%hhu num_interfaces=%zu disconnected=%d",
+		__entry->hd_bus_id, __entry->module_id,
+		__entry->num_interfaces, __entry->disconnected)
 );
 
 #define DEFINE_MODULE_EVENT(name)					\
