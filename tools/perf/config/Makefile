@@ -354,6 +354,14 @@ endif
 
 ifndef NO_LIBUNWIND
   have_libunwind :=
+
+  ifeq ($(feature-libunwind-x86), 1)
+    $(call detected,CONFIG_LIBUNWIND_X86)
+    CFLAGS += -DHAVE_LIBUNWIND_X86_SUPPORT
+    LDFLAGS += -lunwind-x86
+    have_libunwind = 1
+  endif
+
   ifneq ($(feature-libunwind), 1)
     msg := $(warning No libunwind found. Please install libunwind-dev[el] >= 1.1 and/or set LIBUNWIND_DIR);
     NO_LOCAL_LIBUNWIND := 1

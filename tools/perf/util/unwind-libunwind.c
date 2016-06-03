@@ -5,6 +5,7 @@
 #include "arch/common.h"
 
 struct unwind_libunwind_ops __weak *local_unwind_libunwind_ops;
+struct unwind_libunwind_ops __weak *x86_32_unwind_libunwind_ops;
 
 static void unwind__register_ops(struct thread *thread,
 			  struct unwind_libunwind_ops *ops)
@@ -16,6 +17,7 @@ int unwind__prepare_access(struct thread *thread, struct map *map)
 {
 	const char *arch;
 	enum dso_type dso_type;
+	struct unwind_libunwind_ops *ops = local_unwind_libunwind_ops;
 
 	if (thread->addr_space) {
 		pr_debug("unwind: thread map already set, dso=%s\n",
@@ -32,9 +34,18 @@ int unwind__prepare_access(struct thread *thread, struct map *map)
 		return 0;
 
 	arch = normalize_arch(thread->mg->machine->env->arch);
-	pr_debug("unwind: target platform=%s\n", arch);
+
+	if (!strcmp(arch, "x86")) {
+		if (dso_type != DSO__TYPE_64BIT)
+			ops = x86_32_unwind_libunwind_ops;
+	}
+
+	if (!ops) {
+		pr_err("unwind: target platform=%s is not supported\n", arch);
+		return -1;
+	}
 out_register:
-	unwind__register_ops(thread, local_unwind_libunwind_ops);
+	unwind__register_ops(thread, ops);
 
 	return thread->unwind_libunwind_ops->prepare_access(thread);
 }
