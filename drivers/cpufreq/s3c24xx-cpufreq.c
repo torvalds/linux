@@ -571,11 +571,7 @@ static int s3c_cpufreq_build_freq(void)
 {
 	int size, ret;
 
-	if (!cpu_cur.info->calc_freqtable)
-		return -EINVAL;
-
 	kfree(ftab);
-	ftab = NULL;
 
 	size = cpu_cur.info->calc_freqtable(&cpu_cur, NULL, 0);
 	size++;
