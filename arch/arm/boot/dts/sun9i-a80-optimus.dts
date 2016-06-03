@@ -44,7 +44,6 @@
 
 /dts-v1/;
 #include "sun9i-a80.dtsi"
-#include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/sun4i-a10.h>
@@ -83,6 +82,17 @@
 			label = "optimus:led4:usr";
 			gpios = <&pio 7 0 GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	reg_usb1_vbus: usb1-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb1_vbus_pin_optimus>;
+		regulator-name = "usb1-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
 	};
 
 	reg_usb3_vbus: usb3-vbus {
@@ -170,12 +180,6 @@
 &mmc2_8bit_pins {
 	/* Increase drive strength for DDR modes */
 	allwinner,drive = <SUN4I_PINCTRL_40_MA>;
-};
-
-&reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_optimus>;
-	gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
-	status = "okay";
 };
 
 &r_ir {
