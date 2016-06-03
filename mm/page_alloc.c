@@ -3030,6 +3030,7 @@ reset_fair:
 		apply_fair = false;
 		fair_skipped = false;
 		reset_alloc_batches(ac->preferred_zoneref->zone);
+		z = ac->preferred_zoneref;
 		goto zonelist_scan;
 	}
 
