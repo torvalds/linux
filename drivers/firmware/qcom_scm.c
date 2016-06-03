@@ -89,7 +89,7 @@ EXPORT_SYMBOL(qcom_scm_set_cold_boot_addr);
  */
 int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus)
 {
-	return __qcom_scm_set_warm_boot_addr(entry, cpus);
+	return __qcom_scm_set_warm_boot_addr(__scm->dev, entry, cpus);
 }
 EXPORT_SYMBOL(qcom_scm_set_warm_boot_addr);
 
@@ -119,7 +119,7 @@ bool qcom_scm_hdcp_available(void)
 	if (ret)
 		return ret;
 
-	ret = __qcom_scm_is_call_available(QCOM_SCM_SVC_HDCP,
+	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_HDCP,
 						QCOM_SCM_CMD_HDCP);
 
 	qcom_scm_clk_disable();
@@ -143,7 +143,7 @@ int qcom_scm_hdcp_req(struct qcom_scm_hdcp_req *req, u32 req_cnt, u32 *resp)
 	if (ret)
 		return ret;
 
-	ret = __qcom_scm_hdcp_req(req, req_cnt, resp);
+	ret = __qcom_scm_hdcp_req(__scm->dev, req, req_cnt, resp);
 	qcom_scm_clk_disable();
 	return ret;
 }
