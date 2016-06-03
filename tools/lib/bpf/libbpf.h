@@ -55,8 +55,8 @@ void bpf_object__close(struct bpf_object *object);
 /* Load/unload object into/from kernel */
 int bpf_object__load(struct bpf_object *obj);
 int bpf_object__unload(struct bpf_object *obj);
-const char *bpf_object__get_name(struct bpf_object *obj);
-unsigned int bpf_object__get_kversion(struct bpf_object *obj);
+const char *bpf_object__name(struct bpf_object *obj);
+unsigned int bpf_object__kversion(struct bpf_object *obj);
 
 struct bpf_object *bpf_object__next(struct bpf_object *prev);
 #define bpf_object__for_each_safe(pos, tmp)			\
@@ -171,7 +171,7 @@ struct bpf_map_def {
  */
 struct bpf_map;
 struct bpf_map *
-bpf_object__get_map_by_name(struct bpf_object *obj, const char *name);
+bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
 
 struct bpf_map *
 bpf_map__next(struct bpf_map *map, struct bpf_object *obj);

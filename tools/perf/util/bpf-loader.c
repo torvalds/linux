@@ -1137,7 +1137,7 @@ bpf__obj_config_map(struct bpf_object *obj,
 		goto out;
 	}
 
-	map = bpf_object__get_map_by_name(obj, map_name);
+	map = bpf_object__find_map_by_name(obj, map_name);
 	if (!map) {
 		pr_debug("ERROR: Map %s doesn't exist\n", map_name);
 		err = -BPF_LOADER_ERRNO__OBJCONF_MAP_NOTEXIST;
@@ -1662,7 +1662,7 @@ int bpf__strerror_load(struct bpf_object *obj,
 {
 	bpf__strerror_head(err, buf, size);
 	case LIBBPF_ERRNO__KVER: {
-		unsigned int obj_kver = bpf_object__get_kversion(obj);
+		unsigned int obj_kver = bpf_object__kversion(obj);
 		unsigned int real_kver;
 
 		if (fetch_kernel_version(&real_kver, NULL, 0)) {
