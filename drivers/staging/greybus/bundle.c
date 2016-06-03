@@ -8,6 +8,7 @@
  */
 
 #include "greybus.h"
+#include "greybus_trace.h"
 
 static ssize_t bundle_class_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
@@ -82,6 +83,8 @@ static void gb_bundle_release(struct device *dev)
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 
+	trace_gb_bundle_release(bundle);
+
 	kfree(bundle->state);
 	kfree(bundle->cport_desc);
 	kfree(bundle);
@@ -136,6 +139,8 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 
 	list_add(&bundle->links, &intf->bundles);
 
+	trace_gb_bundle_create(bundle);
+
 	return bundle;
 }
 
@@ -149,6 +154,8 @@ int gb_bundle_add(struct gb_bundle *bundle)
 		return ret;
 	}
 
+	trace_gb_bundle_add(bundle);
+
 	return 0;
 }
 
@@ -157,6 +164,8 @@ int gb_bundle_add(struct gb_bundle *bundle)
  */
 void gb_bundle_destroy(struct gb_bundle *bundle)
 {
+	trace_gb_bundle_destroy(bundle);
+
 	if (device_is_registered(&bundle->dev))
 		device_del(&bundle->dev);
 

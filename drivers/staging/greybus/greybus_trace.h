@@ -16,6 +16,7 @@
 
 struct gb_message;
 struct gb_operation;
+struct gb_bundle;
 struct gb_host_device;
 
 #define gb_bundle_name(message)						\
@@ -160,6 +161,61 @@ DEFINE_OPERATION_EVENT(gb_operation_get_active);
 DEFINE_OPERATION_EVENT(gb_operation_put_active);
 
 #undef DEFINE_OPERATION_EVENT
+
+DECLARE_EVENT_CLASS(gb_bundle,
+
+	TP_PROTO(struct gb_bundle *bundle),
+
+	TP_ARGS(bundle),
+
+	TP_STRUCT__entry(
+		__field(u8, intf_id)
+		__field(u8, id)
+		__field(u8, class)
+		__field(size_t, num_cports)
+	),
+
+	TP_fast_assign(
+		__entry->intf_id = bundle->intf->interface_id;
+		__entry->id = bundle->id;
+		__entry->class = bundle->class;
+		__entry->num_cports = bundle->num_cports;
+	),
+
+	TP_printk("intf_id=0x%02x id=%02x class=0x%02x num_cports=%zu",
+		  __entry->intf_id, __entry->id, __entry->class,
+		  __entry->num_cports)
+);
+
+#define DEFINE_BUNDLE_EVENT(name)					\
+		DEFINE_EVENT(gb_bundle, name,			\
+				TP_PROTO(struct gb_bundle *bundle), \
+				TP_ARGS(bundle))
+
+/*
+ * Occurs after a new bundle is successfully created.
+ */
+DEFINE_BUNDLE_EVENT(gb_bundle_create);
+
+/*
+ * Occurs when the last reference to a bundle has been dropped,
+ * before its resources are freed.
+ */
+DEFINE_BUNDLE_EVENT(gb_bundle_release);
+
+/*
+ * Occurs when a bundle is added to an interface when the interface
+ * is enabled.
+ */
+DEFINE_BUNDLE_EVENT(gb_bundle_add);
+
+/*
+ * Occurs when a registered bundle gets destroyed, normally at the
+ * time an interface is disabled.
+ */
+DEFINE_BUNDLE_EVENT(gb_bundle_destroy);
+
+#undef DEFINE_BUNDLE_EVENT
 
 DECLARE_EVENT_CLASS(gb_interface,
 
