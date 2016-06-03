@@ -869,7 +869,7 @@ struct gpio_chip *gpiochip_find(void *data,
 
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_for_each_entry(gdev, &gpio_devices, list)
-		if (match(gdev->chip, data))
+		if (gdev->chip && match(gdev->chip, data))
 			break;
 
 	/* No match? */
