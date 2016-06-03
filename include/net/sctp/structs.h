@@ -566,6 +566,9 @@ struct sctp_chunk {
 	/* This points to the sk_buff containing the actual data.  */
 	struct sk_buff *skb;
 
+	/* In case of GSO packets, this will store the head one */
+	struct sk_buff *head_skb;
+
 	/* These are the SCTP headers by reverse order in a packet.
 	 * Note that some of these may happen more than once.  In that
 	 * case, we point at the "current" one, whatever that means
@@ -696,6 +699,8 @@ struct sctp_packet {
 	size_t overhead;
 	/* This is the total size of all chunks INCLUDING padding.  */
 	size_t size;
+	/* This is the maximum size this packet may have */
+	size_t max_size;
 
 	/* The packet is destined for this transport address.
 	 * The function we finally use to pass down to the next lower

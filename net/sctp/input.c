@@ -112,7 +112,6 @@ int sctp_rcv(struct sk_buff *skb)
 	struct sctp_ep_common *rcvr;
 	struct sctp_transport *transport = NULL;
 	struct sctp_chunk *chunk;
-	struct sctphdr *sh;
 	union sctp_addr src;
 	union sctp_addr dest;
 	int family;
@@ -124,28 +123,29 @@ int sctp_rcv(struct sk_buff *skb)
 
 	__SCTP_INC_STATS(net, SCTP_MIB_INSCTPPACKS);
 
-	if (skb_linearize(skb))
+	/* If packet is too small to contain a single chunk, let's not
+	 * waste time on it anymore.
+	 */
+	if (skb->len < sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr) +
+		       skb_transport_offset(skb))
 		goto discard_it;
 
-	sh = sctp_hdr(skb);
+	if (!pskb_may_pull(skb, sizeof(struct sctphdr)))
+		goto discard_it;
 
-	/* Pull up the IP and SCTP headers. */
+	/* Pull up the IP header. */
 	__skb_pull(skb, skb_transport_offset(skb));
-	if (skb->len < sizeof(struct sctphdr))
-		goto discard_it;
 
 	skb->csum_valid = 0; /* Previous value not applicable */
 	if (skb_csum_unnecessary(skb))
 		__skb_decr_checksum_unnecessary(skb);
-	else if (!sctp_checksum_disable && sctp_rcv_checksum(net, skb) < 0)
+	else if (!sctp_checksum_disable &&
+		 !(skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) &&
+		 sctp_rcv_checksum(net, skb) < 0)
 		goto discard_it;
 	skb->csum_valid = 1;
 
-	skb_pull(skb, sizeof(struct sctphdr));
-
-	/* Make sure we at least have chunk headers worth of data left. */
-	if (skb->len < sizeof(struct sctp_chunkhdr))
-		goto discard_it;
+	__skb_pull(skb, sizeof(struct sctphdr));
 
 	family = ipver2af(ip_hdr(skb)->version);
 	af = sctp_get_af_specific(family);
@@ -230,7 +230,7 @@ int sctp_rcv(struct sk_buff *skb)
 	chunk->rcvr = rcvr;
 
 	/* Remember the SCTP header. */
-	chunk->sctp_hdr = sh;
+	chunk->sctp_hdr = sctp_hdr(skb);
 
 	/* Set the source and destination addresses of the incoming chunk.  */
 	sctp_init_addrs(chunk, &src, &dest);
@@ -660,19 +660,23 @@ out_unlock:
  */
 static int sctp_rcv_ootb(struct sk_buff *skb)
 {
-	sctp_chunkhdr_t *ch;
-	__u8 *ch_end;
-
-	ch = (sctp_chunkhdr_t *) skb->data;
+	sctp_chunkhdr_t *ch, _ch;
+	int ch_end, offset = 0;
 
 	/* Scan through all the chunks in the packet.  */
 	do {
+		/* Make sure we have at least the header there */
+		if (offset + sizeof(sctp_chunkhdr_t) > skb->len)
+			break;
+
+		ch = skb_header_pointer(skb, offset, sizeof(*ch), &_ch);
+
 		/* Break out if chunk length is less then minimal. */
 		if (ntohs(ch->length) < sizeof(sctp_chunkhdr_t))
 			break;
 
-		ch_end = ((__u8 *)ch) + WORD_ROUND(ntohs(ch->length));
-		if (ch_end > skb_tail_pointer(skb))
+		ch_end = offset + WORD_ROUND(ntohs(ch->length));
+		if (ch_end > skb->len)
 			break;
 
 		/* RFC 8.4, 2) If the OOTB packet contains an ABORT chunk, the
@@ -697,8 +701,8 @@ static int sctp_rcv_ootb(struct sk_buff *skb)
 		if (SCTP_CID_INIT == ch->type && (void *)ch != skb->data)
 			goto discard;
 
-		ch = (sctp_chunkhdr_t *) ch_end;
-	} while (ch_end < skb_tail_pointer(skb));
+		offset = ch_end;
+	} while (ch_end < skb->len);
 
 	return 0;
 
@@ -1172,6 +1176,17 @@ static struct sctp_association *__sctp_rcv_lookup_harder(struct net *net,
 				      struct sctp_transport **transportp)
 {
 	sctp_chunkhdr_t *ch;
+
+	/* We do not allow GSO frames here as we need to linearize and
+	 * then cannot guarantee frame boundaries. This shouldn't be an
+	 * issue as packets hitting this are mostly INIT or INIT-ACK and
+	 * those cannot be on GSO-style anyway.
+	 */
+	if ((skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP)
+		return NULL;
+
+	if (skb_linearize(skb))
+		return NULL;
 
 	ch = (sctp_chunkhdr_t *) skb->data;
 
