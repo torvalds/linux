@@ -293,9 +293,8 @@ static int s3c_cpufreq_target(struct cpufreq_policy *policy,
 		     __func__, policy, target_freq, relation);
 
 	if (ftab) {
-		if (cpufreq_frequency_table_target(policy, ftab,
-						   target_freq, relation,
-						   &index)) {
+		if (cpufreq_frequency_table_target(policy, target_freq,
+						   relation, &index)) {
 			s3c_freq_dbg("%s: table failed\n", __func__);
 			return -EINVAL;
 		}
@@ -323,14 +322,14 @@ static int s3c_cpufreq_target(struct cpufreq_policy *policy,
 		tmp_policy.min = policy->min * 1000;
 		tmp_policy.max = policy->max * 1000;
 		tmp_policy.cpu = policy->cpu;
+		tmp_policy.freq_table = pll_reg;
 
 		/* cpufreq_frequency_table_target uses a pointer to 'index'
 		 * which is the number of the table entry, not the value of
 		 * the table entry's index field. */
 
-		ret = cpufreq_frequency_table_target(&tmp_policy, pll_reg,
-						     target_freq, relation,
-						     &index);
+		ret = cpufreq_frequency_table_target(&tmp_policy, target_freq,
+						     relation, &index);
 
 		if (ret < 0) {
 			pr_err("%s: no PLL available\n", __func__);

@@ -1947,8 +1947,8 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 		return -EINVAL;
 	}
 
-	retval = cpufreq_frequency_table_target(policy, freq_table, target_freq,
-						relation, &index);
+	retval = cpufreq_frequency_table_target(policy, target_freq, relation,
+						&index);
 	if (unlikely(retval)) {
 		pr_err("%s: Unable to find matching freq\n", __func__);
 		return retval;
