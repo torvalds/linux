@@ -81,8 +81,7 @@ typedef void (*bpf_program_clear_priv_t)(struct bpf_program *,
 int bpf_program__set_private(struct bpf_program *prog, void *priv,
 			     bpf_program_clear_priv_t clear_priv);
 
-int bpf_program__get_private(struct bpf_program *prog,
-			     void **ppriv);
+void *bpf_program__priv(struct bpf_program *prog);
 
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 

@@ -1230,10 +1230,9 @@ int bpf_program__set_private(struct bpf_program *prog,
 	return 0;
 }
 
-int bpf_program__get_private(struct bpf_program *prog, void **ppriv)
+void *bpf_program__priv(struct bpf_program *prog)
 {
-	*ppriv = prog->priv;
-	return 0;
+	return prog ? prog->priv : ERR_PTR(-EINVAL);
 }
 
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy)

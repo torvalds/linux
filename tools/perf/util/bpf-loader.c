@@ -380,15 +380,14 @@ preproc_gen_prologue(struct bpf_program *prog, int n,
 		     struct bpf_insn *orig_insns, int orig_insns_cnt,
 		     struct bpf_prog_prep_result *res)
 {
+	struct bpf_prog_priv *priv = bpf_program__priv(prog);
 	struct probe_trace_event *tev;
 	struct perf_probe_event *pev;
-	struct bpf_prog_priv *priv;
 	struct bpf_insn *buf;
 	size_t prologue_cnt = 0;
 	int i, err;
 
-	err = bpf_program__get_private(prog, (void **)&priv);
-	if (err || !priv)
+	if (IS_ERR(priv) || !priv)
 		goto errout;
 
 	pev = &priv->pev;
@@ -535,13 +534,12 @@ static int map_prologue(struct perf_probe_event *pev, int *mapping,
 
 static int hook_load_preprocessor(struct bpf_program *prog)
 {
+	struct bpf_prog_priv *priv = bpf_program__priv(prog);
 	struct perf_probe_event *pev;
-	struct bpf_prog_priv *priv;
 	bool need_prologue = false;
 	int err, i;
 
-	err = bpf_program__get_private(prog, (void **)&priv);
-	if (err || !priv) {
+	if (IS_ERR(priv) || !priv) {
 		pr_debug("Internal error when hook preprocessor\n");
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
@@ -607,9 +605,11 @@ int bpf__probe(struct bpf_object *obj)
 		if (err)
 			goto out;
 
-		err = bpf_program__get_private(prog, (void **)&priv);
-		if (err || !priv)
+		priv = bpf_program__priv(prog);
+		if (IS_ERR(priv) || !priv) {
+			err = PTR_ERR(priv);
 			goto out;
+		}
 		pev = &priv->pev;
 
 		err = convert_perf_probe_events(pev, 1);
@@ -645,13 +645,12 @@ int bpf__unprobe(struct bpf_object *obj)
 {
 	int err, ret = 0;
 	struct bpf_program *prog;
-	struct bpf_prog_priv *priv;
 
 	bpf_object__for_each_program(prog, obj) {
+		struct bpf_prog_priv *priv = bpf_program__priv(prog);
 		int i;
 
-		err = bpf_program__get_private(prog, (void **)&priv);
-		if (err || !priv)
+		if (IS_ERR(priv) || !priv)
 			continue;
 
 		for (i = 0; i < priv->pev.ntevs; i++) {
@@ -702,14 +701,12 @@ int bpf__foreach_tev(struct bpf_object *obj,
 	int err;
 
 	bpf_object__for_each_program(prog, obj) {
+		struct bpf_prog_priv *priv = bpf_program__priv(prog);
 		struct probe_trace_event *tev;
 		struct perf_probe_event *pev;
-		struct bpf_prog_priv *priv;
 		int i, fd;
 
-		err = bpf_program__get_private(prog,
-				(void **)&priv);
-		if (err || !priv) {
+		if (IS_ERR(priv) || !priv) {
 			pr_debug("bpf: failed to get private field\n");
 			return -BPF_LOADER_ERRNO__INTERNAL;
 		}
