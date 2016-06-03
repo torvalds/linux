@@ -207,6 +207,8 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	dev_info->pci_mem_start = cdev->pci_params.mem_start;
 	dev_info->pci_mem_end = cdev->pci_params.mem_end;
 	dev_info->pci_irq = cdev->pci_params.irq;
+	dev_info->rdma_supported =
+	    (cdev->hwfns[0].hw_info.personality == QED_PCI_ETH_ROCE);
 	dev_info->is_mf_default = IS_MF_DEFAULT(&cdev->hwfns[0]);
 	ether_addr_copy(dev_info->hw_mac, cdev->hwfns[0].hw_info.hw_mac_addr);
 
@@ -901,7 +903,8 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 
 	if (IS_PF(cdev)) {
 		qed_free_stream_mem(cdev);
-		qed_sriov_disable(cdev, true);
+		if (IS_QED_ETH_IF(cdev))
+			qed_sriov_disable(cdev, true);
 
 		qed_nic_stop(cdev);
 		qed_slowpath_irq_free(cdev);

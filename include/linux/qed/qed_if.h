@@ -58,8 +58,70 @@ struct qed_eth_pf_params {
 	u16 num_cons;
 };
 
+/* Most of the the parameters below are described in the FW iSCSI / TCP HSI */
+struct qed_iscsi_pf_params {
+	u64 glbl_q_params_addr;
+	u64 bdq_pbl_base_addr[2];
+	u32 max_cwnd;
+	u16 cq_num_entries;
+	u16 cmdq_num_entries;
+	u16 dup_ack_threshold;
+	u16 tx_sws_timer;
+	u16 min_rto;
+	u16 min_rto_rt;
+	u16 max_rto;
+
+	/* The following parameters are used during HW-init
+	 * and these parameters need to be passed as arguments
+	 * to update_pf_params routine invoked before slowpath start
+	 */
+	u16 num_cons;
+	u16 num_tasks;
+
+	/* The following parameters are used during protocol-init */
+	u16 half_way_close_timeout;
+	u16 bdq_xoff_threshold[2];
+	u16 bdq_xon_threshold[2];
+	u16 cmdq_xoff_threshold;
+	u16 cmdq_xon_threshold;
+	u16 rq_buffer_size;
+
+	u8 num_sq_pages_in_ring;
+	u8 num_r2tq_pages_in_ring;
+	u8 num_uhq_pages_in_ring;
+	u8 num_queues;
+	u8 log_page_size;
+	u8 rqe_log_size;
+	u8 max_fin_rt;
+	u8 gl_rq_pi;
+	u8 gl_cmd_pi;
+	u8 debug_mode;
+	u8 ll2_ooo_queue_id;
+	u8 ooo_enable;
+
+	u8 is_target;
+	u8 bdq_pbl_num_entries[2];
+};
+
+struct qed_rdma_pf_params {
+	/* Supplied to QED during resource allocation (may affect the ILT and
+	 * the doorbell BAR).
+	 */
+	u32 min_dpis;		/* number of requested DPIs */
+	u32 num_mrs;		/* number of requested memory regions */
+	u32 num_qps;		/* number of requested Queue Pairs */
+	u32 num_srqs;		/* number of requested SRQ */
+	u8 roce_edpm_mode;	/* see QED_ROCE_EDPM_MODE_ENABLE */
+	u8 gl_pi;		/* protocol index */
+
+	/* Will allocate rate limiters to be used with QPs */
+	u8 enable_dcqcn;
+};
+
 struct qed_pf_params {
 	struct qed_eth_pf_params eth_pf_params;
+	struct qed_iscsi_pf_params iscsi_pf_params;
+	struct qed_rdma_pf_params rdma_pf_params;
 };
 
 enum qed_int_mode {
@@ -100,6 +162,8 @@ struct qed_dev_info {
 	/* MFW version */
 	u32		mfw_rev;
 
+	bool rdma_supported;
+
 	u32		flash_size;
 	u8		mf_mode;
 	bool		tx_switching;
@@ -111,6 +175,7 @@ enum qed_sb_type {
 
 enum qed_protocol {
 	QED_PROTOCOL_ETH,
+	QED_PROTOCOL_ISCSI,
 };
 
 struct qed_link_params {

@@ -358,10 +358,25 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 
 	qed_tunn_set_pf_start_params(p_hwfn, p_tunn,
 				     &p_ramrod->tunnel_config);
-	p_hwfn->hw_info.personality = PERSONALITY_ETH;
 
 	if (IS_MF_SI(p_hwfn))
 		p_ramrod->allow_npar_tx_switching = allow_npar_tx_switch;
+
+	switch (p_hwfn->hw_info.personality) {
+	case QED_PCI_ETH:
+		p_ramrod->personality = PERSONALITY_ETH;
+		break;
+	case QED_PCI_ISCSI:
+		p_ramrod->personality = PERSONALITY_ISCSI;
+		break;
+	case QED_PCI_ETH_ROCE:
+		p_ramrod->personality = PERSONALITY_RDMA_AND_ETH;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Unkown personality %d\n",
+			  p_hwfn->hw_info.personality);
+		p_ramrod->personality = PERSONALITY_ETH;
+	}
 
 	if (p_hwfn->cdev->p_iov_info) {
 		struct qed_hw_sriov_info *p_iov = p_hwfn->cdev->p_iov_info;

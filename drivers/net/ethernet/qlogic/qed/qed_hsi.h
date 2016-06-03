@@ -650,7 +650,7 @@ struct mstorm_vf_zone {
 /* personality per PF */
 enum personality_type {
 	BAD_PERSONALITY_TYP,
-	PERSONALITY_RESERVED,
+	PERSONALITY_ISCSI,
 	PERSONALITY_RESERVED2,
 	PERSONALITY_RDMA_AND_ETH,
 	PERSONALITY_RESERVED3,
@@ -7072,6 +7072,8 @@ struct public_func {
 #define FUNC_MF_CFG_PROTOCOL_MASK	0x000000f0
 #define FUNC_MF_CFG_PROTOCOL_SHIFT	4
 #define FUNC_MF_CFG_PROTOCOL_ETHERNET	0x00000000
+#define FUNC_MF_CFG_PROTOCOL_ISCSI              0x00000010
+#define FUNC_MF_CFG_PROTOCOL_ROCE               0x00000030
 #define FUNC_MF_CFG_PROTOCOL_MAX	0x00000030
 
 #define FUNC_MF_CFG_MIN_BW_MASK		0x0000ff00
@@ -7405,6 +7407,8 @@ struct nvm_cfg1_glob {
 	u32 misc_sig;
 	u32 device_capabilities;
 #define NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ETHERNET	0x1
+#define NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ISCSI		0x4
+#define NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ROCE		0x8
 	u32 power_dissipated;
 	u32 power_consumed;
 	u32 efi_version;

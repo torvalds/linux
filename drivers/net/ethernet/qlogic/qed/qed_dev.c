@@ -1472,6 +1472,12 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ETHERNET)
 		__set_bit(QED_DEV_CAP_ETH,
 			  &p_hwfn->hw_info.device_capabilities);
+	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ISCSI)
+		__set_bit(QED_DEV_CAP_ISCSI,
+			  &p_hwfn->hw_info.device_capabilities);
+	if (device_capabilities & NVM_CFG1_GLOB_DEVICE_CAPABILITIES_ROCE)
+		__set_bit(QED_DEV_CAP_ROCE,
+			  &p_hwfn->hw_info.device_capabilities);
 
 	return qed_mcp_fill_shmem_func_info(p_hwfn, p_ptt);
 }

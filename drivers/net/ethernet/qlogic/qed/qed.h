@@ -127,6 +127,8 @@ struct qed_tunn_update_params {
  */
 enum qed_pci_personality {
 	QED_PCI_ETH,
+	QED_PCI_ISCSI,
+	QED_PCI_ETH_ROCE,
 	QED_PCI_DEFAULT /* default in shmem */
 };
 
@@ -170,6 +172,8 @@ enum QED_PORT_MODE {
 
 enum qed_dev_cap {
 	QED_DEV_CAP_ETH,
+	QED_DEV_CAP_ISCSI,
+	QED_DEV_CAP_ROCE,
 };
 
 struct qed_hw_info {
