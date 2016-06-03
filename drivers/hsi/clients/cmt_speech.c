@@ -444,8 +444,8 @@ static void cs_hsi_read_on_control_complete(struct hsi_msg *msg)
 	hi->control_state &= ~SSI_CHANNEL_STATE_READING;
 	if (msg->status == HSI_STATUS_ERROR) {
 		dev_err(&hi->cl->device, "Control RX error detected\n");
-		cs_hsi_control_read_error(hi, msg);
 		spin_unlock(&hi->lock);
+		cs_hsi_control_read_error(hi, msg);
 		goto out;
 	}
 	dev_dbg(&hi->cl->device, "Read on control: %08X\n", cmd);
