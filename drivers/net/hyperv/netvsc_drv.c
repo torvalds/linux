@@ -982,8 +982,6 @@ static struct rtnl_link_stats64 *netvsc_get_stats64(struct net_device *net,
 
 static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 {
-	struct net_device_context *ndevctx = netdev_priv(ndev);
-	struct hv_device *hdev =  ndevctx->device_ctx;
 	struct sockaddr *addr = p;
 	char save_adr[ETH_ALEN];
 	unsigned char save_aatype;
@@ -996,7 +994,7 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	if (err != 0)
 		return err;
 
-	err = rndis_filter_set_device_mac(hdev, addr->sa_data);
+	err = rndis_filter_set_device_mac(ndev, addr->sa_data);
 	if (err != 0) {
 		/* roll back to saved MAC */
 		memcpy(ndev->dev_addr, save_adr, ETH_ALEN);

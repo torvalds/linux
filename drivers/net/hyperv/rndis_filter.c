@@ -543,9 +543,8 @@ static int rndis_filter_query_device_mac(struct rndis_device *dev)
 #define NWADR_STR "NetworkAddress"
 #define NWADR_STRLEN 14
 
-int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac)
+int rndis_filter_set_device_mac(struct net_device *ndev, char *mac)
 {
-	struct net_device *ndev = hv_get_drvdata(hdev);
 	struct netvsc_device *nvdev = net_device_to_netvsc_device(ndev);
 	struct rndis_device *rdev = nvdev->extension;
 	struct rndis_request *request;
