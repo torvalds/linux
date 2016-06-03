@@ -121,16 +121,7 @@ static int pistachio_reset_probe(struct platform_device *pdev)
 	rd->rcdev.ops = &pistachio_reset_ops;
 	rd->rcdev.of_node = np;
 
-	return reset_controller_register(&rd->rcdev);
-}
-
-static int pistachio_reset_remove(struct platform_device *pdev)
-{
-	struct pistachio_reset_data *data = platform_get_drvdata(pdev);
-
-	reset_controller_unregister(&data->rcdev);
-
-	return 0;
+	return devm_reset_controller_register(dev, &rd->rcdev);
 }
 
 static const struct of_device_id pistachio_reset_dt_ids[] = {
@@ -141,7 +132,6 @@ MODULE_DEVICE_TABLE(of, pistachio_reset_dt_ids);
 
 static struct platform_driver pistachio_reset_driver = {
 	.probe	= pistachio_reset_probe,
-	.remove	= pistachio_reset_remove,
 	.driver = {
 		.name		= "pistachio-reset",
 		.of_match_table	= pistachio_reset_dt_ids,
