@@ -186,6 +186,7 @@ static int _skl_suspend(struct hdac_ext_bus *ebus)
 {
 	struct skl *skl = ebus_to_skl(ebus);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct pci_dev *pci = to_pci_dev(bus->dev);
 	int ret;
 
 	snd_hdac_ext_bus_link_power_down_all(ebus);
@@ -195,6 +196,8 @@ static int _skl_suspend(struct hdac_ext_bus *ebus)
 		return ret;
 
 	snd_hdac_bus_stop_chip(bus);
+	update_pci_dword(pci, AZX_PCIREG_PGCTL,
+		AZX_PGCTL_LSRMD_MASK, AZX_PGCTL_LSRMD_MASK);
 	skl_enable_miscbdcge(bus->dev, false);
 	snd_hdac_bus_enter_link_reset(bus);
 	skl_enable_miscbdcge(bus->dev, true);
