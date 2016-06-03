@@ -332,7 +332,7 @@ int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, u8 en)
 	int sfp_prsnt;
 	int ret = hns_mac_get_sfp_prsnt(mac_cb, &sfp_prsnt);
 
-	if (!mac_cb->phy_node) {
+	if (!mac_cb->phy_dev) {
 		if (ret)
 			pr_info("please confirm sfp is present or not\n");
 		else

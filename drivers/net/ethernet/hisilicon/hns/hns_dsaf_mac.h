@@ -338,7 +338,7 @@ struct hns_mac_cb {
 	phy_interface_t phy_if;
 	enum hnae_loop loop_mode;
 
-	struct device_node *phy_node;
+	struct phy_device *phy_dev;
 
 	struct mac_hw_stats hw_stats;
 };

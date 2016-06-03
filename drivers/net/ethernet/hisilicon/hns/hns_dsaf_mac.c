@@ -15,7 +15,8 @@
 #include <linux/netdevice.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/phy_fixed.h>
+#include <linux/of_mdio.h>
+#include <linux/phy.h>
 #include <linux/platform_device.h>
 
 #include "hns_dsaf_main.h"
@@ -645,7 +646,7 @@ free_mac_drv:
  */
 static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 {
-	struct device_node *np = mac_cb->dev->of_node;
+	struct device_node *np;
 	struct regmap *syscon;
 	struct of_phandle_args cpld_args;
 	u32 ret;
@@ -672,21 +673,34 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 	 * from dsaf node
 	 */
 	if (!mac_cb->fw_port) {
-		mac_cb->phy_node = of_parse_phandle(np, "phy-handle",
-						    mac_cb->mac_id);
-		if (mac_cb->phy_node)
+		np = of_parse_phandle(mac_cb->dev->of_node, "phy-handle",
+				      mac_cb->mac_id);
+		mac_cb->phy_dev = of_phy_find_device(np);
+		if (mac_cb->phy_dev) {
+			/* refcount is held by of_phy_find_device()
+			 * if the phy_dev is found
+			 */
+			put_device(&mac_cb->phy_dev->mdio.dev);
+
 			dev_dbg(mac_cb->dev, "mac%d phy_node: %s\n",
-				mac_cb->mac_id, mac_cb->phy_node->name);
+				mac_cb->mac_id, np->name);
+		}
+
 		return 0;
 	}
+
 	if (!is_of_node(mac_cb->fw_port))
 		return -EINVAL;
+
 	/* parse property from port subnode in dsaf */
-	mac_cb->phy_node = of_parse_phandle(to_of_node(mac_cb->fw_port),
-					    "phy-handle", 0);
-	if (mac_cb->phy_node)
+	np = of_parse_phandle(to_of_node(mac_cb->fw_port), "phy-handle", 0);
+	mac_cb->phy_dev = of_phy_find_device(np);
+	if (mac_cb->phy_dev) {
+		put_device(&mac_cb->phy_dev->mdio.dev);
 		dev_dbg(mac_cb->dev, "mac%d phy_node: %s\n",
-			mac_cb->mac_id, mac_cb->phy_node->name);
+			mac_cb->mac_id, np->name);
+		}
+
 	syscon = syscon_node_to_regmap(
 			of_parse_phandle(to_of_node(mac_cb->fw_port),
 					 "serdes-syscon", 0));

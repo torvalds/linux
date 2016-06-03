@@ -96,7 +96,13 @@ static int __ae_match(struct device *dev, const void *data)
 {
 	struct hnae_ae_dev *hdev = cls_to_ae_dev(dev);
 
-	return (data == &hdev->dev->of_node->fwnode);
+	if (dev_of_node(hdev->dev))
+		return (data == &hdev->dev->of_node->fwnode);
+	else if (is_acpi_node(hdev->dev->fwnode))
+		return (data == hdev->dev->fwnode);
+
+	dev_err(dev, "__ae_match cannot read cfg data from OF or acpi\n");
+	return 0;
 }
 
 static struct hnae_ae_dev *find_ae(const struct fwnode_handle *fwnode)
