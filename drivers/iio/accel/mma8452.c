@@ -1,5 +1,5 @@
 /*
- * mma8452.c - Support for following Freescale 3-axis accelerometers:
+ * mma8452.c - Support for following Freescale / NXP 3-axis accelerometers:
  *
  * device name	digital output	7-bit I2C slave address (pin selectable)
  * ---------------------------------------------------------------------
@@ -108,7 +108,7 @@ struct mma8452_data {
 };
 
 /**
- * struct mma_chip_info - chip specific data for Freescale's accelerometers
+ * struct mma_chip_info - chip specific data
  * @chip_id:			WHO_AM_I register's value
  * @channels:			struct iio_chan_spec matching the device's
  *				capabilities
@@ -1693,5 +1693,5 @@ static struct i2c_driver mma8452_driver = {
 module_i2c_driver(mma8452_driver);
 
 MODULE_AUTHOR("Peter Meerwald <pmeerw@pmeerw.net>");
-MODULE_DESCRIPTION("Freescale MMA8452 accelerometer driver");
+MODULE_DESCRIPTION("Freescale / NXP MMA8452 accelerometer driver");
 MODULE_LICENSE("GPL");
