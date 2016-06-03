@@ -3,7 +3,7 @@ menuconfig ARCH_MOXART
 	depends on ARCH_MULTI_V4
 	select CPU_FA526
 	select ARM_DMA_MEM_BUFFERABLE
-	select CLKSRC_MMIO
+	select MOXART_TIMER
 	select GENERIC_IRQ_CHIP
 	select ARCH_REQUIRE_GPIOLIB
 	select PHYLIB if NETDEVICES
