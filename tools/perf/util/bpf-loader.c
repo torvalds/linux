@@ -339,7 +339,7 @@ config_bpf_program(struct bpf_program *prog)
 	}
 	pr_debug("bpf: config '%s' is ok\n", config_str);
 
-	err = bpf_program__set_private(prog, priv, clear_prog_priv);
+	err = bpf_program__set_priv(prog, priv, clear_prog_priv);
 	if (err) {
 		pr_debug("Failed to set priv for program '%s'\n", config_str);
 		goto errout;
@@ -910,7 +910,7 @@ bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 		}
 		INIT_LIST_HEAD(&priv->ops_list);
 
-		if (bpf_map__set_private(map, priv, bpf_map_priv__clear)) {
+		if (bpf_map__set_priv(map, priv, bpf_map_priv__clear)) {
 			free(priv);
 			return -BPF_LOADER_ERRNO__INTERNAL;
 		}
@@ -1515,7 +1515,7 @@ int bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 			if (!priv)
 				return -ENOMEM;
 
-			err = bpf_map__set_private(map, priv, bpf_map_priv__clear);
+			err = bpf_map__set_priv(map, priv, bpf_map_priv__clear);
 			if (err) {
 				bpf_map_priv__clear(map, priv);
 				return err;

@@ -78,8 +78,8 @@ struct bpf_program *bpf_program__next(struct bpf_program *prog,
 typedef void (*bpf_program_clear_priv_t)(struct bpf_program *,
 					 void *);
 
-int bpf_program__set_private(struct bpf_program *prog, void *priv,
-			     bpf_program_clear_priv_t clear_priv);
+int bpf_program__set_priv(struct bpf_program *prog, void *priv,
+			  bpf_program_clear_priv_t clear_priv);
 
 void *bpf_program__priv(struct bpf_program *prog);
 
@@ -184,8 +184,8 @@ const struct bpf_map_def *bpf_map__def(struct bpf_map *map);
 const char *bpf_map__name(struct bpf_map *map);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
-int bpf_map__set_private(struct bpf_map *map, void *priv,
-			 bpf_map_clear_priv_t clear_priv);
+int bpf_map__set_priv(struct bpf_map *map, void *priv,
+		      bpf_map_clear_priv_t clear_priv);
 void *bpf_map__priv(struct bpf_map *map);
 
 #endif

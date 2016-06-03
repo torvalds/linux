@@ -1218,9 +1218,8 @@ bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
 	return &obj->programs[idx];
 }
 
-int bpf_program__set_private(struct bpf_program *prog,
-			     void *priv,
-			     bpf_program_clear_priv_t clear_priv)
+int bpf_program__set_priv(struct bpf_program *prog, void *priv,
+			  bpf_program_clear_priv_t clear_priv)
 {
 	if (prog->priv && prog->clear_priv)
 		prog->clear_priv(prog, prog->priv);
@@ -1319,8 +1318,8 @@ const char *bpf_map__name(struct bpf_map *map)
 	return map ? map->name : NULL;
 }
 
-int bpf_map__set_private(struct bpf_map *map, void *priv,
-			 bpf_map_clear_priv_t clear_priv)
+int bpf_map__set_priv(struct bpf_map *map, void *priv,
+		     bpf_map_clear_priv_t clear_priv)
 {
 	if (!map)
 		return -EINVAL;
