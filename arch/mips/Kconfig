@@ -384,7 +384,7 @@ config MACH_PISTACHIO
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
 	select CSRC_R4K
-	select DMA_MAYBE_COHERENT
+	select DMA_NONCOHERENT
 	select GPIOLIB
 	select IRQ_MIPS_CPU
 	select LIBFDT
