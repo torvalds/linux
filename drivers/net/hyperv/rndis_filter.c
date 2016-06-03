@@ -546,8 +546,7 @@ static int rndis_filter_query_device_mac(struct rndis_device *dev)
 int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac)
 {
 	struct net_device *ndev = hv_get_drvdata(hdev);
-	struct net_device_context *net_device_ctx = netdev_priv(ndev);
-	struct netvsc_device *nvdev = net_device_ctx->nvdev;
+	struct netvsc_device *nvdev = net_device_to_netvsc_device(ndev);
 	struct rndis_device *rdev = nvdev->extension;
 	struct rndis_request *request;
 	struct rndis_set_request *set;
@@ -626,8 +625,7 @@ rndis_filter_set_offload_params(struct hv_device *hdev,
 				struct ndis_offload_params *req_offloads)
 {
 	struct net_device *ndev = hv_get_drvdata(hdev);
-	struct net_device_context *net_device_ctx = netdev_priv(ndev);
-	struct netvsc_device *nvdev = net_device_ctx->nvdev;
+	struct netvsc_device *nvdev = net_device_to_netvsc_device(ndev);
 	struct rndis_device *rdev = nvdev->extension;
 	struct rndis_request *request;
 	struct rndis_set_request *set;
@@ -851,8 +849,7 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	u32 status;
 	int ret;
 	unsigned long t;
-	struct net_device_context *net_device_ctx = netdev_priv(dev->ndev);
-	struct netvsc_device *nvdev = net_device_ctx->nvdev;
+	struct netvsc_device *nvdev = net_device_to_netvsc_device(dev->ndev);
 
 	request = get_rndis_request(dev, RNDIS_MSG_INIT,
 			RNDIS_MESSAGE_SIZE(struct rndis_initialize_request));
@@ -977,8 +974,7 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 {
 	struct net_device *ndev =
 		hv_get_drvdata(new_sc->primary_channel->device_obj);
-	struct net_device_context *net_device_ctx = netdev_priv(ndev);
-	struct netvsc_device *nvscdev = net_device_ctx->nvdev;
+	struct netvsc_device *nvscdev = net_device_to_netvsc_device(ndev);
 	u16 chn_index = new_sc->offermsg.offer.sub_channel_index;
 	int ret;
 	unsigned long flags;
@@ -1196,9 +1192,7 @@ err_dev_remv:
 
 void rndis_filter_device_remove(struct hv_device *dev)
 {
-	struct net_device *ndev = hv_get_drvdata(dev);
-	struct net_device_context *net_device_ctx = netdev_priv(ndev);
-	struct netvsc_device *net_dev = net_device_ctx->nvdev;
+	struct netvsc_device *net_dev = hv_device_to_netvsc_device(dev);
 	struct rndis_device *rndis_dev = net_dev->extension;
 	unsigned long t;
 
@@ -1224,9 +1218,7 @@ void rndis_filter_device_remove(struct hv_device *dev)
 
 int rndis_filter_open(struct hv_device *dev)
 {
-	struct net_device *ndev = hv_get_drvdata(dev);
-	struct net_device_context *net_device_ctx = netdev_priv(ndev);
-	struct netvsc_device *net_device = net_device_ctx->nvdev;
+	struct netvsc_device *net_device = hv_device_to_netvsc_device(dev);
 
 	if (!net_device)
 		return -EINVAL;
@@ -1239,9 +1231,7 @@ int rndis_filter_open(struct hv_device *dev)
 
 int rndis_filter_close(struct hv_device *dev)
 {
-	struct net_device *ndev = hv_get_drvdata(dev);
-	struct net_device_context *net_device_ctx = netdev_priv(ndev);
-	struct netvsc_device *nvdev = net_device_ctx->nvdev;
+	struct netvsc_device *nvdev = hv_device_to_netvsc_device(dev);
 
 	if (!nvdev)
 		return -EINVAL;

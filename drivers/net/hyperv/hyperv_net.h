@@ -743,6 +743,18 @@ struct netvsc_device {
 	atomic_t vf_use_cnt;
 };
 
+static inline struct netvsc_device *
+net_device_to_netvsc_device(struct net_device *ndev)
+{
+	return ((struct net_device_context *)netdev_priv(ndev))->nvdev;
+}
+
+static inline struct netvsc_device *
+hv_device_to_netvsc_device(struct hv_device *device)
+{
+	return net_device_to_netvsc_device(hv_get_drvdata(device));
+}
+
 /* NdisInitialize message */
 struct rndis_initialize_request {
 	u32 req_id;
