@@ -108,10 +108,12 @@ enum {
 #define SCLSR_ORER	BIT(0)	/* Overrun Error */
 
 /* SCSPTR (Serial Port Register), optional */
-#define SCSPTR_RTSIO	BIT(7)	/* Serial Port RTS Pin Input/Output */
-#define SCSPTR_RTSDT	BIT(6)	/* Serial Port RTS Pin Data */
-#define SCSPTR_CTSIO	BIT(5)	/* Serial Port CTS Pin Input/Output */
-#define SCSPTR_CTSDT	BIT(4)	/* Serial Port CTS Pin Data */
+#define SCSPTR_RTSIO	BIT(7)	/* Serial Port RTS# Pin Input/Output */
+#define SCSPTR_RTSDT	BIT(6)	/* Serial Port RTS# Pin Data */
+#define SCSPTR_CTSIO	BIT(5)	/* Serial Port CTS# Pin Input/Output */
+#define SCSPTR_CTSDT	BIT(4)	/* Serial Port CTS# Pin Data */
+#define SCSPTR_SCKIO	BIT(3)	/* Serial Port Clock Pin Input/Output */
+#define SCSPTR_SCKDT	BIT(2)	/* Serial Port Clock Pin Data */
 #define SCSPTR_SPB2IO	BIT(1)	/* Serial Port Break Input/Output */
 #define SCSPTR_SPB2DT	BIT(0)	/* Serial Port Break Data */
 
