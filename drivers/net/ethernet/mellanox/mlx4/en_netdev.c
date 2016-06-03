@@ -1197,8 +1197,8 @@ static void mlx4_en_netpoll(struct net_device *dev)
 	struct mlx4_en_cq *cq;
 	int i;
 
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		cq = priv->rx_cq[i];
+	for (i = 0; i < priv->tx_ring_num; i++) {
+		cq = priv->tx_cq[i];
 		napi_schedule(&cq->napi);
 	}
 }
