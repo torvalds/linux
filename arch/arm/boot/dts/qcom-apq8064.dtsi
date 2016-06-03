@@ -213,6 +213,12 @@
 		};
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-apq8064";
+		};
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
