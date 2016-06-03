@@ -1162,7 +1162,7 @@ static void rockchip_vpu_buf_finish(struct vb2_buffer *vb)
 		struct rockchip_vpu_buf *buf;
 
 		buf = vb_to_buf(vb);
-		rk3288_vpu_vp8e_assemble_bitstream(ctx, buf);
+		rockchip_vpu_vp8e_assemble_bitstream(ctx, buf);
 	}
 
 	vpu_debug_leave();

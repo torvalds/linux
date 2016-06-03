@@ -30,13 +30,6 @@
 #define VP8_CABAC_CTX_OFFSET			192
 #define VP8_CABAC_CTX_SIZE			((55 + 96) << 3)
 
-#define VP8_KEY_FRAME_HDR_SIZE			10
-#define VP8_INTER_FRAME_HDR_SIZE		3
-
-#define VP8_FRAME_TAG_KEY_FRAME_BIT		BIT(0)
-#define VP8_FRAME_TAG_LENGTH_SHIFT		5
-#define VP8_FRAME_TAG_LENGTH_MASK		(0x7ffff << 5)
-
 /**
  * struct rk3288_vpu_vp8e_ctrl_buf - hardware control buffer layout
  * @ext_hdr_size:	Ext header size in bytes (written by hardware).
@@ -48,59 +41,6 @@ struct rk3288_vpu_vp8e_ctrl_buf {
 	u32 dct_size;
 	u8 rsvd[1016];
 };
-
-/*
- * The hardware takes care only of ext hdr and dct partition. The software
- * must take care of frame header.
- *
- * Buffer layout as received from hardware:
- *   |<--gap-->|<--ext hdr-->|<-gap->|<---dct part---
- *   |<-------dct part offset------->|
- *
- * Required buffer layout:
- *   |<--hdr-->|<--ext hdr-->|<---dct part---
- */
-void rk3288_vpu_vp8e_assemble_bitstream(struct rockchip_vpu_ctx *ctx,
-					struct rockchip_vpu_buf *dst_buf)
-{
-	struct vb2_v4l2_buffer *vb2_dst = to_vb2_v4l2_buffer(&dst_buf->vb.vb2_buf);
-	size_t ext_hdr_size = dst_buf->vp8e.ext_hdr_size;
-	size_t dct_size = dst_buf->vp8e.dct_size;
-	size_t hdr_size = dst_buf->vp8e.hdr_size;
-	size_t dst_size;
-	size_t tag_size;
-	void *dst;
-	u32 *tag;
-
-	dst_size = vb2_plane_size(&dst_buf->vb.vb2_buf, 0);
-	dst = vb2_plane_vaddr(&dst_buf->vb.vb2_buf, 0);
-	tag = dst; /* To access frame tag words. */
-
-	if (WARN_ON(hdr_size + ext_hdr_size + dct_size > dst_size))
-		return;
-	if (WARN_ON(dst_buf->vp8e.dct_offset + dct_size > dst_size))
-		return;
-
-	memmove(dst + hdr_size + ext_hdr_size,
-		dst + dst_buf->vp8e.dct_offset, dct_size);
-	memcpy(dst, dst_buf->vp8e.header, hdr_size);
-
-	/* Patch frame tag at first 32-bit word of the frame. */
-	if (vb2_dst->flags & V4L2_BUF_FLAG_KEYFRAME) {
-		tag_size = VP8_KEY_FRAME_HDR_SIZE;
-		tag[0] &= ~VP8_FRAME_TAG_KEY_FRAME_BIT;
-	} else {
-		tag_size = VP8_INTER_FRAME_HDR_SIZE;
-		tag[0] |= VP8_FRAME_TAG_KEY_FRAME_BIT;
-	}
-
-	tag[0] &= ~VP8_FRAME_TAG_LENGTH_MASK;
-	tag[0] |= (hdr_size + ext_hdr_size - tag_size)
-						<< VP8_FRAME_TAG_LENGTH_SHIFT;
-
-	vb2_set_plane_payload(&dst_buf->vb.vb2_buf, 0,
-				hdr_size + ext_hdr_size + dct_size);
-}
 
 static inline unsigned int ref_luma_size(unsigned int w, unsigned int h)
 {

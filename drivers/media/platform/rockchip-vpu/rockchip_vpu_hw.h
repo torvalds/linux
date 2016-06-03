@@ -164,6 +164,12 @@ void rockchip_vpu_deinit(struct rockchip_vpu_ctx *ctx);
 
 void rockchip_vpu_run(struct rockchip_vpu_ctx *ctx);
 
+/* Ops for rk3288 vpu */
+int rk3288_vpu_enc_irq(int irq, struct rockchip_vpu_dev *vpu);
+int rk3288_vpu_dec_irq(int irq, struct rockchip_vpu_dev *vpu);
+void rk3288_vpu_enc_reset(struct rockchip_vpu_ctx *ctx);
+void rk3288_vpu_dec_reset(struct rockchip_vpu_ctx *ctx);
+
 /* Run ops for rk3288 H264 decoder */
 int rk3288_vpu_h264d_init(struct rockchip_vpu_ctx *ctx);
 void rk3288_vpu_h264d_exit(struct rockchip_vpu_ctx *ctx);
@@ -182,7 +188,7 @@ void rk3288_vpu_vp8e_done(struct rockchip_vpu_ctx *ctx,
 			  enum vb2_buffer_state result);
 const struct rockchip_reg_params *rk3288_vpu_vp8e_get_dummy_params(void);
 
-void rk3288_vpu_vp8e_assemble_bitstream(struct rockchip_vpu_ctx *ctx,
+void rockchip_vpu_vp8e_assemble_bitstream(struct rockchip_vpu_ctx *ctx,
 					struct rockchip_vpu_buf *dst_buf);
 
 #endif /* ROCKCHIP_VPU_HW_H_ */

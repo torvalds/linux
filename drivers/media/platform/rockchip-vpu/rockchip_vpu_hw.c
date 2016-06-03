@@ -30,7 +30,13 @@
 
 #include <linux/dma-iommu.h>
 
-#include "rk3288_vpu_regs.h"
+/* Various parameters specific to VP8 encoder. */
+#define VP8_KEY_FRAME_HDR_SIZE                  10
+#define VP8_INTER_FRAME_HDR_SIZE                3
+
+#define VP8_FRAME_TAG_KEY_FRAME_BIT             BIT(0)
+#define VP8_FRAME_TAG_LENGTH_SHIFT              5
+#define VP8_FRAME_TAG_LENGTH_MASK               (0x7ffff << 5)
 
 /**
  * struct rockchip_vpu_variant - information about VPU hardware variant
@@ -68,6 +74,7 @@ static const struct rockchip_vpu_variant rockchip_vpu_variants[] = {
  * @exit:	Clean-up after streaming. Called from VB2 .stop_streaming()
  *		when streaming from first of both enabled queues is being
  *		disabled.
+ * @irq:	Handle {en,de}code irq. Check and clear interrupt.
  * @run:	Start single {en,de)coding run. Called from non-atomic context
  *		to indicate that a pair of buffers is ready and the hardware
  *		should be programmed and started.
@@ -78,6 +85,7 @@ struct rockchip_vpu_codec_ops {
 	int (*init)(struct rockchip_vpu_ctx *);
 	void (*exit)(struct rockchip_vpu_ctx *);
 
+	int (*irq)(int, struct rockchip_vpu_dev *);
 	void (*run)(struct rockchip_vpu_ctx *);
 	void (*done)(struct rockchip_vpu_ctx *, enum vb2_buffer_state);
 	void (*reset)(struct rockchip_vpu_ctx *);
@@ -136,14 +144,9 @@ static void rockchip_vpu_power_off(struct rockchip_vpu_dev *vpu)
 static irqreturn_t vepu_irq(int irq, void *dev_id)
 {
 	struct rockchip_vpu_dev *vpu = dev_id;
-	u32 status = vepu_read(vpu, VEPU_REG_INTERRUPT);
+	struct rockchip_vpu_ctx *ctx = vpu->current_ctx;
 
-	vepu_write(vpu, 0, VEPU_REG_INTERRUPT);
-
-	if (status & VEPU_REG_INTERRUPT_BIT) {
-		struct rockchip_vpu_ctx *ctx = vpu->current_ctx;
-
-		vepu_write(vpu, 0, VEPU_REG_AXI_CTRL);
+	if (!ctx->hw.codec_ops->irq(irq, vpu)) {
 		rockchip_vpu_power_off(vpu);
 		cancel_delayed_work(&vpu->watchdog_work);
 
@@ -156,16 +159,9 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 static irqreturn_t vdpu_irq(int irq, void *dev_id)
 {
 	struct rockchip_vpu_dev *vpu = dev_id;
-	u32 status = vdpu_read(vpu, VDPU_REG_INTERRUPT);
+	struct rockchip_vpu_ctx *ctx = vpu->current_ctx;
 
-	vdpu_write(vpu, 0, VDPU_REG_INTERRUPT);
-
-	vpu_debug(3, "vdpu_irq status: %08x\n", status);
-
-	if (status & VDPU_REG_INTERRUPT_DEC_IRQ) {
-		struct rockchip_vpu_ctx *ctx = vpu->current_ctx;
-
-		vdpu_write(vpu, 0, VDPU_REG_CONFIG);
+	if (!ctx->hw.codec_ops->irq(irq, vpu)) {
 		rockchip_vpu_power_off(vpu);
 		cancel_delayed_work(&vpu->watchdog_work);
 
@@ -364,44 +360,30 @@ void rockchip_vpu_hw_remove(struct rockchip_vpu_dev *vpu)
 	clk_disable_unprepare(vpu->aclk_vcodec);
 }
 
-static void rockchip_vpu_enc_reset(struct rockchip_vpu_ctx *ctx)
-{
-	struct rockchip_vpu_dev *vpu = ctx->dev;
-
-	vepu_write(vpu, VEPU_REG_INTERRUPT_DIS_BIT, VEPU_REG_INTERRUPT);
-	vepu_write(vpu, 0, VEPU_REG_ENC_CTRL);
-	vepu_write(vpu, 0, VEPU_REG_AXI_CTRL);
-}
-
-static void rockchip_vpu_dec_reset(struct rockchip_vpu_ctx *ctx)
-{
-	struct rockchip_vpu_dev *vpu = ctx->dev;
-
-	vdpu_write(vpu, VDPU_REG_INTERRUPT_DEC_IRQ_DIS, VDPU_REG_INTERRUPT);
-	vdpu_write(vpu, 0, VDPU_REG_CONFIG);
-}
-
 static const struct rockchip_vpu_codec_ops mode_ops[] = {
 	[RK3288_VPU_CODEC_VP8E] = {
 		.init = rk3288_vpu_vp8e_init,
 		.exit = rk3288_vpu_vp8e_exit,
+		.irq = rk3288_vpu_enc_irq,
 		.run = rk3288_vpu_vp8e_run,
 		.done = rk3288_vpu_vp8e_done,
-		.reset = rockchip_vpu_enc_reset,
+		.reset = rk3288_vpu_enc_reset,
 	},
 	[RK3288_VPU_CODEC_VP8D] = {
 		.init = rk3288_vpu_vp8d_init,
 		.exit = rk3288_vpu_vp8d_exit,
+		.irq = rk3288_vpu_dec_irq,
 		.run = rk3288_vpu_vp8d_run,
 		.done = rockchip_vpu_run_done,
-		.reset = rockchip_vpu_dec_reset,
+		.reset = rk3288_vpu_dec_reset,
 	},
 	[RK3288_VPU_CODEC_H264D] = {
 		.init = rk3288_vpu_h264d_init,
 		.exit = rk3288_vpu_h264d_exit,
+		.irq = rk3288_vpu_dec_irq,
 		.run = rk3288_vpu_h264d_run,
 		.done = rockchip_vpu_run_done,
-		.reset = rockchip_vpu_dec_reset,
+		.reset = rk3288_vpu_dec_reset,
 	},
 };
 
@@ -427,4 +409,60 @@ int rockchip_vpu_init(struct rockchip_vpu_ctx *ctx)
 void rockchip_vpu_deinit(struct rockchip_vpu_ctx *ctx)
 {
 	ctx->hw.codec_ops->exit(ctx);
+}
+
+/*
+ * The hardware takes care only of ext hdr and dct partition. The software
+ * must take care of frame header.
+ *
+ * Buffer layout as received from hardware:
+ *   |<--gap-->|<--ext hdr-->|<-gap->|<---dct part---
+ *   |<-------dct part offset------->|
+ *
+ * Required buffer layout:
+ *   |<--hdr-->|<--ext hdr-->|<---dct part---
+ */
+void rockchip_vpu_vp8e_assemble_bitstream(struct rockchip_vpu_ctx *ctx,
+					struct rockchip_vpu_buf *dst_buf)
+{
+	struct vb2_v4l2_buffer *vb2_dst = to_vb2_v4l2_buffer(&dst_buf->vb.vb2_buf);
+	size_t ext_hdr_size = dst_buf->vp8e.ext_hdr_size;
+	size_t dct_size = dst_buf->vp8e.dct_size;
+	size_t hdr_size = dst_buf->vp8e.hdr_size;
+	size_t dst_size;
+	size_t tag_size;
+	void *dst;
+	u32 *tag;
+
+	dst_size = vb2_plane_size(&dst_buf->vb.vb2_buf, 0);
+	dst = vb2_plane_vaddr(&dst_buf->vb.vb2_buf, 0);
+	tag = dst; /* To access frame tag words. */
+
+	if (WARN_ON(hdr_size + ext_hdr_size + dct_size > dst_size))
+		return;
+	if (WARN_ON(dst_buf->vp8e.dct_offset + dct_size > dst_size))
+		return;
+
+	vpu_debug(1, "%s: hdr_size = %d, ext_hdr_size = %d, dct_size = %d\n",
+			__func__, hdr_size, ext_hdr_size, dct_size);
+
+	memmove(dst + hdr_size + ext_hdr_size,
+		dst + dst_buf->vp8e.dct_offset, dct_size);
+	memcpy(dst, dst_buf->vp8e.header, hdr_size);
+
+	/* Patch frame tag at first 32-bit word of the frame. */
+	if (vb2_dst->flags & V4L2_BUF_FLAG_KEYFRAME) {
+		tag_size = VP8_KEY_FRAME_HDR_SIZE;
+		tag[0] &= ~VP8_FRAME_TAG_KEY_FRAME_BIT;
+	} else {
+		tag_size = VP8_INTER_FRAME_HDR_SIZE;
+		tag[0] |= VP8_FRAME_TAG_KEY_FRAME_BIT;
+	}
+
+	tag[0] &= ~VP8_FRAME_TAG_LENGTH_MASK;
+	tag[0] |= (hdr_size + ext_hdr_size - tag_size)
+						<< VP8_FRAME_TAG_LENGTH_SHIFT;
+
+	vb2_set_plane_payload(&dst_buf->vb.vb2_buf, 0,
+				hdr_size + ext_hdr_size + dct_size);
 }
