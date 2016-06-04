@@ -62,12 +62,22 @@ void tw686x_audio_irq(struct tw686x_dev *dev, unsigned long requests,
 		}
 		spin_unlock_irqrestore(&ac->lock, flags);
 
+		if (!done || !next)
+			continue;
+		/*
+		 * Checking for a non-nil dma_desc[pb]->virt buffer is
+		 * the same as checking for memcpy DMA mode.
+		 */
 		desc = &ac->dma_descs[pb];
-		if (done && next && desc->virt) {
-			memcpy(done->virt, desc->virt, desc->size);
-			ac->ptr = done->dma - ac->buf[0].dma;
-			snd_pcm_period_elapsed(ac->ss);
+		if (desc->virt) {
+			memcpy(done->virt, desc->virt,
+			       desc->size);
+		} else {
+			u32 reg = pb ? ADMA_B_ADDR[ch] : ADMA_P_ADDR[ch];
+			reg_write(dev, reg, next->dma);
 		}
+		ac->ptr = done->dma - ac->buf[0].dma;
+		snd_pcm_period_elapsed(ac->ss);
 	}
 }
 
@@ -181,6 +191,12 @@ static int tw686x_pcm_prepare(struct snd_pcm_substream *ss)
 	ac->curr_bufs[0] = p_buf;
 	ac->curr_bufs[1] = b_buf;
 	ac->ptr = 0;
+
+	if (dev->dma_mode != TW686X_DMA_MODE_MEMCPY) {
+		reg_write(dev, ADMA_P_ADDR[ac->ch], p_buf->dma);
+		reg_write(dev, ADMA_B_ADDR[ac->ch], b_buf->dma);
+	}
+
 	spin_unlock_irqrestore(&ac->lock, flags);
 
 	return 0;
@@ -289,6 +305,14 @@ static int tw686x_audio_dma_alloc(struct tw686x_dev *dev,
 				  struct tw686x_audio_channel *ac)
 {
 	int pb;
+
+	/*
+	 * In the memcpy DMA mode we allocate a consistent buffer
+	 * and use it for the DMA capture. Otherwise, DMA
+	 * acts on the ALSA buffers as received in pcm_prepare.
+	 */
+	if (dev->dma_mode != TW686X_DMA_MODE_MEMCPY)
+		return 0;
 
 	for (pb = 0; pb < 2; pb++) {
 		u32 reg = pb ? ADMA_B_ADDR[ac->ch] : ADMA_P_ADDR[ac->ch];
