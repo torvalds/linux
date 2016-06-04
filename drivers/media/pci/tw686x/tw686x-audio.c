@@ -94,10 +94,8 @@ static int tw686x_pcm_hw_free(struct snd_pcm_substream *ss)
 
 /*
  * Audio parameters are global and shared among all
- * capture channels. The driver makes no effort to prevent
- * any modifications. User is free change the audio rate,
- * or period size, thus changing parameters for all capture
- * sub-devices.
+ * capture channels. The driver prevents changes to
+ * the parameters if any audio channel is capturing.
  */
 static const struct snd_pcm_hardware tw686x_capture_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
@@ -154,6 +152,14 @@ static int tw686x_pcm_prepare(struct snd_pcm_substream *ss)
 	int i;
 
 	spin_lock_irqsave(&dev->lock, flags);
+	/*
+	 * Given the audio parameters are global (i.e. shared across
+	 * DMA channels), we need to check new params are allowed.
+	 */
+	if (((dev->audio_rate != rt->rate) ||
+	     (dev->period_size != period_size)) && dev->audio_enabled)
+		goto err_audio_busy;
+
 	tw686x_disable_channel(dev, AUDIO_CHANNEL_OFFSET + ac->ch);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -210,6 +216,10 @@ static int tw686x_pcm_prepare(struct snd_pcm_substream *ss)
 	spin_unlock_irqrestore(&ac->lock, flags);
 
 	return 0;
+
+err_audio_busy:
+	spin_unlock_irqrestore(&dev->lock, flags);
+	return -EBUSY;
 }
 
 static int tw686x_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
@@ -223,6 +233,7 @@ static int tw686x_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 		if (ac->curr_bufs[0] && ac->curr_bufs[1]) {
 			spin_lock_irqsave(&dev->lock, flags);
+			dev->audio_enabled = 1;
 			tw686x_enable_channel(dev,
 				AUDIO_CHANNEL_OFFSET + ac->ch);
 			spin_unlock_irqrestore(&dev->lock, flags);
@@ -235,6 +246,7 @@ static int tw686x_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		spin_lock_irqsave(&dev->lock, flags);
+		dev->audio_enabled = 0;
 		tw686x_disable_channel(dev, AUDIO_CHANNEL_OFFSET + ac->ch);
 		spin_unlock_irqrestore(&dev->lock, flags);
 

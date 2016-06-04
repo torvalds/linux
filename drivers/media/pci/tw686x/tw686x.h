@@ -141,6 +141,7 @@ struct tw686x_dev {
 	/* Per-device audio parameters */
 	int audio_rate;
 	int period_size;
+	int audio_enabled;
 
 	struct timer_list dma_delay_timer;
 	u32 pending_dma_en; /* must be protected by lock */
