@@ -245,9 +245,8 @@ int
 qed_chain_alloc(struct qed_dev *cdev,
 		enum qed_chain_use_mode intended_use,
 		enum qed_chain_mode mode,
-		u16 num_elems,
-		size_t elem_size,
-		struct qed_chain *p_chain);
+		enum qed_chain_cnt_type cnt_type,
+		u32 num_elems, size_t elem_size, struct qed_chain *p_chain);
 
 /**
  * @brief qed_chain_free - Free chain DMA memory
@@ -255,8 +254,7 @@ qed_chain_alloc(struct qed_dev *cdev,
  * @param p_hwfn
  * @param p_chain
  */
-void qed_chain_free(struct qed_dev *cdev,
-		    struct qed_chain *p_chain);
+void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain);
 
 /**
  * @@brief qed_fw_l2_queue - Get absolute L2 queue ID

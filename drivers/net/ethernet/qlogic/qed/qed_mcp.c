@@ -977,7 +977,18 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 
 	switch (p_info->config & FUNC_MF_CFG_PROTOCOL_MASK) {
 	case FUNC_MF_CFG_PROTOCOL_ETHERNET:
-		*p_proto = QED_PCI_ETH;
+		if (test_bit(QED_DEV_CAP_ROCE,
+			     &p_hwfn->hw_info.device_capabilities))
+			*p_proto = QED_PCI_ETH_ROCE;
+		else
+			*p_proto = QED_PCI_ETH;
+		break;
+	case FUNC_MF_CFG_PROTOCOL_ISCSI:
+		*p_proto = QED_PCI_ISCSI;
+		break;
+	case FUNC_MF_CFG_PROTOCOL_ROCE:
+		DP_NOTICE(p_hwfn, "RoCE personality is not a valid value!\n");
+		rc = -EINVAL;
 		break;
 	default:
 		rc = -EINVAL;
