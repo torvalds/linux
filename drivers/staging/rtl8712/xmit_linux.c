@@ -31,6 +31,7 @@
 #include <linux/usb.h>
 #include <linux/ip.h>
 #include <linux/if_ether.h>
+#include <linux/kmemleak.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
@@ -133,6 +134,7 @@ int r8712_xmit_resource_alloc(struct _adapter *padapter,
 			netdev_err(padapter->pnetdev, "pxmitbuf->pxmit_urb[i] == NULL\n");
 			return _FAIL;
 		}
+		kmemleak_not_leak(pxmitbuf->pxmit_urb[i]);
 	}
 	return _SUCCESS;
 }
