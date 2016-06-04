@@ -28,6 +28,7 @@
 #include <linux/ratelimit.h>
 #include <asm/uaccess.h>
 #include <asm/hardirq.h>
+#include <asm/traps.h>
 
 /* #define DEBUG_UNALIGNED 1 */
 
@@ -129,8 +130,6 @@
 #define ERR_PAGEFAULT	-2
 
 int unaligned_enabled __read_mostly = 1;
-
-void die_if_kernel (char *str, struct pt_regs *regs, long err);
 
 static int emulate_ldh(struct pt_regs *regs, int toreg)
 {
