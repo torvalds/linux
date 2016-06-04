@@ -109,6 +109,8 @@ dtb-$(CONFIG_ARCH_BERLIN) += \
 	berlin2q-marvell-dmp.dtb
 dtb-$(CONFIG_ARCH_BRCMSTB) += \
 	bcm7445-bcm97445svmb.dtb
+dtb-$(CONFIG_ARCH_CLPS711X) += \
+	ep7211-edb7211.dtb
 dtb-$(CONFIG_ARCH_DAVINCI) += \
 	da850-enbw-cmc.dtb \
 	da850-evm.dtb
