@@ -16,7 +16,7 @@
 #include <nd.h>
 
 long pmem_direct_access(struct block_device *bdev, sector_t sector,
-		void __pmem **kaddr, pfn_t *pfn, long size)
+		void **kaddr, pfn_t *pfn, long size)
 {
 	struct pmem_device *pmem = bdev->bd_queue->queuedata;
 	resource_size_t offset = sector * 512 + pmem->data_offset;

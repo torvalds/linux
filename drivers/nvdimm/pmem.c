@@ -74,7 +74,7 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 	bool bad_pmem = false;
 	void *mem = kmap_atomic(page);
 	phys_addr_t pmem_off = sector * 512 + pmem->data_offset;
-	void __pmem *pmem_addr = pmem->virt_addr + pmem_off;
+	void *pmem_addr = pmem->virt_addr + pmem_off;
 
 	if (unlikely(is_bad_pmem(&pmem->bb, sector, len)))
 		bad_pmem = true;
@@ -173,7 +173,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 
 /* see "strong" declaration in tools/testing/nvdimm/pmem-dax.c */
 __weak long pmem_direct_access(struct block_device *bdev, sector_t sector,
-		      void __pmem **kaddr, pfn_t *pfn, long size)
+		      void **kaddr, pfn_t *pfn, long size)
 {
 	struct pmem_device *pmem = bdev->bd_queue->queuedata;
 	resource_size_t offset = sector * 512 + pmem->data_offset;
@@ -284,7 +284,7 @@ static int pmem_attach_disk(struct device *dev,
 
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
-	pmem->virt_addr = (void __pmem *) addr;
+	pmem->virt_addr = addr;
 
 	blk_queue_write_cache(q, true, true);
 	blk_queue_make_request(q, pmem_make_request);

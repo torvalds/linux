@@ -68,7 +68,7 @@ struct nd_namespace_io {
 	struct nd_namespace_common common;
 	struct resource res;
 	resource_size_t size;
-	void __pmem *addr;
+	void *addr;
 	struct badblocks bb;
 };
 

@@ -75,13 +75,13 @@ static long dax_map_atomic(struct block_device *bdev, struct blk_dax_ctl *dax)
 	struct request_queue *q = bdev->bd_queue;
 	long rc = -EIO;
 
-	dax->addr = (void __pmem *) ERR_PTR(-EIO);
+	dax->addr = ERR_PTR(-EIO);
 	if (blk_queue_enter(q, true) != 0)
 		return rc;
 
 	rc = bdev_direct_access(bdev, dax);
 	if (rc < 0) {
-		dax->addr = (void __pmem *) ERR_PTR(rc);
+		dax->addr = ERR_PTR(rc);
 		blk_queue_exit(q);
 		return rc;
 	}
@@ -152,7 +152,7 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
 	int rw = iov_iter_rw(iter), rc;
 	long map_len = 0;
 	struct blk_dax_ctl dax = {
-		.addr = (void __pmem *) ERR_PTR(-EIO),
+		.addr = ERR_PTR(-EIO),
 	};
 	unsigned blkbits = inode->i_blkbits;
 	sector_t file_blks = (i_size_read(inode) + (1 << blkbits) - 1)

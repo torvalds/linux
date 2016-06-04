@@ -6,7 +6,7 @@
 #include <linux/fs.h>
 
 long pmem_direct_access(struct block_device *bdev, sector_t sector,
-		      void __pmem **kaddr, pfn_t *pfn, long size);
+		      void **kaddr, pfn_t *pfn, long size);
 /* this definition is in it's own header for tools/testing/nvdimm to consume */
 struct pmem_device {
 	/* One contiguous memory region per device */
@@ -14,7 +14,7 @@ struct pmem_device {
 	/* when non-zero this device is hosting a 'pfn' instance */
 	phys_addr_t		data_offset;
 	u64			pfn_flags;
-	void __pmem		*virt_addr;
+	void			*virt_addr;
 	/* immutable base size of the namespace */
 	size_t			size;
 	/* trim size when namespace capacity has been section aligned */
