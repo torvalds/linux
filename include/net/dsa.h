@@ -85,6 +85,17 @@ struct dsa_platform_data {
 struct packet_type;
 
 struct dsa_switch_tree {
+	struct list_head	list;
+
+	/* Tree identifier */
+	u32 tree;
+
+	/* Number of switches attached to this tree */
+	struct kref refcount;
+
+	/* Has this tree been applied to the hardware? */
+	bool applied;
+
 	/*
 	 * Configuration data for the platform device that owns
 	 * this dsa switch tree instance.
@@ -170,9 +181,15 @@ struct dsa_switch {
 #endif
 
 	/*
+	 * The lower device this switch uses to talk to the host
+	 */
+	struct net_device *master_netdev;
+
+	/*
 	 * Slave mii_bus and devices for the individual ports.
 	 */
 	u32			dsa_port_mask;
+	u32			cpu_port_mask;
 	u32			enabled_port_mask;
 	u32			phys_mii_mask;
 	struct dsa_port		ports[DSA_MAX_PORTS];
@@ -361,4 +378,7 @@ static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 {
 	return dst->rcv != NULL;
 }
+
+void dsa_unregister_switch(struct dsa_switch *ds);
+int dsa_register_switch(struct dsa_switch *ds, struct device_node *np);
 #endif

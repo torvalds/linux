@@ -1099,13 +1099,17 @@ int dsa_slave_resume(struct net_device *slave_dev)
 }
 
 int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
-		     int port, char *name)
+		     int port, const char *name)
 {
-	struct net_device *master = ds->dst->master_netdev;
 	struct dsa_switch_tree *dst = ds->dst;
+	struct net_device *master;
 	struct net_device *slave_dev;
 	struct dsa_slave_priv *p;
 	int ret;
+
+	master = ds->dst->master_netdev;
+	if (ds->master_netdev)
+		master = ds->master_netdev;
 
 	slave_dev = alloc_netdev(sizeof(struct dsa_slave_priv), name,
 				 NET_NAME_UNKNOWN, ether_setup);

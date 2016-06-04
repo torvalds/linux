@@ -3748,6 +3748,12 @@ int mv88e6xxx_probe(struct mdio_device *mdiodev)
 
 	dev_set_drvdata(dev, ds);
 
+	err = dsa_register_switch(ds, mdiodev->dev.of_node);
+	if (err) {
+		mv88e6xxx_mdio_unregister(ps);
+		return err;
+	}
+
 	dev_info(dev, "switch 0x%x probed: %s, revision %u\n",
 		 prod_num, ps->info->name, rev);
 
@@ -3759,6 +3765,7 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
+	dsa_unregister_switch(ds);
 	put_device(&ps->bus->dev);
 
 	mv88e6xxx_mdio_unregister(ps);
