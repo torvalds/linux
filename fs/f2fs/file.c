@@ -878,9 +878,15 @@ static int __exchange_data_block(struct inode *inode, pgoff_t src,
 		return full ? truncate_hole(inode, dst, dst + 1) : 0;
 
 	if (do_replace) {
-		struct page *ipage = get_node_page(sbi, inode->i_ino);
+		struct page *ipage;
 		struct node_info ni;
 
+		if (test_opt(sbi, LFS)) {
+			ret = -ENOTSUPP;
+			goto err_out;
+		}
+
+		ipage = get_node_page(sbi, inode->i_ino);
 		if (IS_ERR(ipage)) {
 			ret = PTR_ERR(ipage);
 			goto err_out;

@@ -470,6 +470,10 @@ static inline bool need_SSR(struct f2fs_sb_info *sbi)
 {
 	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
 	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
+
+	if (test_opt(sbi, LFS))
+		return false;
+
 	return free_sections(sbi) <= (node_secs + 2 * dent_secs +
 						reserved_sections(sbi) + 1);
 }
@@ -531,6 +535,9 @@ static inline bool need_inplace_update(struct inode *inode)
 
 	/* IPU can be done only for the user data */
 	if (S_ISDIR(inode->i_mode) || f2fs_is_atomic_file(inode))
+		return false;
+
+	if (test_opt(sbi, LFS))
 		return false;
 
 	if (policy & (0x1 << F2FS_IPU_FORCE))

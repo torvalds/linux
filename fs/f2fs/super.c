@@ -94,6 +94,7 @@ enum {
 	Opt_noextent_cache,
 	Opt_noinline_data,
 	Opt_data_flush,
+	Opt_mode,
 	Opt_fault_injection,
 	Opt_lazytime,
 	Opt_nolazytime,
@@ -123,6 +124,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_noextent_cache, "noextent_cache"},
 	{Opt_noinline_data, "noinline_data"},
 	{Opt_data_flush, "data_flush"},
+	{Opt_mode, "mode=%s"},
 	{Opt_fault_injection, "fault_injection=%u"},
 	{Opt_lazytime, "lazytime"},
 	{Opt_nolazytime, "nolazytime"},
@@ -506,6 +508,25 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_data_flush:
 			set_opt(sbi, DATA_FLUSH);
 			break;
+		case Opt_mode:
+			name = match_strdup(&args[0]);
+
+			if (!name)
+				return -ENOMEM;
+			if (strlen(name) == 8 &&
+					!strncmp(name, "adaptive", 8)) {
+				set_opt(sbi, ADAPTIVE);
+				clear_opt(sbi, LFS);
+			} else if (strlen(name) == 3 &&
+					!strncmp(name, "lfs", 3)) {
+				clear_opt(sbi, ADAPTIVE);
+				set_opt(sbi, LFS);
+			} else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
 		case Opt_fault_injection:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
@@ -870,6 +891,12 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",noextent_cache");
 	if (test_opt(sbi, DATA_FLUSH))
 		seq_puts(seq, ",data_flush");
+
+	seq_puts(seq, ",mode=");
+	if (test_opt(sbi, ADAPTIVE))
+		seq_puts(seq, "adaptive");
+	else if (test_opt(sbi, LFS))
+		seq_puts(seq, "lfs");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 
 	return 0;
@@ -953,6 +980,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 	set_opt(sbi, EXTENT_CACHE);
 	sbi->sb->s_flags |= MS_LAZYTIME;
 	set_opt(sbi, FLUSH_MERGE);
+	set_opt(sbi, ADAPTIVE);
 
 #ifdef CONFIG_F2FS_FS_XATTR
 	set_opt(sbi, XATTR_USER);

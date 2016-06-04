@@ -981,7 +981,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	 * This avoids to conduct wrong roll-forward operations and uses
 	 * metapages, so should be called prior to sync_meta_pages below.
 	 */
-	if (discard_next_dnode(sbi, discard_blk))
+	if (!test_opt(sbi, LFS) && discard_next_dnode(sbi, discard_blk))
 		invalidate = true;
 
 	/* Flush all the NAT/SIT pages */
