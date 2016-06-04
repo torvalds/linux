@@ -120,9 +120,13 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * Check that the source device exists and that the source
 	 * port is a registered DSA port.
 	 */
-	if (source_device >= dst->pd->nr_chips)
+	if (source_device >= DSA_MAX_SWITCHES)
 		goto out_drop;
+
 	ds = dst->ds[source_device];
+	if (!ds)
+		goto out_drop;
+
 	if (source_port >= DSA_MAX_PORTS || ds->ports[source_port] == NULL)
 		goto out_drop;
 
