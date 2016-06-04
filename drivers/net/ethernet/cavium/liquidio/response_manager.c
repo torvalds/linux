@@ -55,7 +55,7 @@ int octeon_setup_response_list(struct octeon_device *oct)
 		atomic_set(&oct->response_list[i].pending_req_count, 0);
 	}
 
-	oct->dma_comp_wq.wq = create_workqueue("dma-comp");
+	oct->dma_comp_wq.wq = alloc_workqueue("dma-comp", WQ_MEM_RECLAIM, 0);
 	if (!oct->dma_comp_wq.wq) {
 		dev_err(&oct->pci_dev->dev, "failed to create wq thread\n");
 		return -ENOMEM;
@@ -72,7 +72,6 @@ int octeon_setup_response_list(struct octeon_device *oct)
 void octeon_delete_response_list(struct octeon_device *oct)
 {
 	cancel_delayed_work_sync(&oct->dma_comp_wq.wk.work);
-	flush_workqueue(oct->dma_comp_wq.wq);
 	destroy_workqueue(oct->dma_comp_wq.wq);
 }
 
