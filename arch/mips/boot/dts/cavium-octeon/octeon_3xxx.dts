@@ -388,16 +388,4 @@
 		usbn = &usbn;
 		led0 = &led0;
 	};
-
-	dsr1000n-leds {
-		compatible = "gpio-leds";
-		usb1 {
-			label = "usb1";
-			gpios = <&gpio 9 1>; /* Active low */
-		};
-		usb2 {
-			label = "usb2";
-			gpios = <&gpio 10 1>; /* Active low */
-		};
-	};
  };

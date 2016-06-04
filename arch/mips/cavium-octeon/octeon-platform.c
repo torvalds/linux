@@ -705,6 +705,10 @@ int __init octeon_prune_device_tree(void)
 	if (fdt_check_header(initial_boot_params))
 		panic("Corrupt Device Tree.");
 
+	WARN(octeon_bootinfo->board_type == CVMX_BOARD_TYPE_CUST_DSR1000N,
+	     "Built-in DTB booting is deprecated on %s. Please switch to use appended DTB.",
+	     cvmx_board_type_to_string(octeon_bootinfo->board_type));
+
 	aliases = fdt_path_offset(initial_boot_params, "/aliases");
 	if (aliases < 0) {
 		pr_err("Error: No /aliases node in device tree.");
@@ -1046,13 +1050,6 @@ end_led:
 				break;
 			}
 		}
-	}
-
-	if (octeon_bootinfo->board_type != CVMX_BOARD_TYPE_CUST_DSR1000N) {
-		int dsr1000n_leds = fdt_path_offset(initial_boot_params,
-						    "/dsr1000n-leds");
-		if (dsr1000n_leds >= 0)
-			fdt_nop_node(initial_boot_params, dsr1000n_leds);
 	}
 
 	return 0;
