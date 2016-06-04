@@ -2725,11 +2725,8 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_priv_state *ps, int port)
 		if (mv88e6xxx_6352_family(ps) || mv88e6xxx_6351_family(ps) ||
 		    mv88e6xxx_6165_family(ps) || mv88e6xxx_6097_family(ps) ||
 		    mv88e6xxx_6320_family(ps)) {
-			if (ds->dst->tag_protocol == DSA_TAG_PROTO_EDSA)
-				reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA;
-			else
-				reg |= PORT_CONTROL_FRAME_MODE_DSA;
-			reg |= PORT_CONTROL_FORWARD_UNKNOWN |
+			reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA |
+				PORT_CONTROL_FORWARD_UNKNOWN |
 				PORT_CONTROL_FORWARD_UNKNOWN_MC;
 		}
 
@@ -2737,7 +2734,6 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_priv_state *ps, int port)
 		    mv88e6xxx_6165_family(ps) || mv88e6xxx_6097_family(ps) ||
 		    mv88e6xxx_6095_family(ps) || mv88e6xxx_6065_family(ps) ||
 		    mv88e6xxx_6185_family(ps) || mv88e6xxx_6320_family(ps)) {
-			if (ds->dst->tag_protocol == DSA_TAG_PROTO_EDSA)
 				reg |= PORT_CONTROL_EGRESS_ADD_TAG;
 		}
 	}
