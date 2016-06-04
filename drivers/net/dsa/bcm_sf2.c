@@ -804,7 +804,7 @@ static int bcm_sf2_sw_fdb_dump(struct dsa_switch *ds, int port,
 			       int (*cb)(struct switchdev_obj *obj))
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
-	struct net_device *dev = ds->ports[port];
+	struct net_device *dev = ds->ports[port].netdev;
 	struct bcm_sf2_arl_entry results[2];
 	unsigned int count = 0;
 	int ret;
@@ -1248,7 +1248,7 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 		 * state machine and make it go in PHY_FORCING state instead.
 		 */
 		if (!status->link)
-			netif_carrier_off(ds->ports[port]);
+			netif_carrier_off(ds->ports[port].netdev);
 		status->duplex = 1;
 	} else {
 		status->link = 1;

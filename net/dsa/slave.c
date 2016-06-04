@@ -1183,12 +1183,12 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	p->old_link = -1;
 	p->old_duplex = -1;
 
-	ds->ports[port] = slave_dev;
+	ds->ports[port].netdev = slave_dev;
 	ret = register_netdev(slave_dev);
 	if (ret) {
 		netdev_err(master, "error %d registering interface %s\n",
 			   ret, slave_dev->name);
-		ds->ports[port] = NULL;
+		ds->ports[port].netdev = NULL;
 		free_netdev(slave_dev);
 		return ret;
 	}
