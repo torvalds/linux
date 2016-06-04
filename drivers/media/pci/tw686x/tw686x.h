@@ -33,6 +33,7 @@
 #define TW686X_AUDIO_PERIODS_MAX	TW686X_AUDIO_PAGE_MAX
 
 #define TW686X_DMA_MODE_MEMCPY		0
+#define TW686X_DMA_MODE_CONTIG		1
 
 struct tw686x_format {
 	char *name;

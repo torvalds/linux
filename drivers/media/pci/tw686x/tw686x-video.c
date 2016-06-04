@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-event.h>
+#include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-vmalloc.h>
 #include "tw686x.h"
 #include "tw686x-regs.h"
@@ -144,6 +145,53 @@ const struct tw686x_dma_ops memcpy_dma_ops = {
 	.free		= tw686x_memcpy_dma_free,
 	.buf_refill	= tw686x_memcpy_buf_refill,
 	.mem_ops	= &vb2_vmalloc_memops,
+	.hw_dma_mode	= TW686X_FRAME_MODE,
+	.field		= V4L2_FIELD_INTERLACED,
+};
+
+static void tw686x_contig_buf_refill(struct tw686x_video_channel *vc,
+				     unsigned int pb)
+{
+	struct tw686x_v4l2_buf *buf;
+
+	while (!list_empty(&vc->vidq_queued)) {
+		u32 reg = pb ? VDMA_B_ADDR[vc->ch] : VDMA_P_ADDR[vc->ch];
+		dma_addr_t phys;
+
+		buf = list_first_entry(&vc->vidq_queued,
+			struct tw686x_v4l2_buf, list);
+		list_del(&buf->list);
+
+		phys = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
+		reg_write(vc->dev, reg, phys);
+
+		buf->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+		vc->curr_bufs[pb] = buf;
+		return;
+	}
+	vc->curr_bufs[pb] = NULL;
+}
+
+static void tw686x_contig_cleanup(struct tw686x_dev *dev)
+{
+	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
+}
+
+static int tw686x_contig_setup(struct tw686x_dev *dev)
+{
+	dev->alloc_ctx = vb2_dma_contig_init_ctx(&dev->pci_dev->dev);
+	if (IS_ERR(dev->alloc_ctx)) {
+		dev_err(&dev->pci_dev->dev, "unable to init DMA context\n");
+		return PTR_ERR(dev->alloc_ctx);
+	}
+	return 0;
+}
+
+const struct tw686x_dma_ops contig_dma_ops = {
+	.setup		= tw686x_contig_setup,
+	.cleanup	= tw686x_contig_cleanup,
+	.buf_refill	= tw686x_contig_buf_refill,
+	.mem_ops	= &vb2_dma_contig_memops,
 	.hw_dma_mode	= TW686X_FRAME_MODE,
 	.field		= V4L2_FIELD_INTERLACED,
 };
@@ -841,6 +889,8 @@ int tw686x_video_init(struct tw686x_dev *dev)
 
 	if (dev->dma_mode == TW686X_DMA_MODE_MEMCPY)
 		dev->dma_ops = &memcpy_dma_ops;
+	else if (dev->dma_mode == TW686X_DMA_MODE_CONTIG)
+		dev->dma_ops = &contig_dma_ops;
 	else
 		return -EINVAL;
 

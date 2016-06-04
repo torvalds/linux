@@ -63,6 +63,8 @@ static const char *dma_mode_name(unsigned int mode)
 	switch (mode) {
 	case TW686X_DMA_MODE_MEMCPY:
 		return "memcpy";
+	case TW686X_DMA_MODE_CONTIG:
+		return "contig";
 	default:
 		return "unknown";
 	}
@@ -77,6 +79,8 @@ static int tw686x_dma_mode_set(const char *val, struct kernel_param *kp)
 {
 	if (!strcasecmp(val, dma_mode_name(TW686X_DMA_MODE_MEMCPY)))
 		dma_mode = TW686X_DMA_MODE_MEMCPY;
+	else if (!strcasecmp(val, dma_mode_name(TW686X_DMA_MODE_CONTIG)))
+		dma_mode = TW686X_DMA_MODE_CONTIG;
 	else
 		return -EINVAL;
 	return 0;
