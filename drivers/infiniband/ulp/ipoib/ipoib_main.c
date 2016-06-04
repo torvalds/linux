@@ -1851,7 +1851,7 @@ static void set_base_guid(struct ipoib_dev_priv *priv, union ib_gid *gid)
 	struct ipoib_dev_priv *child_priv;
 	struct net_device *netdev = priv->dev;
 
-	netif_addr_lock(netdev);
+	netif_addr_lock_bh(netdev);
 
 	memcpy(&priv->local_gid.global.interface_id,
 	       &gid->global.interface_id,
@@ -1859,7 +1859,7 @@ static void set_base_guid(struct ipoib_dev_priv *priv, union ib_gid *gid)
 	memcpy(netdev->dev_addr + 4, &priv->local_gid, sizeof(priv->local_gid));
 	clear_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
 
-	netif_addr_unlock(netdev);
+	netif_addr_unlock_bh(netdev);
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		down_read(&priv->vlan_rwsem);
@@ -1875,7 +1875,7 @@ static int ipoib_check_lladdr(struct net_device *dev,
 	union ib_gid *gid = (union ib_gid *)(ss->__data + 4);
 	int ret = 0;
 
-	netif_addr_lock(dev);
+	netif_addr_lock_bh(dev);
 
 	/* Make sure the QPN, reserved and subnet prefix match the current
 	 * lladdr, it also makes sure the lladdr is unicast.
@@ -1885,7 +1885,7 @@ static int ipoib_check_lladdr(struct net_device *dev,
 	    gid->global.interface_id == 0)
 		ret = -EINVAL;
 
-	netif_addr_unlock(dev);
+	netif_addr_unlock_bh(dev);
 
 	return ret;
 }
