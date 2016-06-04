@@ -135,16 +135,15 @@ int rds_tcp_accept_one(struct socket *sock)
 		    !conn->c_outgoing) {
 			goto rst_nsk;
 		} else {
-			atomic_set(&conn->c_state, RDS_CONN_CONNECTING);
-			wait_event(conn->c_waitq,
-				   !test_bit(RDS_IN_XMIT, &conn->c_flags));
 			rds_tcp_reset_callbacks(new_sock, conn);
 			conn->c_outgoing = 0;
+			/* rds_connect_path_complete() marks RDS_CONN_UP */
+			rds_connect_path_complete(conn, RDS_CONN_DISCONNECTING);
 		}
 	} else {
 		rds_tcp_set_callbacks(new_sock, conn);
+		rds_connect_path_complete(conn, RDS_CONN_CONNECTING);
 	}
-	rds_connect_complete(conn); /* marks RDS_CONN_UP */
 	new_sock = NULL;
 	ret = 0;
 	goto out;

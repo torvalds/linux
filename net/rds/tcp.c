@@ -148,11 +148,23 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	 * potentially have transitioned to the RDS_CONN_UP state,
 	 * so we must quiesce any send threads before resetting
 	 * c_transport_data. We quiesce these threads by setting
-	 * cp_state to something other than RDS_CONN_UP, and then
+	 * c_state to something other than RDS_CONN_UP, and then
 	 * waiting for any existing threads in rds_send_xmit to
 	 * complete release_in_xmit(). (Subsequent threads entering
 	 * rds_send_xmit() will bail on !rds_conn_up().
+	 *
+	 * However an incoming syn-ack at this point would end up
+	 * marking the conn as RDS_CONN_UP, and would again permit
+	 * rds_send_xmi() threads through, so ideally we would
+	 * synchronize on RDS_CONN_UP after lock_sock(), but cannot
+	 * do that: waiting on !RDS_IN_XMIT after lock_sock() may
+	 * end up deadlocking with tcp_sendmsg(), and the RDS_IN_XMIT
+	 * would not get set. As a result, we set c_state to
+	 * RDS_CONN_RESETTTING, to ensure that rds_tcp_state_change
+	 * cannot mark rds_conn_path_up() in the window before lock_sock()
 	 */
+	atomic_set(&conn->c_state, RDS_CONN_RESETTING);
+	wait_event(conn->c_waitq, !test_bit(RDS_IN_XMIT, &conn->c_flags));
 	lock_sock(osock->sk);
 	/* reset receive side state for rds_tcp_data_recv() for osock  */
 	if (tc->t_tinc) {
