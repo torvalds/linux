@@ -1853,13 +1853,15 @@ static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
 static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			 const struct ib_ah_attr *ah,
 			 struct mlx5_qp_path *path, u8 port, int attr_mask,
-			 u32 path_flags, const struct ib_qp_attr *attr)
+			 u32 path_flags, const struct ib_qp_attr *attr,
+			 bool alt)
 {
 	enum rdma_link_layer ll = rdma_port_get_link_layer(&dev->ib_dev, port);
 	int err;
 
 	if (attr_mask & IB_QP_PKEY_INDEX)
-		path->pkey_index = cpu_to_be16(attr->pkey_index);
+		path->pkey_index = cpu_to_be16(alt ? attr->alt_pkey_index :
+						     attr->pkey_index);
 
 	if (ah->ah_flags & IB_AH_GRH) {
 		if (ah->grh.sgid_index >=
@@ -1905,7 +1907,7 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	path->port = port;
 
 	if (attr_mask & IB_QP_TIMEOUT)
-		path->ackto_lt = attr->timeout << 3;
+		path->ackto_lt = (alt ? attr->alt_timeout : attr->timeout) << 3;
 
 	if ((qp->ibqp.qp_type == IB_QPT_RAW_PACKET) && qp->sq.wqe_cnt)
 		return modify_raw_packet_eth_prio(dev->mdev,
@@ -2279,7 +2281,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	if (attr_mask & IB_QP_AV) {
 		err = mlx5_set_path(dev, qp, &attr->ah_attr, &context->pri_path,
 				    attr_mask & IB_QP_PORT ? attr->port_num : qp->port,
-				    attr_mask, 0, attr);
+				    attr_mask, 0, attr, false);
 		if (err)
 			goto out;
 	}
@@ -2290,7 +2292,9 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	if (attr_mask & IB_QP_ALT_PATH) {
 		err = mlx5_set_path(dev, qp, &attr->alt_ah_attr,
 				    &context->alt_path,
-				    attr->alt_port_num, attr_mask, 0, attr);
+				    attr->alt_port_num,
+				    attr_mask | IB_QP_PKEY_INDEX | IB_QP_TIMEOUT,
+				    0, attr, true);
 		if (err)
 			goto out;
 	}
