@@ -1,16 +1,15 @@
-if ARCH_CLPS711X
-
-menu "CLPS711X/EP721X/EP731X Implementations"
-
-config MACH_CLPS711X_DT
-	bool "Device-tree support"
+menuconfig ARCH_CLPS711X
+	bool "Cirrus Logic EP721x/EP731x-based"
+	depends on ARCH_MULTI_V4T
+	select ARCH_REQUIRE_GPIOLIB
+	select AUTO_ZRELADDR
+	select CLKSRC_MMIO
 	select CLKSRC_OF
+	select COMMON_CLK
+	select CPU_ARM720T
+	select GENERIC_CLOCKEVENTS
+	select MFD_SYSCON
 	select OF_IRQ
 	select USE_OF
 	help
-	  Select this if you want to experiment device-tree with
-	  ARMv4T Cirrus Logic chips.
-
-endmenu
-
-endif
+	  Select this if you use ARMv4T Cirrus Logic chips.
