@@ -415,6 +415,12 @@
 		gpios = <&gpio6 0 GPIO_ACTIVE_LOW>;
 		ti,x-plate-ohms = <600>;
 	};
+
+	/* RFID EEPROM */
+	m24lr64@50 {
+		compatible = "at,24c64";
+		reg = <0x50>;
+	};
 };
 
 &i2c3 {
