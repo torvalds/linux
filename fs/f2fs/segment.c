@@ -1399,11 +1399,17 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 {
 	int type = __get_segment_type(fio->page, fio->type);
 
+	if (fio->type == NODE || fio->type == DATA)
+		mutex_lock(&fio->sbi->wio_mutex[fio->type]);
+
 	allocate_data_block(fio->sbi, fio->page, fio->old_blkaddr,
 					&fio->new_blkaddr, sum, type);
 
 	/* writeout dirty page into bdev */
 	f2fs_submit_page_mbio(fio);
+
+	if (fio->type == NODE || fio->type == DATA)
+		mutex_unlock(&fio->sbi->wio_mutex[fio->type]);
 }
 
 void write_meta_page(struct f2fs_sb_info *sbi, struct page *page)
