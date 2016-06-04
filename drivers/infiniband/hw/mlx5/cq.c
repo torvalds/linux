@@ -822,7 +822,8 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	int eqn;
 	int err;
 
-	if (entries < 0)
+	if (entries < 0 ||
+	    (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz))))
 		return ERR_PTR(-EINVAL);
 
 	if (check_cq_create_flags(attr->flags))
