@@ -126,9 +126,68 @@ void rds_tcp_restore_callbacks(struct socket *sock,
 }
 
 /*
- * This is the only path that sets tc->t_sock.  Send and receive trust that
- * it is set.  The RDS_CONN_UP bit protects those paths from being
- * called while it isn't set.
+ * rds_tcp_reset_callbacks() switches the to the new sock and
+ * returns the existing tc->t_sock.
+ *
+ * The only functions that set tc->t_sock are rds_tcp_set_callbacks
+ * and rds_tcp_reset_callbacks.  Send and receive trust that
+ * it is set.  The absence of RDS_CONN_UP bit protects those paths
+ * from being called while it isn't set.
+ */
+void rds_tcp_reset_callbacks(struct socket *sock,
+			     struct rds_connection *conn)
+{
+	struct rds_tcp_connection *tc = conn->c_transport_data;
+	struct socket *osock = tc->t_sock;
+
+	if (!osock)
+		goto newsock;
+
+	/* Need to resolve a duelling SYN between peers.
+	 * We have an outstanding SYN to this peer, which may
+	 * potentially have transitioned to the RDS_CONN_UP state,
+	 * so we must quiesce any send threads before resetting
+	 * c_transport_data. We quiesce these threads by setting
+	 * cp_state to something other than RDS_CONN_UP, and then
+	 * waiting for any existing threads in rds_send_xmit to
+	 * complete release_in_xmit(). (Subsequent threads entering
+	 * rds_send_xmit() will bail on !rds_conn_up().
+	 */
+	lock_sock(osock->sk);
+	/* reset receive side state for rds_tcp_data_recv() for osock  */
+	if (tc->t_tinc) {
+		rds_inc_put(&tc->t_tinc->ti_inc);
+		tc->t_tinc = NULL;
+	}
+	tc->t_tinc_hdr_rem = sizeof(struct rds_header);
+	tc->t_tinc_data_rem = 0;
+	tc->t_sock = NULL;
+
+	write_lock_bh(&osock->sk->sk_callback_lock);
+
+	osock->sk->sk_user_data = NULL;
+	osock->sk->sk_data_ready = tc->t_orig_data_ready;
+	osock->sk->sk_write_space = tc->t_orig_write_space;
+	osock->sk->sk_state_change = tc->t_orig_state_change;
+	write_unlock_bh(&osock->sk->sk_callback_lock);
+	release_sock(osock->sk);
+	sock_release(osock);
+newsock:
+	lock_sock(sock->sk);
+	write_lock_bh(&sock->sk->sk_callback_lock);
+	tc->t_sock = sock;
+	sock->sk->sk_user_data = conn;
+	sock->sk->sk_data_ready = rds_tcp_data_ready;
+	sock->sk->sk_write_space = rds_tcp_write_space;
+	sock->sk->sk_state_change = rds_tcp_state_change;
+
+	write_unlock_bh(&sock->sk->sk_callback_lock);
+	release_sock(sock->sk);
+}
+
+/* Add tc to rds_tcp_tc_list and set tc->t_sock. See comments
+ * above rds_tcp_reset_callbacks for notes about synchronization
+ * with data path
  */
 void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn)
 {
