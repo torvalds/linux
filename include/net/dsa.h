@@ -58,12 +58,11 @@ struct dsa_chip_data {
 	struct device_node *port_dn[DSA_MAX_PORTS];
 
 	/*
-	 * An array (with nr_chips elements) of which element [a]
-	 * indicates which port on this switch should be used to
-	 * send packets to that are destined for switch a.  Can be
-	 * NULL if there is only one switch chip.
+	 * An array of which element [a] indicates which port on this
+	 * switch should be used to send packets to that are destined
+	 * for switch a. Can be NULL if there is only one switch chip.
 	 */
-	s8		*rtable;
+	s8		rtable[DSA_MAX_SWITCHES];
 };
 
 struct dsa_platform_data {

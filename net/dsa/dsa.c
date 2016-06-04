@@ -587,17 +587,6 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 	if (link_sw_addr >= pd->nr_chips)
 		return -EINVAL;
 
-	/* First time routing table allocation */
-	if (!cd->rtable) {
-		cd->rtable = kmalloc_array(pd->nr_chips, sizeof(s8),
-					   GFP_KERNEL);
-		if (!cd->rtable)
-			return -ENOMEM;
-
-		/* default to no valid uplink/downlink */
-		memset(cd->rtable, -1, pd->nr_chips * sizeof(s8));
-	}
-
 	cd->rtable[link_sw_addr] = port_index;
 
 	return 0;
@@ -639,7 +628,6 @@ static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 			kfree(pd->chip[i].port_names[port_index]);
 			port_index++;
 		}
-		kfree(pd->chip[i].rtable);
 
 		/* Drop our reference to the MDIO bus device */
 		if (pd->chip[i].host_dev)
