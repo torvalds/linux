@@ -897,10 +897,7 @@ static int block_operations(struct f2fs_sb_info *sbi)
 		.nr_to_write = LONG_MAX,
 		.for_reclaim = 0,
 	};
-	struct blk_plug plug;
 	int err = 0;
-
-	blk_start_plug(&plug);
 
 retry_flush_dents:
 	f2fs_lock_all(sbi);
@@ -938,7 +935,6 @@ retry_flush_nodes:
 		goto retry_flush_nodes;
 	}
 out:
-	blk_finish_plug(&plug);
 	return err;
 }
 

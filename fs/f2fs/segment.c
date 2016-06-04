@@ -379,13 +379,8 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 			excess_prefree_segs(sbi) ||
 			excess_dirty_nats(sbi) ||
 			(is_idle(sbi) && f2fs_time_over(sbi, CP_TIME))) {
-		if (test_opt(sbi, DATA_FLUSH)) {
-			struct blk_plug plug;
-
-			blk_start_plug(&plug);
+		if (test_opt(sbi, DATA_FLUSH))
 			sync_dirty_inodes(sbi, FILE_INODE);
-			blk_finish_plug(&plug);
-		}
 		f2fs_sync_fs(sbi->sb, true);
 		stat_inc_bg_cp_count(sbi->stat_info);
 	}
