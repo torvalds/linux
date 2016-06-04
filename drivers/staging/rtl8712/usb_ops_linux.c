@@ -270,51 +270,47 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
-	    adapter->pwrctrlpriv.pnp_bstop_trx)
+	    adapter->pwrctrlpriv.pnp_bstop_trx || !precvbuf)
 		return _FAIL;
 	if (precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
 		if (precvbuf->pskb != NULL)
 			precvbuf->reuse = true;
 	}
-	if (precvbuf != NULL) {
-		r8712_init_recvbuf(adapter, precvbuf);
-		/* re-assign for linux based on skb */
-		if (!precvbuf->reuse || !precvbuf->pskb) {
-			precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev,
-					 MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-			if (!precvbuf->pskb)
-				return _FAIL;
-			tmpaddr = (addr_t)precvbuf->pskb->data;
-			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
-			skb_reserve(precvbuf->pskb,
-				    (RECVBUFF_ALIGN_SZ - alignment));
-			precvbuf->phead = precvbuf->pskb->head;
-			precvbuf->pdata = precvbuf->pskb->data;
-			precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
-			precvbuf->pend = skb_end_pointer(precvbuf->pskb);
-			precvbuf->pbuf = precvbuf->pskb->data;
-		} else { /* reuse skb */
-			precvbuf->phead = precvbuf->pskb->head;
-			precvbuf->pdata = precvbuf->pskb->data;
-			precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
-			precvbuf->pend = skb_end_pointer(precvbuf->pskb);
-			precvbuf->pbuf = precvbuf->pskb->data;
-			precvbuf->reuse = false;
-		}
-		purb = precvbuf->purb;
-		/* translate DMA FIFO addr to pipehandle */
-		pipe = ffaddr2pipehdl(pdvobj, addr);
-		usb_fill_bulk_urb(purb, pusbd, pipe,
-				  precvbuf->pbuf, MAX_RECVBUF_SZ,
-				  r8712_usb_read_port_complete,
-				  precvbuf);
-		err = usb_submit_urb(purb, GFP_ATOMIC);
-		if ((err) && (err != (-EPERM)))
-			ret = _FAIL;
-	} else {
-		ret = _FAIL;
+	r8712_init_recvbuf(adapter, precvbuf);
+	/* re-assign for linux based on skb */
+	if (!precvbuf->reuse || !precvbuf->pskb) {
+		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev,
+				 MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+		if (!precvbuf->pskb)
+			return _FAIL;
+		tmpaddr = (addr_t)precvbuf->pskb->data;
+		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
+		skb_reserve(precvbuf->pskb,
+			    (RECVBUFF_ALIGN_SZ - alignment));
+		precvbuf->phead = precvbuf->pskb->head;
+		precvbuf->pdata = precvbuf->pskb->data;
+		precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
+		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
+		precvbuf->pbuf = precvbuf->pskb->data;
+	} else { /* reuse skb */
+		precvbuf->phead = precvbuf->pskb->head;
+		precvbuf->pdata = precvbuf->pskb->data;
+		precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
+		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
+		precvbuf->pbuf = precvbuf->pskb->data;
+		precvbuf->reuse = false;
 	}
+	purb = precvbuf->purb;
+	/* translate DMA FIFO addr to pipehandle */
+	pipe = ffaddr2pipehdl(pdvobj, addr);
+	usb_fill_bulk_urb(purb, pusbd, pipe,
+			  precvbuf->pbuf, MAX_RECVBUF_SZ,
+			  r8712_usb_read_port_complete,
+			  precvbuf);
+	err = usb_submit_urb(purb, GFP_ATOMIC);
+	if ((err) && (err != (-EPERM)))
+		ret = _FAIL;
 	return ret;
 }
 
