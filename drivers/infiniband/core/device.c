@@ -661,6 +661,9 @@ int ib_query_port(struct ib_device *device,
 	if (err || port_attr->subnet_prefix)
 		return err;
 
+	if (rdma_port_get_link_layer(device, port_num) != IB_LINK_LAYER_INFINIBAND)
+		return 0;
+
 	err = ib_query_gid(device, port_num, 0, &gid, NULL);
 	if (err)
 		return err;
