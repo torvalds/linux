@@ -71,7 +71,7 @@ static int clps711x_gpio_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id __maybe_unused clps711x_gpio_ids[] = {
-	{ .compatible = "cirrus,clps711x-gpio" },
+	{ .compatible = "cirrus,ep7209-gpio" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clps711x_gpio_ids);
