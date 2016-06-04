@@ -998,13 +998,12 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 				struct net_device *slave_dev)
 {
 	struct dsa_switch *ds = p->parent;
-	struct dsa_chip_data *cd = ds->cd;
 	struct device_node *phy_dn, *port_dn;
 	bool phy_is_fixed = false;
 	u32 phy_flags = 0;
 	int mode, ret;
 
-	port_dn = cd->port_dn[p->port];
+	port_dn = ds->ports[p->port].dn;
 	mode = of_get_phy_mode(port_dn);
 	if (mode < 0)
 		mode = PHY_INTERFACE_MODE_NA;
@@ -1146,7 +1145,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 				 NULL);
 
 	SET_NETDEV_DEV(slave_dev, parent);
-	slave_dev->dev.of_node = ds->cd->port_dn[port];
+	slave_dev->dev.of_node = ds->ports[port].dn;
 	slave_dev->vlan_features = master->vlan_features;
 
 	p = netdev_priv(slave_dev);

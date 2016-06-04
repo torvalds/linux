@@ -182,7 +182,6 @@ __ATTRIBUTE_GROUPS(dsa_hwmon);
 /* basic switch operations **************************************************/
 static int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct net_device *master)
 {
-	struct dsa_chip_data *cd = ds->cd;
 	struct device_node *port_dn;
 	struct phy_device *phydev;
 	int ret, port, mode;
@@ -191,7 +190,7 @@ static int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct net_device *master)
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
 
-		port_dn = cd->port_dn[port];
+		port_dn = ds->ports[port].dn;
 		if (of_phy_is_fixed_link(port_dn)) {
 			ret = of_phy_register_fixed_link(port_dn);
 			if (ret) {
@@ -325,6 +324,8 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	 * Create network devices for physical switch ports.
 	 */
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
+		ds->ports[i].dn = cd->port_dn[i];
+
 		if (!(ds->enabled_port_mask & (1 << i)))
 			continue;
 
@@ -424,7 +425,6 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 {
 	struct device_node *port_dn;
 	struct phy_device *phydev;
-	struct dsa_chip_data *cd = ds->cd;
 	int port;
 
 #ifdef CONFIG_NET_DSA_HWMON
@@ -445,7 +445,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 
 	/* Remove any fixed link PHYs */
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		port_dn = cd->port_dn[port];
+		port_dn = ds->ports[port].dn;
 		if (of_phy_is_fixed_link(port_dn)) {
 			phydev = of_phy_find_device(port_dn);
 			if (phydev) {
