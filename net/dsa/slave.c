@@ -615,7 +615,7 @@ static int dsa_slave_get_eeprom_len(struct net_device *dev)
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 
-	if (ds->cd->eeprom_len)
+	if (ds->cd && ds->cd->eeprom_len)
 		return ds->cd->eeprom_len;
 
 	if (ds->drv->get_eeprom_len)
