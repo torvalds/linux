@@ -27,7 +27,6 @@
 #define TYPE_SECOND_GEN		0x10
 #define TW686X_DEF_PHASE_REF	0x1518
 
-#define TW686X_AUDIO_PAGE_SZ		4096
 #define TW686X_AUDIO_PAGE_MAX		16
 #define TW686X_AUDIO_PERIODS_MIN	2
 #define TW686X_AUDIO_PERIODS_MAX	TW686X_AUDIO_PAGE_MAX
@@ -139,7 +138,9 @@ struct tw686x_dev {
 	struct tw686x_video_channel *video_channels;
 	struct tw686x_audio_channel *audio_channels;
 
-	int audio_rate; /* per-device value */
+	/* Per-device audio parameters */
+	int audio_rate;
+	int period_size;
 
 	struct timer_list dma_delay_timer;
 	u32 pending_dma_en; /* must be protected by lock */
