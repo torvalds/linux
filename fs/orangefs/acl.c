@@ -43,11 +43,8 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 		     get_khandle_from_ino(inode),
 		     key,
 		     type);
-	ret = orangefs_inode_getxattr(inode,
-				   "",
-				   key,
-				   value,
-				   ORANGEFS_MAX_XATTR_VALUELEN);
+	ret = orangefs_inode_getxattr(inode, key, value,
+				      ORANGEFS_MAX_XATTR_VALUELEN);
 	/* if the key exists, convert it to an in-memory rep */
 	if (ret > 0) {
 		acl = posix_acl_from_xattr(&init_user_ns, value, ret);
@@ -131,7 +128,7 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	 * will xlate to a removexattr. However, we don't want removexattr
 	 * complain if attributes does not exist.
 	 */
-	error = orangefs_inode_setxattr(inode, "", name, value, size, 0);
+	error = orangefs_inode_setxattr(inode, name, value, size, 0);
 
 out:
 	kfree(value);
