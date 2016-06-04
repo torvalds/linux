@@ -81,7 +81,7 @@ static void ep_bd_list_free(struct bdc_ep *ep, u32 num_tabs)
 			continue;
 		}
 		if (!bd_table->start_bd) {
-			dev_dbg(bdc->dev, "bd dma pool not allocted\n");
+			dev_dbg(bdc->dev, "bd dma pool not allocated\n");
 			continue;
 		}
 
