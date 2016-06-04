@@ -649,11 +649,7 @@ static s8 b43_rssinoise_postprocess(struct b43_wldev *dev, u8 in_rssi)
 	struct b43_phy *phy = &dev->phy;
 	s8 ret;
 
-	if (phy->type == B43_PHYTYPE_A) {
-		//TODO: Incomplete specs.
-		ret = 0;
-	} else
-		ret = b43_rssi_postprocess(dev, in_rssi, 0, 1, 1);
+	ret = b43_rssi_postprocess(dev, in_rssi, 0, 1, 1);
 
 	return ret;
 }
@@ -670,7 +666,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	u16 uninitialized_var(chanstat), uninitialized_var(mactime);
 	u32 uninitialized_var(macstat);
 	u16 chanid;
-	u16 phytype;
 	int padding, rate_idx;
 
 	memset(&status, 0, sizeof(status));
@@ -691,7 +686,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		chanstat = le16_to_cpu(rxhdr->format_351.channel);
 		break;
 	}
-	phytype = chanstat & B43_RX_CHAN_PHYTYPE;
 
 	if (unlikely(macstat & B43_RX_MAC_FCSERR)) {
 		dev->wl->ieee_stats.dot11FCSErrorCount++;
@@ -762,7 +756,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		else
 			status.signal = max(rxhdr->power0, rxhdr->power1);
 		break;
-	case B43_PHYTYPE_A:
 	case B43_PHYTYPE_B:
 	case B43_PHYTYPE_G:
 	case B43_PHYTYPE_LP:
@@ -809,14 +802,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 
 	chanid = (chanstat & B43_RX_CHAN_ID) >> B43_RX_CHAN_ID_SHIFT;
 	switch (chanstat & B43_RX_CHAN_PHYTYPE) {
-	case B43_PHYTYPE_A:
-		status.band = NL80211_BAND_5GHZ;
-		B43_WARN_ON(1);
-		/* FIXME: We don't really know which value the "chanid" contains.
-		 *        So the following assignment might be wrong. */
-		status.freq =
-			ieee80211_channel_to_frequency(chanid, status.band);
-		break;
 	case B43_PHYTYPE_G:
 		status.band = NL80211_BAND_2GHZ;
 		/* Somewhere between 478.104 and 508.1084 firmware for G-PHY
