@@ -119,4 +119,9 @@
 #define TW686X_STD_PAL_CN	5
 #define TW686X_STD_PAL_60	6
 
+#define TW686X_FIELD_MODE	0x3
+#define TW686X_FRAME_MODE	0x2
+/* 0x1 is reserved */
+#define TW686X_SG_MODE		0x0
+
 #define TW686X_FIFO_ERROR(x)	(x & ~(0xff))

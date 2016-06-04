@@ -27,15 +27,12 @@
 #define TYPE_SECOND_GEN		0x10
 #define TW686X_DEF_PHASE_REF	0x1518
 
-#define TW686X_FIELD_MODE	0x3
-#define TW686X_FRAME_MODE	0x2
-/* 0x1 is reserved */
-#define TW686X_SG_MODE		0x0
-
 #define TW686X_AUDIO_PAGE_SZ		4096
 #define TW686X_AUDIO_PAGE_MAX		16
 #define TW686X_AUDIO_PERIODS_MIN	2
 #define TW686X_AUDIO_PERIODS_MAX	TW686X_AUDIO_PAGE_MAX
+
+#define TW686X_DMA_MODE_MEMCPY		0
 
 struct tw686x_format {
 	char *name;
@@ -99,6 +96,17 @@ struct tw686x_video_channel {
 	bool no_signal;
 };
 
+struct tw686x_dma_ops {
+	int (*setup)(struct tw686x_dev *dev);
+	void (*cleanup)(struct tw686x_dev *dev);
+	int (*alloc)(struct tw686x_video_channel *vc, unsigned int pb);
+	void (*free)(struct tw686x_video_channel *vc, unsigned int pb);
+	void (*buf_refill)(struct tw686x_video_channel *vc, unsigned int pb);
+	const struct vb2_mem_ops *mem_ops;
+	enum v4l2_field field;
+	u32 hw_dma_mode;
+};
+
 /**
  * struct tw686x_dev - global device status
  * @lock: spinlock controlling access to the
@@ -112,11 +120,13 @@ struct tw686x_dev {
 
 	char name[32];
 	unsigned int type;
+	unsigned int dma_mode;
 	struct pci_dev *pci_dev;
 	__u32 __iomem *mmio;
 
 	void *alloc_ctx;
 
+	const struct tw686x_dma_ops *dma_ops;
 	struct tw686x_video_channel *video_channels;
 	struct tw686x_audio_channel *audio_channels;
 
