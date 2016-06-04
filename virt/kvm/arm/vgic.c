@@ -1711,38 +1711,24 @@ static struct list_head *vgic_get_irq_phys_map_list(struct kvm_vcpu *vcpu,
 /**
  * kvm_vgic_map_phys_irq - map a virtual IRQ to a physical IRQ
  * @vcpu: The VCPU pointer
- * @virt_irq: The virtual irq number
- * @irq: The Linux IRQ number
+ * @virt_irq: The virtual IRQ number for the guest
+ * @phys_irq: The hardware IRQ number of the host
  *
  * Establish a mapping between a guest visible irq (@virt_irq) and a
- * Linux irq (@irq). On injection, @virt_irq will be associated with
- * the physical interrupt represented by @irq. This mapping can be
+ * hardware irq (@phys_irq). On injection, @virt_irq will be associated with
+ * the physical interrupt represented by @phys_irq. This mapping can be
  * established multiple times as long as the parameters are the same.
  *
  * Returns a valid pointer on success, and an error pointer otherwise
  */
 struct irq_phys_map *kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu,
-					   int virt_irq, int irq)
+					   int virt_irq, int phys_irq)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	struct list_head *root = vgic_get_irq_phys_map_list(vcpu, virt_irq);
 	struct irq_phys_map *map;
 	struct irq_phys_map_entry *entry;
-	struct irq_desc *desc;
-	struct irq_data *data;
-	int phys_irq;
 
-	desc = irq_to_desc(irq);
-	if (!desc) {
-		kvm_err("%s: no interrupt descriptor\n", __func__);
-		return ERR_PTR(-EINVAL);
-	}
-
-	data = irq_desc_get_irq_data(desc);
-	while (data->parent_data)
-		data = data->parent_data;
-
-	phys_irq = data->hwirq;
 
 	/* Create a new mapping */
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -1755,8 +1741,7 @@ struct irq_phys_map *kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu,
 	map = vgic_irq_map_search(vcpu, virt_irq);
 	if (map) {
 		/* Make sure this mapping matches */
-		if (map->phys_irq != phys_irq	||
-		    map->irq      != irq)
+		if (map->phys_irq != phys_irq)
 			map = ERR_PTR(-EINVAL);
 
 		/* Found an existing, valid mapping */
@@ -1766,7 +1751,6 @@ struct irq_phys_map *kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu,
 	map           = &entry->map;
 	map->virt_irq = virt_irq;
 	map->phys_irq = phys_irq;
-	map->irq      = irq;
 
 	list_add_tail_rcu(&entry->entry, root);
 
