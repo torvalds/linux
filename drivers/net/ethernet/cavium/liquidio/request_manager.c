@@ -144,7 +144,9 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 
 	oct->fn_list.setup_iq_regs(oct, iq_no);
 
-	oct->check_db_wq[iq_no].wq = create_workqueue("check_iq_db");
+	oct->check_db_wq[iq_no].wq = alloc_workqueue("check_iq_db",
+						     WQ_MEM_RECLAIM,
+						     0);
 	if (!oct->check_db_wq[iq_no].wq) {
 		lio_dma_free(oct, q_size, iq->base_addr, iq->base_addr_dma);
 		dev_err(&oct->pci_dev->dev, "check db wq create failed for iq %d\n",
@@ -168,7 +170,6 @@ int octeon_delete_instr_queue(struct octeon_device *oct, u32 iq_no)
 	struct octeon_instr_queue *iq = oct->instr_queue[iq_no];
 
 	cancel_delayed_work_sync(&oct->check_db_wq[iq_no].wk.work);
-	flush_workqueue(oct->check_db_wq[iq_no].wq);
 	destroy_workqueue(oct->check_db_wq[iq_no].wq);
 
 	if (OCTEON_CN6XXX(oct))
