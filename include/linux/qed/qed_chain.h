@@ -25,10 +25,9 @@
 				} while (0)
 
 #define HILO_GEN(hi, lo, type)  ((((type)(hi)) << 32) + (lo))
-#define HILO_DMA(hi, lo)        HILO_GEN(hi, lo, dma_addr_t)
 #define HILO_64(hi, lo) HILO_GEN((le32_to_cpu(hi)), (le32_to_cpu(lo)), u64)
-#define HILO_DMA_REGPAIR(regpair)       (HILO_DMA(regpair.hi, regpair.lo))
 #define HILO_64_REGPAIR(regpair)        (HILO_64(regpair.hi, regpair.lo))
+#define HILO_DMA_REGPAIR(regpair)	((dma_addr_t)HILO_64_REGPAIR(regpair))
 
 enum qed_chain_mode {
 	/* Each Page contains a next pointer at its end */
