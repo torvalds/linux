@@ -925,10 +925,13 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 		hsag->attrs[i] = alloc_hsa(i, port_num, stats->names[i]);
 		if (!hsag->attrs[i])
 			goto err;
+		sysfs_attr_init(hsag->attrs[i]);
 	}
 
 	/* treat an error here as non-fatal */
 	hsag->attrs[i] = alloc_hsa_lifespan("lifespan", port_num);
+	if (hsag->attrs[i])
+		sysfs_attr_init(hsag->attrs[i]);
 
 	if (port) {
 		struct kobject *kobj = &port->kobj;
