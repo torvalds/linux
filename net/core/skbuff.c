@@ -4399,6 +4399,7 @@ EXPORT_SYMBOL_GPL(skb_gso_transport_seglen);
  * skb_gso_validate_mtu - Return in case such skb fits a given MTU
  *
  * @skb: GSO skb
+ * @mtu: MTU to validate against
  *
  * skb_gso_validate_mtu validates if a given skb will fit a wanted MTU
  * once split.
