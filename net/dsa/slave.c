@@ -521,14 +521,6 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
-					    struct net_device *dev)
-{
-	/* Just return the original SKB */
-	return skb;
-}
-
-
 /* ethtool operations *******************************************************/
 static int
 dsa_slave_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -1151,32 +1143,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	p = netdev_priv(slave_dev);
 	p->parent = ds;
 	p->port = port;
-
-	switch (ds->dst->tag_protocol) {
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	case DSA_TAG_PROTO_DSA:
-		p->xmit = dsa_netdev_ops.xmit;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-	case DSA_TAG_PROTO_EDSA:
-		p->xmit = edsa_netdev_ops.xmit;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	case DSA_TAG_PROTO_TRAILER:
-		p->xmit = trailer_netdev_ops.xmit;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_BRCM
-	case DSA_TAG_PROTO_BRCM:
-		p->xmit = brcm_netdev_ops.xmit;
-		break;
-#endif
-	default:
-		p->xmit	= dsa_slave_notag_xmit;
-		break;
-	}
+	p->xmit = dst->tag_ops->xmit;
 
 	p->old_pause = -1;
 	p->old_link = -1;
