@@ -1859,7 +1859,7 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	int err;
 
 	if (attr_mask & IB_QP_PKEY_INDEX)
-		path->pkey_index = attr->pkey_index;
+		path->pkey_index = cpu_to_be16(attr->pkey_index);
 
 	if (ah->ah_flags & IB_AH_GRH) {
 		if (ah->grh.sgid_index >=
@@ -1879,9 +1879,9 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 							  ah->grh.sgid_index);
 		path->dci_cfi_prio_sl = (ah->sl & 0x7) << 4;
 	} else {
-		path->fl = (path_flags & MLX5_PATH_FLAG_FL) ? 0x80 : 0;
-		path->free_ar = (path_flags & MLX5_PATH_FLAG_FREE_AR) ? 0x80 :
-									0;
+		path->fl_free_ar = (path_flags & MLX5_PATH_FLAG_FL) ? 0x80 : 0;
+		path->fl_free_ar |=
+			(path_flags & MLX5_PATH_FLAG_FREE_AR) ? 0x40 : 0;
 		path->rlid = cpu_to_be16(ah->dlid);
 		path->grh_mlid = ah->src_path_bits & 0x7f;
 		if (ah->ah_flags & IB_AH_GRH)
@@ -2266,7 +2266,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		context->log_pg_sz_remote_qpn = cpu_to_be32(attr->dest_qp_num);
 
 	if (attr_mask & IB_QP_PKEY_INDEX)
-		context->pri_path.pkey_index = attr->pkey_index;
+		context->pri_path.pkey_index = cpu_to_be16(attr->pkey_index);
 
 	/* todo implement counter_index functionality */
 
@@ -4015,11 +4015,12 @@ static int query_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC) {
 		to_ib_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
 		to_ib_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
-		qp_attr->alt_pkey_index = context->alt_path.pkey_index & 0x7f;
+		qp_attr->alt_pkey_index =
+			be16_to_cpu(context->alt_path.pkey_index);
 		qp_attr->alt_port_num	= qp_attr->alt_ah_attr.port_num;
 	}
 
-	qp_attr->pkey_index = context->pri_path.pkey_index & 0x7f;
+	qp_attr->pkey_index = be16_to_cpu(context->pri_path.pkey_index);
 	qp_attr->port_num = context->pri_path.port;
 
 	/* qp_attr->en_sqd_async_notify is only applicable in modify qp */
