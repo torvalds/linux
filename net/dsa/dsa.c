@@ -340,17 +340,18 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	if (ret < 0)
 		goto out;
 
-	ds->slave_mii_bus = devm_mdiobus_alloc(parent);
-	if (ds->slave_mii_bus == NULL) {
-		ret = -ENOMEM;
-		goto out;
+	if (!ds->slave_mii_bus && drv->phy_read) {
+		ds->slave_mii_bus = devm_mdiobus_alloc(parent);
+		if (!ds->slave_mii_bus) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		dsa_slave_mii_bus_init(ds);
+
+		ret = mdiobus_register(ds->slave_mii_bus);
+		if (ret < 0)
+			goto out;
 	}
-	dsa_slave_mii_bus_init(ds);
-
-	ret = mdiobus_register(ds->slave_mii_bus);
-	if (ret < 0)
-		goto out;
-
 
 	/*
 	 * Create network devices for physical switch ports.
@@ -493,7 +494,8 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 		dsa_cpu_dsa_destroy(ds->ports[port].dn);
 	}
 
-	mdiobus_unregister(ds->slave_mii_bus);
+	if (ds->slave_mii_bus && ds->drv->phy_read)
+		mdiobus_unregister(ds->slave_mii_bus);
 }
 
 #ifdef CONFIG_PM_SLEEP
