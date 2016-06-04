@@ -50,12 +50,16 @@ struct dsa_slave_priv {
 
 /* dsa.c */
 extern char dsa_driver_version[];
+int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
+		      struct device_node *port_dn, int port);
+void dsa_cpu_dsa_destroy(struct device_node *port_dn);
+const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
 int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
-		     int port, char *name);
+		     int port, const char *name);
 void dsa_slave_destroy(struct net_device *slave_dev);
 int dsa_slave_suspend(struct net_device *slave_dev);
 int dsa_slave_resume(struct net_device *slave_dev);

@@ -49,8 +49,7 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 	ds->slave_mii_bus->name = "dsa slave smi";
 	ds->slave_mii_bus->read = dsa_slave_phy_read;
 	ds->slave_mii_bus->write = dsa_slave_phy_write;
-	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d:%.2x",
-			ds->index, ds->cd->sw_addr);
+	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d", ds->index);
 	ds->slave_mii_bus->parent = ds->dev;
 	ds->slave_mii_bus->phy_mask = ~ds->phys_mii_mask;
 }
@@ -522,14 +521,6 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
-					    struct net_device *dev)
-{
-	/* Just return the original SKB */
-	return skb;
-}
-
-
 /* ethtool operations *******************************************************/
 static int
 dsa_slave_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -615,7 +606,7 @@ static int dsa_slave_get_eeprom_len(struct net_device *dev)
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 
-	if (ds->cd->eeprom_len)
+	if (ds->cd && ds->cd->eeprom_len)
 		return ds->cd->eeprom_len;
 
 	if (ds->drv->get_eeprom_len)
@@ -999,13 +990,12 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 				struct net_device *slave_dev)
 {
 	struct dsa_switch *ds = p->parent;
-	struct dsa_chip_data *cd = ds->cd;
 	struct device_node *phy_dn, *port_dn;
 	bool phy_is_fixed = false;
 	u32 phy_flags = 0;
 	int mode, ret;
 
-	port_dn = cd->port_dn[p->port];
+	port_dn = ds->ports[p->port].dn;
 	mode = of_get_phy_mode(port_dn);
 	if (mode < 0)
 		mode = PHY_INTERFACE_MODE_NA;
@@ -1109,13 +1099,17 @@ int dsa_slave_resume(struct net_device *slave_dev)
 }
 
 int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
-		     int port, char *name)
+		     int port, const char *name)
 {
-	struct net_device *master = ds->dst->master_netdev;
 	struct dsa_switch_tree *dst = ds->dst;
+	struct net_device *master;
 	struct net_device *slave_dev;
 	struct dsa_slave_priv *p;
 	int ret;
+
+	master = ds->dst->master_netdev;
+	if (ds->master_netdev)
+		master = ds->master_netdev;
 
 	slave_dev = alloc_netdev(sizeof(struct dsa_slave_priv), name,
 				 NET_NAME_UNKNOWN, ether_setup);
@@ -1147,49 +1141,24 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 				 NULL);
 
 	SET_NETDEV_DEV(slave_dev, parent);
-	slave_dev->dev.of_node = ds->cd->port_dn[port];
+	slave_dev->dev.of_node = ds->ports[port].dn;
 	slave_dev->vlan_features = master->vlan_features;
 
 	p = netdev_priv(slave_dev);
 	p->parent = ds;
 	p->port = port;
-
-	switch (ds->dst->tag_protocol) {
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	case DSA_TAG_PROTO_DSA:
-		p->xmit = dsa_netdev_ops.xmit;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-	case DSA_TAG_PROTO_EDSA:
-		p->xmit = edsa_netdev_ops.xmit;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	case DSA_TAG_PROTO_TRAILER:
-		p->xmit = trailer_netdev_ops.xmit;
-		break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_BRCM
-	case DSA_TAG_PROTO_BRCM:
-		p->xmit = brcm_netdev_ops.xmit;
-		break;
-#endif
-	default:
-		p->xmit	= dsa_slave_notag_xmit;
-		break;
-	}
+	p->xmit = dst->tag_ops->xmit;
 
 	p->old_pause = -1;
 	p->old_link = -1;
 	p->old_duplex = -1;
 
-	ds->ports[port] = slave_dev;
+	ds->ports[port].netdev = slave_dev;
 	ret = register_netdev(slave_dev);
 	if (ret) {
 		netdev_err(master, "error %d registering interface %s\n",
 			   ret, slave_dev->name);
-		ds->ports[port] = NULL;
+		ds->ports[port].netdev = NULL;
 		free_netdev(slave_dev);
 		return ret;
 	}

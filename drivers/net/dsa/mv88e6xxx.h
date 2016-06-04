@@ -600,6 +600,12 @@ struct mv88e6xxx_priv_state {
 
 	/* set to size of eeprom if supported by the switch */
 	int		eeprom_len;
+
+	/* Device node for the MDIO bus */
+	struct device_node *mdio_np;
+
+	/* And the MDIO bus itself */
+	struct mii_bus *mdio_bus;
 };
 
 enum stat_type {
