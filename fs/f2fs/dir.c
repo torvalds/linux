@@ -267,22 +267,9 @@ out:
 
 struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct page **p)
 {
-	struct page *page;
-	struct f2fs_dir_entry *de;
-	struct f2fs_dentry_block *dentry_blk;
+	struct qstr dotdot = QSTR_INIT("..", 2);
 
-	if (f2fs_has_inline_dentry(dir))
-		return f2fs_parent_inline_dir(dir, p);
-
-	page = get_lock_data_page(dir, 0, false);
-	if (IS_ERR(page))
-		return NULL;
-
-	dentry_blk = kmap(page);
-	de = &dentry_blk->dentry[1];
-	*p = page;
-	unlock_page(page);
-	return de;
+	return f2fs_find_entry(dir, &dotdot, p);
 }
 
 ino_t f2fs_inode_by_name(struct inode *dir, struct qstr *qstr)

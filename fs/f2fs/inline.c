@@ -306,25 +306,6 @@ struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
 	return de;
 }
 
-struct f2fs_dir_entry *f2fs_parent_inline_dir(struct inode *dir,
-							struct page **p)
-{
-	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-	struct page *ipage;
-	struct f2fs_dir_entry *de;
-	struct f2fs_inline_dentry *dentry_blk;
-
-	ipage = get_node_page(sbi, dir->i_ino);
-	if (IS_ERR(ipage))
-		return NULL;
-
-	dentry_blk = inline_data_addr(ipage);
-	de = &dentry_blk->dentry[1];
-	*p = ipage;
-	unlock_page(ipage);
-	return de;
-}
-
 int make_empty_inline_dir(struct inode *inode, struct inode *parent,
 							struct page *ipage)
 {
