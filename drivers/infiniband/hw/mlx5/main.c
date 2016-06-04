@@ -524,6 +524,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	    MLX5_CAP_ETH(dev->mdev, scatter_fcs))
 		props->device_cap_flags |= IB_DEVICE_RAW_SCATTER_FCS;
 
+	if (mlx5_get_flow_namespace(dev->mdev, MLX5_FLOW_NAMESPACE_BYPASS))
+		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
+
 	props->vendor_part_id	   = mdev->pdev->device;
 	props->hw_ver		   = mdev->pdev->revision;
 
