@@ -288,18 +288,18 @@ static int mv88e6xxx_ppu_enable(struct mv88e6xxx_priv_state *ps)
 	int ret, err;
 	unsigned long timeout;
 
-	ret = mv88e6xxx_reg_read(ps, REG_GLOBAL, GLOBAL_CONTROL);
+	ret = _mv88e6xxx_reg_read(ps, REG_GLOBAL, GLOBAL_CONTROL);
 	if (ret < 0)
 		return ret;
 
-	err = mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL,
-				  ret | GLOBAL_CONTROL_PPU_ENABLE);
+	err = _mv88e6xxx_reg_write(ps, REG_GLOBAL, GLOBAL_CONTROL,
+				   ret | GLOBAL_CONTROL_PPU_ENABLE);
 	if (err)
 		return err;
 
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
-		ret = mv88e6xxx_reg_read(ps, REG_GLOBAL, GLOBAL_STATUS);
+		ret = _mv88e6xxx_reg_read(ps, REG_GLOBAL, GLOBAL_STATUS);
 		if (ret < 0)
 			return ret;
 
@@ -317,11 +317,16 @@ static void mv88e6xxx_ppu_reenable_work(struct work_struct *ugly)
 	struct mv88e6xxx_priv_state *ps;
 
 	ps = container_of(ugly, struct mv88e6xxx_priv_state, ppu_work);
+
+	mutex_lock(&ps->smi_mutex);
+
 	if (mutex_trylock(&ps->ppu_mutex)) {
 		if (mv88e6xxx_ppu_enable(ps) == 0)
 			ps->ppu_disabled = 0;
 		mutex_unlock(&ps->ppu_mutex);
 	}
+
+	mutex_unlock(&ps->smi_mutex);
 }
 
 static void mv88e6xxx_ppu_reenable_timer(unsigned long _ps)
