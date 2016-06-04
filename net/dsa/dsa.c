@@ -297,6 +297,8 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 		dst->tag_protocol = drv->tag_protocol;
 	}
 
+	memcpy(ds->rtable, cd->rtable, sizeof(ds->rtable));
+
 	/*
 	 * Do basic register setup.
 	 */

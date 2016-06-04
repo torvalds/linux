@@ -148,6 +148,13 @@ struct dsa_switch {
 	 */
 	struct dsa_switch_driver	*drv;
 
+	/*
+	 * An array of which element [a] indicates which port on this
+	 * switch should be used to send packets to that are destined
+	 * for switch a. Can be NULL if there is only one switch chip.
+	 */
+	s8		rtable[DSA_MAX_SWITCHES];
+
 #ifdef CONFIG_NET_DSA_HWMON
 	/*
 	 * Hardware monitoring information
@@ -194,7 +201,7 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 	if (dst->cpu_switch == ds->index)
 		return dst->cpu_port;
 	else
-		return ds->cd->rtable[dst->cpu_switch];
+		return ds->rtable[dst->cpu_switch];
 }
 
 struct switchdev_trans;
