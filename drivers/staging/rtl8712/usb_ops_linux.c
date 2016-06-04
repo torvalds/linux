@@ -202,26 +202,23 @@ static void r8712_usb_read_port_complete(struct urb *purb)
 	if (purb->status == 0) { /* SUCCESS */
 		if ((purb->actual_length > (MAX_RECVBUF_SZ)) ||
 		    (purb->actual_length < RXDESC_SIZE)) {
-			precvbuf->reuse = true;
 			r8712_read_port(padapter, precvpriv->ff_hwaddr, 0,
 				  (unsigned char *)precvbuf);
 		} else {
+			_pkt *pskb = precvbuf->pskb;
+
 			precvbuf->transfer_len = purb->actual_length;
 			pbuf = (uint *)precvbuf->pbuf;
 			isevt = le32_to_cpu(*(pbuf + 1)) & 0x1ff;
 			if ((isevt & 0x1ff) == 0x1ff) {
 				r8712_rxcmd_event_hdl(padapter, pbuf);
-				precvbuf->reuse = true;
+				skb_queue_tail(&precvpriv->rx_skb_queue, pskb);
 				r8712_read_port(padapter, precvpriv->ff_hwaddr,
 						0, (unsigned char *)precvbuf);
 			} else {
-				_pkt *pskb = precvbuf->pskb;
-
 				skb_put(pskb, purb->actual_length);
 				skb_queue_tail(&precvpriv->rx_skb_queue, pskb);
 				tasklet_hi_schedule(&precvpriv->recv_tasklet);
-				precvbuf->pskb = NULL;
-				precvbuf->reuse = false;
 				r8712_read_port(padapter, precvpriv->ff_hwaddr,
 						0, (unsigned char *)precvbuf);
 			}
@@ -241,7 +238,6 @@ static void r8712_usb_read_port_complete(struct urb *purb)
 			}
 			/* Fall through. */
 		case -EPROTO:
-			precvbuf->reuse = true;
 			r8712_read_port(padapter, precvpriv->ff_hwaddr, 0,
 				  (unsigned char *)precvbuf);
 			break;
@@ -272,14 +268,11 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
 	    adapter->pwrctrlpriv.pnp_bstop_trx || !precvbuf)
 		return _FAIL;
-	if (precvbuf->reuse || !precvbuf->pskb) {
-		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
-		if (precvbuf->pskb != NULL)
-			precvbuf->reuse = true;
-	}
 	r8712_init_recvbuf(adapter, precvbuf);
-	/* re-assign for linux based on skb */
-	if (!precvbuf->reuse || !precvbuf->pskb) {
+	/* Try to use skb from the free queue */
+	precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
+
+	if (!precvbuf->pskb) {
 		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev,
 				 MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
 		if (!precvbuf->pskb)
@@ -293,13 +286,12 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 		precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
 		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
 		precvbuf->pbuf = precvbuf->pskb->data;
-	} else { /* reuse skb */
+	} else { /* skb is reused */
 		precvbuf->phead = precvbuf->pskb->head;
 		precvbuf->pdata = precvbuf->pskb->data;
 		precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
 		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
 		precvbuf->pbuf = precvbuf->pskb->data;
-		precvbuf->reuse = false;
 	}
 	purb = precvbuf->purb;
 	/* translate DMA FIFO addr to pipehandle */

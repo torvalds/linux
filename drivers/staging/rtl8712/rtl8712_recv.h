@@ -103,7 +103,6 @@ struct recv_buf {
 	struct _adapter  *adapter;
 	struct urb *purb;
 	_pkt *pskb;
-	u8 reuse;
 	u8  irp_pending;
 	u32  transfer_len;
 	uint  len;
