@@ -180,36 +180,47 @@ __ATTRIBUTE_GROUPS(dsa_hwmon);
 #endif /* CONFIG_NET_DSA_HWMON */
 
 /* basic switch operations **************************************************/
-static int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct net_device *master)
+int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
+		      struct device_node *port_dn, int port)
+{
+	struct phy_device *phydev;
+	int ret, mode;
+
+	if (of_phy_is_fixed_link(port_dn)) {
+		ret = of_phy_register_fixed_link(port_dn);
+		if (ret) {
+			dev_err(dev, "failed to register fixed PHY\n");
+			return ret;
+		}
+		phydev = of_phy_find_device(port_dn);
+
+		mode = of_get_phy_mode(port_dn);
+		if (mode < 0)
+			mode = PHY_INTERFACE_MODE_NA;
+		phydev->interface = mode;
+
+		genphy_config_init(phydev);
+		genphy_read_status(phydev);
+		if (ds->drv->adjust_link)
+			ds->drv->adjust_link(ds, port, phydev);
+	}
+
+	return 0;
+}
+
+static int dsa_cpu_dsa_setups(struct dsa_switch *ds, struct device *dev)
 {
 	struct device_node *port_dn;
-	struct phy_device *phydev;
-	int ret, port, mode;
+	int ret, port;
 
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
 
 		port_dn = ds->ports[port].dn;
-		if (of_phy_is_fixed_link(port_dn)) {
-			ret = of_phy_register_fixed_link(port_dn);
-			if (ret) {
-				netdev_err(master,
-					   "failed to register fixed PHY\n");
-				return ret;
-			}
-			phydev = of_phy_find_device(port_dn);
-
-			mode = of_get_phy_mode(port_dn);
-			if (mode < 0)
-				mode = PHY_INTERFACE_MODE_NA;
-			phydev->interface = mode;
-
-			genphy_config_init(phydev);
-			genphy_read_status(phydev);
-			if (ds->drv->adjust_link)
-				ds->drv->adjust_link(ds, port, phydev);
-		}
+		ret = dsa_cpu_dsa_setup(ds, dev, port_dn, port);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -340,7 +351,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	}
 
 	/* Perform configuration of the CPU and DSA ports */
-	ret = dsa_cpu_dsa_setup(ds, dst->master_netdev);
+	ret = dsa_cpu_dsa_setups(ds, parent);
 	if (ret < 0) {
 		netdev_err(dst->master_netdev, "[%d] : can't configure CPU and DSA ports\n",
 			   index);
@@ -423,10 +434,21 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	return ds;
 }
 
+void dsa_cpu_dsa_destroy(struct device_node *port_dn)
+{
+	struct phy_device *phydev;
+
+	if (of_phy_is_fixed_link(port_dn)) {
+		phydev = of_phy_find_device(port_dn);
+		if (phydev) {
+			phy_device_free(phydev);
+			fixed_phy_unregister(phydev);
+		}
+	}
+}
+
 static void dsa_switch_destroy(struct dsa_switch *ds)
 {
-	struct device_node *port_dn;
-	struct phy_device *phydev;
 	int port;
 
 #ifdef CONFIG_NET_DSA_HWMON
@@ -445,17 +467,11 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 		dsa_slave_destroy(ds->ports[port].netdev);
 	}
 
-	/* Remove any fixed link PHYs */
+	/* Disable configuration of the CPU and DSA ports */
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		port_dn = ds->ports[port].dn;
-		if (of_phy_is_fixed_link(port_dn)) {
-			phydev = of_phy_find_device(port_dn);
-			if (phydev) {
-				phy_device_free(phydev);
-				of_node_put(port_dn);
-				fixed_phy_unregister(phydev);
-			}
-		}
+		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
+			continue;
+		dsa_cpu_dsa_destroy(ds->ports[port].dn);
 	}
 
 	mdiobus_unregister(ds->slave_mii_bus);
