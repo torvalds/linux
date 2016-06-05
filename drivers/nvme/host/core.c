@@ -292,7 +292,7 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 		memcpy(cmd, req->cmd, sizeof(*cmd));
 	else if (req->cmd_flags & REQ_FLUSH)
 		nvme_setup_flush(ns, cmd);
-	else if (req->cmd_flags & REQ_DISCARD)
+	else if (req_op(req) == REQ_OP_DISCARD)
 		ret = nvme_setup_discard(ns, req, cmd);
 	else
 		nvme_setup_rw(ns, req, cmd);

@@ -1,7 +1,10 @@
 #ifndef MMC_QUEUE_H
 #define MMC_QUEUE_H
 
-#define MMC_REQ_SPECIAL_MASK	(REQ_DISCARD | REQ_FLUSH)
+static inline bool mmc_req_is_special(struct request *req)
+{
+	return req && (req->cmd_flags & REQ_FLUSH || req_op(req) == REQ_OP_DISCARD);
+}
 
 struct request;
 struct task_struct;

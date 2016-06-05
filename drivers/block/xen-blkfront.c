@@ -844,7 +844,8 @@ static int blkif_queue_request(struct request *req, struct blkfront_ring_info *r
 	if (unlikely(rinfo->dev_info->connected != BLKIF_STATE_CONNECTED))
 		return 1;
 
-	if (unlikely(req->cmd_flags & (REQ_DISCARD | REQ_SECURE)))
+	if (unlikely(req_op(req) == REQ_OP_DISCARD ||
+		     req->cmd_flags & REQ_SECURE))
 		return blkif_queue_discard_req(req, rinfo);
 	else
 		return blkif_queue_rw_req(req, rinfo);
@@ -2054,8 +2055,9 @@ static int blkif_recover(struct blkfront_info *info)
 			/*
 			 * Get the bios in the request so we can re-queue them.
 			 */
-			if (copy[i].request->cmd_flags &
-			    (REQ_FLUSH | REQ_FUA | REQ_DISCARD | REQ_SECURE)) {
+			if (copy[i].request->cmd_flags & REQ_FLUSH ||
+			    req_op(copy[i].request) == REQ_OP_DISCARD ||
+			    copy[i].request->cmd_flags & (REQ_FUA | REQ_SECURE)) {
 				/*
 				 * Flush operations don't contain bios, so
 				 * we need to requeue the whole request
