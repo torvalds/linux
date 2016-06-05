@@ -131,6 +131,9 @@ struct qed_vf_info {
 	struct qed_bulletin bulletin;
 	dma_addr_t vf_bulletin;
 
+	/* PF saves a copy of the last VF acquire message */
+	struct vfpf_acquire_tlv acquire;
+
 	u32 concrete_fid;
 	u16 opaque_fid;
 	u16 mtu;

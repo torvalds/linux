@@ -147,6 +147,8 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 	req->vfdev_info.fw_minor = FW_MINOR_VERSION;
 	req->vfdev_info.fw_revision = FW_REVISION_VERSION;
 	req->vfdev_info.fw_engineering = FW_ENGINEERING_VERSION;
+	req->vfdev_info.eth_fp_hsi_major = ETH_HSI_VER_MAJOR;
+	req->vfdev_info.eth_fp_hsi_minor = ETH_HSI_VER_MINOR;
 
 	/* Fill capability field with any non-deprecated config we support */
 	req->vfdev_info.capabilities |= VFPF_ACQUIRE_CAP_100G;
@@ -200,6 +202,16 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 
 			/* Clear response buffer */
 			memset(p_iov->pf2vf_reply, 0, sizeof(union pfvf_tlvs));
+		} else if ((resp->hdr.status == PFVF_STATUS_NOT_SUPPORTED) &&
+			   pfdev_info->major_fp_hsi &&
+			   (pfdev_info->major_fp_hsi != ETH_HSI_VER_MAJOR)) {
+			DP_NOTICE(p_hwfn,
+				  "PF uses an incompatible fastpath HSI %02x.%02x [VF requires %02x.%02x]. Please change to a VF driver using %02x.xx.\n",
+				  pfdev_info->major_fp_hsi,
+				  pfdev_info->minor_fp_hsi,
+				  ETH_HSI_VER_MAJOR,
+				  ETH_HSI_VER_MINOR, pfdev_info->major_fp_hsi);
+			return -EINVAL;
 		} else {
 			DP_ERR(p_hwfn,
 			       "PF returned error %d to VF acquisition request\n",
@@ -223,6 +235,13 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			DP_NOTICE(p_hwfn, "100g VF\n");
 			p_hwfn->cdev->num_hwfns = 2;
 		}
+	}
+
+	if (ETH_HSI_VER_MINOR &&
+	    (resp->pfdev_info.minor_fp_hsi < ETH_HSI_VER_MINOR)) {
+		DP_INFO(p_hwfn,
+			"PF is using older fastpath HSI; %02x.%02x is configured\n",
+			ETH_HSI_VER_MAJOR, resp->pfdev_info.minor_fp_hsi);
 	}
 
 	return 0;
