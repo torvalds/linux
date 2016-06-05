@@ -224,7 +224,7 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		return PTR_ERR(bio);
 
 	if (!reading)
-		bio->bi_rw |= REQ_WRITE;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 	if (do_copy)
 		rq->cmd_flags |= REQ_COPY_USER;

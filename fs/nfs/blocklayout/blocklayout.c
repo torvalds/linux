@@ -107,7 +107,7 @@ bl_submit_bio(struct bio *bio)
 	if (bio) {
 		get_parallel(bio->bi_private);
 		dprintk("%s submitting %s bio %u@%llu\n", __func__,
-			bio->bi_rw == READ ? "read" : "write",
+			bio_op(bio) == READ ? "read" : "write",
 			bio->bi_iter.bi_size,
 			(unsigned long long)bio->bi_iter.bi_sector);
 		submit_bio(bio);
@@ -175,7 +175,7 @@ retry:
 				disk_addr >> SECTOR_SHIFT, end_io, par);
 		if (!bio)
 			return ERR_PTR(-ENOMEM);
-		bio->bi_rw = rw;
+		bio_set_op_attrs(bio, rw, 0);
 	}
 	if (bio_add_page(bio, page, *len, offset) < *len) {
 		bio = bl_submit_bio(bio);

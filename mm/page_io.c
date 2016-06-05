@@ -317,7 +317,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		ret = -ENOMEM;
 		goto out;
 	}
-	bio->bi_rw = WRITE;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		bio->bi_rw |= REQ_SYNC;
 	count_vm_event(PSWPOUT);
@@ -370,7 +370,7 @@ int swap_readpage(struct page *page)
 		ret = -ENOMEM;
 		goto out;
 	}
-	bio->bi_rw = READ;
+	bio_set_op_attrs(bio, REQ_OP_READ, 0);
 	count_vm_event(PSWPIN);
 	submit_bio(bio);
 out:

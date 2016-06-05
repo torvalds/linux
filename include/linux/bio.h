@@ -109,10 +109,15 @@ static inline bool bio_has_data(struct bio *bio)
 {
 	if (bio &&
 	    bio->bi_iter.bi_size &&
-	    !(bio->bi_rw & REQ_DISCARD))
+	    bio_op(bio) != REQ_OP_DISCARD)
 		return true;
 
 	return false;
+}
+
+static inline bool bio_no_advance_iter(struct bio *bio)
+{
+	return bio_op(bio) == REQ_OP_DISCARD || bio_op(bio) == REQ_OP_WRITE_SAME;
 }
 
 static inline bool bio_is_rw(struct bio *bio)
@@ -120,7 +125,7 @@ static inline bool bio_is_rw(struct bio *bio)
 	if (!bio_has_data(bio))
 		return false;
 
-	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
+	if (bio_no_advance_iter(bio))
 		return false;
 
 	return true;
@@ -228,7 +233,7 @@ static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
 {
 	iter->bi_sector += bytes >> 9;
 
-	if (bio->bi_rw & BIO_NO_ADVANCE_ITER_MASK)
+	if (bio_no_advance_iter(bio))
 		iter->bi_size -= bytes;
 	else
 		bvec_iter_advance(bio->bi_io_vec, iter, bytes);
@@ -256,10 +261,10 @@ static inline unsigned bio_segments(struct bio *bio)
 	 * differently:
 	 */
 
-	if (bio->bi_rw & REQ_DISCARD)
+	if (bio_op(bio) == REQ_OP_DISCARD)
 		return 1;
 
-	if (bio->bi_rw & REQ_WRITE_SAME)
+	if (bio_op(bio) == REQ_OP_WRITE_SAME)
 		return 1;
 
 	bio_for_each_segment(bv, bio, iter)

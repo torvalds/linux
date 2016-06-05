@@ -211,9 +211,9 @@ static int do_bio_lustrebacked(struct lloop_device *lo, struct bio *head)
 		return io->ci_result;
 	io->ci_lockreq = CILR_NEVER;
 
-	rw = head->bi_rw;
+	rw = bio_data_dir(head);
 	for (bio = head; bio ; bio = bio->bi_next) {
-		LASSERT(rw == bio->bi_rw);
+		LASSERT(rw == bio_data_dir(bio));
 
 		offset = (pgoff_t)(bio->bi_iter.bi_sector << 9) + lo->lo_offset;
 		bio_for_each_segment(bvec, bio, iter) {
@@ -305,7 +305,7 @@ static unsigned int loop_get_bio(struct lloop_device *lo, struct bio **req)
 	/* TODO: need to split the bio, too bad. */
 	LASSERT(first->bi_vcnt <= LLOOP_MAX_SEGMENTS);
 
-	rw = first->bi_rw;
+	rw = bio_data_dir(first);
 	bio = &lo->lo_bio;
 	while (*bio && (*bio)->bi_rw == rw) {
 		CDEBUG(D_INFO, "bio sector %llu size %u count %u vcnt%u\n",

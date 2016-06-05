@@ -339,7 +339,7 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 	if (bio_end_sector(bio) > get_capacity(bdev->bd_disk))
 		goto io_error;
 
-	if (unlikely(bio->bi_rw & REQ_DISCARD)) {
+	if (unlikely(bio_op(bio) == REQ_OP_DISCARD)) {
 		if (sector & ((PAGE_SIZE >> SECTOR_SHIFT) - 1) ||
 		    bio->bi_iter.bi_size & ~PAGE_MASK)
 			goto io_error;
