@@ -253,7 +253,7 @@ static void bch_data_insert_start(struct closure *cl)
 		trace_bcache_cache_insert(k);
 		bch_keylist_push(&op->insert_keys);
 
-		n->bi_rw |= REQ_WRITE;
+		bio_set_op_attrs(n, REQ_OP_WRITE, 0);
 		bch_submit_bbio(n, op->c, k, 0);
 	} while (n != bio);
 
@@ -378,7 +378,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 
 	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
 	    c->gc_stats.in_use > CUTOFF_CACHE_ADD ||
-	    (bio->bi_rw & REQ_DISCARD))
+	    (bio_op(bio) == REQ_OP_DISCARD))
 		goto skip;
 
 	if (mode == CACHE_MODE_NONE ||
@@ -899,7 +899,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 	 * But check_overlapping drops dirty keys for which io hasn't started,
 	 * so we still want to call it.
 	 */
-	if (bio->bi_rw & REQ_DISCARD)
+	if (bio_op(bio) == REQ_OP_DISCARD)
 		s->iop.bypass = true;
 
 	if (should_writeback(dc, s->orig_bio,
@@ -913,7 +913,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 		s->iop.bio = s->orig_bio;
 		bio_get(s->iop.bio);
 
-		if (!(bio->bi_rw & REQ_DISCARD) ||
+		if ((bio_op(bio) != REQ_OP_DISCARD) ||
 		    blk_queue_discard(bdev_get_queue(dc->bdev)))
 			closure_bio_submit(bio, cl);
 	} else if (s->iop.writeback) {
@@ -925,10 +925,10 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 			struct bio *flush = bio_alloc_bioset(GFP_NOIO, 0,
 							     dc->disk.bio_split);
 
-			flush->bi_rw	= WRITE_FLUSH;
 			flush->bi_bdev	= bio->bi_bdev;
 			flush->bi_end_io = request_endio;
 			flush->bi_private = cl;
+			bio_set_op_attrs(flush, REQ_OP_WRITE, WRITE_FLUSH);
 
 			closure_bio_submit(flush, cl);
 		}
@@ -992,7 +992,7 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
 				cached_dev_read(dc, s);
 		}
 	} else {
-		if ((bio->bi_rw & REQ_DISCARD) &&
+		if ((bio_op(bio) == REQ_OP_DISCARD) &&
 		    !blk_queue_discard(bdev_get_queue(dc->bdev)))
 			bio_endio(bio);
 		else
@@ -1103,7 +1103,7 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
 					&KEY(d->id, bio->bi_iter.bi_sector, 0),
 					&KEY(d->id, bio_end_sector(bio), 0));
 
-		s->iop.bypass		= (bio->bi_rw & REQ_DISCARD) != 0;
+		s->iop.bypass		= (bio_op(bio) == REQ_OP_DISCARD) != 0;
 		s->iop.writeback	= true;
 		s->iop.bio		= bio;
 
