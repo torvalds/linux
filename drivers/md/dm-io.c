@@ -322,6 +322,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
 		bio->bi_bdev = where->bdev;
 		bio->bi_end_io = endio;
+		bio->bi_rw = rw;
 		store_io_and_region_in_bio(bio, io, region);
 
 		if (rw & REQ_DISCARD) {
@@ -355,7 +356,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 		}
 
 		atomic_inc(&io->count);
-		submit_bio(rw, bio);
+		submit_bio(bio);
 	} while (remaining);
 }
 

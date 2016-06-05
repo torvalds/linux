@@ -371,7 +371,8 @@ static void end_discard(struct discard_op *op, int r)
 		 * need to wait for the chain to complete.
 		 */
 		bio_chain(op->bio, op->parent_bio);
-		submit_bio(REQ_WRITE | REQ_DISCARD, op->bio);
+		op->bio->bi_rw = REQ_WRITE | REQ_DISCARD;
+		submit_bio(op->bio);
 	}
 
 	blk_finish_plug(&op->plug);

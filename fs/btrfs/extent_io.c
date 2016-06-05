@@ -2049,9 +2049,10 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 		return -EIO;
 	}
 	bio->bi_bdev = dev->bdev;
+	bio->bi_rw = WRITE_SYNC;
 	bio_add_page(bio, page, length, pg_offset);
 
-	if (btrfsic_submit_bio_wait(WRITE_SYNC, bio)) {
+	if (btrfsic_submit_bio_wait(bio)) {
 		/* try to remap that extent elsewhere? */
 		btrfs_bio_counter_dec(fs_info);
 		bio_put(bio);
@@ -2735,14 +2736,14 @@ static int __must_check submit_one_bio(int rw, struct bio *bio,
 	start = page_offset(page) + bvec->bv_offset;
 
 	bio->bi_private = NULL;
-
+	bio->bi_rw = rw;
 	bio_get(bio);
 
 	if (tree->ops && tree->ops->submit_bio_hook)
 		ret = tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
 					   mirror_num, bio_flags, start);
 	else
-		btrfsic_submit_bio(rw, bio);
+		btrfsic_submit_bio(bio);
 
 	bio_put(bio);
 	return ret;

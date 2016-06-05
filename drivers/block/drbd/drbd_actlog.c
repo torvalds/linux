@@ -177,7 +177,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	if (drbd_insert_fault(device, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
 		bio_io_error(bio);
 	else
-		submit_bio(rw, bio);
+		submit_bio(bio);
 	wait_until_done_or_force_detached(device, bdev, &device->md_io.done);
 	if (!bio->bi_error)
 		err = device->md_io.error;

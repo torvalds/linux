@@ -230,7 +230,8 @@ static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
 		bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
 	}
 	bio->bi_end_io = gfs2_meta_read_endio;
-	submit_bio(rw, bio);
+	bio->bi_rw = rw;
+	submit_bio(bio);
 }
 
 /**

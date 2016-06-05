@@ -364,7 +364,8 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
 
 	bio->bi_end_io = nilfs_end_bio_write;
 	bio->bi_private = segbuf;
-	submit_bio(mode, bio);
+	bio->bi_rw = mode;
+	submit_bio(bio);
 	segbuf->sb_nbio++;
 
 	wi->bio = NULL;

@@ -240,7 +240,8 @@ void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw)
 {
 	if (sdp->sd_log_bio) {
 		atomic_inc(&sdp->sd_log_in_flight);
-		submit_bio(rw, sdp->sd_log_bio);
+		sdp->sd_log_bio->bi_rw = rw;
+		submit_bio(sdp->sd_log_bio);
 		sdp->sd_log_bio = NULL;
 	}
 }

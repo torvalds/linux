@@ -254,7 +254,7 @@ static void r5l_submit_current_io(struct r5l_log *log)
 	__r5l_set_io_unit_state(io, IO_UNIT_IO_START);
 	spin_unlock_irqrestore(&log->io_list_lock, flags);
 
-	submit_bio(WRITE, io->current_bio);
+	submit_bio(io->current_bio);
 }
 
 static struct bio *r5l_bio_alloc(struct r5l_log *log)
@@ -373,7 +373,7 @@ static void r5l_append_payload_page(struct r5l_log *log, struct page *page)
 		io->current_bio = r5l_bio_alloc(log);
 		bio_chain(io->current_bio, prev);
 
-		submit_bio(WRITE, prev);
+		submit_bio(prev);
 	}
 
 	if (!bio_add_page(io->current_bio, page, PAGE_SIZE, 0))
@@ -686,7 +686,8 @@ void r5l_flush_stripe_to_raid(struct r5l_log *log)
 	bio_reset(&log->flush_bio);
 	log->flush_bio.bi_bdev = log->rdev->bdev;
 	log->flush_bio.bi_end_io = r5l_log_flush_endio;
-	submit_bio(WRITE_FLUSH, &log->flush_bio);
+	log->flush_bio.bi_rw = WRITE_FLUSH;
+	submit_bio(&log->flush_bio);
 }
 
 static void r5l_write_super(struct r5l_log *log, sector_t cp);

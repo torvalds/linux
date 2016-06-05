@@ -212,7 +212,7 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
 	unsigned i;
 
 	bio->bi_iter.bi_sector	= SB_SECTOR;
-	bio->bi_rw		= REQ_SYNC|REQ_META;
+	bio->bi_rw		= REQ_WRITE|REQ_SYNC|REQ_META;
 	bio->bi_iter.bi_size	= SB_SIZE;
 	bch_bio_map(bio, NULL);
 
@@ -238,7 +238,7 @@ static void __write_super(struct cache_sb *sb, struct bio *bio)
 	pr_debug("ver %llu, flags %llu, seq %llu",
 		 sb->version, sb->flags, sb->seq);
 
-	submit_bio(REQ_WRITE, bio);
+	submit_bio(bio);
 }
 
 static void bch_write_bdev_super_unlock(struct closure *cl)

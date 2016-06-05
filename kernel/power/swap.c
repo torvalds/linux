@@ -271,6 +271,7 @@ static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
 	bio = bio_alloc(__GFP_RECLAIM | __GFP_HIGH, 1);
 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
 	bio->bi_bdev = hib_resume_bdev;
+	bio->bi_rw = rw;
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
 		printk(KERN_ERR "PM: Adding page to bio failed at %llu\n",
@@ -283,9 +284,9 @@ static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
 		bio->bi_end_io = hib_end_io;
 		bio->bi_private = hb;
 		atomic_inc(&hb->count);
-		submit_bio(rw, bio);
+		submit_bio(bio);
 	} else {
-		error = submit_bio_wait(rw, bio);
+		error = submit_bio_wait(bio);
 		bio_put(bio);
 	}
 

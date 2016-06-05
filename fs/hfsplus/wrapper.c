@@ -65,6 +65,7 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 	bio = bio_alloc(GFP_NOIO, 1);
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_bdev = sb->s_bdev;
+	bio->bi_rw = rw;
 
 	if (!(rw & WRITE) && data)
 		*data = (u8 *)buf + offset;
@@ -83,7 +84,7 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 		buf = (u8 *)buf + len;
 	}
 
-	ret = submit_bio_wait(rw, bio);
+	ret = submit_bio_wait(bio);
 out:
 	bio_put(bio);
 	return ret < 0 ? ret : 0;

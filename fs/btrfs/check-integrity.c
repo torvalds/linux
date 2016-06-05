@@ -1673,6 +1673,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 		}
 		bio->bi_bdev = block_ctx->dev->bdev;
 		bio->bi_iter.bi_sector = dev_bytenr >> 9;
+		bio->bi_rw = READ;
 
 		for (j = i; j < num_pages; j++) {
 			ret = bio_add_page(bio, block_ctx->pagev[j],
@@ -1685,7 +1686,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 			       "btrfsic: error, failed to add a single page!\n");
 			return -1;
 		}
-		if (submit_bio_wait(READ, bio)) {
+		if (submit_bio_wait(bio)) {
 			printk(KERN_INFO
 			       "btrfsic: read error at logical %llu dev %s!\n",
 			       block_ctx->start, block_ctx->dev->name);
@@ -2918,9 +2919,10 @@ int btrfsic_submit_bh(int rw, struct buffer_head *bh)
 	return submit_bh(rw, bh);
 }
 
-static void __btrfsic_submit_bio(int rw, struct bio *bio)
+static void __btrfsic_submit_bio(struct bio *bio)
 {
 	struct btrfsic_dev_state *dev_state;
+	int rw = bio->bi_rw;
 
 	if (!btrfsic_is_initialized)
 		return;
@@ -3016,16 +3018,16 @@ leave:
 	mutex_unlock(&btrfsic_mutex);
 }
 
-void btrfsic_submit_bio(int rw, struct bio *bio)
+void btrfsic_submit_bio(struct bio *bio)
 {
-	__btrfsic_submit_bio(rw, bio);
-	submit_bio(rw, bio);
+	__btrfsic_submit_bio(bio);
+	submit_bio(bio);
 }
 
-int btrfsic_submit_bio_wait(int rw, struct bio *bio)
+int btrfsic_submit_bio_wait(struct bio *bio)
 {
-	__btrfsic_submit_bio(rw, bio);
-	return submit_bio_wait(rw, bio);
+	__btrfsic_submit_bio(bio);
+	return submit_bio_wait(bio);
 }
 
 int btrfsic_mount(struct btrfs_root *root,

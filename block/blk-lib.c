@@ -9,14 +9,14 @@
 
 #include "blk.h"
 
-static struct bio *next_bio(struct bio *bio, int rw, unsigned int nr_pages,
+static struct bio *next_bio(struct bio *bio, unsigned int nr_pages,
 		gfp_t gfp)
 {
 	struct bio *new = bio_alloc(gfp, nr_pages);
 
 	if (bio) {
 		bio_chain(bio, new);
-		submit_bio(rw, bio);
+		submit_bio(bio);
 	}
 
 	return new;
@@ -62,9 +62,10 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			req_sects = end_sect - sector;
 		}
 
-		bio = next_bio(bio, type, 1, gfp_mask);
+		bio = next_bio(bio, 1, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio->bi_bdev = bdev;
+		bio->bi_rw = type;
 
 		bio->bi_iter.bi_size = req_sects << 9;
 		nr_sects -= req_sects;
@@ -110,7 +111,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, type,
 			&bio);
 	if (!ret && bio) {
-		ret = submit_bio_wait(type, bio);
+		ret = submit_bio_wait(bio);
 		if (ret == -EOPNOTSUPP)
 			ret = 0;
 	}
@@ -147,13 +148,14 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 	max_write_same_sectors = UINT_MAX >> 9;
 
 	while (nr_sects) {
-		bio = next_bio(bio, REQ_WRITE | REQ_WRITE_SAME, 1, gfp_mask);
+		bio = next_bio(bio, 1, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio->bi_bdev = bdev;
 		bio->bi_vcnt = 1;
 		bio->bi_io_vec->bv_page = page;
 		bio->bi_io_vec->bv_offset = 0;
 		bio->bi_io_vec->bv_len = bdev_logical_block_size(bdev);
+		bio->bi_rw = REQ_WRITE | REQ_WRITE_SAME;
 
 		if (nr_sects > max_write_same_sectors) {
 			bio->bi_iter.bi_size = max_write_same_sectors << 9;
@@ -166,7 +168,7 @@ int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 	}
 
 	if (bio)
-		ret = submit_bio_wait(REQ_WRITE | REQ_WRITE_SAME, bio);
+		ret = submit_bio_wait(bio);
 	return ret != -EOPNOTSUPP ? ret : 0;
 }
 EXPORT_SYMBOL(blkdev_issue_write_same);
@@ -190,11 +192,11 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	unsigned int sz;
 
 	while (nr_sects != 0) {
-		bio = next_bio(bio, WRITE,
-				min(nr_sects, (sector_t)BIO_MAX_PAGES),
+		bio = next_bio(bio, min(nr_sects, (sector_t)BIO_MAX_PAGES),
 				gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio->bi_bdev   = bdev;
+		bio->bi_rw = REQ_WRITE;
 
 		while (nr_sects != 0) {
 			sz = min((sector_t) PAGE_SIZE >> 9 , nr_sects);
@@ -207,7 +209,7 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	}
 
 	if (bio)
-		return submit_bio_wait(WRITE, bio);
+		return submit_bio_wait(bio);
 	return 0;
 }
 

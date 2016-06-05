@@ -375,6 +375,7 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
 
 	bio->bi_bdev = bdev;
 	bio->bi_iter.bi_sector = first_sector;
+	bio->bi_rw = dio->rw;
 	if (dio->is_async)
 		bio->bi_end_io = dio_bio_end_aio;
 	else
@@ -412,7 +413,7 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 			       sdio->logical_offset_in_bio);
 		dio->bio_cookie = BLK_QC_T_NONE;
 	} else
-		dio->bio_cookie = submit_bio(dio->rw, bio);
+		dio->bio_cookie = submit_bio(bio);
 
 	sdio->bio = NULL;
 	sdio->boundary = 0;

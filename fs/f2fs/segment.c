@@ -406,7 +406,8 @@ repeat:
 		fcc->dispatch_list = llist_reverse_order(fcc->dispatch_list);
 
 		bio->bi_bdev = sbi->sb->s_bdev;
-		ret = submit_bio_wait(WRITE_FLUSH, bio);
+		bio->bi_rw = WRITE_FLUSH;
+		ret = submit_bio_wait(bio);
 
 		llist_for_each_entry_safe(cmd, next,
 					  fcc->dispatch_list, llnode) {
@@ -438,7 +439,8 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 		int ret;
 
 		bio->bi_bdev = sbi->sb->s_bdev;
-		ret = submit_bio_wait(WRITE_FLUSH, bio);
+		bio->bi_rw = WRITE_FLUSH;
+		ret = submit_bio_wait(bio);
 		bio_put(bio);
 		return ret;
 	}

@@ -418,7 +418,7 @@ static void journal_discard_work(struct work_struct *work)
 	struct journal_device *ja =
 		container_of(work, struct journal_device, discard_work);
 
-	submit_bio(0, &ja->discard_bio);
+	submit_bio(&ja->discard_bio);
 }
 
 static void do_journal_discard(struct cache *ca)

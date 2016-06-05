@@ -1369,6 +1369,7 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 			bio->bi_private = pending_req;
 			bio->bi_end_io  = end_block_io_op;
 			bio->bi_iter.bi_sector  = preq.sector_number;
+			bio->bi_rw	= operation;
 		}
 
 		preq.sector_number += seg[i].nsec;
@@ -1386,13 +1387,14 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 		bio->bi_bdev    = preq.bdev;
 		bio->bi_private = pending_req;
 		bio->bi_end_io  = end_block_io_op;
+		bio->bi_rw	= operation;
 	}
 
 	atomic_set(&pending_req->pendcnt, nbio);
 	blk_start_plug(&plug);
 
 	for (i = 0; i < nbio; i++)
-		submit_bio(operation, biolist[i]);
+		submit_bio(biolist[i]);
 
 	/* Let the I/Os go.. */
 	blk_finish_plug(&plug);

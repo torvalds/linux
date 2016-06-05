@@ -102,7 +102,8 @@ static inline void __submit_bio(struct f2fs_sb_info *sbi, int rw,
 {
 	if (!is_read_io(rw))
 		atomic_inc(&sbi->nr_wb_bios);
-	submit_bio(rw, bio);
+	bio->bi_rw = rw;
+	submit_bio(bio);
 }
 
 static void __submit_merged_bio(struct f2fs_bio_info *io)
@@ -1080,6 +1081,7 @@ submit_and_realloc:
 			bio->bi_iter.bi_sector = SECTOR_FROM_BLOCK(block_nr);
 			bio->bi_end_io = f2fs_read_end_io;
 			bio->bi_private = ctx;
+			bio->bi_rw = READ;
 		}
 
 		if (bio_add_page(bio, page, blocksize, 0) < blocksize)

@@ -485,8 +485,9 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 
 	bio = bio_alloc(gfp_mask, 0);
 	bio->bi_bdev = bdev;
+	bio->bi_rw = WRITE_FLUSH;
 
-	ret = submit_bio_wait(WRITE_FLUSH, bio);
+	ret = submit_bio_wait(bio);
 
 	/*
 	 * The driver must store the error location in ->bi_sector, if
