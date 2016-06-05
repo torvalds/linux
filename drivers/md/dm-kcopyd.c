@@ -465,7 +465,7 @@ static void complete_io(unsigned long error, void *context)
 	io_job_finish(kc->throttle);
 
 	if (error) {
-		if (job->rw & WRITE)
+		if (op_is_write(job->rw))
 			job->write_err |= error;
 		else
 			job->read_err = 1;
@@ -477,7 +477,7 @@ static void complete_io(unsigned long error, void *context)
 		}
 	}
 
-	if (job->rw & WRITE)
+	if (op_is_write(job->rw))
 		push(&kc->complete_jobs, job);
 
 	else {
@@ -550,7 +550,7 @@ static int process_jobs(struct list_head *jobs, struct dm_kcopyd_client *kc,
 
 		if (r < 0) {
 			/* error this rogue job */
-			if (job->rw & WRITE)
+			if (op_is_write(job->rw))
 				job->write_err = (unsigned long) -1L;
 			else
 				job->read_err = 1;

@@ -409,7 +409,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 	struct io *io;
 	struct sync_io sio;
 
-	if (num_regions > 1 && (rw & RW_MASK) != WRITE) {
+	if (num_regions > 1 && !op_is_write(rw)) {
 		WARN_ON(1);
 		return -EIO;
 	}
@@ -442,7 +442,7 @@ static int async_io(struct dm_io_client *client, unsigned int num_regions,
 {
 	struct io *io;
 
-	if (num_regions > 1 && (rw & RW_MASK) != WRITE) {
+	if (num_regions > 1 && !op_is_write(rw)) {
 		WARN_ON(1);
 		fn(1, context);
 		return -EIO;
