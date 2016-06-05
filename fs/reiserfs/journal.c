@@ -652,7 +652,7 @@ static void submit_logged_buffer(struct buffer_head *bh)
 		BUG();
 	if (!buffer_uptodate(bh))
 		BUG();
-	submit_bh(WRITE, bh);
+	submit_bh(REQ_OP_WRITE, 0, bh);
 }
 
 static void submit_ordered_buffer(struct buffer_head *bh)
@@ -662,7 +662,7 @@ static void submit_ordered_buffer(struct buffer_head *bh)
 	clear_buffer_dirty(bh);
 	if (!buffer_uptodate(bh))
 		BUG();
-	submit_bh(WRITE, bh);
+	submit_bh(REQ_OP_WRITE, 0, bh);
 }
 
 #define CHUNK_SIZE 32
@@ -2269,7 +2269,7 @@ abort_replay:
 	/* flush out the real blocks */
 	for (i = 0; i < get_desc_trans_len(desc); i++) {
 		set_buffer_dirty(real_blocks[i]);
-		write_dirty_buffer(real_blocks[i], WRITE);
+		write_dirty_buffer(real_blocks[i], 0);
 	}
 	for (i = 0; i < get_desc_trans_len(desc); i++) {
 		wait_on_buffer(real_blocks[i]);

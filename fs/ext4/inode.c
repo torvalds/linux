@@ -4281,7 +4281,7 @@ make_io:
 		trace_ext4_load_inode(inode);
 		get_bh(bh);
 		bh->b_end_io = end_buffer_read_sync;
-		submit_bh(READ | REQ_META | REQ_PRIO, bh);
+		submit_bh(REQ_OP_READ, REQ_META | REQ_PRIO, bh);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 			EXT4_ERROR_INODE_BLOCK(inode, block,

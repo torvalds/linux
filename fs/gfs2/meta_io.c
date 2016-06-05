@@ -37,8 +37,8 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 {
 	struct buffer_head *bh, *head;
 	int nr_underway = 0;
-	int write_op = REQ_META | REQ_PRIO |
-		(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE);
+	int write_flags = REQ_META | REQ_PRIO |
+		(wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : 0);
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(!page_has_buffers(page));
@@ -79,7 +79,7 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh(write_op, bh);
+			submit_bh(REQ_OP_WRITE, write_flags, bh);
 			nr_underway++;
 		}
 		bh = next;

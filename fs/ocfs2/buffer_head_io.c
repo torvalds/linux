@@ -79,7 +79,7 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 
 	get_bh(bh); /* for end_buffer_write_sync() */
 	bh->b_end_io = end_buffer_write_sync;
-	submit_bh(WRITE, bh);
+	submit_bh(REQ_OP_WRITE, 0, bh);
 
 	wait_on_buffer(bh);
 
@@ -149,7 +149,7 @@ int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
 		clear_buffer_uptodate(bh);
 		get_bh(bh); /* for end_buffer_read_sync() */
 		bh->b_end_io = end_buffer_read_sync;
-		submit_bh(READ, bh);
+		submit_bh(REQ_OP_READ, 0, bh);
 	}
 
 	for (i = nr; i > 0; i--) {
@@ -305,7 +305,7 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 			if (validate)
 				set_buffer_needs_validate(bh);
 			bh->b_end_io = end_buffer_read_sync;
-			submit_bh(READ, bh);
+			submit_bh(REQ_OP_READ, 0, bh);
 			continue;
 		}
 	}
@@ -419,7 +419,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 	get_bh(bh); /* for end_buffer_write_sync() */
 	bh->b_end_io = end_buffer_write_sync;
 	ocfs2_compute_meta_ecc(osb->sb, bh->b_data, &di->i_check);
-	submit_bh(WRITE, bh);
+	submit_bh(REQ_OP_WRITE, 0, bh);
 
 	wait_on_buffer(bh);
 

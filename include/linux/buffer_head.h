@@ -189,10 +189,11 @@ void unlock_buffer(struct buffer_head *bh);
 void __lock_buffer(struct buffer_head *bh);
 void ll_rw_block(int, int, struct buffer_head * bh[]);
 int sync_dirty_buffer(struct buffer_head *bh);
-int __sync_dirty_buffer(struct buffer_head *bh, int rw);
-void write_dirty_buffer(struct buffer_head *bh, int rw);
-int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags);
-int submit_bh(int, struct buffer_head *);
+int __sync_dirty_buffer(struct buffer_head *bh, int op_flags);
+void write_dirty_buffer(struct buffer_head *bh, int op_flags);
+int _submit_bh(int op, int op_flags, struct buffer_head *bh,
+	       unsigned long bio_flags);
+int submit_bh(int, int, struct buffer_head *);
 void write_boundary_block(struct block_device *bdev,
 			sector_t bblock, unsigned blocksize);
 int bh_uptodate_or_lock(struct buffer_head *bh);

@@ -3420,9 +3420,9 @@ static int write_dev_supers(struct btrfs_device *device,
 		 * to go down lazy.
 		 */
 		if (i == 0)
-			ret = btrfsic_submit_bh(WRITE_FUA, bh);
+			ret = btrfsic_submit_bh(REQ_OP_WRITE, WRITE_FUA, bh);
 		else
-			ret = btrfsic_submit_bh(WRITE_SYNC, bh);
+			ret = btrfsic_submit_bh(REQ_OP_WRITE, WRITE_SYNC, bh);
 		if (ret)
 			errors++;
 	}

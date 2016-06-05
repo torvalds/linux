@@ -45,7 +45,7 @@
 #include <trace/events/block.h>
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
-static int submit_bh_wbc(int rw, struct buffer_head *bh,
+static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 			 unsigned long bio_flags,
 			 struct writeback_control *wbc);
 
@@ -1225,7 +1225,7 @@ static struct buffer_head *__bread_slow(struct buffer_head *bh)
 	} else {
 		get_bh(bh);
 		bh->b_end_io = end_buffer_read_sync;
-		submit_bh(READ, bh);
+		submit_bh(REQ_OP_READ, 0, bh);
 		wait_on_buffer(bh);
 		if (buffer_uptodate(bh))
 			return bh;
@@ -1697,7 +1697,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	struct buffer_head *bh, *head;
 	unsigned int blocksize, bbits;
 	int nr_underway = 0;
-	int write_op = (wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : WRITE);
+	int write_flags = (wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : 0);
 
 	head = create_page_buffers(page, inode,
 					(1 << BH_Dirty)|(1 << BH_Uptodate));
@@ -1786,7 +1786,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh_wbc(write_op, bh, 0, wbc);
+			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, 0, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -1840,7 +1840,7 @@ recover:
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			clear_buffer_dirty(bh);
-			submit_bh_wbc(write_op, bh, 0, wbc);
+			submit_bh_wbc(REQ_OP_WRITE, write_flags, bh, 0, wbc);
 			nr_underway++;
 		}
 		bh = next;
@@ -2248,7 +2248,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
 		if (buffer_uptodate(bh))
 			end_buffer_async_read(bh, 1);
 		else
-			submit_bh(READ, bh);
+			submit_bh(REQ_OP_READ, 0, bh);
 	}
 	return 0;
 }
@@ -2582,7 +2582,7 @@ int nobh_write_begin(struct address_space *mapping,
 		if (block_start < from || block_end > to) {
 			lock_buffer(bh);
 			bh->b_end_io = end_buffer_read_nobh;
-			submit_bh(READ, bh);
+			submit_bh(REQ_OP_READ, 0, bh);
 			nr_reads++;
 		}
 	}
@@ -2949,7 +2949,7 @@ static void end_bio_bh_io_sync(struct bio *bio)
  * errors, this only handles the "we need to be able to
  * do IO at the final sector" case.
  */
-void guard_bio_eod(int rw, struct bio *bio)
+void guard_bio_eod(int op, struct bio *bio)
 {
 	sector_t maxsector;
 	struct bio_vec *bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
@@ -2979,13 +2979,13 @@ void guard_bio_eod(int rw, struct bio *bio)
 	bvec->bv_len -= truncated_bytes;
 
 	/* ..and clear the end of the buffer for reads */
-	if ((rw & RW_MASK) == READ) {
+	if (op == REQ_OP_READ) {
 		zero_user(bvec->bv_page, bvec->bv_offset + bvec->bv_len,
 				truncated_bytes);
 	}
 }
 
-static int submit_bh_wbc(int rw, struct buffer_head *bh,
+static int submit_bh_wbc(int op, int op_flags, struct buffer_head *bh,
 			 unsigned long bio_flags, struct writeback_control *wbc)
 {
 	struct bio *bio;
@@ -2999,7 +2999,7 @@ static int submit_bh_wbc(int rw, struct buffer_head *bh,
 	/*
 	 * Only clear out a write error when rewriting
 	 */
-	if (test_set_buffer_req(bh) && (rw & WRITE))
+	if (test_set_buffer_req(bh) && (op == REQ_OP_WRITE))
 		clear_buffer_write_io_error(bh);
 
 	/*
@@ -3024,27 +3024,28 @@ static int submit_bh_wbc(int rw, struct buffer_head *bh,
 	bio->bi_flags |= bio_flags;
 
 	/* Take care of bh's that straddle the end of the device */
-	guard_bio_eod(rw, bio);
+	guard_bio_eod(op, bio);
 
 	if (buffer_meta(bh))
-		rw |= REQ_META;
+		op_flags |= REQ_META;
 	if (buffer_prio(bh))
-		rw |= REQ_PRIO;
-	bio->bi_rw = rw;
+		op_flags |= REQ_PRIO;
+	bio_set_op_attrs(bio, op, op_flags);
 
 	submit_bio(bio);
 	return 0;
 }
 
-int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
+int _submit_bh(int op, int op_flags, struct buffer_head *bh,
+	       unsigned long bio_flags)
 {
-	return submit_bh_wbc(rw, bh, bio_flags, NULL);
+	return submit_bh_wbc(op, op_flags, bh, bio_flags, NULL);
 }
 EXPORT_SYMBOL_GPL(_submit_bh);
 
-int submit_bh(int rw, struct buffer_head *bh)
+int submit_bh(int op, int op_flags,  struct buffer_head *bh)
 {
-	return submit_bh_wbc(rw, bh, 0, NULL);
+	return submit_bh_wbc(op, op_flags, bh, 0, NULL);
 }
 EXPORT_SYMBOL(submit_bh);
 
@@ -3086,14 +3087,14 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
 				get_bh(bh);
-				submit_bh(WRITE, bh);
+				submit_bh(rw, 0, bh);
 				continue;
 			}
 		} else {
 			if (!buffer_uptodate(bh)) {
 				bh->b_end_io = end_buffer_read_sync;
 				get_bh(bh);
-				submit_bh(rw, bh);
+				submit_bh(rw, 0, bh);
 				continue;
 			}
 		}
@@ -3102,7 +3103,7 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 }
 EXPORT_SYMBOL(ll_rw_block);
 
-void write_dirty_buffer(struct buffer_head *bh, int rw)
+void write_dirty_buffer(struct buffer_head *bh, int op_flags)
 {
 	lock_buffer(bh);
 	if (!test_clear_buffer_dirty(bh)) {
@@ -3111,7 +3112,7 @@ void write_dirty_buffer(struct buffer_head *bh, int rw)
 	}
 	bh->b_end_io = end_buffer_write_sync;
 	get_bh(bh);
-	submit_bh(rw, bh);
+	submit_bh(REQ_OP_WRITE, op_flags, bh);
 }
 EXPORT_SYMBOL(write_dirty_buffer);
 
@@ -3120,7 +3121,7 @@ EXPORT_SYMBOL(write_dirty_buffer);
  * and then start new I/O and then wait upon it.  The caller must have a ref on
  * the buffer_head.
  */
-int __sync_dirty_buffer(struct buffer_head *bh, int rw)
+int __sync_dirty_buffer(struct buffer_head *bh, int op_flags)
 {
 	int ret = 0;
 
@@ -3129,7 +3130,7 @@ int __sync_dirty_buffer(struct buffer_head *bh, int rw)
 	if (test_clear_buffer_dirty(bh)) {
 		get_bh(bh);
 		bh->b_end_io = end_buffer_write_sync;
-		ret = submit_bh(rw, bh);
+		ret = submit_bh(REQ_OP_WRITE, op_flags, bh);
 		wait_on_buffer(bh);
 		if (!ret && !buffer_uptodate(bh))
 			ret = -EIO;
@@ -3392,7 +3393,7 @@ int bh_submit_read(struct buffer_head *bh)
 
 	get_bh(bh);
 	bh->b_end_io = end_buffer_read_sync;
-	submit_bh(READ, bh);
+	submit_bh(REQ_OP_READ, 0, bh);
 	wait_on_buffer(bh);
 	if (buffer_uptodate(bh))
 		return 0;
