@@ -271,6 +271,14 @@ config MDIO_BCM_IPROC
 	  This module provides a driver for the MDIO busses found in the
 	  Broadcom iProc SoC's.
 
+config INTEL_XWAY_PHY
+	tristate "Driver for Intel XWAY PHYs"
+	---help---
+	  Supports the Intel XWAY (former Lantiq) 11G and 22E PHYs.
+	  These PHYs are marked as standalone chips under the names
+	  PEF 7061, PEF 7071 and PEF 7072 or integrated into the Intel
+	  SoCs xRX200, xRX300, xRX330, xRX350 and xRX550.
+
 endif # PHYLIB
 
 config MICREL_KS8995MA
