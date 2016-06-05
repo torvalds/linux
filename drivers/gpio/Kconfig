@@ -249,7 +249,7 @@ config GPIO_LOONGSON
 	  driver for GPIO functionality on Loongson-2F/3A/3B processors.
 
 config GPIO_LPC18XX
-	bool "NXP LPC18XX/43XX GPIO support"
+	tristate "NXP LPC18XX/43XX GPIO support"
 	default y if ARCH_LPC18XX
 	depends on OF_GPIO && (ARCH_LPC18XX || COMPILE_TEST)
 	help
