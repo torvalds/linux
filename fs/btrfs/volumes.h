@@ -375,10 +375,10 @@ int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 				   u64 end, u64 *length);
 void btrfs_get_bbio(struct btrfs_bio *bbio);
 void btrfs_put_bbio(struct btrfs_bio *bbio);
-int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
+int btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
 		    u64 logical, u64 *length,
 		    struct btrfs_bio **bbio_ret, int mirror_num);
-int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int rw,
+int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int op,
 		     u64 logical, u64 *length,
 		     struct btrfs_bio **bbio_ret, int mirror_num,
 		     int need_raid_map);

@@ -1838,7 +1838,7 @@ int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
 
 	length = bio->bi_iter.bi_size;
 	map_length = length;
-	ret = btrfs_map_block(root->fs_info, rw, logical,
+	ret = btrfs_map_block(root->fs_info, bio_op(bio), logical,
 			      &map_length, NULL, 0);
 	/* Will always return 0 with map_multi == NULL */
 	BUG_ON(ret < 0);

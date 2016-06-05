@@ -2048,7 +2048,7 @@ int btrfs_discard_extent(struct btrfs_root *root, u64 bytenr,
 	 */
 	btrfs_bio_counter_inc_blocked(root->fs_info);
 	/* Tell the block device(s) that the sectors can be discarded */
-	ret = btrfs_map_block(root->fs_info, REQ_DISCARD,
+	ret = btrfs_map_block(root->fs_info, REQ_OP_DISCARD,
 			      bytenr, &num_bytes, &bbio, 0);
 	/* Error condition is -ENOMEM */
 	if (!ret) {
