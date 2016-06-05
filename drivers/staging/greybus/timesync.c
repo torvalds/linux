@@ -9,6 +9,7 @@
 #include <linux/debugfs.h>
 #include "greybus.h"
 #include "timesync.h"
+#include "greybus_trace.h"
 
 /*
  * Minimum inter-strobe value of one millisecond is chosen because it
@@ -974,17 +975,19 @@ void gb_timesync_irq(struct gb_timesync_svc *timesync_svc)
 {
 	unsigned long flags;
 	u64 strobe_time;
+	bool strobe_is_ping = true;
 
 	strobe_time = __gb_timesync_get_frame_time(timesync_svc);
 
 	spin_lock_irqsave(&timesync_svc->spinlock, flags);
 
 	if (timesync_svc->state == GB_TIMESYNC_STATE_PING) {
-		if (timesync_svc->capture_ping)
-			timesync_svc->ap_ping_frame_time = strobe_time;
-		goto done;
+		if (!timesync_svc->capture_ping)
+			goto done_nolog;
+		timesync_svc->ap_ping_frame_time = strobe_time;
+		goto done_log;
 	} else if (timesync_svc->state != GB_TIMESYNC_STATE_WAIT_SVC) {
-		goto done;
+		goto done_nolog;
 	}
 
 	timesync_svc->strobe_time[timesync_svc->strobe] = strobe_time;
@@ -993,7 +996,11 @@ void gb_timesync_irq(struct gb_timesync_svc *timesync_svc)
 		gb_timesync_set_state(timesync_svc,
 				      GB_TIMESYNC_STATE_AUTHORITATIVE);
 	}
-done:
+	strobe_is_ping = false;
+done_log:
+	trace_gb_timesync_irq(strobe_is_ping, timesync_svc->strobe,
+			      GB_TIMESYNC_MAX_STROBES, strobe_time);
+done_nolog:
 	spin_unlock_irqrestore(&timesync_svc->spinlock, flags);
 }
 EXPORT_SYMBOL(gb_timesync_irq);
