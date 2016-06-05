@@ -120,6 +120,8 @@ struct qed_vf_shadow_config {
 	/* Shadow copy of all guest vlans */
 	struct qed_vf_vlan_shadow vlans[QED_ETH_VF_NUM_VLAN_FILTERS + 1];
 
+	/* Shadow copy of all configured MACs; Empty if forcing MACs */
+	u8 macs[QED_ETH_VF_NUM_MAC_FILTERS][ETH_ALEN];
 	u8 inner_vlan_removal;
 };
 
