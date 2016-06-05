@@ -67,8 +67,9 @@
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
-			clocks = <&ahb_gates 36>, <&ahb_gates 43>, <&ahb_gates 44>,
-				 <&de_be0_clk>, <&tcon0_ch0_clk>, <&dram_gates 26>;
+			clocks = <&ahb_gates 36>, <&ahb_gates 43>,
+				 <&ahb_gates 44>, <&de_be0_clk>,
+				 <&tcon0_ch1_clk>, <&dram_gates 26>;
 			status = "disabled";
 		};
 
@@ -86,8 +87,9 @@
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-tve0";
-			clocks = <&ahb_gates 34>, <&ahb_gates 36>, <&ahb_gates 44>,
-				 <&de_be0_clk>, <&tcon0_ch0_clk>,
+			clocks = <&ahb_gates 34>, <&ahb_gates 36>,
+				 <&ahb_gates 44>,
+				 <&de_be0_clk>, <&tcon0_ch1_clk>,
 				 <&dram_gates 5>, <&dram_gates 26>;
 			status = "disabled";
 		};
