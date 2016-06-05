@@ -213,7 +213,8 @@ static void gfs2_meta_read_endio(struct bio *bio)
  * Submit several consecutive buffer head I/O requests as a single bio I/O
  * request.  (See submit_bh_wbc.)
  */
-static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
+static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
+			    int num)
 {
 	struct buffer_head *bh = bhs[0];
 	struct bio *bio;
@@ -230,7 +231,7 @@ static void gfs2_submit_bhs(int rw, struct buffer_head *bhs[], int num)
 		bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
 	}
 	bio->bi_end_io = gfs2_meta_read_endio;
-	bio->bi_rw = rw;
+	bio_set_op_attrs(bio, op, op_flags);
 	submit_bio(bio);
 }
 
@@ -281,7 +282,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		}
 	}
 
-	gfs2_submit_bhs(READ_SYNC | REQ_META | REQ_PRIO, bhs, num);
+	gfs2_submit_bhs(REQ_OP_READ, READ_SYNC | REQ_META | REQ_PRIO, bhs, num);
 	if (!(flags & DIO_WAIT))
 		return 0;
 
