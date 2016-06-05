@@ -10,7 +10,9 @@ greybus-y :=	core.o		\
 		svc.o		\
 		svc_watchdog.o	\
 		bootrom.o	\
-		operation.o
+		operation.o	\
+		timesync.o	\
+		timesync_platform.o
 
 gb-gbphy-y := gbphy.o
 

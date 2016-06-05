@@ -22,6 +22,7 @@
 #include <linux/suspend.h>
 #include <linux/time.h>
 #include "arche_platform.h"
+#include "greybus.h"
 
 #include <linux/usb/usb3613.h>
 
@@ -34,6 +35,7 @@ enum svc_wakedetect_state {
 	WD_STATE_STANDBYBOOT_TRIG,	/* As of now not used ?? */
 	WD_STATE_COLDBOOT_START,	/* Cold boot process started */
 	WD_STATE_STANDBYBOOT_START,	/* Not used */
+	WD_STATE_TIMESYNC,
 };
 
 struct arche_platform_drvdata {
@@ -57,13 +59,27 @@ struct arche_platform_drvdata {
 	int wake_detect_irq;
 	spinlock_t wake_lock;			/* Protect wake_detect_state */
 	struct mutex platform_state_mutex;	/* Protect state */
+	wait_queue_head_t wq;			/* WQ for arche_pdata->state */
 	unsigned long wake_detect_start;
 	struct notifier_block pm_notifier;
 
 	struct device *dev;
+	struct gb_timesync_svc *timesync_svc_pdata;
 };
 
-/* Requires calling context to hold arche_pdata->spinlock */
+static int arche_apb_bootret_assert(struct device *dev, void *data)
+{
+	apb_bootret_assert(dev);
+	return 0;
+}
+
+static int arche_apb_bootret_deassert(struct device *dev, void *data)
+{
+	apb_bootret_deassert(dev);
+	return 0;
+}
+
+/* Requires calling context to hold arche_pdata->platform_state_mutex */
 static void arche_platform_set_state(struct arche_platform_drvdata *arche_pdata,
 				     enum arche_platform_state state)
 {
@@ -94,7 +110,8 @@ static void arche_platform_set_state(struct arche_platform_drvdata *arche_pdata,
  * satisfy the requested state-transition or -EINVAL for all other
  * state-transition requests.
  */
-int arche_platform_change_state(enum arche_platform_state state)
+int arche_platform_change_state(enum arche_platform_state state,
+				struct gb_timesync_svc *timesync_svc_pdata)
 {
 	struct arche_platform_drvdata *arche_pdata;
 	struct platform_device *pdev;
@@ -118,11 +135,6 @@ int arche_platform_change_state(enum arche_platform_state state)
 
 	mutex_lock(&arche_pdata->platform_state_mutex);
 	spin_lock_irqsave(&arche_pdata->wake_lock, flags);
-	if (arche_pdata->wake_detect_state != WD_STATE_IDLE) {
-		dev_err(arche_pdata->dev,
-			"driver busy with wake/detect line ops\n");
-		goto  exit;
-	}
 
 	if (arche_pdata->state == state) {
 		ret = 0;
@@ -131,10 +143,27 @@ int arche_platform_change_state(enum arche_platform_state state)
 
 	switch (state) {
 	case ARCHE_PLATFORM_STATE_TIME_SYNC:
-		disable_irq(arche_pdata->wake_detect_irq);
+		if (arche_pdata->state != ARCHE_PLATFORM_STATE_ACTIVE) {
+			ret = -EINVAL;
+			goto exit;
+		}
+		if (arche_pdata->wake_detect_state != WD_STATE_IDLE) {
+			dev_err(arche_pdata->dev,
+				"driver busy with wake/detect line ops\n");
+			goto  exit;
+		}
+		device_for_each_child(arche_pdata->dev, NULL,
+				      arche_apb_bootret_assert);
+		arche_pdata->wake_detect_state = WD_STATE_TIMESYNC;
 		break;
 	case ARCHE_PLATFORM_STATE_ACTIVE:
-		enable_irq(arche_pdata->wake_detect_irq);
+		if (arche_pdata->state != ARCHE_PLATFORM_STATE_TIME_SYNC) {
+			ret = -EINVAL;
+			goto exit;
+		}
+		device_for_each_child(arche_pdata->dev, NULL,
+				      arche_apb_bootret_deassert);
+		arche_pdata->wake_detect_state = WD_STATE_IDLE;
 		break;
 	case ARCHE_PLATFORM_STATE_OFF:
 	case ARCHE_PLATFORM_STATE_STANDBY:
@@ -147,7 +176,11 @@ int arche_platform_change_state(enum arche_platform_state state)
 			"invalid state transition request\n");
 		goto exit;
 	}
+	arche_pdata->timesync_svc_pdata = timesync_svc_pdata;
 	arche_platform_set_state(arche_pdata, state);
+	if (state == ARCHE_PLATFORM_STATE_ACTIVE)
+		wake_up(&arche_pdata->wq);
+
 	ret = 0;
 exit:
 	spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
@@ -252,6 +285,11 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 
 	spin_lock_irqsave(&arche_pdata->wake_lock, flags);
 
+	if (arche_pdata->wake_detect_state == WD_STATE_TIMESYNC) {
+		gb_timesync_irq(arche_pdata->timesync_svc_pdata);
+		goto exit;
+	}
+
 	if (gpio_get_value(arche_pdata->wake_detect_gpio)) {
 		/* wake/detect rising */
 
@@ -293,6 +331,7 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 		}
 	}
 
+exit:
 	spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
 
 	return IRQ_HANDLED;
@@ -402,7 +441,17 @@ static ssize_t state_store(struct device *dev,
 	struct arche_platform_drvdata *arche_pdata = platform_get_drvdata(pdev);
 	int ret = 0;
 
+retry:
 	mutex_lock(&arche_pdata->platform_state_mutex);
+	if (arche_pdata->state == ARCHE_PLATFORM_STATE_TIME_SYNC) {
+		mutex_unlock(&arche_pdata->platform_state_mutex);
+		ret = wait_event_interruptible(
+			arche_pdata->wq,
+			arche_pdata->state != ARCHE_PLATFORM_STATE_TIME_SYNC);
+		if (ret)
+			return ret;
+		goto retry;
+	}
 
 	if (sysfs_streq(buf, "off")) {
 		if (arche_pdata->state == ARCHE_PLATFORM_STATE_OFF)
@@ -610,6 +659,7 @@ static int arche_platform_probe(struct platform_device *pdev)
 
 	spin_lock_init(&arche_pdata->wake_lock);
 	mutex_init(&arche_pdata->platform_state_mutex);
+	init_waitqueue_head(&arche_pdata->wq);
 	arche_pdata->wake_detect_irq =
 		gpio_to_irq(arche_pdata->wake_detect_gpio);
 
@@ -652,6 +702,9 @@ static int arche_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to register pm notifier %d\n", ret);
 		goto err_populate;
 	}
+
+	/* Register callback pointer */
+	arche_platform_change_state_cb = arche_platform_change_state;
 
 	dev_info(dev, "Device registered successfully\n");
 	return 0;

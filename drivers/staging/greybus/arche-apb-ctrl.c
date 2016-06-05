@@ -90,7 +90,7 @@ static int coldboot_seq(struct platform_device *pdev)
 		}
 	}
 
-	gpio_set_value(apb->boot_ret_gpio, 0);
+	apb_bootret_deassert(dev);
 
 	/* On DB3 clock was not mandatory */
 	if (gpio_is_valid(apb->clk_en_gpio))
@@ -182,6 +182,20 @@ static void poweroff_seq(struct platform_device *pdev)
 	apb->state = ARCHE_PLATFORM_STATE_OFF;
 
 	/* TODO: May have to send an event to SVC about this exit */
+}
+
+void apb_bootret_assert(struct device *dev)
+{
+	struct arche_apb_ctrl_drvdata *apb = dev_get_drvdata(dev);
+
+	gpio_set_value(apb->boot_ret_gpio, 1);
+}
+
+void apb_bootret_deassert(struct device *dev)
+{
+	struct arche_apb_ctrl_drvdata *apb = dev_get_drvdata(dev);
+
+	gpio_set_value(apb->boot_ret_gpio, 0);
 }
 
 int apb_ctrl_coldboot(struct device *dev)
