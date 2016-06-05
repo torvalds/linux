@@ -1763,11 +1763,35 @@ out:
 	qed_iov_vf_mbx_start_rxq_resp(p_hwfn, p_ptt, vf, status);
 }
 
+static void qed_iov_vf_mbx_start_txq_resp(struct qed_hwfn *p_hwfn,
+					  struct qed_ptt *p_ptt,
+					  struct qed_vf_info *p_vf, u8 status)
+{
+	struct qed_iov_vf_mbx *mbx = &p_vf->vf_mbx;
+	struct pfvf_start_queue_resp_tlv *p_tlv;
+
+	mbx->offset = (u8 *)mbx->reply_virt;
+
+	p_tlv = qed_add_tlv(p_hwfn, &mbx->offset, CHANNEL_TLV_START_TXQ,
+			    sizeof(*p_tlv));
+	qed_add_tlv(p_hwfn, &mbx->offset, CHANNEL_TLV_LIST_END,
+		    sizeof(struct channel_list_end_tlv));
+
+	/* Update the TLV with the response */
+	if (status == PFVF_STATUS_SUCCESS) {
+		u16 qid = mbx->req_virt->start_txq.tx_qid;
+
+		p_tlv->offset = qed_db_addr(p_vf->vf_queues[qid].fw_cid,
+					    DQ_DEMS_LEGACY);
+	}
+
+	qed_iov_send_response(p_hwfn, p_ptt, p_vf, sizeof(*p_tlv), status);
+}
+
 static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
 				     struct qed_vf_info *vf)
 {
-	u16 length = sizeof(struct pfvf_def_resp_tlv);
 	struct qed_queue_start_common_params params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
 	u8 status = PFVF_STATUS_NO_RESOURCE;
@@ -1808,8 +1832,7 @@ static void qed_iov_vf_mbx_start_txq(struct qed_hwfn *p_hwfn,
 	}
 
 out:
-	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_START_TXQ,
-			     length, status);
+	qed_iov_vf_mbx_start_txq_resp(p_hwfn, p_ptt, vf, status);
 }
 
 static int qed_iov_vf_stop_rxqs(struct qed_hwfn *p_hwfn,
