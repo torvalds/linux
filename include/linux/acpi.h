@@ -543,6 +543,11 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *);
 
 struct fwnode_handle;
 
+static inline bool acpi_dev_found(const char *hid)
+{
+	return false;
+}
+
 static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 {
 	return false;
@@ -652,6 +657,14 @@ static inline bool acpi_driver_match_device(struct device *dev,
 					    const struct device_driver *drv)
 {
 	return false;
+}
+
+static inline union acpi_object *acpi_evaluate_dsm(acpi_handle handle,
+						   const u8 *uuid,
+						   int rev, int func,
+						   union acpi_object *argv4)
+{
+	return NULL;
 }
 
 static inline int acpi_device_uevent_modalias(struct device *dev,

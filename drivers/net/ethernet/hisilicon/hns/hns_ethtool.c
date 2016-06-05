@@ -596,7 +596,7 @@ static void hns_nic_self_test(struct net_device *ndev,
 	st_param[1][0] = MAC_INTERNALLOOP_SERDES;
 	st_param[1][1] = 1; /*serdes must exist*/
 	st_param[2][0] = MAC_INTERNALLOOP_PHY; /* only supporte phy node*/
-	st_param[2][1] = ((!!(priv->ae_handle->phy_node)) &&
+	st_param[2][1] = ((!!(priv->ae_handle->phy_dev)) &&
 		(priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII));
 
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {

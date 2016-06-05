@@ -110,7 +110,7 @@ static void hns_gmac_free(void *mac_drv)
 
 	u32 mac_id = drv->mac_id;
 
-	hns_dsaf_ge_srst_by_port(dsaf_dev, mac_id, 0);
+	dsaf_dev->misc_op->ge_srst(dsaf_dev, mac_id, 0);
 }
 
 static void hns_gmac_set_tx_auto_pause_frames(void *mac_drv, u16 newval)
@@ -317,9 +317,9 @@ static void hns_gmac_init(void *mac_drv)
 
 	port = drv->mac_id;
 
-	hns_dsaf_ge_srst_by_port(dsaf_dev, port, 0);
+	dsaf_dev->misc_op->ge_srst(dsaf_dev, port, 0);
 	mdelay(10);
-	hns_dsaf_ge_srst_by_port(dsaf_dev, port, 1);
+	dsaf_dev->misc_op->ge_srst(dsaf_dev, port, 1);
 	mdelay(10);
 	hns_gmac_disable(mac_drv, MAC_COMM_MODE_RX_AND_TX);
 	hns_gmac_tx_loop_pkt_dis(mac_drv);

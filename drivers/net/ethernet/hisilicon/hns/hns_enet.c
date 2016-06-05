@@ -132,6 +132,13 @@ static void fill_v2_desc(struct hnae_ring *ring, void *priv,
 	ring_ptr_move_fw(ring, next_to_use);
 }
 
+static const struct acpi_device_id hns_enet_acpi_match[] = {
+	{ "HISI00C1", 0 },
+	{ "HISI00C2", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, hns_enet_acpi_match);
+
 static void fill_desc(struct hnae_ring *ring, void *priv,
 		      int size, dma_addr_t dma, int frag_end,
 		      int buf_num, enum hns_desc_type type, int mtu)
@@ -996,19 +1003,22 @@ static void hns_nic_adjust_link(struct net_device *ndev)
 int hns_nic_init_phy(struct net_device *ndev, struct hnae_handle *h)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
-	struct phy_device *phy_dev = NULL;
+	struct phy_device *phy_dev = h->phy_dev;
+	int ret;
 
-	if (!h->phy_node)
+	if (!h->phy_dev)
 		return 0;
 
-	if (h->phy_if != PHY_INTERFACE_MODE_XGMII)
-		phy_dev = of_phy_connect(ndev, h->phy_node,
-					 hns_nic_adjust_link, 0, h->phy_if);
-	else
-		phy_dev = of_phy_attach(ndev, h->phy_node, 0, h->phy_if);
+	if (h->phy_if != PHY_INTERFACE_MODE_XGMII) {
+		phy_dev->dev_flags = 0;
 
-	if (unlikely(!phy_dev) || IS_ERR(phy_dev))
-		return !phy_dev ? -ENODEV : PTR_ERR(phy_dev);
+		ret = phy_connect_direct(ndev, phy_dev, hns_nic_adjust_link,
+					 h->phy_if);
+	} else {
+		ret = phy_attach_direct(ndev, phy_dev, 0, h->phy_if);
+	}
+	if (unlikely(ret))
+		return -ENODEV;
 
 	phy_dev->supported &= h->if_support;
 	phy_dev->advertising = phy_dev->supported;
@@ -1067,13 +1077,8 @@ void hns_nic_update_stats(struct net_device *netdev)
 static void hns_init_mac_addr(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
-	struct device_node *node = priv->dev->of_node;
-	const void *mac_addr_temp;
 
-	mac_addr_temp = of_get_mac_address(node);
-	if (mac_addr_temp && is_valid_ether_addr(mac_addr_temp)) {
-		memcpy(ndev->dev_addr, mac_addr_temp, ndev->addr_len);
-	} else {
+	if (!device_get_mac_address(priv->dev, ndev->dev_addr, ETH_ALEN)) {
 		eth_hw_addr_random(ndev);
 		dev_warn(priv->dev, "No valid mac, use random mac %pM",
 			 ndev->dev_addr);
@@ -1812,7 +1817,7 @@ static int hns_nic_try_get_ae(struct net_device *ndev)
 	int ret;
 
 	h = hnae_get_handle(&priv->netdev->dev,
-			    priv->ae_node, priv->port_id, NULL);
+			    priv->fwnode, priv->port_id, NULL);
 	if (IS_ERR_OR_NULL(h)) {
 		ret = -ENODEV;
 		dev_dbg(priv->dev, "has not handle, register notifier!\n");
@@ -1872,7 +1877,6 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct net_device *ndev;
 	struct hns_nic_priv *priv;
-	struct device_node *node = dev->of_node;
 	u32 port_id;
 	int ret;
 
@@ -1886,22 +1890,49 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->netdev = ndev;
 
-	if (of_device_is_compatible(node, "hisilicon,hns-nic-v1"))
-		priv->enet_ver = AE_VERSION_1;
-	else
-		priv->enet_ver = AE_VERSION_2;
+	if (dev_of_node(dev)) {
+		struct device_node *ae_node;
 
-	priv->ae_node = (void *)of_parse_phandle(node, "ae-handle", 0);
-	if (IS_ERR_OR_NULL(priv->ae_node)) {
-		ret = PTR_ERR(priv->ae_node);
-		dev_err(dev, "not find ae-handle\n");
-		goto out_read_prop_fail;
+		if (of_device_is_compatible(dev->of_node,
+					    "hisilicon,hns-nic-v1"))
+			priv->enet_ver = AE_VERSION_1;
+		else
+			priv->enet_ver = AE_VERSION_2;
+
+		ae_node = of_parse_phandle(dev->of_node, "ae-handle", 0);
+		if (IS_ERR_OR_NULL(ae_node)) {
+			ret = PTR_ERR(ae_node);
+			dev_err(dev, "not find ae-handle\n");
+			goto out_read_prop_fail;
+		}
+		priv->fwnode = &ae_node->fwnode;
+	} else if (is_acpi_node(dev->fwnode)) {
+		struct acpi_reference_args args;
+
+		if (acpi_dev_found(hns_enet_acpi_match[0].id))
+			priv->enet_ver = AE_VERSION_1;
+		else if (acpi_dev_found(hns_enet_acpi_match[1].id))
+			priv->enet_ver = AE_VERSION_2;
+		else
+			return -ENXIO;
+
+		/* try to find port-idx-in-ae first */
+		ret = acpi_node_get_property_reference(dev->fwnode,
+						       "ae-handle", 0, &args);
+		if (ret) {
+			dev_err(dev, "not find ae-handle\n");
+			goto out_read_prop_fail;
+		}
+		priv->fwnode = acpi_fwnode_handle(args.adev);
+	} else {
+		dev_err(dev, "cannot read cfg data from OF or acpi\n");
+		return -ENXIO;
 	}
-	/* try to find port-idx-in-ae first */
-	ret = of_property_read_u32(node, "port-idx-in-ae", &port_id);
+
+	ret = device_property_read_u32(dev, "port-idx-in-ae", &port_id);
 	if (ret) {
 		/* only for old code compatible */
-		ret = of_property_read_u32(node, "port-id", &port_id);
+		ret = device_property_read_u32(dev, "port-id", &port_id);
 		if (ret)
 			goto out_read_prop_fail;
 		/* for old dts, we need to caculate the port offset */
@@ -2014,6 +2045,7 @@ static struct platform_driver hns_nic_dev_driver = {
 	.driver = {
 		.name = "hns-nic",
 		.of_match_table = hns_enet_of_match,
+		.acpi_match_table = ACPI_PTR(hns_enet_acpi_match),
 	},
 	.probe = hns_nic_dev_probe,
 	.remove = hns_nic_dev_remove,
