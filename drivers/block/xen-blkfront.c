@@ -196,6 +196,7 @@ struct blkfront_info
 	unsigned int nr_ring_pages;
 	struct request_queue *rq;
 	unsigned int feature_flush;
+	unsigned int feature_fua;
 	unsigned int feature_discard:1;
 	unsigned int feature_secdiscard:1;
 	unsigned int discard_granularity;
@@ -763,19 +764,14 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 			 * implement it the same way.  (It's also a FLUSH+FUA,
 			 * since it is guaranteed ordered WRT previous writes.)
 			 */
-			switch (info->feature_flush &
-				((REQ_FLUSH|REQ_FUA))) {
-			case REQ_FLUSH|REQ_FUA:
+			if (info->feature_flush && info->feature_fua)
 				ring_req->operation =
 					BLKIF_OP_WRITE_BARRIER;
-				break;
-			case REQ_FLUSH:
+			else if (info->feature_flush)
 				ring_req->operation =
 					BLKIF_OP_FLUSH_DISKCACHE;
-				break;
-			default:
+			else
 				ring_req->operation = 0;
-			}
 		}
 		ring_req->u.rw.nr_segments = num_grant;
 		if (unlikely(require_extra_req)) {
@@ -866,9 +862,9 @@ static inline bool blkif_request_flush_invalid(struct request *req,
 {
 	return ((req->cmd_type != REQ_TYPE_FS) ||
 		((req_op(req) == REQ_OP_FLUSH) &&
-		 !(info->feature_flush & REQ_FLUSH)) ||
+		 !info->feature_flush) ||
 		((req->cmd_flags & REQ_FUA) &&
-		 !(info->feature_flush & REQ_FUA)));
+		 !info->feature_fua));
 }
 
 static int blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -985,24 +981,22 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 	return 0;
 }
 
-static const char *flush_info(unsigned int feature_flush)
+static const char *flush_info(struct blkfront_info *info)
 {
-	switch (feature_flush & ((REQ_FLUSH | REQ_FUA))) {
-	case REQ_FLUSH|REQ_FUA:
+	if (info->feature_flush && info->feature_fua)
 		return "barrier: enabled;";
-	case REQ_FLUSH:
+	else if (info->feature_flush)
 		return "flush diskcache: enabled;";
-	default:
+	else
 		return "barrier or flush: disabled;";
-	}
 }
 
 static void xlvbd_flush(struct blkfront_info *info)
 {
-	blk_queue_write_cache(info->rq, info->feature_flush & REQ_FLUSH,
-				info->feature_flush & REQ_FUA);
+	blk_queue_write_cache(info->rq, info->feature_flush ? true : false,
+			      info->feature_fua ? true : false);
 	pr_info("blkfront: %s: %s %s %s %s %s\n",
-		info->gd->disk_name, flush_info(info->feature_flush),
+		info->gd->disk_name, flush_info(info),
 		"persistent grants:", info->feature_persistent ?
 		"enabled;" : "disabled;", "indirect descriptors:",
 		info->max_indirect_segments ? "enabled;" : "disabled;");
@@ -1621,6 +1615,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 			if (unlikely(error)) {
 				if (error == -EOPNOTSUPP)
 					error = 0;
+				info->feature_fua = 0;
 				info->feature_flush = 0;
 				xlvbd_flush(info);
 			}
@@ -2315,6 +2310,7 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 	unsigned int indirect_segments;
 
 	info->feature_flush = 0;
+	info->feature_fua = 0;
 
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
 			"feature-barrier", "%d", &barrier,
@@ -2327,8 +2323,11 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 	 *
 	 * If there are barriers, then we use flush.
 	 */
-	if (!err && barrier)
-		info->feature_flush = REQ_FLUSH | REQ_FUA;
+	if (!err && barrier) {
+		info->feature_flush = 1;
+		info->feature_fua = 1;
+	}
+
 	/*
 	 * And if there is "feature-flush-cache" use that above
 	 * barriers.
@@ -2337,8 +2336,10 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 			"feature-flush-cache", "%d", &flush,
 			NULL);
 
-	if (!err && flush)
-		info->feature_flush = REQ_FLUSH;
+	if (!err && flush) {
+		info->feature_flush = 1;
+		info->feature_fua = 0;
+	}
 
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
 			"feature-discard", "%d", &discard,
