@@ -2465,14 +2465,36 @@ extern bool is_bad_inode(struct inode *);
 
 #ifdef CONFIG_BLOCK
 /*
+ * tmp cpmpat. Users used to set the write bit for all non reads, but
+ * we will be dropping the bitmap use for ops. Support both until
+ * the end of the patchset.
+ */
+static inline bool op_is_write(unsigned long flags)
+{
+	if (flags & (REQ_OP_WRITE | REQ_OP_WRITE_SAME | REQ_OP_DISCARD))
+		return true;
+	else
+		return false;
+}
+
+/*
  * return READ, READA, or WRITE
  */
-#define bio_rw(bio)		((bio)->bi_rw & (RW_MASK | RWA_MASK))
+static inline int bio_rw(struct bio *bio)
+{
+	if (op_is_write(op_from_rq_bits(bio->bi_rw)))
+		return WRITE;
+
+	return bio->bi_rw & RWA_MASK;
+}
 
 /*
  * return data direction, READ or WRITE
  */
-#define bio_data_dir(bio)	((bio)->bi_rw & 1)
+static inline int bio_data_dir(struct bio *bio)
+{
+	return op_is_write(op_from_rq_bits(bio->bi_rw)) ? WRITE : READ;
+}
 
 extern void check_disk_size_change(struct gendisk *disk,
 				   struct block_device *bdev);

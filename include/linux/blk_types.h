@@ -242,6 +242,30 @@ enum rq_flag_bits {
 #define REQ_HASHED		(1ULL << __REQ_HASHED)
 #define REQ_MQ_INFLIGHT		(1ULL << __REQ_MQ_INFLIGHT)
 
+enum req_op {
+	REQ_OP_READ,
+	REQ_OP_WRITE		= REQ_WRITE,
+	REQ_OP_DISCARD		= REQ_DISCARD,
+	REQ_OP_WRITE_SAME	= REQ_WRITE_SAME,
+};
+
+/*
+ * tmp cpmpat. Users used to set the write bit for all non reads, but
+ * we will be dropping the bitmap use for ops. Support both until
+ * the end of the patchset.
+ */
+static inline int op_from_rq_bits(u64 flags)
+{
+	if (flags & REQ_OP_DISCARD)
+		return REQ_OP_DISCARD;
+	else if (flags & REQ_OP_WRITE_SAME)
+		return REQ_OP_WRITE_SAME;
+	else if (flags & REQ_OP_WRITE)
+		return REQ_OP_WRITE;
+	else
+		return REQ_OP_READ;
+}
+
 typedef unsigned int blk_qc_t;
 #define BLK_QC_T_NONE	-1U
 #define BLK_QC_T_SHIFT	16
