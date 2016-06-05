@@ -363,6 +363,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		kfree(cb);
 		return -ENOMEM;
 	}
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	bio->bi_private = cb;
 	bio->bi_end_io = end_compressed_bio_write;
 	atomic_inc(&cb->pending_bios);
@@ -408,6 +409,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 
 			bio = compressed_bio_alloc(bdev, first_byte, GFP_NOFS);
 			BUG_ON(!bio);
+			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 			bio->bi_private = cb;
 			bio->bi_end_io = end_compressed_bio_write;
 			bio_add_page(bio, page, PAGE_SIZE, 0);
@@ -646,6 +648,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	comp_bio = compressed_bio_alloc(bdev, cur_disk_byte, GFP_NOFS);
 	if (!comp_bio)
 		goto fail2;
+	bio_set_op_attrs (comp_bio, REQ_OP_READ, 0);
 	comp_bio->bi_private = cb;
 	comp_bio->bi_end_io = end_compressed_bio_read;
 	atomic_inc(&cb->pending_bios);
@@ -699,6 +702,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			comp_bio = compressed_bio_alloc(bdev, cur_disk_byte,
 							GFP_NOFS);
 			BUG_ON(!comp_bio);
+			bio_set_op_attrs(comp_bio, REQ_OP_READ, 0);
 			comp_bio->bi_private = cb;
 			comp_bio->bi_end_io = end_compressed_bio_read;
 

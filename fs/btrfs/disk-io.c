@@ -727,7 +727,7 @@ static void end_workqueue_bio(struct bio *bio)
 	fs_info = end_io_wq->info;
 	end_io_wq->error = bio->bi_error;
 
-	if (bio->bi_rw & REQ_WRITE) {
+	if (bio_op(bio) == REQ_OP_WRITE) {
 		if (end_io_wq->metadata == BTRFS_WQ_ENDIO_METADATA) {
 			wq = fs_info->endio_meta_write_workers;
 			func = btrfs_endio_meta_write_helper;
@@ -873,7 +873,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 
 	atomic_inc(&fs_info->nr_async_submits);
 
-	if (rw & REQ_SYNC)
+	if (bio->bi_rw & REQ_SYNC)
 		btrfs_set_work_high_priority(&async->work);
 
 	btrfs_queue_work(fs_info->workers, &async->work);
@@ -951,7 +951,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	int async = check_async_write(inode, bio_flags);
 	int ret;
 
-	if (!(rw & REQ_WRITE)) {
+	if (bio_op(bio) != REQ_OP_WRITE) {
 		/*
 		 * called for a read, do the setup so that checksum validation
 		 * can happen in the async kernel threads
@@ -3486,7 +3486,7 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 
 	bio->bi_end_io = btrfs_end_empty_barrier;
 	bio->bi_bdev = device->bdev;
-	bio->bi_rw = WRITE_FLUSH;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH);
 	init_completion(&device->flush_wait);
 	bio->bi_private = &device->flush_wait;
 	device->flush_bio = bio;

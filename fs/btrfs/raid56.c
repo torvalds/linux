@@ -1320,7 +1320,7 @@ write_data:
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_write_end_io;
-		bio->bi_rw = WRITE;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		submit_bio(bio);
 	}
@@ -1575,7 +1575,7 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_rmw_end_io;
-		bio->bi_rw = READ;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
 		btrfs_bio_wq_end_io(rbio->fs_info, bio,
 				    BTRFS_WQ_ENDIO_RAID56);
@@ -2100,7 +2100,7 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_recover_end_io;
-		bio->bi_rw = READ;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
 		btrfs_bio_wq_end_io(rbio->fs_info, bio,
 				    BTRFS_WQ_ENDIO_RAID56);
@@ -2437,7 +2437,7 @@ submit_write:
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_write_end_io;
-		bio->bi_rw = WRITE;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		submit_bio(bio);
 	}
@@ -2616,7 +2616,7 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid56_parity_scrub_end_io;
-		bio->bi_rw = READ;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
 		btrfs_bio_wq_end_io(rbio->fs_info, bio,
 				    BTRFS_WQ_ENDIO_RAID56);

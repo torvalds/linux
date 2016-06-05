@@ -5942,7 +5942,7 @@ static void btrfs_end_bio(struct bio *bio)
 			BUG_ON(stripe_index >= bbio->num_stripes);
 			dev = bbio->stripes[stripe_index].dev;
 			if (dev->bdev) {
-				if (bio->bi_rw & WRITE)
+				if (bio_op(bio) == REQ_OP_WRITE)
 					btrfs_dev_stat_inc(dev,
 						BTRFS_DEV_STAT_WRITE_ERRS);
 				else
@@ -6007,7 +6007,7 @@ static noinline void btrfs_schedule_bio(struct btrfs_root *root,
 	}
 
 	/* don't bother with additional async steps for reads, right now */
-	if (!(bio->bi_rw & REQ_WRITE)) {
+	if (bio_op(bio) == REQ_OP_READ) {
 		bio_get(bio);
 		btrfsic_submit_bio(bio);
 		bio_put(bio);
@@ -6111,8 +6111,8 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	map_length = length;
 
 	btrfs_bio_counter_inc_blocked(root->fs_info);
-	ret = __btrfs_map_block(root->fs_info, rw, logical, &map_length, &bbio,
-			      mirror_num, 1);
+	ret = __btrfs_map_block(root->fs_info, bio_op(bio), logical,
+				&map_length, &bbio, mirror_num, 1);
 	if (ret) {
 		btrfs_bio_counter_dec(root->fs_info);
 		return ret;
@@ -6126,10 +6126,10 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	atomic_set(&bbio->stripes_pending, bbio->num_stripes);
 
 	if ((bbio->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) &&
-	    ((rw & WRITE) || (mirror_num > 1))) {
+	    ((bio_op(bio) == REQ_OP_WRITE) || (mirror_num > 1))) {
 		/* In this case, map_length has been set to the length of
 		   a single stripe; not the whole write */
-		if (rw & WRITE) {
+		if (bio_op(bio) == REQ_OP_WRITE) {
 			ret = raid56_parity_write(root, bio, bbio, map_length);
 		} else {
 			ret = raid56_parity_recover(root, bio, bbio, map_length,
@@ -6148,7 +6148,8 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 
 	for (dev_nr = 0; dev_nr < total_devs; dev_nr++) {
 		dev = bbio->stripes[dev_nr].dev;
-		if (!dev || !dev->bdev || (rw & WRITE && !dev->writeable)) {
+		if (!dev || !dev->bdev ||
+		    (bio_op(bio) == REQ_OP_WRITE && !dev->writeable)) {
 			bbio_error(bbio, first_bio, logical);
 			continue;
 		}

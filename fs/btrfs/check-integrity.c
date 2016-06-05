@@ -1673,7 +1673,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 		}
 		bio->bi_bdev = block_ctx->dev->bdev;
 		bio->bi_iter.bi_sector = dev_bytenr >> 9;
-		bio->bi_rw = READ;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
 		for (j = i; j < num_pages; j++) {
 			ret = bio_add_page(bio, block_ctx->pagev[j],
@@ -2922,7 +2922,6 @@ int btrfsic_submit_bh(int op, int op_flags, struct buffer_head *bh)
 static void __btrfsic_submit_bio(struct bio *bio)
 {
 	struct btrfsic_dev_state *dev_state;
-	int rw = bio->bi_rw;
 
 	if (!btrfsic_is_initialized)
 		return;
@@ -2932,7 +2931,7 @@ static void __btrfsic_submit_bio(struct bio *bio)
 	 * btrfsic_mount(), this might return NULL */
 	dev_state = btrfsic_dev_state_lookup(bio->bi_bdev);
 	if (NULL != dev_state &&
-	    (rw & WRITE) && NULL != bio->bi_io_vec) {
+	    (bio_op(bio) == REQ_OP_WRITE) && NULL != bio->bi_io_vec) {
 		unsigned int i;
 		u64 dev_bytenr;
 		u64 cur_bytenr;
@@ -2944,9 +2943,9 @@ static void __btrfsic_submit_bio(struct bio *bio)
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
 			printk(KERN_INFO
-			       "submit_bio(rw=0x%x, bi_vcnt=%u,"
+			       "submit_bio(rw=%d,0x%lx, bi_vcnt=%u,"
 			       " bi_sector=%llu (bytenr %llu), bi_bdev=%p)\n",
-			       rw, bio->bi_vcnt,
+			       bio_op(bio), bio->bi_rw, bio->bi_vcnt,
 			       (unsigned long long)bio->bi_iter.bi_sector,
 			       dev_bytenr, bio->bi_bdev);
 
@@ -2977,18 +2976,18 @@ static void __btrfsic_submit_bio(struct bio *bio)
 		btrfsic_process_written_block(dev_state, dev_bytenr,
 					      mapped_datav, bio->bi_vcnt,
 					      bio, &bio_is_patched,
-					      NULL, rw);
+					      NULL, bio->bi_rw);
 		while (i > 0) {
 			i--;
 			kunmap(bio->bi_io_vec[i].bv_page);
 		}
 		kfree(mapped_datav);
-	} else if (NULL != dev_state && (rw & REQ_FLUSH)) {
+	} else if (NULL != dev_state && (bio->bi_rw & REQ_FLUSH)) {
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
 			printk(KERN_INFO
-			       "submit_bio(rw=0x%x FLUSH, bdev=%p)\n",
-			       rw, bio->bi_bdev);
+			       "submit_bio(rw=%d,0x%lx FLUSH, bdev=%p)\n",
+			       bio_op(bio), bio->bi_rw, bio->bi_bdev);
 		if (!dev_state->dummy_block_for_bio_bh_flush.is_iodone) {
 			if ((dev_state->state->print_mask &
 			     (BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH |
@@ -3006,7 +3005,7 @@ static void __btrfsic_submit_bio(struct bio *bio)
 			block->never_written = 0;
 			block->iodone_w_error = 0;
 			block->flush_gen = dev_state->last_flush_gen + 1;
-			block->submit_bio_bh_rw = rw;
+			block->submit_bio_bh_rw = bio->bi_rw;
 			block->orig_bio_bh_private = bio->bi_private;
 			block->orig_bio_bh_end_io.bio = bio->bi_end_io;
 			block->next_in_same_bio = NULL;

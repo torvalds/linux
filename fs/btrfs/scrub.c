@@ -1504,7 +1504,7 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 				sblock->no_io_error_seen = 0;
 		} else {
 			bio->bi_iter.bi_sector = page->physical >> 9;
-			bio->bi_rw = READ;
+			bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
 			if (btrfsic_submit_bio_wait(bio))
 				sblock->no_io_error_seen = 0;
@@ -1584,7 +1584,7 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 			return -EIO;
 		bio->bi_bdev = page_bad->dev->bdev;
 		bio->bi_iter.bi_sector = page_bad->physical >> 9;
-		bio->bi_rw = WRITE;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		ret = bio_add_page(bio, page_good->page, PAGE_SIZE, 0);
 		if (PAGE_SIZE != ret) {
@@ -1686,7 +1686,7 @@ again:
 		bio->bi_end_io = scrub_wr_bio_end_io;
 		bio->bi_bdev = sbio->dev->bdev;
 		bio->bi_iter.bi_sector = sbio->physical >> 9;
-		bio->bi_rw = WRITE;
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 		sbio->err = 0;
 	} else if (sbio->physical + sbio->page_count * PAGE_SIZE !=
 		   spage->physical_for_dev_replace ||
@@ -2091,7 +2091,7 @@ again:
 		bio->bi_end_io = scrub_bio_end_io;
 		bio->bi_bdev = sbio->dev->bdev;
 		bio->bi_iter.bi_sector = sbio->physical >> 9;
-		bio->bi_rw = READ;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		sbio->err = 0;
 	} else if (sbio->physical + sbio->page_count * PAGE_SIZE !=
 		   spage->physical ||
@@ -4440,7 +4440,7 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_sector = physical_for_dev_replace >> 9;
 	bio->bi_bdev = dev->bdev;
-	bio->bi_rw = WRITE_SYNC;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_SYNC);
 	ret = bio_add_page(bio, page, PAGE_SIZE, 0);
 	if (ret != PAGE_SIZE) {
 leave_with_eio:
