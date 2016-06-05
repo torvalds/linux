@@ -86,7 +86,9 @@ static void setMemoryClock(unsigned int frequency)
 {
 	unsigned int reg, divisor;
 
-	/* Cheok_0509: For SM750LE, the memory clock is fixed. Nothing to set. */
+	/* Cheok_0509: For SM750LE, the memory clock is fixed.
+	 * Nothing to set.
+	 */
 	if (getChipType() == SM750LE)
 		return;
 
