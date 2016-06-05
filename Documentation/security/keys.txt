@@ -826,7 +826,8 @@ The keyctl syscall functions are:
  (*) Compute a Diffie-Hellman shared secret or public key
 
        long keyctl(KEYCTL_DH_COMPUTE, struct keyctl_dh_params *params,
-		   char *buffer, size_t buflen);
+		   char *buffer, size_t buflen,
+		   void *reserved);
 
      The params struct contains serial numbers for three keys:
 
@@ -842,6 +843,8 @@ The keyctl syscall functions are:
      If the base is the shared generator, the result is the local
      public key.  If the base is the remote public key, the result is
      the shared secret.
+
+     The reserved argument must be set to NULL.
 
      The buffer length must be at least the length of the prime, or zero.
 
