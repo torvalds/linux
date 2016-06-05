@@ -2418,8 +2418,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 	pr_debug("Repair Read Error: submitting new read[%#x] to this_mirror=%d, in_validation=%d\n",
 		 read_mode, failrec->this_mirror, failrec->in_validation);
 
-	ret = tree->ops->submit_bio_hook(inode, read_mode, bio,
-					 failrec->this_mirror,
+	ret = tree->ops->submit_bio_hook(inode, bio, failrec->this_mirror,
 					 failrec->bio_flags, 0);
 	if (ret) {
 		free_io_failure(inode, failrec);
@@ -2740,9 +2739,8 @@ static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
 	bio_get(bio);
 
 	if (tree->ops && tree->ops->submit_bio_hook)
-		ret = tree->ops->submit_bio_hook(page->mapping->host,
-						 bio->bi_rw, bio, mirror_num,
-						 bio_flags, start);
+		ret = tree->ops->submit_bio_hook(page->mapping->host, bio,
+					   mirror_num, bio_flags, start);
 	else
 		btrfsic_submit_bio(bio);
 
@@ -2756,8 +2754,8 @@ static int merge_bio(struct extent_io_tree *tree, struct page *page,
 {
 	int ret = 0;
 	if (tree->ops && tree->ops->merge_bio_hook)
-		ret = tree->ops->merge_bio_hook(bio_op(bio), page, offset, size,
-						bio, bio_flags);
+		ret = tree->ops->merge_bio_hook(page, offset, size, bio,
+						bio_flags);
 	BUG_ON(ret < 0);
 	return ret;
 

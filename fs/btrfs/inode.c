@@ -1823,7 +1823,7 @@ static void btrfs_clear_bit_hook(struct inode *inode,
  * extent_io.c merge_bio_hook, this must check the chunk tree to make sure
  * we don't create bios that span stripes or chunks
  */
-int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
+int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio,
 			 unsigned long bio_flags)
 {
@@ -1855,9 +1855,8 @@ int btrfs_merge_bio_hook(int rw, struct page *page, unsigned long offset,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-static int __btrfs_submit_bio_start(struct inode *inode, int rw,
-				    struct bio *bio, int mirror_num,
-				    unsigned long bio_flags,
+static int __btrfs_submit_bio_start(struct inode *inode, struct bio *bio,
+				    int mirror_num, unsigned long bio_flags,
 				    u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -1876,14 +1875,14 @@ static int __btrfs_submit_bio_start(struct inode *inode, int rw,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
+static int __btrfs_submit_bio_done(struct inode *inode, struct bio *bio,
 			  int mirror_num, unsigned long bio_flags,
 			  u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
-	ret = btrfs_map_bio(root, rw, bio, mirror_num, 1);
+	ret = btrfs_map_bio(root, bio, mirror_num, 1);
 	if (ret) {
 		bio->bi_error = ret;
 		bio_endio(bio);
@@ -1895,7 +1894,7 @@ static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
  * extent_io.c submission hook. This does the right thing for csum calculation
  * on write, or reading the csums from the tree before a read
  */
-static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+static int btrfs_submit_bio_hook(struct inode *inode, struct bio *bio,
 			  int mirror_num, unsigned long bio_flags,
 			  u64 bio_offset)
 {
@@ -1932,7 +1931,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 			goto mapit;
 		/* we're doing a write, do the async checksumming */
 		ret = btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
-				   inode, rw, bio, mirror_num,
+				   inode, bio, mirror_num,
 				   bio_flags, bio_offset,
 				   __btrfs_submit_bio_start,
 				   __btrfs_submit_bio_done);
@@ -1944,7 +1943,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	}
 
 mapit:
-	ret = btrfs_map_bio(root, rw, bio, mirror_num, 0);
+	ret = btrfs_map_bio(root, bio, mirror_num, 0);
 
 out:
 	if (ret < 0) {
@@ -7778,7 +7777,7 @@ err:
 }
 
 static inline int submit_dio_repair_bio(struct inode *inode, struct bio *bio,
-					int rw, int mirror_num)
+					int mirror_num)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
@@ -7792,7 +7791,7 @@ static inline int submit_dio_repair_bio(struct inode *inode, struct bio *bio,
 	if (ret)
 		goto err;
 
-	ret = btrfs_map_bio(root, rw, bio, mirror_num, 0);
+	ret = btrfs_map_bio(root, bio, mirror_num, 0);
 err:
 	bio_put(bio);
 	return ret;
@@ -7877,8 +7876,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 		    "Repair DIO Read Error: submitting new dio read[%#x] to this_mirror=%d, in_validation=%d\n",
 		    read_mode, failrec->this_mirror, failrec->in_validation);
 
-	ret = submit_dio_repair_bio(inode, bio, read_mode,
-				    failrec->this_mirror);
+	ret = submit_dio_repair_bio(inode, bio, failrec->this_mirror);
 	if (ret) {
 		free_io_failure(inode, failrec);
 		bio_put(bio);
@@ -8168,7 +8166,7 @@ static void btrfs_endio_direct_write(struct bio *bio)
 	bio_put(bio);
 }
 
-static int __btrfs_submit_bio_start_direct_io(struct inode *inode, int rw,
+static int __btrfs_submit_bio_start_direct_io(struct inode *inode,
 				    struct bio *bio, int mirror_num,
 				    unsigned long bio_flags, u64 offset)
 {
@@ -8261,7 +8259,7 @@ static inline int btrfs_lookup_and_bind_dio_csum(struct btrfs_root *root,
 }
 
 static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
-					 int rw, u64 file_offset, int skip_sum,
+					 u64 file_offset, int skip_sum,
 					 int async_submit)
 {
 	struct btrfs_dio_private *dip = bio->bi_private;
@@ -8286,8 +8284,7 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 
 	if (write && async_submit) {
 		ret = btrfs_wq_submit_bio(root->fs_info,
-				   inode, rw, bio, 0, 0,
-				   file_offset,
+				   inode, bio, 0, 0, file_offset,
 				   __btrfs_submit_bio_start_direct_io,
 				   __btrfs_submit_bio_done);
 		goto err;
@@ -8306,13 +8303,13 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 			goto err;
 	}
 map:
-	ret = btrfs_map_bio(root, rw, bio, 0, async_submit);
+	ret = btrfs_map_bio(root, bio, 0, async_submit);
 err:
 	bio_put(bio);
 	return ret;
 }
 
-static int btrfs_submit_direct_hook(int rw, struct btrfs_dio_private *dip,
+static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 				    int skip_sum)
 {
 	struct inode *inode = dip->inode;
@@ -8372,7 +8369,7 @@ next_block:
 			 * before we're done setting it up
 			 */
 			atomic_inc(&dip->pending_bios);
-			ret = __btrfs_submit_dio_bio(bio, inode, rw,
+			ret = __btrfs_submit_dio_bio(bio, inode,
 						     file_offset, skip_sum,
 						     async_submit);
 			if (ret) {
@@ -8416,7 +8413,7 @@ next_block:
 	}
 
 submit:
-	ret = __btrfs_submit_dio_bio(bio, inode, rw, file_offset, skip_sum,
+	ret = __btrfs_submit_dio_bio(bio, inode, file_offset, skip_sum,
 				     async_submit);
 	if (!ret)
 		return 0;
@@ -8494,7 +8491,7 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 			dio_data->unsubmitted_oe_range_end;
 	}
 
-	ret = btrfs_submit_direct_hook(dio_bio->bi_rw, dip, skip_sum);
+	ret = btrfs_submit_direct_hook(dip, skip_sum);
 	if (!ret)
 		return;
 
