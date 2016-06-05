@@ -388,14 +388,16 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gc->get = xlp_gpio_get;
 
 	spin_lock_init(&priv->lock);
-	/* XLP has fixed IRQ range for GPIO interrupts */
-	if (soc_type == GPIO_VARIANT_VULCAN)
-		irq_base = irq_alloc_descs(-1, 0, gc->ngpio, 0);
-	else
+
+	/* XLP(MIPS) has fixed range for GPIO IRQs, Vulcan(ARM64) does not */
+	if (soc_type != GPIO_VARIANT_VULCAN) {
 		irq_base = irq_alloc_descs(-1, XLP_GPIO_IRQ_BASE, gc->ngpio, 0);
-	if (irq_base < 0) {
-		dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
-		return irq_base;
+		if (irq_base < 0) {
+			dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
+			return irq_base;
+		}
+	} else {
+		irq_base = 0;
 	}
 
 	err = gpiochip_add_data(gc, priv);
