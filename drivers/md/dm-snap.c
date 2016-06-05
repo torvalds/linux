@@ -1680,7 +1680,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 
 	init_tracked_chunk(bio);
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_rw & REQ_PREFLUSH) {
 		bio->bi_bdev = s->cow->bdev;
 		return DM_MAPIO_REMAPPED;
 	}
@@ -1799,7 +1799,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 
 	init_tracked_chunk(bio);
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_rw & REQ_PREFLUSH) {
 		if (!dm_bio_get_target_bio_nr(bio))
 			bio->bi_bdev = s->origin->bdev;
 		else
@@ -2285,7 +2285,7 @@ static int origin_map(struct dm_target *ti, struct bio *bio)
 
 	bio->bi_bdev = o->dev->bdev;
 
-	if (unlikely(bio->bi_rw & REQ_FLUSH))
+	if (unlikely(bio->bi_rw & REQ_PREFLUSH))
 		return DM_MAPIO_REMAPPED;
 
 	if (bio_rw(bio) != WRITE)

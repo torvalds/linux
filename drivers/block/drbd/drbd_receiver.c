@@ -2158,7 +2158,7 @@ static unsigned long wire_flags_to_bio_flags(u32 dpf)
 {
 	return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
 		(dpf & DP_FUA ? REQ_FUA : 0) |
-		(dpf & DP_FLUSH ? REQ_FLUSH : 0);
+		(dpf & DP_FLUSH ? REQ_PREFLUSH : 0);
 }
 
 static unsigned long wire_flags_to_bio_op(u32 dpf)

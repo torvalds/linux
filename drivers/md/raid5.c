@@ -5150,7 +5150,7 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 	DEFINE_WAIT(w);
 	bool do_prepare;
 
-	if (unlikely(bi->bi_rw & REQ_FLUSH)) {
+	if (unlikely(bi->bi_rw & REQ_PREFLUSH)) {
 		int ret = r5l_handle_flush_request(conf->log, bi);
 
 		if (ret == 0)

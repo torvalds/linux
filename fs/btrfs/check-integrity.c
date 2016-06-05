@@ -2207,7 +2207,7 @@ static void btrfsic_bio_end_io(struct bio *bp)
 			       block->dev_bytenr, block->mirror_num);
 		next_block = block->next_in_same_bio;
 		block->iodone_w_error = iodone_w_error;
-		if (block->submit_bio_bh_rw & REQ_FLUSH) {
+		if (block->submit_bio_bh_rw & REQ_PREFLUSH) {
 			dev_state->last_flush_gen++;
 			if ((dev_state->state->print_mask &
 			     BTRFSIC_PRINT_MASK_END_IO_BIO_BH))
@@ -2243,7 +2243,7 @@ static void btrfsic_bh_end_io(struct buffer_head *bh, int uptodate)
 		       block->dev_bytenr, block->mirror_num);
 
 	block->iodone_w_error = iodone_w_error;
-	if (block->submit_bio_bh_rw & REQ_FLUSH) {
+	if (block->submit_bio_bh_rw & REQ_PREFLUSH) {
 		dev_state->last_flush_gen++;
 		if ((dev_state->state->print_mask &
 		     BTRFSIC_PRINT_MASK_END_IO_BIO_BH))
@@ -2884,7 +2884,7 @@ int btrfsic_submit_bh(int op, int op_flags, struct buffer_head *bh)
 		btrfsic_process_written_block(dev_state, dev_bytenr,
 					      &bh->b_data, 1, NULL,
 					      NULL, bh, op_flags);
-	} else if (NULL != dev_state && (op_flags & REQ_FLUSH)) {
+	} else if (NULL != dev_state && (op_flags & REQ_PREFLUSH)) {
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
 			printk(KERN_INFO
@@ -2982,7 +2982,7 @@ static void __btrfsic_submit_bio(struct bio *bio)
 			kunmap(bio->bi_io_vec[i].bv_page);
 		}
 		kfree(mapped_datav);
-	} else if (NULL != dev_state && (bio->bi_rw & REQ_FLUSH)) {
+	} else if (NULL != dev_state && (bio->bi_rw & REQ_PREFLUSH)) {
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
 			printk(KERN_INFO

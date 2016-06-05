@@ -414,7 +414,7 @@ static void md_submit_flush_data(struct work_struct *ws)
 		/* an empty barrier - all done */
 		bio_endio(bio);
 	else {
-		bio->bi_rw &= ~REQ_FLUSH;
+		bio->bi_rw &= ~REQ_PREFLUSH;
 		mddev->pers->make_request(mddev, bio);
 	}
 

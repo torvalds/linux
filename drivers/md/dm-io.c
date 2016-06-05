@@ -380,7 +380,7 @@ static void dispatch_io(int op, int op_flags, unsigned int num_regions,
 	 */
 	for (i = 0; i < num_regions; i++) {
 		*dp = old_pages;
-		if (where[i].count || (op_flags & REQ_FLUSH))
+		if (where[i].count || (op_flags & REQ_PREFLUSH))
 			do_region(op, op_flags, i, where + i, dp, io);
 	}
 

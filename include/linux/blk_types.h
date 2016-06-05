@@ -168,7 +168,7 @@ enum rq_flag_bits {
 	__REQ_NOIDLE,		/* don't anticipate more IO after this one */
 	__REQ_INTEGRITY,	/* I/O includes block integrity payload */
 	__REQ_FUA,		/* forced unit access */
-	__REQ_FLUSH,		/* request for cache flush */
+	__REQ_PREFLUSH,		/* request for cache flush */
 
 	/* bio only flags */
 	__REQ_RAHEAD,		/* read ahead, can fail anytime */
@@ -212,12 +212,12 @@ enum rq_flag_bits {
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
 #define REQ_COMMON_MASK \
 	(REQ_FAILFAST_MASK | REQ_SYNC | REQ_META | REQ_PRIO | REQ_NOIDLE | \
-	 REQ_FLUSH | REQ_FUA | REQ_SECURE | REQ_INTEGRITY | REQ_NOMERGE)
+	 REQ_PREFLUSH | REQ_FUA | REQ_SECURE | REQ_INTEGRITY | REQ_NOMERGE)
 #define REQ_CLONE_MASK		REQ_COMMON_MASK
 
 /* This mask is used for both bio and request merge checking */
 #define REQ_NOMERGE_FLAGS \
-	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_FLUSH | REQ_FUA | REQ_FLUSH_SEQ)
+	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_PREFLUSH | REQ_FUA | REQ_FLUSH_SEQ)
 
 #define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
 #define REQ_THROTTLED		(1ULL << __REQ_THROTTLED)
@@ -235,7 +235,7 @@ enum rq_flag_bits {
 #define REQ_PREEMPT		(1ULL << __REQ_PREEMPT)
 #define REQ_ALLOCED		(1ULL << __REQ_ALLOCED)
 #define REQ_COPY_USER		(1ULL << __REQ_COPY_USER)
-#define REQ_FLUSH		(1ULL << __REQ_FLUSH)
+#define REQ_PREFLUSH		(1ULL << __REQ_PREFLUSH)
 #define REQ_FLUSH_SEQ		(1ULL << __REQ_FLUSH_SEQ)
 #define REQ_IO_STAT		(1ULL << __REQ_IO_STAT)
 #define REQ_MIXED_MERGE		(1ULL << __REQ_MIXED_MERGE)

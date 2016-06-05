@@ -424,7 +424,7 @@ struct mddev {
 
 	/* Generic flush handling.
 	 * The last to finish preflush schedules a worker to submit
-	 * the rest of the request (without the REQ_FLUSH flag).
+	 * the rest of the request (without the REQ_PREFLUSH flag).
 	 */
 	struct bio *flush_bio;
 	atomic_t flush_pending;

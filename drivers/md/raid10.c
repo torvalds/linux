@@ -1447,7 +1447,7 @@ static void raid10_make_request(struct mddev *mddev, struct bio *bio)
 
 	struct bio *split;
 
-	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
+	if (unlikely(bio->bi_rw & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
 		return;
 	}

@@ -286,7 +286,7 @@ static int stripe_map(struct dm_target *ti, struct bio *bio)
 	uint32_t stripe;
 	unsigned target_bio_nr;
 
-	if (bio->bi_rw & REQ_FLUSH) {
+	if (bio->bi_rw & REQ_PREFLUSH) {
 		target_bio_nr = dm_bio_get_target_bio_nr(bio);
 		BUG_ON(target_bio_nr >= sc->stripes);
 		bio->bi_bdev = sc->stripe[target_bio_nr].dev->bdev;

@@ -1029,7 +1029,7 @@ static bool blk_rq_should_init_elevator(struct bio *bio)
 	 * Flush requests do not use the elevator so skip initialization.
 	 * This allows a request to share the flush and elevator data.
 	 */
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA))
+	if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA))
 		return false;
 
 	return true;
@@ -1736,7 +1736,7 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 		return BLK_QC_T_NONE;
 	}
 
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
+	if (bio->bi_rw & (REQ_PREFLUSH | REQ_FUA)) {
 		spin_lock_irq(q->queue_lock);
 		where = ELEVATOR_INSERT_FLUSH;
 		goto get_rq;
@@ -1968,9 +1968,9 @@ generic_make_request_checks(struct bio *bio)
 	 * drivers without flush support don't have to worry
 	 * about them.
 	 */
-	if ((bio->bi_rw & (REQ_FLUSH | REQ_FUA)) &&
+	if ((bio->bi_rw & (REQ_PREFLUSH | REQ_FUA)) &&
 	    !test_bit(QUEUE_FLAG_WC, &q->queue_flags)) {
-		bio->bi_rw &= ~(REQ_FLUSH | REQ_FUA);
+		bio->bi_rw &= ~(REQ_PREFLUSH | REQ_FUA);
 		if (!nr_sectors) {
 			err = 0;
 			goto end_io;
@@ -2217,7 +2217,7 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 	 */
 	BUG_ON(blk_queued_rq(rq));
 
-	if (rq->cmd_flags & (REQ_FLUSH|REQ_FUA))
+	if (rq->cmd_flags & (REQ_PREFLUSH | REQ_FUA))
 		where = ELEVATOR_INSERT_FLUSH;
 
 	add_acct_request(q, rq, where);
@@ -3311,7 +3311,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		/*
 		 * rq is already accounted, so use raw insert
 		 */
-		if (rq->cmd_flags & (REQ_FLUSH | REQ_FUA))
+		if (rq->cmd_flags & (REQ_PREFLUSH | REQ_FUA))
 			__elv_add_request(q, rq, ELEVATOR_INSERT_FLUSH);
 		else
 			__elv_add_request(q, rq, ELEVATOR_INSERT_SORT_MERGE);

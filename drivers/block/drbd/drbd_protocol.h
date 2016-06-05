@@ -112,7 +112,7 @@ struct p_header100 {
 #define DP_MAY_SET_IN_SYNC    4
 #define DP_UNPLUG             8 /* not used anymore   */
 #define DP_FUA               16 /* equals REQ_FUA     */
-#define DP_FLUSH             32 /* equals REQ_FLUSH   */
+#define DP_FLUSH             32 /* equals REQ_PREFLUSH   */
 #define DP_DISCARD           64 /* equals REQ_DISCARD */
 #define DP_SEND_RECEIVE_ACK 128 /* This is a proto B write request */
 #define DP_SEND_WRITE_ACK   256 /* This is a proto C write request */

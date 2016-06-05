@@ -205,10 +205,10 @@ static void bch_data_insert_start(struct closure *cl)
 		return bch_data_invalidate(cl);
 
 	/*
-	 * Journal writes are marked REQ_FLUSH; if the original write was a
+	 * Journal writes are marked REQ_PREFLUSH; if the original write was a
 	 * flush, it'll wait on the journal write.
 	 */
-	bio->bi_rw &= ~(REQ_FLUSH|REQ_FUA);
+	bio->bi_rw &= ~(REQ_PREFLUSH|REQ_FUA);
 
 	do {
 		unsigned i;
@@ -668,7 +668,7 @@ static inline struct search *search_alloc(struct bio *bio,
 	s->iop.write_prio	= 0;
 	s->iop.error		= 0;
 	s->iop.flags		= 0;
-	s->iop.flush_journal	= (bio->bi_rw & (REQ_FLUSH|REQ_FUA)) != 0;
+	s->iop.flush_journal	= (bio->bi_rw & (REQ_PREFLUSH|REQ_FUA)) != 0;
 	s->iop.wq		= bcache_wq;
 
 	return s;
@@ -920,7 +920,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 		bch_writeback_add(dc);
 		s->iop.bio = bio;
 
-		if (bio->bi_rw & REQ_FLUSH) {
+		if (bio->bi_rw & REQ_PREFLUSH) {
 			/* Also need to send a flush to the backing device */
 			struct bio *flush = bio_alloc_bioset(GFP_NOIO, 0,
 							     dc->disk.bio_split);

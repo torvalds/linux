@@ -704,7 +704,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	bio_list_init(&requeue);
 
 	while ((bio = bio_list_pop(writes))) {
-		if ((bio->bi_rw & REQ_FLUSH) ||
+		if ((bio->bi_rw & REQ_PREFLUSH) ||
 		    (bio_op(bio) == REQ_OP_DISCARD)) {
 			bio_list_add(&sync, bio);
 			continue;
@@ -1253,7 +1253,8 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio, int error)
 	 * We need to dec pending if this was a write.
 	 */
 	if (rw == WRITE) {
-		if (!(bio->bi_rw & REQ_FLUSH) && bio_op(bio) != REQ_OP_DISCARD)
+		if (!(bio->bi_rw & REQ_PREFLUSH) &&
+		    bio_op(bio) != REQ_OP_DISCARD)
 			dm_rh_dec(ms->rh, bio_record->write_region);
 		return error;
 	}

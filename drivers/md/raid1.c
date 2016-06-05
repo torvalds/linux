@@ -1056,7 +1056,8 @@ static void raid1_make_request(struct mddev *mddev, struct bio * bio)
 	const int op = bio_op(bio);
 	const int rw = bio_data_dir(bio);
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
-	const unsigned long do_flush_fua = (bio->bi_rw & (REQ_FLUSH | REQ_FUA));
+	const unsigned long do_flush_fua = (bio->bi_rw &
+						(REQ_PREFLUSH | REQ_FUA));
 	const unsigned long do_sec = (bio->bi_rw & REQ_SECURE);
 	struct md_rdev *blocked_rdev;
 	struct blk_plug_cb *cb;

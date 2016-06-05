@@ -1237,7 +1237,7 @@ _xfs_buf_ioapply(
 		if (bp->b_flags & XBF_FUA)
 			op_flags |= REQ_FUA;
 		if (bp->b_flags & XBF_FLUSH)
-			op_flags |= REQ_FLUSH;
+			op_flags |= REQ_PREFLUSH;
 
 		/*
 		 * Run the write verifier callback function if it exists. If

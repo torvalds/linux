@@ -148,7 +148,7 @@ static int _drbd_md_sync_page_io(struct drbd_device *device,
 	device->md_io.error = -ENODEV;
 
 	if ((op == REQ_OP_WRITE) && !test_bit(MD_NO_FUA, &device->flags))
-		op_flags |= REQ_FUA | REQ_FLUSH;
+		op_flags |= REQ_FUA | REQ_PREFLUSH;
 	op_flags |= REQ_SYNC | REQ_NOIDLE;
 
 	bio = bio_alloc_drbd(GFP_NOIO);
@@ -847,7 +847,7 @@ int __drbd_change_sync(struct drbd_device *device, sector_t sector, int size,
 	unsigned long count = 0;
 	sector_t esector, nr_sectors;
 
-	/* This would be an empty REQ_FLUSH, be silent. */
+	/* This would be an empty REQ_PREFLUSH, be silent. */
 	if ((mode == SET_OUT_OF_SYNC) && size == 0)
 		return 0;
 
