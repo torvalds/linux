@@ -48,9 +48,8 @@ struct bio {
 	struct block_device	*bi_bdev;
 	unsigned int		bi_flags;	/* status, command, etc */
 	int			bi_error;
-	unsigned long		bi_rw;		/* bottom bits READ/WRITE,
-						 * top bits priority
-						 */
+	unsigned long		bi_rw;		/* READ/WRITE */
+	unsigned short		bi_ioprio;
 
 	struct bvec_iter	bi_iter;
 
