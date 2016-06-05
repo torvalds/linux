@@ -252,7 +252,7 @@ static void linear_make_request(struct mddev *mddev, struct bio *bio)
 		split->bi_iter.bi_sector = split->bi_iter.bi_sector -
 			start_sector + data_offset;
 
-		if (unlikely((split->bi_rw & REQ_DISCARD) &&
+		if (unlikely((bio_op(split) == REQ_OP_DISCARD) &&
 			 !blk_queue_discard(bdev_get_queue(split->bi_bdev)))) {
 			/* Just ignore it */
 			bio_endio(split);
