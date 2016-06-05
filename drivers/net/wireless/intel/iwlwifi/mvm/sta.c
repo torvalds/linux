@@ -893,8 +893,11 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	mvm_sta->tid_disable_agg = 0xffff; /* No aggs at first */
 	mvm_sta->tfd_queue_msk = 0;
 
-	/* allocate new queues for a TDLS station */
-	if (sta->tdls) {
+	/*
+	 * Allocate new queues for a TDLS station, unless we're in DQA mode,
+	 * and then they'll be allocated dynamically
+	 */
+	if (!iwl_mvm_is_dqa_supported(mvm) && sta->tdls) {
 		ret = iwl_mvm_tdls_sta_init(mvm, sta);
 		if (ret)
 			return ret;
@@ -958,7 +961,8 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	return 0;
 
 err:
-	iwl_mvm_tdls_sta_deinit(mvm, sta);
+	if (!iwl_mvm_is_dqa_supported(mvm) && sta->tdls)
+		iwl_mvm_tdls_sta_deinit(mvm, sta);
 	return ret;
 }
 
@@ -1164,16 +1168,19 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		if (iwl_mvm_is_dqa_supported(mvm))
 			iwl_mvm_disable_sta_queues(mvm, vif, mvm_sta);
 
-		/* if we are associated - we can't remove the AP STA now */
-		if (vif->bss_conf.assoc)
-			return ret;
+		if (vif->type == NL80211_IFTYPE_STATION &&
+		    mvmvif->ap_sta_id == mvm_sta->sta_id) {
+			/* if associated - we can't remove the AP STA now */
+			if (vif->bss_conf.assoc)
+				return ret;
 
-		/* unassoc - go ahead - remove the AP STA now */
-		mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
+			/* unassoc - go ahead - remove the AP STA now */
+			mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
 
-		/* clear d0i3_ap_sta_id if no longer relevant */
-		if (mvm->d0i3_ap_sta_id == mvm_sta->sta_id)
-			mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
+			/* clear d0i3_ap_sta_id if no longer relevant */
+			if (mvm->d0i3_ap_sta_id == mvm_sta->sta_id)
+				mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
+		}
 	}
 
 	/*
@@ -1211,7 +1218,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	} else {
 		spin_unlock_bh(&mvm_sta->lock);
 
-		if (sta->tdls)
+		if (!iwl_mvm_is_dqa_supported(mvm) && sta->tdls)
 			iwl_mvm_tdls_sta_deinit(mvm, sta);
 
 		ret = iwl_mvm_rm_sta_common(mvm, mvm_sta->sta_id);

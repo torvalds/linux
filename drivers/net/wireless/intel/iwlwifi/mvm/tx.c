@@ -546,6 +546,9 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 	 * (this is not possible for unicast packets as a TLDS discovery
 	 * response are sent without a station entry); otherwise use the
 	 * AUX station.
+	 * In DQA mode, if vif is of type STATION and frames are not multicast,
+	 * they should be sent from the BSS queue. For example, TDLS setup
+	 * frames should be sent on this queue, as they go through the AP.
 	 */
 	sta_id = mvm->aux_sta.sta_id;
 	if (info.control.vif) {
@@ -563,6 +566,9 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 
 			if (ap_sta_id != IWL_MVM_STATION_COUNT)
 				sta_id = ap_sta_id;
+		} else if (iwl_mvm_is_dqa_supported(mvm) &&
+			   info.control.vif->type == NL80211_IFTYPE_STATION) {
+			queue = IWL_MVM_DQA_BSS_CLIENT_QUEUE;
 		}
 	}
 
@@ -906,7 +912,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
-	if (sta->tdls) {
+	if (sta->tdls && !iwl_mvm_is_dqa_supported(mvm)) {
 		/* default to TID 0 for non-QoS packets */
 		u8 tdls_tid = tid == IWL_MAX_TID_COUNT ? 0 : tid;
 
