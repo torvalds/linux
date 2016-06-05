@@ -23,7 +23,8 @@ static struct bio *next_bio(struct bio *bio, unsigned int nr_pages,
 }
 
 int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, int type, struct bio **biop)
+		sector_t nr_sects, gfp_t gfp_mask, int op_flags,
+		struct bio **biop)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct bio *bio = *biop;
@@ -34,7 +35,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		return -ENXIO;
 	if (!blk_queue_discard(q))
 		return -EOPNOTSUPP;
-	if ((type & REQ_SECURE) && !blk_queue_secdiscard(q))
+	if ((op_flags & REQ_SECURE) && !blk_queue_secdiscard(q))
 		return -EOPNOTSUPP;
 
 	/* Zero-sector (unknown) and one-sector granularities are the same.  */
@@ -65,7 +66,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		bio = next_bio(bio, 1, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio->bi_bdev = bdev;
-		bio->bi_rw = type;
+		bio_set_op_attrs(bio, REQ_OP_DISCARD, op_flags);
 
 		bio->bi_iter.bi_size = req_sects << 9;
 		nr_sects -= req_sects;
@@ -99,16 +100,16 @@ EXPORT_SYMBOL(__blkdev_issue_discard);
 int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
 {
-	int type = REQ_WRITE | REQ_DISCARD;
+	int op_flags = 0;
 	struct bio *bio = NULL;
 	struct blk_plug plug;
 	int ret;
 
 	if (flags & BLKDEV_DISCARD_SECURE)
-		type |= REQ_SECURE;
+		op_flags |= REQ_SECURE;
 
 	blk_start_plug(&plug);
-	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, type,
+	ret = __blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, op_flags,
 			&bio);
 	if (!ret && bio) {
 		ret = submit_bio_wait(bio);
