@@ -174,7 +174,7 @@ void drbd_peer_request_endio(struct bio *bio)
 	struct drbd_peer_request *peer_req = bio->bi_private;
 	struct drbd_device *device = peer_req->peer_device->device;
 	int is_write = bio_data_dir(bio) == WRITE;
-	int is_discard = !!(bio->bi_rw & REQ_DISCARD);
+	int is_discard = !!(bio_op(bio) == REQ_OP_DISCARD);
 
 	if (bio->bi_error && __ratelimit(&drbd_ratelimit_state))
 		drbd_warn(device, "%s: error=%d s=%llus\n",
@@ -248,7 +248,7 @@ void drbd_request_endio(struct bio *bio)
 
 	/* to avoid recursion in __req_mod */
 	if (unlikely(bio->bi_error)) {
-		if (bio->bi_rw & REQ_DISCARD)
+		if (bio_op(bio) == REQ_OP_DISCARD)
 			what = (bio->bi_error == -EOPNOTSUPP)
 				? DISCARD_COMPLETED_NOTSUPP
 				: DISCARD_COMPLETED_WITH_ERROR;
@@ -397,7 +397,8 @@ static int read_for_csum(struct drbd_peer_device *peer_device, sector_t sector, 
 	spin_unlock_irq(&device->resource->req_lock);
 
 	atomic_add(size >> 9, &device->rs_sect_ev);
-	if (drbd_submit_peer_request(device, peer_req, READ, DRBD_FAULT_RS_RD) == 0)
+	if (drbd_submit_peer_request(device, peer_req, REQ_OP_READ, 0,
+				     DRBD_FAULT_RS_RD) == 0)
 		return 0;
 
 	/* If it failed because of ENOMEM, retry should help.  If it failed
