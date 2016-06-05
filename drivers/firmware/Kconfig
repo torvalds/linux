@@ -10,7 +10,7 @@ config ARM_PSCI_FW
 
 config ARM_SCPI_PROTOCOL
 	tristate "ARM System Control and Power Interface (SCPI) Message Protocol"
-	depends on ARM_MHU
+	depends on MAILBOX
 	help
 	  System Control and Power Interface (SCPI) Message Protocol is
 	  defined for the purpose of communication between the Application
