@@ -20,7 +20,7 @@ struct lklfuse {
 	const char *file;
 	const char *log;
 	const char *type;
-	union lkl_disk disk;
+	struct lkl_disk disk;
 	int disk_id;
 	int ro;
 	int mb;
@@ -585,7 +585,7 @@ int main(int argc, char **argv)
 
 	lklfuse.disk.fd = ret;
 
-	ret = lkl_disk_add(lklfuse.disk);
+	ret = lkl_disk_add(&lklfuse.disk);
 	if (ret < 0) {
 		fprintf(stderr, "can't add disk: %s\n", lkl_strerror(ret));
 		goto out_close_disk;

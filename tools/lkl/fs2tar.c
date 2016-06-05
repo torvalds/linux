@@ -334,7 +334,7 @@ out:
 
 int main(int argc, char **argv)
 {
-	union lkl_disk disk;
+	struct lkl_disk disk;
 	long ret;
 	char mpoint[32];
 	unsigned int disk_id;
@@ -353,7 +353,7 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	ret = lkl_disk_add(disk);
+	ret = lkl_disk_add(&disk);
 	if (ret < 0) {
 		fprintf(stderr, "can't add disk: %s\n", lkl_strerror(ret));
 		goto out_close;

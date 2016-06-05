@@ -40,11 +40,11 @@ struct lkl_blk_req {
 };
 
 struct lkl_dev_blk_ops {
-	int (*get_capacity)(union lkl_disk disk, unsigned long long *res);
+	int (*get_capacity)(struct lkl_disk disk, unsigned long long *res);
 #define LKL_DEV_BLK_STATUS_OK		0
 #define LKL_DEV_BLK_STATUS_IOERR	1
 #define LKL_DEV_BLK_STATUS_UNSUP	2
-	int (*request)(union lkl_disk disk, struct lkl_blk_req *req);
+	int (*request)(struct lkl_disk disk, struct lkl_blk_req *req);
 };
 
 struct lkl_netdev {

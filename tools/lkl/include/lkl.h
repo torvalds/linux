@@ -72,12 +72,16 @@ void lkl_perror(char *msg, int err);
 /**
  * lkl_disk - host disk handle
  *
+ * @dev - a pointer to 'virtio_blk_dev' structure for this disk
  * @fd - a POSIX file descriptor that can be used by preadv/pwritev
  * @handle - an NT file handle that can be used by ReadFile/WriteFile
  */
-union lkl_disk {
-	int fd;
-	void *handle;
+struct lkl_disk {
+	void *dev;
+	union {
+		int fd;
+		void *handle;
+	};
 };
 
 /**
@@ -88,7 +92,17 @@ union lkl_disk {
  * @disk - the host disk handle
  * @returns a disk id (0 is valid) or a strictly negative value in case of error
  */
-int lkl_disk_add(union lkl_disk disk);
+int lkl_disk_add(struct lkl_disk *disk);
+
+/**
+ * lkl_disk_remove - remove a disk
+ *
+ * This function makes a cleanup of the @disk's virtio_dev structure
+ * that was initialized by lkl_disk_add before.
+ *
+ * @disk - the host disk handle
+ */
+void lkl_disk_remove(struct lkl_disk disk);
 
 /**
  * lkl_mount_dev - mount a disk
