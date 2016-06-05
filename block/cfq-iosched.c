@@ -4285,7 +4285,7 @@ static inline int __cfq_may_queue(struct cfq_queue *cfqq)
 	return ELV_MQUEUE_MAY;
 }
 
-static int cfq_may_queue(struct request_queue *q, int rw)
+static int cfq_may_queue(struct request_queue *q, int op, int op_flags)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct task_struct *tsk = current;
@@ -4302,7 +4302,7 @@ static int cfq_may_queue(struct request_queue *q, int rw)
 	if (!cic)
 		return ELV_MQUEUE_MAY;
 
-	cfqq = cic_to_cfqq(cic, rw_is_sync(rw));
+	cfqq = cic_to_cfqq(cic, rw_is_sync(op | op_flags));
 	if (cfqq) {
 		cfq_init_prio_data(cfqq, cic);
 
