@@ -200,8 +200,15 @@ struct request {
 	struct request *next_rq;
 };
 
-#define req_op(req)		(op_from_rq_bits((req)->cmd_flags))
-#define req_set_op(req, op)	((req)->cmd_flags |= op)
+#define REQ_OP_SHIFT (8 * sizeof(u64) - REQ_OP_BITS)
+#define req_op(req)  ((req)->cmd_flags >> REQ_OP_SHIFT)
+
+#define req_set_op(req, op) do {				\
+	WARN_ON(op >= (1 << REQ_OP_BITS));			\
+	(req)->cmd_flags &= ((1ULL << REQ_OP_SHIFT) - 1);	\
+	(req)->cmd_flags |= ((u64) (op) << REQ_OP_SHIFT);	\
+} while (0)
+
 #define req_set_op_attrs(req, op, flags) do {	\
 	req_set_op(req, op);			\
 	(req)->cmd_flags |= flags;		\
@@ -604,8 +611,7 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 
-#define rq_data_dir(rq) \
-	(op_is_write(op_from_rq_bits(rq->cmd_flags)) ? WRITE : READ)
+#define rq_data_dir(rq)		(op_is_write(req_op(rq)) ? WRITE : READ)
 
 /*
  * Driver can handle struct request, if it either has an old style
