@@ -31,6 +31,10 @@ void gb_timesync_svc_remove(struct gb_svc *svc);
 
 u64 gb_timesync_get_frame_time_by_interface(struct gb_interface *interface);
 u64 gb_timesync_get_frame_time_by_svc(struct gb_svc *svc);
+int gb_timesync_to_timespec_by_svc(struct gb_svc *svc, u64 frame_time,
+				   struct timespec *ts);
+int gb_timesync_to_timespec_by_interface(struct gb_interface *interface,
+					 u64 frame_time, struct timespec *ts);
 
 int gb_timesync_schedule_synchronous(struct gb_interface *intf);
 void gb_timesync_schedule_asynchronous(struct gb_interface *intf);

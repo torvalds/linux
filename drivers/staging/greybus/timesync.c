@@ -7,6 +7,7 @@
  * Released under the GPLv2 only.
  */
 #include <linux/debugfs.h>
+#include <linux/hrtimer.h>
 #include "greybus.h"
 #include "timesync.h"
 #include "greybus_trace.h"
@@ -30,9 +31,15 @@
 #define GB_TIMESYNC_DELAYED_WORK_LONG		msecs_to_jiffies(1000)
 #define GB_TIMESYNC_DELAYED_WORK_SHORT		msecs_to_jiffies(1)
 #define GB_TIMESYNC_MAX_WAIT_SVC		msecs_to_jiffies(5000)
+#define GB_TIMESYNC_KTIME_UPDATE		msecs_to_jiffies(1000)
+#define GB_TIMESYNC_MAX_KTIME_CONVERSION	15
 
-/* Reported nanoseconds per clock */
+/* Reported nanoseconds/femtoseconds per clock */
 static u64 gb_timesync_ns_per_clock;
+static u64 gb_timesync_fs_per_clock;
+
+/* Maximum difference we will accept converting FrameTime to ktime */
+static u32 gb_timesync_max_ktime_diff;
 
 /* Reported clock rate */
 static unsigned long gb_timesync_clock_rate;
@@ -45,6 +52,12 @@ static LIST_HEAD(gb_timesync_svc_list);
 
 /* Synchronize parallel contexts accessing a valid timesync_svc pointer */
 static DEFINE_MUTEX(gb_timesync_svc_list_mutex);
+
+/* Structure to convert from FrameTime to timespec/ktime */
+struct gb_timesync_frame_time_data {
+	u64 frame_time;
+	struct timespec ts;
+};
 
 struct gb_timesync_svc {
 	struct list_head list;
@@ -59,10 +72,12 @@ struct gb_timesync_svc {
 	struct workqueue_struct *work_queue;
 	wait_queue_head_t wait_queue;
 	struct delayed_work delayed_work;
+	struct timer_list ktime_timer;
 
 	/* The current local FrameTime */
 	u64 frame_time_offset;
-	u64 strobe_time[GB_TIMESYNC_MAX_STROBES];
+	struct gb_timesync_frame_time_data strobe_data[GB_TIMESYNC_MAX_STROBES];
+	struct gb_timesync_frame_time_data ktime_data;
 
 	/* The SVC FrameTime and relative AP FrameTime @ last TIMESYNC_PING */
 	u64 svc_ping_frame_time;
@@ -100,6 +115,8 @@ enum gb_timesync_state {
 	GB_TIMESYNC_STATE_PING			= 5,
 	GB_TIMESYNC_STATE_ACTIVE		= 6,
 };
+
+static void gb_timesync_ktime_timer_fn(unsigned long data);
 
 static u64 gb_timesync_adjust_count(struct gb_timesync_svc *timesync_svc,
 				    u64 counts)
@@ -221,6 +238,17 @@ static void gb_timesync_adjust_to_svc(struct gb_timesync_svc *svc,
 }
 
 /*
+ * Associate a FrameTime with a ktime timestamp represented as struct timespec
+ * Requires the calling context to hold timesync_svc->mutex
+ */
+static void gb_timesync_store_ktime(struct gb_timesync_svc *timesync_svc,
+				    struct timespec ts, u64 frame_time)
+{
+	timesync_svc->ktime_data.ts = ts;
+	timesync_svc->ktime_data.frame_time = frame_time;
+}
+
+/*
  * Find the two pulses that best-match our expected inter-strobe gap and
  * then calculate the difference between the SVC time at the second pulse
  * to the local time at the second pulse.
@@ -229,24 +257,32 @@ static void gb_timesync_collate_frame_time(struct gb_timesync_svc *timesync_svc,
 					   u64 *frame_time)
 {
 	int i = 0;
-	u64 delta;
+	u64 delta, ap_frame_time;
 	u64 strobe_delay_ns = GB_TIMESYNC_STROBE_DELAY_US * NSEC_PER_USEC;
 	u64 least = 0;
 
 	for (i = 1; i < GB_TIMESYNC_MAX_STROBES; i++) {
-		delta = timesync_svc->strobe_time[i] -
-			timesync_svc->strobe_time[i - 1];
+		delta = timesync_svc->strobe_data[i].frame_time -
+			timesync_svc->strobe_data[i - 1].frame_time;
 		delta *= gb_timesync_ns_per_clock;
 		delta = gb_timesync_diff(delta, strobe_delay_ns);
 
 		if (!least || delta < least) {
 			least = delta;
 			gb_timesync_adjust_to_svc(timesync_svc, frame_time[i],
-						  timesync_svc->strobe_time[i]);
+						  timesync_svc->strobe_data[i].frame_time);
+
+			ap_frame_time = timesync_svc->strobe_data[i].frame_time;
+			ap_frame_time = gb_timesync_adjust_count(timesync_svc,
+								 ap_frame_time);
+			gb_timesync_store_ktime(timesync_svc,
+						timesync_svc->strobe_data[i].ts,
+						ap_frame_time);
+
 			pr_debug("adjust %s local %llu svc %llu delta %llu\n",
 				 timesync_svc->offset_down ? "down" : "up",
-				 timesync_svc->strobe_time[i], frame_time[i],
-				 delta);
+				 timesync_svc->strobe_data[i].frame_time,
+				 frame_time[i], delta);
 		}
 	}
 }
@@ -413,6 +449,119 @@ static void gb_timesync_authoritative(struct gb_timesync_svc *timesync_svc)
 	/* Schedule a ping to verify the synchronized system time */
 	timesync_svc->print_ping = true;
 	gb_timesync_set_state_atomic(timesync_svc, GB_TIMESYNC_STATE_PING);
+}
+
+static int __gb_timesync_get_status(struct gb_timesync_svc *timesync_svc)
+{
+	int ret = -EINVAL;
+
+	switch (timesync_svc->state) {
+	case GB_TIMESYNC_STATE_INVALID:
+	case GB_TIMESYNC_STATE_INACTIVE:
+		ret = -ENODEV;
+		break;
+	case GB_TIMESYNC_STATE_INIT:
+	case GB_TIMESYNC_STATE_WAIT_SVC:
+	case GB_TIMESYNC_STATE_AUTHORITATIVE:
+	case GB_TIMESYNC_STATE_PING:
+		ret = -EAGAIN;
+		break;
+	case GB_TIMESYNC_STATE_ACTIVE:
+		ret = 0;
+		break;
+	}
+	return ret;
+}
+
+/*
+ * This routine takes a FrameTime and derives the difference with-respect
+ * to a reference FrameTime/ktime pair. It then returns the calculated
+ * ktime based on the difference between the supplied FrameTime and
+ * the reference FrameTime.
+ *
+ * The time difference is calculated to six decimal places. Taking 19.2MHz
+ * as an example this means we have 52.083333~ nanoseconds per clock or
+ * 52083333~ femtoseconds per clock.
+ *
+ * Naively taking the count difference and converting to
+ * seconds/nanoseconds would quickly see the 0.0833 component produce
+ * noticeable errors. For example a time difference of one second would
+ * loose 19200000 * 0.08333x nanoseconds or 1.59 seconds.
+ *
+ * In contrast calculating in femtoseconds the same example of 19200000 *
+ * 0.000000083333x nanoseconds per count of error is just 1.59 nanoseconds!
+ *
+ * Continuing the example of 19.2 MHz we cap the maximum error difference
+ * at a worst-case 0.3 microseconds over a potential calculation window of
+ * abount 15 seconds, meaning you can convert a FrameTime that is <= 15
+ * seconds older/younger than the reference time with a maximum error of
+ * 0.2385 useconds. Note 19.2MHz is an example frequency not a requirement.
+ */
+static int gb_timesync_to_timespec(struct gb_timesync_svc *timesync_svc,
+				   u64 frame_time, struct timespec *ts)
+{
+	unsigned long flags;
+	u64 delta_fs, counts;
+	u32 sec, nsec;
+	bool add;
+	int ret = 0;
+
+	mutex_lock(&timesync_svc->mutex);
+	spin_lock_irqsave(&timesync_svc->spinlock, flags);
+
+	ret = __gb_timesync_get_status(timesync_svc);
+	if (ret)
+		goto done;
+
+	/* Support calculating ktime upwards or downwards from the reference */
+	if (frame_time < timesync_svc->ktime_data.frame_time) {
+		add = false;
+		counts = timesync_svc->ktime_data.frame_time - frame_time;
+	} else {
+		add = true;
+		counts = frame_time - timesync_svc->ktime_data.frame_time;
+	}
+
+	/* Enforce the .23 of a usecond boundary @ 19.2MHz */
+	if (counts > gb_timesync_max_ktime_diff) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	/* Determine the time difference in femtoseconds */
+	delta_fs = counts * gb_timesync_fs_per_clock;
+	sec = delta_fs / FSEC_PER_SEC;
+	nsec = (delta_fs % FSEC_PER_SEC) / 1000000UL;
+
+	if (add) {
+		/* Add the calculated offset - overflow nanoseconds upwards */
+		ts->tv_sec = timesync_svc->ktime_data.ts.tv_sec + sec;
+		ts->tv_nsec = timesync_svc->ktime_data.ts.tv_nsec + nsec;
+		if (ts->tv_nsec >= NSEC_PER_SEC) {
+			ts->tv_sec++;
+			ts->tv_nsec -= NSEC_PER_SEC;
+		}
+	} else {
+		/* Subtract the difference over/underflow as necessary */
+		if (nsec > timesync_svc->ktime_data.ts.tv_nsec) {
+			sec++;
+			nsec = nsec + timesync_svc->ktime_data.ts.tv_nsec;
+			nsec %= NSEC_PER_SEC;
+		} else {
+			nsec = timesync_svc->ktime_data.ts.tv_nsec - nsec;
+		}
+		/* Cannot return a negative second value */
+		if (sec > timesync_svc->ktime_data.ts.tv_sec) {
+			ret = -EINVAL;
+			goto done;
+		}
+		ts->tv_sec = timesync_svc->ktime_data.ts.tv_sec - sec;
+		ts->tv_nsec = nsec;
+	}
+done:
+	spin_unlock_irqrestore(&timesync_svc->spinlock, flags);
+	mutex_unlock(&timesync_svc->mutex);
+	return ret;
 }
 
 static size_t gb_timesync_log_frame_time(struct gb_timesync_svc *timesync_svc,
@@ -616,21 +765,7 @@ static int __gb_timesync_schedule_synchronous(
 	mutex_lock(&timesync_svc->mutex);
 	spin_lock_irqsave(&timesync_svc->spinlock, flags);
 
-	switch (timesync_svc->state) {
-	case GB_TIMESYNC_STATE_INVALID:
-	case GB_TIMESYNC_STATE_INACTIVE:
-		ret = -ENODEV;
-		break;
-	case GB_TIMESYNC_STATE_INIT:
-	case GB_TIMESYNC_STATE_WAIT_SVC:
-	case GB_TIMESYNC_STATE_AUTHORITATIVE:
-	case GB_TIMESYNC_STATE_PING:
-		ret = -EAGAIN;
-		break;
-	case GB_TIMESYNC_STATE_ACTIVE:
-		ret = 0;
-		break;
-	}
+	ret = __gb_timesync_get_status(timesync_svc);
 
 	spin_unlock_irqrestore(&timesync_svc->spinlock, flags);
 	mutex_unlock(&timesync_svc->mutex);
@@ -810,7 +945,15 @@ int gb_timesync_svc_add(struct gb_svc *svc)
 		debugfs_remove(timesync_svc->frame_time_dentry);
 		destroy_workqueue(timesync_svc->work_queue);
 		kfree(timesync_svc);
+		goto done;
 	}
+
+	init_timer(&timesync_svc->ktime_timer);
+	timesync_svc->ktime_timer.function = gb_timesync_ktime_timer_fn;
+	timesync_svc->ktime_timer.expires = jiffies + GB_TIMESYNC_KTIME_UPDATE;
+	timesync_svc->ktime_timer.data = (unsigned long)timesync_svc;
+	add_timer(&timesync_svc->ktime_timer);
+done:
 	mutex_unlock(&gb_timesync_svc_list_mutex);
 	return ret;
 }
@@ -830,6 +973,7 @@ void gb_timesync_svc_remove(struct gb_svc *svc)
 	mutex_lock(&timesync_svc->mutex);
 
 	gb_timesync_teardown(timesync_svc);
+	del_timer_sync(&timesync_svc->ktime_timer);
 
 	gb_timesync_hd_remove(timesync_svc, svc->hd);
 	list_for_each_entry_safe(timesync_interface, next,
@@ -971,12 +1115,77 @@ done:
 }
 EXPORT_SYMBOL_GPL(gb_timesync_get_frame_time_by_svc);
 
+/* Incrementally updates the conversion base from FrameTime to ktime */
+static void gb_timesync_ktime_timer_fn(unsigned long data)
+{
+	struct gb_timesync_svc *timesync_svc =
+		(struct gb_timesync_svc *)data;
+	unsigned long flags;
+	u64 frame_time;
+	struct timespec ts;
+
+	spin_lock_irqsave(&timesync_svc->spinlock, flags);
+
+	if (timesync_svc->state != GB_TIMESYNC_STATE_ACTIVE)
+		goto done;
+
+	ktime_get_ts(&ts);
+	frame_time = __gb_timesync_get_frame_time(timesync_svc);
+	gb_timesync_store_ktime(timesync_svc, ts, frame_time);
+
+done:
+	spin_unlock_irqrestore(&timesync_svc->spinlock, flags);
+	mod_timer(&timesync_svc->ktime_timer,
+		  jiffies + GB_TIMESYNC_KTIME_UPDATE);
+}
+
+int gb_timesync_to_timespec_by_svc(struct gb_svc *svc, u64 frame_time,
+				   struct timespec *ts)
+{
+	struct gb_timesync_svc *timesync_svc;
+	int ret = 0;
+
+	mutex_lock(&gb_timesync_svc_list_mutex);
+	timesync_svc = gb_timesync_find_timesync_svc(svc->hd);
+	if (!timesync_svc) {
+		ret = -ENODEV;
+		goto done;
+	}
+	ret = gb_timesync_to_timespec(timesync_svc, frame_time, ts);
+done:
+	mutex_unlock(&gb_timesync_svc_list_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gb_timesync_to_timespec_by_svc);
+
+int gb_timesync_to_timespec_by_interface(struct gb_interface *interface,
+					 u64 frame_time, struct timespec *ts)
+{
+	struct gb_timesync_svc *timesync_svc;
+	int ret = 0;
+
+	mutex_lock(&gb_timesync_svc_list_mutex);
+	timesync_svc = gb_timesync_find_timesync_svc(interface->hd);
+	if (!timesync_svc) {
+		ret = -ENODEV;
+		goto done;
+	}
+
+	ret = gb_timesync_to_timespec(timesync_svc, frame_time, ts);
+done:
+	mutex_unlock(&gb_timesync_svc_list_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gb_timesync_to_timespec_by_interface);
+
 void gb_timesync_irq(struct gb_timesync_svc *timesync_svc)
 {
 	unsigned long flags;
 	u64 strobe_time;
 	bool strobe_is_ping = true;
+	struct timespec ts;
 
+	ktime_get_ts(&ts);
 	strobe_time = __gb_timesync_get_frame_time(timesync_svc);
 
 	spin_lock_irqsave(&timesync_svc->spinlock, flags);
@@ -990,7 +1199,8 @@ void gb_timesync_irq(struct gb_timesync_svc *timesync_svc)
 		goto done_nolog;
 	}
 
-	timesync_svc->strobe_time[timesync_svc->strobe] = strobe_time;
+	timesync_svc->strobe_data[timesync_svc->strobe].frame_time = strobe_time;
+	timesync_svc->strobe_data[timesync_svc->strobe].ts = ts;
 
 	if (++timesync_svc->strobe == GB_TIMESYNC_MAX_STROBES) {
 		gb_timesync_set_state(timesync_svc,
@@ -1016,9 +1226,17 @@ int __init gb_timesync_init(void)
 	}
 
 	gb_timesync_clock_rate = gb_timesync_platform_get_clock_rate();
+
+	/* Calculate nanoseconds and femtoseconds per clock */
+	gb_timesync_fs_per_clock = FSEC_PER_SEC / gb_timesync_clock_rate;
 	gb_timesync_ns_per_clock = NSEC_PER_SEC / gb_timesync_clock_rate;
 
-	pr_info("Time-Sync timer frequency %lu Hz\n", gb_timesync_clock_rate);
+	/* Calculate the maximum number of clocks we will convert to ktime */
+	gb_timesync_max_ktime_diff =
+		GB_TIMESYNC_MAX_KTIME_CONVERSION * gb_timesync_clock_rate;
+
+	pr_info("Time-Sync @ %lu Hz max ktime conversion +/- %d seconds\n",
+		gb_timesync_clock_rate, GB_TIMESYNC_MAX_KTIME_CONVERSION);
 	return 0;
 }
 
