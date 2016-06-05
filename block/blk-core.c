@@ -962,7 +962,7 @@ static void __freed_request(struct request_list *rl, int sync)
 static void freed_request(struct request_list *rl, int op, unsigned int flags)
 {
 	struct request_queue *q = rl->q;
-	int sync = rw_is_sync(op | flags);
+	int sync = rw_is_sync(op, flags);
 
 	q->nr_rqs[sync]--;
 	rl->count[sync]--;
@@ -1075,7 +1075,7 @@ static struct request *__get_request(struct request_list *rl, int op,
 	struct elevator_type *et = q->elevator->type;
 	struct io_context *ioc = rq_ioc(bio);
 	struct io_cq *icq = NULL;
-	const bool is_sync = rw_is_sync(op | op_flags) != 0;
+	const bool is_sync = rw_is_sync(op, op_flags) != 0;
 	int may_queue;
 
 	if (unlikely(blk_queue_dying(q)))
@@ -1244,7 +1244,7 @@ static struct request *get_request(struct request_queue *q, int op,
 				   int op_flags, struct bio *bio,
 				   gfp_t gfp_mask)
 {
-	const bool is_sync = rw_is_sync(op | op_flags) != 0;
+	const bool is_sync = rw_is_sync(op, op_flags) != 0;
 	DEFINE_WAIT(wait);
 	struct request_list *rl;
 	struct request *rq;
