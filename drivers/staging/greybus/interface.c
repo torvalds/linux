@@ -805,6 +805,12 @@ int gb_interface_enable(struct gb_interface *intf)
 	if (ret)
 		goto err_destroy_bundles;
 
+	ret = gb_timesync_interface_add(intf);
+	if (ret) {
+		dev_err(&intf->dev, "failed to add to timesync: %d\n", ret);
+		goto err_destroy_bundles;
+	}
+
 	list_for_each_entry_safe_reverse(bundle, tmp, &intf->bundles, links) {
 		ret = gb_bundle_add(bundle);
 		if (ret) {
@@ -857,6 +863,7 @@ void gb_interface_disable(struct gb_interface *intf)
 	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
 		gb_bundle_destroy(bundle);
 
+	gb_timesync_interface_remove(intf);
 	gb_control_del(intf->control);
 	gb_control_disable(intf->control);
 	gb_control_put(intf->control);

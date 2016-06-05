@@ -851,14 +851,25 @@ static int gb_svc_hello(struct gb_operation *op)
 	ret = gb_svc_watchdog_create(svc);
 	if (ret) {
 		dev_err(&svc->dev, "failed to create watchdog: %d\n", ret);
-		input_unregister_device(svc->input);
-		device_del(&svc->dev);
-		return ret;
+		goto err_unregister_device;
 	}
 
 	gb_svc_debugfs_init(svc);
 
+	ret = gb_timesync_svc_add(svc);
+	if (ret) {
+		dev_err(&svc->dev, "failed to add SVC to timesync: %d\n", ret);
+		gb_svc_debugfs_exit(svc);
+		goto err_unregister_device;
+	}
+
 	return gb_svc_queue_deferred_request(op);
+
+err_unregister_device:
+	gb_svc_watchdog_destroy(svc);
+	input_unregister_device(svc->input);
+	device_del(&svc->dev);
+	return ret;
 }
 
 static struct gb_interface *gb_svc_interface_lookup(struct gb_svc *svc,
@@ -1404,6 +1415,7 @@ void gb_svc_del(struct gb_svc *svc)
 	 * from the request handler.
 	 */
 	if (device_is_registered(&svc->dev)) {
+		gb_timesync_svc_remove(svc);
 		gb_svc_debugfs_exit(svc);
 		gb_svc_watchdog_destroy(svc);
 		input_unregister_device(svc->input);
