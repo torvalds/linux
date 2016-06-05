@@ -13,6 +13,7 @@
  *
  ******************************************************************************/
 #define _RTL8188EU_RECV_C_
+#include <linux/kmemleak.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <recv_osdep.h>
@@ -72,6 +73,7 @@ int	rtl8188eu_init_recv_priv(struct adapter *padapter)
 					MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ,
 					GFP_KERNEL);
 			if (pskb) {
+				kmemleak_not_leak(pskb);
 				pskb->dev = padapter->pnetdev;
 				tmpaddr = (size_t)pskb->data;
 				alignm = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
