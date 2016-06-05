@@ -2171,7 +2171,7 @@ static void dm_request_fn(struct request_queue *q)
 
 		/* always use block 0 to find the target for flushes for now */
 		pos = 0;
-		if (!(rq->cmd_flags & REQ_FLUSH))
+		if (req_op(rq) != REQ_OP_FLUSH)
 			pos = blk_rq_pos(rq);
 
 		if ((dm_request_peeked_before_merge_deadline(md) &&

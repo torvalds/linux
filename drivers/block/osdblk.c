@@ -321,7 +321,7 @@ static void osdblk_rq_fn(struct request_queue *q)
 		 * driver-specific, etc.
 		 */
 
-		do_flush = rq->cmd_flags & REQ_FLUSH;
+		do_flush = (req_op(rq) == REQ_OP_FLUSH);
 		do_write = (rq_data_dir(rq) == WRITE);
 
 		if (!do_flush) { /* osd_flush does not use a bio */

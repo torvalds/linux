@@ -597,7 +597,7 @@ static void skd_request_fn(struct request_queue *q)
 		data_dir = rq_data_dir(req);
 		io_flags = req->cmd_flags;
 
-		if (io_flags & REQ_FLUSH)
+		if (req_op(req) == REQ_OP_FLUSH)
 			flush++;
 
 		if (io_flags & REQ_FUA)

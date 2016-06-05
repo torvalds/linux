@@ -73,9 +73,9 @@ doing:
 
 	blk_queue_write_cache(sdkp->disk->queue, true, false);
 
-and handle empty REQ_FLUSH requests in its prep_fn/request_fn.  Note that
+and handle empty REQ_OP_FLUSH requests in its prep_fn/request_fn.  Note that
 REQ_FLUSH requests with a payload are automatically turned into a sequence
-of an empty REQ_FLUSH request followed by the actual write by the block
+of an empty REQ_OP_FLUSH request followed by the actual write by the block
 layer.  For devices that also support the FUA bit the block layer needs
 to be told to pass through the REQ_FUA bit using:
 
@@ -83,4 +83,4 @@ to be told to pass through the REQ_FUA bit using:
 
 and the driver must handle write requests that have the REQ_FUA bit set
 in prep_fn/request_fn.  If the FUA bit is not natively supported the block
-layer turns it into an empty REQ_FLUSH request after the actual write.
+layer turns it into an empty REQ_OP_FLUSH request after the actual write.

@@ -743,7 +743,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 		 * The indirect operation can only be a BLKIF_OP_READ or
 		 * BLKIF_OP_WRITE
 		 */
-		BUG_ON(req->cmd_flags & (REQ_FLUSH | REQ_FUA));
+		BUG_ON(req_op(req) == REQ_OP_FLUSH || req->cmd_flags & REQ_FUA);
 		ring_req->operation = BLKIF_OP_INDIRECT;
 		ring_req->u.indirect.indirect_op = rq_data_dir(req) ?
 			BLKIF_OP_WRITE : BLKIF_OP_READ;
@@ -755,7 +755,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 		ring_req->u.rw.handle = info->handle;
 		ring_req->operation = rq_data_dir(req) ?
 			BLKIF_OP_WRITE : BLKIF_OP_READ;
-		if (req->cmd_flags & (REQ_FLUSH | REQ_FUA)) {
+		if (req_op(req) == REQ_OP_FLUSH || req->cmd_flags & REQ_FUA) {
 			/*
 			 * Ideally we can do an unordered flush-to-disk.
 			 * In case the backend onlysupports barriers, use that.
@@ -865,7 +865,7 @@ static inline bool blkif_request_flush_invalid(struct request *req,
 					       struct blkfront_info *info)
 {
 	return ((req->cmd_type != REQ_TYPE_FS) ||
-		((req->cmd_flags & REQ_FLUSH) &&
+		((req_op(req) == REQ_OP_FLUSH) &&
 		 !(info->feature_flush & REQ_FLUSH)) ||
 		((req->cmd_flags & REQ_FUA) &&
 		 !(info->feature_flush & REQ_FUA)));
@@ -2055,7 +2055,7 @@ static int blkif_recover(struct blkfront_info *info)
 			/*
 			 * Get the bios in the request so we can re-queue them.
 			 */
-			if (copy[i].request->cmd_flags & REQ_FLUSH ||
+			if (req_op(copy[i].request) == REQ_OP_FLUSH ||
 			    req_op(copy[i].request) == REQ_OP_DISCARD ||
 			    copy[i].request->cmd_flags & (REQ_FUA | REQ_SECURE)) {
 				/*

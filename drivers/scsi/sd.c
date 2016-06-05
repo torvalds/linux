@@ -1143,12 +1143,11 @@ static int sd_init_command(struct scsi_cmnd *cmd)
 		return sd_setup_discard_cmnd(cmd);
 	case REQ_OP_WRITE_SAME:
 		return sd_setup_write_same_cmnd(cmd);
+	case REQ_OP_FLUSH:
+		return sd_setup_flush_cmnd(cmd);
 	case REQ_OP_READ:
 	case REQ_OP_WRITE:
-		if (rq->cmd_flags & REQ_FLUSH)
-			return sd_setup_flush_cmnd(cmd);
-		else
-			return sd_setup_read_write_cmnd(cmd);
+		return sd_setup_read_write_cmnd(cmd);
 	default:
 		BUG();
 	}

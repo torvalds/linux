@@ -196,7 +196,7 @@ static void ps3disk_do_request(struct ps3_storage_device *dev,
 	dev_dbg(&dev->sbd.core, "%s:%u\n", __func__, __LINE__);
 
 	while ((req = blk_fetch_request(q))) {
-		if (req->cmd_flags & REQ_FLUSH) {
+		if (req_op(req) == REQ_OP_FLUSH) {
 			if (ps3disk_submit_flush_request(dev, req))
 				break;
 		} else if (req->cmd_type == REQ_TYPE_FS) {
@@ -256,7 +256,7 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	if (req->cmd_flags & REQ_FLUSH) {
+	if (req_op(req) == REQ_OP_FLUSH) {
 		read = 0;
 		op = "flush";
 	} else {

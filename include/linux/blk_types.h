@@ -249,9 +249,10 @@ enum req_op {
 	REQ_OP_WRITE,
 	REQ_OP_DISCARD,		/* request to discard sectors */
 	REQ_OP_WRITE_SAME,	/* write same block many times */
+	REQ_OP_FLUSH,		/* request for cache flush */
 };
 
-#define REQ_OP_BITS 2
+#define REQ_OP_BITS 3
 
 typedef unsigned int blk_qc_t;
 #define BLK_QC_T_NONE	-1U

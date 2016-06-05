@@ -29,7 +29,7 @@
  * The actual execution of flush is double buffered.  Whenever a request
  * needs to execute PRE or POSTFLUSH, it queues at
  * fq->flush_queue[fq->flush_pending_idx].  Once certain criteria are met, a
- * flush is issued and the pending_idx is toggled.  When the flush
+ * REQ_OP_FLUSH is issued and the pending_idx is toggled.  When the flush
  * completes, all the requests which were pending are proceeded to the next
  * step.  This allows arbitrary merging of different types of FLUSH/FUA
  * requests.
@@ -330,7 +330,7 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	}
 
 	flush_rq->cmd_type = REQ_TYPE_FS;
-	flush_rq->cmd_flags = WRITE_FLUSH | REQ_FLUSH_SEQ;
+	req_set_op_attrs(flush_rq, REQ_OP_FLUSH, WRITE_FLUSH | REQ_FLUSH_SEQ);
 	flush_rq->rq_disk = first_rq->rq_disk;
 	flush_rq->end_io = flush_end_io;
 
