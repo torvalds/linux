@@ -649,5 +649,5 @@ static struct i2c_driver pfuze_driver = {
 module_i2c_driver(pfuze_driver);
 
 MODULE_AUTHOR("Robin Gong <b38343@freescale.com>");
-MODULE_DESCRIPTION("Regulator Driver for Freescale PFUZE100/PFUZE200 PMIC");
+MODULE_DESCRIPTION("Regulator Driver for Freescale PFUZE100/200/3000 PMIC");
 MODULE_LICENSE("GPL v2");
