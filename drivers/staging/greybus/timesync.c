@@ -69,6 +69,7 @@ struct gb_timesync_svc {
 	struct mutex mutex;	/* Per SVC mutex for regular synchronization */
 
 	struct dentry *frame_time_dentry;
+	struct dentry *frame_ktime_dentry;
 	struct workqueue_struct *work_queue;
 	wait_queue_head_t wait_queue;
 	struct delayed_work delayed_work;
@@ -506,6 +507,7 @@ static int gb_timesync_to_timespec(struct gb_timesync_svc *timesync_svc,
 	bool add;
 	int ret = 0;
 
+	memset(ts, 0x00, sizeof(*ts));
 	mutex_lock(&timesync_svc->mutex);
 	spin_lock_irqsave(&timesync_svc->spinlock, flags);
 
@@ -575,7 +577,6 @@ static size_t gb_timesync_log_frame_time(struct gb_timesync_svc *timesync_svc,
 	size_t off;
 
 	/* AP/SVC */
-	memset(buf, 0x00, buflen);
 	off = snprintf(buf, buflen, "timesync: ping-time ap=%llu %s=%llu ",
 		       timesync_svc->ap_ping_frame_time, dev_name(&svc->dev),
 		       timesync_svc->svc_ping_frame_time);
@@ -601,6 +602,65 @@ static size_t gb_timesync_log_frame_time(struct gb_timesync_svc *timesync_svc,
 	}
 	if (len < buflen)
 		off += snprintf(&buf[off], len, "\n");
+	return off;
+}
+
+static size_t gb_timesync_log_frame_ktime(struct gb_timesync_svc *timesync_svc,
+					  char *buf, size_t buflen)
+{
+	struct gb_svc *svc = timesync_svc->svc;
+	struct gb_host_device *hd;
+	struct gb_timesync_interface *timesync_interface;
+	struct gb_interface *interface;
+	struct timespec ts;
+	unsigned int len;
+	size_t off;
+
+	/* AP */
+	gb_timesync_to_timespec(timesync_svc, timesync_svc->ap_ping_frame_time,
+				&ts);
+	off = snprintf(buf, buflen, "timesync: ping-time ap=%lu.%lu ",
+		       ts.tv_sec, ts.tv_nsec);
+	len = buflen - off;
+	if (len >= buflen)
+		goto done;
+
+	/* SVC */
+	gb_timesync_to_timespec(timesync_svc, timesync_svc->svc_ping_frame_time,
+				&ts);
+	off += snprintf(&buf[off], len, "%s=%lu.%lu ", dev_name(&svc->dev),
+			ts.tv_sec, ts.tv_nsec);
+	len = buflen - off;
+	if (len >= buflen)
+		goto done;
+
+	/* APB/GPB */
+	hd = timesync_svc->timesync_hd->hd;
+	gb_timesync_to_timespec(timesync_svc,
+				timesync_svc->timesync_hd->ping_frame_time,
+				&ts);
+	off += snprintf(&buf[off], len, "%s=%lu.%lu ",
+			dev_name(&hd->dev),
+			ts.tv_sec, ts.tv_nsec);
+	len = buflen - off;
+	if (len >= buflen)
+		goto done;
+
+	list_for_each_entry(timesync_interface,
+			    &timesync_svc->interface_list, list) {
+		interface = timesync_interface->interface;
+		gb_timesync_to_timespec(timesync_svc,
+					timesync_interface->ping_frame_time,
+					&ts);
+		off += snprintf(&buf[off], len, "%s=%lu.%lu ",
+				dev_name(&interface->dev),
+				ts.tv_sec, ts.tv_nsec);
+		len = buflen - off;
+		if (len >= buflen)
+			goto done;
+	}
+	off += snprintf(&buf[off], len, "\n");
+done:
 	return off;
 }
 
@@ -840,11 +900,11 @@ done:
 }
 EXPORT_SYMBOL_GPL(gb_timesync_schedule_asynchronous);
 
-static ssize_t gb_timesync_ping_read(struct file *file, char __user *buf,
-				     size_t len, loff_t *offset)
+static ssize_t gb_timesync_ping_read(struct file *file, char __user *ubuf,
+				     size_t len, loff_t *offset, bool ktime)
 {
 	struct gb_timesync_svc *timesync_svc = file->f_inode->i_private;
-	char *pbuf;
+	char *buf;
 	ssize_t ret = 0;
 
 	mutex_lock(&gb_timesync_svc_list_mutex);
@@ -861,23 +921,44 @@ static ssize_t gb_timesync_ping_read(struct file *file, char __user *buf,
 	if (ret)
 		goto done;
 
-	pbuf = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!pbuf) {
+	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf) {
 		ret = -ENOMEM;
 		goto done;
 	}
 
-	ret = gb_timesync_log_frame_time(timesync_svc, pbuf, PAGE_SIZE);
+	if (ktime)
+		ret = gb_timesync_log_frame_ktime(timesync_svc, buf, PAGE_SIZE);
+	else
+		ret = gb_timesync_log_frame_time(timesync_svc, buf, PAGE_SIZE);
 	if (ret > 0)
-		ret = simple_read_from_buffer(buf, len, offset, pbuf, ret);
-	kfree(pbuf);
+		ret = simple_read_from_buffer(ubuf, len, offset, buf, ret);
+	kfree(buf);
 done:
 	mutex_unlock(&gb_timesync_svc_list_mutex);
 	return ret;
 }
 
-static const struct file_operations gb_timesync_debugfs_ops = {
-	.read		= gb_timesync_ping_read,
+static ssize_t gb_timesync_ping_read_frame_time(struct file *file,
+						char __user *buf,
+						size_t len, loff_t *offset)
+{
+	return gb_timesync_ping_read(file, buf, len, offset, false);
+}
+
+static ssize_t gb_timesync_ping_read_frame_ktime(struct file *file,
+						 char __user *buf,
+						 size_t len, loff_t *offset)
+{
+	return gb_timesync_ping_read(file, buf, len, offset, true);
+}
+
+static const struct file_operations gb_timesync_debugfs_frame_time_ops = {
+	.read		= gb_timesync_ping_read_frame_time,
+};
+
+static const struct file_operations gb_timesync_debugfs_frame_ktime_ops = {
+	.read		= gb_timesync_ping_read_frame_ktime,
 };
 
 static int gb_timesync_hd_add(struct gb_timesync_svc *timesync_svc,
@@ -935,13 +1016,21 @@ int gb_timesync_svc_add(struct gb_svc *svc)
 	timesync_svc->frame_time_offset = 0;
 	timesync_svc->capture_ping = false;
 	gb_timesync_set_state_atomic(timesync_svc, GB_TIMESYNC_STATE_INACTIVE);
+
 	timesync_svc->frame_time_dentry =
 		debugfs_create_file("frame-time", S_IRUGO, svc->debugfs_dentry,
-				    timesync_svc, &gb_timesync_debugfs_ops);
+				    timesync_svc,
+				    &gb_timesync_debugfs_frame_time_ops);
+	timesync_svc->frame_ktime_dentry =
+		debugfs_create_file("frame-ktime", S_IRUGO, svc->debugfs_dentry,
+				    timesync_svc,
+				    &gb_timesync_debugfs_frame_ktime_ops);
+
 	list_add(&timesync_svc->list, &gb_timesync_svc_list);
 	ret = gb_timesync_hd_add(timesync_svc, svc->hd);
 	if (ret) {
 		list_del(&timesync_svc->list);
+		debugfs_remove(timesync_svc->frame_ktime_dentry);
 		debugfs_remove(timesync_svc->frame_time_dentry);
 		destroy_workqueue(timesync_svc->work_queue);
 		kfree(timesync_svc);
@@ -982,6 +1071,7 @@ void gb_timesync_svc_remove(struct gb_svc *svc)
 		kfree(timesync_interface);
 	}
 	gb_timesync_set_state_atomic(timesync_svc, GB_TIMESYNC_STATE_INVALID);
+	debugfs_remove(timesync_svc->frame_ktime_dentry);
 	debugfs_remove(timesync_svc->frame_time_dentry);
 	cancel_delayed_work_sync(&timesync_svc->delayed_work);
 	destroy_workqueue(timesync_svc->work_queue);
