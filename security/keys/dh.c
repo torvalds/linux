@@ -78,7 +78,8 @@ error:
 }
 
 long keyctl_dh_compute(struct keyctl_dh_params __user *params,
-		       char __user *buffer, size_t buflen)
+		       char __user *buffer, size_t buflen,
+		       void __user *reserved)
 {
 	long ret;
 	MPI base, private, prime, result;
@@ -94,6 +95,11 @@ long keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	}
 	if (copy_from_user(&pcopy, params, sizeof(pcopy)) != 0) {
 		ret = -EFAULT;
+		goto out;
+	}
+
+	if (reserved) {
+		ret = -EINVAL;
 		goto out;
 	}
 
