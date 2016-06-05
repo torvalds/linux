@@ -5,8 +5,8 @@
 
 struct tcf_defact {
 	struct tcf_common	common;
-	u32     		tcfd_datalen;
-	void    		*tcfd_defdata;
+	u32		tcfd_datalen;
+	void		*tcfd_defdata;
 };
 #define to_defact(a) \
 	container_of(a->priv, struct tcf_defact, common)

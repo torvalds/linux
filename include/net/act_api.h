@@ -2,8 +2,8 @@
 #define __NET_ACT_API_H
 
 /*
- * Public police action API for classifiers/qdiscs
- */
+ * Public action API for classifiers/qdiscs
+*/
 
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
@@ -107,7 +107,8 @@ struct tc_action_ops {
 	char    kind[IFNAMSIZ];
 	__u32   type; /* TBD to match kind */
 	struct module		*owner;
-	int     (*act)(struct sk_buff *, const struct tc_action *, struct tcf_result *);
+	int     (*act)(struct sk_buff *, const struct tc_action *,
+		       struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
 	void	(*cleanup)(struct tc_action *, int bind);
 	int     (*lookup)(struct net *, struct tc_action *, u32);
@@ -125,8 +126,8 @@ struct tc_action_net {
 };
 
 static inline
-int tc_action_net_init(struct tc_action_net *tn, const struct tc_action_ops *ops,
-		       unsigned int mask)
+int tc_action_net_init(struct tc_action_net *tn,
+		       const struct tc_action_ops *ops, unsigned int mask)
 {
 	int err = 0;
 
@@ -169,7 +170,8 @@ static inline int tcf_hash_release(struct tc_action *a, bool bind)
 }
 
 int tcf_register_action(struct tc_action_ops *a, struct pernet_operations *ops);
-int tcf_unregister_action(struct tc_action_ops *a, struct pernet_operations *ops);
+int tcf_unregister_action(struct tc_action_ops *a,
+			  struct pernet_operations *ops);
 int tcf_action_destroy(struct list_head *actions, int bind);
 int tcf_action_exec(struct sk_buff *skb, const struct list_head *actions,
 		    struct tcf_result *res);

@@ -34,7 +34,8 @@ static int ipt_net_id;
 
 static int xt_net_id;
 
-static int ipt_init_target(struct xt_entry_target *t, char *table, unsigned int hook)
+static int ipt_init_target(struct xt_entry_target *t, char *table,
+			   unsigned int hook)
 {
 	struct xt_tgchk_param par;
 	struct xt_target *target;
@@ -250,7 +251,8 @@ static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
 
 }
 
-static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
+static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind,
+			int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_ipt *ipt = a->priv;

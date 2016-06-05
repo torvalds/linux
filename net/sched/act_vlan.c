@@ -179,7 +179,8 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 
 	if (v->tcfv_action == TCA_VLAN_ACT_PUSH &&
 	    (nla_put_u16(skb, TCA_VLAN_PUSH_VLAN_ID, v->tcfv_push_vid) ||
-	     nla_put_be16(skb, TCA_VLAN_PUSH_VLAN_PROTOCOL, v->tcfv_push_proto)))
+	     nla_put_be16(skb, TCA_VLAN_PUSH_VLAN_PROTOCOL,
+			  v->tcfv_push_proto)))
 		goto nla_put_failure;
 
 	tcf_tm_dump(&t, &v->tcf_tm);
