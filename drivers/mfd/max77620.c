@@ -37,19 +37,19 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-static struct resource gpio_resources[] = {
+static const struct resource gpio_resources[] = {
 	DEFINE_RES_IRQ(MAX77620_IRQ_TOP_GPIO),
 };
 
-static struct resource power_resources[] = {
+static const struct resource power_resources[] = {
 	DEFINE_RES_IRQ(MAX77620_IRQ_LBT_MBATLOW),
 };
 
-static struct resource rtc_resources[] = {
+static const struct resource rtc_resources[] = {
 	DEFINE_RES_IRQ(MAX77620_IRQ_TOP_RTC),
 };
 
-static struct resource thermal_resources[] = {
+static const struct resource thermal_resources[] = {
 	DEFINE_RES_IRQ(MAX77620_IRQ_LBT_TJALRM1),
 	DEFINE_RES_IRQ(MAX77620_IRQ_LBT_TJALRM2),
 };
