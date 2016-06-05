@@ -788,7 +788,8 @@ static void check_if_tick_bio_needed(struct cache *cache, struct bio *bio)
 
 	spin_lock_irqsave(&cache->lock, flags);
 	if (cache->need_tick_bio &&
-	    !(bio->bi_rw & (REQ_FUA | REQ_FLUSH | REQ_DISCARD))) {
+	    !(bio->bi_rw & (REQ_FUA | REQ_FLUSH)) &&
+	    bio_op(bio) != REQ_OP_DISCARD) {
 		pb->tick = true;
 		cache->need_tick_bio = false;
 	}
@@ -851,7 +852,7 @@ static void inc_ds(struct cache *cache, struct bio *bio,
 static bool accountable_bio(struct cache *cache, struct bio *bio)
 {
 	return ((bio->bi_bdev == cache->origin_dev->bdev) &&
-		!(bio->bi_rw & REQ_DISCARD));
+		bio_op(bio) != REQ_OP_DISCARD);
 }
 
 static void accounted_begin(struct cache *cache, struct bio *bio)
@@ -1067,7 +1068,8 @@ static void dec_io_migrations(struct cache *cache)
 
 static bool discard_or_flush(struct bio *bio)
 {
-	return bio->bi_rw & (REQ_FLUSH | REQ_FUA | REQ_DISCARD);
+	return bio_op(bio) == REQ_OP_DISCARD ||
+	       bio->bi_rw & (REQ_FLUSH | REQ_FUA);
 }
 
 static void __cell_defer(struct cache *cache, struct dm_bio_prison_cell *cell)
@@ -1980,7 +1982,7 @@ static void process_deferred_bios(struct cache *cache)
 
 		if (bio->bi_rw & REQ_FLUSH)
 			process_flush_bio(cache, bio);
-		else if (bio->bi_rw & REQ_DISCARD)
+		else if (bio_op(bio) == REQ_OP_DISCARD)
 			process_discard_bio(cache, &structs, bio);
 		else
 			process_bio(cache, &structs, bio);

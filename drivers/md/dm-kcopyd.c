@@ -496,7 +496,8 @@ static int run_io_job(struct kcopyd_job *job)
 {
 	int r;
 	struct dm_io_request io_req = {
-		.bi_rw = job->rw,
+		.bi_op = job->rw,
+		.bi_op_flags = 0,
 		.mem.type = DM_IO_PAGE_LIST,
 		.mem.ptr.pl = job->pages,
 		.mem.offset = 0,
@@ -734,7 +735,7 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 		/*
 		 * Use WRITE SAME to optimize zeroing if all dests support it.
 		 */
-		job->rw = WRITE | REQ_WRITE_SAME;
+		job->rw = REQ_OP_WRITE_SAME;
 		for (i = 0; i < job->num_dests; i++)
 			if (!bdev_write_same(job->dests[i].bdev)) {
 				job->rw = WRITE;
