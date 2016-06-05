@@ -322,6 +322,9 @@ static void qed_iov_setup_vfdb(struct qed_hwfn *p_hwfn)
 		vf->opaque_fid = (p_hwfn->hw_info.opaque_fid & 0xff) |
 				 (vf->abs_vf_id << 8);
 		vf->vport_id = idx + 1;
+
+		vf->num_mac_filters = QED_ETH_VF_NUM_MAC_FILTERS;
+		vf->num_vlan_filters = QED_ETH_VF_NUM_VLAN_FILTERS;
 	}
 }
 
@@ -1123,8 +1126,6 @@ static void qed_iov_vf_cleanup(struct qed_hwfn *p_hwfn,
 
 	p_vf->vf_bulletin = 0;
 	p_vf->vport_instance = 0;
-	p_vf->num_mac_filters = 0;
-	p_vf->num_vlan_filters = 0;
 	p_vf->configured_features = 0;
 
 	/* If VF previously requested less resources, go back to default */
@@ -1141,6 +1142,91 @@ static void qed_iov_vf_cleanup(struct qed_hwfn *p_hwfn,
 	qed_iov_clean_vf(p_hwfn, p_vf->relative_vf_id);
 }
 
+static u8 qed_iov_vf_mbx_acquire_resc(struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt,
+				      struct qed_vf_info *p_vf,
+				      struct vf_pf_resc_request *p_req,
+				      struct pf_vf_resc *p_resp)
+{
+	int i;
+
+	/* Queue related information */
+	p_resp->num_rxqs = p_vf->num_rxqs;
+	p_resp->num_txqs = p_vf->num_txqs;
+	p_resp->num_sbs = p_vf->num_sbs;
+
+	for (i = 0; i < p_resp->num_sbs; i++) {
+		p_resp->hw_sbs[i].hw_sb_id = p_vf->igu_sbs[i];
+		p_resp->hw_sbs[i].sb_qid = 0;
+	}
+
+	/* These fields are filled for backward compatibility.
+	 * Unused by modern vfs.
+	 */
+	for (i = 0; i < p_resp->num_rxqs; i++) {
+		qed_fw_l2_queue(p_hwfn, p_vf->vf_queues[i].fw_rx_qid,
+				(u16 *)&p_resp->hw_qid[i]);
+		p_resp->cid[i] = p_vf->vf_queues[i].fw_cid;
+	}
+
+	/* Filter related information */
+	p_resp->num_mac_filters = min_t(u8, p_vf->num_mac_filters,
+					p_req->num_mac_filters);
+	p_resp->num_vlan_filters = min_t(u8, p_vf->num_vlan_filters,
+					 p_req->num_vlan_filters);
+
+	/* This isn't really needed/enforced, but some legacy VFs might depend
+	 * on the correct filling of this field.
+	 */
+	p_resp->num_mc_filters = QED_MAX_MC_ADDRS;
+
+	/* Validate sufficient resources for VF */
+	if (p_resp->num_rxqs < p_req->num_rxqs ||
+	    p_resp->num_txqs < p_req->num_txqs ||
+	    p_resp->num_sbs < p_req->num_sbs ||
+	    p_resp->num_mac_filters < p_req->num_mac_filters ||
+	    p_resp->num_vlan_filters < p_req->num_vlan_filters ||
+	    p_resp->num_mc_filters < p_req->num_mc_filters) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_IOV,
+			   "VF[%d] - Insufficient resources: rxq [%02x/%02x] txq [%02x/%02x] sbs [%02x/%02x] mac [%02x/%02x] vlan [%02x/%02x] mc [%02x/%02x]\n",
+			   p_vf->abs_vf_id,
+			   p_req->num_rxqs,
+			   p_resp->num_rxqs,
+			   p_req->num_rxqs,
+			   p_resp->num_txqs,
+			   p_req->num_sbs,
+			   p_resp->num_sbs,
+			   p_req->num_mac_filters,
+			   p_resp->num_mac_filters,
+			   p_req->num_vlan_filters,
+			   p_resp->num_vlan_filters,
+			   p_req->num_mc_filters, p_resp->num_mc_filters);
+		return PFVF_STATUS_NO_RESOURCE;
+	}
+
+	return PFVF_STATUS_SUCCESS;
+}
+
+static void qed_iov_vf_mbx_acquire_stats(struct qed_hwfn *p_hwfn,
+					 struct pfvf_stats_info *p_stats)
+{
+	p_stats->mstats.address = PXP_VF_BAR0_START_MSDM_ZONE_B +
+				  offsetof(struct mstorm_vf_zone,
+					   non_trigger.eth_queue_stat);
+	p_stats->mstats.len = sizeof(struct eth_mstorm_per_queue_stat);
+	p_stats->ustats.address = PXP_VF_BAR0_START_USDM_ZONE_B +
+				  offsetof(struct ustorm_vf_zone,
+					   non_trigger.eth_queue_stat);
+	p_stats->ustats.len = sizeof(struct eth_ustorm_per_queue_stat);
+	p_stats->pstats.address = PXP_VF_BAR0_START_PSDM_ZONE_B +
+				  offsetof(struct pstorm_vf_zone,
+					   non_trigger.eth_queue_stat);
+	p_stats->pstats.len = sizeof(struct eth_pstorm_per_queue_stat);
+	p_stats->tstats.address = 0;
+	p_stats->tstats.len = 0;
+}
+
 static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 				   struct qed_ptt *p_ptt,
 				   struct qed_vf_info *vf)
@@ -1149,7 +1235,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	struct pfvf_acquire_resp_tlv *resp = &mbx->reply_virt->acquire_resp;
 	struct pf_vf_pfdev_info *pfdev_info = &resp->pfdev_info;
 	struct vfpf_acquire_tlv *req = &mbx->req_virt->acquire;
-	u8 i, vfpf_status = PFVF_STATUS_NOT_SUPPORTED;
+	u8 vfpf_status = PFVF_STATUS_NOT_SUPPORTED;
 	struct pf_vf_resc *resc = &resp->resc;
 	int rc;
 
@@ -1185,10 +1271,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	/* Store the acquire message */
 	memcpy(&vf->acquire, req, sizeof(vf->acquire));
 
-	/* Fill in vf info stuff */
 	vf->opaque_fid = req->vfdev_info.opaque_fid;
-	vf->num_mac_filters = 1;
-	vf->num_vlan_filters = QED_ETH_VF_NUM_VLAN_FILTERS;
 
 	vf->vf_bulletin = req->bulletin_addr;
 	vf->bulletin.size = (vf->bulletin.size < req->bulletin_size) ?
@@ -1204,26 +1287,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	if (p_hwfn->cdev->num_hwfns > 1)
 		pfdev_info->capabilities |= PFVF_ACQUIRE_CAP_100G;
 
-	pfdev_info->stats_info.mstats.address =
-	    PXP_VF_BAR0_START_MSDM_ZONE_B +
-	    offsetof(struct mstorm_vf_zone, non_trigger.eth_queue_stat);
-	pfdev_info->stats_info.mstats.len =
-	    sizeof(struct eth_mstorm_per_queue_stat);
-
-	pfdev_info->stats_info.ustats.address =
-	    PXP_VF_BAR0_START_USDM_ZONE_B +
-	    offsetof(struct ustorm_vf_zone, non_trigger.eth_queue_stat);
-	pfdev_info->stats_info.ustats.len =
-	    sizeof(struct eth_ustorm_per_queue_stat);
-
-	pfdev_info->stats_info.pstats.address =
-	    PXP_VF_BAR0_START_PSDM_ZONE_B +
-	    offsetof(struct pstorm_vf_zone, non_trigger.eth_queue_stat);
-	pfdev_info->stats_info.pstats.len =
-	    sizeof(struct eth_pstorm_per_queue_stat);
-
-	pfdev_info->stats_info.tstats.address = 0;
-	pfdev_info->stats_info.tstats.len = 0;
+	qed_iov_vf_mbx_acquire_stats(p_hwfn, &pfdev_info->stats_info);
 
 	memcpy(pfdev_info->port_mac, p_hwfn->hw_info.hw_mac_addr, ETH_ALEN);
 
@@ -1240,29 +1304,13 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	pfdev_info->dev_type = p_hwfn->cdev->type;
 	pfdev_info->chip_rev = p_hwfn->cdev->chip_rev;
 
-	resc->num_rxqs = vf->num_rxqs;
-	resc->num_txqs = vf->num_txqs;
-	resc->num_sbs = vf->num_sbs;
-	for (i = 0; i < resc->num_sbs; i++) {
-		resc->hw_sbs[i].hw_sb_id = vf->igu_sbs[i];
-		resc->hw_sbs[i].sb_qid = 0;
-	}
-
-	for (i = 0; i < resc->num_rxqs; i++) {
-		qed_fw_l2_queue(p_hwfn, vf->vf_queues[i].fw_rx_qid,
-				(u16 *)&resc->hw_qid[i]);
-		resc->cid[i] = vf->vf_queues[i].fw_cid;
-	}
-
-	resc->num_mac_filters = min_t(u8, vf->num_mac_filters,
-				      req->resc_request.num_mac_filters);
-	resc->num_vlan_filters = min_t(u8, vf->num_vlan_filters,
-				       req->resc_request.num_vlan_filters);
-
-	/* This isn't really required as VF isn't limited, but some VFs might
-	 * actually test this value, so need to provide it.
+	/* Fill resources available to VF; Make sure there are enough to
+	 * satisfy the VF's request.
 	 */
-	resc->num_mc_filters = req->resc_request.num_mc_filters;
+	vfpf_status = qed_iov_vf_mbx_acquire_resc(p_hwfn, p_ptt, vf,
+						  &req->resc_request, resc);
+	if (vfpf_status != PFVF_STATUS_SUCCESS)
+		goto out;
 
 	/* Start the VF in FW */
 	rc = qed_sp_vf_start(p_hwfn, vf);

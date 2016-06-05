@@ -117,30 +117,56 @@ exit:
 }
 
 #define VF_ACQUIRE_THRESH 3
-#define VF_ACQUIRE_MAC_FILTERS 1
+static void qed_vf_pf_acquire_reduce_resc(struct qed_hwfn *p_hwfn,
+					  struct vf_pf_resc_request *p_req,
+					  struct pf_vf_resc *p_resp)
+{
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_IOV,
+		   "PF unwilling to fullill resource request: rxq [%02x/%02x] txq [%02x/%02x] sbs [%02x/%02x] mac [%02x/%02x] vlan [%02x/%02x] mc [%02x/%02x]. Try PF recommended amount\n",
+		   p_req->num_rxqs,
+		   p_resp->num_rxqs,
+		   p_req->num_rxqs,
+		   p_resp->num_txqs,
+		   p_req->num_sbs,
+		   p_resp->num_sbs,
+		   p_req->num_mac_filters,
+		   p_resp->num_mac_filters,
+		   p_req->num_vlan_filters,
+		   p_resp->num_vlan_filters,
+		   p_req->num_mc_filters, p_resp->num_mc_filters);
+
+	/* humble our request */
+	p_req->num_txqs = p_resp->num_txqs;
+	p_req->num_rxqs = p_resp->num_rxqs;
+	p_req->num_sbs = p_resp->num_sbs;
+	p_req->num_mac_filters = p_resp->num_mac_filters;
+	p_req->num_vlan_filters = p_resp->num_vlan_filters;
+	p_req->num_mc_filters = p_resp->num_mc_filters;
+}
 
 static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 {
 	struct qed_vf_iov *p_iov = p_hwfn->vf_iov_info;
 	struct pfvf_acquire_resp_tlv *resp = &p_iov->pf2vf_reply->acquire_resp;
 	struct pf_vf_pfdev_info *pfdev_info = &resp->pfdev_info;
-	u8 rx_count = 1, tx_count = 1, num_sbs = 1;
-	u8 num_mac = VF_ACQUIRE_MAC_FILTERS;
+	struct vf_pf_resc_request *p_resc;
 	bool resources_acquired = false;
 	struct vfpf_acquire_tlv *req;
 	int rc = 0, attempts = 0;
 
 	/* clear mailbox and prep first tlv */
 	req = qed_vf_pf_prep(p_hwfn, CHANNEL_TLV_ACQUIRE, sizeof(*req));
+	p_resc = &req->resc_request;
 
 	/* starting filling the request */
 	req->vfdev_info.opaque_fid = p_hwfn->hw_info.opaque_fid;
 
-	req->resc_request.num_rxqs = rx_count;
-	req->resc_request.num_txqs = tx_count;
-	req->resc_request.num_sbs = num_sbs;
-	req->resc_request.num_mac_filters = num_mac;
-	req->resc_request.num_vlan_filters = QED_ETH_VF_NUM_VLAN_FILTERS;
+	p_resc->num_rxqs = QED_MAX_VF_CHAINS_PER_PF;
+	p_resc->num_txqs = QED_MAX_VF_CHAINS_PER_PF;
+	p_resc->num_sbs = QED_MAX_VF_CHAINS_PER_PF;
+	p_resc->num_mac_filters = QED_ETH_VF_NUM_MAC_FILTERS;
+	p_resc->num_vlan_filters = QED_ETH_VF_NUM_VLAN_FILTERS;
 
 	req->vfdev_info.os_type = VFPF_ACQUIRE_OS_LINUX;
 	req->vfdev_info.fw_major = FW_MAJOR_VERSION;
@@ -187,18 +213,8 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 			resources_acquired = true;
 		} else if (resp->hdr.status == PFVF_STATUS_NO_RESOURCE &&
 			   attempts < VF_ACQUIRE_THRESH) {
-			DP_VERBOSE(p_hwfn,
-				   QED_MSG_IOV,
-				   "PF unwilling to fullfill resource request. Try PF recommended amount\n");
-
-			/* humble our request */
-			req->resc_request.num_txqs = resp->resc.num_txqs;
-			req->resc_request.num_rxqs = resp->resc.num_rxqs;
-			req->resc_request.num_sbs = resp->resc.num_sbs;
-			req->resc_request.num_mac_filters =
-			    resp->resc.num_mac_filters;
-			req->resc_request.num_vlan_filters =
-			    resp->resc.num_vlan_filters;
+			qed_vf_pf_acquire_reduce_resc(p_hwfn, p_resc,
+						      &resp->resc);
 
 			/* Clear response buffer */
 			memset(p_iov->pf2vf_reply, 0, sizeof(union pfvf_tlvs));
