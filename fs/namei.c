@@ -2558,24 +2558,6 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 }
 EXPORT_SYMBOL(user_path_at_empty);
 
-/*
- * NB: most callers don't do anything directly with the reference to the
- *     to struct filename, but the nd->last pointer points into the name string
- *     allocated by getname. So we must hold the reference to it until all
- *     path-walking is complete.
- */
-static inline struct filename *
-user_path_parent(int dfd, const char __user *path,
-		 struct path *parent,
-		 struct qstr *last,
-		 int *type,
-		 unsigned int flags)
-{
-	/* only LOOKUP_REVAL is allowed in extra flags */
-	return filename_parentat(dfd, getname(path), flags & LOOKUP_REVAL,
-				 parent, last, type);
-}
-
 /**
  * mountpoint_last - look up last component for umount
  * @nd:   pathwalk nameidata - currently pointing at parent directory of "last"
@@ -3861,8 +3843,8 @@ static long do_rmdir(int dfd, const char __user *pathname)
 	int type;
 	unsigned int lookup_flags = 0;
 retry:
-	name = user_path_parent(dfd, pathname,
-				&path, &last, &type, lookup_flags);
+	name = filename_parentat(dfd, getname(pathname), lookup_flags,
+				&path, &last, &type);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
@@ -3991,8 +3973,8 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 	struct inode *delegated_inode = NULL;
 	unsigned int lookup_flags = 0;
 retry:
-	name = user_path_parent(dfd, pathname,
-				&path, &last, &type, lookup_flags);
+	name = filename_parentat(dfd, getname(pathname), lookup_flags,
+				&path, &last, &type);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
@@ -4491,15 +4473,15 @@ SYSCALL_DEFINE5(renameat2, int, olddfd, const char __user *, oldname,
 		target_flags = 0;
 
 retry:
-	from = user_path_parent(olddfd, oldname,
-				&old_path, &old_last, &old_type, lookup_flags);
+	from = filename_parentat(olddfd, getname(oldname), lookup_flags,
+				&old_path, &old_last, &old_type);
 	if (IS_ERR(from)) {
 		error = PTR_ERR(from);
 		goto exit;
 	}
 
-	to = user_path_parent(newdfd, newname,
-				&new_path, &new_last, &new_type, lookup_flags);
+	to = filename_parentat(newdfd, getname(newname), lookup_flags,
+				&new_path, &new_last, &new_type);
 	if (IS_ERR(to)) {
 		error = PTR_ERR(to);
 		goto exit1;
