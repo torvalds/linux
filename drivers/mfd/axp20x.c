@@ -17,6 +17,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -667,6 +668,9 @@ static void axp20x_power_off(void)
 
 	regmap_write(axp20x_pm_power_off->regmap, AXP20X_OFF_CTRL,
 		     AXP20X_OFF);
+
+	/* Give capacitors etc. time to drain to avoid kernel panic msg. */
+	msleep(500);
 }
 
 int axp20x_match_device(struct axp20x_dev *axp20x)
