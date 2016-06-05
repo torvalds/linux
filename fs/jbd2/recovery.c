@@ -104,7 +104,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 		if (!buffer_uptodate(bh) && !buffer_locked(bh)) {
 			bufs[nbufs++] = bh;
 			if (nbufs == MAXBUF) {
-				ll_rw_block(READ, nbufs, bufs);
+				ll_rw_block(REQ_OP_READ, 0, nbufs, bufs);
 				journal_brelse_array(bufs, nbufs);
 				nbufs = 0;
 			}
@@ -113,7 +113,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 	}
 
 	if (nbufs)
-		ll_rw_block(READ, nbufs, bufs);
+		ll_rw_block(REQ_OP_READ, 0, nbufs, bufs);
 	err = 0;
 
 failed:

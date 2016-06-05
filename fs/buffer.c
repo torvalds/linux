@@ -588,7 +588,7 @@ void write_boundary_block(struct block_device *bdev,
 	struct buffer_head *bh = __find_get_block(bdev, bblock + 1, blocksize);
 	if (bh) {
 		if (buffer_dirty(bh))
-			ll_rw_block(WRITE, 1, &bh);
+			ll_rw_block(REQ_OP_WRITE, 0, 1, &bh);
 		put_bh(bh);
 	}
 }
@@ -1395,7 +1395,7 @@ void __breadahead(struct block_device *bdev, sector_t block, unsigned size)
 {
 	struct buffer_head *bh = __getblk(bdev, block, size);
 	if (likely(bh)) {
-		ll_rw_block(READA, 1, &bh);
+		ll_rw_block(REQ_OP_READ, READA, 1, &bh);
 		brelse(bh);
 	}
 }
@@ -1955,7 +1955,7 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 		if (!buffer_uptodate(bh) && !buffer_delay(bh) &&
 		    !buffer_unwritten(bh) &&
 		     (block_start < from || block_end > to)) {
-			ll_rw_block(READ, 1, &bh);
+			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
 			*wait_bh++=bh;
 		}
 	}
@@ -2852,7 +2852,7 @@ int block_truncate_page(struct address_space *mapping,
 
 	if (!buffer_uptodate(bh) && !buffer_delay(bh) && !buffer_unwritten(bh)) {
 		err = -EIO;
-		ll_rw_block(READ, 1, &bh);
+		ll_rw_block(REQ_OP_READ, 0, 1, &bh);
 		wait_on_buffer(bh);
 		/* Uhhuh. Read error. Complain and punt. */
 		if (!buffer_uptodate(bh))
@@ -3051,7 +3051,8 @@ EXPORT_SYMBOL(submit_bh);
 
 /**
  * ll_rw_block: low-level access to block devices (DEPRECATED)
- * @rw: whether to %READ or %WRITE or maybe %READA (readahead)
+ * @op: whether to %READ or %WRITE
+ * @op_flags: rq_flag_bits or %READA (readahead)
  * @nr: number of &struct buffer_heads in the array
  * @bhs: array of pointers to &struct buffer_head
  *
@@ -3074,7 +3075,7 @@ EXPORT_SYMBOL(submit_bh);
  * All of the buffers must be for the same device, and must also be a
  * multiple of the current approved size for the device.
  */
-void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
+void ll_rw_block(int op, int op_flags,  int nr, struct buffer_head *bhs[])
 {
 	int i;
 
@@ -3083,18 +3084,18 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 
 		if (!trylock_buffer(bh))
 			continue;
-		if (rw == WRITE) {
+		if (op == WRITE) {
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
 				get_bh(bh);
-				submit_bh(rw, 0, bh);
+				submit_bh(op, op_flags, bh);
 				continue;
 			}
 		} else {
 			if (!buffer_uptodate(bh)) {
 				bh->b_end_io = end_buffer_read_sync;
 				get_bh(bh);
-				submit_bh(rw, 0, bh);
+				submit_bh(op, op_flags, bh);
 				continue;
 			}
 		}

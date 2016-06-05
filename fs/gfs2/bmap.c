@@ -974,7 +974,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
 
 	if (!buffer_uptodate(bh)) {
 		err = -EIO;
-		ll_rw_block(READ, 1, &bh);
+		ll_rw_block(REQ_OP_READ, 0, 1, &bh);
 		wait_on_buffer(bh);
 		/* Uhhuh. Read error. Complain and punt. */
 		if (!buffer_uptodate(bh))

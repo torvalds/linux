@@ -1443,7 +1443,8 @@ restart:
 				}
 				bh_use[ra_max] = bh;
 				if (bh)
-					ll_rw_block(READ | REQ_META | REQ_PRIO,
+					ll_rw_block(REQ_OP_READ,
+						    REQ_META | REQ_PRIO,
 						    1, &bh);
 			}
 		}
