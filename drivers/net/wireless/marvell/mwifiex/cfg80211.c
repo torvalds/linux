@@ -377,6 +377,29 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 }
 
 /*
+ * CFG802.11 operation handler to get Tx power.
+ */
+static int
+mwifiex_cfg80211_get_tx_power(struct wiphy *wiphy,
+			      struct wireless_dev *wdev,
+			      int *dbm)
+{
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv = mwifiex_get_priv(adapter,
+							MWIFIEX_BSS_ROLE_ANY);
+	int ret = mwifiex_send_cmd(priv, HostCmd_CMD_RF_TX_PWR,
+				   HostCmd_ACT_GEN_GET, 0, NULL, true);
+
+	if (ret < 0)
+		return ret;
+
+	/* tx_power_level is set in HostCmd_CMD_RF_TX_PWR command handler */
+	*dbm = priv->tx_power_level;
+
+	return 0;
+}
+
+/*
  * CFG802.11 operation handler to set Power Save option.
  *
  * The timeout value, if provided, is currently ignored.
@@ -3953,6 +3976,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.set_default_key = mwifiex_cfg80211_set_default_key,
 	.set_power_mgmt = mwifiex_cfg80211_set_power_mgmt,
 	.set_tx_power = mwifiex_cfg80211_set_tx_power,
+	.get_tx_power = mwifiex_cfg80211_get_tx_power,
 	.set_bitrate_mask = mwifiex_cfg80211_set_bitrate_mask,
 	.start_ap = mwifiex_cfg80211_start_ap,
 	.stop_ap = mwifiex_cfg80211_stop_ap,
