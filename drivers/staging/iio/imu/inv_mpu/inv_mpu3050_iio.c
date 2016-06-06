@@ -55,7 +55,7 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 	u8 b;
 
 	reg = &st->reg;
-	result = inv_i2c_read(st, reg->user_ctrl, 1, &b);
+	result = inv_plat_read(st, reg->user_ctrl, 1, &b);
 	if (result)
 		return result;
 	if (((b & BIT_3050_AUX_IF_EN) == 0) && enable)
@@ -65,7 +65,7 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 	b &= ~BIT_3050_AUX_IF_EN;
 	if (!enable) {
 		b |= BIT_3050_AUX_IF_EN;
-		result = inv_i2c_single_write(st, reg->user_ctrl, b);
+		result = inv_plat_single_write(st, reg->user_ctrl, b);
 		return result;
 	} else {
 		/* Coming out of I2C is tricky due to several erratta.  Do not
@@ -78,7 +78,7 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 		*
 		* 0x00 is broadcast.  0x7F is unlikely to be used by any aux.
 		*/
-		result = inv_i2c_single_write(st, REG_3050_SLAVE_ADDR,
+		result = inv_plat_single_write(st, REG_3050_SLAVE_ADDR,
 						MPU3050_BOGUS_ADDR);
 		if (result)
 			return result;
@@ -87,7 +87,7 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 		*    bypass mode:
 		*/
 		usleep_range(MPU3050_NACK_MIN_TIME, MPU3050_NACK_MAX_TIME);
-		result = inv_i2c_single_write(st, reg->user_ctrl, b);
+		result = inv_plat_single_write(st, reg->user_ctrl, b);
 		if (result)
 			return result;
 		/*
@@ -96,12 +96,12 @@ int set_3050_bypass(struct inv_mpu_iio_s *st, bool enable)
 		*/
 		msleep(MPU3050_ONE_MPU_TIME);
 
-		result = inv_i2c_single_write(st, REG_3050_SLAVE_ADDR,
+		result = inv_plat_single_write(st, REG_3050_SLAVE_ADDR,
 			st->plat_data.secondary_i2c_addr);
 		if (result)
 			return result;
 
-		result = inv_i2c_single_write(st, reg->user_ctrl,
+		result = inv_plat_single_write(st, reg->user_ctrl,
 				(b | BIT_3050_AUX_IF_RST));
 		if (result)
 			return result;
@@ -135,19 +135,19 @@ int inv_switch_3050_gyro_engine(struct inv_mpu_iio_s *st, bool en)
 	if (en) {
 		data = INV_CLK_PLL;
 		p = (BITS_3050_POWER1 | data);
-		result = inv_i2c_single_write(st, reg->pwr_mgmt_1, p);
+		result = inv_plat_single_write(st, reg->pwr_mgmt_1, p);
 		if (result)
 			return result;
 		p = (BITS_3050_POWER2 | data);
-		result = inv_i2c_single_write(st, reg->pwr_mgmt_1, p);
+		result = inv_plat_single_write(st, reg->pwr_mgmt_1, p);
 		if (result)
 			return result;
 		p = data;
-		result = inv_i2c_single_write(st, reg->pwr_mgmt_1, p);
+		result = inv_plat_single_write(st, reg->pwr_mgmt_1, p);
 		msleep(SENSOR_UP_TIME);
 	} else {
 		p = BITS_3050_GYRO_STANDBY;
-		result = inv_i2c_single_write(st, reg->pwr_mgmt_1, p);
+		result = inv_plat_single_write(st, reg->pwr_mgmt_1, p);
 	}
 
 	return result;
@@ -185,26 +185,26 @@ int inv_init_config_mpu3050(struct iio_dev *indio_dev)
 	if (st->chip_config.is_asleep)
 		return -EPERM;
 	/*reading AUX VDDIO register */
-	result = inv_i2c_read(st, REG_3050_AUX_VDDIO, 1, &data);
+	result = inv_plat_read(st, REG_3050_AUX_VDDIO, 1, &data);
 	if (result)
 		return result;
 	data &= ~BIT_3050_VDDIO;
 	if (st->plat_data.level_shifter)
 		data |= BIT_3050_VDDIO;
-	result = inv_i2c_single_write(st, REG_3050_AUX_VDDIO, data);
+	result = inv_plat_single_write(st, REG_3050_AUX_VDDIO, data);
 	if (result)
 		return result;
 
 	reg = &st->reg;
 	/*2000dps full scale range*/
-	result = inv_i2c_single_write(st, reg->lpf,
+	result = inv_plat_single_write(st, reg->lpf,
 				(INV_FSR_2000DPS << GYRO_CONFIG_FSR_SHIFT)
 				| INV_FILTER_42HZ);
 	if (result)
 		return result;
 	st->chip_config.fsr = INV_FSR_2000DPS;
 	st->chip_config.lpf = INV_FILTER_42HZ;
-	result = inv_i2c_single_write(st, reg->sample_rate_div,
+	result = inv_plat_single_write(st, reg->sample_rate_div,
 					ONE_K_HZ/INIT_FIFO_RATE - 1);
 	if (result)
 		return result;
@@ -250,22 +250,22 @@ int set_power_mpu3050(struct inv_mpu_iio_s *st, bool power_on)
 	}
 	if (st->chip_config.gyro_enable) {
 		p = (BITS_3050_POWER1 | INV_CLK_PLL);
-		result = inv_i2c_single_write(st, reg->pwr_mgmt_1, data | p);
+		result = inv_plat_single_write(st, reg->pwr_mgmt_1, data | p);
 		if (result)
 			return result;
 
 		p = (BITS_3050_POWER2 | INV_CLK_PLL);
-		result = inv_i2c_single_write(st, reg->pwr_mgmt_1, data | p);
+		result = inv_plat_single_write(st, reg->pwr_mgmt_1, data | p);
 		if (result)
 			return result;
 
 		p = INV_CLK_PLL;
-		result = inv_i2c_single_write(st, reg->pwr_mgmt_1, data | p);
+		result = inv_plat_single_write(st, reg->pwr_mgmt_1, data | p);
 		if (result)
 			return result;
 	} else {
 		data |= (BITS_3050_GYRO_STANDBY | INV_CLK_INTERNAL);
-		result = inv_i2c_single_write(st, reg->pwr_mgmt_1, data);
+		result = inv_plat_single_write(st, reg->pwr_mgmt_1, data);
 		if (result)
 			return result;
 	}

@@ -868,10 +868,13 @@ int inv_set_tap_threshold_dmp(struct inv_mpu_iio_s *st,
 int inv_set_min_taps_dmp(struct inv_mpu_iio_s *st, u16 min_taps);
 int  inv_set_tap_time_dmp(struct inv_mpu_iio_s *st, u16 time);
 int inv_enable_tap_dmp(struct inv_mpu_iio_s *st, bool on);
-int inv_i2c_read_base(struct inv_mpu_iio_s *st, u16 i2c_addr,
-	u8 reg, u16 length, u8 *data);
-int inv_i2c_single_write_base(struct inv_mpu_iio_s *st,
-	u16 i2c_addr, u8 reg, u8 data);
+int inv_plat_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data);
+int inv_plat_single_write(struct inv_mpu_iio_s *st, u8 reg, u8 data);
+int inv_secondary_read(struct inv_mpu_iio_s *st, u8 reg, int len, u8 *data);
+int inv_secondary_write(struct inv_mpu_iio_s *st, u8 reg, u8 data);
+int inv_check_chip_type(struct inv_mpu_iio_s *st, const char *name);
+int inv_create_dmp_sysfs(struct iio_dev *ind);
+void inv_set_iio_info(struct inv_mpu_iio_s *st, struct iio_dev *indio_dev);
 int inv_do_test(struct inv_mpu_iio_s *st, int self_test_flag,
 		int *gyro_result, int *accl_result);
 int inv_hw_self_test(struct inv_mpu_iio_s *st);
@@ -896,15 +899,5 @@ char *wr_pr_debug_end(char *string);
 #define mem_w(a, b, c) \
 	mpu_memory_write(st, st->i2c_addr, a, b, c)
 #define mem_w_key(key, b, c) mpu_memory_write_unaligned(st, key, b, c)
-#define inv_i2c_read(st, reg, len, data) \
-	inv_i2c_read_base(st, st->i2c_addr, reg, len, data)
-#define inv_i2c_single_write(st, reg, data) \
-	inv_i2c_single_write_base(st, st->i2c_addr, reg, data)
-#define inv_secondary_read(reg, len, data) \
-	inv_i2c_read_base(st, st->plat_data.secondary_i2c_addr, reg, len, data)
-#define inv_secondary_write(reg, data) \
-	inv_i2c_single_write_base(st, st->plat_data.secondary_i2c_addr, \
-		reg, data)
-
 #endif  /* #ifndef _INV_MPU_IIO_H_ */
 

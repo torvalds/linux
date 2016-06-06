@@ -64,15 +64,15 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 	reg = &st->reg;
 
 	/* disable interrupt */
-	result = inv_i2c_single_write(st, reg->int_enable,
+	result = inv_plat_single_write(st, reg->int_enable,
 				st->plat_data.int_config);
 	if (result)
 		return result;
 	/* disable the sensor output to FIFO */
-	result = inv_i2c_single_write(st, reg->fifo_en, 0);
+	result = inv_plat_single_write(st, reg->fifo_en, 0);
 	if (result)
 		goto reset_fifo_fail;
-	result = inv_i2c_read(st, reg->user_ctrl, 1, &user_ctrl);
+	result = inv_plat_read(st, reg->user_ctrl, 1, &user_ctrl);
 	if (result)
 		goto reset_fifo_fail;
 	/* disable fifo reading */
@@ -80,18 +80,18 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 	st->chip_config.has_footer = 0;
 	/* reset fifo */
 	val = (BIT_3050_FIFO_RST | user_ctrl);
-	result = inv_i2c_single_write(st, reg->user_ctrl, val);
+	result = inv_plat_single_write(st, reg->user_ctrl, val);
 	if (result)
 		goto reset_fifo_fail;
 	st->last_isr_time = get_time_ns();
 	if (st->chip_config.dmp_on) {
 		/* enable interrupt when DMP is done */
-		result = inv_i2c_single_write(st, reg->int_enable,
+		result = inv_plat_single_write(st, reg->int_enable,
 				st->plat_data.int_config | BIT_DMP_INT_EN);
 		if (result)
 			return result;
 
-		result = inv_i2c_single_write(st, reg->user_ctrl,
+		result = inv_plat_single_write(st, reg->user_ctrl,
 			BIT_FIFO_EN|user_ctrl);
 		if (result)
 			return result;
@@ -99,13 +99,13 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 		/* enable interrupt */
 		if (st->chip_config.accl_fifo_enable ||
 		    st->chip_config.gyro_fifo_enable) {
-			result = inv_i2c_single_write(st, reg->int_enable,
+			result = inv_plat_single_write(st, reg->int_enable,
 				st->plat_data.int_config | BIT_DATA_RDY_EN);
 			if (result)
 				return result;
 		}
 		/* enable FIFO reading and I2C master interface*/
-		result = inv_i2c_single_write(st, reg->user_ctrl,
+		result = inv_plat_single_write(st, reg->user_ctrl,
 			BIT_FIFO_EN | user_ctrl);
 		if (result)
 			return result;
@@ -115,7 +115,7 @@ static int reset_fifo_mpu3050(struct iio_dev *indio_dev)
 			val |= BITS_3050_ACCL_OUT;
 		if (st->chip_config.gyro_fifo_enable)
 			val |= BITS_GYRO_OUT;
-		result = inv_i2c_single_write(st, reg->fifo_en, val);
+		result = inv_plat_single_write(st, reg->fifo_en, val);
 		if (result)
 			return result;
 	}
@@ -126,7 +126,7 @@ reset_fifo_fail:
 		val = BIT_DMP_INT_EN;
 	else
 		val = BIT_DATA_RDY_EN;
-	inv_i2c_single_write(st, reg->int_enable,
+	inv_plat_single_write(st, reg->int_enable,
 			     st->plat_data.int_config | val);
 	pr_err("reset fifo failed\n");
 
@@ -156,10 +156,10 @@ static int inv_set_lpf(struct inv_mpu_iio_s *st, int rate)
 			if (result)
 				return result;
 		}
-		result = inv_i2c_single_write(st, reg->lpf, data |
+		result = inv_plat_single_write(st, reg->lpf, data |
 			(st->chip_config.fsr << GYRO_CONFIG_FSR_SHIFT));
 	} else {
-		result = inv_i2c_single_write(st, reg->lpf, data);
+		result = inv_plat_single_write(st, reg->lpf, data);
 	}
 	if (result)
 		return result;
@@ -181,7 +181,7 @@ static int set_fifo_rate_reg(struct inv_mpu_iio_s *st)
 	reg = &st->reg;
 	fifo_rate = st->chip_config.new_fifo_rate;
 	data = ONE_K_HZ / fifo_rate - 1;
-	result = inv_i2c_single_write(st, reg->sample_rate_div, data);
+	result = inv_plat_single_write(st, reg->sample_rate_div, data);
 	if (result)
 		return result;
 	result = inv_set_lpf(st, fifo_rate);
@@ -202,7 +202,7 @@ static int inv_lpa_mode(struct inv_mpu_iio_s *st, int lpa_mode)
 	struct inv_reg_map_s *reg;
 
 	reg = &st->reg;
-	result = inv_i2c_read(st, reg->pwr_mgmt_1, 1, &d);
+	result = inv_plat_read(st, reg->pwr_mgmt_1, 1, &d);
 	if (result)
 		return result;
 	if (lpa_mode)
@@ -210,7 +210,7 @@ static int inv_lpa_mode(struct inv_mpu_iio_s *st, int lpa_mode)
 	else
 		d &= ~BIT_CYCLE;
 
-	result = inv_i2c_single_write(st, reg->pwr_mgmt_1, d);
+	result = inv_plat_single_write(st, reg->pwr_mgmt_1, d);
 	if (result)
 		return result;
 	if (INV_MPU6500 == st->chip_type) {
@@ -218,7 +218,7 @@ static int inv_lpa_mode(struct inv_mpu_iio_s *st, int lpa_mode)
 			d = BIT_ACCEL_FCHOCIE_B;
 		else
 			d = 0;
-		result = inv_i2c_single_write(st, REG_6500_ACCEL_CONFIG2, d);
+		result = inv_plat_single_write(st, REG_6500_ACCEL_CONFIG2, d);
 		if (result)
 			return result;
 	}
@@ -246,17 +246,17 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 		}
 	}
 	/* disable interrupt */
-	result = inv_i2c_single_write(st, reg->int_enable, 0);
+	result = inv_plat_single_write(st, reg->int_enable, 0);
 	if (result) {
 		pr_err("int_enable write failed\n");
 		return result;
 	}
 	/* disable the sensor output to FIFO */
-	result = inv_i2c_single_write(st, reg->fifo_en, 0);
+	result = inv_plat_single_write(st, reg->fifo_en, 0);
 	if (result)
 		goto reset_fifo_fail;
 	/* disable fifo reading */
-	result = inv_i2c_single_write(st, reg->user_ctrl, 0);
+	result = inv_plat_single_write(st, reg->user_ctrl, 0);
 	if (result)
 		goto reset_fifo_fail;
 	int_word = 0;
@@ -267,13 +267,13 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 
 	if (st->chip_config.dmp_on) {
 		val = (BIT_FIFO_RST | BIT_DMP_RST);
-		result = inv_i2c_single_write(st, reg->user_ctrl, val);
+		result = inv_plat_single_write(st, reg->user_ctrl, val);
 		if (result)
 			goto reset_fifo_fail;
 		st->last_isr_time = get_time_ns();
 		if (st->chip_config.dmp_int_on) {
 			int_word |= BIT_DMP_INT_EN;
-			result = inv_i2c_single_write(st, reg->int_enable,
+			result = inv_plat_single_write(st, reg->int_enable,
 							int_word);
 			if (result)
 				return result;
@@ -282,7 +282,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 		if (st->chip_config.compass_enable &
 			(!st->chip_config.dmp_event_int_on))
 			val |= BIT_I2C_MST_EN;
-		result = inv_i2c_single_write(st, reg->user_ctrl, val);
+		result = inv_plat_single_write(st, reg->user_ctrl, val);
 		if (result)
 			goto reset_fifo_fail;
 
@@ -295,7 +295,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 				st->chip_config.dmp_output_rate);
 			if (data > 0)
 				data -= 1;
-			result = inv_i2c_single_write(st, REG_I2C_SLV4_CTRL,
+			result = inv_plat_single_write(st, REG_I2C_SLV4_CTRL,
 							data);
 			if (result)
 				return result;
@@ -315,7 +315,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 	} else {
 		/* reset FIFO and possibly reset I2C*/
 		val = BIT_FIFO_RST;
-		result = inv_i2c_single_write(st, reg->user_ctrl, val);
+		result = inv_plat_single_write(st, reg->user_ctrl, val);
 		if (result)
 			goto reset_fifo_fail;
 		st->last_isr_time = get_time_ns();
@@ -325,14 +325,14 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 		    st->chip_config.compass_enable) {
 			int_word |= BIT_DATA_RDY_EN;
 		}
-		result = inv_i2c_single_write(st, reg->int_enable, int_word);
+		result = inv_plat_single_write(st, reg->int_enable, int_word);
 		if (result)
 			return result;
 		/* enable FIFO reading and I2C master interface*/
 		val = BIT_FIFO_EN;
 		if (st->chip_config.compass_enable)
 			val |= BIT_I2C_MST_EN;
-		result = inv_i2c_single_write(st, reg->user_ctrl, val);
+		result = inv_plat_single_write(st, reg->user_ctrl, val);
 		if (result)
 			goto reset_fifo_fail;
 		if (st->chip_config.compass_enable) {
@@ -342,7 +342,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 				st->chip_config.new_fifo_rate / ONE_K_HZ;
 			if (data > 0)
 				data -= 1;
-			result = inv_i2c_single_write(st, REG_I2C_SLV4_CTRL,
+			result = inv_plat_single_write(st, REG_I2C_SLV4_CTRL,
 							data);
 			if (result)
 				return result;
@@ -353,7 +353,7 @@ static int reset_fifo_itg(struct iio_dev *indio_dev)
 			val |= BITS_GYRO_OUT;
 		if (st->chip_config.accl_fifo_enable)
 			val |= BIT_ACCEL_OUT;
-		result = inv_i2c_single_write(st, reg->fifo_en, val);
+		result = inv_plat_single_write(st, reg->fifo_en, val);
 		if (result)
 			goto reset_fifo_fail;
 	}
@@ -369,7 +369,7 @@ reset_fifo_fail:
 		val = BIT_DMP_INT_EN;
 	else
 		val = BIT_DATA_RDY_EN;
-	inv_i2c_single_write(st, reg->int_enable, val);
+	inv_plat_single_write(st, reg->int_enable, val);
 	pr_err("reset fifo failed\n");
 
 	return result;
@@ -465,17 +465,17 @@ static int set_inv_enable(struct iio_dev *indio_dev,
 			if (result)
 				return result;
 		}
-		result = inv_i2c_single_write(st, reg->fifo_en, 0);
+		result = inv_plat_single_write(st, reg->fifo_en, 0);
 		if (result)
 			return result;
 		/* disable fifo reading */
 		if (INV_MPU3050 != st->chip_type) {
-			result = inv_i2c_single_write(st, reg->int_enable, 0);
+			result = inv_plat_single_write(st, reg->int_enable, 0);
 			if (result)
 				return result;
-			result = inv_i2c_single_write(st, reg->user_ctrl, 0);
+			result = inv_plat_single_write(st, reg->user_ctrl, 0);
 		} else {
-			result = inv_i2c_single_write(st, reg->int_enable,
+			result = inv_plat_single_write(st, reg->int_enable,
 				st->plat_data.int_config);
 		}
 		if (result)
@@ -628,7 +628,7 @@ irqreturn_t inv_read_fifo_mpu3050(int irq, void *dev_id)
 
 	fifo_count = 0;
 	if (byte_read != 0) {
-		result = inv_i2c_read(st, reg->fifo_count_h,
+		result = inv_plat_read(st, reg->fifo_count_h,
 				FIFO_COUNT_BYTE, data);
 		if (result)
 			goto end_session;
@@ -656,7 +656,7 @@ irqreturn_t inv_read_fifo_mpu3050(int irq, void *dev_id)
 		}
 	}
 	while ((bytes_per_datum != 0) && (fifo_count >= byte_read)) {
-		result = inv_i2c_read(st, reg->fifo_r_w, byte_read, data);
+		result = inv_plat_read(st, reg->fifo_r_w, byte_read, data);
 		if (result)
 			goto flush_fifo;
 
@@ -758,7 +758,7 @@ static int inv_report_gyro_accl_compass(struct iio_dev *indio_dev,
 			compass_divider = st->compass_divider;
 		if (compass_divider <= st->compass_counter) {
 			/*read from external sensor data register */
-			result = inv_i2c_read(st, REG_EXT_SENS_DATA_00,
+			result = inv_plat_read(st, REG_EXT_SENS_DATA_00,
 					      NUM_BYTES_COMPASS_SLAVE, d);
 			/* d[7] is status 2 register */
 			/*for AKM8975, bit 2 and 3 should be all be zero*/
@@ -818,7 +818,7 @@ static void inv_process_motion(struct inv_mpu_iio_s *st)
 	u8 data[1];
 
 	/* motion interrupt */
-	result = inv_i2c_read(st, REG_INT_STATUS, 1, data);
+	result = inv_plat_read(st, REG_INT_STATUS, 1, data);
 	if (result)
 		return;
 
@@ -891,7 +891,7 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 		inv_process_motion(st);
 	if (st->chip_config.dmp_on && st->chip_config.smd_enable) {
 		/* dmp interrupt status */
-		result = inv_i2c_read(st, REG_DMP_INT_STATUS, 1, data);
+		result = inv_plat_read(st, REG_DMP_INT_STATUS, 1, data);
 		if (!result)
 			if (data[0] & SMD_INT_ON) {
 				sysfs_notify(&indio_dev->dev.kobj, NULL,
@@ -900,7 +900,7 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 			}
 	}
 	if (st->chip_config.lpa_mode) {
-		result = inv_i2c_read(st, reg->raw_accl,
+		result = inv_plat_read(st, reg->raw_accl,
 				      BYTES_PER_SENSOR, data);
 		if (result)
 			goto end_session;
@@ -911,7 +911,7 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	bytes_per_datum = get_bytes_per_datum(st);
 	fifo_count = 0;
 	if (bytes_per_datum != 0) {
-		result = inv_i2c_read(st, reg->fifo_count_h,
+		result = inv_plat_read(st, reg->fifo_count_h,
 				FIFO_COUNT_BYTE, data);
 		if (result)
 			goto end_session;
@@ -948,7 +948,7 @@ irqreturn_t inv_read_fifo(int irq, void *dev_id)
 	}
 	tmp = (s8 *)buf;
 	while ((bytes_per_datum != 0) && (fifo_count >= bytes_per_datum)) {
-		result = inv_i2c_read(st, reg->fifo_r_w, bytes_per_datum,
+		result = inv_plat_read(st, reg->fifo_r_w, bytes_per_datum,
 			data);
 		if (result)
 			goto flush_fifo;

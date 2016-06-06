@@ -293,166 +293,6 @@ char *wr_pr_debug_end(char *string)
 	return "";
 }
 
-int mpu_memory_write(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
-		     u32 len, u8 const *data)
-{
-	u8 bank[2];
-	u8 addr[2];
-	u8 buf[513];
-
-	struct i2c_msg msg;
-	int res;
-
-	if (!data || !st)
-		return -EINVAL;
-
-	if (len >= (sizeof(buf) - 1))
-		return -ENOMEM;
-
-	bank[0] = REG_BANK_SEL;
-	bank[1] = mem_addr >> 8;
-
-	addr[0] = REG_MEM_START_ADDR;
-	addr[1] = mem_addr & 0xFF;
-
-	buf[0] = REG_MEM_RW;
-	memcpy(buf + 1, data, len);
-
-	/* write message */
-	msg.addr = mpu_addr;
-	msg.flags = 0;
-	msg.buf = bank;
-	msg.len = sizeof(bank);
-	/* msg.scl_rate = 200*1000; */
-	INV_I2C_INC_MPUWRITE(3);
-	res = i2c_transfer(st->sl_handle, &msg, 1);
-	if (res < 1) {
-		if (res >= 0)
-			res = -EIO;
-		return res;
-	}
-
-	msg.addr = mpu_addr;
-	msg.flags = 0;
-	msg.buf = addr;
-	msg.len = sizeof(addr);
-	/* msg.scl_rate = 200*1000; */
-	INV_I2C_INC_MPUWRITE(3);
-	res = i2c_transfer(st->sl_handle, &msg, 1);
-	if (res < 1) {
-		if (res >= 0)
-			res = -EIO;
-		return res;
-	}
-
-	msg.addr = mpu_addr;
-	msg.flags = 0;
-	msg.buf = (u8 *)buf;
-	msg.len = len + 1;
-	/* msg.scl_rate = 200*1000; */
-	INV_I2C_INC_MPUWRITE(2+len);
-	res = i2c_transfer(st->sl_handle, &msg, 1);
-	if (res < 1) {
-		if (res >= 0)
-			res = -EIO;
-		return res;
-	}
-
-	{
-		char *write = 0;
-		pr_debug("%s WM%02X%02X%02X%s%s - %d\n", st->hw->name,
-			 mpu_addr, bank[1], addr[1],
-			 wr_pr_debug_begin(data, len, write),
-			 wr_pr_debug_end(write),
-			 len);
-	}
-	return 0;
-}
-
-int mpu_memory_read(struct inv_mpu_iio_s *st, u8 mpu_addr, u16 mem_addr,
-		    u32 len, u8 *data)
-{
-	u8 bank[2];
-	u8 addr[2];
-	u8 buf;
-
-	struct i2c_msg msg;
-	int res;
-
-	if (!data || !st)
-		return -EINVAL;
-
-	bank[0] = REG_BANK_SEL;
-	bank[1] = mem_addr >> 8;
-
-	addr[0] = REG_MEM_START_ADDR;
-	addr[1] = mem_addr & 0xFF;
-
-	buf = REG_MEM_RW;
-
-	/* write message */
-	msg.addr = mpu_addr;
-	msg.flags = 0;
-	msg.buf = bank;
-	msg.len = sizeof(bank);
-	/* msg.scl_rate = 200*1000; */
-	INV_I2C_INC_MPUWRITE(3);
-	res = i2c_transfer(st->sl_handle, &msg, 1);
-	if (res < 1) {
-		if (res >= 0)
-			res = -EIO;
-		return res;
-	}
-
-	msg.addr = mpu_addr;
-	msg.flags = 0;
-	msg.buf = addr;
-	msg.len = sizeof(addr);
-	/* msg.scl_rate = 200*1000; */
-	INV_I2C_INC_MPUWRITE(3);
-	res = i2c_transfer(st->sl_handle, &msg, 1);
-	if (res < 1) {
-		if (res >= 0)
-			res = -EIO;
-		return res;
-	}
-
-	msg.addr = mpu_addr;
-	msg.flags = 0;
-	msg.buf = &buf;
-	msg.len = 1;
-	/* msg.scl_rate = 200*1000; */
-	INV_I2C_INC_MPUWRITE(3);
-	res = i2c_transfer(st->sl_handle, &msg, 1);
-	if (res < 1) {
-		if (res >= 0)
-			res = -EIO;
-		return res;
-	}
-
-	msg.addr = mpu_addr;
-	msg.flags = I2C_M_RD;
-	msg.buf = data;
-	msg.len = len;
-	/* msg.scl_rate = 200*1000; */
-	INV_I2C_INC_MPUREAD(len);
-	res = i2c_transfer(st->sl_handle, &msg, 1);
-	if (res < 1) {
-		if (res >= 0)
-			res = -EIO;
-		return res;
-	}
-	{
-		char *read = 0;
-		pr_debug("%s RM%02X%02X%02X%02X - %s%s\n", st->hw->name,
-			 mpu_addr, bank[1], addr[1], len,
-			 wr_pr_debug_begin(data, len, read),
-			 wr_pr_debug_end(read));
-	}
-
-	return 0;
-}
-
 int mpu_memory_write_unaligned(struct inv_mpu_iio_s *st, u16 key, int len,
 								u8 const *d)
 {
@@ -500,7 +340,7 @@ int inv_get_silicon_rev_mpu6500(struct inv_mpu_iio_s *st)
 	int result;
 	u8 whoami, sw_rev;
 
-	result = inv_i2c_read(st, REG_WHOAMI, 1, &whoami);
+	result = inv_plat_read(st, REG_WHOAMI, 1, &whoami);
 	if (result)
 		return result;
 	if (whoami != MPU6500_ID && whoami != MPU9250_ID &&
@@ -545,7 +385,7 @@ int inv_get_silicon_rev_mpu6050(struct inv_mpu_iio_s *st)
 	struct inv_chip_info_s *chip_info = &st->chip_info;
 	reg = &st->reg;
 
-	result = inv_i2c_read(st, REG_PRODUCT_ID, 1, &prod_ver);
+	result = inv_plat_read(st, REG_PRODUCT_ID, 1, &prod_ver);
 	if (result)
 		return result;
 	prod_ver &= 0xf;
@@ -557,11 +397,11 @@ int inv_get_silicon_rev_mpu6050(struct inv_mpu_iio_s *st)
 		return result;
 	prod_rev >>= 2;
 	/* clean the prefetch and cfg user bank bits */
-	result = inv_i2c_single_write(st, reg->bank_sel, 0);
+	result = inv_plat_single_write(st, reg->bank_sel, 0);
 	if (result)
 		return result;
 	/* get the software-product version, read from XA_OFFS_L */
-	result = inv_i2c_read(st, REG_XA_OFFS_L_TC,
+	result = inv_plat_read(st, REG_XA_OFFS_L_TC,
 				SOFT_PROD_VER_BYTES, regs);
 	if (result)
 		return result;
@@ -622,7 +462,7 @@ static int read_accel_hw_self_test_prod_shift(struct inv_mpu_iio_s *st,
 	for (i = 0; i < 3; i++)
 		st_prod[i] = 0;
 
-	result = inv_i2c_read(st, REG_ST_GCT_X, ARRAY_SIZE(regs), regs);
+	result = inv_plat_read(st, REG_ST_GCT_X, ARRAY_SIZE(regs), regs);
 
 	if (result)
 		return result;
@@ -724,7 +564,7 @@ static int inv_check_3500_gyro_self_test(struct inv_mpu_iio_s *st,
 
 	for (i = 0; i < 3; i++)
 		gst[i] = st_avg[i] - reg_avg[i];
-	result = inv_i2c_read(st, REG_3500_OTP, THREE_AXIS, st_code);
+	result = inv_plat_read(st, REG_3500_OTP, THREE_AXIS, st_code);
 	if (result)
 		return result;
 	gst_otp[0] = 0;
@@ -779,7 +619,7 @@ static int inv_check_6050_gyro_self_test(struct inv_mpu_iio_s *st,
 		return 0;
 
 	ret_val = 0;
-	result = inv_i2c_read(st, REG_ST_GCT_X, 3, regs);
+	result = inv_plat_read(st, REG_ST_GCT_X, 3, regs);
 	if (result)
 		return result;
 	regs[X] &= 0x1f;
@@ -836,7 +676,7 @@ static int inv_check_6500_gyro_self_test(struct inv_mpu_iio_s *st,
 	int st_shift_prod[3], st_shift_cust[3], i;
 
 	ret_val = 0;
-	result = inv_i2c_read(st, REG_6500_XG_ST_DATA, 3, regs);
+	result = inv_plat_read(st, REG_6500_XG_ST_DATA, 3, regs);
 	if (result)
 		return result;
 	pr_debug("%s self_test gyro shift_code - %02x %02x %02x\n",
@@ -906,7 +746,7 @@ static int inv_check_6500_accel_self_test(struct inv_mpu_iio_s *st,
 				 / DEF_ST_6500_ACCEL_FS_MG) * DEF_ST_PRECISION)
 
 	ret_val = 0;
-	result = inv_i2c_read(st, REG_6500_XA_ST_DATA, 3, regs);
+	result = inv_plat_read(st, REG_6500_XA_ST_DATA, 3, regs);
 	if (result)
 		return result;
 	pr_debug("%s self_test accel shift_code - %02x %02x %02x\n",
@@ -968,42 +808,42 @@ int inv_do_test(struct inv_mpu_iio_s *st, int self_test_flag,
 	else
 		packet_size = BYTES_PER_SENSOR;
 
-	result = inv_i2c_single_write(st, reg->int_enable, 0);
+	result = inv_plat_single_write(st, reg->int_enable, 0);
 	if (result)
 		return result;
 	/* disable the sensor output to FIFO */
-	result = inv_i2c_single_write(st, reg->fifo_en, 0);
+	result = inv_plat_single_write(st, reg->fifo_en, 0);
 	if (result)
 		return result;
 	/* disable fifo reading */
-	result = inv_i2c_single_write(st, reg->user_ctrl, 0);
+	result = inv_plat_single_write(st, reg->user_ctrl, 0);
 	if (result)
 		return result;
 	/* clear FIFO */
-	result = inv_i2c_single_write(st, reg->user_ctrl, BIT_FIFO_RST);
+	result = inv_plat_single_write(st, reg->user_ctrl, BIT_FIFO_RST);
 	if (result)
 		return result;
 	/* setup parameters */
-	result = inv_i2c_single_write(st, reg->lpf, INV_FILTER_98HZ);
+	result = inv_plat_single_write(st, reg->lpf, INV_FILTER_98HZ);
 	if (result)
 		return result;
 
 	if (INV_MPU6500 == st->chip_type) {
 		/* config accel LPF register for MPU6500 */
-		result = inv_i2c_single_write(st, REG_6500_ACCEL_CONFIG2,
+		result = inv_plat_single_write(st, REG_6500_ACCEL_CONFIG2,
 						DEF_ST_MPU6500_ACCEL_LPF |
 						BIT_FIFO_SIZE_1K);
 		if (result)
 			return result;
 	}
 
-	result = inv_i2c_single_write(st, reg->sample_rate_div,
+	result = inv_plat_single_write(st, reg->sample_rate_div,
 			DEF_SELFTEST_SAMPLE_RATE);
 	if (result)
 		return result;
 	/* wait for the sampling rate change to stabilize */
 	mdelay(INV_MPU_SAMPLE_RATE_CHANGE_STABLE);
-	result = inv_i2c_single_write(st, reg->gyro_config,
+	result = inv_plat_single_write(st, reg->gyro_config,
 		self_test_flag | DEF_SELFTEST_GYRO_FS);
 	if (result)
 		return result;
@@ -1013,7 +853,7 @@ int inv_do_test(struct inv_mpu_iio_s *st, int self_test_flag,
 		else
 			d = DEF_SELFTEST_ACCEL_FS;
 		d |= self_test_flag;
-		result = inv_i2c_single_write(st, reg->accl_config, d);
+		result = inv_plat_single_write(st, reg->accl_config, d);
 		if (result)
 			return result;
 	}
@@ -1026,7 +866,7 @@ int inv_do_test(struct inv_mpu_iio_s *st, int self_test_flag,
 	}
 
 	/* enable FIFO reading */
-	result = inv_i2c_single_write(st, reg->user_ctrl, BIT_FIFO_EN);
+	result = inv_plat_single_write(st, reg->user_ctrl, BIT_FIFO_EN);
 	if (result)
 		return result;
 	/* enable sensor output to FIFO */
@@ -1040,15 +880,15 @@ int inv_do_test(struct inv_mpu_iio_s *st, int self_test_flag,
 	}
 	s = 0;
 	while (s < st->self_test.samples) {
-		result = inv_i2c_single_write(st, reg->fifo_en, d);
+		result = inv_plat_single_write(st, reg->fifo_en, d);
 		if (result)
 			return result;
 		mdelay(DEF_GYRO_WAIT_TIME);
-		result = inv_i2c_single_write(st, reg->fifo_en, 0);
+		result = inv_plat_single_write(st, reg->fifo_en, 0);
 		if (result)
 			return result;
 
-		result = inv_i2c_read(st, reg->fifo_count_h,
+		result = inv_plat_read(st, reg->fifo_count_h,
 					FIFO_COUNT_BYTE, data);
 		if (result)
 			return result;
@@ -1059,7 +899,7 @@ int inv_do_test(struct inv_mpu_iio_s *st, int self_test_flag,
 		i = 0;
 		while ((i < packet_count) && (s < st->self_test.samples)) {
 			short vals[3];
-			result = inv_i2c_read(st, reg->fifo_r_w,
+			result = inv_plat_read(st, reg->fifo_r_w,
 				packet_size, data);
 			if (result)
 				return result;
@@ -1112,13 +952,13 @@ void inv_recover_setting(struct inv_mpu_iio_s *st)
 	int data;
 
 	reg = &st->reg;
-	inv_i2c_single_write(st, reg->gyro_config,
+	inv_plat_single_write(st, reg->gyro_config,
 			     st->chip_config.fsr << GYRO_CONFIG_FSR_SHIFT);
-	inv_i2c_single_write(st, reg->lpf, st->chip_config.lpf);
+	inv_plat_single_write(st, reg->lpf, st->chip_config.lpf);
 	data = ONE_K_HZ/st->chip_config.new_fifo_rate - 1;
-	inv_i2c_single_write(st, reg->sample_rate_div, data);
+	inv_plat_single_write(st, reg->sample_rate_div, data);
 	if (INV_ITG3500 != st->chip_type) {
-		inv_i2c_single_write(st, reg->accl_config,
+		inv_plat_single_write(st, reg->accl_config,
 				     (st->chip_config.accl_fs <<
 				     ACCL_CONFIG_FSR_SHIFT));
 	}
@@ -1137,30 +977,30 @@ static int inv_check_compass_self_test(struct inv_mpu_iio_s *st)
 	sens = st->chip_info.compass_sens;
 
 	/* set to bypass mode */
-	result = inv_i2c_single_write(st, REG_INT_PIN_CFG,
+	result = inv_plat_single_write(st, REG_INT_PIN_CFG,
 				st->plat_data.int_config | BIT_BYPASS_EN);
 	if (result) {
-		result = inv_i2c_single_write(st, REG_INT_PIN_CFG,
+		result = inv_plat_single_write(st, REG_INT_PIN_CFG,
 				st->plat_data.int_config);
 		return result;
 	}
 	/* set to power down mode */
-	result = inv_secondary_write(REG_AKM_MODE, DATA_AKM_MODE_PD);
+	result = inv_secondary_write(st, REG_AKM_MODE, DATA_AKM_MODE_PD);
 	if (result)
 		goto AKM_fail;
 
 	/* write 1 to ASTC register */
-	result = inv_secondary_write(REG_AKM_ST_CTRL, DATA_AKM_SELF_TEST);
+	result = inv_secondary_write(st, REG_AKM_ST_CTRL, DATA_AKM_SELF_TEST);
 	if (result)
 		goto AKM_fail;
 	/* set self test mode */
-	result = inv_secondary_write(REG_AKM_MODE, DATA_AKM_MODE_ST);
+	result = inv_secondary_write(st, REG_AKM_MODE, DATA_AKM_MODE_ST);
 	if (result)
 		goto AKM_fail;
 	counter = DEF_ST_COMPASS_TRY_TIMES;
 	while (counter > 0) {
 		usleep_range(DEF_ST_COMPASS_WAIT_MIN, DEF_ST_COMPASS_WAIT_MAX);
-		result = inv_secondary_read(REG_AKM_STATUS, 1, data);
+		result = inv_secondary_read(st, REG_AKM_STATUS, 1, data);
 		if (result)
 			goto AKM_fail;
 		if ((data[0] & DATA_AKM_DRDY) == 0)
@@ -1172,7 +1012,7 @@ static int inv_check_compass_self_test(struct inv_mpu_iio_s *st)
 		result = -EINVAL;
 		goto AKM_fail;
 	}
-	result = inv_secondary_read(REG_AKM_MEASURE_DATA,
+	result = inv_secondary_read(st, REG_AKM_MEASURE_DATA,
 					BYTES_PER_SENSOR, data);
 	if (result)
 		goto AKM_fail;
@@ -1184,7 +1024,7 @@ static int inv_check_compass_self_test(struct inv_mpu_iio_s *st)
 	y = ((y * (sens[1] + 128)) >> 8);
 	z = ((z * (sens[2] + 128)) >> 8);
 	if (COMPASS_ID_AK8963 == st->plat_data.sec_slave_id) {
-		result = inv_secondary_read(REG_AKM8963_CNTL1, 1, &cntl);
+		result = inv_secondary_read(st, REG_AKM8963_CNTL1, 1, &cntl);
 		if (result)
 			goto AKM_fail;
 		if (0 == (cntl & DATA_AKM8963_BIT)) {
@@ -1203,11 +1043,11 @@ static int inv_check_compass_self_test(struct inv_mpu_iio_s *st)
 	result = 0;
 AKM_fail:
 	/*write 0 to ASTC register */
-	result |= inv_secondary_write(REG_AKM_ST_CTRL, 0);
+	result |= inv_secondary_write(st, REG_AKM_ST_CTRL, 0);
 	/*set to power down mode */
-	result |= inv_secondary_write(REG_AKM_MODE, DATA_AKM_MODE_PD);
+	result |= inv_secondary_write(st, REG_AKM_MODE, DATA_AKM_MODE_PD);
 	/*restore to non-bypass mode */
-	result |= inv_i2c_single_write(st, REG_INT_PIN_CFG,
+	result |= inv_plat_single_write(st, REG_INT_PIN_CFG,
 			st->plat_data.int_config);
 	return result;
 }
@@ -2078,11 +1918,11 @@ ssize_t inv_dmp_firmware_write(struct file *fp, struct kobject *kobj,
 	if (result)
 		goto firmware_write_fail;
 
-	result = inv_i2c_single_write(st, reg->prgm_strt_addrh,
+	result = inv_plat_single_write(st, reg->prgm_strt_addrh,
 	st->chip_config.prog_start_addr >> 8);
 	if (result)
 		goto firmware_write_fail;
-	result = inv_i2c_single_write(st, reg->prgm_strt_addrh + 1,
+	result = inv_plat_single_write(st, reg->prgm_strt_addrh + 1,
 	st->chip_config.prog_start_addr & 0xff);
 	if (result)
 		goto firmware_write_fail;

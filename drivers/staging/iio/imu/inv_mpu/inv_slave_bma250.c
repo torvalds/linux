@@ -127,7 +127,7 @@ static int bma250_set_bandwidth(struct inv_mpu_iio_s *st, u8 bw)
 		return res;
 	data &= BMA250_BW_REG_MASK;
 	data |= bandwidth;
-	res = inv_secondary_write(BMA250_BW_SEL_REG, data);
+	res = inv_secondary_write(st, BMA250_BW_SEL_REG, data);
 	return res;
 }
 
@@ -156,7 +156,7 @@ static int bma250_set_range(struct inv_mpu_iio_s *st, u8 range)
 		return res;
 	orig &= BMA250_RANGE_MASK;
 	data |= orig;
-	res = inv_secondary_write(BMA250_RANGE_SEL_REG, data);
+	res = inv_secondary_write(st, BMA250_RANGE_SEL_REG, data);
 	if (res)
 		return res;
 	bma_static_property.range = range;
@@ -182,7 +182,7 @@ static int setup_slave_bma250(struct inv_mpu_iio_s *st)
 		return result;
 	/*AUX(accel), slave address is set inside set_3050_bypass*/
 	/* bma250 x axis LSB register address is 2 */
-	result = inv_i2c_single_write(st, REG_3050_AUX_BST_ADDR,
+	result = inv_plat_single_write(st, REG_3050_AUX_BST_ADDR,
 					BMA250_X_AXIS_LSB_REG);
 
 	return result;
@@ -209,7 +209,7 @@ static int bma250_set_mode(struct inv_mpu_iio_s *st, u8 mode)
 	default:
 		return -EINVAL;
 	}
-	res = inv_secondary_write(BMA250_MODE_CTRL_REG, data);
+	res = inv_secondary_write(st, BMA250_MODE_CTRL_REG, data);
 	if (res)
 		return res;
 	bma_static_property.mode = mode;
