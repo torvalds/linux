@@ -1011,6 +1011,17 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	trace_dwc3_ep_queue(req);
 
 	/*
+	 * Per databook, the total size of buffer must be a multiple
+	 * of MaxPacketSize for OUT endpoints. And MaxPacketSize is
+	 * configed for endpoints in dwc3_gadget_set_ep_config(),
+	 * set to usb_endpoint_descriptor->wMaxPacketSize.
+	 */
+	if (dep->direction == 0 &&
+	    req->request.length % dep->endpoint.desc->wMaxPacketSize)
+		req->request.length = roundup(req->request.length,
+					dep->endpoint.desc->wMaxPacketSize);
+
+	/*
 	 * We only add to our list of requests now and
 	 * start consuming the list once we get XferNotReady
 	 * IRQ.
@@ -1156,7 +1167,7 @@ static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 	 * any other request.
 	 */
 	if (ret == 0 && request->zero && request->length &&
-	    (request->length % ep->maxpacket == 0))
+	    (request->length % ep->desc->wMaxPacketSize == 0))
 		ret = __dwc3_gadget_ep_queue_zlp(dwc, dep);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
