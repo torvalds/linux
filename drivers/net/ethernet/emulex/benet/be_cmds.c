@@ -4465,7 +4465,7 @@ static int be_cmd_set_profile_config(struct be_adapter *adapter, void *desc,
 }
 
 /* Mark all fields invalid */
-static void be_reset_nic_desc(struct be_nic_res_desc *nic)
+void be_reset_nic_desc(struct be_nic_res_desc *nic)
 {
 	memset(nic, 0, sizeof(*nic));
 	nic->unicast_mac_count = 0xFFFF;
@@ -4534,73 +4534,9 @@ int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
 					 1, version, domain);
 }
 
-static void be_fill_vf_res_template(struct be_adapter *adapter,
-				    struct be_resources pool_res,
-				    u16 num_vfs, u16 num_vf_qs,
-				    struct be_nic_res_desc *nic_vft)
-{
-	u32 vf_if_cap_flags = pool_res.vf_if_cap_flags;
-	struct be_resources res_mod = {0};
-
-	/* Resource with fields set to all '1's by GET_PROFILE_CONFIG cmd,
-	 * which are modifiable using SET_PROFILE_CONFIG cmd.
-	 */
-	be_cmd_get_profile_config(adapter, &res_mod, RESOURCE_MODIFIABLE, 0);
-
-	/* If RSS IFACE capability flags are modifiable for a VF, set the
-	 * capability flag as valid and set RSS and DEFQ_RSS IFACE flags if
-	 * more than 1 RSSQ is available for a VF.
-	 * Otherwise, provision only 1 queue pair for VF.
-	 */
-	if (res_mod.vf_if_cap_flags & BE_IF_FLAGS_RSS) {
-		nic_vft->flags |= BIT(IF_CAPS_FLAGS_VALID_SHIFT);
-		if (num_vf_qs > 1) {
-			vf_if_cap_flags |= BE_IF_FLAGS_RSS;
-			if (pool_res.if_cap_flags & BE_IF_FLAGS_DEFQ_RSS)
-				vf_if_cap_flags |= BE_IF_FLAGS_DEFQ_RSS;
-		} else {
-			vf_if_cap_flags &= ~(BE_IF_FLAGS_RSS |
-					     BE_IF_FLAGS_DEFQ_RSS);
-		}
-	} else {
-		num_vf_qs = 1;
-	}
-
-	if (res_mod.vf_if_cap_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
-		nic_vft->flags |= BIT(IF_CAPS_FLAGS_VALID_SHIFT);
-		vf_if_cap_flags &= ~BE_IF_FLAGS_VLAN_PROMISCUOUS;
-	}
-
-	nic_vft->cap_flags = cpu_to_le32(vf_if_cap_flags);
-	nic_vft->rq_count = cpu_to_le16(num_vf_qs);
-	nic_vft->txq_count = cpu_to_le16(num_vf_qs);
-	nic_vft->rssq_count = cpu_to_le16(num_vf_qs);
-	nic_vft->cq_count = cpu_to_le16(pool_res.max_cq_count /
-					(num_vfs + 1));
-
-	/* Distribute unicast MACs, VLANs, IFACE count and MCCQ count equally
-	 * among the PF and it's VFs, if the fields are changeable
-	 */
-	if (res_mod.max_uc_mac == FIELD_MODIFIABLE)
-		nic_vft->unicast_mac_count = cpu_to_le16(pool_res.max_uc_mac /
-							 (num_vfs + 1));
-
-	if (res_mod.max_vlans == FIELD_MODIFIABLE)
-		nic_vft->vlan_count = cpu_to_le16(pool_res.max_vlans /
-						  (num_vfs + 1));
-
-	if (res_mod.max_iface_count == FIELD_MODIFIABLE)
-		nic_vft->iface_count = cpu_to_le16(pool_res.max_iface_count /
-						   (num_vfs + 1));
-
-	if (res_mod.max_mcc_count == FIELD_MODIFIABLE)
-		nic_vft->mcc_count = cpu_to_le16(pool_res.max_mcc_count /
-						 (num_vfs + 1));
-}
-
 int be_cmd_set_sriov_config(struct be_adapter *adapter,
 			    struct be_resources pool_res, u16 num_vfs,
-			    u16 num_vf_qs)
+			    struct be_resources *vft_res)
 {
 	struct {
 		struct be_pcie_res_desc pcie;
@@ -4620,12 +4556,26 @@ int be_cmd_set_sriov_config(struct be_adapter *adapter,
 	be_reset_nic_desc(&desc.nic_vft);
 	desc.nic_vft.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V1;
 	desc.nic_vft.hdr.desc_len = RESOURCE_DESC_SIZE_V1;
-	desc.nic_vft.flags = BIT(VFT_SHIFT) | BIT(IMM_SHIFT) | BIT(NOSV_SHIFT);
+	desc.nic_vft.flags = vft_res->flags | BIT(VFT_SHIFT) |
+			     BIT(IMM_SHIFT) | BIT(NOSV_SHIFT);
 	desc.nic_vft.pf_num = adapter->pdev->devfn;
 	desc.nic_vft.vf_num = 0;
+	desc.nic_vft.cap_flags = cpu_to_le32(vft_res->vf_if_cap_flags);
+	desc.nic_vft.rq_count = cpu_to_le16(vft_res->max_rx_qs);
+	desc.nic_vft.txq_count = cpu_to_le16(vft_res->max_tx_qs);
+	desc.nic_vft.rssq_count = cpu_to_le16(vft_res->max_rss_qs);
+	desc.nic_vft.cq_count = cpu_to_le16(vft_res->max_cq_count);
 
-	be_fill_vf_res_template(adapter, pool_res, num_vfs, num_vf_qs,
-				&desc.nic_vft);
+	if (vft_res->max_uc_mac)
+		desc.nic_vft.unicast_mac_count =
+					cpu_to_le16(vft_res->max_uc_mac);
+	if (vft_res->max_vlans)
+		desc.nic_vft.vlan_count = cpu_to_le16(vft_res->max_vlans);
+	if (vft_res->max_iface_count)
+		desc.nic_vft.iface_count =
+				cpu_to_le16(vft_res->max_iface_count);
+	if (vft_res->max_mcc_count)
+		desc.nic_vft.mcc_count = cpu_to_le16(vft_res->max_mcc_count);
 
 	return be_cmd_set_profile_config(adapter, &desc,
 					 2 * RESOURCE_DESC_SIZE_V1, 2, 1, 0);

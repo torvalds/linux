@@ -3810,17 +3810,20 @@ static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 }
 #endif
 
-static u16 be_calculate_vf_qs(struct be_adapter *adapter, u16 num_vfs)
+static void be_calculate_vf_res(struct be_adapter *adapter, u16 num_vfs,
+				struct be_resources *vft_res)
 {
 	struct be_resources res = adapter->pool_res;
+	u32 vf_if_cap_flags = res.vf_if_cap_flags;
+	struct be_resources res_mod = {0};
 	u16 num_vf_qs = 1;
 
 	/* Distribute the queue resources among the PF and it's VFs
 	 * Do not distribute queue resources in multi-channel configuration.
 	 */
 	if (num_vfs && !be_is_mc(adapter)) {
-		 /* Divide the qpairs evenly among the VFs and the PF, capped
-		  * at VF-EQ-count. Any remainder qpairs belong to the PF.
+		 /* Divide the rx queues evenly among the VFs and the PF, capped
+		  * at VF-EQ-count. Any remainder queues belong to the PF.
 		  */
 		num_vf_qs = min(SH_VF_MAX_NIC_EQS,
 				res.max_rss_qs / (num_vfs + 1));
@@ -3832,13 +3835,62 @@ static u16 be_calculate_vf_qs(struct be_adapter *adapter, u16 num_vfs)
 		if (num_vfs >= MAX_RSS_IFACES)
 			num_vf_qs = 1;
 	}
-	return num_vf_qs;
+
+	/* Resource with fields set to all '1's by GET_PROFILE_CONFIG cmd,
+	 * which are modifiable using SET_PROFILE_CONFIG cmd.
+	 */
+	be_cmd_get_profile_config(adapter, &res_mod, RESOURCE_MODIFIABLE, 0);
+
+	/* If RSS IFACE capability flags are modifiable for a VF, set the
+	 * capability flag as valid and set RSS and DEFQ_RSS IFACE flags if
+	 * more than 1 RSSQ is available for a VF.
+	 * Otherwise, provision only 1 queue pair for VF.
+	 */
+	if (res_mod.vf_if_cap_flags & BE_IF_FLAGS_RSS) {
+		vft_res->flags |= BIT(IF_CAPS_FLAGS_VALID_SHIFT);
+		if (num_vf_qs > 1) {
+			vf_if_cap_flags |= BE_IF_FLAGS_RSS;
+			if (res.if_cap_flags & BE_IF_FLAGS_DEFQ_RSS)
+				vf_if_cap_flags |= BE_IF_FLAGS_DEFQ_RSS;
+		} else {
+			vf_if_cap_flags &= ~(BE_IF_FLAGS_RSS |
+					     BE_IF_FLAGS_DEFQ_RSS);
+		}
+	} else {
+		num_vf_qs = 1;
+	}
+
+	if (res_mod.vf_if_cap_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
+		vft_res->flags |= BIT(IF_CAPS_FLAGS_VALID_SHIFT);
+		vf_if_cap_flags &= ~BE_IF_FLAGS_VLAN_PROMISCUOUS;
+	}
+
+	vft_res->vf_if_cap_flags = vf_if_cap_flags;
+	vft_res->max_rx_qs = num_vf_qs;
+	vft_res->max_rss_qs = num_vf_qs;
+	vft_res->max_tx_qs = res.max_tx_qs / (num_vfs + 1);
+	vft_res->max_cq_count = res.max_cq_count / (num_vfs + 1);
+
+	/* Distribute unicast MACs, VLANs, IFACE count and MCCQ count equally
+	 * among the PF and it's VFs, if the fields are changeable
+	 */
+	if (res_mod.max_uc_mac == FIELD_MODIFIABLE)
+		vft_res->max_uc_mac = res.max_uc_mac / (num_vfs + 1);
+
+	if (res_mod.max_vlans == FIELD_MODIFIABLE)
+		vft_res->max_vlans = res.max_vlans / (num_vfs + 1);
+
+	if (res_mod.max_iface_count == FIELD_MODIFIABLE)
+		vft_res->max_iface_count = res.max_iface_count / (num_vfs + 1);
+
+	if (res_mod.max_mcc_count == FIELD_MODIFIABLE)
+		vft_res->max_mcc_count = res.max_mcc_count / (num_vfs + 1);
 }
 
 static int be_clear(struct be_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	u16 num_vf_qs;
+	struct  be_resources vft_res = {0};
 
 	be_cancel_worker(adapter);
 
@@ -3850,11 +3902,12 @@ static int be_clear(struct be_adapter *adapter)
 	 */
 	if (skyhawk_chip(adapter) && be_physfn(adapter) &&
 	    !pci_vfs_assigned(pdev)) {
-		num_vf_qs = be_calculate_vf_qs(adapter,
-					       pci_sriov_get_totalvfs(pdev));
+		be_calculate_vf_res(adapter,
+				    pci_sriov_get_totalvfs(pdev),
+				    &vft_res);
 		be_cmd_set_sriov_config(adapter, adapter->pool_res,
 					pci_sriov_get_totalvfs(pdev),
-					num_vf_qs);
+					&vft_res);
 	}
 
 #ifdef CONFIG_BE2NET_VXLAN
@@ -4144,7 +4197,7 @@ static int be_get_sriov_config(struct be_adapter *adapter)
 static void be_alloc_sriov_res(struct be_adapter *adapter)
 {
 	int old_vfs = pci_num_vf(adapter->pdev);
-	u16 num_vf_qs;
+	struct  be_resources vft_res = {0};
 	int status;
 
 	be_get_sriov_config(adapter);
@@ -4158,9 +4211,9 @@ static void be_alloc_sriov_res(struct be_adapter *adapter)
 	 * Also, this is done by FW in Lancer chip.
 	 */
 	if (skyhawk_chip(adapter) && be_max_vfs(adapter) && !old_vfs) {
-		num_vf_qs = be_calculate_vf_qs(adapter, 0);
+		be_calculate_vf_res(adapter, 0, &vft_res);
 		status = be_cmd_set_sriov_config(adapter, adapter->pool_res, 0,
-						 num_vf_qs);
+						 &vft_res);
 		if (status)
 			dev_err(&adapter->pdev->dev,
 				"Failed to optimize SRIOV resources\n");
@@ -5552,7 +5605,7 @@ err:
 static int be_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
-	u16 num_vf_qs;
+	struct be_resources vft_res = {0};
 	int status;
 
 	if (!num_vfs)
@@ -5575,9 +5628,10 @@ static int be_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	 * Also, this is done by FW in Lancer chip.
 	 */
 	if (skyhawk_chip(adapter) && !pci_num_vf(pdev)) {
-		num_vf_qs = be_calculate_vf_qs(adapter, adapter->num_vfs);
+		be_calculate_vf_res(adapter, adapter->num_vfs,
+				    &vft_res);
 		status = be_cmd_set_sriov_config(adapter, adapter->pool_res,
-						 adapter->num_vfs, num_vf_qs);
+						 adapter->num_vfs, &vft_res);
 		if (status)
 			dev_err(&pdev->dev,
 				"Failed to optimize SR-IOV resources\n");
