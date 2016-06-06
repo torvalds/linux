@@ -310,8 +310,8 @@ devm_reset_control_get_exclusive_by_index(struct device *dev, int index)
  * this function, reset_control_put() is called automatically on driver detach.
  * See reset_control_get_shared() for more information.
  */
-static inline struct reset_control *devm_reset_control_get_shared_by_index(
-					struct device *dev, int index)
+static inline struct reset_control *
+devm_reset_control_get_shared_by_index(struct device *dev, int index)
 {
 	return __devm_reset_control_get(dev, NULL, index, 1);
 }
