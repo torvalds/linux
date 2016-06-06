@@ -139,15 +139,15 @@ static int aim_vdev_close(struct file *filp)
 	 * This must be implemented in core.
 	 */
 
-	spin_lock(&mdev->list_lock);
+	spin_lock_irq(&mdev->list_lock);
 	mdev->mute = true;
 	list_for_each_entry_safe(mbo, tmp, &mdev->pending_mbos, list) {
 		list_del(&mbo->list);
-		spin_unlock(&mdev->list_lock);
+		spin_unlock_irq(&mdev->list_lock);
 		most_put_mbo(mbo);
-		spin_lock(&mdev->list_lock);
+		spin_lock_irq(&mdev->list_lock);
 	}
-	spin_unlock(&mdev->list_lock);
+	spin_unlock_irq(&mdev->list_lock);
 	most_stop_channel(mdev->iface, mdev->ch_idx, &aim_info);
 	mdev->mute = false;
 
@@ -200,9 +200,9 @@ static ssize_t aim_vdev_read(struct file *filp, char __user *buf,
 
 		if (cnt >= rem) {
 			fh->offs = 0;
-			spin_lock(&mdev->list_lock);
+			spin_lock_irq(&mdev->list_lock);
 			list_del(&mbo->list);
-			spin_unlock(&mdev->list_lock);
+			spin_unlock_irq(&mdev->list_lock);
 			most_put_mbo(mbo);
 		}
 	}
@@ -394,34 +394,36 @@ static struct most_video_dev *get_aim_dev(
 	struct most_interface *iface, int channel_idx)
 {
 	struct most_video_dev *mdev, *tmp;
+	unsigned long flags;
 
-	spin_lock(&list_lock);
+	spin_lock_irqsave(&list_lock, flags);
 	list_for_each_entry_safe(mdev, tmp, &video_devices, list) {
 		if (mdev->iface == iface && mdev->ch_idx == channel_idx) {
-			spin_unlock(&list_lock);
+			spin_unlock_irqrestore(&list_lock, flags);
 			return mdev;
 		}
 	}
-	spin_unlock(&list_lock);
+	spin_unlock_irqrestore(&list_lock, flags);
 	return NULL;
 }
 
 static int aim_rx_data(struct mbo *mbo)
 {
+	unsigned long flags;
 	struct most_video_dev *mdev =
 		get_aim_dev(mbo->ifp, mbo->hdm_channel_id);
 
 	if (!mdev)
 		return -EIO;
 
-	spin_lock(&mdev->list_lock);
+	spin_lock_irqsave(&mdev->list_lock, flags);
 	if (unlikely(mdev->mute)) {
-		spin_unlock(&mdev->list_lock);
+		spin_unlock_irqrestore(&mdev->list_lock, flags);
 		return -EIO;
 	}
 
 	list_add_tail(&mbo->list, &mdev->pending_mbos);
-	spin_unlock(&mdev->list_lock);
+	spin_unlock_irqrestore(&mdev->list_lock, flags);
 	wake_up_interruptible(&mdev->wait_data);
 	return 0;
 }
@@ -529,9 +531,9 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	if (ret)
 		goto err_unreg;
 
-	spin_lock(&list_lock);
+	spin_lock_irq(&list_lock);
 	list_add(&mdev->list, &video_devices);
-	spin_unlock(&list_lock);
+	spin_unlock_irq(&list_lock);
 	return 0;
 
 err_unreg:
@@ -552,9 +554,9 @@ static int aim_disconnect_channel(struct most_interface *iface,
 		return -ENOENT;
 	}
 
-	spin_lock(&list_lock);
+	spin_lock_irq(&list_lock);
 	list_del(&mdev->list);
-	spin_unlock(&list_lock);
+	spin_unlock_irq(&list_lock);
 
 	aim_unregister_videodev(mdev);
 	v4l2_device_disconnect(&mdev->v4l2_dev);
@@ -585,17 +587,17 @@ static void __exit aim_exit(void)
 	 * we simulate this call here.
 	 * This must be fixed in core.
 	 */
-	spin_lock(&list_lock);
+	spin_lock_irq(&list_lock);
 	list_for_each_entry_safe(mdev, tmp, &video_devices, list) {
 		list_del(&mdev->list);
-		spin_unlock(&list_lock);
+		spin_unlock_irq(&list_lock);
 
 		aim_unregister_videodev(mdev);
 		v4l2_device_disconnect(&mdev->v4l2_dev);
 		v4l2_device_put(&mdev->v4l2_dev);
-		spin_lock(&list_lock);
+		spin_lock_irq(&list_lock);
 	}
-	spin_unlock(&list_lock);
+	spin_unlock_irq(&list_lock);
 
 	most_deregister_aim(&aim_info);
 	BUG_ON(!list_empty(&video_devices));
