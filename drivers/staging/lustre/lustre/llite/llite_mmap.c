@@ -315,7 +315,12 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 		vio->u.fault.ft_flags = 0;
 		vio->u.fault.ft_flags_valid = false;
 
+		/* May call ll_readpage() */
+		ll_cl_add(vma->vm_file, env, io);
+
 		result = cl_io_loop(env, io);
+
+		ll_cl_remove(vma->vm_file, env);
 
 		/* ft_flags are only valid if we reached
 		 * the call to filemap_fault

@@ -640,6 +640,8 @@ struct ll_file_data {
 	 * false: unknown failure, should report.
 	 */
 	bool fd_write_failed;
+	rwlock_t fd_lock; /* protect lcc list */
+	struct list_head fd_lccs; /* list of ll_cl_context */
 };
 
 struct lov_stripe_md;
@@ -715,8 +717,9 @@ void ll_readahead_init(struct inode *inode, struct ll_readahead_state *ras);
 int ll_readahead(const struct lu_env *env, struct cl_io *io,
 		 struct cl_page_list *queue, struct ll_readahead_state *ras,
 		 bool hit);
-struct ll_cl_context *ll_cl_init(struct file *file, struct page *vmpage);
-void ll_cl_fini(struct ll_cl_context *lcc);
+struct ll_cl_context *ll_cl_find(struct file *file);
+void ll_cl_add(struct file *file, const struct lu_env *env, struct cl_io *io);
+void ll_cl_remove(struct file *file, const struct lu_env *env);
 
 extern const struct address_space_operations ll_aops;
 
@@ -858,11 +861,11 @@ struct vvp_io_args {
 };
 
 struct ll_cl_context {
+	struct list_head	 lcc_list;
 	void	   *lcc_cookie;
+	const struct lu_env	*lcc_env;
 	struct cl_io   *lcc_io;
 	struct cl_page *lcc_page;
-	struct lu_env  *lcc_env;
-	int	     lcc_refcheck;
 };
 
 struct ll_thread_info {
