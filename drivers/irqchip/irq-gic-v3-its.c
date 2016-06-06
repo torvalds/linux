@@ -842,7 +842,8 @@ static void its_write_baser(struct its_node *its, struct its_baser *baser,
 }
 
 static int its_setup_baser(struct its_node *its, struct its_baser *baser,
-			   u64 cache, u64 shr, u32 psz, u32 order)
+			   u64 cache, u64 shr, u32 psz, u32 order,
+			   bool indirect)
 {
 	u64 val = its_read_baser(its, baser);
 	u64 esz = GITS_BASER_ENTRY_SIZE(val);
@@ -873,6 +874,8 @@ retry_baser:
 		cache						 |
 		shr						 |
 		GITS_BASER_VALID);
+
+	val |=	indirect ? GITS_BASER_INDIRECT : 0x0;
 
 	switch (psz) {
 	case SZ_4K:
@@ -935,28 +938,55 @@ retry_baser:
 	baser->order = order;
 	baser->base = base;
 	baser->psz = psz;
+	tmp = indirect ? GITS_LVL1_ENTRY_SIZE : esz;
 
-	pr_info("ITS@%pa: allocated %d %s @%lx (psz %dK, shr %d)\n",
-		&its->phys_base, (int)(PAGE_ORDER_TO_SIZE(order) / esz),
+	pr_info("ITS@%pa: allocated %d %s @%lx (%s, esz %d, psz %dK, shr %d)\n",
+		&its->phys_base, (int)(PAGE_ORDER_TO_SIZE(order) / tmp),
 		its_base_type_string[type],
 		(unsigned long)virt_to_phys(base),
+		indirect ? "indirect" : "flat", (int)esz,
 		psz / SZ_1K, (int)shr >> GITS_BASER_SHAREABILITY_SHIFT);
 
 	return 0;
 }
 
-static void its_parse_baser_device(struct its_node *its, struct its_baser *baser,
-				   u32 *order)
+static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser,
+				   u32 psz, u32 *order)
 {
 	u64 esz = GITS_BASER_ENTRY_SIZE(its_read_baser(its, baser));
+	u64 val = GITS_BASER_InnerShareable | GITS_BASER_WaWb;
 	u32 ids = its->device_ids;
 	u32 new_order = *order;
+	bool indirect = false;
+
+	/* No need to enable Indirection if memory requirement < (psz*2)bytes */
+	if ((esz << ids) > (psz * 2)) {
+		/*
+		 * Find out whether hw supports a single or two-level table by
+		 * table by reading bit at offset '62' after writing '1' to it.
+		 */
+		its_write_baser(its, baser, val | GITS_BASER_INDIRECT);
+		indirect = !!(baser->val & GITS_BASER_INDIRECT);
+
+		if (indirect) {
+			/*
+			 * The size of the lvl2 table is equal to ITS page size
+			 * which is 'psz'. For computing lvl1 table size,
+			 * subtract ID bits that sparse lvl2 table from 'ids'
+			 * which is reported by ITS hardware times lvl1 table
+			 * entry size.
+			 */
+			ids -= ilog2(psz / esz);
+			esz = GITS_LVL1_ENTRY_SIZE;
+		}
+	}
 
 	/*
 	 * Allocate as many entries as required to fit the
 	 * range of device IDs that the ITS can grok... The ID
 	 * space being incredibly sparse, this results in a
-	 * massive waste of memory.
+	 * massive waste of memory if two-level device table
+	 * feature is not supported by hardware.
 	 */
 	new_order = max_t(u32, get_order(esz << ids), new_order);
 	if (new_order >= MAX_ORDER) {
@@ -967,6 +997,8 @@ static void its_parse_baser_device(struct its_node *its, struct its_baser *baser
 	}
 
 	*order = new_order;
+
+	return indirect;
 }
 
 static void its_free_tables(struct its_node *its)
@@ -1007,14 +1039,15 @@ static int its_alloc_tables(struct its_node *its)
 		u64 val = its_read_baser(its, baser);
 		u64 type = GITS_BASER_TYPE(val);
 		u32 order = get_order(psz);
+		bool indirect = false;
 
 		if (type == GITS_BASER_TYPE_NONE)
 			continue;
 
 		if (type == GITS_BASER_TYPE_DEVICE)
-			its_parse_baser_device(its, baser, &order);
+			indirect = its_parse_baser_device(its, baser, psz, &order);
 
-		err = its_setup_baser(its, baser, cache, shr, psz, order);
+		err = its_setup_baser(its, baser, cache, shr, psz, order, indirect);
 		if (err < 0) {
 			its_free_tables(its);
 			return err;
@@ -1214,10 +1247,57 @@ static struct its_baser *its_get_baser(struct its_node *its, u32 type)
 	return NULL;
 }
 
+static bool its_alloc_device_table(struct its_node *its, u32 dev_id)
+{
+	struct its_baser *baser;
+	struct page *page;
+	u32 esz, idx;
+	__le64 *table;
+
+	baser = its_get_baser(its, GITS_BASER_TYPE_DEVICE);
+
+	/* Don't allow device id that exceeds ITS hardware limit */
+	if (!baser)
+		return (ilog2(dev_id) < its->device_ids);
+
+	/* Don't allow device id that exceeds single, flat table limit */
+	esz = GITS_BASER_ENTRY_SIZE(baser->val);
+	if (!(baser->val & GITS_BASER_INDIRECT))
+		return (dev_id < (PAGE_ORDER_TO_SIZE(baser->order) / esz));
+
+	/* Compute 1st level table index & check if that exceeds table limit */
+	idx = dev_id >> ilog2(baser->psz / esz);
+	if (idx >= (PAGE_ORDER_TO_SIZE(baser->order) / GITS_LVL1_ENTRY_SIZE))
+		return false;
+
+	table = baser->base;
+
+	/* Allocate memory for 2nd level table */
+	if (!table[idx]) {
+		page = alloc_pages(GFP_KERNEL | __GFP_ZERO, get_order(baser->psz));
+		if (!page)
+			return false;
+
+		/* Flush Lvl2 table to PoC if hw doesn't support coherency */
+		if (!(baser->val & GITS_BASER_SHAREABILITY_MASK))
+			__flush_dcache_area(page_address(page), baser->psz);
+
+		table[idx] = cpu_to_le64(page_to_phys(page) | GITS_BASER_VALID);
+
+		/* Flush Lvl1 entry to PoC if hw doesn't support coherency */
+		if (!(baser->val & GITS_BASER_SHAREABILITY_MASK))
+			__flush_dcache_area(table + idx, GITS_LVL1_ENTRY_SIZE);
+
+		/* Ensure updated table contents are visible to ITS hardware */
+		dsb(sy);
+	}
+
+	return true;
+}
+
 static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 					    int nvecs)
 {
-	struct its_baser *baser;
 	struct its_device *dev;
 	unsigned long *lpi_map;
 	unsigned long flags;
@@ -1228,14 +1308,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	int nr_ites;
 	int sz;
 
-	baser = its_get_baser(its, GITS_BASER_TYPE_DEVICE);
-
-	/* Don't allow 'dev_id' that exceeds single, flat table limit */
-	if (baser) {
-		if (dev_id >= (PAGE_ORDER_TO_SIZE(baser->order) /
-			      GITS_BASER_ENTRY_SIZE(baser->val)))
-			return NULL;
-	} else if (ilog2(dev_id) >= its->device_ids)
+	if (!its_alloc_device_table(its, dev_id))
 		return NULL;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
