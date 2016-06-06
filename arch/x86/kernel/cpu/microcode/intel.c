@@ -675,8 +675,8 @@ int __init save_microcode_in_initrd_intel(void)
 	ret = save_microcode(&mc_saved_data, mc_saved, count);
 	if (ret)
 		pr_err("Cannot save microcode patches from initrd.\n");
-
-	show_saved_mc();
+	else
+		show_saved_mc();
 
 	return ret;
 }
