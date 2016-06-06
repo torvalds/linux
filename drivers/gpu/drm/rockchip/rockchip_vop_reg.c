@@ -210,6 +210,7 @@ static const struct vop_win_phy rk3036_win0_data = {
 	.yrgb_mst = VOP_REG(RK3036_WIN0_YRGB_MST, 0xffffffff, 0),
 	.uv_mst = VOP_REG(RK3036_WIN0_CBR_MST, 0xffffffff, 0),
 	.yrgb_vir = VOP_REG(RK3036_WIN0_VIR, 0xffff, 0),
+	.uv_vir = VOP_REG(RK3036_WIN0_VIR, 0x1fff, 16),
 };
 
 static const struct vop_win_phy rk3036_win1_data = {
