@@ -972,7 +972,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif_dat
 		     &pinctrl_lcdif_ctrl>;
-	pinctrl-assert-gpios = <&gpio_spi 7 GPIO_ACTIVE_HIGH>;
+	pinctrl-assert-gpios = <&gpio_spi 7 GPIO_ACTIVE_LOW>;
 	display = <&display0>;
 	status = "okay";
 
