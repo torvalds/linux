@@ -93,6 +93,7 @@ struct rockchip_drm_private {
 	struct drm_fb_helper fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
+	struct drm_atomic_state *state;
 
 	struct rockchip_atomic_commit commit;
 	struct iommu_domain *domain;
