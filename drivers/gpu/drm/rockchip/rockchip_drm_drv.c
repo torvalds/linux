@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/console.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_fb.h"
@@ -312,25 +313,38 @@ static struct drm_driver rockchip_drm_driver = {
 };
 
 #ifdef CONFIG_PM_SLEEP
+void rockchip_drm_fb_suspend(struct drm_device *drm)
+{
+	struct rockchip_drm_private *priv = drm->dev_private;
+
+	console_lock();
+	drm_fb_helper_set_suspend(&priv->fbdev_helper, 1);
+	console_unlock();
+}
+
+void rockchip_drm_fb_resume(struct drm_device *drm)
+{
+	struct rockchip_drm_private *priv = drm->dev_private;
+
+	console_lock();
+	drm_fb_helper_set_suspend(&priv->fbdev_helper, 0);
+	console_unlock();
+}
+
 static int rockchip_drm_sys_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct drm_connector *connector;
+	struct rockchip_drm_private *priv = drm->dev_private;
 
-	if (!drm)
-		return 0;
+	drm_kms_helper_poll_disable(drm);
+	rockchip_drm_fb_suspend(drm);
 
-	drm_modeset_lock_all(drm);
-	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		int old_dpms = connector->dpms;
-
-		if (connector->funcs->dpms)
-			connector->funcs->dpms(connector, DRM_MODE_DPMS_OFF);
-
-		/* Set the old mode back to the connector for resume */
-		connector->dpms = old_dpms;
+	priv->state = drm_atomic_helper_suspend(drm);
+	if (IS_ERR(priv->state)) {
+		rockchip_drm_fb_resume(drm);
+		drm_kms_helper_poll_enable(drm);
+		return PTR_ERR(priv->state);
 	}
-	drm_modeset_unlock_all(drm);
 
 	return 0;
 }
@@ -338,47 +352,11 @@ static int rockchip_drm_sys_suspend(struct device *dev)
 static int rockchip_drm_sys_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct drm_connector *connector;
-	enum drm_connector_status status;
-	bool changed = false;
+	struct rockchip_drm_private *priv = drm->dev_private;
 
-	if (!drm)
-		return 0;
-
-	drm_modeset_lock_all(drm);
-	list_for_each_entry(connector, &drm->mode_config.connector_list, head) {
-		int desired_mode = connector->dpms;
-
-		/*
-		 * at suspend time, we save dpms to connector->dpms,
-		 * restore the old_dpms, and at current time, the connector
-		 * dpms status must be DRM_MODE_DPMS_OFF.
-		 */
-		connector->dpms = DRM_MODE_DPMS_OFF;
-
-		/*
-		 * If the connector has been disconnected during suspend,
-		 * disconnect it from the encoder and leave it off. We'll notify
-		 * userspace at the end.
-		 */
-		if (desired_mode == DRM_MODE_DPMS_ON) {
-			status = connector->funcs->detect(connector, true);
-			if (status == connector_status_disconnected) {
-				connector->encoder = NULL;
-				connector->status = status;
-				changed = true;
-				continue;
-			}
-		}
-		if (connector->funcs->dpms)
-			connector->funcs->dpms(connector, desired_mode);
-	}
-	drm_modeset_unlock_all(drm);
-
-	drm_helper_resume_force_mode(drm);
-
-	if (changed)
-		drm_kms_helper_hotplug_event(drm);
+	drm_atomic_helper_resume(drm, priv->state);
+	rockchip_drm_fb_resume(drm);
+	drm_kms_helper_poll_enable(drm);
 
 	return 0;
 }
