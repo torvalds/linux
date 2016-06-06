@@ -463,13 +463,9 @@ static int aim_register_videodev(struct most_video_dev *mdev)
 	if (ret) {
 		v4l2_err(&mdev->v4l2_dev, "video_register_device failed (%d)\n",
 			 ret);
-		goto err_vbi_dev;
+		video_device_release(mdev->vdev);
 	}
 
-	return 0;
-
-err_vbi_dev:
-	video_device_release(mdev->vdev);
 	return ret;
 }
 
