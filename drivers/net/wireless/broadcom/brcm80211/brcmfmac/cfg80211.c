@@ -601,7 +601,7 @@ struct wireless_dev *brcmf_ap_add_vif(struct wiphy *wiphy, const char *name,
 
 	brcmf_dbg(INFO, "Adding vif \"%s\"\n", name);
 
-	vif = brcmf_alloc_vif(cfg, NL80211_IFTYPE_AP, false);
+	vif = brcmf_alloc_vif(cfg, NL80211_IFTYPE_AP);
 	if (IS_ERR(vif))
 		return (struct wireless_dev *)vif;
 
@@ -5158,8 +5158,7 @@ static struct cfg80211_ops brcmf_cfg80211_ops = {
 };
 
 struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
-					   enum nl80211_iftype type,
-					   bool pm_block)
+					   enum nl80211_iftype type)
 {
 	struct brcmf_cfg80211_vif *vif_walk;
 	struct brcmf_cfg80211_vif *vif;
@@ -5173,8 +5172,6 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 
 	vif->wdev.wiphy = cfg->wiphy;
 	vif->wdev.iftype = type;
-
-	vif->pm_block = pm_block;
 
 	brcmf_init_prof(&vif->profile);
 
@@ -6817,7 +6814,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	init_vif_event(&cfg->vif_event);
 	INIT_LIST_HEAD(&cfg->vif_list);
 
-	vif = brcmf_alloc_vif(cfg, NL80211_IFTYPE_STATION, false);
+	vif = brcmf_alloc_vif(cfg, NL80211_IFTYPE_STATION);
 	if (IS_ERR(vif))
 		goto wiphy_out;
 
