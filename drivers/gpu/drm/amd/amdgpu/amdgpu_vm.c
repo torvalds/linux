@@ -780,8 +780,13 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 		next_pe_start = amdgpu_bo_gpu_offset(pt);
 		next_pe_start += (addr & mask) * 8;
 
-		if (cur_pe_end != next_pe_start) {
-
+		if (cur_pe_end == next_pe_start) {
+			/* The next ptb is consecutive to current ptb.
+			 * Don't call amdgpu_vm_frag_ptes now.
+			 * Will update two ptbs together in future.
+			*/
+			cur_pe_end += 8 * nptes;
+		} else {
 			amdgpu_vm_frag_ptes(adev, vm_update_params,
 					    cur_pe_start, cur_pe_end,
 					    cur_dst, flags);
@@ -789,8 +794,6 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 			cur_pe_start = next_pe_start;
 			cur_pe_end = next_pe_start + 8 * nptes;
 			cur_dst = dst;
-		} else {
-			cur_pe_end += 8 * nptes;
 		}
 
 		addr += nptes;
