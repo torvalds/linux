@@ -149,14 +149,15 @@ static int arcpgu_load(struct drm_device *drm)
 
 	/* find the encoder node and initialize it */
 	encoder_node = of_parse_phandle(drm->dev->of_node, "encoder-slave", 0);
-	if (!encoder_node) {
-		dev_err(drm->dev, "failed to get an encoder slave node\n");
-		return -ENODEV;
+	if (encoder_node) {
+		ret = arcpgu_drm_hdmi_init(drm, encoder_node);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = arcpgu_drm_sim_init(drm, 0);
+		if (ret < 0)
+			return ret;
 	}
-
-	ret = arcpgu_drm_hdmi_init(drm, encoder_node);
-	if (ret < 0)
-		return ret;
 
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
