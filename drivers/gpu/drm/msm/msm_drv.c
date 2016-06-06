@@ -834,6 +834,20 @@ static int add_components_mdp(struct device *mdp_dev,
 {
 	struct device_node *np = mdp_dev->of_node;
 	struct device_node *ep_node;
+	struct device *master_dev;
+
+	/*
+	 * on MDP4 based platforms, the MDP platform device is the component
+	 * master that adds other display interface components to itself.
+	 *
+	 * on MDP5 based platforms, the MDSS platform device is the component
+	 * master that adds MDP5 and other display interface components to
+	 * itself.
+	 */
+	if (of_device_is_compatible(np, "qcom,mdp4"))
+		master_dev = mdp_dev;
+	else
+		master_dev = mdp_dev->parent;
 
 	for_each_endpoint_of_node(np, ep_node) {
 		struct device_node *intf;
@@ -868,7 +882,7 @@ static int add_components_mdp(struct device *mdp_dev,
 			continue;
 		}
 
-		component_match_add(mdp_dev, matchptr, compare_of, intf);
+		component_match_add(master_dev, matchptr, compare_of, intf);
 
 		of_node_put(intf);
 		of_node_put(ep_node);
@@ -877,10 +891,52 @@ static int add_components_mdp(struct device *mdp_dev,
 	return 0;
 }
 
+static int compare_name_mdp(struct device *dev, void *data)
+{
+	return (strstr(dev_name(dev), "mdp") != NULL);
+}
+
 static int add_display_components(struct device *dev,
 				  struct component_match **matchptr)
 {
-	return add_components_mdp(dev, matchptr);
+	struct device *mdp_dev;
+	int ret;
+
+	/*
+	 * MDP5 based devices don't have a flat hierarchy. There is a top level
+	 * parent: MDSS, and children: MDP5, DSI, HDMI, eDP etc. Populate the
+	 * children devices, find the MDP5 node, and then add the interfaces
+	 * to our components list.
+	 */
+	if (of_device_is_compatible(dev->of_node, "qcom,mdss")) {
+		ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+		if (ret) {
+			dev_err(dev, "failed to populate children devices\n");
+			return ret;
+		}
+
+		mdp_dev = device_find_child(dev, NULL, compare_name_mdp);
+		if (!mdp_dev) {
+			dev_err(dev, "failed to find MDSS MDP node\n");
+			of_platform_depopulate(dev);
+			return -ENODEV;
+		}
+
+		put_device(mdp_dev);
+
+		/* add the MDP component itself */
+		component_match_add(dev, matchptr, compare_of,
+				    mdp_dev->of_node);
+	} else {
+		/* MDP4 */
+		mdp_dev = dev;
+	}
+
+	ret = add_components_mdp(mdp_dev, matchptr);
+	if (ret)
+		of_platform_depopulate(dev);
+
+	return ret;
 }
 
 static int add_gpu_components(struct device *dev,
@@ -928,6 +984,7 @@ static int msm_pdev_probe(struct platform_device *pdev)
 static int msm_pdev_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &msm_drm_ops);
+	of_platform_depopulate(&pdev->dev);
 
 	return 0;
 }
