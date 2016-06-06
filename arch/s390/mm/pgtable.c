@@ -70,7 +70,6 @@ static inline pgste_t pgste_get_lock(pte_t *ptep)
 #ifdef CONFIG_PGSTE
 	unsigned long old;
 
-	preempt_disable();
 	asm(
 		"	lg	%0,%2\n"
 		"0:	lgr	%1,%0\n"
@@ -93,7 +92,6 @@ static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 		: "=Q" (ptep[PTRS_PER_PTE])
 		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE])
 		: "cc", "memory");
-	preempt_enable();
 #endif
 }
 
@@ -230,9 +228,11 @@ pte_t ptep_xchg_direct(struct mm_struct *mm, unsigned long addr,
 	pgste_t pgste;
 	pte_t old;
 
+	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	old = ptep_flush_direct(mm, addr, ptep);
 	ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
+	preempt_enable();
 	return old;
 }
 EXPORT_SYMBOL(ptep_xchg_direct);
@@ -243,9 +243,11 @@ pte_t ptep_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 	pgste_t pgste;
 	pte_t old;
 
+	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	old = ptep_flush_lazy(mm, addr, ptep);
 	ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
+	preempt_enable();
 	return old;
 }
 EXPORT_SYMBOL(ptep_xchg_lazy);
@@ -256,6 +258,7 @@ pte_t ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr,
 	pgste_t pgste;
 	pte_t old;
 
+	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	old = ptep_flush_lazy(mm, addr, ptep);
 	if (mm_has_pgste(mm)) {
@@ -279,6 +282,7 @@ void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 	} else {
 		*ptep = pte;
 	}
+	preempt_enable();
 }
 EXPORT_SYMBOL(ptep_modify_prot_commit);
 
@@ -333,8 +337,10 @@ pmd_t pmdp_xchg_direct(struct mm_struct *mm, unsigned long addr,
 {
 	pmd_t old;
 
+	preempt_disable();
 	old = pmdp_flush_direct(mm, addr, pmdp);
 	*pmdp = new;
+	preempt_enable();
 	return old;
 }
 EXPORT_SYMBOL(pmdp_xchg_direct);
@@ -344,8 +350,10 @@ pmd_t pmdp_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 {
 	pmd_t old;
 
+	preempt_disable();
 	old = pmdp_flush_lazy(mm, addr, pmdp);
 	*pmdp = new;
+	preempt_enable();
 	return old;
 }
 EXPORT_SYMBOL(pmdp_xchg_lazy);
@@ -398,20 +406,24 @@ void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
 	pgste_t pgste;
 
 	/* the mm_has_pgste() check is done in set_pte_at() */
+	preempt_disable();
 	pgste = pgste_get_lock(ptep);
 	pgste_val(pgste) &= ~_PGSTE_GPS_ZERO;
 	pgste_set_key(ptep, pgste, entry, mm);
 	pgste = pgste_set_pte(ptep, pgste, entry);
 	pgste_set_unlock(ptep, pgste);
+	preempt_enable();
 }
 
 void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pgste_t pgste;
 
+	preempt_disable();
 	pgste = pgste_get_lock(ptep);
 	pgste_val(pgste) |= PGSTE_IN_BIT;
 	pgste_set_unlock(ptep, pgste);
+	preempt_enable();
 }
 
 static void ptep_zap_swap_entry(struct mm_struct *mm, swp_entry_t entry)
@@ -434,6 +446,7 @@ void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
 	pte_t pte;
 
 	/* Zap unused and logically-zero pages */
+	preempt_disable();
 	pgste = pgste_get_lock(ptep);
 	pgstev = pgste_val(pgste);
 	pte = *ptep;
@@ -446,6 +459,7 @@ void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
 	if (reset)
 		pgste_val(pgste) &= ~_PGSTE_GPS_USAGE_MASK;
 	pgste_set_unlock(ptep, pgste);
+	preempt_enable();
 }
 
 void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
@@ -454,6 +468,7 @@ void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 	pgste_t pgste;
 
 	/* Clear storage key */
+	preempt_disable();
 	pgste = pgste_get_lock(ptep);
 	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
 			      PGSTE_GR_BIT | PGSTE_GC_BIT);
@@ -461,6 +476,7 @@ void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 	if (!(ptev & _PAGE_INVALID) && (ptev & _PAGE_WRITE))
 		page_set_storage_key(ptev & PAGE_MASK, PAGE_DEFAULT_KEY, 1);
 	pgste_set_unlock(ptep, pgste);
+	preempt_enable();
 }
 
 /*
