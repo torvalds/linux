@@ -38,7 +38,6 @@
 /* default value of sgtl5000 registers */
 static const struct reg_default sgtl5000_reg_defaults[] = {
 	{ SGTL5000_CHIP_DIG_POWER,		0x0000 },
-	{ SGTL5000_CHIP_CLK_CTRL,		0x0008 },
 	{ SGTL5000_CHIP_I2S_CTRL,		0x0010 },
 	{ SGTL5000_CHIP_SSS_CTRL,		0x0010 },
 	{ SGTL5000_CHIP_ADCDAC_CTRL,		0x020c },
@@ -1278,6 +1277,14 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 	rev = (reg & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
 	dev_info(&client->dev, "sgtl5000 revision 0x%x\n", rev);
 	sgtl5000->revision = rev;
+
+	/* reconfigure the clocks in case we're using the PLL */
+	ret = regmap_write(sgtl5000->regmap,
+			   SGTL5000_CHIP_CLK_CTRL,
+			   SGTL5000_CHIP_CLK_CTRL_DEFAULT);
+	if (ret)
+		dev_err(&client->dev,
+			"Error %d initializing CHIP_CLK_CTRL\n", ret);
 
 	/* Follow section 2.2.1.1 of AN3663 */
 	ana_pwr = SGTL5000_ANA_POWER_DEFAULT;
