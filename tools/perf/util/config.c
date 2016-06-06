@@ -607,8 +607,12 @@ static int collect_config(const char *var, const char *value,
 	struct perf_config_section *section = NULL;
 	struct perf_config_item *item = NULL;
 	struct perf_config_set *set = perf_config_set;
-	struct list_head *sections = &set->sections;
+	struct list_head *sections;
 
+	if (set == NULL)
+		return -1;
+
+	sections = &set->sections;
 	key = ptr = strdup(var);
 	if (!key) {
 		pr_debug("%s: strdup failed\n", __func__);
