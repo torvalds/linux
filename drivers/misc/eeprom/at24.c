@@ -113,6 +113,22 @@ MODULE_PARM_DESC(write_timeout, "Time (in ms) to try writes (default 25)");
 	((1 << AT24_SIZE_FLAGS | (_flags)) 		\
 	    << AT24_SIZE_BYTELEN | ilog2(_len))
 
+/*
+ * Both reads and writes fail if the previous write didn't complete yet. This
+ * macro loops a few times waiting at least long enough for one entire page
+ * write to work.
+ *
+ * It takes two parameters: a variable in which the future timeout in jiffies
+ * will be stored and a temporary variable holding the time of the last
+ * iteration of processing the request. Both should be unsigned integers
+ * holding at least 32 bits.
+ */
+#define loop_until_timeout(tout, op_time)				\
+	for (tout = jiffies + msecs_to_jiffies(write_timeout),		\
+		op_time = jiffies;					\
+	     time_before(op_time, tout);				\
+	     usleep_range(1000, 1500), op_time = jiffies)
+
 static const struct i2c_device_id at24_ids[] = {
 	/* needs 8 addresses as A0-A2 are ignored */
 	{ "24c00",	AT24_DEVICE_MAGIC(128 / 8,	AT24_FLAG_TAKE8ADDR) },
@@ -225,14 +241,7 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 		msg[1].len = count;
 	}
 
-	/*
-	 * Reads fail if the previous write didn't complete yet. We may
-	 * loop a few times until this one succeeds, waiting at least
-	 * long enough for one entire page write to work.
-	 */
-	timeout = jiffies + msecs_to_jiffies(write_timeout);
-	do {
-		read_time = jiffies;
+	loop_until_timeout(timeout, read_time) {
 		if (at24->use_smbus) {
 			status = i2c_smbus_read_i2c_block_data_or_emulated(client, offset,
 									   count, buf);
@@ -246,9 +255,7 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 
 		if (status == count)
 			return count;
-
-		usleep_range(1000, 1500);
-	} while (time_before(read_time, timeout));
+	}
 
 	return -ETIMEDOUT;
 }
@@ -299,14 +306,7 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 		msg.len = i + count;
 	}
 
-	/*
-	 * Writes fail if the previous one didn't complete yet. We may
-	 * loop a few times until this one succeeds, waiting at least
-	 * long enough for one entire page write to work.
-	 */
-	timeout = jiffies + msecs_to_jiffies(write_timeout);
-	do {
-		write_time = jiffies;
+	loop_until_timeout(timeout, write_time) {
 		if (at24->use_smbus_write) {
 			switch (at24->use_smbus_write) {
 			case I2C_SMBUS_I2C_BLOCK_DATA:
@@ -331,9 +331,7 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 
 		if (status == count)
 			return count;
-
-		usleep_range(1000, 1500);
-	} while (time_before(write_time, timeout));
+	}
 
 	return -ETIMEDOUT;
 }
