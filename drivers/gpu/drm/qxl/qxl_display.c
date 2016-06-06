@@ -256,7 +256,7 @@ static int qxl_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (event) {
 		spin_lock_irqsave(&dev->event_lock, flags);
-		drm_send_vblank_event(dev, qcrtc->index, event);
+		drm_crtc_send_vblank_event(crtc, event);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 	drm_vblank_put(dev, qcrtc->index);
