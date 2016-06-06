@@ -53,7 +53,6 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 	int ret;
 
 	if (old_mem->mem_type != TTM_PL_SYSTEM) {
-		ttm_tt_unbind(ttm);
 		ttm_bo_free_old_node(bo);
 		ttm_flag_masked(&old_mem->placement, TTM_PL_FLAG_SYSTEM,
 				TTM_PL_MASK_MEM);
@@ -402,7 +401,6 @@ out2:
 	new_mem->mm_node = NULL;
 
 	if ((man->flags & TTM_MEMTYPE_FLAG_FIXED) && (ttm != NULL)) {
-		ttm_tt_unbind(ttm);
 		ttm_tt_destroy(ttm);
 		bo->ttm = NULL;
 	}
@@ -651,7 +649,6 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 
 		if ((man->flags & TTM_MEMTYPE_FLAG_FIXED) &&
 		    (bo->ttm != NULL)) {
-			ttm_tt_unbind(bo->ttm);
 			ttm_tt_destroy(bo->ttm);
 			bo->ttm = NULL;
 		}

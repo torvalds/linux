@@ -397,7 +397,6 @@ moved:
 out_err:
 	new_man = &bdev->man[bo->mem.mem_type];
 	if ((new_man->flags & TTM_MEMTYPE_FLAG_FIXED) && bo->ttm) {
-		ttm_tt_unbind(bo->ttm);
 		ttm_tt_destroy(bo->ttm);
 		bo->ttm = NULL;
 	}
@@ -419,7 +418,6 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 		bo->bdev->driver->move_notify(bo, NULL);
 
 	if (bo->ttm) {
-		ttm_tt_unbind(bo->ttm);
 		ttm_tt_destroy(bo->ttm);
 		bo->ttm = NULL;
 	}
