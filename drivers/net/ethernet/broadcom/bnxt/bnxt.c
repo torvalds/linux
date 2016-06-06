@@ -5467,6 +5467,20 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 
 	if (!bnxt_rfs_capable(bp))
 		features &= ~NETIF_F_NTUPLE;
+
+	/* Both CTAG and STAG VLAN accelaration on the RX side have to be
+	 * turned on or off together.
+	 */
+	if ((features & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX)) !=
+	    (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX)) {
+		if (dev->features & NETIF_F_HW_VLAN_CTAG_RX)
+			features &= ~(NETIF_F_HW_VLAN_CTAG_RX |
+				      NETIF_F_HW_VLAN_STAG_RX);
+		else
+			features |= NETIF_F_HW_VLAN_CTAG_RX |
+				    NETIF_F_HW_VLAN_STAG_RX;
+	}
+
 	return features;
 }
 
