@@ -590,6 +590,11 @@ struct nvme_command {
 	};
 };
 
+static inline bool nvme_is_write(struct nvme_command *cmd)
+{
+	return cmd->common.opcode & 1;
+}
+
 enum {
 	NVME_SC_SUCCESS			= 0x0,
 	NVME_SC_INVALID_OPCODE		= 0x1,
