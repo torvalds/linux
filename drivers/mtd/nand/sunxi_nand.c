@@ -1352,6 +1352,36 @@ static int sunxi_nfc_hw_ecc_write_page(struct mtd_info *mtd,
 	return 0;
 }
 
+static int sunxi_nfc_hw_ecc_write_subpage(struct mtd_info *mtd,
+					  struct nand_chip *chip,
+					  u32 data_offs, u32 data_len,
+					  const u8 *buf, int oob_required,
+					  int page)
+{
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+	int ret, i, cur_off = 0;
+
+	sunxi_nfc_hw_ecc_enable(mtd);
+
+	for (i = data_offs / ecc->size;
+	     i < DIV_ROUND_UP(data_offs + data_len, ecc->size); i++) {
+		int data_off = i * ecc->size;
+		int oob_off = i * (ecc->bytes + 4);
+		const u8 *data = buf + data_off;
+		const u8 *oob = chip->oob_poi + oob_off;
+
+		ret = sunxi_nfc_hw_ecc_write_chunk(mtd, data, data_off, oob,
+						   oob_off + mtd->writesize,
+						   &cur_off, !i, page);
+		if (ret)
+			return ret;
+	}
+
+	sunxi_nfc_hw_ecc_disable(mtd);
+
+	return 0;
+}
+
 static int sunxi_nfc_hw_ecc_write_page_dma(struct mtd_info *mtd,
 					   struct nand_chip *chip,
 					   const u8 *buf,
@@ -1864,7 +1894,8 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct mtd_info *mtd,
 		ecc->write_page = sunxi_nfc_hw_ecc_write_page;
 	}
 
-	/* TODO: support DMA for raw accesses */
+	/* TODO: support DMA for raw accesses and subpage write */
+	ecc->write_subpage = sunxi_nfc_hw_ecc_write_subpage;
 	ecc->read_oob_raw = nand_read_oob_std;
 	ecc->write_oob_raw = nand_write_oob_std;
 	ecc->read_subpage = sunxi_nfc_hw_ecc_read_subpage;
