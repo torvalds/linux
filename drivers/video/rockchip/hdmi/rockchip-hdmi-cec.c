@@ -1,33 +1,48 @@
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/delay.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/firmware.h>
+#include <linux/ioctl.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
-#include <linux/firmware.h>
 #include "rockchip-hdmi-cec.h"
-#include "linux/ioctl.h"
-#include "linux/pagemap.h"
 
 static struct cec_device *cec_dev;
 
 static int cecreadframe(struct cec_framedata *frame)
 {
-	if (!frame || !cec_dev || !cec_dev->readframe || !cec_dev->enable)
-		return -1;
-	else
-		return cec_dev->readframe(cec_dev->hdmi, frame);
+	int ret = -1;
+
+	if (frame && cec_dev && cec_dev->readframe && cec_dev->enable) {
+		mutex_lock(&cec_dev->hdmi->pclk_lock);
+		ret = cec_dev->readframe(cec_dev->hdmi, frame);
+		mutex_unlock(&cec_dev->hdmi->pclk_lock);
+	}
+	return ret;
 }
 
 static int cecsendframe(struct cec_framedata *frame)
 {
-	if (!frame || !cec_dev || !cec_dev->readframe)
-		return -1;
-	else
-		return cec_dev->sendframe(cec_dev->hdmi, frame);
+	int ret = -1;
+
+	if (frame && cec_dev && cec_dev->sendframe) {
+		mutex_lock(&cec_dev->hdmi->pclk_lock);
+		ret = cec_dev->sendframe(cec_dev->hdmi, frame);
+		mutex_unlock(&cec_dev->hdmi->pclk_lock);
+	}
+	return ret;
+}
+
+static void cecsetlogicaddr(int addr)
+{
+	if (cec_dev && cec_dev->setceclogicaddr) {
+		mutex_lock(&cec_dev->hdmi->pclk_lock);
+		cec_dev->setceclogicaddr(cec_dev->hdmi, addr);
+		mutex_unlock(&cec_dev->hdmi->pclk_lock);
+	}
 }
 
 static void cecworkfunc(struct work_struct *work)
@@ -190,9 +205,7 @@ static long cec_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case HDMI_IOCTL_CECSETLA:
 		ret = copy_from_user(&cec_dev->address_logic,
 				     argp, sizeof(int));
-		if (cec_dev->setceclogicaddr)
-			cec_dev->setceclogicaddr(cec_dev->hdmi,
-						 cec_dev->address_logic);
+		cecsetlogicaddr(cec_dev->address_logic);
 		break;
 	case HDMI_IOCTL_CECSEND:
 		ret = copy_from_user(&cecsendtemp, argp,

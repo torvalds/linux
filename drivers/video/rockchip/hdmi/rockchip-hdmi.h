@@ -396,6 +396,7 @@ struct hdmi {
 	struct hdmi_ops *ops;
 
 	struct mutex lock;			/* mutex for hdmi operation */
+	struct mutex pclk_lock;			/* mutex for pclk operation */
 	struct workqueue_struct *workqueue;
 
 	bool uboot;	/* if true, HDMI is initialized in uboot*/

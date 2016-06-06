@@ -198,12 +198,6 @@ void ext_pll_set_27m_out(void)
 				  0x1d);
 }
 
-#define HDMI_PD_ON		BIT(0)
-#define HDMI_PCLK_ON		BIT(1)
-#define HDMI_HDCPCLK_ON		BIT(2)
-#define HDMI_CECCLK_ON		BIT(3)
-#define HDMI_EXT_PHY_CLK_ON	BIT(4)
-
 static int rockchip_hdmiv2_clk_enable(struct hdmi_dev *hdmi_dev)
 {
 	if ((hdmi_dev->clk_on & HDMI_PD_ON) == 0) {
@@ -332,7 +326,9 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 						 0, 1);
 				if (hdmi_dev->hdcp2_en)
 					hdmi_dev->hdcp2_en(0);
+				mutex_lock(&hdmi->pclk_lock);
 				rockchip_hdmiv2_clk_disable(hdmi_dev);
+				mutex_unlock(&hdmi->pclk_lock);
 				#ifdef CONFIG_PINCTRL
 				if (hdmi_dev->soctype == HDMI_SOC_RK3288)
 					gpio_state =
@@ -357,7 +353,9 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 				pinctrl_select_state(pins->p,
 						     pins->default_state);
 				#endif
+				mutex_lock(&hdmi->pclk_lock);
 				rockchip_hdmiv2_clk_enable(hdmi_dev);
+				mutex_unlock(&hdmi->pclk_lock);
 				rockchip_hdmiv2_dev_initial(hdmi_dev);
 				if (hdmi->ops->hdcp_power_on_cb)
 					hdmi->ops->hdcp_power_on_cb();

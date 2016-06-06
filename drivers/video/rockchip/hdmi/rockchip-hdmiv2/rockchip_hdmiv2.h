@@ -15,6 +15,12 @@
 #define HDMIDBG(format, ...)
 #endif
 
+#define HDMI_PD_ON		BIT(0)
+#define HDMI_PCLK_ON		BIT(1)
+#define HDMI_HDCPCLK_ON		BIT(2)
+#define HDMI_CECCLK_ON		BIT(3)
+#define HDMI_EXT_PHY_CLK_ON	BIT(4)
+
 struct hdmi_dev_phy_para {
 	u32 maxfreq;
 	int pre_emphasis;

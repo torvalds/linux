@@ -487,6 +487,7 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 
 	memset(hdmi, 0, sizeof(struct hdmi));
 	mutex_init(&hdmi->lock);
+	mutex_init(&hdmi->pclk_lock);
 
 	hdmi->property = property;
 	hdmi->ops = ops;
