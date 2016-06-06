@@ -304,8 +304,9 @@ config ARM_ARCH_TIMER_EVTSTREAM
 	  hardware anomalies of missing events.
 
 config ARM_GLOBAL_TIMER
-	bool
+	bool "Support for the ARM global timer" if COMPILE_TEST
 	select CLKSRC_OF if OF
+	depends on ARM
 	help
 	  This options enables support for the ARM global timer unit
 
