@@ -1098,7 +1098,7 @@ void readahead_tree_block(struct btrfs_root *root, u64 bytenr)
 	struct inode *btree_inode = root->fs_info->btree_inode;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
+	if (IS_ERR(buf))
 		return;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
 				 buf, 0, WAIT_NONE, btree_get_extent, 0);
@@ -1114,7 +1114,7 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
 	int ret;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
+	if (IS_ERR(buf))
 		return 0;
 
 	set_bit(EXTENT_BUFFER_READAHEAD, &buf->bflags);
@@ -1172,8 +1172,8 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	int ret;
 
 	buf = btrfs_find_create_tree_block(root, bytenr);
-	if (!buf)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(buf))
+		return buf;
 
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 	if (ret) {

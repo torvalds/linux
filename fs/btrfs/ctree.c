@@ -2512,6 +2512,8 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 		if (!btrfs_buffer_uptodate(tmp, 0, 0))
 			ret = -EIO;
 		free_extent_buffer(tmp);
+	} else {
+		ret = PTR_ERR(tmp);
 	}
 	return ret;
 }
