@@ -182,10 +182,7 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	     nla_put_be16(skb, TCA_VLAN_PUSH_VLAN_PROTOCOL, v->tcfv_push_proto)))
 		goto nla_put_failure;
 
-	t.install = jiffies_to_clock_t(jiffies - v->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - v->tcf_tm.lastuse);
-	t.firstuse = jiffies_to_clock_t(jiffies - v->tcf_tm.firstuse);
-	t.expires = jiffies_to_clock_t(v->tcf_tm.expires);
+	tcf_tm_dump(&t, &v->tcf_tm);
 	if (nla_put_64bit(skb, TCA_VLAN_TM, sizeof(t), &t, TCA_VLAN_PAD))
 		goto nla_put_failure;
 	return skb->len;

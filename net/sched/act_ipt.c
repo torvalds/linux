@@ -277,12 +277,11 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int 
 	    nla_put(skb, TCA_IPT_CNT, sizeof(struct tc_cnt), &c) ||
 	    nla_put_string(skb, TCA_IPT_TABLE, ipt->tcfi_tname))
 		goto nla_put_failure;
-	tm.install = jiffies_to_clock_t(jiffies - ipt->tcf_tm.install);
-	tm.lastuse = jiffies_to_clock_t(jiffies - ipt->tcf_tm.lastuse);
-	tm.firstuse = jiffies_to_clock_t(jiffies - ipt->tcf_tm.firstuse);
-	tm.expires = jiffies_to_clock_t(ipt->tcf_tm.expires);
+
+	tcf_tm_dump(&tm, &ipt->tcf_tm);
 	if (nla_put_64bit(skb, TCA_IPT_TM, sizeof(tm), &tm, TCA_IPT_PAD))
 		goto nla_put_failure;
+
 	kfree(t);
 	return skb->len;
 
