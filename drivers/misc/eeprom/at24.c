@@ -249,38 +249,6 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 	return -ETIMEDOUT;
 }
 
-static int at24_read(void *priv, unsigned int off, void *val, size_t count)
-{
-	struct at24_data *at24 = priv;
-	char *buf = val;
-
-	if (unlikely(!count))
-		return count;
-
-	/*
-	 * Read data from chip, protecting against concurrent updates
-	 * from this host, but not from other I2C masters.
-	 */
-	mutex_lock(&at24->lock);
-
-	while (count) {
-		int	status;
-
-		status = at24_eeprom_read(at24, buf, off, count);
-		if (status < 0) {
-			mutex_unlock(&at24->lock);
-			return status;
-		}
-		buf += status;
-		off += status;
-		count -= status;
-	}
-
-	mutex_unlock(&at24->lock);
-
-	return 0;
-}
-
 /*
  * Note that if the hardware write-protect pin is pulled high, the whole
  * chip is normally write protected. But there are plenty of product
@@ -364,6 +332,38 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 	} while (time_before(write_time, timeout));
 
 	return -ETIMEDOUT;
+}
+
+static int at24_read(void *priv, unsigned int off, void *val, size_t count)
+{
+	struct at24_data *at24 = priv;
+	char *buf = val;
+
+	if (unlikely(!count))
+		return count;
+
+	/*
+	 * Read data from chip, protecting against concurrent updates
+	 * from this host, but not from other I2C masters.
+	 */
+	mutex_lock(&at24->lock);
+
+	while (count) {
+		int	status;
+
+		status = at24_eeprom_read(at24, buf, off, count);
+		if (status < 0) {
+			mutex_unlock(&at24->lock);
+			return status;
+		}
+		buf += status;
+		off += status;
+		count -= status;
+	}
+
+	mutex_unlock(&at24->lock);
+
+	return 0;
 }
 
 static int at24_write(void *priv, unsigned int off, void *val, size_t count)
