@@ -696,13 +696,6 @@ void free_initmem(void)
 void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
 	/*
-	 * Remember, initrd memory may contain microcode or other useful things.
-	 * Before we lose initrd mem, we need to find a place to hold them
-	 * now that normal virtual memory is enabled.
-	 */
-	save_microcode_in_initrd();
-
-	/*
 	 * end could be not aligned, and We can not align that,
 	 * decompresser could be confused by aligned initrd_end
 	 * We already reserve the end partial page before in

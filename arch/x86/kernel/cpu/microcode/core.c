@@ -175,7 +175,7 @@ void load_ucode_ap(void)
 	}
 }
 
-int __init save_microcode_in_initrd(void)
+static int __init save_microcode_in_initrd(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
@@ -691,4 +691,5 @@ int __init microcode_init(void)
 	return error;
 
 }
+fs_initcall(save_microcode_in_initrd);
 late_initcall(microcode_init);
