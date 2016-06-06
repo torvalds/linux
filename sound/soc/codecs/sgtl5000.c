@@ -1113,7 +1113,6 @@ static const u8 vol_quot_table[] = {
  * and should be set according to:
  * 1. vddd provided by external or not
  * 2. vdda and vddio voltage value. > 3.1v or not
- * 3. chip revision >=0x11 or not. If >=0x11, not use external vddd.
  */
 static int sgtl5000_set_power_regs(struct snd_soc_codec *codec)
 {
