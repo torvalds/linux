@@ -1783,8 +1783,8 @@ static int test_pmu_events(void)
 		struct evlist_test e;
 		char name[MAX_NAME];
 
-		if (!strcmp(ent->d_name, ".") ||
-		    !strcmp(ent->d_name, ".."))
+		/* Names containing . are special and cannot be used directly */
+		if (strchr(ent->d_name, '.'))
 			continue;
 
 		snprintf(name, MAX_NAME, "cpu/event=%s/u", ent->d_name);
