@@ -335,9 +335,12 @@ config ATMEL_PIT
 	def_bool SOC_AT91SAM9 || SOC_SAMA5
 
 config ATMEL_ST
-	bool
+	bool "Atmel ST timer support" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
 	select CLKSRC_OF
 	select MFD_SYSCON
+	help
+	  Support for the Atmel ST timer.
 
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
