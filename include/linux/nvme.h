@@ -50,6 +50,13 @@ enum {
 #define NVME_CMB_CQS(cmbsz)	((cmbsz) & 0x2)
 #define NVME_CMB_SQS(cmbsz)	((cmbsz) & 0x1)
 
+/*
+ * Submission and Completion Queue Entry Sizes for the NVM command set.
+ * (In bytes and specified as a power of two (2^n)).
+ */
+#define NVME_NVM_IOSQES		6
+#define NVME_NVM_IOCQES		4
+
 enum {
 	NVME_CC_ENABLE		= 1 << 0,
 	NVME_CC_CSS_NVM		= 0 << 4,
@@ -61,8 +68,8 @@ enum {
 	NVME_CC_SHN_NORMAL	= 1 << 14,
 	NVME_CC_SHN_ABRUPT	= 2 << 14,
 	NVME_CC_SHN_MASK	= 3 << 14,
-	NVME_CC_IOSQES		= 6 << 16,
-	NVME_CC_IOCQES		= 4 << 20,
+	NVME_CC_IOSQES		= NVME_NVM_IOSQES << 16,
+	NVME_CC_IOCQES		= NVME_NVM_IOCQES << 20,
 	NVME_CSTS_RDY		= 1 << 0,
 	NVME_CSTS_CFS		= 1 << 1,
 	NVME_CSTS_NSSRO		= 1 << 4,
