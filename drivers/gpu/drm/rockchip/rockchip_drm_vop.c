@@ -328,9 +328,9 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 			    scl_cal_scale2(src_h, dst_h));
 		if (is_yuv) {
 			VOP_SCL_SET(vop, win, scale_cbcr_x,
-				    scl_cal_scale2(src_w, dst_w));
+				    scl_cal_scale2(cbcr_src_w, dst_w));
 			VOP_SCL_SET(vop, win, scale_cbcr_y,
-				    scl_cal_scale2(src_h, dst_h));
+				    scl_cal_scale2(cbcr_src_h, dst_h));
 		}
 		return;
 	}
