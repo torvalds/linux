@@ -44,6 +44,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/interrupt.h>
@@ -1375,10 +1376,22 @@ static int mxsfb_probe(struct platform_device *pdev)
 	struct fb_info *fb_info;
 	struct pinctrl *pinctrl;
 	int irq = platform_get_irq(pdev, 0);
-	int ret;
+	int gpio, ret;
 
 	if (of_id)
 		pdev->id_entry = of_id->data;
+
+	gpio = of_get_named_gpio(pdev->dev.of_node, "enable-gpio", 0);
+	if (gpio == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	if (gpio_is_valid(gpio)) {
+		ret = devm_gpio_request_one(&pdev->dev, gpio, GPIOF_OUT_INIT_LOW, "lcd_pwr_en");
+		if (ret) {
+			dev_err(&pdev->dev, "faild to request gpio %d, ret = %d\n", gpio, ret);
+			return ret;
+		}
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
