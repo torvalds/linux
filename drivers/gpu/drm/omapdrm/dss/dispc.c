@@ -3299,30 +3299,21 @@ static void dispc_mgr_get_lcd_divisor(enum omap_channel channel, int *lck_div,
 
 static unsigned long dispc_fclk_rate(void)
 {
-	struct dss_pll *pll;
-	unsigned long r = 0;
+	unsigned long r;
+	enum dss_clk_source src;
 
-	switch (dss_get_dispc_clk_source()) {
-	case OMAP_DSS_CLK_SRC_FCK:
+	src = dss_get_dispc_clk_source();
+
+	if (src == DSS_CLK_SRC_FCK) {
 		r = dss_get_dispc_clk_rate();
-		break;
-	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
-		pll = dss_pll_find("dsi0");
-		if (!pll)
-			pll = dss_pll_find("video0");
+	} else {
+		struct dss_pll *pll;
+		unsigned clkout_idx;
 
-		r = pll->cinfo.clkout[0];
-		break;
-	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
-		pll = dss_pll_find("dsi1");
-		if (!pll)
-			pll = dss_pll_find("video1");
+		pll = dss_pll_find_by_src(src);
+		clkout_idx = dss_pll_get_clkout_idx_for_src(src);
 
-		r = pll->cinfo.clkout[0];
-		break;
-	default:
-		BUG();
-		return 0;
+		r = pll->cinfo.clkout[clkout_idx];
 	}
 
 	return r;
@@ -3330,43 +3321,31 @@ static unsigned long dispc_fclk_rate(void)
 
 static unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 {
-	struct dss_pll *pll;
 	int lcd;
 	unsigned long r;
-	u32 l;
+	enum dss_clk_source src;
 
-	if (dss_mgr_is_lcd(channel)) {
-		l = dispc_read_reg(DISPC_DIVISORo(channel));
-
-		lcd = FLD_GET(l, 23, 16);
-
-		switch (dss_get_lcd_clk_source(channel)) {
-		case OMAP_DSS_CLK_SRC_FCK:
-			r = dss_get_dispc_clk_rate();
-			break;
-		case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
-			pll = dss_pll_find("dsi0");
-			if (!pll)
-				pll = dss_pll_find("video0");
-
-			r = pll->cinfo.clkout[0];
-			break;
-		case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
-			pll = dss_pll_find("dsi1");
-			if (!pll)
-				pll = dss_pll_find("video1");
-
-			r = pll->cinfo.clkout[0];
-			break;
-		default:
-			BUG();
-			return 0;
-		}
-
-		return r / lcd;
-	} else {
+	/* for TV, LCLK rate is the FCLK rate */
+	if (!dss_mgr_is_lcd(channel))
 		return dispc_fclk_rate();
+
+	src = dss_get_lcd_clk_source(channel);
+
+	if (src == DSS_CLK_SRC_FCK) {
+		r = dss_get_dispc_clk_rate();
+	} else {
+		struct dss_pll *pll;
+		unsigned clkout_idx;
+
+		pll = dss_pll_find_by_src(src);
+		clkout_idx = dss_pll_get_clkout_idx_for_src(src);
+
+		r = pll->cinfo.clkout[clkout_idx];
 	}
+
+	lcd = REG_GET(DISPC_DIVISORo(channel), 23, 16);
+
+	return r / lcd;
 }
 
 static unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
@@ -3426,15 +3405,14 @@ static unsigned long dispc_plane_lclk_rate(enum omap_plane plane)
 static void dispc_dump_clocks_channel(struct seq_file *s, enum omap_channel channel)
 {
 	int lcd, pcd;
-	enum omap_dss_clk_source lcd_clk_src;
+	enum dss_clk_source lcd_clk_src;
 
 	seq_printf(s, "- %s -\n", mgr_desc[channel].name);
 
 	lcd_clk_src = dss_get_lcd_clk_source(channel);
 
-	seq_printf(s, "%s clk source = %s (%s)\n", mgr_desc[channel].name,
-		dss_get_generic_clk_source_name(lcd_clk_src),
-		dss_feat_get_clk_source_name(lcd_clk_src));
+	seq_printf(s, "%s clk source = %s\n", mgr_desc[channel].name,
+		dss_get_clk_source_name(lcd_clk_src));
 
 	dispc_mgr_get_lcd_divisor(channel, &lcd, &pcd);
 
@@ -3448,16 +3426,15 @@ void dispc_dump_clocks(struct seq_file *s)
 {
 	int lcd;
 	u32 l;
-	enum omap_dss_clk_source dispc_clk_src = dss_get_dispc_clk_source();
+	enum dss_clk_source dispc_clk_src = dss_get_dispc_clk_source();
 
 	if (dispc_runtime_get())
 		return;
 
 	seq_printf(s, "- DISPC -\n");
 
-	seq_printf(s, "dispc fclk source = %s (%s)\n",
-			dss_get_generic_clk_source_name(dispc_clk_src),
-			dss_feat_get_clk_source_name(dispc_clk_src));
+	seq_printf(s, "dispc fclk source = %s\n",
+			dss_get_clk_source_name(dispc_clk_src));
 
 	seq_printf(s, "fck\t\t%-16lu\n", dispc_fclk_rate());
 

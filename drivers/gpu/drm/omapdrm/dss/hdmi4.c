@@ -177,7 +177,11 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	if (p->double_pixel)
 		pc *= 2;
 
-	hdmi_pll_compute(&hdmi.pll, pc, &hdmi_cinfo);
+	/* DSS_HDMI_TCLK is bitclk / 10 */
+	pc *= 10;
+
+	dss_pll_calc_b(&hdmi.pll.pll, clk_get_rate(hdmi.pll.pll.clkin),
+		pc, &hdmi_cinfo);
 
 	r = dss_pll_enable(&hdmi.pll.pll);
 	if (r) {

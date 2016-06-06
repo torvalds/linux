@@ -69,7 +69,6 @@ int dss_init_overlay_managers(void)
 			break;
 		}
 
-		mgr->caps = 0;
 		mgr->supported_displays =
 			dss_feat_get_supported_displays(mgr->id);
 		mgr->supported_outputs =
