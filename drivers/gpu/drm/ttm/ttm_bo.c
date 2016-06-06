@@ -684,15 +684,6 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	struct ttm_placement placement;
 	int ret = 0;
 
-	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
-
-	if (unlikely(ret != 0)) {
-		if (ret != -ERESTARTSYS) {
-			pr_err("Failed to expire sync object before buffer eviction\n");
-		}
-		goto out;
-	}
-
 	lockdep_assert_held(&bo->resv->lock.base);
 
 	evict_mem = bo->mem;
@@ -716,7 +707,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 
 	ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, interruptible,
 				     no_wait_gpu);
-	if (ret) {
+	if (unlikely(ret)) {
 		if (ret != -ERESTARTSYS)
 			pr_err("Buffer eviction failed\n");
 		ttm_bo_mem_put(bo, &evict_mem);
