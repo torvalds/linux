@@ -141,6 +141,12 @@ static inline struct reset_control *reset_control_get_optional_exclusive(
 	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 0);
 }
 
+static inline struct reset_control *reset_control_get_optional_shared(
+					struct device *dev, const char *id)
+{
+	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 1);
+}
+
 /**
  * of_reset_control_get_exclusive - Lookup and obtain an exclusive reference
  *                                  to a reset controller.
@@ -268,6 +274,12 @@ static inline struct reset_control *devm_reset_control_get_optional_exclusive(
 					struct device *dev, const char *id)
 {
 	return __devm_reset_control_get(dev, id, 0, 0);
+}
+
+static inline struct reset_control *devm_reset_control_get_optional_shared(
+					struct device *dev, const char *id)
+{
+	return __devm_reset_control_get(dev, id, 0, 1);
 }
 
 /**
