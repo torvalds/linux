@@ -110,6 +110,8 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->tx_power_level = 0;
 	priv->max_tx_power_level = 0;
 	priv->min_tx_power_level = 0;
+	priv->tx_ant = 0;
+	priv->rx_ant = 0;
 	priv->tx_rate = 0;
 	priv->rxpd_htinfo = 0;
 	priv->rxpd_rate = 0;

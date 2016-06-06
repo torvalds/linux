@@ -1830,6 +1830,21 @@ mwifiex_cfg80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
 				HostCmd_ACT_GEN_SET, 0, &ant_cfg, true);
 }
 
+static int
+mwifiex_cfg80211_get_antenna(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant)
+{
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv = mwifiex_get_priv(adapter,
+							MWIFIEX_BSS_ROLE_ANY);
+	mwifiex_send_cmd(priv, HostCmd_CMD_RF_ANTENNA,
+			 HostCmd_ACT_GEN_GET, 0, NULL, true);
+
+	*tx_ant = priv->tx_ant;
+	*rx_ant = priv->rx_ant;
+
+	return 0;
+}
+
 /* cfg80211 operation handler for stop ap.
  * Function stops BSS running at uAP interface.
  */
@@ -3983,6 +3998,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.change_beacon = mwifiex_cfg80211_change_beacon,
 	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 	.set_antenna = mwifiex_cfg80211_set_antenna,
+	.get_antenna = mwifiex_cfg80211_get_antenna,
 	.del_station = mwifiex_cfg80211_del_station,
 	.sched_scan_start = mwifiex_cfg80211_sched_scan_start,
 	.sched_scan_stop = mwifiex_cfg80211_sched_scan_stop,

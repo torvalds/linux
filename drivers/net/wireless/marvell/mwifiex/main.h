@@ -533,6 +533,8 @@ struct mwifiex_private {
 	u16 tx_power_level;
 	u8 max_tx_power_level;
 	u8 min_tx_power_level;
+	u32 tx_ant;
+	u32 rx_ant;
 	u8 tx_rate;
 	u8 tx_htinfo;
 	u8 rxpd_htinfo;

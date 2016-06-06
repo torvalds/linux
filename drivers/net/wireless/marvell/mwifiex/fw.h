@@ -462,6 +462,9 @@ enum P2P_MODES {
 #define HostCmd_ACT_SET_RX              0x0001
 #define HostCmd_ACT_SET_TX              0x0002
 #define HostCmd_ACT_SET_BOTH            0x0003
+#define HostCmd_ACT_GET_RX              0x0004
+#define HostCmd_ACT_GET_TX              0x0008
+#define HostCmd_ACT_GET_BOTH            0x000c
 
 #define RF_ANTENNA_AUTO                 0xFFFF
 
