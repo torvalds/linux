@@ -344,7 +344,7 @@ static int icu_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
 		if (hw == ltq_eiu_irq[i])
 			chip = &ltq_eiu_type;
 
-	irq_set_chip_and_handler(hw, chip, handle_level_irq);
+	irq_set_chip_and_handler(irq, chip, handle_level_irq);
 
 	return 0;
 }
