@@ -748,7 +748,7 @@ static void amdgpu_vm_frag_ptes(struct amdgpu_device *adev,
  * @vm: requested vm
  * @start: start of GPU address range
  * @end: end of GPU address range
- * @dst: destination address to map to
+ * @dst: destination address to map to, the next dst inside the function
  * @flags: mapping flags
  *
  * Update the page tables in the range @start - @end.
@@ -762,43 +762,43 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 {
 	const uint64_t mask = AMDGPU_VM_PTE_COUNT - 1;
 
-	uint64_t last_pe_start = ~0, last_pe_end = ~0, last_dst = ~0;
-	uint64_t addr;
+	uint64_t cur_pe_start = ~0, cur_pe_end = ~0, cur_dst = ~0;
+	uint64_t addr; /* next GPU address to be updated */
 
 	/* walk over the address space and update the page tables */
 	for (addr = start; addr < end; ) {
 		uint64_t pt_idx = addr >> amdgpu_vm_block_size;
 		struct amdgpu_bo *pt = vm->page_tables[pt_idx].entry.robj;
-		unsigned nptes;
-		uint64_t pe_start;
+		unsigned nptes; /* next number of ptes to be updated */
+		uint64_t next_pe_start;
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
 		else
 			nptes = AMDGPU_VM_PTE_COUNT - (addr & mask);
 
-		pe_start = amdgpu_bo_gpu_offset(pt);
-		pe_start += (addr & mask) * 8;
+		next_pe_start = amdgpu_bo_gpu_offset(pt);
+		next_pe_start += (addr & mask) * 8;
 
-		if (last_pe_end != pe_start) {
+		if (cur_pe_end != next_pe_start) {
 
 			amdgpu_vm_frag_ptes(adev, vm_update_params,
-					    last_pe_start, last_pe_end,
-					    last_dst, flags);
+					    cur_pe_start, cur_pe_end,
+					    cur_dst, flags);
 
-			last_pe_start = pe_start;
-			last_pe_end = pe_start + 8 * nptes;
-			last_dst = dst;
+			cur_pe_start = next_pe_start;
+			cur_pe_end = next_pe_start + 8 * nptes;
+			cur_dst = dst;
 		} else {
-			last_pe_end += 8 * nptes;
+			cur_pe_end += 8 * nptes;
 		}
 
 		addr += nptes;
 		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
 	}
 
-	amdgpu_vm_frag_ptes(adev, vm_update_params, last_pe_start,
-			    last_pe_end, last_dst, flags);
+	amdgpu_vm_frag_ptes(adev, vm_update_params, cur_pe_start,
+			    cur_pe_end, cur_dst, flags);
 }
 
 /**
