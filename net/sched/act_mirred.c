@@ -157,7 +157,6 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	u32 at;
 
 	tcf_lastuse_update(&m->tcf_tm);
-
 	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
 
 	rcu_read_lock();

@@ -103,7 +103,7 @@ static int tcf_nat(struct sk_buff *skb, const struct tc_action *a,
 
 	spin_lock(&p->tcf_lock);
 
-	p->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&p->tcf_tm);
 	old_addr = p->old_addr;
 	new_addr = p->new_addr;
 	mask = p->mask;

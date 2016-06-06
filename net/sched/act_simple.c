@@ -35,7 +35,7 @@ static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
 	struct tcf_defact *d = a->priv;
 
 	spin_lock(&d->tcf_lock);
-	d->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&d->tcf_tm);
 	bstats_update(&d->tcf_bstats, skb);
 
 	/* print policy string followed by _ then packet count

@@ -623,7 +623,7 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 
 	spin_lock(&ife->tcf_lock);
 	bstats_update(&ife->tcf_bstats, skb);
-	ife->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ife->tcf_tm);
 	spin_unlock(&ife->tcf_lock);
 
 	ifehdrln = ntohs(ifehdrln);
@@ -711,7 +711,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 
 	spin_lock(&ife->tcf_lock);
 	bstats_update(&ife->tcf_bstats, skb);
-	ife->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ife->tcf_tm);
 
 	if (!metalen) {		/* no metadata to send */
 		/* abuse overlimits to count when we allow packet
@@ -802,7 +802,7 @@ static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
 	pr_info_ratelimited("unknown failure(policy neither de/encode\n");
 	spin_lock(&ife->tcf_lock);
 	bstats_update(&ife->tcf_bstats, skb);
-	ife->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ife->tcf_tm);
 	ife->tcf_qstats.drops++;
 	spin_unlock(&ife->tcf_lock);
 

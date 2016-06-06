@@ -212,7 +212,7 @@ static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
 
 	spin_lock(&ipt->tcf_lock);
 
-	ipt->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ipt->tcf_tm);
 	bstats_update(&ipt->tcf_bstats, skb);
 
 	/* yes, we have to worry about both in and out dev

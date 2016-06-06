@@ -44,7 +44,7 @@ static int tcf_connmark(struct sk_buff *skb, const struct tc_action *a,
 	int proto;
 
 	spin_lock(&ca->tcf_lock);
-	ca->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ca->tcf_tm);
 	bstats_update(&ca->tcf_bstats, skb);
 
 	if (skb->protocol == htons(ETH_P_IP)) {

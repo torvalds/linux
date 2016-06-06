@@ -31,7 +31,7 @@ static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 	int err;
 
 	spin_lock(&v->tcf_lock);
-	v->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&v->tcf_tm);
 	bstats_update(&v->tcf_bstats, skb);
 	action = v->tcf_action;
 
