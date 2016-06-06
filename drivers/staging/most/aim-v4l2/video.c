@@ -79,7 +79,7 @@ static int aim_vdev_open(struct file *filp)
 	struct most_video_dev *mdev = video_drvdata(filp);
 	struct aim_fh *fh;
 
-	pr_info("aim_vdev_open()\n");
+	v4l2_info(&mdev->v4l2_dev, "aim_vdev_open()\n");
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -93,7 +93,7 @@ static int aim_vdev_open(struct file *filp)
 		return -ENOMEM;
 
 	if (!atomic_inc_and_test(&mdev->access_ref)) {
-		pr_err("too many clients\n");
+		v4l2_err(&mdev->v4l2_dev, "too many clients\n");
 		ret = -EBUSY;
 		goto err_dec;
 	}
@@ -106,7 +106,7 @@ static int aim_vdev_open(struct file *filp)
 
 	ret = most_start_channel(mdev->iface, mdev->ch_idx, &aim_info);
 	if (ret) {
-		pr_err("most_start_channel() failed\n");
+		v4l2_err(&mdev->v4l2_dev, "most_start_channel() failed\n");
 		goto err_rm;
 	}
 
@@ -128,7 +128,7 @@ static int aim_vdev_close(struct file *filp)
 	struct most_video_dev *mdev = fh->mdev;
 	struct mbo *mbo, *tmp;
 
-	pr_info("aim_vdev_close()\n");
+	v4l2_info(&mdev->v4l2_dev, "aim_vdev_close()\n");
 
 	/*
 	 * We need to put MBOs back before we call most_stop_channel()
@@ -187,7 +187,7 @@ static ssize_t aim_vdev_read(struct file *filp, char __user *buf,
 		int const cnt = rem < count ? rem : count;
 
 		if (copy_to_user(buf, mbo->virt_address + fh->offs, cnt)) {
-			pr_err("read: copy_to_user failed\n");
+			v4l2_err(&mdev->v4l2_dev, "read: copy_to_user failed\n");
 			if (!ret)
 				ret = -EFAULT;
 			return ret;
@@ -256,7 +256,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct aim_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
-	pr_info("vidioc_querycap()\n");
+	v4l2_info(&mdev->v4l2_dev, "vidioc_querycap()\n");
 
 	strlcpy(cap->driver, "v4l2_most_aim", sizeof(cap->driver));
 	strlcpy(cap->card, "MOST", sizeof(cap->card));
@@ -273,7 +273,10 @@ static int vidioc_querycap(struct file *file, void  *priv,
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 				   struct v4l2_fmtdesc *f)
 {
-	pr_info("vidioc_enum_fmt_vid_cap() %d\n", f->index);
+	struct aim_fh *fh = priv;
+	struct most_video_dev *mdev = fh->mdev;
+
+	v4l2_info(&mdev->v4l2_dev, "vidioc_enum_fmt_vid_cap() %d\n", f->index);
 
 	if (f->index)
 		return -EINVAL;
@@ -289,7 +292,10 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	pr_info("vidioc_g_fmt_vid_cap()\n");
+	struct aim_fh *fh = priv;
+	struct most_video_dev *mdev = fh->mdev;
+
+	v4l2_info(&mdev->v4l2_dev, "vidioc_g_fmt_vid_cap()\n");
 
 	aim_set_format_struct(f);
 	return 0;
@@ -315,7 +321,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
-	pr_info("vidioc_g_std()\n");
+	struct aim_fh *fh = priv;
+	struct most_video_dev *mdev = fh->mdev;
+
+	v4l2_info(&mdev->v4l2_dev, "vidioc_g_std()\n");
 
 	*norm = V4L2_STD_UNKNOWN;
 	return 0;
@@ -352,7 +361,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 	struct aim_fh *fh = priv;
 	struct most_video_dev *mdev = fh->mdev;
 
-	pr_info("vidioc_s_input(%d)\n", index);
+	v4l2_info(&mdev->v4l2_dev, "vidioc_s_input(%d)\n", index);
 
 	if (index >= V4L2_AIM_MAX_INPUT)
 		return -EINVAL;
@@ -433,7 +442,7 @@ static int aim_register_videodev(struct most_video_dev *mdev)
 	int retval = -ENOMEM;
 	int ret;
 
-	pr_info("aim_register_videodev()\n");
+	v4l2_info(&mdev->v4l2_dev, "aim_register_videodev()\n");
 
 	init_waitqueue_head(&mdev->wait_data);
 
@@ -453,7 +462,8 @@ static int aim_register_videodev(struct most_video_dev *mdev)
 	video_set_drvdata(mdev->vdev, mdev);
 	retval = video_register_device(mdev->vdev, VFL_TYPE_GRABBER, -1);
 	if (retval != 0) {
-		pr_err("video_register_device failed (%d)\n", retval);
+		v4l2_err(&mdev->v4l2_dev, "video_register_device failed (%d)\n",
+			 retval);
 		ret = -ENODEV;
 		goto err_vbi_dev;
 	}
@@ -467,7 +477,7 @@ err_vbi_dev:
 
 static void aim_unregister_videodev(struct most_video_dev *mdev)
 {
-	pr_info("aim_unregister_videodev()\n");
+	v4l2_info(&mdev->v4l2_dev, "aim_unregister_videodev()\n");
 
 	video_unregister_device(mdev->vdev);
 }
@@ -488,7 +498,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	int ret;
 	struct most_video_dev *mdev = get_aim_dev(iface, channel_idx);
 
-	pr_info("aim_probe_channel()\n");
+	pr_info("aim_probe_channel(%s)\n", name);
 
 	if (mdev) {
 		pr_err("channel already linked\n");
@@ -534,6 +544,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	spin_lock_irq(&list_lock);
 	list_add(&mdev->list, &video_devices);
 	spin_unlock_irq(&list_lock);
+	v4l2_info(&mdev->v4l2_dev, "aim_probe_channel() done\n");
 	return 0;
 
 err_unreg:
@@ -547,12 +558,12 @@ static int aim_disconnect_channel(struct most_interface *iface,
 {
 	struct most_video_dev *mdev = get_aim_dev(iface, channel_idx);
 
-	pr_info("aim_disconnect_channel()\n");
-
 	if (!mdev) {
 		pr_err("no such channel is linked\n");
 		return -ENOENT;
 	}
+
+	v4l2_info(&mdev->v4l2_dev, "aim_disconnect_channel()\n");
 
 	spin_lock_irq(&list_lock);
 	list_del(&mdev->list);
