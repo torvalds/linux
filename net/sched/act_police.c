@@ -185,7 +185,8 @@ override:
 	if (est) {
 		err = gen_replace_estimator(&police->tcf_bstats, NULL,
 					    &police->tcf_rate_est,
-					    &police->tcf_lock, est);
+					    &police->tcf_lock,
+					    NULL, est);
 		if (err)
 			goto failure_unlock;
 	} else if (tb[TCA_POLICE_AVRATE] &&
