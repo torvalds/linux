@@ -626,17 +626,7 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	if (err < 0)
 		return err;
 
-	err = devm_request_resource(pcie->dev, &ioport_resource, &pcie->pio);
-	if (err < 0)
-		return err;
-
-	err = devm_request_resource(pcie->dev, &iomem_resource, &pcie->mem);
-	if (err < 0)
-		return err;
-
-	err = devm_request_resource(pcie->dev, &iomem_resource, &pcie->prefetch);
-	if (err)
-		return err;
+	pci_ioremap_io(pcie->pio.start, pcie->io.start);
 
 	pci_add_resource_offset(&sys->resources, &pcie->pio, sys->io_offset);
 	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
@@ -644,7 +634,9 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 				sys->mem_offset);
 	pci_add_resource(&sys->resources, &pcie->busn);
 
-	pci_ioremap_io(pcie->pio.start, pcie->io.start);
+	err = devm_request_pci_bus_resources(pcie->dev, &sys->resources);
+	if (err < 0)
+		return err;
 
 	return 1;
 }
