@@ -57,8 +57,6 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by vzalloc(). */
 
 	spin_lock_init(&pxmitpriv->lock);
-	sema_init(&pxmitpriv->xmit_sema, 0);
-	sema_init(&pxmitpriv->terminate_xmitthread_sema, 0);
 
 	/*
 	Please insert all the queue initializaiton using _rtw_init_queue below
@@ -198,8 +196,6 @@ s32	_rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter)
 		pxmitpriv->wmm_para_seq[i] = i;
 
 	pxmitpriv->txirp_cnt = 1;
-
-	sema_init(&(pxmitpriv->tx_retevt), 0);
 
 	/* per AC pending irp */
 	pxmitpriv->beq_cnt = 0;
