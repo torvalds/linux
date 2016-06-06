@@ -4203,6 +4203,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	int err = 0;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_trans_handle *trans;
+	u64 last_unlink_trans;
 
 	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE)
 		return -ENOTEMPTY;
@@ -4225,11 +4226,27 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (err)
 		goto out;
 
+	last_unlink_trans = BTRFS_I(inode)->last_unlink_trans;
+
 	/* now the directory is empty */
 	err = btrfs_unlink_inode(trans, root, dir, d_inode(dentry),
 				 dentry->d_name.name, dentry->d_name.len);
-	if (!err)
+	if (!err) {
 		btrfs_i_size_write(inode, 0);
+		/*
+		 * Propagate the last_unlink_trans value of the deleted dir to
+		 * its parent directory. This is to prevent an unrecoverable
+		 * log tree in the case we do something like this:
+		 * 1) create dir foo
+		 * 2) create snapshot under dir foo
+		 * 3) delete the snapshot
+		 * 4) rmdir foo
+		 * 5) mkdir foo
+		 * 6) fsync foo or some file inside foo
+		 */
+		if (last_unlink_trans >= trans->transid)
+			BTRFS_I(dir)->last_unlink_trans = last_unlink_trans;
+	}
 out:
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root);
