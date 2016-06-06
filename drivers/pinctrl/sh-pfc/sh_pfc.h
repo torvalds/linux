@@ -189,9 +189,7 @@ struct sh_pfc_soc_operations {
 	unsigned int (*get_bias)(struct sh_pfc *pfc, unsigned int pin);
 	void (*set_bias)(struct sh_pfc *pfc, unsigned int pin,
 			 unsigned int bias);
-	int (*get_io_voltage)(struct sh_pfc *pfc, unsigned int pin);
-	int (*set_io_voltage)(struct sh_pfc *pfc, unsigned int pin,
-			      u16 voltage_mV);
+	int (*pin_to_pocctrl)(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl);
 };
 
 struct sh_pfc_soc_info {
