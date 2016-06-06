@@ -58,7 +58,7 @@ static struct ucode_blobs {
 } blobs;
 
 static enum ucode_state
-load_microcode_early(struct microcode_intel **saved,
+find_microcode_patch(struct microcode_intel **saved,
 		     unsigned int num_saved, struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *ucode_ptr, *new_mc = NULL;
@@ -127,13 +127,13 @@ load_microcode(struct mc_saved_data *mcs, unsigned long *mc_ptrs,
 	if (!mcs->mc_saved) {
 		copy_ptrs(mc_saved_tmp, mc_ptrs, offset, count);
 
-		return load_microcode_early(mc_saved_tmp, count, uci);
+		return find_microcode_patch(mc_saved_tmp, count, uci);
 	} else {
 #ifdef CONFIG_X86_32
 		microcode_phys(mc_saved_tmp, mcs);
-		return load_microcode_early(mc_saved_tmp, count, uci);
+		return find_microcode_patch(mc_saved_tmp, count, uci);
 #else
-		return load_microcode_early(mcs->mc_saved, count, uci);
+		return find_microcode_patch(mcs->mc_saved, count, uci);
 #endif
 	}
 }
@@ -834,7 +834,7 @@ void reload_ucode_intel(void)
 
 	collect_cpu_info_early(&uci);
 
-	ret = load_microcode_early(mc_saved_data.mc_saved,
+	ret = find_microcode_patch(mc_saved_data.mc_saved,
 				   mc_saved_data.num_saved, &uci);
 	if (ret != UCODE_OK)
 		return;
