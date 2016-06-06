@@ -58,7 +58,7 @@ struct omap_drm_irq {
 	struct list_head node;
 	uint32_t irqmask;
 	bool registered;
-	void (*irq)(struct omap_drm_irq *irq, uint32_t irqstatus);
+	void (*irq)(struct omap_drm_irq *irq);
 };
 
 /* For KMS code that needs to wait for a certain # of IRQs:

@@ -82,7 +82,7 @@ struct omap_irq_wait {
 
 static DECLARE_WAIT_QUEUE_HEAD(wait_event);
 
-static void wait_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
+static void wait_irq(struct omap_drm_irq *irq)
 {
 	struct omap_irq_wait *wait =
 			container_of(irq, struct omap_irq_wait, irq);
@@ -248,7 +248,7 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 	list_for_each_entry_safe(handler, n, &priv->irq_list, node) {
 		if (handler->irqmask & irqstatus) {
 			spin_unlock_irqrestore(&list_lock, flags);
-			handler->irq(handler, handler->irqmask & irqstatus);
+			handler->irq(handler);
 			spin_lock_irqsave(&list_lock, flags);
 		}
 	}
