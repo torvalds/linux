@@ -1383,16 +1383,8 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	if (result < 0)
 		return result;
 
-	/*
-	 * Degraded controllers might return an error when setting the queue
-	 * count.  We still want to be able to bring them online and offer
-	 * access to the admin queue, as that might be only way to fix them up.
-	 */
-	if (result > 0) {
-		dev_err(dev->ctrl.device,
-			"Could not set queue count (%d)\n", result);
+	if (nr_io_queues == 0)
 		return 0;
-	}
 
 	if (dev->cmb && NVME_CMB_SQS(dev->cmbsz)) {
 		result = nvme_cmb_qdepth(dev, nr_io_queues,

@@ -574,11 +574,22 @@ int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count)
 
 	status = nvme_set_features(ctrl, NVME_FEAT_NUM_QUEUES, q_count, 0,
 			&result);
-	if (status)
+	if (status < 0)
 		return status;
 
-	nr_io_queues = min(result & 0xffff, result >> 16) + 1;
-	*count = min(*count, nr_io_queues);
+	/*
+	 * Degraded controllers might return an error when setting the queue
+	 * count.  We still want to be able to bring them online and offer
+	 * access to the admin queue, as that might be only way to fix them up.
+	 */
+	if (status > 0) {
+		dev_err(ctrl->dev, "Could not set queue count (%d)\n", status);
+		*count = 0;
+	} else {
+		nr_io_queues = min(result & 0xffff, result >> 16) + 1;
+		*count = min(*count, nr_io_queues);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nvme_set_queue_count);
