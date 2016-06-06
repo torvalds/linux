@@ -283,6 +283,7 @@ err2:
 	p->tcfc_index = index ? index : tcf_hash_new_index(tn);
 	p->tcfc_tm.install = jiffies;
 	p->tcfc_tm.lastuse = jiffies;
+	p->tcfc_tm.firstuse = 0;
 	if (est) {
 		err = gen_new_estimator(&p->tcfc_bstats, p->cpu_bstats,
 					&p->tcfc_rate_est,

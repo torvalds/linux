@@ -76,6 +76,8 @@ static inline void tcf_lastuse_update(struct tcf_t *tm)
 
 	if (tm->lastuse != now)
 		tm->lastuse = now;
+	if (unlikely(!tm->firstuse))
+		tm->firstuse = now;
 }
 
 struct tc_action {

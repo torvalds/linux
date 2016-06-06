@@ -156,6 +156,7 @@ static int tcf_bpf_dump(struct sk_buff *skb, struct tc_action *act,
 
 	tm.install = jiffies_to_clock_t(jiffies - prog->tcf_tm.install);
 	tm.lastuse = jiffies_to_clock_t(jiffies - prog->tcf_tm.lastuse);
+	tm.firstuse = jiffies_to_clock_t(jiffies - prog->tcf_tm.firstuse);
 	tm.expires = jiffies_to_clock_t(prog->tcf_tm.expires);
 
 	if (nla_put_64bit(skb, TCA_ACT_BPF_TM, sizeof(tm), &tm,

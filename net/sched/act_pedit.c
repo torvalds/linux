@@ -202,6 +202,7 @@ static int tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,
 		goto nla_put_failure;
 	t.install = jiffies_to_clock_t(jiffies - p->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tcf_tm.lastuse);
+	t.firstuse = jiffies_to_clock_t(jiffies - p->tcf_tm.firstuse);
 	t.expires = jiffies_to_clock_t(p->tcf_tm.expires);
 	if (nla_put_64bit(skb, TCA_PEDIT_TM, sizeof(t), &t, TCA_PEDIT_PAD))
 		goto nla_put_failure;
