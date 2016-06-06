@@ -138,12 +138,21 @@ static int dev_match_of(struct device *dev, void *data)
 int tilcdc_get_external_components(struct device *dev,
 				   struct component_match **match)
 {
+	struct device_node *node;
 	struct device_node *ep = NULL;
 	int count = 0;
 
-	while ((ep = of_graph_get_next_endpoint(dev->of_node, ep))) {
-		struct device_node *node;
+	/* Avoid error print by of_graph_get_next_endpoint() if there
+	 * is no ports present.
+	 */
+	node = of_get_child_by_name(dev->of_node, "ports");
+	if (!node)
+		node = of_get_child_by_name(dev->of_node, "port");
+	if (!node)
+		return 0;
+	of_node_put(node);
 
+	while ((ep = of_graph_get_next_endpoint(dev->of_node, ep))) {
 		node = of_graph_get_remote_port_parent(ep);
 		if (!node && !of_device_is_available(node)) {
 			of_node_put(node);
