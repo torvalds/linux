@@ -6263,6 +6263,7 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.backend_fini = &tonga_hwmgr_backend_fini,
 	.asic_setup = &tonga_setup_asic_task,
 	.dynamic_state_management_enable = &tonga_enable_dpm_tasks,
+	.dynamic_state_management_disable = &tonga_disable_dpm_tasks,
 	.apply_state_adjust_rules = tonga_apply_state_adjust_rules,
 	.force_dpm_level = &tonga_force_dpm_level,
 	.power_state_set = tonga_set_power_state_tasks,
