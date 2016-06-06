@@ -597,7 +597,7 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 	return -EINVAL;
 }
 
-static void vi_gpu_pci_config_reset(struct amdgpu_device *adev)
+static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 {
 	u32 i;
 
@@ -613,10 +613,10 @@ static void vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff)
-			break;
+			return 0;
 		udelay(1);
 	}
-
+	return -EINVAL;
 }
 
 static void vi_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hung)
@@ -642,13 +642,15 @@ static void vi_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hun
  */
 static int vi_asic_reset(struct amdgpu_device *adev)
 {
+	int r;
+
 	vi_set_bios_scratch_engine_hung(adev, true);
 
-	vi_gpu_pci_config_reset(adev);
+	r = vi_gpu_pci_config_reset(adev);
 
 	vi_set_bios_scratch_engine_hung(adev, false);
 
-	return 0;
+	return r;
 }
 
 static int vi_set_uvd_clock(struct amdgpu_device *adev, u32 clock,

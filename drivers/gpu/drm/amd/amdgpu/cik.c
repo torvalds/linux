@@ -1158,10 +1158,11 @@ static void kv_restore_regs_for_reset(struct amdgpu_device *adev,
 	WREG32(mmGMCON_RENG_EXECUTE, save->gmcon_reng_execute);
 }
 
-static void cik_gpu_pci_config_reset(struct amdgpu_device *adev)
+static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 {
 	struct kv_reset_save_regs kv_save = { 0 };
 	u32 i;
+	int r = -EINVAL;
 
 	dev_info(adev->dev, "GPU pci config reset\n");
 
@@ -1177,14 +1178,18 @@ static void cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff)
+		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff) {
+			r = 0;
 			break;
+		}
 		udelay(1);
 	}
 
 	/* does asic init need to be run first??? */
 	if (adev->flags & AMD_IS_APU)
 		kv_restore_regs_for_reset(adev, &kv_save);
+
+	return r;
 }
 
 static void cik_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hung)
@@ -1210,13 +1215,14 @@ static void cik_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hu
  */
 static int cik_asic_reset(struct amdgpu_device *adev)
 {
+	int r;
 	cik_set_bios_scratch_engine_hung(adev, true);
 
-	cik_gpu_pci_config_reset(adev);
+	r = cik_gpu_pci_config_reset(adev);
 
 	cik_set_bios_scratch_engine_hung(adev, false);
 
-	return 0;
+	return r;
 }
 
 static int cik_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
