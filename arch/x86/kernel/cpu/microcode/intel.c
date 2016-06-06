@@ -456,8 +456,6 @@ static void show_saved_mc(void)
 #endif
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static DEFINE_MUTEX(x86_cpu_microcode_mutex);
 /*
  * Save this mc into mc_saved_data. So it will be loaded early when a CPU is
  * hot added or resumes.
@@ -465,14 +463,16 @@ static DEFINE_MUTEX(x86_cpu_microcode_mutex);
  * Please make sure this mc should be a valid microcode patch before calling
  * this function.
  */
-int save_mc_for_early(u8 *mc)
+static void save_mc_for_early(u8 *mc)
 {
+#ifdef CONFIG_HOTPLUG_CPU
+	static DEFINE_MUTEX(x86_cpu_microcode_mutex);
+
 	struct microcode_intel *mc_saved_tmp[MAX_UCODE_COUNT];
 	unsigned int mc_saved_count_init;
 	unsigned int num_saved;
 	struct microcode_intel **mc_saved;
-	int ret = 0;
-	int i;
+	int ret, i;
 
 	/*
 	 * Hold hotplug lock so mc_saved_data is not accessed by a CPU in
@@ -515,11 +515,8 @@ int save_mc_for_early(u8 *mc)
 
 out:
 	mutex_unlock(&x86_cpu_microcode_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(save_mc_for_early);
 #endif
+}
 
 static bool __init load_builtin_intel_microcode(struct cpio_data *cp)
 {
