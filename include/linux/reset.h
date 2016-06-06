@@ -107,12 +107,6 @@ static inline struct reset_control *__must_check reset_control_get(
 	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 0);
 }
 
-static inline struct reset_control *reset_control_get_optional(
-					struct device *dev, const char *id)
-{
-	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 0);
-}
-
 /**
  * reset_control_get_shared - Lookup and obtain a shared reference to a
  *                            reset controller.
@@ -139,6 +133,12 @@ static inline struct reset_control *reset_control_get_shared(
 					struct device *dev, const char *id)
 {
 	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 1);
+}
+
+static inline struct reset_control *reset_control_get_optional(
+					struct device *dev, const char *id)
+{
+	return __of_reset_control_get(dev ? dev->of_node : NULL, id, 0, 0);
 }
 
 /**
@@ -191,6 +191,21 @@ static inline struct reset_control *__must_check devm_reset_control_get(
 	return __devm_reset_control_get(dev, id, 0, 0);
 }
 
+/**
+ * devm_reset_control_get_shared - resource managed reset_control_get_shared()
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Managed reset_control_get_shared(). For reset controllers returned from
+ * this function, reset_control_put() is called automatically on driver detach.
+ * See reset_control_get_shared() for more information.
+ */
+static inline struct reset_control *devm_reset_control_get_shared(
+					struct device *dev, const char *id)
+{
+	return __devm_reset_control_get(dev, id, 0, 1);
+}
+
 static inline struct reset_control *devm_reset_control_get_optional(
 					struct device *dev, const char *id)
 {
@@ -210,21 +225,6 @@ static inline struct reset_control *devm_reset_control_get_by_index(
 					struct device *dev, int index)
 {
 	return __devm_reset_control_get(dev, NULL, index, 0);
-}
-
-/**
- * devm_reset_control_get_shared - resource managed reset_control_get_shared()
- * @dev: device to be reset by the controller
- * @id: reset line name
- *
- * Managed reset_control_get_shared(). For reset controllers returned from
- * this function, reset_control_put() is called automatically on driver detach.
- * See reset_control_get_shared() for more information.
- */
-static inline struct reset_control *devm_reset_control_get_shared(
-					struct device *dev, const char *id)
-{
-	return __devm_reset_control_get(dev, id, 0, 1);
 }
 
 /**
