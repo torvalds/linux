@@ -1289,6 +1289,10 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
 
+	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
+	if (ret)
+		return ret;
+
 	if (nvbo->pin_refcnt)
 		NV_WARN(drm, "Moving pinned object %p!\n", nvbo);
 
