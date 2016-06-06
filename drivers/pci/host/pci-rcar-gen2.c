@@ -193,6 +193,7 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	struct rcar_pci_priv *priv = sys->private_data;
 	void __iomem *reg = priv->reg;
 	u32 val;
+	int ret;
 
 	pm_runtime_enable(priv->dev);
 	pm_runtime_get_sync(priv->dev);
@@ -273,6 +274,9 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 
 	/* Add PCI resources */
 	pci_add_resource(&sys->resources, &priv->mem_res);
+	ret = devm_request_pci_bus_resources(priv->dev, &sys->resources);
+	if (ret < 0)
+		return ret;
 
 	/* Setup bus number based on platform device id / of bus-range */
 	sys->busnr = priv->busnr;
