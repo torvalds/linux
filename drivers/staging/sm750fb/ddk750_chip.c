@@ -93,8 +93,10 @@ static void setMemoryClock(unsigned int frequency)
 		return;
 
 	if (frequency) {
-		/* Set the frequency to the maximum frequency that the DDR Memory can take
-		which is 336MHz. */
+		/*
+		 * Set the frequency to the maximum frequency that the DDR Memory can take
+		 * which is 336MHz.
+		 */
 		if (frequency > MHz(336))
 			frequency = MHz(336);
 
