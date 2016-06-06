@@ -28,7 +28,7 @@ No irqsave is necessary.
 int rtw_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	init_completion(&pcmdpriv->cmd_queue_comp);
-	sema_init(&(pcmdpriv->terminate_cmdthread_sema), 0);
+	init_completion(&pcmdpriv->terminate_cmdthread_comp);
 
 	_rtw_init_queue(&(pcmdpriv->cmd_queue));
 	return _SUCCESS;
@@ -162,7 +162,7 @@ int rtw_cmd_thread(void *context)
 	allow_signal(SIGTERM);
 
 	pcmdpriv->cmdthd_running = true;
-	up(&pcmdpriv->terminate_cmdthread_sema);
+	complete(&pcmdpriv->terminate_cmdthread_comp);
 
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("start r871x rtw_cmd_thread !!!!\n"));
 
@@ -234,7 +234,7 @@ _next:
 		rtw_free_cmd_obj(pcmd);
 	}
 
-	up(&pcmdpriv->terminate_cmdthread_sema);
+	complete(&pcmdpriv->terminate_cmdthread_comp);
 
 
 	complete_and_exit(NULL, 0);

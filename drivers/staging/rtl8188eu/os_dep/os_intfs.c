@@ -762,7 +762,7 @@ static int rtw_start_drv_threads(struct adapter *padapter)
 		err = PTR_ERR(padapter->cmdThread);
 	else
 		/* wait for cmd_thread to run */
-		_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
+		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
 
 	return err;
 }
@@ -774,7 +774,7 @@ void rtw_stop_drv_threads(struct adapter *padapter)
 	/* Below is to terminate rtw_cmd_thread & event_thread... */
 	complete(&padapter->cmdpriv.cmd_queue_comp);
 	if (padapter->cmdThread)
-		_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
+		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
 
 }
 
