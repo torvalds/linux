@@ -29,13 +29,6 @@ enum qdisc_state_t {
 	__QDISC_STATE_THROTTLED,
 };
 
-/*
- * following bits are only changed while qdisc lock is held
- */
-enum qdisc___state_t {
-	__QDISC___STATE_RUNNING = 1,
-};
-
 struct qdisc_size_table {
 	struct rcu_head		rcu;
 	struct list_head	list;
@@ -93,7 +86,7 @@ struct Qdisc {
 	unsigned long		state;
 	struct sk_buff_head	q;
 	struct gnet_stats_basic_packed bstats;
-	unsigned int		__state;
+	seqcount_t		running;
 	struct gnet_stats_queue	qstats;
 	struct rcu_head		rcu_head;
 	int			padded;
@@ -104,20 +97,20 @@ struct Qdisc {
 
 static inline bool qdisc_is_running(const struct Qdisc *qdisc)
 {
-	return (qdisc->__state & __QDISC___STATE_RUNNING) ? true : false;
+	return (raw_read_seqcount(&qdisc->running) & 1) ? true : false;
 }
 
 static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 {
 	if (qdisc_is_running(qdisc))
 		return false;
-	qdisc->__state |= __QDISC___STATE_RUNNING;
+	write_seqcount_begin(&qdisc->running);
 	return true;
 }
 
 static inline void qdisc_run_end(struct Qdisc *qdisc)
 {
-	qdisc->__state &= ~__QDISC___STATE_RUNNING;
+	write_seqcount_end(&qdisc->running);
 }
 
 static inline bool qdisc_may_bulk(const struct Qdisc *qdisc)

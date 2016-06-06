@@ -60,6 +60,7 @@ static struct header_ops lowpan_header_ops = {
 
 static struct lock_class_key lowpan_tx_busylock;
 static struct lock_class_key lowpan_netdev_xmit_lock_key;
+static struct lock_class_key lowpan_qdisc_running_key;
 
 static void lowpan_set_lockdep_class_one(struct net_device *ldev,
 					 struct netdev_queue *txq,
@@ -73,6 +74,8 @@ static int lowpan_dev_init(struct net_device *ldev)
 {
 	netdev_for_each_tx_queue(ldev, lowpan_set_lockdep_class_one, NULL);
 	ldev->qdisc_tx_busylock = &lowpan_tx_busylock;
+	ldev->qdisc_running_key = &lowpan_qdisc_running_key;
+
 	return 0;
 }
 

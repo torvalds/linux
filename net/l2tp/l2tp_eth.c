@@ -68,6 +68,8 @@ static inline struct l2tp_eth_net *l2tp_eth_pernet(struct net *net)
 }
 
 static struct lock_class_key l2tp_eth_tx_busylock;
+static struct lock_class_key l2tp_qdisc_running_key;
+
 static int l2tp_eth_dev_init(struct net_device *dev)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
@@ -76,6 +78,8 @@ static int l2tp_eth_dev_init(struct net_device *dev)
 	eth_hw_addr_random(dev);
 	eth_broadcast_addr(dev->broadcast);
 	dev->qdisc_tx_busylock = &l2tp_eth_tx_busylock;
+	dev->qdisc_running_key = &l2tp_qdisc_running_key;
+
 	return 0;
 }
 
