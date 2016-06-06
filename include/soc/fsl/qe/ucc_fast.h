@@ -118,6 +118,7 @@ enum ucc_fast_transparent_tcrc {
 /* Fast UCC initialization structure */
 struct ucc_fast_info {
 	int ucc_num;
+	int tdm_num;
 	enum qe_clock rx_clock;
 	enum qe_clock tx_clock;
 	enum qe_clock rx_sync;
