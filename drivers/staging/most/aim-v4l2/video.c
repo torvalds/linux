@@ -439,7 +439,6 @@ static int aim_rx_data(struct mbo *mbo)
 
 static int aim_register_videodev(struct most_video_dev *mdev)
 {
-	int retval = -ENOMEM;
 	int ret;
 
 	v4l2_info(&mdev->v4l2_dev, "aim_register_videodev()\n");
@@ -460,11 +459,10 @@ static int aim_register_videodev(struct most_video_dev *mdev)
 
 	/* Register the v4l2 device */
 	video_set_drvdata(mdev->vdev, mdev);
-	retval = video_register_device(mdev->vdev, VFL_TYPE_GRABBER, -1);
-	if (retval != 0) {
+	ret = video_register_device(mdev->vdev, VFL_TYPE_GRABBER, -1);
+	if (ret) {
 		v4l2_err(&mdev->v4l2_dev, "video_register_device failed (%d)\n",
-			 retval);
-		ret = -ENODEV;
+			 ret);
 		goto err_vbi_dev;
 	}
 
