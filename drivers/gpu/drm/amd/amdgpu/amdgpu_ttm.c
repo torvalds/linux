@@ -390,10 +390,6 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int r;
 
-	r = ttm_bo_wait(bo, interruptible, no_wait_gpu);
-	if (r)
-		return r;
-
 	/* Can't move a pinned BO */
 	abo = container_of(bo, struct amdgpu_bo, tbo);
 	if (WARN_ON_ONCE(abo->pin_count > 0))
