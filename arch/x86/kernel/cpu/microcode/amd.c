@@ -56,7 +56,7 @@ static u8 *container;
 static size_t container_size;
 
 static u32 ucode_new_rev;
-u8 amd_ucode_patch[PATCH_MAX_SIZE];
+static u8 amd_ucode_patch[PATCH_MAX_SIZE];
 static u16 this_equiv_id;
 
 static struct cpio_data ucode_cpio;
