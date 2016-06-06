@@ -280,6 +280,17 @@ config DSCC4
 	  To compile this driver as a module, choose M here: the
 	  module will be called dscc4.
 
+config FSL_UCC_HDLC
+	tristate "Freescale QUICC Engine HDLC support"
+	depends on HDLC
+	depends on QUICC_ENGINE
+	help
+	  Driver for Freescale QUICC Engine HDLC controller. The driver
+	  supports HDLC in NMSI and TDM mode.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fsl_ucc_hdlc.
+
 config DSCC4_PCISYNC
 	bool "Etinc PCISYNC features"
 	depends on DSCC4

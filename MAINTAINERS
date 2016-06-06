@@ -4870,6 +4870,13 @@ F:	drivers/net/ethernet/freescale/gianfar*
 X:	drivers/net/ethernet/freescale/gianfar_ptp.c
 F:	Documentation/devicetree/bindings/net/fsl-tsec-phy.txt
 
+FREESCALE QUICC ENGINE UCC HDLC DRIVER
+M:	Zhao Qiang <qiang.zhao@nxp.com>
+L:	netdev@vger.kernel.org
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Maintained
+F:	drivers/net/wan/fsl_ucc_hdlc*
+
 FREESCALE QUICC ENGINE UCC UART DRIVER
 M:	Timur Tabi <timur@tabi.org>
 L:	linuxppc-dev@lists.ozlabs.org
