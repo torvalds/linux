@@ -58,6 +58,10 @@ struct at24_data {
 	int use_smbus;
 	int use_smbus_write;
 
+	ssize_t (*read_func)(struct at24_data *, char *, unsigned int, size_t);
+	ssize_t (*write_func)(struct at24_data *,
+			      const char *, unsigned int, size_t);
+
 	/*
 	 * Lock protects against activities from other Linux tasks,
 	 * but not from changes by other I2C masters.
@@ -351,7 +355,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	while (count) {
 		int	status;
 
-		status = at24_eeprom_read(at24, buf, off, count);
+		status = at24->read_func(at24, buf, off, count);
 		if (status < 0) {
 			mutex_unlock(&at24->lock);
 			return status;
@@ -383,7 +387,7 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	while (count) {
 		int status;
 
-		status = at24_eeprom_write(at24, buf, off, count);
+		status = at24->write_func(at24, buf, off, count);
 		if (status < 0) {
 			mutex_unlock(&at24->lock);
 			return status;
@@ -517,6 +521,9 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	at24->use_smbus_write = use_smbus_write;
 	at24->chip = chip;
 	at24->num_addresses = num_addresses;
+
+	at24->read_func = at24_eeprom_read;
+	at24->write_func = at24_eeprom_write;
 
 	writable = !(chip.flags & AT24_FLAG_READONLY);
 	if (writable) {
