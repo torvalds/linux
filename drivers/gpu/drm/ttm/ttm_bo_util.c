@@ -320,7 +320,8 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 }
 
 int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-		       bool evict, bool no_wait_gpu,
+		       bool evict, bool interruptible,
+		       bool no_wait_gpu,
 		       struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
@@ -335,6 +336,10 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	unsigned long page;
 	unsigned long add = 0;
 	int dir;
+
+	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+	if (ret)
+		return ret;
 
 	ret = ttm_mem_reg_ioremap(bdev, old_mem, &old_iomap);
 	if (ret)

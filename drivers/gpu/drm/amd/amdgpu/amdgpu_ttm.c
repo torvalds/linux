@@ -433,7 +433,8 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 
 	if (r) {
 memcpy:
-		r = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+		r = ttm_bo_move_memcpy(bo, evict, interruptible,
+				       no_wait_gpu, new_mem);
 		if (r) {
 			return r;
 		}
