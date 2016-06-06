@@ -381,7 +381,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 
 	spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
 
-	drm_vblank_put(rdev->ddev, radeon_crtc->crtc_id);
+	drm_crtc_vblank_put(&radeon_crtc->base);
 	radeon_irq_kms_pflip_irq_put(rdev, work->crtc_id);
 	queue_work(radeon_crtc->flip_queue, &work->unpin_work);
 }
@@ -598,7 +598,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	}
 	work->base = base;
 
-	r = drm_vblank_get(crtc->dev, radeon_crtc->crtc_id);
+	r = drm_crtc_vblank_get(crtc);
 	if (r) {
 		DRM_ERROR("failed to get vblank before flip\n");
 		goto pflip_cleanup;
@@ -625,7 +625,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 vblank_cleanup:
-	drm_vblank_put(crtc->dev, radeon_crtc->crtc_id);
+	drm_crtc_vblank_put(&radeon_crtc->base);
 
 pflip_cleanup:
 	if (unlikely(radeon_bo_reserve(new_rbo, false) != 0)) {
