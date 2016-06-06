@@ -762,15 +762,36 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 {
 	const uint64_t mask = AMDGPU_VM_PTE_COUNT - 1;
 
-	uint64_t cur_pe_start = ~0, cur_pe_end = ~0, cur_dst = ~0;
+	uint64_t cur_pe_start, cur_pe_end, cur_dst;
 	uint64_t addr; /* next GPU address to be updated */
+	uint64_t pt_idx;
+	struct amdgpu_bo *pt;
+	unsigned nptes; /* next number of ptes to be updated */
+	uint64_t next_pe_start;
+
+	/* initialize the variables */
+	addr = start;
+	pt_idx = addr >> amdgpu_vm_block_size;
+	pt = vm->page_tables[pt_idx].entry.robj;
+
+	if ((addr & ~mask) == (end & ~mask))
+		nptes = end - addr;
+	else
+		nptes = AMDGPU_VM_PTE_COUNT - (addr & mask);
+
+	cur_pe_start = amdgpu_bo_gpu_offset(pt);
+	cur_pe_start += (addr & mask) * 8;
+	cur_pe_end = cur_pe_start + 8 * nptes;
+	cur_dst = dst;
+
+	/* for next ptb*/
+	addr += nptes;
+	dst += nptes * AMDGPU_GPU_PAGE_SIZE;
 
 	/* walk over the address space and update the page tables */
-	for (addr = start; addr < end; ) {
-		uint64_t pt_idx = addr >> amdgpu_vm_block_size;
-		struct amdgpu_bo *pt = vm->page_tables[pt_idx].entry.robj;
-		unsigned nptes; /* next number of ptes to be updated */
-		uint64_t next_pe_start;
+	while (addr < end) {
+		pt_idx = addr >> amdgpu_vm_block_size;
+		pt = vm->page_tables[pt_idx].entry.robj;
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
@@ -796,6 +817,7 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
 			cur_dst = dst;
 		}
 
+		/* for next ptb*/
 		addr += nptes;
 		dst += nptes * AMDGPU_GPU_PAGE_SIZE;
 	}
