@@ -238,7 +238,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	rtw_cancel_all_timer(padapter);
 	LeaveAllPowerSaveMode(padapter);
 
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 	/* s1. */
 	if (pnetdev) {
 		netif_carrier_off(pnetdev);
@@ -267,7 +267,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	rtw_free_network_queue(padapter, true);
 
 	rtw_dev_unload(padapter);
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
 		rtw_indicate_scan_done(padapter, 1);
@@ -298,7 +298,7 @@ static int rtw_resume_process(struct adapter *padapter)
 		goto exit;
 	}
 
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 	rtw_reset_drv_sw(padapter);
 	pwrpriv->bkeepfwalive = false;
 
@@ -309,7 +309,7 @@ static int rtw_resume_process(struct adapter *padapter)
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
 
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	rtw_roaming(padapter, NULL);
 

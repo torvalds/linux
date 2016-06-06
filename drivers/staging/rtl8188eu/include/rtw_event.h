@@ -19,6 +19,7 @@
 
 #include <wlan_bssdef.h>
 #include <linux/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/sem.h>
 
 /*

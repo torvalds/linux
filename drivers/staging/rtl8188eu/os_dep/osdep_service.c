@@ -55,13 +55,6 @@ void *rtw_malloc2d(int h, int w, int size)
 	return a;
 }
 
-u32 _rtw_down_sema(struct semaphore *sema)
-{
-	if (down_interruptible(sema))
-		return _FAIL;
-	return _SUCCESS;
-}
-
 void	_rtw_init_queue(struct __queue *pqueue)
 {
 	INIT_LIST_HEAD(&(pqueue->queue));

@@ -36,6 +36,7 @@
 #include <linux/atomic.h>
 #include <linux/io.h>
 #include <linux/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/sem.h>
 #include <linux/sched.h>
 #include <linux/etherdevice.h>
@@ -77,8 +78,6 @@ u8 *_rtw_malloc(u32 sz);
 #define rtw_malloc(sz)			_rtw_malloc((sz))
 
 void *rtw_malloc2d(int h, int w, int size);
-
-u32  _rtw_down_sema(struct semaphore *sema);
 
 void _rtw_init_queue(struct __queue *pqueue);
 
