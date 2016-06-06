@@ -612,8 +612,11 @@ static int vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff)
+		if (RREG32(mmCONFIG_MEMSIZE) != 0xffffffff) {
+			/* enable BM */
+			pci_set_master(adev->pdev);
 			return 0;
+		}
 		udelay(1);
 	}
 	return -EINVAL;
