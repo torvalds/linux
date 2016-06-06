@@ -147,7 +147,7 @@ MODULE_DEVICE_TABLE(acpi, at24_acpi_ids);
  * Assumes that sanity checks for offset happened at sysfs-layer.
  */
 static struct i2c_client *at24_translate_offset(struct at24_data *at24,
-		unsigned *offset)
+						unsigned int *offset)
 {
 	unsigned i;
 
@@ -163,7 +163,7 @@ static struct i2c_client *at24_translate_offset(struct at24_data *at24,
 }
 
 static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
-		unsigned offset, size_t count)
+				unsigned int offset, size_t count)
 {
 	struct i2c_msg msg[2];
 	u8 msgbuf[2];
@@ -258,7 +258,7 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
  * writes at most one page.
  */
 static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
-		unsigned offset, size_t count)
+				 unsigned int offset, size_t count)
 {
 	struct i2c_client *client;
 	struct i2c_msg msg;
@@ -400,7 +400,7 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 
 #ifdef CONFIG_OF
 static void at24_get_ofdata(struct i2c_client *client,
-		struct at24_platform_data *chip)
+			    struct at24_platform_data *chip)
 {
 	const __be32 *val;
 	struct device_node *node = client->dev.of_node;
@@ -415,7 +415,7 @@ static void at24_get_ofdata(struct i2c_client *client,
 }
 #else
 static void at24_get_ofdata(struct i2c_client *client,
-		struct at24_platform_data *chip)
+			    struct at24_platform_data *chip)
 { }
 #endif /* CONFIG_OF */
 
