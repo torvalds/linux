@@ -39,7 +39,7 @@ struct cmd_obj {
 };
 
 struct cmd_priv {
-	struct semaphore cmd_queue_sema;
+	struct completion cmd_queue_comp;
 	struct semaphore terminate_cmdthread_sema;
 	struct __queue cmd_queue;
 	u8 cmdthd_running;
