@@ -64,7 +64,6 @@ static struct cpio_data ucode_cpio;
 static struct cpio_data __init find_ucode_in_initrd(void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
-	long offset = 0;
 	char *path;
 	void *start;
 	size_t size;
@@ -92,7 +91,7 @@ static struct cpio_data __init find_ucode_in_initrd(void)
 	size    = boot_params.hdr.ramdisk_size;
 #endif /* !CONFIG_X86_32 */
 
-	return find_cpio_data(path, start, size, &offset);
+	return find_cpio_data(path, start, size, NULL);
 #else
 	return (struct cpio_data){ NULL, 0, "" };
 #endif

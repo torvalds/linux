@@ -685,7 +685,6 @@ static __init enum ucode_state
 __scan_microcode_initrd(struct cpio_data *cd, struct ucode_blobs *blbp)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
-	long offset = 0;
 	static __initdata char ucode_name[] = "kernel/x86/microcode/GenuineIntel.bin";
 	char *p = IS_ENABLED(CONFIG_X86_32) ? (char *)__pa_nodebug(ucode_name)
 						    : ucode_name;
@@ -716,7 +715,7 @@ __scan_microcode_initrd(struct cpio_data *cd, struct ucode_blobs *blbp)
 	}
 # endif
 
-	*cd = find_cpio_data(p, (void *)start, size, &offset);
+	*cd = find_cpio_data(p, (void *)start, size, NULL);
 	if (cd->data) {
 		blbp->start = start;
 		blbp->valid = true;
