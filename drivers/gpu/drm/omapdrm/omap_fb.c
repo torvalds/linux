@@ -29,37 +29,30 @@
  * framebuffer funcs
  */
 
-/* per-format info: */
-struct format {
+/* DSS to DRM formats mapping */
+static const struct {
 	enum omap_color_mode dss_format;
 	uint32_t pixel_format;
-	struct {
-		int stride_bpp;           /* this times width is stride */
-		int sub_y;                /* sub-sample in y dimension */
-	} planes[2];
-	bool yuv;
-};
-
-static const struct format formats[] = {
+} formats[] = {
 	/* 16bpp [A]RGB: */
-	{ OMAP_DSS_COLOR_RGB16,       DRM_FORMAT_RGB565,   {{2, 1}}, false }, /* RGB16-565 */
-	{ OMAP_DSS_COLOR_RGB12U,      DRM_FORMAT_RGBX4444, {{2, 1}}, false }, /* RGB12x-4444 */
-	{ OMAP_DSS_COLOR_RGBX16,      DRM_FORMAT_XRGB4444, {{2, 1}}, false }, /* xRGB12-4444 */
-	{ OMAP_DSS_COLOR_RGBA16,      DRM_FORMAT_RGBA4444, {{2, 1}}, false }, /* RGBA12-4444 */
-	{ OMAP_DSS_COLOR_ARGB16,      DRM_FORMAT_ARGB4444, {{2, 1}}, false }, /* ARGB16-4444 */
-	{ OMAP_DSS_COLOR_XRGB16_1555, DRM_FORMAT_XRGB1555, {{2, 1}}, false }, /* xRGB15-1555 */
-	{ OMAP_DSS_COLOR_ARGB16_1555, DRM_FORMAT_ARGB1555, {{2, 1}}, false }, /* ARGB16-1555 */
+	{ OMAP_DSS_COLOR_RGB16,       DRM_FORMAT_RGB565 },   /* RGB16-565 */
+	{ OMAP_DSS_COLOR_RGB12U,      DRM_FORMAT_RGBX4444 }, /* RGB12x-4444 */
+	{ OMAP_DSS_COLOR_RGBX16,      DRM_FORMAT_XRGB4444 }, /* xRGB12-4444 */
+	{ OMAP_DSS_COLOR_RGBA16,      DRM_FORMAT_RGBA4444 }, /* RGBA12-4444 */
+	{ OMAP_DSS_COLOR_ARGB16,      DRM_FORMAT_ARGB4444 }, /* ARGB16-4444 */
+	{ OMAP_DSS_COLOR_XRGB16_1555, DRM_FORMAT_XRGB1555 }, /* xRGB15-1555 */
+	{ OMAP_DSS_COLOR_ARGB16_1555, DRM_FORMAT_ARGB1555 }, /* ARGB16-1555 */
 	/* 24bpp RGB: */
-	{ OMAP_DSS_COLOR_RGB24P,      DRM_FORMAT_RGB888,   {{3, 1}}, false }, /* RGB24-888 */
+	{ OMAP_DSS_COLOR_RGB24P,      DRM_FORMAT_RGB888 },   /* RGB24-888 */
 	/* 32bpp [A]RGB: */
-	{ OMAP_DSS_COLOR_RGBX32,      DRM_FORMAT_RGBX8888, {{4, 1}}, false }, /* RGBx24-8888 */
-	{ OMAP_DSS_COLOR_RGB24U,      DRM_FORMAT_XRGB8888, {{4, 1}}, false }, /* xRGB24-8888 */
-	{ OMAP_DSS_COLOR_RGBA32,      DRM_FORMAT_RGBA8888, {{4, 1}}, false }, /* RGBA32-8888 */
-	{ OMAP_DSS_COLOR_ARGB32,      DRM_FORMAT_ARGB8888, {{4, 1}}, false }, /* ARGB32-8888 */
+	{ OMAP_DSS_COLOR_RGBX32,      DRM_FORMAT_RGBX8888 }, /* RGBx24-8888 */
+	{ OMAP_DSS_COLOR_RGB24U,      DRM_FORMAT_XRGB8888 }, /* xRGB24-8888 */
+	{ OMAP_DSS_COLOR_RGBA32,      DRM_FORMAT_RGBA8888 }, /* RGBA32-8888 */
+	{ OMAP_DSS_COLOR_ARGB32,      DRM_FORMAT_ARGB8888 }, /* ARGB32-8888 */
 	/* YUV: */
-	{ OMAP_DSS_COLOR_NV12,        DRM_FORMAT_NV12,     {{1, 1}, {1, 2}}, true },
-	{ OMAP_DSS_COLOR_YUV2,        DRM_FORMAT_YUYV,     {{2, 1}}, true },
-	{ OMAP_DSS_COLOR_UYVY,        DRM_FORMAT_UYVY,     {{2, 1}}, true },
+	{ OMAP_DSS_COLOR_NV12,        DRM_FORMAT_NV12 },
+	{ OMAP_DSS_COLOR_YUV2,        DRM_FORMAT_YUYV },
+	{ OMAP_DSS_COLOR_UYVY,        DRM_FORMAT_UYVY },
 };
 
 /* convert from overlay's pixel formats bitmask to an array of fourcc's */
@@ -89,7 +82,8 @@ struct plane {
 struct omap_framebuffer {
 	struct drm_framebuffer base;
 	int pin_count;
-	const struct format *format;
+	const struct drm_format_info *format;
+	enum omap_color_mode dss_format;
 	struct plane planes[2];
 	/* lock for pinning (pin_count and planes.paddr) */
 	struct mutex lock;
@@ -128,13 +122,13 @@ static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 };
 
 static uint32_t get_linear_addr(struct plane *plane,
-		const struct format *format, int n, int x, int y)
+		const struct drm_format_info *format, int n, int x, int y)
 {
 	uint32_t offset;
 
-	offset = plane->offset +
-			(x * format->planes[n].stride_bpp) +
-			(y * plane->pitch / format->planes[n].sub_y);
+	offset = plane->offset
+	       + (x * format->cpp[n] / (n == 0 ? 1 : format->hsub))
+	       + (y * plane->pitch / (n == 0 ? 1 : format->vsub));
 
 	return plane->paddr + offset;
 }
@@ -153,11 +147,11 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		struct omap_drm_window *win, struct omap_overlay_info *info)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	const struct format *format = omap_fb->format;
+	const struct drm_format_info *format = omap_fb->format;
 	struct plane *plane = &omap_fb->planes[0];
 	uint32_t x, y, orient = 0;
 
-	info->color_mode = format->dss_format;
+	info->color_mode = omap_fb->dss_format;
 
 	info->pos_x      = win->crtc_x;
 	info->pos_y      = win->crtc_y;
@@ -231,9 +225,9 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	}
 
 	/* convert to pixels: */
-	info->screen_width /= format->planes[0].stride_bpp;
+	info->screen_width /= format->cpp[0];
 
-	if (format->dss_format == OMAP_DSS_COLOR_NV12) {
+	if (omap_fb->dss_format == OMAP_DSS_COLOR_NV12) {
 		plane = &omap_fb->planes[1];
 
 		if (info->rotation_type == OMAP_DSS_ROT_TILER) {
@@ -382,23 +376,26 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos)
 {
+	const struct drm_format_info *format = NULL;
 	struct omap_framebuffer *omap_fb = NULL;
 	struct drm_framebuffer *fb = NULL;
-	const struct format *format = NULL;
-	int ret, i, n = drm_format_num_planes(mode_cmd->pixel_format);
+	enum omap_color_mode dss_format = 0;
+	int ret, i;
 
 	DBG("create framebuffer: dev=%p, mode_cmd=%p (%dx%d@%4.4s)",
 			dev, mode_cmd, mode_cmd->width, mode_cmd->height,
 			(char *)&mode_cmd->pixel_format);
 
+	format = drm_format_info(mode_cmd->pixel_format);
+
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		if (formats[i].pixel_format == mode_cmd->pixel_format) {
-			format = &formats[i];
+			dss_format = formats[i].dss_format;
 			break;
 		}
 	}
 
-	if (!format) {
+	if (!format || !dss_format) {
 		dev_err(dev->dev, "unsupported pixel format: %4.4s\n",
 				(char *)&mode_cmd->pixel_format);
 		ret = -EINVAL;
@@ -413,28 +410,32 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 	fb = &omap_fb->base;
 	omap_fb->format = format;
+	omap_fb->dss_format = dss_format;
 	mutex_init(&omap_fb->lock);
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < format->num_planes; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		int size, pitch = mode_cmd->pitches[i];
+		unsigned int pitch = mode_cmd->pitches[i];
+		unsigned int hsub = i == 0 ? 1 : format->hsub;
+		unsigned int vsub = i == 0 ? 1 : format->vsub;
+		unsigned int size;
 
-		if (pitch < (mode_cmd->width * format->planes[i].stride_bpp)) {
+		if (pitch < mode_cmd->width * format->cpp[i] / hsub) {
 			dev_err(dev->dev, "provided buffer pitch is too small! %d < %d\n",
-					pitch, mode_cmd->width * format->planes[i].stride_bpp);
+				pitch, mode_cmd->width * format->cpp[i] / hsub);
 			ret = -EINVAL;
 			goto fail;
 		}
 
-		if (pitch % format->planes[i].stride_bpp != 0) {
+		if (pitch % format->cpp[i] != 0) {
 			dev_err(dev->dev,
 				"buffer pitch (%d bytes) is not a multiple of pixel size (%d bytes)\n",
-				pitch, format->planes[i].stride_bpp);
+				pitch, format->cpp[i]);
 			ret = -EINVAL;
 			goto fail;
 		}
 
-		size = pitch * mode_cmd->height / format->planes[i].sub_y;
+		size = pitch * mode_cmd->height / vsub;
 
 		if (size > (omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i])) {
 			dev_err(dev->dev, "provided buffer object is too small! %d < %d\n",
