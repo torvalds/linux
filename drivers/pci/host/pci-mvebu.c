@@ -839,24 +839,21 @@ static struct pci_ops mvebu_pcie_ops = {
 static int mvebu_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct mvebu_pcie *pcie = sys_to_pcie(sys);
-	int i;
+	int err, i;
 
 	pcie->mem.name = "PCI MEM";
 	pcie->realio.name = "PCI I/O";
 
-	if (request_resource(&iomem_resource, &pcie->mem))
-		return 0;
-
-	if (resource_size(&pcie->realio) != 0) {
-		if (request_resource(&ioport_resource, &pcie->realio)) {
-			release_resource(&pcie->mem);
-			return 0;
-		}
+	if (resource_size(&pcie->realio) != 0)
 		pci_add_resource_offset(&sys->resources, &pcie->realio,
 					sys->io_offset);
-	}
+
 	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
 	pci_add_resource(&sys->resources, &pcie->busn);
+
+	err = devm_request_pci_bus_resources(&pcie->pdev->dev, &sys->resources);
+	if (err)
+		return 0;
 
 	for (i = 0; i < pcie->nports; i++) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
