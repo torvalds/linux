@@ -374,7 +374,7 @@ static void atmel_hlcdc_crtc_finish_page_flip(struct atmel_hlcdc_crtc *crtc)
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (crtc->event) {
-		drm_send_vblank_event(dev, crtc->id, crtc->event);
+		drm_crtc_send_vblank_event(&crtc->base, crtc->event);
 		drm_vblank_put(dev, crtc->id);
 		crtc->event = NULL;
 	}
