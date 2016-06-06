@@ -830,6 +830,7 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
  * amdgpu_vm_bo_update_mapping - update a mapping in the vm page table
  *
  * @adev: amdgpu_device pointer
+ * @exclusive: fence we need to sync to
  * @src: address where to copy page table entries from
  * @pages_addr: DMA addresses to use for mapping
  * @vm: requested vm
@@ -843,6 +844,7 @@ static void amdgpu_vm_update_ptes(struct amdgpu_device *adev,
  * Returns 0 for success, -EINVAL for failure.
  */
 static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
+				       struct fence *exclusive,
 				       uint64_t src,
 				       dma_addr_t *pages_addr,
 				       struct amdgpu_vm *vm,
@@ -903,6 +905,10 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	vm_update_params.ib = &job->ibs[0];
 
+	r = amdgpu_sync_fence(adev, &job->sync, exclusive);
+	if (r)
+		goto error_free;
+
 	r = amdgpu_sync_resv(adev, &job->sync, vm->page_directory->tbo.resv,
 			     owner);
 	if (r)
@@ -939,6 +945,7 @@ error_free:
  * amdgpu_vm_bo_split_mapping - split a mapping into smaller chunks
  *
  * @adev: amdgpu_device pointer
+ * @exclusive: fence we need to sync to
  * @gtt_flags: flags as they are used for GTT
  * @pages_addr: DMA addresses to use for mapping
  * @vm: requested vm
@@ -952,6 +959,7 @@ error_free:
  * Returns 0 for success, -EINVAL for failure.
  */
 static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
+				      struct fence *exclusive,
 				      uint32_t gtt_flags,
 				      dma_addr_t *pages_addr,
 				      struct amdgpu_vm *vm,
@@ -982,7 +990,8 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	addr += mapping->offset;
 
 	if (!pages_addr || src)
-		return amdgpu_vm_bo_update_mapping(adev, src, pages_addr, vm,
+		return amdgpu_vm_bo_update_mapping(adev, exclusive,
+						   src, pages_addr, vm,
 						   start, mapping->it.last,
 						   flags, addr, fence);
 
@@ -990,7 +999,8 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		uint64_t last;
 
 		last = min((uint64_t)mapping->it.last, start + max_size - 1);
-		r = amdgpu_vm_bo_update_mapping(adev, src, pages_addr, vm,
+		r = amdgpu_vm_bo_update_mapping(adev, exclusive,
+						src, pages_addr, vm,
 						start, last, flags, addr,
 						fence);
 		if (r)
@@ -1023,6 +1033,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping;
 	dma_addr_t *pages_addr = NULL;
 	uint32_t gtt_flags, flags;
+	struct fence *exclusive;
 	uint64_t addr;
 	int r;
 
@@ -1044,8 +1055,11 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 		default:
 			break;
 		}
+
+		exclusive = reservation_object_get_excl(bo_va->bo->tbo.resv);
 	} else {
 		addr = 0;
+		exclusive = NULL;
 	}
 
 	flags = amdgpu_ttm_tt_pte_flags(adev, bo_va->bo->tbo.ttm, mem);
@@ -1057,7 +1071,8 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	spin_unlock(&vm->status_lock);
 
 	list_for_each_entry(mapping, &bo_va->invalids, list) {
-		r = amdgpu_vm_bo_split_mapping(adev, gtt_flags, pages_addr, vm,
+		r = amdgpu_vm_bo_split_mapping(adev, exclusive,
+					       gtt_flags, pages_addr, vm,
 					       mapping, flags, addr,
 					       &bo_va->last_pt_update);
 		if (r)
@@ -1104,7 +1119,7 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			struct amdgpu_bo_va_mapping, list);
 		list_del(&mapping->list);
 
-		r = amdgpu_vm_bo_split_mapping(adev, 0, NULL, vm, mapping,
+		r = amdgpu_vm_bo_split_mapping(adev, NULL, 0, NULL, vm, mapping,
 					       0, 0, NULL);
 		kfree(mapping);
 		if (r)
