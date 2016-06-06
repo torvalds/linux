@@ -62,7 +62,9 @@ void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
 int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);
 int polaris10_populate_pm_fuses(struct pp_hwmgr *hwmgr);
 int polaris10_enable_smc_cac(struct pp_hwmgr *hwmgr);
+int polaris10_disable_smc_cac(struct pp_hwmgr *hwmgr);
 int polaris10_enable_power_containment(struct pp_hwmgr *hwmgr);
+int polaris10_disable_power_containment(struct pp_hwmgr *hwmgr);
 int polaris10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
 int polaris10_power_control_set_level(struct pp_hwmgr *hwmgr);
 
