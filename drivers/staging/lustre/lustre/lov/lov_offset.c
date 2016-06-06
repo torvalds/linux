@@ -74,7 +74,7 @@ pgoff_t lov_stripe_pgoff(struct lov_stripe_md *lsm, pgoff_t stripe_index,
 {
 	loff_t offset;
 
-	offset = lov_stripe_size(lsm, stripe_index << PAGE_SHIFT, stripe);
+	offset = lov_stripe_size(lsm, (stripe_index << PAGE_SHIFT) + 1, stripe);
 	return offset >> PAGE_SHIFT;
 }
 
