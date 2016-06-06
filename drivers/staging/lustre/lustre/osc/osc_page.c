@@ -214,7 +214,7 @@ static void osc_page_delete(const struct lu_env *env,
 	struct osc_object *obj = cl2osc(opg->ops_cl.cpl_obj);
 	int rc;
 
-	LINVRNT(opg->ops_temp || osc_page_protected(env, opg, CLM_READ, 1));
+	LINVRNT(osc_page_protected(env, opg, CLM_READ, 1));
 
 	CDEBUG(D_TRACE, "%p\n", opg);
 	osc_page_transfer_put(env, opg);

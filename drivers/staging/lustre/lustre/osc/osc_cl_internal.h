@@ -356,11 +356,6 @@ struct osc_page {
 	 */
 	unsigned	      ops_transfer_pinned:1,
 	/**
-	 * True for a `temporary page' created by read-ahead code, probably
-	 * outside of any DLM lock.
-	 */
-			      ops_temp:1,
-	/**
 	 * in LRU?
 	 */
 			      ops_in_lru:1,
