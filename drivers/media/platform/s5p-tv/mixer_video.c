@@ -80,6 +80,7 @@ int mxr_acquire_video(struct mxr_device *mdev,
 		goto fail;
 	}
 
+	vb2_dma_contig_set_max_seg_size(mdev->dev, DMA_BIT_MASK(32));
 	mdev->alloc_ctx = vb2_dma_contig_init_ctx(mdev->dev);
 	if (IS_ERR(mdev->alloc_ctx)) {
 		mxr_err(mdev, "could not acquire vb2 allocator\n");
@@ -152,6 +153,7 @@ void mxr_release_video(struct mxr_device *mdev)
 		kfree(mdev->output[i]);
 
 	vb2_dma_contig_cleanup_ctx(mdev->alloc_ctx);
+	vb2_dma_contig_clear_max_seg_size(mdev->dev);
 	v4l2_device_unregister(&mdev->v4l2_dev);
 }
 
