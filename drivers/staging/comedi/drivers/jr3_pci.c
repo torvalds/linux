@@ -231,7 +231,7 @@ static unsigned int jr3_pci_ai_read_chan(struct comedi_device *dev,
 
 	if (chan < 56) {
 		unsigned int axis = chan % 8;
-		unsigned filter = chan / 8;
+		unsigned int filter = chan / 8;
 
 		switch (axis) {
 		case 0:
@@ -690,7 +690,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	if (sizeof(struct jr3_channel) != 0xc00) {
 		dev_err(dev->class_dev,
 			"sizeof(struct jr3_channel) = %x [expected %x]\n",
-			(unsigned)sizeof(struct jr3_channel), 0xc00);
+			(unsigned int)sizeof(struct jr3_channel), 0xc00);
 		return -EINVAL;
 	}
 
