@@ -40,9 +40,13 @@
 #include <asm/msr.h>
 
 /*
- * Temporary microcode blobs pointers storage. We note here the pointers to
- * microcode blobs we've got from whatever storage (detached initrd, builtin).
- * Later on, we put those into final storage mc_saved_data.mc_saved.
+ * Temporary microcode blobs pointers storage. We note here during early load
+ * the pointers to microcode blobs we've got from whatever storage (detached
+ * initrd, builtin). Later on, we put those into final storage
+ * mc_saved_data.mc_saved.
+ *
+ * Important: those are offsets from the beginning of initrd or absolute
+ * addresses within the kernel image when built-in.
  */
 static unsigned long mc_tmp_ptrs[MAX_UCODE_COUNT];
 
@@ -57,6 +61,7 @@ static struct ucode_blobs {
 	bool valid;
 } blobs;
 
+/* Go through saved patches and find the one suitable for the current CPU. */
 static enum ucode_state
 find_microcode_patch(struct microcode_intel **saved,
 		     unsigned int num_saved, struct ucode_cpu_info *uci)
@@ -466,6 +471,7 @@ static void show_saved_mc(void)
 static void save_mc_for_early(u8 *mc)
 {
 #ifdef CONFIG_HOTPLUG_CPU
+	/* Synchronization during CPU hotplug. */
 	static DEFINE_MUTEX(x86_cpu_microcode_mutex);
 
 	struct microcode_intel *mc_saved_tmp[MAX_UCODE_COUNT];
@@ -474,10 +480,6 @@ static void save_mc_for_early(u8 *mc)
 	struct microcode_intel **mc_saved;
 	int ret, i;
 
-	/*
-	 * Hold hotplug lock so mc_saved_data is not accessed by a CPU in
-	 * hotplug.
-	 */
 	mutex_lock(&x86_cpu_microcode_mutex);
 
 	mc_saved_count_init = mc_saved_data.num_saved;
