@@ -2409,8 +2409,10 @@ static int do_new_mount(struct path *path, const char *fstype, int flags,
 			mnt_flags |= MNT_NODEV | MNT_LOCK_NODEV;
 		}
 		if (type->fs_flags & FS_USERNS_VISIBLE) {
-			if (!fs_fully_visible(type, &mnt_flags))
+			if (!fs_fully_visible(type, &mnt_flags)) {
+				put_filesystem(type);
 				return -EPERM;
+			}
 		}
 	}
 
