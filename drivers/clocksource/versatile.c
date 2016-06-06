@@ -38,7 +38,7 @@ static int __init versatile_sched_clock_init(struct device_node *node)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE_RET(vexpress, "arm,vexpress-sysreg",
+CLOCKSOURCE_OF_DECLARE(vexpress, "arm,vexpress-sysreg",
 		       versatile_sched_clock_init);
-CLOCKSOURCE_OF_DECLARE_RET(versatile, "arm,versatile-sysreg",
+CLOCKSOURCE_OF_DECLARE(versatile, "arm,versatile-sysreg",
 		       versatile_sched_clock_init);

@@ -293,5 +293,5 @@ err_alloc:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE_RET(ox810se_rps,
-			   "oxsemi,ox810se-rps-timer", oxnas_rps_timer_init);
+CLOCKSOURCE_OF_DECLARE(ox810se_rps,
+		       "oxsemi,ox810se-rps-timer", oxnas_rps_timer_init);

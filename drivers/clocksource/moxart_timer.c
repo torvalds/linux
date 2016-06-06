@@ -178,4 +178,4 @@ static int __init moxart_timer_init(struct device_node *node)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE_RET(moxart, "moxa,moxart-timer", moxart_timer_init);
+CLOCKSOURCE_OF_DECLARE(moxart, "moxa,moxart-timer", moxart_timer_init);

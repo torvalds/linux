@@ -96,5 +96,5 @@ static int __init nps_timer_init(struct device_node *node)
 	return nps_setup_clocksource(node, clk);
 }
 
-CLOCKSOURCE_OF_DECLARE_RET(ezchip_nps400_clksrc, "ezchip,nps400-timer",
-			   nps_timer_init);
+CLOCKSOURCE_OF_DECLARE(ezchip_nps400_clksrc, "ezchip,nps400-timer",
+		       nps_timer_init);

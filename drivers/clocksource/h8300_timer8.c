@@ -215,4 +215,4 @@ free_clk:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE_RET(h8300_8bit, "renesas,8bit-timer", h8300_8timer_init);
+CLOCKSOURCE_OF_DECLARE(h8300_8bit, "renesas,8bit-timer", h8300_8timer_init);

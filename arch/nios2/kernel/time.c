@@ -352,4 +352,4 @@ void __init time_init(void)
 	clocksource_probe();
 }
 
-CLOCKSOURCE_OF_DECLARE_RET(nios2_timer, ALTR_TIMER_COMPATIBLE, nios2_time_init);
+CLOCKSOURCE_OF_DECLARE(nios2_timer, ALTR_TIMER_COMPATIBLE, nios2_time_init);

@@ -81,5 +81,5 @@ out_unmap:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE_RET(arm_systick, "arm,armv7m-systick",
+CLOCKSOURCE_OF_DECLARE(arm_systick, "arm,armv7m-systick",
 			system_timer_of_register);

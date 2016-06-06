@@ -132,4 +132,4 @@ static int __init st_clksrc_of_register(struct device_node *np)
 
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE_RET(ddata, "st,stih407-lpc", st_clksrc_of_register);
+CLOCKSOURCE_OF_DECLARE(ddata, "st,stih407-lpc", st_clksrc_of_register);

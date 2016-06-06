@@ -369,4 +369,4 @@ err:
 	kfree(priv);
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE_RET(flextimer, "fsl,ftm-timer", ftm_timer_init);
+CLOCKSOURCE_OF_DECLARE(flextimer, "fsl,ftm-timer", ftm_timer_init);

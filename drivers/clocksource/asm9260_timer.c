@@ -238,5 +238,5 @@ static int __init asm9260_timer_init(struct device_node *np)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE_RET(asm9260_timer, "alphascale,asm9260-timer",
+CLOCKSOURCE_OF_DECLARE(asm9260_timer, "alphascale,asm9260-timer",
 		asm9260_timer_init);

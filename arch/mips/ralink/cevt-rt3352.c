@@ -150,4 +150,4 @@ static int __init ralink_systick_init(struct device_node *np)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE_RET(systick, "ralink,cevt-systick", ralink_systick_init);
+CLOCKSOURCE_OF_DECLARE(systick, "ralink,cevt-systick", ralink_systick_init);

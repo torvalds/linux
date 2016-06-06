@@ -130,7 +130,7 @@ static int __init arc_cs_setup_gfrc(struct device_node *node)
 
 	return clocksource_register_hz(&arc_counter_gfrc, arc_timer_freq);
 }
-CLOCKSOURCE_OF_DECLARE_RET(arc_gfrc, "snps,archs-timer-gfrc", arc_cs_setup_gfrc);
+CLOCKSOURCE_OF_DECLARE(arc_gfrc, "snps,archs-timer-gfrc", arc_cs_setup_gfrc);
 
 #endif
 
@@ -192,7 +192,7 @@ static int __init arc_cs_setup_rtc(struct device_node *node)
 
 	return clocksource_register_hz(&arc_counter_rtc, arc_timer_freq);
 }
-CLOCKSOURCE_OF_DECLARE_RET(arc_rtc, "snps,archs-timer-rtc", arc_cs_setup_rtc);
+CLOCKSOURCE_OF_DECLARE(arc_rtc, "snps,archs-timer-rtc", arc_cs_setup_rtc);
 
 #endif
 
@@ -379,7 +379,7 @@ static int __init arc_of_timer_init(struct device_node *np)
 
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE_RET(arc_clkevt, "snps,arc-timer", arc_of_timer_init);
+CLOCKSOURCE_OF_DECLARE(arc_clkevt, "snps,arc-timer", arc_of_timer_init);
 
 /*
  * Called from start_kernel() - boot CPU only

@@ -784,8 +784,8 @@ static int __init arch_timer_of_init(struct device_node *np)
 
 	return arch_timer_init();
 }
-CLOCKSOURCE_OF_DECLARE_RET(armv7_arch_timer, "arm,armv7-timer", arch_timer_of_init);
-CLOCKSOURCE_OF_DECLARE_RET(armv8_arch_timer, "arm,armv8-timer", arch_timer_of_init);
+CLOCKSOURCE_OF_DECLARE(armv7_arch_timer, "arm,armv7-timer", arch_timer_of_init);
+CLOCKSOURCE_OF_DECLARE(armv8_arch_timer, "arm,armv8-timer", arch_timer_of_init);
 
 static int __init arch_timer_mem_init(struct device_node *np)
 {
@@ -868,7 +868,7 @@ out:
 	of_node_put(best_frame);
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE_RET(armv7_arch_timer_mem, "arm,armv7-timer-mem",
+CLOCKSOURCE_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
 		       arch_timer_mem_init);
 
 #ifdef CONFIG_ACPI

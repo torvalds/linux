@@ -311,4 +311,4 @@ static int __init lpc32xx_timer_init(struct device_node *np)
 
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE_RET(lpc32xx_timer, "nxp,lpc3220-timer", lpc32xx_timer_init);
+CLOCKSOURCE_OF_DECLARE(lpc32xx_timer, "nxp,lpc3220-timer", lpc32xx_timer_init);

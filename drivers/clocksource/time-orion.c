@@ -167,4 +167,4 @@ static int __init orion_timer_init(struct device_node *np)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE_RET(orion_timer, "marvell,orion-timer", orion_timer_init);
+CLOCKSOURCE_OF_DECLARE(orion_timer, "marvell,orion-timer", orion_timer_init);

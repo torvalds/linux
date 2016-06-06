@@ -226,5 +226,5 @@ static int __init sun4i_timer_init(struct device_node *node)
 
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE_RET(sun4i, "allwinner,sun4i-a10-timer",
+CLOCKSOURCE_OF_DECLARE(sun4i, "allwinner,sun4i-a10-timer",
 		       sun4i_timer_init);

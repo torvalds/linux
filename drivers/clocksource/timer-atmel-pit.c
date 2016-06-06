@@ -270,5 +270,5 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 
 	return at91sam926x_pit_common_init(data);
 }
-CLOCKSOURCE_OF_DECLARE_RET(at91sam926x_pit, "atmel,at91sam9260-pit",
+CLOCKSOURCE_OF_DECLARE(at91sam926x_pit, "atmel,at91sam9260-pit",
 		       at91sam926x_pit_dt_init);

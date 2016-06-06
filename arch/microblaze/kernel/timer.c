@@ -332,5 +332,5 @@ static int __init xilinx_timer_init(struct device_node *timer)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE_RET(xilinx_timer, "xlnx,xps-timer-1.00.a",
+CLOCKSOURCE_OF_DECLARE(xilinx_timer, "xlnx,xps-timer-1.00.a",
 		       xilinx_timer_init);

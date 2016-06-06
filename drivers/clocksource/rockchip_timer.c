@@ -205,7 +205,7 @@ static int __init rk3399_timer_init(struct device_node *np)
 	return rk_timer_init(np, TIMER_CONTROL_REG3399);
 }
 
-CLOCKSOURCE_OF_DECLARE_RET(rk3288_timer, "rockchip,rk3288-timer",
-			   rk3288_timer_init);
-CLOCKSOURCE_OF_DECLARE_RET(rk3399_timer, "rockchip,rk3399-timer",
-			   rk3399_timer_init);
+CLOCKSOURCE_OF_DECLARE(rk3288_timer, "rockchip,rk3288-timer",
+		       rk3288_timer_init);
+CLOCKSOURCE_OF_DECLARE(rk3399_timer, "rockchip,rk3399-timer",
+		       rk3399_timer_init);

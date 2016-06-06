@@ -86,5 +86,5 @@ static int __init clksrc_dbx500_prcmu_init(struct device_node *node)
 #endif
 	return clocksource_register_hz(&clocksource_dbx500_prcmu, RATE_32K);
 }
-CLOCKSOURCE_OF_DECLARE_RET(dbx500_prcmu, "stericsson,db8500-prcmu-timer-4",
+CLOCKSOURCE_OF_DECLARE(dbx500_prcmu, "stericsson,db8500-prcmu-timer-4",
 		       clksrc_dbx500_prcmu_init);
