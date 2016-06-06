@@ -306,6 +306,29 @@ enum nvme_opcode {
 	nvme_cmd_resv_release	= 0x15,
 };
 
+/*
+ * Lowest two bits of our flags field (FUSE field in the spec):
+ *
+ * @NVME_CMD_FUSE_FIRST:   Fused Operation, first command
+ * @NVME_CMD_FUSE_SECOND:  Fused Operation, second command
+ *
+ * Highest two bits in our flags field (PSDT field in the spec):
+ *
+ * @NVME_CMD_PSDT_SGL_METABUF:	Use SGLS for this transfer,
+ *	If used, MPTR contains addr of single physical buffer (byte aligned).
+ * @NVME_CMD_PSDT_SGL_METASEG:	Use SGLS for this transfer,
+ *	If used, MPTR contains an address of an SGL segment containing
+ *	exactly 1 SGL descriptor (qword aligned).
+ */
+enum {
+	NVME_CMD_FUSE_FIRST	= (1 << 0),
+	NVME_CMD_FUSE_SECOND	= (1 << 1),
+
+	NVME_CMD_SGL_METABUF	= (1 << 6),
+	NVME_CMD_SGL_METASEG	= (1 << 7),
+	NVME_CMD_SGL_ALL	= NVME_CMD_SGL_METABUF | NVME_CMD_SGL_METASEG,
+};
+
 struct nvme_common_command {
 	__u8			opcode;
 	__u8			flags;
