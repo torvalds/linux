@@ -80,6 +80,8 @@ enum qe_clock {
 	QE_CLK22,		/* Clock 22 */
 	QE_CLK23,		/* Clock 23 */
 	QE_CLK24,		/* Clock 24 */
+	QE_RSYNC_PIN,		/* RSYNC from pin */
+	QE_TSYNC_PIN,		/* TSYNC from pin */
 	QE_CLK_DUMMY
 };
 
