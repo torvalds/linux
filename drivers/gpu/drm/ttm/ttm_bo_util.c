@@ -400,7 +400,7 @@ out2:
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
 
-	if ((man->flags & TTM_MEMTYPE_FLAG_FIXED) && (ttm != NULL)) {
+	if (man->flags & TTM_MEMTYPE_FLAG_FIXED) {
 		ttm_tt_destroy(ttm);
 		bo->ttm = NULL;
 	}
@@ -647,8 +647,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		if ((man->flags & TTM_MEMTYPE_FLAG_FIXED) &&
-		    (bo->ttm != NULL)) {
+		if (man->flags & TTM_MEMTYPE_FLAG_FIXED) {
 			ttm_tt_destroy(bo->ttm);
 			bo->ttm = NULL;
 		}

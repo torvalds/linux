@@ -168,7 +168,7 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 {
 	int ret;
 
-	if (unlikely(ttm == NULL))
+	if (ttm == NULL)
 		return;
 
 	if (ttm->state == tt_bound) {

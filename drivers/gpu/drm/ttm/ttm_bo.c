@@ -147,8 +147,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	BUG_ON(!list_empty(&bo->lru));
 	BUG_ON(!list_empty(&bo->ddestroy));
 
-	if (bo->ttm)
-		ttm_tt_destroy(bo->ttm);
+	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->glob->bo_count);
 	if (bo->resv == &bo->ttm_resv)
 		reservation_object_fini(&bo->ttm_resv);
@@ -396,7 +395,7 @@ moved:
 
 out_err:
 	new_man = &bdev->man[bo->mem.mem_type];
-	if ((new_man->flags & TTM_MEMTYPE_FLAG_FIXED) && bo->ttm) {
+	if (new_man->flags & TTM_MEMTYPE_FLAG_FIXED) {
 		ttm_tt_destroy(bo->ttm);
 		bo->ttm = NULL;
 	}
@@ -417,10 +416,8 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	if (bo->bdev->driver->move_notify)
 		bo->bdev->driver->move_notify(bo, NULL);
 
-	if (bo->ttm) {
-		ttm_tt_destroy(bo->ttm);
-		bo->ttm = NULL;
-	}
+	ttm_tt_destroy(bo->ttm);
+	bo->ttm = NULL;
 	ttm_bo_mem_put(bo, &bo->mem);
 
 	ww_mutex_unlock (&bo->resv->lock);
