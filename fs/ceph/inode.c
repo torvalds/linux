@@ -477,7 +477,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_head_snapc = NULL;
 	ci->i_snap_caps = 0;
 
-	for (i = 0; i < CEPH_FILE_MODE_NUM; i++)
+	for (i = 0; i < CEPH_FILE_MODE_BITS; i++)
 		ci->i_nr_by_mode[i] = 0;
 
 	mutex_init(&ci->i_truncate_mutex);

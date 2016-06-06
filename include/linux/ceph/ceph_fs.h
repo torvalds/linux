@@ -525,7 +525,7 @@ struct ceph_filelock {
 #define CEPH_FILE_MODE_WR         2
 #define CEPH_FILE_MODE_RDWR       3  /* RD | WR */
 #define CEPH_FILE_MODE_LAZY       4  /* lazy io */
-#define CEPH_FILE_MODE_NUM        8  /* bc these are bit fields.. mostly */
+#define CEPH_FILE_MODE_BITS       4
 
 int ceph_flags_to_mode(int flags);
 

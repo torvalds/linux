@@ -321,7 +321,7 @@ struct ceph_inode_info {
 						    dirty|flushing caps */
 	unsigned i_snap_caps;           /* cap bits for snapped files */
 
-	int i_nr_by_mode[CEPH_FILE_MODE_NUM];  /* open file counts */
+	int i_nr_by_mode[CEPH_FILE_MODE_BITS];  /* open file counts */
 
 	struct mutex i_truncate_mutex;
 	u32 i_truncate_seq;        /* last truncate to smaller size */
@@ -906,10 +906,7 @@ extern int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 			 loff_t endoff, int *got, struct page **pinned_page);
 
 /* for counting open files by mode */
-static inline void __ceph_get_fmode(struct ceph_inode_info *ci, int mode)
-{
-	ci->i_nr_by_mode[mode]++;
-}
+extern void __ceph_get_fmode(struct ceph_inode_info *ci, int mode);
 extern void ceph_put_fmode(struct ceph_inode_info *ci, int mode);
 
 /* addr.c */

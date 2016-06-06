@@ -849,12 +849,14 @@ int __ceph_caps_used(struct ceph_inode_info *ci)
  */
 int __ceph_caps_file_wanted(struct ceph_inode_info *ci)
 {
-	int want = 0;
-	int mode;
-	for (mode = 0; mode < CEPH_FILE_MODE_NUM; mode++)
-		if (ci->i_nr_by_mode[mode])
-			want |= ceph_caps_for_mode(mode);
-	return want;
+	int i, bits = 0;
+	for (i = 0; i < CEPH_FILE_MODE_BITS; i++) {
+		if (ci->i_nr_by_mode[i])
+			bits |= 1 << i;
+	}
+	if (bits == 0)
+		return 0;
+	return ceph_caps_for_mode(bits >> 1);
 }
 
 /*
@@ -3682,6 +3684,16 @@ void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc)
 	dout("flush_dirty_caps done\n");
 }
 
+void __ceph_get_fmode(struct ceph_inode_info *ci, int fmode)
+{
+	int i;
+	int bits = (fmode << 1) | 1;
+	for (i = 0; i < CEPH_FILE_MODE_BITS; i++) {
+		if (bits & (1 << i))
+			ci->i_nr_by_mode[i]++;
+	}
+}
+
 /*
  * Drop open file reference.  If we were the last open file,
  * we may need to release capabilities to the MDS (or schedule
@@ -3689,15 +3701,20 @@ void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc)
  */
 void ceph_put_fmode(struct ceph_inode_info *ci, int fmode)
 {
-	struct inode *inode = &ci->vfs_inode;
-	int last = 0;
-
+	int i, last = 0;
+	int bits = (fmode << 1) | 1;
 	spin_lock(&ci->i_ceph_lock);
-	dout("put_fmode %p fmode %d %d -> %d\n", inode, fmode,
-	     ci->i_nr_by_mode[fmode], ci->i_nr_by_mode[fmode]-1);
-	BUG_ON(ci->i_nr_by_mode[fmode] == 0);
-	if (--ci->i_nr_by_mode[fmode] == 0)
-		last++;
+	for (i = 0; i < CEPH_FILE_MODE_BITS; i++) {
+		if (bits & (1 << i)) {
+			BUG_ON(ci->i_nr_by_mode[i] == 0);
+			if (--ci->i_nr_by_mode[i] == 0)
+				last++;
+		}
+	}
+	dout("put_fmode %p fmode %d {%d,%d,%d,%d}\n",
+	     &ci->vfs_inode, fmode,
+	     ci->i_nr_by_mode[0], ci->i_nr_by_mode[1],
+	     ci->i_nr_by_mode[2], ci->i_nr_by_mode[3]);
 	spin_unlock(&ci->i_ceph_lock);
 
 	if (last && ci->i_vino.snap == CEPH_NOSNAP)
