@@ -982,7 +982,7 @@ static void its_free_tables(struct its_node *its)
 	}
 }
 
-static int its_alloc_tables(const char *node_name, struct its_node *its)
+static int its_alloc_tables(struct its_node *its)
 {
 	u64 typer = readq_relaxed(its->base + GITS_TYPER);
 	u32 ids = GITS_TYPER_DEVBITS(typer);
@@ -1598,7 +1598,7 @@ static int __init its_probe(struct device_node *node,
 
 	its_enable_quirks(its);
 
-	err = its_alloc_tables(node->full_name, its);
+	err = its_alloc_tables(its);
 	if (err)
 		goto out_free_cmd;
 
