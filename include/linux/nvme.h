@@ -107,7 +107,10 @@ struct nvme_id_ctrl {
 	__u8			mdts;
 	__le16			cntlid;
 	__le32			ver;
-	__u8			rsvd84[172];
+	__le32			rtd3r;
+	__le32			rtd3e;
+	__le32			oaes;
+	__u8			rsvd96[160];
 	__le16			oacs;
 	__u8			acl;
 	__u8			aerl;
