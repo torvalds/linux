@@ -52,13 +52,6 @@ static int osc_lru_reserve(const struct lu_env *env, struct osc_object *obj,
  *  @{
  */
 
-static int osc_page_protected(const struct lu_env *env,
-			      const struct osc_page *opg,
-			      enum cl_lock_mode mode, int unref)
-{
-	return 1;
-}
-
 /*****************************************************************************
  *
  * Page operations.
@@ -109,8 +102,6 @@ int osc_page_cache_add(const struct lu_env *env,
 {
 	struct osc_page *opg = cl2osc_page(slice);
 	int result;
-
-	LINVRNT(osc_page_protected(env, opg, CLM_WRITE, 0));
 
 	osc_page_transfer_get(opg, "transfer\0cache");
 	result = osc_queue_async_io(env, io, opg);
@@ -214,8 +205,6 @@ static void osc_page_delete(const struct lu_env *env,
 	struct osc_object *obj = cl2osc(opg->ops_cl.cpl_obj);
 	int rc;
 
-	LINVRNT(osc_page_protected(env, opg, CLM_READ, 1));
-
 	CDEBUG(D_TRACE, "%p\n", opg);
 	osc_page_transfer_put(env, opg);
 	rc = osc_teardown_async_page(env, obj, opg);
@@ -254,8 +243,6 @@ static void osc_page_clip(const struct lu_env *env,
 	struct osc_page *opg = cl2osc_page(slice);
 	struct osc_async_page *oap = &opg->ops_oap;
 
-	LINVRNT(osc_page_protected(env, opg, CLM_READ, 0));
-
 	opg->ops_from = from;
 	opg->ops_to = to;
 	spin_lock(&oap->oap_lock);
@@ -268,8 +255,6 @@ static int osc_page_cancel(const struct lu_env *env,
 {
 	struct osc_page *opg = cl2osc_page(slice);
 	int rc = 0;
-
-	LINVRNT(osc_page_protected(env, opg, CLM_READ, 0));
 
 	/* Check if the transferring against this page
 	 * is completed, or not even queued.
@@ -320,10 +305,6 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 		cl_page_slice_add(page, &opg->ops_cl, obj, index,
 				  &osc_page_ops);
 	}
-	/*
-	 * Cannot assert osc_page_protected() here as read-ahead
-	 * creates temporary pages outside of a lock.
-	 */
 	/* ops_inflight and ops_lru are the same field, but it doesn't
 	 * hurt to initialize it twice :-)
 	 */
@@ -381,9 +362,6 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 {
 	struct osc_async_page *oap = &opg->ops_oap;
 	struct osc_object *obj = oap->oap_obj;
-
-	LINVRNT(osc_page_protected(env, opg,
-				   crt == CRT_WRITE ? CLM_WRITE : CLM_READ, 1));
 
 	LASSERTF(oap->oap_magic == OAP_MAGIC, "Bad oap magic: oap %p, magic 0x%x\n",
 		 oap, oap->oap_magic);
