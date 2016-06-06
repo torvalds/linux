@@ -15,8 +15,8 @@
 
 struct dpc_dev {
 	struct pcie_device	*dev;
-	struct work_struct 	work;
-	int 			cap_pos;
+	struct work_struct	work;
+	int			cap_pos;
 };
 
 static void dpc_wait_link_inactive(struct pci_dev *pdev)
