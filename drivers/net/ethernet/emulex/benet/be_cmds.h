@@ -1556,7 +1556,9 @@ struct be_cmd_resp_acpi_wol_magic_config_v1 {
 	u8 rsvd0[2];
 	u8 wol_settings;
 	u8 rsvd1[5];
-	u32 rsvd2[295];
+	u32 rsvd2[288];
+	u8 magic_mac[6];
+	u8 rsvd3[22];
 } __packed;
 
 #define BE_GET_WOL_CAP			2

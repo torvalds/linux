@@ -3636,40 +3636,6 @@ err:
 	return -EIO;
 }
 
-static int be_setup_wol(struct be_adapter *adapter, bool enable)
-{
-	struct device *dev = &adapter->pdev->dev;
-	struct be_dma_mem cmd;
-	u8 mac[ETH_ALEN];
-	int status;
-
-	eth_zero_addr(mac);
-
-	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
-	cmd.va = dma_zalloc_coherent(dev, cmd.size, &cmd.dma, GFP_KERNEL);
-	if (!cmd.va)
-		return -ENOMEM;
-
-	if (enable) {
-		status = pci_write_config_dword(adapter->pdev,
-						PCICFG_PM_CONTROL_OFFSET,
-						PCICFG_PM_CONTROL_MASK);
-		if (status) {
-			dev_err(dev, "Could not enable Wake-on-lan\n");
-			goto err;
-		}
-	} else {
-		ether_addr_copy(mac, adapter->netdev->dev_addr);
-	}
-
-	status = be_cmd_enable_magic_wol(adapter, mac, &cmd);
-	pci_enable_wake(adapter->pdev, PCI_D3hot, enable);
-	pci_enable_wake(adapter->pdev, PCI_D3cold, enable);
-err:
-	dma_free_coherent(dev, cmd.size, cmd.va, cmd.dma);
-	return status;
-}
-
 static void be_vf_eth_addr_generate(struct be_adapter *adapter, u8 *mac)
 {
 	u32 addr;
@@ -4294,6 +4260,8 @@ static int be_get_config(struct be_adapter *adapter)
 	}
 
 	be_cmd_get_acpi_wol_cap(adapter);
+	pci_enable_wake(adapter->pdev, PCI_D3hot, adapter->wol_en);
+	pci_enable_wake(adapter->pdev, PCI_D3cold, adapter->wol_en);
 
 	be_cmd_query_port_name(adapter);
 
@@ -5463,9 +5431,6 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
 
-	if (adapter->wol_en)
-		be_setup_wol(adapter, true);
-
 	be_intr_set(adapter, false);
 	be_cancel_err_detection(adapter);
 
@@ -5493,9 +5458,6 @@ static int be_pci_resume(struct pci_dev *pdev)
 		return status;
 
 	be_schedule_err_detection(adapter, ERR_DETECTION_DELAY);
-
-	if (adapter->wol_en)
-		be_setup_wol(adapter, false);
 
 	return 0;
 }
