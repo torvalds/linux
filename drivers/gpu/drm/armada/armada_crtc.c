@@ -260,7 +260,7 @@ static void armada_drm_crtc_complete_frame_work(struct armada_crtc *dcrtc,
 
 	if (fwork->event) {
 		spin_lock_irqsave(&dev->event_lock, flags);
-		drm_send_vblank_event(dev, dcrtc->num, fwork->event);
+		drm_crtc_send_vblank_event(&dcrtc->crtc, fwork->event);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
