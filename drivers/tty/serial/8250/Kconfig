@@ -387,7 +387,8 @@ config SERIAL_8250_MT6577
 
 config SERIAL_8250_UNIPHIER
 	tristate "Support for UniPhier on-chip UART"
-	depends on SERIAL_8250 && ARCH_UNIPHIER
+	depends on SERIAL_8250
+	depends on ARCH_UNIPHIER || COMPILE_TEST
 	help
 	  If you have a UniPhier based board and want to use the on-chip
 	  serial ports, say Y to this option. If unsure, say N.
