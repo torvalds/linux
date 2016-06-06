@@ -393,11 +393,11 @@ static const struct video_device aim_videodev_template = {
 static struct most_video_dev *get_aim_dev(
 	struct most_interface *iface, int channel_idx)
 {
-	struct most_video_dev *mdev, *tmp;
+	struct most_video_dev *mdev;
 	unsigned long flags;
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_for_each_entry_safe(mdev, tmp, &video_devices, list) {
+	list_for_each_entry(mdev, &video_devices, list) {
 		if (mdev->iface == iface && mdev->ch_idx == channel_idx) {
 			spin_unlock_irqrestore(&list_lock, flags);
 			return mdev;
