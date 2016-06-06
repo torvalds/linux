@@ -1305,5 +1305,11 @@ config REGULATOR_QCOM_LABIBB
 	  boost regulator and IBB can be used as a negative boost regulator
 	  for LCD display panel.
 
+config REGULATOR_XZ3216
+	tristate "Xizhuo XZ3216 voltage regulator"
+	depends on I2C
+	help
+	  Support the voltage and current regulators of the XZ321X series of DCDC devices.
+
 endif
 
