@@ -901,9 +901,12 @@ static void setup_hw_stats(struct ib_device *device, struct ib_port *port,
 	if (!stats->names || stats->num_counters <= 0)
 		goto err_free_stats;
 
+	/*
+	 * Two extra attribue elements here, one for the lifespan entry and
+	 * one to NULL terminate the list for the sysfs core code
+	 */
 	hsag = kzalloc(sizeof(*hsag) +
-		       // 1 extra for the lifespan config entry
-		       sizeof(void *) * (stats->num_counters + 1),
+		       sizeof(void *) * (stats->num_counters + 2),
 		       GFP_KERNEL);
 	if (!hsag)
 		goto err_free_stats;
