@@ -987,6 +987,11 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	I915_WRITE(GEN8_L3SQCREG4, (I915_READ(GEN8_L3SQCREG4) |
 				    GEN8_LQSC_FLUSH_COHERENT_LINES));
 
+	/* WaVFEStateAfterPipeControlwithMediaStateClear:skl,bxt */
+	ret = wa_ring_whitelist_reg(engine, GEN9_CTX_PREEMPT_REG);
+	if (ret)
+		return ret;
+
 	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt */
 	ret= wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
 	if (ret)

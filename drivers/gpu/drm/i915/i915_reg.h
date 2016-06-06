@@ -6072,6 +6072,7 @@ enum skl_disp_power_wells {
 #define  GEN9_TSG_BARRIER_ACK_DISABLE		(1<<8)
 
 #define GEN9_CS_DEBUG_MODE1		_MMIO(0x20ec)
+#define GEN9_CTX_PREEMPT_REG		_MMIO(0x2248)
 #define GEN8_CS_CHICKEN1		_MMIO(0x2580)
 
 /* GEN7 chicken */
