@@ -259,7 +259,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	pr_info("vidioc_querycap()\n");
 
 	strlcpy(cap->driver, "v4l2_most_aim", sizeof(cap->driver));
-	strlcpy(cap->card, "my_card", sizeof(cap->card));
+	strlcpy(cap->card, "MOST", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "%s", mdev->iface->description);
 
@@ -446,7 +446,8 @@ static int aim_register_videodev(struct most_video_dev *mdev)
 	*mdev->vdev = aim_videodev_template;
 	mdev->vdev->v4l2_dev = &mdev->v4l2_dev;
 	mdev->vdev->lock = &mdev->lock;
-	strcpy(mdev->vdev->name, "most v4l2 aim video");
+	snprintf(mdev->vdev->name, sizeof(mdev->vdev->name), "MOST: %s",
+		 mdev->v4l2_dev.name);
 
 	/* Register the v4l2 device */
 	video_set_drvdata(mdev->vdev, mdev);
@@ -518,8 +519,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 	mdev->v4l2_dev.release = aim_v4l2_dev_release;
 
 	/* Create the v4l2_device */
-	strlcpy(mdev->v4l2_dev.name, "most_video_device",
-		sizeof(mdev->v4l2_dev.name));
+	strlcpy(mdev->v4l2_dev.name, name, sizeof(mdev->v4l2_dev.name));
 	ret = v4l2_device_register(NULL, &mdev->v4l2_dev);
 	if (ret) {
 		pr_err("v4l2_device_register() failed\n");
