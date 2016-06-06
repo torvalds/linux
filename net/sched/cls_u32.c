@@ -863,7 +863,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	if (tb[TCA_U32_FLAGS]) {
 		flags = nla_get_u32(tb[TCA_U32_FLAGS]);
 		if (!tc_flags_valid(flags))
-			return err;
+			return -EINVAL;
 	}
 
 	n = (struct tc_u_knode *)*arg;
