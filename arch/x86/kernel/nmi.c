@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
+#include <linux/ratelimit.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 
