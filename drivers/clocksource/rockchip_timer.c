@@ -150,13 +150,12 @@ static void __init rk_timer_init(struct device_node *np)
 	}
 
 	ce->name = TIMER_NAME;
-	ce->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT |
-		       CLOCK_EVT_FEAT_DYNIRQ;
+	ce->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	ce->set_next_event = rk_timer_set_next_event;
 	ce->set_state_shutdown = rk_timer_shutdown;
 	ce->set_state_periodic = rk_timer_set_periodic;
 	ce->irq = irq;
-	ce->cpumask = cpu_all_mask;
+	ce->cpumask = cpumask_of(0);
 	ce->rating = 250;
 
 	ret = request_irq(irq, rk_timer_interrupt, IRQF_TIMER, TIMER_NAME, ce);
