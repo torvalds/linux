@@ -307,6 +307,43 @@ TRACE_EVENT(amdgpu_bo_list_set,
 		      __entry->bo_size)
 );
 
+TRACE_EVENT(amdgpu_cs_bo_status,
+	    TP_PROTO(uint64_t total_bo, uint64_t total_size),
+	    TP_ARGS(total_bo, total_size),
+	    TP_STRUCT__entry(
+			__field(u64, total_bo)
+			__field(u64, total_size)
+			),
+
+	    TP_fast_assign(
+			__entry->total_bo = total_bo;
+			__entry->total_size = total_size;
+			),
+	    TP_printk("total bo size = %Ld, total bo count = %Ld",
+			__entry->total_bo, __entry->total_size)
+);
+
+TRACE_EVENT(amdgpu_ttm_bo_move,
+	    TP_PROTO(struct amdgpu_bo* bo, uint32_t new_placement, uint32_t old_placement),
+	    TP_ARGS(bo, new_placement, old_placement),
+	    TP_STRUCT__entry(
+			__field(struct amdgpu_bo *, bo)
+			__field(u64, bo_size)
+			__field(u32, new_placement)
+			__field(u32, old_placement)
+			),
+
+	    TP_fast_assign(
+			__entry->bo      = bo;
+			__entry->bo_size = amdgpu_bo_size(bo);
+			__entry->new_placement = new_placement;
+			__entry->old_placement = old_placement;
+			),
+	    TP_printk("bo=%p from:%d to %d with size = %Ld",
+			__entry->bo, __entry->old_placement,
+			__entry->new_placement, __entry->bo_size)
+);
+
 #endif
 
 /* This part must be outside protection */
