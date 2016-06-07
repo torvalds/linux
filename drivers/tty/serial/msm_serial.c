@@ -250,7 +250,7 @@ static void msm_serial_set_mnd_regs(struct uart_port *port)
 static void msm_handle_tx(struct uart_port *port);
 static void msm_start_rx_dma(struct msm_port *msm_port);
 
-void msm_stop_dma(struct uart_port *port, struct msm_dma *dma)
+static void msm_stop_dma(struct uart_port *port, struct msm_dma *dma)
 {
 	struct device *dev = port->dev;
 	unsigned int mapped;
