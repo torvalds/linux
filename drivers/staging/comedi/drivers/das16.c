@@ -198,6 +198,7 @@ enum {
 	das16_pg_1601,
 	das16_pg_1602,
 };
+
 static const int *const das16_gainlists[] = {
 	NULL,
 	das16jr_gainlist,
