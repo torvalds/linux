@@ -657,6 +657,8 @@ static void guc_client_free(struct drm_device *dev,
 	 */
 
 	if (client->client_base) {
+		uint16_t db_id = client->doorbell_id;
+
 		/*
 		 * If we got as far as setting up a doorbell, make sure
 		 * we shut it down before unmapping & deallocating the
@@ -664,10 +666,11 @@ static void guc_client_free(struct drm_device *dev,
 		 * GuC that we've finished with it, finally deallocate
 		 * it in our bitmap
 		 */
-		if (client->doorbell_id != GUC_INVALID_DOORBELL_ID) {
+		if (db_id != GUC_INVALID_DOORBELL_ID) {
 			guc_disable_doorbell(guc, client);
-			host2guc_release_doorbell(guc, client);
-			release_doorbell(guc, client->doorbell_id);
+			if (test_bit(db_id, guc->doorbell_bitmap))
+				host2guc_release_doorbell(guc, client);
+			release_doorbell(guc, db_id);
 		}
 
 		kunmap(kmap_to_page(client->client_base));
@@ -912,6 +915,10 @@ int i915_guc_submission_init(struct drm_device *dev)
 	const size_t gemsize = round_up(poolsize, PAGE_SIZE);
 	struct intel_guc *guc = &dev_priv->guc;
 
+	/* Wipe bitmap & delete client in case of reinitialisation */
+	bitmap_clear(guc->doorbell_bitmap, 0, GUC_MAX_DOORBELLS);
+	i915_guc_submission_disable(dev);
+
 	if (!i915.enable_guc_submission)
 		return 0; /* not enabled  */
 
@@ -923,9 +930,7 @@ int i915_guc_submission_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	ida_init(&guc->ctx_ids);
-
 	guc_create_log(guc);
-
 	guc_create_ads(guc);
 
 	return 0;
