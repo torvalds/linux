@@ -262,6 +262,7 @@ struct max310x_one {
 	struct uart_port	port;
 	struct work_struct	tx_work;
 	struct work_struct	md_work;
+	struct work_struct	rs_work;
 };
 
 struct max310x_port {
@@ -877,35 +878,44 @@ static void max310x_set_termios(struct uart_port *port,
 	uart_update_timeout(port, termios->c_cflag, baud);
 }
 
-static int max310x_rs485_config(struct uart_port *port,
-				struct serial_rs485 *rs485)
+static void max310x_rs_proc(struct work_struct *ws)
 {
+	struct max310x_one *one = container_of(ws, struct max310x_one, rs_work);
 	unsigned int val;
 
-	if (rs485->delay_rts_before_send > 0x0f ||
-		    rs485->delay_rts_after_send > 0x0f)
-		return -ERANGE;
+	val = (one->port.rs485.delay_rts_before_send << 4) |
+		one->port.rs485.delay_rts_after_send;
+	max310x_port_write(&one->port, MAX310X_HDPIXDELAY_REG, val);
 
-	val = (rs485->delay_rts_before_send << 4) |
-		rs485->delay_rts_after_send;
-	max310x_port_write(port, MAX310X_HDPIXDELAY_REG, val);
-	if (rs485->flags & SER_RS485_ENABLED) {
-		max310x_port_update(port, MAX310X_MODE1_REG,
+	if (one->port.rs485.flags & SER_RS485_ENABLED) {
+		max310x_port_update(&one->port, MAX310X_MODE1_REG,
 				MAX310X_MODE1_TRNSCVCTRL_BIT,
 				MAX310X_MODE1_TRNSCVCTRL_BIT);
-		max310x_port_update(port, MAX310X_MODE2_REG,
+		max310x_port_update(&one->port, MAX310X_MODE2_REG,
 				MAX310X_MODE2_ECHOSUPR_BIT,
 				MAX310X_MODE2_ECHOSUPR_BIT);
 	} else {
-		max310x_port_update(port, MAX310X_MODE1_REG,
+		max310x_port_update(&one->port, MAX310X_MODE1_REG,
 				MAX310X_MODE1_TRNSCVCTRL_BIT, 0);
-		max310x_port_update(port, MAX310X_MODE2_REG,
+		max310x_port_update(&one->port, MAX310X_MODE2_REG,
 				MAX310X_MODE2_ECHOSUPR_BIT, 0);
 	}
+}
+
+static int max310x_rs485_config(struct uart_port *port,
+				struct serial_rs485 *rs485)
+{
+	struct max310x_one *one = container_of(port, struct max310x_one, port);
+
+	if ((rs485->delay_rts_before_send > 0x0f) ||
+	    (rs485->delay_rts_after_send > 0x0f))
+		return -ERANGE;
 
 	rs485->flags &= SER_RS485_RTS_ON_SEND | SER_RS485_ENABLED;
 	memset(rs485->padding, 0, sizeof(rs485->padding));
 	port->rs485 = *rs485;
+
+	schedule_work(&one->rs_work);
 
 	return 0;
 }
@@ -1214,8 +1224,10 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 				    MAX310X_MODE1_IRQSEL_BIT);
 		/* Initialize queue for start TX */
 		INIT_WORK(&s->p[i].tx_work, max310x_wq_proc);
-		/* Initialize queue for changing mode */
+		/* Initialize queue for changing LOOPBACK mode */
 		INIT_WORK(&s->p[i].md_work, max310x_md_proc);
+		/* Initialize queue for changing RS485 mode */
+		INIT_WORK(&s->p[i].rs_work, max310x_rs_proc);
 		/* Register port */
 		uart_add_one_port(&s->uart, &s->p[i].port);
 		/* Go to suspend mode */
@@ -1257,6 +1269,7 @@ static int max310x_remove(struct device *dev)
 	for (i = 0; i < s->uart.nr; i++) {
 		cancel_work_sync(&s->p[i].tx_work);
 		cancel_work_sync(&s->p[i].md_work);
+		cancel_work_sync(&s->p[i].rs_work);
 		uart_remove_one_port(&s->uart, &s->p[i].port);
 		s->devtype->power(&s->p[i].port, 0);
 	}
