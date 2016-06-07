@@ -937,17 +937,9 @@ static int hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_encoder *hdmi_best_encoder(struct drm_connector *connector)
-{
-	struct hdmi_context *hdata = connector_to_hdmi(connector);
-
-	return &hdata->encoder;
-}
-
 static const struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
 	.get_modes = hdmi_get_modes,
 	.mode_valid = hdmi_mode_valid,
-	.best_encoder = hdmi_best_encoder,
 };
 
 static int hdmi_create_connector(struct drm_encoder *encoder)
