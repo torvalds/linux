@@ -6035,6 +6035,9 @@ enum skl_disp_power_wells {
 #define  FORCE_ARB_IDLE_PLANES	(1 << 14)
 #define  SKL_EDP_PSR_FIX_RDWRAP	(1 << 3)
 
+#define CHICKEN_PAR2_1		_MMIO(0x42090)
+#define  KVM_CONFIG_CHANGE_NOTIFICATION_SELECT	(1 << 14)
+
 #define _CHICKEN_PIPESL_1_A	0x420b0
 #define _CHICKEN_PIPESL_1_B	0x420b4
 #define  HSW_FBCQ_DIS			(1 << 22)

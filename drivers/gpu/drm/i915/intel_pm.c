@@ -7030,6 +7030,10 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	 */
 	I915_WRITE(HSW_GTT_CACHE_EN, GTT_CACHE_EN_ALL);
 
+	/* WaKVMNotificationOnConfigChange:bdw */
+	I915_WRITE(CHICKEN_PAR2_1, I915_READ(CHICKEN_PAR2_1)
+		   | KVM_CONFIG_CHANGE_NOTIFICATION_SELECT);
+
 	lpt_init_clock_gating(dev);
 }
 
