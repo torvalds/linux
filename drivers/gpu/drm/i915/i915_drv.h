@@ -2719,6 +2719,9 @@ struct drm_i915_cmd_table {
 
 #define KBL_REVID_A0		0x0
 #define KBL_REVID_B0		0x1
+#define KBL_REVID_C0		0x2
+#define KBL_REVID_D0		0x3
+#define KBL_REVID_E0		0x4
 
 #define IS_KBL_REVID(p, since, until) \
 	(IS_KABYLAKE(p) && IS_REVID(p, since, until))
