@@ -1114,14 +1114,17 @@ static struct dma_async_tx_descriptor *edma_prep_slave_sg(
 		edesc->absync = ret;
 		edesc->residue += sg_dma_len(sg);
 
-		/* If this is the last in a current SG set of transactions,
-		   enable interrupts so that next set is processed */
-		if (!((i+1) % MAX_NR_SG))
-			edesc->pset[i].param.opt |= TCINTEN;
-
-		/* If this is the last set, enable completion interrupt flag */
 		if (i == sg_len - 1)
+			/* Enable completion interrupt */
 			edesc->pset[i].param.opt |= TCINTEN;
+		else if (!((i+1) % MAX_NR_SG))
+			/*
+			 * Enable early completion interrupt for the
+			 * intermediateset. In this case the driver will be
+			 * notified when the paRAM set is submitted to TC. This
+			 * will allow more time to set up the next set of slots.
+			 */
+			edesc->pset[i].param.opt |= (TCINTEN | TCCMODE);
 	}
 	edesc->residue_stat = edesc->residue;
 
