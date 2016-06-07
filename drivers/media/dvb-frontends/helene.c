@@ -747,7 +747,7 @@ static int helene_set_params(struct dvb_frontend *fe)
 		data[6] = 0x78;
 		data[7] = 0x08;
 		data[8] = 0x30;
-	};
+	}
 	helene_write_regs(priv, 0x5E, data, 9);
 
 	/* LT_AMP_EN should be 0 */
