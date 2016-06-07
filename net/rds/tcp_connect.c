@@ -60,7 +60,7 @@ void rds_tcp_state_change(struct sock *sk)
 		case TCP_SYN_RECV:
 			break;
 		case TCP_ESTABLISHED:
-			rds_connect_complete(conn);
+			rds_connect_path_complete(conn, RDS_CONN_CONNECTING);
 			break;
 		case TCP_CLOSE_WAIT:
 		case TCP_CLOSE:
