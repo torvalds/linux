@@ -111,7 +111,8 @@ enum ctype {
 	CT_WRITE_RO,
 	CT_WRITE_RO_AFTER_INIT,
 	CT_WRITE_KERN,
-	CT_WRAP_ATOMIC,
+	CT_ATOMIC_UNDERFLOW,
+	CT_ATOMIC_OVERFLOW,
 	CT_USERCOPY_HEAP_SIZE_TO,
 	CT_USERCOPY_HEAP_SIZE_FROM,
 	CT_USERCOPY_HEAP_FLAG_TO,
@@ -161,7 +162,8 @@ static char* cp_type[] = {
 	"WRITE_RO",
 	"WRITE_RO_AFTER_INIT",
 	"WRITE_KERN",
-	"WRAP_ATOMIC",
+	"ATOMIC_UNDERFLOW",
+	"ATOMIC_OVERFLOW",
 	"USERCOPY_HEAP_SIZE_TO",
 	"USERCOPY_HEAP_SIZE_FROM",
 	"USERCOPY_HEAP_FLAG_TO",
@@ -911,13 +913,25 @@ static void lkdtm_do_action(enum ctype which)
 		do_overwritten();
 		break;
 	}
-	case CT_WRAP_ATOMIC: {
+	case CT_ATOMIC_UNDERFLOW: {
 		atomic_t under = ATOMIC_INIT(INT_MIN);
+
+		pr_info("attempting good atomic increment\n");
+		atomic_inc(&under);
+		atomic_dec(&under);
+
+		pr_info("attempting bad atomic underflow\n");
+		atomic_dec(&under);
+		break;
+	}
+	case CT_ATOMIC_OVERFLOW: {
 		atomic_t over = ATOMIC_INIT(INT_MAX);
 
-		pr_info("attempting atomic underflow\n");
-		atomic_dec(&under);
-		pr_info("attempting atomic overflow\n");
+		pr_info("attempting good atomic decrement\n");
+		atomic_dec(&over);
+		atomic_inc(&over);
+
+		pr_info("attempting bad atomic overflow\n");
 		atomic_inc(&over);
 
 		return;
