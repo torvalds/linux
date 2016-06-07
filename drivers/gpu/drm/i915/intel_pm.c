@@ -55,13 +55,23 @@
 #define INTEL_RC6p_ENABLE			(1<<1)
 #define INTEL_RC6pp_ENABLE			(1<<2)
 
+static void gen9_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* See Bspec note for PSR2_CTL bit 31, Wa#828:skl,bxt,kbl */
+	I915_WRITE(CHICKEN_PAR1_1,
+		   I915_READ(CHICKEN_PAR1_1) | SKL_EDP_PSR_FIX_RDWRAP);
+
+	I915_WRITE(GEN8_CONFIG0,
+		   I915_READ(GEN8_CONFIG0) | GEN9_DEFAULT_FIXES);
+}
+
 static void bxt_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* See Bspec note for PSR2_CTL bit 31, Wa#828:bxt */
-	I915_WRITE(CHICKEN_PAR1_1,
-		   I915_READ(CHICKEN_PAR1_1) | SKL_EDP_PSR_FIX_RDWRAP);
+	gen9_init_clock_gating(dev);
 
 	/* WaDisableSDEUnitClockGating:bxt */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
@@ -6967,9 +6977,7 @@ static void kabylake_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* See Bspec note for PSR2_CTL bit 31, Wa#828:kbl */
-	I915_WRITE(CHICKEN_PAR1_1,
-		   I915_READ(CHICKEN_PAR1_1) | SKL_EDP_PSR_FIX_RDWRAP);
+	gen9_init_clock_gating(dev);
 
 	/* WaDisableSDEUnitClockGating:kbl */
 	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
@@ -6979,11 +6987,7 @@ static void kabylake_init_clock_gating(struct drm_device *dev)
 
 static void skylake_init_clock_gating(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/* See Bspec note for PSR2_CTL bit 31, Wa#828:skl */
-	I915_WRITE(CHICKEN_PAR1_1,
-		   I915_READ(CHICKEN_PAR1_1) | SKL_EDP_PSR_FIX_RDWRAP);
+	gen9_init_clock_gating(dev);
 }
 
 static void broadwell_init_clock_gating(struct drm_device *dev)
