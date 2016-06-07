@@ -588,15 +588,42 @@ unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec)
 	if (irq_domain_translate(domain, fwspec, &hwirq, &type))
 		return 0;
 
-	if (irq_domain_is_hierarchy(domain)) {
+	/*
+	 * WARN if the irqchip returns a type with bits
+	 * outside the sense mask set and clear these bits.
+	 */
+	if (WARN_ON(type & ~IRQ_TYPE_SENSE_MASK))
+		type &= IRQ_TYPE_SENSE_MASK;
+
+	/*
+	 * If we've already configured this interrupt,
+	 * don't do it again, or hell will break loose.
+	 */
+	virq = irq_find_mapping(domain, hwirq);
+	if (virq) {
 		/*
-		 * If we've already configured this interrupt,
-		 * don't do it again, or hell will break loose.
+		 * If the trigger type is not specified or matches the
+		 * current trigger type then we are done so return the
+		 * interrupt number.
 		 */
-		virq = irq_find_mapping(domain, hwirq);
-		if (virq)
+		if (type == IRQ_TYPE_NONE || type == irq_get_trigger_type(virq))
 			return virq;
 
+		/*
+		 * If the trigger type has not been set yet, then set
+		 * it now and return the interrupt number.
+		 */
+		if (irq_get_trigger_type(virq) == IRQ_TYPE_NONE) {
+			irq_set_irq_type(virq, type);
+			return virq;
+		}
+
+		pr_warn("type mismatch, failed to map hwirq-%lu for %s!\n",
+			hwirq, of_node_full_name(to_of_node(fwspec->fwnode)));
+		return 0;
+	}
+
+	if (irq_domain_is_hierarchy(domain)) {
 		virq = irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, fwspec);
 		if (virq <= 0)
 			return 0;
