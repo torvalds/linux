@@ -112,10 +112,6 @@
 	};
 };
 
-&mfc {
-	status = "okay";
-};
-
 &pinctrl_1 {
 	keypad_rows: keypad-rows {
 		samsung,pins = "gpx2-0", "gpx2-1", "gpx2-2";

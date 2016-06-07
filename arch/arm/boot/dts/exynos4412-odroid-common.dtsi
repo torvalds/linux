@@ -500,10 +500,6 @@
 	clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 };
 
-&mfc {
-	status = "okay";
-};
-
 &mixer {
 	status = "okay";
 };
