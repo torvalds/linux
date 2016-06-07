@@ -156,10 +156,6 @@
 #define MAX310X_LCR_FORCEPARITY_BIT	(1 << 5) /* 9-bit multidrop parity */
 #define MAX310X_LCR_TXBREAK_BIT		(1 << 6) /* TX break enable */
 #define MAX310X_LCR_RTS_BIT		(1 << 7) /* RTS pin control */
-#define MAX310X_LCR_WORD_LEN_5		(0x00)
-#define MAX310X_LCR_WORD_LEN_6		(0x01)
-#define MAX310X_LCR_WORD_LEN_7		(0x02)
-#define MAX310X_LCR_WORD_LEN_8		(0x03)
 
 /* IRDA register bits */
 #define MAX310X_IRDA_IRDAEN_BIT		(1 << 0) /* IRDA mode enable */
@@ -806,7 +802,7 @@ static void max310x_set_termios(struct uart_port *port,
 				struct ktermios *termios,
 				struct ktermios *old)
 {
-	unsigned int lcr, flow = 0;
+	unsigned int lcr = 0, flow = 0;
 	int baud;
 
 	/* Mask termios capabilities we don't support */
@@ -815,17 +811,16 @@ static void max310x_set_termios(struct uart_port *port,
 	/* Word size */
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
-		lcr = MAX310X_LCR_WORD_LEN_5;
 		break;
 	case CS6:
-		lcr = MAX310X_LCR_WORD_LEN_6;
+		lcr = MAX310X_LCR_LENGTH0_BIT;
 		break;
 	case CS7:
-		lcr = MAX310X_LCR_WORD_LEN_7;
+		lcr = MAX310X_LCR_LENGTH1_BIT;
 		break;
 	case CS8:
 	default:
-		lcr = MAX310X_LCR_WORD_LEN_8;
+		lcr = MAX310X_LCR_LENGTH1_BIT | MAX310X_LCR_LENGTH0_BIT;
 		break;
 	}
 
