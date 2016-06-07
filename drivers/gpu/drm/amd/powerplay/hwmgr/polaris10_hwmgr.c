@@ -1759,12 +1759,9 @@ static int polaris10_populate_smc_initailial_state(struct pp_hwmgr *hwmgr)
 
 static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 {
-	uint32_t ro, efuse, efuse2, clock_freq, volt_without_cks,
-			volt_with_cks, value;
-	uint16_t clock_freq_u16;
+	uint32_t ro, efuse, volt_without_cks, volt_with_cks, value, max, min;
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-	uint8_t type, i, j, cks_setting, stretch_amount, stretch_amount2,
-			volt_offset = 0;
+	uint8_t i, stretch_amount, stretch_amount2, volt_offset = 0;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table =
@@ -1776,49 +1773,37 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 	 * if the part is SS or FF. if RO >= 1660MHz, part is FF.
 	 */
 	efuse = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixSMU_EFUSE_0 + (146 * 4));
-	efuse2 = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixSMU_EFUSE_0 + (148 * 4));
+			ixSMU_EFUSE_0 + (67 * 4));
 	efuse &= 0xFF000000;
 	efuse = efuse >> 24;
-	efuse2 &= 0xF;
 
-	if (efuse2 == 1)
-		ro = (2300 - 1350) * efuse / 255 + 1350;
-	else
-		ro = (2500 - 1000) * efuse / 255 + 1000;
+	if (hwmgr->chip_id == CHIP_POLARIS10) {
+		min = 1000;
+		max = 2300;
+	} else {
+		min = 1100;
+		max = 2100;
+	}
 
-	if (ro >= 1660)
-		type = 0;
-	else
-		type = 1;
-
-	/* Populate Stretch amount */
-	data->smc_state_table.ClockStretcherAmount = stretch_amount;
+	ro = efuse * (max -min)/255 + min;
 
 	/* Populate Sclk_CKS_masterEn0_7 and Sclk_voltageOffset */
 	for (i = 0; i < sclk_table->count; i++) {
 		data->smc_state_table.Sclk_CKS_masterEn0_7 |=
 				sclk_table->entries[i].cks_enable << i;
-		volt_without_cks = (uint32_t)((14041 *
-			(sclk_table->entries[i].clk/100) / 10000 + 3571 + 75 - ro) * 1000 /
-			(4026 - (13924 * (sclk_table->entries[i].clk/100) / 10000)));
-		volt_with_cks = (uint32_t)((13946 *
-			(sclk_table->entries[i].clk/100) / 10000 + 3320 + 45 - ro) * 1000 /
-			(3664 - (11454 * (sclk_table->entries[i].clk/100) / 10000)));
+
+		volt_without_cks =  (uint32_t)(((ro - 40) * 1000 - 2753594 - sclk_table->entries[i].clk/100 * 136418 /1000) / \
+					(sclk_table->entries[i].clk/100 * 1132925 /10000 - 242418)/100);
+
+		volt_with_cks = (uint32_t)((ro * 1000 -2396351 - sclk_table->entries[i].clk/100 * 329021/1000) / \
+				(sclk_table->entries[i].clk/10000 * 649434 /1000  - 18005)/10);
+
 		if (volt_without_cks >= volt_with_cks)
 			volt_offset = (uint8_t)(((volt_without_cks - volt_with_cks +
 					sclk_table->entries[i].cks_voffset) * 100 / 625) + 1);
+
 		data->smc_state_table.Sclk_voltageOffset[i] = volt_offset;
 	}
-
-	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, PWR_CKS_ENABLE,
-			STRETCH_ENABLE, 0x0);
-	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, PWR_CKS_ENABLE,
-			masterReset, 0x1);
-	/* PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, PWR_CKS_ENABLE, staticEnable, 0x1); */
-	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, PWR_CKS_ENABLE,
-			masterReset, 0x0);
 
 	/* Populate CKS Lookup Table */
 	if (stretch_amount == 1 || stretch_amount == 2 || stretch_amount == 5)
@@ -1831,69 +1816,6 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(false,
 				"Stretch Amount in PPTable not supported\n",
 				return -EINVAL);
-	}
-
-	value = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixPWR_CKS_CNTL);
-	value &= 0xFFC2FF87;
-	data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].minFreq =
-			polaris10_clock_stretcher_lookup_table[stretch_amount2][0];
-	data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].maxFreq =
-			polaris10_clock_stretcher_lookup_table[stretch_amount2][1];
-	clock_freq_u16 = (uint16_t)(PP_SMC_TO_HOST_UL(data->smc_state_table.
-			GraphicsLevel[data->smc_state_table.GraphicsDpmLevelCount - 1].SclkSetting.SclkFrequency) / 100);
-	if (polaris10_clock_stretcher_lookup_table[stretch_amount2][0] < clock_freq_u16
-	&& polaris10_clock_stretcher_lookup_table[stretch_amount2][1] > clock_freq_u16) {
-		/* Program PWR_CKS_CNTL. CKS_USE_FOR_LOW_FREQ */
-		value |= (polaris10_clock_stretcher_lookup_table[stretch_amount2][3]) << 16;
-		/* Program PWR_CKS_CNTL. CKS_LDO_REFSEL */
-		value |= (polaris10_clock_stretcher_lookup_table[stretch_amount2][2]) << 18;
-		/* Program PWR_CKS_CNTL. CKS_STRETCH_AMOUNT */
-		value |= (polaris10_clock_stretch_amount_conversion
-				[polaris10_clock_stretcher_lookup_table[stretch_amount2][3]]
-				 [stretch_amount]) << 3;
-	}
-	CONVERT_FROM_HOST_TO_SMC_US(data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].minFreq);
-	CONVERT_FROM_HOST_TO_SMC_US(data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].maxFreq);
-	data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].setting =
-			polaris10_clock_stretcher_lookup_table[stretch_amount2][2] & 0x7F;
-	data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].setting |=
-			(polaris10_clock_stretcher_lookup_table[stretch_amount2][3]) << 7;
-
-	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixPWR_CKS_CNTL, value);
-
-	/* Populate DDT Lookup Table */
-	for (i = 0; i < 4; i++) {
-		/* Assign the minimum and maximum VID stored
-		 * in the last row of Clock Stretcher Voltage Table.
-		 */
-		data->smc_state_table.ClockStretcherDataTable.ClockStretcherDataTableEntry[i].minVID =
-				(uint8_t) polaris10_clock_stretcher_ddt_table[type][i][2];
-		data->smc_state_table.ClockStretcherDataTable.ClockStretcherDataTableEntry[i].maxVID =
-				(uint8_t) polaris10_clock_stretcher_ddt_table[type][i][3];
-		/* Loop through each SCLK and check the frequency
-		 * to see if it lies within the frequency for clock stretcher.
-		 */
-		for (j = 0; j < data->smc_state_table.GraphicsDpmLevelCount; j++) {
-			cks_setting = 0;
-			clock_freq = PP_SMC_TO_HOST_UL(
-					data->smc_state_table.GraphicsLevel[j].SclkSetting.SclkFrequency);
-			/* Check the allowed frequency against the sclk level[j].
-			 *  Sclk's endianness has already been converted,
-			 *  and it's in 10Khz unit,
-			 *  as opposed to Data table, which is in Mhz unit.
-			 */
-			if (clock_freq >= (polaris10_clock_stretcher_ddt_table[type][i][0]) * 100) {
-				cks_setting |= 0x2;
-				if (clock_freq < (polaris10_clock_stretcher_ddt_table[type][i][1]) * 100)
-					cks_setting |= 0x1;
-			}
-			data->smc_state_table.ClockStretcherDataTable.ClockStretcherDataTableEntry[i].setting
-							|= cks_setting << (j * 2);
-		}
-		CONVERT_FROM_HOST_TO_SMC_US(
-			data->smc_state_table.ClockStretcherDataTable.ClockStretcherDataTableEntry[i].setting);
 	}
 
 	value = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixPWR_CKS_CNTL);
@@ -3061,6 +2983,10 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 				VOLTAGE_TYPE_VDDCI, VOLTAGE_OBJ_SVID2))
 			data->vddci_control = POLARIS10_VOLTAGE_CONTROL_BY_SVID2;
 	}
+
+	if (table_info->cac_dtp_table->usClockStretchAmount != 0)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_ClockStretcher);
 
 	polaris10_set_features_platform_caps(hwmgr);
 
