@@ -1193,9 +1193,11 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	s->gpio.base		= -1;
 	s->gpio.ngpio		= devtype->nr * 4;
 	s->gpio.can_sleep	= 1;
-	ret = gpiochip_add_data(&s->gpio, s);
-	if (ret)
-		goto out_uart;
+	ret = devm_gpiochip_add_data(dev, &s->gpio, s);
+	if (ret) {
+		uart_unregister_driver(&s->uart);
+		goto out_clk;
+	}
 #endif
 
 	mutex_init(&s->mutex);
@@ -1244,11 +1246,6 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 
 	mutex_destroy(&s->mutex);
 
-#ifdef CONFIG_GPIOLIB
-	gpiochip_remove(&s->gpio);
-
-out_uart:
-#endif
 	uart_unregister_driver(&s->uart);
 
 out_clk:
@@ -1261,10 +1258,6 @@ static int max310x_remove(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
 	int i;
-
-#ifdef CONFIG_GPIOLIB
-	gpiochip_remove(&s->gpio);
-#endif
 
 	for (i = 0; i < s->uart.nr; i++) {
 		cancel_work_sync(&s->p[i].tx_work);
