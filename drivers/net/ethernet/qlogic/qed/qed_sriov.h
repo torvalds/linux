@@ -10,6 +10,9 @@
 #define _QED_SRIOV_H
 #include <linux/types.h>
 #include "qed_vf.h"
+
+#define QED_ETH_VF_NUM_MAC_FILTERS 1
+#define QED_ETH_VF_NUM_VLAN_FILTERS 2
 #define QED_VF_ARRAY_LENGTH (3)
 
 #define IS_VF(cdev)             ((cdev)->b_is_vf)
@@ -22,7 +25,6 @@
 #define IS_PF_SRIOV_ALLOC(p_hwfn)       (!!((p_hwfn)->pf_iov_info))
 
 #define QED_MAX_VF_CHAINS_PER_PF 16
-#define QED_ETH_VF_NUM_VLAN_FILTERS 2
 
 #define QED_ETH_MAX_VF_NUM_VLAN_FILTERS	\
 	(MAX_NUM_VFS * QED_ETH_VF_NUM_VLAN_FILTERS)
@@ -118,6 +120,8 @@ struct qed_vf_shadow_config {
 	/* Shadow copy of all guest vlans */
 	struct qed_vf_vlan_shadow vlans[QED_ETH_VF_NUM_VLAN_FILTERS + 1];
 
+	/* Shadow copy of all configured MACs; Empty if forcing MACs */
+	u8 macs[QED_ETH_VF_NUM_MAC_FILTERS][ETH_ALEN];
 	u8 inner_vlan_removal;
 };
 
@@ -130,6 +134,9 @@ struct qed_vf_info {
 
 	struct qed_bulletin bulletin;
 	dma_addr_t vf_bulletin;
+
+	/* PF saves a copy of the last VF acquire message */
+	struct vfpf_acquire_tlv acquire;
 
 	u32 concrete_fid;
 	u16 opaque_fid;
