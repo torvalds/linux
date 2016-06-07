@@ -510,12 +510,6 @@ static int start_power_clamp(void)
 	unsigned long cpu;
 	struct task_struct *thread;
 
-	/* check if pkg cstate counter is completely 0, abort in this case */
-	if (!has_pkg_state_counter()) {
-		pr_err("pkg cstate counter not functional, abort\n");
-		return -EINVAL;
-	}
-
 	set_target_ratio = clamp(set_target_ratio, 0U, MAX_TARGET_RATIO - 1);
 	/* prevent cpu hotplug */
 	get_online_cpus();
@@ -672,35 +666,11 @@ static struct thermal_cooling_device_ops powerclamp_cooling_ops = {
 	.set_cur_state = powerclamp_set_cur_state,
 };
 
-/* runs on Nehalem and later */
 static const struct x86_cpu_id intel_powerclamp_ids[] __initconst = {
-	{ X86_VENDOR_INTEL, 6, 0x1a},
-	{ X86_VENDOR_INTEL, 6, 0x1c},
-	{ X86_VENDOR_INTEL, 6, 0x1e},
-	{ X86_VENDOR_INTEL, 6, 0x1f},
-	{ X86_VENDOR_INTEL, 6, 0x25},
-	{ X86_VENDOR_INTEL, 6, 0x26},
-	{ X86_VENDOR_INTEL, 6, 0x2a},
-	{ X86_VENDOR_INTEL, 6, 0x2c},
-	{ X86_VENDOR_INTEL, 6, 0x2d},
-	{ X86_VENDOR_INTEL, 6, 0x2e},
-	{ X86_VENDOR_INTEL, 6, 0x2f},
-	{ X86_VENDOR_INTEL, 6, 0x37},
-	{ X86_VENDOR_INTEL, 6, 0x3a},
-	{ X86_VENDOR_INTEL, 6, 0x3c},
-	{ X86_VENDOR_INTEL, 6, 0x3d},
-	{ X86_VENDOR_INTEL, 6, 0x3e},
-	{ X86_VENDOR_INTEL, 6, 0x3f},
-	{ X86_VENDOR_INTEL, 6, 0x45},
-	{ X86_VENDOR_INTEL, 6, 0x46},
-	{ X86_VENDOR_INTEL, 6, 0x47},
-	{ X86_VENDOR_INTEL, 6, 0x4c},
-	{ X86_VENDOR_INTEL, 6, 0x4d},
-	{ X86_VENDOR_INTEL, 6, 0x4e},
-	{ X86_VENDOR_INTEL, 6, 0x4f},
-	{ X86_VENDOR_INTEL, 6, 0x56},
-	{ X86_VENDOR_INTEL, 6, 0x57},
-	{ X86_VENDOR_INTEL, 6, 0x5e},
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_MWAIT },
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_ARAT },
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_NONSTOP_TSC },
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_CONSTANT_TSC},
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_powerclamp_ids);
@@ -712,11 +682,12 @@ static int __init powerclamp_probe(void)
 				boot_cpu_data.x86, boot_cpu_data.x86_model);
 		return -ENODEV;
 	}
-	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC) ||
-		!boot_cpu_has(X86_FEATURE_CONSTANT_TSC) ||
-		!boot_cpu_has(X86_FEATURE_MWAIT) ||
-		!boot_cpu_has(X86_FEATURE_ARAT))
+
+	/* The goal for idle time alignment is to achieve package cstate. */
+	if (!has_pkg_state_counter()) {
+		pr_info("No package C-state available");
 		return -ENODEV;
+	}
 
 	/* find the deepest mwait value */
 	find_target_mwait();

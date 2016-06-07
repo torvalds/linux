@@ -259,6 +259,9 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		data_length = 16;
 		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		data_length = 24;
+		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		data_length = 32;
 		break;
@@ -273,13 +276,20 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 		/* otherwise calculate a fitting block ratio */
 		bclk_ratio = 2 * data_length;
 
-	/* set target clock rate*/
-	clk_set_rate(dev->clk, sampling_rate * bclk_ratio);
+	/* Clock should only be set up here if CPU is clock master */
+	switch (dev->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBS_CFM:
+		clk_set_rate(dev->clk, sampling_rate * bclk_ratio);
+		break;
+	default:
+		break;
+	}
 
 	/* Setup the frame format */
 	format = BCM2835_I2S_CHEN;
 
-	if (data_length > 24)
+	if (data_length >= 24)
 		format |= BCM2835_I2S_CHWEX;
 
 	format |= BCM2835_I2S_CHWID((data_length-8)&0xf);
@@ -570,6 +580,7 @@ static struct snd_soc_dai_driver bcm2835_i2s_dai = {
 		.channels_max = 2,
 		.rates =	SNDRV_PCM_RATE_8000_192000,
 		.formats =	SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
 				| SNDRV_PCM_FMTBIT_S32_LE
 		},
 	.capture = {
@@ -577,6 +588,7 @@ static struct snd_soc_dai_driver bcm2835_i2s_dai = {
 		.channels_max = 2,
 		.rates =	SNDRV_PCM_RATE_8000_192000,
 		.formats =	SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
 				| SNDRV_PCM_FMTBIT_S32_LE
 		},
 	.ops = &bcm2835_i2s_dai_ops,
@@ -677,6 +689,15 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 	/* Set burst */
 	dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK].maxburst = 2;
 	dev->dma_data[SNDRV_PCM_STREAM_CAPTURE].maxburst = 2;
+
+	/*
+	 * Set the PACK flag to enable S16_LE support (2 S16_LE values
+	 * packed into 32-bit transfers).
+	 */
+	dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK].flags =
+		SND_DMAENGINE_PCM_DAI_FLAG_PACK;
+	dev->dma_data[SNDRV_PCM_STREAM_CAPTURE].flags =
+		SND_DMAENGINE_PCM_DAI_FLAG_PACK;
 
 	/* BCLK ratio - use default */
 	dev->bclk_ratio = 0;

@@ -41,7 +41,12 @@ static inline unsigned long arch_local_irq_save(void)
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
+#if defined(CONFIG_CPU_LOONGSON3)
+	"	mfc0	%[flags], $12					\n"
+	"	di							\n"
+#else
 	"	di	%[flags]					\n"
+#endif
 	"	andi	%[flags], 1					\n"
 	"	" __stringify(__irq_disable_hazard) "			\n"
 	"	.set	pop						\n"

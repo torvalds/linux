@@ -426,6 +426,13 @@
 				clock-names = "tdes_clk";
 			};
 
+			trng@f8040000 {
+				compatible = "atmel,at91sam9g45-trng";
+				reg = <0xf8040000 0x100>;
+				interrupts = <45 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&trng_clk>;
+			};
+
 			dma0: dma-controller@ffffe600 {
 				compatible = "atmel,at91sam9g45-dma";
 				reg = <0xffffe600 0x200>;

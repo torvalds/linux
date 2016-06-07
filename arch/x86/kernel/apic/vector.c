@@ -944,7 +944,7 @@ static int __init print_ICs(void)
 	print_PIC();
 
 	/* don't print out if apic is not there */
-	if (!cpu_has_apic && !apic_from_smp_config())
+	if (!boot_cpu_has(X86_FEATURE_APIC) && !apic_from_smp_config())
 		return 0;
 
 	print_local_APICs(show_lapic);

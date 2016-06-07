@@ -204,7 +204,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 	pfree_recv_queue = &adapter->recvpriv.free_recv_queue;
 	phead = &defrag_q->queue;
 	plist = phead->next;
-	prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+	prframe = container_of(plist, union recv_frame, u.list);
 	list_del_init(&prframe->u.list);
 	pfhdr = &prframe->u.hdr;
 	curfragnum = 0;
@@ -219,7 +219,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 	plist = &defrag_q->queue;
 	plist = plist->next;
 	while (!end_of_queue_search(phead, plist)) {
-		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		pnextrframe = container_of(plist, union recv_frame, u.list);
 		pnfhdr = &pnextrframe->u.hdr;
 		/*check the fragment sequence  (2nd ~n fragment frame) */
 		if (curfragnum != pnfhdr->attrib.frag_num) {
@@ -492,7 +492,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 	phead = &ppending_recvframe_queue->queue;
 	plist = phead->next;
 	while (!end_of_queue_search(phead, plist)) {
-		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		pnextrframe = container_of(plist, union recv_frame, u.list);
 		pnextattrib = &pnextrframe->u.hdr.attrib;
 		if (SN_LESS(pnextattrib->seq_num, pattrib->seq_num))
 			plist = plist->next;
@@ -525,14 +525,14 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 		if (list_empty(phead))
 			return true;
 
-		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		prframe = container_of(plist, union recv_frame, u.list);
 		pattrib = &prframe->u.hdr.attrib;
 		preorder_ctrl->indicate_seq = pattrib->seq_num;
 	}
 	/* Prepare indication list and indication.
 	 * Check if there is any packet need indicate. */
 	while (!list_empty(phead)) {
-		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+		prframe = container_of(plist, union recv_frame, u.list);
 		pattrib = &prframe->u.hdr.attrib;
 		if (!SN_LESS(preorder_ctrl->indicate_seq, pattrib->seq_num)) {
 			plist = plist->next;

@@ -26,6 +26,7 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/P0260.h>
+#include <subdev/fb.h>
 
 #include <nvif/class.h>
 
@@ -311,17 +312,18 @@ int
 gm107_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
+	struct nvkm_fb *fb = device->fb;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
-	int gpc, tpc, ppc, rop;
+	int gpc, tpc, rop;
 	int i;
 
 	nvkm_wr32(device, GPC_BCAST(0x0880), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0890), 0x00000000);
 	nvkm_wr32(device, GPC_BCAST(0x0894), 0x00000000);
-	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(gr->unk4188b4) >> 8);
-	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(gr->unk4188b8) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b4), nvkm_memory_addr(fb->mmu_wr) >> 8);
+	nvkm_wr32(device, GPC_BCAST(0x08b8), nvkm_memory_addr(fb->mmu_rd) >> 8);
 
 	gf100_gr_mmio(gr, gr->func->mmio);
 
@@ -347,14 +349,16 @@ gm107_gr_init(struct gf100_gr *gr)
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
-			gr->magic_not_rop_nr << 8 | gr->tpc_nr[gpc]);
+			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
-			gr->tpc_total);
+							 gr->tpc_total);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
 	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
 	nvkm_wr32(device, GPC_BCAST(0x08ac), nvkm_rd32(device, 0x100800));
+
+	gr->func->init_rop_active_fbps(gr);
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
 
@@ -373,9 +377,9 @@ gm107_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x405844, 0x00ffffff);
 	nvkm_mask(device, 0x419cc0, 0x00000008, 0x00000008);
 
+	gr->func->init_ppc_exceptions(gr);
+
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		for (ppc = 0; ppc < 2 /* gr->ppc_nr[gpc] */; ppc++)
-			nvkm_wr32(device, PPC_UNIT(gpc, ppc, 0x038), 0xc0000000);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0420), 0xc0000000);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0900), 0xc0000000);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x1028), 0xc0000000);
@@ -438,9 +442,12 @@ gm107_gr_gpccs_ucode = {
 static const struct gf100_gr_func
 gm107_gr = {
 	.init = gm107_gr_init,
+	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
+	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,
+	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
 	.grctx = &gm107_grctx,
 	.sclass = {

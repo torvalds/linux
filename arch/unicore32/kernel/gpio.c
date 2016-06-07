@@ -14,6 +14,8 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/gpio/driver.h>
+/* FIXME: needed for gpio_set_value() - convert to use descriptors or hogs */
 #include <linux/gpio.h>
 #include <mach/hardware.h>
 
@@ -118,5 +120,5 @@ void __init puv3_init_gpio(void)
  *	gpio_set_value(GPO_SET_V2, 1);
  */
 #endif
-	gpiochip_add(&puv3_gpio_chip);
+	gpiochip_add_data(&puv3_gpio_chip, NULL);
 }

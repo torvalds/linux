@@ -234,16 +234,6 @@ amdgpu_atombios_get_hpd_info_from_gpio(struct amdgpu_device *adev,
 	return hpd;
 }
 
-static bool amdgpu_atombios_apply_quirks(struct amdgpu_device *adev,
-					 uint32_t supported_device,
-					 int *connector_type,
-					 struct amdgpu_i2c_bus_rec *i2c_bus,
-					 uint16_t *line_mux,
-					 struct amdgpu_hpd *hpd)
-{
-	return true;
-}
-
 static const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_DVII,
@@ -514,11 +504,6 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 
 			conn_id = le16_to_cpu(path->usConnObjectId);
 
-			if (!amdgpu_atombios_apply_quirks
-			    (adev, le16_to_cpu(path->usDeviceTag), &connector_type,
-			     &ddc_bus, &conn_id, &hpd))
-				continue;
-
 			amdgpu_display_add_connector(adev,
 						      conn_id,
 						      le16_to_cpu(path->usDeviceTag),
@@ -696,6 +681,36 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev)
 	adev->pm.current_sclk = adev->clock.default_sclk;
 	adev->pm.current_mclk = adev->clock.default_mclk;
 
+	return ret;
+}
+
+union gfx_info {
+	ATOM_GFX_INFO_V2_1 info;
+};
+
+int amdgpu_atombios_get_gfx_info(struct amdgpu_device *adev)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, GFX_Info);
+	uint8_t frev, crev;
+	uint16_t data_offset;
+	int ret = -EINVAL;
+
+	if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		union gfx_info *gfx_info = (union gfx_info *)
+			(mode_info->atom_context->bios + data_offset);
+
+		adev->gfx.config.max_shader_engines = gfx_info->info.max_shader_engines;
+		adev->gfx.config.max_tile_pipes = gfx_info->info.max_tile_pipes;
+		adev->gfx.config.max_cu_per_sh = gfx_info->info.max_cu_per_sh;
+		adev->gfx.config.max_sh_per_se = gfx_info->info.max_sh_per_se;
+		adev->gfx.config.max_backends_per_se = gfx_info->info.max_backends_per_se;
+		adev->gfx.config.max_texture_channel_caches =
+			gfx_info->info.max_texture_channel_caches;
+
+		ret = 0;
+	}
 	return ret;
 }
 

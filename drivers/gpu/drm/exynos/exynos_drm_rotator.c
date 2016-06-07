@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 
 #include <drm/drmP.h>
@@ -696,7 +697,6 @@ static int rotator_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rot_context *rot;
 	struct exynos_drm_ippdrv *ippdrv;
-	const struct of_device_id *match;
 	int ret;
 
 	if (!dev->of_node) {
@@ -708,13 +708,8 @@ static int rotator_probe(struct platform_device *pdev)
 	if (!rot)
 		return -ENOMEM;
 
-	match = of_match_node(exynos_rotator_match, dev->of_node);
-	if (!match) {
-		dev_err(dev, "failed to match node\n");
-		return -ENODEV;
-	}
-	rot->limit_tbl = (struct rot_limit_table *)match->data;
-
+	rot->limit_tbl = (struct rot_limit_table *)
+				of_device_get_match_data(dev);
 	rot->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rot->regs = devm_ioremap_resource(dev, rot->regs_res);
 	if (IS_ERR(rot->regs))

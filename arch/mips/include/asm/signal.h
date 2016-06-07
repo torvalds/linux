@@ -11,11 +11,17 @@
 
 #include <uapi/asm/signal.h>
 
+#ifdef CONFIG_MIPS32_COMPAT
+extern struct mips_abi mips_abi_32;
 
-#ifdef CONFIG_TRAD_SIGNALS
-#define sig_uses_siginfo(ka)	((ka)->sa.sa_flags & SA_SIGINFO)
+#define sig_uses_siginfo(ka, abi)                               \
+	((abi != &mips_abi_32) ? 1 :                            \
+		((ka)->sa.sa_flags & SA_SIGINFO))
 #else
-#define sig_uses_siginfo(ka)	(1)
+#define sig_uses_siginfo(ka, abi)                               \
+	(config_enabled(CONFIG_64BIT) ? 1 :                     \
+		(config_enabled(CONFIG_TRAD_SIGNALS) ?          \
+			((ka)->sa.sa_flags & SA_SIGINFO) : 1) )
 #endif
 
 #include <asm/sigcontext.h>

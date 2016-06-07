@@ -78,7 +78,6 @@
 
 /* ACPI PCI Interrupt Link (pci_link.c) */
 
-int acpi_irq_penalty_init(void);
 int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *triggering,
 			       int *polarity, char **name);
 int acpi_pci_link_free_irq(acpi_handle handle);

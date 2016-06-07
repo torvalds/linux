@@ -99,12 +99,11 @@ mv_cesa_dma_add_desc(struct mv_cesa_tdma_chain *chain, gfp_t flags)
 	struct mv_cesa_tdma_desc *new_tdma = NULL;
 	dma_addr_t dma_handle;
 
-	new_tdma = dma_pool_alloc(cesa_dev->dma->tdma_desc_pool, flags,
-				  &dma_handle);
+	new_tdma = dma_pool_zalloc(cesa_dev->dma->tdma_desc_pool, flags,
+				   &dma_handle);
 	if (!new_tdma)
 		return ERR_PTR(-ENOMEM);
 
-	memset(new_tdma, 0, sizeof(*new_tdma));
 	new_tdma->cur_dma = dma_handle;
 	if (chain->last) {
 		chain->last->next_dma = cpu_to_le32(dma_handle);

@@ -130,6 +130,9 @@ static int one_thousand = 1000;
 #ifdef CONFIG_PRINTK
 static int ten_thousand = 10000;
 #endif
+#ifdef CONFIG_PERF_EVENTS
+static int six_hundred_forty_kb = 640 * 1024;
+#endif
 
 /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
 static unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
@@ -1144,6 +1147,24 @@ static struct ctl_table kern_table[] = {
 		.extra1		= &zero,
 		.extra2		= &one_hundred,
 	},
+	{
+		.procname	= "perf_event_max_stack",
+		.data		= &sysctl_perf_event_max_stack,
+		.maxlen		= sizeof(sysctl_perf_event_max_stack),
+		.mode		= 0644,
+		.proc_handler	= perf_event_max_stack_handler,
+		.extra1		= &zero,
+		.extra2		= &six_hundred_forty_kb,
+	},
+	{
+		.procname	= "perf_event_max_contexts_per_stack",
+		.data		= &sysctl_perf_event_max_contexts_per_stack,
+		.maxlen		= sizeof(sysctl_perf_event_max_contexts_per_stack),
+		.mode		= 0644,
+		.proc_handler	= perf_event_max_stack_handler,
+		.extra1		= &zero,
+		.extra2		= &one_thousand,
+	},
 #endif
 #ifdef CONFIG_KMEMCHECK
 	{
@@ -1508,6 +1529,13 @@ static struct ctl_table vm_table[] = {
 		.maxlen		= sizeof(sysctl_stat_interval),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "stat_refresh",
+		.data		= NULL,
+		.maxlen		= 0,
+		.mode		= 0600,
+		.proc_handler	= vmstat_refresh,
 	},
 #endif
 #ifdef CONFIG_MMU

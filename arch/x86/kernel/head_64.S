@@ -20,6 +20,7 @@
 #include <asm/processor-flags.h>
 #include <asm/percpu.h>
 #include <asm/nops.h>
+#include "../entry/calling.h"
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/asm-offsets.h>
@@ -63,6 +64,14 @@ startup_64:
 	 * compiled to run at we first fixup the physical addresses in our page
 	 * tables and then reload them.
 	 */
+
+	/*
+	 * Setup stack for verify_cpu(). "-8" because stack_start is defined
+	 * this way, see below. Our best guess is a NULL ptr for stack
+	 * termination heuristics and we don't want to break anything which
+	 * might depend on it (kgdb, ...).
+	 */
+	leaq	(__end_init_task - 8)(%rip), %rsp
 
 	/* Sanitize CPU configuration */
 	call verify_cpu
@@ -350,89 +359,47 @@ early_idt_handler_common:
 	 */
 	cld
 
-	cmpl $2,(%rsp)		# X86_TRAP_NMI
-	je .Lis_nmi		# Ignore NMI
-
-	cmpl $2,early_recursion_flag(%rip)
-	jz  1f
 	incl early_recursion_flag(%rip)
 
-	pushq %rax		# 64(%rsp)
-	pushq %rcx		# 56(%rsp)
-	pushq %rdx		# 48(%rsp)
-	pushq %rsi		# 40(%rsp)
-	pushq %rdi		# 32(%rsp)
-	pushq %r8		# 24(%rsp)
-	pushq %r9		# 16(%rsp)
-	pushq %r10		#  8(%rsp)
-	pushq %r11		#  0(%rsp)
+	/* The vector number is currently in the pt_regs->di slot. */
+	pushq %rsi				/* pt_regs->si */
+	movq 8(%rsp), %rsi			/* RSI = vector number */
+	movq %rdi, 8(%rsp)			/* pt_regs->di = RDI */
+	pushq %rdx				/* pt_regs->dx */
+	pushq %rcx				/* pt_regs->cx */
+	pushq %rax				/* pt_regs->ax */
+	pushq %r8				/* pt_regs->r8 */
+	pushq %r9				/* pt_regs->r9 */
+	pushq %r10				/* pt_regs->r10 */
+	pushq %r11				/* pt_regs->r11 */
+	pushq %rbx				/* pt_regs->bx */
+	pushq %rbp				/* pt_regs->bp */
+	pushq %r12				/* pt_regs->r12 */
+	pushq %r13				/* pt_regs->r13 */
+	pushq %r14				/* pt_regs->r14 */
+	pushq %r15				/* pt_regs->r15 */
 
-	cmpl $__KERNEL_CS,96(%rsp)
-	jne 11f
-
-	cmpl $14,72(%rsp)	# Page fault?
+	cmpq $14,%rsi		/* Page fault? */
 	jnz 10f
-	GET_CR2_INTO(%rdi)	# can clobber any volatile register if pv
+	GET_CR2_INTO(%rdi)	/* Can clobber any volatile register if pv */
 	call early_make_pgtable
 	andl %eax,%eax
-	jz 20f			# All good
+	jz 20f			/* All good */
 
 10:
-	leaq 88(%rsp),%rdi	# Pointer to %rip
+	movq %rsp,%rdi		/* RDI = pt_regs; RSI is already trapnr */
 	call early_fixup_exception
-	andl %eax,%eax
-	jnz 20f			# Found an exception entry
 
-11:
-#ifdef CONFIG_EARLY_PRINTK
-	GET_CR2_INTO(%r9)	# can clobber any volatile register if pv
-	movl 80(%rsp),%r8d	# error code
-	movl 72(%rsp),%esi	# vector number
-	movl 96(%rsp),%edx	# %cs
-	movq 88(%rsp),%rcx	# %rip
-	xorl %eax,%eax
-	leaq early_idt_msg(%rip),%rdi
-	call early_printk
-	cmpl $2,early_recursion_flag(%rip)
-	jz  1f
-	call dump_stack
-#ifdef CONFIG_KALLSYMS	
-	leaq early_idt_ripmsg(%rip),%rdi
-	movq 40(%rsp),%rsi	# %rip again
-	call __print_symbol
-#endif
-#endif /* EARLY_PRINTK */
-1:	hlt
-	jmp 1b
-
-20:	# Exception table entry found or page table generated
-	popq %r11
-	popq %r10
-	popq %r9
-	popq %r8
-	popq %rdi
-	popq %rsi
-	popq %rdx
-	popq %rcx
-	popq %rax
+20:
 	decl early_recursion_flag(%rip)
-.Lis_nmi:
-	addq $16,%rsp		# drop vector number and error code
-	INTERRUPT_RETURN
+	jmp restore_regs_and_iret
 ENDPROC(early_idt_handler_common)
 
 	__INITDATA
 
 	.balign 4
-early_recursion_flag:
+GLOBAL(early_recursion_flag)
 	.long 0
-
-#ifdef CONFIG_EARLY_PRINTK
-early_idt_msg:
-	.asciz "PANIC: early exception %02lx rip %lx:%lx error %lx cr2 %lx\n"
-early_idt_ripmsg:
-	.asciz "RIP %s\n"
-#endif /* CONFIG_EARLY_PRINTK */
 
 #define NEXT_PAGE(name) \
 	.balign	PAGE_SIZE; \

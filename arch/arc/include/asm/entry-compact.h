@@ -36,6 +36,10 @@
 #include <asm/irqflags-compact.h>
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
+#ifdef CONFIG_ARC_PLAT_EZNPS
+#include <plat/ctop.h>
+#endif
+
 /*--------------------------------------------------------------
  * Switch to Kernel Mode stack if SP points to User Mode stack
  *
@@ -296,11 +300,13 @@
 	bic \reg, sp, (THREAD_SIZE - 1)
 .endm
 
+#ifndef CONFIG_ARC_PLAT_EZNPS
 /* Get CPU-ID of this core */
 .macro  GET_CPU_ID  reg
 	lr  \reg, [identity]
 	lsr \reg, \reg, 8
 	bmsk \reg, \reg, 7
 .endm
+#endif
 
 #endif  /* __ASM_ARC_ENTRY_COMPACT_H */

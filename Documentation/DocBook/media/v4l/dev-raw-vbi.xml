@@ -85,7 +85,7 @@ initialize all fields of the &v4l2-vbi-format;
 results of <constant>VIDIOC_G_FMT</constant>, and call the
 &VIDIOC-S-FMT; ioctl with a pointer to this structure. Drivers return
 an &EINVAL; only when the given parameters are ambiguous, otherwise
-they modify the parameters according to the hardware capabilites and
+they modify the parameters according to the hardware capabilities and
 return the actual parameters. When the driver allocates resources at
 this point, it may return an &EBUSY; to indicate the returned
 parameters are valid but the required resources are currently not

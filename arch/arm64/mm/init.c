@@ -40,6 +40,7 @@
 #include <asm/kasan.h>
 #include <asm/kernel-pgtable.h>
 #include <asm/memory.h>
+#include <asm/numa.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
@@ -86,6 +87,21 @@ static phys_addr_t __init max_zone_dma_phys(void)
 	return min(offset + (1ULL << 32), memblock_end_of_DRAM());
 }
 
+#ifdef CONFIG_NUMA
+
+static void __init zone_sizes_init(unsigned long min, unsigned long max)
+{
+	unsigned long max_zone_pfns[MAX_NR_ZONES]  = {0};
+
+	if (IS_ENABLED(CONFIG_ZONE_DMA))
+		max_zone_pfns[ZONE_DMA] = PFN_DOWN(max_zone_dma_phys());
+	max_zone_pfns[ZONE_NORMAL] = max;
+
+	free_area_init_nodes(max_zone_pfns);
+}
+
+#else
+
 static void __init zone_sizes_init(unsigned long min, unsigned long max)
 {
 	struct memblock_region *reg;
@@ -126,6 +142,8 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 	free_area_init_node(0, zone_size, min, zhole_size);
 }
 
+#endif /* CONFIG_NUMA */
+
 #ifdef CONFIG_HAVE_ARCH_PFN_VALID
 int pfn_valid(unsigned long pfn)
 {
@@ -142,10 +160,15 @@ static void __init arm64_memory_present(void)
 static void __init arm64_memory_present(void)
 {
 	struct memblock_region *reg;
+	int nid = 0;
 
-	for_each_memblock(memory, reg)
-		memory_present(0, memblock_region_memory_base_pfn(reg),
-			       memblock_region_memory_end_pfn(reg));
+	for_each_memblock(memory, reg) {
+#ifdef CONFIG_NUMA
+		nid = reg->nid;
+#endif
+		memory_present(nid, memblock_region_memory_base_pfn(reg),
+				memblock_region_memory_end_pfn(reg));
+	}
 }
 #endif
 
@@ -190,8 +213,12 @@ void __init arm64_memblock_init(void)
 	 */
 	memblock_remove(max_t(u64, memstart_addr + linear_region_size, __pa(_end)),
 			ULLONG_MAX);
-	if (memblock_end_of_DRAM() > linear_region_size)
-		memblock_remove(0, memblock_end_of_DRAM() - linear_region_size);
+	if (memstart_addr + linear_region_size < memblock_end_of_DRAM()) {
+		/* ensure that memstart_addr remains sufficiently aligned */
+		memstart_addr = round_up(memblock_end_of_DRAM() - linear_region_size,
+					 ARM64_MEMSTART_ALIGN);
+		memblock_remove(0, memstart_addr);
+	}
 
 	/*
 	 * Apply the memory limit if it was set. Since the kernel may be loaded
@@ -201,6 +228,35 @@ void __init arm64_memblock_init(void)
 	if (memory_limit != (phys_addr_t)ULLONG_MAX) {
 		memblock_enforce_memory_limit(memory_limit);
 		memblock_add(__pa(_text), (u64)(_end - _text));
+	}
+
+	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && initrd_start) {
+		/*
+		 * Add back the memory we just removed if it results in the
+		 * initrd to become inaccessible via the linear mapping.
+		 * Otherwise, this is a no-op
+		 */
+		u64 base = initrd_start & PAGE_MASK;
+		u64 size = PAGE_ALIGN(initrd_end) - base;
+
+		/*
+		 * We can only add back the initrd memory if we don't end up
+		 * with more memory than we can address via the linear mapping.
+		 * It is up to the bootloader to position the kernel and the
+		 * initrd reasonably close to each other (i.e., within 32 GB of
+		 * each other) so that all granule/#levels combinations can
+		 * always access both.
+		 */
+		if (WARN(base < memblock_start_of_DRAM() ||
+			 base + size > memblock_start_of_DRAM() +
+				       linear_region_size,
+			"initrd not fully accessible via the linear mapping -- please check your bootloader ...\n")) {
+			initrd_start = 0;
+		} else {
+			memblock_remove(base, size); /* clear MEMBLOCK_ flags */
+			memblock_add(base, size);
+			memblock_reserve(base, size);
+		}
 	}
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
@@ -245,7 +301,6 @@ void __init arm64_memblock_init(void)
 	dma_contiguous_reserve(arm64_dma_phys_limit);
 
 	memblock_allow_resize();
-	memblock_dump_all();
 }
 
 void __init bootmem_init(void)
@@ -257,6 +312,9 @@ void __init bootmem_init(void)
 
 	early_memtest(min << PAGE_SHIFT, max << PAGE_SHIFT);
 
+	max_pfn = max_low_pfn = max;
+
+	arm64_numa_init();
 	/*
 	 * Sparsemem tries to allocate bootmem in memory_present(), so must be
 	 * done after the fixed reservations.
@@ -267,7 +325,7 @@ void __init bootmem_init(void)
 	zone_sizes_init(min, max);
 
 	high_memory = __va((max << PAGE_SHIFT) - 1) + 1;
-	max_pfn = max_low_pfn = max;
+	memblock_dump_all();
 }
 
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
@@ -371,26 +429,27 @@ void __init mem_init(void)
 		MLM(MODULES_VADDR, MODULES_END));
 	pr_cont("    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n",
 		MLG(VMALLOC_START, VMALLOC_END));
-	pr_cont("      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n"
-		"    .rodata : 0x%p" " - 0x%p" "   (%6ld KB)\n"
-		"      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n"
-		"      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",
-		MLK_ROUNDUP(_text, __start_rodata),
-		MLK_ROUNDUP(__start_rodata, _etext),
-		MLK_ROUNDUP(__init_begin, __init_end),
+	pr_cont("      .text : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+		MLK_ROUNDUP(_text, __start_rodata));
+	pr_cont("    .rodata : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+		MLK_ROUNDUP(__start_rodata, _etext));
+	pr_cont("      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+		MLK_ROUNDUP(__init_begin, __init_end));
+	pr_cont("      .data : 0x%p" " - 0x%p" "   (%6ld KB)\n",
 		MLK_ROUNDUP(_sdata, _edata));
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
-	pr_cont("    vmemmap : 0x%16lx - 0x%16lx   (%6ld GB maximum)\n"
-		"              0x%16lx - 0x%16lx   (%6ld MB actual)\n",
-		MLG(VMEMMAP_START,
-		    VMEMMAP_START + VMEMMAP_SIZE),
-		MLM((unsigned long)phys_to_page(memblock_start_of_DRAM()),
-		    (unsigned long)virt_to_page(high_memory)));
-#endif
+	pr_cont("       .bss : 0x%p" " - 0x%p" "   (%6ld KB)\n",
+		MLK_ROUNDUP(__bss_start, __bss_stop));
 	pr_cont("    fixed   : 0x%16lx - 0x%16lx   (%6ld KB)\n",
 		MLK(FIXADDR_START, FIXADDR_TOP));
 	pr_cont("    PCI I/O : 0x%16lx - 0x%16lx   (%6ld MB)\n",
 		MLM(PCI_IO_START, PCI_IO_END));
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+	pr_cont("    vmemmap : 0x%16lx - 0x%16lx   (%6ld GB maximum)\n",
+		MLG(VMEMMAP_START, VMEMMAP_START + VMEMMAP_SIZE));
+	pr_cont("              0x%16lx - 0x%16lx   (%6ld MB actual)\n",
+		MLM((unsigned long)phys_to_page(memblock_start_of_DRAM()),
+		    (unsigned long)virt_to_page(high_memory)));
+#endif
 	pr_cont("    memory  : 0x%16lx - 0x%16lx   (%6ld MB)\n",
 		MLM(__phys_to_virt(memblock_start_of_DRAM()),
 		    (unsigned long)high_memory));
@@ -407,6 +466,12 @@ void __init mem_init(void)
 	BUILD_BUG_ON(TASK_SIZE_32			> TASK_SIZE_64);
 #endif
 
+	/*
+	 * Make sure we chose the upper bound of sizeof(struct page)
+	 * correctly.
+	 */
+	BUILD_BUG_ON(sizeof(struct page) > (1 << STRUCT_PAGE_MAX_SHIFT));
+
 	if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
 		extern int sysctl_overcommit_memory;
 		/*
@@ -419,7 +484,8 @@ void __init mem_init(void)
 
 void free_initmem(void)
 {
-	free_initmem_default(0);
+	free_reserved_area(__va(__pa(__init_begin)), __va(__pa(__init_end)),
+			   0, "unused kernel");
 	fixup_init();
 }
 

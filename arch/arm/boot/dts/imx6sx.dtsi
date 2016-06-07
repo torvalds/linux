@@ -63,12 +63,14 @@
 				996000  1250000
 				792000  1175000
 				396000  1075000
+				198000	975000
 			>;
 			fsl,soc-operating-points = <
 				/* ARM kHz  SOC uV */
 				996000      1175000
 				792000      1175000
 				396000      1175000
+				198000	    1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
 			clocks = <&clks IMX6SX_CLK_ARM>,
@@ -970,8 +972,7 @@
 					 <&clks 0>, <&clks 0>;
 				clock-names = "bus", "mclk1", "mclk2", "mclk3";
 				dma-names = "rx", "tx";
-				dmas = <&sdma 31 23 0>, <&sdma 32 23 0>;
-				dma-source = <&gpr 0 15 0 16>;
+				dmas = <&sdma 31 24 0>, <&sdma 32 24 0>;
 				status = "disabled";
 			};
 
@@ -990,8 +991,7 @@
 					 <&clks 0>, <&clks 0>;
 				clock-names = "bus", "mclk1", "mclk2", "mclk3";
 				dma-names = "rx", "tx";
-				dmas = <&sdma 33 23 0>, <&sdma 34 23 0>;
-				dma-source = <&gpr 0 17 0 18>;
+				dmas = <&sdma 33 24 0>, <&sdma 34 24 0>;
 				status = "disabled";
 			};
 

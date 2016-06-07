@@ -9,7 +9,7 @@
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -44,6 +44,6 @@ static struct gpio_chip usrgpir_gpio_chip = {
 
 static int __init usrgpir_gpio_setup(void)
 {
-	return gpiochip_add(&usrgpir_gpio_chip);
+	return gpiochip_add_data(&usrgpir_gpio_chip, NULL);
 }
 device_initcall(usrgpir_gpio_setup);

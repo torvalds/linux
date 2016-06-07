@@ -599,8 +599,8 @@ BUILD_PERDEV_HELPER(cpu_up)         /* int mips_cdmm_cpu_up_helper(...) */
  * mips_cdmm_bus_down() - Tear down the CDMM bus.
  * @data:	Pointer to unsigned int CPU number.
  *
- * This work_on_cpu callback function is executed on a given CPU to call the
- * CDMM driver cpu_down callback for all devices on that CPU.
+ * This function is executed on the hotplugged CPU and calls the CDMM
+ * driver cpu_down callback for all devices on that CPU.
  */
 static long mips_cdmm_bus_down(void *data)
 {
@@ -630,7 +630,9 @@ static long mips_cdmm_bus_down(void *data)
  * CDMM devices on that CPU, or to call the CDMM driver cpu_up callback for all
  * devices already discovered on that CPU.
  *
- * It is used during initialisation and when CPUs are brought online.
+ * It is used as work_on_cpu callback function during
+ * initialisation. When CPUs are brought online the function is
+ * invoked directly on the hotplugged CPU.
  */
 static long mips_cdmm_bus_up(void *data)
 {
@@ -677,10 +679,10 @@ static int mips_cdmm_cpu_notify(struct notifier_block *nb,
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
-		work_on_cpu(cpu, mips_cdmm_bus_up, &cpu);
+		mips_cdmm_bus_up(&cpu);
 		break;
 	case CPU_DOWN_PREPARE:
-		work_on_cpu(cpu, mips_cdmm_bus_down, &cpu);
+		mips_cdmm_bus_down(&cpu);
 		break;
 	default:
 		return NOTIFY_DONE;

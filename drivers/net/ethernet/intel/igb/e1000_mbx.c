@@ -302,9 +302,9 @@ static s32 igb_check_for_rst_pf(struct e1000_hw *hw, u16 vf_number)
 	u32 vflre = rd32(E1000_VFLRE);
 	s32 ret_val = -E1000_ERR_MBX;
 
-	if (vflre & (1 << vf_number)) {
+	if (vflre & BIT(vf_number)) {
 		ret_val = 0;
-		wr32(E1000_VFLRE, (1 << vf_number));
+		wr32(E1000_VFLRE, BIT(vf_number));
 		hw->mbx.stats.rsts++;
 	}
 

@@ -20,6 +20,40 @@
 #define __INTEL_PT_H__
 
 /*
+ * PT MSR bit definitions
+ */
+#define RTIT_CTL_TRACEEN		BIT(0)
+#define RTIT_CTL_CYCLEACC		BIT(1)
+#define RTIT_CTL_OS			BIT(2)
+#define RTIT_CTL_USR			BIT(3)
+#define RTIT_CTL_CR3EN			BIT(7)
+#define RTIT_CTL_TOPA			BIT(8)
+#define RTIT_CTL_MTC_EN			BIT(9)
+#define RTIT_CTL_TSC_EN			BIT(10)
+#define RTIT_CTL_DISRETC		BIT(11)
+#define RTIT_CTL_BRANCH_EN		BIT(13)
+#define RTIT_CTL_MTC_RANGE_OFFSET	14
+#define RTIT_CTL_MTC_RANGE		(0x0full << RTIT_CTL_MTC_RANGE_OFFSET)
+#define RTIT_CTL_CYC_THRESH_OFFSET	19
+#define RTIT_CTL_CYC_THRESH		(0x0full << RTIT_CTL_CYC_THRESH_OFFSET)
+#define RTIT_CTL_PSB_FREQ_OFFSET	24
+#define RTIT_CTL_PSB_FREQ      		(0x0full << RTIT_CTL_PSB_FREQ_OFFSET)
+#define RTIT_CTL_ADDR0_OFFSET		32
+#define RTIT_CTL_ADDR0      		(0x0full << RTIT_CTL_ADDR0_OFFSET)
+#define RTIT_CTL_ADDR1_OFFSET		36
+#define RTIT_CTL_ADDR1      		(0x0full << RTIT_CTL_ADDR1_OFFSET)
+#define RTIT_CTL_ADDR2_OFFSET		40
+#define RTIT_CTL_ADDR2      		(0x0full << RTIT_CTL_ADDR2_OFFSET)
+#define RTIT_CTL_ADDR3_OFFSET		44
+#define RTIT_CTL_ADDR3      		(0x0full << RTIT_CTL_ADDR3_OFFSET)
+#define RTIT_STATUS_FILTEREN		BIT(0)
+#define RTIT_STATUS_CONTEXTEN		BIT(1)
+#define RTIT_STATUS_TRIGGEREN		BIT(2)
+#define RTIT_STATUS_BUFFOVF		BIT(3)
+#define RTIT_STATUS_ERROR		BIT(4)
+#define RTIT_STATUS_STOPPED		BIT(5)
+
+/*
  * Single-entry ToPA: when this close to region boundary, switch
  * buffers to avoid losing data.
  */
@@ -48,15 +82,20 @@ struct topa_entry {
 #define PT_CPUID_LEAVES		2
 #define PT_CPUID_REGS_NUM	4 /* number of regsters (eax, ebx, ecx, edx) */
 
+/* TSC to Core Crystal Clock Ratio */
+#define CPUID_TSC_LEAF		0x15
+
 enum pt_capabilities {
 	PT_CAP_max_subleaf = 0,
 	PT_CAP_cr3_filtering,
 	PT_CAP_psb_cyc,
+	PT_CAP_ip_filtering,
 	PT_CAP_mtc,
 	PT_CAP_topa_output,
 	PT_CAP_topa_multiple_entries,
 	PT_CAP_single_range_output,
 	PT_CAP_payloads_lip,
+	PT_CAP_num_address_ranges,
 	PT_CAP_mtc_periods,
 	PT_CAP_cycle_thresholds,
 	PT_CAP_psb_periods,
@@ -66,6 +105,9 @@ struct pt_pmu {
 	struct pmu		pmu;
 	u32			caps[PT_CPUID_REGS_NUM * PT_CPUID_LEAVES];
 	bool			vmx;
+	unsigned long		max_nonturbo_ratio;
+	unsigned int		tsc_art_num;
+	unsigned int		tsc_art_den;
 };
 
 /**
@@ -104,14 +146,40 @@ struct pt_buffer {
 	struct topa_entry	*topa_index[0];
 };
 
+#define PT_FILTERS_NUM	4
+
+/**
+ * struct pt_filter - IP range filter configuration
+ * @msr_a:	range start, goes to RTIT_ADDRn_A
+ * @msr_b:	range end, goes to RTIT_ADDRn_B
+ * @config:	4-bit field in RTIT_CTL
+ */
+struct pt_filter {
+	unsigned long	msr_a;
+	unsigned long	msr_b;
+	unsigned long	config;
+};
+
+/**
+ * struct pt_filters - IP range filtering context
+ * @filter:	filters defined for this context
+ * @nr_filters:	number of defined filters in the @filter array
+ */
+struct pt_filters {
+	struct pt_filter	filter[PT_FILTERS_NUM];
+	unsigned int		nr_filters;
+};
+
 /**
  * struct pt - per-cpu pt context
  * @handle:	perf output handle
+ * @filters:		last configured filters
  * @handle_nmi:	do handle PT PMI on this cpu, there's an active event
  * @vmx_on:	1 if VMX is ON on this cpu
  */
 struct pt {
 	struct perf_output_handle handle;
+	struct pt_filters	filters;
 	int			handle_nmi;
 	int			vmx_on;
 };

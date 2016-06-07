@@ -1474,7 +1474,7 @@ static int __event_process_build_id(struct build_id_event *bev,
 
 	dso = machine__findnew_dso(machine, filename);
 	if (dso != NULL) {
-		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+		char sbuild_id[SBUILD_ID_SIZE];
 
 		dso__set_build_id(dso, &bev->build_id);
 
@@ -1819,7 +1819,8 @@ static int process_cpu_topology(struct perf_file_section *section,
 
 	ph->env.nr_sibling_cores = nr;
 	size += sizeof(u32);
-	strbuf_init(&sb, 128);
+	if (strbuf_init(&sb, 128) < 0)
+		goto free_cpu;
 
 	for (i = 0; i < nr; i++) {
 		str = do_read_string(fd, ph);
@@ -1827,7 +1828,8 @@ static int process_cpu_topology(struct perf_file_section *section,
 			goto error;
 
 		/* include a NULL character at the end */
-		strbuf_add(&sb, str, strlen(str) + 1);
+		if (strbuf_add(&sb, str, strlen(str) + 1) < 0)
+			goto error;
 		size += string_size(str);
 		free(str);
 	}
@@ -1849,7 +1851,8 @@ static int process_cpu_topology(struct perf_file_section *section,
 			goto error;
 
 		/* include a NULL character at the end */
-		strbuf_add(&sb, str, strlen(str) + 1);
+		if (strbuf_add(&sb, str, strlen(str) + 1) < 0)
+			goto error;
 		size += string_size(str);
 		free(str);
 	}
@@ -1912,13 +1915,14 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 	/* nr nodes */
 	ret = readn(fd, &nr, sizeof(nr));
 	if (ret != sizeof(nr))
-		goto error;
+		return -1;
 
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
 	ph->env.nr_numa_nodes = nr;
-	strbuf_init(&sb, 256);
+	if (strbuf_init(&sb, 256) < 0)
+		return -1;
 
 	for (i = 0; i < nr; i++) {
 		/* node number */
@@ -1940,15 +1944,17 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 			mem_free = bswap_64(mem_free);
 		}
 
-		strbuf_addf(&sb, "%u:%"PRIu64":%"PRIu64":",
-			    node, mem_total, mem_free);
+		if (strbuf_addf(&sb, "%u:%"PRIu64":%"PRIu64":",
+				node, mem_total, mem_free) < 0)
+			goto error;
 
 		str = do_read_string(fd, ph);
 		if (!str)
 			goto error;
 
 		/* include a NULL character at the end */
-		strbuf_add(&sb, str, strlen(str) + 1);
+		if (strbuf_add(&sb, str, strlen(str) + 1) < 0)
+			goto error;
 		free(str);
 	}
 	ph->env.numa_nodes = strbuf_detach(&sb, NULL);
@@ -1982,7 +1988,8 @@ static int process_pmu_mappings(struct perf_file_section *section __maybe_unused
 	}
 
 	ph->env.nr_pmu_mappings = pmu_num;
-	strbuf_init(&sb, 128);
+	if (strbuf_init(&sb, 128) < 0)
+		return -1;
 
 	while (pmu_num) {
 		if (readn(fd, &type, sizeof(type)) != sizeof(type))
@@ -1994,9 +2001,11 @@ static int process_pmu_mappings(struct perf_file_section *section __maybe_unused
 		if (!name)
 			goto error;
 
-		strbuf_addf(&sb, "%u:%s", type, name);
+		if (strbuf_addf(&sb, "%u:%s", type, name) < 0)
+			goto error;
 		/* include a NULL character at the end */
-		strbuf_add(&sb, "", 1);
+		if (strbuf_add(&sb, "", 1) < 0)
+			goto error;
 
 		if (!strcmp(name, "msr"))
 			ph->env.msr_pmu_type = type;

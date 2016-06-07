@@ -99,6 +99,9 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 
 		skb_dst_force(skb);
 
+		/* Inner headers are invalid now. */
+		skb->encapsulation = 0;
+
 		err = x->type->output(x, skb);
 		if (err == -EINPROGRESS)
 			goto out;

@@ -50,15 +50,6 @@ config ARM_HIGHBANK_CPUFREQ
 
 	  If in doubt, say N.
 
-config ARM_HISI_ACPU_CPUFREQ
-	tristate "Hisilicon ACPU CPUfreq driver"
-	depends on ARCH_HISI && CPUFREQ_DT
-	select PM_OPP
-	help
-	  This enables the hisilicon ACPU CPUfreq driver.
-
-	  If in doubt, say N.
-
 config ARM_IMX6Q_CPUFREQ
 	tristate "Freescale i.MX6 cpufreq support"
 	depends on ARCH_MXC

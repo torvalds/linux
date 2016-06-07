@@ -66,6 +66,7 @@ struct intel_bts {
 	u64				branches_id;
 	size_t				branches_event_size;
 	bool				synth_needs_swap;
+	unsigned long			num_events;
 };
 
 struct intel_bts_queue {
@@ -274,6 +275,10 @@ static int intel_bts_synth_branch_sample(struct intel_bts_queue *btsq,
 	struct intel_bts *bts = btsq->bts;
 	union perf_event event;
 	struct perf_sample sample = { .ip = 0, };
+
+	if (bts->synth_opts.initial_skip &&
+	    bts->num_events++ <= bts->synth_opts.initial_skip)
+		return 0;
 
 	event.sample.header.type = PERF_RECORD_SAMPLE;
 	event.sample.header.misc = PERF_RECORD_MISC_USER;

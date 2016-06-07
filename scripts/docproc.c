@@ -42,8 +42,10 @@
 #include <unistd.h>
 #include <limits.h>
 #include <errno.h>
+#include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 
 /* exitstatus is used to keep track of any failing calls to kernel-doc,
  * but execution continues. */
@@ -68,11 +70,22 @@ FILELINE * docsection;
 #define KERNELDOCPATH "scripts/"
 #define KERNELDOC     "kernel-doc"
 #define DOCBOOK       "-docbook"
+#define RST           "-rst"
 #define LIST          "-list"
 #define FUNCTION      "-function"
 #define NOFUNCTION    "-nofunction"
 #define NODOCSECTIONS "-no-doc-sections"
 #define SHOWNOTFOUND  "-show-not-found"
+
+enum file_format {
+	FORMAT_AUTO,
+	FORMAT_DOCBOOK,
+	FORMAT_RST,
+};
+
+static enum file_format file_format = FORMAT_AUTO;
+
+#define KERNELDOC_FORMAT	(file_format == FORMAT_RST ? RST : DOCBOOK)
 
 static char *srctree, *kernsrctree;
 
@@ -95,7 +108,7 @@ static void consume_symbol(const char *sym)
 
 static void usage (void)
 {
-	fprintf(stderr, "Usage: docproc {doc|depend} file\n");
+	fprintf(stderr, "Usage: docproc [{--docbook|--rst}] {doc|depend} file\n");
 	fprintf(stderr, "Input is read from file.tmpl. Output is sent to stdout\n");
 	fprintf(stderr, "doc: frontend when generating kernel documentation\n");
 	fprintf(stderr, "depend: generate list of files referenced within file\n");
@@ -242,7 +255,7 @@ static void find_export_symbols(char * filename)
 /*
  * Document all external or internal functions in a file.
  * Call kernel-doc with following parameters:
- * kernel-doc -docbook -nofunction function_name1 filename
+ * kernel-doc [-docbook|-rst] -nofunction function_name1 filename
  * Function names are obtained from all the src files
  * by find_export_symbols.
  * intfunc uses -nofunction
@@ -263,7 +276,7 @@ static void docfunctions(char * filename, char * type)
 		exit(1);
 	}
 	vec[idx++] = KERNELDOC;
-	vec[idx++] = DOCBOOK;
+	vec[idx++] = KERNELDOC_FORMAT;
 	vec[idx++] = NODOCSECTIONS;
 	for (i=0; i < symfilecnt; i++) {
 		struct symfile * sym = &symfilelist[i];
@@ -275,7 +288,10 @@ static void docfunctions(char * filename, char * type)
 	}
 	vec[idx++]     = filename;
 	vec[idx] = NULL;
-	printf("<!-- %s -->\n", filename);
+	if (file_format == FORMAT_RST)
+		printf(".. %s\n", filename);
+	else
+		printf("<!-- %s -->\n", filename);
 	exec_kernel_doc(vec);
 	fflush(stdout);
 	free(vec);
@@ -294,7 +310,7 @@ static void singfunc(char * filename, char * line)
 	int i, idx = 0;
 	int startofsym = 1;
 	vec[idx++] = KERNELDOC;
-	vec[idx++] = DOCBOOK;
+	vec[idx++] = KERNELDOC_FORMAT;
 	vec[idx++] = SHOWNOTFOUND;
 
 	/* Split line up in individual parameters preceded by FUNCTION */
@@ -343,7 +359,7 @@ static void docsect(char *filename, char *line)
 	free(s);
 
 	vec[0] = KERNELDOC;
-	vec[1] = DOCBOOK;
+	vec[1] = KERNELDOC_FORMAT;
 	vec[2] = SHOWNOTFOUND;
 	vec[3] = FUNCTION;
 	vec[4] = line;
@@ -431,6 +447,32 @@ static void find_all_symbols(char *filename)
 }
 
 /*
+ * Terminate s at first space, if any. If there was a space, return pointer to
+ * the character after that. Otherwise, return pointer to the terminating NUL.
+ */
+static char *chomp(char *s)
+{
+	while (*s && !isspace(*s))
+		s++;
+
+	if (*s)
+		*s++ = '\0';
+
+	return s;
+}
+
+/* Return pointer to directive content, or NULL if not a directive. */
+static char *is_directive(char *line)
+{
+	if (file_format == FORMAT_DOCBOOK && line[0] == '!')
+		return line + 1;
+	else if (file_format == FORMAT_RST && !strncmp(line, ".. !", 4))
+		return line + 4;
+
+	return NULL;
+}
+
+/*
  * Parse file, calling action specific functions for:
  * 1) Lines containing !E
  * 2) Lines containing !I
@@ -443,63 +485,75 @@ static void find_all_symbols(char *filename)
 static void parse_file(FILE *infile)
 {
 	char line[MAXLINESZ];
-	char * s;
+	char *p, *s;
 	while (fgets(line, MAXLINESZ, infile)) {
-		if (line[0] == '!') {
-			s = line + 2;
-			switch (line[1]) {
-				case 'E':
-					while (*s && !isspace(*s)) s++;
-					*s = '\0';
-					externalfunctions(line+2);
-					break;
-				case 'I':
-					while (*s && !isspace(*s)) s++;
-					*s = '\0';
-					internalfunctions(line+2);
-					break;
-				case 'D':
-					while (*s && !isspace(*s)) s++;
-					*s = '\0';
-					symbolsonly(line+2);
-					break;
-				case 'F':
-					/* filename */
-					while (*s && !isspace(*s)) s++;
-					*s++ = '\0';
-					/* function names */
-					while (isspace(*s))
-						s++;
-					singlefunctions(line +2, s);
-					break;
-				case 'P':
-					/* filename */
-					while (*s && !isspace(*s)) s++;
-					*s++ = '\0';
-					/* DOC: section name */
-					while (isspace(*s))
-						s++;
-					docsection(line + 2, s);
-					break;
-				case 'C':
-					while (*s && !isspace(*s)) s++;
-					*s = '\0';
-					if (findall)
-						findall(line+2);
-					break;
-				default:
-					defaultline(line);
-			}
-		} else {
+		p = is_directive(line);
+		if (!p) {
+			defaultline(line);
+			continue;
+		}
+
+		switch (*p++) {
+		case 'E':
+			chomp(p);
+			externalfunctions(p);
+			break;
+		case 'I':
+			chomp(p);
+			internalfunctions(p);
+			break;
+		case 'D':
+			chomp(p);
+			symbolsonly(p);
+			break;
+		case 'F':
+			/* filename */
+			s = chomp(p);
+			/* function names */
+			while (isspace(*s))
+				s++;
+			singlefunctions(p, s);
+			break;
+		case 'P':
+			/* filename */
+			s = chomp(p);
+			/* DOC: section name */
+			while (isspace(*s))
+				s++;
+			docsection(p, s);
+			break;
+		case 'C':
+			chomp(p);
+			if (findall)
+				findall(p);
+			break;
+		default:
 			defaultline(line);
 		}
 	}
 	fflush(stdout);
 }
 
+/*
+ * Is this a RestructuredText template?  Answer the question by seeing if its
+ * name ends in ".rst".
+ */
+static int is_rst(const char *file)
+{
+	char *dot = strrchr(file, '.');
+
+	return dot && !strcmp(dot + 1, "rst");
+}
+
+enum opts {
+	OPT_DOCBOOK,
+	OPT_RST,
+	OPT_HELP,
+};
 
 int main(int argc, char *argv[])
 {
+	const char *subcommand, *filename;
 	FILE * infile;
 	int i;
 
@@ -509,19 +563,66 @@ int main(int argc, char *argv[])
 	kernsrctree = getenv("KBUILD_SRC");
 	if (!kernsrctree || !*kernsrctree)
 		kernsrctree = srctree;
-	if (argc != 3) {
+
+	for (;;) {
+		int c;
+		struct option opts[] = {
+			{ "docbook",	no_argument, NULL, OPT_DOCBOOK },
+			{ "rst",	no_argument, NULL, OPT_RST },
+			{ "help",	no_argument, NULL, OPT_HELP },
+			{}
+		};
+
+		c = getopt_long_only(argc, argv, "", opts, NULL);
+		if (c == -1)
+			break;
+
+		switch (c) {
+		case OPT_DOCBOOK:
+			file_format = FORMAT_DOCBOOK;
+			break;
+		case OPT_RST:
+			file_format = FORMAT_RST;
+			break;
+		case OPT_HELP:
+			usage();
+			return 0;
+		default:
+		case '?':
+			usage();
+			return 1;
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 2) {
 		usage();
 		exit(1);
 	}
+
+	subcommand = argv[0];
+	filename = argv[1];
+
+	if (file_format == FORMAT_AUTO)
+		file_format = is_rst(filename) ? FORMAT_RST : FORMAT_DOCBOOK;
+
 	/* Open file, exit on error */
-	infile = fopen(argv[2], "r");
+	infile = fopen(filename, "r");
 	if (infile == NULL) {
 		fprintf(stderr, "docproc: ");
-		perror(argv[2]);
+		perror(filename);
 		exit(2);
 	}
 
-	if (strcmp("doc", argv[1]) == 0) {
+	if (strcmp("doc", subcommand) == 0) {
+		if (file_format == FORMAT_RST) {
+			time_t t = time(NULL);
+			printf(".. generated from %s by docproc %s\n",
+			       filename, ctime(&t));
+		}
+
 		/* Need to do this in two passes.
 		 * First pass is used to collect all symbols exported
 		 * in the various files;
@@ -557,10 +658,10 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Warning: didn't use docs for %s\n",
 				all_list[i]);
 		}
-	} else if (strcmp("depend", argv[1]) == 0) {
+	} else if (strcmp("depend", subcommand) == 0) {
 		/* Create first part of dependency chain
 		 * file.tmpl */
-		printf("%s\t", argv[2]);
+		printf("%s\t", filename);
 		defaultline       = noaction;
 		internalfunctions = adddep;
 		externalfunctions = adddep;
@@ -571,7 +672,7 @@ int main(int argc, char *argv[])
 		parse_file(infile);
 		printf("\n");
 	} else {
-		fprintf(stderr, "Unknown option: %s\n", argv[1]);
+		fprintf(stderr, "Unknown option: %s\n", subcommand);
 		exit(1);
 	}
 	fclose(infile);

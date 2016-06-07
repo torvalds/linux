@@ -2425,6 +2425,9 @@ static irqreturn_t dwc2_hsotg_irq(int irq, void *pw)
 	u32 gintsts;
 	u32 gintmsk;
 
+	if (!dwc2_is_device_mode(hsotg))
+		return IRQ_NONE;
+
 	spin_lock(&hsotg->lock);
 irq_retry:
 	gintsts = dwc2_readl(hsotg->regs + GINTSTS);
@@ -2631,7 +2634,10 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		desc->wMaxPacketSize, desc->bInterval);
 
 	/* not to be called for EP0 */
-	WARN_ON(index == 0);
+	if (index == 0) {
+		dev_err(hsotg->dev, "%s: called for EP 0\n", __func__);
+		return -EINVAL;
+	}
 
 	dir_in = (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ? 1 : 0;
 	if (dir_in != hs_ep->dir_in) {

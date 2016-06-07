@@ -287,7 +287,6 @@ static struct jz4780_bch *jz4780_bch_get(struct device_node *np)
 	bch = platform_get_drvdata(pdev);
 	clk_prepare_enable(bch->clk);
 
-	bch->dev = &pdev->dev;
 	return bch;
 }
 

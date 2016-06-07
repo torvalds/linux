@@ -703,6 +703,17 @@ static inline struct bio *bio_list_get(struct bio_list *bl)
 }
 
 /*
+ * Increment chain count for the bio. Make sure the CHAIN flag update
+ * is visible before the raised count.
+ */
+static inline void bio_inc_remaining(struct bio *bio)
+{
+	bio_set_flag(bio, BIO_CHAIN);
+	smp_mb__before_atomic();
+	atomic_inc(&bio->__bi_remaining);
+}
+
+/*
  * bio_set is used to allow other portions of the IO system to
  * allocate their own private memory pools for bio and iovec structures.
  * These memory pools in turn all allocate from the bio_slab

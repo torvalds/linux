@@ -89,10 +89,12 @@ void sctp_inq_push(struct sctp_inq *q, struct sctp_chunk *chunk)
 	 * Eventually, we should clean up inqueue to not rely
 	 * on the BH related data structures.
 	 */
+	local_bh_disable();
 	list_add_tail(&chunk->list, &q->in_chunk_list);
 	if (chunk->asoc)
 		chunk->asoc->stats.ipackets++;
 	q->immediate.func(&q->immediate);
+	local_bh_enable();
 }
 
 /* Peek at the next chunk on the inqeue. */
@@ -163,6 +165,9 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 		chunk->singleton = 1;
 		ch = (sctp_chunkhdr_t *) chunk->skb->data;
 		chunk->data_accepted = 0;
+
+		if (chunk->asoc)
+			sock_rps_save_rxhash(chunk->asoc->base.sk, chunk->skb);
 	}
 
 	chunk->chunk_hdr = ch;

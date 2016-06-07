@@ -46,6 +46,7 @@
  */
 
 #include "armada-ap806-dual.dtsi"
+#include "armada-cp110-master.dtsi"
 
 / {
 	model = "Marvell Armada 7020";

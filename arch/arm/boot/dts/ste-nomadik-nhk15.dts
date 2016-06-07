@@ -57,8 +57,15 @@
 				};
 			};
 		};
+		lis3lv02dl {
+			lis3lv02dl_nhk_mode: lis3lv02dl_nhk {
+				nhk_cfg1 {
+					pins = "GPIO82_C10"; // IRQ line
+					ste,input = <0>;
+				};
+			};
+		};
 	};
-
 	src@101e0000 {
 		/* These chrystal outputs are not used on this board */
 		disable-sxtalo;
@@ -86,6 +93,10 @@
 		lis3lv02dl@1d {
 			/* Accelerometer */
 			compatible = "st,lis3lv02dl-accel";
+			interrupt-parent = <&gpio2>;
+			interrupts = <18 IRQ_TYPE_EDGE_RISING>; // GPIO 82
+			pinctrl-0 = <&lis3lv02dl_nhk_mode>;
+			pinctrl-names = "default";
 			reg = <0x1d>;
 		};
 		stmpe0: stmpe2401@43 {

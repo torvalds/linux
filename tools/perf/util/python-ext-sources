@@ -23,3 +23,4 @@ util/strlist.c
 util/trace-event.c
 ../lib/rbtree.c
 util/string.c
+util/symbol_fprintf.c

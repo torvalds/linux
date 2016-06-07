@@ -21,6 +21,8 @@
 #include <linux/smp.h>
 #include <linux/bitmap.h>
 #include <linux/math64.h>
+#include <linux/mod_devicetable.h>
+#include <asm/cpu_device_id.h>
 #include <asm/processor.h>
 #include <asm/mce.h>
 
@@ -28,8 +30,6 @@
 
 /* Static vars */
 static LIST_HEAD(sbridge_edac_list);
-static DEFINE_MUTEX(sbridge_edac_lock);
-static int probed;
 
 /*
  * Alter this version for the module when modifications are made
@@ -364,16 +364,6 @@ struct sbridge_pvt {
 	bool			is_mirrored, is_lockstep, is_close_pg;
 	bool			is_chan_hash;
 
-	/* Fifo double buffers */
-	struct mce		mce_entry[MCE_LOG_LEN];
-	struct mce		mce_outentry[MCE_LOG_LEN];
-
-	/* Fifo in/out counters */
-	unsigned		mce_in, mce_out;
-
-	/* Count indicator to show errors not got */
-	unsigned		mce_overrun;
-
 	/* Memory description */
 	u64			tolm, tohm;
 	struct knl_pvt knl;
@@ -659,18 +649,6 @@ static const struct pci_id_descr pci_dev_descr_broadwell[] = {
 
 static const struct pci_id_table pci_dev_descr_broadwell_table[] = {
 	PCI_ID_TABLE_ENTRY(pci_dev_descr_broadwell),
-	{0,}			/* 0 terminated list. */
-};
-
-/*
- *	pci_device_id	table for which devices we are looking for
- */
-static const struct pci_device_id sbridge_pci_tbl[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KNL_IMC_SAD0)},
 	{0,}			/* 0 terminated list. */
 };
 
@@ -3097,63 +3075,8 @@ err_parsing:
 }
 
 /*
- *	sbridge_check_error	Retrieve and process errors reported by the
- *				hardware. Called by the Core module.
- */
-static void sbridge_check_error(struct mem_ctl_info *mci)
-{
-	struct sbridge_pvt *pvt = mci->pvt_info;
-	int i;
-	unsigned count = 0;
-	struct mce *m;
-
-	/*
-	 * MCE first step: Copy all mce errors into a temporary buffer
-	 * We use a double buffering here, to reduce the risk of
-	 * loosing an error.
-	 */
-	smp_rmb();
-	count = (pvt->mce_out + MCE_LOG_LEN - pvt->mce_in)
-		% MCE_LOG_LEN;
-	if (!count)
-		return;
-
-	m = pvt->mce_outentry;
-	if (pvt->mce_in + count > MCE_LOG_LEN) {
-		unsigned l = MCE_LOG_LEN - pvt->mce_in;
-
-		memcpy(m, &pvt->mce_entry[pvt->mce_in], sizeof(*m) * l);
-		smp_wmb();
-		pvt->mce_in = 0;
-		count -= l;
-		m += l;
-	}
-	memcpy(m, &pvt->mce_entry[pvt->mce_in], sizeof(*m) * count);
-	smp_wmb();
-	pvt->mce_in += count;
-
-	smp_rmb();
-	if (pvt->mce_overrun) {
-		sbridge_printk(KERN_ERR, "Lost %d memory errors\n",
-			      pvt->mce_overrun);
-		smp_wmb();
-		pvt->mce_overrun = 0;
-	}
-
-	/*
-	 * MCE second step: parse errors and display
-	 */
-	for (i = 0; i < count; i++)
-		sbridge_mce_output_error(mci, &pvt->mce_outentry[i]);
-}
-
-/*
- * sbridge_mce_check_error	Replicates mcelog routine to get errors
- *				This routine simply queues mcelog errors, and
- *				return. The error itself should be handled later
- *				by sbridge_check_error.
- * WARNING: As this routine should be called at NMI time, extra care should
- * be taken to avoid deadlocks, and to be as fast as possible.
+ * Check that logging is enabled and that this is the right type
+ * of error for us to handle.
  */
 static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 				   void *data)
@@ -3198,21 +3121,7 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 			  "%u APIC %x\n", mce->cpuvendor, mce->cpuid,
 			  mce->time, mce->socketid, mce->apicid);
 
-	smp_rmb();
-	if ((pvt->mce_out + 1) % MCE_LOG_LEN == pvt->mce_in) {
-		smp_wmb();
-		pvt->mce_overrun++;
-		return NOTIFY_DONE;
-	}
-
-	/* Copy memory error at the ringbuffer */
-	memcpy(&pvt->mce_entry[pvt->mce_out], mce, sizeof(*mce));
-	smp_wmb();
-	pvt->mce_out = (pvt->mce_out + 1) % MCE_LOG_LEN;
-
-	/* Handle fatal errors immediately */
-	if (mce->mcgstatus & 1)
-		sbridge_check_error(mci);
+	sbridge_mce_output_error(mci, mce);
 
 	/* Advice mcelog that the error were handled */
 	return NOTIFY_STOP;
@@ -3297,9 +3206,6 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 	mci->mod_ver = SBRIDGE_REVISION;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
-
-	/* Set the function pointer to an actual operation function */
-	mci->edac_check = sbridge_check_error;
 
 	pvt->info.type = type;
 	switch (type) {
@@ -3448,62 +3354,40 @@ fail0:
 	return rc;
 }
 
+#define ICPU(model, table) \
+	{ X86_VENDOR_INTEL, 6, model, 0, (unsigned long)&table }
+
+/* Order here must match "enum type" */
+static const struct x86_cpu_id sbridge_cpuids[] = {
+	ICPU(0x2d, pci_dev_descr_sbridge_table),	/* SANDY_BRIDGE */
+	ICPU(0x3e, pci_dev_descr_ibridge_table),	/* IVY_BRIDGE */
+	ICPU(0x3f, pci_dev_descr_haswell_table),	/* HASWELL */
+	ICPU(0x4f, pci_dev_descr_broadwell_table),	/* BROADWELL */
+	ICPU(0x57, pci_dev_descr_knl_table),		/* KNIGHTS_LANDING */
+	{ }
+};
+MODULE_DEVICE_TABLE(x86cpu, sbridge_cpuids);
+
 /*
- *	sbridge_probe	Probe for ONE instance of device to see if it is
+ *	sbridge_probe	Get all devices and register memory controllers
  *			present.
  *	return:
  *		0 for FOUND a device
  *		< 0 for error code
  */
 
-static int sbridge_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int sbridge_probe(const struct x86_cpu_id *id)
 {
 	int rc = -ENODEV;
 	u8 mc, num_mc = 0;
 	struct sbridge_dev *sbridge_dev;
-	enum type type = SANDY_BRIDGE;
+	struct pci_id_table *ptable = (struct pci_id_table *)id->driver_data;
 
 	/* get the pci devices we want to reserve for our use */
-	mutex_lock(&sbridge_edac_lock);
+	rc = sbridge_get_all_devices(&num_mc, ptable);
 
-	/*
-	 * All memory controllers are allocated at the first pass.
-	 */
-	if (unlikely(probed >= 1)) {
-		mutex_unlock(&sbridge_edac_lock);
-		return -ENODEV;
-	}
-	probed++;
-
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA:
-		rc = sbridge_get_all_devices(&num_mc,
-					pci_dev_descr_ibridge_table);
-		type = IVY_BRIDGE;
-		break;
-	case PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0:
-		rc = sbridge_get_all_devices(&num_mc,
-					pci_dev_descr_sbridge_table);
-		type = SANDY_BRIDGE;
-		break;
-	case PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0:
-		rc = sbridge_get_all_devices(&num_mc,
-					pci_dev_descr_haswell_table);
-		type = HASWELL;
-		break;
-	case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0:
-		rc = sbridge_get_all_devices(&num_mc,
-					pci_dev_descr_broadwell_table);
-		type = BROADWELL;
-	    break;
-	case PCI_DEVICE_ID_INTEL_KNL_IMC_SAD0:
-		rc = sbridge_get_all_devices_knl(&num_mc,
-					pci_dev_descr_knl_table);
-		type = KNIGHTS_LANDING;
-		break;
-	}
 	if (unlikely(rc < 0)) {
-		edac_dbg(0, "couldn't get all devices for 0x%x\n", pdev->device);
+		edac_dbg(0, "couldn't get all devices\n");
 		goto fail0;
 	}
 
@@ -3514,14 +3398,13 @@ static int sbridge_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			 mc, mc + 1, num_mc);
 
 		sbridge_dev->mc = mc++;
-		rc = sbridge_register_mci(sbridge_dev, type);
+		rc = sbridge_register_mci(sbridge_dev, id - sbridge_cpuids);
 		if (unlikely(rc < 0))
 			goto fail1;
 	}
 
 	sbridge_printk(KERN_INFO, "%s\n", SBRIDGE_REVISION);
 
-	mutex_unlock(&sbridge_edac_lock);
 	return 0;
 
 fail1:
@@ -3530,58 +3413,25 @@ fail1:
 
 	sbridge_put_all_devices();
 fail0:
-	mutex_unlock(&sbridge_edac_lock);
 	return rc;
 }
 
 /*
- *	sbridge_remove	destructor for one instance of device
+ *	sbridge_remove	cleanup
  *
  */
-static void sbridge_remove(struct pci_dev *pdev)
+static void sbridge_remove(void)
 {
 	struct sbridge_dev *sbridge_dev;
 
 	edac_dbg(0, "\n");
-
-	/*
-	 * we have a trouble here: pdev value for removal will be wrong, since
-	 * it will point to the X58 register used to detect that the machine
-	 * is a Nehalem or upper design. However, due to the way several PCI
-	 * devices are grouped together to provide MC functionality, we need
-	 * to use a different method for releasing the devices
-	 */
-
-	mutex_lock(&sbridge_edac_lock);
-
-	if (unlikely(!probed)) {
-		mutex_unlock(&sbridge_edac_lock);
-		return;
-	}
 
 	list_for_each_entry(sbridge_dev, &sbridge_edac_list, list)
 		sbridge_unregister_mci(sbridge_dev);
 
 	/* Release PCI resources */
 	sbridge_put_all_devices();
-
-	probed--;
-
-	mutex_unlock(&sbridge_edac_lock);
 }
-
-MODULE_DEVICE_TABLE(pci, sbridge_pci_tbl);
-
-/*
- *	sbridge_driver	pci_driver structure for this module
- *
- */
-static struct pci_driver sbridge_driver = {
-	.name     = "sbridge_edac",
-	.probe    = sbridge_probe,
-	.remove   = sbridge_remove,
-	.id_table = sbridge_pci_tbl,
-};
 
 /*
  *	sbridge_init		Module entry function
@@ -3589,15 +3439,21 @@ static struct pci_driver sbridge_driver = {
  */
 static int __init sbridge_init(void)
 {
-	int pci_rc;
+	const struct x86_cpu_id *id;
+	int rc;
 
 	edac_dbg(2, "\n");
+
+	id = x86_match_cpu(sbridge_cpuids);
+	if (!id)
+		return -ENODEV;
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
 
-	pci_rc = pci_register_driver(&sbridge_driver);
-	if (pci_rc >= 0) {
+	rc = sbridge_probe(id);
+
+	if (rc >= 0) {
 		mce_register_decode_chain(&sbridge_mce_dec);
 		if (get_edac_report_status() == EDAC_REPORTING_DISABLED)
 			sbridge_printk(KERN_WARNING, "Loading driver, error reporting disabled.\n");
@@ -3605,9 +3461,9 @@ static int __init sbridge_init(void)
 	}
 
 	sbridge_printk(KERN_ERR, "Failed to register device with error %d.\n",
-		      pci_rc);
+		      rc);
 
-	return pci_rc;
+	return rc;
 }
 
 /*
@@ -3617,7 +3473,7 @@ static int __init sbridge_init(void)
 static void __exit sbridge_exit(void)
 {
 	edac_dbg(2, "\n");
-	pci_unregister_driver(&sbridge_driver);
+	sbridge_remove();
 	mce_unregister_decode_chain(&sbridge_mce_dec);
 }
 

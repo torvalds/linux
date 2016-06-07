@@ -31,15 +31,27 @@ should provide its own implementation of of_xlate. of_xlate is used only for
 dt boot case.
 
 #define of_phy_provider_register(dev, xlate)    \
-        __of_phy_provider_register((dev), THIS_MODULE, (xlate))
+        __of_phy_provider_register((dev), NULL, THIS_MODULE, (xlate))
 
 #define devm_of_phy_provider_register(dev, xlate)       \
-        __devm_of_phy_provider_register((dev), THIS_MODULE, (xlate))
+        __devm_of_phy_provider_register((dev), NULL, THIS_MODULE, (xlate))
 
 of_phy_provider_register and devm_of_phy_provider_register macros can be used to
 register the phy_provider and it takes device and of_xlate as
 arguments. For the dt boot case, all PHY providers should use one of the above
 2 macros to register the PHY provider.
+
+Often the device tree nodes associated with a PHY provider will contain a set
+of children that each represent a single PHY. Some bindings may nest the child
+nodes within extra levels for context and extensibility, in which case the low
+level of_phy_provider_register_full() and devm_of_phy_provider_register_full()
+macros can be used to override the node containing the children.
+
+#define of_phy_provider_register_full(dev, children, xlate) \
+	__of_phy_provider_register(dev, children, THIS_MODULE, xlate)
+
+#define devm_of_phy_provider_register_full(dev, children, xlate) \
+	__devm_of_phy_provider_register_full(dev, children, THIS_MODULE, xlate)
 
 void devm_of_phy_provider_unregister(struct device *dev,
 	struct phy_provider *phy_provider);

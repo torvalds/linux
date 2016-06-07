@@ -1027,6 +1027,11 @@ struct auxtrace_record *intel_pt_recording_init(int *err)
 	if (!intel_pt_pmu)
 		return NULL;
 
+	if (setenv("JITDUMP_USE_ARCH_TIMESTAMP", "1", 1)) {
+		*err = -errno;
+		return NULL;
+	}
+
 	ptr = zalloc(sizeof(struct intel_pt_recording));
 	if (!ptr) {
 		*err = -ENOMEM;

@@ -226,15 +226,10 @@ static int mmci_card_busy(struct mmc_host *mmc)
 	unsigned long flags;
 	int busy = 0;
 
-	pm_runtime_get_sync(mmc_dev(mmc));
-
 	spin_lock_irqsave(&host->lock, flags);
 	if (readl(host->base + MMCISTATUS) & MCI_ST_CARDBUSY)
 		busy = 1;
 	spin_unlock_irqrestore(&host->lock, flags);
-
-	pm_runtime_mark_last_busy(mmc_dev(mmc));
-	pm_runtime_put_autosuspend(mmc_dev(mmc));
 
 	return busy;
 }
@@ -381,9 +376,6 @@ mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 	host->cmd = NULL;
 
 	mmc_request_done(host->mmc, mrq);
-
-	pm_runtime_mark_last_busy(mmc_dev(host->mmc));
-	pm_runtime_put_autosuspend(mmc_dev(host->mmc));
 }
 
 static void mmci_set_mask1(struct mmci_host *host, unsigned int mask)
@@ -1290,8 +1282,6 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		return;
 	}
 
-	pm_runtime_get_sync(mmc_dev(mmc));
-
 	spin_lock_irqsave(&host->lock, flags);
 
 	host->mrq = mrq;
@@ -1317,8 +1307,6 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	u32 pwr = 0;
 	unsigned long flags;
 	int ret;
-
-	pm_runtime_get_sync(mmc_dev(mmc));
 
 	if (host->plat->ios_handler &&
 		host->plat->ios_handler(mmc_dev(mmc), ios))
@@ -1414,9 +1402,6 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	mmci_reg_delay(host);
 
 	spin_unlock_irqrestore(&host->lock, flags);
-
-	pm_runtime_mark_last_busy(mmc_dev(mmc));
-	pm_runtime_put_autosuspend(mmc_dev(mmc));
 }
 
 static int mmci_get_cd(struct mmc_host *mmc)
@@ -1440,8 +1425,6 @@ static int mmci_sig_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 
-		pm_runtime_get_sync(mmc_dev(mmc));
-
 		switch (ios->signal_voltage) {
 		case MMC_SIGNAL_VOLTAGE_330:
 			ret = regulator_set_voltage(mmc->supply.vqmmc,
@@ -1459,9 +1442,6 @@ static int mmci_sig_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		if (ret)
 			dev_warn(mmc_dev(mmc), "Voltage switch failed\n");
-
-		pm_runtime_mark_last_busy(mmc_dev(mmc));
-		pm_runtime_put_autosuspend(mmc_dev(mmc));
 	}
 
 	return ret;

@@ -48,7 +48,6 @@ static void mdp4_lvds_connector_destroy(struct drm_connector *connector)
 	struct mdp4_lvds_connector *mdp4_lvds_connector =
 			to_mdp4_lvds_connector(connector);
 
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 
 	kfree(mdp4_lvds_connector);
@@ -121,13 +120,10 @@ struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
 {
 	struct drm_connector *connector = NULL;
 	struct mdp4_lvds_connector *mdp4_lvds_connector;
-	int ret;
 
 	mdp4_lvds_connector = kzalloc(sizeof(*mdp4_lvds_connector), GFP_KERNEL);
-	if (!mdp4_lvds_connector) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!mdp4_lvds_connector)
+		return ERR_PTR(-ENOMEM);
 
 	mdp4_lvds_connector->encoder = encoder;
 	mdp4_lvds_connector->panel_node = panel_node;
@@ -143,15 +139,7 @@ struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	drm_connector_register(connector);
-
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return connector;
-
-fail:
-	if (connector)
-		mdp4_lvds_connector_destroy(connector);
-
-	return ERR_PTR(ret);
 }

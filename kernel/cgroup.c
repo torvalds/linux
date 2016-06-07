@@ -1215,6 +1215,41 @@ static void cgroup_destroy_root(struct cgroup_root *root)
 	cgroup_free_root(root);
 }
 
+/*
+ * look up cgroup associated with current task's cgroup namespace on the
+ * specified hierarchy
+ */
+static struct cgroup *
+current_cgns_cgroup_from_root(struct cgroup_root *root)
+{
+	struct cgroup *res = NULL;
+	struct css_set *cset;
+
+	lockdep_assert_held(&css_set_lock);
+
+	rcu_read_lock();
+
+	cset = current->nsproxy->cgroup_ns->root_cset;
+	if (cset == &init_css_set) {
+		res = &root->cgrp;
+	} else {
+		struct cgrp_cset_link *link;
+
+		list_for_each_entry(link, &cset->cgrp_links, cgrp_link) {
+			struct cgroup *c = link->cgrp;
+
+			if (c->root == root) {
+				res = c;
+				break;
+			}
+		}
+	}
+	rcu_read_unlock();
+
+	BUG_ON(!res);
+	return res;
+}
+
 /* look up cgroup associated with given css_set on the specified hierarchy */
 static struct cgroup *cset_cgroup_from_root(struct css_set *cset,
 					    struct cgroup_root *root)
@@ -1591,6 +1626,33 @@ static int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask)
 
 	kernfs_activate(dcgrp->kn);
 	return 0;
+}
+
+static int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
+			    struct kernfs_root *kf_root)
+{
+	int len = 0;
+	char *buf = NULL;
+	struct cgroup_root *kf_cgroot = cgroup_root_from_kf(kf_root);
+	struct cgroup *ns_cgroup;
+
+	buf = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	spin_lock_bh(&css_set_lock);
+	ns_cgroup = current_cgns_cgroup_from_root(kf_cgroot);
+	len = kernfs_path_from_node(kf_node, ns_cgroup->kn, buf, PATH_MAX);
+	spin_unlock_bh(&css_set_lock);
+
+	if (len >= PATH_MAX)
+		len = -ERANGE;
+	else if (len > 0) {
+		seq_escape(sf, buf, " \t\n\\");
+		len = 0;
+	}
+	kfree(buf);
+	return len;
 }
 
 static int cgroup_show_options(struct seq_file *seq,
@@ -5433,6 +5495,7 @@ static struct kernfs_syscall_ops cgroup_kf_syscall_ops = {
 	.mkdir			= cgroup_mkdir,
 	.rmdir			= cgroup_rmdir,
 	.rename			= cgroup_rename,
+	.show_path		= cgroup_show_path,
 };
 
 static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)

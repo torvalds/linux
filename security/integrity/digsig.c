@@ -18,6 +18,8 @@
 #include <linux/cred.h>
 #include <linux/key-type.h>
 #include <linux/digsig.h>
+#include <crypto/public_key.h>
+#include <keys/system_keyring.h>
 
 #include "integrity.h"
 
@@ -38,6 +40,12 @@ static const char *keyring_name[INTEGRITY_KEYRING_MAX] = {
 static bool init_keyring __initdata = true;
 #else
 static bool init_keyring __initdata;
+#endif
+
+#ifdef CONFIG_IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY
+#define restrict_link_to_ima restrict_link_by_builtin_and_secondary_trusted
+#else
+#define restrict_link_to_ima restrict_link_by_builtin_trusted
 #endif
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
@@ -83,10 +91,9 @@ int __init integrity_init_keyring(const unsigned int id)
 				    ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				     KEY_USR_VIEW | KEY_USR_READ |
 				     KEY_USR_WRITE | KEY_USR_SEARCH),
-				    KEY_ALLOC_NOT_IN_QUOTA, NULL);
-	if (!IS_ERR(keyring[id]))
-		set_bit(KEY_FLAG_TRUSTED_ONLY, &keyring[id]->flags);
-	else {
+				    KEY_ALLOC_NOT_IN_QUOTA,
+				    restrict_link_to_ima, NULL);
+	if (IS_ERR(keyring[id])) {
 		err = PTR_ERR(keyring[id]);
 		pr_info("Can't allocate %s keyring (%d)\n",
 			keyring_name[id], err);

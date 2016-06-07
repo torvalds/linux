@@ -1,6 +1,8 @@
 #ifndef _LINUX_TIMEKEEPING_H
 #define _LINUX_TIMEKEEPING_H
 
+#include <asm-generic/errno-base.h>
+
 /* Included from linux/ktime.h */
 
 void timekeeping_init(void);
@@ -11,8 +13,22 @@ extern int timekeeping_suspended;
  */
 extern void do_gettimeofday(struct timeval *tv);
 extern int do_settimeofday64(const struct timespec64 *ts);
-extern int do_sys_settimeofday(const struct timespec *tv,
-			       const struct timezone *tz);
+extern int do_sys_settimeofday64(const struct timespec64 *tv,
+				 const struct timezone *tz);
+static inline int do_sys_settimeofday(const struct timespec *tv,
+				      const struct timezone *tz)
+{
+	struct timespec64 ts64;
+
+	if (!tv)
+		return do_sys_settimeofday64(NULL, tz);
+
+	if (!timespec_valid(tv))
+		return -EINVAL;
+
+	ts64 = timespec_to_timespec64(*tv);
+	return do_sys_settimeofday64(&ts64, tz);
+}
 
 /*
  * Kernel time accessors

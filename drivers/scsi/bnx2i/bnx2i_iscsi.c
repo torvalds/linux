@@ -675,7 +675,7 @@ bnx2i_find_ep_in_ofld_list(struct bnx2i_hba *hba, u32 iscsi_cid)
 {
 	struct list_head *list;
 	struct list_head *tmp;
-	struct bnx2i_endpoint *ep;
+	struct bnx2i_endpoint *ep = NULL;
 
 	read_lock_bh(&hba->ep_rdwr_lock);
 	list_for_each_safe(list, tmp, &hba->ep_ofld_list) {
@@ -703,7 +703,7 @@ bnx2i_find_ep_in_destroy_list(struct bnx2i_hba *hba, u32 iscsi_cid)
 {
 	struct list_head *list;
 	struct list_head *tmp;
-	struct bnx2i_endpoint *ep;
+	struct bnx2i_endpoint *ep = NULL;
 
 	read_lock_bh(&hba->ep_rdwr_lock);
 	list_for_each_safe(list, tmp, &hba->ep_destroy_list) {

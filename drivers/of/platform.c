@@ -297,19 +297,37 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *lookup,
 				 struct device_node *np)
 {
+	const struct of_dev_auxdata *auxdata;
 	struct resource res;
+	int compatible = 0;
 
 	if (!lookup)
 		return NULL;
 
-	for(; lookup->compatible != NULL; lookup++) {
-		if (!of_device_is_compatible(np, lookup->compatible))
+	auxdata = lookup;
+	for (; auxdata->compatible; auxdata++) {
+		if (!of_device_is_compatible(np, auxdata->compatible))
 			continue;
+		compatible++;
 		if (!of_address_to_resource(np, 0, &res))
-			if (res.start != lookup->phys_addr)
+			if (res.start != auxdata->phys_addr)
 				continue;
-		pr_debug("%s: devname=%s\n", np->full_name, lookup->name);
-		return lookup;
+		pr_debug("%s: devname=%s\n", np->full_name, auxdata->name);
+		return auxdata;
+	}
+
+	if (!compatible)
+		return NULL;
+
+	/* Try compatible match if no phys_addr and name are specified */
+	auxdata = lookup;
+	for (; auxdata->compatible; auxdata++) {
+		if (!of_device_is_compatible(np, auxdata->compatible))
+			continue;
+		if (!auxdata->phys_addr && !auxdata->name) {
+			pr_debug("%s: compatible match\n", np->full_name);
+			return auxdata;
+		}
 	}
 
 	return NULL;

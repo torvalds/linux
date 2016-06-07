@@ -396,7 +396,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @me_clients  : list of FW clients
  * @me_clients_map : FW clients bit map
  * @host_clients_map : host clients id pool
- * @me_client_index : last FW client index in enumeration
  *
  * @allow_fixed_address: allow user space to connect a fixed client
  * @override_fixed_address: force allow fixed address behavior
@@ -486,7 +485,6 @@ struct mei_device {
 	struct list_head me_clients;
 	DECLARE_BITMAP(me_clients_map, MEI_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);
-	unsigned long me_client_index;
 
 	bool allow_fixed_address;
 	bool override_fixed_address;
@@ -703,6 +701,8 @@ static inline int mei_fw_status(struct mei_device *dev,
 bool mei_hbuf_acquire(struct mei_device *dev);
 
 bool mei_write_is_idle(struct mei_device *dev);
+
+void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr);
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 int mei_dbgfs_register(struct mei_device *dev, const char *name);

@@ -268,3 +268,29 @@ config USB_CHAOSKEY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called chaoskey.
+
+config UCSI
+	tristate "USB Type-C Connector System Software Interface driver"
+	depends on ACPI
+	help
+	  UCSI driver is meant to be used as a convenience tool for desktop and
+	  server systems that are not equipped to handle USB in device mode. It
+	  will always select USB host role for the USB Type-C ports on systems
+	  that provide UCSI interface.
+
+	  USB Type-C Connector System Software Interface (UCSI) is a
+	  specification for an interface that allows the Operating System to
+	  control the USB Type-C ports on a system. Things the need controlling
+	  include the USB Data Role (host or device), and when USB Power
+	  Delivery is supported, the Power Role (source or sink). With USB
+	  Type-C connectors, when two dual role capable devices are attached
+	  together, the data role is selected randomly. Therefore it is
+	  important to give the OS a way to select the role. Otherwise the user
+	  would have to unplug and replug in order in order to attempt to swap
+	  the data and power roles.
+
+	  The UCSI specification can be downloaded from:
+	  http://www.intel.com/content/www/us/en/io/universal-serial-bus/usb-type-c-ucsi-spec.html
+
+	  To compile the driver as a module, choose M here: the module will be
+	  called ucsi.

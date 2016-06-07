@@ -24,17 +24,19 @@ soc0: soc@000000000 {
 	};
 
 	dsaf0: dsa@c7000000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		compatible = "hisilicon,hns-dsaf-v1";
 		mode = "6port-16rss";
 		interrupt-parent = <&mbigen_dsa>;
 
-		reg = <0x0 0xC0000000 0x0 0x420000
-		       0x0 0xC2000000 0x0 0x300000
-		       0x0 0xc5000000 0x0 0x890000
+		reg = <0x0 0xc5000000 0x0 0x890000
 		       0x0 0xc7000000 0x0 0x60000
 		       >;
 
-		phy-handle = <0 0 0 0 &soc0_phy0 &soc0_phy1 0 0>;
+		reg-names = "ppe-base","dsaf-base";
+		subctrl-syscon = <&dsaf_subctrl>;
+		reset-field-offset = <0>;
 		interrupts = <
 			/* [14] ge fifo err 8 / xge 6**/
 			149 0x4 150 0x4 151 0x4 152 0x4
@@ -122,12 +124,31 @@ soc0: soc@000000000 {
 		buf-size = <4096>;
 		desc-num = <1024>;
 		dma-coherent;
+
+		port@0 {
+			reg = <0>;
+			serdes-syscon = <&serdes_ctrl0>;
+		};
+		port@1 {
+			reg = <1>;
+			serdes-syscon = <&serdes_ctrl0>;
+		};
+		port@4 {
+			reg = <4>;
+			phy-handle = <&soc0_phy0>;
+			serdes-syscon = <&serdes_ctrl1>;
+		};
+		port@5 {
+			reg = <5>;
+			phy-handle = <&soc0_phy1>;
+			serdes-syscon = <&serdes_ctrl1>;
+		};
 	};
 
 	eth0: ethernet@0{
 		compatible = "hisilicon,hns-nic-v1";
 		ae-handle = <&dsaf0>;
-		port-id = <0>;
+		port-idx-in-ae = <0>;
 		local-mac-address = [00 00 00 01 00 58];
 		status = "disabled";
 		dma-coherent;
@@ -135,55 +156,24 @@ soc0: soc@000000000 {
 	eth1: ethernet@1{
 		compatible = "hisilicon,hns-nic-v1";
 		ae-handle = <&dsaf0>;
-		port-id = <1>;
+		port-idx-in-ae = <1>;
+		local-mac-address = [00 00 00 01 00 59];
 		status = "disabled";
 		dma-coherent;
 	};
-	eth2: ethernet@2{
+	eth2: ethernet@4{
 		compatible = "hisilicon,hns-nic-v1";
 		ae-handle = <&dsaf0>;
-		port-id = <2>;
+		port-idx-in-ae = <4>;
 		local-mac-address = [00 00 00 01 00 5a];
 		status = "disabled";
 		dma-coherent;
 	};
-	eth3: ethernet@3{
+	eth3: ethernet@5{
 		compatible = "hisilicon,hns-nic-v1";
 		ae-handle = <&dsaf0>;
-		port-id = <3>;
+		port-idx-in-ae = <5>;
 		local-mac-address = [00 00 00 01 00 5b];
-		status = "disabled";
-		dma-coherent;
-	};
-	eth4: ethernet@4{
-		compatible = "hisilicon,hns-nic-v1";
-		ae-handle = <&dsaf0>;
-		port-id = <4>;
-		local-mac-address = [00 00 00 01 00 5c];
-		status = "disabled";
-		dma-coherent;
-	};
-	eth5: ethernet@5{
-		compatible = "hisilicon,hns-nic-v1";
-		ae-handle = <&dsaf0>;
-		port-id = <5>;
-		local-mac-address = [00 00 00 01 00 5d];
-		status = "disabled";
-		dma-coherent;
-	};
-	eth6: ethernet@6{
-		compatible = "hisilicon,hns-nic-v1";
-		ae-handle = <&dsaf0>;
-		port-id = <6>;
-		local-mac-address = [00 00 00 01 00 5e];
-		status = "disabled";
-		dma-coherent;
-	};
-	eth7: ethernet@7{
-		compatible = "hisilicon,hns-nic-v1";
-		ae-handle = <&dsaf0>;
-		port-id = <7>;
-		local-mac-address = [00 00 00 01 00 5f];
 		status = "disabled";
 		dma-coherent;
 	};

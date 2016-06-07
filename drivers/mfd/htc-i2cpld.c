@@ -227,8 +227,7 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
 static void htcpld_chip_set(struct gpio_chip *chip, unsigned offset, int val)
 {
 	struct i2c_client *client;
-	struct htcpld_chip *chip_data =
-		container_of(chip, struct htcpld_chip, chip_out);
+	struct htcpld_chip *chip_data = gpiochip_get_data(chip);
 	unsigned long flags;
 
 	client = chip_data->client;
@@ -257,14 +256,12 @@ static void htcpld_chip_set_ni(struct work_struct *work)
 
 static int htcpld_chip_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct htcpld_chip *chip_data;
+	struct htcpld_chip *chip_data = gpiochip_get_data(chip);
 	u8 cache;
 
 	if (!strncmp(chip->label, "htcpld-out", 10)) {
-		chip_data = container_of(chip, struct htcpld_chip, chip_out);
 		cache = chip_data->cache_out;
 	} else if (!strncmp(chip->label, "htcpld-in", 9)) {
-		chip_data = container_of(chip, struct htcpld_chip, chip_in);
 		cache = chip_data->cache_in;
 	} else
 		return -EINVAL;
@@ -291,9 +288,7 @@ static int htcpld_direction_input(struct gpio_chip *chip,
 
 static int htcpld_chip_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct htcpld_chip *chip_data;
-
-	chip_data = container_of(chip, struct htcpld_chip, chip_in);
+	struct htcpld_chip *chip_data = gpiochip_get_data(chip);
 
 	if (offset < chip_data->nirqs)
 		return chip_data->irq_start + offset;
@@ -451,14 +446,14 @@ static int htcpld_register_chip_gpio(
 	gpio_chip->ngpio           = plat_chip_data->num_gpios;
 
 	/* Add the GPIO chips */
-	ret = gpiochip_add(&(chip->chip_out));
+	ret = gpiochip_add_data(&(chip->chip_out), chip);
 	if (ret) {
 		dev_warn(dev, "Unable to register output GPIOs for 0x%x: %d\n",
 			 plat_chip_data->addr, ret);
 		return ret;
 	}
 
-	ret = gpiochip_add(&(chip->chip_in));
+	ret = gpiochip_add_data(&(chip->chip_in), chip);
 	if (ret) {
 		dev_warn(dev, "Unable to register input GPIOs for 0x%x: %d\n",
 			 plat_chip_data->addr, ret);

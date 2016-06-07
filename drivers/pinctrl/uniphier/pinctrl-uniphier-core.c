@@ -115,7 +115,7 @@ static const struct pinctrl_ops uniphier_pctlops = {
 	.pin_dbg_show = uniphier_pctl_pin_dbg_show,
 #endif
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int uniphier_conf_pin_bias_get(struct pinctrl_dev *pctldev,
@@ -665,7 +665,7 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 	desc->pmxops = &uniphier_pmxops;
 	desc->confops = &uniphier_confops;
 
-	priv->pctldev = pinctrl_register(desc, dev, priv);
+	priv->pctldev = devm_pinctrl_register(dev, desc, priv);
 	if (IS_ERR(priv->pctldev)) {
 		dev_err(dev, "failed to register UniPhier pinctrl driver\n");
 		return PTR_ERR(priv->pctldev);
@@ -676,13 +676,3 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(uniphier_pinctrl_probe);
-
-int uniphier_pinctrl_remove(struct platform_device *pdev)
-{
-	struct uniphier_pinctrl_priv *priv = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(priv->pctldev);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(uniphier_pinctrl_remove);

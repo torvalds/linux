@@ -7,7 +7,7 @@ Required properties:
 - compatible: Should be "xlnx,axi-dma-1.00.a"
 - #dma-cells: Should be <1>, see "dmas" property below
 - reg: Should contain DMA registers location and length.
-- dma-channel child node: Should have atleast one channel and can have upto
+- dma-channel child node: Should have at least one channel and can have up to
 	two channels per device. This node specifies the properties of each
 	DMA channel (see child node properties below).
 

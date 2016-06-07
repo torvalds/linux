@@ -151,7 +151,7 @@ sn_io_slot_fixup(struct pci_dev *dev)
 {
 	int idx;
 	struct resource *res;
-	unsigned long addr, size;
+	unsigned long size;
 	struct pcidev_info *pcidev_info;
 	struct sn_irq_info *sn_irq_info;
 	int status;
@@ -186,7 +186,7 @@ sn_io_slot_fixup(struct pci_dev *dev)
 			continue;
 
 		res->start = pcidev_info->pdi_pio_mapped_addr[idx];
-		res->end = addr + size;
+		res->end = res->start + size;
 
 		/*
 		 * if it's already in the device structure, remove it before

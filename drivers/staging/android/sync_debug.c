@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/anon_inodes.h>
 #include <linux/time64.h>
+#include <linux/sync_file.h>
 #include "sw_sync.h"
 
 #ifdef CONFIG_DEBUG_FS
@@ -262,8 +263,7 @@ static long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj,
 		goto err;
 	}
 
-	data.name[sizeof(data.name) - 1] = '\0';
-	sync_file = sync_file_create(data.name, fence);
+	sync_file = sync_file_create(fence);
 	if (!sync_file) {
 		fence_put(fence);
 		err = -ENOMEM;
@@ -272,12 +272,12 @@ static long sw_sync_ioctl_create_fence(struct sw_sync_timeline *obj,
 
 	data.fence = fd;
 	if (copy_to_user((void __user *)arg, &data, sizeof(data))) {
-		sync_file_put(sync_file);
+		fput(sync_file->file);
 		err = -EFAULT;
 		goto err;
 	}
 
-	sync_file_install(sync_file, fd);
+	fd_install(fd, sync_file->file);
 
 	return 0;
 

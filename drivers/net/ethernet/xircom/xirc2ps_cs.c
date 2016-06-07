@@ -1199,7 +1199,7 @@ xirc2ps_tx_timeout_task(struct work_struct *work)
 	struct net_device *dev = local->dev;
     /* reset the card */
     do_reset(dev,1);
-    dev->trans_start = jiffies; /* prevent tx timeout */
+    netif_trans_update(dev); /* prevent tx timeout */
     netif_wake_queue(dev);
 }
 

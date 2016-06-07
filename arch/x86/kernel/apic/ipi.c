@@ -230,7 +230,7 @@ int safe_smp_processor_id(void)
 {
 	int apicid, cpuid;
 
-	if (!cpu_has_apic)
+	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return 0;
 
 	apicid = hard_smp_processor_id();

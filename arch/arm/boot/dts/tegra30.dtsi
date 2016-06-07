@@ -230,7 +230,7 @@
 		reg = <0x50040600 0x20>;
 		interrupt-parent = <&intc>;
 		interrupts = <GIC_PPI 13
-			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&tegra_car TEGRA30_CLK_TWD>;
 	};
 
@@ -371,7 +371,7 @@
 	 * driver and APB DMA based serial driver for higher baudrate
 	 * and performace. To enable the 8250 based driver, the compatible
 	 * is "nvidia,tegra30-uart", "nvidia,tegra20-uart" and to enable
-	 * the APB DMA based serial driver, the comptible is
+	 * the APB DMA based serial driver, the compatible is
 	 * "nvidia,tegra30-hsuart", "nvidia,tegra20-hsuart".
 	 */
 	uarta: serial@70006000 {

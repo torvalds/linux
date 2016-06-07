@@ -30,6 +30,14 @@ config POWER_RESET_AT91_RESET
 	  This driver supports restart for Atmel AT91SAM9 and SAMA5
 	  SoCs
 
+config POWER_RESET_AT91_SAMA5D2_SHDWC
+	tristate "Atmel AT91 SAMA5D2-Compatible shutdown controller driver"
+	depends on ARCH_AT91 || COMPILE_TEST
+	default SOC_SAMA5
+	help
+	  This driver supports the alternate shutdown controller for some Atmel
+	  SAMA5 SoCs. It is present for example on SAMA5D2 SoC.
+
 config POWER_RESET_AXXIA
 	bool "LSI Axxia reset driver"
 	depends on ARCH_AXXIA

@@ -436,7 +436,7 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
 	 * firmware from sending ghost packets.
 	 */
 	channelcookie = new_channel;
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
+	if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ)
 		channelcookie |= B43_SHM_SH_CHAN_5GHZ;
 	/* FIXME: set 40Mhz flag if required */
 	if (0)

@@ -1,6 +1,6 @@
 Cirrus Logic/Wolfson Microelectronics Arizona class audio SoCs
 
-These devices are audio SoCs with extensive digital capabilites and a range
+These devices are audio SoCs with extensive digital capabilities and a range
 of analogue I/O.
 
 Required properties:

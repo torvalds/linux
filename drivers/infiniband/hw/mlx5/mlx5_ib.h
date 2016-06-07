@@ -70,6 +70,8 @@ enum {
 enum mlx5_ib_mmap_cmd {
 	MLX5_IB_MMAP_REGULAR_PAGE		= 0,
 	MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES	= 1,
+	MLX5_IB_MMAP_WC_PAGE			= 2,
+	MLX5_IB_MMAP_NC_PAGE			= 3,
 	/* 5 is chosen in order to be compatible with old versions of libmlx5 */
 	MLX5_IB_MMAP_CORE_CLOCK			= 5,
 };
@@ -356,6 +358,7 @@ enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_SIGNATURE_HANDLING           = 1 << 5,
 	/* QP uses 1 as its source QP number */
 	MLX5_IB_QP_SQPN_QP1			= 1 << 6,
+	MLX5_IB_QP_CAP_SCATTER_FCS		= 1 << 7,
 };
 
 struct mlx5_umr_wr {
@@ -712,9 +715,8 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr);
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
 			       u32 max_num_sg);
-int mlx5_ib_map_mr_sg(struct ib_mr *ibmr,
-		      struct scatterlist *sg,
-		      int sg_nents);
+int mlx5_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		      unsigned int *sg_offset);
 int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 			const struct ib_mad_hdr *in, size_t in_mad_size,

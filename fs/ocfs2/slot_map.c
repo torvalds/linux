@@ -535,12 +535,8 @@ void ocfs2_put_slot(struct ocfs2_super *osb)
 	spin_unlock(&osb->osb_lock);
 
 	status = ocfs2_update_disk_slot(osb, si, slot_num);
-	if (status < 0) {
+	if (status < 0)
 		mlog_errno(status);
-		goto bail;
-	}
 
-bail:
 	ocfs2_free_slot_info(osb);
 }
-

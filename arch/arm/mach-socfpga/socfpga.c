@@ -66,6 +66,16 @@ static void __init socfpga_init_irq(void)
 		socfpga_init_ocram_ecc();
 }
 
+static void __init socfpga_arria10_init_irq(void)
+{
+	irqchip_init();
+	socfpga_sysmgr_init();
+	if (IS_ENABLED(CONFIG_EDAC_ALTERA_L2C))
+		socfpga_init_arria10_l2_ecc();
+	if (IS_ENABLED(CONFIG_EDAC_ALTERA_OCRAM))
+		socfpga_init_arria10_ocram_ecc();
+}
+
 static void socfpga_cyclone5_restart(enum reboot_mode mode, const char *cmd)
 {
 	u32 temp;
@@ -113,7 +123,7 @@ static const char *altera_a10_dt_match[] = {
 DT_MACHINE_START(SOCFPGA_A10, "Altera SOCFPGA Arria10")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.init_irq	= socfpga_init_irq,
+	.init_irq	= socfpga_arria10_init_irq,
 	.restart	= socfpga_arria10_restart,
 	.dt_compat	= altera_a10_dt_match,
 MACHINE_END

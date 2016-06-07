@@ -89,6 +89,7 @@ int class_parse_nid_quiet(char *buf, lnet_nid_t *nid, char **endh);
 
 /* Prefixes for parameters handled by obd's proc methods (XXX_process_config) */
 #define PARAM_OST		  "ost."
+#define PARAM_OSD		"osd."
 #define PARAM_OSC		  "osc."
 #define PARAM_MDT		  "mdt."
 #define PARAM_MDD		  "mdd."
