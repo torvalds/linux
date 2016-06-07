@@ -135,9 +135,7 @@ struct acpi_nfit_desc {
 	struct nvdimm_bus_descriptor nd_desc;
 	struct acpi_table_header acpi_header;
 	struct acpi_nfit_header *nfit;
-	struct mutex spa_map_mutex;
 	struct mutex init_mutex;
-	struct list_head spa_maps;
 	struct list_head memdevs;
 	struct list_head flushes;
 	struct list_head dimms;
@@ -187,25 +185,6 @@ struct nfit_blk {
 	void __iomem *nvdimm_flush;
 	u32 dimm_flags;
 };
-
-enum spa_map_type {
-	SPA_MAP_CONTROL,
-	SPA_MAP_APERTURE,
-};
-
-struct nfit_spa_mapping {
-	struct acpi_nfit_desc *acpi_desc;
-	struct acpi_nfit_system_address *spa;
-	struct list_head list;
-	struct kref kref;
-	enum spa_map_type type;
-	struct nd_blk_addr addr;
-};
-
-static inline struct nfit_spa_mapping *to_spa_map(struct kref *kref)
-{
-	return container_of(kref, struct nfit_spa_mapping, kref);
-}
 
 static inline struct acpi_nfit_memory_map *__to_nfit_memdev(
 		struct nfit_mem *nfit_mem)

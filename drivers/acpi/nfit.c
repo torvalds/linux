@@ -1509,126 +1509,6 @@ static int acpi_nfit_blk_region_do_io(struct nd_blk_region *ndbr,
 	return rc;
 }
 
-static void nfit_spa_mapping_release(struct kref *kref)
-{
-	struct nfit_spa_mapping *spa_map = to_spa_map(kref);
-	struct acpi_nfit_system_address *spa = spa_map->spa;
-	struct acpi_nfit_desc *acpi_desc = spa_map->acpi_desc;
-
-	WARN_ON(!mutex_is_locked(&acpi_desc->spa_map_mutex));
-	dev_dbg(acpi_desc->dev, "%s: SPA%d\n", __func__, spa->range_index);
-	if (spa_map->type == SPA_MAP_APERTURE)
-		memunmap((void __force *)spa_map->addr.aperture);
-	else
-		iounmap(spa_map->addr.base);
-	release_mem_region(spa->address, spa->length);
-	list_del(&spa_map->list);
-	kfree(spa_map);
-}
-
-static struct nfit_spa_mapping *find_spa_mapping(
-		struct acpi_nfit_desc *acpi_desc,
-		struct acpi_nfit_system_address *spa)
-{
-	struct nfit_spa_mapping *spa_map;
-
-	WARN_ON(!mutex_is_locked(&acpi_desc->spa_map_mutex));
-	list_for_each_entry(spa_map, &acpi_desc->spa_maps, list)
-		if (spa_map->spa == spa)
-			return spa_map;
-
-	return NULL;
-}
-
-static void nfit_spa_unmap(struct acpi_nfit_desc *acpi_desc,
-		struct acpi_nfit_system_address *spa)
-{
-	struct nfit_spa_mapping *spa_map;
-
-	mutex_lock(&acpi_desc->spa_map_mutex);
-	spa_map = find_spa_mapping(acpi_desc, spa);
-
-	if (spa_map)
-		kref_put(&spa_map->kref, nfit_spa_mapping_release);
-	mutex_unlock(&acpi_desc->spa_map_mutex);
-}
-
-static void __iomem *__nfit_spa_map(struct acpi_nfit_desc *acpi_desc,
-		struct acpi_nfit_system_address *spa, enum spa_map_type type)
-{
-	resource_size_t start = spa->address;
-	resource_size_t n = spa->length;
-	struct nfit_spa_mapping *spa_map;
-	struct resource *res;
-
-	WARN_ON(!mutex_is_locked(&acpi_desc->spa_map_mutex));
-
-	spa_map = find_spa_mapping(acpi_desc, spa);
-	if (spa_map) {
-		kref_get(&spa_map->kref);
-		return spa_map->addr.base;
-	}
-
-	spa_map = kzalloc(sizeof(*spa_map), GFP_KERNEL);
-	if (!spa_map)
-		return NULL;
-
-	INIT_LIST_HEAD(&spa_map->list);
-	spa_map->spa = spa;
-	kref_init(&spa_map->kref);
-	spa_map->acpi_desc = acpi_desc;
-
-	res = request_mem_region(start, n, dev_name(acpi_desc->dev));
-	if (!res)
-		goto err_mem;
-
-	spa_map->type = type;
-	if (type == SPA_MAP_APERTURE)
-		spa_map->addr.aperture = (void __pmem *)memremap(start, n,
-							ARCH_MEMREMAP_PMEM);
-	else
-		spa_map->addr.base = ioremap_nocache(start, n);
-
-
-	if (!spa_map->addr.base)
-		goto err_map;
-
-	list_add_tail(&spa_map->list, &acpi_desc->spa_maps);
-	return spa_map->addr.base;
-
- err_map:
-	release_mem_region(start, n);
- err_mem:
-	kfree(spa_map);
-	return NULL;
-}
-
-/**
- * nfit_spa_map - interleave-aware managed-mappings of acpi_nfit_system_address ranges
- * @nvdimm_bus: NFIT-bus that provided the spa table entry
- * @nfit_spa: spa table to map
- * @type: aperture or control region
- *
- * In the case where block-data-window apertures and
- * dimm-control-regions are interleaved they will end up sharing a
- * single request_mem_region() + ioremap() for the address range.  In
- * the style of devm nfit_spa_map() mappings are automatically dropped
- * when all region devices referencing the same mapping are disabled /
- * unbound.
- */
-static __maybe_unused void __iomem *nfit_spa_map(
-		struct acpi_nfit_desc *acpi_desc,
-		struct acpi_nfit_system_address *spa, enum spa_map_type type)
-{
-	void __iomem *iomem;
-
-	mutex_lock(&acpi_desc->spa_map_mutex);
-	iomem = __nfit_spa_map(acpi_desc, spa, type);
-	mutex_unlock(&acpi_desc->spa_map_mutex);
-
-	return iomem;
-}
-
 static int nfit_blk_init_interleave(struct nfit_blk_mmio *mmio,
 		struct acpi_nfit_interleave *idt, u16 interleave_ways)
 {
@@ -1771,29 +1651,6 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	}
 
 	return 0;
-}
-
-static void acpi_nfit_blk_region_disable(struct nvdimm_bus *nvdimm_bus,
-		struct device *dev)
-{
-	struct nvdimm_bus_descriptor *nd_desc = to_nd_desc(nvdimm_bus);
-	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
-	struct nd_blk_region *ndbr = to_nd_blk_region(dev);
-	struct nfit_blk *nfit_blk = nd_blk_region_provider_data(ndbr);
-	int i;
-
-	if (!nfit_blk)
-		return; /* never enabled */
-
-	/* auto-free BLK spa mappings */
-	for (i = 0; i < 2; i++) {
-		struct nfit_blk_mmio *mmio = &nfit_blk->mmio[i];
-
-		if (mmio->addr.base)
-			nfit_spa_unmap(acpi_desc, mmio->spa);
-	}
-	nd_blk_region_set_provider_data(ndbr, NULL);
-	/* devm will free nfit_blk */
 }
 
 static int ars_get_cap(struct acpi_nfit_desc *acpi_desc,
@@ -1969,7 +1826,6 @@ static int acpi_nfit_init_mapping(struct acpi_nfit_desc *acpi_desc,
 		ndr_desc->num_mappings = blk_valid;
 		ndbr_desc = to_blk_region_desc(ndr_desc);
 		ndbr_desc->enable = acpi_nfit_blk_region_enable;
-		ndbr_desc->disable = acpi_nfit_blk_region_disable;
 		ndbr_desc->do_io = acpi_desc->blk_do_io;
 		nfit_spa->nd_region = nvdimm_blk_region_create(acpi_desc->nvdimm_bus,
 				ndr_desc);
@@ -2509,7 +2365,6 @@ void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 	nd_desc->clear_to_send = acpi_nfit_clear_to_send;
 	nd_desc->attr_groups = acpi_nfit_attribute_groups;
 
-	INIT_LIST_HEAD(&acpi_desc->spa_maps);
 	INIT_LIST_HEAD(&acpi_desc->spas);
 	INIT_LIST_HEAD(&acpi_desc->dcrs);
 	INIT_LIST_HEAD(&acpi_desc->bdws);
@@ -2517,7 +2372,6 @@ void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev)
 	INIT_LIST_HEAD(&acpi_desc->flushes);
 	INIT_LIST_HEAD(&acpi_desc->memdevs);
 	INIT_LIST_HEAD(&acpi_desc->dimms);
-	mutex_init(&acpi_desc->spa_map_mutex);
 	mutex_init(&acpi_desc->init_mutex);
 	INIT_WORK(&acpi_desc->work, acpi_nfit_scrub);
 }

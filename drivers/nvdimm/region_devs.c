@@ -433,8 +433,6 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 
 		if (is_nd_pmem(dev))
 			return;
-
-		to_nd_blk_region(dev)->disable(nvdimm_bus, dev);
 	}
 	if (dev->parent && is_nd_blk(dev->parent) && probe) {
 		nd_region = to_nd_region(dev->parent);
@@ -698,7 +696,6 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 		if (ndbr) {
 			nd_region = &ndbr->nd_region;
 			ndbr->enable = ndbr_desc->enable;
-			ndbr->disable = ndbr_desc->disable;
 			ndbr->do_io = ndbr_desc->do_io;
 		}
 		region_buf = ndbr;
