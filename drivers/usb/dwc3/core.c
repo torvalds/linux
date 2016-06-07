@@ -975,9 +975,13 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	if (IS_ENABLED(CONFIG_USB_DWC3_HOST))
+	if (IS_ENABLED(CONFIG_USB_DWC3_HOST) &&
+			(dwc->dr_mode == USB_DR_MODE_OTG ||
+					dwc->dr_mode == USB_DR_MODE_UNKNOWN))
 		dwc->dr_mode = USB_DR_MODE_HOST;
-	else if (IS_ENABLED(CONFIG_USB_DWC3_GADGET))
+	else if (IS_ENABLED(CONFIG_USB_DWC3_GADGET) &&
+			(dwc->dr_mode == USB_DR_MODE_OTG ||
+					dwc->dr_mode == USB_DR_MODE_UNKNOWN))
 		dwc->dr_mode = USB_DR_MODE_PERIPHERAL;
 
 	if (dwc->dr_mode == USB_DR_MODE_UNKNOWN)
