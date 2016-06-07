@@ -268,7 +268,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 vblank_cleanup:
-	drm_crtc_vblank_put(&amdgpu_crtc->base);
+	drm_crtc_vblank_put(crtc);
 
 pflip_cleanup:
 	if (unlikely(amdgpu_bo_reserve(new_rbo, false) != 0)) {
