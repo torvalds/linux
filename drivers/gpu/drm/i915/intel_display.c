@@ -16267,14 +16267,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	intel_teardown_gmbus(dev);
 }
 
-/*
- * Return which encoder is currently attached for connector.
- */
-struct drm_encoder *intel_best_encoder(struct drm_connector *connector)
-{
-	return &intel_attached_encoder(connector)->base;
-}
-
 void intel_connector_attach_encoder(struct intel_connector *connector,
 				    struct intel_encoder *encoder)
 {
