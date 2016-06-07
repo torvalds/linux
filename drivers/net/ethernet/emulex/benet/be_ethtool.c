@@ -793,6 +793,11 @@ static void be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 static int be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->pdev->dev;
+	struct be_dma_mem cmd;
+	u8 mac[ETH_ALEN];
+	bool enable;
+	int status;
 
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EOPNOTSUPP;
@@ -802,12 +807,32 @@ static int be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 		return -EOPNOTSUPP;
 	}
 
-	if (wol->wolopts & WAKE_MAGIC)
-		adapter->wol_en = true;
-	else
-		adapter->wol_en = false;
+	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
+	cmd.va = dma_zalloc_coherent(dev, cmd.size, &cmd.dma, GFP_KERNEL);
+	if (!cmd.va)
+		return -ENOMEM;
 
-	return 0;
+	eth_zero_addr(mac);
+
+	enable = wol->wolopts & WAKE_MAGIC;
+	if (enable)
+		ether_addr_copy(mac, adapter->netdev->dev_addr);
+
+	status = be_cmd_enable_magic_wol(adapter, mac, &cmd);
+	if (status) {
+		dev_err(dev, "Could not set Wake-on-lan mac address\n");
+		status = be_cmd_status(status);
+		goto err;
+	}
+
+	pci_enable_wake(adapter->pdev, PCI_D3hot, enable);
+	pci_enable_wake(adapter->pdev, PCI_D3cold, enable);
+
+	adapter->wol_en = enable ? true : false;
+
+err:
+	dma_free_coherent(dev, cmd.size, cmd.va, cmd.dma);
+	return status;
 }
 
 static int be_test_ddr_dma(struct be_adapter *adapter)

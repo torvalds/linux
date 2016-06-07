@@ -97,7 +97,8 @@
 					 * SURF/DPDK
 					 */
 
-#define MAX_RSS_IFACES		15
+#define MAX_PORT_RSS_TABLES	15
+#define MAX_NIC_FUNCS		16
 #define MAX_RX_QS		32
 #define MAX_EVT_QS		32
 #define MAX_TX_QS		32
@@ -444,6 +445,17 @@ struct be_resources {
 	u16 max_evt_qs;
 	u32 if_cap_flags;
 	u32 vf_if_cap_flags;	/* VF if capability flags */
+	u32 flags;
+	/* Calculated PF Pool's share of RSS Tables. This is not enforced by
+	 * the FW, but is a self-imposed driver limitation.
+	 */
+	u16 max_rss_tables;
+};
+
+/* These are port-wide values */
+struct be_port_resources {
+	u16 max_vfs;
+	u16 nic_pfs;
 };
 
 #define be_is_os2bmc_enabled(adapter) (adapter->flags & BE_FLAGS_OS2BMC)
@@ -634,6 +646,8 @@ struct be_adapter {
 #define be_max_rxqs(adapter)		(adapter->res.max_rx_qs)
 #define be_max_eqs(adapter)		(adapter->res.max_evt_qs)
 #define be_if_cap_flags(adapter)	(adapter->res.if_cap_flags)
+#define be_max_pf_pool_rss_tables(adapter)	\
+				(adapter->pool_res.max_rss_tables)
 
 static inline u16 be_max_qs(struct be_adapter *adapter)
 {
