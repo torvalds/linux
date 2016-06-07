@@ -2186,60 +2186,13 @@ static int fm10k_resume(struct pci_dev *pdev)
 	/* refresh hw_addr in case it was dropped */
 	hw->hw_addr = interface->uc_addr;
 
-	/* reset hardware to known state */
-	err = hw->mac.ops.init_hw(&interface->hw);
-	if (err) {
-		dev_err(&pdev->dev, "init_hw failed: %d\n", err);
+	err = fm10k_handle_resume(interface);
+	if (err)
 		return err;
-	}
-
-	/* reset statistics starting values */
-	hw->mac.ops.rebind_hw_stats(hw, &interface->stats);
-
-	rtnl_lock();
-
-	err = fm10k_init_queueing_scheme(interface);
-	if (err)
-		goto err_queueing_scheme;
-
-	err = fm10k_mbx_request_irq(interface);
-	if (err)
-		goto err_mbx_irq;
-
-	err = fm10k_hw_ready(interface);
-	if (err)
-		goto err_open;
-
-	err = netif_running(netdev) ? fm10k_open(netdev) : 0;
-	if (err)
-		goto err_open;
-
-	rtnl_unlock();
-
-	/* assume host is not ready, to prevent race with watchdog in case we
-	 * actually don't have connection to the switch
-	 */
-	interface->host_ready = false;
-	fm10k_watchdog_host_not_ready(interface);
-
-	/* clear the service task disable bit to allow service task to start */
-	clear_bit(__FM10K_SERVICE_DISABLE, &interface->state);
-	fm10k_service_event_schedule(interface);
-
-	/* restore SR-IOV interface */
-	fm10k_iov_resume(pdev);
 
 	netif_device_attach(netdev);
 
 	return 0;
-err_open:
-	fm10k_mbx_free_irq(interface);
-err_mbx_irq:
-	fm10k_clear_queueing_scheme(interface);
-err_queueing_scheme:
-	rtnl_unlock();
-
-	return err;
 }
 
 /**
@@ -2259,27 +2212,7 @@ static int fm10k_suspend(struct pci_dev *pdev,
 
 	netif_device_detach(netdev);
 
-	fm10k_iov_suspend(pdev);
-
-	/* the watchdog tasks may read registers, which will appear like a
-	 * surprise-remove event once the PCI device is disabled. This will
-	 * cause us to close the netdevice, so we don't retain the open/closed
-	 * state post-resume. Prevent this by disabling the service task while
-	 * suspended, until we actually resume.
-	 */
-	set_bit(__FM10K_SERVICE_DISABLE, &interface->state);
-	cancel_work_sync(&interface->service_task);
-
-	rtnl_lock();
-
-	if (netif_running(netdev))
-		fm10k_close(netdev);
-
-	fm10k_mbx_free_irq(interface);
-
-	fm10k_clear_queueing_scheme(interface);
-
-	rtnl_unlock();
+	fm10k_prepare_suspend(interface);
 
 	err = pci_save_state(pdev);
 	if (err)
